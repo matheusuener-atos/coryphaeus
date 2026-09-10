@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from pydantic import BaseModel
 
 import requests
 
+import pastas
 import recursos
 from classify import Classificacao, ROTULOS, classificar_acervo
 from extract import SUPPORTED_SUFFIXES, index_all_contracts
@@ -38,7 +40,7 @@ from organize import (
     listar_diarios,
     montar_plano,
 )
-from scan import escanear, raizes_sugeridas
+from scan import escanear
 from search import ContractSearcher
 
 BASE_DIR = Path(__file__).parent.parent
@@ -65,6 +67,8 @@ class Estado:
         # Conversas persistidas e o interruptor "ir devagar".
         self.trabalhos = Trabalhos(TRABALHOS_DIR)
         self.devagar = False
+        # Levantado quando a pessoa pede para parar a leitura em andamento.
+        self.cancelar = threading.Event()
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -499,12 +503,25 @@ class PedidoDesfazer(BaseModel):
 @app.get("/api/organizar/opcoes")
 def organizar_opcoes() -> dict:
     return {
-        "raizes": raizes_sugeridas(),
         "padroes": PADROES_SUGERIDOS,
         "tipos": [{"valor": k, "rotulo": v} for k, v in ROTULOS.items()],
         "destino_sugerido": str(Path.home() / "Documentos" / "Acervo PAULUS"),
         "diarios": listar_diarios(DIARIOS_DIR),
     }
+
+
+@app.get("/api/pastas")
+def navegar_pastas(caminho: str = "") -> dict:
+    """Um nivel do seletor de pastas. Sem caminho, mostra unidades e atalhos."""
+    dados = pastas.listar(caminho)
+    dados["migalhas"] = pastas.migalhas(caminho)
+    return dados
+
+
+@app.post("/api/organizar/cancelar")
+def organizar_cancelar() -> dict:
+    estado.cancelar.set()
+    return {"cancelando": True}
 
 
 @app.post("/api/organizar/escanear")
@@ -521,13 +538,42 @@ def organizar_escanear(payload: Escaneamento) -> dict:
         {"path": a.path, "nome": a.nome, "pasta": a.pasta, "suffix": a.suffix, "mb": round(a.mb, 2)}
         for a in varredura.arquivos
     ]
+
+    # Quanto ja esta em cache define o tempo real da leitura: documento
+    # conhecido sai em milissegundos, novo custa ~8 a 25 s.
+    conhecidos = _quantos_em_cache([a["path"] for a in estado.encontrados])
+    novos = varredura.total - conhecidos
+
     return {
         "total": varredura.total,
+        "em_cache": conhecidos,
+        "novos": novos,
+        "minutos_min": round(novos * 8 / 60, 1),
+        "minutos_max": round(novos * 25 / 60, 1),
         "pastas_visitadas": varredura.pastas_visitadas,
         "sem_permissao": len(varredura.sem_permissao),
         "grandes": len(varredura.ignorados_por_tamanho),
         "arquivos": estado.encontrados[:500],
     }
+
+
+def _quantos_em_cache(caminhos: list[str]) -> int:
+    """Quantos desses documentos ja foram lidos antes (mesmo conteudo)."""
+    from classify import CacheClassificacao
+    from extract import file_sha1
+
+    cache = CacheClassificacao(CLASSIFICACAO_PATH)
+    if not cache.dados:
+        return 0
+
+    total = 0
+    for caminho in caminhos:
+        try:
+            if file_sha1(Path(caminho)) in cache.dados:
+                total += 1
+        except OSError:
+            continue
+    return total
 
 
 @app.post("/api/organizar/classificar")
@@ -550,6 +596,8 @@ def organizar_classificar() -> StreamingResponse:
         def progresso(indice: int, total: int, nome: str, do_cache: bool) -> None:
             fila.put({"indice": indice, "total": total, "nome": nome, "cache": do_cache})
 
+        estado.cancelar.clear()
+
         def rodar() -> None:
             try:
                 resultados = classificar_acervo(
@@ -557,9 +605,14 @@ def organizar_classificar() -> StreamingResponse:
                     cache_path=CLASSIFICACAO_PATH,
                     client=estado.client,
                     progresso=progresso,
+                    cancelado=estado.cancelar.is_set,
+                    antes_de_cada=lambda: recursos.esperar_maquina_livre(estado.devagar, limite_s=10),
                 )
                 estado.classificacoes = {r.arquivo: r for r in resultados}
-                fila.put({"__resultados__": [r.to_dict() for r in resultados]})
+                fila.put({
+                    "__resultados__": [r.to_dict() for r in resultados],
+                    "__parado__": estado.cancelar.is_set(),
+                })
             except Exception as exc:
                 fila.put({"__erro__": str(exc)})
             finally:
@@ -574,7 +627,10 @@ def organizar_classificar() -> StreamingResponse:
             if "__erro__" in item:
                 yield evento("erro", {"mensagem": item["__erro__"]})
             elif "__resultados__" in item:
-                yield evento("resultados", {"documentos": item["__resultados__"]})
+                yield evento(
+                    "resultados",
+                    {"documentos": item["__resultados__"], "parado": item.get("__parado__", False)},
+                )
             else:
                 yield evento("progresso", item)
 

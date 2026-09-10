@@ -426,18 +426,32 @@ def classificar_acervo(
     client: LlamaClient | None = None,
     usar_modelo: bool = True,
     progresso=None,
+    cancelado=None,
+    antes_de_cada=None,
 ) -> list[Classificacao]:
     """
     Classifica uma lista de arquivos, reaproveitando o cache.
 
     `progresso(indice, total, nome, do_cache)` e chamado a cada documento -
-    a varredura leva minutos e a interface precisa mostrar andamento.
+    a leitura leva minutos e a interface precisa mostrar andamento.
+
+    `cancelado()` e consultado antes de cada documento: um acervo grande leva
+    quase uma hora e a pessoa precisa poder desistir. O que ja foi classificado
+    ate ali e devolvido, e o cache guarda.
+
+    `antes_de_cada()` roda antes de cada documento - e onde entra o "ir devagar
+    quando eu usar o PC".
     """
     cache = CacheClassificacao(cache_path) if cache_path else None
     resultados: list[Classificacao] = []
     total = len(caminhos)
 
     for indice, caminho in enumerate(caminhos, start=1):
+        if cancelado and cancelado():
+            break
+        if antes_de_cada:
+            antes_de_cada()
+
         alvo = Path(caminho)
         try:
             sha = file_sha1(alvo)

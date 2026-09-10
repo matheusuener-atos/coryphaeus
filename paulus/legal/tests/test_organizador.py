@@ -37,7 +37,7 @@ from organize import (  # noqa: E402
     montar_plano,
     render_padrao,
 )
-from scan import escanear  # noqa: E402
+from scan import escanear, raizes_unicas  # noqa: E402
 
 _falhas: list[str] = []
 
@@ -107,6 +107,31 @@ def test_varredura() -> None:
 
 
 # --------------------------------------------------------------- classificacao
+
+
+def test_raizes_aninhadas() -> None:
+    """
+    Regressao: escolher uma pasta e uma subpasta dela fazia a varredura visitar
+    os mesmos arquivos duas vezes, e o plano proporia mover o mesmo documento
+    duas vezes.
+    """
+    print("\nraizes repetidas e aninhadas")
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        dentro = base / "clientes" / "acme"
+        dentro.mkdir(parents=True)
+        (dentro / "contrato.txt").write_text("x", encoding="utf-8")
+
+        checar(len(raizes_unicas([base, dentro])) == 1, "subpasta e absorvida pela pasta mae")
+        checar(len(raizes_unicas([base, base])) == 1, "mesma pasta duas vezes vira uma")
+        checar(len(raizes_unicas([base / "nao-existe"])) == 0, "pasta inexistente e descartada")
+
+        irma = base / "outra"
+        irma.mkdir()
+        checar(len(raizes_unicas([dentro, irma])) == 2, "pastas irmas continuam separadas")
+
+        varredura = escanear([base, dentro])
+        checar(varredura.total == 1, "arquivo em pasta aninhada e contado uma vez so")
 
 
 def test_heuristicas() -> None:
@@ -359,6 +384,7 @@ def main() -> int:
     print("=" * 55)
 
     test_varredura()
+    test_raizes_aninhadas()
     test_heuristicas()
     test_classificacao_documento()
     test_nomes_de_pasta()

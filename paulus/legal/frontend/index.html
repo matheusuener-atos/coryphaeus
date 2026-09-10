@@ -368,6 +368,48 @@
   .selo-conf.media { background: var(--attention-soft); color: var(--attention-ink); }
   .selo-conf.baixa { background: #fbeee6; color: var(--attention); }
 
+  /* seletor de pastas */
+  .navegador { border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; }
+  .migalhas {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+    padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--line);
+    font: 400 11.5px var(--mono);
+  }
+  .migalhas button {
+    border: none; background: none; padding: 2px 5px; border-radius: 5px;
+    font: inherit; color: var(--accent); cursor: pointer;
+  }
+  .migalhas button:hover { background: var(--accent-soft); color: var(--accent); }
+  .migalhas .sep { color: var(--ink-muted); }
+
+  .nav-lista { max-height: 260px; overflow-y: auto; background: var(--surface-1); }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 12px; border-bottom: 1px solid var(--line);
+    font-size: 13px; cursor: pointer; color: var(--ink-2);
+  }
+  .nav-item:last-child { border-bottom: none; }
+  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-item .icone { width: 15px; height: 13px; flex-shrink: 0; opacity: 0.55; }
+  .nav-item .cam { margin-left: auto; font: 400 10.5px var(--mono); color: var(--ink-muted); }
+  .nav-grupo {
+    padding: 8px 12px 4px; font: 500 10px var(--mono); letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--ink-muted); background: var(--surface-2);
+  }
+  .nav-vazio { padding: 16px 12px; font-size: 12.5px; color: var(--ink-muted); }
+
+  .escolhidas { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+  .escolhida {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--accent-line); background: var(--accent-soft);
+    border-radius: 16px; padding: 5px 8px 5px 12px; font: 400 12px var(--mono); color: var(--accent);
+  }
+  .escolhida button {
+    border: none; background: none; color: var(--accent); cursor: pointer;
+    padding: 0 4px; font-size: 14px; line-height: 1; border-radius: 4px;
+  }
+  .escolhida button:hover { background: #dbe7f4; color: var(--accent); }
+
   .pastas { border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; }
   .pasta-l { display: flex; justify-content: space-between; gap: 12px; padding: 7px 11px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
   .pasta-l:last-child { border-bottom: none; }
@@ -1036,7 +1078,7 @@ async function organizarComecar() {
   carregarTrabalhos();
 
   const o = await (await fetch("/api/organizar/opcoes")).json();
-  org.raizes = o.raizes.map((x) => ({ ...x, ativa: true }));
+  org.raizes = [];      // nada pre-selecionado: a pessoa escolhe onde procurar
   org.tipos = o.tipos;
   org.padroes = o.padroes;
   org.destino = o.destino_sugerido;
@@ -1055,6 +1097,13 @@ function atualizarPlanoOrg(atual, feitos, total) {
   if (p) p.innerHTML = cartaoPlano(etapasOrg(atual, feitos, total), atual + 1);
 }
 
+const ICONE_PASTA =
+  '<svg class="icone" viewBox="0 0 16 13" fill="none" stroke="currentColor" stroke-width="1.4">' +
+  '<path d="M1 3.2a1.2 1.2 0 0 1 1.2-1.2h3.3l1.4 1.6h6a1.2 1.2 0 0 1 1.2 1.2v6.4a1.2 1.2 0 0 1-1.2 1.2H2.2A1.2 1.2 0 0 1 1 11.2z"/></svg>';
+const ICONE_DISCO =
+  '<svg class="icone" viewBox="0 0 16 13" fill="none" stroke="currentColor" stroke-width="1.4">' +
+  '<rect x="1" y="2" width="14" height="9" rx="1.4"/><circle cx="8" cy="6.5" r="2.2"/></svg>';
+
 function passoOnde() {
   const centro = $("centro");
   centro.insertAdjacentHTML("beforeend", cartaoOrg(0));
@@ -1064,51 +1113,112 @@ function passoOnde() {
   painel.id = "painel-onde";
   painel.innerHTML =
     "<h3>Onde eu procuro</h3>" +
-    '<p class="explica">Marque as pastas. Não vou entrar em pastas do Windows nem de programas: ' +
-    "não há contrato de cliente lá dentro.</p>" +
-    '<div class="chips" id="org-chips"></div>' +
-    '<div class="linha-form"><input type="text" id="org-manual" placeholder="Ou digite um caminho: D:\\Escritorio\\Contratos">' +
-    '<button id="org-incluir">Incluir</button></div>' +
-    '<div class="linha-form"><button class="primario" id="org-varrer">Varrer as pastas</button>' +
+    '<p class="explica">Navegue até a pasta e clique em <strong>Incluir esta pasta</strong>. ' +
+    "Vou procurar nela e em tudo o que estiver dentro. Não entro em pastas do Windows " +
+    "nem de programas: não há contrato de cliente lá.</p>" +
+    '<div class="navegador"><div class="migalhas" id="nav-migalhas"></div>' +
+    '<div class="nav-lista" id="nav-lista"></div></div>' +
+    '<div class="linha-form" style="margin-top:10px">' +
+    '<button class="primario" id="nav-incluir" disabled>Incluir esta pasta</button>' +
+    '<span class="num" id="nav-atual"></span></div>' +
+    '<div class="escolhidas" id="org-escolhidas"></div>' +
+    '<div class="linha-form"><button class="primario" id="org-varrer" disabled>Procurar documentos</button>' +
     '<span class="num" id="org-nota"></span></div>';
   centro.appendChild(painel);
 
-  desenharChips();
-  $("org-incluir").onclick = () => {
-    const c = $("org-manual").value.trim();
-    if (!c) return;
-    org.raizes.push({ caminho: c, rotulo: c.split(/[\\/]/).pop() || c, ativa: true });
-    $("org-manual").value = "";
-    desenharChips();
+  org.raizes = [];
+  navegar("");
+  $("nav-incluir").onclick = () => {
+    if (!org.navegando) return;
+    if (!org.raizes.some((r) => r.toLowerCase() === org.navegando.toLowerCase())) {
+      org.raizes.push(org.navegando);
+    }
+    desenharEscolhidas();
   };
   $("org-varrer").onclick = organizarVarrer;
+  desenharEscolhidas();
   rolar();
 }
 
-function desenharChips() {
-  $("org-chips").innerHTML = org.raizes.map((r, i) =>
-    '<button class="chip' + (r.ativa ? " on" : "") + '" data-i="' + i + '">' +
-    esc(r.rotulo) + '<span class="caminho">' + esc(r.caminho) + "</span></button>"
+async function navegar(caminho) {
+  const lista = $("nav-lista");
+  lista.innerHTML = '<div class="nav-vazio">abrindo…</div>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/pastas?caminho=" + encodeURIComponent(caminho))).json();
+  } catch (err) {
+    lista.innerHTML = '<div class="nav-vazio">não consegui abrir: ' + esc(String(err)) + "</div>";
+    return;
+  }
+
+  org.navegando = d.atual;
+  $("nav-incluir").disabled = !d.atual;
+  $("nav-atual").textContent = d.atual || "escolha uma pasta abaixo";
+
+  // trilha clicável
+  let trilha = '<button data-ir="">Este computador</button>';
+  for (const m of d.migalhas) {
+    trilha += '<span class="sep">›</span><button data-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>";
+  }
+  $("nav-migalhas").innerHTML = trilha;
+  $("nav-migalhas").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => navegar(b.dataset.ir);
+  });
+
+  let html = "";
+  if (d.atalhos.length) {
+    html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.map((a) =>
+      '<div class="nav-item" data-ir="' + esc(a.caminho) + '">' + ICONE_PASTA +
+      "<span>" + esc(a.nome) + '</span><span class="cam">' + esc(a.caminho) + "</span></div>"
+    ).join("");
+  }
+  if (d.unidades.length) {
+    html += '<div class="nav-grupo">Unidades</div>' + d.unidades.map((u) =>
+      '<div class="nav-item" data-ir="' + esc(u.caminho) + '">' + ICONE_DISCO +
+      "<span>" + esc(u.nome) + "</span></div>"
+    ).join("");
+  }
+  if (d.pai) {
+    html += '<div class="nav-item" data-ir="' + esc(d.pai) + '">' + ICONE_PASTA +
+      "<span>.. voltar</span></div>";
+  }
+  html += d.pastas.map((p) =>
+    '<div class="nav-item" data-ir="' + esc(p.caminho) + '">' + ICONE_PASTA +
+    "<span>" + esc(p.nome) + "</span></div>"
   ).join("");
-  document.querySelectorAll("#org-chips .chip").forEach((c) => {
-    c.onclick = () => {
-      org.raizes[Number(c.dataset.i)].ativa = !org.raizes[Number(c.dataset.i)].ativa;
-      desenharChips();
-    };
+
+  if (d.erro) html += '<div class="nav-vazio">' + esc(d.erro) + "</div>";
+  else if (!html) html = '<div class="nav-vazio">nenhuma subpasta aqui</div>';
+
+  lista.innerHTML = html;
+  lista.querySelectorAll(".nav-item").forEach((el) => {
+    el.onclick = () => navegar(el.dataset.ir);
   });
 }
 
-async function organizarVarrer() {
-  const raizes = org.raizes.filter((r) => r.ativa).map((r) => r.caminho);
-  if (!raizes.length) { $("org-nota").textContent = "marque ao menos uma pasta"; return; }
+function desenharEscolhidas() {
+  $("org-escolhidas").innerHTML = org.raizes.map((c, i) =>
+    '<span class="escolhida">' + esc(c) + '<button data-i="' + i + '" title="tirar">×</button></span>'
+  ).join("");
+  $("org-escolhidas").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => { org.raizes.splice(Number(b.dataset.i), 1); desenharEscolhidas(); };
+  });
+  $("org-varrer").disabled = org.raizes.length === 0;
+  $("org-nota").textContent = org.raizes.length
+    ? ""
+    : "nenhuma pasta escolhida ainda";
+}
 
+async function organizarVarrer() {
+  if (!org.raizes.length) return;
   $("org-varrer").disabled = true;
   $("org-nota").textContent = "procurando…";
 
   try {
     const r = await fetch("/api/organizar/escanear", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raizes: raizes }),
+      body: JSON.stringify({ raizes: org.raizes }),
     });
     if (!r.ok) throw new Error((await r.json()).detail);
     const d = await r.json();
@@ -1119,24 +1229,80 @@ async function organizarVarrer() {
       return;
     }
 
-    let nota = d.total + " documento(s) em " + d.pastas_visitadas + " pasta(s)";
-    if (d.sem_permissao) nota += " · " + d.sem_permissao + " sem permissão de leitura";
     $("painel-onde").remove();
-    $("centro").insertAdjacentHTML("beforeend",
-      '<div class="painel"><h3>Encontrei ' + d.total + " documento(s)</h3>" +
-      '<p class="explica" style="margin:0">' + esc(nota) + "</p></div>");
-    organizarClassificar(d.total);
+    passoConfirmarLeitura(d);
   } catch (err) {
-    $("org-nota").innerHTML = esc("não consegui varrer: " + err);
+    $("org-nota").innerHTML = esc("não consegui procurar: " + err);
     $("org-varrer").disabled = false;
   }
+}
+
+/* Varrer e barato; ler custa ~20 s por documento. Encadear os dois sem
+   perguntar foi o que fez o programa sair lendo o computador inteiro. */
+function passoConfirmarLeitura(d) {
+  const painel = document.createElement("div");
+  painel.className = "painel";
+  painel.id = "painel-confirmar";
+
+  let detalhe = d.total + " documento(s) em " + d.pastas_visitadas + " pasta(s)";
+  if (d.em_cache) detalhe += " · " + d.em_cache + " já lido(s) antes";
+  if (d.sem_permissao) detalhe += " · " + d.sem_permissao + " sem permissão de leitura";
+  if (d.grandes) detalhe += " · " + d.grandes + " grandes demais";
+
+  const tempo = d.novos === 0
+    ? "Todos já foram lidos antes: sai na hora."
+    : "Ler os " + d.novos + " documento(s) novo(s) deve levar de <strong>" +
+      formatarMinutos(d.minutos_min) + " a " + formatarMinutos(d.minutos_max) +
+      "</strong>. Dá para parar no meio, e o que já foi lido fica guardado.";
+
+  painel.innerHTML =
+    "<h3>Encontrei " + d.total + " documento(s)</h3>" +
+    '<p class="explica">' + esc(detalhe) + "</p>" +
+    '<p class="explica">' + tempo + "</p>" +
+    '<div class="linha-form"><button class="primario" id="org-ler">Ler e classificar</button>' +
+    '<button id="org-voltar">Escolher outras pastas</button></div>';
+  $("centro").appendChild(painel);
+
+  $("org-ler").onclick = () => {
+    painel.querySelector(".linha-form").remove();
+    organizarClassificar(d.total);
+  };
+  $("org-voltar").onclick = () => {
+    painel.remove();
+    const plano = $("plano-org");
+    if (plano) plano.remove();
+    passoOnde();
+  };
+  rolar();
+}
+
+function formatarMinutos(m) {
+  if (m < 1) return "menos de 1 min";
+  if (m < 60) return Math.round(m) + " min";
+  return (m / 60).toFixed(1).replace(".", ",") + " h";
 }
 
 async function organizarClassificar(total) {
   atualizarPlanoOrg(1, 0, total);
   atualizarSelo(true);
-  rolar();
 
+  // Ler um acervo grande leva quase uma hora. Desistir tem que estar a um
+  // clique, nao a um fechar-a-janela.
+  const parar = document.createElement("div");
+  parar.className = "linha-form";
+  parar.id = "org-parar-linha";
+  parar.innerHTML = '<button id="org-parar">Parar a leitura</button>' +
+    '<span class="num" id="org-parar-nota"></span>';
+  const confirmar = $("painel-confirmar");
+  if (confirmar) confirmar.appendChild(parar);
+
+  $("org-parar").onclick = async () => {
+    $("org-parar").disabled = true;
+    $("org-parar-nota").textContent = "parando depois do documento atual…";
+    await fetch("/api/organizar/cancelar", { method: "POST" });
+  };
+
+  rolar();
   const inicio = Date.now();
   try {
     const r = await fetch("/api/organizar/classificar", { method: "POST" });
@@ -1171,7 +1337,15 @@ async function organizarClassificar(total) {
           org.docs = d.documentos;
           org.selecao = new Set(d.documentos.filter((x) => !x.erro).map((x) => x.arquivo));
           atualizarPlanoOrg(2);
-          passoConferir();
+          const linha = $("org-parar-linha");
+          if (linha) linha.remove();
+          if (d.parado) {
+            $("centro").insertAdjacentHTML("beforeend",
+              '<div class="painel"><h3>Leitura interrompida</h3><p class="explica" style="margin:0">' +
+              "Li " + d.documentos.length + " documento(s) antes de parar. Eles ficam guardados: " +
+              "se você mandar ler de novo, continua daqui.</p></div>");
+          }
+          if (d.documentos.length) passoConferir();
         } else if (mt[1] === "erro") {
           atualizarPlanoOrg(1);
           $("centro").insertAdjacentHTML("beforeend",

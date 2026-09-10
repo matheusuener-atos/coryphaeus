@@ -104,6 +104,29 @@ def _deve_ignorar(pasta: str, excluir: set[str]) -> bool:
     return minuscula in PASTAS_IGNORADAS or minuscula in excluir
 
 
+def raizes_unicas(raizes: list[Path] | list[str]) -> list[Path]:
+    """
+    Descarta raizes repetidas e as que ja estao dentro de outra.
+
+    Escolher OneDrive e OneDrive/Documentos faria a varredura visitar os mesmos
+    arquivos duas vezes, e o plano proporia mover o mesmo documento duas vezes.
+    """
+    resolvidas: list[Path] = []
+    for bruta in raizes:
+        try:
+            caminho = Path(bruta).resolve()
+        except OSError:
+            continue
+        if caminho.is_dir():
+            resolvidas.append(caminho)
+
+    unicas: list[Path] = []
+    for caminho in sorted(set(resolvidas), key=lambda p: len(p.parts)):
+        if not any(caminho == mantida or mantida in caminho.parents for mantida in unicas):
+            unicas.append(caminho)
+    return unicas
+
+
 def escanear(
     raizes: list[Path] | list[str],
     *,
@@ -124,12 +147,10 @@ def escanear(
     arquivos: list[Arquivo] = []
     sem_permissao: list[str] = []
     grandes: list[str] = []
+    vistos: set[str] = set()
     pastas = 0
 
-    for raiz in raizes:
-        base = Path(raiz)
-        if not base.is_dir():
-            continue
+    for base in raizes_unicas(raizes):
 
         for pasta_atual, subpastas, nomes in os.walk(base, onerror=lambda e: sem_permissao.append(str(e.filename))):
             pastas += 1
@@ -149,6 +170,11 @@ def escanear(
                     continue
 
                 caminho = atual / nome
+                chave = str(caminho).lower()
+                if chave in vistos:
+                    continue
+                vistos.add(chave)
+
                 try:
                     info = caminho.stat()
                 except OSError:
