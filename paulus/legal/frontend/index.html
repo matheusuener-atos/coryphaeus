@@ -1280,6 +1280,152 @@
     border-top: 1px dashed var(--linha-media); margin-top: 10px; padding-top: 10px;
   }
 
+  /* ----------------------------------------------------------- escrita */
+
+  .doc-lista-linha {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 1px solid var(--linha); font-size: 13px;
+  }
+  .doc-lista-linha:last-child { border-bottom: none; }
+  .doc-versao {
+    font: 500 9.5px var(--mono); letter-spacing: 0.1em;
+    padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+  }
+
+  .ed-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .ed-titulo {
+    font: 500 17px var(--sans); border: none; background: none; color: inherit;
+    flex: 1 1 240px; padding: 4px 0; border-bottom: 1px solid transparent; min-width: 0;
+  }
+  .ed-titulo:focus { border-bottom-color: var(--linha-media); }
+
+  .ed-barra {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    border: 1px solid var(--linha-media); background: var(--surface-1);
+    padding: 6px 8px; margin-bottom: 12px;
+  }
+  .ed-barra button {
+    padding: 5px 9px; font-size: 12px; min-width: 30px;
+  }
+  .ed-barra select { min-width: 0; flex: 0 0 auto; padding: 5px 8px; }
+  .ed-divisa { width: 1px; height: 20px; background: var(--linha-media); margin: 0 4px; }
+
+  .ed-colunas {
+    display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(268px, 0.55fr);
+    gap: 16px; align-items: start;
+  }
+  @media (max-width: 1080px) { .ed-colunas { grid-template-columns: minmax(0, 1fr); } }
+
+  /* A folha: largura de A4 com as margens do PDF, para o que se digita
+     parecer com o que sai impresso. */
+  .ed-folha {
+    background: var(--papel); color: var(--tinta);
+    border: 1px solid var(--papel-linha);
+    padding: 46px 48px; min-height: 520px;
+    font: 400 15px/1.7 Georgia, 'Times New Roman', serif;
+    overflow-wrap: anywhere;
+  }
+  .ed-folha:focus { outline: none; }
+  .ed-folha h1 { font-size: 20px; margin: 0 0 14px; text-align: center; }
+  .ed-folha h2 { font-size: 16px; margin: 20px 0 8px; }
+  .ed-folha h3 { font-size: 15px; margin: 16px 0 6px; }
+  .ed-folha p { margin: 0 0 11px; }
+  .ed-folha ul, .ed-folha ol { margin: 0 0 11px; padding-left: 26px; }
+  .ed-folha li { margin-bottom: 5px; }
+
+  .ed-estado { font: 500 9.5px var(--mono); letter-spacing: 0.16em; color: var(--ink-3); text-transform: uppercase; }
+  .ed-estado.salvando { color: var(--atencao); }
+
+  .ed-pedido { display: flex; gap: 8px; margin-top: 10px; }
+  .ed-pedido input { flex: 1; min-width: 0; }
+
+  .ed-sugestao {
+    border: 1px solid var(--acento); background: var(--acento-fraco);
+    padding: 12px 14px; margin-top: 12px;
+  }
+  .ed-sugestao p { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin: 8px 0; }
+
+  .ed-atalhos { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  .ed-atalhos button { text-align: left; justify-content: flex-start; font-size: 12.5px; }
+
+  /* Pre-visualizacao: o PDF de verdade, desenhado. */
+  .pv-folha { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .pv-folha img {
+    max-width: 100%; height: auto; display: block;
+    border: 1px solid var(--linha-media);
+  }
+  .pv-aviso {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px; line-height: 1.5;
+  }
+  .pv-aviso:last-child { border-bottom: none; }
+  .pv-grau {
+    font: 500 9px var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+    white-space: nowrap; flex: none;
+  }
+  .pv-grau.impede { color: var(--atencao); border-color: var(--atencao); background: var(--atencao-fundo); }
+
+  .pv-mudanca { padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px; }
+  .pv-mudanca:last-child { border-bottom: none; }
+  .pv-mudanca .saiu { color: var(--ink-3); text-decoration: line-through; }
+  .pv-mudanca .entrou { color: var(--ok); }
+
+  /* Planilha */
+  .pl-formula { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .pl-ref {
+    font: 500 12px var(--mono); border: 1px solid var(--linha-media);
+    padding: 8px 10px; min-width: 62px; text-align: center; color: var(--ink-2);
+  }
+  .pl-fx { font: 500 12px var(--mono); color: var(--ink-3); }
+  .pl-formula input { flex: 1; font-family: var(--mono); font-size: 12.5px; }
+
+  .pl-caixa { border: 1px solid var(--linha-media); overflow: auto; max-height: 460px; }
+  .pl-grade { border-collapse: collapse; font-size: 12.5px; width: max-content; }
+  .pl-grade th, .pl-grade td {
+    border: 1px solid var(--linha); padding: 0; height: 27px;
+  }
+  .pl-grade th {
+    background: var(--surface-2); color: var(--ink-3);
+    font: 500 10px var(--mono); letter-spacing: 0.08em;
+    min-width: 34px; padding: 0 6px; position: sticky; top: 0; z-index: 2;
+  }
+  .pl-grade th.canto { left: 0; z-index: 3; }
+  .pl-grade td.cabeca-linha {
+    background: var(--surface-2); color: var(--ink-3);
+    font: 500 10px var(--mono); text-align: center;
+    min-width: 34px; position: sticky; left: 0; z-index: 1;
+  }
+  .pl-cel {
+    min-width: 108px; max-width: 220px; padding: 0 7px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: cell;
+  }
+  .pl-cel.escolhida { outline: 2px solid var(--acento); outline-offset: -2px; }
+  .pl-cel.numero { text-align: right; font-variant-numeric: tabular-nums; }
+  .pl-cel.formula { color: var(--ink); }
+  .pl-cel.ruim { color: var(--atencao); }
+  .pl-cel.forte { font-weight: 600; }
+  .pl-cel.inclinada { font-style: italic; }
+  .pl-cel input {
+    width: 100%; height: 25px; border: none; background: var(--surface-1);
+    color: inherit; font: 400 12.5px var(--sans); padding: 0 5px; min-width: 0;
+  }
+
+  .pl-abas { display: flex; gap: 4px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .pl-abas button.escolhida { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); }
+
+  .pl-status {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px;
+    font: 500 10px var(--mono); letter-spacing: 0.1em; color: var(--ink-3); text-transform: uppercase;
+  }
+  .pl-funcao {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .pl-funcao:last-child { border-bottom: none; }
+  .pl-funcao code { font: 400 11.5px var(--mono); color: var(--ink-2); }
+
   /* ------------------------------------------------------- responsivo */
 
   @media (max-width: 1180px) {
@@ -3447,6 +3593,8 @@ function abrirDestino(id) {
   if (d.abre === "certificado") return mostrarCertificado();
   if (d.abre === "assinar") return mostrarAssinar();
   if (d.abre === "caixa") return mostrarEmail();
+  if (d.abre === "editor") return mostrarEditor();
+  if (d.abre === "planilha") return mostrarPlanilha();
   if (d.abre === "organizar") { abrirTela("Organizar pastas"); $("centro").innerHTML = ""; organizarComecar(); }
 }
 
@@ -5988,6 +6136,798 @@ function depoisDoEnvio(d) {
     '<button id="nm-ver-caixa">Caixa de entrada</button></div></div></div>';
   $("nm-outro").onclick = () => telaEscrever();
   $("nm-ver-caixa").onclick = () => carregarCaixa();
+}
+
+/* ------------------------------------------- escrita (C1, C2, C3) */
+/*
+   Editor, pré-visualização e planilha. O editor guarda HTML porque é o que um
+   campo editável do navegador produz sem biblioteca nenhuma; o servidor
+   transforma isso em blocos, e é dos blocos que saem o PDF e o DOCX — um só
+   conteúdo, dois formatos, sem divergir.
+*/
+
+const escr = {
+  doc: null, versoes: [], sugestao: null, salvando: false, relogio: null,
+  pl: null, aba: 0, celula: "A1", editando: null,
+};
+
+/* ------------------------------------------------- lista de documentos */
+
+async function mostrarEditor() { listaDocumentos("texto", "Editor de texto"); }
+async function mostrarPlanilha() { listaDocumentos("planilha", "Planilha"); }
+
+async function listaDocumentos(tipo, nome) {
+  abrirTela(nome);
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/documentos?tipo=" + tipo)).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  const ehTexto = tipo === "texto";
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>" + esc(nome) + "</h2>" +
+    '<span class="rotulo">' + (d.documentos.length ? d.documentos.length + " arquivo(s) aqui" : "nada criado ainda") +
+    "</span></div>" +
+    '<div class="tela-acoes"><button class="primario" id="doc-novo">' +
+    (ehTexto ? "Novo documento" : "Nova planilha") + "</button></div></div>";
+
+  if (d.documentos.length) {
+    html += '<div class="painel">' + d.documentos.map((x) =>
+      '<div class="doc-lista-linha"><span class="cresce corta">' + esc(x.titulo) + "</span>" +
+      (x.cadastro_nome ? '<span class="num">' + esc(x.cadastro_nome) + "</span>" : "") +
+      '<span class="doc-versao">v' + x.versao + "</span>" +
+      '<span class="num">' + esc(quandoCurto(x.atualizado_em)) + "</span>" +
+      '<button data-abrir="' + x.id + '">Abrir</button>' +
+      '<button class="perigo" data-apagar="' + x.id + '">Apagar</button></div>'
+    ).join("") + "</div>";
+  } else {
+    html += '<div class="painel"><h3>' +
+      (ehTexto ? "Nenhum documento ainda" : "Nenhuma planilha ainda") + "</h3>" +
+      '<p class="explica">' +
+      (ehTexto
+        ? "O ganho aqui não é o editor — o Word já existe. É o assistente escrevendo dentro do documento, com os seus cadastros e a sua biblioteca do lado, e a conferência antes de o arquivo sair."
+        : "Fórmulas em português, do jeito que você escreve no Excel: ponto e vírgula separa argumento e vírgula é decimal.") +
+      "</p></div>";
+  }
+
+  html += '<div class="rodape-tela">' +
+    (ehTexto ? "documento gravado na sua máquina" : "planilha gravada na sua máquina") + "</div></div>";
+  centro.innerHTML = html;
+
+  $("doc-novo").onclick = async () => {
+    const titulo = prompt(ehTexto ? "Nome do documento:" : "Nome da planilha:",
+      ehTexto ? "Documento sem título" : "Planilha sem título");
+    if (titulo === null) return;
+    const novo = await (await fetch("/api/documentos", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ titulo: titulo, tipo: tipo }),
+    })).json();
+    ehTexto ? abrirDocumento(novo.id) : abrirPlanilha(novo.id);
+  };
+
+  document.querySelectorAll("[data-abrir]").forEach((b) => {
+    b.onclick = () => (ehTexto ? abrirDocumento(Number(b.dataset.abrir)) : abrirPlanilha(Number(b.dataset.abrir)));
+  });
+  document.querySelectorAll("[data-apagar]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Apagar este arquivo e todo o histórico de versões? Não dá para desfazer.")) return;
+      await fetch("/api/documentos/" + b.dataset.apagar, { method: "DELETE" });
+      listaDocumentos(tipo, nome);
+    };
+  });
+  atualizarPostura();
+}
+
+/* --------------------------------------------------- C1: editor de texto */
+
+async function abrirDocumento(id) {
+  abrirTela("Editor de texto");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  const r = await fetch("/api/documentos/" + id);
+  if (!r.ok) { centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>"; return; }
+
+  escr.doc = await r.json();
+  escr.sugestao = null;
+  desenharEditor();
+}
+
+function desenharEditor() {
+  const d = escr.doc;
+  const c = d.contagem || { palavras: 0, paginas_estimadas: 1 };
+
+  let html = '<div class="catalogo"><div class="ed-topo">' +
+    '<input class="ed-titulo" id="ed-titulo" value="' + esc(d.titulo) + '">' +
+    '<span class="ed-estado" id="ed-estado">v' + d.versao + " · " + c.palavras + " palavras</span>" +
+    '<button id="ed-versoes">Histórico</button>' +
+    '<button id="ed-previa">Pré-visualizar</button>' +
+    '<button class="primario" id="ed-guardar">Salvar na biblioteca</button>' +
+    '<button id="ed-voltar">Voltar</button></div>';
+
+  html += '<div class="ed-barra">' +
+    '<select id="ed-bloco">' +
+    '<option value="p">Corpo do texto</option>' +
+    '<option value="h1">Título 1</option>' +
+    '<option value="h2">Título 2</option>' +
+    '<option value="h3">Título 3</option></select>' +
+    '<span class="ed-divisa"></span>' +
+    '<button data-cmd="bold"><b>B</b></button>' +
+    '<button data-cmd="italic"><i>I</i></button>' +
+    '<button data-cmd="underline"><u>U</u></button>' +
+    '<button data-cmd="strikeThrough"><s>S</s></button>' +
+    '<span class="ed-divisa"></span>' +
+    '<button data-cmd="justifyLeft">◧</button>' +
+    '<button data-cmd="justifyCenter">◫</button>' +
+    '<button data-cmd="justifyFull">▤</button>' +
+    '<span class="ed-divisa"></span>' +
+    '<button data-cmd="insertUnorderedList">Lista</button>' +
+    '<button data-cmd="insertOrderedList">Numeração</button>' +
+    '<span class="ed-divisa"></span>' +
+    '<button id="ed-clausulas">Cláusulas do escritório</button>' +
+    '<button id="ed-conferir">Conferir</button></div>';
+
+  html += '<div class="ed-colunas"><div>' +
+    '<div class="ed-folha" id="ed-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
+    '<div id="ed-abaixo"></div></div>';
+
+  html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
+    '<p class="explica">Eu mostro a sugestão; você aceita ou descarta. Nada entra no ' +
+    "texto sozinho.</p>" +
+    '<div class="ed-pedido"><input type="text" id="ed-pedido" placeholder="peça uma alteração…">' +
+    '<button class="primario" id="ed-pedir">↑</button></div>' +
+    '<div class="ed-atalhos">' +
+    ["Revisar a redação deste trecho",
+     "Deixar mais formal",
+     "Resumir o documento em 5 linhas",
+     "Inserir cláusula de vigência"].map((x) =>
+      '<button data-atalho="' + esc(x) + '">' + esc(x) + "</button>").join("") +
+    "</div>" +
+    '<div id="ed-sugestao"></div></div>';
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Este documento</h3>' +
+    '<div class="pl-status"><span>palavras ' + c.palavras + "</span>" +
+    "<span>páginas ~" + c.paginas_estimadas + "</span>" +
+    "<span>versão " + d.versao + "</span></div>" +
+    '<p class="explica" style="margin-top:10px">O PDF é o formato que vale para assinar e ' +
+    "enviar. O DOCX sai com o mesmo texto, para continuar no Word — a quebra de página " +
+    "pode ficar diferente.</p>" +
+    '<div class="linha-form"><button id="ed-pdf">Baixar PDF</button>' +
+    '<button id="ed-docx">Baixar DOCX</button></div></div></div></div>';
+
+  html += '<div class="rodape-tela">documento gravado na sua máquina</div></div>';
+  $("centro").innerHTML = html;
+  ligarEditor();
+  atualizarPostura();
+}
+
+function ligarEditor() {
+  const folha = $("ed-folha");
+  const id = escr.doc.id;
+
+  document.querySelectorAll("[data-cmd]").forEach((b) => {
+    b.onmousedown = (e) => e.preventDefault();   /* não perde a seleção */
+    b.onclick = () => { document.execCommand(b.dataset.cmd, false, null); folha.focus(); marcarSujo(); };
+  });
+  $("ed-bloco").onchange = (e) => {
+    document.execCommand("formatBlock", false, e.target.value);
+    folha.focus();
+    marcarSujo();
+  };
+
+  folha.oninput = marcarSujo;
+  $("ed-titulo").oninput = marcarSujo;
+
+  $("ed-voltar").onclick = async () => { await gravarDocumento(); listaDocumentos("texto", "Editor de texto"); };
+  $("ed-previa").onclick = async () => { await gravarDocumento(); mostrarPrevia(id); };
+  $("ed-versoes").onclick = () => painelVersoes(id);
+  $("ed-conferir").onclick = () => painelConferir(id);
+  $("ed-clausulas").onclick = painelClausulas;
+
+  $("ed-pdf").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/pdf"; };
+  $("ed-docx").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/docx"; };
+
+  $("ed-guardar").onclick = async () => {
+    await gravarDocumento();
+    const r = await fetch("/api/documentos/" + id + "/biblioteca", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+    avisoCert("guardado na biblioteca como " + d.guardado + " — já dá para assinar e anexar em e-mail");
+    estado.contratos = d.documentos;
+  };
+
+  $("ed-pedir").onclick = pedirAoAssistente;
+  $("ed-pedido").onkeydown = (e) => { if (e.key === "Enter") pedirAoAssistente(); };
+  document.querySelectorAll("[data-atalho]").forEach((b) => {
+    b.onclick = () => { $("ed-pedido").value = b.dataset.atalho; pedirAoAssistente(); };
+  });
+}
+
+function marcarSujo() {
+  const estadoTexto = $("ed-estado");
+  if (estadoTexto) { estadoTexto.textContent = "salvando…"; estadoTexto.classList.add("salvando"); }
+  clearTimeout(escr.relogio);
+  escr.relogio = setTimeout(gravarDocumento, 1400);
+}
+
+async function gravarDocumento(nota) {
+  const folha = $("ed-folha");
+  if (!folha || !escr.doc) return;
+  clearTimeout(escr.relogio);
+
+  const r = await fetch("/api/documentos/" + escr.doc.id, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML, titulo: $("ed-titulo").value, nota: nota || "" }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+
+  const d = await r.json();
+  escr.doc.corpo = folha.innerHTML;
+  escr.doc.titulo = $("ed-titulo").value;
+  escr.doc.versao = d.versao;
+  escr.doc.contagem = d.contagem || escr.doc.contagem;
+
+  const alvo = $("ed-estado");
+  if (alvo) {
+    alvo.classList.remove("salvando");
+    alvo.textContent = "v" + d.versao + " · " + (d.contagem ? d.contagem.palavras + " palavras" : "salvo");
+  }
+}
+
+function trechoSelecionado() {
+  const sel = window.getSelection();
+  return sel && sel.toString().trim() ? sel.toString().trim() : "";
+}
+
+async function pedirAoAssistente() {
+  const campo = $("ed-pedido");
+  const pedido = campo.value.trim();
+  if (!pedido) return;
+
+  const alvo = $("ed-sugestao");
+  alvo.innerHTML = '<p class="nota">o assistente está escrevendo… isso leva cerca de um minuto nesta máquina</p>';
+
+  const r = await fetch("/api/documentos/" + escr.doc.id + "/assistente", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionado() }),
+  });
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+
+  escr.sugestao = await r.json();
+  alvo.innerHTML = '<div class="ed-sugestao"><span class="rotulo">sugestão' +
+    (escr.sugestao.sobre ? " sobre o trecho selecionado" : " sobre o documento") + "</span>" +
+    "<p>" + esc(escr.sugestao.sugestao) + "</p>" +
+    '<p class="explica">' + esc(escr.sugestao.aviso) + "</p>" +
+    '<div class="linha-form"><button id="ed-descartar">Descartar</button>' +
+    '<button class="primario" id="ed-aceitar">' +
+    (escr.sugestao.sobre ? "Substituir o trecho" : "Inserir no texto") + "</button></div></div>";
+
+  $("ed-descartar").onclick = () => { alvo.innerHTML = ""; escr.sugestao = null; };
+  $("ed-aceitar").onclick = aceitarSugestao;
+}
+
+function aceitarSugestao() {
+  if (!escr.sugestao) return;
+  const folha = $("ed-folha");
+  folha.focus();
+
+  const sel = window.getSelection();
+  const texto = escr.sugestao.sugestao;
+
+  if (escr.sugestao.sobre && sel && sel.rangeCount && !sel.isCollapsed) {
+    document.execCommand("insertText", false, texto);
+  } else {
+    const bloco = document.createElement("p");
+    bloco.textContent = texto;
+    folha.appendChild(bloco);
+  }
+  $("ed-sugestao").innerHTML = "";
+  escr.sugestao = null;
+  marcarSujo();
+}
+
+async function painelClausulas() {
+  const alvo = $("ed-abaixo");
+  alvo.innerHTML = '<p class="nota">abrindo…</p>';
+  const d = await (await fetch("/api/documentos/modelos")).json();
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Cláusulas do escritório</h3>' +
+    '<p class="explica">Modelos que você mesmo guarda. Clique para inserir no fim do documento.</p>' +
+    (d.clausulas.length
+      ? d.clausulas.map((c) =>
+          '<div class="doc-lista-linha"><span class="cresce corta">' + esc(c.titulo) + "</span>" +
+          '<button data-clausula="' + esc(c.id) + '">Inserir</button>' +
+          '<button class="perigo" data-tirar-cl="' + esc(c.id) + '">Apagar</button></div>').join("")
+      : '<p class="explica">Nenhuma cláusula guardada ainda.</p>') +
+    '<div class="linha-form"><button id="cl-nova">Guardar o trecho selecionado como cláusula</button></div>' +
+    '<div class="cert-aviso" style="margin-top:14px"><strong>' + esc(d.codigos_indisponiveis.titulo) + "</strong>" +
+    "<p>" + esc(d.codigos_indisponiveis.porque) + "</p></div></div>";
+
+  d.clausulas.forEach((c) => {
+    const b = alvo.querySelector('[data-clausula="' + c.id + '"]');
+    if (b) b.onclick = () => {
+      const bloco = document.createElement("p");
+      bloco.textContent = c.texto;
+      $("ed-folha").appendChild(bloco);
+      marcarSujo();
+      avisoCert("cláusula “" + c.titulo + "” inserida no fim do documento");
+    };
+  });
+  alvo.querySelectorAll("[data-tirar-cl]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/documentos/modelos/" + b.dataset.tirarCl, { method: "DELETE" });
+      painelClausulas();
+    };
+  });
+  $("cl-nova").onclick = async () => {
+    const texto = trechoSelecionado();
+    if (!texto) { avisoCert("selecione o trecho no documento antes"); return; }
+    const titulo = prompt("Nome desta cláusula:", texto.slice(0, 40));
+    if (!titulo) return;
+    await fetch("/api/documentos/modelos", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ titulo: titulo, texto: texto }),
+    });
+    painelClausulas();
+  };
+}
+
+async function painelVersoes(id) {
+  const alvo = $("ed-abaixo");
+  alvo.innerHTML = '<p class="nota">abrindo o histórico…</p>';
+  const d = await (await fetch("/api/documentos/" + id + "/versoes")).json();
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Histórico de versões</h3>' +
+    '<p class="explica">Voltar para uma versão antiga cria uma versão nova — o caminho de ' +
+    "volta continua existindo.</p>" +
+    d.versoes.map((v) =>
+      '<div class="doc-lista-linha"><span class="doc-versao">v' + v.numero + "</span>" +
+      '<span class="cresce corta">' + esc(v.nota || "sem nota") + "</span>" +
+      '<span class="num">' + esc(quandoCurto(v.criada_em)) + "</span>" +
+      '<button data-ver="' + v.numero + '">Comparar com a atual</button>' +
+      '<button data-voltar="' + v.numero + '">Voltar para esta</button></div>').join("") +
+    '<div id="ed-diferencas"></div></div>';
+
+  alvo.querySelectorAll("[data-ver]").forEach((b) => {
+    b.onclick = async () => {
+      const alvoDif = $("ed-diferencas");
+      alvoDif.innerHTML = '<p class="nota">comparando…</p>';
+      const c = await (await fetch("/api/documentos/" + id + "/comparar?de=" + b.dataset.ver)).json();
+      alvoDif.innerHTML = '<div style="margin-top:12px"><span class="rotulo">v' + c.de + " comparada com a v" + c.ate + "</span>" +
+        (c.mudancas.length
+          ? c.mudancas.map((m) =>
+              '<div class="pv-mudanca">' +
+              (m.antes ? '<div class="saiu">' + esc(m.antes) + "</div>" : "") +
+              (m.depois ? '<div class="entrou">' + esc(m.depois) + "</div>" : "") +
+              "</div>").join("")
+          : '<p class="explica">Nada mudou no texto entre essas versões.</p>') + "</div>";
+    };
+  });
+  alvo.querySelectorAll("[data-voltar]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Voltar para a v" + b.dataset.voltar + "? Isso cria uma versão nova com aquele conteúdo.")) return;
+      const r = await (await fetch("/api/documentos/" + id + "/restaurar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero: Number(b.dataset.voltar) }),
+      })).json();
+      escr.doc = r.documento;
+      desenharEditor();
+    };
+  });
+}
+
+async function painelConferir(id) {
+  const alvo = $("ed-abaixo");
+  alvo.innerHTML = '<p class="nota">conferindo…</p>';
+  await gravarDocumento();
+  const d = await (await fetch("/api/documentos/" + id + "/conferir")).json();
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px">' + blocoAvisos(d) + "</div>";
+}
+
+function blocoAvisos(d) {
+  return "<h3>Confira antes de sair</h3>" +
+    '<p class="explica">' + d.paginas + " página(s) · " +
+    (d.avisos.length ? d.avisos.length + " aviso(s)" : "nada a apontar") + "</p>" +
+    (d.avisos.length
+      ? d.avisos.map((a) =>
+          '<div class="pv-aviso"><span class="pv-grau ' + (a.grau === "impede" ? "impede" : "") + '">' +
+          (a.grau === "impede" ? "resolver" : "confira") + "</span>" +
+          "<span><b>" + esc(a.titulo) + "</b><br>" + esc(a.detalhe) + "</span></div>").join("")
+      : '<p class="explica">Não achei lacuna de modelo, CPF ou CNPJ com dígito errado, nem valor sem número.</p>');
+}
+
+/* ------------------------------------------------ C2: pré-visualização */
+
+async function mostrarPrevia(id) {
+  abrirTela("Pré-visualização");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">montando o PDF…</p></div>';
+
+  const r = await fetch("/api/documentos/" + id + "/conferir");
+  if (!r.ok) { centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>"; return; }
+
+  const d = await r.json();
+  const doc = escr.doc || await (await fetch("/api/documentos/" + id)).json();
+  escr.doc = doc;
+  escr.previa = { id: id, pagina: 1, dados: d };
+  desenharPrevia();
+  atualizarPostura();
+}
+
+function desenharPrevia() {
+  const p = escr.previa;
+  const d = p.dados;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2 class=\"corta\">" + esc(escr.doc.titulo) + "</h2>" +
+    '<span class="rotulo">versão ' + d.versao + " · " + d.paginas + " página(s) · A4 · " +
+    (d.impedem ? d.impedem + " ponto(s) a resolver" : "pronto para sair") + "</span></div>" +
+    '<div class="tela-acoes"><button id="pv-editor">‹ Voltar ao editor</button></div></div>';
+
+  html += '<div class="assinar-colunas"><div class="pv-folha">' +
+    '<div class="pdf-nav"><button id="pv-antes">‹</button>' +
+    '<span>pág. <b id="pv-num">' + p.pagina + "</b> de " + d.paginas + "</span>" +
+    '<button id="pv-depois">›</button>' +
+    '<span class="rotulo">margens 2,5 cm · gerado nesta máquina</span></div>' +
+    '<img id="pv-img" alt="página ' + p.pagina + '"></div>';
+
+  html += '<div><div class="painel">' + blocoAvisos(d) + "</div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>O que fazer agora</h3>' +
+    '<div class="linha-form"><button id="pv-pdf">Baixar PDF</button>' +
+    '<button id="pv-docx">Baixar DOCX</button></div>' +
+    '<div class="linha-form"><button id="pv-biblioteca">Guardar na biblioteca</button></div>' +
+    '<p class="explica">Guardar na biblioteca grava o PDF no acervo — é o que permite ' +
+    "assinar com o certificado e anexar num e-mail.</p>" +
+    '<div class="linha-form"><button id="pv-assinar">Assinar</button>' +
+    '<button id="pv-email">Enviar por e-mail</button></div></div>';
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Este arquivo</h3>' +
+    '<div class="pl-status"><span>páginas ' + d.paginas + "</span>" +
+    "<span>" + (d.bytes / 1024).toFixed(0).replace(".", ",") + " KB</span>" +
+    "<span>versão " + d.versao + "</span>" +
+    "<span>palavras " + d.contagem.palavras + "</span></div></div></div></div>";
+
+  html += '<div class="rodape-tela">pré-visualização gerada na sua máquina</div></div>';
+  $("centro").innerHTML = html;
+  ligarPrevia();
+  carregarPaginaPrevia();
+}
+
+function ligarPrevia() {
+  const p = escr.previa;
+  $("pv-editor").onclick = () => abrirDocumento(p.id);
+  $("pv-antes").onclick = () => { if (p.pagina > 1) { p.pagina--; carregarPaginaPrevia(); } };
+  $("pv-depois").onclick = () => { if (p.pagina < p.dados.paginas) { p.pagina++; carregarPaginaPrevia(); } };
+  $("pv-pdf").onclick = () => { window.location.href = "/api/documentos/" + p.id + "/pdf"; };
+  $("pv-docx").onclick = () => { window.location.href = "/api/documentos/" + p.id + "/docx"; };
+
+  $("pv-biblioteca").onclick = () => guardarNaBiblioteca(p.id);
+  $("pv-assinar").onclick = async () => {
+    const alvo = await guardarNaBiblioteca(p.id);
+    if (alvo) { marcarDestino("assinar"); mostrarAssinar(alvo); }
+  };
+  $("pv-email").onclick = async () => {
+    const alvo = await guardarNaBiblioteca(p.id);
+    if (!alvo) return;
+    if (!mail.contas) {
+      try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; }
+    }
+    if (!mail.contas || !mail.contas.contas.length) { marcarDestino("caixa"); return mostrarEmail(); }
+    mail.conta = mail.contas.contas.find((c) => c.em_uso) || mail.contas.contas[0];
+    marcarDestino("caixa");
+    telaEscrever({ assunto: escr.doc.titulo, corpo: "" });
+    mail.anexos = [{ path: alvo, nome: alvo.split(/[\\/]/).pop() }];
+    desenharAnexos();
+  };
+}
+
+async function guardarNaBiblioteca(id) {
+  const r = await fetch("/api/documentos/" + id + "/biblioteca", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return ""; }
+  const d = await r.json();
+  estado.contratos = d.documentos;
+  avisoCert("guardado na biblioteca como " + d.guardado);
+  return d.caminho;
+}
+
+function carregarPaginaPrevia() {
+  const p = escr.previa;
+  $("pv-num").textContent = p.pagina;
+  $("pv-img").src = "/api/documentos/" + p.id + "/pagina?numero=" + p.pagina +
+    "&largura=900&t=" + Date.now();
+}
+
+/* -------------------------------------------------------- C3: planilha */
+
+async function abrirPlanilha(id) {
+  abrirTela("Planilha");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  const r = await fetch("/api/planilha/" + id);
+  if (!r.ok) { centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>"; return; }
+
+  escr.pl = await r.json();
+  escr.aba = 0;
+  escr.celula = "A1";
+  desenharPlanilha();
+  atualizarPostura();
+}
+
+function desenharPlanilha() {
+  const p = escr.pl;
+  const aba = p.abas[escr.aba];
+  const calc = p.calculado[escr.aba];
+  const res = p.resumos[escr.aba];
+
+  let html = '<div class="catalogo"><div class="ed-topo">' +
+    '<input class="ed-titulo" id="pl-titulo" value="' + esc(p.titulo) + '">' +
+    '<span class="ed-estado" id="pl-estado">v' + p.versao + " · " + p.abas.length + " aba(s)" +
+    (res.erros ? " · " + res.erros + " erro(s)" : " · cálculos em dia") + "</span>" +
+    '<button id="pl-importar-b">Importar CSV/XLSX</button>' +
+    '<button id="pl-xlsx">Baixar XLSX</button>' +
+    '<button id="pl-csv">Baixar CSV</button>' +
+    '<button class="primario" id="pl-guardar">Salvar na biblioteca</button>' +
+    '<button id="pl-voltar">Voltar</button>' +
+    '<input type="file" id="pl-arquivo" accept=".csv,.xlsx,.txt" hidden></div>';
+
+  html += '<div class="ed-barra">' +
+    '<select id="pl-formato">' +
+    p.formatos.map((f) => '<option value="' + esc(f.valor) + '">' + esc(f.rotulo) + "</option>").join("") +
+    "</select>" +
+    '<span class="ed-divisa"></span>' +
+    '<button id="pl-negrito"><b>B</b></button>' +
+    '<button id="pl-italico"><i>I</i></button>' +
+    '<span class="ed-divisa"></span>' +
+    '<button id="pl-funcoes">Fórmulas</button>' +
+    '<button id="pl-limpar">Limpar célula</button></div>';
+
+  html += '<div class="pl-formula"><span class="pl-ref" id="pl-ref">' + esc(escr.celula) + "</span>" +
+    '<span class="pl-fx">fx</span>' +
+    '<input type="text" id="pl-entrada" value="' + esc(valorCru(aba, escr.celula)) + '"></div>';
+
+  html += '<div class="assinar-colunas"><div>' + gradePlanilha(aba, calc) +
+    '<div class="pl-abas">' +
+    p.abas.map((a, i) =>
+      '<button class="' + (i === escr.aba ? "escolhida" : "") + '" data-aba="' + i + '">' +
+      esc(a.nome) + "</button>").join("") +
+    '<button id="pl-nova-aba">+</button>' +
+    (p.abas.length > 1 ? '<button class="perigo" id="pl-tirar-aba">Apagar aba</button>' : "") +
+    "</div>" +
+    '<div class="pl-status" id="pl-selecao"></div>' +
+    '<div id="pl-abaixo"></div></div>';
+
+  html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
+    '<p class="explica">Peça o cálculo em português. Eu escrevo a fórmula, você confere ' +
+    "e insere — quem calcula é a planilha, não o modelo.</p>" +
+    '<div class="ed-pedido"><input type="text" id="pl-pedido" placeholder="quanto falta receber?">' +
+    '<button class="primario" id="pl-pedir">↑</button></div>' +
+    '<div id="pl-sugestao"></div></div>';
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Resumo da aba</h3>' +
+    '<div class="pl-status"><span>células ' + res.celulas + "</span>" +
+    "<span>fórmulas " + res.formulas + "</span>" +
+    "<span>erros " + res.erros + "</span></div>" +
+    '<div class="pl-status"><span>soma ' + moedaBR(res.soma) + "</span>" +
+    "<span>média " + moedaBR(res.media) + "</span></div></div></div></div>";
+
+  html += '<div class="rodape-tela">os números não saem desta máquina</div></div>';
+  $("centro").innerHTML = html;
+  ligarPlanilha();
+}
+
+function gradePlanilha(aba, calc) {
+  let html = '<div class="pl-caixa"><table class="pl-grade"><thead><tr><th class="canto"></th>';
+  for (let c = 0; c < aba.colunas; c++) html += "<th>" + letraColuna(c) + "</th>";
+  html += "</tr></thead><tbody>";
+
+  for (let l = 1; l <= aba.linhas; l++) {
+    html += '<tr><td class="cabeca-linha">' + l + "</td>";
+    for (let c = 0; c < aba.colunas; c++) {
+      const ref = letraColuna(c) + l;
+      const v = calc[ref];
+      const cel = aba.celulas[ref];
+      const classes = ["pl-cel"];
+      if (ref === escr.celula) classes.push("escolhida");
+      if (v) {
+        if (v.erro) classes.push("ruim");
+        else if (typeof v.bruto === "number") classes.push("numero");
+        if (v.formula) classes.push("formula");
+      }
+      if (cel && cel.negrito) classes.push("forte");
+      if (cel && cel.italico) classes.push("inclinada");
+      html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '">' +
+        (v ? esc(v.texto) : "") + "</td>";
+    }
+    html += "</tr>";
+  }
+  return html + "</tbody></table></div>";
+}
+
+function letraColuna(i) {
+  let nome = "";
+  i += 1;
+  while (i) { const r = (i - 1) % 26; nome = String.fromCharCode(65 + r) + nome; i = Math.floor((i - 1) / 26); }
+  return nome;
+}
+
+function valorCru(aba, ref) {
+  const c = aba.celulas[ref];
+  return c ? c.valor : "";
+}
+
+function moedaBR(n) {
+  return (Number(n) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function ligarPlanilha() {
+  const p = escr.pl;
+  const aba = p.abas[escr.aba];
+
+  document.querySelectorAll("[data-ref]").forEach((td) => {
+    td.onclick = () => escolherCelula(td.dataset.ref);
+    td.ondblclick = () => { escolherCelula(td.dataset.ref); $("pl-entrada").focus(); };
+  });
+  document.querySelectorAll("[data-aba]").forEach((b) => {
+    b.onclick = () => { escr.aba = Number(b.dataset.aba); escr.celula = "A1"; desenharPlanilha(); };
+  });
+
+  const entrada = $("pl-entrada");
+  entrada.onkeydown = (e) => {
+    if (e.key === "Enter") { gravarCelula(entrada.value); e.preventDefault(); }
+    if (e.key === "Escape") { entrada.value = valorCru(aba, escr.celula); entrada.blur(); }
+  };
+
+  $("pl-formato").value = (aba.celulas[escr.celula] || {}).formato || "";
+  $("pl-formato").onchange = (e) => gravarCelula(null, { formato: e.target.value });
+  $("pl-negrito").onclick = () => gravarCelula(null, { negrito: !((aba.celulas[escr.celula] || {}).negrito) });
+  $("pl-italico").onclick = () => gravarCelula(null, { italico: !((aba.celulas[escr.celula] || {}).italico) });
+  $("pl-limpar").onclick = () => gravarCelula("");
+
+  $("pl-voltar").onclick = () => listaDocumentos("planilha", "Planilha");
+  $("pl-titulo").onchange = async () => {
+    await fetch("/api/documentos/" + p.id, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corpo: corpoDaPlanilha(), titulo: $("pl-titulo").value }),
+    });
+  };
+  $("pl-xlsx").onclick = () => { window.location.href = "/api/planilha/" + p.id + "/exportar?formato=xlsx"; };
+  $("pl-csv").onclick = () => { window.location.href = "/api/planilha/" + p.id + "/exportar?formato=csv&aba=" + escr.aba; };
+
+  const campo = $("pl-arquivo");
+  $("pl-importar-b").onclick = () => campo.click();
+  campo.onchange = async () => {
+    if (!campo.files[0]) return;
+    const forma = new FormData();
+    forma.append("arquivo", campo.files[0]);
+    const r = await fetch("/api/planilha/" + p.id + "/importar", { method: "POST", body: forma });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    escr.pl = await r.json();
+    escr.aba = escr.pl.abas.length - 1;
+    desenharPlanilha();
+  };
+
+  $("pl-guardar").onclick = async () => {
+    const r = await fetch("/api/documentos/" + p.id + "/biblioteca", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+    avisoCert("guardado na biblioteca como " + d.guardado);
+  };
+
+  $("pl-nova-aba").onclick = async () => {
+    const nome = prompt("Nome da aba:", "Página " + (p.abas.length + 1));
+    if (!nome) return;
+    const r = await fetch("/api/planilha/" + p.id + "/aba", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: nome }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    escr.pl = await r.json();
+    escr.aba = escr.pl.abas.length - 1;
+    desenharPlanilha();
+  };
+  const tirar = $("pl-tirar-aba");
+  if (tirar) tirar.onclick = async () => {
+    if (!confirm("Apagar a aba “" + aba.nome + "” e tudo que está nela?")) return;
+    const r = await fetch("/api/planilha/" + p.id + "/aba/" + escr.aba, { method: "DELETE" });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    escr.pl = await r.json();
+    escr.aba = 0;
+    desenharPlanilha();
+  };
+
+  $("pl-funcoes").onclick = () => {
+    $("pl-abaixo").innerHTML = '<div class="painel" style="margin-top:14px"><h3>Fórmulas</h3>' +
+      '<p class="explica">Ponto e vírgula separa argumento; vírgula é o decimal — como no ' +
+      "Excel em português.</p>" +
+      p.funcoes.map((f) =>
+        '<div class="pl-funcao"><b>' + esc(f.nome) + "</b><code>" + esc(f.exemplo) + "</code>" +
+        '<span class="explica">' + esc(f.explica) + "</span></div>").join("") + "</div>";
+  };
+
+  $("pl-pedir").onclick = pedirFormula;
+  $("pl-pedido").onkeydown = (e) => { if (e.key === "Enter") pedirFormula(); };
+  mostrarSelecao();
+}
+
+function corpoDaPlanilha() {
+  return JSON.stringify({ versao: 1, abas: escr.pl.abas });
+}
+
+function escolherCelula(ref) {
+  escr.celula = ref;
+  const aba = escr.pl.abas[escr.aba];
+  $("pl-ref").textContent = ref;
+  $("pl-entrada").value = valorCru(aba, ref);
+  $("pl-formato").value = (aba.celulas[ref] || {}).formato || "";
+  document.querySelectorAll("[data-ref]").forEach((td) => {
+    td.classList.toggle("escolhida", td.dataset.ref === ref);
+  });
+  mostrarSelecao();
+}
+
+function mostrarSelecao() {
+  const calc = escr.pl.calculado[escr.aba];
+  const v = calc[escr.celula];
+  const alvo = $("pl-selecao");
+  if (!alvo) return;
+  alvo.innerHTML = "<span>" + escr.celula + "</span>" +
+    (v && v.formula ? "<span>" + esc(v.formula) + "</span>" : "") +
+    (v && typeof v.bruto === "number" ? "<span>valor " + moedaBR(v.bruto) + "</span>" : "") +
+    (v && v.erro ? "<span>a fórmula não fechou</span>" : "");
+}
+
+async function gravarCelula(valor, extras) {
+  const p = escr.pl;
+  const dados = extras || {};
+  if (valor !== null && valor !== undefined) dados.valor = valor;
+
+  const r = await fetch("/api/planilha/" + p.id + "/celula", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aba: escr.aba, ref: escr.celula, dados: dados }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  escr.pl = await r.json();
+  desenharPlanilha();
+}
+
+async function pedirFormula() {
+  const campo = $("pl-pedido");
+  const pedido = campo.value.trim();
+  if (!pedido) return;
+
+  const alvo = $("pl-sugestao");
+  alvo.innerHTML = '<p class="nota">pensando… cerca de um minuto nesta máquina</p>';
+
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/assistente", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pedido: pedido, selecao: escr.celula }),
+  });
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+
+  const d = await r.json();
+  alvo.innerHTML = '<div class="ed-sugestao"><span class="rotulo">fórmula sugerida</span>' +
+    "<p><code>" + esc(d.formula) + "</code></p>" +
+    '<p class="explica">' + (d.erro ? "Ela não fechou: " : "Resultado agora: ") + esc(d.resultado || "—") + "</p>" +
+    '<p class="explica">' + esc(d.aviso) + "</p>" +
+    '<div class="linha-form"><button id="pl-descartar">Descartar</button>' +
+    '<button class="primario" id="pl-inserir">Inserir em ' + esc(escr.celula) + "</button></div></div>";
+
+  $("pl-descartar").onclick = () => { alvo.innerHTML = ""; };
+  $("pl-inserir").onclick = () => { alvo.innerHTML = ""; gravarCelula(d.formula); };
 }
 
 /* ------------------------------------------------------------- inicio */

@@ -82,7 +82,7 @@ contrato original. Use `/trechos` para ver exatamente o que o modelo leu.
 
 ## Documentacao
 
-- [ETAPAS.md](docs/ETAPAS.md) - o caminho das 14 telas prontas as 20 do manual
+- [ETAPAS.md](docs/ETAPAS.md) - o caminho das 16 telas prontas as 20 do manual
 - [QUICKSTART.md](docs/QUICKSTART.md) - instalacao e uso
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) - como funciona e por que
 - [CONTRIBUTING.md](CONTRIBUTING.md) - como contribuir

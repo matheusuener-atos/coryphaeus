@@ -12,8 +12,10 @@ documento sai daqui.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import threading
+import unicodedata
 from datetime import datetime
 from collections.abc import Iterator
 from pathlib import Path
@@ -34,6 +36,8 @@ import certificado
 import correio
 import correio_contas
 import destinos
+import documento
+import planilha
 import pastas
 import recursos
 import registro
@@ -76,6 +80,7 @@ COFRE_PATH = CERTIFICADO_DIR / "cofre.json"
 ASSINATURAS_PATH = BASE_DIR / "data" / "assinaturas.json"
 CONTAS_EMAIL_PATH = BASE_DIR / "data" / "contas_email.json"
 ENVIOS_PATH = BASE_DIR / "data" / "envios.json"
+CLAUSULAS_PATH = BASE_DIR / "data" / "clausulas.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -114,6 +119,9 @@ class Estado:
         # Contas de e-mail e o historico do que ja saiu daqui.
         self.contas = correio_contas.Contas(CONTAS_EMAIL_PATH)
         self.envios = correio.RegistroEnvios(ENVIOS_PATH)
+        # Documentos de texto e planilhas, com historico de versoes.
+        self.documentos = documento.Documentos(self.base)
+        self.clausulas = documento.Clausulas(CLAUSULAS_PATH)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -2137,6 +2145,576 @@ def email_anexaveis() -> dict:
             "mb": round(caminho.stat().st_size / (1024 * 1024), 2),
         })
     return {"arquivos": sorted(achados, key=lambda a: a["nome"].lower())}
+
+# ------------------------------------------------- documentos e planilha
+
+
+class NovoDocumento(BaseModel):
+    titulo: str = ""
+    tipo: str = "texto"
+    corpo: str = ""
+    cadastro_id: int | None = None
+
+
+class GravarDocumento(BaseModel):
+    corpo: str = ""
+    titulo: str = ""
+    nota: str = ""
+
+
+class PedidoAoAssistente(BaseModel):
+    pedido: str = ""
+    trecho: str = ""            # o que estava selecionado, quando havia
+    selecao: str = ""           # celulas, na planilha
+
+
+class CelulaPlanilha(BaseModel):
+    aba: int = 0
+    ref: str = ""
+    dados: dict = {}
+
+
+def _documento_ou_404(id_: int) -> dict:
+    item = estado.documentos.obter(id_)
+    if not item:
+        raise HTTPException(status_code=404, detail="documento não encontrado")
+    return item
+
+
+@app.get("/api/documentos")
+def documentos_listar(tipo: str = "") -> dict:
+    return {
+        "documentos": estado.documentos.listar(tipo),
+        "contagem": estado.documentos.contagem(),
+        "clientes": [{"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar()],
+    }
+
+
+@app.post("/api/documentos")
+def documentos_criar(payload: NovoDocumento) -> dict:
+    corpo = payload.corpo
+    if not corpo and payload.tipo == "planilha":
+        corpo = planilha.para_json([planilha.Aba()])
+    id_ = estado.documentos.criar(payload.titulo, payload.tipo, corpo, payload.cadastro_id)
+    return estado.documentos.obter(id_) or {}
+
+
+# A rota fixa vem ANTES da rota com parametro: o FastAPI casa na ordem de
+# declaracao, e /api/documentos/{id_} engoliria /api/documentos/modelos.
+@app.get("/api/documentos/modelos")
+def documentos_modelos() -> dict:
+    """
+    As clausulas que o escritorio guarda.
+
+    Os codigos (CC, CPC, CP, CLT) que o wireframe mostra ficam de fora de
+    proposito: o programa nao carrega o texto das leis, e pedir o artigo a um
+    modelo de 3 bilhoes de parametros produziria numero de artigo plausivel e
+    errado dentro de um contrato. Melhor nao ter do que ter errado.
+    """
+    return {
+        "clausulas": estado.clausulas.listar(),
+        "codigos_indisponiveis": {
+            "titulo": "Citação de código de lei",
+            "porque": (
+                "Não carrego o texto do Código Civil, do CPC, do CP nem da CLT, e não "
+                "vou pedir o artigo ao modelo: ele devolveria um número plausível e "
+                "possivelmente errado, dentro de um contrato."
+            ),
+            "falta": ["texto oficial dos códigos, em base local"],
+        },
+    }
+
+
+@app.post("/api/documentos/modelos")
+def documentos_gravar_modelo(payload: dict) -> dict:
+    try:
+        estado.clausulas.gravar(
+            str(payload.get("titulo", "")), str(payload.get("texto", "")),
+            str(payload.get("id", "")),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"clausulas": estado.clausulas.listar()}
+
+
+@app.delete("/api/documentos/modelos/{id_}")
+def documentos_apagar_modelo(id_: str) -> dict:
+    estado.clausulas.apagar(id_)
+    return {"clausulas": estado.clausulas.listar()}
+
+
+@app.get("/api/documentos/{id_}")
+def documentos_obter(id_: int) -> dict:
+    item = _documento_ou_404(id_)
+    if item["tipo"] == "texto":
+        blocos = documento.ler_html(item["corpo"])
+        item["contagem"] = documento.contar(blocos)
+    return item
+
+
+@app.post("/api/documentos/{id_}")
+def documentos_gravar(id_: int, payload: GravarDocumento) -> dict:
+    try:
+        resultado = estado.documentos.salvar(id_, payload.corpo, payload.titulo, payload.nota)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    if payload.corpo and not payload.corpo.lstrip().startswith("{"):
+        resultado["contagem"] = documento.contar(documento.ler_html(payload.corpo))
+    return resultado
+
+
+@app.delete("/api/documentos/{id_}")
+def documentos_apagar(id_: int) -> dict:
+    if not estado.documentos.apagar(id_):
+        raise HTTPException(status_code=404, detail="documento não encontrado")
+    return {"apagado": id_}
+
+
+@app.get("/api/documentos/{id_}/versoes")
+def documentos_versoes(id_: int) -> dict:
+    _documento_ou_404(id_)
+    return {"versoes": estado.documentos.versoes(id_)}
+
+
+@app.get("/api/documentos/{id_}/comparar")
+def documentos_comparar(id_: int, de: int = 0, ate: int = 0) -> dict:
+    """
+    O que mudou entre duas versoes.
+
+    Compara o texto, nao o HTML: o editor troca <b> por <strong> sozinho, e
+    listar isso como alteracao de contrato faria a comparacao perder utilidade
+    justamente no dia em que ela importa.
+    """
+    _documento_ou_404(id_)
+    ultima = estado.documentos.ultima_versao(id_)
+    ate = ate or ultima
+    de = de or max(1, ate - 1)
+
+    antes = estado.documentos.corpo_da_versao(id_, de)
+    depois = estado.documentos.corpo_da_versao(id_, ate)
+    if antes is None or depois is None:
+        raise HTTPException(status_code=404, detail="essa versão não existe")
+
+    return {"de": de, "ate": ate, "mudancas": documento.comparar(antes, depois)}
+
+
+@app.post("/api/documentos/{id_}/restaurar")
+def documentos_restaurar(id_: int, payload: dict) -> dict:
+    _documento_ou_404(id_)
+    try:
+        resultado = estado.documentos.restaurar(id_, int(payload.get("numero", 0)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {**resultado, "documento": estado.documentos.obter(id_)}
+
+
+# ------------------------------------------------ sair: PDF, DOCX, avisos
+
+
+def _pdf_do_documento(item: dict) -> bytes:
+    blocos = documento.ler_html(item["corpo"])
+    rodape = item["titulo"]
+    return documento.para_pdf(blocos, item["titulo"], rodape)
+
+
+@app.get("/api/documentos/{id_}/pdf")
+def documentos_pdf(id_: int):
+    from fastapi.responses import Response
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
+    return Response(
+        _pdf_do_documento(item), media_type="application/pdf",
+        headers=_anexo(_arquivo(item["titulo"]) + ".pdf"),
+    )
+
+
+@app.get("/api/documentos/{id_}/docx")
+def documentos_docx(id_: int):
+    from fastapi.responses import Response
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
+
+    dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"])
+    return Response(
+        dados,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=_anexo(_arquivo(item["titulo"]) + ".docx"),
+    )
+
+
+@app.get("/api/documentos/{id_}/pagina")
+def documentos_pagina(id_: int, numero: int = 1, largura: int = 900):
+    """
+    A pagina desenhada, para a pre-visualizacao.
+
+    E o PDF de verdade rasterizado, nao uma aproximacao em CSS: o que a tela
+    mostra e o arquivo que vai sair.
+    """
+    from fastapi.responses import Response
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="planilha não tem página de PDF")
+
+    pdf = _pdf_do_documento(item)
+    return Response(
+        documento.pagina_png(pdf, numero, largura),
+        media_type="image/png", headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/api/documentos/{id_}/conferir")
+def documentos_conferir(id_: int) -> dict:
+    """
+    O que conferir antes de o documento sair.
+
+    Tudo regra, nada de modelo: lacuna de modelo que ficou, documento com
+    digito verificador errado, valor com cifrao e sem numero, nome que aparece
+    no texto sem bater com a ficha do cadastro. Roda em milissegundos e a
+    resposta e sempre a mesma.
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        return {"avisos": [], "paginas": 0}
+
+    blocos = documento.ler_html(item["corpo"])
+    avisos = documento.conferir(blocos, estado.cadastros.listar())
+    pdf = _pdf_do_documento(item)
+
+    return {
+        "avisos": avisos,
+        "impedem": sum(1 for a in avisos if a["grau"] == "impede"),
+        "paginas": documento.paginas_de(pdf),
+        "bytes": len(pdf),
+        "contagem": documento.contar(blocos),
+        "versao": item["versao"],
+    }
+
+
+@app.post("/api/documentos/{id_}/biblioteca")
+def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
+    """
+    Grava o PDF na biblioteca, para poder assinar e anexar em e-mail.
+
+    Nunca passa por cima de arquivo existente: sai com numero no fim.
+    """
+    item = _documento_ou_404(id_)
+    formato = str((payload or {}).get("formato", "pdf")).lower()
+
+    if item["tipo"] == "planilha":
+        abas = planilha.de_dict(json.loads(item["corpo"] or "{}"))
+        dados = planilha.para_xlsx(abas, [planilha.calcular_aba(a) for a in abas])
+        sufixo = ".xlsx"
+    elif formato == "docx":
+        dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"])
+        sufixo = ".docx"
+    else:
+        dados = _pdf_do_documento(item)
+        sufixo = ".pdf"
+
+    estado.pasta.mkdir(parents=True, exist_ok=True)
+    base = _arquivo(item["titulo"])
+    destino = estado.pasta / f"{base}{sufixo}"
+    conta = 2
+    while destino.exists():
+        destino = estado.pasta / f"{base} ({conta}){sufixo}"
+        conta += 1
+
+    destino.write_bytes(dados)
+    return {
+        "guardado": destino.name,
+        "caminho": str(destino),
+        "documentos": estado.recarregar(force=True) if sufixo != ".xlsx" else estado.recarregar(),
+    }
+
+
+def _arquivo(titulo: str) -> str:
+    """Titulo virando nome de arquivo que o Windows aceita."""
+    limpo = re.sub(r'[<>:"/\\|?*]', "-", titulo or "documento").strip(" .")
+    return (limpo or "documento")[:90]
+
+
+def _anexo(nome: str) -> dict:
+    """
+    O cabecalho que manda o navegador salvar o arquivo com esse nome.
+
+    Cabecalho HTTP e latin-1, e titulo de documento brasileiro tem acento e
+    travessao - "Contrato de honorarios - Cooperativa" derrubava a rota com
+    UnicodeEncodeError. A regra do proprio HTTP resolve: um nome sem acento
+    para quem so entende o basico, e o nome de verdade em UTF-8 ao lado.
+    """
+    from urllib.parse import quote
+
+    simples = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode()
+    simples = (simples or "documento").replace(_ASPAS, "")
+    return {
+        "Content-Disposition":
+            "attachment; filename=" + _ASPAS + simples + _ASPAS
+            + "; filename*=UTF-8''" + quote(nome)
+    }
+
+
+_ASPAS = chr(34)
+
+
+
+# --------------------------------------------------------- o assistente
+
+
+INSTRUCAO_EDITOR = """Voce ajuda um advogado brasileiro a redigir. Responda em
+portugues do Brasil, direto, sem preambulo.
+
+Regras:
+- devolva APENAS o texto pedido, pronto para entrar no documento
+- nao invente numero de artigo, de lei, de sumula nem de processo
+- nao invente nome, data, valor nem prazo que nao estejam no que foi dado
+- se faltar informacao para escrever, escreva o texto com a lacuna marcada
+  entre colchetes, por exemplo [VALOR]
+- sem marcacao, sem asteriscos, sem titulo"""
+
+
+@app.post("/api/documentos/{id_}/assistente")
+def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
+    """
+    O assistente escrevendo dentro do documento.
+
+    O ganho desta tela e este - o editor em si o Word ja faz. O que volta e
+    sugestao: entra no texto so quando a pessoa aceitar.
+    """
+    item = _documento_ou_404(id_)
+    pedido = payload.pedido.strip()
+    if not pedido:
+        raise HTTPException(status_code=400, detail="diga o que você quer que eu escreva")
+
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+
+    if payload.trecho.strip():
+        contexto = f"Trecho selecionado do documento:\n{payload.trecho[:2500]}"
+    else:
+        texto = documento.para_texto(documento.ler_html(item["corpo"]))
+        contexto = f"Documento (início):\n{texto[:2500]}"
+
+    try:
+        resposta = estado.client.ask(INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}", contexto)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return {
+        "sugestao": _limpar_sugestao(resposta),
+        "sobre": payload.trecho[:160],
+        "aviso": (
+            "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
+            "datas, valores e qualquer artigo de lei antes de aceitar."
+        ),
+    }
+
+
+def _limpar_sugestao(texto: str) -> str:
+    limpo = (texto or "").strip()
+    limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
+    limpo = re.sub(r"^\s*[*-]\s+", "", limpo, flags=re.M)
+    limpo = re.sub(r"^\s*(sugest[aã]o|resposta|texto)\s*:\s*", "", limpo, flags=re.I)
+    return limpo.strip()
+
+
+# ------------------------------------------------------------ planilha
+
+
+def _abas_do(item: dict) -> list:
+    try:
+        return planilha.de_dict(json.loads(item["corpo"] or "{}"))
+    except json.JSONDecodeError:
+        return [planilha.Aba()]
+
+
+def _resposta_planilha(id_: int, item: dict, abas: list) -> dict:
+    calculados = [planilha.calcular_aba(a) for a in abas]
+    return {
+        "id": id_,
+        "titulo": item["titulo"],
+        "versao": item.get("versao", 1),
+        "abas": [a.to_dict() for a in abas],
+        "calculado": calculados,
+        "resumos": [planilha.resumo(a, c) for a, c in zip(abas, calculados)],
+        "formatos": [{"valor": k, "rotulo": v} for k, v in planilha.FORMATOS.items()],
+        "funcoes": [
+            {"nome": n, "exemplo": e, "explica": x} for n, e, x in planilha.AJUDA_FUNCOES
+        ],
+    }
+
+
+@app.get("/api/planilha/{id_}")
+def planilha_abrir(id_: int) -> dict:
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "planilha":
+        raise HTTPException(status_code=400, detail="isso não é uma planilha")
+    return _resposta_planilha(id_, item, _abas_do(item))
+
+
+@app.post("/api/planilha/{id_}/celula")
+def planilha_celula(id_: int, payload: CelulaPlanilha) -> dict:
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    if not 0 <= payload.aba < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+    if not planilha.RE_CELULA.match(payload.ref.upper()):
+        raise HTTPException(status_code=400, detail="referência de célula inválida")
+
+    abas[payload.aba].gravar(payload.ref, payload.dados)
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=f"{payload.ref.upper()} alterada")
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
+
+
+@app.post("/api/planilha/{id_}/aba")
+def planilha_nova_aba(id_: int, payload: dict) -> dict:
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    if len(abas) >= 6:
+        raise HTTPException(status_code=400, detail="seis abas é o limite por planilha")
+
+    nome = " ".join(str(payload.get("nome", "")).split())[:24] or f"Página {len(abas) + 1}"
+    abas.append(planilha.Aba(nome=nome))
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=f"aba {nome} criada")
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
+
+
+@app.delete("/api/planilha/{id_}/aba/{indice}")
+def planilha_apagar_aba(id_: int, indice: int) -> dict:
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    if len(abas) <= 1:
+        raise HTTPException(status_code=400, detail="a planilha precisa de pelo menos uma aba")
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    fora = abas.pop(indice)
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=f"aba {fora.nome} apagada")
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
+
+
+@app.post("/api/planilha/{id_}/importar")
+async def planilha_importar(id_: int, arquivo: UploadFile) -> dict:
+    """Traz um CSV ou XLSX para dentro da planilha, como abas novas."""
+    item = _documento_ou_404(id_)
+    nome = Path(arquivo.filename or "").name
+    sufixo = Path(nome).suffix.lower()
+    if sufixo not in (".csv", ".xlsx", ".txt"):
+        raise HTTPException(status_code=400, detail="importo CSV e XLSX")
+
+    dados = await arquivo.read()
+    if len(dados) > 12 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="arquivo grande demais")
+
+    abas = _abas_do(item)
+    try:
+        if sufixo == ".xlsx":
+            novas = planilha.de_xlsx(dados)
+        else:
+            texto = dados.decode("utf-8", errors="replace")
+            if texto.count("�") > len(texto) * 0.01:
+                texto = dados.decode("cp1252", errors="replace")
+            novas = [planilha.de_csv(texto, Path(nome).stem[:24])]
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"não consegui ler o arquivo: {exc}") from exc
+
+    abas = (abas + novas)[:6]
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=f"importado {nome}")
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
+
+
+@app.get("/api/planilha/{id_}/exportar")
+def planilha_exportar(id_: int, formato: str = "xlsx", aba: int = 0):
+    from fastapi.responses import Response
+
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    nome = _arquivo(item["titulo"])
+
+    if formato == "csv":
+        if not 0 <= aba < len(abas):
+            aba = 0
+        texto = planilha.para_csv(abas[aba], planilha.calcular_aba(abas[aba]))
+        return Response(
+            texto.encode("utf-8-sig"), media_type="text/csv",
+            headers=_anexo(nome + ".csv"),
+        )
+
+    dados = planilha.para_xlsx(abas, [planilha.calcular_aba(a) for a in abas])
+    return Response(
+        dados,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=_anexo(nome + ".xlsx"),
+    )
+
+
+@app.post("/api/planilha/{id_}/assistente")
+def planilha_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
+    """
+    Pede uma formula em portugues e recebe a formula pronta.
+
+    O modelo escreve a formula; quem calcula e o motor da planilha. Assim um
+    erro do modelo vira #NOME? numa celula, nao numero errado num honorario.
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "planilha":
+        raise HTTPException(status_code=400, detail="isso não é uma planilha")
+    if not payload.pedido.strip():
+        raise HTTPException(status_code=400, detail="diga o que você quer calcular")
+
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+
+    abas = _abas_do(item)
+    aba = abas[0]
+    calculado = planilha.calcular_aba(aba)
+
+    linhas = []
+    for ref in sorted(aba.celulas, key=lambda r: (planilha._posicao(r)[0], planilha._posicao(r)[1]))[:60]:
+        linhas.append(f"{ref}: {(calculado.get(ref) or {}).get('texto', '')}")
+
+    instrucao = (
+        "Voce escreve formulas de planilha no padrao brasileiro: ponto e virgula separa "
+        "argumento e virgula e o decimal. Funcoes em portugues: SOMA, MEDIA, SE, SOMASE, "
+        "CONT.SE, MAXIMO, MINIMO, ARRED. Responda APENAS com a formula, comecando por =. "
+        "Nao explique. Nao invente celula que nao esta na lista."
+    )
+    try:
+        resposta = estado.client.ask(instrucao + f"\n\nPedido: {payload.pedido}",
+                                     "Células com valor:\n" + "\n".join(linhas))
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    formula = _so_a_formula(resposta)
+    prova = _provar_formula(formula, aba)
+    return {
+        "formula": formula,
+        "resultado": prova["texto"],
+        "erro": prova["erro"],
+        "aviso": "Confira a fórmula antes de inserir: o modelo pode citar a célula errada.",
+    }
+
+
+def _so_a_formula(bruto: str) -> str:
+    texto = (bruto or "").strip().replace("`", "")
+    achado = re.search(r"=[^\n]+", texto)
+    return achado.group().strip() if achado else texto.split("\n")[0].strip()
+
+
+def _provar_formula(formula: str, aba) -> dict:
+    """Roda a formula antes de oferecer, para a tela ja mostrar o resultado."""
+    prova = planilha.Aba(nome=aba.nome, celulas=dict(aba.celulas))
+    prova.gravar("ZZ999", {"valor": formula})
+    calculado = planilha.calcular_aba(prova)
+    celula = calculado.get("ZZ999", {})
+    return {"texto": celula.get("texto", ""), "erro": bool(celula.get("erro"))}
 
 def main() -> None:
     import argparse

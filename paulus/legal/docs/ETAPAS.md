@@ -209,15 +209,67 @@ Cadastros aparece marcado como cliente.
 
 ---
 
-## Etapa 6 — Escrita
+## Etapa 6 — Escrita ✓ FEITA
 
 **Telas:** Editor de texto · Pré-visualização · Planilha
 **Tamanho:** grande
-**Depende de:** nada — pode ser adiada sem travar as outras
+**Depende de:** nada — podia ser adiada sem travar as outras
 
 A etapa que eu adiaria mais. Word e Excel já existem e o escritório já os usa; o
 ganho aqui é o assistente escrevendo dentro do documento, não o editor em si.
-Vale quando as etapas anteriores já provarem valor.
+
+Esse aviso continua valendo depois de pronta, e ele guiou onde o esforço foi:
+**o editor é o suficiente para escrever; o valor está no que só existe aqui** —
+o assistente escrevendo dentro do documento, os cadastros e a biblioteca do
+lado, a conferência antes de o arquivo sair, e o caminho direto para assinar e
+enviar, que as etapas 4 e 5 já construíram.
+
+**Uma leitura, dois formatos.** O editor escreve HTML, porque é o que um campo
+editável do navegador produz sem biblioteca nenhuma. Mas HTML não é o
+documento: é a forma de digitar. O servidor lê isso uma vez e produz blocos, e é
+dos blocos que saem tanto o PDF quanto o DOCX. Caminhos separados produziriam
+dois documentos diferentes com o mesmo nome, e num contrato "a versão em Word
+está diferente da versão em PDF" não é detalhe de formatação.
+
+O PDF é o formato canônico: é o que a pré-visualização mostra — o arquivo de
+verdade rasterizado, não uma aproximação em CSS — e é o que vai para a
+assinatura. O DOCX existe para continuar no Word, e a tela diz isso.
+
+**Conferir antes de sair** é tudo regra, nada de modelo: lacuna de modelo que
+ficou (`_____`, `[  ]`), CPF e CNPJ com dígito verificador que não fecha, valor
+com cifrão e sem número, e nome que aparece no texto sem bater com a ficha do
+cadastro. Roda em milissegundos e a resposta é sempre a mesma — um aviso que
+muda de opinião a cada leitura não serve para conferir contrato.
+
+**A planilha fala português brasileiro de verdade**: ponto e vírgula separa
+argumento, vírgula é decimal, funções com nome em português.
+`=SE(C4="pago";0;B4*0,1)` é o que a pessoa já escreve no Excel dela. O
+analisador é escrito à mão, não `eval`: fórmula chega de planilha que veio de
+fora, e o pior que uma fórmula estranha pode fazer aqui é devolver `#NOME?` numa
+célula. Referência circular vira `#CIRCULAR`, não travamento.
+
+**O que ficou de fora, e por quê:**
+
+*Citação de código de lei (CC, CPC, CP, CLT).* O programa não carrega o texto
+das leis, e pedir o artigo a um modelo de 3 bilhões de parâmetros produziria
+número de artigo plausível e errado dentro de um contrato. A tela diz isso e
+oferece o que não tem esse risco: as cláusulas que o próprio escritório guarda.
+
+*Controlar alterações no estilo do Word.* O que existe é o fluxo que o wireframe
+destaca: a sugestão do assistente aparece, e você aceita ou descarta. Versões e
+comparação entre elas cobrem o resto.
+
+**Achados durante a construção:**
+
+- quebra de linha entre tags do HTML é formatação, não conteúdo: tratá-la como
+  texto criava um parágrafo vazio por linha do fonte, e o PDF saía com o dobro
+  de espaço entre as cláusulas
+- `R\$\s*(?![\d_])` aponta "R$ 12.000,00" como valor sem número: o `\s*` fora do
+  lookahead volta atrás e casa com zero espaço. O espaço tem que estar dentro
+- cabeçalho HTTP é latin-1, e título de documento brasileiro tem acento e
+  travessão — baixar o PDF derrubava a rota com UnicodeEncodeError
+- o FastAPI casa rota na ordem de declaração: `/api/documentos/{id}` engolia
+  `/api/documentos/modelos` e devolvia 422
 
 ---
 

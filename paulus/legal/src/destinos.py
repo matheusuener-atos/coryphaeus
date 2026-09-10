@@ -4,12 +4,12 @@ PAULUS - Destinos do menu lateral.
 O manual do sistema define 26 telas, 20 delas no menu, em quatro grupos. Este
 modulo e a ordem oficial desse menu.
 
-Catorze telas tem motor por tras hoje. As outras seis entram na lista com
+Dezesseis telas tem motor por tras hoje. As outras quatro entram na lista com
 `pronta=False`: o menu mostra o produto inteiro, e quem clica numa que ainda
 nao existe recebe o que ela vai resolver e o que falta para ela existir - nao
 uma tela em branco nem um botao morto.
 
-Listar so o que ja funciona esconderia o mapa; desenhar as seis com dado
+Listar so o que ja funciona esconderia o mapa; desenhar as quatro com dado
 inventado seria pior. A terceira saida e dizer.
 """
 
@@ -74,14 +74,14 @@ DESTINOS: list[Destino] = [
         resolve="Proposta de arrumação das pastas em fases, com desfazer.",
     ),
     Destino(
-        id="editor", nome="Editor de texto", grupo="Documentos", icone="caneta",
-        resolve="Redação jurídica com modelos, citação e sugestão do assistente.",
-        precisa=["editor de documento rico", "exportar DOCX e PDF"],
+        id="editor", nome="Editor de texto", grupo="Documentos", icone="caneta", pronta=True,
+        abre="editor",
+        resolve="Redação com o assistente dentro do documento, versões e conferência antes de sair.",
     ),
     Destino(
-        id="planilha", nome="Planilha", grupo="Documentos", icone="grade",
+        id="planilha", nome="Planilha", grupo="Documentos", icone="grade", pronta=True,
+        abre="planilha",
         resolve="Cálculos e listas, com a fórmula escrita em português pelo assistente.",
-        precisa=["grade de células com fórmulas", "importar CSV e XLSX"],
     ),
     Destino(
         id="assinar", nome="Assinar documento", grupo="Documentos", icone="selo", pronta=True,

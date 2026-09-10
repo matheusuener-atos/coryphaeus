@@ -123,6 +123,35 @@ MIGRACOES: list[tuple[str, str]] = [
             atualizado_em TEXT NOT NULL
         );
         """,
+    ),    (
+        "006_documentos",
+        """
+        -- Documento de texto e planilha moram na mesma tabela: o que muda e o
+        -- formato do corpo (HTML para texto, JSON para planilha). Separar em
+        -- duas tabelas duplicaria versao, historico e vinculo sem ganho.
+        CREATE TABLE documentos (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo        TEXT NOT NULL,
+            tipo          TEXT NOT NULL DEFAULT 'texto',
+            corpo         TEXT NOT NULL DEFAULT '',
+            cadastro_id   INTEGER REFERENCES cadastros(id) ON DELETE SET NULL,
+            criado_em     TEXT NOT NULL,
+            atualizado_em TEXT NOT NULL
+        );
+        CREATE INDEX idx_documentos_tipo ON documentos(tipo);
+
+        -- Uma versao por gravacao com mudanca real. E o que sustenta o
+        -- "comparar versoes" e o "voltar para a v6" da tela.
+        CREATE TABLE versoes (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            documento_id INTEGER NOT NULL REFERENCES documentos(id) ON DELETE CASCADE,
+            numero       INTEGER NOT NULL,
+            corpo        TEXT NOT NULL,
+            nota         TEXT DEFAULT '',
+            criada_em    TEXT NOT NULL
+        );
+        CREATE INDEX idx_versoes_doc ON versoes(documento_id, numero);
+        """,
     ),
 ]
 

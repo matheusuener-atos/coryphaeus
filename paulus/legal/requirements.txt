@@ -24,3 +24,8 @@ pyHanko>=0.25.0
 cryptography>=42.0.0
 pypdfium2>=4.30.0
 Pillow>=10.0.0
+
+# Etapa 6 - editor de texto
+# reportlab gera o PDF do documento. python-docx e openpyxl, que a planilha e o
+# DOCX usam, ja estavam aqui desde a primeira semana.
+reportlab>=4.0.0
