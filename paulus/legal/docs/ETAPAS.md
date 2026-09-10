@@ -1,0 +1,145 @@
+# Etapas — do que existe hoje às 20 telas do manual
+
+Cinco destinos têm motor. Quinze não. Este documento separa esses quinze em
+etapas pela **dependência real**, não pela ordem do menu: cada etapa entrega
+telas que funcionam e destrava as seguintes.
+
+Sem estimativa em semanas — depende do ritmo de quem constrói. O que está
+declarado é o **tamanho relativo** e o **que cada etapa desbloqueia**, que é a
+informação que muda a ordem.
+
+---
+
+## Onde estamos
+
+| Pronto | Motor por trás |
+|---|---|
+| Conversa | extração, busca BM25, assistente local, conversas persistidas |
+| Biblioteca | índice de documentos + cache de classificação |
+| Organizar pastas | varredura, classificação híbrida, plano, diário, desfazer |
+| Aprendizado | registro de habilidades carregado da pasta |
+| Desempenho | leitura real de processador, memória e vídeo |
+
+---
+
+## Etapa 1 — A moldura que falta
+
+**Telas:** Aprovações · Configurações
+**Tamanho:** pequeno — quase tudo já existe por baixo
+**Destrava:** todas as etapas seguintes
+
+O manual tem uma regra central: *nada com efeito externo acontece sem
+aprovação*. Hoje isso existe só dentro do organizador, como um cartão. Enviar
+e-mail, assinar, pagar e conceder acesso — tudo o que vem nas próximas etapas —
+precisa de uma fila para cair.
+
+Configurações consolida o que hoje está espalhado por linha de comando e
+variável de ambiente: pastas do acervo, modelo em uso, e o que o assistente
+pode fazer sozinho.
+
+Construir isso antes evita ter que voltar em cada tela depois.
+
+---
+
+## Etapa 2 — Memória do escritório
+
+**Telas:** Cadastros · Tarefas
+**Tamanho:** médio — o trabalho é a camada de dados, não as telas
+**Destrava:** Calendário, Agendamento, Financeiro, Relatórios
+
+Cinco telas precisam da mesma coisa: um lugar para guardar registro. Hoje o
+programa só guarda arquivo e conversa. Uma base local (SQLite) resolve as cinco.
+
+Cadastros vem primeiro porque **já temos metade dele pronto sem perceber**: a
+classificação extrai as partes, o CPF/CNPJ, a data e o valor de cada contrato.
+Cadastro deixa de ser digitação e vira confirmação do que o assistente já leu.
+
+Tarefas entra junto por ser o consumidor mais simples da mesma base — serve para
+provar a camada antes de coisas maiores dependerem dela.
+
+---
+
+## Etapa 3 — Tempo
+
+**Telas:** Calendário · Agendamento
+**Tamanho:** médio
+**Depende de:** Etapa 2
+
+Aqui a planilha de vencimentos do plano original finalmente encontra o lugar
+certo. As datas já saem por regra na classificação; falta ter onde pousar.
+
+Prazo de contrato, compromisso e tarefa com data passam a viver na mesma grade.
+Agendamento vem junto porque é a mesma base vista de outro ângulo — e porque
+sugerir horário livre exige o calendário existir.
+
+---
+
+## Etapa 4 — Assinar
+
+**Telas:** Certificado digital · Assinar documento
+**Tamanho:** grande, e o mais delicado de todos
+**Depende de:** Etapa 1 (assinar passa por aprovação)
+
+O par de maior valor comercial para um escritório, e o de maior risco: mexe com
+certificado ICP-Brasil, chave privada e validade jurídica. Assinatura errada não
+é bug de interface.
+
+Duas coisas a decidir antes de começar, e nenhuma é detalhe: se dá para suportar
+só A1 (arquivo) no início, deixando A3 (token) para depois; e como testar sem um
+certificado real na mão.
+
+---
+
+## Etapa 5 — E-mail
+
+**Telas:** Contas de e-mail · Caixa de entrada · Novo e-mail
+**Tamanho:** grande
+**Depende de:** Etapa 1 (envio passa por aprovação)
+
+A maior das etapas isoladas. IMAP e SMTP, ou OAuth para Google e Microsoft.
+Envio nunca sai direto: rascunho, revisão, aprovação.
+
+O valor está na caixa de entrada que lê o e-mail, detecta o prazo e sugere a
+resposta — não em ser mais um cliente de e-mail.
+
+---
+
+## Etapa 6 — Escrita
+
+**Telas:** Editor de texto · Pré-visualização · Planilha
+**Tamanho:** grande
+**Depende de:** nada — pode ser adiada sem travar as outras
+
+A etapa que eu adiaria mais. Word e Excel já existem e o escritório já os usa; o
+ganho aqui é o assistente escrevendo dentro do documento, não o editor em si.
+Vale quando as etapas anteriores já provarem valor.
+
+---
+
+## Etapa 7 — O que precisa de história
+
+**Telas:** Financeiro · Conexões · Relatórios · Foco e bem-estar
+**Tamanho:** médio cada
+**Depende de:** Etapas 2 e 3
+
+Relatórios e Foco só existem depois que houver histórico acumulado — antes
+disso, mostram gráfico vazio ou, pior, número inventado.
+
+Financeiro pede permissão separada: nem todo mundo no escritório vê o
+financeiro. Conexões é o navegador embutido para WhatsApp Web, independente do
+resto.
+
+---
+
+## O que não muda em nenhuma etapa
+
+As regras do manual valem para toda tela nova:
+
+- **Vazio nunca é branco.** Mesmo cabeçalho, mesma grade; muda o conteúdo do
+  cartão — uma frase dizendo o que falta e uma única ação que resolve.
+- **Erro é faixa no topo**, em português, com saída. Nunca modal, nunca some
+  sozinho.
+- **Efeito externo passa por aprovação.** Sem exceção.
+- **Número na tela é número medido.** Sem placeholder, sem estimativa
+  disfarçada de fato.
+- **Toda ação é reversível ou registrada**, e o rodapé diz onde o dado está.
