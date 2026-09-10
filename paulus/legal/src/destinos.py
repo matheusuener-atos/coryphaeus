@@ -105,9 +105,9 @@ DESTINOS: list[Destino] = [
         precisa=["conta de e-mail conectada (IMAP ou OAuth)"],
     ),
     Destino(
-        id="aprovacoes", nome="Aprovações", grupo="Escritorio", icone="visto",
+        id="aprovacoes", nome="Aprovações", grupo="Escritorio", icone="visto", pronta=True,
+        abre="aprovacoes",
         resolve="Fila do que espera a sua decisão antes de sair da máquina.",
-        precisa=["ações externas que precisem de aprovação"],
     ),
     Destino(
         id="relatorios", nome="Relatórios", grupo="Escritorio", icone="grafico",
@@ -136,9 +136,9 @@ DESTINOS: list[Destino] = [
         resolve="Memória, disco e modelo em uso nesta máquina.",
     ),
     Destino(
-        id="config", nome="Configurações", grupo="Sistema", icone="engrenagem",
-        resolve="Pastas, modelo, perfis e o que o assistente pode fazer sozinho.",
-        precisa=["preferências guardadas por perfil"],
+        id="config", nome="Configurações", grupo="Sistema", icone="engrenagem", pronta=True,
+        abre="config",
+        resolve="Modelo, seus dados e o que o assistente pode fazer sozinho.",
     ),
 ]
 

@@ -28,11 +28,13 @@ from pydantic import BaseModel
 
 import requests
 
+import aprovacoes as fila_aprovacoes
 import destinos
 import pastas
 import recursos
 import registro
 from classify import Classificacao, ROTULOS
+from config import Preferencias
 from habilidade_base import (
     PRECISA_ASSISTENTE,
     PRECISA_DOCUMENTOS,
@@ -58,6 +60,8 @@ CACHE_PATH = BASE_DIR / "data" / "extractions" / "index.json"
 CLASSIFICACAO_PATH = BASE_DIR / "data" / "extractions" / "classificacao.json"
 DIARIOS_DIR = BASE_DIR / "data" / "diarios"
 TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
+APROVACOES_PATH = BASE_DIR / "data" / "aprovacoes.json"
+PREFERENCIAS_PATH = BASE_DIR / "data" / "preferencias.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -81,6 +85,9 @@ class Estado:
         self.cancelar = threading.Event()
         # Habilidades carregadas da pasta do projeto, uma por arquivo.
         self.registro = registro.carregar(HABILIDADES_DIR)
+        # Fila do que espera decisao humana, e as preferencias da casa.
+        self.fila = fila_aprovacoes.Fila(APROVACOES_PATH)
+        self.prefs = Preferencias(PREFERENCIAS_PATH)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -688,6 +695,110 @@ def configurar(payload: Ajuste2) -> dict:
     return {"devagar": estado.devagar}
 
 
+# ------------------------------------------------------------- aprovacoes
+
+
+class Decisao(BaseModel):
+    ids: list[str] = []
+    aprovar: bool = True
+
+
+@app.get("/api/aprovacoes")
+def aprovacoes_listar() -> dict:
+    return estado.fila.para_tela()
+
+
+@app.post("/api/aprovacoes/decidir")
+def aprovacoes_decidir(payload: Decisao) -> dict:
+    """
+    Aprova ou recusa. Aprovar executa a acao; recusar so encerra o pedido.
+
+    A execucao nao mora na fila: cada acao e feita por quem sabe faze-la, e o
+    resultado volta para o pedido. Assim a fila nao precisa entender de mover
+    arquivo, assinar ou enviar.
+    """
+    feitos, falhas = [], []
+
+    for id_ in payload.ids:
+        pedido = estado.fila.decidir(id_, payload.aprovar)
+        if not pedido:
+            falhas.append({"id": id_, "motivo": "pedido nao esta mais na fila"})
+            continue
+
+        if not payload.aprovar:
+            feitos.append({"id": id_, "estado": pedido.estado})
+            continue
+
+        executor = EXECUTORES.get(pedido.acao)
+        if not executor:
+            estado.fila.registrar_resultado(id_, "aprovado, sem nada a executar")
+            feitos.append({"id": id_, "estado": pedido.estado})
+            continue
+
+        try:
+            resultado = executor(pedido)
+            estado.fila.registrar_resultado(id_, resultado)
+            feitos.append({"id": id_, "estado": pedido.estado, "resultado": resultado})
+        except Exception as exc:
+            estado.fila.registrar_resultado(id_, f"nao consegui: {exc}", falhou=True)
+            falhas.append({"id": id_, "motivo": str(exc)})
+
+    return {"feitos": feitos, "falhas": falhas, **estado.fila.para_tela()}
+
+
+def _executar_mover(pedido) -> str:
+    """Executa um plano de organizacao que estava esperando aprovacao."""
+    from organize import Movimento, Plano
+
+    dados = pedido.dados
+    plano = Plano(
+        movimentos=[Movimento(**m) for m in dados.get("movimentos", [])],
+        destino=dados.get("destino", ""),
+        padrao=dados.get("padrao", ""),
+        ignorados=dados.get("ignorados", []),
+    )
+    resultado = aplicar_plano(plano, DIARIOS_DIR)
+    estado.recarregar(force=True)
+    if resultado.falhas:
+        return f"{resultado.movidos} movido(s), {len(resultado.falhas)} falha(s)"
+    return f"{resultado.movidos} arquivo(s) movido(s)"
+
+
+EXECUTORES = {"organizar.mover": _executar_mover}
+
+
+# ----------------------------------------------------------- preferencias
+
+
+@app.get("/api/preferencias")
+def preferencias_ler() -> dict:
+    dados = estado.prefs.para_tela()
+    dados["modelos"] = _modelos_disponiveis()
+    dados["modelo_atual"] = estado.client.model
+    dados["pasta_acervo"] = str(estado.pasta)
+    return dados
+
+
+@app.post("/api/preferencias")
+def preferencias_gravar(payload: dict) -> dict:
+    estado.prefs.atualizar(payload)
+
+    # O que a preferencia muda de verdade, agora: modelo e ritmo.
+    modelo = estado.prefs.dados.get("modelo")
+    if modelo and modelo != estado.client.model:
+        estado.client = LlamaClient(model=modelo)
+    estado.devagar = bool(estado.prefs.dados.get("devagar"))
+
+    return preferencias_ler()
+
+
+def _modelos_disponiveis() -> list[str]:
+    try:
+        return estado.client.list_models()
+    except Exception:
+        return []
+
+
 # --------------------------------------------------------------- organizador
 
 
@@ -880,7 +991,13 @@ def organizar_plano(payload: PedidoPlano) -> dict:
 
 @app.post("/api/organizar/aplicar")
 def organizar_aplicar(payload: PedidoPlano) -> dict:
-    """Move os arquivos. So daqui para baixo o disco e alterado."""
+    """
+    Mover arquivo em lote e acao com efeito no disco do cliente.
+
+    Se a permissao "mover arquivos sem pedir" estiver desligada - e ela vem
+    desligada -, isto nao move nada: monta o pedido e devolve para a fila de
+    aprovacao. Quem move e o executor, depois do sim.
+    """
     if not estado.classificacoes:
         raise HTTPException(status_code=400, detail="classifique os documentos antes")
 
@@ -893,10 +1010,33 @@ def organizar_aplicar(payload: PedidoPlano) -> dict:
     if not plano.movimentos:
         raise HTTPException(status_code=400, detail="o plano nao tem nenhum movimento")
 
+    if not estado.prefs.pode("organizar_mover"):
+        pastas_alvo = plano.resumo_por_pasta()
+        pedido = estado.fila.pedir(
+            f"Mover {plano.total} arquivo(s) para {Path(plano.destino).name or plano.destino}",
+            "organizar",
+            resumo=(
+                f"{plano.total} arquivo(s) em {len(pastas_alvo)} pasta(s), "
+                f"no padrao {plano.padrao}. Nada e apagado nem sobrescrito."
+            ),
+            etiquetas=["da para desfazer"],
+            acao="organizar.mover",
+            dados=plano.to_dict(),
+            reversivel=True,
+        )
+        return {
+            "aguardando_aprovacao": True,
+            "pedido": pedido.to_dict(),
+            "total": plano.total,
+            "pastas": pastas_alvo,
+        }
+
     resultado = aplicar_plano(plano, DIARIOS_DIR)
     estado.classificacoes = {}
     estado.encontrados = []
+    estado.recarregar(force=True)
     return {
+        "aguardando_aprovacao": False,
         "movidos": resultado.movidos,
         "falhas": resultado.falhas,
         "diario": resultado.diario,

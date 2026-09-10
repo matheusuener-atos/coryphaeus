@@ -252,7 +252,8 @@ def test_destinos() -> None:
     print("\ndestinos do menu")
     import destinos
 
-    ABRE_CONHECIDO = {"conversa", "biblioteca", "habilidades", "maquina", "organizar"}
+    ABRE_CONHECIDO = {"conversa", "biblioteca", "habilidades", "maquina", "organizar",
+                      "aprovacoes", "config"}
 
     ids = [d.id for d in destinos.DESTINOS]
     checar(len(ids) == len(set(ids)), "nenhum id de destino repetido")

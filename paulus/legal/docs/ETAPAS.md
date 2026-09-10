@@ -19,14 +19,21 @@ informação que muda a ordem.
 | Organizar pastas | varredura, classificação híbrida, plano, diário, desfazer |
 | Aprendizado | registro de habilidades carregado da pasta |
 | Desempenho | leitura real de processador, memória e vídeo |
+| Aprovações | fila persistida, com execução após o sim |
+| Configurações | preferências, autonomia e dados profissionais |
 
 ---
 
-## Etapa 1 — A moldura que falta
+## Etapa 1 — A moldura que falta ✓ FEITA
 
 **Telas:** Aprovações · Configurações
-**Tamanho:** pequeno — quase tudo já existe por baixo
+**Tamanho:** pequeno — quase tudo já existia por baixo
 **Destrava:** todas as etapas seguintes
+
+Entregue. A fila existe em `src/aprovacoes.py`, sobrevive ao fechamento do
+programa e já recebe o primeiro cliente de verdade: mover arquivos em lote
+deixou de acontecer direto e passa por ela. As preferências em `src/config.py`
+guardam o que o assistente pode fazer sozinho — tudo desligado por padrão.
 
 O manual tem uma regra central: *nada com efeito externo acontece sem
 aprovação*. Hoje isso existe só dentro do organizador, como um cartão. Enviar

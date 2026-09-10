@@ -709,6 +709,78 @@
   .precisa ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; }
   .precisa li { margin-bottom: 5px; }
 
+  /* ---------------------------------------------- aprovacoes e config */
+
+  .tela-topo { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tela-topo h2 { font: 500 30px/1.15 var(--sans); letter-spacing: -0.02em; color: var(--ink-titulo); margin-bottom: 6px; }
+  .tela-acoes { margin-left: auto; display: flex; gap: 8px; }
+  .rodape-tela {
+    margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--linha);
+    font: 400 9.5px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3);
+  }
+
+  .leitura-fila {
+    border: 1px solid var(--linha-media); background: var(--surface-1);
+    padding: 14px; margin-bottom: 16px;
+  }
+  .leitura-fila .linhas { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 9px; }
+  .leitura-fila .linhas span { font-size: 13px; color: var(--ink-2); }
+
+  .fila { border: 1px solid var(--linha-media); }
+  .pedido { display: flex; align-items: flex-start; gap: 13px; padding: 15px; border-bottom: 1px solid var(--linha); }
+  .pedido:last-child { border-bottom: none; }
+  .pedido.marcado { background: var(--acento-fraco); }
+  .pedido-marca { flex-shrink: 0; padding-top: 2px; cursor: pointer; }
+  .pedido-corpo { flex: 1; min-width: 0; }
+  .pedido-titulo { font: 500 14.5px var(--sans); margin-bottom: 7px; }
+  .pedido-resumo { font-size: 13px; color: var(--ink-2); margin-top: 7px; }
+  .pedido-corpo .num { margin-top: 6px; display: block; }
+  .pedido-acoes { flex-shrink: 0; }
+  .etiqueta.prazo { border-color: var(--atencao-linha); color: var(--atencao); }
+
+  .hoje { margin-top: 22px; }
+  .hoje > .rotulo { display: block; margin-bottom: 9px; }
+  .hoje-linha {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid var(--linha); font-size: 13px;
+  }
+  .hoje-linha:last-child { border-bottom: none; }
+  .selo-decisao {
+    font: 400 10.5px var(--mono); padding: 2px 8px; flex-shrink: 0;
+    border: 1px solid var(--linha-media); color: var(--ink-3);
+  }
+  .selo-decisao.aprovado { border-color: var(--linha-forte); color: var(--ok); }
+  .selo-decisao.falhou { border-color: var(--atencao-linha); color: var(--atencao); }
+
+  .permissao {
+    display: flex; align-items: center; gap: 16px;
+    padding: 13px 0; border-bottom: 1px solid var(--linha); cursor: pointer;
+  }
+  .permissao:last-of-type { border-bottom: none; }
+  .permissao-texto { flex: 1; min-width: 0; }
+  .permissao-titulo { font: 500 13.5px var(--sans); margin-bottom: 3px; }
+  .permissao.travada { cursor: default; opacity: 0.72; }
+
+  .interruptor-min {
+    width: 34px; height: 19px; flex-shrink: 0; background: var(--trilho);
+    position: relative; transition: background 0.2s;
+  }
+  .interruptor-min .chave {
+    position: absolute; top: 2px; left: 2px; width: 15px; height: 15px;
+    background: var(--ink-3); transition: transform 0.2s, background 0.2s;
+  }
+  .interruptor-min.on { background: var(--acento); }
+  .interruptor-min.on .chave { transform: translateX(15px); background: var(--forte-texto); }
+
+  .grade-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .campo-form { display: flex; flex-direction: column; gap: 6px; }
+  .campo-form input { width: 100%; }
+
+  .destino .conta {
+    font: 400 10px var(--mono); background: var(--acento); color: var(--forte-texto);
+    padding: 1px 6px; flex-shrink: 0;
+  }
+
   /* ------------------------------------------------- maquina na coluna */
 
   .maquina {
@@ -1840,6 +1912,287 @@ async function carregarAgora() {
 
 setInterval(carregarAgora, 5000);
 
+/* --------------------------------------------------------- aprovacoes */
+/*
+   A regra central do manual mora aqui: nada com efeito externo acontece sem o
+   sim de uma pessoa. A fila e o lugar comum onde essas acoes param.
+*/
+
+const aprov = { pendentes: [], hoje: [], marcados: new Set(), aberto: null };
+
+async function mostrarAprovacoes() {
+  abrirTela("Aprovações");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo a fila…</p></div>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/aprovacoes")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  aprov.pendentes = d.pendentes;
+  aprov.hoje = d.hoje;
+  aprov.marcados = new Set();
+  desenharAprovacoes(d.leitura);
+  atualizarPostura();
+}
+
+function desenharAprovacoes(leitura) {
+  const n = aprov.pendentes.length;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Aprovações</h2>" +
+    '<span class="rotulo">' + (n ? n + " esperando você" : "nada esperando você") + "</span></div>" +
+    (n ? '<div class="tela-acoes">' +
+      '<button id="ap-recusar" disabled>Recusar marcadas</button>' +
+      '<button class="primario" id="ap-aprovar" disabled>Aprovar marcadas</button></div>' : "") +
+    "</div>";
+
+  if (leitura && leitura.linhas.length) {
+    html += '<div class="leitura-fila"><span class="rotulo">Leitura da fila</span><div class="linhas">' +
+      leitura.linhas.map((l) => "<span>" + esc(l) + "</span>").join("") + "</div></div>";
+  }
+
+  if (!n) {
+    html += '<div class="painel"><h3>Nada esperando você</h3><p class="explica">' +
+      (aprov.hoje.length
+        ? "Hoje você já decidiu " + aprov.hoje.length + " pedido(s). O que precisar do seu sim aparece aqui."
+        : "Quando o assistente quiser fazer algo com efeito fora do programa — mover arquivos em lote, " +
+          "assinar, enviar mensagem — o pedido para aqui e espera.") +
+      "</p></div>";
+  } else {
+    html += '<div class="fila">' + aprov.pendentes.map(linhaPedido).join("") + "</div>";
+  }
+
+  if (aprov.hoje.length) {
+    html += '<div class="hoje"><span class="rotulo">Decidido hoje</span>' +
+      aprov.hoje.map((p) =>
+        '<div class="hoje-linha"><span class="selo-decisao ' + p.estado + '">' +
+        (p.estado === "aprovado" ? "aprovado" : p.estado === "recusado" ? "recusado" : "não deu") +
+        "</span><span class='cresce'>" + esc(p.titulo) + "</span>" +
+        '<span class="num">' + esc(p.resultado || "") + "</span></div>"
+      ).join("") + "</div>";
+  }
+
+  html += '<div class="rodape-tela">nenhuma ação é executada antes da aprovação</div></div>';
+  $("centro").innerHTML = html;
+  ligarAprovacoes();
+}
+
+function linhaPedido(p) {
+  const marcado = aprov.marcados.has(p.id);
+  const etiquetas = [p.categoria_rotulo].concat(p.etiquetas || [])
+    .map((e) => '<span class="etiqueta">' + esc(e) + "</span>").join("");
+  const alerta = p.vence_hoje ? '<span class="etiqueta prazo">vence hoje</span>' : "";
+  const sem_volta = p.reversivel ? "" : '<span class="etiqueta prazo">sem desfazer</span>';
+
+  return '<div class="pedido' + (marcado ? " marcado" : "") + '" data-id="' + p.id + '">' +
+    '<label class="pedido-marca"><input type="checkbox"' + (marcado ? " checked" : "") + "></label>" +
+    '<div class="pedido-corpo"><div class="pedido-titulo">' + esc(p.titulo) + "</div>" +
+    '<div class="doc-etiquetas">' + etiquetas + alerta + sem_volta + "</div>" +
+    (p.resumo ? '<div class="pedido-resumo">' + esc(p.resumo) + "</div>" : "") +
+    '<div class="num">pedido por ' + esc(p.pedido_por) + "</div></div>" +
+    '<div class="pedido-acoes"><button data-a="so-este">Aprovar</button></div></div>';
+}
+
+function ligarAprovacoes() {
+  const centro = $("centro");
+
+  centro.querySelectorAll(".pedido").forEach((linha) => {
+    const id = linha.dataset.id;
+    linha.querySelector("input").onchange = (e) => {
+      if (e.target.checked) aprov.marcados.add(id); else aprov.marcados.delete(id);
+      linha.classList.toggle("marcado", e.target.checked);
+      atualizarBotoesFila();
+    };
+    linha.querySelector('[data-a="so-este"]').onclick = () => decidirPedidos([id], true);
+  });
+
+  const aprovar = $("ap-aprovar"), recusar = $("ap-recusar");
+  if (aprovar) aprovar.onclick = () => decidirPedidos(Array.from(aprov.marcados), true);
+  if (recusar) recusar.onclick = () => decidirPedidos(Array.from(aprov.marcados), false);
+  atualizarBotoesFila();
+}
+
+function atualizarBotoesFila() {
+  const n = aprov.marcados.size;
+  const aprovar = $("ap-aprovar"), recusar = $("ap-recusar");
+  if (!aprovar) return;
+  aprovar.disabled = recusar.disabled = n === 0;
+  aprovar.textContent = n ? "Aprovar " + n : "Aprovar marcadas";
+  recusar.textContent = n ? "Recusar " + n : "Recusar marcadas";
+}
+
+async function decidirPedidos(ids, aprovar) {
+  if (!ids.length) return;
+  const quais = ids.map((id) => aprov.pendentes.find((p) => p.id === id)).filter(Boolean);
+  const semVolta = quais.filter((p) => !p.reversivel);
+
+  let aviso = aprovar
+    ? "Aprovar " + ids.length + " pedido(s)? A ação é executada agora."
+    : "Recusar " + ids.length + " pedido(s)?";
+  if (aprovar && semVolta.length) {
+    aviso += "\n\n" + semVolta.length + " não tem como desfazer depois.";
+  }
+  if (!confirm(aviso)) return;
+
+  atualizarSelo(true);
+  try {
+    const r = await fetch("/api/aprovacoes/decidir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: ids, aprovar: aprovar }),
+    });
+    const d = await r.json();
+    aprov.pendentes = d.pendentes;
+    aprov.hoje = d.hoje;
+    aprov.marcados = new Set();
+    desenharAprovacoes(d.leitura);
+    if (d.falhas.length) {
+      alert("Não consegui em " + d.falhas.length + ": " + d.falhas.map((f) => f.motivo).join("; "));
+    }
+    carregarStatus();
+    contarPendencias();
+  } catch (err) {
+    alert("Falha ao decidir: " + err);
+  } finally {
+    atualizarSelo(false);
+  }
+}
+
+/* O menu mostra quantos pedidos esperam - a fila nao serve se ninguem ve. */
+async function contarPendencias() {
+  try {
+    const d = await (await fetch("/api/aprovacoes")).json();
+    const botao = document.querySelector('[data-destino="aprovacoes"]');
+    if (!botao) return;
+    const antigo = botao.querySelector(".conta");
+    if (antigo) antigo.remove();
+    if (d.pendentes.length) {
+      const marca = document.createElement("span");
+      marca.className = "conta";
+      marca.textContent = d.pendentes.length;
+      botao.appendChild(marca);
+    }
+  } catch (err) { /* sem numero e melhor que numero errado */ }
+}
+
+setInterval(contarPendencias, 8000);
+
+/* ------------------------------------------------------ configuracoes */
+
+let PREFS = null;
+
+async function mostrarConfig() {
+  abrirTela("Configurações");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">lendo…</p></div>';
+
+  try {
+    PREFS = await (await fetch("/api/preferencias")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui ler: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  const pr = PREFS.preferencias;
+  const pessoa = pr.pessoa;
+
+  const campo = (chave, rotulo, valor, dica) =>
+    '<div class="campo-form"><label class="rotulo">' + esc(rotulo) + "</label>" +
+    '<input type="text" data-pessoa="' + chave + '" value="' + esc(valor || "") + '"' +
+    (dica ? ' placeholder="' + esc(dica) + '"' : "") + "></div>";
+
+  centro.innerHTML =
+    '<div class="catalogo"><div class="tela-topo"><div><h2>Configurações</h2>' +
+    '<span class="rotulo">o que o assistente pode fazer, e com que dados</span></div>' +
+    '<div class="tela-acoes"><button id="cfg-salvar" class="primario">Salvar alterações</button></div></div>' +
+
+    '<div class="painel"><h3>O que a IA pode fazer</h3>' +
+    '<p class="explica">Desligado significa que a ação para na fila de aprovações e espera o seu sim. ' +
+    "Ligado significa que ela acontece direto.</p>" +
+    PREFS.autonomia_opcoes.map((a) =>
+      '<div class="permissao' + (a.travada ? " travada" : "") + '" data-chave="' + a.chave + '">' +
+      '<div class="permissao-texto"><div class="permissao-titulo">' + esc(a.titulo) + "</div>" +
+      '<div class="explica">' + esc(a.explica) + "</div></div>" +
+      (a.travada
+        ? '<span class="etiqueta">indisponível</span>'
+        : '<span class="interruptor-min' + (pr.autonomia[a.chave] ? " on" : "") + '"><span class="chave"></span></span>') +
+      "</div>"
+    ).join("") + "</div>" +
+
+    '<div class="painel"><h3>Assistente e ritmo</h3>' +
+    '<div class="linha-form"><label>Modelo em uso</label><select id="cfg-modelo">' +
+    (PREFS.modelos.length
+      ? PREFS.modelos.map((m) => '<option value="' + esc(m) + '"' +
+          (m === PREFS.modelo_atual ? " selected" : "") + ">" + esc(m) + "</option>").join("")
+      : '<option value="">nenhum modelo encontrado</option>') +
+    "</select></div>" +
+    '<div class="linha-form"><label>Pasta do acervo</label>' +
+    '<input type="text" value="' + esc(PREFS.pasta_acervo) + '" readonly></div>' +
+    '<p class="explica" style="margin:0">Trocar o modelo vale para a próxima pergunta. ' +
+    "Modelo maior responde melhor e demora mais.</p></div>" +
+
+    '<div class="painel"><h3>Meus dados</h3>' +
+    '<p class="explica">Usados na qualificação dos documentos que o assistente escrever. ' +
+    "Ficam nesta máquina, como todo o resto.</p>" +
+    '<div class="grade-form">' +
+    campo("nome", "Nome completo", pessoa.nome) +
+    campo("cpf", "CPF", pessoa.cpf, "000.000.000-00") +
+    campo("oab", "OAB", pessoa.oab, "GO 00000") +
+    campo("telefone", "Telefone", pessoa.telefone, "(62) 90000-0000") +
+    campo("email", "E-mail", pessoa.email) +
+    campo("endereco", "Endereço profissional", pessoa.endereco) +
+    "</div></div>" +
+
+    '<div class="painel"><h3>Equipe e cobrança</h3>' +
+    '<p class="explica">Ainda não existem. O programa hoje roda para uma pessoa, nesta máquina, ' +
+    "sem licença nem servidor. Quando houver equipe, os níveis de permissão entram aqui.</p></div>" +
+
+    '<div class="rodape-tela">tudo nesta tela fica guardado em data/preferencias.json, nesta máquina</div>' +
+    "</div>";
+
+  centro.querySelectorAll(".permissao:not(.travada)").forEach((el) => {
+    el.onclick = () => el.querySelector(".interruptor-min").classList.toggle("on");
+  });
+  $("cfg-salvar").onclick = salvarConfig;
+  atualizarPostura();
+}
+
+async function salvarConfig() {
+  const centro = $("centro");
+  const autonomia = {};
+  centro.querySelectorAll(".permissao:not(.travada)").forEach((el) => {
+    autonomia[el.dataset.chave] = el.querySelector(".interruptor-min").classList.contains("on");
+  });
+
+  const pessoa = {};
+  centro.querySelectorAll("[data-pessoa]").forEach((el) => { pessoa[el.dataset.pessoa] = el.value.trim(); });
+
+  $("cfg-salvar").disabled = true;
+  $("cfg-salvar").textContent = "salvando…";
+  try {
+    await fetch("/api/preferencias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autonomia: autonomia, pessoa: pessoa, modelo: $("cfg-modelo").value }),
+    });
+    $("cfg-salvar").textContent = "salvo";
+    carregarStatus();
+    setTimeout(() => {
+      $("cfg-salvar").textContent = "Salvar alterações";
+      $("cfg-salvar").disabled = false;
+    }, 1400);
+  } catch (err) {
+    $("cfg-salvar").textContent = "Salvar alterações";
+    $("cfg-salvar").disabled = false;
+    alert("Não consegui salvar: " + err);
+  }
+}
+
 /* ---------------------------------------------------------- destinos */
 /*
    O menu do manual do sistema: 20 destinos em quatro grupos. Cinco tem motor;
@@ -1918,6 +2271,8 @@ function abrirDestino(id) {
   if (d.abre === "biblioteca") return mostrarBiblioteca();
   if (d.abre === "habilidades") return mostrarHabilidades();
   if (d.abre === "maquina") return mostrarMaquina();
+  if (d.abre === "aprovacoes") return mostrarAprovacoes();
+  if (d.abre === "config") return mostrarConfig();
   if (d.abre === "organizar") { abrirTela("Organizar pastas"); $("centro").innerHTML = ""; organizarComecar(); }
 }
 
@@ -2706,6 +3061,18 @@ async function organizarAplicar() {
     if (!r.ok) throw new Error((await r.json()).detail);
     const d = await r.json();
 
+    if (d.aguardando_aprovacao) {
+      atualizarPlanoOrg(3);
+      cartao.className = "painel";
+      cartao.innerHTML = "<h3>Pedido enviado para aprovação</h3>" +
+        '<p class="explica">Nada foi movido ainda. ' + d.total +
+        " arquivo(s) esperam o seu sim em Aprovações — a permissão de mover sem pedir está desligada.</p>" +
+        '<div class="linha-form"><button class="primario" id="org-ver-fila">Abrir Aprovações</button></div>';
+      $("org-ver-fila").onclick = () => { mostrarAprovacoes(); marcarDestino("aprovacoes"); };
+      contarPendencias();
+      return;
+    }
+
     cartao.className = "painel";
     cartao.innerHTML = "<h3>" + d.movidos + " arquivo(s) no lugar novo</h3>" +
       (d.falhas.length ? '<p class="explica">' + d.falhas.length + " não deu para mover: " +
@@ -2745,7 +3112,7 @@ async function organizarAplicar() {
 
 atualizarSelo(false);
 atualizarSaudacao();
-carregarMenu();
+carregarMenu().then(contarPendencias);
 carregarTrabalhos();
 carregarRecursos();
 setInterval(carregarRecursos, 4000);

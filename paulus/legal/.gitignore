@@ -12,6 +12,10 @@ data/diarios/
 # Conversas gravadas: citam trechos dos contratos
 data/trabalhos/
 
+# Fila de aprovacoes e preferencias: caminhos e dados pessoais
+data/aprovacoes.json
+data/preferencias.json
+
 # Saidas geradas
 *.xlsx
 !docs/**/*.xlsx
