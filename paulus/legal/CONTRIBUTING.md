@@ -13,6 +13,7 @@ pip install -r requirements.txt
 ```bash
 python tests/test_pipeline.py      # extracao, busca, contexto
 python tests/test_organizador.py   # varredura, classificacao, plano, desfazer
+python tests/test_habilidades.py   # consistencia do registro de habilidades
 ```
 
 ## Regras que nao se negociam
@@ -31,6 +32,10 @@ python tests/test_organizador.py   # varredura, classificacao, plano, desfazer
 5. **Regra antes de modelo.** Data, valor e CPF/CNPJ saem por expressao
    regular. Chamar o LLM para isso custa 20s por documento e ainda arrisca
    alucinacao.
+6. **Capacidade nova entra em `src/habilidades.py`.** O registro e a fonte
+   unica: pagina, portas de entrada e tipos de trabalho saem dele. Habilidade
+   que ainda nao funciona entra com `estado=EM_BREVE` e sem acao - o catalogo
+   nao promete o que nao existe.
 
 ## Estilo
 

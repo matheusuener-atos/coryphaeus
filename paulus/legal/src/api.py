@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 import requests
 
+import habilidades
 import pastas
 import recursos
 from classify import Classificacao, ROTULOS, classificar_acervo
@@ -161,6 +162,25 @@ def _tamanho_do_modelo() -> float | None:
     except (requests.RequestException, ValueError):
         return None
     return None
+
+
+@app.get("/api/habilidades")
+def listar_habilidades() -> dict:
+    """
+    Catalogo do que o programa sabe fazer, com o que falta para cada coisa.
+
+    A disponibilidade e checada agora: nao adianta oferecer "perguntar sobre os
+    documentos" quando nao ha documento aberto.
+    """
+    ok, _ = check_ollama(estado.client.model)
+    disponibilidade = {
+        habilidades.PRECISA_DOCUMENTOS: len(estado.searcher.documents) > 0,
+        habilidades.PRECISA_ASSISTENTE: ok,
+    }
+    return {
+        "grupos": habilidades.por_grupo(disponibilidade),
+        "contagem": habilidades.contagem(),
+    }
 
 
 @app.get("/api/documents")

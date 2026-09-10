@@ -415,6 +415,53 @@
   .pasta-l:last-child { border-bottom: none; }
   .pasta-l code { font: 400 11.5px var(--mono); color: var(--ink-2); word-break: break-all; }
 
+  /* ------------------------------------------------------- habilidades */
+
+  .catalogo { width: 100%; max-width: 760px; margin: 0 auto; }
+  .catalogo-topo { margin-bottom: 22px; }
+  .catalogo-topo h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
+  .catalogo-topo p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+
+  .hab-grupo { margin-bottom: 26px; }
+  .hab-grupo > .rotulo { margin-bottom: 10px; display: block; }
+
+  .hab {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 13px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .hab:last-child { border-bottom: none; }
+  .hab-marca {
+    width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+    background: var(--surface-3); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-3);
+  }
+  .hab.pronta .hab-marca { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+  .hab-marca svg { width: 16px; height: 16px; }
+
+  .hab-texto { flex: 1; min-width: 0; }
+  .hab-nome { font: 500 14px var(--sans); margin-bottom: 2px; }
+  .hab.futura .hab-nome { color: var(--ink-3); }
+  .hab-resumo { font-size: 13px; color: var(--ink-2); }
+  .hab-linha { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 5px; }
+  .hab-falta { color: var(--attention-ink); }
+
+  .hab-acao { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding-top: 2px; }
+  .hab-futuro {
+    font: 400 11px var(--mono); color: var(--ink-muted);
+    border: 1px solid var(--line); border-radius: 16px; padding: 4px 11px;
+    white-space: nowrap;
+  }
+
+  .hab-detalhe {
+    font-size: 12.5px; color: var(--ink-2);
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 10px 12px; margin-top: 9px;
+  }
+
   /* ----------------------------------------------------------- coroa */
 
   .coroa { flex-shrink: 0; color: var(--accent); animation: girar 9s linear infinite; }
@@ -455,6 +502,7 @@
   <aside class="trabalhos">
     <div class="trabalhos-topo">
       <button class="primario largo" id="nova">Nova solicitação</button>
+      <button class="largo" id="ver-habilidades" style="margin-top:7px">O que eu sei fazer</button>
     </div>
     <div class="lista-trabalhos" id="lista-trabalhos"></div>
     <div class="modelo">
@@ -1042,6 +1090,101 @@ $("devagar").onkeydown = (e) => {
 };
 
 $("abrir-gaveta").onclick = () => $("lateral").classList.toggle("aberta");
+
+/* -------------------------------------------------------- habilidades */
+
+const ICONES_HAB = {
+  perguntar: '<path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v6A1.5 1.5 0 0 1 12.5 11H6l-4 3z"/>',
+  buscar: '<circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/>',
+  abrir: '<path d="M3 13V3.6A1.6 1.6 0 0 1 4.6 2h4L13 6.2V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8.6 2v4.2H13"/>',
+  classificar: '<path d="M2.5 4h11M2.5 8h7M2.5 12h4"/>',
+  organizar: '<path d="M1.5 4.2A1.2 1.2 0 0 1 2.7 3h3.1l1.4 1.6h5.1a1.2 1.2 0 0 1 1.2 1.2v6a1.2 1.2 0 0 1-1.2 1.2H2.7a1.2 1.2 0 0 1-1.2-1.2z"/>',
+  vencimentos: '<rect x="2" y="3" width="12" height="11" rx="1.3"/><path d="M2 6.4h12M5.4 2v2.4M10.6 2v2.4"/>',
+  ocr: '<rect x="2" y="3" width="12" height="10" rx="1.3"/><path d="M5 6.5h6M5 9.5h4"/>',
+  redigir: '<path d="M11.4 2.6 13.4 4.6 5.6 12.4 2.6 13.4 3.6 10.4z"/>',
+  assinar: '<path d="M2 11.5c2.4 0 3-7 4.6-7s.8 7 2.6 7 1.4-4 2.8-4 1.4 2 2 2"/>',
+};
+
+function iconeHab(id) {
+  const desenho = ICONES_HAB[id] || ICONES_HAB.abrir;
+  return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" ' +
+    'stroke-linecap="round" stroke-linejoin="round">' + desenho + "</svg>";
+}
+
+async function mostrarHabilidades() {
+  estado.trabalhoId = null;
+  estado.trabalho = null;
+  $("conversa-titulo").textContent = "O que eu sei fazer";
+  $("apagar").hidden = true;
+  desenharAtividade([]);
+  carregarTrabalhos();
+
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/habilidades")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui carregar: ' +
+      esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  $("conversa-meta").textContent = d.contagem.prontas + " de " + d.contagem.total + " prontas";
+
+  let html = '<div class="catalogo"><div class="catalogo-topo">' +
+    "<h2>O que eu sei fazer</h2>" +
+    "<p>Cada habilidade é uma coisa que o programa faz por inteiro. " +
+    "As que ainda não existem estão marcadas — prefiro dizer do que prometer.</p></div>";
+
+  for (const grupo of d.grupos) {
+    html += '<div class="hab-grupo"><span class="rotulo">' + esc(grupo.grupo) + "</span>";
+    for (const h of grupo.habilidades) {
+      const futura = h.estado === "em_breve";
+      const classe = futura ? "futura" : (h.utilizavel ? "pronta" : "");
+
+      let linha = "";
+      if (futura) linha = "ainda não existe";
+      else if (h.faltando.length) linha = "precisa de: " + h.faltando.join(", ");
+      else if (h.demora) linha = h.demora;
+
+      const acao = futura
+        ? '<span class="hab-futuro">em breve</span>'
+        : (h.utilizavel
+            ? '<button class="hab-usar" data-acao="' + esc(h.acao) + '">Usar</button>'
+            : '<button disabled>Usar</button>');
+
+      html += '<div class="hab ' + classe + '" data-id="' + esc(h.id) + '">' +
+        '<span class="hab-marca">' + iconeHab(h.id) + "</span>" +
+        '<span class="hab-texto"><div class="hab-nome">' + esc(h.nome) + "</div>" +
+        '<div class="hab-resumo">' + esc(h.resumo) + "</div>" +
+        (linha ? '<div class="hab-linha' + (h.faltando.length && !futura ? " hab-falta" : "") +
+                 '">' + esc(linha) + "</div>" : "") +
+        (h.detalhe ? '<div class="hab-detalhe">' + esc(h.detalhe) + "</div>" : "") +
+        "</span>" +
+        '<span class="hab-acao">' + acao + "</span></div>";
+    }
+    html += "</div>";
+  }
+
+  centro.innerHTML = html + "</div>";
+
+  centro.querySelectorAll(".hab-usar").forEach((b) => {
+    b.onclick = () => usarHabilidade(b.dataset.acao);
+  });
+  $("fluxo").scrollTop = 0;
+}
+
+function usarHabilidade(acao) {
+  if (acao === "organizacao") { $("centro").innerHTML = ""; organizarComecar(); return; }
+  if (acao === "anexar") { $("nova").click(); $("arquivos").click(); return; }
+  $("nova").click();
+  if (acao === "busca") $("pedido").placeholder = "Digite a palavra e clique em Buscar…";
+  $("pedido").focus();
+}
+
+$("ver-habilidades").onclick = mostrarHabilidades;
 
 /* -------------------------------------------------------- organizador */
 

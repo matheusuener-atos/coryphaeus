@@ -51,6 +51,10 @@ Nada sai da maquina: extracao, indice e inferencia rodam localmente.
 | `src/scan.py` | Varredura de pastas, poda de pastas de sistema |
 | `src/classify.py` | Metadados por documento: regra primeiro, modelo no que sobra |
 | `src/organize.py` | Padrao de pastas, plano, aplicacao, diario e desfazer |
+| `src/habilidades.py` | Registro do que o programa sabe fazer - fonte unica |
+| `src/jobs.py` | Trabalhos (conversas) com etapas, atividade e persistencia |
+| `src/recursos.py` | Medidores reais da maquina |
+| `src/pastas.py` | Navegacao de pastas para a escolha do escopo |
 
 ## Decisoes de projeto
 
@@ -122,6 +126,17 @@ registro, que e exatamente o estado impossivel de reverter.
 Dois contratos com o mesmo nome de arquivo em pastas diferentes sao comuns num
 acervo. Sobrescrever apagaria um documento de cliente em silencio. O segundo
 entra como `nome (2).pdf`.
+
+**Por que um registro de habilidades?**
+Cada coisa que o programa faz e uma entrada em `src/habilidades.py`, com
+estado, requisitos e expectativa de tempo. A pagina "O que eu sei fazer", as
+portas de entrada da tela inicial e os tipos de trabalho leem dai. Sem isso,
+acrescentar capacidade obriga a mexer em tres lugares e a interface passa a
+oferecer coisa que nao funciona.
+
+**Por que o catalogo lista o que ainda nao existe?**
+Marcado como "em breve", sem botao. Esconder o roadmap faria a pessoa procurar
+uma funcao que nao esta la; listar promessa como se funcionasse e pior ainda.
 
 **Por que temperatura 0.1?**
 Tarefa de extracao, nao de escrita criativa. Quanto mais deterministico, menos
