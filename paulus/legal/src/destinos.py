@@ -53,9 +53,9 @@ DESTINOS: list[Destino] = [
         precisa=["calendário", "envio de convite por e-mail"],
     ),
     Destino(
-        id="tarefas", nome="Tarefas", grupo="Dia a dia", icone="lista",
-        resolve="Lista do escritório com responsável, prazo e a origem de cada tarefa.",
-        precisa=["um lugar para guardar tarefas"],
+        id="tarefas", nome="Tarefas", grupo="Dia a dia", icone="lista", pronta=True,
+        abre="tarefas",
+        resolve="Lista do escritório com prazo, etapas e a origem de cada tarefa.",
     ),
     Destino(
         id="foco", nome="Foco e bem-estar", grupo="Dia a dia", icone="coracao",
@@ -95,9 +95,9 @@ DESTINOS: list[Destino] = [
         precisa=["lançamentos guardados", "permissão separada para o financeiro"],
     ),
     Destino(
-        id="cadastros", nome="Cadastros", grupo="Escritorio", icone="pessoa",
+        id="cadastros", nome="Cadastros", grupo="Escritorio", icone="pessoa", pronta=True,
+        abre="cadastros",
         resolve="Clientes, partes e fornecedores, com os documentos vinculados a cada um.",
-        precisa=["fichas guardadas", "vínculo entre ficha e pasta"],
     ),
     Destino(
         id="caixa", nome="Caixa de entrada", grupo="Escritorio", icone="carta",

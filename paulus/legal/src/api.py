@@ -34,7 +34,10 @@ import pastas
 import recursos
 import registro
 from classify import Classificacao, ROTULOS
+from base import Base
+from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
+from tarefas import Tarefas
 from habilidade_base import (
     PRECISA_ASSISTENTE,
     PRECISA_DOCUMENTOS,
@@ -62,6 +65,7 @@ DIARIOS_DIR = BASE_DIR / "data" / "diarios"
 TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
 APROVACOES_PATH = BASE_DIR / "data" / "aprovacoes.json"
 PREFERENCIAS_PATH = BASE_DIR / "data" / "preferencias.json"
+BASE_PATH = BASE_DIR / "data" / "paulus.db"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -88,6 +92,10 @@ class Estado:
         # Fila do que espera decisao humana, e as preferencias da casa.
         self.fila = fila_aprovacoes.Fila(APROVACOES_PATH)
         self.prefs = Preferencias(PREFERENCIAS_PATH)
+        # Base local: cadastros, tarefas e o que vier depois.
+        self.base = Base(BASE_PATH)
+        self.cadastros = Cadastros(self.base)
+        self.tarefas = Tarefas(self.base)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -693,6 +701,145 @@ def maquina() -> dict:
 def configurar(payload: Ajuste2) -> dict:
     estado.devagar = payload.devagar
     return {"devagar": estado.devagar}
+
+
+# -------------------------------------------------------------- cadastros
+
+
+class FichaCadastro(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+class VinculoDoc(BaseModel):
+    sha1: str
+    nome: str = ""
+
+
+@app.get("/api/cadastros")
+def cadastros_listar(tipo: str = "", termo: str = "") -> dict:
+    return {
+        "fichas": estado.cadastros.listar(tipo, termo),
+        "contagem": estado.cadastros.contagem(),
+        "tipos": [{"valor": k, "rotulo": v} for k, v in TIPOS_CADASTRO.items()],
+    }
+
+
+@app.get("/api/cadastros/sugestoes")
+def cadastros_sugestoes() -> dict:
+    """Quem ja aparece nos documentos e ainda nao tem ficha."""
+    return {"sugestoes": estado.cadastros.sugestoes(CLASSIFICACAO_PATH)}
+
+
+@app.post("/api/cadastros")
+def cadastros_salvar(payload: FichaCadastro) -> dict:
+    try:
+        id_ = estado.cadastros.salvar(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.cadastros.obter(id_) or {}
+
+
+@app.post("/api/cadastros/{id_}/vincular")
+def cadastros_vincular(id_: int, payload: VinculoDoc) -> dict:
+    if not estado.cadastros.obter(id_):
+        raise HTTPException(status_code=404, detail="cadastro nao encontrado")
+    estado.cadastros.vincular(id_, payload.sha1, payload.nome)
+    return estado.cadastros.obter(id_) or {}
+
+
+@app.delete("/api/cadastros/{id_}")
+def cadastros_apagar(id_: int) -> dict:
+    if not estado.cadastros.apagar(id_):
+        raise HTTPException(status_code=404, detail="cadastro nao encontrado")
+    return {"apagado": id_}
+
+
+# ---------------------------------------------------------------- tarefas
+
+
+class FichaTarefa(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+class MarcaTarefa(BaseModel):
+    valor: bool = True
+
+
+class NovaEtapa(BaseModel):
+    titulo: str
+
+
+@app.get("/api/tarefas")
+def tarefas_listar(filtro: str = "meu_dia", lista: str = "") -> dict:
+    return {
+        "tarefas": estado.tarefas.listar(filtro, lista),
+        "contagens": estado.tarefas.contagens(),
+        "listas": estado.tarefas.listas(),
+        "clientes": [
+            {"id": f["id"], "nome": f["nome"]}
+            for f in estado.cadastros.listar()
+        ],
+    }
+
+
+@app.get("/api/tarefas/sugestoes")
+def tarefas_sugestoes() -> dict:
+    """Prazos que os documentos ja lidos pedem para conferir."""
+    from classify import CacheClassificacao
+
+    cache = CacheClassificacao(CLASSIFICACAO_PATH).dados
+    return {"sugestoes": estado.tarefas.sugerir(list(cache.values()))}
+
+
+@app.post("/api/tarefas")
+def tarefas_salvar(payload: FichaTarefa) -> dict:
+    try:
+        id_ = estado.tarefas.salvar(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.tarefas.obter(id_) or {}
+
+
+@app.post("/api/tarefas/{id_}/concluir")
+def tarefas_concluir(id_: int, payload: MarcaTarefa) -> dict:
+    estado.tarefas.concluir(id_, payload.valor)
+    return estado.tarefas.obter(id_) or {"apagada": True}
+
+
+@app.post("/api/tarefas/{id_}/importante")
+def tarefas_importante(id_: int, payload: MarcaTarefa) -> dict:
+    estado.tarefas.marcar_importante(id_, payload.valor)
+    return estado.tarefas.obter(id_) or {}
+
+
+@app.post("/api/tarefas/{id_}/meu-dia")
+def tarefas_meu_dia(id_: int, payload: MarcaTarefa) -> dict:
+    estado.tarefas.marcar_meu_dia(id_, payload.valor)
+    return estado.tarefas.obter(id_) or {}
+
+
+@app.post("/api/tarefas/{id_}/etapas")
+def tarefas_nova_etapa(id_: int, payload: NovaEtapa) -> dict:
+    try:
+        estado.tarefas.nova_etapa(id_, payload.titulo)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.tarefas.obter(id_) or {}
+
+
+@app.post("/api/etapas/{id_}")
+def etapa_marcar(id_: int, payload: MarcaTarefa) -> dict:
+    estado.tarefas.marcar_etapa(id_, payload.valor)
+    return {"ok": True}
+
+
+@app.delete("/api/tarefas/{id_}")
+def tarefas_apagar(id_: int) -> dict:
+    if not estado.tarefas.apagar(id_):
+        raise HTTPException(status_code=404, detail="tarefa nao encontrada")
+    return {"apagada": id_}
 
 
 # ------------------------------------------------------------- aprovacoes

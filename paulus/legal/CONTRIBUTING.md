@@ -15,6 +15,7 @@ python tests/test_pipeline.py      # extracao, busca, contexto
 python tests/test_organizador.py   # varredura, classificacao, plano, desfazer
 python tests/test_habilidades.py   # consistencia do registro de habilidades
 python tests/test_frontend.py      # integridade da interface (CSS, ids, tokens, JS)
+python tests/test_base.py          # base local, cadastros e tarefas
 ```
 
 ## Regras que nao se negociam

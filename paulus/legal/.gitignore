@@ -16,6 +16,11 @@ data/trabalhos/
 data/aprovacoes.json
 data/preferencias.json
 
+# Base local: cadastros e tarefas do escritorio
+data/paulus.db
+data/paulus.db-wal
+data/paulus.db-shm
+
 # Saidas geradas
 *.xlsx
 !docs/**/*.xlsx

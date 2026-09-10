@@ -21,6 +21,8 @@ informação que muda a ordem.
 | Desempenho | leitura real de processador, memória e vídeo |
 | Aprovações | fila persistida, com execução após o sim |
 | Configurações | preferências, autonomia e dados profissionais |
+| Cadastros | base local, com sugestões vindas dos documentos lidos |
+| Tarefas | base local, com prazo, etapas e vínculo a cliente |
 
 ---
 
@@ -48,11 +50,15 @@ Construir isso antes evita ter que voltar em cada tela depois.
 
 ---
 
-## Etapa 2 — Memória do escritório
+## Etapa 2 — Memória do escritório ✓ FEITA
 
 **Telas:** Cadastros · Tarefas
-**Tamanho:** médio — o trabalho é a camada de dados, não as telas
+**Tamanho:** médio — o trabalho foi a camada de dados, não as telas
 **Destrava:** Calendário, Agendamento, Financeiro, Relatórios
+
+Entregue. `src/base.py` é SQLite com migrações numeradas — base de versão
+antiga recebe só o que falta, sem perder o que já estava lá. Cadastros e
+Tarefas usam essa camada; Calendário, Agendamento e Financeiro usarão a mesma.
 
 Cinco telas precisam da mesma coisa: um lugar para guardar registro. Hoje o
 programa só guarda arquivo e conversa. Uma base local (SQLite) resolve as cinco.

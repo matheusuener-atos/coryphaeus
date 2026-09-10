@@ -304,7 +304,11 @@ def escolher_cliente(partes: list[str]) -> str:
 # Modelo (so quando a regra nao decide)
 # --------------------------------------------------------------------------
 
-ESQUEMA = '{"tipo": "locacao", "partes": ["NOME COMPLETO DA PRIMEIRA PARTE", "NOME DA SEGUNDA"]}'
+# O exemplo do esquema precisa parecer resposta de verdade. Com um rotulo
+# generico no lugar do nome, o modelo copiava o rotulo e "NOME COMPLETO DA
+# PRIMEIRA PARTE" acabava virando sugestao de cadastro na tela - o mesmo erro
+# que o "AAAA-MM-DD" ja tinha causado na data.
+ESQUEMA = '{"tipo": "locacao", "partes": ["Costa e Silva Empreendimentos Ltda", "Joana Ribeiro Alves"]}'
 
 INSTRUCAO = (
     "Classifique este documento juridico brasileiro.\n"
@@ -313,6 +317,24 @@ INSTRUCAO = (
     "esta escrito, sem abreviar. Se nao houver nome legivel, devolva lista vazia.\n"
     "Nao explique. Nao invente nome que nao esteja no texto."
 )
+
+
+# Frases que o modelo devolve no lugar de um nome: o exemplo do esquema, a
+# recusa do system prompt, ou um rotulo de campo.
+NAO_E_NOME = (
+    "nome completo", "nome da", "primeira parte", "segunda parte",
+    "nao encontrei", "nao informado", "razao social", "cpf", "cnpj",
+    "parte contratante", "parte contratada",
+)
+
+
+def _nome_plausivel(texto: str) -> bool:
+    """Um nome tem tamanho de nome e nao e um rotulo de campo."""
+    limpo = " ".join((texto or "").split())
+    if not 5 <= len(limpo) <= 90 or len(limpo.split()) < 2:
+        return False
+    plano = _sem_acento(limpo.lower())
+    return not any(frase in plano for frase in NAO_E_NOME)
 
 
 def classificar_com_modelo(texto: str, client: LlamaClient) -> tuple[str, list[str]]:
@@ -327,8 +349,7 @@ def classificar_com_modelo(texto: str, client: LlamaClient) -> tuple[str, list[s
 
     brutas = resposta.get("partes", [])
     partes = [str(p).strip() for p in brutas if isinstance(p, str)] if isinstance(brutas, list) else []
-    # O modelo as vezes devolve a frase de "nao encontrei" como se fosse nome.
-    partes = [p for p in partes if 5 <= len(p) <= 90 and "nao encontrei" not in _sem_acento(p.lower())]
+    partes = [p for p in partes if _nome_plausivel(p)]
 
     return tipo, _unicos(partes)
 
@@ -383,7 +404,7 @@ def classificar_documento(
 # Suba isto ao mudar heuristica, prompt ou vocabulario de tipos. Sem versao, o
 # cache por SHA-1 devolveria a classificacao antiga para sempre - o arquivo nao
 # mudou, mas o classificador mudou.
-VERSAO_CLASSIFICADOR = 3
+VERSAO_CLASSIFICADOR = 4
 
 
 class CacheClassificacao:
