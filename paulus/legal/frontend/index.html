@@ -179,6 +179,35 @@
 
   /* ------------------------------------------------- coluna de trabalhos */
 
+  /* Coluna recolhida: so os tres comecos (nova, biblioteca, habilidades).
+     A lista de trabalhos some junto - meio nome truncado num trilho de 52 px
+     nao ajuda ninguem a reconhecer a conversa. */
+  .trabalhos.recolhida { width: 52px; }
+  .trabalhos.recolhida .trabalhos-topo { padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .trabalhos.recolhida .lista-trabalhos,
+  .trabalhos.recolhida .modelo .nome,
+  .trabalhos.recolhida .modelo .num { display: none; }
+  .trabalhos.recolhida .modelo { justify-content: center; padding: 12px 0; }
+  .trabalhos.recolhida .trabalhos-topo button {
+    width: 32px; height: 32px; padding: 0; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 0 !important; font-size: 0;
+  }
+  .trabalhos.recolhida .trabalhos-topo button::before {
+    font: 500 13px var(--mono); letter-spacing: 0;
+  }
+  .trabalhos.recolhida #nova::before { content: "+"; font-size: 17px; }
+  .trabalhos.recolhida #ver-biblioteca::before { content: "B"; }
+  .trabalhos.recolhida #ver-habilidades::before { content: "H"; }
+
+  .recolher {
+    width: 26px; height: 26px; padding: 0; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    border-color: transparent; background: none; color: var(--ink-3);
+  }
+  .recolher:hover { background: var(--surface-1); border-color: var(--line-strong); }
+  .recolher svg { width: 15px; height: 15px; }
+
   .trabalhos-topo { padding: 14px 12px 10px; }
   .lista-trabalhos { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
   .grupo { padding: 14px 4px 6px; }
@@ -318,16 +347,80 @@
     margin-bottom: 10px;
   }
 
-  /* compositor */
-  .compositor { border-top: 1px solid var(--line); padding: 14px 20px 12px; flex-shrink: 0; }
-  .campo { display: flex; gap: 9px; align-items: flex-end; }
+  /* ------------------------------------------------------- compositor */
+  /*
+    Duas posturas, a mesma peca. Sem conversa comecada, a chamada e o cartao
+    ficam no meio da coluna: a tela pergunta antes de pedir. Com conversa
+    andando, o cartao desce e encosta embaixo, porque ali o que importa e a
+    resposta acima dele.
+  */
+  .compositor {
+    border-top: 1px solid var(--line);
+    padding: 14px 20px 12px;
+    flex-shrink: 0;
+    background: var(--surface-1);
+  }
+
+  .conversa-col.vazia .fluxo { flex: 0 0 auto; padding-bottom: 0; }
+  .conversa-col.vazia { justify-content: center; }
+  .conversa-col.vazia .compositor { border-top: none; padding-bottom: 30px; }
+  .conversa-col.vazia .chamada { display: block; }
+  .conversa-col.vazia .exemplos-rapidos { display: flex; }
+  .conversa-col.vazia .rodape-vazio { display: block; }
+
+  .chamada {
+    display: none;
+    font: 600 27px/1.25 var(--sans);
+    letter-spacing: -0.4px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .cartao-campo {
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    background: var(--surface-1);
+    padding: 12px 12px 10px;
+    box-shadow: 0 2px 6px rgba(20, 24, 28, 0.05);
+  }
+  .cartao-campo:focus-within { border-color: var(--accent); }
+  [data-tema="escuro"] .cartao-campo { box-shadow: none; background: var(--surface-2); }
+
   textarea {
-    flex: 1; font: 400 14.5px/1.55 var(--sans); resize: none;
-    border: 1px solid var(--line-strong); border-radius: 10px;
-    padding: 11px 13px; max-height: 150px; color: inherit; background: var(--surface-1);
+    display: block; width: 100%;
+    font: 400 14.5px/1.55 var(--sans); resize: none;
+    border: none; background: none; outline: none;
+    padding: 3px 4px 8px; max-height: 190px; color: inherit;
   }
   textarea::placeholder { color: var(--placeholder); }
-  .privacidade { font-size: 11.5px; color: var(--ink-muted); margin-top: 9px; }
+
+  .pilulas { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .pilula {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line-strong); border-radius: 16px;
+    padding: 5px 12px; font: 400 12.5px var(--sans);
+    background: var(--surface-1); color: var(--ink-2); cursor: pointer;
+  }
+  .pilula:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .pilula svg { width: 13px; height: 13px; flex-shrink: 0; }
+  [data-tema="escuro"] .pilula { background: var(--surface-1); }
+
+  .enviar {
+    margin-left: auto;
+    width: 34px; height: 34px; flex-shrink: 0;
+    border-radius: 50%; border: none; padding: 0;
+    background: var(--forte); color: var(--forte-texto);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .enviar:hover:not(:disabled) { background: var(--forte-hover); color: var(--forte-texto); }
+  .enviar svg { width: 16px; height: 16px; }
+
+  .exemplos-rapidos {
+    display: none;
+    justify-content: center; flex-wrap: wrap; gap: 7px; margin-top: 14px;
+  }
+
+  .privacidade { font-size: 11.5px; color: var(--ink-muted); margin-top: 12px; text-align: center; }
 
   /* --------------------------------------------------------- botoes */
 
@@ -596,6 +689,11 @@
 <body>
 
 <div class="barra">
+  <button class="recolher" id="recolher" title="Recolher a coluna" aria-label="Recolher a coluna">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+      <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.6"/><path d="M6.1 2.6v10.8"/>
+    </svg>
+  </button>
   <span class="produto">PAULUS</span>
   <span class="selo" id="selo"><span class="ponto"></span><span id="selo-texto">Ocioso</span></span>
   <button class="pastilha" id="tema" title="Alternar claro e escuro" aria-label="Alternar claro e escuro"></button>
@@ -620,7 +718,7 @@
     </div>
   </aside>
 
-  <section class="conversa-col">
+  <section class="conversa-col" id="conversa-col">
     <div class="conversa-topo">
       <div style="flex:1;min-width:0">
         <h2 class="corta" id="conversa-titulo">Nova solicitação</h2>
@@ -635,12 +733,36 @@
 
     <div class="compositor">
       <div class="centro">
-        <div class="campo">
-          <textarea id="pedido" rows="1" placeholder="Peça o que precisa, ou anexe documentos…"></textarea>
-          <button id="anexar" title="Anexar contratos (PDF, DOCX, TXT)">Anexar</button>
-          <button id="buscar" title="Achar a palavra nos contratos, sem esperar o assistente">Buscar</button>
-          <button class="primario" id="enviar">Perguntar</button>
+        <h1 class="chamada" id="chamada">Em que posso ajudar?</h1>
+
+        <div class="cartao-campo" id="cartao-campo">
+          <textarea id="pedido" rows="1" placeholder="Peça o que precisa dos seus documentos…"></textarea>
+          <div class="pilulas">
+            <button class="pilula" id="anexar" title="Anexar documentos (PDF, DOCX, TXT)">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                <path d="M13 7.2 8.1 12a3.1 3.1 0 0 1-4.4-4.4l5.2-5.2a2.1 2.1 0 0 1 2.9 3l-5.2 5.2a1 1 0 0 1-1.4-1.4l4.7-4.7"/>
+              </svg><span>Anexar</span>
+            </button>
+            <button class="pilula" id="buscar" title="Achar a palavra, sem esperar o assistente">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                <circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3 14 14"/>
+              </svg><span>Buscar</span>
+            </button>
+            <button class="pilula" id="pilula-organizar" title="Varrer uma pasta e organizar o acervo">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+                <path d="M1.6 4.2A1.2 1.2 0 0 1 2.8 3h3.1l1.4 1.6h5A1.2 1.2 0 0 1 13.5 5.8v6a1.2 1.2 0 0 1-1.2 1.2H2.8a1.2 1.2 0 0 1-1.2-1.2z"/>
+              </svg><span>Organizar</span>
+            </button>
+
+            <button class="enviar" id="enviar" title="Perguntar" aria-label="Perguntar">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 13V3.4M4 7l4-3.6L12 7"/>
+              </svg>
+            </button>
+          </div>
         </div>
+
+        <div class="exemplos-rapidos" id="exemplos-rapidos"></div>
         <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
         <div class="privacidade" id="privacidade">nenhuma requisição à internet nesta sessão</div>
       </div>
@@ -775,6 +897,7 @@ $("nova").onclick = () => {
   ligarExemplos();
   desenharAtividade([]);
   carregarTrabalhos();
+  atualizarPostura();
   $("pedido").focus();
 };
 
@@ -786,32 +909,67 @@ $("apagar").onclick = async () => {
 };
 
 function exemplos() {
+  return estado.contratos
+    ? ""
+    : '<div class="painel"><h3>Comece abrindo documentos</h3>' +
+      '<p class="explica">Anexe contratos aqui embaixo, ou arraste para esta área. ' +
+      "Também dá para eu varrer uma pasta inteira e organizar o acervo.</p></div>";
+}
+
+/* A postura do compositor: no meio quando nao ha conversa, embaixo quando ha. */
+function atualizarPostura() {
+  const temConversa = Boolean(
+    estado.trabalhoId ||
+    ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao"))
+  );
+  $("conversa-col").classList.toggle("vazia", !temConversa);
+  if (!temConversa) desenharExemplosRapidos();
+}
+
+function desenharExemplosRapidos() {
+  const alvo = $("exemplos-rapidos");
+  if (!estado.contratos) {
+    alvo.innerHTML = "";
+    return;
+  }
   const pedidos = [
     "Quais são as cláusulas de penalidade?",
     "Qual o prazo de vigência de cada contrato?",
-    "Quem são as partes de cada contrato?",
+    "Quem são as partes?",
   ];
-  const temContratos = estado.contratos > 0;
-
-  return '<div><p class="explica" style="font-size:14.5px;color:var(--ink-2);margin:0 0 12px">' +
-    (temContratos
-      ? "Pergunte o que precisa dos contratos abertos. Toda resposta vem com os trechos que eu li."
-      : "Nenhum contrato aberto ainda. Anexe documentos aqui embaixo, ou arraste para esta área.") +
-    '</p><div class="chips">' +
-    (temContratos ? pedidos.map((p) => '<button class="chip exemplo">' + esc(p) + "</button>").join("") : "") +
-    "</div></div>" +
-    '<div class="painel"><h3>Organizar uma pasta</h3>' +
-    '<p class="explica">Vou ler os documentos de uma pasta sua, classificar por conteúdo e ' +
-    "propor a estrutura de pastas. Você confere antes de qualquer arquivo sair do lugar.</p>" +
-    '<button id="abrir-organizar">Começar</button></div>';
+  alvo.innerHTML = pedidos.map((p) => '<button class="pilula exemplo">' + esc(p) + "</button>").join("");
+  ligarExemplos();
 }
 
 function ligarExemplos() {
   document.querySelectorAll(".exemplo").forEach((b) => {
     b.onclick = () => { $("pedido").value = b.textContent; enviar(); };
   });
-  const org = $("abrir-organizar");
-  if (org) org.onclick = organizarComecar;
+}
+
+$("pilula-organizar").onclick = () => {
+  $("centro").innerHTML = "";
+  organizarComecar();
+};
+
+/* --------------------------------------------------------- recolher */
+
+const RAIL_GUARDADO = "paulus.coluna";
+
+function aplicarColuna(recolhida) {
+  document.querySelector(".trabalhos").classList.toggle("recolhida", recolhida);
+  $("recolher").title = recolhida ? "Mostrar a coluna" : "Recolher a coluna";
+  try { localStorage.setItem(RAIL_GUARDADO, recolhida ? "1" : "0"); } catch (err) { /* sem memoria */ }
+}
+
+$("recolher").onclick = () => {
+  aplicarColuna(!document.querySelector(".trabalhos").classList.contains("recolhida"));
+};
+
+try {
+  aplicarColuna(localStorage.getItem(RAIL_GUARDADO) === "1");
+} catch (err) {
+  aplicarColuna(false);
 }
 
 /* ----------------------------------------------------------- anexar */
@@ -880,6 +1038,7 @@ $("buscar").onclick = async () => {
   const centro = $("centro");
   if (!estado.trabalhoId) centro.innerHTML = "";
   centro.insertAdjacentHTML("beforeend", bolhaPessoa(termo));
+  atualizarPostura();
 
   const bloco = document.createElement("div");
   bloco.className = "resposta";
@@ -928,6 +1087,7 @@ function desenharTrabalho() {
   $("centro").innerHTML = html || exemplos();
   ligarExemplos();
   desenharAtividade(t.atividade);
+  atualizarPostura();
   rolar();
 }
 
@@ -1042,6 +1202,7 @@ async function enviar() {
 
   const centro = $("centro");
   centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
+  atualizarPostura();
 
   const plano = document.createElement("div");
   plano.innerHTML = cartaoPlano(
@@ -1156,6 +1317,7 @@ async function carregarStatus() {
     if (!s.ollama) {
       $("privacidade").textContent = "o assistente local não respondeu — verifique se o Ollama está aberto";
     }
+    if ($("conversa-col").classList.contains("vazia")) desenharExemplosRapidos();
   } catch (err) { /* servidor caiu; o selo ja mostra ocioso */ }
 }
 
@@ -1258,6 +1420,7 @@ async function mostrarBiblioteca() {
       : "") +
     '</div><div id="bib-lista"></div></div>';
 
+  atualizarPostura();
   if (d.documentos.length) {
     $("bib-filtro").oninput = (e) => { bib.filtro = e.target.value.trim().toLowerCase(); desenharBiblioteca(); };
     desenharBiblioteca();
@@ -1430,6 +1593,7 @@ async function mostrarHabilidades() {
   }
 
   centro.innerHTML = html + "</div>";
+  atualizarPostura();
 
   centro.querySelectorAll(".hab-usar").forEach((b) => {
     b.onclick = () => usarHabilidade(b.dataset.acao);
@@ -1490,6 +1654,7 @@ async function organizarComecar() {
 
   $("centro").innerHTML = "";
   passoOnde();
+  atualizarPostura();
 }
 
 function cartaoOrg(atual, feitos, total) {
@@ -1963,7 +2128,7 @@ async function organizarAplicar() {
 
 atualizarSelo(false);
 carregarTrabalhos();
-carregarStatus();
+carregarStatus().then(atualizarPostura);
 carregarModelo();
 carregarRecursos();
 $("nova").click();
