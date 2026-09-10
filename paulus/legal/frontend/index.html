@@ -3,1088 +3,849 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PAULUS Legal</title>
+<title>PAULUS</title>
+<link rel="stylesheet" href="/fontes.css">
 <style>
   :root {
-    --tinta: #16202e;
-    --tinta-fraca: #5b6b7f;
-    --papel: #f6f7f9;
-    --papel-alto: #ffffff;
-    --borda: #dde2e9;
-    --marca: #1f4b8e;
-    --marca-fraca: #eaf0fa;
-    --alerta: #b4472c;
-    --ok: #1e7a4f;
+    --ink: #14181c;
+    --ink-2: #3c444d;
+    --ink-3: #5b6470;
+    --ink-muted: #8b95a1;
+    --accent: #2f6ba3;
+    --accent-soft: #eaf1f8;
+    --accent-line: #cfe0ef;
+    --attention: #a8680c;
+    --attention-soft: #fffaf1;
+    --attention-line: #f0dfc2;
+    --attention-ink: #7a5406;
+    --ok: #1f7a4d;
+    --line: #e4e7ec;
+    --line-strong: #d9dee5;
+    --surface-1: #ffffff;
+    --surface-2: #fbfcfd;
+    --surface-3: #f7f8fa;
+    --track: #eef1f4;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
   }
+
   * { box-sizing: border-box; }
+
   body {
     margin: 0;
-    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: var(--tinta);
-    background: var(--papel);
+    font: 400 14.5px/1.55 var(--sans);
+    color: var(--ink);
+    background: var(--surface-1);
     height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
-  header {
-    background: var(--papel-alto);
-    border-bottom: 1px solid var(--borda);
-    padding: 14px 22px;
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  p { text-wrap: pretty; }
+
+  .rotulo {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .num { font: 400 10.5px var(--mono); color: var(--ink-3); }
+  .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ------------------------------------------------------ barra de janela */
+
+  .barra {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    padding: 11px 16px;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--line);
     flex-shrink: 0;
   }
-  .marca { font-size: 19px; font-weight: 650; letter-spacing: -0.2px; }
-  .marca span { color: var(--marca); }
-  .sub { color: var(--tinta-fraca); font-size: 13px; }
-  .pill {
+  .produto { font: 600 13.5px var(--sans); letter-spacing: -0.1px; }
+
+  .selo {
     margin-left: auto;
-    font-size: 12.5px;
-    color: var(--tinta-fraca);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 7px;
+    border-radius: 20px;
+    padding: 3px 9px;
+    border: 1px solid var(--accent-line);
+    background: var(--accent-soft);
+    font: 500 11px var(--sans);
+    color: var(--accent);
   }
-  .ponto { width: 8px; height: 8px; border-radius: 50%; background: #c3ccd8; flex-shrink: 0; }
-  .ponto.on { background: var(--ok); }
-  .ponto.off { background: var(--alerta); }
+  .selo.frio { border-color: var(--line-strong); background: var(--surface-1); color: var(--ink-3); }
+  .ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+  .selo.frio .ponto { display: none; }
 
-  main { flex: 1; display: flex; min-height: 0; }
+  /* --------------------------------------------------------------- grade */
 
-  aside {
-    width: 280px;
+  .corpo { flex: 1; display: flex; min-height: 0; }
+
+  .trabalhos {
+    width: 230px;
     flex-shrink: 0;
-    background: var(--papel-alto);
-    border-right: 1px solid var(--borda);
+    background: var(--surface-2);
+    border-right: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
-  .aside-topo { padding: 16px; border-bottom: 1px solid var(--borda); }
-  .rotulo {
-    font-size: 11.5px;
-    font-weight: 650;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--tinta-fraca);
+  .conversa-col { flex: 1; min-width: 460px; display: flex; flex-direction: column; min-height: 0; }
+  .lateral {
+    width: 272px;
+    flex-shrink: 0;
+    background: var(--surface-2);
+    border-left: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ------------------------------------------------- coluna de trabalhos */
+
+  .trabalhos-topo { padding: 14px 12px 10px; }
+  .lista-trabalhos { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+  .grupo { padding: 14px 4px 6px; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .item:hover { background: var(--surface-3); }
+  .item.ativo { background: var(--surface-3); color: var(--ink); font-weight: 500; }
+  .item .titulo { flex: 1; min-width: 0; }
+  .item .marca { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #c9d1da; }
+  .item .marca.executando { background: var(--accent); }
+  .item .marca.aguardando { background: var(--attention); }
+  .item .marca.concluido { background: var(--ok); }
+  .item .marca.pausado { background: #c9d1da; }
+  .vazio-lista { padding: 10px 8px; font-size: 12.5px; color: var(--ink-muted); }
+
+  .modelo {
+    border-top: 1px solid var(--line);
+    padding: 12px;
+    display: flex;
+    gap: 9px;
+    align-items: center;
+  }
+  .modelo .quadro {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--surface-3); border: 1px solid var(--line-strong); flex-shrink: 0;
+  }
+  .modelo .nome { font-size: 12.5px; font-weight: 500; }
+
+  /* ---------------------------------------------------------- conversa */
+
+  .conversa-topo {
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .conversa-topo h2 { font: 600 15px var(--sans); }
+  .conversa-topo .meta { font: 400 10.5px var(--mono); color: var(--ink-3); margin-top: 2px; }
+
+  .fluxo { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .centro { width: 100%; max-width: 660px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  .bolha-pessoa {
+    align-self: flex-end;
+    max-width: 78%;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14.5px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .resposta { font-size: 14.5px; white-space: pre-wrap; word-wrap: break-word; }
+  .resposta .assinatura { font: 400 10.5px var(--mono); color: var(--ink-3); margin-top: 8px; }
+
+  /* cartao */
+  .cartao {
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--surface-1);
+    overflow: hidden;
+  }
+  .cartao-topo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .cartao-topo .quem { font: 500 13px var(--sans); flex: 1; }
+  .cartao-corpo { padding: 12px 14px; }
+
+  /* etapas */
+  .etapa { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13.5px; }
+  .etapa .marcador {
+    width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid #dfe4ea; background: var(--surface-1);
+  }
+  .etapa.executando .marcador { border-color: var(--accent); }
+  .etapa.concluido .marcador { border-color: var(--accent-line); background: var(--accent-soft); }
+  .etapa.falhou .marcador { border-color: var(--attention-line); background: var(--attention-soft); }
+  .etapa .texto { flex: 1; min-width: 0; }
+  .etapa.na_fila .texto { color: var(--ink-muted); }
+  .etapa .estado { font: 400 10.5px var(--mono); color: var(--ink-3); }
+
+  .progresso { height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; margin: 2px 0 6px 26px; }
+  .progresso i { display: block; height: 100%; background: var(--accent); transition: width 0.25s; }
+
+  /* cartao de aprovacao */
+  .aprovacao {
+    background: var(--attention-soft);
+    border: 1px solid var(--attention-line);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .aprovacao p { margin: 0 0 12px; font-size: 13.5px; }
+  .aprovacao .acoes { display: flex; gap: 8px; }
+
+  /* fontes citadas */
+  .fontes { margin-top: 10px; }
+  .fontes summary {
+    cursor: pointer; list-style: none;
+    font-size: 12.5px; color: var(--accent); padding: 4px 0;
+  }
+  .fontes summary::-webkit-details-marker { display: none; }
+  .trecho {
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent-line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 7px;
+    font-size: 12.5px;
+    background: var(--surface-2);
+  }
+  .trecho .origem { font: 500 11px var(--mono); color: var(--accent); margin-bottom: 4px; }
+  .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink-2); max-height: 170px; overflow-y: auto; }
+
+  .aviso-cobertura {
+    background: var(--attention-soft);
+    border: 1px solid var(--attention-line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12.5px;
     margin-bottom: 10px;
   }
-  .docs { flex: 1; overflow-y: auto; padding: 10px; }
-  .doc {
-    padding: 9px 11px;
-    border-radius: 7px;
-    font-size: 13.5px;
-    word-break: break-word;
+
+  /* compositor */
+  .compositor { border-top: 1px solid var(--line); padding: 14px 20px 12px; flex-shrink: 0; }
+  .campo { display: flex; gap: 9px; align-items: flex-end; }
+  textarea {
+    flex: 1; font: 400 14.5px/1.55 var(--sans); resize: none;
+    border: 1px solid var(--line-strong); border-radius: 10px;
+    padding: 11px 13px; max-height: 150px; color: inherit; background: var(--surface-1);
   }
-  .doc:hover { background: var(--papel); }
-  .doc small { color: var(--tinta-fraca); display: block; font-size: 12px; }
-  .vazio { color: var(--tinta-fraca); font-size: 13.5px; padding: 12px; text-align: center; }
+  textarea::placeholder { color: #9aa3ae; }
+  .privacidade { font-size: 11.5px; color: var(--ink-muted); margin-top: 9px; }
+
+  /* --------------------------------------------------------- botoes */
 
   button {
-    font: inherit;
+    font: 400 13px var(--sans);
     cursor: pointer;
-    border-radius: 7px;
-    border: 1px solid var(--borda);
-    background: var(--papel-alto);
-    padding: 8px 13px;
-    color: var(--tinta);
-  }
-  button:hover:not(:disabled) { border-color: var(--marca); color: var(--marca); }
-  button:disabled { opacity: 0.5; cursor: default; }
-  button.primario {
-    background: var(--marca);
-    border-color: var(--marca);
-    color: #fff;
-    font-weight: 550;
-  }
-  button.primario:hover:not(:disabled) { background: #1a3f78; color: #fff; }
-  .largo { width: 100%; }
-
-  section.conteudo { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  nav {
-    display: flex;
-    gap: 4px;
-    padding: 0 22px;
-    background: var(--papel-alto);
-    border-bottom: 1px solid var(--borda);
-  }
-  nav button {
-    border: none;
-    background: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    padding: 12px 14px;
-    color: var(--tinta-fraca);
-    font-weight: 550;
-  }
-  nav button:hover { color: var(--tinta); }
-  nav button.ativo { color: var(--marca); border-bottom-color: var(--marca); }
-
-  .aba { flex: 1; display: none; flex-direction: column; min-height: 0; }
-  .aba.ativa { display: flex; }
-
-  .conversa { flex: 1; overflow-y: auto; padding: 24px; }
-  .limite { max-width: 780px; margin: 0 auto; }
-  .msg { margin-bottom: 22px; }
-  .msg .quem {
-    font-size: 11.5px;
-    font-weight: 650;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--tinta-fraca);
-    margin-bottom: 6px;
-  }
-  .msg.eu .balao {
-    background: var(--marca-fraca);
-    border-radius: 9px;
-    padding: 11px 14px;
-  }
-  .balao { white-space: pre-wrap; word-wrap: break-word; }
-  .msg.paulus .quem { color: var(--marca); }
-
-  .fontes { margin-top: 12px; }
-  .fontes summary {
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--marca);
-    padding: 5px 0;
-    list-style: none;
-  }
-  .fontes summary::before { content: "\25B8  "; }
-  .fontes[open] summary::before { content: "\25BE  "; }
-  .trecho {
-    background: var(--papel-alto);
-    border: 1px solid var(--borda);
-    border-left: 3px solid var(--marca);
-    border-radius: 6px;
-    padding: 11px 13px;
-    margin-top: 8px;
-    font-size: 13px;
-  }
-  .trecho .origem {
-    font-weight: 650;
-    font-size: 12px;
-    color: var(--marca);
-    margin-bottom: 5px;
-  }
-  .trecho pre {
-    margin: 0;
-    white-space: pre-wrap;
-    font: inherit;
-    color: var(--tinta-fraca);
-    max-height: 190px;
-    overflow-y: auto;
-  }
-
-  .rodape-msg { font-size: 12px; color: var(--tinta-fraca); margin-top: 8px; }
-  .erro { color: var(--alerta); }
-  .cobertura {
-    background: #fdf4ef;
-    border: 1px solid #f0d3c4;
-    border-left: 3px solid var(--alerta);
-    border-radius: 6px;
-    padding: 10px 13px;
-    margin-bottom: 11px;
-    font-size: 13px;
-  }
-  .cobertura strong { color: var(--alerta); }
-
-  .entrada {
-    border-top: 1px solid var(--borda);
-    background: var(--papel-alto);
-    padding: 14px 24px 18px;
-    flex-shrink: 0;
-  }
-  .entrada-caixa { display: flex; gap: 10px; align-items: flex-end; }
-  textarea {
-    flex: 1;
-    font: inherit;
-    resize: none;
-    border: 1px solid var(--borda);
     border-radius: 8px;
-    padding: 11px 13px;
-    max-height: 150px;
-    color: inherit;
+    padding: 8px 16px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-1);
+    color: var(--ink-2);
   }
-  textarea:focus, input:focus { outline: 2px solid var(--marca-fraca); border-color: var(--marca); }
-  .aviso { font-size: 11.5px; color: var(--tinta-fraca); margin-top: 9px; text-align: center; }
+  button:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button.primario { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 500; }
+  button.primario:hover:not(:disabled) { background: #262c33; border-color: #262c33; color: #fff; }
+  button.aprovar-secundario { background: var(--surface-1); border-color: #e2d6bd; color: var(--attention-ink); }
+  button.largo { width: 100%; }
+  button.pastilha { border-radius: 16px; padding: 5px 12px; font-size: 12px; }
 
-  /* ------------------------------------------------------- organizador */
-  .org { flex: 1; overflow-y: auto; padding: 22px 24px 40px; }
-  .passo { display: flex; gap: 14px; margin-bottom: 26px; max-width: 1050px; }
-  .passo-num {
-    width: 27px;
-    height: 27px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: var(--marca-fraca);
-    color: var(--marca);
-    font-weight: 650;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .passo-corpo { flex: 1; min-width: 0; }
-  .passo-corpo h3 { margin: 3px 0 9px; font-size: 15.5px; }
-  .nota { font-size: 12.5px; color: var(--tinta-fraca); }
-  .passo-corpo p.nota { margin: 0 0 11px; max-width: 640px; }
-  .linha { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; flex-wrap: wrap; }
-  .linha label { font-size: 13px; color: var(--tinta-fraca); min-width: 128px; }
-  .linha input[type=text] { flex: 1; min-width: 240px; }
-  .linha input[type=text], .linha select {
-    font: inherit;
-    border: 1px solid var(--borda);
-    border-radius: 7px;
-    padding: 8px 11px;
-    background: var(--papel-alto);
-    color: inherit;
-  }
-  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 11px; }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    border: 1px solid var(--borda);
-    border-radius: 20px;
-    padding: 6px 13px;
-    font-size: 13px;
-    background: var(--papel-alto);
-    cursor: pointer;
-  }
-  .chip.on { border-color: var(--marca); background: var(--marca-fraca); color: var(--marca); }
-  .chip small { color: var(--tinta-fraca); font-size: 11.5px; }
-  .chip.on small { color: var(--marca); }
+  /* --------------------------------------------------------- lateral */
 
-  button.perigo { background: var(--alerta); border-color: var(--alerta); color: #fff; font-weight: 550; }
-  button.perigo:hover:not(:disabled) { background: #94371f; color: #fff; }
+  .lateral-bloco { padding: 14px; border-bottom: 1px solid var(--line); }
+  .lateral-rolagem { flex: 1; overflow-y: auto; }
 
-  .barra { height: 5px; background: var(--borda); border-radius: 3px; overflow: hidden; max-width: 420px; }
-  .barra div { height: 100%; width: 0%; background: var(--marca); transition: width 0.2s; }
+  .atividade-linha { display: flex; gap: 9px; padding: 6px 0; }
+  .atividade-linha .ponto-at {
+    width: 6px; height: 6px; border-radius: 50%; background: #c9d1da;
+    margin-top: 6px; flex-shrink: 0;
+  }
+  .atividade-linha:first-child .ponto-at { background: var(--accent); }
+  .atividade-linha .txt { font-size: 13px; color: var(--ink-2); }
 
-  .tabela-caixa {
-    border: 1px solid var(--borda);
-    border-radius: 8px;
-    overflow: auto;
-    max-height: 380px;
-    background: var(--papel-alto);
-  }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  thead th {
-    position: sticky;
-    top: 0;
-    background: var(--papel);
-    text-align: left;
-    padding: 9px 11px;
-    border-bottom: 1px solid var(--borda);
-    font-size: 11.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--tinta-fraca);
-    white-space: nowrap;
-  }
-  tbody td { padding: 6px 11px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr.fora { opacity: 0.42; }
-  td .arquivo { max-width: 250px; word-break: break-word; }
-  td input[type=text], td select {
-    font: inherit;
-    font-size: 12.5px;
-    border: 1px solid transparent;
-    border-radius: 5px;
-    padding: 4px 6px;
-    background: transparent;
-    width: 100%;
-    color: inherit;
-  }
-  td input[type=text]:hover, td select:hover { border-color: var(--borda); background: var(--papel); }
-  .selo { font-size: 11px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-  .selo.alta { background: #e6f4ec; color: var(--ok); }
-  .selo.media { background: #fdf4ef; color: #96552f; }
-  .selo.baixa { background: #fbeae5; color: var(--alerta); }
+  .maquina { margin-top: auto; border-top: 1px solid var(--line); padding: 14px; background: var(--surface-2); }
+  .frase-maquina { font-size: 12.5px; color: var(--ink-2); margin: 8px 0 10px; }
+  .medidor { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .medidor .nome { font-size: 12.5px; color: var(--ink-2); width: 64px; flex-shrink: 0; }
+  .medidor .trilho { flex: 1; height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; }
+  .medidor .trilho i { display: block; height: 100%; background: var(--accent); transition: width 0.4s; }
+  .medidor .valor { font: 400 10.5px var(--mono); color: var(--ink-3); width: 46px; text-align: right; flex-shrink: 0; }
 
-  .pasta-linha {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 7px 12px;
-    border-bottom: 1px solid var(--borda);
-    font-size: 13px;
+  .interruptor {
+    display: flex; align-items: center; gap: 9px; margin-top: 12px;
+    border: 1px solid var(--line-strong); border-radius: 10px; padding: 8px 11px;
+    background: var(--surface-1); font-size: 12.5px; cursor: pointer;
   }
-  .pasta-linha:last-child { border-bottom: none; }
-  .pasta-linha code { font: inherit; color: var(--tinta); word-break: break-all; }
-  .caixa {
-    border: 1px solid var(--borda);
-    border-radius: 8px;
-    background: var(--papel-alto);
-    max-height: 300px;
-    overflow-y: auto;
-    margin-top: 10px;
+  .interruptor .chave {
+    margin-left: auto; width: 34px; height: 19px; border-radius: 20px;
+    background: var(--line-strong); position: relative; transition: background 0.2s; flex-shrink: 0;
   }
-  .diario-linha {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--borda);
-    font-size: 13px;
+  .interruptor .chave::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform 0.2s;
   }
-  .diario-linha:last-child { border-bottom: none; }
-  .diario-linha .cresce { flex: 1; min-width: 0; }
+  .interruptor.on .chave { background: var(--ink); }
+  .interruptor.on .chave::after { transform: translateX(15px); }
 
-  .busca-topo { padding: 20px 24px 12px; }
-  input[type=search] {
-    width: 100%;
-    font: inherit;
-    border: 1px solid var(--borda);
-    border-radius: 8px;
-    padding: 11px 13px;
+  /* ----------------------------------------------------------- coroa */
+
+  .coroa { flex-shrink: 0; color: var(--accent); animation: girar 9s linear infinite; }
+  .coroa.parada { animation: none; opacity: 0.6; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .coroa { animation: none; }
+    .progresso i, .medidor .trilho i { transition: none; }
   }
-  .busca-lista { flex: 1; overflow-y: auto; padding: 6px 24px 24px; }
-  .exemplos { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 7px; }
-  .exemplos button { font-size: 13px; padding: 6px 11px; color: var(--tinta-fraca); }
+
+  /* ------------------------------------------------------- responsivo */
+
+  @media (max-width: 1180px) {
+    .lateral { display: none; }
+    .lateral.aberta {
+      display: flex; position: absolute; right: 0; top: 45px; bottom: 0;
+      box-shadow: 0 12px 32px rgba(20, 24, 28, 0.10); z-index: 5;
+    }
+    .botao-gaveta { display: inline-flex; }
+  }
+  @media (min-width: 1181px) { .botao-gaveta { display: none; } }
+  @media (max-width: 900px) {
+    .trabalhos { display: none; }
+    .conversa-col { min-width: 0; }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <div class="marca">PAULUS <span>Legal</span></div>
-    <div class="sub">Análise de contratos &mdash; tudo roda nesta máquina</div>
-  </div>
-  <div class="pill"><span class="ponto" id="ponto"></span><span id="status">conectando…</span></div>
-</header>
+<div class="barra">
+  <span class="produto">PAULUS</span>
+  <span class="selo" id="selo"><span class="ponto"></span><span id="selo-texto">Ocioso</span></span>
+  <button class="botao-gaveta pastilha" id="abrir-gaveta">Atividade</button>
+</div>
 
-<main>
-  <aside>
-    <div class="aside-topo">
-      <div class="rotulo">Contratos</div>
-      <button class="primario largo" id="btn-upload">Adicionar contratos</button>
-      <input type="file" id="arquivo" multiple accept=".pdf,.docx,.txt,.md" hidden>
-      <div id="upload-msg" class="rodape-msg"></div>
+<div class="corpo">
+
+  <aside class="trabalhos">
+    <div class="trabalhos-topo">
+      <button class="primario largo" id="nova">Nova solicitação</button>
     </div>
-    <div class="docs" id="docs"><div class="vazio">carregando…</div></div>
+    <div class="lista-trabalhos" id="lista-trabalhos"></div>
+    <div class="modelo">
+      <div class="quadro"></div>
+      <div style="min-width:0">
+        <div class="nome">Assistente local</div>
+        <div class="num" id="modelo-tamanho">na sua máquina</div>
+      </div>
+    </div>
   </aside>
 
-  <section class="conteudo">
-    <nav>
-      <button class="ativo" data-aba="analise">Análise</button>
-      <button data-aba="busca">Busca</button>
-      <button data-aba="organizar">Organizar</button>
-    </nav>
-
-    <div class="aba ativa" id="aba-analise">
-      <div class="conversa" id="conversa">
-        <div class="limite" id="thread">
-          <div class="msg paulus">
-            <div class="quem">Paulus</div>
-            <div class="balao">Adicione contratos ao lado e pergunte o que quiser sobre eles. Toda resposta vem acompanhada dos trechos que eu li, para você conferir.</div>
-            <div class="exemplos">
-              <button class="exemplo">Quais são as cláusulas de penalidade?</button>
-              <button class="exemplo">Qual o prazo de vigência de cada contrato?</button>
-              <button class="exemplo">Quanto é a multa por rescisão antecipada?</button>
-              <button class="exemplo">Quem são as partes de cada contrato?</button>
-            </div>
-          </div>
-        </div>
+  <section class="conversa-col">
+    <div class="conversa-topo">
+      <div style="flex:1;min-width:0">
+        <h2 class="corta" id="conversa-titulo">Nova solicitação</h2>
+        <div class="meta" id="conversa-meta">nenhum contrato aberto</div>
       </div>
-      <div class="entrada">
-        <div class="limite">
-          <div class="entrada-caixa">
-            <textarea id="pergunta" rows="1" placeholder="Pergunte sobre os contratos…"></textarea>
-            <button class="primario" id="enviar">Perguntar</button>
-          </div>
-          <div class="aviso">PAULUS localiza e resume o que está escrito. Confira sempre contra o contrato original.</div>
-        </div>
-      </div>
+      <button id="apagar" hidden>Apagar</button>
     </div>
 
-    <div class="aba" id="aba-organizar">
-      <div class="org">
-        <div class="passo">
-          <div class="passo-num">1</div>
-          <div class="passo-corpo">
-            <h3>Onde procurar</h3>
-            <div id="org-raizes" class="chips"></div>
-            <div class="linha">
-              <input type="text" id="org-raiz-manual" placeholder="Ou digite um caminho: D:\Escritorio\Contratos">
-              <button id="org-add-raiz">Incluir</button>
-            </div>
-            <div class="linha">
-              <button class="primario" id="org-varrer">Varrer pastas</button>
-              <span id="org-varredura" class="nota"></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="passo" id="org-passo-2" hidden>
-          <div class="passo-num">2</div>
-          <div class="passo-corpo">
-            <h3>Ler e classificar</h3>
-            <p class="nota">
-              Data, valor e CPF/CNPJ saem por regra, na hora. O modelo so entra
-              quando a regra nao decide o tipo ou nao acha as partes &mdash; e ai
-              custa cerca de 20s por documento.
-            </p>
-            <div class="linha">
-              <button class="primario" id="org-classificar">Classificar documentos</button>
-              <span id="org-progresso" class="nota"></span>
-            </div>
-            <div class="barra" id="org-barra" hidden><div id="org-barra-fill"></div></div>
-          </div>
-        </div>
-
-        <div class="passo" id="org-passo-3" hidden>
-          <div class="passo-num">3</div>
-          <div class="passo-corpo">
-            <h3>Conferir e corrigir</h3>
-            <p class="nota">
-              Cliente e tipo sao palpite do programa. Corrija aqui &mdash; nada foi
-              movido ainda. Desmarque o que nao deve entrar.
-            </p>
-            <div class="tabela-caixa">
-              <table id="org-tabela">
-                <thead>
-                  <tr>
-                    <th><input type="checkbox" id="org-todos" checked></th>
-                    <th>Arquivo</th>
-                    <th>Tipo</th>
-                    <th>Cliente</th>
-                    <th>Data</th>
-                    <th>Confianca</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="passo" id="org-passo-4" hidden>
-          <div class="passo-num">4</div>
-          <div class="passo-corpo">
-            <h3>Como organizar</h3>
-            <div class="linha">
-              <label>Estrutura de pastas</label>
-              <select id="org-padrao"></select>
-            </div>
-            <div class="linha">
-              <label>Pasta de destino</label>
-              <input type="text" id="org-destino" placeholder="C:\Users\...\Acervo PAULUS">
-              <button id="org-escolher-pasta" hidden>Escolher…</button>
-            </div>
-            <div class="linha">
-              <button class="primario" id="org-ver-plano">Ver o plano</button>
-              <span id="org-plano-nota" class="nota"></span>
-            </div>
-            <div id="org-plano"></div>
-          </div>
-        </div>
-
-        <div class="passo" id="org-passo-5" hidden>
-          <div class="passo-num">5</div>
-          <div class="passo-corpo">
-            <h3>Aplicar</h3>
-            <div class="cobertura">
-              <strong>A partir daqui os arquivos saem do lugar.</strong>
-              Cada movimento vai para um diario e pode ser revertido pelo botao
-              Desfazer. Nada e apagado e nada e sobrescrito.
-            </div>
-            <div class="linha">
-              <button class="perigo" id="org-aplicar">Mover os arquivos</button>
-              <span id="org-resultado" class="nota"></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="passo">
-          <div class="passo-num">↩</div>
-          <div class="passo-corpo">
-            <h3>Lotes aplicados</h3>
-            <div id="org-diarios"><span class="nota">Nenhum lote ainda.</span></div>
-          </div>
-        </div>
-      </div>
+    <div class="fluxo" id="fluxo">
+      <div class="centro" id="centro"></div>
     </div>
 
-    <div class="aba" id="aba-busca">
-      <div class="busca-topo">
-        <input type="search" id="termo" placeholder="Buscar por palavra-chave (rescisão, multa, vigência…)">
-        <div class="aviso" style="text-align:left">Busca direta no texto, sem passar pelo modelo &mdash; resposta instantânea.</div>
+    <div class="compositor">
+      <div class="centro">
+        <div class="campo">
+          <textarea id="pedido" rows="1" placeholder="Peça outra coisa ou envie uma pasta…"></textarea>
+          <button class="primario" id="enviar">Perguntar</button>
+        </div>
+        <div class="privacidade" id="privacidade">nenhuma requisição à internet nesta sessão</div>
       </div>
-      <div class="busca-lista" id="busca-lista"></div>
     </div>
   </section>
-</main>
+
+  <aside class="lateral" id="lateral">
+    <div class="lateral-rolagem">
+      <div class="lateral-bloco" id="bloco-aprovacao" hidden>
+        <div class="rotulo" style="margin-bottom:9px">Precisa de você</div>
+        <div id="aprovacoes"></div>
+      </div>
+      <div class="lateral-bloco">
+        <div class="rotulo" style="margin-bottom:6px">Atividade</div>
+        <div id="atividade"><span class="vazio-lista" style="padding-left:0">nada ainda</span></div>
+      </div>
+    </div>
+    <div class="maquina">
+      <div class="rotulo">Seu computador</div>
+      <div class="frase-maquina" id="frase-maquina">lendo…</div>
+      <div class="medidor">
+        <span class="nome">Vídeo</span>
+        <span class="trilho"><i id="m-video"></i></span>
+        <span class="valor" id="v-video">—</span>
+      </div>
+      <div class="medidor">
+        <span class="nome">Memória</span>
+        <span class="trilho"><i id="m-memoria"></i></span>
+        <span class="valor" id="v-memoria">—</span>
+      </div>
+      <div class="medidor">
+        <span class="nome">Processador</span>
+        <span class="trilho"><i id="m-cpu"></i></span>
+        <span class="valor" id="v-cpu">—</span>
+      </div>
+      <div class="interruptor" id="devagar" role="switch" aria-checked="false" tabindex="0">
+        <span>Ir devagar quando eu usar o PC</span>
+        <span class="chave"></span>
+      </div>
+    </div>
+  </aside>
+
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-let ocupado = false;
 
-function escapar(t) {
+function esc(t) {
   const d = document.createElement("div");
-  d.textContent = t;
+  d.textContent = t == null ? "" : String(t);
   return d.innerHTML;
 }
 
-// ---------------------------------------------------------------- estado
-
-async function carregarStatus() {
-  try {
-    const r = await fetch("/api/status");
-    const s = await r.json();
-    $("ponto").className = "ponto " + (s.ollama ? "on" : "off");
-    $("status").textContent = s.ollama
-      ? s.modelo + " · " + s.contratos + " contrato(s) · " + s.trechos + " trecho(s)"
-      : "Ollama indisponível";
-    $("status").title = s.mensagem;
-  } catch (err) {
-    $("ponto").className = "ponto off";
-    $("status").textContent = "servidor fora do ar";
-  }
+/* A coroa: anel entalhado, nunca um aro liso nem um spinner de biblioteca. */
+function coroa(px) {
+  const r = 9, circ = 2 * Math.PI * r;
+  const traco = circ / 12;
+  return '<svg class="coroa" width="' + px + '" height="' + px + '" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="' + r + '" fill="none" stroke="currentColor" stroke-width="2.6" ' +
+    'stroke-dasharray="' + (traco * 0.55).toFixed(2) + ' ' + (traco * 0.45).toFixed(2) + '"/></svg>';
 }
 
-async function carregarDocs() {
-  const r = await fetch("/api/documents");
-  const dados = await r.json();
-  const alvo = $("docs");
-  if (!dados.documentos.length) {
-    alvo.innerHTML = '<div class="vazio">Nenhum contrato ainda.<br>Use o botão acima.</div>';
-    return;
-  }
-  alvo.innerHTML = dados.documentos.map(function (d) {
-    const mil = (d.chars / 1000).toFixed(1) + " mil caracteres";
-    const pag = d.paginas ? " · " + d.paginas + " pág." : "";
-    return '<div class="doc">' + escapar(d.nome) +
-           '<small>' + mil + pag + '</small></div>';
-  }).join("");
-}
-
-// ---------------------------------------------------------------- upload
-
-$("btn-upload").onclick = () => $("arquivo").click();
-
-$("arquivo").onchange = async (e) => {
-  const arquivos = Array.from(e.target.files);
-  if (!arquivos.length) return;
-
-  const dados = new FormData();
-  arquivos.forEach((a) => dados.append("arquivos", a));
-  $("upload-msg").textContent = "enviando " + arquivos.length + " arquivo(s)…";
-  $("btn-upload").disabled = true;
-
-  try {
-    const r = await fetch("/api/upload", { method: "POST", body: dados });
-    const res = await r.json();
-    let msg = res.salvos.length ? res.salvos.length + " adicionado(s)." : "";
-    if (res.recusados.length) {
-      msg += " " + res.recusados.length + " recusado(s): " +
-             res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ");
-    }
-    $("upload-msg").innerHTML = res.recusados.length
-      ? '<span class="erro">' + escapar(msg) + '</span>'
-      : escapar(msg);
-    await carregarDocs();
-    await carregarStatus();
-  } catch (err) {
-    $("upload-msg").innerHTML = '<span class="erro">falha no envio</span>';
-  } finally {
-    $("btn-upload").disabled = false;
-    e.target.value = "";
-  }
+const estado = {
+  trabalhoId: null,
+  trabalho: null,
+  ocupado: false,
+  contratos: 0,
 };
 
-// ----------------------------------------------------------------- abas
+/* ----------------------------------------------------------- trabalhos */
 
-document.querySelectorAll("nav button").forEach((b) => {
-  b.onclick = () => {
-    document.querySelectorAll("nav button").forEach((x) => x.classList.remove("ativo"));
-    document.querySelectorAll(".aba").forEach((x) => x.classList.remove("ativa"));
-    b.classList.add("ativo");
-    $("aba-" + b.dataset.aba).classList.add("ativa");
-    if (b.dataset.aba === "busca") $("termo").focus();
-  };
-});
+async function carregarTrabalhos() {
+  const r = await fetch("/api/trabalhos");
+  const d = await r.json();
+  const alvo = $("lista-trabalhos");
+  let html = "";
 
-document.querySelectorAll(".exemplo").forEach((b) => {
-  b.onclick = () => { $("pergunta").value = b.textContent; perguntar(); };
-});
-
-// -------------------------------------------------------------- pergunta
-
-function bloco(classe, quem) {
-  const div = document.createElement("div");
-  div.className = "msg " + classe;
-  div.innerHTML = '<div class="quem">' + quem + '</div><div class="balao"></div>';
-  $("thread").appendChild(div);
-  $("conversa").scrollTop = $("conversa").scrollHeight;
-  return div;
-}
-
-function renderFontes(div, dados) {
-  const trechos = dados.trechos;
-  const det = document.createElement("details");
-  det.className = "fontes";
-  det.innerHTML =
-    "<summary>Trechos que o modelo leu (" + trechos.length + " de " +
-    dados.consultados.length + " contrato(s))</summary>" +
-    trechos.map((t) =>
-      '<div class="trecho"><div class="origem">' + escapar(t.documento) +
-      " · trecho " + t.trecho + '</div><pre>' + escapar(t.texto) + '</pre></div>'
-    ).join("");
-  div.appendChild(det);
-
-  // Contrato que ficou de fora da busca precisa ser dito em voz alta, e antes
-  // da resposta: a resposta nao fala por ele.
-  if (dados.ignorados.length) {
-    const alerta = document.createElement("div");
-    alerta.className = "cobertura";
-    alerta.innerHTML =
-      "<strong>Analisou " + dados.consultados.length + " de " +
-      dados.total_contratos + " contratos.</strong> Sem trecho relevante para esta " +
-      "pergunta em: " + escapar(dados.ignorados.join(", ")) +
-      ". A resposta abaixo não fala por esses contratos.";
-    div.insertBefore(alerta, div.querySelector(".balao"));
+  if (d.em_andamento.length) {
+    html += '<div class="grupo rotulo">Em andamento</div>' + d.em_andamento.map(linhaTrabalho).join("");
   }
+  if (d.recentes.length) {
+    html += '<div class="grupo rotulo">Recentes</div>' + d.recentes.map(linhaTrabalho).join("");
+  }
+  if (!html) html = '<div class="vazio-lista">Nenhuma conversa ainda.</div>';
+
+  alvo.innerHTML = html;
+  alvo.querySelectorAll(".item").forEach((el) => {
+    el.onclick = () => abrirTrabalho(el.dataset.id);
+  });
 }
 
-async function perguntar() {
-  if (ocupado) return;
-  const pergunta = $("pergunta").value.trim();
-  if (!pergunta) return;
+function linhaTrabalho(t) {
+  const ativo = t.id === estado.trabalhoId ? " ativo" : "";
+  const direita = t.estado === "aguardando"
+    ? '<span class="num">' + t.pendencias + "</span>"
+    : (t.progresso !== null && t.aberto ? '<span class="num">' + t.progresso + "%</span>" : "");
+  return '<div class="item' + ativo + '" data-id="' + t.id + '">' +
+    '<span class="marca ' + t.estado + '"></span>' +
+    '<span class="titulo corta">' + esc(t.titulo) + "</span>" + direita + "</div>";
+}
 
-  ocupado = true;
-  $("enviar").disabled = true;
-  $("pergunta").value = "";
-  $("pergunta").style.height = "auto";
+async function abrirTrabalho(id) {
+  const r = await fetch("/api/trabalhos/" + id);
+  if (!r.ok) return;
+  estado.trabalho = await r.json();
+  estado.trabalhoId = id;
+  desenharTrabalho();
+  carregarTrabalhos();
+}
 
-  bloco("eu", "Você").querySelector(".balao").textContent = pergunta;
-  const div = bloco("paulus", "Paulus");
-  const balao = div.querySelector(".balao");
-  balao.textContent = "consultando os contratos…";
+$("nova").onclick = () => {
+  estado.trabalhoId = null;
+  estado.trabalho = null;
+  $("conversa-titulo").textContent = "Nova solicitação";
+  $("apagar").hidden = true;
+  $("centro").innerHTML = exemplos();
+  ligarExemplos();
+  desenharAtividade([]);
+  carregarTrabalhos();
+  $("pedido").focus();
+};
 
-  const inicio = Date.now();
-  let primeiro = true;
+$("apagar").onclick = async () => {
+  if (!estado.trabalhoId) return;
+  if (!confirm("Apagar esta conversa?")) return;
+  await fetch("/api/trabalhos/" + estado.trabalhoId, { method: "DELETE" });
+  $("nova").click();
+};
 
-  try {
-    const r = await fetch("/api/ask", {
+function exemplos() {
+  const pedidos = [
+    "Quais são as cláusulas de penalidade?",
+    "Qual o prazo de vigência de cada contrato?",
+    "Quem são as partes de cada contrato?",
+  ];
+  return '<div><p style="margin:0 0 12px;color:var(--ink-2)">' +
+    "Peça o que precisa dos contratos abertos. Toda resposta vem com os trechos que eu li." +
+    '</p><div style="display:flex;flex-wrap:wrap;gap:7px">' +
+    pedidos.map((p) => '<button class="pastilha exemplo">' + esc(p) + "</button>").join("") +
+    "</div></div>";
+}
+
+function ligarExemplos() {
+  document.querySelectorAll(".exemplo").forEach((b) => {
+    b.onclick = () => { $("pedido").value = b.textContent; enviar(); };
+  });
+}
+
+/* ------------------------------------------------------------ desenho */
+
+function desenharTrabalho() {
+  const t = estado.trabalho;
+  $("conversa-titulo").textContent = t.titulo;
+  $("apagar").hidden = false;
+
+  let html = "";
+  for (const m of t.mensagens) {
+    html += m.autor === "pessoa" ? bolhaPessoa(m.texto) : blocoResposta(m);
+  }
+  if (t.etapas.length && t.estado !== "concluido") html += cartaoPlano(t.etapas, t.etapa_atual);
+  if (t.aprovacao) html += cartaoAprovacao(t.aprovacao);
+
+  $("centro").innerHTML = html || exemplos();
+  ligarExemplos();
+  desenharAtividade(t.atividade);
+  rolar();
+}
+
+function bolhaPessoa(texto) {
+  return '<div class="bolha-pessoa">' + esc(texto) + "</div>";
+}
+
+function blocoResposta(m) {
+  let html = '<div class="resposta">';
+  if (m.cobertura && m.cobertura.ignorados && m.cobertura.ignorados.length) {
+    html += avisoCobertura(m.cobertura);
+  }
+  html += '<div class="texto">' + esc(m.texto) + "</div>";
+  if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
+  if (m.segundos) html += '<div class="assinatura">respondido em ' + m.segundos + "s</div>";
+  return html + "</div>";
+}
+
+function avisoCobertura(c) {
+  return '<div class="aviso-cobertura"><strong>Li ' + c.consultados.length + " de " +
+    c.total_contratos + " contratos.</strong> Sem trecho sobre isso em: " +
+    esc(c.ignorados.join(", ")) + ". A resposta não fala por esses.</div>";
+}
+
+function blocoFontes(fontes, cobertura) {
+  const quantos = cobertura && cobertura.consultados ? cobertura.consultados.length : 1;
+  return '<details class="fontes"><summary>' + fontes.length + " trechos de " + quantos +
+    " contrato(s) — ver o que eu li</summary>" +
+    fontes.map((f) =>
+      '<div class="trecho"><div class="origem">' + esc(f.documento) + " · trecho " + f.trecho +
+      "</div><pre>" + esc(f.texto) + "</pre></div>"
+    ).join("") + "</details>";
+}
+
+function cartaoPlano(etapas, atual) {
+  const total = etapas.length;
+  const rodando = estado.ocupado;
+  return '<div class="cartao"><div class="cartao-topo">' +
+    (rodando ? coroa(20) : '<span class="ponto" style="background:#c9d1da"></span>') +
+    '<span class="quem">' + (rodando ? "Trabalhando" : "Parado") + " · etapa " + atual + " de " + total + "</span>" +
+    '<span class="num" id="cronometro"></span></div><div class="cartao-corpo">' +
+    etapas.map(linhaEtapa).join("") + "</div></div>";
+}
+
+function linhaEtapa(e) {
+  const rotulos = { concluido: "concluído", executando: "", na_fila: "na fila", falhou: "não deu" };
+  const direita = e.total
+    ? '<span class="estado">' + e.feitos + " / " + e.total + "</span>"
+    : '<span class="estado">' + (rotulos[e.estado] || "") + "</span>";
+  const barra = e.estado === "executando" && e.total
+    ? '<div class="progresso"><i style="width:' + Math.round((e.feitos / e.total) * 100) + '%"></i></div>'
+    : "";
+  return '<div class="etapa ' + e.estado + '"><span class="marcador"></span>' +
+    '<span class="texto">' + esc(e.titulo) + (e.detalhe ? " · " + esc(e.detalhe) : "") + "</span>" +
+    direita + "</div>" + barra;
+}
+
+function cartaoAprovacao(a) {
+  return '<div class="aprovacao"><p>' + esc(a.pergunta) + "</p>" +
+    (a.detalhe ? '<p class="num">' + esc(a.detalhe) + "</p>" : "") +
+    '<div class="acoes"><button class="aprovar-secundario">Revisar</button>' +
+    '<button class="primario">Aprovar</button></div></div>';
+}
+
+function desenharAtividade(itens) {
+  const alvo = $("atividade");
+  if (!itens || !itens.length) {
+    alvo.innerHTML = '<span class="vazio-lista" style="padding-left:0">nada ainda</span>';
+    return;
+  }
+  alvo.innerHTML = itens.slice(0, 5).map((a) =>
+    '<div class="atividade-linha"><span class="ponto-at"></span><span class="txt">' +
+    esc(a.texto) + '<div class="num">' + quando(a.em) + "</div></span></div>"
+  ).join("");
+}
+
+function quando(iso) {
+  const seg = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seg < 5) return "agora";
+  if (seg < 60) return "há " + seg + " s";
+  if (seg < 3600) return "há " + Math.floor(seg / 60) + " min";
+  return "há " + Math.floor(seg / 3600) + " h";
+}
+
+function rolar() { $("fluxo").scrollTop = $("fluxo").scrollHeight; }
+
+/* ------------------------------------------------------------ enviar */
+
+async function enviar() {
+  if (estado.ocupado) return;
+  const pedido = $("pedido").value.trim();
+  if (!pedido) return;
+
+  if (!estado.trabalhoId) {
+    const r = await fetch("/api/trabalhos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pergunta: pergunta }),
+      body: JSON.stringify({ pedido: pedido }),
     });
-    if (!r.ok) throw new Error("erro " + r.status);
+    const t = await r.json();
+    estado.trabalhoId = t.id;
+    estado.trabalho = t;
+    $("centro").innerHTML = "";
+    $("apagar").hidden = false;
+  }
+
+  estado.ocupado = true;
+  $("enviar").disabled = true;
+  $("pedido").value = "";
+  $("pedido").style.height = "auto";
+  atualizarSelo(true);
+
+  const centro = $("centro");
+  centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
+
+  const plano = document.createElement("div");
+  plano.innerHTML = cartaoPlano(
+    [{ titulo: "Procurar nos contratos", estado: "executando", feitos: 0, total: 0, detalhe: "" },
+     { titulo: "Ler os trechos e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
+  centro.appendChild(plano);
+
+  const resposta = document.createElement("div");
+  resposta.className = "resposta";
+  resposta.innerHTML = '<div class="texto"></div>';
+  centro.appendChild(resposta);
+  const texto = resposta.querySelector(".texto");
+  rolar();
+
+  const inicio = Date.now();
+  const relogio = setInterval(() => {
+    const c = $("cronometro");
+    if (c) c.textContent = Math.round((Date.now() - inicio) / 1000) + " s";
+  }, 1000);
+
+  try {
+    const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/perguntar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta: pedido }),
+    });
+    if (!r.ok) throw new Error("não consegui responder");
 
     const leitor = r.body.getReader();
     const dec = new TextDecoder();
-    let buffer = "";
+    let buffer = "", primeiro = true;
 
     while (true) {
       const passo = await leitor.read();
       if (passo.done) break;
       buffer += dec.decode(passo.value, { stream: true });
-
       const partes = buffer.split("\n\n");
       buffer = partes.pop();
 
       for (const parte of partes) {
-        const mTipo = parte.match(/^event: (.+)$/m);
-        const mDado = parte.match(/^data: (.*)$/m);
-        if (!mTipo || !mDado) continue;
-        const tipo = mTipo[1];
-        const dados = JSON.parse(mDado[1]);
+        const mt = parte.match(/^event: (.+)$/m);
+        const md = parte.match(/^data: (.*)$/m);
+        if (!mt || !md) continue;
+        const dados = JSON.parse(md[1]);
 
-        if (tipo === "fontes") {
-          balao.textContent = "";
-          renderFontes(div, dados);
-        } else if (tipo === "token") {
-          if (primeiro) { balao.textContent = ""; primeiro = false; }
-          balao.textContent += dados.t;
-          $("conversa").scrollTop = $("conversa").scrollHeight;
-        } else if (tipo === "vazio") {
-          balao.textContent = dados.mensagem +
-            "\nTente outras palavras (ex.: rescisão, multa, vigência).";
-        } else if (tipo === "erro") {
-          balao.innerHTML = '<span class="erro">' + escapar(dados.mensagem) + '</span>';
-        } else if (tipo === "fim") {
-          const seg = ((Date.now() - inicio) / 1000).toFixed(1);
-          const p = document.createElement("div");
-          p.className = "rodape-msg";
-          p.textContent = "respondido em " + seg + "s";
-          div.appendChild(p);
+        if (mt[1] === "fontes") {
+          if (dados.ignorados.length) {
+            resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
+          }
+          resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
+        } else if (mt[1] === "etapas") {
+          plano.innerHTML = cartaoPlano(dados.etapas, 2);
+        } else if (mt[1] === "token") {
+          if (primeiro) { texto.textContent = ""; primeiro = false; }
+          texto.textContent += dados.t;
+          rolar();
+        } else if (mt[1] === "vazio") {
+          texto.textContent = dados.mensagem;
+        } else if (mt[1] === "erro") {
+          plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
+            esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" onclick="location.reload()">Tentar de novo</button></div></div>';
+        } else if (mt[1] === "fim") {
+          plano.remove();
+          resposta.insertAdjacentHTML("beforeend",
+            '<div class="assinatura">respondido em ' + dados.segundos + "s</div>");
+          $("conversa-titulo").textContent = dados.titulo;
         }
       }
     }
   } catch (err) {
-    balao.innerHTML = '<span class="erro">Falha ao consultar: ' + escapar(String(err)) + '</span>';
+    texto.textContent = "Não consegui responder: " + err;
   } finally {
-    ocupado = false;
+    clearInterval(relogio);
+    estado.ocupado = false;
     $("enviar").disabled = false;
-    $("conversa").scrollTop = $("conversa").scrollHeight;
-    $("pergunta").focus();
+    atualizarSelo(false);
+    carregarTrabalhos();
+    if (estado.trabalhoId) {
+      fetch("/api/trabalhos/" + estado.trabalhoId)
+        .then((r) => r.json())
+        .then((t) => { estado.trabalho = t; desenharAtividade(t.atividade); });
+    }
+    rolar();
+    $("pedido").focus();
   }
 }
 
-$("enviar").onclick = perguntar;
-$("pergunta").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); perguntar(); }
+$("enviar").onclick = enviar;
+$("pedido").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
 });
-$("pergunta").addEventListener("input", (e) => {
+$("pedido").addEventListener("input", (e) => {
   e.target.style.height = "auto";
   e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
 });
 
-// ----------------------------------------------------------------- busca
+/* ------------------------------------------------------------- estado */
 
-let timer;
-$("termo").addEventListener("input", (e) => {
-  clearTimeout(timer);
-  const termo = e.target.value.trim();
-  timer = setTimeout(() => buscar(termo), 250);
-});
+function atualizarSelo(trabalhando) {
+  const selo = $("selo");
+  selo.classList.toggle("frio", !trabalhando);
+  $("selo-texto").textContent = trabalhando ? "Processando localmente" : "Ocioso";
+}
 
-async function buscar(termo) {
-  const alvo = $("busca-lista");
-  if (!termo) { alvo.innerHTML = ""; return; }
+async function carregarStatus() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    estado.contratos = s.contratos;
+    $("conversa-meta").textContent = s.contratos
+      ? s.contratos + " contrato(s) abertos · " + s.trechos + " trechos"
+      : "nenhum contrato aberto";
+    if (!s.ollama) {
+      $("privacidade").textContent = "o assistente local não respondeu — verifique se o Ollama está aberto";
+    }
+  } catch (err) { /* servidor caiu; o selo ja mostra ocioso */ }
+}
 
-  const r = await fetch("/api/search", {
+async function carregarModelo() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    $("modelo-tamanho").textContent = s.tamanho_gb
+      ? s.tamanho_gb.toString().replace(".", ",") + " GB · na sua máquina"
+      : "na sua máquina";
+  } catch (err) { /* mantem o texto padrao */ }
+}
+
+async function carregarRecursos() {
+  try {
+    const m = await (await fetch("/api/recursos")).json();
+    $("frase-maquina").textContent = m.frase;
+
+    medidor("cpu", m.processador.percentual, m.processador.percentual + "%");
+    medidor("memoria", m.memoria.percentual, m.memoria.usado_gb.toString().replace(".", ",") + " GB");
+
+    if (m.video.disponivel && m.video.percentual !== null) {
+      medidor("video", m.video.percentual, m.video.percentual + "%");
+      $("v-video").title = "medido há " + m.video.segundos_atras + " s";
+    } else if (m.video.disponivel) {
+      $("v-video").textContent = "medindo";
+    } else {
+      $("v-video").textContent = "sem leitura";
+      $("m-video").style.width = "0%";
+    }
+
+    $("devagar").classList.toggle("on", m.devagar);
+    $("devagar").setAttribute("aria-checked", m.devagar ? "true" : "false");
+  } catch (err) { /* sem leitura agora; tenta de novo no proximo ciclo */ }
+}
+
+function medidor(qual, pct, texto) {
+  $("m-" + qual).style.width = Math.min(100, Math.max(0, pct)) + "%";
+  $("v-" + qual).textContent = texto;
+}
+
+$("devagar").onclick = async () => {
+  const ligado = !$("devagar").classList.contains("on");
+  $("devagar").classList.toggle("on", ligado);
+  $("devagar").setAttribute("aria-checked", ligado ? "true" : "false");
+  await fetch("/api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ termo: termo }),
+    body: JSON.stringify({ devagar: ligado }),
   });
-  const dados = await r.json();
-
-  alvo.innerHTML = dados.resultados.length
-    ? dados.resultados.map((x) =>
-        '<div class="trecho"><div class="origem">' + escapar(x.documento) +
-        " · trecho " + x.trecho + " · relevância " + x.score +
-        '</div><pre>' + escapar(x.texto) + '</pre></div>'
-      ).join("")
-    : '<div class="vazio">Nenhum trecho encontrado.</div>';
-}
-
-// ------------------------------------------------------------ organizador
-
-const org = {
-  raizes: [],        // {caminho, rotulo, ativa}
-  tipos: [],
-  documentos: [],    // classificacoes
-  selecao: new Set(),
-  classificado: false,
+};
+$("devagar").onkeydown = (e) => {
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); $("devagar").onclick(); }
 };
 
-async function organizarOpcoes() {
-  const r = await fetch("/api/organizar/opcoes");
-  const o = await r.json();
+$("abrir-gaveta").onclick = () => $("lateral").classList.toggle("aberta");
 
-  org.raizes = o.raizes.map((x) => ({ ...x, ativa: true }));
-  org.tipos = o.tipos;
-  renderRaizes();
+/* ------------------------------------------------------------- inicio */
 
-  $("org-padrao").innerHTML = o.padroes
-    .map((p) => '<option value="' + escapar(p.padrao) + '">' + escapar(p.rotulo) + "</option>")
-    .join("");
-  if (!$("org-destino").value) $("org-destino").value = o.destino_sugerido;
-  renderDiarios(o.diarios);
-
-  // O seletor nativo de pasta so existe na janela desktop.
-  if (window.pywebview) $("org-escolher-pasta").hidden = false;
-}
-
-function renderRaizes() {
-  $("org-raizes").innerHTML = org.raizes
-    .map((r, i) =>
-      '<span class="chip' + (r.ativa ? " on" : "") + '" data-i="' + i + '">' +
-      escapar(r.rotulo) + "<small>" + escapar(r.caminho) + "</small></span>"
-    ).join("");
-
-  document.querySelectorAll("#org-raizes .chip").forEach((c) => {
-    c.onclick = () => {
-      const item = org.raizes[Number(c.dataset.i)];
-      item.ativa = !item.ativa;
-      renderRaizes();
-    };
-  });
-}
-
-$("org-add-raiz").onclick = () => {
-  const caminho = $("org-raiz-manual").value.trim();
-  if (!caminho) return;
-  org.raizes.push({ caminho: caminho, rotulo: caminho.split(/[\\/]/).pop() || caminho, ativa: true });
-  $("org-raiz-manual").value = "";
-  renderRaizes();
-};
-
-$("org-escolher-pasta").onclick = async () => {
-  if (!window.pywebview) return;
-  const escolhido = await window.pywebview.api.escolher_pasta();
-  if (escolhido) $("org-destino").value = escolhido;
-};
-
-$("org-varrer").onclick = async () => {
-  const raizes = org.raizes.filter((r) => r.ativa).map((r) => r.caminho);
-  if (!raizes.length) {
-    $("org-varredura").textContent = "escolha ao menos uma pasta";
-    return;
-  }
-
-  $("org-varrer").disabled = true;
-  $("org-varredura").textContent = "varrendo…";
-
-  try {
-    const r = await fetch("/api/organizar/escanear", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raizes: raizes }),
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || "falha");
-    const d = await r.json();
-
-    let msg = d.total + " documento(s) em " + d.pastas_visitadas + " pasta(s)";
-    if (d.sem_permissao) msg += " · " + d.sem_permissao + " sem permissão";
-    if (d.grandes) msg += " · " + d.grandes + " grandes demais";
-    $("org-varredura").textContent = msg;
-    $("org-passo-2").hidden = d.total === 0;
-  } catch (err) {
-    $("org-varredura").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
-  } finally {
-    $("org-varrer").disabled = false;
-  }
-};
-
-$("org-classificar").onclick = async () => {
-  $("org-classificar").disabled = true;
-  $("org-barra").hidden = false;
-  $("org-progresso").textContent = "iniciando…";
-
-  const inicio = Date.now();
-  try {
-    const r = await fetch("/api/organizar/classificar", { method: "POST" });
-    if (!r.ok) throw new Error((await r.json()).detail || "falha");
-
-    const leitor = r.body.getReader();
-    const dec = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const passo = await leitor.read();
-      if (passo.done) break;
-      buffer += dec.decode(passo.value, { stream: true });
-      const partes = buffer.split("\n\n");
-      buffer = partes.pop();
-
-      for (const parte of partes) {
-        const mTipo = parte.match(/^event: (.+)$/m);
-        const mDado = parte.match(/^data: (.*)$/m);
-        if (!mTipo || !mDado) continue;
-        const tipo = mTipo[1];
-        const dados = JSON.parse(mDado[1]);
-
-        if (tipo === "progresso") {
-          const pct = Math.round((dados.indice / dados.total) * 100);
-          $("org-barra-fill").style.width = pct + "%";
-          const decorridos = (Date.now() - inicio) / 1000;
-          const restam = dados.indice ? (decorridos / dados.indice) * (dados.total - dados.indice) : 0;
-          $("org-progresso").textContent =
-            dados.indice + " de " + dados.total +
-            (dados.cache ? " (do cache)" : "") +
-            (restam > 3 ? " · faltam ~" + Math.ceil(restam / 60) + " min" : "");
-        } else if (tipo === "resultados") {
-          org.documentos = dados.documentos;
-          org.selecao = new Set(dados.documentos.filter((d) => !d.erro).map((d) => d.arquivo));
-          org.classificado = true;
-          renderTabela();
-          $("org-passo-3").hidden = false;
-          $("org-passo-4").hidden = false;
-          $("org-progresso").textContent =
-            dados.documentos.length + " documento(s) em " +
-            ((Date.now() - inicio) / 1000).toFixed(0) + "s";
-        } else if (tipo === "erro") {
-          $("org-progresso").innerHTML = '<span class="erro">' + escapar(dados.mensagem) + "</span>";
-        }
-      }
-    }
-  } catch (err) {
-    $("org-progresso").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
-  } finally {
-    $("org-classificar").disabled = false;
-  }
-};
-
-function renderTabela() {
-  const corpo = $("org-tabela").querySelector("tbody");
-
-  corpo.innerHTML = org.documentos.map((d, i) => {
-    const marcado = org.selecao.has(d.arquivo);
-    const opcoes = org.tipos.map((t) =>
-      '<option value="' + t.valor + '"' + (t.valor === d.tipo ? " selected" : "") + ">" +
-      escapar(t.rotulo) + "</option>"
-    ).join("");
-
-    const aviso = d.erro
-      ? '<div class="nota erro">' + escapar(d.erro) + "</div>"
-      : "";
-
-    return '<tr class="' + (marcado ? "" : "fora") + '" data-i="' + i + '">' +
-      '<td><input type="checkbox" data-acao="marcar"' + (marcado ? " checked" : "") +
-      (d.erro ? " disabled" : "") + "></td>" +
-      '<td><div class="arquivo">' + escapar(d.nome) + "</div>" + aviso + "</td>" +
-      '<td><select data-acao="tipo">' + opcoes + "</select></td>" +
-      '<td><input type="text" data-acao="cliente" value="' + escapar(d.cliente || "") + '"></td>' +
-      "<td>" + (d.data || "—") + "</td>" +
-      '<td><span class="selo ' + d.confianca + '">' + d.confianca + "</span></td></tr>";
-  }).join("");
-
-  corpo.querySelectorAll("tr").forEach((tr) => {
-    const doc = org.documentos[Number(tr.dataset.i)];
-    tr.querySelector('[data-acao="marcar"]').onchange = (e) => {
-      if (e.target.checked) org.selecao.add(doc.arquivo);
-      else org.selecao.delete(doc.arquivo);
-      tr.className = e.target.checked ? "" : "fora";
-    };
-    tr.querySelector('[data-acao="tipo"]').onchange = (e) => {
-      doc.tipo = e.target.value;
-      const achado = org.tipos.find((t) => t.valor === e.target.value);
-      doc.tipo_rotulo = achado ? achado.rotulo : doc.tipo_rotulo;
-    };
-    tr.querySelector('[data-acao="cliente"]').oninput = (e) => { doc.cliente = e.target.value; };
-  });
-}
-
-$("org-todos").onchange = (e) => {
-  org.selecao = e.target.checked
-    ? new Set(org.documentos.filter((d) => !d.erro).map((d) => d.arquivo))
-    : new Set();
-  renderTabela();
-};
-
-function corpoDoPlano() {
-  return {
-    destino: $("org-destino").value.trim(),
-    padrao: $("org-padrao").value,
-    apenas: Array.from(org.selecao),
-    ajustes: org.documentos
-      .filter((d) => org.selecao.has(d.arquivo))
-      .map((d) => ({ arquivo: d.arquivo, cliente: d.cliente, tipo: d.tipo })),
-  };
-}
-
-$("org-ver-plano").onclick = async () => {
-  if (!org.selecao.size) {
-    $("org-plano-nota").textContent = "nenhum documento marcado";
-    return;
-  }
-
-  $("org-ver-plano").disabled = true;
-  try {
-    const r = await fetch("/api/organizar/plano", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(corpoDoPlano()),
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || "falha");
-    const plano = await r.json();
-
-    $("org-plano-nota").textContent = plano.total + " arquivo(s) em " + plano.pastas.length + " pasta(s)";
-    $("org-plano").innerHTML =
-      '<div class="caixa">' +
-      plano.pastas.map((p) =>
-        '<div class="pasta-linha"><code>' + escapar(p.pasta) + "</code>" +
-        "<span class=\"nota\">" + p.arquivos + " arquivo(s)</span></div>"
-      ).join("") +
-      "</div>" +
-      (plano.ignorados.length
-        ? '<div class="nota" style="margin-top:8px">Fora do plano: ' +
-          escapar(plano.ignorados.map((x) => x.nome + " (" + x.motivo + ")").join(", ")) + "</div>"
-        : "");
-    $("org-passo-5").hidden = plano.total === 0;
-  } catch (err) {
-    $("org-plano-nota").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
-  } finally {
-    $("org-ver-plano").disabled = false;
-  }
-};
-
-$("org-aplicar").onclick = async () => {
-  const quantos = org.selecao.size;
-  if (!confirm("Mover " + quantos + " arquivo(s) para " + $("org-destino").value + "?\n\nDá para desfazer depois.")) {
-    return;
-  }
-
-  $("org-aplicar").disabled = true;
-  $("org-resultado").textContent = "movendo…";
-
-  try {
-    const r = await fetch("/api/organizar/aplicar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(corpoDoPlano()),
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || "falha");
-    const d = await r.json();
-
-    let msg = d.movidos + " arquivo(s) movido(s).";
-    if (d.falhas.length) msg += " " + d.falhas.length + " falha(s).";
-    $("org-resultado").innerHTML = d.falhas.length
-      ? '<span class="erro">' + escapar(msg) + "</span>"
-      : escapar(msg);
-
-    renderDiarios(d.diarios);
-    org.documentos = [];
-    org.selecao = new Set();
-    renderTabela();
-    ["org-passo-2", "org-passo-3", "org-passo-4", "org-passo-5"].forEach((id) => { $(id).hidden = true; });
-    $("org-varredura").textContent = "";
-  } catch (err) {
-    $("org-resultado").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
-  } finally {
-    $("org-aplicar").disabled = false;
-  }
-};
-
-function renderDiarios(diarios) {
-  const alvo = $("org-diarios");
-  if (!diarios || !diarios.length) {
-    alvo.innerHTML = '<span class="nota">Nenhum lote ainda.</span>';
-    return;
-  }
-
-  alvo.innerHTML = '<div class="caixa">' + diarios.map((d) => {
-    const estado = d.desfeito_em
-      ? '<span class="nota">desfeito</span>'
-      : '<button data-diario="' + escapar(d.diario) + '">Desfazer</button>';
-    return '<div class="diario-linha"><span class="cresce"><code>' +
-      escapar(d.criado_em.replace("T", " ")) + "</code> · " + d.pendentes +
-      " arquivo(s) · " + escapar(d.padrao) + "</span>" + estado + "</div>";
-  }).join("") + "</div>";
-
-  alvo.querySelectorAll("button[data-diario]").forEach((b) => {
-    b.onclick = async () => {
-      if (!confirm("Devolver os arquivos deste lote para onde estavam?")) return;
-      b.disabled = true;
-      b.textContent = "desfazendo…";
-      try {
-        const r = await fetch("/api/organizar/desfazer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ diario: b.dataset.diario }),
-        });
-        if (!r.ok) throw new Error((await r.json()).detail || "falha");
-        const d = await r.json();
-        renderDiarios(d.diarios);
-        $("org-resultado").textContent = d.revertidos + " arquivo(s) de volta ao lugar de origem.";
-      } catch (err) {
-        b.disabled = false;
-        b.textContent = "Desfazer";
-        alert("Falha ao desfazer: " + err);
-      }
-    };
-  });
-}
-
+atualizarSelo(false);
+carregarTrabalhos();
 carregarStatus();
-carregarDocs();
-organizarOpcoes();
+carregarModelo();
+carregarRecursos();
+$("nova").click();
+setInterval(carregarRecursos, 4000);
 </script>
 </body>
 </html>

@@ -22,6 +22,7 @@ from search import (  # noqa: E402
     chunk_document,
     merge_chunks,
     normalize,
+    radical,
     tokenize,
 )
 
@@ -50,6 +51,25 @@ def test_normalizacao() -> None:
 
 
 # -------------------------------------------------------------------- chunking
+
+
+def test_plural() -> None:
+    """
+    Regressao: sem reduzir plural, "clausulas" na pergunta nao casava com
+    "CLAUSULA" no contrato e a busca devolvia 1 trecho onde havia 5.
+    """
+    print("\nplural e singular")
+    pares = [
+        ("contratos", "contrato"), ("clausulas", "clausula"), ("partes", "parte"),
+        ("obrigacoes", "obrigacao"), ("contratuais", "contratual"),
+        ("imoveis", "imovel"), ("bens", "bem"), ("penalidades", "penalidade"),
+    ]
+    for plural, singular in pares:
+        checar(radical(plural) == radical(singular), f"{plural} casa com {singular}")
+
+    checar(radical("mes") == "mes", "palavra curta terminada em s fica intacta")
+    checar(radical("contrato") == "contrato", "singular nao e alterado")
+    checar(tokenize("CLÁUSULAS") == tokenize("cláusula"), "tokenize aplica o radical")
 
 
 def test_chunking() -> None:
@@ -231,6 +251,7 @@ def main() -> int:
         return 1
 
     test_normalizacao()
+    test_plural()
     test_chunking()
     test_chunk_nao_corta_palavra()
     test_merge()

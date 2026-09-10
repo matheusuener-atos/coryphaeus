@@ -24,8 +24,12 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
+import requests
+
+import recursos
 from classify import Classificacao, ROTULOS, classificar_acervo
 from extract import SUPPORTED_SUFFIXES, index_all_contracts
+from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, Etapa, Trabalhos, titular
 from llama_client import DEFAULT_MODEL, LlamaClient, OllamaError, check_ollama
 from organize import (
     PADROES_SUGERIDOS,
@@ -42,6 +46,7 @@ CONTRACTS_DIR = BASE_DIR / "data" / "test_contracts"
 CACHE_PATH = BASE_DIR / "data" / "extractions" / "index.json"
 CLASSIFICACAO_PATH = BASE_DIR / "data" / "extractions" / "classificacao.json"
 DIARIOS_DIR = BASE_DIR / "data" / "diarios"
+TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
@@ -57,6 +62,9 @@ class Estado:
         # Organizador: resultado da ultima varredura/classificacao, por caminho.
         self.encontrados: list[dict] = []
         self.classificacoes: dict[str, Classificacao] = {}
+        # Conversas persistidas e o interruptor "ir devagar".
+        self.trabalhos = Trabalhos(TRABALHOS_DIR)
+        self.devagar = False
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -103,6 +111,26 @@ def index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
+@app.get("/classico")
+def classico() -> FileResponse:
+    """Interface anterior, ainda com o organizador. Sai quando ele for portado."""
+    return FileResponse(FRONTEND_DIR / "classico.html")
+
+
+@app.get("/fontes.css")
+def fontes_css() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "fontes.css", media_type="text/css")
+
+
+@app.get("/fontes/{arquivo}")
+def fonte(arquivo: str) -> FileResponse:
+    # Nome vem do proprio CSS que servimos; ainda assim, nada de subir pastas.
+    alvo = (FRONTEND_DIR / "fontes" / Path(arquivo).name).resolve()
+    if alvo.parent != (FRONTEND_DIR / "fontes").resolve() or not alvo.exists():
+        raise HTTPException(status_code=404, detail="fonte nao encontrada")
+    return FileResponse(alvo, media_type="font/woff2")
+
+
 @app.get("/api/status")
 def status() -> dict:
     ok, mensagem = check_ollama(estado.client.model)
@@ -110,10 +138,25 @@ def status() -> dict:
         "ollama": ok,
         "mensagem": mensagem,
         "modelo": estado.client.model,
+        # A interface nunca mostra o nome do modelo (regra de linguagem do
+        # manual): mostra "Assistente local - X GB na sua maquina".
+        "tamanho_gb": _tamanho_do_modelo(),
         "pasta": str(estado.pasta),
         "contratos": len(estado.searcher.documents),
         "trechos": len(estado.searcher.chunks),
     }
+
+
+def _tamanho_do_modelo() -> float | None:
+    try:
+        resp = requests.get(f"{estado.client.host}/api/tags", timeout=5)
+        resp.raise_for_status()
+        for modelo in resp.json().get("models", []):
+            if modelo.get("name") == estado.client.model:
+                return round(modelo.get("size", 0) / 1024**3, 1)
+    except (requests.RequestException, ValueError):
+        return None
+    return None
 
 
 @app.get("/api/documents")
@@ -227,6 +270,178 @@ def perguntar(payload: Pergunta) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ------------------------------------------------------ trabalhos (conversas)
+
+
+class NovoTrabalho(BaseModel):
+    pedido: str = ""
+    tipo: str = "conversa"
+
+
+class Ajuste2(BaseModel):
+    devagar: bool
+
+
+@app.get("/api/trabalhos")
+def trabalhos_listar() -> dict:
+    dados = estado.trabalhos.listar()
+    dados["pendencias"] = estado.trabalhos.pendencias
+    return dados
+
+
+@app.post("/api/trabalhos")
+def trabalhos_criar(payload: NovoTrabalho) -> dict:
+    titulo = titular(payload.pedido) if payload.pedido.strip() else "Nova conversa"
+    trabalho = estado.trabalhos.criar(titulo, tipo=payload.tipo)
+    return trabalho.to_dict()
+
+
+@app.get("/api/trabalhos/{id_}")
+def trabalhos_obter(id_: str) -> dict:
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="trabalho nao encontrado")
+    return trabalho.to_dict()
+
+
+@app.delete("/api/trabalhos/{id_}")
+def trabalhos_remover(id_: str) -> dict:
+    if not estado.trabalhos.remover(id_):
+        raise HTTPException(status_code=404, detail="trabalho nao encontrado")
+    return {"removido": id_}
+
+
+@app.post("/api/trabalhos/{id_}/perguntar")
+def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
+    """
+    Pergunta dentro de um trabalho: a conversa fica gravada e as etapas
+    aparecem na tela enquanto acontecem.
+    """
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="trabalho nao encontrado")
+    if not payload.pergunta.strip():
+        raise HTTPException(status_code=400, detail="pergunta vazia")
+
+    pergunta = payload.pergunta.strip()
+    if trabalho.titulo == "Nova conversa" and not trabalho.mensagens:
+        trabalho.titulo = titular(pergunta)
+
+    trabalho.dizer("pessoa", pergunta)
+    trabalho.etapas = [
+        Etapa("Procurar nos contratos", estado=EXECUTANDO),
+        Etapa("Ler os trechos e responder"),
+    ]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+
+    def evento(tipo: str, dados: dict) -> str:
+        return f"event: {tipo}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n"
+
+    def gerar() -> Iterator[str]:
+        import time
+
+        inicio = time.time()
+        espera = recursos.esperar_maquina_livre(estado.devagar)
+        if espera:
+            trabalho.registrar(f"Esperou {espera}s: voce estava usando o computador")
+            yield evento("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+
+        hits = estado.searcher.search(pergunta, top_k=payload.top)
+        trabalho.etapas[0].estado = CONCLUIDO
+        trabalho.etapas[0].detalhe = f"{len(estado.searcher.documents)} contrato(s) abertos"
+        trabalho.registrar(f"Procurou em {len(estado.searcher.documents)} contrato(s)")
+
+        if not hits:
+            trabalho.etapas[1].estado = CONCLUIDO
+            trabalho.estado = CONCLUIDO
+            texto = "Nao achei nada sobre isso nos contratos abertos."
+            trabalho.dizer("paulus", texto)
+            estado.trabalhos.salvar(trabalho)
+            yield evento("vazio", {"mensagem": texto})
+            return
+
+        consultados = list(dict.fromkeys(h.doc_name for h in hits))
+        ignorados = [d.name for d in estado.searcher.documents if d.name not in consultados]
+        cobertura = {
+            "consultados": consultados,
+            "ignorados": ignorados,
+            "total_contratos": len(estado.searcher.documents),
+        }
+        fontes = [
+            {
+                "documento": h.doc_name,
+                "trecho": h.chunk.index + 1,
+                "score": round(h.score, 2),
+                "texto": h.chunk.text,
+            }
+            for h in hits
+        ]
+
+        trabalho.etapas[1].estado = EXECUTANDO
+        trabalho.etapas[1].total = len(hits)
+        trabalho.etapas[1].feitos = len(hits)
+        trabalho.registrar(f"Leu {len(hits)} trecho(s) de {len(consultados)} contrato(s)")
+
+        yield evento("fontes", {**cobertura, "trechos": fontes})
+        yield evento("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+
+        partes: list[str] = []
+        contexto = estado.searcher.format_context(hits)
+        try:
+            for token in _tokens(pergunta, contexto):
+                partes.append(token)
+                yield evento("token", {"t": token})
+        except OllamaError as exc:
+            trabalho.etapas[1].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield evento("erro", {"mensagem": str(exc)})
+            return
+
+        segundos = round(time.time() - inicio, 1)
+        trabalho.etapas[1].estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer(
+            "paulus", "".join(partes).strip(),
+            fontes=fontes, cobertura=cobertura, segundos=segundos,
+        )
+        estado.trabalhos.salvar(trabalho)
+        yield evento("fim", {"segundos": segundos, "titulo": trabalho.titulo})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def asdict_etapa(etapa: Etapa) -> dict:
+    return {
+        "titulo": etapa.titulo,
+        "estado": etapa.estado,
+        "feitos": etapa.feitos,
+        "total": etapa.total,
+        "detalhe": etapa.detalhe,
+    }
+
+
+# ------------------------------------------------------------------ maquina
+
+
+@app.get("/api/recursos")
+def maquina() -> dict:
+    dados = recursos.ler()
+    dados["devagar"] = estado.devagar
+    return dados
+
+
+@app.post("/api/config")
+def configurar(payload: Ajuste2) -> dict:
+    estado.devagar = payload.devagar
+    return {"devagar": estado.devagar}
 
 
 # --------------------------------------------------------------- organizador

@@ -9,6 +9,9 @@ data/knowledge_base/*
 # Diarios de movimentacao: contem caminhos de arquivos do cliente
 data/diarios/
 
+# Conversas gravadas: citam trechos dos contratos
+data/trabalhos/
+
 # Saidas geradas
 *.xlsx
 !docs/**/*.xlsx

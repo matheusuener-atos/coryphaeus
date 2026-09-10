@@ -9,8 +9,9 @@ fastapi>=0.115.0
 uvicorn>=0.32.0
 python-multipart>=0.0.12
 
-# Janela desktop
+# Janela desktop e leitura de recursos da maquina
 pywebview>=5.3
+psutil>=6.0.0
 
 # Semana 2 (extracao de vencimentos -> Excel)
 openpyxl>=3.1.5

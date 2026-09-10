@@ -38,9 +38,31 @@ def normalize(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c))
 
 
+def radical(token: str) -> str:
+    """
+    Reduz o plural ao singular.
+
+    Sem isso, "clausulas" na pergunta nao casa com "CLAUSULA" no contrato, e a
+    busca perde justamente o trecho que interessa. Nao e um stemmer completo -
+    e a regra de plural do portugues, que cobre a quase totalidade do
+    vocabulario de contrato.
+    """
+    if len(token) <= 3 or not token.endswith("s"):
+        return token
+
+    for final, troca in (("oes", "ao"), ("aes", "ao"), ("ais", "al"), ("eis", "el"), ("ois", "ol")):
+        if token.endswith(final):
+            return token[: -len(final)] + troca
+
+    if token.endswith("ns"):          # bens -> bem
+        return token[:-2] + "m"
+
+    return token[:-1]
+
+
 def tokenize(text: str) -> list[str]:
     tokens = re.findall(r"[a-z0-9]+", normalize(text))
-    return [t for t in tokens if len(t) >= 2 and t not in STOPWORDS_PT]
+    return [radical(t) for t in tokens if len(t) >= 2 and t not in STOPWORDS_PT]
 
 
 @dataclass
@@ -167,28 +189,32 @@ class ContractSearcher:
             return []
 
         scores = self._bm25.get_scores(tokens)
-
-        # O IDF do BM25 so e positivo para termos presentes em menos da metade
-        # dos trechos. Com poucos contratos indexados (o caso de quem acabou de
-        # subir o primeiro), termos relevantes zeram e a busca devolveria nada.
-        # Nesse caso caimos para uma contagem de termos presentes.
-        if not any(s > 0 for s in scores):
-            scores = self._scores_por_presenca(tokens)
-
-        ordem = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-
         hits: list[Hit] = []
         por_doc: dict[str, int] = {}
-        for i in ordem:
-            if scores[i] <= 0:
-                break
-            chunk = self.chunks[i]
-            if por_doc.get(chunk.doc_name, 0) >= per_doc_limit:
-                continue
-            por_doc[chunk.doc_name] = por_doc.get(chunk.doc_name, 0) + 1
-            hits.append(Hit(chunk, float(scores[i]), _extract_snippet(chunk.text, tokens)))
-            if len(hits) >= top_k:
-                break
+        usados: set[int] = set()
+
+        def colher(pontuacoes) -> None:
+            ordem = sorted(range(len(pontuacoes)), key=lambda i: pontuacoes[i], reverse=True)
+            for i in ordem:
+                if len(hits) >= top_k:
+                    return
+                if pontuacoes[i] <= 0 or i in usados:
+                    continue
+                chunk = self.chunks[i]
+                if por_doc.get(chunk.doc_name, 0) >= per_doc_limit:
+                    continue
+                por_doc[chunk.doc_name] = por_doc.get(chunk.doc_name, 0) + 1
+                usados.add(i)
+                hits.append(Hit(chunk, float(pontuacoes[i]), _extract_snippet(chunk.text, tokens)))
+
+        colher(scores)
+
+        # O IDF do BM25 so e positivo para termos presentes em menos da metade
+        # dos trechos. Com poucos contratos indexados, quase tudo zera e a
+        # busca devolve um ou nenhum resultado - mesmo com o termo no texto.
+        # Quando falta trecho, completamos por contagem de termos presentes.
+        if len(hits) < top_k:
+            colher(self._scores_por_presenca(tokens))
 
         return hits
 
