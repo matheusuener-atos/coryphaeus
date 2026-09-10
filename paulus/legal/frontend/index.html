@@ -170,19 +170,21 @@
 
   .nova {
     display: flex; align-items: center; gap: 10px; width: 100%;
-    padding: 12px 14px; background: var(--forte); border: 1px solid var(--linha-forte);
+    padding: 11px 14px; background: var(--forte); border: 1px solid var(--linha-forte);
     font: 500 13.5px var(--sans); color: var(--forte-texto); cursor: pointer;
   }
   .nova:hover { background: var(--forte-hover); color: var(--forte-texto); }
-  .nova span:first-child { flex: 1; text-align: left; }
-  .nova .mais { font-size: 15px; opacity: 0.55; }
+  .nova .rotulo-botao { flex: 1; text-align: left; }
 
   .link-lateral {
-    display: block; width: 100%; text-align: left;
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
     padding: 9px 14px; font: 400 13px var(--sans); color: var(--ink-2);
     border: none; background: none; cursor: pointer;
   }
-  .link-lateral:hover { color: var(--ink); background: none; border: none; }
+  .link-lateral .rotulo-botao { flex: 1; }
+  .link-lateral:hover { color: var(--ink); background: var(--surface-3); border: none; }
+
+  .trabalhos-topo .ic { width: 15px; height: 15px; flex-shrink: 0; }
 
   /* ------------------------------------------------------ barra de janela */
 
@@ -229,34 +231,32 @@
   .conversa-col { flex: 1; min-width: 460px; display: flex; flex-direction: column; min-height: 0; }
   /* ------------------------------------------------- coluna de trabalhos */
 
-  /* Coluna recolhida: so os tres comecos (nova, biblioteca, habilidades).
-     A lista de trabalhos some junto - meio nome truncado num trilho de 52 px
-     nao ajuda ninguem a reconhecer a conversa. */
-  .trabalhos.recolhida { width: 52px; }
-  .trabalhos.recolhida .trabalhos-topo { padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  /*
+    Coluna recolhida: um trilho de 60 px com os tres comecos em icone. A lista
+    de conversas e o painel do computador somem - nome truncado e medidor de
+    60 px de largura nao se leem, e fingir que se leem e pior que esconder.
+  */
+  .trabalhos.recolhida { width: 60px; }
+  .trabalhos.recolhida .marca-nome,
+  .trabalhos.recolhida .rotulo-botao,
+  .trabalhos.recolhida .nova .mais,
   .trabalhos.recolhida .lista-trabalhos,
-  .trabalhos.recolhida .modelo .nome,
-  .trabalhos.recolhida .modelo .num { display: none; }
-  .trabalhos.recolhida .modelo { justify-content: center; padding: 12px 0; }
+  .trabalhos.recolhida .maquina { display: none; }
+
+  .trabalhos.recolhida .marca-topo { justify-content: center; padding: 20px 0 6px; }
+  .trabalhos.recolhida .recolher { transform: rotate(180deg); }
+  .trabalhos.recolhida .trabalhos-topo { padding: 6px 0; align-items: center; }
   .trabalhos.recolhida .trabalhos-topo button {
-    width: 32px; height: 32px; padding: 0; border-radius: 0;
-    display: flex; align-items: center; justify-content: center;
-    margin-top: 0 !important; font-size: 0;
+    width: 38px; height: 38px; padding: 0; justify-content: center; gap: 0;
   }
-  .trabalhos.recolhida .trabalhos-topo button::before {
-    font: 500 13px var(--mono); letter-spacing: 0;
-  }
-  .trabalhos.recolhida #nova::before { content: "+"; font-size: 17px; }
-  .trabalhos.recolhida #ver-biblioteca::before { content: "B"; }
-  .trabalhos.recolhida #ver-habilidades::before { content: "H"; }
 
   .recolher {
-    width: 26px; height: 26px; padding: 0; border-radius: 0;
+    width: 26px; height: 26px; padding: 0; margin: 2px auto 0;
     display: flex; align-items: center; justify-content: center;
-    border-color: transparent; background: none; color: var(--ink-3);
+    border: none; background: none; color: var(--ink-3); cursor: pointer;
   }
-  .recolher:hover { background: var(--surface-1); border-color: var(--linha-media); }
-  .recolher svg { width: 15px; height: 15px; }
+  .recolher:hover { color: var(--ink); background: none; border: none; }
+  .recolher svg { width: 15px; height: 15px; transition: transform 0.2s; }
 
   .trabalhos-topo { padding: 14px 12px 10px; }
   .lista-trabalhos { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
@@ -338,7 +338,9 @@
   .fluxo { flex: 1; overflow-y: auto; padding: 14px 44px 20px; display: flex; flex-direction: column; gap: 16px; }
   /* 860 px de leitura, encostado a esquerda. Centralizado num monitor largo,
      o texto ficava numa faixa estreita com meia tela vazia dos dois lados. */
-  .centro { width: 100%; max-width: 860px; display: flex; flex-direction: column; gap: 16px; }
+  /* Sem faixa: o conteudo ocupa a coluna. O teto so evita linha de texto
+     absurda em monitor ultralargo, e cada bloco de prosa tem a sua medida. */
+  .centro { width: 100%; max-width: 1240px; display: flex; flex-direction: column; gap: 16px; }
 
   .bolha-pessoa {
     align-self: flex-end;
@@ -465,12 +467,12 @@
     letter-spacing: -0.028em;
     color: var(--ink-titulo);
     margin-bottom: 14px;
-    max-width: 760px;
+    max-width: 900px;
   }
   .sub-chamada {
     display: none;
     font-size: 16px; line-height: 1.65; color: var(--ink-2);
-    max-width: 600px; margin: 0 0 34px;
+    max-width: 680px; margin: 0 0 34px;
   }
   .conversa-col.vazia .sub-chamada { display: block; }
   @media (max-width: 1100px) { .chamada { font-size: 34px; } }
@@ -497,7 +499,7 @@
 
   /* ------------------------------------------------------- habilidades */
 
-  .catalogo { width: 100%; max-width: 860px; }
+  .catalogo { width: 100%; max-width: 1240px; }
   .catalogo-topo { margin-bottom: 22px; }
   .catalogo-topo h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
   .catalogo-topo p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
@@ -672,7 +674,7 @@
   .pasta-l:last-child { border-bottom: none; }
   .pasta-l code { font: 400 11.5px var(--mono); color: var(--ink-2); word-break: break-all; }
 
-  .bancada { width: 100%; max-width: 860px; }
+  .bancada { width: 100%; max-width: 1240px; }
   .bancada > h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
   .bancada > p { margin: 0 0 22px; font-size: 13.5px; color: var(--ink-2); }
   /* ------------------------------------------------- maquina na coluna */
@@ -721,14 +723,6 @@
     font: 400 10.5px var(--mono); letter-spacing: 0.04em; color: var(--ink-3);
   }
 
-  /* Recolhida, o painel vira so a frase curta - medidor de 52 px nao se le. */
-  .trabalhos.recolhida .maquina { padding: 12px 6px; }
-  .trabalhos.recolhida .maquina .medidor,
-  .trabalhos.recolhida .maquina .interruptor,
-  .trabalhos.recolhida .maquina .assistente,
-  .trabalhos.recolhida .frase-maquina { display: none; }
-  .trabalhos.recolhida .maquina-cabeca { padding: 0; text-align: center; }
-  .trabalhos.recolhida .maquina-cabeca .rotulo { font-size: 8px; letter-spacing: 0.1em; }
 
   /* -------------------------------------------------------- registro */
   /*
@@ -766,6 +760,7 @@
   .rodape-chat button:hover { color: var(--ink); background: none; border: none; }
 
   .cartao-campo {
+    max-width: 980px;
     border: 1px solid var(--linha-media);
     border-radius: 0;
     background: var(--surface-1);
@@ -823,10 +818,15 @@
   }
   button:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
   button:disabled { opacity: 0.45; cursor: default; }
-  button:focus-visible, textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible {
-    outline: 2px solid var(--acento);
+  /* O cartao ja acende a borda quando recebe o cursor; um anel por dentro
+     dele era caixa dentro de caixa. Botao e interruptor mantem o anel, que e
+     como quem navega pelo teclado se localiza. */
+  button:focus-visible, [tabindex]:focus-visible {
+    outline: 1px solid var(--acento);
     outline-offset: 2px;
   }
+  textarea:focus, textarea:focus-visible,
+  input:focus, input:focus-visible { outline: none; }
   button.primario { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); font-weight: 500; }
   button.primario:hover:not(:disabled) { background: var(--forte-hover); border-color: var(--forte-hover); color: var(--forte-texto); }
   button.aprovar-secundario { background: var(--surface-1); border-color: var(--atencao-linha); color: var(--atencao); }
@@ -866,13 +866,33 @@
     <div class="marca-topo">
       <span class="coroa-marca" id="coroa-marca"></span>
       <span class="marca-nome">PAULUS</span>
-      <button class="recolher" id="recolher" title="Recolher a coluna" aria-label="Recolher a coluna">«</button>
     </div>
 
+    <button class="recolher" id="recolher" title="Recolher a coluna" aria-label="Recolher a coluna">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.6 4 5.6 8l4 4"/>
+      </svg>
+    </button>
+
     <div class="trabalhos-topo">
-      <button class="nova" id="nova"><span>Nova solicitação</span><span class="mais">+</span></button>
-      <button class="link-lateral" id="ver-biblioteca">Biblioteca</button>
-      <button class="link-lateral" id="ver-habilidades">O que eu sei fazer</button>
+      <button class="nova" id="nova" title="Nova solicitação">
+        <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M8 3.2v9.6M3.2 8h9.6"/>
+        </svg>
+        <span class="rotulo-botao">Nova solicitação</span>
+      </button>
+      <button class="link-lateral" id="ver-biblioteca" title="Biblioteca">
+        <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+          <path d="M2.4 3.2h3.4a1.6 1.6 0 0 1 1.6 1.6v8a1.2 1.2 0 0 0-1.2-1.2H2.4zM13.6 3.2h-3.4a1.6 1.6 0 0 0-1.6 1.6v8a1.2 1.2 0 0 1 1.2-1.2h3.8z"/>
+        </svg>
+        <span class="rotulo-botao">Biblioteca</span>
+      </button>
+      <button class="link-lateral" id="ver-habilidades" title="O que eu sei fazer">
+        <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <path d="M2.6 4.4h10.8M2.6 8h7.4M2.6 11.6h4.4"/>
+        </svg>
+        <span class="rotulo-botao">O que eu sei fazer</span>
+      </button>
     </div>
 
     <div class="lista-trabalhos" id="lista-trabalhos"></div>
