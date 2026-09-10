@@ -1,9 +1,9 @@
 """
 Testes do registro de habilidades.
 
-O registro virou a fonte unica do que o programa sabe fazer: a pagina, as
-portas de entrada e os tipos de trabalho saem dele. Entrada inconsistente aqui
-vira botao quebrado na tela.
+Cobrem duas coisas: se os modulos reais da pasta `habilidades/` estao
+consistentes, e se o carregador aguenta arquivo quebrado sem derrubar o
+programa - que e a promessa toda da modularizacao.
 
     python tests/test_habilidades.py
 """
@@ -11,27 +11,29 @@ vira botao quebrado na tela.
 from __future__ import annotations
 
 import sys
+import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
 
-import habilidades  # noqa: E402
-from habilidades import (  # noqa: E402
+import registro  # noqa: E402
+from habilidade_base import (  # noqa: E402
+    COM_PROBLEMA,
     EM_BREVE,
     GRUPOS,
-    HABILIDADES,
     PRECISA_ASSISTENTE,
     PRECISA_DOCUMENTOS,
     PRONTA,
     ROTULOS_PRECISA,
-    contagem,
-    obter,
-    por_grupo,
+    Contexto,
+    Ponte,
 )
 
-# Acoes que a interface sabe abrir. Habilidade pronta com acao fora desta
-# lista vira botao "Usar" que nao faz nada.
+PASTA = RAIZ / "habilidades"
+
+# Acoes que a interface sabe abrir. Habilidade pronta apontando para outra
+# coisa vira botao "Usar" que nao faz nada.
 ACOES_CONHECIDAS = {"conversa", "busca", "anexar", "organizacao"}
 
 _falhas: list[str] = []
@@ -45,82 +47,197 @@ def checar(condicao: bool, descricao: str) -> None:
         _falhas.append(descricao)
 
 
-def test_consistencia() -> None:
-    print("\nconsistencia do registro")
-    ids = [h.id for h in HABILIDADES]
-    checar(len(ids) == len(set(ids)), "nenhum id repetido")
-    checar(all(h.grupo in GRUPOS for h in HABILIDADES), "todo grupo declarado existe em GRUPOS")
-    checar(all(h.estado in (PRONTA, EM_BREVE) for h in HABILIDADES), "estado sempre pronta ou em_breve")
-    checar(all(h.nome and h.resumo for h in HABILIDADES), "toda habilidade tem nome e resumo")
+def _escrever(pasta: Path, nome: str, conteudo: str) -> None:
+    (pasta / nome).write_text(conteudo, encoding="utf-8")
 
-    prontas = [h for h in HABILIDADES if h.estado == PRONTA]
+
+# ------------------------------------------------------------ modulos reais
+
+
+def test_modulos_do_projeto() -> None:
+    print("\nmodulos em habilidades/")
+    r = registro.carregar(PASTA)
+
+    checar(bool(r.habilidades), "a pasta tem habilidades")
+    checar(not r.problemas, f"nenhum modulo com problema (achou {len(r.problemas)})")
+
+    ids = [h.id for h in r.habilidades]
+    checar(len(ids) == len(set(ids)), "nenhum id repetido")
+    checar(all(h.grupo in GRUPOS for h in r.habilidades), "todo grupo existe em GRUPOS")
+    checar(all(h.nome and h.resumo for h in r.habilidades), "toda habilidade tem nome e resumo")
+    checar(all(h.arquivo for h in r.habilidades), "toda habilidade sabe de que arquivo veio")
+
+    prontas = [h for h in r.habilidades if h.estado == PRONTA]
+    checar(bool(prontas), "existe habilidade pronta")
+    checar(all(h.executavel for h in prontas), "toda habilidade pronta tem executar()")
+    checar(all(h.acao in ACOES_CONHECIDAS for h in prontas), "acao conhecida pela interface")
+    checar(all(h.demora for h in prontas), "habilidade pronta declara quanto demora")
+
+    futuras = [h for h in r.habilidades if h.estado == EM_BREVE]
+    checar(bool(futuras), "o catalogo admite o que ainda nao existe")
+    checar(all(not h.executavel for h in futuras), "habilidade futura nunca e executavel")
+    checar(all(not h.acao for h in futuras), "habilidade futura nao oferece acao")
+
     checar(
-        all(h.acao in ACOES_CONHECIDAS for h in prontas),
-        "habilidade pronta abre uma acao que a interface conhece",
-    )
-    checar(
-        all(not h.acao for h in HABILIDADES if h.estado == EM_BREVE),
-        "habilidade que nao existe nao oferece acao",
-    )
-    checar(
-        all(p in ROTULOS_PRECISA for h in HABILIDADES for p in h.precisa),
+        all(p in ROTULOS_PRECISA for h in r.habilidades for p in h.precisa),
         "todo requisito tem rotulo em portugues",
     )
-    checar(all(h.demora for h in prontas), "habilidade pronta declara quanto demora")
 
 
 def test_disponibilidade() -> None:
     print("\ndisponibilidade conforme o estado da maquina")
-    tudo = por_grupo({PRECISA_DOCUMENTOS: True, PRECISA_ASSISTENTE: True})
-    achatado = [h for g in tudo for h in g["habilidades"]]
+    r = registro.carregar(PASTA)
 
-    perguntar = next(h for h in achatado if h["id"] == "perguntar")
+    tudo = [h for g in r.por_grupo({PRECISA_DOCUMENTOS: True, PRECISA_ASSISTENTE: True})
+            for h in g["habilidades"]]
+    perguntar = next(h for h in tudo if h["id"] == "perguntar")
     checar(perguntar["utilizavel"], "com documento e assistente, perguntar e utilizavel")
     checar(not perguntar["faltando"], "nada faltando quando tudo esta disponivel")
 
-    sem_docs = por_grupo({PRECISA_DOCUMENTOS: False, PRECISA_ASSISTENTE: True})
-    achatado2 = [h for g in sem_docs for h in g["habilidades"]]
-    p2 = next(h for h in achatado2 if h["id"] == "perguntar")
+    sem_docs = [h for g in r.por_grupo({PRECISA_DOCUMENTOS: False, PRECISA_ASSISTENTE: True})
+                for h in g["habilidades"]]
+    p2 = next(h for h in sem_docs if h["id"] == "perguntar")
     checar(not p2["utilizavel"], "sem documento aberto, perguntar nao e utilizavel")
     checar("documentos abertos" in p2["faltando"], "diz em portugues o que falta")
 
-    organizar = next(h for h in achatado2 if h["id"] == "organizar")
+    organizar = next(h for h in sem_docs if h["id"] == "organizar")
     checar(organizar["utilizavel"], "organizar nao depende de documento ja aberto")
 
-    sem_nada = por_grupo({})
-    achatado3 = [h for g in sem_nada for h in g["habilidades"]]
+    sem_nada = [h for g in r.por_grupo({}) for h in g["habilidades"]]
     checar(
-        all(not h["utilizavel"] for h in achatado3 if h["precisa"]),
+        all(not h["utilizavel"] for h in sem_nada if h["precisa"]),
         "sem informacao de disponibilidade, nada que exige requisito e oferecido",
     )
 
-    futuras = [h for h in achatado if h["estado"] == EM_BREVE]
-    checar(bool(futuras), "existe habilidade marcada como futura")
-    checar(all(not h["utilizavel"] for h in futuras), "habilidade futura nunca aparece utilizavel")
+    c = r.contagem()
+    checar(c["total"] == len(r.habilidades), "contagem total confere")
+    checar(c["prontas"] < c["total"], "ha habilidade nao entregue - o catalogo nao mente")
 
 
-def test_agrupamento() -> None:
-    print("\nagrupamento e contagem")
-    grupos = por_grupo({PRECISA_DOCUMENTOS: True, PRECISA_ASSISTENTE: True})
-    nomes = [g["grupo"] for g in grupos]
-
-    checar(nomes == [g for g in GRUPOS if g in nomes], "grupos saem na ordem declarada")
-    checar(all(g["habilidades"] for g in grupos), "nenhum grupo vazio e devolvido")
-
-    total_listado = sum(len(g["habilidades"]) for g in grupos)
-    checar(total_listado == len(HABILIDADES), "toda habilidade aparece em algum grupo")
-
-    c = contagem()
-    checar(c["total"] == len(HABILIDADES), "contagem total confere")
-    checar(c["prontas"] == sum(1 for h in HABILIDADES if h.estado == PRONTA), "contagem de prontas confere")
-    checar(c["prontas"] < c["total"], "ha habilidade ainda nao entregue - o catalogo nao mente")
+# ------------------------------------------------------- carregador robusto
 
 
-def test_obter() -> None:
-    print("\nbusca por id")
-    checar(obter("organizar") is not None, "acha habilidade existente")
-    checar(obter("nao-existe") is None, "id desconhecido devolve None")
-    checar(obter("") is None, "id vazio devolve None")
+def test_arquivo_quebrado_nao_derruba() -> None:
+    """
+    A promessa da modularizacao: mexer num modulo nao pode quebrar o programa.
+    Cada forma de erro vira uma entrada marcada, e o resto continua de pe.
+    """
+    print("\ncarregador aguenta arquivo quebrado")
+    with tempfile.TemporaryDirectory() as tmp:
+        pasta = Path(tmp)
+
+        _escrever(pasta, "boa.py", (
+            "from habilidade_base import Contexto, Habilidade\n"
+            "HABILIDADE = Habilidade(id='boa', nome='Boa', resumo='r', grupo='Documentos',\n"
+            "                        acao='busca', demora='rapido')\n"
+            "def executar(ctx: Contexto):\n"
+            "    return {'ok': True}\n"
+        ))
+        _escrever(pasta, "sintaxe.py", "isto nao e python (((\n")
+        _escrever(pasta, "sem_declaracao.py", "X = 1\n")
+        _escrever(pasta, "estoura.py", "raise RuntimeError('estouro no import')\n")
+        _escrever(pasta, "grupo_ruim.py", (
+            "from habilidade_base import Habilidade\n"
+            "HABILIDADE = Habilidade(id='g', nome='G', resumo='r', grupo='Inventado')\n"
+        ))
+        _escrever(pasta, "sem_executar.py", (
+            "from habilidade_base import Habilidade\n"
+            "HABILIDADE = Habilidade(id='s', nome='S', resumo='r', grupo='Documentos')\n"
+        ))
+        _escrever(pasta, "_ajudante.py", "NAO_E_HABILIDADE = True\n")
+
+        r = registro.carregar(pasta)
+
+        boa = r.obter("boa")
+        checar(boa is not None and boa.executavel, "a habilidade boa carregou apesar das quebradas")
+        checar(boa.executar(Contexto()) == {"ok": True}, "e roda normalmente")
+
+        problemas = {Path(h.arquivo).name: h.problema for h in r.problemas}
+        checar("sintaxe.py" in problemas, "erro de sintaxe vira problema, nao exception")
+        checar("sem_declaracao.py" in problemas, "arquivo sem HABILIDADE vira problema")
+        checar("estoura.py" in problemas, "erro no import vira problema")
+        checar("grupo_ruim.py" in problemas, "grupo inexistente vira problema")
+        checar("sem_executar.py" in problemas, "pronta sem executar() vira problema")
+        checar(all(problemas.values()), "todo problema tem mensagem explicando")
+        checar(
+            not any("ajudante" in h.arquivo for h in r.habilidades),
+            "arquivo com _ no inicio e ignorado, nao vira habilidade",
+        )
+        checar(r.contagem()["com_problema"] == 5, "conta os cinco quebrados")
+
+        grupos = [g["grupo"] for g in r.por_grupo({})]
+        checar("Com problema" in grupos, "quebradas aparecem num grupo proprio na tela")
+
+
+def test_id_repetido() -> None:
+    print("\ndois modulos com o mesmo id")
+    with tempfile.TemporaryDirectory() as tmp:
+        pasta = Path(tmp)
+        corpo = (
+            "from habilidade_base import Contexto, Habilidade\n"
+            "HABILIDADE = Habilidade(id='mesmo', nome='{nome}', resumo='r',\n"
+            "                        grupo='Documentos', acao='busca', demora='rapido')\n"
+            "def executar(ctx: Contexto):\n"
+            "    return {{'de': '{nome}'}}\n"
+        )
+        _escrever(pasta, "a_primeira.py", corpo.format(nome="Primeira"))
+        _escrever(pasta, "b_segunda.py", corpo.format(nome="Segunda"))
+
+        r = registro.carregar(pasta)
+        checar(len(r.habilidades) == 2, "as duas entram na lista")
+        checar(len(r.problemas) == 1, "a segunda e marcada como problema")
+        checar(
+            "já é usado" in r.problemas[0].problema,
+            "o conflito e explicado em vez de resolvido em silencio",
+        )
+        checar(r.obter("mesmo").nome == "Primeira", "a primeira continua utilizavel")
+
+
+def test_pasta_ausente() -> None:
+    print("\npasta de habilidades ausente")
+    r = registro.carregar(Path("pasta/que/nao/existe"))
+    checar(r.habilidades == [], "nao quebra, so devolve lista vazia")
+    checar(r.contagem()["total"] == 0, "contagem zerada")
+
+
+# -------------------------------------------------------------------- ponte
+
+
+def test_ponte() -> None:
+    print("\nponte de callback para iterador")
+
+    def trabalho(empurrar):
+        for i in range(5):
+            empurrar(i)
+        return "terminou"
+
+    ponte = Ponte(trabalho)
+    recebidos = list(ponte)
+    checar(recebidos == [0, 1, 2, 3, 4], "entrega os avisos na ordem")
+    checar(ponte.resultado == "terminou", "guarda o valor de retorno")
+
+    def estoura(empurrar):
+        empurrar("antes")
+        raise ValueError("falhou no meio")
+
+    ponte2 = Ponte(estoura)
+    itens, erro = [], None
+    try:
+        for item in ponte2:
+            itens.append(item)
+    except ValueError as exc:
+        erro = exc
+    checar(itens == ["antes"], "entrega o que veio antes do erro")
+    checar(erro is not None, "o erro chega em quem consome, nao some na thread")
+
+    ponte3 = Ponte(lambda empurrar: "sem avisos")
+    naoconsumida = True
+    try:
+        _ = ponte3.resultado
+        naoconsumida = False
+    except RuntimeError:
+        pass
+    checar(naoconsumida, "pedir resultado antes de consumir e erro explicito")
 
 
 def main() -> int:
@@ -128,18 +245,21 @@ def main() -> int:
     print("  PAULUS - testes do registro de habilidades")
     print("=" * 55)
 
-    test_consistencia()
+    test_modulos_do_projeto()
     test_disponibilidade()
-    test_agrupamento()
-    test_obter()
+    test_arquivo_quebrado_nao_derruba()
+    test_id_repetido()
+    test_pasta_ausente()
+    test_ponte()
 
+    total = len(registro.carregar(PASTA).habilidades)
     print("\n" + "=" * 55)
     if _falhas:
         print(f"  {len(_falhas)} FALHA(S):")
         for f in _falhas:
             print(f"    - {f}")
         return 1
-    print(f"  todos os testes passaram ({len(HABILIDADES)} habilidades no registro)")
+    print(f"  todos os testes passaram ({total} habilidades na pasta)")
     return 0
 
 

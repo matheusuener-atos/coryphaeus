@@ -27,10 +27,15 @@ from pydantic import BaseModel
 
 import requests
 
-import habilidades
 import pastas
 import recursos
-from classify import Classificacao, ROTULOS, classificar_acervo
+import registro
+from classify import Classificacao, ROTULOS
+from habilidade_base import (
+    PRECISA_ASSISTENTE,
+    PRECISA_DOCUMENTOS,
+    Contexto,
+)
 from extract import SUPPORTED_SUFFIXES, index_all_contracts
 from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, Etapa, Trabalhos, titular
 from llama_client import DEFAULT_MODEL, LlamaClient, OllamaError, check_ollama
@@ -50,6 +55,7 @@ CACHE_PATH = BASE_DIR / "data" / "extractions" / "index.json"
 CLASSIFICACAO_PATH = BASE_DIR / "data" / "extractions" / "classificacao.json"
 DIARIOS_DIR = BASE_DIR / "data" / "diarios"
 TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
+HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
@@ -70,6 +76,8 @@ class Estado:
         self.devagar = False
         # Levantado quando a pessoa pede para parar a leitura em andamento.
         self.cancelar = threading.Event()
+        # Habilidades carregadas da pasta do projeto, uma por arquivo.
+        self.registro = registro.carregar(HABILIDADES_DIR)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -116,12 +124,6 @@ def index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
-@app.get("/classico")
-def classico() -> FileResponse:
-    """Interface anterior, ainda com o organizador. Sai quando ele for portado."""
-    return FileResponse(FRONTEND_DIR / "classico.html")
-
-
 @app.get("/fontes.css")
 def fontes_css() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "fontes.css", media_type="text/css")
@@ -164,6 +166,34 @@ def _tamanho_do_modelo() -> float | None:
     return None
 
 
+def _sse(tipo: str, dados: dict) -> str:
+    """Um evento no formato que o navegador consome (Server-Sent Events)."""
+    return f"event: {tipo}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n"
+
+
+def _disponibilidade() -> dict:
+    ok, _ = check_ollama(estado.client.model)
+    return {
+        PRECISA_DOCUMENTOS: len(estado.searcher.documents) > 0,
+        PRECISA_ASSISTENTE: ok,
+    }
+
+
+def _contexto(registrar=None) -> Contexto:
+    """O que as habilidades enxergam da aplicacao."""
+    return Contexto(
+        searcher=estado.searcher,
+        client=estado.client,
+        pasta=estado.pasta,
+        cache_classificacao=CLASSIFICACAO_PATH,
+        diarios=DIARIOS_DIR,
+        recarregar=estado.recarregar,
+        registrar=registrar,
+        cancelado=estado.cancelar.is_set,
+        antes_de_cada=lambda: recursos.esperar_maquina_livre(estado.devagar, limite_s=10),
+    )
+
+
 @app.get("/api/habilidades")
 def listar_habilidades() -> dict:
     """
@@ -172,15 +202,65 @@ def listar_habilidades() -> dict:
     A disponibilidade e checada agora: nao adianta oferecer "perguntar sobre os
     documentos" quando nao ha documento aberto.
     """
-    ok, _ = check_ollama(estado.client.model)
-    disponibilidade = {
-        habilidades.PRECISA_DOCUMENTOS: len(estado.searcher.documents) > 0,
-        habilidades.PRECISA_ASSISTENTE: ok,
-    }
     return {
-        "grupos": habilidades.por_grupo(disponibilidade),
-        "contagem": habilidades.contagem(),
+        "grupos": estado.registro.por_grupo(_disponibilidade()),
+        "contagem": estado.registro.contagem(),
+        "pasta": estado.registro.pasta,
     }
+
+
+@app.post("/api/habilidades/recarregar")
+def recarregar_habilidades() -> dict:
+    """Rele a pasta de modulos sem fechar o programa."""
+    estado.registro = registro.carregar(HABILIDADES_DIR)
+    return {"contagem": estado.registro.contagem()}
+
+
+@app.post("/api/habilidades/{id_}")
+def executar_habilidade(id_: str, parametros: dict | None = None):
+    """
+    Porta unica para rodar qualquer habilidade.
+
+    Se o modulo devolve um dict, sai como JSON. Se e um gerador, sai como
+    stream de eventos - e a mesma porta serve para a busca instantanea e para
+    uma leitura de uma hora.
+    """
+    habilidade = estado.registro.obter(id_)
+    if not habilidade:
+        raise HTTPException(status_code=404, detail="habilidade desconhecida")
+    if not habilidade.executavel:
+        raise HTTPException(
+            status_code=400,
+            detail=habilidade.problema or "essa habilidade ainda não faz nada",
+        )
+
+    faltando = [p for p in habilidade.precisa if not _disponibilidade().get(p, False)]
+    if faltando:
+        from habilidade_base import ROTULOS_PRECISA
+
+        nomes = ", ".join(ROTULOS_PRECISA.get(p, p) for p in faltando)
+        raise HTTPException(status_code=400, detail=f"precisa de: {nomes}")
+
+    try:
+        saida = habilidade.executar(_contexto(), **(parametros or {}))
+    except TypeError as exc:
+        raise HTTPException(status_code=400, detail=f"parâmetros inválidos: {exc}") from exc
+
+    if not hasattr(saida, "__next__"):
+        return saida
+
+    def gerar() -> Iterator[str]:
+        try:
+            for tipo, dados in saida:
+                yield _sse(tipo, dados)
+        except Exception as exc:
+            yield _sse("erro", {"mensagem": str(exc)})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/documents")
@@ -198,44 +278,13 @@ def reindexar() -> dict:
     return {"contratos": estado.recarregar(force=True)}
 
 
-@app.post("/api/search")
-def buscar(payload: Busca) -> dict:
-    hits = estado.searcher.search(payload.termo, top_k=payload.top)
-    return {
-        "resultados": [
-            {
-                "documento": h.doc_name,
-                "trecho": h.chunk.index + 1,
-                "score": round(h.score, 2),
-                "snippet": h.snippet,
-                "texto": h.chunk.text,
-            }
-            for h in hits
-        ]
-    }
-
-
 @app.post("/api/buscar-agora")
 def buscar_agora(payload: Busca) -> dict:
-    """
-    Busca por palavra, sem passar pelo assistente.
-
-    Responde na hora. Existe porque nem toda pergunta merece 20 segundos de
-    espera: as vezes a pessoa so quer achar onde esta escrito.
-    """
-    hits = estado.searcher.search(payload.termo, top_k=payload.top)
-    return {
-        "termo": payload.termo,
-        "contratos": len(estado.searcher.documents),
-        "resultados": [
-            {
-                "documento": h.doc_name,
-                "trecho": h.chunk.index + 1,
-                "texto": h.chunk.text,
-            }
-            for h in hits
-        ],
-    }
+    """Atalho para a habilidade `buscar`, mantido para nao quebrar chamadas antigas."""
+    habilidade = estado.registro.obter("buscar")
+    if not habilidade or not habilidade.executavel:
+        raise HTTPException(status_code=503, detail="a habilidade de busca nao carregou")
+    return habilidade.executar(_contexto(), termo=payload.termo, top=payload.top)
 
 
 @app.post("/api/upload")
@@ -261,62 +310,6 @@ async def upload(arquivos: list[UploadFile]) -> dict:
 
     total = estado.recarregar()
     return {"salvos": salvos, "recusados": recusados, "contratos": total}
-
-
-@app.post("/api/ask")
-def perguntar(payload: Pergunta) -> StreamingResponse:
-    """Responde em streaming (SSE): primeiro as fontes, depois os tokens."""
-    if not payload.pergunta.strip():
-        raise HTTPException(status_code=400, detail="pergunta vazia")
-
-    hits = estado.searcher.search(payload.pergunta, top_k=payload.top)
-
-    def evento(tipo: str, dados: dict) -> str:
-        return f"event: {tipo}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n"
-
-    def gerar() -> Iterator[str]:
-        if not hits:
-            yield evento("vazio", {"mensagem": "Nenhum trecho relevante encontrado nos contratos."})
-            return
-
-        # Cobertura explicita: o advogado precisa saber quais contratos NAO
-        # entraram na analise. Silencio aqui vira prazo perdido.
-        consultados = list(dict.fromkeys(h.doc_name for h in hits))
-        ignorados = [d.name for d in estado.searcher.documents if d.name not in consultados]
-
-        yield evento(
-            "fontes",
-            {
-                "consultados": consultados,
-                "ignorados": ignorados,
-                "total_contratos": len(estado.searcher.documents),
-                "trechos": [
-                    {
-                        "documento": h.doc_name,
-                        "trecho": h.chunk.index + 1,
-                        "score": round(h.score, 2),
-                        "texto": h.chunk.text,
-                    }
-                    for h in hits
-                ],
-            },
-        )
-
-        contexto = estado.searcher.format_context(hits)
-        try:
-            for token in _tokens(payload.pergunta, contexto):
-                yield evento("token", {"t": token})
-        except OllamaError as exc:
-            yield evento("erro", {"mensagem": str(exc)})
-            return
-
-        yield evento("fim", {})
-
-    return StreamingResponse(
-        gerar(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
 
 
 # ------------------------------------------------------ trabalhos (conversas)
@@ -363,8 +356,10 @@ def trabalhos_remover(id_: str) -> dict:
 @app.post("/api/trabalhos/{id_}/perguntar")
 def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     """
-    Pergunta dentro de um trabalho: a conversa fica gravada e as etapas
-    aparecem na tela enquanto acontecem.
+    Pergunta dentro de um trabalho.
+
+    A logica de responder mora em habilidades/perguntar.py. Aqui fica so a
+    contabilidade do trabalho: gravar a conversa, mexer nas etapas e salvar.
     """
     trabalho = estado.trabalhos.obter(id_)
     if not trabalho:
@@ -372,80 +367,69 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     if not payload.pergunta.strip():
         raise HTTPException(status_code=400, detail="pergunta vazia")
 
+    habilidade = estado.registro.obter("perguntar")
+    if not habilidade or not habilidade.executavel:
+        raise HTTPException(status_code=503, detail="a habilidade de perguntar nao carregou")
+
     pergunta = payload.pergunta.strip()
     if trabalho.titulo == "Nova conversa" and not trabalho.mensagens:
         trabalho.titulo = titular(pergunta)
 
     trabalho.dizer("pessoa", pergunta)
     trabalho.etapas = [
-        Etapa("Procurar nos contratos", estado=EXECUTANDO),
+        Etapa("Procurar nos documentos", estado=EXECUTANDO),
         Etapa("Ler os trechos e responder"),
     ]
     trabalho.estado = EXECUTANDO
     estado.trabalhos.salvar(trabalho)
 
-    def evento(tipo: str, dados: dict) -> str:
-        return f"event: {tipo}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n"
+    def registrar(texto: str) -> None:
+        trabalho.registrar(texto)
 
     def gerar() -> Iterator[str]:
         import time
 
         inicio = time.time()
-        espera = recursos.esperar_maquina_livre(estado.devagar)
-        if espera:
-            trabalho.registrar(f"Esperou {espera}s: voce estava usando o computador")
-            yield evento("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
-
-        hits = estado.searcher.search(pergunta, top_k=payload.top)
-        trabalho.etapas[0].estado = CONCLUIDO
-        trabalho.etapas[0].detalhe = f"{len(estado.searcher.documents)} contrato(s) abertos"
-        trabalho.registrar(f"Procurou em {len(estado.searcher.documents)} contrato(s)")
-
-        if not hits:
-            trabalho.etapas[1].estado = CONCLUIDO
-            trabalho.estado = CONCLUIDO
-            texto = "Nao achei nada sobre isso nos contratos abertos."
-            trabalho.dizer("paulus", texto)
-            estado.trabalhos.salvar(trabalho)
-            yield evento("vazio", {"mensagem": texto})
-            return
-
-        consultados = list(dict.fromkeys(h.doc_name for h in hits))
-        ignorados = [d.name for d in estado.searcher.documents if d.name not in consultados]
-        cobertura = {
-            "consultados": consultados,
-            "ignorados": ignorados,
-            "total_contratos": len(estado.searcher.documents),
-        }
-        fontes = [
-            {
-                "documento": h.doc_name,
-                "trecho": h.chunk.index + 1,
-                "score": round(h.score, 2),
-                "texto": h.chunk.text,
-            }
-            for h in hits
-        ]
-
-        trabalho.etapas[1].estado = EXECUTANDO
-        trabalho.etapas[1].total = len(hits)
-        trabalho.etapas[1].feitos = len(hits)
-        trabalho.registrar(f"Leu {len(hits)} trecho(s) de {len(consultados)} contrato(s)")
-
-        yield evento("fontes", {**cobertura, "trechos": fontes})
-        yield evento("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
-
         partes: list[str] = []
-        contexto = estado.searcher.format_context(hits)
+        cobertura: dict = {}
+        fontes: list[dict] = []
+
         try:
-            for token in _tokens(pergunta, contexto):
-                partes.append(token)
-                yield evento("token", {"t": token})
-        except OllamaError as exc:
+            for tipo, dados in habilidade.executar(
+                _contexto(registrar), pergunta=pergunta, top=payload.top
+            ):
+                if tipo == "fontes":
+                    cobertura = {
+                        "consultados": dados["consultados"],
+                        "ignorados": dados["ignorados"],
+                        "total_contratos": dados["total_contratos"],
+                    }
+                    fontes = dados["trechos"]
+                    trabalho.etapas[0].estado = CONCLUIDO
+                    trabalho.etapas[0].detalhe = f"{dados['total_contratos']} documento(s)"
+                    trabalho.etapas[1].estado = EXECUTANDO
+                    trabalho.etapas[1].feitos = len(fontes)
+                    trabalho.etapas[1].total = len(fontes)
+                    yield _sse("fontes", dados)
+                    yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+                elif tipo == "token":
+                    partes.append(dados["t"])
+                    yield _sse("token", dados)
+                elif tipo == "vazio":
+                    trabalho.etapas[0].estado = CONCLUIDO
+                    trabalho.etapas[1].estado = CONCLUIDO
+                    trabalho.estado = CONCLUIDO
+                    trabalho.dizer("paulus", dados["mensagem"])
+                    estado.trabalhos.salvar(trabalho)
+                    yield _sse("vazio", dados)
+                    return
+                elif tipo == "fim":
+                    pass  # o fechamento e daqui: o modulo nao sabe de trabalho
+        except Exception as exc:
             trabalho.etapas[1].estado = "falhou"
             trabalho.estado = "falhou"
             estado.trabalhos.salvar(trabalho)
-            yield evento("erro", {"mensagem": str(exc)})
+            yield _sse("erro", {"mensagem": str(exc)})
             return
 
         segundos = round(time.time() - inicio, 1)
@@ -456,7 +440,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             fontes=fontes, cobertura=cobertura, segundos=segundos,
         )
         estado.trabalhos.salvar(trabalho)
-        yield evento("fim", {"segundos": segundos, "titulo": trabalho.titulo})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo})
 
     return StreamingResponse(
         gerar(),
@@ -598,61 +582,40 @@ def _quantos_em_cache(caminhos: list[str]) -> int:
 
 @app.post("/api/organizar/classificar")
 def organizar_classificar() -> StreamingResponse:
-    """Classifica o que foi encontrado, publicando o andamento por SSE."""
+    """
+    Le o que a varredura achou.
+
+    A leitura em si mora em habilidades/classificar.py. Aqui fica so o que e do
+    servidor: guardar o resultado para os passos seguintes do organizador.
+    """
     caminhos = [a["path"] for a in estado.encontrados]
     if not caminhos:
-        raise HTTPException(status_code=400, detail="nada para classificar - faca a varredura antes")
+        raise HTTPException(status_code=400, detail="nada para ler - faca a varredura antes")
 
-    def evento(tipo: str, dados: dict) -> str:
-        return f"event: {tipo}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n"
+    habilidade = estado.registro.obter("classificar")
+    if not habilidade or not habilidade.executavel:
+        raise HTTPException(status_code=503, detail="a habilidade de classificar nao carregou")
+
+    estado.cancelar.clear()
 
     def gerar() -> Iterator[str]:
-        import queue
-        import threading
+        try:
+            for tipo, dados in habilidade.executar(_contexto(), caminhos=caminhos):
+                if tipo == "resultados":
+                    # O organizador precisa dos objetos, nao do JSON: os passos
+                    # seguintes montam o plano a partir deles.
+                    from classify import Classificacao as _C
 
-        fila: queue.Queue = queue.Queue()
-        FIM = object()
-
-        def progresso(indice: int, total: int, nome: str, do_cache: bool) -> None:
-            fila.put({"indice": indice, "total": total, "nome": nome, "cache": do_cache})
-
-        estado.cancelar.clear()
-
-        def rodar() -> None:
-            try:
-                resultados = classificar_acervo(
-                    caminhos,
-                    cache_path=CLASSIFICACAO_PATH,
-                    client=estado.client,
-                    progresso=progresso,
-                    cancelado=estado.cancelar.is_set,
-                    antes_de_cada=lambda: recursos.esperar_maquina_livre(estado.devagar, limite_s=10),
-                )
-                estado.classificacoes = {r.arquivo: r for r in resultados}
-                fila.put({
-                    "__resultados__": [r.to_dict() for r in resultados],
-                    "__parado__": estado.cancelar.is_set(),
-                })
-            except Exception as exc:
-                fila.put({"__erro__": str(exc)})
-            finally:
-                fila.put(FIM)
-
-        threading.Thread(target=rodar, daemon=True).start()
-
-        while True:
-            item = fila.get()
-            if item is FIM:
-                return
-            if "__erro__" in item:
-                yield evento("erro", {"mensagem": item["__erro__"]})
-            elif "__resultados__" in item:
-                yield evento(
-                    "resultados",
-                    {"documentos": item["__resultados__"], "parado": item.get("__parado__", False)},
-                )
-            else:
-                yield evento("progresso", item)
+                    estado.classificacoes = {
+                        d["arquivo"]: _C(**{
+                            k: v for k, v in d.items()
+                            if k in _C.__dataclass_fields__
+                        })
+                        for d in dados["documentos"]
+                    }
+                yield _sse(tipo, dados)
+        except Exception as exc:
+            yield _sse("erro", {"mensagem": str(exc)})
 
     return StreamingResponse(
         gerar(),
@@ -743,58 +706,3 @@ def organizar_desfazer(payload: PedidoDesfazer) -> dict:
     }
 
 
-def _tokens(pergunta: str, contexto: str) -> Iterator[str]:
-    """
-    Converte o callback de streaming do LlamaClient em iterador.
-
-    O cliente entrega token por callback; a resposta SSE precisa puxar. Uma
-    fila com uma thread faz a ponte sem carregar a resposta inteira na memoria.
-    """
-    import queue
-    import threading
-
-    fila: queue.Queue = queue.Queue()
-    FIM = object()
-
-    def rodar() -> None:
-        try:
-            estado.client.ask(pergunta, contexto, stream=True, on_token=fila.put)
-        except Exception as exc:  # repassa para a thread principal
-            fila.put(exc)
-        finally:
-            fila.put(FIM)
-
-    thread = threading.Thread(target=rodar, daemon=True)
-    thread.start()
-
-    while True:
-        item = fila.get()
-        if item is FIM:
-            return
-        if isinstance(item, Exception):
-            raise item
-        yield item
-
-
-def main() -> None:
-    import argparse
-
-    import uvicorn
-
-    parser = argparse.ArgumentParser(description="PAULUS Legal - interface web (local)")
-    parser.add_argument("--contracts", type=Path, default=CONTRACTS_DIR, help="pasta com os contratos")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"modelo Ollama (padrao: {DEFAULT_MODEL})")
-    parser.add_argument("--port", type=int, default=8000, help="porta (padrao: 8000)")
-    args = parser.parse_args()
-
-    estado.pasta = args.contracts
-    estado.porta = args.port
-    estado.client = LlamaClient(model=args.model)
-
-    # host fixo em 127.0.0.1: o servidor nao deve ficar exposto na rede local,
-    # os documentos sao de cliente.
-    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
-
-
-if __name__ == "__main__":
-    main()
