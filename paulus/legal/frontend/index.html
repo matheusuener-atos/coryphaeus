@@ -1638,7 +1638,7 @@
       </div>
     </div>
 
-    <div class="compositor">
+    <div class="compositor" id="compositor">
       <div class="centro">
         <div class="risco"></div>
         <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
@@ -1865,6 +1865,7 @@ function abrirMenu(linha) {
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return;
+  $("compositor").hidden = false;
   estado.trabalho = await r.json();
   estado.trabalhoId = id;
   desenharTrabalho();
@@ -1874,6 +1875,7 @@ async function abrirTrabalho(id) {
 $("nova").onclick = () => {
   estado.trabalhoId = null;
   estado.trabalho = null;
+  $("compositor").hidden = false;
   $("conversa-titulo").textContent = "Nova solicitação";
   $("apagar").hidden = true;
   $("centro").innerHTML = exemplos();
@@ -3737,6 +3739,9 @@ function telaAdiante(d) {
 function abrirTela(nome) {
   estado.trabalhoId = null;
   estado.trabalho = null;
+  /* O campo de pergunta e da conversa. Numa tela de Financeiro ou de Planilha
+     ele so ocupava o rodape sem ter o que fazer ali. */
+  $("compositor").hidden = true;
   $("conversa-titulo").textContent = nome;
   $("conversa-meta").textContent = "";
   $("apagar").hidden = true;

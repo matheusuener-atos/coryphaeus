@@ -9,6 +9,8 @@ nenhuma delas pinta a pagina:
     cortado ao meio. O CSS era valido, o HTML era valido, a rota respondia 200
   - o padding das celulas da planilha era anulado por um seletor mais
     especifico, e o valor de uma coluna encostava no texto da coluna vizinha
+  - o campo de pergunta da conversa aparecia no rodape das vinte telas,
+    inclusive numa de Financeiro, onde nao tinha o que fazer
 
 Os dois so aparecem depois que o navegador calcula o layout. Este arquivo faz
 isso: sobe o servidor, abre cada destino do menu e mede.
@@ -141,7 +143,12 @@ def main() -> int:
                 checar(True, "sem conversas gravadas - nada a medir na lista")
 
             print("\ncada destino do menu")
+            ver_compositor = """() => {
+              const e = document.getElementById('compositor');
+              return !!e && !e.hidden && e.getBoundingClientRect().height > 0;
+            }"""
             destinos = pagina.evaluate("() => DESTINOS.map(d => ({id: d.id, nome: d.nome}))")
+            com_compositor = []
             for d in destinos:
                 erros.clear()
                 pagina.evaluate("(id) => abrirDestino(id)", d["id"])
@@ -155,6 +162,16 @@ def main() -> int:
                     f"{d['nome']} abre sem erro e com conteudo",
                     ("; ".join(erros[:2]) if erros else "a tela ficou em branco"),
                 )
+                if d["id"] != "conversa" and pagina.evaluate(ver_compositor):
+                    com_compositor.append(d["nome"])
+
+            print("\no campo de pergunta")
+            # O compositor e da conversa. Nas outras vinte telas ele so ocupava
+            # o rodape sem ter o que fazer ali.
+            checar(not com_compositor, "some fora da conversa", ", ".join(com_compositor))
+            pagina.evaluate("() => abrirDestino('conversa')")
+            pagina.wait_for_timeout(900)
+            checar(pagina.evaluate(ver_compositor), "e volta ao abrir a conversa")
 
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
