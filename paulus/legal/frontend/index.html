@@ -1426,6 +1426,99 @@
   .pl-funcao:last-child { border-bottom: none; }
   .pl-funcao code { font: 400 11.5px var(--mono); color: var(--ink-2); }
 
+  /* --------------------------------- financeiro, relatórios, bem-estar */
+
+  .fin-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
+  .fin-cartao { border: 1px solid var(--linha-media); background: var(--surface-1); padding: 15px; }
+  .fin-cartao .rotulo { display: block; margin-bottom: 6px; }
+  .fin-cartao b { display: block; font: 500 23px var(--sans); letter-spacing: -0.02em; }
+  .fin-cartao .abaixo { display: block; font-size: 12px; color: var(--ink-3); margin-top: 5px; }
+  .fin-cartao.alerta b { color: var(--atencao); }
+
+  /* Barras do fluxo de caixa: SVG desenhado aqui, sem biblioteca de gráfico. */
+  .fin-grafico { display: flex; align-items: flex-end; gap: 10px; height: 132px; margin: 14px 0 6px; }
+  .fin-mes { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+  .fin-barras { flex: 1; display: flex; align-items: flex-end; gap: 3px; width: 100%; }
+  .fin-barra { flex: 1; min-height: 2px; background: var(--trilho); }
+  .fin-barra.entrada { background: var(--ok); }
+  .fin-barra.saida { background: var(--atencao); }
+  .fin-mes .rotulo { font-size: 9.5px; }
+
+  .fin-legenda { display: flex; gap: 16px; font-size: 11.5px; color: var(--ink-3); }
+  .fin-legenda i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+  .fin-legenda i.entrada { background: var(--ok); }
+  .fin-legenda i.saida { background: var(--atencao); }
+
+  .fin-linha {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .fin-linha:last-child { border-bottom: none; }
+  .fin-valor { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .fin-valor.entrada { color: var(--ok); }
+  .fin-valor.saida { color: var(--atencao); }
+  .fin-quando { font: 500 9.5px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+  .fin-quando.atrasado { color: var(--atencao); }
+
+  .fin-extrato { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .fin-extrato th {
+    text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--linha-media);
+    font: 500 9.5px var(--mono); letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase;
+  }
+  .fin-extrato td { padding: 9px 6px; border-bottom: 1px solid var(--linha); }
+  .fin-extrato td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Relatórios */
+  .rel-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+  .rel-numero { border: 1px solid var(--linha-media); padding: 12px; }
+  .rel-numero b { display: block; font: 500 19px var(--sans); margin-top: 4px; }
+  .rel-tarefa { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 12.5px; }
+  .rel-marca {
+    width: 15px; height: 15px; flex: none; border: 1px solid var(--linha-forte);
+    display: grid; place-items: center; font-size: 9px;
+  }
+  .rel-marca.feita { background: var(--ok); border-color: var(--ok); color: var(--forte-texto); }
+  .rel-tarefa.feita span { color: var(--ink-3); }
+  .rel-acao { display: flex; align-items: flex-start; gap: 11px; padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px; }
+  .rel-acao:last-child { border-bottom: none; }
+  .rel-parecer { white-space: pre-wrap; font-size: 13.5px; line-height: 1.65; }
+
+  /* Bem-estar */
+  .be-relogio {
+    font: 500 46px var(--mono); letter-spacing: -0.02em;
+    text-align: center; padding: 18px 0 6px; font-variant-numeric: tabular-nums;
+  }
+  .be-relogio.pausa { color: var(--ok); }
+  .be-fase { text-align: center; margin-bottom: 14px; }
+  .be-trilho { height: 3px; background: var(--trilho); margin: 12px 0; }
+  .be-trilho i { display: block; height: 3px; background: var(--acento); transition: width 1s linear; }
+
+  .be-lembrete {
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .be-lembrete:last-child { border-bottom: none; }
+  .be-lembrete.cumprido .cresce { color: var(--ink-3); }
+  .be-atraso { color: var(--atencao); }
+
+  .be-semana { display: flex; align-items: flex-end; gap: 8px; height: 84px; margin: 12px 0; }
+  .be-dia { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .be-coluna { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+  .be-coluna i { display: block; width: 100%; background: var(--acento); min-height: 2px; }
+
+  /* Conexões */
+  .cx-faz { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 12.5px; }
+  .cx-marca {
+    font: 500 9px var(--mono); letter-spacing: 0.1em; padding: 3px 6px;
+    border: 1px solid var(--linha-media); color: var(--ink-3); white-space: nowrap; flex: none;
+  }
+  .cx-marca.nao { color: var(--atencao); border-color: var(--atencao-linha); }
+  .cx-marca.sim { color: var(--ok); border-color: var(--ok); }
+  .cx-endereco {
+    font: 400 11.5px var(--mono); color: var(--ink-3);
+    border: 1px solid var(--linha); padding: 9px 11px; overflow-wrap: anywhere;
+  }
+
   /* ------------------------------------------------------- responsivo */
 
   @media (max-width: 1180px) {
@@ -3595,6 +3688,10 @@ function abrirDestino(id) {
   if (d.abre === "caixa") return mostrarEmail();
   if (d.abre === "editor") return mostrarEditor();
   if (d.abre === "planilha") return mostrarPlanilha();
+  if (d.abre === "financeiro") return mostrarFinanceiro();
+  if (d.abre === "relatorios") return mostrarRelatorios();
+  if (d.abre === "foco") return mostrarFoco();
+  if (d.abre === "conexoes") return mostrarConexoes();
   if (d.abre === "organizar") { abrirTela("Organizar pastas"); $("centro").innerHTML = ""; organizarComecar(); }
 }
 
@@ -6928,6 +7025,805 @@ async function pedirFormula() {
 
   $("pl-descartar").onclick = () => { alvo.innerHTML = ""; };
   $("pl-inserir").onclick = () => { alvo.innerHTML = ""; gravarCelula(d.formula); };
+}
+
+/* ------------------------ financeiro, relatórios, bem-estar, conexões */
+/*
+   As telas que precisam de história. Todo número aqui é soma do que já está
+   gravado — quando não há lançamento, o número é zero e a tela diz que está
+   vazio, em vez de desenhar um gráfico bonito de dado que ninguém digitou.
+*/
+
+const fim = { fin: null, rel: null, be: null, cx: null, relogio: null };
+
+/* --------------------------------------------------------- financeiro */
+
+async function mostrarFinanceiro() {
+  abrirTela("Financeiro");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">somando…</p></div>';
+
+  try {
+    fim.fin = await (await fetch("/api/financeiro")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+  desenharFinanceiro();
+  atualizarPostura();
+}
+
+function desenharFinanceiro() {
+  const d = fim.fin;
+  const p = d.painel;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Financeiro</h2>" +
+    '<span class="rotulo">' + esc(p.mes_rotulo) + "</span></div>" +
+    '<div class="tela-acoes"><button id="fin-extrato-b">Extrato</button>' +
+    '<button class="primario" id="fin-novo">Novo lançamento</button></div></div>';
+
+  if (!p.tem_dado) {
+    html += '<div class="painel"><h3>Nada lançado ainda</h3>' +
+      '<p class="explica">Todo número desta tela é soma dos lançamentos que existem. ' +
+      "Enquanto não houver nenhum, prefiro mostrar isto a desenhar um gráfico de dado " +
+      "que ninguém digitou.</p>" +
+      '<button class="primario" id="fin-primeiro">Lançar o primeiro</button></div>' +
+      '<div class="rodape-tela">números calculados na sua máquina · nada vai para a nuvem</div></div>';
+    $("centro").innerHTML = html;
+    $("fin-novo").onclick = fichaLancamento;
+    $("fin-primeiro").onclick = fichaLancamento;
+    $("fin-extrato-b").onclick = mostrarExtrato;
+    return;
+  }
+
+  html += '<div class="fin-cartoes">' +
+    cartaoFin("saldo em caixa", p.saldo_texto, p.resultado_mes_texto + " no mês") +
+    cartaoFin("a receber", p.a_receber_texto, p.a_receber_quantos + " cobrança(s) aberta(s)") +
+    cartaoFin("a pagar", p.a_pagar_texto, p.a_pagar_quantos + " conta(s)") +
+    cartaoFin("em atraso", p.atrasado_texto, p.atrasado_quantos + " cobrança(s)", p.atrasado > 0) +
+    "</div>";
+
+  if (d.precisa.length) {
+    html += '<div class="painel" style="margin-top:16px"><h3>Precisa de você</h3>' +
+      d.precisa.map((a, i) =>
+        '<div class="pv-aviso"><span class="pv-grau ' + (a.grau === "urgente" ? "impede" : "") + '">' +
+        (a.grau === "urgente" ? "urgente" : "atenção") + "</span>" +
+        "<span><b>" + esc(a.titulo) + "</b>" +
+        (a.detalhe ? "<br>" + esc(a.detalhe) : "") + "</span>" +
+        (a.acao === "cobrar" ? '<button data-cobrar="' + a.ids[0] + '">Cobrar</button>' : "") +
+        (a.acao === "pagar" ? '<button data-pagar="' + a.ids[0] + '">Marcar como pago</button>' : "") +
+        "</div>").join("") + "</div>";
+  }
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Fluxo de caixa · 6 meses</h3>' +
+    graficoFluxo(d.fluxo) +
+    '<div class="fin-legenda"><span><i class="entrada"></i>entradas</span>' +
+    '<span><i class="saida"></i>saídas</span></div>' +
+    '<p class="explica" style="margin-top:10px">Só o que foi efetivamente recebido ou pago. ' +
+    "O que está em aberto aparece nas listas abaixo, não no gráfico.</p></div>";
+
+  html += '<div class="assinar-colunas" style="margin-top:16px">';
+  html += '<div class="painel"><h3>A receber</h3>' +
+    (d.receber.length
+      ? d.receber.map(linhaFin).join("")
+      : '<p class="explica">Nenhuma cobrança em aberto.</p>') + "</div>";
+  html += '<div class="painel"><h3>A pagar</h3>' +
+    (d.pagar.length
+      ? d.pagar.map(linhaFin).join("")
+      : '<p class="explica">Nenhuma conta em aberto.</p>') + "</div></div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Onde os números moram</h3>' +
+    '<p class="explica">' + esc(d.onde_moram) + "</p></div>";
+
+  html += '<div id="fin-abaixo"></div>' +
+    '<div class="rodape-tela">números calculados na sua máquina · nada vai para a nuvem</div></div>';
+  $("centro").innerHTML = html;
+  ligarFinanceiro();
+}
+
+function cartaoFin(rotulo, valor, abaixo, alerta) {
+  return '<div class="fin-cartao' + (alerta ? " alerta" : "") + '">' +
+    '<span class="rotulo">' + esc(rotulo) + "</span><b>" + esc(valor) + "</b>" +
+    '<span class="abaixo">' + esc(abaixo) + "</span></div>";
+}
+
+function graficoFluxo(meses) {
+  const teto = Math.max(1, ...meses.map((m) => Math.max(m.entradas, m.saidas)));
+  return '<div class="fin-grafico">' + meses.map((m) =>
+    '<div class="fin-mes"><div class="fin-barras">' +
+    '<i class="fin-barra entrada" style="height:' + Math.round(m.entradas * 100 / teto) + '%" title="entradas ' + esc(m.entradas_texto) + '"></i>' +
+    '<i class="fin-barra saida" style="height:' + Math.round(m.saidas * 100 / teto) + '%" title="saídas ' + esc(m.saidas_texto) + '"></i>' +
+    '</div><span class="rotulo">' + esc(m.rotulo) + "</span></div>").join("") + "</div>";
+}
+
+function linhaFin(l) {
+  return '<div class="fin-linha"><span class="cresce corta">' + esc(l.descricao) +
+    (l.cadastro_nome ? ' <span class="num">· ' + esc(l.cadastro_nome) + "</span>" : "") + "</span>" +
+    '<span class="fin-quando' + (l.atrasado ? " atrasado" : "") + '">' + esc(l.situacao) + "</span>" +
+    '<span class="fin-valor ' + (l.tipo === "recebimento" ? "entrada" : "saida") + '">' + esc(l.valor) + "</span>" +
+    '<button data-liquidar="' + l.id + '">' + (l.tipo === "recebimento" ? "Recebi" : "Paguei") + "</button>" +
+    '<button data-editar="' + l.id + '">Editar</button></div>';
+}
+
+function ligarFinanceiro() {
+  $("fin-novo").onclick = fichaLancamento;
+  $("fin-extrato-b").onclick = mostrarExtrato;
+
+  document.querySelectorAll("[data-liquidar]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/financeiro/lancamentos/" + b.dataset.liquidar + "/liquidar", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      mostrarFinanceiro();
+    };
+  });
+  document.querySelectorAll("[data-pagar]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/financeiro/lancamentos/" + b.dataset.pagar + "/liquidar", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      mostrarFinanceiro();
+    };
+  });
+  document.querySelectorAll("[data-editar]").forEach((b) => {
+    b.onclick = () => fichaLancamento(Number(b.dataset.editar));
+  });
+  document.querySelectorAll("[data-cobrar]").forEach((b) => {
+    b.onclick = () => prepararCobranca(Number(b.dataset.cobrar));
+  });
+}
+
+async function fichaLancamento(id) {
+  const d = fim.fin;
+  const alvo = $("fin-abaixo") || $("centro");
+  let atual = {};
+  if (typeof id === "number") {
+    const r = await fetch("/api/financeiro/lancamentos?tipo=&mes=&situacao=");
+    const todos = (await r.json()).lancamentos;
+    atual = todos.find((x) => x.id === id) || {};
+  }
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>' +
+    (atual.id ? "Editar lançamento" : "Novo lançamento") + "</h3>" +
+    '<div class="grade-form">' +
+    '<div class="campo-form"><span class="rotulo">tipo</span><select id="lc-tipo">' +
+    d.tipos.map((t) => '<option value="' + esc(t.valor) + '"' +
+      (atual.tipo === t.valor ? " selected" : "") + ">" + esc(t.rotulo) + "</option>").join("") +
+    "</select></div>" +
+    '<div class="campo-form"><span class="rotulo">descrição</span>' +
+    '<input type="text" id="lc-desc" value="' + esc(atual.descricao || "") + '"></div>' +
+    '<div class="campo-form"><span class="rotulo">valor</span>' +
+    '<input type="text" id="lc-valor" placeholder="12.000,00" value="' +
+    esc(atual.valor ? String(atual.valor).replace("R$ ", "") : "") + '"></div>' +
+    '<div class="campo-form"><span class="rotulo">categoria</span><select id="lc-cat">' +
+    d.opcoes_categoria.map((c) => '<option value="' + esc(c.valor) + '"' +
+      (atual.categoria === c.valor ? " selected" : "") + ">" + esc(c.rotulo) + "</option>").join("") +
+    "</select></div>" +
+    '<div class="campo-form"><span class="rotulo">cliente</span><select id="lc-cliente">' +
+    '<option value="">—</option>' +
+    d.clientes.map((c) => '<option value="' + c.id + '"' +
+      (atual.cadastro_id === c.id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("") +
+    "</select></div>" +
+    '<div class="campo-form"><span class="rotulo">vencimento</span>' +
+    '<input type="date" id="lc-venc" value="' + esc(atual.vencimento || "") + '"></div>' +
+    '<div class="campo-form"><span class="rotulo">já liquidado em</span>' +
+    '<input type="date" id="lc-liq" value="' + esc(atual.liquidado_em || "") + '"></div>' +
+    "</div>" +
+    '<div class="linha-form"><button class="primario" id="lc-salvar">Salvar</button>' +
+    '<button id="lc-cancelar">Cancelar</button>' +
+    (atual.id ? '<button class="perigo direita" id="lc-apagar">Apagar</button>' : "") +
+    "</div>" +
+    (atual.id ? blocoComprovantes(atual) : "") + "</div>";
+
+  $("lc-cancelar").onclick = () => { alvo.innerHTML = ""; };
+  $("lc-salvar").onclick = async () => {
+    const r = await fetch("/api/financeiro/lancamentos", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: atual.id || null, dados: {
+        tipo: $("lc-tipo").value, descricao: $("lc-desc").value, valor: $("lc-valor").value,
+        categoria: $("lc-cat").value, cadastro_id: Number($("lc-cliente").value) || null,
+        vencimento: $("lc-venc").value, liquidado_em: $("lc-liq").value,
+      } }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    mostrarFinanceiro();
+  };
+  const apagar = $("lc-apagar");
+  if (apagar) apagar.onclick = async () => {
+    if (!confirm("Apagar este lançamento e os comprovantes ligados a ele?")) return;
+    await fetch("/api/financeiro/lancamentos/" + atual.id, { method: "DELETE" });
+    mostrarFinanceiro();
+  };
+
+  const campo = $("lc-comprovante");
+  if (campo) {
+    $("lc-anexar").onclick = () => campo.click();
+    campo.onchange = async () => {
+      if (!campo.files[0]) return;
+      const forma = new FormData();
+      forma.append("arquivo", campo.files[0]);
+      const r = await fetch("/api/financeiro/lancamentos/" + atual.id + "/comprovante", {
+        method: "POST", body: forma,
+      });
+      if (!r.ok) { avisoCert(await erroDe(r)); return; }
+      fichaLancamento(atual.id);
+    };
+  }
+}
+
+function blocoComprovantes(l) {
+  return '<div style="margin-top:14px"><span class="rotulo">comprovantes</span>' +
+    ((l.comprovantes || []).length
+      ? l.comprovantes.map((c) =>
+          '<div class="email-anexo"><span class="cresce corta">' + esc(c.nome) + "</span>" +
+          '<span class="num">' + esc(quandoCurto(c.criado_em)) + "</span></div>").join("")
+      : '<p class="explica">Nenhum comprovante anexado.</p>') +
+    '<div class="linha-form"><button id="lc-anexar">Anexar comprovante</button>' +
+    '<input type="file" id="lc-comprovante" hidden></div></div>';
+}
+
+async function prepararCobranca(id) {
+  const r = await fetch("/api/financeiro/cobrar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: id }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+
+  if (d.sem_email) {
+    avisoCert("o cliente " + (d.cliente || "deste lançamento") + " não tem e-mail no cadastro");
+    return;
+  }
+  if (!mail.contas) {
+    try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; }
+  }
+  if (!mail.contas || !mail.contas.contas.length) { marcarDestino("caixa"); return mostrarEmail(); }
+  mail.conta = mail.contas.contas.find((c) => c.em_uso) || mail.contas.contas[0];
+  marcarDestino("caixa");
+  telaEscrever({ para: d.para, assunto: d.assunto, corpo: d.corpo });
+}
+
+async function mostrarExtrato() {
+  const alvo = $("fin-abaixo") || $("centro");
+  alvo.innerHTML = '<p class="nota">montando o extrato…</p>';
+  const e = await (await fetch("/api/financeiro/extrato")).json();
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Extrato de ' + esc(e.mes_rotulo) + "</h3>" +
+    (e.linhas.length
+      ? '<table class="fin-extrato"><thead><tr><th>data</th><th>lançamento</th>' +
+        '<th class="num">valor</th><th class="num">saldo</th></tr></thead><tbody>' +
+        e.linhas.map((l) =>
+          "<tr><td>" + esc(l.dia) + "</td>" +
+          "<td>" + esc(l.descricao) +
+          '<br><span class="rotulo">' + esc(l.categoria_rotulo) +
+          (l.comprovantes ? " · " + l.comprovantes + " comprovante(s)" : " · sem comprovante") + "</span></td>" +
+          '<td class="num ' + (l.movimento >= 0 ? "" : "") + '">' + esc(l.movimento_texto) + "</td>" +
+          '<td class="num">' + esc(l.saldo_texto) + "</td></tr>").join("") +
+        "</tbody></table>" +
+        '<p class="explica" style="margin-top:12px">' + e.linhas.length + " lançamento(s) no mês · " +
+        "saldo em caixa " + esc(e.saldo_final_texto) + " · resultado " + esc(e.resultado_texto) + "</p>"
+      : '<p class="explica">Nenhum lançamento liquidado neste mês. O extrato mostra o que ' +
+        "aconteceu; o que está previsto fica nas listas de aberto.</p>") + "</div>";
+}
+
+/* --------------------------------------------------------- relatórios */
+
+async function mostrarRelatorios() {
+  abrirTela("Relatórios");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">juntando o que já está gravado…</p></div>';
+
+  try {
+    fim.rel = await (await fetch("/api/relatorios")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+  desenharRelatorios();
+  atualizarPostura();
+}
+
+function desenharRelatorios() {
+  const d = fim.rel;
+  const dia = d.dia;
+  const mes = d.mes;
+  const t = dia.tarefas;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Relatórios</h2>" +
+    '<span class="rotulo">' + esc(dia.rotulo) + " · montado nesta máquina</span></div>" +
+    '<div class="tela-acoes"><button id="rel-pdf">Baixar PDF</button>' +
+    '<button class="primario" id="rel-parecer">Pedir o parecer</button></div></div>';
+
+  if (d.vazio) {
+    html += '<div class="painel"><h3>Ainda não há história para resumir</h3>' +
+      '<p class="explica">Este relatório soma o que as outras telas gravaram: tarefas ' +
+      "concluídas, lançamentos, documentos assinados, e-mails enviados e o que você aprovou " +
+      "na fila. Nada disso aconteceu ainda — e um relatório de escritório vazio com números " +
+      "bonitos seria pior que este aviso.</p>" +
+      '<button class="primario" id="rel-tarefas">Abrir as tarefas</button></div>' +
+      '<div class="rodape-tela">relatório montado na sua máquina · nenhum dado saiu</div></div>';
+    $("centro").innerHTML = html;
+    $("rel-pdf").onclick = baixarRelatorio;
+    $("rel-parecer").onclick = pedirParecer;
+    $("rel-tarefas").onclick = () => { marcarDestino("tarefas"); mostrarTarefas(); };
+    return;
+  }
+
+  html += '<div class="assinar-colunas"><div>';
+
+  html += '<div class="painel"><h3>Tarefas do dia</h3>' +
+    '<p class="explica">' + t.feitas.length + " de " + t.planejado + " feitas · " + t.percentual + "%</p>" +
+    t.feitas.map((x) =>
+      '<div class="rel-tarefa feita"><span class="rel-marca feita">✓</span>' +
+      '<span class="cresce corta">' + esc(x.titulo) + "</span>" +
+      '<span class="num">' + esc(x.hora) + "</span></div>").join("") +
+    t.abertas.map((x) =>
+      '<div class="rel-tarefa"><span class="rel-marca"></span>' +
+      '<span class="cresce corta">' + esc(x.titulo) + "</span>" +
+      '<span class="num">' + esc(x.quando) + "</span></div>").join("") +
+    (t.planejado ? "" : '<p class="explica">Nada estava no Meu dia nem vencia hoje.</p>') +
+    "</div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Números do dia</h3>' +
+    '<div class="rel-numeros">' +
+    numeroRel("documentos assinados", dia.assinaturas.length) +
+    numeroRel("e-mails enviados", dia.emails.length) +
+    numeroRel("versões gravadas", dia.versoes) +
+    numeroRel("compromissos", dia.compromissos) +
+    (dia.medido.tempo_ativo ? numeroRel("tempo ativo", dia.medido.tempo_ativo) : "") +
+    (dia.medido.pausas !== undefined ? numeroRel("pausas", dia.medido.pausas) : "") +
+    "</div>" +
+    (dia.sem_medicao
+      ? '<p class="explica" style="margin-top:10px">Tempo no escritório não aparece porque o ' +
+        "acompanhamento de bem-estar está desligado. Prefiro não mostrar a estimar." +
+        ' <button class="pastilha" id="rel-ir-foco">Ligar em Foco e bem-estar</button></p>'
+      : "") + "</div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Extrato de ' + esc(mes.rotulo) + "</h3>" +
+    (mes.extrato.linhas.length
+      ? '<p class="explica">Entradas ' + esc(mes.entradas_texto) + " · saídas " + esc(mes.saidas_texto) +
+        " · resultado " + esc(mes.extrato.resultado_texto) + " · saldo " + esc(mes.extrato.saldo_final_texto) + "</p>" +
+        mes.extrato.linhas.slice(-6).map((l) =>
+          '<div class="fin-linha"><span class="num">' + esc(l.dia) + "</span>" +
+          '<span class="cresce corta">' + esc(l.descricao) + "</span>" +
+          '<span class="fin-valor">' + esc(l.movimento_texto) + "</span></div>").join("")
+      : '<p class="explica">Nenhum lançamento liquidado neste mês.</p>') +
+    (mes.comparacao.tem_base
+      ? '<div class="pl-status" style="margin-top:12px"><span>entradas ' + esc(mes.comparacao.entradas.texto) + "</span>" +
+        "<span>saídas " + esc(mes.comparacao.saidas.texto) + "</span>" +
+        "<span>vs " + esc(mes.comparacao.mes_anterior) + "</span></div>"
+      : '<p class="explica" style="margin-top:10px">Sem lançamento em ' + esc(mes.comparacao.mes_anterior) +
+        ", não dá para comparar com o mês passado.</p>") +
+    (mes.prazo_medio.tem
+      ? '<p class="explica">Prazo médio de recebimento: ' + mes.prazo_medio.dias + " dia(s), sobre " +
+        mes.prazo_medio.quantos + " recebimento(s).</p>"
+      : '<p class="explica">Prazo médio: ' + esc(mes.prazo_medio.porque) + ".</p>") +
+    "</div>";
+
+  html += "</div><div>";
+
+  html += '<div class="painel"><h3>Ações aprovadas por você</h3>' +
+    '<p class="explica">Cada linha é um pedido que passou pela fila e guardou o resultado.</p>' +
+    (dia.acoes.length
+      ? dia.acoes.map((a) =>
+          '<div class="rel-acao"><span class="fin-quando">' + esc(a.hora) + "</span>" +
+          "<span><b>" + esc(a.titulo) + "</b><br>" +
+          '<span class="rotulo">' + esc(a.categoria_rotulo) + " · " +
+          esc(a.resultado || a.estado) + "</span></span></div>").join("")
+      : '<p class="explica">Nada foi aprovado hoje.</p>') + "</div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Parecer sobre o seu dia</h3>' +
+    '<p class="explica">Eu escrevo sobre os números acima — que foram calculados aqui, não ' +
+    "por mim. Leva cerca de um minuto nesta máquina.</p>" +
+    '<div id="rel-texto"></div></div>';
+
+  html += "</div></div>";
+  html += '<div class="rodape-tela">relatório montado na sua máquina · nenhum dado saiu</div></div>';
+  $("centro").innerHTML = html;
+
+  $("rel-pdf").onclick = baixarRelatorio;
+  $("rel-parecer").onclick = pedirParecer;
+  const irFoco = $("rel-ir-foco");
+  if (irFoco) irFoco.onclick = () => { marcarDestino("foco"); mostrarFoco(); };
+}
+
+function numeroRel(rotulo, valor) {
+  return '<div class="rel-numero"><span class="rotulo">' + esc(rotulo) + "</span>" +
+    "<b>" + esc(String(valor)) + "</b></div>";
+}
+
+function baixarRelatorio() {
+  const forma = document.createElement("form");
+  forma.method = "POST";
+  forma.action = "/api/relatorios/pdf";
+  document.body.appendChild(forma);
+  forma.submit();
+  forma.remove();
+}
+
+async function pedirParecer() {
+  const alvo = $("rel-texto") || $("centro");
+  alvo.innerHTML = '<p class="nota">escrevendo… cerca de um minuto nesta máquina</p>';
+
+  const r = await fetch("/api/relatorios/parecer", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+  });
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+
+  const d = await r.json();
+  alvo.innerHTML = '<div class="rel-parecer">' + esc(d.parecer) + "</div>" +
+    '<p class="explica" style="margin-top:12px">' + esc(d.aviso) + "</p>" +
+    '<div class="linha-form"><button class="pastilha" id="rel-ver-numeros">Ver os números que usei</button></div>' +
+    '<div id="rel-numeros-crus"></div>';
+  $("rel-ver-numeros").onclick = () => {
+    $("rel-numeros-crus").innerHTML = '<div class="email-corpo" style="margin-top:10px">' +
+      esc(d.numeros) + "</div>";
+  };
+}
+
+/* ------------------------------------------------------ foco e bem-estar */
+
+async function mostrarFoco() {
+  abrirTela("Foco e bem-estar");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  try {
+    fim.be = await (await fetch("/api/bemestar")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+  desenharFoco();
+  atualizarPostura();
+}
+
+function desenharFoco() {
+  const d = fim.be;
+  const h = d.hoje;
+  const c = d.ciclo;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Foco e bem-estar</h2>" +
+    '<span class="rotulo">' +
+    (h.medindo ? "ativo " + esc(h.ativo_texto) + " hoje" : "acompanhamento desligado") +
+    "</span></div>" +
+    '<div class="tela-acoes"><button id="be-medir">' +
+    (h.medindo ? "Desligar acompanhamento" : "Ligar acompanhamento") + "</button></div></div>";
+
+  if (d.alerta) {
+    html += '<div class="cert-aviso"><strong>' + esc(d.alerta.titulo) + "</strong>" +
+      "<p>" + esc(d.alerta.detalhe) + "</p>" +
+      '<div class="linha-form"><button class="primario" id="be-pausar-ja">Pausar 5 min</button>' +
+      '<button id="be-depois">Mais tarde</button></div></div>';
+  }
+
+  html += '<div class="assinar-colunas"><div>';
+
+  html += '<div class="painel"><h3>Ciclo de foco</h3>' +
+    '<div class="be-relogio ' + (c.estado === "pausa" ? "pausa" : "") + '" id="be-relogio">' +
+    esc(c.estado === "parado" ? String(c.foco_min).padStart(2, "0") + ":00" : c.restante_texto) + "</div>" +
+    '<div class="be-fase"><span class="rotulo">' +
+    (c.estado === "parado" ? "parado" : (c.estado === "foco" ? "foco · ciclo " + c.numero : "pausa")) +
+    "</span></div>" +
+    '<div class="be-trilho"><i id="be-trilho" style="width:0%"></i></div>' +
+    (c.tarefa ? '<p class="explica">tarefa deste ciclo: ' + esc(c.tarefa) + "</p>" : "") +
+    '<div class="linha-form">' +
+    (c.estado === "parado"
+      ? '<button class="primario" id="be-comecar">Começar</button>'
+      : '<button class="primario" id="be-pausa">Ir para a pausa</button>' +
+        '<button id="be-parar">Parar</button>') +
+    "</div>" +
+    '<div class="linha-form"><span class="rotulo">foco</span>' +
+    '<select id="be-foco">' + [15, 25, 45, 50, 90].map((m) =>
+      '<option value="' + m + '"' + (c.foco_min === m ? " selected" : "") + ">" + m + " min</option>").join("") +
+    "</select>" +
+    '<span class="rotulo">pausa</span>' +
+    '<select id="be-pausa-min">' + [5, 10, 15].map((m) =>
+      '<option value="' + m + '"' + (c.pausa_min === m ? " selected" : "") + ">" + m + " min</option>").join("") +
+    "</select></div></div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Como está seu dia</h3>' +
+    '<div class="rel-numeros">' +
+    numeroRel("tempo ativo", h.medindo || h.minutos_ativos ? h.ativo_texto : "—") +
+    numeroRel("ciclos", h.ciclos) +
+    numeroRel("pausas", h.pausas) +
+    numeroRel("água", h.copos_agua + " copo(s)") +
+    numeroRel("maior sequência", h.seguida_texto) +
+    "</div>" +
+    '<p class="explica" style="margin-top:12px">' + esc(d.como_mede) + "</p>" +
+    (h.da_para_medir ? "" : '<p class="explica">Neste sistema não consigo medir atividade — ' +
+      "o ciclo de foco e os lembretes continuam funcionando.</p>") + "</div>";
+
+  html += "</div><div>";
+
+  html += '<div class="painel"><h3>Lembretes de hoje</h3>' +
+    d.lembretes.map((l) =>
+      '<div class="be-lembrete' + (l.cumprido ? " cumprido" : "") + '">' +
+      '<span class="cresce"><b>' + esc(l.titulo) + "</b><br>" +
+      '<span class="rotulo">a cada ' + l.cada_min + " min · " + esc(l.meta_texto) +
+      (l.proximo ? " · próximo " + esc(l.proximo) : "") + "</span>" +
+      (l.atrasado_min > 20 ? ' <span class="be-atraso">atrasado ' + l.atrasado_min + " min</span>" : "") +
+      "</span>" +
+      '<button data-feito="' + l.id + '">Feito</button>' +
+      '<button class="perigo" data-tirar-lem="' + l.id + '">×</button></div>').join("") +
+    '<div class="linha-form"><button id="be-novo-lembrete">Novo lembrete</button></div>' +
+    '<p class="explica">Tocam só nesta máquina.</p></div>';
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Semana</h3>' +
+    (d.semana.tem_dado
+      ? '<div class="be-semana">' + d.semana.dias.map((x) => {
+          const teto = Math.max(1, ...d.semana.dias.map((y) => y.minutos_ativos));
+          return '<div class="be-dia"><div class="be-coluna">' +
+            '<i style="height:' + Math.round(x.minutos_ativos * 100 / teto) + '%"></i></div>' +
+            '<span class="rotulo">' + esc(x.rotulo) + "</span></div>";
+        }).join("") + "</div>" +
+        '<div class="pl-status"><span>ciclos ' + d.semana.ciclos + "</span>" +
+        "<span>pausas " + d.semana.pausas + "</span>" +
+        "<span>água " + String(d.semana.agua_media).replace(".", ",") + "/dia</span>" +
+        "<span>maior " + esc(d.semana.maior_seguida_texto) + "</span></div>" +
+        (d.semana.dias_com_dado < 3
+          ? '<p class="explica" style="margin-top:10px">' + d.semana.dias_com_dado +
+            " dia(s) com medição. Ainda é pouco para falar de padrão da semana.</p>"
+          : "")
+      : '<p class="explica">Nenhum dia com medição ainda. Ligue o acompanhamento e a semana ' +
+        "aparece aqui — sem isso, qualquer gráfico seria invenção.</p>") + "</div>";
+
+  html += "</div></div>";
+  html += '<div class="rodape-tela">dados de bem-estar ficam só nesta máquina</div></div>';
+  $("centro").innerHTML = html;
+  ligarFoco();
+}
+
+function ligarFoco() {
+  const c = fim.be.ciclo;
+
+  $("be-medir").onclick = async () => {
+    const r = await fetch("/api/bemestar/medir", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ligar: !fim.be.hoje.medindo }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    fim.be = await r.json();
+    desenharFoco();
+  };
+
+  const comecar = $("be-comecar");
+  if (comecar) comecar.onclick = async () => {
+    const r = await fetch("/api/bemestar/ciclo", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ foco: Number($("be-foco").value), pausa: Number($("be-pausa-min").value) }),
+    });
+    fim.be.ciclo = await r.json();
+    desenharFoco();
+  };
+  const pausa = $("be-pausa");
+  if (pausa) pausa.onclick = irParaPausa;
+  const parar = $("be-parar");
+  if (parar) parar.onclick = async () => {
+    fim.be.ciclo = await (await fetch("/api/bemestar/parar", { method: "POST" })).json();
+    mostrarFoco();
+  };
+  const pausarJa = $("be-pausar-ja");
+  if (pausarJa) pausarJa.onclick = irParaPausa;
+  const depois = $("be-depois");
+  if (depois) depois.onclick = () => { fim.be.alerta = null; desenharFoco(); };
+
+  document.querySelectorAll("[data-feito]").forEach((b) => {
+    b.onclick = async () => {
+      const r = await fetch("/api/bemestar/lembretes/" + b.dataset.feito + "/feito", { method: "POST" });
+      if (!r.ok) return;
+      const d = await r.json();
+      fim.be.lembretes = d.lembretes;
+      fim.be.hoje = d.hoje;
+      desenharFoco();
+    };
+  });
+  document.querySelectorAll("[data-tirar-lem]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/bemestar/lembretes/" + b.dataset.tirarLem, { method: "DELETE" });
+      mostrarFoco();
+    };
+  });
+  $("be-novo-lembrete").onclick = async () => {
+    const titulo = prompt("O que lembrar?");
+    if (!titulo) return;
+    const cada = prompt("A cada quantos minutos?", "60");
+    await fetch("/api/bemestar/lembretes", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dados: { titulo: titulo, cada_min: Number(cada) || 60 } }),
+    });
+    mostrarFoco();
+  };
+
+  clearInterval(fim.relogio);
+  if (c.estado !== "parado") fim.relogio = setInterval(tiquetaque, 1000);
+}
+
+async function irParaPausa() {
+  fim.be.ciclo = await (await fetch("/api/bemestar/pausa", { method: "POST" })).json();
+  mostrarFoco();
+}
+
+async function tiquetaque() {
+  const alvo = $("be-relogio");
+  if (!alvo) { clearInterval(fim.relogio); return; }
+
+  const c = await (await fetch("/api/bemestar/ciclo")).json();
+  alvo.textContent = c.restante_texto;
+  const trilho = $("be-trilho");
+  if (trilho && c.duracao) {
+    trilho.style.width = Math.round((1 - c.restante / c.duracao) * 100) + "%";
+  }
+  if (c.acabou) {
+    clearInterval(fim.relogio);
+    fim.be.ciclo = c;
+    avisoCert(c.estado === "foco" ? "ciclo de foco terminado — hora da pausa" : "pausa terminada");
+    mostrarFoco();
+  }
+}
+
+/* ------------------------------------------------------------ conexões */
+
+async function mostrarConexoes() {
+  abrirTela("Conexões");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  try {
+    fim.cx = await (await fetch("/api/conexoes")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+  desenharConexoes();
+  atualizarPostura();
+}
+
+function desenharConexoes() {
+  const d = fim.cx;
+  const s = d.sessao;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Conexões</h2>" +
+    '<span class="rotulo">navegador embutido · você entra com a sua própria conta</span></div>' +
+    '<div class="tela-acoes"><button class="primario" id="cx-abrir">Abrir WhatsApp Web</button></div></div>';
+
+  html += '<div class="cert-aviso"><strong>Esta é a única tela que vai para a internet</strong>' +
+    "<p>" + esc(d.aviso_internet) + "</p></div>";
+  html += '<div class="assinar-colunas" style="margin-top:16px"><div>';
+
+  html += '<div class="painel"><h3>Preparar uma mensagem</h3>' +
+    '<p class="explica">Eu abro a conversa com o texto já escrito. Apertar enviar é com você.</p>' +
+    '<div class="email-campos">' +
+    '<div class="email-campo"><span class="rotulo">contato</span>' +
+    '<select id="cx-contato"><option value="">escolher do cadastro…</option></select></div>' +
+    '<div class="email-campo"><span class="rotulo">telefone</span>' +
+    '<input type="text" id="cx-telefone" placeholder="(62) 99999-8888"></div>' +
+    "</div>" +
+    '<textarea class="email-texto" id="cx-texto" style="margin-top:10px;min-height:120px" ' +
+    'placeholder="escreva a mensagem…"></textarea>' +
+    '<div class="linha-form"><button id="cx-anexar">Anexar da biblioteca</button>' +
+    '<button class="primario" id="cx-preparar">Preparar no WhatsApp</button></div>' +
+    '<div id="cx-anexo"></div><div id="cx-saida"></div></div>';
+
+  html += '<div class="painel" style="margin-top:16px"><h3>O que eu faço aqui</h3>' +
+    d.o_que_faco.map((o) =>
+      '<div class="cx-faz"><span class="cx-marca ' + (o.faz ? "sim" : "nao") + '">' +
+      (o.faz ? "faço" : "não faço") + "</span><span>" + esc(o.texto) + "</span></div>").join("") +
+    '<p class="explica" style="margin-top:12px">' + esc(d.porque_nao) + "</p></div>";
+
+  html += "</div><div>";
+
+  html += '<div class="painel"><h3>Sessão</h3>' +
+    '<div class="pl-status"><span>' + (s.existe ? "guardada nesta máquina" : "não conectada") + "</span>" +
+    (s.existe ? "<span>" + s.tamanho_kb + " KB</span>" : "") +
+    (s.ultimo_acesso ? "<span>último acesso " + esc(quandoCurto(s.ultimo_acesso)) + "</span>" : "") +
+    "</div>" +
+    '<div class="cx-endereco" style="margin-top:10px">' + esc(s.pasta) + "</div>" +
+    '<p class="explica" style="margin-top:10px">A sessão fica nesta pasta. Apagar é apagar de ' +
+    "verdade: o WhatsApp pede o código de novo.</p>" +
+    (s.existe ? '<button class="perigo" id="cx-apagar">Apagar sessão</button>' : "") +
+    (d.janela_embutida ? "" :
+      '<p class="explica" style="margin-top:12px">A janela embutida existe quando o PAULUS roda ' +
+      "como programa (<code>python src/desktop.py</code>). No navegador eu abro numa aba, e a " +
+      "sessão passa a ser a do seu navegador — digo isso em vez de fingir que é igual.</p>") +
+    "</div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Preparadas aqui</h3>' +
+    (d.envios.length
+      ? d.envios.map((e) =>
+          '<div class="reg-linha"><span class="cresce corta">' +
+          esc(e.nome || e.para) + "</span>" +
+          (e.anexo ? '<span class="num">' + esc(e.anexo) + "</span>" : "") +
+          '<span class="num">' + esc(quandoCurto(e.quando)) + "</span></div>").join("")
+      : '<p class="explica">Nada preparado ainda. Guardo para quem e quando — nunca o texto ' +
+        "da mensagem: ele já está na sua conversa.</p>") + "</div>";
+
+  html += "</div></div>";
+  html += '<div class="rodape-tela">o navegador só abre este endereço · nada é copiado para fora</div></div>';
+  $("centro").innerHTML = html;
+  ligarConexoes();
+}
+
+async function ligarConexoes() {
+  let anexo = "";
+
+  $("cx-abrir").onclick = async () => {
+    const r = await (await fetch("/api/conexoes/abrir", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    })).json();
+    if (r.abriu) { avisoCert("janela do WhatsApp Web aberta"); return; }
+    avisoCert(r.motivo);
+    window.open(r.endereco, "_blank");
+  };
+
+  const apagar = $("cx-apagar");
+  if (apagar) apagar.onclick = async () => {
+    if (!confirm("Apagar a sessão do WhatsApp desta máquina? Você vai precisar ler o código de novo.")) return;
+    const r = await (await fetch("/api/conexoes/sessao/apagar", { method: "POST" })).json();
+    avisoCert(r.aviso);
+    mostrarConexoes();
+  };
+
+  try {
+    const c = await (await fetch("/api/conexoes/contatos")).json();
+    const alvo = $("cx-contato");
+    c.contatos.forEach((x) => {
+      const op = document.createElement("option");
+      op.value = x.telefone;
+      op.textContent = x.nome + " · " + x.telefone;
+      alvo.appendChild(op);
+    });
+    alvo.onchange = () => { $("cx-telefone").value = alvo.value; };
+  } catch (err) { /* sem cadastro com telefone, o campo fica manual */ }
+
+  $("cx-anexar").onclick = async () => {
+    const d = await (await fetch("/api/email/anexaveis")).json();
+    $("cx-anexo").innerHTML = '<div style="margin-top:10px">' +
+      (d.arquivos.length
+        ? d.arquivos.slice(0, 20).map((a) =>
+            '<div class="email-anexo"><span class="cresce corta">' + esc(a.nome) + "</span>" +
+            '<button data-cx-anexo="' + esc(a.path) + '">Escolher</button></div>').join("")
+        : '<p class="explica">A biblioteca está vazia.</p>') + "</div>";
+    document.querySelectorAll("[data-cx-anexo]").forEach((b) => {
+      b.onclick = () => {
+        anexo = b.dataset.cxAnexo;
+        $("cx-anexo").innerHTML = '<p class="explica">anexo: ' +
+          esc(anexo.split(/[\\/]/).pop()) + "</p>";
+      };
+    });
+  };
+
+  $("cx-preparar").onclick = async () => {
+    const r = await fetch("/api/conexoes/mensagem", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        telefone: $("cx-telefone").value,
+        nome: ($("cx-contato").selectedOptions[0] || {}).textContent || "",
+        texto: $("cx-texto").value,
+        anexo: anexo,
+      }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+
+    $("cx-saida").innerHTML = '<div class="ed-sugestao" style="margin-top:12px">' +
+      '<span class="rotulo">conversa pronta</span>' +
+      '<p class="explica">' + esc(d.aviso) + "</p>" +
+      '<div class="cx-endereco">' + esc(d.endereco) + "</div>" +
+      (d.anexo ? '<p class="explica">anexo: ' + esc(d.anexo) + " — em " + esc(d.pasta_do_anexo) + "</p>" : "") +
+      '<div class="linha-form"><button class="primario" id="cx-ir">Abrir a conversa</button></div></div>';
+    $("cx-ir").onclick = async () => {
+      const a = await (await fetch("/api/conexoes/abrir", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endereco: d.endereco }),
+      })).json();
+      if (!a.abriu) window.open(d.endereco, "_blank");
+    };
+  };
 }
 
 /* ------------------------------------------------------------- inicio */

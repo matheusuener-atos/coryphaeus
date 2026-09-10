@@ -4,13 +4,13 @@ PAULUS - Destinos do menu lateral.
 O manual do sistema define 26 telas, 20 delas no menu, em quatro grupos. Este
 modulo e a ordem oficial desse menu.
 
-Dezesseis telas tem motor por tras hoje. As outras quatro entram na lista com
-`pronta=False`: o menu mostra o produto inteiro, e quem clica numa que ainda
-nao existe recebe o que ela vai resolver e o que falta para ela existir - nao
-uma tela em branco nem um botao morto.
+As vinte tem motor por tras. Enquanto faltava alguma, ela entrava na lista com
+`pronta=False` e dizia o que resolveria e o que faltava para existir - nao uma
+tela em branco, nem um botao morto.
 
-Listar so o que ja funciona esconderia o mapa; desenhar as quatro com dado
-inventado seria pior. A terceira saida e dizer.
+O campo `pronta` continua aqui de proposito. Tela nova nasce falsa e so vira
+verdadeira quando ha o que abrir; e mais facil declarar o que falta do que
+descobrir depois que um botao do menu nao levava a lugar nenhum.
 """
 
 from __future__ import annotations
@@ -58,9 +58,9 @@ DESTINOS: list[Destino] = [
         resolve="Lista do escritório com prazo, etapas e a origem de cada tarefa.",
     ),
     Destino(
-        id="foco", nome="Foco e bem-estar", grupo="Dia a dia", icone="coracao",
-        resolve="Ritmo do dia, pausas e quanto tempo o computador ficou ocupado por você.",
-        precisa=["histórico de uso da máquina"],
+        id="foco", nome="Foco e bem-estar", grupo="Dia a dia", icone="coracao", pronta=True,
+        abre="foco",
+        resolve="Ciclo de foco, lembretes e o ritmo do dia medido sem ler o que você digita."
     ),
     # ----------------------------------------------------------- documentos
     Destino(
@@ -90,9 +90,9 @@ DESTINOS: list[Destino] = [
     ),
     # ----------------------------------------------------------- escritorio
     Destino(
-        id="financeiro", nome="Financeiro", grupo="Escritorio", icone="moeda",
-        resolve="Contas a pagar e receber, honorários e o parecer do mês.",
-        precisa=["lançamentos guardados", "permissão separada para o financeiro"],
+        id="financeiro", nome="Financeiro", grupo="Escritorio", icone="moeda", pronta=True,
+        abre="financeiro",
+        resolve="Contas a pagar e receber, honorários e o extrato do mês."
     ),
     Destino(
         id="cadastros", nome="Cadastros", grupo="Escritorio", icone="pessoa", pronta=True,
@@ -110,9 +110,9 @@ DESTINOS: list[Destino] = [
         resolve="Fila do que espera a sua decisão antes de sair da máquina.",
     ),
     Destino(
-        id="relatorios", nome="Relatórios", grupo="Escritorio", icone="grafico",
-        resolve="O que aconteceu no escritório, resumido por período.",
-        precisa=["histórico acumulado de pelo menos um dia"],
+        id="relatorios", nome="Relatórios", grupo="Escritorio", icone="grafico", pronta=True,
+        abre="relatorios",
+        resolve="O que aconteceu no escritório, somado do que as outras telas gravaram."
     ),
     # -------------------------------------------------------------- sistema
     Destino(
@@ -126,9 +126,9 @@ DESTINOS: list[Destino] = [
         resolve="Cadastro do e-CPF ou e-CNPJ em arquivo A1, validade e o selo de assinatura.",
     ),
     Destino(
-        id="conexoes", nome="Conexões", grupo="Sistema", icone="elo",
-        resolve="Navegador embutido para WhatsApp Web e outros serviços do escritório.",
-        precisa=["navegador embutido com sessão persistente"],
+        id="conexoes", nome="Conexões", grupo="Sistema", icone="elo", pronta=True,
+        abre="conexoes",
+        resolve="Navegador embutido para o WhatsApp Web, com sessão só desta máquina."
     ),
     Destino(
         id="desempenho", nome="Desempenho", grupo="Sistema", icone="medidor", pronta=True,

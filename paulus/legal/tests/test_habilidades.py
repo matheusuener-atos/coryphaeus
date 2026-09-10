@@ -276,13 +276,18 @@ def test_destinos() -> None:
         "destino pronto abre algo que a interface conhece",
     )
 
+    # Nao se exige que haja tela por construir - houve durante todo o caminho,
+    # e deixou de haver na Etapa 7. O que tem que valer sempre e a regra: ou a
+    # tela abre algo, ou ela diz o que falta. Nunca as duas, nunca nenhuma.
     adiante = [d for d in destinos.DESTINOS if not d.pronta]
-    checar(bool(adiante), "o menu admite o que ainda nao existe")
     checar(all(not d.abre for d in adiante), "destino nao construido nao finge ter tela")
     checar(all(d.precisa for d in adiante), "destino nao construido diz o que falta")
+    checar(all(not d.precisa for d in prontos),
+           "destino pronto nao fica pedindo o que ja tem")
 
     c = destinos.contagem()
-    checar(c["prontas"] < c["total"], "a contagem nao mente sobre o que existe")
+    checar(c["prontas"] == len(prontos) and c["prontas"] <= c["total"],
+           f"a contagem confere com a lista ({c['prontas']} de {c['total']})")
     checar(destinos.obter("conversa") is not None, "acha destino por id")
     checar(destinos.obter("nao-existe") is None, "id desconhecido devolve None")
 

@@ -112,7 +112,12 @@ def main() -> int:
         height=860,
         min_size=(900, 620),
     )
-    webview.start()
+    # private_mode=False com storage_path guarda a sessao do navegador embutido
+    # numa pasta do proprio programa. E o que faz a tela de Conexoes valer a
+    # pena: sem isso, o WhatsApp Web pediria o codigo a cada abertura.
+    sessoes = Path(__file__).parent.parent / "data" / "sessoes"
+    sessoes.mkdir(parents=True, exist_ok=True)
+    webview.start(private_mode=False, storage_path=str(sessoes))
 
     servidor.should_exit = True
     return 0

@@ -43,3 +43,11 @@ data/certificado/
 data/contas_email.json
 data/envios.json
 data/assinaturas.json
+
+# Etapa 7. A sessao do navegador embutido guarda o token da conta de WhatsApp
+# do escritorio - versionar isso e entregar a conta. Comprovantes e lancamentos
+# sao dado financeiro do cliente.
+data/sessoes/
+data/conexoes.json
+data/comprovantes/
+data/clausulas.json

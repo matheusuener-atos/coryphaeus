@@ -12,19 +12,37 @@ informação que muda a ordem.
 
 ## Onde estamos
 
-| Pronto | Motor por trás |
+As vinte telas do manual têm motor por trás. A tabela diz o que sustenta cada
+uma — porque "pronta" sem isso é só um botão que abre uma tela.
+
+| Tela | Motor por trás |
 |---|---|
 | Conversa | extração, busca BM25, assistente local, conversas persistidas |
-| Biblioteca | índice de documentos + cache de classificação |
-| Organizar pastas | varredura, classificação híbrida, plano, diário, desfazer |
-| Aprendizado | registro de habilidades carregado da pasta |
-| Desempenho | leitura real de processador, memória e vídeo |
-| Aprovações | fila persistida, com execução após o sim |
-| Configurações | preferências, autonomia e dados profissionais |
-| Cadastros | base local, com sugestões vindas dos documentos lidos |
-| Tarefas | base local, com prazo, etapas e vínculo a cliente |
 | Calendário | grade que junta compromisso, prazo e data de documento |
 | Agendamento | horários livres pela disponibilidade da pessoa |
+| Tarefas | base local, com prazo, etapas e vínculo a cliente |
+| Foco e bem-estar | tempo ocioso do sistema, sem ler tecla; totais por dia |
+| Biblioteca | índice de documentos + cache de classificação |
+| Organizar pastas | varredura, classificação híbrida, plano, diário, desfazer |
+| Editor de texto | HTML → blocos → PDF e DOCX pelo mesmo caminho; versões |
+| Planilha | analisador de fórmula escrito à mão, em português brasileiro |
+| Assinar documento | PAdES com certificado A1, via pyHanko |
+| Financeiro | lançamentos em centavos inteiros, extrato com saldo correndo |
+| Cadastros | base local, com sugestões vindas dos documentos lidos |
+| Caixa de entrada | IMAP e SMTP, cabeçalho primeiro, prazo por regra |
+| Aprovações | fila persistida, com execução após o sim |
+| Relatórios | soma do que as outras telas gravaram; parecer só depois |
+| Aprendizado | registro de habilidades carregado da pasta |
+| Certificado digital | leitura do .pfx, DPAPI para a senha, aviso de ICP-Brasil |
+| Conexões | janela presa a um endereço, sessão só desta máquina |
+| Desempenho | leitura real de processador, memória e vídeo |
+| Configurações | preferências, autonomia e dados profissionais |
+
+O que continua não existindo, e por quê, está escrito nas etapas: citação de
+código de lei (não carrego o texto das leis), assinatura por token A3 (driver
+PKCS#11 por fabricante), OAuth de e-mail (semanas de revisão antes da primeira
+linha funcionar), automação do WhatsApp Web (dirigir a tela de um site de
+terceiro) e permissão por pessoa no financeiro (pertence a um PAULUS de equipe).
 
 ---
 
@@ -273,7 +291,7 @@ comparação entre elas cobrem o resto.
 
 ---
 
-## Etapa 7 — O que precisa de história
+## Etapa 7 — O que precisa de história ✓ FEITA
 
 **Telas:** Financeiro · Conexões · Relatórios · Foco e bem-estar
 **Tamanho:** médio cada
@@ -282,9 +300,56 @@ comparação entre elas cobrem o resto.
 Relatórios e Foco só existem depois que houver histórico acumulado — antes
 disso, mostram gráfico vazio ou, pior, número inventado.
 
-Financeiro pede permissão separada: nem todo mundo no escritório vê o
-financeiro. Conexões é o navegador embutido para WhatsApp Web, independente do
-resto.
+Entregue. Com ela o menu fecha: **20 telas de 20, todas com motor**.
+
+Esta é a etapa em que inventar número era mais fácil e mais tentador — as
+quatro telas mostram totais, médias e gráficos. A regra do manual ("número na
+tela é número medido, sem placeholder, sem estimativa") virou o critério de
+cada decisão, e os testes cobrem justamente isso: sem lançamento o painel dá
+zero e diz que está vazio; média de dois recebimentos não vira "prazo médio";
+sem medição ligada o relatório omite o tempo em vez de estimar.
+
+**Financeiro.** Dinheiro em centavos inteiros, nunca em ponto flutuante: somar
+0,1 + 0,2 em float dá 0,30000000000000004, e num extrato de honorários o erro
+aparece depois de algumas dezenas de lançamentos. Saldo em caixa é o que
+entrou menos o que saiu — dinheiro liquidado, não previsto; chamar de "saldo"
+uma soma que inclui o que ainda não foi pago seria mostrar um caixa que não
+existe. Cobrança atrasada vira rascunho de e-mail, que segue o caminho da fila.
+
+Sobre a "permissão separada" que o plano previa: ela pertence a um PAULUS de
+equipe, que não existe. Em vez de inventar uma senha local que qualquer um
+contorna lendo o arquivo, a tela diz onde os números moram e que quem abre o
+Windows com a sua conta vê o financeiro.
+
+**Bem-estar.** O ponto delicado era o que medir. Para dizer "você está há duas
+horas sem levantar" há dois caminhos: ler o teclado — que é um registrador de
+teclas com outro nome — ou perguntar ao Windows quanto tempo faz desde o
+último toque, sem saber qual foi. O módulo usa `GetLastInputInfo`, e há teste
+verificando que ele não usa `GetAsyncKeyState` nem `SetWindowsHookEx`. O que
+fica gravado é menos ainda: uma linha por dia com os totais. Não há linha do
+tempo, e o teste confere as colunas da tabela.
+
+**Conexões.** A única tela do programa que vai para a internet, e ela diz isso.
+Abre uma janela presa a um endereço só, com sessão própria nesta máquina, e
+prepara a conversa com número e texto pelo endereço que o próprio WhatsApp
+publica. Não aperta enviar, não lê conversas: automatizar o WhatsApp Web
+significa dirigir a tela de um site de terceiro — quebra a cada mudança de
+layout, e o preço de errar é a conta do escritório ser derrubada. O wireframe
+promete "eu digito e mostro; o envio só sai depois do seu sim"; é exatamente
+isso, e nada além.
+
+**Relatórios.** Não gera dado: lê o que as outras etapas produziram — tarefas
+concluídas, lançamentos liquidados, documentos assinados, e-mails enviados,
+versões gravadas, e a fila de aprovações. É a fila que torna "aprovei alguma
+coisa ontem" conferível depois. O parecer em texto é a única parte que passa
+pelo modelo, e sempre depois: ele recebe os números já apurados e escreve sobre
+eles. Nunca calcula — erro de aritmética de um modelo de 3B viraria número
+errado num parecer financeiro.
+
+**Achado:** o teste de destinos afirmava que sempre existiria tela por
+construir. Era verdade durante todo o caminho e deixou de ser aqui. O que tem
+que valer sempre é a regra, não o estado: ou a tela abre algo, ou diz o que
+falta — nunca as duas, nunca nenhuma.
 
 ---
 

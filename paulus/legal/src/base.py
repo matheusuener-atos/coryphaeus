@@ -152,6 +152,65 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         CREATE INDEX idx_versoes_doc ON versoes(documento_id, numero);
         """,
+    ),    (
+        "007_financeiro_e_bem_estar",
+        """
+        -- Dinheiro em centavos inteiros, nunca em ponto flutuante. Somar
+        -- 0,1 + 0,2 em float da 0,30000000000000004; num extrato de honorarios
+        -- o erro aparece depois de algumas dezenas de lancamentos, e ninguem
+        -- confere extrato somando de cabeca.
+        CREATE TABLE lancamentos (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo        TEXT NOT NULL,               -- 'recebimento' | 'despesa'
+            descricao   TEXT NOT NULL,
+            centavos    INTEGER NOT NULL DEFAULT 0,
+            categoria   TEXT DEFAULT '',
+            cadastro_id INTEGER REFERENCES cadastros(id) ON DELETE SET NULL,
+            vencimento  TEXT DEFAULT '',
+            liquidado_em TEXT DEFAULT '',            -- vazio = ainda em aberto
+            observacao  TEXT DEFAULT '',
+            criado_em   TEXT NOT NULL
+        );
+        CREATE INDEX idx_lanc_venc ON lancamentos(vencimento);
+        CREATE INDEX idx_lanc_tipo ON lancamentos(tipo, liquidado_em);
+
+        -- Comprovante fica ligado ao lancamento pelo SHA-1, como os vinculos:
+        -- renomear ou mover o arquivo nao quebra a ligacao.
+        CREATE TABLE comprovantes (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            lancamento_id INTEGER NOT NULL REFERENCES lancamentos(id) ON DELETE CASCADE,
+            nome          TEXT NOT NULL,
+            sha1          TEXT DEFAULT '',
+            caminho       TEXT DEFAULT '',
+            criado_em     TEXT NOT NULL
+        );
+        CREATE INDEX idx_compr_lanc ON comprovantes(lancamento_id);
+
+        -- Bem-estar guarda TOTAIS do dia, nunca o que foi digitado. O que o
+        -- programa mede e tempo sem toque no teclado ou mouse; conteudo de
+        -- tecla nao passa por aqui em momento nenhum.
+        CREATE TABLE bem_estar (
+            dia            TEXT PRIMARY KEY,
+            minutos_ativos INTEGER NOT NULL DEFAULT 0,
+            ciclos         INTEGER NOT NULL DEFAULT 0,
+            pausas         INTEGER NOT NULL DEFAULT 0,
+            copos_agua     INTEGER NOT NULL DEFAULT 0,
+            maior_seguida  INTEGER NOT NULL DEFAULT 0,
+            atualizado_em  TEXT NOT NULL
+        );
+
+        CREATE TABLE lembretes (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo     TEXT NOT NULL,
+            cada_min   INTEGER NOT NULL DEFAULT 60,
+            meta_dia   INTEGER NOT NULL DEFAULT 0,
+            ligado     INTEGER NOT NULL DEFAULT 1,
+            feitos_dia INTEGER NOT NULL DEFAULT 0,
+            dia        TEXT DEFAULT '',
+            ultima_vez TEXT DEFAULT '',
+            criado_em  TEXT NOT NULL
+        );
+        """,
     ),
 ]
 

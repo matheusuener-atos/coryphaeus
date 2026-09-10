@@ -36,8 +36,12 @@ import certificado
 import correio
 import correio_contas
 import destinos
+import bemestar
+import conexoes
 import documento
+import financeiro
 import planilha
+import relatorios
 import pastas
 import recursos
 import registro
@@ -81,6 +85,8 @@ ASSINATURAS_PATH = BASE_DIR / "data" / "assinaturas.json"
 CONTAS_EMAIL_PATH = BASE_DIR / "data" / "contas_email.json"
 ENVIOS_PATH = BASE_DIR / "data" / "envios.json"
 CLAUSULAS_PATH = BASE_DIR / "data" / "clausulas.json"
+CONEXOES_PATH = BASE_DIR / "data" / "conexoes.json"
+SESSOES_DIR = BASE_DIR / "data" / "sessoes"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -122,6 +128,14 @@ class Estado:
         # Documentos de texto e planilhas, com historico de versoes.
         self.documentos = documento.Documentos(self.base)
         self.clausulas = documento.Clausulas(CLAUSULAS_PATH)
+        # Financeiro, bem-estar e conexoes; relatorios so le o que os outros gravaram.
+        self.financeiro = financeiro.Financeiro(self.base)
+        self.bem_estar = bemestar.BemEstar(self.base)
+        self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
+        self.relatorios = relatorios.Relatorios(
+            self.base, fila=self.fila, assinaturas=self.assinaturas,
+            envios=self.envios, bem_estar=self.bem_estar,
+        )
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -2715,6 +2729,450 @@ def _provar_formula(formula: str, aba) -> dict:
     calculado = planilha.calcular_aba(prova)
     celula = calculado.get("ZZ999", {})
     return {"texto": celula.get("texto", ""), "erro": bool(celula.get("erro"))}
+
+# --------------------------------------- financeiro, relatorios, bem-estar
+
+
+class FichaLancamento(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+class Liquidacao(BaseModel):
+    quando: str = ""
+
+
+class FichaLembrete(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+class PedidoCiclo(BaseModel):
+    tarefa: str = ""
+    foco: int = 0
+    pausa: int = 0
+
+
+class MensagemWhats(BaseModel):
+    telefone: str = ""
+    nome: str = ""
+    texto: str = ""
+    anexo: str = ""
+
+
+@app.get("/api/financeiro")
+def financeiro_painel(mes: str = "") -> dict:
+    """
+    O painel do mes.
+
+    Todo numero aqui e soma de lancamento que existe. Sem lancamento, o numero
+    e zero e a tela diz que esta vazio - grafico bonito de dado que ninguem
+    digitou e a forma mais rapida de o financeiro perder a confianca de quem usa.
+    """
+    dados = estado.financeiro.para_tela(mes)
+    dados["clientes"] = [
+        {"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar()
+    ]
+    dados["onde_moram"] = (
+        "Os lançamentos ficam no mesmo arquivo do resto do programa, nesta máquina. "
+        "Não há senha separada para o financeiro: quem abre o Windows com a sua conta "
+        "vê esta tela. Uma permissão por pessoa só faria sentido num PAULUS de equipe, "
+        "que ainda não existe."
+    )
+    return dados
+
+
+@app.get("/api/financeiro/lancamentos")
+def financeiro_listar(tipo: str = "", mes: str = "", situacao: str = "") -> dict:
+    return {"lancamentos": estado.financeiro.listar(tipo=tipo, mes=mes, situacao=situacao)}
+
+
+@app.get("/api/financeiro/extrato")
+def financeiro_extrato(mes: str = "") -> dict:
+    return estado.financeiro.extrato(mes)
+
+
+@app.post("/api/financeiro/lancamentos")
+def financeiro_salvar(payload: FichaLancamento) -> dict:
+    try:
+        id_ = estado.financeiro.salvar(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.financeiro.obter(id_) or {}
+
+
+@app.post("/api/financeiro/lancamentos/{id_}/liquidar")
+def financeiro_liquidar(id_: int, payload: Liquidacao) -> dict:
+    if not estado.financeiro.liquidar(id_, payload.quando):
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+    return estado.financeiro.obter(id_) or {}
+
+
+@app.post("/api/financeiro/lancamentos/{id_}/reabrir")
+def financeiro_reabrir(id_: int) -> dict:
+    if not estado.financeiro.reabrir(id_):
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+    return estado.financeiro.obter(id_) or {}
+
+
+@app.delete("/api/financeiro/lancamentos/{id_}")
+def financeiro_apagar(id_: int) -> dict:
+    if not estado.financeiro.apagar(id_):
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+    return {"apagado": id_}
+
+
+@app.post("/api/financeiro/lancamentos/{id_}/comprovante")
+async def financeiro_comprovante(id_: int, arquivo: UploadFile) -> dict:
+    """Guarda o comprovante na biblioteca e o liga ao lancamento."""
+    if not estado.financeiro.obter(id_):
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+
+    nome = Path(arquivo.filename or "").name
+    if not nome:
+        raise HTTPException(status_code=400, detail="arquivo sem nome")
+
+    dados = await arquivo.read()
+    if len(dados) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="arquivo grande demais")
+
+    pasta = BASE_DIR / "data" / "comprovantes"
+    pasta.mkdir(parents=True, exist_ok=True)
+    destino = pasta / nome
+    conta = 2
+    while destino.exists():
+        destino = pasta / f"{Path(nome).stem} ({conta}){Path(nome).suffix}"
+        conta += 1
+    destino.write_bytes(dados)
+
+    import hashlib
+
+    sha1 = hashlib.sha1(dados).hexdigest()
+    estado.financeiro.anexar(id_, destino.name, str(destino), sha1)
+    return estado.financeiro.obter(id_) or {}
+
+
+@app.delete("/api/financeiro/comprovante/{id_}")
+def financeiro_tirar_comprovante(id_: int) -> dict:
+    estado.financeiro.tirar_comprovante(id_)
+    return {"removido": id_}
+
+
+@app.post("/api/financeiro/cobrar")
+def financeiro_cobrar(payload: dict) -> dict:
+    """
+    Prepara a cobranca de um recebimento atrasado como rascunho de e-mail.
+
+    Nao envia: monta o texto e devolve. O envio segue o caminho de sempre, com
+    a fila de aprovacao no meio.
+    """
+    item = estado.financeiro.obter(int(payload.get("id", 0)))
+    if not item:
+        raise HTTPException(status_code=404, detail="lançamento não encontrado")
+
+    ficha = estado.cadastros.obter(item["cadastro_id"]) if item["cadastro_id"] else None
+    vencimento = item["vencimento"]
+    atraso = item["dias_atraso"]
+
+    corpo = (
+        f"Prezados,\n\n"
+        f"Consta em nosso controle o valor de {item['valor']} referente a "
+        f"{item['descricao']}"
+    )
+    if vencimento:
+        corpo += f", com vencimento em {financeiro._br(vencimento)}"
+        if atraso:
+            corpo += f" — portanto há {atraso} dia(s)"
+    corpo += (
+        ".\n\nCaso o pagamento já tenha sido efetuado, favor desconsiderar e nos "
+        "encaminhar o comprovante.\n\nFico à disposição."
+    )
+
+    return {
+        "para": (ficha or {}).get("email", ""),
+        "assunto": f"Cobrança — {item['descricao']}",
+        "corpo": corpo,
+        "cliente": (ficha or {}).get("nome", ""),
+        "sem_email": not (ficha or {}).get("email"),
+    }
+
+
+# ------------------------------------------------------------ relatorios
+
+
+@app.get("/api/relatorios")
+def relatorios_ver(quando: str = "") -> dict:
+    return estado.relatorios.para_tela(quando)
+
+
+@app.get("/api/relatorios/acoes")
+def relatorios_acoes(limite: int = 40) -> dict:
+    """O que o assistente fez com o seu sim, lido da fila de aprovacoes."""
+    return {"acoes": estado.relatorios.acoes(limite=limite)}
+
+
+@app.post("/api/relatorios/parecer")
+def relatorios_parecer(payload: dict | None = None) -> dict:
+    """
+    O parecer em texto sobre o dia.
+
+    O modelo recebe os numeros ja apurados e escreve sobre eles. Nao calcula:
+    um erro de aritmetica de um modelo de 3 bilhoes de parametros viraria
+    numero errado num parecer financeiro, e parecer com numero errado e pior
+    que nenhum parecer.
+    """
+    quando = str((payload or {}).get("quando", ""))
+    numeros = estado.relatorios.numeros_para_o_parecer(quando)
+
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+
+    try:
+        texto = estado.client.ask(relatorios.INSTRUCAO_PARECER, numeros)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return {
+        "parecer": _limpar_sugestao(texto),
+        "numeros": numeros,
+        "aviso": "Escrito sobre os números acima, que foram calculados aqui. Confira antes de usar.",
+    }
+
+
+@app.post("/api/relatorios/pdf")
+def relatorios_pdf(payload: dict | None = None):
+    """O relatorio do dia como PDF, pelo mesmo gerador dos documentos."""
+    from fastapi.responses import Response
+
+    quando = str((payload or {}).get("quando", "")) or datetime.now().strftime("%Y-%m-%d")
+    d = estado.relatorios.dia(quando)
+    m = estado.relatorios.mes(quando[:7])
+
+    html = [f"<h1>Relatório de {d['rotulo']}</h1>"]
+    t = d["tarefas"]
+    html.append(f"<h2>Tarefas</h2><p>{len(t['feitas'])} de {t['planejado']} concluída(s).</p>")
+    if t["feitas"]:
+        html.append("<ul>" + "".join(
+            f"<li>{_escapar(x['titulo'])} — {x['hora']}</li>" for x in t["feitas"]) + "</ul>")
+    if t["abertas"]:
+        html.append("<p>Ficaram abertas:</p><ul>" + "".join(
+            f"<li>{_escapar(x['titulo'])} ({_escapar(x['quando'])})</li>" for x in t["abertas"]) + "</ul>")
+
+    if d["medido"]:
+        html.append(f"<h2>Tempo</h2><p>Ativo por {d['medido']['tempo_ativo']}, "
+                    f"{d['medido']['pausas']} pausa(s), {d['medido']['ciclos']} ciclo(s) de foco.</p>")
+
+    if d["acoes"]:
+        html.append("<h2>Ações aprovadas por você</h2><ul>" + "".join(
+            f"<li>{_escapar(a['titulo'])} — {_escapar(a['resultado'] or a['estado'])} ({a['hora']})</li>"
+            for a in d["acoes"]) + "</ul>")
+
+    e = m["extrato"]
+    html.append(f"<h2>Financeiro — {_escapar(m['rotulo'])}</h2>"
+                f"<p>Entradas {m['entradas_texto']}, saídas {m['saidas_texto']}, "
+                f"resultado {e['resultado_texto']}. Saldo em caixa: {e['saldo_final_texto']}.</p>")
+    if e["linhas"]:
+        html.append("<ul>" + "".join(
+            f"<li>{l['dia']} — {_escapar(l['descricao'])}: {l['movimento_texto']}</li>"
+            for l in e["linhas"]) + "</ul>")
+
+    html.append("<p><i>Relatório montado nesta máquina. Nenhum dado saiu daqui.</i></p>")
+
+    pdf = documento.para_pdf(
+        documento.ler_html("".join(html)),
+        f"Relatório de {quando}",
+        "PAULUS · relatório gerado nesta máquina",
+    )
+    return Response(pdf, media_type="application/pdf",
+                    headers=_anexo(f"Relatorio {quando}.pdf"))
+
+
+def _escapar(texto: str) -> str:
+    from xml.sax.saxutils import escape
+
+    return escape(str(texto or ""))
+
+
+# ------------------------------------------------------------ bem-estar
+
+
+@app.get("/api/bemestar")
+def bemestar_ver() -> dict:
+    dados = estado.bem_estar.para_tela()
+    dados["sugeridos_criados"] = estado.bem_estar.sugerir_lembretes()
+    if dados["sugeridos_criados"]:
+        dados["lembretes"] = estado.bem_estar.lembretes()
+    return dados
+
+
+@app.post("/api/bemestar/medir")
+def bemestar_medir(payload: dict) -> dict:
+    """
+    Liga ou desliga o acompanhamento.
+
+    Desligar e opcao de verdade: a thread para e nada mais e gravado. O ciclo
+    de foco e os lembretes continuam funcionando sem ele.
+    """
+    if payload.get("ligar"):
+        if not estado.bem_estar.ligar():
+            raise HTTPException(
+                status_code=400,
+                detail="não consigo medir a atividade neste sistema - o ciclo de foco e os lembretes continuam funcionando",
+            )
+    else:
+        estado.bem_estar.desligar()
+    return estado.bem_estar.para_tela()
+
+
+@app.post("/api/bemestar/ciclo")
+def bemestar_ciclo(payload: PedidoCiclo) -> dict:
+    return estado.bem_estar.comecar_ciclo(payload.tarefa, payload.foco, payload.pausa)
+
+
+@app.post("/api/bemestar/pausa")
+def bemestar_pausa() -> dict:
+    return estado.bem_estar.ir_para_pausa()
+
+
+@app.post("/api/bemestar/parar")
+def bemestar_parar() -> dict:
+    return estado.bem_estar.parar_ciclo()
+
+
+@app.get("/api/bemestar/ciclo")
+def bemestar_ciclo_estado() -> dict:
+    return {**estado.bem_estar.estado_do_ciclo(), "alerta": estado.bem_estar.alerta()}
+
+
+@app.post("/api/bemestar/lembretes")
+def bemestar_salvar_lembrete(payload: FichaLembrete) -> dict:
+    try:
+        estado.bem_estar.salvar_lembrete(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"lembretes": estado.bem_estar.lembretes()}
+
+
+@app.post("/api/bemestar/lembretes/{id_}/feito")
+def bemestar_marcar(id_: int) -> dict:
+    if not estado.bem_estar.marcar_lembrete(id_):
+        raise HTTPException(status_code=404, detail="lembrete não encontrado")
+    return {"lembretes": estado.bem_estar.lembretes(), "hoje": estado.bem_estar.dia()}
+
+
+@app.delete("/api/bemestar/lembretes/{id_}")
+def bemestar_apagar_lembrete(id_: int) -> dict:
+    estado.bem_estar.apagar_lembrete(id_)
+    return {"lembretes": estado.bem_estar.lembretes()}
+
+
+# ------------------------------------------------------------- conexoes
+
+
+@app.get("/api/conexoes")
+def conexoes_ver() -> dict:
+    dados = estado.conexoes.para_tela()
+    dados["janela_embutida"] = _tem_janela()
+    return dados
+
+
+def _tem_janela() -> bool:
+    """A janela embutida so existe quando o programa roda como desktop."""
+    try:
+        import webview
+
+        return bool(webview.windows)
+    except Exception:
+        return False
+
+
+@app.post("/api/conexoes/abrir")
+def conexoes_abrir(payload: dict | None = None) -> dict:
+    """
+    Abre a janela do serviço, presa a um endereço só.
+
+    Fora do modo desktop nao ha janela embutida - e a tela diz isso em vez de
+    abrir o navegador comum fingindo que e a mesma coisa, porque a sessao nao
+    seria a mesma.
+    """
+    endereco = str((payload or {}).get("endereco", "")) or conexoes.WHATSAPP
+    if not endereco.startswith(conexoes.WHATSAPP):
+        raise HTTPException(status_code=400, detail="esta janela só abre o WhatsApp Web")
+
+    if not _tem_janela():
+        return {
+            "abriu": False,
+            "endereco": endereco,
+            "motivo": (
+                "A janela embutida existe quando o PAULUS roda como programa "
+                "(python src/desktop.py). No navegador, a sessão seria a do próprio "
+                "navegador, não a minha — então prefiro dizer isso a fingir que é igual."
+            ),
+        }
+
+    import webview
+
+    webview.create_window(
+        "WhatsApp Web · PAULUS", endereco,
+        width=1100, height=800, min_size=(720, 560),
+    )
+    return {"abriu": True, "endereco": endereco}
+
+
+@app.post("/api/conexoes/mensagem")
+def conexoes_mensagem(payload: MensagemWhats) -> dict:
+    """
+    Prepara a conversa com o texto pronto - e para aí.
+
+    Apertar enviar continua sendo seu. O programa não clica na tela de um site
+    de terceiro: quebraria a cada mudança de layout, e o preço de errar é a
+    conta do escritório ser derrubada.
+    """
+    endereco = conexoes.link_de_conversa(payload.telefone, payload.texto)
+    if not endereco:
+        raise HTTPException(status_code=400, detail="informe um telefone com DDD")
+
+    anexo = ""
+    if payload.anexo:
+        alvo = Path(payload.anexo)
+        if not alvo.exists():
+            raise HTTPException(status_code=400, detail="não achei esse arquivo")
+        anexo = str(alvo)
+
+    estado.conexoes.anotar(payload.telefone, payload.nome, anexo)
+    return {
+        "endereco": endereco,
+        "anexo": Path(anexo).name if anexo else "",
+        "pasta_do_anexo": str(Path(anexo).parent) if anexo else "",
+        "aviso": (
+            "Abro a conversa com o texto escrito. Você confere e aperta enviar."
+            + (" O anexo você arrasta da pasta que eu abri." if anexo else "")
+        ),
+    }
+
+
+@app.post("/api/conexoes/sessao/apagar")
+def conexoes_apagar_sessao() -> dict:
+    apagou = estado.conexoes.apagar_sessao()
+    return {
+        "apagou": apagou,
+        "aviso": "A sessão foi apagada desta máquina. O WhatsApp vai pedir o código de novo."
+        if apagou else "Não havia sessão guardada.",
+    }
+
+
+@app.get("/api/conexoes/contatos")
+def conexoes_contatos() -> dict:
+    """Quem tem telefone no cadastro - para não digitar número na mão."""
+    achados = []
+    for f in estado.cadastros.listar():
+        if (f.get("telefone") or "").strip():
+            achados.append({
+                "id": f["id"], "nome": f["nome"], "telefone": f["telefone"],
+                "numero": conexoes.numero_whatsapp(f["telefone"]),
+            })
+    return {"contatos": achados}
 
 def main() -> None:
     import argparse
