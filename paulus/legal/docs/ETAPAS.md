@@ -365,3 +365,248 @@ As regras do manual valem para toda tela nova:
 - **Número na tela é número medido.** Sem placeholder, sem estimativa
   disfarçada de fato.
 - **Toda ação é reversível ou registrada**, e o rodapé diz onde o dado está.
+
+---
+
+# Segunda parte — fechar a distância para o wireframe
+
+As sete primeiras etapas puseram motor nas vinte telas. Esta segunda parte
+fecha o que a [comparação com os wireframes](COMPARACAO.md) apontou, e faz o
+que antes tinha sido decidido não fazer.
+
+**A mudança de posição está registrada de propósito.** Seis itens foram
+declinados nas etapas 1 a 7, cada um com um motivo escrito. Nenhum daqueles
+motivos era "é impossível" — eram "custa mais do que vale agora" ou "erraria
+de um jeito perigoso". A decisão passou a ser fazer, e o que muda é que agora
+cada um vem com o caminho que resolve o motivo original, não passando por
+cima dele:
+
+| Declinado antes | O motivo era | O caminho agora |
+|---|---|---|
+| Citar CC, CPC, CP, CLT | O modelo inventaria o número do artigo | Trazer o texto oficial para o disco. Citar vira consulta, não palpite |
+| Token A3 | Driver PKCS#11 por fabricante | A pessoa aponta a DLL do próprio token, uma vez |
+| OAuth de e-mail | Semanas de revisão da Google | A credencial é do escritório, não nossa: cada um cria a sua |
+| Enviar no WhatsApp | Dirigir a tela de um site quebra e derruba a conta | Caminho oficial pela Cloud API; o assistido fica como segunda opção, com aviso |
+| Equipe e permissões | Não havia mais de uma pessoa | Perfis nesta máquina, com papéis e regras de aprovação |
+| Plano e cobrança | Não havia o que cobrar | Licença assinada, conferida sem servidor |
+
+A ordem abaixo é por quanto muda o dia de quem usa, não por tamanho.
+
+---
+
+## Etapa 8 — A forma das telas ✓ FEITA
+
+**Telas:** Tarefas · Calendário · Agendamento
+**Tamanho:** médio
+**Depende de:** nada
+
+As três diferenças estruturais que a comparação achou. Não é acabamento: numa
+tela de 900 px, o painel do dia do Calendário fica abaixo da dobra, e o detalhe
+da tarefa empurra a lista para fora da vista. A forma é o que faz a tela
+servir para trabalhar.
+
+- Tarefas em três colunas: filtros e listas · lista · detalhe
+- Calendário com o mês à esquerda e o dia à direita
+- Agendamento com a semana em grade, dias em colunas
+- Fim de semana esmaecido, e o contador do cabeçalho em cada uma
+
+Sai daqui um componente de três colunas reaproveitável — as três telas pedem a
+mesma forma, e três implementações da mesma coisa divergem em uma semana.
+
+Entregue. Tarefas ganhou a coluna de listas com contagem, "Lembrar-me",
+"Repetir" — que é comportamento, não rótulo: concluir uma tarefa que repete já
+deixa a próxima com o prazo andado — e "Ligado a", pelo SHA-1 do documento.
+Calendário e Agendamento ganharam Mês/Semana/Agenda e Semana/Dia/Lista, com a
+semana em grade de hora, fim de semana esmaecido, e clicar numa hora vazia já
+abre o formulário naquele horário. O painel do dia recebeu as tarefas com caixa
+de marcar e o convite de reunião, que sai pela conta de e-mail da Etapa 5.
+
+**Achado:** `.hoje { margin-top: 22px }`, escrita para o bloco "Decidido hoje"
+das Aprovações, vazava para qualquer elemento marcado como "hoje". A célula de
+hoje do calendário andava 22 px para baixo desde a Etapa 3, e o cabeçalho da
+semana quebrava em duas linhas. Classe genérica com layout dentro é a forma
+mais silenciosa de uma tela estragar outra.
+
+---
+
+## Etapa 9 — Encontrar e agir em lote
+
+**Telas:** Biblioteca · Cadastros
+**Tamanho:** médio
+**Depende de:** Etapa 8
+
+Com 128 documentos a lista basta; com 1.200 ela é um problema. Falta a camada
+de achar e de agir em muitos de uma vez.
+
+- Busca por nome, pasta ou trecho, com atalho de teclado
+- Filtros de fixados e sem análise, e ordenação
+- Seleção múltipla com barra de ações: assinar, mover, fixar, exportar, apagar
+- Ações por documento: tomar vista de novo, perguntar sobre este, apagar
+- Nos Cadastros: busca, ordenação, e quanto cada cliente tem em aberto
+
+Mover em lote e apagar em lote passam pela fila, como todo efeito externo.
+
+---
+
+## Etapa 10 — O escritório por dentro
+
+**Tela:** Financeiro
+**Tamanho:** grande
+**Depende de:** Etapa 2
+
+Quatro blocos inteiros do wireframe, e é a tela com mais coisa pendente.
+
+- Folha de pagamento: pessoas, salários, encargos, estagiários, recibos
+- Documentos e comprovantes do mês, com arrastar-e-soltar
+- Notas fiscais — registro do que foi emitido, não emissão
+- Boletos — acompanhamento de vencimento, não geração
+- Contratos concluídos do mês
+- Seletor de mês, exportar, e o fechamento em N dias
+
+A distinção que o próprio wireframe faz continua valendo: a emissão da nota é
+da prefeitura e o boleto sai do banco. Aqui se controla e se guarda.
+
+---
+
+## Etapa 11 — A lei em casa
+
+**Telas:** Editor de texto · Conversa
+**Tamanho:** grande
+**Depende de:** Etapa 6
+
+A que desfaz a primeira decisão. Citar artigo de lei era perigoso porque o
+número sairia de um modelo de 3 bilhões de parâmetros — plausível e errado
+dentro de um contrato.
+
+O caminho não é confiar mais no modelo: é **tirar o modelo do caminho**. Texto
+de lei é público e não tem direito autoral (Lei 9.610, art. 8º, IV). Um
+importador busca o texto oficial no Planalto uma vez, guarda em base local, e a
+partir daí citar é consulta a um índice — com o texto do artigo do lado, para
+conferir.
+
+- Importador de CC, CPC, CP e CLT, com data da captura registrada
+- Busca por número de artigo e por palavra
+- Inserir citação no editor, com o texto do artigo à vista
+- Conferir prazos do documento contra os prazos da lei
+
+Enquanto o texto não estiver no disco, a tela diz isso — nunca chuta o artigo.
+Jurisprudência e súmulas ficam para depois: não têm fonte oficial em formato
+aberto do mesmo jeito, e inventar acórdão é pior que inventar artigo.
+
+---
+
+## Etapa 12 — Escrever melhor
+
+**Telas:** Editor de texto · Planilha · Pré-visualização
+**Tamanho:** grande
+**Depende de:** Etapa 11
+
+- Editor: alinhar, recuo, tabela, fonte e corpo, régua e indicador de página
+- Numerar cláusulas, referência cruzada, qualificação das partes
+- Comentário do assistente ancorado no trecho, dentro do texto
+- Controlar alterações
+- Planilha: mesclar, bordas, congelar, filtrar, ordenar, gráfico, resumo da seleção
+- Pré-visualização: comparar versões lado a lado, duas páginas, tela cheia,
+  imprimir, e o timbre do escritório no PDF
+
+---
+
+## Etapa 13 — Assinar com token, entrar com a conta
+
+**Telas:** Certificado digital · Contas de e-mail
+**Tamanho:** médio
+**Depende de:** Etapas 4 e 5
+
+Desfaz duas decisões de uma vez, e as duas pelo mesmo princípio: o que faltava
+não era código nosso, era uma credencial que pertence ao escritório.
+
+- **Token A3**: a pessoa aponta a DLL PKCS#11 do fabricante do próprio token,
+  uma vez. O programa lista os certificados do token e assina por ele
+- **OAuth de e-mail**: cada escritório cria a própria credencial no Google ou
+  na Microsoft e cola aqui. Não somos nós pedindo revisão para milhares de
+  usuários — é um aplicativo do escritório, para o escritório
+- Estado por conta: sincronizado há quanto tempo, senha recusada, reconectar
+- Assinatura por conta, e o registro de acessos
+
+---
+
+## Etapa 14 — WhatsApp de verdade
+
+**Tela:** Conexões
+**Tamanho:** médio
+**Depende de:** Etapa 7
+
+Desfaz a decisão mais delicada. O motivo original continua sendo verdade:
+dirigir a tela do WhatsApp Web quebra a cada mudança de layout, e o preço de
+errar é a conta do escritório suspensa. O caminho não é fingir que o risco
+sumiu — é oferecer o caminho que não tem esse risco primeiro.
+
+- **Cloud API oficial**: número do escritório cadastrado na Meta, envio por
+  requisição documentada, sem tela nenhuma para dirigir. É o caminho que a
+  própria WhatsApp oferece para isso
+- **Envio assistido** na janela embutida, como segunda opção, com o aviso do
+  risco escrito na tela e desligado por padrão
+- Navegador dentro da tela, com endereço travado
+- Encerrar sessão sem apagar os dados
+
+Envio, nos dois caminhos, passa pela fila de aprovação.
+
+---
+
+## Etapa 15 — Escritório com mais de uma pessoa
+
+**Telas:** Configurações · Aprovações · Tarefas
+**Tamanho:** grande
+**Depende de:** Etapa 8
+
+A terceira decisão desfeita. Ela dependia de existir mais de uma pessoa; passa
+a existir.
+
+- Perfis nesta máquina, com nome, OAB e papel — sócio, advogado, estagiário
+- Quem vê o financeiro, quem pode assinar, quem pode enviar
+- Regras de aprovação: estagiário sempre precisa, pagamento acima de X precisa
+  de sócio
+- "Atribuídas a mim" nas Tarefas, e "pedido por" nas Aprovações
+- Quem pode aprovar no seu lugar
+
+Sem servidor: os perfis moram na mesma base, e o que separa um do outro é a
+senha do perfil, não a do Windows. A tela diz exatamente essa diferença.
+
+---
+
+## Etapa 16 — Licença
+
+**Tela:** Configurações
+**Tamanho:** médio
+**Depende de:** Etapa 15
+
+A última decisão desfeita, e a que existe por causa da venda.
+
+- Chave de licença assinada, conferida nesta máquina com a chave pública —
+  sem servidor, sem telefonar para casa
+- Plano, número de pessoas, validade e o que acontece quando vence
+- Aviso de vencimento próximo, e o modo leitura quando expira
+
+Vencer não pode apagar o trabalho de ninguém: expirada, a licença tranca o que
+tem efeito externo e deixa ler, exportar e imprimir. Perder acesso ao próprio
+contrato por causa de uma data é o tipo de coisa que faz um escritório nunca
+mais confiar num programa.
+
+---
+
+## Etapa 17 — O resto da comparação
+
+**Telas:** Aprendizado · Desempenho · Relatórios · Foco · Organizar · Assinar
+**Tamanho:** médio
+**Depende de:** as anteriores
+
+O que sobrou da comparação, tela a tela.
+
+- Aprendizado: ensinar com arquivos e ensinar com palavras
+- Desempenho: disco, rede, temperatura e o gráfico dos últimos 60 s
+- Relatórios: período, abas, enviar por e-mail, agendar o semanal
+- Foco: silenciar avisos, tarefa do ciclo, conversar sobre hábitos
+- Organizar: salvar como rotina
+- Assinar: compartilhar depois de assinar, prévia, repetir o selo
+- Certificado: testar assinatura, arrastar o arquivo
+- Configurações: foto e documentos do titular

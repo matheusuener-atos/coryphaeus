@@ -50,6 +50,7 @@ from agenda import Agenda, ONDES, TIPOS as TIPOS_AGENDA
 from base import Base
 from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
+import tarefas as tarefas_mod
 from tarefas import Tarefas
 from habilidade_base import (
     PRECISA_ASSISTENTE,
@@ -903,6 +904,9 @@ def tarefas_listar(filtro: str = "meu_dia", lista: str = "") -> dict:
             {"id": f["id"], "nome": f["nome"]}
             for f in estado.cadastros.listar()
         ],
+        "repeticoes": [
+            {"valor": k, "rotulo": v} for k, v in tarefas_mod.REPETICOES.items()
+        ],
     }
 
 
@@ -926,8 +930,16 @@ def tarefas_salvar(payload: FichaTarefa) -> dict:
 
 @app.post("/api/tarefas/{id_}/concluir")
 def tarefas_concluir(id_: int, payload: MarcaTarefa) -> dict:
-    estado.tarefas.concluir(id_, payload.valor)
-    return estado.tarefas.obter(id_) or {"apagada": True}
+    """Concluir uma tarefa que repete ja deixa a proxima no lugar."""
+    resultado = estado.tarefas.concluir(id_, payload.valor)
+    saida = estado.tarefas.obter(id_) or {"apagada": True}
+    if resultado.get("proxima"):
+        proxima = estado.tarefas.obter(resultado["proxima"])
+        saida["proxima"] = proxima
+        saida["aviso_repeticao"] = (
+            f"criei a próxima para {proxima['prazo']}" if proxima and proxima.get("prazo") else ""
+        )
+    return saida
 
 
 @app.post("/api/tarefas/{id_}/importante")
@@ -955,6 +967,40 @@ def tarefas_nova_etapa(id_: int, payload: NovaEtapa) -> dict:
 def etapa_marcar(id_: int, payload: MarcaTarefa) -> dict:
     estado.tarefas.marcar_etapa(id_, payload.valor)
     return {"ok": True}
+
+
+@app.get("/api/tarefas/{id_}/vinculos")
+def tarefas_vinculos(id_: int) -> dict:
+    """Os documentos ligados a tarefa, com o caminho de cada um se ainda existir."""
+    from classify import CacheClassificacao
+
+    cache = CacheClassificacao(CLASSIFICACAO_PATH).dados
+    por_sha = {d.path: d for d in estado.searcher.documents}
+    achados = []
+    for v in estado.tarefas.vinculos_de(id_):
+        doc = next((d for d in estado.searcher.documents if d.sha1 == v["sha1"]), None)
+        conhecido = cache.get(v["sha1"]) or {}
+        achados.append({
+            **v,
+            "existe": doc is not None,
+            "caminho": doc.path if doc else "",
+            "tipo_rotulo": ROTULOS.get(conhecido.get("tipo", ""), ""),
+        })
+    return {"vinculos": achados}
+
+
+@app.post("/api/tarefas/{id_}/vincular")
+def tarefas_vincular(id_: int, payload: VinculoDoc) -> dict:
+    if not estado.tarefas.obter(id_):
+        raise HTTPException(status_code=404, detail="tarefa não encontrada")
+    estado.tarefas.vincular(id_, payload.sha1, payload.nome)
+    return tarefas_vinculos(id_)
+
+
+@app.delete("/api/vinculos/{id_}")
+def vinculo_apagar(id_: int) -> dict:
+    estado.tarefas.desvincular(id_)
+    return {"removido": id_}
 
 
 @app.delete("/api/tarefas/{id_}")

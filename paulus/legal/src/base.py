@@ -211,6 +211,14 @@ MIGRACOES: list[tuple[str, str]] = [
             criado_em  TEXT NOT NULL
         );
         """,
+    ),    (
+        "008_tarefa_lembrete_e_repeticao",
+        """
+        -- Hora do aviso e recorrencia. Repetir e comportamento, nao rotulo:
+        -- concluir uma tarefa que repete cria a proxima, com o prazo andado.
+        ALTER TABLE tarefas ADD COLUMN lembrar_em TEXT DEFAULT '';
+        ALTER TABLE tarefas ADD COLUMN repetir TEXT DEFAULT '';
+        """,
     ),
 ]
 

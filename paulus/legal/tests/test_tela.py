@@ -173,6 +173,53 @@ def main() -> int:
             pagina.wait_for_timeout(900)
             checar(pagina.evaluate(ver_compositor), "e volta ao abrir a conversa")
 
+            print("\nas tres telas de tres colunas")
+            for destino, seletor, nome in (
+                ("tarefas", ".colunas-3", "Tarefas"),
+                ("calendario", ".colunas-2", "Calendário"),
+                ("agendamento", ".colunas-2", "Agendamento"),
+            ):
+                pagina.evaluate("(id) => abrirDestino(id)", destino)
+                pagina.wait_for_timeout(1400)
+                colunas = pagina.evaluate(
+                    "(sel) => { const g = document.querySelector(sel);"
+                    " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }",
+                    seletor,
+                )
+                checar(colunas >= 2, f"{nome} abre em colunas (achou {colunas})")
+
+            # Uma regra `.hoje { margin-top: 22px }` da tela de Aprovacoes vazava
+            # para qualquer elemento marcado como "hoje": a celula de hoje do
+            # calendario ficava 22 px abaixo das vizinhas, e o cabecalho da
+            # semana quebrava em duas linhas. Classe generica com layout dentro
+            # e a forma mais silenciosa de uma tela estragar outra.
+            print("\ncolisao de classe generica")
+            pagina.evaluate("() => abrirDestino('calendario')")
+            pagina.wait_for_timeout(1400)
+            desvio = pagina.evaluate("""() => {
+              const h = document.querySelector('.cel.hoje');
+              const o = document.querySelector('.cel:not(.hoje):not(.fora)');
+              if (!h || !o) return null;
+              return {hoje: getComputedStyle(h).marginTop, outra: getComputedStyle(o).marginTop};
+            }""")
+            checar(
+                desvio is None or desvio["hoje"] == desvio["outra"],
+                "a celula de hoje nao anda por causa de regra de outra tela",
+                str(desvio),
+            )
+
+            pagina.evaluate("""() => { const b = document.querySelector('[data-vista=semana]');
+              if (b) b.click(); }""")
+            pagina.wait_for_timeout(1200)
+            alturas = pagina.evaluate(
+                "() => [...document.querySelectorAll('.semana-cabeca')]"
+                ".map(e => Math.round(e.getBoundingClientRect().height))"
+            )
+            checar(
+                len(set(alturas)) <= 1,
+                f"os cabecalhos da semana tem a mesma altura ({sorted(set(alturas))})",
+            )
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

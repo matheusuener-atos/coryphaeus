@@ -12,7 +12,38 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-CAMPOS = ("titulo", "lista", "importante", "prazo", "cadastro_id", "anotacao")
+CAMPOS = ("titulo", "lista", "importante", "prazo", "cadastro_id", "anotacao",
+          "lembrar_em", "repetir")
+
+# Repetir e comportamento, nao rotulo: concluir uma tarefa que repete cria a
+# proxima com o prazo andado. Sem isso, "semanal" seria so uma palavra na ficha.
+REPETICOES = {
+    "": "Não repete",
+    "diaria": "Todo dia",
+    "semanal": "Toda semana",
+    "quinzenal": "A cada 15 dias",
+    "mensal": "Todo mês",
+}
+PASSO_DIAS = {"diaria": 1, "semanal": 7, "quinzenal": 15}
+
+
+def _andar(prazo: str, repetir: str) -> str:
+    """A proxima data, a partir do prazo que a tarefa tinha."""
+    from datetime import date, timedelta
+
+    try:
+        base = date.fromisoformat(prazo[:10])
+    except (ValueError, TypeError):
+        base = date.today()
+
+    if repetir == "mensal":
+        mes = base.month + 1
+        ano = base.year + (1 if mes > 12 else 0)
+        mes = 1 if mes > 12 else mes
+        dia = min(base.day, [31, 29 if ano % 4 == 0 and (ano % 100 or ano % 400 == 0) else 28,
+                             31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1])
+        return date(ano, mes, dia).isoformat()
+    return (base + timedelta(days=PASSO_DIAS.get(repetir, 7))).isoformat()
 
 
 def hoje() -> str:
@@ -110,7 +141,32 @@ class Tarefas:
         if tarefa:
             tarefa["etapas"] = self.etapas_de(id_)
             tarefa["situacao"] = self._situacao(tarefa)
+            tarefa["vinculos"] = self.vinculos_de(id_)
         return tarefa
+
+    def vinculos_de(self, id_: int) -> list[dict]:
+        """Os documentos ligados a esta tarefa, pelo SHA-1 do conteudo."""
+        return self.base.buscar(
+            "SELECT id, sha1, nome, criado_em FROM vinculos "
+            "WHERE tipo = 'tarefa' AND alvo_id = ? ORDER BY id",
+            (id_,),
+        )
+
+    def vincular(self, id_: int, sha1: str, nome: str = "") -> None:
+        """
+        Liga um documento a tarefa.
+
+        Pelo SHA-1, como os outros vinculos: renomear ou mover o arquivo nao
+        quebra a ligacao, porque o que identifica e o conteudo.
+        """
+        self.base.escrever(
+            "INSERT OR IGNORE INTO vinculos (tipo, alvo_id, sha1, nome, criado_em) "
+            "VALUES ('tarefa', ?, ?, ?, datetime('now','localtime'))",
+            (id_, sha1, nome),
+        )
+
+    def desvincular(self, vinculo_id: int) -> bool:
+        return self.base.escrever("DELETE FROM vinculos WHERE id = ?", (vinculo_id,)) > 0
 
     # ---------------------------------------------------------------- escrita
 
@@ -126,6 +182,8 @@ class Tarefas:
             "prazo": str(dados.get("prazo", "")).strip()[:10],
             "cadastro_id": dados.get("cadastro_id") or None,
             "anotacao": str(dados.get("anotacao", "")),
+            "lembrar_em": str(dados.get("lembrar_em", "")).strip()[:5],
+            "repetir": dados.get("repetir") if dados.get("repetir") in REPETICOES else "",
         }
 
         if id_:
@@ -144,11 +202,32 @@ class Tarefas:
             tuple(limpo[c] for c in CAMPOS),
         )
 
-    def concluir(self, id_: int, feita: bool = True) -> None:
+    def concluir(self, id_: int, feita: bool = True) -> dict:
+        """
+        Marca como feita e, se a tarefa repete, ja deixa a proxima no lugar.
+
+        Criar a proxima na hora de concluir e o unico momento em que da para
+        saber que ela deve existir. Deixar para um relogio depois exigiria um
+        processo rodando, e o programa fecha junto com a janela.
+        """
         self.base.escrever(
             "UPDATE tarefas SET concluida = ?, concluida_em = ? WHERE id = ?",
             (1 if feita else 0, hoje() if feita else "", id_),
         )
+        if not feita:
+            return {"proxima": None}
+        return {"proxima": self._repetir(id_)}
+
+    def _repetir(self, id_: int) -> int | None:
+        atual = self.base.um("SELECT * FROM tarefas WHERE id = ?", (id_,))
+        if not atual or not atual["repetir"]:
+            return None
+
+        dados = {c: atual[c] for c in CAMPOS}
+        dados["prazo"] = _andar(atual["prazo"] or hoje(), atual["repetir"])
+        novo = self.salvar(dados)
+        self.base.escrever("UPDATE tarefas SET meu_dia = 0 WHERE id = ?", (novo,))
+        return novo
 
     def marcar_importante(self, id_: int, importante: bool) -> None:
         self.base.escrever("UPDATE tarefas SET importante = ? WHERE id = ?", (1 if importante else 0, id_))
