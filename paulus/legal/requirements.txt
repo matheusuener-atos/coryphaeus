@@ -1,0 +1,8 @@
+# PAULUS Legal - MVP (Semana 1)
+pypdf>=5.0.0
+python-docx>=1.1.2
+rank-bm25>=0.2.2
+requests>=2.32.0
+
+# Semana 2 (extracao de vencimentos -> Excel)
+openpyxl>=3.1.5

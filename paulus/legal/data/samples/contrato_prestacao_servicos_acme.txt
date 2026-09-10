@@ -1,0 +1,62 @@
+CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE TECNOLOGIA
+
+CONTRATANTE: ACME INDÚSTRIA E COMÉRCIO LTDA., inscrita no CNPJ sob nº 12.345.678/0001-90,
+com sede na Av. Paulista, 1000, São Paulo/SP, neste ato representada por seu diretor
+João Ferreira da Silva.
+
+CONTRATADA: NORTE SOLUÇÕES DIGITAIS LTDA., inscrita no CNPJ sob nº 98.765.432/0001-10,
+com sede na Rua das Palmeiras, 250, Curitiba/PR.
+
+CLÁUSULA 1ª - DO OBJETO
+1.1. O presente contrato tem por objeto a prestação, pela CONTRATADA, de serviços de
+desenvolvimento e manutenção de sistemas de gestão empresarial, conforme especificações
+do Anexo I.
+
+CLÁUSULA 2ª - DO PRAZO E DA VIGÊNCIA
+2.1. O presente contrato vigorará pelo prazo de 24 (vinte e quatro) meses, com início em
+1º de março de 2025 e término em 28 de fevereiro de 2027.
+2.2. A vigência será prorrogada automaticamente por iguais períodos, salvo manifestação
+expressa em contrário de qualquer das partes, com antecedência mínima de 90 (noventa)
+dias do termo final.
+
+CLÁUSULA 3ª - DO PREÇO E DAS CONDIÇÕES DE PAGAMENTO
+3.1. Pelos serviços contratados, a CONTRATANTE pagará à CONTRATADA a quantia mensal de
+R$ 45.000,00 (quarenta e cinco mil reais).
+3.2. Os pagamentos serão realizados até o 10º (décimo) dia útil do mês subsequente ao da
+prestação dos serviços, mediante apresentação de nota fiscal.
+3.3. O valor será reajustado anualmente pela variação do IPCA/IBGE acumulado no período.
+
+CLÁUSULA 4ª - DAS PENALIDADES
+4.1. O atraso no pagamento sujeitará a CONTRATANTE ao pagamento de multa moratória de
+2% (dois por cento) sobre o valor em atraso, acrescida de juros de mora de 1% (um por
+cento) ao mês e correção monetária pelo IPCA.
+4.2. O descumprimento de qualquer obrigação contratual sujeitará a parte infratora ao
+pagamento de multa compensatória de 20% (vinte por cento) sobre o valor total do
+contrato, sem prejuízo das perdas e danos apurados.
+4.3. O atraso na entrega dos marcos previstos no Anexo I sujeitará a CONTRATADA a multa
+de 0,5% (meio por cento) por dia de atraso, limitada a 10% (dez por cento) do valor da
+parcela correspondente.
+
+CLÁUSULA 5ª - DA RESCISÃO
+5.1. O contrato poderá ser rescindido por qualquer das partes, imotivadamente, mediante
+notificação prévia por escrito com antecedência mínima de 60 (sessenta) dias.
+5.2. A rescisão imotivada antes de decorridos 12 (doze) meses de vigência sujeitará a
+parte denunciante ao pagamento de multa rescisória equivalente a 3 (três) mensalidades.
+5.3. O contrato poderá ser rescindido de pleno direito, independentemente de notificação,
+em caso de falência, recuperação judicial ou insolvência de qualquer das partes.
+
+CLÁUSULA 6ª - DA CONFIDENCIALIDADE
+6.1. As partes obrigam-se a manter sigilo sobre todas as informações confidenciais a que
+tiverem acesso, pelo prazo de 5 (cinco) anos contados do término do contrato.
+6.2. A violação do dever de confidencialidade sujeitará a parte infratora a multa de
+R$ 200.000,00 (duzentos mil reais), sem prejuízo da responsabilização civil e criminal.
+
+CLÁUSULA 7ª - DA PROTEÇÃO DE DADOS
+7.1. As partes obrigam-se a cumprir a Lei nº 13.709/2018 (LGPD) no tratamento de dados
+pessoais decorrentes deste contrato.
+
+CLÁUSULA 8ª - DO FORO
+8.1. Fica eleito o foro da Comarca de São Paulo/SP para dirimir quaisquer controvérsias
+oriundas do presente contrato.
+
+São Paulo, 1º de março de 2025.

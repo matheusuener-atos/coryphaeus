@@ -1,58 +1,70 @@
 # PAULUS — Primeiro Produto Vertical da Atos
 
-**PAULUS** é o primeiro produto vertical construído sobre **Coryphaeus** (Agent OS).
+**PAULUS** e o primeiro produto vertical construido sobre o
+[**Coryphaeus**](../README.md) (Agent OS).
+
+Um co-worker de IA que roda na infraestrutura do proprio cliente,
+especializado por vertical. Nenhum dado sai do servidor.
 
 ## Estrutura
 
-\\\
+```
 Coryphaeus (Agent OS)
     └── PAULUS (Produto Vertical)
-        └── Legal (Vertical Inicial: Escritórios Jurídicos)
-\\\
+        └── Legal (Vertical Inicial: Escritorios Juridicos)
+```
 
-## Verticals
+## Verticais
 
-### Legal ⚖️
-Especializado em trabalho jurídico para escritórios de advocacia.
+| Vertical | Status | Pasta |
+|---|---|---|
+| **Legal** — escritorios juridicos | MVP: Semana 1 concluida | [legal/](legal/) |
+
+### Legal
 
 **Capacidades:**
-- 🔍 Análise de contratos
-- 📋 Gestão de prazos e vencimentos
-- 📄 Criação de documentos jurídicos
-- 🖊️ Assinatura digital (ICP-Brasil)
-- 💾 Planilhas de gestão
+
+| Capacidade | Status |
+|---|---|
+| Analise de contratos (pergunta e resposta com citacao da fonte) | Pronto |
+| Busca por palavra-chave nos contratos | Pronto |
+| Gestao de prazos e vencimentos (planilha) | Semana 2 |
+| Interface web | Semana 3 |
+| Criacao de documentos juridicos | Backlog |
+| Assinatura digital (ICP-Brasil) | Backlog |
 
 **Stack:**
-- LLM: Llama 2 7B (Ollama local)
-- Backend: Python + FastAPI
-- Busca: BM25 + Semantic Search (futuro)
-- Database: SQLite (MVP) → PostgreSQL (produção)
 
-**Timeline:** 4-6 semanas até primeira venda
+- LLM: Llama local via Ollama (`llama3.2:3b` por padrao, configuravel)
+- Backend: Python; FastAPI a partir da Semana 3
+- Busca: BM25 sobre trechos; busca semantica so se a acuracia medida exigir
+- Persistencia: cache em JSON no MVP; SQLite quando houver estado a guardar
 
----
+**Timeline:** 4-6 semanas ate a primeira venda.
 
 ## Quick Start
 
-\\\ash
+```bash
 cd legal
+
 python -m venv venv
-source venv/bin/activate  # Mac/Linux
-venv\Scripts\activate     # Windows
+venv\Scripts\activate         # Windows
+source venv/bin/activate      # Mac/Linux
 pip install -r requirements.txt
 
 # Instalar Ollama: https://ollama.ai/download
-ollama pull llama2:7b-chat
+ollama pull llama3.2:3b
 
-# Adicionar seus contratos
+# Testar com os contratos ficticios de exemplo
+python src/main.py --contracts data/samples --ask "Qual o prazo de vigencia de cada contrato?"
+
+# Usar com seus contratos (essa pasta fica fora do git)
 mkdir -p data/test_contracts
-# Copie seus PDFs para data/test_contracts/
-
-# Rodar MVP
 python src/main.py
-\\\
+```
 
-Veja [legal/docs/QUICKSTART.md](legal/docs/QUICKSTART.md) para detalhes.
+Veja [legal/docs/QUICKSTART.md](legal/docs/QUICKSTART.md) para detalhes e
+[legal/docs/ARCHITECTURE.md](legal/docs/ARCHITECTURE.md) para as decisoes de projeto.
 
 ---
 
