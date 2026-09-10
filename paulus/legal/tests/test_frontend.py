@@ -115,6 +115,53 @@ def test_css_completo() -> None:
     checar(not faltando, "as pecas centrais da tela tem estilo", ", ".join(faltando))
 
 
+def test_css_bem_formado() -> None:
+    """
+    Regressao: ao recuperar um bloco de CSS de um commit antigo, veio junto um
+    trecho sem seletor - so as declaracoes e a chave de fechar. O navegador
+    engole isso em silencio e descarta o que vem depois.
+    """
+    print("\nCSS bem formado")
+    css, _ = _partes(PAGINA.read_text(encoding="utf-8"))
+    sem_comentario = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    abre, fecha = sem_comentario.count("{"), sem_comentario.count("}")
+    checar(abre == fecha, f"chaves equilibradas ({abre} abrem, {fecha} fecham)")
+
+    # Um seletor nunca contem ";" - declaracoes sim. E a assinatura exata de
+    # um bloco que perdeu o seletor.
+    orfaos = []
+    for antes, seletor in re.findall(r"(^|\})([^{}]*)\{", sem_comentario, re.M):
+        if ";" in seletor:
+            orfaos.append(seletor.strip().splitlines()[0][:45])
+    checar(not orfaos, f"nenhum bloco sem seletor (achou {len(orfaos)})", " | ".join(orfaos[:3]))
+
+
+def test_sem_regra_repetida() -> None:
+    """
+    Regressao: um bloco recuperado duplicou 106 linhas de regras. Como em CSS a
+    ultima ganha, a copia antiga sobrescrevia os ajustes novos - a coluna
+    voltava a 660 px depois de eu a ter alargado.
+    """
+    print("\nnenhuma regra repetida")
+    css, _ = _partes(PAGINA.read_text(encoding="utf-8"))
+    sem_comentario = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    # Seletores que podem repetir de proposito: tema, media query, estado.
+    contagem: dict[str, int] = {}
+    for linha in sem_comentario.splitlines():
+        m = re.match(r"^  ([.#][a-z][\w -]*)\s*\{", linha)
+        if m:
+            contagem[m.group(1)] = contagem.get(m.group(1), 0) + 1
+
+    repetidos = sorted(s for s, n in contagem.items() if n > 1)
+    checar(
+        not repetidos,
+        f"nenhum seletor de primeiro nivel repetido (achou {len(repetidos)})",
+        ", ".join(repetidos[:8]),
+    )
+
+
 def test_ids() -> None:
     print("\nids usados no JS existem no HTML")
     html = PAGINA.read_text(encoding="utf-8")
@@ -194,6 +241,8 @@ def main() -> int:
         return 1
 
     test_css_completo()
+    test_css_bem_formado()
+    test_sem_regra_repetida()
     test_ids()
     test_tokens()
     test_javascript_compila()
