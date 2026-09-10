@@ -39,6 +39,7 @@ from habilidade_base import (
 )
 from extract import SUPPORTED_SUFFIXES, index_all_contracts
 from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, Etapa, Trabalhos, titular
+from jobs import agora as jobs_agora
 from llama_client import DEFAULT_MODEL, LlamaClient, OllamaError, check_ollama
 from organize import (
     PADROES_SUGERIDOS,
@@ -452,6 +453,95 @@ def trabalhos_obter(id_: str) -> dict:
     if not trabalho:
         raise HTTPException(status_code=404, detail="trabalho nao encontrado")
     return trabalho.to_dict()
+
+
+class Renomear(BaseModel):
+    titulo: str
+
+
+class MoverGrupo(BaseModel):
+    grupo: str
+
+
+@app.post("/api/trabalhos/{id_}/renomear")
+def trabalhos_renomear(id_: str, payload: Renomear) -> dict:
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa nao encontrada")
+
+    titulo = " ".join(payload.titulo.split())[:80]
+    if not titulo:
+        raise HTTPException(status_code=400, detail="o nome nao pode ficar vazio")
+
+    trabalho.titulo = titulo
+    estado.trabalhos.salvar(trabalho)
+    return trabalho.resumo()
+
+
+@app.post("/api/trabalhos/{id_}/grupo")
+def trabalhos_grupo(id_: str, payload: MoverGrupo) -> dict:
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa nao encontrada")
+
+    trabalho.grupo = " ".join(payload.grupo.split())[:40]
+    trabalho.atualizado_em = jobs_agora()
+    estado.trabalhos.salvar(trabalho)
+    return trabalho.resumo()
+
+
+@app.post("/api/trabalhos/{id_}/duplicar")
+def trabalhos_duplicar(id_: str) -> dict:
+    copia = estado.trabalhos.duplicar(id_)
+    if not copia:
+        raise HTTPException(status_code=404, detail="conversa nao encontrada")
+    return copia.to_dict()
+
+
+@app.get("/api/agora")
+def acontecendo_agora() -> dict:
+    """
+    O que esta acontecendo neste instante, para os cartoes da tela inicial.
+
+    Tudo com numero real: cartao que diz "processando" sem dizer quanto falta
+    e enfeite, nao informacao.
+    """
+    abertos = [
+        estado.trabalhos.obter(t["id"])
+        for t in estado.trabalhos.listar()["em_andamento"]
+    ]
+    abertos = [t for t in abertos if t]
+
+    executando = []
+    esperando = []
+    for trabalho in abertos:
+        if trabalho.aprovacao:
+            esperando.append({
+                "id": trabalho.id,
+                "titulo": trabalho.titulo,
+                "pergunta": trabalho.aprovacao.pergunta,
+            })
+            continue
+        if trabalho.estado == EXECUTANDO:
+            atual = next((e for e in trabalho.etapas if e.estado == EXECUTANDO), None)
+            executando.append({
+                "id": trabalho.id,
+                "titulo": trabalho.titulo,
+                "etapa": atual.titulo if atual else "",
+                "feitos": atual.feitos if atual else 0,
+                "total": atual.total if atual else 0,
+                "progresso": trabalho.progresso or 0,
+            })
+
+    return {
+        "executando": executando,
+        "esperando": esperando,
+        "biblioteca": {
+            "documentos": len(estado.searcher.documents),
+            "trechos": len(estado.searcher.chunks),
+        },
+        "pausados": sum(1 for t in abertos if t.estado == "pausado"),
+    }
 
 
 @app.delete("/api/trabalhos/{id_}")

@@ -83,6 +83,7 @@ class Trabalho:
     atividade: list[Atividade] = field(default_factory=list)
     aprovacao: Aprovacao | None = None
     contexto: dict = field(default_factory=dict)   # estado interno do tipo de trabalho
+    grupo: str = ""                                # vazio = sem grupo
 
     # ---------------------------------------------------------------- ajudas
 
@@ -137,6 +138,7 @@ class Trabalho:
             "aberto": self.aberto,
             "atualizado_em": self.atualizado_em,
             "pendencias": 1 if self.aprovacao else 0,
+            "grupo": self.grupo,
         }
 
 
@@ -236,13 +238,47 @@ class Trabalhos:
         self._caminho(id_).unlink(missing_ok=True)
         return True
 
-    def listar(self) -> dict[str, list[dict]]:
-        """Agrupado como a coluna da esquerda pede: em andamento e recentes."""
+    def listar(self) -> dict:
+        """
+        Conversas agrupadas como a coluna da esquerda mostra.
+
+        Grupos com nome vem primeiro, em ordem alfabetica; o que a pessoa nao
+        agrupou fica por ultimo, em "Sem grupo". Dentro de cada grupo, o mais
+        recente em cima.
+        """
         ordenados = sorted(self._itens.values(), key=lambda t: t.atualizado_em, reverse=True)
+
+        por_grupo: dict[str, list[dict]] = {}
+        for trabalho in ordenados:
+            por_grupo.setdefault(trabalho.grupo, []).append(trabalho.resumo())
+
+        nomeados = sorted((g for g in por_grupo if g), key=str.lower)
+        grupos = [{"nome": g, "trabalhos": por_grupo[g]} for g in nomeados]
+        if "" in por_grupo:
+            grupos.append({"nome": "", "trabalhos": por_grupo[""]})
+
         return {
+            "grupos": grupos,
+            "nomes_de_grupo": nomeados,
             "em_andamento": [t.resumo() for t in ordenados if t.aberto],
-            "recentes": [t.resumo() for t in ordenados if not t.aberto][:12],
         }
+
+    def duplicar(self, id_: str) -> Trabalho | None:
+        """
+        Copia a conversa, sem o historico.
+
+        Duplicar existe para repetir um tipo de trabalho, nao para clonar
+        respostas: levar as mensagens junto criaria duas conversas dizendo a
+        mesma coisa sobre documentos que podem ja ter mudado.
+        """
+        original = self.obter(id_)
+        if not original:
+            return None
+
+        copia = self.criar(f"{original.titulo} (cópia)", tipo=original.tipo)
+        copia.grupo = original.grupo
+        self.salvar(copia)
+        return copia
 
     @property
     def pendencias(self) -> int:
@@ -263,6 +299,7 @@ def _de_dict(bruto: dict) -> Trabalho | None:
             atividade=[Atividade(**a) for a in bruto.get("atividade", [])],
             aprovacao=Aprovacao(**bruto["aprovacao"]) if bruto.get("aprovacao") else None,
             contexto=bruto.get("contexto", {}),
+            grupo=bruto.get("grupo", ""),
         )
     except (KeyError, TypeError):
         return None
