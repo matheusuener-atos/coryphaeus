@@ -14,6 +14,7 @@ pip install -r requirements.txt
 python tests/test_pipeline.py      # extracao, busca, contexto
 python tests/test_organizador.py   # varredura, classificacao, plano, desfazer
 python tests/test_habilidades.py   # consistencia do registro de habilidades
+python tests/test_frontend.py      # integridade da interface (CSS, ids, tokens, JS)
 ```
 
 ## Regras que nao se negociam
