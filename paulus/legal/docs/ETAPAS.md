@@ -148,17 +148,64 @@ Etapa 1 com etiqueta de irreversível.
 
 ---
 
-## Etapa 5 — E-mail
+## Etapa 5 — E-mail ✓ FEITA
 
 **Telas:** Contas de e-mail · Caixa de entrada · Novo e-mail
 **Tamanho:** grande
 **Depende de:** Etapa 1 (envio passa por aprovação)
 
-A maior das etapas isoladas. IMAP e SMTP, ou OAuth para Google e Microsoft.
-Envio nunca sai direto: rascunho, revisão, aprovação.
+A maior das etapas isoladas. O valor está na caixa de entrada que lê o e-mail,
+detecta o prazo e sugere a resposta — não em ser mais um cliente de e-mail.
 
-O valor está na caixa de entrada que lê o e-mail, detecta o prazo e sugere a
-resposta — não em ser mais um cliente de e-mail.
+Entregue com IMAP e SMTP, e **sem OAuth**. A decisão é prática, não ideológica:
+OAuth para Gmail ou Microsoft exige registrar aplicativo, publicar política de
+privacidade, verificar domínio e passar por revisão de segurança — semanas de
+espera e custo antes da primeira linha funcionar. IMAP com senha de aplicativo
+funciona hoje, de graça, e é o que a hospedagem de um escritório brasileiro
+oferece. Tudo isso sai da biblioteca padrão do Python: a etapa não trouxe uma
+dependência nova.
+
+O preço dessa escolha aparece na tela em vez de virar surpresa: a Microsoft
+desativou entrada por senha no IMAP das contas Outlook e Microsoft 365, e o
+programa avisa isso **antes** de a pessoa tentar e falhar. Para o Gmail, explica
+onde gerar a Senha de app.
+
+**Duas escolhas de arquitetura que decidem o resto:**
+
+*A listagem lê cabeçalho, não mensagem.* Assunto, remetente, data e — pela
+estrutura que o servidor descreve — se tem anexo. O corpo só é baixado quando
+alguém abre aquele e-mail. É a promessa do rodapé ("leio só o que você abre") e
+também é o que faz uma caixa com milhares de mensagens abrir em segundos.
+
+*Prazo por regra, texto por modelo.* Rodar o modelo em cada mensagem que chega
+custaria perto de um minuto por e-mail nesta máquina — a caixa de entrada
+demoraria uma hora para abrir. Então o prazo sai por regra, instantâneo, já na
+listagem; o rascunho de resposta só é escrito quando alguém pede. É a mesma
+divisão que a classificação de documentos já usava.
+
+Prazo detectado vira tarefa com um clique, e o remetente que já tem ficha nos
+Cadastros aparece marcado como cliente.
+
+**O que o programa recusa fazer:**
+
+- enviar sem aprovação: a permissão vem desligada no programa *e* na conta, e
+  o pedido para na fila da Etapa 1 marcado como irreversível
+- guardar senha em texto — vai para a DPAPI, como a do certificado, e nunca
+  volta para a tela, nem protegida
+- guardar cópia das mensagens: elas ficam no servidor do escritório
+- pôr assinatura inventada pelo modelo num e-mail — a assinatura é a da conta
+
+**Achados durante a construção:**
+
+- `getaddresses` devolve lista vazia para `a@b.com; c@d.com`. O ponto e vírgula
+  fecha grupo na regra do e-mail, mas é o separador que o Outlook usa e que
+  todo escritório cola no campo "Para". Um campo preenchido que não envia para
+  ninguém é pior que um erro
+- o Outlook manda travessão e aspas curvas em cp1252 declarando iso-8859-1,
+  onde esses bytes são caracteres de controle: o assunto chegava com um
+  caractere invisível no meio
+- sondar oito candidatos de servidor em série levava dezesseis segundos, porque
+  o tempo limite do socket não cobre a resolução de nome. Em paralelo: dois
 
 ---
 

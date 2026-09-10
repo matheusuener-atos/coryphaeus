@@ -31,3 +31,15 @@ venv/
 __pycache__/
 *.pyc
 .env
+
+# Certificado digital: .pfx e chave privada. Nunca entra no repositorio -
+# um e-CPF versionado e um e-CPF perdido.
+data/certificado/
+*.pfx
+*.p12
+
+# Contas de e-mail e historico de envios: guardam endereco, servidor e a
+# senha protegida pela conta do Windows.
+data/contas_email.json
+data/envios.json
+data/assinaturas.json

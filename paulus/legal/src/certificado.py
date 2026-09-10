@@ -22,6 +22,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import segredos
+
 # Autoridades da ICP-Brasil aparecem com estes pedacos no nome do emissor.
 # Nao substitui validacao de cadeia de verdade: e um indicio, e a tela diz isso.
 MARCAS_ICP = (
@@ -298,53 +300,8 @@ POSICOES = {
 }
 
 
-def _dpapi(dados: bytes, proteger: bool) -> bytes | None:
-    """
-    Protege ou revela bytes usando a DPAPI do Windows.
-
-    Guardar a senha do certificado em texto num JSON seria entregar a chave
-    privada a qualquer programa que leia a pasta. A DPAPI amarra o segredo a
-    esta conta do Windows: quem copiar o arquivo para outra maquina leva bytes
-    inuteis. Nao e cofre inviolavel - e a diferenca entre um arquivo que
-    qualquer um le e um que so esta conta le.
-
-    Fora do Windows devolve None, e quem chama nao guarda senha nenhuma.
-    """
-    import sys
-
-    if sys.platform != "win32":
-        return None
-
-    import ctypes
-    from ctypes import wintypes
-
-    class BLOB(ctypes.Structure):
-        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
-
-    buffer_ = ctypes.create_string_buffer(dados, len(dados))
-    entrada = BLOB(len(dados), ctypes.cast(buffer_, ctypes.POINTER(ctypes.c_char)))
-    saida = BLOB()
-    crypt32 = ctypes.windll.crypt32
-
-    if proteger:
-        ok = crypt32.CryptProtectData(
-            ctypes.byref(entrada), "PAULUS", None, None, None, 0, ctypes.byref(saida)
-        )
-    else:
-        ok = crypt32.CryptUnprotectData(
-            ctypes.byref(entrada), None, None, None, None, 0, ctypes.byref(saida)
-        )
-    if not ok:
-        return None
-
-    try:
-        return ctypes.string_at(saida.pbData, saida.cbData)
-    finally:
-        ctypes.windll.kernel32.LocalFree(saida.pbData)
-
-
 def dpapi_disponivel() -> bool:
-    return _dpapi(b"teste", True) is not None
+    return segredos.disponivel()
 
 
 class Cofre:
@@ -442,30 +399,23 @@ class Cofre:
 
     def proteger(self, senha: str) -> bool:
         """Guarda a senha em disco, protegida pela conta do Windows."""
-        import base64
-
-        blob = _dpapi(senha.encode("utf-8"), True)
-        if blob is None:
+        guardada = segredos.proteger(senha)
+        if not guardada:
             return False
-        self.dados["senha_protegida"] = base64.b64encode(blob).decode("ascii")
+        self.dados["senha_protegida"] = guardada
         self.dados["guardar_senha"] = True
         self.salvar()
         return True
 
     def senha_agora(self) -> str:
         """A senha em uso: a da memoria, a guardada, ou nenhuma."""
-        import base64
         import time
 
         if self._senha_viva and time.time() < self._vale_ate:
             return self._senha_viva
         self.esquecer_senha()
 
-        guardada = self.dados.get("senha_protegida") or ""
-        if not guardada:
-            return ""
-        aberta = _dpapi(base64.b64decode(guardada), False)
-        return aberta.decode("utf-8") if aberta else ""
+        return segredos.revelar(self.dados.get("senha_protegida") or "")
 
     # ----------------------------------------------------------------- selo
 

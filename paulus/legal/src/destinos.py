@@ -4,12 +4,12 @@ PAULUS - Destinos do menu lateral.
 O manual do sistema define 26 telas, 20 delas no menu, em quatro grupos. Este
 modulo e a ordem oficial desse menu.
 
-Treze telas tem motor por tras hoje. As outras sete entram na lista com
+Catorze telas tem motor por tras hoje. As outras seis entram na lista com
 `pronta=False`: o menu mostra o produto inteiro, e quem clica numa que ainda
 nao existe recebe o que ela vai resolver e o que falta para ela existir - nao
 uma tela em branco nem um botao morto.
 
-Listar so o que ja funciona esconderia o mapa; desenhar as sete com dado
+Listar so o que ja funciona esconderia o mapa; desenhar as seis com dado
 inventado seria pior. A terceira saida e dizer.
 """
 
@@ -100,9 +100,9 @@ DESTINOS: list[Destino] = [
         resolve="Clientes, partes e fornecedores, com os documentos vinculados a cada um.",
     ),
     Destino(
-        id="caixa", nome="Caixa de entrada", grupo="Escritorio", icone="carta",
-        resolve="E-mails com resumo, prazo detectado e resposta sugerida.",
-        precisa=["conta de e-mail conectada (IMAP ou OAuth)"],
+        id="caixa", nome="Caixa de entrada", grupo="Escritorio", icone="carta", pronta=True,
+        abre="caixa",
+        resolve="E-mails com prazo detectado, resposta sugerida e as contas do escritório.",
     ),
     Destino(
         id="aprovacoes", nome="Aprovações", grupo="Escritorio", icone="visto", pronta=True,

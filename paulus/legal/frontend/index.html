@@ -1181,6 +1181,105 @@
     padding: 3px 7px; border: 1px solid var(--linha-media); color: var(--ink-3); white-space: nowrap;
   }
 
+  /* ------------------------------------------------------------ e-mail */
+
+  .conta-linha {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--linha);
+  }
+  .conta-linha:last-of-type { border-bottom: none; }
+  .conta-marca {
+    width: 34px; height: 34px; flex: none;
+    display: grid; place-items: center;
+    border: 1px solid var(--linha-media);
+    font: 500 10px var(--mono); letter-spacing: 0.08em; color: var(--ink-3);
+  }
+  .conta-dados { min-width: 0; flex: 1; }
+  .conta-dados b { display: block; font: 500 13.5px var(--sans); }
+  .conta-erro { color: var(--atencao); }
+
+  .email-topo {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .email-busca { flex: 1 1 240px; }
+
+  .email-colunas {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+    gap: 16px; align-items: start;
+  }
+  @media (max-width: 1040px) {
+    .email-colunas { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .email-lista { border: 1px solid var(--linha-media); background: var(--surface-1); }
+  .email-item {
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 11px 13px; border-bottom: 1px solid var(--linha);
+    cursor: pointer; border-left: 2px solid transparent;
+  }
+  .email-item:last-child { border-bottom: none; }
+  .email-item:hover { background: var(--surface-3); }
+  .email-item.aberta { border-left-color: var(--acento); background: var(--surface-3); }
+  .email-item.nova b { color: var(--ink-titulo); }
+  .email-item .quem { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
+  .email-item .quem b { font-weight: 500; flex: 1; min-width: 0; }
+  .email-item .assunto { font-size: 13px; color: var(--ink-2); }
+  .email-item.nova .assunto { color: var(--ink); font-weight: 500; }
+  .email-item .sinais { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+
+  .email-sinal {
+    font: 500 9px var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 2px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+  }
+  .email-sinal.prazo { color: var(--atencao); border-color: var(--atencao-linha); }
+  .email-sinal.cliente { color: var(--ok); border-color: var(--ok); }
+
+  .email-aberto { border: 1px solid var(--linha-media); background: var(--surface-1); padding: 16px; }
+  .email-cabeca { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .email-cabeca h3 { font: 500 15px var(--sans); margin-bottom: 3px; }
+  .email-corpo {
+    white-space: pre-wrap; font-size: 13.5px; line-height: 1.65;
+    border-top: 1px solid var(--linha); padding-top: 14px;
+    overflow-wrap: anywhere;
+  }
+  .email-prazo {
+    border: 1px solid var(--atencao-linha); background: var(--atencao-fundo);
+    padding: 10px 12px; margin: 12px 0; font-size: 12.5px; line-height: 1.55;
+  }
+  .email-prazo strong { color: var(--atencao); }
+
+  .email-anexo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .email-anexo:last-child { border-bottom: none; }
+  .email-tipo {
+    font: 500 9px var(--mono); letter-spacing: 0.1em;
+    padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+  }
+
+  .email-rascunho {
+    border-left: 2px solid var(--acento); padding: 12px 0 12px 14px; margin-top: 14px;
+  }
+  .email-rascunho p { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin: 8px 0 0; }
+
+  .email-campos { display: flex; flex-direction: column; gap: 10px; }
+  .email-campo { display: flex; align-items: center; gap: 10px; }
+  .email-campo .rotulo { width: 62px; flex: none; }
+  .email-campo input { flex: 1; }
+  .email-texto {
+    width: 100%; min-height: 190px;
+    font: 400 13.5px/1.65 var(--sans);
+    border: 1px solid var(--linha-media); background: var(--surface-1);
+    color: inherit; padding: 12px; resize: vertical;
+  }
+  .email-assina {
+    font-size: 12px; color: var(--ink-3); white-space: pre-wrap;
+    border-top: 1px dashed var(--linha-media); margin-top: 10px; padding-top: 10px;
+  }
+
   /* ------------------------------------------------------- responsivo */
 
   @media (max-width: 1180px) {
@@ -3347,6 +3446,7 @@ function abrirDestino(id) {
   if (d.abre === "agendamento") return mostrarAgendamento();
   if (d.abre === "certificado") return mostrarCertificado();
   if (d.abre === "assinar") return mostrarAssinar();
+  if (d.abre === "caixa") return mostrarEmail();
   if (d.abre === "organizar") { abrirTela("Organizar pastas"); $("centro").innerHTML = ""; organizarComecar(); }
 }
 
@@ -5154,6 +5254,740 @@ function telaAssinado(d) {
 
 function nomeDe(caminho) {
   return String(caminho || "").split(/[\\/]/).pop();
+}
+
+/* --------------------------------------------------- e-mail (B1, B2, B3) */
+/*
+   Tres telas, um estado. A senha nunca volta do servidor: quando falta, a
+   tela pede. E nada sai daqui sem passar pela fila - e-mail enviado nao volta.
+*/
+
+const mail = {
+  contas: null, conta: null,
+  caixa: null, aberta: null, filtro: "tudo", busca: "",
+  rascunho: null, anexos: [],
+};
+
+async function mostrarEmail() {
+  abrirTela("Caixa de entrada");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  try {
+    mail.contas = await (await fetch("/api/email/contas")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  if (!mail.contas.contas.length) return telaContas();
+  mail.conta = mail.contas.contas.find((c) => c.em_uso) || mail.contas.contas[0];
+  carregarCaixa();
+}
+
+/* ------------------------------------------------- B1: contas de e-mail */
+
+function telaContas() {
+  const d = mail.contas;
+  const n = d.contas.length;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Contas de e-mail</h2>" +
+    '<span class="rotulo">você entra com sua conta · a senha fica nesta máquina</span></div>' +
+    (n ? '<div class="tela-acoes"><button id="mail-ver-caixa">Caixa de entrada</button>' +
+         '<button class="primario" id="mail-escrever">Escrever e-mail</button></div>' : "") +
+    "</div>";
+
+  if (n) {
+    html += '<div class="painel"><h3>Contas conectadas</h3>' +
+      '<p class="explica">A primeira da lista envia por padrão.</p>' +
+      d.contas.map(linhaConta).join("") + "</div>";
+  }
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Entrar em uma conta</h3>' +
+    '<p class="explica">Eu tento descobrir o servidor pelo seu endereço. Se o e-mail for do ' +
+    "domínio do escritório, sondo os nomes de servidor mais comuns.</p>" +
+    '<div class="email-campos">' +
+    '<div class="email-campo"><span class="rotulo">e-mail</span>' +
+    '<input type="text" id="mail-endereco" placeholder="nome@dominio.com.br"></div>' +
+    '<div class="email-campo"><span class="rotulo">seu nome</span>' +
+    '<input type="text" id="mail-nome" placeholder="como aparece para quem recebe"></div>' +
+    '<div class="email-campo"><span class="rotulo">senha</span>' +
+    '<input type="password" id="mail-senha" placeholder="senha ou senha de app">' +
+    '<button id="mail-mostrar">Mostrar</button></div>' +
+    "</div>" +
+    '<div id="mail-ajuda"></div>' +
+    '<div class="linha-form"><button id="mail-detectar">Detectar servidor</button></div>' +
+    '<div id="mail-servidores" hidden>' +
+    '<div class="grade-form">' +
+    '<div class="campo-form"><span class="rotulo">entrada (IMAP)</span>' +
+    '<input type="text" id="mail-imap" placeholder="imap.dominio.com.br"></div>' +
+    '<div class="campo-form"><span class="rotulo">porta</span>' +
+    '<input type="text" id="mail-imap-porta" value="993"></div>' +
+    '<div class="campo-form"><span class="rotulo">saída (SMTP)</span>' +
+    '<input type="text" id="mail-smtp" placeholder="smtp.dominio.com.br"></div>' +
+    '<div class="campo-form"><span class="rotulo">porta</span>' +
+    '<input type="text" id="mail-smtp-porta" value="587"></div></div>' +
+    (d.pode_guardar_senha
+      ? '<label class="interruptor"><input type="checkbox" id="mail-guardar" checked>' +
+        '<span class="permissao-texto"><span class="permissao-titulo">Guardar a senha nesta máquina</span>' +
+        '<span class="explica">Protegida pela sua conta do Windows. Sem isso, eu pergunto a cada vez.</span>' +
+        "</span></label>"
+      : '<p class="explica" style="margin-top:10px">Não consigo guardar senha com segurança neste ' +
+        "sistema, então vou perguntar quando precisar.</p>") +
+    '<div class="linha-form"><button id="mail-testar">Testar</button>' +
+    '<button class="primario" id="mail-entrar">Entrar</button></div>' +
+    '<div id="mail-prova"></div></div></div>';
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Onde ficam os dados</h3>' +
+    '<p class="explica">As senhas ficam protegidas pela sua conta do Windows, nunca em texto. ' +
+    "As mensagens continuam no servidor do seu e-mail — eu leio só o que você abrir, e não " +
+    "guardo cópia aqui.</p>" +
+    (d.contas.some((c) => c.tem_senha)
+      ? '<button class="perigo" id="mail-esquecer">Apagar todas as senhas</button>' : "") +
+    "</div>";
+
+  if (d.registro && d.registro.envios.length) {
+    html += '<div class="painel" style="margin-top:16px"><h3>Enviados daqui</h3>' +
+      d.registro.envios.slice(0, 8).map((e) =>
+        '<div class="reg-linha"><span class="cresce corta">' + esc(e.assunto || "(sem assunto)") + "</span>" +
+        '<span class="num">' + esc((e.para || []).join(", ")) + "</span>" +
+        '<span class="num">' + esc(quandoCurto(e.quando)) + "</span></div>"
+      ).join("") + "</div>";
+  }
+
+  html += '<div class="rodape-tela">nenhuma credencial sai desta máquina</div></div>';
+  $("centro").innerHTML = html;
+  ligarContas();
+}
+
+function linhaConta(c) {
+  return '<div class="conta-linha"><span class="conta-marca">' + esc(c.iniciais) + "</span>" +
+    '<div class="conta-dados"><b class="corta">' + esc(c.email) + "</b>" +
+    '<span class="rotulo' + (c.ultimo_erro ? " conta-erro" : "") + '">' +
+    (c.ultimo_erro
+      ? esc(c.ultimo_erro)
+      : esc(c.resumo_servidor) + (c.quando_ok ? " · falou com o servidor " + esc(c.quando_ok) : "")) +
+    "</span></div>" +
+    (c.em_uso
+      ? '<span class="email-sinal">em uso</span>'
+      : '<button data-usar="' + esc(c.id) + '">Usar esta</button>') +
+    '<button class="perigo" data-tirar="' + esc(c.id) + '">Remover</button></div>';
+}
+
+function ligarContas() {
+  const ir = $("mail-ver-caixa");
+  if (ir) ir.onclick = () => { mail.conta = mail.contas.contas.find((c) => c.em_uso); carregarCaixa(); };
+  const escrever = $("mail-escrever");
+  if (escrever) escrever.onclick = () => telaEscrever();
+
+  document.querySelectorAll("[data-usar]").forEach((b) => {
+    b.onclick = async () => {
+      mail.contas = await (await fetch("/api/email/contas/" + b.dataset.usar + "/usar", { method: "POST" })).json();
+      telaContas();
+    };
+  });
+  document.querySelectorAll("[data-tirar]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Remover esta conta do PAULUS? A senha guardada é apagada. As mensagens continuam no seu servidor.")) return;
+      mail.contas = await (await fetch("/api/email/contas/" + b.dataset.tirar, { method: "DELETE" })).json();
+      telaContas();
+    };
+  });
+
+  const esquecer = $("mail-esquecer");
+  if (esquecer) esquecer.onclick = async () => {
+    if (!confirm("Apagar todas as senhas guardadas? As contas continuam cadastradas; eu vou perguntar a senha quando precisar.")) return;
+    mail.contas = await (await fetch("/api/email/esquecer-senhas", { method: "POST" })).json();
+    telaContas();
+  };
+
+  const senha = $("mail-senha");
+  $("mail-mostrar").onclick = () => {
+    senha.type = senha.type === "password" ? "text" : "password";
+    $("mail-mostrar").textContent = senha.type === "password" ? "Mostrar" : "Esconder";
+  };
+
+  $("mail-detectar").onclick = detectarServidor;
+  $("mail-endereco").onkeydown = (e) => { if (e.key === "Enter") detectarServidor(); };
+  $("mail-testar").onclick = () => provarConta(false);
+  $("mail-entrar").onclick = () => provarConta(true);
+}
+
+async function detectarServidor() {
+  const endereco = $("mail-endereco").value.trim();
+  const ajuda = $("mail-ajuda");
+  const botao = $("mail-detectar");
+  if (!endereco) { ajuda.innerHTML = '<p class="explica">informe o e-mail primeiro</p>'; return; }
+
+  botao.disabled = true;
+  botao.textContent = "procurando…";
+  let d;
+  try {
+    d = await (await fetch("/api/email/detectar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: endereco }),
+    })).json();
+  } catch (err) {
+    d = { achou: false, motivo: String(err) };
+  }
+  botao.disabled = false;
+  botao.textContent = "Detectar servidor";
+
+  $("mail-servidores").hidden = false;
+  if (d.achou) {
+    $("mail-imap").value = d.imap_host;
+    $("mail-imap-porta").value = d.imap_porta;
+    $("mail-smtp").value = d.smtp_host;
+    $("mail-smtp-porta").value = d.smtp_porta;
+  }
+
+  let texto = "";
+  if (d.aviso) {
+    texto += '<div class="cert-aviso" style="margin-top:12px"><strong>Esta conta não vai funcionar aqui</strong>' +
+      "<p>" + esc(d.aviso) + "</p></div>";
+  } else if (d.ajuda) {
+    texto += '<div class="cert-aviso" style="margin-top:12px"><strong>Como gerar a senha</strong>' +
+      "<p>" + esc(d.ajuda) + "</p></div>";
+  }
+  if (d.achou) {
+    texto += '<p class="explica" style="margin-top:10px">' + esc(d.como) +
+      (d.parcial ? " — achei só uma das pontas, confira a outra." : "") + "</p>";
+  } else {
+    texto += '<p class="explica" style="margin-top:10px">' + esc(d.motivo || "não achei") + "</p>";
+  }
+  $("mail-ajuda").innerHTML = texto;
+}
+
+function fichaDaTela() {
+  return {
+    email: $("mail-endereco").value.trim(),
+    nome: $("mail-nome").value.trim(),
+    imap_host: $("mail-imap").value.trim(),
+    imap_porta: Number($("mail-imap-porta").value) || 993,
+    smtp_host: $("mail-smtp").value.trim(),
+    smtp_porta: Number($("mail-smtp-porta").value) || 587,
+    guardar_senha: $("mail-guardar") ? $("mail-guardar").checked : false,
+  };
+}
+
+async function provarConta(entrar) {
+  const prova = $("mail-prova");
+  const senha = $("mail-senha").value;
+  if (!senha) { prova.innerHTML = '<p class="explica">informe a senha</p>'; return; }
+
+  const botao = entrar ? $("mail-entrar") : $("mail-testar");
+  const antes = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = "falando com o servidor…";
+
+  let r;
+  try {
+    r = await (await fetch("/api/email/testar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dados: fichaDaTela(), senha: senha }),
+    })).json();
+  } catch (err) {
+    r = { ok: false, erro_entrada: String(err) };
+  }
+  botao.disabled = false;
+  botao.textContent = antes;
+
+  prova.innerHTML = '<div style="margin-top:12px">' +
+    '<div class="reg-linha"><span class="cresce">ler as mensagens (IMAP)</span>' +
+    '<span class="cert-estado ' + (r.entrada ? "valido" : "problema") + '">' +
+    (r.entrada ? "funciona" : "não") + "</span></div>" +
+    '<div class="reg-linha"><span class="cresce">enviar (SMTP)</span>' +
+    '<span class="cert-estado ' + (r.saida ? "valido" : "problema") + '">' +
+    (r.saida ? "funciona" : "não") + "</span></div>" +
+    (r.erro_entrada ? '<p class="explica">entrada: ' + esc(r.erro_entrada) + "</p>" : "") +
+    (r.erro_saida ? '<p class="explica">saída: ' + esc(r.erro_saida) + "</p>" : "") +
+    "</div>";
+
+  /* Guardar uma conta que so le, sem dizer, e descobrir o problema na hora de
+     mandar o e-mail que importava. */
+  if (!entrar) return;
+  if (!r.entrada) return;
+  if (!r.saida && !confirm("Dá para ler, mas não dá para enviar por esta conta. Guardar assim mesmo?")) return;
+
+  mail.contas = await (await fetch("/api/email/contas", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dados: fichaDaTela(), senha: senha }),
+  })).json();
+  mail.conta = mail.contas.contas.find((c) => c.em_uso) || mail.contas.contas[0];
+  carregarCaixa();
+}
+
+/* ------------------------------------------------ B3: caixa de entrada */
+
+async function carregarCaixa() {
+  abrirTela("Caixa de entrada");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">falando com o servidor de e-mail…</p></div>';
+
+  const busca = mail.busca ? "&busca=" + encodeURIComponent(mail.busca) : "";
+  const r = await fetch("/api/email/caixa?filtro=" + mail.filtro + busca +
+    (mail.conta ? "&conta_id=" + mail.conta.id : ""));
+
+  if (!r.ok) {
+    const motivo = await erroDe(r);
+    centro.innerHTML = '<div class="catalogo"><div class="tela-topo"><div><h2>Caixa de entrada</h2>' +
+      '<span class="rotulo">não consegui abrir</span></div></div>' +
+      '<div class="painel"><h3>' + esc(motivo) + "</h3>" +
+      '<p class="explica">Isso costuma ser senha recusada ou servidor errado. A tela de contas ' +
+      "testa as duas pontas e diz qual falhou.</p>" +
+      '<button class="primario" id="mail-ir-contas">Abrir contas de e-mail</button></div></div>';
+    $("mail-ir-contas").onclick = () => telaContas();
+    return;
+  }
+
+  mail.caixa = await r.json();
+  mail.aberta = null;
+  mail.rascunho = null;
+  desenharCaixa();
+  atualizarPostura();
+}
+
+function desenharCaixa() {
+  const d = mail.caixa;
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Caixa de entrada</h2>" +
+    '<span class="rotulo">' + d.nao_lidos + " não lido(s)" +
+    (d.sem_resposta ? " · " + d.sem_resposta + " ainda sem resposta" : "") + "</span></div>" +
+    '<div class="tela-acoes"><button id="mail-contas">Contas</button>' +
+    '<button class="primario" id="mail-novo">Escrever</button></div></div>';
+
+  html += '<div class="email-topo">' +
+    '<input type="text" class="email-busca" id="mail-busca" placeholder="buscar remetente ou assunto…" value="' +
+    esc(mail.busca) + '">' +
+    '<div class="chips">' + (d.filtros || []).map((f) =>
+      '<button class="chip' + (mail.filtro === f.valor ? " escolhida" : "") +
+      '" data-filtro="' + esc(f.valor) + '">' + esc(f.rotulo) + "</button>").join("") +
+    "</div></div>";
+
+  html += '<div class="email-colunas"><div class="email-lista">' +
+    (d.mensagens.length
+      ? d.mensagens.map(linhaMensagem).join("")
+      : '<div style="padding:20px"><p class="explica">Nada aqui com esse filtro.</p></div>') +
+    "</div>";
+
+  html += '<div id="mail-painel">' +
+    '<div class="painel"><h3>Escolha uma mensagem</h3>' +
+    '<p class="explica">Eu leio a mensagem só quando você abre. Até lá ela fica no seu servidor — ' +
+    "por isso esta lista abre rápido mesmo com milhares de e-mails.</p></div></div></div>";
+
+  html += '<div class="linha-form" style="margin-top:12px">' +
+    '<span class="rotulo">mostrando ' + d.mostrando + " de " + d.total + "</span>" +
+    (d.tem_mais ? '<button id="mail-mais">Carregar mais</button>' : "") + "</div>";
+
+  html += '<div class="rodape-tela">mensagens ficam no seu servidor · leio só o que você abre</div></div>';
+  $("centro").innerHTML = html;
+  ligarCaixa();
+}
+
+function linhaMensagem(m) {
+  return '<div class="email-item' + (m.lido ? "" : " nova") +
+    (mail.aberta && mail.aberta.uid === m.uid ? " aberta" : "") + '" data-uid="' + esc(m.uid) + '">' +
+    '<div class="quem"><b class="corta">' + esc(m.de_cadastro || m.de_nome) + "</b>" +
+    '<span class="num">' + esc(m.quando_curto) + "</span></div>" +
+    '<div class="assunto corta">' + esc(m.assunto) + "</div>" +
+    (m.prazo || m.tem_anexo || m.de_cadastro
+      ? '<div class="sinais">' +
+        (m.prazo ? '<span class="email-sinal prazo">prazo ' + esc(dataBR(m.prazo)) + "</span>" : "") +
+        (m.tem_anexo ? '<span class="email-sinal">anexo</span>' : "") +
+        (m.de_cadastro ? '<span class="email-sinal cliente">cliente</span>' : "") +
+        "</div>"
+      : "") +
+    "</div>";
+}
+
+function ligarCaixa() {
+  $("mail-contas").onclick = () => telaContas();
+  $("mail-novo").onclick = () => telaEscrever();
+
+  const busca = $("mail-busca");
+  busca.onkeydown = (e) => {
+    if (e.key === "Enter") { mail.busca = busca.value.trim(); carregarCaixa(); }
+  };
+
+  document.querySelectorAll("[data-filtro]").forEach((b) => {
+    b.onclick = () => { mail.filtro = b.dataset.filtro; carregarCaixa(); };
+  });
+  document.querySelectorAll("[data-uid]").forEach((b) => {
+    b.onclick = () => abrirMensagem(b.dataset.uid);
+  });
+
+  const mais = $("mail-mais");
+  if (mais) mais.onclick = async () => {
+    mais.disabled = true;
+    const r = await fetch("/api/email/caixa?filtro=" + mail.filtro +
+      "&antes_de=" + encodeURIComponent(mail.caixa.ultimo_uid) +
+      (mail.conta ? "&conta_id=" + mail.conta.id : ""));
+    if (!r.ok) { mais.disabled = false; return; }
+    const d = await r.json();
+    mail.caixa.mensagens = mail.caixa.mensagens.concat(d.mensagens);
+    mail.caixa.mostrando += d.mostrando;
+    mail.caixa.ultimo_uid = d.ultimo_uid || mail.caixa.ultimo_uid;
+    mail.caixa.tem_mais = d.tem_mais;
+    desenharCaixa();
+  };
+}
+
+async function abrirMensagem(uid) {
+  const painel = $("mail-painel");
+  painel.innerHTML = '<div class="painel"><p class="nota">baixando a mensagem…</p></div>';
+
+  const r = await fetch("/api/email/mensagem?uid=" + encodeURIComponent(uid) +
+    (mail.conta ? "&conta_id=" + mail.conta.id : ""));
+  if (!r.ok) {
+    painel.innerHTML = '<div class="painel"><p class="explica">' + esc(await erroDe(r)) + "</p></div>";
+    return;
+  }
+
+  mail.aberta = await r.json();
+  mail.rascunho = null;
+  const item = (mail.caixa.mensagens || []).find((m) => m.uid === uid);
+  if (item) item.lido = true;
+  desenharAberta();
+  document.querySelectorAll("[data-uid]").forEach((b) => {
+    b.classList.toggle("aberta", b.dataset.uid === uid);
+  });
+}
+
+function desenharAberta() {
+  const m = mail.aberta;
+
+  let html = '<div class="email-aberto"><div class="email-cabeca">' +
+    '<div class="cresce"><h3>' + esc(m.assunto) + "</h3>" +
+    '<span class="rotulo">' + esc(m.de_nome) + " · " + esc(m.de_email) +
+    (m.quando_curto ? " · " + esc(m.quando_curto) : "") + "</span></div>" +
+    '<button id="mail-arquivar">Arquivar</button>' +
+    '<button class="primario" id="mail-responder">Responder</button></div>';
+
+  if (m.prazo) {
+    html += '<div class="email-prazo"><strong>Prazo em ' + esc(dataBR(m.prazo)) + "</strong>" +
+      (m.prazo_trecho ? "<br>“" + esc(m.prazo_trecho) + "”" : "") +
+      '<br><button class="pastilha" id="mail-virar-tarefa">Virar tarefa</button></div>';
+  }
+
+  html += '<div class="email-corpo">' + esc(m.corpo || "(mensagem sem texto)") + "</div>";
+
+  if (m.anexos.length) {
+    html += '<div style="margin-top:14px"><span class="rotulo">' + m.anexos.length + " anexo(s)</span>" +
+      m.anexos.map((a) =>
+        '<div class="email-anexo"><span class="email-tipo">' +
+        esc((a.nome.split(".").pop() || "arq").slice(0, 4)) + "</span>" +
+        '<span class="cresce corta">' + esc(a.nome) + "</span>" +
+        '<span class="num">' + String(a.kb).replace(".", ",") + " KB</span>" +
+        '<button data-baixar="' + esc(a.nome) + '">Abrir</button>' +
+        '<button data-guardar="' + esc(a.nome) + '">Guardar na biblioteca</button></div>'
+      ).join("") + "</div>";
+  }
+
+  if (m.pode_rascunhar) {
+    html += '<div class="email-rascunho" id="mail-area-rascunho">' +
+      '<span class="rotulo">rascunho</span>' +
+      '<p class="explica" style="margin-top:6px">Posso escrever uma resposta para você revisar. ' +
+      "Demora cerca de um minuto nesta máquina, por isso só faço quando você pede.</p>" +
+      '<button id="mail-preparar">Preparar resposta</button></div>';
+  }
+
+  html += "</div>";
+  $("mail-painel").innerHTML = html;
+  ligarAberta();
+}
+
+function ligarAberta() {
+  const m = mail.aberta;
+
+  $("mail-responder").onclick = () => telaEscrever({
+    para: m.de_email,
+    assunto: m.assunto.toLowerCase().startsWith("re:") ? m.assunto : "Re: " + m.assunto,
+    corpo: "",
+  });
+
+  $("mail-arquivar").onclick = async () => {
+    const r = await fetch("/api/email/arquivar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: m.uid, conta_id: mail.conta ? mail.conta.id : "" }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+    if (d.aviso) avisoCert(d.aviso);
+    carregarCaixa();
+  };
+
+  const virar = $("mail-virar-tarefa");
+  if (virar) virar.onclick = async () => {
+    virar.disabled = true;
+    const r = await fetch("/api/tarefas", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dados: {
+        titulo: "Responder: " + m.assunto,
+        prazo: m.prazo,
+        anotacao: "De " + m.de_nome + " <" + m.de_email + ">" +
+          (m.prazo_trecho ? "\n\n" + m.prazo_trecho : ""),
+      } }),
+    });
+    virar.textContent = r.ok ? "virou tarefa" : "não deu";
+  };
+
+  document.querySelectorAll("[data-baixar]").forEach((b) => {
+    b.onclick = () => {
+      window.open("/api/email/anexo?uid=" + encodeURIComponent(m.uid) +
+        "&nome=" + encodeURIComponent(b.dataset.baixar) +
+        (mail.conta ? "&conta_id=" + mail.conta.id : ""), "_blank");
+    };
+  });
+  document.querySelectorAll("[data-guardar]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      b.textContent = "guardando…";
+      const r = await fetch("/api/email/anexo/guardar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: m.uid, nome: b.dataset.guardar, conta_id: mail.conta ? mail.conta.id : "" }),
+      });
+      if (!r.ok) { b.disabled = false; b.textContent = "Guardar na biblioteca"; avisoCert(await erroDe(r)); return; }
+      const d = await r.json();
+      b.textContent = "na biblioteca";
+      estado.contratos = d.documentos;
+    };
+  });
+
+  const preparar = $("mail-preparar");
+  if (preparar) preparar.onclick = async () => {
+    preparar.disabled = true;
+    preparar.textContent = "escrevendo…";
+    const r = await fetch("/api/email/rascunho", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: m.uid, conta_id: mail.conta ? mail.conta.id : "" }),
+    });
+    preparar.disabled = false;
+    preparar.textContent = "Preparar resposta";
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+
+    mail.rascunho = await r.json();
+    $("mail-area-rascunho").innerHTML =
+      '<span class="rotulo">rascunho que eu preparei · esperando você</span>' +
+      "<p>" + esc(mail.rascunho.rascunho) + "</p>" +
+      '<div class="linha-form"><button class="primario" id="mail-abrir-rascunho">Abrir o rascunho</button>' +
+      '<button id="mail-refazer">Escrever outro</button></div>' +
+      '<p class="explica">Eu escrevi, você decide. Nada sai sem passar pela sua aprovação.</p>';
+    $("mail-abrir-rascunho").onclick = () => telaEscrever({
+      para: mail.rascunho.para.join(", "),
+      assunto: mail.rascunho.assunto,
+      corpo: mail.rascunho.rascunho,
+    });
+    $("mail-refazer").onclick = () => { desenharAberta(); $("mail-preparar").click(); };
+  };
+}
+
+/* --------------------------------------------------- B2: novo e-mail */
+
+function telaEscrever(inicio) {
+  abrirTela("Novo e-mail");
+  const c = mail.conta || (mail.contas && mail.contas.contas[0]);
+  if (!c) return telaContas();
+
+  const i = inicio || {};
+  mail.anexos = [];
+
+  let html = '<div class="catalogo"><div class="tela-topo">' +
+    "<div><h2>Novo e-mail</h2>" +
+    '<span class="rotulo">enviando como ' + esc(c.email) + "</span></div>" +
+    '<div class="tela-acoes"><button id="nm-caixa">Caixa de entrada</button>' +
+    '<button id="nm-contas">Trocar conta</button></div></div>';
+
+  html += '<div class="painel"><div class="email-campos">' +
+    '<div class="email-campo"><span class="rotulo">para</span>' +
+    '<input type="text" id="nm-para" placeholder="nome@dominio.com.br" value="' + esc(i.para || "") + '"></div>' +
+    '<div class="email-campo"><span class="rotulo">cc</span>' +
+    '<input type="text" id="nm-cc" placeholder="opcional"></div>' +
+    '<div class="email-campo"><span class="rotulo">cco</span>' +
+    '<input type="text" id="nm-cco" placeholder="opcional"></div>' +
+    '<div class="email-campo"><span class="rotulo">assunto</span>' +
+    '<input type="text" id="nm-assunto" value="' + esc(i.assunto || "") + '"></div>' +
+    "</div>" +
+    '<textarea class="email-texto" id="nm-corpo" style="margin-top:12px" placeholder="escreva aqui…">' +
+    esc(i.corpo || "") + "</textarea>" +
+    (c.assinatura
+      ? '<div class="email-assina">' + esc(c.assinatura) + "</div>"
+      : '<p class="explica" style="margin-top:8px">Esta conta não tem assinatura configurada.</p>') +
+    "</div>";
+
+  html += '<div class="painel" style="margin-top:16px"><h3>Anexos</h3>' +
+    '<div id="nm-anexos"><p class="explica">Nenhum anexo.</p></div>' +
+    '<div class="linha-form"><button id="nm-anexar">Anexar da biblioteca</button></div></div>';
+
+  html += '<div class="assinar-frase" id="nm-frase"></div>' +
+    '<div class="linha-form" style="margin-top:12px">' +
+    '<button id="nm-previa">Ver como vai chegar</button>' +
+    '<button class="primario" id="nm-enviar">Enviar</button></div>' +
+    '<div id="nm-saida"></div>' +
+    '<div class="rodape-tela">o envio sai do seu servidor de e-mail, não do meu</div></div>';
+
+  $("centro").innerHTML = html;
+  ligarEscrever();
+  atualizarPostura();
+}
+
+function ligarEscrever() {
+  $("nm-caixa").onclick = () => carregarCaixa();
+  $("nm-contas").onclick = () => telaContas();
+  ["nm-para", "nm-cc", "nm-assunto"].forEach((id) => { $(id).oninput = fraseDoEnvio; });
+  $("nm-anexar").onclick = escolherAnexos;
+  $("nm-previa").onclick = verPrevia;
+  $("nm-enviar").onclick = enviarEmail;
+  fraseDoEnvio();
+}
+
+function pedidoDoEnvio() {
+  const c = mail.conta || mail.contas.contas[0];
+  return {
+    conta_id: c ? c.id : "",
+    para: $("nm-para").value,
+    cc: $("nm-cc").value,
+    cco: $("nm-cco").value,
+    assunto: $("nm-assunto").value,
+    corpo: $("nm-corpo").value,
+    anexos: mail.anexos.map((a) => a.path),
+  };
+}
+
+function fraseDoEnvio() {
+  const c = mail.conta || mail.contas.contas[0];
+  const para = ($("nm-para").value || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+  const alvo = $("nm-frase");
+
+  if (!para.length) {
+    alvo.textContent = "Informe para quem vai o e-mail.";
+    $("nm-enviar").disabled = true;
+    return;
+  }
+  $("nm-enviar").disabled = false;
+
+  let frase = "Vou enviar para " + para.slice(0, 3).join(", ") + (para.length > 3 ? "…" : "");
+  if (mail.anexos.length) frase += " com " + mail.anexos.length + " anexo(s)";
+  frase += ", usando a sua conta " + (c ? c.email : "") + ".";
+  frase += " O envio sai do seu servidor de e-mail, não do meu.";
+  if (!(c && c.pode_enviar_sem_confirmar)) frase += " O pedido para na fila de aprovações antes de sair.";
+  alvo.textContent = frase;
+}
+
+async function escolherAnexos() {
+  const alvo = $("nm-anexos");
+  alvo.innerHTML = '<p class="nota">lendo a biblioteca…</p>';
+  const d = await (await fetch("/api/email/anexaveis")).json();
+
+  alvo.innerHTML = d.arquivos.length
+    ? d.arquivos.slice(0, 40).map((a) =>
+        '<div class="email-anexo"><span class="cresce corta">' + esc(a.nome) + "</span>" +
+        '<span class="num">' + String(a.mb).replace(".", ",") + " MB</span>" +
+        '<button data-anexo="' + esc(a.path) + '" data-nome="' + esc(a.nome) + '">Anexar</button></div>'
+      ).join("")
+    : '<p class="explica">A biblioteca está vazia.</p>';
+
+  document.querySelectorAll("[data-anexo]").forEach((b) => {
+    b.onclick = () => {
+      if (!mail.anexos.some((a) => a.path === b.dataset.anexo)) {
+        mail.anexos.push({ path: b.dataset.anexo, nome: b.dataset.nome });
+      }
+      desenharAnexos();
+    };
+  });
+}
+
+function desenharAnexos() {
+  $("nm-anexos").innerHTML = mail.anexos.length
+    ? mail.anexos.map((a, i) =>
+        '<div class="email-anexo"><span class="email-tipo">' +
+        esc((a.nome.split(".").pop() || "arq").slice(0, 4)) + "</span>" +
+        '<span class="cresce corta">' + esc(a.nome) + "</span>" +
+        '<button data-tira="' + i + '">Remover</button></div>').join("")
+    : '<p class="explica">Nenhum anexo.</p>';
+  document.querySelectorAll("[data-tira]").forEach((b) => {
+    b.onclick = () => { mail.anexos.splice(Number(b.dataset.tira), 1); desenharAnexos(); };
+  });
+  fraseDoEnvio();
+}
+
+async function verPrevia() {
+  const alvo = $("nm-saida");
+  alvo.innerHTML = '<p class="nota">montando…</p>';
+  const r = await fetch("/api/email/previa", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pedidoDoEnvio()),
+  });
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+
+  const d = await r.json();
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Como vai chegar</h3>' +
+    '<p class="explica">De ' + esc(d.de) + " · para " + esc(d.para.join(", ")) +
+    (d.cco.length ? " · cco " + esc(d.cco.join(", ")) : "") + "</p>" +
+    "<b>" + esc(d.assunto) + "</b>" +
+    '<div class="email-corpo" style="margin-top:10px">' + esc(d.corpo) + "</div>" +
+    (d.anexos.length
+      ? d.anexos.map((a) => '<div class="email-anexo"><span class="cresce">' + esc(a.nome) +
+        '</span><span class="num">' + String(a.kb).replace(".", ",") + " KB</span></div>").join("")
+      : "") +
+    "</div>";
+}
+
+async function enviarEmail() {
+  const botao = $("nm-enviar");
+  botao.disabled = true;
+  botao.textContent = "enviando…";
+
+  const r = await fetch("/api/email/enviar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pedidoDoEnvio()),
+  });
+  botao.disabled = false;
+  botao.textContent = "Enviar";
+
+  if (r.status === 401) {
+    const senha = prompt("Senha da conta de e-mail (fica só nesta máquina):");
+    if (!senha) return;
+    const pedido = pedidoDoEnvio();
+    pedido.senha = senha;
+    const r2 = await fetch("/api/email/enviar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pedido),
+    });
+    if (!r2.ok) { avisoCert(await erroDe(r2)); return; }
+    return depoisDoEnvio(await r2.json());
+  }
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  depoisDoEnvio(await r.json());
+}
+
+function depoisDoEnvio(d) {
+  if (d.aguardando_aprovacao) {
+    $("centro").innerHTML =
+      '<div class="catalogo"><div class="tela-topo"><div><h2>Esperando o seu sim</h2>' +
+      '<span class="rotulo">nada foi enviado ainda</span></div></div>' +
+      '<div class="painel"><h3>' + esc(d.pedido.titulo) + "</h3>" +
+      '<p class="explica">' + esc(d.pedido.resumo) + "</p>" +
+      '<p class="explica">E-mail que sai não volta, então o pedido parou na fila de aprovações.</p>' +
+      '<div class="linha-form"><button class="primario" id="nm-fila">Abrir a fila</button>' +
+      '<button id="nm-voltar">Voltar ao rascunho</button></div></div>' +
+      '<div class="rodape-tela">nenhuma mensagem sai antes da sua aprovação</div></div>';
+    $("nm-fila").onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
+    $("nm-voltar").onclick = () => telaEscrever();
+    return;
+  }
+
+  $("centro").innerHTML =
+    '<div class="catalogo"><div class="tela-topo"><div><h2>Enviado</h2>' +
+    '<span class="rotulo">' + esc((d.para || []).join(", ")) + "</span></div></div>" +
+    '<div class="painel"><h3>' + esc(d.assunto || "(sem assunto)") + "</h3>" +
+    '<p class="explica">Saiu pelo servidor da sua conta' +
+    ((d.anexos || []).length ? " com " + d.anexos.length + " anexo(s)" : "") + ".</p>" +
+    '<div class="linha-form"><button class="primario" id="nm-outro">Escrever outro</button>' +
+    '<button id="nm-ver-caixa">Caixa de entrada</button></div></div></div>';
+  $("nm-outro").onclick = () => telaEscrever();
+  $("nm-ver-caixa").onclick = () => carregarCaixa();
 }
 
 /* ------------------------------------------------------------- inicio */

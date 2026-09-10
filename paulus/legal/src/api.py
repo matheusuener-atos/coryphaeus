@@ -31,6 +31,8 @@ import requests
 import aprovacoes as fila_aprovacoes
 import assinatura
 import certificado
+import correio
+import correio_contas
 import destinos
 import pastas
 import recursos
@@ -72,6 +74,8 @@ BASE_PATH = BASE_DIR / "data" / "paulus.db"
 CERTIFICADO_DIR = BASE_DIR / "data" / "certificado"
 COFRE_PATH = CERTIFICADO_DIR / "cofre.json"
 ASSINATURAS_PATH = BASE_DIR / "data" / "assinaturas.json"
+CONTAS_EMAIL_PATH = BASE_DIR / "data" / "contas_email.json"
+ENVIOS_PATH = BASE_DIR / "data" / "envios.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -107,6 +111,9 @@ class Estado:
         # Certificado digital: o arquivo, o selo e o historico de assinaturas.
         self.cofre = certificado.Cofre(COFRE_PATH, CERTIFICADO_DIR)
         self.assinaturas = assinatura.Registro(ASSINATURAS_PATH)
+        # Contas de e-mail e o historico do que ja saiu daqui.
+        self.contas = correio_contas.Contas(CONTAS_EMAIL_PATH)
+        self.envios = correio.RegistroEnvios(ENVIOS_PATH)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -1018,9 +1025,18 @@ def _executar_assinar(pedido) -> str:
     return f"assinado, codigo {resultado.codigo}{aviso}"
 
 
+def _executar_enviar(pedido) -> str:
+    """Manda o e-mail que estava esperando o sim na fila."""
+    resultado = _enviar_de_fato(pedido.dados)
+    quem = ", ".join(resultado.get("para", []))
+    anexos = resultado.get("anexos") or []
+    return f"enviado para {quem}" + (f" com {len(anexos)} anexo(s)" if anexos else "")
+
+
 EXECUTORES = {
     "organizar.mover": _executar_mover,
     "assinatura.assinar": _executar_assinar,
+    "correio.enviar": _executar_enviar,
 }
 
 
@@ -1708,6 +1724,419 @@ def assinaturas_conferir(arquivo: str, senha: str = "") -> dict:
         "assinaturas": assinatura.verificar(arquivo, senha),
         "conferencia_limitada": True,
     }
+
+# ----------------------------------------------------------------- e-mail
+
+
+class EnderecoEmail(BaseModel):
+    email: str = ""
+
+
+class FichaConta(BaseModel):
+    dados: dict = {}
+    senha: str = ""
+
+
+class SenhaConta(BaseModel):
+    id: str = ""
+    senha: str = ""
+
+
+class PedidoEnvio(BaseModel):
+    conta_id: str = ""
+    para: str = ""
+    cc: str = ""
+    cco: str = ""
+    assunto: str = ""
+    corpo: str = ""
+    anexos: list[str] = []          # caminhos de arquivos da biblioteca
+    responder_a: str = ""           # Message-ID, quando e resposta
+    senha: str = ""
+
+
+def _conta_e_senha(id_: str = "") -> tuple:
+    """A conta pedida (ou a em uso) com a senha disponivel."""
+    conta = estado.contas.obter(id_) if id_ else estado.contas.em_uso
+    if not conta:
+        raise HTTPException(status_code=400, detail="nenhuma conta de e-mail conectada")
+    senha = estado.contas.senha(conta)
+    if not senha:
+        raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
+    return conta, senha
+
+
+def _emails_dos_cadastros() -> dict:
+    """{e-mail: nome} das fichas, para marcar quem e cliente na caixa."""
+    achados = {}
+    for ficha in estado.cadastros.listar():
+        alvo = (ficha.get("email") or "").strip().lower()
+        if alvo:
+            achados[alvo] = ficha.get("nome", "")
+    return achados
+
+
+@app.get("/api/email/contas")
+def email_contas() -> dict:
+    dados = estado.contas.para_tela()
+    dados["registro"] = estado.envios.para_tela(10)
+    dados["pode_enviar_sozinho"] = estado.prefs.pode("enviar_mensagem")
+    return dados
+
+
+@app.post("/api/email/detectar")
+def email_detectar(payload: EnderecoEmail) -> dict:
+    """Acha os servidores do endereco, pela tabela ou sondando o dominio."""
+    return correio_contas.detectar(payload.email)
+
+
+@app.post("/api/email/testar")
+def email_testar(payload: FichaConta) -> dict:
+    """
+    Prova a conta antes de guardar.
+
+    Testa entrada e saida separadamente: da para ler e da para enviar sao
+    coisas diferentes, e guardar uma conta que so le - sem dizer - seria
+    descobrir o problema na hora de mandar o e-mail que importava.
+    """
+    campos = {k: v for k, v in payload.dados.items()
+              if k in correio_contas.Conta.__dataclass_fields__}
+    campos.pop("senha_protegida", None)
+    conta = correio_contas.Conta(**{"id": "teste", **campos})
+
+    senha = payload.senha
+    if not senha and payload.dados.get("id"):
+        guardada = estado.contas.obter(str(payload.dados["id"]))
+        senha = estado.contas.senha(guardada) if guardada else ""
+    if not senha:
+        raise HTTPException(status_code=400, detail="informe a senha para testar")
+
+    return correio.testar(conta, senha)
+
+
+@app.post("/api/email/contas")
+def email_salvar_conta(payload: FichaConta) -> dict:
+    try:
+        conta = estado.contas.salvar_conta(payload.dados, payload.senha)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if payload.senha:
+        estado.contas.lembrar(conta.id, payload.senha)
+    return estado.contas.para_tela()
+
+
+@app.post("/api/email/contas/senha")
+def email_senha_conta(payload: SenhaConta) -> dict:
+    """Confere a senha contra o servidor antes de aceitar como boa."""
+    conta = estado.contas.obter(payload.id)
+    if not conta:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+
+    prova = correio.testar(conta, payload.senha)
+    if not prova["entrada"]:
+        estado.contas.marcar_erro(conta, prova["erro_entrada"])
+        raise HTTPException(status_code=400, detail=prova["erro_entrada"] or "o servidor recusou a senha")
+
+    estado.contas.lembrar(conta.id, payload.senha)
+    if conta.guardar_senha:
+        estado.contas.salvar_conta({"id": conta.id, "email": conta.email}, payload.senha)
+    estado.contas.marcar_ok(conta)
+    return estado.contas.para_tela()
+
+
+@app.post("/api/email/contas/{id_}/usar")
+def email_usar_conta(id_: str) -> dict:
+    if not estado.contas.usar(id_):
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    return estado.contas.para_tela()
+
+
+@app.delete("/api/email/contas/{id_}")
+def email_apagar_conta(id_: str) -> dict:
+    if not estado.contas.apagar(id_):
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    return estado.contas.para_tela()
+
+
+@app.post("/api/email/esquecer-senhas")
+def email_esquecer_senhas() -> dict:
+    quantas = estado.contas.esquecer_senhas()
+    return {**estado.contas.para_tela(), "apagadas": quantas}
+
+
+# --------------------------------------------------------- caixa de entrada
+
+
+@app.get("/api/email/caixa")
+def email_caixa(conta_id: str = "", filtro: str = "tudo", busca: str = "",
+                limite: int = 25, antes_de: str = "") -> dict:
+    """
+    Os cabecalhos das mensagens - nao as mensagens.
+
+    O corpo fica no servidor ate alguem abrir. E a promessa do rodape da tela,
+    e tambem o que faz uma caixa com milhares de mensagens abrir em segundos.
+    """
+    conta, senha = _conta_e_senha(conta_id)
+    try:
+        dados = correio.listar(
+            conta, senha, filtro=filtro, busca=busca,
+            limite=min(max(int(limite), 1), 60), antes_de=antes_de,
+            clientes=_emails_dos_cadastros(),
+        )
+    except correio.ErroCorreio as exc:
+        estado.contas.marcar_erro(conta, str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    estado.contas.marcar_ok(conta)
+    dados["conta"] = conta.to_dict(em_uso=True)
+    dados["filtros"] = [{"valor": k, "rotulo": v} for k, v in correio.FILTROS.items()]
+    return dados
+
+
+@app.get("/api/email/mensagem")
+def email_mensagem(uid: str, conta_id: str = "") -> dict:
+    conta, senha = _conta_e_senha(conta_id)
+    try:
+        msg = correio.abrir(conta, senha, uid)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    dados = msg.to_dict()
+    dados["pode_rascunhar"] = conta.pode_rascunhar
+    return dados
+
+
+@app.get("/api/email/anexo")
+def email_anexo(uid: str, nome: str, conta_id: str = ""):
+    """Entrega o anexo ao navegador, sem gravar nada no disco."""
+    from fastapi.responses import Response
+
+    conta, senha = _conta_e_senha(conta_id)
+    try:
+        achado, dados = correio.baixar_anexo(conta, senha, uid, nome)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    import mimetypes
+
+    tipo, _ = mimetypes.guess_type(achado)
+    return Response(dados, media_type=tipo or "application/octet-stream")
+
+
+@app.post("/api/email/anexo/guardar")
+def email_guardar_anexo(payload: dict) -> dict:
+    """Traz o anexo para a biblioteca, sem passar por cima de nada."""
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    uid = str(payload.get("uid", ""))
+    nome = str(payload.get("nome", ""))
+
+    try:
+        achado, dados = correio.baixar_anexo(conta, senha, uid, nome)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    limpo = Path(achado).name
+    if Path(limpo).suffix.lower() not in SUPPORTED_SUFFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"não sei ler {Path(limpo).suffix or 'esse tipo'} - guardo PDF, DOCX, TXT e MD",
+        )
+
+    estado.pasta.mkdir(parents=True, exist_ok=True)
+    destino = estado.pasta / limpo
+    conta_repetida = 2
+    while destino.exists():
+        destino = estado.pasta / f"{Path(limpo).stem} ({conta_repetida}){Path(limpo).suffix}"
+        conta_repetida += 1
+
+    destino.write_bytes(dados)
+    return {"guardado": destino.name, "documentos": estado.recarregar(force=True)}
+
+
+@app.post("/api/email/arquivar")
+def email_arquivar(payload: dict) -> dict:
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    uid = str(payload.get("uid", ""))
+    try:
+        movida = correio.arquivar(conta, senha, uid)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {
+        "arquivada": movida,
+        "aviso": "" if movida else "seu servidor não tem pasta de arquivo - marquei só como lida",
+    }
+
+
+@app.post("/api/email/rascunho")
+def email_rascunho(payload: dict) -> dict:
+    """
+    Escreve um rascunho de resposta, quando alguem pede.
+
+    Sob demanda de proposito: rodar o modelo em cada mensagem que chega custaria
+    perto de um minuto por e-mail nesta maquina, e a caixa de entrada demoraria
+    uma hora para abrir.
+    """
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    if not conta.pode_rascunhar:
+        raise HTTPException(status_code=403, detail="esta conta não permite que eu escreva rascunhos")
+
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+
+    try:
+        msg = correio.abrir(conta, senha, str(payload.get("uid", "")), marcar_lido=False)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    quem = estado.prefs.dados.get("pessoa", {}).get("nome", "") or conta.nome
+    try:
+        texto = correio.sugerir_resposta(estado.client, msg, quem)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return {
+        "rascunho": texto,
+        "para": [msg.de_email],
+        "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
+        "responder_a": "",
+        "sobre": msg.assunto,
+    }
+
+
+# ---------------------------------------------------------------- enviar
+
+
+def _montar_do_pedido(payload: PedidoEnvio):
+    conta = estado.contas.obter(payload.conta_id) if payload.conta_id else estado.contas.em_uso
+    if not conta:
+        raise HTTPException(status_code=400, detail="nenhuma conta de e-mail conectada")
+
+    para = correio.enderecos(payload.para)
+    if not para:
+        raise HTTPException(status_code=400, detail="informe pelo menos um destinatário")
+
+    anexos = [Path(a) for a in payload.anexos]
+    if anexos and not conta.pode_anexar:
+        raise HTTPException(status_code=403, detail="esta conta não permite que eu anexe arquivos")
+    for alvo in anexos:
+        if not alvo.exists():
+            raise HTTPException(status_code=400, detail=f"não achei o anexo {alvo.name}")
+
+    try:
+        msg = correio.montar_email(
+            conta,
+            para=para,
+            assunto=payload.assunto,
+            corpo=payload.corpo,
+            cc=correio.enderecos(payload.cc),
+            anexos=anexos,
+            responder_a=payload.responder_a,
+        )
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return conta, msg, para
+
+
+@app.post("/api/email/previa")
+def email_previa(payload: PedidoEnvio) -> dict:
+    """
+    Como a mensagem vai chegar - sem nada ter saido.
+
+    Montar e enviar sao passos separados justamente para isto existir.
+    """
+    conta, msg, para = _montar_do_pedido(payload)
+    corpo = msg.get_body(preferencelist=("plain",))
+    return {
+        "de": str(msg.get("From", "")),
+        "para": para,
+        "cc": correio.enderecos(payload.cc),
+        "cco": correio.enderecos(payload.cco),
+        "assunto": str(msg.get("Subject", "")) or "(sem assunto)",
+        "corpo": corpo.get_content().rstrip() if corpo else "",
+        "anexos": [
+            {"nome": p.get_filename(), "kb": round(len(p.get_payload(decode=True) or b"") / 1024, 1)}
+            for p in msg.iter_attachments()
+        ],
+        "resumo": correio.resumo_do_envio(
+            conta, para, [p.get_filename() for p in msg.iter_attachments()],
+            not conta.pode_enviar_sem_confirmar,
+        ),
+    }
+
+
+@app.post("/api/email/enviar")
+def email_enviar(payload: PedidoEnvio) -> dict:
+    """
+    Envia, ou poe o pedido na fila.
+
+    E-mail que sai nao volta. Sem a permissao "enviar sem confirmar" - que vem
+    desligada, no programa e na conta -, isto nao manda nada: monta o pedido e
+    devolve para a fila de aprovacao.
+    """
+    conta, msg, para = _montar_do_pedido(payload)
+
+    if payload.senha:
+        estado.contas.lembrar(conta.id, payload.senha)
+    if not estado.contas.senha(conta):
+        raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
+
+    anexos = [Path(a).name for a in payload.anexos]
+    livre = estado.prefs.pode("enviar_mensagem") and conta.pode_enviar_sem_confirmar
+
+    if not livre:
+        pedido = estado.fila.pedir(
+            f"Enviar e-mail para {', '.join(para[:2])}" + ("…" if len(para) > 2 else ""),
+            "email",
+            resumo=correio.resumo_do_envio(conta, para, anexos, False),
+            etiquetas=["não dá para desfazer"] + (["com anexo"] if anexos else []),
+            acao="correio.enviar",
+            dados=payload.model_dump(exclude={"senha"}),
+            reversivel=False,
+        )
+        return {"aguardando_aprovacao": True, "pedido": pedido.to_dict()}
+
+    resultado = _enviar_de_fato(payload.model_dump(exclude={"senha"}))
+    return {"aguardando_aprovacao": False, **resultado}
+
+
+def _enviar_de_fato(dados: dict) -> dict:
+    """O envio em si, chamado direto ou depois do sim na fila."""
+    payload = PedidoEnvio(**{k: v for k, v in dados.items() if k in PedidoEnvio.model_fields})
+    conta, msg, _ = _montar_do_pedido(payload)
+
+    senha = estado.contas.senha(conta)
+    if not senha:
+        raise RuntimeError(f"a senha de {conta.email} não está mais disponível - entre na conta de novo")
+
+    try:
+        resultado = correio.enviar(conta, senha, msg, correio.enderecos(payload.cco))
+    except correio.ErroCorreio as exc:
+        raise RuntimeError(str(exc)) from exc
+
+    estado.contas.marcar_ok(conta)
+    return estado.envios.anotar(conta.email, resultado)
+
+
+@app.get("/api/email/envios")
+def email_envios() -> dict:
+    return estado.envios.para_tela()
+
+
+@app.get("/api/email/anexaveis")
+def email_anexaveis() -> dict:
+    """Arquivos da biblioteca que dao para anexar."""
+    achados = []
+    for doc in estado.searcher.documents:
+        caminho = Path(doc.path)
+        if not caminho.exists():
+            continue
+        achados.append({
+            "path": str(caminho),
+            "nome": caminho.name,
+            "mb": round(caminho.stat().st_size / (1024 * 1024), 2),
+        })
+    return {"arquivos": sorted(achados, key=lambda a: a["nome"].lower())}
 
 def main() -> None:
     import argparse
