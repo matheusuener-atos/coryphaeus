@@ -1445,7 +1445,10 @@
   .fin-cartao.alerta b { color: var(--atencao); }
 
   /* Barras do fluxo de caixa: SVG desenhado aqui, sem biblioteca de gráfico. */
-  .fin-grafico { display: flex; align-items: flex-end; gap: 10px; height: 132px; margin: 14px 0 6px; }
+  /* stretch, nao flex-end: com flex-end a coluna encolhe ate o rotulo e a
+     area das barras fica com dois pixels - as barras somem sem erro nenhum.
+     Quem alinha embaixo e a area das barras, que ja faz isso. */
+  .fin-grafico { display: flex; align-items: stretch; gap: 10px; height: 132px; margin: 14px 0 6px; }
   .fin-mes { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
   .fin-barras { flex: 1; display: flex; align-items: flex-end; gap: 3px; width: 100%; }
   .fin-barra { flex: 1; min-height: 2px; background: var(--trilho); }
@@ -1510,7 +1513,7 @@
   .be-lembrete.cumprido .cresce { color: var(--ink-3); }
   .be-atraso { color: var(--atencao); }
 
-  .be-semana { display: flex; align-items: flex-end; gap: 8px; height: 84px; margin: 12px 0; }
+  .be-semana { display: flex; align-items: stretch; gap: 8px; height: 84px; margin: 12px 0; }
   .be-dia { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
   .be-coluna { flex: 1; width: 100%; display: flex; align-items: flex-end; }
   .be-coluna i { display: block; width: 100%; background: var(--acento); min-height: 2px; }
