@@ -6,6 +6,9 @@ data/extractions/*
 data/knowledge_base/*
 !data/knowledge_base/.gitkeep
 
+# Diarios de movimentacao: contem caminhos de arquivos do cliente
+data/diarios/
+
 # Saidas geradas
 *.xlsx
 !docs/**/*.xlsx

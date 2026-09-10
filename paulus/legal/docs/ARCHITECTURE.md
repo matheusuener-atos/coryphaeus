@@ -13,7 +13,8 @@ ATOS (empresa)
 
 Duas portas de entrada para a mesma logica:
 
-- `src/api.py` + `frontend/` - interface web em http://localhost:8000
+- `src/desktop.py` - janela nativa do Windows (pywebview) sobre a mesma interface
+- `src/api.py` + `frontend/` - servidor local, tambem acessivel pelo navegador
 - `src/main.py` - chat no terminal
 
 ## Fluxo de uma pergunta
@@ -46,6 +47,10 @@ Nada sai da maquina: extracao, indice e inferencia rodam localmente.
 | `src/main.py` | CLI: carga, REPL, comandos |
 | `src/api.py` | Backend web (FastAPI): upload, busca, resposta em streaming |
 | `frontend/index.html` | Interface: uma pagina, sem build, sem dependencia externa |
+| `src/desktop.py` | Janela nativa + ponte para o seletor de pasta do Windows |
+| `src/scan.py` | Varredura de pastas, poda de pastas de sistema |
+| `src/classify.py` | Metadados por documento: regra primeiro, modelo no que sobra |
+| `src/organize.py` | Padrao de pastas, plano, aplicacao, diario e desfazer |
 
 ## Decisoes de projeto
 
@@ -90,6 +95,34 @@ trechos indexados. Com um ou dois contratos - o caso de quem acabou de subir o
 primeiro - termos relevantes zeram e a busca devolvia vazio. Quando nenhum
 trecho pontua, caimos para "quantos termos da pergunta aparecem aqui".
 
+**Por que regra antes de modelo na classificacao?**
+Medido em 2026-09-09: ~20-27s por documento quando o llama3.2:3b e chamado. Um
+acervo de 300 documentos daria quase 2 horas. Data, valor e CPF/CNPJ saem por
+expressao regular em milissegundos e sem chance de alucinacao. O modelo fica
+para tipo e partes, e so quando a regra nao decidiu - nos contratos de teste,
+isso cortou as chamadas pela metade.
+
+**Por que o cache de classificacao tem versao?**
+O cache e por SHA-1 do conteudo, entao melhorar o classificador nao invalidaria
+nada: o arquivo nao mudou, mas a regra mudou. `VERSAO_CLASSIFICADOR` sobe a cada
+alteracao de heuristica, prompt ou vocabulario, e o cache inteiro e descartado.
+
+**Por que o plano nao toca em disco?**
+Reorganizar o acervo de um escritorio e destrutivo e dificil de conferir no
+olho. `montar_plano` e uma funcao pura: produz a tabela origem -> destino e nao
+cria nem uma pasta. O usuario corrige cliente e tipo, desmarca o que nao quer, e
+so entao `aplicar_plano` executa.
+
+**Por que o diario e gravado ANTES de cada movimento?**
+Se o processo morrer no meio do lote, o diario ja contem o que foi feito - e o
+desfazer funciona mesmo assim. Gravar depois deixaria arquivos movidos sem
+registro, que e exatamente o estado impossivel de reverter.
+
+**Por que colisao vira sufixo em vez de sobrescrever?**
+Dois contratos com o mesmo nome de arquivo em pastas diferentes sao comuns num
+acervo. Sobrescrever apagaria um documento de cliente em silencio. O segundo
+entra como `nome (2).pdf`.
+
 **Por que temperatura 0.1?**
 Tarefa de extracao, nao de escrita criativa. Quanto mais deterministico, menos
 invencao.
@@ -99,6 +132,9 @@ invencao.
 - **PDF escaneado nao funciona** (sem OCR). O arquivo e ignorado com aviso.
 - **Alucinacao existe.** Modelos pequenos inventam numero de clausula. O system
   prompt mitiga, nao elimina. Sempre confira com `/trechos`.
+- **Quem e "o cliente" e palpite.** O programa nao tem como saber qual das
+  partes do contrato e cliente do escritorio; ele elege a primeira citada no
+  documento. Por isso a tabela do organizador e editavel antes de mover.
 - **Lento em CPU.** Dezenas de segundos a minutos por resposta com 3B.
 - **Indice em memoria**, reconstruido a cada execucao (rapido, via cache).
 - **Sem multiusuario e sem autenticacao.** A interface pressupoe uma pessoa
@@ -107,6 +143,6 @@ invencao.
 
 ## Proximos passos
 
-- Semana 2: `src/extract_expiring.py` - datas de vencimento -> Excel
+- `src/extract_expiring.py` - datas de vencimento -> Excel
 - Semana 4-5: validacao com contratos reais, ajuste de prompt
 - Semana 6: demo comercial

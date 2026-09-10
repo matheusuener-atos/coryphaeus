@@ -210,6 +210,129 @@
   textarea:focus, input:focus { outline: 2px solid var(--marca-fraca); border-color: var(--marca); }
   .aviso { font-size: 11.5px; color: var(--tinta-fraca); margin-top: 9px; text-align: center; }
 
+  /* ------------------------------------------------------- organizador */
+  .org { flex: 1; overflow-y: auto; padding: 22px 24px 40px; }
+  .passo { display: flex; gap: 14px; margin-bottom: 26px; max-width: 1050px; }
+  .passo-num {
+    width: 27px;
+    height: 27px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--marca-fraca);
+    color: var(--marca);
+    font-weight: 650;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .passo-corpo { flex: 1; min-width: 0; }
+  .passo-corpo h3 { margin: 3px 0 9px; font-size: 15.5px; }
+  .nota { font-size: 12.5px; color: var(--tinta-fraca); }
+  .passo-corpo p.nota { margin: 0 0 11px; max-width: 640px; }
+  .linha { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; flex-wrap: wrap; }
+  .linha label { font-size: 13px; color: var(--tinta-fraca); min-width: 128px; }
+  .linha input[type=text] { flex: 1; min-width: 240px; }
+  .linha input[type=text], .linha select {
+    font: inherit;
+    border: 1px solid var(--borda);
+    border-radius: 7px;
+    padding: 8px 11px;
+    background: var(--papel-alto);
+    color: inherit;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 11px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--borda);
+    border-radius: 20px;
+    padding: 6px 13px;
+    font-size: 13px;
+    background: var(--papel-alto);
+    cursor: pointer;
+  }
+  .chip.on { border-color: var(--marca); background: var(--marca-fraca); color: var(--marca); }
+  .chip small { color: var(--tinta-fraca); font-size: 11.5px; }
+  .chip.on small { color: var(--marca); }
+
+  button.perigo { background: var(--alerta); border-color: var(--alerta); color: #fff; font-weight: 550; }
+  button.perigo:hover:not(:disabled) { background: #94371f; color: #fff; }
+
+  .barra { height: 5px; background: var(--borda); border-radius: 3px; overflow: hidden; max-width: 420px; }
+  .barra div { height: 100%; width: 0%; background: var(--marca); transition: width 0.2s; }
+
+  .tabela-caixa {
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    overflow: auto;
+    max-height: 380px;
+    background: var(--papel-alto);
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--papel);
+    text-align: left;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--borda);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--tinta-fraca);
+    white-space: nowrap;
+  }
+  tbody td { padding: 6px 11px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.fora { opacity: 0.42; }
+  td .arquivo { max-width: 250px; word-break: break-word; }
+  td input[type=text], td select {
+    font: inherit;
+    font-size: 12.5px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 4px 6px;
+    background: transparent;
+    width: 100%;
+    color: inherit;
+  }
+  td input[type=text]:hover, td select:hover { border-color: var(--borda); background: var(--papel); }
+  .selo { font-size: 11px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .selo.alta { background: #e6f4ec; color: var(--ok); }
+  .selo.media { background: #fdf4ef; color: #96552f; }
+  .selo.baixa { background: #fbeae5; color: var(--alerta); }
+
+  .pasta-linha {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--borda);
+    font-size: 13px;
+  }
+  .pasta-linha:last-child { border-bottom: none; }
+  .pasta-linha code { font: inherit; color: var(--tinta); word-break: break-all; }
+  .caixa {
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    background: var(--papel-alto);
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  .diario-linha {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--borda);
+    font-size: 13px;
+  }
+  .diario-linha:last-child { border-bottom: none; }
+  .diario-linha .cresce { flex: 1; min-width: 0; }
+
   .busca-topo { padding: 20px 24px 12px; }
   input[type=search] {
     width: 100%;
@@ -248,6 +371,7 @@
     <nav>
       <button class="ativo" data-aba="analise">Análise</button>
       <button data-aba="busca">Busca</button>
+      <button data-aba="organizar">Organizar</button>
     </nav>
 
     <div class="aba ativa" id="aba-analise">
@@ -272,6 +396,114 @@
             <button class="primario" id="enviar">Perguntar</button>
           </div>
           <div class="aviso">PAULUS localiza e resume o que está escrito. Confira sempre contra o contrato original.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="aba" id="aba-organizar">
+      <div class="org">
+        <div class="passo">
+          <div class="passo-num">1</div>
+          <div class="passo-corpo">
+            <h3>Onde procurar</h3>
+            <div id="org-raizes" class="chips"></div>
+            <div class="linha">
+              <input type="text" id="org-raiz-manual" placeholder="Ou digite um caminho: D:\Escritorio\Contratos">
+              <button id="org-add-raiz">Incluir</button>
+            </div>
+            <div class="linha">
+              <button class="primario" id="org-varrer">Varrer pastas</button>
+              <span id="org-varredura" class="nota"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="passo" id="org-passo-2" hidden>
+          <div class="passo-num">2</div>
+          <div class="passo-corpo">
+            <h3>Ler e classificar</h3>
+            <p class="nota">
+              Data, valor e CPF/CNPJ saem por regra, na hora. O modelo so entra
+              quando a regra nao decide o tipo ou nao acha as partes &mdash; e ai
+              custa cerca de 20s por documento.
+            </p>
+            <div class="linha">
+              <button class="primario" id="org-classificar">Classificar documentos</button>
+              <span id="org-progresso" class="nota"></span>
+            </div>
+            <div class="barra" id="org-barra" hidden><div id="org-barra-fill"></div></div>
+          </div>
+        </div>
+
+        <div class="passo" id="org-passo-3" hidden>
+          <div class="passo-num">3</div>
+          <div class="passo-corpo">
+            <h3>Conferir e corrigir</h3>
+            <p class="nota">
+              Cliente e tipo sao palpite do programa. Corrija aqui &mdash; nada foi
+              movido ainda. Desmarque o que nao deve entrar.
+            </p>
+            <div class="tabela-caixa">
+              <table id="org-tabela">
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" id="org-todos" checked></th>
+                    <th>Arquivo</th>
+                    <th>Tipo</th>
+                    <th>Cliente</th>
+                    <th>Data</th>
+                    <th>Confianca</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="passo" id="org-passo-4" hidden>
+          <div class="passo-num">4</div>
+          <div class="passo-corpo">
+            <h3>Como organizar</h3>
+            <div class="linha">
+              <label>Estrutura de pastas</label>
+              <select id="org-padrao"></select>
+            </div>
+            <div class="linha">
+              <label>Pasta de destino</label>
+              <input type="text" id="org-destino" placeholder="C:\Users\...\Acervo PAULUS">
+              <button id="org-escolher-pasta" hidden>Escolher…</button>
+            </div>
+            <div class="linha">
+              <button class="primario" id="org-ver-plano">Ver o plano</button>
+              <span id="org-plano-nota" class="nota"></span>
+            </div>
+            <div id="org-plano"></div>
+          </div>
+        </div>
+
+        <div class="passo" id="org-passo-5" hidden>
+          <div class="passo-num">5</div>
+          <div class="passo-corpo">
+            <h3>Aplicar</h3>
+            <div class="cobertura">
+              <strong>A partir daqui os arquivos saem do lugar.</strong>
+              Cada movimento vai para um diario e pode ser revertido pelo botao
+              Desfazer. Nada e apagado e nada e sobrescrito.
+            </div>
+            <div class="linha">
+              <button class="perigo" id="org-aplicar">Mover os arquivos</button>
+              <span id="org-resultado" class="nota"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="passo">
+          <div class="passo-num">↩</div>
+          <div class="passo-corpo">
+            <h3>Lotes aplicados</h3>
+            <div id="org-diarios"><span class="nota">Nenhum lote ainda.</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -531,8 +763,328 @@ async function buscar(termo) {
     : '<div class="vazio">Nenhum trecho encontrado.</div>';
 }
 
+// ------------------------------------------------------------ organizador
+
+const org = {
+  raizes: [],        // {caminho, rotulo, ativa}
+  tipos: [],
+  documentos: [],    // classificacoes
+  selecao: new Set(),
+  classificado: false,
+};
+
+async function organizarOpcoes() {
+  const r = await fetch("/api/organizar/opcoes");
+  const o = await r.json();
+
+  org.raizes = o.raizes.map((x) => ({ ...x, ativa: true }));
+  org.tipos = o.tipos;
+  renderRaizes();
+
+  $("org-padrao").innerHTML = o.padroes
+    .map((p) => '<option value="' + escapar(p.padrao) + '">' + escapar(p.rotulo) + "</option>")
+    .join("");
+  if (!$("org-destino").value) $("org-destino").value = o.destino_sugerido;
+  renderDiarios(o.diarios);
+
+  // O seletor nativo de pasta so existe na janela desktop.
+  if (window.pywebview) $("org-escolher-pasta").hidden = false;
+}
+
+function renderRaizes() {
+  $("org-raizes").innerHTML = org.raizes
+    .map((r, i) =>
+      '<span class="chip' + (r.ativa ? " on" : "") + '" data-i="' + i + '">' +
+      escapar(r.rotulo) + "<small>" + escapar(r.caminho) + "</small></span>"
+    ).join("");
+
+  document.querySelectorAll("#org-raizes .chip").forEach((c) => {
+    c.onclick = () => {
+      const item = org.raizes[Number(c.dataset.i)];
+      item.ativa = !item.ativa;
+      renderRaizes();
+    };
+  });
+}
+
+$("org-add-raiz").onclick = () => {
+  const caminho = $("org-raiz-manual").value.trim();
+  if (!caminho) return;
+  org.raizes.push({ caminho: caminho, rotulo: caminho.split(/[\\/]/).pop() || caminho, ativa: true });
+  $("org-raiz-manual").value = "";
+  renderRaizes();
+};
+
+$("org-escolher-pasta").onclick = async () => {
+  if (!window.pywebview) return;
+  const escolhido = await window.pywebview.api.escolher_pasta();
+  if (escolhido) $("org-destino").value = escolhido;
+};
+
+$("org-varrer").onclick = async () => {
+  const raizes = org.raizes.filter((r) => r.ativa).map((r) => r.caminho);
+  if (!raizes.length) {
+    $("org-varredura").textContent = "escolha ao menos uma pasta";
+    return;
+  }
+
+  $("org-varrer").disabled = true;
+  $("org-varredura").textContent = "varrendo…";
+
+  try {
+    const r = await fetch("/api/organizar/escanear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raizes: raizes }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || "falha");
+    const d = await r.json();
+
+    let msg = d.total + " documento(s) em " + d.pastas_visitadas + " pasta(s)";
+    if (d.sem_permissao) msg += " · " + d.sem_permissao + " sem permissão";
+    if (d.grandes) msg += " · " + d.grandes + " grandes demais";
+    $("org-varredura").textContent = msg;
+    $("org-passo-2").hidden = d.total === 0;
+  } catch (err) {
+    $("org-varredura").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
+  } finally {
+    $("org-varrer").disabled = false;
+  }
+};
+
+$("org-classificar").onclick = async () => {
+  $("org-classificar").disabled = true;
+  $("org-barra").hidden = false;
+  $("org-progresso").textContent = "iniciando…";
+
+  const inicio = Date.now();
+  try {
+    const r = await fetch("/api/organizar/classificar", { method: "POST" });
+    if (!r.ok) throw new Error((await r.json()).detail || "falha");
+
+    const leitor = r.body.getReader();
+    const dec = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const passo = await leitor.read();
+      if (passo.done) break;
+      buffer += dec.decode(passo.value, { stream: true });
+      const partes = buffer.split("\n\n");
+      buffer = partes.pop();
+
+      for (const parte of partes) {
+        const mTipo = parte.match(/^event: (.+)$/m);
+        const mDado = parte.match(/^data: (.*)$/m);
+        if (!mTipo || !mDado) continue;
+        const tipo = mTipo[1];
+        const dados = JSON.parse(mDado[1]);
+
+        if (tipo === "progresso") {
+          const pct = Math.round((dados.indice / dados.total) * 100);
+          $("org-barra-fill").style.width = pct + "%";
+          const decorridos = (Date.now() - inicio) / 1000;
+          const restam = dados.indice ? (decorridos / dados.indice) * (dados.total - dados.indice) : 0;
+          $("org-progresso").textContent =
+            dados.indice + " de " + dados.total +
+            (dados.cache ? " (do cache)" : "") +
+            (restam > 3 ? " · faltam ~" + Math.ceil(restam / 60) + " min" : "");
+        } else if (tipo === "resultados") {
+          org.documentos = dados.documentos;
+          org.selecao = new Set(dados.documentos.filter((d) => !d.erro).map((d) => d.arquivo));
+          org.classificado = true;
+          renderTabela();
+          $("org-passo-3").hidden = false;
+          $("org-passo-4").hidden = false;
+          $("org-progresso").textContent =
+            dados.documentos.length + " documento(s) em " +
+            ((Date.now() - inicio) / 1000).toFixed(0) + "s";
+        } else if (tipo === "erro") {
+          $("org-progresso").innerHTML = '<span class="erro">' + escapar(dados.mensagem) + "</span>";
+        }
+      }
+    }
+  } catch (err) {
+    $("org-progresso").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
+  } finally {
+    $("org-classificar").disabled = false;
+  }
+};
+
+function renderTabela() {
+  const corpo = $("org-tabela").querySelector("tbody");
+
+  corpo.innerHTML = org.documentos.map((d, i) => {
+    const marcado = org.selecao.has(d.arquivo);
+    const opcoes = org.tipos.map((t) =>
+      '<option value="' + t.valor + '"' + (t.valor === d.tipo ? " selected" : "") + ">" +
+      escapar(t.rotulo) + "</option>"
+    ).join("");
+
+    const aviso = d.erro
+      ? '<div class="nota erro">' + escapar(d.erro) + "</div>"
+      : "";
+
+    return '<tr class="' + (marcado ? "" : "fora") + '" data-i="' + i + '">' +
+      '<td><input type="checkbox" data-acao="marcar"' + (marcado ? " checked" : "") +
+      (d.erro ? " disabled" : "") + "></td>" +
+      '<td><div class="arquivo">' + escapar(d.nome) + "</div>" + aviso + "</td>" +
+      '<td><select data-acao="tipo">' + opcoes + "</select></td>" +
+      '<td><input type="text" data-acao="cliente" value="' + escapar(d.cliente || "") + '"></td>' +
+      "<td>" + (d.data || "—") + "</td>" +
+      '<td><span class="selo ' + d.confianca + '">' + d.confianca + "</span></td></tr>";
+  }).join("");
+
+  corpo.querySelectorAll("tr").forEach((tr) => {
+    const doc = org.documentos[Number(tr.dataset.i)];
+    tr.querySelector('[data-acao="marcar"]').onchange = (e) => {
+      if (e.target.checked) org.selecao.add(doc.arquivo);
+      else org.selecao.delete(doc.arquivo);
+      tr.className = e.target.checked ? "" : "fora";
+    };
+    tr.querySelector('[data-acao="tipo"]').onchange = (e) => {
+      doc.tipo = e.target.value;
+      const achado = org.tipos.find((t) => t.valor === e.target.value);
+      doc.tipo_rotulo = achado ? achado.rotulo : doc.tipo_rotulo;
+    };
+    tr.querySelector('[data-acao="cliente"]').oninput = (e) => { doc.cliente = e.target.value; };
+  });
+}
+
+$("org-todos").onchange = (e) => {
+  org.selecao = e.target.checked
+    ? new Set(org.documentos.filter((d) => !d.erro).map((d) => d.arquivo))
+    : new Set();
+  renderTabela();
+};
+
+function corpoDoPlano() {
+  return {
+    destino: $("org-destino").value.trim(),
+    padrao: $("org-padrao").value,
+    apenas: Array.from(org.selecao),
+    ajustes: org.documentos
+      .filter((d) => org.selecao.has(d.arquivo))
+      .map((d) => ({ arquivo: d.arquivo, cliente: d.cliente, tipo: d.tipo })),
+  };
+}
+
+$("org-ver-plano").onclick = async () => {
+  if (!org.selecao.size) {
+    $("org-plano-nota").textContent = "nenhum documento marcado";
+    return;
+  }
+
+  $("org-ver-plano").disabled = true;
+  try {
+    const r = await fetch("/api/organizar/plano", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corpoDoPlano()),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || "falha");
+    const plano = await r.json();
+
+    $("org-plano-nota").textContent = plano.total + " arquivo(s) em " + plano.pastas.length + " pasta(s)";
+    $("org-plano").innerHTML =
+      '<div class="caixa">' +
+      plano.pastas.map((p) =>
+        '<div class="pasta-linha"><code>' + escapar(p.pasta) + "</code>" +
+        "<span class=\"nota\">" + p.arquivos + " arquivo(s)</span></div>"
+      ).join("") +
+      "</div>" +
+      (plano.ignorados.length
+        ? '<div class="nota" style="margin-top:8px">Fora do plano: ' +
+          escapar(plano.ignorados.map((x) => x.nome + " (" + x.motivo + ")").join(", ")) + "</div>"
+        : "");
+    $("org-passo-5").hidden = plano.total === 0;
+  } catch (err) {
+    $("org-plano-nota").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
+  } finally {
+    $("org-ver-plano").disabled = false;
+  }
+};
+
+$("org-aplicar").onclick = async () => {
+  const quantos = org.selecao.size;
+  if (!confirm("Mover " + quantos + " arquivo(s) para " + $("org-destino").value + "?\n\nDá para desfazer depois.")) {
+    return;
+  }
+
+  $("org-aplicar").disabled = true;
+  $("org-resultado").textContent = "movendo…";
+
+  try {
+    const r = await fetch("/api/organizar/aplicar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corpoDoPlano()),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || "falha");
+    const d = await r.json();
+
+    let msg = d.movidos + " arquivo(s) movido(s).";
+    if (d.falhas.length) msg += " " + d.falhas.length + " falha(s).";
+    $("org-resultado").innerHTML = d.falhas.length
+      ? '<span class="erro">' + escapar(msg) + "</span>"
+      : escapar(msg);
+
+    renderDiarios(d.diarios);
+    org.documentos = [];
+    org.selecao = new Set();
+    renderTabela();
+    ["org-passo-2", "org-passo-3", "org-passo-4", "org-passo-5"].forEach((id) => { $(id).hidden = true; });
+    $("org-varredura").textContent = "";
+  } catch (err) {
+    $("org-resultado").innerHTML = '<span class="erro">' + escapar(String(err)) + "</span>";
+  } finally {
+    $("org-aplicar").disabled = false;
+  }
+};
+
+function renderDiarios(diarios) {
+  const alvo = $("org-diarios");
+  if (!diarios || !diarios.length) {
+    alvo.innerHTML = '<span class="nota">Nenhum lote ainda.</span>';
+    return;
+  }
+
+  alvo.innerHTML = '<div class="caixa">' + diarios.map((d) => {
+    const estado = d.desfeito_em
+      ? '<span class="nota">desfeito</span>'
+      : '<button data-diario="' + escapar(d.diario) + '">Desfazer</button>';
+    return '<div class="diario-linha"><span class="cresce"><code>' +
+      escapar(d.criado_em.replace("T", " ")) + "</code> · " + d.pendentes +
+      " arquivo(s) · " + escapar(d.padrao) + "</span>" + estado + "</div>";
+  }).join("") + "</div>";
+
+  alvo.querySelectorAll("button[data-diario]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Devolver os arquivos deste lote para onde estavam?")) return;
+      b.disabled = true;
+      b.textContent = "desfazendo…";
+      try {
+        const r = await fetch("/api/organizar/desfazer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ diario: b.dataset.diario }),
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || "falha");
+        const d = await r.json();
+        renderDiarios(d.diarios);
+        $("org-resultado").textContent = d.revertidos + " arquivo(s) de volta ao lugar de origem.";
+      } catch (err) {
+        b.disabled = false;
+        b.textContent = "Desfazer";
+        alert("Falha ao desfazer: " + err);
+      }
+    };
+  });
+}
+
 carregarStatus();
 carregarDocs();
+organizarOpcoes();
 </script>
 </body>
 </html>

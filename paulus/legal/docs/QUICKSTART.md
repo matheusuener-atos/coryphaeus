@@ -34,7 +34,20 @@ Os arquivos em `data/samples/` sao ficticios e servem para validar a instalacao:
 python src/main.py --contracts data/samples --ask "Qual e o prazo de vigencia de cada contrato?"
 ```
 
-## 4. Abrir a interface web
+## 4. Abrir o programa
+
+```bash
+python src/desktop.py
+```
+
+Abre uma janela do Windows com a interface. E o formato para usar no dia a dia
+e para demonstrar - sem barra de endereco, sem cara de site. A janela tambem da
+acesso ao seletor de pasta do proprio Windows, que o navegador nao permite.
+
+Se preferir o navegador (ou se o pywebview nao instalar), a mesma interface
+roda em <http://localhost:8000>:
+
+## 5. Interface no navegador
 
 ```bash
 python src/api.py
@@ -58,14 +71,48 @@ texto exato que o modelo recebeu. Se um contrato nao tiver trecho relevante
 para a pergunta, a tela avisa quais ficaram de fora - a resposta nao fala por
 eles.
 
-## 5. Usar com seus contratos (pelo terminal)
+## 6. Organizar o acervo
+
+A aba **Organizar** varre suas pastas, le cada documento e monta a estrutura de
+pastas que voce definir.
+
+1. **Onde procurar** - marque as pastas sugeridas ou digite um caminho
+   (`D:\Escritorio\Contratos`). Pastas de sistema sao puladas: nao ha contrato
+   dentro de `Windows/` ou `AppData/`.
+2. **Classificar** - tipo, partes, data, valor e CPF/CNPJ. Data e valor saem por
+   regra, instantaneos. O modelo entra so quando a regra nao decide o tipo ou
+   nao acha as partes, e ai custa ~20s por documento. O resultado fica em cache
+   por conteudo: reclassificar o mesmo acervo e instantaneo.
+3. **Conferir** - a tabela e editavel. Cliente e tipo sao palpite do programa;
+   corrija o que estiver errado e desmarque o que nao deve entrar. **Nada foi
+   movido ate aqui.**
+4. **Estrutura** - escolha o padrao (`{cliente}/{tipo_rotulo}`,
+   `{ano}/{mes_nome}/{tipo_rotulo}`, e por ai) e a pasta de destino. "Ver o
+   plano" mostra exatamente quais pastas serao criadas.
+5. **Aplicar** - so aqui os arquivos se movem.
+
+Campos disponiveis no padrao: `{cliente}`, `{tipo}`, `{tipo_rotulo}`, `{ano}`,
+`{mes}`, `{mes_nome}`, `{confianca}`. Texto fixo tambem vale:
+`Contratos/{ano}/{cliente}`.
+
+Documento sem o campo do padrao (sem data, sem cliente) cai numa pasta
+`_A revisar` em vez de sumir no meio do acervo.
+
+### Desfazer
+
+Todo lote aplicado vira um diario em `data/diarios/`. O botao **Desfazer**
+devolve cada arquivo exatamente ao caminho de origem e limpa as pastas que
+ficaram vazias. Nada e apagado e nada e sobrescrito: se ja existir arquivo com
+o mesmo nome no destino, o novo entra como `nome (2).pdf`.
+
+## 7. Usar com seus contratos (pelo terminal)
 
 ```bash
 # Copie PDFs/DOCXs para data/test_contracts/  (essa pasta NAO vai para o git)
 python src/main.py
 ```
 
-## 6. Comandos do chat (CLI)
+## 8. Comandos do chat (CLI)
 
 | Comando | O que faz |
 |---|---|
@@ -76,7 +123,7 @@ python src/main.py
 | `/reindex` | reextrai a pasta (use depois de adicionar arquivos) |
 | `/sair` | encerra |
 
-## 7. Flags do CLI
+## 9. Flags do CLI
 
 ```bash
 python src/main.py --contracts ../outra/pasta   # outra pasta de contratos
