@@ -319,6 +319,60 @@
   .interruptor.on .chave { background: var(--ink); }
   .interruptor.on .chave::after { transform: translateX(15px); }
 
+  /* ------------------------------------------------------ organizador */
+
+  .fluxo.arrastando { background: var(--accent-soft); outline: 2px dashed var(--accent-line); outline-offset: -12px; }
+
+  .painel { border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface-1); padding: 14px; }
+  .painel h3 { font: 600 13.5px var(--sans); margin-bottom: 4px; }
+  .painel .explica { font-size: 12.5px; color: var(--ink-3); margin: 0 0 12px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--line-strong); border-radius: 16px;
+    padding: 5px 12px; font-size: 12.5px; background: var(--surface-1);
+    cursor: pointer; color: var(--ink-2);
+  }
+  .chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .chip .caminho { font: 400 10.5px var(--mono); opacity: 0.75; }
+
+  .linha-form { display: flex; gap: 8px; align-items: center; margin-bottom: 9px; flex-wrap: wrap; }
+  .linha-form label { font-size: 12.5px; color: var(--ink-3); min-width: 108px; }
+  input[type=text], select {
+    font: 400 13px var(--sans); border: 1px solid var(--line-strong);
+    border-radius: 10px; padding: 9px 12px; background: var(--surface-1);
+    color: inherit; flex: 1; min-width: 200px;
+  }
+  input[type=text]::placeholder { color: #9aa3ae; }
+
+  .tabela-caixa { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 320px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  thead th {
+    position: sticky; top: 0; z-index: 1; background: var(--surface-2);
+    text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
+    font: 500 10px var(--mono); letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-muted); white-space: nowrap;
+  }
+  tbody td { padding: 5px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.fora { opacity: 0.4; }
+  td .arq { max-width: 210px; }
+  td input[type=text], td select {
+    border-color: transparent; background: transparent; padding: 4px 6px;
+    border-radius: 6px; min-width: 0; font-size: 12.5px;
+  }
+  td input[type=text]:hover, td select:hover { border-color: var(--line-strong); background: var(--surface-2); }
+  .selo-conf { font: 400 10.5px var(--mono); padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .selo-conf.alta { background: #e9f3ee; color: var(--ok); }
+  .selo-conf.media { background: var(--attention-soft); color: var(--attention-ink); }
+  .selo-conf.baixa { background: #fbeee6; color: var(--attention); }
+
+  .pastas { border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; }
+  .pasta-l { display: flex; justify-content: space-between; gap: 12px; padding: 7px 11px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+  .pasta-l:last-child { border-bottom: none; }
+  .pasta-l code { font: 400 11.5px var(--mono); color: var(--ink-2); word-break: break-all; }
+
   /* ----------------------------------------------------------- coroa */
 
   .coroa { flex-shrink: 0; color: var(--accent); animation: girar 9s linear infinite; }
@@ -386,9 +440,12 @@
     <div class="compositor">
       <div class="centro">
         <div class="campo">
-          <textarea id="pedido" rows="1" placeholder="Peça outra coisa ou envie uma pasta…"></textarea>
+          <textarea id="pedido" rows="1" placeholder="Peça o que precisa, ou anexe documentos…"></textarea>
+          <button id="anexar" title="Anexar contratos (PDF, DOCX, TXT)">Anexar</button>
+          <button id="buscar" title="Achar a palavra nos contratos, sem esperar o assistente">Buscar</button>
           <button class="primario" id="enviar">Perguntar</button>
         </div>
+        <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
         <div class="privacidade" id="privacidade">nenhuma requisição à internet nesta sessão</div>
       </div>
     </div>
@@ -523,18 +580,125 @@ function exemplos() {
     "Qual o prazo de vigência de cada contrato?",
     "Quem são as partes de cada contrato?",
   ];
-  return '<div><p style="margin:0 0 12px;color:var(--ink-2)">' +
-    "Peça o que precisa dos contratos abertos. Toda resposta vem com os trechos que eu li." +
-    '</p><div style="display:flex;flex-wrap:wrap;gap:7px">' +
-    pedidos.map((p) => '<button class="pastilha exemplo">' + esc(p) + "</button>").join("") +
-    "</div></div>";
+  const temContratos = estado.contratos > 0;
+
+  return '<div><p class="explica" style="font-size:14.5px;color:var(--ink-2);margin:0 0 12px">' +
+    (temContratos
+      ? "Pergunte o que precisa dos contratos abertos. Toda resposta vem com os trechos que eu li."
+      : "Nenhum contrato aberto ainda. Anexe documentos aqui embaixo, ou arraste para esta área.") +
+    '</p><div class="chips">' +
+    (temContratos ? pedidos.map((p) => '<button class="chip exemplo">' + esc(p) + "</button>").join("") : "") +
+    "</div></div>" +
+    '<div class="painel"><h3>Organizar uma pasta</h3>' +
+    '<p class="explica">Vou ler os documentos de uma pasta sua, classificar por conteúdo e ' +
+    "propor a estrutura de pastas. Você confere antes de qualquer arquivo sair do lugar.</p>" +
+    '<button id="abrir-organizar">Começar</button></div>';
 }
 
 function ligarExemplos() {
   document.querySelectorAll(".exemplo").forEach((b) => {
     b.onclick = () => { $("pedido").value = b.textContent; enviar(); };
   });
+  const org = $("abrir-organizar");
+  if (org) org.onclick = organizarComecar;
 }
+
+/* ----------------------------------------------------------- anexar */
+
+$("anexar").onclick = () => $("arquivos").click();
+$("arquivos").onchange = (e) => {
+  const lista = Array.from(e.target.files);
+  e.target.value = "";
+  if (lista.length) subirArquivos(lista);
+};
+
+const fluxo = $("fluxo");
+["dragenter", "dragover"].forEach((ev) => fluxo.addEventListener(ev, (e) => {
+  e.preventDefault();
+  fluxo.classList.add("arrastando");
+}));
+["dragleave", "drop"].forEach((ev) => fluxo.addEventListener(ev, (e) => {
+  e.preventDefault();
+  if (ev === "dragleave" && fluxo.contains(e.relatedTarget)) return;
+  fluxo.classList.remove("arrastando");
+}));
+fluxo.addEventListener("drop", (e) => {
+  const lista = Array.from(e.dataTransfer.files || []);
+  if (lista.length) subirArquivos(lista);
+});
+
+async function subirArquivos(lista) {
+  const dados = new FormData();
+  lista.forEach((a) => dados.append("arquivos", a));
+
+  const nota = document.createElement("div");
+  nota.className = "painel";
+  nota.innerHTML = '<div style="display:flex;align-items:center;gap:9px">' + coroa(17) +
+    "<span>Lendo " + lista.length + " arquivo(s)…</span></div>";
+  $("centro").appendChild(nota);
+  rolar();
+
+  try {
+    const r = await fetch("/api/upload", { method: "POST", body: dados });
+    const res = await r.json();
+
+    let texto = res.salvos.length
+      ? res.salvos.length + " documento(s) aberto(s). Agora são " + res.contratos + " no total."
+      : "Nenhum documento novo foi aberto.";
+    if (res.recusados.length) {
+      texto += " Não consegui abrir: " +
+        res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".";
+    }
+    nota.innerHTML = "<div>" + esc(texto) + "</div>";
+    estado.contratos = res.contratos;
+    carregarStatus();
+  } catch (err) {
+    nota.innerHTML = '<div>Não consegui abrir os arquivos: ' + esc(String(err)) + "</div>";
+  }
+  rolar();
+}
+
+/* ------------------------------------------------------------ buscar */
+
+$("buscar").onclick = async () => {
+  const termo = $("pedido").value.trim();
+  if (!termo || estado.ocupado) return;
+  $("pedido").value = "";
+  $("pedido").style.height = "auto";
+
+  const centro = $("centro");
+  if (!estado.trabalhoId) centro.innerHTML = "";
+  centro.insertAdjacentHTML("beforeend", bolhaPessoa(termo));
+
+  const bloco = document.createElement("div");
+  bloco.className = "resposta";
+  centro.appendChild(bloco);
+  rolar();
+
+  try {
+    const r = await fetch("/api/buscar-agora", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ termo: termo }),
+    });
+    const d = await r.json();
+
+    if (!d.resultados.length) {
+      bloco.innerHTML = "<div>Não achei essa palavra nos " + d.contratos + " contrato(s) abertos.</div>";
+    } else {
+      const nomes = new Set(d.resultados.map((x) => x.documento));
+      bloco.innerHTML = "<div>" + d.resultados.length + " trecho(s) em " + nomes.size +
+        " contrato(s), sem passar pelo assistente.</div>" +
+        d.resultados.map((x) =>
+          '<div class="trecho"><div class="origem">' + esc(x.documento) + " · trecho " + x.trecho +
+          "</div><pre>" + esc(x.texto) + "</pre></div>"
+        ).join("");
+    }
+  } catch (err) {
+    bloco.innerHTML = "<div>Não consegui buscar: " + esc(String(err)) + "</div>";
+  }
+  rolar();
+};
 
 /* ------------------------------------------------------------ desenho */
 
@@ -836,6 +1000,386 @@ $("devagar").onkeydown = (e) => {
 };
 
 $("abrir-gaveta").onclick = () => $("lateral").classList.toggle("aberta");
+
+/* -------------------------------------------------------- organizador */
+
+const org = { raizes: [], tipos: [], docs: [], selecao: new Set(), padroes: [] };
+
+const ETAPAS_ORG = [
+  "Escolher onde procurar",
+  "Ler e classificar os documentos",
+  "Conferir a classificação",
+  "Mover para a estrutura nova",
+];
+
+function etapasOrg(atual, feitos, total) {
+  return ETAPAS_ORG.map((titulo, i) => ({
+    titulo: titulo,
+    estado: i < atual ? "concluido" : (i === atual ? "executando" : "na_fila"),
+    feitos: i === atual ? (feitos || 0) : 0,
+    total: i === atual ? (total || 0) : 0,
+    detalhe: "",
+  }));
+}
+
+async function organizarComecar() {
+  const r = await fetch("/api/trabalhos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pedido: "Organizar uma pasta", tipo: "organizacao" }),
+  });
+  const t = await r.json();
+  estado.trabalhoId = t.id;
+  estado.trabalho = t;
+  $("conversa-titulo").textContent = t.titulo;
+  $("apagar").hidden = false;
+  carregarTrabalhos();
+
+  const o = await (await fetch("/api/organizar/opcoes")).json();
+  org.raizes = o.raizes.map((x) => ({ ...x, ativa: true }));
+  org.tipos = o.tipos;
+  org.padroes = o.padroes;
+  org.destino = o.destino_sugerido;
+  org.diarios = o.diarios;
+
+  $("centro").innerHTML = "";
+  passoOnde();
+}
+
+function cartaoOrg(atual, feitos, total) {
+  return '<div id="plano-org">' + cartaoPlano(etapasOrg(atual, feitos, total), atual + 1) + "</div>";
+}
+
+function atualizarPlanoOrg(atual, feitos, total) {
+  const p = $("plano-org");
+  if (p) p.innerHTML = cartaoPlano(etapasOrg(atual, feitos, total), atual + 1);
+}
+
+function passoOnde() {
+  const centro = $("centro");
+  centro.insertAdjacentHTML("beforeend", cartaoOrg(0));
+
+  const painel = document.createElement("div");
+  painel.className = "painel";
+  painel.id = "painel-onde";
+  painel.innerHTML =
+    "<h3>Onde eu procuro</h3>" +
+    '<p class="explica">Marque as pastas. Não vou entrar em pastas do Windows nem de programas: ' +
+    "não há contrato de cliente lá dentro.</p>" +
+    '<div class="chips" id="org-chips"></div>' +
+    '<div class="linha-form"><input type="text" id="org-manual" placeholder="Ou digite um caminho: D:\\Escritorio\\Contratos">' +
+    '<button id="org-incluir">Incluir</button></div>' +
+    '<div class="linha-form"><button class="primario" id="org-varrer">Varrer as pastas</button>' +
+    '<span class="num" id="org-nota"></span></div>';
+  centro.appendChild(painel);
+
+  desenharChips();
+  $("org-incluir").onclick = () => {
+    const c = $("org-manual").value.trim();
+    if (!c) return;
+    org.raizes.push({ caminho: c, rotulo: c.split(/[\\/]/).pop() || c, ativa: true });
+    $("org-manual").value = "";
+    desenharChips();
+  };
+  $("org-varrer").onclick = organizarVarrer;
+  rolar();
+}
+
+function desenharChips() {
+  $("org-chips").innerHTML = org.raizes.map((r, i) =>
+    '<button class="chip' + (r.ativa ? " on" : "") + '" data-i="' + i + '">' +
+    esc(r.rotulo) + '<span class="caminho">' + esc(r.caminho) + "</span></button>"
+  ).join("");
+  document.querySelectorAll("#org-chips .chip").forEach((c) => {
+    c.onclick = () => {
+      org.raizes[Number(c.dataset.i)].ativa = !org.raizes[Number(c.dataset.i)].ativa;
+      desenharChips();
+    };
+  });
+}
+
+async function organizarVarrer() {
+  const raizes = org.raizes.filter((r) => r.ativa).map((r) => r.caminho);
+  if (!raizes.length) { $("org-nota").textContent = "marque ao menos uma pasta"; return; }
+
+  $("org-varrer").disabled = true;
+  $("org-nota").textContent = "procurando…";
+
+  try {
+    const r = await fetch("/api/organizar/escanear", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raizes: raizes }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const d = await r.json();
+
+    if (!d.total) {
+      $("org-nota").textContent = "nenhum documento encontrado nessas pastas";
+      $("org-varrer").disabled = false;
+      return;
+    }
+
+    let nota = d.total + " documento(s) em " + d.pastas_visitadas + " pasta(s)";
+    if (d.sem_permissao) nota += " · " + d.sem_permissao + " sem permissão de leitura";
+    $("painel-onde").remove();
+    $("centro").insertAdjacentHTML("beforeend",
+      '<div class="painel"><h3>Encontrei ' + d.total + " documento(s)</h3>" +
+      '<p class="explica" style="margin:0">' + esc(nota) + "</p></div>");
+    organizarClassificar(d.total);
+  } catch (err) {
+    $("org-nota").innerHTML = esc("não consegui varrer: " + err);
+    $("org-varrer").disabled = false;
+  }
+}
+
+async function organizarClassificar(total) {
+  atualizarPlanoOrg(1, 0, total);
+  atualizarSelo(true);
+  rolar();
+
+  const inicio = Date.now();
+  try {
+    const r = await fetch("/api/organizar/classificar", { method: "POST" });
+    if (!r.ok) throw new Error((await r.json()).detail);
+
+    const leitor = r.body.getReader();
+    const dec = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const passo = await leitor.read();
+      if (passo.done) break;
+      buffer += dec.decode(passo.value, { stream: true });
+      const partes = buffer.split("\n\n");
+      buffer = partes.pop();
+
+      for (const parte of partes) {
+        const mt = parte.match(/^event: (.+)$/m);
+        const md = parte.match(/^data: (.*)$/m);
+        if (!mt || !md) continue;
+        const d = JSON.parse(md[1]);
+
+        if (mt[1] === "progresso") {
+          atualizarPlanoOrg(1, d.indice, d.total);
+          const c = $("cronometro");
+          if (c) {
+            const seg = (Date.now() - inicio) / 1000;
+            const faltam = d.indice ? (seg / d.indice) * (d.total - d.indice) : 0;
+            c.textContent = faltam > 5 ? "~" + Math.ceil(faltam / 60) + " min" : Math.round(seg) + " s";
+          }
+        } else if (mt[1] === "resultados") {
+          org.docs = d.documentos;
+          org.selecao = new Set(d.documentos.filter((x) => !x.erro).map((x) => x.arquivo));
+          atualizarPlanoOrg(2);
+          passoConferir();
+        } else if (mt[1] === "erro") {
+          atualizarPlanoOrg(1);
+          $("centro").insertAdjacentHTML("beforeend",
+            '<div class="aprovacao"><p><strong>Não consegui ler os documentos.</strong> ' +
+            esc(d.mensagem) + "</p></div>");
+        }
+      }
+    }
+  } catch (err) {
+    $("centro").insertAdjacentHTML("beforeend",
+      '<div class="aprovacao"><p><strong>Não consegui classificar.</strong> ' + esc(String(err)) + "</p></div>");
+  } finally {
+    atualizarSelo(false);
+    rolar();
+  }
+}
+
+function passoConferir() {
+  const painel = document.createElement("div");
+  painel.className = "painel";
+  painel.innerHTML =
+    "<h3>Confira antes de eu mexer em alguma coisa</h3>" +
+    '<p class="explica">Cliente e tipo são o meu palpite: eu não tenho como saber qual das partes ' +
+    "é cliente do escritório. Corrija o que estiver errado e desmarque o que não deve entrar. " +
+    "Nada saiu do lugar ainda.</p>" +
+    '<div class="tabela-caixa"><table><thead><tr>' +
+    '<th><input type="checkbox" id="org-todos" checked></th><th>Documento</th>' +
+    "<th>Tipo</th><th>Cliente</th><th>Data</th><th>Confiança</th>" +
+    '</tr></thead><tbody id="org-corpo"></tbody></table></div>' +
+    '<div class="linha-form" style="margin-top:12px"><button class="primario" id="org-ir-estrutura">Escolher a estrutura</button></div>';
+  $("centro").appendChild(painel);
+
+  desenharTabelaOrg();
+  $("org-todos").onchange = (e) => {
+    org.selecao = e.target.checked
+      ? new Set(org.docs.filter((d) => !d.erro).map((d) => d.arquivo))
+      : new Set();
+    desenharTabelaOrg();
+  };
+  $("org-ir-estrutura").onclick = () => {
+    if (!org.selecao.size) return;
+    passoEstrutura();
+  };
+  rolar();
+}
+
+function desenharTabelaOrg() {
+  $("org-corpo").innerHTML = org.docs.map((d, i) => {
+    const marcado = org.selecao.has(d.arquivo);
+    const opcoes = org.tipos.map((t) =>
+      '<option value="' + t.valor + '"' + (t.valor === d.tipo ? " selected" : "") + ">" + esc(t.rotulo) + "</option>"
+    ).join("");
+    const erro = d.erro ? '<div class="num">' + esc(d.erro) + "</div>" : "";
+
+    return '<tr class="' + (marcado ? "" : "fora") + '" data-i="' + i + '">' +
+      '<td><input type="checkbox" data-a="marcar"' + (marcado ? " checked" : "") + (d.erro ? " disabled" : "") + "></td>" +
+      '<td><div class="arq">' + esc(d.nome) + "</div>" + erro + "</td>" +
+      '<td><select data-a="tipo">' + opcoes + "</select></td>" +
+      '<td><input type="text" data-a="cliente" value="' + esc(d.cliente || "") + '"></td>' +
+      '<td class="num">' + (d.data || "—") + "</td>" +
+      '<td><span class="selo-conf ' + d.confianca + '">' + d.confianca + "</span></td></tr>";
+  }).join("");
+
+  $("org-corpo").querySelectorAll("tr").forEach((tr) => {
+    const d = org.docs[Number(tr.dataset.i)];
+    tr.querySelector('[data-a="marcar"]').onchange = (e) => {
+      if (e.target.checked) org.selecao.add(d.arquivo); else org.selecao.delete(d.arquivo);
+      tr.className = e.target.checked ? "" : "fora";
+    };
+    tr.querySelector('[data-a="tipo"]').onchange = (e) => {
+      d.tipo = e.target.value;
+      const achado = org.tipos.find((t) => t.valor === e.target.value);
+      if (achado) d.tipo_rotulo = achado.rotulo;
+    };
+    tr.querySelector('[data-a="cliente"]').oninput = (e) => { d.cliente = e.target.value; };
+  });
+}
+
+function passoEstrutura() {
+  const painel = document.createElement("div");
+  painel.className = "painel";
+  painel.id = "painel-estrutura";
+  painel.innerHTML =
+    "<h3>Como as pastas ficam</h3>" +
+    '<div class="linha-form"><label>Estrutura</label><select id="org-padrao">' +
+    org.padroes.map((p) => '<option value="' + esc(p.padrao) + '">' + esc(p.rotulo) + "</option>").join("") +
+    "</select></div>" +
+    '<div class="linha-form"><label>Pasta de destino</label>' +
+    '<input type="text" id="org-destino" value="' + esc(org.destino) + '">' +
+    (window.pywebview ? '<button id="org-escolher">Escolher…</button>' : "") + "</div>" +
+    '<div class="linha-form"><button class="primario" id="org-ver">Ver o plano</button>' +
+    '<span class="num" id="org-nota2"></span></div><div id="org-plano"></div>';
+  $("centro").appendChild(painel);
+
+  if (window.pywebview) {
+    $("org-escolher").onclick = async () => {
+      const p = await window.pywebview.api.escolher_pasta();
+      if (p) $("org-destino").value = p;
+    };
+  }
+  $("org-ver").onclick = organizarVerPlano;
+  rolar();
+}
+
+function corpoPlano() {
+  return {
+    destino: $("org-destino").value.trim(),
+    padrao: $("org-padrao").value,
+    apenas: Array.from(org.selecao),
+    ajustes: org.docs.filter((d) => org.selecao.has(d.arquivo))
+      .map((d) => ({ arquivo: d.arquivo, cliente: d.cliente, tipo: d.tipo })),
+  };
+}
+
+async function organizarVerPlano() {
+  $("org-ver").disabled = true;
+  try {
+    const r = await fetch("/api/organizar/plano", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corpoPlano()),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const plano = await r.json();
+
+    $("org-plano").innerHTML = '<div class="pastas">' + plano.pastas.map((p) =>
+      '<div class="pasta-l"><code>' + esc(p.pasta) + '</code><span class="num">' + p.arquivos + "</span></div>"
+    ).join("") + "</div>" +
+      (plano.ignorados.length
+        ? '<p class="explica" style="margin:8px 0 0">Fora do plano: ' +
+          esc(plano.ignorados.map((x) => x.nome).join(", ")) + "</p>"
+        : "");
+    $("org-nota2").textContent = plano.total + " arquivo(s) em " + plano.pastas.length + " pasta(s)";
+
+    const antigo = $("aprovar-org");
+    if (antigo) antigo.remove();
+
+    const cartao = document.createElement("div");
+    cartao.id = "aprovar-org";
+    cartao.className = "aprovacao";
+    cartao.innerHTML =
+      "<p>Vou mover <strong>" + plano.total + " arquivo(s)</strong> para <strong>" +
+      plano.pastas.length + " pasta(s)</strong> em " + esc(plano.destino) +
+      ". Nada é apagado nem sobrescrito, e dá para desfazer tudo depois. Posso?</p>" +
+      '<div class="acoes"><button class="aprovar-secundario" id="org-revisar">Revisar</button>' +
+      '<button class="primario" id="org-aprovar">Aprovar</button></div>';
+    $("centro").appendChild(cartao);
+
+    $("org-revisar").onclick = () => {
+      cartao.remove();
+      $("painel-estrutura").scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    $("org-aprovar").onclick = organizarAplicar;
+  } catch (err) {
+    $("org-nota2").textContent = "não consegui montar o plano: " + err;
+  } finally {
+    $("org-ver").disabled = false;
+    rolar();
+  }
+}
+
+async function organizarAplicar() {
+  const cartao = $("aprovar-org");
+  cartao.innerHTML = '<p style="display:flex;align-items:center;gap:9px">' + coroa(17) + " Movendo…</p>";
+  atualizarPlanoOrg(3);
+  atualizarSelo(true);
+
+  try {
+    const r = await fetch("/api/organizar/aplicar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corpoPlano()),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const d = await r.json();
+
+    cartao.className = "painel";
+    cartao.innerHTML = "<h3>" + d.movidos + " arquivo(s) no lugar novo</h3>" +
+      (d.falhas.length ? '<p class="explica">' + d.falhas.length + " não deu para mover: " +
+        esc(d.falhas.map((f) => f.nome).join(", ")) + "</p>" : "") +
+      '<div class="linha-form" style="margin:10px 0 0"><button id="org-desfazer">Desfazer tudo</button>' +
+      '<span class="num" id="org-nota3">dá para voltar ao estado anterior</span></div>';
+
+    $("plano-org").innerHTML = cartaoPlano(etapasOrg(4), 4);
+    $("org-desfazer").onclick = async () => {
+      if (!confirm("Devolver os " + d.movidos + " arquivos para onde estavam?")) return;
+      $("org-desfazer").disabled = true;
+      $("org-nota3").textContent = "devolvendo…";
+      try {
+        const rr = await fetch("/api/organizar/desfazer", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ diario: d.diario }),
+        });
+        const dd = await rr.json();
+        $("org-nota3").textContent = dd.revertidos + " arquivo(s) de volta ao lugar de origem";
+      } catch (err) {
+        $("org-desfazer").disabled = false;
+        $("org-nota3").textContent = "não consegui desfazer: " + err;
+      }
+    };
+    estado.contratos = 0;
+    carregarStatus();
+  } catch (err) {
+    cartao.innerHTML = "<p><strong>Não consegui mover.</strong> " + esc(String(err)) + "</p>";
+  } finally {
+    atualizarSelo(false);
+    carregarTrabalhos();
+    rolar();
+  }
+}
 
 /* ------------------------------------------------------------- inicio */
 

@@ -191,6 +191,29 @@ def buscar(payload: Busca) -> dict:
     }
 
 
+@app.post("/api/buscar-agora")
+def buscar_agora(payload: Busca) -> dict:
+    """
+    Busca por palavra, sem passar pelo assistente.
+
+    Responde na hora. Existe porque nem toda pergunta merece 20 segundos de
+    espera: as vezes a pessoa so quer achar onde esta escrito.
+    """
+    hits = estado.searcher.search(payload.termo, top_k=payload.top)
+    return {
+        "termo": payload.termo,
+        "contratos": len(estado.searcher.documents),
+        "resultados": [
+            {
+                "documento": h.doc_name,
+                "trecho": h.chunk.index + 1,
+                "texto": h.chunk.text,
+            }
+            for h in hits
+        ],
+    }
+
+
 @app.post("/api/upload")
 async def upload(arquivos: list[UploadFile]) -> dict:
     salvos: list[str] = []
