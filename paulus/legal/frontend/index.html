@@ -227,16 +227,6 @@
     min-height: 0;
   }
   .conversa-col { flex: 1; min-width: 460px; display: flex; flex-direction: column; min-height: 0; }
-  .lateral {
-    width: 272px;
-    flex-shrink: 0;
-    background: var(--surface-2);
-    border-left: 1px solid var(--linha);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
   /* ------------------------------------------------- coluna de trabalhos */
 
   /* Coluna recolhida: so os tres comecos (nova, biblioteca, habilidades).
@@ -334,68 +324,6 @@
   .modelo .nome { font-size: 12.5px; font-weight: 500; }
 
   /* ---------------------------------------------------------- conversa */
-
-  /* ---------------------------------------------------- duas paginas */
-  /*
-    Duas telas cheias, uma embaixo da outra: em cima a conversa, embaixo a
-    bancada onde ficam as outras telas. O encaixe de rolagem faz a passagem
-    ser inteira - meia tela de cada nunca aparece.
-
-    Quando a conversa tem historico, a area de mensagens rola por dentro
-    primeiro; so ao chegar no fim e que a rolagem passa para a bancada, que e
-    o comportamento normal do navegador com rolagem aninhada.
-  */
-  .paginas {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
-  }
-  .pagina {
-    height: 100%;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  @media (prefers-reduced-motion: reduce) { .paginas { scroll-behavior: auto; } }
-
-  .desce, .sobe {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: none; background: none; color: var(--ink-muted);
-    font: 400 11.5px var(--sans); padding: 6px 10px; border-radius: 0;
-    margin: 0 auto; cursor: pointer;
-  }
-  .desce { display: none; margin-top: 10px; }
-  .sobe { margin: 0; }
-  .desce:hover, .sobe:hover { color: var(--acento); background: var(--acento-fraco); }
-  .desce svg, .sobe svg { width: 13px; height: 13px; }
-  .conversa-col.vazia .desce { display: inline-flex; }
-
-  .trabalho-topo {
-    display: flex; align-items: center; gap: 12px;
-    padding: 11px 20px; border-bottom: 1px solid var(--linha);
-    flex-shrink: 0; background: var(--surface-1);
-  }
-  .trabalho-corpo { flex: 1; overflow-y: auto; padding: 26px 24px 40px; }
-
-  .bancada { width: 100%; max-width: 760px; margin: 0 auto; }
-  .bancada > h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
-  .bancada > p { margin: 0 0 22px; font-size: 13.5px; color: var(--ink-2); }
-  .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px, 1fr)); gap: 12px; }
-  .cartao-atalho {
-    text-align: left; cursor: pointer;
-    border: 1px solid var(--linha-media); border-radius: 0;
-    background: var(--surface-1); padding: 15px; color: inherit;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .cartao-atalho:hover { border-color: var(--acento); }
-  .cartao-atalho .titulo { font: 500 14px var(--sans); }
-  .cartao-atalho .desc { font-size: 12.5px; color: var(--ink-2); }
-  .cartao-atalho .numero { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 2px; }
 
   .conversa-topo {
     padding: 13px 20px;
@@ -513,7 +441,7 @@
 
   /* Quem centraliza e a pagina do chat, nao a coluna: a coluna agora guarda
      as duas paginas empilhadas. */
-  .conversa-col.vazia #pagina-chat { justify-content: center; }
+  .conversa-col.vazia { justify-content: center; }
   .conversa-col.vazia .fluxo { flex: 0 0 auto; padding-bottom: 0; overflow: visible; }
   .conversa-col.vazia .compositor { border-top: none; padding-bottom: 22px; }
   .conversa-col.vazia .chamada { display: block; }
@@ -564,6 +492,84 @@
   .cartao-agora .rodape { font: 400 10.5px var(--mono); letter-spacing: 0.04em; color: var(--ink-3); }
   .barra-fina { height: 2px; background: var(--trilho); }
   .barra-fina i { display: block; height: 2px; background: var(--acento); transition: width 0.3s; }
+
+  /* ------------------------------------------------- maquina na coluna */
+
+  .maquina {
+    margin-top: auto; flex-shrink: 0;
+    border-top: 1px solid var(--linha); padding: 14px;
+  }
+  .maquina-cabeca {
+    display: block; width: 100%; text-align: left; padding: 0 0 8px;
+    border: none; background: none; cursor: pointer;
+  }
+  .maquina-cabeca:hover { border: none; background: none; }
+  .maquina-cabeca:hover .rotulo { color: var(--ink-2); }
+  .frase-maquina { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); margin-bottom: 12px; }
+
+  .medidor { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+  .medidor .nome { font-size: 12.5px; color: var(--ink-2); width: 68px; flex-shrink: 0; }
+  .medidor .trilho { flex: 1; height: 3px; background: var(--trilho); }
+  .medidor .trilho i { display: block; height: 3px; width: 0; background: var(--acento); transition: width 0.4s; }
+  .medidor .valor {
+    font: 400 10.5px var(--mono); color: var(--ink-3);
+    width: 52px; text-align: right; flex-shrink: 0;
+  }
+
+  .interruptor {
+    display: flex; align-items: center; gap: 10px; margin-top: 13px;
+    border: 1px solid var(--linha-media); padding: 9px 11px;
+    font-size: 12.5px; color: var(--ink-2); cursor: pointer;
+  }
+  .interruptor:hover { border-color: var(--linha-forte); }
+  .interruptor .chave {
+    margin-left: auto; width: 30px; height: 17px; flex-shrink: 0;
+    background: var(--trilho); position: relative; transition: background 0.2s;
+  }
+  .interruptor .chave::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 13px; height: 13px; background: var(--ink-3); transition: transform 0.2s, background 0.2s;
+  }
+  .interruptor.on { border-color: var(--linha-forte); color: var(--ink); }
+  .interruptor.on .chave { background: var(--acento); }
+  .interruptor.on .chave::after { transform: translateX(13px); background: var(--forte-texto); }
+
+  .assistente {
+    margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--linha);
+    font: 400 10.5px var(--mono); letter-spacing: 0.04em; color: var(--ink-3);
+  }
+
+  /* Recolhida, o painel vira so a frase curta - medidor de 52 px nao se le. */
+  .trabalhos.recolhida .maquina { padding: 12px 6px; }
+  .trabalhos.recolhida .maquina .medidor,
+  .trabalhos.recolhida .maquina .interruptor,
+  .trabalhos.recolhida .maquina .assistente,
+  .trabalhos.recolhida .frase-maquina { display: none; }
+  .trabalhos.recolhida .maquina-cabeca { padding: 0; text-align: center; }
+  .trabalhos.recolhida .maquina-cabeca .rotulo { font-size: 8px; letter-spacing: 0.1em; }
+
+  /* -------------------------------------------------------- registro */
+  /*
+    Herda o que a coluna da direita fazia de util: mostrar o que o programa
+    acabou de ler. Uma linha so, aberta sob demanda - o resto do andamento ja
+    esta no cartao de etapas, logo acima.
+  */
+  .registro { flex-shrink: 0; padding: 0 20px; }
+  .registro-cabeca {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    padding: 8px 2px; border: none; background: none; cursor: pointer;
+    font: 400 11.5px var(--sans); color: var(--ink-3); text-align: left;
+  }
+  .registro-cabeca:hover { color: var(--ink-2); background: none; border: none; }
+  .registro-cabeca .ponto { background: var(--acento); animation: none; }
+  .registro-agora { flex: 1; min-width: 0; }
+  .registro-seta { transition: transform 0.2s; color: var(--ink-muted); }
+  .registro.aberto .registro-seta { transform: rotate(90deg); }
+  .registro-lista { padding: 2px 0 10px 14px; border-left: 1px solid var(--linha); margin-left: 2px; }
+
+  .atividade-linha { display: flex; gap: 9px; padding: 4px 0; }
+  .atividade-linha .txt { font-size: 12.5px; color: var(--ink-2); }
+  .atividade-linha .num { display: block; }
 
   .rodape-chat {
     display: flex; align-items: center; gap: 14px;
@@ -646,220 +652,6 @@
   button.largo { width: 100%; }
   button.pastilha { border-radius: 0; padding: 5px 12px; font-size: 12px; }
 
-  /* --------------------------------------------------------- lateral */
-
-  .lateral-bloco { padding: 14px; border-bottom: 1px solid var(--linha); }
-  .lateral-rolagem { flex: 1; overflow-y: auto; }
-
-  .atividade-linha { display: flex; gap: 9px; padding: 6px 0; }
-  .atividade-linha .ponto-at {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--ink-muted);
-    margin-top: 6px; flex-shrink: 0;
-  }
-  .atividade-linha:first-child .ponto-at { background: var(--acento); }
-  .atividade-linha .txt { font-size: 13px; color: var(--ink-2); }
-
-  .maquina { margin-top: auto; border-top: 1px solid var(--linha); padding: 14px; background: var(--surface-2); }
-  .frase-maquina { font-size: 12.5px; color: var(--ink-2); margin: 8px 0 10px; }
-  .medidor { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-  .medidor .nome { font-size: 12.5px; color: var(--ink-2); width: 64px; flex-shrink: 0; }
-  .medidor .trilho { flex: 1; height: 5px; border-radius: 0; background: var(--trilho); overflow: hidden; }
-  .medidor .trilho i { display: block; height: 100%; background: var(--acento); transition: width 0.4s; }
-  .medidor .valor { font: 400 10.5px var(--mono); color: var(--ink-3); width: 46px; text-align: right; flex-shrink: 0; }
-
-  .interruptor {
-    display: flex; align-items: center; gap: 9px; margin-top: 12px;
-    border: 1px solid var(--linha-media); border-radius: 0; padding: 8px 11px;
-    background: var(--surface-1); font-size: 12.5px; cursor: pointer;
-  }
-  .interruptor .chave {
-    margin-left: auto; width: 34px; height: 19px; border-radius: 0;
-    background: var(--linha-media); position: relative; transition: background 0.2s; flex-shrink: 0;
-  }
-  .interruptor .chave::after {
-    content: ""; position: absolute; top: 2px; left: 2px;
-    width: 15px; height: 15px; border-radius: 50%; background: var(--surface-1); transition: transform 0.2s;
-  }
-  .interruptor.on .chave { background: var(--forte); }
-  .interruptor.on .chave::after { transform: translateX(15px); }
-
-  /* ------------------------------------------------------ organizador */
-
-  .fluxo.arrastando { background: var(--acento-fraco); outline: 2px dashed var(--linha-forte); outline-offset: -12px; }
-
-  .painel { border: 1px solid var(--linha-media); border-radius: 0; background: var(--surface-1); padding: 14px; }
-  .painel h3 { font: 600 13.5px var(--sans); margin-bottom: 4px; }
-  .painel .explica { font-size: 12.5px; color: var(--ink-3); margin: 0 0 12px; }
-
-  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 7px;
-    border: 1px solid var(--linha-media); border-radius: 0;
-    padding: 5px 12px; font-size: 12.5px; background: var(--surface-1);
-    cursor: pointer; color: var(--ink-2);
-  }
-  .chip.on { border-color: var(--acento); background: var(--acento-fraco); color: var(--acento); }
-  .chip .caminho { font: 400 10.5px var(--mono); opacity: 0.75; }
-
-  .linha-form { display: flex; gap: 8px; align-items: center; margin-bottom: 9px; flex-wrap: wrap; }
-  .linha-form label { font-size: 12.5px; color: var(--ink-3); min-width: 108px; }
-  input[type=text], select {
-    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
-    border-radius: 0; padding: 9px 12px; background: var(--surface-1);
-    color: inherit; flex: 1; min-width: 200px;
-  }
-  input[type=text]::placeholder { color: var(--ink-3); }
-
-  .tabela-caixa { border: 1px solid var(--linha); border-radius: 0; overflow: auto; max-height: 320px; }
-  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-  thead th {
-    position: sticky; top: 0; z-index: 1; background: var(--surface-2);
-    text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--linha);
-    font: 500 10px var(--mono); letter-spacing: 0.09em; text-transform: uppercase;
-    color: var(--ink-muted); white-space: nowrap;
-  }
-  tbody td { padding: 5px 10px; border-bottom: 1px solid var(--linha); vertical-align: middle; }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr.fora { opacity: 0.4; }
-  td .arq { max-width: 210px; }
-  td input[type=text], td select {
-    border-color: transparent; background: transparent; padding: 4px 6px;
-    border-radius: 0; min-width: 0; font-size: 12.5px;
-  }
-  td input[type=text]:hover, td select:hover { border-color: var(--linha-media); background: var(--surface-2); }
-  .selo-conf { font: 400 10.5px var(--mono); padding: 2px 8px; border-radius: 0; white-space: nowrap; }
-  .selo-conf.alta { background: var(--acento-fraco); color: var(--ok); }
-  .selo-conf.media { background: var(--atencao-fundo); color: var(--atencao); }
-  .selo-conf.baixa { background: var(--atencao-fundo); color: var(--atencao); }
-
-  /* seletor de pastas */
-  .navegador { border: 1px solid var(--linha-media); border-radius: 0; overflow: hidden; }
-  .migalhas {
-    display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
-    padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--linha);
-    font: 400 11.5px var(--mono);
-  }
-  .migalhas button {
-    border: none; background: none; padding: 2px 5px; border-radius: 0;
-    font: inherit; color: var(--acento); cursor: pointer;
-  }
-  .migalhas button:hover { background: var(--acento-fraco); color: var(--acento); }
-  .migalhas .sep { color: var(--ink-muted); }
-
-  .nav-lista { max-height: 260px; overflow-y: auto; background: var(--surface-1); }
-  .nav-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 12px; border-bottom: 1px solid var(--linha);
-    font-size: 13px; cursor: pointer; color: var(--ink-2);
-  }
-  .nav-item:last-child { border-bottom: none; }
-  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
-  .nav-item .icone { width: 15px; height: 13px; flex-shrink: 0; opacity: 0.55; }
-  .nav-item .cam { margin-left: auto; font: 400 10.5px var(--mono); color: var(--ink-muted); }
-  .nav-grupo {
-    padding: 8px 12px 4px; font: 500 10px var(--mono); letter-spacing: 0.09em;
-    text-transform: uppercase; color: var(--ink-muted); background: var(--surface-2);
-  }
-  .nav-vazio { padding: 16px 12px; font-size: 12.5px; color: var(--ink-muted); }
-
-  .escolhidas { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
-  .escolhida {
-    display: inline-flex; align-items: center; gap: 8px;
-    border: 1px solid var(--linha-forte); background: var(--acento-fraco);
-    border-radius: 0; padding: 5px 8px 5px 12px; font: 400 12px var(--mono); color: var(--acento);
-  }
-  .escolhida button {
-    border: none; background: none; color: var(--acento); cursor: pointer;
-    padding: 0 4px; font-size: 14px; line-height: 1; border-radius: 0;
-  }
-  .escolhida button:hover { background: var(--linha-forte); color: var(--acento); }
-
-  .pastas { border: 1px solid var(--linha); border-radius: 0; max-height: 240px; overflow-y: auto; }
-  .pasta-l { display: flex; justify-content: space-between; gap: 12px; padding: 7px 11px; border-bottom: 1px solid var(--linha); font-size: 12.5px; }
-  .pasta-l:last-child { border-bottom: none; }
-  .pasta-l code { font: 400 11.5px var(--mono); color: var(--ink-2); word-break: break-all; }
-
-  /* ------------------------------------------------------- habilidades */
-
-  .catalogo { width: 100%; max-width: 760px; margin: 0 auto; }
-  .catalogo-topo { margin-bottom: 22px; }
-  .catalogo-topo h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
-  .catalogo-topo p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
-
-  .hab-grupo { margin-bottom: 26px; }
-  .hab-grupo > .rotulo { margin-bottom: 10px; display: block; }
-
-  .hab {
-    display: flex;
-    align-items: flex-start;
-    gap: 13px;
-    padding: 13px 2px;
-    border-bottom: 1px solid var(--linha);
-  }
-  .hab:last-child { border-bottom: none; }
-  .hab-marca {
-    width: 32px; height: 32px; border-radius: 0; flex-shrink: 0;
-    background: var(--surface-3); border: 1px solid var(--linha);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--ink-3);
-  }
-  .hab.pronta .hab-marca { background: var(--acento-fraco); border-color: var(--linha-forte); color: var(--acento); }
-  .hab-marca svg { width: 16px; height: 16px; }
-
-  .hab-texto { flex: 1; min-width: 0; }
-  .hab-nome { font: 500 14px var(--sans); margin-bottom: 2px; }
-  .hab.futura .hab-nome { color: var(--ink-3); }
-  .hab-resumo { font-size: 13px; color: var(--ink-2); }
-  .hab-linha { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 5px; }
-  .hab-falta { color: var(--atencao); }
-
-  .hab-acao { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding-top: 2px; }
-  .hab-futuro {
-    font: 400 11px var(--mono); color: var(--ink-muted);
-    border: 1px solid var(--linha); border-radius: 0; padding: 4px 11px;
-    white-space: nowrap;
-  }
-
-  .hab-detalhe {
-    font-size: 12.5px; color: var(--ink-2);
-    background: var(--surface-2); border: 1px solid var(--linha);
-    border-radius: 0; padding: 10px 12px; margin-top: 9px;
-  }
-
-  /* -------------------------------------------------------- biblioteca */
-
-  .bib-topo { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-  .bib-topo h2 { font: 600 19px var(--sans); }
-  .bib-topo .num { margin-bottom: 3px; }
-  .bib-busca { margin-left: auto; min-width: 220px; flex: 0 1 300px; }
-
-  .doc-linha {
-    display: flex;
-    align-items: center;
-    gap: 13px;
-    padding: 11px 2px;
-    border-bottom: 1px solid var(--linha);
-  }
-  .doc-linha:last-child { border-bottom: none; }
-  .doc-marca {
-    width: 30px; height: 30px; border-radius: 0; flex-shrink: 0;
-    background: var(--surface-3); border: 1px solid var(--linha);
-    display: flex; align-items: center; justify-content: center;
-    font: 500 9.5px var(--mono); color: var(--ink-3); text-transform: uppercase;
-  }
-  .doc-texto { flex: 1; min-width: 0; }
-  .doc-nome { font: 500 13.5px var(--sans); }
-  .doc-meta { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 3px; }
-  .doc-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
-  .etiqueta {
-    font: 400 11px var(--sans);
-    border: 1px solid var(--linha-media); border-radius: 0;
-    padding: 2px 9px; color: var(--ink-2);
-  }
-  .etiqueta.tipo { border-color: var(--linha-forte); background: var(--acento-fraco); color: var(--acento); }
-  .doc-acoes { display: flex; gap: 7px; flex-shrink: 0; }
-  .doc-linha.sumido .doc-nome { color: var(--ink-3); text-decoration: line-through; }
-
   /* ----------------------------------------------------------- coroa */
 
   .coroa {
@@ -877,14 +669,7 @@
   /* ------------------------------------------------------- responsivo */
 
   @media (max-width: 1180px) {
-    .lateral { display: none; }
-    .lateral.aberta {
-      display: flex; position: absolute; right: 0; top: 45px; bottom: 0;
-      box-shadow: 0 12px 32px rgba(20, 24, 28, 0.10); z-index: 5;
-    }
-    .botao-gaveta { display: inline-flex; }
   }
-  @media (min-width: 1181px) { .botao-gaveta { display: none; } }
   @media (max-width: 900px) {
     .trabalhos { display: none; }
     .conversa-col { min-width: 0; }
@@ -902,7 +687,6 @@
     <span class="ponto" id="ponto-estado"></span><span id="selo-texto">OCIOSO · LOCAL</span>
   </span>
   <button class="pastilha" id="tema" title="Alternar claro e escuro" aria-label="Alternar claro e escuro"></button>
-  <button class="botao-gaveta pastilha" id="abrir-gaveta">Atividade</button>
 </div>
 
 <div class="corpo">
@@ -920,18 +704,39 @@
     </div>
 
     <div class="lista-trabalhos" id="lista-trabalhos"></div>
-    <div class="modelo">
-      <div class="quadro"></div>
-      <div style="min-width:0">
-        <div class="nome">Assistente local</div>
-        <div class="num" id="modelo-tamanho">na sua máquina</div>
+    <div class="maquina">
+      <button class="maquina-cabeca" id="ver-maquina" title="Abrir a tela do computador">
+        <span class="rotulo">Seu computador</span>
+      </button>
+      <div class="frase-maquina" id="frase-maquina">lendo…</div>
+
+      <div class="medidor">
+        <span class="nome">Vídeo</span>
+        <span class="trilho"><i id="m-video"></i></span>
+        <span class="valor" id="v-video">—</span>
       </div>
+      <div class="medidor">
+        <span class="nome">Memória</span>
+        <span class="trilho"><i id="m-memoria"></i></span>
+        <span class="valor" id="v-memoria">—</span>
+      </div>
+      <div class="medidor">
+        <span class="nome">Processador</span>
+        <span class="trilho"><i id="m-cpu"></i></span>
+        <span class="valor" id="v-cpu">—</span>
+      </div>
+
+      <div class="interruptor" id="devagar" role="switch" aria-checked="false" tabindex="0">
+        <span>Ir devagar quando eu usar o PC</span>
+        <span class="chave"></span>
+      </div>
+
+      <div class="assistente"><span id="modelo-tamanho">Assistente local</span></div>
     </div>
+
   </aside>
 
   <section class="conversa-col" id="conversa-col">
-   <div class="paginas" id="paginas">
-    <div class="pagina" id="pagina-chat">
     <div class="conversa-topo">
       <div style="flex:1;min-width:0">
         <h2 class="corta" id="conversa-titulo">Nova solicitação</h2>
@@ -942,6 +747,17 @@
 
     <div class="fluxo" id="fluxo">
       <div class="centro" id="centro"></div>
+    </div>
+
+    <div class="registro" id="registro" hidden>
+      <div class="centro">
+        <button class="registro-cabeca" id="registro-cabeca">
+          <span class="ponto"></span>
+          <span class="registro-agora corta" id="registro-agora"></span>
+          <span class="registro-seta">›</span>
+        </button>
+        <div class="registro-lista" id="atividade" hidden></div>
+      </div>
     </div>
 
     <div class="compositor">
@@ -988,61 +804,10 @@
       <div class="rodape-chat">
         <span id="privacidade">nenhuma requisição à internet nesta sessão</span>
         <span class="risco-fino"></span>
-        <button class="desce" id="desce" title="Ir para a bancada">role para ver o que já foi feito ↓</button>
       </div>
     </div>
-    </div>
-
-    <div class="pagina" id="pagina-trabalho">
-      <div class="trabalho-topo">
-        <button class="sobe" id="sobe" title="Voltar para a conversa">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 10l4-4 4 4"/>
-          </svg>
-          <span>Conversa</span>
-        </button>
-        <span class="rotulo" id="trabalho-onde">Bancada</span>
-      </div>
-      <div class="trabalho-corpo" id="area-trabalho"></div>
-    </div>
-   </div>
   </section>
 
-  <aside class="lateral" id="lateral">
-    <div class="lateral-rolagem">
-      <div class="lateral-bloco" id="bloco-aprovacao" hidden>
-        <div class="rotulo" style="margin-bottom:9px">Precisa de você</div>
-        <div id="aprovacoes"></div>
-      </div>
-      <div class="lateral-bloco">
-        <div class="rotulo" style="margin-bottom:6px">Atividade</div>
-        <div id="atividade"><span class="vazio-lista" style="padding-left:0">nada ainda</span></div>
-      </div>
-    </div>
-    <div class="maquina">
-      <div class="rotulo">Seu computador</div>
-      <div class="frase-maquina" id="frase-maquina">lendo…</div>
-      <div class="medidor">
-        <span class="nome">Vídeo</span>
-        <span class="trilho"><i id="m-video"></i></span>
-        <span class="valor" id="v-video">—</span>
-      </div>
-      <div class="medidor">
-        <span class="nome">Memória</span>
-        <span class="trilho"><i id="m-memoria"></i></span>
-        <span class="valor" id="v-memoria">—</span>
-      </div>
-      <div class="medidor">
-        <span class="nome">Processador</span>
-        <span class="trilho"><i id="m-cpu"></i></span>
-        <span class="valor" id="v-cpu">—</span>
-      </div>
-      <div class="interruptor" id="devagar" role="switch" aria-checked="false" tabindex="0">
-        <span>Ir devagar quando eu usar o PC</span>
-        <span class="chave"></span>
-      </div>
-    </div>
-  </aside>
 
 </div>
 
@@ -1266,6 +1031,7 @@ function atualizarPostura() {
   } else {
     $("agora").hidden = true;
   }
+  if (!temConversa) $("registro").hidden = true;
 }
 
 function desenharExemplosRapidos() {
@@ -1304,6 +1070,52 @@ function aplicarColuna(recolhida) {
   $("recolher").title = recolhida ? "Mostrar a coluna" : "Recolher a coluna";
   try { localStorage.setItem(RAIL_GUARDADO, recolhida ? "1" : "0"); } catch (err) { /* sem memoria */ }
 }
+
+/* ------------------------------------------------- maquina na coluna */
+
+async function carregarRecursos() {
+  try {
+    const m = await (await fetch("/api/recursos")).json();
+    $("frase-maquina").textContent = m.frase;
+
+    medidor("cpu", m.processador.percentual, m.processador.percentual + "%");
+    medidor("memoria", m.memoria.percentual, String(m.memoria.usado_gb).replace(".", ",") + " GB");
+
+    if (m.video.disponivel && m.video.percentual !== null) {
+      medidor("video", m.video.percentual, m.video.percentual + "%");
+      $("v-video").title = "medido há " + m.video.segundos_atras + " s";
+    } else if (m.video.disponivel) {
+      $("v-video").textContent = "medindo";
+    } else {
+      $("v-video").textContent = "sem leitura";
+      $("m-video").style.width = "0%";
+    }
+
+    $("devagar").classList.toggle("on", m.devagar);
+    $("devagar").setAttribute("aria-checked", m.devagar ? "true" : "false");
+  } catch (err) { /* sem leitura agora; tenta de novo no proximo ciclo */ }
+}
+
+function medidor(qual, pct, texto) {
+  $("m-" + qual).style.width = Math.min(100, Math.max(0, pct)) + "%";
+  $("v-" + qual).textContent = texto;
+}
+
+async function trocarDevagar() {
+  const ligado = !$("devagar").classList.contains("on");
+  $("devagar").classList.toggle("on", ligado);
+  $("devagar").setAttribute("aria-checked", ligado ? "true" : "false");
+  await fetch("/api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ devagar: ligado }),
+  });
+}
+
+$("devagar").onclick = trocarDevagar;
+$("devagar").onkeydown = (e) => {
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); trocarDevagar(); }
+};
 
 $("recolher").onclick = () => {
   aplicarColuna(!document.querySelector(".trabalhos").classList.contains("recolhida"));
@@ -1496,16 +1308,24 @@ function cartaoAprovacao(a) {
 }
 
 function desenharAtividade(itens) {
-  const alvo = $("atividade");
+  const caixa = $("registro");
   if (!itens || !itens.length) {
-    alvo.innerHTML = '<span class="vazio-lista" style="padding-left:0">nada ainda</span>';
+    caixa.hidden = true;
     return;
   }
-  alvo.innerHTML = itens.slice(0, 5).map((a) =>
-    '<div class="atividade-linha"><span class="ponto-at"></span><span class="txt">' +
-    esc(a.texto) + '<div class="num">' + quando(a.em) + "</div></span></div>"
+
+  caixa.hidden = false;
+  $("registro-agora").textContent = itens[0].texto;
+  $("atividade").innerHTML = itens.slice(0, 6).map((a) =>
+    '<div class="atividade-linha"><span class="txt">' + esc(a.texto) +
+    '<span class="num">' + quando(a.em) + "</span></span></div>"
   ).join("");
 }
+
+$("registro-cabeca").onclick = () => {
+  const aberto = $("registro").classList.toggle("aberto");
+  $("atividade").hidden = !aberto;
+};
 
 function quando(iso) {
   const seg = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -1667,54 +1487,10 @@ async function carregarModelo() {
   try {
     const s = await (await fetch("/api/status")).json();
     $("modelo-tamanho").textContent = s.tamanho_gb
-      ? s.tamanho_gb.toString().replace(".", ",") + " GB · na sua máquina"
-      : "na sua máquina";
+      ? "Assistente local · " + String(s.tamanho_gb).replace(".", ",") + " GB na sua máquina"
+      : "Assistente local · na sua máquina";
   } catch (err) { /* mantem o texto padrao */ }
 }
-
-async function carregarRecursos() {
-  try {
-    const m = await (await fetch("/api/recursos")).json();
-    $("frase-maquina").textContent = m.frase;
-
-    medidor("cpu", m.processador.percentual, m.processador.percentual + "%");
-    medidor("memoria", m.memoria.percentual, m.memoria.usado_gb.toString().replace(".", ",") + " GB");
-
-    if (m.video.disponivel && m.video.percentual !== null) {
-      medidor("video", m.video.percentual, m.video.percentual + "%");
-      $("v-video").title = "medido há " + m.video.segundos_atras + " s";
-    } else if (m.video.disponivel) {
-      $("v-video").textContent = "medindo";
-    } else {
-      $("v-video").textContent = "sem leitura";
-      $("m-video").style.width = "0%";
-    }
-
-    $("devagar").classList.toggle("on", m.devagar);
-    $("devagar").setAttribute("aria-checked", m.devagar ? "true" : "false");
-  } catch (err) { /* sem leitura agora; tenta de novo no proximo ciclo */ }
-}
-
-function medidor(qual, pct, texto) {
-  $("m-" + qual).style.width = Math.min(100, Math.max(0, pct)) + "%";
-  $("v-" + qual).textContent = texto;
-}
-
-$("devagar").onclick = async () => {
-  const ligado = !$("devagar").classList.contains("on");
-  $("devagar").classList.toggle("on", ligado);
-  $("devagar").setAttribute("aria-checked", ligado ? "true" : "false");
-  await fetch("/api/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ devagar: ligado }),
-  });
-};
-$("devagar").onkeydown = (e) => {
-  if (e.key === " " || e.key === "Enter") { e.preventDefault(); $("devagar").onclick(); }
-};
-
-$("abrir-gaveta").onclick = () => $("lateral").classList.toggle("aberta");
 
 /* ------------------------------------------------- saudacao e relogio */
 /*
@@ -1838,91 +1614,33 @@ async function carregarAgora() {
 
 setInterval(carregarAgora, 5000);
 
-/* ----------------------------------------------------------- bancada */
+/* ------------------------------------------------------------- telas */
+/*
+   Biblioteca, habilidades e maquina ocupam a area da conversa. Nada se
+   perde: a conversa continua listada na coluna e volta com um clique.
+*/
+
+function abrirTela(nome) {
+  estado.trabalhoId = null;
+  estado.trabalho = null;
+  $("conversa-titulo").textContent = nome;
+  $("conversa-meta").textContent = "";
+  $("apagar").hidden = true;
+  $("registro").hidden = true;
+  $("agora").hidden = true;
+  carregarTrabalhos();
+}
+
+
 /*
    Pagina 2: onde ficam as telas que nao sao conversa. A pagina 1 pergunta,
    a pagina 2 administra.
 */
 
-const ATALHOS = [
-  {
-    id: "biblioteca",
-    titulo: "Biblioteca",
-    desc: "O que o PAULUS tem aberto, com tipo, cliente e data de cada documento",
-  },
-  {
-    id: "habilidades",
-    titulo: "O que eu sei fazer",
-    desc: "Tudo o que o programa faz, e o que ainda não faz",
-  },
-  {
-    id: "maquina",
-    titulo: "Seu computador",
-    desc: "Quanto o PAULUS está usando da máquina, e como segurar o passo",
-  },
-  {
-    id: "organizar",
-    titulo: "Organizar uma pasta",
-    desc: "Varrer, classificar e arrumar o acervo, com desfazer",
-  },
-];
-
-function irPara(pagina) {
-  const alvo = pagina === "trabalho" ? $("pagina-trabalho") : $("pagina-chat");
-  alvo.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function mostrarBancada() {
-  $("trabalho-onde").textContent = "Bancada";
-  $("area-trabalho").innerHTML =
-    '<div class="bancada"><h2>Bancada</h2>' +
-    "<p>As telas que não são conversa ficam aqui. A de cima pergunta, esta administra.</p>" +
-    '<div class="cartoes">' +
-    ATALHOS.map((a) =>
-      '<button class="cartao-atalho" data-abre="' + a.id + '">' +
-      '<span class="titulo">' + esc(a.titulo) + "</span>" +
-      '<span class="desc">' + esc(a.desc) + "</span>" +
-      '<span class="numero" data-numero="' + a.id + '"></span></button>'
-    ).join("") +
-    "</div></div>";
-
-  $("area-trabalho").querySelectorAll("[data-abre]").forEach((b) => {
-    b.onclick = () => abrirDaBancada(b.dataset.abre);
-  });
-  numerosDaBancada();
-}
-
-async function numerosDaBancada() {
-  const escreva = (id, texto) => {
-    const alvo = document.querySelector('[data-numero="' + id + '"]');
-    if (alvo) alvo.textContent = texto;
-  };
-  escreva("biblioteca", estado.contratos + " documento(s) aberto(s)");
-  try {
-    const h = await (await fetch("/api/habilidades")).json();
-    escreva("habilidades", h.contagem.prontas + " de " + h.contagem.total + " prontas");
-  } catch (err) { /* sem numero e melhor que numero errado */ }
-  try {
-    const m = await (await fetch("/api/recursos")).json();
-    escreva("maquina", m.frase);
-  } catch (err) { /* idem */ }
-}
-
-function abrirDaBancada(id) {
-  if (id === "organizar") {
-    irPara("chat");
-    $("centro").innerHTML = "";
-    organizarComecar();
-    return;
-  }
-  if (id === "biblioteca") return mostrarBiblioteca();
-  if (id === "habilidades") return mostrarHabilidades();
-  if (id === "maquina") return mostrarMaquina();
-}
 
 async function mostrarMaquina() {
-  $("trabalho-onde").textContent = "Seu computador";
-  const alvo = $("area-trabalho");
+  abrirTela("Seu computador");
+  const alvo = $("centro");
   alvo.innerHTML = '<div class="bancada"><p class="nota">lendo…</p></div>';
 
   let m;
@@ -1938,7 +1656,7 @@ async function mostrarMaquina() {
     : (m.video.disponivel ? "medindo…" : "sem leitura nesta máquina");
 
   alvo.innerHTML =
-    '<div class="bancada"><button class="voltar-bancada" style="margin-bottom:14px">‹ Bancada</button>' +
+    '<div class="bancada">' +
     "<h2>Seu computador</h2><p>" + esc(m.frase) + "</p>" +
     '<div class="painel"><div class="medidor"><span class="nome">Vídeo</span>' +
     '<span class="trilho"><i style="width:' + (m.video.percentual || 0) + '%"></i></span>' +
@@ -1956,7 +1674,6 @@ async function mostrarMaquina() {
     "começar cada documento. A leitura demora mais e o computador continua seu.</p>" +
     '<button id="devagar-bancada">' + (m.devagar ? "Desligar" : "Ligar") + "</button></div></div>";
 
-  alvo.querySelector(".voltar-bancada").onclick = mostrarBancada;
   $("devagar-bancada").onclick = async () => {
     await fetch("/api/config", {
       method: "POST",
@@ -1964,21 +1681,17 @@ async function mostrarMaquina() {
       body: JSON.stringify({ devagar: !m.devagar }),
     });
     mostrarMaquina();
-    carregarRecursos();
   };
 }
 
-$("desce").onclick = () => irPara("trabalho");
-$("sobe").onclick = () => irPara("chat");
 
 /* --------------------------------------------------------- biblioteca */
 
 const bib = { documentos: [], filtro: "" };
 
 async function mostrarBiblioteca() {
-  irPara("trabalho");
-  $("trabalho-onde").textContent = "Biblioteca";
-  const centro = $("area-trabalho");
+  abrirTela("Biblioteca");
+  const centro = $("centro");
   centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
 
   let d;
@@ -1996,8 +1709,7 @@ async function mostrarBiblioteca() {
   bib.totalTrechos = d.total_trechos;
 
   centro.innerHTML =
-    '<div class="catalogo"><button class="voltar-bancada" style="margin-bottom:14px">‹ Bancada</button>' +
-    '<div class="bib-topo">' +
+    '<div class="catalogo"><div class="bib-topo">' +
     "<div><h2>Biblioteca</h2>" +
     '<div class="nota">' + (d.documentos.length
       ? d.documentos.length + " documento(s), " + tamanho(d.total_bytes) +
@@ -2009,7 +1721,6 @@ async function mostrarBiblioteca() {
       : "") +
     '</div><div id="bib-lista"></div></div>';
 
-  centro.querySelector(".voltar-bancada").onclick = mostrarBancada;
   if (d.documentos.length) {
     $("bib-filtro").oninput = (e) => { bib.filtro = e.target.value.trim().toLowerCase(); desenharBiblioteca(); };
     desenharBiblioteca();
@@ -2124,9 +1835,8 @@ function iconeHab(id) {
 }
 
 async function mostrarHabilidades() {
-  irPara("trabalho");
-  $("trabalho-onde").textContent = "O que eu sei fazer";
-  const centro = $("area-trabalho");
+  abrirTela("O que eu sei fazer");
+  const centro = $("centro");
   centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
 
   let d;
@@ -2139,8 +1849,7 @@ async function mostrarHabilidades() {
   }
 
   let html = '<div class="catalogo">' +
-    '<button class="voltar-bancada" style="margin-bottom:14px">‹ Bancada</button>' +
-    '<div class="catalogo-topo">' +
+        '<div class="catalogo-topo">' +
     "<h2>O que eu sei fazer</h2>" +
     "<p>Cada habilidade é uma coisa que o programa faz por inteiro. " +
     "As que ainda não existem estão marcadas — prefiro dizer do que prometer.</p></div>";
@@ -2176,7 +1885,6 @@ async function mostrarHabilidades() {
   }
 
   centro.innerHTML = html + "</div>";
-  centro.querySelector(".voltar-bancada").onclick = mostrarBancada;
   centro.querySelectorAll(".hab-usar").forEach((b) => {
     b.onclick = () => usarHabilidade(b.dataset.acao);
   });
@@ -2184,7 +1892,6 @@ async function mostrarHabilidades() {
 }
 
 function usarHabilidade(acao) {
-  irPara("chat");
   if (acao === "organizacao") { $("centro").innerHTML = ""; organizarComecar(); return; }
   if (acao === "anexar") { $("nova").click(); $("arquivos").click(); return; }
   $("nova").click();
@@ -2193,6 +1900,7 @@ function usarHabilidade(acao) {
 }
 
 $("ver-habilidades").onclick = mostrarHabilidades;
+$("ver-maquina").onclick = mostrarMaquina;
 
 /* -------------------------------------------------------- organizador */
 
@@ -2713,12 +2421,11 @@ atualizarSelo(false);
 $("coroa-marca").innerHTML = COROA;
 atualizarSaudacao();
 carregarTrabalhos();
-mostrarBancada();
+carregarRecursos();
+setInterval(carregarRecursos, 4000);
 carregarStatus().then(atualizarPostura);
 carregarModelo();
-carregarRecursos();
 $("nova").click();
-setInterval(carregarRecursos, 4000);
 </script>
 </body>
 </html>
