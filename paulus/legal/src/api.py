@@ -34,6 +34,7 @@ import pastas
 import recursos
 import registro
 from classify import Classificacao, ROTULOS
+from agenda import Agenda, ONDES, TIPOS as TIPOS_AGENDA
 from base import Base
 from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
@@ -96,6 +97,7 @@ class Estado:
         self.base = Base(BASE_PATH)
         self.cadastros = Cadastros(self.base)
         self.tarefas = Tarefas(self.base)
+        self.agenda = Agenda(self.base)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -701,6 +703,88 @@ def maquina() -> dict:
 def configurar(payload: Ajuste2) -> dict:
     estado.devagar = payload.devagar
     return {"devagar": estado.devagar}
+
+
+# ----------------------------------------------------------------- agenda
+
+
+class FichaCompromisso(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+class NotaDia(BaseModel):
+    dia: str
+    texto: str = ""
+
+
+def _documentos_com_data() -> list[dict]:
+    from classify import CacheClassificacao
+
+    return list(CacheClassificacao(CLASSIFICACAO_PATH).dados.values())
+
+
+@app.get("/api/agenda")
+def agenda_grade(de: str = "", ate: str = "") -> dict:
+    """
+    Tudo o que tem data no periodo: compromisso, prazo de tarefa e data de
+    contrato na mesma grade.
+    """
+    from datetime import date, timedelta
+
+    if not de or not ate:
+        hoje = date.today()
+        de = (hoje - timedelta(days=hoje.day - 1)).isoformat()
+        ate = (date.fromisoformat(de) + timedelta(days=45)).isoformat()
+
+    grade = estado.agenda.grade(de, ate, estado.tarefas.listar("todas"), _documentos_com_data())
+    grade["compromissos"] = estado.agenda.listar(de, ate)
+    grade["tipos"] = [{"valor": k, "rotulo": v} for k, v in TIPOS_AGENDA.items()]
+    grade["ondes"] = [{"valor": k, "rotulo": v} for k, v in ONDES.items() if k]
+    grade["clientes"] = [{"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar()]
+    return grade
+
+
+@app.get("/api/agenda/dia")
+def agenda_dia(dia: str) -> dict:
+    tarefas = [t for t in estado.tarefas.listar("todas") if t.get("prazo") == dia]
+    return {
+        "dia": dia,
+        "compromissos": estado.agenda.listar(dia, dia),
+        "tarefas": tarefas,
+        "nota": estado.agenda.nota(dia),
+    }
+
+
+@app.post("/api/agenda")
+def agenda_salvar(payload: FichaCompromisso) -> dict:
+    try:
+        id_ = estado.agenda.salvar(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.agenda.obter(id_) or {}
+
+
+@app.delete("/api/agenda/{id_}")
+def agenda_apagar(id_: int) -> dict:
+    if not estado.agenda.apagar(id_):
+        raise HTTPException(status_code=404, detail="compromisso nao encontrado")
+    return {"apagado": id_}
+
+
+@app.post("/api/agenda/nota")
+def agenda_nota(payload: NotaDia) -> dict:
+    estado.agenda.gravar_nota(payload.dia, payload.texto)
+    return {"dia": payload.dia, "texto": payload.texto}
+
+
+@app.get("/api/agenda/livres")
+def agenda_livres(duracao: int = 60, dia: str = "") -> dict:
+    """Horarios em que cabe um compromisso desse tamanho."""
+    regra = estado.prefs.dados.get("disponibilidade", {})
+    if dia:
+        return {"dia": dia, "horarios": estado.agenda.livres(dia, duracao, regra)}
+    return {"proximos": estado.agenda.proximos_livres(duracao, regra)}
 
 
 # -------------------------------------------------------------- cadastros

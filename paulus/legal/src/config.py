@@ -66,6 +66,15 @@ PADRAO: dict = {
     "modelo": "",
     "devagar": False,
     "autonomia": {a["chave"]: a["padrao"] for a in AUTONOMIA},
+    "disponibilidade": {
+        "dias": [0, 1, 2, 3, 4],
+        "inicio": "09:00",
+        "fim": "18:00",
+        "almoco_inicio": "12:00",
+        "almoco_fim": "13:30",
+        "intervalo_min": 15,
+        "mesmo_dia": True,
+    },
     "pessoa": {
         "nome": "",
         "cpf": "",

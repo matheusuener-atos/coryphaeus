@@ -809,6 +809,66 @@
   }
   [data-tema="escuro"] input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
 
+  /* -------------------------------------------------------- calendario */
+
+  .mes { border: 1px solid var(--linha-media); }
+  .mes-cabeca {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--linha);
+  }
+  .mes-cabeca span {
+    padding: 9px 10px; font: 500 9.5px var(--mono);
+    letter-spacing: 0.22em; color: var(--ink-3);
+  }
+  .mes-grade { display: grid; grid-template-columns: repeat(7, 1fr); }
+
+  .cel {
+    min-height: 92px; padding: 8px 9px; cursor: pointer;
+    border-right: 1px solid var(--linha); border-bottom: 1px solid var(--linha);
+    display: flex; flex-direction: column; gap: 3px; overflow: hidden;
+  }
+  .cel:nth-child(7n) { border-right: none; }
+  .cel:hover { background: var(--surface-1); }
+  .cel.fora { opacity: 0.35; }
+  .cel.hoje .cel-num { color: var(--acento); }
+  .cel.escolhido { background: var(--acento-fraco); box-shadow: inset 0 2px 0 var(--acento); }
+
+  .cel-num { font: 400 11.5px var(--mono); color: var(--ink-2); margin-bottom: 2px; }
+  .cel-num em {
+    font: 500 9px var(--mono); letter-spacing: 0.16em;
+    text-transform: uppercase; font-style: normal; color: var(--acento);
+  }
+
+  .marca-item {
+    font-size: 11px; line-height: 1.35; color: var(--ink-2);
+    padding-left: 7px; border-left: 2px solid var(--linha-forte);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .marca-item b { font: 500 10.5px var(--mono); color: var(--ink-3); }
+  .marca-item.compromisso { border-left-color: var(--acento); }
+  .marca-item.prazo { border-left-color: var(--atencao); }
+  .marca-item.documento { border-left-color: var(--ok); }
+  .marca-item.tarefa { border-left-color: var(--ink-muted); }
+  .mais-itens { font: 400 10px var(--mono); color: var(--ink-muted); }
+
+  .legenda { display: flex; gap: 18px; margin: 12px 0 4px; font-size: 12px; color: var(--ink-3); }
+  .legenda span { display: flex; align-items: center; gap: 7px; }
+  .ponto-legenda { width: 10px; height: 2px; flex-shrink: 0; background: var(--linha-forte); }
+  .ponto-legenda.compromisso { background: var(--acento); }
+  .ponto-legenda.prazo { background: var(--atencao); }
+  .ponto-legenda.documento { background: var(--ok); }
+
+  input[type=time] {
+    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
+    background: var(--surface-1); color: inherit; padding: 8px 11px;
+  }
+  [data-tema="escuro"] input[type=time]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
+
+  @media (max-width: 1000px) {
+    .cel { min-height: 66px; }
+    .marca-item { font-size: 10px; }
+  }
+
   /* ------------------------------------------------- maquina na coluna */
 
   .maquina {
@@ -2704,6 +2764,361 @@ async function sugerirTarefas() {
   });
 }
 
+/* --------------------------------------------------------- calendario */
+/*
+   A grade junta compromisso, prazo de tarefa e data de contrato. Ver so os
+   compromissos e ter meia agenda: o que faz perder prazo nao e a reuniao
+   esquecida, e o vencimento escrito num contrato que ninguem reabriu.
+*/
+
+const cal = { mes: null, grade: null, dia: null, detalhe: null };
+
+const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const DIAS_CURTOS = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
+
+function iso(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+         "-" + String(d.getDate()).padStart(2, "0");
+}
+
+async function mostrarCalendario() {
+  abrirTela("Calendário");
+  if (!cal.mes) {
+    const h = new Date();
+    cal.mes = new Date(h.getFullYear(), h.getMonth(), 1);
+    cal.dia = iso(h);
+  }
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  const primeiro = new Date(cal.mes.getFullYear(), cal.mes.getMonth(), 1);
+  const ultimo = new Date(cal.mes.getFullYear(), cal.mes.getMonth() + 1, 0);
+
+  try {
+    cal.grade = await (await fetch("/api/agenda?de=" + iso(primeiro) + "&ate=" + iso(ultimo))).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+  desenharCalendario();
+  atualizarPostura();
+}
+
+function desenharCalendario() {
+  const g = cal.grade;
+  const primeiro = new Date(cal.mes.getFullYear(), cal.mes.getMonth(), 1);
+  const ultimo = new Date(cal.mes.getFullYear(), cal.mes.getMonth() + 1, 0);
+
+  /* Segunda como primeiro dia: e a semana do escritorio. */
+  const desloca = (primeiro.getDay() + 6) % 7;
+  const celulas = [];
+  for (let i = 0; i < desloca; i++) {
+    const d = new Date(primeiro);
+    d.setDate(d.getDate() - (desloca - i));
+    celulas.push({ data: d, fora: true });
+  }
+  for (let n = 1; n <= ultimo.getDate(); n++) {
+    celulas.push({ data: new Date(cal.mes.getFullYear(), cal.mes.getMonth(), n), fora: false });
+  }
+  while (celulas.length % 7 !== 0) {
+    const d = new Date(celulas[celulas.length - 1].data);
+    d.setDate(d.getDate() + 1);
+    celulas.push({ data: d, fora: true });
+  }
+
+  const hoje = iso(new Date());
+
+  let html = '<div class="catalogo"><div class="tela-topo"><div>' +
+    "<h2>" + MESES_NOME[cal.mes.getMonth()][0].toUpperCase() + MESES_NOME[cal.mes.getMonth()].slice(1) +
+    " de " + cal.mes.getFullYear() + "</h2>" +
+    '<span class="rotulo">' + g.contagem.compromissos + " compromissos · " +
+    g.contagem.prazos + " prazos · " + g.contagem.documentos + " documentos com data</span></div>" +
+    '<div class="tela-acoes">' +
+    '<button id="cal-antes">‹</button><button id="cal-hoje">Hoje</button><button id="cal-depois">›</button>' +
+    '<button class="primario" id="cal-novo">Novo compromisso</button></div></div>' +
+
+    '<div class="mes"><div class="mes-cabeca">' +
+    DIAS_CURTOS.map((d) => "<span>" + d + "</span>").join("") + "</div><div class=\"mes-grade\">";
+
+  for (const c of celulas) {
+    const dia = iso(c.data);
+    const itens = g.dias[dia] || [];
+    html += '<div class="cel' + (c.fora ? " fora" : "") + (dia === hoje ? " hoje" : "") +
+      (dia === cal.dia ? " escolhido" : "") + '" data-dia="' + dia + '">' +
+      '<span class="cel-num">' + c.data.getDate() + (dia === hoje ? ' <em>hoje</em>' : "") + "</span>" +
+      itens.slice(0, 3).map((i) =>
+        '<span class="marca-item ' + i.genero + '">' +
+        (i.hora ? '<b>' + i.hora + "</b> " : "") + esc(i.titulo) + "</span>"
+      ).join("") +
+      (itens.length > 3 ? '<span class="mais-itens">+' + (itens.length - 3) + "</span>" : "") +
+      "</div>";
+  }
+
+  html += "</div></div>" +
+    '<div class="legenda">' +
+    '<span><i class="ponto-legenda compromisso"></i>compromisso</span>' +
+    '<span><i class="ponto-legenda prazo"></i>prazo de tarefa</span>' +
+    '<span><i class="ponto-legenda documento"></i>data em documento</span>' +
+    "</div>" +
+    '<div id="painel-dia"></div>' +
+    '<div class="rodape-tela">calendário local · não sincronizado</div></div>';
+
+  $("centro").innerHTML = html;
+
+  $("cal-antes").onclick = () => { cal.mes.setMonth(cal.mes.getMonth() - 1); mostrarCalendario(); };
+  $("cal-depois").onclick = () => { cal.mes.setMonth(cal.mes.getMonth() + 1); mostrarCalendario(); };
+  $("cal-hoje").onclick = () => {
+    const h = new Date();
+    cal.mes = new Date(h.getFullYear(), h.getMonth(), 1);
+    cal.dia = iso(h);
+    mostrarCalendario();
+  };
+  $("cal-novo").onclick = () => formCompromisso(null, cal.dia);
+
+  $("centro").querySelectorAll("[data-dia]").forEach((el) => {
+    el.onclick = () => {
+      cal.dia = el.dataset.dia;
+      $("centro").querySelectorAll(".cel").forEach((c) => c.classList.remove("escolhido"));
+      el.classList.add("escolhido");
+      abrirDia(cal.dia);
+    };
+  });
+
+  if (cal.dia) abrirDia(cal.dia);
+}
+
+async function abrirDia(dia) {
+  const alvo = $("painel-dia");
+  alvo.innerHTML = '<p class="nota">abrindo o dia…</p>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/agenda/dia?dia=" + dia)).json();
+  } catch (err) {
+    alvo.innerHTML = '<p class="nota">não consegui abrir o dia</p>';
+    return;
+  }
+
+  const [a, m, dd] = dia.split("-").map(Number);
+  const data = new Date(a, m - 1, dd);
+  const semana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][data.getDay()];
+
+  alvo.innerHTML =
+    '<div class="painel"><h3>' + semana + ", " + dd + " de " + MESES_NOME[m - 1] + "</h3>" +
+    '<span class="rotulo">' + d.compromissos.length + " compromisso(s) · " +
+    d.tarefas.length + " com prazo hoje</span>" +
+
+    (d.compromissos.length
+      ? '<div class="fila" style="margin-top:14px">' + d.compromissos.map((c) =>
+          '<div class="pedido"><div class="pedido-corpo">' +
+          '<div class="pedido-titulo"><b class="num">' + c.hora + "</b> " + esc(c.titulo) + "</div>" +
+          '<div class="doc-etiquetas"><span class="etiqueta">' + c.duracao + " min</span>" +
+          '<span class="etiqueta">' + esc(c.onde_rotulo) + "</span>" +
+          (c.cadastro_nome ? '<span class="etiqueta">' + esc(c.cadastro_nome) + "</span>" : "") +
+          "</div></div>" +
+          '<div class="pedido-acoes"><button data-editar="' + c.id + '">Abrir</button></div></div>'
+        ).join("") + "</div>"
+      : '<p class="explica" style="margin-top:12px">Nada marcado para este dia.</p>') +
+
+    (d.tarefas.length
+      ? '<div class="precisa"><span class="rotulo">Com prazo neste dia</span><ul>' +
+        d.tarefas.map((t) => "<li>" + esc(t.titulo) + (t.concluida ? " — concluída" : "") + "</li>").join("") +
+        "</ul></div>"
+      : "") +
+
+    '<div class="campo-form" style="margin-top:14px"><label class="rotulo">Notas do dia</label>' +
+    '<textarea id="nota-dia" rows="3" class="campo-nota" placeholder="Escreva uma nota para este dia…">' +
+    esc(d.nota) + "</textarea>" +
+    '<div class="linha-form"><button id="nota-salvar">Salvar nota</button>' +
+    '<button class="primario" id="dia-novo">Novo compromisso</button>' +
+    '<span class="num" id="nota-aviso"></span></div></div></div>';
+
+  alvo.querySelectorAll("[data-editar]").forEach((b) => {
+    b.onclick = () => formCompromisso(d.compromissos.find((c) => c.id === Number(b.dataset.editar)), dia);
+  });
+  $("dia-novo").onclick = () => formCompromisso(null, dia);
+  $("nota-salvar").onclick = async () => {
+    await fetch("/api/agenda/nota", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dia: dia, texto: $("nota-dia").value }),
+    });
+    $("nota-aviso").textContent = "salvo";
+    setTimeout(() => { $("nota-aviso").textContent = ""; }, 1600);
+  };
+}
+
+function formCompromisso(c, dia) {
+  const novo = !c;
+  const v = c || { tipo: "compromisso", data: dia, hora: "09:00", duracao: 60, onde: "" };
+  const g = cal.grade;
+
+  const painel = document.createElement("div");
+  painel.className = "painel ficha";
+  painel.innerHTML =
+    "<h3>" + (novo ? "Novo compromisso" : "Editar compromisso") + "</h3>" +
+    '<div class="campo-form"><label class="rotulo">Título</label>' +
+    '<input type="text" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="Renovação — Fornecedor A"></div>' +
+    '<div class="grade-form">' +
+    '<div class="campo-form"><label class="rotulo">O que é</label><select data-c="tipo">' +
+    g.tipos.map((t) => '<option value="' + t.valor + '"' + (t.valor === v.tipo ? " selected" : "") +
+      ">" + esc(t.rotulo) + "</option>").join("") + "</select></div>" +
+    '<div class="campo-form"><label class="rotulo">Data</label>' +
+    '<input type="date" data-c="data" value="' + esc(v.data) + '"></div>' +
+    '<div class="campo-form"><label class="rotulo">Hora</label>' +
+    '<input type="time" data-c="hora" value="' + esc(v.hora) + '"></div>' +
+    '<div class="campo-form"><label class="rotulo">Duração (min)</label>' +
+    '<input type="text" data-c="duracao" value="' + v.duracao + '"></div>' +
+    '<div class="campo-form"><label class="rotulo">Onde</label><select data-c="onde">' +
+    '<option value="">Sem local</option>' +
+    g.ondes.map((o) => '<option value="' + o.valor + '"' + (o.valor === v.onde ? " selected" : "") +
+      ">" + esc(o.rotulo) + "</option>").join("") + "</select></div>" +
+    '<div class="campo-form"><label class="rotulo">Com quem</label><select data-c="cadastro_id">' +
+    '<option value="">ninguém do cadastro</option>' +
+    g.clientes.map((k) => '<option value="' + k.id + '"' +
+      (k.id === v.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("") +
+    "</select></div></div>" +
+    '<div class="linha-form"><button id="cal-livres">Ver horários livres neste dia</button>' +
+    '<span class="num" id="cal-livres-lista"></span></div>' +
+    '<div class="linha-form acoes-ficha">' +
+    '<button class="primario" data-a="salvar">Marcar</button>' +
+    '<button data-a="fechar">Cancelar</button>' +
+    (novo ? "" : '<button data-a="apagar" class="direita">Excluir</button>') +
+    '<span class="num" data-a="aviso"></span></div>';
+
+  const antigo = document.querySelector(".ficha");
+  if (antigo) antigo.remove();
+  $("centro").querySelector(".catalogo").appendChild(painel);
+  painel.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  const campo = (nome) => painel.querySelector('[data-c="' + nome + '"]');
+
+  painel.querySelector('[data-a="fechar"]').onclick = () => painel.remove();
+  $("cal-livres").onclick = async () => {
+    const d = await (await fetch("/api/agenda/livres?dia=" + campo("data").value +
+      "&duracao=" + (Number(campo("duracao").value) || 60))).json();
+    const lista = $("cal-livres-lista");
+    if (!d.horarios.length) {
+      lista.textContent = "nenhum horário livre neste dia";
+      return;
+    }
+    lista.innerHTML = d.horarios.slice(0, 8).map((h) =>
+      '<button class="chip" data-hora="' + h + '">' + h + "</button>").join(" ");
+    lista.querySelectorAll("[data-hora]").forEach((b) => {
+      b.onclick = () => { campo("hora").value = b.dataset.hora; };
+    });
+  };
+
+  painel.querySelector('[data-a="salvar"]').onclick = async () => {
+    const dados = {};
+    painel.querySelectorAll("[data-c]").forEach((el) => {
+      dados[el.dataset.c] = el.dataset.c === "cadastro_id" ? (Number(el.value) || null) : el.value;
+    });
+    const aviso = painel.querySelector('[data-a="aviso"]');
+    try {
+      const r = await fetch("/api/agenda", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: novo ? null : v.id, dados: dados }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail);
+      cal.dia = dados.data;
+      mostrarCalendario();
+    } catch (err) {
+      aviso.textContent = "não consegui marcar: " + err;
+    }
+  };
+
+  const apagar = painel.querySelector('[data-a="apagar"]');
+  if (apagar) apagar.onclick = async () => {
+    if (!confirm("Excluir “" + v.titulo + "”?")) return;
+    await fetch("/api/agenda/" + v.id, { method: "DELETE" });
+    mostrarCalendario();
+  };
+}
+
+/* ------------------------------------------------------- agendamento */
+/*
+   A mesma agenda, vista pela pergunta "quando cabe". O convite por e-mail do
+   wireframe depende da etapa do e-mail: a tela diz isso em vez de oferecer um
+   botao que nao envia nada.
+*/
+
+const age = { duracao: 45, escolhido: null };
+
+async function mostrarAgendamento() {
+  abrirTela("Agendamento");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">procurando horários…</p></div>';
+
+  let livres, grade;
+  try {
+    livres = (await (await fetch("/api/agenda/livres?duracao=" + age.duracao)).json()).proximos;
+    const hoje = new Date();
+    const fim = new Date(hoje);
+    fim.setDate(fim.getDate() + 14);
+    grade = await (await fetch("/api/agenda?de=" + iso(hoje) + "&ate=" + iso(fim))).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+  cal.grade = grade;
+
+  const duracoes = [30, 45, 60, 90];
+
+  centro.innerHTML =
+    '<div class="catalogo"><div class="tela-topo"><div><h2>Agendamento</h2>' +
+    '<span class="rotulo">próximos horários livres na sua disponibilidade</span></div></div>' +
+
+    '<div class="painel"><h3>Quanto tempo vai durar</h3>' +
+    '<div class="chips">' +
+    duracoes.map((d) => '<button class="chip' + (d === age.duracao ? " on" : "") +
+      '" data-dur="' + d + '">' + d + " min</button>").join("") + "</div>" +
+
+    (livres.length
+      ? '<span class="rotulo">Cabe nestes horários</span><div class="chips" style="margin-top:9px">' +
+        livres.map((h, i) => '<button class="chip" data-livre="' + i + '">' +
+          diaCurto(h.data) + '<span class="caminho">' + h.hora + "</span></button>").join("") + "</div>"
+      : '<p class="explica">Nenhum horário livre nos próximos dias com essa duração. ' +
+        "Ajuste sua disponibilidade em Configurações ou tente uma duração menor.</p>") +
+    "</div>" +
+
+    '<div class="painel"><h3>Próximos 14 dias</h3>' +
+    (Object.keys(grade.dias).length
+      ? '<div class="fila">' + Object.keys(grade.dias).sort().map((dia) =>
+          '<div class="pedido"><div class="pedido-corpo">' +
+          '<div class="pedido-titulo">' + diaCurto(dia) + "</div>" +
+          '<div class="doc-etiquetas">' + grade.dias[dia].map((i) =>
+            '<span class="etiqueta">' + (i.hora ? i.hora + " " : "") + esc(i.titulo.slice(0, 34)) + "</span>"
+          ).join("") + "</div></div></div>"
+        ).join("") + "</div>"
+      : '<p class="explica">Nada marcado nos próximos 14 dias.</p>') + "</div>" +
+
+    '<div class="painel"><h3>Convite por e-mail</h3>' +
+    '<p class="explica">O wireframe prevê enviar o convite ao marcar. Isso depende da conexão ' +
+    "de e-mail, que ainda não existe — quando existir, o convite sai daqui e passa pela fila de " +
+    "aprovações, como toda ação que sai da máquina.</p></div>" +
+
+    '<div class="rodape-tela">agenda gravada na sua máquina · não sincronizada</div></div>';
+
+  centro.querySelectorAll("[data-dur]").forEach((b) => {
+    b.onclick = () => { age.duracao = Number(b.dataset.dur); mostrarAgendamento(); };
+  });
+  centro.querySelectorAll("[data-livre]").forEach((b) => {
+    b.onclick = () => {
+      const h = livres[Number(b.dataset.livre)];
+      formCompromisso({ tipo: "compromisso", data: h.data, hora: h.hora, duracao: age.duracao, onde: "" }, h.data);
+    };
+  });
+  atualizarPostura();
+}
+
+function diaCurto(dia) {
+  const [a, m, d] = dia.split("-").map(Number);
+  const data = new Date(a, m - 1, d);
+  const semana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][data.getDay()];
+  return semana + " " + d + "/" + String(m).padStart(2, "0");
+}
+
 /* ---------------------------------------------------------- destinos */
 /*
    O menu do manual do sistema: 20 destinos em quatro grupos. Cinco tem motor;
@@ -2786,6 +3201,8 @@ function abrirDestino(id) {
   if (d.abre === "config") return mostrarConfig();
   if (d.abre === "cadastros") return mostrarCadastros();
   if (d.abre === "tarefas") return mostrarTarefas();
+  if (d.abre === "calendario") return mostrarCalendario();
+  if (d.abre === "agendamento") return mostrarAgendamento();
   if (d.abre === "organizar") { abrirTela("Organizar pastas"); $("centro").innerHTML = ""; organizarComecar(); }
 }
 

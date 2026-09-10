@@ -43,14 +43,14 @@ DESTINOS: list[Destino] = [
         resolve="Pergunta livre sobre as pastas, com o plano de execução visível e resposta citando os arquivos.",
     ),
     Destino(
-        id="calendario", nome="Calendário", grupo="Dia a dia", icone="calendario",
-        resolve="Mês, semana e agenda, com o painel do dia mostrando compromissos, prazos e tarefas.",
-        precisa=["um lugar para guardar compromissos", "leitura de prazos nos documentos"],
+        id="calendario", nome="Calendário", grupo="Dia a dia", icone="calendario", pronta=True,
+        abre="calendario",
+        resolve="Mês com compromissos, prazos e datas dos documentos na mesma grade, e o painel do dia.",
     ),
     Destino(
-        id="agendamento", nome="Agendamento", grupo="Dia a dia", icone="relogio",
-        resolve="Marcar reunião com cliente sugerindo os horários livres.",
-        precisa=["calendário", "envio de convite por e-mail"],
+        id="agendamento", nome="Agendamento", grupo="Dia a dia", icone="relogio", pronta=True,
+        abre="agendamento",
+        resolve="Marcar reunião sugerindo os horários que cabem na sua disponibilidade.",
     ),
     Destino(
         id="tarefas", nome="Tarefas", grupo="Dia a dia", icone="lista", pronta=True,

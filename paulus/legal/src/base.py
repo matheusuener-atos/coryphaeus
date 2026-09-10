@@ -98,6 +98,32 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE tarefas ADD COLUMN meu_dia INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        "005_agenda",
+        """
+        CREATE TABLE compromissos (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo      TEXT NOT NULL,
+            tipo        TEXT NOT NULL DEFAULT 'compromisso',
+            data        TEXT NOT NULL,
+            hora        TEXT NOT NULL DEFAULT '09:00',
+            duracao     INTEGER NOT NULL DEFAULT 60,
+            onde        TEXT DEFAULT '',
+            cadastro_id INTEGER REFERENCES cadastros(id) ON DELETE SET NULL,
+            anotacao    TEXT DEFAULT '',
+            avisar_min  INTEGER NOT NULL DEFAULT 0,
+            criado_em   TEXT NOT NULL
+        );
+        CREATE INDEX idx_compromissos_data ON compromissos(data);
+
+        -- Uma nota por dia: o wireframe tem "NOTAS DO DIA", nao notas soltas.
+        CREATE TABLE notas_dia (
+            dia           TEXT PRIMARY KEY,
+            texto         TEXT NOT NULL DEFAULT '',
+            atualizado_em TEXT NOT NULL
+        );
+        """,
+    ),
 ]
 
 

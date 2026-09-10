@@ -248,6 +248,109 @@ def test_sugestoes_de_tarefa() -> None:
         b.fechar()
 
 
+# --------------------------------------------------------------------- agenda
+
+
+def test_agenda() -> None:
+    """
+    Horario livre e o unico calculo de verdade desta tela. As datas aqui sao
+    fixas e distantes, para o relogio da maquina nao mudar o resultado.
+    """
+    print("\nagenda: horarios livres")
+    from agenda import Agenda
+
+    with tempfile.TemporaryDirectory() as tmp:
+        b = Base(Path(tmp) / "p.db")
+        a = Agenda(b)
+
+        # Uma quinta-feira bem la na frente, longe do "hoje".
+        dia = "2099-01-08"
+        checar(date.fromisoformat(dia).weekday() == 3, "o dia do teste e uma quinta")
+
+        livres = a.livres(dia, 60)
+        checar(livres[0] == "09:00", "dia vazio comeca no inicio do expediente")
+        checar("12:00" not in livres and "13:00" not in livres, "almoco nao e oferecido")
+        checar("17:00" in livres and "17:30" not in livres, "ultimo horario respeita o fim do dia")
+
+        a.salvar({"titulo": "Reuniao", "data": dia, "hora": "10:00", "duracao": 60})
+        depois = a.livres(dia, 60)
+        checar("10:00" not in depois, "horario ocupado sai da lista")
+        checar("09:30" not in depois, "os 15 min de folga antes tambem saem")
+        checar("11:00" not in depois, "e os 15 min depois")
+        # 11:30 esta livre, mas uma hora a partir dali invade o almoco: o
+        # horario precisa caber inteiro, nao so comecar em espaco vazio.
+        checar("11:30" not in depois, "horario que comeca livre mas termina no almoco nao e oferecido")
+        checar("13:30" in depois, "o primeiro que cabe inteiro depois do almoco e oferecido")
+        checar("11:30" in a.livres(dia, 30), "meia hora ali cabe, e e oferecida")
+
+        curto = a.livres(dia, 30)
+        checar("11:15" not in curto and "11:30" in curto, "a busca anda de 30 em 30 minutos")
+
+        sabado = "2099-01-10"
+        checar(date.fromisoformat(sabado).weekday() == 5, "o outro dia e um sabado")
+        checar(a.livres(sabado, 60) == [], "fim de semana nao tem horario livre")
+
+        so_manha = {"inicio": "08:00", "fim": "11:00", "almoco_inicio": "00:00", "almoco_fim": "00:00"}
+        checar(a.livres("2099-01-09", 60, so_manha)[0] == "08:00", "disponibilidade propria e respeitada")
+        checar(a.livres("2099-01-09", 240, so_manha) == [], "compromisso que nao cabe na janela nao e oferecido")
+        b.fechar()
+
+
+def test_grade_junta_tudo() -> None:
+    """
+    O ponto da tela: compromisso, prazo de tarefa e data de documento na mesma
+    grade. Separados, o prazo que so existe dentro do contrato e o que se perde.
+    """
+    print("\nagenda: a grade junta os tres")
+    from agenda import Agenda
+
+    with tempfile.TemporaryDirectory() as tmp:
+        b = Base(Path(tmp) / "p.db")
+        a, c, t = Agenda(b), Cadastros(b), Tarefas(b)
+
+        cliente = c.salvar({"nome": "Fornecedor A"})
+        a.salvar({"titulo": "Renovacao", "data": _dia(1), "hora": "15:30",
+                  "duracao": 60, "cadastro_id": cliente})
+        t.salvar({"titulo": "Enviar aviso", "prazo": _dia(2)})
+        docs = [{"nome": "contrato.pdf", "data": _dia(3), "sha1": "x", "cliente": "ACME"}]
+
+        g = a.grade(_dia(0), _dia(10), t.listar("todas"), docs)
+        checar(g["contagem"]["compromissos"] == 1, "conta o compromisso")
+        checar(g["contagem"]["prazos"] == 1, "conta o prazo da tarefa")
+        checar(g["contagem"]["documentos"] == 1, "conta a data que veio do documento")
+
+        generos = {i["genero"] for dia in g["dias"].values() for i in dia}
+        checar(generos == {"compromisso", "prazo", "documento"}, "os tres generos aparecem")
+
+        do_dia = g["dias"][_dia(1)][0]
+        checar(do_dia["detalhe"] == "Fornecedor A", "o compromisso mostra com quem e")
+
+        fora = a.grade(_dia(20), _dia(30), t.listar("todas"), docs)
+        checar(fora["dias"] == {}, "fora do periodo nao entra nada")
+
+        t.concluir(t.listar("todas")[0]["id"])
+        depois = a.grade(_dia(0), _dia(10), t.listar("todas"), docs)
+        checar(depois["contagem"]["prazos"] == 0, "tarefa concluida deixa de ser prazo em aberto")
+        b.fechar()
+
+
+def test_nota_do_dia() -> None:
+    print("\nagenda: nota do dia")
+    from agenda import Agenda
+
+    with tempfile.TemporaryDirectory() as tmp:
+        b = Base(Path(tmp) / "p.db")
+        a = Agenda(b)
+
+        checar(a.nota("2099-01-08") == "", "dia sem nota devolve vazio")
+        a.gravar_nota("2099-01-08", "Fornecedor pediu desconto de 8%.")
+        checar(a.nota("2099-01-08").startswith("Fornecedor"), "nota gravada")
+        a.gravar_nota("2099-01-08", "Texto novo")
+        checar(a.nota("2099-01-08") == "Texto novo", "gravar de novo substitui, nao duplica")
+        checar(b.contar("notas_dia") == 1, "uma nota por dia")
+        b.fechar()
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - base local, cadastros e tarefas")
@@ -258,6 +361,9 @@ def main() -> int:
     test_sugestoes_de_cadastro()
     test_tarefas()
     test_sugestoes_de_tarefa()
+    test_agenda()
+    test_grade_junta_tudo()
+    test_nota_do_dia()
 
     print("\n" + "=" * 55)
     if _falhas:

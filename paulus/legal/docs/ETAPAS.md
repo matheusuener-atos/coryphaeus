@@ -23,6 +23,8 @@ informação que muda a ordem.
 | Configurações | preferências, autonomia e dados profissionais |
 | Cadastros | base local, com sugestões vindas dos documentos lidos |
 | Tarefas | base local, com prazo, etapas e vínculo a cliente |
+| Calendário | grade que junta compromisso, prazo e data de documento |
+| Agendamento | horários livres pela disponibilidade da pessoa |
 
 ---
 
@@ -72,11 +74,20 @@ provar a camada antes de coisas maiores dependerem dela.
 
 ---
 
-## Etapa 3 — Tempo
+## Etapa 3 — Tempo ✓ FEITA
 
 **Telas:** Calendário · Agendamento
 **Tamanho:** médio
 **Depende de:** Etapa 2
+
+Entregue. A grade do mês junta compromisso, prazo de tarefa e data de
+documento — os três gêneros com marca própria. O painel do dia traz os
+compromissos, o que vence naquele dia e a nota do dia. Agendamento sugere os
+horários que cabem, respeitando janela de trabalho, almoço e folga entre
+compromissos.
+
+O convite por e-mail que o wireframe prevê depende da Etapa 5: a tela diz
+isso, em vez de oferecer um botão que não envia nada.
 
 Aqui a planilha de vencimentos do plano original finalmente encontra o lugar
 certo. As datas já saem por regra na classificação; falta ter onde pousar.

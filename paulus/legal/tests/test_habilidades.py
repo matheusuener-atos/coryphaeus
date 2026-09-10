@@ -253,7 +253,7 @@ def test_destinos() -> None:
     import destinos
 
     ABRE_CONHECIDO = {"conversa", "biblioteca", "habilidades", "maquina", "organizar",
-                      "aprovacoes", "config", "cadastros", "tarefas"}
+                      "aprovacoes", "config", "cadastros", "tarefas", "calendario", "agendamento"}
 
     ids = [d.id for d in destinos.DESTINOS]
     checar(len(ids) == len(set(ids)), "nenhum id de destino repetido")
