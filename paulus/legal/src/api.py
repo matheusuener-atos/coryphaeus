@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import sys
 import threading
+from datetime import datetime
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -261,6 +262,113 @@ def executar_habilidade(id_: str, parametros: dict | None = None):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------------------------------------------------------------- biblioteca
+
+
+class Remocao(BaseModel):
+    sha1: str
+
+
+class AbrirPasta(BaseModel):
+    caminho: str
+
+
+@app.get("/api/biblioteca")
+def biblioteca() -> dict:
+    """
+    O que o PAULUS tem aberto, com o que ele ja sabe sobre cada arquivo.
+
+    Junta o indice de leitura com o cache de classificacao: sem isso a tela
+    mostraria nome e tamanho, que e o que o Explorer ja faz.
+    """
+    from classify import CacheClassificacao
+
+    cache = CacheClassificacao(CLASSIFICACAO_PATH).dados
+    itens: list[dict] = []
+
+    for doc in estado.searcher.documents:
+        caminho = Path(doc.path)
+        try:
+            info = caminho.stat()
+            tamanho = info.st_size
+            aberto_em = datetime.fromtimestamp(info.st_mtime).strftime("%Y-%m-%d")
+            existe = True
+        except OSError:
+            tamanho, aberto_em, existe = 0, "", False
+
+        conhecido = cache.get(doc.sha1) or {}
+        trechos = sum(1 for c in estado.searcher.chunks if c.doc_name == doc.name)
+
+        itens.append({
+            "sha1": doc.sha1,
+            "nome": doc.name,
+            "caminho": str(caminho),
+            "pasta": str(caminho.parent),
+            "existe": existe,
+            "bytes": tamanho,
+            "paginas": doc.pages,
+            "caracteres": doc.chars,
+            "trechos": trechos,
+            "aberto_em": aberto_em,
+            "tipo": conhecido.get("tipo", ""),
+            "tipo_rotulo": ROTULOS.get(conhecido.get("tipo", ""), ""),
+            "cliente": conhecido.get("cliente", ""),
+            "data": conhecido.get("data", ""),
+            "valor": conhecido.get("valor", ""),
+        })
+
+    itens.sort(key=lambda i: i["nome"].lower())
+    return {
+        "documentos": itens,
+        "pasta": str(estado.pasta),
+        "total_bytes": sum(i["bytes"] for i in itens),
+        "total_trechos": len(estado.searcher.chunks),
+    }
+
+
+@app.post("/api/biblioteca/remover")
+def biblioteca_remover(payload: Remocao) -> dict:
+    """
+    Tira um documento da biblioteca, apagando a copia que o programa guarda.
+
+    So mexe em arquivo dentro da pasta do programa: o original de onde o
+    documento veio nao e tocado.
+    """
+    alvo = next((d for d in estado.searcher.documents if d.sha1 == payload.sha1), None)
+    if not alvo:
+        raise HTTPException(status_code=404, detail="documento nao esta na biblioteca")
+
+    caminho = Path(alvo.path).resolve()
+    pasta = Path(estado.pasta).resolve()
+    if pasta not in caminho.parents:
+        raise HTTPException(
+            status_code=400,
+            detail="esse arquivo está fora da pasta do programa; remova por lá",
+        )
+
+    try:
+        caminho.unlink(missing_ok=True)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui remover: {exc}") from exc
+
+    return {"removido": alvo.name, "documentos": estado.recarregar(force=True)}
+
+
+@app.post("/api/biblioteca/abrir-pasta")
+def biblioteca_abrir_pasta(payload: AbrirPasta) -> dict:
+    """Abre a pasta no Explorer, para a pessoa ver o arquivo onde ele esta."""
+    import os
+
+    alvo = Path(payload.caminho)
+    if not alvo.is_dir():
+        raise HTTPException(status_code=400, detail="pasta nao encontrada")
+    try:
+        os.startfile(str(alvo))  # noqa: S606 - abre o gerenciador do proprio Windows
+    except (OSError, AttributeError) as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui abrir: {exc}") from exc
+    return {"aberta": str(alvo)}
 
 
 @app.get("/api/documents")
@@ -706,3 +814,26 @@ def organizar_desfazer(payload: PedidoDesfazer) -> dict:
     }
 
 
+
+def main() -> None:
+    import argparse
+
+    import uvicorn
+
+    parser = argparse.ArgumentParser(description="PAULUS Legal - interface web (local)")
+    parser.add_argument("--contracts", type=Path, default=CONTRACTS_DIR, help="pasta com os contratos")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"modelo Ollama (padrao: {DEFAULT_MODEL})")
+    parser.add_argument("--port", type=int, default=8000, help="porta (padrao: 8000)")
+    args = parser.parse_args()
+
+    estado.pasta = args.contracts
+    estado.porta = args.port
+    estado.client = LlamaClient(model=args.model)
+
+    # host fixo em 127.0.0.1: o servidor nao deve ficar exposto na rede local,
+    # os documentos sao de cliente.
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+
+
+if __name__ == "__main__":
+    main()

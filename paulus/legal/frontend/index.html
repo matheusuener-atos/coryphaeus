@@ -5,7 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAULUS</title>
 <link rel="stylesheet" href="/fontes.css">
+<script>
+  /* Antes de qualquer pintura: decidir o tema aqui evita o lampejo branco na
+     abertura, que aconteceria se isso rodasse com o resto do script no fim
+     do body. */
+  (function () {
+    var tema = "claro";
+    try {
+      var guardado = localStorage.getItem("paulus.tema");
+      if (guardado === "claro" || guardado === "escuro") tema = guardado;
+      else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
+    } catch (e) {
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
+    }
+    document.documentElement.dataset.tema = tema;
+  })();
+</script>
 <style>
+  /*
+    Um tema e um conjunto de tokens. Os papeis do manual valem nos dois: azul
+    e o unico acento de sistema, ambar significa so "precisa de voce", verde
+    so "esta tudo certo".
+
+    --forte existe porque em varios lugares a cor do texto e usada como FUNDO
+    (botao primario, bolha da pessoa, chave do interruptor). Escrever
+    var(--ink) ali funciona no claro e inverte errado no escuro: botao claro
+    com texto branco some.
+  */
   :root {
     --ink: #14181c;
     --ink-2: #3c444d;
@@ -25,8 +51,52 @@
     --surface-2: #fbfcfd;
     --surface-3: #f7f8fa;
     --track: #eef1f4;
+
+    --forte: #14181c;              /* fundo de botao primario e bolha */
+    --forte-texto: #ffffff;
+    --forte-hover: #262c33;
+    --marcador: #dfe4ea;           /* contorno de etapa pendente */
+    --ponto-frio: #c9d1da;         /* ponto de estado sem destaque */
+    --placeholder: #9aa3ae;
+    --ok-soft: #e9f3ee;
+    --alerta-soft: #fbeee6;
+    --secundario-linha: #e2d6bd;   /* borda do botao Revisar */
+
     --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+  }
+
+  [data-tema="escuro"] {
+    --ink: #e9ecef;
+    --ink-2: #b9c1cb;
+    --ink-3: #98a2ad;
+    --ink-muted: #7f8a97;
+    --accent: #77aade;
+    --accent-soft: #16283a;
+    --accent-line: #2c4a68;
+    --attention: #dca354;
+    --attention-soft: #2a2114;
+    --attention-line: #4c3b1e;
+    --attention-ink: #e3b877;
+    --ok: #58b98a;
+    --line: #262b32;
+    --line-strong: #363d46;
+    --surface-1: #14171b;
+    --surface-2: #101317;
+    --surface-3: #0d0f12;
+    --track: #23282f;
+
+    --forte: #e9ecef;
+    --forte-texto: #14171b;
+    --forte-hover: #ffffff;
+    --marcador: #3a424c;
+    --ponto-frio: #4a535e;
+    --placeholder: #6d7783;
+    --ok-soft: #16281f;
+    --alerta-soft: #2c1d16;
+    --secundario-linha: #4c3b1e;
+
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -126,11 +196,11 @@
   .item:hover { background: var(--surface-3); }
   .item.ativo { background: var(--surface-3); color: var(--ink); font-weight: 500; }
   .item .titulo { flex: 1; min-width: 0; }
-  .item .marca { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #c9d1da; }
+  .item .marca { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--ponto-frio); }
   .item .marca.executando { background: var(--accent); }
   .item .marca.aguardando { background: var(--attention); }
   .item .marca.concluido { background: var(--ok); }
-  .item .marca.pausado { background: #c9d1da; }
+  .item .marca.pausado { background: var(--ponto-frio); }
   .vazio-lista { padding: 10px 8px; font-size: 12.5px; color: var(--ink-muted); }
 
   .modelo {
@@ -165,8 +235,8 @@
   .bolha-pessoa {
     align-self: flex-end;
     max-width: 78%;
-    background: var(--ink);
-    color: #fff;
+    background: var(--forte);
+    color: var(--forte-texto);
     border-radius: 12px;
     padding: 11px 14px;
     font-size: 14.5px;
@@ -198,7 +268,7 @@
   .etapa { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13.5px; }
   .etapa .marcador {
     width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
-    border: 2px solid #dfe4ea; background: var(--surface-1);
+    border: 2px solid var(--marcador); background: var(--surface-1);
   }
   .etapa.executando .marcador { border-color: var(--accent); }
   .etapa.concluido .marcador { border-color: var(--accent-line); background: var(--accent-soft); }
@@ -256,7 +326,7 @@
     border: 1px solid var(--line-strong); border-radius: 10px;
     padding: 11px 13px; max-height: 150px; color: inherit; background: var(--surface-1);
   }
-  textarea::placeholder { color: #9aa3ae; }
+  textarea::placeholder { color: var(--placeholder); }
   .privacidade { font-size: 11.5px; color: var(--ink-muted); margin-top: 9px; }
 
   /* --------------------------------------------------------- botoes */
@@ -276,9 +346,9 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  button.primario { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 500; }
-  button.primario:hover:not(:disabled) { background: #262c33; border-color: #262c33; color: #fff; }
-  button.aprovar-secundario { background: var(--surface-1); border-color: #e2d6bd; color: var(--attention-ink); }
+  button.primario { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); font-weight: 500; }
+  button.primario:hover:not(:disabled) { background: var(--forte-hover); border-color: var(--forte-hover); color: var(--forte-texto); }
+  button.aprovar-secundario { background: var(--surface-1); border-color: var(--secundario-linha); color: var(--attention-ink); }
   button.largo { width: 100%; }
   button.pastilha { border-radius: 16px; padding: 5px 12px; font-size: 12px; }
 
@@ -289,7 +359,7 @@
 
   .atividade-linha { display: flex; gap: 9px; padding: 6px 0; }
   .atividade-linha .ponto-at {
-    width: 6px; height: 6px; border-radius: 50%; background: #c9d1da;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--ponto-frio);
     margin-top: 6px; flex-shrink: 0;
   }
   .atividade-linha:first-child .ponto-at { background: var(--accent); }
@@ -314,9 +384,9 @@
   }
   .interruptor .chave::after {
     content: ""; position: absolute; top: 2px; left: 2px;
-    width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform 0.2s;
+    width: 15px; height: 15px; border-radius: 50%; background: var(--surface-1); transition: transform 0.2s;
   }
-  .interruptor.on .chave { background: var(--ink); }
+  .interruptor.on .chave { background: var(--forte); }
   .interruptor.on .chave::after { transform: translateX(15px); }
 
   /* ------------------------------------------------------ organizador */
@@ -344,7 +414,7 @@
     border-radius: 10px; padding: 9px 12px; background: var(--surface-1);
     color: inherit; flex: 1; min-width: 200px;
   }
-  input[type=text]::placeholder { color: #9aa3ae; }
+  input[type=text]::placeholder { color: var(--placeholder); }
 
   .tabela-caixa { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 320px; }
   table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
@@ -364,9 +434,9 @@
   }
   td input[type=text]:hover, td select:hover { border-color: var(--line-strong); background: var(--surface-2); }
   .selo-conf { font: 400 10.5px var(--mono); padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-  .selo-conf.alta { background: #e9f3ee; color: var(--ok); }
+  .selo-conf.alta { background: var(--ok-soft); color: var(--ok); }
   .selo-conf.media { background: var(--attention-soft); color: var(--attention-ink); }
-  .selo-conf.baixa { background: #fbeee6; color: var(--attention); }
+  .selo-conf.baixa { background: var(--alerta-soft); color: var(--attention); }
 
   /* seletor de pastas */
   .navegador { border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; }
@@ -408,7 +478,7 @@
     border: none; background: none; color: var(--accent); cursor: pointer;
     padding: 0 4px; font-size: 14px; line-height: 1; border-radius: 4px;
   }
-  .escolhida button:hover { background: #dbe7f4; color: var(--accent); }
+  .escolhida button:hover { background: var(--accent-line); color: var(--accent); }
 
   .pastas { border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; }
   .pasta-l { display: flex; justify-content: space-between; gap: 12px; padding: 7px 11px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
@@ -462,6 +532,40 @@
     border-radius: 9px; padding: 10px 12px; margin-top: 9px;
   }
 
+  /* -------------------------------------------------------- biblioteca */
+
+  .bib-topo { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .bib-topo h2 { font: 600 19px var(--sans); }
+  .bib-topo .num { margin-bottom: 3px; }
+  .bib-busca { margin-left: auto; min-width: 220px; flex: 0 1 300px; }
+
+  .doc-linha {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 11px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .doc-linha:last-child { border-bottom: none; }
+  .doc-marca {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: var(--surface-3); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font: 500 9.5px var(--mono); color: var(--ink-3); text-transform: uppercase;
+  }
+  .doc-texto { flex: 1; min-width: 0; }
+  .doc-nome { font: 500 13.5px var(--sans); }
+  .doc-meta { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 3px; }
+  .doc-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+  .etiqueta {
+    font: 400 11px var(--sans);
+    border: 1px solid var(--line-strong); border-radius: 12px;
+    padding: 2px 9px; color: var(--ink-2);
+  }
+  .etiqueta.tipo { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+  .doc-acoes { display: flex; gap: 7px; flex-shrink: 0; }
+  .doc-linha.sumido .doc-nome { color: var(--ink-3); text-decoration: line-through; }
+
   /* ----------------------------------------------------------- coroa */
 
   .coroa { flex-shrink: 0; color: var(--accent); animation: girar 9s linear infinite; }
@@ -494,6 +598,7 @@
 <div class="barra">
   <span class="produto">PAULUS</span>
   <span class="selo" id="selo"><span class="ponto"></span><span id="selo-texto">Ocioso</span></span>
+  <button class="pastilha" id="tema" title="Alternar claro e escuro" aria-label="Alternar claro e escuro"></button>
   <button class="botao-gaveta pastilha" id="abrir-gaveta">Atividade</button>
 </div>
 
@@ -502,6 +607,7 @@
   <aside class="trabalhos">
     <div class="trabalhos-topo">
       <button class="primario largo" id="nova">Nova solicitação</button>
+      <button class="largo" id="ver-biblioteca" style="margin-top:7px">Biblioteca</button>
       <button class="largo" id="ver-habilidades" style="margin-top:7px">O que eu sei fazer</button>
     </div>
     <div class="lista-trabalhos" id="lista-trabalhos"></div>
@@ -581,6 +687,21 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+
+/* ---------------------------------------------------------------- tema */
+/* A escolha ja foi aplicada no <head>; aqui so o rotulo e a troca. */
+
+function aplicarTema(tema) {
+  document.documentElement.dataset.tema = tema;
+  $("tema").textContent = tema === "escuro" ? "Claro" : "Escuro";
+  try { localStorage.setItem("paulus.tema", tema); } catch (err) { /* sem memoria, tudo bem */ }
+}
+
+aplicarTema(document.documentElement.dataset.tema || "claro");
+
+$("tema").onclick = () => {
+  aplicarTema(document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro");
+};
 
 function esc(t) {
   const d = document.createElement("div");
@@ -1090,6 +1211,146 @@ $("devagar").onkeydown = (e) => {
 };
 
 $("abrir-gaveta").onclick = () => $("lateral").classList.toggle("aberta");
+
+/* --------------------------------------------------------- biblioteca */
+
+const bib = { documentos: [], filtro: "" };
+
+async function mostrarBiblioteca() {
+  estado.trabalhoId = null;
+  estado.trabalho = null;
+  $("conversa-titulo").textContent = "Biblioteca";
+  $("apagar").hidden = true;
+  desenharAtividade([]);
+  carregarTrabalhos();
+
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/biblioteca")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' +
+      esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  bib.documentos = d.documentos;
+  bib.pasta = d.pasta;
+  bib.totalBytes = d.total_bytes;
+  bib.totalTrechos = d.total_trechos;
+
+  $("conversa-meta").textContent = d.documentos.length
+    ? d.documentos.length + " documento(s) · " + d.total_trechos + " trechos"
+    : "nenhum documento aberto";
+
+  centro.innerHTML =
+    '<div class="catalogo"><div class="bib-topo">' +
+    "<div><h2>Biblioteca</h2>" +
+    '<div class="nota">' + (d.documentos.length
+      ? d.documentos.length + " documento(s), " + tamanho(d.total_bytes) +
+        ", guardados em " + esc(d.pasta)
+      : "Nada aberto ainda. Use Anexar, ali embaixo, ou arraste arquivos para a conversa.") +
+    "</div></div>" +
+    (d.documentos.length
+      ? '<input type="text" class="bib-busca" id="bib-filtro" placeholder="Filtrar por nome, tipo ou cliente…">'
+      : "") +
+    '</div><div id="bib-lista"></div></div>';
+
+  if (d.documentos.length) {
+    $("bib-filtro").oninput = (e) => { bib.filtro = e.target.value.trim().toLowerCase(); desenharBiblioteca(); };
+    desenharBiblioteca();
+  }
+  $("fluxo").scrollTop = 0;
+}
+
+function tamanho(bytes) {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
+  return (bytes / 1024 / 1024).toFixed(1).replace(".", ",") + " MB";
+}
+
+function desenharBiblioteca() {
+  const termo = bib.filtro;
+  const lista = bib.documentos.filter((x) =>
+    !termo ||
+    x.nome.toLowerCase().includes(termo) ||
+    (x.tipo_rotulo || "").toLowerCase().includes(termo) ||
+    (x.cliente || "").toLowerCase().includes(termo)
+  );
+
+  const alvo = $("bib-lista");
+  if (!lista.length) {
+    alvo.innerHTML = '<p class="nota">Nenhum documento com esse filtro.</p>';
+    return;
+  }
+
+  alvo.innerHTML = lista.map((x) => {
+    const ext = (x.nome.split(".").pop() || "?").slice(0, 4);
+    const partes = [];
+    if (x.paginas) partes.push(x.paginas + " pág.");
+    partes.push(tamanho(x.bytes));
+    partes.push(x.trechos + " trecho(s)");
+    if (x.aberto_em) partes.push("aberto em " + x.aberto_em);
+
+    let etiquetas = "";
+    if (x.tipo_rotulo) etiquetas += '<span class="etiqueta tipo">' + esc(x.tipo_rotulo) + "</span>";
+    if (x.cliente) etiquetas += '<span class="etiqueta">' + esc(x.cliente) + "</span>";
+    if (x.data) etiquetas += '<span class="etiqueta">' + esc(x.data) + "</span>";
+    if (x.valor) etiquetas += '<span class="etiqueta">' + esc(x.valor) + "</span>";
+    if (!etiquetas) etiquetas = '<span class="etiqueta">ainda não classificado</span>';
+
+    return '<div class="doc-linha' + (x.existe ? "" : " sumido") + '" data-sha="' + esc(x.sha1) + '">' +
+      '<span class="doc-marca">' + esc(ext) + "</span>" +
+      '<span class="doc-texto"><div class="doc-nome">' + esc(x.nome) + "</div>" +
+      '<div class="doc-meta">' + esc(partes.join(" · ")) +
+      (x.existe ? "" : " · arquivo não está mais no disco") + "</div>" +
+      '<div class="doc-etiquetas">' + etiquetas + "</div></span>" +
+      '<span class="doc-acoes">' +
+      '<button data-a="pasta" data-pasta="' + esc(x.pasta) + '">Ver a pasta</button>' +
+      '<button data-a="remover">Remover</button></span></div>';
+  }).join("");
+
+  alvo.querySelectorAll(".doc-linha").forEach((linha) => {
+    const sha = linha.dataset.sha;
+    const doc = bib.documentos.find((x) => x.sha1 === sha);
+    linha.querySelector('[data-a="pasta"]').onclick = async (e) => {
+      await fetch("/api/biblioteca/abrir-pasta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caminho: e.target.dataset.pasta }),
+      });
+    };
+    linha.querySelector('[data-a="remover"]').onclick = () => removerDaBiblioteca(doc, linha);
+  });
+}
+
+async function removerDaBiblioteca(doc, linha) {
+  const aviso = "Tirar " + doc.nome + " da biblioteca?\n\n" +
+    "Apaga a cópia que o PAULUS guarda. O arquivo original de onde ele veio não é tocado.";
+  if (!confirm(aviso)) return;
+
+  const botao = linha.querySelector('[data-a="remover"]');
+  botao.disabled = true;
+  try {
+    const r = await fetch("/api/biblioteca/remover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha1: doc.sha1 }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || "falhou");
+    bib.documentos = bib.documentos.filter((x) => x.sha1 !== doc.sha1);
+    desenharBiblioteca();
+    carregarStatus();
+    mostrarBiblioteca();
+  } catch (err) {
+    botao.disabled = false;
+    alert("Não consegui remover: " + err);
+  }
+}
+
+$("ver-biblioteca").onclick = mostrarBiblioteca;
 
 /* -------------------------------------------------------- habilidades */
 
