@@ -29,3 +29,8 @@ Pillow>=10.0.0
 # reportlab gera o PDF do documento. python-docx e openpyxl, que a planilha e o
 # DOCX usam, ja estavam aqui desde a primeira semana.
 reportlab>=4.0.0
+
+# So para desenvolvimento: tests/test_tela.py abre a interface num navegador
+# de verdade e mede o layout. Usa o Edge que ja vem no Windows, sem baixar
+# navegador. Sem ele, aquele teste diz que pulou em vez de falhar.
+# pip install playwright

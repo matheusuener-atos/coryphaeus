@@ -107,12 +107,12 @@ def frase_de_estado(cpu: float, memoria_pct: float) -> str:
     "da para trabalhar normal" diz.
     """
     if memoria_pct >= 92:
-        return "Memoria no limite - o computador pode ficar lento"
+        return "Memória no limite — o computador pode ficar lento"
     if cpu >= 88:
-        return "Trabalhando pesado - pode travar um pouco"
+        return "Trabalhando pesado — pode travar um pouco"
     if cpu >= 60 or memoria_pct >= 80:
-        return "Ocupado, tranquilo - da para trabalhar normal"
-    return "Tranquilo - quase nao esta usando o computador"
+        return "Ocupado, tranquilo — dá para trabalhar normal"
+    return "Tranquilo — quase não está usando o computador"
 
 
 def ler(*, acordar_video: bool = True) -> dict:

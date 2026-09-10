@@ -4,20 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAULUS</title>
+<link rel="icon" href="/img/coroa.png">
 <link rel="stylesheet" href="/fontes.css">
 <script>
   /* Antes de qualquer pintura: decidir o tema aqui evita o lampejo branco na
      abertura, que aconteceria se isso rodasse com o resto do script no fim
      do body. */
   (function () {
-    var tema = "claro";
+    /* Escuro e o desenho do produto, nao uma preferencia do sistema: era isso
+       que aparecia claro em Windows no modo claro, sem ninguem ter pedido.
+       A escolha da pessoa continua valendo e vence sempre. */
+    var tema = "escuro";
     try {
       var guardado = localStorage.getItem("paulus.tema");
       if (guardado === "claro" || guardado === "escuro") tema = guardado;
-      else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
-    } catch (e) {
-      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
-    }
+    } catch (e) { /* sem memoria do navegador, fica no escuro mesmo */ }
     document.documentElement.dataset.tema = tema;
   })();
 </script>
@@ -240,6 +241,7 @@
   .trabalhos {
     width: 222px;
     flex-shrink: 0;
+    overflow: hidden;   /* nada vaza em silencio para fora da coluna */
     background: var(--barra-lateral);
     border-right: 1px solid var(--linha);
     display: flex;
@@ -277,7 +279,10 @@
   .recolher svg { width: 15px; height: 15px; transition: transform 0.2s; }
 
   .trabalhos-topo { padding: 14px 12px 10px; }
-  .lista-trabalhos { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+  /* A rolagem mora no envelope, nao em cada peca: assim nenhuma secao e
+     espremida a zero quando a barra lateral fica menor que o conteudo. */
+  .nav-rolagem { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  .lista-trabalhos { flex: 0 0 auto; padding: 0 8px 12px; }
   .grupo { padding: 14px 4px 6px; }
 
   .item {
@@ -1396,8 +1401,12 @@
     font: 500 10px var(--mono); text-align: center;
     min-width: 34px; position: sticky; left: 0; z-index: 1;
   }
+  /* O padding vem com o seletor de dentro da grade: `.pl-grade td` tem
+     especificidade maior que `.pl-cel` sozinho e zerava o espaco, deixando o
+     valor de uma coluna encostado no texto da coluna vizinha. */
+  .pl-grade td.pl-cel { padding: 0 8px; }
   .pl-cel {
-    min-width: 108px; max-width: 220px; padding: 0 7px;
+    min-width: 108px; max-width: 220px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     cursor: cell;
   }
@@ -1555,8 +1564,13 @@
       </button>
     </div>
 
-    <nav class="menu" id="menu"></nav>
-    <div class="lista-trabalhos" id="lista-trabalhos"></div>
+    <!-- Menu e conversas rolam juntos. Separados, o navegador espremia a lista
+         de conversas ate doze pixels numa tela de 900 px de altura: as conversas
+         sumiam e o cabecalho do grupo aparecia cortado ao meio. -->
+    <div class="nav-rolagem">
+      <nav class="menu" id="menu"></nav>
+      <div class="lista-trabalhos" id="lista-trabalhos"></div>
+    </div>
 
     <div class="maquina">
       <button class="maquina-cabeca" id="ver-maquina" title="Abrir a tela do computador">
