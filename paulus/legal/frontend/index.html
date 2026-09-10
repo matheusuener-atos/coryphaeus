@@ -247,6 +247,68 @@
 
   /* ---------------------------------------------------------- conversa */
 
+  /* ---------------------------------------------------- duas paginas */
+  /*
+    Duas telas cheias, uma embaixo da outra: em cima a conversa, embaixo a
+    bancada onde ficam as outras telas. O encaixe de rolagem faz a passagem
+    ser inteira - meia tela de cada nunca aparece.
+
+    Quando a conversa tem historico, a area de mensagens rola por dentro
+    primeiro; so ao chegar no fim e que a rolagem passa para a bancada, que e
+    o comportamento normal do navegador com rolagem aninhada.
+  */
+  .paginas {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+  .pagina {
+    height: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  @media (prefers-reduced-motion: reduce) { .paginas { scroll-behavior: auto; } }
+
+  .desce, .sobe {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: none; background: none; color: var(--ink-muted);
+    font: 400 11.5px var(--sans); padding: 6px 10px; border-radius: 14px;
+    margin: 0 auto; cursor: pointer;
+  }
+  .desce { display: none; margin-top: 10px; }
+  .sobe { margin: 0; }
+  .desce:hover, .sobe:hover { color: var(--accent); background: var(--accent-soft); }
+  .desce svg, .sobe svg { width: 13px; height: 13px; }
+  .conversa-col.vazia .desce { display: inline-flex; }
+
+  .trabalho-topo {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 20px; border-bottom: 1px solid var(--line);
+    flex-shrink: 0; background: var(--surface-1);
+  }
+  .trabalho-corpo { flex: 1; overflow-y: auto; padding: 26px 24px 40px; }
+
+  .bancada { width: 100%; max-width: 760px; margin: 0 auto; }
+  .bancada > h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
+  .bancada > p { margin: 0 0 22px; font-size: 13.5px; color: var(--ink-2); }
+  .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px, 1fr)); gap: 12px; }
+  .cartao-atalho {
+    text-align: left; cursor: pointer;
+    border: 1px solid var(--line-strong); border-radius: 12px;
+    background: var(--surface-1); padding: 15px; color: inherit;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .cartao-atalho:hover { border-color: var(--accent); }
+  .cartao-atalho .titulo { font: 500 14px var(--sans); }
+  .cartao-atalho .desc { font-size: 12.5px; color: var(--ink-2); }
+  .cartao-atalho .numero { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 2px; }
+
   .conversa-topo {
     padding: 13px 20px;
     border-bottom: 1px solid var(--line);
@@ -361,9 +423,11 @@
     background: var(--surface-1);
   }
 
-  .conversa-col.vazia .fluxo { flex: 0 0 auto; padding-bottom: 0; }
-  .conversa-col.vazia { justify-content: center; }
-  .conversa-col.vazia .compositor { border-top: none; padding-bottom: 30px; }
+  /* Quem centraliza e a pagina do chat, nao a coluna: a coluna agora guarda
+     as duas paginas empilhadas. */
+  .conversa-col.vazia #pagina-chat { justify-content: center; }
+  .conversa-col.vazia .fluxo { flex: 0 0 auto; padding-bottom: 0; overflow: visible; }
+  .conversa-col.vazia .compositor { border-top: none; padding-bottom: 22px; }
   .conversa-col.vazia .chamada { display: block; }
   .conversa-col.vazia .exemplos-rapidos { display: flex; }
   .conversa-col.vazia .rodape-vazio { display: block; }
@@ -719,6 +783,8 @@
   </aside>
 
   <section class="conversa-col" id="conversa-col">
+   <div class="paginas" id="paginas">
+    <div class="pagina" id="pagina-chat">
     <div class="conversa-topo">
       <div style="flex:1;min-width:0">
         <h2 class="corta" id="conversa-titulo">Nova solicitação</h2>
@@ -766,7 +832,28 @@
         <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
         <div class="privacidade" id="privacidade">nenhuma requisição à internet nesta sessão</div>
       </div>
+      <button class="desce" id="desce" title="Ir para a bancada">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 6l4 4 4-4"/>
+        </svg>
+        <span>Bancada</span>
+      </button>
     </div>
+    </div>
+
+    <div class="pagina" id="pagina-trabalho">
+      <div class="trabalho-topo">
+        <button class="sobe" id="sobe" title="Voltar para a conversa">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 10l4-4 4 4"/>
+          </svg>
+          <span>Conversa</span>
+        </button>
+        <span class="rotulo" id="trabalho-onde">Bancada</span>
+      </div>
+      <div class="trabalho-corpo" id="area-trabalho"></div>
+    </div>
+   </div>
   </section>
 
   <aside class="lateral" id="lateral">
@@ -909,11 +996,7 @@ $("apagar").onclick = async () => {
 };
 
 function exemplos() {
-  return estado.contratos
-    ? ""
-    : '<div class="painel"><h3>Comece abrindo documentos</h3>' +
-      '<p class="explica">Anexe contratos aqui embaixo, ou arraste para esta área. ' +
-      "Também dá para eu varrer uma pasta inteira e organizar o acervo.</p></div>";
+  return "";   /* o estado vazio vive no compositor, nao no fluxo */
 }
 
 /* A postura do compositor: no meio quando nao ha conversa, embaixo quando ha. */
@@ -923,13 +1006,19 @@ function atualizarPostura() {
     ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao"))
   );
   $("conversa-col").classList.toggle("vazia", !temConversa);
-  if (!temConversa) desenharExemplosRapidos();
+  if (!temConversa) {
+    $("chamada").textContent = estado.contratos
+      ? "Em que posso ajudar?"
+      : "Vamos começar pelos documentos";
+    desenharExemplosRapidos();
+  }
 }
 
 function desenharExemplosRapidos() {
   const alvo = $("exemplos-rapidos");
   if (!estado.contratos) {
-    alvo.innerHTML = "";
+    alvo.innerHTML = '<span class="nota">Nenhum documento aberto ainda. ' +
+      "Use Anexar, ali em cima, ou arraste arquivos para esta área.</span>";
     return;
   }
   const pedidos = [
@@ -1374,19 +1463,147 @@ $("devagar").onkeydown = (e) => {
 
 $("abrir-gaveta").onclick = () => $("lateral").classList.toggle("aberta");
 
+/* ----------------------------------------------------------- bancada */
+/*
+   Pagina 2: onde ficam as telas que nao sao conversa. A pagina 1 pergunta,
+   a pagina 2 administra.
+*/
+
+const ATALHOS = [
+  {
+    id: "biblioteca",
+    titulo: "Biblioteca",
+    desc: "O que o PAULUS tem aberto, com tipo, cliente e data de cada documento",
+  },
+  {
+    id: "habilidades",
+    titulo: "O que eu sei fazer",
+    desc: "Tudo o que o programa faz, e o que ainda não faz",
+  },
+  {
+    id: "maquina",
+    titulo: "Seu computador",
+    desc: "Quanto o PAULUS está usando da máquina, e como segurar o passo",
+  },
+  {
+    id: "organizar",
+    titulo: "Organizar uma pasta",
+    desc: "Varrer, classificar e arrumar o acervo, com desfazer",
+  },
+];
+
+function irPara(pagina) {
+  const alvo = pagina === "trabalho" ? $("pagina-trabalho") : $("pagina-chat");
+  alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function mostrarBancada() {
+  $("trabalho-onde").textContent = "Bancada";
+  $("area-trabalho").innerHTML =
+    '<div class="bancada"><h2>Bancada</h2>' +
+    "<p>As telas que não são conversa ficam aqui. A de cima pergunta, esta administra.</p>" +
+    '<div class="cartoes">' +
+    ATALHOS.map((a) =>
+      '<button class="cartao-atalho" data-abre="' + a.id + '">' +
+      '<span class="titulo">' + esc(a.titulo) + "</span>" +
+      '<span class="desc">' + esc(a.desc) + "</span>" +
+      '<span class="numero" data-numero="' + a.id + '"></span></button>'
+    ).join("") +
+    "</div></div>";
+
+  $("area-trabalho").querySelectorAll("[data-abre]").forEach((b) => {
+    b.onclick = () => abrirDaBancada(b.dataset.abre);
+  });
+  numerosDaBancada();
+}
+
+async function numerosDaBancada() {
+  const escreva = (id, texto) => {
+    const alvo = document.querySelector('[data-numero="' + id + '"]');
+    if (alvo) alvo.textContent = texto;
+  };
+  escreva("biblioteca", estado.contratos + " documento(s) aberto(s)");
+  try {
+    const h = await (await fetch("/api/habilidades")).json();
+    escreva("habilidades", h.contagem.prontas + " de " + h.contagem.total + " prontas");
+  } catch (err) { /* sem numero e melhor que numero errado */ }
+  try {
+    const m = await (await fetch("/api/recursos")).json();
+    escreva("maquina", m.frase);
+  } catch (err) { /* idem */ }
+}
+
+function abrirDaBancada(id) {
+  if (id === "organizar") {
+    irPara("chat");
+    $("centro").innerHTML = "";
+    organizarComecar();
+    return;
+  }
+  if (id === "biblioteca") return mostrarBiblioteca();
+  if (id === "habilidades") return mostrarHabilidades();
+  if (id === "maquina") return mostrarMaquina();
+}
+
+async function mostrarMaquina() {
+  $("trabalho-onde").textContent = "Seu computador";
+  const alvo = $("area-trabalho");
+  alvo.innerHTML = '<div class="bancada"><p class="nota">lendo…</p></div>';
+
+  let m;
+  try {
+    m = await (await fetch("/api/recursos")).json();
+  } catch (err) {
+    alvo.innerHTML = '<div class="bancada"><p class="nota">não consegui ler: ' + esc(String(err)) + "</p></div>";
+    return;
+  }
+
+  const video = m.video.disponivel && m.video.percentual !== null
+    ? m.video.percentual + "%  (medido há " + m.video.segundos_atras + " s)"
+    : (m.video.disponivel ? "medindo…" : "sem leitura nesta máquina");
+
+  alvo.innerHTML =
+    '<div class="bancada"><button class="voltar-bancada" style="margin-bottom:14px">‹ Bancada</button>' +
+    "<h2>Seu computador</h2><p>" + esc(m.frase) + "</p>" +
+    '<div class="painel"><div class="medidor"><span class="nome">Vídeo</span>' +
+    '<span class="trilho"><i style="width:' + (m.video.percentual || 0) + '%"></i></span>' +
+    '<span class="valor" style="width:auto">' + esc(video) + "</span></div>" +
+    '<div class="medidor"><span class="nome">Memória</span>' +
+    '<span class="trilho"><i style="width:' + m.memoria.percentual + '%"></i></span>' +
+    '<span class="valor" style="width:auto">' +
+    String(m.memoria.usado_gb).replace(".", ",") + " de " +
+    String(m.memoria.total_gb).replace(".", ",") + " GB</span></div>" +
+    '<div class="medidor"><span class="nome">Processador</span>' +
+    '<span class="trilho"><i style="width:' + m.processador.percentual + '%"></i></span>' +
+    '<span class="valor" style="width:auto">' + m.processador.percentual + "%</span></div></div>" +
+    '<div class="painel" style="margin-top:12px"><h3>Ir devagar quando eu usar o PC</h3>' +
+    '<p class="explica">Com isso ligado, o PAULUS espera a máquina desafogar antes de ' +
+    "começar cada documento. A leitura demora mais e o computador continua seu.</p>" +
+    '<button id="devagar-bancada">' + (m.devagar ? "Desligar" : "Ligar") + "</button></div></div>";
+
+  alvo.querySelector(".voltar-bancada").onclick = mostrarBancada;
+  $("devagar-bancada").onclick = async () => {
+    await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ devagar: !m.devagar }),
+    });
+    mostrarMaquina();
+    carregarRecursos();
+  };
+}
+
+$("desce").onclick = () => irPara("trabalho");
+$("sobe").onclick = () => irPara("chat");
+
 /* --------------------------------------------------------- biblioteca */
 
 const bib = { documentos: [], filtro: "" };
 
 async function mostrarBiblioteca() {
-  estado.trabalhoId = null;
-  estado.trabalho = null;
-  $("conversa-titulo").textContent = "Biblioteca";
-  $("apagar").hidden = true;
-  desenharAtividade([]);
-  carregarTrabalhos();
-
-  const centro = $("centro");
+  irPara("trabalho");
+  $("trabalho-onde").textContent = "Biblioteca";
+  const centro = $("area-trabalho");
   centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
 
   let d;
@@ -1403,12 +1620,9 @@ async function mostrarBiblioteca() {
   bib.totalBytes = d.total_bytes;
   bib.totalTrechos = d.total_trechos;
 
-  $("conversa-meta").textContent = d.documentos.length
-    ? d.documentos.length + " documento(s) · " + d.total_trechos + " trechos"
-    : "nenhum documento aberto";
-
   centro.innerHTML =
-    '<div class="catalogo"><div class="bib-topo">' +
+    '<div class="catalogo"><button class="voltar-bancada" style="margin-bottom:14px">‹ Bancada</button>' +
+    '<div class="bib-topo">' +
     "<div><h2>Biblioteca</h2>" +
     '<div class="nota">' + (d.documentos.length
       ? d.documentos.length + " documento(s), " + tamanho(d.total_bytes) +
@@ -1420,12 +1634,12 @@ async function mostrarBiblioteca() {
       : "") +
     '</div><div id="bib-lista"></div></div>';
 
-  atualizarPostura();
+  centro.querySelector(".voltar-bancada").onclick = mostrarBancada;
   if (d.documentos.length) {
     $("bib-filtro").oninput = (e) => { bib.filtro = e.target.value.trim().toLowerCase(); desenharBiblioteca(); };
     desenharBiblioteca();
   }
-  $("fluxo").scrollTop = 0;
+  centro.scrollTop = 0;
 }
 
 function tamanho(bytes) {
@@ -1506,7 +1720,6 @@ async function removerDaBiblioteca(doc, linha) {
     bib.documentos = bib.documentos.filter((x) => x.sha1 !== doc.sha1);
     desenharBiblioteca();
     carregarStatus();
-    mostrarBiblioteca();
   } catch (err) {
     botao.disabled = false;
     alert("Não consegui remover: " + err);
@@ -1536,14 +1749,9 @@ function iconeHab(id) {
 }
 
 async function mostrarHabilidades() {
-  estado.trabalhoId = null;
-  estado.trabalho = null;
-  $("conversa-titulo").textContent = "O que eu sei fazer";
-  $("apagar").hidden = true;
-  desenharAtividade([]);
-  carregarTrabalhos();
-
-  const centro = $("centro");
+  irPara("trabalho");
+  $("trabalho-onde").textContent = "O que eu sei fazer";
+  const centro = $("area-trabalho");
   centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
 
   let d;
@@ -1555,9 +1763,9 @@ async function mostrarHabilidades() {
     return;
   }
 
-  $("conversa-meta").textContent = d.contagem.prontas + " de " + d.contagem.total + " prontas";
-
-  let html = '<div class="catalogo"><div class="catalogo-topo">' +
+  let html = '<div class="catalogo">' +
+    '<button class="voltar-bancada" style="margin-bottom:14px">‹ Bancada</button>' +
+    '<div class="catalogo-topo">' +
     "<h2>O que eu sei fazer</h2>" +
     "<p>Cada habilidade é uma coisa que o programa faz por inteiro. " +
     "As que ainda não existem estão marcadas — prefiro dizer do que prometer.</p></div>";
@@ -1593,15 +1801,15 @@ async function mostrarHabilidades() {
   }
 
   centro.innerHTML = html + "</div>";
-  atualizarPostura();
-
+  centro.querySelector(".voltar-bancada").onclick = mostrarBancada;
   centro.querySelectorAll(".hab-usar").forEach((b) => {
     b.onclick = () => usarHabilidade(b.dataset.acao);
   });
-  $("fluxo").scrollTop = 0;
+  centro.scrollTop = 0;
 }
 
 function usarHabilidade(acao) {
+  irPara("chat");
   if (acao === "organizacao") { $("centro").innerHTML = ""; organizarComecar(); return; }
   if (acao === "anexar") { $("nova").click(); $("arquivos").click(); return; }
   $("nova").click();
@@ -2128,6 +2336,7 @@ async function organizarAplicar() {
 
 atualizarSelo(false);
 carregarTrabalhos();
+mostrarBancada();
 carregarStatus().then(atualizarPostura);
 carregarModelo();
 carregarRecursos();
