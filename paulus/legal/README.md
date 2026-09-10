@@ -15,23 +15,26 @@ python -m venv venv && venv\Scripts\activate     # Windows
 pip install -r requirements.txt
 ollama pull llama3.2:3b
 
-python src/main.py --contracts data/samples --ask "Qual o prazo de vigencia de cada contrato?"
+python src/api.py          # interface web em http://localhost:8000
+python src/main.py         # ou o chat no terminal
 ```
 
 Detalhes em [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
-## O que ele faz hoje (Semana 1)
+## O que ele faz hoje
 
+- **Interface web** local: adicionar contratos, perguntar, buscar
 - Le contratos em **PDF, DOCX, TXT e MD**
 - Indexa por **BM25** com tokenizacao de portugues (acento e stopwords tratados)
 - Responde perguntas com **Llama local via Ollama**, citando o arquivo de origem
-- Mostra os trechos usados (`/trechos`) para voce conferir a resposta
+- Mostra os trechos que o modelo leu, e **avisa quais contratos ficaram de fora**
+  da analise
+- Chat no terminal, para quem prefere
 
 ## O que ele ainda nao faz
 
 - OCR de PDF escaneado
 - Planilha de vencimentos (Semana 2)
-- Interface web (Semana 3)
 
 ## Exemplos de pergunta
 

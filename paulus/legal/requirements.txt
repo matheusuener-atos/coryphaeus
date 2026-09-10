@@ -4,5 +4,10 @@ python-docx>=1.1.2
 rank-bm25>=0.2.2
 requests>=2.32.0
 
+# Interface web (Semana 3)
+fastapi>=0.115.0
+uvicorn>=0.32.0
+python-multipart>=0.0.12
+
 # Semana 2 (extracao de vencimentos -> Excel)
 openpyxl>=3.1.5

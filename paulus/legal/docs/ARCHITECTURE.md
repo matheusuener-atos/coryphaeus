@@ -9,6 +9,13 @@ ATOS (empresa)
           └── legal (vertical: escritorios juridicos)
 ```
 
+## Interfaces
+
+Duas portas de entrada para a mesma logica:
+
+- `src/api.py` + `frontend/` - interface web em http://localhost:8000
+- `src/main.py` - chat no terminal
+
 ## Fluxo de uma pergunta
 
 ```
@@ -37,6 +44,8 @@ Nada sai da maquina: extracao, indice e inferencia rodam localmente.
 | `src/search.py` | chunking, tokenizacao PT-BR, indice BM25, montagem do contexto |
 | `src/llama_client.py` | HTTP com o Ollama, system prompt, streaming, saida JSON |
 | `src/main.py` | CLI: carga, REPL, comandos |
+| `src/api.py` | Backend web (FastAPI): upload, busca, resposta em streaming |
+| `frontend/index.html` | Interface: uma pagina, sem build, sem dependencia externa |
 
 ## Decisoes de projeto
 
@@ -65,6 +74,22 @@ semantica entra quando a acuracia do BM25 virar o gargalo medido - nao antes.
 Extrair PDF e lento. O cache (`data/extractions/index.json`) e chaveado pelo
 hash do conteudo, entao renomear ou mover o arquivo nao invalida a extracao.
 
+**Por que a interface e um servidor local e nao uma pagina hospedada?**
+O navegador so alcanca o Ollama se a pagina vier da mesma maquina. O servidor
+escuta em `127.0.0.1` (nao em `0.0.0.0`): documento de cliente nao deve ficar
+exposto nem na rede local do escritorio.
+
+**Por que a resposta declara quais contratos ficaram de fora?**
+A busca pode nao achar trecho relevante em parte dos contratos. Se a tela nao
+disser isso, o advogado le "nao ha clausula de penalidade" onde o certo e "nao
+procurei nesse contrato". Num produto de prazos, silencio vira prazo perdido.
+
+**Por que ha um fallback por contagem de termos na busca?**
+O IDF do BM25 so e positivo para termos presentes em menos da metade dos
+trechos indexados. Com um ou dois contratos - o caso de quem acabou de subir o
+primeiro - termos relevantes zeram e a busca devolvia vazio. Quando nenhum
+trecho pontua, caimos para "quantos termos da pergunta aparecem aqui".
+
 **Por que temperatura 0.1?**
 Tarefa de extracao, nao de escrita criativa. Quanto mais deterministico, menos
 invencao.
@@ -76,11 +101,12 @@ invencao.
   prompt mitiga, nao elimina. Sempre confira com `/trechos`.
 - **Lento em CPU.** Dezenas de segundos a minutos por resposta com 3B.
 - **Indice em memoria**, reconstruido a cada execucao (rapido, via cache).
-- **Sem multiusuario, sem autenticacao, sem API.** Chega na Semana 3.
+- **Sem multiusuario e sem autenticacao.** A interface pressupoe uma pessoa
+  na propria maquina. Antes de rodar no servidor do escritorio, isso precisa
+  existir.
 
 ## Proximos passos
 
 - Semana 2: `src/extract_expiring.py` - datas de vencimento -> Excel
-- Semana 3: `src/api.py` (FastAPI) + interface web
 - Semana 4-5: validacao com contratos reais, ajuste de prompt
 - Semana 6: demo comercial

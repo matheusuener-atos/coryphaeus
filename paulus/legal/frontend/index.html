@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAULUS Legal</title>
+<style>
+  :root {
+    --tinta: #16202e;
+    --tinta-fraca: #5b6b7f;
+    --papel: #f6f7f9;
+    --papel-alto: #ffffff;
+    --borda: #dde2e9;
+    --marca: #1f4b8e;
+    --marca-fraca: #eaf0fa;
+    --alerta: #b4472c;
+    --ok: #1e7a4f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--tinta);
+    background: var(--papel);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--papel-alto);
+    border-bottom: 1px solid var(--borda);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .marca { font-size: 19px; font-weight: 650; letter-spacing: -0.2px; }
+  .marca span { color: var(--marca); }
+  .sub { color: var(--tinta-fraca); font-size: 13px; }
+  .pill {
+    margin-left: auto;
+    font-size: 12.5px;
+    color: var(--tinta-fraca);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .ponto { width: 8px; height: 8px; border-radius: 50%; background: #c3ccd8; flex-shrink: 0; }
+  .ponto.on { background: var(--ok); }
+  .ponto.off { background: var(--alerta); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  aside {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--papel-alto);
+    border-right: 1px solid var(--borda);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .aside-topo { padding: 16px; border-bottom: 1px solid var(--borda); }
+  .rotulo {
+    font-size: 11.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--tinta-fraca);
+    margin-bottom: 10px;
+  }
+  .docs { flex: 1; overflow-y: auto; padding: 10px; }
+  .doc {
+    padding: 9px 11px;
+    border-radius: 7px;
+    font-size: 13.5px;
+    word-break: break-word;
+  }
+  .doc:hover { background: var(--papel); }
+  .doc small { color: var(--tinta-fraca); display: block; font-size: 12px; }
+  .vazio { color: var(--tinta-fraca); font-size: 13.5px; padding: 12px; text-align: center; }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 7px;
+    border: 1px solid var(--borda);
+    background: var(--papel-alto);
+    padding: 8px 13px;
+    color: var(--tinta);
+  }
+  button:hover:not(:disabled) { border-color: var(--marca); color: var(--marca); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.primario {
+    background: var(--marca);
+    border-color: var(--marca);
+    color: #fff;
+    font-weight: 550;
+  }
+  button.primario:hover:not(:disabled) { background: #1a3f78; color: #fff; }
+  .largo { width: 100%; }
+
+  section.conteudo { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 0 22px;
+    background: var(--papel-alto);
+    border-bottom: 1px solid var(--borda);
+  }
+  nav button {
+    border: none;
+    background: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 12px 14px;
+    color: var(--tinta-fraca);
+    font-weight: 550;
+  }
+  nav button:hover { color: var(--tinta); }
+  nav button.ativo { color: var(--marca); border-bottom-color: var(--marca); }
+
+  .aba { flex: 1; display: none; flex-direction: column; min-height: 0; }
+  .aba.ativa { display: flex; }
+
+  .conversa { flex: 1; overflow-y: auto; padding: 24px; }
+  .limite { max-width: 780px; margin: 0 auto; }
+  .msg { margin-bottom: 22px; }
+  .msg .quem {
+    font-size: 11.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--tinta-fraca);
+    margin-bottom: 6px;
+  }
+  .msg.eu .balao {
+    background: var(--marca-fraca);
+    border-radius: 9px;
+    padding: 11px 14px;
+  }
+  .balao { white-space: pre-wrap; word-wrap: break-word; }
+  .msg.paulus .quem { color: var(--marca); }
+
+  .fontes { margin-top: 12px; }
+  .fontes summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--marca);
+    padding: 5px 0;
+    list-style: none;
+  }
+  .fontes summary::before { content: "\25B8  "; }
+  .fontes[open] summary::before { content: "\25BE  "; }
+  .trecho {
+    background: var(--papel-alto);
+    border: 1px solid var(--borda);
+    border-left: 3px solid var(--marca);
+    border-radius: 6px;
+    padding: 11px 13px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .trecho .origem {
+    font-weight: 650;
+    font-size: 12px;
+    color: var(--marca);
+    margin-bottom: 5px;
+  }
+  .trecho pre {
+    margin: 0;
+    white-space: pre-wrap;
+    font: inherit;
+    color: var(--tinta-fraca);
+    max-height: 190px;
+    overflow-y: auto;
+  }
+
+  .rodape-msg { font-size: 12px; color: var(--tinta-fraca); margin-top: 8px; }
+  .erro { color: var(--alerta); }
+  .cobertura {
+    background: #fdf4ef;
+    border: 1px solid #f0d3c4;
+    border-left: 3px solid var(--alerta);
+    border-radius: 6px;
+    padding: 10px 13px;
+    margin-bottom: 11px;
+    font-size: 13px;
+  }
+  .cobertura strong { color: var(--alerta); }
+
+  .entrada {
+    border-top: 1px solid var(--borda);
+    background: var(--papel-alto);
+    padding: 14px 24px 18px;
+    flex-shrink: 0;
+  }
+  .entrada-caixa { display: flex; gap: 10px; align-items: flex-end; }
+  textarea {
+    flex: 1;
+    font: inherit;
+    resize: none;
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: 11px 13px;
+    max-height: 150px;
+    color: inherit;
+  }
+  textarea:focus, input:focus { outline: 2px solid var(--marca-fraca); border-color: var(--marca); }
+  .aviso { font-size: 11.5px; color: var(--tinta-fraca); margin-top: 9px; text-align: center; }
+
+  .busca-topo { padding: 20px 24px 12px; }
+  input[type=search] {
+    width: 100%;
+    font: inherit;
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: 11px 13px;
+  }
+  .busca-lista { flex: 1; overflow-y: auto; padding: 6px 24px 24px; }
+  .exemplos { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .exemplos button { font-size: 13px; padding: 6px 11px; color: var(--tinta-fraca); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="marca">PAULUS <span>Legal</span></div>
+    <div class="sub">Análise de contratos &mdash; tudo roda nesta máquina</div>
+  </div>
+  <div class="pill"><span class="ponto" id="ponto"></span><span id="status">conectando…</span></div>
+</header>
+
+<main>
+  <aside>
+    <div class="aside-topo">
+      <div class="rotulo">Contratos</div>
+      <button class="primario largo" id="btn-upload">Adicionar contratos</button>
+      <input type="file" id="arquivo" multiple accept=".pdf,.docx,.txt,.md" hidden>
+      <div id="upload-msg" class="rodape-msg"></div>
+    </div>
+    <div class="docs" id="docs"><div class="vazio">carregando…</div></div>
+  </aside>
+
+  <section class="conteudo">
+    <nav>
+      <button class="ativo" data-aba="analise">Análise</button>
+      <button data-aba="busca">Busca</button>
+    </nav>
+
+    <div class="aba ativa" id="aba-analise">
+      <div class="conversa" id="conversa">
+        <div class="limite" id="thread">
+          <div class="msg paulus">
+            <div class="quem">Paulus</div>
+            <div class="balao">Adicione contratos ao lado e pergunte o que quiser sobre eles. Toda resposta vem acompanhada dos trechos que eu li, para você conferir.</div>
+            <div class="exemplos">
+              <button class="exemplo">Quais são as cláusulas de penalidade?</button>
+              <button class="exemplo">Qual o prazo de vigência de cada contrato?</button>
+              <button class="exemplo">Quanto é a multa por rescisão antecipada?</button>
+              <button class="exemplo">Quem são as partes de cada contrato?</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="entrada">
+        <div class="limite">
+          <div class="entrada-caixa">
+            <textarea id="pergunta" rows="1" placeholder="Pergunte sobre os contratos…"></textarea>
+            <button class="primario" id="enviar">Perguntar</button>
+          </div>
+          <div class="aviso">PAULUS localiza e resume o que está escrito. Confira sempre contra o contrato original.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="aba" id="aba-busca">
+      <div class="busca-topo">
+        <input type="search" id="termo" placeholder="Buscar por palavra-chave (rescisão, multa, vigência…)">
+        <div class="aviso" style="text-align:left">Busca direta no texto, sem passar pelo modelo &mdash; resposta instantânea.</div>
+      </div>
+      <div class="busca-lista" id="busca-lista"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let ocupado = false;
+
+function escapar(t) {
+  const d = document.createElement("div");
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+// ---------------------------------------------------------------- estado
+
+async function carregarStatus() {
+  try {
+    const r = await fetch("/api/status");
+    const s = await r.json();
+    $("ponto").className = "ponto " + (s.ollama ? "on" : "off");
+    $("status").textContent = s.ollama
+      ? s.modelo + " · " + s.contratos + " contrato(s) · " + s.trechos + " trecho(s)"
+      : "Ollama indisponível";
+    $("status").title = s.mensagem;
+  } catch (err) {
+    $("ponto").className = "ponto off";
+    $("status").textContent = "servidor fora do ar";
+  }
+}
+
+async function carregarDocs() {
+  const r = await fetch("/api/documents");
+  const dados = await r.json();
+  const alvo = $("docs");
+  if (!dados.documentos.length) {
+    alvo.innerHTML = '<div class="vazio">Nenhum contrato ainda.<br>Use o botão acima.</div>';
+    return;
+  }
+  alvo.innerHTML = dados.documentos.map(function (d) {
+    const mil = (d.chars / 1000).toFixed(1) + " mil caracteres";
+    const pag = d.paginas ? " · " + d.paginas + " pág." : "";
+    return '<div class="doc">' + escapar(d.nome) +
+           '<small>' + mil + pag + '</small></div>';
+  }).join("");
+}
+
+// ---------------------------------------------------------------- upload
+
+$("btn-upload").onclick = () => $("arquivo").click();
+
+$("arquivo").onchange = async (e) => {
+  const arquivos = Array.from(e.target.files);
+  if (!arquivos.length) return;
+
+  const dados = new FormData();
+  arquivos.forEach((a) => dados.append("arquivos", a));
+  $("upload-msg").textContent = "enviando " + arquivos.length + " arquivo(s)…";
+  $("btn-upload").disabled = true;
+
+  try {
+    const r = await fetch("/api/upload", { method: "POST", body: dados });
+    const res = await r.json();
+    let msg = res.salvos.length ? res.salvos.length + " adicionado(s)." : "";
+    if (res.recusados.length) {
+      msg += " " + res.recusados.length + " recusado(s): " +
+             res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ");
+    }
+    $("upload-msg").innerHTML = res.recusados.length
+      ? '<span class="erro">' + escapar(msg) + '</span>'
+      : escapar(msg);
+    await carregarDocs();
+    await carregarStatus();
+  } catch (err) {
+    $("upload-msg").innerHTML = '<span class="erro">falha no envio</span>';
+  } finally {
+    $("btn-upload").disabled = false;
+    e.target.value = "";
+  }
+};
+
+// ----------------------------------------------------------------- abas
+
+document.querySelectorAll("nav button").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach((x) => x.classList.remove("ativo"));
+    document.querySelectorAll(".aba").forEach((x) => x.classList.remove("ativa"));
+    b.classList.add("ativo");
+    $("aba-" + b.dataset.aba).classList.add("ativa");
+    if (b.dataset.aba === "busca") $("termo").focus();
+  };
+});
+
+document.querySelectorAll(".exemplo").forEach((b) => {
+  b.onclick = () => { $("pergunta").value = b.textContent; perguntar(); };
+});
+
+// -------------------------------------------------------------- pergunta
+
+function bloco(classe, quem) {
+  const div = document.createElement("div");
+  div.className = "msg " + classe;
+  div.innerHTML = '<div class="quem">' + quem + '</div><div class="balao"></div>';
+  $("thread").appendChild(div);
+  $("conversa").scrollTop = $("conversa").scrollHeight;
+  return div;
+}
+
+function renderFontes(div, dados) {
+  const trechos = dados.trechos;
+  const det = document.createElement("details");
+  det.className = "fontes";
+  det.innerHTML =
+    "<summary>Trechos que o modelo leu (" + trechos.length + " de " +
+    dados.consultados.length + " contrato(s))</summary>" +
+    trechos.map((t) =>
+      '<div class="trecho"><div class="origem">' + escapar(t.documento) +
+      " · trecho " + t.trecho + '</div><pre>' + escapar(t.texto) + '</pre></div>'
+    ).join("");
+  div.appendChild(det);
+
+  // Contrato que ficou de fora da busca precisa ser dito em voz alta, e antes
+  // da resposta: a resposta nao fala por ele.
+  if (dados.ignorados.length) {
+    const alerta = document.createElement("div");
+    alerta.className = "cobertura";
+    alerta.innerHTML =
+      "<strong>Analisou " + dados.consultados.length + " de " +
+      dados.total_contratos + " contratos.</strong> Sem trecho relevante para esta " +
+      "pergunta em: " + escapar(dados.ignorados.join(", ")) +
+      ". A resposta abaixo não fala por esses contratos.";
+    div.insertBefore(alerta, div.querySelector(".balao"));
+  }
+}
+
+async function perguntar() {
+  if (ocupado) return;
+  const pergunta = $("pergunta").value.trim();
+  if (!pergunta) return;
+
+  ocupado = true;
+  $("enviar").disabled = true;
+  $("pergunta").value = "";
+  $("pergunta").style.height = "auto";
+
+  bloco("eu", "Você").querySelector(".balao").textContent = pergunta;
+  const div = bloco("paulus", "Paulus");
+  const balao = div.querySelector(".balao");
+  balao.textContent = "consultando os contratos…";
+
+  const inicio = Date.now();
+  let primeiro = true;
+
+  try {
+    const r = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta: pergunta }),
+    });
+    if (!r.ok) throw new Error("erro " + r.status);
+
+    const leitor = r.body.getReader();
+    const dec = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const passo = await leitor.read();
+      if (passo.done) break;
+      buffer += dec.decode(passo.value, { stream: true });
+
+      const partes = buffer.split("\n\n");
+      buffer = partes.pop();
+
+      for (const parte of partes) {
+        const mTipo = parte.match(/^event: (.+)$/m);
+        const mDado = parte.match(/^data: (.*)$/m);
+        if (!mTipo || !mDado) continue;
+        const tipo = mTipo[1];
+        const dados = JSON.parse(mDado[1]);
+
+        if (tipo === "fontes") {
+          balao.textContent = "";
+          renderFontes(div, dados);
+        } else if (tipo === "token") {
+          if (primeiro) { balao.textContent = ""; primeiro = false; }
+          balao.textContent += dados.t;
+          $("conversa").scrollTop = $("conversa").scrollHeight;
+        } else if (tipo === "vazio") {
+          balao.textContent = dados.mensagem +
+            "\nTente outras palavras (ex.: rescisão, multa, vigência).";
+        } else if (tipo === "erro") {
+          balao.innerHTML = '<span class="erro">' + escapar(dados.mensagem) + '</span>';
+        } else if (tipo === "fim") {
+          const seg = ((Date.now() - inicio) / 1000).toFixed(1);
+          const p = document.createElement("div");
+          p.className = "rodape-msg";
+          p.textContent = "respondido em " + seg + "s";
+          div.appendChild(p);
+        }
+      }
+    }
+  } catch (err) {
+    balao.innerHTML = '<span class="erro">Falha ao consultar: ' + escapar(String(err)) + '</span>';
+  } finally {
+    ocupado = false;
+    $("enviar").disabled = false;
+    $("conversa").scrollTop = $("conversa").scrollHeight;
+    $("pergunta").focus();
+  }
+}
+
+$("enviar").onclick = perguntar;
+$("pergunta").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); perguntar(); }
+});
+$("pergunta").addEventListener("input", (e) => {
+  e.target.style.height = "auto";
+  e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
+});
+
+// ----------------------------------------------------------------- busca
+
+let timer;
+$("termo").addEventListener("input", (e) => {
+  clearTimeout(timer);
+  const termo = e.target.value.trim();
+  timer = setTimeout(() => buscar(termo), 250);
+});
+
+async function buscar(termo) {
+  const alvo = $("busca-lista");
+  if (!termo) { alvo.innerHTML = ""; return; }
+
+  const r = await fetch("/api/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ termo: termo }),
+  });
+  const dados = await r.json();
+
+  alvo.innerHTML = dados.resultados.length
+    ? dados.resultados.map((x) =>
+        '<div class="trecho"><div class="origem">' + escapar(x.documento) +
+        " · trecho " + x.trecho + " · relevância " + x.score +
+        '</div><pre>' + escapar(x.texto) + '</pre></div>'
+      ).join("")
+    : '<div class="vazio">Nenhum trecho encontrado.</div>';
+}
+
+carregarStatus();
+carregarDocs();
+</script>
+</body>
+</html>

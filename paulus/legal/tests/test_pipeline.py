@@ -116,6 +116,37 @@ def test_busca() -> None:
     checar(all(h.snippet for h in penalidades), "todo resultado traz um snippet")
 
 
+def test_busca_poucos_contratos() -> None:
+    """
+    Regressao: o IDF do BM25 zera (ou fica negativo) para termos presentes em
+    metade ou mais dos trechos. Com um ou dois contratos indexados a busca
+    devolvia vazio mesmo com o termo presente no texto.
+    """
+    print("\nbusca com poucos contratos indexados")
+
+    um = Document(
+        name="unico.txt",
+        path="unico.txt",
+        text="CLAUSULA 2. Multa de 15% por descumprimento contratual.",
+    )
+    searcher = ContractSearcher()
+    searcher.add_contracts([um])
+    searcher.build()
+
+    hits = searcher.search("descumprimento", top_k=3)
+    checar(bool(hits), "termo presente e encontrado com um unico contrato indexado")
+    checar(bool(searcher.format_context(hits)), "contexto montado com um unico contrato")
+    checar(searcher.search("hipoteca maritima", top_k=3) == [], "termo ausente continua vazio")
+
+    dois = Document(name="outro.txt", path="outro.txt", text="CLAUSULA 1. Prazo de 12 meses.")
+    searcher2 = ContractSearcher()
+    searcher2.add_contracts([um, dois])
+    searcher2.build()
+    achados = searcher2.search("descumprimento", top_k=3)
+    checar(bool(achados), "termo presente e encontrado com dois contratos indexados")
+    checar(achados[0].doc_name == "unico.txt", "acha o contrato certo, nao o outro")
+
+
 def test_contexto() -> None:
     print("\nmontagem do contexto para o LLM")
     docs = index_all_contracts(SAMPLES, verbose=False)
@@ -173,6 +204,7 @@ def main() -> int:
     test_chunking()
     test_merge()
     test_busca()
+    test_busca_poucos_contratos()
     test_contexto()
     test_cache()
 

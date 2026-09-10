@@ -100,6 +100,7 @@ class ContractSearcher:
         self.chunks: list[Chunk] = []
         self.documents: list[Document] = []
         self._bm25 = None
+        self._termos: list[set[str]] = []
 
     def add_contracts(self, docs: list[Document]) -> None:
         self.documents.extend(docs)
@@ -120,6 +121,7 @@ class ContractSearcher:
             return
 
         corpus = [tokenize(c.text) for c in self.chunks]
+        self._termos = [set(t) for t in corpus]
         self._bm25 = BM25Okapi(corpus)
 
     def search(self, query: str, top_k: int = 5, per_doc_limit: int = 2) -> list[Hit]:
@@ -139,6 +141,14 @@ class ContractSearcher:
             return []
 
         scores = self._bm25.get_scores(tokens)
+
+        # O IDF do BM25 so e positivo para termos presentes em menos da metade
+        # dos trechos. Com poucos contratos indexados (o caso de quem acabou de
+        # subir o primeiro), termos relevantes zeram e a busca devolveria nada.
+        # Nesse caso caimos para uma contagem de termos presentes.
+        if not any(s > 0 for s in scores):
+            scores = self._scores_por_presenca(tokens)
+
         ordem = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
 
         hits: list[Hit] = []
@@ -155,6 +165,11 @@ class ContractSearcher:
                 break
 
         return hits
+
+    def _scores_por_presenca(self, tokens: list[str]) -> list[float]:
+        """Quantos termos distintos da busca aparecem em cada trecho."""
+        procurados = set(tokens)
+        return [float(len(procurados & termos)) for termos in self._termos]
 
     def format_context(self, hits: list[Hit], max_chars: int = 6000) -> str:
         """

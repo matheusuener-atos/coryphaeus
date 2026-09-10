@@ -34,14 +34,38 @@ Os arquivos em `data/samples/` sao ficticios e servem para validar a instalacao:
 python src/main.py --contracts data/samples --ask "Qual e o prazo de vigencia de cada contrato?"
 ```
 
-## 4. Usar com seus contratos
+## 4. Abrir a interface web
+
+```bash
+python src/api.py
+```
+
+Abra <http://localhost:8000>. Pela tela voce adiciona contratos (botao
+"Adicionar contratos"), pergunta na aba **Analise** e faz busca instantanea na
+aba **Busca**.
+
+O servidor escuta so em `127.0.0.1` de proposito: ninguem na rede local
+alcanca os documentos. Para parar, Ctrl+C no terminal.
+
+```bash
+python src/api.py --contracts data/samples   # abrir com os exemplos
+python src/api.py --port 8080                # outra porta
+python src/api.py --model llama3.1:8b        # outro modelo
+```
+
+Toda resposta traz **"Trechos que o modelo leu"**. Abra antes de confiar: e o
+texto exato que o modelo recebeu. Se um contrato nao tiver trecho relevante
+para a pergunta, a tela avisa quais ficaram de fora - a resposta nao fala por
+eles.
+
+## 5. Usar com seus contratos (pelo terminal)
 
 ```bash
 # Copie PDFs/DOCXs para data/test_contracts/  (essa pasta NAO vai para o git)
 python src/main.py
 ```
 
-## 5. Comandos do chat
+## 6. Comandos do chat (CLI)
 
 | Comando | O que faz |
 |---|---|
@@ -52,7 +76,7 @@ python src/main.py
 | `/reindex` | reextrai a pasta (use depois de adicionar arquivos) |
 | `/sair` | encerra |
 
-## 6. Flags
+## 7. Flags do CLI
 
 ```bash
 python src/main.py --contracts ../outra/pasta   # outra pasta de contratos
