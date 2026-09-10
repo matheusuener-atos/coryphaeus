@@ -62,6 +62,29 @@ class Hit:
         return self.chunk.doc_name
 
 
+def _cauda(texto: str, overlap: int) -> str:
+    """
+    Ultimos caracteres de um trecho, comecando em palavra inteira.
+
+    Cortar numa posicao fixa faz o trecho seguinte comecar no meio de uma
+    palavra ("fo Unico:" no lugar de "Paragrafo Unico:"). Isso aparece na tela
+    do usuario, tanto na busca quanto nos trechos citados na resposta.
+    """
+    if overlap <= 0 or not texto:
+        return ""
+
+    cauda = texto[-overlap:]
+    if len(texto) <= overlap or texto[-overlap - 1].isspace():
+        return cauda  # ja comeca em palavra inteira
+
+    frase = cauda.find(". ")
+    if frase != -1:
+        return cauda[frase + 2 :]
+
+    espaco = re.search(r"\s", cauda)
+    return cauda[espaco.end() :] if espaco else ""
+
+
 def chunk_document(doc: Document, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[Chunk]:
     """Quebra o texto em blocos, respeitando quebras de paragrafo quando da."""
     paragrafos = [p.strip() for p in re.split(r"\n\s*\n", doc.text) if p.strip()]
@@ -72,15 +95,18 @@ def chunk_document(doc: Document, size: int = CHUNK_SIZE, overlap: int = CHUNK_O
         nonlocal buffer
         if buffer.strip():
             chunks.append(Chunk(doc.name, doc.path, len(chunks), buffer.strip()))
-            buffer = buffer[-overlap:] if overlap else ""
+            buffer = _cauda(buffer, overlap)
 
     for par in paragrafos:
-        # Paragrafo gigante (contrato sem quebras): corta na marra.
+        # Paragrafo gigante (contrato sem quebras): corta no fim de frase; nao
+        # havendo, no ultimo espaco - nunca no meio de uma palavra.
         while len(par) > size:
             corte = par[:size]
             ponto = corte.rfind(". ")
-            if ponto < size // 2:
-                ponto = size
+            ponto = ponto + 1 if ponto >= size // 2 else -1
+            if ponto == -1:
+                espaco = corte.rfind(" ")
+                ponto = espaco if espaco >= size // 2 else size
             buffer += ("\n" if buffer else "") + par[:ponto]
             flush()
             par = par[ponto:].lstrip()

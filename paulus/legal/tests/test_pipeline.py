@@ -72,6 +72,36 @@ def test_chunking() -> None:
     checar(len(chunk_document(doc_curto)) == 1, "documento curto vira um trecho so")
 
 
+def test_chunk_nao_corta_palavra() -> None:
+    """
+    Regressao: a sobreposicao cortava numa posicao fixa e o trecho seguinte
+    comecava no meio de uma palavra ("fo Unico:" no lugar de "Paragrafo
+    Unico:"). Isso aparecia na tela, nos snippets da busca.
+    """
+    print("\nlimites de palavra nos trechos")
+
+    # Palavras unicas: qualquer corte no meio produz um token inexistente.
+    palavras = [f"palavra{i:04d}" for i in range(600)]
+    texto = "\n\n".join(" ".join(palavras[i : i + 25]) for i in range(0, 600, 25))
+    doc = Document(name="p.txt", path="p.txt", text=texto)
+    vocabulario = set(palavras)
+
+    def primeiro_e_ultimo_ok(chunks: list) -> bool:
+        for c in chunks:
+            tokens = c.text.split()
+            if tokens[0] not in vocabulario or tokens[-1] not in vocabulario:
+                return False
+        return True
+
+    checar(primeiro_e_ultimo_ok(chunk_document(doc)), "paragrafos: nenhum trecho corta palavra")
+
+    # Paragrafo unico gigante, sem quebra de linha: outro caminho no codigo.
+    denso = Document(name="d.txt", path="d.txt", text=" ".join(palavras))
+    chunks_densos = chunk_document(denso)
+    checar(len(chunks_densos) > 1, "paragrafo gigante gera varios trechos")
+    checar(primeiro_e_ultimo_ok(chunks_densos), "paragrafo gigante: nenhum trecho corta palavra")
+
+
 def test_merge() -> None:
     print("\nremontagem de trechos")
     a = Chunk("c.txt", "c.txt", 0, "CLAUSULA 1. Objeto do contrato. TRECHO COMPARTILHADO ENTRE OS DOIS BLOCOS")
@@ -202,6 +232,7 @@ def main() -> int:
 
     test_normalizacao()
     test_chunking()
+    test_chunk_nao_corta_palavra()
     test_merge()
     test_busca()
     test_busca_poucos_contratos()
