@@ -240,6 +240,47 @@ def test_ponte() -> None:
     checar(naoconsumida, "pedir resultado antes de consumir e erro explicito")
 
 
+# ------------------------------------------------------------- destinos
+
+
+def test_destinos() -> None:
+    """
+    O menu do manual do sistema. Destino pronto tem que apontar para algo que a
+    interface sabe abrir; destino ainda nao construido tem que dizer o que
+    falta, senao vira botao morto sem explicacao.
+    """
+    print("\ndestinos do menu")
+    import destinos
+
+    ABRE_CONHECIDO = {"conversa", "biblioteca", "habilidades", "maquina", "organizar"}
+
+    ids = [d.id for d in destinos.DESTINOS]
+    checar(len(ids) == len(set(ids)), "nenhum id de destino repetido")
+    checar(len(destinos.DESTINOS) == 20, f"20 destinos, como o manual (achou {len(ids)})")
+    checar(
+        all(d.grupo in destinos.GRUPOS for d in destinos.DESTINOS),
+        "todo destino esta num dos quatro grupos",
+    )
+    checar(all(d.nome and d.resolve for d in destinos.DESTINOS), "todo destino diz o que resolve")
+
+    prontos = [d for d in destinos.DESTINOS if d.pronta]
+    checar(bool(prontos), "existe destino com motor")
+    checar(
+        all(d.abre in ABRE_CONHECIDO for d in prontos),
+        "destino pronto abre algo que a interface conhece",
+    )
+
+    adiante = [d for d in destinos.DESTINOS if not d.pronta]
+    checar(bool(adiante), "o menu admite o que ainda nao existe")
+    checar(all(not d.abre for d in adiante), "destino nao construido nao finge ter tela")
+    checar(all(d.precisa for d in adiante), "destino nao construido diz o que falta")
+
+    c = destinos.contagem()
+    checar(c["prontas"] < c["total"], "a contagem nao mente sobre o que existe")
+    checar(destinos.obter("conversa") is not None, "acha destino por id")
+    checar(destinos.obter("nao-existe") is None, "id desconhecido devolve None")
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - testes do registro de habilidades")
@@ -251,6 +292,7 @@ def main() -> int:
     test_id_repetido()
     test_pasta_ausente()
     test_ponte()
+    test_destinos()
 
     total = len(registro.carregar(PASTA).habilidades)
     print("\n" + "=" * 55)

@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 import requests
 
+import destinos
 import pastas
 import recursos
 import registro
@@ -140,6 +141,14 @@ def fonte(arquivo: str) -> FileResponse:
     return FileResponse(alvo, media_type="font/woff2")
 
 
+@app.get("/img/{arquivo}")
+def imagem(arquivo: str) -> FileResponse:
+    alvo = (FRONTEND_DIR / "img" / Path(arquivo).name).resolve()
+    if alvo.parent != (FRONTEND_DIR / "img").resolve() or not alvo.exists():
+        raise HTTPException(status_code=404, detail="imagem nao encontrada")
+    return FileResponse(alvo)
+
+
 @app.get("/api/status")
 def status() -> dict:
     ok, mensagem = check_ollama(estado.client.model)
@@ -194,6 +203,12 @@ def _contexto(registrar=None) -> Contexto:
         cancelado=estado.cancelar.is_set,
         antes_de_cada=lambda: recursos.esperar_maquina_livre(estado.devagar, limite_s=10),
     )
+
+
+@app.get("/api/destinos")
+def listar_destinos() -> dict:
+    """Menu lateral na ordem oficial do manual do sistema."""
+    return {"grupos": destinos.por_grupo(), "contagem": destinos.contagem()}
 
 
 @app.get("/api/habilidades")
