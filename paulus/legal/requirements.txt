@@ -15,3 +15,12 @@ psutil>=6.0.0
 
 # Semana 2 (extracao de vencimentos -> Excel)
 openpyxl>=3.1.5
+
+# Etapa 4 - certificado digital e assinatura PAdES
+# pyHanko assina; cryptography le o .pfx e protege a senha; pypdfium2 desenha
+# a pagina do PDF na tela sem depender de biblioteca baixada de CDN, porque o
+# programa roda desligado da internet; Pillow entra para o selo com imagem.
+pyHanko>=0.25.0
+cryptography>=42.0.0
+pypdfium2>=4.30.0
+Pillow>=10.0.0

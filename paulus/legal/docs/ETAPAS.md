@@ -98,7 +98,7 @@ sugerir horário livre exige o calendário existir.
 
 ---
 
-## Etapa 4 — Assinar
+## Etapa 4 — Assinar ✓ FEITA
 
 **Telas:** Certificado digital · Assinar documento
 **Tamanho:** grande, e o mais delicado de todos
@@ -108,9 +108,43 @@ O par de maior valor comercial para um escritório, e o de maior risco: mexe com
 certificado ICP-Brasil, chave privada e validade jurídica. Assinatura errada não
 é bug de interface.
 
-Duas coisas a decidir antes de começar, e nenhuma é detalhe: se dá para suportar
-só A1 (arquivo) no início, deixando A3 (token) para depois; e como testar sem um
-certificado real na mão.
+Entregue. Assinatura PAdES com certificado A1 (.pfx / .p12), feita nesta
+máquina — nada de serviço de assinatura no meio. O selo pode repetir em várias
+páginas, e o programa diz em português que a assinatura continua sendo uma só,
+cobrindo o documento inteiro: carimbar não assina.
+
+**As duas decisões que o plano deixou em aberto, e como ficaram:**
+
+*A1 primeiro, A3 depois.* Token exige driver PKCS#11 de cada fabricante. A tela
+lista os certificados já instalados no Windows — inclusive dizendo quais são
+ICP-Brasil — mas não oferece assinar por eles: a chave de um e-CPF instalado
+quase sempre vem marcada como não exportável. Melhor mostrar o que existe e
+explicar do que fingir um botão que não assina.
+
+*Certificado de teste, dizendo o que ele é.* Dá para gerar um autoassinado e
+conhecer a tela inteira. Ele assina de verdade do ponto de vista criptográfico
+e **não tem validade jurídica** — e isso aparece no cartão do certificado, na
+etiqueta do pedido na fila, na tela de confirmação, na tela de resultado e no
+registro. Um programa que mostrasse só "assinado" nos dois casos enganaria
+quem depende dele.
+
+**O que o programa recusa fazer**, porque recusar é a resposta certa:
+
+- assinar com certificado vencido
+- proteger com senha um PDF que já tem assinatura — reescrever o arquivo
+  apagaria a assinatura da outra parte
+- sobrescrever o documento original: o assinado sai em arquivo novo
+- afirmar que uma assinatura vale perante a ICP-Brasil; sem internet não dá
+  para checar revogação nem a cadeia até a raiz, então o programa responde o
+  que dá para afirmar offline — se o arquivo foi alterado depois de assinado,
+  quem assinou e quem emitiu o certificado
+
+A senha do certificado, quando guardada, fica protegida pela DPAPI do Windows —
+amarrada à conta, nunca em texto no disco. Sem guardar, ela vive na memória
+pelo prazo que a pessoa escolher.
+
+Assinar não sai sozinho: a permissão vem desligada, e o pedido para na fila da
+Etapa 1 com etiqueta de irreversível.
 
 ---
 

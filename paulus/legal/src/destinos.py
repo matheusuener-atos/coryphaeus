@@ -4,12 +4,12 @@ PAULUS - Destinos do menu lateral.
 O manual do sistema define 26 telas, 20 delas no menu, em quatro grupos. Este
 modulo e a ordem oficial desse menu.
 
-Cinco telas tem motor por tras hoje. As outras quinze entram na lista com
+Treze telas tem motor por tras hoje. As outras sete entram na lista com
 `pronta=False`: o menu mostra o produto inteiro, e quem clica numa que ainda
 nao existe recebe o que ela vai resolver e o que falta para ela existir - nao
 uma tela em branco nem um botao morto.
 
-Listar so o que ja funciona esconderia o mapa; desenhar as quinze com dado
+Listar so o que ja funciona esconderia o mapa; desenhar as sete com dado
 inventado seria pior. A terceira saida e dizer.
 """
 
@@ -84,9 +84,9 @@ DESTINOS: list[Destino] = [
         precisa=["grade de células com fórmulas", "importar CSV e XLSX"],
     ),
     Destino(
-        id="assinar", nome="Assinar documento", grupo="Documentos", icone="selo",
+        id="assinar", nome="Assinar documento", grupo="Documentos", icone="selo", pronta=True,
+        abre="assinar",
         resolve="Posicionar a assinatura no PDF e assinar com o certificado.",
-        precisa=["certificado digital instalado", "desenho do PDF na tela"],
     ),
     # ----------------------------------------------------------- escritorio
     Destino(
@@ -121,9 +121,9 @@ DESTINOS: list[Destino] = [
         resolve="O que o assistente sabe fazer, e o que ele ainda não sabe.",
     ),
     Destino(
-        id="certificado", nome="Certificado digital", grupo="Sistema", icone="cartao",
-        resolve="Cadastro do e-CPF ou e-CNPJ, validade e onde ele pode ser usado.",
-        precisa=["leitura de token A3 ou arquivo A1"],
+        id="certificado", nome="Certificado digital", grupo="Sistema", icone="cartao", pronta=True,
+        abre="certificado",
+        resolve="Cadastro do e-CPF ou e-CNPJ em arquivo A1, validade e o selo de assinatura.",
     ),
     Destino(
         id="conexoes", nome="Conexões", grupo="Sistema", icone="elo",

@@ -29,6 +29,8 @@ from pydantic import BaseModel
 import requests
 
 import aprovacoes as fila_aprovacoes
+import assinatura
+import certificado
 import destinos
 import pastas
 import recursos
@@ -67,9 +69,13 @@ TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
 APROVACOES_PATH = BASE_DIR / "data" / "aprovacoes.json"
 PREFERENCIAS_PATH = BASE_DIR / "data" / "preferencias.json"
 BASE_PATH = BASE_DIR / "data" / "paulus.db"
+CERTIFICADO_DIR = BASE_DIR / "data" / "certificado"
+COFRE_PATH = CERTIFICADO_DIR / "cofre.json"
+ASSINATURAS_PATH = BASE_DIR / "data" / "assinaturas.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+MAX_CERTIFICADO_BYTES = 8 * 1024 * 1024
 
 
 class Estado:
@@ -98,6 +104,9 @@ class Estado:
         self.cadastros = Cadastros(self.base)
         self.tarefas = Tarefas(self.base)
         self.agenda = Agenda(self.base)
+        # Certificado digital: o arquivo, o selo e o historico de assinaturas.
+        self.cofre = certificado.Cofre(COFRE_PATH, CERTIFICADO_DIR)
+        self.assinaturas = assinatura.Registro(ASSINATURAS_PATH)
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -995,7 +1004,24 @@ def _executar_mover(pedido) -> str:
     return f"{resultado.movidos} arquivo(s) movido(s)"
 
 
-EXECUTORES = {"organizar.mover": _executar_mover}
+def _executar_assinar(pedido) -> str:
+    """Assina o que estava esperando o sim na fila."""
+    senha = estado.cofre.senha_agora()
+    if not senha:
+        raise RuntimeError("a senha do certificado expirou - abra o certificado e tente de novo")
+
+    resultado = _assinar_de_fato(pedido.dados, senha)
+    if resultado.erro:
+        raise RuntimeError(resultado.erro)
+
+    aviso = "" if resultado.icp_brasil else " (certificado fora da ICP-Brasil)"
+    return f"assinado, codigo {resultado.codigo}{aviso}"
+
+
+EXECUTORES = {
+    "organizar.mover": _executar_mover,
+    "assinatura.assinar": _executar_assinar,
+}
 
 
 # ----------------------------------------------------------- preferencias
@@ -1290,6 +1316,398 @@ def organizar_desfazer(payload: PedidoDesfazer) -> dict:
     }
 
 
+
+# -------------------------------------------------- certificado e assinatura
+
+
+class SenhaCertificado(BaseModel):
+    senha: str = ""
+    guardar: bool = False
+
+
+class AjusteCofre(BaseModel):
+    minutos: int | None = None
+    pedir_confirmacao: bool | None = None
+    mostrar_documento: bool | None = None
+    lote_sem_confirmar: bool | None = None
+
+
+class DesenhoSelo(BaseModel):
+    campo: str = "desenho"          # "desenho" ou "imagem"
+    dados: str = ""                 # PNG em data URL, vindo do canvas
+
+
+class PedidoAssinatura(BaseModel):
+    arquivo: str
+    paginas: str = "ultima"
+    intervalo: str = ""
+    posicao: str = "rodape_direita"
+    x: float | None = None
+    y: float | None = None
+    senha_pdf: str = ""
+    motivo: str = ""
+    guardar_biblioteca: bool = True
+    manter_original: bool = True
+    senha_certificado: str = ""
+
+
+@app.get("/api/certificado")
+def certificado_ler() -> dict:
+    dados = estado.cofre.para_tela()
+    dados["registro"] = estado.assinaturas.para_tela(10)
+    dados["pode_assinar_sozinho"] = estado.prefs.pode("assinar")
+    return dados
+
+
+@app.get("/api/certificado/windows")
+def certificado_windows() -> dict:
+    """
+    Os certificados que ja estao no Windows.
+
+    Listar sem oferecer assinatura direta e proposital: a chave de um e-CPF
+    instalado costuma vir marcada como nao exportavel, e assinar por ela
+    exigiria falar com a CryptoAPI. A tela mostra o que existe e explica que
+    aqui se usa o arquivo .pfx.
+    """
+    return {"certificados": certificado.listar_windows()}
+
+
+@app.post("/api/certificado/arquivo")
+async def certificado_arquivo(arquivo: UploadFile) -> dict:
+    nome = arquivo.filename or "certificado.pfx"
+    if Path(nome).suffix.lower() not in (".pfx", ".p12"):
+        raise HTTPException(status_code=400, detail="o certificado A1 e um arquivo .pfx ou .p12")
+
+    conteudo = await arquivo.read()
+    if len(conteudo) > MAX_CERTIFICADO_BYTES:
+        raise HTTPException(status_code=400, detail="arquivo grande demais para um certificado")
+
+    estado.cofre.guardar_arquivo(nome, conteudo)
+    estado.cofre.esquecer_senha()
+    return estado.cofre.para_tela()
+
+
+@app.post("/api/certificado/senha")
+def certificado_senha(payload: SenhaCertificado) -> dict:
+    """
+    Confere a senha e, se a pessoa pediu, guarda protegida pela conta Windows.
+
+    A senha so vira memoria depois de abrir o certificado de verdade: guardar
+    uma senha errada faria o programa falhar mais tarde, longe daqui.
+    """
+    alvo = estado.cofre.arquivo
+    if not alvo or not alvo.exists():
+        raise HTTPException(status_code=400, detail="nenhum certificado instalado")
+
+    lido = certificado.ler(alvo, payload.senha)
+    if lido.erro:
+        raise HTTPException(status_code=400, detail=lido.erro)
+
+    estado.cofre.lembrar(payload.senha)
+    if payload.guardar and not estado.cofre.proteger(payload.senha):
+        return {
+            **estado.cofre.para_tela(),
+            "aviso": "não consegui guardar a senha nesta máquina - vou perguntar a cada assinatura",
+        }
+    return estado.cofre.para_tela()
+
+
+@app.post("/api/certificado/esquecer")
+def certificado_esquecer() -> dict:
+    """Apaga a senha guardada, mas mantem o certificado instalado."""
+    estado.cofre.dados["senha_protegida"] = ""
+    estado.cofre.dados["guardar_senha"] = False
+    estado.cofre.esquecer_senha()
+    estado.cofre.salvar()
+    return estado.cofre.para_tela()
+
+
+@app.delete("/api/certificado")
+def certificado_remover() -> dict:
+    estado.cofre.remover()
+    return estado.cofre.para_tela()
+
+
+@app.post("/api/certificado/opcoes")
+def certificado_opcoes(payload: AjusteCofre) -> dict:
+    for campo, valor in payload.model_dump(exclude_none=True).items():
+        if campo == "minutos":
+            valor = max(0, min(int(valor), 240))
+        estado.cofre.dados[campo] = valor
+    estado.cofre.salvar()
+    return estado.cofre.para_tela()
+
+
+@app.post("/api/certificado/selo")
+def certificado_selo(payload: dict) -> dict:
+    return {"selo": estado.cofre.gravar_selo(payload)}
+
+
+@app.post("/api/certificado/selo/imagem")
+def certificado_selo_imagem(payload: DesenhoSelo) -> dict:
+    """Recebe o PNG do desenho ou do logotipo, vindo como data URL."""
+    import base64
+
+    cabeca, _, corpo = payload.dados.partition(",")
+    if "image/png" not in cabeca or not corpo:
+        raise HTTPException(status_code=400, detail="esperava uma imagem PNG")
+    try:
+        conteudo = base64.b64decode(corpo)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="não consegui ler a imagem") from exc
+    if len(conteudo) > 4 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="imagem grande demais")
+
+    try:
+        nome = estado.cofre.guardar_imagem(payload.campo, conteudo)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"selo": estado.cofre.dados["selo"], "arquivo": nome}
+
+
+@app.delete("/api/certificado/selo/{campo}")
+def certificado_selo_limpar(campo: str) -> dict:
+    if campo not in ("desenho", "imagem"):
+        raise HTTPException(status_code=400, detail="campo desconhecido")
+    alvo = estado.cofre.caminho_do_selo(campo)
+    if alvo:
+        try:
+            alvo.unlink()
+        except OSError:
+            pass
+    return {"selo": estado.cofre.gravar_selo({campo: ""})}
+
+
+@app.get("/api/certificado/selo/{campo}.png")
+def certificado_selo_png(campo: str) -> FileResponse:
+    alvo = estado.cofre.caminho_do_selo(campo) if campo in ("desenho", "imagem") else None
+    if not alvo:
+        raise HTTPException(status_code=404, detail="não há imagem gravada")
+    return FileResponse(alvo, media_type="image/png")
+
+
+@app.post("/api/certificado/teste")
+def certificado_teste() -> dict:
+    """
+    Cria um certificado autoassinado para experimentar a assinatura.
+
+    Existe para dar para conhecer a tela sem um e-CPF na mao. O que sai daqui
+    assina de verdade do ponto de vista criptografico e NAO tem validade
+    juridica - a tela repete isso em cada passo, e o registro grava assim.
+    """
+    if estado.cofre.arquivo and estado.cofre.arquivo.exists():
+        raise HTTPException(
+            status_code=400,
+            detail="já existe um certificado instalado - remova antes de criar um de teste",
+        )
+    senha = "paulus"
+    alvo = certificado.gerar_de_teste(CERTIFICADO_DIR / "certificado.pfx", senha, "CERTIFICADO DE TESTE")
+    estado.cofre.dados["arquivo"] = str(alvo)
+    estado.cofre.salvar()
+    estado.cofre.lembrar(senha)
+    return {**estado.cofre.para_tela(), "senha_do_teste": senha}
+
+
+# ------------------------------------------------------------- assinar PDF
+
+
+@app.get("/api/assinar/documento")
+def assinar_documento(arquivo: str) -> dict:
+    """Quantas paginas o PDF tem, e se ja vem assinado."""
+    doc = assinatura.ler(arquivo)
+    if doc.erro:
+        raise HTTPException(status_code=400, detail=doc.erro)
+
+    cofre = estado.cofre.para_tela()
+    return {
+        "documento": doc.to_dict(),
+        "certificado": cofre["certificado"],
+        "instalado": cofre["instalado"],
+        "selo": cofre["selo"],
+        "posicoes": cofre["posicoes"],
+        "escolhas": [{"valor": k, "rotulo": v} for k, v in assinatura.ESCOLHAS_PAGINA.items()],
+        "pede_confirmacao": cofre["pedir_confirmacao"],
+        "precisa_senha": not bool(estado.cofre.senha_agora()),
+    }
+
+
+@app.get("/api/assinar/pagina")
+def assinar_pagina(arquivo: str, numero: int = 1, largura: int = 1000):
+    """A pagina desenhada como PNG, para a tela mostrar o documento."""
+    from fastapi.responses import Response
+
+    try:
+        png = assinatura.pagina_png(arquivo, numero, largura)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"não consegui desenhar a página: {exc}") from exc
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/assinar/pdfs")
+def assinar_pdfs() -> dict:
+    """Os PDFs que o programa ja conhece, para escolher sem procurar no disco."""
+    achados = []
+    for doc in estado.searcher.documents:
+        caminho = Path(doc.path)
+        if caminho.suffix.lower() != ".pdf" or not caminho.exists():
+            continue
+        achados.append({
+            "path": str(caminho),
+            "nome": caminho.name,
+            "mb": round(caminho.stat().st_size / (1024 * 1024), 2),
+            "paginas": doc.pages,
+        })
+    return {"pdfs": sorted(achados, key=lambda a: a["nome"].lower())}
+
+
+@app.post("/api/assinar")
+def assinar_agora(payload: PedidoAssinatura) -> dict:
+    """
+    Assina, ou poe o pedido na fila.
+
+    Assinatura tem efeito juridico, entao segue a mesma regra do resto: sem a
+    permissao "assinar sem revisar" ligada - e ela vem desligada -, isto nao
+    assina nada, monta o pedido e devolve para a fila de aprovacao.
+    """
+    doc = assinatura.ler(payload.arquivo)
+    if doc.erro:
+        raise HTTPException(status_code=400, detail=doc.erro)
+
+    alvo_pfx = estado.cofre.arquivo
+    if not alvo_pfx or not alvo_pfx.exists():
+        raise HTTPException(status_code=400, detail="nenhum certificado instalado")
+
+    senha = payload.senha_certificado or estado.cofre.senha_agora()
+    if not senha:
+        raise HTTPException(status_code=400, detail="preciso da senha do certificado")
+
+    cert = certificado.ler(alvo_pfx, senha)
+    if cert.erro:
+        raise HTTPException(status_code=400, detail=cert.erro)
+    if payload.senha_certificado:
+        estado.cofre.lembrar(payload.senha_certificado)
+
+    alvos = assinatura.paginas_alvo(payload.paginas, doc.paginas, payload.intervalo)
+    if not alvos:
+        raise HTTPException(status_code=400, detail="nenhuma página escolhida")
+
+    dados = {
+        **payload.model_dump(exclude={"senha_certificado"}),
+        "paginas_alvo": alvos,
+        "titular": cert.titular,
+        "icp_brasil": cert.icp_brasil,
+    }
+
+    if not estado.prefs.pode("assinar"):
+        etiquetas = ["não dá para desfazer"]
+        if not cert.icp_brasil:
+            etiquetas.append("certificado fora da ICP-Brasil")
+        pedido = estado.fila.pedir(
+            f"Assinar {Path(payload.arquivo).name}",
+            "assinatura",
+            resumo=assinatura.resumo_em_portugues(cert, doc, alvos, payload.senha_pdf),
+            etiquetas=etiquetas,
+            acao="assinatura.assinar",
+            dados=dados,
+            reversivel=False,
+        )
+        return {"aguardando_aprovacao": True, "pedido": pedido.to_dict()}
+
+    resultado = _assinar_de_fato(dados, senha)
+    if resultado.erro:
+        raise HTTPException(status_code=400, detail=resultado.erro)
+    return {"aguardando_aprovacao": False, **resultado.to_dict()}
+
+
+def _assinar_de_fato(dados: dict, senha: str) -> "assinatura.Resultado":
+    """O trabalho em si, chamado direto ou depois do sim na fila."""
+    origem = Path(dados["arquivo"])
+    destino = _nome_do_assinado(origem, dados.get("guardar_biblioteca", True))
+
+    ponto = None
+    if dados.get("x") is not None and dados.get("y") is not None:
+        ponto = (float(dados["x"]), float(dados["y"]))
+
+    resultado = assinatura.assinar(
+        origem,
+        destino,
+        arquivo_pfx=str(estado.cofre.arquivo),
+        senha=senha,
+        selo=estado.cofre.dados.get("selo") or {},
+        escolha_paginas=dados.get("paginas", "ultima"),
+        intervalo=dados.get("intervalo", ""),
+        posicao=dados.get("posicao", "rodape_direita"),
+        ponto=ponto,
+        senha_pdf=dados.get("senha_pdf", ""),
+        motivo=dados.get("motivo", ""),
+        imagem=estado.cofre.caminho_do_selo("desenho") or estado.cofre.caminho_do_selo("imagem"),
+    )
+    if resultado.erro:
+        return resultado
+
+    estado.assinaturas.anotar(resultado, origem)
+
+    if not dados.get("manter_original", True):
+        try:
+            origem.unlink()
+        except OSError:
+            pass
+
+    if dados.get("guardar_biblioteca", True):
+        estado.recarregar(force=True)
+
+    return resultado
+
+
+def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
+    """
+    Onde o assinado e gravado, sem nunca passar por cima do original.
+
+    Sobrescrever o documento de origem com a versao assinada seria perder o
+    original de um jeito que nao se desfaz.
+    """
+    pasta = estado.pasta if na_biblioteca else origem.parent
+    base = f"{origem.stem} - assinado"
+    destino = pasta / f"{base}.pdf"
+    conta = 2
+    while destino.exists():
+        destino = pasta / f"{base} ({conta}).pdf"
+        conta += 1
+    return destino
+
+
+@app.get("/api/assinar/baixar")
+def assinar_baixar(arquivo: str) -> FileResponse:
+    """Entrega o PDF assinado para o navegador salvar."""
+    alvo = Path(arquivo)
+    if not alvo.exists() or alvo.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="arquivo não encontrado")
+    return FileResponse(alvo, media_type="application/pdf", filename=alvo.name)
+
+
+@app.get("/api/assinaturas")
+def assinaturas_registro(codigo: str = "") -> dict:
+    if codigo:
+        achado = estado.assinaturas.procurar(codigo)
+        if not achado:
+            raise HTTPException(status_code=404, detail="não achei esse código no registro")
+        return {"assinatura": achado}
+    return estado.assinaturas.para_tela()
+
+
+@app.get("/api/assinaturas/conferir")
+def assinaturas_conferir(arquivo: str, senha: str = "") -> dict:
+    """
+    O que as assinaturas de um PDF dizem, lidas do proprio arquivo.
+
+    Offline nao da para checar revogacao nem a cadeia ate a raiz da ICP-Brasil.
+    O que da para afirmar - o documento foi mexido depois de assinado, ou nao -
+    e o que vale a pena responder, e e o que vai aqui.
+    """
+    return {
+        "assinaturas": assinatura.verificar(arquivo, senha),
+        "conferencia_limitada": True,
+    }
 
 def main() -> None:
     import argparse

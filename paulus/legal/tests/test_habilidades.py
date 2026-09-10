@@ -10,6 +10,7 @@ programa - que e a promessa toda da modularizacao.
 
 from __future__ import annotations
 
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -252,8 +253,12 @@ def test_destinos() -> None:
     print("\ndestinos do menu")
     import destinos
 
-    ABRE_CONHECIDO = {"conversa", "biblioteca", "habilidades", "maquina", "organizar",
-                      "aprovacoes", "config", "cadastros", "tarefas", "calendario", "agendamento"}
+    # Lido do proprio roteador da interface, nao de uma lista a parte: uma
+    # lista escrita aqui so provaria que alguem lembrou de atualiza-la, e o
+    # que precisa ser verdade e que a tela realmente sabe abrir o destino.
+    pagina = (RAIZ / "frontend" / "index.html").read_text(encoding="utf-8")
+    ABRE_CONHECIDO = set(re.findall(r'd\.abre === "([a-z]+)"', pagina))
+    checar(bool(ABRE_CONHECIDO), f"o roteador da interface foi lido ({len(ABRE_CONHECIDO)} destinos)")
 
     ids = [d.id for d in destinos.DESTINOS]
     checar(len(ids) == len(set(ids)), "nenhum id de destino repetido")
