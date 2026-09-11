@@ -424,6 +424,155 @@ def test_formulas() -> None:
     checar(c["B1"]["bruto"] == 12000.0, "mas a conta usa o numero")
 
 
+def _parcelas() -> "P.Aba":
+    """A tabela que este escritório digita: cliente, valor, honorário calculado."""
+    aba = P.Aba(nome="Parcelas")
+    aba.gravar("A1", {"valor": "Cliente"})
+    aba.gravar("B1", {"valor": "Valor"})
+    aba.gravar("C1", {"valor": "Honorário"})
+    for i, (nome, valor) in enumerate(
+            [("Carol", 3000), ("Ana", 1200), ("Bruno", 9000), ("Davi", 500)], start=2):
+        aba.gravar(f"A{i}", {"valor": nome})
+        aba.gravar(f"B{i}", {"valor": str(valor)})
+        aba.gravar(f"C{i}", {"valor": f"=B{i}*0,1"})
+    aba.gravar("B7", {"valor": "=SOMA(B2:B5)"})
+    return aba
+
+
+def test_criterio_com_numero() -> None:
+    """
+    ">1000" tem que comparar número com número.
+
+    O critério chega sempre como texto, e a comparação caía no ramo de texto:
+    letra a letra, "500" > "1000" é verdadeiro, porque "5" vem depois de "1".
+    Com isso =SOMASE(B1:B4;">1000") somava a coluna inteira — 13.700 onde o
+    certo era 13.200 — e =SOMASE(B1:B4;"<1000") devolvia zero.
+
+    A célula mostrava um número plausível, que é a pior forma de errar valor:
+    ninguém confere planilha somando de cabeça.
+    """
+    print("\ncritério com número")
+    aba = P.Aba()
+    for i, v in enumerate(["9000", "3000", "1200", "500", "pago"], start=1):
+        aba.gravar(f"B{i}", {"valor": v})
+    for ref, formula in [("D1", '=SOMASE(B1:B5;">1000")'), ("D2", '=CONT.SE(B1:B5;">1000")'),
+                         ("D3", '=SOMASE(B1:B5;"<1000")'), ("D4", '=SOMASE(B1:B5;">=1200")'),
+                         ("D5", '=CONT.SE(B1:B5;"pago")'), ("D6", "=CONT.SE(B1:B5;3000)")]:
+        aba.gravar(ref, {"valor": formula})
+
+    c = P.calcular_aba(aba)
+    esperado = {"D1": "13.200", "D2": "3", "D3": "500", "D4": "13.200", "D5": "1", "D6": "1"}
+    for ref, certo in esperado.items():
+        checar(c[ref]["texto"] == certo,
+               f"{aba.celulas[ref].valor} = {certo}", f"saiu {c[ref]['texto']}")
+
+    # Texto não é maior nem menor que mil; só "diferente de" vale sobre ele.
+    aba.gravar("D7", {"valor": '=CONT.SE(B1:B5;"<99999")'})
+    c = P.calcular_aba(aba)
+    checar(c["D7"]["texto"] == "4",
+           "célula de texto não satisfaz uma comparação numérica",
+           f"saiu {c['D7']['texto']} em vez de 4")
+
+
+def test_ordenar_a_tabela() -> None:
+    """
+    Ordenar move a linha inteira, e a fórmula vai com a linha dela.
+
+    Ordenar só a coluna escolhida embaralha a tabela — o valor da linha 7 passa
+    a valer para o cliente da linha 3 — e o estrago não aparece olhando: cada
+    célula continua com um número plausível.
+    """
+    print("\nordenar a tabela")
+    aba = _parcelas()
+    antes = P.calcular_aba(aba)
+    total_antes = antes["B7"]["texto"]
+
+    feito = P.ordenar(aba, antes, "A1:C5", "B", crescente=False, com_cabecalho=True)
+    depois = P.calcular_aba(aba)
+
+    nomes = [aba.celulas[f"A{l}"].valor for l in range(2, 6)]
+    checar(nomes == ["Bruno", "Carol", "Ana", "Davi"],
+           f"as linhas ficam na ordem do valor ({nomes})")
+    checar(aba.celulas["A1"].valor == "Cliente", "o cabeçalho não entra na ordenação")
+    checar(feito["linhas"] == 4, f"e diz quantas linhas moveu ({feito['linhas']})")
+
+    # O que importa: cada honorário continua sendo 10% do valor da SUA linha.
+    certo = all(abs(depois[f"C{l}"]["bruto"] - depois[f"B{l}"]["bruto"] * 0.1) < 0.01
+                for l in range(2, 6))
+    checar(certo, f"cada fórmula acompanhou a linha dela ({feito['formulas']} ajustadas)",
+           str([aba.celulas[f"C{l}"].valor for l in range(2, 6)]))
+    checar(depois["B7"]["texto"] == total_antes,
+           f"o total fora da faixa não se mexe ({total_antes})")
+
+    # Aspas não são referência.
+    checar(P._trocar_linha('=SE(A1="A1";B1;0)', 1, 9) == '=SE(A9="A1";B9;0)',
+           "texto entre aspas não é renumerado")
+
+    crescente = _parcelas()
+    P.ordenar(crescente, P.calcular_aba(crescente), "A1:C5", "B", com_cabecalho=True)
+    checar([crescente.celulas[f"A{l}"].valor for l in range(2, 6)] ==
+           ["Davi", "Ana", "Carol", "Bruno"], "e ordena para os dois lados")
+
+    vazias = _parcelas()
+    vazias.celulas.pop("B3")
+    P.ordenar(vazias, P.calcular_aba(vazias), "A1:C5", "B", crescente=False, com_cabecalho=True)
+    checar(vazias.celulas["A5"].valor == "Ana",
+           f"linha sem valor vai para o fim, nos dois sentidos ({vazias.celulas['A5'].valor})")
+
+    try:
+        P.ordenar(aba, depois, "A1:C5", "Z")
+        checar(False, "coluna fora da faixa vira erro")
+    except ValueError:
+        checar(True, "coluna fora da faixa vira erro, não ordenação torta")
+
+
+def test_filtrar_e_so_olhar() -> None:
+    """Filtro é jeito de olhar: devolve o que esconder, e não grava nada."""
+    print("\nfiltrar")
+    aba = _parcelas()
+    c = P.calcular_aba(aba)
+    antes = {k: v.valor for k, v in aba.celulas.items()}
+
+    r = P.filtrar(aba, c, "A1:C5", "B", ">1000")
+    checar(r["mostrando"] == 3 and r["de"] == 4, f"mostra 3 de 4 ({r})")
+    checar(r["esconder"] == [5], f"esconde a linha do valor menor ({r['esconder']})")
+    checar({k: v.valor for k, v in aba.celulas.items()} == antes,
+           "e a planilha não muda: filtro não é alteração do documento")
+
+    texto = P.filtrar(aba, c, "A1:C5", "A", "ana")
+    checar(texto["mostrando"] == 1, f"filtra por texto sem ligar para maiúscula ({texto})")
+
+
+def test_resumo_da_selecao() -> None:
+    print("\nresumo da seleção")
+    aba = _parcelas()
+    c = P.calcular_aba(aba)
+
+    checar(P.refs_da_faixa("B2:C3") == ["B2", "C2", "B3", "C3"],
+           f"a faixa vira células em ordem de leitura ({P.refs_da_faixa('B2:C3')})")
+    checar(P.refs_da_faixa("D9:B2") == P.refs_da_faixa("B2:D9"),
+           "e as pontas podem vir ao contrário")
+    checar(P.refs_da_faixa("B4") == ["B4"], "uma célula só é ela mesma")
+    checar(P.refs_da_faixa("") == [], "faixa vazia não vira nada")
+
+    r = P.resumo_selecao(aba, c, P.refs_da_faixa("B2:B5"))
+    checar(r["soma"] == 13700 and r["media"] == 3425, f"soma e média ({r['soma']}, {r['media']})")
+    checar(r["minimo"] == 500 and r["maximo"] == 9000, "mínimo e máximo")
+    checar(r["com_numero"] == 4 and r["vazias"] == 0, "conta o que é número e o que está vazio")
+
+    # Uma vazia no meio muda a média e não muda a soma - e isso não se vê.
+    aba.celulas.pop("B3")
+    r2 = P.resumo_selecao(aba, P.calcular_aba(aba), P.refs_da_faixa("B2:B5"))
+    checar(r2["vazias"] == 1 and r2["com_numero"] == 3,
+           f"a célula vazia aparece na contagem ({r2['vazias']} vazia)")
+    checar(r2["soma"] == 12500 and round(r2["media"]) == 4167,
+           f"e a média muda com ela ({r2['media']})")
+
+    com_texto = P.resumo_selecao(aba, P.calcular_aba(aba), P.refs_da_faixa("A1:A5"))
+    checar(com_texto["com_texto"] == 5 and com_texto["soma"] == 0,
+           f"coluna de texto não inventa soma ({com_texto})")
+
+
 def test_formula_erra_sem_derrubar() -> None:
     """Erro de formula vira erro na celula, nunca acao e nunca travamento."""
     print("\nformula com problema")
@@ -529,6 +678,10 @@ def main() -> int:
     test_conferir()
     test_numeros()
     test_formulas()
+    test_criterio_com_numero()
+    test_ordenar_a_tabela()
+    test_filtrar_e_so_olhar()
+    test_resumo_da_selecao()
     test_formula_erra_sem_derrubar()
     test_formula_nao_executa_nada()
     test_entrar_e_sair()

@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from pathlib import Path
 
@@ -55,6 +55,11 @@ class Celula:
     formato: str = ""
     negrito: bool = False
     italico: bool = False
+    # Borda existe para separar um quadro do resto da folha - total de
+    # honorarios, cabecalho de tabela - e por isso vai junto para o XLSX: uma
+    # planilha que perde a moldura ao ser aberta no Excel nao foi exportada
+    # inteira.
+    borda: bool = False
 
     @property
     def e_formula(self) -> bool:
@@ -64,6 +69,7 @@ class Celula:
         return {
             "valor": self.valor, "formato": self.formato,
             "negrito": self.negrito, "italico": self.italico,
+            "borda": self.borda,
         }
 
 
@@ -83,11 +89,12 @@ class Aba:
         celula = self.celulas.get(ref) or Celula()
         if "valor" in dados:
             celula.valor = str(dados["valor"])
-        for campo in ("formato", "negrito", "italico"):
+        for campo in ("formato", "negrito", "italico", "borda"):
             if campo in dados:
                 setattr(celula, campo, dados[campo] if campo == "formato" else bool(dados[campo]))
 
-        if not celula.valor and not celula.formato and not celula.negrito and not celula.italico:
+        if (not celula.valor and not celula.formato and not celula.negrito
+                and not celula.italico and not celula.borda):
             self.celulas.pop(ref, None)
             return celula
 
@@ -448,10 +455,34 @@ def _criterio(valores: list, criterio) -> list[bool]:
     achado = re.match(r"^(<=|>=|<>|<|>|=)\s*(.*)$", bruto)
     operador, alvo = (achado.group(1), achado.group(2)) if achado else ("=", bruto)
 
+    # ">1000" compara numero com numero.
+    #
+    # O criterio chega sempre como texto, e sem esta conversao a comparacao
+    # caia no ramo de texto: letra a letra, "500" > "1000" e verdadeiro, porque
+    # "5" vem depois de "1". Com isso =SOMASE(B1:B4;">1000") somava a coluna
+    # inteira - 13.700 onde o certo era 13.200 - e =SOMASE(B1:B4;"<1000")
+    # devolvia zero. A celula mostrava um numero plausivel, que e a pior forma
+    # de errar valor.
+    numerico = numero(alvo)
+    if numerico is None:
+        saida = []
+        for v in valores:
+            try:
+                saida.append(_comparar(operador, v, alvo))
+            except ErroFormula:
+                saida.append(False)
+        return saida
+
     saida = []
     for v in valores:
+        n = v if isinstance(v, (int, float)) and not isinstance(v, bool) else numero(v)
+        if n is None:
+            # Celula de texto ou vazia nao e maior nem menor que 1000; so
+            # "diferente de" e verdadeiro sobre ela.
+            saida.append(operador == "<>")
+            continue
         try:
-            saida.append(_comparar(operador, v, alvo))
+            saida.append(_comparar(operador, float(n), numerico))
         except ErroFormula:
             saida.append(False)
     return saida
@@ -667,17 +698,196 @@ def resumo(aba: Aba, calculado: dict) -> dict:
     }
 
 
+# ------------------------------------------------------ trabalhar em faixa
+
+
+def cantos(faixa: str) -> tuple[int, int, int, int]:
+    """(linha1, coluna1, linha2, coluna2) de "B9:D2", ja em ordem e contando de 0."""
+    inicio, _, fim = str(faixa or "").upper().partition(":")
+    l1, c1 = _posicao(inicio)
+    l2, c2 = _posicao(fim or inicio)
+    return min(l1, l2), min(c1, c2), max(l1, l2), max(c1, c2)
+
+
+def refs_da_faixa(faixa: str) -> list[str]:
+    """As celulas de "B2:D9", em ordem de leitura. Uma celula so vira ela mesma."""
+    if not str(faixa or "").strip():
+        return []
+    l1, c1, l2, c2 = cantos(faixa)
+    return [f"{letra_da_coluna(c)}{l + 1}"
+            for l in range(l1, l2 + 1) for c in range(c1, c2 + 1)]
+
+
 def resumo_selecao(aba: Aba, calculado: dict, refs: list[str]) -> dict:
-    numeros = []
+    """
+    O que a seleção tem dentro.
+
+    Soma e média respondem a pergunta comum; mínimo, máximo e quantas estão
+    vazias respondem a segunda: "esse total está certo?". Uma célula vazia no
+    meio de uma coluna de parcelas muda a média e não muda a soma, e é o tipo
+    de coisa que não se vê olhando.
+    """
+    numeros, textos, vazias, erros = [], 0, 0, 0
     for ref in refs:
-        valor = (calculado.get(ref.upper()) or {}).get("bruto")
+        pronta = calculado.get(ref.upper()) or {}
+        if pronta.get("erro"):
+            erros += 1
+            continue
+        valor = pronta.get("bruto")
         if isinstance(valor, (int, float)) and not isinstance(valor, bool):
             numeros.append(valor)
+        elif str(pronta.get("texto", "")).strip():
+            textos += 1
+        else:
+            vazias += 1
+
     return {
         "quantas": len(refs),
         "com_numero": len(numeros),
+        "com_texto": textos,
+        "vazias": vazias,
+        "erros": erros,
         "soma": round(sum(numeros), 2) if numeros else 0,
         "media": round(sum(numeros) / len(numeros), 2) if numeros else 0,
+        "minimo": round(min(numeros), 2) if numeros else 0,
+        "maximo": round(max(numeros), 2) if numeros else 0,
+    }
+
+
+# Referencia de celula dentro de uma formula. O olhar para tras evita cortar
+# "AB12" no meio, e o olhar para frente evita confundir nome de funcao.
+RE_REF_FORMULA = re.compile(r"(?<![A-Z0-9_$])([A-Z]{1,2})(\d{1,4})(?![0-9(])")
+
+
+def _trocar_linha(valor: str, de: int, para: int) -> str:
+    """
+    Referencias a linha `de` passam a apontar para a linha `para`.
+
+    Numa tabela de parcelas, =B7*0,1 na linha 7 tem que virar =B9*0,1 quando a
+    linha 7 for para a 9 - senao ordenar troca silenciosamente a conta de cada
+    linha, que e o pior estrago que uma planilha pode sofrer sem avisar.
+
+    O que aponta para OUTRA linha fica onde estava: e referencia a um total, a
+    uma taxa, a uma celula fora da tabela.
+    """
+    if de == para or not str(valor).startswith("="):
+        return valor
+
+    saida = []
+    # Fora das aspas apenas: ="A1" e texto, nao referencia.
+    for pedaco in re.split(r'("(?:[^"]|"")*")', valor):
+        if pedaco.startswith('"'):
+            saida.append(pedaco)
+            continue
+        saida.append(RE_REF_FORMULA.sub(
+            lambda m: f"{m.group(1)}{para}" if int(m.group(2)) == de else m.group(0),
+            pedaco))
+    return "".join(saida)
+
+
+def _chave_de_ordem(pronta: dict):
+    """Numero antes de texto, e vazio sempre por ultimo, nos dois sentidos."""
+    valor = pronta.get("bruto")
+    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        return (1, float(valor), "")
+    texto = str(pronta.get("texto", "")).strip()
+    if not texto:
+        return (9, 0.0, "")
+    return (2, 0.0, _sem_acento(texto).lower())
+
+
+def ordenar(aba: Aba, calculado: dict, faixa: str, coluna: str,
+            crescente: bool = True, com_cabecalho: bool = False) -> dict:
+    """
+    Ordena as linhas de uma faixa por uma coluna.
+
+    A linha inteira anda junto. Ordenar so a coluna escolhida embaralha a
+    tabela - o valor da linha 7 passa a valer para o cliente da linha 3 - e
+    esse estrago nao aparece olhando: cada celula continua com um numero
+    plausivel. Por isso a faixa e a tabela inteira, e nao uma coluna.
+
+    Ordena pelo valor CALCULADO: uma coluna de formulas se ordena pelo
+    resultado, que e o que a pessoa ve.
+    """
+    l1, c1, l2, c2 = cantos(faixa)
+    alvo = indice_da_coluna(str(coluna or "").upper().strip() or letra_da_coluna(c1))
+    if not (c1 <= alvo <= c2):
+        raise ValueError("a coluna de ordenação está fora da faixa")
+
+    primeira = l1 + 1 if com_cabecalho else l1
+    if primeira >= l2:
+        return {"linhas": 0, "formulas": 0}
+
+    # Cada linha vira uma copia antes de qualquer escrita: ordenar no lugar
+    # sobrescreveria celulas que ainda nao foram lidas.
+    linhas = []
+    for linha in range(primeira, l2 + 1):
+        celulas = {}
+        for coluna_i in range(c1, c2 + 1):
+            ref = f"{letra_da_coluna(coluna_i)}{linha + 1}"
+            existente = aba.celulas.get(ref)
+            if existente:
+                celulas[coluna_i] = replace(existente)
+        chave = _chave_de_ordem(calculado.get(f"{letra_da_coluna(alvo)}{linha + 1}") or {})
+        linhas.append((chave, linha, celulas))
+
+    # Vazio por ultimo nos dois sentidos: inverter a ordem nao pode jogar as
+    # linhas em branco para o topo da tabela.
+    vazias = [x for x in linhas if x[0][0] == 9]
+    cheias = [x for x in linhas if x[0][0] != 9]
+    cheias.sort(key=lambda x: x[0], reverse=not crescente)
+    ordenadas = cheias + vazias
+
+    ajustadas = 0
+    for posicao, (_, de_linha, celulas) in enumerate(ordenadas):
+        para_linha = primeira + posicao
+        for coluna_i in range(c1, c2 + 1):
+            ref = f"{letra_da_coluna(coluna_i)}{para_linha + 1}"
+            celula = celulas.get(coluna_i)
+            if celula is None:
+                aba.celulas.pop(ref, None)
+                continue
+            novo = _trocar_linha(celula.valor, de_linha + 1, para_linha + 1)
+            if novo != celula.valor:
+                ajustadas += 1
+            celula.valor = novo
+            aba.celulas[ref] = celula
+
+    return {"linhas": len(ordenadas), "formulas": ajustadas}
+
+
+def filtrar(aba: Aba, calculado: dict, faixa: str, coluna: str, criterio: str,
+            com_cabecalho: bool = True) -> dict:
+    """
+    Quais linhas da faixa NAO casam com o criterio.
+
+    Devolve as linhas a esconder, e nao uma planilha nova: filtro e jeito de
+    olhar, nao alteracao do documento. Um filtro gravado esconderia linhas de
+    quem abrisse o arquivo depois sem saber que havia filtro - e uma tabela de
+    parcelas com linhas faltando e um erro que ninguem percebe.
+
+    O criterio e o mesmo de SOMASE: "pago", ">1000", "<>0".
+    """
+    l1, c1, l2, c2 = cantos(faixa)
+    alvo = indice_da_coluna(str(coluna or "").upper().strip() or letra_da_coluna(c1))
+    if not (c1 <= alvo <= c2):
+        raise ValueError("a coluna do filtro está fora da faixa")
+
+    primeira = l1 + 1 if com_cabecalho else l1
+    valores, numeros = [], []
+    for linha in range(primeira, l2 + 1):
+        pronta = calculado.get(f"{letra_da_coluna(alvo)}{linha + 1}") or {}
+        bruto = pronta.get("bruto")
+        valores.append(bruto if bruto is not None else pronta.get("texto", ""))
+        numeros.append(linha)
+
+    casa = _criterio(valores, criterio)
+    esconder = [linha + 1 for linha, ok in zip(numeros, casa) if not ok]
+    return {
+        "esconder": esconder,
+        "mostrando": len(numeros) - len(esconder),
+        "de": len(numeros),
+        "coluna": letra_da_coluna(alvo),
     }
 
 
@@ -786,6 +996,11 @@ def para_xlsx(abas: list[Aba], calculados: list[dict]) -> bytes:
                 from openpyxl.styles import Font
 
                 folha[ref].font = Font(bold=celula.negrito, italic=celula.italico)
+            if celula.borda:
+                from openpyxl.styles import Border, Side
+
+                fio = Side(style="thin")
+                folha[ref].border = Border(left=fio, right=fio, top=fio, bottom=fio)
         if aba.congelar_cabecalho:
             folha.freeze_panes = "A2"
 
@@ -810,6 +1025,7 @@ def de_dict(bruto: dict) -> list[Aba]:
                     formato=str(dados.get("formato", "")),
                     negrito=bool(dados.get("negrito")),
                     italico=bool(dados.get("italico")),
+                    borda=bool(dados.get("borda")),
                 )
         abas.append(aba)
     return abas or [Aba()]

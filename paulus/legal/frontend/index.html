@@ -1741,11 +1741,29 @@
     cursor: cell;
   }
   .pl-cel.escolhida { outline: 2px solid var(--acento); outline-offset: -2px; }
+  .pl-cel.na-faixa { background: var(--acento-fraco); }
   .pl-cel.numero { text-align: right; font-variant-numeric: tabular-nums; }
   .pl-cel.formula { color: var(--ink); }
   .pl-cel.ruim { color: var(--atencao); }
   .pl-cel.forte { font-weight: 600; }
   .pl-cel.inclinada { font-style: italic; }
+  .pl-grade td.pl-cel.com-borda { border: 1px solid var(--ink-3); }
+
+  /* O cabeçalho de letras já era preso no topo; congelar prende a primeira
+     linha de dados logo abaixo dele — a linha com "Cliente", "Valor". Sem ela
+     à vista, rolar uma tabela de parcelas vira adivinhação de coluna. */
+  .pl-caixa.congelada tbody tr:first-child td {
+    position: sticky; top: 27px; z-index: 1; background: var(--surface-2);
+  }
+  .pl-caixa.congelada tbody tr:first-child td.cabeca-linha { z-index: 2; }
+
+  .pl-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .pl-check input { width: auto; }
+  .pl-filtro-aviso {
+    margin-top: 10px; padding: 8px 12px; font-size: 12px;
+    border: 1px solid var(--atencao); color: var(--ink-2);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
   .pl-cel input {
     width: 100%; height: 25px; border: none; background: var(--surface-1);
     color: inherit; font: 400 12.5px var(--sans); padding: 0 5px; min-width: 0;
@@ -9776,6 +9794,12 @@ function desenharPlanilha() {
     '<span class="ed-divisa"></span>' +
     '<button id="pl-negrito"><b>B</b></button>' +
     '<button id="pl-italico"><i>I</i></button>' +
+    '<button id="pl-borda">Borda</button>' +
+    '<span class="ed-divisa"></span>' +
+    '<button id="pl-congelar" class="' + (aba.congelar_cabecalho ? "on" : "") + '">' +
+    "Congelar 1ª linha</button>" +
+    '<button id="pl-ordenar">Ordenar</button>' +
+    '<button id="pl-filtrar">Filtrar</button>' +
     '<span class="ed-divisa"></span>' +
     '<button id="pl-funcoes">Fórmulas</button>' +
     '<button id="pl-limpar">Limpar célula</button></div>';
@@ -9793,6 +9817,11 @@ function desenharPlanilha() {
     (p.abas.length > 1 ? '<button class="perigo" id="pl-tirar-aba">Apagar aba</button>' : "") +
     "</div>" +
     '<div class="pl-status" id="pl-selecao"></div>' +
+    (escr.filtro
+      ? '<div class="pl-filtro-aviso">Filtro ligado na coluna ' + esc(escr.filtro.coluna) +
+        ": mostrando " + escr.filtro.mostrando + " de " + plural(escr.filtro.de, "linha") +
+        '. O arquivo continua inteiro. <button id="pl-filtro-fora">Mostrar tudo</button></div>'
+      : "") +
     '<div id="pl-abaixo"></div></div>';
 
   html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
@@ -9815,12 +9844,17 @@ function desenharPlanilha() {
 }
 
 function gradePlanilha(aba, calc) {
-  let html = '<div class="pl-caixa"><table class="pl-grade"><thead><tr><th class="canto"></th>';
-  for (let c = 0; c < aba.colunas; c++) html += "<th>" + letraColuna(c) + "</th>";
+  const escondidas = escr.filtro ? new Set(escr.filtro.esconder) : null;
+  let html = '<div class="pl-caixa' + (aba.congelar_cabecalho ? " congelada" : "") +
+    '"><table class="pl-grade"><thead><tr><th class="canto"></th>';
+  for (let c = 0; c < aba.colunas; c++) {
+    html += '<th data-coluna="' + letraColuna(c) + '">' + letraColuna(c) + "</th>";
+  }
   html += "</tr></thead><tbody>";
 
   for (let l = 1; l <= aba.linhas; l++) {
-    html += '<tr><td class="cabeca-linha">' + l + "</td>";
+    if (escondidas && escondidas.has(l)) continue;
+    html += '<tr><td class="cabeca-linha" data-linha="' + l + '">' + l + "</td>";
     for (let c = 0; c < aba.colunas; c++) {
       const ref = letraColuna(c) + l;
       const v = calc[ref];
@@ -9834,6 +9868,7 @@ function gradePlanilha(aba, calc) {
       }
       if (cel && cel.negrito) classes.push("forte");
       if (cel && cel.italico) classes.push("inclinada");
+      if (cel && cel.borda) classes.push("com-borda");
       html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '">' +
         (v ? esc(v.texto) : "") + "</td>";
     }
@@ -9862,9 +9897,34 @@ function ligarPlanilha() {
   const p = escr.pl;
   const aba = p.abas[escr.aba];
 
+  /* Arrastar para selecionar, e shift para esticar — os dois jeitos que
+     qualquer planilha tem, porque são os dois que a pessoa já sabe. */
+  let arrastando = false;
   document.querySelectorAll("[data-ref]").forEach((td) => {
-    td.onclick = () => escolherCelula(td.dataset.ref);
+    td.onmousedown = (e) => {
+      arrastando = true;
+      escolherCelula(td.dataset.ref, e.shiftKey);
+      e.preventDefault();
+    };
+    td.onmouseenter = () => { if (arrastando) escolherCelula(td.dataset.ref, true); };
     td.ondblclick = () => { escolherCelula(td.dataset.ref); $("pl-entrada").focus(); };
+  });
+  document.addEventListener("mouseup", () => { arrastando = false; });
+
+  /* Clicar no cabeçalho seleciona a coluna ou a linha inteira. */
+  document.querySelectorAll("[data-coluna]").forEach((th) => {
+    th.onclick = () => {
+      const letra = th.dataset.coluna;
+      escolherCelula(letra + "1");
+      escolherCelula(letra + aba.linhas, true);
+    };
+  });
+  document.querySelectorAll("[data-linha]").forEach((td) => {
+    td.onclick = () => {
+      const linha = td.dataset.linha;
+      escolherCelula("A" + linha);
+      escolherCelula(letraColuna(aba.colunas - 1) + linha, true);
+    };
   });
   document.querySelectorAll("[data-aba]").forEach((b) => {
     b.onclick = () => { escr.aba = Number(b.dataset.aba); escr.celula = "A1"; desenharPlanilha(); };
@@ -9877,10 +9937,10 @@ function ligarPlanilha() {
   };
 
   $("pl-formato").value = (aba.celulas[escr.celula] || {}).formato || "";
-  $("pl-formato").onchange = (e) => gravarCelula(null, { formato: e.target.value });
-  $("pl-negrito").onclick = () => gravarCelula(null, { negrito: !((aba.celulas[escr.celula] || {}).negrito) });
-  $("pl-italico").onclick = () => gravarCelula(null, { italico: !((aba.celulas[escr.celula] || {}).italico) });
-  $("pl-limpar").onclick = () => gravarCelula("");
+  $("pl-formato").onchange = (e) => aplicarNaFaixa({ formato: e.target.value });
+  $("pl-negrito").onclick = () => aplicarNaFaixa({ negrito: !((aba.celulas[escr.celula] || {}).negrito) });
+  $("pl-italico").onclick = () => aplicarNaFaixa({ italico: !((aba.celulas[escr.celula] || {}).italico) });
+  $("pl-limpar").onclick = () => aplicarNaFaixa({ valor: "" });
 
   $("pl-voltar").onclick = () => listaDocumentos("planilha", "Planilha");
   $("pl-titulo").onchange = async () => {
@@ -9945,36 +10005,257 @@ function ligarPlanilha() {
         '<span class="explica">' + esc(f.explica) + "</span></div>").join("") + "</div>";
   };
 
+  $("pl-borda").onclick = () => {
+    const cel = aba.celulas[escr.celula] || {};
+    aplicarNaFaixa({ borda: !cel.borda });
+  };
+  $("pl-congelar").onclick = async () => {
+    const r = await fetch("/api/planilha/" + p.id + "/congelar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aba: escr.aba, congelar: !aba.congelar_cabecalho }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    escr.pl = await r.json();
+    desenharPlanilha();
+  };
+  $("pl-ordenar").onclick = () => painelTabela("ordenar");
+  $("pl-filtrar").onclick = () => painelTabela("filtrar");
+  // O aviso de filtro fica na tela o tempo todo: linha escondida que a pessoa
+  // esqueceu e uma tabela de parcelas com linhas faltando.
+  const fora = $("pl-filtro-fora");
+  if (fora) fora.onclick = () => { escr.filtro = null; desenharPlanilha(); };
+
   $("pl-pedir").onclick = pedirFormula;
   $("pl-pedido").onkeydown = (e) => { if (e.key === "Enter") pedirFormula(); };
+  pintarSelecao();
   mostrarSelecao();
+}
+
+/* Negrito, itálico, borda e formato valem para a seleção inteira. Uma célula
+   de cada vez obriga a repetir o clique por linha — e numa tabela de parcelas
+   ninguém faz isso, simplesmente deixa sem. */
+async function aplicarNaFaixa(dados) {
+  const faixa = faixaAtual();
+  if (!faixa.includes(":")) return gravarCelula(null, dados);
+
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/faixa", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aba: escr.aba, faixa: faixa, ...dados }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  escr.pl = await r.json();
+  desenharPlanilha();
+}
+
+/* ------------------------------------------------------ ordenar e filtrar
+
+   As duas perguntas que se faz a uma tabela de parcelas: "quem deve mais?" e
+   "o que ainda está em aberto?". Uma reordena o documento e a outra só muda o
+   jeito de olhar — e a tela diz qual é qual, porque a diferença importa. */
+
+function painelTabela(acao, memoria) {
+  const lembra = memoria || {};
+  const faixa = lembra.faixa || faixaAtual();
+  const alvo = $("pl-abaixo");
+  if (!faixa.includes(":")) {
+    alvo.innerHTML = '<div class="painel" style="margin-top:14px">' +
+      "<h3>" + (acao === "ordenar" ? "Ordenar" : "Filtrar") + "</h3>" +
+      '<p class="explica">Selecione antes a tabela inteira — arrastando, ou clicando na ' +
+      "letra da coluna. Com uma célula só não dá para saber que linhas andam juntas, e " +
+      "ordenar a coluna errada embaralha a tabela sem deixar marca.</p></div>";
+    return;
+  }
+
+  const letras = [];
+  const m = /^([A-Z]{1,2})\d+:([A-Z]{1,2})\d+$/.exec(faixa);
+  if (m) {
+    for (let c = letraParaIndice(m[1]); c <= letraParaIndice(m[2]); c += 1) {
+      letras.push(letraColuna(c));
+    }
+  }
+
+  const colunas = '<select id="pl-tab-coluna">' +
+    letras.map((l) => '<option value="' + l + '"' +
+      (l === lembra.coluna ? " selected" : "") + ">coluna " + l + "</option>").join("") +
+    "</select>";
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:14px">' +
+    "<h3>" + (acao === "ordenar" ? "Ordenar " : "Filtrar ") + esc(faixa) + "</h3>" +
+    (acao === "ordenar"
+      ? '<p class="explica">A linha inteira anda junto, e a fórmula vai com a linha dela: ' +
+        "=B7*0,1 na linha 7 vira =B9*0,1 quando a linha 7 for para a 9. " +
+        "Isto muda o documento e cria uma versão — dá para voltar no Histórico.</p>" +
+        '<div class="linha-form">' + colunas +
+        '<select id="pl-tab-ordem"><option value="1">crescente</option>' +
+        '<option value="0">decrescente</option></select>' +
+        '<label class="pl-check"><input type="checkbox" id="pl-tab-cabecalho" checked> ' +
+        "a primeira linha é cabeçalho</label></div>" +
+        '<div class="linha-form"><button class="primario" id="pl-tab-fazer">Ordenar</button>' +
+        '<button id="pl-tab-fechar">Fechar</button></div>'
+      : '<p class="explica">Filtro é jeito de olhar: esconde linhas na tela e não mexe no ' +
+        "arquivo. Critério igual ao de SOMASE — <code>pago</code>, <code>&gt;1000</code>, " +
+        "<code>&lt;&gt;0</code>.</p>" +
+        '<div class="linha-form">' + colunas +
+        '<input type="text" id="pl-tab-criterio" placeholder="&gt;1000" value="' +
+        esc(lembra.criterio || "") + '">' +
+        '<label class="pl-check"><input type="checkbox" id="pl-tab-cabecalho" checked> ' +
+        "a primeira linha é cabeçalho</label></div>" +
+        '<div class="linha-form"><button class="primario" id="pl-tab-fazer">Filtrar</button>' +
+        (escr.filtro ? '<button id="pl-tab-limpar">Limpar filtro</button>' : "") +
+        '<button id="pl-tab-fechar">Fechar</button></div>') +
+    '<p class="explica" id="pl-tab-nota"></p></div>';
+
+  $("pl-tab-fechar").onclick = () => { alvo.innerHTML = ""; };
+  const limpar = $("pl-tab-limpar");
+  if (limpar) limpar.onclick = () => { escr.filtro = null; desenharPlanilha(); };
+  $("pl-tab-fazer").onclick = () => (acao === "ordenar" ? fazerOrdenar(faixa) : fazerFiltrar(faixa));
+}
+
+async function fazerOrdenar(faixa) {
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/ordenar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      aba: escr.aba, faixa: faixa, coluna: $("pl-tab-coluna").value,
+      crescente: $("pl-tab-ordem").value === "1",
+      com_cabecalho: $("pl-tab-cabecalho").checked,
+    }),
+  });
+  if (!r.ok) { $("pl-tab-nota").textContent = await erroDe(r); return; }
+  const d = await r.json();
+  escr.pl = d;
+  escr.filtro = null;
+  desenharPlanilha();
+  avisoCert(plural(d.ordenou.linhas, "linha") + " reordenada" +
+    (d.ordenou.linhas === 1 ? "" : "s") +
+    (d.ordenou.formulas
+      ? " · " + plural(d.ordenou.formulas, "fórmula") + " acompanhou a linha"
+      : ""));
+}
+
+async function fazerFiltrar(faixa) {
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/filtrar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      aba: escr.aba, faixa: faixa, coluna: $("pl-tab-coluna").value,
+      criterio: $("pl-tab-criterio").value,
+      com_cabecalho: $("pl-tab-cabecalho").checked,
+    }),
+  });
+  if (!r.ok) { $("pl-tab-nota").textContent = await erroDe(r); return; }
+  escr.filtro = await r.json();
+  const lembra = {
+    faixa: faixa, coluna: $("pl-tab-coluna").value,
+    criterio: $("pl-tab-criterio").value,
+  };
+  // Redesenhar a grade apaga o painel; ele volta com o que estava escolhido.
+  // Um painel dizendo "coluna A" enquanto o filtro roda na B e pior que
+  // painel nenhum.
+  desenharPlanilha();
+  painelTabela("filtrar", lembra);
+  $("pl-tab-nota").textContent = "mostrando " + escr.filtro.mostrando + " de " +
+    plural(escr.filtro.de, "linha") + " · o arquivo continua inteiro";
 }
 
 function corpoDaPlanilha() {
   return JSON.stringify({ versao: 1, abas: escr.pl.abas });
 }
 
-function escolherCelula(ref) {
-  escr.celula = ref;
+function escolherCelula(ref, estender) {
   const aba = escr.pl.abas[escr.aba];
-  $("pl-ref").textContent = ref;
+  if (estender && escr.celula) {
+    escr.ancora = escr.ancora || escr.celula;
+  } else {
+    escr.ancora = ref;
+  }
+  escr.celula = ref;
+
+  $("pl-ref").textContent = escr.ancora === ref ? ref : escr.ancora + ":" + ref;
   $("pl-entrada").value = valorCru(aba, ref);
   $("pl-formato").value = (aba.celulas[ref] || {}).formato || "";
-  document.querySelectorAll("[data-ref]").forEach((td) => {
-    td.classList.toggle("escolhida", td.dataset.ref === ref);
-  });
+  pintarSelecao();
   mostrarSelecao();
 }
 
-function mostrarSelecao() {
+/* ------------------------------------------------- selecionar um pedaço
+
+   Uma célula de cada vez respondia "quanto é esta?". A pergunta que se faz
+   numa tabela de parcelas é outra: "quanto dá esta coluna, e quantas linhas
+   tem?". Para isso a seleção precisa ser um retângulo. */
+
+function refsDaFaixa(a, b) {
+  const p = (r) => {
+    const m = /^([A-Z]{1,2})(\d{1,4})$/.exec(r || "");
+    return m ? [Number(m[2]), letraParaIndice(m[1])] : [1, 0];
+  };
+  const [l1, c1] = p(a);
+  const [l2, c2] = p(b);
+  const saida = [];
+  for (let l = Math.min(l1, l2); l <= Math.max(l1, l2); l += 1) {
+    for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c += 1) {
+      saida.push(letraColuna(c) + l);
+    }
+  }
+  return saida;
+}
+
+function letraParaIndice(letras) {
+  let total = 0;
+  for (const c of letras.toUpperCase()) total = total * 26 + (c.charCodeAt(0) - 64);
+  return total - 1;
+}
+
+function faixaAtual() {
+  const a = escr.ancora || escr.celula;
+  return a === escr.celula ? escr.celula : a + ":" + escr.celula;
+}
+
+function pintarSelecao() {
+  const dentro = new Set(refsDaFaixa(escr.ancora || escr.celula, escr.celula));
+  document.querySelectorAll("[data-ref]").forEach((td) => {
+    td.classList.toggle("escolhida", td.dataset.ref === escr.celula);
+    td.classList.toggle("na-faixa", dentro.has(td.dataset.ref) && td.dataset.ref !== escr.celula);
+  });
+}
+
+async function mostrarSelecao() {
   const calc = escr.pl.calculado[escr.aba];
   const v = calc[escr.celula];
   const alvo = $("pl-selecao");
   if (!alvo) return;
-  alvo.innerHTML = "<span>" + escr.celula + "</span>" +
-    (v && v.formula ? "<span>" + esc(v.formula) + "</span>" : "") +
-    (v && typeof v.bruto === "number" ? "<span>valor " + moedaBR(v.bruto) + "</span>" : "") +
-    (v && v.erro ? "<span>a fórmula não fechou</span>" : "");
+
+  const faixa = faixaAtual();
+  if (!faixa.includes(":")) {
+    alvo.innerHTML = "<span>" + escr.celula + "</span>" +
+      (v && v.formula ? "<span>" + esc(v.formula) + "</span>" : "") +
+      (v && typeof v.bruto === "number" ? "<span>valor " + moedaBR(v.bruto) + "</span>" : "") +
+      (v && v.erro ? "<span>a fórmula não fechou</span>" : "");
+    return;
+  }
+
+  /* Quem soma é a planilha, não a tela: uma soma feita aqui em JavaScript e
+     outra lá nas fórmulas é a promessa de duas respostas para a mesma
+     coluna. */
+  alvo.innerHTML = "<span>" + esc(faixa) + "</span><span>somando…</span>";
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/selecao", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aba: escr.aba, faixa: faixa }),
+  });
+  if (!r.ok || faixaAtual() !== faixa) return;
+  const d = await r.json();
+
+  alvo.innerHTML = "<span>" + esc(faixa) + "</span>" +
+    "<span>" + plural(d.quantas, "célula") + "</span>" +
+    (d.com_numero
+      ? "<span>soma " + moedaBR(d.soma) + "</span>" +
+        "<span>média " + moedaBR(d.media) + "</span>" +
+        "<span>menor " + moedaBR(d.minimo) + "</span>" +
+        "<span>maior " + moedaBR(d.maximo) + "</span>"
+      : "<span>nenhum número</span>") +
+    (d.com_texto ? "<span>texto " + d.com_texto + "</span>" : "") +
+    /* A vazia no meio de uma coluna muda a média e não muda a soma, e isso
+       não se vê olhando a tabela. */
+    (d.vazias ? "<span>vazias " + d.vazias + "</span>" : "") +
+    (d.erros ? "<span>erros " + d.erros + "</span>" : "");
 }
 
 async function gravarCelula(valor, extras) {

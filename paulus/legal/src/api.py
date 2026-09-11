@@ -3620,6 +3620,140 @@ def planilha_celula(id_: int, payload: CelulaPlanilha) -> dict:
     return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
 
 
+@app.post("/api/planilha/{id_}/faixa")
+def planilha_faixa(id_: int, payload: dict) -> dict:
+    """
+    Aplica formato, negrito, italico ou borda a uma selecao inteira.
+
+    Uma celula de cada vez obrigava a repetir o clique por linha - e numa
+    tabela de parcelas ninguem faz isso, simplesmente deixa sem.
+    """
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    refs = planilha.refs_da_faixa(payload.get("faixa", ""))
+    if not refs:
+        raise HTTPException(status_code=400, detail="seleção vazia")
+    if len(refs) > planilha.MAX_LINHAS * 4:
+        raise HTTPException(status_code=400, detail="seleção grande demais")
+
+    dados = {c: payload[c] for c in ("formato", "negrito", "italico", "borda", "valor")
+             if c in payload}
+    if not dados:
+        raise HTTPException(status_code=400, detail="nada para aplicar")
+
+    for ref in refs:
+        abas[indice].gravar(ref, dados)
+
+    estado.documentos.salvar(
+        id_, planilha.para_json(abas),
+        nota=f"{str(payload.get('faixa', '')).upper()}: {', '.join(dados)}")
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
+
+
+@app.post("/api/planilha/{id_}/congelar")
+def planilha_congelar(id_: int, payload: dict) -> dict:
+    """Prende a primeira linha no lugar - e vai junto para o XLSX."""
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    abas[indice].congelar_cabecalho = bool(payload.get("congelar"))
+    estado.documentos.salvar(
+        id_, planilha.para_json(abas),
+        nota="congelou o cabeçalho" if abas[indice].congelar_cabecalho
+        else "soltou o cabeçalho")
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
+
+
+@app.post("/api/planilha/{id_}/selecao")
+def planilha_selecao(id_: int, payload: dict) -> dict:
+    """
+    O que a seleção tem dentro: soma, média, mínimo, máximo, vazias.
+
+    Quem conta é a planilha, e não a tela: os mesmos números que as fórmulas
+    usam. Uma soma calculada em JavaScript e outra em Python é a promessa de
+    duas respostas diferentes para a mesma coluna.
+    """
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    refs = planilha.refs_da_faixa(payload.get("faixa", ""))
+    if not refs:
+        raise HTTPException(status_code=400, detail="seleção vazia")
+
+    calculado = planilha.calcular_aba(abas[indice])
+    return {**planilha.resumo_selecao(abas[indice], calculado, refs),
+            "faixa": str(payload.get("faixa", "")).upper()}
+
+
+@app.post("/api/planilha/{id_}/ordenar")
+def planilha_ordenar(id_: int, payload: dict) -> dict:
+    """
+    Ordena as linhas de uma faixa por uma coluna, com a linha inteira junto.
+
+    Cria versao: ordenar muda o documento, e e a operacao desta tela com maior
+    potencial de estrago que ninguem percebe olhando - cada celula continua com
+    um numero plausivel, so que na linha errada. O "voltar para a v(n-1)" tem
+    que existir.
+    """
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    aba = abas[indice]
+    calculado = planilha.calcular_aba(aba)
+    try:
+        feito = planilha.ordenar(
+            aba, calculado, payload.get("faixa", ""), payload.get("coluna", ""),
+            crescente=bool(payload.get("crescente", True)),
+            com_cabecalho=bool(payload.get("com_cabecalho", False)),
+        )
+    except ValueError as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+
+    estado.documentos.salvar(
+        id_, planilha.para_json(abas),
+        nota=f"ordenou {str(payload.get('faixa', '')).upper()} por {payload.get('coluna', '')}")
+    return {**_resposta_planilha(id_, estado.documentos.obter(id_), abas), "ordenou": feito}
+
+
+@app.post("/api/planilha/{id_}/filtrar")
+def planilha_filtrar(id_: int, payload: dict) -> dict:
+    """
+    Quais linhas esconder para ver so o que casa com o criterio.
+
+    Nao grava nada: filtro e jeito de olhar. Um filtro gravado esconderia
+    linhas de quem abrisse o arquivo depois sem saber que ha filtro, e uma
+    tabela de parcelas com linhas faltando e um erro que ninguem percebe.
+    """
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    aba = abas[indice]
+    try:
+        return planilha.filtrar(
+            aba, planilha.calcular_aba(aba), payload.get("faixa", ""),
+            payload.get("coluna", ""), payload.get("criterio", ""),
+            com_cabecalho=bool(payload.get("com_cabecalho", True)),
+        )
+    except ValueError as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+
+
 @app.post("/api/planilha/{id_}/aba")
 def planilha_nova_aba(id_: int, payload: dict) -> dict:
     item = _documento_ou_404(id_)
