@@ -20,6 +20,7 @@ E, nos dois: fórmula vinda de arquivo de terceiro nunca pode executar nada.
 from __future__ import annotations
 
 import io
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -89,6 +90,46 @@ def test_ler_html() -> None:
     estranho = D.ler_html("<p>antes <coisa-nova>importante</coisa-nova> depois</p>")
     checar("importante" in D.para_texto(estranho), "tag desconhecida nao faz o texto sumir")
     checar(D.ler_html("") == [], "HTML vazio nao quebra")
+
+
+def test_duas_paginas_ao_mesmo_tempo() -> None:
+    """
+    Duas páginas desenhadas no mesmo instante.
+
+    O PDFium é uma biblioteca em C e não é segura para duas threads ao mesmo
+    tempo; o FastAPI atende rota `def` num pool de threads. Enquanto a tela
+    pedia uma página de cada vez, ninguém viu nada. A comparação de versões
+    passou a mostrar as duas folhas lado a lado, dois `<img>` saíram juntos e o
+    processo morreu com "access violation reading 0x2C" — sem traceback da
+    aplicação, só dois 500 na tela.
+
+    Não dá para testar isso dentro do próprio processo: se voltar, ele não
+    falha, ele morre e leva a suíte inteira junto. Então o desenho simultâneo
+    acontece num processo à parte, e o que se mede é ele ter sobrevivido.
+    """
+    print("\nduas páginas desenhadas ao mesmo tempo")
+
+    receita = "\n".join([
+        f"import sys; sys.path.insert(0, {str(RAIZ / 'src')!r})",
+        "from concurrent.futures import ThreadPoolExecutor",
+        "import documento",
+        "blocos = documento.ler_html('<p>' + 'texto de contrato ' * 400 + '</p>')",
+        "pdf = documento.para_pdf(blocos, 'Teste', 'Teste')",
+        "desenhar = lambda n: len(documento.pagina_png(pdf, 1, 900))",
+        "with ThreadPoolExecutor(max_workers=4) as pool:",
+        "    tamanhos = list(pool.map(desenhar, range(12)))",
+        "print(min(tamanhos))",
+    ])
+
+    fim = subprocess.run([sys.executable, "-c", receita],
+                         capture_output=True, text=True, timeout=180)
+
+    checar(fim.returncode == 0,
+           f"12 desenhos simultâneos, o processo sobrevive (saída {fim.returncode})",
+           (fim.stderr or fim.stdout).strip()[-200:])
+    menor = fim.stdout.strip()
+    checar(menor.isdigit() and int(menor) > 1000,
+           f"e todo PNG sai inteiro (o menor tem {menor or '?'} bytes)")
 
 
 def test_pdf_e_docx() -> None:
@@ -346,6 +387,7 @@ def main() -> int:
 
     test_ler_html()
     test_pdf_e_docx()
+    test_duas_paginas_ao_mesmo_tempo()
     test_conferir()
     test_numeros()
     test_formulas()

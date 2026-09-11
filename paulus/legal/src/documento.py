@@ -28,6 +28,8 @@ from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
+import leitor_pdf
+
 # A4 com margens de 2,5 cm, como o wireframe pede.
 MARGEM_CM = 2.5
 FONTE_PADRAO = "Georgia"
@@ -255,7 +257,8 @@ def contar(blocos: list[Bloco]) -> dict:
 # ------------------------------------------------------------------ PDF
 
 
-def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "") -> bytes:
+def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
+             timbre: dict | None = None) -> bytes:
     """
     O documento em PDF, no formato que sai para o cliente.
 
@@ -287,11 +290,15 @@ def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "") -> bytes:
                                   leading=16, spaceBefore=8, spaceAfter=6),
     }
 
+    # O timbre ocupa o alto da pagina: sem abrir espaco, o texto passa por
+    # cima dele. A margem de cima cresce so quando ha timbre.
+    alto = _altura_do_timbre(timbre) if timbre else 0
+
     saida = io.BytesIO()
     doc = SimpleDocTemplate(
         saida, pagesize=A4,
         leftMargin=MARGEM_CM * cm, rightMargin=MARGEM_CM * cm,
-        topMargin=MARGEM_CM * cm, bottomMargin=MARGEM_CM * cm,
+        topMargin=MARGEM_CM * cm + alto, bottomMargin=MARGEM_CM * cm,
         title=titulo or "Documento", author="PAULUS",
     )
 
@@ -335,8 +342,80 @@ def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "") -> bytes:
     if not fluxo:
         fluxo.append(Paragraph("(documento vazio)", estilos["paragrafo"]))
 
-    doc.build(fluxo, onFirstPage=_numerar(rodape), onLaterPages=_numerar(rodape))
+    desenhar = _decorar(rodape, timbre)
+    doc.build(fluxo, onFirstPage=desenhar, onLaterPages=desenhar)
     return saida.getvalue()
+
+
+# Quanto o timbre ocupa, em centimetros, por linha que ele tem.
+LINHA_TIMBRE_CM = 0.42
+
+
+def _altura_do_timbre(timbre: dict) -> float:
+    from reportlab.lib.units import cm
+
+    linhas = _linhas_do_timbre(timbre)
+    if not linhas:
+        return 0
+    # O nome vai maior que o resto, e depois vem um fio separando do texto.
+    return (0.62 + LINHA_TIMBRE_CM * (len(linhas) - 1) + 0.55) * cm
+
+
+def _linhas_do_timbre(timbre: dict) -> list[str]:
+    """
+    O que entra no timbre, na ordem, pulando o que o escritorio nao preencheu.
+
+    Nada de rotulo vazio: um timbre com "OAB:" e nada depois e pior que um
+    timbre sem OAB.
+    """
+    nome = str(timbre.get("nome", "")).strip()
+    if not nome:
+        return []
+
+    segunda = " · ".join(x for x in (
+        ("OAB " + str(timbre.get("oab", "")).strip()) if timbre.get("oab") else "",
+        str(timbre.get("cpf", "")).strip(),
+    ) if x)
+    terceira = " · ".join(x for x in (
+        str(timbre.get("endereco", "")).strip(),
+        str(timbre.get("telefone", "")).strip(),
+        str(timbre.get("email", "")).strip(),
+    ) if x)
+
+    return [x for x in (nome, segunda, terceira) if x]
+
+
+def _decorar(rodape: str, timbre: dict | None):
+    """Numero de pagina no rodape, e o timbre no alto quando ha um."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+
+    linhas = _linhas_do_timbre(timbre) if timbre else []
+    numerar = _numerar(rodape)
+
+    def desenhar(canvas, doc):
+        if linhas:
+            canvas.saveState()
+            topo = A4[1] - MARGEM_CM * cm
+            canvas.setFillGray(0.1)
+            canvas.setFont("Times-Bold", 12)
+            canvas.drawCentredString(A4[0] / 2, topo - 0.3 * cm, linhas[0][:90])
+
+            canvas.setFont("Times-Roman", 8.5)
+            canvas.setFillGray(0.35)
+            for i, linha in enumerate(linhas[1:], start=1):
+                canvas.drawCentredString(
+                    A4[0] / 2, topo - 0.3 * cm - (0.62 + LINHA_TIMBRE_CM * (i - 1)) * cm,
+                    linha[:130])
+
+            fio = topo - _altura_do_timbre(timbre) + 0.3 * cm
+            canvas.setStrokeGray(0.75)
+            canvas.setLineWidth(0.6)
+            canvas.line(MARGEM_CM * cm, fio, A4[0] - MARGEM_CM * cm, fio)
+            canvas.restoreState()
+        numerar(canvas, doc)
+
+    return desenhar
 
 
 def _numerar(rodape: str):
@@ -436,30 +515,20 @@ def para_docx(blocos: list[Bloco], titulo: str = "") -> bytes:
 
 def pagina_png(pdf: bytes, numero: int = 1, largura: int = 900) -> bytes:
     """Uma pagina do PDF desenhada, para a pre-visualizacao."""
-    import pypdfium2 as pdfium
-
-    doc = pdfium.PdfDocument(pdf)
-    try:
+    buffer = io.BytesIO()
+    with leitor_pdf.abrir(pdf) as doc:
         indice = max(0, min(int(numero) - 1, len(doc) - 1))
         pagina = doc[indice]
         escala = max(min(largura / max(pagina.get_width(), 1), 4.0), 0.2)
-        imagem = pagina.render(scale=escala).to_pil()
-    finally:
-        doc.close()
-
-    buffer = io.BytesIO()
-    imagem.save(buffer, format="PNG")
+        # Gravar o PNG aqui dentro, e nao depois de fechar: a imagem do Pillow
+        # aponta para a memoria do PDFium, que some junto com o documento.
+        pagina.render(scale=escala).to_pil().save(buffer, format="PNG")
     return buffer.getvalue()
 
 
 def paginas_de(pdf: bytes) -> int:
-    import pypdfium2 as pdfium
-
-    doc = pdfium.PdfDocument(pdf)
-    try:
+    with leitor_pdf.abrir(pdf) as doc:
         return len(doc)
-    finally:
-        doc.close()
 
 
 # ------------------------------------------------ conferir antes de sair

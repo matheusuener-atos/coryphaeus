@@ -420,6 +420,28 @@
   .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 
   /* cartao de aprovacao */
+  /* Duas páginas lado a lado, e a tela cheia: é como se lê contrato de
+     verdade — a virada de página importa, e a margem também. */
+  .pv-paginas { display: grid; gap: 12px; }
+  .pv-paginas.duas { grid-template-columns: 1fr 1fr; }
+  .pv-paginas img { width: 100%; height: auto; display: block; }
+  .pv-cheia .pv-folha { max-width: none; }
+  .pv-cheia .pv-paginas img { max-height: none; }
+
+  .comparar { margin: 10px 0; max-height: 240px; overflow-y: auto; }
+  .comparar-linha {
+    display: grid; grid-template-columns: 70px minmax(0, 1fr);
+    gap: 10px; align-items: baseline; padding: 4px 0;
+    font-size: 12.5px; border-bottom: 1px solid var(--linha);
+  }
+  .comparar-linha:last-child { border-bottom: none; }
+  .comparar-linha.entrou { color: var(--ok-texto); }
+  .comparar-linha.saiu { color: var(--atencao); }
+  .comparar-linha.saiu span:last-child { text-decoration: line-through; }
+  .comparar-depois { color: var(--ok-texto); }
+  .comparar-folhas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .comparar-folhas img { width: 100%; height: auto; display: block; border: 1px solid var(--linha); }
+
   /* A lista do que a renumeracao vai mudar, antes de mudar. Monoespacada
      porque e comparacao de numero com numero. */
   .renum { margin: 10px 0; max-height: 260px; overflow-y: auto; }
@@ -3271,7 +3293,14 @@ async function mostrarConfig() {
     campo("telefone", "Telefone", pessoa.telefone, "(62) 90000-0000") +
     campo("email", "E-mail", pessoa.email) +
     campo("endereco", "Endereço profissional", pessoa.endereco) +
-    "</div></div>" +
+    "</div>" +
+    '<div class="permissao" id="cfg-timbre">' +
+    '<div class="permissao-texto"><div class="permissao-titulo">Papel timbrado nos PDFs</div>' +
+    '<div class="explica">Põe nome, OAB, endereço e contato no alto de todo PDF gerado aqui. ' +
+    "Fica desligado porque minuta interna com timbre parece peça protocolada.</div>" +
+    '<div class="explica" id="cfg-timbre-falta"></div></div>' +
+    '<span class="interruptor-min' + (pr.timbre_no_pdf ? " on" : "") +
+    '"><span class="chave"></span></span></div></div>' +
 
     '<div class="painel" id="cfg-leis"><p class="nota">abrindo os códigos…</p></div>' +
 
@@ -3283,19 +3312,51 @@ async function mostrarConfig() {
     "</div>";
 
   centro.querySelectorAll(".permissao:not(.travada)").forEach((el) => {
-    el.onclick = () => el.querySelector(".interruptor-min").classList.toggle("on");
+    el.onclick = () => {
+      el.querySelector(".interruptor-min").classList.toggle("on");
+      avisarTimbre();
+    };
   });
+  centro.querySelectorAll("[data-pessoa]").forEach((el) => { el.oninput = avisarTimbre; });
+  avisarTimbre();
   $("cfg-salvar").onclick = salvarConfig;
   blocoLeis();
   atualizarPostura();
 }
 
+/* Ligar o timbre com "Meus dados" em branco não põe nada no papel: o nome é o
+   que abre o timbre, e sem ele o PDF sai igual ao de antes. A chave ligada e
+   o papel sem timbre é o pior dos dois mundos — então a tela diz aqui, na hora
+   de decidir, e não depois de abrir o PDF e não ver nada. */
+function avisarTimbre() {
+  const bloco = $("cfg-timbre");
+  if (!bloco) return;
+  const alvo = $("cfg-timbre-falta");
+  const ligado = bloco.querySelector(".interruptor-min").classList.contains("on");
+  const nome = ($("centro").querySelector('[data-pessoa="nome"]') || {}).value || "";
+
+  if (!ligado) { alvo.textContent = ""; return; }
+  if (!nome.trim()) {
+    alvo.textContent = "Sem o nome completo preenchido acima, o timbre não sai: " +
+      "OAB e endereço sozinhos no alto da folha não são um timbre.";
+    return;
+  }
+  const campos = Array.from($("centro").querySelectorAll("[data-pessoa]"));
+  const cheios = campos.filter((c) => c.value.trim()).length;
+  alvo.textContent = cheios + " de " + campos.length + " campos preenchidos entram no alto " +
+    "de cada PDF. O que estiver em branco é omitido — não sai rótulo vazio.";
+}
+
 async function salvarConfig() {
   const centro = $("centro");
   const autonomia = {};
-  centro.querySelectorAll(".permissao:not(.travada)").forEach((el) => {
+  // [data-chave] de propósito: o interruptor do timbre tem a mesma aparência,
+  // mas não é permissão da IA — sem o filtro ele entraria na autonomia como
+  // uma chave chamada "undefined".
+  centro.querySelectorAll(".permissao[data-chave]:not(.travada)").forEach((el) => {
     autonomia[el.dataset.chave] = el.querySelector(".interruptor-min").classList.contains("on");
   });
+  const timbre = $("cfg-timbre").querySelector(".interruptor-min").classList.contains("on");
 
   const pessoa = {};
   centro.querySelectorAll("[data-pessoa]").forEach((el) => { pessoa[el.dataset.pessoa] = el.value.trim(); });
@@ -3306,7 +3367,10 @@ async function salvarConfig() {
     await fetch("/api/preferencias", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ autonomia: autonomia, pessoa: pessoa, modelo: $("cfg-modelo").value }),
+      body: JSON.stringify({
+        autonomia: autonomia, pessoa: pessoa,
+        modelo: $("cfg-modelo").value, timbre_no_pdf: timbre,
+      }),
     });
     $("cfg-salvar").textContent = "salvo";
     carregarStatus();
@@ -9230,12 +9294,33 @@ function desenharPrevia() {
     (d.impedem ?plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span></div>" +
     '<div class="tela-acoes"><button id="pv-editor">‹ Voltar ao editor</button></div></div>';
 
-  html += '<div class="assinar-colunas"><div class="pv-folha">' +
+  const duas = p.duas && d.paginas > 1;
+  html += '<div class="' + (p.cheia ? "pv-cheia" : "assinar-colunas") + '">' +
+    '<div class="pv-folha">' +
     '<div class="pdf-nav"><button id="pv-antes">‹</button>' +
-    '<span>pág. <b id="pv-num">' + p.pagina + "</b> de " + d.paginas + "</span>" +
+    '<span>pág. <b id="pv-num">' + p.pagina + "</b>" +
+    (duas && p.pagina < d.paginas ? "–" + (p.pagina + 1) : "") +
+    " de " + d.paginas + "</span>" +
     '<button id="pv-depois">›</button>' +
+    '<span class="ed-divisa"></span>' +
+    '<button id="pv-duas" class="' + (p.duas ? "on" : "") + '">Duas páginas</button>' +
+    '<button id="pv-cheia">' + (p.cheia ? "Sair da tela cheia" : "Tela cheia") + "</button>" +
+    '<button id="pv-imprimir">Imprimir</button>' +
+    (d.versao > 1 ? '<button id="pv-comparar">Comparar versões</button>' : "") +
     '<span class="rotulo">margens 2,5 cm · gerado nesta máquina</span></div>' +
-    '<img id="pv-img" alt="página ' + p.pagina + '"></div>';
+    '<div class="pv-paginas' + (duas ? " duas" : "") + '">' +
+    '<img id="pv-img" alt="página ' + p.pagina + '">' +
+    (duas ? '<img id="pv-img2" alt="página ' + (p.pagina + 1) + '">' : "") +
+    "</div></div>";
+
+  if (p.cheia) {
+    html += "</div>" +
+      '<div class="rodape-tela">pré-visualização gerada na sua máquina</div></div>';
+    $("centro").innerHTML = html;
+    ligarPrevia();
+    carregarPaginaPrevia();
+    return;
+  }
 
   html += '<div><div class="painel">' + blocoAvisos(d) + "</div>";
 
@@ -9254,7 +9339,8 @@ function desenharPrevia() {
     "<span>versão " + d.versao + "</span>" +
     "<span>palavras " + d.contagem.palavras + "</span></div></div></div></div>";
 
-  html += '<div class="rodape-tela">pré-visualização gerada na sua máquina</div></div>';
+  html += '<div id="pv-abaixo"></div>' +
+    '<div class="rodape-tela">pré-visualização gerada na sua máquina</div></div>';
   $("centro").innerHTML = html;
   ligarPrevia();
   carregarPaginaPrevia();
@@ -9262,18 +9348,45 @@ function desenharPrevia() {
 
 function ligarPrevia() {
   const p = escr.previa;
-  $("pv-editor").onclick = () => abrirDocumento(p.id);
-  $("pv-antes").onclick = () => { if (p.pagina > 1) { p.pagina--; carregarPaginaPrevia(); } };
-  $("pv-depois").onclick = () => { if (p.pagina < p.dados.paginas) { p.pagina++; carregarPaginaPrevia(); } };
-  $("pv-pdf").onclick = () => { window.location.href = "/api/documentos/" + p.id + "/pdf"; };
-  $("pv-docx").onclick = () => { window.location.href = "/api/documentos/" + p.id + "/docx"; };
+  const passo = p.duas ? 2 : 1;
+  // Na tela cheia só a folha é desenhada — a coluna da direita não existe.
+  // Ligar botão sem conferir derrubava a função no meio, e junto ia a
+  // navegação de página, que existe nos dois modos. Cada botão liga sozinho.
+  const ligar = (id, acao) => { const b = $(id); if (b) b.onclick = acao; };
 
-  $("pv-biblioteca").onclick = () => guardarNaBiblioteca(p.id);
-  $("pv-assinar").onclick = async () => {
+  ligar("pv-editor", () => abrirDocumento(p.id));
+  ligar("pv-antes", () => {
+    if (p.pagina > 1) { p.pagina = Math.max(1, p.pagina - passo); carregarPaginaPrevia(); }
+  });
+  ligar("pv-depois", () => {
+    if (p.pagina < p.dados.paginas) {
+      p.pagina = Math.min(p.dados.paginas, p.pagina + passo);
+      carregarPaginaPrevia();
+    }
+  });
+  ligar("pv-duas", () => { p.duas = !p.duas; desenharPrevia(); });
+  ligar("pv-cheia", () => { p.cheia = !p.cheia; desenharPrevia(); });
+  // Imprimir é o PDF de verdade indo para a impressora, não a tela impressa:
+  // o que sai do papel tem que ser o mesmo arquivo que vai para o cliente.
+  ligar("pv-imprimir", () => {
+    const janela = window.open("/api/documentos/" + p.id + "/pdf", "_blank");
+    if (!janela) avisoCert("o navegador bloqueou a janela de impressão");
+  });
+  // A comparação abre abaixo da folha, e na tela cheia não há "abaixo": sair
+  // dela primeiro é o que faz o botão cumprir o que promete.
+  ligar("pv-comparar", () => {
+    if (p.cheia) { p.cheia = false; desenharPrevia(); }
+    compararVersoes();
+  });
+
+  ligar("pv-pdf", () => { window.location.href = "/api/documentos/" + p.id + "/pdf"; });
+  ligar("pv-docx", () => { window.location.href = "/api/documentos/" + p.id + "/docx"; });
+  ligar("pv-biblioteca", () => guardarNaBiblioteca(p.id));
+  ligar("pv-assinar", async () => {
     const alvo = await guardarNaBiblioteca(p.id);
     if (alvo) { marcarDestino("assinar"); mostrarAssinar(alvo); }
-  };
-  $("pv-email").onclick = async () => {
+  });
+  ligar("pv-email", async () => {
     const alvo = await guardarNaBiblioteca(p.id);
     if (!alvo) return;
     if (!mail.contas) {
@@ -9285,7 +9398,7 @@ function ligarPrevia() {
     telaEscrever({ assunto: escr.doc.titulo, corpo: "" });
     mail.anexos = [{ path: alvo, nome: alvo.split(/[\\/]/).pop() }];
     desenharAnexos();
-  };
+  });
 }
 
 async function guardarNaBiblioteca(id) {
@@ -9301,9 +9414,62 @@ async function guardarNaBiblioteca(id) {
 
 function carregarPaginaPrevia() {
   const p = escr.previa;
+  const largura = p.cheia ? 1300 : (p.duas ? 640 : 900);
   $("pv-num").textContent = p.pagina;
   $("pv-img").src = "/api/documentos/" + p.id + "/pagina?numero=" + p.pagina +
-    "&largura=900&t=" + Date.now();
+    "&largura=" + largura + "&t=" + Date.now();
+  const segunda = $("pv-img2");
+  if (segunda) {
+    // A última página ímpar fica sozinha: melhor um vão do que repetir a
+    // mesma folha dos dois lados.
+    if (p.pagina + 1 <= p.dados.paginas) {
+      segunda.src = "/api/documentos/" + p.id + "/pagina?numero=" + (p.pagina + 1) +
+        "&largura=" + largura + "&t=" + Date.now();
+      segunda.hidden = false;
+    } else {
+      segunda.hidden = true;
+    }
+  }
+}
+
+/* Comparar duas versões é ver as duas páginas lado a lado E a lista do que
+   mudou no texto. Só a lista não mostra como ficou; só as páginas não dizem
+   o que procurar. */
+async function compararVersoes() {
+  const p = escr.previa;
+  const r = await fetch("/api/documentos/" + p.id + "/comparar");
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+
+  const caixa = document.createElement("div");
+  caixa.className = "painel";
+  caixa.style.marginTop = "16px";
+  caixa.innerHTML = "<h3>Versão " + d.de + " → versão " + d.ate + "</h3>" +
+    (d.mudancas.length
+      ? '<div class="comparar">' + d.mudancas.map((m) =>
+          '<div class="comparar-linha ' + esc(m.tipo) + '">' +
+          '<span class="rotulo">' + esc(m.tipo) + "</span>" +
+          "<span>" +
+          (m.tipo === "mudou"
+            ? esc(m.antes) + '<br><span class="comparar-depois">' + esc(m.depois) + "</span>"
+            : esc(m.depois || m.antes)) +
+          "</span></div>").join("") + "</div>"
+      : '<p class="explica">Nada mudou no texto entre essas duas versões — ' +
+        "pode ter sido só formatação.</p>") +
+    '<div class="comparar-folhas">' +
+    '<div><span class="rotulo">versão ' + d.de + "</span>" +
+    '<img src="/api/documentos/' + p.id + "/pagina?numero=" + p.pagina +
+    '&largura=520&versao=' + d.de + '" alt="versão ' + d.de + '"></div>' +
+    '<div><span class="rotulo">versão ' + d.ate + " · agora</span>" +
+    '<img src="/api/documentos/' + p.id + "/pagina?numero=" + p.pagina +
+    '&largura=520" alt="versão ' + d.ate + '"></div></div>' +
+    '<div class="linha-form"><button id="pv-fechar-comp">Fechar</button></div>';
+
+  const abaixo = $("pv-abaixo");
+  abaixo.innerHTML = "";
+  abaixo.appendChild(caixa);
+  caixa.scrollIntoView({ behavior: "smooth", block: "start" });
+  $("pv-fechar-comp").onclick = () => { abaixo.innerHTML = ""; };
 }
 
 /* -------------------------------------------------------- C3: planilha */

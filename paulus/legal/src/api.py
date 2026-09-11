@@ -3183,10 +3183,39 @@ def documentos_restaurar(id_: int, payload: dict) -> dict:
 # ------------------------------------------------ sair: PDF, DOCX, avisos
 
 
-def _pdf_do_documento(item: dict) -> bytes:
+def _timbre_do_escritorio() -> dict:
+    """
+    O timbre sai dos dados profissionais, e so quando o escritorio quer.
+
+    Fica desligado por padrao: por um lado, o dado pode nao estar preenchido;
+    por outro, nem todo documento sai em papel timbrado - uma minuta interna
+    com timbre parece peca protocolada.
+    """
+    prefs = estado.prefs.dados
+    if not prefs.get("timbre_no_pdf"):
+        return {}
+    pessoa = prefs.get("pessoa", {})
+    # Sem nome nao ha timbre: o resto sozinho sairia como um endereco solto no
+    # alto da folha. Quem ligou a chave precisa saber disso na tela de
+    # Configuracoes, e nao ao abrir o PDF e nao ver nada.
+    if not str(pessoa.get("nome", "")).strip():
+        return {}
+    return {
+        "nome": pessoa.get("nome", ""),
+        "oab": pessoa.get("oab", ""),
+        "cpf": pessoa.get("cpf", ""),
+        "endereco": pessoa.get("endereco", ""),
+        "telefone": pessoa.get("telefone", ""),
+        "email": pessoa.get("email", ""),
+    }
+
+
+def _pdf_do_documento(item: dict, timbre: dict | None = None) -> bytes:
     blocos = documento.ler_html(item["corpo"])
     rodape = item["titulo"]
-    return documento.para_pdf(blocos, item["titulo"], rodape)
+    if timbre is None:
+        timbre = _timbre_do_escritorio()
+    return documento.para_pdf(blocos, item["titulo"], rodape, timbre=timbre or None)
 
 
 @app.get("/api/documentos/{id_}/pdf")
@@ -3219,18 +3248,27 @@ def documentos_docx(id_: int):
 
 
 @app.get("/api/documentos/{id_}/pagina")
-def documentos_pagina(id_: int, numero: int = 1, largura: int = 900):
+def documentos_pagina(id_: int, numero: int = 1, largura: int = 900, versao: int = 0):
     """
     A pagina desenhada, para a pre-visualizacao.
 
     E o PDF de verdade rasterizado, nao uma aproximacao em CSS: o que a tela
     mostra e o arquivo que vai sair.
+
+    Com `versao`, desenha uma versao antiga - e o que permite ver as duas lado
+    a lado na comparacao. Listar o que mudou em texto nao mostra como ficou.
     """
     from fastapi.responses import Response
 
     item = _documento_ou_404(id_)
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="planilha não tem página de PDF")
+
+    if versao:
+        corpo = estado.documentos.corpo_da_versao(id_, versao)
+        if corpo is None:
+            raise HTTPException(status_code=404, detail="essa versão não existe")
+        item = {**item, "corpo": corpo}
 
     pdf = _pdf_do_documento(item)
     return Response(

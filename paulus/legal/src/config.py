@@ -75,6 +75,9 @@ PADRAO: dict = {
         "intervalo_min": 15,
         "mesmo_dia": True,
     },
+    # Timbre no PDF: desligado por padrao. Uma minuta interna com papel
+    # timbrado parece peca protocolada, e o dado pode nem estar preenchido.
+    "timbre_no_pdf": False,
     "pessoa": {
         "nome": "",
         "cpf": "",

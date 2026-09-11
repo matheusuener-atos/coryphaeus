@@ -26,6 +26,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+import leitor_pdf
+
 # Tamanho do selo em pontos PDF (1 pt = 1/72 pol). ~8 x 2,2 cm.
 SELO_LARGURA = 228
 SELO_ALTURA = 62
@@ -67,21 +69,15 @@ def ler(caminho: Path | str) -> Documento:
     if alvo.suffix.lower() != ".pdf":
         return Documento(erro="só assino PDF - converta o arquivo antes")
 
-    import pypdfium2 as pdfium
-
     try:
-        doc = pdfium.PdfDocument(str(alvo))
+        with leitor_pdf.abrir(alvo) as doc:
+            total = len(doc)
+            largura = altura = 0.0
+            if total:
+                pagina = doc[0]
+                largura, altura = pagina.get_width(), pagina.get_height()
     except Exception as exc:
         return Documento(erro=f"não consegui abrir o PDF: {exc}")
-
-    try:
-        total = len(doc)
-        largura = altura = 0.0
-        if total:
-            pagina = doc[0]
-            largura, altura = pagina.get_width(), pagina.get_height()
-    finally:
-        doc.close()
 
     return Documento(
         caminho=str(alvo),
@@ -114,10 +110,8 @@ def pagina_png(caminho: Path | str, numero: int, largura: int = 1000) -> bytes:
     """
     import io
 
-    import pypdfium2 as pdfium
-
-    doc = pdfium.PdfDocument(str(caminho))
-    try:
+    buffer = io.BytesIO()
+    with leitor_pdf.abrir(caminho) as doc:
         # Sem isto o PDFium desenha a pagina e ignora os campos de formulario -
         # e o selo de uma assinatura e um campo de formulario. A pessoa veria a
         # pagina "limpa" e concluiria que o documento nao esta assinado.
@@ -129,12 +123,10 @@ def pagina_png(caminho: Path | str, numero: int, largura: int = 1000) -> bytes:
         indice = max(0, min(int(numero) - 1, len(doc) - 1))
         pagina = doc[indice]
         escala = max(min(largura / max(pagina.get_width(), 1), 4.0), 0.2)
-        imagem = pagina.render(scale=escala, draw_annots=True, may_draw_forms=True).to_pil()
-    finally:
-        doc.close()
-
-    buffer = io.BytesIO()
-    imagem.save(buffer, format="PNG")
+        # Gravar antes de fechar: a imagem do Pillow aponta para a memoria do
+        # PDFium, e depois do close() ela aponta para o que sobrou.
+        (pagina.render(scale=escala, draw_annots=True, may_draw_forms=True)
+         .to_pil().save(buffer, format="PNG"))
     return buffer.getvalue()
 
 

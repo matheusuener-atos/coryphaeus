@@ -28,6 +28,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+import leitor_pdf
+
 # Quanto do trecho usar para procurar. Frase inteira falha por um espaço a
 # mais na extração; um pedaço do meio, sem as bordas, casa com folga.
 LETRAS_DA_BUSCA = 60
@@ -85,8 +87,6 @@ def onde_esta(caminho: Path | str, trecho: str) -> dict:
     página mesmo assim, sem marca: melhor a página certa sem destaque do que
     um destaque no lugar errado.
     """
-    import pypdfium2 as pdfium
-
     alvo = Path(caminho)
     vazio = {"achou": False, "pagina": 1, "total": 0, "marcas": [],
              "largura": 0, "altura": 0}
@@ -97,8 +97,7 @@ def onde_esta(caminho: Path | str, trecho: str) -> dict:
     if not agulhas:
         return vazio
 
-    pdf = pdfium.PdfDocument(str(alvo))
-    try:
+    with leitor_pdf.abrir(alvo) as pdf:
         total = len(pdf)
         for numero in range(total):
             pagina = pdf[numero]
@@ -128,21 +127,14 @@ def onde_esta(caminho: Path | str, trecho: str) -> dict:
                     "marcas": marcas, "largura": largura, "altura": altura}
 
         return {**vazio, "total": total}
-    finally:
-        pdf.close()
 
 
 def paginas_de(caminho: Path | str) -> int:
-    import pypdfium2 as pdfium
-
     alvo = Path(caminho)
     if not alvo.exists() or alvo.suffix.lower() != ".pdf":
         return 0
-    pdf = pdfium.PdfDocument(str(alvo))
-    try:
+    with leitor_pdf.abrir(alvo) as pdf:
         return len(pdf)
-    finally:
-        pdf.close()
 
 
 def por_que_este_trecho(pergunta: str, trecho: str, limite: int = 6) -> dict:
