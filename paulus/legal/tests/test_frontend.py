@@ -238,6 +238,43 @@ def test_nome_de_funcao_nao_se_repete() -> None:
            ", ".join(repetidos))
 
 
+def test_rota_fixa_antes_da_com_parametro() -> None:
+    """
+    "/api/documentos/importar" tem que ser declarada antes de
+    "/api/documentos/{id_}".
+
+    O FastAPI casa na ordem de declaracao: com a parametrizada na frente,
+    "importar" vira um id e a rota devolve "unable to parse string as an
+    integer". Ja aconteceu duas vezes neste arquivo - com /modelos e com
+    /importar - e da sempre o mesmo erro confuso.
+    """
+    print("\nordem das rotas")
+    fonte = (RAIZ / "src" / "api.py").read_text(encoding="utf-8")
+
+    rotas = re.findall(r'@app\.(get|post|put|delete)\("([^"]+)"', fonte)
+    posicao = {}
+    for i, (metodo, caminho) in enumerate(rotas):
+        posicao.setdefault((metodo, caminho), i)
+
+    problemas = []
+    for (metodo, caminho), onde in posicao.items():
+        if "{" not in caminho:
+            continue
+        prefixo = caminho[:caminho.index("{")]
+        for (m2, fixa), onde2 in posicao.items():
+            if m2 != metodo or "{" in fixa or not fixa.startswith(prefixo):
+                continue
+            resto = fixa[len(prefixo):]
+            # So conta quando a fixa ocuparia o lugar do parametro: um
+            # segmento so, sem barra depois.
+            if resto and "/" not in resto and onde2 > onde:
+                problemas.append(f"{metodo.upper()} {fixa} depois de {caminho}")
+
+    checar(not problemas,
+           f"as {len(posicao)} rotas estao em ordem",
+           "; ".join(problemas))
+
+
 def test_sem_internet() -> None:
     print("\na pagina nao busca nada na internet")
     html = PAGINA.read_text(encoding="utf-8")
@@ -270,6 +307,7 @@ def main() -> int:
     test_tokens()
     test_javascript_compila()
     test_nome_de_funcao_nao_se_repete()
+    test_rota_fixa_antes_da_com_parametro()
     test_sem_internet()
 
     print("\n" + "=" * 55)

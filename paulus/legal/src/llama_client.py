@@ -67,6 +67,10 @@ nome do arquivo de onde tirou cada informacao.
 Voce nao presta consultoria juridica - voce localiza e resume o que esta
 escrito nos documentos.
 
+Voce NAO conhece a tela deste programa. Nunca diga onde clicar, nunca cite
+botao, menu ou atalho, nunca ensine a usar o sistema. Quem explica a tela e o
+proprio programa, que sabe quais botoes existem.
+
 Se, depois de ler todos, a informacao realmente nao estiver em nenhum, diga que
 nao achou e diga em quais documentos procurou."""
 

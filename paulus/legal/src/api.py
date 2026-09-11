@@ -2968,6 +2968,47 @@ def documentos_criar(payload: NovoDocumento) -> dict:
     return estado.documentos.obter(id_) or {}
 
 
+class ImportarParaEditar(BaseModel):
+    caminho: str = ""
+    nome: str = ""
+
+
+@app.post("/api/documentos/importar")
+def documentos_importar(payload: ImportarParaEditar) -> dict:
+    """
+    Traz um documento da biblioteca para o editor, como rascunho.
+
+    O arquivo original NAO e tocado. O que nasce aqui e uma copia editavel: a
+    pessoa pediu para abrir para editar, e editar o .docx de origem no lugar
+    seria mexer no documento que ja foi assinado, enviado ou protocolado.
+    """
+    alvo = Path(payload.caminho) if payload.caminho else None
+    if not alvo or not alvo.exists():
+        doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+        if not doc:
+            raise HTTPException(status_code=404, detail="nao achei esse documento")
+        alvo = Path(doc.path)
+    if not alvo.exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+
+    lido = next((d for d in estado.searcher.documents if d.path == str(alvo)), None)
+    if lido is None:
+        raise HTTPException(status_code=400, detail="esse arquivo ainda nao foi lido")
+
+    # Paragrafo por paragrafo: o texto extraido vem com quebras de linha, e
+    # jogar tudo num <p> so daria um bloco unico impossivel de editar.
+    paragrafos = [p.strip() for p in lido.text.splitlines() if p.strip()]
+    corpo = "".join(f"<p>{_escapar(p)}</p>" for p in paragrafos) or "<p><br></p>"
+
+    id_ = estado.documentos.criar(Path(lido.name).stem, "texto", corpo, None)
+    return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name,
+            "paragrafos": len(paragrafos)}
+
+
+def _escapar(texto: str) -> str:
+    return (texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
 # A rota fixa vem ANTES da rota com parametro: o FastAPI casa na ordem de
 # declaracao, e /api/documentos/{id_} engoliria /api/documentos/modelos.
 @app.get("/api/documentos/modelos")
@@ -3278,8 +3319,18 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    sugestao = _limpar_sugestao(resposta)
+    inteiro = documento.para_texto(documento.ler_html(item["corpo"]))
+    if _e_o_documento_de_volta(sugestao, inteiro):
+        raise HTTPException(
+            status_code=422,
+            detail=("o modelo devolveu o documento de volta em vez da alteração. "
+                    "Selecione no texto o trecho que você quer mudar e peça de "
+                    "novo — com o trecho à mão ele acerta."),
+        )
+
     return {
-        "sugestao": _limpar_sugestao(resposta),
+        "sugestao": sugestao,
         "sobre": payload.trecho[:160],
         "aviso": (
             "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
@@ -3293,7 +3344,27 @@ def _limpar_sugestao(texto: str) -> str:
     limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
     limpo = re.sub(r"^\s*[*-]\s+", "", limpo, flags=re.M)
     limpo = re.sub(r"^\s*(sugest[aã]o|resposta|texto)\s*:\s*", "", limpo, flags=re.I)
+    # "[Texto do documento]", "[Documento]": rotulo que o modelo copia do
+    # cabecalho do contexto e entrega como se fosse parte do texto.
+    limpo = re.sub(r"^\s*\[[^\]]{0,40}\]\s*", "", limpo)
     return limpo.strip()
+
+
+def _e_o_documento_de_volta(sugestao: str, texto_do_documento: str) -> bool:
+    """
+    O modelo devolveu o documento em vez da alteracao?
+
+    Acontece com pedido amplo - "deixe mais formal" sem trecho selecionado - e
+    o estrago e silencioso: o texto entra no fim e o documento dobra de
+    tamanho. Aconteceu de verdade: 355 palavras viraram 712.
+    """
+    a = re.sub(r"\s+", " ", sugestao or "").strip().lower()
+    b = re.sub(r"\s+", " ", texto_do_documento or "").strip().lower()
+    if len(a) < 400 or len(b) < 400:
+        return False
+    # Comeca igual, ou e quase do tamanho do documento e aparece dentro dele:
+    # nos dois casos e copia, nao reescrita.
+    return a[:300] == b[:300] or (len(a) > len(b) * 0.7 and a[:150] in b)
 
 
 # ------------------------------------------------------------ planilha

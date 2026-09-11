@@ -420,6 +420,73 @@
   .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 
   /* cartao de aprovacao */
+  /* ------------------------------- a conversa com o editor ao lado */
+  /* Duas colunas porque as duas coisas acontecem juntas: a pessoa pede, e o
+     documento muda ao lado. Em tela estreita viram uma embaixo da outra —
+     ler o documento e ver a conversa ainda funciona; espremer as duas, não. */
+  /* Altura pela janela, e nao pelo pai: a coluna do meio cresce com o
+     conteudo, e ".dupla { height: 100% }" dentro dela nao tem de onde tirar
+     altura - o campo "peça uma mudança" ficava fora da tela. */
+  .dupla {
+    display: flex; flex-direction: column; min-height: 0;
+    height: calc(100vh - 190px); min-height: 520px;
+  }
+  .dupla-topo {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; padding-bottom: 14px;
+  }
+  .dupla-titulo {
+    font: 500 21px var(--sans); letter-spacing: -0.01em; margin: 0 0 4px;
+    outline: none; border-bottom: 1px solid transparent;
+  }
+  .dupla-titulo:focus { border-bottom-color: var(--linha-forte); }
+
+  .dupla-colunas {
+    display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 16px; flex: 1; min-height: 0;
+  }
+  @media (max-width: 1120px) {
+    .dupla-colunas { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .dupla-conversa, .dupla-editor {
+    display: flex; flex-direction: column; min-height: 0;
+    border: 1px solid var(--linha); background: var(--surface-2);
+  }
+  .dupla-cabeca {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--linha);
+  }
+  .dupla-fala { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
+  .dupla-resposta { font-size: 13.5px; line-height: 1.6; margin: 10px 0 16px; }
+  .dupla-resposta p { margin: 0 0 8px; }
+  .dupla-trecho {
+    margin: 8px 0 0; padding: 8px 12px; border-left: 2px solid var(--linha-forte);
+    font: 400 12.5px var(--sans); color: var(--ink-2); background: var(--surface-3);
+  }
+  .dupla-atalhos {
+    display: flex; gap: 7px; flex-wrap: wrap; padding: 10px 12px 0;
+    border-top: 1px solid var(--linha);
+  }
+  .dupla-conversa .ed-pedido { padding: 10px 12px 12px; margin-top: 0; }
+
+  .dupla-barra { border: none; padding: 0; margin: 0; background: none; }
+  .dupla-folha-caixa { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
+  .dupla-rodape {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; padding: 9px 12px; border-top: 1px solid var(--linha);
+  }
+  .dupla-rodape button { margin-left: 7px; }
+
+  /* O que acabou de mudar, marcado dentro do próprio texto. Ver a alteração no
+     lugar dela é diferente de ler uma sugestão num painel ao lado. */
+  .ed-novo { background: var(--acento-fraco); color: inherit; box-shadow: inset 0 -1px 0 var(--acento); }
+  .dupla-cartao {
+    border: 1px solid var(--acento); background: var(--acento-fraco);
+    padding: 12px; margin: 12px 0;
+  }
+  .dupla-cartao p { margin: 6px 0; font-size: 13px; }
+
   /* A janelinha dos bastidores. Fica discreta de propósito: é o que está
      acontecendo, não o que interessa ler depois. Monoespaçada porque é
      registro — número alinhado com número. */
@@ -5354,14 +5421,16 @@ function cartaoProposta(d) {
   const ehAgenda = d.tipo === "agenda";
 
   // Abrir é o único que não tem campo para conferir: ou é este arquivo, ou
-  // não é. O que a pessoa confere é o nome.
+  // não é. O que a pessoa confere é o nome — e onde quer abrir.
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
       '<span class="rotulo">vou abrir este arquivo</span>' +
       "<b>" + esc(c.nome) + "</b></div>" +
-      '<p class="explica">Li isso de ' + esc(d.porque) + ". Abre no programa " +
-      "padrão do Windows — o arquivo não sai da sua máquina.</p>" +
-      '<div class="linha-form"><button class="primario" data-prop="fazer">Abrir</button>' +
+      '<p class="explica">Li isso de ' + esc(d.porque) + ". Abrir aqui cria um " +
+      "rascunho editável ao lado da conversa — o arquivo original não é " +
+      "tocado. Ou abro no programa padrão do Windows, se você preferir.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="editar">Abrir aqui para editar</button>' +
+      '<button data-prop="fazer">Abrir no Windows</button>' +
       '<button data-prop="nao">Deixa pra lá</button></div></div>';
   }
 
@@ -5422,6 +5491,33 @@ function camposProposta(d, faltando) {
 function ligarProposta(caixa, d, ondeResponder) {
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
+
+  /* Abrir para editar traz o documento para dentro do programa, como rascunho:
+     o .docx de origem pode já ter sido assinado ou protocolado, e editar ele
+     no lugar seria mexer no que já saiu. */
+  const editar = caixa.querySelector('[data-prop="editar"]');
+  if (editar) editar.onclick = async () => {
+    editar.disabled = true;
+    caixa.insertAdjacentHTML("beforeend",
+      '<p class="nota">trazendo o documento para o editor…</p>');
+    const r = await fetch("/api/documentos/importar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: (d.campos || {}).nome }),
+    });
+    if (!r.ok) {
+      editar.disabled = false;
+      caixa.insertAdjacentHTML("beforeend",
+        '<p class="explica">' + esc(await erroDe(r)) + "</p>");
+      return;
+    }
+    const novo = await r.json();
+    caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
+      "<b>“" + esc(novo.titulo) + "” aberto para editar</b></div>" +
+      '<p class="explica">Cópia editável de ' + esc(novo.de) +
+      ", com " + plural(novo.paragrafos, "parágrafo") + ". O original continua onde estava.</p>";
+    marcarDestino("editor");
+    mostrarDupla(novo.id);
+  };
 
   nao.onclick = () => {
     caixa.innerHTML = '<p class="explica">Tudo bem — não anotei nada.</p>';
@@ -5588,6 +5684,319 @@ function segundosBR(s) {
   const n = Number(s || 0);
   if (n < 0.1) return "menos de 0,1 s";
   return n.toFixed(1).replace(".", ",") + " s";
+}
+
+
+/* ------------------------------------------- conversa com o editor ao lado */
+/*
+   Pedir "abra a procuração" e receber o texto transcrito dentro da resposta é
+   o pior dos dois mundos: não dá para editar e ainda ocupa a conversa inteira.
+   O documento tem que aparecer ao lado, editável, e a conversa tem que
+   escrever NELE.
+
+   A diferença para o painel "Pedir aqui" do editor é onde a alteração cai: ali
+   a sugestão ficava num painel embaixo, e a pessoa mandava inserir. Aqui ela
+   cai no documento, marcada, e a pessoa decide se fica. É mais perto de ver o
+   que aconteceu — e mais fácil de desfazer, porque o antes está guardado.
+*/
+
+const dupla = {
+  doc: null, antes: null, pendente: null, ocupada: false, conversa: [],
+};
+
+async function mostrarDupla(id) {
+  abrirTela("Editor de texto");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  const r = await fetch("/api/documentos/" + id);
+  if (!r.ok) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>";
+    return;
+  }
+  dupla.doc = await r.json();
+  dupla.antes = null;
+  dupla.pendente = null;
+  desenharDupla();
+}
+
+function desenharDupla() {
+  const d = dupla.doc;
+  const c = d.contagem || { palavras: 0, paginas_estimadas: 1 };
+
+  $("centro").innerHTML =
+    '<div class="dupla">' +
+
+    '<div class="dupla-topo">' +
+    '<div><h2 class="dupla-titulo" id="dp-titulo" contenteditable="true">' + esc(d.titulo) + "</h2>" +
+    '<span class="rotulo" id="dp-selo">versão ' + d.versao + " · " +
+    plural(c.palavras, "palavra") + "</span></div>" +
+    '<div class="tela-acoes"><button id="dp-so-editor">Abrir só o editor</button>' +
+    '<button class="primario" id="dp-assinar">Assinar</button></div></div>' +
+
+    '<div class="dupla-colunas">' +
+
+    // ------------------------------------------------------------ conversa
+    '<div class="dupla-conversa"><div class="dupla-cabeca">' +
+    '<span class="rotulo">conversa</span>' +
+    '<span class="rotulo" id="dp-estado-conversa">escrevendo ao lado</span></div>' +
+    '<div class="dupla-fala" id="dp-fala">' + falasDaDupla() + "</div>" +
+    '<div class="dupla-atalhos">' +
+    ["Deixar mais formal", "Citar a lei", "Resumir em 1 página"].map((a) =>
+      '<button data-dp-atalho="' + esc(a) + '">' + esc(a) + "</button>").join("") +
+    "</div>" +
+    '<div class="ed-pedido"><input type="text" id="dp-pedido" ' +
+    'placeholder="peça uma mudança no documento…">' +
+    '<button class="primario" id="dp-enviar">↑</button></div></div>' +
+
+    // -------------------------------------------------------------- editor
+    '<div class="dupla-editor"><div class="dupla-cabeca">' +
+    '<div class="ed-barra dupla-barra">' +
+    '<button data-cmd="bold"><b>B</b></button>' +
+    '<button data-cmd="italic"><i>I</i></button>' +
+    '<button data-cmd="insertOrderedList">Numeração</button>' +
+    '<button id="dp-citar">Citar a lei</button></div>' +
+    '<span class="rotulo" id="dp-sinc">sincronizado com a conversa</span></div>' +
+    '<div class="dupla-folha-caixa"><div class="ed-folha" id="dp-folha" contenteditable="true">' +
+    (d.corpo || "<p><br></p>") + "</div></div>" +
+    '<div class="dupla-rodape"><span class="rotulo">' +
+    plural(c.paginas_estimadas, "página") + " · " + plural(c.palavras, "palavra") + "</span>" +
+    '<span><button id="dp-guardar">Salvar na biblioteca</button>' +
+    '<button id="dp-pdf">Exportar PDF</button></span></div>' +
+
+    "</div></div></div>";
+
+  ligarDupla();
+}
+
+function falasDaDupla() {
+  if (!dupla.conversa.length) {
+    return '<p class="explica">Peça uma mudança abaixo. Eu escrevo no documento ' +
+      "ao lado e marco o que mexi — você decide se fica.</p>";
+  }
+  return dupla.conversa.map((m, i) =>
+    m.autor === "pessoa"
+      ? '<div class="bolha-pessoa">' + esc(m.texto) + "</div>"
+      : '<div class="dupla-resposta"><p>' + esc(m.texto) + "</p>" +
+        (m.antes !== undefined
+          ? '<div class="linha-form"><button data-dp-ver="' + i + '">Ver o que mudei</button>' +
+            '<button data-dp-desfazer="' + i + '">Desfazer</button></div>'
+          : "") +
+        (m.trecho ? '<blockquote class="dupla-trecho">' + esc(m.trecho) + "</blockquote>" : "") +
+        "</div>").join("");
+}
+
+function ligarDupla() {
+  const centro = $("centro");
+  const enviar = () => pedirNaDupla($("dp-pedido").value.trim());
+
+  $("dp-enviar").onclick = enviar;
+  $("dp-pedido").onkeydown = (e) => { if (e.key === "Enter") enviar(); };
+  centro.querySelectorAll("[data-dp-atalho]").forEach((b) => {
+    b.onclick = () => pedirNaDupla(b.dataset.dpAtalho);
+  });
+
+  $("dp-so-editor").onclick = () => abrirDocumento(dupla.doc.id);
+  $("dp-assinar").onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
+  $("dp-citar").onclick = painelCodigosNaDupla;
+  $("dp-guardar").onclick = () => guardarNaBiblioteca(dupla.doc.id);
+  $("dp-pdf").onclick = () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; };
+
+  centro.querySelectorAll("[data-cmd]").forEach((b) => {
+    b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); };
+  });
+
+  const folha = $("dp-folha");
+  folha.oninput = () => marcarDuplaSuja();
+  $("dp-titulo").oninput = () => marcarDuplaSuja();
+
+  centro.querySelectorAll("[data-dp-ver]").forEach((b) => {
+    b.onclick = () => {
+      const marca = $("dp-folha").querySelector(".ed-novo");
+      if (marca) marca.scrollIntoView({ behavior: "smooth", block: "center" });
+      else avisoCert("essa alteração já foi aceita e virou parte do texto");
+    };
+  });
+  centro.querySelectorAll("[data-dp-desfazer]").forEach((b) => {
+    b.onclick = () => desfazerNaDupla(Number(b.dataset.dpDesfazer));
+  });
+}
+
+/* O pedido vira alteração no documento, marcada. Não é uma sugestão num painel
+   ao lado: é o texto mudado, à vista, esperando o sim. */
+async function pedirNaDupla(pedido) {
+  if (!pedido || dupla.ocupada) return;
+  dupla.ocupada = true;
+  $("dp-pedido").value = "";
+  dupla.conversa.push({ autor: "pessoa", texto: pedido });
+  $("dp-fala").innerHTML = falasDaDupla() +
+    '<p class="nota" id="dp-pensando">escrevendo… isso leva cerca de um minuto nesta máquina</p>';
+  $("dp-fala").scrollTop = $("dp-fala").scrollHeight;
+  $("dp-estado-conversa").textContent = "escrevendo ao lado…";
+
+  // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
+  dupla.antes = $("dp-folha").innerHTML;
+
+  try {
+    const r = await fetch("/api/documentos/" + dupla.doc.id + "/assistente", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla() }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const sugestao = await r.json();
+
+    aplicarNaDupla(sugestao);
+    dupla.conversa.push({
+      autor: "paulus",
+      texto: sugestao.sobre
+        ? "Troquei o trecho que você selecionou. A alteração está marcada no documento."
+        : "Escrevi no fim do documento. A alteração está marcada — confira antes de manter.",
+      trecho: sugestao.sugestao.slice(0, 180),
+      antes: dupla.antes,
+    });
+  } catch (err) {
+    dupla.conversa.push({ autor: "paulus", texto: "Não consegui: " + err });
+  } finally {
+    dupla.ocupada = false;
+    $("dp-estado-conversa").textContent = "sincronizado com o documento";
+    $("dp-fala").innerHTML = falasDaDupla();
+    $("dp-fala").scrollTop = $("dp-fala").scrollHeight;
+    ligarDupla();
+  }
+}
+
+function aplicarNaDupla(sugestao) {
+  const folha = $("dp-folha");
+  folha.querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+
+  const marca = document.createElement("mark");
+  marca.className = "ed-novo";
+  marca.textContent = sugestao.sugestao;
+
+  const sel = window.getSelection();
+  if (sugestao.sobre && sel && sel.rangeCount && !sel.isCollapsed &&
+      folha.contains(sel.anchorNode)) {
+    const faixa = sel.getRangeAt(0);
+    faixa.deleteContents();
+    faixa.insertNode(marca);
+  } else {
+    const bloco = document.createElement("p");
+    bloco.appendChild(marca);
+    folha.appendChild(bloco);
+  }
+
+  dupla.pendente = { aviso: sugestao.aviso, resumo: sugestao.sugestao.slice(0, 120) };
+  desenharCartaoDaAlteracao();
+  marca.scrollIntoView({ behavior: "smooth", block: "center" });
+  marcarDuplaSuja();
+}
+
+function desenharCartaoDaAlteracao() {
+  const antigo = $("dp-cartao");
+  if (antigo) antigo.remove();
+  if (!dupla.pendente) return;
+
+  const marca = $("dp-folha").querySelector(".ed-novo");
+  if (!marca) return;
+
+  const cartao = document.createElement("div");
+  cartao.className = "dupla-cartao";
+  cartao.id = "dp-cartao";
+  cartao.contentEditable = "false";
+  cartao.innerHTML = '<span class="rotulo">alteração sugerida agora</span>' +
+    "<p>" + esc(dupla.pendente.resumo) + "</p>" +
+    '<p class="explica">' + esc(dupla.pendente.aviso) + "</p>" +
+    '<div class="linha-form"><button id="dp-descartar">Descartar</button>' +
+    '<button class="primario" id="dp-manter">Manter</button></div>';
+  marca.closest("p, li, h1, h2, h3, div").after(cartao);
+
+  $("dp-manter").onclick = () => {
+    $("dp-folha").querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+    dupla.pendente = null;
+    cartao.remove();
+    gravarDupla();
+  };
+  $("dp-descartar").onclick = () => {
+    if (dupla.antes !== null) $("dp-folha").innerHTML = dupla.antes;
+    dupla.pendente = null;
+    const c = $("dp-cartao");
+    if (c) c.remove();
+    gravarDupla();
+  };
+}
+
+/* Tirar a marca sem tirar o texto: o conteúdo fica, o destaque sai. */
+function desmarcar(marca) {
+  const pai = marca.parentNode;
+  while (marca.firstChild) pai.insertBefore(marca.firstChild, marca);
+  pai.removeChild(marca);
+}
+
+function desfazerNaDupla(indice) {
+  const m = dupla.conversa[indice];
+  if (!m || m.antes === undefined) return;
+  $("dp-folha").innerHTML = m.antes;
+  dupla.pendente = null;
+  const c = $("dp-cartao");
+  if (c) c.remove();
+  dupla.conversa.push({ autor: "paulus", texto: "Desfeito. O documento voltou ao que era antes dessa alteração." });
+  $("dp-fala").innerHTML = falasDaDupla();
+  ligarDupla();
+  gravarDupla();
+}
+
+function trechoSelecionadoNaDupla() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return "";
+  const folha = $("dp-folha");
+  return folha && folha.contains(sel.anchorNode) ? sel.toString().trim().slice(0, 2500) : "";
+}
+
+function marcarDuplaSuja() {
+  $("dp-selo").textContent = "alterações não salvas";
+  clearTimeout(dupla.relogio);
+  dupla.relogio = setTimeout(gravarDupla, 1600);
+}
+
+async function gravarDupla() {
+  if (!dupla.doc) return;
+  // O cartão é da tela, não do documento: salvar com ele dentro gravaria os
+  // botões no corpo do texto.
+  const folha = $("dp-folha").cloneNode(true);
+  folha.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+
+  const r = await fetch("/api/documentos/" + dupla.doc.id, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML, titulo: $("dp-titulo").textContent.trim() }),
+  });
+  if (!r.ok) { $("dp-selo").textContent = "não consegui salvar"; return; }
+
+  const d = await r.json();
+  dupla.doc = d;
+  const c = d.contagem || { palavras: 0 };
+  $("dp-selo").textContent = "versão " + d.versao + " · " + plural(c.palavras, "palavra") +
+    " · salvo às " + new Date().toTimeString().slice(0, 5);
+}
+
+async function painelCodigosNaDupla() {
+  const r = await fetch("/api/leis");
+  const d = await r.json();
+  const instalados = d.codigos.filter((c) => c.instalado);
+  if (!instalados.length) { avisoCert(d.porque); return; }
+  const termo = prompt("Qual artigo? (número ou palavra)");
+  if (!termo) return;
+
+  const busca = await fetch("/api/leis/procurar?termo=" + encodeURIComponent(termo));
+  const achados = (await busca.json()).achados || [];
+  if (!achados.length) { avisoCert("não achei esse artigo nos códigos instalados"); return; }
+
+  const a = achados[0];
+  if (a.revogado && !confirm("O " + a.citacao + " está REVOGADO. Inserir mesmo assim?")) return;
+  aplicarNaDupla({
+    sugestao: "Nos termos do " + a.citacao + ": “" + a.texto.replace(/\s+/g, " ").slice(0, 700) + "”",
+    sobre: "",
+    aviso: "Texto oficial do código instalado — confira se é o artigo que você quer citar.",
+  });
 }
 
 
@@ -7995,6 +8404,7 @@ async function listaDocumentos(tipo, nome) {
       (x.cadastro_nome ? '<span class="num">' + esc(x.cadastro_nome) + "</span>" : "") +
       '<span class="doc-versao">v' + x.versao + "</span>" +
       '<span class="num">' + esc(quandoCurto(x.atualizado_em)) + "</span>" +
+      (ehTexto ? '<button data-conversar="' + x.id + '">Abrir com a conversa</button>' : "") +
       '<button data-abrir="' + x.id + '">Abrir</button>' +
       '<button class="perigo" data-apagar="' + x.id + '">Apagar</button></div>'
     ).join("") + "</div>";
@@ -8020,11 +8430,14 @@ async function listaDocumentos(tipo, nome) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ titulo: titulo, tipo: tipo }),
     })).json();
-    ehTexto ? abrirDocumento(novo.id) : abrirPlanilha(novo.id);
+    ehTexto ? mostrarDupla(novo.id) : abrirPlanilha(novo.id);
   };
 
   document.querySelectorAll("[data-abrir]").forEach((b) => {
     b.onclick = () => (ehTexto ? abrirDocumento(Number(b.dataset.abrir)) : abrirPlanilha(Number(b.dataset.abrir)));
+  });
+  document.querySelectorAll("[data-conversar]").forEach((b) => {
+    b.onclick = () => mostrarDupla(Number(b.dataset.conversar));
   });
   document.querySelectorAll("[data-apagar]").forEach((b) => {
     b.onclick = async () => {
