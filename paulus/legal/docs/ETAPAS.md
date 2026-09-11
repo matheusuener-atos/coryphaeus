@@ -490,7 +490,7 @@ onde a identidade é mesmo o conteúdo.
 
 ---
 
-## Etapa 10 — O escritório por dentro
+## Etapa 10 — O escritório por dentro ✓ FEITA
 
 **Tela:** Financeiro
 **Tamanho:** grande
@@ -507,6 +507,55 @@ Quatro blocos inteiros do wireframe, e é a tela com mais coisa pendente.
 
 A distinção que o próprio wireframe faz continua valendo: a emissão da nota é
 da prefeitura e o boleto sai do banco. Aqui se controla e se guarda.
+
+### O que entrou
+
+`src/escritorio.py`, seis blocos novos na tela e um seletor de mês com o
+"fechamento em N dias" — que é o último dia do mês menos hoje, não um prazo
+inventado.
+
+**A folha é cópia, não cálculo.** Quem entra é quem tem vínculo definido no
+cadastro — sem vínculo a pessoa não entra, porque não foi dito como ela é paga,
+e uma folha por um valor que ninguém digitou sai errada com cara de certa. O
+valor de cada pessoa fica gravado no mês: aumentar o salário hoje não reescreve
+agosto. Estagiário conta separado de salários, porque bolsa não é salário.
+"Gerar recibos" sai um PDF por pessoa, com a natureza certa do pagamento —
+"bolsa de estágio", "pró-labore", "salário" — e avisando que sai sem
+assinatura, que é da tela de assinar.
+
+**Comprovantes** com arrastar-e-soltar, guardados por mês na pasta do programa
+e ligados ao lançamento. O que falta sai contado: despesa paga sem comprovante.
+
+**Nota fiscal e boleto são registro.** A emissão continua na prefeitura e o
+boleto continua saindo do banco. O que dá para fazer com verdade aqui é guardar
+número, valor e data — e mostrar o que foi recebido e ainda não tem nota
+anotada, que é a diferença entre duas listas, não uma pendência inventada.
+
+**Contrato concluído não é um campo.** Sai dos lançamentos: cliente que recebeu
+neste mês e não tem mais nada em aberto. Abrir uma cobrança nova tira o cliente
+da lista sozinho — um campo "encerrado" seria uma segunda verdade, e a errada é
+sempre a que ninguém lembrou de atualizar.
+
+**Exportar** o mês numa planilha com três abas, para quem faz a contabilidade.
+Valores vão como número: planilha que chega com "R$ 1.200,00" em célula de
+texto não soma do outro lado, e o contador soma.
+
+### Um bug que a verificação achou, e dois acertos de UI
+
+**Duas funções com o mesmo nome.** `blocoComprovantes` já existia dentro da
+ficha de lançamento quando nasceu outra com o mesmo nome no bloco novo. O
+JavaScript fica com a última, calado: o bloco simplesmente não aparecia, sem
+erro no console. Num arquivo de oito mil linhas isso vai acontecer de novo —
+agora há um teste que compara os nomes das 248 funções da página.
+
+**`.cresce` não crescia.** A classe é usada em dezenas de linhas esperando
+`flex: 1`, e só tinha regra dentro de `.acervo-cortes`. Nas outras telas o texto
+encolhia até virar reticências com espaço vazio sobrando na linha —
+"Impostos · DAS" aparecia como "Im…".
+
+**"6 pessoa(s)" ninguém escreve.** Um ajudante de plural nos dois lados, usado
+em toda a tela do Financeiro. O resto da aplicação ainda tem 57 ocorrências de
+"(s)" — é uma varredura mecânica, separada desta etapa.
 
 ---
 

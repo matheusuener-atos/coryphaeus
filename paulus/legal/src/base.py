@@ -271,6 +271,53 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_marcas_fixado ON marcas_acervo(fixado);
         """,
     ),
+    (
+        "011_folha_e_papelada",
+        """
+        -- Quanto cada pessoa recebe fica no cadastro dela. Uma segunda lista
+        -- de gente seria duas verdades sobre a mesma pessoa, e a hora de
+        -- descobrir que divergiram e a hora de pagar.
+        ALTER TABLE cadastros ADD COLUMN vinculo TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN salario_centavos INTEGER DEFAULT 0;
+        ALTER TABLE cadastros ADD COLUMN encargos_centavos INTEGER DEFAULT 0;
+
+        -- A folha de um mes, com o valor de cada pessoa NAQUELE mes. E copia,
+        -- e nao referencia: aumentar o salario hoje nao pode reescrever a
+        -- folha de agosto, que ja foi paga por um valor que foi aquele.
+        CREATE TABLE folha (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            mes               TEXT NOT NULL,
+            cadastro_id       INTEGER,
+            nome              TEXT NOT NULL,
+            vinculo           TEXT DEFAULT '',
+            salario_centavos  INTEGER NOT NULL DEFAULT 0,
+            encargos_centavos INTEGER NOT NULL DEFAULT 0,
+            observacao        TEXT DEFAULT '',
+            lancamento_id     INTEGER,
+            criado_em         TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX idx_folha_mes_pessoa ON folha(mes, cadastro_id);
+        CREATE INDEX idx_folha_mes ON folha(mes);
+
+        -- Nota fiscal e boleto: o registro do que existe FORA daqui. A emissao
+        -- da nota e da prefeitura e o boleto sai do banco - guardar o numero e
+        -- a data e o que da para fazer com verdade nesta maquina.
+        CREATE TABLE papeis_fiscais (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo          TEXT NOT NULL,
+            numero        TEXT DEFAULT '',
+            cadastro_id   INTEGER,
+            lancamento_id INTEGER,
+            centavos      INTEGER NOT NULL DEFAULT 0,
+            data          TEXT DEFAULT '',
+            situacao      TEXT DEFAULT '',
+            observacao    TEXT DEFAULT '',
+            criado_em     TEXT NOT NULL
+        );
+        CREATE INDEX idx_papel_tipo ON papeis_fiscais(tipo, data);
+        CREATE INDEX idx_papel_lancamento ON papeis_fiscais(lancamento_id);
+        """,
+    ),
 ]
 
 

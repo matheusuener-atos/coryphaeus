@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -41,6 +41,7 @@ import conexoes
 import documento
 import financeiro
 import acervo
+import escritorio
 import leis
 import planilha
 import relatorios
@@ -90,6 +91,9 @@ ENVIOS_PATH = BASE_DIR / "data" / "envios.json"
 CLAUSULAS_PATH = BASE_DIR / "data" / "clausulas.json"
 CONEXOES_PATH = BASE_DIR / "data" / "conexoes.json"
 SESSOES_DIR = BASE_DIR / "data" / "sessoes"
+COMPROVANTES_DIR = BASE_DIR / "data" / "comprovantes"
+RECIBOS_DIR = BASE_DIR / "data" / "recibos"
+EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -137,6 +141,9 @@ class Estado:
         self.marcas = acervo.Marcas(self.base)
         # Financeiro, bem-estar e conexoes; relatorios so le o que os outros gravaram.
         self.financeiro = financeiro.Financeiro(self.base)
+        # A folha, as notas e os boletos: o escritorio por dentro.
+        self.folha = escritorio.Folha(self.base)
+        self.papeis = escritorio.PapeisFiscais(self.base)
         self.bem_estar = bemestar.BemEstar(self.base)
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(
@@ -1382,6 +1389,208 @@ EXECUTORES = {
     "assinatura.assinar": _executar_assinar,
     "correio.enviar": _executar_enviar,
 }
+
+
+# ------------------------------------------------- folha, notas e boletos
+
+
+class MesPedido(BaseModel):
+    mes: str = ""
+
+
+class FichaPapel(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+@app.get("/api/financeiro/folha")
+def folha_ler(mes: str = "") -> dict:
+    mes = mes or escritorio.mes_de_hoje()
+    return {
+        "folha": estado.folha.do_mes(mes),
+        "candidatos": estado.folha.pessoas(),
+        "vinculos": [{"valor": k, "rotulo": v} for k, v in escritorio.VINCULOS.items()],
+    }
+
+
+@app.post("/api/financeiro/folha/montar")
+def folha_montar(payload: MesPedido) -> dict:
+    """Copia os valores dos cadastros para a folha do mes."""
+    try:
+        return {"folha": estado.folha.montar(payload.mes)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/financeiro/folha/pagar")
+def folha_pagar(payload: MesPedido) -> dict:
+    """
+    A folha do mes vira uma conta a pagar.
+
+    Um lancamento so, e nao um por pessoa: o que sai do caixa e a folha
+    inteira, e o detalhamento por pessoa ja esta gravado na folha. Espalhar
+    seis lancamentos no extrato esconderia o numero que importa.
+    """
+    mes = payload.mes or escritorio.mes_de_hoje()
+    da_folha = estado.folha.do_mes(mes)
+    if not da_folha["quantos"]:
+        raise HTTPException(status_code=400, detail="monte a folha deste mes antes")
+    if da_folha["lancamento_id"]:
+        raise HTTPException(status_code=400, detail="a folha deste mes ja esta lancada")
+
+    ultimo = escritorio.ultimo_dia(mes)
+    id_ = estado.financeiro.salvar({
+        "tipo": "despesa",
+        "descricao": f"Folha de {escritorio.mes_por_extenso(mes)}",
+        "centavos": da_folha["total"],
+        "categoria": "folha",
+        "vencimento": ultimo,
+        "observacao": f"{da_folha['quantos']} pessoa(s)",
+    })
+    estado.folha.ligar_ao_lancamento(mes, id_)
+    return {"folha": estado.folha.do_mes(mes), "lancamento": estado.financeiro.obter(id_)}
+
+
+@app.post("/api/financeiro/folha/recibos")
+def folha_recibos(payload: MesPedido) -> dict:
+    """
+    Um recibo em PDF por pessoa, na pasta do programa.
+
+    O recibo sai com o valor que esta gravado na folha daquele mes - nao com o
+    salario de hoje. E essa a razao de a folha ser copia.
+    """
+    mes = payload.mes or escritorio.mes_de_hoje()
+    da_folha = estado.folha.do_mes(mes)
+    if not da_folha["quantos"]:
+        raise HTTPException(status_code=400, detail="monte a folha deste mes antes")
+
+    # Quem paga e quem esta configurado em Preferencias. Sem isso o recibo
+    # sairia dizendo "recebi de este escritorio", que nao serve de recibo.
+    pessoa = estado.prefs.dados.get("pessoa", {})
+    quem_paga = str(pessoa.get("nome", "")).strip()
+
+    destino = RECIBOS_DIR / mes
+    try:
+        feitos = escritorio.gerar_recibos(
+            da_folha, destino, escritorio.mes_por_extenso(mes), quem_paga)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"nao consegui gerar: {exc}") from exc
+
+    return {"recibos": feitos, "pasta": str(destino)}
+
+
+@app.get("/api/financeiro/papeis")
+def papeis_listar(tipo: str = "", mes: str = "") -> dict:
+    mes = mes or escritorio.mes_de_hoje()
+    return {
+        "notas": estado.papeis.listar("nota", mes),
+        "boletos": estado.papeis.listar("boleto"),
+        "a_emitir": estado.papeis.a_emitir(mes),
+    }
+
+
+@app.post("/api/financeiro/papeis")
+def papeis_salvar(payload: FichaPapel) -> dict:
+    try:
+        id_ = estado.papeis.salvar(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"id": id_, **papeis_listar(mes=str(payload.dados.get("data", ""))[:7])}
+
+
+@app.delete("/api/financeiro/papeis/{id_}")
+def papeis_apagar(id_: int) -> dict:
+    if not estado.papeis.apagar(id_):
+        raise HTTPException(status_code=404, detail="nao achei esse registro")
+    return {"apagado": id_}
+
+
+@app.post("/api/financeiro/papeis/{id_}/pago")
+def papeis_pago(id_: int) -> dict:
+    if not estado.papeis.marcar_pago(id_):
+        raise HTTPException(status_code=404, detail="nao achei esse boleto")
+    return {"pago": id_}
+
+
+@app.get("/api/financeiro/fechamento")
+def financeiro_fechamento(mes: str = "") -> dict:
+    return escritorio.fechamento(estado.base, estado.folha, estado.papeis, mes)
+
+
+@app.post("/api/financeiro/comprovantes")
+async def financeiro_comprovante(lancamento_id: int = Form(...),
+                                 arquivo: UploadFile = File(...)) -> dict:
+    """
+    Guarda o comprovante e o liga ao lancamento.
+
+    O arquivo fica na pasta do programa, com o mes no caminho: procurar o
+    comprovante do DAS de setembro daqui a um ano nao pode depender de lembrar
+    o nome que o banco deu ao PDF.
+    """
+    lancamento = estado.financeiro.obter(lancamento_id)
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="nao achei esse lancamento")
+
+    nome = Path(arquivo.filename or "").name
+    if not nome:
+        raise HTTPException(status_code=400, detail="arquivo sem nome")
+
+    conteudo = await arquivo.read()
+    if len(conteudo) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="arquivo maior que 50 MB")
+
+    quando = lancamento.get("liquidado_em") or lancamento.get("vencimento") or ""
+    pasta = COMPROVANTES_DIR / (quando[:7] or escritorio.mes_de_hoje())
+    pasta.mkdir(parents=True, exist_ok=True)
+
+    alvo = pasta / nome
+    n = 2
+    while alvo.exists():
+        alvo = pasta / f"{Path(nome).stem} ({n}){Path(nome).suffix}"
+        n += 1
+    alvo.write_bytes(conteudo)
+
+    import hashlib
+    sha = hashlib.sha1(conteudo).hexdigest()
+    id_ = estado.financeiro.anexar(lancamento_id, nome, str(alvo), sha)
+    return {"id": id_, "nome": nome, "caminho": str(alvo),
+            "comprovantes": estado.financeiro.comprovantes(lancamento_id)}
+
+
+@app.delete("/api/financeiro/comprovantes/{id_}")
+def financeiro_tirar_comprovante(id_: int) -> dict:
+    """
+    Desliga o comprovante do lancamento.
+
+    O arquivo continua na pasta: apagar o papel do disco porque a ligacao
+    estava errada seria destruir o comprovante por causa de um erro de
+    digitacao.
+    """
+    if not estado.financeiro.tirar_comprovante(id_):
+        raise HTTPException(status_code=404, detail="nao achei esse comprovante")
+    return {"tirado": id_}
+
+
+@app.get("/api/financeiro/exportar")
+def financeiro_exportar(mes: str = "") -> FileResponse:
+    """O mes inteiro numa planilha, para quem faz a contabilidade."""
+    mes = mes or escritorio.mes_de_hoje()
+    destino = EXPORTACOES_DIR / f"financeiro-{mes}.xlsx"
+    try:
+        escritorio.exportar_mes(
+            destino, mes,
+            extrato=estado.financeiro.extrato(mes),
+            folha=estado.folha.do_mes(mes),
+            notas=estado.papeis.listar("nota", mes),
+            boletos=estado.papeis.listar("boleto"),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"nao consegui exportar: {exc}") from exc
+    return FileResponse(
+        destino,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=_anexo(destino.name),
+    )
 
 
 # ----------------------------------------------------------- preferencias
@@ -3104,7 +3313,40 @@ def financeiro_painel(mes: str = "") -> dict:
         "vê esta tela. Uma permissão por pessoa só faria sentido num PAULUS de equipe, "
         "que ainda não existe."
     )
+
+    # O escritorio por dentro vem na mesma resposta: sao seis blocos da mesma
+    # tela, e seis chamadas fariam a tela pintar em pedacos.
+    mes_alvo = dados["painel"]["mes"]
+    dados["folha"] = estado.folha.do_mes(mes_alvo)
+    dados["candidatos_folha"] = estado.folha.pessoas()
+    dados["notas"] = estado.papeis.listar("nota", mes_alvo)
+    dados["notas_a_emitir"] = estado.papeis.a_emitir(mes_alvo)
+    dados["boletos"] = estado.papeis.listar("boleto")
+    dados["comprovantes"] = escritorio.comprovantes_do_mes(estado.base, mes_alvo)
+    dados["sem_comprovante"] = escritorio.sem_comprovante(estado.base, mes_alvo)
+    dados["concluidos"] = escritorio.contratos_concluidos(estado.base, mes_alvo)
+    dados["fechamento"] = escritorio.fechamento(
+        estado.base, estado.folha, estado.papeis, mes_alvo)
+    dados["meses"] = _meses_com_movimento()
     return dados
+
+
+def _meses_com_movimento() -> list[dict]:
+    """
+    Os meses que o seletor oferece: os que tem lancamento, mais o de hoje.
+
+    Oferecer doze meses fixos daria meses vazios para escolher; oferecer so os
+    que tem dado esconderia o mes corrente enquanto nada foi lancado nele.
+    """
+    linhas = estado.base.buscar(
+        "SELECT DISTINCT substr(COALESCE(NULLIF(liquidado_em,''), vencimento, ''),1,7) m "
+        "FROM lancamentos WHERE m != '' ORDER BY m DESC"
+    )
+    meses = [l["m"] for l in linhas]
+    hoje = escritorio.mes_de_hoje()
+    if hoje not in meses:
+        meses.insert(0, hoje)
+    return [{"valor": m, "rotulo": escritorio.mes_por_extenso(m)} for m in meses[:24]]
 
 
 @app.get("/api/financeiro/lancamentos")

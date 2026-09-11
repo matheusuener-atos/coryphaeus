@@ -163,6 +163,12 @@
   }
   .num { font: 400 10.5px var(--mono); color: var(--ink-3); }
   .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* O nome da classe diz o que ela faz, e ela nao fazia: so existia regra
+     dentro de .acervo-cortes. Nas outras telas o texto encolhia ate virar
+     reticencias enquanto sobrava espaco vazio na linha - "Impostos · DAS"
+     aparecia como "Im...". O min-width: 0 e o que deixa o texto encolher
+     dentro do flex em vez de empurrar a linha. */
+  .cresce { flex: 1; min-width: 0; }
 
   .vazio-flex { flex: 1; }
   .divisa { width: 1px; height: 11px; background: var(--linha-media); }
@@ -614,7 +620,6 @@
     border: 1px solid var(--linha-media); padding: 1px 5px; pointer-events: none;
   }
   .acervo-cortes { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
-  .acervo-cortes .cresce { flex: 1; }
   .acervo-cortes select { flex: 0 0 auto; min-width: 0; padding: 7px 10px; font-size: 12px; }
 
   .lote-barra {
@@ -1558,6 +1563,25 @@
   .fin-quando { font: 500 9.5px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
   .fin-quando.atrasado { color: var(--atencao); }
 
+  /* Título de bloco com o número dele à direita: nos seis blocos do
+     escritório, o número é a primeira coisa que se olha. */
+  .painel-topo {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 10px;
+  }
+  .painel-topo h3 { margin: 0; }
+  .painel-topo .rotulo { white-space: nowrap; }
+
+  /* Onde se arrasta arquivo. Continua sendo um botão para quem não arrasta:
+     arrastar não é a única forma de pôr um arquivo no lugar. */
+  .solta {
+    border: 1px dashed var(--linha-forte); padding: 16px; margin-top: 12px;
+    text-align: center; color: var(--ink-3);
+  }
+  .solta p { margin: 0 0 4px; font-size: 12.5px; }
+  .solta .explica { margin-bottom: 10px; }
+  .solta.arrastando { border-color: var(--acento); background: var(--acento-fraco); }
+
   .fin-extrato { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   .fin-extrato th {
     text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--linha-media);
@@ -1630,6 +1654,11 @@
     gap: 16px;
     align-items: start;
   }
+  .colunas-pares {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 16px; align-items: start;
+  }
+
   .colunas-2 {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
@@ -4801,6 +4830,418 @@ function adicionarPastaAoAcervo() {
 }
 
 
+/* ------------------------------------------- o escritório por dentro */
+/*
+   Quatro blocos que não são dinheiro passando — são o escritório funcionando:
+   a folha das pessoas, os comprovantes do que foi pago, as notas emitidas e os
+   boletos na fila. Mais o que terminou no mês.
+
+   A linha que o wireframe traça e que vale aqui: a nota sai no sistema da
+   prefeitura e o boleto sai do banco. Esta tela controla e guarda; dizer que
+   emite seria mentir sobre o que o programa faz.
+*/
+
+function blocoFolha(d) {
+  const f = d.folha;
+  const podeMontar = (d.candidatos_folha || []).length;
+
+  let corpo;
+  if (!f.quantos && !podeMontar) {
+    corpo = '<p class="explica">Ninguém tem vínculo definido ainda. Abra ' +
+      "<b>Cadastros</b>, escolha a pessoa e diga como ela é paga e quanto recebe — " +
+      "a folha sai daí. Sem isso eu não invento valor.</p>" +
+      '<div class="linha-form"><button id="folha-cadastros">Ir para Cadastros</button></div>';
+  } else if (!f.quantos) {
+    corpo = '<p class="explica">' + plural(podeMontar, "pessoa") + " com vínculo definido. " +
+      "Montar a folha copia os valores de hoje para este mês — depois disso, " +
+      "mudar o salário não reescreve este mês.</p>" +
+      '<div class="linha-form"><button class="primario" id="folha-montar">Montar a folha de ' +
+      esc(mesCurto(f.mes)) + "</button></div>";
+  } else {
+    corpo =
+      '<div class="fin-linha"><span class="cresce">Salários</span>' +
+      '<span class="fin-valor">' + esc(f.salarios_texto) + "</span></div>" +
+      '<div class="fin-linha"><span class="cresce">Encargos e INSS</span>' +
+      '<span class="fin-valor">' + esc(f.encargos_texto) + "</span></div>" +
+      '<div class="fin-linha"><span class="cresce">Estagiários</span>' +
+      '<span class="fin-valor">' + esc(f.estagios_texto) + "</span></div>" +
+      '<div class="linha-form" style="margin-top:12px">' +
+      '<button id="folha-ver">Ver detalhamento</button>' +
+      '<button id="folha-recibos">Gerar recibos</button>' +
+      (f.lancamento_id
+        ? '<span class="fin-quando">já lançada em contas a pagar</span>'
+        : '<button class="primario" id="folha-pagar">Lançar em contas a pagar</button>') +
+      "</div>";
+  }
+
+  return '<div class="painel"><div class="painel-topo"><h3>Folha de pagamento</h3>' +
+    '<span class="rotulo">' + (f.quantos
+      ? f.total_curto + " · " + plural(f.quantos, "pessoa")
+      : "nada montado") + "</span></div>" + corpo + "</div>";
+}
+
+function blocoPapelada(d) {
+  const temAnexo = (d.comprovantes || []).length;
+  const faltando = d.sem_comprovante || [];
+
+  return '<div class="painel"><div class="painel-topo"><h3>Documentos e comprovantes</h3>' +
+    '<span class="rotulo">' + temAnexo + " no mês</span></div>" +
+    (temAnexo
+      ? (d.comprovantes.map((k) =>
+          '<div class="fin-linha"><span class="doc-marca">' +
+          esc((k.nome.split(".").pop() || "?").slice(0, 4)) + "</span>" +
+          '<span class="cresce corta">' + esc(k.nome) +
+          '<div class="acervo-pasta">' + esc(k.descricao) + "</div></span>" +
+          '<span class="fin-quando">' + esc(dataBR(k.liquidado_em)) + "</span>" +
+          '<button class="perigo" data-tirar-comp="' + k.id + '">×</button></div>').join(""))
+      : '<p class="explica">Nenhum comprovante guardado neste mês.</p>') +
+
+    (faltando.length
+      ? '<div class="pv-aviso" style="margin-top:10px"><span class="pv-grau">falta</span>' +
+        "<span>" + plural(faltando.length, "despesa paga", "despesas pagas") +
+        " sem comprovante<br>" +
+        '<span class="explica">' + esc(faltando.map((x) => x.descricao).join(", ")) +
+        "</span></span></div>"
+      : "") +
+
+    '<div class="solta" id="comp-solta"><p>Arraste comprovantes aqui</p>' +
+    '<p class="explica">cada anexo fica ligado a um lançamento e guardado na sua máquina</p>' +
+    '<button id="comp-escolher">Escolher no computador</button></div>' +
+    '<input type="file" id="comp-arquivo" hidden multiple></div>';
+}
+
+function blocoNotas(d) {
+  const notas = d.notas || [];
+  const faltam = d.notas_a_emitir || [];
+  return '<div class="painel"><div class="painel-topo"><h3>Notas fiscais</h3>' +
+    '<span class="rotulo">' + plural(notas.length, "registrada") + " no mês</span></div>" +
+
+    (faltam.length
+      ? faltam.map((x) =>
+          '<div class="fin-linha"><span class="cresce corta">' + esc(x.cliente || x.descricao) +
+          "</span>" + '<span class="fin-quando atrasado">a registrar</span>' +
+          '<span class="fin-valor">' + esc(emReais(x.centavos)) + "</span>" +
+          '<button data-nota-de="' + x.id + '">Registrar</button></div>').join("")
+      : "") +
+
+    (notas.length
+      ? notas.map((n) =>
+          '<div class="fin-linha"><span class="cresce corta">' +
+          (n.numero ? "NF " + esc(n.numero) + " · " : "") + esc(n.cliente || "sem cliente") +
+          "</span>" + '<span class="fin-quando">' + esc(n.data_br) + "</span>" +
+          '<span class="fin-valor">' + esc(n.valor) + "</span>" +
+          '<button class="perigo" data-tirar-papel="' + n.id + '">×</button></div>').join("")
+      : (faltam.length ? "" : '<p class="explica">Nenhuma nota registrada neste mês.</p>')) +
+
+    '<div class="linha-form" style="margin-top:12px">' +
+    '<button id="nota-nova">Registrar nota emitida</button></div>' +
+    '<p class="explica">A emissão continua no sistema da prefeitura. Aqui eu só ' +
+    "guardo o número, o valor e a data — e mostro o que foi recebido e ainda não " +
+    "tem nota anotada.</p></div>";
+}
+
+function blocoBoletos(d) {
+  const boletos = d.boletos || [];
+  const abertos = boletos.filter((b) => b.situacao === "aberto");
+  return '<div class="painel"><div class="painel-topo"><h3>Boletos</h3>' +
+    '<span class="rotulo">' + abertos.length + " na fila</span></div>" +
+    (boletos.length
+      ? boletos.map((b) =>
+          '<div class="fin-linha"><span class="cresce corta">' +
+          esc(b.cliente || b.numero || "sem cliente") + "</span>" +
+          '<span class="fin-quando' + (b.vencido ? " atrasado" : "") + '">' +
+          esc(b.situacao === "pago" ? "pago" : "vence " + b.data_br) + "</span>" +
+          '<span class="fin-valor">' + esc(b.valor) + "</span>" +
+          (b.situacao === "aberto"
+            ? '<button data-boleto-pago="' + b.id + '">Baixar</button>'
+            : "") +
+          '<button class="perigo" data-tirar-papel="' + b.id + '">×</button></div>').join("")
+      : '<p class="explica">Nenhum boleto na fila.</p>') +
+    '<div class="linha-form" style="margin-top:12px">' +
+    '<button id="boleto-novo">Registrar boleto</button>' +
+    (abertos.length ? '<button id="boleto-cobrar">Enviar cobrança por e-mail</button>' : "") +
+    "</div>" +
+    '<p class="explica">O boleto sai do seu banco. Eu acompanho o vencimento e aviso — ' +
+    "gerar boleto exigiria convênio bancário, que é do banco e não deste programa.</p></div>";
+}
+
+function blocoConcluidos(d) {
+  const feitos = d.concluidos || [];
+  return '<div class="painel"><div class="painel-topo"><h3>Contratos concluídos</h3>' +
+    '<span class="rotulo">' + feitos.length + " no mês</span></div>" +
+    (feitos.length
+      ? feitos.map((c) =>
+          '<div class="fin-linha"><span class="cresce corta">' + esc(c.nome) + "</span>" +
+          '<span class="fin-quando">quitado</span>' +
+          '<span class="fin-valor entrada">' + esc(c.recebido_texto) + "</span>" +
+          '<button data-arquivar="' + c.id + '">Arquivar a pasta</button></div>').join("")
+      : '<p class="explica">Nenhum cliente ficou sem nada em aberto neste mês.</p>') +
+    '<p class="explica">Sai dos lançamentos: cliente que recebeu neste mês e não tem ' +
+    "mais nada em aberto. Não há um campo “encerrado” para alguém esquecer de " +
+    "marcar.</p></div>";
+}
+
+function blocoFechamento(d) {
+  const f = d.fechamento || {};
+  const faltas = f.faltas || [];
+  return '<div class="painel" style="margin-top:16px"><div class="painel-topo">' +
+    "<h3>Fechamento do mês</h3>" +
+    '<span class="rotulo">' + (f.dias_para_fechar
+      ? "fecha em " + plural(f.dias_para_fechar, "dia")
+      : "mês encerrado") + "</span></div>" +
+    (faltas.length
+      ? faltas.map((x) =>
+          '<div class="pv-aviso"><span class="pv-grau">falta</span>' +
+          "<span><b>" + esc(x.titulo) + "</b>" +
+          (x.detalhe ? "<br>" + esc(x.detalhe) : "") + "</span></div>").join("")
+      : '<p class="explica">Nada pendente: comprovantes guardados, notas ' +
+        "registradas e nenhum boleto vencido em aberto.</p>") +
+    '<div class="linha-form" style="margin-top:12px">' +
+    '<button id="fin-exportar">Exportar a planilha do mês</button></div></div>';
+}
+
+/* ------------------------------------------------------------ as ações */
+
+function ligarEscritorio() {
+  const centro = $("centro");
+  const mes = fim.mes || (fim.fin.painel && fim.fin.painel.mes);
+
+  const ir = (id, acao) => { const b = $(id); if (b) b.onclick = acao; };
+
+  ir("folha-cadastros", () => { marcarDestino("cadastros"); mostrarCadastros(); });
+  ir("folha-montar", () => pedirFolha("montar", "montando a folha…"));
+  ir("folha-pagar", () => pedirFolha("pagar", "lançando…"));
+  ir("folha-recibos", gerarRecibos);
+  ir("folha-ver", verDetalhamentoDaFolha);
+
+  ir("nota-nova", () => fichaPapel("nota"));
+  ir("boleto-novo", () => fichaPapel("boleto"));
+  ir("boleto-cobrar", () => { marcarDestino("caixa"); mostrarEmail(); });
+  ir("fin-exportar", () => {
+    // Deixa o navegador baixar: a planilha é um arquivo, não uma tela.
+    window.location.href = "/api/financeiro/exportar?mes=" + encodeURIComponent(mes);
+  });
+
+  centro.querySelectorAll("[data-nota-de]").forEach((b) => {
+    b.onclick = () => {
+      const alvo = (fim.fin.notas_a_emitir || []).find((x) => x.id === Number(b.dataset.notaDe));
+      fichaPapel("nota", null, alvo);
+    };
+  });
+  centro.querySelectorAll("[data-tirar-papel]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Tirar este registro? O papel de verdade continua onde está.")) return;
+      await fetch("/api/financeiro/papeis/" + b.dataset.tirarPapel, { method: "DELETE" });
+      mostrarFinanceiro();
+    };
+  });
+  centro.querySelectorAll("[data-boleto-pago]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/financeiro/papeis/" + b.dataset.boletoPago + "/pago",
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      mostrarFinanceiro();
+    };
+  });
+  centro.querySelectorAll("[data-tirar-comp]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Tirar este comprovante do lançamento? O arquivo continua na pasta.")) return;
+      await fetch("/api/financeiro/comprovantes/" + b.dataset.tirarComp, { method: "DELETE" });
+      mostrarFinanceiro();
+    };
+  });
+  centro.querySelectorAll("[data-arquivar]").forEach((b) => {
+    b.onclick = () => arquivarCliente(Number(b.dataset.arquivar));
+  });
+
+  ligarSoltaDeComprovante();
+}
+
+async function pedirFolha(acao, avisando) {
+  const alvo = $("centro");
+  avisoCert(avisando);
+  const r = await fetch("/api/financeiro/folha/" + acao, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mes: fim.mes || "" }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  await mostrarFinanceiro();
+  avisoCert(acao === "montar" ? "folha montada" : "folha lançada em contas a pagar");
+}
+
+async function gerarRecibos() {
+  avisoCert("gerando os recibos…");
+  const r = await fetch("/api/financeiro/folha/recibos", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mes: fim.mes || "" }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+  avisoCert(plural(d.recibos.length, "recibo") + " em " + d.pasta);
+  fetch("/api/biblioteca/abrir-pasta", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ caminho: d.pasta }),
+  });
+}
+
+function verDetalhamentoDaFolha() {
+  const f = fim.fin.folha;
+  const alvo = $("fin-abaixo");
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px">' +
+    '<div class="painel-topo"><h3>Folha de ' + esc(mesCurto(f.mes)) + "</h3>" +
+    '<span class="rotulo">' + esc(f.total_texto) + "</span></div>" +
+    '<table class="fin-extrato"><thead><tr><th>Pessoa</th><th>Vínculo</th>' +
+    '<th class="num">Salário ou bolsa</th><th class="num">Encargos</th>' +
+    '<th class="num">Total</th></tr></thead><tbody>' +
+    f.pessoas.map((p) =>
+      "<tr><td>" + esc(p.nome) + "</td><td>" + esc(p.vinculo_rotulo) + "</td>" +
+      '<td class="num">' + esc(p.salario) + "</td>" +
+      '<td class="num">' + esc(p.encargos) + "</td>" +
+      '<td class="num">' + esc(p.total) + "</td></tr>").join("") +
+    "</tbody></table>" +
+    '<p class="explica">Estes são os valores gravados neste mês. Mudar o salário ' +
+    "no cadastro não reescreve um mês já montado — é por isso que a folha é cópia.</p>" +
+    "</div>";
+  alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function fichaPapel(tipo, id, deLancamento) {
+  const d = fim.fin;
+  const alvo = $("fin-abaixo");
+  const eNota = tipo === "nota";
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>' +
+    (eNota ? "Registrar nota emitida" : "Registrar boleto") + "</h3>" +
+    '<p class="explica">' + (eNota
+      ? "O que você digitar aqui é o registro da nota que a prefeitura emitiu."
+      : "O que você digitar aqui é o registro do boleto que o banco gerou.") + "</p>" +
+    '<div class="linha-form"><input type="text" id="pp-numero" placeholder="' +
+    (eNota ? "número da nota" : "número ou identificação") + '" value="' +
+    esc(deLancamento && deLancamento.descricao ? "" : "") + '">' +
+    '<input type="text" id="pp-valor" placeholder="valor" value="' +
+    (deLancamento ? esc(emReais(deLancamento.centavos)) : "") + '"></div>' +
+    '<div class="linha-form"><select id="pp-cliente"><option value="">Sem cliente</option>' +
+    (d.clientes || []).map((c) => '<option value="' + c.id + '">' + esc(c.nome) + "</option>").join("") +
+    "</select>" +
+    '<input type="date" id="pp-data" value="' + hoje + '"></div>' +
+    '<div class="linha-form"><button class="primario" id="pp-salvar">Guardar registro</button>' +
+    '<button id="pp-cancelar">Cancelar</button></div></div>';
+
+  if (deLancamento && deLancamento.cliente) {
+    const opcao = [...$("pp-cliente").options].find((o) => o.textContent === deLancamento.cliente);
+    if (opcao) $("pp-cliente").value = opcao.value;
+  }
+
+  $("pp-cancelar").onclick = () => { alvo.innerHTML = ""; };
+  $("pp-salvar").onclick = async () => {
+    const r = await fetch("/api/financeiro/papeis", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: id || null,
+        dados: {
+          tipo: tipo,
+          numero: $("pp-numero").value.trim(),
+          centavos: centavosDe($("pp-valor").value),
+          cadastro_id: Number($("pp-cliente").value) || null,
+          lancamento_id: deLancamento ? deLancamento.id : null,
+          data: $("pp-data").value,
+        },
+      }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    alvo.innerHTML = "";
+    mostrarFinanceiro();
+  };
+  alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* Arrastar comprovante: o arquivo precisa saber a que lançamento pertence, e
+   é isso que o passo do meio pergunta. Anexo solto não é comprovante de nada. */
+function ligarSoltaDeComprovante() {
+  const solta = $("comp-solta");
+  const campo = $("comp-arquivo");
+  if (!solta || !campo) return;
+
+  const escolher = () => campo.click();
+  $("comp-escolher").onclick = escolher;
+
+  solta.ondragover = (e) => { e.preventDefault(); solta.classList.add("arrastando"); };
+  solta.ondragleave = () => solta.classList.remove("arrastando");
+  solta.ondrop = (e) => {
+    e.preventDefault();
+    solta.classList.remove("arrastando");
+    if (e.dataTransfer.files.length) enviarComprovantes([...e.dataTransfer.files]);
+  };
+  campo.onchange = () => { if (campo.files.length) enviarComprovantes([...campo.files]); };
+}
+
+async function enviarComprovantes(arquivos) {
+  const d = fim.fin;
+  const candidatos = (d.sem_comprovante || []).concat(
+    (d.pagar || []).map((x) => ({ id: x.id, descricao: x.descricao, valor: x.valor_texto })));
+  if (!candidatos.length) {
+    avisoCert("não há lançamento para ligar o comprovante — lance a despesa primeiro");
+    return;
+  }
+
+  const escolha = prompt(
+    "A que lançamento este comprovante pertence?\n\n" +
+    candidatos.map((c, i) => (i + 1) + ") " + c.descricao).join("\n") +
+    "\n\nDigite o número:", "1");
+  const alvo = candidatos[Number(escolha) - 1];
+  if (!alvo) return;
+
+  for (const arquivo of arquivos) {
+    const forma = new FormData();
+    forma.append("lancamento_id", alvo.id);
+    forma.append("arquivo", arquivo);
+    const r = await fetch("/api/financeiro/comprovantes", { method: "POST", body: forma });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  }
+  avisoCert(plural(arquivos.length, "comprovante") + " ligado" +
+    (arquivos.length === 1 ? "" : "s") + " a “" + alvo.descricao + "”");
+  mostrarFinanceiro();
+}
+
+/* Arquivar a pasta de um cliente encerrado é mover os documentos dele — e
+   mover é efeito externo, então vai pela fila como todo o resto. */
+async function arquivarCliente(id) {
+  const cliente = (fim.fin.concluidos || []).find((c) => c.id === id);
+  if (!cliente) return;
+  bib.termo = cliente.nome;
+  bib.filtro = "todos";
+  marcarDestino("biblioteca");
+  await mostrarBiblioteca();
+  avisoCert("os documentos de " + cliente.nome + " — selecione e use Mover para pasta");
+}
+
+function mesCurto(mes) {
+  const nomes = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const partes = String(mes || "").split("-");
+  return partes.length === 2 ? nomes[Number(partes[1]) - 1] : mes;
+}
+
+/* "6 pessoa(s)" ninguém escreve. O plural do português é quase sempre um "s"
+   no fim; as poucas exceções desta tela já vêm escritas à mão no segundo
+   argumento. */
+function plural(quantos, palavra, muitos) {
+  return quantos + " " + (Number(quantos) === 1 ? palavra : (muitos || palavra + "s"));
+}
+
+function emReais(centavos) {
+  const sinal = centavos < 0 ? "-" : "";
+  const inteiro = Math.floor(Math.abs(centavos) / 100);
+  const resto = String(Math.abs(centavos) % 100).padStart(2, "0");
+  return sinal + "R$ " + inteiro.toLocaleString("pt-BR") + "," + resto;
+}
+
+function centavosDe(texto) {
+  const limpo = String(texto || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  return Math.round((Number(limpo) || 0) * 100);
+}
+
+
 /* -------------------------------------------------------- habilidades */
 
 const ICONES_HAB = {
@@ -7955,7 +8396,7 @@ async function pedirFormula() {
    vazio, em vez de desenhar um gráfico bonito de dado que ninguém digitou.
 */
 
-const fim = { fin: null, rel: null, be: null, cx: null, relogio: null };
+const fim = { fin: null, mes: "", rel: null, be: null, cx: null, relogio: null };
 
 /* --------------------------------------------------------- financeiro */
 
@@ -7965,7 +8406,9 @@ async function mostrarFinanceiro() {
   centro.innerHTML = '<div class="catalogo"><p class="nota">somando…</p></div>';
 
   try {
-    fim.fin = await (await fetch("/api/financeiro")).json();
+    fim.fin = await (await fetch("/api/financeiro?mes=" +
+      encodeURIComponent(fim.mes || ""))).json();
+    fim.mes = fim.fin.painel.mes;
   } catch (err) {
     centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
     return;
@@ -7978,10 +8421,17 @@ function desenharFinanceiro() {
   const d = fim.fin;
   const p = d.painel;
 
+  const fecha = (d.fechamento || {}).dias_para_fechar;
+
   let html = '<div class="catalogo"><div class="tela-topo">' +
     "<div><h2>Financeiro</h2>" +
-    '<span class="rotulo">' + esc(p.mes_rotulo) + "</span></div>" +
-    '<div class="tela-acoes"><button id="fin-extrato-b">Extrato</button>' +
+    '<span class="rotulo">' + esc(p.mes_rotulo) +
+    (fecha ? " · fechamento em " + plural(fecha, "dia") : "") + "</span></div>" +
+    '<div class="tela-acoes">' +
+    '<select id="fin-mes">' + (d.meses || []).map((m) =>
+      '<option value="' + esc(m.valor) + '"' + (m.valor === p.mes ? " selected" : "") +
+      ">" + esc(m.rotulo) + "</option>").join("") + "</select>" +
+    '<button id="fin-extrato-b">Extrato</button>' +
     '<button class="primario" id="fin-novo">Novo lançamento</button></div></div>';
 
   if (!p.tem_dado) {
@@ -8000,9 +8450,11 @@ function desenharFinanceiro() {
 
   html += '<div class="fin-cartoes">' +
     cartaoFin("saldo em caixa", p.saldo_texto, p.resultado_mes_texto + " no mês") +
-    cartaoFin("a receber", p.a_receber_texto, p.a_receber_quantos + " cobrança(s) aberta(s)") +
-    cartaoFin("a pagar", p.a_pagar_texto, p.a_pagar_quantos + " conta(s)") +
-    cartaoFin("em atraso", p.atrasado_texto, p.atrasado_quantos + " cobrança(s)", p.atrasado > 0) +
+    cartaoFin("a receber", p.a_receber_texto,
+      plural(p.a_receber_quantos, "cobrança aberta", "cobranças abertas")) +
+    cartaoFin("a pagar", p.a_pagar_texto, plural(p.a_pagar_quantos, "conta")) +
+    cartaoFin("em atraso", p.atrasado_texto,
+      plural(p.atrasado_quantos, "cobrança"), p.atrasado > 0) +
     "</div>";
 
   if (d.precisa.length) {
@@ -8024,7 +8476,7 @@ function desenharFinanceiro() {
     '<p class="explica" style="margin-top:10px">Só o que foi efetivamente recebido ou pago. ' +
     "O que está em aberto aparece nas listas abaixo, não no gráfico.</p></div>";
 
-  html += '<div class="assinar-colunas" style="margin-top:16px">';
+  html += '<div class="colunas-pares" style="margin-top:16px">';
   html += '<div class="painel"><h3>A receber</h3>' +
     (d.receber.length
       ? d.receber.map(linhaFin).join("")
@@ -8033,6 +8485,13 @@ function desenharFinanceiro() {
     (d.pagar.length
       ? d.pagar.map(linhaFin).join("")
       : '<p class="explica">Nenhuma conta em aberto.</p>') + "</div></div>";
+
+  html += '<div class="colunas-pares" style="margin-top:16px">' +
+    blocoFolha(d) + blocoPapelada(d) + "</div>";
+  html += '<div class="colunas-pares" style="margin-top:16px">' +
+    blocoNotas(d) + blocoBoletos(d) + "</div>";
+  html += '<div class="colunas-pares" style="margin-top:16px">' +
+    blocoConcluidos(d) + blocoFechamento(d) + "</div>";
 
   html += '<div class="painel" style="margin-top:16px"><h3>Onde os números moram</h3>' +
     '<p class="explica">' + esc(d.onde_moram) + "</p></div>";
@@ -8070,6 +8529,9 @@ function linhaFin(l) {
 function ligarFinanceiro() {
   $("fin-novo").onclick = fichaLancamento;
   $("fin-extrato-b").onclick = mostrarExtrato;
+  const seletor = $("fin-mes");
+  if (seletor) seletor.onchange = (e) => { fim.mes = e.target.value; mostrarFinanceiro(); };
+  ligarEscritorio();
 
   document.querySelectorAll("[data-liquidar]").forEach((b) => {
     b.onclick = async () => {

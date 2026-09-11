@@ -202,7 +202,7 @@ class Financeiro:
             item["situacao"] = ("recebido" if item["tipo"] == "recebimento" else "pago") + \
                 f" {_br(item['liquidado_em'])}"
         elif item["atrasado"]:
-            item["situacao"] = f"atrasado {item['dias_atraso']} dia(s)"
+            item["situacao"] = "atrasado " + _dias(item["dias_atraso"])
         elif item["vencimento"]:
             item["situacao"] = f"vence {_br(item['vencimento'])}"
         else:
@@ -395,7 +395,8 @@ class Financeiro:
             total = sum(l["centavos"] for l in atrasados)
             avisos.append({
                 "grau": "urgente",
-                "titulo": f"{len(atrasados)} cobrança(s) atrasada(s) — {curto(total)}",
+                "titulo": (_quantos(len(atrasados), "cobrança atrasada", "cobranças atrasadas")
+                           + f" — {curto(total)}"),
                 "detalhe": ", ".join(l["descricao"] for l in atrasados[:3]),
                 "acao": "cobrar",
                 "ids": [l["id"] for l in atrasados],
@@ -412,7 +413,7 @@ class Financeiro:
                 "grau": "urgente" if dias <= 2 else "atencao",
                 "titulo": f"{l['descricao']} — {em_reais(l['centavos'])}",
                 "detalhe": "vence hoje" if dias == 0 else (
-                    f"venceu há {abs(dias)} dia(s)" if dias < 0 else f"vence em {dias} dia(s)"),
+                    "venceu há " + _dias(abs(dias)) if dias < 0 else "vence em " + _dias(dias)),
                 "acao": "pagar",
                 "ids": [l["id"]],
             })
@@ -426,7 +427,8 @@ class Financeiro:
         if sem_comprovante:
             avisos.append({
                 "grau": "atencao",
-                "titulo": f"{len(sem_comprovante)} lançamento(s) sem comprovante neste mês",
+                "titulo": (_quantos(len(sem_comprovante), "lançamento")
+                           + " sem comprovante neste mês"),
                 "detalhe": ", ".join(l["descricao"] for l in sem_comprovante[:3]),
                 "acao": "anexar",
                 "ids": [l["id"] for l in sem_comprovante],
@@ -476,6 +478,16 @@ def _mes_extenso(mes: str) -> str:
         return f"{_MESES[int(numero) - 1]} de {ano}"
     except (ValueError, IndexError):
         return mes
+
+
+def _quantos(n: int, palavra: str, muitos: str = "") -> str:
+    """"1 cobrança", "3 cobranças" — nunca "3 cobrança(s)"."""
+    return f"{n} {palavra if n == 1 else (muitos or palavra + 's')}"
+
+
+def _dias(n: int) -> str:
+    """"1 dia", "12 dias" — e nunca "12 dia(s)", que ninguém escreve."""
+    return f"{n} dia" if n == 1 else f"{n} dias"
 
 
 def _br(iso: str) -> str:

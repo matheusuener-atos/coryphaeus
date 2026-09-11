@@ -215,6 +215,29 @@ def test_javascript_compila() -> None:
     checar(r.returncode == 0, "sem erro de sintaxe", (r.stderr or "").strip()[:200])
 
 
+def test_nome_de_funcao_nao_se_repete() -> None:
+    """
+    Duas funcoes com o mesmo nome: a segunda apaga a primeira, calada.
+
+    Este teste existe porque aconteceu. A pagina tem oito mil linhas num
+    arquivo so, e "blocoComprovantes" ja existia dentro da ficha de lancamento
+    quando nasceu outra com o mesmo nome no bloco do escritorio. O JavaScript
+    nao reclama: fica com a ultima, e o bloco novo simplesmente nao aparece na
+    tela - sem erro no console, sem nada para procurar.
+    """
+    print("\nnenhum nome de funcao repetido")
+    _, js = _partes(PAGINA.read_text(encoding="utf-8"))
+
+    nomes: dict[str, int] = {}
+    for m in re.finditer(r"^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", js, re.M):
+        nomes[m.group(1)] = nomes.get(m.group(1), 0) + 1
+
+    repetidos = sorted(n for n, quantas in nomes.items() if quantas > 1)
+    checar(not repetidos,
+           f"as {len(nomes)} funcoes tem nomes unicos",
+           ", ".join(repetidos))
+
+
 def test_sem_internet() -> None:
     print("\na pagina nao busca nada na internet")
     html = PAGINA.read_text(encoding="utf-8")
@@ -246,6 +269,7 @@ def main() -> int:
     test_ids()
     test_tokens()
     test_javascript_compila()
+    test_nome_de_funcao_nao_se_repete()
     test_sem_internet()
 
     print("\n" + "=" * 55)

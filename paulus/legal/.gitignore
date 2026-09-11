@@ -50,4 +50,8 @@ data/assinaturas.json
 data/sessoes/
 data/conexoes.json
 data/comprovantes/
+# Recibo de salario e planilha do mes sao dado de pessoa e de dinheiro do
+# escritorio: ficam na maquina, nunca no repositorio.
+data/recibos/
+data/exportacoes/
 data/clausulas.json

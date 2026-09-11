@@ -33,7 +33,16 @@ _SEM_ABERTO = {"aberto_centavos": 0, "aberto": "", "aberto_quantos": 0, "atraso_
 CAMPOS = (
     "tipo", "nome", "documento", "telefone", "email", "endereco",
     "honorario", "dia_vencimento", "avisar_dias", "observacao",
+    # Como a pessoa e paga. Fica aqui, e nao numa lista separada de gente:
+    # duas listas divergem, e a hora de descobrir e a hora de pagar.
+    "vinculo", "salario_centavos", "encargos_centavos",
 )
+
+# Sem vinculo, a pessoa nao entra na folha. Nao por engano - porque nao foi
+# dito como ela e paga, e por um valor que ninguem digitou a folha sairia
+# errada com cara de certa.
+VINCULOS = {"": "não entra na folha", "clt": "CLT", "estagio": "Estágio",
+            "prolabore": "Pró-labore", "autonomo": "Autônomo"}
 
 
 def _chave(nome: str) -> str:
@@ -137,6 +146,9 @@ class Cadastros:
         limpo["tipo"] = limpo["tipo"] if limpo["tipo"] in TIPOS else "cliente"
         limpo["dia_vencimento"] = int(limpo["dia_vencimento"] or 0)
         limpo["avisar_dias"] = int(limpo["avisar_dias"] or 0)
+        limpo["vinculo"] = limpo["vinculo"] if limpo["vinculo"] in VINCULOS else ""
+        limpo["salario_centavos"] = int(limpo["salario_centavos"] or 0)
+        limpo["encargos_centavos"] = int(limpo["encargos_centavos"] or 0)
 
         if id_:
             atribui = ", ".join(f"{c} = ?" for c in CAMPOS)
