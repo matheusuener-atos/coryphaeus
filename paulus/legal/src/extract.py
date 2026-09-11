@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
@@ -161,9 +161,13 @@ def index_all_contracts(
     for path in arquivos:
         sha = file_sha1(path)
         if sha in cache:
-            doc = cache[sha]
-            doc.path = str(path)  # o arquivo pode ter sido movido/renomeado
-            doc.name = path.name
+            # Copia, e nao o objeto do cache. Dois arquivos iguais byte a byte
+            # - "contrato.pdf" e "contrato (1).pdf" - tem o mesmo sha1 e caem
+            # nesta linha os dois. Mexer no objeto guardado fazia o segundo
+            # sobrescrever o caminho e o nome do primeiro, e a biblioteca
+            # passava a mostrar a copia duas vezes, com o original sumido da
+            # lista. O texto e o mesmo; o caminho e o nome nao sao.
+            doc = replace(cache[sha], path=str(path), name=path.name)
             docs.append(doc)
             if verbose:
                 print(f"  = {path.name} (cache)")

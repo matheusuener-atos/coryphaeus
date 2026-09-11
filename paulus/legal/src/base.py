@@ -256,6 +256,21 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "010_marcas_da_biblioteca",
+        """
+        -- O que a pessoa marcou sobre um documento da biblioteca. Fica por
+        -- SHA-1, e nao por caminho, porque mover ou renomear o arquivo nao
+        -- pode apagar a marca: e o mesmo documento.
+        CREATE TABLE marcas_acervo (
+            sha1       TEXT PRIMARY KEY,
+            fixado     INTEGER NOT NULL DEFAULT 0,
+            fixado_em  TEXT DEFAULT '',
+            visto_em   TEXT DEFAULT ''
+        );
+        CREATE INDEX idx_marcas_fixado ON marcas_acervo(fixado);
+        """,
+    ),
 ]
 
 

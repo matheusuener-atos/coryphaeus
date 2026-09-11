@@ -15,7 +15,10 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from datetime import datetime
 from pathlib import Path
+
+from financeiro import em_reais as _reais
 
 TIPOS = {
     "cliente": "Clientes",
@@ -23,6 +26,9 @@ TIPOS = {
     "socio": "Sócios",
     "despesa": "Despesas fixas",
 }
+
+# O que uma ficha sem nada em aberto mostra. Zero e um numero; vazio nao e.
+_SEM_ABERTO = {"aberto_centavos": 0, "aberto": "", "aberto_quantos": 0, "atraso_dias": 0}
 
 CAMPOS = (
     "tipo", "nome", "documento", "telefone", "email", "endereco",
@@ -47,7 +53,7 @@ class Cadastros:
 
     # ---------------------------------------------------------------- leitura
 
-    def listar(self, tipo: str = "", termo: str = "") -> list[dict]:
+    def listar(self, tipo: str = "", termo: str = "", ordem: str = "nome") -> list[dict]:
         onde, parametros = [], []
         if tipo:
             onde.append("tipo = ?")
@@ -63,9 +69,49 @@ class Cadastros:
         sql += " ORDER BY nome COLLATE NOCASE"
 
         fichas = self.base.buscar(sql, tuple(parametros))
+        abertos = self.em_aberto()
         for ficha in fichas:
             ficha["documentos"] = self.documentos_de(ficha["id"])
+            ficha.update(abertos.get(ficha["id"], _SEM_ABERTO))
+
+        if ordem == "aberto":
+            fichas.sort(key=lambda f: -f["aberto_centavos"])
+        elif ordem == "atraso":
+            fichas.sort(key=lambda f: -f["atraso_dias"])
         return fichas
+
+    def em_aberto(self) -> dict[int, dict]:
+        """
+        Quanto cada ficha deve, e ha quantos dias.
+
+        Sai de uma consulta so para a lista inteira: uma por ficha seria N+1
+        consultas para mostrar uma coluna. O atraso conta do vencimento mais
+        antigo que ainda nao foi liquidado - e o numero que decide quem cobrar
+        primeiro.
+        """
+        hoje = datetime.now().strftime("%Y-%m-%d")
+        linhas = self.base.buscar(
+            "SELECT cadastro_id, SUM(centavos) total, COUNT(*) quantos, "
+            "MIN(CASE WHEN vencimento != '' AND vencimento < ? THEN vencimento END) mais_velho "
+            "FROM lancamentos "
+            "WHERE tipo = 'recebimento' AND liquidado_em = '' AND cadastro_id IS NOT NULL "
+            "GROUP BY cadastro_id",
+            (hoje,),
+        )
+
+        por_ficha: dict[int, dict] = {}
+        for l in linhas:
+            atraso = 0
+            if l["mais_velho"]:
+                atraso = (datetime.strptime(hoje, "%Y-%m-%d")
+                          - datetime.strptime(l["mais_velho"], "%Y-%m-%d")).days
+            por_ficha[l["cadastro_id"]] = {
+                "aberto_centavos": l["total"] or 0,
+                "aberto": _reais(l["total"] or 0),
+                "aberto_quantos": l["quantos"],
+                "atraso_dias": max(0, atraso),
+            }
+        return por_ficha
 
     def obter(self, id_: int) -> dict | None:
         ficha = self.base.um("SELECT * FROM cadastros WHERE id = ?", (id_,))

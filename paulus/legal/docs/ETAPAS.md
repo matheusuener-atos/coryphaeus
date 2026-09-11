@@ -429,7 +429,7 @@ mais silenciosa de uma tela estragar outra.
 
 ---
 
-## Etapa 9 — Encontrar e agir em lote
+## Etapa 9 — Encontrar e agir em lote ✓ FEITA
 
 **Telas:** Biblioteca · Cadastros
 **Tamanho:** médio
@@ -445,6 +445,48 @@ de achar e de agir em muitos de uma vez.
 - Nos Cadastros: busca, ordenação, e quanto cada cliente tem em aberto
 
 Mover em lote e apagar em lote passam pela fila, como todo efeito externo.
+
+### O que entrou
+
+`src/acervo.py` e uma tabela no lugar da lista: **nome e pasta · modificado ·
+análise**. A busca vai ao servidor porque procura no **texto dos documentos**,
+e o texto não está no navegador — quem lembra "aquele contrato que falava em
+cessão de direitos hereditários" não lembra o nome do arquivo. Quando o achado
+vem do conteúdo, o trecho aparece embaixo da linha: sem isso o documento surge
+na lista e quem procurou não sabe por quê. `Ctrl K` cai no campo.
+
+A análise tem três estados, e a diferença entre dois deles é o ponto:
+**sem análise** é trabalho que não foi feito; **mudou desde então** é trabalho
+que foi feito e não vale mais. Confundir os dois faz citar o documento pela
+versão velha. O "quando" só aparece quando está medido — documento analisado
+antes de existir esse registro mostra "analisado" e mais nada.
+
+Fixado fica guardado por SHA-1, para mover ou renomear não apagar a marca, e
+sobe sempre na ordenação.
+
+Em lote: tomar vista de novo, mover, fixar, exportar, apagar. **Mover, apagar
+e exportar viram pedido na fila**, com o plano inteiro à vista antes do sim —
+um erro em lote é um erro multiplicado. O plano de mover nunca escolhe um nome
+que já existe no destino, e o que não dá para mover sai contado com o motivo.
+Apagar só age dentro da pasta do programa, e confere de novo na hora.
+
+Nos Cadastros: os tipos viraram fichas com a contagem, ordenação por A–Z, em
+aberto ou atraso, e a coluna **em aberto** com o atraso ao lado — o número que
+decide quem ligar primeiro. Sai de uma consulta só para a lista inteira. Quem
+não deve nada ganha um travessão, não um "R$ 0,00".
+
+### Dois bugs que a verificação achou
+
+**A biblioteca escondia documento.** O cache de extração é por SHA-1 e
+devolvia o *mesmo objeto* para arquivos iguais byte a byte; o laço trocava o
+caminho e o nome dele e o guardava duas vezes. Resultado: `contrato (1).pdf`
+aparecia duplicado e `contrato.pdf` sumia da lista. Num escritório, dois
+arquivos com o mesmo conteúdo são o caso comum.
+
+**E o lote agia sobre o que não foi marcado.** Pela mesma razão: a seleção era
+por SHA-1. Pedir para apagar 2 documentos montou um pedido com 4. A linha
+passou a ser identificada pelo caminho; fixar continua indo por SHA-1, que é
+onde a identidade é mesmo o conteúdo.
 
 ---
 

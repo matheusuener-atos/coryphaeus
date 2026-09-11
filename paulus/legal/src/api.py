@@ -40,6 +40,7 @@ import bemestar
 import conexoes
 import documento
 import financeiro
+import acervo
 import leis
 import planilha
 import relatorios
@@ -132,6 +133,8 @@ class Estado:
         self.clausulas = documento.Clausulas(CLAUSULAS_PATH)
         # Os codigos oficiais em base local: citar vira consulta.
         self.leis = leis.Leis(self.base)
+        # O que a pessoa marcou sobre cada documento da biblioteca.
+        self.marcas = acervo.Marcas(self.base)
         # Financeiro, bem-estar e conexoes; relatorios so le o que os outros gravaram.
         self.financeiro = financeiro.Financeiro(self.base)
         self.bem_estar = bemestar.BemEstar(self.base)
@@ -350,57 +353,261 @@ class AbrirPasta(BaseModel):
     caminho: str
 
 
-@app.get("/api/biblioteca")
-def biblioteca() -> dict:
+def _itens_da_biblioteca() -> list[dict]:
     """
-    O que o PAULUS tem aberto, com o que ele ja sabe sobre cada arquivo.
+    Cada documento com tudo o que o programa sabe dele.
 
-    Junta o indice de leitura com o cache de classificacao: sem isso a tela
-    mostraria nome e tamanho, que e o que o Explorer ja faz.
+    Junta tres coisas que moram separadas: o indice de leitura (paginas,
+    trechos), o cache de classificacao (tipo, cliente) e as marcas da pessoa
+    (fixado, quando foi analisado). Sem juntar, a tela mostraria nome e
+    tamanho - que e o que o Explorer ja faz.
     """
     from classify import CacheClassificacao
 
     cache = CacheClassificacao(CLASSIFICACAO_PATH).dados
-    itens: list[dict] = []
+    marcas = estado.marcas.de_todos()
+    trechos_por_nome: dict[str, int] = {}
+    for c in estado.searcher.chunks:
+        trechos_por_nome[c.doc_name] = trechos_por_nome.get(c.doc_name, 0) + 1
 
+    itens: list[dict] = []
     for doc in estado.searcher.documents:
         caminho = Path(doc.path)
         try:
             info = caminho.stat()
             tamanho = info.st_size
-            aberto_em = datetime.fromtimestamp(info.st_mtime).strftime("%Y-%m-%d")
+            modificado = datetime.fromtimestamp(info.st_mtime).isoformat(timespec="seconds")
             existe = True
         except OSError:
-            tamanho, aberto_em, existe = 0, "", False
+            tamanho, modificado, existe = 0, "", False
 
         conhecido = cache.get(doc.sha1) or {}
-        trechos = sum(1 for c in estado.searcher.chunks if c.doc_name == doc.name)
+        marca = marcas.get(doc.sha1) or {}
 
-        itens.append({
+        item = {
             "sha1": doc.sha1,
             "nome": doc.name,
             "caminho": str(caminho),
             "pasta": str(caminho.parent),
+            "pasta_curta": caminho.parent.name or str(caminho.parent),
             "existe": existe,
             "bytes": tamanho,
             "paginas": doc.pages,
             "caracteres": doc.chars,
-            "trechos": trechos,
-            "aberto_em": aberto_em,
+            "trechos": trechos_por_nome.get(doc.name, 0),
+            "modificado_em": modificado,
+            "modificado": acervo.quando(modificado),
+            "aberto_em": modificado[:10],
+            "fixado": bool(marca.get("fixado")),
+            "visto_em": marca.get("visto_em", ""),
             "tipo": conhecido.get("tipo", ""),
             "tipo_rotulo": ROTULOS.get(conhecido.get("tipo", ""), ""),
             "cliente": conhecido.get("cliente", ""),
             "data": conhecido.get("data", ""),
             "valor": conhecido.get("valor", ""),
-        })
+        }
+        item["analise"] = acervo.estado_da_analise(item)
+        itens.append(item)
 
-    itens.sort(key=lambda i: i["nome"].lower())
+    return itens
+
+
+@app.get("/api/biblioteca")
+def biblioteca(termo: str = "", filtro: str = "todos", ordem: str = "modificacao",
+               limite: int = 0) -> dict:
+    """
+    O que o PAULUS tem aberto, ja procurado, filtrado e ordenado.
+
+    O corte acontece aqui e nao na tela porque procurar inclui o conteudo dos
+    documentos, e o conteudo nao esta no navegador. A conta de quantos sobraram
+    vem junto: "mostrando 8 de 128" e a diferenca entre "achei pouco" e "tem
+    pouco".
+    """
+    todos = _itens_da_biblioteca()
+    trechos = acervo.indexar_trechos(estado.searcher.chunks) if termo else {}
+
+    achados = acervo.procurar(todos, termo, trechos)
+    achados = acervo.filtrar(achados, filtro)
+    achados = acervo.ordenar(achados, ordem)
+
+    mostrados = achados[:limite] if limite else achados
     return {
-        "documentos": itens,
+        "documentos": mostrados,
+        "achados": len(achados),
+        "total": len(todos),
+        "fixados": sum(1 for i in todos if i["fixado"]),
+        "sem_analise": sum(1 for i in todos if not i["tipo"]),
+        "filtros": acervo.FILTROS,
+        "ordens": acervo.ORDENS,
         "pasta": str(estado.pasta),
-        "total_bytes": sum(i["bytes"] for i in itens),
+        "total_bytes": sum(i["bytes"] for i in todos),
         "total_trechos": len(estado.searcher.chunks),
     }
+
+
+class MarcarDocumento(BaseModel):
+    sha1: str
+    fixado: bool = True
+
+
+@app.post("/api/biblioteca/fixar")
+def biblioteca_fixar(payload: MarcarDocumento) -> dict:
+    if not any(d.sha1 == payload.sha1 for d in estado.searcher.documents):
+        raise HTTPException(status_code=404, detail="documento nao esta na biblioteca")
+    estado.marcas.fixar(payload.sha1, payload.fixado)
+    return {"sha1": payload.sha1, "fixado": payload.fixado}
+
+
+class LoteDocumentos(BaseModel):
+    # Caminhos, e nao SHA-1. Dois arquivos iguais byte a byte - "contrato.pdf"
+    # e "contrato (1).pdf" - tem o mesmo SHA-1, e escolher por hash faria o
+    # lote agir sobre a copia que a pessoa nao marcou. Apagar um e levar dois
+    # e exatamente o estrago que a fila existe para impedir.
+    caminhos: list[str] = []
+    destino: str = ""
+
+
+def _selecionados(caminhos: list[str]) -> list[dict]:
+    escolhidos = set(caminhos)
+    itens = [i for i in _itens_da_biblioteca() if i["caminho"] in escolhidos]
+    if not itens:
+        raise HTTPException(status_code=400, detail="nenhum documento selecionado")
+    return itens
+
+
+@app.post("/api/biblioteca/analisar")
+def biblioteca_analisar(payload: LoteDocumentos) -> StreamingResponse:
+    """
+    Tomar vista de novo: le o documento outra vez e refaz a classificacao.
+
+    Existe porque o arquivo muda depois de analisado - a tela marca esses como
+    "mudou desde entao" justamente para que este botao tenha para que servir.
+
+    Vai por evento e nao por resposta unica porque ler com o modelo leva perto
+    de um minuto por documento nesta maquina. Oito documentos sao oito minutos
+    de tela parada, e o andamento que aparece e o numero de documentos prontos
+    - contado, nao estimado.
+    """
+    from classify import CacheClassificacao
+
+    itens = _selecionados(payload.caminhos)
+
+    habilidade = estado.registro.obter("classificar")
+    if not habilidade or not habilidade.executavel:
+        raise HTTPException(status_code=503, detail="a habilidade de classificar nao carregou")
+
+    # Sem isto a releitura devolveria o que esta no cache, que e exatamente o
+    # resultado que a pessoa pediu para refazer.
+    cache = CacheClassificacao(CLASSIFICACAO_PATH)
+    for item in itens:
+        cache.dados.pop(item["sha1"], None)
+    cache.salvar()
+
+    estado.cancelar.clear()
+    caminhos = [i["caminho"] for i in itens]
+
+    def gerar() -> Iterator[str]:
+        try:
+            for tipo, dados in habilidade.executar(_contexto(), caminhos=caminhos):
+                if tipo == "resultados":
+                    for doc in dados.get("documentos", []):
+                        if doc.get("sha1"):
+                            estado.marcas.marcar_visto(doc["sha1"])
+                    estado.recarregar(force=True)
+                yield _sse(tipo, dados)
+        except Exception as exc:
+            yield _sse("erro", {"mensagem": str(exc)})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/biblioteca/lote/mover")
+def biblioteca_lote_mover(payload: LoteDocumentos) -> dict:
+    """
+    Mover muitos de uma vez - pela fila, com o plano a vista.
+
+    Reaproveita o plano do organizador de propósito: e o mesmo executor, o
+    mesmo diario e o mesmo desfazer. Mover em lote e a operacao que mais
+    estraga quando erra, e nao era hora de inventar um caminho novo para ela.
+    """
+    if not payload.destino:
+        raise HTTPException(status_code=400, detail="escolha a pasta de destino")
+    destino = Path(payload.destino)
+    if not destino.is_dir():
+        raise HTTPException(status_code=400, detail="essa pasta nao existe")
+
+    itens = _selecionados(payload.caminhos)
+    plano = acervo.plano_de_mover(itens, destino)
+    if not plano["movimentos"]:
+        return {"pedido": None, "impedidos": plano["impedidos"],
+                "aviso": "nenhum dos escolhidos pode ser movido"}
+
+    pedido = estado.fila.pedir(
+        f"Mover {len(plano['movimentos'])} documento(s) para {destino.name}",
+        "arquivo",
+        acao="organizar.mover",
+        resumo=acervo.resumo_do_lote("mover", itens, str(destino)),
+        etiquetas=["dá para desfazer"],
+        dados={"movimentos": plano["movimentos"], "destino": str(destino),
+               "padrao": "escolha na biblioteca", "ignorados": []},
+    )
+    return {"pedido": pedido.to_dict(), "impedidos": plano["impedidos"],
+            **estado.fila.para_tela()}
+
+
+@app.post("/api/biblioteca/lote/apagar")
+def biblioteca_lote_apagar(payload: LoteDocumentos) -> dict:
+    """Tirar muitos da biblioteca de uma vez - pela fila, porque nao desfaz."""
+    itens = _selecionados(payload.caminhos)
+    pasta = Path(estado.pasta).resolve()
+
+    dentro, fora = [], []
+    for item in itens:
+        if pasta in Path(item["caminho"]).resolve().parents:
+            dentro.append(item)
+        else:
+            fora.append({"nome": item["nome"],
+                         "motivo": "está fora da pasta do programa"})
+
+    if not dentro:
+        return {"pedido": None, "impedidos": fora,
+                "aviso": "nenhum dos escolhidos está na pasta do programa"}
+
+    pedido = estado.fila.pedir(
+        f"Tirar {len(dentro)} documento(s) da biblioteca",
+        "arquivo",
+        acao="acervo.apagar",
+        resumo=acervo.resumo_do_lote("apagar", dentro),
+        etiquetas=["não dá para desfazer"],
+        dados={"caminhos": [i["caminho"] for i in dentro],
+               "nomes": [i["nome"] for i in dentro]},
+    )
+    return {"pedido": pedido.to_dict(), "impedidos": fora, **estado.fila.para_tela()}
+
+
+@app.post("/api/biblioteca/lote/exportar")
+def biblioteca_lote_exportar(payload: LoteDocumentos) -> dict:
+    """Copiar muitos para uma pasta de fora - pela fila, porque sai daqui."""
+    if not payload.destino:
+        raise HTTPException(status_code=400, detail="escolha a pasta de destino")
+    destino = Path(payload.destino)
+    if not destino.is_dir():
+        raise HTTPException(status_code=400, detail="essa pasta nao existe")
+
+    itens = _selecionados(payload.caminhos)
+    pedido = estado.fila.pedir(
+        f"Copiar {len(itens)} documento(s) para {destino.name}",
+        "arquivo",
+        acao="acervo.exportar",
+        resumo=acervo.resumo_do_lote("exportar", itens, str(destino)),
+        etiquetas=["dá para desfazer"],
+        dados={"caminhos": [i["caminho"] for i in itens], "destino": str(destino)},
+    )
+    return {"pedido": pedido.to_dict(), **estado.fila.para_tela()}
 
 
 @app.post("/api/biblioteca/remover")
@@ -843,10 +1050,11 @@ class VinculoDoc(BaseModel):
 
 
 @app.get("/api/cadastros")
-def cadastros_listar(tipo: str = "", termo: str = "") -> dict:
+def cadastros_listar(tipo: str = "", termo: str = "", ordem: str = "nome") -> dict:
     return {
-        "fichas": estado.cadastros.listar(tipo, termo),
+        "fichas": estado.cadastros.listar(tipo, termo, ordem),
         "contagem": estado.cadastros.contagem(),
+        "ordens": {"nome": "A–Z", "aberto": "em aberto", "atraso": "atraso"},
         "tipos": [{"valor": k, "rotulo": v} for k, v in TIPOS_CADASTRO.items()],
     }
 
@@ -1104,8 +1312,73 @@ def _executar_enviar(pedido) -> str:
     return f"enviado para {quem}" + (f" com {len(anexos)} anexo(s)" if anexos else "")
 
 
+def _executar_apagar_do_acervo(pedido) -> str:
+    """
+    Tira da biblioteca o que a pessoa aprovou tirar.
+
+    So apaga dentro da pasta do programa, e confere de novo na hora de apagar:
+    o pedido pode ter ficado na fila tempo suficiente para o arquivo ter sido
+    movido para fora, e apagar fora daqui seria apagar o original de alguem.
+    """
+    import shutil
+
+    pasta = Path(estado.pasta).resolve()
+    apagados, recusados = 0, []
+
+    for bruto in pedido.dados.get("caminhos", []):
+        alvo = Path(bruto)
+        try:
+            resolvido = alvo.resolve()
+        except OSError:
+            recusados.append(alvo.name)
+            continue
+        if pasta not in resolvido.parents:
+            recusados.append(alvo.name)
+            continue
+        try:
+            resolvido.unlink(missing_ok=True)
+            apagados += 1
+        except OSError:
+            recusados.append(alvo.name)
+
+    estado.recarregar(force=True)
+    if recusados:
+        return f"{apagados} tirado(s); nao mexi em {len(recusados)}: {', '.join(recusados[:3])}"
+    return f"{apagados} documento(s) tirado(s) da biblioteca"
+
+
+def _executar_exportar(pedido) -> str:
+    """Copia para fora da pasta do programa, sem passar por cima de nada."""
+    import shutil
+
+    destino = Path(pedido.dados.get("destino", ""))
+    if not destino.is_dir():
+        raise RuntimeError("a pasta de destino nao existe mais")
+
+    copiados, falhas = 0, []
+    for bruto in pedido.dados.get("caminhos", []):
+        origem = Path(bruto)
+        if not origem.exists():
+            falhas.append(origem.name)
+            continue
+        alvo = destino / origem.name
+        if alvo.exists():
+            alvo = acervo._nome_livre(destino, origem.name, set())
+        try:
+            shutil.copy2(origem, alvo)
+            copiados += 1
+        except OSError:
+            falhas.append(origem.name)
+
+    if falhas:
+        return f"{copiados} copiado(s); nao consegui {len(falhas)}: {', '.join(falhas[:3])}"
+    return f"{copiados} documento(s) copiado(s) para {destino}"
+
+
 EXECUTORES = {
     "organizar.mover": _executar_mover,
+    "acervo.apagar": _executar_apagar_do_acervo,
+    "acervo.exportar": _executar_exportar,
     "assinatura.assinar": _executar_assinar,
     "correio.enviar": _executar_enviar,
 }

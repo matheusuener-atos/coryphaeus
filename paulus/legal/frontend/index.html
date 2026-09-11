@@ -601,6 +601,84 @@
   .doc-acoes { display: flex; gap: 7px; flex-shrink: 0; }
   .doc-linha.sumido .doc-nome { color: var(--ink-3); text-decoration: line-through; }
 
+  /* --------------------------------------------------- biblioteca grande */
+  /* Com 1.200 documentos a lista vira o problema: as colunas existem para a
+     pessoa varrer com o olho, e não ler linha a linha. */
+
+  .acervo-topo { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .acervo-busca { position: relative; flex: 1; }
+  .acervo-busca input { width: 100%; padding-right: 46px; }
+  .acervo-atalho {
+    position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+    font: 400 10px var(--mono); color: var(--ink-3);
+    border: 1px solid var(--linha-media); padding: 1px 5px; pointer-events: none;
+  }
+  .acervo-cortes { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .acervo-cortes .cresce { flex: 1; }
+  .acervo-cortes select { flex: 0 0 auto; min-width: 0; padding: 7px 10px; font-size: 12px; }
+
+  .lote-barra {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 9px 12px; margin-bottom: 10px;
+    border: 1px solid var(--acento); background: var(--acento-fraco);
+  }
+  .lote-barra .quantos { font: 500 12px var(--sans); color: var(--acento); margin-right: 4px; }
+  .lote-barra .limpar { font: 400 11px var(--sans); color: var(--ink-muted); background: none; border: none; padding: 0 6px; }
+
+  .acervo-cabecalho, .acervo-linha {
+    display: grid;
+    grid-template-columns: 26px 38px 1fr 116px 150px 30px;
+    align-items: center; gap: 12px;
+  }
+  .acervo-cabecalho {
+    padding: 0 2px 7px; border-bottom: 1px solid var(--linha-media);
+    font: 400 10px var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .acervo-linha { padding: 9px 2px; border-bottom: 1px solid var(--linha); position: relative; }
+  .acervo-linha:last-child { border-bottom: none; }
+  .acervo-linha.escolhido { background: var(--acento-fraco); }
+  .acervo-linha.sumido .acervo-nome { color: var(--ink-3); text-decoration: line-through; }
+  .acervo-nome { font: 500 13px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acervo-pasta { font: 400 10.5px var(--mono); color: var(--ink-muted); margin-top: 2px; }
+  .acervo-trecho {
+    grid-column: 3 / -1; font: 400 11.5px var(--sans); color: var(--ink-2);
+    border-left: 2px solid var(--linha-forte); padding-left: 9px; margin-top: 5px;
+  }
+  .acervo-trecho b { color: var(--acento); font-weight: 600; }
+  .acervo-quando { font: 400 11px var(--mono); color: var(--ink-muted); }
+
+  /* Os três estados da leitura têm peso diferente: "mudou desde então" é
+     trabalho que precisa ser refeito, e não pode parecer com "analisado". */
+  .acervo-analise { font: 400 11px var(--sans); display: flex; align-items: center; gap: 6px; }
+  .acervo-analise::before { content: ""; width: 5px; height: 5px; flex-shrink: 0; background: var(--ink-3); }
+  .acervo-analise.analisado { color: var(--ink-2); }
+  .acervo-analise.analisado::before { background: var(--ok, var(--acento)); }
+  .acervo-analise.sem-analise { color: var(--ink-3); }
+  .acervo-analise.mudou { color: var(--atencao); }
+  .acervo-analise.mudou::before { background: var(--atencao); }
+
+  .acervo-fixo { color: var(--acento); }
+  .acervo-mais-acoes {
+    border: none; background: none; padding: 0 4px 7px; line-height: 1;
+    font: 600 17px var(--sans); letter-spacing: 1px; color: var(--ink-3);
+  }
+  .acervo-mais-acoes:hover { color: var(--ink); background: var(--surface-3); border: none; }
+  .acervo-rodape {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding-top: 11px; margin-top: 4px; border-top: 1px solid var(--linha);
+    font: 400 10.5px var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .acervo-mais { text-align: center; padding: 12px 0 2px; }
+
+  /* ------------------------------------------------------------ cadastros */
+  .cad-valores { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+  .cad-aberto { font: 500 13.5px var(--mono); color: var(--ink); }
+  .cad-aberto.zero { color: var(--ink-3); font-weight: 400; }
+  .cad-atraso {
+    font: 400 10px var(--mono); text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--atencao); border: 1px solid var(--atencao); padding: 1px 6px;
+  }
+
   /* ------------------------------------------------------ organizador */
 
   .fluxo.arrastando { background: var(--acento-fraco); outline: 2px dashed var(--linha-forte); outline-offset: -12px; }
@@ -1031,6 +1109,14 @@
   }
   button:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
   button:disabled { opacity: 0.45; cursor: default; }
+  /* "Apagar" tem que parecer com apagar. A classe já era usada em dez telas,
+     mas só tinha regra dentro do menu de conversa: nas outras, o botão que
+     destrói ficava igual ao botão que salva. Não acende antes da hora — a
+     cor mora na borda e no texto, e só enche quando o cursor chega. */
+  button.perigo { color: var(--atencao); border-color: var(--atencao-linha); }
+  button.perigo:hover:not(:disabled) {
+    border-color: var(--atencao); background: var(--atencao-fundo); color: var(--atencao);
+  }
   /* O cartao ja acende a borda quando recebe o cursor; um anel por dentro
      dele era caixa dentro de caixa. Botao e interruptor mantem o anel, que e
      como quem navega pelo teclado se localiza. */
@@ -2960,7 +3046,8 @@ async function salvarConfig() {
    conferir o que o assistente ja achou.
 */
 
-const cad = { fichas: [], tipos: [], contagem: {}, tipo: "", termo: "", sugestoes: [] };
+const cad = { fichas: [], tipos: [], contagem: {}, tipo: "", termo: "",
+              sugestoes: [], ordem: "nome", ordens: {} };
 
 async function mostrarCadastros() {
   abrirTela("Cadastros");
@@ -2969,10 +3056,12 @@ async function mostrarCadastros() {
 
   try {
     const d = await (await fetch("/api/cadastros?tipo=" + encodeURIComponent(cad.tipo) +
-      "&termo=" + encodeURIComponent(cad.termo))).json();
+      "&termo=" + encodeURIComponent(cad.termo) +
+      "&ordem=" + encodeURIComponent(cad.ordem))).json();
     cad.fichas = d.fichas;
     cad.tipos = d.tipos;
     cad.contagem = d.contagem;
+    cad.ordens = d.ordens || {};
     const g = await (await fetch("/api/cadastros/sugestoes")).json();
     cad.sugestoes = g.sugestoes;
   } catch (err) {
@@ -2993,10 +3082,21 @@ function desenharCadastros() {
     '<div class="tela-acoes"><button class="primario" id="cad-nova">Novo cadastro</button></div></div>' +
 
     '<div class="linha-form"><input type="text" id="cad-busca" placeholder="Buscar nome, CPF/CNPJ ou e-mail…" value="' +
-    esc(cad.termo) + '">' +
-    '<select id="cad-tipo"><option value="">Todos os tipos</option>' +
-    cad.tipos.map((t) => '<option value="' + t.valor + '"' + (t.valor === cad.tipo ? " selected" : "") +
-      ">" + esc(t.rotulo) + "</option>").join("") + "</select></div>";
+    esc(cad.termo) + '"></div>' +
+
+    // Os tipos viram fichas à vista, e não uma lista que esconde as opções:
+    // cada uma traz quantos tem, que é o número que faz escolher.
+    '<div class="acervo-cortes"><div class="chips" style="margin:0">' +
+    '<button class="chip' + (cad.tipo ? "" : " on") + '" data-cadtipo="">Todos' +
+    '<span class="caminho">' + total + "</span></button>" +
+    cad.tipos.map((t) =>
+      '<button class="chip' + (cad.tipo === t.valor ? " on" : "") +
+      '" data-cadtipo="' + esc(t.valor) + '">' + esc(t.rotulo) +
+      '<span class="caminho">' + (cad.contagem[t.valor] || 0) + "</span></button>").join("") +
+    '</div><span class="cresce"></span>' +
+    '<select id="cad-ordem">' + Object.entries(cad.ordens || {}).map(([v, r]) =>
+      '<option value="' + v + '"' + (cad.ordem === v ? " selected" : "") +
+      ">Ordenar por " + esc(r) + "</option>").join("") + "</select></div>";
 
   if (cad.sugestoes.length) {
     html += '<div class="painel"><h3>' + cad.sugestoes.length + " nos documentos, sem ficha</h3>" +
@@ -3029,12 +3129,27 @@ function linhaFicha(f) {
   const achado = cad.tipos.find((t) => t.valor === f.tipo);
   const rotulo = achado ? achado.rotulo : f.tipo;
   const meta = [f.documento, f.telefone, f.email].filter(Boolean).join(" · ");
+
+  // O que está em aberto é a razão de abrir esta tela na maioria das vezes:
+  // fica à direita, com o atraso ao lado, porque é o que decide quem ligar
+  // primeiro. Quem não deve nada não ganha um "R$ 0,00" — ganha um travessão.
+  const aberto = f.aberto_centavos
+    ? '<span class="cad-aberto">' + esc(f.aberto) + "</span>" +
+      (f.atraso_dias
+        ? '<span class="cad-atraso">atrasado ' + f.atraso_dias +
+          (f.atraso_dias === 1 ? " dia" : " dias") + "</span>"
+        : "")
+    : '<span class="cad-aberto zero">—</span>';
+
   return '<div class="pedido" data-ficha="' + f.id + '">' +
     '<div class="pedido-corpo"><div class="pedido-titulo">' + esc(f.nome) + "</div>" +
     '<div class="doc-etiquetas"><span class="etiqueta">' + esc(rotulo) + "</span>" +
     (f.documentos.length ? '<span class="etiqueta">' + f.documentos.length + " documento(s)</span>" : "") +
     (f.honorario ? '<span class="etiqueta">' + esc(f.honorario) + "</span>" : "") + "</div>" +
     (meta ? '<div class="num">' + esc(meta) + "</div>" : "") + "</div>" +
+    '<div class="cad-valores">' + aberto +
+    (f.aberto_quantos ? '<span class="num">' + f.aberto_quantos + " em aberto</span>" : "") +
+    "</div>" +
     '<div class="pedido-acoes"><button data-a="abrir">Abrir</button></div></div>';
 }
 
@@ -3046,7 +3161,11 @@ function ligarCadastros() {
     const v = e.target.value;
     t = setTimeout(() => { cad.termo = v.trim(); mostrarCadastros(); }, 280);
   };
-  $("cad-tipo").onchange = (e) => { cad.tipo = e.target.value; mostrarCadastros(); };
+  centro.querySelectorAll("[data-cadtipo]").forEach((b) => {
+    b.onclick = () => { cad.tipo = b.dataset.cadtipo; mostrarCadastros(); };
+  });
+  const ordem = $("cad-ordem");
+  if (ordem) ordem.onchange = (e) => { cad.ordem = e.target.value; mostrarCadastros(); };
   $("cad-nova").onclick = () => fichaCadastro(null);
 
   centro.querySelectorAll("[data-ficha]").forEach((el) => {
@@ -4321,47 +4440,51 @@ async function mostrarMaquina() {
 
 
 /* --------------------------------------------------------- biblioteca */
+/*
+   A tela muda de forma quando o acervo cresce. Lista serve para 10 arquivos;
+   para 1.200, o que serve é estreitar (procurar, filtrar) e agir em muitos de
+   uma vez. O servidor faz o corte porque procurar inclui o conteúdo dos
+   documentos, e o conteúdo não está no navegador.
+*/
 
-const bib = { documentos: [], filtro: "" };
+const bib = {
+  documentos: [], termo: "", filtro: "recentes", ordem: "modificacao",
+  escolhidos: new Set(), limite: 60, contas: null, pasta: "",
+};
 
 async function mostrarBiblioteca() {
   abrirTela("Biblioteca");
   const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
+  if (!bib.documentos.length) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">carregando…</p></div>';
+  }
+  await buscarAcervo();
+}
 
+async function buscarAcervo() {
   let d;
   try {
-    d = await (await fetch("/api/biblioteca")).json();
+    d = await (await fetch("/api/biblioteca?termo=" + encodeURIComponent(bib.termo) +
+      "&filtro=" + encodeURIComponent(bib.filtro) +
+      "&ordem=" + encodeURIComponent(bib.ordem) +
+      "&limite=" + bib.limite)).json();
   } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' +
+    $("centro").innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' +
       esc(String(err)) + "</p></div>";
     return;
   }
 
   bib.documentos = d.documentos;
+  bib.contas = d;
   bib.pasta = d.pasta;
-  bib.totalBytes = d.total_bytes;
-  bib.totalTrechos = d.total_trechos;
 
-  centro.innerHTML =
-    '<div class="catalogo"><div class="bib-topo">' +
-    "<div><h2>Biblioteca</h2>" +
-    '<div class="nota">' + (d.documentos.length
-      ? d.documentos.length + " documento(s), " + tamanho(d.total_bytes) +
-        ", guardados em " + esc(d.pasta)
-      : "Nada aberto ainda. Use Anexar, ali embaixo, ou arraste arquivos para a conversa.") +
-    "</div></div>" +
-    (d.documentos.length
-      ? '<input type="text" class="bib-busca" id="bib-filtro" placeholder="Filtrar por nome, tipo ou cliente…">'
-      : "") +
-    '</div><div id="bib-lista"></div></div>';
+  // Some da seleção o que saiu da lista: agir sobre o que não está à vista é
+  // exatamente o erro que a barra de lote precisa não cometer.
+  const visiveis = new Set(d.documentos.map((x) => x.caminho));
+  for (const c of [...bib.escolhidos]) if (!visiveis.has(c)) bib.escolhidos.delete(c);
 
+  desenharBiblioteca();
   atualizarPostura();
-  if (d.documentos.length) {
-    $("bib-filtro").oninput = (e) => { bib.filtro = e.target.value.trim().toLowerCase(); desenharBiblioteca(); };
-    desenharBiblioteca();
-  }
-  centro.scrollTop = 0;
 }
 
 function tamanho(bytes) {
@@ -4371,81 +4494,310 @@ function tamanho(bytes) {
 }
 
 function desenharBiblioteca() {
-  const termo = bib.filtro;
-  const lista = bib.documentos.filter((x) =>
-    !termo ||
-    x.nome.toLowerCase().includes(termo) ||
-    (x.tipo_rotulo || "").toLowerCase().includes(termo) ||
-    (x.cliente || "").toLowerCase().includes(termo)
-  );
+  const d = bib.contas || {};
+  const vazio = !d.total;
 
-  const alvo = $("bib-lista");
-  if (!lista.length) {
-    alvo.innerHTML = '<p class="nota">Nenhum documento com esse filtro.</p>';
+  let html = '<div class="catalogo"><div class="tela-topo"><div><h2>Biblioteca</h2>' +
+    '<span class="rotulo">' + (vazio
+      ? "nada aberto ainda"
+      : d.total + " documento(s) · " + tamanho(d.total_bytes) + " · " +
+        d.total_trechos + " trecho(s) lidos") +
+    "</span></div>" +
+    '<div class="tela-acoes"><button id="bib-pasta">Adicionar pasta</button></div></div>';
+
+  if (vazio) {
+    html += '<div class="painel"><h3>Nada aberto ainda</h3><p class="explica">' +
+      "Use Anexar, ali embaixo, ou arraste arquivos para a conversa. " +
+      "Os documentos ficam em " + esc(bib.pasta) + ".</p></div></div>";
+    $("centro").innerHTML = html;
+    $("bib-pasta").onclick = adicionarPastaAoAcervo;
     return;
   }
 
-  alvo.innerHTML = lista.map((x) => {
-    const ext = (x.nome.split(".").pop() || "?").slice(0, 4);
-    const partes = [];
-    if (x.paginas) partes.push(x.paginas + " pág.");
-    partes.push(tamanho(x.bytes));
-    partes.push(x.trechos + " trecho(s)");
-    if (x.aberto_em) partes.push("aberto em " + x.aberto_em);
+  html += '<div class="acervo-topo"><div class="acervo-busca">' +
+    '<input type="text" id="bib-termo" placeholder="Buscar por nome, pasta ou trecho…" value="' +
+    esc(bib.termo) + '"><span class="acervo-atalho">Ctrl K</span></div></div>';
 
-    let etiquetas = "";
-    if (x.tipo_rotulo) etiquetas += '<span class="etiqueta tipo">' + esc(x.tipo_rotulo) + "</span>";
-    if (x.cliente) etiquetas += '<span class="etiqueta">' + esc(x.cliente) + "</span>";
-    if (x.data) etiquetas += '<span class="etiqueta">' + esc(x.data) + "</span>";
-    if (x.valor) etiquetas += '<span class="etiqueta">' + esc(x.valor) + "</span>";
-    if (!etiquetas) etiquetas = '<span class="etiqueta">ainda não classificado</span>';
+  html += '<div class="acervo-cortes"><div class="chips" style="margin:0">' +
+    Object.entries(d.filtros || {}).map(([valor, rotulo]) => {
+      const conta = valor === "fixados" ? d.fixados
+        : valor === "sem-analise" ? d.sem_analise
+        : valor === "todos" ? d.total : null;
+      return '<button class="chip' + (bib.filtro === valor ? " on" : "") +
+        '" data-filtro="' + valor + '">' + esc(rotulo) +
+        (conta === null ? "" : '<span class="caminho">' + conta + "</span>") + "</button>";
+    }).join("") + "</div><span class=\"cresce\"></span>" +
+    '<select id="bib-ordem">' + Object.entries(d.ordens || {}).map(([v, r]) =>
+      '<option value="' + v + '"' + (bib.ordem === v ? " selected" : "") +
+      ">Ordenar por " + esc(r) + "</option>").join("") + "</select></div>";
 
-    return '<div class="doc-linha' + (x.existe ? "" : " sumido") + '" data-sha="' + esc(x.sha1) + '">' +
-      '<span class="doc-marca">' + esc(ext) + "</span>" +
-      '<span class="doc-texto"><div class="doc-nome">' + esc(x.nome) + "</div>" +
-      '<div class="doc-meta">' + esc(partes.join(" · ")) +
-      (x.existe ? "" : " · arquivo não está mais no disco") + "</div>" +
-      '<div class="doc-etiquetas">' + etiquetas + "</div></span>" +
-      '<span class="doc-acoes">' +
-      '<button data-a="pasta" data-pasta="' + esc(x.pasta) + '">Ver a pasta</button>' +
-      '<button data-a="remover">Remover</button></span></div>';
-  }).join("");
+  html += barraDeLote();
 
-  alvo.querySelectorAll(".doc-linha").forEach((linha) => {
-    const sha = linha.dataset.sha;
-    const doc = bib.documentos.find((x) => x.sha1 === sha);
-    linha.querySelector('[data-a="pasta"]').onclick = async (e) => {
-      await fetch("/api/biblioteca/abrir-pasta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caminho: e.target.dataset.pasta }),
-      });
+  html += '<div class="acervo-cabecalho"><span></span><span></span><span>Nome e pasta</span>' +
+    "<span>Modificado</span><span>Análise</span><span></span></div>";
+
+  html += '<div id="bib-lista">' + (bib.documentos.length
+    ? bib.documentos.map(linhaDoAcervo).join("")
+    : '<p class="nota" style="padding:16px 2px">' + (bib.termo
+        ? "Nada com esse termo — nem no nome, nem na pasta, nem no texto dos documentos."
+        : "Nenhum documento neste filtro.") + "</p>") + "</div>";
+
+  if (d.achados > bib.limite) {
+    html += '<div class="acervo-mais"><button id="bib-mais">Mostrar mais ' +
+      Math.min(60, d.achados - bib.limite) + "</button></div>";
+  }
+
+  html += '<div class="acervo-rodape"><span>mostrando ' + bib.documentos.length +
+    " de " + d.achados + (d.achados === d.total ? "" : " (de " + d.total + ")") + "</span>" +
+    "<span>nada saiu da máquina</span></div></div>";
+
+  $("centro").innerHTML = html;
+  ligarBiblioteca();
+}
+
+function linhaDoAcervo(x) {
+  const ext = (x.nome.split(".").pop() || "?").slice(0, 4);
+  const escolhido = bib.escolhidos.has(x.caminho);
+  const a = x.analise || {};
+
+  return '<div class="acervo-linha' + (escolhido ? " escolhido" : "") +
+    (x.existe ? "" : " sumido") + '" data-sha="' + esc(x.sha1) + '">' +
+    '<input type="checkbox" data-pegar="' + esc(x.caminho) + '"' + (escolhido ? " checked" : "") + ">" +
+    '<span class="doc-marca">' + esc(ext) + "</span>" +
+    '<span style="min-width:0"><div class="acervo-nome">' +
+    (x.fixado ? '<span class="acervo-fixo">▪ </span>' : "") + esc(x.nome) + "</div>" +
+    '<div class="acervo-pasta">' + esc(x.pasta_curta || x.pasta) +
+    (x.tipo_rotulo ? " · " + esc(x.tipo_rotulo) : "") +
+    (x.cliente ? " · " + esc(x.cliente) : "") +
+    (x.existe ? "" : " · não está mais no disco") + "</div></span>" +
+    '<span class="acervo-quando">' + esc(x.modificado || "") + "</span>" +
+    '<span class="acervo-analise ' + esc(a.estado || "sem-analise") + '">' +
+    esc(a.rotulo || "sem análise") + "</span>" +
+    '<button class="acervo-mais-acoes" data-menu="' + esc(x.caminho) + '">···</button>' +
+    (x.trecho ? '<div class="acervo-trecho">' + esc(x.trecho) + "</div>" : "") +
+    "</div>";
+}
+
+function barraDeLote() {
+  const quantos = bib.escolhidos.size;
+  if (!quantos) return "";
+  return '<div class="lote-barra"><span class="quantos">' + quantos + " selecionado(s)</span>" +
+    '<button class="limpar" id="lote-limpar">limpar</button>' +
+    '<button data-lote="analisar">Tomar vista de novo</button>' +
+    '<button data-lote="mover">Mover para pasta</button>' +
+    '<button data-lote="fixar">Fixar</button>' +
+    '<button data-lote="exportar">Exportar</button>' +
+    '<button class="perigo" data-lote="apagar">Apagar da biblioteca</button></div>';
+}
+
+function ligarBiblioteca() {
+  const centro = $("centro");
+  const campo = $("bib-termo");
+
+  if (campo) {
+    let t;
+    campo.oninput = (e) => {
+      clearTimeout(t);
+      const v = e.target.value;
+      // A busca vai ao servidor porque procura no conteúdo; a espera evita
+      // uma consulta por tecla digitada.
+      t = setTimeout(() => { bib.termo = v.trim(); bib.limite = 60; buscarAcervo(); }, 260);
     };
-    linha.querySelector('[data-a="remover"]').onclick = () => removerDaBiblioteca(doc, linha);
+    campo.onkeydown = (e) => { if (e.key === "Escape") { campo.value = ""; bib.termo = ""; buscarAcervo(); } };
+  }
+
+  centro.querySelectorAll("[data-filtro]").forEach((b) => {
+    b.onclick = () => { bib.filtro = b.dataset.filtro; bib.limite = 60; buscarAcervo(); };
+  });
+  const ordem = $("bib-ordem");
+  if (ordem) ordem.onchange = (e) => { bib.ordem = e.target.value; buscarAcervo(); };
+  const mais = $("bib-mais");
+  if (mais) mais.onclick = () => { bib.limite += 60; buscarAcervo(); };
+  const addPasta = $("bib-pasta");
+  if (addPasta) addPasta.onclick = adicionarPastaAoAcervo;
+
+  centro.querySelectorAll("[data-pegar]").forEach((c) => {
+    c.onchange = () => {
+      c.checked ? bib.escolhidos.add(c.dataset.pegar) : bib.escolhidos.delete(c.dataset.pegar);
+      desenharBiblioteca();
+    };
+  });
+  const limpar = $("lote-limpar");
+  if (limpar) limpar.onclick = () => { bib.escolhidos.clear(); desenharBiblioteca(); };
+  centro.querySelectorAll("[data-lote]").forEach((b) => {
+    b.onclick = () => acaoEmLote(b.dataset.lote);
+  });
+  centro.querySelectorAll("[data-menu]").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); menuDoDocumento(b, b.dataset.menu); };
   });
 }
 
-async function removerDaBiblioteca(doc, linha) {
-  const aviso = "Tirar " + doc.nome + " da biblioteca?\n\n" +
-    "Apaga a cópia que o PAULUS guarda. O arquivo original de onde ele veio não é tocado.";
-  if (!confirm(aviso)) return;
+/* O atalho de teclado existe porque procurar é o que mais se faz nesta tela.
+   Só age quando a Biblioteca está aberta e o foco não está num campo. */
+document.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "k") return;
+  const campo = $("bib-termo");
+  if (!campo) return;
+  e.preventDefault();
+  campo.focus();
+  campo.select();
+});
 
-  const botao = linha.querySelector('[data-a="remover"]');
-  botao.disabled = true;
-  try {
-    const r = await fetch("/api/biblioteca/remover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sha1: doc.sha1 }),
+/* A linha é identificada pelo caminho, não pelo conteúdo: dois arquivos
+   iguais byte a byte têm o mesmo SHA-1, e agir por hash pegaria a cópia que a
+   pessoa não marcou. Fixar continua indo por SHA-1 — ali a identidade é mesmo
+   o conteúdo, e mover ou renomear não pode apagar a marca. */
+function docDoAcervo(caminho) {
+  return bib.documentos.find((x) => x.caminho === caminho);
+}
+
+function menuDoDocumento(botao, caminho) {
+  document.querySelectorAll(".menu-conversa").forEach((m) => m.remove());
+  const doc = docDoAcervo(caminho);
+  if (!doc) return;
+
+  const menu = document.createElement("div");
+  menu.className = "menu-conversa";
+  menu.innerHTML =
+    '<button data-i="pasta">Abrir a pasta</button>' +
+    '<button data-i="analisar">Tomar vista de novo</button>' +
+    '<button data-i="perguntar">Perguntar sobre este</button>' +
+    '<button data-i="fixar">' + (doc.fixado ? "Desfixar" : "Fixar") + "</button>" +
+    '<div class="menu-risco"></div>' +
+    '<button class="perigo" data-i="apagar">Apagar da biblioteca</button>';
+
+  const caixa = botao.getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.top = Math.min(caixa.bottom + 4, window.innerHeight - 190) + "px";
+  menu.style.right = (window.innerWidth - caixa.right) + "px";
+  document.body.appendChild(menu);
+
+  const fechar = () => menu.remove();
+  setTimeout(() => document.addEventListener("click", fechar, { once: true }), 0);
+
+  menu.querySelector('[data-i="pasta"]').onclick = () => {
+    fechar();
+    fetch("/api/biblioteca/abrir-pasta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caminho: doc.pasta }),
     });
-    if (!r.ok) throw new Error((await r.json()).detail || "falhou");
-    bib.documentos = bib.documentos.filter((x) => x.sha1 !== doc.sha1);
-    desenharBiblioteca();
-    carregarStatus();
-  } catch (err) {
-    botao.disabled = false;
-    alert("Não consegui remover: " + err);
+  };
+  menu.querySelector('[data-i="analisar"]').onclick = () => { fechar(); tomarVista([caminho]); };
+  menu.querySelector('[data-i="perguntar"]').onclick = () => { fechar(); perguntarSobre(doc); };
+  menu.querySelector('[data-i="fixar"]').onclick = async () => {
+    fechar();
+    await fetch("/api/biblioteca/fixar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha1: doc.sha1, fixado: !doc.fixado }),
+    });
+    buscarAcervo();
+  };
+  menu.querySelector('[data-i="apagar"]').onclick = () => {
+    fechar();
+    bib.escolhidos = new Set([caminho]);
+    acaoEmLote("apagar");
+  };
+}
+
+/* Perguntar sobre um documento é abrir a conversa com a pergunta começada: sem
+   isso a pessoa teria que procurar o mesmo arquivo de novo, do outro lado. */
+function perguntarSobre(doc) {
+  marcarDestino("conversa");
+  $("nova").click();
+  setTimeout(() => {
+    const campo = $("pedido");
+    if (!campo) return;
+    campo.value = "Sobre “" + doc.nome + "”: ";
+    campo.focus();
+    campo.setSelectionRange(campo.value.length, campo.value.length);
+  }, 150);
+}
+
+async function acaoEmLote(acao) {
+  const caminhos = [...bib.escolhidos];
+  if (!caminhos.length) return;
+  const escolhidos = caminhos.map(docDoAcervo).filter(Boolean);
+
+  if (acao === "fixar") {
+    // Se todos já estão fixados, o botão desfixa: um botão que não faz nada
+    // quando clicado duas vezes é um botão quebrado.
+    const alvo = !escolhidos.every((x) => x.fixado);
+    for (const sha of new Set(escolhidos.map((x) => x.sha1))) {
+      await fetch("/api/biblioteca/fixar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sha1: sha, fixado: alvo }),
+      });
+    }
+    bib.escolhidos.clear();
+    buscarAcervo();
+    return;
   }
+
+  if (acao === "analisar") return tomarVista(caminhos);
+
+  let destino = "";
+  if (acao === "mover" || acao === "exportar") {
+    destino = await escolherPastaDoSistema(
+      acao === "mover" ? "Mover para qual pasta" : "Copiar para qual pasta");
+    if (!destino) return;
+  }
+
+  const r = await fetch("/api/biblioteca/lote/" + acao, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ caminhos: caminhos, destino: destino }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+
+  const d = await r.json();
+  if (!d.pedido) { avisoCert(d.aviso || "nada a fazer"); return; }
+
+  // Nada acontece aqui: o lote vira pedido na fila, e é lá que a pessoa vê o
+  // plano inteiro antes de dizer sim. Um erro em lote é um erro vezes 128.
+  const impedidos = (d.impedidos || []).length;
+  avisoCert("Pedido na fila de aprovações: " + d.pedido.titulo +
+    (impedidos ? " · " + impedidos + " ficaram de fora" : ""));
+  bib.escolhidos.clear();
+  desenharBiblioteca();
+  carregarStatus();
+}
+
+/* Ler de novo leva perto de um minuto por documento nesta máquina. O andamento
+   que aparece é o número de documentos prontos — contado, não estimado. */
+async function tomarVista(caminhos) {
+  const alvo = $("bib-lista");
+  const antes = alvo ? alvo.innerHTML : "";
+  if (alvo) alvo.innerHTML = '<p class="nota" id="vista-passo">lendo 0 de ' + caminhos.length + "…</p>";
+
+  try {
+    const r = await fetch("/api/biblioteca/analisar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caminhos: caminhos }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+
+    await lerEventos(r, (tipo, dados) => {
+      const passo = $("vista-passo");
+      if (tipo === "progresso" && passo) {
+        passo.textContent = "lendo " + dados.indice + " de " + dados.total + " — " + dados.nome;
+      }
+    });
+    bib.escolhidos.clear();
+    await buscarAcervo();
+    avisoCert(caminhos.length + " documento(s) lidos de novo");
+  } catch (err) {
+    if (alvo) alvo.innerHTML = antes;
+    avisoCert("não consegui ler: " + err);
+  }
+}
+
+/* Adicionar pasta é o organizador: é ele que sabe varrer, classificar e
+   trazer para cá. Duplicar essa varredura aqui seria manter dois caminhos
+   para a mesma coisa. */
+function adicionarPastaAoAcervo() {
+  marcarDestino("organizar");
+  abrirTela("Organizar pastas");
+  $("centro").innerHTML = "";
+  organizarComecar();
 }
 
 
@@ -5582,6 +5934,30 @@ async function erroDe(resposta) {
     return d.detail || "não deu certo";
   } catch (err) {
     return "não deu certo";
+  }
+}
+
+/* Ler uma resposta que chega em pedaços.
+   O servidor manda andamento em eventos porque as leituras longas levam
+   minutos; sem isto a tela ficaria parada e pareceria travada. */
+async function lerEventos(resposta, aoEvento) {
+  const leitor = resposta.body.getReader();
+  const dec = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const passo = await leitor.read();
+    if (passo.done) break;
+    buffer += dec.decode(passo.value, { stream: true });
+    const partes = buffer.split("\n\n");
+    buffer = partes.pop();
+
+    for (const parte of partes) {
+      const mt = parte.match(/^event: (.+)$/m);
+      const md = parte.match(/^data: (.*)$/m);
+      if (!mt || !md) continue;
+      aoEvento(mt[1], JSON.parse(md[1]));
+    }
   }
 }
 

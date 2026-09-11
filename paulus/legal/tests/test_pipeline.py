@@ -241,6 +241,39 @@ def test_cache() -> None:
     checar(index_all_contracts(Path("pasta/que/nao/existe"), verbose=False) == [], "pasta inexistente retorna vazio")
 
 
+def test_copias_do_mesmo_arquivo() -> None:
+    """
+    Dois arquivos iguais byte a byte tem o mesmo sha1 - e o cache e por sha1.
+
+    Este teste existe porque a biblioteca escondia documento. O cache devolvia
+    o MESMO objeto para os dois, e o laco mudava o caminho e o nome dele: o
+    segundo arquivo sobrescrevia os dados do primeiro, e a lista mostrava a
+    copia duas vezes com o original sumido. Num escritorio, "contrato.pdf" e
+    "contrato (1).pdf" com o mesmo conteudo sao o caso comum.
+    """
+    print("\ncopias com o mesmo conteudo")
+    with tempfile.TemporaryDirectory() as tmp:
+        pasta = Path(tmp) / "contratos"
+        pasta.mkdir()
+        igual = "CLAUSULA 1. Prazo de 12 meses."
+        (pasta / "contrato.txt").write_text(igual, encoding="utf-8")
+        cache = Path(tmp) / "index.json"
+
+        index_all_contracts(pasta, cache, verbose=False)     # enche o cache
+        (pasta / "contrato (1).txt").write_text(igual, encoding="utf-8")
+        docs = index_all_contracts(pasta, cache, verbose=False)
+
+        nomes = sorted(d.name for d in docs)
+        checar(len(docs) == 2, f"as duas copias entram no indice (achou {len(docs)})")
+        checar(nomes == ["contrato (1).txt", "contrato.txt"],
+               f"cada uma com o proprio nome (achou {nomes})")
+        caminhos = {d.path for d in docs}
+        checar(len(caminhos) == 2, "e com o proprio caminho")
+        checar(all(d.text == igual for d in docs), "o texto e o mesmo nos dois")
+        checar(len({id(d) for d in docs}) == 2,
+               "e nao sao o mesmo objeto - mexer num nao pode mexer no outro")
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS Legal - testes do pipeline (sem LLM)")
@@ -259,6 +292,7 @@ def main() -> int:
     test_busca_poucos_contratos()
     test_contexto()
     test_cache()
+    test_copias_do_mesmo_arquivo()
 
     print("\n" + "=" * 55)
     if _falhas:
