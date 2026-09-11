@@ -1783,7 +1783,12 @@ def preferencias_gravar(payload: dict) -> dict:
     # O que a preferencia muda de verdade, agora: modelo e ritmo.
     modelo = estado.prefs.dados.get("modelo")
     if modelo and modelo != estado.client.model:
-        estado.client = LlamaClient(model=modelo)
+        # A janela vem junto. Sem esta linha, trocar de modelo devolvia o
+        # cliente ao padrao de 8.192 e o programa voltava a ler um quarto do
+        # acervo - calado, e so na proxima pergunta.
+        estado.client = LlamaClient(
+            model=modelo, num_ctx=janela_para(estado.searcher.caracteres())
+        )
     estado.devagar = bool(estado.prefs.dados.get("devagar"))
 
     return preferencias_ler()
