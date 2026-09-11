@@ -1205,6 +1205,26 @@ class Documentos:
         }
 
 
+# Quanto dois paragrafos precisam ter em comum para serem o MESMO paragrafo
+# editado. Medido em paragrafos de contrato deste escritorio: edicao de
+# verdade fica entre 0,60 e 0,83, e paragrafo trocado por outro entre 0,00 e
+# 0,33 - a folga entre os dois grupos e larga, e 0,45 fica no meio dela.
+#
+# A conta e por PALAVRA e nao por letra: por letra, "Nome: ______" e
+# "CPF: ______" dao 0,74, porque o que eles tem em comum e o sublinhado.
+PARECIDOS_MINIMO = 0.45
+
+
+def _parecidos(a: str, b: str) -> bool:
+    import difflib
+
+    palavras_a = re.findall(r"[0-9a-zà-ÿ]+", a.lower())
+    palavras_b = re.findall(r"[0-9a-zà-ÿ]+", b.lower())
+    if not palavras_a or not palavras_b:
+        return False
+    return difflib.SequenceMatcher(None, palavras_a, palavras_b).ratio() >= PARECIDOS_MINIMO
+
+
 def comparar(antes: str, depois: str) -> list[dict]:
     """
     O que mudou entre duas versoes, por paragrafo.
@@ -1224,7 +1244,15 @@ def comparar(antes: str, depois: str) -> list[dict]:
             continue
         if marca == "replace":
             for antes_txt, depois_txt in zip(a[i1:i2], b[j1:j2]):
-                saida.append({"tipo": "mudou", "antes": antes_txt, "depois": depois_txt})
+                # Paragrafo apagado com outro escrito no lugar nao e "este
+                # paragrafo mudou": chamar de mudanca faz a tela dizer que a
+                # clausula do foro virou a clausula da multa, e quem le isso
+                # para decidir e enganado.
+                if _parecidos(antes_txt, depois_txt):
+                    saida.append({"tipo": "mudou", "antes": antes_txt, "depois": depois_txt})
+                else:
+                    saida.append({"tipo": "saiu", "antes": antes_txt, "depois": ""})
+                    saida.append({"tipo": "entrou", "antes": "", "depois": depois_txt})
             for extra in b[j1 + (i2 - i1):j2]:
                 saida.append({"tipo": "entrou", "antes": "", "depois": extra})
             for extra in a[i1 + (j2 - j1):i2]:

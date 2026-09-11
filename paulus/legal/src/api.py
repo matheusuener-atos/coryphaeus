@@ -3175,6 +3175,39 @@ def documentos_comparar(id_: int, de: int = 0, ate: int = 0) -> dict:
     return {"de": de, "ate": ate, "mudancas": documento.comparar(antes, depois)}
 
 
+@app.post("/api/documentos/{id_}/alteracoes")
+def documentos_alteracoes(id_: int, payload: dict) -> dict:
+    """
+    O que mudou no texto que esta no editor agora, em relacao a uma versao.
+
+    Controlar alteracoes no Word marca cada tecla enquanto se digita. Aqui a
+    marca vem da comparacao com uma versao gravada, e nao de interceptar a
+    digitacao - porque interceptar tecla dentro de um campo editavel e o
+    caminho curto para perder texto de contrato, e texto de contrato perdido
+    nao tem conserto do lado de ca.
+
+    O resultado e o mesmo que interessa: o que entrou, o que saiu, o que mudou,
+    e o caminho de volta para cada um.
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+
+    ultima = estado.documentos.ultima_versao(id_)
+    desde = int(payload.get("desde") or ultima)
+    antes = estado.documentos.corpo_da_versao(id_, desde)
+    if antes is None:
+        raise HTTPException(status_code=404, detail="essa versão não existe")
+
+    corpo = payload.get("corpo")
+    depois = item["corpo"] if corpo is None else corpo
+    return {
+        "desde": desde,
+        "ultima": ultima,
+        "mudancas": documento.comparar(antes, depois),
+    }
+
+
 @app.post("/api/documentos/{id_}/restaurar")
 def documentos_restaurar(id_: int, payload: dict) -> dict:
     _documento_ou_404(id_)

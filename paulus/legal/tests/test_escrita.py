@@ -399,6 +399,54 @@ def test_conferir() -> None:
     checar(D.conferir(bom, []) == [], "documento sem problema nao inventa aviso")
 
 
+def test_paragrafo_trocado_nao_e_paragrafo_editado() -> None:
+    """
+    Apagar uma cláusula e escrever outra no lugar não é "esta cláusula mudou".
+
+    O difflib chama os dois de `replace`, e a tela dizia "a cláusula do foro
+    virou a cláusula da multa". Quem lê isso para decidir o que aceitar é
+    enganado — e é exatamente a hora em que a comparação precisa ser exata.
+
+    O corte é por palavra e não por letra, e o número saiu de medir parágrafos
+    de contrato deste escritório: edição de verdade entre 0,60 e 0,83, e
+    parágrafo trocado por outro entre 0,00 e 0,33.
+    """
+    print("\nparágrafo trocado não é parágrafo editado")
+
+    edicoes = [
+        ("2ª CLAUSULA – Do preço, que é de R$ 3.000,00.",
+         "2ª CLAUSULA – Do preço, que é de R$ 4.500,00."),
+        ("O prazo é de trinta dias.", "O prazo é de sessenta dias."),
+        ("CLÁUSULA 9ª – Do foro de São Félix do Xingu.", "CLÁUSULA 9ª – Do foro de Goiânia."),
+        ("As partes elegem o foro da comarca de Goiânia.",
+         "Fica eleito o foro da comarca de Goiânia, Estado de Goiás."),
+    ]
+    outros = [
+        ("4ª CLAUSULA – Do foro da comarca.", "5ª CLAUSULA – Da multa por atraso."),
+        # Por letra estes dois dão 0,74 — o que eles têm em comum é o
+        # sublinhado. Por palavra, zero.
+        ("Nome: ________", "CPF: ________"),
+        ("VENDEDOR: MATHEUS UENER SILVA", "COMPRADOR: CAROLINE WAGNER DOS SANTOS"),
+        ("1ª CLAUSULA – Do objeto.",
+         "7ª CLAUSULA – Da rescisão antecipada por qualquer das partes."),
+    ]
+
+    for a, b in edicoes:
+        checar(D._parecidos(a, b), f"edição: “{a[:34]}…”")
+    for a, b in outros:
+        checar(not D._parecidos(a, b), f"outro parágrafo: “{a[:34]}…”")
+
+    antes = ("<p>1ª CLAUSULA – Do objeto do contrato.</p>"
+             "<p>2ª CLAUSULA – Do preço, que é de R$ 3.000,00.</p>"
+             "<p>4ª CLAUSULA – Do foro da comarca.</p>")
+    depois = ("<p>1ª CLAUSULA – Do objeto do contrato.</p>"
+              "<p>2ª CLAUSULA – Do preço, que é de R$ 4.500,00.</p>"
+              "<p>5ª CLAUSULA – Da multa por atraso.</p>")
+    tipos = [m["tipo"] for m in D.comparar(antes, depois)]
+    checar(tipos == ["mudou", "saiu", "entrou"],
+           f"o preço mudou; o foro saiu e a multa entrou ({tipos})")
+
+
 def test_versoes(tmp: Path) -> None:
     print("\nversoes e comparacao")
     base = Base(tmp / "escrita.db")
@@ -762,6 +810,7 @@ def main() -> int:
     test_formula_nao_executa_nada()
     test_entrar_e_sair()
     test_grade()
+    test_paragrafo_trocado_nao_e_paragrafo_editado()
 
     with tempfile.TemporaryDirectory() as bruto:
         test_versoes(Path(bruto))

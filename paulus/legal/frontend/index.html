@@ -441,6 +441,20 @@
   .comparar-linha.saiu { color: var(--atencao); }
   .comparar-linha.saiu span:last-child { text-decoration: line-through; }
   .comparar-depois { color: var(--ok-texto); }
+  /* A lista de alteracoes tem uma coluna a mais - a do "Descartar esta" - e
+     por isso nao reaproveita .comparar-linha: encaixar um terceiro filho numa
+     grade de duas colunas joga o botao para a linha de baixo. */
+  .al-lista { margin: 10px 0; max-height: 300px; overflow-y: auto; }
+  .al-linha {
+    display: grid; grid-template-columns: 70px minmax(0, 1fr) auto;
+    gap: 10px; align-items: baseline; padding: 5px 0;
+    font-size: 12.5px; border-bottom: 1px solid var(--linha);
+  }
+  .al-linha:last-child { border-bottom: none; }
+  .al-linha.entrou > span:nth-child(2) { color: var(--ok-texto); }
+  .al-saiu { text-decoration: line-through; color: var(--atencao); }
+  .al-linha.desfeita { opacity: .5; }
+
   .comparar-folhas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
   .comparar-folhas img { width: 100%; height: auto; display: block; border: 1px solid var(--linha); }
 
@@ -6479,6 +6493,101 @@ function mostrarQuebradas(quebradas) {
     "É o tipo de erro que passa na leitura e aparece na discussão.</p></div>";
 }
 
+/* ------------------------------------------------------ controlar alterações
+
+   O Word marca cada tecla enquanto se digita. Aqui a marca vem da comparação
+   com uma versão gravada, e não de interceptar a digitação — interceptar tecla
+   dentro de um campo editável é o caminho curto para perder texto de contrato,
+   e texto de contrato perdido não tem conserto do lado de cá.
+
+   O que interessa é o mesmo: o que entrou, o que saiu, o que mudou, e o
+   caminho de volta para cada um, um a um. */
+
+async function painelAlteracoes(desde) {
+  const destino = abaixoDoEditor();
+  const folha = folhaAberta();
+  const doc = documentoAberto();
+  if (!destino || !folha || !doc) return;
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><p class="nota">comparando…</p></div>';
+  const r = await fetch("/api/documentos/" + doc.id + "/alteracoes", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML, desde: desde || 0 }),
+  });
+  if (!r.ok) { destino.innerHTML = '<div class="painel"><p class="explica">' +
+    esc(await erroDe(r)) + "</p></div>"; return; }
+  const d = await r.json();
+
+  const versoes = [];
+  for (let v = 1; v <= d.ultima; v += 1) versoes.push(v);
+  const escolher = '<select id="al-desde">' + versoes.map((v) =>
+    '<option value="' + v + '"' + (v === d.desde ? " selected" : "") +
+    ">desde a versão " + v + "</option>").join("") + "</select>";
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Alterações</h3>' +
+    '<div class="linha-form">' + escolher +
+    '<span class="rotulo">' + (d.mudancas.length
+      ? plural(d.mudancas.length, "alteração") + " no texto"
+      : "nada mudou no texto") + "</span></div>" +
+    (d.mudancas.length
+      ? '<div class="al-lista">' + d.mudancas.map((m, i) =>
+          '<div class="al-linha ' + esc(m.tipo) + '" data-mud="' + i + '">' +
+          '<span class="rotulo">' + esc(m.tipo) + "</span><span>" +
+          (m.tipo === "mudou"
+            ? '<span class="al-saiu">' + esc(m.antes) + "</span><br>" +
+              '<span class="comparar-depois">' + esc(m.depois) + "</span>"
+            : m.tipo === "saiu"
+              ? '<span class="al-saiu">' + esc(m.antes) + "</span>"
+              : esc(m.depois)) +
+          "</span>" +
+          (m.tipo === "saiu"
+            ? '<span class="rotulo">só no Histórico</span>'
+            : '<button data-desfazer="' + i + '">Descartar esta</button>') +
+          "</div>").join("") + "</div>" +
+        '<p class="explica">"Descartar esta" volta só este parágrafo ao que ele era na ' +
+        "versão escolhida. O resto do texto fica como está. Parágrafo que saiu inteiro " +
+        "não volta por aqui — para isso é o Histórico, que traz a versão inteira.</p>"
+      : '<p class="explica">O texto do editor é igual ao da versão ' + d.desde +
+        ". Trocar <b> por <strong> não conta: a comparação é do texto, não da marcação.</p>") +
+    '<div class="linha-form"><button id="al-fechar">Fechar</button></div></div>';
+
+  $("al-fechar").onclick = () => { destino.innerHTML = ""; };
+  $("al-desde").onchange = (e) => painelAlteracoes(Number(e.target.value));
+  destino.querySelectorAll("[data-desfazer]").forEach((b) => {
+    b.onclick = () => descartarAlteracao(d.mudancas[Number(b.dataset.desfazer)], b);
+  });
+}
+
+/* Acha o parágrafo pelo texto que ele tem AGORA, e não por posição: entre
+   abrir o painel e clicar em "Descartar", a pessoa pode ter escrito mais
+   acima, e aí a terceira posição já não é o terceiro parágrafo. */
+function descartarAlteracao(mudanca, botao) {
+  const folha = folhaAberta();
+  if (!folha || !mudanca) return;
+
+  const alvoTexto = normalTexto(mudanca.depois);
+  const achado = blocosDaFolha(folha).find((el) => normalTexto(el.textContent) === alvoTexto);
+
+  if (!achado) {
+    botao.textContent = "o parágrafo mudou de novo";
+    botao.disabled = true;
+    return;
+  }
+
+  if (mudanca.tipo === "entrou") achado.remove();
+  else achado.textContent = mudanca.antes;
+
+  marcarSujo();
+  pedirPaginacao(true);
+  botao.closest(".al-linha").classList.add("desfeita");
+  botao.textContent = "descartada";
+  botao.disabled = true;
+}
+
+function normalTexto(t) {
+  return String(t || "").replace(/\s+/g, " ").trim();
+}
+
 /* ------------------------------------------------------------- o quadro
 
    Quadro de parcelas, de honorários, de bens — o contrato que traz um deles
@@ -9258,6 +9367,7 @@ function desenharEditor() {
     '<button id="ed-clausulas">Cláusulas do escritório</button>' +
     '<button id="ed-codigos">Citar a lei</button>' +
     '<button id="ed-formato">Folha</button>' +
+    '<button id="ed-alteracoes">Alterações</button>' +
     '<button id="ed-conferir">Conferir</button></div>';
 
   html += '<div class="ed-colunas"><div>' +
@@ -9351,6 +9461,7 @@ function ligarEditor() {
 
   $("ed-formato").onclick = painelFormato;
   $("ed-quadro").onclick = painelQuadro;
+  $("ed-alteracoes").onclick = () => painelAlteracoes();
   folha.addEventListener("input", () => pedirPaginacao());
   document.addEventListener("selectionchange", mostrarPaginaDoCursor);
   document.addEventListener("selectionchange", lembrarCursor);
