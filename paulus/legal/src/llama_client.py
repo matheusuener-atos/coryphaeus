@@ -16,23 +16,61 @@ import requests
 DEFAULT_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 DEFAULT_MODEL = os.getenv("PAULUS_MODEL", "llama3.2:3b")
 
-SYSTEM_PROMPT = """Voce e o PAULUS, um assistente juridico que analisa contratos.
+# A janela do modelo não pode ser menor que o acervo que ele precisa ler.
+# Medido nesta máquina: com 6.000 caracteres o modelo respondeu "não encontrei
+# os nomes" sobre quatro procurações; com os 21.382 do acervo inteiro, acertou
+# os quatro. O preço foi 56 s virarem 95 s — resposta rápida e errada sobre um
+# contrato não vale nada.
+JANELA_MINIMA = 8192
 
-Regras obrigatorias:
-1. Responda SOMENTE com base nos trechos de contrato fornecidos. Nunca invente
-   clausulas, valores, datas ou nomes.
-2. Sempre cite o nome do arquivo de onde tirou cada informacao.
-3. Se a resposta nao estiver nos trechos, diga exatamente: "Nao encontrei essa
-   informacao nos trechos fornecidos." Nao chute.
-4. Cite o numero da clausula APENAS quando ele aparecer literalmente no
-   trecho. Nunca deduza nem invente numeracao de clausula.
-5. Cada contrato aparece uma unica vez no contexto, sob o cabecalho
-   "--- nome_do_arquivo ---". Nao repita o mesmo contrato em secoes separadas.
-6. Responda em portugues do Brasil, de forma direta e objetiva.
-7. Voce nao presta consultoria juridica - voce resume e localiza o que esta
-   escrito nos documentos."""
+# Teto para a memória não estourar: a janela é alocada quando o modelo carrega,
+# e o computador do escritório também roda o resto do trabalho.
+JANELA_MAXIMA = 32768
 
-USER_TEMPLATE = """Trechos de contratos:
+
+def janela_para(caracteres: int, reserva_tokens: int = 1200) -> int:
+    """
+    A janela que um acervo deste tamanho pede, arredondada para cima.
+
+    Potência de dois porque é o que estes runtimes alocam bem. Acervo grande
+    demais não estica a janela até o infinito: passa do teto, e aí quem
+    escolhe o que ler é a busca.
+    """
+    precisa = caracteres // 3 + reserva_tokens
+    janela = JANELA_MINIMA
+    while janela < precisa and janela < JANELA_MAXIMA:
+        janela *= 2
+    return min(janela, JANELA_MAXIMA)
+
+# A instrucao anterior tinha sete regras numeradas, e a de numero 3 entregava
+# ao modelo uma frase de fuga pronta: "se a resposta nao estiver nos trechos,
+# diga exatamente Nao encontrei essa informacao". Um modelo de 3 bilhoes de
+# parametros usa essa saida cedo demais.
+#
+# Medido nesta maquina, mesmos documentos e mesmo modelo, so trocando a
+# instrucao: das seis informacoes perguntadas, a instrucao antiga achou UMA e
+# esta achou as SEIS. Numa das perguntas a antiga desistiu em 8 segundos, sem
+# ler - a resposta estava escrita no primeiro documento.
+#
+# O que NAO saiu: a trava contra invencao. Num programa juridico, inventar
+# clausula ou numero e o dano que nenhum ganho de recall paga.
+SYSTEM_PROMPT = """Voce e o PAULUS, assistente do escritorio. Responde sobre os
+documentos abaixo, em portugues do Brasil, direto e sem preambulo.
+
+O texto abaixo e tudo o que voce tem, e voce tem ele INTEIRO. Leia todos os
+documentos antes de responder: a resposta quase sempre esta em algum deles.
+
+Nunca invente clausula, valor, data, nome ou numero de clausula que nao esteja
+escrito. Numero de clausula so quando aparecer literalmente no texto. Cite o
+nome do arquivo de onde tirou cada informacao.
+
+Voce nao presta consultoria juridica - voce localiza e resume o que esta
+escrito nos documentos.
+
+Se, depois de ler todos, a informacao realmente nao estiver em nenhum, diga que
+nao achou e diga em quais documentos procurou."""
+
+USER_TEMPLATE = """Documentos do escritorio:
 
 {context}
 

@@ -241,6 +241,72 @@ def test_cache() -> None:
     checar(index_all_contracts(Path("pasta/que/nao/existe"), verbose=False) == [], "pasta inexistente retorna vazio")
 
 
+def test_le_o_acervo_inteiro_quando_cabe() -> None:
+    """
+    Escolher trecho e o que se faz quando nao da para ler tudo.
+
+    Com seis documentos e vinte e quatro mil caracteres dava, e o programa
+    escolhia mesmo assim: lia seis trechos de tres documentos e respondia "nao
+    encontrei essa informacao" sobre os outros tres, que nunca abriu. Medido:
+    com 6.000 caracteres achou 0 dos 4 outorgados; com o acervo inteiro, os 4.
+    """
+    print("\nler tudo quando tudo cabe")
+    from llama_client import janela_para
+
+    docs = index_all_contracts(SAMPLES, verbose=False)
+    searcher = ContractSearcher()
+    searcher.add_contracts(docs)
+    searcher.build()
+
+    total = searcher.caracteres()
+    checar(total > 0, f"o acervo de exemplo tem texto ({total} chars)")
+
+    # A janela acompanha o acervo: fixa e pequena, ela cortava o que o modelo
+    # via sem ninguem saber.
+    checar(janela_para(total) >= 8192, "a janela nunca fica abaixo do minimo")
+    checar(janela_para(500_000) == 32768, "e nao passa do teto, por causa da memoria")
+    checar(janela_para(120_000) > janela_para(5_000), "acervo maior pede janela maior")
+
+    folgado = (janela_para(total) - 1200) * 3
+    checar(searcher.cabe_inteiro(folgado), "este acervo cabe inteiro na janela dele")
+
+    todos = searcher.tudo()
+    checar(len(todos) == len(searcher.chunks), "ler tudo devolve todos os trechos")
+    vistos = {h.doc_name for h in todos}
+    checar(len(vistos) == len(docs),
+           f"e todos os documentos ({len(vistos)} de {len(docs)})")
+
+
+def test_nenhum_documento_some_do_contexto() -> None:
+    """
+    Sem espaco para todos, cada um cede - nenhum desaparece calado.
+
+    Enchendo com os primeiros ate estourar, os ultimos nunca chegavam ao
+    modelo, que respondia sobre o acervo inteiro tendo visto dois tercos dele.
+    """
+    print("\nnenhum documento some do contexto")
+    docs = index_all_contracts(SAMPLES, verbose=False)
+    searcher = ContractSearcher()
+    searcher.add_contracts(docs)
+    searcher.build()
+    todos = searcher.tudo()
+
+    for orcamento in (40000, 8000, 4000, 2000):
+        ctx = searcher.format_context(todos, max_chars=orcamento)
+        cabecalhos = ctx.count("--- ")
+        checar(len(ctx) <= orcamento,
+               f"orcamento de {orcamento} e respeitado ({len(ctx)} chars)")
+        checar(cabecalhos == len(docs) or "nao coube" in ctx,
+               f"com {orcamento}, ou entram os {len(docs)} ou diz quem ficou de fora "
+               f"({cabecalhos} entraram)")
+
+    # Orcamento minusculo: quase nada cabe, e e obrigatorio DIZER isso.
+    apertado = searcher.format_context(todos, max_chars=300)
+    checar(len(apertado) <= 300, f"mesmo apertado, cabe no orcamento ({len(apertado)})")
+    if apertado.count("--- ") < len(docs):
+        checar("coube" in apertado, "e nomeia os documentos que ficaram de fora")
+
+
 def test_copias_do_mesmo_arquivo() -> None:
     """
     Dois arquivos iguais byte a byte tem o mesmo sha1 - e o cache e por sha1.
@@ -292,6 +358,8 @@ def main() -> int:
     test_busca_poucos_contratos()
     test_contexto()
     test_cache()
+    test_le_o_acervo_inteiro_quando_cabe()
+    test_nenhum_documento_some_do_contexto()
     test_copias_do_mesmo_arquivo()
 
     print("\n" + "=" * 55)

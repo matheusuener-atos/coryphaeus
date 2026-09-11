@@ -5274,6 +5274,18 @@ function cartaoProposta(d) {
   const c = d.campos || {};
   const ehAgenda = d.tipo === "agenda";
 
+  // Abrir é o único que não tem campo para conferir: ou é este arquivo, ou
+  // não é. O que a pessoa confere é o nome.
+  if (d.tipo === "abrir") {
+    return '<div class="proposta"><div class="proposta-topo">' +
+      '<span class="rotulo">vou abrir este arquivo</span>' +
+      "<b>" + esc(c.nome) + "</b></div>" +
+      '<p class="explica">Li isso de ' + esc(d.porque) + ". Abre no programa " +
+      "padrão do Windows — o arquivo não sai da sua máquina.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="fazer">Abrir</button>' +
+      '<button data-prop="nao">Deixa pra lá</button></div></div>';
+  }
+
   if (d.falta) {
     return '<div class="proposta"><div class="proposta-topo">' +
       '<span class="pv-grau">falta um dado</span>' +
@@ -5361,9 +5373,12 @@ function ligarProposta(caixa, d, ondeResponder) {
     caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
       "<b>" + esc(feito.resumo) + "</b></div>" +
       '<div class="linha-form"><button data-ver="' + esc(feito.onde) + '">Ver na tela</button></div>';
-    caixa.querySelector("[data-ver]").onclick = () => {
+    const ver = caixa.querySelector("[data-ver]");
+    if (ver) ver.onclick = () => {
       marcarDestino(feito.onde);
-      feito.onde === "calendario" ? mostrarCalendario() : mostrarTarefas();
+      if (feito.onde === "calendario") mostrarCalendario();
+      else if (feito.onde === "tarefas") mostrarTarefas();
+      else mostrarBiblioteca();
     };
     carregarStatus();
   };

@@ -622,6 +622,64 @@ Fica para a Etapa 12: conferir prazos do documento contra os prazos da lei.
 
 ---
 
+## Ele passa a ler todos os arquivos ✓ FEITA
+
+**Telas:** Conversa
+**Tamanho:** médio
+**Fora da numeração:** veio de uma observação de uso — *"tenho a sensação de
+que ele não olha corretamente todos os arquivos"*
+
+A sensação estava certa, e o problema era pior do que parecia. Medido nesta
+máquina, mesma pergunta, mesmo modelo:
+
+| contexto lido | tempo | outorgados achados |
+|---|---|---|
+| 6.000 caracteres (era o padrão) | 56 s | **0 de 4** |
+| 21.382 caracteres (o acervo inteiro) | 95 s | **4 de 4** |
+
+Quatro causas, todas medidas antes e depois.
+
+**A janela do modelo era fixa e pequena.** `num_ctx` em 8.192 e orçamento de
+leitura de 6.000 caracteres — um quarto do acervo. Agora a janela acompanha o
+acervo: 24 mil caracteres pedem 16.384, com teto de 32.768 por causa da
+memória. Cabendo tudo, lê tudo.
+
+**O montador do contexto largava documentos de fora, calado.** Enchia com os
+primeiros até estourar o limite, e dois dos seis nunca chegavam ao modelo — que
+respondia sobre o acervo tendo visto dois terços dele. Agora reparte entre
+todos; não cabendo nem assim, **nomeia quem ficou de fora**, porque o modelo
+precisa saber que não viu tudo.
+
+**A instrução entregava uma saída de emergência.** Sete regras numeradas, e a
+de número 3 dava a frase pronta: *"se a resposta não estiver nos trechos, diga
+exatamente: Não encontrei essa informação"*. Um modelo de 3 bilhões de
+parâmetros usa isso cedo demais. Mesmos documentos, mesmo modelo, só trocando
+a instrução: das seis informações perguntadas, a antiga achou **uma** e a nova
+achou as **seis**. Numa delas a antiga desistiu em 8 segundos — a resposta
+estava escrita no primeiro documento.
+
+A trava contra invenção não saiu junto: num programa jurídico, inventar
+cláusula ou número é o dano que nenhum ganho de leitura paga. Verificada com
+quatro perguntas sem resposta óbvia — três recusas corretas, e uma que eu tinha
+suposto impossível e estava na cláusula 9ª, achada e citada certo.
+
+**"Abra a procuração Matheus" não é pergunta.** É pedido para abrir um arquivo
+que existe, com esse nome, e ia para a busca — que respondia "não encontrei
+essa informação" sobre ele. Agora vira proposta, e só quando o arquivo existe e
+é um só: com quatro procurações no acervo, *"abra a procuração"* continua sendo
+pergunta, porque escolher uma seria sortear.
+
+### Sobre o Ministral 3B
+
+Instalado e verificado a pedido: `alibayram/ministral-3b-instruct`, 3,3 B em
+Q8_0. **Não dá para usar.** Nas mesmas três perguntas, llama3.2:3b acertou 3 de
+3 em 4,6 s de média; o ministral acertou 0 de 3 em 15,4 s, respondendo em
+inglês, vazando `<|im_start|>` e degenerando em repetição. Testados os três
+formatos de prompt — ChatML, Mistral `[INST]` e texto puro: todos quebram. Não
+é o template; o GGUF desse empacotamento está corrompido.
+
+---
+
 ## A conversa passa a entender o pedido ✓ FEITA
 
 **Telas:** Conversa · Aprendizado

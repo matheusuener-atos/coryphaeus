@@ -64,7 +64,13 @@ from habilidade_base import (
 from extract import SUPPORTED_SUFFIXES, index_all_contracts
 from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, Etapa, Trabalhos, titular
 from jobs import agora as jobs_agora
-from llama_client import DEFAULT_MODEL, LlamaClient, OllamaError, check_ollama
+from llama_client import (
+    DEFAULT_MODEL,
+    LlamaClient,
+    OllamaError,
+    check_ollama,
+    janela_para,
+)
 from organize import (
     PADROES_SUGERIDOS,
     aplicar_plano,
@@ -158,6 +164,13 @@ class Estado:
         searcher.add_contracts(docs)
         searcher.build()
         self.searcher = searcher
+
+        # A janela do modelo acompanha o acervo. Com a janela fixa e pequena, o
+        # programa lia um terco dos documentos e respondia "nao encontrei essa
+        # informacao" sobre os outros dois tercos - resposta errada com cara de
+        # certa, que e o pior tipo.
+        if self.client is not None:
+            self.client.num_ctx = janela_para(searcher.caracteres())
         return len(docs)
 
 
@@ -868,8 +881,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # caminho so, e "anote uma reuniao no calendario" virava busca pela
     # palavra "reuniao" dentro dos contratos - resposta certa para a pergunta
     # errada. Ler a intencao e por regra: instantaneo e repetivel.
-    lido = intencao.ler(pergunta)
-    if lido.tipo in ("agenda", "tarefa", "sobre"):
+    lido = intencao.ler(pergunta, documentos=estado.searcher.documents)
+    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
 
     trabalho.etapas = [
@@ -966,7 +979,22 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
 
     campos = dict(payload.campos or {})
     try:
-        if payload.tipo == "agenda":
+        if payload.tipo == "abrir":
+            nome = str(campos.get("nome", ""))
+            doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+            if not doc:
+                raise HTTPException(status_code=404, detail="esse documento nao esta mais aberto")
+            alvo = Path(doc.path)
+            if not alvo.exists():
+                raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+            import os
+
+            os.startfile(str(alvo))  # noqa: S606 - abre no programa do proprio Windows
+            novo = 0
+            feito = {"nome": nome, "caminho": str(alvo)}
+            resumo = f"Abri “{nome}” no programa padrao do Windows"
+            onde = "biblioteca"
+        elif payload.tipo == "agenda":
             novo = estado.agenda.salvar(campos)
             feito = estado.agenda.obter(novo)
             resumo = (f"Anotei “{feito['titulo']}” em {escritorio._br(feito['data'])} "

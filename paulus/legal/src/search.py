@@ -172,6 +172,36 @@ class ContractSearcher:
         self._termos = [set(t) for t in corpus]
         self._bm25 = BM25Okapi(corpus)
 
+    def caracteres(self) -> int:
+        """Quanto texto o acervo inteiro tem."""
+        return sum(len(c.text) for c in self.chunks)
+
+    def cabe_inteiro(self, orcamento: int) -> bool:
+        """Se dá para ler tudo sem escolher."""
+        total = self.caracteres()
+        return 0 < total <= orcamento
+
+    def tudo(self) -> list[Hit]:
+        """
+        O acervo inteiro, na ordem em que está escrito.
+
+        Escolher trecho é o que se faz quando não dá para ler tudo. Com seis
+        documentos e vinte e quatro mil caracteres, dava — e o programa
+        escolhia mesmo assim, lendo três de seis e respondendo "não encontrei
+        essa informação" sobre um documento que nunca abriu.
+
+        Sem pontuação de relevância aqui: não há relevância a medir quando
+        tudo entra.
+        """
+        return [Hit(chunk, 0.0, chunk.text[:200]) for chunk in self.chunks]
+
+    def quantos_cabem(self, orcamento: int) -> int:
+        """Quantos trechos cabem no orçamento, pelo tamanho médio deles."""
+        if not self.chunks:
+            return 0
+        medio = max(1, self.caracteres() // len(self.chunks))
+        return max(4, min(len(self.chunks), orcamento // medio))
+
     def search(self, query: str, top_k: int = 5, per_doc_limit: int = 2) -> list[Hit]:
         """
         Retorna os melhores trechos para a pergunta.
@@ -235,18 +265,52 @@ class ContractSearcher:
         for hit in hits:  # hits ja vem ordenado por relevancia
             por_doc.setdefault(hit.chunk.doc_name, []).append(hit.chunk)
 
-        partes: list[str] = []
-        total = 0
+        blocos: list[tuple[str, str]] = []
         for doc_name, chunks in por_doc.items():
             unicos = {c.index: c for c in chunks}
             ordenados = [unicos[i] for i in sorted(unicos)]
-            bloco = f"--- {doc_name} ---\n{merge_chunks(ordenados)}"
-            if total + len(bloco) > max_chars:
-                break
-            partes.append(bloco)
-            total += len(bloco)
+            blocos.append((doc_name, merge_chunks(ordenados)))
 
-        return "\n\n".join(partes)
+        cabecalho = sum(len(f"--- {n} ---\n\n\n") for n, _ in blocos)
+        sobra = max_chars - cabecalho
+        if sum(len(t) for _, t in blocos) <= sobra:
+            return "\n\n".join(f"--- {n} ---\n{t}" for n, t in blocos)
+
+        # Não cabendo tudo, cada documento cede o mesmo tanto — e nenhum fica
+        # de fora. Encher com os primeiros até estourar fazia os últimos
+        # sumirem sem aviso: quatro contratos entravam inteiros e dois nunca
+        # chegavam ao modelo, que respondia sobre o acervo inteiro tendo visto
+        # dois terços dele.
+        #
+        # O orçamento continua valendo ao pé da letra: passar dele é a janela
+        # do modelo cortar por conta própria, e aí o corte é em lugar
+        # arbitrário e sem ninguém saber.
+        AVISO = "\n[…cortado para caber na leitura…]"
+        MINIMO = 120                      # abaixo disso o pedaço não diz nada
+
+        # Com documentos demais para o orçamento, nem todos cabem nem no
+        # mínimo. Aí a resposta é dizer quais ficaram de fora — o modelo
+        # precisa saber que não viu tudo, senão responde como se tivesse
+        # visto, que foi o problema o tempo inteiro.
+        cabem = max(1, sobra // MINIMO)
+        de_fora = [n for n, _ in blocos[cabem:]]
+        blocos = blocos[:cabem]
+
+        # A linha do aviso também ocupa espaço, e o orçamento é para tudo.
+        linha_de_fora = ("[não coube nesta leitura: " + ", ".join(de_fora) + "]\n\n"
+                         if de_fora else "")
+        sobra -= len(linha_de_fora)
+
+        fatia = max(0, sobra // max(1, len(blocos)))
+        partes = []
+        for nome, texto in blocos:
+            if len(texto) <= fatia:
+                partes.append(f"--- {nome} ---\n{texto}")
+            else:
+                partes.append(f"--- {nome} ---\n{texto[:max(0, fatia - len(AVISO))]}{AVISO}")
+
+        montado = linha_de_fora + "\n\n".join(partes)
+        return montado[:max_chars]
 
 
 def merge_chunks(chunks: list[Chunk]) -> str:

@@ -53,6 +53,17 @@ COISAS_TAREFA = ("tarefa", "lembrete", "pendencia", "a fazer", "todo",
                  "na lista", "nas tarefas")
 COISAS_PRAZO = ("prazo", "vencimento")
 
+# "abra a procuracao Matheus" nao e pergunta sobre o conteudo: e pedido para
+# abrir um arquivo. Ia parar na busca, que respondia "nao encontrei essa
+# informacao" - sobre um arquivo que esta ali, com esse nome.
+VERBOS_ABRIR = ("abra", "abrir", "abre", "mostre", "mostrar", "mostra",
+                "exiba", "exibir", "ver", "veja")
+
+# Palavras que dizem o TIPO da coisa e nao aparecem no nome do arquivo. "o
+# contrato Wanderson" nomeia um arquivo chamado "COMPRA E VENDA - WANDERSON".
+GENERICAS = {"contrato", "documento", "arquivo", "pdf", "docx", "papel",
+             "peca", "minuta"}
+
 # A busca é feita sem acento, porque é assim que se digita com pressa. Mas o
 # que aparece na tela leva o acento: "li isso de reuniao" tem cara de erro.
 COM_ACENTO = {
@@ -339,7 +350,48 @@ def _titulo_do_pedido(texto: str, data_bruta: str) -> str:
     return limpo[0].upper() + limpo[1:]
 
 
-def ler(texto: str, hoje: date | None = None) -> Intencao:
+def _documento_pedido(plano: str, documentos) -> str:
+    """
+    Qual documento do acervo a frase está nomeando.
+
+    Só responde quando existe um arquivo com esse nome — e só um. Duas
+    salvaguardas de propósito: "mostre a cláusula de multa" não nomeia
+    arquivo nenhum e continua sendo pergunta; e "abra a procuração", com
+    quatro procurações no acervo, é ambíguo demais para escolher sozinho.
+    """
+    palavras = [p for p in re.findall(r"[a-z0-9]{3,}", plano)
+                if p not in ENFEITE and p not in VERBOS_ABRIR]
+    if not palavras:
+        return ""
+
+    def casam(quais: list[str]) -> list[str]:
+        # Todas as palavras têm que estar no nome do arquivo. Uma só bastaria
+        # para "procuracao" casar com as quatro procurações.
+        achados = []
+        for doc in documentos or []:
+            bruto = getattr(doc, "name", "") or (doc.get("nome", "") if isinstance(doc, dict) else "")
+            nome = _plano(bruto)
+            if nome and quais and all(p in nome for p in quais):
+                achados.append(bruto)
+        return achados
+
+    exatos = casam(palavras)
+    if len(exatos) == 1:
+        return exatos[0]
+
+    # Segunda tentativa sem as palavras de tipo: "mostre o contrato Wanderson"
+    # nomeia um arquivo que não tem "contrato" no nome. A primeira passada vem
+    # antes de propósito — "procuração Matheus" acha pelo conjunto inteiro, e
+    # só por "matheus" acharia duas.
+    sem_tipo = [p for p in palavras if p not in GENERICAS]
+    if sem_tipo and sem_tipo != palavras:
+        soltos = casam(sem_tipo)
+        if len(soltos) == 1:
+            return soltos[0]
+    return ""
+
+
+def ler(texto: str, hoje: date | None = None, documentos=None) -> Intencao:
     """
     O que a frase pede.
 
@@ -353,6 +405,18 @@ def ler(texto: str, hoje: date | None = None) -> Intencao:
 
     if any(p in plano for p in SOBRE):
         return Intencao(tipo="sobre", porque="pergunta sobre o próprio programa")
+
+    # Abrir um arquivo pelo nome. Só vira ação quando o arquivo existe: sem
+    # isso, "mostre o que diz sobre multa" viraria tentativa de abrir nada.
+    palavras = re.findall(r"[a-z0-9]+", plano)
+    if palavras and palavras[0] in VERBOS_ABRIR:
+        qual = _documento_pedido(plano, documentos)
+        if qual:
+            return Intencao(
+                tipo="abrir", titulo=qual,
+                campos={"nome": qual},
+                porque=f"“{palavras[0]}” e um documento com esse nome no acervo",
+            )
 
     verbo = _verbo_de_comando(plano)
     coisa_agenda = _tem(plano, COISAS_AGENDA)

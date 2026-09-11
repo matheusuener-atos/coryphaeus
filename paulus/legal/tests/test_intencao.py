@@ -206,6 +206,56 @@ def test_tarefas() -> None:
     checar(i3.campos["importante"] is True, "e prazo entra como importante")
 
 
+def test_abrir_arquivo() -> None:
+    """
+    "abra a procuracao Matheus" e pedido para abrir um arquivo.
+
+    Ia para a busca, que lia tres dos seis documentos e respondia "nao
+    encontrei essa informacao nos trechos fornecidos" - sobre um arquivo que
+    esta ali, com esse nome, na biblioteca.
+
+    So vira acao quando o arquivo existe E e um so. As duas condicoes
+    importam: sem a primeira, "mostre a clausula de multa" viraria tentativa
+    de abrir nada; sem a segunda, "abra a procuracao" - com quatro no acervo -
+    abriria uma escolhida por sorteio.
+    """
+    print("\nabrir um arquivo pelo nome")
+    from types import SimpleNamespace
+    acervo = [SimpleNamespace(name=n) for n in (
+        "Procuraçao COOBRAMEX x Matheus.docx",
+        "Procuraçao COOBRAMEX x Priscila.docx",
+        "Procuraçao COOBRAMEX x Vinicius.docx",
+        "Procuraçao COOBRAMEX x Reinaldo Lira.docx",
+        "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+        "COMPRA E VENDA - WANDERSON X VALTER UENER R$ 200.000,00.pdf",
+    )]
+
+    def ler(frase):
+        return intencao.ler(frase, HOJE, acervo)
+
+    i = ler("abra a procuração Matheus")
+    checar(i.tipo == "abrir", f"vira pedido de abrir ({i.tipo})")
+    checar(i.campos["nome"] == "Procuraçao COOBRAMEX x Matheus.docx",
+           f"e acha o arquivo certo ({i.campos.get('nome')})")
+
+    checar(ler("abra a procuracao do Vinicius").campos.get("nome", "").endswith("Vinicius.docx"),
+           "acha sem acento e com palavra no meio")
+
+    # "contrato" nao esta no nome do arquivo: e a palavra do tipo, nao do nome.
+    checar(ler("mostre o contrato Wanderson").campos.get("nome", "").startswith("COMPRA E VENDA"),
+           "a palavra de tipo nao atrapalha")
+
+    # Quatro procuracoes: escolher uma seria sortear.
+    checar(ler("abra a procuração").tipo == "documentos",
+           "com quatro candidatas, nao escolhe sozinho")
+    checar(ler("abra o contrato da Petrobras").tipo == "documentos",
+           "arquivo que nao existe nao vira acao")
+    checar(ler("mostre a cláusula que fala em multa").tipo == "documentos",
+           "pedido sobre conteudo continua indo para os documentos")
+    checar(intencao.ler("abra a procuração Matheus", HOJE).tipo == "documentos",
+           "sem a lista de documentos, nao inventa arquivo")
+
+
 def test_sobre_o_programa() -> None:
     print("\nperguntas sobre o próprio programa")
     for p in ("o que você faz?", "o que você sabe fazer", "você consegue assinar?",
@@ -239,6 +289,7 @@ def main() -> int:
     test_avisos()
     test_sem_data_nao_inventa()
     test_tarefas()
+    test_abrir_arquivo()
     test_sobre_o_programa()
     test_texto_vazio()
 

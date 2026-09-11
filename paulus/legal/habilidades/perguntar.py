@@ -32,6 +32,25 @@ HABILIDADE = Habilidade(
 )
 
 
+# Português com acento dá perto de três caracteres por token neste modelo:
+# 21.382 caracteres do acervo viraram 6.983 tokens de entrada, medido.
+CHARS_POR_TOKEN = 3
+
+# O que não é documento e ocupa a janela do mesmo jeito: a instrução, a
+# pergunta e a resposta que ainda vai ser escrita.
+TOKENS_RESERVADOS = 1200
+
+
+def orcamento_de_leitura(ctx: Contexto) -> int:
+    """
+    Quantos caracteres de documento cabem numa leitura, nesta máquina.
+
+    Sai da janela do modelo, e não de um número fixo: `num_ctx` é quem manda.
+    """
+    janela = getattr(ctx.client, "num_ctx", 0) or 8192
+    return max(4000, (janela - TOKENS_RESERVADOS) * CHARS_POR_TOKEN)
+
+
 def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
     """Gerador de eventos: fontes, depois a resposta pedaco a pedaco."""
     pergunta = (pergunta or "").strip()
@@ -40,8 +59,24 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
         return
 
     ctx.antes_de_cada()
-    hits = ctx.searcher.search(pergunta, top_k=top)
-    ctx.registrar(f"Procurou em {len(ctx.documentos)} documento(s)")
+    orcamento = orcamento_de_leitura(ctx)
+
+    # Escolher trecho é o que se faz quando não dá para ler tudo. Com seis
+    # documentos e vinte e quatro mil caracteres dava, e o programa escolhia
+    # mesmo assim: lia três de seis e respondia "não encontrei essa
+    # informação" sobre um documento que nunca abriu.
+    if ctx.searcher.cabe_inteiro(orcamento):
+        hits = ctx.searcher.tudo()
+        ctx.registrar(f"Leu os {len(ctx.documentos)} documento(s) inteiros")
+    else:
+        # Não cabendo tudo, cabe mais do que seis trechos: o quanto couber.
+        # E dois trechos por documento com um orçamento grande deixava
+        # documento de fora à toa.
+        cabem = ctx.searcher.quantos_cabem(orcamento)
+        por_documento = max(2, cabem // max(1, len(ctx.documentos)))
+        hits = ctx.searcher.search(pergunta, top_k=max(top, cabem),
+                                   per_doc_limit=por_documento)
+        ctx.registrar(f"Procurou em {len(ctx.documentos)} documento(s)")
 
     if not hits:
         yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos.")
@@ -68,7 +103,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
         trechos=fontes,
     )
 
-    contexto = ctx.searcher.format_context(hits)
+    contexto = ctx.searcher.format_context(hits, max_chars=orcamento)
     for pedaco in _pedacos(ctx, pergunta, contexto):
         yield evento("token", t=pedaco)
 
