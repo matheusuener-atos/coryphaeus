@@ -42,6 +42,7 @@ import documento
 import financeiro
 import acervo
 import escritorio
+import intencao
 import leis
 import planilha
 import relatorios
@@ -862,6 +863,15 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         trabalho.titulo = titular(pergunta)
 
     trabalho.dizer("pessoa", pergunta)
+
+    # Antes de sair procurando: o que a pessoa pediu? A conversa tinha um
+    # caminho so, e "anote uma reuniao no calendario" virava busca pela
+    # palavra "reuniao" dentro dos contratos - resposta certa para a pergunta
+    # errada. Ler a intencao e por regra: instantaneo e repetivel.
+    lido = intencao.ler(pergunta)
+    if lido.tipo in ("agenda", "tarefa", "sobre"):
+        return _responder_sem_documentos(trabalho, lido, pergunta)
+
     trabalho.etapas = [
         Etapa("Procurar nos documentos", estado=EXECUTANDO),
         Etapa("Ler os trechos e responder"),
@@ -933,6 +943,139 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class PropostaConfirmada(BaseModel):
+    tipo: str = ""
+    campos: dict = {}
+
+
+@app.post("/api/trabalhos/{id_}/fazer")
+def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
+    """
+    Grava o que a pessoa confirmou na conversa.
+
+    A rota existe separada de propósito: entender a frase e gravar sao dois
+    passos, e o segundo so acontece depois do sim. Os campos que chegam aqui
+    sao os que estavam na tela - a pessoa pode ter corrigido a data ou a hora
+    antes de confirmar, e vale o que ela deixou.
+    """
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="trabalho nao encontrado")
+
+    campos = dict(payload.campos or {})
+    try:
+        if payload.tipo == "agenda":
+            novo = estado.agenda.salvar(campos)
+            feito = estado.agenda.obter(novo)
+            resumo = (f"Anotei “{feito['titulo']}” em {escritorio._br(feito['data'])} "
+                      f"às {feito['hora']}")
+            if feito.get("avisar_min"):
+                resumo += f", avisando {feito['avisar_min']} minutos antes"
+            onde = "calendario"
+        elif payload.tipo == "tarefa":
+            novo = estado.tarefas.salvar(campos)
+            feito = estado.tarefas.obter(novo)
+            resumo = f"Criei a tarefa “{feito['titulo']}”"
+            if feito.get("prazo"):
+                resumo += f", com prazo em {escritorio._br(feito['prazo'])}"
+            onde = "tarefas"
+        else:
+            raise HTTPException(status_code=400, detail="nao sei fazer isso")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    trabalho.dizer("paulus", resumo + ".", feito={"tipo": payload.tipo, "id": novo, "onde": onde})
+    estado.trabalhos.salvar(trabalho)
+    return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito}
+
+
+def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    O que nao precisa ler documento nenhum.
+
+    Duas coisas caem aqui. Uma acao sobre a agenda ou as tarefas vira uma
+    PROPOSTA, com os campos a vista - entender nao e fazer, e nada entra no
+    calendario de alguem por interpretacao de frase. E pergunta sobre o proprio
+    programa e respondida do registro de habilidades, sem modelo: a lista do
+    que ele faz esta declarada no codigo, e passar isso por um modelo de 3
+    bilhoes de parametros so acrescentaria chance de erro.
+    """
+    def gerar() -> Iterator[str]:
+        if lido.tipo == "sobre":
+            texto = _o_que_eu_faco()
+            trabalho.etapas = [Etapa("Responder", estado=CONCLUIDO)]
+            trabalho.estado = CONCLUIDO
+            trabalho.dizer("paulus", texto)
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("token", {"t": texto})
+            yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+            return
+
+        proposta = {
+            "tipo": lido.tipo,
+            "titulo": lido.titulo,
+            "campos": lido.campos,
+            "porque": lido.porque,
+            "falta": lido.falta,
+            "pergunta": pergunta,
+        }
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", "", proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _o_que_eu_faco() -> str:
+    """
+    O que o programa faz, montado do proprio programa.
+
+    Sai da lista de telas e do registro de habilidades - nao de um texto
+    escrito a mao. Um texto a mao envelhece na primeira tela nova: passa a
+    prometer o que nao existe, ou a esconder o que existe. E o que esta em pe
+    e o que ainda nao esta saem separados, porque a diferenca e a informacao.
+    """
+    grupos = destinos.por_grupo()
+
+    linhas = ["Eu trabalho com o que está nesta máquina. Nada sai daqui.", ""]
+    faltando: list[str] = []
+
+    for bloco in grupos:
+        prontas = [d for d in bloco["destinos"] if d["pronta"]]
+        faltando += [d["nome"] for d in bloco["destinos"] if not d["pronta"]]
+        if not prontas:
+            continue
+        # Sem asterisco: a conversa mostra texto puro, e "**Documentos**"
+        # apareceria com os asteriscos na tela.
+        linhas.append(bloco["grupo"].upper())
+        linhas += [f"  {d['nome']} — {d['resolve'][0].lower() + d['resolve'][1:]}"
+                   for d in prontas]
+        linhas.append("")
+
+    linhas += [
+        "AQUI NA CONVERSA",
+        "  perguntar sobre os documentos abertos, com o trecho de origem à vista",
+        "  anotar na agenda — “anote uma reunião dia 20/10 às 14h com lembrete "
+        "30 minutos antes”",
+        "  criar tarefa — “crie uma tarefa para revisar o contrato até sexta”",
+        "",
+        "Antes de gravar qualquer coisa eu mostro o que entendi, e você "
+        "confirma. As outras telas estão no menu à esquerda.",
+    ]
+
+    if faltando:
+        linhas += ["", "Ainda não faço: " + ", ".join(faltando) + "."]
+
+    return "\n".join(linhas)
 
 
 def asdict_etapa(etapa: Etapa) -> dict:

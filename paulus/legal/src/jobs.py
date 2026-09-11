@@ -43,6 +43,12 @@ class Mensagem:
     fontes: list[dict] = field(default_factory=list)
     cobertura: dict = field(default_factory=dict)
     segundos: float = 0.0
+    # Nem toda mensagem e texto. Quando o pedido e uma acao, o que a conversa
+    # devolve e uma proposta - o que entendi, com os campos a vista - e depois
+    # o que foi feito. Guardar os dois faz a conversa reaberta mostrar o
+    # mesmo que mostrou na hora.
+    proposta: dict = field(default_factory=dict)
+    feito: dict = field(default_factory=dict)
 
 
 @dataclass

@@ -33,7 +33,7 @@ class Destino:
         return asdict(self)
 
 
-GRUPOS = ["Dia a dia", "Documentos", "Escritorio", "Sistema"]
+GRUPOS = ["Dia a dia", "Documentos", "Escritório", "Sistema"]
 
 DESTINOS: list[Destino] = [
     # ------------------------------------------------------------ dia a dia
@@ -90,27 +90,27 @@ DESTINOS: list[Destino] = [
     ),
     # ----------------------------------------------------------- escritorio
     Destino(
-        id="financeiro", nome="Financeiro", grupo="Escritorio", icone="moeda", pronta=True,
+        id="financeiro", nome="Financeiro", grupo="Escritório", icone="moeda", pronta=True,
         abre="financeiro",
         resolve="Contas a pagar e receber, honorários e o extrato do mês."
     ),
     Destino(
-        id="cadastros", nome="Cadastros", grupo="Escritorio", icone="pessoa", pronta=True,
+        id="cadastros", nome="Cadastros", grupo="Escritório", icone="pessoa", pronta=True,
         abre="cadastros",
         resolve="Clientes, partes e fornecedores, com os documentos vinculados a cada um.",
     ),
     Destino(
-        id="caixa", nome="Caixa de entrada", grupo="Escritorio", icone="carta", pronta=True,
+        id="caixa", nome="Caixa de entrada", grupo="Escritório", icone="carta", pronta=True,
         abre="caixa",
         resolve="E-mails com prazo detectado, resposta sugerida e as contas do escritório.",
     ),
     Destino(
-        id="aprovacoes", nome="Aprovações", grupo="Escritorio", icone="visto", pronta=True,
+        id="aprovacoes", nome="Aprovações", grupo="Escritório", icone="visto", pronta=True,
         abre="aprovacoes",
         resolve="Fila do que espera a sua decisão antes de sair da máquina.",
     ),
     Destino(
-        id="relatorios", nome="Relatórios", grupo="Escritorio", icone="grafico", pronta=True,
+        id="relatorios", nome="Relatórios", grupo="Escritório", icone="grafico", pronta=True,
         abre="relatorios",
         resolve="O que aconteceu no escritório, somado do que as outras telas gravaram."
     ),

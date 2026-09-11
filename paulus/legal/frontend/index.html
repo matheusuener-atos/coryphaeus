@@ -420,6 +420,19 @@
   .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 
   /* cartao de aprovacao */
+  /* O que entendi do pedido, antes de gravar. Tem a borda do acento, e não a
+     de atenção: não é um aviso, é uma proposta esperando o seu sim. */
+  .proposta {
+    border: 1px solid var(--acento); background: var(--acento-fraco);
+    padding: 14px; margin-top: 12px;
+  }
+  .proposta-topo {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .proposta-topo b { font: 500 14px var(--sans); }
+  .proposta .linha-form { margin-top: 10px; }
+  .proposta label.explica { align-self: center; white-space: nowrap; }
+
   .aprovacao {
     background: var(--atencao-fundo);
     border: 1px solid var(--atencao-linha);
@@ -2328,7 +2341,7 @@ async function subirArquivos(lista) {
   const nota = document.createElement("div");
   nota.className = "painel";
   nota.innerHTML = '<div style="display:flex;align-items:center;gap:9px">' + coroa(17) +
-    "<span>Lendo " + lista.length + " arquivo(s)…</span></div>";
+    "<span>Lendo " + plural(lista.length, "arquivo") + "…</span></div>";
   $("centro").appendChild(nota);
   rolar();
 
@@ -2337,7 +2350,8 @@ async function subirArquivos(lista) {
     const res = await r.json();
 
     let texto = res.salvos.length
-      ? res.salvos.length + " documento(s) aberto(s). Agora são " + res.contratos + " no total."
+      ? plural(res.salvos.length, "documento") +
+        (res.salvos.length === 1 ? " aberto" : " abertos") + ". Agora são " + res.contratos + " no total."
       : "Nenhum documento novo foi aberto.";
     if (res.recusados.length) {
       texto += " Não consegui abrir: " +
@@ -2379,11 +2393,10 @@ $("buscar").onclick = async () => {
     const d = await r.json();
 
     if (!d.resultados.length) {
-      bloco.innerHTML = "<div>Não achei essa palavra nos " + d.contratos + " contrato(s) abertos.</div>";
+      bloco.innerHTML = "<div>Não achei essa palavra nos " + plural(d.contratos, "contrato") + " abertos.</div>";
     } else {
       const nomes = new Set(d.resultados.map((x) => x.documento));
-      bloco.innerHTML = "<div>" + d.resultados.length + " trecho(s) em " + nomes.size +
-        " contrato(s), sem passar pelo assistente.</div>" +
+      bloco.innerHTML = "<div>" + plural(d.resultados.length, "trecho") + " em " + plural(nomes.size, "contrato") + ", sem passar pelo assistente.</div>" +
         d.resultados.map((x) =>
           '<div class="trecho"><div class="origem">' + esc(x.documento) + " · trecho " + x.trecho +
           "</div><pre>" + esc(x.texto) + "</pre></div>"
@@ -2439,8 +2452,7 @@ function avisoCobertura(c) {
 
 function blocoFontes(fontes, cobertura) {
   const quantos = cobertura && cobertura.consultados ? cobertura.consultados.length : 1;
-  return '<details class="fontes"><summary>' + fontes.length + " trechos de " + quantos +
-    " contrato(s) — ver o que eu li</summary>" +
+  return '<details class="fontes"><summary>' + fontes.length + " trechos de " + plural(quantos, "contrato") + " — ver o que eu li</summary>" +
     fontes.map((f) =>
       '<div class="trecho"><div class="origem">' + esc(f.documento) + " · trecho " + f.trecho +
       "</div><pre>" + esc(f.texto) + "</pre></div>"
@@ -2538,9 +2550,11 @@ async function enviar() {
   atualizarPostura();
 
   const plano = document.createElement("div");
+  // "Entender o pedido" vem primeiro porque e o que acontece primeiro: nem
+  // toda mensagem e pergunta sobre documento.
   plano.innerHTML = cartaoPlano(
-    [{ titulo: "Procurar nos contratos", estado: "executando", feitos: 0, total: 0, detalhe: "" },
-     { titulo: "Ler os trechos e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
+    [{ titulo: "Entender o pedido", estado: "executando", feitos: 0, total: 0, detalhe: "" },
+     { titulo: "Procurar e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
   centro.appendChild(plano);
 
   const resposta = document.createElement("div");
@@ -2591,6 +2605,16 @@ async function enviar() {
         } else if (mt[1] === "token") {
           if (primeiro) { texto.textContent = ""; primeiro = false; }
           texto.textContent += dados.t;
+          rolar();
+        } else if (mt[1] === "proposta") {
+          // Pedido de ação: nada de procurar nos documentos. O cartão mostra
+          // o que eu entendi, e quem grava é a pessoa.
+          plano.remove();
+          const caixa = document.createElement("div");
+          caixa.className = "proposta-caixa";
+          caixa.innerHTML = cartaoProposta(dados);
+          resposta.appendChild(caixa);
+          ligarProposta(caixa, dados);
           rolar();
         } else if (mt[1] === "vazio") {
           texto.textContent = dados.mensagem;
@@ -2644,7 +2668,7 @@ async function carregarStatus() {
     const s = await (await fetch("/api/status")).json();
     estado.contratos = s.contratos;
     $("conversa-meta").textContent = s.contratos
-      ? s.contratos + " contrato(s) abertos · " + s.trechos + " trechos"
+      ?plural(s.contratos, "contrato") + " abertos · " + s.trechos + " trechos"
       : "nenhum contrato aberto";
     if (!s.ollama) {
       $("privacidade").textContent = "o assistente local não respondeu — verifique se o Ollama está aberto";
@@ -2756,7 +2780,8 @@ async function carregarAgora() {
       '<div class="cartao-agora" data-abre="biblioteca">' +
       '<div class="cabeca"><span class="ponto" style="animation:none"></span>' +
       '<span class="nome">Biblioteca em dia</span></div>' +
-      '<div class="corpo">' + d.biblioteca.documentos + " documento(s) lido(s), " +
+      '<div class="corpo">' + plural(d.biblioteca.documentos, "documento") +
+      (d.biblioteca.documentos === 1 ? " lido, " : " lidos, ") +
       d.biblioteca.trechos + " trechos indexados.</div>" +
       '<div class="rodape">nada saiu da máquina hoje</div></div>'
     );
@@ -2766,7 +2791,7 @@ async function carregarAgora() {
     cartoes.push(
       '<div class="cartao-agora"><div class="cabeca">' +
       '<span class="ponto" style="background:var(--ink-muted);animation:none"></span>' +
-      '<span class="nome">' + d.pausados + " parada(s) no meio</span></div>" +
+      '<span class="nome">' + plural(d.pausados, "parada") + " no meio</span></div>" +
       '<div class="corpo">Ficaram assim quando o programa fechou. Abra pela coluna para continuar.</div></div>'
     );
   }
@@ -2831,7 +2856,7 @@ function desenharAprovacoes(leitura) {
   if (!n) {
     html += '<div class="painel"><h3>Nada esperando você</h3><p class="explica">' +
       (aprov.hoje.length
-        ? "Hoje você já decidiu " + aprov.hoje.length + " pedido(s). O que precisar do seu sim aparece aqui."
+        ? "Hoje você já decidiu " + plural(aprov.hoje.length, "pedido") + ". O que precisar do seu sim aparece aqui."
         : "Quando o assistente quiser fazer algo com efeito fora do programa — mover arquivos em lote, " +
           "assinar, enviar mensagem — o pedido para aqui e espera.") +
       "</p></div>";
@@ -2904,8 +2929,8 @@ async function decidirPedidos(ids, aprovar) {
   const semVolta = quais.filter((p) => !p.reversivel);
 
   let aviso = aprovar
-    ? "Aprovar " + ids.length + " pedido(s)? A ação é executada agora."
-    : "Recusar " + ids.length + " pedido(s)?";
+    ? "Aprovar " + plural(ids.length, "pedido") + "? A ação é executada agora."
+    : "Recusar " + plural(ids.length, "pedido") + "?";
   if (aprovar && semVolta.length) {
     aviso += "\n\n" + semVolta.length + " não tem como desfazer depois.";
   }
@@ -3173,7 +3198,7 @@ function linhaFicha(f) {
   return '<div class="pedido" data-ficha="' + f.id + '">' +
     '<div class="pedido-corpo"><div class="pedido-titulo">' + esc(f.nome) + "</div>" +
     '<div class="doc-etiquetas"><span class="etiqueta">' + esc(rotulo) + "</span>" +
-    (f.documentos.length ? '<span class="etiqueta">' + f.documentos.length + " documento(s)</span>" : "") +
+    (f.documentos.length ? '<span class="etiqueta">' + plural(f.documentos.length, "documento") + "</span>" : "") +
     (f.honorario ? '<span class="etiqueta">' + esc(f.honorario) + "</span>" : "") + "</div>" +
     (meta ? '<div class="num">' + esc(meta) + "</div>" : "") + "</div>" +
     '<div class="cad-valores">' + aberto +
@@ -3223,7 +3248,7 @@ function fichaCadastro(f) {
   painel.innerHTML =
     "<h3>" + (nova ? "Novo cadastro" : "Ficha de " + esc(v.nome)) + "</h3>" +
     (v._sugestao
-      ? '<p class="explica">Veio de ' + v._sugestao.aparicoes + " documento(s): " +
+      ? '<p class="explica">Veio de ' + plural(v._sugestao.aparicoes, "documento") + ": " +
         esc(v._sugestao.arquivos.map((a) => a.nome).join(", ")) + "</p>"
       : "") +
     '<div class="linha-form"><label>Tipo</label><select data-c="tipo">' +
@@ -3339,8 +3364,8 @@ function desenharTarefas() {
 
   let html = '<div class="catalogo"><div class="tela-topo"><div><h2>' + esc(titulo) + "</h2>" +
     '<span class="rotulo">' + hojePorExtenso() + " · " +
-    (tar.contagens.abertas || 0) + " aberta(s) · " + (tar.contagens.concluidas || 0) +
-    " concluída(s)</span></div>" +
+    plural(tar.contagens.abertas || 0, "aberta") + " · " +
+    plural(tar.contagens.concluidas || 0, "concluída") + "</span></div>" +
     '<div class="tela-acoes">' +
     '<button id="tar-ordenar" class="' + (tar.porPrazo ? "on" : "") + '">Ordenar por prazo</button>' +
     '<button id="tar-sugerir">Sugerir dos documentos</button></div></div>';
@@ -3693,7 +3718,7 @@ async function sugerirTarefas() {
 
   const painel = document.createElement("div");
   painel.className = "painel ficha";
-  painel.innerHTML = "<h3>" + (s.length ? s.length + " prazo(s) nos documentos" : "Nada a sugerir") + "</h3>" +
+  painel.innerHTML = "<h3>" + (s.length ?plural(s.length, "prazo") + " nos documentos" : "Nada a sugerir") + "</h3>" +
     '<p class="explica">' +
     (s.length
       ? "Datas que o assistente já leu nos contratos abertos e que ainda não viraram tarefa. Escolha as que quiser."
@@ -3907,7 +3932,7 @@ async function abrirDia(dia) {
 
   alvo.innerHTML =
     '<div class="painel"><h3>' + semana + ", " + dd + " de " + MESES_NOME[m - 1] + "</h3>" +
-    '<span class="rotulo">' + d.compromissos.length + " compromisso(s) · " +
+    '<span class="rotulo">' + plural(d.compromissos.length, "compromisso") + " · " +
     d.tarefas.length + " com prazo hoje</span>" +
 
     (d.compromissos.length
@@ -4145,7 +4170,7 @@ async function mostrarAgendamento() {
 
   let html = '<div class="catalogo"><div class="tela-topo"><div><h2>Agendamento</h2>' +
     '<span class="rotulo">semana de ' + diaCurto(iso(segunda)) + " a " + diaCurto(iso(domingo)) +
-    " · " + total + " compromisso(s)</span></div>" +
+    " · " + plural(total, "compromisso") + "</span></div>" +
     '<div class="tela-acoes">' +
     '<button id="age-antes">‹</button><button id="age-hoje">Esta semana</button>' +
     '<button id="age-depois">›</button>' +
@@ -4529,8 +4554,8 @@ function desenharBiblioteca() {
   let html = '<div class="catalogo"><div class="tela-topo"><div><h2>Biblioteca</h2>' +
     '<span class="rotulo">' + (vazio
       ? "nada aberto ainda"
-      : d.total + " documento(s) · " + tamanho(d.total_bytes) + " · " +
-        d.total_trechos + " trecho(s) lidos") +
+      :plural(d.total, "documento") + " · " + tamanho(d.total_bytes) + " · " +
+plural(d.total_trechos, "trecho") + " lidos") +
     "</span></div>" +
     '<div class="tela-acoes"><button id="bib-pasta">Adicionar pasta</button></div></div>';
 
@@ -4610,7 +4635,7 @@ function linhaDoAcervo(x) {
 function barraDeLote() {
   const quantos = bib.escolhidos.size;
   if (!quantos) return "";
-  return '<div class="lote-barra"><span class="quantos">' + quantos + " selecionado(s)</span>" +
+  return '<div class="lote-barra"><span class="quantos">' + plural(quantos, "selecionado") + "</span>" +
     '<button class="limpar" id="lote-limpar">limpar</button>' +
     '<button data-lote="analisar">Tomar vista de novo</button>' +
     '<button data-lote="mover">Mover para pasta</button>' +
@@ -4812,7 +4837,7 @@ async function tomarVista(caminhos) {
     });
     bib.escolhidos.clear();
     await buscarAcervo();
-    avisoCert(caminhos.length + " documento(s) lidos de novo");
+    avisoCert(plural(caminhos.length, "documento") + " lidos de novo");
   } catch (err) {
     if (alvo) alvo.innerHTML = antes;
     avisoCert("não consegui ler: " + err);
@@ -5242,6 +5267,109 @@ function centavosDe(texto) {
 }
 
 
+/* A proposta que a conversa devolve quando o pedido é uma ação.
+   Entender não é fazer: os campos ficam à vista e editáveis, e nada entra no
+   calendário de ninguém por interpretação de frase. */
+function cartaoProposta(d) {
+  const c = d.campos || {};
+  const ehAgenda = d.tipo === "agenda";
+
+  if (d.falta) {
+    return '<div class="proposta"><div class="proposta-topo">' +
+      '<span class="pv-grau">falta um dado</span>' +
+      "<b>" + esc(d.titulo || "Compromisso") + "</b></div>" +
+      '<p class="explica">Entendi que você quer anotar isso na agenda (' +
+      esc(d.porque) + "), mas " + esc(d.falta) + ". Diga o dia — ou preencha aqui.</p>" +
+      camposProposta(d, true) +
+      '<div class="linha-form"><button class="primario" data-prop="fazer">Anotar</button>' +
+      '<button data-prop="nao">Deixa pra lá</button></div></div>';
+  }
+
+  return '<div class="proposta"><div class="proposta-topo">' +
+    '<span class="rotulo">' + (ehAgenda ? "vou anotar na agenda" : "vou criar a tarefa") +
+    "</span><b>" + esc(c.titulo || d.titulo) + "</b></div>" +
+    camposProposta(d, false) +
+    '<p class="explica">Li isso de ' + esc(d.porque) + " na sua frase. " +
+    "Confira antes — eu não gravo nada sem o seu sim.</p>" +
+    '<div class="linha-form"><button class="primario" data-prop="fazer">' +
+    (ehAgenda ? "Anotar na agenda" : "Criar a tarefa") + "</button>" +
+    '<button data-prop="nao">Deixa pra lá</button></div></div>';
+}
+
+/* "1440 minutos antes" ninguém lê. A unidade acompanha o tamanho do número. */
+function rotuloDoAviso(minutos) {
+  if (!minutos) return "não avisar";
+  if (minutos < 60) return plural(minutos, "minuto") + " antes";
+  if (minutos < 1440) return plural(minutos / 60, "hora") + " antes";
+  return plural(minutos / 1440, "dia") + " antes";
+}
+
+function camposProposta(d, faltando) {
+  const c = d.campos || {};
+  const ehAgenda = d.tipo === "agenda";
+  return '<div class="linha-form">' +
+    '<input type="text" data-pc="titulo" value="' + esc(c.titulo || d.titulo || "") +
+    '" placeholder="do que se trata">' +
+    '<input type="date" data-pc="' + (ehAgenda ? "data" : "prazo") + '" value="' +
+    esc(c.data || c.prazo || "") + '"' + (faltando ? " autofocus" : "") + ">" +
+    (ehAgenda
+      ? '<input type="time" data-pc="hora" value="' + esc(c.hora || "09:00") + '">'
+      : "") +
+    "</div>" +
+    (ehAgenda
+      ? '<div class="linha-form"><label class="explica">avisar antes</label>' +
+        '<select data-pc="avisar_min">' +
+        [0, 5, 10, 15, 30, 60, 120, 1440].map((m) =>
+          '<option value="' + m + '"' + (Number(c.avisar_min || 0) === m ? " selected" : "") +
+          ">" + rotuloDoAviso(m) + "</option>").join("") +
+        "</select></div>"
+      : "");
+}
+
+/* Ligar os botões do cartão. O que vai para o servidor é o que está nos
+   campos — a pessoa pode ter corrigido a data antes de confirmar. */
+function ligarProposta(caixa, d, ondeResponder) {
+  const fazer = caixa.querySelector('[data-prop="fazer"]');
+  const nao = caixa.querySelector('[data-prop="nao"]');
+
+  nao.onclick = () => {
+    caixa.innerHTML = '<p class="explica">Tudo bem — não anotei nada.</p>';
+  };
+
+  fazer.onclick = async () => {
+    const campos = Object.assign({}, d.campos);
+    caixa.querySelectorAll("[data-pc]").forEach((el) => {
+      campos[el.dataset.pc] = el.dataset.pc === "avisar_min" ? Number(el.value) : el.value;
+    });
+    if (d.tipo === "tarefa" && campos.prazo && campos.hora) {
+      campos.lembrar_em = campos.prazo + " " + campos.hora;
+    }
+
+    fazer.disabled = true;
+    const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: d.tipo, campos: campos }),
+    });
+    if (!r.ok) {
+      fazer.disabled = false;
+      caixa.insertAdjacentHTML("beforeend",
+        '<p class="explica">Não consegui: ' + esc(await erroDe(r)) + "</p>");
+      return;
+    }
+
+    const feito = await r.json();
+    caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
+      "<b>" + esc(feito.resumo) + "</b></div>" +
+      '<div class="linha-form"><button data-ver="' + esc(feito.onde) + '">Ver na tela</button></div>';
+    caixa.querySelector("[data-ver]").onclick = () => {
+      marcarDestino(feito.onde);
+      feito.onde === "calendario" ? mostrarCalendario() : mostrarTarefas();
+    };
+    carregarStatus();
+  };
+}
+
+
 /* -------------------------------------------------------- habilidades */
 
 const ICONES_HAB = {
@@ -5350,18 +5478,16 @@ function etapasOrg(atual, feitos, total) {
   }));
 }
 
+/* Entrar na tela não é começar um trabalho.
+   A conversa nascia no clique do menu, antes de a pessoa escolher qualquer
+   coisa — e cada visita deixava uma "Organizar uma pasta" vazia na lista.
+   Trinta e seis delas depois, a lista de conversas virou lixo. Agora a
+   conversa nasce quando a varredura começa, que é quando existe trabalho. */
 async function organizarComecar() {
-  const r = await fetch("/api/trabalhos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pedido: "Organizar uma pasta", tipo: "organizacao" }),
-  });
-  const t = await r.json();
-  estado.trabalhoId = t.id;
-  estado.trabalho = t;
-  $("conversa-titulo").textContent = t.titulo;
-  $("apagar").hidden = false;
-  carregarTrabalhos();
+  estado.trabalhoId = null;
+  estado.trabalho = null;
+  $("conversa-titulo").textContent = "Organizar uma pasta";
+  $("apagar").hidden = true;
 
   const o = await (await fetch("/api/organizar/opcoes")).json();
   org.raizes = [];      // nada pre-selecionado: a pessoa escolhe onde procurar
@@ -5503,6 +5629,19 @@ async function organizarVarrer() {
   $("org-nota").textContent = "procurando…";
 
   try {
+    // Agora sim existe trabalho: a pessoa escolheu as pastas e mandou procurar.
+    if (!estado.trabalhoId) {
+      const nova = await (await fetch("/api/trabalhos", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedido: "Organizar uma pasta", tipo: "organizacao" }),
+      })).json();
+      estado.trabalhoId = nova.id;
+      estado.trabalho = nova;
+      $("conversa-titulo").textContent = nova.titulo;
+      $("apagar").hidden = false;
+      carregarTrabalhos();
+    }
+
     const r = await fetch("/api/organizar/escanear", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ raizes: org.raizes }),
@@ -5531,19 +5670,22 @@ function passoConfirmarLeitura(d) {
   painel.className = "painel";
   painel.id = "painel-confirmar";
 
-  let detalhe = d.total + " documento(s) em " + d.pastas_visitadas + " pasta(s)";
-  if (d.em_cache) detalhe += " · " + d.em_cache + " já lido(s) antes";
+  let detalhe = plural(d.total, "documento") + " em " +
+    plural(d.pastas_visitadas, "pasta");
+  if (d.em_cache) detalhe += " · " + d.em_cache +
+    (d.em_cache === 1 ? " já lido antes" : " já lidos antes");
   if (d.sem_permissao) detalhe += " · " + d.sem_permissao + " sem permissão de leitura";
   if (d.grandes) detalhe += " · " + d.grandes + " grandes demais";
 
   const tempo = d.novos === 0
     ? "Todos já foram lidos antes: sai na hora."
-    : "Ler os " + d.novos + " documento(s) novo(s) deve levar de <strong>" +
+    : "Ler os " + plural(d.novos, "documento") +
+      (d.novos === 1 ? " novo" : " novos") + " deve levar de <strong>" +
       formatarMinutos(d.minutos_min) + " a " + formatarMinutos(d.minutos_max) +
       "</strong>. Dá para parar no meio, e o que já foi lido fica guardado.";
 
   painel.innerHTML =
-    "<h3>Encontrei " + d.total + " documento(s)</h3>" +
+    "<h3>Encontrei " + plural(d.total, "documento") + "</h3>" +
     '<p class="explica">' + esc(detalhe) + "</p>" +
     '<p class="explica">' + tempo + "</p>" +
     '<div class="linha-form"><button class="primario" id="org-ler">Ler e classificar</button>' +
@@ -5629,7 +5771,7 @@ async function organizarClassificar(total) {
           if (d.parado) {
             $("centro").insertAdjacentHTML("beforeend",
               '<div class="painel"><h3>Leitura interrompida</h3><p class="explica" style="margin:0">' +
-              "Li " + d.documentos.length + " documento(s) antes de parar. Eles ficam guardados: " +
+              "Li " + plural(d.documentos.length, "documento") + " antes de parar. Eles ficam guardados: " +
               "se você mandar ler de novo, continua daqui.</p></div>");
           }
           if (d.documentos.length) passoConferir();
@@ -5764,7 +5906,8 @@ async function organizarVerPlano() {
         ? '<p class="explica" style="margin:8px 0 0">Fora do plano: ' +
           esc(plano.ignorados.map((x) => x.nome).join(", ")) + "</p>"
         : "");
-    $("org-nota2").textContent = plano.total + " arquivo(s) em " + plano.pastas.length + " pasta(s)";
+    $("org-nota2").textContent = plural(plano.total, "arquivo") + " em " +
+      plural(plano.pastas.length, "pasta");
 
     const antigo = $("aprovar-org");
     if (antigo) antigo.remove();
@@ -5773,8 +5916,8 @@ async function organizarVerPlano() {
     cartao.id = "aprovar-org";
     cartao.className = "aprovacao";
     cartao.innerHTML =
-      "<p>Vou mover <strong>" + plano.total + " arquivo(s)</strong> para <strong>" +
-      plano.pastas.length + " pasta(s)</strong> em " + esc(plano.destino) +
+      "<p>Vou mover <strong>" + plural(plano.total, "arquivo") + "</strong> para <strong>" +
+plural(plano.pastas.length, "pasta") + "</strong> em " + esc(plano.destino) +
       ". Nada é apagado nem sobrescrito, e dá para desfazer tudo depois. Posso?</p>" +
       '<div class="acoes"><button class="aprovar-secundario" id="org-revisar">Revisar</button>' +
       '<button class="primario" id="org-aprovar">Aprovar</button></div>';
@@ -5811,8 +5954,7 @@ async function organizarAplicar() {
       atualizarPlanoOrg(3);
       cartao.className = "painel";
       cartao.innerHTML = "<h3>Pedido enviado para aprovação</h3>" +
-        '<p class="explica">Nada foi movido ainda. ' + d.total +
-        " arquivo(s) esperam o seu sim em Aprovações — a permissão de mover sem pedir está desligada.</p>" +
+        '<p class="explica">Nada foi movido ainda. ' + plural(d.total, "arquivo") + " esperam o seu sim em Aprovações — a permissão de mover sem pedir está desligada.</p>" +
         '<div class="linha-form"><button class="primario" id="org-ver-fila">Abrir Aprovações</button></div>';
       $("org-ver-fila").onclick = () => { mostrarAprovacoes(); marcarDestino("aprovacoes"); };
       contarPendencias();
@@ -5820,7 +5962,7 @@ async function organizarAplicar() {
     }
 
     cartao.className = "painel";
-    cartao.innerHTML = "<h3>" + d.movidos + " arquivo(s) no lugar novo</h3>" +
+    cartao.innerHTML = "<h3>" + plural(d.movidos, "arquivo") + " no lugar novo</h3>" +
       (d.falhas.length ? '<p class="explica">' + d.falhas.length + " não deu para mover: " +
         esc(d.falhas.map((f) => f.nome).join(", ")) + "</p>" : "") +
       '<div class="linha-form" style="margin:10px 0 0"><button id="org-desfazer">Desfazer tudo</button>' +
@@ -5837,7 +5979,7 @@ async function organizarAplicar() {
           body: JSON.stringify({ diario: d.diario }),
         });
         const dd = await rr.json();
-        $("org-nota3").textContent = dd.revertidos + " arquivo(s) de volta ao lugar de origem";
+        $("org-nota3").textContent = plural(dd.revertidos, "arquivo") + " de volta ao lugar de origem";
       } catch (err) {
         $("org-desfazer").disabled = false;
         $("org-nota3").textContent = "não consegui desfazer: " + err;
@@ -6506,8 +6648,8 @@ function desenharAssinar() {
 
   let html = '<div class="catalogo"><div class="tela-topo">' +
     '<div><h2 class="corta">' + esc(doc.nome) + "</h2>" +
-    '<span class="rotulo">' + doc.paginas + " página(s) · " + String(doc.mb).replace(".", ",") + " MB · " +
-    (doc.ja_assinado ? doc.assinaturas + " assinatura(s) já no arquivo" : "ainda sem assinatura") + "</span></div>" +
+    '<span class="rotulo">' + plural(doc.paginas, "página") + " · " + String(doc.mb).replace(".", ",") + " MB · " +
+    (doc.ja_assinado ?plural(doc.assinaturas, "assinatura") + " já no arquivo" : "ainda sem assinatura") + "</span></div>" +
     '<div class="tela-acoes"><button id="assina-trocar">Trocar documento</button></div></div>';
 
   if (!d.instalado) {
@@ -7149,7 +7291,8 @@ function desenharCaixa() {
 
   let html = '<div class="catalogo"><div class="tela-topo">' +
     "<div><h2>Caixa de entrada</h2>" +
-    '<span class="rotulo">' + d.nao_lidos + " não lido(s)" +
+    '<span class="rotulo">' + d.nao_lidos +
+    (d.nao_lidos === 1 ? " não lido" : " não lidos") +
     (d.sem_resposta ? " · " + d.sem_resposta + " ainda sem resposta" : "") + "</span></div>" +
     '<div class="tela-acoes"><button id="mail-contas">Contas</button>' +
     '<button class="primario" id="mail-novo">Escrever</button></div></div>';
@@ -7270,7 +7413,7 @@ function desenharAberta() {
   html += '<div class="email-corpo">' + esc(m.corpo || "(mensagem sem texto)") + "</div>";
 
   if (m.anexos.length) {
-    html += '<div style="margin-top:14px"><span class="rotulo">' + m.anexos.length + " anexo(s)</span>" +
+    html += '<div style="margin-top:14px"><span class="rotulo">' + plural(m.anexos.length, "anexo") + "</span>" +
       m.anexos.map((a) =>
         '<div class="email-anexo"><span class="email-tipo">' +
         esc((a.nome.split(".").pop() || "arq").slice(0, 4)) + "</span>" +
@@ -7464,7 +7607,7 @@ function fraseDoEnvio() {
   $("nm-enviar").disabled = false;
 
   let frase = "Vou enviar para " + para.slice(0, 3).join(", ") + (para.length > 3 ? "…" : "");
-  if (mail.anexos.length) frase += " com " + mail.anexos.length + " anexo(s)";
+  if (mail.anexos.length) frase += " com " + plural(mail.anexos.length, "anexo") + "";
   frase += ", usando a sua conta " + (c ? c.email : "") + ".";
   frase += " O envio sai do seu servidor de e-mail, não do meu.";
   if (!(c && c.pode_enviar_sem_confirmar)) frase += " O pedido para na fila de aprovações antes de sair.";
@@ -7579,7 +7722,7 @@ function depoisDoEnvio(d) {
     '<span class="rotulo">' + esc((d.para || []).join(", ")) + "</span></div></div>" +
     '<div class="painel"><h3>' + esc(d.assunto || "(sem assunto)") + "</h3>" +
     '<p class="explica">Saiu pelo servidor da sua conta' +
-    ((d.anexos || []).length ? " com " + d.anexos.length + " anexo(s)" : "") + ".</p>" +
+    ((d.anexos || []).length ? " com " + plural(d.anexos.length, "anexo") + "" : "") + ".</p>" +
     '<div class="linha-form"><button class="primario" id="nm-outro">Escrever outro</button>' +
     '<button id="nm-ver-caixa">Caixa de entrada</button></div></div></div>';
   $("nm-outro").onclick = () => telaEscrever();
@@ -7620,7 +7763,7 @@ async function listaDocumentos(tipo, nome) {
   const ehTexto = tipo === "texto";
   let html = '<div class="catalogo"><div class="tela-topo">' +
     "<div><h2>" + esc(nome) + "</h2>" +
-    '<span class="rotulo">' + (d.documentos.length ? d.documentos.length + " arquivo(s) aqui" : "nada criado ainda") +
+    '<span class="rotulo">' + (d.documentos.length ?plural(d.documentos.length, "arquivo") + " aqui" : "nada criado ainda") +
     "</span></div>" +
     '<div class="tela-acoes"><button class="primario" id="doc-novo">' +
     (ehTexto ? "Novo documento" : "Nova planilha") + "</button></div></div>";
@@ -7993,8 +8136,8 @@ async function painelConferir(id) {
 
 function blocoAvisos(d) {
   return "<h3>Confira antes de sair</h3>" +
-    '<p class="explica">' + d.paginas + " página(s) · " +
-    (d.avisos.length ? d.avisos.length + " aviso(s)" : "nada a apontar") + "</p>" +
+    '<p class="explica">' + plural(d.paginas, "página") + " · " +
+    (d.avisos.length ?plural(d.avisos.length, "aviso") + "" : "nada a apontar") + "</p>" +
     (d.avisos.length
       ? d.avisos.map((a) =>
           '<div class="pv-aviso"><span class="pv-grau ' + (a.grau === "impede" ? "impede" : "") + '">' +
@@ -8027,8 +8170,8 @@ function desenharPrevia() {
 
   let html = '<div class="catalogo"><div class="tela-topo">' +
     "<div><h2 class=\"corta\">" + esc(escr.doc.titulo) + "</h2>" +
-    '<span class="rotulo">versão ' + d.versao + " · " + d.paginas + " página(s) · A4 · " +
-    (d.impedem ? d.impedem + " ponto(s) a resolver" : "pronto para sair") + "</span></div>" +
+    '<span class="rotulo">versão ' + d.versao + " · " + plural(d.paginas, "página") + " · A4 · " +
+    (d.impedem ?plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span></div>" +
     '<div class="tela-acoes"><button id="pv-editor">‹ Voltar ao editor</button></div></div>';
 
   html += '<div class="assinar-colunas"><div class="pv-folha">' +
@@ -8132,8 +8275,8 @@ function desenharPlanilha() {
 
   let html = '<div class="catalogo"><div class="ed-topo">' +
     '<input class="ed-titulo" id="pl-titulo" value="' + esc(p.titulo) + '">' +
-    '<span class="ed-estado" id="pl-estado">v' + p.versao + " · " + p.abas.length + " aba(s)" +
-    (res.erros ? " · " + res.erros + " erro(s)" : " · cálculos em dia") + "</span>" +
+    '<span class="ed-estado" id="pl-estado">v' + p.versao + " · " + plural(p.abas.length, "aba") + "" +
+    (res.erros ? " · " + plural(res.erros, "erro") + "" : " · cálculos em dia") + "</span>" +
     '<button id="pl-importar-b">Importar CSV/XLSX</button>' +
     '<button id="pl-xlsx">Baixar XLSX</button>' +
     '<button id="pl-csv">Baixar CSV</button>' +
@@ -8680,11 +8823,11 @@ async function mostrarExtrato() {
           "<tr><td>" + esc(l.dia) + "</td>" +
           "<td>" + esc(l.descricao) +
           '<br><span class="rotulo">' + esc(l.categoria_rotulo) +
-          (l.comprovantes ? " · " + l.comprovantes + " comprovante(s)" : " · sem comprovante") + "</span></td>" +
+          (l.comprovantes ? " · " + plural(l.comprovantes, "comprovante") + "" : " · sem comprovante") + "</span></td>" +
           '<td class="num ' + (l.movimento >= 0 ? "" : "") + '">' + esc(l.movimento_texto) + "</td>" +
           '<td class="num">' + esc(l.saldo_texto) + "</td></tr>").join("") +
         "</tbody></table>" +
-        '<p class="explica" style="margin-top:12px">' + e.linhas.length + " lançamento(s) no mês · " +
+        '<p class="explica" style="margin-top:12px">' + plural(e.linhas.length, "lançamento") + " no mês · " +
         "saldo em caixa " + esc(e.saldo_final_texto) + " · resultado " + esc(e.resultado_texto) + "</p>"
       : '<p class="explica">Nenhum lançamento liquidado neste mês. O extrato mostra o que ' +
         "aconteceu; o que está previsto fica nas listas de aberto.</p>") + "</div>";
@@ -8780,8 +8923,8 @@ function desenharRelatorios() {
       : '<p class="explica" style="margin-top:10px">Sem lançamento em ' + esc(mes.comparacao.mes_anterior) +
         ", não dá para comparar com o mês passado.</p>") +
     (mes.prazo_medio.tem
-      ? '<p class="explica">Prazo médio de recebimento: ' + mes.prazo_medio.dias + " dia(s), sobre " +
-        mes.prazo_medio.quantos + " recebimento(s).</p>"
+      ? '<p class="explica">Prazo médio de recebimento: ' + plural(mes.prazo_medio.dias, "dia") + ", sobre " +
+plural(mes.prazo_medio.quantos, "recebimento") + ".</p>"
       : '<p class="explica">Prazo médio: ' + esc(mes.prazo_medio.porque) + ".</p>") +
     "</div>";
 
@@ -8913,7 +9056,7 @@ function desenharFoco() {
     numeroRel("tempo ativo", h.medindo || h.minutos_ativos ? h.ativo_texto : "—") +
     numeroRel("ciclos", h.ciclos) +
     numeroRel("pausas", h.pausas) +
-    numeroRel("água", h.copos_agua + " copo(s)") +
+    numeroRel("água",plural(h.copos_agua, "copo") + "") +
     numeroRel("maior sequência", h.seguida_texto) +
     "</div>" +
     '<p class="explica" style="margin-top:12px">' + esc(d.como_mede) + "</p>" +
@@ -8948,8 +9091,7 @@ function desenharFoco() {
         "<span>água " + String(d.semana.agua_media).replace(".", ",") + "/dia</span>" +
         "<span>maior " + esc(d.semana.maior_seguida_texto) + "</span></div>" +
         (d.semana.dias_com_dado < 3
-          ? '<p class="explica" style="margin-top:10px">' + d.semana.dias_com_dado +
-            " dia(s) com medição. Ainda é pouco para falar de padrão da semana.</p>"
+          ? '<p class="explica" style="margin-top:10px">' + plural(d.semana.dias_com_dado, "dia") + " com medição. Ainda é pouco para falar de padrão da semana.</p>"
           : "")
       : '<p class="explica">Nenhum dia com medição ainda. Ligue o acompanhamento e a semana ' +
         "aparece aqui — sem isso, qualquer gráfico seria invenção.</p>") + "</div>";
@@ -9498,12 +9640,12 @@ function mostrarResultadoDaImportacao(d) {
     (d.importados || []).map((x) =>
       "<p>" + esc(x.nome) + ": <b>" + x.artigos + "</b> artigos, do " + esc(x.primeiro) +
       " ao " + esc(x.ultimo) +
-      (x.revogados ? " · " + x.revogados + " revogado(s)" : "") +
+      (x.revogados ? " · " + plural(x.revogados, "revogado") + "" : "") +
       (x.fora_do_corpo && (x.fora_do_corpo.preambulo || x.fora_do_corpo.citados)
         ? '<br><span class="explica">deixei de fora ' +
-          (x.fora_do_corpo.preambulo ? x.fora_do_corpo.preambulo + " artigo(s) do decreto que aprova o código" : "") +
+          (x.fora_do_corpo.preambulo ?plural(x.fora_do_corpo.preambulo, "artigo") + " do decreto que aprova o código" : "") +
           (x.fora_do_corpo.preambulo && x.fora_do_corpo.citados ? " e " : "") +
-          (x.fora_do_corpo.citados ? x.fora_do_corpo.citados + " artigo(s) de outras leis citados nas disposições finais" : "") +
+          (x.fora_do_corpo.citados ?plural(x.fora_do_corpo.citados, "artigo") + " de outras leis citados nas disposições finais" : "") +
           "</span>"
         : "") + "</p>").join("") +
     ((d.ignorados || []).length

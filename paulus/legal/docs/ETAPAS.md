@@ -622,6 +622,64 @@ Fica para a Etapa 12: conferir prazos do documento contra os prazos da lei.
 
 ---
 
+## A conversa passa a entender o pedido ✓ FEITA
+
+**Telas:** Conversa · Aprendizado
+**Tamanho:** médio
+**Fora da numeração:** apareceu de um uso real, não do wireframe
+
+Pedir *"anote uma reunião no calendário 11/09/2026 às 13:40 com lembrete 10
+minutos antes"* fazia o programa procurar a palavra "reunião" dentro dos
+contratos e responder *"não encontrei essa informação nos trechos
+fornecidos"* — resposta correta para a pergunta errada. A conversa tinha um
+caminho só: toda mensagem virava busca nos documentos. O escritório tem
+agenda, tarefas, financeiro e códigos de lei, e a conversa não alcançava nada
+disso.
+
+`src/intencao.py` lê a frase antes de sair procurando. Por regra, não por
+modelo: reconhecer "anote" seguido de uma data é instantâneo e repetível, e
+perguntar a um modelo de 3 bilhões de parâmetros o que a pessoa quis dizer
+custaria um minuto e erraria de formas imprevisíveis.
+
+**Entender não é fazer.** O que volta é uma proposta com os campos à vista —
+título, data, hora, aviso — e quem grava é a pessoa. Nada entra no calendário
+de alguém por interpretação de frase.
+
+O erro caro é o contrário, e é ele que os testes perseguem: pergunta virando
+compromisso. Duas regras seguram isso — o verbo tem que ser palavra inteira
+("tem alguma reunião **marcada**" não é ordem) e tem que estar no começo da
+frase ("o contrato **marca** reunião de diretoria?" é pergunta). Sem data, o
+compromisso não é marcado para hoje por conta própria: a proposta diz o que
+falta.
+
+**E o programa passou a saber se descrever.** *"O que você sabe fazer?"* é
+respondido em menos de um segundo, sem modelo, da lista de telas e do registro
+de habilidades — que são declarações do próprio código. Um texto escrito à mão
+envelheceria na primeira tela nova.
+
+### Três coisas que o programa dizia errado sobre si
+
+**Duas habilidades se declaravam "ainda não existe"** quando as telas
+correspondentes foram entregues nas Etapas 4 e 6. Assinar existe, com
+certificado A1; redigir com o assistente existe, no editor. O que não existe é
+pedir essas duas *pela conversa* — e agora é isso que a declaração diz.
+
+**"Escritorio" sem acento** no nome do grupo do menu, visível na barra
+lateral desde sempre.
+
+**Trinta e seis conversas vazias.** Entrar em "Organizar pastas" criava um
+trabalho antes de a pessoa escolher qualquer coisa; cada visita deixava uma
+"Organizar uma pasta" sem nada na lista. A conversa passou a nascer quando a
+varredura começa, que é quando existe trabalho.
+
+### Varredura de plural
+
+As 57 ocorrências de "(s)" da aplicação viraram plural de verdade — "6
+pessoas", não "6 pessoa(s)". Um ajudante em cada lado, e os adjetivos que
+concordam junto ("3 documentos abertos", "2 despesas pagas").
+
+---
+
 ## Etapa 12 — Escrever melhor
 
 **Telas:** Editor de texto · Planilha · Pré-visualização
