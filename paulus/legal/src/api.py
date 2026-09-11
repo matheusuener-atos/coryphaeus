@@ -41,6 +41,7 @@ import conexoes
 import documento
 import financeiro
 import acervo
+import citacao
 import escritorio
 import intencao
 import leis
@@ -475,6 +476,62 @@ def biblioteca(termo: str = "", filtro: str = "todos", ordem: str = "modificacao
 class MarcarDocumento(BaseModel):
     sha1: str
     fixado: bool = True
+
+
+class OndeCitou(BaseModel):
+    nome: str = ""
+    trecho: str = ""
+    pergunta: str = ""
+
+
+@app.post("/api/biblioteca/citacao")
+def biblioteca_citacao(payload: OndeCitou) -> dict:
+    """
+    Em que pagina do documento este trecho esta, e onde marcar.
+
+    A conversa ja dizia de onde tirou cada informacao - mas dizia em texto, e
+    conferir exigia abrir o PDF por fora e procurar o paragrafo com o olho.
+    Aqui a pagina volta com as coordenadas da marca, e a tela mostra o
+    documento de verdade com o trecho destacado.
+    """
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+
+    alvo = Path(doc.path)
+    lugar = citacao.onde_esta(alvo, payload.trecho)
+    tamanho = alvo.stat().st_size if alvo.exists() else 0
+
+    return {
+        **lugar,
+        "nome": doc.name,
+        "caminho": str(alvo),
+        "bytes": tamanho,
+        # PDF da para desenhar; docx e txt, nao - e a tela precisa saber disso
+        # antes de prometer uma pagina que nao existe.
+        "desenhavel": alvo.suffix.lower() == ".pdf" and alvo.exists(),
+        "porque": citacao.por_que_este_trecho(payload.pergunta, payload.trecho),
+    }
+
+
+@app.get("/api/biblioteca/pagina")
+def biblioteca_pagina(nome: str, numero: int = 1, largura: int = 1000):
+    """A pagina do documento desenhada, para conferir sem sair daqui."""
+    from fastapi.responses import Response
+
+    doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    alvo = Path(doc.path)
+    if alvo.suffix.lower() != ".pdf" or not alvo.exists():
+        raise HTTPException(status_code=400, detail="so da para desenhar PDF")
+
+    try:
+        png = assinatura.pagina_png(alvo, numero, largura=max(240, min(1600, largura)))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"nao consegui desenhar: {exc}") from exc
+    return Response(png, media_type="image/png",
+                    headers={"Cache-Control": "max-age=120"})
 
 
 @app.post("/api/biblioteca/fixar")

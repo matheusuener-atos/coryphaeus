@@ -622,6 +622,68 @@ Fica para a Etapa 12: conferir prazos do documento contra os prazos da lei.
 
 ---
 
+## O documento aberto dentro da conversa ✓ FEITA
+
+**Telas:** Conversa · Editor de texto
+**Tamanho:** grande
+**Fora da numeração:** veio de dois wireframes que faltavam — "Chat com
+editor" e a citação aberta na conversa
+
+Duas coisas que o programa dizia e não mostrava.
+
+### Abrir um documento abre ele ao lado
+
+Pedir *"abra a procuração Matheus"* devolvia o texto transcrito dentro da
+resposta — não dá para editar, ocupa a conversa inteira, e no fim o modelo
+ainda ensinava a clicar em botões que não existem.
+
+Agora abre a tela dividida: conversa à esquerda, documento à direita,
+editável. O cartão oferece as duas leituras de "abrir" — trazer para cá como
+rascunho ou abrir no Windows. Abrir aqui cria uma **cópia**: o arquivo de
+origem pode já ter sido assinado, enviado ou protocolado.
+
+A alteração pedida na conversa cai **dentro** do documento, marcada, com
+"Descartar / Manter" logo abaixo do parágrafo que mudou. Cada turno guarda o
+documento inteiro de antes, e é isso que o "Desfazer" devolve.
+
+### O trecho citado, na página onde está
+
+"3 arquivos citados" era um texto que a pessoa lia e acreditava. Conferir
+exigia abrir o PDF por fora, achar a página e procurar o parágrafo com o olho.
+
+`src/citacao.py` procura a frase dentro do PDF e devolve em que página está e
+onde marcar, em fração da página — assim a marca acompanha o zoom sem
+recalcular nada. A página é o PDF rasterizado, não uma aproximação em HTML.
+
+Com um pedaço só de agulha, **12 de 14** trechos eram localizados; as falhas
+eram descasamento bobo entre o texto extraído e o texto interno do PDF — um
+espaço antes da vírgula, uma linha de assinatura em underscores. Tentando
+quatro pontos do trecho em dois tamanhos: **14 de 14, em 0,3 s**.
+
+**"Por que este trecho"** é a única parte que não copia o wireframe, e de
+propósito. Lá o painel traz uma explicação escrita, que teria que sair do
+modelo e viraria mais uma afirmação para conferir. Aqui mostra **quais
+palavras da pergunta aparecem naquele pedaço**, contadas.
+
+Duas honestidades que o wireframe não precisava ter: **DOCX e TXT não têm
+página para desenhar**, e a tela diz isso em vez de fingir uma; e quando o
+trecho não é localizado, **mostra a página sem marca** e explica — destacar o
+parágrafo errado é pior que não destacar, porque a pessoa confere e acredita.
+
+### E o modelo parou de falar da tela
+
+Ele escreveu *"Você pode editar este documento clicando nos botões 'Editar' ou
+'Copiar' e 'Colar'"* — botões que não existem em lugar nenhum. A instrução
+agora diz: nunca dizer onde clicar, nunca citar botão, menu ou atalho. Quem
+explica a tela é o programa, que sabe quais botões existem.
+
+Junto: o modelo devolvia **o documento de volta** em pedido amplo sem trecho
+selecionado, e o texto entrava no fim dobrando o documento — 355 palavras
+viraram 712, calado. Agora a resposta que é cópia é recusada com uma saída
+útil.
+
+---
+
 ## A janelinha dos bastidores ✓ FEITA
 
 **Tela:** Conversa

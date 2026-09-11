@@ -420,6 +420,60 @@
   .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 
   /* cartao de aprovacao */
+  /* ----------------------- o documento aberto dentro da conversa */
+  /* A página é o PDF rasterizado, não uma aproximação em HTML: o que está na
+     tela é o arquivo. O papel fica claro nos dois temas — é papel. */
+  .visor { border: 1px solid var(--linha); background: var(--surface-2); margin-top: 12px; }
+  .visor-topo {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--linha); flex-wrap: wrap;
+  }
+  .visor-acoes { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .visor-acoes button { padding: 4px 10px; font-size: 12px; }
+  .visor-divisa { width: 1px; height: 16px; background: var(--linha-media); }
+
+  .visor-miniaturas {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    overflow-x: auto; border-bottom: 1px solid var(--linha);
+  }
+  .visor-mini {
+    flex: 0 0 auto; padding: 0; border: 1px solid var(--linha-media);
+    background: var(--papel); line-height: 0;
+  }
+  .visor-mini img { width: 58px; height: auto; display: block; opacity: 0.75; }
+  .visor-mini.atual { border-color: var(--acento); }
+  .visor-mini.atual img { opacity: 1; }
+
+  .visor-corpo {
+    display: grid; grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 14px; padding: 14px; align-items: start;
+  }
+  @media (max-width: 900px) {
+    .visor-corpo { grid-template-columns: minmax(0, 1fr); }
+  }
+  /* A pagina tem altura de A4: solta, ela empurra a conversa inteira para
+     fora da tela. Rola dentro de si, como um documento aberto numa janela. */
+  .visor-rolagem { max-height: 62vh; overflow-y: auto; background: var(--papel); }
+  .visor-pagina { position: relative; line-height: 0; background: var(--papel); }
+  .visor-pagina img { width: 100%; height: auto; display: block; }
+  /* A marca vem em fração da página: acompanha o zoom sem recalcular nada. */
+  .visor-marca {
+    position: absolute; background: var(--acento-fraco);
+    box-shadow: inset 0 0 0 1px var(--acento); mix-blend-mode: multiply;
+  }
+  [data-tema="escuro"] .visor-marca { mix-blend-mode: normal; opacity: 0.45; }
+
+  .visor-porque { border-left: 1px solid var(--linha); padding-left: 14px; }
+  .visor-porque .explica { margin: 8px 0; }
+  .visor-selo { display: block; margin-top: 16px; }
+  .visor-caixa:empty { display: none; }
+
+  .trecho-ver {
+    margin-left: 10px; padding: 1px 8px; font-size: 11px;
+    border: 1px solid var(--linha-media); background: none; color: var(--ink-3);
+  }
+  .trecho-ver:hover { color: var(--acento); border-color: var(--acento); }
+
   /* ------------------------------- a conversa com o editor ao lado */
   /* Duas colunas porque as duas coisas acontecem juntas: a pessoa pede, e o
      documento muda ao lado. Em tela estreita viram uma embaixo da outra —
@@ -2553,13 +2607,29 @@ function avisoCobertura(c) {
     esc(c.ignorados.join(", ")) + ". A resposta não fala por esses.</div>";
 }
 
-function blocoFontes(fontes, cobertura) {
+function blocoFontes(fontes, cobertura, pergunta) {
   const quantos = cobertura && cobertura.consultados ? cobertura.consultados.length : 1;
-  return '<details class="fontes"><summary>' + fontes.length + " trechos de " + plural(quantos, "contrato") + " — ver o que eu li</summary>" +
-    fontes.map((f) =>
+  // O texto do trecho vai no atributo para o visor poder procurar ele dentro
+  // do PDF depois - e o que liga o que foi lido ao lugar onde estava escrito.
+  return '<details class="fontes"><summary>' + plural(fontes.length, "trecho") +
+    " de " + plural(quantos, "contrato") + " — ver o que eu li</summary>" +
+    fontes.map((f, i) =>
       '<div class="trecho"><div class="origem">' + esc(f.documento) + " · trecho " + f.trecho +
-      "</div><pre>" + esc(f.texto) + "</pre></div>"
-    ).join("") + "</details>";
+      '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div>' +
+      "<pre>" + esc(f.texto) + "</pre></div>"
+    ).join("") +
+    '<div class="visor-caixa"></div></details>';
+}
+
+/* Ligar os "ver no documento" de um bloco de fontes recem-desenhado. */
+function ligarFontes(caixa, fontes, pergunta) {
+  const visorCaixa = caixa.querySelector(".visor-caixa");
+  caixa.querySelectorAll("[data-ver-cit]").forEach((b) => {
+    b.onclick = () => {
+      const f = fontes[Number(b.dataset.verCit)];
+      if (f && visorCaixa) abrirCitacao(f.documento, f.texto, pergunta, visorCaixa);
+    };
+  });
 }
 
 function cartaoPlano(etapas, atual) {
@@ -2712,7 +2782,8 @@ async function enviar() {
               " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
             resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
           }
-          resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
+          resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados, pedido));
+          ligarFontes(resposta, dados.trechos, pedido);
         } else if (mt[1] === "lendo") {
           anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
             dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
@@ -5996,6 +6067,160 @@ async function painelCodigosNaDupla() {
     sugestao: "Nos termos do " + a.citacao + ": “" + a.texto.replace(/\s+/g, " ").slice(0, 700) + "”",
     sobre: "",
     aviso: "Texto oficial do código instalado — confira se é o artigo que você quer citar.",
+  });
+}
+
+
+/* ------------------------------------------- o documento aberto na conversa */
+/*
+   "3 arquivos citados" era um texto que a pessoa lia e acreditava. Conferir de
+   verdade exigia abrir o PDF por fora, achar a página e procurar o parágrafo
+   com o olho.
+
+   Aqui o documento abre na própria conversa, na página em que o trecho está,
+   com o trecho marcado. É o PDF de verdade rasterizado — não uma aproximação
+   em HTML: o que aparece na tela é o arquivo.
+*/
+
+const visor = { aberto: null, pagina: 1, total: 0, escala: 100, marcas: [], pergunta: "" };
+
+async function abrirCitacao(nome, trecho, pergunta, ondeColocar) {
+  const caixa = ondeColocar;
+  caixa.innerHTML = '<div class="visor"><p class="nota">procurando o trecho no documento…</p></div>';
+
+  const r = await fetch("/api/biblioteca/citacao", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome: nome, trecho: trecho, pergunta: pergunta || "" }),
+  });
+  if (!r.ok) {
+    caixa.innerHTML = '<div class="visor"><p class="explica">' + esc(await erroDe(r)) + "</p></div>";
+    return;
+  }
+
+  const d = await r.json();
+  visor.aberto = d;
+  visor.pagina = d.pagina || 1;
+  visor.total = d.total || 0;
+  visor.escala = 100;
+  visor.marcas = d.marcas || [];
+  visor.caixa = caixa;
+  desenharVisor();
+}
+
+function desenharVisor() {
+  const d = visor.aberto;
+  if (!d) return;
+
+  if (!d.desenhavel) {
+    // Honesto: docx e txt não têm página para desenhar. Em vez de fingir uma,
+    // a tela diz o que dá para fazer.
+    visor.caixa.innerHTML = '<div class="visor"><div class="visor-topo">' +
+      '<div><b>' + esc(d.nome) + "</b>" +
+      '<div class="rotulo">aberto da sua máquina · ' + tamanho(d.bytes) + "</div></div>" +
+      '<div class="visor-acoes"><button data-vs="fora">Abrir fora</button>' +
+      '<button data-vs="fechar">Fechar</button></div></div>' +
+      '<p class="explica">Só PDF tem página para desenhar aqui. Este é ' +
+      esc((d.nome.split(".").pop() || "").toUpperCase()) +
+      " — dá para abrir no programa padrão do Windows.</p></div>";
+    ligarVisor();
+    return;
+  }
+
+  visor.caixa.innerHTML = '<div class="visor">' +
+    '<div class="visor-topo"><div><b>' + esc(d.nome) + "</b>" +
+    '<div class="rotulo">aberto da sua máquina · ' + tamanho(d.bytes) + "</div></div>" +
+    '<div class="visor-acoes">' +
+    '<button data-vs="antes" ' + (visor.pagina <= 1 ? "disabled" : "") + ">‹</button>" +
+    '<span class="rotulo">pág. ' + visor.pagina + " / " + visor.total + "</span>" +
+    '<button data-vs="depois" ' + (visor.pagina >= visor.total ? "disabled" : "") + ">›</button>" +
+    '<span class="visor-divisa"></span>' +
+    '<button data-vs="menos">−</button><span class="rotulo">' + visor.escala + "%</span>" +
+    '<button data-vs="mais">+</button>' +
+    '<span class="visor-divisa"></span>' +
+    '<button data-vs="fora">Abrir fora</button>' +
+    '<button data-vs="fechar">Fechar</button></div></div>' +
+
+    '<div class="visor-miniaturas">' + miniaturasDoVisor() + "</div>" +
+
+    '<div class="visor-corpo"><div class="visor-rolagem">' +
+    '<div class="visor-pagina">' +
+    '<img src="/api/biblioteca/pagina?nome=' + encodeURIComponent(d.nome) +
+    "&numero=" + visor.pagina + "&largura=" + Math.round(9 * visor.escala) +
+    '" alt="página ' + visor.pagina + '">' +
+    (visor.pagina === d.pagina ? marcasDoVisor() : "") + "</div></div>" +
+
+    '<aside class="visor-porque"><span class="rotulo">por que este trecho</span>' +
+    porqueDoVisor(d) +
+    '<p class="rotulo visor-selo">lido localmente · nada enviado</p></aside></div></div>';
+
+  ligarVisor();
+}
+
+function miniaturasDoVisor() {
+  const d = visor.aberto;
+  // Cinco em volta da página atual: a fita inteira de um contrato de 60
+  // páginas seria 60 requisições de imagem para mostrar o que ninguém olha.
+  const primeira = Math.max(1, Math.min(visor.pagina - 2, Math.max(1, visor.total - 4)));
+  const fim = Math.min(visor.total, primeira + 4);
+  let html = "";
+  for (let n = primeira; n <= fim; n++) {
+    html += '<button class="visor-mini' + (n === visor.pagina ? " atual" : "") +
+      '" data-vs-pag="' + n + '" title="página ' + n + '">' +
+      '<img src="/api/biblioteca/pagina?nome=' + encodeURIComponent(d.nome) +
+      "&numero=" + n + '&largura=240" alt="página ' + n + '" loading="lazy"></button>';
+  }
+  return html + '<span class="rotulo">pág. ' + visor.pagina + " de " + visor.total + "</span>";
+}
+
+/* As marcas vêm em fração da página, não em pixel: a imagem muda de tamanho
+   com o zoom e com a janela, e a marca acompanha sem recalcular nada. */
+function marcasDoVisor() {
+  return visor.marcas.map((m) =>
+    '<i class="visor-marca" style="left:' + (m.x * 100).toFixed(3) + "%;top:" +
+    (m.y * 100).toFixed(3) + "%;width:" + (m.w * 100).toFixed(3) + "%;height:" +
+    (m.h * 100).toFixed(3) + '%"></i>').join("");
+}
+
+function porqueDoVisor(d) {
+  if (!d.achou) {
+    return '<p class="explica">Não consegui localizar este trecho dentro do ' +
+      "arquivo — pode ser um PDF escaneado, ou o arquivo pode ter mudado desde " +
+      "que eu li. A página está aqui, mas sem marca: prefiro não destacar o " +
+      "lugar errado.</p>";
+  }
+  const p = d.porque || { termos: [] };
+  if (!p.termos.length) {
+    return '<p class="explica">Este trecho entrou pela busca no texto inteiro, ' +
+      "não por uma palavra específica da sua pergunta.</p>";
+  }
+  return '<p class="explica">Da sua pergunta, aparecem aqui: <b>' +
+    p.termos.map(esc).join("</b>, <b>") + "</b>.</p>" +
+    '<p class="explica">' + plural(p.quantos, "palavra") + " de " + p.de +
+    " que você usou estão neste pedaço.</p>";
+}
+
+function ligarVisor() {
+  const caixa = visor.caixa;
+  const ir = (n) => { visor.pagina = Math.max(1, Math.min(visor.total, n)); desenharVisor(); };
+
+  caixa.querySelectorAll("[data-vs]").forEach((b) => {
+    b.onclick = () => {
+      const o = b.dataset.vs;
+      if (o === "antes") ir(visor.pagina - 1);
+      else if (o === "depois") ir(visor.pagina + 1);
+      else if (o === "mais") { visor.escala = Math.min(200, visor.escala + 25); desenharVisor(); }
+      else if (o === "menos") { visor.escala = Math.max(50, visor.escala - 25); desenharVisor(); }
+      else if (o === "fechar") { caixa.innerHTML = ""; visor.aberto = null; }
+      else if (o === "fora") {
+        fetch("/api/biblioteca/abrir-pasta", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caminho: visor.aberto.caminho.replace(/[^\\/]+$/, "") }),
+        });
+      }
+    };
+  });
+  caixa.querySelectorAll("[data-vs-pag]").forEach((b) => {
+    b.onclick = () => ir(Number(b.dataset.vsPag));
   });
 }
 
