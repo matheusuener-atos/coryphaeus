@@ -45,6 +45,7 @@ import citacao
 import escritorio
 import intencao
 import leis
+import redacao
 import ritmo as ritmo_mod
 import planilha
 import relatorios
@@ -3346,6 +3347,65 @@ Regras:
 - se faltar informacao para escrever, escreva o texto com a lacuna marcada
   entre colchetes, por exemplo [VALOR]
 - sem marcacao, sem asteriscos, sem titulo"""
+
+
+class PedidoDeRedacao(BaseModel):
+    corpo: str = ""
+    cadastro_id: int | None = None
+
+
+@app.post("/api/documentos/{id_}/clausulas")
+def documentos_renumerar(id_: int, payload: PedidoDeRedacao) -> dict:
+    """
+    Poe as clausulas em sequencia e leva as referencias cruzadas junto.
+
+    Nao grava: devolve o texto novo e a lista do que mudaria. Renumerar um
+    contrato sem mostrar o que mudou e pedir para a pessoa aceitar no escuro.
+    """
+    _documento_ou_404(id_)
+    corpo = payload.corpo or ""
+    resultado = redacao.renumerar(corpo)
+    return {
+        **resultado,
+        "quebradas": redacao.referencias_quebradas(resultado["texto"]),
+        "estilo": redacao.estilo_do_documento(corpo),
+    }
+
+
+@app.get("/api/documentos/{id_}/conferir-clausulas")
+def documentos_conferir_clausulas(id_: int) -> dict:
+    """O que esta fora de ordem ou apontando para o nada, sem mexer em nada."""
+    item = _documento_ou_404(id_)
+    corpo = item["corpo"] or ""
+    achadas = redacao.achar_clausulas(corpo)
+    numeros = [a["numero"] for a in achadas]
+    return {
+        "clausulas": len(achadas),
+        "numeros": numeros,
+        "fora_de_ordem": numeros != sorted(numeros) or numeros != list(range(1, len(numeros) + 1)),
+        "quebradas": redacao.referencias_quebradas(corpo),
+        "estilo": redacao.estilo_do_documento(corpo),
+    }
+
+
+@app.get("/api/redacao/qualificacao")
+def redacao_qualificacao(cadastro_id: int) -> dict:
+    """
+    O paragrafo de qualificacao de uma parte, com o que o cadastro tem.
+
+    O que falta vira lacuna entre colchetes - e sai declarado, porque e mais
+    barato completar o cadastro do que cacar colchete dentro do contrato
+    depois de assinado.
+    """
+    ficha = estado.cadastros.obter(cadastro_id)
+    if not ficha:
+        raise HTTPException(status_code=404, detail="nao achei esse cadastro")
+    return {
+        "texto": redacao.qualificar(ficha),
+        "falta": redacao.o_que_falta(ficha),
+        "nome": ficha["nome"],
+        "cadastro_id": cadastro_id,
+    }
 
 
 @app.post("/api/documentos/{id_}/assistente")

@@ -420,6 +420,17 @@
   .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 
   /* cartao de aprovacao */
+  /* A lista do que a renumeracao vai mudar, antes de mudar. Monoespacada
+     porque e comparacao de numero com numero. */
+  .renum { margin: 10px 0; max-height: 260px; overflow-y: auto; }
+  .renum-linha {
+    display: grid; grid-template-columns: 88px minmax(0, 1fr) 20px minmax(0, 1fr);
+    gap: 8px; align-items: baseline; padding: 3px 0;
+    font: 400 12px var(--mono); color: var(--ink-2);
+  }
+  .renum-seta { color: var(--ink-3); text-align: center; }
+  .renum-linha b { color: var(--acento); font-weight: 500; }
+
   /* ----------------------- o documento aberto dentro da conversa */
   /* A página é o PDF rasterizado, não uma aproximação em HTML: o que está na
      tela é o arquivo. O papel fica claro nos dois temas — é papel. */
@@ -5826,6 +5837,8 @@ function desenharDupla() {
     '<button data-cmd="bold"><b>B</b></button>' +
     '<button data-cmd="italic"><i>I</i></button>' +
     '<button data-cmd="insertOrderedList">Numeração</button>' +
+    '<button id="dp-numerar">Numerar</button>' +
+    '<button id="dp-qualificar">Qualificar</button>' +
     '<button id="dp-citar">Citar a lei</button></div>' +
     '<span class="rotulo" id="dp-sinc">sincronizado com a conversa</span></div>' +
     '<div class="dupla-folha-caixa"><div class="ed-folha" id="dp-folha" contenteditable="true">' +
@@ -5870,6 +5883,8 @@ function ligarDupla() {
   $("dp-so-editor").onclick = () => abrirDocumento(dupla.doc.id);
   $("dp-assinar").onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
   $("dp-citar").onclick = painelCodigosNaDupla;
+  $("dp-numerar").onclick = renumerarClausulas;
+  $("dp-qualificar").onclick = inserirQualificacao;
   $("dp-guardar").onclick = () => guardarNaBiblioteca(dupla.doc.id);
   $("dp-pdf").onclick = () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; };
 
@@ -6222,6 +6237,183 @@ function ligarVisor() {
   caixa.querySelectorAll("[data-vs-pag]").forEach((b) => {
     b.onclick = () => ir(Number(b.dataset.vsPag));
   });
+}
+
+
+/* ------------------------------------------- o que o Word não faz por aqui */
+/*
+   O editor em si o Word já faz. O que não faz é o que é específico de redigir
+   contrato em português do Brasil: renumerar cláusulas levando as referências
+   cruzadas junto, e qualificar uma parte com o que já está em Cadastros.
+*/
+
+/* A folha do editor ou a da tela dividida — o que estiver aberto. */
+function folhaAberta() {
+  return $("dp-folha") || $("ed-folha");
+}
+
+function documentoAberto() {
+  if ($("dp-folha") && dupla.doc) return dupla.doc;
+  return escr.doc;
+}
+
+function abaixoDoEditor() {
+  return $("dp-fala") ? null : $("ed-abaixo");
+}
+
+async function renumerarClausulas() {
+  const folha = folhaAberta();
+  const doc = documentoAberto();
+  if (!folha || !doc) return;
+
+  const r = await fetch("/api/documentos/" + doc.id + "/clausulas", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+
+  if (!d.clausulas) {
+    avisoCert("não achei cláusula numerada neste documento");
+    return;
+  }
+  if (!d.trocas.length) {
+    avisoCert(plural(d.clausulas, "cláusula") + " — já estão em ordem" +
+      (d.quebradas.length ? ", mas há referência apontando para o nada" : ""));
+    if (d.quebradas.length) mostrarQuebradas(d.quebradas);
+    return;
+  }
+
+  mostrarRenumeracao(d, folha);
+}
+
+/* Renumerar mexe no contrato inteiro de uma vez. A lista do que vai mudar
+   aparece ANTES, e nada é gravado sem o sim. */
+function mostrarRenumeracao(d, folha) {
+  const antes = folha.innerHTML;
+  const clausulas = d.trocas.filter((t) => t.tipo === "clausula");
+  const refs = d.trocas.filter((t) => t.tipo === "referencia");
+
+  const caixa = document.createElement("div");
+  caixa.className = "proposta";
+  caixa.innerHTML = '<div class="proposta-topo">' +
+    '<span class="rotulo">vou renumerar</span>' +
+    "<b>" + plural(clausulas.length, "cláusula") +
+    (refs.length ? " e " + plural(refs.length, "referência") : "") + "</b></div>" +
+    '<div class="renum">' + d.trocas.map((t) =>
+      '<div class="renum-linha"><span class="rotulo">' +
+      (t.tipo === "referencia" ? "referência" : "cláusula") + "</span>" +
+      "<span>" + esc(t.de) + "</span><span class=\"renum-seta\">→</span>" +
+      "<b>" + esc(t.para) + "</b></div>").join("") + "</div>" +
+    (refs.length
+      ? '<p class="explica">As referências cruzadas vão junto: é a metade do ' +
+        "trabalho que costuma ficar para trás, e é ela que gera a cláusula 7 " +
+        "citando a cláusula 4 depois que a 4 virou 5.</p>"
+      : "") +
+    (d.quebradas.length
+      ? '<p class="explica">Continua apontando para o nada: ' +
+        d.quebradas.map((q) => esc(q.texto)).join(", ") +
+        " — não existe cláusula com esse número.</p>"
+      : "") +
+    '<div class="linha-form"><button class="primario" data-renum="sim">Renumerar</button>' +
+    '<button data-renum="nao">Deixa como está</button></div>';
+
+  const destino = abaixoDoEditor() || folha.parentElement;
+  destino.innerHTML = "";
+  destino.appendChild(caixa);
+  caixa.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  caixa.querySelector('[data-renum="nao"]').onclick = () => { caixa.remove(); };
+  caixa.querySelector('[data-renum="sim"]').onclick = () => {
+    folha.innerHTML = d.texto;
+    caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
+      "<b>" + plural(d.trocas.length, "troca") + " aplicada" +
+      (d.trocas.length === 1 ? "" : "s") + "</b></div>" +
+      '<div class="linha-form"><button data-renum="desfazer">Desfazer</button></div>';
+    caixa.querySelector('[data-renum="desfazer"]').onclick = () => {
+      folha.innerHTML = antes;
+      caixa.remove();
+      salvarOndeEstiver();
+    };
+    salvarOndeEstiver();
+  };
+}
+
+function mostrarQuebradas(quebradas) {
+  const destino = abaixoDoEditor();
+  if (!destino) return;
+  destino.innerHTML = '<div class="painel" style="margin-top:16px">' +
+    "<h3>Referência apontando para o nada</h3>" +
+    '<p class="explica">' + quebradas.map((q) => esc(q.texto)).join(", ") +
+    " — não existe cláusula com esse número neste documento. " +
+    "É o tipo de erro que passa na leitura e aparece na discussão.</p></div>";
+}
+
+/* ------------------------------------------------ qualificação das partes */
+
+async function inserirQualificacao() {
+  const folha = folhaAberta();
+  if (!folha) return;
+
+  const d = await (await fetch("/api/cadastros")).json();
+  if (!d.fichas.length) {
+    avisoCert("nenhum cadastro ainda — a qualificação sai de lá");
+    return;
+  }
+
+  const destino = abaixoDoEditor() || folha.parentElement;
+  const caixa = document.createElement("div");
+  caixa.className = "painel";
+  caixa.style.marginTop = "16px";
+  caixa.innerHTML = "<h3>Qualificar uma parte</h3>" +
+    '<p class="explica">O parágrafo sai do cadastro. O que faltar vira lacuna ' +
+    "entre colchetes — eu não invento estado civil nem endereço.</p>" +
+    '<div class="chips">' + d.fichas.map((f) =>
+      '<button class="chip" data-qual="' + f.id + '">' + esc(f.nome) + "</button>").join("") +
+    '</div><div id="qual-previa"></div>';
+  destino.innerHTML = "";
+  destino.appendChild(caixa);
+  caixa.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  caixa.querySelectorAll("[data-qual]").forEach((b) => {
+    b.onclick = () => preverQualificacao(Number(b.dataset.qual), folha, caixa);
+  });
+}
+
+async function preverQualificacao(id, folha, caixa) {
+  const alvo = caixa.querySelector("#qual-previa");
+  alvo.innerHTML = '<p class="nota">montando…</p>';
+
+  const r = await fetch("/api/redacao/qualificacao?cadastro_id=" + id);
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+  const q = await r.json();
+
+  alvo.innerHTML = '<div class="ed-sugestao" style="margin-top:12px">' +
+    '<span class="rotulo">como vai entrar</span><p>' + esc(q.texto) + "</p>" +
+    (q.falta.length
+      ? '<p class="explica">O cadastro de ' + esc(q.nome) + " não tem: " +
+        q.falta.join(", ") + ". Fica como lacuna no texto — " +
+        "completar em Cadastros agora é mais barato que caçar colchete depois.</p>"
+      : '<p class="explica">O cadastro está completo.</p>') +
+    '<div class="linha-form"><button class="primario" id="qual-inserir">Inserir no documento</button>' +
+    (q.falta.length ? '<button id="qual-cadastro">Completar o cadastro</button>' : "") +
+    "</div></div>";
+
+  $("qual-inserir").onclick = () => {
+    const bloco = document.createElement("p");
+    bloco.textContent = q.texto;
+    folha.appendChild(bloco);
+    bloco.scrollIntoView({ behavior: "smooth", block: "center" });
+    caixa.remove();
+    salvarOndeEstiver();
+  };
+  const irCadastro = $("qual-cadastro");
+  if (irCadastro) irCadastro.onclick = () => { marcarDestino("cadastros"); mostrarCadastros(); };
+}
+
+function salvarOndeEstiver() {
+  if ($("dp-folha")) marcarDuplaSuja();
+  else marcarSujo();
 }
 
 
@@ -8720,6 +8912,9 @@ function desenharEditor() {
     '<button data-cmd="insertUnorderedList">Lista</button>' +
     '<button data-cmd="insertOrderedList">Numeração</button>' +
     '<span class="ed-divisa"></span>' +
+    '<button id="ed-numerar">Numerar cláusulas</button>' +
+    '<button id="ed-qualificar">Qualificar parte</button>' +
+    '<span class="ed-divisa"></span>' +
     '<button id="ed-clausulas">Cláusulas do escritório</button>' +
     '<button id="ed-codigos">Citar a lei</button>' +
     '<button id="ed-conferir">Conferir</button></div>';
@@ -8781,6 +8976,8 @@ function ligarEditor() {
   $("ed-conferir").onclick = () => painelConferir(id);
   $("ed-clausulas").onclick = painelClausulas;
   $("ed-codigos").onclick = painelCodigos;
+  $("ed-numerar").onclick = renumerarClausulas;
+  $("ed-qualificar").onclick = inserirQualificacao;
 
   $("ed-pdf").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/pdf"; };
   $("ed-docx").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/docx"; };
