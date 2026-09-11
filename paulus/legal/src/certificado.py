@@ -50,26 +50,36 @@ class Certificado:
     emissor: str = ""
     serie: str = ""
     valido_de: str = ""
-    valido_ate: str = ""
+    valido_ate: str = ""            # data, para mostrar na tela
+    vence_em: str = ""              # instante exato, em UTC, para decidir
     icp_brasil: bool = False
     arquivo: str = ""
     erro: str = ""
 
+    # O vencimento é um instante, não um dia. Comparar a data em UTC com o
+    # "hoje" do relógio local dava certificado vencido como válido durante as
+    # três horas em que o Brasil ainda está na véspera de Greenwich — e
+    # "pode_assinar" ia junto, deixando assinar com e-CPF fora da validade.
+    @property
+    def _fim(self) -> datetime | None:
+        if not self.vence_em:
+            return None
+        try:
+            return datetime.fromisoformat(self.vence_em)
+        except ValueError:
+            return None
+
     @property
     def vencido(self) -> bool:
-        if not self.valido_ate:
-            return False
-        return self.valido_ate < datetime.now().strftime("%Y-%m-%d")
+        fim = self._fim
+        return bool(fim and fim < datetime.now(timezone.utc))
 
     @property
     def dias_restantes(self) -> int | None:
-        if not self.valido_ate:
+        fim = self._fim
+        if not fim:
             return None
-        try:
-            fim = datetime.strptime(self.valido_ate, "%Y-%m-%d").date()
-        except ValueError:
-            return None
-        return (fim - datetime.now().date()).days
+        return (fim - datetime.now(timezone.utc)).days
 
     @property
     def situacao(self) -> str:
@@ -174,6 +184,7 @@ def ler(caminho: Path | str, senha: str) -> Certificado:
         serie=_serie(cert.serial_number),
         valido_de=_data(cert.not_valid_before_utc),
         valido_ate=_data(cert.not_valid_after_utc),
+        vence_em=cert.not_valid_after_utc.astimezone(timezone.utc).isoformat(),
         icp_brasil=e_icp(emissor),
         arquivo=alvo.name,
     )

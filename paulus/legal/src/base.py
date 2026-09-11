@@ -219,6 +219,42 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE tarefas ADD COLUMN lembrar_em TEXT DEFAULT '';
         ALTER TABLE tarefas ADD COLUMN repetir TEXT DEFAULT '';
         """,
+    ),    (
+        "009_leis",
+        """
+        -- Os codigos oficiais, guardados artigo por artigo. Citar passa a ser
+        -- consulta a um indice, nao palpite de modelo.
+        CREATE TABLE leis (
+            codigo       TEXT PRIMARY KEY,
+            nome         TEXT NOT NULL,
+            lei          TEXT NOT NULL,
+            fonte        TEXT DEFAULT '',
+            arquivo      TEXT DEFAULT '',
+            artigos      INTEGER NOT NULL DEFAULT 0,
+            importado_em TEXT NOT NULL
+        );
+
+        CREATE TABLE artigos (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo       TEXT NOT NULL,
+            numero       TEXT NOT NULL,
+            ordem        INTEGER NOT NULL DEFAULT 0,
+            texto        TEXT NOT NULL,
+            contexto     TEXT DEFAULT '',
+            -- O texto compilado mantem os revogados no corpo. Citar um artigo
+            -- revogado como se estivesse em vigor e o erro mais caro daqui.
+            revogado     INTEGER NOT NULL DEFAULT 0,
+            alterado_por TEXT DEFAULT ''
+        );
+        CREATE UNIQUE INDEX idx_artigo_unico ON artigos(codigo, ordem);
+        CREATE INDEX idx_artigo_codigo ON artigos(codigo);
+
+        -- Busca por palavra. FTS5 acompanha o SQLite do Python, entao nao ha
+        -- dependencia nova para procurar "boa-fe" em quatro mil artigos.
+        CREATE VIRTUAL TABLE artigos_busca USING fts5(
+            codigo, numero, texto, tokenize = 'unicode61 remove_diacritics 2'
+        );
+        """,
     ),
 ]
 

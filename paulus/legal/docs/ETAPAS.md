@@ -383,7 +383,7 @@ cima dele:
 
 | Declinado antes | O motivo era | O caminho agora |
 |---|---|---|
-| Citar CC, CPC, CP, CLT | O modelo inventaria o número do artigo | Trazer o texto oficial para o disco. Citar vira consulta, não palpite |
+| ~~Citar CC, CPC, CP, CLT~~ ✓ | O modelo inventaria o número do artigo | Feito na Etapa 11: 4.530 artigos no disco. Citar virou consulta, não palpite |
 | Token A3 | Driver PKCS#11 por fabricante | A pessoa aponta a DLL do próprio token, uma vez |
 | OAuth de e-mail | Semanas de revisão da Google | A credencial é do escritório, não nossa: cada um cria a sua |
 | Enviar no WhatsApp | Dirigir a tela de um site quebra e derruba a conta | Caminho oficial pela Cloud API; o assistido fica como segunda opção, com aviso |
@@ -468,9 +468,9 @@ da prefeitura e o boleto sai do banco. Aqui se controla e se guarda.
 
 ---
 
-## Etapa 11 — A lei em casa
+## Etapa 11 — A lei em casa ✓ FEITA
 
-**Telas:** Editor de texto · Conversa
+**Telas:** Editor de texto · Configurações
 **Tamanho:** grande
 **Depende de:** Etapa 6
 
@@ -492,6 +492,42 @@ conferir.
 Enquanto o texto não estiver no disco, a tela diz isso — nunca chuta o artigo.
 Jurisprudência e súmulas ficam para depois: não têm fonte oficial em formato
 aberto do mesmo jeito, e inventar acórdão é pior que inventar artigo.
+
+### O que entrou
+
+`src/leis.py` lê o HTML compilado do Planalto e guarda artigo por artigo.
+**4.530 artigos** nesta máquina: CC 2.082 (1º–2.046), CPC 1.074 (1º–1.072),
+CLT 984 (1º–922), CP 390 (1º–361). Sem repetição e sem buraco de numeração nos
+quatro.
+
+Ler a lei é quase todo o trabalho, porque quase tudo no arquivo parece artigo e
+não é. O que o leitor precisou aprender, cada item com teste:
+
+- os artigos antes do primeiro título são do **decreto que aprova** o código, e
+  não do código. A CLT começa em "Art. 1º Fica aprovada a Consolidação"
+- as disposições finais **citam artigos de outras leis**. O CPC escreve
+  "Art. 48. Caberão embargos..." dentro do seu art. 1.064, e isso é da Lei dos
+  Juizados. O CPC tem art. 48 próprio, do foro do inventário — o citado não
+  pode tomar o lugar dele
+- **"Art. 58 - A duração normal"** é o artigo 58. A CLT e o Código Penal, dos
+  anos 40, separam número e texto com " - ", e o hífen do sufixo tem que estar
+  colado para "58-A" continuar sendo outro artigo
+- o sufixo vale **inteiro**: 359-M-A fica entre o 359-M e o 359-N, não depois
+- **revogado é o artigo, não o inciso**. O art. 3º do Código Civil teve só os
+  incisos revogados; dizer que ele não existe seria pior que não ter a busca
+- **frase não é cabeçalho**. "Livro II da Parte Especial deste Código." começa
+  com a palavra mas é texto — lida como cabeçalho, mandava quem conferisse a
+  citação para um trecho que não tem nada a ver
+- o **rótulo de alteração vem do caput**. O art. 121 do Código Penal é de 1940;
+  foi o § 2º-A que a Lei 13.104/2015 incluiu
+
+Na tela: botão "Citar a lei" na barra do editor e no painel de cláusulas, busca
+por número ou palavra, filtro por código, e o texto do artigo à vista antes de
+inserir. Artigo revogado só entra com confirmação explícita. Em Configurações,
+importar de uma pasta de uma vez, com o relatório do que ficou de fora e por
+quê.
+
+Fica para a Etapa 12: conferir prazos do documento contra os prazos da lei.
 
 ---
 

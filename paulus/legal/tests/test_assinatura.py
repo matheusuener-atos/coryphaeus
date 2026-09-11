@@ -158,6 +158,38 @@ def test_certificado_vencido(tmp: Path) -> None:
         checar(not (tmp / "saida.pdf").exists(), "e nao deixa arquivo pela metade")
 
 
+def test_vencimento_e_uma_hora() -> None:
+    """
+    O vencimento e um instante, nao um dia.
+
+    Este teste existe porque a suite quebrou as 21h de um dia 10: o certificado
+    vencia "ontem" em UTC, que ja era o dia 10, e o codigo comparava essa data
+    com o dia 10 do relogio local. Vencido virava "vence em breve", e
+    pode_assinar vinha True - ou seja, o programa assinaria com um e-CPF fora
+    da validade durante as tres horas em que o Brasil esta na vespera de
+    Greenwich. Com hora, nao ha janela.
+    """
+    print("\nvencimento com hora, nao so com data")
+    agora = datetime.now(timezone.utc)
+
+    venceu = certificado.Certificado(
+        titular="TESTE", valido_ate=(agora - timedelta(hours=3)).strftime("%Y-%m-%d"),
+        vence_em=(agora - timedelta(hours=3)).isoformat())
+    checar(venceu.vencido, "venceu ha 3 horas: vencido")
+    checar(venceu.situacao == "vencido", f"e a tela diz isso (achou {venceu.situacao!r})")
+    checar(not venceu.pode_assinar, "e nao assina")
+
+    vence = certificado.Certificado(
+        titular="TESTE", valido_ate=(agora + timedelta(hours=3)).strftime("%Y-%m-%d"),
+        vence_em=(agora + timedelta(hours=3)).isoformat())
+    checar(not vence.vencido, "vence daqui a 3 horas: ainda vale")
+    checar(vence.pode_assinar, "e ainda assina")
+
+    sem_data = certificado.Certificado(titular="TESTE")
+    checar(not sem_data.vencido, "sem data de vencimento, nao inventa vencimento")
+    checar(sem_data.dias_restantes is None, "e nao inventa prazo")
+
+
 def test_cofre(tmp: Path, pfx: Path) -> None:
     print("\ncofre: arquivo, senha e prazo")
     pasta = tmp / "cofre"
@@ -498,6 +530,7 @@ def main() -> int:
         pfx = test_leitura_do_certificado(tmp)
         test_icp_brasil()
         test_certificado_vencido(tmp)
+        test_vencimento_e_uma_hora()
         test_cofre(tmp, pfx)
         test_quais_paginas()
         test_texto_do_selo()

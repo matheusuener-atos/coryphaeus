@@ -1681,6 +1681,26 @@
     background: var(--forte); border-color: var(--forte); color: var(--forte-texto);
   }
 
+  /* ------------------------------------------------------ artigo de lei */
+
+  .artigo {
+    border: 1px solid var(--linha-media);
+    background: var(--surface-1);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .artigo.revogado { border-color: var(--atencao-linha); background: var(--atencao-fundo); }
+  .artigo-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .artigo-topo b { font: 500 13.5px var(--sans); color: var(--ink-titulo); }
+  .artigo-selo {
+    font: 500 9px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    padding: 3px 7px; border: 1px solid var(--atencao); color: var(--atencao);
+  }
+  .artigo-texto {
+    font-size: 12.5px; line-height: 1.6; color: var(--ink-2);
+    margin: 8px 0 10px; overflow-wrap: anywhere;
+  }
+
   /* ------------------------------------------------------- responsivo */
 
   @media (max-width: 1180px) {
@@ -2885,6 +2905,8 @@ async function mostrarConfig() {
     campo("endereco", "Endereço profissional", pessoa.endereco) +
     "</div></div>" +
 
+    '<div class="painel" id="cfg-leis"><p class="nota">abrindo os códigos…</p></div>' +
+
     '<div class="painel"><h3>Equipe e cobrança</h3>' +
     '<p class="explica">Ainda não existem. O programa hoje roda para uma pessoa, nesta máquina, ' +
     "sem licença nem servidor. Quando houver equipe, os níveis de permissão entram aqui.</p></div>" +
@@ -2896,6 +2918,7 @@ async function mostrarConfig() {
     el.onclick = () => el.querySelector(".interruptor-min").classList.toggle("on");
   });
   $("cfg-salvar").onclick = salvarConfig;
+  blocoLeis();
   atualizarPostura();
 }
 
@@ -6879,6 +6902,7 @@ function desenharEditor() {
     '<button data-cmd="insertOrderedList">Numeração</button>' +
     '<span class="ed-divisa"></span>' +
     '<button id="ed-clausulas">Cláusulas do escritório</button>' +
+    '<button id="ed-codigos">Citar a lei</button>' +
     '<button id="ed-conferir">Conferir</button></div>';
 
   html += '<div class="ed-colunas"><div>' +
@@ -6937,6 +6961,7 @@ function ligarEditor() {
   $("ed-versoes").onclick = () => painelVersoes(id);
   $("ed-conferir").onclick = () => painelConferir(id);
   $("ed-clausulas").onclick = painelClausulas;
+  $("ed-codigos").onclick = painelCodigos;
 
   $("ed-pdf").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/pdf"; };
   $("ed-docx").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/docx"; };
@@ -7056,8 +7081,11 @@ async function painelClausulas() {
           '<button class="perigo" data-tirar-cl="' + esc(c.id) + '">Apagar</button></div>').join("")
       : '<p class="explica">Nenhuma cláusula guardada ainda.</p>') +
     '<div class="linha-form"><button id="cl-nova">Guardar o trecho selecionado como cláusula</button></div>' +
-    '<div class="cert-aviso" style="margin-top:14px"><strong>' + esc(d.codigos_indisponiveis.titulo) + "</strong>" +
-    "<p>" + esc(d.codigos_indisponiveis.porque) + "</p></div></div>";
+    (d.tem_codigo
+      ? '<div class="linha-form"><button id="cl-codigos">Citar a lei</button></div>'
+      : '<div class="cert-aviso" style="margin-top:14px"><strong>' + esc(d.sem_codigo.titulo) + "</strong>" +
+        "<p>" + esc(d.sem_codigo.porque) + " Instale em " + esc(d.sem_codigo.onde) + ".</p></div>") +
+    "</div>";
 
   d.clausulas.forEach((c) => {
     const b = alvo.querySelector('[data-clausula="' + c.id + '"]');
@@ -7075,6 +7103,9 @@ async function painelClausulas() {
       painelClausulas();
     };
   });
+  const bcod = $("cl-codigos");
+  if (bcod) bcod.onclick = painelCodigos;
+
   $("cl-nova").onclick = async () => {
     const texto = trechoSelecionado();
     if (!texto) { avisoCert("selecione o trecho no documento antes"); return; }
@@ -7086,6 +7117,7 @@ async function painelClausulas() {
     });
     painelClausulas();
   };
+  revelarAbaixo();
 }
 
 async function painelVersoes(id) {
@@ -7130,6 +7162,7 @@ async function painelVersoes(id) {
       desenharEditor();
     };
   });
+  revelarAbaixo();
 }
 
 async function painelConferir(id) {
@@ -7138,6 +7171,7 @@ async function painelConferir(id) {
   await gravarDocumento();
   const d = await (await fetch("/api/documentos/" + id + "/conferir")).json();
   alvo.innerHTML = '<div class="painel" style="margin-top:16px">' + blocoAvisos(d) + "</div>";
+  revelarAbaixo();
 }
 
 function blocoAvisos(d) {
@@ -8430,6 +8464,227 @@ function diaPorExtenso(chave) {
   const data = new Date(a, m - 1, d);
   const semana = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][data.getDay()];
   return semana + ", " + d + " de " + MESES_NOME[m - 1];
+}
+
+/* ------------------------------------------------------- códigos de lei */
+/*
+   Citar artigo passou a ser consulta a um índice, não palpite. O texto do
+   artigo aparece junto da citação — quem insere confere antes.
+*/
+
+const lei = { codigos: [], termo: "", codigo: "", achados: [] };
+
+/* Os painéis do editor nascem abaixo da folha, e a folha é do tamanho de uma
+   página: sem isto, clicar no botão abria o painel fora da tela e parecia que
+   nada tinha acontecido. */
+function revelarAbaixo() {
+  const alvo = $("ed-abaixo");
+  if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function painelCodigos() {
+  const alvo = $("ed-abaixo");
+  alvo.innerHTML = '<p class="nota">abrindo os códigos…</p>';
+
+  let d;
+  try {
+    d = await (await fetch("/api/leis")).json();
+  } catch (err) {
+    alvo.innerHTML = '<p class="nota">não consegui abrir: ' + esc(String(err)) + "</p>";
+    return;
+  }
+  lei.codigos = d.codigos;
+  const instalados = d.codigos.filter((c) => c.instalado);
+
+  if (!instalados.length) {
+    alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Nenhum código instalado</h3>' +
+      '<p class="explica">' + esc(d.porque) + "</p>" +
+      '<p class="explica">' + esc(d.como_baixar) + "</p>" +
+      '<div class="linha-form"><button class="primario" id="lei-ir-config">Instalar em Configurações</button></div>' +
+      "</div>";
+    $("lei-ir-config").onclick = () => { marcarDestino("config"); mostrarConfig(); };
+    revelarAbaixo();
+    return;
+  }
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Citar a lei</h3>' +
+    '<p class="explica">Procure pelo número do artigo ou por palavra. O texto aparece ' +
+    "aqui para você conferir antes de inserir.</p>" +
+    '<div class="linha-form"><input type="text" id="lei-termo" placeholder="421, boa-fé, tutela de urgência…">' +
+    '<button class="primario" id="lei-buscar">Procurar</button></div>' +
+    '<div class="chips" style="margin-top:8px">' +
+    '<button class="chip' + (lei.codigo ? "" : " on") + '" data-leicod="">Todos</button>' +
+    instalados.map((c) =>
+      '<button class="chip' + (lei.codigo === c.codigo ? " on" : "") +
+      '" data-leicod="' + esc(c.codigo) + '">' + esc(c.codigo.toUpperCase()) +
+      '<span class="caminho">' + c.artigos + "</span></button>").join("") + "</div>" +
+    '<div id="lei-achados"></div></div>';
+
+  const buscar = () => {
+    lei.termo = $("lei-termo").value.trim();
+    procurarLei();
+  };
+  $("lei-buscar").onclick = buscar;
+  $("lei-termo").onkeydown = (e) => { if (e.key === "Enter") buscar(); };
+  alvo.querySelectorAll("[data-leicod]").forEach((b) => {
+    b.onclick = () => { lei.codigo = b.dataset.leicod; painelCodigos(); if (lei.termo) procurarLei(); };
+  });
+  if (lei.termo) { $("lei-termo").value = lei.termo; procurarLei(); }
+  revelarAbaixo();
+  $("lei-termo").focus();
+}
+
+async function procurarLei() {
+  const alvo = $("lei-achados");
+  if (!alvo || !lei.termo) return;
+  alvo.innerHTML = '<p class="nota">procurando…</p>';
+
+  const r = await fetch("/api/leis/procurar?termo=" + encodeURIComponent(lei.termo) +
+    "&codigo=" + encodeURIComponent(lei.codigo));
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+
+  const d = await r.json();
+  lei.achados = d.achados;
+
+  if (d.sem_codigo) { alvo.innerHTML = '<p class="explica">' + esc(d.aviso) + "</p>"; return; }
+  if (!d.achados.length) {
+    alvo.innerHTML = '<p class="explica">Nada achado com esse termo nos códigos instalados. ' +
+      "Isso quer dizer que não achei — não que não exista.</p>";
+    return;
+  }
+
+  alvo.innerHTML = '<div style="margin-top:12px">' + d.achados.map((a, i) =>
+    '<div class="artigo' + (a.revogado ? " revogado" : "") + '">' +
+    '<div class="artigo-topo"><b>' + esc(a.citacao) + "</b>" +
+    (a.revogado ? '<span class="artigo-selo">revogado</span>' : "") +
+    (a.alterado_por ? '<span class="rotulo">' + esc(a.alterado_por) + "</span>" : "") +
+    "</div>" +
+    (a.contexto ? '<span class="rotulo">' + esc(a.contexto) + "</span>" : "") +
+    '<p class="artigo-texto">' + esc(a.texto.slice(0, 620)) +
+    (a.texto.length > 620 ? "…" : "") + "</p>" +
+    '<div class="linha-form">' +
+    '<button data-citar="' + i + '">Inserir a citação</button>' +
+    '<button data-transcrever="' + i + '">Inserir com o texto</button></div></div>').join("") + "</div>";
+
+  alvo.querySelectorAll("[data-citar]").forEach((b) => {
+    b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.citar)], false);
+  });
+  alvo.querySelectorAll("[data-transcrever]").forEach((b) => {
+    b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.transcrever)], true);
+  });
+  revelarAbaixo();
+}
+
+/* Artigo revogado nunca entra sem a pessoa dizer que quer: citar um artigo que
+   não está mais em vigor é o erro mais caro que esta tela pode cometer. */
+function inserirCitacao(a, comTexto) {
+  if (!a) return;
+  if (a.revogado && !confirm(
+      "O " + a.citacao + " está REVOGADO.\n\nEle continua no texto compilado por " +
+      "referência histórica, mas não está em vigor. Inserir mesmo assim?")) return;
+
+  const folha = $("ed-folha");
+  if (!folha) { avisoCert("abra um documento para inserir a citação"); return; }
+
+  const bloco = document.createElement("p");
+  bloco.textContent = comTexto
+    ? "Nos termos do " + a.citacao + ": “" + a.texto.replace(/\s+/g, " ").slice(0, 900) + "”"
+    : "(" + a.citacao + ")";
+  folha.appendChild(bloco);
+  marcarSujo();
+  avisoCert(a.citacao + " inserido no fim do documento" + (a.revogado ? " — artigo revogado" : ""));
+}
+
+/* ------------------------------------------------ instalar em Configurações */
+
+async function blocoLeis() {
+  const alvo = $("cfg-leis");
+  if (!alvo) return;
+  const d = await (await fetch("/api/leis")).json();
+
+  alvo.innerHTML = "<h3>Códigos de lei</h3>" +
+    '<p class="explica">' + esc(d.porque) + "</p>" +
+    '<p class="explica">' + esc(d.como_baixar) + "</p>" +
+    d.codigos.map((c) =>
+      '<div class="reg-linha"><span class="cresce corta">' + esc(c.nome) + "</span>" +
+      '<span class="num">' + esc(c.lei) + "</span>" +
+      (c.instalado
+        ? '<span class="cert-estado valido">' + c.artigos + " artigos</span>" +
+          '<span class="num">' + esc(quandoCurto(c.importado_em)) + "</span>" +
+          '<button class="perigo" data-tirar-lei="' + esc(c.codigo) + '">Remover</button>'
+        : '<span class="cert-estado">não instalado</span>') +
+      "</div>").join("") +
+    '<div class="linha-form"><button class="primario" id="lei-importar-pasta">Importar de uma pasta</button>' +
+    '<button id="lei-importar-arq">Escolher um arquivo</button></div>' +
+    '<div id="lei-saida"></div>';
+
+  alvo.querySelectorAll("[data-tirar-lei]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Remover este código? A citação volta a ficar indisponível até você importar de novo.")) return;
+      await fetch("/api/leis/" + b.dataset.tirarLei, { method: "DELETE" });
+      blocoLeis();
+    };
+  });
+
+  $("lei-importar-pasta").onclick = async () => {
+    const pasta = await escolherPastaDoSistema("Pasta com os códigos salvos do Planalto");
+    if (!pasta) return;
+    const saida = $("lei-saida");
+    saida.innerHTML = '<p class="nota">lendo os arquivos… isso leva alguns segundos</p>';
+    const r = await fetch("/api/leis/importar-pasta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pasta: pasta }),
+    });
+    if (!r.ok) { saida.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+    mostrarResultadoDaImportacao(await r.json());
+  };
+
+  $("lei-importar-arq").onclick = async () => {
+    const caminho = prompt("Caminho do arquivo HTML salvo do Planalto:");
+    if (!caminho) return;
+    const saida = $("lei-saida");
+    saida.innerHTML = '<p class="nota">lendo…</p>';
+    const r = await fetch("/api/leis/importar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caminho: caminho }),
+    });
+    if (!r.ok) { saida.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+    mostrarResultadoDaImportacao({ importados: [await r.json()], ignorados: [] });
+  };
+}
+
+function mostrarResultadoDaImportacao(d) {
+  const saida = $("lei-saida");
+  saida.innerHTML = '<div class="ed-sugestao" style="margin-top:12px">' +
+    '<span class="rotulo">o que entrou</span>' +
+    (d.importados || []).map((x) =>
+      "<p>" + esc(x.nome) + ": <b>" + x.artigos + "</b> artigos, do " + esc(x.primeiro) +
+      " ao " + esc(x.ultimo) +
+      (x.revogados ? " · " + x.revogados + " revogado(s)" : "") +
+      (x.fora_do_corpo && (x.fora_do_corpo.preambulo || x.fora_do_corpo.citados)
+        ? '<br><span class="explica">deixei de fora ' +
+          (x.fora_do_corpo.preambulo ? x.fora_do_corpo.preambulo + " artigo(s) do decreto que aprova o código" : "") +
+          (x.fora_do_corpo.preambulo && x.fora_do_corpo.citados ? " e " : "") +
+          (x.fora_do_corpo.citados ? x.fora_do_corpo.citados + " artigo(s) de outras leis citados nas disposições finais" : "") +
+          "</span>"
+        : "") + "</p>").join("") +
+    ((d.ignorados || []).length
+      ? '<p class="explica">Não usei: ' + d.ignorados.map((x) => esc(x.arquivo) + " (" + esc(x.motivo) + ")").join("; ") + "</p>"
+      : "") +
+    "</div>";
+  blocoLeis();
+}
+
+/* O seletor de pasta do Windows só existe na janela do programa; no navegador
+   o caminho é digitado, e a tela diz qual dos dois está acontecendo. */
+async function escolherPastaDoSistema(titulo) {
+  if (window.pywebview && window.pywebview.api && window.pywebview.api.escolher_pasta) {
+    try {
+      const escolhida = await window.pywebview.api.escolher_pasta();
+      if (escolhida) return escolhida;
+    } catch (err) { /* cai para o campo digitado */ }
+  }
+  return prompt(titulo + ":");
 }
 
 /* ------------------------------------------------------------- inicio */

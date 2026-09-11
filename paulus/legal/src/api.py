@@ -40,6 +40,7 @@ import bemestar
 import conexoes
 import documento
 import financeiro
+import leis
 import planilha
 import relatorios
 import pastas
@@ -129,6 +130,8 @@ class Estado:
         # Documentos de texto e planilhas, com historico de versoes.
         self.documentos = documento.Documentos(self.base)
         self.clausulas = documento.Clausulas(CLAUSULAS_PATH)
+        # Os codigos oficiais em base local: citar vira consulta.
+        self.leis = leis.Leis(self.base)
         # Financeiro, bem-estar e conexoes; relatorios so le o que os outros gravaram.
         self.financeiro = financeiro.Financeiro(self.base)
         self.bem_estar = bemestar.BemEstar(self.base)
@@ -2264,23 +2267,26 @@ def documentos_criar(payload: NovoDocumento) -> dict:
 @app.get("/api/documentos/modelos")
 def documentos_modelos() -> dict:
     """
-    As clausulas que o escritorio guarda.
+    As clausulas do escritorio e os codigos de lei disponiveis.
 
-    Os codigos (CC, CPC, CP, CLT) que o wireframe mostra ficam de fora de
-    proposito: o programa nao carrega o texto das leis, e pedir o artigo a um
-    modelo de 3 bilhoes de parametros produziria numero de artigo plausivel e
-    errado dentro de um contrato. Melhor nao ter do que ter errado.
+    Os codigos ficaram de fora ate a Etapa 11 porque o programa nao tinha o
+    texto das leis, e pedir o artigo ao modelo produziria numero plausivel e
+    errado dentro de um contrato. Com o texto oficial no disco, citar passa a
+    ser consulta - e quando um codigo nao esta instalado, a tela diz isso em
+    vez de chutar.
     """
+    instalados = estado.leis.instalados()
     return {
         "clausulas": estado.clausulas.listar(),
-        "codigos_indisponiveis": {
-            "titulo": "Citação de código de lei",
+        "codigos": instalados,
+        "tem_codigo": any(c["instalado"] for c in instalados),
+        "sem_codigo": {
+            "titulo": "Nenhum código instalado",
             "porque": (
-                "Não carrego o texto do Código Civil, do CPC, do CP nem da CLT, e não "
-                "vou pedir o artigo ao modelo: ele devolveria um número plausível e "
-                "possivelmente errado, dentro de um contrato."
+                "Sem o texto oficial no disco eu não cito artigo: o número sairia de um "
+                "modelo pequeno, plausível e possivelmente errado dentro de um contrato."
             ),
-            "falta": ["texto oficial dos códigos, em base local"],
+            "onde": "Configurações · Códigos de lei",
         },
     }
 
@@ -3219,6 +3225,111 @@ def conexoes_contatos() -> dict:
                 "numero": conexoes.numero_whatsapp(f["telefone"]),
             })
     return {"contatos": achados}
+
+# ------------------------------------------------------------------ leis
+
+
+class ImportarLei(BaseModel):
+    caminho: str = ""
+    codigo: str = ""
+
+
+@app.get("/api/leis")
+def leis_listar() -> dict:
+    """O que está no disco, e o que falta."""
+    return {
+        "codigos": estado.leis.instalados(),
+        "contagem": estado.leis.contagem(),
+        "porque": (
+            "Com o texto no disco, citar um artigo é consulta a um índice. Sem ele, eu "
+            "não cito: pedir o número a um modelo de 3 bilhões de parâmetros devolve "
+            "artigo plausível e errado dentro de um contrato."
+        ),
+        "como_baixar": (
+            "Abra a página do código no Planalto, salve como “Página da Web, completa” "
+            "e escolha o arquivo aqui. É o texto compilado oficial, com as alterações "
+            "já incorporadas."
+        ),
+    }
+
+
+@app.post("/api/leis/importar")
+def leis_importar(payload: ImportarLei) -> dict:
+    """
+    Lê o texto oficial e guarda artigo por artigo.
+
+    O que não é artigo do código fica de fora e é contado: o decreto que aprova
+    a consolidação tem artigos próprios, e as disposições finais citam artigos
+    de outras leis. Guardar essas citações como artigos deste código seria
+    inventar artigo que não existe.
+    """
+    alvo = Path(payload.caminho)
+    if not alvo.exists():
+        raise HTTPException(status_code=400, detail="não achei esse arquivo")
+    if alvo.suffix.lower() not in (".html", ".htm"):
+        raise HTTPException(status_code=400, detail="salve a página do Planalto como HTML")
+
+    try:
+        resultado = estado.leis.importar(alvo, payload.codigo)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {**resultado, "codigos": estado.leis.instalados(),
+            "contagem": estado.leis.contagem()}
+
+
+@app.post("/api/leis/importar-pasta")
+def leis_importar_pasta(payload: dict) -> dict:
+    """Importa de uma vez tudo o que a pasta tiver e o programa reconhecer."""
+    pasta = Path(str(payload.get("pasta", "")))
+    if not pasta.is_dir():
+        raise HTTPException(status_code=400, detail="essa pasta não existe")
+
+    feitos, ignorados = [], []
+    for arquivo in sorted(list(pasta.glob("*.html")) + list(pasta.glob("*.htm"))):
+        codigo = leis.reconhecer(arquivo)
+        if not codigo:
+            ignorados.append({"arquivo": arquivo.name, "motivo": "não reconheci de qual código é"})
+            continue
+        try:
+            feitos.append(estado.leis.importar(arquivo, codigo))
+        except ValueError as exc:
+            ignorados.append({"arquivo": arquivo.name, "motivo": str(exc)})
+
+    return {"importados": feitos, "ignorados": ignorados,
+            "codigos": estado.leis.instalados(), "contagem": estado.leis.contagem()}
+
+
+@app.delete("/api/leis/{codigo}")
+def leis_apagar(codigo: str) -> dict:
+    estado.leis.apagar(codigo)
+    return {"codigos": estado.leis.instalados(), "contagem": estado.leis.contagem()}
+
+
+@app.get("/api/leis/procurar")
+def leis_procurar(termo: str = "", codigo: str = "", limite: int = 20) -> dict:
+    """
+    Busca por número de artigo ou por palavra.
+
+    Quando não há código instalado, a resposta diz isso em vez de devolver
+    vazio: lista vazia parece "não existe artigo sobre isso", e o certo é
+    "ainda não tenho o texto da lei aqui".
+    """
+    if not estado.leis.contagem()["codigos"]:
+        return {"achados": [], "sem_codigo": True,
+                "aviso": "Nenhum código instalado ainda. Importe o texto oficial primeiro."}
+    return {"achados": estado.leis.procurar(termo, codigo, limite), "sem_codigo": False}
+
+
+@app.get("/api/leis/artigo")
+def leis_artigo(codigo: str, numero: str) -> dict:
+    a = estado.leis.artigo(codigo, numero)
+    if not a:
+        raise HTTPException(
+            status_code=404,
+            detail=f"não achei o art. {numero} no {leis.CODIGOS.get(codigo, {}).get('nome', codigo)}",
+        )
+    return {"artigo": a, "vizinhos": estado.leis.vizinhos(codigo, a["ordem"])}
 
 def main() -> None:
     import argparse
