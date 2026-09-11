@@ -67,7 +67,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
     # informação" sobre um documento que nunca abriu.
     if ctx.searcher.cabe_inteiro(orcamento):
         hits = ctx.searcher.tudo()
-        ctx.registrar(f"Leu os {len(ctx.documentos)} documento(s) inteiros")
+        ctx.registrar("Leu " + _quantos(len(ctx.documentos), "documento") + " por inteiro")
     else:
         # Não cabendo tudo, cabe mais do que seis trechos: o quanto couber.
         # E dois trechos por documento com um orçamento grande deixava
@@ -76,7 +76,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
         por_documento = max(2, cabem // max(1, len(ctx.documentos)))
         hits = ctx.searcher.search(pergunta, top_k=max(top, cabem),
                                    per_doc_limit=por_documento)
-        ctx.registrar(f"Procurou em {len(ctx.documentos)} documento(s)")
+        ctx.registrar("Procurou em " + _quantos(len(ctx.documentos), "documento"))
 
     if not hits:
         yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos.")
@@ -94,7 +94,8 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
         for h in hits
     ]
 
-    ctx.registrar(f"Leu {len(hits)} trecho(s) de {len(consultados)} documento(s)")
+    ctx.registrar(_quantos(len(hits), "trecho") + " de " +
+                  _quantos(len(consultados), "documento"))
     yield evento(
         "fontes",
         consultados=consultados,
@@ -104,14 +105,49 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
     )
 
     contexto = ctx.searcher.format_context(hits, max_chars=orcamento)
-    for pedaco in _pedacos(ctx, pergunta, contexto):
-        yield evento("token", t=pedaco)
+
+    # O que vai acontecer, dito antes de acontecer. Ler o prompt inteiro e o
+    # silencio longo: o Ollama nao emite nada ate a primeira palavra, entao a
+    # tela mostra O QUE esta sendo lido e quanto leituras deste tamanho
+    # levaram NESTA maquina - quando ja houve alguma para medir.
+    previsao = {"sabe": False}
+    if getattr(ctx, "ritmo", None):
+        previsao = ctx.ritmo.previsao_de_leitura(ctx.client.model, len(contexto))
+
+    yield evento(
+        "lendo",
+        caracteres=len(contexto),
+        trechos=len(hits),
+        documentos=len(consultados),
+        janela=getattr(ctx.client, "num_ctx", 0),
+        modelo=getattr(ctx.client, "model", ""),
+        previsao=previsao,
+    )
+
+    for tipo, dados in _pedacos(ctx, pergunta, contexto):
+        yield evento(tipo, **dados)
 
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
 
 
+def _quantos(n: int, palavra: str) -> str:
+    return f"{n} {palavra if n == 1 else palavra + 's'}"
+
+
 def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
-    """O cliente do assistente entrega por callback; aqui vira iterador."""
-    return Ponte(
-        lambda empurrar: ctx.client.ask(pergunta, contexto, stream=True, on_token=empurrar)
-    )
+    """
+    O cliente entrega por callback; aqui vira iterador de eventos.
+
+    Alem dos tokens, passam as viradas de fase: a hora em que a leitura acabou
+    e a primeira palavra saiu, e os numeros que o Ollama devolve no fim -
+    tokens lidos e escritos, contados por ele, nao estimados por mim.
+    """
+    def trabalho(empurrar):
+        return ctx.client.ask(
+            pergunta, contexto, stream=True,
+            on_token=lambda t: empurrar(("token", {"t": t})),
+            on_fase=lambda fase, dados: empurrar((fase, dados)),
+        )
+
+    for item in Ponte(trabalho):
+        yield item

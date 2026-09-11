@@ -91,9 +91,13 @@ class Contexto:
         registrar=None,
         cancelado=None,
         antes_de_cada=None,
+        ritmo=None,
     ) -> None:
         self.searcher = searcher
         self.client = client
+        # O que esta maquina ja mediu de si mesma: quanto ela le por segundo,
+        # quanto escreve. Sem isso, a tela nao promete tempo nenhum.
+        self.ritmo = ritmo
         self.pasta = pasta
         self.cache_classificacao = cache_classificacao
         self.diarios = diarios

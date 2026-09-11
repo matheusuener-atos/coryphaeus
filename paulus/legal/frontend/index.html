@@ -420,6 +420,42 @@
   .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 
   /* cartao de aprovacao */
+  /* A janelinha dos bastidores. Fica discreta de propósito: é o que está
+     acontecendo, não o que interessa ler depois. Monoespaçada porque é
+     registro — número alinhado com número. */
+  .bastidor {
+    border: 1px solid var(--linha); background: var(--surface-2);
+    margin-top: 10px; padding: 9px 12px 4px;
+  }
+  .bastidor-topo {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 6px; border-bottom: 1px solid var(--linha);
+  }
+  .bastidor-linhas { max-height: 172px; overflow-y: auto; padding: 6px 0 4px; }
+  .bastidor-linha {
+    display: flex; gap: 10px; align-items: baseline;
+    font: 400 11.5px var(--mono); color: var(--ink-muted);
+    padding: 2px 0; line-height: 1.5;
+  }
+  .bastidor-quando {
+    flex: 0 0 46px; text-align: right; color: var(--ink-3); font-size: 10.5px;
+  }
+  .bastidor-linha.viva { color: var(--ink); }
+  .bastidor-linha.atencao { color: var(--atencao); }
+  .bastidor-linha.feito { color: var(--ok-texto); }
+  .bastidor-linha > span:last-child { flex: 1; min-width: 0; }
+
+  .bastidor-barra { height: 2px; background: var(--trilho); margin-top: 5px; overflow: hidden; }
+  .bastidor-barra > i { display: block; height: 100%; background: var(--acento); }
+  /* Sem medição anterior não há o que prever, e a barra não finge saber:
+     ela anda para mostrar que a coisa está viva, e não quanto falta. */
+  .bastidor-barra.indefinida > i { width: 32%; animation: vaivem 1.5s ease-in-out infinite; }
+  @keyframes vaivem {
+    0%   { margin-left: 0; }
+    50%  { margin-left: 68%; }
+    100% { margin-left: 0; }
+  }
+
   /* O que entendi do pedido, antes de gravar. Tem a borda do acento, e não a
      de atenção: não é um aviso, é uma proposta esperando o seu sim. */
   .proposta {
@@ -2557,6 +2593,11 @@ async function enviar() {
      { titulo: "Procurar e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
   centro.appendChild(plano);
 
+  // A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
+  const bastidores = document.createElement("div");
+  centro.appendChild(bastidores);
+  abrirBastidor(bastidores);
+
   const resposta = document.createElement("div");
   resposta.className = "resposta";
   resposta.innerHTML = '<div class="texto"></div>';
@@ -2596,15 +2637,51 @@ async function enviar() {
         const dados = JSON.parse(md[1]);
 
         if (mt[1] === "fontes") {
+          anotarBastidor("procurei nos " + plural(dados.total_contratos, "documento") +
+            " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
+            " de " + plural(dados.consultados.length, "documento"));
           if (dados.ignorados.length) {
+            anotarBastidor(plural(dados.ignorados.length, "documento") +
+              " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
             resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
           }
           resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
+        } else if (mt[1] === "lendo") {
+          anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
+            dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
+          bastidor.previsao = dados.previsao;
+          if (dados.previsao && dados.previsao.sabe) {
+            anotarBastidor("aqui, leituras deste tamanho levaram ~" +
+              dados.previsao.segundos + " s (mediana de " +
+              plural(dados.previsao.medicoes, "leitura") + ")");
+          } else {
+            anotarBastidor("ainda não medi leituras deste modelo nesta máquina — " +
+              "esta vai virar a primeira medida");
+          }
+          faseBastidor("lendo", "lendo…");
+        } else if (mt[1] === "escrevendo") {
+          anotarBastidor("primeira palavra saiu · esperei " +
+            segundosBR(dados.lendo_segundos) + " até aqui");
+          bastidor.escreveDesde = Date.now();
+          bastidor.palavras = 0;
+          faseBastidor("escrevendo", "escrevendo…");
+        } else if (mt[1] === "medida") {
+          fecharBastidor();
+          // Dois tempos diferentes e de proposito: o que a pessoa esperou e o
+          // que o modelo gastou calculando. A diferenca e o modelo carregando.
+          anotarBastidor("pronto · o modelo gastou " + segundosBR(dados.lendo_segundos) +
+            " lendo " + milhar(dados.tokens_lidos) + " tokens" +
+            (dados.do_cache ? " (boa parte ja estava em cache)" : "") +
+            " e " + segundosBR(dados.escrevendo_segundos) + " escrevendo " +
+            milhar(dados.tokens_escritos), "feito");
         } else if (mt[1] === "etapas") {
           plano.innerHTML = cartaoPlano(dados.etapas, 2);
         } else if (mt[1] === "token") {
           if (primeiro) { texto.textContent = ""; primeiro = false; }
           texto.textContent += dados.t;
+          // Palavras escritas ate agora: e o numero que a janelinha mostra
+          // subindo enquanto o modelo escreve. Contado, nao estimado.
+          bastidor.palavras = texto.textContent.trim().split(/\s+/).filter(Boolean).length;
           rolar();
         } else if (mt[1] === "proposta") {
           // Pedido de ação: nada de procurar nos documentos. O cartão mostra
@@ -2622,6 +2699,7 @@ async function enviar() {
           plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
             esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" onclick="location.reload()">Tentar de novo</button></div></div>';
         } else if (mt[1] === "fim") {
+          fecharBastidor();
           plano.remove();
           resposta.insertAdjacentHTML("beforeend",
             '<div class="assinatura">respondido em ' + dados.segundos + "s</div>");
@@ -2632,6 +2710,7 @@ async function enviar() {
   } catch (err) {
     texto.textContent = "Não consegui responder: " + err;
   } finally {
+    fecharBastidor();
     clearInterval(relogio);
     estado.ocupado = false;
     $("enviar").disabled = false;
@@ -5382,6 +5461,133 @@ function ligarProposta(caixa, d, ondeResponder) {
     };
     carregarStatus();
   };
+}
+
+
+/* ------------------------------------------------------ o que está rolando */
+/*
+   A janelinha dos bastidores. Durante os oitenta segundos em que o modelo lê o
+   prompt inteiro, a tela não tinha o que dizer — e mostrava uma barra em 25/25
+   que não era progresso, porque os dois números chegavam juntos.
+
+   Cada linha daqui é uma coisa que aconteceu de verdade, com o número que veio
+   junto. Nada é escrito para parecer ocupado: quando não há o que dizer, a
+   janelinha fica quieta e só o relógio anda.
+*/
+
+/* Sem id fixo: cada pergunta abre a sua janelinha, e duas janelinhas com o
+   mesmo id fazem a segunda escrever dentro da primeira — foi o que aconteceu
+   ao perguntar duas vezes seguidas. As referências ficam guardadas aqui. */
+const bastidor = { desde: 0, timer: null, fase: "", palavras: 0,
+                   caixa: null, linhasEl: null, relogioEl: null, vivaEl: null,
+                   previsao: null, escreveDesde: 0 };
+
+function abrirBastidor(caixa) {
+  fecharBastidor();
+  bastidor.desde = Date.now();
+  bastidor.fase = "";
+  bastidor.palavras = 0;
+  bastidor.previsao = null;
+  bastidor.vivaEl = null;
+
+  caixa.innerHTML = '<div class="bastidor">' +
+    '<div class="bastidor-topo"><span class="rotulo">o que estou fazendo</span>' +
+    '<span class="num"></span></div><div class="bastidor-linhas"></div></div>';
+
+  bastidor.caixa = caixa.querySelector(".bastidor");
+  bastidor.relogioEl = caixa.querySelector(".bastidor-topo .num");
+  bastidor.linhasEl = caixa.querySelector(".bastidor-linhas");
+  bastidor.relogioEl.textContent = "0 s";
+
+  bastidor.timer = setInterval(tiquetaqueBastidor, 250);
+}
+
+function anotarBastidor(texto, classe) {
+  if (!bastidor.linhasEl) return;
+  const segundos = ((Date.now() - bastidor.desde) / 1000).toFixed(1).replace(".", ",");
+  bastidor.linhasEl.insertAdjacentHTML("beforeend",
+    '<div class="bastidor-linha ' + (classe || "") + '">' +
+    '<span class="bastidor-quando">' + segundos + ' s</span>' +
+    "<span>" + esc(texto) + "</span></div>");
+  bastidor.linhasEl.scrollTop = bastidor.linhasEl.scrollHeight;
+}
+
+/* A última linha muda sozinha enquanto a fase dura: é ela que dá o movimento,
+   e o que ela mostra é medido — segundos que passaram, palavras que saíram. */
+function tiquetaqueBastidor() {
+  if (!bastidor.relogioEl || !bastidor.relogioEl.isConnected) {
+    clearInterval(bastidor.timer);
+    return;
+  }
+  const passados = (Date.now() - bastidor.desde) / 1000;
+  bastidor.relogioEl.textContent = Math.round(passados) + " s";
+
+  const viva = bastidor.vivaEl;
+  if (!viva) return;
+
+  if (bastidor.fase === "lendo") {
+    const p = bastidor.previsao;
+    if (p && p.sabe) {
+      // Quanto já passou do que costuma levar. Passou do previsto? A tela diz
+      // que passou — esconder isso seria errar duas vezes.
+      const parte = Math.min(100, Math.round((passados / p.segundos) * 100));
+      viva.innerHTML = "lendo… " + Math.round(passados) + " s de ~" + p.segundos + " s" +
+        (passados > p.segundos ? " (passou do previsto)" : "") +
+        '<div class="bastidor-barra"><i style="width:' + parte + '%"></i></div>';
+    } else {
+      viva.innerHTML = "lendo… " + Math.round(passados) + " s" +
+        '<div class="bastidor-barra indefinida"><i></i></div>';
+    }
+  } else if (bastidor.fase === "escrevendo") {
+    const desde = (Date.now() - bastidor.escreveDesde) / 1000;
+    const taxa = desde > 0.5
+      ? (bastidor.palavras / desde).toFixed(1).replace(".", ",")
+      : "";
+    viva.textContent = "escrevendo… " + plural(bastidor.palavras, "palavra") +
+      (taxa ? " · " + taxa + " por segundo" : "");
+  }
+}
+
+/* A linha viva é transitória: existe para mostrar que a coisa anda. Quando a
+   fase acaba, some — porque logo abaixo entra a linha de fato, com o que
+   aconteceu. Deixá-la congelada em "lendo… 12 s" com "agora" ao lado seria um
+   número parado mentindo que ainda está acontecendo. */
+function encerrarFaseViva() {
+  if (bastidor.vivaEl) {
+    const linha = bastidor.vivaEl.closest(".bastidor-linha");
+    if (linha) linha.remove();
+    bastidor.vivaEl = null;
+  }
+}
+
+function faseBastidor(fase, texto) {
+  encerrarFaseViva();
+  bastidor.fase = fase;
+  if (!bastidor.linhasEl) return;
+  bastidor.linhasEl.insertAdjacentHTML("beforeend",
+    '<div class="bastidor-linha viva"><span class="bastidor-quando">agora</span>' +
+    "<span>" + esc(texto) + "</span></div>");
+  const ultima = bastidor.linhasEl.lastElementChild;
+  bastidor.vivaEl = ultima ? ultima.lastElementChild : null;
+  bastidor.linhasEl.scrollTop = bastidor.linhasEl.scrollHeight;
+}
+
+function fecharBastidor() {
+  clearInterval(bastidor.timer);
+  bastidor.fase = "";
+  encerrarFaseViva();
+}
+
+function milhar(n) {
+  return Number(n || 0).toLocaleString("pt-BR");
+}
+
+/* "0.4 s" nao e portugues, e "0 s" para uma leitura que aconteceu nao e
+   numero. Abaixo de um decimo, o que houve foi "menos de um segundo". */
+function segundosBR(s) {
+  const n = Number(s || 0);
+  if (n < 0.1) return "menos de 0,1 s";
+  return n.toFixed(1).replace(".", ",") + " s";
 }
 
 

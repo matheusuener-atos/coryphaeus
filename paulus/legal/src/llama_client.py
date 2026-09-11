@@ -106,6 +106,7 @@ class LlamaClient:
         fmt: str | None = None,
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
+        on_fase: Callable[[str, dict], None] | None = None,
     ) -> str:
         payload: dict = {
             "model": self.model,
@@ -115,6 +116,15 @@ class LlamaClient:
         }
         if fmt:
             payload["format"] = fmt
+
+        # O relogio comeca aqui, antes do POST. Com stream=True o requests so
+        # retorna quando o Ollama manda o primeiro pedaco - e o Ollama so manda
+        # depois de carregar o modelo e ler o prompt. Comecando a contar depois
+        # da chamada, os nove segundos de espera ficavam fora da conta e a tela
+        # dizia "terminou de ler em menos de 0,1 s" apos nove segundos parada.
+        import time
+
+        comeco = time.time()
 
         try:
             resp = requests.post(
@@ -141,7 +151,13 @@ class LlamaClient:
         if not stream:
             return resp.json().get("message", {}).get("content", "").strip()
 
+        # As duas fases tem nomes e tempos diferentes, e quem olha a tela
+        # precisa saber em qual esta. LER o prompt inteiro e o silencio longo -
+        # o Ollama nao emite nada ate a primeira palavra. ESCREVER comeca no
+        # primeiro token e da para acompanhar palavra a palavra.
+        primeiro_token = 0.0
         partes: list[str] = []
+
         for linha in resp.iter_lines(decode_unicode=True):
             if not linha:
                 continue
@@ -153,10 +169,34 @@ class LlamaClient:
                 raise OllamaError(dado["error"])
             token = dado.get("message", {}).get("content", "")
             if token:
+                if not primeiro_token:
+                    primeiro_token = time.time()
+                    if on_fase:
+                        on_fase("escrevendo", {"lendo_segundos": round(primeiro_token - comeco, 1)})
                 partes.append(token)
                 if on_token:
                     on_token(token)
             if dado.get("done"):
+                if on_fase:
+                    fim = time.time()
+                    # Os tempos vem do proprio Ollama, em nanossegundos. O
+                    # relogio daqui mede a espera; o dele mede o trabalho, e os
+                    # dois divergem quando o prompt ja esta em cache: 7.092
+                    # tokens "lidos em 0 s" nao e um numero, e um artefato.
+                    lendo = dado.get("prompt_eval_duration", 0) / 1e9
+                    escrevendo = dado.get("eval_duration", 0) / 1e9
+                    espera = (primeiro_token or fim) - comeco
+                    on_fase("medida", {
+                        "lendo_segundos": round(lendo or espera, 1),
+                        "escrevendo_segundos": round(escrevendo or (fim - (primeiro_token or fim)), 1),
+                        "esperou_segundos": round(espera, 1),
+                        # Prompt repetido: o Ollama reaproveita o que ja
+                        # calculou, e a leitura sai de graca. Dizer isso e
+                        # melhor que mostrar um tempo que nao aconteceu.
+                        "do_cache": bool(lendo and espera and lendo < espera / 3),
+                        "tokens_lidos": dado.get("prompt_eval_count", 0),
+                        "tokens_escritos": dado.get("eval_count", 0),
+                    })
                 break
         return "".join(partes).strip()
 
@@ -169,6 +209,7 @@ class LlamaClient:
         *,
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
+        on_fase: Callable[[str, dict], None] | None = None,
     ) -> str:
         """Pergunta com contexto de contratos."""
         conteudo = (
@@ -180,7 +221,7 @@ class LlamaClient:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": conteudo},
         ]
-        return self._chat(messages, stream=stream, on_token=on_token)
+        return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase)
 
     def ask_json(self, instruction: str, context: str = "", schema_hint: str = "") -> dict | list | None:
         """

@@ -622,6 +622,54 @@ Fica para a Etapa 12: conferir prazos do documento contra os prazos da lei.
 
 ---
 
+## A janelinha dos bastidores ✓ FEITA
+
+**Tela:** Conversa
+**Tamanho:** pequeno
+**Fora da numeração:** veio do uso — *"quero essa parte mais dinâmica, como se
+realmente estivesse pensando"*
+
+O cartão de progresso mostrava uma barra em **25/25** durante os oitenta
+segundos de espera. Não era progresso: os dois números chegavam juntos, e a
+barra nascia cheia. O resto do tempo, nada se mexia.
+
+O que acontece naquele silêncio tem nome — o modelo está **lendo** o prompt
+inteiro antes da primeira palavra, e o Ollama não emite nada nessa fase. Então
+não há progresso a relatar, mas há o que dizer: o tamanho do que está sendo
+lido, e quanto leituras desse tamanho levaram *neste computador*.
+
+A janelinha mostra uma linha por coisa que aconteceu:
+
+```
+O QUE ESTOU FAZENDO                                        27 s
+  0,0 s  procurei nos 6 documentos abertos · vou usar 25 trechos de 6
+  0,1 s  mandei 21.178 caracteres para o llama3.2:3b, janela de 16.384 tokens
+  0,1 s  aqui, leituras deste tamanho levaram ~72 s (mediana de 4 leituras)
+  agora  lendo… 38 s de ~72 s  ▓▓▓▓▓▓▓░░░░░
+  9,1 s  primeira palavra saiu · esperei 9,1 s até aqui
+  agora  escrevendo… 52 palavras · 1,8 por segundo
+ 93,0 s  pronto · o modelo gastou 6,1 s lendo 7.095 tokens e 83,9 s escrevendo 266
+```
+
+`src/ritmo.py` guarda as últimas 25 leituras, **por modelo**: a mesma máquina
+lê em velocidades diferentes com Q4 e Q8, e uma média dos dois não descreveria
+nenhum. Sem histórico, a janelinha diz *"ainda não medi leituras deste modelo
+nesta máquina"* e a barra fica indefinida — nada de porcentagem fingida.
+
+Nada é escrito para parecer ocupado. Quando não há o que dizer, a janelinha
+fica quieta e só o relógio anda.
+
+### Quatro coisas que a tela dizia errado
+
+| dizia | era |
+|---|---|
+| "25 / 25" desde o primeiro instante | os dois números chegavam juntos |
+| "leu tudo em 0 s" com 7.092 tokens | cache de prompt do Ollama, agora declarado |
+| "terminou de ler em menos de 0,1 s" após 9 s parada | o relógio começava depois do `POST`, que só volta quando o Ollama responde |
+| duas perguntas seguidas: linhas da segunda no painel da primeira | dois `id` iguais no DOM |
+
+---
+
 ## Ele passa a ler todos os arquivos ✓ FEITA
 
 **Telas:** Conversa

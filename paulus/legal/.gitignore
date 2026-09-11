@@ -54,4 +54,7 @@ data/comprovantes/
 # escritorio: ficam na maquina, nunca no repositorio.
 data/recibos/
 data/exportacoes/
+# O ritmo medido e desta maquina: o numero do computador de outra pessoa nao
+# diz nada sobre o desta.
+data/ritmo.json
 data/clausulas.json

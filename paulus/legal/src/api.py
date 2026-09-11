@@ -44,6 +44,7 @@ import acervo
 import escritorio
 import intencao
 import leis
+import ritmo as ritmo_mod
 import planilha
 import relatorios
 import pastas
@@ -101,6 +102,7 @@ SESSOES_DIR = BASE_DIR / "data" / "sessoes"
 COMPROVANTES_DIR = BASE_DIR / "data" / "comprovantes"
 RECIBOS_DIR = BASE_DIR / "data" / "recibos"
 EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
+RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -146,6 +148,9 @@ class Estado:
         self.leis = leis.Leis(self.base)
         # O que a pessoa marcou sobre cada documento da biblioteca.
         self.marcas = acervo.Marcas(self.base)
+        # O que esta maquina ja mediu de si: quanto le e quanto escreve por
+        # segundo. E daqui que sai o "leituras assim levaram ~70 s aqui".
+        self.ritmo = ritmo_mod.Ritmo(RITMO_PATH)
         # Financeiro, bem-estar e conexoes; relatorios so le o que os outros gravaram.
         self.financeiro = financeiro.Financeiro(self.base)
         # A folha, as notas e os boletos: o escritorio por dentro.
@@ -285,6 +290,7 @@ def _contexto(registrar=None) -> Contexto:
         registrar=registrar,
         cancelado=estado.cancelar.is_set,
         antes_de_cada=lambda: recursos.esperar_maquina_livre(estado.devagar, limite_s=10),
+        ritmo=estado.ritmo,
     )
 
 
@@ -902,6 +908,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         partes: list[str] = []
         cobertura: dict = {}
         fontes: list[dict] = []
+        medida: dict = {}
+        lido_chars = 0
 
         try:
             for tipo, dados in habilidade.executar(
@@ -915,12 +923,30 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                     }
                     fontes = dados["trechos"]
                     trabalho.etapas[0].estado = CONCLUIDO
-                    trabalho.etapas[0].detalhe = f"{dados['total_contratos']} documento(s)"
-                    trabalho.etapas[1].estado = EXECUTANDO
-                    trabalho.etapas[1].feitos = len(fontes)
-                    trabalho.etapas[1].total = len(fontes)
+                    trabalho.etapas[0].detalhe = (
+                        _quantos(dados["total_contratos"], "documento") + ", "
+                        + _quantos(len(fontes), "trecho"))
+                    # Sem 25/25 aqui: os dois numeros chegavam juntos, e uma
+                    # barra que nasce cheia nao e progresso - e enfeite.
                     yield _sse("fontes", dados)
                     yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+                elif tipo == "lendo":
+                    lido_chars = dados["caracteres"]
+                    trabalho.etapas[1].titulo = "Lendo os documentos"
+                    trabalho.etapas[1].estado = EXECUTANDO
+                    trabalho.etapas[1].detalhe = f"{dados['caracteres']:,}".replace(",", ".") + " caracteres"
+                    yield _sse("lendo", dados)
+                    yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+                elif tipo == "escrevendo":
+                    # A leitura acabou de verdade: a primeira palavra saiu.
+                    trabalho.etapas[1].estado = CONCLUIDO
+                    trabalho.etapas[1].detalhe = f"{dados['lendo_segundos']} s"
+                    trabalho.etapas.append(Etapa("Escrevendo a resposta", estado=EXECUTANDO))
+                    yield _sse("escrevendo", dados)
+                    yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+                elif tipo == "medida":
+                    medida = dados
+                    yield _sse("medida", dados)
                 elif tipo == "token":
                     partes.append(dados["t"])
                     yield _sse("token", dados)
@@ -942,7 +968,24 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             return
 
         segundos = round(time.time() - inicio, 1)
-        trabalho.etapas[1].estado = CONCLUIDO
+
+        # O que acabou de acontecer entra no historico da maquina: e dele que
+        # sai o "leituras deste tamanho levaram ~70 s aqui" da proxima vez.
+        if medida and lido_chars:
+            estado.ritmo.anotar(
+                modelo=estado.client.model,
+                caracteres=lido_chars,
+                # A espera, e nao o tempo de calculo do modelo: a previsao
+                # existe para dizer quanto a pessoa vai esperar, e a espera
+                # inclui carregar o modelo quando ele esta frio.
+                segundos_lendo=medida.get("esperou_segundos") or medida.get("lendo_segundos", 0),
+                palavras=len("".join(partes).split()),
+                segundos_escrevendo=medida.get("escrevendo_segundos", 0),
+            )
+
+        for etapa in trabalho.etapas:
+            if etapa.estado == EXECUTANDO:
+                etapa.estado = CONCLUIDO
         trabalho.estado = CONCLUIDO
         trabalho.dizer(
             "paulus", "".join(partes).strip(),
@@ -1104,6 +1147,11 @@ def _o_que_eu_faco() -> str:
         linhas += ["", "Ainda não faço: " + ", ".join(faltando) + "."]
 
     return "\n".join(linhas)
+
+
+def _quantos(n: int, palavra: str, muitos: str = "") -> str:
+    """"1 documento", "6 documentos" - nunca "6 documento(s)"."""
+    return f"{n} {palavra if n == 1 else (muitos or palavra + 's')}"
 
 
 def asdict_etapa(etapa: Etapa) -> dict:
