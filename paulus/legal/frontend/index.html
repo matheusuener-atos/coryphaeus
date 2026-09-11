@@ -1620,15 +1620,51 @@
   .ed-folha {
     background: var(--papel); color: var(--tinta);
     border: 1px solid var(--papel-linha);
-    padding: 46px 48px; min-height: 520px;
+    /* 2,5 cm em folha de 21 cm sao 11,9% da largura - e em CSS o padding de
+       cima tambem se mede pela largura, entao os quatro lados saem iguais na
+       folha impressa. Antes eram 48px fixos: a margem da tela nao tinha
+       relacao nenhuma com a margem do PDF. */
+    padding: 11.9%; min-height: 520px;
     font: 400 15px/1.7 Georgia, 'Times New Roman', serif;
     overflow-wrap: anywhere;
   }
   .ed-folha:focus { outline: none; }
-  .ed-folha h1 { font-size: 20px; margin: 0 0 14px; text-align: center; }
-  .ed-folha h2 { font-size: 16px; margin: 20px 0 8px; }
-  .ed-folha h3 { font-size: 15px; margin: 16px 0 6px; }
-  .ed-folha p { margin: 0 0 11px; }
+
+  /* A quebra de página é desenhada POR CIMA da folha, nunca dentro dela: o que
+     está dentro do contenteditable acaba em innerHTML, e daí no documento
+     gravado. Uma linha de enfeite não pode virar conteúdo do contrato. */
+  .ed-papel { position: relative; }
+  .ed-quebras { position: absolute; inset: 0; pointer-events: none; }
+  .ed-quebra { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--papel-linha); }
+  .ed-quebra span {
+    position: absolute; right: 6px; top: -8px; background: var(--papel);
+    padding: 0 6px; font: 500 9px var(--mono); letter-spacing: 0.14em;
+    color: var(--ink-3); text-transform: uppercase;
+  }
+
+  /* A régua mostra onde o texto começa e termina na folha impressa: a margem
+     de 2,5 cm é a mesma no PDF, não uma aproximação do editor. */
+  /* A barra tem a largura da folha, e nao a que sobrar depois dos rotulos:
+     as marcas de margem so dizem a verdade se estiverem em cima das margens
+     de verdade. Os rotulos ficam embaixo. */
+  .ed-regua { margin-bottom: 8px; }
+  .ed-regua-barra { height: 5px; border: 1px solid var(--linha-media); display: flex; }
+  .ed-regua-margem { background: var(--linha-media); }
+  .ed-regua-texto { flex: 1; }
+  .ed-regua-legenda {
+    display: flex; justify-content: space-between; gap: 12px; margin-top: 4px;
+    font: 500 9px var(--mono); letter-spacing: 0.14em; color: var(--ink-3);
+    text-transform: uppercase;
+  }
+
+  .ed-formato { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  /* Em em, e nao em px: o corpo da folha e ajustado para a escala do PDF, e
+     os titulos tem que acompanhar. As proporcoes sao as do PDF - corpo+4,
+     corpo+1,5 e corpo. */
+  .ed-folha h1 { font-size: 1.33em; margin: 0 0 14px; text-align: center; }
+  .ed-folha h2 { font-size: 1.125em; margin: 20px 0 8px; }
+  .ed-folha h3 { font-size: 1em; margin: 16px 0 6px; }
+  .ed-folha p { margin: 0 0 11px; text-indent: var(--recuo, 0); }
   .ed-folha ul, .ed-folha ol { margin: 0 0 11px; padding-left: 26px; }
   .ed-folha li { margin-bottom: 5px; }
 
@@ -5868,7 +5904,7 @@ async function mostrarDupla(id) {
 
 function desenharDupla() {
   const d = dupla.doc;
-  const c = d.contagem || { palavras: 0, paginas_estimadas: 1 };
+  const c = d.contagem || { palavras: 0 };
 
   $("centro").innerHTML =
     '<div class="dupla">' +
@@ -5908,7 +5944,8 @@ function desenharDupla() {
     '<div class="dupla-folha-caixa"><div class="ed-folha" id="dp-folha" contenteditable="true">' +
     (d.corpo || "<p><br></p>") + "</div></div>" +
     '<div class="dupla-rodape"><span class="rotulo">' +
-    plural(c.paginas_estimadas, "página") + " · " + plural(c.palavras, "palavra") + "</span>" +
+    plural(d.paginacao ? d.paginacao.paginas : 1, "página") + " · " +
+    plural(c.palavras, "palavra") + "</span>" +
     '<span><button id="dp-guardar">Salvar na biblioteca</button>' +
     '<button id="dp-pdf">Exportar PDF</button></span></div>' +
 
@@ -6411,6 +6448,79 @@ function mostrarQuebradas(quebradas) {
     '<p class="explica">' + quebradas.map((q) => esc(q.texto)).join(", ") +
     " — não existe cláusula com esse número neste documento. " +
     "É o tipo de erro que passa na leitura e aparece na discussão.</p></div>";
+}
+
+/* ----------------------------------------------------- o formato da folha
+
+   Fonte, corpo, recuo de primeira linha e entrelinhas. Fica por documento e
+   não por escritório: uma petição e um contrato pedem recuos diferentes, e
+   quem escreve os dois no mesmo dia não pode ter que trocar a configuração
+   entre um e outro. */
+
+const FORMATO_OPCOES = {
+  fonte: { rotulo: "Fonte", itens: [
+    ["serifada", "Times (serifada)"],
+    ["sem-serifa", "Arial (sem serifa)"],
+  ] },
+  corpo: { rotulo: "Corpo", itens: [["11", "11 pt"], ["12", "12 pt"], ["13", "13 pt"]] },
+  recuo_cm: { rotulo: "Recuo de primeira linha", itens: [
+    ["0", "sem recuo"], ["1.25", "1,25 cm"], ["2", "2 cm"],
+  ] },
+  entrelinhas: { rotulo: "Entrelinhas", itens: [["1", "simples"], ["1.5", "1,5"], ["2", "duplo"]] },
+};
+
+function painelFormato() {
+  const destino = $("ed-abaixo");
+  if (!destino) return;
+  const f = escr.doc.formato || {};
+
+  const campo = (chave) => {
+    const o = FORMATO_OPCOES[chave];
+    const atual = String(f[chave] === undefined ? "" : f[chave]);
+    return '<div class="campo-form"><label class="rotulo">' + o.rotulo + "</label>" +
+      '<select data-formato="' + chave + '">' +
+      o.itens.map(([v, t]) => '<option value="' + v + '"' +
+        (Number(v) === Number(atual) || v === atual ? " selected" : "") + ">" + t + "</option>").join("") +
+      "</select></div>";
+  };
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>A folha</h3>' +
+    '<p class="explica">Vale para este documento, no PDF e no DOCX. A4 e margem de ' +
+    "2,5 cm não mudam: são as medidas da peça jurídica, e escolher outra coisa seria " +
+    "só um jeito de errar.</p>" +
+    '<div class="ed-formato">' + Object.keys(FORMATO_OPCOES).map(campo).join("") + "</div>" +
+    '<p class="explica" id="ed-formato-nota" style="margin-top:10px"></p>' +
+    '<div class="linha-form"><button id="ed-formato-fechar">Fechar</button></div></div>';
+
+  destino.querySelectorAll("[data-formato]").forEach((s) => { s.onchange = gravarFormato; });
+  $("ed-formato-fechar").onclick = () => { destino.innerHTML = ""; };
+  destino.querySelector(".painel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function gravarFormato() {
+  const nota = $("ed-formato-nota");
+  const antes = escr.paginacao ? escr.paginacao.paginas : 0;
+  const pedido = {};
+  document.querySelectorAll("[data-formato]").forEach((s) => {
+    pedido[s.dataset.formato] = s.dataset.formato === "fonte" ? s.value : Number(s.value);
+  });
+
+  if (nota) nota.textContent = "medindo…";
+  const r = await fetch("/api/documentos/" + escr.doc.id + "/formato", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ formato: pedido, corpo: $("ed-folha").innerHTML }),
+  });
+  if (!r.ok) { if (nota) nota.textContent = await erroDe(r); return; }
+
+  const d = await r.json();
+  escr.doc.formato = d.formato;
+  aplicarPaginacao(d);
+  if (nota) {
+    nota.textContent = antes && antes !== d.paginas
+      ? "O documento passou de " + plural(antes, "página") + " para " +
+        plural(d.paginas, "página") + " — medido no PDF."
+      : plural(d.paginas, "página") + ", medido no PDF.";
+  }
 }
 
 /* ------------------------------------------------ qualificação das partes */
@@ -8947,7 +9057,7 @@ async function abrirDocumento(id) {
 
 function desenharEditor() {
   const d = escr.doc;
-  const c = d.contagem || { palavras: 0, paginas_estimadas: 1 };
+  const c = d.contagem || { palavras: 0 };
 
   let html = '<div class="catalogo"><div class="ed-topo">' +
     '<input class="ed-titulo" id="ed-titulo" value="' + esc(d.titulo) + '">' +
@@ -8981,10 +9091,19 @@ function desenharEditor() {
     '<span class="ed-divisa"></span>' +
     '<button id="ed-clausulas">Cláusulas do escritório</button>' +
     '<button id="ed-codigos">Citar a lei</button>' +
+    '<button id="ed-formato">Folha</button>' +
     '<button id="ed-conferir">Conferir</button></div>';
 
   html += '<div class="ed-colunas"><div>' +
+    '<div class="ed-regua">' +
+    '<div class="ed-regua-barra"><span class="ed-regua-margem" style="width:11.9%"></span>' +
+    '<span class="ed-regua-texto"></span>' +
+    '<span class="ed-regua-margem" style="width:11.9%"></span></div>' +
+    '<div class="ed-regua-legenda"><span>a folha, na escala do PDF</span>' +
+    '<span id="ed-regua-fim">A4 · margens 2,5 cm</span></div></div>' +
+    '<div class="ed-papel">' +
     '<div class="ed-folha" id="ed-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
+    '<div class="ed-quebras" id="ed-quebras"></div></div>' +
     '<div id="ed-abaixo"></div></div>';
 
   html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
@@ -9003,8 +9122,9 @@ function desenharEditor() {
 
   html += '<div class="painel" style="margin-top:16px"><h3>Este documento</h3>' +
     '<div class="pl-status"><span>palavras ' + c.palavras + "</span>" +
-    "<span>páginas ~" + c.paginas_estimadas + "</span>" +
+    '<span id="ed-paginas">páginas ' + (d.paginacao ? d.paginacao.paginas : 1) + "</span>" +
     "<span>versão " + d.versao + "</span></div>" +
+    '<p class="explica" id="ed-paginas-nota" style="margin-top:8px"></p>' +
     '<p class="explica" style="margin-top:10px">O PDF é o formato que vale para assinar e ' +
     "enviar. O DOCX sai com o mesmo texto, para continuar no Word — a quebra de página " +
     "pode ficar diferente.</p>" +
@@ -9062,6 +9182,149 @@ function ligarEditor() {
   document.querySelectorAll("[data-atalho]").forEach((b) => {
     b.onclick = () => { $("ed-pedido").value = b.dataset.atalho; pedirAoAssistente(); };
   });
+
+  $("ed-formato").onclick = painelFormato;
+  folha.addEventListener("input", () => pedirPaginacao());
+  document.addEventListener("selectionchange", mostrarPaginaDoCursor);
+  window.addEventListener("resize", revestirFolha);
+  aplicarPaginacao(escr.doc.paginacao);
+}
+
+/* -------------------------------------------------- a página, medida
+
+   "páginas ~4" era palavras dividido por 450. Erra em todo documento com
+   título, lista ou parágrafo curto — e erra mais quanto maior o documento,
+   que é quando a pessoa precisa saber. Agora quem conta é o próprio PDF
+   sendo montado, o mesmo arquivo que a pré-visualização desenha. */
+
+/* Os blocos da folha na MESMA regra que o servidor usa para lê-los: um
+   parágrafo, título ou item que tenha texto ou uma quebra dentro. Se as duas
+   contas divergirem, as linhas de quebra não são desenhadas — linha no lugar
+   errado é pior que linha nenhuma. */
+function blocosDaFolha(folha) {
+  return Array.from(folha.querySelectorAll("p, div, h1, h2, h3, li"))
+    .filter((el) => el.textContent.trim() || el.querySelector("br"));
+}
+
+let relogioPaginacao = null;
+
+function pedirPaginacao(agora) {
+  clearTimeout(relogioPaginacao);
+  const fazer = async () => {
+    const folha = $("ed-folha");
+    if (!folha || !escr.doc) return;
+    try {
+      const r = await fetch("/api/documentos/" + escr.doc.id + "/paginacao", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corpo: folha.innerHTML }),
+      });
+      if (r.ok) aplicarPaginacao(await r.json());
+    } catch (err) { /* medir a página não pode atrapalhar quem está escrevendo */ }
+  };
+  /* 700 ms depois da última tecla: montar o PDF custa dezenas de
+     milissegundos, mas a cada tecla seriam dezenas de PDFs por frase. */
+  if (agora) fazer(); else relogioPaginacao = setTimeout(fazer, 700);
+}
+
+/* A folha na tela desenhada na escala do PDF: um A4 tem 21 cm, ou 595,3 pt,
+   de borda a borda. Sabendo quantos pixels essa largura tem aqui, um corpo
+   12 pt vira o tamanho que ele terá no papel — e a linha quebra quase onde vai
+   quebrar impressa. Sem isso, a folha era 15 px fixos e escolher corpo 13 no
+   PDF não mudava nada na tela.
+
+   clientWidth é a medida certa porque INCLUI o padding, e o padding da folha é
+   justamente a margem de 2,5 cm: o que ele mede é a folha inteira. */
+const PT_LARGURA_A4 = 595.3;
+const CM_LARGURA_A4 = 21;
+
+function vestirFolha(formato) {
+  const folha = $("ed-folha");
+  if (!folha || !formato || !folha.clientWidth) return;
+  const largura = folha.clientWidth;
+
+  folha.style.fontFamily = formato.fonte === "sem-serifa"
+    ? "Arial, Helvetica, sans-serif"
+    : "'Times New Roman', Times, Georgia, serif";
+  folha.style.fontSize = (formato.corpo * largura / PT_LARGURA_A4).toFixed(2) + "px";
+  folha.style.lineHeight = String(formato.entrelinhas);
+  folha.style.setProperty(
+    "--recuo", (formato.recuo_cm * largura / CM_LARGURA_A4).toFixed(1) + "px");
+}
+
+function revestirFolha() {
+  if (!escr.doc || !escr.doc.formato) return;
+  vestirFolha(escr.doc.formato);
+  if (escr.paginacao) aplicarPaginacao(escr.paginacao);
+}
+
+function aplicarPaginacao(mapa) {
+  const folha = $("ed-folha");
+  const tela = $("ed-quebras");
+  if (!folha || !tela || !mapa) return;
+  escr.paginacao = mapa;
+  if (mapa.formato) escr.doc.formato = mapa.formato;
+  vestirFolha(escr.doc.formato);
+
+  const contador = $("ed-paginas");
+  if (contador) contador.textContent = plural(mapa.paginas, "página");
+
+  const elementos = blocosDaFolha(folha);
+  tela.innerHTML = "";
+  const nota = $("ed-paginas-nota");
+
+  if (elementos.length !== mapa.de_bloco.length) {
+    /* Acontece com HTML colado de fora, com estrutura que o editor não cria.
+       O total continua medido; o que não dá para provar é onde a quebra cai. */
+    if (nota) {
+      nota.textContent = "Contagem medida no PDF. As linhas de quebra não aparecem " +
+        "neste documento: a estrutura do texto não bate com a da folha impressa.";
+    }
+    mostrarPaginaDoCursor();
+    return;
+  }
+
+  /* Medido pelo retângulo na tela, e não por offsetTop: offsetTop depende de
+     qual ancestral está posicionado, e essa resposta muda com o CSS. */
+  const topo = tela.getBoundingClientRect().top;
+  for (let i = 1; i < elementos.length; i += 1) {
+    if (mapa.de_bloco[i] === mapa.de_bloco[i - 1]) continue;
+    const anterior = elementos[i - 1];
+    const linha = document.createElement("div");
+    linha.className = "ed-quebra";
+    linha.style.top = (anterior.getBoundingClientRect().bottom - topo) + "px";
+    linha.innerHTML = "<span>página " + mapa.de_bloco[i] + "</span>";
+    tela.appendChild(linha);
+  }
+
+  if (nota) {
+    nota.textContent = mapa.paginas === 1
+      ? "Cabe em uma página. Contagem medida no PDF, não estimada."
+      : "As linhas na folha são as quebras do PDF, medidas — não uma estimativa por " +
+        "número de palavras.";
+  }
+  mostrarPaginaDoCursor();
+}
+
+/* Em que página está o cursor. Sai do mesmo mapa medido: é a página do bloco
+   onde a seleção está, não uma conta de quanto texto veio antes. */
+function mostrarPaginaDoCursor() {
+  const fim = $("ed-regua-fim");
+  const folha = $("ed-folha");
+  const mapa = escr.paginacao;
+  if (!fim || !folha || !mapa) return;
+
+  const base = "A4 · margens 2,5 cm";
+  const sel = window.getSelection();
+  if (!sel || !sel.anchorNode || !folha.contains(sel.anchorNode)) { fim.textContent = base; return; }
+
+  const elementos = blocosDaFolha(folha);
+  if (elementos.length !== mapa.de_bloco.length) { fim.textContent = base; return; }
+
+  const no = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+  const onde = elementos.findIndex((el) => el === no || el.contains(no));
+  fim.textContent = onde < 0
+    ? base
+    : base + " · cursor na página " + mapa.de_bloco[onde] + " de " + mapa.paginas;
 }
 
 function marcarSujo() {

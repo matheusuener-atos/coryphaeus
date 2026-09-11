@@ -318,6 +318,19 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_papel_lancamento ON papeis_fiscais(lancamento_id);
         """,
     ),
+    (
+        "012_formato_do_documento",
+        """
+        -- Fonte, corpo, recuo de primeira linha e entrelinhas, por documento.
+        -- Nao e preferencia do escritorio: uma peticao e um contrato pedem
+        -- recuos diferentes, e quem escreve os dois no mesmo dia nao pode ter
+        -- que trocar a configuracao entre um e outro.
+        --
+        -- Vazio significa "o padrao" - documento antigo continua saindo
+        -- exatamente como saia antes desta coluna existir.
+        ALTER TABLE documentos ADD COLUMN formato TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 

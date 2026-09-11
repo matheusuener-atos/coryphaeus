@@ -3120,6 +3120,11 @@ def documentos_obter(id_: int) -> dict:
     if item["tipo"] == "texto":
         blocos = documento.ler_html(item["corpo"])
         item["contagem"] = documento.contar(blocos)
+        # Pagina medida, nao estimada: a conta antiga era palavras/450, e
+        # errava em todo documento com titulo, lista ou paragrafo curto.
+        item["paginacao"] = documento.mapa_de_paginas(
+            blocos, timbre=_timbre_do_escritorio() or None, formato=item.get("formato"))
+        item["formato"] = documento.normalizar_formato(item.get("formato"))
     return item
 
 
@@ -3215,7 +3220,8 @@ def _pdf_do_documento(item: dict, timbre: dict | None = None) -> bytes:
     rodape = item["titulo"]
     if timbre is None:
         timbre = _timbre_do_escritorio()
-    return documento.para_pdf(blocos, item["titulo"], rodape, timbre=timbre or None)
+    return documento.para_pdf(blocos, item["titulo"], rodape, timbre=timbre or None,
+                              formato=item.get("formato"))
 
 
 @app.get("/api/documentos/{id_}/pdf")
@@ -3239,7 +3245,8 @@ def documentos_docx(id_: int):
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
 
-    dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"])
+    dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"],
+                                formato=item.get("formato"))
     return Response(
         dados,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -3275,6 +3282,49 @@ def documentos_pagina(id_: int, numero: int = 1, largura: int = 900, versao: int
         documento.pagina_png(pdf, numero, largura),
         media_type="image/png", headers={"Cache-Control": "no-cache"},
     )
+
+
+@app.post("/api/documentos/{id_}/paginacao")
+def documentos_paginacao(id_: int, payload: dict) -> dict:
+    """
+    Em que pagina cai cada paragrafo do que esta no editor agora.
+
+    O editor mostrava "paginas ~4": caracteres divididos por uma media, que
+    erra com titulo, lista ou paragrafo curto. Aqui o numero e medido - o PDF
+    e montado de verdade, o mesmo que a pre-visualizacao desenha.
+
+    Recebe o corpo em vez de ler do banco porque a pergunta e sobre o texto
+    que esta na tela, ainda nao gravado.
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="planilha não tem página de PDF")
+
+    corpo = payload.get("corpo")
+    blocos = documento.ler_html(item["corpo"] if corpo is None else corpo)
+    mapa = documento.mapa_de_paginas(
+        blocos, timbre=_timbre_do_escritorio() or None, formato=item.get("formato"))
+
+    return {**mapa, "blocos": len(blocos), "formato": documento.normalizar_formato(item.get("formato"))}
+
+
+@app.post("/api/documentos/{id_}/formato")
+def documentos_formato(id_: int, payload: dict) -> dict:
+    """A fonte, o corpo, o recuo e as entrelinhas da folha deste documento."""
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="planilha não tem formato de folha")
+
+    try:
+        formato = estado.documentos.formatar(id_, payload.get("formato", payload))
+    except ValueError as erro:
+        raise HTTPException(status_code=404, detail=str(erro))
+
+    corpo = payload.get("corpo")
+    blocos = documento.ler_html(item["corpo"] if corpo is None else corpo)
+    mapa = documento.mapa_de_paginas(
+        blocos, timbre=_timbre_do_escritorio() or None, formato=formato)
+    return {**mapa, "blocos": len(blocos), "formato": formato}
 
 
 @app.get("/api/documentos/{id_}/conferir")

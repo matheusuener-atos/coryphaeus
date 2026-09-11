@@ -20,6 +20,7 @@ E, nos dois: fórmula vinda de arquivo de terceiro nunca pode executar nada.
 from __future__ import annotations
 
 import io
+import re
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,9 @@ sys.path.insert(0, str(RAIZ / "src"))
 import documento as D  # noqa: E402
 import planilha as P  # noqa: E402
 from base import Base  # noqa: E402
+from extract import index_all_contracts  # noqa: E402
+
+CONTRATOS = RAIZ / "data" / "test_contracts"
 
 _falhas: list[str] = []
 
@@ -160,6 +164,137 @@ def test_pdf_e_docx() -> None:
 
     vazio = D.para_pdf([], "Vazio")
     checar(vazio.startswith(b"%PDF"), "documento vazio nao derruba o gerador")
+
+
+def _contrato_real() -> list:
+    """O maior contrato desta máquina, em blocos. Vazio se a pasta não existe."""
+    if not CONTRATOS.exists():
+        return []
+    docs = index_all_contracts(CONTRATOS, verbose=False)
+    if not docs:
+        return []
+    d = max(docs, key=lambda x: len(x.text))
+    return D.ler_html("".join("<p>" + p.strip() + "</p>"
+                              for p in d.text.split("\n") if p.strip()))
+
+
+def test_pagina_medida() -> None:
+    """
+    A página que a tela mostra é a página do arquivo.
+
+    O editor dizia "páginas ~4": palavras dividido por 450. Erra em todo
+    documento com título, lista ou parágrafo curto — e erra mais quanto maior
+    o documento, que é justamente quando a pessoa precisa saber.
+
+    O teste que importa não é "o número parece certo", é: a página em que o
+    mapa diz que um parágrafo começa é a página do PDF em que ele está. Isso
+    se abre e se lê, e é o que este teste faz.
+    """
+    print("\na página é medida, não estimada")
+    blocos = _contrato_real()
+    if not blocos:
+        print("  pulado: sem contratos nesta máquina")
+        return
+
+    mapa = D.mapa_de_paginas(blocos)
+    pdf = D.para_pdf(blocos, "Contrato", "Contrato")
+    checar(mapa["paginas"] == D.paginas_de(pdf),
+           f"o total bate com o PDF de verdade ({mapa['paginas']})")
+    checar(len(mapa["de_bloco"]) == len(blocos),
+           f"todo bloco tem uma página ({len(mapa['de_bloco'])} de {len(blocos)})")
+    checar(all(a <= b for a, b in zip(mapa["de_bloco"], mapa["de_bloco"][1:])),
+           "e a numeração nunca anda para trás")
+    checar(max(mapa["de_bloco"]) <= mapa["paginas"], "nem passa do total")
+
+    # O que a linha de quebra promete: a página N do arquivo começa aqui.
+    #
+    # Compara só letras e números: um "▪" do Word sai do PDF como "■", porque
+    # o Times não tem aquele glifo e o reportlab troca pelo parecido. Isso é o
+    # gerador fazendo o certo, e não tem a ver com a página em que o parágrafo
+    # caiu, que é o que este teste mede.
+    import leitor_pdf
+
+    so_letras = lambda t: re.sub(r"[^0-9a-zà-ÿ]+", " ", t.lower()).strip()
+
+    erradas = []
+    with leitor_pdf.abrir(pdf) as doc:
+        for pagina in range(2, mapa["paginas"] + 1):
+            primeiro = next(i for i, p in enumerate(mapa["de_bloco"]) if p == pagina)
+            comeco = so_letras(blocos[primeiro].texto)[:40]
+            na_folha = so_letras(doc[pagina - 1].get_textpage().get_text_range())
+            if comeco not in na_folha[:len(comeco) + 70]:
+                erradas.append(f"p{pagina}: {comeco[:30]}")
+    checar(not erradas,
+           f"cada página do PDF começa onde o mapa diz ({mapa['paginas'] - 1} quebras)",
+           "; ".join(erradas[:2]))
+
+    vazio = D.mapa_de_paginas([])
+    checar(vazio["paginas"] == 1 and vazio["de_bloco"] == [],
+           "documento vazio não quebra o mapa")
+
+
+def test_paragrafo_que_atravessa_a_quebra() -> None:
+    """
+    Um parágrafo longo é partido em dois pelo reportlab, e os pedaços novos não
+    herdam nada. Sem repassar a marca na divisão, exatamente o parágrafo sobre
+    o qual "em que página isso cai?" é interessante sumia do mapa.
+    """
+    print("\nparágrafo que atravessa a quebra")
+    blocos = D.ler_html(
+        "<p>curto antes</p>"
+        "<p>" + ("palavra que enche a página " * 900) + "</p>"
+        "<p>curto depois</p>")
+
+    mapa = D.mapa_de_paginas(blocos)
+    checar(mapa["paginas"] > 2, f"o do meio ocupa várias páginas ({mapa['paginas']})")
+    checar(mapa["de_bloco"][1] == 1, "e sua página é onde ele COMEÇA, não onde termina")
+    checar(mapa["de_bloco"][2] == mapa["paginas"],
+           f"o de depois cai na última ({mapa['de_bloco'][2]})")
+
+
+def test_formato_da_folha() -> None:
+    """Fonte, corpo, recuo e entrelinhas — e o que acontece com o que não existe."""
+    print("\no formato da folha")
+
+    padrao = D.normalizar_formato(None)
+    checar(padrao == D.FORMATO_PADRAO, f"sem pedido, o padrão ({padrao})")
+    checar(D.normalizar_formato("") == D.FORMATO_PADRAO, "documento antigo, sem formato gravado")
+    checar(D.normalizar_formato('{"corpo": 11}')["corpo"] == 11, "aceita o JSON do banco")
+
+    torto = D.normalizar_formato({"fonte": "Comic Sans", "corpo": 7.5,
+                                  "recuo_cm": 9, "entrelinhas": 0})
+    checar(torto == D.FORMATO_PADRAO,
+           "o que o PDF não sabe produzir volta ao padrão, não ao mais parecido")
+    checar(D.normalizar_formato({"corpo": 12.4})["corpo"] == 12,
+           "12,4 não vira 12 por arredondamento — vira o padrão, que por acaso é 12")
+
+    bom = D.normalizar_formato({"fonte": "sem-serifa", "corpo": 13,
+                                "recuo_cm": 1.25, "entrelinhas": 2.0})
+    checar(bom["fonte"] == "sem-serifa" and bom["corpo"] == 13
+           and bom["recuo_cm"] == 1.25 and bom["entrelinhas"] == 2.0,
+           f"e o que existe passa inteiro ({bom})")
+
+    # O formato tem que chegar ao arquivo, senão é enfeite de tela.
+    blocos = _contrato_real() or D.ler_html(CONTRATO)
+    simples = D.para_pdf(blocos, "x", "x")
+    duplo = D.para_pdf(blocos, "x", "x", formato={"entrelinhas": 2.0})
+    checar(D.paginas_de(duplo) > D.paginas_de(simples),
+           f"entrelinhas duplo rende mais páginas ({D.paginas_de(simples)} → {D.paginas_de(duplo)})")
+    checar(D.para_pdf(blocos, "x", "x", formato={"recuo_cm": 2.0}) != simples,
+           "e o recuo muda o arquivo")
+
+    docx = D.para_docx(blocos, "x", formato={"fonte": "sem-serifa", "corpo": 13,
+                                             "recuo_cm": 2.0})
+    with zipfile.ZipFile(io.BytesIO(docx)) as z:
+        estilos = z.read("word/styles.xml").decode("utf-8")
+        corpo_xml = z.read("word/document.xml").decode("utf-8")
+    checar("Arial" in estilos, "o DOCX sai na fonte escolhida")
+    checar('w:firstLine="1134"' in corpo_xml or "firstLine" in corpo_xml,
+           "e com o recuo de primeira linha")
+
+    # O que estava gravado antes desta coluna existir continua saindo igual.
+    checar(D.paginas_de(D.para_pdf(blocos, "x", "x", formato="")) == D.paginas_de(simples),
+           "documento sem formato gravado sai como sempre saiu")
 
 
 def test_conferir() -> None:
@@ -388,6 +523,9 @@ def main() -> int:
     test_ler_html()
     test_pdf_e_docx()
     test_duas_paginas_ao_mesmo_tempo()
+    test_pagina_medida()
+    test_paragrafo_que_atravessa_a_quebra()
+    test_formato_da_folha()
     test_conferir()
     test_numeros()
     test_formulas()

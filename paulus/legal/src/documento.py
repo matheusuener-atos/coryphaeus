@@ -32,8 +32,79 @@ import leitor_pdf
 
 # A4 com margens de 2,5 cm, como o wireframe pede.
 MARGEM_CM = 2.5
-FONTE_PADRAO = "Georgia"
 CORPO_PT = 12
+
+# ------------------------------------------------------ o formato da folha
+#
+# So o que muda de documento para documento. A4 e margem de 2,5 cm ficam
+# iguais para todos: sao as medidas da peca juridica brasileira, e escolher
+# outra coisa seria oferecer um jeito de errar.
+#
+# A fonte vem em par - a do PDF e a do DOCX - porque o mesmo documento sai nos
+# dois. Antes o PDF saia em Times e o DOCX em Georgia, e ninguem tinha decidido
+# isso: era o padrao de cada biblioteca aparecendo por baixo.
+FONTES = {
+    "serifada": {"pdf": "Times-Roman", "pdf_negrito": "Times-Bold",
+                 "docx": "Times New Roman", "nome": "Times (serifada)"},
+    "sem-serifa": {"pdf": "Helvetica", "pdf_negrito": "Helvetica-Bold",
+                   "docx": "Arial", "nome": "Arial (sem serifa)"},
+}
+CORPOS = (11, 12, 13)
+# 0 = sem recuo; 1,25 cm e a tabulacao herdada do Word; 2 cm e o que a maior
+# parte dos manuais de peticao pede.
+RECUOS_CM = (0.0, 1.25, 2.0)
+ENTRELINHAS = (1.0, 1.5, 2.0)
+
+FORMATO_PADRAO = {
+    "fonte": "serifada",
+    "corpo": CORPO_PT,
+    "recuo_cm": 0.0,
+    "entrelinhas": 1.5,
+}
+
+# Ainda usado pelo DOCX quando nenhum formato e passado.
+FONTE_PADRAO = FONTES[FORMATO_PADRAO["fonte"]]["docx"]
+
+
+def _uma_das(valor, opcoes: tuple, padrao):
+    """O valor, se for um dos que o PDF sabe produzir. Senao, o padrao."""
+    try:
+        n = float(valor)
+    except (TypeError, ValueError):
+        return padrao
+    for o in opcoes:
+        if abs(n - o) < 0.001:
+            return o
+    return padrao
+
+
+def normalizar_formato(bruto) -> dict:
+    """
+    O formato pedido, reduzido ao que o PDF sabe produzir.
+
+    Aceitar corpo 7,5 pt ou uma fonte que o reportlab nao tem daria um PDF
+    diferente do que a tela mostrou - e a tela promete ser o arquivo. Fora da
+    lista, volta para o padrao em vez de tentar o mais parecido: "quase o que
+    voce pediu" e a resposta que ninguem consegue conferir.
+    """
+    import json
+
+    if isinstance(bruto, str):
+        try:
+            bruto = json.loads(bruto or "{}")
+        except json.JSONDecodeError:
+            bruto = {}
+    if not isinstance(bruto, dict):
+        bruto = {}
+
+    fonte = bruto.get("fonte")
+    return {
+        "fonte": fonte if fonte in FONTES else FORMATO_PADRAO["fonte"],
+        "corpo": int(_uma_das(bruto.get("corpo"), CORPOS, FORMATO_PADRAO["corpo"])),
+        "recuo_cm": _uma_das(bruto.get("recuo_cm"), RECUOS_CM, FORMATO_PADRAO["recuo_cm"]),
+        "entrelinhas": _uma_das(bruto.get("entrelinhas"), ENTRELINHAS,
+                                FORMATO_PADRAO["entrelinhas"]),
+    }
 
 ALINHAMENTOS = {
     "esquerda": "Alinhado à esquerda",
@@ -250,74 +321,107 @@ def contar(blocos: list[Bloco]) -> dict:
         "palavras": palavras,
         "caracteres": len(texto),
         "blocos": len(blocos),
-        "paginas_estimadas": max(1, round(palavras / 450 + 0.4)),
     }
 
 
 # ------------------------------------------------------------------ PDF
 
 
-def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
-             timbre: dict | None = None) -> bytes:
+class _Paragrafo:
     """
-    O documento em PDF, no formato que sai para o cliente.
+    Um paragrafo que lembra de que bloco do editor veio, mesmo partido.
 
-    Este e o formato canonico: e o que a pre-visualizacao mostra e o que vai
-    para a assinatura. A pre-visualizacao desenha este mesmo PDF, entao o que
-    aparece na tela e o arquivo, nao uma aproximacao em CSS.
+    Quando um paragrafo nao cabe no que sobra da pagina, o reportlab o divide
+    em dois paragrafos novos - e os novos nao herdam nada que eu tenha
+    pendurado no original. Sem repassar a marca na divisao, todo paragrafo que
+    atravessa uma quebra sumiria do mapa de paginas, que e exatamente o
+    paragrafo sobre o qual a pergunta "em que pagina isso cai?" e interessante.
+
+    E uma classe montada na hora porque o reportlab so entra na funcao: manter
+    o import no topo do modulo custaria o carregamento do reportlab em toda
+    importacao de `documento`, e quase tudo aqui nao gera PDF nenhum.
     """
-    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
-    from reportlab.lib.pagesizes import A4
+
+    _classe = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._classe is None:
+            from reportlab.platypus import Paragraph
+
+            class Paragrafo(Paragraph):
+                blocos: list[int] = []
+
+                def split(self, largura, altura):
+                    partes = Paragraph.split(self, largura, altura)
+                    for parte in partes:
+                        parte.blocos = self.blocos
+                    return partes
+
+            cls._classe = Paragrafo
+        return cls._classe(*args, **kwargs)
+
+
+def _estilos(formato: dict) -> dict:
+    """Os estilos do PDF para este formato. Titulo nao leva recuo."""
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import cm
-    from reportlab.platypus import ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer
+
+    fonte = FONTES[formato["fonte"]]
+    normal, negrito = fonte["pdf"], fonte["pdf_negrito"]
+    corpo, entre = formato["corpo"], formato["entrelinhas"]
+
+    return {
+        "paragrafo": ParagraphStyle(
+            "corpo", fontName=normal, fontSize=corpo, leading=corpo * entre,
+            spaceAfter=8, firstLineIndent=formato["recuo_cm"] * cm),
+        # Recuo de primeira linha e coisa de paragrafo: um titulo recuado fica
+        # torto no meio da folha.
+        "titulo1": ParagraphStyle("t1", fontName=negrito, fontSize=corpo + 4,
+                                  leading=(corpo + 4) * 1.25, spaceBefore=12, spaceAfter=10),
+        "titulo2": ParagraphStyle("t2", fontName=negrito, fontSize=corpo + 1.5,
+                                  leading=(corpo + 1.5) * 1.32, spaceBefore=10, spaceAfter=8),
+        "titulo3": ParagraphStyle("t3", fontName=negrito, fontSize=corpo,
+                                  leading=corpo * 1.34, spaceBefore=8, spaceAfter=6),
+        # Item de lista ja e recuado pela propria lista.
+        "item": ParagraphStyle("item", fontName=normal, fontSize=corpo,
+                               leading=corpo * entre, spaceAfter=8),
+    }
+
+
+def _montar_fluxo(blocos: list[Bloco], estilos: dict, formato: dict) -> list:
+    """
+    Os blocos do editor viram os elementos que o reportlab empilha na folha.
+
+    Cada elemento leva consigo de que bloco veio - e o que permite dizer
+    depois em que pagina cada paragrafo caiu, sem estimar nada.
+    """
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import ListFlowable, ListItem, Spacer
 
     alinha = {
         "esquerda": TA_LEFT, "centro": TA_CENTER,
         "direita": TA_RIGHT, "justificado": TA_JUSTIFY,
     }
-    # Georgia nao vem no reportlab; Times e a serifada equivalente e sempre
-    # existe. Trocar sem avisar seria mudar a cara do documento em silencio,
-    # entao a tela informa qual fonte o PDF usa.
-    estilos = {
-        "paragrafo": ParagraphStyle("corpo", fontName="Times-Roman", fontSize=CORPO_PT,
-                                    leading=CORPO_PT * 1.5, spaceAfter=8),
-        "titulo1": ParagraphStyle("t1", fontName="Times-Bold", fontSize=16,
-                                  leading=20, spaceBefore=12, spaceAfter=10),
-        "titulo2": ParagraphStyle("t2", fontName="Times-Bold", fontSize=13.5,
-                                  leading=18, spaceBefore=10, spaceAfter=8),
-        "titulo3": ParagraphStyle("t3", fontName="Times-Bold", fontSize=12,
-                                  leading=16, spaceBefore=8, spaceAfter=6),
-    }
-
-    # O timbre ocupa o alto da pagina: sem abrir espaco, o texto passa por
-    # cima dele. A margem de cima cresce so quando ha timbre.
-    alto = _altura_do_timbre(timbre) if timbre else 0
-
-    saida = io.BytesIO()
-    doc = SimpleDocTemplate(
-        saida, pagesize=A4,
-        leftMargin=MARGEM_CM * cm, rightMargin=MARGEM_CM * cm,
-        topMargin=MARGEM_CM * cm + alto, bottomMargin=MARGEM_CM * cm,
-        title=titulo or "Documento", author="PAULUS",
-    )
-
-    fluxo = []
+    fluxo: list = []
     itens: list = []
+    de_itens: list[int] = []
     ordenada = False
 
     def despejar_lista():
-        nonlocal itens, ordenada
+        nonlocal itens, ordenada, de_itens
         if not itens:
             return
-        fluxo.append(ListFlowable(
+        lista = ListFlowable(
             itens, bulletType="1" if ordenada else "bullet",
-            leftIndent=18, bulletFontName="Times-Roman",
-        ))
+            leftIndent=18, bulletFontName=FONTES[formato["fonte"]]["pdf"],
+        )
+        lista.blocos = list(de_itens)
+        fluxo.append(lista)
         fluxo.append(Spacer(1, 6))
-        itens = []
+        itens, de_itens = [], []
 
-    for bloco in blocos:
+    for numero, bloco in enumerate(blocos):
         marcado = _para_marcacao(bloco)
         if not marcado.strip():
             continue
@@ -326,7 +430,8 @@ def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
             if itens and ordenada != (bloco.tipo == "numerado"):
                 despejar_lista()
             ordenada = bloco.tipo == "numerado"
-            itens.append(ListItem(Paragraph(marcado, estilos["paragrafo"])))
+            itens.append(ListItem(_Paragrafo(marcado, estilos["item"])))
+            de_itens.append(numero)
             continue
 
         despejar_lista()
@@ -336,15 +441,92 @@ def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
                 "p", parent=estilos["paragrafo"],
                 alignment=alinha.get(bloco.alinhamento, TA_LEFT),
             )
-        fluxo.append(Paragraph(marcado, estilo))
+        paragrafo = _Paragrafo(marcado, estilo)
+        paragrafo.blocos = [numero]
+        fluxo.append(paragrafo)
 
     despejar_lista()
     if not fluxo:
-        fluxo.append(Paragraph("(documento vazio)", estilos["paragrafo"]))
+        fluxo.append(_Paragrafo("(documento vazio)", estilos["paragrafo"]))
+    return fluxo
 
-    desenhar = _decorar(rodape, timbre)
-    doc.build(fluxo, onFirstPage=desenhar, onLaterPages=desenhar)
+
+def _construir(classe, blocos, titulo, rodape, timbre, formato):
+    """A folha montada uma vez so, para quem quiser os bytes ou as paginas."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+
+    formato = normalizar_formato(formato)
+    estilos = _estilos(formato)
+
+    # O timbre ocupa o alto da pagina: sem abrir espaco, o texto passa por
+    # cima dele. A margem de cima cresce so quando ha timbre.
+    alto = _altura_do_timbre(timbre) if timbre else 0
+
+    saida = io.BytesIO()
+    doc = classe(
+        saida, pagesize=A4,
+        leftMargin=MARGEM_CM * cm, rightMargin=MARGEM_CM * cm,
+        topMargin=MARGEM_CM * cm + alto, bottomMargin=MARGEM_CM * cm,
+        title=titulo or "Documento", author="PAULUS",
+    )
+    desenhar = _decorar(rodape, timbre, formato)
+    doc.build(_montar_fluxo(blocos, estilos, formato),
+              onFirstPage=desenhar, onLaterPages=desenhar)
+    return saida, doc
+
+
+def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
+             timbre: dict | None = None, formato: dict | None = None) -> bytes:
+    """
+    O documento em PDF, no formato que sai para o cliente.
+
+    Este e o formato canonico: e o que a pre-visualizacao mostra e o que vai
+    para a assinatura. A pre-visualizacao desenha este mesmo PDF, entao o que
+    aparece na tela e o arquivo, nao uma aproximacao em CSS.
+    """
+    from reportlab.platypus import SimpleDocTemplate
+
+    saida, _ = _construir(SimpleDocTemplate, blocos, titulo, rodape, timbre, formato)
     return saida.getvalue()
+
+
+def mapa_de_paginas(blocos: list[Bloco], timbre: dict | None = None,
+                    formato: dict | None = None) -> dict:
+    """
+    Em que pagina cai cada paragrafo, e quantas paginas o documento tem.
+
+    O editor mostrava "paginas ~4": caracteres divididos por uma media. Erra
+    sempre que ha titulo, lista ou paragrafo curto, e erra mais quanto maior o
+    documento - justamente quando a pessoa precisa saber.
+
+    Aqui a conta e o proprio PDF sendo montado, o mesmo que a tela desenha.
+    Parece caro e nao e: 53 ms num contrato de seis paginas, medido nos
+    contratos deste escritorio.
+
+    A pagina de um paragrafo e onde ele COMECA. Paragrafo que atravessa a
+    quebra e partido pelo reportlab em pedacos, e cada pedaco lembra de que
+    bloco veio - por isso o primeiro pedaco e que manda.
+    """
+    from reportlab.platypus import SimpleDocTemplate
+
+    onde: dict[int, int] = {}
+
+    class Marcador(SimpleDocTemplate):
+        def afterFlowable(self, flowable):
+            for numero in getattr(flowable, "blocos", ()):
+                onde.setdefault(numero, self.page)
+
+    _, doc = _construir(Marcador, blocos, "", "", timbre, formato)
+
+    # Bloco vazio nao vira elemento nenhum na folha, entao nao tem pagina
+    # propria: fica na pagina do paragrafo anterior, que e onde ele esta.
+    paginas, ultima = [], 1
+    for numero in range(len(blocos)):
+        ultima = onde.get(numero, ultima)
+        paginas.append(ultima)
+
+    return {"paginas": doc.page, "de_bloco": paginas}
 
 
 # Quanto o timbre ocupa, em centimetros, por linha que ele tem.
@@ -385,23 +567,24 @@ def _linhas_do_timbre(timbre: dict) -> list[str]:
     return [x for x in (nome, segunda, terceira) if x]
 
 
-def _decorar(rodape: str, timbre: dict | None):
+def _decorar(rodape: str, timbre: dict | None, formato: dict | None = None):
     """Numero de pagina no rodape, e o timbre no alto quando ha um."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
 
+    fonte = FONTES[normalizar_formato(formato)["fonte"]]
     linhas = _linhas_do_timbre(timbre) if timbre else []
-    numerar = _numerar(rodape)
+    numerar = _numerar(rodape, fonte["pdf"])
 
     def desenhar(canvas, doc):
         if linhas:
             canvas.saveState()
             topo = A4[1] - MARGEM_CM * cm
             canvas.setFillGray(0.1)
-            canvas.setFont("Times-Bold", 12)
+            canvas.setFont(fonte["pdf_negrito"], 12)
             canvas.drawCentredString(A4[0] / 2, topo - 0.3 * cm, linhas[0][:90])
 
-            canvas.setFont("Times-Roman", 8.5)
+            canvas.setFont(fonte["pdf"], 8.5)
             canvas.setFillGray(0.35)
             for i, linha in enumerate(linhas[1:], start=1):
                 canvas.drawCentredString(
@@ -418,14 +601,14 @@ def _decorar(rodape: str, timbre: dict | None):
     return desenhar
 
 
-def _numerar(rodape: str):
+def _numerar(rodape: str, fonte: str = "Times-Roman"):
     """Numero de pagina no rodape, como todo documento juridico tem."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
 
     def desenhar(canvas, doc):
         canvas.saveState()
-        canvas.setFont("Times-Roman", 8.5)
+        canvas.setFont(fonte, 8.5)
         canvas.setFillGray(0.4)
         if rodape:
             canvas.drawString(MARGEM_CM * cm, 1.4 * cm, rodape[:110])
@@ -459,17 +642,21 @@ def _para_marcacao(bloco: Bloco) -> str:
 # ----------------------------------------------------------------- DOCX
 
 
-def para_docx(blocos: list[Bloco], titulo: str = "") -> bytes:
+def para_docx(blocos: list[Bloco], titulo: str = "",
+              formato: dict | None = None) -> bytes:
     """
     O documento em DOCX, para continuar no Word.
 
-    Sai da mesma lista de blocos que gerou o PDF, entao o conteudo e o mesmo. O
-    desenho da pagina nao e identico - Word e reportlab quebram linha de jeitos
-    diferentes - e a tela diz isso: o PDF e o que vale para assinar e enviar.
+    Sai da mesma lista de blocos que gerou o PDF, no mesmo formato - fonte,
+    corpo, recuo e entrelinhas. O desenho da pagina ainda nao e identico, que
+    Word e reportlab quebram linha de jeitos diferentes, e a tela diz isso: o
+    PDF e o que vale para assinar e enviar.
     """
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.shared import Cm, Pt
+
+    formato = normalizar_formato(formato)
 
     alinha = {
         "esquerda": WD_ALIGN_PARAGRAPH.LEFT,
@@ -488,8 +675,9 @@ def para_docx(blocos: list[Bloco], titulo: str = "") -> bytes:
         secao.top_margin = secao.bottom_margin = Cm(MARGEM_CM)
 
     normal = doc.styles["Normal"]
-    normal.font.name = FONTE_PADRAO
-    normal.font.size = Pt(CORPO_PT)
+    normal.font.name = FONTES[formato["fonte"]]["docx"]
+    normal.font.size = Pt(formato["corpo"])
+    normal.paragraph_format.line_spacing = formato["entrelinhas"]
 
     for bloco in blocos:
         if not bloco.texto.strip():
@@ -497,6 +685,9 @@ def para_docx(blocos: list[Bloco], titulo: str = "") -> bytes:
         paragrafo = doc.add_paragraph(style=estilos.get(bloco.tipo))
         if bloco.tipo == "paragrafo":
             paragrafo.alignment = alinha.get(bloco.alinhamento)
+            # O item de lista ja e recuado pela lista; o titulo recuado fica
+            # torto. O recuo de primeira linha e do corpo do texto.
+            paragrafo.paragraph_format.first_line_indent = Cm(formato["recuo_cm"])
 
         for t in bloco.trechos:
             if not t.texto:
@@ -759,6 +950,30 @@ class Documentos:
             (id_, numero, corpo, nota[:120]),
         )
         return numero
+
+    def formato(self, id_: int) -> dict:
+        linha = self.base.um("SELECT formato FROM documentos WHERE id = ?", (id_,))
+        return normalizar_formato(linha["formato"] if linha else None)
+
+    def formatar(self, id_: int, pedido) -> dict:
+        """
+        Troca a fonte, o corpo, o recuo ou as entrelinhas da folha.
+
+        Nao cria versao: nao mudou o que o documento diz, mudou como ele e
+        impresso. Uma linha "v7: trocou a fonte" no historico enterraria a
+        versao em que a clausula mudou, que e a que alguem vai procurar.
+        """
+        import json
+
+        limpo = normalizar_formato(pedido)
+        mexeu = self.base.escrever(
+            "UPDATE documentos SET formato = ?, "
+            "atualizado_em = datetime('now','localtime') WHERE id = ?",
+            (json.dumps(limpo, ensure_ascii=False), id_),
+        )
+        if not mexeu:
+            raise ValueError("documento nao encontrado")
+        return limpo
 
     def ultima_versao(self, id_: int) -> int:
         linha = self.base.um(
