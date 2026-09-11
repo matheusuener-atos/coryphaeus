@@ -152,7 +152,8 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         CREATE INDEX idx_versoes_doc ON versoes(documento_id, numero);
         """,
-    ),    (
+    ),
+    (
         "007_financeiro_e_bem_estar",
         """
         -- Dinheiro em centavos inteiros, nunca em ponto flutuante. Somar
@@ -329,6 +330,32 @@ MIGRACOES: list[tuple[str, str]] = [
         -- Vazio significa "o padrao" - documento antigo continua saindo
         -- exatamente como saia antes desta coluna existir.
         ALTER TABLE documentos ADD COLUMN formato TEXT DEFAULT '';
+        """,
+    ),
+    (
+        "013_comentarios",
+        """
+        -- Observacao presa a um trecho do documento - a nota de margem que se
+        -- faz lendo contrato do outro lado.
+        --
+        -- A ancora e o TEXTO do paragrafo, e nao o numero dele. Numero de
+        -- paragrafo muda toda vez que alguem insere uma linha acima, e o
+        -- comentario passaria a apontar para o paragrafo errado calado - o que
+        -- e pior que nao ter comentario. Pelo texto, ou acha o paragrafo certo,
+        -- ou diz que o trecho nao existe mais.
+        CREATE TABLE comentarios (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            -- Em cascata, como as versoes: apagar o documento tem que levar os
+            -- comentarios dele. Comentario orfao nao aparece em tela nenhuma e
+            -- fica no banco para sempre.
+            documento_id INTEGER NOT NULL REFERENCES documentos(id) ON DELETE CASCADE,
+            trecho       TEXT NOT NULL DEFAULT '',
+            texto        TEXT NOT NULL,
+            origem       TEXT NOT NULL DEFAULT 'assistente',
+            resolvido    INTEGER NOT NULL DEFAULT 0,
+            criado_em    TEXT NOT NULL
+        );
+        CREATE INDEX idx_comentarios_doc ON comentarios(documento_id, resolvido);
         """,
     ),
 ]

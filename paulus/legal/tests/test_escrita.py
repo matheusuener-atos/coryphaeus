@@ -447,6 +447,89 @@ def test_paragrafo_trocado_nao_e_paragrafo_editado() -> None:
            f"o preço mudou; o foro saiu e a multa entrou ({tipos})")
 
 
+def test_comentarios(tmp: Path) -> None:
+    """
+    O comentário fica preso ao TEXTO do parágrafo, não ao número dele.
+
+    Número de parágrafo muda toda vez que alguém insere uma linha acima. Se a
+    âncora fosse o número, o comentário passaria a apontar para o parágrafo
+    errado — calado, que é pior do que não ter comentário nenhum.
+    """
+    print("\ncomentários presos ao trecho")
+    base = Base(tmp / "comentarios.db")
+    docs = D.Documentos(base)
+    notas = D.Comentarios(base)
+
+    corpo = ("<p>1ª CLAUSULA – Do objeto.</p>"
+             "<p>2ª CLAUSULA – Do preço, que é de R$ 3.000,00.</p>"
+             "<p>3ª CLAUSULA – Do foro.</p>")
+    id_ = docs.criar("Contrato", "texto", corpo)
+
+    notas.criar(id_, "2ª CLAUSULA – Do preço, que é de R$ 3.000,00.",
+                "o preço não diz a data de reajuste", origem="assistente")
+    blocos = D.ler_html(corpo)
+    presas = notas.ancorar(id_, blocos)
+    checar(len(presas) == 1 and presas[0]["bloco"] == 1,
+           f"cai no parágrafo certo ({presas[0]['bloco'] if presas else '?'})")
+
+    # Uma cláusula nova no começo: o número muda, a âncora não.
+    com_nova = "<p>0ª CLAUSULA – Do preâmbulo.</p>" + corpo
+    depois = notas.ancorar(id_, D.ler_html(com_nova))
+    checar(depois[0]["bloco"] == 2,
+           f"parágrafo inserido acima não desloca o comentário ({depois[0]['bloco']})")
+
+    # O trecho apagado: diz que não está mais lá, em vez de escolher outro.
+    sem = notas.ancorar(id_, D.ler_html("<p>Outro documento inteiro.</p>"))
+    checar(sem[0]["bloco"] == -1,
+           f"trecho que sumiu vira -1, não um parágrafo qualquer ({sem[0]['bloco']})")
+
+    notas.criar(id_, "3ª CLAUSULA – Do foro.", "confirmar a comarca", origem="pessoa")
+    checar(len(notas.listar(id_)) == 2, "guarda os dois")
+    checar({c["origem"] for c in notas.listar(id_)} == {"assistente", "pessoa"},
+           "e diz de quem é cada um")
+
+    alvo = notas.listar(id_)[0]["id"]
+    checar(notas.resolver(alvo), "resolver funciona")
+    checar(len(notas.listar(id_)) == 1, "resolvido sai da lista")
+    checar(len(notas.listar(id_, incluir_resolvidos=True)) == 2, "mas continua guardado")
+    checar(notas.apagar(alvo) and len(notas.listar(id_, incluir_resolvidos=True)) == 1,
+           "e apagar apaga de vez")
+
+    try:
+        notas.criar(id_, "x", "   ")
+        checar(False, "comentário vazio tem que ser recusado")
+    except ValueError:
+        checar(True, "comentário sem texto é recusado")
+
+    # No Windows, arquivo com conexao aberta nao se apaga - e a pasta temporaria
+    # do teste morre tentando.
+    base.fechar()
+
+
+def test_aviso_de_cadastro_sabe_o_paragrafo() -> None:
+    """
+    O aviso de documento diferente do cadastro vinha com bloco 0.
+
+    A tela só podia dizer "em algum lugar do documento", e conferir virava
+    procurar o nome com o olho — que é exatamente o trabalho que o aviso
+    deveria poupar.
+    """
+    print("\no aviso de cadastro aponta o parágrafo")
+    blocos = D.ler_html(
+        "<p>1ª CLAUSULA – Do objeto.</p>"
+        "<p>2ª CLAUSULA – Do preço.</p>"
+        "<p>3ª CLAUSULA – Contratante: Cooperativa Brasileira de Mineradores, "
+        "inscrita no CNPJ 11.222.333/0001-81.</p>")
+    fichas = [{"nome": "Cooperativa Brasileira de Mineradores",
+               "documento": "31.984.284/0001-21"}]
+
+    avisos = [a for a in D.conferir(blocos, fichas)
+              if a["titulo"] == "Documento diferente do cadastro"]
+    checar(len(avisos) == 1, f"acha a divergência ({len(avisos)})")
+    checar(avisos[0]["bloco"] == 3,
+           f"e diz em que parágrafo o nome aparece ({avisos[0]['bloco']})")
+
+
 def test_versoes(tmp: Path) -> None:
     print("\nversoes e comparacao")
     base = Base(tmp / "escrita.db")
@@ -887,8 +970,11 @@ def main() -> int:
     test_grade()
     test_paragrafo_trocado_nao_e_paragrafo_editado()
 
+    test_aviso_de_cadastro_sabe_o_paragrafo()
+
     with tempfile.TemporaryDirectory() as bruto:
         test_versoes(Path(bruto))
+        test_comentarios(Path(bruto))
 
     print("\n" + "=" * 55)
     if _falhas:

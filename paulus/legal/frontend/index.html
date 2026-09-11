@@ -1651,6 +1651,24 @@
      gravado. Uma linha de enfeite não pode virar conteúdo do contrato. */
   .ed-papel { position: relative; }
   .ed-quebras { position: absolute; inset: 0; pointer-events: none; }
+
+  /* A marca fica na margem esquerda da folha, na altura da linha a que se
+     refere - e por cima, nunca dentro: nota de margem nao e conteudo do
+     contrato, e o que esta dentro do contenteditable acaba no arquivo. */
+  .ed-notas { position: absolute; inset: 0; pointer-events: none; }
+  .ed-nota {
+    position: absolute; left: 4px; width: 20px; height: 20px; min-width: 0;
+    padding: 0; border-radius: 50%; pointer-events: auto; cursor: pointer;
+    font: 600 11px var(--mono); line-height: 1;
+  }
+  .ed-nota.impede { border-color: var(--atencao); color: var(--atencao); }
+  .ed-nota.comentario { border-color: var(--acento); color: var(--acento); }
+  .ed-nota-item {
+    border-left: 2px solid var(--linha-media); padding: 2px 0 2px 10px; margin: 10px 0;
+  }
+  .ed-nota-item.impede { border-left-color: var(--atencao); }
+  .ed-nota-item.comentario { border-left-color: var(--acento); }
+  .ed-nota-item p { font-size: 13px; line-height: 1.6; margin: 4px 0 0; }
   .ed-quebra { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--papel-linha); }
   .ed-quebra span {
     position: absolute; right: 6px; top: -8px; background: var(--papel);
@@ -6508,6 +6526,143 @@ function mostrarQuebradas(quebradas) {
     "É o tipo de erro que passa na leitura e aparece na discussão.</p></div>";
 }
 
+/* --------------------------------------------------- notas na margem
+
+   A conferência já sabia apontar o parágrafo — só que dizia isso numa lista à
+   parte, e quem lia tinha que achar o parágrafo com o olho. Aqui a marca fica
+   ao lado da linha a que ela se refere.
+
+   Como a quebra de página, a marca é desenhada POR CIMA da folha: o que está
+   dentro do contenteditable acaba no contrato gravado, e nota de margem não é
+   conteúdo do contrato. */
+
+const GRAU_MARCA = { impede: "!", confira: "?", comentario: "•" };
+
+async function carregarNotas() {
+  const folha = folhaAberta();
+  const doc = documentoAberto();
+  if (!folha || !doc || !$("ed-notas")) return;
+
+  try {
+    const r = await fetch("/api/documentos/" + doc.id + "/notas", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corpo: folha.innerHTML }),
+    });
+    if (!r.ok) return;
+    escr.notas = await r.json();
+  } catch (err) { return; }
+  desenharNotas();
+}
+
+function desenharNotas() {
+  const folha = $("ed-folha");
+  const tela = $("ed-notas");
+  const dados = escr.notas;
+  if (!folha || !tela || !dados) return;
+
+  const elementos = blocosDaFolha(folha);
+  tela.innerHTML = "";
+  if (elementos.length !== dados.blocos) return;
+
+  const topo = tela.getBoundingClientRect().top;
+  const porBloco = new Map();
+  dados.notas.forEach((n) => {
+    if (n.bloco < 0 || n.bloco >= elementos.length) return;
+    if (!porBloco.has(n.bloco)) porBloco.set(n.bloco, []);
+    porBloco.get(n.bloco).push(n);
+  });
+
+  porBloco.forEach((notas, bloco) => {
+    const grave = notas.find((n) => n.grau === "impede") || notas[0];
+    const marca = document.createElement("button");
+    marca.className = "ed-nota " + esc(grave.grau);
+    marca.textContent = GRAU_MARCA[grave.grau] || "•";
+    marca.title = notas.map((n) => n.titulo).join(" · ");
+    marca.style.top = (elementos[bloco].getBoundingClientRect().top - topo) + "px";
+    marca.onclick = () => abrirNota(notas, elementos[bloco]);
+    tela.appendChild(marca);
+  });
+}
+
+function abrirNota(notas, elemento) {
+  const destino = abaixoDoEditor();
+  if (!destino) return;
+  elemento.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Nesta linha</h3>' +
+    '<p class="explica corta">' + esc(elemento.textContent.slice(0, 160)) + "</p>" +
+    notas.map((n) =>
+      '<div class="ed-nota-item ' + esc(n.grau) + '">' +
+      '<span class="rotulo">' + (n.origem === "regra" ? "conferência" : esc(n.origem)) +
+      " · " + esc(n.titulo) + "</span><p>" + esc(n.texto) + "</p>" +
+      (n.id ? '<div class="linha-form"><button data-resolver="' + n.id + '">Resolver</button>' +
+        '<button class="perigo" data-apagar="' + n.id + '">Apagar</button></div>' : "") +
+      "</div>").join("") +
+    '<div class="linha-form"><button id="nota-fechar">Fechar</button></div></div>';
+
+  $("nota-fechar").onclick = () => { destino.innerHTML = ""; };
+  destino.querySelectorAll("[data-resolver]").forEach((b) => {
+    b.onclick = () => mexerNaNota(b.dataset.resolver, "resolver");
+  });
+  destino.querySelectorAll("[data-apagar]").forEach((b) => {
+    b.onclick = () => mexerNaNota(b.dataset.apagar, "apagar");
+  });
+}
+
+async function mexerNaNota(id, acao) {
+  const doc = documentoAberto();
+  const url = "/api/documentos/" + doc.id + "/comentarios/" + id;
+  const r = acao === "apagar"
+    ? await fetch(url, { method: "DELETE" })
+    : await fetch(url + "/resolver", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resolvido: true }),
+      });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const destino = abaixoDoEditor();
+  if (destino) destino.innerHTML = "";
+  carregarNotas();
+}
+
+/* Comentar não é pedir alteração: a resposta é observação para quem lê
+   decidir, e não texto para entrar no contrato. Por isso o trecho é
+   obrigatório — comentário sobre "o documento" não gruda em lugar nenhum. */
+async function comentarTrecho() {
+  const trecho = trechoSelecionado();
+  const destino = abaixoDoEditor();
+  const doc = documentoAberto();
+  if (!destino || !doc) return;
+
+  if (!trecho || trecho.length < 12) {
+    destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Comentar</h3>' +
+      '<p class="explica">Selecione antes, no texto, o trecho que você quer que eu ' +
+      "comente. Sem trecho o comentário não tem onde ficar preso.</p></div>";
+    return;
+  }
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px">' +
+    '<p class="nota">lendo o trecho… isso leva cerca de um minuto nesta máquina</p></div>';
+
+  const r = await fetch("/api/documentos/" + doc.id + "/comentar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trecho: trecho }),
+  });
+  if (!r.ok) { destino.innerHTML = '<div class="painel"><p class="explica">' +
+    esc(await erroDe(r)) + "</p></div>"; return; }
+  const d = await r.json();
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Comentário</h3>' +
+    '<p class="explica corta">sobre: ' + esc(d.trecho.slice(0, 140)) + "</p>" +
+    '<div class="ed-nota-item comentario"><p>' + esc(d.texto) + "</p></div>" +
+    '<p class="explica">' + esc(d.aviso) + "</p>" +
+    '<div class="linha-form"><button class="perigo" id="nota-apagar">Apagar</button>' +
+    '<button id="nota-fechar2">Fechar</button></div></div>';
+
+  $("nota-fechar2").onclick = () => { destino.innerHTML = ""; };
+  $("nota-apagar").onclick = () => mexerNaNota(d.id, "apagar");
+  carregarNotas();
+}
+
 /* ------------------------------------------------------ controlar alterações
 
    O Word marca cada tecla enquanto se digita. Aqui a marca vem da comparação
@@ -9382,6 +9537,7 @@ function desenharEditor() {
     '<button id="ed-clausulas">Cláusulas do escritório</button>' +
     '<button id="ed-codigos">Citar a lei</button>' +
     '<button id="ed-formato">Folha</button>' +
+    '<button id="ed-comentar">Comentar trecho</button>' +
     '<button id="ed-alteracoes">Alterações</button>' +
     '<button id="ed-conferir">Conferir</button></div>';
 
@@ -9394,7 +9550,8 @@ function desenharEditor() {
     '<span id="ed-regua-fim">A4 · margens 2,5 cm</span></div></div>' +
     '<div class="ed-papel">' +
     '<div class="ed-folha" id="ed-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
-    '<div class="ed-quebras" id="ed-quebras"></div></div>' +
+    '<div class="ed-quebras" id="ed-quebras"></div>' +
+    '<div class="ed-notas" id="ed-notas"></div></div>' +
     '<div id="ed-abaixo"></div></div>';
 
   html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
@@ -9477,11 +9634,13 @@ function ligarEditor() {
   $("ed-formato").onclick = painelFormato;
   $("ed-quadro").onclick = painelQuadro;
   $("ed-alteracoes").onclick = () => painelAlteracoes();
+  $("ed-comentar").onclick = comentarTrecho;
   folha.addEventListener("input", () => pedirPaginacao());
   document.addEventListener("selectionchange", mostrarPaginaDoCursor);
   document.addEventListener("selectionchange", lembrarCursor);
   window.addEventListener("resize", revestirFolha);
   aplicarPaginacao(escr.doc.paginacao);
+  carregarNotas();
 }
 
 /* -------------------------------------------------- a página, medida
@@ -9593,6 +9752,7 @@ function aplicarPaginacao(mapa) {
     tela.appendChild(linha);
   }
 
+  desenharNotas();
   if (nota) {
     nota.textContent = mapa.paginas === 1
       ? "Cabe em uma página. Contagem medida no PDF, não estimada."

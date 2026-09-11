@@ -80,6 +80,13 @@ USER_TEMPLATE = """Documentos do escritorio:
 
 Pergunta: {question}"""
 
+# Para quem nao esta perguntando sobre o acervo - o editor, por exemplo. Sem o
+# cabecalho "Documentos do escritorio", que faz o modelo responder como se
+# estivesse citando arquivo.
+MOLDE_SIMPLES = """{context}
+
+{question}"""
+
 
 class OllamaError(RuntimeError):
     pass
@@ -211,18 +218,25 @@ class LlamaClient:
         question: str,
         context: str = "",
         *,
+        sistema: str = "",
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
         on_fase: Callable[[str, dict], None] | None = None,
     ) -> str:
-        """Pergunta com contexto de contratos."""
-        conteudo = (
-            USER_TEMPLATE.format(context=context, question=question)
-            if context
-            else question
-        )
+        """
+        Pergunta com contexto de contratos.
+
+        `sistema` troca a instrucao de sistema para quem nao esta perguntando
+        sobre o acervo. Sem isso, o editor pedia "devolva APENAS o texto" numa
+        mensagem de usuario enquanto o sistema mandava "cite o nome do arquivo
+        de onde tirou a informacao" - duas ordens opostas, e o modelo obedecia
+        as duas: a sugestao vinha com "Arquivo: contrato.txt" na frente, e o
+        nome do arquivo era inventado.
+        """
+        molde = USER_TEMPLATE if not sistema else MOLDE_SIMPLES
+        conteudo = molde.format(context=context, question=question) if context else question
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": sistema or SYSTEM_PROMPT},
             {"role": "user", "content": conteudo},
         ]
         return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase)

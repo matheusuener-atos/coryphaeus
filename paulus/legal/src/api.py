@@ -145,6 +145,7 @@ class Estado:
         self.envios = correio.RegistroEnvios(ENVIOS_PATH)
         # Documentos de texto e planilhas, com historico de versoes.
         self.documentos = documento.Documentos(self.base)
+        self.comentarios = documento.Comentarios(self.base)
         self.clausulas = documento.Clausulas(CLAUSULAS_PATH)
         # Os codigos oficiais em base local: citar vira consulta.
         self.leis = leis.Leis(self.base)
@@ -3175,6 +3176,122 @@ def documentos_comparar(id_: int, de: int = 0, ate: int = 0) -> dict:
     return {"de": de, "ate": ate, "mudancas": documento.comparar(antes, depois)}
 
 
+@app.post("/api/documentos/{id_}/notas")
+def documentos_notas(id_: int, payload: dict) -> dict:
+    """
+    As notas de margem deste documento, presas ao paragrafo de cada uma.
+
+    Duas origens, e a tela diz qual e qual:
+
+      - regra: o que `conferir` acha, instantaneo e sempre igual
+      - assistente: o que o modelo comentou quando pediram
+
+    A da regra nao precisa de modelo nem de rede, e por isso aparece sempre. A
+    do modelo so existe onde alguem pediu.
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+
+    corpo = payload.get("corpo")
+    blocos = documento.ler_html(item["corpo"] if corpo is None else corpo)
+
+    notas = []
+    for aviso in documento.conferir(blocos, estado.cadastros.listar()):
+        notas.append({
+            "id": 0,
+            "origem": "regra",
+            "grau": aviso["grau"],
+            "bloco": aviso["bloco"] - 1,     # a tela conta de zero
+            "titulo": aviso["titulo"],
+            "texto": aviso["detalhe"],
+        })
+    for c in estado.comentarios.ancorar(id_, blocos):
+        notas.append({
+            "id": c["id"],
+            "origem": c["origem"],
+            "grau": "comentario",
+            "bloco": c["bloco"],
+            "titulo": "Comentário",
+            "texto": c["texto"],
+            "trecho": c["trecho"],
+            "criado_em": c["criado_em"],
+        })
+
+    return {"notas": notas, "blocos": len(blocos)}
+
+
+@app.post("/api/documentos/{id_}/comentar")
+def documentos_comentar(id_: int, payload: dict) -> dict:
+    """
+    O assistente comentando um trecho - sem reescrever nada.
+
+    E diferente de pedir uma alteracao: aqui a resposta e uma observacao para
+    quem le decidir, e nao um texto para entrar no contrato. O trecho vai junto
+    porque comentario sobre "o documento" nao gruda em lugar nenhum.
+    """
+    item = _documento_ou_404(id_)
+    trecho = str(payload.get("trecho", "")).strip()
+    if not trecho:
+        raise HTTPException(
+            status_code=400,
+            detail="selecione no texto o trecho que você quer que eu comente")
+
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+
+    pedido = (
+        "Escreva UMA observacao curta sobre o trecho abaixo, para quem vai "
+        "revisar o contrato. Diga o que falta, o que esta ambiguo ou o que "
+        "merece conferencia. Nao reescreva o trecho e nao proponha texto novo. "
+        "No maximo tres frases."
+    )
+    try:
+        resposta = estado.client.ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
+                                     sistema=SISTEMA_COMENTARIO)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    texto = _limpar_sugestao(resposta)
+    if not texto:
+        raise HTTPException(status_code=422, detail="o modelo não devolveu observação nenhuma")
+
+    novo = estado.comentarios.criar(id_, trecho, texto, origem="assistente")
+    return {"id": novo, "texto": texto, "trecho": trecho[:600],
+            "aviso": ("Escrito por um modelo pequeno rodando nesta máquina. "
+                      "É observação para conferir, não parecer.")}
+
+
+@app.post("/api/documentos/{id_}/comentarios")
+def comentarios_criar(id_: int, payload: dict) -> dict:
+    """Um comentario escrito pela propria pessoa, preso a um trecho."""
+    _documento_ou_404(id_)
+    try:
+        novo = estado.comentarios.criar(
+            id_, payload.get("trecho", ""), payload.get("texto", ""), origem="pessoa")
+    except ValueError as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+    return {"id": novo}
+
+
+@app.post("/api/documentos/{id_}/comentarios/{comentario_id}/resolver")
+def comentarios_resolver(id_: int, comentario_id: int, payload: dict) -> dict:
+    _documento_ou_404(id_)
+    achou = estado.comentarios.resolver(comentario_id, bool(payload.get("resolvido", True)))
+    if not achou:
+        raise HTTPException(status_code=404, detail="comentário não encontrado")
+    return {"ok": True}
+
+
+@app.delete("/api/documentos/{id_}/comentarios/{comentario_id}")
+def comentarios_apagar(id_: int, comentario_id: int) -> dict:
+    _documento_ou_404(id_)
+    if not estado.comentarios.apagar(comentario_id):
+        raise HTTPException(status_code=404, detail="comentário não encontrado")
+    return {"ok": True}
+
+
 @app.post("/api/documentos/{id_}/alteracoes")
 def documentos_alteracoes(id_: int, payload: dict) -> dict:
     """
@@ -3469,6 +3586,28 @@ Regras:
   entre colchetes, por exemplo [VALOR]
 - sem marcacao, sem asteriscos, sem titulo"""
 
+# A instrucao de SISTEMA do editor. Sem ela valia a do acervo, que manda citar
+# o nome do arquivo de onde a informacao saiu - e o modelo obedecia as duas
+# ordens ao mesmo tempo: devolvia o texto pedido com "Arquivo: contrato.txt" na
+# frente, com o nome do arquivo inventado.
+SISTEMA_EDITOR = """Voce e o PAULUS, ajudando a redigir um documento juridico
+brasileiro. Voce nao esta consultando arquivos: o que vem abaixo e o texto em
+que se esta trabalhando agora.
+
+Nunca cite nome de arquivo, nunca escreva cabecalho como "Arquivo:" ou
+"Documento:", nunca repita o pedido antes de responder.
+
+Nunca invente artigo de lei, sumula, processo, nome, data, valor ou prazo.
+
+Voce NAO conhece a tela deste programa. Nunca diga onde clicar, nunca cite
+botao, menu ou atalho."""
+
+SISTEMA_COMENTARIO = SISTEMA_EDITOR + """
+
+Aqui voce NAO reescreve nada: voce comenta. A resposta e uma observacao curta
+para quem vai revisar decidir - o que falta, o que esta ambiguo, o que merece
+conferencia. Nao proponha texto novo e nao repita o trecho."""
+
 
 class PedidoDeRedacao(BaseModel):
     corpo: str = ""
@@ -3553,7 +3692,8 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         contexto = f"Documento (início):\n{texto[:2500]}"
 
     try:
-        resposta = estado.client.ask(INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}", contexto)
+        resposta = estado.client.ask(INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}", contexto,
+                                     sistema=SISTEMA_EDITOR)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -3585,6 +3725,11 @@ def _limpar_sugestao(texto: str) -> str:
     # "[Texto do documento]", "[Documento]": rotulo que o modelo copia do
     # cabecalho do contexto e entrega como se fosse parte do texto.
     limpo = re.sub(r"^\s*\[[^\]]{0,40}\]\s*", "", limpo)
+    # "Arquivo: contrato.txt" na primeira linha: o modelo obedecendo a ordem de
+    # citar a origem, com um nome de arquivo que ele mesmo inventou. A ordem ja
+    # saiu do prompt do editor, mas o rotulo ainda escapa de vez em quando.
+    limpo = re.sub(r"^\s*(arquivo|documento|origem|fonte)\s*:[^\n]{0,80}\n+", "",
+                   limpo, flags=re.I)
     return limpo.strip()
 
 

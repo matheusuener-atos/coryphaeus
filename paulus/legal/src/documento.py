@@ -1037,9 +1037,14 @@ def _conferir_fichas(blocos: list[Bloco], fichas: list[dict]) -> list[dict]:
             continue
         if doc in achados:
             continue
+        # Em que paragrafo o nome aparece. Sem isto o aviso vinha com bloco 0 e
+        # a tela so podia dizer "em algum lugar do documento" - para conferir,
+        # a pessoa tinha que procurar o nome com o olho.
+        onde = next((n for n, b in enumerate(blocos, start=1)
+                     if nome.lower() in b.texto.lower()), 0)
         avisos.append({
             "grau": "confira",
-            "bloco": 0,
+            "bloco": onde,
             "titulo": "Documento diferente do cadastro",
             "detalhe": (
                 f"O texto cita {nome}, mas não traz o {('CNPJ' if len(_digitos(doc)) == 14 else 'CPF')} "
@@ -1223,6 +1228,68 @@ def _parecidos(a: str, b: str) -> bool:
     if not palavras_a or not palavras_b:
         return False
     return difflib.SequenceMatcher(None, palavras_a, palavras_b).ratio() >= PARECIDOS_MINIMO
+
+
+class Comentarios:
+    """
+    Observacao presa a um trecho do documento.
+
+    A ancora e o TEXTO do paragrafo, e nao o numero dele: numero muda toda vez
+    que alguem insere uma linha acima, e o comentario passaria a apontar para o
+    paragrafo errado - calado, que e pior do que nao ter comentario. Pelo
+    texto, ou acha o paragrafo certo, ou diz que o trecho nao existe mais.
+    """
+
+    def __init__(self, base) -> None:
+        self.base = base
+
+    def listar(self, documento_id: int, incluir_resolvidos: bool = False) -> list[dict]:
+        sql = "SELECT * FROM comentarios WHERE documento_id = ?"
+        if not incluir_resolvidos:
+            sql += " AND resolvido = 0"
+        return self.base.buscar(sql + " ORDER BY id", (documento_id,))
+
+    def criar(self, documento_id: int, trecho: str, texto: str,
+              origem: str = "assistente") -> int:
+        texto = str(texto or "").strip()
+        if not texto:
+            raise ValueError("comentário sem texto")
+        return self.base.escrever(
+            "INSERT INTO comentarios (documento_id, trecho, texto, origem, criado_em) "
+            "VALUES (?, ?, ?, ?, datetime('now','localtime'))",
+            (documento_id, " ".join(str(trecho or "").split())[:600], texto, origem),
+        )
+
+    def resolver(self, id_: int, resolvido: bool = True) -> bool:
+        return self.base.escrever(
+            "UPDATE comentarios SET resolvido = ? WHERE id = ?",
+            (1 if resolvido else 0, id_),
+        ) > 0
+
+    def apagar(self, id_: int) -> bool:
+        return self.base.escrever("DELETE FROM comentarios WHERE id = ?", (id_,)) > 0
+
+    def ancorar(self, documento_id: int, blocos: list[Bloco],
+                incluir_resolvidos: bool = False) -> list[dict]:
+        """
+        Em que bloco cada comentario cai no texto de agora.
+
+        `bloco` -1 quer dizer que o trecho nao esta mais no documento. A tela
+        mostra esses numa lista a parte, em vez de pendurar num paragrafo
+        qualquer.
+        """
+        textos = [" ".join(b.texto.split()) for b in blocos]
+        saida = []
+        for item in self.listar(documento_id, incluir_resolvidos):
+            alvo = " ".join(str(item["trecho"]).split())
+            onde = -1
+            if alvo:
+                for numero, texto in enumerate(textos):
+                    if alvo == texto or (len(alvo) > 12 and alvo in texto):
+                        onde = numero
+                        break
+            saida.append({**item, "bloco": onde})
+        return saida
 
 
 def comparar(antes: str, depois: str) -> list[dict]:

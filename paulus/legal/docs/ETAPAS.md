@@ -24,8 +24,8 @@ uma — porque "pronta" sem isso é só um botão que abre uma tela.
 | Foco e bem-estar | tempo ocioso do sistema, sem ler tecla; totais por dia |
 | Biblioteca | índice de documentos + cache de classificação |
 | Organizar pastas | varredura, classificação híbrida, plano, diário, desfazer |
-| Editor de texto | HTML → blocos → PDF e DOCX pelo mesmo caminho; versões |
-| Planilha | analisador de fórmula escrito à mão, em português brasileiro |
+| Editor de texto | HTML → blocos → PDF e DOCX pelo mesmo caminho; página medida no próprio PDF |
+| Planilha | analisador de fórmula escrito à mão, em português brasileiro; ordenar move a fórmula com a linha |
 | Assinar documento | PAdES com certificado A1, via pyHanko |
 | Financeiro | lançamentos em centavos inteiros, extrato com saldo correndo |
 | Cadastros | base local, com sugestões vindas dos documentos lidos |
@@ -618,7 +618,11 @@ inserir. Artigo revogado só entra com confirmação explícita. Em Configuraç�
 importar de uma pasta de uma vez, com o relatório do que ficou de fora e por
 quê.
 
-Fica para a Etapa 12: conferir prazos do documento contra os prazos da lei.
+Conferir prazos do documento contra os prazos da lei estava marcado para a
+Etapa 12 e **não entrou**: o programa não carrega o texto das leis, e um prazo
+conferido contra artigo lembrado de cor pelo modelo é pior que prazo nenhum —
+a pessoa confia e não confere. Volta quando houver fonte de lei de verdade
+nesta máquina, que é o assunto desta etapa aqui.
 
 ---
 
@@ -848,19 +852,173 @@ concordam junto ("3 documentos abertos", "2 despesas pagas").
 
 ---
 
-## Etapa 12 — Escrever melhor
+## Etapa 12 — Escrever melhor ✓ FEITA
 
 **Telas:** Editor de texto · Planilha · Pré-visualização
 **Tamanho:** grande
 **Depende de:** Etapa 11
 
-- Editor: alinhar, recuo, tabela, fonte e corpo, régua e indicador de página
-- Numerar cláusulas, referência cruzada, qualificação das partes
-- Comentário do assistente ancorado no trecho, dentro do texto
-- Controlar alterações
-- Planilha: mesclar, bordas, congelar, filtrar, ordenar, gráfico, resumo da seleção
-- Pré-visualização: comparar versões lado a lado, duas páginas, tela cheia,
-  imprimir, e o timbre do escritório no PDF
+O critério desta etapa foi o mesmo do resto do projeto: *o editor em si o Word
+já faz*. O que entrou é o que o Word **não** faz para quem redige contrato no
+Brasil — e o que a tela dizia e não podia provar.
+
+### Numerar cláusulas e qualificar as partes
+
+Renumerar leva as **referências cruzadas** junto. É a metade do trabalho que
+costuma ficar para trás, e é ela que gera a cláusula 7 citando a cláusula 4
+depois que a 4 virou 5.
+
+"Conforme cláusula 2" no meio da frase não é título de cláusula. Sem essa
+distinção o contrato saía numerado 1, 2, 3, 4 e **6** — aconteceu. E ordinal
+por extenso com acento ("DÉCIMA SEGUNDA") não casava, porque a expressão tinha
+sido montada só com as formas sem acento.
+
+A qualificação sai do cadastro. O que o cadastro não tem vira `[ESTADO CIVIL]`
+no texto, nunca invenção, e a tela diz o que falta **antes** de inserir —
+completar em Cadastros agora é mais barato que caçar colchete depois.
+
+### A página deixa de ser estimativa
+
+O editor dizia `páginas ~4`: palavras divididas por 450. Erra em todo documento
+com título, lista ou parágrafo curto, e erra mais quanto maior o documento —
+justamente quando a pessoa precisa saber. O manual deste projeto diz que número
+na tela é número medido, e esse não era.
+
+Agora quem conta é o próprio PDF sendo montado, o mesmo arquivo que a
+pré-visualização desenha: **10 a 53 ms** nos contratos deste escritório. Barato
+o bastante para rodar 700 ms depois da última tecla.
+
+Com medida no lugar de estimativa, dá para fazer o que estimativa não permite:
+as quebras de página aparecem **desenhadas na folha**, na linha certa, e a
+régua diz em que página o cursor está. Conferido contra o arquivo: a página 2
+do PDF começa em "Parágrafo Único: O presente contrato tem como OBJETO", que é
+onde a linha está.
+
+O parágrafo que atravessa a quebra continua no mapa. O reportlab parte
+parágrafo grande em dois, e os pedaços novos não herdam nada de quem os gerou;
+sem repassar a marca na divisão, sumia do mapa justamente o parágrafo sobre o
+qual a pergunta é interessante.
+
+A linha de quebra é desenhada **por cima** da folha, nunca dentro: o que está
+dentro do `contenteditable` acaba no contrato gravado.
+
+### A folha: fonte, corpo, recuo, entrelinhas
+
+Por documento, e não por escritório — petição e contrato pedem recuos
+diferentes, e quem escreve os dois no mesmo dia não pode trocar configuração
+entre um e outro. Chega ao PDF **e** ao DOCX.
+
+O que o PDF não sabe produzir volta ao padrão em vez do mais parecido: "quase o
+que você pediu" é a resposta que ninguém consegue conferir.
+
+A folha na tela passou a ser desenhada na escala do PDF — margem de 11,9% da
+largura, que são os 2,5 cm de verdade, e corpo proporcional. Antes eram 48 px e
+15 px fixos: escolher corpo 13 não mudava nada na tela.
+
+De quebra, PDF e DOCX passaram a sair na mesma fonte. Saíam em Times e Georgia
+porque eram os padrões de cada biblioteca, e ninguém tinha decidido isso.
+
+### Quadro dentro do documento
+
+Quadro de parcelas, de honorários, de bens. Era o que fazia o contrato sair do
+Word: aqui não havia como montar um.
+
+A célula guarda texto puro — negrito dentro de célula de quadro não aparece em
+contrato, e o que importa é o texto chegar inteiro aos dois formatos. Linha em
+branco no meio do quadro **fica**: a pré-visualização promete ser o arquivo, e
+uma linha que aparece no editor e some do PDF quebra a promessa.
+
+### Controlar alterações
+
+O Word marca cada tecla enquanto se digita. Aqui a marca vem da comparação com
+uma versão gravada, e não de interceptar a digitação: interceptar tecla dentro
+de um campo editável é o caminho curto para perder texto de contrato, e texto
+de contrato perdido não tem conserto do lado de cá.
+
+O resultado é o que interessa — o que entrou, o que saiu, o que mudou, e o
+caminho de volta para cada um, um a um.
+
+A comparação passou a separar duas coisas que o `difflib` junta: apagar uma
+cláusula e escrever outra no lugar não é "esta cláusula mudou". A tela dizia
+*"a cláusula do foro virou a cláusula da multa"*, e quem lê isso para decidir o
+que aceitar é enganado. O corte é por palavra, e o número saiu de medir
+parágrafos daqui: edição de verdade entre **0,60 e 0,83**, parágrafo trocado
+por outro entre **0,00 e 0,33**. Por letra não daria — "Nome: ______" e
+"CPF: ______" dão 0,74, porque o que eles têm em comum é o sublinhado.
+
+### Notas na margem
+
+A conferência já sabia apontar o parágrafo, mas dizia isso numa lista à parte —
+quem lia tinha que achar o parágrafo com o olho. Agora a marca fica ao lado da
+linha.
+
+Duas origens, e a tela diz qual é qual: **regra** (o que `conferir` acha,
+instantâneo e sempre igual) e **assistente** (o que o modelo comentou quando
+pediram). O comentário do modelo é observação para conferir, não texto para
+entrar no contrato — e o trecho é obrigatório, porque comentário sobre "o
+documento" não gruda em lugar nenhum.
+
+A âncora é o **texto** do parágrafo, não o número dele. Número muda toda vez
+que alguém insere uma linha acima, e o comentário passaria a apontar para o
+parágrafo errado, calado.
+
+### Planilha: responder sobre a tabela
+
+Selecionar uma célula respondia "quanto é esta?". A pergunta que se faz a uma
+tabela de parcelas é outra — e para respondê-la entraram seleção em retângulo,
+resumo da seleção (com **quantas estão vazias**: uma vazia no meio de uma coluna
+muda a média, não muda a soma, e isso não se vê olhando), bordas e formato na
+seleção inteira, congelar, ordenar, filtrar, juntar células e gráfico.
+
+Ordenar leva a linha inteira **e a fórmula da linha**: `=B7*0,1` na linha 7 vira
+`=B9*0,1` quando a 7 vai para a 9. Ordenar só a coluna escolhida embaralha a
+tabela — o valor da linha 7 passa a valer para o cliente da linha 3 — e o
+estrago não aparece olhando, cada célula continua plausível.
+
+Filtrar não grava nada: filtro é jeito de olhar. Filtro gravado esconderia
+linhas de quem abrisse o arquivo depois sem saber que há filtro. O aviso de
+filtro ligado fica na tela o tempo todo.
+
+Juntar células não cobre conteúdo. O Excel junta e joga fora o que estava
+debaixo, avisando numa caixa que todo mundo clica em OK sem ler.
+
+### Pré-visualização
+
+Duas páginas lado a lado, tela cheia, imprimir (o PDF de verdade indo para a
+impressora, não a tela impressa), comparar versões — a lista do que mudou **e**
+as duas folhas desenhadas, porque só a lista não mostra como ficou e só as
+folhas não dizem o que procurar — e o timbre do escritório no PDF, desligado
+por padrão: minuta interna com timbre parece peça protocolada.
+
+### Três erros que só apareceram com a tela pintada
+
+**O PDFium derrubando o servidor.** É uma biblioteca em C e não é segura para
+duas threads ao mesmo tempo; o FastAPI atende rota `def` num pool de threads.
+Enquanto a tela pedia uma página de cada vez, ninguém viu nada. A comparação
+passou a mostrar duas folhas, dois `<img>` saíram juntos e o processo morreu com
+`access violation reading 0x2C` — sem traceback da aplicação, só dois 500 na
+tela. Todo acesso passa agora por `src/leitor_pdf.py`, um de cada vez.
+
+**`=SOMASE(B1:B4;">1000")` somava a coluna inteira.** 13.700 onde o certo era
+13.200; `"<1000"` devolvia zero. O critério chega sempre como texto, e a
+comparação caía no ramo de texto: letra a letra, `"500" > "1000"` é verdadeiro,
+porque "5" vem depois de "1". A célula mostrava um número plausível, que é a
+pior forma de errar valor — ninguém confere planilha somando de cabeça.
+
+**O modelo assinando arquivo que não existe.** A sugestão do editor vinha com
+`Arquivo: contrato.txt` na frente, com o nome inventado. O prompt de sistema
+mandava citar a origem de cada informação — regra do acervo — enquanto a
+instrução do editor pedia só o texto. Duas ordens opostas, e o modelo obedecia
+as duas. O editor passou a ter instrução de sistema própria.
+
+**Fica para depois:** ver o documento e a planilha lado a lado, e o editor
+abrindo DOCX de terceiro sem passar pelo Word.
+
+**Não entrou, e não foi esquecimento:** conferir os prazos do documento contra
+os prazos da lei, que a Etapa 11 tinha deixado para cá. O programa não carrega
+o texto das leis, e um prazo conferido contra artigo que o modelo lembrou de
+cor é pior que prazo nenhum — a pessoa confia e não confere. Volta quando
+houver fonte de lei de verdade nesta máquina, que é o assunto da Etapa 11.
 
 ---
 
