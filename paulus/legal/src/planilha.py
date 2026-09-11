@@ -60,6 +60,9 @@ class Celula:
     # planilha que perde a moldura ao ser aberta no Excel nao foi exportada
     # inteira.
     borda: bool = False
+    # Quantas colunas esta celula ocupa. 1 e o normal; maior que 1 e uma
+    # celula juntada com as da direita - um titulo atravessando o quadro.
+    juntar: int = 1
 
     @property
     def e_formula(self) -> bool:
@@ -69,7 +72,7 @@ class Celula:
         return {
             "valor": self.valor, "formato": self.formato,
             "negrito": self.negrito, "italico": self.italico,
-            "borda": self.borda,
+            "borda": self.borda, "juntar": self.juntar,
         }
 
 
@@ -92,9 +95,11 @@ class Aba:
         for campo in ("formato", "negrito", "italico", "borda"):
             if campo in dados:
                 setattr(celula, campo, dados[campo] if campo == "formato" else bool(dados[campo]))
+        if "juntar" in dados:
+            celula.juntar = max(1, min(int(dados["juntar"] or 1), MAX_COLUNAS))
 
         if (not celula.valor and not celula.formato and not celula.negrito
-                and not celula.italico and not celula.borda):
+                and not celula.italico and not celula.borda and celula.juntar <= 1):
             self.celulas.pop(ref, None)
             return celula
 
@@ -754,6 +759,124 @@ def resumo_selecao(aba: Aba, calculado: dict, refs: list[str]) -> dict:
     }
 
 
+def serie_da_faixa(aba: Aba, calculado: dict, faixa: str) -> dict:
+    """
+    A seleção virando uma série para desenhar: rótulos e valores.
+
+    A regra é a que a pessoa já usa sem pensar: a última coluna com número é o
+    valor, e a primeira coluna de texto à esquerda dela são os rótulos. Pedir
+    para escolher coluna de valor e coluna de rótulo antes de ver o desenho
+    seria um formulário no lugar de um gráfico.
+
+    O que não dá para desenhar devolve `pode=False` com o motivo, e não um
+    gráfico vazio: gráfico de nada é pior que gráfico nenhum, porque parece um
+    resultado.
+    """
+    l1, c1, l2, c2 = cantos(faixa)
+
+    # Quantos números tem cada coluna da seleção.
+    numericas, textuais = {}, {}
+    for coluna in range(c1, c2 + 1):
+        numeros = textos = 0
+        for linha in range(l1, l2 + 1):
+            pronta = calculado.get(f"{letra_da_coluna(coluna)}{linha + 1}") or {}
+            valor = pronta.get("bruto")
+            if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+                numeros += 1
+            elif str(pronta.get("texto", "")).strip():
+                textos += 1
+        numericas[coluna] = numeros
+        textuais[coluna] = textos
+
+    com_numero = [c for c in range(c1, c2 + 1) if numericas[c]]
+    if not com_numero:
+        return {"pode": False, "porque": "não há número nenhum nesta seleção"}
+
+    valores_em = com_numero[-1]
+    rotulos_em = next((c for c in range(c1, valores_em) if textuais[c] > numericas[c]), None)
+
+    pontos = []
+    for linha in range(l1, l2 + 1):
+        pronta = calculado.get(f"{letra_da_coluna(valores_em)}{linha + 1}") or {}
+        valor = pronta.get("bruto")
+        if not isinstance(valor, (int, float)) or isinstance(valor, bool):
+            continue
+        if rotulos_em is None:
+            rotulo = f"{letra_da_coluna(valores_em)}{linha + 1}"
+        else:
+            rotulo = str((calculado.get(f"{letra_da_coluna(rotulos_em)}{linha + 1}")
+                          or {}).get("texto", "")).strip()
+        pontos.append({
+            "rotulo": rotulo or f"linha {linha + 1}",
+            "valor": round(float(valor), 2),
+            "texto": pronta.get("texto", ""),
+        })
+
+    if len(pontos) < 2:
+        return {"pode": False,
+                "porque": "um valor só não vira gráfico — selecione a coluna inteira"}
+
+    return {
+        "pode": True,
+        "pontos": pontos,
+        "coluna_valores": letra_da_coluna(valores_em),
+        "coluna_rotulos": letra_da_coluna(rotulos_em) if rotulos_em is not None else "",
+        "maior": max(p["valor"] for p in pontos),
+        "menor": min(p["valor"] for p in pontos),
+        "soma": round(sum(p["valor"] for p in pontos), 2),
+    }
+
+
+def pode_mesclar(aba: Aba, faixa: str) -> tuple[bool, str]:
+    """
+    Se dá para juntar as células desta faixa numa só.
+
+    Só junta na horizontal, e só se o que vai ficar coberto estiver vazio. O
+    Excel junta e joga fora o que estava debaixo, avisando numa caixa que todo
+    mundo clica em OK sem ler. Aqui o que tem conteúdo não é coberto: a pessoa
+    esvazia antes, se for isso mesmo que ela quer.
+    """
+    l1, c1, l2, c2 = cantos(faixa)
+    # A altura primeiro: uma selecao em pe tem uma coluna so, e cairia no aviso
+    # de "duas celulas lado a lado" - que nao e o problema dela.
+    if l2 != l1:
+        return False, "por enquanto só junto células da mesma linha"
+    if c2 == c1:
+        return False, "selecione pelo menos duas células lado a lado"
+
+    ocupadas = [f"{letra_da_coluna(c)}{l1 + 1}" for c in range(c1 + 1, c2 + 1)
+                if (aba.celulas.get(f"{letra_da_coluna(c)}{l1 + 1}") or Celula()).valor]
+    if ocupadas:
+        return False, ("as células " + ", ".join(ocupadas[:4]) +
+                       " têm conteúdo — esvazie antes, para nada sumir sem você ver")
+    return True, ""
+
+
+def mesclar(aba: Aba, faixa: str) -> dict:
+    """Junta as celulas da faixa numa so, a partir da primeira."""
+    pode, porque = pode_mesclar(aba, faixa)
+    if not pode:
+        raise ValueError(porque)
+
+    l1, c1, _, c2 = cantos(faixa)
+    ref = f"{letra_da_coluna(c1)}{l1 + 1}"
+    aba.gravar(ref, {"juntar": c2 - c1 + 1})
+    for c in range(c1 + 1, c2 + 1):
+        aba.celulas.pop(f"{letra_da_coluna(c)}{l1 + 1}", None)
+    return {"ref": ref, "colunas": c2 - c1 + 1}
+
+
+def separar(aba: Aba, faixa: str) -> dict:
+    """Desfaz a juncao das celulas da faixa."""
+    soltas = 0
+    for ref in refs_da_faixa(faixa):
+        celula = aba.celulas.get(ref)
+        if celula and celula.juntar > 1:
+            celula.juntar = 1
+            soltas += 1
+    return {"soltas": soltas}
+
+
 # Referencia de celula dentro de uma formula. O olhar para tras evita cortar
 # "AB12" no meio, e o olhar para frente evita confundir nome de funcao.
 RE_REF_FORMULA = re.compile(r"(?<![A-Z0-9_$])([A-Z]{1,2})(\d{1,4})(?![0-9(])")
@@ -1001,6 +1124,11 @@ def para_xlsx(abas: list[Aba], calculados: list[dict]) -> bytes:
 
                 fio = Side(style="thin")
                 folha[ref].border = Border(left=fio, right=fio, top=fio, bottom=fio)
+        for ref, celula in aba.celulas.items():
+            if celula.juntar > 1:
+                linha, coluna = _posicao(ref)
+                fim = f"{letra_da_coluna(coluna + celula.juntar - 1)}{linha + 1}"
+                folha.merge_cells(f"{ref}:{fim}")
         if aba.congelar_cabecalho:
             folha.freeze_panes = "A2"
 
@@ -1026,6 +1154,7 @@ def de_dict(bruto: dict) -> list[Aba]:
                     negrito=bool(dados.get("negrito")),
                     italico=bool(dados.get("italico")),
                     borda=bool(dados.get("borda")),
+                    juntar=max(1, int(dados.get("juntar") or 1)),
                 )
         abas.append(aba)
     return abas or [Aba()]

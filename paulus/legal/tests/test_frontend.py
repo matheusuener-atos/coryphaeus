@@ -238,6 +238,64 @@ def test_nome_de_funcao_nao_se_repete() -> None:
            ", ".join(repetidos))
 
 
+def test_plural_em_portugues() -> None:
+    """
+    plural() poe um "s" no fim. Em portugues isso nem sempre da certo.
+
+    "3 alteraçãos", "6 valors". Sao erros que nao quebram nada e por isso
+    ficam: aparecem num canto da tela, ninguem abre chamado, e o programa passa
+    a parecer feito as pressas - num produto que se vende para advogado, isso
+    conta.
+
+    A funcao aceita o plural certo como terceiro argumento. Este teste cobra
+    esse argumento das palavras cujo plural nao e so "+s".
+    """
+    print("\nplural das palavras que nao terminam em s")
+    _, js = _partes(PAGINA.read_text(encoding="utf-8"))
+
+    # Terminacoes em que o portugues nao forma plural so com "s".
+    #   -ao -> -oes/-aes/-aos    -r/-z/-s -> -es
+    #   -l  -> -is/-eis          -m -> -ns
+    teimosas = ("ão", "ãe", "r", "z", "s", "l", "m")
+
+    erradas = []
+    for chamada in re.finditer(r"plural\(([^()]*(?:\([^()]*\)[^()]*)*)\)", js):
+        partes = _argumentos(chamada.group(1))
+        if len(partes) < 2 or len(partes) > 2:
+            continue                      # ja passou o plural certo, ou e a propria definicao
+        palavra = partes[1].strip()
+        if not (palavra.startswith('"') and palavra.endswith('"')):
+            continue                      # palavra vinda de variavel: nao da para conferir aqui
+        nua = palavra.strip('"').split(" ")[-1].lower()
+        if nua.endswith(teimosas):
+            erradas.append(nua)
+
+    checar(not erradas,
+           "toda palavra teimosa passa o plural certo como 3o argumento",
+           ", ".join(sorted(set(erradas))) + " — use plural(n, \"x\", \"xs certo\")")
+
+
+def _argumentos(bruto: str) -> list[str]:
+    """Separa os argumentos de uma chamada, sem cortar dentro de aspas."""
+    partes, atual, aspas = [], "", ""
+    for c in bruto:
+        if aspas:
+            atual += c
+            if c == aspas:
+                aspas = ""
+            continue
+        if c in "\"'":
+            aspas = c
+            atual += c
+        elif c == ",":
+            partes.append(atual)
+            atual = ""
+        else:
+            atual += c
+    partes.append(atual)
+    return partes
+
+
 def test_rota_fixa_antes_da_com_parametro() -> None:
     """
     "/api/documentos/importar" tem que ser declarada antes de
@@ -307,6 +365,7 @@ def main() -> int:
     test_tokens()
     test_javascript_compila()
     test_nome_de_funcao_nao_se_repete()
+    test_plural_em_portugues()
     test_rota_fixa_antes_da_com_parametro()
     test_sem_internet()
 

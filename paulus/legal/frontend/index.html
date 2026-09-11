@@ -1782,6 +1782,21 @@
   }
   .pl-caixa.congelada tbody tr:first-child td.cabeca-linha { z-index: 2; }
 
+  /* Barras desenhadas aqui, com CSS: o programa roda sem internet e não vai
+     buscar biblioteca de gráfico em CDN. */
+  .pl-grafico {
+    display: flex; align-items: flex-end; gap: 6px;
+    height: 168px; margin: 12px 0 4px; padding-bottom: 18px;
+    border-bottom: 1px solid var(--linha-media); overflow-x: auto;
+  }
+  .pl-gbarra { flex: 1 1 0; min-width: 26px; height: 100%; position: relative; display: flex; align-items: flex-end; }
+  .pl-gbarra i { display: block; width: 100%; background: var(--acento); }
+  .pl-gbarra i.negativo { background: var(--atencao); }
+  .pl-gbarra .rotulo {
+    position: absolute; left: 0; right: 0; bottom: -17px;
+    text-align: center; font-size: 9px;
+  }
+
   .pl-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
   .pl-check input { width: auto; }
   .pl-filtro-aviso {
@@ -6527,7 +6542,7 @@ async function painelAlteracoes(desde) {
   destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Alterações</h3>' +
     '<div class="linha-form">' + escolher +
     '<span class="rotulo">' + (d.mudancas.length
-      ? plural(d.mudancas.length, "alteração") + " no texto"
+      ? plural(d.mudancas.length, "alteração", "alterações") + " no texto"
       : "nada mudou no texto") + "</span></div>" +
     (d.mudancas.length
       ? '<div class="al-lista">' + d.mudancas.map((m, i) =>
@@ -10062,8 +10077,10 @@ function desenharPlanilha() {
     '<span class="ed-divisa"></span>' +
     '<button id="pl-congelar" class="' + (aba.congelar_cabecalho ? "on" : "") + '">' +
     "Congelar 1ª linha</button>" +
+    '<button id="pl-juntar">Juntar células</button>' +
     '<button id="pl-ordenar">Ordenar</button>' +
     '<button id="pl-filtrar">Filtrar</button>' +
+    '<button id="pl-grafico">Gráfico</button>' +
     '<span class="ed-divisa"></span>' +
     '<button id="pl-funcoes">Fórmulas</button>' +
     '<button id="pl-limpar">Limpar célula</button></div>';
@@ -10119,10 +10136,14 @@ function gradePlanilha(aba, calc) {
   for (let l = 1; l <= aba.linhas; l++) {
     if (escondidas && escondidas.has(l)) continue;
     html += '<tr><td class="cabeca-linha" data-linha="' + l + '">' + l + "</td>";
+    let pulando = 0;
     for (let c = 0; c < aba.colunas; c++) {
       const ref = letraColuna(c) + l;
+      if (pulando > 0) { pulando -= 1; continue; }
       const v = calc[ref];
       const cel = aba.celulas[ref];
+      const juntar = cel && cel.juntar > 1 ? Math.min(cel.juntar, aba.colunas - c) : 1;
+      pulando = juntar - 1;
       const classes = ["pl-cel"];
       if (ref === escr.celula) classes.push("escolhida");
       if (v) {
@@ -10133,7 +10154,8 @@ function gradePlanilha(aba, calc) {
       if (cel && cel.negrito) classes.push("forte");
       if (cel && cel.italico) classes.push("inclinada");
       if (cel && cel.borda) classes.push("com-borda");
-      html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '">' +
+      html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '"' +
+        (juntar > 1 ? ' colspan="' + juntar + '"' : "") + ">" +
         (v ? esc(v.texto) : "") + "</td>";
     }
     html += "</tr>";
@@ -10284,6 +10306,8 @@ function ligarPlanilha() {
   };
   $("pl-ordenar").onclick = () => painelTabela("ordenar");
   $("pl-filtrar").onclick = () => painelTabela("filtrar");
+  $("pl-grafico").onclick = desenharGrafico;
+  $("pl-juntar").onclick = juntarCelulas;
   // O aviso de filtro fica na tela o tempo todo: linha escondida que a pessoa
   // esqueceu e uma tabela de parcelas com linhas faltando.
   const fora = $("pl-filtro-fora");
@@ -10305,6 +10329,83 @@ async function aplicarNaFaixa(dados) {
   const r = await fetch("/api/planilha/" + escr.pl.id + "/faixa", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ aba: escr.aba, faixa: faixa, ...dados }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  escr.pl = await r.json();
+  desenharPlanilha();
+}
+
+/* ------------------------------------------------------------- o gráfico
+
+   Barra, e não linha nem pizza: a pergunta que se faz a uma coluna de valores
+   é "qual é o maior e como os outros se comparam", e barra responde isso sem
+   ninguém precisar interpretar. Desenhado aqui mesmo, com CSS — o programa
+   roda sem internet e não vai buscar biblioteca de gráfico em CDN. */
+
+async function desenharGrafico() {
+  const faixa = faixaAtual();
+  const alvo = $("pl-abaixo");
+  if (!faixa.includes(":")) {
+    alvo.innerHTML = '<div class="painel" style="margin-top:14px"><h3>Gráfico</h3>' +
+      '<p class="explica">Selecione antes a coluna de valores — e, se quiser rótulos, ' +
+      "a coluna de texto ao lado dela junto.</p></div>";
+    return;
+  }
+
+  alvo.innerHTML = '<div class="painel" style="margin-top:14px"><p class="nota">lendo…</p></div>';
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/grafico", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aba: escr.aba, faixa: faixa }),
+  });
+  if (!r.ok) { alvo.innerHTML = '<div class="painel"><p class="explica">' +
+    esc(await erroDe(r)) + "</p></div>"; return; }
+  const d = await r.json();
+
+  if (!d.pode) {
+    /* Gráfico de nada é pior que gráfico nenhum: parece um resultado. */
+    alvo.innerHTML = '<div class="painel" style="margin-top:14px"><h3>Gráfico</h3>' +
+      '<p class="explica">' + esc(d.porque) + ".</p></div>";
+    return;
+  }
+
+  const teto = Math.max(Math.abs(d.maior), Math.abs(d.menor), 1);
+  alvo.innerHTML = '<div class="painel" style="margin-top:14px"><h3>Gráfico de ' +
+    esc(faixa) + "</h3>" +
+    '<p class="explica">Valores da coluna ' + esc(d.coluna_valores) +
+    (d.coluna_rotulos ? ", rótulos da coluna " + esc(d.coluna_rotulos) : ", sem coluna de rótulo") +
+    " · " + plural(d.pontos.length, "valor", "valores") + " · soma " + moedaBR(d.soma) + "</p>" +
+    '<div class="pl-grafico">' + d.pontos.map((p) =>
+      '<div class="pl-gbarra"><i style="height:' +
+      Math.max(1, Math.round(Math.abs(p.valor) * 100 / teto)) + '%"' +
+      (p.valor < 0 ? ' class="negativo"' : "") + ' title="' + esc(p.texto) + '"></i>' +
+      '<span class="rotulo corta">' + esc(p.rotulo) + "</span></div>").join("") + "</div>" +
+    '<div class="pl-status"><span>maior ' + moedaBR(d.maior) + "</span>" +
+    "<span>menor " + moedaBR(d.menor) + "</span></div>" +
+    '<div class="linha-form"><button id="pl-graf-fechar">Fechar</button></div></div>';
+
+  $("pl-graf-fechar").onclick = () => { alvo.innerHTML = ""; };
+}
+
+/* ----------------------------------------------------------- juntar células
+
+   O Excel junta e joga fora o que estava debaixo, avisando numa caixa que todo
+   mundo clica em OK sem ler — e ali some um valor que ninguém mais procura.
+   Aqui o que tem conteúdo não é coberto. */
+
+async function juntarCelulas() {
+  const faixa = faixaAtual();
+  const aba = escr.pl.abas[escr.aba];
+  const primeira = aba.celulas[faixa.split(":")[0]];
+  const separar = Boolean(primeira && primeira.juntar > 1);
+
+  if (!separar && !faixa.includes(":")) {
+    avisoCert("selecione pelo menos duas células lado a lado");
+    return;
+  }
+
+  const r = await fetch("/api/planilha/" + escr.pl.id + "/mesclar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aba: escr.aba, faixa: faixa, separar: separar }),
   });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   escr.pl = await r.json();

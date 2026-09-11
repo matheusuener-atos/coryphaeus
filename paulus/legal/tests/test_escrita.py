@@ -696,6 +696,79 @@ def test_resumo_da_selecao() -> None:
            f"coluna de texto não inventa soma ({com_texto})")
 
 
+def test_serie_para_o_grafico() -> None:
+    """A seleção diz sozinha o que é valor e o que é rótulo."""
+    print("\nsérie para o gráfico")
+    aba = _parcelas()
+    c = P.calcular_aba(aba)
+
+    s = P.serie_da_faixa(aba, c, "A2:B5")
+    checar(s["pode"], "a seleção com texto e número vira série")
+    checar(s["coluna_valores"] == "B" and s["coluna_rotulos"] == "A",
+           f"B é valor, A é rótulo ({s['coluna_valores']}, {s['coluna_rotulos']})")
+    checar([p["rotulo"] for p in s["pontos"]] == ["Carol", "Ana", "Bruno", "Davi"],
+           "os rótulos saem da coluna de texto")
+    checar(s["maior"] == 9000 and s["menor"] == 500 and s["soma"] == 13700,
+           f"maior, menor e soma ({s['maior']}, {s['menor']}, {s['soma']})")
+
+    # Duas colunas de número: vale a última, que é a mais à direita.
+    tres = P.serie_da_faixa(aba, c, "A2:C5")
+    checar(tres["coluna_valores"] == "C", f"com duas colunas de número, vale a última ({tres})")
+
+    so_numero = P.serie_da_faixa(aba, c, "B2:B5")
+    checar(so_numero["pode"] and so_numero["coluna_rotulos"] == "",
+           "sem coluna de texto, os rótulos são as próprias células")
+
+    # O que não dá para desenhar diz por quê — gráfico de nada parece um
+    # resultado, e é pior que gráfico nenhum.
+    sem = P.serie_da_faixa(aba, c, "A2:A5")
+    checar(not sem["pode"] and "número" in sem["porque"],
+           f"coluna só de texto não vira gráfico vazio ({sem})")
+    uma = P.serie_da_faixa(aba, c, "B2")
+    checar(not uma["pode"], f"um valor só não vira gráfico ({uma.get('porque')})")
+
+
+def test_juntar_celulas() -> None:
+    """
+    Juntar não pode cobrir conteúdo.
+
+    O Excel junta e joga fora o que estava debaixo, avisando numa caixa que
+    todo mundo clica em OK sem ler — e ali some um valor que ninguém mais
+    procura, porque ninguém sabe que ele existiu.
+    """
+    print("\njuntar células")
+    aba = _parcelas()
+    aba.gravar("A8", {"valor": "TOTAL DO SEMESTRE"})
+
+    feito = P.mesclar(aba, "A8:C8")
+    checar(feito == {"ref": "A8", "colunas": 3}, f"junta três colunas ({feito})")
+    checar(aba.celulas["A8"].juntar == 3, "e a célula guarda quantas ocupa")
+
+    try:
+        P.mesclar(aba, "A2:C2")
+        checar(False, "juntar por cima de conteúdo tem que ser recusado")
+    except ValueError as erro:
+        checar("conteúdo" in str(erro), f"recusa e diz quais células ({erro})")
+    checar(aba.celulas["B2"].valor == "3000", "e nada foi apagado na recusa")
+
+    pode, porque = P.pode_mesclar(aba, "A2")
+    checar(not pode and "duas" in porque, f"uma célula só não junta ({porque})")
+    pode, porque = P.pode_mesclar(aba, "A2:A5")
+    checar(not pode and "mesma linha" in porque, f"na vertical ainda não ({porque})")
+
+    checar(P.separar(aba, "A8:C8")["soltas"] == 1, "separar desfaz")
+    checar(aba.celulas["A8"].juntar == 1, "e a célula volta a ocupar uma coluna")
+    checar(aba.celulas["A8"].valor == "TOTAL DO SEMESTRE", "com o texto intacto")
+
+    # A junção tem que chegar ao Excel, senão some ao exportar.
+    P.mesclar(aba, "A8:C8")
+    xlsx = P.para_xlsx([aba], [P.calcular_aba(aba)])
+    with zipfile.ZipFile(io.BytesIO(xlsx)) as z:
+        folha = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+    checar("mergeCell" in folha and "A8:C8" in folha,
+           "e vai junto para o XLSX, em vez de sumir na exportação")
+
+
 def test_formula_erra_sem_derrubar() -> None:
     """Erro de formula vira erro na celula, nunca acao e nunca travamento."""
     print("\nformula com problema")
@@ -806,6 +879,8 @@ def main() -> int:
     test_ordenar_a_tabela()
     test_filtrar_e_so_olhar()
     test_resumo_da_selecao()
+    test_serie_para_o_grafico()
+    test_juntar_celulas()
     test_formula_erra_sem_derrubar()
     test_formula_nao_executa_nada()
     test_entrar_e_sair()

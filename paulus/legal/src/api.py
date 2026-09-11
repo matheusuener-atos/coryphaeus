@@ -3687,6 +3687,54 @@ def planilha_faixa(id_: int, payload: dict) -> dict:
     return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
 
 
+@app.post("/api/planilha/{id_}/grafico")
+def planilha_grafico(id_: int, payload: dict) -> dict:
+    """
+    A selecao virando serie para desenhar.
+
+    Quem escolhe qual coluna e valor e qual e rotulo e a propria selecao: a
+    ultima coluna com numero e o valor, a coluna de texto a esquerda sao os
+    rotulos. Pedir isso num formulario antes de ver o desenho seria trocar um
+    grafico por um questionario.
+    """
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    aba = abas[indice]
+    return planilha.serie_da_faixa(aba, planilha.calcular_aba(aba), payload.get("faixa", ""))
+
+
+@app.post("/api/planilha/{id_}/mesclar")
+def planilha_mesclar(id_: int, payload: dict) -> dict:
+    """
+    Junta as celulas de uma faixa numa so, ou desfaz a juncao.
+
+    Nao cobre celula com conteudo. O Excel junta e joga fora o que estava
+    debaixo, avisando numa caixa que todo mundo clica em OK sem ler - e ali
+    some um valor que ninguem mais procura.
+    """
+    item = _documento_ou_404(id_)
+    abas = _abas_do(item)
+    indice = int(payload.get("aba", 0))
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+
+    faixa = payload.get("faixa", "")
+    try:
+        feito = (planilha.separar(abas[indice], faixa) if payload.get("separar")
+                 else planilha.mesclar(abas[indice], faixa))
+    except ValueError as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+
+    estado.documentos.salvar(
+        id_, planilha.para_json(abas),
+        nota=("separou " if payload.get("separar") else "juntou ") + str(faixa).upper())
+    return {**_resposta_planilha(id_, estado.documentos.obter(id_), abas), "feito": feito}
+
+
 @app.post("/api/planilha/{id_}/congelar")
 def planilha_congelar(id_: int, payload: dict) -> dict:
     """Prende a primeira linha no lugar - e vai junto para o XLSX."""
