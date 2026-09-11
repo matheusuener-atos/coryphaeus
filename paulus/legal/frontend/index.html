@@ -84,6 +84,7 @@
     --papel: #fbfaf8;
     --tinta: #14120f;
     --papel-linha: #c9c4bb;
+    --papel-realce: #eeece7;
     --papel-veu: rgba(251,250,248,.94);
 
     --sans: 'Instrument Sans', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -133,6 +134,7 @@
     --papel: #fbfaf8;
     --tinta: #14120f;
     --papel-linha: #c9c4bb;
+    --papel-realce: #eeece7;
     --papel-veu: rgba(251,250,248,.94);
 
     color-scheme: light;
@@ -1667,6 +1669,15 @@
   .ed-folha p { margin: 0 0 11px; text-indent: var(--recuo, 0); }
   .ed-folha ul, .ed-folha ol { margin: 0 0 11px; padding-left: 26px; }
   .ed-folha li { margin-bottom: 5px; }
+
+  /* O quadro na tela com a cara que ele tem no PDF: fio fino, cabeçalho com
+     um fundo de leve. Em em, para acompanhar o corpo escolhido. */
+  .ed-folha table { border-collapse: collapse; width: 100%; margin: 0 0 12px; }
+  .ed-folha th, .ed-folha td {
+    border: 1px solid var(--papel-linha); padding: 0.3em 0.45em;
+    font-size: 0.92em; vertical-align: top; text-align: left;
+  }
+  .ed-folha th { background: var(--papel-realce); font-weight: 600; }
 
   .ed-estado { font: 500 9.5px var(--mono); letter-spacing: 0.16em; color: var(--ink-3); text-transform: uppercase; }
   .ed-estado.salvando { color: var(--atencao); }
@@ -6468,6 +6479,142 @@ function mostrarQuebradas(quebradas) {
     "É o tipo de erro que passa na leitura e aparece na discussão.</p></div>";
 }
 
+/* ------------------------------------------------------------- o quadro
+
+   Quadro de parcelas, de honorários, de bens — o contrato que traz um deles
+   hoje sai do Word, porque aqui não havia como fazer. As células guardam texto
+   puro: negrito dentro de célula de quadro não aparece em contrato, e o que
+   importa é o texto chegar inteiro ao PDF e ao Word. */
+
+/* Clicar num botão tira o cursor de dentro da folha, e um painel com campos
+   tira de novo. Então o lugar onde a pessoa estava escrevendo é guardado
+   enquanto ela ainda está lá — senão o quadro cai no começo do documento, ou
+   não cai em lugar nenhum. */
+function lembrarCursor() {
+  const folha = folhaAberta();
+  const sel = window.getSelection();
+  if (!folha || !sel || !sel.rangeCount) return;
+  if (folha.contains(sel.anchorNode)) escr.marca = sel.getRangeAt(0).cloneRange();
+}
+
+function voltarAoCursor() {
+  const folha = folhaAberta();
+  if (!folha) return false;
+  folha.focus();
+  if (!escr.marca || !folha.contains(escr.marca.startContainer)) return false;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(escr.marca);
+  return true;
+}
+
+function noDoCursor() {
+  const folha = folhaAberta();
+  if (!folha) return null;
+  const sel = window.getSelection();
+  let no = sel && sel.anchorNode && folha.contains(sel.anchorNode) ? sel.anchorNode : null;
+  if (!no && escr.marca && folha.contains(escr.marca.startContainer)) {
+    no = escr.marca.startContainer;
+  }
+  if (!no) return null;
+  return no.nodeType === 1 ? no : no.parentElement;
+}
+
+function quadroDoCursor() {
+  const no = noDoCursor();
+  return no ? no.closest("table") : null;
+}
+
+function painelQuadro() {
+  const destino = abaixoDoEditor();
+  if (!destino) return;
+  const dentro = quadroDoCursor();
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Quadro</h3>' +
+    '<p class="explica">Sai no PDF com fio fino e a primeira linha em negrito, e ' +
+    "no DOCX como tabela de verdade — dá para continuar no Word.</p>" +
+    '<div class="linha-form"><label class="pl-check">colunas ' +
+    '<input type="number" id="qd-colunas" value="3" min="1" max="8"></label>' +
+    '<label class="pl-check">linhas ' +
+    '<input type="number" id="qd-linhas" value="3" min="1" max="40"></label>' +
+    '<button class="primario" id="qd-inserir">Inserir quadro</button></div>' +
+    (dentro
+      ? '<div class="linha-form"><span class="rotulo">o cursor está num quadro</span>' +
+        '<button id="qd-mais-linha">+ linha</button>' +
+        '<button id="qd-mais-coluna">+ coluna</button>' +
+        '<button class="perigo" id="qd-menos-linha">Apagar esta linha</button></div>'
+      : '<p class="explica">Para mexer num quadro que já existe, ponha o cursor dentro ' +
+        "dele e abra este painel de novo.</p>") +
+    '<div class="linha-form"><button id="qd-fechar">Fechar</button></div></div>';
+
+  $("qd-fechar").onclick = () => { destino.innerHTML = ""; };
+  $("qd-inserir").onclick = inserirQuadro;
+  if (dentro) {
+    $("qd-mais-linha").onclick = () => mexerNoQuadro("linha");
+    $("qd-mais-coluna").onclick = () => mexerNoQuadro("coluna");
+    $("qd-menos-linha").onclick = () => mexerNoQuadro("tirar");
+  }
+}
+
+function inserirQuadro() {
+  const folha = folhaAberta();
+  if (!folha) return;
+  const colunas = Math.max(1, Math.min(8, Number($("qd-colunas").value) || 3));
+  const linhas = Math.max(1, Math.min(40, Number($("qd-linhas").value) || 3));
+
+  let html = "<table><tr>";
+  for (let c = 0; c < colunas; c += 1) html += "<th>título</th>";
+  html += "</tr>";
+  for (let l = 1; l < linhas; l += 1) {
+    html += "<tr>";
+    for (let c = 0; c < colunas; c += 1) html += "<td><br></td>";
+    html += "</tr>";
+  }
+  /* O parágrafo depois do quadro é o que dá para onde ir: sem ele, um quadro
+     no fim do documento não tem linha abaixo e não há como continuar
+     escrevendo. */
+  html += "</table><p><br></p>";
+
+  voltarAoCursor();
+  document.execCommand("insertHTML", false, html);
+  marcarSujo();
+  pedirPaginacao();
+  const destino = abaixoDoEditor();
+  if (destino) destino.innerHTML = "";
+}
+
+function mexerNoQuadro(acao) {
+  const quadro = quadroDoCursor();
+  const no = noDoCursor();
+  if (!quadro || !no) return;
+  const linha = no.closest("tr");
+
+  if (acao === "coluna") {
+    Array.from(quadro.rows).forEach((tr, i) => {
+      const celula = tr.insertCell(-1);
+      if (i === 0 && tr.cells[0] && tr.cells[0].tagName === "TH") {
+        const cabeca = document.createElement("th");
+        cabeca.textContent = "título";
+        tr.replaceChild(cabeca, celula);
+      } else {
+        celula.innerHTML = "<br>";
+      }
+    });
+  } else if (acao === "linha" && linha) {
+    const nova = quadro.insertRow(linha.rowIndex + 1);
+    for (let c = 0; c < linha.cells.length; c += 1) nova.insertCell(-1).innerHTML = "<br>";
+  } else if (acao === "tirar" && linha) {
+    /* Um quadro sem nenhuma linha não é um quadro: apagar a última apaga o
+       quadro inteiro, que é o que a pessoa quis dizer. */
+    if (quadro.rows.length <= 1) quadro.remove();
+    else quadro.deleteRow(linha.rowIndex);
+  }
+
+  marcarSujo();
+  pedirPaginacao();
+  painelQuadro();
+}
+
 /* ----------------------------------------------------- o formato da folha
 
    Fonte, corpo, recuo de primeira linha e entrelinhas. Fica por documento e
@@ -9103,6 +9250,7 @@ function desenharEditor() {
     '<span class="ed-divisa"></span>' +
     '<button data-cmd="insertUnorderedList">Lista</button>' +
     '<button data-cmd="insertOrderedList">Numeração</button>' +
+    '<button id="ed-quadro">Quadro</button>' +
     '<span class="ed-divisa"></span>' +
     '<button id="ed-numerar">Numerar cláusulas</button>' +
     '<button id="ed-qualificar">Qualificar parte</button>' +
@@ -9202,8 +9350,10 @@ function ligarEditor() {
   });
 
   $("ed-formato").onclick = painelFormato;
+  $("ed-quadro").onclick = painelQuadro;
   folha.addEventListener("input", () => pedirPaginacao());
   document.addEventListener("selectionchange", mostrarPaginaDoCursor);
+  document.addEventListener("selectionchange", lembrarCursor);
   window.addEventListener("resize", revestirFolha);
   aplicarPaginacao(escr.doc.paginacao);
 }
@@ -9220,7 +9370,10 @@ function ligarEditor() {
    contas divergirem, as linhas de quebra não são desenhadas — linha no lugar
    errado é pior que linha nenhuma. */
 function blocosDaFolha(folha) {
-  return Array.from(folha.querySelectorAll("p, div, h1, h2, h3, li"))
+  return Array.from(folha.querySelectorAll("p, div, h1, h2, h3, li, table"))
+    /* O quadro é UM bloco, como no PDF — os parágrafos dentro das células não
+       contam separado, senão a conta daqui deixa de bater com a de lá. */
+    .filter((el) => el.tagName === "TABLE" || !el.closest("table"))
     .filter((el) => el.textContent.trim() || el.querySelector("br"));
 }
 

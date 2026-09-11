@@ -106,6 +106,7 @@ def normalizar_formato(bruto) -> dict:
                                 FORMATO_PADRAO["entrelinhas"]),
     }
 
+
 ALINHAMENTOS = {
     "esquerda": "Alinhado à esquerda",
     "centro": "Centralizado",
@@ -129,12 +130,18 @@ class Trecho:
 class Bloco:
     """Um paragrafo, titulo ou item de lista."""
 
-    tipo: str = "paragrafo"          # paragrafo | titulo1..3 | item | numerado
+    tipo: str = "paragrafo"   # paragrafo | titulo1..3 | item | numerado | tabela
     alinhamento: str = "esquerda"
     trechos: list[Trecho] = field(default_factory=list)
+    # Quadro de parcelas, de honorarios, de bens. As celulas sao texto puro:
+    # negrito dentro de celula de quadro nao aparece em contrato, e o que
+    # importa aqui e que o texto sobreviva inteiro ao PDF e ao DOCX.
+    linhas: list[list[str]] = field(default_factory=list)
 
     @property
     def texto(self) -> str:
+        if self.tipo == "tabela":
+            return "\n".join(" · ".join(c for c in linha if c) for linha in self.linhas)
         return "".join(t.texto for t in self.trechos)
 
     def to_dict(self) -> dict:
@@ -143,6 +150,7 @@ class Bloco:
             "alinhamento": self.alinhamento,
             "texto": self.texto,
             "trechos": [t.__dict__ for t in self.trechos],
+            "linhas": self.linhas,
         }
 
 
@@ -178,6 +186,9 @@ class _Leitor(HTMLParser):
         self._marcas: list[str] = []
         self._lista: list[str] = []       # pilha de ul/ol
         self._ignorar = 0
+        self._quadro: list[list[str]] | None = None
+        self._linha: list[str] | None = None
+        self._celula: str | None = None
 
     # ---------------------------------------------------------- estrutura
 
@@ -190,12 +201,76 @@ class _Leitor(HTMLParser):
             self.blocos.append(self._atual)
         self._atual = None
 
+    # -------------------------------------------------------------- quadro
+    #
+    # Quadro de parcelas, de honorarios, de bens. Dentro dele o texto vai para
+    # a celula, e nao vira paragrafo: sem isso, um quadro de seis linhas saia
+    # do PDF como dezoito paragrafos soltos.
+
+    def _abrir_quadro(self) -> None:
+        self._fechar()
+        self._quadro = []
+        self._linha = None
+        self._celula = None
+
+    def _fechar_quadro(self) -> None:
+        self._fechar_linha()
+        linhas = list(self._quadro or [])
+        self._quadro = None
+        # Linha em branco no meio do quadro fica: a pre-visualizacao promete
+        # ser o arquivo, e uma linha que aparece no editor e some do PDF quebra
+        # essa promessa. Quadro inteiro em branco e que nao vira nada.
+        if not any(c.strip() for l in linhas for c in l):
+            return
+        # Toda linha com o mesmo numero de colunas: uma celula a menos numa
+        # linha desalinha o quadro inteiro na folha.
+        largura = max(len(l) for l in linhas)
+        self.blocos.append(Bloco(
+            tipo="tabela",
+            linhas=[l + [""] * (largura - len(l)) for l in linhas],
+        ))
+
+    def _fechar_linha(self) -> None:
+        self._fechar_celula()
+        if self._linha is not None and self._quadro is not None:
+            self._quadro.append(self._linha)
+        self._linha = None
+
+    def _fechar_celula(self) -> None:
+        if self._celula is None:
+            return
+        if self._linha is None:
+            self._linha = []
+        self._linha.append(" ".join(self._celula.split()))
+        self._celula = None
+
     def handle_starttag(self, tag, attrs):
         if tag in ("script", "style"):
             self._ignorar += 1
             return
 
         atributos = dict(attrs)
+        if tag == "table":
+            self._abrir_quadro()
+            return
+        if self._quadro is not None:
+            if tag == "tr":
+                self._fechar_linha()
+                self._linha = []
+                return
+            if tag in ("td", "th"):
+                self._fechar_celula()
+                self._celula = ""
+                return
+            if tag == "br" and self._celula is not None:
+                self._celula += " "
+                return
+            if tag in MARCAS:
+                # A marca e ignorada dentro do quadro, mas o texto dela nao.
+                self._marcas.append(MARCAS[tag])
+                return
+            if tag in BLOCOS:
+                return
         if tag == "br":
             self._quebra()
             return
@@ -227,6 +302,17 @@ class _Leitor(HTMLParser):
         if tag in ("script", "style"):
             self._ignorar = max(0, self._ignorar - 1)
             return
+        if tag == "table":
+            self._fechar_quadro()
+            return
+        if self._quadro is not None:
+            if tag == "tr":
+                self._fechar_linha()
+            elif tag in ("td", "th"):
+                self._fechar_celula()
+            elif tag in MARCAS and self._marcas:
+                self._marcas.pop()
+            return
         if tag in ("ul", "ol"):
             if self._lista:
                 self._lista.pop()
@@ -254,6 +340,13 @@ class _Leitor(HTMLParser):
 
     def _texto(self, bruto: str) -> None:
         texto = bruto.replace("\xa0", " ")
+
+        # Dentro do quadro o texto e da celula. Fora de celula, entre <tr> e
+        # <td>, e so a indentacao do HTML e nao e conteudo de nada.
+        if self._quadro is not None:
+            if self._celula is not None:
+                self._celula += texto
+            return
 
         # Espaco e quebra de linha ENTRE tags sao formatacao do HTML, nao
         # conteudo. Tratar isso como texto criava um paragrafo vazio a cada
@@ -283,6 +376,10 @@ class _Leitor(HTMLParser):
         ))
 
     def resultado(self) -> list[Bloco]:
+        # HTML colado de fora as vezes chega com o </table> faltando. Fechar
+        # aqui e a diferenca entre o quadro sair no PDF e o quadro sumir.
+        if self._quadro is not None:
+            self._fechar_quadro()
         self._fechar()
         return self.blocos
 
@@ -422,6 +519,17 @@ def _montar_fluxo(blocos: list[Bloco], estilos: dict, formato: dict) -> list:
         itens, de_itens = [], []
 
     for numero, bloco in enumerate(blocos):
+        # O quadro vem antes da checagem de texto: as celulas dele nao passam
+        # por _para_marcacao, e o teste de vazio jogaria fora a tabela inteira.
+        if bloco.tipo == "tabela":
+            despejar_lista()
+            quadro = _quadro_pdf(bloco, estilos, formato)
+            if quadro is not None:
+                quadro.blocos = [numero]
+                fluxo.append(quadro)
+                fluxo.append(Spacer(1, 8))
+            continue
+
         marcado = _para_marcacao(bloco)
         if not marcado.strip():
             continue
@@ -449,6 +557,62 @@ def _montar_fluxo(blocos: list[Bloco], estilos: dict, formato: dict) -> list:
     if not fluxo:
         fluxo.append(_Paragrafo("(documento vazio)", estilos["paragrafo"]))
     return fluxo
+
+
+def _quadro_pdf(bloco: Bloco, estilos: dict, formato: dict):
+    """
+    O quadro desenhado na folha: primeira linha em negrito, fio fino, e as
+    colunas repartindo a largura util igualmente.
+
+    A celula e um Paragraph e nao texto solto de proposito: assim uma
+    descricao longa quebra em varias linhas dentro da celula em vez de
+    atravessar o quadro e sumir na margem.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Table, TableStyle
+
+    # A linha em branco fica: ela existe no editor, e a folha tem que ser o
+    # que o editor mostra.
+    linhas = [l for l in bloco.linhas if l]
+    if not linhas:
+        return None
+
+    corpo = formato["corpo"] - 1
+    fonte = FONTES[formato["fonte"]]
+    dentro = ParagraphStyle("quadro", fontName=fonte["pdf"], fontSize=corpo,
+                            leading=corpo * 1.3)
+    cabeca = ParagraphStyle("quadro-cabeca", parent=dentro, fontName=fonte["pdf_negrito"])
+
+    colunas = max(len(l) for l in linhas)
+    util = A4[0] - 2 * MARGEM_CM * cm
+    grade = [[_celula_pdf(str(c), cabeca if i == 0 else dentro)
+              for c in (list(l) + [""] * (colunas - len(l)))]
+             for i, l in enumerate(linhas)]
+
+    quadro = Table(grade, colWidths=[util / colunas] * colunas, repeatRows=1)
+    quadro.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.55, 0.55, 0.55)),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.94, 0.94, 0.93)),
+    ]))
+    return quadro
+
+
+def _celula_pdf(texto: str, estilo):
+    """O conteudo de uma celula. Celula vazia leva um espaco: sem nada dentro o
+    reportlab encolhe a linha e o quadro sai torto."""
+    from xml.sax.saxutils import escape
+
+    from reportlab.platypus import Paragraph
+
+    return Paragraph(escape(texto) or "&nbsp;", estilo)
 
 
 def _construir(classe, blocos, titulo, rodape, timbre, formato):
@@ -682,6 +846,29 @@ def para_docx(blocos: list[Bloco], titulo: str = "",
     for bloco in blocos:
         if not bloco.texto.strip():
             continue
+
+        if bloco.tipo == "tabela":
+            linhas = [l for l in bloco.linhas if l]
+            if not linhas:
+                continue
+            colunas = max(len(l) for l in linhas)
+            quadro = doc.add_table(rows=0, cols=colunas)
+            # "Table Grid" e o unico estilo de tabela que todo Word tem e que
+            # desenha os fios. Sem ele o quadro chega ao Word invisivel - as
+            # celulas estao la, mas ninguem ve que e um quadro.
+            try:
+                quadro.style = "Table Grid"
+            except KeyError:
+                pass
+            for i, linha in enumerate(linhas):
+                celulas = quadro.add_row().cells
+                for j in range(colunas):
+                    texto = str(linha[j]) if j < len(linha) else ""
+                    corrida = celulas[j].paragraphs[0].add_run(texto)
+                    corrida.bold = i == 0
+            doc.add_paragraph()
+            continue
+
         paragrafo = doc.add_paragraph(style=estilos.get(bloco.tipo))
         if bloco.tipo == "paragrafo":
             paragrafo.alignment = alinha.get(bloco.alinhamento)

@@ -166,6 +166,81 @@ def test_pdf_e_docx() -> None:
     checar(vazio.startswith(b"%PDF"), "documento vazio nao derruba o gerador")
 
 
+QUADRO = (
+    "<h1>CONTRATO DE HONORÁRIOS</h1>"
+    "<p>As partes ajustam o pagamento conforme o quadro abaixo:</p>"
+    "<table><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr>"
+    "<tr><td>1ª</td><td>10/10/2026</td><td>R$ 3.000,00</td></tr>"
+    "<tr><td></td><td></td><td></td></tr>"
+    "<tr><td>2ª</td><td>10/11/2026</td><td>R$ 4.000,00 — saldo, com uma descrição "
+    "longa o bastante para quebrar em mais de uma linha dentro da célula</td></tr>"
+    "</table>"
+    "<p>O atraso implica multa de 2%.</p>"
+)
+
+
+def test_quadro() -> None:
+    """
+    Quadro de parcelas dentro do contrato.
+
+    É o que fazia o contrato sair do Word: aqui não havia como montar um. O
+    teste persegue o que dói — texto de célula sumindo entre o editor e o
+    arquivo, e o quadro virando parágrafos soltos.
+    """
+    print("\nquadro dentro do documento")
+    blocos = D.ler_html(QUADRO)
+    tipos = [b.tipo for b in blocos]
+    checar(tipos == ["titulo1", "paragrafo", "tabela", "paragrafo"],
+           f"o quadro é UM bloco, não dezoito parágrafos soltos ({tipos})")
+
+    quadro = blocos[2]
+    checar(len(quadro.linhas) == 4, f"quatro linhas, com a em branco ({len(quadro.linhas)})")
+    checar(all(len(l) == 3 for l in quadro.linhas),
+           f"toda linha com o mesmo número de colunas ({[len(l) for l in quadro.linhas]})")
+    checar(quadro.linhas[0] == ["Parcela", "Vencimento", "Valor"], "o cabeçalho é a 1ª linha")
+    # A linha em branco existe no editor; some no PDF quebraria a promessa de
+    # que a pré-visualização é o arquivo.
+    checar(quadro.linhas[2] == ["", "", ""], "a linha em branco fica")
+
+    texto = D.para_texto(blocos)
+    for pedaco in ("Vencimento", "10/11/2026", "R$ 3.000,00", "multa de 2%"):
+        checar(pedaco in texto, f"o texto do documento guarda “{pedaco}”")
+
+    # O que importa mesmo: chegar ao arquivo.
+    import leitor_pdf
+
+    pdf = D.para_pdf(blocos, "Honorários", "Honorários")
+    with leitor_pdf.abrir(pdf) as doc:
+        na_folha = " ".join(doc[0].get_textpage().get_text_range().split())
+    faltando = [p for p in ("Parcela", "Vencimento", "10/11/2026", "4.000,00", "multa de 2%")
+                if p not in na_folha]
+    checar(not faltando, f"e o PDF mostra tudo ({faltando} faltando)")
+
+    with zipfile.ZipFile(io.BytesIO(D.para_docx(blocos, "Honorários"))) as z:
+        xml = z.read("word/document.xml").decode("utf-8")
+    checar("<w:tbl>" in xml, "o DOCX sai com tabela de verdade, não com texto colado")
+    checar("10/11/2026" in xml and "Vencimento" in xml, "e com o conteúdo das células")
+
+    # O quadro conta como um bloco no mapa de páginas, como no PDF.
+    mapa = D.mapa_de_paginas(blocos)
+    checar(len(mapa["de_bloco"]) == len(blocos),
+           f"o mapa de páginas conta o quadro como um bloco ({len(mapa['de_bloco'])})")
+
+    # Bordas do que chega torto.
+    checar(D.ler_html("<table></table>") == [], "quadro sem nada não vira bloco")
+    checar(D.ler_html("<table><tr><td></td></tr></table>") == [],
+           "quadro só de células vazias também não")
+    aberto = D.ler_html("<table><tr><td>a</td><td>b</td></tr>")
+    checar(len(aberto) == 1 and aberto[0].tipo == "tabela",
+           "</table> faltando não faz o quadro sumir")
+    tortas = D.ler_html("<table><tr><td>a</td></tr><tr><td>b</td><td>c</td></tr></table>")
+    checar([len(l) for l in tortas[0].linhas] == [2, 2],
+           f"linha com menos células é completada ({[len(l) for l in tortas[0].linhas]})")
+    negrito = D.ler_html("<table><tr><td>um <b>valor</b> alto</td></tr></table>")
+    checar(negrito[0].linhas[0][0] == "um valor alto",
+           f"negrito dentro da célula não engole o texto ({negrito[0].linhas[0]})")
+
+
 def _contrato_real() -> list:
     """O maior contrato desta máquina, em blocos. Vazio se a pasta não existe."""
     if not CONTRATOS.exists():
@@ -672,6 +747,7 @@ def main() -> int:
     test_ler_html()
     test_pdf_e_docx()
     test_duas_paginas_ao_mesmo_tempo()
+    test_quadro()
     test_pagina_medida()
     test_paragrafo_que_atravessa_a_quebra()
     test_formato_da_folha()
