@@ -366,7 +366,7 @@
   .nome-usuario span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nome-usuario small { font: 500 10px var(--sans); color: var(--ink3); }
 
-  /* Recentes no fim do menu; a lista inteira numa gaveta ao lado. */
+  /* A secao do fim do menu, que abre a gaveta das telas antigas. */
   .menu-secao-botao {
     display: flex; align-items: center; justify-content: space-between; width: 100%; flex: none;
     padding: 10px 8px 4px; border: none; border-radius: 0; background: none; text-align: left;
@@ -374,16 +374,12 @@
   }
   .menu-secao-botao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .menu-secao-botao .ic { color: var(--ink3); }
-  .lista-recentes { flex: none; }
   .menu-gaveta {
     position: absolute; left: 260px; top: 0; bottom: 0; width: 280px; z-index: 6;
     overflow-y: auto; padding: 12px; background: var(--bg);
     border-right: 1px solid var(--ink-a1); box-shadow: var(--elev-panel);
   }
   .gaveta-cabeca { font: 500 11px var(--sans); color: var(--ink3); padding: 10px 8px 6px; }
-  .lista-trabalhos { padding: 0 2px 6px; }
-  .grupo-bloco { margin-bottom: 8px; }
-  .grupo-cabeca { padding: 8px 8px 4px; }
   .item {
     position: relative; display: flex; align-items: center; gap: 8px;
     padding: 7px 8px; border-radius: 8px; cursor: pointer;
@@ -2674,13 +2670,11 @@
       <button class="menu-item" data-destino="cadastros"><span class="caixa-ic"><span class="ic">contacts</span></span><span class="rotulo-botao">Cadastros</span></button>
       <button class="menu-item" data-destino="aprovacoes"><span class="caixa-ic"><span class="ic">verified</span></span><span class="rotulo-botao">Aprovações</span><span class="conta" hidden></span></button>
 
-      <!-- Recentes: as tres ultimas conversas. A lista inteira, e os destinos
-           antigos que o desenho fundiu em visoes de outros, abrem numa gaveta
+      <!-- As conversas moram no Assistente ("Ver mais"), nao aqui. Os destinos
+           antigos que o desenho fundiu em visoes de outros abrem numa gaveta
            ao lado - catorze destinos de 40 px nao deixam espaco para mais em
            900 px de altura. -->
       <div class="menu-rolagem">
-        <button class="menu-secao-botao" id="ver-conversas" title="Todas as conversas"><span>Recentes</span><span class="ic ic-16">chevron_right</span></button>
-        <div class="lista-recentes" id="lista-recentes"></div>
         <button class="menu-secao-botao" id="ver-antigos" title="Telas que ainda nao entraram no desenho novo" hidden><span>Ainda sem lugar no desenho</span><span class="ic ic-16">chevron_right</span></button>
       </div>
 
@@ -2690,10 +2684,6 @@
       <button class="menu-item" data-destino="config"><span class="caixa-ic"><span class="ic">settings</span></span><span class="rotulo-botao">Configurações</span></button>
       <div class="menu-usuario"><span class="avatar" id="avatar-menu">PL</span><span class="nome-usuario"><span id="usuario-nome">PAULUS Legal</span><small id="usuario-papel">Software livre</small></span></div>
     </nav>
-    <div class="menu-gaveta" id="gaveta-conversas" hidden>
-      <div class="gaveta-cabeca">Conversas</div>
-      <div class="lista-trabalhos" id="lista-trabalhos"></div>
-    </div>
     <div class="menu-gaveta" id="gaveta-antigos" hidden>
       <div class="gaveta-cabeca">Ainda sem lugar no desenho</div>
       <div id="menu-antigos"></div>
@@ -2866,50 +2856,8 @@ async function carregarTrabalhos() {
   gruposConhecidos = d.nomes_de_grupo || [];
   estado.recentes = d.grupos.flatMap((g) => g.trabalhos);
 
-  const alvo = $("lista-trabalhos");
-  if (!d.grupos.length) {
-    alvo.innerHTML = '<div class="vazio-lista">Nenhuma conversa ainda.</div>';
-  } else {
-    alvo.innerHTML = d.grupos.map((g) =>
-      '<div class="grupo-bloco">' +
-      '<div class="grupo-cabeca"><span class="rotulo">' +
-      esc(g.nome || "Sem grupo") + "</span></div>" +
-      g.trabalhos.map(linhaTrabalho).join("") + "</div>"
-    ).join("");
-  }
-  ligarItens(alvo);
-
-  /* As tres ultimas, no proprio menu. */
-  const recentes = $("lista-recentes");
-  recentes.innerHTML = estado.recentes.slice(0, 3).map(linhaTrabalho).join("");
-  ligarItens(recentes);
-
+  /* A lista mora no Assistente: tres recentes e "Ver mais" com todas. */
   if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
-}
-
-function ligarItens(alvo) {
-  alvo.querySelectorAll(".item").forEach((el) => {
-    el.onclick = (e) => {
-      if (e.target.closest(".mais-item")) return;
-      abrirTrabalho(el.dataset.id);
-    };
-    el.querySelector(".mais-item").onclick = (e) => {
-      e.stopPropagation();
-      abrirMenu(el);
-    };
-  });
-}
-
-function linhaTrabalho(t) {
-  const ativo = t.id === estado.trabalhoId ? " ativo" : "";
-  const direita = t.estado === "aguardando"
-    ? '<span class="num">' + t.pendencias + "</span>"
-    : (t.progresso !== null && t.aberto ? '<span class="num">' + t.progresso + "%</span>" : "");
-  return '<div class="item' + ativo + '" data-id="' + t.id + '" data-titulo="' + esc(t.titulo) +
-    '" data-grupo="' + esc(t.grupo || "") + '">' +
-    '<span class="marca ' + t.estado + '"></span>' +
-    '<span class="titulo corta">' + esc(t.titulo) + "</span>" + direita +
-    '<span class="mais-item" title="Mais">···</span></div>';
 }
 
 /* ------------------------------------------------------- menu de conversa */
@@ -3063,7 +3011,7 @@ function desenharRecentes() {
       '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 16) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
     '<button class="ver-mais" id="recentes-mais">' +
-    (aberta ? "Recolher" + ic("expand_less", 16) : "Ver mais" + ic("chevron_right", 16)) + "</button>";
+    (aberta ? "Recolher" + ic("chevron_left", 16) : "Ver mais" + ic("chevron_right", 16)) + "</button>";
   alvo.querySelectorAll("[data-abre]").forEach((b) => { b.onclick = () => abrirTrabalho(b.dataset.abre); });
   $("recentes-mais").onclick = () => alternarListaDeConversas(!aberta);
   if (aberta) desenharListaDeConversas();
@@ -3124,7 +3072,7 @@ function desenharListaDeConversas() {
     '<span class="nota-barra">' + plural(todas.length, "conversa") + "</span>" +
     '<span class="direita"><label class="busca-tela">' + ic("search", 18) +
     '<input type="text" id="lc-busca" placeholder="Buscar conversa…" value="' + esc(caixa.dataset.termo || "") + '"></label>' +
-    '<button class="fantasma com-icone" id="lc-recolher">' + ic("expand_less", 16) + "Recolher</button></span></div>" +
+    '<button class="fantasma com-icone" id="lc-recolher">' + ic("chevron_left", 16) + "Recolher</button></span></div>" +
     '<div class="tabela-cabecalho colunas-conversas"><span>Conversa</span><span>Grupo</span><span>Estado</span><span>Andamento</span><span></span></div>' +
     '<div class="tabela-corpo">' + linhas + "</div>" +
     '<div class="tabela-rodape"><span>clique para abrir · ··· para renomear, mover ou apagar</span><span class="cresce"></span><span>nada saiu da máquina hoje</span></div></div>';
@@ -3184,9 +3132,8 @@ document.addEventListener("mousemove", (e) => {
   fecharFlutuante();
 });
 
-/* As gavetas ao lado do menu: todas as conversas, e as telas antigas. */
+/* A gaveta ao lado do menu: as telas antigas que ainda nao tem lugar. */
 function fecharGavetas() {
-  $("gaveta-conversas").hidden = true;
   $("gaveta-antigos").hidden = true;
 }
 function alternarGaveta(id) {
@@ -3195,7 +3142,6 @@ function alternarGaveta(id) {
   fecharGavetas();
   alvo.hidden = !abrir;
 }
-$("ver-conversas").onclick = () => alternarGaveta("gaveta-conversas");
 $("ver-antigos").onclick = () => alternarGaveta("gaveta-antigos");
 
 document.addEventListener("keydown", (e) => {
