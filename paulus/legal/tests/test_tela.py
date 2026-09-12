@@ -587,6 +587,60 @@ def main() -> int:
                 pagina.evaluate(f"() => fetch('/api/servicos/{id_servico}', {{ method: 'DELETE' }})")
                 pagina.wait_for_timeout(300)
 
+            print("\nGravacoes: lista, gravador e gravacao arquivada (A16)")
+            # A lista em seis colunas, o gravador com o tempo e os botoes
+            # redondos, e a gravacao arquivada com o tocador. O audio de teste
+            # e um WAV curto gerado na hora; a transcricao diz que falta o
+            # modelo de voz em vez de fingir. Apaga no fim.
+            id_gravacao = pagina.evaluate("""async () => {
+                const taxa = 8000, segundos = 2, n = taxa * segundos;
+                const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+                const escreve = (p, s) => { for (let i = 0; i < s.length; i++) v.setUint8(p + i, s.charCodeAt(i)); };
+                escreve(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); escreve(8, 'WAVE'); escreve(12, 'fmt ');
+                v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, taxa, true);
+                v.setUint32(28, taxa * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); escreve(36, 'data'); v.setUint32(40, n * 2, true);
+                for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.round(8000 * Math.sin(2 * Math.PI * 440 * i / taxa)), true);
+                const fd = new FormData();
+                fd.append('arquivo', new Blob([buf], { type: 'audio/wav' }), 'teste-de-tela.wav');
+                fd.append('titulo', 'Teste de tela — gravação'); fd.append('tipo', 'reuniao'); fd.append('participantes', 'Ana Lima, Bruno Souza');
+                fd.append('duracao_s', '2'); fd.append('origem', 'importada'); fd.append('marcadores', '[{"t":1,"texto":"meio"}]');
+                const r = await fetch('/api/gravacoes', { method: 'POST', body: fd });
+                return (await r.json()).id;
+            }""")
+            try:
+                pagina.evaluate("() => abrirDestino('gravacoes')")
+                pagina.wait_for_selector("#gv-tela .gv-lista", timeout=20000)
+                colunas = pagina.evaluate("() => getComputedStyle(document.querySelector('.tabela-cabecalho.colunas-gravacoes')).gridTemplateColumns.split(' ').length")
+                checar(colunas == 6, f"a lista de gravacoes tem seis colunas (achou {colunas})")
+                checar(
+                    pagina.evaluate(f"() => !!document.querySelector('[data-gv-abrir=\"{id_gravacao}\"] .gv-avatares .cad-avatar')"),
+                    "a linha mostra os participantes",
+                )
+                pagina.evaluate("() => document.querySelector('.tabela-barra [data-gv-nova]').click()")
+                pagina.wait_for_selector("[data-gv-comecar]", timeout=20000)
+                checar(
+                    pagina.evaluate("() => !!document.querySelector('.gv-forma') && !!document.querySelector('.gv-adiante') && document.querySelectorAll('#gv-tela .gv-painel .painel-bloco').length === 4"),
+                    "o gravador abre com o formulario, a transcricao honesta e o painel de contexto",
+                )
+                pagina.evaluate(f"() => abrirGravacao({id_gravacao})")
+                pagina.wait_for_selector("#gv-tela .gv-player", timeout=20000)
+                checar(
+                    pagina.evaluate("() => !!document.getElementById('gv-audio') && document.querySelectorAll('.gv-barra u').length === 1"),
+                    "a gravacao arquivada abre com o tocador e o marcador na barra",
+                )
+                pagina.evaluate("() => document.querySelector('[data-gv-aba=\"marcadores\"]').click()")
+                pagina.wait_for_timeout(400)
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('.gv-conteudo .gv-marcador').length") == 1,
+                    "a aba Marcadores lista o marcador",
+                )
+                pagina.evaluate("() => document.querySelector('[data-gv-voltar]').click()")
+                pagina.wait_for_selector("#gv-tela .gv-lista", timeout=20000)
+                checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Gravações", "a seta volta para a lista")
+            finally:
+                pagina.evaluate(f"() => fetch('/api/gravacoes/{id_gravacao}', {{ method: 'DELETE' }})")
+                pagina.wait_for_timeout(300)
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

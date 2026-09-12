@@ -2891,6 +2891,87 @@
     .sv-trabalho { grid-template-columns: minmax(0, 1fr); }
   }
 
+  /* ---------------------------------------------------------- gravacoes */
+  /*
+    Gravacoes (docs/ui/03-telas-desktop.md, A16): a lista, o gravador ao vivo
+    com o painel de contexto e a gravacao arquivada com o tocador. O que nao
+    existe (transcricao, resumo, contexto ao vivo) ocupa o lugar do desenho
+    com um texto dizendo isso. Prefixo gv-.
+  */
+  .colunas-gravacoes { grid-template-columns: 40px minmax(0, 2.4fr) minmax(0, 1.4fr) 80px 150px 28px; }
+  .tabela-linha.colunas-gravacoes { font-size: 13.5px; padding: 10px 16px; }
+  .gv-ic-linha { color: var(--ink3); display: inline-flex; }
+  .gv-ic-linha.viva { color: var(--acc); }
+  .gv-avatares { display: flex; align-items: center; }
+  .gv-avatares .cad-avatar { width: 26px; height: 26px; font-size: 10px; border: 2px solid var(--surf); margin-left: -6px; }
+  .gv-avatares .cad-avatar:first-child { margin-left: 0; }
+  .gv-avatares small { margin-left: 6px; font: 500 12px var(--sans); color: var(--ink3); }
+  .gv-duracao { font-variant-numeric: tabular-nums; color: var(--ink2); }
+  .fin-status.gv-viva { color: var(--acc); background: var(--accbg); }
+  .gv-titulo-ic { display: inline-flex; align-items: center; gap: 8px; }
+  .gv-lista .tabela-barra .ag-chips { flex-wrap: nowrap; }
+  .gv-lista .tabela-rodape .direita { margin-left: auto; }
+
+  /* O gravador: o pulso, o tempo grande e os tres botoes redondos. */
+  .gv-gravador { padding: 22px 24px; display: grid; gap: 14px; justify-items: center; text-align: center; }
+  .gv-estado { display: inline-flex; align-items: center; gap: 8px; font: 600 13px var(--sans); color: var(--acc); }
+  .gv-estado.parada, .gv-estado.pronta { color: var(--ink3); }
+  .gv-pulso { width: 10px; height: 10px; border-radius: 50%; background: var(--acc); animation: gv-pulsar 1.2s ease-in-out infinite; }
+  .gv-estado.parada .gv-pulso { animation: none; background: var(--ink3); }
+  @keyframes gv-pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  .gv-tempo { font: 500 48px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--ink); }
+  .gv-gravador .meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .gv-controles { display: flex; align-items: center; gap: 14px; padding-top: 4px; }
+  .gv-redondo {
+    width: 44px; height: 44px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink);
+  }
+  .gv-redondo:hover:not(:disabled) { border-color: var(--ink); background: var(--surf); color: var(--ink); }
+  .gv-redondo.primario { width: 56px; height: 56px; background: var(--btn); border-color: var(--btn); color: var(--btnt); }
+  .gv-redondo.primario:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--btnt); }
+  .gv-aviso { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); max-width: 520px; }
+  .gv-erro { padding: 10px 14px; border-radius: 8px; background: var(--accbg); color: var(--acc); font: 500 13px/1.5 var(--sans); max-width: 560px; }
+  .gv-forma { width: 100%; max-width: 640px; text-align: left; display: grid; gap: 12px; }
+  .gv-forma .ag-form-rodape { flex-wrap: wrap; }
+  .gv-forma .ag-form-rodape .ag-explica { flex: 1; min-width: 200px; }
+
+  /* Onde a transcricao, o resumo e o contexto ao vivo vao ficar. */
+  .gv-adiante { display: grid; gap: 8px; padding: 18px 16px; color: var(--ink2); font-size: 13.5px; line-height: 1.6; }
+  .gv-adiante b { color: var(--ink); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+  .gv-adiante p { margin: 0; }
+  .gv-adiante .ic { color: var(--ink3); }
+  .gv-transcricao { flex: 1; min-height: 0; }
+  .gv-transcricao .fin-cartao-cabeca .direita { margin-left: auto; display: flex; gap: 6px; }
+  .gv-transcricao .fin-cartao-cabeca .direita button { padding: 5px 10px; font-size: 12.5px; }
+
+  /* O tocador da gravacao arquivada. */
+  .gv-player { flex: none; display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .gv-posicao { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink2); }
+  .gv-barra { flex: 1; min-width: 60px; height: 6px; border-radius: 3px; background: var(--fill2); cursor: pointer; position: relative; overflow: hidden; }
+  .gv-barra i { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--ink); border-radius: 3px; }
+  .gv-barra u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--acc); }
+  .gv-player .botao-icone { width: 34px; height: 34px; }
+  .gv-vel { font: 600 12px var(--sans); min-width: 46px; padding: 5px 8px; }
+  .gv-conteudo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .gv-conteudo .fin-cartao { flex: 1; min-height: 0; }
+  .gv-marcador { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .gv-marcador > .ic { color: var(--ink3); flex: none; }
+  .gv-marcador .em-ligacao.forte { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .gv-marcador input[type="text"] { flex: 1; min-width: 0; max-width: none; border: none; background: transparent; padding: 4px 0; font: 400 13.5px var(--sans); }
+  .gv-marcador input[type="text"]:focus { outline: none; border-bottom: 1px solid var(--ink-a3); }
+  .gv-marcador .mais-linha { flex: none; }
+  .gv-marcar { display: flex; gap: 6px; align-items: center; }
+  .gv-marcar input[type="text"] { flex: 1; min-width: 0; max-width: none; }
+  .gv-notas { width: 100%; resize: vertical; }
+  .gv-arquivado { display: flex; align-items: flex-start; gap: 10px; }
+  .gv-arquivado > .ic { color: var(--ink3); flex: none; margin-top: 2px; }
+  .gv-arquivado select { max-width: 100%; }
+  .gv-nota-pe { font: 500 12px/1.5 var(--sans); color: var(--ink3); margin: 0; }
+  .gv-tela .acervo-principal { gap: 14px; }
+  .gv-painel .rolagem { display: flex; flex-direction: column; }
+  .gv-painel .cfg-liga { padding: 2px 0; }
+  .gv-pergunta { width: 100%; resize: none; }
+
   /* --------------------------------------------------------- assinatura */
   /*
     Assinatura (docs/ui/03-telas-desktop.md, A8): o visor do PDF com o selo
@@ -8617,9 +8698,9 @@ const NOVOS_DESTINOS = {
     precisa: ["o Assistente abrindo um serviço a partir de um pedido (“abra um serviço para…”)"],
   },
   gravacoes: {
-    id: "gravacoes", nome: "Gravações", pronta: false,
+    id: "gravacoes", nome: "Gravações", pronta: true, abre: "gravacoes",
     resolve: "Gravar reuniões e atendimentos, transcrever por falante e resumir, tudo nesta máquina.",
-    precisa: ["transcrição local de áudio", "uma máquina que dê conta disso em tempo real"],
+    precisa: ["transcrição local de áudio por falante", "resumo e contexto ao vivo a partir dela"],
   },
   apoiar: {
     id: "apoiar", nome: "Apoiar o projeto", pronta: false, abre: "apoiar",
@@ -8663,7 +8744,7 @@ async function carregarMenu() {
     '<span class="rotulo-botao">' + esc(x.nome) + "</span></button>").join("");
   $("ver-antigos").hidden = !antigos.length;
 
-  const semMotor = DESTINOS.filter((x) => !x.pronta).map((x) => x.id).concat(["gravacoes"]);
+  const semMotor = DESTINOS.filter((x) => !x.pronta).map((x) => x.id);
   semMotor.forEach((id) => {
     document.querySelectorAll('[data-destino="' + id + '"]').forEach((b) => b.classList.add("adiante"));
   });
@@ -8691,6 +8772,7 @@ function abrirDestino(id) {
   marcarDestino(id);
 
   if (d.abre === "servicos") return mostrarServicos("pastas");
+  if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "apoiar") return mostrarApoiar("contribuir");
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return $("nova").click();
@@ -9649,6 +9731,746 @@ function agendarDoServico(s) {
   ag.painel = "form";
   ag.form = Object.assign(compromissoEmBranco("compromisso"), { cadastro_id: s.cadastro_id || null, titulo: s.nome });
   mostrarAgenda("semana");
+}
+
+/* ---------------------------------------------------------- gravacoes */
+/*
+   Gravacoes (docs/ui/03-telas-desktop.md, A16): a lista, o gravador ao vivo
+   e a gravacao arquivada. O audio vem do microfone (MediaRecorder) ou de
+   um arquivo importado e fica nesta maquina (src/gravacoes.py). Transcricao
+   por falante, resumo e contexto ao vivo precisam de um modelo de voz local
+   que ainda nao esta aqui: a tela mostra o lugar deles e diz isso, em vez
+   de fingir uma transcricao. A gravacao vive fora do DOM (gv.vivo): trocar
+   de tela nao a interrompe, e a lista mostra "gravando · ao vivo".
+*/
+
+const GV_JSON = { "Content-Type": "application/json" };
+const GV_PLURAIS = { reuniao: "Reuniões", atendimento: "Atendimentos", audiencia: "Audiências", nota: "Notas de voz" };
+const GV_VELOCIDADES = [1, 1.25, 1.5, 2];
+
+const gv = {
+  visao: "lista", tipo: "", termo: "", lista: [], totalSegundos: 0, tipos: [], clientes: [], servicos: [], pasta: "",
+  aberta: null, aba: "transcricao", velocidade: 1, marcarTexto: "",
+  vivo: {
+    estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
+    form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
+  },
+};
+
+async function mostrarGravacoes(visao) {
+  if (visao) gv.visao = visao;
+  if (gv.visao === "gravacao" && !gv.aberta) gv.visao = "lista";
+  abrirTela("Gravações", { cheia: true });
+  marcarDestino("gravacoes");
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  atualizarPostura();
+  try {
+    const pedidos = [fetch("/api/gravacoes?termo=" + encodeURIComponent(gv.termo)).then((r) => r.json())];
+    if (gv.visao === "gravacao") pedidos.push(fetch("/api/gravacoes/" + gv.aberta.id).then((r) => (r.ok ? r.json() : null)));
+    const [d, g] = await Promise.all(pedidos);
+    gv.lista = d.gravacoes || [];
+    gv.totalSegundos = d.total_segundos || 0;
+    gv.tipos = d.tipos || [];
+    gv.clientes = d.clientes || [];
+    gv.servicos = d.servicos || [];
+    gv.pasta = d.pasta || "";
+    if (gv.visao === "gravacao") {
+      if (g) gv.aberta = g;
+      else { gv.aberta = null; gv.visao = "lista"; avisoCert("essa gravação não existe mais"); }
+    }
+  } catch (err) {
+    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
+      esc(String(err)) + "</p></div></div>";
+    return;
+  }
+  desenharGravacoes();
+}
+
+async function abrirGravacao(id) {
+  gv.aberta = { id: id };
+  gv.aba = "transcricao";
+  await mostrarGravacoes("gravacao");
+}
+
+function desenharGravacoes() {
+  cabecalhoGravacoes();
+  let html;
+  if (gv.visao === "vivo") html = '<div class="acervo gv-tela" id="gv-tela">' + corpoAoVivo() + painelAoVivo() + "</div>";
+  else if (gv.visao === "gravacao") html = '<div class="acervo gv-tela" id="gv-tela">' + corpoDaGravacao() + painelDaGravacao() + "</div>";
+  else html = '<div class="acervo gv-tela sem-painel" id="gv-tela">' + corpoDaListaGv() + "</div>";
+  $("centro").innerHTML = html;
+  ligarGravacoes();
+  atualizarPostura();
+}
+
+/* ------------------------------------------------------------ tempo */
+
+function duracaoGv(segundos) {
+  const s = Math.max(0, Math.round(segundos || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  const dois = (n) => String(n).padStart(2, "0");
+  return h ? h + ":" + dois(m) + ":" + dois(r) : m + ":" + dois(r);
+}
+
+function duracaoLongaGv(segundos) {
+  const s = Math.max(0, Math.round(segundos || 0));
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  if (h) return h + " h " + m + " min";
+  if (m) return m + " min";
+  return s + " s";
+}
+
+function segundosGravados() {
+  const v = gv.vivo;
+  return (v.decorrido + (v.estado === "gravando" ? Date.now() - v.inicio : 0)) / 1000;
+}
+
+function quandoDaGravacao(g) {
+  const d = new Date(g.criado_em);
+  if (isNaN(d)) return "";
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const dias = -diasAte(g.criado_em.slice(0, 10));
+  if (dias === 0) return "hoje " + hora;
+  if (dias === 1) return "ontem " + hora;
+  return d.getDate() + " " + MESES_CURTOS[d.getMonth()] + (d.getFullYear() !== new Date().getFullYear() ? " " + d.getFullYear() : "") + " " + hora;
+}
+
+function tituloPadraoGv(form) {
+  const rotulo = (gv.tipos.find((t) => t.valor === form.tipo) || {}).rotulo || "Gravação";
+  const d = new Date();
+  return rotulo + " · " + d.getDate() + " " + MESES_CURTOS[d.getMonth()] + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/* ------------------------------------------------------ o cabecalho */
+
+function cabecalhoGravacoes() {
+  const titulo = $("conversa-titulo");
+  const meta = $("conversa-meta");
+  const nav = $("nav-tela");
+  const botao = (v, r) => {
+    const classe = v === gv.aba ? "ativa" : "";
+    return '<button class="' + classe + '" data-gv-aba="' + v + '">' + r + "</button>";
+  };
+  const voltar = '<button class="voltar" data-gv-voltar="1" title="Voltar à lista" aria-label="Voltar à lista">' + ic("arrow_back", 18) + "</button>";
+  if (gv.visao === "vivo") {
+    const v = gv.vivo;
+    nav.innerHTML = voltar;
+    titulo.textContent = v.estado === "pronto" ? "Nova gravação" : (v.form.titulo || tituloPadraoGv(v.form));
+    meta.textContent = v.estado === "pronto" ? "microfone desta máquina · o áudio fica só aqui" : metaAoVivo();
+    $("acoes-tela").innerHTML =
+      '<div class="visoes">' + botao("vivo", "Ao vivo") + botao("transcricao", "Transcrição") + botao("resumo", "Resumo") + "</div>" +
+      (v.estado === "pronto"
+        ? '<button class="primario com-icone" data-gv-comecar="1">' + ic("mic", 16) + "Começar a gravar</button>"
+        : '<button class="primario com-icone" data-gv-parar="1"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic("stop_circle", 16) + "Parar e arquivar</button>");
+    return;
+  }
+  if (gv.visao === "gravacao" && gv.aberta) {
+    const g = gv.aberta;
+    nav.innerHTML = voltar;
+    titulo.textContent = g.titulo;
+    meta.textContent = [quandoDaGravacao(g), duracaoLongaGv(g.duracao_s), g.participantes_lista.join(", ")].filter(Boolean).join(" · ") +
+      (g.existe ? " · arquivada" : " · áudio não encontrado");
+    $("acoes-tela").innerHTML =
+      '<div class="visoes">' + botao("transcricao", "Transcrição") + botao("resumo", "Resumo") + botao("marcadores", "Marcadores") + "</div>" +
+      '<button class="com-icone" data-gv-adiante="Compartilhar o resumo por e-mail entra junto com o resumo — que depende da transcrição local">' + ic("mail", 16) + "Compartilhar resumo</button>" +
+      '<button class="primario com-icone" data-gv-perguntar="1">' + ic("forum", 16) + "Perguntar sobre esta gravação</button>";
+    return;
+  }
+  nav.innerHTML = "";
+  titulo.textContent = "Gravações";
+  meta.textContent = plural(gv.lista.length, "gravação", "gravações") + " · reuniões, atendimentos, audiências e notas de voz · o áudio fica nesta máquina";
+  $("acoes-tela").innerHTML =
+    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="gv-busca" placeholder="Buscar gravações…" value="' + esc(gv.termo) + '"></label>' +
+    '<button class="primario com-icone" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button>";
+}
+
+function metaAoVivo() {
+  const v = gv.vivo;
+  const servico = gv.servicos.find((s) => s.id === v.form.servico_id);
+  return [servico ? "Serviço: " + servico.nome : "", (gv.tipos.find((t) => t.valor === v.form.tipo) || {}).rotulo,
+    v.estado === "pausada" ? "pausada" : (v.estado === "salvando" ? "guardando" : "gravando")].filter(Boolean).join(" · ");
+}
+
+/* ----------------------------------------------------------- a lista */
+
+function avataresGv(nomes, quantos) {
+  const lista = nomes.slice(0, quantos || 3);
+  const resto = nomes.length - lista.length;
+  if (!lista.length) return '<span class="gv-avatares"><small>—</small></span>';
+  return '<span class="gv-avatares">' + lista.map((n) => '<span class="cad-avatar" title="' + esc(n) + '">' + esc(iniciaisDoRemetente(n)) + "</span>").join("") +
+    (resto > 0 ? "<small>+" + resto + "</small>" : "") + "</span>";
+}
+
+function linhaAoVivoGv() {
+  const v = gv.vivo;
+  if (v.estado === "pronto") return "";
+  const nomes = v.form.participantes.split(",").map((x) => x.trim()).filter(Boolean);
+  return '<div class="tabela-linha colunas-gravacoes" data-gv-vivo="1"><span class="gv-ic-linha viva">' + ic("mic", 20) + "</span>" +
+    '<div class="duas-linhas"><b>' + esc(v.form.titulo || tituloPadraoGv(v.form)) + "</b><small>" + esc(metaAoVivo()) + "</small></div>" +
+    avataresGv(nomes) + '<span class="gv-duracao" id="gv-tempo-linha">' + duracaoGv(segundosGravados()) + "</span>" +
+    '<span class="fin-status gv-viva">' + (v.estado === "pausada" ? "pausada · ao vivo" : "gravando · ao vivo") + '</span><span></span></div>';
+}
+
+function corpoDaListaGv() {
+  const lista = gv.tipo ? gv.lista.filter((g) => g.tipo === gv.tipo) : gv.lista;
+  const chips = [["", "Todas · " + gv.lista.length]].concat(gv.tipos.map((t) => [t.valor, GV_PLURAIS[t.valor] || t.rotulo])).map(([v, r]) => {
+    const classe = v === gv.tipo ? "on" : "";
+    return '<button class="' + classe + '" data-gv-tipo="' + v + '">' + r + "</button>";
+  }).join("");
+  const linhas = lista.map((g) => {
+    const sub = [quandoDaGravacao(g), g.servico_nome ? "Serviço: " + g.servico_nome : "", !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
+    const status = g.existe ? "arquivada · sem transcrição" : "áudio não encontrado";
+    return '<div class="tabela-linha colunas-gravacoes" data-gv-abrir="' + g.id + '"><span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>" +
+      '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" + avataresGv(g.participantes_lista) +
+      '<span class="gv-duracao">' + duracaoGv(g.duracao_s) + '</span><span class="fin-status">' + status + "</span>" +
+      '<button class="mais-linha" data-gv-mais="' + g.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
+  }).join("");
+  let vazio = "";
+  if (!linhas && !linhaAoVivoGv()) {
+    vazio = '<p class="rel-vazio">' + (gv.termo ? "Nada com “" + esc(gv.termo) + "”. Procurei no título, nos participantes, nas notas, no cliente e no serviço." :
+      (gv.tipo ? "Nenhuma gravação deste tipo." : "Nenhuma gravação ainda. Grave pelo microfone em Nova gravação ou importe um áudio — tudo fica nesta máquina, e a transcrição entra quando houver um modelo de voz local.")) + "</p>";
+  }
+  return '<div class="acervo-principal"><div class="tabela-cartao gv-lista">' +
+    '<div class="tabela-barra"><div class="ag-chips">' + chips + "</div>" +
+    '<div class="direita"><input type="file" id="gv-importar" hidden accept="audio/*,.webm,.ogg,.opus,.mp3,.m4a,.wav,.aac,.flac,.mp4">' +
+    '<button data-gv-importar="1">' + ic("upload", 16) + 'Importar áudio</button><button class="primario" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button></div></div>" +
+    '<div class="tabela-cabecalho colunas-gravacoes"><span></span><span>Gravação</span><span>Participantes</span><span>Duração</span><span>Status</span><span></span></div>' +
+    '<div class="tabela-corpo">' + linhaAoVivoGv() + linhas + vazio + "</div>" +
+    '<div class="tabela-rodape"><span>' + lista.length + " de " + gv.lista.length + " · " + duracaoLongaGv(gv.totalSegundos) + ' gravados</span>' +
+    '<span class="direita">Áudio fica nesta máquina · transcrição e resumo entram com o modelo de voz local</span></div></div></div>';
+}
+
+/* ---------------------------------------------------------- ao vivo */
+
+function corpoAoVivo() {
+  const v = gv.vivo;
+  let gravador;
+  if (v.estado === "pronto") gravador = formaDaGravacao();
+  else {
+    const classe = "gv-estado" + (v.estado === "pausada" ? " parada" : "");
+    const rotulo = v.estado === "pausada" ? "Pausada" : (v.estado === "salvando" ? "Guardando o áudio…" : "Gravando");
+    gravador = '<div class="fin-cartao"><div class="gv-gravador">' +
+      '<span class="' + classe + '"><i class="gv-pulso"></i>' + rotulo + "</span>" +
+      '<div class="gv-tempo" id="gv-tempo">' + duracaoGv(segundosGravados()) + "</div>" +
+      '<span class="meta">' + esc((v.form.titulo || tituloPadraoGv(v.form)) + " · " + plural(v.marcadores.length, "marcador", "marcadores") + " · microfone desta máquina") + "</span>" +
+      '<div class="gv-controles">' +
+      '<button class="gv-redondo" data-gv-pausar="1" title="' + (v.estado === "pausada" ? "Continuar" : "Pausar") + '"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic(v.estado === "pausada" ? "play_arrow" : "pause", 22) + "</button>" +
+      '<button class="gv-redondo primario" data-gv-parar="1" title="Parar e arquivar"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic("stop", 26) + "</button>" +
+      '<button class="gv-redondo" data-gv-marcar-vivo="1" title="Marcar momento"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic("bookmark_add", 22) + "</button></div>" +
+      '<p class="gv-aviso">Avise os participantes de que a reunião está sendo gravada. O áudio fica só nesta máquina; trocar de tela não interrompe a gravação.</p>' +
+      "</div></div>";
+  }
+  const transcricao = '<div class="fin-cartao gv-transcricao"><div class="fin-cartao-cabeca"><span>Transcrição ao vivo</span><small>literal · por falante</small>' +
+    '<div class="direita"><button data-gv-adiante="Corrigir nomes entra com a transcrição por falante">Corrigir nomes</button><button data-gv-adiante="Rolar junto entra com a transcrição ao vivo">Rolar junto</button></div></div>' +
+    '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem transcrição nesta máquina</b>" +
+    "<p>A transcrição ao vivo — literal, por falante, com o minuto de cada fala — precisa de um modelo de voz que rode aqui, sem mandar o áudio para fora. Ele ainda não está instalado. " +
+    "Enquanto isso o áudio é gravado normalmente e os marcadores guardam os momentos que importam; quando o modelo existir, as gravações já arquivadas poderão ser transcritas.</p></div></div>";
+  return '<div class="acervo-principal">' + gravador + transcricao + "</div>";
+}
+
+function formaDaGravacao() {
+  const f = gv.vivo.form;
+  const tipos = gv.tipos.map((t) => { const classe = t.valor === f.tipo ? "on" : ""; return '<button type="button" class="' + classe + '" data-gv-form-tipo="' + t.valor + '">' + esc(t.rotulo) + "</button>"; }).join("");
+  const clientes = '<option value="">sem cliente</option>' + gv.clientes.map((c) => '<option value="' + c.id + '"' + (c.id === f.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
+  const servicos = '<option value="">sem serviço</option>' + gv.servicos.map((s) => '<option value="' + s.id + '"' + (s.id === f.servico_id ? " selected" : "") + ">" + esc(s.nome) + "</option>").join("");
+  return '<div class="fin-cartao"><div class="gv-gravador">' +
+    '<span class="gv-estado pronta"><i class="gv-pulso"></i>Pronto para gravar</span>' +
+    '<div class="gv-tempo">0:00</div>' +
+    (gv.vivo.erro ? '<div class="gv-erro">' + esc(gv.vivo.erro) + "</div>" : "") +
+    '<div class="gv-forma">' +
+    '<div class="ag-campo"><label>Título</label><input type="text" data-gv-form="titulo" value="' + esc(f.titulo) + '" placeholder="' + esc(tituloPadraoGv(f)) + '"></div>' +
+    '<div class="ag-campo"><label>Tipo</label><div class="ag-chips">' + tipos + "</div></div>" +
+    '<div class="ag-duas"><div class="ag-campo"><label>Cliente</label><select data-gv-form="cadastro_id">' + clientes + "</select></div>" +
+    '<div class="ag-campo"><label>Serviço</label><select data-gv-form="servico_id">' + servicos + "</select></div></div>" +
+    '<div class="ag-campo"><label>Participantes</label><input type="text" data-gv-form="participantes" value="' + esc(f.participantes) + '" placeholder="Priscila Almeida, João Medeiros"></div>' +
+    '<div class="ag-form-rodape"><button class="primario com-icone" data-gv-comecar="1">' + ic("mic", 16) + "Começar a gravar</button>" +
+    '<p class="ag-explica">Microfone desta máquina. Avise os participantes de que a reunião está sendo gravada; o áudio fica só aqui.</p></div>' +
+    "</div></div></div>";
+}
+
+function painelAoVivo() {
+  const v = gv.vivo;
+  const marcadores = v.marcadores.map((m, i) => '<div class="gv-marcador">' + ic("bookmark", 18) + '<span class="em-ligacao forte">' + duracaoGv(m.t) + "</span>" +
+    '<input type="text" value="' + esc(m.texto) + '" placeholder="o que aconteceu aqui" data-gv-marcador-vivo="' + i + '">' +
+    '<button class="mais-linha" data-gv-marcador-vivo-tirar="' + i + '" title="Tirar">' + ic("close", 16) + "</button></div>").join("");
+  return '<aside class="acervo-painel gv-painel"><div class="rolagem">' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Contexto ao vivo</span><span class="contagem">só nesta máquina</span></div>' +
+    '<p class="nota">Quando houver transcrição, o assistente vai cruzar o que está sendo dito com os arquivos do serviço e o Acervo: a cláusula citada, o valor em atraso, o prazo que muda, o que já foi combinado antes. Sem o modelo de voz local, este painel fica assim, sem inventar contexto.</p></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Marcadores<span class="contagem">' + v.marcadores.length + "</span></div>" +
+    (marcadores || '<p class="nota">' + (v.estado === "pronto" ? "Durante a gravação, o botão de marcador guarda o minuto — e você escreve o que aconteceu." : "Nenhum marcador ainda. Use o botão de marcador para guardar este minuto.") + "</p>") + "</div>" +
+    '<div class="painel-bloco">' + ligaCfg("", "Sugerir respostas enquanto ouço", "com base nos arquivos do serviço e no Acervo · entra com a transcrição", false, true) + "</div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Perguntar ao PAULUS sem parar a gravação</div>' +
+    '<textarea class="gv-pergunta" rows="2" placeholder="Pergunte algo sobre o que está sendo dito… (Enter abre a conversa; a gravação continua)" data-gv-pergunta="1"></textarea></div>' +
+    "</div></aside>";
+}
+
+/* --------------------------------------------------------- gravacao */
+
+function corpoDaGravacao() {
+  const g = gv.aberta;
+  const player = g.existe
+    ? '<div class="gv-player"><audio id="gv-audio" src="/api/gravacoes/' + g.id + '/audio" preload="metadata"></audio>' +
+      '<button class="gv-redondo primario" data-gv-tocar="1" title="Tocar">' + ic("play_arrow", 26) + "</button>" +
+      '<span class="gv-posicao"><span id="gv-posicao">0:00</span> / ' + duracaoGv(g.duracao_s) + "</span>" +
+      '<div class="gv-barra" data-gv-barra="1"><i id="gv-barra-fill"></i>' + g.marcadores.map((m) => '<u style="left:' + porcentagemGv(m.t, g.duracao_s) + '%" title="' + esc(m.texto || duracaoGv(m.t)) + '"></u>').join("") + "</div>" +
+      '<button class="botao-icone" data-gv-pular="-10" title="Voltar 10 s">' + ic("replay_10", 20) + "</button>" +
+      '<button class="botao-icone" data-gv-pular="10" title="Avançar 10 s">' + ic("forward_10", 20) + "</button>" +
+      '<button class="gv-vel" data-gv-velocidade="1" title="Velocidade">' + velocidadeGv() + "</button></div>"
+    : '<div class="gv-player"><span class="gv-posicao">— / ' + duracaoGv(g.duracao_s) + '</span><span class="nota-barra">o arquivo de áudio não está mais em ' + esc(gv.pasta) + "</span></div>";
+  return '<div class="acervo-principal">' + player + '<div class="gv-conteudo" id="gv-conteudo">' + conteudoDaGravacao() + "</div></div>";
+}
+
+function porcentagemGv(t, total) {
+  return total ? Math.min(100, Math.max(0, (t / total) * 100)).toFixed(1) : 0;
+}
+
+function velocidadeGv() {
+  return String(gv.velocidade).replace(".", ",") + "×";
+}
+
+function conteudoDaGravacao() {
+  const g = gv.aberta;
+  if (gv.aba === "marcadores") {
+    const linhas = g.marcadores.map((m, i) => '<div class="gv-marcador sv-evento grande">' + ic("bookmark", 18) +
+      '<button class="em-ligacao forte" data-gv-ir="' + m.t + '">' + duracaoGv(m.t) + "</button>" +
+      '<input type="text" value="' + esc(m.texto) + '" placeholder="o que aconteceu aqui" data-gv-marcador="' + i + '">' +
+      '<button class="mais-linha" data-gv-marcador-tirar="' + i + '" title="Tirar">' + ic("close", 16) + "</button></div>").join("");
+    return '<div class="tabela-cartao"><div class="tabela-barra"><b>Marcadores</b><span class="nota-barra">' + g.marcadores.length + "</span>" +
+      '<div class="direita gv-marcar"><input type="text" placeholder="o que aconteceu neste momento" data-gv-marcar-texto="1" value="' + esc(gv.marcarTexto) + '">' +
+      '<button data-gv-marcar="1"' + (g.existe ? "" : " disabled") + ">" + ic("bookmark_add", 16) + 'Marcar em <span id="gv-marcar-em">' + duracaoGv(posicaoDoAudio()) + "</span></button></div></div>" +
+      '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum marcador. Toque o áudio e marque os momentos que importam; o minuto fica clicável.</p>') + "</div></div>";
+  }
+  if (gv.aba === "resumo") {
+    return '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Resumo</span><small>decisões · pendências · próximos passos</small></div>' +
+      '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "O resumo nasce da transcrição — e ela ainda não existe aqui</b>" +
+      "<p>Quando houver um modelo de voz local, o assistente transcreve esta gravação nesta máquina e escreve o resumo: o que foi decidido, o que ficou pendente e com quem, com os botões de criar tarefas e levar para a Agenda. " +
+      "Até lá, as suas notas no painel e os marcadores são o registro da reunião.</p></div></div>";
+  }
+  return '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Transcrição</span><small>literal · ' + duracaoLongaGv(g.duracao_s) + " · " + plural(g.marcadores.length, "marcador", "marcadores") + "</small>" +
+    '<div class="direita"><button class="com-icone" data-gv-adiante="Buscar na transcrição entra com a transcrição">' + ic("search", 16) + "Buscar</button>" +
+    '<button data-gv-adiante="Corrigir nomes entra com a transcrição por falante">Corrigir nomes</button><button data-gv-adiante="Exportar .docx entra com a transcrição">Exportar .docx</button></div></div>' +
+    '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem transcrição nesta máquina</b>" +
+    "<p>A transcrição por falante precisa de um modelo de voz que rode aqui, sem mandar o áudio para fora. Ele ainda não está instalado; quando estiver, esta gravação poderá ser transcrita depois — o áudio fica guardado em " + esc(gv.pasta) + ". " +
+    "Enquanto isso dá para ouvir, marcar momentos e anotar no painel.</p></div></div>";
+}
+
+function painelDaGravacao() {
+  const g = gv.aberta;
+  const servicos = '<option value="">ligar a um serviço…</option>' + gv.servicos.map((s) => '<option value="' + s.id + '"' + (s.id === g.servico_id ? " selected" : "") + ">" + esc(s.nome) + "</option>").join("");
+  const clientes = '<option value="">ligar a um cliente…</option>' + gv.clientes.map((c) => '<option value="' + c.id + '"' + (c.id === g.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
+  return '<aside class="acervo-painel gv-painel"><div class="rolagem">' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo da IA</span><span class="contagem">em breve</span></div>' +
+    '<p class="nota">Sem modelo de voz local ainda não há resumo. Quando houver, ele nasce da transcrição e aparece aqui: decisões, pendências, criar tarefas, levar para a Agenda.</p></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Notas<span class="contagem">' + (g.notas ? "guardadas" : "suas") + "</span></div>" +
+    '<textarea class="gv-notas" rows="4" placeholder="O que foi combinado, o que ficou pendente… (guarda ao sair do campo)" data-gv-notas="1">' + esc(g.notas || "") + "</textarea></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Arquivado em</div>' +
+    '<div class="gv-arquivado">' + ic("inventory_2", 18) + '<div class="duas-linhas"><b>Nesta máquina</b><small>' + esc((g.arquivo || "—") + " · " + g.mb + " MB · " + (g.origem === "importada" ? "importada" : "gravada aqui")) + "</small></div></div>" +
+    '<div class="gv-arquivado">' + ic("work", 18) + '<div class="duas-linhas">' +
+    (g.servico_nome ? "<b>Serviço: " + esc(g.servico_nome) + '</b><small><button class="em-ligacao" data-gv-abrir-servico="' + g.servico_id + '">abrir a pasta</button> · trilha atualizada</small>' : "") +
+    '<select data-gv-ligar="servico_id">' + servicos + "</select></div></div>" +
+    '<div class="gv-arquivado">' + ic("person", 18) + '<div class="duas-linhas">' + (g.cliente_nome ? "<b>" + esc(g.cliente_nome) + "</b>" : "") + '<select data-gv-ligar="cadastro_id">' + clientes + "</select></div></div>" +
+    '<div class="gv-arquivado">' + ic("description", 18) + '<div class="duas-linhas"><b>Transcrição e resumo</b><small>.docx · .pdf · entram com o modelo de voz local</small></div></div>' +
+    '<p class="gv-nota-pe">Áudio e notas ficam nesta máquina. Compartilhar o resumo por e-mail vai passar por Aprovações — quando houver resumo.</p></div>' +
+    "</div></aside>";
+}
+
+function posicaoDoAudio() {
+  const a = $("gv-audio");
+  return a ? a.currentTime || 0 : 0;
+}
+
+/* ------------------------------------------------------------ ligar */
+
+function ligarGravacoes() {
+  const clique = (sel, fn) => document.querySelectorAll(sel).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
+  const busca = $("gv-busca");
+  if (busca) {
+    let t;
+    busca.oninput = () => { clearTimeout(t); const v = busca.value; t = setTimeout(() => { gv.termo = v.trim(); mostrarGravacoes("lista"); }, 280); };
+  }
+  clique("[data-gv-voltar]", () => mostrarGravacoes("lista"));
+  clique("[data-gv-nova]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
+  clique("[data-gv-vivo]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
+  clique("[data-gv-tipo]", (b) => { gv.tipo = b.dataset.gvTipo; desenharGravacoes(); });
+  clique("[data-gv-abrir]", (b) => abrirGravacao(Number(b.dataset.gvAbrir)));
+  clique("[data-gv-mais]", (b) => menuDaGravacao(b, gv.lista.find((x) => x.id === Number(b.dataset.gvMais))));
+  clique("[data-gv-importar]", () => $("gv-importar").click());
+  const importar = $("gv-importar");
+  if (importar) importar.onchange = () => { if (importar.files[0]) importarAudioGv(importar.files[0]); };
+  clique("[data-gv-adiante]", (b) => avisoCert(b.dataset.gvAdiante));
+  clique("[data-gv-aba]", (b) => {
+    const aba = b.dataset.gvAba;
+    if (gv.visao === "vivo") {
+      if (aba !== "vivo") { avisoCert((aba === "resumo" ? "O resumo" : "A transcrição") + " entra com o modelo de voz local — a gravação continua"); return; }
+      return;
+    }
+    gv.aba = aba;
+    cabecalhoGravacoes();
+    ligarGravacoes();
+    const alvo = $("gv-conteudo");
+    if (alvo) { alvo.innerHTML = conteudoDaGravacao(); ligarGravacoes(); }
+  });
+  // ao vivo
+  document.querySelectorAll("[data-gv-form]").forEach((el) => {
+    el.oninput = () => { gv.vivo.form[el.dataset.gvForm] = /_id$/.test(el.dataset.gvForm) ? (Number(el.value) || null) : el.value; };
+    el.onchange = el.oninput;
+  });
+  clique("[data-gv-form-tipo]", (b) => { gv.vivo.form.tipo = b.dataset.gvFormTipo; document.querySelectorAll("[data-gv-form-tipo]").forEach((x) => x.classList.toggle("on", x === b)); });
+  clique("[data-gv-comecar]", () => comecarGravacao());
+  clique("[data-gv-pausar]", () => pausarGravacao());
+  clique("[data-gv-parar]", () => pararGravacao());
+  clique("[data-gv-marcar-vivo]", () => marcarMomentoAoVivo());
+  document.querySelectorAll("[data-gv-marcador-vivo]").forEach((el) => { el.oninput = () => { gv.vivo.marcadores[Number(el.dataset.gvMarcadorVivo)].texto = el.value; }; });
+  clique("[data-gv-marcador-vivo-tirar]", (b) => { gv.vivo.marcadores.splice(Number(b.dataset.gvMarcadorVivoTirar), 1); redesenharPainelGv(); });
+  const pergunta = document.querySelector("[data-gv-pergunta]");
+  if (pergunta) pergunta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); perguntarSemParar(pergunta.value); } };
+  // gravacao arquivada
+  ligarTocador();
+  clique("[data-gv-ir]", (b) => irParaGv(Number(b.dataset.gvIr)));
+  clique("[data-gv-marcar]", () => marcarNaGravacao());
+  const marcarTexto = document.querySelector("[data-gv-marcar-texto]");
+  if (marcarTexto) {
+    marcarTexto.oninput = () => { gv.marcarTexto = marcarTexto.value; };
+    marcarTexto.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); marcarNaGravacao(); } };
+  }
+  document.querySelectorAll("[data-gv-marcador]").forEach((el) => {
+    el.onchange = () => renomearMarcadorGv(Number(el.dataset.gvMarcador), el.value);
+  });
+  clique("[data-gv-marcador-tirar]", (b) => tirarMarcadorGv(Number(b.dataset.gvMarcadorTirar)));
+  const notas = document.querySelector("[data-gv-notas]");
+  if (notas) notas.onblur = () => guardarNotasGv(notas.value);
+  document.querySelectorAll("[data-gv-ligar]").forEach((el) => { el.onchange = () => ligarGravacaoA(el.dataset.gvLigar, Number(el.value) || null); });
+  clique("[data-gv-abrir-servico]", (b) => abrirServico(Number(b.dataset.gvAbrirServico)));
+  clique("[data-gv-perguntar]", () => perguntarSobreGravacao(gv.aberta));
+}
+
+function redesenharPainelGv() {
+  const velho = document.querySelector("#gv-tela .acervo-painel");
+  if (!velho) return;
+  velho.outerHTML = gv.visao === "vivo" ? painelAoVivo() : painelDaGravacao();
+  ligarGravacoes();
+}
+
+/* --------------------------------------------------- gravar ao vivo */
+
+async function comecarGravacao() {
+  const v = gv.vivo;
+  if (v.estado !== "pronto") return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+    v.erro = "Este navegador não dá acesso ao microfone aqui. Abra o PAULUS na janela do programa ou no Edge.";
+    desenharGravacoes();
+    return;
+  }
+  let fluxo;
+  try {
+    fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    v.erro = err && err.name === "NotAllowedError"
+      ? "O microfone foi negado. Libere o microfone para o PAULUS nas permissões da janela e tente de novo."
+      : (err && err.name === "NotFoundError" ? "Nenhum microfone encontrado nesta máquina." : "Não consegui abrir o microfone: " + (err && err.message ? err.message : err));
+    desenharGravacoes();
+    return;
+  }
+  const tipos = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+  const mime = tipos.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+  const gravador = mime ? new MediaRecorder(fluxo, { mimeType: mime }) : new MediaRecorder(fluxo);
+  v.pedacos = [];
+  v.marcadores = [];
+  v.erro = "";
+  gravador.ondataavailable = (e) => { if (e.data && e.data.size) v.pedacos.push(e.data); };
+  gravador.start(1000);
+  v.gravador = gravador;
+  v.fluxo = fluxo;
+  v.estado = "gravando";
+  v.inicio = Date.now();
+  v.decorrido = 0;
+  clearInterval(v.relogio);
+  v.relogio = setInterval(tiquetaqueGv, 500);
+  if (!v.form.titulo) v.form.titulo = tituloPadraoGv(v.form);
+  desenharGravacoes();
+}
+
+function tiquetaqueGv() {
+  const texto = duracaoGv(segundosGravados());
+  const el = $("gv-tempo");
+  if (el) el.textContent = texto;
+  const linha = $("gv-tempo-linha");
+  if (linha) linha.textContent = texto;
+}
+
+function pausarGravacao() {
+  const v = gv.vivo;
+  if (!v.gravador) return;
+  if (v.estado === "gravando") {
+    v.gravador.pause();
+    v.decorrido += Date.now() - v.inicio;
+    v.estado = "pausada";
+  } else if (v.estado === "pausada") {
+    v.gravador.resume();
+    v.inicio = Date.now();
+    v.estado = "gravando";
+  }
+  desenharGravacoes();
+}
+
+function marcarMomentoAoVivo() {
+  const v = gv.vivo;
+  if (v.estado === "pronto" || v.estado === "salvando") return;
+  v.marcadores.push({ t: Math.round(segundosGravados()), texto: "" });
+  redesenharPainelGv();
+  const campos = document.querySelectorAll("[data-gv-marcador-vivo]");
+  const ultimo = campos[campos.length - 1];
+  if (ultimo) ultimo.focus();
+  const meta = document.querySelector("#gv-tela .gv-gravador .meta");
+  if (meta) meta.textContent = (v.form.titulo || tituloPadraoGv(v.form)) + " · " + plural(v.marcadores.length, "marcador", "marcadores") + " · microfone desta máquina";
+}
+
+function limparGravacaoAoVivo() {
+  const v = gv.vivo;
+  clearInterval(v.relogio);
+  if (v.fluxo) v.fluxo.getTracks().forEach((t) => t.stop());
+  Object.assign(v, { estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
+    form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" } });
+}
+
+async function pararGravacao() {
+  const v = gv.vivo;
+  if (!v.gravador || v.estado === "salvando") return;
+  if (v.estado === "gravando") v.decorrido += Date.now() - v.inicio;
+  v.estado = "salvando";
+  desenharGravacoes();
+  const gravador = v.gravador;
+  const blob = await new Promise((resolve) => {
+    gravador.onstop = () => resolve(new Blob(v.pedacos, { type: gravador.mimeType || "audio/webm" }));
+    gravador.stop();
+  });
+  v.fluxo.getTracks().forEach((t) => t.stop());
+  clearInterval(v.relogio);
+  const mime = gravador.mimeType || "";
+  const extensao = /ogg/.test(mime) ? ".ogg" : (/mp4/.test(mime) ? ".m4a" : ".webm");
+  const dados = new FormData();
+  dados.append("arquivo", blob, "gravacao" + extensao);
+  dados.append("titulo", v.form.titulo || tituloPadraoGv(v.form));
+  dados.append("tipo", v.form.tipo);
+  dados.append("cadastro_id", v.form.cadastro_id ? String(v.form.cadastro_id) : "");
+  dados.append("servico_id", v.form.servico_id ? String(v.form.servico_id) : "");
+  dados.append("participantes", v.form.participantes);
+  dados.append("duracao_s", String(Math.round(v.decorrido / 1000)));
+  dados.append("origem", "gravada");
+  dados.append("marcadores", JSON.stringify(v.marcadores));
+  const r = await fetch("/api/gravacoes", { method: "POST", body: dados });
+  if (!r.ok) {
+    avisoCert("não consegui guardar o áudio: " + (await erroDe(r)));
+    v.estado = "pausada";
+    v.gravador = null;
+    desenharGravacoes();
+    return;
+  }
+  const g = await r.json();
+  limparGravacaoAoVivo();
+  avisoCert("gravação arquivada nesta máquina · " + duracaoLongaGv(g.duracao_s));
+  gv.aberta = g;
+  gv.aba = "transcricao";
+  mostrarGravacoes("gravacao");
+}
+
+function perguntarSemParar(texto) {
+  const v = gv.vivo;
+  $("nova").click();
+  marcarDestino("conversa");
+  const campo = $("pedido");
+  if (campo) {
+    campo.value = (v.estado === "pronto" ? "" : "Durante a gravação “" + (v.form.titulo || tituloPadraoGv(v.form)) + "”: ") + (texto || "").trim();
+    campo.focus();
+    campo.setSelectionRange(campo.value.length, campo.value.length);
+  }
+  if (v.estado !== "pronto") avisoCert("a gravação continua — volte por Gravações para parar e arquivar");
+}
+
+/* ------------------------------------------------------- importar */
+
+function duracaoDoArquivoGv(arquivo) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(arquivo);
+    const audio = new Audio();
+    const fim = (s) => { URL.revokeObjectURL(url); resolve(isFinite(s) ? Math.round(s) : 0); };
+    audio.onloadedmetadata = () => fim(audio.duration);
+    audio.onerror = () => fim(0);
+    setTimeout(() => fim(0), 8000);
+    audio.src = url;
+  });
+}
+
+async function importarAudioGv(arquivo) {
+  avisoCert("lendo " + arquivo.name + "…");
+  const segundos = await duracaoDoArquivoGv(arquivo);
+  const dados = new FormData();
+  dados.append("arquivo", arquivo, arquivo.name);
+  dados.append("titulo", arquivo.name.replace(/\.[^.]+$/, ""));
+  dados.append("tipo", gv.tipo || "reuniao");
+  dados.append("duracao_s", String(segundos));
+  dados.append("origem", "importada");
+  const r = await fetch("/api/gravacoes", { method: "POST", body: dados });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const g = await r.json();
+  avisoCert(g.titulo + " importada" + (segundos ? " · " + duracaoLongaGv(segundos) : ""));
+  gv.aberta = g;
+  mostrarGravacoes("gravacao");
+}
+
+/* ---------------------------------------------------------- tocador */
+
+function ligarTocador() {
+  const audio = $("gv-audio");
+  if (!audio) return;
+  const g = gv.aberta;
+  const total = () => (isFinite(audio.duration) && audio.duration ? audio.duration : g.duracao_s);
+  const botao = document.querySelector("[data-gv-tocar]");
+  audio.playbackRate = gv.velocidade;
+  const pintar = () => {
+    const pos = $("gv-posicao");
+    if (pos) pos.textContent = duracaoGv(audio.currentTime);
+    const fill = $("gv-barra-fill");
+    if (fill) fill.style.width = porcentagemGv(audio.currentTime, total()) + "%";
+    const em = $("gv-marcar-em");
+    if (em) em.textContent = duracaoGv(audio.currentTime);
+  };
+  audio.ontimeupdate = pintar;
+  audio.onplay = () => { if (botao) botao.innerHTML = ic("pause", 26); };
+  audio.onpause = () => { if (botao) botao.innerHTML = ic("play_arrow", 26); };
+  audio.onended = () => { if (botao) botao.innerHTML = ic("play_arrow", 26); };
+  audio.onerror = () => avisoCert("não consegui tocar o áudio — o formato pode não ser reconhecido por esta janela");
+  if (botao) botao.onclick = () => { if (audio.paused) audio.play(); else audio.pause(); };
+  document.querySelectorAll("[data-gv-pular]").forEach((b) => {
+    b.onclick = () => { audio.currentTime = Math.max(0, Math.min(total(), audio.currentTime + Number(b.dataset.gvPular))); pintar(); };
+  });
+  const vel = document.querySelector("[data-gv-velocidade]");
+  if (vel) vel.onclick = () => {
+    const i = GV_VELOCIDADES.indexOf(gv.velocidade);
+    gv.velocidade = GV_VELOCIDADES[(i + 1) % GV_VELOCIDADES.length];
+    audio.playbackRate = gv.velocidade;
+    vel.textContent = velocidadeGv();
+  };
+  const barra = document.querySelector("[data-gv-barra]");
+  if (barra) barra.onclick = (e) => {
+    const caixa = barra.getBoundingClientRect();
+    const fracao = Math.max(0, Math.min(1, (e.clientX - caixa.left) / caixa.width));
+    audio.currentTime = fracao * total();
+    pintar();
+  };
+}
+
+function irParaGv(segundo) {
+  const audio = $("gv-audio");
+  if (!audio) { avisoCert("o áudio desta gravação não está mais no disco"); return; }
+  audio.currentTime = segundo;
+  audio.play();
+}
+
+async function marcarNaGravacao() {
+  const g = gv.aberta;
+  const r = await fetch("/api/gravacoes/" + g.id + "/marcadores", { method: "POST", headers: GV_JSON, body: JSON.stringify({ t: Math.round(posicaoDoAudio()), texto: gv.marcarTexto }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  g.marcadores = (await r.json()).marcadores;
+  gv.marcarTexto = "";
+  redesenharConteudoGv();
+}
+
+async function renomearMarcadorGv(i, texto) {
+  const g = gv.aberta;
+  const m = g.marcadores[i];
+  if (!m || m.texto === texto) return;
+  // O servidor so tem "por" e "tirar": renomear e tirar e por de novo no mesmo minuto.
+  let r = await fetch("/api/gravacoes/" + g.id + "/marcadores/" + i, { method: "DELETE" });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  r = await fetch("/api/gravacoes/" + g.id + "/marcadores", { method: "POST", headers: GV_JSON, body: JSON.stringify({ t: m.t, texto: texto }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  g.marcadores = (await r.json()).marcadores;
+}
+
+async function tirarMarcadorGv(i) {
+  const g = gv.aberta;
+  const r = await fetch("/api/gravacoes/" + g.id + "/marcadores/" + i, { method: "DELETE" });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  g.marcadores = (await r.json()).marcadores;
+  redesenharConteudoGv();
+}
+
+function redesenharConteudoGv() {
+  const alvo = $("gv-conteudo");
+  if (alvo) alvo.innerHTML = conteudoDaGravacao();
+  const barra = document.querySelector("[data-gv-barra]");
+  if (barra) {
+    barra.querySelectorAll("u").forEach((u) => u.remove());
+    gv.aberta.marcadores.forEach((m) => {
+      const u = document.createElement("u");
+      u.style.left = porcentagemGv(m.t, gv.aberta.duracao_s) + "%";
+      u.title = m.texto || duracaoGv(m.t);
+      barra.appendChild(u);
+    });
+  }
+  ligarGravacoes();
+}
+
+async function guardarNotasGv(texto) {
+  const g = gv.aberta;
+  if (!g || (g.notas || "") === texto) return;
+  const r = await fetch("/api/gravacoes/" + g.id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ notas: texto }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  g.notas = texto;
+  avisoCert("notas guardadas");
+}
+
+async function ligarGravacaoA(campo, valor) {
+  const g = gv.aberta;
+  const dados = {};
+  dados[campo] = valor;
+  const r = await fetch("/api/gravacoes/" + g.id, { method: "POST", headers: GV_JSON, body: JSON.stringify(dados) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  gv.aberta = await r.json();
+  cabecalhoGravacoes();
+  redesenharPainelGv();
+}
+
+function menuDaGravacao(botao, g) {
+  if (!g) return;
+  menuNaLinha(botao, [
+    { rotulo: "Abrir", icone: "graphic_eq", acao: () => abrirGravacao(g.id) },
+    { rotulo: "Baixar o áudio", icone: "download", acao: () => baixarAudioGv(g) },
+    "-",
+    { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarGravacao(g) },
+  ]);
+}
+
+function baixarAudioGv(g) {
+  if (!g.existe) { avisoCert("o áudio não está mais no disco"); return; }
+  const a = document.createElement("a");
+  a.href = "/api/gravacoes/" + g.id + "/audio";
+  a.download = g.arquivo || "gravacao";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function apagarGravacao(g) {
+  if (!confirm("Apagar “" + g.titulo + "”? O áudio sai desta máquina e não volta.")) return;
+  const r = await fetch("/api/gravacoes/" + g.id, { method: "DELETE" });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  if (gv.aberta && gv.aberta.id === g.id) gv.aberta = null;
+  avisoCert("gravação apagada");
+  mostrarGravacoes("lista");
+}
+
+function perguntarSobreGravacao(g) {
+  if (!g) return;
+  $("nova").click();
+  marcarDestino("conversa");
+  const campo = $("pedido");
+  if (!campo) return;
+  campo.value = "Sobre a gravação “" + g.titulo + "” (" + quandoDaGravacao(g) + (g.servico_nome ? ", serviço " + g.servico_nome : "") + ")" +
+    (g.notas ? ", com estas notas: " + g.notas.trim() : "") + ": ";
+  campo.focus();
+  campo.setSelectionRange(campo.value.length, campo.value.length);
 }
 
 /* ------------------------------------------------------------- telas */

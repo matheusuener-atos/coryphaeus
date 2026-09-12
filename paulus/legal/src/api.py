@@ -50,6 +50,7 @@ import ritmo as ritmo_mod
 import planilha
 import relatorios
 import servicos as servicos_mod
+import gravacoes as gravacoes_mod
 import pastas
 import recursos
 import registro
@@ -105,6 +106,8 @@ SESSOES_DIR = BASE_DIR / "data" / "sessoes"
 COMPROVANTES_DIR = BASE_DIR / "data" / "comprovantes"
 RECIBOS_DIR = BASE_DIR / "data" / "recibos"
 EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
+GRAVACOES_DIR = BASE_DIR / "data" / "gravacoes"
+MAX_AUDIO_BYTES = 500 * 1024 * 1024
 RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -169,6 +172,8 @@ class Estado:
         self.bem_estar = bemestar.BemEstar(self.base)
         # Servicos: as pastas de trabalho (docs/ui, A15).
         self.servicos = servicos_mod.Servicos(self.base, _quem_sou)
+        # Gravacoes de audio, guardadas nesta maquina (docs/ui, A16).
+        self.gravacoes = gravacoes_mod.Gravacoes(self.base, GRAVACOES_DIR)
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(
             self.base, fila=self.fila, assinaturas=self.assinaturas,
@@ -4621,6 +4626,7 @@ def servicos_obter(id_: int) -> dict:
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
+    s["gravacoes"] = [g for g in estado.gravacoes.listar() if g.get("servico_id") == id_][:6]
     return s
 
 
@@ -4707,6 +4713,98 @@ def servicos_resumo(id_: int) -> dict:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     estado.servicos.guardar_resumo(id_, _limpar_sugestao(texto))
     return estado.servicos.obter(id_) or {}
+
+
+# ------------------------------------------------------------ gravacoes
+
+
+@app.get("/api/gravacoes")
+def gravacoes_listar(tipo: str = "", termo: str = "") -> dict:
+    return {
+        "gravacoes": estado.gravacoes.listar(tipo, termo),
+        "total_segundos": estado.gravacoes.total_segundos(),
+        "tipos": [{"valor": k, "rotulo": v} for k, v in gravacoes_mod.TIPOS.items()],
+        "clientes": [{"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar("cliente")],
+        "servicos": [{"id": s["id"], "nome": s["nome"]} for s in estado.servicos.listar("andamento")],
+        "pasta": str(GRAVACOES_DIR),
+    }
+
+
+@app.post("/api/gravacoes")
+async def gravacoes_guardar(
+    arquivo: UploadFile,
+    titulo: str = Form(""), tipo: str = Form("reuniao"), cadastro_id: str = Form(""),
+    servico_id: str = Form(""), participantes: str = Form(""), duracao_s: str = Form("0"),
+    origem: str = Form("gravada"), marcadores: str = Form("[]"),
+) -> dict:
+    """O audio entra por aqui, gravado no navegador ou importado de um arquivo."""
+    conteudo = await arquivo.read()
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="o áudio veio vazio")
+    if len(conteudo) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=400, detail="áudio maior que 500 MB")
+    try:
+        lista = json.loads(marcadores or "[]")
+    except json.JSONDecodeError:
+        lista = []
+    try:
+        id_ = estado.gravacoes.guardar({
+            "titulo": titulo, "tipo": tipo, "cadastro_id": int(cadastro_id) if cadastro_id.isdigit() else None,
+            "servico_id": int(servico_id) if servico_id.isdigit() else None, "participantes": participantes,
+            "duracao_s": int(duracao_s) if duracao_s.isdigit() else 0, "origem": origem, "marcadores": lista,
+        }, conteudo, arquivo.filename or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    g = estado.gravacoes.obter(id_) or {}
+    if g.get("servico_id"):
+        estado.servicos.trilha(int(g["servico_id"]), "Gravação arquivada: " + g["titulo"])
+    return g
+
+
+@app.get("/api/gravacoes/{id_}")
+def gravacoes_obter(id_: int) -> dict:
+    g = estado.gravacoes.obter(id_)
+    if not g:
+        raise HTTPException(status_code=404, detail="gravação não encontrada")
+    return g
+
+
+@app.post("/api/gravacoes/{id_}")
+def gravacoes_atualizar(id_: int, payload: dict) -> dict:
+    if not estado.gravacoes.atualizar(id_, payload):
+        raise HTTPException(status_code=404, detail="gravação não encontrada")
+    return estado.gravacoes.obter(id_) or {}
+
+
+@app.delete("/api/gravacoes/{id_}")
+def gravacoes_apagar(id_: int) -> dict:
+    if not estado.gravacoes.apagar(id_):
+        raise HTTPException(status_code=404, detail="gravação não encontrada")
+    return {"apagada": id_}
+
+
+@app.get("/api/gravacoes/{id_}/audio")
+def gravacoes_audio(id_: int) -> FileResponse:
+    caminho = estado.gravacoes.caminho(id_)
+    if not caminho:
+        raise HTTPException(status_code=404, detail="o áudio não está mais no disco")
+    return FileResponse(caminho, media_type=gravacoes_mod.MEDIA_TYPES.get(caminho.suffix.lower(), "application/octet-stream"))
+
+
+@app.post("/api/gravacoes/{id_}/marcadores")
+def gravacoes_marcar(id_: int, payload: dict) -> dict:
+    try:
+        return {"marcadores": estado.gravacoes.marcar(id_, int(payload.get("t") or 0), str(payload.get("texto", "")))}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete("/api/gravacoes/{id_}/marcadores/{indice}")
+def gravacoes_tirar_marcador(id_: int, indice: int) -> dict:
+    try:
+        return {"marcadores": estado.gravacoes.tirar_marcador(id_, indice)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 # ------------------------------------------------------------- conexoes

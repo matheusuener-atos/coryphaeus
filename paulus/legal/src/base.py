@@ -385,6 +385,30 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_servicos_status ON servicos(status);
         """,
     ),
+    (
+        "015_gravacoes",
+        """
+        -- Gravacoes (docs/ui, A16): o audio fica em data/gravacoes; aqui so o
+        -- que se sabe dele. Transcricao e resumo entram quando houver modelo
+        -- de voz local - ate la a tela diz que faltam.
+        CREATE TABLE gravacoes (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo        TEXT NOT NULL,
+            tipo          TEXT NOT NULL DEFAULT 'reuniao',
+            cadastro_id   INTEGER REFERENCES cadastros(id) ON DELETE SET NULL,
+            servico_id    INTEGER REFERENCES servicos(id) ON DELETE SET NULL,
+            participantes TEXT DEFAULT '',
+            arquivo       TEXT DEFAULT '',
+            duracao_s     INTEGER NOT NULL DEFAULT 0,
+            bytes         INTEGER NOT NULL DEFAULT 0,
+            origem        TEXT NOT NULL DEFAULT 'gravada',
+            marcadores    TEXT NOT NULL DEFAULT '[]',
+            notas         TEXT DEFAULT '',
+            criado_em     TEXT NOT NULL
+        );
+        CREATE INDEX idx_gravacoes_tipo ON gravacoes(tipo);
+        """,
+    ),
 ]
 
 
