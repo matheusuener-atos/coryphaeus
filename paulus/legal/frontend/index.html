@@ -824,7 +824,13 @@
   .conversa-col.vazia .conversa-principal { justify-content: center; }
   .conversa-col.vazia .conversa-topo { display: none; }
   .conversa-col.vazia .fluxo { flex: 0 0 auto; padding: 0; overflow: visible; }
-  .conversa-col.vazia .compositor { padding: 16px 44px 24px; overflow: auto; }
+  /* O compositor ocupa a altura que houver e rola por dentro; o conteudo fica
+     no meio enquanto cabe (safe: em janela baixa, encosta no topo em vez de
+     cortar a saudacao). */
+  .conversa-col.vazia .compositor {
+    flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px 44px 24px;
+    display: flex; flex-direction: column; justify-content: safe center;
+  }
   .conversa-col.vazia .compositor > .centro { max-width: 880px; gap: 34px; }
 
   .saudacao-bloco { display: none; gap: 14px; max-width: 720px; }
@@ -882,9 +888,8 @@
 
   /* "Ver mais": a lista inteira de conversas surge embaixo, e o bloco do
      pedido sobe para dar lugar. */
-  .conversa-col.vazia.com-lista .conversa-principal { justify-content: flex-start; }
-  .conversa-col.vazia.com-lista .compositor { padding-top: 28px; }
-  .lista-conversas { display: grid; }
+  .conversa-col.vazia.com-lista .compositor { justify-content: flex-start; padding-top: 28px; }
+  .lista-conversas { display: grid; flex: none; margin-top: 24px; }
   .colunas-conversas { grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) 150px 120px 28px; }
   .lista-conversas .tabela-corpo { overflow: visible; }
   .estado-conversa { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); white-space: nowrap; }
@@ -2754,9 +2759,11 @@
             </div>
 
             <div class="recentes" id="recentes" hidden></div>
-            <div class="lista-conversas" id="lista-conversas" hidden></div>
             <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
           </div>
+          <!-- Fora do bloco centralizado de proposito: a lista usa a largura
+               toda da coluna, como uma tabela; so o pedido fica a 880 px. -->
+          <div class="lista-conversas" id="lista-conversas" hidden></div>
         </div>
       </div>
 
