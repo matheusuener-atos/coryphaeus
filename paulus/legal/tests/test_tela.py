@@ -159,6 +159,12 @@ def main() -> int:
                 return _fim()
 
             pagina = navegador.new_page(viewport={"width": 1440, "height": 900})
+            # A primeira abertura (boas-vindas) cobre a tela enquanto nao ha
+            # nome cadastrado. O teste e da casca: marca como vista, e testa
+            # o passeio a parte, por #boasvindas.
+            pagina.add_init_script(
+                "try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}"
+            )
             erros: list[str] = []
             pagina.on("pageerror", lambda e: erros.append(f"{e}"))
             pagina.on(
@@ -234,6 +240,28 @@ def main() -> int:
             checar(
                 pagina.evaluate("() => document.activeElement && document.activeElement.id") == "pedido",
                 "Ctrl+K foca a caixa de pedido",
+            )
+
+            print("\nprimeira abertura")
+            # Com uma query nova: so trocar o hash nao recarrega a pagina, e o
+            # passeio e decidido na abertura.
+            pagina.goto(base + "/?passeio=1#boasvindas", wait_until="networkidle")
+            pagina.wait_for_timeout(1500)
+            checar(
+                pagina.evaluate("() => !document.getElementById('boas-vindas').hidden"),
+                "#boasvindas abre o passeio de boas-vindas",
+            )
+            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(400)
+            checar(
+                pagina.evaluate("() => (document.querySelector('.bv-passo.atual') || {}).textContent") == "2Escritório",
+                "Comecar leva ao passo Escritorio",
+            )
+            pagina.evaluate("() => concluirBoasVindas(true)")
+            pagina.wait_for_timeout(600)
+            checar(
+                pagina.evaluate("() => document.getElementById('boas-vindas').hidden"),
+                "concluir fecha o passeio e devolve o programa",
             )
 
             print("\ncada destino do menu")

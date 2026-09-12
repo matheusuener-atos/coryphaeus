@@ -2487,6 +2487,100 @@
     margin: 8px 0 10px; overflow-wrap: anywhere;
   }
 
+  /* -------------------------------------------------------- boas-vindas */
+  /* A primeira abertura (docs/ui/03-telas-desktop.md, A0a): tela cheia,
+     sem trilho, seis passos. Cobre o programa inteiro ate a pessoa terminar
+     ou pular. */
+  .boas-vindas { position: fixed; inset: 0; z-index: 50; background: var(--bg); color: var(--ink); overflow: auto; }
+  .bv-tela {
+    min-height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: clamp(20px, 3vh, 36px); padding: clamp(24px, 4vh, 44px) clamp(24px, 5vw, 88px);
+  }
+  .bv-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .bv-marca { display: flex; align-items: center; gap: 10px; }
+  .bv-marca img { width: 28px; height: 28px; border-radius: 7px; filter: var(--logo); }
+  .bv-marca span { font: 500 22px/1 var(--serif); letter-spacing: .14em; }
+  .bv-passos { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .bv-passo { display: inline-flex; align-items: center; gap: 8px; font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .bv-passo.atual { font-weight: 600; color: var(--ink); }
+  .bv-passo.feito { color: var(--ink2); }
+  .bv-num {
+    width: 20px; height: 20px; border-radius: 50%; box-sizing: border-box; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font: 700 11px var(--sans); border: 1px solid var(--ink-a15); color: var(--ink3);
+  }
+  .bv-passo.atual .bv-num { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .bv-passo.feito .bv-num { background: var(--okbg); border-color: transparent; color: var(--okt); }
+  .bv-traco { display: block; width: 12px; height: 1px; background: var(--ink-a1); }
+  .bv-selo { display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--mono); letter-spacing: .12em; color: var(--okt); white-space: nowrap; }
+  .pulsa { animation: pv-pulse 3.2s ease-in-out infinite; }
+
+  .bv-corpo { min-height: 0; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 72px); align-items: center; }
+  .bv-texto { display: grid; gap: 18px; align-content: center; }
+  .bv-rotulo { font: 400 11px var(--mono); letter-spacing: .16em; color: var(--ink3); }
+  .bv-texto h1 { font: 400 clamp(32px, 3.4vw, 46px)/1.06 var(--serif); letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+  .bv-texto p { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); max-width: 52ch; text-wrap: pretty; }
+  .bv-infos { display: grid; gap: 8px; font-size: 13.5px; color: var(--ink2); }
+  .bv-infos div { display: flex; gap: 10px; align-items: flex-start; line-height: 1.55; }
+  .bv-infos .ic { color: var(--ink3); margin-top: 2px; }
+  .bv-checks { display: grid; gap: 10px; }
+  .bv-check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.55; }
+  .bv-check .ic { color: var(--ink3); }
+  .bv-check.ok .ic { color: var(--verde); }
+
+  .bv-cartao {
+    border: 1px solid var(--ink-a1); border-radius: 14px; background: var(--surf); padding: 22px;
+    display: grid; gap: 16px; align-content: start; box-shadow: 0 30px 60px -40px var(--sh-a45);
+  }
+  .bv-cartao-titulo { font: 600 14px var(--sans); }
+  .bv-instalacao { display: flex; align-items: center; gap: 12px; }
+  .bv-instalacao img { width: 44px; height: 44px; border-radius: 11px; filter: var(--logo); }
+  .bv-instalacao .duas-linhas b { font-weight: 600; font-size: 15px; }
+  .bv-instalacao .etiqueta { margin-left: auto; }
+  .etiqueta.ok { background: var(--okbg); color: var(--okt); }
+
+  .bv-opcoes { display: grid; gap: 12px; }
+  .bv-opcao { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); cursor: pointer; }
+  .bv-opcao:hover { border-color: var(--ink); }
+  .bv-opcao.escolhida { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .bv-opcao.adiante { opacity: .6; cursor: default; }
+  .bv-opcao.adiante:hover { border-color: var(--ink-a1); }
+  .bv-radio { width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; flex: none; margin-top: 2px; border: 1.5px solid var(--ink-a3); }
+  .bv-opcao.escolhida .bv-radio { border: 6px solid var(--ink); }
+  .bv-opcao-titulo { display: flex; align-items: center; gap: 8px; font: 600 15px var(--sans); color: var(--ink); white-space: normal; }
+  .bv-opcao-titulo .etiqueta { margin-left: auto; }
+  .bv-opcao .duas-linhas small { white-space: normal; font: 400 13.5px/1.55 var(--sans); color: var(--ink2); }
+
+  .bv-foto { display: flex; align-items: center; gap: 14px; }
+  .bv-iniciais { width: 56px; height: 56px; border-radius: 50%; background: var(--fill); display: flex; align-items: center; justify-content: center; font: 700 18px var(--sans); color: var(--ink2); flex: none; }
+  .bv-foto .duas-linhas small { white-space: normal; }
+  .bv-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .bv-tabela { display: grid; gap: 1px; border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; background: var(--ink-a1); }
+  .bv-tabela div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 14px; background: var(--surf); font-size: 13.5px; }
+  .bv-onde { font: 400 12px var(--mono); color: var(--ink2); }
+  .bv-onde.ok { color: var(--okt); }
+  .bv-contas { display: grid; gap: 12px; }
+  .bv-conta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); }
+  .bv-conta-letra { width: 36px; height: 36px; border-radius: 9px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; font: 800 11px var(--sans); }
+  .bv-conta .duas-linhas b { font-weight: 600; font-size: 14px; }
+  .bv-apoio { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--ink-a1); }
+  .bv-apoio b { font: 600 14px var(--sans); }
+  .bv-apoio p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+
+  .bv-rodape { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--ink-a1); padding-top: 18px; }
+  .bv-ligacao { border: none; background: none; padding: 0; font: 500 14px var(--sans); color: var(--ink2); cursor: pointer; }
+  .bv-ligacao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .bv-ligacao.apagada { color: var(--ink3); }
+  .bv-continuar { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font: 600 14px var(--sans); }
+  .bv-tema {
+    position: fixed; right: 16px; bottom: 16px; z-index: 51; width: 36px; height: 36px; padding: 0;
+    border-radius: 8px; border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+  }
+  @media (max-width: 1000px) {
+    .bv-corpo { grid-template-columns: minmax(0, 1fr); }
+  }
+
   /* ------------------------------------------------------- responsivo */
 
   /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
@@ -2673,6 +2767,9 @@
   </section>
 
 </div>
+
+<!-- A primeira abertura: cobre o programa inteiro ate a pessoa terminar. -->
+<div class="boas-vindas" id="boas-vindas" hidden></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -13563,6 +13660,265 @@ async function escolherPastaDoSistema(titulo) {
   return prompt(titulo + ":");
 }
 
+/* ---------------------------------------------------------- boas-vindas */
+/*
+   A primeira abertura (docs/ui/03-telas-desktop.md, A0a): seis passos em
+   tela cheia, todos pulaveis e revisiveis depois em Configuracoes. Abre
+   sozinha enquanto ninguem preencheu o nome, e por #boasvindas para quem
+   quiser rever. O que ainda nao tem motor - entrar por codigo, contas
+   Google e Microsoft, atualizacao automatica - aparece dizendo isso.
+*/
+
+const bv = { passo: 0, status: null, prefs: null, pessoa: {}, modelo: "", escritorio: "novo" };
+const PASSOS_BV = ["Boas-vindas", "Escritório", "Seus dados", "Como a IA funciona", "Conexões", "Atualizações"];
+
+function primeiraAberturaPendente() {
+  try { if (localStorage.getItem("paulus.boasvindas") === "1") return false; } catch (err) { /* sem memoria */ }
+  return true;
+}
+
+async function verificarPrimeiraAbertura() {
+  const forcar = location.hash === "#boasvindas";
+  if (!forcar && !primeiraAberturaPendente()) return;
+  try {
+    const d = await (await fetch("/api/preferencias")).json();
+    const nome = (((d.preferencias || {}).pessoa) || {}).nome || "";
+    // Quem ja tem nome cadastrado nao precisa do passeio: marca como visto.
+    if (!forcar && nome) { concluirBoasVindas(false); return; }
+    bv.prefs = d;
+  } catch (err) {
+    if (!forcar) return;
+  }
+  mostrarBoasVindas();
+}
+
+async function mostrarBoasVindas() {
+  if (!bv.prefs) {
+    try { bv.prefs = await (await fetch("/api/preferencias")).json(); } catch (err) { bv.prefs = { preferencias: {}, modelos: [] }; }
+  }
+  try { bv.status = await (await fetch("/api/status")).json(); } catch (err) { bv.status = null; }
+  const p = ((bv.prefs.preferencias || {}).pessoa) || {};
+  bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "", endereco: p.endereco || "" };
+  bv.modelo = bv.prefs.modelo_atual || (bv.status && bv.status.modelo) || "";
+  bv.passo = 0;
+  $("boas-vindas").hidden = false;
+  desenharBoasVindas();
+}
+
+function iniciaisDe(nome) {
+  const n = (nome || "").trim();
+  return n ? n.split(/\s+/).map((x) => x[0] || "").filter(Boolean).slice(0, 2).join("").toUpperCase() : "?";
+}
+
+function desenharBoasVindas() {
+  const caixa = $("boas-vindas");
+  const passos = PASSOS_BV.map((t, i) => {
+    const feito = i < bv.passo;
+    const classe = "bv-passo" + (feito ? " feito" : "") + (i === bv.passo ? " atual" : "");
+    return (i ? '<i class="bv-traco"></i>' : "") +
+      '<span class="' + classe + '"><span class="bv-num">' + (feito ? ic("check", 12) : String(i + 1)) + "</span>" + t + "</span>";
+  }).join("");
+  const cabeca = '<div class="bv-cabeca"><span class="bv-marca"><img src="/img/paulus-logo.svg" alt=""><span>PAVLVS</span></span>' +
+    '<div class="bv-passos">' + passos + '</div><span class="bv-selo"><i class="ponto-verde pulsa"></i>NADA SAIU DESTA MÁQUINA</span></div>';
+
+  const corpo = [passoBoasVindas, passoEscritorio, passoDados, passoIA, passoConexoes, passoAtualizacoes][bv.passo]();
+  const ultimo = bv.passo === PASSOS_BV.length - 1;
+  const rodape = '<div class="bv-rodape">' +
+    (bv.passo === 0
+      ? '<span class="nota-barra">PAULUS Legal · versão em desenvolvimento · Windows</span>'
+      : '<button class="bv-ligacao" data-bv="voltar">← Voltar</button>') +
+    '<span class="cresce"></span>' +
+    (bv.passo >= 2 && !ultimo ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    '<button class="primario bv-continuar" data-bv="continuar">' +
+    (bv.passo === 0 ? "Começar" : (ultimo ? ic("arrow_forward", 18) + "Abrir o PAULUS" : "Continuar")) + "</button></div>";
+
+  caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
+    '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +
+    ic(document.documentElement.dataset.tema === "escuro" ? "light_mode" : "dark_mode", 18) + "</button>";
+  caixa.scrollTop = 0;
+  ligarBoasVindas();
+}
+
+function passoBoasVindas() {
+  const s = bv.status || {};
+  const item = (ok, texto, parcial) => {
+    const classe = "bv-check" + (ok ? " ok" : "");
+    return '<div class="' + classe + '">' + ic(ok ? "check_circle" : (parcial ? "radio_button_partial" : "radio_button_unchecked"), 18) +
+      "<span>" + texto + "</span></div>";
+  };
+  const modeloTxt = s.modelo
+    ? "Modelo " + esc(s.modelo) + (s.tamanho_gb ? " · " + String(s.tamanho_gb).replace(".", ",") + " GB" : " · ainda não baixado")
+    : "Modelo: nenhum encontrado no Ollama";
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">BEM-VINDO</span>' +
+    "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
+    "<p>Seis passos rápidos: o escritório, seus dados, como a IA funciona, o que conectar e como atualizar. Tudo pode ser mudado depois em Configurações.</p>" +
+    '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre · gratuito</span><span class="etiqueta">IA 100% local</span><span class="etiqueta">Cerca de 3 minutos</span></div></div>' +
+    '<div class="bv-cartao"><div class="bv-instalacao"><img src="/img/paulus-logo.svg" alt=""><span class="duas-linhas"><b>' +
+    (s.ollama ? "Instalação concluída" : "Quase lá") + "</b><small>PAULUS Legal · " + esc(s.pasta || "") + "</small></span>" +
+    '<span class="etiqueta ' + (s.ollama ? "ok" : "prazo") + '">' + (s.ollama ? "pronto" : "falta o Ollama") + "</span></div>" +
+    '<div class="bv-checks">' +
+    item(Boolean(s.ollama), s.ollama ? "Ollama instalado e rodando em 127.0.0.1" : "Ollama não respondeu — abra o Ollama e clique em Começar de novo") +
+    item(Boolean(s.modelo && s.tamanho_gb), modeloTxt, Boolean(s.modelo)) +
+    item(Boolean(s.contratos), s.contratos ? "Pasta de documentos: " + plural(s.contratos, "documento") + " abertos" : "Pasta de documentos: ainda não apontada", true) +
+    item(false, "Certificado digital: opcional, para assinar") + "</div>" +
+    '<span class="nota-barra">Sem cadastro em servidor, sem conta obrigatória. O que você preencher fica nesta máquina.</span></div></div>';
+}
+
+function passoEscritorio() {
+  const opcao = (id, icone, titulo, pill, texto, disponivel) => {
+    const classe = "bv-opcao" + (bv.escritorio === id ? " escolhida" : "") + (disponivel ? "" : " adiante");
+    return '<div class="' + classe + '" data-escritorio="' + id + '"><span class="bv-radio"></span>' +
+      '<span class="duas-linhas"><span class="bv-opcao-titulo">' + ic(icone, 18) + titulo +
+      '<span class="etiqueta' + (disponivel ? " ok" : "") + '">' + pill + "</span></span><small>" + texto + "</small></span></div>";
+  };
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 1 — ESCRITÓRIO</span>' +
+    "<h1>Este computador começa um escritório novo ou entra em um que já existe?</h1>" +
+    "<p>O escritório é o grupo de máquinas que compartilham cadastros, agenda, serviços e aprovações pela rede local. Quem cria o escritório vira o responsável e define as alçadas; os demais entram com um código de vínculo.</p>" +
+    '<div class="bv-infos">' + [
+      "As máquinas se encontram pela rede local (mesmo Wi-Fi ou cabo). Nada passa por servidor na internet.",
+      "Cada máquina mantém sua própria IA local; o que se compartilha são os dados do escritório.",
+      "Sozinho? Crie o escritório mesmo assim — dá para convidar gente depois.",
+    ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
+    '<div class="bv-opcoes">' +
+    opcao("novo", "add_business", "Criar um escritório novo", "você será o responsável",
+      "Você passa a ser o responsável: aprova o que sai e define quem faz o quê. Quando a rede local chegar, é você quem gera os códigos de vínculo para as outras máquinas.", true) +
+    opcao("existente", "group_add", "Entrar em um escritório existente", "em breve · precisa da rede local",
+      "Ainda não existe nesta versão: o vínculo por código entre máquinas chega com o módulo de rede local. Por enquanto, cada computador é um escritório.", false) +
+    "</div></div>";
+}
+
+function passoDados() {
+  const campo = (chave, rotulo, modo) =>
+    '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
+    '" data-bv-pessoa="' + chave + '" value="' + esc(bv.pessoa[chave] || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") + "></div>";
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 2 — SEUS DADOS</span>' +
+    "<h1>Quem vai usar o PAULUS?</h1>" +
+    "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p></div>" +
+    '<div class="bv-cartao"><div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
+    '<span class="duas-linhas"><b>Iniciais</b><small>saem do nome; a foto fica para Configurações › Meus dados</small></span></div>' +
+    '<div class="bv-grade">' + campo("nome", "Nome completo") + campo("oab", "OAB") + campo("cpf", "CPF", "numeric") +
+    campo("telefone", "Telefone", "tel") + campo("email", "E-mail", "email") + campo("endereco", "Endereço") + "</div></div></div>";
+}
+
+function passoIA() {
+  const modelos = (bv.prefs && bv.prefs.modelos) || [];
+  const s = bv.status || {};
+  const linhas = [
+    ["Modelo de IA", "nesta máquina · Ollama", true],
+    ["Seus documentos e índice", "nesta máquina", true],
+    ["Senhas e certificado", "cofre desta máquina", true],
+    ["E-mail", "seu servidor (IMAP/SMTP) · opcional", false],
+    ["Atualizações", "pelo instalador · nada sai sozinho", false],
+  ];
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 3 — COMO A IA FUNCIONA</span>' +
+    "<h1>A inteligência artificial roda aqui, nesta máquina. Ponto.</h1>" +
+    "<p>O modelo, o índice dos seus documentos e as senhas ficam no seu computador. Não existe chamada a nenhum serviço de IA na internet. Você pode desligar o Wi-Fi e tudo continua funcionando.</p>" +
+    '<div class="bv-checks">' + [
+      "Os seus documentos nunca são enviados para treinar ou consultar modelo algum.",
+      "Serviços online são opcionais e só para o que é online por natureza: e-mail e arquivos na nuvem.",
+      "Tudo que sai da máquina — um e-mail, um pagamento — passa por Aprovações antes.",
+    ].map((t) => '<div class="bv-check ok">' + ic("check_circle", 18) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
+    '<div class="bv-cartao"><b class="bv-cartao-titulo">Onde cada coisa fica</b><div class="bv-tabela">' +
+    linhas.map(([k, v, local]) => "<div><span>" + k + '</span><span class="bv-onde' + (local ? " ok" : "") + '">' + v + "</span></div>").join("") + "</div>" +
+    '<div class="campo-painel"><label for="bv-modelo">Modelo escolhido</label><select id="bv-modelo">' +
+    (modelos.length
+      ? modelos.map((m) => '<option value="' + esc(m) + '"' + (m === bv.modelo ? " selected" : "") + ">" + esc(m) + "</option>").join("")
+      : '<option value="">' + esc(bv.modelo || "nenhum modelo no Ollama") + "</option>") + "</select></div>" +
+    '<span class="nota-barra">' + (s.tamanho_gb ? "Este pesa " + String(s.tamanho_gb).replace(".", ",") + " GB. " : "") +
+    "Com placa de vídeo, você pode trocar por um modelo maior em Configurações › Assistente e modelo.</span></div></div>";
+}
+
+function passoConexoes() {
+  const conta = (letra, titulo, sub, acao) =>
+    '<div class="bv-conta"><span class="bv-conta-letra">' + letra + '</span><span class="duas-linhas"><b>' + titulo + "</b><small>" + sub + "</small></span>" + acao + "</div>";
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 4 — CONEXÕES</span>' +
+    "<h1>O que você quer conectar? Tudo opcional.</h1>" +
+    "<p>O e-mail do escritório pode ser lido e respondido daqui, com envio passando por Aprovações. A IA continua local: o PAULUS lê aqui e não devolve nada sem o seu sim.</p>" +
+    '<div class="bv-infos">' + [
+      "A senha do e-mail fica nesta máquina, no cofre do programa.",
+      "Leio só o que você abre; nada é apagado no servidor.",
+      "Dá para desconectar a qualquer hora em E-mail › Contas.",
+    ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
+    '<div class="bv-contas">' +
+    conta("@", "E-mail do escritório", "IMAP / SMTP · detecto o servidor pelo domínio", '<button class="com-icone" data-bv="email">Configurar ao abrir</button>') +
+    conta("G", "Conta Google", "Gmail · Google Drive", '<span class="etiqueta">em breve</span>') +
+    conta("M", "Conta Microsoft", "Outlook · OneDrive", '<span class="etiqueta">em breve</span>') +
+    '<span class="nota-barra">WhatsApp Web e certificado digital ficam para depois, quando você precisar — em Conexões e em Assinatura.</span></div></div>';
+}
+
+function passoAtualizacoes() {
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 5 — ATUALIZAÇÕES</span>' +
+    "<h1>Como o PAULUS deve se atualizar?</h1>" +
+    "<p>Nesta versão, atualizar é rodar o instalador novo: o programa não verifica nada na internet sozinho. Quando a verificação automática chegar, ela vai baixar só o instalador — nenhum dado seu vai junto — e você poderá desligá-la.</p></div>" +
+    '<div class="bv-cartao"><div class="bv-checks">' +
+    '<div class="bv-check">' + ic("radio_button_unchecked", 18) + "<span>Verificar atualizações uma vez por dia — em breve</span></div>" +
+    '<div class="bv-check">' + ic("radio_button_unchecked", 18) + "<span>Avisar antes de instalar — em breve</span></div></div>" +
+    '<div class="bv-apoio"><b>Você também pode apoiar o projeto</b><p>O PAULUS é gratuito e mantido por quem usa. Sem pressa: dá para fazer isso depois, em Apoiar, no menu.</p></div></div></div>';
+}
+
+function ligarBoasVindas() {
+  const caixa = $("boas-vindas");
+  caixa.querySelectorAll("[data-bv]").forEach((b) => { b.onclick = () => acaoBoasVindas(b.dataset.bv); });
+  caixa.querySelectorAll("[data-escritorio]").forEach((o) => {
+    o.onclick = () => {
+      if (o.classList.contains("adiante")) return;
+      bv.escritorio = o.dataset.escritorio;
+      desenharBoasVindas();
+    };
+  });
+  caixa.querySelectorAll("[data-bv-pessoa]").forEach((i) => {
+    i.oninput = (e) => {
+      bv.pessoa[i.dataset.bvPessoa] = e.target.value;
+      if (i.dataset.bvPessoa === "nome") {
+        const el = $("bv-iniciais");
+        if (el) el.textContent = iniciaisDe(e.target.value);
+      }
+    };
+  });
+  const modelo = $("bv-modelo");
+  if (modelo) modelo.onchange = (e) => { bv.modelo = e.target.value; };
+  $("bv-tema").onclick = () => { alternarTema(); desenharBoasVindas(); };
+}
+
+async function acaoBoasVindas(qual) {
+  if (qual === "voltar") { bv.passo = Math.max(0, bv.passo - 1); desenharBoasVindas(); return; }
+  if (qual === "pular") { bv.passo += 1; desenharBoasVindas(); return; }
+  if (qual === "email") {
+    await concluirBoasVindas(true);
+    marcarDestino("caixa");
+    mostrarEmail();
+    return;
+  }
+  // Continuar grava o que o passo tem, e so o que tem.
+  if (bv.passo === 2) await gravarBoasVindas({ pessoa: bv.pessoa });
+  if (bv.passo === 3 && bv.modelo) await gravarBoasVindas({ modelo: bv.modelo });
+  if (bv.passo === PASSOS_BV.length - 1) { await concluirBoasVindas(true); return; }
+  bv.passo += 1;
+  desenharBoasVindas();
+}
+
+async function gravarBoasVindas(dados) {
+  try {
+    const r = await fetch("/api/preferencias", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+  } catch (err) {
+    avisoCert("não consegui gravar: " + err);
+  }
+}
+
+async function concluirBoasVindas(fechar) {
+  try { localStorage.setItem("paulus.boasvindas", "1"); } catch (err) { /* sem memoria */ }
+  if (location.hash === "#boasvindas") history.replaceState(null, "", location.pathname);
+  if (!fechar) return;
+  $("boas-vindas").hidden = true;
+  carregarUsuario();
+  carregarStatus();
+  $("nova").click();
+}
+
 /* ------------------------------------------------------------- inicio */
 
 atualizarSelo(false);
@@ -13573,6 +13929,7 @@ carregarStatus().then(atualizarPostura);
 carregarAbertos();
 carregarModelo();
 carregarUsuario();
+verificarPrimeiraAbertura();
 $("nova").click();
 </script>
 </body>
