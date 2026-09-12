@@ -238,6 +238,68 @@ def test_nome_de_funcao_nao_se_repete() -> None:
            ", ".join(repetidos))
 
 
+def test_tela_usa_a_largura() -> None:
+    """
+    Os recipientes de tela nao tem teto de largura.
+
+    `.centro`, `.catalogo` e `.bancada` sao as tres caixas em que toda tela cai.
+    Enquanto tinham `max-width: 1240px`, sobravam 370 px de tela vazia numa
+    janela de 1.920 e 1.010 px numa de 2.560 - medido, e em TODAS as telas,
+    inclusive as que sao tabela e so ganhavam com a largura.
+
+    Quem precisa de medida e a prosa, e ela tem a propria (--leitura). O teto
+    no recipiente atinge tabela, grade e painel junto, que e o que nao se quer -
+    e por isso ele nao pode voltar por descuido.
+    """
+    print("\nas telas usam a largura da coluna")
+    css, _ = _partes(PAGINA.read_text(encoding="utf-8"))
+    sem_comentario = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    presos = []
+    for caixa in (".centro", ".catalogo", ".bancada"):
+        m = re.search(re.escape(caixa) + r"\s*\{([^}]*)\}", sem_comentario)
+        if not m:
+            presos.append(caixa + " (regra sumiu)")
+        elif "max-width" in m.group(1):
+            presos.append(caixa + ": " + m.group(1).strip()[:40])
+
+    checar(not presos, "nenhum recipiente de tela com teto de largura",
+           " | ".join(presos))
+    checar("--leitura:" in css, "e a prosa tem a medida dela declarada")
+
+
+def test_campo_nao_estica_sem_teto() -> None:
+    """
+    Campo com `flex: 1` e sem `max-width` ocupa a coluna inteira.
+
+    Depois que as telas passaram a usar a largura toda, isso deixou de ser
+    detalhe: numa janela de 1.920 o campo de e-mail ficou com 1.490 px e o
+    botao ao lado dele a meia tela de distancia, como se nao fosse do mesmo
+    campo.
+
+    O erro se repete sozinho porque cada tipo de input tem a sua regra - text,
+    password, date, time - e a regra nova nasce copiada da anterior. O de
+    password foi achado assim: o de text ja tinha teto, o dele nao.
+    """
+    print("\ncampo de uma linha nao estica sem teto")
+    css, _ = _partes(PAGINA.read_text(encoding="utf-8"))
+    sem_comentario = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    soltos = []
+    for seletor, bloco in re.findall(r"([^{}]+)\{([^{}]*)\}", sem_comentario):
+        alvo = seletor.strip()
+        if not re.search(r"\b(input|select|textarea)\b", alvo):
+            continue
+        if not re.search(r"flex\s*:\s*1\b", bloco):
+            continue
+        if "max-width" not in bloco:
+            soltos.append(alvo.splitlines()[-1].strip()[:50])
+
+    checar(not soltos,
+           "todo campo que estica tem teto de largura",
+           ", ".join(soltos) + " — falta max-width")
+
+
 def test_plural_em_portugues() -> None:
     """
     plural() poe um "s" no fim. Em portugues isso nem sempre da certo.
@@ -365,6 +427,8 @@ def main() -> int:
     test_tokens()
     test_javascript_compila()
     test_nome_de_funcao_nao_se_repete()
+    test_tela_usa_a_largura()
+    test_campo_nao_estica_sem_teto()
     test_plural_em_portugues()
     test_rota_fixa_antes_da_com_parametro()
     test_sem_internet()

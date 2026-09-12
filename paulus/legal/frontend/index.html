@@ -44,6 +44,15 @@
     errado quando o tema troca.
   */
   :root, [data-tema="escuro"] {
+    /* A medida da PROSA, e só dela. Tabela, grade e painel usam a coluna
+       inteira: quanto mais largo o monitor, mais colunas cabem e menos texto
+       fica cortado. Linha de texto corrida é o contrário — a 1.700 px o olho
+       perde a volta da linha, e por isso quem é prosa carrega este teto. */
+    --leitura: 900px;
+    /* Campo de uma linha so. Ninguem escreve um e-mail de 1.400 px, e o
+       botao ao lado dele fica longe demais para parecer do mesmo campo. */
+    --campo: 560px;
+
     --fundo: #121110;
     --brilho: radial-gradient(900px 520px at 18% -10%, rgba(255,255,255,.04), transparent 70%);
 
@@ -162,6 +171,10 @@
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--ink-3);
+    /* Caminho de arquivo nao tem espaco onde quebrar, e o rotulo de uma acao
+       aprovada carrega um: sem isto, C:\USERS\...\SCRATCHPAD\SAIDA atravessa
+       a borda do painel e some fora da coluna. */
+    overflow-wrap: anywhere;
   }
   .num { font: 400 10.5px var(--mono); color: var(--ink-3); }
   .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -367,15 +380,15 @@
   .conversa-topo .meta { font: 400 10.5px var(--mono); color: var(--ink-3); margin-top: 2px; }
 
   .fluxo { flex: 1; overflow-y: auto; padding: 14px 44px 20px; display: flex; flex-direction: column; gap: 16px; }
-  /* 860 px de leitura, encostado a esquerda. Centralizado num monitor largo,
-     o texto ficava numa faixa estreita com meia tela vazia dos dois lados. */
-  /* Sem faixa: o conteudo ocupa a coluna. O teto so evita linha de texto
-     absurda em monitor ultralargo, e cada bloco de prosa tem a sua medida. */
-  .centro { width: 100%; max-width: 1240px; display: flex; flex-direction: column; gap: 16px; }
+  /* Sem teto: a coluna manda. O teto de 1.240 px sobrava 370 px de tela vazia
+     a 1.920 e 1.010 px a 2.560 - medido - em TODAS as telas, inclusive as que
+     são tabela e só ganhavam com a largura. Quem é prosa carrega a própria
+     medida (--leitura); o resto ocupa o que tem. */
+  .centro { width: 100%; display: flex; flex-direction: column; gap: 16px; }
 
   .bolha-pessoa {
     align-self: flex-end;
-    max-width: 78%;
+    max-width: min(78%, var(--leitura));
     background: var(--forte);
     color: var(--forte-texto);
     border-radius: 0;
@@ -384,7 +397,7 @@
     white-space: pre-wrap;
     word-wrap: break-word;
   }
-  .resposta { font-size: 14.5px; white-space: pre-wrap; word-wrap: break-word; }
+  .resposta { font-size: 14.5px; white-space: pre-wrap; word-wrap: break-word; max-width: var(--leitura); }
   .resposta .assinatura { font: 400 10.5px var(--mono); color: var(--ink-3); margin-top: 8px; }
 
   /* cartao */
@@ -747,7 +760,7 @@
 
   /* ------------------------------------------------------- habilidades */
 
-  .catalogo { width: 100%; max-width: 1240px; }
+  .catalogo { width: 100%; }
   .catalogo-topo { margin-bottom: 22px; }
   .catalogo-topo h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
   .catalogo-topo p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
@@ -926,7 +939,12 @@
   input[type=text], select {
     font: 400 13px var(--sans); border: 1px solid var(--linha-media);
     border-radius: 0; padding: 9px 12px; background: var(--surface-1);
-    color: inherit; flex: 1; min-width: 200px;
+    color: inherit; flex: 1; min-width: 200px; max-width: var(--campo);
+  }
+  /* Quem manda na largura e a caixa, nao o teto: barra de busca ocupa a linha
+     inteira, e campo dentro de grade acompanha a celula. */
+  .acervo-busca input, .campo-form input, td input[type=text], td select {
+    max-width: none;
   }
   input[type=text]::placeholder { color: var(--ink-3); }
 
@@ -999,7 +1017,7 @@
   .pasta-l:last-child { border-bottom: none; }
   .pasta-l code { font: 400 11.5px var(--mono); color: var(--ink-2); word-break: break-all; }
 
-  .bancada { width: 100%; max-width: 1240px; }
+  .bancada { width: 100%; }
   .bancada > h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
   .bancada > p { margin: 0 0 22px; font-size: 13.5px; color: var(--ink-2); }
   /* ------------------------------------------------------ menu lateral */
@@ -1075,8 +1093,11 @@
   .selo-decisao.aprovado { border-color: var(--linha-forte); color: var(--ok); }
   .selo-decisao.falhou { border-color: var(--atencao-linha); color: var(--atencao); }
 
+  /* O interruptor tem que ficar perto do texto dele. Sem teto, numa tela de
+     1.920 o "Ligado" ficava a 1.500 px do titulo que ele liga, e a linha
+     deixava de se ler como uma coisa so. */
   .permissao {
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center; gap: 16px; max-width: 1040px;
     padding: 13px 0; border-bottom: 1px solid var(--linha); cursor: pointer;
   }
   .permissao:last-of-type { border-bottom: none; }
@@ -1375,7 +1396,7 @@
   input[type=password] {
     font: 400 13px var(--sans); border: 1px solid var(--linha-media);
     border-radius: 0; padding: 9px 12px; background: var(--surface-1);
-    color: inherit; flex: 1; min-width: 200px;
+    color: inherit; flex: 1; min-width: 200px; max-width: var(--campo);
   }
 
   .cert-cartao {
@@ -1583,7 +1604,7 @@
   .email-campos { display: flex; flex-direction: column; gap: 10px; }
   .email-campo { display: flex; align-items: center; gap: 10px; }
   .email-campo .rotulo { width: 62px; flex: none; }
-  .email-campo input { flex: 1; }
+  .email-campo input { flex: 1; max-width: none; }
   .email-texto {
     width: 100%; min-height: 190px;
     font: 400 13.5px/1.65 var(--sans);
@@ -1649,6 +1670,11 @@
   /* A quebra de página é desenhada POR CIMA da folha, nunca dentro dela: o que
      está dentro do contenteditable acaba em innerHTML, e daí no documento
      gravado. Uma linha de enfeite não pode virar conteúdo do contrato. */
+  /* A folha tem teto de zoom. Ela e desenhada na escala do PDF, entao numa
+     coluna de 1.154 px um A4 sai a 145% e o corpo 12 vira 23 px na tela: o
+     documento fica bonito e se ve menos dele. 960 px sao ~120% de um A4 a 96
+     dpi - perto do que se le confortavel, e sobra folego na coluna. */
+  .ed-coluna-folha { max-width: 960px; }
   .ed-papel { position: relative; }
   .ed-quebras { position: absolute; inset: 0; pointer-events: none; }
 
@@ -1715,7 +1741,7 @@
   .ed-estado.salvando { color: var(--atencao); }
 
   .ed-pedido { display: flex; gap: 8px; margin-top: 10px; }
-  .ed-pedido input { flex: 1; min-width: 0; }
+  .ed-pedido input { flex: 1; min-width: 0; max-width: none; }
 
   .ed-sugestao {
     border: 1px solid var(--acento); background: var(--acento-fraco);
@@ -1756,7 +1782,7 @@
     padding: 8px 10px; min-width: 62px; text-align: center; color: var(--ink-2);
   }
   .pl-fx { font: 500 12px var(--mono); color: var(--ink-3); }
-  .pl-formula input { flex: 1; font-family: var(--mono); font-size: 12.5px; }
+  .pl-formula input { flex: 1; max-width: none; font-family: var(--mono); font-size: 12.5px; }
 
   .pl-caixa { border: 1px solid var(--linha-media); overflow: auto; max-height: 460px; }
   .pl-grade { border-collapse: collapse; font-size: 12.5px; width: max-content; }
@@ -9541,7 +9567,7 @@ function desenharEditor() {
     '<button id="ed-alteracoes">Alterações</button>' +
     '<button id="ed-conferir">Conferir</button></div>';
 
-  html += '<div class="ed-colunas"><div>' +
+  html += '<div class="ed-colunas"><div class="ed-coluna-folha">' +
     '<div class="ed-regua">' +
     '<div class="ed-regua-barra"><span class="ed-regua-margem" style="width:11.9%"></span>' +
     '<span class="ed-regua-texto"></span>' +
