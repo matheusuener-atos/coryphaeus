@@ -62,6 +62,16 @@ def test_acha_todo_trecho_que_leu() -> None:
     eram descasamento bobo entre o texto extraído e o texto interno do PDF (um
     espaço antes da vírgula, uma linha de assinatura em underscores). Por isso
     a busca tenta vários pontos do trecho: basta um casar.
+
+    **Não é 100%, e não deve ser.** Num formulário denso de tabela, o PDF
+    guarda a célula em pedaços que a extração junta para ficar legível — "NQ" e
+    "FAZENDA MINAS GERAIS" viram uma linha só, e essa sequência não existe
+    dentro do arquivo. Forçar a marca ali significaria marcar o lugar errado, e
+    marca no lugar errado é pior que marca nenhuma: a pessoa confere e acredita.
+
+    Então o que se cobra é cobertura alta no total E por documento — foi uma
+    queda concentrada num arquivo (3 trechos viraram 1) que a média quase
+    escondeu quando a extração mudou de modo.
     """
     print("\ntodo trecho citado é localizado no PDF")
     pasta = CONTRATOS if CONTRATOS.exists() else SAMPLES
@@ -80,9 +90,25 @@ def test_acha_todo_trecho_que_leu() -> None:
         achados.append(citacao.onde_esta(doc.path, c.text))
 
     quantos = sum(1 for r in achados if r["achou"])
-    checar(quantos == len(trechos),
-           f"os {len(trechos)} trechos de PDF foram localizados (achou {quantos})",
+    checar(quantos >= len(trechos) * 0.9,
+           f"{quantos} dos {len(trechos)} trechos de PDF foram localizados "
+           f"({100 * quantos // max(1, len(trechos))}%)",
            ", ".join(c.doc_name[:24] for c, r in zip(trechos, achados) if not r["achou"]))
+
+    # Por documento, e não só no total: uma queda concentrada num arquivo é o
+    # que uma média esconde. Foi assim que a extração em modo layout quebrou a
+    # marca — o total mal se mexeu e um documento foi de 3 para 1.
+    por_doc: dict[str, list[bool]] = {}
+    for c, r in zip(trechos, achados):
+        por_doc.setdefault(c.doc_name, []).append(bool(r["achou"]))
+
+    fracos = [f"{n} ({sum(v)}/{len(v)})" for n, v in por_doc.items()
+              if sum(v) < len(v) * 0.75]
+    checar(not fracos,
+           f"e nenhum dos {len(por_doc)} documentos ficou abaixo de três quartos",
+           ", ".join(fracos))
+    vazios = [n for n, v in por_doc.items() if not any(v)]
+    checar(not vazios, "nenhum documento ficou sem marca nenhuma", ", ".join(vazios))
 
     # A página tem que existir de verdade no arquivo.
     fora = [r for r in achados if r["achou"] and not (1 <= r["pagina"] <= r["total"])]

@@ -379,22 +379,29 @@ def test_assinatura_alheia_nao_se_perde(tmp: Path, pfx: Path) -> None:
         return
 
     antes = assinatura.verificar(pdf)
-    checar(len(antes) == 1, f"o documento de partida tem 1 assinatura (achou {len(antes)})")
-    checar(antes[0]["icp_brasil"] is True, "e ela e de um certificado da ICP-Brasil")
+    # Quantas assinaturas o documento de partida tem e circunstancial: depende
+    # de qual PDF assinado esta no acervo desta maquina, e o acervo muda. O que
+    # este teste promete e outra coisa - que assinar ACRESCENTA, e nao
+    # substitui. Entao o numero que importa e a diferenca, nao o total.
+    checar(bool(antes), f"o documento de partida ja vem assinado ({len(antes)})")
+    checar(all(a["icp_brasil"] for a in antes),
+           "e as assinaturas sao de certificado da ICP-Brasil")
 
-    destino = tmp / "duas-assinaturas.pdf"
+    destino = tmp / "mais-uma-assinatura.pdf"
     r = assinatura.assinar(pdf, destino, arquivo_pfx=pfx, senha=SENHA,
                            selo=dict(certificado.PADRAO_SELO), escolha_paginas="ultima")
     checar(not r.erro, "assina por cima sem erro", r.erro)
 
     depois = assinatura.verificar(destino)
-    checar(len(depois) == 2, f"agora sao 2 assinaturas (achou {len(depois)})")
-    if len(depois) == 2:
-        checar(depois[0]["titular"] == antes[0]["titular"],
-               "a assinatura da outra parte continua la")
-        checar(depois[0]["intacta"] is True,
-               "e continua conferindo - nao foi invalidada")
-        checar(depois[1]["titular"] == "MARIA DE TESTE", "a nova assinatura foi acrescentada")
+    checar(len(depois) == len(antes) + 1,
+           f"a nova entra sem tirar as que havia ({len(antes)} → {len(depois)})")
+    if len(depois) == len(antes) + 1:
+        checar([a["titular"] for a in depois[:len(antes)]] ==
+               [a["titular"] for a in antes],
+               "as assinaturas da outra parte continuam la, na ordem")
+        checar(all(a["intacta"] for a in depois[:len(antes)]),
+               "e continuam conferindo - nenhuma foi invalidada")
+        checar(depois[-1]["titular"] == "MARIA DE TESTE", "a nova assinatura foi acrescentada")
 
     # Proteger com senha reescreveria o arquivo e apagaria a assinatura alheia.
     protegido = tmp / "nao-deve-existir.pdf"

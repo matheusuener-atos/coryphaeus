@@ -58,16 +58,23 @@ def frases_de_busca(trecho: str) -> list[str]:
     """
     sem_marca = re.sub(r"\[p[áa]gina \d+\]", " ", trecho or "", flags=re.IGNORECASE)
 
-    # A agulha não atravessa quebra de linha.
+    # A agulha não atravessa quebra de linha NEM vão de coluna.
     #
-    # O texto extraído respeita a ordem de leitura da página, e duas linhas
-    # vizinhas na folha podem estar longe uma da outra no fluxo interno do
-    # PDF. Num formulário isso é a regra: "11/09/2026" e "Despesas de Viagem"
-    # ficam lado a lado no cabeçalho, viravam a agulha "11/09/2026 Despesas de
-    # Viagem", e essa sequência não existe em lugar nenhum do arquivo — o
-    # trecho ficava sem marca no visor.
-    linhas = [re.sub(r"[ \t]+", " ", l).strip() for l in sem_marca.splitlines()]
-    linhas = [l for l in linhas if l]
+    # O texto extraído respeita a ordem de leitura da página, e o que está
+    # lado a lado na folha pode estar longe no fluxo interno do PDF. Duas
+    # formas disso, e as duas quebravam a marca do trecho no visor:
+    #
+    #   - linhas vizinhas: "11/09/2026" e "Despesas de Viagem", cantos opostos
+    #     do cabeçalho, viravam a agulha "11/09/2026 Despesas de Viagem"
+    #   - células de uma tabela, que a extração alinha com corridas de espaço:
+    #     "Apuração das receitas em:        11/09/2026        Dados RTA" virava
+    #     uma agulha só, e essa sequência não existe no arquivo
+    #
+    # Espaço duplo é vão de coluna; espaço simples é espaço de palavra. Cada
+    # pedaço entre vãos é texto contíguo de verdade, e é nele que se procura.
+    linhas = [p.strip() for l in sem_marca.splitlines()
+              for p in re.split(r"\s{2,}", l)]
+    linhas = [re.sub(r"\s+", " ", l) for l in linhas if l.strip()]
 
     inteiro = re.sub(r"\s+", " ", sem_marca).strip()
     if not inteiro:

@@ -156,7 +156,11 @@ def test_analise() -> None:
     em_dia = acervo.estado_da_analise(
         {"tipo": "contrato", "visto_em": _agora(horas=1), "modificado_em": _agora(horas=3)})
     checar(em_dia["estado"] == "analisado", "lido depois da última mudança é “analisado”")
-    checar("há 1 h" in em_dia["rotulo"], f"com quando ({em_dia['rotulo']!r})")
+    # O rótulo traz QUANDO foi lido; a palavra exata depende da hora do dia —
+    # a mesma leitura vira "ontem" depois da meia noite — e isso `quando` já
+    # tem teste próprio, com a hora fixada. Aqui basta que o rótulo diga algo.
+    checar(em_dia["rotulo"].startswith("analisado · ") and len(em_dia["rotulo"]) > 13,
+           f"com quando ({em_dia['rotulo']!r})")
 
     # Sem registro de quando foi lido, não inventar um.
     sem_hora = acervo.estado_da_analise({"tipo": "contrato", "visto_em": "", "modificado_em": _agora()})
@@ -165,13 +169,41 @@ def test_analise() -> None:
 
 
 def test_quando() -> None:
+    """
+    O relógio entra pela porta, e não pela janela.
+
+    Este teste falhava às 00:17: uma leitura de uma hora atrás cai em ontem, e
+    o rótulo vira "ontem" em vez de "há 1 h" — o que é verdade, e é o
+    comportamento certo. O errado era o teste, que passava de tarde e falhava
+    de madrugada. Com a hora fixada, ele mede a regra em vez de medir que
+    horas são.
+    """
     print("\no tempo do jeito que se fala")
+    agora = datetime(2026, 9, 11, 15, 0, 0)      # meio da tarde, longe da virada
+
+    def diz(dias=0, horas=0):
+        instante = (agora - timedelta(days=dias, hours=horas)).isoformat(timespec="seconds")
+        return acervo.quando(instante, agora=agora)
+
     checar(acervo.quando("") == "", "sem data, sem texto")
-    checar(acervo.quando(_agora(horas=0.01)) == "agora", "agora é agora")
-    checar(acervo.quando(_agora(horas=0.5)) == "há 30 min", "minutos")
-    checar("h" in acervo.quando(_agora(horas=3)), f"horas ({acervo.quando(_agora(horas=3))})")
-    checar(acervo.quando(_agora(dias=1)) in ("ontem", "há 1 h"),
-           f"ontem ({acervo.quando(_agora(dias=1))})")
+    checar(diz(horas=0.01) == "agora", "agora é agora")
+    checar(diz(horas=0.5) == "há 30 min", "minutos")
+    checar(diz(horas=3) == "há 3 h", f"horas ({diz(horas=3)})")
+    checar(diz(dias=1) == "ontem", f"ontem ({diz(dias=1)})")
+
+    # A virada do dia: uma hora atrás, à meia noite e dez, é ontem — e dizer
+    # "ontem" ali é o certo, não um defeito.
+    madrugada = datetime(2026, 9, 12, 0, 10, 0)
+
+    def de_madrugada(minutos):
+        instante = (madrugada - timedelta(minutes=minutos)).isoformat(timespec="seconds")
+        return acervo.quando(instante, agora=madrugada)
+
+    checar(de_madrugada(60) == "ontem",
+           f"depois da meia noite, o que é de ontem diz “ontem” ({de_madrugada(60)})")
+    checar(de_madrugada(40) == "há 40 min",
+           f"mas o que é de minutos atrás continua em minutos ({de_madrugada(40)})")
+
     velho = acervo.quando(_agora(dias=40))
     checar(" de " in velho, f"o que é de outro mês vira data por extenso ({velho})")
     checar("dias" not in velho, "e não vira “há 40 dias”, que obriga a pessoa a fazer conta")

@@ -102,13 +102,17 @@ class Marcas:
 # ------------------------------------------------------------------- tempo
 
 
-def quando(iso: str) -> str:
+def quando(iso: str, agora: datetime | None = None) -> str:
     """
     Um instante do jeito que se fala.
 
     "há 2 h" para o que é de hoje, a data por extenso para o resto. Dizer "há
     18 dias" de um documento de agosto obriga a pessoa a fazer a conta de
     cabeça para saber de quando é.
+
+    `agora` existe para o teste. A resposta muda com a hora do dia — à meia
+    noite e dez, uma leitura de uma hora atrás vira "ontem", que é verdade — e
+    um teste que passa de tarde e falha de madrugada não mede nada.
     """
     if not iso:
         return ""
@@ -117,7 +121,7 @@ def quando(iso: str) -> str:
     except ValueError:
         return iso[:10]
 
-    agora = datetime.now()
+    agora = agora or datetime.now()
     segundos = (agora - quanto).total_seconds()
 
     if segundos < 0:
