@@ -1,99 +1,98 @@
-/* Instrument Sans e IBM Plex Mono (SIL OFL 1.1), embutidas no programa.
-   Carregar do Google faria a interface bater na internet a cada abertura,
-   contradizendo a propria linha de privacidade que ela exibe. */
+/* EB Garamond, Manrope, Fira Code (SIL OFL 1.1) e Material Symbols
+   (Apache 2.0), embutidas no programa. Carregar do Google faria a interface
+   bater na internet a cada abertura, contradizendo a propria linha de
+   privacidade que ela exibe.
 
+   As tres de texto sao fontes variaveis: um arquivo por familia cobre todos
+   os pesos que o desenho usa. A Material Symbols e um subset com so os 164
+   icones do desenho (docs/ui): a tabela de ligaduras foi podada antes do
+   corte, e o arquivo caiu de 2,3 MB para 71 KB. */
+
+/* EB Garamond italic latin-ext */
 @font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
+  font-family: 'EB Garamond';
+  font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url(fontes/IBMPlexMono-latin-ext-8450d5.woff2) format('woff2');
+  src: url(fontes/EBGaramond-italic-400-latin-ext.woff2) format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* EB Garamond italic latin */
 @font-face {
-  font-family: 'IBM Plex Mono';
-  font-style: normal;
+  font-family: 'EB Garamond';
+  font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url(fontes/IBMPlexMono-latin-79936b.woff2) format('woff2');
+  src: url(fontes/EBGaramond-italic-400-latin.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* EB Garamond normal latin-ext */
 @font-face {
-  font-family: 'IBM Plex Mono';
+  font-family: 'EB Garamond';
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400 500;
   font-display: swap;
-  src: url(fontes/IBMPlexMono-latin-ext-fa8d88.woff2) format('woff2');
+  src: url(fontes/EBGaramond-normal-400-latin-ext.woff2) format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* EB Garamond normal latin */
 @font-face {
-  font-family: 'IBM Plex Mono';
+  font-family: 'EB Garamond';
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400 500;
   font-display: swap;
-  src: url(fontes/IBMPlexMono-latin-b1c8a8.woff2) format('woff2');
+  src: url(fontes/EBGaramond-normal-400-latin.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Fira Code normal latin-ext */
 @font-face {
-  font-family: 'Instrument Sans';
+  font-family: 'Fira Code';
   font-style: normal;
-  font-weight: 400;
-  font-stretch: 100%;
+  font-weight: 400 500;
   font-display: swap;
-  src: url(fontes/InstrumentSans-latin-ext-1ff13d.woff2) format('woff2');
+  src: url(fontes/FiraCode-normal-400-latin-ext.woff2) format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* Fira Code normal latin */
 @font-face {
-  font-family: 'Instrument Sans';
+  font-family: 'Fira Code';
   font-style: normal;
-  font-weight: 400;
-  font-stretch: 100%;
+  font-weight: 400 500;
   font-display: swap;
-  src: url(fontes/InstrumentSans-latin-fa41c4.woff2) format('woff2');
+  src: url(fontes/FiraCode-normal-400-latin.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Manrope normal latin-ext */
 @font-face {
-  font-family: 'Instrument Sans';
+  font-family: 'Manrope';
   font-style: normal;
-  font-weight: 500;
-  font-stretch: 100%;
+  font-weight: 400 800;
   font-display: swap;
-  src: url(fontes/InstrumentSans-latin-ext-1ff13d.woff2) format('woff2');
+  src: url(fontes/Manrope-normal-400-latin-ext.woff2) format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* Manrope normal latin */
 @font-face {
-  font-family: 'Instrument Sans';
+  font-family: 'Manrope';
   font-style: normal;
-  font-weight: 500;
-  font-stretch: 100%;
+  font-weight: 400 800;
   font-display: swap;
-  src: url(fontes/InstrumentSans-latin-fa41c4.woff2) format('woff2');
+  src: url(fontes/Manrope-normal-400-latin.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Material Symbols Outlined - subset dos icones do desenho */
 @font-face {
-  font-family: 'Instrument Sans';
+  font-family: 'Material Symbols Outlined';
   font-style: normal;
-  font-weight: 600;
-  font-stretch: 100%;
-  font-display: swap;
-  src: url(fontes/InstrumentSans-latin-ext-1ff13d.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: 'Instrument Sans';
-  font-style: normal;
-  font-weight: 600;
-  font-stretch: 100%;
-  font-display: swap;
-  src: url(fontes/InstrumentSans-latin-fa41c4.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  font-weight: 300 400;
+  font-display: block;
+  src: url(fontes/MaterialSymbolsOutlined-icones.woff2) format('woff2');
 }

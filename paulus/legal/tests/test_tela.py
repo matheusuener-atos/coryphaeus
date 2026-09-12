@@ -176,34 +176,59 @@ def main() -> int:
                 "a pagina declara um icone - sem isso todo carregamento pede /favicon.ico e leva 404",
             )
             checar(
-                pagina.evaluate("() => document.documentElement.dataset.tema") == "escuro",
-                "abre no tema escuro, que e o desenho do produto",
+                pagina.evaluate("() => document.documentElement.dataset.tema") == "claro",
+                "abre no tema claro, que e o padrao do desenho",
             )
 
-            print("\nbarra lateral em tela de 900 px")
-            lateral = pagina.evaluate("""() => {
-              const a = document.querySelector('.trabalhos');
-              const lst = document.getElementById('lista-trabalhos');
-              const mq = document.querySelector('.maquina');
+            # A casca do desenho (docs/ui/01-shell.md): trilho de 64 px que
+            # cabe em 900 px de altura, e um menu que abre por passagem do
+            # mouse POR CIMA do conteudo - a coluna nao pode se mexer.
+            print("\ncasca em tela de 900 px")
+            casca = pagina.evaluate("""() => {
+              const t = document.querySelector('.trilho');
+              const m = document.getElementById('menu-flutuante');
+              const ids = [...document.querySelectorAll('[data-destino]')].map(e => e.dataset.destino);
               return {
-                vaza: a.scrollHeight > a.clientHeight + 1,
-                lista: Math.round(lst.getBoundingClientRect().height),
-                itens: document.querySelectorAll('.item').length,
-                maquina_dentro: mq.getBoundingClientRect().bottom <= window.innerHeight + 1,
-                menu_itens: document.querySelectorAll('[data-destino]').length,
+                largura: Math.round(t.getBoundingClientRect().width),
+                vaza: t.scrollHeight > t.clientHeight + 1,
+                fechado: getComputedStyle(m).opacity === '0',
+                coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
+                destinos: [...new Set(ids)],
               };
             }""")
-            checar(not lateral["vaza"], "a coluna nao transborda em silencio")
-            checar(lateral["maquina_dentro"], "o painel do computador cabe na tela")
-            checar(lateral["menu_itens"] == 20, f"os 20 destinos estao no menu (achou {lateral['menu_itens']})")
-            if lateral["itens"]:
-                checar(
-                    lateral["lista"] >= 60,
-                    f"a lista de conversas tem altura util ({lateral['lista']} px para "
-                    f"{lateral['itens']} conversa(s))",
-                )
-            else:
-                checar(True, "sem conversas gravadas - nada a medir na lista")
+            checar(casca["largura"] == 64, f"o trilho tem 64 px (achou {casca['largura']})")
+            checar(not casca["vaza"], "o trilho cabe na tela sem transbordar")
+            checar(casca["fechado"], "o menu comeca fechado")
+            checar(casca["coluna"] == 64, "a coluna de conteudo comeca onde o trilho termina")
+
+            # mouse.move, e nao hover(): o menu aberto cobre o trilho, e o
+            # hover() do Playwright espera o ponteiro alcancar o alvo.
+            pagina.mouse.move(32, 450)
+            pagina.wait_for_timeout(450)
+            aberto = pagina.evaluate("""() => ({
+              opacidade: getComputedStyle(document.getElementById('menu-flutuante')).opacity,
+              coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
+            })""")
+            checar(aberto["opacidade"] == "1", "passar o mouse no trilho abre o menu")
+            checar(aberto["coluna"] == casca["coluna"], "e o conteudo nao se desloca")
+            pagina.mouse.move(760, 460)
+            pagina.wait_for_timeout(450)
+
+            destinos = pagina.evaluate("() => DESTINOS.map(d => ({id: d.id, nome: d.nome}))")
+            faltando = [d["nome"] for d in destinos if d["id"] not in casca["destinos"]]
+            checar(
+                not faltando,
+                f"os {len(destinos)} destinos do servidor estao alcancaveis pela casca",
+                ", ".join(faltando),
+            )
+
+            # Aceite da fase 0 do desenho: Ctrl+K leva ao campo de pedido.
+            pagina.keyboard.press("Control+K")
+            pagina.wait_for_timeout(200)
+            checar(
+                pagina.evaluate("() => document.activeElement && document.activeElement.id") == "pedido",
+                "Ctrl+K foca a caixa de pedido",
+            )
 
             print("\ncada destino do menu")
             ver_compositor = """() => {

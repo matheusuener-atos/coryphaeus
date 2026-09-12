@@ -108,7 +108,8 @@ def test_css_completo() -> None:
     essenciais = [
         ".doc-linha", ".doc-marca", ".doc-acoes", ".etiqueta",
         ".hab-marca", ".hab-acao", ".catalogo", ".bib-topo",
-        ".medidor", ".maquina", ".cartao-campo", ".pilula", ".enviar",
+        ".medidor", ".trilho", ".menu-flutuante", ".lateral",
+        ".cartao-campo", ".pilula", ".enviar",
         ".menu-conversa", ".cartao-agora", ".chamada",
     ]
     faltando = [e for e in essenciais if e not in css]

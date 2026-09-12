@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PAULUS</title>
-<link rel="icon" href="/img/coroa.png">
+<title>PAULUS Legal</title>
+<link rel="icon" href="/img/paulus-logo.png">
 <link rel="stylesheet" href="/fontes.css">
 <script>
   /* Antes de qualquer pintura: decidir o tema aqui evita o lampejo branco na
      abertura, que aconteceria se isso rodasse com o resto do script no fim
      do body. */
   (function () {
-    /* Escuro e o desenho do produto, nao uma preferencia do sistema: era isso
-       que aparecia claro em Windows no modo claro, sem ninguem ter pedido.
-       A escolha da pessoa continua valendo e vence sempre. */
-    var tema = "escuro";
+    /* O claro e o padrao do desenho (docs/ui/00-fundamentos.md); o escuro e
+       o mesmo conjunto de nomes com outros valores. A escolha da pessoa
+       continua valendo e vence sempre. */
+    var tema = "claro";
     try {
       var guardado = localStorage.getItem("paulus.tema");
       if (guardado === "claro" || guardado === "escuro") tema = guardado;
@@ -24,139 +24,208 @@
 </script>
 <style>
   /*
-    Um tema e um conjunto de tokens. Os papeis do manual valem nos dois: azul
-    e o unico acento de sistema, ambar significa so "precisa de voce", verde
-    so "esta tudo certo".
+    Os tokens do desenho (docs/ui/00-fundamentos.md). O claro e o padrao,
+    declarado em :root; o escuro sobrescreve os mesmos nomes. Nenhum
+    componente conhece cor literal - so o nome da variavel.
 
-    --forte existe porque em varios lugares a cor do texto e usada como FUNDO
-    (botao primario, bolha da pessoa, chave do interruptor). Escrever
-    var(--ink) ali funciona no claro e inverte errado no escuro: botao claro
-    com texto branco some.
+    Os nomes antigos (--fundo, --linha, --surface-1, --acento...) continuam
+    declarados, apontando para os novos: as telas que ainda nao foram
+    redesenhadas herdam a paleta e as fontes sem que cada regra delas precise
+    mudar. Somem conforme cada tela for refeita.
   */
-  /*
-    Paleta quente escura. Substitui a paleta clara do manual anterior; as
-    regras continuam: um unico acento de sistema, nada de vermelho para erro,
-    numero sempre real. Aqui o acento e o cinza-quente #a8a29a, e o que pede
-    atencao usa terracota - vermelho puro nunca entra.
-
-    --forte existe porque em varios lugares a cor de destaque e usada como
-    FUNDO (botao primario, bolha da pessoa). Usar a cor do texto ali inverte
-    errado quando o tema troca.
-  */
-  :root, [data-tema="escuro"] {
+  :root, [data-tema="claro"] {
     /* A medida da PROSA, e só dela. Tabela, grade e painel usam a coluna
-       inteira: quanto mais largo o monitor, mais colunas cabem e menos texto
-       fica cortado. Linha de texto corrida é o contrário — a 1.700 px o olho
-       perde a volta da linha, e por isso quem é prosa carrega este teto. */
+       inteira; linha de texto corrida carrega este teto. */
     --leitura: 900px;
-    /* Campo de uma linha so. Ninguem escreve um e-mail de 1.400 px, e o
-       botao ao lado dele fica longe demais para parecer do mesmo campo. */
+    /* Campo de uma linha so. */
     --campo: 560px;
 
-    --fundo: #121110;
-    --brilho: radial-gradient(900px 520px at 18% -10%, rgba(255,255,255,.04), transparent 70%);
+    --bg: #f6f6f4;
+    --surf: #ffffff;
+    --sub: #fafaf9;
+    --paper: #fbfaf6;
+    --fill: #f1f1ee;
+    --fill2: #ebebe8;
+    --act: #e6e6e2;
+    --ink: #171716;
+    --ink2: #5c5c59;
+    --ink3: #8a8a86;
+    --mute: #c9c9c4;
+    --mute2: #a3a39f;
+    --ink0: #000000;
+    --btn: #171716;
+    --btnt: #f6f6f4;
 
-    --ink: #efe9df;
-    --ink-titulo: #f7f2e9;
-    --ink-2: #b7ada0;
-    --ink-3: #8f867c;
-    --ink-muted: #6f665e;
+    --ink-a06: rgba(23,23,22,.06);
+    --ink-a08: rgba(23,23,22,.08);
+    --ink-a1: rgba(23,23,22,.1);
+    --ink-a12: rgba(23,23,22,.12);
+    --ink-a15: rgba(23,23,22,.15);
+    --ink-a2: rgba(23,23,22,.2);
+    --ink-a25: rgba(23,23,22,.25);
+    --ink-a28: rgba(23,23,22,.28);
+    --ink-a3: rgba(23,23,22,.3);
+    --ink-a35: rgba(23,23,22,.35);
+    --ink-a45: rgba(23,23,22,.45);
+    --ink-a5: rgba(23,23,22,.5);
+    --ink-a6: rgba(23,23,22,.6);
 
-    --linha: rgba(239,233,223,.07);
-    --linha-media: rgba(239,233,223,.1);
-    --linha-forte: rgba(239,233,223,.16);
-    --linha-viva: rgba(239,233,223,.28);
+    --sh-a12: rgba(23,23,22,.12);
+    --sh-a35: rgba(23,23,22,.35);
+    --sh-a45: rgba(23,23,22,.45);
+    --sh-a5: rgba(23,23,22,.5);
+    --sh-a6: rgba(23,23,22,.6);
+    --elev-card: 0 8px 24px -16px var(--sh-a12);
+    --elev-panel: 18px 0 40px -30px var(--sh-a45);
+    --elev-float: 0 14px 30px -12px var(--sh-a35);
 
-    --surface-1: rgba(255,252,246,.022);
-    --surface-2: rgba(255,252,246,.018);
-    --surface-3: rgba(239,233,223,.045);
-    --surface-flutua: #1c1a18;
+    /* Acento e vinho, sempre em oklch: prazo, atraso, destrutivo, citacao. */
+    --acc: oklch(42% 0.13 25);
+    --accbg: oklch(95% 0.02 25);
+    --accbg2: oklch(97.5% 0.01 25);
+    --accbg3: oklch(98.5% 0.005 25);
+    --accln: oklch(80% 0.06 25);
+    --accln2: oklch(70% 0.1 25);
+    --okt: oklch(38% 0.1 150);
+    --okbg: oklch(95% 0.03 150);
+    --warnt: oklch(45% 0.1 70);
+    --warnbg: oklch(96% 0.05 85);
+    --logo: none;
 
-    --acento: #a8a29a;
-    --acento-vivo: #c2bcb3;
-    --acento-fraco: rgba(168,162,154,.09);
-    --forte: #a8a29a;
-    --forte-texto: #16140f;
-    --forte-hover: #c2bcb3;
+    /* Iguais nos dois temas: pontos cheios e glifos de formato de arquivo. */
+    --verde: oklch(60% 0.15 150);
+    --ambar: oklch(75% 0.15 80);
+    --glifo-pdf: oklch(58% 0.19 35);
+    --glifo-word: oklch(48% 0.14 255);
+    --glifo-excel: oklch(50% 0.13 150);
 
-    --trilho: rgba(239,233,223,.1);
-    --barra-lateral: #171614;
-    --ok: #8fae97;
-    --ok-texto: #a9bfae;
-    --atencao: #dda184;
-    --atencao-fundo: rgba(221,161,132,.08);
-    --atencao-linha: rgba(221,161,132,.24);
-
-    /* O papel do PDF nao muda com o tema da tela: a previa do selo e a
-       rubrica desenhada mostram como vai sair impresso, nao como a
-       interface esta agora. */
+    /* O papel do PDF e a folha do editor nao mudam com o tema da tela: e
+       papel. As marcas sobre ele tambem sao fixas. */
     --papel: #fbfaf8;
     --tinta: #14120f;
     --papel-linha: #c9c4bb;
     --papel-realce: #eeece7;
     --papel-veu: rgba(251,250,248,.94);
+    --papel-sombra: rgba(23,23,22,.5);
+    --papel-acc: oklch(42% 0.13 25);
+    --papel-accbg: oklch(95% 0.02 25);
+    --papel-accbg2: oklch(97.5% 0.01 25);
+    --papel-ink2: #5c5c59;
+    --papel-ink3: #8a8a86;
 
-    --sans: 'Instrument Sans', 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+    --sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'EB Garamond', Georgia, serif;
+    --mono: 'Fira Code', ui-monospace, 'Cascadia Mono', monospace;
+
+    /* nomes antigos, apontando para os novos */
+    --fundo: var(--bg);
+    --brilho: none;
+    --ink-titulo: var(--ink);
+    --ink-2: var(--ink2);
+    --ink-3: var(--ink3);
+    --ink-muted: var(--mute2);
+    --linha: var(--ink-a06);
+    --linha-media: var(--ink-a1);
+    --linha-forte: var(--ink-a15);
+    --linha-viva: var(--ink-a3);
+    --surface-1: var(--surf);
+    --surface-2: var(--sub);
+    --surface-3: var(--fill);
+    --surface-flutua: var(--surf);
+    --acento: var(--ink);
+    --acento-vivo: var(--ink0);
+    --acento-fraco: var(--fill);
+    --forte: var(--btn);
+    --forte-texto: var(--btnt);
+    --forte-hover: var(--ink0);
+    --trilho: var(--fill2);
+    --barra-lateral: var(--bg);
+    --ok: var(--verde);
+    --ok-texto: var(--okt);
+    --atencao: var(--acc);
+    --atencao-fundo: var(--accbg2);
+    --atencao-linha: var(--accln);
+
+    color-scheme: light;
+  }
+
+  [data-tema="escuro"] {
+    --bg: #141413;
+    --surf: #1c1c1b;
+    --sub: #202020;
+    --paper: #232322;
+    --fill: #262625;
+    --fill2: #2c2c2a;
+    --act: #343432;
+    --ink: #f0f0ec;
+    --ink2: #b3b3ae;
+    --ink3: #8f8f8a;
+    --mute: #5a5a57;
+    --mute2: #6f6f6b;
+    --ink0: #ffffff;
+    --btn: #f6f6f4;
+    --btnt: #171716;
+
+    --ink-a06: rgba(246,246,244,.06);
+    --ink-a08: rgba(246,246,244,.08);
+    --ink-a1: rgba(246,246,244,.1);
+    --ink-a12: rgba(246,246,244,.12);
+    --ink-a15: rgba(246,246,244,.15);
+    --ink-a2: rgba(246,246,244,.2);
+    --ink-a25: rgba(246,246,244,.25);
+    --ink-a28: rgba(246,246,244,.28);
+    --ink-a3: rgba(246,246,244,.3);
+    --ink-a35: rgba(246,246,244,.35);
+    --ink-a45: rgba(246,246,244,.45);
+    --ink-a5: rgba(246,246,244,.5);
+    --ink-a6: rgba(246,246,244,.6);
+
+    /* No escuro a sombra vai a preto quase solido: sombra clara sobre fundo
+       escuro suja. */
+    --sh-a12: rgba(0,0,0,.45);
+    --sh-a35: rgba(0,0,0,.77);
+    --sh-a45: rgba(0,0,0,.99);
+    --sh-a5: rgba(0,0,0,1);
+    --sh-a6: rgba(0,0,0,1);
+
+    --acc: oklch(74% 0.12 25);
+    --accbg: oklch(27% 0.05 25);
+    --accbg2: oklch(22% 0.03 25);
+    --accbg3: #1f1d1c;
+    --accln: oklch(40% 0.08 25);
+    --accln2: oklch(50% 0.1 25);
+    --okt: oklch(78% 0.12 150);
+    --okbg: oklch(28% 0.05 150);
+    --warnt: oklch(82% 0.12 80);
+    --warnbg: oklch(30% 0.06 85);
+    --logo: invert(1) hue-rotate(180deg);
 
     color-scheme: dark;
   }
 
-  [data-tema="claro"] {
-    --fundo: #f4f1ea;
-    --brilho: radial-gradient(900px 520px at 18% -10%, rgba(0,0,0,.03), transparent 70%);
+  /* As quatro animacoes do sistema inteiro (docs/ui/00-fundamentos.md). */
+  @keyframes pv-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes pv-spin { to { transform: rotate(360deg); } }
+  @keyframes pv-caret { 0%, 45% { opacity: 1; } 50%, 95% { opacity: .1; } 100% { opacity: 1; } }
+  @keyframes pv-grow { from { width: 0; } to { width: 64%; } }
+  @keyframes pulsa { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
-    --ink: #1d1a15;
-    --ink-titulo: #14110d;
-    --ink-2: #55504a;
-    --ink-3: #7c746a;
-    --ink-muted: #948c81;
+  /* Barras de rolagem ocultas em todo o aplicativo: a janela nao deve
+     parecer um site. Onde ha rolagem, a sombra de borda avisa. */
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
-    --linha: rgba(29,26,21,.09);
-    --linha-media: rgba(29,26,21,.13);
-    --linha-forte: rgba(29,26,21,.2);
-    --linha-viva: rgba(29,26,21,.34);
-
-    --surface-1: rgba(255,253,248,.72);
-    --surface-2: rgba(255,253,248,.5);
-    --surface-3: rgba(29,26,21,.045);
-    --surface-flutua: #fffdf8;
-
-    --acento: #6b6259;
-    --acento-vivo: #4c453d;
-    --acento-fraco: rgba(107,98,89,.1);
-    --forte: #2b2721;
-    --forte-texto: #f7f2e9;
-    --forte-hover: #46403a;
-
-    --trilho: rgba(29,26,21,.12);
-    --barra-lateral: #eae5db;
-    --ok: #4a7c5e;
-    --ok-texto: #3f6b51;
-    --atencao: #a35d3a;
-    --atencao-fundo: rgba(163,93,58,.08);
-    --atencao-linha: rgba(163,93,58,.26);
-
-    /* O papel do PDF nao muda com o tema da tela: a previa do selo e a
-       rubrica desenhada mostram como vai sair impresso, nao como a
-       interface esta agora. */
-    --papel: #fbfaf8;
-    --tinta: #14120f;
-    --papel-linha: #c9c4bb;
-    --papel-realce: #eeece7;
-    --papel-veu: rgba(251,250,248,.94);
-
-    color-scheme: light;
-  }
+  /* `hidden` vence qualquer display de classe. Sem isto, um cartao com
+     display: grid continuava na tela depois de escondido. */
+  [hidden] { display: none !important; }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    font: 400 14.5px/1.55 var(--sans);
+    font: 400 14px/1.5 var(--sans);
     color: var(--ink);
-    background-color: var(--fundo);
-    background-image: var(--brilho);
+    background-color: var(--bg);
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -167,8 +236,8 @@
   p { text-wrap: pretty; }
 
   .rotulo {
-    font: 500 10px var(--mono);
-    letter-spacing: 0.22em;
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-3);
     /* Caminho de arquivo nao tem espaco onde quebrar, e o rotulo de uma acao
@@ -188,251 +257,296 @@
   .vazio-flex { flex: 1; }
   .divisa { width: 1px; height: 11px; background: var(--linha-media); }
 
-  .estado-local {
-    display: flex; align-items: center; gap: 8px;
-    font: 500 9.5px var(--mono); letter-spacing: 0.24em; color: var(--ok-texto);
-  }
-  .estado-local.parado { color: var(--ink-3); }
-  .estado-local.parado .ponto { background: var(--ink-muted); animation: none; }
-  .estado-local .ponto { width: 5px; height: 5px; animation: pulsa 3.2s ease-in-out infinite; }
-  @keyframes pulsa { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
-  /* --------------------------------------------------------------- marca */
-
-  .marca-topo {
-    display: flex; align-items: center; gap: 12px;
-    padding: 24px 18px 8px;
-  }
-  .marca-topo .recolher { margin-left: auto; }
-  .coroa-marca { width: 22px; height: 22px; flex-shrink: 0; display: block; filter: invert(1); opacity: 0.92; }
-  [data-tema="claro"] .coroa-marca { filter: none; opacity: 0.85; }
-  .marca-nome { font: 500 12px var(--mono); letter-spacing: 0.3em; color: var(--ink); }
-
-  .nova {
-    display: flex; align-items: center; gap: 10px; width: 100%;
-    padding: 11px 14px; background: var(--forte); border: 1px solid var(--linha-forte);
-    font: 500 13.5px var(--sans); color: var(--forte-texto); cursor: pointer;
-  }
-  .nova:hover { background: var(--forte-hover); color: var(--forte-texto); }
-  .nova .rotulo-botao { flex: 1; text-align: left; }
-
-  .link-lateral {
-    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-    padding: 9px 14px; font: 400 13px var(--sans); color: var(--ink-2);
-    border: none; background: none; cursor: pointer;
-  }
-  .link-lateral .rotulo-botao { flex: 1; }
-  .link-lateral:hover { color: var(--ink); background: var(--surface-3); border: none; }
-
-  .trabalhos-topo .ic { width: 15px; height: 15px; flex-shrink: 0; }
-
-  /* ------------------------------------------------------ barra de janela */
-
-  .barra {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 22px 44px 6px;
-    flex-shrink: 0;
-  }
-  .produto { font: 600 13.5px var(--sans); letter-spacing: -0.1px; }
-
-  .selo {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    border-radius: 0;
-    padding: 3px 9px;
-    border: 1px solid var(--linha-forte);
-    background: var(--acento-fraco);
-    font: 500 11px var(--sans);
-    color: var(--acento);
-  }
-  .selo.frio { border-color: var(--linha-media); background: var(--surface-1); color: var(--ink-3); }
-  .ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
-  .selo.frio .ponto { display: none; }
-
-  /* --------------------------------------------------------------- grade */
-
-  .corpo { flex: 1; display: flex; min-height: 0; }
-  /* A sidebar divide a altura com a barra em vez de ficar abaixo dela: vai do
-     topo ao rodape, e a barra so cobre a coluna de conteudo. */
-
-  .trabalhos {
-    width: 222px;
-    flex-shrink: 0;
-    overflow: hidden;   /* nada vaza em silencio para fora da coluna */
-    background: var(--barra-lateral);
-    border-right: 1px solid var(--linha);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .conversa-col { flex: 1; min-width: 460px; display: flex; flex-direction: column; min-height: 0; }
-  /* ------------------------------------------------- coluna de trabalhos */
-
+  /* --------------------------------------------------------------- casca */
   /*
-    Coluna recolhida: um trilho de 60 px com os tres comecos em icone. A lista
-    de conversas e o painel do computador somem - nome truncado e medidor de
-    60 px de largura nao se leem, e fingir que se leem e pior que esconder.
+    A casca do desenho (docs/ui/01-shell.md): um trilho de 64 px com um icone
+    por destino e, ao passar o mouse, um menu de 260 px que abre POR CIMA do
+    conteudo - nada se desloca. A barra de titulo e a do Windows, por enquanto.
   */
-  .trabalhos.recolhida { width: 60px; }
-  .trabalhos.recolhida .marca-nome,
-  .trabalhos.recolhida .rotulo-botao,
-  .trabalhos.recolhida .nova .mais,
-  .trabalhos.recolhida .lista-trabalhos,
-  .trabalhos.recolhida .maquina { display: none; }
 
-  .trabalhos.recolhida .marca-topo { justify-content: center; padding: 20px 0 6px; }
-  .trabalhos.recolhida .recolher { transform: rotate(180deg); }
-  .trabalhos.recolhida .trabalhos-topo { padding: 6px 0; align-items: center; }
-  .trabalhos.recolhida .trabalhos-topo button {
-    width: 38px; height: 38px; padding: 0; justify-content: center; gap: 0;
+  .corpo { flex: 1; display: flex; min-height: 0; position: relative; }
+
+  .ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--verde); flex-shrink: 0; }
+
+  /* Icone e texto: o nome do simbolo vira o desenho pela ligadura da fonte.
+     Quadrado e recortado, para nao empurrar o texto enquanto a fonte carrega. */
+  .ic {
+    font-family: 'Material Symbols Outlined'; font-weight: 300; font-size: 22px; line-height: 1;
+    display: block; width: 22px; height: 22px; overflow: hidden; flex: none;
+    letter-spacing: normal; text-transform: none; white-space: nowrap;
+    font-variation-settings: 'FILL' 0;
   }
+  .ic-14 { font-size: 14px; width: 14px; height: 14px; }
+  .ic-16 { font-size: 16px; width: 16px; height: 16px; }
+  .ic-18 { font-size: 18px; width: 18px; height: 18px; }
+  .ic-20 { font-size: 20px; width: 20px; height: 20px; }
 
-  .recolher {
-    width: 26px; height: 26px; padding: 0; margin: 2px auto 0;
+  .trilho {
+    width: 64px; flex: none; position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 12px 0 10px; background: var(--bg);
+    border-right: 1px solid var(--ink-a1);
+    box-shadow: 4px 0 16px -8px var(--sh-a12);
+  }
+  .trilho-logo { position: relative; width: 30px; height: 30px; margin-bottom: 12px; flex: none; }
+  .trilho-logo img { width: 30px; height: 30px; border-radius: 7px; display: block; filter: var(--logo); }
+  /* Quando o assistente trabalha, um anel gira ao redor do logo: e o unico
+     indicador global de trabalho. */
+  .trilho-logo .anel {
+    position: absolute; inset: -5px; border-radius: 50%; display: none;
+    border: 1.5px solid var(--ink-a15); border-top-color: var(--acc);
+    animation: pv-spin 1.6s linear infinite;
+  }
+  .trilho-logo.trabalhando .anel { display: block; }
+  .trilho-item {
+    position: relative; width: 40px; height: 40px; padding: 0; flex: none;
+    border: none; border-radius: 8px; background: none; color: var(--ink);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .trilho-item:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
+  .trilho-item.ativo { background: var(--act); }
+  .trilho-item.apoiar { color: var(--acc); }
+  .trilho-item.adiante { opacity: .45; }
+  .trilho-risco { width: 28px; height: 1px; background: var(--ink-a12); margin: 5px 0; flex: none; }
+  .trilho-vazio { flex: 1; }
+  .conta {
+    position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 8px; background: var(--acc); color: var(--surf);
+    font: 700 10px var(--sans); display: flex; align-items: center; justify-content: center;
+  }
+  .conta[hidden] { display: none; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--fill2); flex: none;
     display: flex; align-items: center; justify-content: center;
-    border: none; background: none; color: var(--ink-3); cursor: pointer;
+    font: 700 11px var(--sans); color: var(--ink2); margin-top: 6px;
   }
-  .recolher:hover { color: var(--ink); background: none; border: none; }
-  .recolher svg { width: 15px; height: 15px; transition: transform 0.2s; }
 
-  .trabalhos-topo { padding: 14px 12px 10px; }
-  /* A rolagem mora no envelope, nao em cada peca: assim nenhuma secao e
-     espremida a zero quando a barra lateral fica menor que o conteudo. */
-  .nav-rolagem { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
-  .lista-trabalhos { flex: 0 0 auto; padding: 0 8px 12px; }
-  .grupo { padding: 14px 4px 6px; }
+  /* O menu sobreposto. Nao existe botao de expandir: passar o mouse sobre o
+     trilho abre, sair dele fecha. */
+  .menu-flutuante {
+    position: absolute; top: 0; left: 0; bottom: 0; width: 260px; z-index: 5;
+    transform: translateX(-24px); opacity: 0; pointer-events: none;
+    transition: transform .22s ease, opacity .18s ease;
+  }
+  .menu-flutuante.aberto {
+    transform: none; opacity: 1; pointer-events: auto;
+    transition: transform .26s cubic-bezier(.2,.7,.3,1), opacity .2s ease;
+  }
+  .menu {
+    height: 100%; width: 260px; box-sizing: border-box; min-width: 0;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 12px 12px 10px; background: var(--bg);
+    border-right: 1px solid var(--ink-a1);
+    box-shadow: 18px 0 40px -30px var(--sh-a45);
+  }
+  .menu-cabeca { display: flex; align-items: center; gap: 10px; height: 30px; margin-bottom: 12px; padding-left: 5px; flex: none; }
+  .menu-cabeca img { width: 30px; height: 30px; border-radius: 7px; filter: var(--logo); }
+  .menu-cabeca span { font: 500 20px/1 var(--serif); }
+  .menu-item {
+    position: relative; display: flex; align-items: center; height: 40px; flex: none; width: 100%;
+    border: none; border-radius: 8px; background: none; padding: 0;
+    color: var(--ink); text-align: left; cursor: pointer; font: 500 13px var(--sans);
+  }
+  .menu-item:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
+  .menu-item.ativo { background: var(--act); font-weight: 600; }
+  .menu-item.apoiar { color: var(--acc); }
+  .menu-item.adiante { opacity: .45; }
+  /* A caixa do icone tem 40 px fixos: assim ele fica exatamente sobre o do
+     trilho quando o menu abre. */
+  .caixa-ic { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .rotulo-botao { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+  .menu-item .conta { position: static; margin-right: 10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; }
+  .menu-divisa { height: 1px; background: var(--ink-a12); margin: 5px 6px; flex: none; }
+  .menu-rolagem { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .menu-secao { font: 500 11px var(--sans); color: var(--ink3); padding: 10px 8px 4px; flex: none; }
+  .menu-usuario { display: flex; align-items: center; height: 40px; margin-top: 6px; flex: none; }
+  .menu-usuario .avatar { margin: 0 6px; }
+  .nome-usuario { display: grid; line-height: 1.25; min-width: 0; font: 500 12.5px var(--sans); }
+  .nome-usuario span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nome-usuario small { font: 500 10px var(--sans); color: var(--ink3); }
 
+  /* Recentes no fim do menu; a lista inteira numa gaveta ao lado. */
+  .menu-secao-botao {
+    display: flex; align-items: center; justify-content: space-between; width: 100%; flex: none;
+    padding: 10px 8px 4px; border: none; border-radius: 0; background: none; text-align: left;
+    font: 500 11px var(--sans); color: var(--ink3); cursor: pointer;
+  }
+  .menu-secao-botao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .menu-secao-botao .ic { color: var(--ink3); }
+  .lista-recentes { flex: none; }
+  .menu-gaveta {
+    position: absolute; left: 260px; top: 0; bottom: 0; width: 280px; z-index: 6;
+    overflow-y: auto; padding: 12px; background: var(--bg);
+    border-right: 1px solid var(--ink-a1); box-shadow: var(--elev-panel);
+  }
+  .gaveta-cabeca { font: 500 11px var(--sans); color: var(--ink3); padding: 10px 8px 6px; }
+  .lista-trabalhos { padding: 0 2px 6px; }
+  .grupo-bloco { margin-bottom: 8px; }
+  .grupo-cabeca { padding: 8px 8px 4px; }
   .item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    cursor: pointer;
-    font-size: 13.5px;
-    color: var(--ink-2);
+    position: relative; display: flex; align-items: center; gap: 8px;
+    padding: 7px 8px; border-radius: 8px; cursor: pointer;
+    font-size: 12.5px; color: var(--ink2);
   }
-  .item:hover { background: var(--surface-3); }
-  .item.ativo { background: var(--surface-3); color: var(--ink); font-weight: 500; }
+  .item:hover { background: var(--fill2); color: var(--ink); }
+  .item.ativo { background: var(--act); color: var(--ink); font-weight: 600; }
   .item .titulo { flex: 1; min-width: 0; }
-  .item .marca { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--ink-muted); }
-  .item .marca.executando { background: var(--acento); }
-  .item .marca.aguardando { background: var(--atencao); }
-  .item .marca.concluido { background: var(--ok); }
-  .item .marca.pausado { background: var(--ink-muted); }
-
-  .grupo-bloco { margin-bottom: 18px; }
-  .grupo-cabeca { padding: 0 14px 8px; }
-  .item.ativo { background: var(--surface-3); box-shadow: inset 2px 0 0 var(--acento); }
+  .item .marca { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--mute); }
+  .item .marca.executando { background: var(--verde); animation: pv-pulse 3.2s ease-in-out infinite; }
+  .item .marca.aguardando { background: var(--acc); }
+  .item .marca.concluido { background: var(--verde); }
+  .item .marca.pausado { background: var(--mute2); }
   .item .mais-item {
-    color: var(--ink-muted); letter-spacing: 0.06em; font-size: 12px;
+    color: var(--ink3); letter-spacing: 0.06em; font-size: 12px;
     opacity: 0; padding: 0 2px; cursor: pointer; flex-shrink: 0;
   }
   .item:hover .mais-item, .item.ativo .mais-item { opacity: 1; }
   .item .mais-item:hover { color: var(--ink); }
 
   .menu-conversa {
-    position: absolute; right: 8px; top: calc(100% + 6px); width: 196px; z-index: 20;
-    background: var(--surface-flutua); border: 1px solid var(--linha-media);
+    position: absolute; right: 8px; top: calc(100% + 4px); width: 196px; z-index: 20;
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px;
     padding: 6px; display: flex; flex-direction: column;
-    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--elev-float);
   }
-  [data-tema="claro"] .menu-conversa { box-shadow: 0 18px 40px rgba(29, 26, 21, 0.16); }
   .menu-conversa button {
     display: flex; align-items: center; text-align: left; width: 100%;
-    padding: 9px 11px; font: 400 13px var(--sans); color: var(--ink-2);
-    border: none; background: none; cursor: pointer;
+    padding: 8px 10px; border: none; border-radius: 6px; background: none;
+    font: 500 13px var(--sans); color: var(--ink2); cursor: pointer;
   }
-  .menu-conversa button:hover { background: var(--surface-3); color: var(--ink); border: none; }
-  .menu-conversa button .seta { margin-left: auto; color: var(--ink-3); }
-  .menu-conversa button.perigo { color: var(--atencao); }
-  .menu-risco { height: 1px; background: var(--linha-media); margin: 5px 0; }
-  .vazio-lista { padding: 10px 8px; font-size: 12.5px; color: var(--ink-muted); }
+  .menu-conversa button:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .menu-conversa button .seta { margin-left: auto; color: var(--ink3); }
+  .menu-conversa button.perigo { color: var(--acc); }
+  .menu-risco { height: 1px; background: var(--ink-a12); margin: 5px 0; }
+  .vazio-lista { padding: 8px; font-size: 12.5px; color: var(--ink3); }
 
-  .modelo {
-    border-top: 1px solid var(--linha);
-    padding: 12px;
-    display: flex;
-    gap: 9px;
-    align-items: center;
+  .conversa-col {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0;
+    background: var(--surf); position: relative;
   }
-  .modelo .quadro {
-    width: 26px; height: 26px; border-radius: 0;
-    background: var(--surface-3); border: 1px solid var(--linha-media); flex-shrink: 0;
-  }
-  .modelo .nome { font-size: 12.5px; font-weight: 500; }
 
   /* ---------------------------------------------------------- conversa */
 
-  .conversa-topo {
-    padding: 10px 44px 14px;
-    border-bottom: 1px solid var(--linha);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
+  .relogio-canto {
+    display: none; flex: none; justify-content: flex-end; padding: 20px 44px 0;
+    font: 500 11px var(--sans); color: var(--ink3);
   }
-  .conversa-topo h2 { font: 600 15px var(--sans); }
-  .conversa-topo .meta { font: 400 10.5px var(--mono); color: var(--ink-3); margin-top: 2px; }
+  .conversa-col.vazia .relogio-canto { display: flex; }
 
-  .fluxo { flex: 1; overflow-y: auto; padding: 14px 44px 20px; display: flex; flex-direction: column; gap: 16px; }
-  /* Sem teto: a coluna manda. O teto de 1.240 px sobrava 370 px de tela vazia
-     a 1.920 e 1.010 px a 2.560 - medido - em TODAS as telas, inclusive as que
-     são tabela e só ganhavam com a largura. Quem é prosa carrega a própria
-     medida (--leitura); o resto ocupa o que tem. */
+  .conversa-topo {
+    flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px;
+    padding: 10px 20px; border-bottom: 1px solid var(--ink-a1);
+  }
+  .conversa-nome { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
+  .conversa-topo h2 { font: 400 22px var(--serif); letter-spacing: -.01em; }
+  .conversa-topo .meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .voltar {
+    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none;
+    color: var(--ink2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none;
+  }
+  .voltar:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .conversa-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
+  .conversa-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+
+  .conversa-corpo {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+  }
+  .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr) 320px; }
+  .conversa-principal { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+
+  .fluxo { flex: 1; overflow-y: auto; padding: 20px 32px 8px; display: flex; flex-direction: column; gap: 16px; }
+  .fluxo.arrastando { outline: 2px dashed var(--ink-a3); outline-offset: -8px; }
+  /* Sem teto: a coluna manda. Quem e prosa carrega a propria medida. */
   .centro { width: 100%; display: flex; flex-direction: column; gap: 16px; }
+  .centro.prosa { max-width: 760px; margin: 0 auto; }
 
   .bolha-pessoa {
     align-self: flex-end;
-    max-width: min(78%, var(--leitura));
-    background: var(--forte);
-    color: var(--forte-texto);
-    border-radius: 0;
-    padding: 11px 14px;
-    font-size: 14.5px;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+    max-width: min(70%, var(--leitura));
+    background: var(--fill); color: var(--ink);
+    border-radius: 12px; padding: 12px 16px;
+    font-size: 15px; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word;
   }
-  .resposta { font-size: 14.5px; white-space: pre-wrap; word-wrap: break-word; max-width: var(--leitura); }
-  .resposta .assinatura { font: 400 10.5px var(--mono); color: var(--ink-3); margin-top: 8px; }
+  .resposta {
+    font-size: 15px; line-height: 1.65; word-wrap: break-word;
+    max-width: var(--leitura); display: grid; gap: 14px;
+  }
+  .resposta .texto { white-space: pre-wrap; }
+  .assinatura {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    font: 500 11.5px var(--sans); color: var(--ink3);
+  }
+  .assinatura button {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none;
+    font: 500 11.5px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .assinatura button:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
 
-  /* cartao */
-  .cartao {
-    border: 1px solid var(--linha-media);
-    border-radius: 0;
-    background: var(--surface-1);
-    overflow: hidden;
-  }
-  .cartao-topo {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 10px 14px;
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--linha);
-  }
-  .cartao-topo .quem { font: 500 13px var(--sans); flex: 1; }
-  .cartao-corpo { padding: 12px 14px; }
+  /* o plano de execucao */
+  .cartao { border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); overflow: hidden; }
+  .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .cartao-topo .quem { font: 600 14px var(--sans); flex: 1; }
+  .cartao-topo .tempo { font: 500 11px var(--sans); color: var(--ink3); }
+  .cartao-corpo { padding: 12px 16px; display: grid; gap: 10px; font-size: 13.5px; }
+  .etapa { display: flex; align-items: center; gap: 12px; }
+  .etapa .marcador { color: var(--ink3); }
+  .etapa.concluido .marcador { color: var(--verde); }
+  .etapa.executando .marcador { color: var(--acc); }
+  .etapa.falhou .marcador { color: var(--acc); }
+  .etapa .texto { flex: 1; min-width: 0; color: var(--ink2); }
+  .etapa.executando .texto { color: var(--ink); }
+  .etapa.na_fila .texto { color: var(--ink3); }
+  .etapa .estado { font: 500 11px var(--sans); color: var(--ink3); }
+  .progresso { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
+  .progresso i { display: block; height: 100%; background: var(--acc); transition: width 0.25s; }
 
-  /* etapas */
-  .etapa { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13.5px; }
-  .etapa .marcador {
-    width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
-    border: 2px solid var(--linha-forte); background: var(--surface-1);
+  /* o painel da direita: progresso, trechos citados, propriedades */
+  .lateral {
+    border-left: 1px solid var(--ink-a1); min-height: 0; overflow: auto; background: var(--surf);
+    box-shadow: -6px 0 24px -12px var(--sh-a12); position: relative; z-index: 1;
   }
-  .etapa.executando .marcador { border-color: var(--acento); }
-  .etapa.concluido .marcador { border-color: var(--linha-forte); background: var(--acento-fraco); }
-  .etapa.falhou .marcador { border-color: var(--atencao-linha); background: var(--atencao-fundo); }
-  .etapa .texto { flex: 1; min-width: 0; }
-  .etapa.na_fila .texto { color: var(--ink-muted); }
-  .etapa .estado { font: 400 10.5px var(--mono); color: var(--ink-3); }
-
-  .progresso { height: 5px; border-radius: 0; background: var(--trilho); overflow: hidden; margin: 2px 0 6px 26px; }
-  .progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
+  .lateral-bloco { padding: 12px 18px; border-bottom: 1px solid var(--ink-a1); display: grid; gap: 10px; }
+  .lateral-bloco:last-child { border-bottom: none; }
+  .lateral-cabeca { display: flex; align-items: center; justify-content: space-between; font: 600 14px var(--sans); }
+  .contagem { font: 500 11px var(--sans); color: var(--ink3); }
+  .lat-etapas { display: grid; gap: 8px; font-size: 12.5px; color: var(--ink3); }
+  .lat-etapa { display: flex; gap: 10px; align-items: flex-start; }
+  .lat-etapa .ic { color: var(--verde); }
+  .lat-etapa.feita span:last-child { text-decoration: line-through; }
+  .lat-etapa.andando { color: var(--ink); }
+  .lat-etapa.andando .ic { color: var(--acc); }
+  .lat-etapa.fila .ic { color: var(--ink3); }
+  .lat-etapa.falhou .ic { color: var(--acc); }
+  .lat-lista { display: grid; gap: 10px; }
+  .trecho-cartao {
+    border: 1px solid var(--ink-a12); border-radius: 8px; padding: 10px 12px;
+    display: grid; gap: 6px; cursor: pointer;
+  }
+  .trecho-cartao:hover { border-color: var(--ink-a35); }
+  .trecho-cartao.marcado { border-color: var(--acc); background: var(--accbg3); }
+  .trecho-origem { display: flex; align-items: center; gap: 8px; min-width: 0; font: 500 10.5px var(--sans); color: var(--ink2); }
+  .trecho-origem b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 500; }
+  .trecho-origem .onde { margin-left: auto; white-space: nowrap; }
+  .trecho-texto { font-size: 12.5px; line-height: 1.5; color: var(--ink2); max-height: 120px; overflow: hidden; }
+  .trecho-cartao.marcado .trecho-texto { color: var(--ink); }
+  /* A ancora numerada da citacao. */
+  .cit {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 5px;
+    background: var(--accbg); color: var(--acc); font: 500 11px var(--sans); flex: none;
+  }
+  .propriedades { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: center; font-size: 12.5px; color: var(--ink2); }
+  .valor-prop { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip-modelo {
+    justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px;
+    border: 1px solid var(--ink-a12); border-radius: 6px; color: var(--ink); font: 500 11.5px var(--sans);
+  }
+  .ponto-verde { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--verde); flex: none; }
+  .ponto-acc { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); flex: none; }
+  .ponto-cinza { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--mute2); flex: none; }
 
   /* cartao de aprovacao */
   /* Duas páginas lado a lado, e a tela cheia: é como se lê contrato de
@@ -530,108 +644,130 @@
   .visor-selo { display: block; margin-top: 16px; }
   .visor-caixa:empty { display: none; }
 
-  .trecho-ver {
-    margin-left: 10px; padding: 1px 8px; font-size: 11px;
-    border: 1px solid var(--linha-media); background: none; color: var(--ink-3);
-  }
-  .trecho-ver:hover { color: var(--acento); border-color: var(--acento); }
 
   /* ------------------------------- a conversa com o editor ao lado */
-  /* Duas colunas porque as duas coisas acontecem juntas: a pessoa pede, e o
-     documento muda ao lado. Em tela estreita viram uma embaixo da outra —
-     ler o documento e ver a conversa ainda funciona; espremer as duas, não. */
-  /* Altura pela janela, e nao pelo pai: a coluna do meio cresce com o
-     conteudo, e ".dupla { height: 100% }" dentro dela nao tem de onde tirar
-     altura - o campo "peça uma mudança" ficava fora da tela. */
-  .dupla {
-    display: flex; flex-direction: column; min-height: 0;
-    height: calc(100vh - 190px); min-height: 520px;
-  }
+  /* A terceira visao do Assistente no desenho: conversa a esquerda (400 px),
+     documento a direita, a alteracao marcada dentro do proprio texto. Ocupa a
+     area inteira; o cabecalho da conversa da lugar ao dela. */
+  .conversa-col.tela-dupla .conversa-topo { display: none; }
+  .conversa-col.tela-dupla .fluxo { padding: 0; gap: 0; }
+  .conversa-col.tela-dupla .centro { flex: 1; min-height: 0; }
+  .dupla { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .dupla-topo {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 16px; padding-bottom: 14px;
+    flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px;
+    padding: 10px 20px; border-bottom: 1px solid var(--ink-a1);
   }
   .dupla-titulo {
-    font: 500 21px var(--sans); letter-spacing: -0.01em; margin: 0 0 4px;
-    outline: none; border-bottom: 1px solid transparent;
+    font: 400 22px var(--serif); letter-spacing: -.01em; margin: 0; outline: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .dupla-titulo:focus { border-bottom-color: var(--linha-forte); }
-
   .dupla-colunas {
-    display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-    gap: 16px; flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+    flex: 1; min-height: 0;
   }
   @media (max-width: 1120px) {
     .dupla-colunas { grid-template-columns: minmax(0, 1fr); }
   }
-
-  .dupla-conversa, .dupla-editor {
-    display: flex; flex-direction: column; min-height: 0;
-    border: 1px solid var(--linha); background: var(--surface-2);
-  }
+  .dupla-conversa { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--ink-a1); }
   .dupla-cabeca {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--linha);
+    flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--ink-a1); font: 500 10.5px var(--sans); color: var(--ink3);
   }
-  .dupla-fala { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
-  .dupla-resposta { font-size: 13.5px; line-height: 1.6; margin: 10px 0 16px; }
-  .dupla-resposta p { margin: 0 0 8px; }
+  .dupla-fala { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+  .dupla-fala .bolha-pessoa { max-width: 88%; padding: 10px 14px; font-size: 13.5px; }
+  .dupla-resposta { display: grid; gap: 10px; max-width: 94%; font-size: 13.5px; line-height: 1.6; }
+  .dupla-resposta p { margin: 0; }
+  .dupla-resposta .linha-form { margin: 0; }
+  .dupla-resposta .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
   .dupla-trecho {
-    margin: 8px 0 0; padding: 8px 12px; border-left: 2px solid var(--linha-forte);
-    font: 400 12.5px var(--sans); color: var(--ink-2); background: var(--surface-3);
+    margin: 0; padding: 8px 12px; border-left: 2px solid var(--acc); background: var(--accbg2);
+    font-size: 12.5px; line-height: 1.6; color: var(--ink2);
   }
-  .dupla-atalhos {
-    display: flex; gap: 7px; flex-wrap: wrap; padding: 10px 12px 0;
-    border-top: 1px solid var(--linha);
+  .dupla-atalhos { flex: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--ink-a1); }
+  .dupla-atalhos button { padding: 6px 11px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .dupla-atalhos button:hover:not(:disabled) { background: var(--act); border: none; }
+  .dupla-pedido { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 16px 14px; border-top: 1px solid var(--ink-a1); }
+  .dupla-pedido input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; height: 40px; padding: 10px 12px;
+    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
+    color: var(--ink); font: 400 13.5px var(--sans); outline: none;
   }
-  .dupla-conversa .ed-pedido { padding: 10px 12px 12px; margin-top: 0; }
+  .dupla-pedido input[type=text]:focus { border-color: var(--ink); }
+  .dupla-pedido .enviar { margin-left: 0; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; }
 
-  .dupla-barra { border: none; padding: 0; margin: 0; background: none; }
-  .dupla-folha-caixa { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
-  .dupla-rodape {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 12px; padding: 9px 12px; border-top: 1px solid var(--linha);
+  .dupla-editor { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+  .dupla-barra {
+    flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px;
+    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12.5px;
   }
-  .dupla-rodape button { margin-left: 7px; }
-
-  /* O que acabou de mudar, marcado dentro do próprio texto. Ver a alteração no
-     lugar dela é diferente de ler uma sugestão num painel ao lado. */
-  .ed-novo { background: var(--acento-fraco); color: inherit; box-shadow: inset 0 -1px 0 var(--acento); }
+  .dupla-barra button {
+    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .dupla-barra button:hover:not(:disabled) { background: var(--fill); border: none; }
+  .dupla-barra button.com-texto { width: auto; padding: 5px 10px; font: 500 12.5px var(--sans); }
+  .dupla-barra button.primario { width: auto; padding: 5px 12px; font: 600 12.5px var(--sans); background: var(--btn); color: var(--btnt); }
+  .dupla-barra button.primario:hover:not(:disabled) { background: var(--ink0); }
+  .divisa-v { width: 1px; height: 18px; background: var(--ink-a12); margin: 0 4px; flex: none; }
+  .fonte-folha { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; }
+  .fonte-folha .ic { color: var(--ink3); }
+  .sinc { margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--sans); color: var(--okt); }
+  .sinc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dupla-folha-caixa { flex: 1; overflow-y: auto; padding: 22px 24px; min-height: 0; display: flex; justify-content: center; align-items: flex-start; }
+  .dupla-folha-caixa .ed-folha {
+    width: 100%; max-width: 640px; min-height: 0;
+    background: var(--papel); color: var(--tinta); border: 1px solid var(--papel-linha);
+    box-shadow: 0 18px 44px -28px var(--papel-sombra); padding: 48px 52px;
+    font: 400 15px/1.8 var(--serif); display: flex; flex-direction: column; gap: 16px;
+  }
+  .dupla-folha-caixa .ed-folha p { margin: 0; }
+  /* O que acabou de mudar, marcado dentro do proprio texto. Ver a alteracao no
+     lugar dela e diferente de ler uma sugestao num painel ao lado. */
+  .ed-novo { background: var(--papel-accbg); color: inherit; box-shadow: inset 0 -2px 0 var(--papel-acc); }
   .dupla-cartao {
-    border: 1px solid var(--acento); background: var(--acento-fraco);
-    padding: 12px; margin: 12px 0;
+    border-left: 3px solid var(--papel-acc); background: var(--papel-accbg2);
+    padding: 10px 14px; margin: 12px 0; display: grid; gap: 6px;
+    font: 400 12.5px/1.55 var(--sans); color: var(--tinta);
   }
-  .dupla-cartao p { margin: 6px 0; font-size: 13px; }
+  .rotulo-cartao { font: 500 10px var(--sans); color: var(--papel-ink2); }
+  .dupla-cartao p { margin: 0; }
+  .dupla-cartao .explica { color: var(--papel-ink3); }
+  .dupla-cartao .linha-form { margin: 2px 0 0; gap: 8px; }
+  .dupla-cartao .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
+  .dupla-rodape {
+    flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+    border-top: 1px solid var(--ink-a1); background: var(--surf);
+    font: 500 10.5px var(--sans); color: var(--ink3);
+  }
+  .acoes-rodape { margin-left: auto; display: flex; gap: 8px; }
 
-  /* A janelinha dos bastidores. Fica discreta de propósito: é o que está
-     acontecendo, não o que interessa ler depois. Monoespaçada porque é
-     registro — número alinhado com número. */
-  .bastidor {
-    border: 1px solid var(--linha); background: var(--surface-2);
-    margin-top: 10px; padding: 9px 12px 4px;
-  }
+  /* A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
+     Terminou, vira uma linha so, clicavel para reabrir. */
+  .bastidor { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
   .bastidor-topo {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding-bottom: 6px; border-bottom: 1px solid var(--linha);
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    font-size: 13px; color: var(--ink2); cursor: pointer; border-radius: 8px;
   }
-  .bastidor-linhas { max-height: 172px; overflow-y: auto; padding: 6px 0 4px; }
+  .bastidor-topo:hover { background: var(--sub); }
+  .bastidor-titulo { flex: 1; min-width: 0; }
+  .bastidor-topo .num { font: 500 11px var(--sans); color: var(--ink3); }
+  .bastidor-topo .ic { color: var(--ink3); transition: transform .2s; }
+  .bastidor-topo .marcador-feito { color: var(--verde); }
+  .bastidor.fechado .bastidor-topo .ic { transform: rotate(-90deg); }
+  .bastidor-linhas { max-height: 172px; overflow-y: auto; padding: 6px 12px 8px; border-top: 1px solid var(--ink-a06); }
+  .bastidor.fechado .bastidor-linhas { display: none; }
   .bastidor-linha {
     display: flex; gap: 10px; align-items: baseline;
-    font: 400 11.5px var(--mono); color: var(--ink-muted);
+    font: 400 11.5px var(--mono); color: var(--ink3);
     padding: 2px 0; line-height: 1.5;
   }
-  .bastidor-quando {
-    flex: 0 0 46px; text-align: right; color: var(--ink-3); font-size: 10.5px;
-  }
+  .bastidor-quando { flex: 0 0 46px; text-align: right; font-size: 10.5px; }
   .bastidor-linha.viva { color: var(--ink); }
-  .bastidor-linha.atencao { color: var(--atencao); }
-  .bastidor-linha.feito { color: var(--ok-texto); }
+  .bastidor-linha.atencao { color: var(--acc); }
+  .bastidor-linha.feito { color: var(--okt); }
   .bastidor-linha > span:last-child { flex: 1; min-width: 0; }
-
-  .bastidor-barra { height: 2px; background: var(--trilho); margin-top: 5px; overflow: hidden; }
-  .bastidor-barra > i { display: block; height: 100%; background: var(--acento); }
-  /* Sem medição anterior não há o que prever, e a barra não finge saber:
-     ela anda para mostrar que a coisa está viva, e não quanto falta. */
+  .bastidor-barra { height: 2px; border-radius: 1px; background: var(--fill2); margin-top: 5px; overflow: hidden; }
+  .bastidor-barra > i { display: block; height: 100%; background: var(--acc); }
   .bastidor-barra.indefinida > i { width: 32%; animation: vaivem 1.5s ease-in-out infinite; }
   @keyframes vaivem {
     0%   { margin-left: 0; }
@@ -639,124 +775,110 @@
     100% { margin-left: 0; }
   }
 
-  /* O que entendi do pedido, antes de gravar. Tem a borda do acento, e não a
-     de atenção: não é um aviso, é uma proposta esperando o seu sim. */
-  .proposta {
-    border: 1px solid var(--acento); background: var(--acento-fraco);
-    padding: 14px; margin-top: 12px;
-  }
-  .proposta-topo {
-    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
-  }
-  .proposta-topo b { font: 500 14px var(--sans); }
+  /* O que entendi do pedido, antes de gravar: uma proposta esperando o sim. */
+  .proposta { border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); padding: 14px 16px; }
+  .proposta-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .proposta-topo b { font: 600 14px var(--sans); }
   .proposta .linha-form { margin-top: 10px; }
   .proposta label.explica { align-self: center; white-space: nowrap; }
 
-  .aprovacao {
-    background: var(--atencao-fundo);
-    border: 1px solid var(--atencao-linha);
-    border-radius: 0;
-    padding: 14px;
-  }
-  .aprovacao p { margin: 0 0 12px; font-size: 13.5px; }
-  .aprovacao .acoes { display: flex; gap: 8px; }
+  .aprovacao { border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); padding: 18px; display: grid; gap: 12px; }
+  .aprovacao .cabeca { display: flex; align-items: center; gap: 11px; }
+  .aprovacao .nome { font: 600 14.5px var(--sans); }
+  .aprovacao p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .aprovacao .detalhe { font: 500 11px var(--sans); color: var(--ink3); }
+  .aprovacao .acoes { display: flex; align-items: center; gap: 10px; }
+  .aprovacao .acoes .primario { margin-left: auto; }
 
-  /* fontes citadas */
-  .fontes { margin-top: 10px; }
-  .fontes summary {
-    cursor: pointer; list-style: none;
-    font-size: 12.5px; color: var(--acento); padding: 4px 0;
+  /* Os trechos moram no painel da direita; na resposta fica so a conta. */
+  .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 500 11.5px var(--sans); color: var(--ink3); }
+  .fontes button {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none;
+    font: 500 11.5px var(--sans); color: var(--ink2); cursor: pointer;
   }
-  .fontes summary::-webkit-details-marker { display: none; }
-  .trecho {
-    border: 1px solid var(--linha);
-    border-left: 2px solid var(--linha-forte);
-    border-radius: 0;
-    padding: 10px 12px;
-    margin-top: 7px;
-    font-size: 12.5px;
-    background: var(--surface-2);
+  .fontes button:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .trecho { border: 1px solid var(--ink-a12); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; background: var(--surf); display: grid; gap: 6px; }
+  .trecho .origem { font: 500 10.5px var(--sans); color: var(--ink2); }
+  .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink2); max-height: 170px; overflow-y: auto; line-height: 1.5; }
+  .trecho-ver {
+    justify-self: start; padding: 2px 8px; font: 500 11px var(--sans);
+    border: 1px solid var(--ink-a15); border-radius: 6px; background: none; color: var(--ink2);
   }
-  .trecho .origem { font: 500 11px var(--mono); color: var(--acento); margin-bottom: 4px; }
-  .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink-2); max-height: 170px; overflow-y: auto; }
+  .trecho-ver:hover:not(:disabled) { color: var(--acc); border-color: var(--acc); background: none; }
 
   .aviso-cobertura {
-    background: var(--atencao-fundo);
-    border: 1px solid var(--atencao-linha);
-    border-radius: 0;
-    padding: 10px 12px;
-    font-size: 12.5px;
-    margin-bottom: 10px;
+    background: var(--warnbg); border: 1px solid var(--ink-a1); border-radius: 10px;
+    padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--warnt); white-space: normal;
   }
 
   /* ------------------------------------------------------- compositor */
   /*
-    Duas posturas, a mesma peca. Sem conversa comecada, a chamada e o cartao
-    ficam no meio da coluna: a tela pergunta antes de pedir. Com conversa
-    andando, o cartao desce e encosta embaixo, porque ali o que importa e a
-    resposta acima dele.
+    Duas posturas, a mesma peca (docs/ui/03-telas-desktop.md, A1). Sem
+    conversa comecada, saudacao, caixa de pedido, "Acontecendo agora" e
+    Recentes ficam no meio da coluna. Com conversa andando, a caixa vira uma
+    linha so e encosta embaixo, porque ali o que importa e a resposta acima.
   */
-  .compositor {
-    border-top: 1px solid var(--linha);
-    padding: 14px 44px 12px;
-    flex-shrink: 0;
-    background: var(--surface-1);
-  }
+  .compositor { flex: none; padding: 6px 32px 14px; }
+  .compositor > .centro { max-width: 760px; margin: 0 auto; gap: 8px; }
 
-  /* Quem centraliza e a pagina do chat, nao a coluna: a coluna agora guarda
-     as duas paginas empilhadas. */
-  .conversa-col.vazia { justify-content: center; }
+  .conversa-col.vazia .conversa-principal { justify-content: center; }
   .conversa-col.vazia .conversa-topo { display: none; }
-  .conversa-col.vazia .fluxo { flex: 0 0 auto; padding-bottom: 0; overflow: visible; }
-  .conversa-col.vazia .compositor { border-top: none; padding-bottom: 22px; }
-  .conversa-col.vazia .chamada { display: block; }
-  .conversa-col.vazia .exemplos-rapidos { display: flex; }
-  .conversa-col.vazia .rodape-vazio { display: block; }
+  .conversa-col.vazia .fluxo { flex: 0 0 auto; padding: 0; overflow: visible; }
+  .conversa-col.vazia .compositor { padding: 16px 44px 24px; overflow: auto; }
+  .conversa-col.vazia .compositor > .centro { max-width: 880px; gap: 34px; }
 
-  .risco {
-    display: none;
-    width: 52px; height: 2px; background: var(--acento);
-    transform-origin: left; margin-bottom: 16px;
-    animation: estica 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) 0.2s both;
-  }
-  @keyframes estica { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-  .conversa-col.vazia .risco { display: block; }
-
+  .saudacao-bloco { display: none; gap: 14px; max-width: 720px; }
+  .conversa-col.vazia .saudacao-bloco { display: grid; }
   .chamada {
-    display: none;
-    font: 500 42px/1.1 var(--sans);
-    letter-spacing: -0.028em;
-    color: var(--ink-titulo);
-    margin-bottom: 14px;
-    max-width: 900px;
+    font: 400 clamp(34px, 3.2vw, 46px)/1.08 var(--serif);
+    letter-spacing: -.015em; margin: 0; text-wrap: balance;
   }
-  .sub-chamada {
-    display: none;
-    font-size: 16px; line-height: 1.65; color: var(--ink-2);
-    max-width: 680px; margin: 0 0 34px;
-  }
-  .conversa-col.vazia .sub-chamada { display: block; }
-  @media (max-width: 1100px) { .chamada { font-size: 34px; } }
+  .sub-chamada { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink2); max-width: 600px; text-wrap: pretty; }
 
   /* ------------------------------------------------- acontecendo agora */
 
-  .agora { margin-top: 34px; }
-  .conversa-col.vazia .agora[hidden] { display: none; }
-  .agora-cabeca { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-  .risco-fino { flex: 1; height: 1px; background: var(--linha); }
+  .agora { display: grid; gap: 14px; }
+  .agora-cabeca { display: flex; align-items: center; gap: 14px; }
+  .rotulo-suave { font: 500 11px var(--sans); color: var(--ink3); }
+  .risco-fino { flex: 1; height: 1px; background: var(--ink-a1); }
 
-  .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: 14px; }
+  .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
-    border: 1px solid var(--linha-media); padding: 18px;
-    display: flex; flex-direction: column; gap: 12px;
+    border: 1px solid var(--ink-a12); border-radius: 12px; padding: 18px;
+    display: grid; gap: 12px; align-content: start; background: var(--surf);
+    transition: border-color .18s;
   }
-  .cartao-agora.chama { border-color: var(--linha-forte); background: var(--acento-fraco); }
+  .cartao-agora[data-abre] { cursor: pointer; }
+  .cartao-agora:hover { border-color: var(--ink-a3); }
+  .cartao-agora.chama { border-color: var(--accln); background: var(--accbg2); }
+  .cartao-agora.chama:hover { border-color: var(--acc); }
   .cartao-agora .cabeca { display: flex; align-items: center; gap: 11px; }
-  .cartao-agora .nome { font: 500 14.5px var(--sans); flex: 1; min-width: 0; }
-  .cartao-agora .corpo { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
-  .cartao-agora .rodape { font: 400 10.5px var(--mono); letter-spacing: 0.04em; color: var(--ink-3); }
-  .barra-fina { height: 2px; background: var(--trilho); }
-  .barra-fina i { display: block; height: 2px; background: var(--acento); transition: width 0.3s; }
+  .cartao-agora .nome { font: 600 14.5px var(--sans); flex: 1; min-width: 0; }
+  .cartao-agora .corpo { font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .cartao-agora .rodape { font: 500 11px var(--sans); color: var(--ink3); }
+  .cartao-agora .acoes { display: flex; align-items: center; gap: 10px; }
+  .cartao-agora .acoes .primario { margin-left: auto; padding: 7px 14px; border-radius: 6px; font-size: 12.5px; }
+  .cartao-agora .acoes .fantasma { padding: 0; border: none; background: none; font: 600 13px var(--sans); color: var(--ink); }
+  .cartao-agora .acoes .fantasma:hover:not(:disabled) { background: none; border: none; color: var(--acc); }
+  .barra-fina { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .barra-fina i { display: block; height: 3px; background: var(--acc); transition: width 0.3s; }
+
+  /* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta. */
+  .recentes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .recentes .rotulo-suave { margin-right: 6px; }
+  .recente {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; max-width: 320px;
+    border: 1px solid var(--ink-a12); border-radius: 999px; background: none;
+    color: var(--ink); font: 400 13px var(--sans); cursor: pointer;
+  }
+  .recente:hover:not(:disabled) { border-color: var(--ink); background: none; color: var(--ink); }
+  .recente .ic { color: var(--ink3); }
+  .recente span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ver-mais {
+    display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: none; background: none;
+    color: var(--ink2); font: 500 13px var(--sans); cursor: pointer;
+  }
+  .ver-mais:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
   /* ------------------------------------------------------- habilidades */
 
@@ -1021,26 +1143,8 @@
   .bancada > h2 { font: 600 19px var(--sans); margin-bottom: 5px; }
   .bancada > p { margin: 0 0 22px; font-size: 13.5px; color: var(--ink-2); }
   /* ------------------------------------------------------ menu lateral */
-  /* Medidas do manual do sistema: coluna de 222 px sobre #171614. */
-
-  .menu { padding: 6px 8px 4px; overflow-y: auto; flex-shrink: 0; }
-  .menu-grupo { margin-bottom: 14px; }
-  .menu-grupo > .rotulo { display: block; padding: 0 8px 7px; }
-
-  .destino {
-    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-    padding: 7px 8px; font: 400 13px var(--sans); color: var(--ink-2);
-    border: none; background: none; cursor: pointer;
-  }
-  .destino:hover { color: var(--ink); background: var(--surface-3); border: none; }
-  .destino.ativo { color: var(--ink); background: var(--surface-3); box-shadow: inset 2px 0 0 var(--acento); }
-  .destino .ic { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.8; }
-  .destino .rotulo-botao { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  /* Destino sem motor: visivel, apagado, e clicavel - clicar explica. */
-  .destino.adiante { color: var(--ink-muted); }
-  .destino.adiante:hover { color: var(--ink-3); }
-  .destino.adiante .ic { opacity: 0.45; }
+  /* O menu mora na casca, no comeco do CSS. Aqui ficou so a tela de destino
+     ainda nao construido. */
 
   .adiante-tela { max-width: 620px; }
   .adiante-tela h2 { font: 500 30px/1.15 var(--sans); letter-spacing: -0.02em; color: var(--ink-titulo); margin: 8px 0 12px; }
@@ -1214,227 +1318,211 @@
   }
 
   /* ------------------------------------------------- maquina na coluna */
-
-  .maquina {
-    margin-top: auto; flex-shrink: 0;
-    border-top: 1px solid var(--linha); padding: 14px;
-  }
-  .maquina-cabeca {
-    display: block; width: 100%; text-align: left; padding: 0 0 8px;
-    border: none; background: none; cursor: pointer;
-  }
-  .maquina-cabeca:hover { border: none; background: none; }
-  .maquina-cabeca:hover .rotulo { color: var(--ink-2); }
-  .frase-maquina { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); margin-bottom: 12px; }
+  /* Os medidores sairam da coluna: no desenho eles moram em Configuracoes >
+     Desempenho. A tela "Seu computador" ainda os usa. */
 
   .medidor { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
-  .medidor .nome { font-size: 12.5px; color: var(--ink-2); width: 68px; flex-shrink: 0; }
-  .medidor .trilho { flex: 1; height: 3px; background: var(--trilho); }
-  .medidor .trilho i { display: block; height: 3px; width: 0; background: var(--acento); transition: width 0.4s; }
+  .medidor .nome { font-size: 12.5px; color: var(--ink2); width: 68px; flex-shrink: 0; }
+  .medidor .pista { flex: 1; height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .medidor .pista i { display: block; height: 3px; width: 0; background: var(--ink); transition: width 0.4s; }
   .medidor .valor {
-    font: 400 10.5px var(--mono); color: var(--ink-3);
+    font: 500 11px var(--sans); color: var(--ink3);
     width: 52px; text-align: right; flex-shrink: 0;
   }
 
+  /* O interruptor do desenho: 40 x 24, botao de 18. */
   .interruptor {
-    display: flex; align-items: center; gap: 10px; margin-top: 13px;
-    border: 1px solid var(--linha-media); padding: 9px 11px;
-    font-size: 12.5px; color: var(--ink-2); cursor: pointer;
+    display: flex; align-items: center; gap: 10px; margin-top: 13px; min-height: 44px;
+    padding: 6px 0; font-size: 13.5px; color: var(--ink2); cursor: pointer;
   }
-  .interruptor:hover { border-color: var(--linha-forte); }
   .interruptor .chave {
-    margin-left: auto; width: 30px; height: 17px; flex-shrink: 0;
-    background: var(--trilho); position: relative; transition: background 0.2s;
+    margin-left: auto; width: 40px; height: 24px; flex-shrink: 0; border-radius: 12px;
+    border: 1px solid var(--ink-a25); background: none; position: relative; transition: background 0.2s;
   }
   .interruptor .chave::after {
     content: ""; position: absolute; top: 2px; left: 2px;
-    width: 13px; height: 13px; background: var(--ink-3); transition: transform 0.2s, background 0.2s;
+    width: 18px; height: 18px; border-radius: 50%; background: var(--ink-a3);
+    transition: transform 0.2s, background 0.2s;
   }
-  .interruptor.on { border-color: var(--linha-forte); color: var(--ink); }
-  .interruptor.on .chave { background: var(--acento); }
-  .interruptor.on .chave::after { transform: translateX(13px); background: var(--forte-texto); }
-
-  .assistente {
-    margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--linha);
-    font: 400 10.5px var(--mono); letter-spacing: 0.04em; color: var(--ink-3);
-  }
-
+  .interruptor.on { color: var(--ink); }
+  .interruptor.on .chave { background: var(--ink); border-color: var(--ink); }
+  .interruptor.on .chave::after { transform: translateX(16px); background: var(--bg); }
 
   /* -------------------------------------------------------- registro */
-  /*
-    Herda o que a coluna da direita fazia de util: mostrar o que o programa
-    acabou de ler. Uma linha so, aberta sob demanda - o resto do andamento ja
-    esta no cartao de etapas, logo acima.
-  */
-  .registro { flex-shrink: 0; padding: 0 44px; }
+  /* Uma linha so, aberta sob demanda: o que o programa acabou de fazer. */
+  .registro { flex: none; padding: 0 32px; }
+  .registro > .centro { max-width: 760px; margin: 0 auto; gap: 0; }
   .registro-cabeca {
-    display: flex; align-items: center; gap: 9px; width: 100%;
-    padding: 8px 2px; border: none; background: none; cursor: pointer;
-    font: 400 11.5px var(--sans); color: var(--ink-3); text-align: left;
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 9px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: none;
+    cursor: pointer; font: 400 13px var(--sans); color: var(--ink2); text-align: left;
   }
-  .registro-cabeca:hover { color: var(--ink-2); background: none; border: none; }
-  .registro-cabeca .ponto { background: var(--acento); animation: none; }
+  .registro-cabeca:hover:not(:disabled) { background: var(--sub); border-color: var(--ink-a1); color: var(--ink2); }
   .registro-agora { flex: 1; min-width: 0; }
-  .registro-seta { transition: transform 0.2s; color: var(--ink-muted); }
-  .registro.aberto .registro-seta { transform: rotate(90deg); }
-  .registro-lista { padding: 2px 0 10px 14px; border-left: 1px solid var(--linha); margin-left: 2px; }
-
+  .registro-seta { color: var(--ink3); transition: transform 0.2s; }
+  .registro.aberto .registro-seta { transform: rotate(180deg); }
+  .registro-lista { padding: 6px 12px 4px; }
   .atividade-linha { display: flex; gap: 9px; padding: 4px 0; }
-  .atividade-linha .txt { font-size: 12.5px; color: var(--ink-2); }
+  .atividade-linha .txt { font-size: 12.5px; color: var(--ink2); }
   .atividade-linha .num { display: block; }
 
-  .rodape-chat {
-    display: flex; align-items: center; gap: 14px;
-    padding: 0 44px 18px; margin-top: 18px;
-    font: 400 9.5px var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
-    color: var(--ink-3);
+  /* O rodape de garantia. Nao e decoracao: e o argumento de venda do
+     produto, repetido onde a duvida aparece. */
+  .rodape-garantia {
+    flex: none; display: none; align-items: center; gap: 14px; height: 32px; padding: 0 20px;
+    border-top: 1px solid var(--ink-a06); background: var(--bg);
+    font: 400 11.5px var(--sans); color: var(--ink3);
   }
-  .rodape-chat button {
-    border: none; background: none; color: var(--ink-3); cursor: pointer;
-    font: inherit; letter-spacing: inherit; text-transform: inherit; padding: 4px;
-  }
-  .rodape-chat button:hover { color: var(--ink); background: none; border: none; }
+  .conversa-col.vazia .rodape-garantia { display: flex; }
+  .rodape-garantia.alerta { color: var(--warnt); }
 
+  /* A caixa de pedido: a peca mais usada do produto. */
   .cartao-campo {
-    max-width: 980px; position: relative;
-    border: 1px solid var(--linha-media);
-    border-radius: 0;
-    background: var(--surface-1);
-    padding: 12px 12px 10px;
-    box-shadow: 0 2px 6px rgba(20, 24, 28, 0.05);
+    position: relative; border: 1px solid var(--ink-a15); border-radius: 14px; background: var(--surf);
+    box-shadow: 0 18px 44px -28px var(--sh-a45); padding: 16px 16px 12px;
+    display: grid; gap: 16px; transition: border-color .18s;
   }
-  .cartao-campo:focus-within { border-color: var(--acento); }
-
-  /* A pílula do escopo fica à vista o tempo todo, e não é enfeite: enquanto
-     ela estiver ali, a pergunta é lida SÓ naquele documento. Escopo silencioso
-     seria tão ruim quanto ler o acervo inteiro calado — a pessoa leria "não
-     achei" sem saber que a busca não saiu de um arquivo. */
-  .escopo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-  .escopo-pilula {
-    display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
-    border: 1px solid var(--acento); background: var(--acento-fraco);
-    padding: 4px 6px 4px 10px; font-size: 12px; color: var(--ink);
-  }
-  .escopo-pilula b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .escopo-pilula button {
-    border: none; background: none; color: var(--ink-3); cursor: pointer;
-    padding: 0 4px; font-size: 14px; line-height: 1;
-  }
-  .escopo-pilula button:hover { color: var(--ink); background: none; border: none; }
-  .escopo .rotulo { flex-shrink: 0; }
-  .escopo-limpar {
-    border: none; background: none; color: var(--ink-3); cursor: pointer;
-    font: 400 11.5px var(--sans); text-decoration: underline; padding: 2px 4px;
-  }
-  .escopo-limpar:hover { color: var(--ink); background: none; border: none; }
-
-  /* A lista que o "/" abre. Sobe por cima do compositor, como todo
-     autocompletar de menção. */
-  .mencao {
-    position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
-    max-height: 260px; overflow-y: auto; z-index: 40;
-    border: 1px solid var(--linha-media);
-    /* --surface-flutua, e nao --surface-2: as superficies numeradas sao veus
-       translucidos pensados para deitar sobre a pagina. Num menu que voa por
-       cima do texto, o titulo aparecia atraves da lista. */
-    background: var(--surface-flutua);
-    box-shadow: 0 -22px 48px rgba(0, 0, 0, 0.55);
-  }
-  [data-tema="claro"] .mencao { box-shadow: 0 -18px 40px rgba(29, 26, 21, 0.16); }
-  .mencao-item {
-    display: flex; align-items: baseline; gap: 10px; width: 100%;
-    padding: 8px 12px; border: none; background: none; cursor: pointer;
-    text-align: left; font: inherit; color: var(--ink-2);
-  }
-  .mencao-item:hover, .mencao-item.marcado { background: var(--surface-1); color: var(--ink); }
-  .mencao-item b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mencao-item .rotulo { flex-shrink: 0; margin-left: auto; }
-  .mencao-vazio { padding: 10px 12px; font-size: 12.5px; color: var(--ink-3); }
-  [data-tema="escuro"] .cartao-campo { box-shadow: none; background: var(--surface-2); }
+  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a35); }
 
   textarea {
     display: block; width: 100%;
-    font: 400 14.5px/1.55 var(--sans); resize: none;
+    font: 400 16px/1.5 var(--sans); resize: none;
     border: none; background: none; outline: none;
-    padding: 3px 4px 8px; max-height: 190px; color: inherit;
+    padding: 0; max-height: 190px; color: var(--ink);
   }
-  textarea::placeholder { color: var(--ink-3); }
+  textarea::placeholder { color: var(--ink3); }
 
-  .pilulas { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .pilulas { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
   .pilula {
     display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--linha-media); border-radius: 0;
-    padding: 5px 12px; font: 400 12.5px var(--sans);
-    background: var(--surface-1); color: var(--ink-2); cursor: pointer;
+    padding: 6px 10px; border: none; border-radius: 8px; background: none;
+    font: 500 13px var(--sans); color: var(--ink); cursor: pointer;
   }
-  .pilula:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
-  .pilula svg { width: 13px; height: 13px; flex-shrink: 0; }
-  [data-tema="escuro"] .pilula { background: var(--surface-1); }
+  .pilula:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .pilula .rotulo-botao { flex: none; padding: 0; }
+
+  /* A pilula do escopo fica a vista o tempo todo: enquanto estiver ali, a
+     pergunta e lida SO naquele documento. Escopo silencioso seria tao ruim
+     quanto ler o acervo inteiro calado. */
+  .escopo { display: contents; }
+  .escopo[hidden] { display: none; }
+  .escopo-pilula {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
+    padding: 6px 6px 6px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink);
+  }
+  .escopo-pilula:hover { background: var(--fill); }
+  .escopo-pilula b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .escopo-pilula button {
+    border: none; background: none; color: var(--ink3); cursor: pointer;
+    padding: 0 2px; font-size: 14px; line-height: 1;
+  }
+  .escopo-pilula button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .escopo-acervo {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
+    padding: 6px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink2);
+  }
+  .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .escopo-limpar {
+    border: none; background: none; color: var(--ink3); cursor: pointer;
+    font: 500 12px var(--sans); text-decoration: underline; padding: 2px 4px;
+  }
+  .escopo-limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+
+  /* A lista que o "/" abre. Sobe por cima da caixa, como todo autocompletar. */
+  .mencao {
+    position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
+    max-height: 260px; overflow-y: auto; z-index: 40; padding: 6px;
+    border: 1px solid var(--ink-a1); border-radius: 10px;
+    background: var(--surf); box-shadow: var(--elev-float);
+  }
+  .mencao-item {
+    display: flex; align-items: baseline; gap: 10px; width: 100%;
+    padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer;
+    text-align: left; font: inherit; color: var(--ink2);
+  }
+  .mencao-item:hover, .mencao-item.marcado { background: var(--fill); color: var(--ink); }
+  .mencao-item b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mencao-item .rotulo { flex-shrink: 0; margin-left: auto; }
+  .mencao-vazio { padding: 10px 12px; font-size: 12.5px; color: var(--ink3); }
 
   .enviar {
-    margin-left: auto;
-    width: 34px; height: 34px; flex-shrink: 0;
+    margin-left: auto; width: 36px; height: 36px; flex: none;
     border-radius: 50%; border: none; padding: 0;
-    background: var(--forte); color: var(--forte-texto);
+    background: var(--btn); color: var(--btnt);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 10px 24px -12px var(--sh-a6);
   }
-  .enviar:hover:not(:disabled) { background: var(--forte-hover); color: var(--forte-texto); }
-  .enviar svg { width: 16px; height: 16px; }
+  .enviar:hover:not(:disabled) { background: var(--ink0); color: var(--btnt); border: none; }
+  .enviar .so-conversa { display: none; }
 
-  .exemplos-rapidos {
-    display: none;
-    flex-wrap: wrap; gap: 7px; margin-top: 14px;
+  /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
+     em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */
+  .conversa-col:not(.vazia) .cartao-campo {
+    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px;
+    box-shadow: 0 8px 30px -18px var(--sh-a35);
   }
-
+  .conversa-col:not(.vazia) .cartao-campo textarea { order: 2; flex: 1; min-width: 0; max-width: 100%; font-size: 15px; }
+  .conversa-col:not(.vazia) .pilulas { display: contents; }
+  .conversa-col:not(.vazia) .pilula { order: 1; }
+  .conversa-col:not(.vazia) .pilula-anexar { width: 32px; height: 32px; padding: 0; justify-content: center; color: var(--ink2); }
+  .conversa-col:not(.vazia) .pilula-anexar .rotulo-botao { display: none; }
+  .conversa-col:not(.vazia) .pilula-inicio { display: none; }
+  .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
+  .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
+  .conversa-col:not(.vazia) .enviar { order: 4; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
+  .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
 
   /* --------------------------------------------------------- botoes */
+  /* Quatro tipos, um so formato (docs/ui/02-componentes.md): secundario e o
+     padrao, primario e o cheio, fantasma sem borda, destrutivo em vinho. */
 
   button {
-    font: 400 13px var(--sans);
+    font: 500 13px var(--sans);
     cursor: pointer;
-    border-radius: 0;
-    padding: 8px 16px;
-    border: 1px solid var(--linha-media);
-    background: var(--surface-1);
-    color: var(--ink-2);
+    border-radius: 8px;
+    padding: 7px 14px;
+    border: 1px solid var(--ink-a15);
+    background: transparent;
+    color: var(--ink);
   }
-  button:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
-  button:disabled { opacity: 0.45; cursor: default; }
-  /* "Apagar" tem que parecer com apagar. A classe já era usada em dez telas,
-     mas só tinha regra dentro do menu de conversa: nas outras, o botão que
-     destrói ficava igual ao botão que salva. Não acende antes da hora — a
-     cor mora na borda e no texto, e só enche quando o cursor chega. */
-  button.perigo { color: var(--atencao); border-color: var(--atencao-linha); }
-  button.perigo:hover:not(:disabled) {
-    border-color: var(--atencao); background: var(--atencao-fundo); color: var(--atencao);
-  }
-  /* O cartao ja acende a borda quando recebe o cursor; um anel por dentro
-     dele era caixa dentro de caixa. Botao e interruptor mantem o anel, que e
-     como quem navega pelo teclado se localiza. */
+  button:hover:not(:disabled) { background: var(--fill2); border-color: var(--ink-a15); color: var(--ink); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button.perigo { color: var(--acc); border-color: var(--accln); }
+  button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
   button:focus-visible, [tabindex]:focus-visible {
-    outline: 1px solid var(--acento);
+    outline: 2px solid var(--acc);
     outline-offset: 2px;
   }
   textarea:focus, textarea:focus-visible,
   input:focus, input:focus-visible { outline: none; }
-  button.primario { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); font-weight: 500; }
-  button.primario:hover:not(:disabled) { background: var(--forte-hover); border-color: var(--forte-hover); color: var(--forte-texto); }
-  button.aprovar-secundario { background: var(--surface-1); border-color: var(--atencao-linha); color: var(--atencao); }
+  button.primario { background: var(--btn); border-color: var(--btn); color: var(--btnt); font-weight: 600; }
+  button.primario:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--btnt); }
+  button.aprovar-secundario { background: transparent; border-color: var(--ink-a15); color: var(--ink); }
+  button.fantasma { border-color: transparent; color: var(--ink2); }
+  button.fantasma:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink); }
   button.largo { width: 100%; }
-  button.pastilha { border-radius: 0; padding: 5px 12px; font-size: 12px; }
-
-  /* ----------------------------------------------------------- coroa */
-
-  .coroa {
-    flex-shrink: 0; color: var(--acento); display: inline-block;
-    animation: girar 9s linear infinite;
+  button.pastilha { border-radius: 999px; padding: 5px 12px; font-size: 12px; }
+  .botao-icone {
+    width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px;
+    background: var(--fill); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
   }
-  .coroa svg { width: 100%; height: 100%; display: block; }
-  .coroa.parada { animation: none; opacity: 0.6; }
-  @keyframes girar { to { transform: rotate(360deg); } }
+  .botao-icone:hover:not(:disabled) { background: var(--fill2); border: none; }
+  button .ic { pointer-events: none; }
+
+  /* ------------------------------------------------------- indicador */
+  /* O indicador de trabalho do desenho: um anel fino com o topo em vinho,
+     girando. Nunca barra indeterminada. */
+  .indicador { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
+  .indicador i {
+    position: absolute; inset: 2px; border-radius: 50%;
+    border: 1.5px solid var(--ink-a15); border-top-color: var(--acc);
+    animation: pv-spin 1.6s linear infinite;
+  }
   @media (prefers-reduced-motion: reduce) {
-    .coroa { animation: none; }
-    .progresso i, .medidor .trilho i { transition: none; }
+    .indicador i, .trilho-logo .anel { animation: none; }
+    .progresso i, .medidor .pista i, .barra-fina i { transition: none; }
   }
 
   /* ------------------------------------- certificado e assinatura */
@@ -2205,164 +2293,187 @@
 
   /* ------------------------------------------------------- responsivo */
 
-  @media (max-width: 1180px) {
+  /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
+     grade e vira uma gaveta aberta pelo botao do cabecalho. */
+  @media (max-width: 1240px) {
+    .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr); }
+    .conversa-corpo.com-lateral .lateral {
+      position: absolute; top: 0; right: 0; bottom: 0; width: 320px; z-index: 3;
+      box-shadow: var(--elev-panel);
+    }
+    .conversa-corpo { position: relative; }
   }
   @media (max-width: 900px) {
-    .trabalhos { display: none; }
-    .conversa-col { min-width: 0; }
+    .conversa-col.vazia .compositor { padding: 16px 20px 24px; }
+    .fluxo { padding: 16px 20px 8px; }
   }
 </style>
 </head>
 <body>
 
-
 <div class="corpo">
 
-  <aside class="trabalhos">
-    <div class="marca-topo">
-      <img class="coroa-marca" src="/img/coroa.png" alt="">
-      <span class="marca-nome">PAULUS</span>
-    </div>
+  <!-- O trilho: 64 px, um icone por destino (docs/ui/01-shell.md). Passar o
+       mouse abre o menu com os nomes por cima do conteudo, sem deslocar nada.
+       Servicos, Gravacoes e Apoiar estao no desenho mas ainda nao tem motor:
+       clicar explica o que falta. -->
+  <nav class="trilho" id="trilho" aria-label="Destinos">
+    <span class="trilho-logo" id="trilho-logo" title="PAULUS Legal"><img src="/img/paulus-logo.svg" alt="PAULUS"><i class="anel"></i></span>
+    <button class="trilho-item" id="nova" title="Nova conversa" aria-label="Nova conversa"><span class="ic">add</span></button>
+    <span class="trilho-risco"></span>
+    <button class="trilho-item" data-destino="conversa" title="Assistente" aria-label="Assistente"><span class="ic">forum</span></button>
+    <button class="trilho-item" data-destino="servicos" title="Serviços" aria-label="Serviços"><span class="ic">work</span></button>
+    <button class="trilho-item" data-destino="gravacoes" title="Gravações" aria-label="Gravações"><span class="ic">mic</span></button>
+    <button class="trilho-item" data-destino="calendario" title="Agenda" aria-label="Agenda"><span class="ic">calendar_month</span></button>
+    <button class="trilho-item" data-destino="foco" title="Foco e bem-estar" aria-label="Foco e bem-estar"><span class="ic">self_improvement</span></button>
+    <span class="trilho-risco"></span>
+    <button class="trilho-item" data-destino="biblioteca" title="Acervo" aria-label="Acervo"><span class="ic">inventory_2</span></button>
+    <button class="trilho-item" data-destino="editor" title="Documentos" aria-label="Documentos"><span class="ic">description</span></button>
+    <button class="trilho-item" data-destino="assinar" title="Assinatura" aria-label="Assinatura"><span class="ic">draw</span></button>
+    <span class="trilho-risco"></span>
+    <button class="trilho-item" data-destino="caixa" title="E-mail" aria-label="E-mail"><span class="ic">mail</span></button>
+    <button class="trilho-item" data-destino="financeiro" title="Financeiro" aria-label="Financeiro"><span class="ic">payments</span></button>
+    <button class="trilho-item" data-destino="cadastros" title="Cadastros" aria-label="Cadastros"><span class="ic">contacts</span></button>
+    <button class="trilho-item" data-destino="aprovacoes" title="Aprovações" aria-label="Aprovações"><span class="ic">verified</span><span class="conta" hidden></span></button>
+    <span class="trilho-vazio"></span>
+    <button class="trilho-item apoiar" data-destino="apoiar" title="Apoiar o projeto" aria-label="Apoiar o projeto"><span class="ic">favorite</span></button>
+    <button class="trilho-item" id="tema" title="Tema escuro" aria-label="Alternar tema"><span class="ic" id="tema-icone">dark_mode</span></button>
+    <button class="trilho-item" data-destino="config" title="Configurações" aria-label="Configurações"><span class="ic">settings</span></button>
+    <span class="avatar" id="avatar">PL</span>
+  </nav>
 
-    <button class="recolher" id="recolher" title="Recolher a coluna" aria-label="Recolher a coluna">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9.6 4 5.6 8l4 4"/>
-      </svg>
-    </button>
+  <div class="menu-flutuante" id="menu-flutuante">
+    <nav class="menu" id="menu" aria-label="Menu">
+      <div class="menu-cabeca"><img src="/img/paulus-logo.svg" alt=""><span>PAVLVS</span></div>
+      <button class="menu-item" data-nova="1"><span class="caixa-ic"><span class="ic">add</span></span><span class="rotulo-botao">Nova conversa</span></button>
+      <span class="menu-divisa"></span>
+      <button class="menu-item" data-destino="conversa"><span class="caixa-ic"><span class="ic">forum</span></span><span class="rotulo-botao">Assistente</span></button>
+      <button class="menu-item" data-destino="servicos"><span class="caixa-ic"><span class="ic">work</span></span><span class="rotulo-botao">Serviços</span></button>
+      <button class="menu-item" data-destino="gravacoes"><span class="caixa-ic"><span class="ic">mic</span></span><span class="rotulo-botao">Gravações</span></button>
+      <button class="menu-item" data-destino="calendario"><span class="caixa-ic"><span class="ic">calendar_month</span></span><span class="rotulo-botao">Agenda</span></button>
+      <button class="menu-item" data-destino="foco"><span class="caixa-ic"><span class="ic">self_improvement</span></span><span class="rotulo-botao">Foco e bem-estar</span></button>
+      <span class="menu-divisa"></span>
+      <button class="menu-item" data-destino="biblioteca"><span class="caixa-ic"><span class="ic">inventory_2</span></span><span class="rotulo-botao">Acervo</span></button>
+      <button class="menu-item" data-destino="editor"><span class="caixa-ic"><span class="ic">description</span></span><span class="rotulo-botao">Documentos</span></button>
+      <button class="menu-item" data-destino="assinar"><span class="caixa-ic"><span class="ic">draw</span></span><span class="rotulo-botao">Assinatura</span></button>
+      <span class="menu-divisa"></span>
+      <button class="menu-item" data-destino="caixa"><span class="caixa-ic"><span class="ic">mail</span></span><span class="rotulo-botao">E-mail</span></button>
+      <button class="menu-item" data-destino="financeiro"><span class="caixa-ic"><span class="ic">payments</span></span><span class="rotulo-botao">Financeiro</span></button>
+      <button class="menu-item" data-destino="cadastros"><span class="caixa-ic"><span class="ic">contacts</span></span><span class="rotulo-botao">Cadastros</span></button>
+      <button class="menu-item" data-destino="aprovacoes"><span class="caixa-ic"><span class="ic">verified</span></span><span class="rotulo-botao">Aprovações</span><span class="conta" hidden></span></button>
 
-    <div class="trabalhos-topo">
-      <button class="nova" id="nova" title="Nova solicitação">
-        <svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-          <path d="M8 3.2v9.6M3.2 8h9.6"/>
-        </svg>
-        <span class="rotulo-botao">Nova solicitação</span>
-      </button>
-    </div>
+      <!-- Recentes: as tres ultimas conversas. A lista inteira, e os destinos
+           antigos que o desenho fundiu em visoes de outros, abrem numa gaveta
+           ao lado - catorze destinos de 40 px nao deixam espaco para mais em
+           900 px de altura. -->
+      <div class="menu-rolagem">
+        <button class="menu-secao-botao" id="ver-conversas" title="Todas as conversas"><span>Recentes</span><span class="ic ic-16">chevron_right</span></button>
+        <div class="lista-recentes" id="lista-recentes"></div>
+        <button class="menu-secao-botao" id="ver-antigos" title="Telas que ainda nao entraram no desenho novo" hidden><span>Ainda sem lugar no desenho</span><span class="ic ic-16">chevron_right</span></button>
+      </div>
 
-    <!-- Menu e conversas rolam juntos. Separados, o navegador espremia a lista
-         de conversas ate doze pixels numa tela de 900 px de altura: as conversas
-         sumiam e o cabecalho do grupo aparecia cortado ao meio. -->
-    <div class="nav-rolagem">
-      <nav class="menu" id="menu"></nav>
+      <span class="menu-divisa"></span>
+      <button class="menu-item apoiar" data-destino="apoiar"><span class="caixa-ic"><span class="ic">favorite</span></span><span class="rotulo-botao">Apoiar o projeto</span></button>
+      <button class="menu-item" id="tema-menu"><span class="caixa-ic"><span class="ic" id="tema-menu-icone">dark_mode</span></span><span class="rotulo-botao" id="tema-rotulo">Tema escuro</span></button>
+      <button class="menu-item" data-destino="config"><span class="caixa-ic"><span class="ic">settings</span></span><span class="rotulo-botao">Configurações</span></button>
+      <div class="menu-usuario"><span class="avatar" id="avatar-menu">PL</span><span class="nome-usuario"><span id="usuario-nome">PAULUS Legal</span><small id="usuario-papel">Software livre</small></span></div>
+    </nav>
+    <div class="menu-gaveta" id="gaveta-conversas" hidden>
+      <div class="gaveta-cabeca">Conversas</div>
       <div class="lista-trabalhos" id="lista-trabalhos"></div>
     </div>
-
-    <div class="maquina">
-      <button class="maquina-cabeca" id="ver-maquina" title="Abrir a tela do computador">
-        <span class="rotulo">Seu computador</span>
-      </button>
-      <div class="frase-maquina" id="frase-maquina">lendo…</div>
-
-      <div class="medidor">
-        <span class="nome">Vídeo</span>
-        <span class="trilho"><i id="m-video"></i></span>
-        <span class="valor" id="v-video">—</span>
-      </div>
-      <div class="medidor">
-        <span class="nome">Memória</span>
-        <span class="trilho"><i id="m-memoria"></i></span>
-        <span class="valor" id="v-memoria">—</span>
-      </div>
-      <div class="medidor">
-        <span class="nome">Processador</span>
-        <span class="trilho"><i id="m-cpu"></i></span>
-        <span class="valor" id="v-cpu">—</span>
-      </div>
-
-      <div class="interruptor" id="devagar" role="switch" aria-checked="false" tabindex="0">
-        <span>Ir devagar quando eu usar o PC</span>
-        <span class="chave"></span>
-      </div>
-
-      <div class="assistente"><span id="modelo-tamanho">Assistente local</span></div>
+    <div class="menu-gaveta" id="gaveta-antigos" hidden>
+      <div class="gaveta-cabeca">Ainda sem lugar no desenho</div>
+      <div id="menu-antigos"></div>
     </div>
+  </div>
 
-  </aside>
+  <section class="conversa-col vazia" id="conversa-col">
+    <div class="relogio-canto"><span id="relogio"></span></div>
 
-  <section class="conversa-col" id="conversa-col">
-<div class="barra">
-  <span class="vazio-flex"></span>
-  <span class="num" id="relogio"></span>
-  <span class="divisa"></span>
-  <span class="estado-local" id="selo">
-    <span class="ponto" id="ponto-estado"></span><span id="selo-texto">OCIOSO · LOCAL</span>
-  </span>
-  <button class="pastilha" id="tema" title="Alternar claro e escuro" aria-label="Alternar claro e escuro"></button>
-</div>
-
-    <div class="conversa-topo">
-      <div style="flex:1;min-width:0">
-        <h2 class="corta" id="conversa-titulo">Nova solicitação</h2>
-        <div class="meta" id="conversa-meta">nenhum contrato aberto</div>
+    <header class="conversa-topo" id="conversa-topo">
+      <button class="voltar" id="voltar" title="Voltar ao início" aria-label="Voltar"><span class="ic ic-20">arrow_back</span></button>
+      <div class="conversa-nome">
+        <h2 class="corta" id="conversa-titulo">Nova conversa</h2>
+        <div class="meta" id="conversa-meta">nenhum documento aberto</div>
       </div>
-      <button id="apagar" hidden>Apagar</button>
-    </div>
-
-    <div class="fluxo" id="fluxo">
-      <div class="centro" id="centro"></div>
-    </div>
-
-    <div class="registro" id="registro" hidden>
-      <div class="centro">
-        <button class="registro-cabeca" id="registro-cabeca">
-          <span class="ponto"></span>
-          <span class="registro-agora corta" id="registro-agora"></span>
-          <span class="registro-seta">›</span>
-        </button>
-        <div class="registro-lista" id="atividade" hidden></div>
+      <div class="conversa-acoes" id="conversa-acoes">
+        <button id="apagar" hidden>Apagar</button>
+        <button class="fantasma" id="exportar-conversa" hidden><span class="ic ic-18">download</span>Exportar</button>
+        <button class="botao-icone" id="alternar-lateral" title="Mostrar ou esconder o painel" aria-label="Mostrar ou esconder o painel" hidden><span class="ic ic-18">view_sidebar</span></button>
       </div>
-    </div>
+    </header>
 
-    <div class="compositor" id="compositor">
-      <div class="centro">
-        <div class="risco"></div>
-        <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
-        <p class="sub-chamada" id="sub-chamada">Peça o que precisa dos seus documentos. Tudo é lido e respondido no seu computador.</p>
+    <div class="conversa-corpo" id="conversa-corpo">
+      <div class="conversa-principal">
+        <div class="fluxo" id="fluxo">
+          <div class="centro" id="centro"></div>
+        </div>
 
-        <div class="cartao-campo" id="cartao-campo">
-          <div class="escopo" id="escopo" hidden></div>
-          <div class="mencao" id="mencao" hidden></div>
-          <textarea id="pedido" rows="1" placeholder="Peça o que precisa dos seus documentos…  (digite / para escolher um documento)"></textarea>
-          <div class="pilulas">
-            <button class="pilula" id="anexar" title="Anexar documentos (PDF, DOCX, TXT)">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-                <path d="M13 7.2 8.1 12a3.1 3.1 0 0 1-4.4-4.4l5.2-5.2a2.1 2.1 0 0 1 2.9 3l-5.2 5.2a1 1 0 0 1-1.4-1.4l4.7-4.7"/>
-              </svg><span>Anexar</span>
+        <div class="registro" id="registro" hidden>
+          <div class="centro">
+            <button class="registro-cabeca" id="registro-cabeca">
+              <span class="ponto"></span>
+              <span class="registro-agora corta" id="registro-agora"></span>
+              <span class="registro-seta ic ic-18">expand_more</span>
             </button>
-            <button class="pilula" id="buscar" title="Achar a palavra, sem esperar o assistente">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-                <circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3 14 14"/>
-              </svg><span>Buscar</span>
-            </button>
-            <button class="pilula" id="pilula-organizar" title="Varrer uma pasta e organizar o acervo">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
-                <path d="M1.6 4.2A1.2 1.2 0 0 1 2.8 3h3.1l1.4 1.6h5A1.2 1.2 0 0 1 13.5 5.8v6a1.2 1.2 0 0 1-1.2 1.2H2.8a1.2 1.2 0 0 1-1.2-1.2z"/>
-              </svg><span>Organizar</span>
-            </button>
-
-            <button class="enviar" id="enviar" title="Perguntar" aria-label="Perguntar">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 13V3.4M4 7l4-3.6L12 7"/>
-              </svg>
-            </button>
+            <div class="registro-lista" id="atividade" hidden></div>
           </div>
         </div>
 
-        <div class="exemplos-rapidos" id="exemplos-rapidos"></div>
+        <div class="compositor" id="compositor">
+          <div class="centro">
+            <div class="saudacao-bloco">
+              <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
+              <p class="sub-chamada" id="sub-chamada">Peça o que precisa dos seus documentos. Tudo é lido e respondido no seu computador.</p>
+            </div>
 
-        <div class="agora" id="agora" hidden>
-          <div class="agora-cabeca"><span class="rotulo">Acontecendo agora</span><span class="risco-fino"></span></div>
-          <div class="agora-cartoes" id="agora-cartoes"></div>
+            <div class="cartao-campo" id="cartao-campo">
+              <div class="mencao" id="mencao" hidden></div>
+              <textarea id="pedido" rows="1" placeholder="Peça o que precisa dos seus documentos…"></textarea>
+              <div class="pilulas">
+                <button class="pilula pilula-anexar" id="anexar" title="Anexar documentos (PDF, DOCX, TXT) — ou digite / para escolher um já aberto"><span class="ic ic-18">attach_file</span><span class="rotulo-botao">Anexar</span></button>
+                <div class="escopo" id="escopo" hidden></div>
+                <button class="pilula pilula-inicio" id="buscar" title="Achar a palavra, sem esperar o assistente"><span class="ic ic-18">search</span><span class="rotulo-botao">Buscar</span></button>
+                <button class="pilula pilula-inicio" id="pilula-organizar" title="Varrer uma pasta e organizar o acervo"><span class="ic ic-18">drive_file_move</span><span class="rotulo-botao">Organizar</span></button>
+                <button class="enviar" id="enviar" title="Enviar" aria-label="Enviar"><span class="ic ic-18 so-inicio">arrow_upward</span><span class="ic ic-18 so-conversa">arrow_forward</span></button>
+              </div>
+            </div>
+
+            <div class="agora" id="agora" hidden>
+              <div class="agora-cabeca"><span class="rotulo-suave">Acontecendo agora</span><span class="risco-fino"></span></div>
+              <div class="agora-cartoes" id="agora-cartoes"></div>
+            </div>
+
+            <div class="recentes" id="recentes" hidden></div>
+            <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
+          </div>
         </div>
-        <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
       </div>
-      <div class="rodape-chat">
-        <span id="privacidade">nenhuma requisição à internet nesta sessão</span>
-        <span class="risco-fino"></span>
-      </div>
-    </div>
-  </section>
 
+      <aside class="lateral" id="lateral" hidden>
+        <section class="lateral-bloco" id="lat-progresso" hidden>
+          <div class="lateral-cabeca"><span>Progresso</span><span class="contagem" id="lat-progresso-conta"></span></div>
+          <div class="lat-etapas" id="lat-etapas"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-trechos" hidden>
+          <div class="lateral-cabeca"><span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></div>
+          <div class="lat-lista" id="lat-trechos-lista"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-propriedades">
+          <div class="lateral-cabeca"><span>Propriedades</span></div>
+          <div class="propriedades">
+            <span>Modelo</span><span class="chip-modelo" id="prop-modelo"><i class="ponto-verde"></i><span id="prop-modelo-nome">—</span></span>
+            <span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span>
+            <span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span>
+            <span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="rodape-garantia" id="rodape-garantia"><span id="privacidade">nenhuma requisição à internet</span></div>
+  </section>
 
 </div>
 
@@ -2374,15 +2485,23 @@ const $ = (id) => document.getElementById(id);
 
 function aplicarTema(tema) {
   document.documentElement.dataset.tema = tema;
-  $("tema").textContent = tema === "escuro" ? "Claro" : "Escuro";
+  const escuro = tema === "escuro";
+  const icone = escuro ? "light_mode" : "dark_mode";
+  const rotulo = escuro ? "Tema claro" : "Tema escuro";
+  $("tema-icone").textContent = icone;
+  $("tema").title = rotulo;
+  $("tema-menu-icone").textContent = icone;
+  $("tema-rotulo").textContent = rotulo;
   try { localStorage.setItem("paulus.tema", tema); } catch (err) { /* sem memoria, tudo bem */ }
 }
 
 aplicarTema(document.documentElement.dataset.tema || "claro");
 
-$("tema").onclick = () => {
+function alternarTema() {
   aplicarTema(document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro");
-};
+}
+$("tema").onclick = alternarTema;
+$("tema-menu").onclick = alternarTema;
 
 function esc(t) {
   const d = document.createElement("div");
@@ -2391,29 +2510,17 @@ function esc(t) {
 }
 
 /*
-   A coroa. O mesmo desenho serve de marca (parada) e de indicador de trabalho
-   (girando). Nunca um aro liso nem um spinner de biblioteca: as pontas sao o
-   que faz a rotacao ser legivel.
+   O indicador de trabalho do desenho: um anel fino com o topo em vinho,
+   girando. A funcao guarda o nome antigo (coroa) porque quatro telas a
+   chamam; o desenho da coroa foi embora com a marca antiga.
 */
-function coroaSVG(pontas) {
-  const raio = 8.2, centro = 12;
-  let d = "";
-  for (let i = 0; i < pontas; i++) {
-    const a = (i / pontas) * Math.PI * 2 - Math.PI / 2;
-    const b = ((i + 0.42) / pontas) * Math.PI * 2 - Math.PI / 2;
-    const x1 = centro + Math.cos(a) * raio, y1 = centro + Math.sin(a) * raio;
-    const x2 = centro + Math.cos(b) * raio, y2 = centro + Math.sin(b) * raio;
-    d += "M" + x1.toFixed(2) + " " + y1.toFixed(2) +
-         "A" + raio + " " + raio + " 0 0 1 " + x2.toFixed(2) + " " + y2.toFixed(2) + " ";
-  }
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
-    'stroke-linecap="round" aria-hidden="true"><path d="' + d.trim() + '"/></svg>';
+function coroa(px) {
+  return '<span class="indicador" style="width:' + px + "px;height:" + px + 'px"><i></i></span>';
 }
 
-const COROA = coroaSVG(11);
-
-function coroa(px) {
-  return '<span class="coroa" style="width:' + px + "px;height:" + px + 'px">' + COROA + "</span>";
+/* Um icone da Material Symbols: o nome vira o desenho pela ligadura. */
+function ic(nome, px) {
+  return '<span class="ic' + (px ? " ic-" + px : "") + '">' + nome + "</span>";
 }
 
 const estado = {
@@ -2424,6 +2531,10 @@ const estado = {
   // Os documentos de que esta conversa trata. Lista vazia = o acervo inteiro.
   escopo: [],
   abertos: [],
+  recentes: [],
+  modelo: "",
+  trechos: 0,
+  pasta: "",
 };
 
 /* ----------------------------------------------------------- trabalhos */
@@ -2434,20 +2545,30 @@ async function carregarTrabalhos() {
   const r = await fetch("/api/trabalhos");
   const d = await r.json();
   gruposConhecidos = d.nomes_de_grupo || [];
+  estado.recentes = d.grupos.flatMap((g) => g.trabalhos);
 
   const alvo = $("lista-trabalhos");
   if (!d.grupos.length) {
     alvo.innerHTML = '<div class="vazio-lista">Nenhuma conversa ainda.</div>';
-    return;
+  } else {
+    alvo.innerHTML = d.grupos.map((g) =>
+      '<div class="grupo-bloco">' +
+      '<div class="grupo-cabeca"><span class="rotulo">' +
+      esc(g.nome || "Sem grupo") + "</span></div>" +
+      g.trabalhos.map(linhaTrabalho).join("") + "</div>"
+    ).join("");
   }
+  ligarItens(alvo);
 
-  alvo.innerHTML = d.grupos.map((g) =>
-    '<div class="grupo-bloco">' +
-    '<div class="grupo-cabeca"><span class="rotulo">' +
-    esc(g.nome || "Sem grupo") + "</span></div>" +
-    g.trabalhos.map(linhaTrabalho).join("") + "</div>"
-  ).join("");
+  /* As tres ultimas, no proprio menu. */
+  const recentes = $("lista-recentes");
+  recentes.innerHTML = estado.recentes.slice(0, 3).map(linhaTrabalho).join("");
+  ligarItens(recentes);
 
+  if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
+}
+
+function ligarItens(alvo) {
   alvo.querySelectorAll(".item").forEach((el) => {
     el.onclick = (e) => {
       if (e.target.closest(".mais-item")) return;
@@ -2557,12 +2678,18 @@ $("nova").onclick = () => {
   estado.trabalho = null;
   definirEscopo([]);
   $("compositor").hidden = false;
-  $("conversa-titulo").textContent = "Nova solicitação";
+  $("conversa-titulo").textContent = "Nova conversa";
   $("apagar").hidden = true;
+  $("exportar-conversa").hidden = true;
   $("centro").innerHTML = exemplos();
+  $("centro").classList.remove("prosa");
+  $("conversa-col").classList.remove("tela-dupla");
+  mostrarLateral(false);
   ligarExemplos();
   desenharAtividade([]);
   carregarTrabalhos();
+  marcarDestino("conversa");
+  fecharFlutuante();
   atualizarPostura();
   $("pedido").focus();
 };
@@ -2578,37 +2705,42 @@ function exemplos() {
   return "";   /* o estado vazio vive no compositor, nao no fluxo */
 }
 
-/* A postura do compositor: no meio quando nao ha conversa, embaixo quando ha. */
+/* A postura da tela: inicio (saudacao, caixa de pedido, "Acontecendo agora"
+   e Recentes no meio da coluna) ou conversa (a caixa desce e encosta embaixo). */
 function atualizarPostura() {
   const temConversa = Boolean(
     estado.trabalhoId ||
-    ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao, .bancada"))
+    ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao, .bancada, .dupla"))
   );
   $("conversa-col").classList.toggle("vazia", !temConversa);
+  $("pedido").placeholder = temConversa
+    ? "Pergunte outra coisa ou aponte outra pasta…"
+    : "Peça o que precisa dos seus documentos…";
   if (!temConversa) {
     atualizarSaudacao();
-    desenharExemplosRapidos();
+    desenharRecentes();
     carregarAgora();
+    $("registro").hidden = true;
   } else {
     $("agora").hidden = true;
+    $("recentes").hidden = true;
   }
-  if (!temConversa) $("registro").hidden = true;
 }
 
-function desenharExemplosRapidos() {
-  const alvo = $("exemplos-rapidos");
-  if (!estado.contratos) {
-    alvo.innerHTML = '<span class="nota">Nenhum documento aberto ainda. ' +
-      "Use Anexar, ali em cima, ou arraste arquivos para esta área.</span>";
-    return;
-  }
-  const pedidos = [
-    "Quais são as cláusulas de penalidade?",
-    "Qual o prazo de vigência de cada contrato?",
-    "Quem são as partes?",
-  ];
-  alvo.innerHTML = pedidos.map((p) => '<button class="pilula exemplo">' + esc(p) + "</button>").join("");
-  ligarExemplos();
+/* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta que o
+   desenho nao tem. "Ver mais" abre o menu, que e onde a lista inteira mora. */
+function desenharRecentes() {
+  const alvo = $("recentes");
+  const lista = (estado.recentes || []).slice(0, 3);
+  if (!lista.length) { alvo.hidden = true; alvo.innerHTML = ""; return; }
+  alvo.hidden = false;
+  alvo.innerHTML = '<span class="rotulo-suave">Recentes</span>' +
+    lista.map((t) =>
+      '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 16) +
+      "<span>" + esc(t.titulo) + "</span></button>").join("") +
+    '<button class="ver-mais" id="recentes-mais">Ver mais' + ic("chevron_right", 16) + "</button>";
+  alvo.querySelectorAll("[data-abre]").forEach((b) => { b.onclick = () => abrirTrabalho(b.dataset.abre); });
+  $("recentes-mais").onclick = abrirFlutuante;
 }
 
 function ligarExemplos() {
@@ -2622,72 +2754,117 @@ $("pilula-organizar").onclick = () => {
   organizarComecar();
 };
 
-/* --------------------------------------------------------- recolher */
+/* ------------------------------------------------------------- casca */
+/*
+   O menu abre ao passar o mouse no trilho e fecha ao sair dele - por cima do
+   conteudo, sem empurrar nada. Esc fecha. Ctrl+K leva ao campo de pedido de
+   qualquer tela; Ctrl+N abre uma conversa nova.
+*/
 
-const RAIL_GUARDADO = "paulus.coluna";
-
-function aplicarColuna(recolhida) {
-  document.querySelector(".trabalhos").classList.toggle("recolhida", recolhida);
-  $("recolher").title = recolhida ? "Mostrar a coluna" : "Recolher a coluna";
-  try { localStorage.setItem(RAIL_GUARDADO, recolhida ? "1" : "0"); } catch (err) { /* sem memoria */ }
+function abrirFlutuante() { $("menu-flutuante").classList.add("aberto"); }
+function fecharFlutuante() {
+  $("menu-flutuante").classList.remove("aberto");
+  fecharGavetas();
+  fecharMenu();
 }
 
-/* ------------------------------------------------- maquina na coluna */
+$("trilho").addEventListener("mouseenter", abrirFlutuante);
+/* Fecha quando o ponteiro esta fora do trilho e do menu. Nao e mouseleave
+   porque o menu abre DEBAIXO do ponteiro sem receber mouseenter - um
+   movimento rapido para o conteudo nunca geraria o mouseleave. */
+document.addEventListener("mousemove", (e) => {
+  if (!$("menu-flutuante").classList.contains("aberto")) return;
+  if (e.target && e.target.closest && e.target.closest("#menu-flutuante, #trilho")) return;
+  fecharFlutuante();
+});
 
-async function carregarRecursos() {
+/* As gavetas ao lado do menu: todas as conversas, e as telas antigas. */
+function fecharGavetas() {
+  $("gaveta-conversas").hidden = true;
+  $("gaveta-antigos").hidden = true;
+}
+function alternarGaveta(id) {
+  const alvo = $(id);
+  const abrir = alvo.hidden;
+  fecharGavetas();
+  alvo.hidden = !abrir;
+}
+$("ver-conversas").onclick = () => alternarGaveta("gaveta-conversas");
+$("ver-antigos").onclick = () => alternarGaveta("gaveta-antigos");
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") fecharFlutuante();
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const tecla = e.key.toLowerCase();
+  if (tecla === "k") {
+    e.preventDefault();
+    if ($("compositor").hidden) $("nova").click();
+    $("pedido").focus();
+  } else if (tecla === "n") {
+    e.preventDefault();
+    $("nova").click();
+  }
+});
+
+$("voltar").onclick = () => $("nova").click();
+
+/* O painel da direita: guarda-se a escolha, como o desenho pede. */
+function lateralPreferida() {
+  try { return localStorage.getItem("paulus.lateral") !== "0"; } catch (err) { return true; }
+}
+
+function mostrarLateral(aberta) {
+  $("lateral").hidden = !aberta;
+  $("conversa-corpo").classList.toggle("com-lateral", aberta);
+  $("alternar-lateral").hidden = !$("centro").classList.contains("prosa");
+}
+
+$("alternar-lateral").onclick = () => {
+  const abrir = $("lateral").hidden;
+  try { localStorage.setItem("paulus.lateral", abrir ? "1" : "0"); } catch (err) { /* sem memoria */ }
+  mostrarLateral(abrir);
+};
+
+/* A tela passa da postura de inicio para a de conversa: a coluna do texto
+   ganha a medida de prosa e o painel da direita entra. */
+function entrarNaConversa() {
+  $("centro").classList.add("prosa");
+  $("conversa-col").classList.remove("tela-dupla");
+  $("exportar-conversa").hidden = false;
+  mostrarLateral(lateralPreferida());
+}
+
+/* A conversa em texto, para levar para fora. E o que "Exportar" faz enquanto
+   nao existe formato melhor. */
+function exportarConversa() {
+  const t = estado.trabalho;
+  if (!t) return;
+  const linhas = [t.titulo, ""];
+  for (const m of t.mensagens) linhas.push((m.autor === "pessoa" ? "Você: " : "PAULUS: ") + m.texto, "");
+  const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (t.titulo || "conversa").replace(/[\\/:*?"<>|]+/g, "-") + ".txt";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+$("exportar-conversa").onclick = exportarConversa;
+
+/* Quem usa, no avatar: as iniciais do nome cadastrado em Configuracoes. */
+async function carregarUsuario() {
   try {
-    const m = await (await fetch("/api/recursos")).json();
-    $("frase-maquina").textContent = m.frase;
-
-    medidor("cpu", m.processador.percentual, m.processador.percentual + "%");
-    medidor("memoria", m.memoria.percentual, String(m.memoria.usado_gb).replace(".", ",") + " GB");
-
-    if (m.video.disponivel && m.video.percentual !== null) {
-      medidor("video", m.video.percentual, m.video.percentual + "%");
-      $("v-video").title = "medido há " + m.video.segundos_atras + " s";
-    } else if (m.video.disponivel) {
-      $("v-video").textContent = "medindo";
-    } else {
-      $("v-video").textContent = "sem leitura";
-      $("m-video").style.width = "0%";
-    }
-
-    $("devagar").classList.toggle("on", m.devagar);
-    $("devagar").setAttribute("aria-checked", m.devagar ? "true" : "false");
-  } catch (err) { /* sem leitura agora; tenta de novo no proximo ciclo */ }
-}
-
-function medidor(qual, pct, texto) {
-  $("m-" + qual).style.width = Math.min(100, Math.max(0, pct)) + "%";
-  $("v-" + qual).textContent = texto;
-}
-
-async function trocarDevagar() {
-  const ligado = !$("devagar").classList.contains("on");
-  $("devagar").classList.toggle("on", ligado);
-  $("devagar").setAttribute("aria-checked", ligado ? "true" : "false");
-  await fetch("/api/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ devagar: ligado }),
-  });
-}
-
-$("devagar").onclick = trocarDevagar;
-$("devagar").onkeydown = (e) => {
-  if (e.key === " " || e.key === "Enter") { e.preventDefault(); trocarDevagar(); }
-};
-
-$("ver-maquina").onclick = () => abrirDestino("desempenho");
-
-$("recolher").onclick = () => {
-  aplicarColuna(!document.querySelector(".trabalhos").classList.contains("recolhida"));
-};
-
-try {
-  aplicarColuna(localStorage.getItem(RAIL_GUARDADO) === "1");
-} catch (err) {
-  aplicarColuna(false);
+    const d = await (await fetch("/api/preferencias")).json();
+    const p = d.preferencias || d;
+    const nome = String(p.nome || "").trim();
+    if (!nome) return;
+    const partes = nome.split(/\s+/);
+    const iniciais = (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
+    $("avatar").textContent = iniciais;
+    $("avatar-menu").textContent = iniciais;
+    $("avatar").title = nome;
+    $("usuario-nome").textContent = nome;
+    if (p.oab) $("usuario-papel").textContent = "OAB " + p.oab;
+  } catch (err) { /* sem nome, fica a sigla do produto */ }
 }
 
 /* ----------------------------------------------------------- anexar */
@@ -2798,17 +2975,29 @@ $("buscar").onclick = async () => {
 function desenharTrabalho() {
   const t = estado.trabalho;
   $("conversa-titulo").textContent = t.titulo;
-  $("apagar").hidden = false;
+  entrarNaConversa();
 
   let html = "";
+  let pergunta = "";
+  let fontes = [], perguntaDasFontes = "";
   for (const m of t.mensagens) {
-    html += m.autor === "pessoa" ? bolhaPessoa(m.texto) : blocoResposta(m);
+    if (m.autor === "pessoa") {
+      pergunta = m.texto;
+      html += bolhaPessoa(m.texto);
+    } else {
+      html += blocoResposta(m, pergunta);
+      if (m.fontes && m.fontes.length) { fontes = m.fontes; perguntaDasFontes = pergunta; }
+    }
   }
   if (t.etapas.length && t.estado !== "concluido") html += cartaoPlano(t.etapas, t.etapa_atual);
   if (t.aprovacao) html += cartaoAprovacao(t.aprovacao);
 
   $("centro").innerHTML = html || exemplos();
   ligarExemplos();
+  ligarResposta($("centro"));
+  ligarAprovacaoNaConversa($("centro"));
+  desenharProgresso(t.etapas || []);
+  desenharTrechos(fontes, perguntaDasFontes, null);
   desenharAtividade(t.atividade);
   atualizarPostura();
   rolar();
@@ -2818,76 +3007,152 @@ function bolhaPessoa(texto) {
   return '<div class="bolha-pessoa">' + esc(texto) + "</div>";
 }
 
-function blocoResposta(m) {
+function blocoResposta(m, pergunta) {
   let html = '<div class="resposta">';
   if (m.cobertura && m.cobertura.ignorados && m.cobertura.ignorados.length) {
     html += avisoCobertura(m.cobertura);
   }
   html += '<div class="texto">' + esc(m.texto) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
-  if (m.segundos) html += '<div class="assinatura">respondido em ' + m.segundos + "s</div>";
+  const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
+  if (m.segundos) html += linhaAssinatura(m.segundos, citados, pergunta || "");
   return html + "</div>";
 }
 
 function avisoCobertura(c) {
   return '<div class="aviso-cobertura"><strong>Li ' + c.consultados.length + " de " +
-    c.total_contratos + " contratos.</strong> Sem trecho sobre isso em: " +
+    c.total_contratos + " documentos.</strong> Sem trecho sobre isso em: " +
     esc(c.ignorados.join(", ")) + ". A resposta não fala por esses.</div>";
 }
 
-function blocoFontes(fontes, cobertura, pergunta) {
+/* No desenho os trechos moram no painel da direita. Na resposta fica so a
+   conta, que abre o painel, e a caixa onde o visor do PDF se desenha. */
+function blocoFontes(fontes, cobertura) {
   const quantos = cobertura && cobertura.consultados ? cobertura.consultados.length : 1;
-  // O texto do trecho vai no atributo para o visor poder procurar ele dentro
-  // do PDF depois - e o que liga o que foi lido ao lugar onde estava escrito.
-  return '<details class="fontes"><summary>' + plural(fontes.length, "trecho") +
-    " de " + plural(quantos, "contrato") + " — ver o que eu li</summary>" +
-    fontes.map((f, i) =>
-      '<div class="trecho"><div class="origem">' + esc(f.documento) + " · trecho " + f.trecho +
-      '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div>' +
-      "<pre>" + esc(f.texto) + "</pre></div>"
-    ).join("") +
-    '<div class="visor-caixa"></div></details>';
+  return '<div class="fontes"><button data-ver-trechos="1">' + ic("format_quote", 16) +
+    plural(fontes.length, "trecho") + " de " + plural(quantos, "documento") + " — ver no painel</button></div>" +
+    '<div class="visor-caixa"></div>';
 }
 
-/* Ligar os "ver no documento" de um bloco de fontes recem-desenhado. */
-function ligarFontes(caixa, fontes, pergunta) {
-  const visorCaixa = caixa.querySelector(".visor-caixa");
-  caixa.querySelectorAll("[data-ver-cit]").forEach((b) => {
+/* A linha que fecha a resposta, como no desenho: modelo, tempo, quantos
+   arquivos foram citados, e Copiar / Refazer. */
+function linhaAssinatura(segundos, citados, pergunta) {
+  return '<div class="assinatura"><span>' + esc(estado.modelo || "assistente local") + " · " +
+    esc(String(segundos)) + " s" +
+    (citados ? " · " + plural(citados, "arquivo citado", "arquivos citados") : "") + "</span>" +
+    '<button data-copiar="1">' + ic("content_copy", 16) + "<span>Copiar</span></button>" +
+    (pergunta ? '<button data-refazer="' + esc(pergunta) + '">' + ic("refresh", 16) + "<span>Refazer</span></button>" : "") +
+    "</div>";
+}
+
+function ligarResposta(caixa) {
+  caixa.querySelectorAll("[data-copiar]").forEach((b) => {
     b.onclick = () => {
-      const f = fontes[Number(b.dataset.verCit)];
-      if (f && visorCaixa) abrirCitacao(f.documento, f.texto, pergunta, visorCaixa);
+      const texto = b.closest(".resposta").querySelector(".texto");
+      if (!texto || !navigator.clipboard) return;
+      navigator.clipboard.writeText(texto.textContent).then(() => {
+        b.lastElementChild.textContent = "Copiado";
+        setTimeout(() => { b.lastElementChild.textContent = "Copiar"; }, 1800);
+      });
     };
   });
+  caixa.querySelectorAll("[data-refazer]").forEach((b) => {
+    b.onclick = () => { $("pedido").value = b.dataset.refazer; enviar(); };
+  });
+  caixa.querySelectorAll("[data-ver-trechos]").forEach((b) => {
+    b.onclick = () => {
+      try { localStorage.setItem("paulus.lateral", "1"); } catch (err) { /* sem memoria */ }
+      mostrarLateral(true);
+      $("lat-trechos").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+}
+
+/* Os trechos citados, no painel da direita, numerados. Clicar num trecho
+   marca-o; "ver no documento" abre a pagina do PDF na conversa, com o trecho
+   destacado - e o visor de sempre, so mudou de onde e chamado. */
+function desenharTrechos(fontes, pergunta, ondeVisor) {
+  const bloco = $("lat-trechos");
+  const lista = $("lat-trechos-lista");
+  if (!fontes || !fontes.length) { bloco.hidden = true; lista.innerHTML = ""; return; }
+
+  bloco.hidden = false;
+  $("lat-trechos-conta").textContent = fontes.length;
+  lista.innerHTML = fontes.map((f, i) =>
+    '<div class="trecho-cartao' + (i === 0 ? " marcado" : "") + '">' +
+    '<div class="trecho-origem"><span class="cit">' + (i + 1) + "</span><b>" + esc(f.documento) + "</b>" +
+    '<span class="onde">trecho ' + esc(f.trecho) + "</span></div>" +
+    '<div class="trecho-texto">' + esc(f.texto) + "</div>" +
+    '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div>').join("");
+
+  lista.querySelectorAll(".trecho-cartao").forEach((c) => {
+    c.onclick = () => lista.querySelectorAll(".trecho-cartao").forEach((o) => o.classList.toggle("marcado", o === c));
+  });
+  const caixa = ondeVisor || Array.from($("centro").querySelectorAll(".visor-caixa")).pop();
+  lista.querySelectorAll("[data-ver-cit]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const f = fontes[Number(b.dataset.verCit)];
+      if (!f || !caixa) return;
+      abrirCitacao(f.documento, f.texto, pergunta, caixa);
+      caixa.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+  });
+}
+
+/* O progresso do plano, no painel: etapa feita fica riscada. */
+function desenharProgresso(etapas) {
+  const bloco = $("lat-progresso");
+  if (!etapas || !etapas.length) { bloco.hidden = true; return; }
+  bloco.hidden = false;
+  const feitas = etapas.filter((e) => e.estado === "concluido").length;
+  $("lat-progresso-conta").textContent = feitas + " de " + etapas.length;
+  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error" };
+  const classe = { concluido: "feita", executando: "andando", na_fila: "fila", falhou: "falhou" };
+  $("lat-etapas").innerHTML = etapas.map((e) =>
+    '<div class="lat-etapa ' + (classe[e.estado] || "fila") + '">' +
+    ic(icone[e.estado] || "radio_button_unchecked", 18) +
+    "<span>" + esc(e.titulo) + (e.total ? " · " + e.feitos + " / " + e.total : "") + "</span></div>").join("");
 }
 
 function cartaoPlano(etapas, atual) {
   const total = etapas.length;
   const rodando = estado.ocupado;
   return '<div class="cartao"><div class="cartao-topo">' +
-    (rodando ? coroa(20) : '<span class="ponto" style="background:#c9d1da"></span>') +
+    (rodando ? coroa(20) : '<span class="ic ic-20 marcador">pause</span>') +
     '<span class="quem">' + (rodando ? "Trabalhando" : "Parado") + " · etapa " + atual + " de " + total + "</span>" +
-    '<span class="num" id="cronometro"></span></div><div class="cartao-corpo">' +
+    '<span class="tempo" id="cronometro"></span></div><div class="cartao-corpo">' +
     etapas.map(linhaEtapa).join("") + "</div></div>";
 }
 
 function linhaEtapa(e) {
   const rotulos = { concluido: "concluído", executando: "", na_fila: "na fila", falhou: "não deu" };
+  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error" };
   const direita = e.total
     ? '<span class="estado">' + e.feitos + " / " + e.total + "</span>"
     : '<span class="estado">' + (rotulos[e.estado] || "") + "</span>";
   const barra = e.estado === "executando" && e.total
     ? '<div class="progresso"><i style="width:' + Math.round((e.feitos / e.total) * 100) + '%"></i></div>'
     : "";
-  return '<div class="etapa ' + e.estado + '"><span class="marcador"></span>' +
+  return '<div class="etapa ' + e.estado + '"><span class="ic ic-18 marcador">' +
+    (icone[e.estado] || "radio_button_unchecked") + "</span>" +
     '<span class="texto">' + esc(e.titulo) + (e.detalhe ? " · " + esc(e.detalhe) : "") + "</span>" +
     direita + "</div>" + barra;
 }
 
 function cartaoAprovacao(a) {
-  return '<div class="aprovacao"><p>' + esc(a.pergunta) + "</p>" +
-    (a.detalhe ? '<p class="num">' + esc(a.detalhe) + "</p>" : "") +
-    '<div class="acoes"><button class="aprovar-secundario">Revisar</button>' +
+  return '<div class="aprovacao"><div class="cabeca"><i class="ponto-acc"></i><span class="nome">Esperando você</span></div>' +
+    "<p>" + esc(a.pergunta) + "</p>" +
+    (a.detalhe ? '<p class="detalhe">' + esc(a.detalhe) + "</p>" : "") +
+    '<div class="acoes"><button class="fantasma aprovar-secundario">Revisar</button>' +
     '<button class="primario">Aprovar</button></div></div>';
+}
+
+/* Aprovar e decidir na fila: os dois botoes levam para la. */
+function ligarAprovacaoNaConversa(caixa) {
+  caixa.querySelectorAll(".aprovacao button").forEach((b) => {
+    b.onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
+  });
 }
 
 function desenharAtividade(itens) {
@@ -2937,9 +3202,9 @@ async function enviar() {
     estado.trabalhoId = t.id;
     estado.trabalho = t;
     $("centro").innerHTML = "";
-    $("apagar").hidden = false;
   }
 
+  entrarNaConversa();
   estado.ocupado = true;
   $("enviar").disabled = true;
   $("pedido").value = "";
@@ -2970,6 +3235,7 @@ async function enviar() {
   const texto = resposta.querySelector(".texto");
   rolar();
 
+  let citados = 0;
   const inicio = Date.now();
   const relogio = setInterval(() => {
     const c = $("cronometro");
@@ -3019,8 +3285,9 @@ async function enviar() {
               " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
             resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
           }
-          resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados, pedido));
-          ligarFontes(resposta, dados.trechos, pedido);
+          resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
+          citados = new Set(dados.trechos.map((f) => f.documento)).size;
+          desenharTrechos(dados.trechos, pedido, resposta.querySelector(".visor-caixa"));
         } else if (mt[1] === "lendo") {
           anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
             dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
@@ -3051,6 +3318,7 @@ async function enviar() {
             milhar(dados.tokens_escritos), "feito");
         } else if (mt[1] === "etapas") {
           plano.innerHTML = cartaoPlano(dados.etapas, 2);
+          desenharProgresso(dados.etapas);
         } else if (mt[1] === "token") {
           if (primeiro) { texto.textContent = ""; primeiro = false; }
           texto.textContent += dados.t;
@@ -3076,8 +3344,8 @@ async function enviar() {
         } else if (mt[1] === "fim") {
           fecharBastidor();
           plano.remove();
-          resposta.insertAdjacentHTML("beforeend",
-            '<div class="assinatura">respondido em ' + dados.segundos + "s</div>");
+          resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido));
+          ligarResposta(resposta);
           $("conversa-titulo").textContent = dados.titulo;
         }
       }
@@ -3094,7 +3362,7 @@ async function enviar() {
     if (estado.trabalhoId) {
       fetch("/api/trabalhos/" + estado.trabalhoId)
         .then((r) => r.json())
-        .then((t) => { estado.trabalho = t; desenharAtividade(t.atividade); });
+        .then((t) => { estado.trabalho = t; desenharAtividade(t.atividade); desenharProgresso(t.etapas || []); });
     }
     rolar();
     $("pedido").focus();
@@ -3140,12 +3408,18 @@ function tirarDoEscopo(nome) {
 function desenharEscopo() {
   const caixa = $("escopo");
   if (!caixa) return;
-  if (!estado.escopo.length) { caixa.hidden = true; caixa.innerHTML = ""; return; }
+  atualizarPropriedades();
+  caixa.hidden = false;
+  if (!estado.escopo.length) {
+    caixa.innerHTML = '<span class="escopo-acervo" title="Lendo o acervo inteiro — anexe um documento, ou digite / na caixa, para focar num só">' + ic("folder", 18) + "<b>" +
+      (estado.contratos ? "Acervo · " + plural(estado.contratos, "documento") : "Acervo vazio") + "</b></span>";
+    return;
+  }
 
   caixa.hidden = false;
-  caixa.innerHTML = '<span class="rotulo">lendo só</span>' +
-    estado.escopo.map((nome) =>
-      '<span class="escopo-pilula"><b class="corta">' + esc(nome) + "</b>" +
+  caixa.innerHTML = estado.escopo.map((nome) =>
+      '<span class="escopo-pilula" title="Lendo só este documento">' + ic("folder", 18) +
+      '<b class="corta">' + esc(nome) + "</b>" +
       '<button data-tirar="' + esc(nome) + '" title="Tirar este documento do foco" ' +
       'aria-label="Tirar ' + esc(nome) + ' do foco">✕</button></span>').join("") +
     (estado.escopo.length > 1
@@ -3256,31 +3530,50 @@ $("pedido").addEventListener("blur", () => setTimeout(fecharMencao, 120));
 /* ------------------------------------------------------------- estado */
 
 function atualizarSelo(trabalhando) {
-  $("selo").classList.toggle("parado", !trabalhando);
-  $("selo-texto").textContent = trabalhando ? "TRABALHANDO · LOCAL" : "OCIOSO · LOCAL";
+  $("trilho-logo").classList.toggle("trabalhando", trabalhando);
 }
 
 async function carregarStatus() {
   try {
     const s = await (await fetch("/api/status")).json();
     estado.contratos = s.contratos;
+    estado.modelo = s.modelo || "";
+    estado.trechos = s.trechos || 0;
+    estado.pasta = s.pasta || "";
     $("conversa-meta").textContent = s.contratos
-      ?plural(s.contratos, "contrato") + " abertos · " + s.trechos + " trechos"
-      : "nenhum contrato aberto";
+      ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos"
+      : "nenhum documento aberto";
+    const rodape = $("rodape-garantia");
     if (!s.ollama) {
-      $("privacidade").textContent = "o assistente local não respondeu — verifique se o Ollama está aberto";
+      $("privacidade").textContent = "o assistente está desligado — abra o Ollama e tente de novo";
+      rodape.classList.add("alerta");
+    } else {
+      $("privacidade").textContent = "nenhuma requisição à internet";
+      rodape.classList.remove("alerta");
     }
-    if ($("conversa-col").classList.contains("vazia")) desenharExemplosRapidos();
-  } catch (err) { /* servidor caiu; o selo ja mostra ocioso */ }
+    desenharEscopo();
+    if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
+  } catch (err) { /* servidor caiu; o anel do trilho ja parou */ }
 }
 
 async function carregarModelo() {
   try {
     const s = await (await fetch("/api/status")).json();
-    $("modelo-tamanho").textContent = s.tamanho_gb
-      ? "Assistente local · " + String(s.tamanho_gb).replace(".", ",") + " GB na sua máquina"
-      : "Assistente local · na sua máquina";
+    $("prop-modelo").title = s.tamanho_gb
+      ? String(s.tamanho_gb).replace(".", ",") + " GB na sua máquina"
+      : "na sua máquina";
   } catch (err) { /* mantem o texto padrao */ }
+}
+
+/* O painel Propriedades: modelo, motor, o que esta em foco e o indice. */
+function atualizarPropriedades() {
+  $("prop-modelo-nome").textContent = estado.modelo || "—";
+  let pasta = "—";
+  if (estado.escopo.length === 1) pasta = estado.escopo[0];
+  else if (estado.escopo.length > 1) pasta = plural(estado.escopo.length, "documento") + " em foco";
+  else if (estado.contratos) pasta = "Acervo · " + plural(estado.contratos, "documento");
+  $("prop-pasta").textContent = pasta;
+  $("prop-trechos").textContent = estado.trechos ? plural(estado.trechos, "trecho") + " indexados" : "—";
 }
 
 /* ------------------------------------------------- saudacao e relogio */
@@ -3309,17 +3602,12 @@ function saudacao(c, temDocumentos) {
   const sub = temDocumentos ? padrao : semDocs;
 
   if (c.periodo === "madrugada") {
-    return ["Boa madrugada. Trabalhando tarde ou acordou cedo?",
-            temDocumentos ? "Posso adiantar a leitura enquanto você resolve o resto." : semDocs];
+    return ["Ainda de pé a esta hora?", temDocumentos ? "Posso adiantar a leitura enquanto você descansa." : semDocs];
   }
-  if (c.periodo === "noite_alta") return ["Ainda de pé por aqui?", sub];
-  if (c.dia === "sexta-feira" && c.periodo !== "manha") {
-    return ["Sexta. Fechamos algo antes do fim do dia?", sub];
-  }
+  if (c.periodo === "noite_alta") return ["Trabalhando até tarde?!", temDocumentos ? "Diga o que falta e eu adianto por aqui." : semDocs];
+  if (c.dia === "sexta-feira") return ["Sexta. Fechamos algo antes do fim do dia?", sub];
   if (c.dia === "segunda-feira" && c.periodo === "manha") return ["Segunda. Por onde começamos?", sub];
-  if (c.periodo === "manha") return ["Bom dia. Por onde começamos?", sub];
-  if (c.periodo === "tarde") return ["Boa tarde. O que precisa sair hoje?", sub];
-  return ["Boa noite. O que ainda falta?", sub];
+  return ["Olá. Por onde começamos?", sub];
 }
 
 function atualizarSaudacao() {
@@ -3355,7 +3643,7 @@ async function carregarAgora() {
       ? t.feitos + " de " + t.total
       : (t.progresso ? t.progresso + "%" : "começando");
     cartoes.push(
-      '<div class="cartao-agora"><div class="cabeca">' + coroa(22) +
+      '<div class="cartao-agora" data-abre="' + esc(t.id) + '"><div class="cabeca">' + coroa(20) +
       '<span class="nome corta">' + esc(t.titulo) + "</span></div>" +
       '<div class="barra-fina"><i style="width:' + (t.progresso || 4) + '%"></i></div>' +
       '<div class="rodape">' + esc(t.etapa || "trabalhando") + " · " + esc(quanto) + "</div></div>"
@@ -3364,43 +3652,44 @@ async function carregarAgora() {
 
   for (const t of d.esperando) {
     cartoes.push(
-      '<div class="cartao-agora chama" data-abre="' + t.id + '">' +
-      '<div class="cabeca"><span class="ponto" style="background:var(--acento);animation:none"></span>' +
+      '<div class="cartao-agora chama"><div class="cabeca"><i class="ponto-acc"></i>' +
       '<span class="nome">Esperando você</span></div>' +
       '<div class="corpo">' + esc(t.pergunta) + "</div>" +
-      '<div class="rodape">' + esc(t.titulo) + "</div></div>"
+      '<div class="acoes"><button class="fantasma" data-abre="' + esc(t.id) + '">Revisar</button>' +
+      '<button class="primario" data-fila="1">Aprovar</button></div></div>'
     );
   }
 
   if (d.biblioteca.documentos) {
     cartoes.push(
       '<div class="cartao-agora" data-abre="biblioteca">' +
-      '<div class="cabeca"><span class="ponto" style="animation:none"></span>' +
-      '<span class="nome">Biblioteca em dia</span></div>' +
+      '<div class="cabeca"><i class="ponto-verde"></i><span class="nome">Acervo em dia</span></div>' +
       '<div class="corpo">' + plural(d.biblioteca.documentos, "documento") +
-      (d.biblioteca.documentos === 1 ? " lido, " : " lidos, ") +
-      d.biblioteca.trechos + " trechos indexados.</div>" +
+      (d.biblioteca.documentos === 1 ? " indexado, " : " indexados, ") +
+      d.biblioteca.trechos + " trechos lidos.</div>" +
       '<div class="rodape">nada saiu da máquina hoje</div></div>'
     );
   }
 
   if (d.pausados) {
     cartoes.push(
-      '<div class="cartao-agora"><div class="cabeca">' +
-      '<span class="ponto" style="background:var(--ink-muted);animation:none"></span>' +
+      '<div class="cartao-agora"><div class="cabeca"><i class="ponto-cinza"></i>' +
       '<span class="nome">' + plural(d.pausados, "parada") + " no meio</span></div>" +
-      '<div class="corpo">Ficaram assim quando o programa fechou. Abra pela coluna para continuar.</div></div>'
+      '<div class="corpo">Ficaram assim quando o programa fechou. Abra pelo menu para continuar.</div></div>'
     );
   }
 
   $("agora").hidden = cartoes.length === 0;
   $("agora-cartoes").innerHTML = cartoes.join("");
   $("agora-cartoes").querySelectorAll("[data-abre]").forEach((el) => {
-    el.style.cursor = "pointer";
-    el.onclick = () => {
-      if (el.dataset.abre === "biblioteca") mostrarBiblioteca();
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (el.dataset.abre === "biblioteca") { marcarDestino("biblioteca"); mostrarBiblioteca(); }
       else abrirTrabalho(el.dataset.abre);
     };
+  });
+  $("agora-cartoes").querySelectorAll("[data-fila]").forEach((el) => {
+    el.onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
   });
 }
 
@@ -3561,16 +3850,11 @@ async function decidirPedidos(ids, aprovar) {
 async function contarPendencias() {
   try {
     const d = await (await fetch("/api/aprovacoes")).json();
-    const botao = document.querySelector('[data-destino="aprovacoes"]');
-    if (!botao) return;
-    const antigo = botao.querySelector(".conta");
-    if (antigo) antigo.remove();
-    if (d.pendentes.length) {
-      const marca = document.createElement("span");
-      marca.className = "conta";
-      marca.textContent = d.pendentes.length;
-      botao.appendChild(marca);
-    }
+    const n = d.pendentes.length;
+    document.querySelectorAll('[data-destino="aprovacoes"] .conta').forEach((c) => {
+      c.textContent = n ? String(n) : "";
+      c.hidden = !n;
+    });
   } catch (err) { /* sem numero e melhor que numero errado */ }
 }
 
@@ -4950,34 +5234,44 @@ function diaCurto(dia) {
    numero inventado seria pior.
 */
 
-const ICONES_MENU = {
-  conversa: '<path d="M2 3.6A1.6 1.6 0 0 1 3.6 2h8.8A1.6 1.6 0 0 1 14 3.6v5.6a1.6 1.6 0 0 1-1.6 1.6H6l-4 3z"/>',
-  calendario: '<rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6.4h12M5.4 2v2.4M10.6 2v2.4"/>',
-  relogio: '<circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.6"/>',
-  lista: '<path d="M5.6 4.4h8M5.6 8h8M5.6 11.6h8M2.6 4.4h.01M2.6 8h.01M2.6 11.6h.01"/>',
-  coracao: '<path d="M8 13.2S2.4 9.9 2.4 6.3A2.9 2.9 0 0 1 8 5a2.9 2.9 0 0 1 5.6 1.3c0 3.6-5.6 6.9-5.6 6.9z"/>',
-  livros: '<path d="M2.4 3.2h3.4a1.6 1.6 0 0 1 1.6 1.6v8a1.2 1.2 0 0 0-1.2-1.2H2.4zM13.6 3.2h-3.4a1.6 1.6 0 0 0-1.6 1.6v8a1.2 1.2 0 0 1 1.2-1.2h3.8z"/>',
-  pasta: '<path d="M1.6 4.2A1.2 1.2 0 0 1 2.8 3h3.1l1.4 1.6h5a1.2 1.2 0 0 1 1.1 1.2v6a1.2 1.2 0 0 1-1.2 1.2H2.8a1.2 1.2 0 0 1-1.2-1.2z"/>',
-  caneta: '<path d="M11.4 2.6 13.4 4.6 5.6 12.4 2.6 13.4 3.6 10.4z"/>',
-  grade: '<rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6.4h12M2 9.6h12M6.4 3v10"/>',
-  selo: '<circle cx="8" cy="6.4" r="3.8"/><path d="M5.6 9.6 4.8 14 8 12.4 11.2 14l-.8-4.4"/>',
-  moeda: '<circle cx="8" cy="8" r="6"/><path d="M8 4.8v6.4M9.9 6.2c-.4-.5-1.1-.8-1.9-.8-1.1 0-2 .6-2 1.4S6.9 8.2 8 8.2s2 .6 2 1.4-.9 1.4-2 1.4c-.8 0-1.5-.3-1.9-.8"/>',
-  pessoa: '<circle cx="8" cy="5.6" r="2.6"/><path d="M2.8 13.6c0-2.6 2.3-4.2 5.2-4.2s5.2 1.6 5.2 4.2"/>',
-  carta: '<rect x="2" y="3.6" width="12" height="8.8" rx="1"/><path d="m2.4 4.4 5.6 4 5.6-4"/>',
-  visto: '<path d="M3.2 8.4 6.4 11.6l6.4-7"/>',
-  grafico: '<path d="M2.4 13.2h11.2M4.4 11V7M7.4 11V4M10.4 11V8.6M13 11V6"/>',
-  estrela: '<path d="m8 2.4 1.7 3.6 3.9.5-2.9 2.7.8 3.9L8 11.2l-3.5 1.9.8-3.9L2.4 6.5l3.9-.5z"/>',
-  cartao: '<rect x="2" y="4" width="12" height="8" rx="1"/><path d="M2 6.8h12M4.4 9.6h2.4"/>',
-  elo: '<path d="M6.6 9.4a2.6 2.6 0 0 0 3.8.3l2-2a2.6 2.6 0 0 0-3.7-3.7l-1 1M9.4 6.6a2.6 2.6 0 0 0-3.8-.3l-2 2a2.6 2.6 0 0 0 3.7 3.7l1-1"/>',
-  medidor: '<path d="M2.6 11.6a6 6 0 1 1 10.8 0"/><path d="M8 11.6 10.8 7"/>',
-  engrenagem: '<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6"/>',
-  quadro: '<rect x="2.6" y="2.6" width="10.8" height="10.8" rx="1"/>',
+/*
+   O trilho e o menu sao os do desenho (docs/ui/01-shell.md): onze destinos
+   fixos mais Servicos, Gravacoes e Apoiar, que ainda nao tem motor. O
+   registro do servidor (/api/destinos) continua sendo quem diz o que esta
+   pronto; os destinos antigos que o desenho fundiu em visoes de outros ficam
+   alcancaveis por uma lista no fim do menu, ate cada tela ser refeita.
+*/
+
+const NOVOS_DESTINOS = {
+  servicos: {
+    id: "servicos", nome: "Serviços", pronta: false,
+    resolve: "Pastas de trabalho por cliente, com equipe, prazos, arquivos e a trilha do que aconteceu.",
+    precisa: ["um módulo de serviços no servidor — hoje só existem conversas"],
+  },
+  gravacoes: {
+    id: "gravacoes", nome: "Gravações", pronta: false,
+    resolve: "Gravar reuniões e atendimentos, transcrever por falante e resumir, tudo nesta máquina.",
+    precisa: ["transcrição local de áudio", "uma máquina que dê conta disso em tempo real"],
+  },
+  apoiar: {
+    id: "apoiar", nome: "Apoiar o projeto", pronta: false,
+    resolve: "Contribuir com o software livre que faz o PAULUS existir.",
+    precisa: ["pagamento por Pix ou cartão", "a lista de apoiadores"],
+  },
 };
 
-function iconeMenu(nome) {
-  return '<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" ' +
-    'stroke-linecap="round" stroke-linejoin="round">' + (ICONES_MENU[nome] || ICONES_MENU.quadro) + "</svg>";
-}
+/* Quem, no trilho, acende quando um destino antigo abre. */
+const PAI_NO_TRILHO = {
+  agendamento: "calendario", tarefas: "calendario", organizar: "biblioteca", planilha: "editor",
+  certificado: "assinar", relatorios: "financeiro", habilidades: "config", conexoes: "config",
+  desempenho: "config",
+};
+
+const ICONE_ANTIGO = {
+  agendamento: "schedule", tarefas: "task_alt", organizar: "drive_file_move", planilha: "table",
+  certificado: "workspace_premium", relatorios: "bar_chart", habilidades: "auto_awesome",
+  conexoes: "hub", desempenho: "speed",
+};
 
 let DESTINOS = [];
 
@@ -4986,32 +5280,38 @@ async function carregarMenu() {
   try {
     d = await (await fetch("/api/destinos")).json();
   } catch (err) {
-    return;
+    d = { grupos: [] };
   }
-
   DESTINOS = d.grupos.flatMap((g) => g.destinos);
-  $("menu").innerHTML = d.grupos.map((g) =>
-    '<div class="menu-grupo"><span class="rotulo">' + esc(g.grupo) + "</span>" +
-    g.destinos.map((x) =>
-      '<button class="destino' + (x.pronta ? "" : " adiante") + '" data-destino="' + x.id +
-      '" title="' + esc(x.resolve) + '">' + iconeMenu(x.icone) +
-      '<span class="rotulo-botao">' + esc(x.nome) + "</span></button>"
-    ).join("") + "</div>"
-  ).join("");
 
-  $("menu").querySelectorAll("[data-destino]").forEach((b) => {
-    b.onclick = () => abrirDestino(b.dataset.destino);
+  const noTrilho = new Set(Array.from(document.querySelectorAll(".trilho [data-destino]")).map((b) => b.dataset.destino));
+  const antigos = DESTINOS.filter((x) => !noTrilho.has(x.id));
+  $("menu-antigos").innerHTML = antigos.map((x) =>
+    '<button class="menu-item' + (x.pronta ? "" : " adiante") + '" data-destino="' + esc(x.id) +
+    '" title="' + esc(x.resolve) + '"><span class="caixa-ic">' + ic(ICONE_ANTIGO[x.id] || "grid_view") + "</span>" +
+    '<span class="rotulo-botao">' + esc(x.nome) + "</span></button>").join("");
+  $("ver-antigos").hidden = !antigos.length;
+
+  const semMotor = DESTINOS.filter((x) => !x.pronta).map((x) => x.id).concat(["servicos", "gravacoes"]);
+  semMotor.forEach((id) => {
+    document.querySelectorAll('[data-destino="' + id + '"]').forEach((b) => b.classList.add("adiante"));
   });
+
+  document.querySelectorAll("[data-destino]").forEach((b) => {
+    b.onclick = () => { fecharFlutuante(); abrirDestino(b.dataset.destino); };
+  });
+  document.querySelectorAll("[data-nova]").forEach((b) => { b.onclick = () => $("nova").click(); });
 }
 
 function marcarDestino(id) {
-  $("menu").querySelectorAll("[data-destino]").forEach((b) => {
-    b.classList.toggle("ativo", b.dataset.destino === id);
+  const acende = PAI_NO_TRILHO[id] || id;
+  document.querySelectorAll("[data-destino]").forEach((b) => {
+    b.classList.toggle("ativo", b.dataset.destino === acende || b.dataset.destino === id);
   });
 }
 
 function abrirDestino(id) {
-  const d = DESTINOS.find((x) => x.id === id);
+  const d = DESTINOS.find((x) => x.id === id) || NOVOS_DESTINOS[id];
   if (!d) return;
   marcarDestino(id);
 
@@ -5072,8 +5372,13 @@ function abrirTela(nome) {
   $("conversa-titulo").textContent = nome;
   $("conversa-meta").textContent = "";
   $("apagar").hidden = true;
+  $("exportar-conversa").hidden = true;
   $("registro").hidden = true;
   $("agora").hidden = true;
+  $("centro").classList.remove("prosa");
+  $("conversa-col").classList.remove("tela-dupla");
+  mostrarLateral(false);
+  fecharFlutuante();
   carregarTrabalhos();
 }
 
@@ -5105,15 +5410,15 @@ async function mostrarMaquina() {
     '<div class="bancada">' +
     "<h2>Seu computador</h2><p>" + esc(m.frase) + "</p>" +
     '<div class="painel"><div class="medidor"><span class="nome">Vídeo</span>' +
-    '<span class="trilho"><i style="width:' + (m.video.percentual || 0) + '%"></i></span>' +
+    '<span class="pista"><i style="width:' + (m.video.percentual || 0) + '%"></i></span>' +
     '<span class="valor" style="width:auto">' + esc(video) + "</span></div>" +
     '<div class="medidor"><span class="nome">Memória</span>' +
-    '<span class="trilho"><i style="width:' + m.memoria.percentual + '%"></i></span>' +
+    '<span class="pista"><i style="width:' + m.memoria.percentual + '%"></i></span>' +
     '<span class="valor" style="width:auto">' +
     String(m.memoria.usado_gb).replace(".", ",") + " de " +
     String(m.memoria.total_gb).replace(".", ",") + " GB</span></div>" +
     '<div class="medidor"><span class="nome">Processador</span>' +
-    '<span class="trilho"><i style="width:' + m.processador.percentual + '%"></i></span>' +
+    '<span class="pista"><i style="width:' + m.processador.percentual + '%"></i></span>' +
     '<span class="valor" style="width:auto">' + m.processador.percentual + "%</span></div></div>" +
     '<div class="painel" style="margin-top:12px"><h3>Ir devagar quando eu usar o PC</h3>' +
     '<p class="explica">Com isso ligado, o PAULUS espera a máquina desafogar antes de ' +
@@ -6080,11 +6385,12 @@ function abrirBastidor(caixa) {
   bastidor.previsao = null;
   bastidor.vivaEl = null;
 
-  caixa.innerHTML = '<div class="bastidor">' +
-    '<div class="bastidor-topo"><span class="rotulo">o que estou fazendo</span>' +
-    '<span class="num"></span></div><div class="bastidor-linhas"></div></div>';
+  caixa.innerHTML = '<div class="bastidor"><div class="bastidor-topo">' + coroa(18) +
+    '<span class="bastidor-titulo">o que estou fazendo</span><span class="num"></span>' +
+    ic("expand_more", 18) + '</div><div class="bastidor-linhas"></div></div>';
 
   bastidor.caixa = caixa.querySelector(".bastidor");
+  bastidor.caixa.querySelector(".bastidor-topo").onclick = () => bastidor.caixa.classList.toggle("fechado");
   bastidor.relogioEl = caixa.querySelector(".bastidor-topo .num");
   bastidor.linhasEl = caixa.querySelector(".bastidor-linhas");
   bastidor.relogioEl.textContent = "0 s";
@@ -6166,6 +6472,16 @@ function fecharBastidor() {
   clearInterval(bastidor.timer);
   bastidor.fase = "";
   encerrarFaseViva();
+  /* Terminou: a janelinha recolhe numa linha so, com o visto no lugar do
+     anel. Clicar reabre. */
+  const caixa = bastidor.caixa;
+  if (caixa && caixa.isConnected && !caixa.classList.contains("fechado")) {
+    caixa.classList.add("fechado");
+    const anel = caixa.querySelector(".indicador");
+    if (anel) anel.outerHTML = '<span class="ic ic-18 marcador-feito">check_circle</span>';
+    const titulo = caixa.querySelector(".bastidor-titulo");
+    if (titulo) titulo.textContent = "o que fiz";
+  }
 }
 
 function milhar(n) {
@@ -6217,53 +6533,73 @@ async function mostrarDupla(id) {
 function desenharDupla() {
   const d = dupla.doc;
   const c = d.contagem || { palavras: 0 };
+  $("conversa-col").classList.add("tela-dupla");
+  mostrarLateral(false);
 
   $("centro").innerHTML =
     '<div class="dupla">' +
 
     '<div class="dupla-topo">' +
-    '<div><h2 class="dupla-titulo" id="dp-titulo" contenteditable="true">' + esc(d.titulo) + "</h2>" +
-    '<span class="rotulo" id="dp-selo">versão ' + d.versao + " · " +
-    plural(c.palavras, "palavra") + "</span></div>" +
-    '<div class="tela-acoes"><button id="dp-so-editor">Abrir só o editor</button>' +
-    '<button class="primario" id="dp-assinar">Assinar</button></div></div>' +
+    '<button class="voltar" id="dp-voltar" title="Voltar" aria-label="Voltar">' + ic("arrow_back", 20) + "</button>" +
+    '<div class="conversa-nome"><h2 class="dupla-titulo" id="dp-titulo" contenteditable="true">' + esc(d.titulo) + "</h2>" +
+    '<span class="meta" id="dp-selo">versão ' + d.versao + " · " + plural(c.palavras, "palavra") + "</span></div>" +
+    '<div class="conversa-acoes"><button id="dp-so-editor">' + ic("description", 18) + "Abrir no Editor</button>" +
+    '<button class="primario" id="dp-pdf">' + ic("picture_as_pdf", 18) + "Exportar PDF</button></div></div>" +
 
     '<div class="dupla-colunas">' +
 
     // ------------------------------------------------------------ conversa
-    '<div class="dupla-conversa"><div class="dupla-cabeca">' +
-    '<span class="rotulo">conversa</span>' +
-    '<span class="rotulo" id="dp-estado-conversa">escrevendo ao lado</span></div>' +
+    '<div class="dupla-conversa"><div class="dupla-cabeca">' + coroa(18) +
+    '<span class="cresce">Conversa</span>' +
+    '<span id="dp-estado-conversa">escrevendo ao lado</span></div>' +
     '<div class="dupla-fala" id="dp-fala">' + falasDaDupla() + "</div>" +
     '<div class="dupla-atalhos">' +
     ["Deixar mais formal", "Citar a lei", "Resumir em 1 página"].map((a) =>
       '<button data-dp-atalho="' + esc(a) + '">' + esc(a) + "</button>").join("") +
     "</div>" +
-    '<div class="ed-pedido"><input type="text" id="dp-pedido" ' +
-    'placeholder="peça uma mudança no documento…">' +
-    '<button class="primario" id="dp-enviar">↑</button></div></div>' +
+    '<div class="dupla-pedido"><input type="text" id="dp-pedido" ' +
+    'placeholder="Peça uma mudança no documento…">' +
+    '<button class="enviar" id="dp-enviar" aria-label="Enviar">' + ic("arrow_forward", 18) + "</button></div></div>" +
 
     // -------------------------------------------------------------- editor
-    '<div class="dupla-editor"><div class="dupla-cabeca">' +
-    '<div class="ed-barra dupla-barra">' +
-    '<button data-cmd="bold"><b>B</b></button>' +
-    '<button data-cmd="italic"><i>I</i></button>' +
-    '<button data-cmd="insertOrderedList">Numeração</button>' +
-    '<button id="dp-numerar">Numerar</button>' +
-    '<button id="dp-qualificar">Qualificar</button>' +
-    '<button id="dp-citar">Citar a lei</button></div>' +
-    '<span class="rotulo" id="dp-sinc">sincronizado com a conversa</span></div>' +
+    '<div class="dupla-editor"><div class="dupla-barra">' +
+    '<span class="fonte-folha">EB Garamond' + ic("expand_more", 16) + "</span>" +
+    '<button data-cmd="undo" title="Desfazer">' + ic("undo", 18) + "</button>" +
+    '<button data-cmd="redo" title="Refazer">' + ic("redo", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button data-cmd="bold" title="Negrito">' + ic("format_bold", 18) + "</button>" +
+    '<button data-cmd="italic" title="Itálico">' + ic("format_italic", 18) + "</button>" +
+    '<button data-cmd="insertOrderedList" title="Numeração">' + ic("format_list_numbered", 18) + "</button>" +
+    '<button id="dp-citacao" title="Citação">' + ic("format_quote", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="dp-numerar" title="Renumerar as cláusulas">' + ic("format_list_numbered", 16) + "Numerar</button>" +
+    '<button class="com-texto" id="dp-qualificar" title="Qualificação das partes">' + ic("group", 16) + "Qualificar</button>" +
+    '<button class="com-texto" id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="dp-alteracoes" title="Ir até a alteração">' + ic("difference", 16) +
+    'Alterações · <span id="dp-alteracoes-n">0</span></button>' +
+    '<button class="primario" id="dp-salvar">' + ic("save", 16) + "Salvar edições</button>" +
+    '<span class="sinc"><i class="ponto-verde"></i><span id="dp-sinc">sincronizado com a conversa</span></span>' +
+    "</div>" +
     '<div class="dupla-folha-caixa"><div class="ed-folha" id="dp-folha" contenteditable="true">' +
     (d.corpo || "<p><br></p>") + "</div></div>" +
-    '<div class="dupla-rodape"><span class="rotulo">' +
+    '<div class="dupla-rodape"><span>' +
     plural(d.paginacao ? d.paginacao.paginas : 1, "página") + " · " +
     plural(c.palavras, "palavra") + "</span>" +
-    '<span><button id="dp-guardar">Salvar na biblioteca</button>' +
-    '<button id="dp-pdf">Exportar PDF</button></span></div>' +
+    '<span class="acoes-rodape"><button id="dp-guardar">Salvar na biblioteca</button>' +
+    '<button id="dp-assinar">Assinar</button></span></div>' +
 
     "</div></div></div>";
 
   ligarDupla();
+  $("dp-voltar").onclick = () => $("nova").click();
+  $("dp-salvar").onclick = () => gravarDupla();
+  $("dp-citacao").onmousedown = (e) => { e.preventDefault(); document.execCommand("formatBlock", false, "blockquote"); };
+  $("dp-alteracoes").onclick = () => {
+    const m = $("dp-folha").querySelector(".ed-novo");
+    if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
 }
 
 function falasDaDupla() {
@@ -6402,7 +6738,7 @@ function desenharCartaoDaAlteracao() {
   cartao.className = "dupla-cartao";
   cartao.id = "dp-cartao";
   cartao.contentEditable = "false";
-  cartao.innerHTML = '<span class="rotulo">alteração sugerida agora</span>' +
+  cartao.innerHTML = '<span class="rotulo-cartao">Alteração sugerida agora</span>' +
     "<p>" + esc(dupla.pendente.resumo) + "</p>" +
     '<p class="explica">' + esc(dupla.pendente.aviso) + "</p>" +
     '<div class="linha-form"><button id="dp-descartar">Descartar</button>' +
@@ -12200,11 +12536,10 @@ atualizarSelo(false);
 atualizarSaudacao();
 carregarMenu().then(contarPendencias);
 carregarTrabalhos();
-carregarRecursos();
-setInterval(carregarRecursos, 4000);
 carregarStatus().then(atualizarPostura);
 carregarAbertos();
 carregarModelo();
+carregarUsuario();
 $("nova").click();
 </script>
 </body>
