@@ -348,6 +348,79 @@ def test_o_referido_documento() -> None:
            "pergunta comum não é pedido de abrir")
 
 
+def test_escopo_da_conversa() -> None:
+    """
+    Quais documentos a pergunta manda ler — e por quê.
+
+    É a regra que decide se a conversa lê um arquivo ou os dez. Quando ela
+    errava para o lado largo, perguntar sobre um comprovante de viagem devolvia
+    contrato de compra e venda: o documento citado era 937 dos 27.213
+    caracteres que iam para o modelo.
+
+    E errou para o lado largo de novo depois disso: anexar dois PDFs e
+    perguntar sobre eles relia o acervo inteiro — 55.335 caracteres e quase um
+    minuto — como se nada tivesse sido anexado. Anexar é dizer do que se quer
+    falar.
+    """
+    print("\no escopo da conversa")
+    from types import SimpleNamespace
+    A, B, C = "viagem 000434.pdf", "procuracao priscila.docx", "compra e venda.pdf"
+    acervo = [SimpleNamespace(name=n) for n in (A, B, C)]
+
+    def ler(frase, foco=(), pedidos=(), tudo=False):
+        return intencao.escopo(frase, abertos=acervo, em_foco=list(foco),
+                               pedidos=list(pedidos), tudo=tudo)
+
+    # 6: nada dito, nada em foco -> o acervo.
+    checar(ler("quais as cláusulas de penalidade?") == ([], []),
+           "sem foco e sem nome, lê o acervo inteiro")
+
+    # 2: o que a tela mostra ganha do palpite.
+    checar(ler("qual o valor?", pedidos=[A]) == ([A], []),
+           "a pílula do compositor manda")
+    checar(ler("do que tratam?", pedidos=[A, B]) == ([A, B], []),
+           "e dois anexados são lidos juntos")
+
+    # 5: o foco gruda.
+    checar(ler("e qual o destino?", foco=[A]) == ([A], []),
+           "sem nada dito, o foco continua valendo")
+    checar(ler("quem assina?", foco=[A, B]) == ([A, B], []),
+           "inclusive com dois em foco")
+
+    # 3: o nome escrito ganha da pílula e do foco.
+    escolhidos, explicito = ler(f"Sobre “{B}”: quem é a outorgada?",
+                                foco=[A], pedidos=[A])
+    checar(escolhidos == [B] and explicito == [B],
+           f"o nome escrito ganha da pílula e do foco ({escolhidos})")
+
+    # 4: a anáfora resolve para o foco, e conta como explícita.
+    escolhidos, explicito = ler("exiba o referido documento", foco=[A])
+    checar(escolhidos == [A] and explicito == [A],
+           "“o referido documento” resolve para o foco")
+    # Com dois em foco, "o referido documento" não diz qual: não é explícito.
+    escolhidos, explicito = ler("exiba o referido documento", foco=[A, B])
+    checar(escolhidos == [A, B] and explicito == [],
+           f"com dois em foco, “o referido” não escolhe um ({explicito})")
+
+    # 1: o pedido explícito sai do foco, pela frase ou pelo botão.
+    checar(ler("isso aparece em todos os documentos?", foco=[A], pedidos=[A]) == ([], []),
+           "“em todos os documentos” sai do foco")
+    checar(ler("qual o valor?", foco=[A], pedidos=[A], tudo=True) == ([], []),
+           "e o botão de varrer tudo também")
+
+    # O que não está aberto não vira escopo.
+    checar(ler("qual o valor?", pedidos=["nao-existe.pdf"]) == ([], []),
+           "documento que não está aberto é ignorado")
+    checar(ler("qual o valor?", foco=["sumiu.pdf"]) == ([], []),
+           "e foco de arquivo que saiu do acervo também")
+
+    # O explícito existe para separar "abrir o arquivo" de "responder sobre
+    # ele": com foco herdado, "mostre o valor" abriria o PDF.
+    escolhidos, explicito = ler("mostre o valor do adiantamento", foco=[A])
+    checar(escolhidos == [A] and explicito == [],
+           "foco herdado não conta como referência explícita")
+
+
 def test_pedir_o_acervo_inteiro() -> None:
     """
     A saída do foco, dita com todas as letras.
@@ -419,6 +492,7 @@ def main() -> int:
     test_abrir_arquivo()
     test_pergunta_nomeia_um_documento()
     test_o_referido_documento()
+    test_escopo_da_conversa()
     test_pedir_o_acervo_inteiro()
     test_sobre_o_programa()
     test_texto_vazio()

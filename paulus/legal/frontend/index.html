@@ -1322,6 +1322,11 @@
   }
   .escopo-pilula button:hover { color: var(--ink); background: none; border: none; }
   .escopo .rotulo { flex-shrink: 0; }
+  .escopo-limpar {
+    border: none; background: none; color: var(--ink-3); cursor: pointer;
+    font: 400 11.5px var(--sans); text-decoration: underline; padding: 2px 4px;
+  }
+  .escopo-limpar:hover { color: var(--ink); background: none; border: none; }
 
   /* A lista que o "/" abre. Sobe por cima do compositor, como todo
      autocompletar de menção. */
@@ -2416,8 +2421,8 @@ const estado = {
   trabalho: null,
   ocupado: false,
   contratos: 0,
-  // O documento de que esta conversa trata. Vazio = o acervo inteiro.
-  escopo: "",
+  // Os documentos de que esta conversa trata. Lista vazia = o acervo inteiro.
+  escopo: [],
   abertos: [],
 };
 
@@ -2550,7 +2555,7 @@ async function abrirTrabalho(id) {
 $("nova").onclick = () => {
   estado.trabalhoId = null;
   estado.trabalho = null;
-  definirEscopo("");
+  definirEscopo([]);
   $("compositor").hidden = false;
   $("conversa-titulo").textContent = "Nova solicitação";
   $("apagar").hidden = true;
@@ -2735,7 +2740,11 @@ async function subirArquivos(lista) {
     nota.innerHTML = "<div>" + esc(texto) + "</div>";
     estado.contratos = res.contratos;
     carregarStatus();
-    carregarAbertos();
+    await carregarAbertos();
+    /* Anexar é dizer do que se quer falar. Sem isto, quem arrastava dois PDFs
+       e perguntava sobre eles fazia o programa reler o acervo inteiro — 55 mil
+       caracteres e um minuto — como se nada tivesse sido anexado. */
+    if (res.salvos.length) definirEscopo(estado.escopo.concat(res.salvos));
   } catch (err) {
     nota.innerHTML = '<div>Não consegui abrir os arquivos: ' + esc(String(err)) + "</div>";
   }
@@ -2996,10 +3005,12 @@ async function enviar() {
           /* Quando a pergunta nomeia um arquivo, a leitura para nele — e o
              bastidor diz isso, porque "li 1 de 9" sem explicação parece falha
              de cobertura quando é obediência ao que foi pedido. */
-          definirEscopo(dados.apenas || "");
-          anotarBastidor(dados.apenas
-            ? "a pergunta nomeia “" + dados.apenas + "” · li só ele, " +
-              plural(dados.trechos.length, "trecho")
+          definirEscopo(dados.apenas || []);
+          anotarBastidor(dados.apenas.length
+            ? (dados.apenas.length === 1
+                ? "a pergunta é sobre “" + dados.apenas[0] + "” · li só ele, "
+                : "a pergunta é sobre " + plural(dados.apenas.length, "documento") +
+                  " · li só eles, ") + plural(dados.trechos.length, "trecho")
             : "procurei nos " + plural(dados.total_contratos, "documento") +
               " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
               " de " + plural(dados.consultados.length, "documento"));
@@ -3110,22 +3121,42 @@ async function carregarAbertos() {
   } catch (err) { estado.abertos = []; }
 }
 
-function definirEscopo(nome) {
-  estado.escopo = nome || "";
+/* Lista, e nao um nome so: anexar dois arquivos e perguntar sobre "eles" e o
+   caso comum - quem arrasta um contrato e o aditivo quer os dois lidos. */
+function definirEscopo(nomes) {
+  const lista = Array.isArray(nomes) ? nomes : (nomes ? [nomes] : []);
+  estado.escopo = lista.filter((n, i) => n && lista.indexOf(n) === i);
   desenharEscopo();
+}
+
+function somarAoEscopo(nome) {
+  if (nome && !estado.escopo.includes(nome)) definirEscopo(estado.escopo.concat([nome]));
+}
+
+function tirarDoEscopo(nome) {
+  definirEscopo(estado.escopo.filter((n) => n !== nome));
 }
 
 function desenharEscopo() {
   const caixa = $("escopo");
   if (!caixa) return;
-  if (!estado.escopo) { caixa.hidden = true; caixa.innerHTML = ""; return; }
+  if (!estado.escopo.length) { caixa.hidden = true; caixa.innerHTML = ""; return; }
 
   caixa.hidden = false;
   caixa.innerHTML = '<span class="rotulo">lendo só</span>' +
-    '<span class="escopo-pilula"><b class="corta">' + esc(estado.escopo) + "</b>" +
-    '<button id="escopo-tirar" title="Voltar a procurar em todos os documentos" ' +
-    'aria-label="Tirar o foco deste documento">✕</button></span>';
-  $("escopo-tirar").onclick = () => { definirEscopo(""); $("pedido").focus(); };
+    estado.escopo.map((nome) =>
+      '<span class="escopo-pilula"><b class="corta">' + esc(nome) + "</b>" +
+      '<button data-tirar="' + esc(nome) + '" title="Tirar este documento do foco" ' +
+      'aria-label="Tirar ' + esc(nome) + ' do foco">✕</button></span>').join("") +
+    (estado.escopo.length > 1
+      ? '<button class="escopo-limpar" id="escopo-tirar">procurar em todos</button>'
+      : "");
+
+  caixa.querySelectorAll("[data-tirar]").forEach((b) => {
+    b.onclick = () => { tirarDoEscopo(b.dataset.tirar); $("pedido").focus(); };
+  });
+  const limpar = $("escopo-tirar");
+  if (limpar) limpar.onclick = () => { definirEscopo([]); $("pedido").focus(); };
 }
 
 /* O "/" e o que vem depois dele, até o cursor. Só vale no começo de uma
@@ -3186,7 +3217,7 @@ function escolherMencao(nome) {
   campo.value = (antes + depois).replace(/^\s+/, "");
   campo.selectionStart = campo.selectionEnd = antes.replace(/^\s+/, "").length;
 
-  definirEscopo(nome);
+  somarAoEscopo(nome);
   fecharMencao();
   campo.focus();
 }

@@ -51,13 +51,17 @@ def orcamento_de_leitura(ctx: Contexto) -> int:
     return max(4000, (janela - TOKENS_RESERVADOS) * CHARS_POR_TOKEN)
 
 
-def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas: str = ""):
+def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     """
     Gerador de eventos: fontes, depois a resposta pedaco a pedaco.
 
-    `apenas` é o nome de um documento: quando a pergunta nomeia um arquivo,
-    a leitura para nele. Quem resolve o nome é quem chama — aqui só se
-    obedece, e se declara no bastidor que a leitura foi estreitada.
+    `apenas` é a lista de documentos a ler — anexados, nomeados ou em foco.
+    Quem resolve os nomes é quem chama; aqui só se obedece, e se declara no
+    bastidor que a leitura foi estreitada.
+
+    Lista, e não um nome só, porque anexar dois arquivos e perguntar sobre
+    "eles" é o caso comum: quem arrasta um contrato e o aditivo dele quer os
+    dois lidos juntos.
     """
     pergunta = (pergunta or "").strip()
     if not pergunta:
@@ -71,18 +75,29 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas: str = ""):
     # Lendo os nove, o documento citado virava 937 de 27.213 caracteres -
     # medido - e a resposta saía sobre os outros 96,6%: perguntar sobre um
     # comprovante de viagem devolvia contrato de compra e venda.
-    if apenas:
-        so_dele = ctx.searcher.do_documento(apenas)
-        if so_dele:
-            ctx.registrar("A pergunta nomeia “" + apenas + "” — leu só ele")
-            yield from _responder(ctx, pergunta, so_dele, orcamento, apenas=apenas)
+    quais = [apenas] if isinstance(apenas, str) and apenas else list(apenas or [])
+    if quais:
+        so_deles = ctx.searcher.dos_documentos(quais)
+        if so_deles:
+            ctx.registrar("A pergunta é sobre " + _quantos(len(quais), "documento") +
+                          " — leu só " + ("ele" if len(quais) == 1 else "eles"))
+            # Cabendo, vai inteiro. Nao cabendo - alguem poe oito arquivos em
+            # foco - vale escolher trecho DENTRO deles, e nunca sair deles.
+            texto = sum(len(h.chunk.text) for h in so_deles)
+            if texto > orcamento:
+                por_documento = max(2, ctx.searcher.quantos_cabem(orcamento) // len(quais))
+                escolhidos = ctx.searcher.search(
+                    pergunta, top_k=max(top, len(so_deles)), per_doc_limit=por_documento)
+                dentro = [h for h in escolhidos if h.doc_name in set(quais)]
+                so_deles = dentro or so_deles[:1]
+            yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais)
             return
-        # Nomeou um documento que não está aberto: dizer isso é melhor do que
+        # Nomeou documento que nao esta aberto: dizer isso e melhor do que
         # responder pelo acervo como se nada tivesse sido pedido.
         yield evento(
             "vazio",
-            mensagem=f"“{apenas}” não está entre os documentos abertos, "
-                     "então não tenho o que ler dele.",
+            mensagem="“" + "”, “".join(quais) + "” não está entre os documentos "
+                     "abertos, então não tenho o que ler.",
         )
         return
 
@@ -110,7 +125,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas: str = ""):
     yield from _responder(ctx, pergunta, hits, orcamento)
 
 
-def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas: str = ""):
+def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None):
     """
     Monta as fontes, entrega ao assistente e devolve a resposta.
 
@@ -124,6 +139,7 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas: str =
     # um aviso de cobertura assustando quem fez exatamente o que quis.
     ignorados = ([] if apenas else
                  [d.name for d in ctx.documentos if d.name not in consultados])
+    apenas = list(apenas or [])
     fontes = [
         {
             "documento": h.doc_name,

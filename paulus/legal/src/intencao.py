@@ -455,6 +455,53 @@ def quer_todo_o_acervo(texto: str) -> bool:
     return any(p in _plano(texto) for p in TODO_O_ACERVO)
 
 
+def escopo(texto: str, abertos=None, em_foco=None, pedidos=None,
+           tudo: bool = False) -> tuple[list[str], list[str]]:
+    """
+    Sobre quais documentos é esta pergunta. Lista vazia = o acervo inteiro.
+
+    Devolve dois: o que ler, e o que a frase referiu **explicitamente**. A
+    diferença importa — só o explícito pode virar ação de abrir o arquivo.
+    Com o foco herdado, "mostre o valor do adiantamento" abriria o PDF em vez
+    de responder, porque "mostre" é verbo de abrir e havia documento em foco.
+
+    A ordem é esta, e cada degrau tem um motivo:
+
+    1. "em todos os documentos", com todas as letras — ou o botão que diz o
+       mesmo. Sai do foco: a pessoa mandou olhar o resto.
+    2. O que a tela diz estar em foco (`pedidos`): as pílulas do compositor,
+       postas pelo "/", por anexar um arquivo, ou por ter perguntado sobre ele.
+       É o que a pessoa está VENDO, então ganha do palpite sobre o texto.
+    3. O nome escrito na frase.
+    4. "o referido documento", quando há um só em foco.
+    5. O foco, sem mais nada. É o padrão: quem abriu uma conversa sobre um
+       documento continua nele até dizer o contrário.
+    6. Nada: o acervo inteiro.
+
+    A regra 5 só é honesta porque a tela mostra as pílulas o tempo todo.
+    Escopo silencioso seria tão ruim quanto ler tudo calado: a pessoa leria
+    "não achei" sem saber que a busca não saiu de um arquivo.
+    """
+    if tudo or quer_todo_o_acervo(texto):
+        return [], []
+
+    nomes = {n for n in (_nome_de(d) for d in abertos or []) if n}
+    em_foco = [n for n in (em_foco or []) if n in nomes]
+
+    pelo_nome = documento_citado(texto, abertos)
+    por_anafora = ""
+    if not pelo_nome and len(em_foco) == 1 and fala_do_documento_em_foco(texto):
+        por_anafora = em_foco[0]
+    explicito = [n for n in (pelo_nome or por_anafora,) if n]
+
+    escolhidos = explicito
+    if not escolhidos:
+        escolhidos = [n for n in (pedidos or []) if n in nomes]
+    if not escolhidos:
+        escolhidos = em_foco
+    return escolhidos, explicito
+
+
 def quer_abrir(texto: str) -> bool:
     """A frase começa com um verbo de abrir — "exiba", "mostre", "abra"."""
     palavras = re.findall(r"[a-z0-9]+", _plano(texto))

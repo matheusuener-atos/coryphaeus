@@ -196,14 +196,29 @@ class ContractSearcher:
         return [Hit(chunk, 0.0, chunk.text[:200]) for chunk in self.chunks]
 
     def do_documento(self, nome: str) -> list[Hit]:
-        """
-        Os trechos de um documento só, na ordem em que estão escritos.
+        """Os trechos de um documento só, na ordem em que estão escritos."""
+        return self.dos_documentos([nome])
 
-        Para quando a pergunta nomeia o arquivo. Ler o acervo inteiro nesse
-        caso fazia o documento citado virar uma fração do contexto — 937 de
-        27.213 caracteres, medido — e a resposta saía sobre os outros.
+    def dos_documentos(self, nomes) -> list[Hit]:
         """
-        return [Hit(c, 0.0, c.text[:200]) for c in self.chunks if c.doc_name == nome]
+        Os trechos de alguns documentos, na ordem em que estão escritos.
+
+        Para quando a pergunta é sobre arquivos determinados — anexados,
+        nomeados ou em foco. Ler o acervo inteiro nesse caso fazia o documento
+        citado virar uma fração do contexto — 937 de 27.213 caracteres, medido
+        — e a resposta saía sobre os outros.
+
+        A ordem é a dos nomes pedidos, e não a do acervo: quem anexou dois
+        arquivos espera o primeiro primeiro.
+        """
+        quais = [n for n in (nomes or []) if n]
+        if not quais:
+            return []
+        por_nome: dict[str, list[Hit]] = {n: [] for n in quais}
+        for c in self.chunks:
+            if c.doc_name in por_nome:
+                por_nome[c.doc_name].append(Hit(c, 0.0, c.text[:200]))
+        return [h for n in quais for h in por_nome[n]]
 
     def quantos_cabem(self, orcamento: int) -> int:
         """Quantos trechos cabem no orçamento, pelo tamanho médio deles."""

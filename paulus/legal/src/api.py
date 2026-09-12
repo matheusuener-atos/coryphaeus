@@ -203,11 +203,14 @@ app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
 class Pergunta(BaseModel):
     pergunta: str
     top: int = 6
-    # O documento que a tela diz estar em foco - a pilula do compositor, posta
-    # pelo "/" ou por ter perguntado sobre ele. Vem da tela porque e o que a
-    # pessoa esta VENDO; adivinhar pelo texto quando a tela ja mostra a
-    # resposta seria trocar uma certeza por um palpite.
-    apenas: str = ""
+    # Os documentos que a tela diz estarem em foco - as pilulas do compositor,
+    # postas pelo "/", por anexar, ou por ter perguntado sobre eles. Vem da
+    # tela porque e o que a pessoa esta VENDO; adivinhar pelo texto quando a
+    # tela ja mostra a resposta seria trocar uma certeza por um palpite.
+    #
+    # Lista porque anexar dois arquivos e perguntar sobre "eles" e o caso
+    # comum - quem arrasta um contrato e o aditivo quer os dois lidos juntos.
+    apenas: list[str] = []
     # "olha o acervo inteiro", dito pelo botao em vez de pela frase.
     tudo: bool = False
 
@@ -942,52 +945,36 @@ def trabalhos_remover(id_: str) -> dict:
     return {"removido": id_}
 
 
-def _escopo_da_pergunta(trabalho, pergunta: str, payload: Pergunta) -> tuple[str, str]:
+def _em_foco(trabalho) -> list[str]:
     """
-    Sobre qual documento e esta pergunta. Vazio quer dizer o acervo inteiro.
+    Os documentos que esta conversa vinha lendo.
 
-    A ordem importa, e ela e esta:
-
-    1. "em todos os documentos", dito com todas as letras - ou o botao que diz
-       o mesmo. Sai do foco e limpa a pilula: a pessoa mandou olhar o resto.
-    2. A pilula do compositor. E o que esta NA TELA, entao ganha do palpite.
-    3. O nome escrito na frase.
-    4. "o referido documento", com um documento em foco.
-    5. O foco, sem mais nada. **E o padrao novo**: quem abriu uma conversa
-       sobre um documento continua nele ate dizer o contrario. Antes toda
-       pergunta relia o acervo inteiro, e a resposta saia sobre outro arquivo.
-    6. Nada: o acervo inteiro, como sempre foi.
-
-    A regra 5 so e honesta porque a tela MOSTRA a pilula o tempo todo. Escopo
-    silencioso seria tao ruim quanto ler tudo calado - a pessoa leria "nao
-    achei" sem saber que a busca nao tinha saido de um arquivo so.
+    Aceita o formato antigo - um nome so, em texto - porque conversa gravada
+    antes do escopo virar lista continua no disco.
     """
-    em_foco = str(trabalho.contexto.get("documento_em_foco", "") or "")
+    guardado = trabalho.contexto.get("documento_em_foco") or []
+    if isinstance(guardado, str):
+        return [guardado] if guardado else []
+    return [n for n in guardado if n]
 
-    if payload.tudo or intencao.quer_todo_o_acervo(pergunta):
-        trabalho.contexto["documento_em_foco"] = ""
-        return "", ""
 
-    abertos = estado.searcher.documents
-    nomes = {d.name for d in abertos}
+def _escopo_da_pergunta(trabalho, pergunta: str, payload: Pergunta) -> tuple[list, list]:
+    """
+    Quais documentos ler, e quais a frase referiu de proposito.
 
-    # "Explicito" quer dizer NESTA mensagem: o nome escrito, ou "o referido
-    # documento". So o explicito pode virar acao de abrir o arquivo - com o
-    # foco herdado, "mostre o valor do adiantamento" abriria o PDF em vez de
-    # responder, porque "mostre" e verbo de abrir e havia um documento em foco.
-    pelo_nome = intencao.documento_citado(pergunta, abertos)
-    por_anafora = (em_foco if em_foco in nomes
-                   and intencao.fala_do_documento_em_foco(pergunta) else "")
-    explicito = pelo_nome or por_anafora
-
-    escolhido = explicito
-    if not escolhido and payload.apenas in nomes:
-        escolhido = payload.apenas
-    if not escolhido and em_foco in nomes:
-        escolhido = em_foco
-
-    trabalho.contexto["documento_em_foco"] = escolhido
-    return escolhido, explicito
+    A regra mora em `intencao.escopo` - e da mesma familia das outras regras
+    de conversa, e la da para testar sem subir o programa inteiro. Aqui fica
+    so a contabilidade: ler o foco do trabalho e grava-lo de volta.
+    """
+    escolhidos, explicito = intencao.escopo(
+        pergunta,
+        abertos=estado.searcher.documents,
+        em_foco=_em_foco(trabalho),
+        pedidos=payload.apenas,
+        tudo=payload.tudo,
+    )
+    trabalho.contexto["documento_em_foco"] = escolhidos
+    return escolhidos, explicito
 
 
 @app.post("/api/trabalhos/{id_}/perguntar")
@@ -1030,9 +1017,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
-    if lido.tipo == "documentos" and explicito and intencao.quer_abrir(pergunta):
+    if (lido.tipo == "documentos" and len(explicito) == 1
+            and intencao.quer_abrir(pergunta)):
         lido = intencao.Intencao(
-            tipo="abrir", titulo=explicito, campos={"nome": explicito},
+            tipo="abrir", titulo=explicito[0], campos={"nome": explicito[0]},
             porque="“o referido documento” — o que esta conversa vinha lendo",
         )
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir"):
@@ -1068,7 +1056,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                         "consultados": dados["consultados"],
                         "ignorados": dados["ignorados"],
                         "total_contratos": dados["total_contratos"],
-                        "apenas": dados.get("apenas", ""),
+                        "apenas": dados.get("apenas") or [],
                     }
                     fontes = dados["trechos"]
                     trabalho.etapas[0].estado = CONCLUIDO
