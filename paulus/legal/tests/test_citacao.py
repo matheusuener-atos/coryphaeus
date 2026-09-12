@@ -210,6 +210,33 @@ def test_varias_agulhas() -> None:
     com_marca = citacao.frases_de_busca("[pagina 4] " + longo)
     checar(all("pagina 4" not in a for a in com_marca), "a marca de página sai da agulha")
 
+    # A agulha não atravessa quebra de linha.
+    #
+    # O texto extraído respeita a ordem de leitura da página, e duas linhas
+    # vizinhas na folha podem estar longe uma da outra no fluxo interno do
+    # PDF. Num formulário isso é a regra: "11/09/2026" e "Despesas de Viagem"
+    # ficam lado a lado no cabeçalho e viravam a agulha "11/09/2026 Despesas
+    # de Viagem" — uma sequência que não existe no arquivo. O trecho ficava
+    # sem marca nenhuma no visor.
+    formulario = ("Importância entregue R$ 200,00\n"
+                  "Partida Retorno\n"
+                  "Motivo REUNIÃO DE ENSINAMENTOS P/ PORTEIROS\n"
+                  "Destino PA - SÃO FÉLIX DO XINGU")
+    agulhas = citacao.frases_de_busca(formulario)
+    checar(bool(agulhas), f"o formulário vira agulha ({len(agulhas)})")
+    checar(all("\n" not in a for a in agulhas), "nenhuma agulha tem quebra de linha")
+    linhas = {l.strip() for l in formulario.splitlines()}
+    atravessa = [a for a in agulhas
+                 if not any(a in l for l in linhas)]
+    checar(not atravessa,
+           "e toda agulha cabe dentro de UMA linha do trecho", str(atravessa[:2]))
+
+    # Trecho curto de formulário: nenhuma linha chega a vinte letras, e ele
+    # ficava sem agulha nenhuma — sem agulha, sem marca.
+    curto = "11/09/2026\n                    Despesas de Viagem"
+    checar(bool(citacao.frases_de_busca(curto)),
+           f"trecho curto de duas linhas ainda vira agulha ({citacao.frases_de_busca(curto)})")
+
 
 def main() -> int:
     print("=" * 55)

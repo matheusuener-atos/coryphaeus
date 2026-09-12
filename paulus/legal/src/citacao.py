@@ -56,25 +56,60 @@ def frases_de_busca(trecho: str) -> list[str]:
 
     Então tenta em quatro pontos do trecho e em dois tamanhos. Basta um casar.
     """
-    limpo = re.sub(r"\[p[áa]gina \d+\]", " ", trecho or "", flags=re.IGNORECASE)
-    limpo = re.sub(r"\s+", " ", limpo).strip()
-    if not limpo:
+    sem_marca = re.sub(r"\[p[áa]gina \d+\]", " ", trecho or "", flags=re.IGNORECASE)
+
+    # A agulha não atravessa quebra de linha.
+    #
+    # O texto extraído respeita a ordem de leitura da página, e duas linhas
+    # vizinhas na folha podem estar longe uma da outra no fluxo interno do
+    # PDF. Num formulário isso é a regra: "11/09/2026" e "Despesas de Viagem"
+    # ficam lado a lado no cabeçalho, viravam a agulha "11/09/2026 Despesas de
+    # Viagem", e essa sequência não existe em lugar nenhum do arquivo — o
+    # trecho ficava sem marca no visor.
+    linhas = [re.sub(r"[ \t]+", " ", l).strip() for l in sem_marca.splitlines()]
+    linhas = [l for l in linhas if l]
+
+    inteiro = re.sub(r"\s+", " ", sem_marca).strip()
+    if not inteiro:
         return []
-    if len(limpo) <= LETRAS_DA_BUSCA:
-        return [limpo]
+    if len(inteiro) <= LETRAS_DA_BUSCA and len(linhas) <= 1:
+        return [inteiro]
 
     candidatas: list[str] = []
-    for tamanho in (LETRAS_DA_BUSCA, 34):
-        for parte in (1, 2, 3, 4):
-            inicio = (len(limpo) * parte) // 5
-            pedaco = limpo[inicio:inicio + tamanho]
-            # Não começar no meio de uma palavra: o pdfium procura literal.
-            corte = pedaco.find(" ")
-            if 0 <= corte < 20:
-                pedaco = pedaco[corte + 1:]
-            pedaco = pedaco.strip()
-            if len(pedaco) >= 20 and pedaco not in candidatas:
-                candidatas.append(pedaco)
+
+    def juntar(pedaco: str) -> None:
+        # Não começar no meio de uma palavra: o pdfium procura literal.
+        corte = pedaco.find(" ")
+        if 0 <= corte < 20:
+            pedaco = pedaco[corte + 1:]
+        pedaco = pedaco.strip()
+        if len(pedaco) >= 20 and pedaco not in candidatas:
+            candidatas.append(pedaco)
+
+    # As linhas mais longas primeiro: "Total" e "Resumo" aparecem em qualquer
+    # página e não identificam trecho nenhum.
+    for linha in sorted(linhas, key=len, reverse=True)[:6]:
+        for tamanho in (LETRAS_DA_BUSCA, 34):
+            juntar(linha[:tamanho])
+            if len(linha) > tamanho + 20:
+                juntar(linha[len(linha) // 3:][:tamanho])
+
+    # Documento de uma linha só — prosa corrida sem quebra — continua sendo
+    # fatiado ao longo do texto, como antes.
+    if len(linhas) <= 1:
+        for tamanho in (LETRAS_DA_BUSCA, 34):
+            for parte in (1, 2, 3, 4):
+                inicio = (len(inteiro) * parte) // 5
+                juntar(inteiro[inicio:inicio + tamanho])
+
+    # Trecho curto de formulário: nenhuma linha chega a vinte letras, e o piso
+    # de vinte — que existe para não marcar uma palavra genérica — deixava o
+    # trecho sem agulha nenhuma. Quando é isso, a linha mais longa é o trecho.
+    if not candidatas:
+        maior = max(linhas, key=len, default="")
+        if len(maior) >= 10:
+            candidatas.append(maior)
+
     return candidatas
 
 

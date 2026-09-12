@@ -946,7 +946,26 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # caminho so, e "anote uma reuniao no calendario" virava busca pela
     # palavra "reuniao" dentro dos contratos - resposta certa para a pergunta
     # errada. Ler a intencao e por regra: instantaneo e repetivel.
+    # Sobre qual documento e esta conversa. Duas fontes, nesta ordem: o nome
+    # que a frase escreve, e - quando ela diz "o referido documento" - o que
+    # ficou em foco na conversa. Sem isso, "Exiba o referido documento aqui"
+    # nao nomeia arquivo nenhum, cai na busca e e respondido pelo acervo
+    # inteiro: foi assim que a pergunta sobre um comprovante de viagem voltou
+    # falando de contrato de compra e venda.
+    em_foco = str(trabalho.contexto.get("documento_em_foco", "") or "")
+    citado = intencao.documento_citado(pergunta, estado.searcher.documents)
+    if not citado and em_foco and intencao.fala_do_documento_em_foco(pergunta):
+        citado = em_foco
+    if citado:
+        trabalho.contexto["documento_em_foco"] = citado
+
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents)
+    # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
+    if lido.tipo == "documentos" and citado and intencao.quer_abrir(pergunta):
+        lido = intencao.Intencao(
+            tipo="abrir", titulo=citado, campos={"nome": citado},
+            porque="“o referido documento” — o que esta conversa vinha lendo",
+        )
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
 
@@ -972,13 +991,15 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
 
         try:
             for tipo, dados in habilidade.executar(
-                _contexto(registrar), pergunta=pergunta, top=payload.top
+                _contexto(registrar), pergunta=pergunta, top=payload.top,
+                apenas=citado,
             ):
                 if tipo == "fontes":
                     cobertura = {
                         "consultados": dados["consultados"],
                         "ignorados": dados["ignorados"],
                         "total_contratos": dados["total_contratos"],
+                        "apenas": dados.get("apenas", ""),
                     }
                     fontes = dados["trechos"]
                     trabalho.etapas[0].estado = CONCLUIDO

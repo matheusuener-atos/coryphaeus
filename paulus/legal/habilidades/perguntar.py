@@ -51,8 +51,14 @@ def orcamento_de_leitura(ctx: Contexto) -> int:
     return max(4000, (janela - TOKENS_RESERVADOS) * CHARS_POR_TOKEN)
 
 
-def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
-    """Gerador de eventos: fontes, depois a resposta pedaco a pedaco."""
+def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas: str = ""):
+    """
+    Gerador de eventos: fontes, depois a resposta pedaco a pedaco.
+
+    `apenas` é o nome de um documento: quando a pergunta nomeia um arquivo,
+    a leitura para nele. Quem resolve o nome é quem chama — aqui só se
+    obedece, e se declara no bastidor que a leitura foi estreitada.
+    """
     pergunta = (pergunta or "").strip()
     if not pergunta:
         yield evento("vazio", mensagem="Não entendi a pergunta.")
@@ -60,6 +66,25 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
 
     ctx.antes_de_cada()
     orcamento = orcamento_de_leitura(ctx)
+
+    # A pergunta nomeou um documento: a resposta é sobre ele, e mais ninguém.
+    # Lendo os nove, o documento citado virava 937 de 27.213 caracteres -
+    # medido - e a resposta saía sobre os outros 96,6%: perguntar sobre um
+    # comprovante de viagem devolvia contrato de compra e venda.
+    if apenas:
+        so_dele = ctx.searcher.do_documento(apenas)
+        if so_dele:
+            ctx.registrar("A pergunta nomeia “" + apenas + "” — leu só ele")
+            yield from _responder(ctx, pergunta, so_dele, orcamento, apenas=apenas)
+            return
+        # Nomeou um documento que não está aberto: dizer isso é melhor do que
+        # responder pelo acervo como se nada tivesse sido pedido.
+        yield evento(
+            "vazio",
+            mensagem=f"“{apenas}” não está entre os documentos abertos, "
+                     "então não tenho o que ler dele.",
+        )
+        return
 
     # Escolher trecho é o que se faz quando não dá para ler tudo. Com seis
     # documentos e vinte e quatro mil caracteres dava, e o programa escolhia
@@ -82,8 +107,23 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
         yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos.")
         return
 
+    yield from _responder(ctx, pergunta, hits, orcamento)
+
+
+def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas: str = ""):
+    """
+    Monta as fontes, entrega ao assistente e devolve a resposta.
+
+    Os dois caminhos - acervo inteiro e documento nomeado - passam por aqui,
+    para que a lista de fontes, a conta de caracteres e o aviso de cobertura
+    sejam sempre os mesmos.
+    """
     consultados = list(dict.fromkeys(h.doc_name for h in hits))
-    ignorados = [d.name for d in ctx.documentos if d.name not in consultados]
+    # Com a leitura estreitada os outros nao ficaram "de fora": a pergunta
+    # nomeou um arquivo. Listar oito documentos como nao consultados viraria
+    # um aviso de cobertura assustando quem fez exatamente o que quis.
+    ignorados = ([] if apenas else
+                 [d.name for d in ctx.documentos if d.name not in consultados])
     fontes = [
         {
             "documento": h.doc_name,
@@ -102,6 +142,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6):
         ignorados=ignorados,
         total_contratos=len(ctx.documentos),
         trechos=fontes,
+        apenas=apenas,
     )
 
     contexto = ctx.searcher.format_context(hits, max_chars=orcamento)

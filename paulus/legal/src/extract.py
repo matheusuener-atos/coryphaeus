@@ -48,6 +48,38 @@ class Document:
 # --------------------------------------------------------------------------
 
 
+def _texto_da_pagina(page) -> str:
+    """
+    O texto de uma pagina, na ordem em que se le.
+
+    O modo padrao do pypdf devolve na ordem em que o PDF desenha, que num
+    formulario nao e a ordem de leitura: um comprovante de viagem saia como
+
+        Nome
+        JOSE MARCIO CAMPOS TEIXEIRA
+        PA - SAO FELIX DO XINGU
+        Destino
+
+    com o rotulo depois do valor, e "Partida" e "Retorno" soltos longe de
+    tudo. Rotulo separado do valor e um documento que nao da para responder:
+    nao ha como saber o que e de quem.
+
+    No modo layout o mesmo documento sai com "Destino  PA - SAO FELIX DO
+    XINGU" na mesma linha. Nos contratos em prosa a diferenca e nenhuma -
+    medido, +-2% de palavras nos cinco PDFs do acervo - e custa 340 ms a mais
+    na indexacao inteira, que acontece uma vez e fica em cache.
+    """
+    for modo in ("layout", None):
+        try:
+            texto = (page.extract_text(extraction_mode=modo) if modo
+                     else page.extract_text()) or ""
+        except Exception:
+            continue
+        if texto.strip():
+            return texto
+    return ""
+
+
 def extract_pdf(path: Path) -> tuple[str, int]:
     """Extrai texto de um PDF. Retorna (texto, numero_de_paginas)."""
     from pypdf import PdfReader
@@ -63,10 +95,7 @@ def extract_pdf(path: Path) -> tuple[str, int]:
 
     partes: list[str] = []
     for i, page in enumerate(reader.pages, start=1):
-        try:
-            texto = page.extract_text() or ""
-        except Exception:
-            texto = ""
+        texto = _texto_da_pagina(page)
         if texto.strip():
             partes.append(f"[pagina {i}]\n{texto.strip()}")
 

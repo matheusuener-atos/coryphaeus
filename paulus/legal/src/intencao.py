@@ -32,6 +32,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 # ---------------------------------------------------------------- palavras
 
@@ -389,6 +390,95 @@ def _documento_pedido(plano: str, documentos) -> str:
         if len(soltos) == 1:
             return soltos[0]
     return ""
+
+
+# Jeitos de dizer "aquele documento de que estávamos falando". Não nomeiam
+# arquivo nenhum — quem sabe qual é a conversa.
+ANAFORA = (
+    "referido documento", "referido arquivo", "documento referido",
+    "este documento", "esse documento", "deste documento", "desse documento",
+    "neste documento", "nesse documento", "o documento acima", "mesmo documento",
+    "este arquivo", "esse arquivo", "neste arquivo", "nesse arquivo",
+    "o documento aqui", "o documento em questao", "documento citado",
+)
+
+
+def fala_do_documento_em_foco(texto: str) -> bool:
+    """
+    A frase fala de "o referido documento" sem dizer qual.
+
+    Quem sabe qual é a conversa, e não a frase: sem isso, "Exiba o referido
+    documento aqui" não nomeia arquivo nenhum, cai na busca e é respondida
+    pelo acervo inteiro.
+    """
+    return any(a in _plano(texto) for a in ANAFORA)
+
+
+def _nome_de(doc) -> str:
+    """
+    O nome do arquivo, venha ele como for.
+
+    A lista de documentos chega de tres jeitos conforme quem chama: objeto
+    Document, dicionario da tela, ou o nome puro. Aceitar so o primeiro fazia
+    a funcao devolver vazio calada - e "vazio" aqui quer dizer "nenhum
+    documento nomeado", que e uma resposta plausivel e errada.
+    """
+    if isinstance(doc, str):
+        return doc
+    if isinstance(doc, dict):
+        return doc.get("nome") or doc.get("name") or ""
+    return getattr(doc, "name", "") or ""
+
+
+def quer_abrir(texto: str) -> bool:
+    """A frase começa com um verbo de abrir — "exiba", "mostre", "abra"."""
+    palavras = re.findall(r"[a-z0-9]+", _plano(texto))
+    for posicao, palavra in enumerate(palavras[:4]):
+        if palavra in VERBOS_ABRIR:
+            return all(anterior in ENFEITE for anterior in palavras[:posicao])
+    return False
+
+
+def documento_citado(texto: str, documentos=None) -> str:
+    """
+    Qual documento do acervo esta frase MENCIONA. Vazio quando nenhum ou vários.
+
+    É outra pergunta que `ler` não faz: `ler` decide o que fazer com a frase,
+    esta decide sobre o quê. Perguntar nomeando um documento e ler os nove
+    fazia o documento citado virar 3,4% do contexto - medido - e a resposta
+    saía sobre os outros 96,6%.
+
+    Conservadora de propósito: na dúvida devolve vazio e a busca segue como
+    antes. Estreitar a leitura para o documento errado é pior do que não
+    estreitar.
+    """
+    plano = _plano(texto)
+    if not plano:
+        return ""
+
+    nomes = [n for n in (_nome_de(d) for d in documentos or []) if n]
+
+    # Primeira passada: o nome do arquivo aparece inteiro na frase. É o caso
+    # do "Sobre “X”:" que a tela escreve, e não tem como dar falso positivo.
+    inteiros = [n for n in nomes if _plano(Path(n).stem) in plano]
+    if inteiros:
+        # Com "contrato.pdf" e "contrato (1).pdf", os dois casam: fica o mais
+        # específico, que é o nome mais longo.
+        maior = max(len(Path(n).stem) for n in inteiros)
+        finalistas = [n for n in inteiros if len(Path(n).stem) == maior]
+        if len(finalistas) == 1:
+            return finalistas[0]
+        return ""
+
+    # Segunda: todas as palavras próprias do nome aparecem na frase. Pega
+    # "qual o valor da viagem 000434?" sem pegar "quanto custou a viagem?".
+    achados = []
+    for nome in nomes:
+        proprias = [p for p in re.findall(r"[a-z0-9]{3,}", _plano(Path(nome).stem))
+                    if p not in GENERICAS and p not in ENFEITE]
+        if proprias and all(p in plano for p in proprias):
+            achados.append(nome)
+    return achados[0] if len(achados) == 1 else ""
 
 
 def ler(texto: str, hoje: date | None = None, documentos=None) -> Intencao:

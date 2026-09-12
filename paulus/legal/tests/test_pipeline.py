@@ -307,6 +307,62 @@ def test_nenhum_documento_some_do_contexto() -> None:
         checar("coube" in apertado, "e nomeia os documentos que ficaram de fora")
 
 
+def test_formulario_sai_na_ordem_de_leitura() -> None:
+    """
+    Num formulário, o rótulo tem que sair junto do valor.
+
+    O modo padrão do pypdf devolve o texto na ordem em que o PDF desenha, que
+    num formulário não é a ordem de leitura. Um comprovante de viagem saía
+    assim:
+
+        Nome
+        JOSÉ MARCIO CAMPOS TEIXEIRA
+        PA - SÃO FÉLIX DO XINGU
+        Destino
+
+    O destino aparecendo ANTES do seu rótulo, e "Partida" e "Retorno" soltos
+    longe de tudo. Não há como responder "qual o destino?" a partir disso: não
+    dá para saber o que é de quem, e o modelo responde pelo que sobra.
+
+    Aqui a checagem é a que importa para a resposta: rótulo e valor na mesma
+    linha.
+    """
+    print("\nformulário sai na ordem de leitura")
+    from extract import index_all_contracts
+
+    contratos = RAIZ / "data" / "test_contracts"
+    if not contratos.exists():
+        print("  pulado: pasta de contratos não existe")
+        return
+
+    docs = index_all_contracts(contratos, verbose=False)
+    forma = next((d for d in docs if "VIAGEM" in d.name.upper()), None)
+    if not forma:
+        print("  pulado: o formulário de viagem não está nesta máquina")
+        return
+
+    linhas = [" ".join(l.split()) for l in forma.text.splitlines() if l.strip()]
+    juntos = [
+        ("Destino", "PA - SÃO FÉLIX DO XINGU"),
+        ("Nome", "JOSÉ MARCIO CAMPOS TEIXEIRA"),
+        ("Motivo", "REUNIÃO DE ENSINAMENTOS"),
+        ("Importância entregue", "R$ 200,00"),
+    ]
+    for rotulo, valor in juntos:
+        checar(any(l.startswith(rotulo) and valor in l for l in linhas),
+               f"“{rotulo}” sai na mesma linha do valor")
+
+    # Campo em branco continua em branco: o documento não tem essas datas, e
+    # inventá-las seria muito pior do que não achá-las.
+    partida = [l for l in linhas if l.startswith("Partida")]
+    checar(bool(partida) and partida[0].replace("Partida", "").replace("Retorno", "").strip() == "",
+           f"campo não preenchido continua vazio ({partida[:1]})")
+
+    # E o documento inteiro continua lá.
+    for pedaco in ("000434", "11/09/2026", "03.187.785/0001-41", "CONGREGAÇÃO CRISTÃ"):
+        checar(pedaco in forma.text, f"o texto guarda “{pedaco}”")
+
+
 def test_copias_do_mesmo_arquivo() -> None:
     """
     Dois arquivos iguais byte a byte tem o mesmo sha1 - e o cache e por sha1.
@@ -360,6 +416,7 @@ def main() -> int:
     test_cache()
     test_le_o_acervo_inteiro_quando_cabe()
     test_nenhum_documento_some_do_contexto()
+    test_formulario_sai_na_ordem_de_leitura()
     test_copias_do_mesmo_arquivo()
 
     print("\n" + "=" * 55)

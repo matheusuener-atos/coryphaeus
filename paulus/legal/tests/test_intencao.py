@@ -256,6 +256,98 @@ def test_abrir_arquivo() -> None:
            "sem a lista de documentos, nao inventa arquivo")
 
 
+def test_pergunta_nomeia_um_documento() -> None:
+    """
+    Perguntar sobre um documento e ler os nove.
+
+    Aconteceu com o usuário: ele perguntou a data de uma viagem citando
+    “VIAGEM 000434 - ENVELOPE.pdf”, e a resposta veio falando de um contrato
+    de compra e venda de R$ 200.000,00 e de uma procuração da COOBRAMEX.
+
+    A causa dá para medir: o documento citado era 937 dos 27.213 caracteres
+    que iam para o modelo — 3,4%. Os outros 96,6% eram contratos, e foi sobre
+    eles que o modelo respondeu.
+
+    Esta função é a que decide o escopo, e ela erra para o lado seguro: na
+    dúvida devolve vazio e a leitura continua sendo do acervo inteiro.
+    Estreitar para o documento errado é pior que não estreitar.
+    """
+    print("\na pergunta nomeia um documento")
+    from types import SimpleNamespace
+    nomes = (
+        "VIAGEM 000434 - ENVELOPE.pdf",
+        "Procuraçao COOBRAMEX x Matheus.pdf",
+        "Procuraçao COOBRAMEX x Matheus (2).pdf",
+        "Procuraçao COOBRAMEX x Priscila.docx",
+        "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+        "COMPRA E VENDA - WANDERSON X VALTER UENER R$ 200.000,00.pdf",
+    )
+    acervo = [SimpleNamespace(name=n) for n in nomes]
+
+    def citado(frase):
+        return intencao.documento_citado(frase, acervo)
+
+    # O que a tela escreve ao "Perguntar sobre este documento".
+    checar(citado("Sobre “VIAGEM 000434 - ENVELOPE.pdf”: qual o valor de adiantamento?")
+           == "VIAGEM 000434 - ENVELOPE.pdf", "acha o documento que a frase cita")
+    checar(citado("Sobre “Procuraçao COOBRAMEX x Priscila.docx”: quem é a outorgada?")
+           == "Procuraçao COOBRAMEX x Priscila.docx", "e funciona para qualquer um deles")
+    checar(citado("qual o valor da viagem 000434 envelope?")
+           == "VIAGEM 000434 - ENVELOPE.pdf",
+           "acha também quando o nome é digitado solto")
+
+    # Dois arquivos cujo nome é prefixo um do outro: vale o mais específico.
+    checar(citado("Sobre “Procuraçao COOBRAMEX x Matheus (2).pdf”: quem assina?")
+           == "Procuraçao COOBRAMEX x Matheus (2).pdf",
+           "com “contrato” e “contrato (1)”, vale o nome mais longo")
+
+    # As três formas de não haver um documento só.
+    checar(citado("Quais são as cláusulas de penalidade?") == "",
+           "pergunta sem nome de arquivo não estreita nada")
+    checar(citado("qual o foro do contrato?") == "",
+           "“contrato” é palavra de tipo, não nome de arquivo")
+    checar(citado("compare a procuração do Matheus com a da Priscila") == "",
+           "duas nomeadas é ambíguo demais para escolher sozinho")
+    checar(citado("") == "" and intencao.documento_citado("x", None) == "",
+           "texto vazio e acervo vazio não quebram")
+
+    # A lista de documentos chega de três formas conforme quem chama.
+    checar(intencao.documento_citado("sobre a viagem 000434 envelope", list(nomes))
+           == "VIAGEM 000434 - ENVELOPE.pdf", "aceita a lista como nomes puros")
+    checar(intencao.documento_citado("sobre a viagem 000434 envelope",
+                                     [{"nome": n} for n in nomes])
+           == "VIAGEM 000434 - ENVELOPE.pdf", "e como dicionário da tela")
+
+
+def test_o_referido_documento() -> None:
+    """
+    "Exiba o referido documento aqui" não nomeia arquivo nenhum.
+
+    Quem sabe qual é a conversa. Sem isso a frase caía na busca e era
+    respondida pelo acervo inteiro — foi a resposta mais errada que o usuário
+    viu: um parágrafo sobre contratos que ele não tinha perguntado.
+    """
+    print("\no referido documento")
+    for frase in ("Exiba o referido documento aqui", "abra esse documento",
+                  "o que diz neste documento?", "resuma o documento acima",
+                  "quem assina este arquivo?"):
+        checar(intencao.fala_do_documento_em_foco(frase),
+               f"“{frase[:38]}” fala do documento em foco")
+
+    for frase in ("qual o valor?", "quais os contratos de 2026?",
+                  "quantos documentos temos?"):
+        checar(not intencao.fala_do_documento_em_foco(frase),
+               f"“{frase[:38]}” não é anáfora")
+
+    checar(intencao.quer_abrir("Exiba o referido documento aqui"), "“exiba” é pedido de abrir")
+    checar(intencao.quer_abrir("por favor mostre esse documento"),
+           "com enfeite antes do verbo também")
+    checar(not intencao.quer_abrir("o contrato mostra o foro?"),
+           "verbo depois do sujeito não é ordem")
+    checar(not intencao.quer_abrir("qual o valor do adiantamento?"),
+           "pergunta comum não é pedido de abrir")
+
+
 def test_sobre_o_programa() -> None:
     print("\nperguntas sobre o próprio programa")
     for p in ("o que você faz?", "o que você sabe fazer", "você consegue assinar?",
@@ -290,6 +382,8 @@ def main() -> int:
     test_sem_data_nao_inventa()
     test_tarefas()
     test_abrir_arquivo()
+    test_pergunta_nomeia_um_documento()
+    test_o_referido_documento()
     test_sobre_o_programa()
     test_texto_vazio()
 

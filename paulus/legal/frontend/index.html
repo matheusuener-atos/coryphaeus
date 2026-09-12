@@ -2945,9 +2945,15 @@ async function enviar() {
         const dados = JSON.parse(md[1]);
 
         if (mt[1] === "fontes") {
-          anotarBastidor("procurei nos " + plural(dados.total_contratos, "documento") +
-            " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
-            " de " + plural(dados.consultados.length, "documento"));
+          /* Quando a pergunta nomeia um arquivo, a leitura para nele — e o
+             bastidor diz isso, porque "li 1 de 9" sem explicação parece falha
+             de cobertura quando é obediência ao que foi pedido. */
+          anotarBastidor(dados.apenas
+            ? "a pergunta nomeia “" + dados.apenas + "” · li só ele, " +
+              plural(dados.trechos.length, "trecho")
+            : "procurei nos " + plural(dados.total_contratos, "documento") +
+              " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
+              " de " + plural(dados.consultados.length, "documento"));
           if (dados.ignorados.length) {
             anotarBastidor(plural(dados.ignorados.length, "documento") +
               " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
