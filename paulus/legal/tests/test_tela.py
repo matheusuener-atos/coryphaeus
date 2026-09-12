@@ -463,6 +463,32 @@ def main() -> int:
             pagina.wait_for_timeout(1600)
             checar(pagina.evaluate("() => cfg.secao === 'conexoes'"), "o destino antigo Conexoes abre a secao")
 
+            print("\nFoco e bem-estar: hoje e semana")
+            # O ciclo no anel, os lembretes e o ritmo por hora no painel
+            # (docs/ui/03-telas-desktop.md, A12).
+            pagina.evaluate("() => abrirDestino('foco')")
+            pagina.wait_for_timeout(2000)
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#be-tela .be-anel') && !!document.querySelector('#be-tela .be-lembretes')"),
+                "Hoje abre com o anel do ciclo e os lembretes",
+            )
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.be-horas');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 11, f"o ritmo por hora tem onze colunas (achou {colunas})")
+            pagina.evaluate("() => document.querySelector('[data-be-visao=semana]').click()")
+            pagina.wait_for_timeout(2200)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.be-semana-grade');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 7, f"a semana tem sete dias (achou {colunas})")
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#be-tela .be-habito') && !!document.querySelector('#be-tela .fin-parecer')"),
+                "a semana traz os habitos e o parecer",
+            )
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

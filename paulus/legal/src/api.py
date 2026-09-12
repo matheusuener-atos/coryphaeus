@@ -4512,6 +4512,12 @@ def bemestar_ver() -> dict:
     return dados
 
 
+@app.get("/api/bemestar/semana")
+def bemestar_semana(ate: str = "") -> dict:
+    """Uma semana qualquer, para comparar a atual com a anterior."""
+    return estado.bem_estar.semana(ate)
+
+
 @app.post("/api/bemestar/medir")
 def bemestar_medir(payload: dict) -> dict:
     """

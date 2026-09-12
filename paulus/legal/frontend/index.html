@@ -93,6 +93,7 @@
     --warnbg: oklch(96% 0.05 85);
     --logo: none;
     --amostra-escura: #171716;
+    --be-p: 0%;
 
     /* Iguais nos dois temas: pontos cheios e glifos de formato de arquivo. */
     --verde: oklch(60% 0.15 150);
@@ -1989,29 +1990,6 @@
 
   /* ------------------------------------------ bem-estar, conexões */
 
-  /* Bem-estar */
-  .be-relogio {
-    font: 500 46px var(--mono); letter-spacing: -0.02em;
-    text-align: center; padding: 18px 0 6px; font-variant-numeric: tabular-nums;
-  }
-  .be-relogio.pausa { color: var(--ok); }
-  .be-fase { text-align: center; margin-bottom: 14px; }
-  .be-trilho { height: 3px; background: var(--trilho); margin: 12px 0; }
-  .be-trilho i { display: block; height: 3px; background: var(--acento); transition: width 1s linear; }
-
-  .be-lembrete {
-    display: flex; align-items: center; gap: 11px;
-    padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
-  }
-  .be-lembrete:last-child { border-bottom: none; }
-  .be-lembrete.cumprido .cresce { color: var(--ink-3); }
-  .be-atraso { color: var(--atencao); }
-
-  .be-semana { display: flex; align-items: stretch; gap: 8px; height: 84px; margin: 12px 0; }
-  .be-dia { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
-  .be-coluna { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-  .be-coluna i { display: block; width: 100%; background: var(--acento); min-height: 2px; }
-
   /* ------------------------------------------------------ artigo de lei */
 
   .artigo {
@@ -3477,6 +3455,97 @@
   .cfg-segmento button:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }
   .cfg-segmento button.ativa { background: var(--surf); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px var(--sh-a12); }
   .cfg-segmento button:disabled { opacity: .5; }
+
+  /* ------------------------------------------------ foco e bem-estar (A12) */
+  /*
+    Foco e bem-estar (docs/ui/03-telas-desktop.md, A12): Hoje e Semana, com
+    o painel fixo sem alca. Prefixo be-.
+  */
+  .be-tela.acervo { grid-template-columns: minmax(0, 1fr) 380px; }
+  .be-grade { flex: 1; min-height: 420px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; }
+  .be-grade.semana { grid-template-rows: minmax(0, 1.3fr) auto; grid-template-columns: minmax(0, 1fr); }
+  .be-ciclo { flex: 1; min-height: 0; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; overflow: auto; }
+  .be-anel {
+    position: relative; width: 200px; height: 200px; flex: none; border-radius: 50%;
+    background: conic-gradient(var(--ink) 0 var(--be-p), var(--fill2) var(--be-p) 100%);
+  }
+  .be-anel.pausa { background: conic-gradient(var(--verde) 0 var(--be-p), var(--fill2) var(--be-p) 100%); }
+  .be-anel.parado { background: conic-gradient(var(--fill2) 0 100%, var(--fill2) 0 100%); }
+  .be-anel > div { position: absolute; inset: 8px; border-radius: 50%; background: var(--surf); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .be-tempo { font: 400 44px/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .be-fase { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .be-botoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; white-space: nowrap; }
+  .be-ajustes { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .be-ajustes div { padding: 10px 12px; background: var(--bg); border-radius: 8px; display: grid; gap: 2px; }
+  .be-ajustes small { font: 500 12px var(--sans); color: var(--ink3); }
+  .be-ajustes select { width: 100%; max-width: none; min-width: 0; padding: 4px 0; border: none; background: transparent; font: 600 14px var(--sans); color: var(--ink); cursor: pointer; }
+  .be-tarefa { width: 100%; }
+  .be-tarefa select { width: 100%; max-width: none; min-width: 0; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink); }
+  .be-ciclo .cfg-liga { width: 100%; }
+  .be-lembretes { flex: 1; min-height: 0; overflow: auto; }
+  .be-lembrete { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; }
+  .be-lembrete:last-child { border-bottom: none; }
+  .be-lembrete.atrasado { background: var(--accbg2); }
+  .be-lembrete.desligado .duas-linhas b, .be-lembrete.desligado .duas-linhas small { color: var(--ink3); }
+  .be-marca { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); flex: none; box-sizing: border-box; }
+  .be-lembrete.atrasado .be-marca { border-color: var(--acc); }
+  .be-lembrete .ic { color: var(--verde); flex: none; }
+  .be-lembrete .duas-linhas b { font-weight: 500; }
+  .be-lembrete .duas-linhas small.acc { color: var(--acc); }
+  .be-lembrete button { padding: 5px 10px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
+  .be-lembrete button.primario { font-weight: 600; }
+  .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+
+  /* o painel de hoje */
+  .be-painel .fin-bloco-cabeca { padding: 14px 18px 10px; }
+  .be-ritmo { padding: 0 18px 12px; display: grid; gap: 12px; }
+  .be-horas { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; align-items: end; height: 90px; border-bottom: 1px solid var(--ink-a1); }
+  .be-horas span { display: block; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--ink); }
+  .be-horas span.agora { background: var(--acc); }
+  .be-horas span.vazia { background: var(--fill2); }
+  .be-horas-rotulos { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); text-align: center; font: 500 11px var(--sans); color: var(--ink3); }
+  .be-ritmo p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .be-sugestao { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; }
+  .be-sugestao > .ic { color: var(--ink2); flex: none; }
+  .be-sugestao > span { display: grid; gap: 6px; font-size: 13.5px; line-height: 1.5; }
+  .be-sugestao .fin-pede-acoes { padding-top: 0; }
+  .be-painel .painel-bloco .cfg-liga { padding: 2px 0; }
+
+  /* a semana */
+  .be-semana-grade {
+    flex: 1; min-height: 160px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; align-items: end;
+    background-image: linear-gradient(var(--ink-a06) 1px, transparent 1px); background-size: 100% 25%; border-bottom: 1px solid var(--ink-a1);
+  }
+  .be-dia { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+  .be-dia small { font: 500 11px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .be-dia i { display: block; width: 100%; max-width: 44px; min-height: 2px; background: var(--ink); border-radius: 4px 4px 0 0; }
+  .be-dia.hoje i { background: var(--acc); }
+  .be-dia.vazio i { background: var(--fill2); }
+  .be-semana-rotulos { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
+  .be-semana-rotulos span { display: grid; gap: 1px; font: 500 12px var(--sans); color: var(--ink2); }
+  .be-semana-rotulos small { font: 500 11px var(--sans); color: var(--ink3); }
+  .be-semana-somas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .be-semana-somas div { padding: 10px 12px; background: var(--bg); border-radius: 8px; display: grid; gap: 2px; }
+  .be-semana-somas small { font: 500 12px var(--sans); color: var(--ink3); }
+  .be-semana-somas b { font: 600 15px var(--sans); font-variant-numeric: tabular-nums; }
+  .be-habitos { padding: 8px 16px 12px; display: grid; gap: 2px; }
+  .be-habito { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(7, 28px) minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
+  .be-habito:last-child { border-bottom: none; }
+  .be-habito i { display: block; width: 28px; height: 28px; border-radius: 6px; background: var(--mute); }
+  .be-habito i.cheio { background: var(--ink); }
+  .be-habito i.meio { background: var(--ink3); }
+  .be-habito i.futuro { background: var(--fill2); }
+  .be-habito small { font: 500 12.5px var(--sans); color: var(--ink3); text-align: right; }
+  .be-habito.adiante > span:first-child { color: var(--ink3); }
+
+  /* ajustar lembretes, no painel */
+  .be-editor { padding: 0 18px 12px; display: grid; gap: 8px; }
+  .be-editor-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
+  .be-editor-linha:last-child { border-bottom: none; }
+  .be-editor-linha .duas-linhas b { font-weight: 500; }
+  .be-editor-linha button { padding: 4px 9px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
+  .be-editor-linha .botao-icone { width: 24px; height: 24px; padding: 0; }
 
   /* ------------------------------------------------------- responsivo */
 
@@ -15772,7 +15841,6 @@ async function pedirFormula(pedido) {
    vazio, em vez de desenhar um gráfico bonito de dado que ninguém digitou.
 */
 
-const fim = { be: null, cx: null, relogio: null };
 
 /* --------------------------------------------------------- financeiro */
 /*
@@ -16902,202 +16970,524 @@ function quandoDoRelatorio() {
 }
 
 /* ------------------------------------------------------ foco e bem-estar */
+/*
+   Foco e bem-estar (docs/ui/03-telas-desktop.md, A12): Hoje e Semana, com o
+   painel fixo. Tudo calculado so com uso local: o ciclo, os lembretes e a
+   medicao de atividade sao os de sempre; o ritmo por hora sai das tarefas
+   concluidas de hoje, e o parecer da semana e regra sobre os totais, nao
+   opiniao de modelo. O que ainda nao tem motor - segurar e-mail, WhatsApp e
+   Aprovacoes durante o foco, o historico por dia de cada lembrete - diz isso.
+*/
 
-async function mostrarFoco() {
-  abrirTela("Foco e bem-estar");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+const be = {
+  visao: "hoje", dados: null, rel: null, tarefas: [], semanaAntes: null,
+  relogio: null, ajustando: false, form: null, sugestaoDepois: false, tarefa: "",
+};
 
+const BE_JSON = { "Content-Type": "application/json" };
+const BE_HORAS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+
+async function mostrarFoco(visao) {
+  if (visao) be.visao = visao;
+  pararRelogioDoFoco();
+  abrirTela("Foco e bem-estar", { cheia: true });
+  marcarDestino("foco");
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  atualizarPostura();
   try {
-    fim.be = await (await fetch("/api/bemestar")).json();
+    const pega = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const [d, rel, t] = await Promise.all([
+      fetch("/api/bemestar").then((r) => r.json()), pega("/api/relatorios"), pega("/api/tarefas?filtro=meu_dia"),
+    ]);
+    be.dados = d;
+    be.rel = rel;
+    be.tarefas = (t && t.tarefas) || [];
+    if (be.visao === "semana") {
+      const antes = deIso(d.semana.de);
+      antes.setDate(antes.getDate() - 1);
+      be.semanaAntes = await pega("/api/bemestar/semana?ate=" + iso(antes));
+    }
   } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
+      esc(String(err)) + "</p></div></div>";
     return;
   }
   desenharFoco();
-  atualizarPostura();
 }
 
 function desenharFoco() {
-  const d = fim.be;
+  cabecalhoFoco();
+  const miolo = be.visao === "semana" ? corpoDaSemana() + painelDaSemana() : corpoDeHoje() + painelDeHoje();
+  $("centro").innerHTML = '<div class="acervo be-tela" id="be-tela">' + miolo + "</div>";
+  ligarFoco();
+  atualizarPostura();
+}
+
+/* ------------------------------------------------------ o cabecalho */
+
+function cabecalhoFoco() {
+  const d = be.dados;
+  const h = d.hoje;
+  const titulo = $("conversa-titulo");
+  const meta = $("conversa-meta");
+  titulo.textContent = "Foco e bem-estar";
+  if (be.visao === "semana") {
+    const s = d.semana;
+    meta.textContent = "Semana de " + dataCurta(s.de) + " a " + dataCurta(s.ate) + " · " + horasEmTexto(minutosDaSemana(s)) + " de atividade";
+  } else if (h.medindo) {
+    const classe = "fin-meta-ponto" + (h.sem_pausa_min >= 90 ? " acc" : "");
+    meta.innerHTML = "Ativo há " + esc(h.ativo_texto === "ainda nada hoje" ? "menos de um minuto" : h.ativo_texto) +
+      '<span class="' + classe + '"><i></i>' + (h.sem_pausa_min ? "sem pausa há " + esc(horasEmTexto(h.sem_pausa_min)) : "medindo agora") + "</span>";
+  } else {
+    meta.textContent = "acompanhamento desligado · o ciclo de foco e os lembretes funcionam do mesmo jeito";
+  }
+  const botao = (v, r) => {
+    const classe = v === be.visao ? "ativa" : "";
+    return '<button class="' + classe + '" data-be-visao="' + v + '">' + r + "</button>";
+  };
+  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("hoje", "Hoje") + botao("semana", "Semana") + "</div>" +
+    '<button class="com-icone" data-be-ajustar="1">' + ic("tune", 16) + (be.ajustando ? "Fechar os ajustes" : "Ajustar lembretes") + "</button>" +
+    '<button class="com-icone' + (h.medindo ? "" : " primario") + '" data-be-medir="1">' + ic(h.medindo ? "visibility_off" : "visibility", 16) +
+    (h.medindo ? "Desligar acompanhamento" : "Ligar acompanhamento") + "</button>";
+  $("nav-tela").innerHTML = "";
+}
+
+/* --------------------------------------------------------- miudezas */
+
+function horasEmTexto(minutos) {
+  const m = Math.round(minutos || 0);
+  if (!m) return "0 min";
+  if (m < 60) return m + " min";
+  return Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0") + " min";
+}
+
+function horasCurtas(minutos) {
+  if (!minutos) return "—";
+  return String(Math.round(minutos / 6) / 10).replace(".", ",") + " h";
+}
+
+function minutosDaSemana(s) {
+  return (s.dias || []).reduce((soma, x) => soma + (x.minutos_ativos || 0), 0);
+}
+
+function feitasPorHora() {
+  const contagem = BE_HORAS.map(() => 0);
+  const feitas = (((be.rel || {}).dia || {}).tarefas || {}).feitas || [];
+  feitas.forEach((t) => {
+    const hora = Number(String(t.hora || "").slice(0, 2));
+    const i = BE_HORAS.indexOf(hora);
+    if (i >= 0) contagem[i] += 1;
+  });
+  return contagem;
+}
+
+function faseDoCiclo(c) {
+  if (c.estado === "foco") return "foco · ciclo " + c.numero;
+  if (c.estado === "pausa") return "pausa · depois do ciclo " + c.numero;
+  return "parado";
+}
+
+function progressoDoCiclo(c) {
+  if (c.estado === "parado" || !c.duracao) return 0;
+  return Math.max(0, Math.min(100, Math.round((1 - c.restante / c.duracao) * 100)));
+}
+
+/* -------------------------------------------------------------- hoje */
+
+function corpoDeHoje() {
+  const d = be.dados;
+  const c = d.ciclo;
+  const lembretes = d.lembretes || [];
+  const cumpridos = lembretes.filter((l) => l.cumprido).length;
+  const classeAnel = "be-anel" + (c.estado === "pausa" ? " pausa" : (c.estado === "parado" ? " parado" : ""));
+  let botoes;
+  if (c.estado === "parado") {
+    botoes = '<button class="primario" data-be-comecar="1">' + ic("play_arrow", 16) + "Começar</button>";
+  } else if (c.estado === "foco") {
+    botoes = '<button class="primario" data-be-pausa="1">' + ic("skip_next", 16) + "Ir para a pausa</button>" +
+      '<button data-be-reiniciar="1">' + ic("restart_alt", 16) + "Reiniciar</button>" +
+      '<button data-be-parar="1">' + ic("stop", 16) + "Parar</button>";
+  } else {
+    botoes = '<button class="primario" data-be-comecar="1">' + ic("play_arrow", 16) + "Novo ciclo</button>" +
+      '<button data-be-parar="1">' + ic("stop", 16) + "Parar</button>";
+  }
+  const tarefaAtual = be.tarefa || c.tarefa || "";
+  const opcoes = '<option value="">nenhuma — só o tempo</option>' + be.tarefas.map((t) =>
+    '<option value="' + esc(t.titulo) + '"' + (t.titulo === tarefaAtual ? " selected" : "") + ">" + esc(t.titulo) + "</option>").join("") +
+    (tarefaAtual && !be.tarefas.some((t) => t.titulo === tarefaAtual) ? '<option value="' + esc(tarefaAtual) + '" selected>' + esc(tarefaAtual) + "</option>" : "");
+
+  const ciclo = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Ciclo de foco</span><small>' +
+    esc(c.tarefa ? "tarefa deste ciclo: " + c.tarefa : "sem tarefa marcada") + "</small></div>" +
+    '<div class="be-ciclo">' +
+    '<div class="' + classeAnel + '" id="be-anel" style="--be-p:' + progressoDoCiclo(c) + '%"><div><span class="be-tempo" id="be-relogio">' +
+    esc(c.estado === "parado" ? String(c.foco_min).padStart(2, "0") + ":00" : c.restante_texto) + '</span><span class="be-fase" id="be-fase">' + esc(faseDoCiclo(c)) + "</span></div></div>" +
+    '<div class="be-botoes">' + botoes + "</div>" +
+    '<div class="be-ajustes"><div><small>Foco</small><select data-be-foco="1"' + (c.estado === "parado" ? "" : " disabled") + ">" +
+    [15, 25, 45, 50, 90].map((m) => '<option value="' + m + '"' + (c.foco_min === m ? " selected" : "") + ">" + m + " min</option>").join("") + "</select></div>" +
+    '<div><small>Pausa</small><select data-be-pausa-min="1"' + (c.estado === "parado" ? "" : " disabled") + ">" +
+    [5, 10, 15].map((m) => '<option value="' + m + '"' + (c.pausa_min === m ? " selected" : "") + ">" + m + " min</option>").join("") + "</select></div></div>" +
+    '<div class="be-tarefa ag-campo"><label>Tarefa deste ciclo</label><select data-be-tarefa="1"' + (c.estado === "parado" ? "" : " disabled") + ">" + opcoes + "</select></div>" +
+    '<div class="cfg-liga presa"><span class="duas-linhas"><b>Silenciar avisos durante o foco</b><small>segurar e-mail, WhatsApp e Aprovações até a pausa ainda não existe</small></span><i></i></div>' +
+    "</div></div>";
+
+  const linhas = lembretes.map((l) => {
+    const atrasado = l.ligado && !l.cumprido && l.atrasado_min > 0;
+    const classe = "be-lembrete" + (atrasado ? " atrasado" : "") + (l.ligado ? "" : " desligado");
+    const classeSub = atrasado ? "acc" : "";
+    let sub;
+    if (!l.ligado) sub = "desligado · " + l.meta_texto;
+    else if (atrasado) sub = l.meta_texto + (l.meta_dia ? "" : " feito") + " · atrasado " + horasEmTexto(l.atrasado_min);
+    else sub = "a cada " + horasEmTexto(l.cada_min) + (l.meta_dia ? " · " + l.meta_texto : "") + (l.proximo ? " · próximo às " + l.proximo : "");
+    const agua = /água|agua/i.test(l.titulo);
+    return '<div class="' + classe + '">' + (l.cumprido ? ic("check_circle", 18) : '<span class="be-marca"></span>') +
+      '<span class="duas-linhas"><b>' + esc(l.titulo) + '</b><small class="' + classeSub + '">' + esc(sub) + "</small></span>" +
+      (l.ligado && !l.cumprido ? '<button' + (atrasado ? ' class="primario"' : "") + ' data-be-feito="' + l.id + '">' + (agua ? "Bebi" : "Feito") + "</button>" : "") + "</div>";
+  }).join("");
+  const lista = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Lembretes de hoje</span><small>' + cumpridos + " de " + lembretes.length + "</small></div>" +
+    '<div class="be-lembretes">' + (linhas || '<p class="rel-vazio">Nenhum lembrete. Crie um em Ajustar lembretes.</p>') + "</div>" +
+    '<div class="be-rodape"><span>Lembretes ficam nesta máquina · nada é compartilhado</span><button class="em-ligacao forte" data-be-ajustar="1">Ajustar lembretes →</button></div></div>';
+
+  return '<div class="acervo-principal"><div class="be-grade">' + ciclo + lista + "</div></div>";
+}
+
+function painelDeHoje() {
+  if (be.ajustando) return painelDosAjustes();
+  const d = be.dados;
   const h = d.hoje;
   const c = d.ciclo;
+  const porHora = feitasPorHora();
+  const teto = Math.max(1, ...porHora);
+  const agora = new Date().getHours();
+  const dia = ((be.rel || {}).dia) || {};
+  const t = dia.tarefas || { feitas: [], abertas: [], planejado: 0 };
+  const total = porHora.reduce((s, x) => s + x, 0);
 
-  let html = '<div class="catalogo"><div class="tela-topo">' +
-    "<div><h2>Foco e bem-estar</h2>" +
-    '<span class="rotulo">' +
-    (h.medindo ? "ativo " + esc(h.ativo_texto) + " hoje" : "acompanhamento desligado") +
-    "</span></div>" +
-    '<div class="tela-acoes"><button id="be-medir">' +
-    (h.medindo ? "Desligar acompanhamento" : "Ligar acompanhamento") + "</button></div></div>";
-
-  if (d.alerta) {
-    html += '<div class="cert-aviso"><strong>' + esc(d.alerta.titulo) + "</strong>" +
-      "<p>" + esc(d.alerta.detalhe) + "</p>" +
-      '<div class="linha-form"><button class="primario" id="be-pausar-ja">Pausar 5 min</button>' +
-      '<button id="be-depois">Mais tarde</button></div></div>';
+  const barras = BE_HORAS.map((hora, i) => {
+    const classe = porHora[i] ? (hora === agora ? "agora" : "") : "vazia";
+    return '<span class="' + classe + '" title="' + hora + 'h · ' + esc(plural(porHora[i], "tarefa concluída", "tarefas concluídas")) + '" style="height:' +
+      (porHora[i] ? Math.max(8, Math.round(porHora[i] * 100 / teto)) : 2) + '%"></span>';
+  }).join("");
+  let leitura;
+  if (total) {
+    const melhor = porHora.indexOf(Math.max(...porHora));
+    leitura = "Você concluiu mais por volta das " + BE_HORAS[melhor] + "h.";
+  } else {
+    leitura = "Nenhuma tarefa concluída hoje ainda — as barras sobem quando você fechar uma na Agenda.";
   }
+  if (h.medindo && h.sem_pausa_min >= 60) leitura += " Está sem pausa há " + horasEmTexto(h.sem_pausa_min) + (c.estado === "foco" ? " — a próxima cai no fim deste ciclo." : ".");
+  else if (c.estado === "foco") leitura += " A próxima pausa cai em " + horasEmTexto(Math.ceil(c.restante / 60)) + ", no fim deste ciclo.";
 
-  html += '<div class="assinar-colunas"><div>';
+  const sugestao = sugestaoParaAgora();
+  const toggles = (d.lembretes || []).map((l) => ligaCfg("lembrete:" + l.id, "Lembrar de " + l.titulo.charAt(0).toLowerCase() + l.titulo.slice(1),
+    "a cada " + horasEmTexto(l.cada_min) + (l.meta_dia ? " · " + l.meta_dia + " por dia" : ""), Boolean(l.ligado))).join("");
 
-  html += '<div class="painel"><h3>Ciclo de foco</h3>' +
-    '<div class="be-relogio ' + (c.estado === "pausa" ? "pausa" : "") + '" id="be-relogio">' +
-    esc(c.estado === "parado" ? String(c.foco_min).padStart(2, "0") + ":00" : c.restante_texto) + "</div>" +
-    '<div class="be-fase"><span class="rotulo">' +
-    (c.estado === "parado" ? "parado" : (c.estado === "foco" ? "foco · ciclo " + c.numero : "pausa")) +
-    "</span></div>" +
-    '<div class="be-trilho"><i id="be-trilho" style="width:0%"></i></div>' +
-    (c.tarefa ? '<p class="explica">tarefa deste ciclo: ' + esc(c.tarefa) + "</p>" : "") +
-    '<div class="linha-form">' +
-    (c.estado === "parado"
-      ? '<button class="primario" id="be-comecar">Começar</button>'
-      : '<button class="primario" id="be-pausa">Ir para a pausa</button>' +
-        '<button id="be-parar">Parar</button>') +
-    "</div>" +
-    '<div class="linha-form"><span class="rotulo">foco</span>' +
-    '<select id="be-foco">' + [15, 25, 45, 50, 90].map((m) =>
-      '<option value="' + m + '"' + (c.foco_min === m ? " selected" : "") + ">" + m + " min</option>").join("") +
-    "</select>" +
-    '<span class="rotulo">pausa</span>' +
-    '<select id="be-pausa-min">' + [5, 10, 15].map((m) =>
-      '<option value="' + m + '"' + (c.pausa_min === m ? " selected" : "") + ">" + m + " min</option>").join("") +
-    "</select></div></div>";
-
-  html += '<div class="painel" style="margin-top:16px"><h3>Como está seu dia</h3>' +
-    '<div class="rel-numeros">' +
-    numeroRel("tempo ativo", h.medindo || h.minutos_ativos ? h.ativo_texto : "—") +
-    numeroRel("ciclos", h.ciclos) +
-    numeroRel("pausas", h.pausas) +
-    numeroRel("água",plural(h.copos_agua, "copo") + "") +
-    numeroRel("maior sequência", h.seguida_texto) +
-    "</div>" +
-    '<p class="explica" style="margin-top:12px">' + esc(d.como_mede) + "</p>" +
-    (h.da_para_medir ? "" : '<p class="explica">Neste sistema não consigo medir atividade — ' +
-      "o ciclo de foco e os lembretes continuam funcionando.</p>") + "</div>";
-
-  html += "</div><div>";
-
-  html += '<div class="painel"><h3>Lembretes de hoje</h3>' +
-    d.lembretes.map((l) =>
-      '<div class="be-lembrete' + (l.cumprido ? " cumprido" : "") + '">' +
-      '<span class="cresce"><b>' + esc(l.titulo) + "</b><br>" +
-      '<span class="rotulo">a cada ' + l.cada_min + " min · " + esc(l.meta_texto) +
-      (l.proximo ? " · próximo " + esc(l.proximo) : "") + "</span>" +
-      (l.atrasado_min > 20 ? ' <span class="be-atraso">atrasado ' + l.atrasado_min + " min</span>" : "") +
-      "</span>" +
-      '<button data-feito="' + l.id + '">Feito</button>' +
-      '<button class="perigo" data-tirar-lem="' + l.id + '">×</button></div>').join("") +
-    '<div class="linha-form"><button id="be-novo-lembrete">Novo lembrete</button></div>' +
-    '<p class="explica">Tocam só nesta máquina.</p></div>';
-
-  html += '<div class="painel" style="margin-top:16px"><h3>Semana</h3>' +
-    (d.semana.tem_dado
-      ? '<div class="be-semana">' + d.semana.dias.map((x) => {
-          const teto = Math.max(1, ...d.semana.dias.map((y) => y.minutos_ativos));
-          return '<div class="be-dia"><div class="be-coluna">' +
-            '<i style="height:' + Math.round(x.minutos_ativos * 100 / teto) + '%"></i></div>' +
-            '<span class="rotulo">' + esc(x.rotulo) + "</span></div>";
-        }).join("") + "</div>" +
-        '<div class="pl-status"><span>ciclos ' + d.semana.ciclos + "</span>" +
-        "<span>pausas " + d.semana.pausas + "</span>" +
-        "<span>água " + String(d.semana.agua_media).replace(".", ",") + "/dia</span>" +
-        "<span>maior " + esc(d.semana.maior_seguida_texto) + "</span></div>" +
-        (d.semana.dias_com_dado < 3
-          ? '<p class="explica" style="margin-top:10px">' + plural(d.semana.dias_com_dado, "dia") + " com medição. Ainda é pouco para falar de padrão da semana.</p>"
-          : "")
-      : '<p class="explica">Nenhum dia com medição ainda. Ligue o acompanhamento e a semana ' +
-        "aparece aqui — sem isso, qualquer gráfico seria invenção.</p>") + "</div>";
-
-  html += "</div></div>";
-  html += '<div class="rodape-tela">dados de bem-estar ficam só nesta máquina</div></div>';
-  $("centro").innerHTML = html;
-  ligarFoco();
+  return '<aside class="acervo-painel be-painel"><div class="rolagem">' +
+    '<div class="fin-bloco-cabeca fin-painel-topo">' + (h.medindo ? coroa(18) : "") + "<span>Seu ritmo hoje</span><small>" +
+    esc(h.medindo ? "ativo há " + (h.ativo_texto === "ainda nada hoje" ? "pouco" : h.ativo_texto) : "sem medição") + "</small></div>" +
+    '<div class="be-ritmo"><div class="be-horas">' + barras + "</div>" +
+    '<div class="be-horas-rotulos">' + BE_HORAS.map((x) => "<span>" + x + "h</span>").join("") + "</div>" +
+    "<p>" + esc(leitura) + '</p><span class="cfg-explica">barras: tarefas concluídas por hora, hoje · o tempo ativo é somado por dia</span></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Hoje</span></div><div class="cfg-chaves">' +
+    chaveCfg("Tempo ativo", h.medindo || h.minutos_ativos ? h.ativo_texto : "sem medição", h.medindo || h.minutos_ativos ? "" : "mute") +
+    chaveCfg("Ciclos de foco", String(h.ciclos || 0)) +
+    chaveCfg("Pausas feitas", String(h.pausas || 0)) +
+    chaveCfg("Tarefas concluídas", t.feitas.length + (t.planejado ? " de " + t.planejado : "")) +
+    chaveCfg("Água", plural(h.copos_agua || 0, "copo")) +
+    chaveCfg("Maior sequência sem pausa", h.seguida_texto) + "</div></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Sugestão para agora</span></div>' +
+    '<div class="be-sugestao">' + ic("self_improvement", 18) + "<span><span>" + esc(sugestao.texto) + "</span>" +
+    (sugestao.acoes.length ? '<span class="fin-pede-acoes">' + sugestao.acoes.map((a, j) => {
+      const classe = a.primario ? "primario" : "";
+      return '<button class="' + classe + '" data-be-sugestao="' + j + '">' + esc(a.rotulo) + "</button>";
+    }).join("") + "</span>" : "") + "</span></div></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Lembretes</span><span class="contagem">ligar e desligar</span></div>' +
+    (toggles || "<p>Nenhum lembrete ainda.</p>") +
+    ligaCfg("", "Modo foco silencia o WhatsApp", "em breve", false, true) +
+    ligaCfg("", "Sugestões do assistente sobre ritmo", "com base só no uso local · em breve", false, true) + "</div>" +
+    '<div class="painel-chaves">' + chaveCfg("Como eu meço", "tempo desde o último toque", "") + chaveCfg("Dados", "ficam nesta máquina") + "</div>" +
+    "</div></aside>";
 }
+
+/* A sugestao sai do que foi medido ou do que esta marcado: sem motivo, ela
+   diz que nao ha motivo. */
+function sugestaoParaAgora() {
+  const d = be.dados;
+  const c = d.ciclo;
+  if (d.alerta && !be.sugestaoDepois) {
+    return { texto: d.alerta.titulo + ". " + d.alerta.detalhe, acoes: [
+      { rotulo: "Ir para a pausa", primario: true, fazer: () => irParaPausaDoFoco() },
+      { rotulo: "Depois", fazer: () => { be.sugestaoDepois = true; desenharFoco(); } },
+    ] };
+  }
+  if (c.estado === "foco" && c.tarefa) {
+    return { texto: "Feche “" + c.tarefa + "” neste ciclo: faltam " + horasEmTexto(Math.ceil(c.restante / 60)) + ". Depois, pausa de " + c.pausa_min + " min longe da tela.", acoes: [
+      { rotulo: "Ver na Agenda", fazer: () => { marcarDestino("calendario"); mostrarAgenda("tarefas"); } },
+    ] };
+  }
+  if (c.estado === "pausa") {
+    return { texto: "Pausa: levante, beba água e olhe para longe. O próximo ciclo começa quando você voltar.", acoes: [] };
+  }
+  if (be.tarefas.length && c.estado === "parado") {
+    const t = be.tarefas[0];
+    return { texto: "Comece por “" + t.titulo + "”, que está no seu Meu dia. Um ciclo de " + c.foco_min + " min costuma bastar para destravar.", acoes: [
+      { rotulo: "Usar neste ciclo", primario: true, fazer: () => { be.tarefa = t.titulo; comecarCicloDoFoco(); } },
+      { rotulo: "Depois", fazer: () => { be.sugestaoDepois = true; desenharFoco(); } },
+    ] };
+  }
+  const atrasado = (d.lembretes || []).find((l) => l.ligado && !l.cumprido && l.atrasado_min > 0);
+  if (atrasado) {
+    return { texto: atrasado.titulo + " está atrasado há " + horasEmTexto(atrasado.atrasado_min) + ". Dois minutos resolvem.", acoes: [
+      { rotulo: "Feito", primario: true, fazer: () => marcarLembreteFeito(atrasado.id) },
+    ] };
+  }
+  return { texto: d.hoje.medindo ? "Nada medido que peça ação agora. Comece um ciclo quando quiser." : "Ligue o acompanhamento para eu sugerir pausas pelo que foi medido — sem isso, prefiro não opinar.", acoes: [] };
+}
+
+/* Ajustar lembretes: a lista com editar e apagar, e o formulario de um. */
+function painelDosAjustes() {
+  const d = be.dados;
+  const v = be.form;
+  let miolo;
+  if (v) {
+    miolo = '<div class="ag-form fin-form">' +
+      '<div class="ag-campo"><label>O que lembrar</label><input type="text" data-be-campo="titulo" value="' + esc(v.titulo || "") + '" placeholder="Beber água"></div>' +
+      '<div class="ag-duas"><div class="ag-campo"><label>A cada</label><select data-be-campo="cada_min">' +
+      [15, 20, 25, 30, 45, 60, 90, 120, 180, 240].map((m) => '<option value="' + m + '"' + (Number(v.cada_min) === m ? " selected" : "") + ">" + horasEmTexto(m) + "</option>").join("") + "</select></div>" +
+      '<div class="ag-campo"><label>Meta por dia</label><input type="text" data-be-campo="meta_dia" value="' + esc(v.meta_dia || "") + '" placeholder="0 = sem meta"></div></div>' +
+      '<div class="ag-form-rodape">' + (v.id ? '<button class="perigo" data-be-tirar="' + v.id + '">Apagar</button>' : "") +
+      '<button data-be-cancelar="1">Cancelar</button><button class="primario" data-be-guardar="1">Guardar</button></div></div>';
+  } else {
+    miolo = '<div class="be-editor">' + (d.lembretes || []).map((l) =>
+      '<div class="be-editor-linha"><span class="duas-linhas"><b>' + esc(l.titulo) + "</b><small>a cada " + esc(horasEmTexto(l.cada_min)) +
+      (l.meta_dia ? " · meta " + l.meta_dia + " por dia" : " · sem meta") + (l.ligado ? "" : " · desligado") + "</small></span>" +
+      '<button data-be-editar="' + l.id + '">Editar</button><button class="botao-icone" data-be-tirar="' + l.id + '" title="Apagar">' + ic("close", 16) + "</button></div>").join("") +
+      "</div>" +
+      '<div class="fin-botoes fin-painel-botoes"><button class="primario" data-be-novo="1">' + ic("add", 16) + "Novo lembrete</button></div>";
+  }
+  return '<aside class="acervo-painel be-painel"><div class="rolagem">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + (v ? (v.id ? "Editar lembrete" : "Novo lembrete") : "Ajustar lembretes") + '</h3><span class="meta">tocam só nesta máquina</span></span>' +
+    '<button class="botao-icone" data-be-ajustar="1" title="Fechar">' + ic("close", 18) + "</button></div>" + miolo +
+    '<div class="painel-chaves"><div class="chave-valor"><span>Água</span><b>um lembrete com “água” no nome conta copos</b></div></div>' +
+    "</div></aside>";
+}
+
+/* ------------------------------------------------------------ semana */
+
+function corpoDaSemana() {
+  const s = be.dados.semana;
+  const dias = s.dias || [];
+  const hoje = iso(new Date());
+  const teto = Math.max(1, ...dias.map((x) => x.minutos_ativos || 0));
+  const comDado = dias.filter((x) => x.minutos_ativos || x.ciclos || x.pausas);
+  const total = minutosDaSemana(s);
+  const media = comDado.length ? total / comDado.length : 0;
+  const melhor = comDado.length ? comDado.reduce((a, b) => (b.minutos_ativos > a.minutos_ativos ? b : a)) : null;
+
+  const barras = dias.map((x) => {
+    const classe = "be-dia" + (x.dia === hoje ? " hoje" : "") + (x.minutos_ativos ? "" : " vazio");
+    return '<div class="' + classe + '"><small>' + esc(horasCurtas(x.minutos_ativos)) + '</small><i style="height:' +
+      (x.minutos_ativos ? Math.max(4, Math.round(x.minutos_ativos * 100 / teto)) : 2) + '%"></i></div>';
+  }).join("");
+  const rotulos = dias.map((x) => "<span>" + esc(maiuscula(x.rotulo)) + "<small>" + esc(x.pausas ? plural(x.pausas, "pausa") : "—") + "</small></span>").join("");
+
+  const foco = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Foco na semana</span><small>' +
+    esc(dataCurta(s.de) + " a " + dataCurta(s.ate) + " · " + horasEmTexto(total)) + "</small></div>" +
+    '<div class="fin-fluxo"><div class="be-semana-grade">' + barras + "</div>" +
+    '<div class="be-semana-rotulos">' + rotulos + "</div>" +
+    '<div class="be-semana-somas"><div><small>Média por dia medido</small><b>' + esc(comDado.length ? horasEmTexto(media) : "—") + "</b></div>" +
+    "<div><small>Dia mais ativo</small><b>" + esc(melhor ? maiuscula(melhor.rotulo) + " · " + horasEmTexto(melhor.minutos_ativos) : "—") + "</b></div>" +
+    "<div><small>Pausas feitas</small><b>" + esc(s.pausas + " em " + plural(s.ciclos, "ciclo")) + "</b></div></div>" +
+    (s.tem_dado ? "" : '<p class="cfg-explica">Nenhum dia com medição nesta semana. Ligue o acompanhamento e a semana aparece aqui — sem isso, qualquer gráfico seria invenção.</p>') +
+    "</div></div>";
+
+  const celulas = (valor, meta, dia) => {
+    let classe;
+    if (dia > hoje) classe = "futuro";
+    else if (valor >= meta) classe = "cheio";
+    else if (valor > 0) classe = "meio";
+    else classe = "";
+    return '<i class="' + classe + '" title="' + esc(maiuscula(dia === hoje ? "hoje" : dataCurta(dia)) + " · " + valor) + '"></i>';
+  };
+  const habitos = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Hábitos</span><small>semana</small></div><div class="be-habitos">' +
+    '<div class="be-habito"><span>Beber água</span>' + dias.map((x) => celulas(x.copos_agua || 0, 8, x.dia)).join("") + "<small>meta 8 copos</small></div>" +
+    '<div class="be-habito"><span>Pausas entre ciclos</span>' + dias.map((x) => celulas(x.pausas || 0, 4, x.dia)).join("") + "<small>meta 4</small></div>" +
+    '<div class="be-habito"><span>Ciclos de foco</span>' + dias.map((x) => celulas(x.ciclos || 0, 4, x.dia)).join("") + "<small>meta 4</small></div>" +
+    '<div class="be-habito adiante"><span>Levantar, alongar, almoço sem tela</span>' + dias.map(() => '<i class="futuro"></i>').join("") + "<small>histórico por dia em breve</small></div>" +
+    "</div></div>";
+
+  return '<div class="acervo-principal"><div class="be-grade semana">' + foco + habitos + "</div></div>";
+}
+
+/* O parecer e regra sobre os totais da semana: quem foi o dia mais ativo,
+   onde a agua ficou abaixo, quantas pausas. Nada e opiniao de modelo. */
+function parecerDaSemana() {
+  const s = be.dados.semana;
+  const dias = s.dias || [];
+  const comDado = dias.filter((x) => x.minutos_ativos || x.ciclos || x.pausas);
+  if (!comDado.length) return { lead: "Nenhum dia com medição nesta semana.", resto: "Ligue o acompanhamento e o parecer aparece aqui. Sem medição, qualquer frase seria invenção — e eu prefiro não opinar.", sugestoes: [] };
+  const melhor = comDado.reduce((a, b) => (b.minutos_ativos > a.minutos_ativos ? b : a));
+  const pior = comDado.reduce((a, b) => (b.minutos_ativos < a.minutos_ativos ? b : a));
+  const aguaAbaixo = comDado.filter((x) => (x.copos_agua || 0) < 8).length;
+  const pausasMedia = comDado.reduce((t, x) => t + (x.pausas || 0), 0) / comDado.length;
+  let lead = maiuscula(melhor.rotulo) + " foi seu dia mais ativo: " + horasEmTexto(melhor.minutos_ativos) + " com " + plural(melhor.pausas, "pausa") + ".";
+  if (pior !== melhor) lead += " " + maiuscula(pior.rotulo) + " ficou em " + horasEmTexto(pior.minutos_ativos) + ".";
+  const resto = "Água abaixo da meta em " + aguaAbaixo + " de " + plural(comDado.length, "dia medido", "dias medidos") + ". Pausas: " + s.pausas + " no total, " +
+    String(Math.round(pausasMedia * 10) / 10).replace(".", ",") + " por dia" + (s.maior_seguida > 90 ? ". Maior sequência sem parar: " + s.maior_seguida_texto + "." : ".");
+  const sugestoes = [];
+  const agua = (be.dados.lembretes || []).find((l) => /água|agua/i.test(l.titulo));
+  if (aguaAbaixo && agua && agua.cada_min > 45) sugestoes.push({ texto: "Lembrete de água a cada 45 min em vez de " + horasEmTexto(agua.cada_min) + ".", tarefa: "Ajustar o lembrete de água para 45 min" });
+  else if (aguaAbaixo) sugestoes.push({ texto: "Marcar “Bebi” quando beber: a meta de 8 copos só sobe com o registro.", tarefa: "Registrar a água no PAULUS" });
+  if (pausasMedia < 3) sugestoes.push({ texto: "Fechar cada ciclo com a pausa — hoje a média é " + String(Math.round(pausasMedia * 10) / 10).replace(".", ",") + " por dia.", tarefa: "Fazer as pausas entre os ciclos de foco" });
+  if (s.maior_seguida > 120) sugestoes.push({ texto: "Houve mais de 2 h sem parar: o alerta de pausa entra aos 90 min, aceite quando ele aparecer.", tarefa: "Aceitar o alerta de pausa aos 90 min" });
+  if (comDado.length < 5) sugestoes.push({ texto: "Ligar o acompanhamento todos os dias úteis, para o parecer da semana valer.", tarefa: "Ligar o acompanhamento de foco ao começar o dia" });
+  return { lead: lead, resto: resto, sugestoes: sugestoes };
+}
+
+function painelDaSemana() {
+  const s = be.dados.semana;
+  const p = parecerDaSemana();
+  const antes = be.semanaAntes;
+  const totalAntes = antes ? minutosDaSemana(antes) : null;
+  const variacao = totalAntes === null ? null : minutosDaSemana(s) - totalAntes;
+  return '<aside class="acervo-painel be-painel"><div class="rolagem">' +
+    '<div class="fin-bloco-cabeca fin-painel-topo"><span>Parecer da semana</span><small>só com dados locais</small></div>' +
+    '<div class="fin-parecer solto"><p class="fin-lead">' + esc(p.lead) + "</p><p>" + esc(p.resto) + "</p></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Sugestões</span><span class="contagem">' + (p.sugestoes.length ? "saem de regra, não de opinião" : "") + "</span></div>" +
+    (p.sugestoes.length
+      ? '<div class="fin-sugestoes">' + p.sugestoes.map((x) => '<div class="fin-sugestao"><i></i><span>' + esc(x.texto) + "</span></div>").join("") + "</div>"
+      : "<p>Nada a sugerir com o que foi medido.</p>") +
+    '<div class="fin-sug-rodape"><button class="em-ligacao" data-be-inutil="1">Não foi útil</button>' +
+    '<button class="primario" data-be-agenda="1"' + (p.sugestoes.length ? "" : " disabled") + ">" + ic("calendar_month", 16) + "Aplicar na Agenda</button></div></div>" +
+    '<div class="painel-chaves">' +
+    chaveCfg("Semana anterior", totalAntes === null ? "—" : horasEmTexto(totalAntes)) +
+    chaveCfg("Variação", variacao === null ? "—" : (variacao >= 0 ? "+ " : "− ") + horasEmTexto(Math.abs(variacao)), variacao === null ? "mute" : "") +
+    chaveCfg("Dados", "ficam nesta máquina") + "</div></div></aside>";
+}
+
+/* ------------------------------------------------------------ as acoes */
 
 function ligarFoco() {
-  const c = fim.be.ciclo;
+  const cada = (seletor, fn) => document.querySelectorAll(seletor).forEach(fn);
+  const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
 
-  $("be-medir").onclick = async () => {
-    const r = await fetch("/api/bemestar/medir", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ligar: !fim.be.hoje.medindo }),
-    });
+  clique("[data-be-visao]", (b) => { be.visao = b.dataset.beVisao; be.ajustando = false; be.form = null; mostrarFoco(); });
+  clique("[data-be-ajustar]", () => { be.ajustando = !be.ajustando; be.form = null; if (be.visao !== "hoje") { be.visao = "hoje"; mostrarFoco(); return; } desenharFoco(); });
+  clique("[data-be-medir]", async () => {
+    const r = await fetch("/api/bemestar/medir", { method: "POST", headers: BE_JSON, body: JSON.stringify({ ligar: !be.dados.hoje.medindo }) });
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
-    fim.be = await r.json();
-    desenharFoco();
-  };
-
-  const comecar = $("be-comecar");
-  if (comecar) comecar.onclick = async () => {
-    const r = await fetch("/api/bemestar/ciclo", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ foco: Number($("be-foco").value), pausa: Number($("be-pausa-min").value) }),
-    });
-    fim.be.ciclo = await r.json();
-    desenharFoco();
-  };
-  const pausa = $("be-pausa");
-  if (pausa) pausa.onclick = irParaPausa;
-  const parar = $("be-parar");
-  if (parar) parar.onclick = async () => {
-    fim.be.ciclo = await (await fetch("/api/bemestar/parar", { method: "POST" })).json();
+    avisoCert(be.dados.hoje.medindo ? "acompanhamento desligado — nada mais é gravado" : "acompanhamento ligado — só o tempo desde o último toque, nunca o que foi digitado");
     mostrarFoco();
-  };
-  const pausarJa = $("be-pausar-ja");
-  if (pausarJa) pausarJa.onclick = irParaPausa;
-  const depois = $("be-depois");
-  if (depois) depois.onclick = () => { fim.be.alerta = null; desenharFoco(); };
-
-  document.querySelectorAll("[data-feito]").forEach((b) => {
-    b.onclick = async () => {
-      const r = await fetch("/api/bemestar/lembretes/" + b.dataset.feito + "/feito", { method: "POST" });
-      if (!r.ok) return;
-      const d = await r.json();
-      fim.be.lembretes = d.lembretes;
-      fim.be.hoje = d.hoje;
-      desenharFoco();
-    };
   });
-  document.querySelectorAll("[data-tirar-lem]").forEach((b) => {
-    b.onclick = async () => {
-      await fetch("/api/bemestar/lembretes/" + b.dataset.tirarLem, { method: "DELETE" });
-      mostrarFoco();
-    };
-  });
-  $("be-novo-lembrete").onclick = async () => {
-    const titulo = prompt("O que lembrar?");
-    if (!titulo) return;
-    const cada = prompt("A cada quantos minutos?", "60");
-    await fetch("/api/bemestar/lembretes", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dados: { titulo: titulo, cada_min: Number(cada) || 60 } }),
-    });
+  cada("[data-be-tarefa]", (el) => { el.onchange = () => { be.tarefa = el.value; }; });
+  clique("[data-be-comecar]", () => comecarCicloDoFoco());
+  clique("[data-be-pausa]", () => irParaPausaDoFoco());
+  clique("[data-be-parar]", async () => {
+    await fetch("/api/bemestar/parar", { method: "POST" });
+    be.tarefa = "";
     mostrarFoco();
-  };
+  });
+  clique("[data-be-reiniciar]", async () => {
+    await fetch("/api/bemestar/parar", { method: "POST" });
+    comecarCicloDoFoco();
+  });
+  clique("[data-be-feito]", (b) => marcarLembreteFeito(Number(b.dataset.beFeito)));
+  clique("[data-be-sugestao]", (b) => { const a = sugestaoParaAgora().acoes[Number(b.dataset.beSugestao)]; if (a) a.fazer(); });
+  clique("[data-cfg-liga]", (b) => {
+    const chave = b.dataset.cfgLiga;
+    if (!chave.startsWith("lembrete:")) return;
+    const l = (be.dados.lembretes || []).find((x) => x.id === Number(chave.split(":")[1]));
+    if (l) guardarLembrete({ titulo: l.titulo, cada_min: l.cada_min, meta_dia: l.meta_dia, ligado: !l.ligado }, l.id);
+  });
+  clique("[data-be-editar]", (b) => {
+    const l = (be.dados.lembretes || []).find((x) => x.id === Number(b.dataset.beEditar));
+    if (l) { be.form = { id: l.id, titulo: l.titulo, cada_min: l.cada_min, meta_dia: l.meta_dia || "", ligado: l.ligado }; desenharFoco(); }
+  });
+  clique("[data-be-novo]", () => { be.form = { titulo: "", cada_min: 60, meta_dia: "", ligado: 1 }; desenharFoco(); const campo = document.querySelector('[data-be-campo="titulo"]'); if (campo) campo.focus(); });
+  clique("[data-be-cancelar]", () => { be.form = null; desenharFoco(); });
+  cada("[data-be-campo]", (el) => { el.oninput = () => { be.form[el.dataset.beCampo] = el.value; }; el.onchange = el.oninput; });
+  clique("[data-be-guardar]", () => {
+    const v = be.form;
+    if (!v) return;
+    guardarLembrete({ titulo: v.titulo, cada_min: Number(v.cada_min) || 60, meta_dia: Number(v.meta_dia) || 0, ligado: v.ligado !== 0 && v.ligado !== false }, v.id || null);
+  });
+  clique("[data-be-tirar]", async (b) => {
+    if (!confirm("Apagar este lembrete?")) return;
+    await fetch("/api/bemestar/lembretes/" + b.dataset.beTirar, { method: "DELETE" });
+    be.form = null;
+    mostrarFoco();
+  });
+  clique("[data-be-inutil]", () => avisoCert("o parecer sai de regra sobre os totais da semana — ainda não há motor para aprender com o seu não"));
+  clique("[data-be-agenda]", async () => {
+    const p = parecerDaSemana();
+    if (!p.sugestoes.length) return;
+    let feitas = 0;
+    for (const s of p.sugestoes) {
+      const r = await fetch("/api/tarefas", { method: "POST", headers: BE_JSON, body: JSON.stringify({ dados: { titulo: s.tarefa, prazo: iso(new Date()), anotacao: s.texto } }) });
+      if (r.ok) feitas += 1;
+    }
+    avisoCert(feitas ? plural(feitas, "tarefa criada", "tarefas criadas") + " para hoje — estão na Agenda, em Meu dia" : "não consegui criar as tarefas");
+  });
 
-  clearInterval(fim.relogio);
-  if (c.estado !== "parado") fim.relogio = setInterval(tiquetaque, 1000);
+  if (be.visao === "hoje" && be.dados.ciclo.estado !== "parado") be.relogio = setInterval(tiquetaqueDoFoco, 1000);
 }
 
-async function irParaPausa() {
-  fim.be.ciclo = await (await fetch("/api/bemestar/pausa", { method: "POST" })).json();
+async function comecarCicloDoFoco() {
+  const foco = document.querySelector("[data-be-foco]");
+  const pausa = document.querySelector("[data-be-pausa-min]");
+  const r = await fetch("/api/bemestar/ciclo", {
+    method: "POST", headers: BE_JSON,
+    body: JSON.stringify({ tarefa: be.tarefa || "", foco: foco ? Number(foco.value) : 0, pausa: pausa ? Number(pausa.value) : 0 }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  be.sugestaoDepois = false;
   mostrarFoco();
 }
 
-async function tiquetaque() {
-  const alvo = $("be-relogio");
-  if (!alvo) { clearInterval(fim.relogio); return; }
+async function irParaPausaDoFoco() {
+  await fetch("/api/bemestar/pausa", { method: "POST" });
+  be.sugestaoDepois = false;
+  mostrarFoco();
+}
 
-  const c = await (await fetch("/api/bemestar/ciclo")).json();
+async function marcarLembreteFeito(id) {
+  const r = await fetch("/api/bemestar/lembretes/" + id + "/feito", { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+  be.dados.lembretes = d.lembretes;
+  be.dados.hoje = Object.assign({}, be.dados.hoje, d.hoje);
+  desenharFoco();
+}
+
+async function guardarLembrete(dados, id) {
+  if (!String(dados.titulo || "").trim()) { avisoCert("o lembrete precisa de um nome"); return; }
+  const r = await fetch("/api/bemestar/lembretes", { method: "POST", headers: BE_JSON, body: JSON.stringify({ id: id || null, dados: dados }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  be.form = null;
+  mostrarFoco();
+}
+
+function pararRelogioDoFoco() {
+  if (be.relogio) clearInterval(be.relogio);
+  be.relogio = null;
+}
+
+/* O relogio anda no navegador, mas quem manda e o servidor: a cada segundo
+   ele diz quanto falta, e o anel acompanha. */
+async function tiquetaqueDoFoco() {
+  const alvo = $("be-relogio");
+  if (!alvo) { pararRelogioDoFoco(); return; }
+  let c;
+  try { c = await (await fetch("/api/bemestar/ciclo")).json(); } catch (err) { return; }
+  if (!$("be-relogio")) { pararRelogioDoFoco(); return; }
   alvo.textContent = c.restante_texto;
-  const trilho = $("be-trilho");
-  if (trilho && c.duracao) {
-    trilho.style.width = Math.round((1 - c.restante / c.duracao) * 100) + "%";
-  }
+  const fase = $("be-fase");
+  if (fase) fase.textContent = faseDoCiclo(c);
+  const anel = $("be-anel");
+  if (anel) anel.style.setProperty("--be-p", progressoDoCiclo(c) + "%");
   if (c.acabou) {
-    clearInterval(fim.relogio);
-    fim.be.ciclo = c;
-    avisoCert(c.estado === "foco" ? "ciclo de foco terminado — hora da pausa" : "pausa terminada");
+    pararRelogioDoFoco();
+    avisoCert(c.estado === "foco" ? "ciclo de foco terminado — hora da pausa" : "pausa terminada — comece o próximo ciclo quando quiser");
+    if (c.estado === "foco") { await irParaPausaDoFoco(); return; }
     mostrarFoco();
   }
 }
