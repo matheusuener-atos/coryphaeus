@@ -3598,6 +3598,39 @@
   .apoio-mais .ic { color: var(--acc); }
   .apoio-mais .duas-linhas b { font-weight: 600; }
 
+  /* ------------------------------------------ entrar no escritorio (A0b) */
+  /*
+    O ramo "entrar em um escritorio existente" das boas-vindas: os dois
+    codigos em Fira Code, grandes, e o modo limitado enquanto o responsavel
+    nao valida (docs/ui/01-shell.md). Prefixo bv- como o resto do passeio.
+  */
+  .bv-codigo-cartao { display: grid; gap: 12px; }
+  .bv-codigo-cabeca { display: flex; align-items: center; gap: 10px; }
+  .bv-codigo-cabeca > span:nth-child(2) { flex: 1; font: 600 14px var(--sans); color: var(--ink); }
+  .bv-num-passo { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--bg); display: flex; align-items: center; justify-content: center; font: 700 11px var(--sans); flex: none; }
+  .bv-codigo-cabeca small { font: 400 11px var(--mono); color: var(--ink3); }
+  .bv-casas { display: flex; gap: 8px; align-items: center; cursor: text; }
+  .bv-casas span { width: 44px; height: 52px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); display: flex; align-items: center; justify-content: center; font: 400 22px var(--mono); color: var(--ink); box-sizing: border-box; }
+  .bv-casas span.vazia { color: var(--ink3); }
+  .bv-casas span.cursor { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
+  .bv-casas.pronto span { border-color: var(--ink-a25); }
+  .bv-oculto { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+  .bv-codigo-nota { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .bv-codigo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .bv-codigo-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .bv-campo-fixo { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); font: 400 12.5px var(--sans); color: var(--ink3); }
+  .bv-grade .bv-cheia { grid-column: 1 / -1; }
+
+  /* modo limitado: a casca inteira, com o que depende da rede apagado */
+  body.vinculo-pendente .trilho-item.presa, body.vinculo-pendente .menu-item.presa { opacity: .4; pointer-events: none; }
+  .cartao-agora.espera { border-color: var(--accln); background: var(--accbg2); }
+  .cartao-agora.espera .cabeca .nome { color: var(--ink); }
+  .agora-codigo { display: flex; gap: 6px; }
+  .agora-codigo span { width: 30px; height: 36px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); display: flex; align-items: center; justify-content: center; font: 400 15px var(--mono); color: var(--ink); }
+  .cartao-agora.espera .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cartao-agora.espera .acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .cartao-agora.espera .pode { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+
   /* ------------------------------------------------------- responsivo */
 
   /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
@@ -5043,8 +5076,10 @@ async function carregarAgora() {
     );
   }
 
-  $("agora").hidden = cartoes.length === 0;
-  $("agora-cartoes").innerHTML = cartoes.join("");
+  const espera = vinculoPendente() ? [cartaoDeEsperaDoVinculo()] : [];
+  $("agora").hidden = cartoes.length + espera.length === 0;
+  $("agora-cartoes").innerHTML = espera.concat(cartoes).join("");
+  ligarEsperaDoVinculo();
   $("agora-cartoes").querySelectorAll("[data-abre]").forEach((el) => {
     el.onclick = (e) => {
       e.stopPropagation();
@@ -6195,7 +6230,7 @@ function secaoVinculos() {
     '<span class="cfg-casas"><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span></span></div>' +
     '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Gerar código de vínculo ainda não existe">' + ic("key", 16) + "Gerar código de vínculo</button>" +
     '<button data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button></div>";
-  return '<div class="cfg-grade">' + cartaoCfg("Pedidos de vinculação", metaCfg("0 aguardando · em breve"), pedidos) +
+  return cartaoDoPedidoDestaMaquina() + '<div class="cfg-grade">' + cartaoCfg("Pedidos de vinculação", metaCfg("0 aguardando · em breve"), pedidos) +
     cartaoCfg("Máquinas e pessoas vinculadas", metaCfg((e.nome ? e.nome + " · " : "") + "1 máquina"), vinculados) + "</div>";
 }
 
@@ -6379,6 +6414,8 @@ function ligarConfig() {
   clique("[data-cfg-adiante]", (b) => avisoCert(b.dataset.cfgAdiante));
   clique("[data-cfg-vinculos]", () => { cfg.secao = "vinculos"; mostrarConfig(); });
   clique("[data-cfg-apoiar]", () => { marcarDestino("apoiar"); mostrarApoiar("contribuir"); });
+  clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
+  clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));
   clique("[data-cfg-reindexar]", async (b) => {
     b.disabled = true;
@@ -8579,6 +8616,10 @@ function marcarDestino(id) {
 function abrirDestino(id) {
   const d = DESTINOS.find((x) => x.id === id) || NOVOS_DESTINOS[id];
   if (!d) return;
+  if (vinculoPendente() && DESTINOS_PRESOS.has(id)) {
+    avisoCert(d.nome + " depende do escritório — fica liberado quando o responsável validar o seu vínculo");
+    return;
+  }
   marcarDestino(id);
 
   if (d.abre === "servicos") return mostrarServicos();
@@ -17930,15 +17971,29 @@ async function escolherPastaDoSistema(titulo) {
 
 /* ---------------------------------------------------------- boas-vindas */
 /*
-   A primeira abertura (docs/ui/03-telas-desktop.md, A0a): seis passos em
-   tela cheia, todos pulaveis e revisiveis depois em Configuracoes. Abre
+   A primeira abertura (docs/ui/03-telas-desktop.md, A0a e A0b): seis passos
+   em tela cheia para quem cria um escritorio, quatro para quem entra em um
+   que ja existe, todos pulaveis e revisiveis depois em Configuracoes. Abre
    sozinha enquanto ninguem preencheu o nome, e por #boasvindas para quem
-   quiser rever. O que ainda nao tem motor - entrar por codigo, contas
-   Google e Microsoft, atualizacao automatica - aparece dizendo isso.
+   quiser rever.
+
+   Entrar por codigo (A0b): a pessoa digita o codigo do responsavel e recebe
+   o dela. A rede local que valida o vinculo ainda nao existe; o que existe e
+   o modo limitado (docs/ui/01-shell.md): o PAULUS abre, o que e desta
+   maquina funciona, e o que depende do escritorio fica apagado ate o
+   responsavel validar - ou ate a pessoa cancelar o pedido e criar o proprio
+   escritorio. O pedido fica nesta maquina, em localStorage.
 */
 
-const bv = { passo: 0, status: null, prefs: null, pessoa: {}, modelo: "", escritorio: "novo" };
+const bv = { passo: 0, status: null, prefs: null, pessoa: {}, modelo: "", escritorio: "novo", vinculo: null };
 const PASSOS_BV = ["Boas-vindas", "Escritório", "Seus dados", "Como a IA funciona", "Conexões", "Atualizações"];
+const PASSOS_VINCULO = ["Boas-vindas", "Escritório", "Seus dados", "Códigos"];
+const CARGOS_VINCULO = ["Advogado(a)", "Sócio(a)", "Financeiro", "Secretaria", "Estagiário(a)", "Outro"];
+const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendamento", "tarefas", "biblioteca", "organizar", "caixa", "financeiro", "relatorios", "cadastros", "aprovacoes"]);
+
+function passosAtuais() {
+  return bv.escritorio === "existente" ? PASSOS_VINCULO : PASSOS_BV;
+}
 
 function primeiraAberturaPendente() {
   try { if (localStorage.getItem("paulus.boasvindas") === "1") return false; } catch (err) { /* sem memoria */ }
@@ -17969,6 +18024,9 @@ async function mostrarBoasVindas() {
   bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "", endereco: p.endereco || "" };
   bv.modelo = bv.prefs.modelo_atual || (bv.status && bv.status.modelo) || "";
   bv.passo = 0;
+  const pendente = lerVinculo();
+  bv.escritorio = pendente ? "existente" : "novo";
+  bv.vinculo = pendente ? Object.assign({}, pendente) : { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
   $("boas-vindas").hidden = false;
   desenharBoasVindas();
 }
@@ -17980,25 +18038,34 @@ function iniciaisDe(nome) {
 
 function desenharBoasVindas() {
   const caixa = $("boas-vindas");
-  const passos = PASSOS_BV.map((t, i) => {
+  const lista = passosAtuais();
+  const passos = lista.map((t, i) => {
     const feito = i < bv.passo;
     const classe = "bv-passo" + (feito ? " feito" : "") + (i === bv.passo ? " atual" : "");
     return (i ? '<i class="bv-traco"></i>' : "") +
       '<span class="' + classe + '"><span class="bv-num">' + (feito ? ic("check", 12) : String(i + 1)) + "</span>" + t + "</span>";
   }).join("");
+  const selo = bv.escritorio === "existente" && bv.passo >= 2 ? "REDE LOCAL · NADA NA INTERNET" : "NADA SAIU DESTA MÁQUINA";
   const cabeca = '<div class="bv-cabeca"><span class="bv-marca"><img src="/img/paulus-logo.svg" alt=""><span>PAVLVS</span></span>' +
-    '<div class="bv-passos">' + passos + '</div><span class="bv-selo"><i class="ponto-verde pulsa"></i>NADA SAIU DESTA MÁQUINA</span></div>';
+    '<div class="bv-passos">' + passos + '</div><span class="bv-selo"><i class="ponto-verde pulsa"></i>' + selo + "</span></div>";
 
-  const corpo = [passoBoasVindas, passoEscritorio, passoDados, passoIA, passoConexoes, passoAtualizacoes][bv.passo]();
-  const ultimo = bv.passo === PASSOS_BV.length - 1;
+  const telas = bv.escritorio === "existente"
+    ? [passoBoasVindas, passoEscritorio, passoDadosVinculo, passoCodigos]
+    : [passoBoasVindas, passoEscritorio, passoDados, passoIA, passoConexoes, passoAtualizacoes];
+  const corpo = telas[bv.passo]();
+  const ultimo = bv.passo === lista.length - 1;
+  let botaoFinal;
+  if (bv.passo === 0) botaoFinal = "Começar";
+  else if (!ultimo) botaoFinal = "Continuar";
+  else if (bv.escritorio === "existente") botaoFinal = ic("arrow_forward", 18) + "Abrir o PAULUS e aguardar";
+  else botaoFinal = ic("arrow_forward", 18) + "Abrir o PAULUS";
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0
       ? '<span class="nota-barra">PAULUS Legal · versão em desenvolvimento · Windows</span>'
       : '<button class="bv-ligacao" data-bv="voltar">← Voltar</button>') +
     '<span class="cresce"></span>' +
     (bv.passo >= 2 && !ultimo ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
-    '<button class="primario bv-continuar" data-bv="continuar">' +
-    (bv.passo === 0 ? "Começar" : (ultimo ? ic("arrow_forward", 18) + "Abrir o PAULUS" : "Continuar")) + "</button></div>";
+    '<button class="primario bv-continuar" data-bv="continuar">' + botaoFinal + "</button></div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
     '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +
@@ -18033,11 +18100,11 @@ function passoBoasVindas() {
 }
 
 function passoEscritorio() {
-  const opcao = (id, icone, titulo, pill, texto, disponivel) => {
-    const classe = "bv-opcao" + (bv.escritorio === id ? " escolhida" : "") + (disponivel ? "" : " adiante");
+  const opcao = (id, icone, titulo, pill, texto) => {
+    const classe = "bv-opcao" + (bv.escritorio === id ? " escolhida" : "");
     return '<div class="' + classe + '" data-escritorio="' + id + '"><span class="bv-radio"></span>' +
       '<span class="duas-linhas"><span class="bv-opcao-titulo">' + ic(icone, 18) + titulo +
-      '<span class="etiqueta' + (disponivel ? " ok" : "") + '">' + pill + "</span></span><small>" + texto + "</small></span></div>";
+      '<span class="etiqueta ok">' + pill + "</span></span><small>" + texto + "</small></span></div>";
   };
   return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 1 — ESCRITÓRIO</span>' +
     "<h1>Este computador começa um escritório novo ou entra em um que já existe?</h1>" +
@@ -18045,13 +18112,13 @@ function passoEscritorio() {
     '<div class="bv-infos">' + [
       "As máquinas se encontram pela rede local (mesmo Wi-Fi ou cabo). Nada passa por servidor na internet.",
       "Cada máquina mantém sua própria IA local; o que se compartilha são os dados do escritório.",
-      "Sozinho? Crie o escritório mesmo assim — dá para convidar gente depois.",
+      "Sozinho? Crie o escritório mesmo assim — dá para convidar gente depois em Configurações › Escritório e vínculos.",
     ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
     '<div class="bv-opcoes">' +
     opcao("novo", "add_business", "Criar um escritório novo", "você será o responsável",
-      "Você passa a ser o responsável: aprova o que sai e define quem faz o quê. Quando a rede local chegar, é você quem gera os códigos de vínculo para as outras máquinas.", true) +
-    opcao("existente", "group_add", "Entrar em um escritório existente", "em breve · precisa da rede local",
-      "Ainda não existe nesta versão: o vínculo por código entre máquinas chega com o módulo de rede local. Por enquanto, cada computador é um escritório.", false) +
+      "Você passa a ser o responsável: aprova o que sai e define quem faz o quê. Quando a rede local chegar, é você quem gera os códigos de vínculo para as outras máquinas.") +
+    opcao("existente", "group_add", "Entrar em um escritório existente", "precisa de código",
+      "Peça ao responsável o código de vínculo. Ele aparece no PAULUS dele em Configurações › Escritório e vínculos. A validação pela rede local ainda não existe: até lá, o PAULUS abre em modo limitado, com o que é só desta máquina.") +
     "</div></div>";
 }
 
@@ -18066,6 +18133,73 @@ function passoDados() {
     '<span class="duas-linhas"><b>Iniciais</b><small>saem do nome; a foto fica para Configurações › Meus dados</small></span></div>' +
     '<div class="bv-grade">' + campo("nome", "Nome completo") + campo("oab", "OAB") + campo("cpf", "CPF", "numeric") +
     campo("telefone", "Telefone", "tel") + campo("email", "E-mail", "email") + campo("endereco", "Endereço") + "</div></div></div>";
+}
+
+/* Os dados de quem entra por codigo: vao para o responsavel junto com o
+   pedido. O escritorio vem do vinculo e nao se digita aqui. */
+function passoDadosVinculo() {
+  const v = bv.vinculo;
+  const campo = (chave, rotulo, valor, atributo, modo) =>
+    '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
+    '" ' + atributo + '="' + chave + '" value="' + esc(valor || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") + "></div>";
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 2 — SEUS DADOS</span>' +
+    "<h1>Quem é você no escritório?</h1>" +
+    "<p>Esses dados vão para o responsável junto com o seu pedido de acesso. Ele confirma o cargo e define o que você pode aprovar sozinho.</p></div>" +
+    '<div class="bv-cartao"><div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
+    '<span class="duas-linhas"><b>Foto ou iniciais</b><small>as iniciais saem do nome; a foto fica para Configurações › Meus dados</small></span></div>' +
+    '<div class="bv-grade">' + campo("nome", "Nome completo", bv.pessoa.nome, "data-bv-pessoa") +
+    campo("apelido", "Como quer ser chamado(a)", v.apelido, "data-bv-vinculo") +
+    campo("oab", "OAB", bv.pessoa.oab, "data-bv-pessoa") +
+    '<div class="campo-painel"><label for="bv-cargo">Cargo sugerido</label><select id="bv-cargo" data-bv-vinculo="cargo"><option value="">escolha…</option>' +
+    CARGOS_VINCULO.map((c) => '<option value="' + c + '"' + (c === v.cargo ? " selected" : "") + ">" + c + "</option>").join("") + "</select></div>" +
+    campo("email", "E-mail", bv.pessoa.email, "data-bv-pessoa", "email") +
+    '<div class="campo-painel"><label>Escritório</label><span class="bv-campo-fixo">' + ic("lan", 16) + "vem do vínculo · aparece quando o responsável validar</span></div></div>" +
+    '<span class="nota-barra">“Escritório” vem do vínculo e não pode ser alterado aqui.</span></div></div>';
+}
+
+function passoCodigos() {
+  const v = bv.vinculo;
+  if (!v.meuCodigo) v.meuCodigo = gerarCodigoDeVinculo();
+  const casas = (codigo, digitando) => {
+    const texto = String(codigo || "").toUpperCase();
+    const classe = "bv-casas" + (digitando ? "" : " pronto");
+    return '<div class="' + classe + '"' + (digitando ? ' data-bv-focar="1"' : "") + ">" + [0, 1, 2, 3, 4, 5].map((i) => {
+      const c = texto[i] || "";
+      const classeCasa = c ? "" : (digitando && i === texto.length ? "vazia cursor" : "vazia");
+      return '<span class="' + classeCasa + '">' + esc(c || "·") + "</span>";
+    }).join("") + "</div>";
+  };
+  const nome = bv.pessoa.nome || "você";
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 3 — CÓDIGOS</span>' +
+    "<h1>Dois códigos: um que você recebe, um que você passa.</h1>" +
+    "<p>O primeiro é o código do responsável: ele gera no PAULUS dele e vincula esta máquina ao escritório. O segundo é gerado aqui e identifica você: o responsável digita em Configurações › Escritório e vínculos para adicionar você ao escritório, com cargo e alçada.</p>" +
+    '<div class="bv-infos">' + [
+      "O responsável encontra o código dele em Configurações › Escritório e vínculos. Vale por 15 minutos.",
+      "Enquanto ele não adiciona você, o PAULUS abre normalmente e funciona com o que é só desta máquina; o que depende do escritório fica bloqueado.",
+      "A conferência pela rede local ainda não existe nesta versão: o código fica guardado nesta máquina até ela chegar. Você pode cancelar o pedido e criar o seu escritório a qualquer momento.",
+    ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
+    '<div class="bv-opcoes">' +
+    '<div class="bv-cartao bv-codigo-cartao"><div class="bv-codigo-cabeca"><span class="bv-num-passo">1</span><span>Código do responsável</span><small>' +
+    (v.codigoResponsavel && v.codigoResponsavel.length === 6 ? "6 de 6" : "6 caracteres") + "</small></div>" +
+    casas(v.codigoResponsavel, true) +
+    '<input type="text" id="bv-codigo" class="bv-oculto" maxlength="6" autocomplete="off" spellcheck="false" value="' + esc(v.codigoResponsavel || "") + '">' +
+    '<span class="bv-codigo-nota">Digite os 6 caracteres que o responsável gerou para esta máquina. Letras e números, sem diferença entre maiúsculas e minúsculas.</span></div>' +
+    '<div class="bv-cartao bv-codigo-cartao"><div class="bv-codigo-cabeca"><span class="bv-num-passo">2</span><span>Seu código, para o responsável</span><span class="etiqueta prazo">aguardando</span></div>' +
+    casas(v.meuCodigo, false) +
+    '<span class="bv-codigo-nota">Gerado para ' + esc(nome) + " · esta máquina · válido até o responsável validar</span>" +
+    '<div class="bv-codigo-acoes"><button class="com-icone" data-bv="copiar">' + ic("content_copy", 16) + "Copiar</button>" +
+    '<button class="com-icone" data-bv="whatsapp">' + ic("chat", 16) + "WhatsApp</button></div></div>" +
+    "</div></div>";
+}
+
+/* Sem O, 0, I e 1: um codigo ditado por telefone nao pode depender de
+   distinguir letra de numero. */
+function gerarCodigoDeVinculo() {
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const sorteio = new Uint8Array(6);
+  if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(sorteio);
+  else for (let i = 0; i < 6; i += 1) sorteio[i] = Math.floor(Math.random() * 256);
+  return Array.from(sorteio).map((n) => alfabeto[n % alfabeto.length]).join("");
 }
 
 function passoIA() {
@@ -18129,8 +18263,8 @@ function ligarBoasVindas() {
   caixa.querySelectorAll("[data-bv]").forEach((b) => { b.onclick = () => acaoBoasVindas(b.dataset.bv); });
   caixa.querySelectorAll("[data-escritorio]").forEach((o) => {
     o.onclick = () => {
-      if (o.classList.contains("adiante")) return;
       bv.escritorio = o.dataset.escritorio;
+      if (!bv.vinculo) bv.vinculo = { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
       desenharBoasVindas();
     };
   });
@@ -18143,8 +18277,32 @@ function ligarBoasVindas() {
       }
     };
   });
+  caixa.querySelectorAll("[data-bv-vinculo]").forEach((i) => {
+    i.oninput = (e) => { bv.vinculo[i.dataset.bvVinculo] = e.target.value; };
+    i.onchange = i.oninput;
+  });
   const modelo = $("bv-modelo");
   if (modelo) modelo.onchange = (e) => { bv.modelo = e.target.value; };
+  const codigo = $("bv-codigo");
+  if (codigo) {
+    codigo.oninput = () => {
+      codigo.value = codigo.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+      bv.vinculo.codigoResponsavel = codigo.value;
+      const casas = caixa.querySelector("[data-bv-focar]");
+      if (casas) {
+        casas.querySelectorAll("span").forEach((s, i) => {
+          const c = codigo.value[i] || "";
+          s.textContent = c || "·";
+          s.className = c ? "" : (i === codigo.value.length ? "vazia cursor" : "vazia");
+        });
+      }
+      const contagem = caixa.querySelector(".bv-codigo-cabeca small");
+      if (contagem) contagem.textContent = codigo.value.length === 6 ? "6 de 6" : "6 caracteres";
+    };
+    const focar = caixa.querySelector("[data-bv-focar]");
+    if (focar) focar.onclick = () => codigo.focus();
+    codigo.focus();
+  }
   $("bv-tema").onclick = () => { alternarTema(); desenharBoasVindas(); };
 }
 
@@ -18157,10 +18315,29 @@ async function acaoBoasVindas(qual) {
     mostrarEmail();
     return;
   }
+  if (qual === "copiar") { copiarTexto(bv.vinculo.meuCodigo, "código copiado — passe ao responsável"); return; }
+  if (qual === "whatsapp") {
+    copiarTexto("Meu código para entrar no PAULUS do escritório: " + bv.vinculo.meuCodigo + " (" + (bv.pessoa.nome || "") + ")",
+      "mensagem copiada — cole na conversa com o responsável no WhatsApp");
+    return;
+  }
+  const ultimo = bv.passo === passosAtuais().length - 1;
   // Continuar grava o que o passo tem, e so o que tem.
   if (bv.passo === 2) await gravarBoasVindas({ pessoa: bv.pessoa });
-  if (bv.passo === 3 && bv.modelo) await gravarBoasVindas({ modelo: bv.modelo });
-  if (bv.passo === PASSOS_BV.length - 1) { await concluirBoasVindas(true); return; }
+  if (bv.escritorio !== "existente" && bv.passo === 3 && bv.modelo) await gravarBoasVindas({ modelo: bv.modelo });
+  if (ultimo) {
+    if (bv.escritorio === "existente") {
+      if ((bv.vinculo.codigoResponsavel || "").length !== 6) { avisoCert("digite os 6 caracteres do código do responsável"); $("bv-codigo").focus(); return; }
+      guardarVinculo({
+        meuCodigo: bv.vinculo.meuCodigo, codigoResponsavel: bv.vinculo.codigoResponsavel, apelido: bv.vinculo.apelido || "",
+        cargo: bv.vinculo.cargo || "", nome: bv.pessoa.nome || "", pedido_em: new Date().toISOString(), estado: "aguardando",
+      });
+      aplicarModoLimitado();
+    }
+    await concluirBoasVindas(true);
+    if (bv.escritorio === "existente") avisoCert("pedido guardado nesta máquina — o PAULUS abre em modo limitado até o responsável validar");
+    return;
+  }
   bv.passo += 1;
   desenharBoasVindas();
 }
@@ -18187,6 +18364,79 @@ async function concluirBoasVindas(fechar) {
   $("nova").click();
 }
 
+/* ------------------------------------------------- o vinculo pendente */
+
+function lerVinculo() {
+  try {
+    const v = JSON.parse(localStorage.getItem("paulus.vinculo") || "null");
+    return v && v.estado === "aguardando" ? v : null;
+  } catch (err) { return null; }
+}
+
+function guardarVinculo(v) {
+  try { localStorage.setItem("paulus.vinculo", JSON.stringify(v)); } catch (err) { /* sem memoria */ }
+}
+
+function vinculoPendente() { return Boolean(lerVinculo()); }
+
+/* A casca inteira continua; o que depende da rede fica apagado
+   (docs/ui/01-shell.md, modo limitado). */
+function aplicarModoLimitado() {
+  const pendente = vinculoPendente();
+  document.body.classList.toggle("vinculo-pendente", pendente);
+  document.querySelectorAll("[data-destino]").forEach((b) => {
+    b.classList.toggle("presa", pendente && DESTINOS_PRESOS.has(b.dataset.destino));
+  });
+}
+
+function cancelarVinculo() {
+  if (!confirm("Cancelar o pedido de entrar no escritório? Este computador passa a ser um escritório novo, e você o responsável.")) return;
+  try { localStorage.removeItem("paulus.vinculo"); } catch (err) { /* sem memoria */ }
+  aplicarModoLimitado();
+  avisoCert("pedido cancelado — tudo liberado; este computador é o seu escritório");
+  if ($("cfg-tela")) desenharConfig();
+  else carregarAgora();
+}
+
+function casasDoCodigo(codigo) {
+  return '<span class="agora-codigo">' + String(codigo || "").split("").map((c) => "<span>" + esc(c) + "</span>").join("") + "</span>";
+}
+
+/* No Assistente, no lugar de "Acontecendo agora": o cartao de espera com o
+   codigo da pessoa e o que ela ja pode fazer. */
+function cartaoDeEsperaDoVinculo() {
+  const v = lerVinculo();
+  if (!v) return "";
+  return '<div class="cartao-agora espera"><div class="cabeca"><i class="ponto-acc"></i><span class="nome">Aguardando o responsável validar o seu vínculo</span></div>' +
+    '<div class="corpo">Seu código, para ele digitar em Configurações › Escritório e vínculos:</div>' + casasDoCodigo(v.meuCodigo) +
+    '<div class="corpo">Enquanto isso, o que é só desta máquina funciona: Assistente, Documentos, Assinatura, Foco, Configurações e Apoiar. Serviços, Agenda, Acervo, E-mail, Financeiro, Cadastros e Aprovações esperam o escritório.</div>' +
+    '<div class="rodape">A conferência pela rede local ainda não existe nesta versão; o pedido fica guardado nesta máquina.</div>' +
+    '<div class="acoes"><button class="fantasma" data-vinculo-copiar="1">' + ic("content_copy", 16) + "Copiar código</button>" +
+    '<button class="fantasma" data-vinculo-cancelar="1">Cancelar e criar meu escritório</button></div></div>';
+}
+
+function ligarEsperaDoVinculo() {
+  const copiar = document.querySelector("[data-vinculo-copiar]");
+  if (copiar) copiar.onclick = (e) => { e.stopPropagation(); copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"); };
+  const cancelar = document.querySelector("[data-vinculo-cancelar]");
+  if (cancelar) cancelar.onclick = (e) => { e.stopPropagation(); cancelarVinculo(); };
+}
+
+/* Em Configuracoes > Escritorio e vinculos: o pedido desta maquina. */
+function cartaoDoPedidoDestaMaquina() {
+  const v = lerVinculo();
+  if (!v) return "";
+  const corpo = '<p class="cfg-texto">Este computador pediu para entrar em um escritório existente' + (v.nome ? " como " + esc(v.nome) : "") +
+    (v.cargo ? " · " + esc(v.cargo) : "") + ". O responsável digita o seu código no PAULUS dele; até ele validar, o que depende do escritório fica apagado no menu.</p>" +
+    '<div class="cfg-codigo"><span class="duas-linhas"><b>Seu código, para o responsável</b><small>pedido em ' + esc(dataBR(v.pedido_em)) + " · válido até ele validar</small></span>" +
+    '<span class="cfg-casas">' + String(v.meuCodigo || "").split("").map((c) => "<span>" + esc(c) + "</span>").join("") + "</span></div>" +
+    '<div class="cfg-codigo"><span class="duas-linhas"><b>Código do responsável que você digitou</b><small>a conferência pela rede local ainda não existe</small></span>' +
+    '<span class="cfg-casas">' + String(v.codigoResponsavel || "").split("").map((c) => "<span>" + esc(c) + "</span>").join("") + "</span></div>" +
+    '<div class="cfg-botoes"><button data-cfg-vinculo-copiar="1">' + ic("content_copy", 16) + "Copiar meu código</button>" +
+    '<button class="em-ligacao acc" data-cfg-vinculo-cancelar="1">Cancelar o pedido e criar meu escritório</button></div>';
+  return cartaoCfg("Pedido desta máquina", pontoCfg("aguardando o responsável", "acc"), corpo);
+}
+
 /* ------------------------------------------------------------- inicio */
 
 atualizarSelo(false);
@@ -18198,6 +18448,7 @@ carregarAbertos();
 carregarModelo();
 carregarUsuario();
 verificarPrimeiraAbertura();
+aplicarModoLimitado();
 $("nova").click();
 </script>
 </body>

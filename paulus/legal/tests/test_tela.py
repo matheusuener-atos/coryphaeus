@@ -510,6 +510,44 @@ def main() -> int:
                 "Quem ja apoia abre com as tres secoes",
             )
 
+            print("\nentrar no escritorio por codigo (A0b)")
+            # O ramo "existente" das boas-vindas encurta o passeio para quatro
+            # passos e termina nos dois codigos; concluir abre o PAULUS em modo
+            # limitado ate o responsavel validar. O teste desfaz no fim.
+            pagina.evaluate("() => { localStorage.removeItem('paulus.vinculo'); location.hash = '#boasvindas'; verificarPrimeiraAbertura(); }")
+            # Abrir o passeio le preferencias e status; com o Ollama desligado,
+            # cada leitura espera ate 5 s.
+            pagina.wait_for_selector("[data-bv=continuar]", timeout=40000)
+            pagina.wait_for_timeout(300)
+            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(300)
+            pagina.evaluate("() => document.querySelector('[data-escritorio=existente]').click()")
+            pagina.wait_for_timeout(300)
+            checar(
+                pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-passo').length") == 4,
+                "entrar em um escritorio existente deixa quatro passos",
+            )
+            pagina.evaluate("() => { bv.passo = 3; desenharBoasVindas(); }")
+            pagina.wait_for_timeout(400)
+            checar(
+                pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-casas').length === 2 && bv.vinculo.meuCodigo.length === 6"),
+                "o passo dos codigos mostra as duas caixas e gera o seu codigo",
+            )
+            pagina.evaluate("() => { const el = document.getElementById('bv-codigo'); el.value = 'TESTE1'; el.dispatchEvent(new Event('input')); }")
+            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(2500)
+            checar(
+                pagina.evaluate("() => document.body.classList.contains('vinculo-pendente')"
+                                " && getComputedStyle(document.querySelector('.trilho-item[data-destino=financeiro]')).pointerEvents === 'none'"),
+                "concluir abre em modo limitado, com o Financeiro apagado",
+            )
+            pagina.evaluate("() => { localStorage.removeItem('paulus.vinculo'); aplicarModoLimitado(); carregarAgora(); }")
+            pagina.wait_for_timeout(400)
+            checar(
+                pagina.evaluate("() => !document.body.classList.contains('vinculo-pendente')"),
+                "desfazer o pedido libera a casca",
+            )
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',
