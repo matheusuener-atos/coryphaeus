@@ -622,6 +622,13 @@ def main() -> int:
                     pagina.evaluate("() => !!document.querySelector('.gv-forma') && !!document.querySelector('.gv-adiante') && document.querySelectorAll('#gv-tela .gv-painel .painel-bloco').length === 4"),
                     "o gravador abre com o formulario, a transcricao honesta e o painel de contexto",
                 )
+                # Com o modelo de voz baixado, o cartao diz que a transcricao ao
+                # vivo comeca junto com a gravacao; sem ele, que falta baixar.
+                checar(
+                    pagina.evaluate("() => { const t = document.querySelector('.gv-transcricao .gv-adiante').textContent;"
+                                    " return gv.voz && gv.voz.disponivel ? t.includes('Começa junto com a gravação') : t.includes('sem modelo de voz'); }"),
+                    "o cartao da transcricao ao vivo sabe se o modelo esta nesta maquina",
+                )
                 pagina.evaluate(f"() => abrirGravacao({id_gravacao})")
                 pagina.wait_for_selector("#gv-tela .gv-player", timeout=20000)
                 checar(

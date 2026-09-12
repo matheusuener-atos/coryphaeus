@@ -10,6 +10,12 @@ nucleos todos - a tela mostra o andamento e continua usavel.
 Dois tamanhos, escolhidos pela maquina de quem usa:
   turbo  large-v3-turbo, ~1,6 GB - o que acerta mais em portugues;
   small  ~0,5 GB - para maquina fraca ou nota de voz curta.
+
+Ao vivo: o navegador manda o audio em pedacos (PCM 16 kHz, 16 bits, mono)
+e o servidor junta num buffer por sessao. A cada chegada, o detector de fala
+(Silero, que vem com o faster-whisper) procura uma pausa; o que esta antes
+da pausa vai para o modelo e vira trechos com o minuto. Cortar na pausa, e
+nao no relogio, e o que evita palavra partida ao meio.
 """
 
 from __future__ import annotations
@@ -27,6 +33,29 @@ MODELOS = {
 }
 PADRAO = "turbo"
 ARQUIVOS_DO_MODELO = ("model.bin", "config.json")
+TAXA = 16000
+
+
+class SessaoAoVivo:
+    """O audio de uma gravacao em andamento, chegando aos pedacos."""
+
+    def __init__(self, id_: str, modelo: str) -> None:
+        import numpy as np
+
+        self.id = id_
+        self.modelo = modelo
+        self.buffer = np.zeros(0, dtype=np.float32)
+        self.offset = 0.0     # segundos ja consumidos antes do inicio do buffer
+        self.total = 0.0      # segundos recebidos
+        self.trechos: list[dict] = []
+        self.criada = time.time()
+        self.ultima = time.time()
+        self.trava = threading.Lock()
+        self.fechada = False
+
+    def situacao(self) -> dict:
+        return {"sessao": self.id, "modelo": self.modelo, "total_s": round(self.total, 1),
+                "pendente_s": round(len(self.buffer) / TAXA, 1), "trechos_quantos": len(self.trechos), "fechada": self.fechada}
 
 
 class Transcritor:
@@ -159,6 +188,85 @@ class Transcritor:
             "tempo": round(time.time() - comeco, 1),
             "palavras": sum(len(t["texto"].split()) for t in trechos),
         }
+
+    # ---------------------------------------------------------------- ao vivo
+
+    def transcrever_pedaco(self, audio, prompt: str = "") -> list[dict]:
+        """Um pedaco curto (segundos) que ja esta em float32 a 16 kHz."""
+        modelo = self.carregar()
+        duracao = len(audio) / TAXA
+        segmentos, _info = modelo.transcribe(
+            audio, language="pt", beam_size=3, vad_filter=False,
+            condition_on_previous_text=False, initial_prompt=prompt or None,
+        )
+        out = []
+        for s in segmentos:
+            texto = s.text.strip()
+            if not texto or float(s.start) >= duracao:
+                continue
+            if float(getattr(s, "no_speech_prob", 0) or 0) > 0.8 and float(getattr(s, "avg_logprob", 0) or 0) < -1.0:
+                continue
+            out.append({"inicio": round(float(s.start), 2), "fim": round(min(float(s.end), duracao), 2), "texto": texto})
+        return out
+
+    def ao_vivo_receber(self, sessao: SessaoAoVivo, pcm: bytes) -> list[dict]:
+        """Mais um pedaco de audio chegou; devolve os trechos novos, se uma pausa permitiu transcrever."""
+        import numpy as np
+
+        audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+        with sessao.trava:
+            sessao.ultima = time.time()
+            sessao.buffer = np.concatenate([sessao.buffer, audio])
+            sessao.total += len(audio) / TAXA
+            return self._consumir(sessao, forcar=False)
+
+    def ao_vivo_fim(self, sessao: SessaoAoVivo) -> list[dict]:
+        """A gravacao parou: transcreve o que sobrou no buffer e fecha a sessao."""
+        with sessao.trava:
+            novos = self._consumir(sessao, forcar=True) if not sessao.fechada else []
+            sessao.fechada = True
+            return novos
+
+    def _consumir(self, sessao: SessaoAoVivo, forcar: bool) -> list[dict]:
+        from faster_whisper.vad import VadOptions, get_speech_timestamps
+
+        n = len(sessao.buffer)
+        if n == 0 or (not forcar and n < TAXA * 2):
+            return []
+        fala = get_speech_timestamps(
+            sessao.buffer, VadOptions(min_silence_duration_ms=400, speech_pad_ms=150, min_speech_duration_ms=200))
+        if not fala:
+            # So silencio: joga fora, guardando meio segundo caso a fala comece no fim.
+            guardar = 0 if forcar else TAXA // 2
+            if n > guardar:
+                sessao.offset += (n - guardar) / TAXA
+                sessao.buffer = sessao.buffer[n - guardar:]
+            return []
+        ultimo = fala[-1]
+        if forcar:
+            corte = n
+        elif n - ultimo["end"] >= TAXA // 2:
+            corte = n                      # houve pausa depois da ultima fala: tudo esta completo
+        elif len(fala) >= 2:
+            corte = ultimo["start"]        # a ultima fala ainda esta em andamento: corta antes dela
+        elif n >= TAXA * 15:
+            corte = n                      # fala longa sem pausa: corta assim mesmo
+        else:
+            return []
+        if corte <= 0:
+            return []
+        pedaco = sessao.buffer[:corte]
+        prompt = " ".join(t["texto"] for t in sessao.trechos[-2:])[-200:]
+        base = sessao.offset
+        novos = [{"inicio": round(base + t["inicio"], 2), "fim": round(base + t["fim"], 2), "texto": t["texto"]}
+                 for t in self.transcrever_pedaco(pedaco, prompt)]
+        # O prompt as vezes volta repetido como se fosse fala nova: fora.
+        if novos and sessao.trechos and novos[0]["texto"] == sessao.trechos[-1]["texto"]:
+            novos.pop(0)
+        sessao.trechos.extend(novos)
+        sessao.offset += corte / TAXA
+        sessao.buffer = sessao.buffer[corte:]
+        return novos
 
 
 def texto_da_transcricao(trechos: list[dict]) -> str:

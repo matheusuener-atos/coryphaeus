@@ -2993,6 +2993,13 @@
   .cfg-voz { display: grid; gap: 8px; }
   .cfg-voz .cfg-modelo small.cfg-voz-nota { white-space: normal; }
   .cfg-voz .fin-botoes { padding-top: 0; }
+  /* A transcricao ao vivo: os trechos chegam a cada pausa e o cartao rola junto. */
+  .gv-vivo-trechos { flex: 1; min-height: 0; overflow: auto; padding: 6px 0; }
+  .gv-ouvindo { display: flex; align-items: center; gap: 8px; padding: 12px 16px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .gv-ouvindo .gv-pulso { animation: none; background: var(--ink3); }
+  .gv-ouvindo.viva .gv-pulso { animation: gv-pulsar 1.2s ease-in-out infinite; background: var(--acc); }
+  .gv-vivo-aviso { padding: 12px 16px; }
+  .gv-trecho .em-ligacao.forte.fixo { cursor: default; }
 
 
   /* --------------------------------------------------------- assinatura */
@@ -9819,6 +9826,7 @@ const gv = {
   vivo: {
     estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
     form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
+    sessao: "", captura: null, amostras: [], enviando: false, relogioEnvio: null, enviados: 0, transcricao: [], rolar: true, avisoVivo: "",
   },
 };
 
@@ -10031,15 +10039,7 @@ function corpoAoVivo() {
       '<p class="gv-aviso">Avise os participantes de que a reunião está sendo gravada. O áudio fica só nesta máquina; trocar de tela não interrompe a gravação.</p>' +
       "</div></div>";
   }
-  const transcricao = '<div class="fin-cartao gv-transcricao"><div class="fin-cartao-cabeca"><span>Transcrição</span><small>literal · com o minuto de cada trecho</small>' +
-    '<div class="direita"><button data-gv-adiante="Corrigir nomes entra com a transcrição por falante">Corrigir nomes</button><button data-gv-adiante="Rolar junto entra com a transcrição ao vivo">Rolar junto</button></div></div>' +
-    (gv.voz && gv.voz.disponivel
-      ? '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "A transcrição é feita ao parar e arquivar</b>" +
-        "<p>Nesta máquina, com " + esc(gv.voz.rotulo) + ", em segundo plano: o áudio não sai daqui. Transcrever palavra por palavra enquanto você fala ainda não existe — " +
-        "por isso os marcadores guardam os momentos que importam, e a transcrição chega com o minuto de cada trecho logo depois.</p></div>"
-      : '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem modelo de voz nesta máquina</b>" +
-        "<p>A transcrição — literal, com o minuto de cada fala — precisa do modelo de voz baixado aqui, para o áudio não sair do computador. " +
-        "O áudio é gravado normalmente e os marcadores guardam os momentos que importam; baixe o modelo pela aba Transcrição de qualquer gravação e as já arquivadas poderão ser transcritas.</p></div>") + "</div>";
+  const transcricao = cartaoAoVivo();
   return '<div class="acervo-principal">' + gravador + transcricao + "</div>";
 }
 
@@ -10137,8 +10137,9 @@ function notaDaVoz() {
 }
 
 function rotuloDoModeloGv(nome) {
-  const m = ((gv.voz || {}).modelos || []).find((x) => x.nome === nome);
-  return m ? m.rotulo : (nome || "Whisper");
+  const partes = String(nome || "").split(" ");
+  const m = ((gv.voz || {}).modelos || []).find((x) => x.nome === partes[0]);
+  return (m ? m.rotulo : (partes[0] || "Whisper")) + (partes.length > 1 ? " " + partes.slice(1).join(" ") : "");
 }
 
 /* Quanto costuma demorar: a medida desta maquina em CPU (turbo ~2,4x o tempo
@@ -10380,7 +10381,11 @@ function ligarGravacoes() {
   clique("[data-gv-aba]", (b) => {
     const aba = b.dataset.gvAba;
     if (gv.visao === "vivo") {
-      if (aba !== "vivo") { avisoCert((aba === "resumo" ? "O resumo" : "A transcrição") + " entra com o modelo de voz local — a gravação continua"); return; }
+      if (aba !== "vivo") {
+        avisoCert(aba === "resumo" ? "O resumo é escrito depois, na gravação arquivada — a gravação continua"
+          : ((gv.voz || {}).disponivel ? "A transcrição ao vivo está no cartão abaixo do gravador" : "A transcrição precisa do modelo de voz baixado nesta máquina"));
+        return;
+      }
       return;
     }
     gv.aba = aba;
@@ -10399,6 +10404,7 @@ function ligarGravacoes() {
   clique("[data-gv-pausar]", () => pausarGravacao());
   clique("[data-gv-parar]", () => pararGravacao());
   clique("[data-gv-marcar-vivo]", () => marcarMomentoAoVivo());
+  clique("[data-gv-rolar]", (b) => { gv.vivo.rolar = !gv.vivo.rolar; b.classList.toggle("primario", gv.vivo.rolar); if (gv.vivo.rolar) desenharTrechosAoVivo(); });
   document.querySelectorAll("[data-gv-marcador-vivo]").forEach((el) => { el.oninput = () => { gv.vivo.marcadores[Number(el.dataset.gvMarcadorVivo)].texto = el.value; }; });
   clique("[data-gv-marcador-vivo-tirar]", (b) => { gv.vivo.marcadores.splice(Number(b.dataset.gvMarcadorVivoTirar), 1); redesenharPainelGv(); });
   const pergunta = document.querySelector("[data-gv-pergunta]");
@@ -10478,6 +10484,7 @@ async function comecarGravacao() {
   clearInterval(v.relogio);
   v.relogio = setInterval(tiquetaqueGv, 500);
   if (!v.form.titulo) v.form.titulo = tituloPadraoGv(v.form);
+  comecarTranscricaoAoVivo(fluxo);
   desenharGravacoes();
 }
 
@@ -10519,9 +10526,12 @@ function marcarMomentoAoVivo() {
 function limparGravacaoAoVivo() {
   const v = gv.vivo;
   clearInterval(v.relogio);
+  clearInterval(v.relogioEnvio);
+  pararCaptura(v);
   if (v.fluxo) v.fluxo.getTracks().forEach((t) => t.stop());
   Object.assign(v, { estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
-    form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" } });
+    form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
+    sessao: "", captura: null, amostras: [], enviando: false, relogioEnvio: null, enviados: 0, transcricao: [], rolar: true, avisoVivo: "" });
 }
 
 async function pararGravacao() {
@@ -10539,8 +10549,10 @@ async function pararGravacao() {
   clearInterval(v.relogio);
   const mime = gravador.mimeType || "";
   const extensao = /ogg/.test(mime) ? ".ogg" : (/mp4/.test(mime) ? ".m4a" : ".webm");
+  const sessao = await encerrarTranscricaoAoVivo();
   const dados = new FormData();
   dados.append("arquivo", blob, "gravacao" + extensao);
+  dados.append("sessao", sessao || "");
   dados.append("titulo", v.form.titulo || tituloPadraoGv(v.form));
   dados.append("tipo", v.form.tipo);
   dados.append("cadastro_id", v.form.cadastro_id ? String(v.form.cadastro_id) : "");
@@ -10571,11 +10583,196 @@ function perguntarSemParar(texto) {
   marcarDestino("conversa");
   const campo = $("pedido");
   if (campo) {
-    campo.value = (v.estado === "pronto" ? "" : "Durante a gravação “" + (v.form.titulo || tituloPadraoGv(v.form)) + "”: ") + (texto || "").trim();
+    const dito = v.transcricao.slice(-6).map((t) => t.texto).join(" ").slice(-700);
+    campo.value = (v.estado === "pronto" ? "" : "Durante a gravação “" + (v.form.titulo || tituloPadraoGv(v.form)) + "”" +
+      (dito ? ", em que acabou de ser dito: “" + dito + "”" : "") + ". ") + (texto || "").trim();
     campo.focus();
     campo.setSelectionRange(campo.value.length, campo.value.length);
   }
   if (v.estado !== "pronto") avisoCert("a gravação continua — volte por Gravações para parar e arquivar");
+}
+
+/* ------------------------------------------------------- ao vivo */
+/*
+   A transcricao enquanto grava. Um AudioWorklet captura o microfone em
+   PCM, a cada 2 s o que juntou vai ao servidor (16 kHz, 16 bits), e o
+   servidor devolve trechos quando acha uma pausa na fala. O texto entra no
+   cartao abaixo do gravador, com o minuto. Ao parar, o que sobrou e
+   transcrito e a sessao vai junto com o audio: a gravacao ja nasce
+   transcrita.
+*/
+
+const GV_CAPTADOR = 'class Captador extends AudioWorkletProcessor { process(entradas) { const canal = entradas[0] && entradas[0][0]; if (canal) this.port.postMessage(canal.slice(0)); return true; } } registerProcessor("paulus-captador", Captador);';
+
+function linhaAoVivo(t) {
+  return '<div class="gv-trecho"><span class="em-ligacao forte fixo">' + duracaoGv(t.inicio) + "</span><p>" + esc(t.texto) + "</p></div>";
+}
+
+function rodapeAoVivo() {
+  const v = gv.vivo;
+  if (v.avisoVivo) return '<p class="nota gv-vivo-aviso">' + esc(v.avisoVivo) + "</p>";
+  const classe = "gv-ouvindo" + (v.estado === "gravando" && v.sessao ? " viva" : "");
+  let texto;
+  if (v.estado === "pausada") texto = "pausada — volta a ouvir quando a gravação continuar";
+  else if (v.estado === "salvando") texto = "transcrevendo o que sobrou…";
+  else if (!v.sessao) texto = "abrindo a sessão de transcrição…";
+  else texto = v.transcricao.length ? "ouvindo… o próximo trecho chega na próxima pausa" : "ouvindo… o texto chega a cada pausa na fala, alguns segundos depois";
+  return '<div class="' + classe + '"><i class="gv-pulso"></i>' + texto + "</div>";
+}
+
+function cartaoAoVivo() {
+  const v = gv.vivo;
+  const voz = gv.voz || {};
+  const cabeca = (meta, direita) => '<div class="fin-cartao-cabeca"><span>Transcrição ao vivo</span><small>' + esc(meta) + "</small>" +
+    (direita ? '<div class="direita">' + direita + "</div>" : "") + "</div>";
+  if (!voz.disponivel) {
+    return '<div class="fin-cartao gv-transcricao">' + cabeca("sem modelo de voz nesta máquina") +
+      '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem modelo de voz nesta máquina</b>" +
+      "<p>A transcrição ao vivo — literal, com o minuto de cada trecho — precisa do modelo de voz baixado aqui, para o áudio não sair do computador. " +
+      "O áudio é gravado normalmente e os marcadores guardam os momentos que importam; baixe o modelo pela aba Transcrição de qualquer gravação ou em Configurações.</p></div></div>";
+  }
+  if (v.estado === "pronto") {
+    return '<div class="fin-cartao gv-transcricao">' + cabeca("literal · " + voz.rotulo + " · alguns segundos depois da fala") +
+      '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Começa junto com a gravação</b>" +
+      "<p>O áudio vai em pedaços para o modelo nesta máquina, que devolve o texto a cada pausa na fala — com o minuto, alguns segundos depois. Nada sai do computador. " +
+      "Ao parar e arquivar, a gravação já nasce transcrita. Separar quem disse o quê ainda não existe.</p></div></div>";
+  }
+  return '<div class="fin-cartao gv-transcricao">' + cabeca("literal · " + voz.rotulo + " · " + plural(v.transcricao.length, "trecho"),
+    '<button data-gv-adiante="Corrigir nomes entra com a separação por falante, que ainda não existe">Corrigir nomes</button>' +
+    '<button class="' + (v.rolar ? "primario" : "") + '" data-gv-rolar="1">Rolar junto</button>') +
+    '<div class="gv-vivo-trechos" id="gv-vivo-trechos">' + v.transcricao.map(linhaAoVivo).join("") + rodapeAoVivo() + "</div></div>";
+}
+
+function desenharTrechosAoVivo() {
+  const alvo = $("gv-vivo-trechos");
+  if (!alvo) return;
+  const v = gv.vivo;
+  alvo.innerHTML = v.transcricao.map(linhaAoVivo).join("") + rodapeAoVivo();
+  const meta = document.querySelector("#gv-tela .gv-transcricao .fin-cartao-cabeca small");
+  if (meta) meta.textContent = "literal · " + ((gv.voz || {}).rotulo || "") + " · " + plural(v.transcricao.length, "trecho");
+  if (v.rolar) alvo.scrollTop = alvo.scrollHeight;
+}
+
+async function comecarTranscricaoAoVivo(fluxo) {
+  const v = gv.vivo;
+  v.transcricao = [];
+  v.avisoVivo = "";
+  v.sessao = "";
+  v.amostras = [];
+  v.enviados = 0;
+  if (!gv.voz || !gv.voz.disponivel) return;
+  let r = null;
+  try { r = await fetch("/api/voz/ao-vivo", { method: "POST", headers: GV_JSON, body: "{}" }); } catch (err) { r = null; }
+  if (!r || !r.ok) {
+    v.avisoVivo = "não consegui abrir a transcrição ao vivo" + (r ? ": " + (await erroDe(r)) : " — o servidor não respondeu");
+    desenharTrechosAoVivo();
+    return;
+  }
+  const sessao = (await r.json()).sessao;
+  if (v.estado === "pronto") { fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }); return; }
+  v.sessao = sessao;
+  try {
+    let ctx;
+    try { ctx = new AudioContext({ sampleRate: 16000 }); } catch (err) { ctx = new AudioContext(); }
+    const fonte = ctx.createMediaStreamSource(fluxo);
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([GV_CAPTADOR], { type: "application/javascript" })));
+    const no = new AudioWorkletNode(ctx, "paulus-captador");
+    no.port.onmessage = (e) => { if (v.estado === "gravando" && v.sessao) v.amostras.push(e.data); };
+    fonte.connect(no);
+    no.connect(ctx.destination);
+    v.captura = { ctx: ctx, no: no, fonte: fonte };
+  } catch (err) {
+    v.avisoVivo = "esta janela não deixou capturar o áudio para transcrever (" + (err && err.message ? err.message : err) + "); a gravação continua e a transcrição sai ao arquivar";
+    desenharTrechosAoVivo();
+    return;
+  }
+  clearInterval(v.relogioEnvio);
+  v.relogioEnvio = setInterval(enviarPedacoAoVivo, 2000);
+  desenharTrechosAoVivo();
+}
+
+function pcm16De(f32) {
+  const out = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) {
+    const x = Math.max(-1, Math.min(1, f32[i]));
+    out[i] = x < 0 ? x * 32768 : x * 32767;
+  }
+  return out.buffer;
+}
+
+/* Quando a janela nao aceita um contexto a 16 kHz, o audio vem na taxa do
+   aparelho e e reamostrado aqui, por interpolacao linear: para voz basta. */
+function reamostrarGv(f32, de, para) {
+  if (de === para) return f32;
+  const razao = de / para;
+  const n = Math.floor(f32.length / razao);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = i * razao;
+    const j = Math.floor(p);
+    const f = p - j;
+    out[i] = f32[j] * (1 - f) + (f32[Math.min(j + 1, f32.length - 1)] || 0) * f;
+  }
+  return out;
+}
+
+async function enviarPedacoAoVivo() {
+  const v = gv.vivo;
+  if (!v.sessao || v.enviando || !v.amostras.length) return;
+  const partes = v.amostras;
+  v.amostras = [];
+  const total = partes.reduce((s, p) => s + p.length, 0);
+  const junto = new Float32Array(total);
+  let i = 0;
+  partes.forEach((p) => { junto.set(p, i); i += p.length; });
+  const taxa = v.captura ? v.captura.ctx.sampleRate : 16000;
+  const pcm = pcm16De(reamostrarGv(junto, taxa, 16000));
+  v.enviando = true;
+  try {
+    const r = await fetch("/api/voz/ao-vivo/" + v.sessao + "/audio", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: pcm });
+    if (!r.ok) {
+      v.avisoVivo = "a transcrição ao vivo parou: " + (await erroDe(r)) + " — a gravação continua e a transcrição sai ao arquivar";
+      clearInterval(v.relogioEnvio);
+      desenharTrechosAoVivo();
+      return;
+    }
+    const d = await r.json();
+    v.enviados += 1;
+    if (d.trechos && d.trechos.length) {
+      v.transcricao = v.transcricao.concat(d.trechos);
+      desenharTrechosAoVivo();
+    }
+  } catch (err) {
+    v.amostras = partes.concat(v.amostras);
+  } finally {
+    v.enviando = false;
+  }
+}
+
+function pararCaptura(v) {
+  if (!v.captura) return;
+  try { v.captura.no.disconnect(); v.captura.fonte.disconnect(); v.captura.ctx.close(); } catch (err) { /* ja fechado */ }
+  v.captura = null;
+}
+
+/* A gravacao parou: manda o que sobrou, fecha a sessao e devolve o id para
+   ir junto com o audio. */
+async function encerrarTranscricaoAoVivo() {
+  const v = gv.vivo;
+  clearInterval(v.relogioEnvio);
+  pararCaptura(v);
+  if (!v.sessao) return "";
+  while (v.enviando) await new Promise((fim) => setTimeout(fim, 100));
+  if (v.amostras.length) await enviarPedacoAoVivo();
+  try {
+    const r = await fetch("/api/voz/ao-vivo/" + v.sessao + "/fim", { method: "POST" });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.trechos) v.transcricao = d.trechos;
+      desenharTrechosAoVivo();
+    }
+  } catch (err) { /* o servidor ainda guarda a sessao; ela vai junto com o audio */ }
+  return v.sessao;
 }
 
 /* ------------------------------------------------------- importar */

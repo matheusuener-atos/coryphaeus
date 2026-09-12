@@ -16,6 +16,8 @@ import re
 import sys
 import queue
 import threading
+import time
+import uuid
 import unicodedata
 from datetime import datetime
 from collections.abc import Iterator
@@ -25,7 +27,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -185,6 +188,8 @@ class Estado:
         self.progresso_voz: dict[int, float] = {}
         self.transcrevendo: int | None = None
         self.erro_voz = ""
+        # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
+        self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
         for id_ in self.gravacoes.pendentes():
             self.fila_voz.put(id_)
         threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
@@ -198,6 +203,10 @@ class Estado:
         """A fila de transcricao: pega uma gravacao, transcreve, guarda, avisa a trilha."""
         while True:
             id_ = self.fila_voz.get()
+            # Enquanto alguem grava com transcricao ao vivo, a fila espera: o
+            # texto que chega enquanto a pessoa fala vale mais que o de fundo.
+            while any(not s.fechada for s in self.ao_vivo.values()):
+                time.sleep(1)
             self.transcrevendo = id_
             self.progresso_voz[id_] = 0.0
             try:
@@ -4807,6 +4816,65 @@ def voz_modelo(payload: dict) -> dict:
     return _situacao_da_voz()
 
 
+def _purgar_sessoes() -> None:
+    """Sessao sem audio ha 15 minutos e uma gravacao que nao voltou: some."""
+    agora = time.time()
+    for sid in [s for s, v in estado.ao_vivo.items() if agora - v.ultima > 900]:
+        estado.ao_vivo.pop(sid, None)
+
+
+def _sessao_viva(sid: str) -> transcricao_mod.SessaoAoVivo:
+    s = estado.ao_vivo.get(sid)
+    if not s:
+        raise HTTPException(status_code=404, detail="sessão de transcrição não encontrada")
+    return s
+
+
+@app.post("/api/voz/ao-vivo")
+def voz_ao_vivo_abrir(payload: dict | None = None) -> dict:
+    """Abre uma sessao para transcrever enquanto grava. O audio vem em pedacos por /audio."""
+    _purgar_sessoes()
+    if not estado.transcritor.instalado():
+        raise HTTPException(status_code=503, detail="o modelo de voz não está baixado nesta máquina")
+    sessao = transcricao_mod.SessaoAoVivo(uuid.uuid4().hex, estado.transcritor.modelo)
+    estado.ao_vivo[sessao.id] = sessao
+    s = sessao.situacao()
+    s["rotulo"] = transcricao_mod.MODELOS[sessao.modelo]["rotulo"]
+    return s
+
+
+@app.post("/api/voz/ao-vivo/{sid}/audio")
+async def voz_ao_vivo_audio(sid: str, request: Request) -> dict:
+    """Um pedaco de audio (PCM 16 kHz, 16 bits, mono). Devolve os trechos novos, se houve pausa para transcrever."""
+    sessao = _sessao_viva(sid)
+    if sessao.fechada:
+        raise HTTPException(status_code=409, detail="a sessão já foi encerrada")
+    pcm = await request.body()
+    if len(pcm) < 2:
+        return {"trechos": [], **sessao.situacao()}
+    try:
+        novos = await run_in_threadpool(estado.transcritor.ao_vivo_receber, sessao, pcm[: len(pcm) - len(pcm) % 2])
+    except Exception as exc:  # noqa: BLE001 - o erro vai para a tela, a sessao continua
+        raise HTTPException(status_code=500, detail="a transcrição falhou neste pedaço: " + str(exc)[:200]) from exc
+    return {"trechos": novos, **sessao.situacao()}
+
+
+@app.post("/api/voz/ao-vivo/{sid}/fim")
+async def voz_ao_vivo_fim(sid: str) -> dict:
+    """A gravacao parou: transcreve o que sobrou e devolve tudo. A sessao fica ate a gravacao ser arquivada."""
+    sessao = _sessao_viva(sid)
+    await run_in_threadpool(estado.transcritor.ao_vivo_fim, sessao)
+    return {"trechos": sessao.trechos, **sessao.situacao()}
+
+
+@app.delete("/api/voz/ao-vivo/{sid}")
+def voz_ao_vivo_descartar(sid: str) -> dict:
+    sessao = estado.ao_vivo.pop(sid, None)
+    if sessao:
+        sessao.fechada = True
+    return {"descartada": sid}
+
+
 # ------------------------------------------------------------ gravacoes
 
 
@@ -4837,6 +4905,7 @@ async def gravacoes_guardar(
     titulo: str = Form(""), tipo: str = Form("reuniao"), cadastro_id: str = Form(""),
     servico_id: str = Form(""), participantes: str = Form(""), duracao_s: str = Form("0"),
     origem: str = Form("gravada"), marcadores: str = Form("[]"), transcrever: str = Form("1"),
+    sessao: str = Form(""),
 ) -> dict:
     """O audio entra por aqui, gravado no navegador ou importado de um arquivo."""
     conteudo = await arquivo.read()
@@ -4859,7 +4928,14 @@ async def gravacoes_guardar(
     g = estado.gravacoes.obter(id_) or {}
     if g.get("servico_id"):
         estado.servicos.trilha(int(g["servico_id"]), "Gravação arquivada: " + g["titulo"])
-    if estado.transcritor.instalado() and transcrever == "1":
+    viva = estado.ao_vivo.pop(sessao, None) if sessao else None
+    if viva is not None:
+        # O que foi transcrito enquanto gravava ja serve; fecha o que sobrou.
+        await run_in_threadpool(estado.transcritor.ao_vivo_fim, viva)
+    if viva is not None and viva.trechos:
+        estado.gravacoes.marcar_transcricao(id_, "pronta", trechos=viva.trechos, modelo=viva.modelo + " ao vivo", tempo=0.0)
+        g = estado.gravacoes.obter(id_) or g
+    elif estado.transcritor.instalado() and transcrever == "1":
         estado.gravacoes.marcar_transcricao(id_, "fila")
         estado.fila_voz.put(id_)
         g = estado.gravacoes.obter(id_) or g
