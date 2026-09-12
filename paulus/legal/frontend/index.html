@@ -880,6 +880,23 @@
   }
   .ver-mais:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
+  /* "Ver mais": a lista inteira de conversas surge embaixo, e o bloco do
+     pedido sobe para dar lugar. */
+  .conversa-col.vazia.com-lista .conversa-principal { justify-content: flex-start; }
+  .conversa-col.vazia.com-lista .compositor { padding-top: 28px; }
+  .lista-conversas { display: grid; }
+  .colunas-conversas { grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) 150px 120px 28px; }
+  .lista-conversas .tabela-corpo { overflow: visible; }
+  .estado-conversa { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); white-space: nowrap; }
+  .estado-conversa .marca { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--mute); }
+  .estado-conversa .marca.falhou { background: var(--acc); }
+  .estado-conversa .marca.executando { background: var(--verde); animation: pv-pulse 3.2s ease-in-out infinite; }
+  .estado-conversa .marca.aguardando { background: var(--acc); }
+  .estado-conversa .marca.concluido { background: var(--verde); }
+  .estado-conversa .marca.pausado { background: var(--mute2); }
+  .lista-conversas .busca-tela { width: 220px; height: 30px; }
+  .lista-conversas .menu-conversa { top: calc(100% - 8px); }
+
   /* ------------------------------------------------------- habilidades */
 
   .catalogo { width: 100%; }
@@ -2737,6 +2754,7 @@
             </div>
 
             <div class="recentes" id="recentes" hidden></div>
+            <div class="lista-conversas" id="lista-conversas" hidden></div>
             <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
           </div>
         </div>
@@ -2977,7 +2995,8 @@ $("nova").onclick = () => {
   $("exportar-conversa").hidden = true;
   $("centro").innerHTML = exemplos();
   $("centro").classList.remove("prosa");
-  $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
+  $("conversa-col").classList.remove("tela-dupla", "tela-cheia", "com-lista");
+  $("lista-conversas").hidden = true;
   $("acoes-tela").innerHTML = "";
   mostrarLateral(false);
   ligarExemplos();
@@ -3019,23 +3038,108 @@ function atualizarPostura() {
   } else {
     $("agora").hidden = true;
     $("recentes").hidden = true;
+    $("lista-conversas").hidden = true;
+    $("conversa-col").classList.remove("com-lista");
   }
 }
 
 /* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta que o
-   desenho nao tem. "Ver mais" abre o menu, que e onde a lista inteira mora. */
+   desenho nao tem. "Ver mais" abre a lista inteira aqui mesmo, embaixo. */
 function desenharRecentes() {
   const alvo = $("recentes");
   const lista = (estado.recentes || []).slice(0, 3);
   if (!lista.length) { alvo.hidden = true; alvo.innerHTML = ""; return; }
+  const aberta = $("conversa-col").classList.contains("com-lista");
   alvo.hidden = false;
   alvo.innerHTML = '<span class="rotulo-suave">Recentes</span>' +
     lista.map((t) =>
       '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 16) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
-    '<button class="ver-mais" id="recentes-mais">Ver mais' + ic("chevron_right", 16) + "</button>";
+    '<button class="ver-mais" id="recentes-mais">' +
+    (aberta ? "Recolher" + ic("expand_less", 16) : "Ver mais" + ic("chevron_right", 16)) + "</button>";
   alvo.querySelectorAll("[data-abre]").forEach((b) => { b.onclick = () => abrirTrabalho(b.dataset.abre); });
-  $("recentes-mais").onclick = abrirFlutuante;
+  $("recentes-mais").onclick = () => alternarListaDeConversas(!aberta);
+  if (aberta) desenharListaDeConversas();
+}
+
+/* A lista inteira, na propria tela: o bloco do pedido sobe e a tabela surge
+   embaixo. O deslocamento e animado a partir da posicao medida antes e
+   depois - a caixa vai para onde precisa ir, e o olho acompanha. */
+function alternarListaDeConversas(abrir) {
+  const bloco = $("cartao-campo");
+  const antes = bloco.getBoundingClientRect().top;
+  $("conversa-col").classList.toggle("com-lista", abrir);
+  $("lista-conversas").hidden = !abrir;
+  if (abrir) desenharListaDeConversas();
+  desenharRecentes();
+  const depois = bloco.getBoundingClientRect().top;
+  const delta = antes - depois;
+  const alvo = $("compositor").querySelector(".centro");
+  if (delta && alvo) {
+    alvo.style.transition = "none";
+    alvo.style.transform = "translateY(" + delta + "px)";
+    requestAnimationFrame(() => {
+      alvo.style.transition = "transform .32s cubic-bezier(.2,.7,.3,1)";
+      alvo.style.transform = "";
+    });
+  }
+  if (abrir) {
+    const busca = $("lc-busca");
+    if (busca) busca.focus();
+  }
+}
+
+const ESTADO_DA_CONVERSA = {
+  executando: "trabalhando", aguardando: "esperando você", concluido: "concluída", pausado: "parada", falhou: "não deu",
+};
+
+function desenharListaDeConversas() {
+  const caixa = $("lista-conversas");
+  const termo = (caixa.dataset.termo || "").toLowerCase();
+  const todas = estado.recentes || [];
+  const lista = termo ? todas.filter((t) => (t.titulo || "").toLowerCase().includes(termo)) : todas;
+
+  const linhas = lista.length ? lista.map((t) => {
+    const andamento = t.estado === "aguardando"
+      ? plural(t.pendencias || 1, "pedido") + " na fila"
+      : (t.progresso !== null && t.progresso !== undefined && t.aberto ? t.progresso + "%" : "");
+    return '<div class="tabela-linha colunas-conversas" data-id="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) +
+      '" data-grupo="' + esc(t.grupo || "") + '">' +
+      '<span class="nome-doc"><span class="caixa-tipo">' + ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 18) + "</span>" +
+      '<span class="duas-linhas"><b>' + esc(t.titulo) + "</b><small>" + esc(t.atualizado_em ? dataHoraCurta(t.atualizado_em) : "") + "</small></span></span>" +
+      "<span>" + (t.grupo ? '<span class="etiqueta">' + esc(t.grupo) + "</span>" : '<span class="quando-doc">—</span>') + "</span>" +
+      '<span class="estado-conversa"><i class="marca ' + esc(t.estado) + '"></i>' + (ESTADO_DA_CONVERSA[t.estado] || esc(t.estado)) + "</span>" +
+      '<span class="quando-doc">' + andamento + "</span>" +
+      '<button class="mais-linha" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></div>";
+  }).join("") : '<p class="nota">' + (termo ? "Nenhuma conversa com esse nome." : "Nenhuma conversa ainda.") + "</p>";
+
+  caixa.innerHTML = '<div class="tabela-cartao"><div class="tabela-barra">' +
+    '<span class="nota-barra">' + plural(todas.length, "conversa") + "</span>" +
+    '<span class="direita"><label class="busca-tela">' + ic("search", 18) +
+    '<input type="text" id="lc-busca" placeholder="Buscar conversa…" value="' + esc(caixa.dataset.termo || "") + '"></label>' +
+    '<button class="fantasma com-icone" id="lc-recolher">' + ic("expand_less", 16) + "Recolher</button></span></div>" +
+    '<div class="tabela-cabecalho colunas-conversas"><span>Conversa</span><span>Grupo</span><span>Estado</span><span>Andamento</span><span></span></div>' +
+    '<div class="tabela-corpo">' + linhas + "</div>" +
+    '<div class="tabela-rodape"><span>clique para abrir · ··· para renomear, mover ou apagar</span><span class="cresce"></span><span>nada saiu da máquina hoje</span></div></div>';
+
+  caixa.querySelectorAll(".tabela-linha").forEach((linha) => {
+    linha.onclick = () => abrirTrabalho(linha.dataset.id);
+    linha.querySelector("[data-lc-menu]").onclick = (e) => { e.stopPropagation(); abrirMenu(linha); };
+  });
+  const busca = $("lc-busca");
+  let t;
+  busca.oninput = (e) => {
+    clearTimeout(t);
+    const v = e.target.value;
+    t = setTimeout(() => {
+      caixa.dataset.termo = v.trim();
+      const posicao = busca.selectionStart;
+      desenharListaDeConversas();
+      const de_novo = $("lc-busca");
+      if (de_novo) { de_novo.focus(); de_novo.setSelectionRange(posicao, posicao); }
+    }, 180);
+  };
+  $("lc-recolher").onclick = () => alternarListaDeConversas(false);
 }
 
 function ligarExemplos() {
