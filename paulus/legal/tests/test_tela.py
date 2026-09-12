@@ -295,32 +295,28 @@ def main() -> int:
             pagina.wait_for_timeout(900)
             checar(pagina.evaluate(ver_compositor), "e volta ao abrir a conversa")
 
-            print("\nas tres telas de tres colunas")
-            for destino, seletor, nome in (
-                ("tarefas", ".colunas-3", "Tarefas"),
-                ("calendario", ".colunas-2", "Calendário"),
-                ("agendamento", ".colunas-2", "Agendamento"),
-            ):
-                pagina.evaluate("(id) => abrirDestino(id)", destino)
-                pagina.wait_for_timeout(1400)
-                colunas = pagina.evaluate(
-                    "(sel) => { const g = document.querySelector(sel);"
-                    " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }",
-                    seletor,
-                )
-                checar(colunas >= 2, f"{nome} abre em colunas (achou {colunas})")
-
-            # Uma regra `.hoje { margin-top: 22px }` da tela de Aprovacoes vazava
-            # para qualquer elemento marcado como "hoje": a celula de hoje do
-            # calendario ficava 22 px abaixo das vizinhas, e o cabecalho da
-            # semana quebrava em duas linhas. Classe generica com layout dentro
-            # e a forma mais silenciosa de uma tela estragar outra.
-            print("\ncolisao de classe generica")
+            print("\na Agenda: mes, semana e tarefas")
+            # Calendario, Agendamento e Tarefas viraram as tres visoes da Agenda
+            # (docs/ui/03-telas-desktop.md, A4). Os destinos antigos continuam
+            # abrindo, cada um na visao que o substituiu.
             pagina.evaluate("() => abrirDestino('calendario')")
-            pagina.wait_for_timeout(1400)
+            pagina.wait_for_timeout(1600)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.ag-mes');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 7, f"o mes abre em sete colunas (achou {colunas})")
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#agenda .acervo-painel .painel-cabeca')"),
+                "o painel do dia abre junto do mes",
+            )
+
+            # Uma regra `.hoje { margin-top: 22px }` de outra tela ja fez a
+            # celula de hoje descer 22 px. As classes da Agenda tem prefixo
+            # proprio, e esta checagem garante que continua assim.
             desvio = pagina.evaluate("""() => {
-              const h = document.querySelector('.cel.hoje');
-              const o = document.querySelector('.cel:not(.hoje):not(.fora)');
+              const h = document.querySelector('.ag-cel.ag-hoje');
+              const o = document.querySelector('.ag-cel:not(.ag-hoje):not(.ag-fora)');
               if (!h || !o) return null;
               return {hoje: getComputedStyle(h).marginTop, outra: getComputedStyle(o).marginTop};
             }""")
@@ -330,16 +326,40 @@ def main() -> int:
                 str(desvio),
             )
 
-            pagina.evaluate("""() => { const b = document.querySelector('[data-vista=semana]');
-              if (b) b.click(); }""")
-            pagina.wait_for_timeout(1200)
+            pagina.evaluate("() => document.querySelector('[data-visao=semana]').click()")
+            pagina.wait_for_timeout(1400)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.ag-semana');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 6, f"a semana tem a faixa de horas e cinco dias (achou {colunas})")
             alturas = pagina.evaluate(
-                "() => [...document.querySelectorAll('.semana-cabeca')]"
+                "() => [...document.querySelectorAll('.ag-semana-dias span')]"
                 ".map(e => Math.round(e.getBoundingClientRect().height))"
             )
             checar(
                 len(set(alturas)) <= 1,
                 f"os cabecalhos da semana tem a mesma altura ({sorted(set(alturas))})",
+            )
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#agenda .ag-form')"),
+                "a semana abre com o formulario de novo compromisso no painel",
+            )
+
+            pagina.evaluate("() => document.querySelector('[data-visao=tarefas]').click()")
+            pagina.wait_for_timeout(1400)
+            checar(
+                pagina.evaluate(
+                    "() => !!document.querySelector('.ag-tarefas .ag-listas')"
+                    " && !!document.querySelector('[data-ag-nova]')"
+                ),
+                "as tarefas abrem com as listas e a caixa de adicionar",
+            )
+            pagina.evaluate("() => abrirDestino('tarefas')")
+            pagina.wait_for_timeout(1200)
+            checar(
+                pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Meu dia",
+                "o destino antigo Tarefas abre a Agenda em Meu dia",
             )
 
             print("\ncelulas da planilha")

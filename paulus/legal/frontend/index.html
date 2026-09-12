@@ -1453,17 +1453,6 @@
     background: var(--surface-1); color: inherit; padding: 9px 11px; resize: vertical;
   }
 
-  .pedido.tarefa .pedido-acoes { display: flex; gap: 6px; align-items: flex-start; }
-  .pedido.tarefa .pedido-acoes button[data-a="estrela"] { padding: 6px 10px; }
-  .pedido.feita .pedido-titulo { color: var(--ink-3); text-decoration: line-through; }
-
-  .etapas-lista { margin-bottom: 10px; }
-  .etapa-linha {
-    display: flex; align-items: center; gap: 10px;
-    padding: 6px 0; font-size: 13px; color: var(--ink-2); cursor: pointer;
-  }
-  .etapa-linha .risco { color: var(--ink-3); text-decoration: line-through; }
-
   input[type=date] {
     font: 400 13px var(--sans); border: 1px solid var(--linha-media);
     background: var(--surface-1); color: inherit; padding: 8px 11px;
@@ -1471,65 +1460,11 @@
   }
   [data-tema="escuro"] input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
 
-  /* -------------------------------------------------------- calendario */
-
-  .mes { border: 1px solid var(--linha-media); }
-  .mes-cabeca {
-    display: grid; grid-template-columns: repeat(7, 1fr);
-    border-bottom: 1px solid var(--linha);
-  }
-  .mes-cabeca span {
-    padding: 9px 10px; font: 500 9.5px var(--mono);
-    letter-spacing: 0.22em; color: var(--ink-3);
-  }
-  .mes-grade { display: grid; grid-template-columns: repeat(7, 1fr); }
-
-  .cel {
-    min-height: 92px; padding: 8px 9px; cursor: pointer;
-    border-right: 1px solid var(--linha); border-bottom: 1px solid var(--linha);
-    display: flex; flex-direction: column; gap: 3px; overflow: hidden;
-  }
-  .cel:nth-child(7n) { border-right: none; }
-  .cel:hover { background: var(--surface-1); }
-  .cel.fora { opacity: 0.35; }
-  .cel.hoje .cel-num { color: var(--acento); }
-  .cel.escolhido { background: var(--acento-fraco); box-shadow: inset 0 2px 0 var(--acento); }
-
-  .cel-num { font: 400 11.5px var(--mono); color: var(--ink-2); margin-bottom: 2px; }
-  .cel-num em {
-    font: 500 9px var(--mono); letter-spacing: 0.16em;
-    text-transform: uppercase; font-style: normal; color: var(--acento);
-  }
-
-  .marca-item {
-    font-size: 11px; line-height: 1.35; color: var(--ink-2);
-    padding-left: 7px; border-left: 2px solid var(--linha-forte);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .marca-item b { font: 500 10.5px var(--mono); color: var(--ink-3); }
-  .marca-item.compromisso { border-left-color: var(--acento); }
-  .marca-item.prazo { border-left-color: var(--atencao); }
-  .marca-item.documento { border-left-color: var(--ok); }
-  .marca-item.tarefa { border-left-color: var(--ink-muted); }
-  .mais-itens { font: 400 10px var(--mono); color: var(--ink-muted); }
-
-  .legenda { display: flex; gap: 18px; margin: 12px 0 4px; font-size: 12px; color: var(--ink-3); }
-  .legenda span { display: flex; align-items: center; gap: 7px; }
-  .ponto-legenda { width: 10px; height: 2px; flex-shrink: 0; background: var(--linha-forte); }
-  .ponto-legenda.compromisso { background: var(--acento); }
-  .ponto-legenda.prazo { background: var(--atencao); }
-  .ponto-legenda.documento { background: var(--ok); }
-
   input[type=time] {
     font: 400 13px var(--sans); border: 1px solid var(--linha-media);
     background: var(--surface-1); color: inherit; padding: 8px 11px;
   }
   [data-tema="escuro"] input[type=time]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
-
-  @media (max-width: 1000px) {
-    .cel { min-height: 66px; }
-    .marca-item { font-size: 10px; }
-  }
 
   /* ------------------------------------------------- maquina na coluna */
   /* Os medidores sairam da coluna: no desenho eles moram em Configuracoes >
@@ -2330,161 +2265,6 @@
     border: 1px solid var(--linha); padding: 9px 11px; overflow-wrap: anywhere;
   }
 
-  /* ------------------------------------------------ forma de três colunas */
-  /*
-     Tarefas, Calendário e Agendamento pedem a mesma forma: uma trilha estreita
-     de filtros, o miolo, e um painel de detalhe. Três implementações da mesma
-     coisa divergem em uma semana - esta é uma só.
-  */
-
-  .colunas-3 {
-    display: grid;
-    grid-template-columns: 186px minmax(0, 1.15fr) minmax(0, 0.95fr);
-    gap: 16px;
-    align-items: start;
-  }
-  .colunas-pares {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-    gap: 16px; align-items: start;
-  }
-
-  .colunas-2 {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
-    gap: 16px;
-    align-items: start;
-  }
-  @media (max-width: 1240px) {
-    .colunas-3 { grid-template-columns: 172px minmax(0, 1fr); }
-    .colunas-3 > .col-detalhe { grid-column: 1 / -1; }
-  }
-  @media (max-width: 940px) {
-    .colunas-3 { grid-template-columns: minmax(0, 1fr); }
-    .colunas-3 > .col-detalhe { grid-column: auto; }
-    .colunas-2 { grid-template-columns: minmax(0, 1fr); }
-  }
-
-  /* A trilha da esquerda: filtro é navegação, não botão solto. */
-  .trilha { display: flex; flex-direction: column; gap: 1px; }
-  .trilha button {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%; text-align: left;
-    padding: 8px 10px;
-    border: none; border-left: 2px solid transparent;
-    background: none; color: var(--ink-2);
-    font: 400 13px var(--sans);
-  }
-  .trilha button:hover { background: var(--surface-3); border-color: var(--linha-forte); }
-  .trilha button.on {
-    background: var(--surface-3);
-    border-left-color: var(--acento);
-    color: var(--ink-titulo);
-  }
-  .trilha .conta {
-    margin-left: auto;
-    font: 500 10.5px var(--mono);
-    color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
-  }
-  .trilha .marca-lista {
-    width: 7px; height: 7px; flex: none;
-    border: 1px solid var(--linha-viva);
-  }
-  .trilha-titulo { margin: 18px 0 6px 10px; display: block; }
-  .trilha-titulo:first-child { margin-top: 0; }
-
-  .col-detalhe { position: sticky; top: 14px; }
-  .ficha-tarefa { display: flex; flex-direction: column; }
-  .cabeca-ficha { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
-  .cabeca-ficha h3 { flex: 1; font: 500 15px var(--sans); }
-  .cabeca-ficha button { padding: 2px 8px; line-height: 1.2; }
-  .pedido.escolhida { border-left: 2px solid var(--acento); background: var(--surface-3); }
-  @media (max-width: 1240px) { .col-detalhe { position: static; } }
-
-  .detalhe-vazio {
-    border: 1px dashed var(--linha-forte);
-    padding: 26px 20px;
-    text-align: center;
-    color: var(--ink-3);
-    font-size: 13px;
-  }
-
-  /* Cabeçalho de seção dentro de uma coluna: "CONCLUÍDAS · 2". */
-  .secao-lista {
-    display: flex; align-items: center; gap: 10px;
-    margin: 18px 0 6px;
-  }
-  .secao-lista .risco-fino { flex: 1; }
-
-  .tarefa-fim { text-decoration: line-through; color: var(--ink-3); }
-
-  /* ---------------------------------------------- calendário e semana */
-
-  .mes-grade .cel.fds { background: var(--surface-3); }
-  .mes-grade .cel.fds .cel-num { color: var(--ink-3); }
-
-  /* A semana em grade: dias em colunas, horas em linhas. */
-  .semana-grade {
-    display: grid;
-    grid-template-columns: 46px repeat(7, minmax(0, 1fr));
-    border: 1px solid var(--linha-media);
-    overflow: auto;
-    max-height: 460px;
-  }
-  .semana-cabeca {
-    position: sticky; top: 0; z-index: 2;
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--linha-media);
-    padding: 7px 8px;
-    font: 500 10px var(--mono);
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    text-align: center;
-  }
-  .semana-cabeca.hoje { color: var(--acento); }
-  .semana-cabeca.fds { background: var(--surface-3); }
-  .semana-hora {
-    border-right: 1px solid var(--linha-media);
-    border-bottom: 1px solid var(--linha);
-    padding: 2px 6px;
-    font: 500 9.5px var(--mono);
-    color: var(--ink-3);
-    text-align: right;
-    position: sticky; left: 0;
-    background: var(--fundo);
-  }
-  .semana-cel {
-    border-bottom: 1px solid var(--linha);
-    border-right: 1px solid var(--linha);
-    min-height: 30px;
-    padding: 2px;
-    cursor: pointer;
-  }
-  .semana-cel.fds { background: var(--surface-3); }
-  .semana-cel:hover { background: var(--acento-fraco); }
-  .semana-marca {
-    display: block;
-    font-size: 10.5px;
-    line-height: 1.3;
-    padding: 3px 5px;
-    border-left: 2px solid var(--acento);
-    background: var(--surface-1);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .semana-marca.pagamento { border-left-color: var(--atencao); }
-  .semana-marca.prazo_interno { border-left-color: var(--ok); }
-
-  .vista.on { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); }
-  .escolha-livre {
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
-  .escolha-livre button.on {
-    background: var(--forte); border-color: var(--forte); color: var(--forte-texto);
-  }
-
   /* ------------------------------------------------------ artigo de lei */
 
   .artigo {
@@ -2599,6 +2379,267 @@
     .bv-corpo { grid-template-columns: minmax(0, 1fr); }
   }
 
+  /* ------------------------------------------------------------- agenda */
+  /*
+    A Agenda (docs/ui/03-telas-desktop.md, A4): Mes, Semana e Tarefas num
+    cabecalho so, com o painel a direita na mesma grade do Acervo. As cores
+    das marcas sao as do desenho: compromisso em grafite, prazo em vinho,
+    pagamento em verde, tarefa em cinza; a data lida num documento, em ambar.
+    Toda classe daqui tem prefixo ag- para nao colidir com regra de outra tela.
+  */
+  .nav-tela { display: flex; gap: 2px; flex: none; }
+  .nav-tela:empty { display: none; }
+  .com-menu { position: relative; }
+  .menu-novo { right: 0; width: 236px; }
+  .menu-novo button { gap: 10px; }
+  .menu-novo .ic { color: var(--ink3); }
+
+  .ag-cartao {
+    flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
+    box-shadow: 0 8px 24px -16px var(--sh-a12);
+  }
+  .ag-dias { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--ink-a1); }
+  .ag-dias span, .ag-semana-dias span {
+    padding: 8px 9px; font: 600 12px var(--sans); color: var(--ink2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ag-dias span.ag-fds { color: var(--ink3); }
+  .ag-mes {
+    flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr); gap: 1px; background: var(--ink-a1);
+  }
+  .ag-cel {
+    min-height: 0; background: var(--surf); padding: 8px 9px; display: flex; flex-direction: column; gap: 5px;
+    overflow: hidden; cursor: pointer; transition: background .15s;
+  }
+  .ag-cel:hover { background: var(--bg); }
+  .ag-cel.ag-fds { background: var(--sub); }
+  .ag-cel.ag-hoje { background: var(--accbg); }
+  .ag-cel.ag-escolhido { box-shadow: inset 0 0 0 2px var(--ink-a3); }
+  .ag-cel-num { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+  .ag-cel-num b { font-weight: 500; }
+  .ag-cel.ag-fds .ag-cel-num { color: var(--ink3); }
+  .ag-cel.ag-fora .ag-cel-num { color: var(--mute); }
+  .ag-cel.ag-hoje .ag-cel-num b {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px;
+    border-radius: 11px; background: var(--acc); color: var(--surf); font-weight: 700;
+  }
+  .ag-cel-num small { font: 500 11px var(--sans); color: var(--ink3); }
+  .ag-marca {
+    display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--ink2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ag-marca i, .ag-legenda i { display: block; width: 2px; height: 11px; background: var(--ink); flex: none; }
+  .ag-marca b { font-weight: 600; color: var(--ink); flex: none; }
+  .ag-marca span { overflow: hidden; text-overflow: ellipsis; }
+  .ag-marca.ag-prazo, .ag-marca.ag-prazo b { color: var(--acc); }
+  .ag-marca.ag-prazo i, .ag-legenda .ag-prazo i { background: var(--acc); }
+  .ag-marca.ag-tarefa, .ag-marca.ag-tarefa b { color: var(--ink3); }
+  .ag-marca.ag-tarefa i, .ag-legenda .ag-tarefa i { background: var(--mute); }
+  .ag-marca.ag-documento, .ag-marca.ag-documento b { color: var(--ink3); }
+  .ag-marca.ag-documento i, .ag-legenda .ag-documento i { background: var(--ambar); }
+  .ag-marca.ag-pagamento i, .ag-legenda .ag-pagamento i { background: var(--verde); }
+  .ag-legenda .ag-compromisso i { background: var(--ink); }
+  .ag-legenda .ag-pedido i { width: 0; background: transparent; border-left: 2px dashed var(--acc); }
+  .ag-mais { font: 500 11px var(--sans); color: var(--ink3); }
+  .ag-legenda {
+    flex: none; display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--ink-a1);
+    font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden;
+  }
+  .ag-legenda span { display: flex; align-items: center; gap: 7px; }
+  .ag-legenda .ag-dica { margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
+
+  /* a semana: faixa de hora a esquerda, altura de hora fixa, so a grade rola */
+  .ag-semana-dias, .ag-dia-todo, .ag-semana { grid-template-columns: 64px repeat(5, minmax(0, 1fr)); }
+  .ag-semana-dias { flex: none; display: grid; border-bottom: 1px solid var(--ink-a1); }
+  .ag-semana-dias span.ag-hoje { color: var(--acc); }
+  .ag-dia-todo { flex: none; display: grid; gap: 1px; background: var(--ink-a1); border-bottom: 1px solid var(--ink-a1); }
+  .ag-dia-todo > div { background: var(--surf); min-height: 30px; padding: 4px; display: grid; gap: 3px; align-content: start; }
+  .ag-dia-todo > .ag-rotulo-hora { padding: 6px 8px; }
+  .ag-rolagem { flex: 1; min-height: 0; overflow: auto; }
+  .ag-semana { display: grid; grid-auto-rows: 56px; gap: 1px; background: var(--ink-a1); }
+  .ag-rotulo-hora { background: var(--surf); padding: 6px 8px; font-size: 11.5px; color: var(--ink3); text-align: right; white-space: nowrap; }
+  .ag-hora-cel { background: var(--surf); min-height: 0; padding: 4px; display: flex; gap: 4px; cursor: pointer; }
+  .ag-hora-cel:hover { background: var(--bg); }
+  .ag-hora-cel.ag-hoje, .ag-dia-todo > div.ag-hoje { background: var(--accbg2); }
+  .ag-bloco {
+    flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; background: var(--fill);
+    box-shadow: inset 2px 0 0 var(--ink); display: grid; gap: 1px; align-content: start; overflow: hidden; cursor: pointer;
+  }
+  .ag-bloco small { font: 600 11px var(--sans); color: var(--ink2); }
+  .ag-bloco span { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-bloco.ag-hoje { background: var(--act); }
+  .ag-bloco.ag-pagamento { background: var(--okbg); box-shadow: inset 2px 0 0 var(--verde); }
+  .ag-bloco.ag-pagamento small { color: var(--okt); }
+  .ag-bloco.ag-prazo { background: var(--accbg); box-shadow: inset 2px 0 0 var(--acc); }
+  .ag-bloco.ag-prazo small, .ag-bloco.ag-prazo span { color: var(--acc); }
+  .ag-bloco.ag-tarefa { box-shadow: inset 2px 0 0 var(--mute); }
+  .ag-bloco.ag-tarefa span { color: var(--ink3); }
+  .ag-bloco.ag-documento { box-shadow: inset 2px 0 0 var(--ambar); }
+  .ag-fora-da-grade {
+    flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px;
+    border-top: 1px solid var(--ink-a1); font-size: 12.5px; color: var(--ink2);
+  }
+  .ag-fora-da-grade b { font: 600 12px var(--sans); color: var(--ink3); }
+  .ag-fora-da-grade span { cursor: pointer; }
+  .ag-fora-da-grade span:hover { color: var(--ink); }
+
+  /* o painel do dia */
+  .ag-hora-linha { position: relative; display: flex; gap: 12px; align-items: flex-start; }
+  .ag-hora-linha .ag-hora { width: 44px; flex: none; font: 600 12.5px var(--sans); color: var(--ink); padding-top: 2px; }
+  .ag-hora-linha .ag-corpo { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ag-hora-linha .ag-corpo > span { font-size: 14px; color: var(--ink); }
+  .ag-hora-linha .ag-corpo small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ag-hora-linha.ag-prazo .ag-hora, .ag-hora-linha.ag-prazo .ag-corpo > span { color: var(--acc); }
+  .ag-hora-linha.ag-pagamento .ag-hora { color: var(--okt); }
+  .ag-hora-linha .ag-acoes { position: relative; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .ag-hora-linha .ag-acoes button { padding: 5px 10px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
+  .ag-risco { display: block; height: 1px; background: var(--ink-a08); }
+  .ag-sino {
+    position: relative; width: 32px; height: 32px; flex: none; border: 1px solid var(--ink-a15); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; color: var(--ink2);
+  }
+  .ag-sino i { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
+  .ag-tarefa-linha { display: flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; }
+  .ag-tarefa-linha .ag-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-tarefa-linha.ag-feita .ag-texto { color: var(--ink3); text-decoration: line-through; }
+  .ag-tarefa-linha .ag-quando { font: 600 12px var(--sans); color: var(--ink3); flex: none; }
+  .ag-feita-ic { color: var(--verde); cursor: pointer; }
+  .ag-circulo { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); flex: none; margin: 1px; box-sizing: border-box; cursor: pointer; }
+  .ag-circulo:hover { border-color: var(--ink); }
+  .ag-circulo.ag-grande { width: 18px; height: 18px; margin: 0; }
+  .ag-ligacao { border: none; background: none; padding: 0; text-align: left; cursor: pointer; font: 400 13px var(--sans); color: var(--ink3); justify-self: start; }
+  .ag-ligacao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-entrada { display: flex; gap: 8px; }
+  .ag-entrada input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; padding: 7px 10px; border: 1px solid var(--ink-a15); border-radius: 6px;
+    background: var(--surf); font: 400 13px var(--sans); color: var(--ink);
+  }
+  .ag-entrada button { white-space: nowrap; }
+  .ag-acc { color: var(--acc); font-weight: 600; }
+  .ag-nota {
+    width: 100%; max-width: none; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px;
+    background: var(--surf); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); resize: vertical; min-height: 64px;
+  }
+  .ag-nota:focus { color: var(--ink); outline: none; border-color: var(--ink-a3); }
+
+  /* o formulario de compromisso, pagamento, prazo interno ou tarefa */
+  .ag-form { padding: 4px 18px 16px; display: grid; gap: 14px; }
+  .ag-campo { display: grid; gap: 6px; }
+  .ag-campo > label { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-campo input, .ag-campo select, .ag-campo textarea {
+    width: 100%; max-width: none; min-width: 0; box-sizing: border-box; padding: 9px 12px;
+    border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink);
+  }
+  .ag-campo textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+  .ag-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ag-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ag-chips button { padding: 6px 12px; border-radius: 6px; font: 500 12.5px var(--sans); border: 1px solid var(--ink-a15); background: transparent; color: var(--ink); }
+  .ag-chips button:hover:not(:disabled) { border-color: var(--ink); background: transparent; color: var(--ink); }
+  .ag-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
+  .ag-chips button.on:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--bg); }
+  .ag-chips .ag-vazio-chip { font-size: 12.5px; color: var(--ink3); align-self: center; }
+  .ag-toggle { display: flex; align-items: center; gap: 12px; font-size: 13.5px; cursor: pointer; }
+  .ag-toggle span { flex: 1; color: var(--ink2); }
+  .ag-toggle.on span { color: var(--ink); }
+  .ag-toggle i { width: 34px; height: 20px; border-radius: 10px; position: relative; flex: none; border: 1px solid var(--ink-a25); box-sizing: border-box; }
+  .ag-toggle i::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink-a3); transition: left .15s, background .15s;
+  }
+  .ag-toggle.on i { background: var(--ink); border-color: var(--ink); }
+  .ag-toggle.on i::after { left: 16px; background: var(--bg); }
+  .ag-explica { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); margin: 0; }
+  .ag-form-rodape { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--ink-a1); padding-top: 14px; }
+  .ag-form-rodape .primario { margin-left: auto; padding: 8px 16px; }
+  .ag-form-rodape .ag-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
+  .ag-perigo-fino { border: 1px solid var(--accln); color: var(--acc); background: none; font: 500 12.5px var(--sans); padding: 6px 12px; border-radius: 6px; }
+  .ag-perigo-fino:hover:not(:disabled) { border-color: var(--acc); background: none; color: var(--acc); }
+
+  /* as tarefas: as listas a esquerda, a lista do dia no meio */
+  .ag-tarefas { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+  .ag-listas {
+    min-height: 0; overflow: auto; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+    padding: 8px; display: grid; gap: 1px; align-content: start;
+  }
+  .ag-lista-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
+    background: transparent; text-align: left; cursor: pointer; font: 500 13.5px var(--sans); color: var(--ink2);
+  }
+  .ag-lista-item:hover:not(:disabled) { background: var(--bg); border: none; color: var(--ink2); }
+  .ag-lista-item.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
+  .ag-lista-item.adiante { opacity: .5; }
+  .ag-lista-item .ag-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-lista-item .ag-conta { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-lista-item .ag-conta.ag-acc { color: var(--acc); }
+  .ag-cor { display: block; width: 7px; height: 7px; border-radius: 2px; background: var(--ink); flex: none; }
+  .ag-cor.ag-c1 { background: var(--verde); }
+  .ag-cor.ag-c2 { background: var(--acc); }
+  .ag-cor.ag-c3 { background: var(--ambar); }
+  .ag-adicionar { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .ag-adicionar .ag-mais-botao {
+    width: 30px; height: 30px; padding: 0; border-radius: 50%; border: none; background: var(--ink); color: var(--bg);
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .ag-adicionar .ag-mais-botao:hover:not(:disabled) { background: var(--ink0); border: none; color: var(--bg); }
+  .ag-adicionar input[type=text] { flex: 1; min-width: 0; max-width: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); outline: none; }
+  .ag-adicionar input[type=date] { border: none; background: none; padding: 4px 0; min-width: 0; width: auto; font: 500 12.5px var(--sans); color: var(--ink); }
+  .ag-linha { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a08); cursor: pointer; }
+  .ag-linha:hover { background: var(--sub); }
+  .ag-linha.aberta { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); }
+  .ag-linha .ag-texto { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .ag-linha .ag-texto b { font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-linha.aberta .ag-texto b { font-weight: 600; }
+  .ag-linha .ag-texto small { display: flex; gap: 8px; flex-wrap: wrap; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ag-estrela { border: none; background: none; padding: 0; color: var(--mute); display: flex; cursor: pointer; }
+  .ag-estrela:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-estrela.on { color: var(--acc); }
+  .ag-linha.ag-feita { padding: 11px 16px; }
+  .ag-linha.ag-feita .ag-texto b { font-weight: 400; color: var(--ink3); text-decoration: line-through; }
+  .ag-secao { padding: 10px 16px 6px; font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-vazio { padding: 28px 16px; display: grid; gap: 6px; }
+  .ag-vazio h4 { margin: 0; font: 400 18px var(--serif); }
+  .ag-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+
+  /* a ficha da tarefa no painel */
+  .ag-ficha-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 12px; }
+  .ag-ficha-cabeca h3 { flex: 1; min-width: 0; font: 400 20px/1.25 var(--serif); margin: 0; overflow-wrap: anywhere; }
+  .ag-ficha-cabeca .ag-circulo { margin-top: 4px; }
+  .ag-ficha-cabeca .ag-feita-ic { margin-top: 3px; }
+  .ag-ficha-cabeca .ag-estrela { margin-top: 3px; }
+  .ag-chave { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--ink-a06); min-height: 34px; }
+  .ag-chave:last-child { border-bottom: none; }
+  .ag-chave > span { flex: 1; color: var(--ink2); }
+  .ag-chave input, .ag-chave select {
+    width: auto; max-width: 58%; min-width: 0; border: none; background: none; padding: 2px 0; text-align: right;
+    font: 600 12.5px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .ag-chave select { text-align-last: right; }
+  .ag-chave input:focus, .ag-chave select:focus { outline: none; color: var(--acc); }
+  .ag-chave input.ag-acc { color: var(--acc); }
+  .ag-chave .ag-ligacao { font-weight: 600; color: var(--okt); }
+  .ag-chave .ag-ligacao.ag-fraca { color: var(--ink3); }
+  .ag-ligado { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; font-size: 13px; min-width: 0; }
+  .ag-ligado .glifo { flex: none; }
+  .ag-ligado > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-ligado button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--acc); cursor: pointer; white-space: nowrap; }
+  .ag-ligado button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-ligado button.ag-tirar { color: var(--ink3); display: flex; }
+  .ag-ligado-linha { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .ag-ligado-linha span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-ligado-linha button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--ink3); cursor: pointer; }
+  .ag-ligado-linha button.ag-acc { color: var(--acc); }
+  .ag-ligado-linha button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-escolher { max-height: 220px; overflow: auto; display: grid; gap: 4px; }
+  .ag-ficha-rodape { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--ink-a1); }
+  .ag-ficha-rodape small { flex: 1; font: 500 12.5px var(--sans); color: var(--ink3); }
+
+  /* pecas que outras telas usam e que nasceram com o calendario antigo */
+  .legenda { display: flex; gap: 18px; margin: 12px 0 4px; font-size: 12px; color: var(--ink3); }
+  .legenda span { display: flex; align-items: center; gap: 7px; }
+  .colunas-pares { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+
   /* ------------------------------------------------------- responsivo */
 
   /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
@@ -2695,6 +2736,7 @@
 
     <header class="conversa-topo" id="conversa-topo">
       <button class="voltar" id="voltar" title="Voltar ao início" aria-label="Voltar"><span class="ic ic-20">arrow_back</span></button>
+      <div class="nav-tela" id="nav-tela"></div>
       <div class="conversa-nome">
         <h2 class="corta" id="conversa-titulo">Nova conversa</h2>
         <div class="meta" id="conversa-meta">nenhum documento aberto</div>
@@ -2953,6 +2995,7 @@ $("nova").onclick = () => {
   $("conversa-col").classList.remove("tela-dupla", "tela-cheia", "com-lista");
   $("lista-conversas").hidden = true;
   $("acoes-tela").innerHTML = "";
+  $("nav-tela").innerHTML = "";
   mostrarLateral(false);
   ligarExemplos();
   desenharAtividade([]);
@@ -3185,6 +3228,7 @@ function entrarNaConversa() {
   $("centro").classList.add("prosa");
   $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
   $("acoes-tela").innerHTML = "";
+  $("nav-tela").innerHTML = "";
   $("exportar-conversa").hidden = false;
   mostrarLateral(lateralPreferida());
 }
@@ -4959,991 +5003,1355 @@ function fichaCadastro(f) {
   };
 }
 
-/* ------------------------------------------------------------ tarefas */
+/* ------------------------------------------------------------- agenda */
 /*
-   A unica pergunta que esta tela responde e "o que faco agora". Por isso o
-   filtro padrao e Meu dia, e o prazo aparece em portugues - "atrasada 3 dias",
-   nao uma data que a pessoa tem que subtrair de cabeca.
+   A Agenda do desenho (docs/ui/03-telas-desktop.md, A4) junta o que eram
+   tres telas: Calendario, Agendamento e Tarefas viram as visoes Mes, Semana
+   e Tarefas de uma tela so, com o painel a direita. O que tinha motor
+   continua ligado nele: a grade (/api/agenda), o dia (/api/agenda/dia), os
+   horarios livres (/api/agenda/livres) e as tarefas (/api/tarefas). Pedido
+   pelo link e reuniao criada pelo programa ainda nao existem, e a tela diz.
 */
 
-const tar = { itens: [], filtro: "meu_dia", lista: "", contagens: {}, listas: [],
-              clientes: [], repeticoes: [], aberta: null, porPrazo: false };
+const ag = {
+  visao: "mes",          // mes | semana | tarefas
+  mes: null,             // Date do primeiro dia do mes visto
+  semana: null,          // iso da segunda-feira da semana vista
+  dia: null,             // iso do dia escolhido
+  grade: null,           // /api/agenda do periodo visto
+  diaAberto: null,       // /api/agenda/dia do dia escolhido
+  painel: "dia",         // dia | form | tarefa | sugestoes
+  form: null,            // o compromisso (ou tarefa) em edicao
+  sugestoes: [],
+  itens: {},             // os itens desenhados na grade, por chave
+  largo: false,
+  tar: { filtro: "meu_dia", lista: "", itens: [], contagens: {}, listas: [],
+         clientes: [], repeticoes: [], aberta: null },
+};
 
-const FILTROS = [
+const AG_JSON = { "Content-Type": "application/json" };
+const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const DIAS_NOME = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const DIAS_CURTOS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const HORA_INICIO = 7;
+const HORA_FIM = 20;
+const FILTROS_TAREFA = [
   { id: "meu_dia", rotulo: "Meu dia" },
   { id: "importante", rotulo: "Importante" },
   { id: "planejadas", rotulo: "Planejadas" },
   { id: "concluidas", rotulo: "Concluídas" },
 ];
+const NOME_DO_TIPO = {
+  compromisso: ["Novo compromisso", "Editar compromisso"],
+  pagamento: ["Novo pagamento", "Editar pagamento"],
+  prazo_interno: ["Novo prazo interno", "Editar prazo interno"],
+  tarefa: ["Nova tarefa", "Editar tarefa"],
+};
+const LEGENDA_DA_AGENDA = {
+  compromisso: "Compromisso", prazo: "Prazo", pedido: "Pedido pelo link",
+  tarefa: "Tarefa", documento: "Data em documento", pagamento: "Pagamento",
+};
+const SALAS = {
+  meet: "https://meet.google.com/new",
+  teams: "https://teams.microsoft.com/l/meeting/new",
+};
 
-async function mostrarTarefas() {
-  abrirTela("Tarefas");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
-
-  try {
-    const d = await (await fetch("/api/tarefas?filtro=" + tar.filtro +
-      "&lista=" + encodeURIComponent(tar.lista))).json();
-    tar.itens = d.tarefas;
-    tar.contagens = d.contagens;
-    tar.listas = d.listas;
-    tar.clientes = d.clientes;
-    tar.repeticoes = d.repeticoes || [];
-  } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
-    return;
-  }
-  desenharTarefas();
-  atualizarPostura();
-}
-
-function desenharTarefas() {
-  const filtroAtual = FILTROS.find((f) => f.id === tar.filtro) || FILTROS[0];
-  const titulo = tar.lista || filtroAtual.rotulo;
-
-  const abertas = tar.itens.filter((t) => !t.concluida);
-  const feitas = tar.itens.filter((t) => t.concluida);
-  const ordenadas = tar.porPrazo ? ordenarPorPrazo(abertas) : abertas;
-
-  let html = '<div class="catalogo"><div class="tela-topo"><div><h2>' + esc(titulo) + "</h2>" +
-    '<span class="rotulo">' + hojePorExtenso() + " · " +
-    plural(tar.contagens.abertas || 0, "aberta") + " · " +
-    plural(tar.contagens.concluidas || 0, "concluída") + "</span></div>" +
-    '<div class="tela-acoes">' +
-    '<button id="tar-ordenar" class="' + (tar.porPrazo ? "on" : "") + '">Ordenar por prazo</button>' +
-    '<button id="tar-sugerir">Sugerir dos documentos</button></div></div>';
-
-  html += '<div class="colunas-3">';
-
-  /* Trilha: filtro é navegação, e as listas do escritório moram aqui. */
-  html += '<nav class="trilha">' +
-    FILTROS.map((f) =>
-      '<button class="' + (!tar.lista && f.id === tar.filtro ? "on" : "") +
-      '" data-filtro="' + f.id + '">' + esc(f.rotulo) +
-      '<span class="conta">' + (tar.contagens[f.id] || 0) + "</span></button>"
-    ).join("") +
-    '<span class="rotulo trilha-titulo">Minhas listas</span>' +
-    (tar.listas.length
-      ? tar.listas.map((l) =>
-          '<button class="' + (l.nome === tar.lista ? "on" : "") +
-          '" data-lista="' + esc(l.nome) + '"><span class="marca-lista"></span>' +
-          esc(l.nome) + '<span class="conta">' + l.abertas + "</span></button>").join("")
-      : '<span class="rotulo" style="padding:6px 10px;display:block">nenhuma ainda</span>') +
-    '<button id="tar-nova-lista"><span class="marca-lista"></span>nova lista</button>' +
-    "</nav>";
-
-  /* Coluna do meio: entrada, abertas, e as concluídas em seção própria. */
-  html += "<div>" +
-    '<div class="linha-form"><input type="text" id="tar-nova" placeholder="Adicionar uma tarefa…">' +
-    '<input type="date" id="tar-prazo" title="Prazo (opcional)">' +
-    '<button class="primario" id="tar-add">Adicionar</button></div>';
-
-  if (!tar.itens.length) {
-    html += '<div class="painel"><h3>' +
-      (tar.filtro === "meu_dia" ? "Nada pendente para hoje" : "Nada aqui") + "</h3>" +
-      '<p class="explica">' +
-      (tar.filtro === "meu_dia"
-        ? "O que tem prazo para hoje, o que já venceu e o que você trouxe para o dia aparece nesta lista."
-        : "Nenhuma tarefa neste filtro.") + "</p></div>";
-  } else {
-    if (ordenadas.length) html += '<div class="fila">' + ordenadas.map(linhaTarefa).join("") + "</div>";
-    if (feitas.length) {
-      html += '<div class="secao-lista"><span class="rotulo">concluídas · ' + feitas.length +
-        '</span><span class="risco-fino"></span></div>' +
-        '<div class="fila">' + feitas.map(linhaTarefa).join("") + "</div>";
-    }
-  }
-  html += '<div class="linha-form" style="margin-top:14px">' +
-    '<button class="pastilha" id="tar-calendario">Ver no calendário →</button></div></div>';
-
-  html += '<div class="col-detalhe" id="tar-detalhe">' + fichaDaTarefa() + "</div>";
-  html += "</div>";
-  html += '<div class="rodape-tela">tarefas gravadas na sua máquina</div></div>';
-
-  $("centro").innerHTML = html;
-  ligarTarefas();
-}
-
-/* Sem prazo vai para o fim: tarefa sem data não disputa lugar com o que vence. */
-function ordenarPorPrazo(itens) {
-  return [...itens].sort((a, b) => {
-    if (!a.prazo && !b.prazo) return 0;
-    if (!a.prazo) return 1;
-    if (!b.prazo) return -1;
-    return a.prazo < b.prazo ? -1 : 1;
-  });
-}
-
-function hojePorExtenso() {
-  const dias = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-  const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
-                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-  const d = new Date();
-  return dias[d.getDay()] + ", " + d.getDate() + " de " + meses[d.getMonth()];
-}
-
-function linhaTarefa(t) {
-  const atrasada = t.situacao.indexOf("atrasada") === 0;
-  const feitas = t.etapas.filter((e) => e.feita).length;
-
-  return '<div class="pedido tarefa' + (t.concluida ? " feita" : "") +
-    (tar.aberta === t.id ? " escolhida" : "") + '" data-tarefa="' + t.id + '">' +
-    '<label class="pedido-marca"><input type="checkbox" data-a="concluir"' +
-    (t.concluida ? " checked" : "") + "></label>" +
-    '<div class="pedido-corpo"><div class="pedido-titulo' + (t.concluida ? " tarefa-fim" : "") + '">' +
-    esc(t.titulo) + "</div>" +
-    '<div class="doc-etiquetas">' +
-    '<span class="etiqueta' + (atrasada ? " prazo" : "") + '">' + esc(t.situacao) + "</span>" +
-    (t.lista ? '<span class="etiqueta">' + esc(t.lista) + "</span>" : "") +
-    (t.cadastro_nome ? '<span class="etiqueta">' + esc(t.cadastro_nome) + "</span>" : "") +
-    (t.etapas.length ? '<span class="etiqueta">' + feitas + " de " + t.etapas.length + " etapas</span>" : "") +
-    (t.repetir ? '<span class="etiqueta">repete</span>' : "") +
-    "</div></div>" +
-    '<div class="pedido-acoes">' +
-    '<button data-a="estrela" title="Importante">' + (t.importante ? "★" : "☆") + "</button>" +
-    '<button data-a="abrir">Abrir</button></div></div>';
-}
-
-/* -------------------------------------------------------- a ficha lateral */
-
-function fichaDaTarefa() {
-  const t = tar.itens.find((x) => x.id === tar.aberta);
-  if (!t) {
-    return '<div class="detalhe-vazio">Escolha uma tarefa para ver as etapas, o prazo e ' +
-      "o que ela tem ligado.</div>";
-  }
-
-  const repeticoes = tar.repeticoes || [{ valor: "", rotulo: "Não repete" }];
-  return '<div class="painel ficha-tarefa"><div class="cabeca-ficha">' +
-    "<h3>" + esc(t.titulo) + "</h3>" +
-    '<button data-a="fechar" title="Fechar">×</button></div>' +
-
-    '<div class="precisa"><span class="rotulo">Etapas</span>' +
-    (t.etapas.length
-      ? '<div class="etapas-lista">' + t.etapas.map((e) =>
-          '<label class="etapa-linha"><input type="checkbox" data-etapa="' + e.id + '"' +
-          (e.feita ? " checked" : "") + "><span" + (e.feita ? ' class="risco"' : "") + ">" +
-          esc(e.titulo) + "</span></label>").join("") + "</div>"
-      : '<p class="explica">Nenhuma etapa ainda.</p>') +
-    '<div class="linha-form"><input type="text" data-nova-etapa placeholder="Próxima etapa…">' +
-    '<button data-a="add-etapa">Acrescentar</button></div></div>' +
-
-    '<div class="grade-form" style="margin-top:14px">' +
-    '<div class="campo-form"><label class="rotulo">Prazo</label>' +
-    '<input type="date" data-c="prazo" value="' + esc(t.prazo || "") + '"></div>' +
-    '<div class="campo-form"><label class="rotulo">Lembrar-me às</label>' +
-    '<input type="time" data-c="lembrar_em" value="' + esc(t.lembrar_em || "") + '"></div>' +
-    '<div class="campo-form"><label class="rotulo">Repetir</label><select data-c="repetir">' +
-    repeticoes.map((r) => '<option value="' + esc(r.valor) + '"' +
-      ((t.repetir || "") === r.valor ? " selected" : "") + ">" + esc(r.rotulo) + "</option>").join("") +
-    "</select></div>" +
-    '<div class="campo-form"><label class="rotulo">Lista</label>' +
-    '<input type="text" data-c="lista" value="' + esc(t.lista || "") + '"></div>' +
-    '<div class="campo-form"><label class="rotulo">Cliente</label><select data-c="cadastro_id">' +
-    '<option value="">nenhum</option>' +
-    tar.clientes.map((c) => '<option value="' + c.id + '"' +
-      (c.id === t.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("") +
-    "</select></div></div>" +
-
-    (t.repetir
-      ? '<p class="explica">Ao concluir, eu já deixo a próxima no lugar, com o prazo andado.</p>'
-      : "") +
-
-    '<div class="campo-form" style="margin-top:12px"><label class="rotulo">Anotação</label>' +
-    '<textarea data-c="anotacao" rows="3" class="campo-nota">' + esc(t.anotacao || "") + "</textarea></div>" +
-
-    '<div style="margin-top:14px"><span class="rotulo">Ligado a</span>' +
-    '<div id="tar-vinculos"><p class="explica">carregando…</p></div>' +
-    '<div class="linha-form"><button data-a="ligar">Ligar um documento</button></div></div>' +
-
-    '<div class="linha-form acoes-ficha">' +
-    '<button class="primario" data-a="salvar">Salvar</button>' +
-    '<button data-a="dia">' + (t.meu_dia ? "Tirar do meu dia" : "Adicionar ao meu dia") + "</button>" +
-    '<button data-a="apagar" class="perigo direita">Excluir</button>' +
-    '<span class="num" data-a="aviso"></span></div></div>';
-}
-
-function ligarTarefas() {
-  const centro = $("centro");
-
-  centro.querySelectorAll("[data-filtro]").forEach((b) => {
-    b.onclick = () => { tar.filtro = b.dataset.filtro; tar.lista = ""; mostrarTarefas(); };
-  });
-  centro.querySelectorAll("[data-lista]").forEach((b) => {
-    b.onclick = () => {
-      tar.lista = tar.lista === b.dataset.lista ? "" : b.dataset.lista;
-      mostrarTarefas();
-    };
-  });
-
-  $("tar-nova-lista").onclick = () => {
-    const nome = prompt("Nome da nova lista:");
-    if (!nome || !nome.trim()) return;
-    tar.lista = nome.trim();
-    $("tar-nova").focus();
-    avisoCert("a lista “" + tar.lista + "” nasce com a primeira tarefa que você criar nela");
-    desenharTarefas();
-  };
-
-  $("tar-ordenar").onclick = () => { tar.porPrazo = !tar.porPrazo; desenharTarefas(); };
-  $("tar-calendario").onclick = () => { marcarDestino("calendario"); mostrarCalendario(); };
-
-  const criar = async () => {
-    const titulo = $("tar-nova").value.trim();
-    if (!titulo) return;
-    await fetch("/api/tarefas", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dados: { titulo: titulo, prazo: $("tar-prazo").value, lista: tar.lista } }),
-    });
-    mostrarTarefas();
-  };
-  $("tar-add").onclick = criar;
-  $("tar-nova").onkeydown = (e) => { if (e.key === "Enter") criar(); };
-  $("tar-sugerir").onclick = sugerirTarefas;
-
-  centro.querySelectorAll("[data-tarefa]").forEach((el) => {
-    const id = Number(el.dataset.tarefa);
-    const t = tar.itens.find((x) => x.id === id);
-
-    el.querySelector('[data-a="concluir"]').onchange = async (e) => {
-      const r = await fetch("/api/tarefas/" + id + "/concluir", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ valor: e.target.checked }),
-      });
-      if (r.ok) {
-        const d = await r.json();
-        if (d.aviso_repeticao) avisoCert("essa tarefa repete — " + d.aviso_repeticao);
-      }
-      mostrarTarefas();
-    };
-    el.querySelector('[data-a="estrela"]').onclick = async () => {
-      await fetch("/api/tarefas/" + id + "/importante", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ valor: !t.importante }),
-      });
-      mostrarTarefas();
-    };
-    el.querySelector('[data-a="abrir"]').onclick = () => {
-      tar.aberta = tar.aberta === id ? null : id;
-      desenharTarefas();
-    };
-  });
-
-  if (tar.aberta) ligarFichaTarefa();
-}
-
-function ligarFichaTarefa() {
-  const painel = $("centro").querySelector(".ficha-tarefa");
-  const t = tar.itens.find((x) => x.id === tar.aberta);
-  if (!painel || !t) return;
-
-  painel.querySelector('[data-a="fechar"]').onclick = () => { tar.aberta = null; desenharTarefas(); };
-
-  painel.querySelectorAll("[data-etapa]").forEach((el) => {
-    el.onchange = async () => {
-      await fetch("/api/etapas/" + el.dataset.etapa, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ valor: el.checked }),
-      });
-      el.nextElementSibling.className = el.checked ? "risco" : "";
-    };
-  });
-
-  painel.querySelector('[data-a="add-etapa"]').onclick = async () => {
-    const campo = painel.querySelector("[data-nova-etapa]");
-    if (!campo.value.trim()) return;
-    await fetch("/api/tarefas/" + t.id + "/etapas", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titulo: campo.value.trim() }),
-    });
-    mostrarTarefas();
-  };
-
-  painel.querySelector('[data-a="dia"]').onclick = async () => {
-    await fetch("/api/tarefas/" + t.id + "/meu-dia", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ valor: !t.meu_dia }),
-    });
-    mostrarTarefas();
-  };
-
-  painel.querySelector('[data-a="salvar"]').onclick = async () => {
-    const dados = { titulo: t.titulo, importante: t.importante };
-    painel.querySelectorAll("[data-c]").forEach((el) => {
-      dados[el.dataset.c] = el.dataset.c === "cadastro_id" ? (Number(el.value) || null) : el.value;
-    });
-    const r = await fetch("/api/tarefas", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: t.id, dados: dados }),
-    });
-    if (!r.ok) {
-      painel.querySelector('[data-a="aviso"]').textContent = "não consegui salvar: " + await erroDe(r);
-      return;
-    }
-    mostrarTarefas();
-  };
-
-  painel.querySelector('[data-a="apagar"]').onclick = async () => {
-    if (!confirm("Excluir a tarefa “" + t.titulo + "”?")) return;
-    await fetch("/api/tarefas/" + t.id, { method: "DELETE" });
-    tar.aberta = null;
-    mostrarTarefas();
-  };
-
-  painel.querySelector('[data-a="ligar"]').onclick = () => escolherDocumentoDaTarefa(t.id);
-  carregarVinculosDaTarefa(t.id);
-}
-
-async function carregarVinculosDaTarefa(id) {
-  const alvo = $("tar-vinculos");
-  if (!alvo) return;
-  const d = await (await fetch("/api/tarefas/" + id + "/vinculos")).json();
-
-  alvo.innerHTML = d.vinculos.length
-    ? d.vinculos.map((v) =>
-        '<div class="email-anexo"><span class="email-tipo">' +
-        esc((v.nome.split(".").pop() || "arq").slice(0, 4)) + "</span>" +
-        '<span class="cresce corta">' + esc(v.nome) + "</span>" +
-        (v.existe
-          ? '<button data-abrir-doc="' + esc(v.caminho) + '">Abrir</button>'
-          : '<span class="num">não está mais no acervo</span>') +
-        '<button class="perigo" data-tirar-v="' + v.id + '">×</button></div>').join("")
-    : '<p class="explica">Nenhum documento ligado. O vínculo é pelo conteúdo do arquivo — ' +
-      "renomear ou mover não quebra.</p>";
-
-  alvo.querySelectorAll("[data-tirar-v]").forEach((b) => {
-    b.onclick = async () => {
-      await fetch("/api/vinculos/" + b.dataset.tirarV, { method: "DELETE" });
-      carregarVinculosDaTarefa(id);
-    };
-  });
-  alvo.querySelectorAll("[data-abrir-doc]").forEach((b) => {
-    b.onclick = () => {
-      fetch("/api/biblioteca/abrir-pasta", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caminho: b.dataset.abrirDoc }),
-      });
-    };
-  });
-}
-
-async function escolherDocumentoDaTarefa(id) {
-  const alvo = $("tar-vinculos");
-  alvo.innerHTML = '<p class="nota">lendo a biblioteca…</p>';
-  const d = await (await fetch("/api/biblioteca")).json();
-
-  alvo.innerHTML = '<div style="max-height:190px;overflow:auto">' +
-    (d.documentos.length
-      ? d.documentos.slice(0, 40).map((x) =>
-          '<div class="email-anexo"><span class="cresce corta">' + esc(x.nome) + "</span>" +
-          '<button data-liga="' + esc(x.sha1) + '" data-nome="' + esc(x.nome) + '">Ligar</button></div>'
-        ).join("")
-      : '<p class="explica">A biblioteca está vazia.</p>') + "</div>";
-
-  alvo.querySelectorAll("[data-liga]").forEach((b) => {
-    b.onclick = async () => {
-      await fetch("/api/tarefas/" + id + "/vincular", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sha1: b.dataset.liga, nome: b.dataset.nome }),
-      });
-      carregarVinculosDaTarefa(id);
-    };
-  });
-}
-
-async function sugerirTarefas() {
-  let s;
-  try {
-    s = (await (await fetch("/api/tarefas/sugestoes")).json()).sugestoes;
-  } catch (err) {
-    return;
-  }
-
-  const painel = document.createElement("div");
-  painel.className = "painel ficha";
-  painel.innerHTML = "<h3>" + (s.length ?plural(s.length, "prazo") + " nos documentos" : "Nada a sugerir") + "</h3>" +
-    '<p class="explica">' +
-    (s.length
-      ? "Datas que o assistente já leu nos contratos abertos e que ainda não viraram tarefa. Escolha as que quiser."
-      : "Os documentos abertos não trazem data dentro dos próximos 90 dias, ou todas já viraram tarefa.") +
-    "</p>" +
-    (s.length
-      ? '<div class="fila">' + s.map((x, i) =>
-          '<div class="pedido"><div class="pedido-corpo">' +
-          '<div class="pedido-titulo">' + esc(x.titulo) + "</div>" +
-          '<div class="doc-etiquetas"><span class="etiqueta">' + esc(x.prazo) + "</span>" +
-          (x.cliente ? '<span class="etiqueta">' + esc(x.cliente) + "</span>" : "") + "</div></div>" +
-          '<div class="pedido-acoes"><button data-aceita="' + i + '">Criar</button></div></div>'
-        ).join("") + "</div>"
-      : "") +
-    '<div class="linha-form acoes-ficha"><button data-a="fechar">Fechar</button></div>';
-
-  const antigo = document.querySelector(".ficha");
-  if (antigo) antigo.remove();
-  $("centro").querySelector(".catalogo").appendChild(painel);
-  painel.scrollIntoView({ behavior: "smooth", block: "center" });
-
-  painel.querySelector('[data-a="fechar"]').onclick = () => painel.remove();
-  painel.querySelectorAll("[data-aceita]").forEach((b) => {
-    b.onclick = async () => {
-      const x = s[Number(b.dataset.aceita)];
-      await fetch("/api/tarefas", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dados: { titulo: x.titulo, prazo: x.prazo, lista: x.lista } }),
-      });
-      b.disabled = true;
-      b.textContent = "criada";
-    };
-  });
-}
-
-/* --------------------------------------------------------- calendario */
-/*
-   A grade junta compromisso, prazo de tarefa e data de contrato. Ver so os
-   compromissos e ter meia agenda: o que faz perder prazo nao e a reuniao
-   esquecida, e o vencimento escrito num contrato que ninguem reabriu.
-*/
-
-const cal = { mes: null, grade: null, dia: null, detalhe: null, vista: "mes" };
-
-const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
-                    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const DIAS_CURTOS = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
+/* ------------------------------------------------------ datas em texto */
 
 function iso(d) {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
          "-" + String(d.getDate()).padStart(2, "0");
 }
 
-async function mostrarCalendario() {
-  abrirTela("Calendário");
-  if (!cal.mes) {
-    const h = new Date();
-    cal.mes = new Date(h.getFullYear(), h.getMonth(), 1);
-    cal.dia = iso(h);
+function deIso(chave) {
+  const [a, m, d] = chave.split("-").map(Number);
+  return new Date(a, m - 1, d);
+}
+
+function andarDias(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function segundaDe(d) {
+  return andarDias(d, -((d.getDay() + 6) % 7));
+}
+
+function maiuscula(t) {
+  return t ? t[0].toUpperCase() + t.slice(1) : t;
+}
+
+/* "sexta, 11 de setembro" */
+function diaPorExtenso(chave) {
+  const d = deIso(chave);
+  return DIAS_NOME[d.getDay()].toLowerCase() + ", " + d.getDate() + " de " + MESES_NOME[d.getMonth()];
+}
+
+/* "sex 11/09" */
+function diaCurto(chave) {
+  const d = deIso(chave);
+  return DIAS_CURTOS[(d.getDay() + 6) % 7].toLowerCase() + " " + d.getDate() + "/" +
+    String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function duracaoEmTexto(min) {
+  min = Number(min) || 0;
+  if (min < 60) return min + " min";
+  const h = Math.floor(min / 60), r = min % 60;
+  return h + " h" + (r ? " " + String(r).padStart(2, "0") : "");
+}
+
+function proximaHoraCheia() {
+  const h = Math.min(19, Math.max(8, new Date().getHours() + 1));
+  return String(h).padStart(2, "0") + ":00";
+}
+
+/* Como o prazo aparece: em vinho quando ja passou ou e hoje. */
+function quandoDaTarefa(t) {
+  if (t.concluida) return { texto: "", acc: false };
+  if (!t.prazo) return { texto: "sem prazo", acc: false };
+  const s = t.situacao || "";
+  if (s.indexOf("atrasada") === 0) return { texto: s.replace("dia(s)", "dias").replace("1 dias", "1 dia"), acc: true };
+  if (s === "hoje") return { texto: "hoje", acc: true };
+  if (s === "amanhã") return { texto: "até " + dataCurta(t.prazo), acc: true };
+  return { texto: s, acc: false };
+}
+
+function criadaHa(quando) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(quando || "");
+  if (!m) return "";
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dias = Math.round((hoje - d) / 86400000);
+  if (dias <= 0) return "Criada hoje";
+  if (dias === 1) return "Criada ontem";
+  return "Criada há " + dias + " dias";
+}
+
+/* --------------------------------------------------------- a tela */
+
+/* Os tres destinos antigos continuam existindo no servidor e em quem os
+   chama; cada um abre a Agenda na visao que o substituiu. */
+function mostrarCalendario() { return mostrarAgenda("mes"); }
+function mostrarAgendamento() { return mostrarAgenda("semana"); }
+function mostrarTarefas() { return mostrarAgenda("tarefas"); }
+
+async function mostrarAgenda(visao) {
+  abrirTela("Agenda", { cheia: true });
+  marcarDestino("calendario");
+
+  const trocou = Boolean(visao) && visao !== ag.visao;
+  if (visao) ag.visao = visao;
+  const h = new Date();
+  if (!ag.mes) ag.mes = new Date(h.getFullYear(), h.getMonth(), 1);
+  if (!ag.semana) ag.semana = iso(segundaDe(h));
+  if (!ag.dia) ag.dia = iso(h);
+  if (trocou) {
+    ag.form = null;
+    ag.painel = ag.visao === "tarefas" ? "tarefa" : (ag.visao === "semana" ? "form" : "dia");
   }
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+  if (ag.painel === "form" && !ag.form) ag.form = compromissoEmBranco();
 
-  const primeiro = new Date(cal.mes.getFullYear(), cal.mes.getMonth(), 1);
-  const ultimo = new Date(cal.mes.getFullYear(), cal.mes.getMonth() + 1, 0);
-
+  cabecalhoAgenda();
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo a agenda…</p></div></div>';
   try {
-    cal.grade = await (await fetch("/api/agenda?de=" + iso(primeiro) + "&ate=" + iso(ultimo))).json();
+    await carregarAgenda();
   } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
+      esc(String(err)) + "</p></div></div>";
     return;
   }
-  desenharCalendario();
+  desenharAgenda();
   atualizarPostura();
 }
 
-function desenharCalendario() {
-  const g = cal.grade;
-  const primeiro = new Date(cal.mes.getFullYear(), cal.mes.getMonth(), 1);
-  const ultimo = new Date(cal.mes.getFullYear(), cal.mes.getMonth() + 1, 0);
+function compromissoEmBranco(tipo) {
+  return { tipo: tipo || "compromisso", data: ag.dia, hora: proximaHoraCheia(), duracao: 60,
+           onde: (tipo || "compromisso") === "compromisso" ? "online" : "", avisar_min: 30 };
+}
 
-  /* Segunda como primeiro dia: e a semana do escritorio. */
+function cabecalhoAgenda() {
+  const nav = $("nav-tela");
+  nav.innerHTML = ag.visao === "tarefas" ? "" :
+    '<button class="voltar" data-ag-andar="-1" title="Anterior" aria-label="Anterior">' + ic("chevron_left", 18) + "</button>" +
+    '<button class="voltar" data-ag-andar="1" title="Próximo" aria-label="Próximo">' + ic("chevron_right", 18) + "</button>";
+  nav.querySelectorAll("[data-ag-andar]").forEach((b) => { b.onclick = () => andarAgenda(Number(b.dataset.agAndar)); });
+
+  $("acoes-tela").innerHTML =
+    '<button id="ag-hoje">Hoje</button>' +
+    '<div class="visoes">' +
+    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "Tarefas"]].map(([v, r]) => {
+      const classe = v === ag.visao ? "ativa" : "";
+      return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
+    }).join("") + "</div>" +
+    '<div class="com-menu"><button class="primario com-icone" id="ag-novo">Novo' + ic("expand_more", 16) + "</button></div>";
+  $("acoes-tela").querySelectorAll("[data-visao]").forEach((b) => { b.onclick = () => mostrarAgenda(b.dataset.visao); });
+  $("ag-hoje").onclick = () => {
+    const h = new Date();
+    ag.mes = new Date(h.getFullYear(), h.getMonth(), 1);
+    ag.semana = iso(segundaDe(h));
+    ag.dia = iso(h);
+    if (ag.visao === "tarefas") { ag.tar.filtro = "meu_dia"; ag.tar.lista = ""; }
+    else if (ag.painel === "dia") ag.diaAberto = null;
+    mostrarAgenda();
+  };
+  $("ag-novo").onclick = (e) => {
+    e.stopPropagation();
+    menuNaLinha($("ag-novo"), [
+      { icone: "event", rotulo: "Compromisso", acao: () => criarNaAgenda("compromisso") },
+      { icone: "payments", rotulo: "Pagamento", acao: () => criarNaAgenda("pagamento") },
+      { icone: "flag", rotulo: "Prazo interno", acao: () => criarNaAgenda("prazo_interno") },
+      { icone: "task_alt", rotulo: "Tarefa", acao: () => criarNaAgenda("tarefa") },
+      "-",
+      { icone: "auto_awesome", rotulo: "Prazos lidos nos documentos", acao: abrirSugestoes },
+    ]);
+  };
+}
+
+function tituloDaAgenda() {
+  const c = ag.tar.contagens || {};
+  let titulo, meta;
+  if (ag.visao === "mes") {
+    titulo = maiuscula(MESES_NOME[ag.mes.getMonth()]) + " de " + ag.mes.getFullYear();
+    const n = (ag.grade && ag.grade.contagem) || {};
+    meta = plural(n.compromissos || 0, "compromisso") + " · " + plural(n.prazos || 0, "prazo") +
+      " · " + plural(c.abertas || 0, "tarefa aberta", "tarefas abertas");
+  } else if (ag.visao === "semana") {
+    const seg = deIso(ag.semana), dom = andarDias(seg, 6);
+    titulo = "Semana de " + seg.getDate() +
+      (seg.getMonth() !== dom.getMonth() ? " de " + MESES_NOME[seg.getMonth()] : "") +
+      " a " + dom.getDate() + " de " + MESES_NOME[dom.getMonth()];
+    const cs = (ag.grade && ag.grade.compromissos) || [];
+    const por = (t) => cs.filter((x) => x.tipo === t).length;
+    const prazos = por("prazo_interno") + ((ag.grade && ag.grade.contagem.prazos) || 0);
+    meta = plural(por("compromisso"), "compromisso") + " · " + plural(por("pagamento"), "pagamento") +
+      " · " + plural(prazos, "prazo");
+  } else {
+    const f = FILTROS_TAREFA.find((x) => x.id === ag.tar.filtro);
+    titulo = ag.tar.lista || (f ? f.rotulo : "Tarefas");
+    const abertas = ag.tar.itens.filter((t) => !t.concluida).length;
+    meta = maiuscula(diaPorExtenso(iso(new Date()))) + " · " + plural(abertas, "tarefa") +
+      " · " + plural(ag.tar.itens.length - abertas, "concluída");
+  }
+  $("conversa-titulo").textContent = titulo;
+  $("conversa-meta").textContent = meta;
+}
+
+function andarAgenda(n) {
+  if (ag.visao === "mes") ag.mes = new Date(ag.mes.getFullYear(), ag.mes.getMonth() + n, 1);
+  else ag.semana = iso(andarDias(deIso(ag.semana), 7 * n));
+  mostrarAgenda();
+}
+
+function criarNaAgenda(tipo) {
+  if (tipo === "tarefa") return abrirFormAgenda({ tipo: "tarefa", prazo: ag.dia, lista: ag.tar.lista || "" });
+  abrirFormAgenda(compromissoEmBranco(tipo));
+}
+
+/* ------------------------------------------------------------ dados */
+
+function periodoVisto() {
+  if (ag.visao === "semana") return [ag.semana, iso(andarDias(deIso(ag.semana), 6))];
+  const cels = celulasDoMes();
+  return [iso(cels[0].data), iso(cels[cels.length - 1].data)];
+}
+
+/* Segunda como primeiro dia: e a semana do escritorio. */
+function celulasDoMes() {
+  const primeiro = new Date(ag.mes.getFullYear(), ag.mes.getMonth(), 1);
+  const ultimo = new Date(ag.mes.getFullYear(), ag.mes.getMonth() + 1, 0);
   const desloca = (primeiro.getDay() + 6) % 7;
   const celulas = [];
-  for (let i = 0; i < desloca; i++) {
-    const d = new Date(primeiro);
-    d.setDate(d.getDate() - (desloca - i));
-    celulas.push({ data: d, fora: true });
-  }
+  for (let i = desloca; i > 0; i--) celulas.push({ data: andarDias(primeiro, -i), fora: true });
   for (let n = 1; n <= ultimo.getDate(); n++) {
-    celulas.push({ data: new Date(cal.mes.getFullYear(), cal.mes.getMonth(), n), fora: false });
+    celulas.push({ data: new Date(ag.mes.getFullYear(), ag.mes.getMonth(), n), fora: false });
   }
   while (celulas.length % 7 !== 0) {
-    const d = new Date(celulas[celulas.length - 1].data);
-    d.setDate(d.getDate() + 1);
-    celulas.push({ data: d, fora: true });
+    celulas.push({ data: andarDias(celulas[celulas.length - 1].data, 1), fora: true });
   }
+  return celulas;
+}
 
+async function carregarAgenda() {
+  if (ag.visao === "tarefas") {
+    const d = await (await fetch("/api/tarefas?filtro=" + ag.tar.filtro +
+      "&lista=" + encodeURIComponent(ag.tar.lista))).json();
+    Object.assign(ag.tar, { itens: d.tarefas, contagens: d.contagens, listas: d.listas,
+                            clientes: d.clientes, repeticoes: d.repeticoes || [] });
+    if (ag.tar.aberta && !ag.tar.itens.some((t) => t.id === ag.tar.aberta)) ag.tar.aberta = null;
+    return;
+  }
+  const [de, ate] = periodoVisto();
+  const pedidos = [fetch("/api/agenda?de=" + de + "&ate=" + ate), fetch("/api/tarefas?filtro=meu_dia")];
+  const grade = await (await pedidos[0]).json();
+  const tarefas = await (await pedidos[1]).json();
+  ag.grade = grade;
+  Object.assign(ag.tar, { contagens: tarefas.contagens, clientes: tarefas.clientes,
+                          listas: tarefas.listas, repeticoes: tarefas.repeticoes || [] });
+  if (ag.painel === "dia") await carregarDia();
+}
+
+async function carregarDia() {
+  try {
+    ag.diaAberto = await (await fetch("/api/agenda/dia?dia=" + ag.dia)).json();
+  } catch (err) {
+    ag.diaAberto = null;
+  }
+}
+
+async function recarregarAgenda() {
+  try {
+    await carregarAgenda();
+  } catch (err) {
+    avisoCert("não consegui atualizar a agenda");
+    return;
+  }
+  desenharAgenda();
+}
+
+/* ---------------------------------------------------------- desenho */
+
+function desenharAgenda() {
+  tituloDaAgenda();
+  ag.itens = {};
+  let principal;
+  if (ag.visao === "mes") principal = vistaMes();
+  else if (ag.visao === "semana") principal = vistaSemanaAgenda();
+  else principal = vistaTarefas();
+  const classe = "acervo agenda" + (ag.largo ? " painel-largo" : "");
+  $("centro").innerHTML = '<div class="' + classe + '" id="agenda"><div class="acervo-principal">' +
+    principal + "</div>" + painelDaAgenda() + "</div>";
+  ligarAgenda();
+}
+
+function generoDaMarca(x) {
+  if (x.genero === "compromisso") {
+    return x.tipo === "pagamento" ? "pagamento" : (x.tipo === "prazo_interno" ? "prazo" : "compromisso");
+  }
+  return x.genero;
+}
+
+function chaveDoItem(x) {
+  return x.genero + ":" + x.id;
+}
+
+function legendaDaAgenda(generos, dica) {
+  return '<div class="ag-legenda">' + generos.map((g) => {
+    const classe = "ag-" + g;
+    return '<span class="' + classe + '"><i></i>' + LEGENDA_DA_AGENDA[g] + "</span>";
+  }).join("") + '<span class="ag-dica">' + dica + "</span></div>";
+}
+
+function vistaMes() {
   const hoje = iso(new Date());
+  const g = ag.grade;
+  let html = '<div class="ag-cartao"><div class="ag-dias">' +
+    DIAS_CURTOS.map((d, i) => {
+      const classe = i >= 5 ? "ag-fds" : "";
+      return '<span class="' + classe + '">' + d + "</span>";
+    }).join("") + '</div><div class="ag-mes">';
 
-  let html = '<div class="catalogo"><div class="tela-topo"><div>' +
-    "<h2>" + MESES_NOME[cal.mes.getMonth()][0].toUpperCase() + MESES_NOME[cal.mes.getMonth()].slice(1) +
-    " de " + cal.mes.getFullYear() + "</h2>" +
-    '<span class="rotulo">' + g.contagem.compromissos + " compromissos · " +
-    g.contagem.prazos + " prazos · " + g.contagem.documentos + " documentos com data</span></div>" +
-    '<div class="tela-acoes">' +
-    '<button id="cal-antes">‹</button><button id="cal-hoje">Hoje</button><button id="cal-depois">›</button>' +
-    '<span class="ed-divisa"></span>' +
-    ['mes', 'semana', 'agenda'].map((v) => {
-      const marca = cal.vista === v ? " on" : "";
-      const nome = { mes: "Mês", semana: "Semana", agenda: "Agenda" }[v];
-      return '<button class="vista' + marca + '" data-vista="' + v + '">' + nome + "</button>";
-    }).join("") +
-    '<button class="primario" id="cal-novo">Novo compromisso</button></div></div>' +
-
-    /* Mês e dia lado a lado: numa tela de 900 px o painel do dia ficava abaixo
-       da dobra, e era preciso rolar para ver o que acontece hoje. */
-    '<div class="colunas-2"><div>';
-
-  if (cal.vista === "semana") {
-    html += vistaSemana();
-  } else if (cal.vista === "agenda") {
-    html += vistaAgenda();
-  } else {
-    html += '<div class="mes"><div class="mes-cabeca">' +
-      DIAS_CURTOS.map((d) => "<span>" + d + "</span>").join("") + "</div><div class=\"mes-grade\">";
-
-  for (const c of (cal.vista === "mes" ? celulas : [])) {
+  for (const c of celulasDoMes()) {
     const dia = iso(c.data);
     const itens = g.dias[dia] || [];
     const fds = c.data.getDay() === 0 || c.data.getDay() === 6;
-    html += '<div class="cel' + (c.fora ? " fora" : "") + (dia === hoje ? " hoje" : "") +
-      (fds ? " fds" : "") + (dia === cal.dia ? " escolhido" : "") + '" data-dia="' + dia + '">' +
-      '<span class="cel-num">' + c.data.getDate() + (dia === hoje ? ' <em>hoje</em>' : "") + "</span>" +
-      itens.slice(0, 3).map((i) =>
-        '<span class="marca-item ' + i.genero + '">' +
-        (i.hora ? '<b>' + i.hora + "</b> " : "") + esc(i.titulo) + "</span>"
-      ).join("") +
-      (itens.length > 3 ? '<span class="mais-itens">+' + (itens.length - 3) + "</span>" : "") +
+    const classe = "ag-cel" + (c.fora ? " ag-fora" : "") + (fds ? " ag-fds" : "") +
+      (dia === hoje ? " ag-hoje" : "") + (dia === ag.dia ? " ag-escolhido" : "");
+    html += '<div class="' + classe + '" data-ag-dia="' + dia + '">' +
+      '<span class="ag-cel-num"><b>' + c.data.getDate() + "</b>" + (dia === hoje ? "<small>Hoje</small>" : "") + "</span>" +
+      itens.slice(0, 3).map((x) => marcaDoItem(x, dia)).join("") +
+      (itens.length > 3 ? '<span class="ag-mais">+' + (itens.length - 3) + "</span>" : "") +
       "</div>";
   }
-
-    html += "</div></div>";
-  }
-
-  html += '<div class="legenda">' +
-    '<span><i class="ponto-legenda compromisso"></i>compromisso</span>' +
-    '<span><i class="ponto-legenda prazo"></i>prazo de tarefa</span>' +
-    '<span><i class="ponto-legenda documento"></i>data em documento</span>' +
-    "</div></div>" +
-    '<div class="col-detalhe" id="painel-dia"></div>' +
-    "</div>" +
-    '<div class="rodape-tela">calendário local · não sincronizado</div></div>';
-
-  $("centro").innerHTML = html;
-
-  $("cal-antes").onclick = () => { cal.mes.setMonth(cal.mes.getMonth() - 1); mostrarCalendario(); };
-  $("cal-depois").onclick = () => { cal.mes.setMonth(cal.mes.getMonth() + 1); mostrarCalendario(); };
-  $("cal-hoje").onclick = () => {
-    const h = new Date();
-    cal.mes = new Date(h.getFullYear(), h.getMonth(), 1);
-    cal.dia = iso(h);
-    mostrarCalendario();
-  };
-  $("cal-novo").onclick = () => formCompromisso(null, cal.dia);
-
-  $("centro").querySelectorAll("[data-vista]").forEach((b) => {
-    b.onclick = () => { cal.vista = b.dataset.vista; mostrarCalendario(); };
-  });
-
-  $("centro").querySelectorAll("[data-ir-dia]").forEach((el) => {
-    el.onclick = () => { cal.dia = el.dataset.irDia; abrirDia(cal.dia); };
-  });
-  /* Clicar numa hora vazia da semana já abre o formulário naquele horário. */
-  $("centro").querySelectorAll("[data-marcar]").forEach((el) => {
-    el.onclick = (e) => {
-      if (e.target.closest(".semana-marca")) return;
-      const [dia, hora] = el.dataset.marcar.split("T");
-      cal.dia = dia;
-      formCompromisso(null, dia, hora.slice(0, 5));
-    };
-  });
-
-  $("centro").querySelectorAll("[data-dia]").forEach((el) => {
-    el.onclick = () => {
-      cal.dia = el.dataset.dia;
-      $("centro").querySelectorAll(".cel").forEach((c) => c.classList.remove("escolhido"));
-      el.classList.add("escolhido");
-      abrirDia(cal.dia);
-    };
-  });
-
-  if (cal.dia) abrirDia(cal.dia);
+  html += "</div>" + legendaDaAgenda(["compromisso", "prazo", "pedido", "tarefa", "documento"],
+    "Clique no dia para abrir · duplo clique marca um compromisso") + "</div>";
+  return html;
 }
 
-async function abrirDia(dia) {
-  const alvo = $("painel-dia");
-  alvo.innerHTML = '<p class="nota">abrindo o dia…</p>';
-
-  let d;
-  try {
-    d = await (await fetch("/api/agenda/dia?dia=" + dia)).json();
-  } catch (err) {
-    alvo.innerHTML = '<p class="nota">não consegui abrir o dia</p>';
-    return;
-  }
-
-  const [a, m, dd] = dia.split("-").map(Number);
-  const data = new Date(a, m - 1, dd);
-  const semana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][data.getDay()];
-
-  alvo.innerHTML =
-    '<div class="painel"><h3>' + semana + ", " + dd + " de " + MESES_NOME[m - 1] + "</h3>" +
-    '<span class="rotulo">' + plural(d.compromissos.length, "compromisso") + " · " +
-    d.tarefas.length + " com prazo hoje</span>" +
-
-    (d.compromissos.length
-      ? '<div class="fila" style="margin-top:14px">' + d.compromissos.map((c) =>
-          '<div class="pedido"><div class="pedido-corpo">' +
-          '<div class="pedido-titulo"><b class="num">' + c.hora + "</b> " + esc(c.titulo) + "</div>" +
-          '<div class="doc-etiquetas"><span class="etiqueta">' + c.duracao + " min</span>" +
-          '<span class="etiqueta">' + esc(c.onde_rotulo) + "</span>" +
-          (c.cadastro_nome ? '<span class="etiqueta">' + esc(c.cadastro_nome) + "</span>" : "") +
-          "</div></div>" +
-          '<div class="pedido-acoes"><button data-editar="' + c.id + '">Abrir</button></div></div>'
-        ).join("") + "</div>"
-      : '<p class="explica" style="margin-top:12px">Nada marcado para este dia.</p>') +
-
-    /* Tarefas do dia com caixa de marcar: no wireframe elas se resolvem aqui,
-       sem sair do calendário. */
-    '<div class="precisa"><span class="rotulo">Tarefas do dia · ' +
-    d.tarefas.filter((x) => x.concluida).length + " de " + d.tarefas.length + "</span>" +
-    (d.tarefas.length
-      ? '<div class="etapas-lista">' + d.tarefas.map((t) =>
-          '<label class="etapa-linha"><input type="checkbox" data-tar-dia="' + t.id + '"' +
-          (t.concluida ? " checked" : "") + "><span" + (t.concluida ? ' class="risco"' : "") + ">" +
-          esc(t.titulo) + "</span></label>").join("") + "</div>"
-      : '<p class="explica">Nada com prazo neste dia.</p>') +
-    '<div class="linha-form"><input type="text" id="dia-nova-tarefa" placeholder="+ nova tarefa…">' +
-    '<button id="dia-add-tarefa">Acrescentar</button></div></div>' +
-
-    /* Reunião: o link vem do serviço que o escritório já usa. O programa monta
-       o convite e o envio sai pelo seu e-mail — nada é criado por nós. */
-    '<div class="precisa"><span class="rotulo">Reunião</span>' +
-    '<p class="explica">Cole o link da sala e eu monto o convite. O envio sai pela sua ' +
-    "conta de e-mail, pela fila de aprovação.</p>" +
-    '<div class="linha-form"><input type="text" id="dia-link" placeholder="cole o link do Meet, Zoom ou Teams">' +
-    '<button id="dia-convite">Montar convite</button></div>' +
-    '<div id="dia-convite-saida"></div></div>' +
-
-    '<div class="campo-form" style="margin-top:14px"><label class="rotulo">Notas do dia</label>' +
-    '<textarea id="nota-dia" rows="3" class="campo-nota" placeholder="Escreva uma nota para este dia…">' +
-    esc(d.nota) + "</textarea>" +
-    '<div class="linha-form"><button id="nota-salvar">Salvar nota</button>' +
-    '<button class="primario" id="dia-novo">Novo compromisso</button>' +
-    '<span class="num" id="nota-aviso"></span></div></div></div>';
-
-  alvo.querySelectorAll("[data-editar]").forEach((b) => {
-    b.onclick = () => formCompromisso(d.compromissos.find((c) => c.id === Number(b.dataset.editar)), dia);
-  });
-  $("dia-novo").onclick = () => formCompromisso(null, dia);
-
-  alvo.querySelectorAll("[data-tar-dia]").forEach((el) => {
-    el.onchange = async () => {
-      await fetch("/api/tarefas/" + el.dataset.tarDia + "/concluir", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ valor: el.checked }),
-      });
-      mostrarCalendario();
-    };
-  });
-  const criarTarefa = async () => {
-    const campo = $("dia-nova-tarefa");
-    if (!campo.value.trim()) return;
-    await fetch("/api/tarefas", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dados: { titulo: campo.value.trim(), prazo: dia } }),
-    });
-    mostrarCalendario();
-  };
-  $("dia-add-tarefa").onclick = criarTarefa;
-  $("dia-nova-tarefa").onkeydown = (e) => { if (e.key === "Enter") criarTarefa(); };
-
-  $("dia-convite").onclick = () => {
-    const link = $("dia-link").value.trim();
-    const saida = $("dia-convite-saida");
-    if (!link) { saida.innerHTML = '<p class="explica">cole o link da sala primeiro</p>'; return; }
-    if (!/^https?:\/\//i.test(link)) {
-      saida.innerHTML = '<p class="explica">isso não parece um link de reunião</p>';
-      return;
-    }
-    const primeiro = d.compromissos[0];
-    const corpo = "Olá," + "\n\n" +
-      "Segue o link da nossa reunião" +
-      (primeiro ? " de " + primeiro.titulo : "") + ", em " + diaPorExtenso(dia) +
-      (primeiro ? " às " + primeiro.hora : "") + "." + "\n\n" +
-      link + "\n\n" + "Até lá.";
-    saida.innerHTML = '<div class="ed-sugestao" style="margin-top:10px">' +
-      '<span class="rotulo">convite pronto</span>' +
-      "<p>" + esc(corpo) + "</p>" +
-      '<div class="linha-form"><button class="primario" id="dia-enviar-convite">Abrir no e-mail</button>' +
-      '<button id="dia-copiar-convite">Copiar</button></div></div>';
-    $("dia-enviar-convite").onclick = async () => {
-      if (!mail.contas) {
-        try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; }
-      }
-      if (!mail.contas || !mail.contas.contas.length) { marcarDestino("caixa"); return mostrarEmail(); }
-      mail.conta = mail.contas.contas.find((c) => c.em_uso) || mail.contas.contas[0];
-      marcarDestino("caixa");
-      telaEscrever({ assunto: "Reunião — " + diaPorExtenso(dia), corpo: corpo });
-    };
-    $("dia-copiar-convite").onclick = () => {
-      navigator.clipboard.writeText(corpo).then(
-        () => avisoCert("convite copiado"),
-        () => avisoCert("não consegui copiar — selecione o texto acima"));
-    };
-  };
-  $("nota-salvar").onclick = async () => {
-    await fetch("/api/agenda/nota", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dia: dia, texto: $("nota-dia").value }),
-    });
-    $("nota-aviso").textContent = "salvo";
-    setTimeout(() => { $("nota-aviso").textContent = ""; }, 1600);
-  };
+function marcaDoItem(x, dia) {
+  const chave = chaveDoItem(x);
+  ag.itens[chave] = { item: x, dia: dia };
+  const classe = "ag-marca ag-" + generoDaMarca(x);
+  const quando = x.hora ? x.hora : (x.genero === "prazo" ? "até" : "");
+  return '<span class="' + classe + '" data-ag-item="' + esc(chave) + '" title="' +
+    esc((x.hora ? x.hora + " " : "") + x.titulo) + '"><i></i>' +
+    (quando ? "<b>" + quando + "</b>" : "") + "<span>" + esc(x.titulo) + "</span></span>";
 }
 
-function formCompromisso(c, dia, hora) {
-  const novo = !c;
-  const v = c || { tipo: "compromisso", data: dia, hora: hora || "09:00", duracao: 60, onde: "" };
-  const g = cal.grade;
+/* Das 7 as 20, segunda a sexta: fora disso o escritorio raramente marca, e o
+   que cair fora aparece numa faixa abaixo da grade em vez de sumir. */
+function vistaSemanaAgenda() {
+  const seg = deIso(ag.semana);
+  const hoje = iso(new Date());
+  const g = ag.grade;
+  const dias = [0, 1, 2, 3, 4].map((i) => andarDias(seg, i));
 
-  const painel = document.createElement("div");
-  painel.className = "painel ficha";
-  painel.innerHTML =
-    "<h3>" + (novo ? "Novo compromisso" : "Editar compromisso") + "</h3>" +
-    '<div class="campo-form"><label class="rotulo">Título</label>' +
-    '<input type="text" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="Renovação — Fornecedor A"></div>' +
-    '<div class="grade-form">' +
-    '<div class="campo-form"><label class="rotulo">O que é</label><select data-c="tipo">' +
-    g.tipos.map((t) => '<option value="' + t.valor + '"' + (t.valor === v.tipo ? " selected" : "") +
-      ">" + esc(t.rotulo) + "</option>").join("") + "</select></div>" +
-    '<div class="campo-form"><label class="rotulo">Data</label>' +
-    '<input type="date" data-c="data" value="' + esc(v.data) + '"></div>' +
-    '<div class="campo-form"><label class="rotulo">Hora</label>' +
-    '<input type="time" data-c="hora" value="' + esc(v.hora) + '"></div>' +
-    '<div class="campo-form"><label class="rotulo">Duração (min)</label>' +
-    '<input type="text" data-c="duracao" value="' + v.duracao + '"></div>' +
-    '<div class="campo-form"><label class="rotulo">Onde</label><select data-c="onde">' +
-    '<option value="">Sem local</option>' +
-    g.ondes.map((o) => '<option value="' + o.valor + '"' + (o.valor === v.onde ? " selected" : "") +
-      ">" + esc(o.rotulo) + "</option>").join("") + "</select></div>" +
-    '<div class="campo-form"><label class="rotulo">Com quem</label><select data-c="cadastro_id">' +
-    '<option value="">ninguém do cadastro</option>' +
-    g.clientes.map((k) => '<option value="' + k.id + '"' +
-      (k.id === v.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("") +
-    "</select></div></div>" +
-    '<div class="linha-form"><button id="cal-livres">Ver horários livres neste dia</button>' +
-    '<span class="num" id="cal-livres-lista"></span></div>' +
-    '<div class="linha-form acoes-ficha">' +
-    '<button class="primario" data-a="salvar">Marcar</button>' +
-    '<button data-a="fechar">Cancelar</button>' +
-    (novo ? "" : '<button data-a="apagar" class="direita">Excluir</button>') +
-    '<span class="num" data-a="aviso"></span></div>';
+  const cabeca = '<div class="ag-semana-dias"><span></span>' + dias.map((d) => {
+    const k = iso(d);
+    const classe = k === hoje ? "ag-hoje" : "";
+    return '<span class="' + classe + '">' + DIAS_CURTOS[(d.getDay() + 6) % 7] + " " + d.getDate() +
+      (k === hoje ? " · hoje" : "") + "</span>";
+  }).join("") + "</div>";
 
-  const antigo = document.querySelector(".ficha");
-  if (antigo) antigo.remove();
-  $("centro").querySelector(".catalogo").appendChild(painel);
-  painel.scrollIntoView({ behavior: "smooth", block: "center" });
+  const semHora = dias.map((d) => (g.dias[iso(d)] || []).filter((x) => !x.hora));
+  let diaTodo = "";
+  if (semHora.some((l) => l.length)) {
+    diaTodo = '<div class="ag-dia-todo"><div class="ag-rotulo-hora">dia todo</div>' + dias.map((d, i) => {
+      const k = iso(d);
+      const classe = k === hoje ? "ag-hoje" : "";
+      return '<div class="' + classe + '">' + semHora[i].map((x) => blocoDaSemana(x, k)).join("") + "</div>";
+    }).join("") + "</div>";
+  }
 
-  const campo = (nome) => painel.querySelector('[data-c="' + nome + '"]');
-
-  painel.querySelector('[data-a="fechar"]').onclick = () => painel.remove();
-  $("cal-livres").onclick = async () => {
-    const d = await (await fetch("/api/agenda/livres?dia=" + campo("data").value +
-      "&duracao=" + (Number(campo("duracao").value) || 60))).json();
-    const lista = $("cal-livres-lista");
-    if (!d.horarios.length) {
-      lista.textContent = "nenhum horário livre neste dia";
-      return;
-    }
-    lista.innerHTML = d.horarios.slice(0, 8).map((h) =>
-      '<button class="chip" data-hora="' + h + '">' + h + "</button>").join(" ");
-    lista.querySelectorAll("[data-hora]").forEach((b) => {
-      b.onclick = () => { campo("hora").value = b.dataset.hora; };
+  let grade = '<div class="ag-rolagem"><div class="ag-semana">';
+  for (let h = HORA_INICIO; h <= HORA_FIM; h++) {
+    grade += '<div class="ag-rotulo-hora">' + String(h).padStart(2, "0") + ":00</div>";
+    dias.forEach((d) => {
+      const k = iso(d);
+      const naHora = (g.dias[k] || []).filter((x) => x.hora && Number(x.hora.split(":")[0]) === h);
+      const classe = "ag-hora-cel" + (k === hoje ? " ag-hoje" : "");
+      grade += '<div class="' + classe + '" data-ag-hora="' + k + "T" + String(h).padStart(2, "0") + ':00">' +
+        naHora.map((x) => blocoDaSemana(x, k)).join("") + "</div>";
     });
-  };
+  }
+  grade += "</div></div>";
 
-  painel.querySelector('[data-a="salvar"]').onclick = async () => {
-    const dados = {};
-    painel.querySelectorAll("[data-c]").forEach((el) => {
-      dados[el.dataset.c] = el.dataset.c === "cadastro_id" ? (Number(el.value) || null) : el.value;
-    });
-    const aviso = painel.querySelector('[data-a="aviso"]');
-    try {
-      const r = await fetch("/api/agenda", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: novo ? null : v.id, dados: dados }),
-      });
-      if (!r.ok) throw new Error((await r.json()).detail);
-      cal.dia = dados.data;
-      mostrarCalendario();
-    } catch (err) {
-      aviso.textContent = "não consegui marcar: " + err;
-    }
-  };
+  const resto = [];
+  [5, 6].forEach((i) => {
+    const k = iso(andarDias(seg, i));
+    (g.dias[k] || []).forEach((x) => resto.push({ item: x, dia: k }));
+  });
+  dias.forEach((d) => {
+    const k = iso(d);
+    (g.dias[k] || []).filter((x) => x.hora && (Number(x.hora.split(":")[0]) < HORA_INICIO ||
+      Number(x.hora.split(":")[0]) > HORA_FIM)).forEach((x) => resto.push({ item: x, dia: k }));
+  });
+  const fora = resto.length
+    ? '<div class="ag-fora-da-grade"><b>Fora da grade</b>' + resto.map((r) => {
+        const chave = chaveDoItem(r.item);
+        ag.itens[chave] = r;
+        return '<span data-ag-item="' + esc(chave) + '">' + esc(diaCurto(r.dia)) +
+          (r.item.hora ? " " + r.item.hora : "") + " · " + esc(r.item.titulo) + "</span>";
+      }).join("") + "</div>"
+    : "";
 
-  const apagar = painel.querySelector('[data-a="apagar"]');
-  if (apagar) apagar.onclick = async () => {
-    if (!confirm("Excluir “" + v.titulo + "”?")) return;
-    await fetch("/api/agenda/" + v.id, { method: "DELETE" });
-    mostrarCalendario();
-  };
+  return '<div class="ag-cartao">' + cabeca + diaTodo + grade + fora +
+    legendaDaAgenda(["compromisso", "prazo", "pedido", "pagamento"], "Clique numa hora vazia para marcar") + "</div>";
 }
 
-/* ------------------------------------------------------- agendamento */
-/*
-   A mesma agenda, vista pela pergunta "quando cabe". O convite por e-mail do
-   wireframe depende da etapa do e-mail: a tela diz isso em vez de oferecer um
-   botao que nao envia nada.
-*/
+function blocoDaSemana(x, dia) {
+  const chave = chaveDoItem(x);
+  ag.itens[chave] = { item: x, dia: dia };
+  const genero = generoDaMarca(x);
+  const classe = "ag-bloco ag-" + genero + (dia === iso(new Date()) && genero === "compromisso" ? " ag-hoje" : "");
+  const rotulo = { pagamento: "Pagamento", prazo: "Prazo", tarefa: "Tarefa", documento: "Documento" }[genero] || x.hora;
+  return '<div class="' + classe + '" data-ag-item="' + esc(chave) + '" title="' + esc(x.titulo) + '"><small>' +
+    esc(rotulo) + "</small><span>" + esc(x.titulo) + "</span></div>";
+}
 
-const age = { duracao: 60, vista: "semana", semana: null };
+/* -------------------------------------------------------- as tarefas */
 
-async function mostrarAgendamento() {
-  abrirTela("Agendamento");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">procurando horários…</p></div>';
+function vistaTarefas() {
+  const c = ag.tar.contagens || {};
+  const listas = ag.tar.listas.slice();
+  if (ag.tar.lista && !listas.some((l) => l.nome === ag.tar.lista)) listas.push({ nome: ag.tar.lista, abertas: 0 });
 
-  let livres, grade;
-  const inicio = age.semana ? new Date(age.semana + "T12:00:00") : new Date();
-  const segunda = new Date(inicio);
-  segunda.setDate(inicio.getDate() - ((inicio.getDay() + 6) % 7));
-  const domingo = new Date(segunda);
-  domingo.setDate(segunda.getDate() + 6);
+  const filtros = FILTROS_TAREFA.map((f) => {
+    const classe = "ag-lista-item" + (!ag.tar.lista && f.id === ag.tar.filtro ? " ativa" : "");
+    return '<button class="' + classe + '" data-ag-filtro="' + f.id + '"><span class="ag-nome">' + f.rotulo + "</span>" +
+      (f.id === "concluidas" ? "" : contaDaLista(c[f.id] || 0, f.id === "importante")) + "</button>";
+  });
+  /* "Atribuidas a mim" pede equipe, que so existe quando Cadastros tiver. */
+  filtros.splice(3, 0, '<button class="ag-lista-item adiante" data-ag-adiante="1" title="Quando houver equipe em Cadastros">' +
+    '<span class="ag-nome">Atribuídas a mim</span></button>');
 
-  try {
-    livres = (await (await fetch("/api/agenda/livres?duracao=" + age.duracao)).json()).proximos;
-    grade = await (await fetch("/api/agenda?de=" + iso(segunda) + "&ate=" + iso(domingo))).json();
-  } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
-    return;
-  }
-  cal.grade = grade;
-  cal.dia = cal.dia || iso(new Date());
+  const esquerda = '<div class="ag-listas">' + filtros.join("") +
+    '<span class="ac-divisa"></span><span class="ac-secao">Minhas listas</span>' +
+    (listas.length
+      ? listas.map((l, i) => {
+          const classe = "ag-lista-item" + (l.nome === ag.tar.lista ? " ativa" : "");
+          return '<button class="' + classe + '" data-ag-lista="' + esc(l.nome) + '">' + corDaLista(i) +
+            '<span class="ag-nome">' + esc(l.nome) + "</span>" + contaDaLista(l.abertas || 0, false) + "</button>";
+        }).join("")
+      : '<span class="ac-secao">nenhuma ainda</span>') +
+    '<button class="ac-incluir" data-ag-nova-lista="1">+ nova lista</button></div>';
 
-  const duracoes = [30, 45, 60, 90];
-  const total = Object.values(grade.dias).reduce((n, l) => n + l.length, 0);
-
-  let html = '<div class="catalogo"><div class="tela-topo"><div><h2>Agendamento</h2>' +
-    '<span class="rotulo">semana de ' + diaCurto(iso(segunda)) + " a " + diaCurto(iso(domingo)) +
-    " · " + plural(total, "compromisso") + "</span></div>" +
-    '<div class="tela-acoes">' +
-    '<button id="age-antes">‹</button><button id="age-hoje">Esta semana</button>' +
-    '<button id="age-depois">›</button>' +
-    '<span class="ed-divisa"></span>' +
-    ["semana", "dia", "lista"].map((v) => {
-      const marca = age.vista === v ? " on" : "";
-      const nome = { semana: "Semana", dia: "Dia", lista: "Lista" }[v];
-      return '<button class="vista' + marca + '" data-agvista="' + v + '">' + nome + "</button>";
-    }).join("") + "</div></div>";
-
-  html += '<div class="colunas-2"><div>';
-  if (age.vista === "semana") {
-    html += vistaSemana();
-  } else if (age.vista === "dia") {
-    html += gradeDoDia(cal.dia);
+  const abertas = ag.tar.itens.filter((t) => !t.concluida);
+  const feitas = ag.tar.itens.filter((t) => t.concluida);
+  const prazoSugerido = ag.tar.filtro === "meu_dia" || ag.tar.filtro === "importante" ? iso(new Date()) : "";
+  let corpo;
+  if (!ag.tar.itens.length) {
+    corpo = '<div class="ag-vazio"><h4>' + (ag.tar.filtro === "meu_dia" && !ag.tar.lista ? "Nada pendente para hoje" : "Nada aqui") + "</h4><p>" +
+      (ag.tar.filtro === "meu_dia" && !ag.tar.lista
+        ? "O que tem prazo para hoje, o que já venceu e o que você trouxe para o dia aparece nesta lista."
+        : "Nenhuma tarefa " + (ag.tar.lista ? "nesta lista" : "neste filtro") + " ainda.") + "</p></div>";
   } else {
-    html += vistaAgenda();
+    corpo = abertas.map(linhaDaTarefa).join("") +
+      (feitas.length ? '<div class="ag-secao">Concluídas · ' + feitas.length + "</div>" + feitas.map(linhaDaTarefa).join("") : "");
   }
-  html += "</div>";
+  const direita = '<div class="ag-cartao"><div class="ag-adicionar">' +
+    '<button class="ag-mais-botao" data-ag-add="1" title="Adicionar">' + ic("add", 18) + "</button>" +
+    '<input type="text" data-ag-nova="1" placeholder="Adicionar uma tarefa…">' +
+    '<input type="date" data-ag-nova-prazo="1" value="' + prazoSugerido + '" title="Prazo"></div>' +
+    '<div class="tabela-corpo">' + corpo + "</div></div>";
 
-  /* Coluna da direita: escolher a duração, ver o que cabe, e marcar. */
-  html += '<div class="col-detalhe"><div class="painel"><h3>Quanto tempo vai durar</h3>' +
-    '<div class="chips">' +
-    duracoes.map((d) => '<button class="chip' + (d === age.duracao ? " on" : "") +
-      '" data-dur="' + d + '">' + d + " min</button>").join("") + "</div>" +
+  return '<div class="ag-tarefas">' + esquerda + direita + "</div>";
+}
 
-    (livres.length
-      ? '<span class="rotulo">Cabe nestes horários</span>' +
-        '<div class="escolha-livre" style="margin-top:9px">' +
-        livres.map((h, i) => '<button data-livre="' + i + '">' +
-          diaCurto(h.data) + " · " + h.hora + "</button>").join("") + "</div>" +
-        '<p class="explica" style="margin-top:10px">Respeita a sua janela de trabalho, o almoço e ' +
-        "a folga entre compromissos, que ficam em Configurações.</p>"
-      : '<p class="explica">Nenhum horário livre nos próximos dias com essa duração. ' +
-        "Ajuste sua disponibilidade em Configurações ou tente uma duração menor.</p>") +
-    '<div class="linha-form"><button class="primario" id="age-novo">Novo compromisso</button></div>' +
+function contaDaLista(n, acc) {
+  const classe = "ag-conta" + (acc && n ? " ag-acc" : "");
+  return '<span class="' + classe + '">' + n + "</span>";
+}
+
+function corDaLista(i) {
+  const classe = "ag-cor ag-c" + (i % 4);
+  return '<i class="' + classe + '"></i>';
+}
+
+function linhaDaTarefa(t) {
+  if (t.concluida) {
+    return '<div class="ag-linha ag-feita" data-ag-tarefa="' + t.id + '">' +
+      '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>' +
+      '<span class="ag-texto"><b>' + esc(t.titulo) + "</b></span></div>";
+  }
+  const classe = "ag-linha" + (ag.tar.aberta === t.id ? " aberta" : "");
+  return '<div class="' + classe + '" data-ag-tarefa="' + t.id + '">' +
+    '<span class="ag-circulo ag-grande" data-ag-concluir="' + t.id + '" title="Concluir"></span>' +
+    '<span class="ag-texto"><b>' + esc(t.titulo) + "</b><small>" + metaDaTarefa(t) + "</small></span>" +
+    botaoEstrela(t) + "</div>";
+}
+
+function metaDaTarefa(t) {
+  const q = quandoDaTarefa(t);
+  const pecas = [];
+  if (q.texto) pecas.push(q.acc ? '<span class="ag-acc">' + esc(q.texto) + "</span>" : "<span>" + esc(q.texto) + "</span>");
+  if (t.cadastro_nome) pecas.push("<span>" + esc(t.cadastro_nome) + "</span>");
+  if (t.lista && !ag.tar.lista) pecas.push("<span>" + esc(t.lista) + "</span>");
+  if (t.etapas && t.etapas.length) pecas.push("<span>" + plural(t.etapas.length, "etapa") + "</span>");
+  if (t.repetir) pecas.push("<span>repete</span>");
+  return pecas.join("");
+}
+
+function botaoEstrela(t) {
+  const classe = "ag-estrela" + (t.importante ? " on" : "");
+  return '<button class="' + classe + '" data-ag-estrela="' + t.id + '" title="Importante">' +
+    ic(t.importante ? "star" : "star_outline", 18) + "</button>";
+}
+
+/* ---------------------------------------------------------- o painel */
+
+function painelDaAgenda() {
+  if (ag.painel === "form" && ag.form) return painelFormAgenda();
+  if (ag.painel === "sugestoes") return painelSugestoes();
+  if (ag.visao === "tarefas") return painelDaTarefa();
+  return painelDoDia();
+}
+
+function alcaDoPainel() {
+  return '<button class="alca-painel" data-ag-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
+    ic(ag.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
+}
+
+function painelDoDia() {
+  const d = ag.diaAberto;
+  const titulo = maiuscula(diaPorExtenso(ag.dia));
+  if (!d || d.dia !== ag.dia) {
+    return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem"><div class="painel-vazio"><h3>' +
+      titulo + "</h3><p>abrindo o dia…</p></div></div></aside>";
+  }
+  const comps = d.compromissos;
+  const abertas = d.tarefas.filter((t) => !t.concluida);
+  const feitas = d.tarefas.length - abertas.length;
+  const meta = plural(comps.length, "compromisso") + " · " + plural(abertas.length, "prazo") + " · " + plural(d.tarefas.length, "tarefa");
+  const comAviso = comps.filter((c) => c.avisar_min).length;
+
+  const linhas = comps.map((c) => {
+    const genero = c.tipo === "pagamento" ? "pagamento" : (c.tipo === "prazo_interno" ? "prazo" : "compromisso");
+    const classe = "ag-hora-linha ag-" + genero;
+    const detalhe = [duracaoEmTexto(c.duracao), (c.onde_rotulo || "").toLowerCase(), c.cadastro_nome]
+      .filter(Boolean).join(" · ");
+    const acoes = c.onde === "online"
+      ? '<span class="ag-acoes"><button class="primario" data-ag-reuniao="' + c.id + '">' + ic("videocam", 16) + "Criar reunião" + ic("expand_more", 16) + "</button>" +
+        '<button data-ag-sala="meet">Meet</button><button data-ag-sala="teams">Teams</button></span>'
+      : "";
+    return '<div class="' + classe + '"><span class="ag-hora">' + esc(c.hora) + '</span><span class="ag-corpo"><span>' +
+      (genero === "prazo" ? "Prazo: " : "") + esc(c.titulo) + "</span><small>" + esc(detalhe) + "</small>" + acoes + "</span>" +
+      '<button class="mais-linha" data-ag-mais="' + c.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
+  });
+
+  const tarefas = d.tarefas.map((t) => {
+    const classe = "ag-tarefa-linha" + (t.concluida ? " ag-feita" : "");
+    return '<div class="' + classe + '" data-ag-abrir-tarefa="' + t.id + '">' +
+      (t.concluida
+        ? '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>'
+        : '<span class="ag-circulo" data-ag-concluir="' + t.id + '" title="Concluir"></span>') +
+      '<span class="ag-texto">' + esc(t.titulo) + "</span>" +
+      (t.importante && !t.concluida ? '<span class="ag-quando ag-acc">importante</span>' : "") + "</div>";
+  });
+
+  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + titulo + '</h3><span class="meta">' + meta + "</span></span>" +
+    '<span class="ag-sino" title="' + (comAviso ? plural(comAviso, "compromisso") + " com aviso" : "nenhum aviso marcado") + '">' +
+    ic("notifications", 18) + (comAviso ? "<i></i>" : "") + "</span></div>" +
+
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos</span>' +
+    '<button class="ag-ligacao" data-ag-marcar="1">+ marcar</button></div>' +
+    (linhas.length ? linhas.join('<span class="ag-risco"></span>') : "<p>Nada marcado para este dia.</p>") + "</div>" +
+
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Tarefas do dia</span><span class="contagem">' +
+    (d.tarefas.length ? feitas + " de " + d.tarefas.length : "nenhuma") + "</span></div>" +
+    tarefas.join("") +
+    '<button class="ag-ligacao" data-ag-nova-tarefa="1">+ nova tarefa</button>' +
+    '<span class="ag-entrada" data-ag-entrada-tarefa="1" hidden><input type="text" placeholder="O que precisa ser feito neste dia…">' +
+    "<button>Adicionar</button></span></div>" +
+
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Pedidos pelo link</span><span class="contagem">em breve</span></div>' +
+    "<p>Quando a sua página de agendamento existir, quem pedir horário por ela aparece aqui, com Aceitar e Propor outro horário.</p></div>" +
+
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Anotação do dia</span></div>' +
+    '<textarea class="ag-nota" data-ag-nota="1" placeholder="Escreva uma nota para este dia…">' + esc(d.nota || "") + "</textarea></div>" +
+    "</div></aside>";
+}
+
+function painelFormAgenda() {
+  const v = ag.form;
+  const novo = !v.id;
+  const tarefa = v.tipo === "tarefa";
+  const nomes = NOME_DO_TIPO[v.tipo] || NOME_DO_TIPO.compromisso;
+  const sub = tarefa
+    ? (v.prazo ? maiuscula(diaCurto(v.prazo)) : "sem prazo")
+    : maiuscula(diaCurto(v.data || ag.dia)) + " · " + (v.hora || "");
+
+  const chips = [["compromisso", "Compromisso"], ["pagamento", "Pagamento"], ["prazo_interno", "Prazo interno"], ["tarefa", "Tarefa"]]
+    .map(([t, r]) => {
+      const classe = t === v.tipo ? "on" : "";
+      return '<button class="' + classe + '" data-ag-tipo="' + t + '">' + r + "</button>";
+    }).join("");
+  const clientes = '<option value="">' + (tarefa ? "nenhum" : "ninguém do cadastro") + "</option>" +
+    ag.tar.clientes.map((k) => '<option value="' + k.id + '"' + (k.id === v.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("");
+
+  let campos;
+  if (tarefa) {
+    campos =
+      '<div class="ag-duas"><div class="ag-campo"><label>Prazo</label><input type="date" data-c="prazo" value="' + esc(v.prazo || "") + '"></div>' +
+      '<div class="ag-campo"><label>Lista</label><input type="text" data-c="lista" list="ag-listas-dl" value="' + esc(v.lista || "") + '" placeholder="nenhuma">' +
+      '<datalist id="ag-listas-dl">' + ag.tar.listas.map((l) => '<option value="' + esc(l.nome) + '">').join("") + "</datalist></div></div>" +
+      '<div class="ag-campo"><label>Cliente</label><select data-c="cadastro_id">' + clientes + "</select></div>" +
+      '<div class="ag-campo"><label>Anotação</label><textarea data-c="anotacao" placeholder="O que vale lembrar…">' + esc(v.anotacao || "") + "</textarea></div>";
+  } else {
+    const duracoes = [15, 30, 45, 60, 90, 120, 180];
+    if (v.duracao && duracoes.indexOf(Number(v.duracao)) < 0) duracoes.push(Number(v.duracao));
+    const ondes = [["online", "Reunião online"], ["escritorio", "No escritório"], ["telefone", "Telefone"], ["", "Sem local"]].map(([o, r]) => {
+      const classe = o === (v.onde || "") ? "on" : "";
+      return '<button class="' + classe + '" data-ag-onde="' + o + '">' + r + "</button>";
+    }).join("");
+    const classeConvite = "ag-toggle" + (v.convite ? " on" : "");
+    campos =
+      '<div class="ag-duas"><div class="ag-campo"><label>Data</label><input type="date" data-c="data" value="' + esc(v.data || "") + '"></div>' +
+      '<div class="ag-campo"><label>Hora</label><input type="time" data-c="hora" value="' + esc(v.hora || "") + '"></div></div>' +
+      '<div class="ag-duas"><div class="ag-campo"><label>Duração</label><select data-c="duracao">' +
+      duracoes.sort((a, b) => a - b).map((m) => '<option value="' + m + '"' + (m === Number(v.duracao) ? " selected" : "") + ">" + duracaoEmTexto(m) + "</option>").join("") +
+      "</select></div>" +
+      '<div class="ag-campo"><label>Avisar antes</label><select data-c="avisar_min">' +
+      [[0, "não avisar"], [10, "10 min antes"], [30, "30 min antes"], [60, "1 h antes"], [1440, "um dia antes"]].map(([m, r]) =>
+        '<option value="' + m + '"' + (m === Number(v.avisar_min || 0) ? " selected" : "") + ">" + r + "</option>").join("") +
+      "</select></div></div>" +
+      '<div class="ag-campo"><label>Com quem</label><select data-c="cadastro_id">' + clientes + "</select></div>" +
+      '<div class="ag-campo"><label>Onde</label><div class="ag-chips">' + ondes + "</div></div>" +
+      '<div class="ag-campo"><label>Cabe nestes horários</label><div class="ag-chips" data-ag-livres="1"><span class="ag-vazio-chip">procurando…</span></div></div>' +
+      '<div class="ag-campo"><label>Anotação</label><textarea data-c="anotacao" placeholder="Pauta, endereço, o que levar…">' + esc(v.anotacao || "") + "</textarea></div>" +
+      '<div class="' + classeConvite + '" data-ag-convite="1"><span>Enviar convite por e-mail ao salvar</span><i></i></div>' +
+      '<p class="ag-explica">O convite sai pelo seu e-mail e passa pela tela de Aprovações antes de ser enviado.</p>';
+  }
+
+  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + nomes[novo ? 0 : 1] + '</h3><span class="meta">' + esc(sub) + "</span></span>" +
+    '<button class="voltar" data-ag-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
+    '<div class="ag-form">' +
+    '<div class="ag-campo"><label>O que vou agendar</label><div class="ag-chips">' + chips + "</div></div>" +
+    '<div class="ag-campo"><label>Título</label><input type="text" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="' +
+    (tarefa ? "Adicionar uma tarefa…" : "Renovação — Fornecedor A") + '"></div>' +
+    campos +
+    '<div class="ag-form-rodape"><button class="ag-ligacao" data-ag-fechar="1">Cancelar</button>' +
+    (novo ? "" : '<button class="ag-perigo-fino" data-ag-apagar="1">Excluir</button>') +
+    '<span class="ag-aviso" data-ag-aviso="1"></span>' +
+    '<button class="primario" data-ag-salvar="1">' + (tarefa ? (novo ? "Adicionar" : "Salvar") : (novo ? "Marcar" : "Salvar")) + "</button></div>" +
+    "</div></div></aside>";
+}
+
+function painelDaTarefa() {
+  const t = ag.tar.itens.find((x) => x.id === ag.tar.aberta);
+  if (!t) {
+    return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma tarefa aberta</h3>' +
+      "<p>Clique numa tarefa para ver as etapas, o prazo e o que ela tem ligado.</p></div></div></aside>";
+  }
+  const feitas = t.etapas.filter((e) => e.feita).length;
+  const q = quandoDaTarefa(t);
+  const rep = ag.tar.repeticoes.length ? ag.tar.repeticoes : [{ valor: "", rotulo: "Não repete" }];
+  const classeEstrela = "ag-estrela" + (t.importante ? " on" : "");
+  const classePrazo = q.acc ? "ag-acc" : "";
+  const classeMeuDia = "ag-ligacao" + (t.meu_dia ? "" : " ag-fraca");
+
+  const etapas = t.etapas.map((e) => {
+    const classe = "ag-tarefa-linha" + (e.feita ? " ag-feita" : "");
+    return '<div class="' + classe + '" data-ag-etapa="' + e.id + '">' +
+      (e.feita ? '<span class="ic ic-18 ag-feita-ic">check_circle</span>' : '<span class="ag-circulo"></span>') +
+      '<span class="ag-texto">' + esc(e.titulo) + "</span></div>";
+  }).join("");
+
+  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
+    '<div class="ag-ficha-cabeca">' +
+    (t.concluida
+      ? '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>'
+      : '<span class="ag-circulo ag-grande" data-ag-concluir="' + t.id + '" title="Concluir"></span>') +
+    "<h3>" + esc(t.titulo) + "</h3>" +
+    '<button class="' + classeEstrela + '" data-ag-estrela="' + t.id + '" title="Importante">' + ic(t.importante ? "star" : "star_outline", 18) + "</button>" +
+    '<button class="voltar" data-ag-fechar-tarefa="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
+
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Etapas</span><span class="contagem">' +
+    (t.etapas.length ? feitas + " de " + t.etapas.length : "nenhuma") + "</span></div>" + etapas +
+    '<button class="ag-ligacao" data-ag-nova-etapa="1">+ próxima etapa</button>' +
+    '<span class="ag-entrada" data-ag-entrada-etapa="1" hidden><input type="text" placeholder="Próxima etapa…"><button>Acrescentar</button></span></div>' +
+
+    '<div class="painel-chaves">' +
+    '<div class="ag-chave"><span>Meu dia</span><button class="' + classeMeuDia + '" data-ag-meu-dia="1">' + (t.meu_dia ? "já está" : "adicionar") + "</button></div>" +
+    '<div class="ag-chave"><span>Lembrar-me</span><input type="time" data-ag-campo="lembrar_em" value="' + esc(t.lembrar_em || "") + '"></div>' +
+    '<div class="ag-chave"><span>Prazo</span><input type="date" class="' + classePrazo + '" data-ag-campo="prazo" value="' + esc(t.prazo || "") + '"></div>' +
+    '<div class="ag-chave"><span>Repetir</span><select data-ag-campo="repetir">' +
+    rep.map((r) => '<option value="' + esc(r.valor) + '"' + ((t.repetir || "") === r.valor ? " selected" : "") + ">" + esc(r.rotulo) + "</option>").join("") + "</select></div>" +
+    '<div class="ag-chave"><span>Cliente</span><select data-ag-campo="cadastro_id"><option value="">nenhum</option>' +
+    ag.tar.clientes.map((k) => '<option value="' + k.id + '"' + (k.id === t.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("") + "</select></div>" +
+    '<div class="ag-chave"><span>Lista</span><input type="text" data-ag-campo="lista" value="' + esc(t.lista || "") + '" placeholder="nenhuma"></div>' +
     "</div>" +
 
-    '<div class="painel" style="margin-top:16px"><h3>Convite por e-mail</h3>' +
-    '<p class="explica">Ao marcar, dá para mandar o convite pela sua conta. O envio passa pela ' +
-    "fila de aprovações, como toda ação que sai da máquina.</p>" +
-    '<div class="linha-form"><button id="age-convite">Escrever convite</button></div></div>' +
-    "</div></div>";
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Ligado a</span><button class="ag-ligacao" data-ag-ligar="1">+ documento</button></div>' +
+    '<div data-ag-vinculos="1"><p>carregando…</p></div>' +
+    (t.cadastro_nome ? '<div class="ag-ligado-linha"><span>' + esc(t.cadastro_nome) + '</span><button data-ag-cadastro="1">cadastro</button></div>' : "") +
+    (t.prazo ? '<div class="ag-ligado-linha"><span>Prazo no calendário · ' + esc(diaCurto(t.prazo)) + '</span><button class="ag-acc" data-ag-ver-dia="' + esc(t.prazo) + '">abrir</button></div>' : "") +
+    "</div>" +
 
-  html += '<div class="rodape-tela">agenda gravada na sua máquina · não sincronizada</div></div>';
-  centro.innerHTML = html;
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Anotação</span></div>' +
+    '<textarea class="ag-nota" data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea></div>" +
 
-  centro.querySelectorAll("[data-dur]").forEach((b) => {
-    b.onclick = () => { age.duracao = Number(b.dataset.dur); mostrarAgendamento(); };
+    '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + '</small><button class="ag-perigo-fino" data-ag-apagar-tarefa="1">Excluir</button></div>' +
+    "</div></aside>";
+}
+
+function painelSugestoes() {
+  const s = ag.sugestoes || [];
+  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Prazos lidos nos documentos</h3><span class="meta">' +
+    (s.length ? plural(s.length, "data") + " que ainda não " + (s.length === 1 ? "virou" : "viraram") + " tarefa" : "nada a sugerir") + "</span></span>" +
+    '<button class="voltar" data-ag-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
+    '<div class="painel-bloco">' +
+    (s.length
+      ? "<p>Datas que o assistente já leu nos contratos abertos. Escolha as que quiser.</p>" +
+        s.map((x, i) => '<div class="ag-ligado"><span class="duas-linhas"><b>' + esc(x.titulo) + "</b><small>" + dataLonga(x.prazo) +
+          (x.cliente ? " · " + esc(x.cliente) : "") + '</small></span><button data-ag-aceitar="' + i + '">Criar</button></div>').join("")
+      : "<p>Os documentos abertos não trazem data dentro dos próximos 90 dias, ou todas já viraram tarefa.</p>") +
+    "</div></div></aside>";
+}
+
+/* -------------------------------------------------------- o que liga */
+
+function ligarAgenda() {
+  const raiz = $("agenda");
+
+  raiz.querySelectorAll("[data-ag-dia]").forEach((el) => {
+    el.onclick = () => escolherDia(el.dataset.agDia);
+    el.ondblclick = () => { ag.dia = el.dataset.agDia; criarNaAgenda("compromisso"); };
   });
-  centro.querySelectorAll("[data-agvista]").forEach((b) => {
-    b.onclick = () => { age.vista = b.dataset.agvista; mostrarAgendamento(); };
-  });
-  centro.querySelectorAll("[data-livre]").forEach((b) => {
-    b.onclick = () => {
-      const h = livres[Number(b.dataset.livre)];
-      formCompromisso({ tipo: "compromisso", data: h.data, hora: h.hora, duracao: age.duracao, onde: "" }, h.data);
-    };
-  });
-  centro.querySelectorAll("[data-marcar]").forEach((el) => {
+  raiz.querySelectorAll("[data-ag-hora]").forEach((el) => {
     el.onclick = (e) => {
-      if (e.target.closest(".semana-marca")) return;
-      const [dia, hora] = el.dataset.marcar.split("T");
-      cal.dia = dia;
-      formCompromisso(null, dia, hora.slice(0, 5));
+      if (e.target.closest("[data-ag-item]")) return;
+      const [dia, hora] = el.dataset.agHora.split("T");
+      ag.dia = dia;
+      abrirFormAgenda(Object.assign(compromissoEmBranco("compromisso"), { data: dia, hora: hora }));
     };
   });
-  centro.querySelectorAll("[data-ir-dia]").forEach((el) => {
-    el.onclick = () => { cal.dia = el.dataset.irDia; age.vista = "dia"; mostrarAgendamento(); };
+  raiz.querySelectorAll(".acervo-principal [data-ag-item]").forEach((el) => {
+    el.onclick = (e) => { e.stopPropagation(); abrirItem(el.dataset.agItem); };
   });
 
-  const andar = (dias) => {
-    const d = new Date(segunda);
-    d.setDate(segunda.getDate() + dias);
-    age.semana = iso(d);
-    mostrarAgendamento();
+  raiz.querySelectorAll("[data-ag-filtro]").forEach((b) => {
+    b.onclick = () => { ag.tar.filtro = b.dataset.agFiltro; ag.tar.lista = ""; ag.tar.aberta = null; mostrarAgenda(); };
+  });
+  raiz.querySelectorAll("[data-ag-lista]").forEach((b) => {
+    b.onclick = () => {
+      ag.tar.lista = ag.tar.lista === b.dataset.agLista ? "" : b.dataset.agLista;
+      ag.tar.aberta = null;
+      mostrarAgenda();
+    };
+  });
+  raiz.querySelectorAll("[data-ag-adiante]").forEach((b) => {
+    b.onclick = () => avisoCert("quando houver equipe em Cadastros, as tarefas atribuídas a você aparecem aqui");
+  });
+  const novaLista = raiz.querySelector("[data-ag-nova-lista]");
+  if (novaLista) novaLista.onclick = () => {
+    const nome = prompt("Nome da nova lista:");
+    if (!nome || !nome.trim()) return;
+    ag.tar.lista = nome.trim();
+    ag.tar.aberta = null;
+    avisoCert("a lista “" + ag.tar.lista + "” nasce com a primeira tarefa que você criar nela");
+    mostrarAgenda();
   };
-  $("age-antes").onclick = () => andar(-7);
-  $("age-depois").onclick = () => andar(7);
-  $("age-hoje").onclick = () => { age.semana = null; cal.dia = iso(new Date()); mostrarAgendamento(); };
-  $("age-novo").onclick = () => formCompromisso(null, cal.dia);
-  $("age-convite").onclick = () => convitePorEmail(grade);
-
-  atualizarPostura();
-}
-
-/* Um dia só, hora a hora: quando a semana inteira é informação demais. */
-function gradeDoDia(dia) {
-  const itens = (cal.grade.dias[dia] || []);
-  let html = '<div class="secao-lista"><span class="rotulo">' + esc(diaPorExtenso(dia)) +
-    '</span><span class="risco-fino"></span></div><div class="semana-grade" ' +
-    'style="grid-template-columns:46px minmax(0,1fr)">' +
-    '<div class="semana-cabeca"></div><div class="semana-cabeca">o dia</div>';
-
-  for (let hora = 7; hora <= 20; hora++) {
-    const naHora = itens.filter((x) => x.hora && Number(x.hora.split(":")[0]) === hora);
-    html += '<div class="semana-hora">' + String(hora).padStart(2, "0") + "h</div>" +
-      '<div class="semana-cel" data-marcar="' + dia + "T" + String(hora).padStart(2, "0") + ':00">' +
-      naHora.map((x) => '<span class="semana-marca ' + esc(x.tipo || "compromisso") + '">' +
-        esc(x.hora + " · " + x.titulo) + "</span>").join("") + "</div>";
+  const nova = raiz.querySelector("[data-ag-nova]");
+  if (nova) {
+    const criar = async () => {
+      if (!nova.value.trim()) { nova.focus(); return; }
+      const prazo = raiz.querySelector("[data-ag-nova-prazo]").value;
+      await criarTarefa({ titulo: nova.value.trim(), prazo: prazo, lista: ag.tar.lista });
+    };
+    raiz.querySelector("[data-ag-add]").onclick = criar;
+    nova.onkeydown = (e) => { if (e.key === "Enter") criar(); };
   }
-  return html + "</div>";
+  raiz.querySelectorAll("[data-ag-tarefa]").forEach((el) => {
+    el.onclick = () => {
+      const id = Number(el.dataset.agTarefa);
+      ag.tar.aberta = ag.tar.aberta === id ? null : id;
+      ag.form = null;
+      ag.painel = "tarefa";
+      desenharAgenda();
+    };
+  });
+  raiz.querySelectorAll(".acervo-principal [data-ag-concluir]").forEach((el) => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const t = ag.tar.itens.find((x) => x.id === Number(el.dataset.agConcluir));
+      if (t) concluirTarefa(t.id, !t.concluida);
+    };
+  });
+  raiz.querySelectorAll(".acervo-principal [data-ag-estrela]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const t = ag.tar.itens.find((x) => x.id === Number(b.dataset.agEstrela));
+      if (t) marcarImportante(t.id, !t.importante);
+    };
+  });
+
+  ligarPainel();
 }
 
-async function convitePorEmail(grade) {
-  const dia = cal.dia;
-  const itens = (grade.dias[dia] || []).filter((x) => x.genero === "compromisso");
-  if (!itens.length) {
-    avisoCert("escolha um dia com compromisso marcado para eu escrever o convite");
+function desenharPainel() {
+  const velho = document.querySelector("#agenda .acervo-painel");
+  if (!velho) return;
+  velho.insertAdjacentHTML("afterend", painelDaAgenda());
+  velho.remove();
+  $("agenda").classList.toggle("painel-largo", ag.largo);
+  ligarPainel();
+}
+
+function ligarPainel() {
+  const p = document.querySelector("#agenda .acervo-painel");
+  if (!p) return;
+  const alca = p.querySelector("[data-ag-alca]");
+  if (alca) alca.onclick = () => { ag.largo = !ag.largo; desenharPainel(); };
+  p.querySelectorAll("[data-ag-fechar]").forEach((b) => { b.onclick = fecharPainelDaAgenda; });
+  if (ag.painel === "form" && ag.form) return ligarFormAgenda(p);
+  if (ag.painel === "sugestoes") return ligarSugestoes(p);
+  if (ag.visao === "tarefas") return ligarFichaDaTarefa(p);
+  ligarPainelDoDia(p);
+}
+
+async function fecharPainelDaAgenda() {
+  ag.form = null;
+  ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
+  if (ag.painel === "dia" && (!ag.diaAberto || ag.diaAberto.dia !== ag.dia)) await carregarDia();
+  desenharPainel();
+}
+
+async function escolherDia(dia) {
+  ag.dia = dia;
+  ag.form = null;
+  ag.painel = "dia";
+  $("agenda").querySelectorAll("[data-ag-dia]").forEach((el) => {
+    el.classList.toggle("ag-escolhido", el.dataset.agDia === dia);
+  });
+  await carregarDia();
+  desenharPainel();
+}
+
+function abrirFormAgenda(v) {
+  ag.form = v;
+  ag.painel = "form";
+  desenharPainel();
+}
+
+function abrirItem(chave) {
+  const r = ag.itens[chave];
+  if (!r) return;
+  const x = r.item;
+  if (x.genero === "compromisso") {
+    const c = (ag.grade.compromissos || []).find((k) => k.id === x.id);
+    if (c) abrirFormAgenda(Object.assign({}, c));
     return;
   }
-  const c = itens[0];
-  const corpo = "Olá," + "\n\n" +
-    "Confirmo nosso compromisso de " + c.titulo + ", em " + diaPorExtenso(dia) +
-    " às " + c.hora + "." + "\n\n" + "Até lá.";
+  if (x.genero === "documento") {
+    bib.termo = x.titulo;
+    marcarDestino("biblioteca");
+    return mostrarBiblioteca();
+  }
+  abrirTarefaNaAgenda(x.id, r.dia, x.genero === "tarefa");
+}
 
+/* A tarefa abre na visao Tarefas, no filtro em que ela esta. */
+function abrirTarefaNaAgenda(id, dia, concluida) {
+  const hoje = iso(new Date());
+  ag.tar.filtro = concluida ? "concluidas" : (dia && dia > hoje ? "planejadas" : "meu_dia");
+  ag.tar.lista = "";
+  ag.tar.aberta = id;
+  ag.form = null;
+  mostrarAgenda("tarefas");
+  ag.painel = "tarefa";
+}
+
+/* ------------------------------------------------ o painel do dia */
+
+function ligarPainelDoDia(p) {
+  const d = ag.diaAberto;
+  if (!d) return;
+  const compromisso = (el, nome) => d.compromissos.find((x) => x.id === Number(el.dataset[nome]));
+
+  p.querySelectorAll("[data-ag-marcar]").forEach((b) => { b.onclick = () => criarNaAgenda("compromisso"); });
+  p.querySelectorAll("[data-ag-mais]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const c = compromisso(b, "agMais");
+      if (!c) return;
+      menuNaLinha(b, [
+        { icone: "edit", rotulo: "Abrir", acao: () => abrirFormAgenda(Object.assign({}, c)) },
+        { icone: "content_copy", rotulo: "Copiar convite", acao: () => copiarTexto(conviteDe(c, ""), "convite copiado") },
+        "-",
+        { icone: "delete", rotulo: "Excluir", perigo: true, acao: () => apagarCompromisso(c) },
+      ]);
+    };
+  });
+  p.querySelectorAll("[data-ag-reuniao]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const c = compromisso(b, "agReuniao");
+      if (!c) return;
+      menuNaLinha(b, [
+        { icone: "videocam", rotulo: "Abrir uma sala no Meet", acao: () => window.open(SALAS.meet, "_blank") },
+        { icone: "videocam", rotulo: "Abrir uma sala no Teams", acao: () => window.open(SALAS.teams, "_blank") },
+        "-",
+        { icone: "link", rotulo: "Colar o link e montar o convite", acao: () => pedirLinkDaSala(b, c) },
+      ]);
+    };
+  });
+  p.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
+  p.querySelectorAll("[data-ag-abrir-tarefa]").forEach((el) => {
+    el.onclick = () => {
+      const t = d.tarefas.find((x) => x.id === Number(el.dataset.agAbrirTarefa));
+      abrirTarefaNaAgenda(Number(el.dataset.agAbrirTarefa), ag.dia, Boolean(t && t.concluida));
+    };
+  });
+  p.querySelectorAll("[data-ag-concluir]").forEach((el) => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const t = d.tarefas.find((x) => x.id === Number(el.dataset.agConcluir));
+      if (t) concluirTarefa(t.id, !t.concluida);
+    };
+  });
+  ligarEntrada(p, "[data-ag-nova-tarefa]", "[data-ag-entrada-tarefa]",
+    (texto) => criarTarefa({ titulo: texto, prazo: ag.dia }));
+  const nota = p.querySelector("[data-ag-nota]");
+  if (nota) nota.onchange = () => {
+    fetch("/api/agenda/nota", { method: "POST", headers: AG_JSON, body: JSON.stringify({ dia: ag.dia, texto: nota.value }) });
+  };
+}
+
+/* Um "+ algo" que vira campo de texto ao clicar. */
+function ligarEntrada(p, ligacao, entrada, criar) {
+  const lig = p.querySelector(ligacao);
+  const ent = p.querySelector(entrada);
+  if (!lig || !ent) return;
+  const campo = ent.querySelector("input");
+  lig.onclick = () => { ent.hidden = false; lig.hidden = true; campo.focus(); };
+  const enviar = () => { if (campo.value.trim()) criar(campo.value.trim()); };
+  ent.querySelector("button").onclick = enviar;
+  campo.onkeydown = (e) => {
+    if (e.key === "Enter") enviar();
+    if (e.key === "Escape") { ent.hidden = true; lig.hidden = false; }
+  };
+}
+
+function pedirLinkDaSala(botao, c) {
+  const corpo = botao.closest(".ag-corpo");
+  if (!corpo || corpo.querySelector("[data-ag-link]")) return;
+  const caixa = document.createElement("span");
+  caixa.className = "ag-entrada";
+  caixa.innerHTML = '<input type="text" data-ag-link="1" placeholder="cole o link do Meet, Zoom ou Teams"><button>Montar convite</button>';
+  corpo.appendChild(caixa);
+  const campo = caixa.querySelector("input");
+  campo.focus();
+  const montar = () => {
+    const link = campo.value.trim();
+    if (!/^https?:\/\//i.test(link)) { avisoCert("isso não parece um link de reunião"); return; }
+    enviarConvite(c.titulo, conviteDe(c, link));
+  };
+  caixa.querySelector("button").onclick = montar;
+  campo.onkeydown = (e) => { if (e.key === "Enter") montar(); if (e.key === "Escape") caixa.remove(); };
+}
+
+function conviteDe(c, link) {
+  return "Olá," + "\n\n" +
+    "Segue o convite para " + c.titulo + ", em " + diaPorExtenso(c.data) + " às " + c.hora +
+    (c.duracao ? " (" + duracaoEmTexto(c.duracao) + ")" : "") + "." +
+    (link ? "\n\n" + link : "") + "\n\n" + "Até lá.";
+}
+
+/* O envio sai pela conta de e-mail da pessoa e passa pela fila de aprovacao,
+   como toda acao que sai da maquina. */
+async function enviarConvite(assunto, corpo) {
   if (!mail.contas) {
     try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; }
   }
   if (!mail.contas || !mail.contas.contas.length) { marcarDestino("caixa"); return mostrarEmail(); }
   mail.conta = mail.contas.contas.find((x) => x.em_uso) || mail.contas.contas[0];
   marcarDestino("caixa");
-  telaEscrever({ assunto: c.titulo, corpo: corpo });
+  telaEscrever({ assunto: assunto, corpo: corpo });
 }
 
-function diaCurto(dia) {
-  const [a, m, d] = dia.split("-").map(Number);
-  const data = new Date(a, m - 1, d);
-  const semana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][data.getDay()];
-  return semana + " " + d + "/" + String(m).padStart(2, "0");
+function copiarTexto(texto, aviso) {
+  navigator.clipboard.writeText(texto).then(
+    () => avisoCert(aviso),
+    () => avisoCert("não consegui copiar"));
+}
+
+function menuNaLinha(botao, itens) {
+  document.querySelectorAll(".menu-conversa.menu-novo").forEach((m) => m.remove());
+  const menu = document.createElement("div");
+  menu.className = "menu-conversa menu-novo";
+  menu.innerHTML = itens.map((it, i) => it === "-"
+    ? '<div class="menu-risco"></div>'
+    : '<button data-i="' + i + '"' + (it.perigo ? ' class="perigo"' : "") + ">" +
+      (it.icone ? ic(it.icone, 18) : "") + esc(it.rotulo) + "</button>").join("");
+  botao.parentElement.appendChild(menu);
+  menu.querySelectorAll("[data-i]").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); menu.remove(); itens[Number(b.dataset.i)].acao(); };
+  });
+  setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
+}
+
+/* ------------------------------------------------ o formulario */
+
+function ligarFormAgenda(p) {
+  const v = ag.form;
+  p.querySelectorAll("[data-ag-tipo]").forEach((b) => {
+    b.onclick = () => {
+      const t = b.dataset.agTipo;
+      if (t === v.tipo) return;
+      if (t === "tarefa") {
+        v.prazo = v.prazo || v.data || ag.dia;
+      } else if (v.tipo === "tarefa") {
+        Object.assign(v, compromissoEmBranco(t), { titulo: v.titulo, data: v.prazo || ag.dia, anotacao: v.anotacao });
+      }
+      v.tipo = t;
+      if (t === "compromisso" && !v.onde) v.onde = "online";
+      desenharPainel();
+    };
+  });
+  p.querySelectorAll("[data-ag-onde]").forEach((b) => {
+    b.onclick = () => {
+      v.onde = b.dataset.agOnde;
+      p.querySelectorAll("[data-ag-onde]").forEach((x) => x.classList.toggle("on", x === b));
+    };
+  });
+  p.querySelectorAll("[data-c]").forEach((el) => {
+    const guardar = () => {
+      v[el.dataset.c] = el.dataset.c === "cadastro_id" ? (Number(el.value) || null) : el.value;
+    };
+    el.oninput = guardar;
+    el.onchange = () => { guardar(); if (el.dataset.c === "data" || el.dataset.c === "duracao") carregarLivres(p); };
+    if (el.tagName === "INPUT") el.onkeydown = (e) => { if (e.key === "Enter") { guardar(); salvarFormAgenda(); } };
+  });
+  const convite = p.querySelector("[data-ag-convite]");
+  if (convite) convite.onclick = () => { v.convite = !v.convite; convite.classList.toggle("on", v.convite); };
+  p.querySelector("[data-ag-salvar]").onclick = salvarFormAgenda;
+  const apagar = p.querySelector("[data-ag-apagar]");
+  if (apagar) apagar.onclick = () => (v.tipo === "tarefa" ? apagarTarefa(v.id) : apagarCompromisso(v));
+  const titulo = p.querySelector('[data-c="titulo"]');
+  if (titulo && !v.titulo) titulo.focus();
+  if (v.tipo !== "tarefa") carregarLivres(p);
+}
+
+/* Os horarios em que cabe: o que era a tela de Agendamento. */
+async function carregarLivres(p) {
+  const alvo = p.querySelector("[data-ag-livres]");
+  if (!alvo) return;
+  const v = ag.form;
+  if (!v.data) { alvo.innerHTML = '<span class="ag-vazio-chip">escolha a data</span>'; return; }
+  alvo.innerHTML = '<span class="ag-vazio-chip">procurando…</span>';
+  let d;
+  try {
+    d = await (await fetch("/api/agenda/livres?dia=" + v.data + "&duracao=" + (Number(v.duracao) || 60))).json();
+  } catch (err) {
+    alvo.innerHTML = "";
+    return;
+  }
+  if (!d.horarios.length) {
+    alvo.innerHTML = '<span class="ag-vazio-chip">nenhum horário livre neste dia com essa duração</span>';
+    return;
+  }
+  alvo.innerHTML = d.horarios.slice(0, 8).map((h) => {
+    const classe = h === v.hora ? "on" : "";
+    return '<button class="' + classe + '" data-ag-livre="' + h + '">' + h + "</button>";
+  }).join("");
+  alvo.querySelectorAll("[data-ag-livre]").forEach((b) => {
+    b.onclick = () => {
+      v.hora = b.dataset.agLivre;
+      const campo = p.querySelector('[data-c="hora"]');
+      if (campo) campo.value = v.hora;
+      alvo.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    };
+  });
+}
+
+async function salvarFormAgenda() {
+  const v = ag.form;
+  const aviso = document.querySelector("[data-ag-aviso]");
+  if (!(v.titulo || "").trim()) { aviso.textContent = "dê um título"; return; }
+  try {
+    if (v.tipo === "tarefa") {
+      const r = await fetch("/api/tarefas", {
+        method: "POST", headers: AG_JSON,
+        body: JSON.stringify({ id: v.id || null, dados: {
+          titulo: v.titulo.trim(), prazo: v.prazo || "", lista: (v.lista || "").trim(),
+          cadastro_id: v.cadastro_id || null, anotacao: v.anotacao || "",
+        } }),
+      });
+      if (!r.ok) throw new Error(await erroDe(r));
+      const t = await r.json();
+      ag.form = null;
+      if (ag.visao === "tarefas") {
+        ag.tar.aberta = t.id;
+        ag.painel = "tarefa";
+      } else {
+        ag.painel = "dia";
+        ag.diaAberto = null;
+        avisoCert("tarefa criada" + (t.prazo ? " para " + dataCurta(t.prazo) : ""));
+      }
+      return mostrarAgenda();
+    }
+
+    const dados = {
+      titulo: v.titulo.trim(), tipo: v.tipo, data: v.data, hora: v.hora || "09:00",
+      duracao: Number(v.duracao) || 60, onde: v.onde || "", cadastro_id: v.cadastro_id || null,
+      anotacao: v.anotacao || "", avisar_min: Number(v.avisar_min) || 0,
+    };
+    const r = await fetch("/api/agenda", {
+      method: "POST", headers: AG_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const c = await r.json();
+    const d = deIso(dados.data);
+    ag.dia = dados.data;
+    ag.diaAberto = null;
+    ag.mes = new Date(d.getFullYear(), d.getMonth(), 1);
+    ag.semana = iso(segundaDe(d));
+    ag.form = null;
+    ag.painel = "dia";
+    await mostrarAgenda();
+    if (v.convite) enviarConvite(c.titulo, conviteDe(c, ""));
+  } catch (err) {
+    aviso.textContent = "não consegui salvar: " + (err.message || err);
+  }
+}
+
+async function apagarCompromisso(c) {
+  if (!confirm("Excluir “" + c.titulo + "”?")) return;
+  await fetch("/api/agenda/" + c.id, { method: "DELETE" });
+  ag.form = null;
+  ag.painel = "dia";
+  ag.diaAberto = null;
+  mostrarAgenda();
+}
+
+/* ------------------------------------------------- a ficha da tarefa */
+
+function ligarFichaDaTarefa(p) {
+  const t = ag.tar.itens.find((x) => x.id === ag.tar.aberta);
+  if (!t) return;
+  p.querySelectorAll("[data-ag-concluir]").forEach((el) => { el.onclick = () => concluirTarefa(t.id, !t.concluida); });
+  const estrela = p.querySelector("[data-ag-estrela]");
+  if (estrela) estrela.onclick = () => marcarImportante(t.id, !t.importante);
+  const fechar = p.querySelector("[data-ag-fechar-tarefa]");
+  if (fechar) fechar.onclick = () => { ag.tar.aberta = null; desenharAgenda(); };
+
+  p.querySelectorAll("[data-ag-etapa]").forEach((el) => {
+    el.onclick = async () => {
+      const e = t.etapas.find((x) => x.id === Number(el.dataset.agEtapa));
+      if (!e) return;
+      await fetch("/api/etapas/" + e.id, { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: !e.feita }) });
+      recarregarAgenda();
+    };
+  });
+  ligarEntrada(p, "[data-ag-nova-etapa]", "[data-ag-entrada-etapa]", async (texto) => {
+    await fetch("/api/tarefas/" + t.id + "/etapas", { method: "POST", headers: AG_JSON, body: JSON.stringify({ titulo: texto }) });
+    recarregarAgenda();
+  });
+  const meuDia = p.querySelector("[data-ag-meu-dia]");
+  if (meuDia) meuDia.onclick = async () => {
+    await fetch("/api/tarefas/" + t.id + "/meu-dia", { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: !t.meu_dia }) });
+    recarregarAgenda();
+  };
+  p.querySelectorAll("[data-ag-campo]").forEach((el) => {
+    el.onchange = () => {
+      const c = el.dataset.agCampo;
+      salvarCamposDaTarefa(t, { [c]: c === "cadastro_id" ? (Number(el.value) || null) : el.value });
+    };
+  });
+  const ligar = p.querySelector("[data-ag-ligar]");
+  if (ligar) ligar.onclick = () => escolherDocumentoParaTarefa(t.id);
+  const cad = p.querySelector("[data-ag-cadastro]");
+  if (cad) cad.onclick = () => { marcarDestino("cadastros"); mostrarCadastros(); };
+  const verDia = p.querySelector("[data-ag-ver-dia]");
+  if (verDia) verDia.onclick = () => {
+    ag.dia = verDia.dataset.agVerDia;
+    const d = deIso(ag.dia);
+    ag.mes = new Date(d.getFullYear(), d.getMonth(), 1);
+    ag.diaAberto = null;
+    mostrarAgenda("mes");
+  };
+  const apagar = p.querySelector("[data-ag-apagar-tarefa]");
+  if (apagar) apagar.onclick = () => apagarTarefa(t.id);
+  carregarVinculosDaTarefa(t.id);
+}
+
+async function criarTarefa(dados) {
+  const r = await fetch("/api/tarefas", { method: "POST", headers: AG_JSON, body: JSON.stringify({ dados: dados }) });
+  if (!r.ok) { avisoCert("não consegui criar: " + await erroDe(r)); return; }
+  ag.diaAberto = null;
+  recarregarAgenda();
+}
+
+async function concluirTarefa(id, valor) {
+  const r = await fetch("/api/tarefas/" + id + "/concluir", { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: valor }) });
+  if (r.ok) {
+    const d = await r.json();
+    if (d.aviso_repeticao) avisoCert("essa tarefa repete — " + d.aviso_repeticao);
+  }
+  ag.diaAberto = null;
+  recarregarAgenda();
+}
+
+async function marcarImportante(id, valor) {
+  await fetch("/api/tarefas/" + id + "/importante", { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: valor }) });
+  recarregarAgenda();
+}
+
+async function salvarCamposDaTarefa(t, mudancas) {
+  const dados = Object.assign({
+    titulo: t.titulo, importante: t.importante, prazo: t.prazo || "", lembrar_em: t.lembrar_em || "",
+    repetir: t.repetir || "", lista: t.lista || "", cadastro_id: t.cadastro_id || null, anotacao: t.anotacao || "",
+  }, mudancas);
+  const r = await fetch("/api/tarefas", { method: "POST", headers: AG_JSON, body: JSON.stringify({ id: t.id, dados: dados }) });
+  if (!r.ok) { avisoCert("não consegui salvar: " + await erroDe(r)); return; }
+  recarregarAgenda();
+}
+
+async function apagarTarefa(id) {
+  const t = ag.tar.itens.find((x) => x.id === id) || ag.form || {};
+  if (!confirm("Excluir a tarefa “" + (t.titulo || "") + "”?")) return;
+  await fetch("/api/tarefas/" + id, { method: "DELETE" });
+  ag.tar.aberta = null;
+  ag.form = null;
+  ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
+  ag.diaAberto = null;
+  recarregarAgenda();
+}
+
+/* O vinculo e pelo conteudo do arquivo: renomear ou mover nao quebra. */
+async function carregarVinculosDaTarefa(id) {
+  const alvo = document.querySelector("[data-ag-vinculos]");
+  if (!alvo) return;
+  let d;
+  try {
+    d = await (await fetch("/api/tarefas/" + id + "/vinculos")).json();
+  } catch (err) {
+    alvo.innerHTML = "";
+    return;
+  }
+  alvo.innerHTML = d.vinculos.length
+    ? d.vinculos.map((v) =>
+        '<div class="ag-ligado">' + glifo(v.nome) + "<span>" + esc(v.nome) + "</span>" +
+        (v.existe ? '<button data-ag-abrir-doc="' + esc(v.caminho) + '">abrir</button>' : '<small class="contagem">fora do acervo</small>') +
+        '<button class="ag-tirar" data-ag-tirar="' + v.id + '" title="Desligar">' + ic("close", 16) + "</button></div>").join("")
+    : "<p>Nenhum documento ligado ainda.</p>";
+  alvo.querySelectorAll("[data-ag-abrir-doc]").forEach((b) => {
+    b.onclick = () => fetch("/api/biblioteca/abrir-pasta", { method: "POST", headers: AG_JSON, body: JSON.stringify({ caminho: b.dataset.agAbrirDoc }) });
+  });
+  alvo.querySelectorAll("[data-ag-tirar]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/vinculos/" + b.dataset.agTirar, { method: "DELETE" });
+      carregarVinculosDaTarefa(id);
+    };
+  });
+}
+
+async function escolherDocumentoParaTarefa(id) {
+  const alvo = document.querySelector("[data-ag-vinculos]");
+  if (!alvo) return;
+  alvo.innerHTML = "<p>lendo o acervo…</p>";
+  let d;
+  try {
+    d = await (await fetch("/api/biblioteca")).json();
+  } catch (err) {
+    alvo.innerHTML = "<p>não consegui ler o acervo.</p>";
+    return;
+  }
+  alvo.innerHTML = '<div class="ag-escolher">' +
+    (d.documentos.length
+      ? d.documentos.slice(0, 40).map((x) =>
+          '<div class="ag-ligado">' + glifo(x.nome) + "<span>" + esc(x.nome) + '</span><button data-ag-liga="' + esc(x.sha1) +
+          '" data-nome="' + esc(x.nome) + '">Ligar</button></div>').join("")
+      : "<p>O acervo está vazio.</p>") + "</div>";
+  alvo.querySelectorAll("[data-ag-liga]").forEach((b) => {
+    b.onclick = async () => {
+      await fetch("/api/tarefas/" + id + "/vincular", {
+        method: "POST", headers: AG_JSON, body: JSON.stringify({ sha1: b.dataset.agLiga, nome: b.dataset.nome }),
+      });
+      carregarVinculosDaTarefa(id);
+    };
+  });
+}
+
+/* ---------------------------------------------- prazos dos documentos */
+
+async function abrirSugestoes() {
+  let s;
+  try {
+    s = (await (await fetch("/api/tarefas/sugestoes")).json()).sugestoes;
+  } catch (err) {
+    avisoCert("não consegui ler os documentos");
+    return;
+  }
+  ag.sugestoes = s;
+  ag.form = null;
+  ag.painel = "sugestoes";
+  desenharPainel();
+}
+
+function ligarSugestoes(p) {
+  p.querySelectorAll("[data-ag-aceitar]").forEach((b) => {
+    b.onclick = async () => {
+      const x = ag.sugestoes[Number(b.dataset.agAceitar)];
+      const r = await fetch("/api/tarefas", {
+        method: "POST", headers: AG_JSON,
+        body: JSON.stringify({ dados: { titulo: x.titulo, prazo: x.prazo, lista: x.lista } }),
+      });
+      if (!r.ok) { avisoCert("não consegui criar: " + await erroDe(r)); return; }
+      b.disabled = true;
+      b.textContent = "criada";
+      ag.diaAberto = null;
+      try { await carregarAgenda(); } catch (err) { return; }
+      tituloDaAgenda();
+    };
+  });
 }
 
 /* ---------------------------------------------------------- destinos */
@@ -5994,7 +6402,7 @@ const ICONE_ANTIGO = {
 };
 
 /* Destinos antigos que ja viraram visao de uma tela nova. */
-const ABSORVIDOS = new Set(["organizar"]);
+const ABSORVIDOS = new Set(["organizar", "agendamento", "tarefas"]);
 
 let DESTINOS = [];
 
@@ -6103,6 +6511,7 @@ function abrirTela(nome, opcoes) {
   $("conversa-col").classList.remove("tela-dupla");
   $("conversa-col").classList.toggle("tela-cheia", Boolean(o.cheia));
   $("acoes-tela").innerHTML = "";
+  $("nav-tela").innerHTML = "";
   mostrarLateral(false);
   fecharFlutuante();
   carregarTrabalhos();
@@ -13399,101 +13808,6 @@ async function ligarConexoes() {
       if (!a.abriu) window.open(d.endereco, "_blank");
     };
   };
-}
-
-/* ------------------------------------------------- vistas do calendário */
-/*
-   Mês, semana e agenda respondem a perguntas diferentes: o mês mostra a
-   distribuição, a semana mostra a hora, a agenda mostra a ordem. Mudam a
-   coluna da esquerda; a coluna do dia é a mesma nas três.
-*/
-
-function vistaSemana() {
-  const g = cal.grade;
-  const base = cal.dia ? new Date(cal.dia + "T12:00:00") : new Date();
-  const segunda = new Date(base);
-  segunda.setDate(base.getDate() - ((base.getDay() + 6) % 7));
-
-  const dias = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(segunda);
-    d.setDate(segunda.getDate() + i);
-    dias.push(d);
-  }
-
-  const hoje = iso(new Date());
-  const nomes = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
-
-  let html = '<div class="semana-grade"><div class="semana-cabeca"></div>';
-  dias.forEach((d, i) => {
-    const chave = iso(d);
-    const fds = i >= 5;
-    html += '<div class="semana-cabeca' + (chave === hoje ? " hoje" : "") + (fds ? " fds" : "") +
-      '">' + nomes[i] + " " + String(d.getDate()).padStart(2, "0") + "</div>";
-  });
-
-  /* Das 7 às 20: fora disso o escritório não marca, e mostrar 24 linhas só
-     empurra o que interessa para fora da vista. */
-  for (let hora = 7; hora <= 20; hora++) {
-    html += '<div class="semana-hora">' + String(hora).padStart(2, "0") + "h</div>";
-    dias.forEach((d, i) => {
-      const chave = iso(d);
-      const naHora = (g.dias[chave] || []).filter(
-        (x) => x.hora && Number(x.hora.split(":")[0]) === hora);
-      html += '<div class="semana-cel' + (i >= 5 ? " fds" : "") +
-        '" data-marcar="' + chave + "T" + String(hora).padStart(2, "0") + ':00">' +
-        naHora.map((x) =>
-          '<span class="semana-marca ' + esc(x.tipo || "compromisso") + '" title="' +
-          esc(x.hora + " " + x.titulo) + '">' + esc(x.titulo) + "</span>").join("") +
-        "</div>";
-    });
-  }
-  html += "</div>";
-
-  /* O que não tem hora não cabe na grade, e some se não for dito. */
-  const semHora = [];
-  dias.forEach((d) => {
-    (g.dias[iso(d)] || []).filter((x) => !x.hora).forEach((x) => semHora.push({ ...x, dia: iso(d) }));
-  });
-  if (semHora.length) {
-    html += '<div class="secao-lista"><span class="rotulo">sem hora marcada · ' + semHora.length +
-      '</span><span class="risco-fino"></span></div>' +
-      '<div class="fila">' + semHora.map((x) =>
-        '<div class="pedido" data-ir-dia="' + esc(x.dia) + '"><div class="pedido-corpo">' +
-        '<div class="pedido-titulo">' + esc(x.titulo) + "</div>" +
-        '<div class="doc-etiquetas"><span class="etiqueta">' + esc(diaCurto(x.dia)) + "</span>" +
-        '<span class="etiqueta">' + esc(x.genero) + "</span></div></div></div>").join("") + "</div>";
-  }
-  return html;
-}
-
-function vistaAgenda() {
-  const g = cal.grade;
-  const chaves = Object.keys(g.dias).sort();
-  if (!chaves.length) {
-    return '<div class="painel"><h3>Nada marcado neste mês</h3>' +
-      '<p class="explica">Compromissos, prazos de tarefa e datas achadas nos documentos ' +
-      "aparecem aqui em ordem.</p></div>";
-  }
-
-  return '<div class="fila">' + chaves.map((chave) =>
-    '<div class="secao-lista"><span class="rotulo">' + esc(diaPorExtenso(chave)) +
-    '</span><span class="risco-fino"></span></div>' +
-    g.dias[chave].map((x) =>
-      '<div class="pedido" data-ir-dia="' + esc(chave) + '"><div class="pedido-corpo">' +
-      '<div class="pedido-titulo">' + (x.hora ? '<b class="num">' + x.hora + "</b> " : "") +
-      esc(x.titulo) + "</div>" +
-      '<div class="doc-etiquetas"><span class="etiqueta">' + esc(x.genero) + "</span>" +
-      (x.detalhe ? '<span class="etiqueta">' + esc(x.detalhe) + "</span>" : "") +
-      "</div></div></div>").join("")
-  ).join("") + "</div>";
-}
-
-function diaPorExtenso(chave) {
-  const [a, m, d] = chave.split("-").map(Number);
-  const data = new Date(a, m - 1, d);
-  const semana = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][data.getDay()];
-  return semana + ", " + d + " de " + MESES_NOME[m - 1];
 }
 
 /* ------------------------------------------------------- códigos de lei */
