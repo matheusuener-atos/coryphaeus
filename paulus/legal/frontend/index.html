@@ -1911,29 +1911,7 @@
     padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
   }
 
-  .ed-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-  .ed-titulo {
-    font: 500 17px var(--sans); border: none; background: none; color: inherit;
-    flex: 1 1 240px; padding: 4px 0; border-bottom: 1px solid transparent; min-width: 0;
-  }
-  .ed-titulo:focus { border-bottom-color: var(--linha-media); }
-
-  .ed-barra {
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-    border: 1px solid var(--linha-media); background: var(--surface-1);
-    padding: 6px 8px; margin-bottom: 12px;
-  }
-  .ed-barra button {
-    padding: 5px 9px; font-size: 12px; min-width: 30px;
-  }
-  .ed-barra select { min-width: 0; flex: 0 0 auto; padding: 5px 8px; }
   .ed-divisa { width: 1px; height: 20px; background: var(--linha-media); margin: 0 4px; }
-
-  .ed-colunas {
-    display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(268px, 0.55fr);
-    gap: 16px; align-items: start;
-  }
-  @media (max-width: 1080px) { .ed-colunas { grid-template-columns: minmax(0, 1fr); } }
 
   /* A folha: largura de A4 com as margens do PDF, para o que se digita
      parecer com o que sai impresso. */
@@ -1957,7 +1935,6 @@
      coluna de 1.154 px um A4 sai a 145% e o corpo 12 vira 23 px na tela: o
      documento fica bonito e se ve menos dele. 960 px sao ~120% de um A4 a 96
      dpi - perto do que se le confortavel, e sobra folego na coluna. */
-  .ed-coluna-folha { max-width: 960px; }
   .ed-papel { position: relative; }
   .ed-quebras { position: absolute; inset: 0; pointer-events: none; }
 
@@ -2020,27 +1997,13 @@
   }
   .ed-folha th { background: var(--papel-realce); font-weight: 600; }
 
-  .ed-estado { font: 500 9.5px var(--mono); letter-spacing: 0.16em; color: var(--ink-3); text-transform: uppercase; }
-  .ed-estado.salvando { color: var(--atencao); }
-
-  .ed-pedido { display: flex; gap: 8px; margin-top: 10px; }
-  .ed-pedido input { flex: 1; min-width: 0; max-width: none; }
-
   .ed-sugestao {
     border: 1px solid var(--acento); background: var(--acento-fraco);
     padding: 12px 14px; margin-top: 12px;
   }
   .ed-sugestao p { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin: 8px 0; }
 
-  .ed-atalhos { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
-  .ed-atalhos button { text-align: left; justify-content: flex-start; font-size: 12.5px; }
-
   /* Pre-visualizacao: o PDF de verdade, desenhado. */
-  .pv-folha { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .pv-folha img {
-    max-width: 100%; height: auto; display: block;
-    border: 1px solid var(--linha-media);
-  }
   .pv-aviso {
     display: flex; align-items: flex-start; gap: 10px;
     padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px; line-height: 1.5;
@@ -2639,6 +2602,230 @@
   .legenda { display: flex; gap: 18px; margin: 12px 0 4px; font-size: 12px; color: var(--ink3); }
   .legenda span { display: flex; align-items: center; gap: 7px; }
   .colunas-pares { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+
+  /* --------------------------------------------------------- documentos */
+  /*
+    Documentos (docs/ui/03-telas-desktop.md, A6): as abas dos arquivos
+    abertos, o seletor Editor · Planilha · Pre-visualizacao, duas barras de
+    ferramentas e o painel de 400 px com a conversa sobre o documento. A folha
+    continua desenhada na escala do PDF (a margem de 2,5 cm e a de verdade);
+    a moldura em volta e que mudou. Prefixo docs- em tudo que e desta tela.
+  */
+  .docs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .docs-corpo { grid-template-columns: minmax(0, 1fr) 400px; }
+  .docs-corpo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
+  .docs-corpo .acervo-principal { padding: 12px 0 14px 20px; gap: 10px; }
+  .docs-corpo.sem-painel .acervo-principal { padding-right: 20px; }
+
+  /* as abas dos documentos abertos */
+  .docs-abas {
+    flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 8px 20px 0; overflow-x: auto;
+    background: var(--bg); border-bottom: 1px solid var(--ink-a1);
+  }
+  .docs-aba, .docs-aba-mais {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px 12px; margin-bottom: -1px; flex: none;
+    border: 1px solid transparent; border-radius: 8px 8px 0 0; background: transparent;
+    font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; max-width: 320px; cursor: pointer;
+  }
+  .docs-aba:hover:not(:disabled), .docs-aba-mais:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
+  .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); font-weight: 600; }
+  .docs-aba .glifo { width: 18px; height: 18px; font-size: 10px; }
+  .docs-aba .glifo.pdf { font-size: 6.5px; }
+  .docs-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .docs-aba small { font: 500 11.5px var(--sans); color: var(--ink3); }
+  .docs-fechar { color: var(--mute2); margin-left: 2px; border-radius: 4px; }
+  .docs-fechar:hover { color: var(--ink); background: var(--fill); }
+  .docs-aba-mais { width: 32px; height: 34px; padding: 0; justify-content: center; }
+  .docs-aba-mais.ativa { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); }
+
+  /* as barras de ferramentas: a de formatar e a juridica */
+  .docs-barra {
+    flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 20px;
+    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12.5px;
+  }
+  .docs-barra.juridica { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+  .docs-barra button {
+    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none;
+  }
+  .docs-barra button:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .docs-barra button.on { background: var(--fill); }
+  .docs-barra button.com-texto { width: auto; padding: 5px 10px; font: 500 12.5px var(--sans); white-space: nowrap; }
+  .docs-barra button.adiante { opacity: .5; }
+  .docs-barra button.docs-chip {
+    width: auto; padding: 4px 8px; border: 1px solid var(--ink-a15); font: 600 12px var(--sans); color: var(--ink2);
+  }
+  .docs-barra button.docs-chip:hover:not(:disabled) { border: 1px solid var(--ink); color: var(--ink); background: none; }
+  .docs-rotulo { font: 500 12px var(--sans); color: var(--ink3); padding-left: 4px; }
+  .docs-sel {
+    height: 28px; padding: 0 28px 0 10px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
+    font: 400 12.5px var(--sans); color: var(--ink); min-width: 0; max-width: none; width: auto; cursor: pointer;
+  }
+  .docs-sel.curta { padding-right: 22px; }
+  .docs-barra.fx { flex-wrap: nowrap; gap: 10px; }
+  .docs-ref { padding: 4px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; font: 600 12.5px var(--sans); white-space: nowrap; }
+  .docs-fx { font: 500 12.5px var(--sans); color: var(--ink3); font-style: italic; }
+  .docs-fx-entrada {
+    flex: 1; min-width: 0; max-width: 100%; border: none; background: none; padding: 4px 0;
+    font: 400 13px var(--mono); color: var(--ink); outline: none;
+  }
+  .docs-fx-nota { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+  .docs-pagina-num { font: 600 12.5px var(--sans); padding: 0 4px; white-space: nowrap; }
+  .docs-nota-direita { margin-left: auto; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+
+  /* o cartao com a folha, a grade ou a pagina */
+  .docs-cartao {
+    flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); overflow: hidden;
+  }
+  .docs-status {
+    flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--ink-a1);
+    background: var(--surf); font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap;
+  }
+  .docs-status .cresce { flex: 1; }
+  .docs-divisa-fina { width: 1px; height: 11px; background: var(--ink-a15); }
+  .docs-ligacao { border: none; background: none; padding: 0; cursor: pointer; font: 500 12.5px var(--sans); color: var(--ink); }
+  .docs-ligacao:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .docs-papel-area { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; }
+  .docs-papel { width: 100%; max-width: 720px; align-self: flex-start; }
+  .docs .ed-regua { margin-bottom: 10px; }
+  .docs .ed-folha {
+    border: 1px solid var(--papel-linha); box-shadow: 0 18px 44px -28px var(--papel-sombra);
+    min-height: 640px;
+  }
+  .docs .rotulo-cartao { display: flex; align-items: center; gap: 8px; }
+  .docs .dupla-cartao .linha-form button.primario { background: var(--btn); color: var(--btnt); border-color: var(--btn); }
+
+  /* a pre-visualizacao: miniaturas e a pagina */
+  .docs-cartao.previa { background: var(--bg); }
+  .docs-previa { flex: 1; min-height: 0; display: flex; }
+  .docs-miniaturas {
+    width: 84px; flex: none; border-right: 1px solid var(--ink-a1); padding: 14px 0; overflow: auto;
+    display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--surf);
+  }
+  .docs-mini {
+    width: 48px; padding: 0; border: 1px solid var(--ink-a1); border-radius: 0; background: var(--surf); flex: none;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding-bottom: 3px; cursor: pointer;
+  }
+  .docs-mini img { width: 100%; height: auto; display: block; opacity: .85; }
+  .docs-mini span { font: 500 10px var(--sans); color: var(--ink3); }
+  .docs-mini:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); }
+  .docs-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surf), 0 0 0 3px var(--ink); }
+  .docs-mini.atual span { color: var(--ink); font-weight: 600; }
+  .docs-pv-rolagem { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; align-items: flex-start; }
+  .docs-pv-rolagem .pv-paginas { width: 100%; max-width: 760px; }
+  .docs-pv-rolagem .pv-paginas.duas { max-width: none; }
+  .docs-pagina { width: 100%; height: auto; display: block; border: 1px solid var(--ink-a1); box-shadow: 0 18px 44px -28px var(--sh-a45); background: var(--papel); }
+
+  /* a grade da planilha dentro do cartao */
+  .docs .pl-caixa { flex: 1; min-height: 0; max-height: none; border: none; overflow: auto; background: var(--surf); }
+  .docs .pl-grade { font-size: 13px; }
+  .docs .pl-grade th, .docs .pl-grade td { border-color: var(--ink-a08); }
+  .docs .pl-grade th {
+    background: var(--bg); color: var(--ink3); font: 500 12px var(--sans); letter-spacing: 0; text-align: left;
+    padding: 8px 12px; height: auto; border-bottom: 1px solid var(--ink-a1);
+  }
+  .docs .pl-grade th.canto { min-width: 44px; }
+  .docs .pl-grade td { height: 34px; }
+  .docs .pl-grade td.cabeca-linha { background: var(--bg); color: var(--ink3); font: 500 12px var(--sans); min-width: 44px; border-right: 1px solid var(--ink-a1); }
+  .docs .pl-grade td.pl-cel { padding: 0 12px; }
+  .docs .pl-grade tr:hover td.pl-cel { background: var(--sub); }
+  .docs .pl-cel.escolhida { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .docs .pl-cel.na-faixa { background: var(--accbg) !important; }
+  .docs .pl-cel.ruim { color: var(--acc); }
+  .docs .pl-cel input { background: var(--surf); }
+  .docs .pl-caixa.congelada tbody tr:first-child td { background: var(--bg); top: 33px; }
+  .docs-filtro-aviso {
+    flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px;
+    border-top: 1px solid var(--ink-a1); background: var(--warnbg); color: var(--warnt); font-size: 12.5px;
+  }
+  .docs-abas-pl {
+    flex: none; display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-top: 1px solid var(--ink-a1);
+    background: var(--surf); font-size: 12.5px; overflow: hidden;
+  }
+  .docs-aba-pl { padding: 5px 12px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap; }
+  .docs-aba-pl:hover:not(:disabled) { background: var(--bg); border: none; color: var(--ink2); }
+  .docs-aba-pl.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
+  .docs-aba-pl-mais { width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink2); display: flex; align-items: center; justify-content: center; }
+  .docs-aba-pl-mais:hover:not(:disabled) { background: var(--bg); border: none; }
+  .docs-abas-pl .docs-ligacao { color: var(--ink3); margin-left: 6px; font-size: 12px; }
+  .docs-selecao { margin-left: 12px; display: flex; gap: 12px; flex-wrap: wrap; font: 500 12px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; white-space: nowrap; }
+  .docs-selecao span:first-child { color: var(--ink); }
+
+  /* o painel: as ferramentas no alto, a conversa embaixo */
+  .docs-painel { display: flex; flex-direction: column; }
+  .docs-ferramenta:empty { display: none; }
+  .docs-ferramenta .painel {
+    margin: 0 !important; padding: 12px 18px; border: none; border-bottom: 1px solid var(--ink-a1);
+    border-radius: 0; background: var(--sub); box-shadow: none;
+  }
+  .docs-ferramenta .painel h3 { font: 600 14px var(--sans); margin: 0 0 6px; }
+  .docs-ferramenta .painel .explica { font-size: 12.5px; }
+  .docs-ferramenta .proposta { margin: 12px 18px; }
+  .docs-ferramenta > p.nota { padding: 12px 18px; }
+  .docs-painel-cabeca {
+    flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px;
+    font: 500 12.5px var(--sans); color: var(--ink3);
+  }
+  .docs-painel-cabeca .cresce { flex: 1; font: 600 14px var(--sans); color: var(--ink); }
+  .docs-conversa { flex: 1; min-height: 120px; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .docs-explica { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); }
+  .docs-bolha { align-self: flex-end; max-width: 90%; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.5; }
+  .docs-resposta { display: grid; gap: 10px; max-width: 95%; font-size: 13.5px; line-height: 1.6; }
+  .docs-resposta p { margin: 0; }
+  .docs-resposta code { font: 600 12.5px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 4px; }
+  .docs-trecho {
+    margin: 0; padding: 8px 12px; border-left: 2px solid var(--acc); background: var(--accbg2);
+    font: 400 14px/1.6 var(--serif); color: var(--ink2);
+  }
+  .docs-resposta-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .docs-resposta-acoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; font-size: 13px; }
+  .docs-acoes-lista { display: grid; gap: 1px; }
+  .docs-acoes-lista button {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+    background: none; text-align: left; font: 400 13.5px var(--sans); color: var(--ink);
+  }
+  .docs-acoes-lista button span { flex: 1; }
+  .docs-acoes-lista button .ic { color: var(--ink3); }
+  .docs-acoes-lista button:hover:not(:disabled) { background: var(--bg); border: none; }
+  .docs-acoes-lista button.adiante { opacity: .5; }
+  .docs-chips { flex: none; margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-top: 1px solid var(--ink-a1); }
+  .docs-chips button { padding: 6px 11px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .docs-chips button:hover:not(:disabled) { background: var(--act); border: none; }
+  .docs-chips button.adiante { opacity: .5; }
+  .docs-pedido { flex: none; padding: 10px 18px 14px; display: grid; gap: 8px; }
+  .docs-pedido-linha { display: flex; align-items: center; gap: 10px; }
+  .docs-pedido input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; height: 40px; padding: 10px 12px;
+    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); color: var(--ink); font: 400 13.5px var(--sans); outline: none;
+  }
+  .docs-pedido input[type=text]:focus { border-color: var(--ink-a35); }
+  .docs-pedido .enviar { margin-left: 0; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; flex: none; }
+  .docs-pedido small { font: 500 12px var(--sans); color: var(--ink3); }
+  .docs-sinc { display: inline-flex; align-items: center; gap: 6px; color: var(--okt); }
+  .docs-sinc i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--verde); }
+  .docs-sinc.atencao { color: var(--acc); }
+  .docs-sinc.atencao i { background: var(--acc); }
+  .conversa-topo .meta .salvando { color: var(--warnt); }
+  .docs-toggles { padding: 4px 18px 12px; display: grid; gap: 10px; }
+  .docs-aviso { display: flex; gap: 10px; align-items: flex-start; }
+  .docs-aviso i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); margin-top: 6px; flex: none; }
+  .docs-aviso.impede i { background: var(--acc); }
+  .docs-aviso.confira i { background: var(--ambar); }
+  .docs-aviso.ok i { background: var(--verde); }
+  .docs-aviso span { display: grid; gap: 2px; min-width: 0; }
+  .docs-aviso b { font-weight: 400; font-size: 13.5px; line-height: 1.5; }
+  .docs-aviso small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .docs-aviso-acoes { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+  .docs-aviso-acoes .docs-ligacao { color: var(--ink2); }
+  .docs-aviso-acoes .primario { margin-left: auto; padding: 7px 12px; font-size: 13px; }
+  .docs-versoes { display: grid; gap: 1px; }
+  .docs-versao { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .docs-versao:hover, .docs-versao.atual { background: var(--bg); }
+  .docs-versao b { font-weight: 600; min-width: 26px; }
+  .docs-versao span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
+  .docs-versao small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .colunas-docs { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 70px 130px 28px; }
 
   /* ------------------------------------------------------- responsivo */
 
@@ -6402,7 +6589,7 @@ const ICONE_ANTIGO = {
 };
 
 /* Destinos antigos que ja viraram visao de uma tela nova. */
-const ABSORVIDOS = new Set(["organizar", "agendamento", "tarefas"]);
+const ABSORVIDOS = new Set(["organizar", "agendamento", "tarefas", "planilha"]);
 
 let DESTINOS = [];
 
@@ -11564,251 +11751,813 @@ function depoisDoEnvio(d) {
 
 /* ------------------------------------------- escrita (C1, C2, C3) */
 /*
-   Editor, pré-visualização e planilha. O editor guarda HTML porque é o que um
-   campo editável do navegador produz sem biblioteca nenhuma; o servidor
-   transforma isso em blocos, e é dos blocos que saem o PDF e o DOCX — um só
-   conteúdo, dois formatos, sem divergir.
+   Documentos (docs/ui/03-telas-desktop.md, A6): as abas dos documentos
+   abertos no topo, o seletor Editor · Planilha · Pre-visualizacao, duas
+   barras de ferramentas (a de formatar e a juridica) e o painel de 400 px
+   com a conversa sobre o documento. O editor guarda HTML porque e o que um
+   campo editavel do navegador produz sem biblioteca nenhuma; o servidor
+   transforma isso em blocos, e e dos blocos que saem o PDF e o DOCX - um so
+   conteudo, dois formatos, sem divergir.
 */
 
 const escr = {
   doc: null, versoes: [], sugestao: null, salvando: false, relogio: null,
   pl: null, aba: 0, celula: "A1", editando: null,
+  visao: "editor",        // editor | planilha | previa
+  abas: [],               // os documentos abertos, na ordem das abas
+  atual: null,            // id da aba ativa; null e a lista de documentos
+  lista: [],              // /api/documentos
+  largo: false,
+  conversas: {},          // a conversa do painel, por documento
+  pendente: null, antes: null, ocupada: false, guardarAoSair: true,
+  previa: null, filtro: null, notaFormula: "", ouvindo: false, regua: false,
 };
+
+const GLIFO_DO_TIPO = { texto: ["docx", "W"], planilha: ["xlsx", "X"], pdf: ["pdf", "PDF"] };
+const ROTULO_DA_VISAO = { editor: "Editor", planilha: "Planilha", previa: "Pré-visualização" };
 
 /* ------------------------------------------------- lista de documentos */
 
-async function mostrarEditor() { listaDocumentos("texto", "Editor de texto"); }
-async function mostrarPlanilha() { listaDocumentos("planilha", "Planilha"); }
+async function mostrarEditor() { return mostrarDocumentos("editor"); }
+async function mostrarPlanilha() { return mostrarDocumentos("planilha"); }
 
-async function listaDocumentos(tipo, nome) {
-  abrirTela(nome);
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+/* Quem chamava a lista antiga cai na tela nova sem aba aberta. */
+async function listaDocumentos(tipo) {
+  escr.atual = null;
+  lembrarAbas();
+  return mostrarDocumentos(tipo === "planilha" ? "planilha" : "editor");
+}
 
-  let d;
+async function abrirDocumento(id) {
+  abrirAba({ id: id, titulo: tituloNaLista(id) || "Documento", tipo: "texto" });
+  return mostrarDocumentos("editor");
+}
+
+async function abrirPlanilha(id) {
+  abrirAba({ id: id, titulo: tituloNaLista(id) || "Planilha", tipo: "planilha" });
+  return mostrarDocumentos("planilha");
+}
+
+async function mostrarPrevia(id) {
+  abrirAba({ id: id, titulo: tituloNaLista(id) || "Documento", tipo: "texto" });
+  return mostrarDocumentos("previa");
+}
+
+function tituloNaLista(id) {
+  const x = escr.lista.find((d) => d.id === id);
+  return x ? x.titulo : "";
+}
+
+/* As abas sobrevivem a fechar o programa: reabrir os mesmos documentos e o
+   que a pessoa espera de um editor. */
+function lembrarAbas() {
   try {
-    d = await (await fetch("/api/documentos?tipo=" + tipo)).json();
+    localStorage.setItem("paulus.docs.abas", JSON.stringify({ abas: escr.abas, atual: escr.atual }));
+  } catch (err) { /* sem armazenamento, sem memoria - a tela continua */ }
+}
+
+function recuperarAbas() {
+  if (escr.abas.length || escr.abasLidas) return;
+  escr.abasLidas = true;
+  try {
+    const d = JSON.parse(localStorage.getItem("paulus.docs.abas") || "null");
+    if (d && Array.isArray(d.abas)) { escr.abas = d.abas; escr.atual = d.atual; }
+  } catch (err) { escr.abas = []; }
+}
+
+function abaAtual() {
+  return escr.abas.find((a) => a.id === escr.atual) || null;
+}
+
+function abrirAba(aba) {
+  recuperarAbas();
+  const existe = escr.abas.find((a) => a.id === aba.id);
+  if (existe) Object.assign(existe, aba); else escr.abas.push(aba);
+  escr.atual = aba.id;
+  lembrarAbas();
+}
+
+function fecharAba(id) {
+  const i = escr.abas.findIndex((a) => a.id === id);
+  if (i < 0) return;
+  escr.abas.splice(i, 1);
+  if (escr.atual === id) {
+    const proxima = escr.abas[i] || escr.abas[i - 1];
+    escr.atual = proxima ? proxima.id : null;
+  }
+  lembrarAbas();
+}
+
+async function mostrarDocumentos(visao) {
+  abrirTela("Documentos", { cheia: true });
+  marcarDestino("editor");
+  recuperarAbas();
+  if (visao) escr.visao = visao;
+
+  const centro = $("centro");
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  try {
+    escr.lista = (await (await fetch("/api/documentos")).json()).documentos;
+    escr.abas.forEach((a) => { const t = tituloNaLista(a.id); if (t) a.titulo = t; });
+    await carregarDocumentoAtual();
   } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
+      esc(String(err)) + "</p></div></div>";
+    return;
+  }
+  desenharDocumentos();
+  atualizarPostura();
+}
+
+/* O que a aba ativa precisa do servidor. Uma aba cujo documento foi apagado
+   fecha sozinha em vez de mostrar erro. */
+async function carregarDocumentoAtual() {
+  const aba = abaAtual();
+  if (!aba) { escr.atual = null; return; }
+
+  if (aba.tipo === "pdf") return;
+
+  if (aba.tipo === "planilha") {
+    escr.visao = "planilha";
+    const r = await fetch("/api/planilha/" + aba.id);
+    if (!r.ok) { fecharAba(aba.id); return carregarDocumentoAtual(); }
+    const pl = await r.json();
+    if (!escr.pl || escr.pl.id !== pl.id) { escr.aba = 0; escr.celula = "A1"; escr.ancora = null; escr.filtro = null; escr.notaFormula = ""; }
+    escr.pl = pl;
+    aba.titulo = pl.titulo;
     return;
   }
 
-  const ehTexto = tipo === "texto";
-  let html = '<div class="catalogo"><div class="tela-topo">' +
-    "<div><h2>" + esc(nome) + "</h2>" +
-    '<span class="rotulo">' + (d.documentos.length ?plural(d.documentos.length, "arquivo") + " aqui" : "nada criado ainda") +
-    "</span></div>" +
-    '<div class="tela-acoes"><button class="primario" id="doc-novo">' +
-    (ehTexto ? "Novo documento" : "Nova planilha") + "</button></div></div>";
+  if (escr.visao === "planilha") escr.visao = "editor";
+  const r = await fetch("/api/documentos/" + aba.id);
+  if (!r.ok) { fecharAba(aba.id); return carregarDocumentoAtual(); }
+  const doc = await r.json();
+  if (!escr.doc || escr.doc.id !== doc.id) { escr.sugestao = null; escr.pendente = null; escr.antes = null; escr.notas = null; escr.paginacao = null; }
+  escr.doc = doc;
+  aba.titulo = doc.titulo;
 
-  if (d.documentos.length) {
-    html += '<div class="painel">' + d.documentos.map((x) =>
-      '<div class="doc-lista-linha"><span class="cresce corta">' + esc(x.titulo) + "</span>" +
-      (x.cadastro_nome ? '<span class="num">' + esc(x.cadastro_nome) + "</span>" : "") +
-      '<span class="doc-versao">v' + x.versao + "</span>" +
-      '<span class="num">' + esc(quandoCurto(x.atualizado_em)) + "</span>" +
-      (ehTexto ? '<button data-conversar="' + x.id + '">Abrir com a conversa</button>' : "") +
-      '<button data-abrir="' + x.id + '">Abrir</button>' +
-      '<button class="perigo" data-apagar="' + x.id + '">Apagar</button></div>'
-    ).join("") + "</div>";
+  if (escr.visao === "previa") {
+    const c = await fetch("/api/documentos/" + aba.id + "/conferir");
+    if (!c.ok) throw new Error(await erroDe(c));
+    const dados = await c.json();
+    const antes = escr.previa && escr.previa.id === aba.id ? escr.previa : { pagina: 1, duas: false, cheia: false };
+    escr.previa = { id: aba.id, pagina: Math.min(antes.pagina || 1, dados.paginas || 1), duas: antes.duas, cheia: antes.cheia, dados: dados };
+    try { escr.versoes = (await (await fetch("/api/documentos/" + aba.id + "/versoes")).json()).versoes; } catch (err) { escr.versoes = []; }
+  }
+}
+
+/* ---------------------------------------------------------- a tela */
+
+function desenharDocumentos() {
+  const aba = abaAtual();
+  cabecalhoDocumentos(aba);
+
+  let barras = "", principal, painel;
+  if (!aba) {
+    principal = listaDeDocumentos();
+    painel = painelDaLista();
+  } else if (aba.tipo === "pdf") {
+    barras = barrasDoPdf(aba);
+    principal = visorDoPdf(aba);
+    painel = painelDoPdf(aba);
+  } else if (escr.visao === "previa") {
+    barras = barrasDaPrevia();
+    principal = folhaDaPrevia();
+    painel = painelDaPrevia();
+  } else if (aba.tipo === "planilha") {
+    barras = barrasDaPlanilha();
+    principal = cartaoDaPlanilha();
+    painel = painelDaPlanilha();
   } else {
-    html += '<div class="painel"><h3>' +
-      (ehTexto ? "Nenhum documento ainda" : "Nenhuma planilha ainda") + "</h3>" +
-      '<p class="explica">' +
-      (ehTexto
-        ? "O ganho aqui não é o editor — o Word já existe. É o assistente escrevendo dentro do documento, com os seus cadastros e a sua biblioteca do lado, e a conferência antes de o arquivo sair."
-        : "Fórmulas em português, do jeito que você escreve no Excel: ponto e vírgula separa argumento e vírgula é decimal.") +
-      "</p></div>";
+    barras = barrasDoEditor();
+    principal = cartaoDoEditor();
+    painel = painelDoEditor();
   }
 
-  html += '<div class="rodape-tela">' +
-    (ehTexto ? "documento gravado na sua máquina" : "planilha gravada na sua máquina") + "</div></div>";
-  centro.innerHTML = html;
+  const cheia = escr.visao === "previa" && escr.previa && escr.previa.cheia && aba && aba.tipo === "texto";
+  const classe = "acervo docs-corpo" + (cheia ? " sem-painel" : (escr.largo ? " painel-largo" : ""));
+  $("centro").innerHTML = '<div class="docs" id="docs">' + abasDosDocumentos() + barras +
+    '<div class="' + classe + '" id="docs-corpo"><div class="acervo-principal">' + principal + "</div>" +
+    (cheia ? "" : painel) + "</div></div>";
+  ligarDocumentos(aba);
+}
 
-  $("doc-novo").onclick = async () => {
-    const titulo = prompt(ehTexto ? "Nome do documento:" : "Nome da planilha:",
-      ehTexto ? "Documento sem título" : "Planilha sem título");
-    if (titulo === null) return;
-    const novo = await (await fetch("/api/documentos", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titulo: titulo, tipo: tipo }),
-    })).json();
-    ehTexto ? mostrarDupla(novo.id) : abrirPlanilha(novo.id);
+function desenharEditor() { desenharDocumentos(); }
+
+function cabecalhoDocumentos(aba) {
+  const titulo = $("conversa-titulo");
+  const meta = $("conversa-meta");
+  titulo.textContent = aba ? aba.titulo : "Documentos";
+  titulo.title = aba && aba.tipo !== "pdf" ? "Clique duas vezes para renomear" : "";
+  titulo.ondblclick = aba && aba.tipo !== "pdf" ? () => renomearDocumento(aba) : null;
+
+  if (!aba) {
+    const textos = escr.lista.filter((d) => d.tipo !== "planilha").length;
+    meta.textContent = plural(textos, "documento") + " · " + plural(escr.lista.length - textos, "planilha");
+  } else if (aba.tipo === "pdf") {
+    meta.textContent = "só leitura · " + (aba.paginas ? plural(aba.paginas, "página") : "PDF do Acervo");
+  } else if (escr.visao === "previa" && escr.previa) {
+    const d = escr.previa.dados;
+    meta.innerHTML = "Versão " + d.versao + " · " + plural(d.paginas, "página") + " · A4 · " +
+      '<span class="docs-sinc' + (d.impedem ? " atencao" : "") + '"><i></i>' +
+      (d.impedem ? plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span>";
+  } else if (aba.tipo === "planilha") {
+    const p = escr.pl;
+    const res = p.resumos[escr.aba] || {};
+    meta.innerHTML = '<span id="pl-estado">v' + p.versao + " · " + plural(p.abas.length, "aba") + "</span> · " +
+      '<span class="docs-sinc' + (res.erros ? " atencao" : "") + '"><i></i>' +
+      (res.erros ? plural(res.erros, "erro") + " de cálculo" : "cálculos em dia") + "</span>";
+  } else {
+    const d = escr.doc;
+    const c = d.contagem || { palavras: 0 };
+    meta.innerHTML = '<span id="ed-estado">v' + d.versao + " · " + plural(c.palavras, "palavra") + "</span> · " +
+      '<span id="ed-paginas">' + plural(d.paginacao ? d.paginacao.paginas : 1, "página") + "</span> · " +
+      '<span class="docs-sinc"><i></i>salvando sozinho</span>';
+  }
+
+  const visoes = (aba && aba.tipo === "pdf") ? "" : escr.visao;
+  const botao = (v) => {
+    const classe = v === visoes ? "ativa" : "";
+    return '<button class="' + classe + '" data-docs-visao="' + v + '">' + ROTULO_DA_VISAO[v] + "</button>";
   };
+  let acoes;
+  if (!aba) {
+    acoes = '<div class="com-menu"><button class="primario com-icone" id="doc-novo">' + ic("add", 16) + "Novo" + ic("expand_more", 16) + "</button></div>";
+  } else if (aba.tipo === "pdf") {
+    acoes = '<button class="com-icone" id="doc-editar-copia">' + ic("edit", 16) + "Abrir para editar</button>";
+  } else if (escr.visao === "previa") {
+    acoes = '<button class="com-icone" id="pv-comparar">' + ic("difference", 16) + "Comparar versões</button>" +
+      '<button class="primario com-icone" id="pv-assinar">' + ic("draw", 16) + "Assinar</button>";
+  } else if (aba.tipo === "planilha") {
+    acoes = '<button class="com-icone" id="pl-importar-b">' + ic("upload", 16) + "Importar CSV</button>" +
+      '<button class="com-icone" id="pl-xlsx">' + ic("download", 16) + "Baixar XLSX</button>" +
+      '<button class="primario com-icone" id="pl-guardar">' + ic("inventory_2", 16) + "Salvar no Acervo</button>" +
+      '<input type="file" id="pl-arquivo" accept=".csv,.xlsx,.txt" hidden>';
+  } else {
+    acoes = '<button class="com-icone" id="ed-versoes">' + ic("history", 16) + "Histórico</button>" +
+      '<button class="com-icone" id="ed-imprimir">' + ic("print", 16) + "Imprimir</button>" +
+      '<button class="primario com-icone" id="ed-pdf">' + ic("picture_as_pdf", 16) + "Exportar PDF</button>";
+  }
+  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("editor") + botao("planilha") + "</div>" +
+    '<div class="visoes">' + botao("previa") + "</div>" + acoes;
+  $("nav-tela").innerHTML = "";
+}
 
-  document.querySelectorAll("[data-abrir]").forEach((b) => {
-    b.onclick = () => (ehTexto ? abrirDocumento(Number(b.dataset.abrir)) : abrirPlanilha(Number(b.dataset.abrir)));
-  });
-  document.querySelectorAll("[data-conversar]").forEach((b) => {
-    b.onclick = () => mostrarDupla(Number(b.dataset.conversar));
-  });
-  document.querySelectorAll("[data-apagar]").forEach((b) => {
-    b.onclick = async () => {
-      if (!confirm("Apagar este arquivo e todo o histórico de versões? Não dá para desfazer.")) return;
-      await fetch("/api/documentos/" + b.dataset.apagar, { method: "DELETE" });
-      listaDocumentos(tipo, nome);
-    };
-  });
-  atualizarPostura();
+function renomearDocumento(aba) {
+  const nome = prompt("Nome do documento:", aba.titulo);
+  if (nome === null || !nome.trim()) return;
+  aba.titulo = nome.trim();
+  const campo = $("ed-titulo");
+  if (campo) { campo.value = aba.titulo; marcarSujo(); }
+  else if (escr.pl && escr.pl.id === aba.id) {
+    escr.pl.titulo = aba.titulo;
+    fetch("/api/documentos/" + aba.id, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corpo: corpoDaPlanilha(), titulo: aba.titulo }),
+    });
+  }
+  lembrarAbas();
+  $("conversa-titulo").textContent = aba.titulo;
+  const botao = document.querySelector('[data-docs-aba="' + aba.id + '"] .docs-aba-nome');
+  if (botao) botao.textContent = aba.titulo;
+}
+
+function glifoDaAba(aba) {
+  const g = GLIFO_DO_TIPO[aba.tipo] || GLIFO_DO_TIPO.texto;
+  const classe = "glifo " + g[0];
+  return '<span class="' + classe + '">' + g[1] + "</span>";
+}
+
+function abasDosDocumentos() {
+  const abas = escr.abas.map((a) => {
+    const classe = "docs-aba" + (a.id === escr.atual ? " ativa" : "");
+    return '<button class="' + classe + '" data-docs-aba="' + esc(String(a.id)) + '" title="' + esc(a.titulo) + '">' +
+      glifoDaAba(a) + '<span class="docs-aba-nome">' + esc(a.titulo) + "</span>" +
+      (a.tipo === "pdf" ? "<small>só leitura</small>" : "") +
+      '<span class="ic ic-16 docs-fechar" data-docs-fechar="' + esc(String(a.id)) + '" title="Fechar">close</span></button>';
+  }).join("");
+  const classe = "docs-aba-mais" + (escr.atual === null ? " ativa" : "");
+  return '<div class="docs-abas">' + abas +
+    '<button class="' + classe + '" data-docs-lista="1" title="Abrir ou criar um documento">' + ic("add", 18) + "</button></div>";
+}
+
+/* ----------------------------------------------------- a lista */
+
+function listaDeDocumentos() {
+  const filtro = escr.visao === "planilha" ? "planilha" : (escr.visao === "editor" ? "texto" : "");
+  const itens = escr.lista.filter((d) => !filtro || d.tipo === filtro);
+  const linhas = itens.map((d) => {
+    const g = GLIFO_DO_TIPO[d.tipo === "planilha" ? "planilha" : "texto"];
+    const classe = "glifo " + g[0];
+    return '<div class="tabela-linha colunas-docs" data-doc-abrir="' + d.id + '" data-doc-tipo="' + esc(d.tipo) + '">' +
+      '<span class="nome-doc"><span class="' + classe + '">' + g[1] + '</span><span class="duas-linhas"><b>' + esc(d.titulo) + "</b>" +
+      "<small>" + (d.tipo === "planilha" ? "planilha" : "documento de texto") + "</small></span></span>" +
+      '<span class="quando-doc">' + esc(d.cadastro_nome || "—") + "</span>" +
+      '<span class="quando-doc">v' + d.versao + "</span>" +
+      '<span class="quando-doc">' + esc(quandoCurto(d.atualizado_em)) + "</span>" +
+      '<button class="mais-linha" data-doc-mais="' + d.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
+  }).join("");
+  return '<div class="tabela-cartao"><div class="tabela-barra">' +
+    '<span class="selecao">' + plural(itens.length, "arquivo") + "</span>" +
+    '<div class="direita"><div class="visoes">' + [["texto", "Textos"], ["planilha", "Planilhas"]].map(([t, r]) => {
+      const classe = t === filtro ? "ativa" : "";
+      return '<button class="' + classe + '" data-doc-filtro="' + t + '">' + r + "</button>";
+    }).join("") + "</div></div></div>" +
+    '<div class="tabela-cabecalho colunas-docs"><span>Documento</span><span>Cliente</span><span>Versão</span><span>Atualizado</span><span></span></div>' +
+    '<div class="tabela-corpo">' + (linhas || '<div class="ag-vazio"><h4>' +
+      (filtro === "planilha" ? "Nenhuma planilha ainda" : "Nenhum documento ainda") + "</h4><p>" +
+      (filtro === "planilha"
+        ? "Fórmulas em português, do jeito que você escreve no Excel: ponto e vírgula separa argumento e vírgula é decimal."
+        : "O ganho aqui não é o editor — o Word já existe. É o assistente escrevendo dentro do documento, com os seus cadastros e o Acervo do lado, e a conferência antes de o arquivo sair.") +
+      "</p></div>") + "</div>" +
+    '<div class="tabela-rodape"><span>gravados na sua máquina</span></div></div>';
+}
+
+function painelDaLista() {
+  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Comece por aqui</h3><span class="meta">criar, abrir ou trazer do Acervo</span></span></div>' +
+    '<div class="painel-acoes"><button class="primario" data-doc-criar="texto">' + ic("description", 16) + "Novo documento</button>" +
+    '<button data-doc-criar="planilha">' + ic("table", 16) + "Nova planilha</button>" +
+    '<button data-doc-importar="1">' + ic("inventory_2", 16) + "Abrir do Acervo</button></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que acontece aqui</span></div>' +
+    "<p>O assistente escreve dentro do documento e marca o que mexeu; você decide se fica. Cláusulas do escritório, qualificação das partes e os códigos instalados entram sem sair da tela.</p>" +
+    "<p>Um arquivo do Acervo abre como cópia editável: o original que já foi assinado ou enviado não é tocado. PDF abre só para leitura.</p></div>" +
+    "</div></aside>";
+}
+
+function alcaDosDocumentos() {
+  return '<button class="alca-painel" data-docs-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
+    ic(escr.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
+}
+
+/* Os paineis de ferramenta que o motor ja tinha (historico, clausulas, quadro,
+   folha, alteracoes, conferencia, notas, codigos) desenham aqui, no alto do
+   painel, cada um no seu lugar de sempre. */
+function regioesDeFerramenta() {
+  return '<div class="docs-ferramenta" id="ed-abaixo"></div><div class="docs-ferramenta" id="pv-abaixo"></div><div class="docs-ferramenta" id="pl-abaixo"></div>';
 }
 
 /* --------------------------------------------------- C1: editor de texto */
 
-async function abrirDocumento(id) {
-  abrirTela("Editor de texto");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
-
-  const r = await fetch("/api/documentos/" + id);
-  if (!r.ok) { centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>"; return; }
-
-  escr.doc = await r.json();
-  escr.sugestao = null;
-  desenharEditor();
+function barrasDoEditor() {
+  const f = escr.doc.formato || {};
+  const icone = (cmd, nome, titulo) => '<button data-cmd="' + cmd + '" title="' + titulo + '">' + ic(nome, 18) + "</button>";
+  return '<div class="docs-barra">' +
+    '<select class="docs-sel" id="ed-bloco" title="Estilo do parágrafo"><option value="p">Corpo do texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>' +
+    '<select class="docs-sel" id="ed-fonte" title="Fonte"><option value="serifada"' + (f.fonte === "sem-serifa" ? "" : " selected") + '>Times</option><option value="sem-serifa"' + (f.fonte === "sem-serifa" ? " selected" : "") + ">Arial</option></select>" +
+    '<select class="docs-sel curta" id="ed-corpo" title="Corpo">' + [11, 12, 13].map((n) => '<option value="' + n + '"' + (Number(f.corpo || 12) === n ? " selected" : "") + ">" + n + "</option>").join("") + "</select>" +
+    '<span class="divisa-v"></span>' +
+    icone("undo", "undo", "Desfazer") + icone("redo", "redo", "Refazer") +
+    '<span class="divisa-v"></span>' +
+    icone("bold", "format_bold", "Negrito") + icone("italic", "format_italic", "Itálico") +
+    icone("underline", "format_underlined", "Sublinhado") + icone("strikeThrough", "strikethrough_s", "Tachado") +
+    '<span class="divisa-v"></span>' +
+    icone("justifyFull", "format_align_justify", "Justificar") + icone("insertUnorderedList", "format_list_bulleted", "Lista") +
+    icone("insertOrderedList", "format_list_numbered", "Numeração") + icone("indent", "format_indent_increase", "Recuar") +
+    '<button id="ed-quadro" title="Quadro">' + ic("table", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="ed-alteracoes">' + ic("difference", 16) + "Controlar alterações</button>" +
+    '<button class="com-texto" id="ed-comentar" title="Comentar o trecho selecionado">' + ic("rate_review", 16) + "Comentar</button>" +
+    "</div>" +
+    '<div class="docs-barra juridica">' +
+    '<span class="docs-rotulo">Códigos</span>' +
+    ["cc", "cpc", "cp", "clt"].map((c) => '<button class="docs-chip" data-codigo="' + c + '">' + c.toUpperCase() + "</button>").join("") +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="ed-codigos">' + ic("format_quote", 16) + "Inserir citação</button>" +
+    '<button class="com-texto adiante" data-adiante="jurisprudência">' + ic("gavel", 16) + "Jurisprudência</button>" +
+    '<button class="com-texto adiante" data-adiante="súmulas">' + ic("menu_book", 16) + "Súmulas</button>" +
+    '<button class="com-texto" id="ed-clausulas">' + ic("library_books", 16) + "Cláusulas</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="ed-numerar">' + ic("format_list_numbered", 16) + "Numerar</button>" +
+    '<button class="com-texto" id="ed-refs">' + ic("link", 16) + "Ref. cruzada</button>" +
+    '<button class="com-texto" id="ed-conferir">' + ic("event_upcoming", 16) + "Conferir prazos</button>" +
+    '<button class="com-texto" id="ed-qualificar">' + ic("groups", 16) + "Partes</button>" +
+    "</div>";
 }
 
-function desenharEditor() {
+function cartaoDoEditor() {
   const d = escr.doc;
-  const c = d.contagem || { palavras: 0 };
+  return '<div class="docs-cartao">' +
+    '<div class="docs-status"><span id="ed-regua-fim">A4 · margens 2,5 cm</span><span class="cresce"></span>' +
+    '<button class="docs-ligacao" id="ed-regua-botao">' + (escr.regua ? "Esconder a régua" : "Régua") + "</button>" +
+    '<span class="docs-divisa-fina"></span><button class="docs-ligacao" id="ed-formato">Folha</button></div>' +
+    '<div class="docs-papel-area"><div class="docs-papel">' +
+    '<div class="ed-regua" id="ed-regua"' + (escr.regua ? "" : " hidden") + '><div class="ed-regua-barra"><span class="ed-regua-margem" style="width:11.9%"></span>' +
+    '<span class="ed-regua-texto"></span><span class="ed-regua-margem" style="width:11.9%"></span></div>' +
+    '<div class="ed-regua-legenda"><span>a folha, na escala do PDF</span><span>2,5 cm de cada lado</span></div></div>' +
+    '<div class="ed-papel"><div class="ed-folha" id="ed-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
+    '<div class="ed-quebras" id="ed-quebras"></div><div class="ed-notas" id="ed-notas"></div></div>' +
+    '<input type="text" id="ed-titulo" value="' + esc(d.titulo) + '" hidden><span id="ed-paginas-nota" hidden></span>' +
+    "</div></div></div>";
+}
 
-  let html = '<div class="catalogo"><div class="ed-topo">' +
-    '<input class="ed-titulo" id="ed-titulo" value="' + esc(d.titulo) + '">' +
-    '<span class="ed-estado" id="ed-estado">v' + d.versao + " · " + c.palavras + " palavras</span>" +
-    '<button id="ed-versoes">Histórico</button>' +
-    '<button id="ed-previa">Pré-visualizar</button>' +
-    '<button class="primario" id="ed-guardar">Salvar na biblioteca</button>' +
-    '<button id="ed-voltar">Voltar</button></div>';
+function painelDoEditor() {
+  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+    '<div class="docs-painel-cabeca">' + coroa(18) + '<span class="cresce">Pedir aqui</span><span id="ed-sobre">sobre o documento</span></div>' +
+    '<div class="docs-conversa" id="ed-fala">' + falasDoDocumento(conversaAtual()) + "</div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que eu posso fazer</span></div><div class="docs-acoes-lista">' +
+    '<button data-ed-fazer="Revisar a redação deste trecho"><span>Revisar a redação deste trecho</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-ed-fazer="Padronizar este documento com as cláusulas do escritório"><span>Padronizar com o modelo do escritório</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-ed-conferir="1"><span>Conferir prazos e datas do documento</span>' + ic("chevron_right", 16) + "</button></div></div>" +
+    '<div class="docs-chips"><button class="adiante" data-adiante="jurisprudência">Buscar jurisprudência</button>' +
+    '<button data-ed-citar="1">Citar artigo</button>' +
+    '<button data-ed-fazer="Reescrever este trecho com mais clareza">Reescrever trecho</button>' +
+    '<button data-ed-fazer="Deixar mais formal">Deixar mais formal</button></div>' +
+    '<div class="docs-pedido"><div class="docs-pedido-linha"><input type="text" id="ed-pedido" placeholder="Peça uma alteração ou uma pesquisa…">' +
+    '<button class="enviar" id="ed-pedir" aria-label="Enviar">' + ic("arrow_forward", 18) + "</button></div>" +
+    "<small>Busca nas bases locais; nada é consultado na internet sem você pedir.</small></div>" +
+    "</div></aside>";
+}
 
-  html += '<div class="ed-barra">' +
-    '<select id="ed-bloco">' +
-    '<option value="p">Corpo do texto</option>' +
-    '<option value="h1">Título 1</option>' +
-    '<option value="h2">Título 2</option>' +
-    '<option value="h3">Título 3</option></select>' +
-    '<span class="ed-divisa"></span>' +
-    '<button data-cmd="bold"><b>B</b></button>' +
-    '<button data-cmd="italic"><i>I</i></button>' +
-    '<button data-cmd="underline"><u>U</u></button>' +
-    '<button data-cmd="strikeThrough"><s>S</s></button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button data-cmd="justifyLeft">◧</button>' +
-    '<button data-cmd="justifyCenter">◫</button>' +
-    '<button data-cmd="justifyFull">▤</button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button data-cmd="insertUnorderedList">Lista</button>' +
-    '<button data-cmd="insertOrderedList">Numeração</button>' +
-    '<button id="ed-quadro">Quadro</button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button id="ed-numerar">Numerar cláusulas</button>' +
-    '<button id="ed-qualificar">Qualificar parte</button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button id="ed-clausulas">Cláusulas do escritório</button>' +
-    '<button id="ed-codigos">Citar a lei</button>' +
-    '<button id="ed-formato">Folha</button>' +
-    '<button id="ed-comentar">Comentar trecho</button>' +
-    '<button id="ed-alteracoes">Alterações</button>' +
-    '<button id="ed-conferir">Conferir</button></div>';
+function conversaAtual() {
+  const chave = String(escr.atual);
+  if (!escr.conversas[chave]) escr.conversas[chave] = [];
+  return escr.conversas[chave];
+}
 
-  html += '<div class="ed-colunas"><div class="ed-coluna-folha">' +
-    '<div class="ed-regua">' +
-    '<div class="ed-regua-barra"><span class="ed-regua-margem" style="width:11.9%"></span>' +
-    '<span class="ed-regua-texto"></span>' +
-    '<span class="ed-regua-margem" style="width:11.9%"></span></div>' +
-    '<div class="ed-regua-legenda"><span>a folha, na escala do PDF</span>' +
-    '<span id="ed-regua-fim">A4 · margens 2,5 cm</span></div></div>' +
-    '<div class="ed-papel">' +
-    '<div class="ed-folha" id="ed-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
-    '<div class="ed-quebras" id="ed-quebras"></div>' +
-    '<div class="ed-notas" id="ed-notas"></div></div>' +
-    '<div id="ed-abaixo"></div></div>';
+/* A conversa do painel: a pessoa a direita, a resposta a esquerda com os
+   botoes de acao que ela trouxer. */
+function falasDoDocumento(lista) {
+  if (!lista.length) {
+    return '<p class="docs-explica">' + (abaAtual() && abaAtual().tipo === "planilha"
+      ? "Peça o cálculo em português. Eu escrevo a fórmula na barra fx, você confere e mantém — quem calcula é a planilha, não o modelo."
+      : "Peça uma mudança ou uma pesquisa. Eu escrevo no documento e marco o que mexi — você decide se fica.") + "</p>";
+  }
+  return lista.map((m, i) => {
+    if (m.autor === "pessoa") return '<div class="docs-bolha">' + esc(m.texto) + "</div>";
+    return '<div class="docs-resposta"><p>' + m.html + "</p>" +
+      (m.trecho ? '<blockquote class="docs-trecho">' + esc(m.trecho) + "</blockquote>" : "") +
+      (m.acoes && m.acoes.length
+        ? '<div class="docs-resposta-acoes">' + m.acoes.map((a, j) => {
+            const classe = a.primario ? "primario" : "";
+            return '<button class="' + classe + '" data-fala-acao="' + i + ":" + j + '">' + (a.icone ? ic(a.icone, 16) : "") + esc(a.rotulo) + "</button>";
+          }).join("") + "</div>"
+        : "") + "</div>";
+  }).join("") + (escr.ocupada ? '<p class="nota" id="docs-pensando">escrevendo… isso leva cerca de um minuto nesta máquina</p>' : "");
+}
 
-  html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
-    '<p class="explica">Eu mostro a sugestão; você aceita ou descarta. Nada entra no ' +
-    "texto sozinho.</p>" +
-    '<div class="ed-pedido"><input type="text" id="ed-pedido" placeholder="peça uma alteração…">' +
-    '<button class="primario" id="ed-pedir">↑</button></div>' +
-    '<div class="ed-atalhos">' +
-    ["Revisar a redação deste trecho",
-     "Deixar mais formal",
-     "Resumir o documento em 5 linhas",
-     "Inserir cláusula de vigência"].map((x) =>
-      '<button data-atalho="' + esc(x) + '">' + esc(x) + "</button>").join("") +
-    "</div>" +
-    '<div id="ed-sugestao"></div></div>';
+function ligarFalas(caixa, lista) {
+  caixa.querySelectorAll("[data-fala-acao]").forEach((b) => {
+    b.onclick = () => {
+      const [i, j] = b.dataset.falaAcao.split(":").map(Number);
+      const a = lista[i] && lista[i].acoes && lista[i].acoes[j];
+      if (a) a.acao(b);
+    };
+  });
+  caixa.scrollTop = caixa.scrollHeight;
+}
 
-  html += '<div class="painel" style="margin-top:16px"><h3>Este documento</h3>' +
-    '<div class="pl-status"><span>palavras ' + c.palavras + "</span>" +
-    '<span id="ed-paginas">páginas ' + (d.paginacao ? d.paginacao.paginas : 1) + "</span>" +
-    "<span>versão " + d.versao + "</span></div>" +
-    '<p class="explica" id="ed-paginas-nota" style="margin-top:8px"></p>' +
-    '<p class="explica" style="margin-top:10px">O PDF é o formato que vale para assinar e ' +
-    "enviar. O DOCX sai com o mesmo texto, para continuar no Word — a quebra de página " +
-    "pode ficar diferente.</p>" +
-    '<div class="linha-form"><button id="ed-pdf">Baixar PDF</button>' +
-    '<button id="ed-docx">Baixar DOCX</button></div></div></div></div>';
+function redesenharFalas(id) {
+  const caixa = $(id);
+  if (!caixa) return;
+  const lista = conversaAtual();
+  caixa.innerHTML = falasDoDocumento(lista);
+  ligarFalas(caixa, lista);
+}
 
-  html += '<div class="rodape-tela">documento gravado na sua máquina</div></div>';
-  $("centro").innerHTML = html;
+/* --------------------------------------------------------- ligacoes */
+
+function ligarDocumentos(aba) {
+  const raiz = $("docs");
+  raiz.querySelectorAll("[data-docs-aba]").forEach((b) => {
+    b.onclick = (e) => {
+      if (e.target.closest("[data-docs-fechar]")) return;
+      const id = idDaAba(b.dataset.docsAba);
+      if (id === escr.atual) return;
+      trocarDeAba(id);
+    };
+  });
+  raiz.querySelectorAll("[data-docs-fechar]").forEach((x) => {
+    x.onclick = (e) => { e.stopPropagation(); fecharDocumento(idDaAba(x.dataset.docsFechar)); };
+  });
+  const mais = raiz.querySelector("[data-docs-lista]");
+  if (mais) mais.onclick = () => { escr.atual = null; lembrarAbas(); mostrarDocumentos(); };
+  const alca = raiz.querySelector("[data-docs-alca]");
+  if (alca) alca.onclick = () => { escr.largo = !escr.largo; $("docs-corpo").classList.toggle("painel-largo", escr.largo); alca.innerHTML = ic(escr.largo ? "chevron_right" : "chevron_left", 18); };
+  raiz.querySelectorAll("[data-adiante]").forEach((b) => {
+    b.onclick = () => avisoCert("a base de " + b.dataset.adiante + " ainda não está instalada nesta máquina — por enquanto só os códigos");
+  });
+
+  $("acoes-tela").querySelectorAll("[data-docs-visao]").forEach((b) => { b.onclick = () => trocarDeVisao(b.dataset.docsVisao); });
+
+  if (!aba) return ligarLista();
+  if (aba.tipo === "pdf") return ligarPdf(aba);
+  if (escr.visao === "previa") return ligarPrevia();
+  if (aba.tipo === "planilha") return ligarPlanilha();
   ligarEditor();
-  atualizarPostura();
+}
+
+function idDaAba(texto) {
+  return /^\d+$/.test(texto) ? Number(texto) : texto;
+}
+
+async function trocarDeAba(id) {
+  const folha = $("ed-folha");
+  if (folha && escr.doc) await gravarDocumento();
+  const aba = escr.abas.find((a) => a.id === id);
+  if (!aba) return;
+  escr.atual = id;
+  if (aba.tipo === "planilha") escr.visao = "planilha";
+  else if (aba.tipo === "texto" && escr.visao === "planilha") escr.visao = "editor";
+  lembrarAbas();
+  mostrarDocumentos();
+}
+
+async function fecharDocumento(id) {
+  const aba = escr.abas.find((a) => a.id === id);
+  if (!aba) return;
+  if (id === escr.atual) {
+    if ($("ed-folha") && escr.doc) await gravarDocumento();
+    if (escr.visao === "previa" && escr.guardarAoSair && aba.tipo === "texto") await guardarNaBiblioteca(id);
+  }
+  fecharAba(id);
+  mostrarDocumentos();
+}
+
+/* O seletor: Editor leva a ultima aba de texto, Planilha a ultima de
+   planilha; sem aba do tipo, a lista ja filtrada. Pre-visualizacao e do
+   documento de texto aberto. */
+function trocarDeVisao(visao) {
+  const aba = abaAtual();
+  if (visao === "previa") {
+    if (!aba || aba.tipo !== "texto") { avisoCert("a pré-visualização é do documento de texto — abra um para ver o PDF"); return; }
+    escr.visao = "previa";
+    return mostrarDocumentos();
+  }
+  const tipo = visao === "planilha" ? "planilha" : "texto";
+  if (aba && aba.tipo === tipo) { escr.visao = visao; return mostrarDocumentos(); }
+  const ultima = escr.abas.slice().reverse().find((a) => a.tipo === tipo);
+  escr.atual = ultima ? ultima.id : null;
+  escr.visao = visao;
+  lembrarAbas();
+  mostrarDocumentos();
+}
+
+function ligarLista() {
+  const raiz = $("docs");
+  raiz.querySelectorAll("[data-doc-abrir]").forEach((l) => {
+    l.onclick = (e) => {
+      if (e.target.closest("[data-doc-mais]")) return;
+      const id = Number(l.dataset.docAbrir);
+      l.dataset.docTipo === "planilha" ? abrirPlanilha(id) : abrirDocumento(id);
+    };
+  });
+  raiz.querySelectorAll("[data-doc-mais]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const id = Number(b.dataset.docMais);
+      const d = escr.lista.find((x) => x.id === id);
+      if (!d) return;
+      const itens = [{ icone: "edit", rotulo: "Abrir", acao: () => (d.tipo === "planilha" ? abrirPlanilha(id) : abrirDocumento(id)) }];
+      if (d.tipo !== "planilha") {
+        itens.push({ icone: "forum", rotulo: "Abrir com a conversa", acao: () => mostrarDupla(id) });
+        itens.push({ icone: "picture_as_pdf", rotulo: "Pré-visualizar", acao: () => mostrarPrevia(id) });
+      }
+      itens.push("-", { icone: "delete", rotulo: "Apagar", perigo: true, acao: () => apagarDocumento(d) });
+      menuNaLinha(b, itens);
+    };
+  });
+  raiz.querySelectorAll("[data-doc-filtro]").forEach((b) => {
+    b.onclick = () => { escr.visao = b.dataset.docFiltro === "planilha" ? "planilha" : "editor"; desenharDocumentos(); };
+  });
+  raiz.querySelectorAll("[data-doc-criar]").forEach((b) => { b.onclick = () => criarDocumento(b.dataset.docCriar); });
+  const importar = raiz.querySelector("[data-doc-importar]");
+  if (importar) importar.onclick = escolherDoAcervo;
+  const novo = $("doc-novo");
+  if (novo) novo.onclick = (e) => {
+    e.stopPropagation();
+    menuNaLinha(novo, [
+      { icone: "description", rotulo: "Documento de texto", acao: () => criarDocumento("texto") },
+      { icone: "table", rotulo: "Planilha", acao: () => criarDocumento("planilha") },
+      "-",
+      { icone: "inventory_2", rotulo: "Abrir do Acervo", acao: escolherDoAcervo },
+    ]);
+  };
+}
+
+async function criarDocumento(tipo) {
+  const ehTexto = tipo !== "planilha";
+  const titulo = prompt(ehTexto ? "Nome do documento:" : "Nome da planilha:", ehTexto ? "Documento sem título" : "Planilha sem título");
+  if (titulo === null) return;
+  const r = await fetch("/api/documentos", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ titulo: titulo.trim() || (ehTexto ? "Documento sem título" : "Planilha sem título"), tipo: ehTexto ? "texto" : "planilha" }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const novo = await r.json();
+  abrirAba({ id: novo.id, titulo: novo.titulo, tipo: ehTexto ? "texto" : "planilha" });
+  mostrarDocumentos(ehTexto ? "editor" : "planilha");
+}
+
+async function apagarDocumento(d) {
+  if (!confirm("Apagar “" + d.titulo + "” e todo o histórico de versões? Não dá para desfazer.")) return;
+  await fetch("/api/documentos/" + d.id, { method: "DELETE" });
+  fecharAba(d.id);
+  mostrarDocumentos();
+}
+
+/* Do Acervo: PDF abre so para ler; o resto vira uma copia editavel, e o
+   arquivo original nao e tocado. */
+async function escolherDoAcervo() {
+  const alvo = $("ed-abaixo");
+  if (!alvo) return;
+  alvo.innerHTML = '<div class="painel"><p class="nota">lendo o acervo…</p></div>';
+  let d;
+  try { d = await (await fetch("/api/biblioteca")).json(); } catch (err) { alvo.innerHTML = ""; return; }
+  const docs = (d.documentos || []).filter((x) => x.existe !== false).slice(0, 60);
+  alvo.innerHTML = '<div class="painel"><h3>Abrir do Acervo</h3>' +
+    (docs.length
+      ? '<div class="ag-escolher">' + docs.map((x, i) =>
+          '<div class="ag-ligado">' + glifo(x.nome) + "<span>" + esc(x.nome) + '</span><button data-doc-acervo="' + i + '">' +
+          (/\.pdf$/i.test(x.nome) ? "Ler" : "Editar cópia") + "</button></div>").join("") + "</div>"
+      : '<p class="explica">O Acervo está vazio.</p>') +
+    '<div class="linha-form"><button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
+  alvo.querySelector("[data-doc-fechar-ferramenta]").onclick = () => { alvo.innerHTML = ""; };
+  alvo.querySelectorAll("[data-doc-acervo]").forEach((b) => {
+    b.onclick = () => abrirDoAcervo(docs[Number(b.dataset.docAcervo)]);
+  });
+}
+
+async function abrirDoAcervo(x) {
+  if (/\.pdf$/i.test(x.nome)) {
+    abrirAba({ id: "pdf:" + x.nome, titulo: x.nome.replace(/\.pdf$/i, ""), tipo: "pdf", nome: x.nome, caminho: x.caminho, paginas: x.paginas || 0 });
+    return mostrarDocumentos();
+  }
+  const r = await fetch("/api/documentos/importar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ caminho: x.caminho || "", nome: x.nome }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+  abrirAba({ id: d.id, titulo: d.titulo, tipo: "texto" });
+  avisoCert("cópia editável criada a partir de " + d.de + " — o original fica como está");
+  mostrarDocumentos("editor");
+}
+
+/* ---------------------------------------------------- PDF so leitura */
+
+function barrasDoPdf(aba) {
+  return '<div class="docs-barra">' +
+    '<button data-pdf-andar="-1" title="Anterior">' + ic("chevron_left", 18) + "</button>" +
+    '<span class="docs-pagina-num">Pág. <b id="pdf-num">' + (aba.pagina || 1) + "</b>" + (aba.paginas ? " / " + aba.paginas : "") + "</span>" +
+    '<button data-pdf-andar="1" title="Próxima">' + ic("chevron_right", 18) + "</button>" +
+    '<span class="docs-nota-direita">só leitura · o arquivo do Acervo, desenhado</span></div>';
+}
+
+function visorDoPdf(aba) {
+  return '<div class="docs-cartao"><div class="docs-status"><span>' + esc(aba.nome) + '</span><span class="cresce"></span><span>PDF</span></div>' +
+    '<div class="docs-pv-rolagem"><img class="docs-pagina" id="pdf-img" alt="página ' + (aba.pagina || 1) + '" src="/api/biblioteca/pagina?nome=' +
+    encodeURIComponent(aba.nome) + "&numero=" + (aba.pagina || 1) + '&largura=1000"></div></div>';
+}
+
+function painelDoPdf(aba) {
+  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(aba.titulo) + '</h3><span class="meta">PDF do Acervo · só leitura</span></span></div>' +
+    '<div class="painel-acoes"><button class="primario" id="doc-editar-copia-2">' + ic("edit", 16) + "Abrir para editar</button>" +
+    '<button data-doc-no-acervo="1">' + ic("inventory_2", 16) + "Ver no Acervo</button></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que dá para fazer</span></div>' +
+    "<p>Ler e conferir, página a página. Para mexer no texto, “Abrir para editar” cria uma cópia editável — o PDF original continua intacto no Acervo.</p></div>" +
+    "</div></aside>";
+}
+
+function ligarPdf(aba) {
+  const raiz = $("docs");
+  raiz.querySelectorAll("[data-pdf-andar]").forEach((b) => {
+    b.onclick = () => {
+      const n = (aba.pagina || 1) + Number(b.dataset.pdfAndar);
+      if (n < 1 || (aba.paginas && n > aba.paginas)) return;
+      aba.pagina = n;
+      lembrarAbas();
+      $("pdf-num").textContent = n;
+      $("pdf-img").src = "/api/biblioteca/pagina?nome=" + encodeURIComponent(aba.nome) + "&numero=" + n + "&largura=1000";
+    };
+  });
+  ["doc-editar-copia", "doc-editar-copia-2"].forEach((id) => { const b = $(id); if (b) b.onclick = () => importarPdf(aba); });
+  const ver = raiz.querySelector("[data-doc-no-acervo]");
+  if (ver) ver.onclick = () => { bib.termo = aba.nome; marcarDestino("biblioteca"); mostrarBiblioteca(); };
+}
+
+async function importarPdf(aba) {
+  const r = await fetch("/api/documentos/importar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ caminho: aba.caminho || "", nome: aba.nome }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+  abrirAba({ id: d.id, titulo: d.titulo, tipo: "texto" });
+  mostrarDocumentos("editor");
 }
 
 function ligarEditor() {
   const folha = $("ed-folha");
   const id = escr.doc.id;
+  const raiz = $("docs");
 
-  document.querySelectorAll("[data-cmd]").forEach((b) => {
+  raiz.querySelectorAll("[data-cmd]").forEach((b) => {
     b.onmousedown = (e) => e.preventDefault();   /* não perde a seleção */
     b.onclick = () => { document.execCommand(b.dataset.cmd, false, null); folha.focus(); marcarSujo(); };
   });
-  $("ed-bloco").onchange = (e) => {
-    document.execCommand("formatBlock", false, e.target.value);
-    folha.focus();
-    marcarSujo();
-  };
+  $("ed-bloco").onchange = (e) => { document.execCommand("formatBlock", false, e.target.value); folha.focus(); marcarSujo(); };
+  $("ed-fonte").onchange = () => gravarFormatoDaBarra();
+  $("ed-corpo").onchange = () => gravarFormatoDaBarra();
 
   folha.oninput = marcarSujo;
-  $("ed-titulo").oninput = marcarSujo;
 
-  $("ed-voltar").onclick = async () => { await gravarDocumento(); listaDocumentos("texto", "Editor de texto"); };
-  $("ed-previa").onclick = async () => { await gravarDocumento(); mostrarPrevia(id); };
   $("ed-versoes").onclick = () => painelVersoes(id);
-  $("ed-conferir").onclick = () => painelConferir(id);
-  $("ed-clausulas").onclick = painelClausulas;
-  $("ed-codigos").onclick = painelCodigos;
-  $("ed-numerar").onclick = renumerarClausulas;
-  $("ed-qualificar").onclick = inserirQualificacao;
-
-  $("ed-pdf").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/pdf"; };
-  $("ed-docx").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/docx"; };
-
-  $("ed-guardar").onclick = async () => {
+  $("ed-imprimir").onclick = async () => {
     await gravarDocumento();
-    const r = await fetch("/api/documentos/" + id + "/biblioteca", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
-    });
-    if (!r.ok) { avisoCert(await erroDe(r)); return; }
-    const d = await r.json();
-    avisoCert("guardado na biblioteca como " + d.guardado + " — já dá para assinar e anexar em e-mail");
-    estado.contratos = d.documentos;
+    const janela = window.open("/api/documentos/" + id + "/pdf", "_blank");
+    if (!janela) avisoCert("o navegador bloqueou a janela de impressão");
   };
+  $("ed-pdf").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/pdf"; };
 
-  $("ed-pedir").onclick = pedirAoAssistente;
-  $("ed-pedido").onkeydown = (e) => { if (e.key === "Enter") pedirAoAssistente(); };
-  document.querySelectorAll("[data-atalho]").forEach((b) => {
-    b.onclick = () => { $("ed-pedido").value = b.dataset.atalho; pedirAoAssistente(); };
-  });
-
-  $("ed-formato").onclick = painelFormato;
   $("ed-quadro").onclick = painelQuadro;
   $("ed-alteracoes").onclick = () => painelAlteracoes();
   $("ed-comentar").onclick = comentarTrecho;
+  raiz.querySelectorAll("[data-codigo]").forEach((b) => {
+    b.onclick = () => { lei.codigo = b.dataset.codigo; painelCodigos(); };
+  });
+  $("ed-codigos").onclick = painelCodigos;
+  $("ed-clausulas").onclick = painelClausulas;
+  $("ed-numerar").onclick = renumerarClausulas;
+  $("ed-refs").onclick = () => conferirReferencias(id);
+  $("ed-conferir").onclick = () => painelConferir(id);
+  $("ed-qualificar").onclick = inserirQualificacao;
+  $("ed-formato").onclick = painelFormato;
+  $("ed-regua-botao").onclick = () => {
+    escr.regua = !escr.regua;
+    $("ed-regua").hidden = !escr.regua;
+    $("ed-regua-botao").textContent = escr.regua ? "Esconder a régua" : "Régua";
+    revestirFolha();
+  };
+
+  const pedir = () => { const campo = $("ed-pedido"); const t = campo.value.trim(); campo.value = ""; pedirNoEditor(t); };
+  $("ed-pedir").onclick = pedir;
+  $("ed-pedido").onkeydown = (e) => { if (e.key === "Enter") pedir(); };
+  raiz.querySelectorAll("[data-ed-fazer]").forEach((b) => { b.onclick = () => pedirNoEditor(b.dataset.edFazer); });
+  raiz.querySelectorAll("[data-ed-conferir]").forEach((b) => { b.onclick = () => painelConferir(id); });
+  raiz.querySelectorAll("[data-ed-citar]").forEach((b) => { b.onclick = painelCodigos; });
+  ligarFalas($("ed-fala"), conversaAtual());
+
   folha.addEventListener("input", () => pedirPaginacao());
-  document.addEventListener("selectionchange", mostrarPaginaDoCursor);
-  document.addEventListener("selectionchange", lembrarCursor);
-  window.addEventListener("resize", revestirFolha);
+  if (!escr.ouvindo) {
+    escr.ouvindo = true;
+    document.addEventListener("selectionchange", mostrarPaginaDoCursor);
+    document.addEventListener("selectionchange", lembrarCursor);
+    document.addEventListener("selectionchange", mostrarSobreOQue);
+    window.addEventListener("resize", revestirFolha);
+  }
   aplicarPaginacao(escr.doc.paginacao);
   carregarNotas();
+  if (escr.pendente) desenharCartaoNoEditor();
+}
+
+/* "sobre o trecho selecionado" ou "sobre o documento": o painel diz em que
+   o pedido vai cair antes de a pessoa pedir. */
+function mostrarSobreOQue() {
+  const alvo = $("ed-sobre");
+  const folha = $("ed-folha");
+  if (!alvo || !folha) return;
+  const sel = window.getSelection();
+  const dentro = sel && !sel.isCollapsed && sel.anchorNode && folha.contains(sel.anchorNode) && sel.toString().trim();
+  alvo.textContent = dentro ? "sobre o trecho selecionado" : "sobre o documento";
+}
+
+/* Fonte e corpo saem da barra; recuo e entrelinhas continuam em "Folha". */
+async function gravarFormatoDaBarra() {
+  const f = Object.assign({}, escr.doc.formato || {});
+  f.fonte = $("ed-fonte").value;
+  f.corpo = Number($("ed-corpo").value) || 12;
+  const r = await fetch("/api/documentos/" + escr.doc.id + "/formato", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ formato: f, corpo: $("ed-folha").innerHTML }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+  escr.doc.formato = d.formato;
+  aplicarPaginacao(d);
+}
+
+/* Referencia cruzada: o que aponta para clausula que nao existe. E a
+   conferencia sem mexer em nada; renumerar e quem conserta. */
+async function conferirReferencias(id) {
+  await gravarDocumento();
+  const alvo = $("ed-abaixo");
+  alvo.innerHTML = '<div class="painel"><p class="nota">conferindo as referências…</p></div>';
+  const r = await fetch("/api/documentos/" + id + "/conferir-clausulas");
+  if (!r.ok) { alvo.innerHTML = '<div class="painel"><p class="explica">' + esc(await erroDe(r)) + "</p></div>"; return; }
+  const d = await r.json();
+  alvo.innerHTML = '<div class="painel"><h3>Referências cruzadas</h3>' +
+    '<p class="explica">' + (d.clausulas ? plural(d.clausulas, "cláusula numerada") + (d.fora_de_ordem ? " · fora de ordem" : " · em ordem") : "nenhuma cláusula numerada") + "</p>" +
+    (d.quebradas && d.quebradas.length
+      ? '<p class="explica">Apontando para o nada: ' + d.quebradas.map((q) => esc(q.texto)).join(", ") + ". Não existe cláusula com esse número.</p>"
+      : '<p class="explica">Toda referência aponta para uma cláusula que existe.</p>') +
+    '<div class="linha-form">' + (d.fora_de_ordem ? '<button class="primario" data-doc-renumerar="1">Renumerar</button>' : "") +
+    '<button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
+  alvo.querySelector("[data-doc-fechar-ferramenta]").onclick = () => { alvo.innerHTML = ""; };
+  const ren = alvo.querySelector("[data-doc-renumerar]");
+  if (ren) ren.onclick = renumerarClausulas;
+  revelarAbaixo();
 }
 
 /* -------------------------------------------------- a página, medida
@@ -11964,22 +12713,30 @@ async function gravarDocumento(nota) {
   if (!folha || !escr.doc) return;
   clearTimeout(escr.relogio);
 
+  /* O cartao da alteracao e da tela, nao do documento. */
+  const copia = folha.cloneNode(true);
+  copia.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+  const titulo = $("ed-titulo") ? $("ed-titulo").value : escr.doc.titulo;
+
   const r = await fetch("/api/documentos/" + escr.doc.id, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: folha.innerHTML, titulo: $("ed-titulo").value, nota: nota || "" }),
+    body: JSON.stringify({ corpo: copia.innerHTML, titulo: titulo, nota: nota || "" }),
   });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
 
   const d = await r.json();
-  escr.doc.corpo = folha.innerHTML;
-  escr.doc.titulo = $("ed-titulo").value;
+  escr.doc.corpo = copia.innerHTML;
+  escr.doc.titulo = titulo;
   escr.doc.versao = d.versao;
   escr.doc.contagem = d.contagem || escr.doc.contagem;
+  const aba = abaAtual();
+  if (aba && aba.id === escr.doc.id && aba.titulo !== titulo) { aba.titulo = titulo; lembrarAbas(); }
 
   const alvo = $("ed-estado");
   if (alvo) {
     alvo.classList.remove("salvando");
-    alvo.textContent = "v" + d.versao + " · " + (d.contagem ? d.contagem.palavras + " palavras" : "salvo");
+    alvo.textContent = "Salvo às " + new Date().toTimeString().slice(0, 5) + " · v" + d.versao +
+      (d.contagem ? " · " + plural(d.contagem.palavras, "palavra") : "");
   }
 }
 
@@ -11988,51 +12745,126 @@ function trechoSelecionado() {
   return sel && sel.toString().trim() ? sel.toString().trim() : "";
 }
 
-async function pedirAoAssistente() {
-  const campo = $("ed-pedido");
-  const pedido = campo.value.trim();
-  if (!pedido) return;
+/* O pedido vira alteracao no documento, marcada, com o cartao de manter ou
+   descartar ancorado no proprio texto - o comentario do assistente do
+   desenho. Nada entra no contrato sem o sim. */
+async function pedirNoEditor(pedido) {
+  if (!pedido || escr.ocupada) return;
+  const conversa = conversaAtual();
+  escr.ocupada = true;
+  conversa.push({ autor: "pessoa", texto: pedido });
+  redesenharFalas("ed-fala");
 
-  const alvo = $("ed-sugestao");
-  alvo.innerHTML = '<p class="nota">o assistente está escrevendo… isso leva cerca de um minuto nesta máquina</p>';
+  const folha = $("ed-folha");
+  escr.antes = folha.innerHTML;
+  const trecho = trechoSelecionado();
 
-  const r = await fetch("/api/documentos/" + escr.doc.id + "/assistente", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionado() }),
-  });
-  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
-
-  escr.sugestao = await r.json();
-  alvo.innerHTML = '<div class="ed-sugestao"><span class="rotulo">sugestão' +
-    (escr.sugestao.sobre ? " sobre o trecho selecionado" : " sobre o documento") + "</span>" +
-    "<p>" + esc(escr.sugestao.sugestao) + "</p>" +
-    '<p class="explica">' + esc(escr.sugestao.aviso) + "</p>" +
-    '<div class="linha-form"><button id="ed-descartar">Descartar</button>' +
-    '<button class="primario" id="ed-aceitar">' +
-    (escr.sugestao.sobre ? "Substituir o trecho" : "Inserir no texto") + "</button></div></div>";
-
-  $("ed-descartar").onclick = () => { alvo.innerHTML = ""; escr.sugestao = null; };
-  $("ed-aceitar").onclick = aceitarSugestao;
+  try {
+    const r = await fetch("/api/documentos/" + escr.doc.id + "/assistente", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido: pedido, trecho: trecho }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const s = await r.json();
+    const antes = escr.antes;
+    aplicarNoEditor(s);
+    conversa.push({
+      autor: "paulus",
+      html: esc(s.sobre
+        ? "Troquei o trecho que você selecionou. A alteração está marcada no documento — mantenha ou descarte ali mesmo."
+        : "Escrevi no fim do documento. A alteração está marcada — confira antes de manter."),
+      trecho: s.sugestao.slice(0, 180),
+      acoes: [
+        { icone: "visibility", rotulo: "Ver o que mudei", acao: () => {
+          const m = $("ed-folha").querySelector(".ed-novo");
+          if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
+          else avisoCert("essa alteração já foi mantida e virou parte do texto");
+        } },
+        { icone: "undo", rotulo: "Desfazer", acao: () => desfazerNoEditor(antes) },
+      ],
+    });
+  } catch (err) {
+    conversa.push({ autor: "paulus", html: esc("Não consegui: " + (err.message || err)) });
+  } finally {
+    escr.ocupada = false;
+    redesenharFalas("ed-fala");
+  }
 }
 
-function aceitarSugestao() {
-  if (!escr.sugestao) return;
+function aplicarNoEditor(s) {
   const folha = $("ed-folha");
-  folha.focus();
+  folha.querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+  const velho = $("ed-cartao");
+  if (velho) velho.remove();
+
+  const marca = document.createElement("mark");
+  marca.className = "ed-novo";
+  marca.textContent = s.sugestao;
 
   const sel = window.getSelection();
-  const texto = escr.sugestao.sugestao;
-
-  if (escr.sugestao.sobre && sel && sel.rangeCount && !sel.isCollapsed) {
-    document.execCommand("insertText", false, texto);
+  if (s.sobre && sel && sel.rangeCount && !sel.isCollapsed && folha.contains(sel.anchorNode)) {
+    const faixa = sel.getRangeAt(0);
+    faixa.deleteContents();
+    faixa.insertNode(marca);
   } else {
     const bloco = document.createElement("p");
-    bloco.textContent = texto;
+    bloco.appendChild(marca);
     folha.appendChild(bloco);
   }
-  $("ed-sugestao").innerHTML = "";
-  escr.sugestao = null;
+  escr.pendente = { aviso: s.aviso, resumo: s.sugestao.slice(0, 120) };
+  desenharCartaoNoEditor();
+  marca.scrollIntoView({ behavior: "smooth", block: "center" });
   marcarSujo();
+  pedirPaginacao();
+}
+
+function desenharCartaoNoEditor() {
+  const velho = $("ed-cartao");
+  if (velho) velho.remove();
+  if (!escr.pendente) return;
+  const folha = $("ed-folha");
+  const marca = folha && folha.querySelector(".ed-novo");
+  if (!marca) { escr.pendente = null; return; }
+
+  const cartao = document.createElement("div");
+  cartao.className = "dupla-cartao";
+  cartao.id = "ed-cartao";
+  cartao.contentEditable = "false";
+  cartao.innerHTML = '<span class="rotulo-cartao">' + coroa(14) + "Comentário do assistente</span>" +
+    "<p>" + esc(escr.pendente.resumo) + "</p>" +
+    '<p class="explica">' + esc(escr.pendente.aviso || "") + "</p>" +
+    '<div class="linha-form"><button class="primario" id="ed-manter">Manter</button><button id="ed-descartar">Descartar</button></div>';
+  marca.closest("p, li, h1, h2, h3, div, td, th").after(cartao);
+
+  $("ed-manter").onclick = () => {
+    folha.querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+    escr.pendente = null;
+    cartao.remove();
+    gravarDocumento();
+    pedirPaginacao(true);
+  };
+  $("ed-descartar").onclick = () => desfazerNoEditor(escr.antes);
+}
+
+function desfazerNoEditor(antes) {
+  const folha = $("ed-folha");
+  if (antes === null || antes === undefined || !folha) return;
+  folha.innerHTML = antes;
+  escr.pendente = null;
+  const c = $("ed-cartao");
+  if (c) c.remove();
+  conversaAtual().push({ autor: "paulus", html: "Desfeito. O documento voltou ao que era antes dessa alteração." });
+  redesenharFalas("ed-fala");
+  gravarDocumento();
+  pedirPaginacao(true);
+}
+
+/* Quem chamava a sugestao antiga (qualificacao, clausulas) continua
+   encontrando o mesmo nome. */
+function aceitarSugestao() {
+  if (!escr.sugestao) return;
+  aplicarNoEditor(escr.sugestao);
+  escr.sugestao = null;
 }
 
 async function painelClausulas() {
@@ -12155,125 +12987,124 @@ function blocoAvisos(d) {
 }
 
 /* ------------------------------------------------ C2: pré-visualização */
+/*
+   O PDF de verdade, desenhado: miniaturas a esquerda, a pagina no meio e, no
+   painel, o que fazer agora, o que conferir antes de sair e as versoes.
+*/
 
-async function mostrarPrevia(id) {
-  abrirTela("Pré-visualização");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">montando o PDF…</p></div>';
-
-  const r = await fetch("/api/documentos/" + id + "/conferir");
-  if (!r.ok) { centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>"; return; }
-
-  const d = await r.json();
-  const doc = escr.doc || await (await fetch("/api/documentos/" + id)).json();
-  escr.doc = doc;
-  escr.previa = { id: id, pagina: 1, dados: d };
-  desenharPrevia();
-  atualizarPostura();
-}
-
-function desenharPrevia() {
+function barrasDaPrevia() {
   const p = escr.previa;
   const d = p.dados;
+  const classeDuas = "com-texto" + (p.duas ? " on" : "");
+  return '<div class="docs-barra">' +
+    '<button id="pv-antes" title="Página anterior">' + ic("chevron_left", 18) + "</button>" +
+    '<span class="docs-pagina-num">Pág. <b id="pv-num">' + p.pagina + "</b> / " + d.paginas + "</span>" +
+    '<button id="pv-depois" title="Próxima página">' + ic("chevron_right", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="' + classeDuas + '" id="pv-duas">' + ic("auto_stories", 16) + "Duas páginas</button>" +
+    '<button class="com-texto" id="pv-cheia">' + ic("fullscreen", 16) + (p.cheia ? "Sair da tela cheia" : "Tela cheia") + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="pv-comparar-b">' + ic("difference", 16) + "Comparar versões</button>" +
+    '<span class="docs-nota-direita">Versão ' + d.versao + " · A4 · margens 2,5 cm</span></div>";
+}
 
-  let html = '<div class="catalogo"><div class="tela-topo">' +
-    "<div><h2 class=\"corta\">" + esc(escr.doc.titulo) + "</h2>" +
-    '<span class="rotulo">versão ' + d.versao + " · " + plural(d.paginas, "página") + " · A4 · " +
-    (d.impedem ?plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span></div>" +
-    '<div class="tela-acoes"><button id="pv-editor">‹ Voltar ao editor</button></div></div>';
+function folhaDaPrevia() {
+  const p = escr.previa;
+  const d = p.dados;
+  const paginas = [];
+  for (let i = 1; i <= d.paginas; i += 1) paginas.push(i);
+  const miniaturas = paginas.map((i) => {
+    const classe = "docs-mini" + (i === p.pagina || (p.duas && i === p.pagina + 1) ? " atual" : "");
+    return '<button class="' + classe + '" data-pv-pagina="' + i + '"><img alt="" src="/api/documentos/' + p.id +
+      "/pagina?numero=" + i + '&largura=96"><span>' + i + "</span></button>";
+  }).join("");
+  const classeSinc = "docs-sinc" + (d.impedem ? " atencao" : "");
+  return '<div class="docs-cartao previa">' +
+    '<div class="docs-status"><span>Página ' + p.pagina + " de " + d.paginas + '</span><span class="docs-divisa-fina"></span>' +
+    '<span class="' + classeSinc + '"><i></i>' + (d.impedem ? plural(d.impedem, "ponto") + " a resolver" : "Sem alterações pendentes") + "</span>" +
+    '<span class="cresce"></span><span>' + (d.impedem ? "Confira antes de sair" : "Pronto para sair") + "</span></div>" +
+    '<div class="docs-previa">' + (p.cheia ? "" : '<div class="docs-miniaturas">' + miniaturas + "</div>") +
+    '<div class="docs-pv-rolagem"><div class="pv-paginas' + (p.duas ? " duas" : "") + '">' +
+    '<img class="docs-pagina" id="pv-img" alt="página ' + p.pagina + '">' +
+    (p.duas ? '<img class="docs-pagina" id="pv-img2" alt="página ' + (p.pagina + 1) + '">' : "") +
+    "</div></div></div></div>";
+}
 
-  const duas = p.duas && d.paginas > 1;
-  html += '<div class="' + (p.cheia ? "pv-cheia" : "assinar-colunas") + '">' +
-    '<div class="pv-folha">' +
-    '<div class="pdf-nav"><button id="pv-antes">‹</button>' +
-    '<span>pág. <b id="pv-num">' + p.pagina + "</b>" +
-    (duas && p.pagina < d.paginas ? "–" + (p.pagina + 1) : "") +
-    " de " + d.paginas + "</span>" +
-    '<button id="pv-depois">›</button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button id="pv-duas" class="' + (p.duas ? "on" : "") + '">Duas páginas</button>' +
-    '<button id="pv-cheia">' + (p.cheia ? "Sair da tela cheia" : "Tela cheia") + "</button>" +
-    '<button id="pv-imprimir">Imprimir</button>' +
-    (d.versao > 1 ? '<button id="pv-comparar">Comparar versões</button>' : "") +
-    '<span class="rotulo">margens 2,5 cm · gerado nesta máquina</span></div>' +
-    '<div class="pv-paginas' + (duas ? " duas" : "") + '">' +
-    '<img id="pv-img" alt="página ' + p.pagina + '">' +
-    (duas ? '<img id="pv-img2" alt="página ' + (p.pagina + 1) + '">' : "") +
-    "</div></div>";
+function painelDaPrevia() {
+  const p = escr.previa;
+  const d = p.dados;
+  const avisos = d.avisos || [];
+  const classeGuardar = "ag-toggle" + (escr.guardarAoSair ? " on" : "");
+  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>O que fazer agora</h3><span class="meta">Versão ' + d.versao + " · " +
+    plural(d.paginas, "página") + " · " + (d.impedem ? plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span></span></div>" +
+    '<div class="painel-acoes"><button class="primario" id="pv-pdf">' + ic("picture_as_pdf", 16) + "Baixar PDF</button>" +
+    '<button id="pv-docx">' + ic("description", 16) + "Baixar DOCX</button>" +
+    '<button id="pv-assinar-2">' + ic("draw", 16) + "Assinar</button>" +
+    '<button id="pv-email">' + ic("mail", 16) + "Enviar por e-mail</button>" +
+    '<button class="adiante" data-pv-adiante="WhatsApp">' + ic("chat", 16) + "WhatsApp</button>" +
+    '<button id="pv-imprimir">' + ic("print", 16) + "Imprimir</button></div>" +
+    '<div class="docs-toggles"><div class="' + classeGuardar + '" data-pv-guardar="1"><span>Guardar no Acervo ao sair</span><i></i></div>' +
+    '<div class="ag-toggle" data-pv-adiante="senha no PDF"><span>Proteger o PDF com senha</span><i></i></div></div>' +
 
-  if (p.cheia) {
-    html += "</div>" +
-      '<div class="rodape-tela">pré-visualização gerada na sua máquina</div></div>';
-    $("centro").innerHTML = html;
-    ligarPrevia();
-    carregarPaginaPrevia();
-    return;
-  }
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Confira antes de sair</span>' +
+    '<span class="contagem">' + (avisos.length ? '<span class="ag-acc">' + plural(avisos.length, "aviso") + "</span>" : "nada a apontar") + "</span></div>" +
+    (avisos.length
+      ? avisos.map((a) => {
+          const classe = "docs-aviso " + (a.grau === "impede" ? "impede" : "confira");
+          return '<div class="' + classe + '"><i></i><span><b>' + esc(a.titulo) + "</b><small>" + esc(a.detalhe || "") + "</small></span></div>";
+        }).join("")
+      : '<div class="docs-aviso ok"><i></i><span><b>Não achei lacuna de modelo, CPF ou CNPJ com dígito errado, nem valor sem número.</b></span></div>') +
+    '<div class="docs-aviso-acoes"><button class="docs-ligacao" data-pv-editor="1">Corrigir no editor</button>' +
+    '<button class="primario" data-pv-sair="1">Sair assim mesmo</button></div></div>' +
 
-  html += '<div><div class="painel">' + blocoAvisos(d) + "</div>";
-
-  html += '<div class="painel" style="margin-top:16px"><h3>O que fazer agora</h3>' +
-    '<div class="linha-form"><button id="pv-pdf">Baixar PDF</button>' +
-    '<button id="pv-docx">Baixar DOCX</button></div>' +
-    '<div class="linha-form"><button id="pv-biblioteca">Guardar na biblioteca</button></div>' +
-    '<p class="explica">Guardar na biblioteca grava o PDF no acervo — é o que permite ' +
-    "assinar com o certificado e anexar num e-mail.</p>" +
-    '<div class="linha-form"><button id="pv-assinar">Assinar</button>' +
-    '<button id="pv-email">Enviar por e-mail</button></div></div>';
-
-  html += '<div class="painel" style="margin-top:16px"><h3>Este arquivo</h3>' +
-    '<div class="pl-status"><span>páginas ' + d.paginas + "</span>" +
-    "<span>" + (d.bytes / 1024).toFixed(0).replace(".", ",") + " KB</span>" +
-    "<span>versão " + d.versao + "</span>" +
-    "<span>palavras " + d.contagem.palavras + "</span></div></div></div></div>";
-
-  html += '<div id="pv-abaixo"></div>' +
-    '<div class="rodape-tela">pré-visualização gerada na sua máquina</div></div>';
-  $("centro").innerHTML = html;
-  ligarPrevia();
-  carregarPaginaPrevia();
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Versões</span><span class="contagem">' + (escr.versoes || []).length + "</span></div>" +
+    ((escr.versoes || []).length
+      ? '<div class="docs-versoes">' + escr.versoes.slice().reverse().slice(0, 12).map((v) => {
+          const classe = "docs-versao" + (v.numero === d.versao ? " atual" : "");
+          return '<div class="' + classe + '" data-pv-versao="' + v.numero + '" title="Comparar com a atual"><b>v' + v.numero + "</b><span>" +
+            esc(v.nota || (v.numero === d.versao ? "a versão de agora" : "sem nota")) + "</span><small>" + esc(quandoCurto(v.criada_em)) + "</small></div>";
+        }).join("") + "</div>"
+      : "<p>Só a versão de agora.</p>") + "</div>" +
+    "</div></aside>";
 }
 
 function ligarPrevia() {
   const p = escr.previa;
   const passo = p.duas ? 2 : 1;
-  // Na tela cheia só a folha é desenhada — a coluna da direita não existe.
-  // Ligar botão sem conferir derrubava a função no meio, e junto ia a
-  // navegação de página, que existe nos dois modos. Cada botão liga sozinho.
+  const raiz = $("docs");
   const ligar = (id, acao) => { const b = $(id); if (b) b.onclick = acao; };
 
-  ligar("pv-editor", () => abrirDocumento(p.id));
-  ligar("pv-antes", () => {
-    if (p.pagina > 1) { p.pagina = Math.max(1, p.pagina - passo); carregarPaginaPrevia(); }
-  });
+  ligar("pv-antes", () => { if (p.pagina > 1) { p.pagina = Math.max(1, p.pagina - passo); carregarPaginaPrevia(); } });
   ligar("pv-depois", () => {
-    if (p.pagina < p.dados.paginas) {
-      p.pagina = Math.min(p.dados.paginas, p.pagina + passo);
-      carregarPaginaPrevia();
-    }
+    if (p.pagina < p.dados.paginas) { p.pagina = Math.min(p.dados.paginas, p.pagina + passo); carregarPaginaPrevia(); }
   });
-  ligar("pv-duas", () => { p.duas = !p.duas; desenharPrevia(); });
-  ligar("pv-cheia", () => { p.cheia = !p.cheia; desenharPrevia(); });
-  // Imprimir é o PDF de verdade indo para a impressora, não a tela impressa:
-  // o que sai do papel tem que ser o mesmo arquivo que vai para o cliente.
+  raiz.querySelectorAll("[data-pv-pagina]").forEach((b) => {
+    b.onclick = () => { p.pagina = Number(b.dataset.pvPagina); carregarPaginaPrevia(); };
+  });
+  ligar("pv-duas", () => { p.duas = !p.duas; desenharDocumentos(); });
+  ligar("pv-cheia", () => { p.cheia = !p.cheia; desenharDocumentos(); });
+  /* Imprimir é o PDF de verdade indo para a impressora, não a tela impressa:
+     o que sai do papel tem que ser o mesmo arquivo que vai para o cliente. */
   ligar("pv-imprimir", () => {
     const janela = window.open("/api/documentos/" + p.id + "/pdf", "_blank");
     if (!janela) avisoCert("o navegador bloqueou a janela de impressão");
   });
-  // A comparação abre abaixo da folha, e na tela cheia não há "abaixo": sair
-  // dela primeiro é o que faz o botão cumprir o que promete.
-  ligar("pv-comparar", () => {
-    if (p.cheia) { p.cheia = false; desenharPrevia(); }
-    compararVersoes();
+  const comparar = () => { if (p.cheia) { p.cheia = false; desenharDocumentos(); } compararVersoes(); };
+  ligar("pv-comparar", comparar);
+  ligar("pv-comparar-b", comparar);
+  raiz.querySelectorAll("[data-pv-versao]").forEach((l) => {
+    l.onclick = () => compararComVersao(Number(l.dataset.pvVersao));
   });
 
   ligar("pv-pdf", () => { window.location.href = "/api/documentos/" + p.id + "/pdf"; });
   ligar("pv-docx", () => { window.location.href = "/api/documentos/" + p.id + "/docx"; });
-  ligar("pv-biblioteca", () => guardarNaBiblioteca(p.id));
-  ligar("pv-assinar", async () => {
+  const assinar = async () => {
     const alvo = await guardarNaBiblioteca(p.id);
     if (alvo) { marcarDestino("assinar"); mostrarAssinar(alvo); }
-  });
+  };
+  ligar("pv-assinar", assinar);
+  ligar("pv-assinar-2", assinar);
   ligar("pv-email", async () => {
     const alvo = await guardarNaBiblioteca(p.id);
     if (!alvo) return;
@@ -12287,6 +13118,48 @@ function ligarPrevia() {
     mail.anexos = [{ path: alvo, nome: alvo.split(/[\\/]/).pop() }];
     desenharAnexos();
   });
+  raiz.querySelectorAll("[data-pv-adiante]").forEach((b) => {
+    b.onclick = () => avisoCert(b.dataset.pvAdiante + " ainda não tem motor nesta máquina — por enquanto, e-mail e PDF");
+  });
+  const guardar = raiz.querySelector("[data-pv-guardar]");
+  if (guardar) guardar.onclick = () => { escr.guardarAoSair = !escr.guardarAoSair; guardar.classList.toggle("on", escr.guardarAoSair); };
+  const editor = raiz.querySelector("[data-pv-editor]");
+  if (editor) editor.onclick = () => { escr.visao = "editor"; mostrarDocumentos(); };
+  const sair = raiz.querySelector("[data-pv-sair]");
+  if (sair) sair.onclick = () => fecharDocumento(p.id);
+
+  carregarPaginaPrevia();
+}
+
+/* A versao escolhida contra a de agora: a lista do que mudou no texto. */
+async function compararComVersao(numero) {
+  const p = escr.previa;
+  const alvo = $("pv-abaixo");
+  if (!alvo) return;
+  alvo.innerHTML = '<div class="painel"><p class="nota">comparando…</p></div>';
+  const r = await fetch("/api/documentos/" + p.id + "/comparar?de=" + numero);
+  if (!r.ok) { alvo.innerHTML = '<div class="painel"><p class="explica">' + esc(await erroDe(r)) + "</p></div>"; return; }
+  const c = await r.json();
+  alvo.innerHTML = '<div class="painel"><h3>v' + c.de + " comparada com a v" + c.ate + "</h3>" +
+    (c.mudancas.length
+      ? c.mudancas.map((m) =>
+          '<div class="pv-mudanca">' +
+          (m.antes ? '<div class="saiu">' + esc(m.antes) + "</div>" : "") +
+          (m.depois ? '<div class="entrou">' + esc(m.depois) + "</div>" : "") + "</div>").join("")
+      : '<p class="explica">Nada mudou no texto entre essas versões.</p>') +
+    '<div class="linha-form"><button data-pv-voltar="' + c.de + '">Voltar para a v' + c.de + "</button>" +
+    '<button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
+  alvo.querySelector("[data-doc-fechar-ferramenta]").onclick = () => { alvo.innerHTML = ""; };
+  alvo.querySelector("[data-pv-voltar]").onclick = async () => {
+    if (!confirm("Voltar para a v" + c.de + "? Isso cria uma versão nova com aquele conteúdo.")) return;
+    const r2 = await (await fetch("/api/documentos/" + p.id + "/restaurar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero: c.de }),
+    })).json();
+    escr.doc = r2.documento;
+    mostrarDocumentos();
+  };
+  alvo.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function guardarNaBiblioteca(id) {
@@ -12318,6 +13191,12 @@ function carregarPaginaPrevia() {
       segunda.hidden = true;
     }
   }
+  const status = document.querySelector(".docs-cartao.previa .docs-status > span");
+  if (status) status.textContent = "Página " + p.pagina + " de " + p.dados.paginas;
+  document.querySelectorAll("[data-pv-pagina]").forEach((b) => {
+    const n = Number(b.dataset.pvPagina);
+    b.classList.toggle("atual", n === p.pagina || (p.duas && n === p.pagina + 1));
+  });
 }
 
 /* Comparar duas versões é ver as duas páginas lado a lado E a lista do que
@@ -12362,94 +13241,73 @@ async function compararVersoes() {
 
 /* -------------------------------------------------------- C3: planilha */
 
-async function abrirPlanilha(id) {
-  abrirTela("Planilha");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+function desenharPlanilha() { desenharDocumentos(); }
 
-  const r = await fetch("/api/planilha/" + id);
-  if (!r.ok) { centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>"; return; }
-
-  escr.pl = await r.json();
-  escr.aba = 0;
-  escr.celula = "A1";
-  desenharPlanilha();
-  atualizarPostura();
+function barrasDaPlanilha() {
+  const p = escr.pl;
+  const aba = p.abas[escr.aba];
+  const cel = aba.celulas[escr.celula] || {};
+  const classeCongelar = "com-texto" + (aba.congelar_cabecalho ? " on" : "");
+  const classeNegrito = cel.negrito ? "on" : "";
+  const classeItalico = cel.italico ? "on" : "";
+  return '<div class="docs-barra">' +
+    '<select class="docs-sel" id="pl-formato" title="Formato da célula">' +
+    p.formatos.map((f) => '<option value="' + esc(f.valor) + '"' + ((cel.formato || "") === f.valor ? " selected" : "") + ">" + esc(f.rotulo) + "</option>").join("") + "</select>" +
+    [["moeda", "R$"], ["porcento", "%"], ["numero", "0,00"], ["data", "DATA"]].map(([v, r]) =>
+      '<button class="docs-chip" data-pl-formato="' + v + '">' + r + "</button>").join("") +
+    '<span class="divisa-v"></span>' +
+    '<button class="' + classeNegrito + '" id="pl-negrito" title="Negrito">' + ic("format_bold", 18) + "</button>" +
+    '<button class="' + classeItalico + '" id="pl-italico" title="Itálico">' + ic("format_italic", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="pl-juntar">' + ic("cell_merge", 16) + "Mesclar</button>" +
+    '<button class="com-texto" id="pl-borda">' + ic("border_all", 16) + "Bordas</button>" +
+    '<button class="' + classeCongelar + '" id="pl-congelar">' + ic("ac_unit", 16) + "Congelar</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="pl-filtrar">' + ic("filter_list", 16) + "Filtrar</button>" +
+    '<button class="com-texto" id="pl-ordenar">' + ic("swap_vert", 16) + "Ordenar</button>" +
+    '<button class="com-texto" id="pl-funcoes">Fórmulas' + ic("expand_more", 16) + "</button>" +
+    '<button class="com-texto" id="pl-grafico">Gráfico' + ic("expand_more", 16) + "</button>" +
+    '<button class="com-texto" id="pl-limpar" title="Limpar a célula">' + ic("delete", 16) + "Limpar</button>" +
+    "</div>" +
+    '<div class="docs-barra fx">' +
+    '<span class="docs-ref" id="pl-ref">' + esc(faixaAtual()) + '</span><span class="docs-fx">fx</span>' +
+    '<input type="text" class="docs-fx-entrada" id="pl-entrada" value="' + esc(valorCru(aba, escr.celula)) + '" placeholder="valor ou =fórmula">' +
+    '<span class="docs-fx-nota" id="pl-nota">' + esc(escr.notaFormula || "") + "</span></div>";
 }
 
-function desenharPlanilha() {
+function cartaoDaPlanilha() {
   const p = escr.pl;
   const aba = p.abas[escr.aba];
   const calc = p.calculado[escr.aba];
-  const res = p.resumos[escr.aba];
-
-  let html = '<div class="catalogo"><div class="ed-topo">' +
-    '<input class="ed-titulo" id="pl-titulo" value="' + esc(p.titulo) + '">' +
-    '<span class="ed-estado" id="pl-estado">v' + p.versao + " · " + plural(p.abas.length, "aba") + "" +
-    (res.erros ? " · " + plural(res.erros, "erro") + "" : " · cálculos em dia") + "</span>" +
-    '<button id="pl-importar-b">Importar CSV/XLSX</button>' +
-    '<button id="pl-xlsx">Baixar XLSX</button>' +
-    '<button id="pl-csv">Baixar CSV</button>' +
-    '<button class="primario" id="pl-guardar">Salvar na biblioteca</button>' +
-    '<button id="pl-voltar">Voltar</button>' +
-    '<input type="file" id="pl-arquivo" accept=".csv,.xlsx,.txt" hidden></div>';
-
-  html += '<div class="ed-barra">' +
-    '<select id="pl-formato">' +
-    p.formatos.map((f) => '<option value="' + esc(f.valor) + '">' + esc(f.rotulo) + "</option>").join("") +
-    "</select>" +
-    '<span class="ed-divisa"></span>' +
-    '<button id="pl-negrito"><b>B</b></button>' +
-    '<button id="pl-italico"><i>I</i></button>' +
-    '<button id="pl-borda">Borda</button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button id="pl-congelar" class="' + (aba.congelar_cabecalho ? "on" : "") + '">' +
-    "Congelar 1ª linha</button>" +
-    '<button id="pl-juntar">Juntar células</button>' +
-    '<button id="pl-ordenar">Ordenar</button>' +
-    '<button id="pl-filtrar">Filtrar</button>' +
-    '<button id="pl-grafico">Gráfico</button>' +
-    '<span class="ed-divisa"></span>' +
-    '<button id="pl-funcoes">Fórmulas</button>' +
-    '<button id="pl-limpar">Limpar célula</button></div>';
-
-  html += '<div class="pl-formula"><span class="pl-ref" id="pl-ref">' + esc(escr.celula) + "</span>" +
-    '<span class="pl-fx">fx</span>' +
-    '<input type="text" id="pl-entrada" value="' + esc(valorCru(aba, escr.celula)) + '"></div>';
-
-  html += '<div class="assinar-colunas"><div>' + gradePlanilha(aba, calc) +
-    '<div class="pl-abas">' +
-    p.abas.map((a, i) =>
-      '<button class="' + (i === escr.aba ? "escolhida" : "") + '" data-aba="' + i + '">' +
-      esc(a.nome) + "</button>").join("") +
-    '<button id="pl-nova-aba">+</button>' +
-    (p.abas.length > 1 ? '<button class="perigo" id="pl-tirar-aba">Apagar aba</button>' : "") +
-    "</div>" +
-    '<div class="pl-status" id="pl-selecao"></div>' +
+  const res = p.resumos[escr.aba] || {};
+  return '<div class="docs-cartao">' + gradePlanilha(aba, calc) +
     (escr.filtro
-      ? '<div class="pl-filtro-aviso">Filtro ligado na coluna ' + esc(escr.filtro.coluna) +
-        ": mostrando " + escr.filtro.mostrando + " de " + plural(escr.filtro.de, "linha") +
-        '. O arquivo continua inteiro. <button id="pl-filtro-fora">Mostrar tudo</button></div>'
+      ? '<div class="docs-filtro-aviso">Filtro na coluna ' + esc(escr.filtro.coluna) + ": mostrando " + escr.filtro.mostrando +
+        " de " + plural(escr.filtro.de, "linha") + '. O arquivo continua inteiro. <button class="docs-ligacao" id="pl-filtro-fora">Mostrar tudo</button></div>'
       : "") +
-    '<div id="pl-abaixo"></div></div>';
+    '<div class="docs-abas-pl">' +
+    p.abas.map((a, i) => {
+      const classe = "docs-aba-pl" + (i === escr.aba ? " ativa" : "");
+      return '<button class="' + classe + '" data-aba="' + i + '">' + esc(a.nome) + "</button>";
+    }).join("") +
+    '<button class="docs-aba-pl-mais" id="pl-nova-aba" title="Nova aba">' + ic("add", 16) + "</button>" +
+    (p.abas.length > 1 ? '<button class="docs-ligacao" id="pl-tirar-aba">apagar aba</button>' : "") +
+    '<span class="docs-selecao" id="pl-selecao"></span>' +
+    '<span class="docs-nota-direita">' + plural(aba.linhas, "linha") + " · " + (res.erros ? plural(res.erros, "erro") : "cálculos em dia") + "</span></div></div>";
+}
 
-  html += '<div><div class="painel"><h3>Pedir aqui</h3>' +
-    '<p class="explica">Peça o cálculo em português. Eu escrevo a fórmula, você confere ' +
-    "e insere — quem calcula é a planilha, não o modelo.</p>" +
-    '<div class="ed-pedido"><input type="text" id="pl-pedido" placeholder="quanto falta receber?">' +
-    '<button class="primario" id="pl-pedir">↑</button></div>' +
-    '<div id="pl-sugestao"></div></div>';
-
-  html += '<div class="painel" style="margin-top:16px"><h3>Resumo da aba</h3>' +
-    '<div class="pl-status"><span>células ' + res.celulas + "</span>" +
-    "<span>fórmulas " + res.formulas + "</span>" +
-    "<span>erros " + res.erros + "</span></div>" +
-    '<div class="pl-status"><span>soma ' + moedaBR(res.soma) + "</span>" +
-    "<span>média " + moedaBR(res.media) + "</span></div></div></div></div>";
-
-  html += '<div class="rodape-tela">os números não saem desta máquina</div></div>';
-  $("centro").innerHTML = html;
-  ligarPlanilha();
+function painelDaPlanilha() {
+  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+    '<div class="docs-painel-cabeca">' + coroa(18) + '<span class="cresce">Pedir aqui</span><span>sobre a planilha</span></div>' +
+    '<div class="docs-conversa" id="pl-fala">' + falasDoDocumento(conversaAtual()) + "</div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que eu posso fazer</span></div><div class="docs-acoes-lista">' +
+    '<button class="adiante" data-pl-adiante="trazer o Financeiro para a planilha"><span>Importar os honorários do Financeiro</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button class="adiante" data-pl-adiante="criar aba com os prazos do Acervo"><span>Criar aba com os prazos do Acervo</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-pl-grafico="1"><span>Montar gráfico da seleção</span>' + ic("chevron_right", 16) + "</button></div></div>" +
+    '<div class="docs-pedido"><div class="docs-pedido-linha"><input type="text" id="pl-pedido" placeholder="Descreva o cálculo em português…">' +
+    '<button class="enviar" id="pl-pedir" aria-label="Enviar">' + ic("arrow_forward", 18) + "</button></div>" +
+    "<small>A fórmula aparece na barra fx antes de ser aplicada.</small></div>" +
+    "</div></aside>";
 }
 
 function gradePlanilha(aba, calc) {
@@ -12510,11 +13368,12 @@ function moedaBR(n) {
 function ligarPlanilha() {
   const p = escr.pl;
   const aba = p.abas[escr.aba];
+  const raiz = $("docs");
 
   /* Arrastar para selecionar, e shift para esticar — os dois jeitos que
      qualquer planilha tem, porque são os dois que a pessoa já sabe. */
   let arrastando = false;
-  document.querySelectorAll("[data-ref]").forEach((td) => {
+  raiz.querySelectorAll("[data-ref]").forEach((td) => {
     td.onmousedown = (e) => {
       arrastando = true;
       escolherCelula(td.dataset.ref, e.shiftKey);
@@ -12526,22 +13385,22 @@ function ligarPlanilha() {
   document.addEventListener("mouseup", () => { arrastando = false; });
 
   /* Clicar no cabeçalho seleciona a coluna ou a linha inteira. */
-  document.querySelectorAll("[data-coluna]").forEach((th) => {
+  raiz.querySelectorAll("[data-coluna]").forEach((th) => {
     th.onclick = () => {
       const letra = th.dataset.coluna;
       escolherCelula(letra + "1");
       escolherCelula(letra + aba.linhas, true);
     };
   });
-  document.querySelectorAll("[data-linha]").forEach((td) => {
+  raiz.querySelectorAll("[data-linha]").forEach((td) => {
     td.onclick = () => {
       const linha = td.dataset.linha;
       escolherCelula("A" + linha);
       escolherCelula(letraColuna(aba.colunas - 1) + linha, true);
     };
   });
-  document.querySelectorAll("[data-aba]").forEach((b) => {
-    b.onclick = () => { escr.aba = Number(b.dataset.aba); escr.celula = "A1"; desenharPlanilha(); };
+  raiz.querySelectorAll("[data-aba]").forEach((b) => {
+    b.onclick = () => { escr.aba = Number(b.dataset.aba); escr.celula = "A1"; escr.ancora = null; desenharPlanilha(); };
   });
 
   const entrada = $("pl-entrada");
@@ -12550,21 +13409,13 @@ function ligarPlanilha() {
     if (e.key === "Escape") { entrada.value = valorCru(aba, escr.celula); entrada.blur(); }
   };
 
-  $("pl-formato").value = (aba.celulas[escr.celula] || {}).formato || "";
   $("pl-formato").onchange = (e) => aplicarNaFaixa({ formato: e.target.value });
+  raiz.querySelectorAll("[data-pl-formato]").forEach((b) => { b.onclick = () => aplicarNaFaixa({ formato: b.dataset.plFormato }); });
   $("pl-negrito").onclick = () => aplicarNaFaixa({ negrito: !((aba.celulas[escr.celula] || {}).negrito) });
   $("pl-italico").onclick = () => aplicarNaFaixa({ italico: !((aba.celulas[escr.celula] || {}).italico) });
   $("pl-limpar").onclick = () => aplicarNaFaixa({ valor: "" });
 
-  $("pl-voltar").onclick = () => listaDocumentos("planilha", "Planilha");
-  $("pl-titulo").onchange = async () => {
-    await fetch("/api/documentos/" + p.id, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ corpo: corpoDaPlanilha(), titulo: $("pl-titulo").value }),
-    });
-  };
   $("pl-xlsx").onclick = () => { window.location.href = "/api/planilha/" + p.id + "/exportar?formato=xlsx"; };
-  $("pl-csv").onclick = () => { window.location.href = "/api/planilha/" + p.id + "/exportar?formato=csv&aba=" + escr.aba; };
 
   const campo = $("pl-arquivo");
   $("pl-importar-b").onclick = () => campo.click();
@@ -12585,7 +13436,7 @@ function ligarPlanilha() {
     });
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
     const d = await r.json();
-    avisoCert("guardado na biblioteca como " + d.guardado);
+    avisoCert("guardada no Acervo como " + d.guardado);
   };
 
   $("pl-nova-aba").onclick = async () => {
@@ -12611,12 +13462,14 @@ function ligarPlanilha() {
   };
 
   $("pl-funcoes").onclick = () => {
-    $("pl-abaixo").innerHTML = '<div class="painel" style="margin-top:14px"><h3>Fórmulas</h3>' +
+    $("pl-abaixo").innerHTML = '<div class="painel"><h3>Fórmulas</h3>' +
       '<p class="explica">Ponto e vírgula separa argumento; vírgula é o decimal — como no ' +
       "Excel em português.</p>" +
       p.funcoes.map((f) =>
         '<div class="pl-funcao"><b>' + esc(f.nome) + "</b><code>" + esc(f.exemplo) + "</code>" +
-        '<span class="explica">' + esc(f.explica) + "</span></div>").join("") + "</div>";
+        '<span class="explica">' + esc(f.explica) + "</span></div>").join("") +
+      '<div class="linha-form"><button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
+    $("pl-abaixo").querySelector("[data-doc-fechar-ferramenta]").onclick = () => { $("pl-abaixo").innerHTML = ""; };
   };
 
   $("pl-borda").onclick = () => {
@@ -12641,8 +13494,15 @@ function ligarPlanilha() {
   const fora = $("pl-filtro-fora");
   if (fora) fora.onclick = () => { escr.filtro = null; desenharPlanilha(); };
 
-  $("pl-pedir").onclick = pedirFormula;
-  $("pl-pedido").onkeydown = (e) => { if (e.key === "Enter") pedirFormula(); };
+  raiz.querySelectorAll("[data-pl-adiante]").forEach((b) => {
+    b.onclick = () => avisoCert(b.dataset.plAdiante + " ainda não tem motor — por enquanto, importe um CSV ou peça a fórmula");
+  });
+  raiz.querySelectorAll("[data-pl-grafico]").forEach((b) => { b.onclick = desenharGrafico; });
+
+  const pedir = () => { const c = $("pl-pedido"); const t = c.value.trim(); c.value = ""; pedirFormula(t); };
+  $("pl-pedir").onclick = pedir;
+  $("pl-pedido").onkeydown = (e) => { if (e.key === "Enter") pedir(); };
+  ligarFalas($("pl-fala"), conversaAtual());
   pintarSelecao();
   mostrarSelecao();
 }
@@ -12965,30 +13825,52 @@ async function gravarCelula(valor, extras) {
   desenharPlanilha();
 }
 
-async function pedirFormula() {
-  const campo = $("pl-pedido");
-  const pedido = campo.value.trim();
-  if (!pedido) return;
+/* A formula proposta aparece na barra fx antes de ser aplicada, com Manter
+   e Desfazer na conversa: quem calcula e a planilha, nao o modelo. */
+async function pedirFormula(pedido) {
+  if (!pedido || escr.ocupada) return;
+  const conversa = conversaAtual();
+  const celula = escr.celula;
+  escr.ocupada = true;
+  conversa.push({ autor: "pessoa", texto: pedido });
+  redesenharFalas("pl-fala");
 
-  const alvo = $("pl-sugestao");
-  alvo.innerHTML = '<p class="nota">pensando… cerca de um minuto nesta máquina</p>';
+  try {
+    const r = await fetch("/api/planilha/" + escr.pl.id + "/assistente", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido: pedido, selecao: celula }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const d = await r.json();
 
-  const r = await fetch("/api/planilha/" + escr.pl.id + "/assistente", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pedido: pedido, selecao: escr.celula }),
-  });
-  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+    const entrada = $("pl-entrada");
+    const antes = entrada ? entrada.value : "";
+    if (entrada) entrada.value = d.formula;
+    escr.notaFormula = "escrita pelo assistente · “" + pedido.slice(0, 60) + "”";
+    const nota = $("pl-nota");
+    if (nota) nota.textContent = escr.notaFormula;
 
-  const d = await r.json();
-  alvo.innerHTML = '<div class="ed-sugestao"><span class="rotulo">fórmula sugerida</span>' +
-    "<p><code>" + esc(d.formula) + "</code></p>" +
-    '<p class="explica">' + (d.erro ? "Ela não fechou: " : "Resultado agora: ") + esc(d.resultado || "—") + "</p>" +
-    '<p class="explica">' + esc(d.aviso) + "</p>" +
-    '<div class="linha-form"><button id="pl-descartar">Descartar</button>' +
-    '<button class="primario" id="pl-inserir">Inserir em ' + esc(escr.celula) + "</button></div></div>";
-
-  $("pl-descartar").onclick = () => { alvo.innerHTML = ""; };
-  $("pl-inserir").onclick = () => { alvo.innerHTML = ""; gravarCelula(d.formula); };
+    conversa.push({
+      autor: "paulus",
+      html: "Escrevi a fórmula <code>" + esc(d.formula) + "</code> para " + esc(celula) + ". " +
+        (d.erro ? "Ela não fechou: " : "Resultado agora: ") + esc(d.resultado || "—") + "." +
+        (d.aviso ? " " + esc(d.aviso) : ""),
+      acoes: [
+        { icone: "check", rotulo: "Manter", primario: true, acao: () => { escr.celula = celula; gravarCelula(d.formula); } },
+        { icone: "undo", rotulo: "Desfazer", acao: () => {
+          const e = $("pl-entrada"); if (e) e.value = antes;
+          escr.notaFormula = ""; const n = $("pl-nota"); if (n) n.textContent = "";
+          conversa.push({ autor: "paulus", html: "Desfeito. A célula " + esc(celula) + " ficou como estava." });
+          redesenharFalas("pl-fala");
+        } },
+      ],
+    });
+  } catch (err) {
+    conversa.push({ autor: "paulus", html: esc("Não consegui: " + (err.message || err)) });
+  } finally {
+    escr.ocupada = false;
+    redesenharFalas("pl-fala");
+  }
 }
 
 /* ------------------------ financeiro, relatórios, bem-estar, conexões */
@@ -13823,7 +14705,7 @@ const lei = { codigos: [], termo: "", codigo: "", achados: [] };
    nada tinha acontecido. */
 function revelarAbaixo() {
   const alvo = $("ed-abaixo");
-  if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (alvo && alvo.firstChild) alvo.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 async function painelCodigos() {
