@@ -2966,6 +2966,26 @@
   .em-form .ag-form-rodape .ag-explica { flex: 1; min-width: 160px; }
   .em-form .ag-form-rodape .primario { margin-left: 0; }
 
+  /* ----------------------------------------------------------- servicos */
+  /* A grade de pastas do desenho (A15), com o cartao tracejado de novo servico. */
+  .sv-grade { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: start; }
+  .sv-cartao { grid-column: span 2; padding: 20px 22px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 12px; }
+  .sv-cartao h3 { margin: 0; font: 400 26px/1.15 var(--serif); }
+  .sv-cartao p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .sv-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 4px; border-top: 1px solid var(--ink-a08); }
+  .sv-duas .rotulo { display: block; margin: 8px 0 6px; }
+  .sv-duas ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .sv-duas li { margin-bottom: 4px; }
+  .sv-acoes { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+  .sv-novo {
+    display: grid; place-items: center; gap: 8px; min-height: 200px; padding: 16px; text-align: center;
+    border: 1px dashed var(--ink-a25); border-radius: 12px; background: transparent; color: var(--ink2); cursor: pointer;
+  }
+  .sv-novo:hover:not(:disabled) { border: 1px dashed var(--ink); color: var(--ink); background: transparent; }
+  .sv-novo b { font: 600 13.5px var(--sans); }
+  .sv-novo small { font: 500 12px var(--sans); color: var(--ink3); }
+  @media (max-width: 1100px) { .sv-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sv-cartao { grid-column: span 2; } }
+
   /* ------------------------------------------------------- responsivo */
 
   /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
@@ -3348,7 +3368,7 @@ function exemplos() {
 function atualizarPostura() {
   const temConversa = Boolean(
     estado.trabalhoId ||
-    ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao, .bancada, .dupla, .acervo"))
+    ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao, .bancada, .dupla, .acervo, .sv-grade"))
   );
   $("conversa-col").classList.toggle("vazia", !temConversa);
   $("pedido").placeholder = temConversa
@@ -6698,9 +6718,12 @@ function ligarSugestoes(p) {
 
 const NOVOS_DESTINOS = {
   servicos: {
-    id: "servicos", nome: "Serviços", pronta: false,
+    id: "servicos", nome: "Serviços", pronta: false, abre: "servicos",
     resolve: "Pastas de trabalho por cliente, com equipe, prazos, arquivos e a trilha do que aconteceu.",
-    precisa: ["um módulo de serviços no servidor — hoje só existem conversas"],
+    precisa: [
+      "um módulo de serviços no servidor: a pasta por cliente ligada ao Acervo, as etapas com progresso, a equipe e a trilha",
+      "o Assistente abrindo um serviço a partir de um pedido (“abra um serviço para…”)",
+    ],
   },
   gravacoes: {
     id: "gravacoes", nome: "Gravações", pronta: false,
@@ -6772,6 +6795,7 @@ function abrirDestino(id) {
   if (!d) return;
   marcarDestino(id);
 
+  if (d.abre === "servicos") return mostrarServicos();
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return $("nova").click();
   if (d.abre === "biblioteca") return mostrarBiblioteca();
@@ -6811,6 +6835,58 @@ function telaAdiante(d) {
     '<div class="linha-form"><button class="primario" data-volta="1">Voltar para a conversa</button></div>' +
     "</div></div>";
   $("centro").querySelector("[data-volta]").onclick = () => { $("nova").click(); marcarDestino("conversa"); };
+  atualizarPostura();
+}
+
+/* ----------------------------------------------------------- servicos */
+/*
+   A tela de Servicos do desenho (docs/ui/03-telas-desktop.md, A15) com a
+   moldura inteira - cabecalho, filtros, a grade de pastas - e, no lugar dos
+   cartoes, o que falta para ela existir. Numero inventado seria pior que
+   grade vazia: o cartao tracejado de "Novo servico" manda para o Assistente,
+   que e por onde o desenho diz que um servico tambem nasce.
+*/
+
+const sv = { filtro: "andamento" };
+
+function mostrarServicos() {
+  abrirTela("Serviços", { cheia: true });
+  marcarDestino("servicos");
+  const d = NOVOS_DESTINOS.servicos;
+  $("conversa-meta").textContent = "ainda sem motor · nenhum serviço aberto";
+  $("acoes-tela").innerHTML =
+    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="sv-busca" placeholder="Buscar serviços…"></label>' +
+    '<div class="visoes">' + [["andamento", "Em andamento"], ["todos", "Todos"], ["concluidos", "Concluídos"]].map(([v, r]) => {
+      const classe = v === sv.filtro ? "ativa" : "";
+      return '<button class="' + classe + '" data-sv-filtro="' + v + '">' + r + "</button>";
+    }).join("") + "</div>" +
+    '<button class="primario com-icone" id="sv-novo">' + ic("add", 16) + "Novo serviço</button>";
+
+  $("centro").innerHTML = '<div class="sv-grade">' +
+    '<div class="sv-cartao"><span class="rotulo">Ainda não construída</span><h3>' + esc(d.nome) + "</h3>" +
+    "<p>" + esc(d.resolve) + " Cada serviço é uma pasta de trabalho: nome próprio, cliente, o que está sendo feito, o andamento em etapas, quem cuida, os arquivos ligados ao Acervo, os prazos e a trilha do que aconteceu.</p>" +
+    '<div class="sv-duas"><div><span class="rotulo">O que falta para existir</span><ul>' +
+    d.precisa.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" +
+    '<div><span class="rotulo">O que já existe e vai alimentar</span><ul>' +
+    "<li>as pastas e os documentos do Acervo</li><li>os prazos e compromissos da Agenda</li><li>os clientes de Cadastros</li><li>as conversas com o Assistente</li></ul></div></div>" +
+    '<div class="sv-acoes"><button class="primario com-icone" data-sv-pedir="1">' + ic("forum", 16) + "Pedir ao Assistente</button>" +
+    '<button data-sv-volta="1">Voltar para a conversa</button></div></div>' +
+    '<button class="sv-novo" data-sv-pedir="1">' + ic("add", 24) + "<b>Novo serviço</b><small>ou peça ao Assistente: “abra um serviço para…”</small></button>" +
+    "</div>";
+
+  $("acoes-tela").querySelectorAll("[data-sv-filtro]").forEach((b) => {
+    b.onclick = () => { sv.filtro = b.dataset.svFiltro; mostrarServicos(); };
+  });
+  const pedir = () => {
+    $("nova").click();
+    marcarDestino("conversa");
+    const campo = $("pedido");
+    if (campo) { campo.value = "Abra um serviço para "; campo.focus(); campo.setSelectionRange(campo.value.length, campo.value.length); }
+    avisoCert("Serviços ainda não tem motor — diga ao Assistente o que quer abrir e ele guarda como conversa");
+  };
+  $("sv-novo").onclick = pedir;
+  document.querySelectorAll("[data-sv-pedir]").forEach((b) => { b.onclick = pedir; });
+  document.querySelector("[data-sv-volta]").onclick = () => { $("nova").click(); marcarDestino("conversa"); };
   atualizarPostura();
 }
 
