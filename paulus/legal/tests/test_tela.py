@@ -397,6 +397,41 @@ def main() -> int:
                 "o destino antigo Relatorios abre o Financeiro em Relatorios",
             )
 
+            print("\nos Cadastros: clientes, equipe e despesas fixas")
+            # Tres tabelas com a ficha editavel no painel
+            # (docs/ui/03-telas-desktop.md, A10).
+            pagina.evaluate("() => abrirDestino('cadastros')")
+            pagina.wait_for_timeout(1800)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.tabela-cabecalho.colunas-clientes');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 5, f"a tabela de clientes tem cinco colunas (achou {colunas})")
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#cad-tela .acervo-painel .painel-vazio')"),
+                "o painel abre vazio, esperando uma ficha",
+            )
+            pagina.evaluate("() => document.querySelector('[data-cad-nova]').click()")
+            pagina.wait_for_timeout(500)
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#cad-tela .cad-campos [data-cc=nome]')"),
+                "Novo cliente abre a ficha em branco no painel",
+            )
+            pagina.evaluate("() => document.querySelector('[data-cad-visao=equipe]').click()")
+            pagina.wait_for_timeout(600)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.tabela-cabecalho.colunas-equipe');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 5, f"a tabela da equipe tem cinco colunas (achou {colunas})")
+            pagina.evaluate("() => document.querySelector('[data-cad-visao=despesas]').click()")
+            pagina.wait_for_timeout(600)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.tabela-cabecalho.colunas-despesas');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 6, f"a tabela de despesas tem seis colunas (achou {colunas})")
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',
