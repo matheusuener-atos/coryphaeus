@@ -634,6 +634,16 @@ def main() -> int:
                     pagina.evaluate("() => document.querySelectorAll('.gv-conteudo .gv-marcador').length") == 1,
                     "a aba Marcadores lista o marcador",
                 )
+                # A transcricao roda nesta maquina com o Whisper: a aba oferece
+                # transcrever quando o modelo esta baixado, ou baixar quando nao
+                # esta. O teste nao transcreve (leva meio minuto por minuto de
+                # audio); so confere que a tela sabe em que pe esta.
+                pagina.evaluate("() => document.querySelector('[data-gv-aba=\"transcricao\"]').click()")
+                pagina.wait_for_timeout(400)
+                checar(
+                    pagina.evaluate("() => !!gv.voz && !!document.querySelector('#gv-conteudo [data-gv-transcrever], #gv-conteudo [data-gv-baixar-voz], #gv-conteudo #gv-progresso, #gv-conteudo .gv-trecho')"),
+                    "a aba Transcricao sabe se o modelo de voz esta nesta maquina",
+                )
                 pagina.evaluate("() => document.querySelector('[data-gv-voltar]').click()")
                 pagina.wait_for_selector("#gv-tela .gv-lista", timeout=20000)
                 checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Gravações", "a seta volta para a lista")

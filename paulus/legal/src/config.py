@@ -95,6 +95,11 @@ PADRAO: dict = {
         "oab": "",
         "rodape": "",
     },
+    # O modelo de voz (Whisper) que transcreve as gravacoes nesta maquina:
+    # "turbo" acerta mais, "small" e mais leve. Ver src/transcricao.py.
+    "voz": {
+        "modelo": "turbo",
+    },
 }
 
 

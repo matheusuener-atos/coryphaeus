@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import queue
 import threading
 import unicodedata
 from datetime import datetime
@@ -51,6 +52,7 @@ import planilha
 import relatorios
 import servicos as servicos_mod
 import gravacoes as gravacoes_mod
+import transcricao as transcricao_mod
 import pastas
 import recursos
 import registro
@@ -107,6 +109,7 @@ COMPROVANTES_DIR = BASE_DIR / "data" / "comprovantes"
 RECIBOS_DIR = BASE_DIR / "data" / "recibos"
 EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
 GRAVACOES_DIR = BASE_DIR / "data" / "gravacoes"
+MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
 RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
@@ -174,11 +177,47 @@ class Estado:
         self.servicos = servicos_mod.Servicos(self.base, _quem_sou)
         # Gravacoes de audio, guardadas nesta maquina (docs/ui, A16).
         self.gravacoes = gravacoes_mod.Gravacoes(self.base, GRAVACOES_DIR)
+        # Transcricao: o modelo de voz desta maquina e uma fila de fundo, um
+        # audio por vez, porque o Whisper ocupa metade dos nucleos.
+        voz = self.prefs.dados.get("voz") or {}
+        self.transcritor = transcricao_mod.Transcritor(MODELOS_VOZ_DIR, modelo=voz.get("modelo") or transcricao_mod.PADRAO)
+        self.fila_voz: "queue.Queue[int]" = queue.Queue()
+        self.progresso_voz: dict[int, float] = {}
+        self.transcrevendo: int | None = None
+        self.erro_voz = ""
+        for id_ in self.gravacoes.pendentes():
+            self.fila_voz.put(id_)
+        threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(
             self.base, fila=self.fila, assinaturas=self.assinaturas,
             envios=self.envios, bem_estar=self.bem_estar,
         )
+
+    def _trabalhar_voz(self) -> None:
+        """A fila de transcricao: pega uma gravacao, transcreve, guarda, avisa a trilha."""
+        while True:
+            id_ = self.fila_voz.get()
+            self.transcrevendo = id_
+            self.progresso_voz[id_] = 0.0
+            try:
+                caminho = self.gravacoes.caminho(id_)
+                if not caminho:
+                    self.gravacoes.marcar_transcricao(id_, "erro", erro="o áudio não está mais no disco")
+                    continue
+                self.gravacoes.marcar_transcricao(id_, "transcrevendo")
+                r = self.transcritor.transcrever(
+                    caminho, progresso=lambda f, i=id_: self.progresso_voz.__setitem__(i, f))
+                self.gravacoes.marcar_transcricao(id_, "pronta", trechos=r["trechos"], modelo=r["modelo"], tempo=r["tempo"])
+                g = self.gravacoes.obter(id_)
+                if g and g.get("servico_id"):
+                    self.servicos.trilha(int(g["servico_id"]), "Gravação transcrita: " + g["titulo"], "Assistente")
+            except Exception as exc:  # noqa: BLE001 - a fila nao pode morrer por um audio
+                self.gravacoes.marcar_transcricao(id_, "erro", erro=str(exc)[:300])
+            finally:
+                self.progresso_voz.pop(id_, None)
+                self.transcrevendo = None
+                self.fila_voz.task_done()
 
     def recarregar(self, *, force: bool = False) -> int:
         docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
@@ -1990,6 +2029,9 @@ def preferencias_gravar(payload: dict) -> dict:
             model=modelo, num_ctx=janela_para(estado.searcher.caracteres())
         )
     estado.devagar = bool(estado.prefs.dados.get("devagar"))
+    voz = (estado.prefs.dados.get("voz") or {}).get("modelo")
+    if voz in transcricao_mod.MODELOS and voz != estado.transcritor.modelo:
+        estado.transcritor.escolher(voz)
 
     return preferencias_ler()
 
@@ -4715,13 +4757,72 @@ def servicos_resumo(id_: int) -> dict:
     return estado.servicos.obter(id_) or {}
 
 
+# ------------------------------------------------------------------ voz
+
+
+def _situacao_da_voz() -> dict:
+    s = estado.transcritor.situacao()
+    s["fila"] = list(estado.fila_voz.queue)
+    s["transcrevendo"] = estado.transcrevendo
+    s["erro"] = estado.erro_voz
+    return s
+
+
+@app.get("/api/voz")
+def voz_situacao() -> dict:
+    return _situacao_da_voz()
+
+
+@app.post("/api/voz/baixar")
+def voz_baixar(payload: dict) -> dict:
+    """Baixa o modelo de voz em segundo plano. Uma vez, com internet; depois nunca mais."""
+    nome = str(payload.get("modelo") or estado.transcritor.modelo)
+    if nome not in transcricao_mod.MODELOS:
+        raise HTTPException(status_code=400, detail="modelo de voz desconhecido")
+    if estado.transcritor.baixando:
+        return _situacao_da_voz()
+    if estado.transcritor.instalado(nome):
+        return _situacao_da_voz()
+
+    def baixar() -> None:
+        estado.erro_voz = ""
+        try:
+            estado.transcritor.baixar(nome)
+        except Exception as exc:  # noqa: BLE001 - o erro vai para a tela
+            estado.erro_voz = "não consegui baixar: " + str(exc)[:200]
+
+    estado.transcritor.baixando = nome
+    threading.Thread(target=baixar, name="baixar-voz", daemon=True).start()
+    return _situacao_da_voz()
+
+
+@app.post("/api/voz/modelo")
+def voz_modelo(payload: dict) -> dict:
+    nome = str(payload.get("modelo") or "")
+    try:
+        estado.transcritor.escolher(nome)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    estado.prefs.atualizar({"voz": {"modelo": nome}})
+    return _situacao_da_voz()
+
+
 # ------------------------------------------------------------ gravacoes
+
+
+def _com_progresso(g: dict) -> dict:
+    if g.get("transcricao_estado") == "transcrevendo":
+        g["progresso"] = round(estado.progresso_voz.get(int(g["id"]), 0.0), 3)
+    elif g.get("transcricao_estado") == "fila":
+        fila = list(estado.fila_voz.queue)
+        g["posicao_na_fila"] = (fila.index(int(g["id"])) + 1) if int(g["id"]) in fila else 0
+    return g
 
 
 @app.get("/api/gravacoes")
 def gravacoes_listar(tipo: str = "", termo: str = "") -> dict:
     return {
-        "gravacoes": estado.gravacoes.listar(tipo, termo),
+        "gravacoes": [_com_progresso(g) for g in estado.gravacoes.listar(tipo, termo)],
         "total_segundos": estado.gravacoes.total_segundos(),
         "tipos": [{"valor": k, "rotulo": v} for k, v in gravacoes_mod.TIPOS.items()],
         "clientes": [{"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar("cliente")],
@@ -4735,7 +4836,7 @@ async def gravacoes_guardar(
     arquivo: UploadFile,
     titulo: str = Form(""), tipo: str = Form("reuniao"), cadastro_id: str = Form(""),
     servico_id: str = Form(""), participantes: str = Form(""), duracao_s: str = Form("0"),
-    origem: str = Form("gravada"), marcadores: str = Form("[]"),
+    origem: str = Form("gravada"), marcadores: str = Form("[]"), transcrever: str = Form("1"),
 ) -> dict:
     """O audio entra por aqui, gravado no navegador ou importado de um arquivo."""
     conteudo = await arquivo.read()
@@ -4758,7 +4859,11 @@ async def gravacoes_guardar(
     g = estado.gravacoes.obter(id_) or {}
     if g.get("servico_id"):
         estado.servicos.trilha(int(g["servico_id"]), "Gravação arquivada: " + g["titulo"])
-    return g
+    if estado.transcritor.instalado() and transcrever == "1":
+        estado.gravacoes.marcar_transcricao(id_, "fila")
+        estado.fila_voz.put(id_)
+        g = estado.gravacoes.obter(id_) or g
+    return _com_progresso(g)
 
 
 @app.get("/api/gravacoes/{id_}")
@@ -4766,7 +4871,71 @@ def gravacoes_obter(id_: int) -> dict:
     g = estado.gravacoes.obter(id_)
     if not g:
         raise HTTPException(status_code=404, detail="gravação não encontrada")
-    return g
+    return _com_progresso(g)
+
+
+@app.post("/api/gravacoes/{id_}/transcrever")
+def gravacoes_transcrever(id_: int) -> dict:
+    """Poe a gravacao na fila do Whisper. Volta na hora; a tela acompanha pelo estado."""
+    g = estado.gravacoes.obter(id_)
+    if not g:
+        raise HTTPException(status_code=404, detail="gravação não encontrada")
+    if not g["existe"]:
+        raise HTTPException(status_code=404, detail="o áudio não está mais no disco")
+    if not estado.transcritor.instalado():
+        raise HTTPException(status_code=503, detail="o modelo de voz não está baixado nesta máquina")
+    if g["transcricao_estado"] in ("fila", "transcrevendo"):
+        return _com_progresso(g)
+    estado.gravacoes.marcar_transcricao(id_, "fila")
+    estado.fila_voz.put(id_)
+    return _com_progresso(estado.gravacoes.obter(id_) or {})
+
+
+@app.post("/api/gravacoes/{id_}/resumo")
+def gravacoes_resumo(id_: int) -> dict:
+    """
+    O resumo da gravacao, escrito pelo modelo local sobre a transcricao.
+
+    Uma reuniao de uma hora nao cabe na janela do modelo: o texto e cortado
+    em blocos, cada bloco ganha um resumo parcial e os parciais viram um so.
+    Demora alguns minutos em CPU; a tela avisa.
+    """
+    g = estado.gravacoes.obter(id_)
+    if not g:
+        raise HTTPException(status_code=404, detail="gravação não encontrada")
+    if not g.get("trechos"):
+        raise HTTPException(status_code=400, detail="a gravação ainda não foi transcrita")
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    texto = estado.gravacoes.texto_da_transcricao(id_)
+    try:
+        resumo = _resumir_em_blocos(texto)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    estado.gravacoes.guardar_resumo(id_, resumo)
+    if g.get("servico_id"):
+        estado.servicos.trilha(int(g["servico_id"]), "Resumo da gravação: " + g["titulo"], "Assistente")
+    return _com_progresso(estado.gravacoes.obter(id_) or {})
+
+
+def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
+    if len(texto) <= tamanho:
+        return _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
+    linhas = texto.split("\n")
+    blocos, atual = [], ""
+    for linha in linhas:
+        if len(atual) + len(linha) + 1 > tamanho and atual:
+            blocos.append(atual)
+            atual = ""
+        atual += linha + "\n"
+    if atual:
+        blocos.append(atual)
+    parciais = [
+        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
+        for i, bloco in enumerate(blocos)
+    ]
+    return _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
 
 
 @app.post("/api/gravacoes/{id_}")

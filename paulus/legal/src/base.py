@@ -409,6 +409,23 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_gravacoes_tipo ON gravacoes(tipo);
         """,
     ),
+    (
+        "016_transcricoes",
+        """
+        -- A transcricao (Whisper nesta maquina) e o resumo escrito pelo
+        -- modelo local ficam na propria gravacao: sao um por gravacao e
+        -- nascem dela. O estado diz onde a fila esta: '' (nao pedida),
+        -- fila, transcrevendo, pronta, erro.
+        ALTER TABLE gravacoes ADD COLUMN transcricao TEXT NOT NULL DEFAULT '[]';
+        ALTER TABLE gravacoes ADD COLUMN transcricao_estado TEXT NOT NULL DEFAULT '';
+        ALTER TABLE gravacoes ADD COLUMN transcricao_em TEXT DEFAULT '';
+        ALTER TABLE gravacoes ADD COLUMN transcricao_modelo TEXT DEFAULT '';
+        ALTER TABLE gravacoes ADD COLUMN transcricao_erro TEXT DEFAULT '';
+        ALTER TABLE gravacoes ADD COLUMN transcricao_tempo REAL NOT NULL DEFAULT 0;
+        ALTER TABLE gravacoes ADD COLUMN resumo TEXT DEFAULT '';
+        ALTER TABLE gravacoes ADD COLUMN resumo_em TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 

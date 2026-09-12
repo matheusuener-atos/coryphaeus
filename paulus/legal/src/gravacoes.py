@@ -31,6 +31,32 @@ MEDIA_TYPES = {
 
 CAMPOS = ("titulo", "tipo", "cadastro_id", "servico_id", "participantes", "notas", "duracao_s")
 
+ESTADOS_TRANSCRICAO = {
+    "": "sem transcrição",
+    "fila": "na fila",
+    "transcrevendo": "transcrevendo",
+    "pronta": "transcrita",
+    "erro": "erro na transcrição",
+}
+
+INSTRUCAO_RESUMO = """Você é assistente de um escritório de advocacia brasileiro. Abaixo está a
+transcrição literal de uma gravação (reunião, atendimento, audiência ou nota
+de voz), com o minuto de cada trecho. Escreva em português do Brasil, nesta
+ordem e com estes títulos:
+
+Resumo: um parágrafo curto dizendo do que se tratou e onde ficou.
+Decisões: uma linha por decisão tomada. Se não houve, escreva "nenhuma".
+Pendências: uma linha por coisa que ficou para fazer, dizendo quem e até
+quando, se isso foi dito.
+
+Use só o que está na transcrição; não invente nomes, valores nem datas. Se
+algo não ficou claro, diga que não ficou claro."""
+
+INSTRUCAO_JUNTAR = """Você é assistente de um escritório de advocacia brasileiro. Abaixo estão
+resumos parciais, em ordem, de partes de uma mesma gravação. Junte-os num
+único texto com os títulos Resumo, Decisões e Pendências, sem repetir e sem
+inventar nada que não esteja neles."""
+
 
 def _agora() -> str:
     return datetime.now().isoformat(timespec="seconds")
@@ -50,7 +76,7 @@ class Gravacoes:
 
     # ---------------------------------------------------------------- leitura
 
-    def listar(self, tipo: str = "", termo: str = "") -> list[dict]:
+    def listar(self, tipo: str = "", termo: str = "", completo: bool = False) -> list[dict]:
         sql = ("SELECT g.*, c.nome AS cliente_nome, s.nome AS servico_nome FROM gravacoes g "
                "LEFT JOIN cadastros c ON c.id = g.cadastro_id "
                "LEFT JOIN servicos s ON s.id = g.servico_id WHERE 1=1")
@@ -59,13 +85,15 @@ class Gravacoes:
             sql += " AND g.tipo = ?"
             parametros.append(tipo)
         if termo:
-            sql += " AND (g.titulo LIKE ? OR g.participantes LIKE ? OR g.notas LIKE ? OR c.nome LIKE ? OR s.nome LIKE ?)"
+            # Procurar "no que foi dito" e procurar na transcricao tambem.
+            sql += (" AND (g.titulo LIKE ? OR g.participantes LIKE ? OR g.notas LIKE ? OR c.nome LIKE ? OR s.nome LIKE ?"
+                    " OR g.transcricao LIKE ? OR g.resumo LIKE ?)")
             like = f"%{termo}%"
-            parametros += [like] * 5
+            parametros += [like] * 7
         sql += " ORDER BY g.criado_em DESC"
         itens = self.base.buscar(sql, tuple(parametros))
         for g in itens:
-            self._enfeitar(g)
+            self._enfeitar(g, completo)
         return itens
 
     def obter(self, id_: int) -> dict | None:
@@ -74,10 +102,10 @@ class Gravacoes:
             "LEFT JOIN cadastros c ON c.id = g.cadastro_id "
             "LEFT JOIN servicos s ON s.id = g.servico_id WHERE g.id = ?", (id_,))
         if g:
-            self._enfeitar(g)
+            self._enfeitar(g, True)
         return g
 
-    def _enfeitar(self, g: dict) -> None:
+    def _enfeitar(self, g: dict, completo: bool = False) -> None:
         g["tipo_rotulo"] = TIPOS.get(g.get("tipo", ""), g.get("tipo", ""))
         g["duracao_texto"] = duracao_texto(g.get("duracao_s", 0))
         g["mb"] = round((g.get("bytes") or 0) / (1024 * 1024), 1)
@@ -87,6 +115,17 @@ class Gravacoes:
             g["marcadores"] = []
         g["participantes_lista"] = [p.strip() for p in str(g.get("participantes") or "").split(",") if p.strip()]
         g["existe"] = bool(g.get("arquivo")) and (self.pasta / g["arquivo"]).exists()
+        # A transcricao inteira so vai quando a gravacao esta aberta: uma
+        # audiencia de hora e meia sao mil trechos, e a lista nao precisa.
+        try:
+            trechos = json.loads(g.pop("transcricao", "") or "[]")
+        except json.JSONDecodeError:
+            trechos = []
+        g["trechos_quantos"] = len(trechos)
+        g["palavras"] = sum(len(t.get("texto", "").split()) for t in trechos)
+        g["transcricao_rotulo"] = ESTADOS_TRANSCRICAO.get(g.get("transcricao_estado", ""), "")
+        if completo:
+            g["trechos"] = trechos
 
     def total_segundos(self) -> int:
         linha = self.base.um("SELECT COALESCE(SUM(duracao_s), 0) AS s FROM gravacoes")
@@ -160,6 +199,40 @@ class Gravacoes:
         self.base.escrever("UPDATE gravacoes SET marcadores = ? WHERE id = ?",
                            (json.dumps(marcadores, ensure_ascii=False), id_))
         return marcadores
+
+    # ------------------------------------------------------ transcricao
+
+    def marcar_transcricao(self, id_: int, estado: str, *, trechos: list | None = None,
+                           modelo: str = "", erro: str = "", tempo: float = 0.0) -> None:
+        campos = {"transcricao_estado": estado, "transcricao_erro": erro}
+        if trechos is not None:
+            campos.update({
+                "transcricao": json.dumps(trechos, ensure_ascii=False), "transcricao_em": _agora(),
+                "transcricao_modelo": modelo, "transcricao_tempo": float(tempo),
+            })
+        sets = ", ".join(f"{k} = ?" for k in campos)
+        self.base.escrever(f"UPDATE gravacoes SET {sets} WHERE id = ?", (*campos.values(), id_))
+
+    def pendentes(self) -> list[int]:
+        """O que ficou na fila (ou no meio) quando o programa fechou: volta para a fila."""
+        linhas = self.base.buscar(
+            "SELECT id FROM gravacoes WHERE transcricao_estado IN ('fila', 'transcrevendo') ORDER BY criado_em")
+        ids = [int(l["id"]) for l in linhas]
+        for id_ in ids:
+            self.marcar_transcricao(id_, "fila")
+        return ids
+
+    def texto_da_transcricao(self, id_: int, com_minutos: bool = True) -> str:
+        g = self.obter(id_)
+        if not g:
+            return ""
+        linhas = []
+        for t in g.get("trechos", []):
+            linhas.append((f"[{duracao_texto(int(t.get('inicio', 0)))}] " if com_minutos else "") + t.get("texto", ""))
+        return "\n".join(linhas)
+
+    def guardar_resumo(self, id_: int, texto: str) -> None:
+        self.base.escrever("UPDATE gravacoes SET resumo = ?, resumo_em = ? WHERE id = ?", (texto, _agora(), id_))
 
     def apagar(self, id_: int) -> bool:
         caminho = self.caminho(id_)

@@ -2971,6 +2971,29 @@
   .gv-painel .rolagem { display: flex; flex-direction: column; }
   .gv-painel .cfg-liga { padding: 2px 0; }
   .gv-pergunta { width: 100%; resize: none; }
+  /* A transcricao de verdade: trechos com o minuto clicavel, busca com
+     realce, a barra de andamento e o resumo escrito pelo modelo local. */
+  .gv-transcrita { display: flex; flex-direction: column; min-height: 0; }
+  .gv-transcrita .fin-cartao-cabeca { flex-wrap: wrap; }
+  .gv-transcrita .fin-cartao-cabeca .direita { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .gv-transcrita .fin-cartao-cabeca .direita button { padding: 5px 10px; font-size: 12.5px; }
+  .gv-busca-trecho { width: 220px; height: 30px; }
+  .gv-trechos { flex: 1; min-height: 0; overflow: auto; padding: 6px 0; }
+  .gv-trecho { display: flex; align-items: flex-start; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--ink-a06); }
+  .gv-trecho:hover { background: var(--sub); }
+  .gv-trecho .em-ligacao.forte { font-family: var(--mono); font-variant-numeric: tabular-nums; flex: none; padding-top: 2px; }
+  .gv-trecho p { margin: 0; font-size: 14px; line-height: 1.6; min-width: 0; }
+  .gv-trecho mark { background: var(--warnbg); color: var(--ink); border-radius: 3px; padding: 0 2px; }
+  .gv-progresso { width: 100%; max-width: 520px; height: 8px; border-radius: 4px; background: var(--fill2); overflow: hidden; }
+  .gv-progresso i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 4px; transition: width .6s ease; }
+  .gv-adiante .fin-botoes { padding-top: 6px; }
+  .gv-adiante .gv-erro { max-width: none; }
+  .gv-resumo-texto { margin: 0; padding: 16px; font-size: 14px; line-height: 1.65; white-space: pre-line; overflow: auto; }
+  .gv-painel .gv-resumo-curto { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+  .cfg-voz { display: grid; gap: 8px; }
+  .cfg-voz .cfg-modelo small.cfg-voz-nota { white-space: normal; }
+  .cfg-voz .fin-botoes { padding-top: 0; }
+
 
   /* --------------------------------------------------------- assinatura */
   /*
@@ -5889,6 +5912,8 @@ async function carregarSecao() {
     cfg.acoes = (acoes && acoes.acoes) || [];
   } else if (cfg.secao === "desempenho") {
     cfg.recursos = await pega("/api/recursos");
+  } else if (cfg.secao === "assistente") {
+    cfg.voz = await pega("/api/voz");
   }
 }
 
@@ -6031,6 +6056,28 @@ function avisoDoTimbre() {
 
 /* ------------------------------------------------ assistente e modelo */
 
+/* O modelo de voz que transcreve as gravacoes: qual esta em uso, qual esta
+   baixado, e o botao de baixar o outro. */
+function cartaoDaVozCfg() {
+  const v = cfg.voz;
+  if (!v) return '<p class="cfg-texto">não consegui ler o estado do modelo de voz.</p>';
+  const lista = (v.modelos || []).map((m) => {
+    const emUso = m.nome === v.modelo;
+    const classe = "cfg-modelo" + (emUso ? " on" : "");
+    const gb = String(Math.round(m.mb / 100) / 10).replace(".", ",") + " GB";
+    let acao = "";
+    if (v.baixando === m.nome) acao = '<span class="cfg-pill">baixando · ' + (v.baixado_mb || 0) + " MB</span>";
+    else if (!m.instalado) acao = '<button data-cfg-voz-baixar="' + m.nome + '">' + ic("download", 16) + "Baixar</button>";
+    else if (!emUso) acao = '<button data-cfg-voz-usar="' + m.nome + '">Usar este</button>';
+    return '<div class="' + classe + '"><i></i><span class="duas-linhas"><b>' + esc(m.rotulo) + '</b><small class="cfg-voz-nota">' + esc(m.nota) +
+      (m.instalado ? " · baixado" : " · não baixado") + "</small></span><small>" + gb + "</small>" +
+      (emUso && m.instalado ? '<span class="cfg-pill ok">em uso</span>' : (emUso ? '<span class="cfg-pill acc">escolhido · falta baixar</span>' : "")) + acao + "</div>";
+  }).join("");
+  return '<div class="cfg-voz"><div class="cfg-modelos">' + lista + "</div>" +
+    '<p class="cfg-explica">Transcreve as gravações nesta máquina, em CPU, com ' + (v.nucleos || 0) + " núcleos — o áudio não sai do computador. " +
+    (v.erro ? esc(v.erro) + " " : "") + "Os modelos ficam em " + esc(v.pasta || "") + ".</p></div>";
+}
+
 function secaoAssistente() {
   const r = cfg.rascunho;
   const s = cfg.status || {};
@@ -6053,6 +6100,7 @@ function secaoAssistente() {
       : '<option value="">nenhum modelo encontrado</option>') + "</select></div></div>" +
     '<div class="cfg-modelos">' + lista + "</div>" +
     '<p class="cfg-explica">Trocar o modelo vale para a próxima pergunta. Modelo maior responde melhor e demora mais. Baixar outro por aqui fica para depois: por enquanto é <code>ollama pull nome</code> no terminal.</p>' +
+    '<div class="cfg-sub"><b>Modelo de voz</b>' + cartaoDaVozCfg() + "</div>" +
     '<div class="cfg-sub"><b>Ritmo</b>' +
     ligaCfg("devagar", "Ir devagar quando eu usar o PC", "espera a máquina desafogar antes de começar cada documento; a leitura demora mais e o computador continua seu", r.devagar) + "</div>" +
     '<div class="cfg-sub"><b>Onde ficam os documentos</b><div class="cfg-campos"><div class="ag-campo"><label>Pasta do acervo</label><input type="text" readonly value="' + esc(cfg.prefs.pasta_acervo || "") + '"></div></div>' +
@@ -6569,6 +6617,23 @@ function ligarConfig() {
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
   clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));
+  clique("[data-cfg-voz-usar]", async (b) => {
+    const r = await fetch("/api/voz/modelo", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ modelo: b.dataset.cfgVozUsar }) });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    cfg.voz = await r.json();
+    cfg.recarregar = true;
+    mostrarConfig("assistente");
+  });
+  clique("[data-cfg-voz-baixar]", async (b) => {
+    let r = await fetch("/api/voz/modelo", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ modelo: b.dataset.cfgVozBaixar }) });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    r = await fetch("/api/voz/baixar", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ modelo: b.dataset.cfgVozBaixar }) });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    cfg.voz = await r.json();
+    avisoCert("baixando o modelo de voz em segundo plano — abra esta seção de novo para ver o andamento");
+    cfg.recarregar = true;
+    mostrarConfig("assistente");
+  });
   clique("[data-cfg-reindexar]", async (b) => {
     b.disabled = true;
     avisoCert("reindexando o acervo…");
@@ -9750,7 +9815,7 @@ const GV_VELOCIDADES = [1, 1.25, 1.5, 2];
 
 const gv = {
   visao: "lista", tipo: "", termo: "", lista: [], totalSegundos: 0, tipos: [], clientes: [], servicos: [], pasta: "",
-  aberta: null, aba: "transcricao", velocidade: 1, marcarTexto: "",
+  aberta: null, aba: "transcricao", velocidade: 1, marcarTexto: "", voz: null, relogioVoz: null, buscaTrecho: "", resumindo: false,
   vivo: {
     estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
     form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
@@ -9759,15 +9824,20 @@ const gv = {
 
 async function mostrarGravacoes(visao) {
   if (visao) gv.visao = visao;
+  clearTimeout(gv.relogioVoz);
   if (gv.visao === "gravacao" && !gv.aberta) gv.visao = "lista";
   abrirTela("Gravações", { cheia: true });
   marcarDestino("gravacoes");
   $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
   atualizarPostura();
   try {
-    const pedidos = [fetch("/api/gravacoes?termo=" + encodeURIComponent(gv.termo)).then((r) => r.json())];
+    const pedidos = [
+      fetch("/api/gravacoes?termo=" + encodeURIComponent(gv.termo)).then((r) => r.json()),
+      fetch("/api/voz").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ];
     if (gv.visao === "gravacao") pedidos.push(fetch("/api/gravacoes/" + gv.aberta.id).then((r) => (r.ok ? r.json() : null)));
-    const [d, g] = await Promise.all(pedidos);
+    const [d, voz, g] = await Promise.all(pedidos);
+    gv.voz = voz;
     gv.lista = d.gravacoes || [];
     gv.totalSegundos = d.total_segundos || 0;
     gv.tipos = d.tipos || [];
@@ -9801,6 +9871,7 @@ function desenharGravacoes() {
   $("centro").innerHTML = html;
   ligarGravacoes();
   atualizarPostura();
+  vigiarVoz();
 }
 
 /* ------------------------------------------------------------ tempo */
@@ -9869,7 +9940,7 @@ function cabecalhoGravacoes() {
     nav.innerHTML = voltar;
     titulo.textContent = g.titulo;
     meta.textContent = [quandoDaGravacao(g), duracaoLongaGv(g.duracao_s), g.participantes_lista.join(", ")].filter(Boolean).join(" · ") +
-      (g.existe ? " · arquivada" : " · áudio não encontrado");
+      " · " + statusDaGravacao(g);
     $("acoes-tela").innerHTML =
       '<div class="visoes">' + botao("transcricao", "Transcrição") + botao("resumo", "Resumo") + botao("marcadores", "Marcadores") + "</div>" +
       '<button class="com-icone" data-gv-adiante="Compartilhar o resumo por e-mail entra junto com o resumo — que depende da transcrição local">' + ic("mail", 16) + "Compartilhar resumo</button>" +
@@ -9919,7 +9990,7 @@ function corpoDaListaGv() {
   }).join("");
   const linhas = lista.map((g) => {
     const sub = [quandoDaGravacao(g), g.servico_nome ? "Serviço: " + g.servico_nome : "", !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
-    const status = g.existe ? "arquivada · sem transcrição" : "áudio não encontrado";
+    const status = statusDaGravacao(g);
     return '<div class="tabela-linha colunas-gravacoes" data-gv-abrir="' + g.id + '"><span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>" +
       '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" + avataresGv(g.participantes_lista) +
       '<span class="gv-duracao">' + duracaoGv(g.duracao_s) + '</span><span class="fin-status">' + status + "</span>" +
@@ -9937,7 +10008,7 @@ function corpoDaListaGv() {
     '<div class="tabela-cabecalho colunas-gravacoes"><span></span><span>Gravação</span><span>Participantes</span><span>Duração</span><span>Status</span><span></span></div>' +
     '<div class="tabela-corpo">' + linhaAoVivoGv() + linhas + vazio + "</div>" +
     '<div class="tabela-rodape"><span>' + lista.length + " de " + gv.lista.length + " · " + duracaoLongaGv(gv.totalSegundos) + ' gravados</span>' +
-    '<span class="direita">Áudio fica nesta máquina · transcrição e resumo entram com o modelo de voz local</span></div></div></div>';
+    '<span class="direita">' + esc(notaDaVoz()) + "</span></div></div></div>";
 }
 
 /* ---------------------------------------------------------- ao vivo */
@@ -9960,11 +10031,15 @@ function corpoAoVivo() {
       '<p class="gv-aviso">Avise os participantes de que a reunião está sendo gravada. O áudio fica só nesta máquina; trocar de tela não interrompe a gravação.</p>' +
       "</div></div>";
   }
-  const transcricao = '<div class="fin-cartao gv-transcricao"><div class="fin-cartao-cabeca"><span>Transcrição ao vivo</span><small>literal · por falante</small>' +
+  const transcricao = '<div class="fin-cartao gv-transcricao"><div class="fin-cartao-cabeca"><span>Transcrição</span><small>literal · com o minuto de cada trecho</small>' +
     '<div class="direita"><button data-gv-adiante="Corrigir nomes entra com a transcrição por falante">Corrigir nomes</button><button data-gv-adiante="Rolar junto entra com a transcrição ao vivo">Rolar junto</button></div></div>' +
-    '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem transcrição nesta máquina</b>" +
-    "<p>A transcrição ao vivo — literal, por falante, com o minuto de cada fala — precisa de um modelo de voz que rode aqui, sem mandar o áudio para fora. Ele ainda não está instalado. " +
-    "Enquanto isso o áudio é gravado normalmente e os marcadores guardam os momentos que importam; quando o modelo existir, as gravações já arquivadas poderão ser transcritas.</p></div></div>";
+    (gv.voz && gv.voz.disponivel
+      ? '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "A transcrição é feita ao parar e arquivar</b>" +
+        "<p>Nesta máquina, com " + esc(gv.voz.rotulo) + ", em segundo plano: o áudio não sai daqui. Transcrever palavra por palavra enquanto você fala ainda não existe — " +
+        "por isso os marcadores guardam os momentos que importam, e a transcrição chega com o minuto de cada trecho logo depois.</p></div>"
+      : '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem modelo de voz nesta máquina</b>" +
+        "<p>A transcrição — literal, com o minuto de cada fala — precisa do modelo de voz baixado aqui, para o áudio não sair do computador. " +
+        "O áudio é gravado normalmente e os marcadores guardam os momentos que importam; baixe o modelo pela aba Transcrição de qualquer gravação e as já arquivadas poderão ser transcritas.</p></div>") + "</div>";
   return '<div class="acervo-principal">' + gravador + transcricao + "</div>";
 }
 
@@ -10040,18 +10115,216 @@ function conteudoDaGravacao() {
       '<button data-gv-marcar="1"' + (g.existe ? "" : " disabled") + ">" + ic("bookmark_add", 16) + 'Marcar em <span id="gv-marcar-em">' + duracaoGv(posicaoDoAudio()) + "</span></button></div></div>" +
       '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum marcador. Toque o áudio e marque os momentos que importam; o minuto fica clicável.</p>') + "</div></div>";
   }
-  if (gv.aba === "resumo") {
-    return '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Resumo</span><small>decisões · pendências · próximos passos</small></div>' +
-      '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "O resumo nasce da transcrição — e ela ainda não existe aqui</b>" +
-      "<p>Quando houver um modelo de voz local, o assistente transcreve esta gravação nesta máquina e escreve o resumo: o que foi decidido, o que ficou pendente e com quem, com os botões de criar tarefas e levar para a Agenda. " +
-      "Até lá, as suas notas no painel e os marcadores são o registro da reunião.</p></div></div>";
+  if (gv.aba === "resumo") return cartaoDoResumoGv(g);
+  return cartaoDaTranscricao(g);
+}
+
+/* --------------------------------------------- transcricao e resumo */
+
+function statusDaGravacao(g) {
+  if (!g.existe) return "áudio não encontrado";
+  if (g.transcricao_estado === "transcrevendo") return "transcrevendo · " + Math.round((g.progresso || 0) * 100) + "%";
+  if (g.transcricao_estado === "fila") return "na fila para transcrever";
+  if (g.transcricao_estado === "pronta") return g.resumo ? "resumo pronto" : "transcrita";
+  if (g.transcricao_estado === "erro") return "erro na transcrição";
+  return "arquivada · sem transcrição";
+}
+
+function notaDaVoz() {
+  const v = gv.voz;
+  if (v && v.disponivel) return "Áudio, transcrição e resumo ficam nesta máquina · " + v.rotulo;
+  return "Áudio fica nesta máquina · baixe o modelo de voz para transcrever aqui";
+}
+
+function rotuloDoModeloGv(nome) {
+  const m = ((gv.voz || {}).modelos || []).find((x) => x.nome === nome);
+  return m ? m.rotulo : (nome || "Whisper");
+}
+
+/* Quanto costuma demorar: a medida desta maquina em CPU (turbo ~2,4x o tempo
+   real, small ~6x), arredondada para cima porque promessa curta irrita. */
+function estimativaGv(segundos) {
+  const fator = (gv.voz || {}).modelo === "small" ? 5 : 2;
+  const min = Math.max(1, Math.ceil(segundos / fator / 60));
+  return min === 1 ? "cerca de 1 minuto" : "uns " + min + " minutos";
+}
+
+function realcarGv(texto, termo) {
+  if (!termo) return esc(texto);
+  const partes = texto.split(new RegExp("(" + termo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig"));
+  return partes.map((p, i) => (i % 2 ? "<mark>" + esc(p) + "</mark>" : esc(p))).join("");
+}
+
+function linhasDaTranscricao(g) {
+  const termo = gv.buscaTrecho.trim();
+  const trechos = termo ? g.trechos.filter((t) => t.texto.toLowerCase().includes(termo.toLowerCase())) : g.trechos;
+  return trechos.map((t) => '<div class="gv-trecho"><button class="em-ligacao forte" data-gv-ir="' + Math.floor(t.inicio) + '">' + duracaoGv(t.inicio) + "</button><p>" +
+    realcarGv(t.texto, termo) + "</p></div>").join("") || '<p class="nota">Nada com “' + esc(termo) + "” nesta transcrição.</p>";
+}
+
+function textoDoProgressoGv(g) {
+  if (g.transcricao_estado === "fila") return "na fila" + (g.posicao_na_fila > 1 ? " · posição " + g.posicao_na_fila : " · outra gravação está sendo transcrita");
+  return "transcrevendo nesta máquina · " + Math.round((g.progresso || 0) * 100) + "% · " + rotuloDoModeloGv((gv.voz || {}).modelo);
+}
+
+function textoDoDownloadGv(v) {
+  const m = (v.modelos || []).find((x) => x.nome === v.baixando) || {};
+  return "baixando " + (m.rotulo || "o modelo de voz") + " · " + (v.baixado_mb || 0) + " de " + (m.mb || "?") + " MB";
+}
+
+/* O que a aba Transcricao mostra depende do estado: sem modelo, baixar; sem
+   transcricao, transcrever; na fila ou transcrevendo, o andamento; pronta,
+   os trechos com o minuto clicavel e a busca com realce. */
+function cartaoDaTranscricao(g) {
+  const v = gv.voz || {};
+  const cabeca = (meta, direita) => '<div class="fin-cartao-cabeca"><span>Transcrição</span><small>' + esc(meta) + "</small>" +
+    (direita ? '<div class="direita">' + direita + "</div>" : "") + "</div>";
+  const corpo = (titulo, icone, texto, extra) => '<div class="gv-adiante"><b>' + ic(icone, 18) + esc(titulo) + "</b><p>" + texto + "</p>" + (extra || "") + "</div>";
+  if (g.transcricao_estado === "pronta" && g.trechos && g.trechos.length) {
+    const meta = "literal · " + duracaoLongaGv(g.duracao_s) + " · " + plural(g.palavras || 0, "palavra") + " · " + rotuloDoModeloGv(g.transcricao_modelo) +
+      (g.transcricao_tempo ? " em " + duracaoLongaGv(g.transcricao_tempo) : "");
+    return '<div class="fin-cartao gv-transcrita">' + cabeca(meta,
+      '<label class="busca-tela gv-busca-trecho">' + ic("search", 18) + '<input type="text" placeholder="Buscar na transcrição…" data-gv-busca-trecho="1" value="' + esc(gv.buscaTrecho) + '"></label>' +
+      '<button data-gv-adiante="Corrigir nomes entra com a separação por falante, que ainda não existe">Corrigir nomes</button>' +
+      '<button data-gv-copiar-transcricao="1">Copiar</button>') +
+      '<div class="gv-trechos">' + linhasDaTranscricao(g) + "</div></div>";
   }
-  return '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Transcrição</span><small>literal · ' + duracaoLongaGv(g.duracao_s) + " · " + plural(g.marcadores.length, "marcador", "marcadores") + "</small>" +
-    '<div class="direita"><button class="com-icone" data-gv-adiante="Buscar na transcrição entra com a transcrição">' + ic("search", 16) + "Buscar</button>" +
-    '<button data-gv-adiante="Corrigir nomes entra com a transcrição por falante">Corrigir nomes</button><button data-gv-adiante="Exportar .docx entra com a transcrição">Exportar .docx</button></div></div>' +
-    '<div class="gv-adiante"><b>' + ic("graphic_eq", 18) + "Ainda sem transcrição nesta máquina</b>" +
-    "<p>A transcrição por falante precisa de um modelo de voz que rode aqui, sem mandar o áudio para fora. Ele ainda não está instalado; quando estiver, esta gravação poderá ser transcrita depois — o áudio fica guardado em " + esc(gv.pasta) + ". " +
-    "Enquanto isso dá para ouvir, marcar momentos e anotar no painel.</p></div></div>";
+  if (!g.existe) {
+    return '<div class="fin-cartao">' + cabeca("sem áudio") + corpo("O áudio não está mais no disco", "error",
+      "Ele ficava em " + esc(gv.pasta) + ". Sem o arquivo não há o que transcrever.") + "</div>";
+  }
+  if (g.transcricao_estado === "fila" || g.transcricao_estado === "transcrevendo") {
+    return '<div class="fin-cartao">' + cabeca("em andamento") + corpo("Transcrevendo nesta máquina", "graphic_eq",
+      "O áudio não sai daqui. Dá para sair desta tela e voltar; a lista mostra o andamento e a transcrição aparece sozinha quando terminar.",
+      '<div class="gv-progresso"><i id="gv-progresso" style="width:' + Math.round((g.progresso || 0) * 100) + '%"></i></div>' +
+      '<small class="nota" id="gv-progresso-texto">' + esc(textoDoProgressoGv(g)) + "</small>") + "</div>";
+  }
+  if (g.transcricao_estado === "erro") {
+    return '<div class="fin-cartao">' + cabeca("não deu certo") + corpo("A transcrição falhou", "error",
+      esc(g.transcricao_erro || "erro desconhecido"),
+      '<div class="fin-botoes"><button class="primario com-icone" data-gv-transcrever="1">' + ic("refresh", 16) + "Tentar de novo</button></div>") + "</div>";
+  }
+  if (v.disponivel) {
+    return '<div class="fin-cartao">' + cabeca("ainda não transcrita") + corpo("Transcrever nesta máquina", "graphic_eq",
+      "O " + esc(v.rotulo) + " lê o áudio aqui mesmo — nada sai do computador — e devolve o texto literal com o minuto de cada trecho. Para " +
+      duracaoLongaGv(g.duracao_s) + " de áudio costuma levar " + estimativaGv(g.duracao_s) + "; roda em segundo plano.",
+      '<div class="fin-botoes"><button class="primario com-icone" data-gv-transcrever="1">' + ic("graphic_eq", 16) + "Transcrever nesta máquina</button></div>") + "</div>";
+  }
+  if (v.baixando) {
+    return '<div class="fin-cartao">' + cabeca("baixando o modelo de voz") + corpo("Baixando o modelo de voz", "download",
+      "Uma vez só, com internet. Depois disso a transcrição roda aqui, sem mandar o áudio para fora.",
+      '<small class="nota" id="gv-baixando-texto">' + esc(textoDoDownloadGv(v)) + "</small>") + "</div>";
+  }
+  const modelos = (v.modelos || []).map((m) => '<button class="' + (m.nome === v.modelo ? "primario " : "") + 'com-icone" data-gv-baixar-voz="' + m.nome + '">' +
+    ic("download", 16) + "Baixar " + esc(m.rotulo) + " (" + esc(String(Math.round(m.mb / 100) / 10).replace(".", ",")) + " GB)</button>").join("");
+  const notas = (v.modelos || []).map((m) => "<li><b>" + esc(m.rotulo) + "</b> — " + esc(m.nota) + "</li>").join("");
+  return '<div class="fin-cartao">' + cabeca("sem modelo de voz nesta máquina") + corpo("Baixe o modelo de voz para transcrever aqui", "graphic_eq",
+    "A transcrição é feita nesta máquina, e para isso o modelo de voz precisa estar baixado nela. É um download só, com internet; depois o áudio nunca sai do computador." +
+    (v.erro ? '<br><span class="gv-erro">' + esc(v.erro) + "</span>" : ""),
+    '<ul class="sv-falta">' + notas + "</ul>" + '<div class="fin-botoes">' + modelos + "</div>") + "</div>";
+}
+
+function cartaoDoResumoGv(g) {
+  const transcrita = g.transcricao_estado === "pronta" && g.trechos && g.trechos.length;
+  if (g.resumo) {
+    return '<div class="fin-cartao gv-transcrita"><div class="fin-cartao-cabeca"><span>Resumo</span><small>escrito ' + esc(quandoCurtoSv(g.resumo_em)) + " · pelo modelo local, sobre a transcrição</small>" +
+      '<div class="direita"><button data-gv-copiar-resumo="1">Copiar</button><button class="com-icone" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + ic("auto_awesome", 16) +
+      (gv.resumindo ? "escrevendo…" : "Atualizar resumo") + "</button></div></div>" +
+      '<p class="gv-resumo-texto">' + esc(g.resumo) + "</p></div>";
+  }
+  const cabeca = '<div class="fin-cartao-cabeca"><span>Resumo</span><small>decisões · pendências · próximos passos</small></div>';
+  if (gv.resumindo) {
+    return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "Escrevendo o resumo…</b>" +
+      "<p>O modelo local lê a transcrição inteira e escreve resumo, decisões e pendências. Em CPU leva alguns minutos; a tela espera aqui.</p></div></div>";
+  }
+  if (transcrita) {
+    return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "Pedir o resumo ao modelo local</b>" +
+      "<p>Ele lê a transcrição e escreve: do que se tratou, o que foi decidido e o que ficou pendente — só com o que está dito, sem inventar nome, valor ou data. " +
+      "Em CPU leva alguns minutos" + (g.palavras > 3000 ? ", e uma gravação longa é resumida em partes" : "") + ".</p>" +
+      '<div class="fin-botoes"><button class="primario com-icone" data-gv-resumo="1">' + ic("auto_awesome", 16) + "Pedir resumo</button></div></div></div>";
+  }
+  return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "O resumo nasce da transcrição</b>" +
+    "<p>Transcreva a gravação primeiro; depois o modelo local escreve o resumo com decisões e pendências. Até lá, as suas notas no painel e os marcadores são o registro.</p>" +
+    '<div class="fin-botoes"><button data-gv-aba="transcricao">Ir para a transcrição</button></div></div></div>';
+}
+
+function vigiarVoz() {
+  clearTimeout(gv.relogioVoz);
+  const v = gv.voz || {};
+  const g = gv.aberta;
+  const andando = (x) => x && (x.transcricao_estado === "fila" || x.transcricao_estado === "transcrevendo");
+  const esperando = (gv.visao === "gravacao" && andando(g)) || (gv.visao === "lista" && gv.lista.some(andando)) || Boolean(v.baixando);
+  if (!esperando) return;
+  gv.relogioVoz = setTimeout(async () => {
+    if (!$("gv-tela")) return;
+    try {
+      const voz = await (await fetch("/api/voz")).json();
+      const baixava = Boolean((gv.voz || {}).baixando);
+      gv.voz = voz;
+      if (gv.visao === "lista") {
+        const d = await (await fetch("/api/gravacoes?termo=" + encodeURIComponent(gv.termo))).json();
+        gv.lista = d.gravacoes || [];
+        gv.totalSegundos = d.total_segundos || 0;
+        desenharGravacoes();
+        return;
+      }
+      if (gv.visao === "gravacao" && g) {
+        const r = await fetch("/api/gravacoes/" + g.id);
+        if (r.ok) {
+          const novo = await r.json();
+          const mudou = novo.transcricao_estado !== gv.aberta.transcricao_estado;
+          gv.aberta = novo;
+          if (mudou) { cabecalhoGravacoes(); redesenharConteudoGv(); redesenharPainelGv(); }
+          else {
+            const barra = $("gv-progresso");
+            if (barra) barra.style.width = Math.round((novo.progresso || 0) * 100) + "%";
+            const texto = $("gv-progresso-texto");
+            if (texto) texto.textContent = textoDoProgressoGv(novo);
+          }
+        }
+      }
+      if (baixava && !voz.baixando) { avisoCert(voz.disponivel ? "modelo de voz baixado — já dá para transcrever" : (voz.erro || "o download parou")); redesenharConteudoGv(); }
+      else if (voz.baixando) { const t = $("gv-baixando-texto"); if (t) t.textContent = textoDoDownloadGv(voz); }
+    } catch (err) { /* sem servidor neste tique: tenta no proximo */ }
+    vigiarVoz();
+  }, 2500);
+}
+
+async function transcreverGravacao() {
+  const g = gv.aberta;
+  const r = await fetch("/api/gravacoes/" + g.id + "/transcrever", { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  gv.aberta = await r.json();
+  cabecalhoGravacoes();
+  redesenharConteudoGv();
+  vigiarVoz();
+}
+
+async function baixarModeloDeVoz(nome) {
+  let r = await fetch("/api/voz/modelo", { method: "POST", headers: GV_JSON, body: JSON.stringify({ modelo: nome }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  r = await fetch("/api/voz/baixar", { method: "POST", headers: GV_JSON, body: JSON.stringify({ modelo: nome }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  gv.voz = await r.json();
+  avisoCert("baixando o modelo de voz — pode continuar usando o PAULUS; a tela avisa quando terminar");
+  redesenharConteudoGv();
+  vigiarVoz();
+}
+
+async function pedirResumoDaGravacao() {
+  if (gv.resumindo) return;
+  gv.resumindo = true;
+  redesenharConteudoGv();
+  redesenharPainelGv();
+  const r = await fetch("/api/gravacoes/" + gv.aberta.id + "/resumo", { method: "POST" });
+  gv.resumindo = false;
+  if (!r.ok) {
+    avisoCert("sem resumo agora: " + (await erroDe(r)));
+  } else {
+    gv.aberta = await r.json();
+    cabecalhoGravacoes();
+  }
+  if ($("gv-tela")) { redesenharConteudoGv(); redesenharPainelGv(); }
 }
 
 function painelDaGravacao() {
@@ -10059,8 +10332,13 @@ function painelDaGravacao() {
   const servicos = '<option value="">ligar a um serviço…</option>' + gv.servicos.map((s) => '<option value="' + s.id + '"' + (s.id === g.servico_id ? " selected" : "") + ">" + esc(s.nome) + "</option>").join("");
   const clientes = '<option value="">ligar a um cliente…</option>' + gv.clientes.map((c) => '<option value="' + c.id + '"' + (c.id === g.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
   return '<aside class="acervo-painel gv-painel"><div class="rolagem">' +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo da IA</span><span class="contagem">em breve</span></div>' +
-    '<p class="nota">Sem modelo de voz local ainda não há resumo. Quando houver, ele nasce da transcrição e aparece aqui: decisões, pendências, criar tarefas, levar para a Agenda.</p></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo da IA</span><span class="contagem">' +
+    esc(g.resumo ? "escrito " + quandoCurtoSv(g.resumo_em) : (g.transcricao_estado === "pronta" ? "a pedir" : "depende da transcrição")) + "</span></div>" +
+    (g.resumo
+      ? '<p class="gv-resumo-curto">' + esc(g.resumo) + '</p><button class="em-ligacao forte" data-gv-aba="resumo">Ver o resumo inteiro</button>'
+      : (g.transcricao_estado === "pronta"
+        ? '<p class="nota">A transcrição está pronta. O modelo local pode escrever o resumo com decisões e pendências.</p><button class="em-ligacao forte" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + (gv.resumindo ? "escrevendo…" : "Pedir resumo") + "</button>"
+        : '<p class="nota">O resumo nasce da transcrição: transcreva a gravação primeiro (aba Transcrição).</p>')) + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca">Notas<span class="contagem">' + (g.notas ? "guardadas" : "suas") + "</span></div>" +
     '<textarea class="gv-notas" rows="4" placeholder="O que foi combinado, o que ficou pendente… (guarda ao sair do campo)" data-gv-notas="1">' + esc(g.notas || "") + "</textarea></div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca">Arquivado em</div>' +
@@ -10069,8 +10347,9 @@ function painelDaGravacao() {
     (g.servico_nome ? "<b>Serviço: " + esc(g.servico_nome) + '</b><small><button class="em-ligacao" data-gv-abrir-servico="' + g.servico_id + '">abrir a pasta</button> · trilha atualizada</small>' : "") +
     '<select data-gv-ligar="servico_id">' + servicos + "</select></div></div>" +
     '<div class="gv-arquivado">' + ic("person", 18) + '<div class="duas-linhas">' + (g.cliente_nome ? "<b>" + esc(g.cliente_nome) + "</b>" : "") + '<select data-gv-ligar="cadastro_id">' + clientes + "</select></div></div>" +
-    '<div class="gv-arquivado">' + ic("description", 18) + '<div class="duas-linhas"><b>Transcrição e resumo</b><small>.docx · .pdf · entram com o modelo de voz local</small></div></div>' +
-    '<p class="gv-nota-pe">Áudio e notas ficam nesta máquina. Compartilhar o resumo por e-mail vai passar por Aprovações — quando houver resumo.</p></div>' +
+    '<div class="gv-arquivado">' + ic("description", 18) + '<div class="duas-linhas"><b>Transcrição' + (g.resumo ? " e resumo" : "") + "</b><small>" +
+    esc(g.transcricao_estado === "pronta" ? plural(g.palavras || 0, "palavra") + " · " + rotuloDoModeloGv(g.transcricao_modelo) + " · copiar pela aba" : statusDaGravacao(g)) + "</small></div></div>" +
+    '<p class="gv-nota-pe">Áudio, transcrição e notas ficam nesta máquina. Compartilhar o resumo por e-mail vai passar por Aprovações; ainda não está ligado.</p></div>' +
     "</div></aside>";
 }
 
@@ -10142,6 +10421,18 @@ function ligarGravacoes() {
   document.querySelectorAll("[data-gv-ligar]").forEach((el) => { el.onchange = () => ligarGravacaoA(el.dataset.gvLigar, Number(el.value) || null); });
   clique("[data-gv-abrir-servico]", (b) => abrirServico(Number(b.dataset.gvAbrirServico)));
   clique("[data-gv-perguntar]", () => perguntarSobreGravacao(gv.aberta));
+  // transcricao e resumo
+  clique("[data-gv-transcrever]", () => transcreverGravacao());
+  clique("[data-gv-baixar-voz]", (b) => baixarModeloDeVoz(b.dataset.gvBaixarVoz));
+  clique("[data-gv-resumo]", () => pedirResumoDaGravacao());
+  clique("[data-gv-copiar-transcricao]", () => copiarTexto(gv.aberta.trechos.map((t) => "[" + duracaoGv(t.inicio) + "] " + t.texto).join("\n"), "transcrição copiada"));
+  clique("[data-gv-copiar-resumo]", () => copiarTexto(gv.aberta.resumo || "", "resumo copiado"));
+  const buscaTrecho = document.querySelector("[data-gv-busca-trecho]");
+  if (buscaTrecho) buscaTrecho.oninput = () => {
+    gv.buscaTrecho = buscaTrecho.value;
+    const alvo = document.querySelector("#gv-conteudo .gv-trechos");
+    if (alvo) { alvo.innerHTML = linhasDaTranscricao(gv.aberta); ligarGravacoes(); }
+  };
 }
 
 function redesenharPainelGv() {
@@ -10468,7 +10759,7 @@ function perguntarSobreGravacao(g) {
   const campo = $("pedido");
   if (!campo) return;
   campo.value = "Sobre a gravação “" + g.titulo + "” (" + quandoDaGravacao(g) + (g.servico_nome ? ", serviço " + g.servico_nome : "") + ")" +
-    (g.notas ? ", com estas notas: " + g.notas.trim() : "") + ": ";
+    (g.resumo ? ", cujo resumo é: " + g.resumo.trim().slice(0, 1500) : (g.notas ? ", com estas notas: " + g.notas.trim() : "")) + ": ";
   campo.focus();
   campo.setSelectionRange(campo.value.length, campo.value.length);
 }

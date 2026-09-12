@@ -34,3 +34,8 @@ reportlab>=4.0.0
 # de verdade e mede o layout. Usa o Edge que ja vem no Windows, sem baixar
 # navegador. Sem ele, aquele teste diz que pulou em vez de falhar.
 # pip install playwright
+
+# Transcricao das gravacoes nesta maquina (Whisper em CPU, int8). O modelo
+# em si nao vem por aqui: e baixado uma vez pela tela de Gravacoes ou por
+# `python src/transcricao.py baixar`, para data/modelos/whisper.
+faster-whisper>=1.2.0

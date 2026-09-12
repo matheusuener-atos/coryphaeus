@@ -58,3 +58,7 @@ data/exportacoes/
 # diz nada sobre o desta.
 data/ritmo.json
 data/clausulas.json
+
+# Modelos de voz (Whisper) e audios gravados: pesados e de cliente, ficam so na maquina.
+data/modelos/
+data/gravacoes/
