@@ -489,6 +489,27 @@ def main() -> int:
                 "a semana traz os habitos e o parecer",
             )
 
+            print("\nApoiar o projeto: contribuir e quem ja apoia")
+            # O coracao do trilho abre a tela do desenho (A14); o pagamento nao
+            # existe e a tela diz isso, em vez do aviso generico de antes.
+            pagina.evaluate("() => abrirDestino('apoiar')")
+            pagina.wait_for_timeout(900)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('#apoio-tela .cfg-valores');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 4, f"os valores ficam em quatro colunas (achou {colunas})")
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#apoio-tela .apoio-previa')"),
+                "a previa da lista de apoiadores aparece",
+            )
+            pagina.evaluate("() => document.querySelector('[data-apoio-visao=lista]').click()")
+            pagina.wait_for_timeout(600)
+            checar(
+                pagina.evaluate("() => document.querySelectorAll('#apoio-tela .apoio-secao').length") == 3,
+                "Quem ja apoia abre com as tres secoes",
+            )
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',
