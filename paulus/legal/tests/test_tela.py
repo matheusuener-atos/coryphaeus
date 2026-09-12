@@ -362,6 +362,41 @@ def main() -> int:
                 "o destino antigo Tarefas abre a Agenda em Meu dia",
             )
 
+            print("\no Financeiro: visao geral, lancamentos e relatorios")
+            # Financeiro e Relatorios viraram as tres visoes de uma tela so
+            # (docs/ui/03-telas-desktop.md, A9). O destino antigo Relatorios
+            # continua abrindo, na visao que o substituiu.
+            pagina.evaluate("() => abrirDestino('financeiro')")
+            pagina.wait_for_timeout(1800)
+            numeros = pagina.evaluate("() => document.querySelectorAll('#financeiro .fin-numero').length")
+            checar(numeros == 4, f"a visao geral abre com os quatro numeros (achou {numeros})")
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.fin-fluxo-grade');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 6, f"o fluxo de caixa tem seis meses (achou {colunas})")
+            checar(
+                pagina.evaluate("() => !!document.querySelector('#financeiro .acervo-painel .painel-cabeca')"),
+                "o painel Precisa de voce abre junto",
+            )
+            pagina.evaluate("() => document.querySelector('[data-fin-visao=lancamentos]').click()")
+            pagina.wait_for_timeout(1600)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.tabela-cabecalho.colunas-lancamentos');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 6, f"a tabela de lancamentos tem seis colunas (achou {colunas})")
+            pagina.evaluate("() => document.querySelector('[data-fin-visao=relatorios]').click()")
+            pagina.wait_for_timeout(1600)
+            abas = pagina.evaluate("() => document.querySelectorAll('#financeiro .fin-rel-abas button').length")
+            checar(abas == 3, f"os relatorios abrem com as tres abas (achou {abas})")
+            pagina.evaluate("() => abrirDestino('relatorios')")
+            pagina.wait_for_timeout(1600)
+            checar(
+                pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Relatórios",
+                "o destino antigo Relatorios abre o Financeiro em Relatorios",
+            )
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',
