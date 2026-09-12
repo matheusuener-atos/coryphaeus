@@ -658,6 +658,34 @@ def main() -> int:
                 pagina.evaluate(f"() => fetch('/api/gravacoes/{id_gravacao}', {{ method: 'DELETE' }})")
                 pagina.wait_for_timeout(300)
 
+            print("\ndialogos do sistema (P - Popups)")
+            # confirm() e prompt() do navegador viraram dialogos do desenho:
+            # titulo em Garamond, contexto, acao destrutiva em vinho, Enter
+            # confirma, Esc fecha, foco no campo e devolvido ao fechar.
+            pagina.evaluate("() => { window.__d = confirmar({ titulo: 'Apagar isto?', contexto: 'Teste de tela', texto: 'Some de vez.', confirmar: 'Apagar', perigo: true }); }")
+            pagina.wait_for_selector("#veu-dialogo .dialogo", timeout=5000)
+            checar(
+                pagina.evaluate("() => document.querySelector('#veu-dialogo h2').textContent === 'Apagar isto?'"
+                                " && !!document.querySelector('#veu-dialogo .dialogo-pe .primario.perigo')"
+                                " && document.activeElement === document.querySelector('#veu-dialogo .dialogo-pe .primario')"),
+                "o dialogo de confirmacao abre com o titulo, a acao em vinho e o foco nela",
+            )
+            pagina.keyboard.press("Escape")
+            checar(pagina.evaluate("async () => (await window.__d) === false && !document.getElementById('veu-dialogo')"), "Esc fecha e devolve nao")
+            pagina.evaluate("() => { window.__p = perguntar({ titulo: 'Renomear', contexto: 'Teste de tela', campo: { rotulo: 'Nome', valor: 'antigo', sufixo: '.pdf' }, confirmar: 'Renomear' }); }")
+            pagina.wait_for_selector("#dialogo-campo", timeout=5000)
+            checar(
+                pagina.evaluate("() => document.activeElement === document.getElementById('dialogo-campo') && !!document.querySelector('.dialogo-teclas')"),
+                "o dialogo com campo abre com o foco no campo e a dica de teclas",
+            )
+            pagina.keyboard.type("novo nome")
+            pagina.keyboard.press("Enter")
+            checar(pagina.evaluate("async () => (await window.__p) === 'novo nome' && !document.getElementById('veu-dialogo')"), "Enter confirma e devolve o texto digitado")
+            pagina.evaluate("() => avisoCert('teste de aviso', { acao: { rotulo: 'Desfazer', fazer: () => { window.__desfez = true; } } })")
+            pagina.wait_for_timeout(200)
+            pagina.evaluate("() => document.querySelector('#aviso-toast button').click()")
+            checar(pagina.evaluate("() => window.__desfez === true"), "o aviso com Desfazer chama a acao")
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

@@ -93,6 +93,7 @@
     --warnbg: oklch(96% 0.05 85);
     --logo: none;
     --amostra-escura: #171716;
+    --sobre-acc: #ffffff;
     --be-p: 0%;
 
     /* Iguais nos dois temas: pontos cheios e glifos de formato de arquivo. */
@@ -3138,12 +3139,6 @@
   .painel-bloco .ag-chave { padding-top: 6px; border-bottom: none; }
 
   /* o aviso curto de qualquer tela */
-  .aviso-toast {
-    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; z-index: 60;
-    max-width: 560px; padding: 10px 16px; border-radius: 10px; background: var(--ink); color: var(--bg);
-    font: 500 13px/1.45 var(--sans); box-shadow: var(--elev-float); transition: opacity .2s, transform .2s;
-  }
-  .aviso-toast.visivel { opacity: 1; transform: translate(-50%, 0); }
 
   /* ---------------------------------------------------- financeiro (A9) */
   /*
@@ -3813,6 +3808,79 @@
   .cartao-agora.espera .acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .cartao-agora.espera .pode { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
 
+  /* ------------------------------------------------------------ dialogos */
+  /*
+    Dialogos do sistema (docs/ui/05-interacoes-e-estados.md, mockup P -
+    Popups): veu escuro, cartao de 440px com titulo em Garamond e contexto
+    em cinza dizendo onde estou, campo com foco preto, acao primaria a
+    direita e destrutiva em vinho com o efeito escrito. Enter confirma, Esc
+    fecha, o foco fica preso dentro e volta para onde estava. Substituem o
+    confirm() e o prompt() do navegador, que na janela do programa apareciam
+    como "localhost diz".
+  */
+  .veu-dialogo {
+    position: fixed; inset: 0; z-index: 80; background: var(--ink-a3); display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: dialogo-veu .15s ease-out;
+  }
+  .dialogo {
+    width: 440px; max-width: 100%; max-height: calc(100vh - 48px); overflow: auto; display: flex; flex-direction: column;
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 14px; box-shadow: 0 30px 80px -30px var(--sh-a35);
+    animation: dialogo-entra .16s ease-out;
+  }
+  .dialogo.larga { width: 520px; }
+  .dialogo-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 0; }
+  .dialogo-titulos { display: grid; gap: 3px; min-width: 0; flex: 1; }
+  .dialogo-titulos h2 { margin: 0; font: 400 21px/1.15 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
+  .dialogo-contexto { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dialogo-fechar {
+    width: 28px; height: 28px; flex: none; margin: -4px -6px 0 0; padding: 0; border: none; background: none; border-radius: 6px;
+    color: var(--ink3); display: inline-flex; align-items: center; justify-content: center;
+  }
+  .dialogo-fechar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .dialogo-corpo { padding: 16px 20px; display: grid; gap: 14px; }
+  .dialogo-corpo p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .dialogo-corpo p b { font-weight: 600; color: var(--ink); }
+  .dialogo-campo { display: grid; gap: 6px; }
+  .dialogo-campo label { font: 500 12px var(--sans); color: var(--ink3); }
+  .dialogo-caixa { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); }
+  .dialogo-caixa:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px var(--ink-a08); }
+  .dialogo-caixa .ic { color: var(--ink3); flex: none; }
+  .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; border: none; background: none; padding: 10px 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
+  .dialogo-caixa input:focus { outline: none; box-shadow: none; border: none; }
+  .dialogo-sufixo { font: 500 12.5px var(--sans); color: var(--ink3); flex: none; }
+  .dialogo-dica { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .dialogo-sugestoes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dialogo-sugestoes button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .dialogo-sugestoes button:hover:not(:disabled) { background: var(--fill2); border: none; color: var(--ink); }
+  .dialogo-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .dialogo-marcar input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); flex: none; }
+  .dialogo-pe { display: flex; align-items: center; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--ink-a1); }
+  .dialogo-teclas { display: flex; align-items: center; gap: 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .dialogo-teclas kbd { font: 400 10.5px var(--mono); padding: 2px 6px; border: 1px solid var(--ink-a15); border-radius: 4px; color: var(--ink3); }
+  .dialogo-pe button { padding: 8px 14px; border-radius: 6px; font-size: 13px; white-space: nowrap; }
+  .dialogo-cancelar { border: none; background: none; color: var(--ink2); font-weight: 500; }
+  .dialogo-cancelar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .dialogo-pe .primario.perigo { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); }
+  .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); filter: brightness(.9); }
+  @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .veu-dialogo, .dialogo { animation: none; } }
+
+  /* O aviso (toast) do mesmo mockup: icone, texto e, quando da para
+     desfazer, a acao em negrito. O de erro e branco com borda vinho. */
+  .aviso-toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; z-index: 60;
+    display: flex; align-items: center; gap: 12px; width: 420px; max-width: calc(100vw - 32px); padding: 12px 14px; border-radius: 10px;
+    background: var(--ink); color: var(--bg); font: 500 13px/1.45 var(--sans); box-shadow: var(--elev-float); transition: opacity .2s, transform .2s;
+  }
+  .aviso-toast.visivel { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .aviso-toast > .ic { flex: none; }
+  .aviso-toast > span:not(.ic) { flex: 1; min-width: 0; }
+  .aviso-toast > button { border: none; background: none; padding: 0; color: inherit; font: 700 13px var(--sans); white-space: nowrap; }
+  .aviso-toast > button:hover:not(:disabled) { background: none; border: none; color: inherit; text-decoration: underline; }
+  .aviso-toast.erro { background: var(--surf); color: var(--ink); border: 1px solid var(--accln); }
+  .aviso-toast.erro > .ic { color: var(--acc); }
+
   /* ------------------------------------------------------- responsivo */
 
   /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
@@ -4105,8 +4173,8 @@ function abrirMenu(linha) {
   menu.onclick = (e) => e.stopPropagation();
 
   menu.querySelector('[data-a="renomear"]').onclick = async () => {
-    const novo = prompt("Novo nome da conversa:", titulo);
     fecharMenu();
+    const novo = await perguntar({ titulo: "Renomear conversa", contexto: "Assistente", campo: { rotulo: "Nome", valor: titulo, icone: "forum" }, confirmar: "Renomear" });
     if (!novo || !novo.trim()) return;
     await fetch("/api/trabalhos/" + id + "/renomear", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -4116,12 +4184,14 @@ function abrirMenu(linha) {
     carregarTrabalhos();
   };
 
-  menu.querySelector('[data-a="grupo"]').onclick = () => {
-    const sugestao = gruposConhecidos.length
-      ? "Grupos que já existem: " + gruposConhecidos.join(", ") + "\n\n"
-      : "";
-    const novo = prompt(sugestao + "Nome do grupo (vazio tira do grupo):", grupoAtual);
+  menu.querySelector('[data-a="grupo"]').onclick = async () => {
     fecharMenu();
+    const novo = await perguntar({
+      titulo: "Grupo da conversa", contexto: "Assistente › " + titulo,
+      campo: { rotulo: "Nome do grupo", valor: grupoAtual, placeholder: "sem grupo", icone: "folder", sugestoes: gruposConhecidos, obrigatorio: false,
+               dica: "Vazio tira a conversa do grupo. Um grupo novo nasce com o nome que você escrever." },
+      confirmar: "Guardar",
+    });
     if (novo === null) return;
     fetch("/api/trabalhos/" + id + "/grupo", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -4139,7 +4209,7 @@ function abrirMenu(linha) {
 
   menu.querySelector('[data-a="apagar"]').onclick = async () => {
     fecharMenu();
-    if (!confirm("Apagar “" + titulo + "”?")) return;
+    if (!(await confirmar({ titulo: "Apagar esta conversa?", contexto: "Assistente › " + titulo, texto: "A conversa sai da lista e do disco. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
     await fetch("/api/trabalhos/" + id, { method: "DELETE" });
     if (id === estado.trabalhoId) $("nova").click();
     else carregarTrabalhos();
@@ -4182,7 +4252,7 @@ $("nova").onclick = () => {
 
 $("apagar").onclick = async () => {
   if (!estado.trabalhoId) return;
-  if (!confirm("Apagar esta conversa?")) return;
+  if (!(await confirmar({ titulo: "Apagar esta conversa?", contexto: "Assistente › " + $("conversa-titulo").textContent, texto: "A conversa sai da lista e do disco. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
   await fetch("/api/trabalhos/" + estado.trabalhoId, { method: "DELETE" });
   $("nova").click();
 };
@@ -5553,13 +5623,10 @@ async function decidirPedidos(ids, aprovar) {
   const quais = ids.map((id) => aprov.pendentes.find((p) => p.id === id)).filter(Boolean);
   const semVolta = quais.filter((p) => !p.reversivel);
 
-  let aviso = aprovar
-    ? "Aprovar " + plural(ids.length, "pedido") + "? A ação é executada agora."
-    : "Recusar " + plural(ids.length, "pedido") + "?";
-  if (aprovar && semVolta.length) {
-    aviso += "\n\n" + semVolta.length + " não tem como desfazer depois.";
-  }
-  if (!confirm(aviso)) return;
+  const titulo = (aprovar ? "Aprovar " : "Recusar ") + plural(ids.length, "pedido") + "?";
+  let texto = aprovar ? "A ação é executada agora." : "Os pedidos saem da fila sem executar.";
+  if (aprovar && semVolta.length) texto += "\n" + plural(semVolta.length, "não tem", "não têm") + " como desfazer depois.";
+  if (!(await confirmar({ titulo: titulo, contexto: "Aprovações", texto: texto, confirmar: aprovar ? "Aprovar" : "Recusar", perigo: aprovar && semVolta.length > 0 }))) return;
 
   atualizarSelo(true);
   try {
@@ -6150,7 +6217,7 @@ async function blocoLeis() {
 
   alvo.querySelectorAll("[data-cfg-tirar-lei]").forEach((b) => {
     b.onclick = async () => {
-      if (!confirm("Remover este código? A citação volta a ficar indisponível até você importar de novo.")) return;
+      if (!(await confirmar({ titulo: "Remover este código?", contexto: "Configurações › Códigos de lei", texto: "A citação volta a ficar indisponível até você importar de novo.", confirmar: "Remover", perigo: true }))) return;
       await fetch("/api/leis/" + b.dataset.cfgTirarLei, { method: "DELETE" });
       blocoLeis();
     };
@@ -6165,7 +6232,7 @@ async function blocoLeis() {
     mostrarResultadoDaImportacao(await r.json());
   };
   alvo.querySelector("[data-cfg-lei-arquivo]").onclick = async () => {
-    const caminho = prompt("Caminho do arquivo HTML salvo do Planalto:");
+    const caminho = await perguntar({ titulo: "Importar um código do Planalto", contexto: "Configurações › Códigos de lei", campo: { rotulo: "Caminho do arquivo HTML salvo", placeholder: "C:\\Users\\você\\Downloads\\L10406compilada.htm", icone: "description" }, confirmar: "Importar" });
     if (!caminho) return;
     const saida = $("lei-saida");
     saida.innerHTML = '<p class="nota">lendo…</p>';
@@ -6368,7 +6435,7 @@ async function ligarConexoesCfg() {
   };
   const apagar = document.querySelector("[data-cfg-cx-apagar]");
   if (apagar) apagar.onclick = async () => {
-    if (!confirm("Apagar a sessão do WhatsApp desta máquina? Você vai precisar ler o código de novo.")) return;
+    if (!(await confirmar({ titulo: "Apagar a sessão do WhatsApp?", contexto: "Configurações › Conexões", texto: "A sessão sai desta máquina. Você vai precisar ler o código de novo para conectar.", confirmar: "Apagar", perigo: true }))) return;
     const r = await (await fetch("/api/conexoes/sessao/apagar", { method: "POST" })).json();
     avisoCert(r.aviso);
     mostrarConfig("conexoes");
@@ -7323,7 +7390,7 @@ async function salvarFicha() {
 
 async function apagarFicha(f) {
   if (!f) return;
-  if (!confirm("Apagar a ficha de " + f.nome + "? Os lançamentos e documentos continuam onde estão, só perdem a ligação.")) return;
+  if (!(await confirmar({ titulo: "Apagar a ficha de " + f.nome + "?", contexto: "Cadastros", texto: "Os lançamentos e documentos continuam onde estão, só perdem a ligação com a ficha.", confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/cadastros/" + f.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   cad.aberta = null;
@@ -8183,8 +8250,8 @@ function ligarAgenda() {
     b.onclick = () => avisoCert("quando houver equipe em Cadastros, as tarefas atribuídas a você aparecem aqui");
   });
   const novaLista = raiz.querySelector("[data-ag-nova-lista]");
-  if (novaLista) novaLista.onclick = () => {
-    const nome = prompt("Nome da nova lista:");
+  if (novaLista) novaLista.onclick = async () => {
+    const nome = await perguntar({ titulo: "Nova lista", contexto: "Agenda › Tarefas", campo: { rotulo: "Nome da lista", placeholder: "Prazos do trimestre", icone: "format_list_bulleted" }, confirmar: "Criar" });
     if (!nome || !nome.trim()) return;
     ag.tar.lista = nome.trim();
     ag.tar.aberta = null;
@@ -8556,7 +8623,7 @@ async function salvarFormAgenda() {
 }
 
 async function apagarCompromisso(c) {
-  if (!confirm("Excluir “" + c.titulo + "”?")) return;
+  if (!(await confirmar({ titulo: "Excluir este compromisso?", contexto: "Agenda › " + c.titulo, texto: "Ele sai da agenda. Não dá para desfazer.", confirmar: "Excluir", perigo: true }))) return;
   await fetch("/api/agenda/" + c.id, { method: "DELETE" });
   ag.form = null;
   ag.painel = "dia";
@@ -8649,7 +8716,7 @@ async function salvarCamposDaTarefa(t, mudancas) {
 
 async function apagarTarefa(id) {
   const t = ag.tar.itens.find((x) => x.id === id) || ag.form || {};
-  if (!confirm("Excluir a tarefa “" + (t.titulo || "") + "”?")) return;
+  if (!(await confirmar({ titulo: "Excluir esta tarefa?", contexto: "Agenda › " + (t.titulo || "tarefa"), texto: "Ela sai da lista. Não dá para desfazer.", confirmar: "Excluir", perigo: true }))) return;
   await fetch("/api/tarefas/" + id, { method: "DELETE" });
   ag.tar.aberta = null;
   ag.form = null;
@@ -9640,7 +9707,7 @@ async function salvarServico() {
 }
 
 async function apagarServico(s) {
-  if (!confirm("Apagar o serviço “" + s.nome + "”? A trilha e as anotações vão junto; os arquivos ficam no Acervo.")) return;
+  if (!(await confirmar({ titulo: "Apagar este serviço?", contexto: "Serviços › " + s.nome, texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda.", confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/servicos/" + s.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   if (sv.aberto && sv.aberto.id === s.id) sv.aberto = null;
@@ -10941,7 +11008,7 @@ function baixarAudioGv(g) {
 }
 
 async function apagarGravacao(g) {
-  if (!confirm("Apagar “" + g.titulo + "”? O áudio sai desta máquina e não volta.")) return;
+  if (!(await confirmar({ titulo: "Apagar esta gravação?", contexto: "Gravações › " + g.titulo, texto: "O áudio, a transcrição e as notas saem desta máquina e não voltam.", confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/gravacoes/" + g.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   if (gv.aberta && gv.aberta.id === g.id) gv.aberta = null;
@@ -12394,7 +12461,7 @@ async function painelCodigosNaDupla() {
   const d = await r.json();
   const instalados = d.codigos.filter((c) => c.instalado);
   if (!instalados.length) { avisoCert(d.porque); return; }
-  const termo = prompt("Qual artigo? (número ou palavra)");
+  const termo = await perguntar({ titulo: "Citar um artigo", contexto: "Documentos › Códigos de lei", campo: { rotulo: "Qual artigo?", placeholder: "número ou palavra", icone: "gavel" }, confirmar: "Procurar" });
   if (!termo) return;
 
   const busca = await fetch("/api/leis/procurar?termo=" + encodeURIComponent(termo));
@@ -12402,7 +12469,7 @@ async function painelCodigosNaDupla() {
   if (!achados.length) { avisoCert("não achei esse artigo nos códigos instalados"); return; }
 
   const a = achados[0];
-  if (a.revogado && !confirm("O " + a.citacao + " está REVOGADO. Inserir mesmo assim?")) return;
+  if (a.revogado && !(await confirmar({ titulo: "Artigo revogado", contexto: a.citacao, texto: "O " + a.citacao + " está revogado: continua no texto compilado por referência histórica, mas não está em vigor.", confirmar: "Inserir mesmo assim", perigo: true }))) return;
   aplicarNaDupla({
     sugestao: "Nos termos do " + a.citacao + ": “" + a.texto.replace(/\s+/g, " ").slice(0, 700) + "”",
     sobre: "",
@@ -13764,7 +13831,7 @@ async function organizarAplicar() {
       '<span class="nota-barra" id="org-nota3"></span></div></div>';
     $("conversa-meta").textContent = plural(d.movidos, "arquivo") + " movidos";
     $("org-desfazer").onclick = async () => {
-      if (!confirm("Devolver os " + d.movidos + " arquivos para onde estavam?")) return;
+      if (!(await confirmar({ titulo: "Devolver os " + plural(d.movidos, "arquivo") + "?", contexto: "Acervo › Organizar", texto: "Cada arquivo volta para a pasta onde estava antes desta organização.", confirmar: "Devolver" }))) return;
       $("org-desfazer").disabled = true;
       $("org-nota3").textContent = "devolvendo…";
       try {
@@ -14119,7 +14186,7 @@ function ligarCertificado() {
   if (trocar) trocar.onclick = () => campo.click();
   const remover = $("cert-remover");
   if (remover) remover.onclick = async () => {
-    if (!confirm("Remover o certificado do PAULUS? A cópia guardada aqui e a senha são apagadas. O arquivo original que você enviou continua onde estava.")) return;
+    if (!(await confirmar({ titulo: "Remover o certificado?", contexto: "Assinatura › Certificado", texto: "A cópia guardada aqui e a senha são apagadas. O arquivo original que você enviou continua onde estava.", confirmar: "Remover", perigo: true }))) return;
     cert.dados = await (await fetch("/api/certificado", { method: "DELETE" })).json();
     desenharAssinatura();
   };
@@ -14289,18 +14356,148 @@ function ligarCanvas() {
 /* O aviso curto que qualquer tela usa: uma faixa embaixo, que some sozinha.
    Antes ele so aparecia dentro de .tela-topo, que as telas do desenho nao
    tem - e os avisos sumiam. */
-function avisoCert(texto) {
+/* ------------------------------------------------------------ dialogos */
+/*
+   Dialogos do sistema (docs/ui/05-interacoes-e-estados.md, mockup P -
+   Popups). Um padrao para confirmar, perguntar um nome e avisar, no lugar
+   do confirm() e do prompt() do navegador - que na janela do programa
+   apareciam como "localhost diz" e nao tinham a cara do PAULUS.
+
+   dialogo(o)  -> Promise com { ok, valor, marcada } ou null se cancelou
+   confirmar(o) -> Promise<boolean>
+   perguntar(o) -> Promise<string | null>
+
+   o.titulo, o.contexto (onde estou), o.texto (paragrafos), o.html (extra),
+   o.campo { rotulo, valor, placeholder, sufixo, icone, tipo, dica,
+             sugestoes, obrigatorio (padrao sim), selecionar (padrao sim) },
+   o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga.
+
+   Enter confirma, Esc fecha, o foco fica preso dentro e volta para o
+   elemento de origem ao fechar. So um dialogo aberto por vez.
+*/
+
+let dialogoAberto = null;
+
+function dialogo(o) {
+  return new Promise((resolve) => {
+    if (dialogoAberto) dialogoAberto.fechar(null);
+    const origem = document.activeElement;
+    const campo = o.campo || null;
+    const veu = document.createElement("div");
+    veu.className = "veu-dialogo";
+    veu.id = "veu-dialogo";
+    const classe = "dialogo" + (o.larga ? " larga" : "");
+    const paragrafos = o.texto ? String(o.texto).split("\n").map((p) => p.trim()).filter(Boolean).map((p) => "<p>" + esc(p) + "</p>").join("") : "";
+    let miolo = "";
+    if (campo) {
+      miolo += '<div class="dialogo-campo">' + (campo.rotulo ? '<label for="dialogo-campo">' + esc(campo.rotulo) + "</label>" : "") +
+        '<div class="dialogo-caixa">' + (campo.icone ? ic(campo.icone, 18) : "") +
+        '<input id="dialogo-campo" type="' + (campo.tipo || "text") + '" value="' + esc(campo.valor || "") + '" placeholder="' + esc(campo.placeholder || "") + '" autocomplete="off" spellcheck="false">' +
+        (campo.sufixo ? '<span class="dialogo-sufixo">' + esc(campo.sufixo) + "</span>" : "") + "</div>" +
+        (campo.sugestoes && campo.sugestoes.length
+          ? '<div class="dialogo-sugestoes">' + campo.sugestoes.map((s) => '<button type="button" data-dialogo-sugestao="' + esc(s) + '">' + esc(s) + "</button>").join("") + "</div>"
+          : "") +
+        (campo.dica ? '<span class="dialogo-dica">' + esc(campo.dica) + "</span>" : "") + "</div>";
+    }
+    if (o.marcar) {
+      miolo += '<label class="dialogo-marcar"><input type="checkbox" id="dialogo-marcar"' + (o.marcar.marcada ? " checked" : "") + "><span>" + esc(o.marcar.rotulo) + "</span></label>";
+    }
+    veu.innerHTML = '<div class="' + classe + '" role="dialog" aria-modal="true" aria-labelledby="dialogo-titulo">' +
+      '<div class="dialogo-cabeca"><span class="dialogo-titulos"><h2 id="dialogo-titulo">' + esc(o.titulo || "") + "</h2>" +
+      (o.contexto ? '<span class="dialogo-contexto">' + esc(o.contexto) + "</span>" : "") + "</span>" +
+      '<button type="button" class="dialogo-fechar" data-dialogo="cancelar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
+      '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + "</div>" +
+      '<div class="dialogo-pe">' + (campo ? '<span class="dialogo-teclas"><kbd>Enter</kbd> confirma · <kbd>Esc</kbd> cancela</span>' : "") +
+      '<span class="cresce"></span>' +
+      '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
+      '<button type="button" class="primario' + (o.perigo ? " perigo" : "") + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
+    document.body.appendChild(veu);
+
+    const caixa = veu.firstElementChild;
+    const entrada = veu.querySelector("#dialogo-campo");
+    const marcar = veu.querySelector("#dialogo-marcar");
+    const botaoOk = veu.querySelector('[data-dialogo="confirmar"]');
+    const obrigatorio = Boolean(campo) && campo.obrigatorio !== false;
+    const conferir = () => { if (entrada && obrigatorio) botaoOk.disabled = !entrada.value.trim(); };
+    let fechado = false;
+    const fechar = (resultado) => {
+      if (fechado) return;
+      fechado = true;
+      document.removeEventListener("keydown", teclas, true);
+      veu.remove();
+      dialogoAberto = null;
+      if (origem && origem.focus && document.contains(origem)) origem.focus();
+      resolve(resultado);
+    };
+    const confirmarAgora = () => {
+      if (entrada && obrigatorio && !entrada.value.trim()) { entrada.focus(); return; }
+      fechar({ ok: true, valor: entrada ? entrada.value.trim() : "", marcada: marcar ? marcar.checked : false });
+    };
+    const teclas = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fechar(null); return; }
+      if (e.key === "Enter") {
+        const alvo = e.target;
+        if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogo === "cancelar") return;
+        if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogoSugestao !== undefined) return;
+        e.preventDefault();
+        e.stopPropagation();
+        confirmarAgora();
+        return;
+      }
+      if (e.key === "Tab") {
+        const focaveis = Array.from(caixa.querySelectorAll("button:not(:disabled), input:not([type=hidden])"));
+        if (!focaveis.length) return;
+        const i = focaveis.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); focaveis[focaveis.length - 1].focus(); }
+        else if (!e.shiftKey && i === focaveis.length - 1) { e.preventDefault(); focaveis[0].focus(); }
+      }
+    };
+    document.addEventListener("keydown", teclas, true);
+    veu.onclick = (e) => { if (e.target === veu) fechar(null); };
+    veu.querySelectorAll('[data-dialogo="cancelar"]').forEach((b) => { b.onclick = () => fechar(null); });
+    botaoOk.onclick = confirmarAgora;
+    veu.querySelectorAll("[data-dialogo-sugestao]").forEach((b) => {
+      b.onclick = () => { entrada.value = b.dataset.dialogoSugestao; conferir(); entrada.focus(); };
+    });
+    if (entrada) {
+      entrada.oninput = conferir;
+      conferir();
+      entrada.focus();
+      if (campo.selecionar !== false && entrada.value) entrada.setSelectionRange(0, entrada.value.length);
+    } else {
+      botaoOk.focus();
+    }
+    dialogoAberto = { fechar: fechar };
+  });
+}
+
+function confirmar(o) {
+  return dialogo(o).then((r) => Boolean(r && r.ok));
+}
+
+function perguntar(o) {
+  return dialogo(o).then((r) => (r && r.ok ? r.valor : null));
+}
+
+/* O aviso no rodape. `opcoes.acao` = { rotulo, fazer } poe o Desfazer;
+   `opcoes.tom` = "erro" faz o aviso branco com borda vinho; `opcoes.icone`
+   troca o icone (info por padrao, check_circle com tom "ok"). */
+function avisoCert(texto, opcoes) {
+  const o = opcoes || {};
   let faixa = $("aviso-toast");
   if (!faixa) {
     faixa = document.createElement("div");
     faixa.id = "aviso-toast";
-    faixa.className = "aviso-toast";
     document.body.appendChild(faixa);
   }
-  faixa.textContent = texto;
+  faixa.className = "aviso-toast" + (o.tom === "erro" ? " erro" : "");
+  const icone = o.icone || (o.tom === "erro" ? "error" : (o.tom === "ok" ? "check_circle" : "info"));
+  faixa.innerHTML = ic(icone, 18) + "<span></span>" + (o.acao ? '<button type="button">' + esc(o.acao.rotulo || "Desfazer") + "</button>" : "");
+  faixa.querySelector("span:not(.ic)").textContent = texto;
+  if (o.acao) faixa.querySelector("button").onclick = () => { faixa.classList.remove("visivel"); o.acao.fazer(); };
   faixa.classList.add("visivel");
   clearTimeout(faixa.relogio);
-  faixa.relogio = setTimeout(() => faixa.classList.remove("visivel"), 4200);
+  faixa.relogio = setTimeout(() => faixa.classList.remove("visivel"), o.acao ? 8000 : 4200);
 }
 
 async function erroDe(resposta) {
@@ -14789,7 +14986,7 @@ async function assinarAgora() {
   if (assina.cofre.precisa_senha && senhaCert && !senhaCert.value) { senhaCert.focus(); avisoCert("digite a senha do certificado"); return; }
 
   if (assina.cofre.pede_confirmacao) {
-    if (!confirm($("assina-frase").textContent + "\n\nAssinar agora?")) return;
+    if (!(await confirmar({ titulo: "Assinar agora?", contexto: "Assinatura", texto: $("assina-frase").textContent, confirmar: "Assinar" }))) return;
   }
 
   if (botao) { botao.disabled = true; botao.textContent = "assinando…"; }
@@ -15651,7 +15848,7 @@ async function mandarPedido(pedido) {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pedido),
   });
   if (r.status === 401) {
-    const senha = prompt("Senha da conta de e-mail (fica só nesta máquina):");
+    const senha = await perguntar({ titulo: "Senha da conta de e-mail", contexto: "E-mail", campo: { rotulo: "Senha", tipo: "password", icone: "key", dica: "Fica só nesta máquina, protegida pela sua conta do Windows." }, confirmar: "Enviar" });
     if (!senha) return null;
     r = await fetch("/api/email/enviar", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ senha: senha }, pedido)),
@@ -15701,8 +15898,8 @@ function ligarEscrever() {
   $("nm-anexar-2").onclick = escolherAnexos;
   $("nm-previa").onclick = verPrevia;
   $("nm-salvar").onclick = () => { gravarRascunhoLocal(); avisoCert("rascunho guardado nesta máquina"); };
-  $("nm-descartar").onclick = () => {
-    if (($("nm-corpo").value.trim() || mail.para.length) && !confirm("Descartar este e-mail? O rascunho some desta máquina.")) return;
+  $("nm-descartar").onclick = async () => {
+    if (($("nm-corpo").value.trim() || mail.para.length) && !(await confirmar({ titulo: "Descartar este e-mail?", contexto: "E-mail › Novo e-mail", texto: "O rascunho some desta máquina.", confirmar: "Descartar", perigo: true }))) return;
     apagarRascunhoLocal();
     mail.anexos = [];
     mostrarEmail("caixa");
@@ -15896,7 +16093,7 @@ function ligarContas() {
         { icone: "inbox", rotulo: "Abrir a caixa desta conta", acao: () => { mail.conta = c; carregarCaixa(); } },
         "-",
         { icone: "delete", rotulo: "Remover", perigo: true, acao: async () => {
-          if (!confirm("Remover " + c.email + " do PAULUS? A senha guardada é apagada. As mensagens continuam no seu servidor.")) return;
+          if (!(await confirmar({ titulo: "Remover esta conta?", contexto: "E-mail › Contas › " + c.email, texto: "A senha guardada é apagada. As mensagens continuam no seu servidor.", confirmar: "Remover", perigo: true }))) return;
           mail.contas = await (await fetch("/api/email/contas/" + c.id, { method: "DELETE" })).json();
           mail.conta = mail.contas.contas.find((x) => x.em_uso) || mail.contas.contas[0] || null;
           desenharEmail();
@@ -15906,7 +16103,7 @@ function ligarContas() {
   });
   const esquecer = $("mail-esquecer");
   if (esquecer) esquecer.onclick = async () => {
-    if (!confirm("Apagar todas as senhas guardadas? As contas continuam cadastradas; eu vou perguntar a senha quando precisar.")) return;
+    if (!(await confirmar({ titulo: "Apagar todas as senhas guardadas?", contexto: "E-mail › Contas", texto: "As contas continuam cadastradas; eu vou perguntar a senha quando precisar.", confirmar: "Apagar senhas", perigo: true }))) return;
     mail.contas = await (await fetch("/api/email/esquecer-senhas", { method: "POST" })).json();
     desenharEmail();
   };
@@ -16022,7 +16219,7 @@ async function provarConta(entrar) {
   /* Guardar uma conta que so le, sem dizer, e descobrir o problema na hora de
      mandar o e-mail que importava. */
   if (!entrar || !r.entrada) return;
-  if (!r.saida && !confirm("Dá para ler, mas não dá para enviar por esta conta. Guardar assim mesmo?")) return;
+  if (!r.saida && !(await confirmar({ titulo: "Guardar a conta assim mesmo?", contexto: "E-mail › Contas", texto: "Dá para ler as mensagens, mas não dá para enviar por esta conta.", confirmar: "Guardar assim mesmo" }))) return;
 
   if (mail.reconectar) {
     const s = await fetch("/api/email/contas/senha", {
@@ -16301,8 +16498,8 @@ function cabecalhoDocumentos(aba) {
   $("nav-tela").innerHTML = "";
 }
 
-function renomearDocumento(aba) {
-  const nome = prompt("Nome do documento:", aba.titulo);
+async function renomearDocumento(aba) {
+  const nome = await perguntar({ titulo: "Renomear documento", contexto: "Documentos", campo: { rotulo: "Nome", valor: aba.titulo, icone: "description" }, confirmar: "Renomear" });
   if (nome === null || !nome.trim()) return;
   aba.titulo = nome.trim();
   const campo = $("ed-titulo");
@@ -16635,7 +16832,7 @@ function ligarLista() {
 
 async function criarDocumento(tipo) {
   const ehTexto = tipo !== "planilha";
-  const titulo = prompt(ehTexto ? "Nome do documento:" : "Nome da planilha:", ehTexto ? "Documento sem título" : "Planilha sem título");
+  const titulo = await perguntar({ titulo: ehTexto ? "Novo documento" : "Nova planilha", contexto: "Documentos", campo: { rotulo: "Nome", valor: ehTexto ? "Documento sem título" : "Planilha sem título", icone: ehTexto ? "description" : "table" }, confirmar: "Criar" });
   if (titulo === null) return;
   const r = await fetch("/api/documentos", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -16648,7 +16845,7 @@ async function criarDocumento(tipo) {
 }
 
 async function apagarDocumento(d) {
-  if (!confirm("Apagar “" + d.titulo + "” e todo o histórico de versões? Não dá para desfazer.")) return;
+  if (!(await confirmar({ titulo: "Apagar este documento?", contexto: "Documentos › " + d.titulo, texto: "Todo o histórico de versões vai junto. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
   await fetch("/api/documentos/" + d.id, { method: "DELETE" });
   fecharAba(d.id);
   mostrarDocumentos();
@@ -17207,7 +17404,7 @@ async function painelClausulas() {
   $("cl-nova").onclick = async () => {
     const texto = trechoSelecionado();
     if (!texto) { avisoCert("selecione o trecho no documento antes"); return; }
-    const titulo = prompt("Nome desta cláusula:", texto.slice(0, 40));
+    const titulo = await perguntar({ titulo: "Guardar cláusula", contexto: "Documentos › Cláusulas", campo: { rotulo: "Nome desta cláusula", valor: texto.slice(0, 40), icone: "draft" }, confirmar: "Guardar" });
     if (!titulo) return;
     await fetch("/api/documentos/modelos", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -17251,7 +17448,7 @@ async function painelVersoes(id) {
   });
   alvo.querySelectorAll("[data-voltar]").forEach((b) => {
     b.onclick = async () => {
-      if (!confirm("Voltar para a v" + b.dataset.voltar + "? Isso cria uma versão nova com aquele conteúdo.")) return;
+      if (!(await confirmar({ titulo: "Voltar para a v" + b.dataset.voltar + "?", contexto: "Documentos › Versões", texto: "Isso cria uma versão nova com aquele conteúdo. Nada é perdido: as versões seguintes continuam no histórico.", confirmar: "Voltar para a v" + b.dataset.voltar }))) return;
       const r = await (await fetch("/api/documentos/" + id + "/restaurar", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ numero: Number(b.dataset.voltar) }),
@@ -17449,7 +17646,7 @@ async function compararComVersao(numero) {
     '<button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
   alvo.querySelector("[data-doc-fechar-ferramenta]").onclick = () => { alvo.innerHTML = ""; };
   alvo.querySelector("[data-pv-voltar]").onclick = async () => {
-    if (!confirm("Voltar para a v" + c.de + "? Isso cria uma versão nova com aquele conteúdo.")) return;
+    if (!(await confirmar({ titulo: "Voltar para a v" + c.de + "?", contexto: "Documentos › Versões", texto: "Isso cria uma versão nova com aquele conteúdo. Nada é perdido: as versões seguintes continuam no histórico.", confirmar: "Voltar para a v" + c.de }))) return;
     const r2 = await (await fetch("/api/documentos/" + p.id + "/restaurar", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numero: c.de }),
@@ -17738,7 +17935,7 @@ function ligarPlanilha() {
   };
 
   $("pl-nova-aba").onclick = async () => {
-    const nome = prompt("Nome da aba:", "Página " + (p.abas.length + 1));
+    const nome = await perguntar({ titulo: "Nova aba", contexto: "Planilha › " + (p.titulo || "sem título"), campo: { rotulo: "Nome da aba", valor: "Página " + (p.abas.length + 1), icone: "table" }, confirmar: "Criar" });
     if (!nome) return;
     const r = await fetch("/api/planilha/" + p.id + "/aba", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -17751,7 +17948,7 @@ function ligarPlanilha() {
   };
   const tirar = $("pl-tirar-aba");
   if (tirar) tirar.onclick = async () => {
-    if (!confirm("Apagar a aba “" + aba.nome + "” e tudo que está nela?")) return;
+    if (!(await confirmar({ titulo: "Apagar esta aba?", contexto: "Planilha › " + aba.nome, texto: "Tudo que está nela vai junto. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
     const r = await fetch("/api/planilha/" + p.id + "/aba/" + escr.aba, { method: "DELETE" });
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
     escr.pl = await r.json();
@@ -19053,14 +19250,14 @@ function ligarFinanceiro() {
   });
   clique("[data-fin-papel-salvar]", salvarPapel);
   clique("[data-fin-tirar-papel]", async (b) => {
-    if (!confirm("Tirar este registro? O papel de verdade continua onde está.")) return;
+    if (!(await confirmar({ titulo: "Tirar este registro?", contexto: "Financeiro", texto: "O papel de verdade continua onde está; só o registro sai daqui.", confirmar: "Tirar", perigo: true }))) return;
     await fetch("/api/financeiro/papeis/" + b.dataset.finTirarPapel, { method: "DELETE" });
     mostrarFinanceiro();
   });
   clique("[data-fin-boleto-pago]", (b) => baixarBoleto(Number(b.dataset.finBoletoPago)));
   clique("[data-fin-cobrar-email]", () => { marcarDestino("caixa"); mostrarEmail(); });
   clique("[data-fin-tirar-comp]", async (b) => {
-    if (!confirm("Tirar este comprovante do lançamento? O arquivo continua na pasta.")) return;
+    if (!(await confirmar({ titulo: "Tirar este comprovante?", contexto: "Financeiro › Lançamentos", texto: "Ele deixa de estar ligado ao lançamento. O arquivo continua na pasta.", confirmar: "Tirar", perigo: true }))) return;
     await fetch("/api/financeiro/comprovantes/" + b.dataset.finTirarComp, { method: "DELETE" });
     mostrarFinanceiro();
   });
@@ -19150,7 +19347,7 @@ async function salvarLancamento() {
 async function apagarLancamento() {
   const v = fin.form;
   if (!v || !v.id) return;
-  if (!confirm("Apagar este lançamento e os comprovantes ligados a ele?")) return;
+  if (!(await confirmar({ titulo: "Apagar este lançamento?", contexto: "Financeiro › Lançamentos", texto: "Os comprovantes ligados a ele vão junto. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
   await fetch("/api/financeiro/lancamentos/" + v.id, { method: "DELETE" });
   fin.form = null;
   fin.aberto = null;
@@ -19748,7 +19945,7 @@ function ligarFoco() {
     guardarLembrete({ titulo: v.titulo, cada_min: Number(v.cada_min) || 60, meta_dia: Number(v.meta_dia) || 0, ligado: v.ligado !== 0 && v.ligado !== false }, v.id || null);
   });
   clique("[data-be-tirar]", async (b) => {
-    if (!confirm("Apagar este lembrete?")) return;
+    if (!(await confirmar({ titulo: "Apagar este lembrete?", contexto: "Foco e bem-estar", texto: "Ele para de aparecer nas horas marcadas.", confirmar: "Apagar", perigo: true }))) return;
     await fetch("/api/bemestar/lembretes/" + b.dataset.beTirar, { method: "DELETE" });
     be.form = null;
     mostrarFoco();
@@ -19943,11 +20140,9 @@ async function procurarLei() {
 
 /* Artigo revogado nunca entra sem a pessoa dizer que quer: citar um artigo que
    não está mais em vigor é o erro mais caro que esta tela pode cometer. */
-function inserirCitacao(a, comTexto) {
+async function inserirCitacao(a, comTexto) {
   if (!a) return;
-  if (a.revogado && !confirm(
-      "O " + a.citacao + " está REVOGADO.\n\nEle continua no texto compilado por " +
-      "referência histórica, mas não está em vigor. Inserir mesmo assim?")) return;
+  if (a.revogado && !(await confirmar({ titulo: "Artigo revogado", contexto: a.citacao, texto: "O " + a.citacao + " está revogado: continua no texto compilado por referência histórica, mas não está em vigor.", confirmar: "Inserir mesmo assim", perigo: true }))) return;
 
   const folha = $("ed-folha");
   if (!folha) { avisoCert("abra um documento para inserir a citação"); return; }
@@ -19972,7 +20167,7 @@ async function escolherPastaDoSistema(titulo) {
       if (escolhida) return escolhida;
     } catch (err) { /* cai para o campo digitado */ }
   }
-  return prompt(titulo + ":");
+  return perguntar({ titulo: titulo, contexto: "Esta máquina", campo: { rotulo: "Caminho da pasta", placeholder: "C:\\Users\\você\\Documentos\\Contratos", icone: "folder" }, confirmar: "Usar esta pasta" });
 }
 
 /* ---------------------------------------------------------- boas-vindas */
@@ -20395,8 +20590,8 @@ function aplicarModoLimitado() {
   });
 }
 
-function cancelarVinculo() {
-  if (!confirm("Cancelar o pedido de entrar no escritório? Este computador passa a ser um escritório novo, e você o responsável.")) return;
+async function cancelarVinculo() {
+  if (!(await confirmar({ titulo: "Cancelar o pedido de entrar no escritório?", contexto: "Escritório e vínculos", texto: "Este computador passa a ser um escritório novo, e você o responsável. Dá para pedir de novo depois.", confirmar: "Cancelar o pedido", cancelar: "Manter o pedido" }))) return;
   try { localStorage.removeItem("paulus.vinculo"); } catch (err) { /* sem memoria */ }
   aplicarModoLimitado();
   avisoCert("pedido cancelado — tudo liberado; este computador é o seu escritório");
