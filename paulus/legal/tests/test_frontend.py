@@ -107,7 +107,7 @@ def test_css_completo() -> None:
     # As pecas que ja quebraram uma vez ficam checadas por nome.
     essenciais = [
         ".doc-linha", ".doc-marca", ".doc-acoes", ".etiqueta",
-        ".hab-marca", ".hab-acao", ".catalogo", ".bib-topo",
+        ".cfg-menu", ".cfg-hab", ".catalogo", ".bib-topo",
         ".medidor", ".trilho", ".menu-flutuante", ".lateral",
         ".cartao-campo", ".pilula", ".enviar",
         ".menu-conversa", ".cartao-agora", ".chamada",

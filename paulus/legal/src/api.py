@@ -1823,7 +1823,8 @@ def folha_recibos(payload: MesPedido) -> dict:
     # Quem paga e quem esta configurado em Preferencias. Sem isso o recibo
     # sairia dizendo "recebi de este escritorio", que nao serve de recibo.
     pessoa = estado.prefs.dados.get("pessoa", {})
-    quem_paga = str(pessoa.get("nome", "")).strip()
+    escritorio = estado.prefs.dados.get("escritorio", {})
+    quem_paga = str(escritorio.get("nome", "")).strip() or str(pessoa.get("nome", "")).strip()
 
     destino = RECIBOS_DIR / mes
     try:

@@ -87,6 +87,14 @@ PADRAO: dict = {
         "endereco": "",
         "usar_na_qualificacao": True,
     },
+    # O escritorio, separado da pessoa: o nome entra nos recibos da folha;
+    # CNPJ, OAB da sociedade e rodape ficam guardados para o timbre.
+    "escritorio": {
+        "nome": "",
+        "cnpj": "",
+        "oab": "",
+        "rodape": "",
+    },
 }
 
 

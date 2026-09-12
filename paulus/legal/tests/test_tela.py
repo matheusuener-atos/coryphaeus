@@ -432,6 +432,37 @@ def main() -> int:
             )
             checar(colunas == 6, f"a tabela de despesas tem seis colunas (achou {colunas})")
 
+            print("\nas Configuracoes: menu interno e nove secoes")
+            # Habilidades, Desempenho e Conexoes viraram secoes de Configuracoes
+            # (docs/ui/03-telas-desktop.md, A13); os destinos antigos continuam
+            # abrindo, cada um na sua secao.
+            pagina.evaluate("() => abrirDestino('config')")
+            pagina.wait_for_timeout(1800)
+            colunas = pagina.evaluate(
+                "() => { const g = document.querySelector('.cfg-corpo');"
+                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            )
+            checar(colunas == 2, f"o menu interno e a secao ficam lado a lado (achou {colunas})")
+            secoes = pagina.evaluate("() => document.querySelectorAll('#cfg-tela [data-cfg-secao]').length")
+            checar(secoes == 9, f"o menu tem nove secoes (achou {secoes})")
+            checar(
+                pagina.evaluate("() => document.querySelectorAll('#cfg-tela .cfg-grade > .cfg-cartao').length") == 2,
+                "Meus dados abre em dois cartoes lado a lado",
+            )
+            pagina.evaluate("() => abrirDestino('desempenho')")
+            pagina.wait_for_timeout(3200)
+            checar(
+                pagina.evaluate("() => cfg.secao === 'desempenho' && cfg.historico.length >= 1"),
+                "o destino antigo Desempenho abre a secao e mede ao vivo",
+            )
+            pagina.evaluate("() => abrirDestino('habilidades')")
+            pagina.wait_for_timeout(1600)
+            checar(pagina.evaluate("() => cfg.secao === 'aprendizado' && cfg.relogio === null"),
+                   "o destino antigo Aprendizado abre a secao e para a medicao")
+            pagina.evaluate("() => abrirDestino('conexoes')")
+            pagina.wait_for_timeout(1600)
+            checar(pagina.evaluate("() => cfg.secao === 'conexoes'"), "o destino antigo Conexoes abre a secao")
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',
