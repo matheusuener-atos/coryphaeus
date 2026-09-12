@@ -215,7 +215,13 @@ def main() -> int:
             pagina.wait_for_timeout(450)
 
             destinos = pagina.evaluate("() => DESTINOS.map(d => ({id: d.id, nome: d.nome}))")
-            faltando = [d["nome"] for d in destinos if d["id"] not in casca["destinos"]]
+            # Destino absorvido por uma tela nova (Organizar virou visao do
+            # Acervo) nao tem botao proprio: abre pela tela que o absorveu.
+            absorvidos = set(pagina.evaluate("() => [...ABSORVIDOS]"))
+            faltando = [
+                d["nome"] for d in destinos
+                if d["id"] not in casca["destinos"] and d["id"] not in absorvidos
+            ]
             checar(
                 not faltando,
                 f"os {len(destinos)} destinos do servidor estao alcancaveis pela casca",
