@@ -2986,6 +2986,149 @@
   .sv-novo small { font: 500 12px var(--sans); color: var(--ink3); }
   @media (max-width: 1100px) { .sv-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sv-cartao { grid-column: span 2; } }
 
+  /* --------------------------------------------------------- assinatura */
+  /*
+    Assinatura (docs/ui/03-telas-desktop.md, A8): o visor do PDF com o selo
+    arrastavel e, no painel, as escolhas antes de assinar; a segunda visao e
+    o certificado, com a previa do selo em tamanho real. Prefixo as-.
+  */
+  .as-corpo { grid-template-columns: minmax(0, 1fr) 400px; }
+  .as-corpo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
+  .as-principal { padding: 16px 0 16px 20px; }
+  .as-cartao {
+    flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
+    box-shadow: 0 8px 24px -16px var(--sh-a12);
+  }
+  .as-cartao .docs-previa { background: var(--bg); }
+  .as-cartao .docs-miniaturas { background: var(--surf); }
+  .as-visor { padding: 20px 24px; }
+  .as-visor .pdf-folha { width: 100%; max-width: 680px; align-self: flex-start; position: relative; line-height: 0; }
+  .as-mini-selo { position: absolute; right: 5px; bottom: 12px; width: 14px; height: 8px; background: var(--acc); border-radius: 1px; }
+  .as-cartao .docs-mini { position: relative; }
+  .as-mais { font: 500 11px var(--sans); color: var(--ink3); }
+
+  /* o selo arrastavel: a previa de verdade, na escala da pagina */
+  .as-cartao .pdf-selo {
+    position: absolute; box-sizing: border-box; border: 1px dashed var(--acc); border-radius: 4px; background: var(--accbg2);
+    cursor: move; overflow: visible; padding: 0; display: block; font-size: 12px; text-align: left; user-select: none; color: var(--ink);
+  }
+  .as-cartao .pdf-selo.pegando { border-style: solid; cursor: grabbing; }
+  .as-selo-dentro { position: absolute; left: 0; top: 0; transform-origin: top left; pointer-events: none; }
+  .as-selo-dentro .selo-previa { border-color: var(--ink-a15); }
+  .as-visor .pdf-folha .as-selo-dentro .selo-previa img { max-width: 62px; max-height: 46px; width: auto; height: auto; }
+  .as-selo-legenda {
+    position: absolute; left: 0; top: 100%; margin-top: 6px; display: flex; align-items: center; gap: 6px;
+    font: 500 11px var(--sans); color: var(--acc); white-space: nowrap; pointer-events: none;
+  }
+  .as-alca { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--surf); border: 1.5px solid var(--acc); pointer-events: none; }
+  .as-alca.a { left: -5px; top: -5px; } .as-alca.b { right: -5px; top: -5px; } .as-alca.c { left: -5px; bottom: -5px; } .as-alca.d { right: -5px; bottom: -5px; }
+  .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 80px; }
+
+  /* o painel de antes de assinar */
+  .as-painel { display: flex; flex-direction: column; }
+  .as-opcoes { padding: 0 18px 12px; display: grid; gap: 8px; }
+  .as-radio { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; min-height: 24px; }
+  .as-radio i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); box-sizing: border-box; flex: none; }
+  .as-radio.on { color: var(--ink); }
+  .as-radio.on i { border: 5px solid var(--ink); }
+  .as-radio span { flex: 1; }
+  .as-radio input[type=text] {
+    width: 120px; min-width: 0; max-width: 100%; padding: 4px 8px; border: 1px solid var(--ink-a1); border-radius: 6px;
+    background: var(--surf); font: 500 12px var(--sans); color: var(--ink);
+  }
+  .as-opcoes .ag-chave { padding-top: 8px; }
+  .as-cert { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; }
+  .as-cert-ic { color: var(--ink2); display: flex; flex: none; }
+  .as-cert .duas-linhas b { font-size: 13.5px; font-weight: 600; }
+  .as-cert .duas-linhas small { white-space: normal; }
+  .as-lista { display: grid; gap: 10px; }
+  .as-marca { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); }
+  .as-marca.liga { cursor: pointer; }
+  .as-marca.on { color: var(--ink); }
+  .as-caixinha { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--ink-a3); box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; color: transparent; }
+  .as-marca.on .as-caixinha { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .as-lista .ag-toggle .duas-linhas b { font-weight: 400; font-size: 13.5px; }
+  .as-lista .ag-toggle .duas-linhas small { white-space: normal; }
+  .as-lista .em-senha { margin-top: -2px; }
+  .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--accln); border-radius: 10px; background: var(--accbg2); display: grid; gap: 12px; }
+  .as-pronto.feito { border-color: var(--ink-a15); background: var(--okbg); }
+  .as-pronto-cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
+  .as-pronto-cabeca .ic { color: var(--verde); }
+  .as-pronto-cabeca .contagem { margin-left: auto; }
+  .as-pronto p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .as-pronto input[type=password] { width: 100%; max-width: 100%; box-sizing: border-box; border-radius: 8px; border-color: var(--ink-a15); background: var(--surf); }
+  .as-pronto-acoes { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .as-pronto-acoes .primario { margin-left: auto; }
+  .as-pronto small { font: 500 12px var(--sans); color: var(--ink3); }
+  .as-pronto .cert-aviso { border-radius: 8px; }
+  .as-conferencia { display: grid; gap: 8px; }
+  .as-conferencia small { font: 500 12px var(--sans); color: var(--ink3); }
+  .painel-acoes.semi button.adiante { opacity: .5; }
+
+  /* o certificado, no cartao */
+  .as-cartao-topo { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--ink-a1); font: 600 14px var(--sans); }
+  .as-rolagem { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .as-bloco { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
+  .as-bloco:last-child { border-bottom: none; padding-bottom: 0; }
+  .as-titulo { font: 600 14px var(--sans); }
+  .as-explica { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .as-nota { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-solta {
+    border: 1px dashed var(--ink-a25); border-radius: 10px; padding: 18px; display: grid; justify-items: center; gap: 6px; text-align: center;
+    transition: border-color .15s, background .15s;
+  }
+  .as-solta.sobre { border-color: var(--ink); background: var(--accbg2); }
+  .as-solta > span { font-size: 14px; }
+  .as-solta small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-solta-acoes { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
+  .as-solta-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .as-teste { padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 6px; }
+  .as-teste b { font-size: 13.5px; }
+  .as-teste p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .as-teste button { justify-self: start; }
+  .as-windows { padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 8px; }
+  .as-titular { display: flex; align-items: flex-start; gap: 14px; }
+  .as-titular-ic { width: 44px; height: 44px; border-radius: 10px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); }
+  .as-titular .duas-linhas { flex: 1; gap: 3px; }
+  .as-nome { font: 400 20px/1.15 var(--serif); white-space: normal; }
+  .as-titular-acoes { display: flex; gap: 6px; flex: none; }
+  .as-titular-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .as-grade4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .as-dado { padding: 12px; border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 4px; min-width: 0; }
+  .as-dado small { font: 500 12px var(--sans); color: var(--ink3); }
+  .as-dado b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .as-senha { display: flex; align-items: center; gap: 8px; }
+  .as-senha input[type=password], .as-senha input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; padding: 9px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf);
+    font: 400 13.5px var(--sans); color: var(--ink);
+  }
+  .as-rodape-cartao { flex: none; padding: 12px 18px; border-top: 1px solid var(--ink-a1); display: grid; gap: 10px; }
+  .as-duas-colunas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; }
+  .as-duas-colunas .ag-chave { border-bottom: none; padding: 0; min-height: 0; }
+  .as-duas-colunas .ag-chave select { max-width: 50%; }
+
+  /* o selo, no painel */
+  .as-selo-caixa { margin: 0 18px 12px; padding: 20px 18px; background: var(--bg); border-radius: 10px; display: flex; justify-content: center; overflow: hidden; }
+  .as-selo-escala { transform: scale(1.33); transform-origin: center; }
+  .as-painel-miolo { padding: 0 18px 12px; display: grid; gap: 12px; }
+  .as-abas button { flex: 1; text-align: center; }
+  .as-painel-miolo .selo-tela { max-width: none; width: 100%; border-radius: 8px; }
+  .as-linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .as-linha-botoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .as-painel-rodape { margin-top: auto; padding: 12px 18px 16px; display: flex; justify-content: flex-end; gap: 6px; border-top: 1px solid var(--ink-a1); }
+  .as-painel-rodape button { display: inline-flex; align-items: center; gap: 6px; }
+  .painel-bloco .as-duas-colunas { gap: 8px 16px; }
+  .painel-bloco .ag-chave { padding-top: 6px; border-bottom: none; }
+
+  /* o aviso curto de qualquer tela */
+  .aviso-toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; z-index: 60;
+    max-width: 560px; padding: 10px 16px; border-radius: 10px; background: var(--ink); color: var(--bg);
+    font: 500 13px/1.45 var(--sans); box-shadow: var(--elev-float); transition: opacity .2s, transform .2s;
+  }
+  .aviso-toast.visivel { opacity: 1; transform: translate(-50%, 0); }
+
   /* ------------------------------------------------------- responsivo */
 
   /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
@@ -3173,6 +3316,7 @@
 
 <!-- A primeira abertura: cobre o programa inteiro ate a pessoa terminar. -->
 <div class="boas-vindas" id="boas-vindas" hidden></div>
+<div class="aviso-toast" id="aviso-toast"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -6751,7 +6895,7 @@ const ICONE_ANTIGO = {
 };
 
 /* Destinos antigos que ja viraram visao de uma tela nova. */
-const ABSORVIDOS = new Set(["organizar", "agendamento", "tarefas", "planilha"]);
+const ABSORVIDOS = new Set(["organizar", "agendamento", "tarefas", "planilha", "certificado"]);
 
 let DESTINOS = [];
 
@@ -10239,191 +10383,202 @@ async function organizarAplicar() {
    fora da ICP-Brasil.
 */
 
-const cert = { dados: null, aba: "escrever", tracos: [], desenhando: false };
+const cert = { dados: null, aba: "escrever", tracos: [], desenhando: false, visao: "assinar", largo: false, guardar: false };
 
+/* A tela de Assinatura do desenho (docs/ui/03-telas-desktop.md, A8): duas
+   visoes, Assinar documento e Certificado digital, no mesmo cabecalho, com
+   o painel de 400 px. O que era a tela do certificado virou a segunda visao. */
 async function mostrarCertificado() {
-  abrirTela("Certificado digital");
+  abrirTela("Assinatura", { cheia: true });
+  marcarDestino("assinar");
+  cert.visao = "certificado";
   const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo o certificado…</p></div>';
-
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo o certificado…</p></div></div>';
   try {
     cert.dados = await (await fetch("/api/certificado")).json();
   } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
+    centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div></div>";
     return;
   }
-  desenharCertificado();
+  cert.guardar = Boolean(cert.dados.guardar_senha);
+  desenharAssinatura();
   atualizarPostura();
 }
 
-function desenharCertificado() {
+function desenharCertificado() { desenharAssinatura(); }
+
+function desenharAssinatura() {
+  cabecalhoAssinatura();
+  let principal, painel;
+  if (cert.visao === "certificado") { principal = cartaoDoCertificado(); painel = painelDoSelo(); }
+  else if (assina.doc) { principal = visorParaAssinar(); painel = painelAntesDeAssinar(); }
+  else { principal = listaDePdfs(); painel = painelSemDocumento(); }
+  const classe = "acervo as-corpo" + (cert.largo ? " painel-largo" : "");
+  $("centro").innerHTML = '<div class="' + classe + '" id="assinatura"><div class="acervo-principal as-principal">' + principal + "</div>" + painel + "</div>";
+  ligarAssinatura();
+}
+
+function situacaoDoCertificado() {
+  const d = cert.dados || {};
+  const c = d.certificado;
+  if (!d.instalado || !c) return { texto: "sem certificado", classe: "atencao" };
+  if (c.erro) return { texto: "bloqueado · digite a senha", classe: "atencao" };
+  if (c.vencido) return { texto: "vencido", classe: "atencao" };
+  if (c.dias_restantes !== null && c.dias_restantes !== undefined && c.dias_restantes <= 30) return { texto: "vence em " + c.dias_restantes + " dias", classe: "atencao" };
+  return { texto: c.icp_brasil ? "válido" : "válido · fora da ICP-Brasil", classe: "" };
+}
+
+function seloDeSituacao() {
+  const s = situacaoDoCertificado();
+  const classe = "docs-sinc" + (s.classe ? " " + s.classe : "");
+  return '<span class="' + classe + '"><i></i>' + esc(s.texto) + "</span>";
+}
+
+function cabecalhoAssinatura() {
+  const titulo = $("conversa-titulo");
+  const meta = $("conversa-meta");
+  if (cert.visao === "certificado") {
+    titulo.textContent = "Certificado digital";
+    meta.textContent = "O arquivo e a senha ficam nesta máquina · nunca são enviados";
+  } else if (assina.doc) {
+    const doc = assina.doc;
+    titulo.textContent = doc.nome;
+    meta.innerHTML = plural(doc.paginas, "página") + " · " + String(doc.mb).replace(".", ",") + " MB · " +
+      (doc.ja_assinado ? plural(doc.assinaturas, "assinatura") + " já no arquivo" : "ainda sem assinatura") +
+      ' · <button class="em-ligacao forte" data-as-acervo="1">do Acervo</button>';
+  } else {
+    titulo.textContent = "Assinar documento";
+    meta.textContent = "escolha um PDF do Acervo ou do computador";
+  }
+  const botao = (v, r) => {
+    const classe = v === cert.visao ? "ativa" : "";
+    return '<button class="' + classe + '" data-as-visao="' + v + '">' + r + "</button>";
+  };
+  let acoes;
+  if (cert.visao === "certificado") {
+    acoes = '<button class="primario com-icone" data-as-visao="assinar">' + ic("draw", 16) + "Assinar documento</button>";
+  } else if (assina.doc) {
+    acoes = '<button class="com-icone" id="assina-trocar">' + ic("swap_horiz", 16) + "Trocar documento</button>" +
+      '<button class="primario com-icone" id="assina-agora-topo">' + ic("draw", 16) + "Assinar agora</button>";
+  } else {
+    acoes = '<button class="primario com-icone" id="assina-escolher-topo">' + ic("folder_open", 16) + "Escolher um PDF</button>";
+  }
+  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("assinar", "Assinar documento") + botao("certificado", "Certificado digital") + "</div>" + acoes;
+  $("nav-tela").innerHTML = "";
+}
+
+function alcaDaAssinatura() {
+  return '<button class="alca-painel" data-as-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
+    ic(cert.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
+}
+
+/* ----------------------------------------------- o certificado, o cartao */
+
+function cartaoDoCertificado() {
   const d = cert.dados;
   const c = d.certificado;
+  const classeGuardar = "ag-toggle" + (cert.guardar ? " on" : "");
+  let html = '<div class="as-cartao"><div class="as-cartao-topo"><span class="cresce">' + (d.instalado ? "Certificado instalado" : "Certificado digital") + "</span>" +
+    (d.instalado ? seloDeSituacao() : "") + "</div><div class=\"as-rolagem\">";
 
-  let html = '<div class="catalogo"><div class="tela-topo">' +
-    '<div><h2>Certificado digital</h2>' +
-    '<span class="rotulo">o arquivo e a senha ficam nesta máquina</span></div>' +
-    (d.instalado && c && c.pode_assinar
-      ? '<div class="tela-acoes"><button class="primario" id="cert-ir-assinar">Assinar documento</button></div>'
-      : "") +
-    "</div>";
-
-  html += d.instalado ? cartaoCertificado(c, d) : soltaCertificado();
-  if (d.instalado) html += blocoSenha(d) + blocoAoAssinar(d);
-  html += blocoSelo(d);
-
-  if (d.registro && d.registro.assinaturas.length) {
-    html += '<div class="painel" style="margin-top:16px"><h3>Assinaturas feitas aqui</h3>' +
-      '<p class="explica">O código aparece no selo. Serve para achar a assinatura depois.</p>' +
-      d.registro.assinaturas.slice(0, 6).map((a) =>
-        '<div class="reg-linha"><span class="reg-codigo">' + esc(a.codigo) + "</span>" +
-        '<span class="cresce corta">' + esc(a.documento) + "</span>" +
-        '<span class="num">' + esc(quandoCurto(a.quando)) + "</span>" +
-        (a.icp_brasil ? "" : '<span class="cert-estado problema">fora da ICP</span>') +
-        "</div>"
-      ).join("") + "</div>";
-  }
-
-  html += '<div class="rodape-tela">certificado e senha nunca saem desta máquina</div></div>';
-  $("centro").innerHTML = html;
-  ligarCertificado();
-}
-
-function cartaoCertificado(c, d) {
-  if (!c) return "";
-
-  /* Sem a senha o programa nao consegue abrir o arquivo, entao nao tem o que
-     mostrar do titular. Dizer isso e melhor que uma ficha vazia. */
-  if (c.erro) {
-    return '<div class="cert-cartao"><div class="cert-cabeca">' +
-      '<span class="cert-marca">PFX</span><div class="cresce">' +
-      "<h3>Certificado instalado</h3>" +
-      '<p class="explica">' + esc(c.erro) + "</p></div>" +
-      '<span class="cert-estado problema">bloqueado</span></div></div>';
-  }
-
-  const classe = c.vencido ? "vencido" : (c.dias_restantes !== null && c.dias_restantes <= 30 ? "vence" : "valido");
-
-  let html = '<div class="cert-cartao"><div class="cert-cabeca">' +
-    '<span class="cert-marca">PFX</span>' +
-    '<div class="cresce"><h3>' + esc(c.titular || "certificado") + "</h3>" +
-    '<span class="rotulo">' + esc(c.tipo) + (c.documento ? " · " + esc(c.documento) : "") + "</span></div>" +
-    '<span class="cert-estado ' + classe + '">' + esc(c.situacao) + "</span></div>";
-
-  html += '<div class="cert-grade">' +
-    campoCert("emissor", c.emissor || "—") +
-    campoCert("válido até", dataBR(c.valido_ate) + (c.dias_restantes !== null && !c.vencido ? " · " + c.dias_restantes + " dias" : "")) +
-    campoCert("nº de série", c.serie || "—") +
-    campoCert("guardado em", d.guardado_em || "—") +
-    "</div>";
-
-  /* O aviso que justifica metade deste modulo. */
-  if (!c.icp_brasil) {
-    html += '<div class="cert-aviso"><strong>Este certificado não é da ICP-Brasil</strong>' +
-      "<p>Ele assina, e a assinatura é íntegra: dá para provar que o arquivo não foi " +
-      "alterado depois. Mas ela <b>não tem a validade jurídica</b> de uma assinatura " +
-      "feita com e-CPF ou e-CNPJ emitido por autoridade credenciada. Não use em " +
-      "documento que vá para processo, cartório ou órgão público.</p></div>";
-  }
-  if (c.vencido) {
-    html += '<div class="cert-aviso"><strong>Certificado vencido</strong>' +
-      "<p>Venceu em " + esc(dataBR(c.valido_ate)) + ". Não dá para assinar com ele. " +
-      "Instale o certificado novo pelo botão Substituir.</p></div>";
-  }
-
-  html += '<div class="linha-form"><button id="cert-trocar">Substituir</button>' +
-    '<button class="perigo" id="cert-remover">Remover</button></div></div>';
-  return html;
-}
-
-function campoCert(rotulo, valor) {
-  return '<div class="cert-campo"><span class="rotulo">' + esc(rotulo) + "</span>" +
-    "<b>" + esc(valor) + "</b></div>";
-}
-
-function soltaCertificado() {
-  return '<div class="cert-solta" id="cert-solta">' +
-    "<p><b>Arraste o arquivo do certificado aqui</b></p>" +
-    '<span class="rotulo">.pfx ou .p12 · até 8 MB</span>' +
-    '<div class="linha-form" style="justify-content:center">' +
-    '<button class="primario" id="cert-escolher">Escolher no computador</button>' +
-    '<button id="cert-ver-windows">Ver os do Windows</button></div>' +
+  html += '<div class="as-bloco"><b class="as-titulo">Upload do arquivo</b>' +
+    '<div class="as-solta" id="cert-solta"><span>Arraste o arquivo do certificado aqui</span><small>.pfx ou .p12 · até 8 MB</small>' +
+    '<span class="as-solta-acoes"><button class="primario com-icone" id="cert-escolher">' + ic("folder_open", 16) + "Escolher no computador</button>" +
+    '<button class="com-icone" id="cert-ver-windows">' + ic("desktop_windows", 16) + "Usar um já instalado no Windows</button></span>" +
     '<input type="file" id="cert-arquivo" accept=".pfx,.p12" hidden></div>' +
-    '<div class="painel" style="margin-top:16px"><h3>Sem um certificado à mão?</h3>' +
-    '<p class="explica">Posso criar um certificado de teste para você conhecer a tela. ' +
-    "Ele assina de verdade do ponto de vista técnico e <b>não tem validade jurídica</b> — " +
-    "serve para experimentar, não para documento que vale.</p>" +
-    '<button id="cert-teste">Criar certificado de teste</button></div>' +
-    '<div id="cert-lista-windows"></div>';
+    '<div id="cert-lista-windows"></div>' +
+    (d.instalado ? "" :
+      '<div class="as-teste"><b>Sem um certificado à mão?</b><p>Posso criar um certificado de teste para você conhecer a tela. Ele assina de verdade do ponto de vista técnico e <b>não tem validade jurídica</b> — serve para experimentar, não para documento que vale.</p>' +
+      '<button id="cert-teste">Criar certificado de teste</button></div>') + "</div>";
+
+  if (d.instalado && c) {
+    html += '<div class="as-bloco"><div class="as-titular"><span class="as-titular-ic">' + ic("workspace_premium", 24) + "</span>" +
+      '<span class="duas-linhas"><b class="as-nome">' + esc(c.titular || "Certificado instalado") + "</b><small>" +
+      esc(c.tipo || "certificado A1") + (c.documento ? " · " + esc(c.documento) : "") + " · arquivo .pfx</small></span>" +
+      '<span class="as-titular-acoes"><button class="com-icone" id="cert-trocar">' + ic("upload", 16) + "Substituir</button>" +
+      '<button class="ag-perigo-fino" id="cert-remover">Remover</button></span></div>' +
+      (c.erro
+        ? '<p class="as-explica">' + esc(String(c.erro).replace(/[.\s]*$/, ".")) + " Digite a senha abaixo para eu conseguir ler o titular, o emissor e a validade.</p>"
+        : '<div class="as-grade4">' +
+          cartaoDado("Emissor", c.emissor || "—") +
+          cartaoDado("Válido até", dataBR(c.valido_ate) + (c.dias_restantes !== null && c.dias_restantes !== undefined && !c.vencido ? " · " + c.dias_restantes + " dias" : "")) +
+          cartaoDado("Nº de série", c.serie || "—") +
+          cartaoDado("Guardado em", d.guardado_em || "esta máquina") + "</div>") +
+      (c.icp_brasil || c.erro ? "" :
+        '<div class="cert-aviso"><strong>Este certificado não é da ICP-Brasil</strong><p>Ele assina, e a assinatura é íntegra: dá para provar que o arquivo não foi alterado depois. Mas ela <b>não tem a validade jurídica</b> de uma assinatura feita com e-CPF ou e-CNPJ emitido por autoridade credenciada. Não use em documento que vá para processo, cartório ou órgão público.</p></div>') +
+      (c.vencido ? '<div class="cert-aviso"><strong>Certificado vencido</strong><p>Venceu em ' + esc(dataBR(c.valido_ate)) + ". Não dá para assinar com ele. Instale o certificado novo em Substituir.</p></div>" : "") +
+      "</div>";
+
+    const memoria = d.senha_na_memoria
+      ? "A senha está na memória por mais " + d.minutos_restantes + " min."
+      : (d.tem_senha_guardada ? "A senha está guardada nesta máquina." : "Se não guardar, eu pergunto a senha em cada assinatura.");
+    html += '<div class="as-bloco"><b class="as-titulo">Senha do certificado</b>' +
+      '<div class="as-senha"><input type="password" id="cert-senha" placeholder="••••••••"><button class="em-ligacao" id="cert-mostrar">mostrar</button>' +
+      '<button class="primario" id="cert-abrir">Abrir</button></div>' +
+      (d.pode_guardar_senha
+        ? '<div class="' + classeGuardar + '" id="cert-guardar"><span>Guardar a senha nesta máquina</span><i></i></div>'
+        : '<p class="as-explica">Não consigo guardar a senha com segurança neste sistema: vou perguntar a cada assinatura.</p>') +
+      '<small class="as-nota">' + esc(memoria) + (d.tem_senha_guardada ? ' <button class="em-ligacao" id="cert-esquecer">esquecer a senha guardada</button>' : "") + "</small></div>";
+  }
+  html += "</div>";
+
+  if (d.instalado) {
+    const toggles = [
+      ["pedir_confirmacao", "Pedir confirmação antes de cada assinatura"],
+      ["mostrar_documento", "Mostrar o documento inteiro na confirmação"],
+      ["lote_sem_confirmar", "Assinar vários de uma vez sem confirmar cada um"],
+    ].map(([chave, rotulo]) => {
+      const classe = "ag-toggle" + (d[chave] ? " on" : "");
+      return '<div class="' + classe + '" data-cofre="' + chave + '"><span>' + rotulo + "</span><i></i></div>";
+    }).join("");
+    html += '<div class="as-rodape-cartao"><b class="as-titulo">Ao assinar</b><div class="as-duas-colunas">' + toggles +
+      '<div class="ag-chave"><span>Depois de digitar a senha, ela vale por</span><select id="cert-minutos">' +
+      [0, 5, 15, 30, 60, 120].map((m) => '<option value="' + m + '"' + (d.minutos === m ? " selected" : "") + ">" + (m ? m + " minutos" : "só esta assinatura") + "</option>").join("") +
+      "</select></div></div></div>";
+  }
+  return html + "</div>";
 }
 
-function blocoSenha(d) {
-  const memoria = d.senha_na_memoria
-    ? "a senha está na memória por mais " + d.minutos_restantes + " min"
-    : (d.tem_senha_guardada ? "a senha está guardada nesta máquina" : "vou pedir a senha na hora de assinar");
-
-  return '<div class="painel" style="margin-top:16px"><h3>Senha do certificado</h3>' +
-    '<p class="explica">' + esc(memoria) + "</p>" +
-    '<div class="cert-senha">' +
-    '<input type="password" id="cert-senha" placeholder="senha do certificado">' +
-    '<button id="cert-mostrar">Mostrar</button>' +
-    '<button class="primario" id="cert-abrir">Abrir certificado</button></div>' +
-    (d.pode_guardar_senha
-      ? '<label class="interruptor"><input type="checkbox" id="cert-guardar"' +
-        (d.guardar_senha ? " checked" : "") + ">" +
-        '<span class="permissao-texto"><span class="permissao-titulo">Guardar a senha nesta máquina</span>' +
-        '<span class="explica">Fica protegida pela sua conta do Windows: outro usuário do mesmo ' +
-        "computador não consegue lê-la. Sem isso, eu pergunto a cada assinatura.</span></span></label>"
-      : '<p class="explica" style="margin-top:10px">Não consigo guardar a senha com segurança neste ' +
-        "sistema, então vou perguntar a cada assinatura.</p>") +
-    '<div class="linha-form"><span class="rotulo">depois de digitar, a senha vale por</span>' +
-    '<select id="cert-minutos">' +
-    [0, 5, 15, 30, 60, 120].map((m) =>
-      '<option value="' + m + '"' + (d.minutos === m ? " selected" : "") + ">" +
-      (m ? m + " minutos" : "só esta assinatura") + "</option>"
-    ).join("") + "</select>" +
-    (d.tem_senha_guardada ? '<button id="cert-esquecer">Esquecer a senha guardada</button>' : "") +
-    "</div></div>";
+function cartaoDado(rotulo, valor) {
+  return '<div class="as-dado"><small>' + esc(rotulo) + "</small><b>" + esc(valor) + "</b></div>";
 }
 
-function blocoAoAssinar(d) {
-  const itens = [
-    ["pedir_confirmacao", "Pedir confirmação antes de cada assinatura",
-     "Mostro o resumo e espero seu sim. Desligado, a assinatura sai direto."],
-    ["mostrar_documento", "Mostrar o documento inteiro na confirmação",
-     "Abro todas as páginas antes de assinar, não só a que recebe o selo."],
-    ["lote_sem_confirmar", "Assinar vários de uma vez sem confirmar cada um",
-     "Vale para o lote inteiro; cada arquivo continua entrando no registro."],
-  ];
-  return '<div class="painel" style="margin-top:16px"><h3>Ao assinar</h3>' +
-    itens.map(([chave, titulo, explica]) =>
-      '<label class="permissao"><input type="checkbox" data-cofre="' + chave + '"' +
-      (d[chave] ? " checked" : "") + ">" +
-      '<span class="permissao-texto"><span class="permissao-titulo">' + esc(titulo) + "</span>" +
-      '<span class="explica">' + esc(explica) + "</span></span></label>"
-    ).join("") + "</div>";
-}
-
-function blocoSelo(d) {
+/* O selo, no painel: a previa em tamanho real e o que entra nele. */
+function painelDoSelo() {
+  const d = cert.dados;
   const s = d.selo || {};
-  return '<div class="painel" style="margin-top:16px"><h3>Selo de assinatura</h3>' +
-    '<p class="explica">É o desenho que aparece na página. A assinatura em si é o dado ' +
-    "criptográfico — o selo só torna visível que ela existe.</p>" +
-    '<span class="rotulo">prévia em tamanho real</span>' +
-    '<div style="margin:8px 0 16px" id="selo-previa">' + previaSelo(d) + "</div>" +
-    '<div class="selo-abas">' +
-    ['<button data-aba="escrever">Escrever</button>',
-     '<button data-aba="desenhar">Desenhar</button>',
-     '<button data-aba="imagem">Imagem</button>'].join("") + "</div>" +
-    '<div id="selo-painel"></div>' +
-    '<div class="linha-form" style="margin-top:14px">' +
-    '<span class="rotulo">onde o selo entra na página</span>' +
-    '<select id="selo-posicao">' +
-    (d.posicoes || []).map((p) =>
-      '<option value="' + esc(p.valor) + '"' + (s.posicao === p.valor ? " selected" : "") + ">" +
-      esc(p.rotulo) + "</option>"
-    ).join("") + "</select>" +
-    '<button class="primario direita" id="selo-salvar">Salvar o selo</button></div></div>';
+  const reg = (d.registro && d.registro.assinaturas) || [];
+  const mes = new Date().toISOString().slice(0, 7);
+  const esteMes = reg.filter((a) => String(a.quando || "").startsWith(mes)).length;
+  const marca = (ligado, rotulo, chave) => {
+    const classe = "as-marca" + (ligado ? " on" : "") + (chave ? " liga" : "");
+    return '<div class="' + classe + '"' + (chave ? ' data-selo="' + chave + '"' : "") + '><span class="as-caixinha">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
+  };
+  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Selo de assinatura</h3><span class="meta">Prévia em tamanho real</span></span></div>' +
+    '<div class="as-selo-caixa"><div class="as-selo-escala" id="selo-previa">' + previaSelo(d) + "</div></div>" +
+    '<div class="as-painel-miolo"><div class="visoes as-abas">' +
+    [["desenhar", "Desenhar"], ["escrever", "Escrever"], ["imagem", "Enviar imagem"]].map(([v, r]) => {
+      const classe = v === cert.aba ? "ativa" : "";
+      return '<button class="' + classe + '" data-aba="' + v + '">' + r + "</button>";
+    }).join("") + '</div><div id="selo-painel"></div></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que entra no selo</span></div><div class="as-duas-colunas">' +
+    marca(Boolean(s.desenho || s.imagem), s.desenho ? "Rubrica desenhada" : "Logo do escritório", "") +
+    marca(true, "Nome do titular", "") +
+    marca(s.mostrar_cpf !== false, "CPF ou CNPJ", "mostrar_cpf") +
+    marca(s.mostrar_data !== false, "Data e hora", "mostrar_data") +
+    marca(true, "Emissor do certificado", "") +
+    marca(s.mostrar_codigo !== false, "Código de verificação", "mostrar_codigo") + "</div>" +
+    '<div class="ag-chave"><span>Posição padrão na página</span><select id="selo-posicao">' +
+    (d.posicoes || []).map((p) => '<option value="' + esc(p.valor) + '"' + (s.posicao === p.valor ? " selected" : "") + ">" + esc(p.rotulo) + "</option>").join("") +
+    "</select></div></div>" +
+    '<div class="painel-chaves">' +
+    '<div class="chave-valor"><span>Assinaturas este mês</span><b>' + esteMes + "</b></div>" +
+    '<div class="chave-valor"><span>Última</span><b>' + (reg[0] ? esc(quandoCurto(reg[0].quando)) + " · " + esc(reg[0].documento) : "nenhuma ainda") + "</b></div>" +
+    '<div class="chave-valor"><span>Feitas nesta máquina</span><b>' + ((d.registro && d.registro.total) || reg.length) + "</b></div></div>" +
+    '<div class="as-painel-rodape"><button class="com-icone" id="cert-ir-assinar">' + ic("draw", 16) + "Testar</button>" +
+    '<button class="primario com-icone" id="selo-salvar">' + ic("check", 16) + "Salvar selo</button></div>" +
+    "</div></aside>";
 }
 
 /* A previa monta as mesmas linhas que o servidor vai gravar no PDF. */
@@ -10461,59 +10616,54 @@ function painelSelo() {
 
   if (cert.aba === "escrever") {
     alvo.innerHTML =
-      '<span class="rotulo">o que aparece no selo</span>' +
-      '<textarea class="campo-nota" id="selo-texto" rows="3" style="width:100%;margin-top:6px">' +
-      esc(s.texto || "") + "</textarea>" +
-      '<p class="explica" style="margin-top:6px">use <b>{nome}</b>, <b>{cpf}</b>, <b>{data}</b> e ' +
-      "<b>{hora}</b> para eu preencher sozinho</p>" +
-      [["mostrar_data", "Mostrar data e hora"],
-       ["mostrar_codigo", "Mostrar código de verificação"],
-       ["mostrar_cpf", "Mostrar o CPF completo"]].map(([chave, titulo]) =>
-        '<label class="interruptor-min"><input type="checkbox" data-selo="' + chave + '"' +
-        (s[chave] !== false ? " checked" : "") + "><span>" + esc(titulo) + "</span></label>"
-      ).join("");
+      '<div class="ag-campo"><label>O que aparece no selo</label><textarea id="selo-texto">' + esc(s.texto || "") + "</textarea></div>" +
+      '<p class="as-explica">Use <b>{nome}</b>, <b>{cpf}</b>, <b>{data}</b> e <b>{hora}</b> para eu preencher sozinho. O nome sai do certificado.</p>';
   } else if (cert.aba === "desenhar") {
     alvo.innerHTML =
-      '<span class="rotulo">desenhe sua assinatura com o mouse ou o dedo</span>' +
-      '<canvas class="selo-tela" id="selo-canvas" width="640" height="200" style="margin-top:8px"></canvas>' +
-      '<div class="linha-form"><button id="selo-desfazer">Desfazer</button>' +
-      '<button id="selo-limpar">Limpar</button>' +
+      '<p class="as-explica">Desenhe a rubrica com o mouse ou o dedo.</p>' +
+      '<canvas class="selo-tela" id="selo-canvas" width="640" height="200"></canvas>' +
+      '<div class="as-linha-botoes"><button id="selo-desfazer">Desfazer</button><button id="selo-limpar">Limpar</button>' +
       '<button class="primario" id="selo-usar">Usar no selo</button></div>';
     ligarCanvas();
   } else {
     alvo.innerHTML =
-      '<p class="explica">Envie o logotipo do escritório em PNG com fundo transparente.</p>' +
-      '<div class="linha-form"><button id="selo-enviar-img">Enviar imagem</button>' +
+      '<p class="as-explica">Envie o logotipo do escritório em PNG com fundo transparente.</p>' +
+      '<div class="as-linha-botoes"><button class="com-icone" id="selo-enviar-img">' + ic("upload", 16) + "Enviar imagem</button>" +
       (s.imagem ? '<button id="selo-tirar-img">Tirar a imagem</button>' : "") +
       '<input type="file" id="selo-img-arquivo" accept="image/png" hidden></div>';
   }
+  document.querySelectorAll("[data-aba]").forEach((b) => { b.classList.toggle("ativa", b.dataset.aba === cert.aba); });
+}
 
-  document.querySelectorAll("[data-aba]").forEach((b) => {
-    b.classList.toggle("ativo", b.dataset.aba === cert.aba);
+function ligarAssinatura() {
+  const raiz = $("assinatura");
+  const alca = raiz.querySelector("[data-as-alca]");
+  if (alca) alca.onclick = () => { cert.largo = !cert.largo; raiz.classList.toggle("painel-largo", cert.largo); alca.innerHTML = ic(cert.largo ? "chevron_right" : "chevron_left", 18); };
+  document.querySelectorAll("[data-as-visao]").forEach((b) => {
+    b.onclick = () => (b.dataset.asVisao === "certificado" ? mostrarCertificado() : mostrarAssinar(assina.doc ? assina.doc.caminho : ""));
   });
+  if (cert.visao === "certificado") return ligarCertificado();
+  if (assina.doc) return ligarAssinar();
+  ligarListaDePdfs();
 }
 
 function ligarCertificado() {
   const d = cert.dados;
 
   const irAssinar = $("cert-ir-assinar");
-  if (irAssinar) irAssinar.onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
+  if (irAssinar) irAssinar.onclick = () => mostrarAssinar();
 
-  const escolher = $("cert-escolher");
-  if (escolher) {
-    const campo = $("cert-arquivo");
-    escolher.onclick = () => campo.click();
-    campo.onchange = () => campo.files[0] && enviarCertificado(campo.files[0]);
-
-    const solta = $("cert-solta");
-    solta.ondragover = (e) => { e.preventDefault(); solta.classList.add("sobre"); };
-    solta.ondragleave = () => solta.classList.remove("sobre");
-    solta.ondrop = (e) => {
-      e.preventDefault();
-      solta.classList.remove("sobre");
-      if (e.dataTransfer.files[0]) enviarCertificado(e.dataTransfer.files[0]);
-    };
-  }
+  const campo = $("cert-arquivo");
+  $("cert-escolher").onclick = () => campo.click();
+  campo.onchange = () => campo.files[0] && enviarCertificado(campo.files[0]);
+  const solta = $("cert-solta");
+  solta.ondragover = (e) => { e.preventDefault(); solta.classList.add("sobre"); };
+  solta.ondragleave = () => solta.classList.remove("sobre");
+  solta.ondrop = (e) => {
+    e.preventDefault();
+    solta.classList.remove("sobre");
+    if (e.dataTransfer.files[0]) enviarCertificado(e.dataTransfer.files[0]);
+  };
 
   const teste = $("cert-teste");
   if (teste) teste.onclick = async () => {
@@ -10522,13 +10672,11 @@ function ligarCertificado() {
     if (!r.ok) { avisoCert(await erroDe(r)); teste.disabled = false; return; }
     const d2 = await r.json();
     cert.dados = d2;
-    desenharCertificado();
+    desenharAssinatura();
     avisoCert("certificado de teste criado — a senha dele é “" + d2.senha_do_teste + "”");
   };
 
-  const verWin = $("cert-ver-windows");
-  if (verWin) verWin.onclick = async () => {
-    verWin.disabled = true;
+  $("cert-ver-windows").onclick = async () => {
     const alvo = $("cert-lista-windows");
     alvo.innerHTML = '<p class="nota">lendo os certificados do Windows…</p>';
     let lista = [];
@@ -10538,91 +10686,77 @@ function ligarCertificado() {
       alvo.innerHTML = '<p class="nota">não consegui ler: ' + esc(String(err)) + "</p>";
       return;
     }
-    alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Certificados instalados no Windows</h3>' +
-      '<p class="explica">Mostro o que existe, mas não assino por eles: a chave de um e-CPF ' +
-      "instalado quase sempre vem marcada como não exportável, e assinar exigiria falar com " +
-      "o Windows por um caminho que este programa não usa. Para assinar aqui, use o arquivo " +
-      ".pfx que a certificadora entregou.</p>" +
+    alvo.innerHTML = '<div class="as-windows"><b class="as-titulo">Certificados instalados no Windows</b>' +
+      '<p class="as-explica">Mostro o que existe, mas não assino por eles: a chave de um e-CPF instalado quase sempre vem marcada como não exportável, e assinar exigiria falar com o Windows por um caminho que este programa não usa. Para assinar aqui, use o arquivo .pfx que a certificadora entregou.</p>' +
       (lista.length
-        ? '<div class="cert-windows">' + lista.map((w) =>
-            '<div class="cert-win-linha"><span class="cresce corta">' + esc(w.titular) + "</span>" +
-            '<span class="num">' + esc(w.emissor) + "</span>" +
-            '<span class="num">' + esc(dataBR(w.valido_ate)) + "</span>" +
-            (w.icp_brasil ? '<span class="cert-estado valido">ICP</span>' : "") +
-            "</div>").join("") + "</div>"
-        : '<p class="explica">Nenhum certificado instalado nesta conta do Windows.</p>') +
-      "</div>";
+        ? lista.map((w) => '<div class="ag-ligado-linha"><span>' + esc(w.titular) + " · " + esc(w.emissor) + "</span><small>" + esc(dataBR(w.valido_ate)) + "</small>" +
+            (w.icp_brasil ? '<span class="em-pilula ok">ICP</span>' : "") + "</div>").join("")
+        : '<p class="as-explica">Nenhum certificado instalado nesta conta do Windows.</p>') +
+      '<button class="em-ligacao" data-as-fechar-windows="1">fechar</button></div>';
+    alvo.querySelector("[data-as-fechar-windows]").onclick = () => { alvo.innerHTML = ""; };
   };
 
   const trocar = $("cert-trocar");
-  if (trocar) trocar.onclick = () => {
-    const campo = document.createElement("input");
-    campo.type = "file";
-    campo.accept = ".pfx,.p12";
-    campo.onchange = () => campo.files[0] && enviarCertificado(campo.files[0]);
-    campo.click();
-  };
-
+  if (trocar) trocar.onclick = () => campo.click();
   const remover = $("cert-remover");
   if (remover) remover.onclick = async () => {
     if (!confirm("Remover o certificado do PAULUS? A cópia guardada aqui e a senha são apagadas. O arquivo original que você enviou continua onde estava.")) return;
     cert.dados = await (await fetch("/api/certificado", { method: "DELETE" })).json();
-    desenharCertificado();
+    desenharAssinatura();
   };
 
   const senha = $("cert-senha");
   if (senha) {
     $("cert-mostrar").onclick = () => {
       senha.type = senha.type === "password" ? "text" : "password";
-      $("cert-mostrar").textContent = senha.type === "password" ? "Mostrar" : "Esconder";
+      $("cert-mostrar").textContent = senha.type === "password" ? "mostrar" : "esconder";
     };
+    const guardar = $("cert-guardar");
+    if (guardar) guardar.onclick = () => { cert.guardar = !cert.guardar; guardar.classList.toggle("on", cert.guardar); };
     const abrir = async () => {
-      if (!senha.value) return;
-      abrirCert.disabled = true;
+      if (!senha.value) { senha.focus(); return; }
+      const botao = $("cert-abrir");
+      botao.disabled = true;
       const r = await fetch("/api/certificado/senha", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senha: senha.value, guardar: $("cert-guardar") ? $("cert-guardar").checked : false }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senha: senha.value, guardar: cert.guardar }),
       });
-      abrirCert.disabled = false;
+      botao.disabled = false;
       if (!r.ok) { avisoCert(await erroDe(r)); return; }
       cert.dados = await r.json();
-      desenharCertificado();
-      if (cert.dados.aviso) avisoCert(cert.dados.aviso);
+      desenharAssinatura();
+      avisoCert(cert.dados.aviso || "certificado aberto");
     };
-    const abrirCert = $("cert-abrir");
-    abrirCert.onclick = abrir;
+    $("cert-abrir").onclick = abrir;
     senha.onkeydown = (e) => { if (e.key === "Enter") abrir(); };
+    const esquecer = $("cert-esquecer");
+    if (esquecer) esquecer.onclick = async () => {
+      cert.dados = await (await fetch("/api/certificado/esquecer", { method: "POST" })).json();
+      desenharAssinatura();
+    };
   }
-
-  const esquecer = $("cert-esquecer");
-  if (esquecer) esquecer.onclick = async () => {
-    cert.dados = await (await fetch("/api/certificado/esquecer", { method: "POST" })).json();
-    desenharCertificado();
-  };
 
   const minutos = $("cert-minutos");
   if (minutos) minutos.onchange = () => gravarCofre({ minutos: Number(minutos.value) });
-
-  document.querySelectorAll("[data-cofre]").forEach((campo) => {
-    campo.onchange = () => gravarCofre({ [campo.dataset.cofre]: campo.checked });
+  document.querySelectorAll("[data-cofre]").forEach((t) => {
+    t.onclick = async () => {
+      const chave = t.dataset.cofre;
+      await gravarCofre({ [chave]: !cert.dados[chave] });
+      t.classList.toggle("on", Boolean(cert.dados[chave]));
+    };
   });
 
-  document.querySelectorAll("[data-aba]").forEach((b) => {
-    b.onclick = () => { cert.aba = b.dataset.aba; painelSelo(); };
-  });
+  document.querySelectorAll("[data-aba]").forEach((b) => { b.onclick = () => { cert.aba = b.dataset.aba; painelSelo(); }; });
   painelSelo();
+  document.querySelectorAll("[data-selo]").forEach((m) => { m.onclick = () => m.classList.toggle("on"); });
 
-  const salvar = $("selo-salvar");
-  if (salvar) salvar.onclick = async () => {
+  $("selo-salvar").onclick = async () => {
     const texto = $("selo-texto");
     const novo = { posicao: $("selo-posicao").value };
     if (texto) novo.texto = texto.value;
-    document.querySelectorAll("[data-selo]").forEach((c) => { novo[c.dataset.selo] = c.checked; });
+    document.querySelectorAll("[data-selo]").forEach((m) => { novo[m.dataset.selo] = m.classList.contains("on"); });
     const r = await (await fetch("/api/certificado/selo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(novo),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(novo),
     })).json();
     cert.dados.selo = r.selo;
     $("selo-previa").innerHTML = previaSelo(cert.dados);
@@ -10631,15 +10765,15 @@ function ligarCertificado() {
 
   const enviarImg = $("selo-enviar-img");
   if (enviarImg) {
-    const campo = $("selo-img-arquivo");
-    enviarImg.onclick = () => campo.click();
-    campo.onchange = () => campo.files[0] && enviarImagemSelo(campo.files[0], "imagem");
+    const arq = $("selo-img-arquivo");
+    enviarImg.onclick = () => arq.click();
+    arq.onchange = () => arq.files[0] && enviarImagemSelo(arq.files[0], "imagem");
   }
   const tirarImg = $("selo-tirar-img");
   if (tirarImg) tirarImg.onclick = async () => {
     const r = await (await fetch("/api/certificado/selo/imagem", { method: "DELETE" })).json();
     cert.dados.selo = r.selo;
-    desenharCertificado();
+    desenharAssinatura();
   };
 }
 
@@ -10657,7 +10791,7 @@ async function enviarCertificado(arquivo) {
   const r = await fetch("/api/certificado/arquivo", { method: "POST", body: forma });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   cert.dados = await r.json();
-  desenharCertificado();
+  desenharAssinatura();
   avisoCert("certificado guardado — digite a senha para eu conseguir lê-lo");
 }
 
@@ -10671,7 +10805,7 @@ async function enviarImagemSelo(arquivo, campo) {
     });
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
     cert.dados.selo = (await r.json()).selo;
-    desenharCertificado();
+    desenharAssinatura();
   };
   leitor.readAsDataURL(arquivo);
 }
@@ -10728,22 +10862,26 @@ function ligarCanvas() {
     });
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
     cert.dados.selo = (await r.json()).selo;
-    desenharCertificado();
+    desenharAssinatura();
     avisoCert("rubrica gravada no selo");
   };
 }
 
+/* O aviso curto que qualquer tela usa: uma faixa embaixo, que some sozinha.
+   Antes ele so aparecia dentro de .tela-topo, que as telas do desenho nao
+   tem - e os avisos sumiam. */
 function avisoCert(texto) {
-  const topo = $("centro").querySelector(".tela-topo");
-  if (!topo) return;
-  let faixa = $("cert-aviso-linha");
+  let faixa = $("aviso-toast");
   if (!faixa) {
     faixa = document.createElement("div");
-    faixa.id = "cert-aviso-linha";
-    faixa.className = "leitura-fila";
-    topo.after(faixa);
+    faixa.id = "aviso-toast";
+    faixa.className = "aviso-toast";
+    document.body.appendChild(faixa);
   }
-  faixa.innerHTML = '<div class="linhas"><span>' + esc(texto) + "</span></div>";
+  faixa.textContent = texto;
+  faixa.classList.add("visivel");
+  clearTimeout(faixa.relogio);
+  faixa.relogio = setTimeout(() => faixa.classList.remove("visivel"), 4200);
 }
 
 async function erroDe(resposta) {
@@ -10797,193 +10935,226 @@ function quandoCurto(iso) {
 const assina = {
   doc: null, cofre: null, pagina: 1, x: null, y: null,
   paginas: "ultima", intervalo: "", posicao: "rodape_direita",
-  baixar: true, biblioteca: true, manter: true, senhaPdf: "",
+  baixar: true, biblioteca: true, manter: true, senhaPdf: "", proteger: false, repetir: true,
+  pdfs: [], feito: null,
 };
 
 async function mostrarAssinar(caminho) {
-  abrirTela("Assinar documento");
+  abrirTela("Assinatura", { cheia: true });
+  marcarDestino("assinar");
+  cert.visao = "assinar";
+  assina.feito = null;
   const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
 
-  if (!caminho) {
-    let pdfs = [];
-    try {
-      pdfs = (await (await fetch("/api/assinar/pdfs")).json()).pdfs;
-    } catch (err) { pdfs = []; }
-    return escolherPdf(pdfs);
-  }
-
-  let d;
   try {
-    d = await (await fetch("/api/assinar/documento?arquivo=" + encodeURIComponent(caminho))).json();
+    cert.dados = await (await fetch("/api/certificado")).json();
   } catch (err) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div>";
-    return;
-  }
-  if (d.detail) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(d.detail) + "</p></div>";
+    centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div></div>";
     return;
   }
 
-  assina.doc = d.documento;
-  assina.cofre = d;
-  assina.pagina = d.documento.paginas;
-  assina.paginas = "ultima";
-  assina.x = assina.y = null;
-  assina.posicao = (d.selo && d.selo.posicao) || "rodape_direita";
-  desenharAssinar();
+  assina.doc = null;
+  if (caminho) {
+    const r = await fetch("/api/assinar/documento?arquivo=" + encodeURIComponent(caminho));
+    if (!r.ok) {
+      avisoCert(await erroDe(r));
+    } else {
+      const d = await r.json();
+      assina.doc = d.documento;
+      assina.cofre = d;
+      assina.pagina = d.documento.paginas;
+      assina.paginas = "ultima";
+      assina.intervalo = "";
+      assina.x = assina.y = null;
+      assina.posicao = (d.selo && d.selo.posicao) || "rodape_direita";
+    }
+  }
+  if (!assina.doc) {
+    try { assina.pdfs = (await (await fetch("/api/assinar/pdfs")).json()).pdfs; } catch (err) { assina.pdfs = []; }
+  }
+  desenharAssinatura();
   atualizarPostura();
 }
 
-function escolherPdf(pdfs) {
-  let html = '<div class="catalogo"><div class="tela-topo"><div><h2>Assinar documento</h2>' +
-    '<span class="rotulo">escolha o PDF</span></div></div>';
+/* ---------------------------------------------------- escolher o PDF */
 
-  html += pdfs.length
-    ? '<div class="painel"><h3>PDFs que já conheço</h3>' +
-      '<p class="explica">São os PDFs das pastas que você incluiu. Outro arquivo? Use o botão abaixo.</p>' +
-      pdfs.map((p) =>
-        '<div class="reg-linha"><span class="cresce corta">' + esc(p.nome) + "</span>" +
-        '<span class="num">' + String(p.mb).replace(".", ",") + " MB</span>" +
-        '<button data-pdf="' + esc(p.path) + '">Abrir</button></div>'
-      ).join("") + "</div>"
-    : '<div class="painel"><h3>Nenhum PDF no acervo ainda</h3>' +
-      '<p class="explica">Só assino PDF. Inclua a pasta onde eles estão, ou escolha um arquivo direto.</p></div>';
+function listaDePdfs() {
+  const linhas = assina.pdfs.map((p) =>
+    '<div class="tabela-linha colunas-pdfs" data-pdf="' + esc(p.path) + '">' +
+    '<span class="nome-doc">' + glifo(p.nome) + '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
+    (p.paginas ? plural(p.paginas, "página") + " · " : "") + String(p.mb).replace(".", ",") + " MB</small></span></span>" +
+    '<span class="quando-doc">PDF do Acervo</span><span class="acoes-linha"><button data-pdf-abrir="' + esc(p.path) + '">Abrir</button></span></div>').join("");
+  return '<div class="tabela-cartao"><div class="tabela-barra"><span class="selecao">' + plural(assina.pdfs.length, "PDF", "PDFs") + " que já conheço</span>" +
+    '<span class="nota-barra">só assino PDF · outro arquivo? escolha no computador</span></div>' +
+    '<div class="tabela-corpo">' + (linhas || '<div class="ag-vazio"><h4>Nenhum PDF no acervo ainda</h4><p>Inclua a pasta onde eles estão, ou escolha um arquivo direto no computador — eu subo uma cópia para o Acervo e assino a cópia.</p></div>') + "</div>" +
+    '<div class="tabela-rodape"><button class="com-icone" id="assina-escolher">' + ic("folder_open", 16) + "Escolher um PDF no computador</button>" +
+    '<input type="file" id="assina-arquivo" accept=".pdf" hidden><span class="cresce"></span><span>a assinatura é feita nesta máquina com o seu certificado</span></div></div>';
+}
 
-  html += '<div class="linha-form"><button class="primario" id="assina-escolher">Escolher um PDF no computador</button>' +
-    '<input type="file" id="assina-arquivo" accept=".pdf" hidden></div>' +
-    '<div class="rodape-tela">a assinatura é feita nesta máquina com o seu certificado</div></div>';
+function cartaoDoCertificadoEmUso() {
+  const d = cert.dados || {};
+  const c = d.certificado;
+  if (!d.instalado || !c) {
+    return '<div class="as-cert"><span class="as-cert-ic">' + ic("workspace_premium", 22) + '</span><span class="duas-linhas"><b>Nenhum certificado instalado</b>' +
+      '<small>instale o arquivo .pfx do seu e-CPF para assinar</small></span><button class="em-ligacao forte" data-as-visao="certificado">instalar</button></div>';
+  }
+  return '<div class="as-cert"><span class="as-cert-ic">' + ic("workspace_premium", 22) + '</span><span class="duas-linhas"><b>' + esc(c.titular || "Certificado instalado") + "</b><small>" +
+    esc(c.tipo || "A1") + (c.emissor ? " · " + esc(c.emissor) : "") + (c.valido_ate ? " · até " + esc(dataBR(c.valido_ate)) : "") + "</small></span>" +
+    '<button class="em-ligacao forte" data-as-visao="certificado">trocar</button></div>';
+}
 
-  $("centro").innerHTML = html;
-  document.querySelectorAll("[data-pdf]").forEach((b) => {
-    b.onclick = () => mostrarAssinar(b.dataset.pdf);
+function painelSemDocumento() {
+  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Antes de assinar</h3><span class="meta">escolha o PDF na lista</span></span></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Com qual certificado</span>' + seloDeSituacao() + "</div>" + cartaoDoCertificadoEmUso() + "</div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Como funciona</span></div>' +
+    "<p>Você escolhe as páginas e onde o selo fica; o selo é o desenho, a assinatura é o dado criptográfico que cobre o documento inteiro.</p>" +
+    "<p>Vou pedir sua confirmação e a senha do certificado antes de gravar. O original nunca é sobrescrito: o assinado nasce ao lado.</p>" +
+    "<p>Nada é enviado para a internet.</p></div></div></aside>";
+}
+
+function ligarListaDePdfs() {
+  const raiz = $("assinatura");
+  raiz.querySelectorAll("[data-pdf], [data-pdf-abrir]").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); mostrarAssinar(b.dataset.pdf || b.dataset.pdfAbrir); };
   });
-
   /* O navegador nao entrega o caminho do arquivo escolhido, so o conteudo.
      Como o assinador precisa do arquivo no disco, este botao sobe uma copia
      para o acervo e assina a copia. */
   const campo = $("assina-arquivo");
-  $("assina-escolher").onclick = () => campo.click();
+  const escolher = () => campo.click();
+  $("assina-escolher").onclick = escolher;
+  const topo = $("assina-escolher-topo");
+  if (topo) topo.onclick = escolher;
   campo.onchange = async () => {
     if (!campo.files[0]) return;
     const forma = new FormData();
     forma.append("arquivos", campo.files[0]);
     const r = await fetch("/api/upload", { method: "POST", body: forma });
-    if (!r.ok) return;
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
     const pdfs = (await (await fetch("/api/assinar/pdfs")).json()).pdfs;
     const achado = pdfs.find((p) => p.nome === campo.files[0].name);
-    if (achado) mostrarAssinar(achado.path);
+    if (achado) mostrarAssinar(achado.path); else avisoCert("o arquivo subiu, mas não achei o PDF na lista");
   };
 }
 
-function desenharAssinar() {
+/* --------------------------------------------------- o visor e o selo */
+
+function visorParaAssinar() {
+  const doc = assina.doc;
+  const alvos = new Set(paginasEscolhidas());
+  const total = Math.min(doc.paginas, 40);
+  const minis = [];
+  for (let i = 1; i <= total; i += 1) {
+    const classe = "docs-mini" + (i === assina.pagina ? " atual" : "");
+    minis.push('<button class="' + classe + '" data-pdf-pagina="' + i + '"><img alt="" src="/api/assinar/pagina?arquivo=' +
+      encodeURIComponent(doc.caminho) + "&numero=" + i + '&largura=96"><span>' + i + "</span>" +
+      (alvos.has(i) ? '<i class="as-mini-selo"></i>' : "") + "</button>");
+  }
+  return '<div class="as-cartao"><div class="docs-status">' +
+    '<button class="voltar" id="pdf-antes" title="Página anterior">' + ic("chevron_left", 18) + "</button>" +
+    '<span class="docs-pagina-num">Pág. <b id="pdf-num">' + assina.pagina + "</b> / " + doc.paginas + "</span>" +
+    '<button class="voltar" id="pdf-depois" title="Próxima página">' + ic("chevron_right", 18) + "</button>" +
+    '<span class="docs-divisa-fina"></span><span>lido da sua máquina</span><span class="cresce"></span>' + seloDeSituacao() + "</div>" +
+    '<div class="docs-previa"><div class="docs-miniaturas" id="pdf-minis">' + minis.join("") + (doc.paginas > total ? '<small class="as-mais">+' + (doc.paginas - total) + "</small>" : "") + "</div>" +
+    '<div class="docs-pv-rolagem as-visor"><div class="pdf-folha" id="pdf-folha"><img class="docs-pagina" id="pdf-img" alt="página ' + assina.pagina + '">' +
+    '<div class="pdf-selo" id="pdf-selo" hidden><div class="as-selo-dentro" id="pdf-selo-conteudo">' + previaSelo(cert.dados || {}) + "</div>" +
+    '<span class="as-selo-legenda">' + ic("open_with", 14) + '<span id="pdf-selo-texto">Selo entra aqui · arraste para mover</span></span>' +
+    '<i class="as-alca a"></i><i class="as-alca b"></i><i class="as-alca c"></i><i class="as-alca d"></i></div></div></div></div></div>';
+}
+
+function painelAntesDeAssinar() {
   const doc = assina.doc;
   const d = assina.cofre;
-  const c = d.certificado;
+  const c = (cert.dados || {}).certificado;
+  const radio = (valor, rotulo, extra) => {
+    const classe = "as-radio" + (assina.paginas === valor ? " on" : "");
+    return '<div class="' + classe + '" data-as-pag="' + valor + '"><i></i><span>' + rotulo + "</span>" + (extra || "") + "</div>";
+  };
+  const escolhas = (d.escolhas || []).map((e) => {
+    if (e.valor === "todas") return radio("todas", "Todas as " + doc.paginas + " páginas");
+    if (e.valor === "intervalo") return radio("intervalo", "Intervalo", '<input type="text" id="assina-intervalo" placeholder="ex. 1-3, 7, 12" value="' + esc(assina.intervalo) + '">');
+    return radio(e.valor, e.rotulo);
+  }).join("");
+  const classeRepetir = "ag-toggle" + (assina.repetir ? " on" : "");
+  const classeProteger = "ag-toggle" + (assina.proteger ? " on" : "");
+  const marca = (chave, rotulo) => {
+    const classe = "as-marca liga" + (assina[chave] ? " on" : "");
+    return '<div class="' + classe + '" data-depois="' + chave + '"><span class="as-caixinha">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
+  };
 
-  let html = '<div class="catalogo"><div class="tela-topo">' +
-    '<div><h2 class="corta">' + esc(doc.nome) + "</h2>" +
-    '<span class="rotulo">' + plural(doc.paginas, "página") + " · " + String(doc.mb).replace(".", ",") + " MB · " +
-    (doc.ja_assinado ?plural(doc.assinaturas, "assinatura") + " já no arquivo" : "ainda sem assinatura") + "</span></div>" +
-    '<div class="tela-acoes"><button id="assina-trocar">Trocar documento</button></div></div>';
-
-  if (!d.instalado) {
-    html += '<div class="painel"><h3>Nenhum certificado instalado</h3>' +
-      '<p class="explica">Para assinar, instale seu certificado A1 na tela do certificado digital.</p>' +
-      '<button class="primario" id="assina-ir-cert">Abrir certificado digital</button></div>' +
-      '<div class="rodape-tela">a assinatura é feita nesta máquina com o seu certificado</div></div>';
-    $("centro").innerHTML = html;
-    $("assina-trocar").onclick = () => mostrarAssinar();
-    $("assina-ir-cert").onclick = () => { marcarDestino("certificado"); mostrarCertificado(); };
-    return;
+  let pronto;
+  const f = assina.feito;
+  if (f && f.aguardando_aprovacao) {
+    pronto = '<div class="as-pronto"><div class="as-pronto-cabeca">' + coroa(18) + "<span>Esperando o seu sim</span></div>" +
+      "<p><b>" + esc(f.pedido.titulo) + "</b> — " + esc(f.pedido.resumo) + "</p>" +
+      "<p>Assinar tem efeito jurídico, então o pedido parou na fila de Aprovações. Nada foi assinado ainda.</p>" +
+      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-voltar">Mudar as escolhas</button><button class="primario com-icone" id="assina-ver-fila">' + ic("verified", 16) + "Abrir a fila</button></div></div>";
+  } else if (f) {
+    pronto = '<div class="as-pronto feito"><div class="as-pronto-cabeca">' + ic("check_circle", 18) + "<span>Documento assinado</span>" +
+      '<span class="contagem">código ' + esc(f.codigo) + "</span></div>" +
+      "<p><b>" + esc(nomeDe(f.destino)) + "</b> · assinado com o certificado de " + esc(f.titular) + ", " +
+      (f.paginas.length > 1 ? f.paginas.length + " páginas seladas" : "1 página selada") + "." +
+      (f.protegido ? " O arquivo está protegido por senha." : "") + " O original continua onde estava.</p>" +
+      (f.icp_brasil ? "" : '<div class="cert-aviso"><strong>Sem validade jurídica de ICP-Brasil</strong><p>O certificado usado não é credenciado. A assinatura prova que o arquivo não mudou depois de assinado, mas não substitui a assinatura com e-CPF ou e-CNPJ.</p></div>') +
+      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assinado-conferir">Conferir a assinatura</button><button class="primario com-icone" id="assinado-baixar">' + ic("download", 16) + "Baixar o PDF</button></div>" +
+      '<div id="assinado-conferencia"></div></div>';
+  } else {
+    pronto = '<div class="as-pronto"><div class="as-pronto-cabeca">' + coroa(18) + "<span>Pronto para assinar</span></div>" +
+      '<p id="assina-frase"></p>' +
+      (d.precisa_senha ? '<input type="password" id="assina-senha-cert" placeholder="senha do certificado">' : "") +
+      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-previa">Ver a prévia</button><button class="primario com-icone" id="assina-agora">' + ic("draw", 16) + "Assinar agora</button></div>" +
+      "<small>" + (d.pede_confirmacao ? "Vou pedir sua confirmação" + (d.precisa_senha ? " e a senha do certificado" : "") + " antes de gravar." : "A assinatura sai direto, sem nova confirmação.") + "</small></div>";
   }
 
-  html += '<div class="assinar-colunas">';
-
-  /* Coluna do visor. */
-  html += '<div class="pdf-visor">' +
-    '<div class="pdf-nav"><button id="pdf-antes">‹</button>' +
-    '<span>pág. <b id="pdf-num">' + assina.pagina + "</b> de " + doc.paginas + "</span>" +
-    '<button id="pdf-depois">›</button>' +
-    '<span class="rotulo">lido da sua máquina</span></div>' +
-    '<div class="pdf-folha" id="pdf-folha">' +
-    '<img id="pdf-img" alt="página ' + assina.pagina + '">' +
-    '<div class="pdf-selo" id="pdf-selo" hidden><span>selo entra aqui · arraste para mover</span></div>' +
-    "</div></div>";
-
-  /* Coluna das escolhas. */
-  html += "<div>";
-  html += '<div class="painel"><h3>Em quais páginas</h3><div class="assinar-lista">' +
-    (d.escolhas || []).map((e) => {
-      const rotulo = e.valor === "todas" ? "Todas as " + doc.paginas + " páginas" : e.rotulo;
-      return '<label><input type="radio" name="assina-pag" value="' + esc(e.valor) + '"' +
-        (assina.paginas === e.valor ? " checked" : "") + "><span>" + esc(rotulo) + "</span></label>";
-    }).join("") + "</div>" +
-    '<input type="text" id="assina-intervalo" placeholder="ex. 1-3, 7, 12" value="' + esc(assina.intervalo) + '"' +
-    (assina.paginas === "intervalo" ? "" : " hidden") + ">" +
-    '<div class="linha-form"><span class="rotulo">onde o selo fica</span>' +
-    '<select id="assina-posicao">' +
-    (d.posicoes || []).map((p) =>
-      '<option value="' + esc(p.valor) + '"' + (assina.posicao === p.valor ? " selected" : "") + ">" +
-      esc(p.rotulo) + "</option>").join("") + "</select></div></div>";
-
-  html += '<div class="painel" style="margin-top:16px"><h3>Depois de assinar</h3><div class="assinar-lista">' +
-    [["baixar", "Baixar o PDF assinado"],
-     ["biblioteca", "Guardar na biblioteca"],
-     ["manter", "Manter também o arquivo original"]].map(([chave, titulo]) =>
-      '<label><input type="checkbox" data-depois="' + chave + '"' + (assina[chave] ? " checked" : "") +
-      "><span>" + esc(titulo) + "</span></label>").join("") +
-    '<label><input type="checkbox" id="assina-proteger"' + (assina.senhaPdf ? " checked" : "") +
-    "><span>Proteger o PDF com senha</span></label></div>" +
-    '<div class="cert-senha" id="assina-senha-pdf"' + (assina.senhaPdf ? "" : " hidden") + ">" +
-    '<input type="password" id="assina-senha-campo" value="' + esc(assina.senhaPdf) + '" placeholder="senha para abrir o PDF">' +
-    "</div>" +
-    (assina.senhaPdf ? '<p class="explica">quem receber vai precisar dessa senha para abrir</p>' : "") +
-    "</div>";
-
-  if (c && !c.icp_brasil) {
-    html += '<div class="cert-aviso" style="margin-top:16px"><strong>Certificado fora da ICP-Brasil</strong>' +
-      "<p>Vou assinar com " + esc(c.titular || "o certificado instalado") + ". A assinatura será " +
-      "íntegra, mas <b>sem a validade jurídica</b> de um e-CPF ou e-CNPJ credenciado.</p></div>";
-  }
-
-  html += '<div class="assinar-frase" id="assina-frase"></div>';
-
-  if (d.precisa_senha) {
-    html += '<div class="cert-senha" style="margin-top:12px">' +
-      '<input type="password" id="assina-senha-cert" placeholder="senha do certificado"></div>';
-  }
-
-  html += '<div class="linha-form" style="margin-top:12px">' +
-    '<button class="primario largo" id="assina-agora">Assinar agora</button></div>' +
-    '<p class="explica" style="margin-top:8px">' +
-    (d.pede_confirmacao ? "vou pedir sua confirmação antes de gravar" : "a assinatura sai direto, sem nova confirmação") +
-    "</p>";
-
-  html += "</div></div>";
-  html += '<div class="rodape-tela">a assinatura é feita nesta máquina com o seu certificado</div></div>';
-
-  $("centro").innerHTML = html;
-  ligarAssinar();
-  carregarPagina();
-  atualizarFrase();
+  const podeCompartilhar = Boolean(f && !f.aguardando_aprovacao);
+  const bloqueio = podeCompartilhar ? "" : " disabled";
+  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Antes de assinar</h3><span class="meta">' + esc(doc.nome) + " · " + plural(doc.paginas, "página") + "</span></span></div>" +
+    '<div class="as-opcoes">' + escolhas +
+    '<div class="ag-chave"><span>Onde o selo fica na página</span><select id="assina-posicao">' +
+    (d.posicoes || []).map((p) => '<option value="' + esc(p.valor) + '"' + (assina.posicao === p.valor ? " selected" : "") + ">" + esc(p.rotulo) + "</option>").join("") +
+    "</select></div>" +
+    '<div class="' + classeRepetir + '" id="assina-repetir"><span>Repetir o selo em todo canto igual</span><i></i></div></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Com qual certificado</span>' + seloDeSituacao() + "</div>" + cartaoDoCertificadoEmUso() +
+    (c && !c.icp_brasil && !c.erro ? '<p class="as-explica">Este certificado é de fora da ICP-Brasil: a assinatura será íntegra, mas sem a validade jurídica de um e-CPF ou e-CNPJ credenciado.</p>' : "") + "</div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Depois de assinar</span></div><div class="as-lista">' +
+    marca("baixar", "Baixar o PDF assinado") + marca("biblioteca", "Guardar no Acervo") + marca("manter", "Manter também o arquivo original") +
+    '<div class="' + classeProteger + '" id="assina-proteger"><span class="duas-linhas"><b>Proteger o PDF com senha</b><small>quem receber vai precisar dessa senha para abrir</small></span><i></i></div>' +
+    '<div class="em-senha" id="assina-senha-pdf"' + (assina.proteger ? "" : " hidden") + '><input type="password" id="assina-senha-campo" value="' + esc(assina.senhaPdf) + '" placeholder="senha para abrir o PDF"><button class="em-ligacao" id="assina-mostrar-pdf">mostrar</button></div>' +
+    "</div></div>" +
+    pronto +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compartilhar depois</span>' + (podeCompartilhar ? "" : '<span class="contagem">depois de assinar</span>') + "</div>" +
+    '<div class="painel-acoes semi"><button class="com-icone" id="as-baixar"' + bloqueio + ">" + ic("download", 16) + "Baixar</button>" +
+    '<button class="com-icone" id="as-email"' + bloqueio + ">" + ic("mail", 16) + "Enviar por e-mail</button>" +
+    '<button class="com-icone adiante" id="as-whats"' + bloqueio + ">" + ic("chat", 16) + "WhatsApp</button>" +
+    '<button class="com-icone" id="as-codigo"' + bloqueio + ">" + ic("link", 16) + "Copiar o código de verificação</button></div></div>" +
+    "</div></aside>";
 }
 
 function ligarAssinar() {
+  const raiz = $("assinatura");
   $("assina-trocar").onclick = () => mostrarAssinar();
+  raiz.querySelectorAll("[data-as-acervo]").forEach((b) => { b.onclick = () => { bib.termo = assina.doc.nome; marcarDestino("biblioteca"); mostrarBiblioteca(); }; });
+  document.querySelectorAll("[data-as-acervo]").forEach((b) => { b.onclick = () => { bib.termo = assina.doc.nome; marcarDestino("biblioteca"); mostrarBiblioteca(); }; });
 
-  $("pdf-antes").onclick = () => { if (assina.pagina > 1) { assina.pagina--; carregarPagina(); } };
-  $("pdf-depois").onclick = () => { if (assina.pagina < assina.doc.paginas) { assina.pagina++; carregarPagina(); } };
+  $("pdf-antes").onclick = () => { if (assina.pagina > 1) { assina.pagina -= 1; carregarPagina(); } };
+  $("pdf-depois").onclick = () => { if (assina.pagina < assina.doc.paginas) { assina.pagina += 1; carregarPagina(); } };
+  raiz.querySelectorAll("[data-pdf-pagina]").forEach((b) => { b.onclick = () => { assina.pagina = Number(b.dataset.pdfPagina); carregarPagina(); }; });
 
-  document.querySelectorAll("[name=assina-pag]").forEach((r) => {
-    r.onchange = () => {
-      assina.paginas = r.value;
-      $("assina-intervalo").hidden = r.value !== "intervalo";
+  raiz.querySelectorAll("[data-as-pag]").forEach((r) => {
+    r.onclick = (e) => {
+      if (e.target.tagName === "INPUT") return;
+      assina.paginas = r.dataset.asPag;
+      raiz.querySelectorAll("[data-as-pag]").forEach((x) => x.classList.toggle("on", x === r));
+      const campo = $("assina-intervalo");
+      if (assina.paginas === "intervalo" && campo) campo.focus();
       atualizarFrase();
-      posicionarSelo();
     };
   });
-  $("assina-intervalo").oninput = (e) => { assina.intervalo = e.target.value; atualizarFrase(); };
+  const intervalo = $("assina-intervalo");
+  if (intervalo) intervalo.oninput = (e) => { assina.paginas = "intervalo"; raiz.querySelectorAll("[data-as-pag]").forEach((x) => x.classList.toggle("on", x.dataset.asPag === "intervalo")); assina.intervalo = e.target.value; atualizarFrase(); };
 
   $("assina-posicao").onchange = (e) => {
     assina.posicao = e.target.value;
@@ -10991,29 +11162,73 @@ function ligarAssinar() {
     posicionarSelo();
     atualizarFrase();
   };
+  $("assina-repetir").onclick = () => {
+    assina.repetir = !assina.repetir;
+    $("assina-repetir").classList.toggle("on", assina.repetir);
+    if (!assina.repetir) { assina.x = assina.y = null; posicionarSelo(); }
+    atualizarFrase();
+  };
 
-  document.querySelectorAll("[data-depois]").forEach((c) => {
-    c.onchange = () => { assina[c.dataset.depois] = c.checked; atualizarFrase(); };
+  raiz.querySelectorAll("[data-depois]").forEach((m) => {
+    m.onclick = () => { assina[m.dataset.depois] = !assina[m.dataset.depois]; m.classList.toggle("on", assina[m.dataset.depois]); atualizarFrase(); };
   });
-
   const proteger = $("assina-proteger");
-  proteger.onchange = () => {
-    $("assina-senha-pdf").hidden = !proteger.checked;
-    if (!proteger.checked) { assina.senhaPdf = ""; $("assina-senha-campo").value = ""; }
+  proteger.onclick = () => {
+    assina.proteger = !assina.proteger;
+    proteger.classList.toggle("on", assina.proteger);
+    $("assina-senha-pdf").hidden = !assina.proteger;
+    if (!assina.proteger) { assina.senhaPdf = ""; $("assina-senha-campo").value = ""; } else $("assina-senha-campo").focus();
     atualizarFrase();
   };
   $("assina-senha-campo").oninput = (e) => { assina.senhaPdf = e.target.value; atualizarFrase(); };
+  $("assina-mostrar-pdf").onclick = () => {
+    const campo = $("assina-senha-campo");
+    campo.type = campo.type === "password" ? "text" : "password";
+    $("assina-mostrar-pdf").textContent = campo.type === "password" ? "mostrar" : "esconder";
+  };
 
-  $("assina-agora").onclick = assinarAgora;
+  const agora = $("assina-agora");
+  if (agora) agora.onclick = assinarAgora;
+  const agoraTopo = $("assina-agora-topo");
+  if (agoraTopo) agoraTopo.onclick = () => { if (assina.feito) { avisoCert("este documento já foi assinado — abra o assinado ou troque o documento"); return; } assinarAgora(); };
+  const previa = $("assina-previa");
+  if (previa) previa.onclick = () => { const alvos = paginasEscolhidas(); if (alvos.length) { assina.pagina = alvos[0]; carregarPagina(); } };
+
+  const voltar = $("assina-voltar");
+  if (voltar) voltar.onclick = () => { assina.feito = null; desenharAssinatura(); };
+  const fila = $("assina-ver-fila");
+  if (fila) fila.onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
+
+  const f = assina.feito;
+  if (f && !f.aguardando_aprovacao) {
+    const baixar = () => { window.location.href = "/api/assinar/baixar?arquivo=" + encodeURIComponent(f.destino); };
+    $("assinado-baixar").onclick = baixar;
+    $("as-baixar").onclick = baixar;
+    $("assinado-conferir").onclick = conferirAssinado;
+    $("as-codigo").onclick = () => copiarTexto(f.codigo, "código " + f.codigo + " copiado");
+    $("as-whats").onclick = () => avisoCert("WhatsApp ainda não tem motor nesta máquina — por enquanto, e-mail ou o PDF baixado");
+    $("as-email").onclick = async () => {
+      if (!mail.contas) { try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; } }
+      if (!mail.contas || !mail.contas.contas.length) { marcarDestino("caixa"); return mostrarEmail(); }
+      mail.conta = mail.contas.contas.find((c) => c.em_uso) || mail.contas.contas[0];
+      marcarDestino("caixa");
+      telaEscrever({ assunto: nomeDe(f.destino), corpo: "" });
+      mail.anexos = [{ path: f.destino, nome: nomeDe(f.destino), mb: 0 }];
+      desenharAnexos();
+    };
+  }
+
   ligarArrasto();
+  carregarPagina();
+  atualizarFrase();
 }
 
 async function carregarPagina() {
   const img = $("pdf-img");
   if (!img) return;
   $("pdf-num").textContent = assina.pagina;
-  img.src = "/api/assinar/pagina?arquivo=" + encodeURIComponent(assina.doc.caminho) +
-    "&numero=" + assina.pagina + "&largura=900";
+  document.querySelectorAll("[data-pdf-pagina]").forEach((b) => b.classList.toggle("atual", Number(b.dataset.pdfPagina) === assina.pagina));
+  img.src = "/api/assinar/pagina?arquivo=" + encodeURIComponent(assina.doc.caminho) + "&numero=" + assina.pagina + "&largura=900";
   img.onload = posicionarSelo;
 }
 
@@ -11025,7 +11240,7 @@ function posicionarSelo() {
   if (!selo || !img || !img.clientWidth) return;
 
   const alvos = paginasEscolhidas();
-  if (alvos.indexOf(assina.pagina) < 0) { selo.hidden = true; return; }
+  if (alvos.indexOf(assina.pagina) < 0 || assina.feito) { selo.hidden = true; return; }
   selo.hidden = false;
 
   const escala = img.clientWidth / (assina.doc.largura || 595);
@@ -11033,7 +11248,7 @@ function posicionarSelo() {
   const altura = 62 * escala;
 
   let x, y;
-  if (assina.x !== null) {
+  if (assina.x !== null && assina.repetir) {
     x = assina.x * escala;
     y = assina.y * escala;
   } else {
@@ -11049,6 +11264,11 @@ function posicionarSelo() {
   selo.style.height = altura + "px";
   selo.style.left = Math.max(0, Math.min(x, img.clientWidth - largura)) + "px";
   selo.style.top = Math.max(0, Math.min(y, img.clientHeight - altura)) + "px";
+  const dentro = $("pdf-selo-conteudo");
+  if (dentro) dentro.style.transform = "scale(" + escala.toFixed(3) + ")";
+  const texto = $("pdf-selo-texto");
+  const posicao = ((assina.cofre && assina.cofre.posicoes) || []).find((p) => p.valor === assina.posicao);
+  if (texto) texto.textContent = "Selo entra aqui · arraste para mover · " + (assina.x !== null && assina.repetir ? "posição escolhida" : (posicao ? posicao.rotulo.toLowerCase() : assina.posicao));
 }
 
 function ligarArrasto() {
@@ -11074,10 +11294,13 @@ function ligarArrasto() {
     /* Guarda em pontos do PDF, nao em pixels da tela: o zoom muda, o PDF nao. */
     assina.x = x / escala;
     assina.y = y / escala;
+    assina.repetir = true;
   };
   selo.onpointerup = () => {
     pegando = false;
     selo.classList.remove("pegando");
+    const r = $("assina-repetir");
+    if (r) r.classList.add("on");
     atualizarFrase();
   };
 }
@@ -11107,10 +11330,10 @@ function paginasEscolhidas() {
 /* A ultima coisa que a pessoa le antes de usar o certificado dela. */
 function atualizarFrase() {
   const alvo = $("assina-frase");
-  if (!alvo) return;
   const alvos = paginasEscolhidas();
-  const c = assina.cofre.certificado || {};
+  const c = (cert.dados || {}).certificado || {};
   const total = assina.doc.paginas;
+  const podeAssinar = Boolean((cert.dados || {}).instalado && !c.erro && !c.vencido);
 
   const onde = !alvos.length ? "em nenhuma página"
     : alvos.length === total && total > 1 ? "em todas as " + total + " páginas"
@@ -11122,9 +11345,20 @@ function atualizarFrase() {
   if (assina.senhaPdf) frase += " O arquivo sai protegido por senha.";
   if (alvos.length > 1) frase += " A assinatura digital é uma só e cobre o documento inteiro.";
   frase += " Nada é enviado para a internet.";
+  if (!podeAssinar) frase = "Falta um certificado aberto e válido: instale ou digite a senha dele em Certificado digital.";
 
-  alvo.textContent = frase;
-  $("assina-agora").disabled = !alvos.length;
+  if (alvo) alvo.textContent = frase;
+  const botao = $("assina-agora");
+  if (botao) botao.disabled = !alvos.length || !podeAssinar;
+  const topo = $("assina-agora-topo");
+  if (topo) topo.disabled = !alvos.length || !podeAssinar;
+  const marcados = new Set(alvos);
+  document.querySelectorAll("[data-pdf-pagina]").forEach((b) => {
+    const n = Number(b.dataset.pdfPagina);
+    const tem = b.querySelector(".as-mini-selo");
+    if (marcados.has(n) && !tem) b.insertAdjacentHTML("beforeend", '<i class="as-mini-selo"></i>');
+    if (!marcados.has(n) && tem) tem.remove();
+  });
   posicionarSelo();
 }
 
@@ -11133,14 +11367,13 @@ async function assinarAgora() {
   const senhaCert = $("assina-senha-cert");
   const alvos = paginasEscolhidas();
   if (!alvos.length) return;
+  if (assina.cofre.precisa_senha && senhaCert && !senhaCert.value) { senhaCert.focus(); avisoCert("digite a senha do certificado"); return; }
 
   if (assina.cofre.pede_confirmacao) {
     if (!confirm($("assina-frase").textContent + "\n\nAssinar agora?")) return;
   }
 
-  botao.disabled = true;
-  botao.textContent = "assinando…";
-
+  if (botao) { botao.disabled = true; botao.textContent = "assinando…"; }
   const r = await fetch("/api/assinar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -11149,80 +11382,45 @@ async function assinarAgora() {
       paginas: assina.paginas,
       intervalo: assina.intervalo,
       posicao: assina.posicao,
-      x: assina.x,
-      y: assina.y,
+      x: assina.repetir ? assina.x : null,
+      y: assina.repetir ? assina.y : null,
       senha_pdf: assina.senhaPdf,
       guardar_biblioteca: assina.biblioteca,
       manter_original: assina.manter,
       senha_certificado: senhaCert ? senhaCert.value : "",
     }),
   });
-
-  botao.disabled = false;
-  botao.textContent = "Assinar agora";
+  if (botao) { botao.disabled = false; botao.innerHTML = ic("draw", 16) + "Assinar agora"; }
 
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   const d = await r.json();
-
-  if (d.aguardando_aprovacao) {
-    $("centro").innerHTML =
-      '<div class="catalogo"><div class="tela-topo"><div><h2>Esperando o seu sim</h2>' +
-      '<span class="rotulo">nada foi assinado ainda</span></div></div>' +
-      '<div class="painel"><h3>' + esc(d.pedido.titulo) + "</h3>" +
-      '<p class="explica">' + esc(d.pedido.resumo) + "</p>" +
-      "<p class=\"explica\">Assinar tem efeito jurídico, então o pedido parou na fila de " +
-      "aprovações. Ele espera lá até você decidir.</p>" +
-      '<div class="linha-form"><button class="primario" id="assina-ver-fila">Abrir a fila</button>' +
-      '<button id="assina-voltar">Voltar ao documento</button></div></div>' +
-      '<div class="rodape-tela">nenhuma assinatura acontece antes da sua aprovação</div></div>';
-    $("assina-ver-fila").onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
-    $("assina-voltar").onclick = () => mostrarAssinar(assina.doc.caminho);
-    return;
+  assina.feito = d;
+  desenharAssinatura();
+  if (!d.aguardando_aprovacao && assina.baixar) {
+    window.location.href = "/api/assinar/baixar?arquivo=" + encodeURIComponent(d.destino);
   }
+}
 
-  telaAssinado(d);
+async function conferirAssinado() {
+  const f = assina.feito;
+  const alvo = $("assinado-conferencia");
+  if (!f || !alvo) return;
+  alvo.innerHTML = '<p class="nota">conferindo…</p>';
+  const r = await (await fetch("/api/assinaturas/conferir?arquivo=" + encodeURIComponent(f.destino) +
+    "&senha=" + encodeURIComponent(assina.senhaPdf || ""))).json();
+  alvo.innerHTML = '<div class="as-conferencia"><small>o que o arquivo diz</small>' +
+    r.assinaturas.map((a) => {
+      if (a.erro) return '<p class="as-explica">' + esc(a.erro) + "</p>";
+      const classe = "em-conferencia " + (a.intacta ? "ok" : "aviso");
+      return '<div class="' + classe + '">' + ic(a.intacta ? "check_circle" : "error", 18) + "<span>" + esc(a.titular) + " · " + esc(a.emissor) + " · " +
+        (a.intacta ? "não foi alterado depois" : "foi alterado depois de assinado") + "</span></div>";
+    }).join("") +
+    '<p class="as-explica">Não confiro revogação nem a cadeia até a raiz da ICP-Brasil: isso exigiria internet, e este programa trabalha desligado.</p></div>';
 }
 
 function telaAssinado(d) {
-  $("centro").innerHTML =
-    '<div class="catalogo"><div class="tela-topo"><div><h2>Documento assinado</h2>' +
-    '<span class="rotulo">código ' + esc(d.codigo) + "</span></div></div>" +
-    '<div class="painel"><h3>' + esc(nomeDe(d.destino)) + "</h3>" +
-    '<p class="explica">Assinado com o certificado de ' + esc(d.titular) + ", " +
-    "em " + (d.paginas.length > 1 ? d.paginas.length + " páginas seladas" : "1 página selada") + ". " +
-    (d.protegido ? "O arquivo está protegido por senha. " : "") +
-    "O original continua onde estava.</p>" +
-    (d.icp_brasil ? ""
-      : '<div class="cert-aviso"><strong>Sem validade jurídica de ICP-Brasil</strong>' +
-        "<p>O certificado usado não é credenciado. A assinatura prova que o arquivo não mudou " +
-        "depois de assinado, mas não substitui a assinatura com e-CPF ou e-CNPJ.</p></div>") +
-    '<div class="linha-form"><button class="primario" id="assinado-baixar">Baixar o PDF</button>' +
-    '<button id="assinado-conferir">Conferir a assinatura</button>' +
-    '<button id="assinado-outro">Assinar outro</button></div>' +
-    '<div id="assinado-conferencia"></div></div>' +
-    '<div class="rodape-tela">a assinatura foi feita nesta máquina com o seu certificado</div></div>';
-
-  $("assinado-baixar").onclick = () => {
-    window.location.href = "/api/assinar/baixar?arquivo=" + encodeURIComponent(d.destino);
-  };
-  $("assinado-outro").onclick = () => mostrarAssinar();
-  $("assinado-conferir").onclick = async () => {
-    const alvo = $("assinado-conferencia");
-    alvo.innerHTML = '<p class="nota">conferindo…</p>';
-    const r = await (await fetch("/api/assinaturas/conferir?arquivo=" + encodeURIComponent(d.destino) +
-      "&senha=" + encodeURIComponent(assina.senhaPdf || ""))).json();
-    alvo.innerHTML = '<div style="margin-top:14px"><span class="rotulo">o que o arquivo diz</span>' +
-      r.assinaturas.map((a) =>
-        a.erro
-          ? '<p class="explica">' + esc(a.erro) + "</p>"
-          : '<div class="reg-linha"><span class="cresce corta">' + esc(a.titular) + "</span>" +
-            '<span class="num">' + esc(a.emissor) + "</span>" +
-            '<span class="cert-estado ' + (a.intacta ? "valido" : "problema") + '">' +
-            (a.intacta ? "não foi alterado" : "foi alterado depois") + "</span></div>"
-      ).join("") +
-      '<p class="explica">Não confiro revogação nem a cadeia até a raiz da ICP-Brasil: isso ' +
-      "exigiria internet, e este programa trabalha desligado.</p></div>";
-  };
+  assina.feito = d;
+  desenharAssinatura();
 }
 
 function nomeDe(caminho) {
