@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0;background:var(--b-bg,#e9e8e3);font-family:'Manrope',system-ui,sans-serif;color:var(--b-ink,#1a1a1a);transition:background .25s,color .25s}body[data-tema="escuro"]{--b-bg:#101010;--b-surf:#1a1a19;--b-ink:#f0f0ec;--b-ink2:#c8c8c3;--b-ink3:#8f8f8a;--b-line:rgba(255,255,255,.1);--b-fill:rgba(255,255,255,.08);--b-card:#141413;--b-chip:#f0f0ec;--b-chipt:#171716;color-scheme:dark}a{color:var(--b-ink,#1a1a1a)}a:hover{color:oklch(60% 0.13 25)}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid var(--b-line,rgba(0,0,0,.08));scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px 'Fira Code',ui-monospace,Menlo,monospace;padding:3px 7px;background:var(--b-chip,#1a1a1a);color:var(--b-chipt,#fff);border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 'Manrope',system-ui,sans-serif;color:var(--b-ink,#1a1a1a)}.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}.dv-oid{font:600 10.5px 'Fira Code',ui-monospace,Menlo,monospace;padding:3px 7px;background:var(--b-fill,rgba(0,0,0,.08));color:var(--b-ink,#1a1a1a);border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.3 'Manrope',system-ui,sans-serif;color:var(--b-ink2,rgba(0,0,0,.6))}.dv-card{background:var(--b-card,#fff);border:1px solid var(--b-line,rgba(0,0,0,.08));border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}.dv-opt:target .dv-oid{background:oklch(42% 0.13 25);color:#fff}.dv-next{margin:26px 0 0;font:12px/1.5 'Manrope',system-ui,sans-serif;color:var(--b-ink3,rgba(0,0,0,.55))}.dv-ctx{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px 32px;max-width:none;margin:0 0 36px;padding:22px 24px;background:var(--b-surf,#fff);border:1px solid var(--b-line,rgba(0,0,0,.08));border-radius:8px;font:13px/1.55 'Manrope',system-ui,sans-serif;color:var(--b-ink2,#333)}.dv-ctx h4{margin:0 0 6px;font:600 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--b-ink3,rgba(0,0,0,.5))}.dv-ctx p{margin:0}.dv-ctx code{font:12px 'Fira Code',ui-monospace,monospace;background:var(--b-fill,rgba(0,0,0,.05));padding:1px 4px;border-radius:3px}.dv-row{display:flex;gap:28px;align-items:flex-start}.dv-tema{position:fixed;right:20px;bottom:20px;z-index:50;width:40px;height:40px;border-radius:10px;border:1px solid var(--b-line,rgba(0,0,0,.15));background:var(--b-surf,#fff);color:var(--b-ink,#1a1a1a);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 8px 24px -12px rgba(0,0,0,.4)}</style><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&display=block" rel="stylesheet">
+</helmet>
+<button type="button" class="dv-tema" aria-label="Alternar tema" title="Alternar tema do quadro e das telas" onClick="{{ alternarTema }}"><span style="font-family:'Material Symbols Outlined';font-weight:300;font-size:20px;line-height:1;display:block;width:20px;height:20px;overflow:hidden">{{ iconeTema }}</span></button>
+<section class="dv-turn" id="t0">
+<div class="dv-thd"><a class="dv-tid" href="#t0">0</a><span class="dv-tname">A0a — Boas-vindas · criar escritório (quem gera o código)</span></div>
+<div class="dv-ctx"><div><h4>Cinco passos</h4><p>Boas-vindas com o estado da instalação (Ollama, modelo) · Escritório: criar um novo (vira usuário master) ou entrar em um existente com código de vínculo pela rede local · Seus dados (mesmos campos de Configurações › Meus dados) · Como a IA funciona — afirmação categórica de que o modelo roda nesta máquina, com a tabela "onde cada coisa fica" · Conexões opcionais: conta Google (Gmail, Drive), Microsoft (Outlook, OneDrive), IMAP/SMTP · Atualizações. Tudo pode ser pulado e revisto depois. "Abrir o PAULUS" leva ao Assistente.</p></div></div>
+<div class="dv-opts">
+<div class="dv-opt" id="0a"><div class="dv-olabel"><a class="dv-oid" href="#0a">0a</a>A0a · boas-vindas</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0a - Boas-vindas" tema="{{ tema }}" passo="boasvindas" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0f"><div class="dv-olabel"><a class="dv-oid" href="#0f">0f</a>A0a · escritório (criar ou entrar)</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0a - Boas-vindas" tema="{{ tema }}" passo="escritorio" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0b"><div class="dv-olabel"><a class="dv-oid" href="#0b">0b</a>A0a · seus dados</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0a - Boas-vindas" tema="{{ tema }}" passo="dados" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0c"><div class="dv-olabel"><a class="dv-oid" href="#0c">0c</a>A0a · como a IA funciona</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0a - Boas-vindas" tema="{{ tema }}" passo="ia" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0d"><div class="dv-olabel"><a class="dv-oid" href="#0d">0d</a>A0a · conexões</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0a - Boas-vindas" tema="{{ tema }}" passo="conexoes" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0e"><div class="dv-olabel"><a class="dv-oid" href="#0e">0e</a>A0a · atualizações</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0a - Boas-vindas" tema="{{ tema }}" passo="atualizacoes" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+</section>
+<section class="dv-turn" id="t0b">
+<div class="dv-thd"><a class="dv-tid" href="#t0b">0b</a><span class="dv-tname">A0b — Entrar no escritório (quem digita o código)</span></div>
+<div class="dv-ctx"><div><h4>Mesma entrada, caminho do participante</h4><p>Boas-vindas e o passo Escritório são os mesmos de A0a; ao marcar "Entrar em um escritório existente", a pessoa preenche seus dados e chega à tela de códigos: digita o código do responsável e recebe o seu próprio. Sem escolha de rede — a vinculação acontece pela rede local em que a máquina já está. O responsável digita esse código em Configurações › Escritório e vínculos e a adiciona ao grupo (cargo e alçada). Enquanto não valida, ela entra no PAULUS e usa tudo que é local; o que depende da rede (Serviços, Aprovações, Agenda, Acervo, E-mail compartilhado) fica bloqueado — ver o Assistente em modo limitado.</p></div></div>
+<div class="dv-opts">
+<div class="dv-opt" id="0ba"><div class="dv-olabel"><a class="dv-oid" href="#0ba">0ba</a>A0b · boas-vindas</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0b - Entrar no escritorio" tema="{{ tema }}" passo="boasvindas" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0bb"><div class="dv-olabel"><a class="dv-oid" href="#0bb">0bb</a>A0b · escritório · entrar como participante</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0b - Entrar no escritorio" tema="{{ tema }}" passo="escritorio" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0bc"><div class="dv-olabel"><a class="dv-oid" href="#0bc">0bc</a>A0b · seus dados</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0b - Entrar no escritorio" tema="{{ tema }}" passo="dados" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0bd"><div class="dv-olabel"><a class="dv-oid" href="#0bd">0bd</a>A0b · códigos · do responsável e o seu</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A0b - Entrar no escritorio" tema="{{ tema }}" passo="codigos" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0bf"><div class="dv-olabel"><a class="dv-oid" href="#0bf">0bf</a>A1 · Assistente em modo limitado (aguardando o responsável)</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A1 - Assistente" tema="{{ tema }}" estado="inicio" vinculo="aguardando" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="0bg"><div class="dv-olabel"><a class="dv-oid" href="#0bg">0bg</a>A13 · Configurações › Escritório e vínculos · pedidos, vinculados e moderação (lado do responsável)</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="vinculos" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+</section>
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">A1 — Assistente (início · conversa · chat com editor)</span></div>
+<div class="dv-ctx">
+<div><h4>Novo mapa do menu</h4><p>26 telas → 11 destinos: Assistente · Agenda · Acervo · Documentos · E-mail · Assinatura · Financeiro · Cadastros · Aprovações · Foco · Configurações, mais "Apoiar". Trilho recolhido por padrão; passar o mouse sobre ele abre o menu completo por cima do conteúdo, sem deslocar a tela (funciona no mockup). Sem botão de expandir.</p></div>
+<div><h4>O que veio do app atual</h4><p>Saudação por dia e hora, "Acontecendo agora", plano de execução com etapas, resposta com citação e trecho aberto ("Por que este trecho"), rodapé "nenhuma requisição à internet", chat + documento lado a lado com Manter / Descartar. Textos mantidos.</p></div>
+<div><h4>O que melhorou</h4><p>Boas-vindas é o estado vazio do Assistente, não outra tela. Plano recolhe numa linha quando termina. Resultados chegam como blocos no chat (a lista de prazos com "Criar na Agenda", "Abrir no Acervo") — o ponto do 2b. Alteração no documento aparece como controle de alterações real (riscado + inserido). Recentes na própria tela inicial.</p></div>
+<div><h4>Logo e tema</h4><p>Logo enviada em uso na barra de título, no trilho e como indicador de trabalho (anel girando ao redor). Tema escuro fica para depois: a regra é inverter as cores da logo. Próxima tela: Agenda (Calendário + Agendamento + Tarefas).</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>A1 · Assistente · início · saudação contextual, caixa de pedido, acontecendo agora, recentes</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A1 - Assistente" tema="{{ tema }}" estado="inicio" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>A1 · Assistente · conversa · plano recolhido, prazos como bloco de resultado, citação aberta, painel de trechos</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A1 - Assistente" tema="{{ tema }}" estado="conversa" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>A1 · Assistente · chat com editor · alteração marcada no documento, Manter / Descartar</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A1 - Assistente" tema="{{ tema }}" estado="editor" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="3d"><div class="dv-olabel"><a class="dv-oid" href="#3d">3d</a>A1 · Assistente · início · menu fixo aberto, com Recentes e Software livre</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A1 - Assistente" tema="{{ tema }}" estado="inicio" sidebar="expanded" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Peça a seguir: "Agenda" (próxima tela) · "estado com etapa em andamento em <a class="dv-oid" href="#3b">3b</a>" · "tema escuro"</p>
+</section>
+
+<section class="dv-turn" id="t15">
+<div class="dv-thd"><a class="dv-tid" href="#t15">15</a><span class="dv-tname">A15 — Serviços</span></div>
+<div class="dv-ctx">
+<div><h4>Pastas</h4><p>Cada serviço é um cartão: nome próprio, cliente, descrição, status e progresso, equipe, arquivos, prazos e o próximo compromisso. Filtros Em andamento / Todos / Concluídos e "Novo serviço" (também pelo Assistente).</p></div>
+<div><h4>Dentro do serviço</h4><p>Resumo da IA com "o que falta"; status para conclusão em etapas; arquivos do serviço (ligados ao Acervo). No painel: equipe, prazos e agendamentos, anotações e a trilha do serviço. "Perguntar sobre este" abre a Conversa com o contexto do serviço.</p></div>
+<div><h4>Menu</h4><p>"Serviços" entrou no trilho e no menu aberto de todas as telas, logo depois de Assistente.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="15a"><div class="dv-olabel"><a class="dv-oid" href="#15a">15a</a>A15 · Serviços · pastas</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A15 - Servicos" tema="{{ tema }}" visao="pastas" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="15b"><div class="dv-olabel"><a class="dv-oid" href="#15b">15b</a>A15 · Serviços · dentro do serviço</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A15 - Servicos" tema="{{ tema }}" visao="trabalho" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+</section>
+
+<section class="dv-turn" id="t16">
+<div class="dv-thd"><a class="dv-tid" href="#t16">16</a><span class="dv-tname">A16 — Gravações</span></div>
+<div class="dv-ctx">
+<div><h4>Três momentos</h4><p>Lista de gravações (reuniões, atendimentos, audiências, notas de voz) com participantes, duração e status; Ao vivo, com gravador, transcrição literal por falante rolando e o painel "Contexto ao vivo" — cláusulas, valores, prazos e anotações relevantes ao que está sendo dito, com respostas prontas; e a gravação arquivada, com player, transcrição pesquisável e o Resumo da IA (decisões, pendências, onde foi arquivado).</p></div>
+<div><h4>Regras</h4><p>Áudio, transcrição e resumo ficam na máquina e são arquivados no Acervo e na trilha do Serviço. Aviso para informar os participantes. Compartilhar o resumo passa por Aprovações. "Gravações" entrou no menu de todas as telas, depois de Serviços.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="16a"><div class="dv-olabel"><a class="dv-oid" href="#16a">16a</a>A16 · Gravações · lista</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A16 - Gravacoes" tema="{{ tema }}" visao="lista" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="16b"><div class="dv-olabel"><a class="dv-oid" href="#16b">16b</a>A16 · Gravações · ao vivo + contexto</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A16 - Gravacoes" tema="{{ tema }}" visao="live" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="16c"><div class="dv-olabel"><a class="dv-oid" href="#16c">16c</a>A16 · Gravações · arquivada: transcrição + resumo</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A16 - Gravacoes" tema="{{ tema }}" visao="gravacao" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+</section>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">A4 — Agenda (Calendário + Agendamento + Tarefas)</span></div>
+<div class="dv-ctx">
+<div><h4>Fusão</h4><p>Uma tela, três visões no mesmo seletor: Mês (o antigo Calendário), Semana (o antigo Agendamento, com a grade por hora) e Tarefas (o antigo Meu dia). O painel da direita muda com a visão: dia · novo compromisso · detalhe da tarefa. Botão "Novo ▾" cria compromisso, pagamento, prazo ou tarefa.</p></div>
+<div><h4>O que veio do app atual</h4><p>Compromissos, prazos e tarefas do mês; grade da semana com pagamento e prazo; pedidos pelo link com aceitar / propor outro horário; criar reunião (Meet, Teams); listas e detalhe da tarefa com etapas, lembrete, "ligado a" e anotação. Textos mantidos.</p></div>
+<div><h4>Regras</h4><p>Cabe em 1440×900; só o painel da direita e a lista de tarefas rolam. Prazo em vinho, compromisso em grafite, pedido pendente tracejado. Convite por e-mail passa por Aprovações. Hoje = sexta, 11 de setembro, coerente com A2 (aviso vence amanhã).</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>A4 · Agenda · Mês + painel do dia</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A4 - Agenda" tema="{{ tema }}" visao="mes" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="4b"><div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>A4 · Agenda · Semana + novo compromisso</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A4 - Agenda" tema="{{ tema }}" visao="semana" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="4c"><div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>A4 · Agenda · Tarefas + detalhe da tarefa</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A4 - Agenda" tema="{{ tema }}" visao="tarefas" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A5 — Acervo (Biblioteca + Organizar pastas + Prazos).</p>
+</section>
+
+<section class="dv-turn" id="t5">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">A5 — Acervo (Biblioteca + Organizar pastas + Prazos)</span></div>
+<div class="dv-ctx">
+<div><h4>Fusão</h4><p>Três visões no mesmo seletor: Documentos (a antiga Biblioteca, agora com árvore de pastas à esquerda e ficha do documento à direita), Organizar (as fases da antiga tela, com a conferência da classificação no centro e o plano de pastas no painel) e Prazos (subproduto do acervo: datas extraídas dos contratos, com origem e cálculo).</p></div>
+<div><h4>O que veio do app atual</h4><p>Barra de seleção com Tomar vista / Mover / Fixar / Exportar / Apagar; estados de análise (analisado, tomando vista, mudou desde então, sem análise); menu da linha; fases Escolher → Ler → Conferir → Mover; certeza Alta/Média/Baixa; destino Documentos\Acervo PAULUS; "nada é apagado nem sobrescrito, dá para desfazer". Textos mantidos.</p></div>
+<div><h4>Ligações</h4><p>"Perguntar sobre estes" abre A2; a ficha do documento lista os prazos extraídos e leva à visão Prazos; cada prazo mostra a cláusula de origem e "como calculei", com Confirmar / Criar tarefa / Ignorar e "Levar para a Agenda" (A4).</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="5a"><div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a>A5 · Acervo · Documentos + ficha do documento</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A5 - Acervo" tema="{{ tema }}" visao="documentos" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="5b"><div class="dv-olabel"><a class="dv-oid" href="#5b">5b</a>A5 · Acervo · Organizar pastas + plano</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A5 - Acervo" tema="{{ tema }}" visao="organizar" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="5c"><div class="dv-olabel"><a class="dv-oid" href="#5c">5c</a>A5 · Acervo · Prazos + origem do prazo</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A5 - Acervo" tema="{{ tema }}" visao="prazos" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A6 — Documentos (Editor + Planilha + Pré-visualização).</p>
+</section>
+
+<section class="dv-turn" id="t6">
+<div class="dv-thd"><a class="dv-tid" href="#t6">6</a><span class="dv-tname">A6 — Documentos (Editor + Planilha + Pré-visualização)</span></div>
+<div class="dv-ctx">
+<div><h4>Fusão</h4><p>Um espaço de trabalho com abas de documentos abertos (DOCX, XLSX, PDF só leitura) e três modos no seletor: Editor, Planilha e Pré-visualização. O painel da direita é o assistente sobre o trecho ou a planilha; na pré-visualização vira "O que fazer agora" + "Confira antes de sair" + versões.</p></div>
+<div><h4>O que veio do app atual</h4><p>Duas barras do editor (formatação e jurídica: Códigos CC/CPC/CP/CLT, citação, jurisprudência, súmulas, cláusulas do escritório, conferir prazos, qualificação das partes); comentário do assistente no corpo do texto (48 h × 72 h); barra fx com fórmula escrita em português; total e abas da planilha; papel timbrado, miniaturas e avisos antes de sair. Textos mantidos.</p></div>
+<div><h4>Melhorias</h4><p>Comentário do assistente com ação direta (Trocar para 72 h / Manter). Fórmula aparece na barra fx antes de ser aplicada, com Manter / Desfazer. Histórico de versões no painel da pré-visualização. Papel com a logo enviada.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="6a"><div class="dv-olabel"><a class="dv-oid" href="#6a">6a</a>A6 · Documentos · Editor + assistente sobre o trecho</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A6 - Documentos" tema="{{ tema }}" visao="editor" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="6b"><div class="dv-olabel"><a class="dv-oid" href="#6b">6b</a>A6 · Documentos · Planilha + fórmula em português</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A6 - Documentos" tema="{{ tema }}" visao="planilha" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="6c"><div class="dv-olabel"><a class="dv-oid" href="#6c">6c</a>A6 · Documentos · Pré-visualização + o que fazer agora</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A6 - Documentos" tema="{{ tema }}" visao="previa" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A7 — E-mail (Caixa de entrada + Novo e-mail + Contas).</p>
+</section>
+
+<section class="dv-turn" id="t7">
+<div class="dv-thd"><a class="dv-tid" href="#t7">7</a><span class="dv-tname">A7 — E-mail (Caixa de entrada + Novo e-mail + Contas)</span></div>
+<div class="dv-ctx">
+<div><h4>Fusão</h4><p>Caixa de entrada com três colunas (pastas e contas · conversas · mensagem) e o painel do assistente à direita: o que ele entendeu, prazo detectado, rascunho preparado. "Escrever" abre a composição no mesmo lugar; "Contas" é a terceira visão, com o formulário de conexão no painel.</p></div>
+<div><h4>O que veio do app atual</h4><p>Filtros Tudo / Não lidos / Com anexo / De clientes; e-mail da Priscila com o protocolo em anexo; rascunho "esperando você" com Aprovar e enviar; conta padrão de envio, IMAP/SMTP, senha recusada → Reconectar; "a senha fica nesta máquina"; "leio só o que você abre". Textos mantidos.</p></div>
+<div><h4>Regras</h4><p>Enviar é sempre "Enviar para aprovação" — passa por Aprovações. Prazo detectado no texto vira sugestão para a Agenda, não compromisso direto. Painel com rolagem sinalizada e alça de largura como em A4–A6.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="7a"><div class="dv-olabel"><a class="dv-oid" href="#7a">7a</a>A7 · E-mail · Caixa de entrada + o que o assistente entendeu</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A7 - E-mail" tema="{{ tema }}" visao="caixa" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="7b"><div class="dv-olabel"><a class="dv-oid" href="#7b">7b</a>A7 · E-mail · Novo e-mail + conferências do assistente</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A7 - E-mail" tema="{{ tema }}" visao="novo" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="7c"><div class="dv-olabel"><a class="dv-oid" href="#7c">7c</a>A7 · E-mail · Contas + entrar em uma conta</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A7 - E-mail" tema="{{ tema }}" visao="contas" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A8 — Assinatura (Certificado digital + Assinar PDF).</p>
+</section>
+
+<section class="dv-turn" id="t8">
+<div class="dv-thd"><a class="dv-tid" href="#t8">8</a><span class="dv-tname">A8 — Assinatura (Certificado digital + Assinar PDF)</span></div>
+<div class="dv-ctx">
+<div><h4>Fusão</h4><p>Duas visões: Assinar documento (visor do PDF com o selo arrastável na página e, no painel, páginas, posição, certificado em uso, o que fazer depois e o cartão "Pronto para assinar") e Certificado digital (cadastro do e-CPF, troca do arquivo, senha, regras ao assinar; no painel, a prévia do selo em tamanho real e o que entra nele).</p></div>
+<div><h4>O que veio do app atual</h4><p>Todas as 12 páginas / Só a última / Primeira e última / Intervalo; rodapé à direita; baixar, guardar, manter original, proteger com senha; "vou pedir sua confirmação antes de gravar"; emissor, validade, nº de série, guardado em; .pfx/.p12 até 8 MB; usar um já instalado no Windows; senha vale por 15 minutos. Textos mantidos.</p></div>
+<div><h4>Melhorias</h4><p>Selo com a logo enviada, código de verificação e QR; certificado em uso visível na hora de assinar, com atalho para trocar; miniatura da página 12 já mostra onde o selo cai; compartilhar depois (e-mail e WhatsApp seguem para Aprovações).</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="8a"><div class="dv-olabel"><a class="dv-oid" href="#8a">8a</a>A8 · Assinatura · Assinar documento + antes de assinar</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A8 - Assinatura" tema="{{ tema }}" visao="assinar" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="8b"><div class="dv-olabel"><a class="dv-oid" href="#8b">8b</a>A8 · Assinatura · Certificado digital + selo</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A8 - Assinatura" tema="{{ tema }}" visao="certificado" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A9 — Financeiro (+ Relatórios).</p>
+</section>
+
+<section class="dv-turn" id="t9">
+<div class="dv-thd"><a class="dv-tid" href="#t9">9</a><span class="dv-tname">A9 — Financeiro (+ Relatórios)</span></div>
+<div class="dv-ctx">
+<div><h4>Fusão</h4><p>Visão geral (saldo, a receber, a pagar, em atraso; fluxo de caixa de 6 meses; recebimentos; folha), Lançamentos (tabela única de entradas e saídas com filtros e detalhe no painel) e Relatórios (o antigo E1: extrato, por categoria, parecer e ações de IA aprovadas).</p></div>
+<div><h4>O que veio do app atual</h4><p>Os quatro números do topo; entradas e saídas do mês; "Precisa de você" com folha, cobranças e nota fiscal; folha de pagamento por rubrica; parecer com sugestões e "Não foi útil"; abas Tarefas do dia / Financeiro / Ações de IA aprovadas. Valores e textos mantidos.</p></div>
+<div><h4>Regras</h4><p>Pagar, cobrar e enviar relatório passam por Aprovações. O atraso do Fornecedor A liga à notificação já pronta em A2 e ao contrato no Acervo. Números em algarismos tabulares.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="9a"><div class="dv-olabel"><a class="dv-oid" href="#9a">9a</a>A9 · Financeiro · Visão geral + precisa de você</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A9 - Financeiro" tema="{{ tema }}" visao="geral" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="9b"><div class="dv-olabel"><a class="dv-oid" href="#9b">9b</a>A9 · Financeiro · Lançamentos + detalhe</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A9 - Financeiro" tema="{{ tema }}" visao="lancamentos" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="9c"><div class="dv-olabel"><a class="dv-oid" href="#9c">9c</a>A9 · Financeiro · Relatórios + parecer do mês</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A9 - Financeiro" tema="{{ tema }}" visao="relatorios" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A10 — Cadastros.</p>
+</section>
+
+<section class="dv-turn" id="t10">
+<div class="dv-thd"><a class="dv-tid" href="#t10">10</a><span class="dv-tname">A10 — Cadastros</span></div>
+<div class="dv-ctx">
+<div><h4>Estrutura</h4><p>Três visões: Clientes (lista com contato, "ligado a" e valor em aberto; ficha do cliente no painel), Equipe (sócios e colaboradores com papel, acesso por pasta e folha; ficha da pessoa e o que o papel pode) e Despesas fixas (as 11 despesas do escritório com status do mês; detalhe ligado ao contrato e ao Financeiro).</p></div>
+<div><h4>O que veio do app atual</h4><p>Cooperativa, Fornecedor A (atrasado 12 dias), Condomínio 402, Seguradora Aliança, Priscila Almeida; a ficha com razão social, CNPJ/CPF, telefone, e-mail para cobrança, endereço, honorário padrão e dia de vencimento; "42 clientes · 6 colaboradores · 2 sócios · 11 despesas fixas". Textos mantidos.</p></div>
+<div><h4>Ligações</h4><p>Cada cliente aponta para seus documentos no Acervo, contratos, valores em aberto e prazos; a equipe traz a matriz de papéis do manual (alterar papel passa por Aprovações); despesas ligam ao contrato de locação e ao Financeiro.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="10a"><div class="dv-olabel"><a class="dv-oid" href="#10a">10a</a>A10 · Cadastros · Clientes + ficha</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A10 - Cadastros" tema="{{ tema }}" visao="clientes" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="10b"><div class="dv-olabel"><a class="dv-oid" href="#10b">10b</a>A10 · Cadastros · Equipe + papel</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A10 - Cadastros" tema="{{ tema }}" visao="equipe" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="10c"><div class="dv-olabel"><a class="dv-oid" href="#10c">10c</a>A10 · Cadastros · Despesas fixas + detalhe</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A10 - Cadastros" tema="{{ tema }}" visao="despesas" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próxima: A11 — Aprovações.</p>
+</section>
+
+<section class="dv-turn" id="t11">
+<div class="dv-thd"><a class="dv-tid" href="#t11">11</a><span class="dv-tname">A11 — Aprovações</span></div>
+<div class="dv-ctx">
+<div><h4>Estrutura</h4><p>Fila (o que precisa do seu sim, com filtro por tipo, seleção em lote e detalhe do pedido no painel: o que vai sair, conferências do assistente, regra aplicada e efeito), Histórico (decisões do mês com linha do tempo) e Regras de alçada (quem aprova o quê, limite e o que acontece se ninguém decidir).</p></div>
+<div><h4>O que veio do app atual</h4><p>Os 5 pedidos: 3 respostas de e-mail, assinar a procuração, mover arquivos, pagar a folha, dar acesso à pasta Jurídico; "5 esperando você · nada sai sem aprovação"; detalhe com a citação do rascunho; Aprovar/Recusar selecionadas. Textos mantidos.</p></div>
+<div><h4>Regras do manual</h4><p>Nada com efeito externo acontece sem aprovação; toda ação executada é reversível ou registrada — o histórico marca aprovado, recusado e desfeito, e cada pedido mostra se o efeito é reversível. Coluna fixa, sem alça, como no Financeiro.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="11a"><div class="dv-olabel"><a class="dv-oid" href="#11a">11a</a>A11 · Aprovações · Fila + detalhe do pedido</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A11 - Aprovacoes" tema="{{ tema }}" visao="fila" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="11b"><div class="dv-olabel"><a class="dv-oid" href="#11b">11b</a>A11 · Aprovações · Histórico + linha do tempo</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A11 - Aprovacoes" tema="{{ tema }}" visao="historico" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="11c"><div class="dv-olabel"><a class="dv-oid" href="#11c">11c</a>A11 · Aprovações · Regras de alçada</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A11 - Aprovacoes" tema="{{ tema }}" visao="regras" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Próximas: A12 — Foco e bem-estar · A13 — Configurações (+ Desempenho, Conexões, Aprendizado).</p>
+</section>
+
+<section class="dv-turn" id="t12">
+<div class="dv-thd"><a class="dv-tid" href="#t12">12</a><span class="dv-tname">A12 — Foco e bem-estar</span></div>
+<div class="dv-ctx">
+<div><h4>Estrutura</h4><p>Hoje (ciclo de foco com anel de progresso, lembretes do dia; no painel, o ritmo por hora, números do dia, sugestão para agora e os interruptores dos lembretes) e Semana (horas de foco por dia, hábitos em grade; no painel, o parecer da semana com sugestões que vão para a Agenda).</p></div>
+<div><h4>O que veio do app atual</h4><p>Ciclo 3 de 4 · 17:24; foco 25 min / pausa 5 min; silenciar avisos durante o foco; "tarefa deste ciclo: enviar aviso de não renovação"; lembretes beber água (3 de 8 copos, atrasado 40 min), levantar, fruta, alongar; "ativo há 3 h 40 min · última pausa às 08:10 · sem pausa há 2 h". Textos mantidos.</p></div>
+<div><h4>Regras</h4><p>Tudo calculado só com uso local; nada é compartilhado. Modo foco segura e-mail, WhatsApp e Aprovações até a pausa. Coluna fixa, sem alça.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="12a"><div class="dv-olabel"><a class="dv-oid" href="#12a">12a</a>A12 · Foco · Hoje + ritmo</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A12 - Foco" tema="{{ tema }}" visao="hoje" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="12b"><div class="dv-olabel"><a class="dv-oid" href="#12b">12b</a>A12 · Foco · Semana + parecer</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A12 - Foco" tema="{{ tema }}" visao="semana" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Última: A13 — Configurações (+ Desempenho, Conexões, Aprendizado).</p>
+</section>
+
+<section class="dv-turn" id="t13">
+<div class="dv-thd"><a class="dv-tid" href="#t13">13</a><span class="dv-tname">A13 — Configurações (+ Desempenho, Conexões, Escritório e vínculos, Aprendizado, Feedback)</span></div>
+<div class="dv-ctx">
+<div><h4>Estrutura</h4><p>Menu interno de sete seções: Meus dados · Assistente e modelo · Desempenho · Conexões · Aprendizado · Aparência e atalhos · Plano e apoio. Cada seção são dois cartões lado a lado (Desempenho ocupa a largura toda). Salvar/Descartar no cabeçalho.</p></div>
+<div><h4>O que veio do app atual</h4><p>Meus dados com foto, CPF, OAB, endereço e anexos; processador 36% · 2,4 GHz, memória 11,8/15,7 GB, discos, vídeo, "ao vivo · últimos 60 segundos"; WhatsApp Web no navegador embutido com envio só com aprovação; ensinar com arquivos (manual_de_estilo_uener.pdf, 18 de 34 p.) e com suas palavras ("Prazo padrão de aviso"). Textos mantidos.</p></div>
+<div><h4>Novo</h4><p>Assistente e modelo (Ollama, llama3.2:3b e alternativas, trechos, temperatura, limites da IA, cache e índice); "O que sai desta máquina" como registro; tema claro/escuro (logo invertida no escuro); Plano e apoio: software livre, apoio mensal ou doação única, apoiadores, atualizações como única saída para a internet.</p></div>
+</div>
+<div class="dv-opts">
+<div class="dv-opt" id="13a"><div class="dv-olabel"><a class="dv-oid" href="#13a">13a</a>A13 · Configurações · Meus dados</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="perfil" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13b"><div class="dv-olabel"><a class="dv-oid" href="#13b">13b</a>A13 · Configurações · Assistente e modelo</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="assistente" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13c"><div class="dv-olabel"><a class="dv-oid" href="#13c">13c</a>A13 · Configurações · Desempenho</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="desempenho" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13d"><div class="dv-olabel"><a class="dv-oid" href="#13d">13d</a>A13 · Configurações · Conexões</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="conexoes" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13e"><div class="dv-olabel"><a class="dv-oid" href="#13e">13e</a>A13 · Configurações · Aprendizado</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="aprendizado" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13f"><div class="dv-olabel"><a class="dv-oid" href="#13f">13f</a>A13 · Configurações · Aparência e atalhos</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="aparencia" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13h"><div class="dv-olabel"><a class="dv-oid" href="#13h">13h</a>A13 · Configurações · Feedback</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="feedback" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13g"><div class="dv-olabel"><a class="dv-oid" href="#13g">13g</a>A13 · Configurações · Plano e apoio</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="plano" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="13i"><div class="dv-olabel"><a class="dv-oid" href="#13i">13i</a>A13 · Configurações · Escritório e vínculos</div><div class="dv-card" style="width:1440px;height:900px"><dc-import name="A13 - Configuracoes" tema="{{ tema }}" visao="vinculos" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+</div>
+<p class="dv-next">Todas as 11 telas do mapa estão desenhadas (A1–A13). Próximos passos possíveis: tema escuro · estados vazios e de erro do manual · landing page com a seção de apoio · pacote de handoff.</p>
+</section>
+
+<section class="dv-turn" id="t14">
+<div class="dv-thd"><a class="dv-tid" href="#t14">14</a><span class="dv-tname">A14 — Apoiar o projeto</span></div>
+<div class="dv-ctx">
+<div><h4>Conteúdo</h4><p>Copy sobre o PAULUS ser software livre e o que a contribuição paga; recorrência Mensal / Anual / Única; valores R$ 20 · 40 · 100 · Outro; Pix (QR e código copia-e-cola, recorrência aprovada uma vez) ou Cartão.</p></div>
+<div><h4>Lista de apoiadores</h4><p>"Deseja aparecer na lista de apoiadores? Sim / Não" e "Como deseja aparecer: meu nome / meu escritório", com o nome, cidade opcional e prévia de como fica na próxima atualização. Só nome e cidade são publicados.</p></div>
+<div><h4>Ligações</h4><p>Aberta pelo "Apoiar" do trilho (item ativo). Recibo por e-mail; lançamento automático no Financeiro; cancelar a qualquer momento. QR é ilustrativo.</p></div>
+</div>
+<div class="dv-opts"><div class="dv-opt" id="14b"><div class="dv-olabel"><a class="dv-oid" href="#14b">14b</a>A14 · Apoiar · Quem já apoia</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A14 - Apoiar" tema="{{ tema }}" visao="lista" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div>
+<div class="dv-opt" id="14a"><div class="dv-olabel"><a class="dv-oid" href="#14a">14a</a>A14 · Apoiar o projeto</div>
+<div class="dv-card" style="width:1440px;height:900px"><dc-import name="A14 - Apoiar" tema="{{ tema }}" sidebar="rail" hint-size="1440px,900px" style="height:900px"></dc-import></div></div></div>
+</section>
+
+
+<section class="dv-turn" id="tM">
+<div class="dv-thd"><a class="dv-tid" href="#tM">M</a><span class="dv-tname">Versão mobile — todo o sistema (390×844)</span></div>
+<div class="dv-ctx"><div><h4>Como foi adaptado</h4><p>Barra inferior com os cinco destinos mais usados (Assistente · Serviços · Agenda · Acervo · Mais); o resto vive em "Mais", com contadores. Cabeçalho com título em Garamond e contexto em cinza; painéis laterais do desktop viram cartões empilhados ou folhas (bottom sheets); ações principais fixas no rodapé ou em botão flutuante. Caixa de pedido do Assistente sempre à mão, com microfone. Alvos de toque ≥ 44px. A IA roda na máquina do escritório e o celular fala com ela pela rede local — o rodapé de cada tela lembra isso. Tema claro/escuro compartilhado com o desktop (botão no Assistente e em Mais).</p></div><div><h4>Telas</h4><p>M0 boas-vindas (5 passos, com criar/entrar e códigos) · M1 Assistente (início, conversa, editor) · M15 Serviços · M16 Gravações (lista, ao vivo) · M4 Agenda (mês, semana, tarefas) · M5 Acervo · M6 Documentos (lista, editor, planilha) · M7 E-mail (caixa, mensagem, novo) · M8 Assinatura (assinar, certificado) · M9 Financeiro (geral, relatórios) · M10 Cadastros (clientes, equipe) · M11 Aprovações (fila, pedido) · M12 Foco (hoje, semana) · M13 Mais / Configurações / Escritório e vínculos · M14 Apoiar. A landing (Plataforma) já é fluida e serve ao celular como está.</p></div></div>
+<div class="dv-opts">
+<div class="dv-opt" id="M1"><div class="dv-olabel"><a class="dv-oid" href="#M1">M1</a>M0 · Boas-vindas · boas-vindas</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M0 - Boas-vindas" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M2"><div class="dv-olabel"><a class="dv-oid" href="#M2">M2</a>M0 · Boas-vindas · escritório</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M0 - Boas-vindas" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M3"><div class="dv-olabel"><a class="dv-oid" href="#M3">M3</a>M0 · Boas-vindas · seus dados</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M0 - Boas-vindas" tela="c" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M4"><div class="dv-olabel"><a class="dv-oid" href="#M4">M4</a>M0 · Boas-vindas · códigos</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M0 - Boas-vindas" tela="d" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M5"><div class="dv-olabel"><a class="dv-oid" href="#M5">M5</a>M0 · Boas-vindas · conexões</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M0 - Boas-vindas" tela="e" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M6"><div class="dv-olabel"><a class="dv-oid" href="#M6">M6</a>M1 · Assistente · início</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M1 - Assistente" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M7"><div class="dv-olabel"><a class="dv-oid" href="#M7">M7</a>M1 · Assistente · conversa</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M1 - Assistente" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M8"><div class="dv-olabel"><a class="dv-oid" href="#M8">M8</a>M1 · Assistente · chat com editor</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M1 - Assistente" tela="c" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M9"><div class="dv-olabel"><a class="dv-oid" href="#M9">M9</a>M15 · Servicos · lista</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M15 - Servicos" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M10"><div class="dv-olabel"><a class="dv-oid" href="#M10">M10</a>M15 · Servicos · serviço</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M15 - Servicos" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M11"><div class="dv-olabel"><a class="dv-oid" href="#M11">M11</a>M16 · Gravacoes · lista</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M16 - Gravacoes" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M12"><div class="dv-olabel"><a class="dv-oid" href="#M12">M12</a>M16 · Gravacoes · ao vivo</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M16 - Gravacoes" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M13"><div class="dv-olabel"><a class="dv-oid" href="#M13">M13</a>M4 · Agenda · mês</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M4 - Agenda" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M14"><div class="dv-olabel"><a class="dv-oid" href="#M14">M14</a>M4 · Agenda · semana</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M4 - Agenda" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M15"><div class="dv-olabel"><a class="dv-oid" href="#M15">M15</a>M4 · Agenda · tarefas</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M4 - Agenda" tela="c" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M16"><div class="dv-olabel"><a class="dv-oid" href="#M16">M16</a>M5 · Acervo · lista</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M5 - Acervo" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M17"><div class="dv-olabel"><a class="dv-oid" href="#M17">M17</a>M5 · Acervo · documento</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M5 - Acervo" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M18"><div class="dv-olabel"><a class="dv-oid" href="#M18">M18</a>M6 · Documentos · lista</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M6 - Documentos" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M19"><div class="dv-olabel"><a class="dv-oid" href="#M19">M19</a>M6 · Documentos · editor</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M6 - Documentos" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M20"><div class="dv-olabel"><a class="dv-oid" href="#M20">M20</a>M6 · Documentos · planilha</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M6 - Documentos" tela="c" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M21"><div class="dv-olabel"><a class="dv-oid" href="#M21">M21</a>M7 · E-mail · caixa</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M7 - E-mail" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M22"><div class="dv-olabel"><a class="dv-oid" href="#M22">M22</a>M7 · E-mail · mensagem</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M7 - E-mail" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M23"><div class="dv-olabel"><a class="dv-oid" href="#M23">M23</a>M7 · E-mail · novo</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M7 - E-mail" tela="c" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M24"><div class="dv-olabel"><a class="dv-oid" href="#M24">M24</a>M8 · Assinatura · assinar</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M8 - Assinatura" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M25"><div class="dv-olabel"><a class="dv-oid" href="#M25">M25</a>M8 · Assinatura · certificado</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M8 - Assinatura" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M26"><div class="dv-olabel"><a class="dv-oid" href="#M26">M26</a>M9 · Financeiro · geral</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M9 - Financeiro" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M27"><div class="dv-olabel"><a class="dv-oid" href="#M27">M27</a>M9 · Financeiro · relatórios</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M9 - Financeiro" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M28"><div class="dv-olabel"><a class="dv-oid" href="#M28">M28</a>M10 · Cadastros · clientes</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M10 - Cadastros" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M29"><div class="dv-olabel"><a class="dv-oid" href="#M29">M29</a>M10 · Cadastros · equipe</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M10 - Cadastros" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M30"><div class="dv-olabel"><a class="dv-oid" href="#M30">M30</a>M11 · Aprovacoes · fila</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M11 - Aprovacoes" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M31"><div class="dv-olabel"><a class="dv-oid" href="#M31">M31</a>M11 · Aprovacoes · pedido</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M11 - Aprovacoes" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M32"><div class="dv-olabel"><a class="dv-oid" href="#M32">M32</a>M12 · Foco · hoje</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M12 - Foco" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M33"><div class="dv-olabel"><a class="dv-oid" href="#M33">M33</a>M12 · Foco · semana</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M12 - Foco" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M34"><div class="dv-olabel"><a class="dv-oid" href="#M34">M34</a>M13 · Configuracoes · mais</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M13 - Configuracoes" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M35"><div class="dv-olabel"><a class="dv-oid" href="#M35">M35</a>M13 · Configuracoes · configurações</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M13 - Configuracoes" tela="b" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M36"><div class="dv-olabel"><a class="dv-oid" href="#M36">M36</a>M13 · Configuracoes · escritório e vínculos</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M13 - Configuracoes" tela="c" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+<div class="dv-opt" id="M37"><div class="dv-olabel"><a class="dv-oid" href="#M37">M37</a>M14 · Apoiar · apoiar</div><div class="dv-card" style="width:390px;height:844px;border-radius:40px"><dc-import name="M14 - Apoiar" tela="a" tema="{{ tema }}" hint-size="390px,844px" style="height:844px"></dc-import></div></div>
+</div>
+</section>
+<section class="dv-turn" id="tP">
+<div class="dv-thd"><a class="dv-tid" href="#tP">P</a><span class="dv-tname">Popups e diálogos do sistema — referência</span></div>
+<div class="dv-ctx"><div><h4>Padrão</h4><p>Título em Garamond + contexto (onde estou) em cinza · campo com foco preto e a extensão fora do campo · ação primária à direita, Cancelar como texto · destrutivas em vinho com o efeito explicado (lixeira 30 dias, citações, serviços ligados) · Enter confirma, Esc fecha · toda ação gera toast com Desfazer. Inclui: renomear arquivo, pasta, escritório e conversa; nova pasta; mover; excluir; remover pessoa; compartilhar; renomear na lista (F2); toasts de sucesso e conflito de nome.</p></div></div>
+<div class="dv-opts"><div class="dv-opt" id="Pa"><div class="dv-olabel"><a class="dv-oid" href="#Pa">Pa</a>P · Popups e diálogos</div><div class="dv-card" style="width:1440px;height:1400px"><dc-import name="P - Popups" tema="{{ tema }}" hint-size="1440px,1400px" style="height:1400px"></dc-import></div></div></div>
+</section>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">L</a><span class="dv-tname">Página da plataforma</span></div>
+<div class="dv-ctx"><div><h4>Uma página</h4><p>Reúne o melhor das duas versões anteriores: cabeçalho com Baixar para Windows e botão de tema; hero com o Assistente respondendo com fonte; quatro princípios; os 12 módulos; destaques de Aprovações e Contexto ao vivo; privacidade; roadmap 0.9 → 1.2; download com requisitos; apoio com contribuição, meta e lista de apoiadores; rodapé. O tema alterna pelo botão e fica salvo.</p></div></div>
+<div class="dv-opts">
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Plataforma · alterne o tema pelo botão no cabeçalho</div><div class="dv-card" style="width:1440px;height:5200px"><dc-import name="Plataforma" tema="claro" hint-size="1440px,5200px" style="height:5200px"></dc-import></div></div>
+
+</div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>class Component extends DCLogic {
+  state = { tema: (function(){ try { return localStorage.getItem('pv-tema') || 'claro'; } catch (e) { return 'claro'; } })() };
+  aplicar() { try { document.body.dataset.tema = this.state.tema; } catch (e) {} }
+  componentDidMount() { this.aplicar(); }
+  componentDidUpdate() { this.aplicar(); }
+  renderVals() {
+    const tema = this.state.tema;
+    return { tema, iconeTema: tema === 'escuro' ? 'light_mode' : 'dark_mode', alternarTema: () => { const t = tema === 'escuro' ? 'claro' : 'escuro'; this.setState({ tema: t }); try { localStorage.setItem('pv-tema', t); } catch (e) {} } };
+  }
+}</script>
+</body>
+</html>
