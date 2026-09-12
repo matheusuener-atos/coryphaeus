@@ -25,16 +25,37 @@ sys.path.insert(0, str(Path(__file__).parent))
 TITULO = "PAULUS Legal"
 
 
-class Ponte:
-    """Metodos chamados pelo JavaScript da pagina (window.pywebview.api)."""
+# A janela mora aqui fora, e nao dentro da Ponte. O motivo esta na classe.
+_JANELA = None
 
-    def __init__(self) -> None:
-        self.janela = None
+
+class Ponte:
+    """
+    Metodos chamados pelo JavaScript da pagina (window.pywebview.api).
+
+    **Esta classe so pode ter metodos. Nenhum atributo, nunca.**
+
+    O pywebview monta o objeto `window.pywebview.api` percorrendo `dir()` deste
+    objeto e recursando em todo atributo que nao seja funcao. Guardar a janela
+    aqui - `self.janela` - fazia o passeio entrar no controle nativo do
+    WebView2 e seguir por
+
+        janela.native.AccessibilityObject.Bounds.Empty.Empty.Empty.Empty...
+
+    ate estourar a pilha. A protecao de ciclo do pywebview e por id do objeto,
+    e nao pega este caso: `Rectangle.Empty` devolve um objeto NOVO a cada
+    acesso, entao o id nunca se repete.
+
+    E o estrago nao parava no erro. Cada passo do passeio lia uma propriedade
+    COM do WebView2 de fora da thread da interface - dai a enxurrada de
+    "CoreWebView2 can only be accessed from the UI thread" - e a janela
+    terminava em "Nao Respondendo". Era o que acontecia em quase toda abertura.
+    """
 
     def escolher_pasta(self) -> str:
         import webview
 
-        if not self.janela:
+        if _JANELA is None:
             return ""
 
         # pywebview 6 trocou FOLDER_DIALOG por FileDialog.FOLDER; a constante
@@ -44,7 +65,7 @@ class Ponte:
         except AttributeError:
             tipo = webview.FOLDER_DIALOG
 
-        escolha = self.janela.create_file_dialog(tipo)
+        escolha = _JANELA.create_file_dialog(tipo)
         if not escolha:
             return ""
         return escolha[0] if isinstance(escolha, (list, tuple)) else str(escolha)
@@ -103,11 +124,11 @@ def main() -> int:
         print(f"O servidor local nao subiu na porta {porta}.")
         return 1
 
-    ponte = Ponte()
-    ponte.janela = webview.create_window(
+    global _JANELA
+    _JANELA = webview.create_window(
         TITULO,
         f"http://127.0.0.1:{porta}",
-        js_api=ponte,
+        js_api=Ponte(),
         width=1280,
         height=860,
         min_size=(900, 620),

@@ -45,6 +45,49 @@ def checar(condicao: bool, descricao: str, detalhe: str = "") -> None:
         _falhas.append(descricao)
 
 
+def test_ponte_so_tem_metodos() -> None:
+    """
+    O objeto exposto ao JavaScript da janela não pode ter atributo nenhum.
+
+    O pywebview monta `window.pywebview.api` percorrendo `dir()` do objeto e
+    recursando em todo atributo que não seja função. A Ponte guardava a janela
+    — `self.janela` — e o passeio entrava no controle nativo do WebView2:
+
+        janela.native.AccessibilityObject.Bounds.Empty.Empty.Empty.Empty...
+
+    até estourar a pilha. A proteção de ciclo do pywebview é por id do objeto e
+    não pega este caso: `Rectangle.Empty` devolve um objeto novo a cada acesso.
+
+    O estrago não parava no erro: cada passo lia uma propriedade COM do
+    WebView2 de fora da thread da interface, e a janela travava. Medido numa
+    janela real — o passeio ficou 4 minutos em "Não Respondendo" e não
+    terminou. O usuário via isso em quase toda abertura.
+
+    A checagem é estática de propósito: abrir a janela pra testar é sorteio,
+    porque a falha depende de o controle nativo já existir na hora do passeio.
+    """
+    print("\na ponte do JavaScript só tem métodos")
+    import inspect
+
+    import desktop
+
+    ponte = desktop.Ponte()
+    publicos = [n for n in dir(ponte) if not n.startswith("_")]
+    atributos = [
+        n for n in publicos
+        if not (inspect.ismethod(getattr(ponte, n)) or inspect.isfunction(getattr(ponte, n)))
+    ]
+
+    checar(bool(publicos), f"a ponte expõe alguma coisa ({publicos})")
+    checar(not atributos,
+           "e nenhum atributo — só o que o pywebview pode chamar",
+           f"{atributos} — o pywebview vai percorrer isso e travar a janela")
+
+    # A janela existe, mas fora da ponte.
+    checar(hasattr(desktop, "_JANELA"),
+           "a janela mora no módulo, onde o passeio do pywebview não chega")
+
+
 def _porta_livre() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -72,16 +115,36 @@ def _subir_servidor(porta: int):
     raise RuntimeError("o servidor nao subiu")
 
 
+def _fim() -> int:
+    """
+    O resumo.
+
+    Existe porque há três saídas do main, e todas têm que passar por aqui: uma
+    checagem que falhou não pode sumir porque faltou navegador na máquina.
+    """
+    print("\n" + "=" * 55)
+    if _falhas:
+        print(f"  {len(_falhas)} FALHA(S):")
+        for f in _falhas:
+            print(f"    - {f}")
+        return 1
+    print("  todos os testes passaram")
+    return 0
+
+
 def main() -> int:
     print("=" * 55)
     print("PAULUS - teste de tela")
     print("=" * 55)
 
+    # Esta nao precisa de navegador: e leitura do codigo da janela.
+    test_ponte_so_tem_metodos()
+
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         print("\n  pulado: playwright nao instalado (pip install playwright)")
-        return 0
+        return _fim()
 
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
@@ -93,7 +156,7 @@ def main() -> int:
                 navegador = p.chromium.launch(channel="msedge")
             except Exception as exc:
                 print(f"\n  pulado: nao achei o Edge ({str(exc)[:60]})")
-                return 0
+                return _fim()
 
             pagina = navegador.new_page(viewport={"width": 1440, "height": 900})
             erros: list[str] = []
@@ -258,14 +321,7 @@ def main() -> int:
     finally:
         servidor.should_exit = True
 
-    print("\n" + "=" * 55)
-    if _falhas:
-        print(f"  {len(_falhas)} FALHA(S):")
-        for f in _falhas:
-            print(f"    - {f}")
-        return 1
-    print("  todos os testes passaram")
-    return 0
+    return _fim()
 
 
 if __name__ == "__main__":
