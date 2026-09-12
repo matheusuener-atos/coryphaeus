@@ -49,6 +49,7 @@ import redacao
 import ritmo as ritmo_mod
 import planilha
 import relatorios
+import servicos as servicos_mod
 import pastas
 import recursos
 import registro
@@ -111,6 +112,12 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 MAX_CERTIFICADO_BYTES = 8 * 1024 * 1024
 
 
+def _quem_sou() -> str:
+    """O primeiro nome de quem usa esta maquina, para assinar a trilha."""
+    nome = str((estado.prefs.dados.get("pessoa") or {}).get("nome", "")).strip()
+    return nome.split(" ")[0] if nome else "você"
+
+
 class Estado:
     """Indice em memoria, compartilhado entre as requisicoes."""
 
@@ -160,6 +167,8 @@ class Estado:
         self.folha = escritorio.Folha(self.base)
         self.papeis = escritorio.PapeisFiscais(self.base)
         self.bem_estar = bemestar.BemEstar(self.base)
+        # Servicos: as pastas de trabalho (docs/ui, A15).
+        self.servicos = servicos_mod.Servicos(self.base, _quem_sou)
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(
             self.base, fila=self.fila, assinaturas=self.assinaturas,
@@ -4577,6 +4586,127 @@ def bemestar_marcar(id_: int) -> dict:
 def bemestar_apagar_lembrete(id_: int) -> dict:
     estado.bem_estar.apagar_lembrete(id_)
     return {"lembretes": estado.bem_estar.lembretes()}
+
+
+# ------------------------------------------------------------- servicos
+
+
+class FichaServico(BaseModel):
+    id: int | None = None
+    dados: dict = {}
+
+
+@app.get("/api/servicos")
+def servicos_listar(filtro: str = "", termo: str = "") -> dict:
+    return {
+        "servicos": estado.servicos.listar(filtro, termo),
+        "contagem": estado.servicos.contagem(),
+        "status": [{"valor": k, "rotulo": v} for k, v in servicos_mod.STATUS.items()],
+        "clientes": [{"id": f["id"], "nome": f["nome"], "tipo": f["tipo"], "observacao": f.get("observacao", "")}
+                     for f in estado.cadastros.listar()],
+    }
+
+
+@app.post("/api/servicos")
+def servicos_salvar(payload: FichaServico) -> dict:
+    try:
+        id_ = estado.servicos.salvar(payload.dados, payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.servicos.obter(id_) or {}
+
+
+@app.get("/api/servicos/{id_}")
+def servicos_obter(id_: int) -> dict:
+    s = estado.servicos.obter(id_)
+    if not s:
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    return s
+
+
+@app.delete("/api/servicos/{id_}")
+def servicos_apagar(id_: int) -> dict:
+    if not estado.servicos.apagar(id_):
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    return {"apagado": id_}
+
+
+@app.post("/api/servicos/{id_}/status")
+def servicos_status(id_: int, payload: dict) -> dict:
+    try:
+        estado.servicos.mudar_status(id_, str(payload.get("status", "")))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return estado.servicos.obter(id_) or {}
+
+
+@app.post("/api/servicos/{id_}/etapas")
+def servicos_etapa_nova(id_: int, payload: dict) -> dict:
+    try:
+        return {"etapas": estado.servicos.etapa_adicionar(id_, str(payload.get("titulo", "")), str(payload.get("quando", "")))}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/servicos/{id_}/etapas/{indice}")
+def servicos_etapa_alternar(id_: int, indice: int) -> dict:
+    try:
+        return {"etapas": estado.servicos.etapa_alternar(id_, indice, _quem_sou())}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete("/api/servicos/{id_}/etapas/{indice}")
+def servicos_etapa_remover(id_: int, indice: int) -> dict:
+    try:
+        return {"etapas": estado.servicos.etapa_remover(id_, indice)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/servicos/{id_}/anotacoes")
+def servicos_anotar(id_: int, payload: dict) -> dict:
+    try:
+        return {"anotacoes": estado.servicos.anotar(id_, str(payload.get("texto", "")), _quem_sou())}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/servicos/{id_}/vincular")
+def servicos_vincular(id_: int, payload: VinculoDoc) -> dict:
+    if not estado.servicos.obter(id_):
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    estado.servicos.vincular(id_, payload.sha1, payload.nome)
+    return {"arquivos": estado.servicos.arquivos_de(id_)}
+
+
+@app.delete("/api/servicos/{id_}/vinculos/{sha1}")
+def servicos_desvincular(id_: int, sha1: str) -> dict:
+    estado.servicos.desvincular(id_, sha1)
+    return {"arquivos": estado.servicos.arquivos_de(id_)}
+
+
+@app.post("/api/servicos/{id_}/resumo")
+def servicos_resumo(id_: int) -> dict:
+    """
+    O resumo do servico, escrito pelo modelo sobre o que esta gravado.
+
+    O modelo recebe o servico inteiro em texto - etapas, prazos, anotacoes,
+    nomes dos arquivos - e escreve sobre isso. Nao le os arquivos aqui: isso
+    e a conversa do Assistente, que tem o Acervo.
+    """
+    s = estado.servicos.obter(id_)
+    if not s:
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        texto = estado.client.ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    estado.servicos.guardar_resumo(id_, _limpar_sugestao(texto))
+    return estado.servicos.obter(id_) or {}
 
 
 # ------------------------------------------------------------- conexoes

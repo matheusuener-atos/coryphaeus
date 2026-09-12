@@ -548,6 +548,45 @@ def main() -> int:
                 "desfazer o pedido libera a casca",
             )
 
+            print("\nServicos: pastas e visao de trabalho (A15)")
+            # A grade de pastas em tres colunas e, dentro da pasta, resumo,
+            # etapas e arquivos com o painel de equipe, prazos, anotacoes e
+            # trilha. O teste abre uma pasta de verdade e apaga no fim.
+            id_servico = pagina.evaluate("""async () => {
+                const r = await fetch('/api/servicos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: null, dados: { nome: 'Teste de tela — pasta', descricao: 'Pasta aberta pelo teste de tela.' } }) });
+                const s = await r.json();
+                await fetch('/api/servicos/' + s.id + '/etapas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: 'Primeira etapa' }) });
+                return s.id;
+            }""")
+            try:
+                pagina.evaluate("() => abrirDestino('servicos')")
+                pagina.wait_for_selector("#sv-tela .sv-pasta", timeout=20000)
+                colunas = pagina.evaluate("() => getComputedStyle(document.querySelector('.sv-grade')).gridTemplateColumns.split(' ').length")
+                checar(colunas == 3, f"as pastas ficam em tres colunas (achou {colunas})")
+                checar(
+                    pagina.evaluate("() => !!document.querySelector('.sv-novo') && document.getElementById('conversa-meta').textContent.includes('em andamento')"),
+                    "o cartao tracejado e a contagem do cabecalho aparecem",
+                )
+                pagina.evaluate(f"() => abrirServico({id_servico})")
+                pagina.wait_for_selector("#sv-tela .sv-trabalho", timeout=20000)
+                colunas = pagina.evaluate("() => getComputedStyle(document.querySelector('.sv-trabalho')).gridTemplateColumns.split(' ').length")
+                checar(colunas == 2, f"resumo e etapas lado a lado (achou {colunas})")
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('#sv-tela .sv-painel .painel-bloco').length") == 4,
+                    "o painel traz equipe, prazos, anotacoes e trilha",
+                )
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('.sv-etapa').length === 1 && !!document.querySelector('.sv-arquivos')"),
+                    "a etapa e a tabela de arquivos estao na visao geral",
+                )
+                pagina.evaluate("() => document.querySelector('[data-sv-voltar]').click()")
+                pagina.wait_for_selector("#sv-tela .sv-grade", timeout=20000)
+                checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Serviços", "a seta volta para as pastas")
+            finally:
+                pagina.evaluate(f"() => fetch('/api/servicos/{id_servico}', {{ method: 'DELETE' }})")
+                pagina.wait_for_timeout(300)
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

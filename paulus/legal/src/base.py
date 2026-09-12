@@ -358,6 +358,33 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_comentarios_doc ON comentarios(documento_id, resolvido);
         """,
     ),
+    (
+        "014_servicos",
+        """
+        -- Servicos: a pasta de trabalho de um assunto (docs/ui, A15). Etapas,
+        -- equipe, anotacoes e trilha ficam em JSON: sao listas curtas que so
+        -- fazem sentido dentro do servico. Os arquivos sao vinculos ao Acervo
+        -- (tabela vinculos, tipo 'servico'); prazos e compromissos vem do
+        -- cliente, pela Agenda.
+        CREATE TABLE servicos (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome          TEXT NOT NULL,
+            cadastro_id   INTEGER REFERENCES cadastros(id) ON DELETE SET NULL,
+            descricao     TEXT DEFAULT '',
+            status        TEXT NOT NULL DEFAULT 'andamento',
+            etapas        TEXT NOT NULL DEFAULT '[]',
+            equipe        TEXT NOT NULL DEFAULT '[]',
+            anotacoes     TEXT NOT NULL DEFAULT '[]',
+            trilha        TEXT NOT NULL DEFAULT '[]',
+            resumo        TEXT DEFAULT '',
+            resumo_em     TEXT DEFAULT '',
+            criado_em     TEXT NOT NULL,
+            atualizado_em TEXT NOT NULL,
+            concluido_em  TEXT DEFAULT ''
+        );
+        CREATE INDEX idx_servicos_status ON servicos(status);
+        """,
+    ),
 ]
 
 
