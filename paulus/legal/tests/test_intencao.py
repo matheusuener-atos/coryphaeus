@@ -348,6 +348,41 @@ def test_o_referido_documento() -> None:
            "pergunta comum não é pedido de abrir")
 
 
+def test_pedir_o_acervo_inteiro() -> None:
+    """
+    A saída do foco, dita com todas as letras.
+
+    Enquanto ler tudo era o padrão isto não precisava existir. Agora que a
+    conversa fica no documento de que trata, é preciso ter como dizer "sai
+    desse documento e olha o resto" — senão quem começou perguntando sobre um
+    contrato ficaria preso nele para sempre.
+    """
+    print("\npedir o acervo inteiro")
+    pedem = [
+        "procure em todos os documentos",
+        "isso aparece em todos os contratos?",
+        "olhe em toda a biblioteca",
+        "busque em tudo",
+        "em qualquer documento do acervo tem cláusula de multa?",
+        "compare com todos os arquivos abertos",
+        "no acervo inteiro, quem são as partes?",
+    ]
+    for frase in pedem:
+        checar(intencao.quer_todo_o_acervo(frase), f"“{frase[:44]}”")
+
+    # O que NÃO pode tirar a conversa do documento.
+    ficam = [
+        "qual o valor do adiantamento?",
+        "quantos documentos temos aqui?",
+        "quem assina este documento?",
+        "resuma o contrato",
+        "qual a data de início da viagem?",
+    ]
+    for frase in ficam:
+        checar(not intencao.quer_todo_o_acervo(frase),
+               f"“{frase[:44]}” continua no documento em foco")
+
+
 def test_sobre_o_programa() -> None:
     print("\nperguntas sobre o próprio programa")
     for p in ("o que você faz?", "o que você sabe fazer", "você consegue assinar?",
@@ -384,6 +419,7 @@ def main() -> int:
     test_abrir_arquivo()
     test_pergunta_nomeia_um_documento()
     test_o_referido_documento()
+    test_pedir_o_acervo_inteiro()
     test_sobre_o_programa()
     test_texto_vazio()
 

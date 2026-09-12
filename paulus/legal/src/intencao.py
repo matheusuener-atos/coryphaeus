@@ -430,6 +430,31 @@ def _nome_de(doc) -> str:
     return getattr(doc, "name", "") or ""
 
 
+# Pedir para varrer o acervo inteiro, com todas as letras. Enquanto ler tudo
+# era o padrao, isso nao precisava existir; agora que o padrao e o documento em
+# foco, e preciso ter como dizer "sai desse documento e olha o resto".
+TODO_O_ACERVO = (
+    "em todos os documentos", "em todos os contratos", "em todos os arquivos",
+    "todos os documentos", "todos os contratos", "todos os arquivos",
+    "em todo o acervo", "no acervo inteiro", "em todo acervo",
+    "na biblioteca inteira", "em toda a biblioteca", "na biblioteca toda",
+    "em qualquer documento", "em qualquer contrato", "em qualquer arquivo",
+    "procure em tudo", "procura em tudo", "busque em tudo", "olhe em tudo",
+    "em tudo que", "no acervo todo", "todos os meus documentos",
+)
+
+
+def quer_todo_o_acervo(texto: str) -> bool:
+    """
+    A frase pede, com todas as letras, para olhar o acervo inteiro.
+
+    É a saída do foco. Sem ela, quem começou a conversa sobre um documento
+    ficaria preso nele — e "compare com os outros contratos" nunca sairia
+    daquele arquivo.
+    """
+    return any(p in _plano(texto) for p in TODO_O_ACERVO)
+
+
 def quer_abrir(texto: str) -> bool:
     """A frase começa com um verbo de abrir — "exiba", "mostre", "abra"."""
     palavras = re.findall(r"[a-z0-9]+", _plano(texto))
