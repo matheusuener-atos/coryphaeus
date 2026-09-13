@@ -110,6 +110,13 @@ ENUMERACOES: list[tuple[str, str, str]] = [
      r"|qual (o|e o) pedido|o que (o autor|a autora|o reu|a re|a parte|a peca|a inicial|ele|ela)"
      r"\s*(requer|pede|pleiteia|postula|pediu|requereu)"
      r"|o que (foi|esta sendo|se) (requerid|pedid|pleitead))"),
+    ("decisions", "",
+     r"\b(qual (foi )?(a|o) (decisao|sentenca|dispositivo|resultado|desfecho)"
+     r"|o que (o juiz|a juiza|o tribunal|a corte|o relator|a decisao|a sentenca)"
+     r"\s*(decidiu|julgou|determinou|deferiu|indeferiu|diz)"
+     r"|o que foi (decidido|julgado|determinado|deferido)"
+     r"|foi (deferid|indeferid|julgad|acolhid|negad|homologad|procedente|improcedente)"
+     r"|(deu|nao deu) (certo|ganho)|ganhou ou perdeu|qual (o|e o) resultado)"),
 ]
 
 # Pergunta com recorte nao e pergunta de lista: "o que a contestacao alega
@@ -324,6 +331,10 @@ ROTULOS = {
     "injunction": "tutela", "citation": "citação", "condemnation": "condenação",
     "merits": "mérito", "evidence_production": "prova", "free_justice": "gratuidade",
     "fees": "honorários", "procedural": "processual", "other": "",
+    "granted": "deferido", "denied": "indeferido", "partial": "parcial",
+    "merits_granted": "procedente", "merits_denied": "improcedente",
+    "homologated": "homologado", "extinguished": "extinto",
+    "conviction": "condenação", "acquittal": "absolvição", "order": "determinação",
 }
 
 # Como cada secao se chama na frase que vai para o modelo. O JSON fala ingles
@@ -331,7 +342,7 @@ ROTULOS = {
 SECOES_BR = {
     "case": "processo", "amounts": "valor", "dates": "data",
     "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
-    "classification": "tipo", "requests": "pedido",
+    "classification": "tipo", "requests": "pedido", "decisions": "decisão",
 }
 
 # O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
@@ -339,6 +350,7 @@ SECOES_BR = {
 # que o documento escreveu com todas as letras - nao o que ele quis dizer.
 CABECALHOS = {
     "requests": "PEDIDOS QUE CONSTAM EXPRESSAMENTE DA PEÇA",
+    "decisions": "O QUE FOI DECIDIDO, COMO ESTÁ ESCRITO NO DOCUMENTO",
 }
 
 # Quantos fatos entram numa resposta de nivel 0. Mais que isso deixa de ser

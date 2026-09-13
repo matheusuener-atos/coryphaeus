@@ -110,6 +110,9 @@ PERGUNTAS = [
     ("quais os pedidos?", "", "escala", ""),
     ("quais os pedidos?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
      "escala", ""),
+    ("qual foi a decisao?", "", "escala", ""),
+    ("o pedido foi deferido?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+     "escala", ""),
 ]
 
 

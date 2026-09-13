@@ -74,6 +74,10 @@ extratores:
     secao: requests
     nivel: 0
     modulo: regras_pedidos
+  decision-rules/v1:
+    secao: decisions
+    nivel: 0
+    modulo: regras_decisoes
 
   # -------------------------------------------------------------- nivel 1
   # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario

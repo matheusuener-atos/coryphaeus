@@ -89,6 +89,27 @@ INICIAL = (
     "São Paulo, 14 de abril de 2025.\n"
 )
 
+# Uma sentenca com o dispositivo inteiro, incluindo as duas armadilhas: o
+# indeferimento no meio do texto e as formulas de encerramento no fim.
+SENTENCA = (
+    "[pagina 1]\n"
+    "SENTENÇA\n"
+    "Processo nº 1001234-55.2025.8.26.0100\n"
+    "Vistos.\n"
+    "Trata-se de ação de cobrança ajuizada por EMPRESA EXEMPLO LTDA. em face de\n"
+    "JOÃO DA SILVA.\n"
+    "Na decisão de fls. 45, INDEFIRO a tutela de urgência pleiteada, por ausência de\n"
+    "perigo de dano.\n"
+    "Ante o exposto, JULGO PARCIALMENTE PROCEDENTE o pedido, para condenar o réu ao\n"
+    "pagamento de R$ 10.000,00, corrigidos desde o vencimento.\n"
+    "CONDENO o réu ao pagamento das custas e honorários advocatícios.\n"
+    "DEFIRO ao autor os benefícios da justiça gratuita.\n"
+    "HOMOLOGO o acordo parcial celebrado quanto às parcelas vencidas.\n"
+    "Julgo extinto o processo, com resolução do mérito, nos termos do art. 487, I, do CPC.\n"
+    "Publique-se. Registre-se. Intime-se.\n"
+    "São Paulo, 20 de agosto de 2025.\n"
+)
+
 # Uma procuracao de verdade do acervo, reduzida: a lista de poderes tem
 # "requerer" no infinitivo, e nao pede nada.
 PROCURACAO = (
@@ -231,6 +252,60 @@ def test_analise_guarda_as_colecoes() -> None:
         bd.fechar()
 
 
+# ----------------------------------------------------------------- decisões
+
+
+def test_decisoes() -> None:
+    """
+    O dispositivo, e a palavra que contém a palavra contrária.
+
+    "Indefiro" contém "defiro"; "improcedente" contém "procedente". Um
+    classificador que procurasse a primeira pista da lista responderia
+    "deferido" para "INDEFIRO" - e esse é o erro mais caro possível aqui,
+    porque tem exatamente a cara de uma resposta certa.
+    """
+    print("\no dispositivo da sentença")
+    from inteligencia.extratores import regras_decisoes
+
+    itens = regras_decisoes.extrair(pedido_de(SENTENCA)).itens
+    desfechos = [i.dados["kind"] for i in itens]
+    textos = [i.dados["text"] for i in itens]
+
+    checar(desfechos == ["denied", "partial", "conviction", "granted",
+                         "homologated", "extinguished"],
+           "cada decisão saiu com o próprio desfecho", list(zip(desfechos, textos)))
+    checar(desfechos[0] == "denied", "'INDEFIRO' é indeferimento, não deferimento")
+    checar(desfechos[1] == "partial",
+           "'PARCIALMENTE PROCEDENTE' é parcial, não procedente")
+    checar(not any("Publique-se" == t for t in textos),
+           "'Publique-se. Registre-se.' não decide nada - é formula de encerramento",
+           textos)
+    checar(ancorados(itens, SENTENCA), "e cada uma aponta para onde está no documento")
+
+    docs = index_all_contracts(ACERVO, CACHE, verbose=False)
+    total = sum(len(regras_decisoes.extrair(Pedido(texto=d.text)).itens) for d in docs)
+    checar(total == 0,
+           f"e nos {len(docs)} documentos reais (sem sentença) não achou decisão: {total}")
+
+
+def test_roteador_lista_decisoes() -> None:
+    print("\no roteador responde o que foi decidido")
+    from inteligencia import roteador
+
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, meta = biblioteca_com(SENTENCA, Path(tmp), sha1="sha-sentenca")
+        pacote = decidir(meta, "qual foi a decisão?")
+        checar(pacote.nivel == roteador.METADATA and pacote.enumera,
+               "'qual foi a decisão?' responde do que já foi lido", pacote.trace)
+        rotulos = [f.rotulo for f in pacote.fatos]
+        checar("indeferido" in rotulos and "parcial" in rotulos,
+               "e o rótulo de cada uma chega em português", rotulos)
+
+        checar(decidir(meta, "por que o juiz decidiu assim?").fallback,
+               "'por que' pede leitura e continua escalando")
+        bd.fechar()
+
+
 # ----------------------------------------------------------------- roteador
 
 
@@ -353,6 +428,8 @@ def main() -> int:
     test_analise_guarda_as_colecoes()
     test_roteador_lista_pedidos()
     test_lista_longa_demais_escala()
+    test_decisoes()
+    test_roteador_lista_decisoes()
 
     print("\n" + "=" * 55)
     if _falhas:
