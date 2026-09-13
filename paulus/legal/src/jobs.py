@@ -49,6 +49,12 @@ class Mensagem:
     # mesmo que mostrou na hora.
     proposta: dict = field(default_factory=dict)
     feito: dict = field(default_factory=dict)
+    # De onde veio a resposta: 0 e 1 sairam do que ja tinha sido lido, 2 para
+    # cima leram o documento agora. Guardar isso e o que permite medir o ganho
+    # depois, e e o que a tela usa para dizer "leitura do assistente" quando a
+    # resposta veio do resumo, que nao e trecho de documento.
+    nivel: int | None = None
+    inferencia: bool = False
 
 
 @dataclass

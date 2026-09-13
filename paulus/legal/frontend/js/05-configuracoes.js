@@ -95,6 +95,7 @@ function rascunhoDe(pr, modelo) {
     timbre_no_pdf: Boolean(pr.timbre_no_pdf),
     devagar: Boolean(pr.devagar),
     animacoes_reduzidas: Boolean(pr.animacoes_reduzidas),
+    inteligencia: pr.inteligencia !== false,
   };
 }
 
@@ -116,7 +117,9 @@ async function carregarSecao() {
   } else if (cfg.secao === "desempenho") {
     cfg.recursos = await pega("/api/recursos");
   } else if (cfg.secao === "assistente") {
-    cfg.voz = await pega("/api/voz");
+    const [voz, saber] = await Promise.all([pega("/api/voz"), pega("/api/inteligencia")]);
+    cfg.voz = voz;
+    cfg.saber = saber;
   } else if (cfg.secao === "lixeira") {
     cfg.lixo = await pega("/api/lixeira");
   }
@@ -444,6 +447,7 @@ function secaoAssistente() {
     chaveCfg("Assistente", ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ligado ? "" : "acc") + "</div>" +
     '<div class="cfg-botoes"><button data-cfg-reindexar="1">' + ic("sync", 16) + "Reindexar tudo</button>" +
     '<button data-cfg-cache="1">' + ic("delete", 16) + "Limpar cache</button></div></div>" +
+    '<div class="cfg-sub"><b>O que já foi lido</b>' + blocoDoQueJaFoiLido() + "</div>" +
     '<div class="cfg-sub"><b>Códigos de lei</b><div id="cfg-leis"><p class="nota">abrindo os códigos…</p></div></div>';
 
   return '<div class="cfg-grade">' +
@@ -758,6 +762,42 @@ function secaoVinculos() {
     '<button data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button></div>";
   return cartaoDoPedidoDestaMaquina() + '<div class="cfg-grade">' + cartaoCfg("Pedidos de vinculação", metaCfg("0 aguardando · em breve"), pedidos) +
     cartaoCfg("Máquinas e pessoas vinculadas", metaCfg((e.nome ? e.nome + " · " : "") + "1 máquina"), vinculados) + "</div>";
+}
+
+/* O que a camada de inteligencia ja entendeu do acervo, e quanto isso esta
+   economizando. E aqui que se ve se ela esta valendo a pena: sem numero
+   medido, ligar ou desligar vira gosto. */
+function blocoDoQueJaFoiLido() {
+  const d = cfg.saber || {};
+  if (d.erro || !d.no_acervo) {
+    return '<p class="cfg-explica">Ainda não há documentos no acervo para ler.</p>';
+  }
+  const m = d.medicao || {};
+  const secoes = d.secoes || {};
+  const ROTULO = {
+    case: "Número do processo", dates: "Datas", amounts: "Valores",
+    legal_references: "Leis citadas", jurisdiction: "Vara e comarca",
+    classification: "Tipo do documento", parties: "Partes", summary: "Resumo",
+  };
+  const linhas = Object.keys(ROTULO).filter((k) => secoes[k]).map((k) => {
+    const estados = secoes[k] || {};
+    const prontas = estados.ok || 0;
+    const tom = prontas ? "" : "mute";
+    return chaveCfg(ROTULO[k], prontas + " de " + d.no_acervo, tom);
+  }).join("");
+
+  return '<div class="cfg-chaves">' +
+    chaveCfg("Documentos entendidos", d.documentos + " de " + d.no_acervo, d.documentos ? "" : "mute") +
+    (m.perguntas ? chaveCfg("Perguntas sem abrir documento",
+      m.no_metadata + " de " + m.perguntas + " · " + m.porcento + "%") : "") +
+    linhas + "</div>" +
+    ligaCfg("inteligencia", "Responder pelo que já foi lido",
+      "consulta o que foi entendido antes de ler o documento de novo; desligado, tudo volta a ser lido a cada pergunta",
+      Boolean((cfg.rascunho || {}).inteligencia)) +
+    '<p class="cfg-explica">Partes e resumo precisam do assistente ligado e são lidos uma vez por documento, ' +
+    'em segundo plano — pelo terminal, com <code>python -m inteligencia.retomar --assistente</code>. ' +
+    'O que é regra (processo, datas, valores, leis) já roda sozinho na indexação. ' +
+    'Nada disso sai desta máquina: o que foi entendido fica em ' + esc(d.pasta || "data/conhecimento") + '.</p>';
 }
 
 /* ---------------------------------------------------------- aprendizado */
@@ -1190,7 +1230,7 @@ async function salvarConfig() {
     body: JSON.stringify({
       pessoa: r.pessoa, autonomia: r.autonomia, escritorio: r.escritorio,
       modelo: r.modelo, timbre_no_pdf: r.timbre_no_pdf, devagar: r.devagar,
-      animacoes_reduzidas: r.animacoes_reduzidas,
+      animacoes_reduzidas: r.animacoes_reduzidas, inteligencia: r.inteligencia,
     }),
   });
   if (!resposta.ok) { avisoCert("não consegui salvar: " + (await erroDe(resposta))); return; }

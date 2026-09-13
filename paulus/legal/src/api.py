@@ -575,6 +575,41 @@ def contextos_apagar(id_: int) -> dict:
     return {**_foi_para_lixeira(entrada, "contexto", id_), **estado.contextos.para_tela()}
 
 
+# ------------------------------------------------- o que ja foi lido
+
+
+@app.get("/api/inteligencia")
+def inteligencia_situacao() -> dict:
+    """
+    Quanto do acervo ja foi entendido, e quanto isso esta economizando.
+
+    Sem medicao o retrofit e fe: a tela mostra quantos documentos tem
+    metadata, o que cada secao rendeu e a proporcao de perguntas respondidas
+    sem abrir documento. Tudo medido nesta maquina, nada estimado.
+    """
+    situacao = estado.saber.biblioteca.situacao()
+    total = len(estado.searcher.documents)
+    return {
+        "ligada": estado.saber.ligada,
+        "analisando": estado.analisando,
+        "documentos": situacao["documentos"],
+        "no_acervo": total,
+        "secoes": situacao["secoes"],
+        "medicao": estado.saber.medicao(),
+        "catalogo": {
+            "arquivo": str(estado.catalogo.caminho.name),
+            "problemas": estado.catalogo.problemas(),
+            "extratores": [
+                {"secao": e.secao, "id": e.id, "nivel": e.nivel, "modelo": e.modelo}
+                for e in (estado.catalogo.para_secao(s)
+                          for s in estado.catalogo.secoes_declaradas())
+                if e is not None
+            ],
+        },
+        "pasta": str(CONHECIMENTO_DIR),
+    }
+
+
 # ------------------------------------------------------------------- marca
 
 
@@ -1543,6 +1578,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         fontes: list[dict] = []
         medida: dict = {}
         lido_chars = 0
+        # O nivel com que a camada respondeu, quando ela respondeu. Nulo quer
+        # dizer o caminho de sempre.
+        nivel: int | None = None
+        inferencia = False
 
         try:
             for tipo, dados in habilidade.executar(
@@ -1550,6 +1589,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                 apenas=citado,
             ):
                 if tipo == "fontes":
+                    nivel = dados.get("nivel", nivel)
+                    inferencia = bool(dados.get("inferencia", inferencia))
                     cobertura = {
                         "consultados": dados["consultados"],
                         "ignorados": dados["ignorados"],
@@ -1625,6 +1666,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         trabalho.dizer(
             "paulus", "".join(partes).strip(),
             fontes=fontes, cobertura=cobertura, segundos=segundos,
+            nivel=nivel, inferencia=inferencia,
         )
         estado.trabalhos.salvar(trabalho)
         yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo})

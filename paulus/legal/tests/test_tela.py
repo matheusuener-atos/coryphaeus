@@ -579,6 +579,45 @@ def main() -> int:
             pagina.wait_for_timeout(1600)
             checar(pagina.evaluate("() => cfg.secao === 'conexoes'"), "o destino antigo Conexoes abre a secao")
 
+            print("\no que ja foi lido (camada de inteligencia)")
+            # A camada tem de aparecer na tela: quanto do acervo ja foi
+            # entendido, quanto isso economiza, e a chave para desligar tudo.
+            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('assistente'); }")
+            pagina.wait_for_timeout(2600)
+            lido = pagina.evaluate("""() => {
+              const chaves = [...document.querySelectorAll('#cfg-tela .chave-valor')]
+                .map((c) => c.textContent);
+              return {
+                tem: chaves.some((t) => t.includes('Documentos entendidos')),
+                datas: chaves.some((t) => t.includes('Datas')),
+                chave: !!document.querySelector('[data-cfg-liga="inteligencia"]'),
+                ligada: !!document.querySelector('[data-cfg-liga="inteligencia"].on'),
+              };
+            }""")
+            checar(lido["tem"] and lido["datas"],
+                   "Configuracoes mostra quanto do acervo ja foi entendido", lido)
+            checar(lido["chave"] and lido["ligada"],
+                   "com a chave de ligar e desligar, ligada por padrao", lido)
+
+            situacao = pagina.evaluate("async () => await (await fetch('/api/inteligencia')).json()")
+            checar(situacao["documentos"] >= 1 and not situacao["catalogo"]["problemas"],
+                   "o servidor confirma o que a tela mostra, e o catalogo esta coerente",
+                   {k: situacao[k] for k in ("documentos", "no_acervo", "ligada")})
+            checar(all(e["nivel"] == 0 for e in situacao["catalogo"]["extratores"]
+                       if e["secao"] in ("case", "dates", "amounts", "legal_references")),
+                   "as secoes de regra estao declaradas no nivel 0",
+                   situacao["catalogo"]["extratores"])
+
+            # A etiqueta que a spec exige: resposta que veio do resumo e
+            # leitura do assistente, e a tela precisa dizer isso.
+            etiqueta = pagina.evaluate("""() => {
+              const alvo = document.createElement('div');
+              alvo.innerHTML = etiquetaDeLeitura();
+              return alvo.textContent;
+            }""")
+            checar("leitura do assistente" in etiqueta,
+                   "e o que vem do resumo e rotulado como leitura, nao como trecho", etiqueta)
+
             print("\nos tres atalhos novos e as novidades da versao")
             # Ctrl+Shift+F liga o ciclo de foco de qualquer tela; Ctrl+Enter so
             # vale com a fila aberta (aprovar sem ver seria decidir no escuro).

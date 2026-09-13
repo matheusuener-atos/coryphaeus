@@ -143,11 +143,20 @@ function blocoResposta(m, pergunta) {
   if (m.cobertura && m.cobertura.ignorados && m.cobertura.ignorados.length) {
     html += avisoCobertura(m.cobertura);
   }
+  if (m.inferencia) html += etiquetaDeLeitura();
   html += '<div class="texto">' + esc(m.texto) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
   if (m.segundos) html += linhaAssinatura(m.segundos, citados, pergunta || "");
   return html + "</div>";
+}
+
+/* O que veio do resumo guardado nao e trecho de documento: e conclusao do
+   assistente sobre ele. A resposta tem de dizer isso antes de ser lida - uma
+   frase que parece citacao e nao e vale menos que nada. */
+function etiquetaDeLeitura() {
+  return '<div class="etiqueta-inferencia">' + ic("auto_awesome", 14) +
+    "leitura do assistente, não trecho do documento</div>";
 }
 
 function avisoCobertura(c) {

@@ -383,3 +383,12 @@
     padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--warnt); white-space: normal;
   }
 
+
+  /* A etiqueta da resposta que veio do resumo guardado: ela avisa, antes do
+     texto, que aquilo e leitura do assistente e nao trecho do documento. */
+  .etiqueta-inferencia {
+    display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    padding: 3px 9px; border-radius: 999px; background: var(--fill);
+    font: 600 11.5px var(--sans); color: var(--ink3);
+  }
+  .etiqueta-inferencia .ic { color: var(--ink3); }

@@ -201,6 +201,7 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
         trechos=fontes,
         apenas=pacote.documentos,
         nivel=pacote.nivel,
+        inferencia=pacote.inferencia,
         porque=pacote.porque,
     )
     yield evento("lendo", caracteres=len(prompt), trechos=len(fontes),
