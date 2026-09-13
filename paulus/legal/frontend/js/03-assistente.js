@@ -212,7 +212,7 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
   lista.innerHTML = fontes.map((f, i) =>
     '<div class="trecho-cartao' + (i === 0 ? " marcado" : "") + '">' +
     '<div class="trecho-origem"><span class="cit">' + (i + 1) + "</span><b>" + esc(f.documento) + "</b>" +
-    '<span class="onde">trecho ' + esc(f.trecho) + "</span></div>" +
+    '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span></div>" +
     '<div class="trecho-texto">' + esc(f.texto) + "</div>" +
     '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div>').join("");
 

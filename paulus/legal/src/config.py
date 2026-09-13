@@ -78,6 +78,12 @@ PADRAO: dict = {
     # Timbre no PDF: desligado por padrao. Uma minuta interna com papel
     # timbrado parece peca protocolada, e o dado pode nem estar preenchido.
     "timbre_no_pdf": False,
+    # A camada de inteligencia de documentos (legal-document/v0). Ligada, ela
+    # responde do metadata o que ja foi lido uma vez; desligada, o programa
+    # volta a ser exatamente o de antes. A chave existe para isso: para dar
+    # para voltar atras a qualquer momento, e para medir o ganho ligando e
+    # desligando na mesma maquina, com as mesmas perguntas.
+    "inteligencia": True,
     # Animacoes reduzidas: quem sente enjoo com movimento na tela, ou trabalha
     # num notebook que engasga, desliga aqui. Fica guardado nas preferencias
     # (e nao so no navegador) porque e escolha da pessoa, nao da maquina.

@@ -71,6 +71,23 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     ctx.antes_de_cada()
     orcamento = orcamento_de_leitura(ctx)
 
+    # HOOK 2: o que ja foi lido uma vez responde de novo sem ler outra vez.
+    # Nao respondendo - metadata que falta, dado nao conferido, pergunta que
+    # pede leitura, ou resposta ambigua -, o caminho e o de sempre, daqui para
+    # baixo, sem que nada mude.
+    quais_em_foco = [apenas] if isinstance(apenas, str) and apenas else list(apenas or [])
+    saber = getattr(ctx, "saber", None)
+    if saber is not None:
+        escopo = ([d for d in ctx.documentos if d.name in set(quais_em_foco)]
+                  if quais_em_foco else ctx.documentos)
+        pacote = saber.montar_contexto(pergunta, escopo, em_foco=bool(quais_em_foco))
+        if pacote.responde_sozinho:
+            sinal = {"escalou": False}
+            yield from _responder_do_que_ja_se_sabe(ctx, pergunta, pacote, sinal)
+            if not sinal["escalou"]:
+                return
+            ctx.registrar("os fatos guardados não bastaram — refiz pelo caminho de sempre")
+
     # A pergunta nomeou um documento: a resposta é sobre ele, e mais ninguém.
     # Lendo os nove, o documento citado virava 937 de 27.213 caracteres -
     # medido - e a resposta saía sobre os outros 96,6%: perguntar sobre um
@@ -123,6 +140,80 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
         return
 
     yield from _responder(ctx, pergunta, hits, orcamento)
+
+
+def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: dict):
+    """
+    A resposta de nivel 0: fatos conferidos, sem abrir o documento.
+
+    O prompt sai com poucas linhas e termina mandando o modelo dizer ESCALAR
+    se os fatos nao bastarem. Dito isso, nada e emitido como resposta e a
+    pergunta refaz o caminho de sempre - quem perguntou nao percebe, e o
+    programa nao responde pior do que responderia antes.
+    """
+    fontes = [
+        {
+            "documento": f.documento,
+            "trecho": i,
+            "onde": (f"página {f.pagina}" if f.pagina else "no documento"),
+            "score": 1.0,
+            "texto": f.quote or f.valor,
+            "pagina": f.pagina,
+        }
+        for i, f in enumerate(pacote.fatos, start=1)
+    ]
+    prompt = pacote.prompt(pergunta)
+    ctx.registrar("Respondi pelo que já tinha lido: " +
+                  _quantos(len(pacote.fatos), "fato") + " conferido em " +
+                  _quantos(len(pacote.documentos), "documento"))
+
+    try:
+        resposta = (ctx.client.ask(prompt, "", sistema=SISTEMA_DOS_FATOS,
+                                   ensinado=getattr(ctx, "ensinado", "")) or "").strip()
+    except Exception:
+        # Modelo fora do ar no meio do caminho rapido: o caminho de sempre
+        # tambem precisa dele, mas quem decide isso e o fluxo de fora.
+        sinal["escalou"] = True
+        return
+
+    from inteligencia import roteador as _roteador
+
+    if not resposta or _roteador.pediu_escalar(resposta):
+        sinal["escalou"] = True
+        return
+
+    yield evento(
+        "fontes",
+        consultados=pacote.documentos,
+        ignorados=[],
+        total_contratos=len(ctx.documentos),
+        trechos=fontes,
+        apenas=pacote.documentos,
+        nivel=pacote.nivel,
+        porque=pacote.porque,
+    )
+    yield evento("lendo", caracteres=len(prompt), trechos=len(fontes),
+                 documentos=len(pacote.documentos),
+                 janela=getattr(ctx.client, "num_ctx", 0),
+                 modelo=getattr(ctx.client, "model", ""),
+                 previsao={"sabe": False}, nivel=pacote.nivel)
+    yield evento("token", t=resposta)
+    yield evento("fim", fontes=fontes, consultados=pacote.documentos, ignorados=[],
+                 nivel=pacote.nivel)
+
+
+# O nivel 0 nao esta lendo documento: esta lendo fatos ja conferidos. A
+# instrucao de sempre manda citar o arquivo de onde saiu cada informacao, o
+# que aqui faria o modelo inventar nome de arquivo - as fontes ja vao na
+# lista, e sao as de verdade.
+SISTEMA_DOS_FATOS = (
+    "Voce e o PAULUS, assistente do escritorio. Responde em portugues do Brasil, "
+    "direto e sem preambulo.\n\n"
+    "Abaixo estao FATOS ja conferidos no documento, com a pagina de cada um. "
+    "Responda usando exclusivamente esses fatos. Nao invente, nao complete, nao "
+    "acrescente clausula, valor, data ou nome que nao esteja ali.\n\n"
+    "Se os fatos nao bastarem para responder a pergunta, responda exatamente: ESCALAR"
+)
 
 
 def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None):

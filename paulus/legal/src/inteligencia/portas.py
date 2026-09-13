@@ -19,10 +19,11 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from . import alinhar, esquema
+from . import alinhar, esquema, roteador
 from .catalogo import Catalogo, Extrator
 from .esquema import Metadata, Secao
 from .extratores.base import Pedido
+from .roteador import Pacote
 
 
 @dataclass
@@ -145,3 +146,123 @@ def _rodar(extrator: Extrator, catalogo: Catalogo, meta: Metadata, biblioteca,
     if resultado.erro:
         ficha.error = resultado.erro[:200]
     return ficha, resultado.itens, resultado.objeto
+
+
+# ------------------------------------------------------- HOOK 2 e HOOK 3
+
+
+class Saber:
+    """
+    A camada vista de fora - uma coisa so, que se liga e se desliga.
+
+    O programa de hoje conhece este objeto e mais nada da camada. Com ele
+    desligado, `montar_contexto` devolve na hora um pacote de fallback e tudo
+    volta a ser como era: e a chave que torna o retrofit reversivel a qualquer
+    momento, e que permite medir o ganho ligando e desligando na mesma
+    maquina, com as mesmas perguntas.
+    """
+
+    def __init__(self, biblioteca, catalogo: Catalogo, ligada: bool = True) -> None:
+        self.biblioteca = biblioteca
+        self.catalogo = catalogo
+        self.ligada = bool(ligada)
+        self.medidas: list[dict] = []
+
+    # ----------------------------------------------------------- consulta
+
+    def metadados_de(self, documentos) -> tuple[list[Metadata], dict]:
+        """
+        O que ja se sabe dos documentos que a conversa esta olhando.
+
+        A ponte entre os dois mundos e o sha1: e assim que o acervo deste
+        programa identifica arquivo, e e o que a biblioteca guardou junto da
+        versao. Documento sem metadata simplesmente nao entra na lista - e o
+        roteador trata isso como cobertura incompleta, nao como ausencia.
+        """
+        metas, nomes = [], {}
+        for doc in documentos or []:
+            meta = None
+            sha1 = getattr(doc, "sha1", "")
+            if sha1:
+                meta = self.biblioteca.ler_por_sha1(sha1)
+            if meta is None:
+                caminho = getattr(doc, "path", "")
+                if caminho:
+                    meta = self.biblioteca.ler_por_caminho(caminho)
+            if meta is not None:
+                metas.append(meta)
+                nomes[meta.version_id] = getattr(doc, "name", "") or meta.titulo
+        return metas, nomes
+
+    def montar_contexto(self, pergunta: str, documentos, *, em_foco: bool = False) -> Pacote:
+        """
+        HOOK 2. O que ler para responder isto - e quanto isso custa.
+
+        Nunca levanta excecao: qualquer problema aqui vira fallback, porque um
+        erro na camada nao pode virar um erro na conversa de alguem.
+        """
+        if not self.ligada:
+            return Pacote(porque="camada desligada", fallback=True,
+                          trace={"decisao": "desligada"})
+        try:
+            metas, nomes = self.metadados_de(documentos)
+            pacote = roteador.resolver(pergunta, metas, nomes=nomes, em_foco=em_foco)
+        except Exception as exc:   # a camada falhando nao pode derrubar a resposta
+            return Pacote(porque=f"a camada falhou ({type(exc).__name__}) - segui pelo caminho de sempre",
+                          fallback=True, trace={"decisao": "erro", "erro": str(exc)[:200]})
+        self.anotar(pacote, len(documentos or []))
+        return pacote
+
+    def anotar(self, pacote: Pacote, documentos: int) -> None:
+        """Cada decisao vira uma linha de medida - sem isso nao ha como saber o ganho."""
+        self.medidas.append({
+            "quando": esquema.agora(), "nivel": pacote.nivel, "fallback": pacote.fallback,
+            "fatos": len(pacote.fatos), "documentos": documentos, "ms": pacote.ms,
+            "intencao": pacote.intencao.secao or "-",
+        })
+        del self.medidas[:-500]
+
+    def medicao(self) -> dict:
+        """Quanto a camada esta economizando, medido - nao estimado."""
+        total = len(self.medidas)
+        if not total:
+            return {"perguntas": 0}
+        rapidas = len([m for m in self.medidas if m["nivel"] <= roteador.METADATA_E_RESUMO])
+        return {
+            "perguntas": total,
+            "no_metadata": rapidas,
+            "porcento": round(rapidas * 100 / total),
+            "fallback": len([m for m in self.medidas if m["fallback"]]),
+            "ms_medio": round(sum(m["ms"] for m in self.medidas) / total, 1),
+        }
+
+
+def fontes_da_resposta(pacote: Pacote, resposta: str) -> dict:
+    """
+    HOOK 3. A resposta com as fontes do lado - e o aviso quando nao ha.
+
+    O que sai daqui tem a mesma forma das fontes que a tela ja desenha, para
+    nao exigir tela nova: documento, um rotulo de onde, e o texto citado. A
+    diferenca e que no nivel 0 o texto citado e a frase exata do documento,
+    conferida, e o rotulo e a pagina - nao "trecho 3".
+    """
+    fontes = []
+    for i, fato in enumerate(pacote.fatos, start=1):
+        fontes.append({
+            "documento": fato.documento,
+            "trecho": i,
+            "onde": f"página {fato.pagina}" if fato.pagina else "no documento",
+            "score": 1.0,
+            "texto": fato.quote or fato.valor,
+            "pagina": fato.pagina,
+            "char_start": fato.char_start,
+            "char_end": fato.char_end,
+            "nivel": pacote.nivel,
+        })
+    return {
+        "fontes": fontes,
+        "nivel": pacote.nivel,
+        "porque": pacote.porque,
+        "inferencia": False,     # nivel 0 so usa fato conferido
+        "resposta": resposta,
+    }

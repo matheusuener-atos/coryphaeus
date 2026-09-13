@@ -64,6 +64,9 @@ import gravacoes as gravacoes_mod
 import transcricao as transcricao_mod
 import lixeira as lixeira_mod
 import contextos as contextos_mod
+from inteligencia import portas as inteligencia
+from inteligencia.catalogo import Catalogo
+from inteligencia.guarda import Biblioteca
 import marca as marca_mod
 import pastas
 import recursos
@@ -124,6 +127,7 @@ GRAVACOES_DIR = BASE_DIR / "data" / "gravacoes"
 MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"
 LIXEIRA_DIR = BASE_DIR / "data" / "lixeira"
 MARCA_DIR = BASE_DIR / "data" / "marca"
+CONHECIMENTO_DIR = BASE_DIR / "data" / "conhecimento"
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
 RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
@@ -203,6 +207,14 @@ class Estado:
         self.puxando: dict | None = None
         # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
         self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
+        # A camada de inteligencia de documentos: o que ja foi entendido de
+        # cada documento, para nao entender de novo a cada pergunta. Com a
+        # chave desligada ela devolve fallback na hora e nada muda.
+        self.catalogo = Catalogo.carregar()
+        self.analisando = False
+        self.saber = inteligencia.Saber(
+            Biblioteca(CONHECIMENTO_DIR, self.base), self.catalogo,
+            ligada=bool(self.prefs.dados.get("inteligencia", True)))
         # O que o escritorio ensinou com as proprias palavras (docs/ui, A13).
         self.contextos = contextos_mod.Contextos(self.base)
         # A foto de quem usa e a logo do escritorio (docs/ui, A13).
@@ -261,7 +273,32 @@ class Estado:
         # certa, que e o pior tipo.
         if self.client is not None:
             self.client.num_ctx = janela_para(searcher.caracteres())
+
+        # HOOK 1: o que entrou vai ser entendido uma vez, em segundo plano.
+        # Nao bloqueia a indexacao e nao altera arquivo nenhum; se falhar, o
+        # programa continua exatamente como era - documento sem metadata
+        # responde pelo caminho de sempre.
+        self.analisar_em_segundo_plano(docs)
         return len(docs)
+
+    def analisar_em_segundo_plano(self, docs) -> None:
+        if not self.saber.ligada or self.analisando:
+            return
+
+        def trabalhar() -> None:
+            self.analisando = True
+            try:
+                for doc in docs:
+                    try:
+                        inteligencia.analisar_documento(
+                            self.saber.biblioteca, self.catalogo, doc.path,
+                            texto=doc.text, paginas=doc.pages, sha1=doc.sha1, titulo=doc.name)
+                    except Exception:
+                        continue   # um documento torto nao para o acervo
+            finally:
+                self.analisando = False
+
+        threading.Thread(target=trabalhar, daemon=True).start()
 
 
 estado = Estado()
@@ -750,6 +787,8 @@ def _contexto(registrar=None) -> Contexto:
         ritmo=estado.ritmo,
         # Os lembretes de Configuracoes > Aprendizado entram em toda resposta.
         ensinado=estado.contextos.bloco(),
+        # O que ja foi lido uma vez, para nao ler de novo (HOOK 2).
+        saber=estado.saber,
     )
 
 
@@ -2465,6 +2504,7 @@ def preferencias_gravar(payload: dict) -> dict:
             model=modelo, num_ctx=janela_para(estado.searcher.caracteres())
         )
     estado.devagar = bool(estado.prefs.dados.get("devagar"))
+    estado.saber.ligada = bool(estado.prefs.dados.get("inteligencia", True))
     voz = (estado.prefs.dados.get("voz") or {}).get("modelo")
     if voz in transcricao_mod.MODELOS and voz != estado.transcritor.modelo:
         estado.transcritor.escolher(voz)
