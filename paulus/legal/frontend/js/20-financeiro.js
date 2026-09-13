@@ -19,7 +19,7 @@ const fin = {
   visao: "geral", mes: "", dados: null, lista: null, todos: null,
   filtro: "todos", categoria: "", aberto: null, form: null, papel: null,
   folhaAberta: false, pedidos: [], rel: null, relAba: "financeiro",
-  parecer: null, parecerErro: "", pedindo: false, numerosAbertos: false,
+  parecer: null, parecerErro: "", pedindo: false, numerosAbertos: false, escolhidos: new Set(),
 };
 
 const FIN_JSON = { "Content-Type": "application/json" };
@@ -469,7 +469,10 @@ function corpoDosLancamentos() {
   }
 
   return '<div class="acervo-principal"><div class="tabela-cartao">' +
-    '<div class="tabela-barra fin-barra"><div class="visoes">' + chip("todos", "Todos") + chip("receber", "A receber") + chip("pagar", "A pagar") + chip("atrasados", "Atrasados") + "</div>" +
+    '<div class="tabela-barra fin-barra">' +
+    (fin.escolhidos.size
+      ? barraDeSelecao(fin.escolhidos.size, false, '<button class="botao-icone perigo" data-fin-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-fin-sel-limpar")
+      : '<div class="visoes">' + chip("todos", "Todos") + chip("receber", "A receber") + chip("pagar", "A pagar") + chip("atrasados", "Atrasados") + "</div>") +
     '<div class="direita">' + seletorDeMes() +
     '<button data-fin-filtros="1">' + ic("filter_list", 16) + (categoria ? esc(categoria) : "Filtros") + "</button>" +
     '<button data-fin-exportar="1">' + ic("download", 16) + "Exportar</button></div></div>" +
@@ -484,7 +487,7 @@ function corpoDosLancamentos() {
 
 function linhaDeLancamento(l) {
   const aberta = fin.aberto && fin.aberto.id === l.id;
-  const classe = "tabela-linha colunas-lancamentos" + (aberta ? " aberta" : "");
+  const classe = "tabela-linha colunas-lancamentos" + (aberta ? " aberta" : "") + (fin.escolhidos.has(String(l.id)) ? " escolhida" : "");
   const quem = l.cadastro_nome
     ? "<b>" + esc(l.cadastro_nome) + "</b><small>" + esc(l.descricao) + "</small>"
     : "<b>" + esc(l.descricao) + "</b><small>" + esc(l.categoria_rotulo + (l.comprovantes ? " · " + plural(l.comprovantes, "comprovante") : "")) + "</small>";
@@ -501,7 +504,7 @@ function linhaDeLancamento(l) {
   } else {
     acoes = '<button data-fin-abrir="' + l.id + '">' + (l.comprovantes ? "Comprovante" : "Ver") + "</button>";
   }
-  return '<div class="' + classe + '" data-fin-abrir="' + l.id + '">' +
+  return '<div class="' + classe + '" data-fin-abrir="' + l.id + '" data-sel="' + l.id + '">' +
     '<span class="fin-data">' + esc(dataCurta(l.vencimento || l.liquidado_em)) + "</span>" +
     '<span class="duas-linhas">' + quem + "</span>" +
     '<span class="fin-cat">' + esc(l.categoria_rotulo) + "</span>" +
@@ -842,6 +845,11 @@ function ligarFinanceiro() {
       fin.dados.opcoes_categoria.map((c) => ({ rotulo: c.rotulo, acao: () => { fin.categoria = c.valor; desenharFinanceiro(); } }))));
   });
   clique("[data-fin-abrir]", (b) => abrirLancamento(Number(b.dataset.finAbrir)));
+  ligarSelecao(document.querySelector("#financeiro .tabela-corpo"), {
+    linhas: ".tabela-linha[data-sel]", escolhidos: fin.escolhidos, aoMudar: desenharFinanceiro, apagar: (ids) => apagarLancamentosEmLote(ids),
+  });
+  clique("[data-fin-sel-limpar]", () => { fin.escolhidos.clear(); desenharFinanceiro(); });
+  clique("[data-fin-sel-apagar]", () => apagarLancamentosEmLote([...fin.escolhidos]));
   clique("[data-fin-fechar]", () => { fin.aberto = null; fin.form = null; desenharFinanceiro(); });
   clique("[data-fin-voltar]", () => { fin.folhaAberta = false; fin.papel = null; desenharFinanceiro(); });
   clique("[data-fin-cobrar]", (b) => prepararCobranca(Number(b.dataset.finCobrar)));
@@ -972,6 +980,13 @@ async function salvarLancamento() {
   if (mes && mes !== fin.mes) fin.mes = mes;
   avisoCert(v.id ? "lançamento atualizado" : "lançamento salvo — já entra na soma");
   mostrarFinanceiro();
+}
+
+function apagarLancamentosEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/financeiro/lancamentos/" + id, {
+    rotulo: "lançamento", contexto: "Financeiro › Lançamentos", texto: "Os comprovantes ligados vão junto.",
+    depois: () => { fin.escolhidos.clear(); fin.form = null; fin.aberto = null; mostrarFinanceiro(); },
+  });
 }
 
 async function apagarLancamento() {

@@ -387,3 +387,23 @@
   .bancada { width: 100%; }
   .bancada > h2 { font: 400 22px var(--serif); margin-bottom: 5px; }
   .bancada > p { margin: 0 0 22px; font-size: 13.5px; color: var(--ink2); }
+
+  /* Selecao multipla (docs/ui/05): clicar e segurar marca a linha, que ganha
+     o fundo e um filete em vinho; nos cartoes, a borda. Enquanto ha selecao
+     o texto nao e selecionavel, senao segurar o botao pinta texto. */
+  .selecionando { user-select: none; }
+  .selecionando .tabela-linha, .selecionando .sv-pasta, .selecionando .ag-linha { cursor: pointer; }
+  .selecionando .tabela-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--acc); }
+  .sv-pasta.escolhida { border-color: var(--acc); box-shadow: 0 0 0 2px var(--accbg); background: var(--fill); }
+  .ag-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--acc); }
+  .barra-selecao {
+    flex: none; display: flex; align-items: center; gap: 8px; min-height: 49px; padding: 8px 12px 8px 16px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); white-space: nowrap;
+  }
+  .barra-selecao .selecao { display: flex; align-items: center; gap: 10px; font: 600 13px var(--sans); margin-right: 4px; }
+  .barra-selecao .limpar { border: none; background: none; padding: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .barra-selecao .limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .barra-selecao .divisa-v { height: 18px; width: 1px; background: var(--ink-a15); }
+  .barra-selecao button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; }
+  .barra-selecao .botao-icone { background: transparent; padding: 0; }
+  .barra-selecao .botao-icone.perigo { color: var(--acc); border: none; }

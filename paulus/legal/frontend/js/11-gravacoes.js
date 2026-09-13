@@ -16,6 +16,7 @@ const GV_VELOCIDADES = [1, 1.25, 1.5, 2];
 const gv = {
   visao: "lista", tipo: "", termo: "", lista: [], totalSegundos: 0, tipos: [], clientes: [], servicos: [], pasta: "",
   aberta: null, aba: "transcricao", velocidade: 1, marcarTexto: "", voz: null, relogioVoz: null, buscaTrecho: "", resumindo: false,
+  escolhidas: new Set(),
   vivo: {
     estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
     form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
@@ -192,7 +193,8 @@ function corpoDaListaGv() {
   const linhas = lista.map((g) => {
     const sub = [quandoDaGravacao(g), g.servico_nome ? "Serviço: " + g.servico_nome : "", !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
     const status = statusDaGravacao(g);
-    return '<div class="tabela-linha colunas-gravacoes" data-gv-abrir="' + g.id + '"><span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>" +
+    const classe = "tabela-linha colunas-gravacoes" + (gv.escolhidas.has(String(g.id)) ? " escolhida" : "");
+    return '<div class="' + classe + '" data-gv-abrir="' + g.id + '" data-sel="' + g.id + '"><span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>" +
       '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" + avataresGv(g.participantes_lista) +
       '<span class="gv-duracao">' + duracaoGv(g.duracao_s) + '</span><span class="fin-status">' + status + "</span>" +
       '<button class="mais-linha" data-gv-mais="' + g.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
@@ -202,8 +204,11 @@ function corpoDaListaGv() {
     vazio = '<p class="rel-vazio">' + (gv.termo ? "Nada com “" + esc(gv.termo) + "”. Procurei no título, nos participantes, nas notas, no cliente e no serviço." :
       (gv.tipo ? "Nenhuma gravação deste tipo." : "Nenhuma gravação ainda. Grave pelo microfone em Nova gravação ou importe um áudio — tudo fica nesta máquina, e a transcrição entra quando houver um modelo de voz local.")) + "</p>";
   }
+  const barra = gv.escolhidas.size
+    ? barraDeSelecao(gv.escolhidas.size, true, '<button class="botao-icone perigo" data-gv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-gv-sel-limpar")
+    : '<div class="ag-chips">' + chips + "</div>";
   return '<div class="acervo-principal"><div class="tabela-cartao gv-lista">' +
-    '<div class="tabela-barra"><div class="ag-chips">' + chips + "</div>" +
+    '<div class="tabela-barra">' + barra +
     '<div class="direita"><input type="file" id="gv-importar" hidden accept="audio/*,.webm,.ogg,.opus,.mp3,.m4a,.wav,.aac,.flac,.mp4">' +
     '<button data-gv-importar="1">' + ic("upload", 16) + 'Importar áudio</button><button class="primario" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button></div></div>" +
     '<div class="tabela-cabecalho colunas-gravacoes"><span></span><span>Gravação</span><span>Participantes</span><span>Duração</span><span>Status</span><span></span></div>' +
@@ -566,6 +571,12 @@ function ligarGravacoes() {
   clique("[data-gv-vivo]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
   clique("[data-gv-tipo]", (b) => { gv.tipo = b.dataset.gvTipo; desenharGravacoes(); });
   clique("[data-gv-abrir]", (b) => abrirGravacao(Number(b.dataset.gvAbrir)));
+  ligarSelecao(document.querySelector("#gv-tela .gv-lista .tabela-corpo"), {
+    linhas: ".tabela-linha[data-sel]", escolhidos: gv.escolhidas, aoMudar: desenharGravacoes,
+    apagar: (ids) => apagarGravacoesEmLote(ids), renomear: (id) => renomearGravacao(Number(id)),
+  });
+  clique("[data-gv-sel-limpar]", () => { gv.escolhidas.clear(); desenharGravacoes(); });
+  clique("[data-gv-sel-apagar]", () => apagarGravacoesEmLote([...gv.escolhidas]));
   clique("[data-gv-mais]", (b) => menuDaGravacao(b, gv.lista.find((x) => x.id === Number(b.dataset.gvMais))));
   clique("[data-gv-importar]", () => $("gv-importar").click());
   const importar = $("gv-importar");
@@ -1113,10 +1124,28 @@ async function ligarGravacaoA(campo, valor) {
   redesenharPainelGv();
 }
 
+function apagarGravacoesEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/gravacoes/" + id, {
+    rotulo: "gravação", plural: "gravações", contexto: "Gravações", texto: "O áudio, a transcrição e as notas saem da lista.",
+    depois: () => { gv.escolhidas.clear(); mostrarGravacoes("lista"); },
+  });
+}
+
+async function renomearGravacao(id) {
+  const g = gv.lista.find((x) => x.id === id);
+  if (!g) return;
+  const novo = await perguntar({ titulo: "Renomear gravação", contexto: "Gravações", campo: { rotulo: "Título", valor: g.titulo, icone: "graphic_eq" }, confirmar: "Renomear" });
+  if (!novo) return;
+  const r = await fetch("/api/gravacoes/" + id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ titulo: novo }) });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  mostrarGravacoes("lista");
+}
+
 function menuDaGravacao(botao, g) {
   if (!g) return;
   menuNaLinha(botao, [
     { rotulo: "Abrir", icone: "graphic_eq", acao: () => abrirGravacao(g.id) },
+    { rotulo: "Renomear", icone: "edit", acao: () => renomearGravacao(g.id) },
     { rotulo: "Baixar o áudio", icone: "download", acao: () => baixarAudioGv(g) },
     "-",
     { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarGravacao(g) },

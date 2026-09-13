@@ -40,17 +40,7 @@ function abrirMenu(linha) {
   linha.appendChild(menu);
   menu.onclick = (e) => e.stopPropagation();
 
-  menu.querySelector('[data-a="renomear"]').onclick = async () => {
-    fecharMenu();
-    const novo = await perguntar({ titulo: "Renomear conversa", contexto: "Assistente", campo: { rotulo: "Nome", valor: titulo, icone: "forum" }, confirmar: "Renomear" });
-    if (!novo || !novo.trim()) return;
-    await fetch("/api/trabalhos/" + id + "/renomear", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titulo: novo.trim() }),
-    });
-    if (id === estado.trabalhoId) $("conversa-titulo").textContent = novo.trim();
-    carregarTrabalhos();
-  };
+  menu.querySelector('[data-a="renomear"]').onclick = () => { fecharMenu(); renomearConversa(id, titulo); };
 
   menu.querySelector('[data-a="grupo"]').onclick = async () => {
     fecharMenu();
@@ -205,17 +195,24 @@ const ESTADO_DA_CONVERSA = {
   executando: "trabalhando", aguardando: "esperando você", concluido: "concluída", pausado: "parada", falhou: "não deu",
 };
 
+/* A selecao da lista: segurar numa linha marca; a barra troca os filtros por
+   "N selecionadas · Mover para grupo · Apagar". Vive fora do desenho para
+   sobreviver ao redesenho. */
+const lcSel = { escolhidos: new Set() };
+
 function desenharListaDeConversas() {
   const caixa = $("lista-conversas");
   const termo = (caixa.dataset.termo || "").toLowerCase();
   const todas = estado.recentes || [];
   const lista = termo ? todas.filter((t) => (t.titulo || "").toLowerCase().includes(termo)) : todas;
+  for (const id of [...lcSel.escolhidos]) if (!todas.some((t) => t.id === id)) lcSel.escolhidos.delete(id);
 
   const linhas = lista.length ? lista.map((t) => {
     const andamento = t.estado === "aguardando"
       ? plural(t.pendencias || 1, "pedido") + " na fila"
       : (t.progresso !== null && t.progresso !== undefined && t.aberto ? t.progresso + "%" : "");
-    return '<div class="tabela-linha colunas-conversas" data-id="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) +
+    const classe = "tabela-linha colunas-conversas" + (lcSel.escolhidos.has(t.id) ? " escolhida" : "");
+    return '<div class="' + classe + '" data-id="' + esc(t.id) + '" data-sel="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) +
       '" data-grupo="' + esc(t.grupo || "") + '">' +
       '<span class="nome-doc"><span class="caixa-tipo">' + ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 18) + "</span>" +
       '<span class="duas-linhas"><b>' + esc(t.titulo) + "</b><small>" + esc(t.atualizado_em ? dataHoraCurta(t.atualizado_em) : "") + "</small></span></span>" +
@@ -225,19 +222,35 @@ function desenharListaDeConversas() {
       '<button class="mais-linha" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("") : '<p class="nota">' + (termo ? "Nenhuma conversa com esse nome." : "Nenhuma conversa ainda.") + "</p>";
 
-  caixa.innerHTML = '<div class="tabela-cartao"><div class="tabela-barra">' +
-    '<span class="nota-barra">' + plural(todas.length, "conversa") + "</span>" +
+  const quantos = lcSel.escolhidos.size;
+  const barra = quantos
+    ? barraDeSelecao(quantos, true,
+      '<button data-lc-grupo="1">' + ic("folder", 16) + "Mover para grupo</button><span class=\"divisa-v\"></span>" +
+      '<button class="botao-icone perigo" data-lc-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-lc-limpar")
+    : '<span class="nota-barra">' + plural(todas.length, "conversa") + "</span>";
+  caixa.innerHTML = '<div class="tabela-cartao"><div class="tabela-barra">' + barra +
     '<span class="direita"><label class="busca-tela">' + ic("search", 18) +
     '<input type="text" id="lc-busca" placeholder="Buscar conversa…" value="' + esc(caixa.dataset.termo || "") + '"></label>' +
     '<button class="fantasma com-icone" id="lc-recolher">' + ic("chevron_left", 16) + "Recolher</button></span></div>" +
     '<div class="tabela-cabecalho colunas-conversas"><span>Conversa</span><span>Grupo</span><span>Estado</span><span>Andamento</span><span></span></div>' +
     '<div class="tabela-corpo">' + linhas + "</div>" +
-    '<div class="tabela-rodape"><span>clique para abrir · ··· para renomear, mover ou apagar</span><span class="cresce"></span><span>nada saiu da máquina hoje</span></div></div>';
+    '<div class="tabela-rodape"><span>clique para abrir · segure para selecionar várias · ··· para renomear, mover ou apagar</span><span class="cresce"></span><span>nada saiu da máquina hoje</span></div></div>';
 
   caixa.querySelectorAll(".tabela-linha").forEach((linha) => {
     linha.onclick = () => abrirTrabalho(linha.dataset.id);
     linha.querySelector("[data-lc-menu]").onclick = (e) => { e.stopPropagation(); abrirMenu(linha); };
   });
+  ligarSelecao(caixa.querySelector(".tabela-corpo"), {
+    linhas: ".tabela-linha[data-sel]", escolhidos: lcSel.escolhidos, aoMudar: desenharListaDeConversas,
+    apagar: (ids) => apagarConversasEmLote(ids),
+    renomear: (id) => { const t = todas.find((x) => x.id === id); if (t) renomearConversa(id, t.titulo); },
+  });
+  const limparSel = caixa.querySelector("[data-lc-limpar]");
+  if (limparSel) limparSel.onclick = (e) => { e.stopPropagation(); lcSel.escolhidos.clear(); desenharListaDeConversas(); };
+  const apagarSel = caixa.querySelector("[data-lc-apagar]");
+  if (apagarSel) apagarSel.onclick = (e) => { e.stopPropagation(); apagarConversasEmLote([...lcSel.escolhidos]); };
+  const grupoSel = caixa.querySelector("[data-lc-grupo]");
+  if (grupoSel) grupoSel.onclick = (e) => { e.stopPropagation(); moverConversasParaGrupo([...lcSel.escolhidos]); };
   const busca = $("lc-busca");
   let t;
   busca.oninput = (e) => {
@@ -252,6 +265,43 @@ function desenharListaDeConversas() {
     }, 180);
   };
   $("lc-recolher").onclick = () => alternarListaDeConversas(false);
+}
+
+async function renomearConversa(id, titulo) {
+  const novo = await perguntar({ titulo: "Renomear conversa", contexto: "Assistente", campo: { rotulo: "Nome", valor: titulo, icone: "forum" }, confirmar: "Renomear" });
+  if (!novo || !novo.trim()) return;
+  await fetch("/api/trabalhos/" + id + "/renomear", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ titulo: novo.trim() }),
+  });
+  if (id === estado.trabalhoId) $("conversa-titulo").textContent = novo.trim();
+  carregarTrabalhos();
+}
+
+/* Varias conversas para um grupo so, com uma pergunta. */
+async function moverConversasParaGrupo(ids) {
+  if (!ids.length) return;
+  const primeira = (estado.recentes || []).find((t) => t.id === ids[0]) || {};
+  const novo = await perguntar({
+    titulo: ids.length === 1 ? "Grupo da conversa" : "Grupo de " + plural(ids.length, "conversa"), contexto: "Assistente",
+    campo: { rotulo: "Nome do grupo", valor: ids.length === 1 ? (primeira.grupo || "") : "", placeholder: "sem grupo", icone: "folder", sugestoes: gruposConhecidos, obrigatorio: false,
+             dica: "Vazio tira as conversas do grupo. Um grupo novo nasce com o nome que você escrever." },
+    confirmar: "Guardar",
+  });
+  if (novo === null) return;
+  for (const id of ids) {
+    await fetch("/api/trabalhos/" + id + "/grupo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grupo: novo.trim() }) });
+  }
+  lcSel.escolhidos.clear();
+  avisoCert(plural(ids.length, "conversa") + (novo.trim() ? " em “" + novo.trim() + "”" : " sem grupo"), { tom: "ok" });
+  carregarTrabalhos();
+}
+
+function apagarConversasEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/trabalhos/" + id, {
+    rotulo: "conversa", contexto: "Assistente", texto: ids.length === 1 ? "A conversa sai da lista." : "As conversas saem da lista.",
+    depois: () => { lcSel.escolhidos.clear(); if (ids.includes(estado.trabalhoId)) $("nova").click(); else carregarTrabalhos(); },
+  });
 }
 
 function ligarExemplos() {

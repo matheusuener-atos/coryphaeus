@@ -21,7 +21,7 @@ const ag = {
   itens: {},             // os itens desenhados na grade, por chave
   largo: false,
   tar: { filtro: "meu_dia", lista: "", itens: [], contagens: {}, listas: [],
-         clientes: [], repeticoes: [], aberta: null },
+         clientes: [], repeticoes: [], aberta: null, escolhidas: new Set() },
 };
 
 const AG_JSON = { "Content-Type": "application/json" };
@@ -491,6 +491,11 @@ function vistaTarefas() {
     '<button class="ag-mais-botao" data-ag-add="1" title="Adicionar">' + ic("add", 18) + "</button>" +
     '<input type="text" data-ag-nova="1" placeholder="Adicionar uma tarefa…">' +
     '<input type="date" data-ag-nova-prazo="1" value="' + prazoSugerido + '" title="Prazo"></div>' +
+    (ag.tar.escolhidas.size
+      ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
+        '<button data-ag-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
+        '<button class="botao-icone perigo" data-ag-sel-apagar="1" title="Excluir" aria-label="Excluir">' + ic("delete", 18) + "</button>", "data-ag-sel-limpar") + "</div>"
+      : "") +
     '<div class="tabela-corpo">' + corpo + "</div></div>";
 
   return '<div class="ag-tarefas">' + esquerda + direita + "</div>";
@@ -508,12 +513,13 @@ function corDaLista(i) {
 
 function linhaDaTarefa(t) {
   if (t.concluida) {
-    return '<div class="ag-linha ag-feita" data-ag-tarefa="' + t.id + '">' +
+    const classeFeita = "ag-linha ag-feita" + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
+    return '<div class="' + classeFeita + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
       '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>' +
       '<span class="ag-texto"><b>' + esc(t.titulo) + "</b></span></div>";
   }
-  const classe = "ag-linha" + (ag.tar.aberta === t.id ? " aberta" : "");
-  return '<div class="' + classe + '" data-ag-tarefa="' + t.id + '">' +
+  const classe = "ag-linha" + (ag.tar.aberta === t.id ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
+  return '<div class="' + classe + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
     '<span class="ag-circulo ag-grande" data-ag-concluir="' + t.id + '" title="Concluir"></span>' +
     '<span class="ag-texto"><b>' + esc(t.titulo) + "</b><small>" + metaDaTarefa(t) + "</small></span>" +
     botaoEstrela(t) + "</div>";
@@ -803,6 +809,15 @@ function ligarAgenda() {
     raiz.querySelector("[data-ag-add]").onclick = criar;
     nova.onkeydown = (e) => { if (e.key === "Enter") criar(); };
   }
+  ligarSelecao(raiz.querySelector(".ag-tarefas .tabela-corpo"), {
+    linhas: ".ag-linha[data-sel]", escolhidos: ag.tar.escolhidas, aoMudar: desenharAgenda, apagar: (ids) => apagarTarefasEmLote(ids),
+  });
+  const selLimpar = raiz.querySelector("[data-ag-sel-limpar]");
+  if (selLimpar) selLimpar.onclick = (e) => { e.stopPropagation(); ag.tar.escolhidas.clear(); desenharAgenda(); };
+  const selApagar = raiz.querySelector("[data-ag-sel-apagar]");
+  if (selApagar) selApagar.onclick = (e) => { e.stopPropagation(); apagarTarefasEmLote([...ag.tar.escolhidas]); };
+  const selConcluir = raiz.querySelector("[data-ag-sel-concluir]");
+  if (selConcluir) selConcluir.onclick = (e) => { e.stopPropagation(); concluirTarefasEmLote([...ag.tar.escolhidas]); };
   raiz.querySelectorAll("[data-ag-tarefa]").forEach((el) => {
     el.onclick = () => {
       const id = Number(el.dataset.agTarefa);
@@ -1247,6 +1262,20 @@ async function salvarCamposDaTarefa(t, mudancas) {
   }, mudancas);
   const r = await fetch("/api/tarefas", { method: "POST", headers: AG_JSON, body: JSON.stringify({ id: t.id, dados: dados }) });
   if (!r.ok) { avisoCert("não consegui salvar: " + await erroDe(r)); return; }
+  recarregarAgenda();
+}
+
+function apagarTarefasEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/tarefas/" + id, {
+    rotulo: "tarefa", contexto: "Agenda › Tarefas", texto: "Saem da lista, com as etapas.",
+    depois: () => { ag.tar.escolhidas.clear(); ag.tar.aberta = null; ag.form = null; recarregarAgenda(); },
+  });
+}
+
+async function concluirTarefasEmLote(ids) {
+  for (const id of ids) await concluirTarefa(Number(id), true);
+  ag.tar.escolhidas.clear();
+  avisoCert(plural(ids.length, "tarefa") + (ids.length === 1 ? " concluída" : " concluídas"), { tom: "ok" });
   recarregarAgenda();
 }
 

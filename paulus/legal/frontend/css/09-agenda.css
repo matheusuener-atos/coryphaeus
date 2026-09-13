@@ -259,3 +259,6 @@
   .legenda span { display: flex; align-items: center; gap: 7px; }
   .colunas-pares { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
 
+
+  /* A barra de selecao das tarefas mora dentro do cartao, sem borda propria. */
+  .ag-cartao .barra-selecao.ag-selecao { border: none; border-bottom: 1px solid var(--ink-a1); border-radius: 0; }

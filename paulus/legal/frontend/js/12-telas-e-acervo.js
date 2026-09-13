@@ -392,6 +392,11 @@ function ligarBiblioteca() {
       desenharBiblioteca();
     };
   });
+  // Segurar o botao numa linha marca, como a caixinha; Delete apaga a selecao.
+  ligarSelecao(centro, {
+    linhas: ".tabela-linha[data-doc]", chave: (linha) => linha.dataset.doc, escolhidos: bib.escolhidos,
+    aoMudar: desenharBiblioteca, apagar: () => acaoEmLote("apagar"),
+  });
   const limpar = $("lote-limpar");
   if (limpar) limpar.onclick = (e) => { e.stopPropagation(); bib.escolhidos.clear(); desenharBiblioteca(); };
   centro.querySelectorAll("[data-lote]").forEach((b) => {

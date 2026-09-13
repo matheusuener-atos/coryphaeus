@@ -13,7 +13,7 @@ const SV_JSON = { "Content-Type": "application/json" };
 const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
   aberto: null, aba: "geral", form: null, acervo: null, acervoTermo: "", ligar: false, largo: false,
-  pedindo: false, salvando: false,
+  pedindo: false, salvando: false, escolhidos: new Set(),
 };
 
 async function mostrarServicos(visao) {
@@ -117,7 +117,13 @@ function cabecalhoServicos() {
 
 function corpoDasPastas() {
   const cartoes = sv.lista.map(cartaoDoServico).join("");
-  return '<div class="acervo-principal"><div class="sv-grade">' + (sv.lista.length ? "" : vazioDosServicos()) + cartoes +
+  for (const id of [...sv.escolhidos]) if (!sv.lista.some((s) => String(s.id) === id)) sv.escolhidos.delete(id);
+  const barra = sv.escolhidos.size
+    ? '<div class="barra-selecao">' + barraDeSelecao(sv.escolhidos.size, false,
+      '<button data-sv-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
+      '<button class="botao-icone perigo" data-sv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-sv-sel-limpar") + "</div>"
+    : "";
+  return '<div class="acervo-principal">' + barra + '<div class="sv-grade">' + (sv.lista.length ? "" : vazioDosServicos()) + cartoes +
     '<button class="sv-novo" data-sv-novo="1">' + ic("add", 20) + "<b>Novo serviço</b><small>ou peça ao Assistente: “abra um serviço para…”</small></button>" +
     "</div></div>";
 }
@@ -132,11 +138,11 @@ function vazioDosServicos() {
 }
 
 function cartaoDoServico(s) {
-  const classe = "sv-pasta" + (s.status === "concluido" ? " feita" : "");
+  const classe = "sv-pasta" + (s.status === "concluido" ? " feita" : "") + (sv.escolhidos.has(String(s.id)) ? " escolhida" : "");
   const sub = (s.cliente_nome || "sem cliente") + (tipoDoDocumentoSv(s.cliente_documento) ? " · " + tipoDoDocumentoSv(s.cliente_documento) : "");
   const proximo = proximoDoServico(s);
   const classeProximo = "sv-proximo" + (proximo && proximo.atrasado ? " atrasado" : "");
-  return '<div class="' + classe + '" data-sv-abrir="' + s.id + '">' +
+  return '<div class="' + classe + '" data-sv-abrir="' + s.id + '" data-sel="' + s.id + '">' +
     '<div class="sv-pasta-cabeca">' + ic("folder", 20) + '<div class="duas-linhas"><b>' + esc(s.nome) + "</b><small>" + esc(sub) + "</small></div>" +
     '<button class="mais-linha" data-sv-mais="' + s.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>" +
     "<p>" + esc(s.descricao || "Sem descrição ainda — abra a pasta e escreva o que está sendo feito.") + "</p>" +
@@ -431,6 +437,12 @@ function ligarServicos() {
   clique("[data-sv-voltar]", () => { sv.visao = "pastas"; sv.form = null; sv.ligar = false; mostrarServicos("pastas"); });
   clique("[data-sv-novo]", () => { sv.form = formDoServico(null); sv.ligar = false; desenharServicos(); const c = document.querySelector('[data-sv-campo="nome"]'); if (c) c.focus(); });
   clique("[data-sv-abrir]", (b) => abrirServico(Number(b.dataset.svAbrir)));
+  ligarSelecao(document.querySelector("#sv-tela .sv-grade"), {
+    linhas: ".sv-pasta[data-sel]", escolhidos: sv.escolhidos, aoMudar: desenharServicos, apagar: (ids) => apagarServicosEmLote(ids),
+  });
+  clique("[data-sv-sel-limpar]", () => { sv.escolhidos.clear(); desenharServicos(); });
+  clique("[data-sv-sel-apagar]", () => apagarServicosEmLote([...sv.escolhidos]));
+  clique("[data-sv-sel-concluir]", () => concluirServicosEmLote([...sv.escolhidos]));
   clique("[data-sv-mais]", (b) => menuDoServico(b, sv.lista.find((x) => x.id === Number(b.dataset.svMais))));
   clique("[data-sv-perguntar]", () => perguntarSobreServico(sv.aberto));
   clique("[data-sv-status]", (b) => mudarStatusDoServico(sv.aberto.id, b.dataset.svStatus));
@@ -519,6 +531,24 @@ async function apagarServico(s) {
   if (sv.aberto && sv.aberto.id === s.id) sv.aberto = null;
   mostrarServicos("pastas");
   avisarLixeira(r, () => mostrarServicos("pastas"));
+}
+
+function apagarServicosEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/servicos/" + id, {
+    rotulo: "serviço", contexto: "Serviços", texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda.",
+    depois: () => { sv.escolhidos.clear(); if (sv.aberto && ids.includes(String(sv.aberto.id))) sv.aberto = null; mostrarServicos("pastas"); },
+  });
+}
+
+async function concluirServicosEmLote(ids) {
+  let feitos = 0;
+  for (const id of ids) {
+    const r = await fetch("/api/servicos/" + id + "/status", { method: "POST", headers: SV_JSON, body: JSON.stringify({ status: "concluido" }) });
+    if (r.ok) feitos += 1;
+  }
+  sv.escolhidos.clear();
+  avisoCert(plural(feitos, "serviço") + (feitos === 1 ? " concluído" : " concluídos"), { tom: "ok" });
+  mostrarServicos("pastas");
 }
 
 async function mudarStatusDoServico(id, status) {

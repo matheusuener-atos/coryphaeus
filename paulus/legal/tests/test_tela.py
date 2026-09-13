@@ -715,6 +715,60 @@ def main() -> int:
                 pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/tarefas/{id_tarefa}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
                 pagina.wait_for_timeout(300)
 
+            print("\nselecao multipla: segurar marca, a barra age em lote")
+            # Segurar o botao numa linha por meio segundo entra no modo de
+            # selecao; dai o clique marca, Shift marca o intervalo, Esc limpa
+            # e a barra da lista age sobre todas. Aqui: a lista de conversas
+            # (Ver mais) e as tarefas, com Concluir em lote.
+            ids_tarefas = pagina.evaluate("""async () => {
+                const ids = [];
+                for (const n of [1, 2]) {
+                    const r = await fetch('/api/tarefas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: null, dados: { titulo: 'Teste de tela — selecao ' + n, prazo: '', cadastro_id: null, anotacao: '' } }) });
+                    ids.push((await r.json()).id);
+                }
+                return ids;
+            }""")
+            try:
+                pagina.evaluate("() => { $('nova').click(); alternarListaDeConversas(true); }")
+                pagina.wait_for_selector("#lista-conversas .tabela-linha[data-sel]", timeout=20000)
+                caixa = pagina.locator("#lista-conversas .tabela-linha[data-sel]").first.bounding_box()
+                pagina.mouse.move(caixa["x"] + caixa["width"] / 2, caixa["y"] + caixa["height"] / 2)
+                pagina.mouse.down()
+                pagina.wait_for_timeout(650)
+                pagina.mouse.up()
+                pagina.wait_for_timeout(300)
+                checar(
+                    pagina.evaluate("() => lcSel.escolhidos.size === 1 && !!document.querySelector('#lista-conversas .tabela-linha.escolhida')"
+                                    " && document.querySelector('#lista-conversas .tabela-barra .selecao').textContent.includes('1 selecionada')"),
+                    "segurar numa conversa marca e a barra mostra a selecao",
+                )
+                pagina.keyboard.press("Escape")
+                pagina.wait_for_timeout(300)
+                checar(pagina.evaluate("() => lcSel.escolhidos.size === 0"), "Esc limpa a selecao")
+
+                pagina.evaluate("() => { ag.tar.filtro = 'abertas'; mostrarAgenda('tarefas'); }")
+                pagina.wait_for_selector(f".ag-linha[data-sel='{ids_tarefas[0]}']", timeout=20000)
+                caixa = pagina.locator(f".ag-linha[data-sel='{ids_tarefas[0]}']").bounding_box()
+                pagina.mouse.move(caixa["x"] + caixa["width"] / 2, caixa["y"] + caixa["height"] / 2)
+                pagina.mouse.down()
+                pagina.wait_for_timeout(650)
+                pagina.mouse.up()
+                pagina.wait_for_timeout(300)
+                pagina.locator(f".ag-linha[data-sel='{ids_tarefas[1]}']").click()
+                pagina.wait_for_timeout(300)
+                checar(pagina.evaluate("() => ag.tar.escolhidas.size === 2 && !!document.querySelector('[data-ag-sel-concluir]')"), "duas tarefas marcadas, com a barra")
+                pagina.evaluate("() => document.querySelector('[data-ag-sel-concluir]').click()")
+                pagina.wait_for_timeout(2000)
+                checar(
+                    pagina.evaluate(f"async () => {{ const t = (await (await fetch('/api/tarefas?filtro=concluidas')).json()).tarefas || []; return t.filter((x) => [{ids_tarefas[0]}, {ids_tarefas[1]}].includes(x.id)).length === 2; }}"),
+                    "Concluir em lote concluiu as duas",
+                )
+            finally:
+                for tid in ids_tarefas:
+                    pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/tarefas/{tid}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
+                pagina.wait_for_timeout(300)
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

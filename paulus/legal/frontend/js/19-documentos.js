@@ -14,6 +14,7 @@ const escr = {
   pl: null, aba: 0, celula: "A1", editando: null,
   visao: "editor",        // editor | planilha | previa
   abas: [],               // os documentos abertos, na ordem das abas
+  escolhidos: new Set(),  // a selecao da lista (segurar, Shift, Ctrl)
   atual: null,            // id da aba ativa; null e a lista de documentos
   lista: [],              // /api/documentos
   largo: false,
@@ -298,7 +299,8 @@ function listaDeDocumentos() {
   const linhas = itens.map((d) => {
     const g = GLIFO_DO_TIPO[d.tipo === "planilha" ? "planilha" : "texto"];
     const classe = "glifo " + g[0];
-    return '<div class="tabela-linha colunas-docs" data-doc-abrir="' + d.id + '" data-doc-tipo="' + esc(d.tipo) + '">' +
+    const classeLinha = "tabela-linha colunas-docs" + (escr.escolhidos.has(String(d.id)) ? " escolhida" : "");
+    return '<div class="' + classeLinha + '" data-doc-abrir="' + d.id + '" data-sel="' + d.id + '" data-doc-tipo="' + esc(d.tipo) + '">' +
       '<span class="nome-doc"><span class="' + classe + '">' + g[1] + '</span><span class="duas-linhas"><b>' + esc(d.titulo) + "</b>" +
       "<small>" + (d.tipo === "planilha" ? "planilha" : "documento de texto") + "</small></span></span>" +
       '<span class="quando-doc">' + esc(d.cadastro_nome || "—") + "</span>" +
@@ -307,7 +309,9 @@ function listaDeDocumentos() {
       '<button class="mais-linha" data-doc-mais="' + d.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
   return '<div class="tabela-cartao"><div class="tabela-barra">' +
-    '<span class="selecao">' + plural(itens.length, "arquivo") + "</span>" +
+    (escr.escolhidos.size
+      ? barraDeSelecao(escr.escolhidos.size, false, '<button class="botao-icone perigo" data-doc-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-doc-sel-limpar")
+      : '<span class="selecao">' + plural(itens.length, "arquivo") + "</span>") +
     '<div class="direita"><div class="visoes">' + [["texto", "Textos"], ["planilha", "Planilhas"]].map(([t, r]) => {
       const classe = t === filtro ? "ativa" : "";
       return '<button class="' + classe + '" data-doc-filtro="' + t + '">' + r + "</button>";
@@ -542,8 +546,22 @@ function trocarDeVisao(visao) {
   mostrarDocumentos();
 }
 
+function apagarDocumentosEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/documentos/" + id, {
+    rotulo: "documento", contexto: "Documentos", texto: "O histórico de versões e os comentários vão junto.",
+    depois: () => { escr.escolhidos.clear(); ids.forEach((id) => fecharAba(Number(id))); mostrarDocumentos(); },
+  });
+}
+
 function ligarLista() {
   const raiz = $("docs");
+  ligarSelecao(raiz.querySelector(".tabela-corpo"), {
+    linhas: ".tabela-linha[data-sel]", escolhidos: escr.escolhidos, aoMudar: desenharDocumentos, apagar: (ids) => apagarDocumentosEmLote(ids),
+  });
+  const selLimpar = raiz.querySelector("[data-doc-sel-limpar]");
+  if (selLimpar) selLimpar.onclick = (e) => { e.stopPropagation(); escr.escolhidos.clear(); desenharDocumentos(); };
+  const selApagar = raiz.querySelector("[data-doc-sel-apagar]");
+  if (selApagar) selApagar.onclick = (e) => { e.stopPropagation(); apagarDocumentosEmLote([...escr.escolhidos]); };
   raiz.querySelectorAll("[data-doc-abrir]").forEach((l) => {
     l.onclick = (e) => {
       if (e.target.closest("[data-doc-mais]")) return;

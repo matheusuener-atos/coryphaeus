@@ -11,7 +11,7 @@
 const cad = {
   visao: "clientes", fichas: [], contagem: {}, tipos: [], sugestoes: [],
   lancamentos: [], tarefas: [], termo: "", ordem: "nome", filtro: "todos",
-  aberta: null, form: null, largo: false,
+  aberta: null, form: null, largo: false, escolhidas: new Set(),
 };
 
 const CAD_JSON = { "Content-Type": "application/json" };
@@ -166,7 +166,7 @@ function corpoDosClientes() {
   const ordens = { nome: "A–Z", aberto: "Em aberto", atraso: "Atraso" };
   return '<div class="acervo-principal">' +
     '<div class="tabela-cartao">' +
-    '<div class="tabela-barra cad-barra"><div class="visoes">' + chip("todos", "Todos") + chip("pj", "Pessoa jurídica") + chip("pf", "Pessoa física") + chip("atraso", "Com atraso") + "</div>" +
+    '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todos") + chip("pj", "Pessoa jurídica") + chip("pf", "Pessoa física") + chip("atraso", "Com atraso")) +
     '<div class="direita"><button data-cad-ordem="1">' + ic("swap_vert", 16) + esc(ordens[cad.ordem] || "A–Z") + "</button>" +
     '<button class="adiante" data-cad-importar="1">' + ic("upload", 16) + "Importar</button>" +
     '<button class="adiante" data-cad-exportar="1">' + ic("download", 16) + "Exportar</button></div></div>" +
@@ -187,7 +187,7 @@ function avisoDeSugestoes() {
 
 function linhaDeCliente(f) {
   const aberta = cad.aberta && cad.aberta.id === f.id;
-  const classe = "tabela-linha colunas-clientes" + (aberta ? " aberta" : "");
+  const classe = "tabela-linha colunas-clientes" + (aberta ? " aberta" : "") + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const n = digitosDoDocumento(f).length;
   const tipoDoc = n === 14 ? "CNPJ " : (n ? "CPF " : "");
   const sub = [f.atraso_dias ? "Atrasado " + plural(f.atraso_dias, "dia") : "", f.documento ? tipoDoc + f.documento : "", pessoaFisica(f) ? "pessoa física" : ""]
@@ -198,7 +198,7 @@ function linhaDeCliente(f) {
   const prazos = prazosDe(f).length;
   const ligado = [docs ? plural(docs, "doc") : "", f.aberto_quantos ? plural(f.aberto_quantos, "cobrança") : "", prazos ? plural(prazos, "prazo") : ""].filter(Boolean);
   const classeValor = "fin-valor fin-valor-col" + (f.aberto_centavos ? "" : " cad-zero");
-  return '<div class="' + classe + '" data-cad-abrir="' + f.id + '">' +
+  return '<div class="' + classe + '" data-cad-abrir="' + f.id + '" data-sel="' + f.id + '">' +
     '<span class="cad-nome"><span class="cad-avatar">' + esc(iniciaisDoRemetente(f.nome)) + '</span><span class="duas-linhas"><b>' + esc(f.nome) + '</b><small class="' + classeSub + '">' + esc(sub) + "</small></span></span>" +
     '<span class="cad-contato">' + esc(contato) + "</span>" +
     '<span class="cad-ligado">' + (ligado.length ? ligado.map((x) => "<span>" + esc(x) + "</span>").join("") : "<small>sem vínculo</small>") + "</span>" +
@@ -219,7 +219,7 @@ function corpoDaEquipe() {
   };
   const folha = todas.reduce((s, f) => s + folhaDe(f), 0);
   return '<div class="acervo-principal"><div class="tabela-cartao">' +
-    '<div class="tabela-barra cad-barra"><div class="visoes">' + chip("todos", "Todos") + chip("socio", "Sócios") + chip("colaborador", "Colaboradores") + "</div>" +
+    '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todos") + chip("socio", "Sócios") + chip("colaborador", "Colaboradores")) +
     '<div class="direita"><button data-cad-regras="1">' + ic("shield_person", 16) + "Papéis e alçadas</button>" +
     '<button class="primario" data-cad-nova="1">' + ic("person_add", 16) + "Nova pessoa</button></div></div>" +
     '<div class="tabela-cabecalho colunas-equipe"><span>Nome e função</span><span>Papel</span><span>Acesso por pasta</span><span class="fin-num">Na folha</span><span></span></div>' +
@@ -230,13 +230,13 @@ function corpoDaEquipe() {
 
 function linhaDaEquipe(f) {
   const aberta = cad.aberta && cad.aberta.id === f.id;
-  const classe = "tabela-linha colunas-equipe" + (aberta ? " aberta" : "");
+  const classe = "tabela-linha colunas-equipe" + (aberta ? " aberta" : "") + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const socio = f.tipo === "socio";
   const classePapel = "cad-pill" + (socio ? " forte" : "");
   const sub = [f.observacao, rotuloDoVinculo(f.vinculo) === "não entra na folha" ? "" : rotuloDoVinculo(f.vinculo)].filter(Boolean).join(" · ") || (f.documento ? "CPF " + f.documento : "sem função anotada");
   const folha = folhaDe(f);
   const classeValor = "fin-valor fin-valor-col" + (folha ? "" : " cad-zero");
-  return '<div class="' + classe + '" data-cad-abrir="' + f.id + '">' +
+  return '<div class="' + classe + '" data-cad-abrir="' + f.id + '" data-sel="' + f.id + '">' +
     '<span class="cad-nome"><span class="cad-avatar">' + esc(iniciaisDoRemetente(f.nome)) + '</span><span class="duas-linhas"><b>' + esc(f.nome) + "</b><small>" + esc(sub) + "</small></span></span>" +
     '<span><span class="' + classePapel + '">' + (socio ? "Sócio" : "Colaborador") + "</span></span>" +
     '<span class="cad-ligado"><small title="Acesso por pasta ainda não existe: hoje o PAULUS é de uma pessoa só, nesta máquina">em breve</small></span>' +
@@ -268,7 +268,7 @@ function corpoDasDespesas() {
   };
   const total = lista.reduce((s, f) => s + centavosDe(f.honorario), 0);
   return '<div class="acervo-principal"><div class="tabela-cartao">' +
-    '<div class="tabela-barra cad-barra"><div class="visoes">' + chip("todos", "Todas") + chip("dia", "Com dia certo") + chip("semdia", "Sem dia") + "</div>" +
+    '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todas") + chip("dia", "Com dia certo") + chip("semdia", "Sem dia")) +
     '<div class="direita"><button class="adiante" data-cad-exportar="1">' + ic("download", 16) + "Exportar</button>" +
     '<button class="primario" data-cad-nova="1">' + ic("add", 16) + "Nova despesa</button></div></div>" +
     '<div class="tabela-cabecalho colunas-despesas"><span>Despesa</span><span>Fornecedor</span><span>Vence</span><span class="fin-num">Valor</span><span>' +
@@ -280,12 +280,12 @@ function corpoDasDespesas() {
 
 function linhaDaDespesa(f) {
   const aberta = cad.aberta && cad.aberta.id === f.id;
-  const classe = "tabela-linha colunas-despesas" + (aberta ? " aberta" : "");
+  const classe = "tabela-linha colunas-despesas" + (aberta ? " aberta" : "") + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const s = situacaoDaDespesa(f);
   const classeStatus = "fin-status " + s.classe;
   const valor = centavosDe(f.honorario);
   const classeValor = "fin-valor fin-valor-col" + (valor ? "" : " cad-zero");
-  return '<div class="' + classe + '" data-cad-abrir="' + f.id + '">' +
+  return '<div class="' + classe + '" data-cad-abrir="' + f.id + '" data-sel="' + f.id + '">' +
     '<span class="duas-linhas"><b>' + esc(f.nome) + "</b><small>" + esc(f.observacao || rotuloDoFornecedor(f) || "sem anotação") + "</small></span>" +
     '<span class="cad-texto">' + esc(rotuloDoFornecedor(f) || "—") + "</span>" +
     '<span class="cad-texto">' + esc(f.dia_vencimento ? "dia " + f.dia_vencimento : "—") + "</span>" +
@@ -520,6 +520,11 @@ function ligarCadastros() {
     desenharCadastros();
   });
   clique("[data-cad-abrir]", (b) => abrirFicha(Number(b.dataset.cadAbrir)));
+  ligarSelecao(document.querySelector("#cad-tela .tabela-corpo"), {
+    linhas: ".tabela-linha[data-sel]", escolhidos: cad.escolhidas, aoMudar: desenharCadastros, apagar: (ids) => apagarFichasEmLote(ids),
+  });
+  clique("[data-cad-sel-limpar]", () => { cad.escolhidas.clear(); desenharCadastros(); });
+  clique("[data-cad-sel-apagar]", () => apagarFichasEmLote([...cad.escolhidas]));
   clique("[data-cad-mais]", (b) => menuDaFicha(b, Number(b.dataset.cadMais)));
   clique("[data-cad-fechar]", () => { cad.aberta = null; cad.form = null; desenharCadastros(); });
   clique("[data-cad-alca]", () => { cad.largo = !cad.largo; desenharCadastros(); });
@@ -605,6 +610,20 @@ async function salvarFicha() {
   cad.visao = visaoDoTipo(ficha.tipo);
   avisoCert(v.id ? "ficha atualizada" : "cadastro salvo");
   mostrarCadastros();
+}
+
+/* A barra das tres listas: os filtros, ou a selecao quando ha fichas marcadas. */
+function barraCad(chips) {
+  if (!cad.escolhidas.size) return '<div class="visoes">' + chips + "</div>";
+  return barraDeSelecao(cad.escolhidas.size, true,
+    '<button class="botao-icone perigo" data-cad-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-cad-sel-limpar");
+}
+
+function apagarFichasEmLote(ids) {
+  return apagarEmLote(ids, (id) => "/api/cadastros/" + id, {
+    rotulo: "ficha", contexto: "Cadastros", texto: "Os lançamentos e documentos continuam onde estão, só perdem a ligação; restaurar religa.",
+    depois: () => { cad.escolhidas.clear(); cad.aberta = null; cad.form = null; mostrarCadastros(); },
+  });
 }
 
 async function apagarFicha(f) {
