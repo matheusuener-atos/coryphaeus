@@ -183,12 +183,17 @@ def test_analise_inteira() -> None:
 
         primeira = portas.analisar_documento(biblioteca, catalogo, arquivo, texto=PECA,
                                              paginas=2, sha1="sha-teste", titulo="peca.txt")
-        # Com o assistente desligado rodam as secoes que nao precisam dele:
-        # as quatro de regra pura mais classificacao e juizo, que so chamam o
-        # modelo quando a regra nao decide.
-        checar(sorted(primeira.rodadas) == ["amounts", "case", "classification", "dates",
-                                            "jurisdiction", "legal_references"],
+        # Com o assistente desligado roda tudo o que nao depende dele: as
+        # secoes de regra pura, mais classificacao e juizo, que so chamam o
+        # modelo quando a regra nao decide. A lista sai do catalogo de
+        # proposito - acrescentar uma colecao de extensao nao pode obrigar a
+        # mexer neste teste, mas nao pode deixar de rodar tambem.
+        sem_modelo = sorted({e.secao for e in catalogo.extratores.values()
+                             if e.secao and not e.papel and not (e.modelo and e.exige_modelo)})
+        checar(sorted(primeira.rodadas) == sem_modelo,
                "as secoes que nao precisam do modelo rodaram", primeira.rodadas)
+        checar(set(["amounts", "case", "dates", "legal_references"]) <= set(primeira.rodadas),
+               "inclusive as quatro de regra pura do nucleo", primeira.rodadas)
         checar(not primeira.falhas, "sem falha", primeira.falhas)
 
         meta = primeira.metadata

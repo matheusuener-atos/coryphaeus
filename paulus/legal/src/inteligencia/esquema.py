@@ -32,11 +32,20 @@ from typing import Any
 
 ESQUEMA = "legal-document/v0"
 
-# As secoes do nucleo minimo (spec, secao 5). As colecoes de extensao
-# (events, claims, decisions...) entram depois, cada uma como uma secao nova -
-# `analysis.sections` existe desde o primeiro dia justamente para isso.
+# As secoes do nucleo minimo (spec, secao 5).
 SECOES_OBJETO = ("classification", "jurisdiction", "case", "summary")
-SECOES_COLECAO = ("parties", "dates", "amounts", "legal_references")
+SECOES_NUCLEO = ("parties", "dates", "amounts", "legal_references")
+
+# As colecoes de extensao (spec, passo 7). Elas nao ganharam campo proprio no
+# `Metadata` de proposito: ficam num dicionario e sobem para o primeiro nivel
+# do JSON na hora de gravar. Assim acrescentar uma colecao e acrescentar um
+# nome nesta tupla e um extrator - nao mexer na classe, nao migrar o acervo, e
+# nao tocar em nada do que ja estava gravado. E o que a spec pede quando diz
+# que nenhuma extensao exige migracao desde que `analysis.sections` exista.
+SECOES_EXTENSAO = ("events", "claims", "requests", "decisions", "evidence",
+                   "relationships", "people", "organizations")
+
+SECOES_COLECAO = SECOES_NUCLEO + SECOES_EXTENSAO
 SECOES = SECOES_OBJETO + SECOES_COLECAO
 
 # `explicit` esta escrito no documento, com trecho citado. `inferred` foi
@@ -248,13 +257,28 @@ class Metadata:
     summary: dict = field(default_factory=lambda: {"one_line": "", "short": None, "detailed": None})
     provenance: dict = field(default_factory=dict)
     analysis: dict = field(default_factory=lambda: {"sections": {}})
+    # As colecoes de extensao moram aqui. A chave so existe depois que o
+    # extrator rodou - e a diferenca entre "analisei e nao ha pedido nenhum"
+    # (lista vazia) e "ninguem procurou pedido aqui" (chave ausente).
+    extensoes: dict[str, list[Item]] = field(default_factory=dict)
 
     # ------------------------------------------------------------ acesso
 
     def colecao(self, secao: str) -> list[Item]:
-        return list(getattr(self, secao, []) or []) if secao in SECOES_COLECAO else []
+        if secao in SECOES_EXTENSAO:
+            return list(self.extensoes.get(secao) or [])
+        return list(getattr(self, secao, []) or []) if secao in SECOES_NUCLEO else []
+
+    def guardar(self, secao: str, itens: list[Item]) -> None:
+        """Onde a colecao fica depende de ela ser do nucleo ou de extensao."""
+        if secao in SECOES_EXTENSAO:
+            self.extensoes[secao] = list(itens)
+        elif secao in SECOES_NUCLEO:
+            setattr(self, secao, list(itens))
 
     def por_secao(self, secao: str) -> Any:
+        if secao in SECOES_EXTENSAO:
+            return self.extensoes.get(secao)
         return getattr(self, secao, None)
 
     def secao(self, nome: str) -> Secao:
@@ -285,7 +309,7 @@ class Metadata:
     # ------------------------------------------------------------- forma
 
     def to_dict(self) -> dict:
-        return {
+        saida = {
             "schema": ESQUEMA,
             "document": self.document,
             "version": self.version,
@@ -300,6 +324,12 @@ class Metadata:
             "provenance": self.provenance,
             "analysis": self.analysis,
         }
+        # Extensao sobe para o primeiro nivel, junto das colecoes do nucleo:
+        # quem le o JSON nao precisa saber que ela chegou depois.
+        for nome in SECOES_EXTENSAO:
+            if nome in self.extensoes:
+                saida[nome] = [i.to_dict() for i in self.extensoes[nome]]
+        return saida
 
     @classmethod
     def from_dict(cls, dados: dict) -> "Metadata":
@@ -317,6 +347,7 @@ class Metadata:
             summary=dados.get("summary") or {"one_line": "", "short": None, "detailed": None},
             provenance=dados.get("provenance") or {},
             analysis=dados.get("analysis") or {"sections": {}},
+            extensoes={nome: itens(nome) for nome in SECOES_EXTENSAO if nome in dados},
         )
 
 

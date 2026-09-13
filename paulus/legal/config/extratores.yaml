@@ -64,6 +64,17 @@ extratores:
     nivel: 0
     modulo: regras_juizo
 
+  # ------------------------------------ nivel 0 (colecoes de extensao)
+  # Passo 7 da spec. Cada colecao e um extrator independente e uma linha
+  # aqui - o esquema nao muda, o acervo nao migra, e desligar uma colecao e
+  # apagar a linha dela. Todas sao de regra: o que estas frases tem em comum
+  # e serem escritas com verbo proprio, e verbo proprio uma expressao regular
+  # acha sempre.
+  request-rules/v1:
+    secao: requests
+    nivel: 0
+    modulo: regras_pedidos
+
   # -------------------------------------------------------------- nivel 1
   # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario
   # do cabecalho, e o modelo so e chamado quando a regra nao decide. Por isso

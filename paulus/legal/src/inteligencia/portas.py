@@ -90,7 +90,7 @@ def analisar_documento(biblioteca, catalogo: Catalogo, caminho, *, texto: str,
             analise.rodadas.append(nome)
 
         if nome in esquema.SECOES_COLECAO:
-            setattr(meta, nome, itens)
+            meta.guardar(nome, itens)
         elif objeto is not None:
             setattr(meta, nome, objeto)
         meta.marcar_secao(nome, ficha)

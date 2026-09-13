@@ -101,6 +101,15 @@ PERGUNTAS = [
     ("quem é o autor?", "Contrato de Compra e Venda - Matheus X Caroline.pdf", "escala", ""),
     ("qual o tribunal?", "Contrato de Compra e Venda - Matheus X Caroline.pdf", "escala", ""),
     ("qual o valor da causa?", "Procuraçao COOBRAMEX x Matheus.pdf", "escala", ""),
+
+    # --- as colecoes de extensao (passo 7) sobre um acervo que nao tem peca -
+    # Nenhum destes documentos e peticao ou sentenca. A resposta certa para
+    # todas e escalar: lista vazia aqui seria "este contrato nao pede nada",
+    # que e verdade, e "este contrato nao decide nada", que tambem e - mas
+    # dita por quem nao procurou direito soa igual a dita por quem procurou.
+    ("quais os pedidos?", "", "escala", ""),
+    ("quais os pedidos?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+     "escala", ""),
 ]
 
 

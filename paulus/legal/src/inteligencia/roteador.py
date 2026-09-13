@@ -95,6 +95,30 @@ INTENCOES: list[tuple[str, str, str]] = [
      r"\b(que (tipo de )?documento e (este|esse)|qual (o|e o) tipo (deste|desse) documento)"),
 ]
 
+# As perguntas cuja resposta e uma LISTA do que o documento diz - a porta das
+# colecoes de extensao (spec, passo 7). Elas sao diferentes das de cima: nao
+# pedem um dado, pedem tudo o que consta de um tipo.
+#
+# O que as torna respondiveis sem ler o documento e que a lista ja e a
+# resposta: os pedidos de uma peca sao as frases em que ela pede, e elas estao
+# guardadas com a citacao e a pagina. O que as torna perigosas e o mesmo: uma
+# lista de tres quando havia cinco tem cara de completa. As travas de
+# `_pela_lista` existem por isso.
+ENUMERACOES: list[tuple[str, str, str]] = [
+    ("requests", "",
+     r"\b((quais|que) (sao )?(os |as )?(pedidos|requerimentos)"
+     r"|qual (o|e o) pedido|o que (o autor|a autora|o reu|a re|a parte|a peca|a inicial|ele|ela)"
+     r"\s*(requer|pede|pleiteia|postula|pediu|requereu)"
+     r"|o que (foi|esta sendo|se) (requerid|pedid|pleitead))"),
+]
+
+# Pergunta com recorte nao e pergunta de lista: "o que a contestacao alega
+# SOBRE A PRESCRICAO" pede leitura daquele ponto, e a lista inteira nao
+# responde. Havendo recorte, a pergunta segue o caminho de hoje.
+RE_QUALIFICA = re.compile(
+    r"\b(sobre|a respeito|quanto (a|ao)|em rela[cç][aã]o|referente|acerca|"
+    r"por que|porque|como |onde |em que ponto)\b")
+
 # Perguntas que NAO sao factuais mesmo contendo as palavras acima: elas pedem
 # leitura, e leitura e o caminho de hoje. "O que a contestacao alega sobre a
 # prescricao?" tem "o que" e nao tem resposta em tres linhas de metadata.
@@ -104,6 +128,7 @@ PEDE_LEITURA = re.compile(
     r"contradiz|diverg|interpreta)\b")
 
 RE_INTENCOES = [(secao, chave, re.compile(padrao)) for secao, chave, padrao in INTENCOES]
+RE_ENUMERACOES = [(secao, chave, re.compile(padrao)) for secao, chave, padrao in ENUMERACOES]
 
 # "Do que se trata este documento?" tem resposta guardada: o resumo escrito na
 # ingestao. Ela e a unica coisa nesta camada que NAO e fato - e conclusao do
@@ -121,6 +146,8 @@ class Intencao:
     chave: str = ""
     nivel: int = BUSCADOR
     porque: str = ""
+    # A resposta e a lista inteira de uma secao, e nao um campo dela.
+    enumera: bool = False
 
     @property
     def factual(self) -> bool:
@@ -147,6 +174,17 @@ def classificar(pergunta: str) -> Intencao:
     if RE_RESUMO.search(plano):
         return Intencao(secao="summary", nivel=METADATA_E_RESUMO,
                         porque="pergunta pelo assunto do documento")
+
+    # As perguntas de lista vem antes de `PEDE_LEITURA` porque as duas usam as
+    # mesmas palavras: "o que o autor alega" e lista, "o que o autor alega
+    # sobre a prescricao" e leitura. O recorte e o que separa - e na duvida
+    # manda o recorte, que e o caminho de hoje.
+    if not RE_QUALIFICA.search(plano):
+        for secao, chave, padrao in RE_ENUMERACOES:
+            if padrao.search(plano):
+                return Intencao(secao=secao, chave=chave, nivel=METADATA, enumera=True,
+                                porque=f"pergunta pela lista de {secao}")
+
     if PEDE_LEITURA.search(plano):
         return Intencao(porque="a pergunta pede leitura, nao um dado")
 
@@ -184,7 +222,7 @@ class Fato:
     def linha(self) -> str:
         onde = f"  [p.{self.pagina}]" if self.pagina else ""
         rotulo = f" ({self.rotulo})" if self.rotulo else ""
-        return f"- {self.secao}{rotulo}: {self.valor}{onde}"
+        return f"- {SECOES_BR.get(self.secao, self.secao)}{rotulo}: {self.valor}{onde}"
 
 
 @dataclass
@@ -206,6 +244,9 @@ class Pacote:
     # Ligado quando o que vai na resposta e conclusao do modelo (o resumo), e
     # nao trecho conferido. A tela tem de dizer isso a quem le.
     inferencia: bool = False
+    # Ligado quando a resposta e a lista inteira de uma secao - pedidos,
+    # decisoes, provas. Muda o prompt: listar nao e responder.
+    enumera: bool = False
     # Nivel 3 e 4: a camada nao respondeu, mas sabe em QUAIS documentos esta a
     # resposta. O buscador de hoje roda igual - so que dentro destes.
     restringe: list[str] = field(default_factory=list)
@@ -240,6 +281,20 @@ class Pacote:
                 "",
                 f"Pergunta: {pergunta}",
             ])
+        if self.enumera:
+            cabecalho = CABECALHOS.get(self.intencao.secao, "O QUE CONSTA DO DOCUMENTO")
+            linhas = [f"{cabecalho} ({', '.join(self.documentos)}):"]
+            linhas += [fato.linha() for fato in self.fatos]
+            linhas += [
+                "",
+                "Responda listando exatamente os itens acima, com as palavras deles.",
+                "Não acrescente, não junte e não resuma itens.",
+                "Se a pergunta pedir algo que não esteja nesta lista, responda "
+                "exatamente: ESCALAR",
+                "",
+                f"Pergunta: {pergunta}",
+            ]
+            return "\n".join(linhas)
         linhas = [f"FATOS VERIFICADOS ({', '.join(self.documentos)}):"]
         linhas += [fato.linha() for fato in self.fatos]
         linhas += [
@@ -256,7 +311,7 @@ class Pacote:
         return {"nivel": self.nivel, "porque": self.porque, "fallback": self.fallback,
                 "fatos": [f.to_dict() for f in self.fatos], "documentos": self.documentos,
                 "restringe": self.restringe, "inferencia": self.inferencia,
-                "ms": self.ms, "trace": self.trace}
+                "enumera": self.enumera, "ms": self.ms, "trace": self.trace}
 
 
 ROTULOS = {
@@ -265,6 +320,25 @@ ROTULOS = {
     "claim": "valor da causa", "fee": "honorários", "contract": "valor do contrato",
     "penalty": "multa", "rent": "aluguel", "damages": "indenização", "debt": "dívida",
     "installment": "parcela", "article": "artigo", "law": "lei", "precedent": "súmula",
+    # ------------------------------------------- colecoes de extensao
+    "injunction": "tutela", "citation": "citação", "condemnation": "condenação",
+    "merits": "mérito", "evidence_production": "prova", "free_justice": "gratuidade",
+    "fees": "honorários", "procedural": "processual", "other": "",
+}
+
+# Como cada secao se chama na frase que vai para o modelo. O JSON fala ingles
+# porque e formato; o prompt fala portugues porque e leitura.
+SECOES_BR = {
+    "case": "processo", "amounts": "valor", "dates": "data",
+    "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
+    "classification": "tipo", "requests": "pedido",
+}
+
+# O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
+# palavra que mais importa nessas respostas: EXPRESSAMENTE. O que esta ali e o
+# que o documento escreveu com todas as letras - nao o que ele quis dizer.
+CABECALHOS = {
+    "requests": "PEDIDOS QUE CONSTAM EXPRESSAMENTE DA PEÇA",
 }
 
 # Quantos fatos entram numa resposta de nivel 0. Mais que isso deixa de ser
@@ -303,6 +377,9 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
 
     if intencao.secao == "summary":
         return _pelo_resumo(pacote, metas, nomes or {}, em_foco, comeco)
+
+    if intencao.enumera:
+        return _pela_lista(pacote, metas, nomes or {}, em_foco, comeco)
 
     achados: list[Fato] = []
     sem_secao = 0
@@ -541,6 +618,63 @@ def _pelo_resumo(pacote: Pacote, metas: list[Metadata], nomes: dict, em_foco: bo
     pacote.fallback = False
     pacote.porque = "respondido pelo resumo guardado de " + nome
     pacote.trace["decisao"] = "nível 1"
+    pacote.ms = int((time.time() - comeco) * 1000)
+    return pacote
+
+
+def _pela_lista(pacote: Pacote, metas: list[Metadata], nomes: dict, em_foco: bool,
+                comeco: float) -> Pacote:
+    """
+    Nivel 0 para as colecoes de extensao: a resposta e a lista inteira.
+
+    "Quais os pedidos?" nao pede um dado, pede todos os de um tipo - e a lista
+    ja esta guardada, com a citacao e a pagina de cada um. E onde mora o risco
+    desta camada inteira: **uma lista de tres quando havia cinco tem a mesma
+    cara de uma lista completa.** Quem le nao tem como saber que faltou.
+
+    Tres travas, e todas escalam em vez de responder pela metade:
+
+    - **so com um documento em foco.** Listar os pedidos de catorze documentos
+      numa resposta so seria juntar pecas diferentes na mesma lista;
+    - **secao nao utilizavel escala.** Documento nao analisado para esta
+      colecao pode ter dez pedidos escritos - a lista vazia seria mentira;
+    - **lista que nao cabe escala.** Se o que foi achado ja encosta no limite
+      da resposta, cortar seria entregar uma lista truncada sem dizer - entao
+      a pergunta vai para o caminho de hoje, que le o documento.
+    """
+    secao = pacote.intencao.secao
+    def desistir(porque: str, decisao: str) -> Pacote:
+        pacote.porque = porque
+        pacote.trace["decisao"] = f"escalou: {decisao}"
+        pacote.ms = int((time.time() - comeco) * 1000)
+        return pacote
+
+    if not em_foco or len(metas) != 1:
+        return desistir("listar pede um documento de cada vez", "lista sem documento em foco")
+
+    meta = metas[0]
+    nome = nomes.get(meta.version_id) or meta.titulo
+    if not meta.secao(secao).utilizavel:
+        return desistir("este documento ainda não foi lido para isso",
+                        "seção não utilizável")
+
+    itens = [i for i in meta.fatos(secao)
+             if not pacote.intencao.chave or i.dados.get("kind") == pacote.intencao.chave]
+    pacote.trace["achados"] = len(itens)
+    if not itens:
+        return desistir("o metadata não tem essa lista - pode estar no documento assim mesmo",
+                        "coleção vazia")
+    if len(itens) >= FATOS_MAX:
+        return desistir(f"são {len(itens)} itens - listar sem ler o documento cortaria a lista",
+                        "lista longa demais")
+
+    pacote.nivel = METADATA
+    pacote.enumera = True
+    pacote.fatos = [_fato_do_item(meta, item, nome, secao) for item in itens]
+    pacote.documentos = [nome]
+    pacote.fallback = False
+    pacote.porque = f"{_quantos(len(itens), 'item')} que já foram lidos em {nome}"
+    pacote.trace["decisao"] = "nível 0 (lista)"
     pacote.ms = int((time.time() - comeco) * 1000)
     return pacote
 
