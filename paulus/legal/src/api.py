@@ -11,8 +11,12 @@ documento sai daqui.
 
 from __future__ import annotations
 
+import errno
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import queue
 import threading
@@ -190,6 +194,8 @@ class Estado:
         self.progresso_voz: dict[int, float] = {}
         self.transcrevendo: int | None = None
         self.erro_voz = ""
+        # O download do modelo do assistente pelo cartao "falta baixar".
+        self.puxando: dict | None = None
         # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
         self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
@@ -349,6 +355,7 @@ def status() -> dict:
     return {
         "ollama": ok,
         "mensagem": mensagem,
+        "motor": _motor(mensagem),
         "modelo": estado.client.model,
         # A interface nunca mostra o nome do modelo (regra de linguagem do
         # manual): mostra "Assistente local - X GB na sua maquina".
@@ -357,6 +364,124 @@ def status() -> dict:
         "contratos": len(estado.searcher.documents),
         "trechos": len(estado.searcher.chunks),
     }
+
+
+# Tamanho aproximado dos modelos que o programa sugere, para o cartao de
+# "falta baixar" dizer quanto vem antes de a pessoa clicar.
+TAMANHOS_MODELO = {"llama3.2:3b": "2,0 GB", "llama3.2:1b": "1,3 GB", "llama3.1:8b": "4,9 GB", "qwen2.5:3b": "1,9 GB", "gemma2:2b": "1,6 GB"}
+
+
+def _ollama_exe() -> str | None:
+    """O executavel do Ollama: no PATH ou onde o instalador do Windows o poe."""
+    achado = shutil.which("ollama")
+    if achado:
+        return achado
+    local = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"
+    return str(local) if local.exists() else None
+
+
+def _motor(mensagem: str = "") -> dict:
+    """
+    Em que pe esta o motor, para o cartao de erro (docs/ui/05) dizer a coisa
+    certa: nao instalado, desligado, ou ligado sem o modelo.
+    """
+    try:
+        modelos = estado.client.list_models()
+        rodando = True
+    except Exception:  # noqa: BLE001 - sem servidor e um estado, nao um erro
+        modelos, rodando = [], False
+    nome = estado.client.model
+    presente = nome in modelos or any(m.split(":")[0] == nome.split(":")[0] and ":" not in nome for m in modelos)
+    return {
+        "instalado": bool(_ollama_exe()) or rodando,
+        "rodando": rodando,
+        "modelo_presente": presente,
+        "modelo": nome,
+        "tamanho": TAMANHOS_MODELO.get(nome, ""),
+        "mensagem": mensagem,
+        "puxando": estado.puxando,
+    }
+
+
+@app.post("/api/ollama/ligar")
+def ollama_ligar() -> dict:
+    """
+    "Ligar agora" do cartao de erro: abre o servidor do Ollama daqui, sem
+    terminal, e espera ate 20 s por ele. Se ja estiver de pe, so confere.
+    """
+    exe = _ollama_exe()
+    if not exe:
+        raise HTTPException(status_code=503, detail="O Ollama não está instalado nesta máquina")
+    ok, _ = check_ollama(estado.client.model)
+    if not ok:
+        try:
+            estado.client.list_models()
+        except Exception:  # noqa: BLE001 - e isso que estamos tratando
+            try:
+                flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+                subprocess.Popen([exe, "serve"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, creationflags=flags)
+            except OSError as exc:
+                raise HTTPException(status_code=503, detail="não consegui abrir o Ollama: " + str(exc)) from exc
+            limite = time.time() + 20
+            while time.time() < limite:
+                try:
+                    estado.client.list_models()
+                    break
+                except Exception:  # noqa: BLE001 - ainda subindo
+                    time.sleep(0.5)
+    ok, mensagem = check_ollama(estado.client.model)
+    return {"ligado": ok, "mensagem": mensagem, "motor": _motor(mensagem)}
+
+
+@app.post("/api/ollama/puxar")
+def ollama_puxar() -> dict:
+    """Baixa o modelo do assistente em segundo plano (`ollama pull`), com o andamento em /api/ollama/puxar."""
+    exe = _ollama_exe()
+    if not exe:
+        raise HTTPException(status_code=503, detail="O Ollama não está instalado nesta máquina")
+    if estado.puxando and estado.puxando.get("andando"):
+        return estado.puxando
+    estado.puxando = {"modelo": estado.client.model, "progresso": 0, "andando": True, "erro": "", "pronto": False, "linha": ""}
+    andamento = estado.puxando
+
+    def puxar() -> None:
+        try:
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            p = subprocess.Popen([exe, "pull", andamento["modelo"]], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, creationflags=flags, text=True, encoding="utf-8", errors="replace")
+            pedaco = ""
+            while True:
+                ch = p.stdout.read(1)
+                if not ch:
+                    break
+                if ch in "\r\n":
+                    linha = pedaco.strip()
+                    pedaco = ""
+                    if linha:
+                        andamento["linha"] = linha[:120]
+                        achado = re.search(r"(\d{1,3})%", linha)
+                        if achado:
+                            andamento["progresso"] = int(achado.group(1))
+                else:
+                    pedaco += ch
+            if p.wait() == 0:
+                andamento["progresso"] = 100
+                andamento["pronto"] = True
+            else:
+                andamento["erro"] = "o download parou: " + (andamento["linha"] or "sem detalhe")
+        except Exception as exc:  # noqa: BLE001 - o erro vai para a tela
+            andamento["erro"] = str(exc)[:200]
+        finally:
+            andamento["andando"] = False
+
+    threading.Thread(target=puxar, name="ollama-pull", daemon=True).start()
+    return andamento
+
+
+@app.get("/api/ollama/puxar")
+def ollama_puxando() -> dict:
+    return estado.puxando or {"andando": False, "progresso": 0, "pronto": False, "erro": ""}
 
 
 def _tamanho_do_modelo() -> float | None:
@@ -871,7 +996,14 @@ def documentos() -> dict:
 
 @app.post("/api/reindex")
 def reindexar() -> dict:
-    return {"contratos": estado.recarregar(force=True)}
+    try:
+        return {"contratos": estado.recarregar(force=True)}
+    except OSError as exc:
+        # Disco cheio no meio da leitura (docs/ui/05): para, o cache do que
+        # ja foi lido fica, e a tela diz o que fazer.
+        if exc.errno == errno.ENOSPC:
+            raise HTTPException(status_code=507, detail="O disco encheu no meio da leitura. O que já foi lido ficou guardado; libere espaço e reindexe de novo.") from exc
+        raise
 
 
 @app.post("/api/buscar-agora")

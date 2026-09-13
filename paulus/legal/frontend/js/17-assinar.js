@@ -13,7 +13,7 @@ async function mostrarAssinar(caminho) {
   cert.visao = "assinar";
   assina.feito = null;
   const centro = $("centro");
-  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
 
   try {
     cert.dados = await (await fetch("/api/certificado")).json();

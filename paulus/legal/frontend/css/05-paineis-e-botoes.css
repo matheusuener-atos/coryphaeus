@@ -329,3 +329,28 @@
     .progresso i, .medidor .pista i, .barra-fina i { transition: none; }
   }
 
+
+  /* Estados de tela (docs/ui/05). Carregando: esqueleto com a forma do
+     conteudo, em --fill, sem animacao. Erro: cartao com borda --accln e fundo
+     --accbg2, titulo em linguagem comum, a causa e a acao; o detalhe tecnico
+     fica recolhido, em Fira Code. */
+  .esqueleto { display: grid; gap: 12px; padding: 16px 20px; }
+  .esqueleto.esq-lista { gap: 14px; }
+  .esqueleto .esq-linha { display: block; height: 12px; border-radius: 6px; background: var(--fill); }
+  .esqueleto .esq-linha.media { width: 60%; }
+  .esqueleto .esq-linha.curta { width: 35%; }
+  .esq-fila { display: flex; align-items: center; gap: 12px; }
+  .esq-fila > span { flex: 1; display: grid; gap: 8px; }
+  .esq-bolinha { width: 28px; height: 28px; border-radius: 8px; background: var(--fill); flex: none; }
+  .esq-cartoes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .esq-cartao { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--ink-a1); border-radius: 12px; }
+  .cartao-erro { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); }
+  .cartao-erro > b { font: 600 15px var(--sans); color: var(--ink); }
+  .cartao-erro > p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .cartao-erro .acoes { display: grid; gap: 8px; padding-top: 2px; }
+  .cartao-erro .acoes button { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+  .cartao-erro .acoes small { font: 500 12px var(--sans); color: var(--ink3); }
+  .cartao-erro details { font: 500 12px var(--sans); color: var(--ink3); }
+  .cartao-erro summary { cursor: pointer; }
+  .cartao-erro pre { margin: 6px 0 0; white-space: pre-wrap; font: 400 11px/1.5 var(--mono); color: var(--ink2); }
+  .aviso-motor { margin-bottom: 16px; }

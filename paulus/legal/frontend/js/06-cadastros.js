@@ -35,7 +35,7 @@ async function mostrarCadastros(visao) {
   if (visao) cad.visao = visao;
   abrirTela("Cadastros", { cheia: true });
   marcarDestino("cadastros");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   atualizarPostura();
   try {
     const [d, g, l, t] = await Promise.all([

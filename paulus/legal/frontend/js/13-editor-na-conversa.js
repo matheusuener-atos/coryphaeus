@@ -156,7 +156,7 @@ const dupla = {
 async function mostrarDupla(id) {
   abrirTela("Editor de texto");
   const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+  centro.innerHTML = '<div class="catalogo">' + esqueleto("lista") + '</div>';
 
   const r = await fetch("/api/documentos/" + id);
   if (!r.ok) {

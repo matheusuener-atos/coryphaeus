@@ -121,6 +121,19 @@ function perguntar(o) {
   return dialogo(o).then((r) => (r && r.ok ? r.valor : null));
 }
 
+/* Carregando (docs/ui/05): um esqueleto com a forma do conteudo, em --fill,
+   sem giro e sem brilho. "lista" sao linhas de tabela; "cartoes", tres
+   cartoes; "texto", um paragrafo. */
+function esqueleto(tipo) {
+  if (tipo === "cartoes") {
+    return '<div class="esqueleto esq-cartoes" aria-busy="true">' +
+      '<div class="esq-cartao"><i class="esq-linha curta"></i><i class="esq-linha"></i><i class="esq-linha media"></i></div>'.repeat(3) + "</div>";
+  }
+  if (tipo === "texto") return '<div class="esqueleto" aria-busy="true"><i class="esq-linha"></i><i class="esq-linha"></i><i class="esq-linha media"></i></div>';
+  return '<div class="esqueleto esq-lista" aria-busy="true">' +
+    '<div class="esq-fila"><i class="esq-bolinha"></i><span><i class="esq-linha media"></i><i class="esq-linha curta"></i></span></div>'.repeat(6) + "</div>";
+}
+
 /* ------------------------------------------------------------- lixeira */
 /*
    Apagar guarda por 30 dias (docs/ui/05). Cada DELETE devolve o numero da

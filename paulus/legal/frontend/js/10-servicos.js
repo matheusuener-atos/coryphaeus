@@ -22,7 +22,7 @@ async function mostrarServicos(visao) {
   if (sv.visao === "pastas") { sv.ligar = false; sv.form = sv.form && !sv.form.id ? sv.form : null; }
   abrirTela("Serviços", { cheia: true });
   marcarDestino("servicos");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   atualizarPostura();
   try {
     const pedidos = [fetch("/api/servicos?filtro=" + encodeURIComponent(sv.filtro) + "&termo=" + encodeURIComponent(sv.termo)).then((r) => r.json())];

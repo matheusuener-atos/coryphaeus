@@ -105,7 +105,7 @@ async function mostrarDocumentos(visao) {
   if (visao) escr.visao = visao;
 
   const centro = $("centro");
-  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   try {
     escr.lista = (await (await fetch("/api/documentos")).json()).documentos;
     escr.abas.forEach((a) => { const t = tituloNaLista(a.id); if (t) a.titulo = t; });
@@ -1137,7 +1137,7 @@ function aceitarSugestao() {
 
 async function painelClausulas() {
   const alvo = $("ed-abaixo");
-  alvo.innerHTML = '<p class="nota">abrindo…</p>';
+  alvo.innerHTML = '' + esqueleto("lista") + '';
   const d = await (await fetch("/api/documentos/modelos")).json();
 
   alvo.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Cláusulas do escritório</h3>' +

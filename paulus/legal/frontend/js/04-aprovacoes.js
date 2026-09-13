@@ -314,7 +314,7 @@ async function mostrarHistoricoDeAprovacoes() {
   abrirTela("Histórico de aprovações", { cheia: true });
   aprov.visao = "historico";
   cabecalhoAprovacoes("historico");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   if (!(await carregarFila())) return;
   desenharHistorico();
   atualizarPostura();
@@ -403,7 +403,7 @@ async function mostrarRegrasDeAlcada() {
   abrirTela("Regras de alçada", { cheia: true });
   aprov.visao = "regras";
   cabecalhoAprovacoes("regras");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   try {
     aprov.regras = await (await fetch("/api/preferencias")).json();
   } catch (err) {

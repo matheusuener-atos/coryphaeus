@@ -682,9 +682,101 @@ async function carregarStatus() {
       $("privacidade").textContent = "nenhuma requisição à internet";
       rodape.classList.remove("alerta");
     }
+    desenharAvisoDoMotor(s);
     desenharEscopo();
     if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
   } catch (err) { /* servidor caiu; o anel do trilho ja parou */ }
+}
+
+/* O cartao de erro do motor (docs/ui/05): "O assistente esta desligado" com
+   Ligar agora; "Falta baixar o modelo" com o tamanho e Baixar agora; "O
+   Ollama nao esta instalado" com o caminho. Aparece no inicio, acima da
+   caixa de pedido, e some sozinho quando o motor responde. */
+let relogioDaPuxada = null;
+
+function desenharAvisoDoMotor(s) {
+  const alvo = $("aviso-motor");
+  if (!alvo) return;
+  const m = s.motor || {};
+  const puxando = m.puxando || {};
+  if ((s.ollama && !puxando.andando) || !$("conversa-col").classList.contains("vazia")) {
+    alvo.hidden = true;
+    alvo.innerHTML = "";
+    return;
+  }
+  let titulo, causa, acao;
+  if (puxando.andando) {
+    titulo = "Baixando o modelo do assistente";
+    causa = "Uma vez só, com internet. Dá para continuar usando o PAULUS; o assistente responde quando terminar.";
+    acao = '<div class="barra-fina"><i id="motor-barra" style="width:' + (puxando.progresso || 1) + '%"></i></div><small id="motor-linha">' + esc(puxando.linha || "começando…") + "</small>";
+  } else if (puxando.erro) {
+    titulo = "O download do modelo parou";
+    causa = puxando.erro;
+    acao = '<button class="primario" data-motor-puxar="1">' + ic("refresh", 16) + "Tentar de novo</button>";
+  } else if (!m.instalado) {
+    titulo = "O Ollama não está instalado";
+    causa = "O Ollama é o programa que roda o modelo nesta máquina, sem mandar nada para fora. Instale pelo site e abra o PAULUS de novo.";
+    acao = '<button class="primario" data-motor-site="1">' + ic("open_in_new", 16) + "Abrir a página do Ollama</button>";
+  } else if (!m.rodando) {
+    titulo = "O assistente está desligado";
+    causa = "O Ollama, que roda o modelo nesta máquina, não está aberto. Dá para ligar daqui, sem terminal.";
+    acao = '<button class="primario" data-motor-ligar="1">' + ic("play_arrow", 16) + "Ligar agora</button>";
+  } else if (!m.modelo_presente) {
+    titulo = "Falta baixar o modelo";
+    causa = "O Ollama está aberto, mas o modelo" + (m.tamanho ? " (" + m.tamanho + ")" : "") + " ainda não está nesta máquina. É um download só, com internet; leva alguns minutos.";
+    acao = '<button class="primario" data-motor-puxar="1">' + ic("download", 16) + "Baixar agora</button>";
+  } else {
+    alvo.hidden = true;
+    alvo.innerHTML = "";
+    return;
+  }
+  alvo.innerHTML = '<div class="cartao-erro"><b>' + esc(titulo) + "</b><p>" + esc(causa) + '</p><div class="acoes">' + acao + "</div>" +
+    (m.mensagem && !puxando.andando ? "<details><summary>Detalhes</summary><pre>" + esc(m.mensagem) + "</pre></details>" : "") + "</div>";
+  alvo.hidden = false;
+  const ligar = alvo.querySelector("[data-motor-ligar]");
+  if (ligar) ligar.onclick = () => ligarMotor(ligar);
+  const puxar = alvo.querySelector("[data-motor-puxar]");
+  if (puxar) puxar.onclick = () => puxarModelo(puxar);
+  const site = alvo.querySelector("[data-motor-site]");
+  if (site) site.onclick = () => window.open("https://ollama.com/download", "_blank");
+  if (puxando.andando) vigiarPuxada();
+}
+
+async function ligarMotor(botao) {
+  botao.disabled = true;
+  botao.textContent = "ligando…";
+  const r = await fetch("/api/ollama/ligar", { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); botao.disabled = false; botao.textContent = "Ligar agora"; return; }
+  const d = await r.json();
+  if (d.ligado) avisoCert("assistente ligado", { tom: "ok" });
+  else if (d.motor && d.motor.rodando) avisoCert("o Ollama abriu, mas falta o modelo", { tom: "erro" });
+  else avisoCert("o Ollama não respondeu: " + (d.mensagem || ""), { tom: "erro" });
+  carregarStatus();
+}
+
+async function puxarModelo(botao) {
+  botao.disabled = true;
+  const r = await fetch("/api/ollama/puxar", { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); botao.disabled = false; return; }
+  carregarStatus();
+}
+
+function vigiarPuxada() {
+  clearTimeout(relogioDaPuxada);
+  relogioDaPuxada = setTimeout(async () => {
+    let p;
+    try { p = await (await fetch("/api/ollama/puxar")).json(); } catch (err) { return; }
+    if (p.andando) {
+      const barra = $("motor-barra");
+      if (barra) barra.style.width = (p.progresso || 1) + "%";
+      const linha = $("motor-linha");
+      if (linha) linha.textContent = p.linha || "baixando…";
+      vigiarPuxada();
+      return;
+    }
+    if (p.pronto) avisoCert("modelo baixado — o assistente está pronto", { tom: "ok" });
+    carregarStatus();
+  }, 2000);
 }
 
 async function carregarModelo() {

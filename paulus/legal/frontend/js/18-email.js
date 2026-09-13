@@ -36,7 +36,7 @@ async function mostrarEmail(visao) {
   if (visao) mail.visao = visao;
 
   const centro = $("centro");
-  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   try {
     mail.contas = await (await fetch("/api/email/contas")).json();
   } catch (err) {

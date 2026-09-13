@@ -21,7 +21,7 @@ async function mostrarFoco(visao) {
   pararRelogioDoFoco();
   abrirTela("Foco e bem-estar", { cheia: true });
   marcarDestino("foco");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   atualizarPostura();
   try {
     const pega = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);

@@ -769,6 +769,25 @@ def main() -> int:
                     pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/tarefas/{tid}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
                 pagina.wait_for_timeout(300)
 
+            print("\nestados de erro e carregando (doc 05)")
+            # O cartao do motor diz em linguagem comum o que falta e oferece a
+            # acao: Ligar agora, Baixar agora, o caminho do Ollama. O esqueleto
+            # de carregando tem a forma da lista, sem giro.
+            pagina.evaluate("() => { $('nova').click(); desenharAvisoDoMotor({ ollama: false, motor: { instalado: true, rodando: false, modelo_presente: false, mensagem: 'sem servidor' } }); }")
+            pagina.wait_for_timeout(300)
+            checar(
+                pagina.evaluate("() => !document.getElementById('aviso-motor').hidden && document.querySelector('#aviso-motor .cartao-erro b').textContent === 'O assistente está desligado' && !!document.querySelector('[data-motor-ligar]')"),
+                "o cartao 'O assistente esta desligado' traz Ligar agora",
+            )
+            pagina.evaluate("() => desenharAvisoDoMotor({ ollama: false, motor: { instalado: true, rodando: true, modelo_presente: false, tamanho: '2,0 GB' } })")
+            checar(
+                pagina.evaluate("() => document.querySelector('#aviso-motor p').textContent.includes('2,0 GB') && !!document.querySelector('[data-motor-puxar]')"),
+                "o cartao 'Falta baixar o modelo' diz o tamanho e traz Baixar agora",
+            )
+            pagina.evaluate("() => carregarStatus()")
+            pagina.wait_for_timeout(1500)
+            checar(pagina.evaluate("() => document.querySelectorAll('.esqueleto').length === 0 && typeof esqueleto('lista') === 'string' && esqueleto('lista').includes('esq-fila')"), "o esqueleto existe para as listas que abrem")
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

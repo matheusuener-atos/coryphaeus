@@ -30,7 +30,7 @@ async function mostrarGravacoes(visao) {
   if (gv.visao === "gravacao" && !gv.aberta) gv.visao = "lista";
   abrirTela("Gravações", { cheia: true });
   marcarDestino("gravacoes");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo…</p></div></div>';
+  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   atualizarPostura();
   try {
     const pedidos = [
