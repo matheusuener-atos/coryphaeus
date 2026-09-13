@@ -56,6 +56,63 @@ Nada sai da maquina: extracao, indice e inferencia rodam localmente.
 | `src/jobs.py` | Trabalhos (conversas) com etapas, atividade e persistencia |
 | `src/recursos.py` | Medidores reais da maquina |
 | `src/pastas.py` | Navegacao de pastas para a escolha do escopo |
+| `src/inteligencia/` | A camada de metadata de documentos (`legal-document/v0`): o que ja foi entendido de cada documento, para nao entender de novo a cada pergunta |
+| `config/extratores.yaml` | Quem extrai cada secao, em que nivel e com qual modelo - trocar especialista e mudar uma linha |
+
+## A camada de inteligencia de documentos
+
+Um retrofit sobre o fluxo que ja existia, ligavel e desligavel por uma chave
+em Configuracoes. A ideia cabe numa linha: **a mesma pergunta trivial nao pode
+fazer o modelo ler o documento de novo toda vez.**
+
+```text
+PERGUNTA -> METADATA -> (se preciso) INDICE -> (se preciso) TRECHOS ->
+(se preciso) DOCUMENTO -> MODELO -> RESPOSTA COM FONTE
+```
+
+Tres pontos de encaixe, e mais nada do programa muda:
+
+| Hook | Onde | O que faz |
+|---|---|---|
+| 1 | `Estado.recarregar` (ingestao) | `analisar_documento` em segundo plano, idempotente |
+| 2 | `habilidades/perguntar.py` | `Saber.montar_contexto` decide o nivel antes de montar contexto |
+| 3 | a resposta | fontes com pagina, e rotulo quando o que respondeu foi leitura do modelo |
+
+Os niveis, do mais barato ao mais caro:
+
+| Nivel | O que le | Quando |
+|---|---|---|
+| 0 | so o metadata | pergunta factual, campo conferido, resposta unica |
+| 1 | metadata + resumo | "do que se trata este documento?", com um documento em foco |
+| 2 | o buscador de hoje | **o comportamento de antes da camada** |
+| 3 | buscador filtrado pelo metadata | "o que os documentos de 2015 dizem?" |
+| 4 | varios documentos escolhidos | perguntas que comparam |
+| 5 | documento inteiro | so a pedido |
+
+As regras que impedem a otimizacao de virar erro:
+
+- **ausencia no metadata nunca e resposta negativa** - escala, porque o dado
+  pode estar no documento que ainda nao foi analisado;
+- **"nao sei" nunca vira "nao"** no filtro dos niveis 3 e 4: documento nao
+  analisado entra no recorte, nunca e excluido dele;
+- **duvida escala**, inclusive depois: o prompt do nivel 0 manda o modelo
+  responder `ESCALAR` quando os fatos nao bastam, e a pergunta refaz o caminho
+  de sempre sem que quem perguntou perceba;
+- **o que nao foi conferido nao responde**: item so vira fato com citacao que
+  casa com o texto, e digitos e numeros por extenso tem de bater exatamente.
+
+Medido nesta maquina (14 documentos, modelo local de 3B): a analise por regra
+leva 0,3 s para o acervo inteiro; "qual o valor do contrato?" com o documento
+em foco caiu de 57 s para 12,5 s; as secoes que dependem do modelo levam ~106 s
+por documento e rodam so pelo terminal (`python -m inteligencia.retomar
+--assistente`), em janela ociosa.
+
+O que fica em disco: `data/conhecimento/documents/<id>/versions/<id>/` com o
+texto normalizado, o mapa de paginas e o `metadata.json`; o banco guarda um
+espelho para achar rapido. **O original nunca e tocado** - o que se guarda e
+caminho, hash e data - e o metadata NAO fica ao lado do PDF, porque ele e mais
+sensivel que o proprio documento (partes, valores e teses em texto plano) e
+pasta de escritorio costuma estar sincronizada em nuvem.
 
 ## Decisoes de projeto
 
