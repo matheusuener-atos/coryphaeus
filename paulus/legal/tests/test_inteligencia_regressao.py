@@ -117,6 +117,67 @@ def preparar(tmp: Path):
     return bd, biblioteca, catalogo, documentos
 
 
+
+def test_recorte_por_metadata(ligada, documentos, por_nome) -> None:
+    """
+    Niveis 3 e 4: a camada nao responde, mas diz onde procurar.
+
+    A regra que se testa aqui e a que protege: "nao sei" nunca vira "nao". Um
+    documento que a camada ainda nao classificou PODE ser o que a pergunta
+    procura, e exclui-lo faria o programa responder "nao achei" sobre o
+    documento que tinha a resposta.
+    """
+    print("\no recorte por metadata (níveis 3 e 4)")
+    pacote = ligada.montar_contexto("o que os documentos de 2015 dizem?", documentos)
+    checar(pacote.nivel == roteador.BUSCADOR_FILTRADO and pacote.estreita,
+           "uma pergunta com ano recorta o acervo", (pacote.nivel, pacote.porque))
+    checar(len(pacote.restringe) < len(documentos),
+           f"de {len(documentos)} para {len(pacote.restringe)} documentos", pacote.trace)
+    checar(pacote.trace.get("certos", 0) >= 1,
+           "com pelo menos um documento que bate de verdade", pacote.trace)
+
+    # A prova da regra de ouro, em miniatura: um documento conhecido que NAO
+    # bate sai; um documento que a camada nao conhece FICA.
+    from inteligencia.esquema import Metadata, Secao
+
+    conhecido_diferente = Metadata(document={"id": "d1"}, version={"id": "v1"},
+                                   classification={"document_type_br": "procuracao"})
+    conhecido_diferente.marcar_secao("classification", Secao(extractor="x", status="ok"))
+    desconhecido = Metadata(document={"id": "d2"}, version={"id": "v2"})
+    certo = Metadata(document={"id": "d3"}, version={"id": "v3"},
+                     classification={"document_type_br": "compra_e_venda"})
+    certo.marcar_secao("classification", Secao(extractor="x", status="ok"))
+
+    vereditos = {m.document_id: roteador._passa(m, {"tipo": "compra_e_venda"})
+                 for m in (conhecido_diferente, desconhecido, certo)}
+    checar(vereditos["d1"] == "nao", "documento de tipo conhecido e diferente fica de fora", vereditos)
+    checar(vereditos["d2"] == "nao_sei", "documento nao analisado fica na duvida, nao fora", vereditos)
+    checar(vereditos["d3"] == "sim", "e o que bate, entra", vereditos)
+
+    pacote = roteador.resolver("o que os contratos de compra e venda dizem?",
+                               [certo, conhecido_diferente, desconhecido],
+                               nomes={"v1": "procuracao.pdf", "v2": "sem análise.pdf",
+                                      "v3": "compra e venda.pdf"})
+    checar(set(pacote.restringe) == {"compra e venda.pdf", "sem análise.pdf"},
+           "o recorte leva o certo e o duvidoso, e deixa so o que se sabe que nao e",
+           pacote.restringe)
+    checar("ainda não foram analisados" in pacote.porque,
+           "e diz isso a quem perguntou", pacote.porque)
+
+    # Comparar pede mais de um documento aberto: e o nivel 4.
+    comparacao = roteador.resolver("compare os contratos de compra e venda",
+                                   [certo, conhecido_diferente, desconhecido],
+                                   nomes={"v1": "a.pdf", "v2": "b.pdf", "v3": "c.pdf"})
+    checar(comparacao.nivel == roteador.VARIOS_DOCUMENTOS,
+           "pergunta que compara vira nível 4", comparacao.trace)
+
+    # Recorte que nao recorta nada nao vale a pena.
+    largo = roteador.resolver("o que os documentos dizem sobre 2025?",
+                              [desconhecido, desconhecido, desconhecido],
+                              nomes={"v2": "x.pdf"})
+    checar(largo.fallback, "recorte sem nenhum documento certo escala", largo.trace)
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - regressao da camada de inteligencia")
@@ -193,6 +254,8 @@ def main() -> int:
                            (trecho, fato.quote))
         checar(conferidas > 0 and not _falhas,
                f"as {conferidas} citacoes entregues existem literalmente no documento")
+
+        test_recorte_por_metadata(ligada, documentos, por_nome)
 
         print("\nmedicao")
         medida = ligada.medicao()

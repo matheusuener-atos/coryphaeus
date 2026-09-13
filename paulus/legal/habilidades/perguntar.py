@@ -87,6 +87,17 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
             if not sinal["escalou"]:
                 return
             ctx.registrar("os fatos guardados não bastaram — refiz pelo caminho de sempre")
+        elif pacote.estreita:
+            # Niveis 3 e 4: a camada nao tem a resposta, mas sabe em quais
+            # documentos ela esta. Dali para baixo nada muda - e o buscador de
+            # sempre, com os trechos de sempre, so que dentro de um pedaco do
+            # acervo em vez do acervo inteiro.
+            conhecidos = {d.name for d in ctx.documentos}
+            recorte = [n for n in pacote.restringe if n in conhecidos]
+            if recorte:
+                apenas = quais_em_foco = recorte
+                ctx.registrar("Procurei só em " + _quantos(len(recorte), "documento") +
+                              ": " + pacote.porque)
 
     # A pergunta nomeou um documento: a resposta é sobre ele, e mais ninguém.
     # Lendo os nove, o documento citado virava 937 de 27.213 caracteres -

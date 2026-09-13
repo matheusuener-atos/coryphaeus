@@ -54,6 +54,10 @@ VARIOS_DOCUMENTOS = 4
 DOCUMENTO_INTEIRO = 5
 
 
+def _quantos(n: int, palavra: str) -> str:
+    return f"{n} {palavra if n == 1 else palavra + 's'}"
+
+
 def _plano(texto: str) -> str:
     normal = unicodedata.normalize("NFD", (texto or "").lower())
     return " ".join("".join(c for c in normal if unicodedata.category(c) != "Mn").split())
@@ -202,12 +206,20 @@ class Pacote:
     # Ligado quando o que vai na resposta e conclusao do modelo (o resumo), e
     # nao trecho conferido. A tela tem de dizer isso a quem le.
     inferencia: bool = False
+    # Nivel 3 e 4: a camada nao respondeu, mas sabe em QUAIS documentos esta a
+    # resposta. O buscador de hoje roda igual - so que dentro destes.
+    restringe: list[str] = field(default_factory=list)
     ms: int = 0
     trace: dict = field(default_factory=dict)
 
     @property
     def responde_sozinho(self) -> bool:
         return self.nivel <= METADATA_E_RESUMO and bool(self.fatos)
+
+    @property
+    def estreita(self) -> bool:
+        """A camada nao respondeu, mas diz onde procurar."""
+        return bool(self.restringe) and not self.responde_sozinho
 
     def prompt(self, pergunta: str) -> str:
         """
@@ -243,6 +255,7 @@ class Pacote:
     def resumo_para_tela(self) -> dict:
         return {"nivel": self.nivel, "porque": self.porque, "fallback": self.fallback,
                 "fatos": [f.to_dict() for f in self.fatos], "documentos": self.documentos,
+                "restringe": self.restringe, "inferencia": self.inferencia,
                 "ms": self.ms, "trace": self.trace}
 
 
@@ -275,8 +288,11 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
                     "chave": intencao.chave, "documentos": len(metas), "em_foco": em_foco}
 
     if not intencao.resolvivel:
-        pacote.ms = int((time.time() - comeco) * 1000)
         pacote.trace["decisao"] = "escalou: não é pergunta de dado"
+        # Nao responder nao e o fim: o metadata ainda pode dizer ONDE procurar.
+        if metas and not em_foco:
+            return _pelo_filtro(pacote, pergunta, metas, nomes or {}, comeco)
+        pacote.ms = int((time.time() - comeco) * 1000)
         return pacote
 
     if not metas:
@@ -331,6 +347,162 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
     pacote.fallback = False
     pacote.porque = f"respondido pelo que já foi lido em {', '.join(documentos)}"
     pacote.trace["decisao"] = "nível 0"
+    pacote.ms = int((time.time() - comeco) * 1000)
+    return pacote
+
+
+# O que numa pergunta diz "procure so num pedaco do acervo". Nao e uma lista de
+# palavras bonitas: e o que um escritorio efetivamente escreve quando quer
+# recortar o acervo - o ano, o tipo do documento, o tribunal.
+RE_ANO = re.compile(r"\b(19\d{2}|20\d{2})\b")
+RE_DEPOIS = re.compile(r"\b(posteriores?|depois|a partir|desde|apos)\b")
+RE_ANTES = re.compile(r"\b(anteriores?|antes de|ate)\b")
+
+TIPOS_NA_PERGUNTA = {
+    "compra_e_venda": ("compra e venda", "compras e vendas"),
+    "locacao": ("locacao", "locacoes", "aluguel"),
+    "prestacao_servicos": ("prestacao de servicos", "servicos advocaticios"),
+    "procuracao": ("procuracao", "procuracoes"),
+    "peticao": ("peticao", "peticoes", "contestacao", "inicial"),
+    "nda": ("confidencialidade", "nda"),
+    "distrato": ("distrato", "rescisao amigavel"),
+    "trabalhista": ("contrato de trabalho", "trabalhista"),
+}
+
+RE_TRIBUNAL_PERGUNTA = re.compile(r"\b(tj[a-z]{2}|trf\s?\d|trt\s?\d{1,2}|stf|stj|tst)\b")
+
+# Perguntas que comparam pedem mais de um documento aberto ao mesmo tempo.
+RE_COMPARA = re.compile(
+    r"\b(compar\w*|contradiz\w*|diverg\w*|diferenca entre|bate com|confere com|versus)\b")
+
+# Quantos documentos ainda fazem uma leitura possivel. Acima disso, estreitar
+# nao ajudou: continua sendo o acervo, e o caminho e o de hoje.
+ESTREITO_MAX = 6
+
+
+def _filtro_da_pergunta(plano: str) -> dict:
+    """O recorte que a pergunta pede - ano, tipo de documento, tribunal."""
+    filtro: dict = {}
+    anos = [int(a) for a in RE_ANO.findall(plano)]
+    if anos:
+        filtro["ano"] = anos[0]
+        if RE_DEPOIS.search(plano):
+            filtro["ano_modo"] = "desde"
+        elif RE_ANTES.search(plano):
+            filtro["ano_modo"] = "ate"
+        else:
+            filtro["ano_modo"] = "igual"
+    for tipo, pistas in TIPOS_NA_PERGUNTA.items():
+        if any(pista in plano for pista in pistas):
+            filtro["tipo"] = tipo
+            break
+    tribunal = RE_TRIBUNAL_PERGUNTA.search(plano)
+    if tribunal:
+        filtro["tribunal"] = tribunal.group(1).upper().replace(" ", "")
+    return filtro
+
+
+SIM, NAO, NAO_SEI = "sim", "nao", "nao_sei"
+
+
+def _passa(meta: Metadata, filtro: dict) -> str:
+    """
+    Este documento entra no recorte? Tres respostas, e a terceira e a que
+    protege.
+
+    "Nao sei" nao pode virar "nao". Se a camada ainda nao classificou um
+    documento, ele PODE ser o contrato de compra e venda que a pergunta
+    procura - e exclui-lo faria o programa responder "nao achei" sobre um
+    documento que tem a resposta. O custo de incluir um documento a mais e
+    tempo; o de excluir e uma resposta errada com cara de certa.
+    """
+    duvida = False
+
+    if filtro.get("tipo"):
+        classificacao = meta.classification or {}
+        conhecido = (meta.secao("classification").utilizavel
+                     and classificacao.get("document_type_br")
+                     and classificacao.get("document_type_br") != "outro")
+        if not conhecido:
+            duvida = True
+        elif classificacao.get("document_type_br") != filtro["tipo"]:
+            return NAO
+
+    if filtro.get("tribunal"):
+        juizo = meta.jurisdiction or {}
+        if not (meta.secao("jurisdiction").utilizavel and juizo.get("court")):
+            duvida = True
+        elif str(juizo.get("court", "")).upper() != filtro["tribunal"]:
+            return NAO
+
+    if filtro.get("ano"):
+        anos = {int(str(i.dados.get("date", ""))[:4]) for i in meta.fatos("dates")
+                if str(i.dados.get("date", ""))[:4].isdigit()}
+        do_caso = (meta.case or {}).get("year")
+        if do_caso:
+            anos.add(int(do_caso))
+        if not anos:
+            # Documento sem data lida nao e documento sem data: pode ser data
+            # que o extrator nao reconheceu.
+            duvida = True
+        else:
+            alvo, modo = filtro["ano"], filtro.get("ano_modo", "igual")
+            bate = (any(a >= alvo for a in anos) if modo == "desde"
+                    else any(a <= alvo for a in anos) if modo == "ate"
+                    else alvo in anos)
+            if not bate:
+                return NAO
+
+    return NAO_SEI if duvida else SIM
+
+
+def _pelo_filtro(pacote: "Pacote", pergunta: str, metas: list[Metadata], nomes: dict,
+                 comeco: float) -> "Pacote":
+    """
+    Nivel 3 e 4: a camada nao responde, mas diz onde procurar.
+
+    "O que os contratos de 2025 dizem sobre multa" e pergunta de leitura - o
+    metadata nao tem a resposta. Mas ele sabe quais documentos sao contratos e
+    quais sao de 2025, e essa e a diferenca entre o buscador varrer catorze
+    documentos e varrer tres. O que acontece depois e exatamente o que
+    acontecia antes: o buscador de hoje, com os trechos de sempre.
+
+    Recorte que nao recorta nada nao ajuda ninguem; e recorte que deixa zero
+    documento seria responder "nao ha" sobre o que pode estar num documento
+    que a camada ainda nao analisou. Nos dois casos, escala.
+    """
+    plano = _plano(pergunta)
+    filtro = _filtro_da_pergunta(plano)
+    if not filtro:
+        pacote.ms = int((time.time() - comeco) * 1000)
+        return pacote
+
+    vereditos = [(m, _passa(m, filtro)) for m in metas]
+    certos = [m for m, v in vereditos if v == SIM]
+    # Os que a camada nao conhece entram junto: nao saber nao e dizer que nao.
+    escolhidos = [m for m, v in vereditos if v in (SIM, NAO_SEI)]
+    pacote.trace["filtro"] = filtro
+    pacote.trace["certos"] = len(certos)
+    pacote.trace["escolhidos"] = len(escolhidos)
+
+    if not certos or len(escolhidos) >= len(metas) or len(escolhidos) > ESTREITO_MAX:
+        # Recorte que nao recorta nada nao ajuda; recorte sem nenhum documento
+        # certo seria procurar so entre os que a camada nao conhece.
+        pacote.trace["decisao"] = "escalou: o recorte nao estreitou"
+        pacote.ms = int((time.time() - comeco) * 1000)
+        return pacote
+
+    comparando = bool(RE_COMPARA.search(plano))
+    pacote.nivel = VARIOS_DOCUMENTOS if (comparando and len(escolhidos) > 1) else BUSCADOR_FILTRADO
+    pacote.restringe = [nomes.get(m.version_id) or m.titulo for m in escolhidos]
+    pacote.documentos = list(pacote.restringe)
+    pacote.fallback = False
+    duvidosos = len(escolhidos) - len(certos)
+    pacote.porque = (
+        "o que já foi lido aponta " + _quantos(len(certos), "documento") +
+        (f" (mais {duvidosos} que ainda não foram analisados)" if duvidosos else "") +
+        " em vez de " + _quantos(len(metas), "documento"))
+    pacote.trace["decisao"] = f"nível {pacote.nivel}"
     pacote.ms = int((time.time() - comeco) * 1000)
     return pacote
 

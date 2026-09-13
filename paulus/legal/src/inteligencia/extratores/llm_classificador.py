@@ -53,6 +53,30 @@ INSTRUCAO = (
 )
 
 
+def pelo_nome(nome: str) -> str:
+    """
+    O tipo pelo nome do arquivo - so quando o texto empatou.
+
+    Num escritorio o nome do arquivo e escrito por gente: "Contrato de Compra
+    e Venda - Matheus X Caroline.pdf" diz o que o documento e. Medido no
+    acervo de teste, a regra de vocabulario empata nos contratos de compra e
+    venda (o texto tem termos de mais de um tipo) e devolve "outro"; o nome
+    resolve sem chamar modelo nenhum.
+
+    E desempate, nao decisao: so vale quando o texto nao decidiu, e o
+    resultado nasce sem `verified` - nome de arquivo nao e trecho de
+    documento, e nao pode responder nivel 0 sozinho.
+    """
+    from classify import TIPOS, _sem_acento
+
+    plano = _sem_acento((nome or "").lower())
+    for tipo, termos in TIPOS.items():
+        for termo in termos:
+            if len(termo) >= 12 and _sem_acento(termo) in plano:
+                return tipo
+    return "outro"
+
+
 def extrair(pedido: Pedido) -> Resultado:
     from classify import ROTULOS, detectar_tipo
 
@@ -60,6 +84,12 @@ def extrair(pedido: Pedido) -> Resultado:
     tipo = DA_REGRA.get(bruto, "other")
     rotulo = ROTULOS.get(bruto, "")
     origem, certeza = "regra", "high"
+
+    if bruto == "outro":
+        do_nome = pelo_nome(pedido.nome)
+        if do_nome != "outro":
+            bruto, tipo, rotulo = do_nome, DA_REGRA.get(do_nome, "other"), ROTULOS.get(do_nome, "")
+            origem, certeza = "nome do arquivo", "medium"
 
     if bruto == "outro" and pedido.client is not None:
         # O modelo so fala quando a regra nao decide - e mesmo ai a resposta
