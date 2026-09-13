@@ -1,0 +1,224 @@
+  /* --------------------------------------------------------- documentos */
+  /*
+    Documentos (docs/ui/03-telas-desktop.md, A6): as abas dos arquivos
+    abertos, o seletor Editor · Planilha · Pre-visualizacao, duas barras de
+    ferramentas e o painel de 400 px com a conversa sobre o documento. A folha
+    continua desenhada na escala do PDF (a margem de 2,5 cm e a de verdade);
+    a moldura em volta e que mudou. Prefixo docs- em tudo que e desta tela.
+  */
+  .docs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .docs-corpo { grid-template-columns: minmax(0, 1fr) 400px; }
+  .docs-corpo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
+  .docs-corpo .acervo-principal { padding: 12px 0 14px 20px; gap: 10px; }
+  .docs-corpo.sem-painel .acervo-principal { padding-right: 20px; }
+
+  /* as abas dos documentos abertos */
+  .docs-abas {
+    flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 8px 20px 0; overflow-x: auto;
+    background: var(--bg); border-bottom: 1px solid var(--ink-a1);
+  }
+  .docs-aba, .docs-aba-mais {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px 12px; margin-bottom: -1px; flex: none;
+    border: 1px solid transparent; border-radius: 8px 8px 0 0; background: transparent;
+    font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; max-width: 320px; cursor: pointer;
+  }
+  .docs-aba:hover:not(:disabled), .docs-aba-mais:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
+  .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); font-weight: 600; }
+  .docs-aba .glifo { width: 18px; height: 18px; font-size: 10px; }
+  .docs-aba .glifo.pdf { font-size: 6.5px; }
+  .docs-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .docs-aba small { font: 500 11.5px var(--sans); color: var(--ink3); }
+  .docs-fechar { color: var(--mute2); margin-left: 2px; border-radius: 4px; }
+  .docs-fechar:hover { color: var(--ink); background: var(--fill); }
+  .docs-aba-mais { width: 32px; height: 34px; padding: 0; justify-content: center; }
+  .docs-aba-mais.ativa { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); }
+
+  /* as barras de ferramentas: a de formatar e a juridica */
+  .docs-barra {
+    flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 20px;
+    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12.5px;
+  }
+  .docs-barra.juridica { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+  .docs-barra button {
+    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none;
+  }
+  .docs-barra button:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .docs-barra button.on { background: var(--fill); }
+  .docs-barra button.com-texto { width: auto; padding: 5px 10px; font: 500 12.5px var(--sans); white-space: nowrap; }
+  .docs-barra button.adiante { opacity: .5; }
+  .docs-barra button.docs-chip {
+    width: auto; padding: 4px 8px; border: 1px solid var(--ink-a15); font: 600 12px var(--sans); color: var(--ink2);
+  }
+  .docs-barra button.docs-chip:hover:not(:disabled) { border: 1px solid var(--ink); color: var(--ink); background: none; }
+  .docs-rotulo { font: 500 12px var(--sans); color: var(--ink3); padding-left: 4px; }
+  .docs-sel {
+    height: 28px; padding: 0 28px 0 10px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
+    font: 400 12.5px var(--sans); color: var(--ink); min-width: 0; max-width: none; width: auto; cursor: pointer;
+  }
+  .docs-sel.curta { padding-right: 22px; }
+  .docs-barra.fx { flex-wrap: nowrap; gap: 10px; }
+  .docs-ref { padding: 4px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; font: 600 12.5px var(--sans); white-space: nowrap; }
+  .docs-fx { font: 500 12.5px var(--sans); color: var(--ink3); font-style: italic; }
+  .docs-fx-entrada {
+    flex: 1; min-width: 0; max-width: 100%; border: none; background: none; padding: 4px 0;
+    font: 400 13px var(--mono); color: var(--ink); outline: none;
+  }
+  .docs-fx-nota { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+  .docs-pagina-num { font: 600 12.5px var(--sans); padding: 0 4px; white-space: nowrap; }
+  .docs-nota-direita { margin-left: auto; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+
+  /* o cartao com a folha, a grade ou a pagina */
+  .docs-cartao {
+    flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); overflow: hidden;
+  }
+  .docs-status {
+    flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--ink-a1);
+    background: var(--surf); font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap;
+  }
+  .docs-status .cresce { flex: 1; }
+  .docs-divisa-fina { width: 1px; height: 11px; background: var(--ink-a15); }
+  .docs-ligacao { border: none; background: none; padding: 0; cursor: pointer; font: 500 12.5px var(--sans); color: var(--ink); }
+  .docs-ligacao:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .docs-papel-area { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; }
+  .docs-papel { width: 100%; max-width: 720px; align-self: flex-start; }
+  .docs .ed-regua { margin-bottom: 10px; }
+  .docs .ed-folha {
+    border: 1px solid var(--papel-linha); box-shadow: 0 18px 44px -28px var(--papel-sombra);
+    min-height: 640px;
+  }
+  .docs .rotulo-cartao { display: flex; align-items: center; gap: 8px; }
+  .docs .dupla-cartao .linha-form button.primario { background: var(--btn); color: var(--btnt); border-color: var(--btn); }
+
+  /* a pre-visualizacao: miniaturas e a pagina */
+  .docs-cartao.previa { background: var(--bg); }
+  .docs-previa { flex: 1; min-height: 0; display: flex; }
+  .docs-miniaturas {
+    width: 84px; flex: none; border-right: 1px solid var(--ink-a1); padding: 14px 0; overflow: auto;
+    display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--surf);
+  }
+  .docs-mini {
+    width: 48px; padding: 0; border: 1px solid var(--ink-a1); border-radius: 0; background: var(--surf); flex: none;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding-bottom: 3px; cursor: pointer;
+  }
+  .docs-mini img { width: 100%; height: auto; display: block; opacity: .85; }
+  .docs-mini span { font: 500 10px var(--sans); color: var(--ink3); }
+  .docs-mini:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); }
+  .docs-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surf), 0 0 0 3px var(--ink); }
+  .docs-mini.atual span { color: var(--ink); font-weight: 600; }
+  .docs-pv-rolagem { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; align-items: flex-start; }
+  .docs-pv-rolagem .pv-paginas { width: 100%; max-width: 760px; }
+  .docs-pv-rolagem .pv-paginas.duas { max-width: none; }
+  .docs-pagina { width: 100%; height: auto; display: block; border: 1px solid var(--ink-a1); box-shadow: 0 18px 44px -28px var(--sh-a45); background: var(--papel); }
+
+  /* a grade da planilha dentro do cartao */
+  .docs .pl-caixa { flex: 1; min-height: 0; max-height: none; border: none; overflow: auto; background: var(--surf); }
+  .docs .pl-grade { font-size: 13px; }
+  .docs .pl-grade th, .docs .pl-grade td { border-color: var(--ink-a08); }
+  .docs .pl-grade th {
+    background: var(--bg); color: var(--ink3); font: 500 12px var(--sans); letter-spacing: 0; text-align: left;
+    padding: 8px 12px; height: auto; border-bottom: 1px solid var(--ink-a1);
+  }
+  .docs .pl-grade th.canto { min-width: 44px; }
+  .docs .pl-grade td { height: 34px; }
+  .docs .pl-grade td.cabeca-linha { background: var(--bg); color: var(--ink3); font: 500 12px var(--sans); min-width: 44px; border-right: 1px solid var(--ink-a1); }
+  .docs .pl-grade td.pl-cel { padding: 0 12px; }
+  .docs .pl-grade tr:hover td.pl-cel { background: var(--sub); }
+  .docs .pl-cel.escolhida { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .docs .pl-cel.na-faixa { background: var(--accbg) !important; }
+  .docs .pl-cel.ruim { color: var(--acc); }
+  .docs .pl-cel input { background: var(--surf); }
+  .docs .pl-caixa.congelada tbody tr:first-child td { background: var(--bg); top: 33px; }
+  .docs-filtro-aviso {
+    flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px;
+    border-top: 1px solid var(--ink-a1); background: var(--warnbg); color: var(--warnt); font-size: 12.5px;
+  }
+  .docs-abas-pl {
+    flex: none; display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-top: 1px solid var(--ink-a1);
+    background: var(--surf); font-size: 12.5px; overflow: hidden;
+  }
+  .docs-aba-pl { padding: 5px 12px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap; }
+  .docs-aba-pl:hover:not(:disabled) { background: var(--bg); border: none; color: var(--ink2); }
+  .docs-aba-pl.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
+  .docs-aba-pl-mais { width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink2); display: flex; align-items: center; justify-content: center; }
+  .docs-aba-pl-mais:hover:not(:disabled) { background: var(--bg); border: none; }
+  .docs-abas-pl .docs-ligacao { color: var(--ink3); margin-left: 6px; font-size: 12px; }
+  .docs-selecao { margin-left: 12px; display: flex; gap: 12px; flex-wrap: wrap; font: 500 12px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; white-space: nowrap; }
+  .docs-selecao span:first-child { color: var(--ink); }
+
+  /* o painel: as ferramentas no alto, a conversa embaixo */
+  .docs-painel { display: flex; flex-direction: column; }
+  .docs-ferramenta:empty { display: none; }
+  .docs-ferramenta .painel {
+    margin: 0 !important; padding: 12px 18px; border: none; border-bottom: 1px solid var(--ink-a1);
+    border-radius: 0; background: var(--sub); box-shadow: none;
+  }
+  .docs-ferramenta .painel h3 { font: 600 14px var(--sans); margin: 0 0 6px; }
+  .docs-ferramenta .painel .explica { font-size: 12.5px; }
+  .docs-ferramenta .proposta { margin: 12px 18px; }
+  .docs-ferramenta > p.nota { padding: 12px 18px; }
+  .docs-painel-cabeca {
+    flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px;
+    font: 500 12.5px var(--sans); color: var(--ink3);
+  }
+  .docs-painel-cabeca .cresce { flex: 1; font: 600 14px var(--sans); color: var(--ink); }
+  .docs-conversa { flex: 1; min-height: 120px; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .docs-explica { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); }
+  .docs-bolha { align-self: flex-end; max-width: 90%; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.5; }
+  .docs-resposta { display: grid; gap: 10px; max-width: 95%; font-size: 13.5px; line-height: 1.6; }
+  .docs-resposta p { margin: 0; }
+  .docs-resposta code { font: 600 12.5px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 4px; }
+  .docs-trecho {
+    margin: 0; padding: 8px 12px; border-left: 2px solid var(--acc); background: var(--accbg2);
+    font: 400 14px/1.6 var(--serif); color: var(--ink2);
+  }
+  .docs-resposta-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .docs-resposta-acoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; font-size: 13px; }
+  .docs-acoes-lista { display: grid; gap: 1px; }
+  .docs-acoes-lista button {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+    background: none; text-align: left; font: 400 13.5px var(--sans); color: var(--ink);
+  }
+  .docs-acoes-lista button span { flex: 1; }
+  .docs-acoes-lista button .ic { color: var(--ink3); }
+  .docs-acoes-lista button:hover:not(:disabled) { background: var(--bg); border: none; }
+  .docs-acoes-lista button.adiante { opacity: .5; }
+  .docs-chips { flex: none; margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-top: 1px solid var(--ink-a1); }
+  .docs-chips button { padding: 6px 11px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .docs-chips button:hover:not(:disabled) { background: var(--act); border: none; }
+  .docs-chips button.adiante { opacity: .5; }
+  .docs-pedido { flex: none; padding: 10px 18px 14px; display: grid; gap: 8px; }
+  .docs-pedido-linha { display: flex; align-items: center; gap: 10px; }
+  .docs-pedido input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; height: 40px; padding: 10px 12px;
+    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); color: var(--ink); font: 400 13.5px var(--sans); outline: none;
+  }
+  .docs-pedido input[type=text]:focus { border-color: var(--ink-a35); }
+  .docs-pedido .enviar { margin-left: 0; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; flex: none; }
+  .docs-pedido small { font: 500 12px var(--sans); color: var(--ink3); }
+  .docs-sinc { display: inline-flex; align-items: center; gap: 6px; color: var(--okt); }
+  .docs-sinc i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--verde); }
+  .docs-sinc.atencao { color: var(--acc); }
+  .docs-sinc.atencao i { background: var(--acc); }
+  .conversa-topo .meta .salvando { color: var(--warnt); }
+  .docs-toggles { padding: 4px 18px 12px; display: grid; gap: 10px; }
+  .docs-aviso { display: flex; gap: 10px; align-items: flex-start; }
+  .docs-aviso i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); margin-top: 6px; flex: none; }
+  .docs-aviso.impede i { background: var(--acc); }
+  .docs-aviso.confira i { background: var(--ambar); }
+  .docs-aviso.ok i { background: var(--verde); }
+  .docs-aviso span { display: grid; gap: 2px; min-width: 0; }
+  .docs-aviso b { font-weight: 400; font-size: 13.5px; line-height: 1.5; }
+  .docs-aviso small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .docs-aviso-acoes { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+  .docs-aviso-acoes .docs-ligacao { color: var(--ink2); }
+  .docs-aviso-acoes .primario { margin-left: auto; padding: 7px 12px; font-size: 13px; }
+  .docs-versoes { display: grid; gap: 1px; }
+  .docs-versao { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .docs-versao:hover, .docs-versao.atual { background: var(--bg); }
+  .docs-versao b { font-weight: 600; min-width: 26px; }
+  .docs-versao span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
+  .docs-versao small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .colunas-docs { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 70px 130px 28px; }
+

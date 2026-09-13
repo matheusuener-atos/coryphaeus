@@ -1,0 +1,495 @@
+/* ------------------------------------------- certificado digital (A7) */
+/*
+   O certificado e a chave privada de alguem. Duas regras aparecem em tudo
+   que segue: a senha nunca volta do servidor para a tela, e a tela nunca
+   chama de "assinatura com validade juridica" o que saiu de um certificado
+   fora da ICP-Brasil.
+*/
+
+const cert = { dados: null, aba: "escrever", tracos: [], desenhando: false, visao: "assinar", largo: false, guardar: false };
+
+/* A tela de Assinatura do desenho (docs/ui/03-telas-desktop.md, A8): duas
+   visoes, Assinar documento e Certificado digital, no mesmo cabecalho, com
+   o painel de 400 px. O que era a tela do certificado virou a segunda visao. */
+async function mostrarCertificado() {
+  abrirTela("Assinatura", { cheia: true });
+  marcarDestino("assinar");
+  cert.visao = "certificado";
+  const centro = $("centro");
+  centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo o certificado…</p></div></div>';
+  try {
+    cert.dados = await (await fetch("/api/certificado")).json();
+  } catch (err) {
+    centro.innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div></div>";
+    return;
+  }
+  cert.guardar = Boolean(cert.dados.guardar_senha);
+  desenharAssinatura();
+  atualizarPostura();
+}
+
+function desenharCertificado() { desenharAssinatura(); }
+
+function desenharAssinatura() {
+  cabecalhoAssinatura();
+  let principal, painel;
+  if (cert.visao === "certificado") { principal = cartaoDoCertificado(); painel = painelDoSelo(); }
+  else if (assina.doc) { principal = visorParaAssinar(); painel = painelAntesDeAssinar(); }
+  else { principal = listaDePdfs(); painel = painelSemDocumento(); }
+  const classe = "acervo as-corpo" + (cert.largo ? " painel-largo" : "");
+  $("centro").innerHTML = '<div class="' + classe + '" id="assinatura"><div class="acervo-principal as-principal">' + principal + "</div>" + painel + "</div>";
+  ligarAssinatura();
+}
+
+function situacaoDoCertificado() {
+  const d = cert.dados || {};
+  const c = d.certificado;
+  if (!d.instalado || !c) return { texto: "sem certificado", classe: "atencao" };
+  if (c.erro) return { texto: "bloqueado · digite a senha", classe: "atencao" };
+  if (c.vencido) return { texto: "vencido", classe: "atencao" };
+  if (c.dias_restantes !== null && c.dias_restantes !== undefined && c.dias_restantes <= 30) return { texto: "vence em " + c.dias_restantes + " dias", classe: "atencao" };
+  return { texto: c.icp_brasil ? "válido" : "válido · fora da ICP-Brasil", classe: "" };
+}
+
+function seloDeSituacao() {
+  const s = situacaoDoCertificado();
+  const classe = "docs-sinc" + (s.classe ? " " + s.classe : "");
+  return '<span class="' + classe + '"><i></i>' + esc(s.texto) + "</span>";
+}
+
+function cabecalhoAssinatura() {
+  const titulo = $("conversa-titulo");
+  const meta = $("conversa-meta");
+  if (cert.visao === "certificado") {
+    titulo.textContent = "Certificado digital";
+    meta.textContent = "O arquivo e a senha ficam nesta máquina · nunca são enviados";
+  } else if (assina.doc) {
+    const doc = assina.doc;
+    titulo.textContent = doc.nome;
+    meta.innerHTML = plural(doc.paginas, "página") + " · " + String(doc.mb).replace(".", ",") + " MB · " +
+      (doc.ja_assinado ? plural(doc.assinaturas, "assinatura") + " já no arquivo" : "ainda sem assinatura") +
+      ' · <button class="em-ligacao forte" data-as-acervo="1">do Acervo</button>';
+  } else {
+    titulo.textContent = "Assinar documento";
+    meta.textContent = "escolha um PDF do Acervo ou do computador";
+  }
+  const botao = (v, r) => {
+    const classe = v === cert.visao ? "ativa" : "";
+    return '<button class="' + classe + '" data-as-visao="' + v + '">' + r + "</button>";
+  };
+  let acoes;
+  if (cert.visao === "certificado") {
+    acoes = '<button class="primario com-icone" data-as-visao="assinar">' + ic("draw", 16) + "Assinar documento</button>";
+  } else if (assina.doc) {
+    acoes = '<button class="com-icone" id="assina-trocar">' + ic("swap_horiz", 16) + "Trocar documento</button>" +
+      '<button class="primario com-icone" id="assina-agora-topo">' + ic("draw", 16) + "Assinar agora</button>";
+  } else {
+    acoes = '<button class="primario com-icone" id="assina-escolher-topo">' + ic("folder_open", 16) + "Escolher um PDF</button>";
+  }
+  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("assinar", "Assinar documento") + botao("certificado", "Certificado digital") + "</div>" + acoes;
+  $("nav-tela").innerHTML = "";
+}
+
+function alcaDaAssinatura() {
+  return '<button class="alca-painel" data-as-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
+    ic(cert.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
+}
+
+/* ----------------------------------------------- o certificado, o cartao */
+
+function cartaoDoCertificado() {
+  const d = cert.dados;
+  const c = d.certificado;
+  const classeGuardar = "ag-toggle" + (cert.guardar ? " on" : "");
+  let html = '<div class="as-cartao"><div class="as-cartao-topo"><span class="cresce">' + (d.instalado ? "Certificado instalado" : "Certificado digital") + "</span>" +
+    (d.instalado ? seloDeSituacao() : "") + "</div><div class=\"as-rolagem\">";
+
+  html += '<div class="as-bloco"><b class="as-titulo">Upload do arquivo</b>' +
+    '<div class="as-solta" id="cert-solta"><span>Arraste o arquivo do certificado aqui</span><small>.pfx ou .p12 · até 8 MB</small>' +
+    '<span class="as-solta-acoes"><button class="primario com-icone" id="cert-escolher">' + ic("folder_open", 16) + "Escolher no computador</button>" +
+    '<button class="com-icone" id="cert-ver-windows">' + ic("desktop_windows", 16) + "Usar um já instalado no Windows</button></span>" +
+    '<input type="file" id="cert-arquivo" accept=".pfx,.p12" hidden></div>' +
+    '<div id="cert-lista-windows"></div>' +
+    (d.instalado ? "" :
+      '<div class="as-teste"><b>Sem um certificado à mão?</b><p>Posso criar um certificado de teste para você conhecer a tela. Ele assina de verdade do ponto de vista técnico e <b>não tem validade jurídica</b> — serve para experimentar, não para documento que vale.</p>' +
+      '<button id="cert-teste">Criar certificado de teste</button></div>') + "</div>";
+
+  if (d.instalado && c) {
+    html += '<div class="as-bloco"><div class="as-titular"><span class="as-titular-ic">' + ic("workspace_premium", 24) + "</span>" +
+      '<span class="duas-linhas"><b class="as-nome">' + esc(c.titular || "Certificado instalado") + "</b><small>" +
+      esc(c.tipo || "certificado A1") + (c.documento ? " · " + esc(c.documento) : "") + " · arquivo .pfx</small></span>" +
+      '<span class="as-titular-acoes"><button class="com-icone" id="cert-trocar">' + ic("upload", 16) + "Substituir</button>" +
+      '<button class="ag-perigo-fino" id="cert-remover">Remover</button></span></div>' +
+      (c.erro
+        ? '<p class="as-explica">' + esc(String(c.erro).replace(/[.\s]*$/, ".")) + " Digite a senha abaixo para eu conseguir ler o titular, o emissor e a validade.</p>"
+        : '<div class="as-grade4">' +
+          cartaoDado("Emissor", c.emissor || "—") +
+          cartaoDado("Válido até", dataBR(c.valido_ate) + (c.dias_restantes !== null && c.dias_restantes !== undefined && !c.vencido ? " · " + c.dias_restantes + " dias" : "")) +
+          cartaoDado("Nº de série", c.serie || "—") +
+          cartaoDado("Guardado em", d.guardado_em || "esta máquina") + "</div>") +
+      (c.icp_brasil || c.erro ? "" :
+        '<div class="cert-aviso"><strong>Este certificado não é da ICP-Brasil</strong><p>Ele assina, e a assinatura é íntegra: dá para provar que o arquivo não foi alterado depois. Mas ela <b>não tem a validade jurídica</b> de uma assinatura feita com e-CPF ou e-CNPJ emitido por autoridade credenciada. Não use em documento que vá para processo, cartório ou órgão público.</p></div>') +
+      (c.vencido ? '<div class="cert-aviso"><strong>Certificado vencido</strong><p>Venceu em ' + esc(dataBR(c.valido_ate)) + ". Não dá para assinar com ele. Instale o certificado novo em Substituir.</p></div>" : "") +
+      "</div>";
+
+    const memoria = d.senha_na_memoria
+      ? "A senha está na memória por mais " + d.minutos_restantes + " min."
+      : (d.tem_senha_guardada ? "A senha está guardada nesta máquina." : "Se não guardar, eu pergunto a senha em cada assinatura.");
+    html += '<div class="as-bloco"><b class="as-titulo">Senha do certificado</b>' +
+      '<div class="as-senha"><input type="password" id="cert-senha" placeholder="••••••••"><button class="em-ligacao" id="cert-mostrar">mostrar</button>' +
+      '<button class="primario" id="cert-abrir">Abrir</button></div>' +
+      (d.pode_guardar_senha
+        ? '<div class="' + classeGuardar + '" id="cert-guardar"><span>Guardar a senha nesta máquina</span><i></i></div>'
+        : '<p class="as-explica">Não consigo guardar a senha com segurança neste sistema: vou perguntar a cada assinatura.</p>') +
+      '<small class="as-nota">' + esc(memoria) + (d.tem_senha_guardada ? ' <button class="em-ligacao" id="cert-esquecer">esquecer a senha guardada</button>' : "") + "</small></div>";
+  }
+  html += "</div>";
+
+  if (d.instalado) {
+    const toggles = [
+      ["pedir_confirmacao", "Pedir confirmação antes de cada assinatura"],
+      ["mostrar_documento", "Mostrar o documento inteiro na confirmação"],
+      ["lote_sem_confirmar", "Assinar vários de uma vez sem confirmar cada um"],
+    ].map(([chave, rotulo]) => {
+      const classe = "ag-toggle" + (d[chave] ? " on" : "");
+      return '<div class="' + classe + '" data-cofre="' + chave + '"><span>' + rotulo + "</span><i></i></div>";
+    }).join("");
+    html += '<div class="as-rodape-cartao"><b class="as-titulo">Ao assinar</b><div class="as-duas-colunas">' + toggles +
+      '<div class="ag-chave"><span>Depois de digitar a senha, ela vale por</span><select id="cert-minutos">' +
+      [0, 5, 15, 30, 60, 120].map((m) => '<option value="' + m + '"' + (d.minutos === m ? " selected" : "") + ">" + (m ? m + " minutos" : "só esta assinatura") + "</option>").join("") +
+      "</select></div></div></div>";
+  }
+  return html + "</div>";
+}
+
+function cartaoDado(rotulo, valor) {
+  return '<div class="as-dado"><small>' + esc(rotulo) + "</small><b>" + esc(valor) + "</b></div>";
+}
+
+/* O selo, no painel: a previa em tamanho real e o que entra nele. */
+function painelDoSelo() {
+  const d = cert.dados;
+  const s = d.selo || {};
+  const reg = (d.registro && d.registro.assinaturas) || [];
+  const mes = new Date().toISOString().slice(0, 7);
+  const esteMes = reg.filter((a) => String(a.quando || "").startsWith(mes)).length;
+  const marca = (ligado, rotulo, chave) => {
+    const classe = "as-marca" + (ligado ? " on" : "") + (chave ? " liga" : "");
+    return '<div class="' + classe + '"' + (chave ? ' data-selo="' + chave + '"' : "") + '><span class="as-caixinha">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
+  };
+  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Selo de assinatura</h3><span class="meta">Prévia em tamanho real</span></span></div>' +
+    '<div class="as-selo-caixa"><div class="as-selo-escala" id="selo-previa">' + previaSelo(d) + "</div></div>" +
+    '<div class="as-painel-miolo"><div class="visoes as-abas">' +
+    [["desenhar", "Desenhar"], ["escrever", "Escrever"], ["imagem", "Enviar imagem"]].map(([v, r]) => {
+      const classe = v === cert.aba ? "ativa" : "";
+      return '<button class="' + classe + '" data-aba="' + v + '">' + r + "</button>";
+    }).join("") + '</div><div id="selo-painel"></div></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que entra no selo</span></div><div class="as-duas-colunas">' +
+    marca(Boolean(s.desenho || s.imagem), s.desenho ? "Rubrica desenhada" : "Logo do escritório", "") +
+    marca(true, "Nome do titular", "") +
+    marca(s.mostrar_cpf !== false, "CPF ou CNPJ", "mostrar_cpf") +
+    marca(s.mostrar_data !== false, "Data e hora", "mostrar_data") +
+    marca(true, "Emissor do certificado", "") +
+    marca(s.mostrar_codigo !== false, "Código de verificação", "mostrar_codigo") + "</div>" +
+    '<div class="ag-chave"><span>Posição padrão na página</span><select id="selo-posicao">' +
+    (d.posicoes || []).map((p) => '<option value="' + esc(p.valor) + '"' + (s.posicao === p.valor ? " selected" : "") + ">" + esc(p.rotulo) + "</option>").join("") +
+    "</select></div></div>" +
+    '<div class="painel-chaves">' +
+    '<div class="chave-valor"><span>Assinaturas este mês</span><b>' + esteMes + "</b></div>" +
+    '<div class="chave-valor"><span>Última</span><b>' + (reg[0] ? esc(quandoCurto(reg[0].quando)) + " · " + esc(reg[0].documento) : "nenhuma ainda") + "</b></div>" +
+    '<div class="chave-valor"><span>Feitas nesta máquina</span><b>' + ((d.registro && d.registro.total) || reg.length) + "</b></div></div>" +
+    '<div class="as-painel-rodape"><button class="com-icone" id="cert-ir-assinar">' + ic("draw", 16) + "Testar</button>" +
+    '<button class="primario com-icone" id="selo-salvar">' + ic("check", 16) + "Salvar selo</button></div>" +
+    "</div></aside>";
+}
+
+/* A previa monta as mesmas linhas que o servidor vai gravar no PDF. */
+function previaSelo(d) {
+  const s = d.selo || {};
+  const c = d.certificado || {};
+  const nome = c.titular || "SEU NOME";
+  const doc = c.documento || "";
+  const agora = new Date();
+  const data = agora.toLocaleDateString("pt-BR");
+  const hora = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  let corpo = String(s.texto || "")
+    .replace(/\{nome\}/g, nome)
+    .replace(/\{cpf\}/g, s.mostrar_cpf === false ? "" : doc)
+    .replace(/\{cnpj\}/g, s.mostrar_cpf === false ? "" : doc)
+    .replace(/\{data\}/g, data)
+    .replace(/\{hora\}/g, hora);
+
+  const linhas = corpo.split("\n").filter((l) => l.trim());
+  if (s.mostrar_cpf !== false && doc && corpo.indexOf(doc) < 0) linhas.push(doc);
+  if (s.mostrar_data !== false) linhas.push(data + " " + hora + (c.emissor ? " · " + c.emissor : ""));
+  if (s.mostrar_codigo !== false) linhas.push("confira no PAULUS · código 4A91C7");
+
+  const img = s.desenho || s.imagem;
+  return '<div class="selo-previa">' +
+    (img ? '<img src="/api/certificado/selo/' + (s.desenho ? "desenho" : "imagem") + ".png?t=" + Date.now() + '" alt="">' : "") +
+    '<div class="linhas">' + linhas.map((l) => "<div>" + esc(l) + "</div>").join("") + "</div></div>";
+}
+
+function painelSelo() {
+  const s = (cert.dados.selo) || {};
+  const alvo = $("selo-painel");
+  if (!alvo) return;
+
+  if (cert.aba === "escrever") {
+    alvo.innerHTML =
+      '<div class="ag-campo"><label>O que aparece no selo</label><textarea id="selo-texto">' + esc(s.texto || "") + "</textarea></div>" +
+      '<p class="as-explica">Use <b>{nome}</b>, <b>{cpf}</b>, <b>{data}</b> e <b>{hora}</b> para eu preencher sozinho. O nome sai do certificado.</p>';
+  } else if (cert.aba === "desenhar") {
+    alvo.innerHTML =
+      '<p class="as-explica">Desenhe a rubrica com o mouse ou o dedo.</p>' +
+      '<canvas class="selo-tela" id="selo-canvas" width="640" height="200"></canvas>' +
+      '<div class="as-linha-botoes"><button id="selo-desfazer">Desfazer</button><button id="selo-limpar">Limpar</button>' +
+      '<button class="primario" id="selo-usar">Usar no selo</button></div>';
+    ligarCanvas();
+  } else {
+    alvo.innerHTML =
+      '<p class="as-explica">Envie o logotipo do escritório em PNG com fundo transparente.</p>' +
+      '<div class="as-linha-botoes"><button class="com-icone" id="selo-enviar-img">' + ic("upload", 16) + "Enviar imagem</button>" +
+      (s.imagem ? '<button id="selo-tirar-img">Tirar a imagem</button>' : "") +
+      '<input type="file" id="selo-img-arquivo" accept="image/png" hidden></div>';
+  }
+  document.querySelectorAll("[data-aba]").forEach((b) => { b.classList.toggle("ativa", b.dataset.aba === cert.aba); });
+}
+
+function ligarAssinatura() {
+  const raiz = $("assinatura");
+  const alca = raiz.querySelector("[data-as-alca]");
+  if (alca) alca.onclick = () => { cert.largo = !cert.largo; raiz.classList.toggle("painel-largo", cert.largo); alca.innerHTML = ic(cert.largo ? "chevron_right" : "chevron_left", 18); };
+  document.querySelectorAll("[data-as-visao]").forEach((b) => {
+    b.onclick = () => (b.dataset.asVisao === "certificado" ? mostrarCertificado() : mostrarAssinar(assina.doc ? assina.doc.caminho : ""));
+  });
+  if (cert.visao === "certificado") return ligarCertificado();
+  if (assina.doc) return ligarAssinar();
+  ligarListaDePdfs();
+}
+
+function ligarCertificado() {
+  const d = cert.dados;
+
+  const irAssinar = $("cert-ir-assinar");
+  if (irAssinar) irAssinar.onclick = () => mostrarAssinar();
+
+  const campo = $("cert-arquivo");
+  $("cert-escolher").onclick = () => campo.click();
+  campo.onchange = () => campo.files[0] && enviarCertificado(campo.files[0]);
+  const solta = $("cert-solta");
+  solta.ondragover = (e) => { e.preventDefault(); solta.classList.add("sobre"); };
+  solta.ondragleave = () => solta.classList.remove("sobre");
+  solta.ondrop = (e) => {
+    e.preventDefault();
+    solta.classList.remove("sobre");
+    if (e.dataTransfer.files[0]) enviarCertificado(e.dataTransfer.files[0]);
+  };
+
+  const teste = $("cert-teste");
+  if (teste) teste.onclick = async () => {
+    teste.disabled = true;
+    const r = await fetch("/api/certificado/teste", { method: "POST" });
+    if (!r.ok) { avisoCert(await erroDe(r)); teste.disabled = false; return; }
+    const d2 = await r.json();
+    cert.dados = d2;
+    desenharAssinatura();
+    avisoCert("certificado de teste criado — a senha dele é “" + d2.senha_do_teste + "”");
+  };
+
+  $("cert-ver-windows").onclick = async () => {
+    const alvo = $("cert-lista-windows");
+    alvo.innerHTML = '<p class="nota">lendo os certificados do Windows…</p>';
+    let lista = [];
+    try {
+      lista = (await (await fetch("/api/certificado/windows")).json()).certificados;
+    } catch (err) {
+      alvo.innerHTML = '<p class="nota">não consegui ler: ' + esc(String(err)) + "</p>";
+      return;
+    }
+    alvo.innerHTML = '<div class="as-windows"><b class="as-titulo">Certificados instalados no Windows</b>' +
+      '<p class="as-explica">Mostro o que existe, mas não assino por eles: a chave de um e-CPF instalado quase sempre vem marcada como não exportável, e assinar exigiria falar com o Windows por um caminho que este programa não usa. Para assinar aqui, use o arquivo .pfx que a certificadora entregou.</p>' +
+      (lista.length
+        ? lista.map((w) => '<div class="ag-ligado-linha"><span>' + esc(w.titular) + " · " + esc(w.emissor) + "</span><small>" + esc(dataBR(w.valido_ate)) + "</small>" +
+            (w.icp_brasil ? '<span class="em-pilula ok">ICP</span>' : "") + "</div>").join("")
+        : '<p class="as-explica">Nenhum certificado instalado nesta conta do Windows.</p>') +
+      '<button class="em-ligacao" data-as-fechar-windows="1">fechar</button></div>';
+    alvo.querySelector("[data-as-fechar-windows]").onclick = () => { alvo.innerHTML = ""; };
+  };
+
+  const trocar = $("cert-trocar");
+  if (trocar) trocar.onclick = () => campo.click();
+  const remover = $("cert-remover");
+  if (remover) remover.onclick = async () => {
+    if (!(await confirmar({ titulo: "Remover o certificado?", contexto: "Assinatura › Certificado", texto: "A cópia guardada aqui e a senha são apagadas. O arquivo original que você enviou continua onde estava.", confirmar: "Remover", perigo: true }))) return;
+    cert.dados = await (await fetch("/api/certificado", { method: "DELETE" })).json();
+    desenharAssinatura();
+  };
+
+  const senha = $("cert-senha");
+  if (senha) {
+    $("cert-mostrar").onclick = () => {
+      senha.type = senha.type === "password" ? "text" : "password";
+      $("cert-mostrar").textContent = senha.type === "password" ? "mostrar" : "esconder";
+    };
+    const guardar = $("cert-guardar");
+    if (guardar) guardar.onclick = () => { cert.guardar = !cert.guardar; guardar.classList.toggle("on", cert.guardar); };
+    const abrir = async () => {
+      if (!senha.value) { senha.focus(); return; }
+      const botao = $("cert-abrir");
+      botao.disabled = true;
+      const r = await fetch("/api/certificado/senha", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senha: senha.value, guardar: cert.guardar }),
+      });
+      botao.disabled = false;
+      if (!r.ok) { avisoCert(await erroDe(r)); return; }
+      cert.dados = await r.json();
+      desenharAssinatura();
+      avisoCert(cert.dados.aviso || "certificado aberto");
+    };
+    $("cert-abrir").onclick = abrir;
+    senha.onkeydown = (e) => { if (e.key === "Enter") abrir(); };
+    const esquecer = $("cert-esquecer");
+    if (esquecer) esquecer.onclick = async () => {
+      cert.dados = await (await fetch("/api/certificado/esquecer", { method: "POST" })).json();
+      desenharAssinatura();
+    };
+  }
+
+  const minutos = $("cert-minutos");
+  if (minutos) minutos.onchange = () => gravarCofre({ minutos: Number(minutos.value) });
+  document.querySelectorAll("[data-cofre]").forEach((t) => {
+    t.onclick = async () => {
+      const chave = t.dataset.cofre;
+      await gravarCofre({ [chave]: !cert.dados[chave] });
+      t.classList.toggle("on", Boolean(cert.dados[chave]));
+    };
+  });
+
+  document.querySelectorAll("[data-aba]").forEach((b) => { b.onclick = () => { cert.aba = b.dataset.aba; painelSelo(); }; });
+  painelSelo();
+  document.querySelectorAll("[data-selo]").forEach((m) => { m.onclick = () => m.classList.toggle("on"); });
+
+  $("selo-salvar").onclick = async () => {
+    const texto = $("selo-texto");
+    const novo = { posicao: $("selo-posicao").value };
+    if (texto) novo.texto = texto.value;
+    document.querySelectorAll("[data-selo]").forEach((m) => { novo[m.dataset.selo] = m.classList.contains("on"); });
+    const r = await (await fetch("/api/certificado/selo", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(novo),
+    })).json();
+    cert.dados.selo = r.selo;
+    $("selo-previa").innerHTML = previaSelo(cert.dados);
+    avisoCert("selo salvo");
+  };
+
+  const enviarImg = $("selo-enviar-img");
+  if (enviarImg) {
+    const arq = $("selo-img-arquivo");
+    enviarImg.onclick = () => arq.click();
+    arq.onchange = () => arq.files[0] && enviarImagemSelo(arq.files[0], "imagem");
+  }
+  const tirarImg = $("selo-tirar-img");
+  if (tirarImg) tirarImg.onclick = async () => {
+    const r = await (await fetch("/api/certificado/selo/imagem", { method: "DELETE" })).json();
+    cert.dados.selo = r.selo;
+    desenharAssinatura();
+  };
+}
+
+async function gravarCofre(mudanca) {
+  cert.dados = await (await fetch("/api/certificado/opcoes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mudanca),
+  })).json();
+}
+
+async function enviarCertificado(arquivo) {
+  const forma = new FormData();
+  forma.append("arquivo", arquivo);
+  const r = await fetch("/api/certificado/arquivo", { method: "POST", body: forma });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  cert.dados = await r.json();
+  desenharAssinatura();
+  avisoCert("certificado guardado — digite a senha para eu conseguir lê-lo");
+}
+
+async function enviarImagemSelo(arquivo, campo) {
+  const leitor = new FileReader();
+  leitor.onload = async () => {
+    const r = await fetch("/api/certificado/selo/imagem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ campo: campo, dados: leitor.result }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    cert.dados.selo = (await r.json()).selo;
+    desenharAssinatura();
+  };
+  leitor.readAsDataURL(arquivo);
+}
+
+/* O desenho da rubrica: tracos guardados em pontos, para o Desfazer voltar
+   um traco inteiro em vez de um pixel. */
+function ligarCanvas() {
+  const tela = $("selo-canvas");
+  if (!tela) return;
+  const pincel = tela.getContext("2d");
+  cert.tracos = [];
+
+  const redesenhar = () => {
+    pincel.clearRect(0, 0, tela.width, tela.height);
+    pincel.strokeStyle = "#14120f";
+    pincel.lineWidth = 3;
+    pincel.lineCap = "round";
+    pincel.lineJoin = "round";
+    cert.tracos.forEach((traco) => {
+      pincel.beginPath();
+      traco.forEach((p, i) => (i ? pincel.lineTo(p.x, p.y) : pincel.moveTo(p.x, p.y)));
+      pincel.stroke();
+    });
+  };
+
+  const ponto = (e) => {
+    const caixa = tela.getBoundingClientRect();
+    return {
+      x: (e.clientX - caixa.left) * (tela.width / caixa.width),
+      y: (e.clientY - caixa.top) * (tela.height / caixa.height),
+    };
+  };
+
+  tela.onpointerdown = (e) => {
+    tela.setPointerCapture(e.pointerId);
+    cert.desenhando = true;
+    cert.tracos.push([ponto(e)]);
+  };
+  tela.onpointermove = (e) => {
+    if (!cert.desenhando) return;
+    cert.tracos[cert.tracos.length - 1].push(ponto(e));
+    redesenhar();
+  };
+  tela.onpointerup = () => { cert.desenhando = false; };
+
+  $("selo-desfazer").onclick = () => { cert.tracos.pop(); redesenhar(); };
+  $("selo-limpar").onclick = () => { cert.tracos = []; redesenhar(); };
+  $("selo-usar").onclick = async () => {
+    if (!cert.tracos.length) { avisoCert("desenhe a assinatura antes"); return; }
+    const r = await fetch("/api/certificado/selo/imagem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ campo: "desenho", dados: tela.toDataURL("image/png") }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    cert.dados.selo = (await r.json()).selo;
+    desenharAssinatura();
+    avisoCert("rubrica gravada no selo");
+  };
+}
+
+/* O aviso curto que qualquer tela usa: uma faixa embaixo, que some sozinha.
+   Antes ele so aparecia dentro de .tela-topo, que as telas do desenho nao
+   tem - e os avisos sumiam. */

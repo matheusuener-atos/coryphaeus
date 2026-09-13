@@ -1,0 +1,126 @@
+  /* ------------------------------------- certificado e assinatura */
+
+  input[type=password] {
+    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
+    border-radius: 0; padding: 9px 12px; background: var(--surface-1);
+    color: inherit; flex: 1; min-width: 200px; max-width: var(--campo);
+  }
+
+  .cert-cartao {
+    border: 1px solid var(--linha-media);
+    background: var(--surface-1);
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .cert-cabeca { display: flex; align-items: flex-start; gap: 13px; }
+  .cert-cabeca h3 { font: 600 15px var(--sans); margin: 2px 0 3px; }
+  .cert-marca {
+    width: 42px; height: 42px; flex: none;
+    display: grid; place-items: center;
+    border: 1px solid var(--linha-media);
+    color: var(--ink-3);
+    font: 500 9.5px var(--mono); letter-spacing: 0.16em;
+  }
+  .cert-estado {
+    font: 500 9.5px var(--mono); letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 4px 8px; border: 1px solid var(--linha-media); color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .cert-estado.valido { color: var(--ok); border-color: var(--ok); }
+  .cert-estado.vence { color: var(--atencao); border-color: var(--atencao-linha); }
+  .cert-estado.vencido, .cert-estado.problema {
+    color: var(--atencao); border-color: var(--atencao); background: var(--atencao-fundo);
+  }
+
+  .cert-grade {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px;
+    border-top: 1px solid var(--linha); padding-top: 14px;
+  }
+  .cert-campo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .cert-campo b { font: 400 13px var(--sans); overflow-wrap: anywhere; }
+
+  /* O aviso mais importante da tela: certificado fora da ICP-Brasil assina,
+     e a assinatura nao tem o mesmo valor juridico. */
+  .cert-aviso {
+    border: 1px solid var(--atencao-linha); background: var(--atencao-fundo);
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .cert-aviso strong { font: 600 12.5px var(--sans); color: var(--atencao); }
+  .cert-aviso p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }
+
+  .cert-solta {
+    border: 1px dashed var(--linha-forte); padding: 28px 20px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .cert-solta.sobre { border-color: var(--acento); background: var(--acento-fraco); }
+  .cert-solta p { margin: 0; font-size: 13px; }
+
+  .cert-senha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .cert-windows { display: flex; flex-direction: column; margin-top: 10px; }
+  .cert-win-linha {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .cert-win-linha:last-child { border-bottom: none; }
+
+  /* O selo desenhado na tela do tamanho exato que sai no PDF: 228x62 pt. */
+  .selo-previa {
+    background: var(--papel); color: var(--tinta); border: 1px solid var(--papel-linha);
+    width: 228px; min-height: 62px; box-sizing: border-box;
+    padding: 7px 9px; display: flex; align-items: center; gap: 8px;
+    font: 400 7px/1.45 var(--sans); overflow: hidden;
+  }
+  .selo-previa img { max-height: 46px; max-width: 62px; object-fit: contain; }
+  .selo-previa .linhas { min-width: 0; overflow-wrap: anywhere; }
+  .selo-previa .linhas div:first-child { font-weight: 700; font-size: 8px; }
+
+  .selo-abas { display: flex; gap: 6px; margin-bottom: 10px; }
+  .selo-abas button.ativo { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); }
+  .selo-tela {
+    background: var(--papel); border: 1px solid var(--linha-forte);
+    touch-action: none; cursor: crosshair; width: 100%; max-width: 420px; display: block;
+  }
+
+  /* Assinar: o visor do PDF, e o selo que se arrasta em cima dele. */
+  .pdf-visor {
+    position: relative; background: var(--surface-2); border: 1px solid var(--linha-media);
+    padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+    min-height: 240px;
+  }
+  .pdf-nav { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-3); }
+  .pdf-folha { position: relative; line-height: 0; max-width: 100%; }
+  .pdf-folha img { max-width: 100%; height: auto; display: block; }
+  .pdf-selo {
+    position: absolute; box-sizing: border-box;
+    border: 1px dashed var(--acento); background: var(--papel-veu);
+    color: var(--tinta); cursor: grab; overflow: hidden; padding: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px; text-align: center; user-select: none;
+  }
+  .pdf-selo.pegando { cursor: grabbing; border-style: solid; }
+  .pdf-selo span { pointer-events: none; line-height: 1.3; }
+
+  .assinar-colunas {
+    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(270px, 0.7fr);
+    gap: 16px; align-items: start;
+  }
+  @media (max-width: 1000px) {
+    .assinar-colunas { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .assinar-frase { border-left: 2px solid var(--acento); padding: 9px 0 9px 13px; font-size: 13px; line-height: 1.6; }
+  .assinar-lista { display: flex; flex-direction: column; }
+  .assinar-lista label { display: flex; align-items: center; gap: 9px; padding: 7px 0; font-size: 13px; cursor: pointer; }
+
+  .reg-linha {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .reg-linha:last-child { border-bottom: none; }
+  .reg-codigo {
+    font: 400 11.5px var(--mono); letter-spacing: 0.06em;
+    padding: 3px 7px; border: 1px solid var(--linha-media); color: var(--ink-3); white-space: nowrap;
+  }
+

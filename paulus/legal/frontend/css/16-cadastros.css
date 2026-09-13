@@ -1,0 +1,58 @@
+  /* ----------------------------------------------------- cadastros (A10) */
+  /*
+    Cadastros (docs/ui/03-telas-desktop.md, A10): Clientes, Equipe e Despesas
+    fixas, cada uma uma tabela com a ficha editavel no painel. Prefixo cad-.
+  */
+  .cad-tela.acervo { grid-template-columns: minmax(0, 1fr) 380px; }
+  .cad-tela.acervo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
+  .colunas-clientes { grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.4fr) minmax(0, 1.2fr) 120px 28px; }
+  .colunas-equipe { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.6fr) 130px 28px; }
+  .colunas-despesas { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) 100px 130px 130px 28px; }
+  .tabela-linha.colunas-clientes, .tabela-linha.colunas-equipe, .tabela-linha.colunas-despesas { font-size: 13.5px; padding: 10px 16px; }
+  .cad-nome { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .cad-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center;
+    font: 700 11px var(--sans); color: var(--ink2); flex: none;
+  }
+  .cad-avatar.grande { width: 40px; height: 40px; font-size: 13px; }
+  .cad-nome .duas-linhas b { font-weight: 600; }
+  .cad-nome small.cad-atrasado { color: var(--acc); }
+  .cad-contato { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-texto { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-ligado { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .cad-ligado span, .cad-pill { padding: 2px 8px; border-radius: 5px; background: var(--fill); color: var(--ink2); font: 600 11.5px var(--sans); white-space: nowrap; }
+  .cad-pill.forte { background: var(--ink); color: var(--bg); }
+  .cad-ligado small, .cad-mudo { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .fin-valor-col.cad-zero { color: var(--ink3); font-weight: 400; }
+  .cad-barra .direita { position: relative; }
+  .cad-barra button.adiante { opacity: .6; }
+  .cad-aviso {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 16px 4px; padding: 10px 14px;
+    border: 1px solid var(--ink-a1); border-radius: 10px; font-size: 13px; color: var(--ink2);
+  }
+  .cad-aviso .ic { color: var(--acc); flex: none; }
+  .cad-aviso .cresce { min-width: 0; }
+  .cad-sug { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--ink-a15); background: transparent; font: 500 12px var(--sans); color: var(--ink); white-space: nowrap; }
+  .cad-sug small { color: var(--ink3); margin-left: 4px; }
+  .cad-rodape-nota { margin-left: auto; }
+
+  /* a ficha, no painel */
+  .cad-painel .rolagem { display: flex; flex-direction: column; }
+  .cad-painel .painel-cabeca .cad-avatar { margin-left: auto; }
+  .cad-campos { padding: 4px 18px 14px; display: grid; gap: 12px; }
+  .cad-campos .ag-duas { gap: 10px; }
+  .cad-valor-grande { font: 400 30px/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .cad-ligacoes { display: grid; gap: 6px; font-size: 13px; }
+  .cad-ligacao { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .cad-ligacao .ic { color: var(--ink3); flex: none; }
+  .cad-ligacao > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-ligacao small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .cad-pode { display: grid; gap: 8px; font-size: 13.5px; }
+  .cad-pode div { display: flex; gap: 10px; align-items: flex-start; }
+  .cad-pode .ic { color: var(--verde); flex: none; }
+  .cad-pode .ic.nao { color: var(--ink3); }
+  .cad-rodape { margin-top: auto; padding: 12px 18px; border-top: 1px solid var(--ink-a1); display: flex; align-items: center; gap: 10px; }
+  .cad-rodape .em-ligacao.acc { font-size: 13px; }
+  .cad-rodape .primario { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .cad-historico { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
+

@@ -1,0 +1,16 @@
+  /* ------------------------------------------------------- responsivo */
+
+  /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
+     grade e vira uma gaveta aberta pelo botao do cabecalho. */
+  @media (max-width: 1240px) {
+    .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr); }
+    .conversa-corpo.com-lateral .lateral {
+      position: absolute; top: 0; right: 0; bottom: 0; width: 320px; z-index: 3;
+      box-shadow: var(--elev-panel);
+    }
+    .conversa-corpo { position: relative; }
+  }
+  @media (max-width: 900px) {
+    .conversa-col.vazia .compositor { padding: 16px 20px 24px; }
+    .fluxo { padding: 16px 20px 8px; }
+  }

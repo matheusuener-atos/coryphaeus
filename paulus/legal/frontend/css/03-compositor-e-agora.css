@@ -1,0 +1,91 @@
+  /* ------------------------------------------------------- compositor */
+  /*
+    Duas posturas, a mesma peca (docs/ui/03-telas-desktop.md, A1). Sem
+    conversa comecada, saudacao, caixa de pedido, "Acontecendo agora" e
+    Recentes ficam no meio da coluna. Com conversa andando, a caixa vira uma
+    linha so e encosta embaixo, porque ali o que importa e a resposta acima.
+  */
+  .compositor { flex: none; padding: 6px 32px 14px; }
+  .compositor > .centro { max-width: 760px; margin: 0 auto; gap: 8px; }
+
+  .conversa-col.vazia .conversa-principal { justify-content: center; }
+  .conversa-col.vazia .conversa-topo { display: none; }
+  .conversa-col.vazia .fluxo { flex: 0 0 auto; padding: 0; overflow: visible; }
+  /* O compositor ocupa a altura que houver e rola por dentro; o conteudo fica
+     no meio enquanto cabe (safe: em janela baixa, encosta no topo em vez de
+     cortar a saudacao). */
+  .conversa-col.vazia .compositor {
+    flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px 44px 24px;
+    display: flex; flex-direction: column; justify-content: safe center;
+  }
+  .conversa-col.vazia .compositor > .centro { max-width: 880px; gap: 34px; }
+
+  .saudacao-bloco { display: none; gap: 14px; max-width: 720px; }
+  .conversa-col.vazia .saudacao-bloco { display: grid; }
+  .chamada {
+    font: 400 clamp(34px, 3.2vw, 46px)/1.08 var(--serif);
+    letter-spacing: -.015em; margin: 0; text-wrap: balance;
+  }
+  .sub-chamada { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink2); max-width: 600px; text-wrap: pretty; }
+
+  /* ------------------------------------------------- acontecendo agora */
+
+  .agora { display: grid; gap: 14px; }
+  .agora-cabeca { display: flex; align-items: center; gap: 14px; }
+  .rotulo-suave { font: 500 11px var(--sans); color: var(--ink3); }
+  .risco-fino { flex: 1; height: 1px; background: var(--ink-a1); }
+
+  .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
+  .cartao-agora {
+    border: 1px solid var(--ink-a12); border-radius: 12px; padding: 18px;
+    display: grid; gap: 12px; align-content: start; background: var(--surf);
+    transition: border-color .18s;
+  }
+  .cartao-agora[data-abre] { cursor: pointer; }
+  .cartao-agora:hover { border-color: var(--ink-a3); }
+  .cartao-agora.chama { border-color: var(--accln); background: var(--accbg2); }
+  .cartao-agora.chama:hover { border-color: var(--acc); }
+  .cartao-agora .cabeca { display: flex; align-items: center; gap: 11px; }
+  .cartao-agora .nome { font: 600 14.5px var(--sans); flex: 1; min-width: 0; }
+  .cartao-agora .corpo { font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .cartao-agora .rodape { font: 500 11px var(--sans); color: var(--ink3); }
+  .cartao-agora .acoes { display: flex; align-items: center; gap: 10px; }
+  .cartao-agora .acoes .primario { margin-left: auto; padding: 7px 14px; border-radius: 6px; font-size: 12.5px; }
+  .cartao-agora .acoes .fantasma { padding: 0; border: none; background: none; font: 600 13px var(--sans); color: var(--ink); }
+  .cartao-agora .acoes .fantasma:hover:not(:disabled) { background: none; border: none; color: var(--acc); }
+  .barra-fina { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .barra-fina i { display: block; height: 3px; background: var(--acc); transition: width 0.3s; }
+
+  /* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta. */
+  .recentes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .recentes .rotulo-suave { margin-right: 6px; }
+  .recente {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; max-width: 320px;
+    border: 1px solid var(--ink-a12); border-radius: 999px; background: none;
+    color: var(--ink); font: 400 13px var(--sans); cursor: pointer;
+  }
+  .recente:hover:not(:disabled) { border-color: var(--ink); background: none; color: var(--ink); }
+  .recente .ic { color: var(--ink3); }
+  .recente span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ver-mais {
+    display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: none; background: none;
+    color: var(--ink2); font: 500 13px var(--sans); cursor: pointer;
+  }
+  .ver-mais:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+
+  /* "Ver mais": a lista inteira de conversas surge embaixo, e o bloco do
+     pedido sobe para dar lugar. */
+  .conversa-col.vazia.com-lista .compositor { justify-content: flex-start; padding-top: 28px; }
+  .lista-conversas { display: grid; flex: none; margin-top: 24px; }
+  .colunas-conversas { grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) 150px 120px 28px; }
+  .lista-conversas .tabela-corpo { overflow: visible; }
+  .estado-conversa { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); white-space: nowrap; }
+  .estado-conversa .marca { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--mute); }
+  .estado-conversa .marca.falhou { background: var(--acc); }
+  .estado-conversa .marca.executando { background: var(--verde); animation: pv-pulse 3.2s ease-in-out infinite; }
+  .estado-conversa .marca.aguardando { background: var(--acc); }
+  .estado-conversa .marca.concluido { background: var(--verde); }
+  .estado-conversa .marca.pausado { background: var(--mute2); }
+  .lista-conversas .busca-tela { width: 220px; height: 30px; }
+  .lista-conversas .menu-conversa { top: calc(100% - 8px); }
+

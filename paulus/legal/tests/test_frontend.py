@@ -61,9 +61,25 @@ def checar(condicao: bool, descricao: str, detalhe: str = "") -> None:
 
 
 def _partes(html: str) -> tuple[str, str]:
-    css = "\n".join(re.findall(r"<style>(.*?)</style>", html, re.S))
-    js = "\n".join(re.findall(r"<script>(.*?)</script>", html, re.S))
-    return css, js
+    """
+    O CSS e o JS da pagina: os blocos inline mais os arquivos que ela liga
+    por <link> e <script src>, na ordem em que aparecem. Desde a divisao do
+    index.html, quase tudo mora em frontend/css e frontend/js.
+    """
+    css = re.findall(r"<style>(.*?)</style>", html, re.S)
+    for arquivo in re.findall(r'<link rel="stylesheet" href="/(css/[^"]+)"', html):
+        css.append((RAIZ / "frontend" / arquivo).read_text(encoding="utf-8"))
+    js = re.findall(r"<script>(.*?)</script>", html, re.S)
+    for arquivo in re.findall(r'<script src="/(js/[^"]+)"', html):
+        js.append((RAIZ / "frontend" / arquivo).read_text(encoding="utf-8"))
+    return "\n".join(css), "\n".join(js)
+
+
+def pagina_toda() -> str:
+    """A pagina com o CSS e o JS ligados embutidos: e nela que se procura class= e id=."""
+    html = PAGINA.read_text(encoding="utf-8")
+    css, js = _partes(html)
+    return html + "\n" + css + "\n" + js
 
 
 def classes_definidas(css: str) -> set[str]:
@@ -91,8 +107,8 @@ def classes_usadas(html: str) -> set[str]:
 
 def test_css_completo() -> None:
     print("\nclasses usadas tem regra no CSS")
-    html = PAGINA.read_text(encoding="utf-8")
-    css, _ = _partes(html)
+    html = pagina_toda()
+    css, _ = _partes(PAGINA.read_text(encoding="utf-8"))
 
     definidas = classes_definidas(css)
     usadas = classes_usadas(html)
@@ -165,7 +181,7 @@ def test_sem_regra_repetida() -> None:
 
 def test_ids() -> None:
     print("\nids usados no JS existem no HTML")
-    html = PAGINA.read_text(encoding="utf-8")
+    html = pagina_toda()
 
     estaticos = set(re.findall(r'\bid="([a-z0-9-]+)"', html))
     criados = set(re.findall(r'\.id = "([a-z0-9-]+)"', html))
@@ -398,7 +414,7 @@ def test_rota_fixa_antes_da_com_parametro() -> None:
 
 def test_sem_internet() -> None:
     print("\na pagina nao busca nada na internet")
-    html = PAGINA.read_text(encoding="utf-8")
+    html = pagina_toda()
     css_fontes = (RAIZ / "frontend" / "fontes.css").read_text(encoding="utf-8")
 
     externos = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)

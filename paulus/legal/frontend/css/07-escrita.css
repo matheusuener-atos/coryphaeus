@@ -1,0 +1,263 @@
+  /* ------------------------------------------------------------ e-mail */
+
+  .email-corpo {
+    white-space: pre-wrap; font-size: 13.5px; line-height: 1.65;
+    border-top: 1px solid var(--linha); padding-top: 14px;
+    overflow-wrap: anywhere;
+  }
+  .email-anexo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .email-anexo:last-child { border-bottom: none; }
+  .email-tipo {
+    font: 500 9px var(--mono); letter-spacing: 0.1em;
+    padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+  }
+
+  .email-campos { display: flex; flex-direction: column; gap: 10px; }
+  .email-campo { display: flex; align-items: center; gap: 10px; }
+  .email-campo .rotulo { width: 62px; flex: none; }
+  .email-campo input { flex: 1; max-width: none; }
+  .email-texto {
+    width: 100%; min-height: 190px;
+    font: 400 13.5px/1.65 var(--sans);
+    border: 1px solid var(--linha-media); background: var(--surface-1);
+    color: inherit; padding: 12px; resize: vertical;
+  }
+  /* ----------------------------------------------------------- escrita */
+
+  .doc-lista-linha {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 1px solid var(--linha); font-size: 13px;
+  }
+  .doc-lista-linha:last-child { border-bottom: none; }
+  .doc-versao {
+    font: 500 9.5px var(--mono); letter-spacing: 0.1em;
+    padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+  }
+
+  .ed-divisa { width: 1px; height: 20px; background: var(--linha-media); margin: 0 4px; }
+
+  /* A folha: largura de A4 com as margens do PDF, para o que se digita
+     parecer com o que sai impresso. */
+  .ed-folha {
+    background: var(--papel); color: var(--tinta);
+    border: 1px solid var(--papel-linha);
+    /* 2,5 cm em folha de 21 cm sao 11,9% da largura - e em CSS o padding de
+       cima tambem se mede pela largura, entao os quatro lados saem iguais na
+       folha impressa. Antes eram 48px fixos: a margem da tela nao tinha
+       relacao nenhuma com a margem do PDF. */
+    padding: 11.9%; min-height: 520px;
+    font: 400 15px/1.7 Georgia, 'Times New Roman', serif;
+    overflow-wrap: anywhere;
+  }
+  .ed-folha:focus { outline: none; }
+
+  /* A quebra de página é desenhada POR CIMA da folha, nunca dentro dela: o que
+     está dentro do contenteditable acaba em innerHTML, e daí no documento
+     gravado. Uma linha de enfeite não pode virar conteúdo do contrato. */
+  /* A folha tem teto de zoom. Ela e desenhada na escala do PDF, entao numa
+     coluna de 1.154 px um A4 sai a 145% e o corpo 12 vira 23 px na tela: o
+     documento fica bonito e se ve menos dele. 960 px sao ~120% de um A4 a 96
+     dpi - perto do que se le confortavel, e sobra folego na coluna. */
+  .ed-papel { position: relative; }
+  .ed-quebras { position: absolute; inset: 0; pointer-events: none; }
+
+  /* A marca fica na margem esquerda da folha, na altura da linha a que se
+     refere - e por cima, nunca dentro: nota de margem nao e conteudo do
+     contrato, e o que esta dentro do contenteditable acaba no arquivo. */
+  .ed-notas { position: absolute; inset: 0; pointer-events: none; }
+  .ed-nota {
+    position: absolute; left: 4px; width: 20px; height: 20px; min-width: 0;
+    padding: 0; border-radius: 50%; pointer-events: auto; cursor: pointer;
+    font: 600 11px var(--mono); line-height: 1;
+  }
+  .ed-nota.impede { border-color: var(--atencao); color: var(--atencao); }
+  .ed-nota.comentario { border-color: var(--acento); color: var(--acento); }
+  .ed-nota-item {
+    border-left: 2px solid var(--linha-media); padding: 2px 0 2px 10px; margin: 10px 0;
+  }
+  .ed-nota-item.impede { border-left-color: var(--atencao); }
+  .ed-nota-item.comentario { border-left-color: var(--acento); }
+  .ed-nota-item p { font-size: 13px; line-height: 1.6; margin: 4px 0 0; }
+  .ed-quebra { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--papel-linha); }
+  .ed-quebra span {
+    position: absolute; right: 6px; top: -8px; background: var(--papel);
+    padding: 0 6px; font: 500 9px var(--mono); letter-spacing: 0.14em;
+    color: var(--ink-3); text-transform: uppercase;
+  }
+
+  /* A régua mostra onde o texto começa e termina na folha impressa: a margem
+     de 2,5 cm é a mesma no PDF, não uma aproximação do editor. */
+  /* A barra tem a largura da folha, e nao a que sobrar depois dos rotulos:
+     as marcas de margem so dizem a verdade se estiverem em cima das margens
+     de verdade. Os rotulos ficam embaixo. */
+  .ed-regua { margin-bottom: 8px; }
+  .ed-regua-barra { height: 5px; border: 1px solid var(--linha-media); display: flex; }
+  .ed-regua-margem { background: var(--linha-media); }
+  .ed-regua-texto { flex: 1; }
+  .ed-regua-legenda {
+    display: flex; justify-content: space-between; gap: 12px; margin-top: 4px;
+    font: 500 9px var(--mono); letter-spacing: 0.14em; color: var(--ink-3);
+    text-transform: uppercase;
+  }
+
+  .ed-formato { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  /* Em em, e nao em px: o corpo da folha e ajustado para a escala do PDF, e
+     os titulos tem que acompanhar. As proporcoes sao as do PDF - corpo+4,
+     corpo+1,5 e corpo. */
+  .ed-folha h1 { font-size: 1.33em; margin: 0 0 14px; text-align: center; }
+  .ed-folha h2 { font-size: 1.125em; margin: 20px 0 8px; }
+  .ed-folha h3 { font-size: 1em; margin: 16px 0 6px; }
+  .ed-folha p { margin: 0 0 11px; text-indent: var(--recuo, 0); }
+  .ed-folha ul, .ed-folha ol { margin: 0 0 11px; padding-left: 26px; }
+  .ed-folha li { margin-bottom: 5px; }
+
+  /* O quadro na tela com a cara que ele tem no PDF: fio fino, cabeçalho com
+     um fundo de leve. Em em, para acompanhar o corpo escolhido. */
+  .ed-folha table { border-collapse: collapse; width: 100%; margin: 0 0 12px; }
+  .ed-folha th, .ed-folha td {
+    border: 1px solid var(--papel-linha); padding: 0.3em 0.45em;
+    font-size: 0.92em; vertical-align: top; text-align: left;
+  }
+  .ed-folha th { background: var(--papel-realce); font-weight: 600; }
+
+  .ed-sugestao {
+    border: 1px solid var(--acento); background: var(--acento-fraco);
+    padding: 12px 14px; margin-top: 12px;
+  }
+  .ed-sugestao p { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin: 8px 0; }
+
+  /* Pre-visualizacao: o PDF de verdade, desenhado. */
+  .pv-aviso {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px; line-height: 1.5;
+  }
+  .pv-aviso:last-child { border-bottom: none; }
+  .pv-grau {
+    font: 500 9px var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 6px; border: 1px solid var(--linha-media); color: var(--ink-3);
+    white-space: nowrap; flex: none;
+  }
+  .pv-grau.impede { color: var(--atencao); border-color: var(--atencao); background: var(--atencao-fundo); }
+
+  .pv-mudanca { padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px; }
+  .pv-mudanca:last-child { border-bottom: none; }
+  .pv-mudanca .saiu { color: var(--ink-3); text-decoration: line-through; }
+  .pv-mudanca .entrou { color: var(--ok); }
+
+  /* Planilha */
+  .pl-formula { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .pl-ref {
+    font: 500 12px var(--mono); border: 1px solid var(--linha-media);
+    padding: 8px 10px; min-width: 62px; text-align: center; color: var(--ink-2);
+  }
+  .pl-fx { font: 500 12px var(--mono); color: var(--ink-3); }
+  .pl-formula input { flex: 1; max-width: none; font-family: var(--mono); font-size: 12.5px; }
+
+  .pl-caixa { border: 1px solid var(--linha-media); overflow: auto; max-height: 460px; }
+  .pl-grade { border-collapse: collapse; font-size: 12.5px; width: max-content; }
+  .pl-grade th, .pl-grade td {
+    border: 1px solid var(--linha); padding: 0; height: 27px;
+  }
+  .pl-grade th {
+    background: var(--surface-2); color: var(--ink-3);
+    font: 500 10px var(--mono); letter-spacing: 0.08em;
+    min-width: 34px; padding: 0 6px; position: sticky; top: 0; z-index: 2;
+  }
+  .pl-grade th.canto { left: 0; z-index: 3; }
+  .pl-grade td.cabeca-linha {
+    background: var(--surface-2); color: var(--ink-3);
+    font: 500 10px var(--mono); text-align: center;
+    min-width: 34px; position: sticky; left: 0; z-index: 1;
+  }
+  /* O padding vem com o seletor de dentro da grade: `.pl-grade td` tem
+     especificidade maior que `.pl-cel` sozinho e zerava o espaco, deixando o
+     valor de uma coluna encostado no texto da coluna vizinha. */
+  .pl-grade td.pl-cel { padding: 0 8px; }
+  .pl-cel {
+    min-width: 108px; max-width: 220px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: cell;
+  }
+  .pl-cel.escolhida { outline: 2px solid var(--acento); outline-offset: -2px; }
+  .pl-cel.na-faixa { background: var(--acento-fraco); }
+  .pl-cel.numero { text-align: right; font-variant-numeric: tabular-nums; }
+  .pl-cel.formula { color: var(--ink); }
+  .pl-cel.ruim { color: var(--atencao); }
+  .pl-cel.forte { font-weight: 600; }
+  .pl-cel.inclinada { font-style: italic; }
+  .pl-grade td.pl-cel.com-borda { border: 1px solid var(--ink-3); }
+
+  /* O cabeçalho de letras já era preso no topo; congelar prende a primeira
+     linha de dados logo abaixo dele — a linha com "Cliente", "Valor". Sem ela
+     à vista, rolar uma tabela de parcelas vira adivinhação de coluna. */
+  .pl-caixa.congelada tbody tr:first-child td {
+    position: sticky; top: 27px; z-index: 1; background: var(--surface-2);
+  }
+  .pl-caixa.congelada tbody tr:first-child td.cabeca-linha { z-index: 2; }
+
+  /* Barras desenhadas aqui, com CSS: o programa roda sem internet e não vai
+     buscar biblioteca de gráfico em CDN. */
+  .pl-grafico {
+    display: flex; align-items: flex-end; gap: 6px;
+    height: 168px; margin: 12px 0 4px; padding-bottom: 18px;
+    border-bottom: 1px solid var(--linha-media); overflow-x: auto;
+  }
+  .pl-gbarra { flex: 1 1 0; min-width: 26px; height: 100%; position: relative; display: flex; align-items: flex-end; }
+  .pl-gbarra i { display: block; width: 100%; background: var(--acento); }
+  .pl-gbarra i.negativo { background: var(--atencao); }
+  .pl-gbarra .rotulo {
+    position: absolute; left: 0; right: 0; bottom: -17px;
+    text-align: center; font-size: 9px;
+  }
+
+  .pl-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .pl-check input { width: auto; }
+  .pl-filtro-aviso {
+    margin-top: 10px; padding: 8px 12px; font-size: 12px;
+    border: 1px solid var(--atencao); color: var(--ink-2);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .pl-cel input {
+    width: 100%; height: 25px; border: none; background: var(--surface-1);
+    color: inherit; font: 400 12.5px var(--sans); padding: 0 5px; min-width: 0;
+  }
+
+  .pl-abas { display: flex; gap: 4px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .pl-abas button.escolhida { background: var(--forte); border-color: var(--forte); color: var(--forte-texto); }
+
+  .pl-status {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px;
+    font: 500 10px var(--mono); letter-spacing: 0.1em; color: var(--ink-3); text-transform: uppercase;
+  }
+  .pl-funcao {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 0; border-bottom: 1px solid var(--linha); font-size: 12.5px;
+  }
+  .pl-funcao:last-child { border-bottom: none; }
+  .pl-funcao code { font: 400 11.5px var(--mono); color: var(--ink-2); }
+
+  /* ------------------------------------------ bem-estar, conexões */
+
+  /* ------------------------------------------------------ artigo de lei */
+
+  .artigo {
+    border: 1px solid var(--linha-media);
+    background: var(--surface-1);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .artigo.revogado { border-color: var(--atencao-linha); background: var(--atencao-fundo); }
+  .artigo-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .artigo-topo b { font: 500 13.5px var(--sans); color: var(--ink-titulo); }
+  .artigo-selo {
+    font: 500 9px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    padding: 3px 7px; border: 1px solid var(--atencao); color: var(--atencao);
+  }
+  .artigo-texto {
+    font-size: 12.5px; line-height: 1.6; color: var(--ink-2);
+    margin: 8px 0 10px; overflow-wrap: anywhere;
+  }
+

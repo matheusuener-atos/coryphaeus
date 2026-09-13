@@ -1,0 +1,73 @@
+  /* ------------------------------------------------------------ dialogos */
+  /*
+    Dialogos do sistema (docs/ui/05-interacoes-e-estados.md, mockup P -
+    Popups): veu escuro, cartao de 440px com titulo em Garamond e contexto
+    em cinza dizendo onde estou, campo com foco preto, acao primaria a
+    direita e destrutiva em vinho com o efeito escrito. Enter confirma, Esc
+    fecha, o foco fica preso dentro e volta para onde estava. Substituem o
+    confirm() e o prompt() do navegador, que na janela do programa apareciam
+    como "localhost diz".
+  */
+  .veu-dialogo {
+    position: fixed; inset: 0; z-index: 80; background: var(--ink-a3); display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: dialogo-veu .15s ease-out;
+  }
+  .dialogo {
+    width: 440px; max-width: 100%; max-height: calc(100vh - 48px); overflow: auto; display: flex; flex-direction: column;
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 14px; box-shadow: 0 30px 80px -30px var(--sh-a35);
+    animation: dialogo-entra .16s ease-out;
+  }
+  .dialogo.larga { width: 520px; }
+  .dialogo-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 0; }
+  .dialogo-titulos { display: grid; gap: 3px; min-width: 0; flex: 1; }
+  .dialogo-titulos h2 { margin: 0; font: 400 21px/1.15 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
+  .dialogo-contexto { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dialogo-fechar {
+    width: 28px; height: 28px; flex: none; margin: -4px -6px 0 0; padding: 0; border: none; background: none; border-radius: 6px;
+    color: var(--ink3); display: inline-flex; align-items: center; justify-content: center;
+  }
+  .dialogo-fechar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .dialogo-corpo { padding: 16px 20px; display: grid; gap: 14px; }
+  .dialogo-corpo p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .dialogo-corpo p b { font-weight: 600; color: var(--ink); }
+  .dialogo-campo { display: grid; gap: 6px; }
+  .dialogo-campo label { font: 500 12px var(--sans); color: var(--ink3); }
+  .dialogo-caixa { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); }
+  .dialogo-caixa:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px var(--ink-a08); }
+  .dialogo-caixa .ic { color: var(--ink3); flex: none; }
+  .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; border: none; background: none; padding: 10px 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
+  .dialogo-caixa input:focus { outline: none; box-shadow: none; border: none; }
+  .dialogo-sufixo { font: 500 12.5px var(--sans); color: var(--ink3); flex: none; }
+  .dialogo-dica { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .dialogo-sugestoes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dialogo-sugestoes button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .dialogo-sugestoes button:hover:not(:disabled) { background: var(--fill2); border: none; color: var(--ink); }
+  .dialogo-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .dialogo-marcar input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); flex: none; }
+  .dialogo-pe { display: flex; align-items: center; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--ink-a1); }
+  .dialogo-teclas { display: flex; align-items: center; gap: 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .dialogo-teclas kbd { font: 400 10.5px var(--mono); padding: 2px 6px; border: 1px solid var(--ink-a15); border-radius: 4px; color: var(--ink3); }
+  .dialogo-pe button { padding: 8px 14px; border-radius: 6px; font-size: 13px; white-space: nowrap; }
+  .dialogo-cancelar { border: none; background: none; color: var(--ink2); font-weight: 500; }
+  .dialogo-cancelar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .dialogo-pe .primario.perigo { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); }
+  .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); filter: brightness(.9); }
+  @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .veu-dialogo, .dialogo { animation: none; } }
+
+  /* O aviso (toast) do mesmo mockup: icone, texto e, quando da para
+     desfazer, a acao em negrito. O de erro e branco com borda vinho. */
+  .aviso-toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; z-index: 60;
+    display: flex; align-items: center; gap: 12px; width: 420px; max-width: calc(100vw - 32px); padding: 12px 14px; border-radius: 10px;
+    background: var(--ink); color: var(--bg); font: 500 13px/1.45 var(--sans); box-shadow: var(--elev-float); transition: opacity .2s, transform .2s;
+  }
+  .aviso-toast.visivel { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .aviso-toast > .ic { flex: none; }
+  .aviso-toast > span:not(.ic) { flex: 1; min-width: 0; }
+  .aviso-toast > button { border: none; background: none; padding: 0; color: inherit; font: 700 13px var(--sans); white-space: nowrap; }
+  .aviso-toast > button:hover:not(:disabled) { background: none; border: none; color: inherit; text-decoration: underline; }
+  .aviso-toast.erro { background: var(--surf); color: var(--ink); border: 1px solid var(--accln); }
+  .aviso-toast.erro > .ic { color: var(--acc); }
+

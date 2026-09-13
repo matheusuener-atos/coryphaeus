@@ -1,0 +1,238 @@
+  /*
+    Os tokens do desenho (docs/ui/00-fundamentos.md). O claro e o padrao,
+    declarado em :root; o escuro sobrescreve os mesmos nomes. Nenhum
+    componente conhece cor literal - so o nome da variavel.
+
+    Os nomes antigos (--fundo, --linha, --surface-1, --acento...) continuam
+    declarados, apontando para os novos: as telas que ainda nao foram
+    redesenhadas herdam a paleta e as fontes sem que cada regra delas precise
+    mudar. Somem conforme cada tela for refeita.
+  */
+  :root, [data-tema="claro"] {
+    /* A medida da PROSA, e só dela. Tabela, grade e painel usam a coluna
+       inteira; linha de texto corrida carrega este teto. */
+    --leitura: 900px;
+    /* Campo de uma linha so. */
+    --campo: 560px;
+
+    --bg: #f6f6f4;
+    --surf: #ffffff;
+    --sub: #fafaf9;
+    --paper: #fbfaf6;
+    --fill: #f1f1ee;
+    --fill2: #ebebe8;
+    --act: #e6e6e2;
+    --ink: #171716;
+    --ink2: #5c5c59;
+    --ink3: #8a8a86;
+    --mute: #c9c9c4;
+    --mute2: #a3a39f;
+    --ink0: #000000;
+    --btn: #171716;
+    --btnt: #f6f6f4;
+
+    --ink-a06: rgba(23,23,22,.06);
+    --ink-a08: rgba(23,23,22,.08);
+    --ink-a1: rgba(23,23,22,.1);
+    --ink-a12: rgba(23,23,22,.12);
+    --ink-a15: rgba(23,23,22,.15);
+    --ink-a2: rgba(23,23,22,.2);
+    --ink-a25: rgba(23,23,22,.25);
+    --ink-a28: rgba(23,23,22,.28);
+    --ink-a3: rgba(23,23,22,.3);
+    --ink-a35: rgba(23,23,22,.35);
+    --ink-a45: rgba(23,23,22,.45);
+    --ink-a5: rgba(23,23,22,.5);
+    --ink-a6: rgba(23,23,22,.6);
+
+    --sh-a12: rgba(23,23,22,.12);
+    --sh-a35: rgba(23,23,22,.35);
+    --sh-a45: rgba(23,23,22,.45);
+    --sh-a5: rgba(23,23,22,.5);
+    --sh-a6: rgba(23,23,22,.6);
+    --elev-card: 0 8px 24px -16px var(--sh-a12);
+    --elev-panel: 18px 0 40px -30px var(--sh-a45);
+    --elev-float: 0 14px 30px -12px var(--sh-a35);
+
+    /* Acento e vinho, sempre em oklch: prazo, atraso, destrutivo, citacao. */
+    --acc: oklch(42% 0.13 25);
+    --accbg: oklch(95% 0.02 25);
+    --accbg2: oklch(97.5% 0.01 25);
+    --accbg3: oklch(98.5% 0.005 25);
+    --accln: oklch(80% 0.06 25);
+    --accln2: oklch(70% 0.1 25);
+    --okt: oklch(38% 0.1 150);
+    --okbg: oklch(95% 0.03 150);
+    --warnt: oklch(45% 0.1 70);
+    --warnbg: oklch(96% 0.05 85);
+    --logo: none;
+    --amostra-escura: #171716;
+    --sobre-acc: #ffffff;
+    --be-p: 0%;
+
+    /* Iguais nos dois temas: pontos cheios e glifos de formato de arquivo. */
+    --verde: oklch(60% 0.15 150);
+    --ambar: oklch(75% 0.15 80);
+    --glifo-pdf: oklch(58% 0.19 35);
+    --glifo-word: oklch(48% 0.14 255);
+    --glifo-excel: oklch(50% 0.13 150);
+
+    /* O papel do PDF e a folha do editor nao mudam com o tema da tela: e
+       papel. As marcas sobre ele tambem sao fixas. */
+    --papel: #fbfaf8;
+    --tinta: #14120f;
+    --papel-linha: #c9c4bb;
+    --papel-realce: #eeece7;
+    --papel-veu: rgba(251,250,248,.94);
+    --papel-sombra: rgba(23,23,22,.5);
+    --papel-acc: oklch(42% 0.13 25);
+    --papel-accbg: oklch(95% 0.02 25);
+    --papel-accbg2: oklch(97.5% 0.01 25);
+    --papel-ink2: #5c5c59;
+    --papel-ink3: #8a8a86;
+
+    --sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'EB Garamond', Georgia, serif;
+    --mono: 'Fira Code', ui-monospace, 'Cascadia Mono', monospace;
+
+    /* nomes antigos, apontando para os novos */
+    --fundo: var(--bg);
+    --brilho: none;
+    --ink-titulo: var(--ink);
+    --ink-2: var(--ink2);
+    --ink-3: var(--ink3);
+    --ink-muted: var(--mute2);
+    --linha: var(--ink-a06);
+    --linha-media: var(--ink-a1);
+    --linha-forte: var(--ink-a15);
+    --linha-viva: var(--ink-a3);
+    --surface-1: var(--surf);
+    --surface-2: var(--sub);
+    --surface-3: var(--fill);
+    --surface-flutua: var(--surf);
+    --acento: var(--ink);
+    --acento-vivo: var(--ink0);
+    --acento-fraco: var(--fill);
+    --forte: var(--btn);
+    --forte-texto: var(--btnt);
+    --forte-hover: var(--ink0);
+    --trilho: var(--fill2);
+    --barra-lateral: var(--bg);
+    --ok: var(--verde);
+    --ok-texto: var(--okt);
+    --atencao: var(--acc);
+    --atencao-fundo: var(--accbg2);
+    --atencao-linha: var(--accln);
+
+    color-scheme: light;
+  }
+
+  [data-tema="escuro"] {
+    --bg: #141413;
+    --surf: #1c1c1b;
+    --sub: #202020;
+    --paper: #232322;
+    --fill: #262625;
+    --fill2: #2c2c2a;
+    --act: #343432;
+    --ink: #f0f0ec;
+    --ink2: #b3b3ae;
+    --ink3: #8f8f8a;
+    --mute: #5a5a57;
+    --mute2: #6f6f6b;
+    --ink0: #ffffff;
+    --btn: #f6f6f4;
+    --btnt: #171716;
+
+    --ink-a06: rgba(246,246,244,.06);
+    --ink-a08: rgba(246,246,244,.08);
+    --ink-a1: rgba(246,246,244,.1);
+    --ink-a12: rgba(246,246,244,.12);
+    --ink-a15: rgba(246,246,244,.15);
+    --ink-a2: rgba(246,246,244,.2);
+    --ink-a25: rgba(246,246,244,.25);
+    --ink-a28: rgba(246,246,244,.28);
+    --ink-a3: rgba(246,246,244,.3);
+    --ink-a35: rgba(246,246,244,.35);
+    --ink-a45: rgba(246,246,244,.45);
+    --ink-a5: rgba(246,246,244,.5);
+    --ink-a6: rgba(246,246,244,.6);
+
+    /* No escuro a sombra vai a preto quase solido: sombra clara sobre fundo
+       escuro suja. */
+    --sh-a12: rgba(0,0,0,.45);
+    --sh-a35: rgba(0,0,0,.77);
+    --sh-a45: rgba(0,0,0,.99);
+    --sh-a5: rgba(0,0,0,1);
+    --sh-a6: rgba(0,0,0,1);
+
+    --acc: oklch(74% 0.12 25);
+    --accbg: oklch(27% 0.05 25);
+    --accbg2: oklch(22% 0.03 25);
+    --accbg3: #1f1d1c;
+    --accln: oklch(40% 0.08 25);
+    --accln2: oklch(50% 0.1 25);
+    --okt: oklch(78% 0.12 150);
+    --okbg: oklch(28% 0.05 150);
+    --warnt: oklch(82% 0.12 80);
+    --warnbg: oklch(30% 0.06 85);
+    --logo: invert(1) hue-rotate(180deg);
+
+    color-scheme: dark;
+  }
+
+  /* As quatro animacoes do sistema inteiro (docs/ui/00-fundamentos.md). */
+  @keyframes pv-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes pv-spin { to { transform: rotate(360deg); } }
+  @keyframes pv-caret { 0%, 45% { opacity: 1; } 50%, 95% { opacity: .1; } 100% { opacity: 1; } }
+  @keyframes pv-grow { from { width: 0; } to { width: 64%; } }
+  @keyframes pulsa { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+  /* Barras de rolagem ocultas em todo o aplicativo: a janela nao deve
+     parecer um site. Onde ha rolagem, a sombra de borda avisa. */
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+  /* `hidden` vence qualquer display de classe. Sem isto, um cartao com
+     display: grid continuava na tela depois de escondido. */
+  [hidden] { display: none !important; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font: 400 14px/1.5 var(--sans);
+    color: var(--ink);
+    background-color: var(--bg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  p { text-wrap: pretty; }
+
+  .rotulo {
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    /* Caminho de arquivo nao tem espaco onde quebrar, e o rotulo de uma acao
+       aprovada carrega um: sem isto, C:\USERS\...\SCRATCHPAD\SAIDA atravessa
+       a borda do painel e some fora da coluna. */
+    overflow-wrap: anywhere;
+  }
+  .num { font: 400 10.5px var(--mono); color: var(--ink-3); }
+  .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* O nome da classe diz o que ela faz, e ela nao fazia: so existia regra
+     dentro de .acervo-cortes. Nas outras telas o texto encolhia ate virar
+     reticencias enquanto sobrava espaco vazio na linha - "Impostos · DAS"
+     aparecia como "Im...". O min-width: 0 e o que deixa o texto encolher
+     dentro do flex em vez de empurrar a linha. */
+  .cresce { flex: 1; min-width: 0; }
+
+  .vazio-flex { flex: 1; }
+  .divisa { width: 1px; height: 11px; background: var(--linha-media); }
+
+

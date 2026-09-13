@@ -1,0 +1,91 @@
+  /* ----------------------------------------------------------- servicos */
+  /*
+    Servicos (docs/ui/03-telas-desktop.md, A15): a grade de pastas em tres
+    colunas e, dentro de cada pasta, a visao de trabalho em duas - Resumo da
+    IA e etapas - com os arquivos embaixo e o painel de equipe, prazos,
+    anotacoes e trilha. Prefixo sv-.
+  */
+  .sv-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: start; }
+  .sv-pasta {
+    display: grid; gap: 10px; min-width: 0; padding: 16px 18px; text-align: left;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); cursor: pointer;
+  }
+  .sv-pasta:hover { border-color: var(--ink); }
+  .sv-pasta.feita { color: var(--ink3); }
+  .sv-pasta-cabeca { display: flex; align-items: center; gap: 10px; }
+  .sv-pasta-cabeca > .ic { color: var(--ink3); flex: none; }
+  .sv-pasta-cabeca .duas-linhas b { font-weight: 600; font-size: 15px; }
+  .sv-pasta p {
+    margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .sv-pasta-pe {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 10px;
+    border-top: 1px solid var(--ink-a08); font: 500 12.5px var(--sans); color: var(--ink3);
+  }
+  .sv-pct { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .sv-pasta.feita .sv-pct { color: var(--ink3); }
+  .sv-avatares { display: flex; }
+  .sv-avatares .cad-avatar { width: 24px; height: 24px; font-size: 9.5px; border: 2px solid var(--surf); margin-left: -6px; }
+  .sv-avatares .cad-avatar:first-child { margin-left: 0; }
+  .sv-proximo { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .sv-proximo.atrasado { color: var(--acc); }
+  .sv-novo {
+    display: grid; place-items: center; align-content: center; gap: 6px; min-height: 180px; padding: 16px; text-align: center;
+    border: 1px dashed var(--ink-a25); border-radius: 12px; background: transparent; color: var(--ink2); cursor: pointer;
+  }
+  .sv-novo:hover:not(:disabled) { border: 1px dashed var(--ink); color: var(--ink); background: transparent; }
+  .sv-novo b { font: 600 13.5px var(--sans); }
+  .sv-novo small { font: 500 12px var(--sans); color: var(--ink3); }
+  .sv-vazio { grid-column: span 2; padding: 20px 22px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 8px; }
+  .sv-vazio h3 { margin: 0; font: 400 24px/1.15 var(--serif); }
+  .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+
+  /* A visao de trabalho: resumo e etapas lado a lado, arquivos embaixo. */
+  .sv-trabalho { flex: none; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+  .sv-resumo, .sv-etapas { min-height: 0; }
+  .sv-cartao-corpo { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+  .sv-resumo .fin-cartao-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
+  .sv-faisca { color: var(--acc); display: inline-flex; }
+  .sv-resumo-texto { margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-line; }
+  .sv-resumo-texto.vazio { color: var(--ink2); }
+  .sv-falta { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .sv-etapa { display: flex; align-items: center; gap: 10px; }
+  .sv-etapa.feita .duas-linhas b { color: var(--ink3); text-decoration: line-through; }
+  .sv-marca { border: none; background: none; padding: 0; color: var(--ink3); display: inline-flex; cursor: pointer; flex: none; }
+  .sv-marca:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .sv-etapa.feita .sv-marca { color: var(--okt); }
+  .sv-nova-etapa { display: flex; gap: 6px; align-items: center; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--ink-a08); }
+  .sv-nova-etapa input[type="text"] { flex: 1; min-width: 0; max-width: none; }
+  .sv-nova-etapa input[type="date"] { width: 140px; max-width: 140px; }
+  .sv-nova-etapa .primario { display: inline-flex; padding: 7px 9px; }
+  .sv-arquivos .tabela-barra > b, .sv-trilha-cartao .tabela-barra > b { font: 600 14px var(--sans); }
+  .sv-arquivos .tabela-linha { cursor: pointer; }
+  .colunas-sv-arquivos { grid-template-columns: 28px minmax(0, 1fr) 110px 28px; }
+  .sv-data { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; text-align: right; }
+  .sv-evento { display: grid; gap: 2px; font-size: 13.5px; min-width: 0; }
+  .sv-evento b { font-weight: 500; }
+  .sv-evento small { font: 500 12px var(--sans); color: var(--ink3); }
+  .sv-evento.grande { padding: 10px 16px; border-bottom: 1px solid var(--ink-a08); }
+
+  /* O painel: equipe, prazos, anotacoes, trilha; ou o formulario; ou o Acervo para ligar. */
+  .sv-painel .rolagem { display: flex; flex-direction: column; }
+  .sv-painel .painel-bloco-cabeca .em-ligacao { margin-left: auto; }
+  .sv-pessoa, .sv-prazo, .sv-doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .sv-pessoa .mais-linha, .sv-doc .em-ligacao { flex: none; }
+  .sv-prazo-data { flex: none; width: 82px; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .sv-prazo-data.hoje { color: var(--acc); }
+  .sv-nota { display: grid; gap: 4px; }
+  .sv-nota-cabeca { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .sv-nota-cabeca .cad-avatar { width: 22px; height: 22px; font-size: 9px; }
+  .sv-nota-cabeca small { font: 500 12px var(--sans); color: var(--ink3); }
+  .sv-nota p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink2); white-space: pre-line; }
+  .sv-nova-nota { width: 100%; resize: vertical; }
+  .sv-trilha { display: grid; gap: 8px; }
+  .sv-busca-acervo { width: 100%; }
+  .sv-doc + .sv-doc { border-top: 1px solid var(--ink-a06); padding-top: 8px; }
+  @media (max-width: 1180px) {
+    .sv-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sv-trabalho { grid-template-columns: minmax(0, 1fr); }
+  }
+

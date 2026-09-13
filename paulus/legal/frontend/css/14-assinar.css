@@ -1,0 +1,137 @@
+  /* --------------------------------------------------------- assinatura */
+  /*
+    Assinatura (docs/ui/03-telas-desktop.md, A8): o visor do PDF com o selo
+    arrastavel e, no painel, as escolhas antes de assinar; a segunda visao e
+    o certificado, com a previa do selo em tamanho real. Prefixo as-.
+  */
+  .as-corpo { grid-template-columns: minmax(0, 1fr) 400px; }
+  .as-corpo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
+  .as-principal { padding: 16px 0 16px 20px; }
+  .as-cartao {
+    flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
+    box-shadow: 0 8px 24px -16px var(--sh-a12);
+  }
+  .as-cartao .docs-previa { background: var(--bg); }
+  .as-cartao .docs-miniaturas { background: var(--surf); }
+  .as-visor { padding: 20px 24px; }
+  .as-visor .pdf-folha { width: 100%; max-width: 680px; align-self: flex-start; position: relative; line-height: 0; }
+  .as-mini-selo { position: absolute; right: 5px; bottom: 12px; width: 14px; height: 8px; background: var(--acc); border-radius: 1px; }
+  .as-cartao .docs-mini { position: relative; }
+  .as-mais { font: 500 11px var(--sans); color: var(--ink3); }
+
+  /* o selo arrastavel: a previa de verdade, na escala da pagina */
+  .as-cartao .pdf-selo {
+    position: absolute; box-sizing: border-box; border: 1px dashed var(--acc); border-radius: 4px; background: var(--accbg2);
+    cursor: move; overflow: visible; padding: 0; display: block; font-size: 12px; text-align: left; user-select: none; color: var(--ink);
+  }
+  .as-cartao .pdf-selo.pegando { border-style: solid; cursor: grabbing; }
+  .as-selo-dentro { position: absolute; left: 0; top: 0; transform-origin: top left; pointer-events: none; }
+  .as-selo-dentro .selo-previa { border-color: var(--ink-a15); }
+  .as-visor .pdf-folha .as-selo-dentro .selo-previa img { max-width: 62px; max-height: 46px; width: auto; height: auto; }
+  .as-selo-legenda {
+    position: absolute; left: 0; top: 100%; margin-top: 6px; display: flex; align-items: center; gap: 6px;
+    font: 500 11px var(--sans); color: var(--acc); white-space: nowrap; pointer-events: none;
+  }
+  .as-alca { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--surf); border: 1.5px solid var(--acc); pointer-events: none; }
+  .as-alca.a { left: -5px; top: -5px; } .as-alca.b { right: -5px; top: -5px; } .as-alca.c { left: -5px; bottom: -5px; } .as-alca.d { right: -5px; bottom: -5px; }
+  .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 80px; }
+
+  /* o painel de antes de assinar */
+  .as-painel { display: flex; flex-direction: column; }
+  .as-opcoes { padding: 0 18px 12px; display: grid; gap: 8px; }
+  .as-radio { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; min-height: 24px; }
+  .as-radio i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); box-sizing: border-box; flex: none; }
+  .as-radio.on { color: var(--ink); }
+  .as-radio.on i { border: 5px solid var(--ink); }
+  .as-radio span { flex: 1; }
+  .as-radio input[type=text] {
+    width: 120px; min-width: 0; max-width: 100%; padding: 4px 8px; border: 1px solid var(--ink-a1); border-radius: 6px;
+    background: var(--surf); font: 500 12px var(--sans); color: var(--ink);
+  }
+  .as-opcoes .ag-chave { padding-top: 8px; }
+  .as-cert { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; }
+  .as-cert-ic { color: var(--ink2); display: flex; flex: none; }
+  .as-cert .duas-linhas b { font-size: 13.5px; font-weight: 600; }
+  .as-cert .duas-linhas small { white-space: normal; }
+  .as-lista { display: grid; gap: 10px; }
+  .as-marca { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); }
+  .as-marca.liga { cursor: pointer; }
+  .as-marca.on { color: var(--ink); }
+  .as-caixinha { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--ink-a3); box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; color: transparent; }
+  .as-marca.on .as-caixinha { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .as-lista .ag-toggle .duas-linhas b { font-weight: 400; font-size: 13.5px; }
+  .as-lista .ag-toggle .duas-linhas small { white-space: normal; }
+  .as-lista .em-senha { margin-top: -2px; }
+  .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--accln); border-radius: 10px; background: var(--accbg2); display: grid; gap: 12px; }
+  .as-pronto.feito { border-color: var(--ink-a15); background: var(--okbg); }
+  .as-pronto-cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
+  .as-pronto-cabeca .ic { color: var(--verde); }
+  .as-pronto-cabeca .contagem { margin-left: auto; }
+  .as-pronto p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .as-pronto input[type=password] { width: 100%; max-width: 100%; box-sizing: border-box; border-radius: 8px; border-color: var(--ink-a15); background: var(--surf); }
+  .as-pronto-acoes { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .as-pronto-acoes .primario { margin-left: auto; }
+  .as-pronto small { font: 500 12px var(--sans); color: var(--ink3); }
+  .as-pronto .cert-aviso { border-radius: 8px; }
+  .as-conferencia { display: grid; gap: 8px; }
+  .as-conferencia small { font: 500 12px var(--sans); color: var(--ink3); }
+  .painel-acoes.semi button.adiante { opacity: .5; }
+
+  /* o certificado, no cartao */
+  .as-cartao-topo { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--ink-a1); font: 600 14px var(--sans); }
+  .as-rolagem { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .as-bloco { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
+  .as-bloco:last-child { border-bottom: none; padding-bottom: 0; }
+  .as-titulo { font: 600 14px var(--sans); }
+  .as-explica { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .as-nota { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-solta {
+    border: 1px dashed var(--ink-a25); border-radius: 10px; padding: 18px; display: grid; justify-items: center; gap: 6px; text-align: center;
+    transition: border-color .15s, background .15s;
+  }
+  .as-solta.sobre { border-color: var(--ink); background: var(--accbg2); }
+  .as-solta > span { font-size: 14px; }
+  .as-solta small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-solta-acoes { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
+  .as-solta-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .as-teste { padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 6px; }
+  .as-teste b { font-size: 13.5px; }
+  .as-teste p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .as-teste button { justify-self: start; }
+  .as-windows { padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 8px; }
+  .as-titular { display: flex; align-items: flex-start; gap: 14px; }
+  .as-titular-ic { width: 44px; height: 44px; border-radius: 10px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); }
+  .as-titular .duas-linhas { flex: 1; gap: 3px; }
+  .as-nome { font: 400 20px/1.15 var(--serif); white-space: normal; }
+  .as-titular-acoes { display: flex; gap: 6px; flex: none; }
+  .as-titular-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .as-grade4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .as-dado { padding: 12px; border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 4px; min-width: 0; }
+  .as-dado small { font: 500 12px var(--sans); color: var(--ink3); }
+  .as-dado b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .as-senha { display: flex; align-items: center; gap: 8px; }
+  .as-senha input[type=password], .as-senha input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; padding: 9px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf);
+    font: 400 13.5px var(--sans); color: var(--ink);
+  }
+  .as-rodape-cartao { flex: none; padding: 12px 18px; border-top: 1px solid var(--ink-a1); display: grid; gap: 10px; }
+  .as-duas-colunas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; }
+  .as-duas-colunas .ag-chave { border-bottom: none; padding: 0; min-height: 0; }
+  .as-duas-colunas .ag-chave select { max-width: 50%; }
+
+  /* o selo, no painel */
+  .as-selo-caixa { margin: 0 18px 12px; padding: 20px 18px; background: var(--bg); border-radius: 10px; display: flex; justify-content: center; overflow: hidden; }
+  .as-selo-escala { transform: scale(1.33); transform-origin: center; }
+  .as-painel-miolo { padding: 0 18px 12px; display: grid; gap: 12px; }
+  .as-abas button { flex: 1; text-align: center; }
+  .as-painel-miolo .selo-tela { max-width: none; width: 100%; border-radius: 8px; }
+  .as-linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .as-linha-botoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .as-painel-rodape { margin-top: auto; padding: 12px 18px 16px; display: flex; justify-content: flex-end; gap: 6px; border-top: 1px solid var(--ink-a1); }
+  .as-painel-rodape button { display: inline-flex; align-items: center; gap: 6px; }
+  .painel-bloco .as-duas-colunas { gap: 8px 16px; }
+  .painel-bloco .ag-chave { padding-top: 6px; border-bottom: none; }
+
+  /* o aviso curto de qualquer tela */
+

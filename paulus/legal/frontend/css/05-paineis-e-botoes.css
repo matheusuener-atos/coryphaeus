@@ -1,0 +1,331 @@
+  /* ------------------------------------------------------ menu lateral */
+  /* O menu mora na casca, no comeco do CSS. Aqui ficou so a tela de destino
+     ainda nao construido. */
+
+  .adiante-tela { max-width: 620px; }
+  .adiante-tela h2 { font: 500 30px/1.15 var(--sans); letter-spacing: -0.02em; color: var(--ink-titulo); margin: 8px 0 12px; }
+  .adiante-tela > p { margin: 0 0 22px; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
+  .precisa { border-top: 1px solid var(--linha); padding-top: 16px; margin-bottom: 22px; }
+  .precisa .rotulo { display: block; margin-bottom: 10px; }
+  .precisa ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; }
+  .precisa li { margin-bottom: 5px; }
+
+  /* ---------------------------------------------- aprovacoes e config */
+
+  .tela-topo { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tela-topo h2 { font: 400 26px/1.15 var(--serif); letter-spacing: -0.01em; color: var(--ink); margin-bottom: 6px; }
+  .tela-acoes { margin-left: auto; display: flex; gap: 8px; }
+  .rodape-tela {
+    margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--ink-a06);
+    font: 500 11.5px var(--sans); color: var(--ink3);
+  }
+
+  /* A fila de aprovacoes (docs/ui/03-telas-desktop.md, A11): fila, historico
+     e regras sobre a mesma grade do Acervo. */
+  .colunas-fila { grid-template-columns: 20px minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 170px; }
+  .colunas-historico { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 130px 150px; }
+  .colunas-regras { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; }
+  .caixa-tipo { width: 32px; height: 32px; border-radius: 8px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; }
+  .caixa-tipo .ic { color: var(--ink2); }
+  .quem { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
+  .quem span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avatar-p {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--bg); flex: none;
+    display: flex; align-items: center; justify-content: center; font: 400 14px/1 var(--serif);
+  }
+  .avatar-mini {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--fill2); color: var(--ink2); flex: none;
+    display: flex; align-items: center; justify-content: center; font: 700 10px var(--sans);
+  }
+  .espera { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .acoes-linha.direita { justify-content: flex-end; }
+  .pill-papel { padding: 2px 8px; border-radius: 5px; font: 600 11.5px var(--sans); white-space: nowrap; background: var(--fill); color: var(--ink2); }
+  .pill-papel.forte { background: var(--ink); color: var(--bg); }
+  .papeis { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chave-valor b.acc { color: var(--acc); }
+  .arquivo-painel .glifo { flex: none; }
+  .linha-tempo { display: grid; gap: 10px; font-size: 13px; }
+  .linha-tempo div { display: flex; gap: 12px; align-items: flex-start; }
+  .linha-tempo .hora { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; min-width: 40px; flex: none; }
+  .linha-tempo span:last-child { line-height: 1.5; }
+  .leitura-fila { display: grid; gap: 8px; font-size: 13.5px; }
+  .leitura-fila span { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+  .leitura-fila span .ic { color: var(--ink3); }
+  .resumo-painel { padding: 4px 18px 12px; }
+  .resumo-painel p { margin: 0; font-size: 13.5px; line-height: 1.6; }
+
+  /* Pecas que a tela de Tarefas ainda usa (sugestoes de prazo). */
+  .fila { border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; }
+  .pedido { display: flex; align-items: flex-start; gap: 13px; padding: 12px 14px; border-bottom: 1px solid var(--ink-a06); }
+  .pedido:last-child { border-bottom: none; }
+  .pedido.marcado { background: var(--bg); }
+  .pedido-marca { flex-shrink: 0; padding-top: 2px; cursor: pointer; }
+  .pedido-corpo { flex: 1; min-width: 0; }
+  .pedido-titulo { font: 500 14px var(--sans); margin-bottom: 6px; }
+  .pedido-resumo { font-size: 13px; color: var(--ink2); margin-top: 7px; }
+  .pedido-corpo .num { margin-top: 6px; display: block; }
+  .pedido-acoes { flex-shrink: 0; }
+  .etiqueta.prazo { background: var(--accbg); color: var(--acc); }
+
+  .decididos-hoje { margin-top: 22px; }
+  .decididos-hoje > .rotulo { display: block; margin-bottom: 9px; }
+  .hoje-linha { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13px; }
+  .hoje-linha:last-child { border-bottom: none; }
+  .selo-decisao { font: 600 11.5px var(--sans); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; background: var(--fill); color: var(--ink3); }
+  .selo-decisao.aprovado { background: var(--okbg); color: var(--okt); }
+  .selo-decisao.falhou { background: var(--warnbg); color: var(--warnt); }
+
+  /* Configuracoes: o interruptor tem que ficar perto do texto dele. */
+  .permissao {
+    display: flex; align-items: center; gap: 16px; max-width: 1040px;
+    padding: 13px 0; border-bottom: 1px solid var(--ink-a06); cursor: pointer;
+  }
+  .permissao:last-of-type { border-bottom: none; }
+  .permissao-texto { flex: 1; min-width: 0; }
+  .permissao-titulo { font: 500 13.5px var(--sans); margin-bottom: 3px; }
+  .permissao.travada { cursor: default; opacity: 0.72; }
+
+  /* O interruptor pequeno do desenho: 34 x 20, botao de 14. */
+  .interruptor-min {
+    width: 34px; height: 20px; flex-shrink: 0; position: relative; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--ink-a25); background: none; transition: background 0.2s;
+  }
+  .interruptor-min .chave {
+    position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink-a3); transition: transform 0.2s, background 0.2s;
+  }
+  .interruptor-min.on { background: var(--ink); border-color: var(--ink); }
+  .interruptor-min.on .chave { transform: translateX(14px); background: var(--bg); }
+
+  .grade-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .campo-form { display: flex; flex-direction: column; gap: 6px; }
+  .campo-form input { width: 100%; }
+
+  /* --------------------------------------------- cadastros e tarefas */
+
+  .campo-nota {
+    font: 400 13px/1.5 var(--sans); border: 1px solid var(--linha-media);
+    background: var(--surface-1); color: inherit; padding: 9px 11px; resize: vertical;
+  }
+
+  input[type=date] {
+    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
+    background: var(--surface-1); color: inherit; padding: 8px 11px;
+    flex: 0 0 auto; min-width: 150px;
+  }
+  [data-tema="escuro"] input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
+
+  input[type=time] {
+    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
+    background: var(--surface-1); color: inherit; padding: 8px 11px;
+  }
+  [data-tema="escuro"] input[type=time]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
+
+  /* ------------------------------------------------- maquina na coluna */
+  /* Os medidores sairam da coluna: no desenho eles moram em Configuracoes >
+     Desempenho. A tela "Seu computador" ainda os usa. */
+
+  .medidor { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+  .medidor .nome { font-size: 12.5px; color: var(--ink2); width: 68px; flex-shrink: 0; }
+  .medidor .pista { flex: 1; height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .medidor .pista i { display: block; height: 3px; width: 0; background: var(--ink); transition: width 0.4s; }
+  .medidor .valor {
+    font: 500 11px var(--sans); color: var(--ink3);
+    width: 52px; text-align: right; flex-shrink: 0;
+  }
+
+  /* O interruptor do desenho: 40 x 24, botao de 18. */
+  .interruptor {
+    display: flex; align-items: center; gap: 10px; margin-top: 13px; min-height: 44px;
+    padding: 6px 0; font-size: 13.5px; color: var(--ink2); cursor: pointer;
+  }
+  .interruptor .chave {
+    margin-left: auto; width: 40px; height: 24px; flex-shrink: 0; border-radius: 12px;
+    border: 1px solid var(--ink-a25); background: none; position: relative; transition: background 0.2s;
+  }
+  .interruptor .chave::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%; background: var(--ink-a3);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .interruptor.on { color: var(--ink); }
+  .interruptor.on .chave { background: var(--ink); border-color: var(--ink); }
+  .interruptor.on .chave::after { transform: translateX(16px); background: var(--bg); }
+
+  /* -------------------------------------------------------- registro */
+  /* Uma linha so, aberta sob demanda: o que o programa acabou de fazer. */
+  .registro { flex: none; padding: 0 32px; }
+  .registro > .centro { max-width: 760px; margin: 0 auto; gap: 0; }
+  .registro-cabeca {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 9px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: none;
+    cursor: pointer; font: 400 13px var(--sans); color: var(--ink2); text-align: left;
+  }
+  .registro-cabeca:hover:not(:disabled) { background: var(--sub); border-color: var(--ink-a1); color: var(--ink2); }
+  .registro-agora { flex: 1; min-width: 0; }
+  .registro-seta { color: var(--ink3); transition: transform 0.2s; }
+  .registro.aberto .registro-seta { transform: rotate(180deg); }
+  .registro-lista { padding: 6px 12px 4px; }
+  .atividade-linha { display: flex; gap: 9px; padding: 4px 0; }
+  .atividade-linha .txt { font-size: 12.5px; color: var(--ink2); }
+  .atividade-linha .num { display: block; }
+
+  /* O rodape de garantia. Nao e decoracao: e o argumento de venda do
+     produto, repetido onde a duvida aparece. */
+  .rodape-garantia {
+    flex: none; display: none; align-items: center; gap: 14px; height: 32px; padding: 0 20px;
+    border-top: 1px solid var(--ink-a06); background: var(--bg);
+    font: 400 11.5px var(--sans); color: var(--ink3);
+  }
+  .conversa-col.vazia .rodape-garantia { display: flex; }
+  .rodape-garantia.alerta { color: var(--warnt); }
+
+  /* A caixa de pedido: a peca mais usada do produto. */
+  .cartao-campo {
+    position: relative; border: 1px solid var(--ink-a15); border-radius: 14px; background: var(--surf);
+    box-shadow: 0 18px 44px -28px var(--sh-a45); padding: 16px 16px 12px;
+    display: grid; gap: 16px; transition: border-color .18s;
+  }
+  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a35); }
+
+  textarea {
+    display: block; width: 100%;
+    font: 400 16px/1.5 var(--sans); resize: none;
+    border: none; background: none; outline: none;
+    padding: 0; max-height: 190px; color: var(--ink);
+  }
+  textarea::placeholder { color: var(--ink3); }
+
+  .pilulas { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .pilula {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border: none; border-radius: 8px; background: none;
+    font: 500 13px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .pilula:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .pilula .rotulo-botao { flex: none; padding: 0; }
+
+  /* A pilula do escopo fica a vista o tempo todo: enquanto estiver ali, a
+     pergunta e lida SO naquele documento. Escopo silencioso seria tao ruim
+     quanto ler o acervo inteiro calado. */
+  .escopo { display: contents; }
+  .escopo[hidden] { display: none; }
+  .escopo-pilula {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
+    padding: 6px 6px 6px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink);
+  }
+  .escopo-pilula:hover { background: var(--fill); }
+  .escopo-pilula b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .escopo-pilula button {
+    border: none; background: none; color: var(--ink3); cursor: pointer;
+    padding: 0 2px; font-size: 14px; line-height: 1;
+  }
+  .escopo-pilula button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .escopo-acervo {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
+    padding: 6px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink2);
+  }
+  .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .escopo-limpar {
+    border: none; background: none; color: var(--ink3); cursor: pointer;
+    font: 500 12px var(--sans); text-decoration: underline; padding: 2px 4px;
+  }
+  .escopo-limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+
+  /* A lista que o "/" abre. Sobe por cima da caixa, como todo autocompletar. */
+  .mencao {
+    position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
+    max-height: 260px; overflow-y: auto; z-index: 40; padding: 6px;
+    border: 1px solid var(--ink-a1); border-radius: 10px;
+    background: var(--surf); box-shadow: var(--elev-float);
+  }
+  .mencao-item {
+    display: flex; align-items: baseline; gap: 10px; width: 100%;
+    padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer;
+    text-align: left; font: inherit; color: var(--ink2);
+  }
+  .mencao-item:hover, .mencao-item.marcado { background: var(--fill); color: var(--ink); }
+  .mencao-item b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mencao-item .rotulo { flex-shrink: 0; margin-left: auto; }
+  .mencao-vazio { padding: 10px 12px; font-size: 12.5px; color: var(--ink3); }
+
+  .enviar {
+    margin-left: auto; width: 36px; height: 36px; flex: none;
+    border-radius: 50%; border: none; padding: 0;
+    background: var(--btn); color: var(--btnt);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 10px 24px -12px var(--sh-a6);
+  }
+  .enviar:hover:not(:disabled) { background: var(--ink0); color: var(--btnt); border: none; }
+  .enviar .so-conversa { display: none; }
+
+  /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
+     em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */
+  .conversa-col:not(.vazia) .cartao-campo {
+    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px;
+    box-shadow: 0 8px 30px -18px var(--sh-a35);
+  }
+  .conversa-col:not(.vazia) .cartao-campo textarea { order: 2; flex: 1; min-width: 0; max-width: 100%; font-size: 15px; }
+  .conversa-col:not(.vazia) .pilulas { display: contents; }
+  .conversa-col:not(.vazia) .pilula { order: 1; }
+  .conversa-col:not(.vazia) .pilula-anexar { width: 32px; height: 32px; padding: 0; justify-content: center; color: var(--ink2); }
+  .conversa-col:not(.vazia) .pilula-anexar .rotulo-botao { display: none; }
+  .conversa-col:not(.vazia) .pilula-inicio { display: none; }
+  .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
+  .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
+  .conversa-col:not(.vazia) .enviar { order: 4; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
+  .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
+
+  /* --------------------------------------------------------- botoes */
+  /* Quatro tipos, um so formato (docs/ui/02-componentes.md): secundario e o
+     padrao, primario e o cheio, fantasma sem borda, destrutivo em vinho. */
+
+  button {
+    font: 500 13px var(--sans);
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 7px 14px;
+    border: 1px solid var(--ink-a15);
+    background: transparent;
+    color: var(--ink);
+  }
+  button:hover:not(:disabled) { background: var(--fill2); border-color: var(--ink-a15); color: var(--ink); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button.perigo { color: var(--acc); border-color: var(--accln); }
+  button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
+  button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--acc);
+    outline-offset: 2px;
+  }
+  textarea:focus, textarea:focus-visible,
+  input:focus, input:focus-visible { outline: none; }
+  button.primario { background: var(--btn); border-color: var(--btn); color: var(--btnt); font-weight: 600; }
+  button.primario:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--btnt); }
+  button.aprovar-secundario { background: transparent; border-color: var(--ink-a15); color: var(--ink); }
+  button.fantasma { border-color: transparent; color: var(--ink2); }
+  button.fantasma:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink); }
+  button.largo { width: 100%; }
+  button.pastilha { border-radius: 999px; padding: 5px 12px; font-size: 12px; }
+  .botao-icone {
+    width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px;
+    background: var(--fill); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .botao-icone:hover:not(:disabled) { background: var(--fill2); border: none; }
+  button .ic { pointer-events: none; }
+
+  /* ------------------------------------------------------- indicador */
+  /* O indicador de trabalho do desenho: um anel fino com o topo em vinho,
+     girando. Nunca barra indeterminada. */
+  .indicador { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
+  .indicador i {
+    position: absolute; inset: 2px; border-radius: 50%;
+    border: 1.5px solid var(--ink-a15); border-top-color: var(--acc);
+    animation: pv-spin 1.6s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .indicador i, .trilho-logo .anel { animation: none; }
+    .progresso i, .medidor .pista i, .barra-fina i { transition: none; }
+  }
+

@@ -1,0 +1,1248 @@
+/* ------------------------------------------------------ o que está rolando */
+/*
+   A janelinha dos bastidores. Durante os oitenta segundos em que o modelo lê o
+   prompt inteiro, a tela não tinha o que dizer — e mostrava uma barra em 25/25
+   que não era progresso, porque os dois números chegavam juntos.
+
+   Cada linha daqui é uma coisa que aconteceu de verdade, com o número que veio
+   junto. Nada é escrito para parecer ocupado: quando não há o que dizer, a
+   janelinha fica quieta e só o relógio anda.
+*/
+
+/* Sem id fixo: cada pergunta abre a sua janelinha, e duas janelinhas com o
+   mesmo id fazem a segunda escrever dentro da primeira — foi o que aconteceu
+   ao perguntar duas vezes seguidas. As referências ficam guardadas aqui. */
+const bastidor = { desde: 0, timer: null, fase: "", palavras: 0,
+                   caixa: null, linhasEl: null, relogioEl: null, vivaEl: null,
+                   previsao: null, escreveDesde: 0 };
+
+function abrirBastidor(caixa) {
+  fecharBastidor();
+  bastidor.desde = Date.now();
+  bastidor.fase = "";
+  bastidor.palavras = 0;
+  bastidor.previsao = null;
+  bastidor.vivaEl = null;
+
+  caixa.innerHTML = '<div class="bastidor"><div class="bastidor-topo">' + coroa(18) +
+    '<span class="bastidor-titulo">o que estou fazendo</span><span class="num"></span>' +
+    ic("expand_more", 18) + '</div><div class="bastidor-linhas"></div></div>';
+
+  bastidor.caixa = caixa.querySelector(".bastidor");
+  bastidor.caixa.querySelector(".bastidor-topo").onclick = () => bastidor.caixa.classList.toggle("fechado");
+  bastidor.relogioEl = caixa.querySelector(".bastidor-topo .num");
+  bastidor.linhasEl = caixa.querySelector(".bastidor-linhas");
+  bastidor.relogioEl.textContent = "0 s";
+
+  bastidor.timer = setInterval(tiquetaqueBastidor, 250);
+}
+
+function anotarBastidor(texto, classe) {
+  if (!bastidor.linhasEl) return;
+  const segundos = ((Date.now() - bastidor.desde) / 1000).toFixed(1).replace(".", ",");
+  bastidor.linhasEl.insertAdjacentHTML("beforeend",
+    '<div class="bastidor-linha ' + (classe || "") + '">' +
+    '<span class="bastidor-quando">' + segundos + ' s</span>' +
+    "<span>" + esc(texto) + "</span></div>");
+  bastidor.linhasEl.scrollTop = bastidor.linhasEl.scrollHeight;
+}
+
+/* A última linha muda sozinha enquanto a fase dura: é ela que dá o movimento,
+   e o que ela mostra é medido — segundos que passaram, palavras que saíram. */
+function tiquetaqueBastidor() {
+  if (!bastidor.relogioEl || !bastidor.relogioEl.isConnected) {
+    clearInterval(bastidor.timer);
+    return;
+  }
+  const passados = (Date.now() - bastidor.desde) / 1000;
+  bastidor.relogioEl.textContent = Math.round(passados) + " s";
+
+  const viva = bastidor.vivaEl;
+  if (!viva) return;
+
+  if (bastidor.fase === "lendo") {
+    const p = bastidor.previsao;
+    if (p && p.sabe) {
+      // Quanto já passou do que costuma levar. Passou do previsto? A tela diz
+      // que passou — esconder isso seria errar duas vezes.
+      const parte = Math.min(100, Math.round((passados / p.segundos) * 100));
+      viva.innerHTML = "lendo… " + Math.round(passados) + " s de ~" + p.segundos + " s" +
+        (passados > p.segundos ? " (passou do previsto)" : "") +
+        '<div class="bastidor-barra"><i style="width:' + parte + '%"></i></div>';
+    } else {
+      viva.innerHTML = "lendo… " + Math.round(passados) + " s" +
+        '<div class="bastidor-barra indefinida"><i></i></div>';
+    }
+  } else if (bastidor.fase === "escrevendo") {
+    const desde = (Date.now() - bastidor.escreveDesde) / 1000;
+    const taxa = desde > 0.5
+      ? (bastidor.palavras / desde).toFixed(1).replace(".", ",")
+      : "";
+    viva.textContent = "escrevendo… " + plural(bastidor.palavras, "palavra") +
+      (taxa ? " · " + taxa + " por segundo" : "");
+  }
+}
+
+/* A linha viva é transitória: existe para mostrar que a coisa anda. Quando a
+   fase acaba, some — porque logo abaixo entra a linha de fato, com o que
+   aconteceu. Deixá-la congelada em "lendo… 12 s" com "agora" ao lado seria um
+   número parado mentindo que ainda está acontecendo. */
+function encerrarFaseViva() {
+  if (bastidor.vivaEl) {
+    const linha = bastidor.vivaEl.closest(".bastidor-linha");
+    if (linha) linha.remove();
+    bastidor.vivaEl = null;
+  }
+}
+
+function faseBastidor(fase, texto) {
+  encerrarFaseViva();
+  bastidor.fase = fase;
+  if (!bastidor.linhasEl) return;
+  bastidor.linhasEl.insertAdjacentHTML("beforeend",
+    '<div class="bastidor-linha viva"><span class="bastidor-quando">agora</span>' +
+    "<span>" + esc(texto) + "</span></div>");
+  const ultima = bastidor.linhasEl.lastElementChild;
+  bastidor.vivaEl = ultima ? ultima.lastElementChild : null;
+  bastidor.linhasEl.scrollTop = bastidor.linhasEl.scrollHeight;
+}
+
+function fecharBastidor() {
+  clearInterval(bastidor.timer);
+  bastidor.fase = "";
+  encerrarFaseViva();
+  /* Terminou: a janelinha recolhe numa linha so, com o visto no lugar do
+     anel. Clicar reabre. */
+  const caixa = bastidor.caixa;
+  if (caixa && caixa.isConnected && !caixa.classList.contains("fechado")) {
+    caixa.classList.add("fechado");
+    const anel = caixa.querySelector(".indicador");
+    if (anel) anel.outerHTML = '<span class="ic ic-18 marcador-feito">check_circle</span>';
+    const titulo = caixa.querySelector(".bastidor-titulo");
+    if (titulo) titulo.textContent = "o que fiz";
+  }
+}
+
+function milhar(n) {
+  return Number(n || 0).toLocaleString("pt-BR");
+}
+
+/* "0.4 s" nao e portugues, e "0 s" para uma leitura que aconteceu nao e
+   numero. Abaixo de um decimo, o que houve foi "menos de um segundo". */
+function segundosBR(s) {
+  const n = Number(s || 0);
+  if (n < 0.1) return "menos de 0,1 s";
+  return n.toFixed(1).replace(".", ",") + " s";
+}
+
+
+/* ------------------------------------------- conversa com o editor ao lado */
+/*
+   Pedir "abra a procuração" e receber o texto transcrito dentro da resposta é
+   o pior dos dois mundos: não dá para editar e ainda ocupa a conversa inteira.
+   O documento tem que aparecer ao lado, editável, e a conversa tem que
+   escrever NELE.
+
+   A diferença para o painel "Pedir aqui" do editor é onde a alteração cai: ali
+   a sugestão ficava num painel embaixo, e a pessoa mandava inserir. Aqui ela
+   cai no documento, marcada, e a pessoa decide se fica. É mais perto de ver o
+   que aconteceu — e mais fácil de desfazer, porque o antes está guardado.
+*/
+
+const dupla = {
+  doc: null, antes: null, pendente: null, ocupada: false, conversa: [],
+};
+
+async function mostrarDupla(id) {
+  abrirTela("Editor de texto");
+  const centro = $("centro");
+  centro.innerHTML = '<div class="catalogo"><p class="nota">abrindo…</p></div>';
+
+  const r = await fetch("/api/documentos/" + id);
+  if (!r.ok) {
+    centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>";
+    return;
+  }
+  dupla.doc = await r.json();
+  dupla.antes = null;
+  dupla.pendente = null;
+  desenharDupla();
+}
+
+function desenharDupla() {
+  const d = dupla.doc;
+  const c = d.contagem || { palavras: 0 };
+  $("conversa-col").classList.add("tela-dupla");
+  mostrarLateral(false);
+
+  $("centro").innerHTML =
+    '<div class="dupla">' +
+
+    '<div class="dupla-topo">' +
+    '<button class="voltar" id="dp-voltar" title="Voltar" aria-label="Voltar">' + ic("arrow_back", 20) + "</button>" +
+    '<div class="conversa-nome"><h2 class="dupla-titulo" id="dp-titulo" contenteditable="true">' + esc(d.titulo) + "</h2>" +
+    '<span class="meta" id="dp-selo">versão ' + d.versao + " · " + plural(c.palavras, "palavra") + "</span></div>" +
+    '<div class="conversa-acoes"><button id="dp-so-editor">' + ic("description", 18) + "Abrir no Editor</button>" +
+    '<button class="primario" id="dp-pdf">' + ic("picture_as_pdf", 18) + "Exportar PDF</button></div></div>" +
+
+    '<div class="dupla-colunas">' +
+
+    // ------------------------------------------------------------ conversa
+    '<div class="dupla-conversa"><div class="dupla-cabeca">' + coroa(18) +
+    '<span class="cresce">Conversa</span>' +
+    '<span id="dp-estado-conversa">escrevendo ao lado</span></div>' +
+    '<div class="dupla-fala" id="dp-fala">' + falasDaDupla() + "</div>" +
+    '<div class="dupla-atalhos">' +
+    ["Deixar mais formal", "Citar a lei", "Resumir em 1 página"].map((a) =>
+      '<button data-dp-atalho="' + esc(a) + '">' + esc(a) + "</button>").join("") +
+    "</div>" +
+    '<div class="dupla-pedido"><input type="text" id="dp-pedido" ' +
+    'placeholder="Peça uma mudança no documento…">' +
+    '<button class="enviar" id="dp-enviar" aria-label="Enviar">' + ic("arrow_forward", 18) + "</button></div></div>" +
+
+    // -------------------------------------------------------------- editor
+    '<div class="dupla-editor"><div class="dupla-barra">' +
+    '<span class="fonte-folha">EB Garamond' + ic("expand_more", 16) + "</span>" +
+    '<button data-cmd="undo" title="Desfazer">' + ic("undo", 18) + "</button>" +
+    '<button data-cmd="redo" title="Refazer">' + ic("redo", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button data-cmd="bold" title="Negrito">' + ic("format_bold", 18) + "</button>" +
+    '<button data-cmd="italic" title="Itálico">' + ic("format_italic", 18) + "</button>" +
+    '<button data-cmd="insertOrderedList" title="Numeração">' + ic("format_list_numbered", 18) + "</button>" +
+    '<button id="dp-citacao" title="Citação">' + ic("format_quote", 18) + "</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="dp-numerar" title="Renumerar as cláusulas">' + ic("format_list_numbered", 16) + "Numerar</button>" +
+    '<button class="com-texto" id="dp-qualificar" title="Qualificação das partes">' + ic("group", 16) + "Qualificar</button>" +
+    '<button class="com-texto" id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
+    '<span class="divisa-v"></span>' +
+    '<button class="com-texto" id="dp-alteracoes" title="Ir até a alteração">' + ic("difference", 16) +
+    'Alterações · <span id="dp-alteracoes-n">0</span></button>' +
+    '<button class="primario" id="dp-salvar">' + ic("save", 16) + "Salvar edições</button>" +
+    '<span class="sinc"><i class="ponto-verde"></i><span id="dp-sinc">sincronizado com a conversa</span></span>' +
+    "</div>" +
+    '<div class="dupla-folha-caixa"><div class="ed-folha" id="dp-folha" contenteditable="true">' +
+    (d.corpo || "<p><br></p>") + "</div></div>" +
+    '<div class="dupla-rodape"><span>' +
+    plural(d.paginacao ? d.paginacao.paginas : 1, "página") + " · " +
+    plural(c.palavras, "palavra") + "</span>" +
+    '<span class="acoes-rodape"><button id="dp-guardar">Salvar na biblioteca</button>' +
+    '<button id="dp-assinar">Assinar</button></span></div>' +
+
+    "</div></div></div>";
+
+  ligarDupla();
+  $("dp-voltar").onclick = () => $("nova").click();
+  $("dp-salvar").onclick = () => gravarDupla();
+  $("dp-citacao").onmousedown = (e) => { e.preventDefault(); document.execCommand("formatBlock", false, "blockquote"); };
+  $("dp-alteracoes").onclick = () => {
+    const m = $("dp-folha").querySelector(".ed-novo");
+    if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
+}
+
+function falasDaDupla() {
+  if (!dupla.conversa.length) {
+    return '<p class="explica">Peça uma mudança abaixo. Eu escrevo no documento ' +
+      "ao lado e marco o que mexi — você decide se fica.</p>";
+  }
+  return dupla.conversa.map((m, i) =>
+    m.autor === "pessoa"
+      ? '<div class="bolha-pessoa">' + esc(m.texto) + "</div>"
+      : '<div class="dupla-resposta"><p>' + esc(m.texto) + "</p>" +
+        (m.antes !== undefined
+          ? '<div class="linha-form"><button data-dp-ver="' + i + '">Ver o que mudei</button>' +
+            '<button data-dp-desfazer="' + i + '">Desfazer</button></div>'
+          : "") +
+        (m.trecho ? '<blockquote class="dupla-trecho">' + esc(m.trecho) + "</blockquote>" : "") +
+        "</div>").join("");
+}
+
+function ligarDupla() {
+  const centro = $("centro");
+  const enviar = () => pedirNaDupla($("dp-pedido").value.trim());
+
+  $("dp-enviar").onclick = enviar;
+  $("dp-pedido").onkeydown = (e) => { if (e.key === "Enter") enviar(); };
+  centro.querySelectorAll("[data-dp-atalho]").forEach((b) => {
+    b.onclick = () => pedirNaDupla(b.dataset.dpAtalho);
+  });
+
+  $("dp-so-editor").onclick = () => abrirDocumento(dupla.doc.id);
+  $("dp-assinar").onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
+  $("dp-citar").onclick = painelCodigosNaDupla;
+  $("dp-numerar").onclick = renumerarClausulas;
+  $("dp-qualificar").onclick = inserirQualificacao;
+  $("dp-guardar").onclick = () => guardarNaBiblioteca(dupla.doc.id);
+  $("dp-pdf").onclick = () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; };
+
+  centro.querySelectorAll("[data-cmd]").forEach((b) => {
+    b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); };
+  });
+
+  const folha = $("dp-folha");
+  folha.oninput = () => marcarDuplaSuja();
+  $("dp-titulo").oninput = () => marcarDuplaSuja();
+
+  centro.querySelectorAll("[data-dp-ver]").forEach((b) => {
+    b.onclick = () => {
+      const marca = $("dp-folha").querySelector(".ed-novo");
+      if (marca) marca.scrollIntoView({ behavior: "smooth", block: "center" });
+      else avisoCert("essa alteração já foi aceita e virou parte do texto");
+    };
+  });
+  centro.querySelectorAll("[data-dp-desfazer]").forEach((b) => {
+    b.onclick = () => desfazerNaDupla(Number(b.dataset.dpDesfazer));
+  });
+}
+
+/* O pedido vira alteração no documento, marcada. Não é uma sugestão num painel
+   ao lado: é o texto mudado, à vista, esperando o sim. */
+async function pedirNaDupla(pedido) {
+  if (!pedido || dupla.ocupada) return;
+  dupla.ocupada = true;
+  $("dp-pedido").value = "";
+  dupla.conversa.push({ autor: "pessoa", texto: pedido });
+  $("dp-fala").innerHTML = falasDaDupla() +
+    '<p class="nota" id="dp-pensando">escrevendo… isso leva cerca de um minuto nesta máquina</p>';
+  $("dp-fala").scrollTop = $("dp-fala").scrollHeight;
+  $("dp-estado-conversa").textContent = "escrevendo ao lado…";
+
+  // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
+  dupla.antes = $("dp-folha").innerHTML;
+
+  try {
+    const r = await fetch("/api/documentos/" + dupla.doc.id + "/assistente", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla() }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const sugestao = await r.json();
+
+    aplicarNaDupla(sugestao);
+    dupla.conversa.push({
+      autor: "paulus",
+      texto: sugestao.sobre
+        ? "Troquei o trecho que você selecionou. A alteração está marcada no documento."
+        : "Escrevi no fim do documento. A alteração está marcada — confira antes de manter.",
+      trecho: sugestao.sugestao.slice(0, 180),
+      antes: dupla.antes,
+    });
+  } catch (err) {
+    dupla.conversa.push({ autor: "paulus", texto: "Não consegui: " + err });
+  } finally {
+    dupla.ocupada = false;
+    $("dp-estado-conversa").textContent = "sincronizado com o documento";
+    $("dp-fala").innerHTML = falasDaDupla();
+    $("dp-fala").scrollTop = $("dp-fala").scrollHeight;
+    ligarDupla();
+  }
+}
+
+function aplicarNaDupla(sugestao) {
+  const folha = $("dp-folha");
+  folha.querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+
+  const marca = document.createElement("mark");
+  marca.className = "ed-novo";
+  marca.textContent = sugestao.sugestao;
+
+  const sel = window.getSelection();
+  if (sugestao.sobre && sel && sel.rangeCount && !sel.isCollapsed &&
+      folha.contains(sel.anchorNode)) {
+    const faixa = sel.getRangeAt(0);
+    faixa.deleteContents();
+    faixa.insertNode(marca);
+  } else {
+    const bloco = document.createElement("p");
+    bloco.appendChild(marca);
+    folha.appendChild(bloco);
+  }
+
+  dupla.pendente = { aviso: sugestao.aviso, resumo: sugestao.sugestao.slice(0, 120) };
+  desenharCartaoDaAlteracao();
+  marca.scrollIntoView({ behavior: "smooth", block: "center" });
+  marcarDuplaSuja();
+}
+
+function desenharCartaoDaAlteracao() {
+  const antigo = $("dp-cartao");
+  if (antigo) antigo.remove();
+  if (!dupla.pendente) return;
+
+  const marca = $("dp-folha").querySelector(".ed-novo");
+  if (!marca) return;
+
+  const cartao = document.createElement("div");
+  cartao.className = "dupla-cartao";
+  cartao.id = "dp-cartao";
+  cartao.contentEditable = "false";
+  cartao.innerHTML = '<span class="rotulo-cartao">Alteração sugerida agora</span>' +
+    "<p>" + esc(dupla.pendente.resumo) + "</p>" +
+    '<p class="explica">' + esc(dupla.pendente.aviso) + "</p>" +
+    '<div class="linha-form"><button id="dp-descartar">Descartar</button>' +
+    '<button class="primario" id="dp-manter">Manter</button></div>';
+  marca.closest("p, li, h1, h2, h3, div").after(cartao);
+
+  $("dp-manter").onclick = () => {
+    $("dp-folha").querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+    dupla.pendente = null;
+    cartao.remove();
+    gravarDupla();
+  };
+  $("dp-descartar").onclick = () => {
+    if (dupla.antes !== null) $("dp-folha").innerHTML = dupla.antes;
+    dupla.pendente = null;
+    const c = $("dp-cartao");
+    if (c) c.remove();
+    gravarDupla();
+  };
+}
+
+/* Tirar a marca sem tirar o texto: o conteúdo fica, o destaque sai. */
+function desmarcar(marca) {
+  const pai = marca.parentNode;
+  while (marca.firstChild) pai.insertBefore(marca.firstChild, marca);
+  pai.removeChild(marca);
+}
+
+function desfazerNaDupla(indice) {
+  const m = dupla.conversa[indice];
+  if (!m || m.antes === undefined) return;
+  $("dp-folha").innerHTML = m.antes;
+  dupla.pendente = null;
+  const c = $("dp-cartao");
+  if (c) c.remove();
+  dupla.conversa.push({ autor: "paulus", texto: "Desfeito. O documento voltou ao que era antes dessa alteração." });
+  $("dp-fala").innerHTML = falasDaDupla();
+  ligarDupla();
+  gravarDupla();
+}
+
+function trechoSelecionadoNaDupla() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return "";
+  const folha = $("dp-folha");
+  return folha && folha.contains(sel.anchorNode) ? sel.toString().trim().slice(0, 2500) : "";
+}
+
+function marcarDuplaSuja() {
+  $("dp-selo").textContent = "alterações não salvas";
+  clearTimeout(dupla.relogio);
+  dupla.relogio = setTimeout(gravarDupla, 1600);
+}
+
+async function gravarDupla() {
+  if (!dupla.doc) return;
+  // O cartão é da tela, não do documento: salvar com ele dentro gravaria os
+  // botões no corpo do texto.
+  const folha = $("dp-folha").cloneNode(true);
+  folha.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+
+  const r = await fetch("/api/documentos/" + dupla.doc.id, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML, titulo: $("dp-titulo").textContent.trim() }),
+  });
+  if (!r.ok) { $("dp-selo").textContent = "não consegui salvar"; return; }
+
+  const d = await r.json();
+  dupla.doc = d;
+  const c = d.contagem || { palavras: 0 };
+  $("dp-selo").textContent = "versão " + d.versao + " · " + plural(c.palavras, "palavra") +
+    " · salvo às " + new Date().toTimeString().slice(0, 5);
+}
+
+async function painelCodigosNaDupla() {
+  const r = await fetch("/api/leis");
+  const d = await r.json();
+  const instalados = d.codigos.filter((c) => c.instalado);
+  if (!instalados.length) { avisoCert(d.porque); return; }
+  const termo = await perguntar({ titulo: "Citar um artigo", contexto: "Documentos › Códigos de lei", campo: { rotulo: "Qual artigo?", placeholder: "número ou palavra", icone: "gavel" }, confirmar: "Procurar" });
+  if (!termo) return;
+
+  const busca = await fetch("/api/leis/procurar?termo=" + encodeURIComponent(termo));
+  const achados = (await busca.json()).achados || [];
+  if (!achados.length) { avisoCert("não achei esse artigo nos códigos instalados"); return; }
+
+  const a = achados[0];
+  if (a.revogado && !(await confirmar({ titulo: "Artigo revogado", contexto: a.citacao, texto: "O " + a.citacao + " está revogado: continua no texto compilado por referência histórica, mas não está em vigor.", confirmar: "Inserir mesmo assim", perigo: true }))) return;
+  aplicarNaDupla({
+    sugestao: "Nos termos do " + a.citacao + ": “" + a.texto.replace(/\s+/g, " ").slice(0, 700) + "”",
+    sobre: "",
+    aviso: "Texto oficial do código instalado — confira se é o artigo que você quer citar.",
+  });
+}
+
+
+/* ------------------------------------------- o documento aberto na conversa */
+/*
+   "3 arquivos citados" era um texto que a pessoa lia e acreditava. Conferir de
+   verdade exigia abrir o PDF por fora, achar a página e procurar o parágrafo
+   com o olho.
+
+   Aqui o documento abre na própria conversa, na página em que o trecho está,
+   com o trecho marcado. É o PDF de verdade rasterizado — não uma aproximação
+   em HTML: o que aparece na tela é o arquivo.
+*/
+
+const visor = { aberto: null, pagina: 1, total: 0, escala: 100, marcas: [], pergunta: "" };
+
+async function abrirCitacao(nome, trecho, pergunta, ondeColocar) {
+  const caixa = ondeColocar;
+  caixa.innerHTML = '<div class="visor"><p class="nota">procurando o trecho no documento…</p></div>';
+
+  const r = await fetch("/api/biblioteca/citacao", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome: nome, trecho: trecho, pergunta: pergunta || "" }),
+  });
+  if (!r.ok) {
+    caixa.innerHTML = '<div class="visor"><p class="explica">' + esc(await erroDe(r)) + "</p></div>";
+    return;
+  }
+
+  const d = await r.json();
+  visor.aberto = d;
+  visor.pagina = d.pagina || 1;
+  visor.total = d.total || 0;
+  visor.escala = 100;
+  visor.marcas = d.marcas || [];
+  visor.caixa = caixa;
+  desenharVisor();
+}
+
+function desenharVisor() {
+  const d = visor.aberto;
+  if (!d) return;
+
+  if (!d.desenhavel) {
+    // Honesto: docx e txt não têm página para desenhar. Em vez de fingir uma,
+    // a tela diz o que dá para fazer.
+    visor.caixa.innerHTML = '<div class="visor"><div class="visor-topo">' +
+      '<div><b>' + esc(d.nome) + "</b>" +
+      '<div class="rotulo">aberto da sua máquina · ' + tamanho(d.bytes) + "</div></div>" +
+      '<div class="visor-acoes"><button data-vs="fora">Abrir fora</button>' +
+      '<button data-vs="fechar">Fechar</button></div></div>' +
+      '<p class="explica">Só PDF tem página para desenhar aqui. Este é ' +
+      esc((d.nome.split(".").pop() || "").toUpperCase()) +
+      " — dá para abrir no programa padrão do Windows.</p></div>";
+    ligarVisor();
+    return;
+  }
+
+  visor.caixa.innerHTML = '<div class="visor">' +
+    '<div class="visor-topo"><div><b>' + esc(d.nome) + "</b>" +
+    '<div class="rotulo">aberto da sua máquina · ' + tamanho(d.bytes) + "</div></div>" +
+    '<div class="visor-acoes">' +
+    '<button data-vs="antes" ' + (visor.pagina <= 1 ? "disabled" : "") + ">‹</button>" +
+    '<span class="rotulo">pág. ' + visor.pagina + " / " + visor.total + "</span>" +
+    '<button data-vs="depois" ' + (visor.pagina >= visor.total ? "disabled" : "") + ">›</button>" +
+    '<span class="visor-divisa"></span>' +
+    '<button data-vs="menos">−</button><span class="rotulo">' + visor.escala + "%</span>" +
+    '<button data-vs="mais">+</button>' +
+    '<span class="visor-divisa"></span>' +
+    '<button data-vs="fora">Abrir fora</button>' +
+    '<button data-vs="fechar">Fechar</button></div></div>' +
+
+    '<div class="visor-miniaturas">' + miniaturasDoVisor() + "</div>" +
+
+    '<div class="visor-corpo"><div class="visor-rolagem">' +
+    '<div class="visor-pagina">' +
+    '<img src="/api/biblioteca/pagina?nome=' + encodeURIComponent(d.nome) +
+    "&numero=" + visor.pagina + "&largura=" + Math.round(9 * visor.escala) +
+    '" alt="página ' + visor.pagina + '">' +
+    (visor.pagina === d.pagina ? marcasDoVisor() : "") + "</div></div>" +
+
+    '<aside class="visor-porque"><span class="rotulo">por que este trecho</span>' +
+    porqueDoVisor(d) +
+    '<p class="rotulo visor-selo">lido localmente · nada enviado</p></aside></div></div>';
+
+  ligarVisor();
+}
+
+function miniaturasDoVisor() {
+  const d = visor.aberto;
+  // Cinco em volta da página atual: a fita inteira de um contrato de 60
+  // páginas seria 60 requisições de imagem para mostrar o que ninguém olha.
+  const primeira = Math.max(1, Math.min(visor.pagina - 2, Math.max(1, visor.total - 4)));
+  const fim = Math.min(visor.total, primeira + 4);
+  let html = "";
+  for (let n = primeira; n <= fim; n++) {
+    html += '<button class="visor-mini' + (n === visor.pagina ? " atual" : "") +
+      '" data-vs-pag="' + n + '" title="página ' + n + '">' +
+      '<img src="/api/biblioteca/pagina?nome=' + encodeURIComponent(d.nome) +
+      "&numero=" + n + '&largura=240" alt="página ' + n + '" loading="lazy"></button>';
+  }
+  return html + '<span class="rotulo">pág. ' + visor.pagina + " de " + visor.total + "</span>";
+}
+
+/* As marcas vêm em fração da página, não em pixel: a imagem muda de tamanho
+   com o zoom e com a janela, e a marca acompanha sem recalcular nada. */
+function marcasDoVisor() {
+  return visor.marcas.map((m) =>
+    '<i class="visor-marca" style="left:' + (m.x * 100).toFixed(3) + "%;top:" +
+    (m.y * 100).toFixed(3) + "%;width:" + (m.w * 100).toFixed(3) + "%;height:" +
+    (m.h * 100).toFixed(3) + '%"></i>').join("");
+}
+
+function porqueDoVisor(d) {
+  if (!d.achou) {
+    return '<p class="explica">Não consegui localizar este trecho dentro do ' +
+      "arquivo — pode ser um PDF escaneado, ou o arquivo pode ter mudado desde " +
+      "que eu li. A página está aqui, mas sem marca: prefiro não destacar o " +
+      "lugar errado.</p>";
+  }
+  const p = d.porque || { termos: [] };
+  if (!p.termos.length) {
+    return '<p class="explica">Este trecho entrou pela busca no texto inteiro, ' +
+      "não por uma palavra específica da sua pergunta.</p>";
+  }
+  return '<p class="explica">Da sua pergunta, aparecem aqui: <b>' +
+    p.termos.map(esc).join("</b>, <b>") + "</b>.</p>" +
+    '<p class="explica">' + plural(p.quantos, "palavra") + " de " + p.de +
+    " que você usou estão neste pedaço.</p>";
+}
+
+function ligarVisor() {
+  const caixa = visor.caixa;
+  const ir = (n) => { visor.pagina = Math.max(1, Math.min(visor.total, n)); desenharVisor(); };
+
+  caixa.querySelectorAll("[data-vs]").forEach((b) => {
+    b.onclick = () => {
+      const o = b.dataset.vs;
+      if (o === "antes") ir(visor.pagina - 1);
+      else if (o === "depois") ir(visor.pagina + 1);
+      else if (o === "mais") { visor.escala = Math.min(200, visor.escala + 25); desenharVisor(); }
+      else if (o === "menos") { visor.escala = Math.max(50, visor.escala - 25); desenharVisor(); }
+      else if (o === "fechar") { caixa.innerHTML = ""; visor.aberto = null; }
+      else if (o === "fora") {
+        fetch("/api/biblioteca/abrir-pasta", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caminho: visor.aberto.caminho.replace(/[^\\/]+$/, "") }),
+        });
+      }
+    };
+  });
+  caixa.querySelectorAll("[data-vs-pag]").forEach((b) => {
+    b.onclick = () => ir(Number(b.dataset.vsPag));
+  });
+}
+
+
+/* ------------------------------------------- o que o Word não faz por aqui */
+/*
+   O editor em si o Word já faz. O que não faz é o que é específico de redigir
+   contrato em português do Brasil: renumerar cláusulas levando as referências
+   cruzadas junto, e qualificar uma parte com o que já está em Cadastros.
+*/
+
+/* A folha do editor ou a da tela dividida — o que estiver aberto. */
+function folhaAberta() {
+  return $("dp-folha") || $("ed-folha");
+}
+
+function documentoAberto() {
+  if ($("dp-folha") && dupla.doc) return dupla.doc;
+  return escr.doc;
+}
+
+function abaixoDoEditor() {
+  return $("dp-fala") ? null : $("ed-abaixo");
+}
+
+async function renumerarClausulas() {
+  const folha = folhaAberta();
+  const doc = documentoAberto();
+  if (!folha || !doc) return;
+
+  const r = await fetch("/api/documentos/" + doc.id + "/clausulas", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+
+  if (!d.clausulas) {
+    avisoCert("não achei cláusula numerada neste documento");
+    return;
+  }
+  if (!d.trocas.length) {
+    avisoCert(plural(d.clausulas, "cláusula") + " — já estão em ordem" +
+      (d.quebradas.length ? ", mas há referência apontando para o nada" : ""));
+    if (d.quebradas.length) mostrarQuebradas(d.quebradas);
+    return;
+  }
+
+  mostrarRenumeracao(d, folha);
+}
+
+/* Renumerar mexe no contrato inteiro de uma vez. A lista do que vai mudar
+   aparece ANTES, e nada é gravado sem o sim. */
+function mostrarRenumeracao(d, folha) {
+  const antes = folha.innerHTML;
+  const clausulas = d.trocas.filter((t) => t.tipo === "clausula");
+  const refs = d.trocas.filter((t) => t.tipo === "referencia");
+
+  const caixa = document.createElement("div");
+  caixa.className = "proposta";
+  caixa.innerHTML = '<div class="proposta-topo">' +
+    '<span class="rotulo">vou renumerar</span>' +
+    "<b>" + plural(clausulas.length, "cláusula") +
+    (refs.length ? " e " + plural(refs.length, "referência") : "") + "</b></div>" +
+    '<div class="renum">' + d.trocas.map((t) =>
+      '<div class="renum-linha"><span class="rotulo">' +
+      (t.tipo === "referencia" ? "referência" : "cláusula") + "</span>" +
+      "<span>" + esc(t.de) + "</span><span class=\"renum-seta\">→</span>" +
+      "<b>" + esc(t.para) + "</b></div>").join("") + "</div>" +
+    (refs.length
+      ? '<p class="explica">As referências cruzadas vão junto: é a metade do ' +
+        "trabalho que costuma ficar para trás, e é ela que gera a cláusula 7 " +
+        "citando a cláusula 4 depois que a 4 virou 5.</p>"
+      : "") +
+    (d.quebradas.length
+      ? '<p class="explica">Continua apontando para o nada: ' +
+        d.quebradas.map((q) => esc(q.texto)).join(", ") +
+        " — não existe cláusula com esse número.</p>"
+      : "") +
+    '<div class="linha-form"><button class="primario" data-renum="sim">Renumerar</button>' +
+    '<button data-renum="nao">Deixa como está</button></div>';
+
+  const destino = abaixoDoEditor() || folha.parentElement;
+  destino.innerHTML = "";
+  destino.appendChild(caixa);
+  caixa.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  caixa.querySelector('[data-renum="nao"]').onclick = () => { caixa.remove(); };
+  caixa.querySelector('[data-renum="sim"]').onclick = () => {
+    folha.innerHTML = d.texto;
+    caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
+      "<b>" + plural(d.trocas.length, "troca") + " aplicada" +
+      (d.trocas.length === 1 ? "" : "s") + "</b></div>" +
+      '<div class="linha-form"><button data-renum="desfazer">Desfazer</button></div>';
+    caixa.querySelector('[data-renum="desfazer"]').onclick = () => {
+      folha.innerHTML = antes;
+      caixa.remove();
+      salvarOndeEstiver();
+    };
+    salvarOndeEstiver();
+  };
+}
+
+function mostrarQuebradas(quebradas) {
+  const destino = abaixoDoEditor();
+  if (!destino) return;
+  destino.innerHTML = '<div class="painel" style="margin-top:16px">' +
+    "<h3>Referência apontando para o nada</h3>" +
+    '<p class="explica">' + quebradas.map((q) => esc(q.texto)).join(", ") +
+    " — não existe cláusula com esse número neste documento. " +
+    "É o tipo de erro que passa na leitura e aparece na discussão.</p></div>";
+}
+
+/* --------------------------------------------------- notas na margem
+
+   A conferência já sabia apontar o parágrafo — só que dizia isso numa lista à
+   parte, e quem lia tinha que achar o parágrafo com o olho. Aqui a marca fica
+   ao lado da linha a que ela se refere.
+
+   Como a quebra de página, a marca é desenhada POR CIMA da folha: o que está
+   dentro do contenteditable acaba no contrato gravado, e nota de margem não é
+   conteúdo do contrato. */
+
+const GRAU_MARCA = { impede: "!", confira: "?", comentario: "•" };
+
+async function carregarNotas() {
+  const folha = folhaAberta();
+  const doc = documentoAberto();
+  if (!folha || !doc || !$("ed-notas")) return;
+
+  try {
+    const r = await fetch("/api/documentos/" + doc.id + "/notas", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corpo: folha.innerHTML }),
+    });
+    if (!r.ok) return;
+    escr.notas = await r.json();
+  } catch (err) { return; }
+  desenharNotas();
+}
+
+function desenharNotas() {
+  const folha = $("ed-folha");
+  const tela = $("ed-notas");
+  const dados = escr.notas;
+  if (!folha || !tela || !dados) return;
+
+  const elementos = blocosDaFolha(folha);
+  tela.innerHTML = "";
+  if (elementos.length !== dados.blocos) return;
+
+  const topo = tela.getBoundingClientRect().top;
+  const porBloco = new Map();
+  dados.notas.forEach((n) => {
+    if (n.bloco < 0 || n.bloco >= elementos.length) return;
+    if (!porBloco.has(n.bloco)) porBloco.set(n.bloco, []);
+    porBloco.get(n.bloco).push(n);
+  });
+
+  porBloco.forEach((notas, bloco) => {
+    const grave = notas.find((n) => n.grau === "impede") || notas[0];
+    const marca = document.createElement("button");
+    marca.className = "ed-nota " + esc(grave.grau);
+    marca.textContent = GRAU_MARCA[grave.grau] || "•";
+    marca.title = notas.map((n) => n.titulo).join(" · ");
+    marca.style.top = (elementos[bloco].getBoundingClientRect().top - topo) + "px";
+    marca.onclick = () => abrirNota(notas, elementos[bloco]);
+    tela.appendChild(marca);
+  });
+}
+
+function abrirNota(notas, elemento) {
+  const destino = abaixoDoEditor();
+  if (!destino) return;
+  elemento.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Nesta linha</h3>' +
+    '<p class="explica corta">' + esc(elemento.textContent.slice(0, 160)) + "</p>" +
+    notas.map((n) =>
+      '<div class="ed-nota-item ' + esc(n.grau) + '">' +
+      '<span class="rotulo">' + (n.origem === "regra" ? "conferência" : esc(n.origem)) +
+      " · " + esc(n.titulo) + "</span><p>" + esc(n.texto) + "</p>" +
+      (n.id ? '<div class="linha-form"><button data-resolver="' + n.id + '">Resolver</button>' +
+        '<button class="perigo" data-apagar="' + n.id + '">Apagar</button></div>' : "") +
+      "</div>").join("") +
+    '<div class="linha-form"><button id="nota-fechar">Fechar</button></div></div>';
+
+  $("nota-fechar").onclick = () => { destino.innerHTML = ""; };
+  destino.querySelectorAll("[data-resolver]").forEach((b) => {
+    b.onclick = () => mexerNaNota(b.dataset.resolver, "resolver");
+  });
+  destino.querySelectorAll("[data-apagar]").forEach((b) => {
+    b.onclick = () => mexerNaNota(b.dataset.apagar, "apagar");
+  });
+}
+
+async function mexerNaNota(id, acao) {
+  const doc = documentoAberto();
+  const url = "/api/documentos/" + doc.id + "/comentarios/" + id;
+  const r = acao === "apagar"
+    ? await fetch(url, { method: "DELETE" })
+    : await fetch(url + "/resolver", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resolvido: true }),
+      });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const destino = abaixoDoEditor();
+  if (destino) destino.innerHTML = "";
+  carregarNotas();
+}
+
+/* Comentar não é pedir alteração: a resposta é observação para quem lê
+   decidir, e não texto para entrar no contrato. Por isso o trecho é
+   obrigatório — comentário sobre "o documento" não gruda em lugar nenhum. */
+async function comentarTrecho() {
+  const trecho = trechoSelecionado();
+  const destino = abaixoDoEditor();
+  const doc = documentoAberto();
+  if (!destino || !doc) return;
+
+  if (!trecho || trecho.length < 12) {
+    destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Comentar</h3>' +
+      '<p class="explica">Selecione antes, no texto, o trecho que você quer que eu ' +
+      "comente. Sem trecho o comentário não tem onde ficar preso.</p></div>";
+    return;
+  }
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px">' +
+    '<p class="nota">lendo o trecho… isso leva cerca de um minuto nesta máquina</p></div>';
+
+  const r = await fetch("/api/documentos/" + doc.id + "/comentar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trecho: trecho }),
+  });
+  if (!r.ok) { destino.innerHTML = '<div class="painel"><p class="explica">' +
+    esc(await erroDe(r)) + "</p></div>"; return; }
+  const d = await r.json();
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Comentário</h3>' +
+    '<p class="explica corta">sobre: ' + esc(d.trecho.slice(0, 140)) + "</p>" +
+    '<div class="ed-nota-item comentario"><p>' + esc(d.texto) + "</p></div>" +
+    '<p class="explica">' + esc(d.aviso) + "</p>" +
+    '<div class="linha-form"><button class="perigo" id="nota-apagar">Apagar</button>' +
+    '<button id="nota-fechar2">Fechar</button></div></div>';
+
+  $("nota-fechar2").onclick = () => { destino.innerHTML = ""; };
+  $("nota-apagar").onclick = () => mexerNaNota(d.id, "apagar");
+  carregarNotas();
+}
+
+/* ------------------------------------------------------ controlar alterações
+
+   O Word marca cada tecla enquanto se digita. Aqui a marca vem da comparação
+   com uma versão gravada, e não de interceptar a digitação — interceptar tecla
+   dentro de um campo editável é o caminho curto para perder texto de contrato,
+   e texto de contrato perdido não tem conserto do lado de cá.
+
+   O que interessa é o mesmo: o que entrou, o que saiu, o que mudou, e o
+   caminho de volta para cada um, um a um. */
+
+async function painelAlteracoes(desde) {
+  const destino = abaixoDoEditor();
+  const folha = folhaAberta();
+  const doc = documentoAberto();
+  if (!destino || !folha || !doc) return;
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><p class="nota">comparando…</p></div>';
+  const r = await fetch("/api/documentos/" + doc.id + "/alteracoes", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: folha.innerHTML, desde: desde || 0 }),
+  });
+  if (!r.ok) { destino.innerHTML = '<div class="painel"><p class="explica">' +
+    esc(await erroDe(r)) + "</p></div>"; return; }
+  const d = await r.json();
+
+  const versoes = [];
+  for (let v = 1; v <= d.ultima; v += 1) versoes.push(v);
+  const escolher = '<select id="al-desde">' + versoes.map((v) =>
+    '<option value="' + v + '"' + (v === d.desde ? " selected" : "") +
+    ">desde a versão " + v + "</option>").join("") + "</select>";
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Alterações</h3>' +
+    '<div class="linha-form">' + escolher +
+    '<span class="rotulo">' + (d.mudancas.length
+      ? plural(d.mudancas.length, "alteração", "alterações") + " no texto"
+      : "nada mudou no texto") + "</span></div>" +
+    (d.mudancas.length
+      ? '<div class="al-lista">' + d.mudancas.map((m, i) =>
+          '<div class="al-linha ' + esc(m.tipo) + '" data-mud="' + i + '">' +
+          '<span class="rotulo">' + esc(m.tipo) + "</span><span>" +
+          (m.tipo === "mudou"
+            ? '<span class="al-saiu">' + esc(m.antes) + "</span><br>" +
+              '<span class="comparar-depois">' + esc(m.depois) + "</span>"
+            : m.tipo === "saiu"
+              ? '<span class="al-saiu">' + esc(m.antes) + "</span>"
+              : esc(m.depois)) +
+          "</span>" +
+          (m.tipo === "saiu"
+            ? '<span class="rotulo">só no Histórico</span>'
+            : '<button data-desfazer="' + i + '">Descartar esta</button>') +
+          "</div>").join("") + "</div>" +
+        '<p class="explica">"Descartar esta" volta só este parágrafo ao que ele era na ' +
+        "versão escolhida. O resto do texto fica como está. Parágrafo que saiu inteiro " +
+        "não volta por aqui — para isso é o Histórico, que traz a versão inteira.</p>"
+      : '<p class="explica">O texto do editor é igual ao da versão ' + d.desde +
+        ". Trocar <b> por <strong> não conta: a comparação é do texto, não da marcação.</p>") +
+    '<div class="linha-form"><button id="al-fechar">Fechar</button></div></div>';
+
+  $("al-fechar").onclick = () => { destino.innerHTML = ""; };
+  $("al-desde").onchange = (e) => painelAlteracoes(Number(e.target.value));
+  destino.querySelectorAll("[data-desfazer]").forEach((b) => {
+    b.onclick = () => descartarAlteracao(d.mudancas[Number(b.dataset.desfazer)], b);
+  });
+}
+
+/* Acha o parágrafo pelo texto que ele tem AGORA, e não por posição: entre
+   abrir o painel e clicar em "Descartar", a pessoa pode ter escrito mais
+   acima, e aí a terceira posição já não é o terceiro parágrafo. */
+function descartarAlteracao(mudanca, botao) {
+  const folha = folhaAberta();
+  if (!folha || !mudanca) return;
+
+  const alvoTexto = normalTexto(mudanca.depois);
+  const achado = blocosDaFolha(folha).find((el) => normalTexto(el.textContent) === alvoTexto);
+
+  if (!achado) {
+    botao.textContent = "o parágrafo mudou de novo";
+    botao.disabled = true;
+    return;
+  }
+
+  if (mudanca.tipo === "entrou") achado.remove();
+  else achado.textContent = mudanca.antes;
+
+  marcarSujo();
+  pedirPaginacao(true);
+  botao.closest(".al-linha").classList.add("desfeita");
+  botao.textContent = "descartada";
+  botao.disabled = true;
+}
+
+function normalTexto(t) {
+  return String(t || "").replace(/\s+/g, " ").trim();
+}
+
+/* ------------------------------------------------------------- o quadro
+
+   Quadro de parcelas, de honorários, de bens — o contrato que traz um deles
+   hoje sai do Word, porque aqui não havia como fazer. As células guardam texto
+   puro: negrito dentro de célula de quadro não aparece em contrato, e o que
+   importa é o texto chegar inteiro ao PDF e ao Word. */
+
+/* Clicar num botão tira o cursor de dentro da folha, e um painel com campos
+   tira de novo. Então o lugar onde a pessoa estava escrevendo é guardado
+   enquanto ela ainda está lá — senão o quadro cai no começo do documento, ou
+   não cai em lugar nenhum. */
+function lembrarCursor() {
+  const folha = folhaAberta();
+  const sel = window.getSelection();
+  if (!folha || !sel || !sel.rangeCount) return;
+  if (folha.contains(sel.anchorNode)) escr.marca = sel.getRangeAt(0).cloneRange();
+}
+
+function voltarAoCursor() {
+  const folha = folhaAberta();
+  if (!folha) return false;
+  folha.focus();
+  if (!escr.marca || !folha.contains(escr.marca.startContainer)) return false;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(escr.marca);
+  return true;
+}
+
+function noDoCursor() {
+  const folha = folhaAberta();
+  if (!folha) return null;
+  const sel = window.getSelection();
+  let no = sel && sel.anchorNode && folha.contains(sel.anchorNode) ? sel.anchorNode : null;
+  if (!no && escr.marca && folha.contains(escr.marca.startContainer)) {
+    no = escr.marca.startContainer;
+  }
+  if (!no) return null;
+  return no.nodeType === 1 ? no : no.parentElement;
+}
+
+function quadroDoCursor() {
+  const no = noDoCursor();
+  return no ? no.closest("table") : null;
+}
+
+function painelQuadro() {
+  const destino = abaixoDoEditor();
+  if (!destino) return;
+  const dentro = quadroDoCursor();
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>Quadro</h3>' +
+    '<p class="explica">Sai no PDF com fio fino e a primeira linha em negrito, e ' +
+    "no DOCX como tabela de verdade — dá para continuar no Word.</p>" +
+    '<div class="linha-form"><label class="pl-check">colunas ' +
+    '<input type="number" id="qd-colunas" value="3" min="1" max="8"></label>' +
+    '<label class="pl-check">linhas ' +
+    '<input type="number" id="qd-linhas" value="3" min="1" max="40"></label>' +
+    '<button class="primario" id="qd-inserir">Inserir quadro</button></div>' +
+    (dentro
+      ? '<div class="linha-form"><span class="rotulo">o cursor está num quadro</span>' +
+        '<button id="qd-mais-linha">+ linha</button>' +
+        '<button id="qd-mais-coluna">+ coluna</button>' +
+        '<button class="perigo" id="qd-menos-linha">Apagar esta linha</button></div>'
+      : '<p class="explica">Para mexer num quadro que já existe, ponha o cursor dentro ' +
+        "dele e abra este painel de novo.</p>") +
+    '<div class="linha-form"><button id="qd-fechar">Fechar</button></div></div>';
+
+  $("qd-fechar").onclick = () => { destino.innerHTML = ""; };
+  $("qd-inserir").onclick = inserirQuadro;
+  if (dentro) {
+    $("qd-mais-linha").onclick = () => mexerNoQuadro("linha");
+    $("qd-mais-coluna").onclick = () => mexerNoQuadro("coluna");
+    $("qd-menos-linha").onclick = () => mexerNoQuadro("tirar");
+  }
+}
+
+function inserirQuadro() {
+  const folha = folhaAberta();
+  if (!folha) return;
+  const colunas = Math.max(1, Math.min(8, Number($("qd-colunas").value) || 3));
+  const linhas = Math.max(1, Math.min(40, Number($("qd-linhas").value) || 3));
+
+  let html = "<table><tr>";
+  for (let c = 0; c < colunas; c += 1) html += "<th>título</th>";
+  html += "</tr>";
+  for (let l = 1; l < linhas; l += 1) {
+    html += "<tr>";
+    for (let c = 0; c < colunas; c += 1) html += "<td><br></td>";
+    html += "</tr>";
+  }
+  /* O parágrafo depois do quadro é o que dá para onde ir: sem ele, um quadro
+     no fim do documento não tem linha abaixo e não há como continuar
+     escrevendo. */
+  html += "</table><p><br></p>";
+
+  voltarAoCursor();
+  document.execCommand("insertHTML", false, html);
+  marcarSujo();
+  pedirPaginacao();
+  const destino = abaixoDoEditor();
+  if (destino) destino.innerHTML = "";
+}
+
+function mexerNoQuadro(acao) {
+  const quadro = quadroDoCursor();
+  const no = noDoCursor();
+  if (!quadro || !no) return;
+  const linha = no.closest("tr");
+
+  if (acao === "coluna") {
+    Array.from(quadro.rows).forEach((tr, i) => {
+      const celula = tr.insertCell(-1);
+      if (i === 0 && tr.cells[0] && tr.cells[0].tagName === "TH") {
+        const cabeca = document.createElement("th");
+        cabeca.textContent = "título";
+        tr.replaceChild(cabeca, celula);
+      } else {
+        celula.innerHTML = "<br>";
+      }
+    });
+  } else if (acao === "linha" && linha) {
+    const nova = quadro.insertRow(linha.rowIndex + 1);
+    for (let c = 0; c < linha.cells.length; c += 1) nova.insertCell(-1).innerHTML = "<br>";
+  } else if (acao === "tirar" && linha) {
+    /* Um quadro sem nenhuma linha não é um quadro: apagar a última apaga o
+       quadro inteiro, que é o que a pessoa quis dizer. */
+    if (quadro.rows.length <= 1) quadro.remove();
+    else quadro.deleteRow(linha.rowIndex);
+  }
+
+  marcarSujo();
+  pedirPaginacao();
+  painelQuadro();
+}
+
+/* ----------------------------------------------------- o formato da folha
+
+   Fonte, corpo, recuo de primeira linha e entrelinhas. Fica por documento e
+   não por escritório: uma petição e um contrato pedem recuos diferentes, e
+   quem escreve os dois no mesmo dia não pode ter que trocar a configuração
+   entre um e outro. */
+
+const FORMATO_OPCOES = {
+  fonte: { rotulo: "Fonte", itens: [
+    ["serifada", "Times (serifada)"],
+    ["sem-serifa", "Arial (sem serifa)"],
+  ] },
+  corpo: { rotulo: "Corpo", itens: [["11", "11 pt"], ["12", "12 pt"], ["13", "13 pt"]] },
+  recuo_cm: { rotulo: "Recuo de primeira linha", itens: [
+    ["0", "sem recuo"], ["1.25", "1,25 cm"], ["2", "2 cm"],
+  ] },
+  entrelinhas: { rotulo: "Entrelinhas", itens: [["1", "simples"], ["1.5", "1,5"], ["2", "duplo"]] },
+};
+
+function painelFormato() {
+  const destino = $("ed-abaixo");
+  if (!destino) return;
+  const f = escr.doc.formato || {};
+
+  const campo = (chave) => {
+    const o = FORMATO_OPCOES[chave];
+    const atual = String(f[chave] === undefined ? "" : f[chave]);
+    return '<div class="campo-form"><label class="rotulo">' + o.rotulo + "</label>" +
+      '<select data-formato="' + chave + '">' +
+      o.itens.map(([v, t]) => '<option value="' + v + '"' +
+        (Number(v) === Number(atual) || v === atual ? " selected" : "") + ">" + t + "</option>").join("") +
+      "</select></div>";
+  };
+
+  destino.innerHTML = '<div class="painel" style="margin-top:16px"><h3>A folha</h3>' +
+    '<p class="explica">Vale para este documento, no PDF e no DOCX. A4 e margem de ' +
+    "2,5 cm não mudam: são as medidas da peça jurídica, e escolher outra coisa seria " +
+    "só um jeito de errar.</p>" +
+    '<div class="ed-formato">' + Object.keys(FORMATO_OPCOES).map(campo).join("") + "</div>" +
+    '<p class="explica" id="ed-formato-nota" style="margin-top:10px"></p>' +
+    '<div class="linha-form"><button id="ed-formato-fechar">Fechar</button></div></div>';
+
+  destino.querySelectorAll("[data-formato]").forEach((s) => { s.onchange = gravarFormato; });
+  $("ed-formato-fechar").onclick = () => { destino.innerHTML = ""; };
+  destino.querySelector(".painel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function gravarFormato() {
+  const nota = $("ed-formato-nota");
+  const antes = escr.paginacao ? escr.paginacao.paginas : 0;
+  const pedido = {};
+  document.querySelectorAll("[data-formato]").forEach((s) => {
+    pedido[s.dataset.formato] = s.dataset.formato === "fonte" ? s.value : Number(s.value);
+  });
+
+  if (nota) nota.textContent = "medindo…";
+  const r = await fetch("/api/documentos/" + escr.doc.id + "/formato", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ formato: pedido, corpo: $("ed-folha").innerHTML }),
+  });
+  if (!r.ok) { if (nota) nota.textContent = await erroDe(r); return; }
+
+  const d = await r.json();
+  escr.doc.formato = d.formato;
+  aplicarPaginacao(d);
+  if (nota) {
+    nota.textContent = antes && antes !== d.paginas
+      ? "O documento passou de " + plural(antes, "página") + " para " +
+        plural(d.paginas, "página") + " — medido no PDF."
+      : plural(d.paginas, "página") + ", medido no PDF.";
+  }
+}
+
+/* ------------------------------------------------ qualificação das partes */
+
+async function inserirQualificacao() {
+  const folha = folhaAberta();
+  if (!folha) return;
+
+  const d = await (await fetch("/api/cadastros")).json();
+  if (!d.fichas.length) {
+    avisoCert("nenhum cadastro ainda — a qualificação sai de lá");
+    return;
+  }
+
+  const destino = abaixoDoEditor() || folha.parentElement;
+  const caixa = document.createElement("div");
+  caixa.className = "painel";
+  caixa.style.marginTop = "16px";
+  caixa.innerHTML = "<h3>Qualificar uma parte</h3>" +
+    '<p class="explica">O parágrafo sai do cadastro. O que faltar vira lacuna ' +
+    "entre colchetes — eu não invento estado civil nem endereço.</p>" +
+    '<div class="chips">' + d.fichas.map((f) =>
+      '<button class="chip" data-qual="' + f.id + '">' + esc(f.nome) + "</button>").join("") +
+    '</div><div id="qual-previa"></div>';
+  destino.innerHTML = "";
+  destino.appendChild(caixa);
+  caixa.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  caixa.querySelectorAll("[data-qual]").forEach((b) => {
+    b.onclick = () => preverQualificacao(Number(b.dataset.qual), folha, caixa);
+  });
+}
+
+async function preverQualificacao(id, folha, caixa) {
+  const alvo = caixa.querySelector("#qual-previa");
+  alvo.innerHTML = '<p class="nota">montando…</p>';
+
+  const r = await fetch("/api/redacao/qualificacao?cadastro_id=" + id);
+  if (!r.ok) { alvo.innerHTML = '<p class="explica">' + esc(await erroDe(r)) + "</p>"; return; }
+  const q = await r.json();
+
+  alvo.innerHTML = '<div class="ed-sugestao" style="margin-top:12px">' +
+    '<span class="rotulo">como vai entrar</span><p>' + esc(q.texto) + "</p>" +
+    (q.falta.length
+      ? '<p class="explica">O cadastro de ' + esc(q.nome) + " não tem: " +
+        q.falta.join(", ") + ". Fica como lacuna no texto — " +
+        "completar em Cadastros agora é mais barato que caçar colchete depois.</p>"
+      : '<p class="explica">O cadastro está completo.</p>') +
+    '<div class="linha-form"><button class="primario" id="qual-inserir">Inserir no documento</button>' +
+    (q.falta.length ? '<button id="qual-cadastro">Completar o cadastro</button>' : "") +
+    "</div></div>";
+
+  $("qual-inserir").onclick = () => {
+    const bloco = document.createElement("p");
+    bloco.textContent = q.texto;
+    folha.appendChild(bloco);
+    bloco.scrollIntoView({ behavior: "smooth", block: "center" });
+    caixa.remove();
+    salvarOndeEstiver();
+  };
+  const irCadastro = $("qual-cadastro");
+  if (irCadastro) irCadastro.onclick = () => { marcarDestino("cadastros"); mostrarCadastros(); };
+}
+
+function salvarOndeEstiver() {
+  if ($("dp-folha")) marcarDuplaSuja();
+  else marcarSujo();
+}
+
+

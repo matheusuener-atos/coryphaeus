@@ -46,7 +46,8 @@ Nada sai da maquina: extracao, indice e inferencia rodam localmente.
 | `src/llama_client.py` | HTTP com o Ollama, system prompt, streaming, saida JSON |
 | `src/main.py` | CLI: carga, REPL, comandos |
 | `src/api.py` | Backend web (FastAPI): upload, busca, resposta em streaming |
-| `frontend/index.html` | Interface: uma pagina, sem build, sem dependencia externa |
+| `frontend/index.html` | Interface: a pagina (marcacao e o script do tema), sem build, sem dependencia externa |
+| `frontend/css/`, `frontend/js/` | O CSS e o JS da interface, um arquivo por tela, na ordem em que a pagina os liga; scripts classicos com escopo global compartilhado |
 | `src/desktop.py` | Janela nativa + ponte para o seletor de pasta do Windows |
 | `src/scan.py` | Varredura de pastas, poda de pastas de sistema |
 | `src/classify.py` | Metadados por documento: regra primeiro, modelo no que sobra |

@@ -1,0 +1,33 @@
+  /* ------------------------------------------ entrar no escritorio (A0b) */
+  /*
+    O ramo "entrar em um escritorio existente" das boas-vindas: os dois
+    codigos em Fira Code, grandes, e o modo limitado enquanto o responsavel
+    nao valida (docs/ui/01-shell.md). Prefixo bv- como o resto do passeio.
+  */
+  .bv-codigo-cartao { display: grid; gap: 12px; }
+  .bv-codigo-cabeca { display: flex; align-items: center; gap: 10px; }
+  .bv-codigo-cabeca > span:nth-child(2) { flex: 1; font: 600 14px var(--sans); color: var(--ink); }
+  .bv-num-passo { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--bg); display: flex; align-items: center; justify-content: center; font: 700 11px var(--sans); flex: none; }
+  .bv-codigo-cabeca small { font: 400 11px var(--mono); color: var(--ink3); }
+  .bv-casas { display: flex; gap: 8px; align-items: center; cursor: text; }
+  .bv-casas span { width: 44px; height: 52px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); display: flex; align-items: center; justify-content: center; font: 400 22px var(--mono); color: var(--ink); box-sizing: border-box; }
+  .bv-casas span.vazia { color: var(--ink3); }
+  .bv-casas span.cursor { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
+  .bv-casas.pronto span { border-color: var(--ink-a25); }
+  .bv-oculto { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+  .bv-codigo-nota { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .bv-codigo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .bv-codigo-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .bv-campo-fixo { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); font: 400 12.5px var(--sans); color: var(--ink3); }
+  .bv-grade .bv-cheia { grid-column: 1 / -1; }
+
+  /* modo limitado: a casca inteira, com o que depende da rede apagado */
+  body.vinculo-pendente .trilho-item.presa, body.vinculo-pendente .menu-item.presa { opacity: .4; pointer-events: none; }
+  .cartao-agora.espera { border-color: var(--accln); background: var(--accbg2); }
+  .cartao-agora.espera .cabeca .nome { color: var(--ink); }
+  .agora-codigo { display: flex; gap: 6px; }
+  .agora-codigo span { width: 30px; height: 36px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); display: flex; align-items: center; justify-content: center; font: 400 15px var(--mono); color: var(--ink); }
+  .cartao-agora.espera .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cartao-agora.espera .acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .cartao-agora.espera .pode { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+

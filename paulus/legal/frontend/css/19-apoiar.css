@@ -1,0 +1,51 @@
+  /* ---------------------------------------------------------- apoiar (A14) */
+  /*
+    Apoiar o projeto (docs/ui/03-telas-desktop.md, A14): Contribuir e Quem ja
+    apoia. Sem pagamento e sem lista publicada ainda, a tela e a moldura com o
+    texto certo e as escolhas guardadas nesta maquina. Prefixo apoio-.
+  */
+  .apoio-tela.acervo { grid-template-columns: minmax(0, 1fr); }
+  .apoio-tela .acervo-principal { overflow: auto; gap: 16px; }
+  .apoio-grade { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .apoio-cartao .fin-cartao-cabeca { padding: 10px 16px; }
+  .apoio-corpo { min-width: 0; padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+  .apoio-outro { display: flex; align-items: center; gap: 8px; }
+  .apoio-outro input[type=text] { flex: 1; min-width: 0; max-width: 220px; padding: 8px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink); }
+  .apoio-pix { min-width: 0; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: start; padding: 12px; background: var(--bg); border-radius: 10px; }
+  .apoio-qr { width: 150px; height: 150px; box-sizing: border-box; padding: 12px; border: 1px dashed var(--ink-a25); border-radius: 10px; background: var(--surf); display: grid; place-items: center; text-align: center; font: 500 12px/1.4 var(--sans); color: var(--ink3); }
+  .apoio-pix-texto { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+  .apoio-pix-texto b { font-size: 14px; }
+  .apoio-pix-texto p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .apoio-codigo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); font: 400 11.5px var(--mono); color: var(--ink3); }
+  .apoio-codigo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .apoio-banco { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--ink-a1); }
+  .apoio-banco-topo { display: flex; align-items: center; gap: 10px; }
+  .apoio-banco-topo .duas-linhas b { font-weight: 600; }
+  .apoio-radios { display: flex; gap: 18px; flex-wrap: wrap; }
+  .apoio-radios .as-radio { min-height: 20px; }
+  .apoio-previa { padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--bg); display: grid; gap: 6px; }
+  .apoio-previa-linha { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .apoio-previa-linha .ic { color: var(--acc); }
+  .apoio-previa-linha b { font-weight: 600; }
+  .apoio-previa-linha small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .apoio-rodape { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--ink-a1); }
+  .apoio-rodape > span { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .apoio-rodape button { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* quem ja apoia */
+  .apoio-lista-topo { display: grid; gap: 8px; padding: 16px 16px 4px; }
+  .apoio-lista-topo h3 { margin: 0; font: 400 22px/1.15 var(--serif); }
+  .apoio-lista-topo p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .apoio-barra { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--ink-a1); flex-wrap: wrap; }
+  .apoio-secao { padding: 6px 16px 10px; }
+  .apoio-secao-cabeca { display: flex; align-items: center; gap: 10px; padding: 10px 0 6px; font: 600 14px var(--sans); }
+  .apoio-secao-cabeca small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .apoio-nome { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
+  .apoio-nome:last-child { border-bottom: none; }
+  .apoio-nome .duas-linhas b { font-weight: 600; }
+  .apoio-vazio { margin: 0; padding: 6px 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink3); }
+  .apoio-mais { display: flex; align-items: center; gap: 12px; margin: 8px 16px 16px; padding: 12px 14px; border: 1px dashed var(--ink-a25); border-radius: 10px; background: transparent; text-align: left; width: calc(100% - 32px); cursor: pointer; }
+  .apoio-mais:hover:not(:disabled) { border: 1px dashed var(--ink); background: transparent; }
+  .apoio-mais .ic { color: var(--acc); }
+  .apoio-mais .duas-linhas b { font-weight: 600; }
+

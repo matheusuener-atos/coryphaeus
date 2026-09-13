@@ -1,0 +1,261 @@
+  /* ------------------------------------------------------------- agenda */
+  /*
+    A Agenda (docs/ui/03-telas-desktop.md, A4): Mes, Semana e Tarefas num
+    cabecalho so, com o painel a direita na mesma grade do Acervo. As cores
+    das marcas sao as do desenho: compromisso em grafite, prazo em vinho,
+    pagamento em verde, tarefa em cinza; a data lida num documento, em ambar.
+    Toda classe daqui tem prefixo ag- para nao colidir com regra de outra tela.
+  */
+  .nav-tela { display: flex; gap: 2px; flex: none; }
+  .nav-tela:empty { display: none; }
+  .com-menu { position: relative; }
+  .menu-novo { right: 0; width: 236px; }
+  .menu-novo button { gap: 10px; }
+  .menu-novo .ic { color: var(--ink3); }
+
+  .ag-cartao {
+    flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
+    box-shadow: 0 8px 24px -16px var(--sh-a12);
+  }
+  .ag-dias { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--ink-a1); }
+  .ag-dias span, .ag-semana-dias span {
+    padding: 8px 9px; font: 600 12px var(--sans); color: var(--ink2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ag-dias span.ag-fds { color: var(--ink3); }
+  .ag-mes {
+    flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr); gap: 1px; background: var(--ink-a1);
+  }
+  .ag-cel {
+    min-height: 0; background: var(--surf); padding: 8px 9px; display: flex; flex-direction: column; gap: 5px;
+    overflow: hidden; cursor: pointer; transition: background .15s;
+  }
+  .ag-cel:hover { background: var(--bg); }
+  .ag-cel.ag-fds { background: var(--sub); }
+  .ag-cel.ag-hoje { background: var(--accbg); }
+  .ag-cel.ag-escolhido { box-shadow: inset 0 0 0 2px var(--ink-a3); }
+  .ag-cel-num { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+  .ag-cel-num b { font-weight: 500; }
+  .ag-cel.ag-fds .ag-cel-num { color: var(--ink3); }
+  .ag-cel.ag-fora .ag-cel-num { color: var(--mute); }
+  .ag-cel.ag-hoje .ag-cel-num b {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px;
+    border-radius: 11px; background: var(--acc); color: var(--surf); font-weight: 700;
+  }
+  .ag-cel-num small { font: 500 11px var(--sans); color: var(--ink3); }
+  .ag-marca {
+    display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--ink2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ag-marca i, .ag-legenda i { display: block; width: 2px; height: 11px; background: var(--ink); flex: none; }
+  .ag-marca b { font-weight: 600; color: var(--ink); flex: none; }
+  .ag-marca span { overflow: hidden; text-overflow: ellipsis; }
+  .ag-marca.ag-prazo, .ag-marca.ag-prazo b { color: var(--acc); }
+  .ag-marca.ag-prazo i, .ag-legenda .ag-prazo i { background: var(--acc); }
+  .ag-marca.ag-tarefa, .ag-marca.ag-tarefa b { color: var(--ink3); }
+  .ag-marca.ag-tarefa i, .ag-legenda .ag-tarefa i { background: var(--mute); }
+  .ag-marca.ag-documento, .ag-marca.ag-documento b { color: var(--ink3); }
+  .ag-marca.ag-documento i, .ag-legenda .ag-documento i { background: var(--ambar); }
+  .ag-marca.ag-pagamento i, .ag-legenda .ag-pagamento i { background: var(--verde); }
+  .ag-legenda .ag-compromisso i { background: var(--ink); }
+  .ag-legenda .ag-pedido i { width: 0; background: transparent; border-left: 2px dashed var(--acc); }
+  .ag-mais { font: 500 11px var(--sans); color: var(--ink3); }
+  .ag-legenda {
+    flex: none; display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--ink-a1);
+    font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden;
+  }
+  .ag-legenda span { display: flex; align-items: center; gap: 7px; }
+  .ag-legenda .ag-dica { margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
+
+  /* a semana: faixa de hora a esquerda, altura de hora fixa, so a grade rola */
+  .ag-semana-dias, .ag-dia-todo, .ag-semana { grid-template-columns: 64px repeat(5, minmax(0, 1fr)); }
+  .ag-semana-dias { flex: none; display: grid; border-bottom: 1px solid var(--ink-a1); }
+  .ag-semana-dias span.ag-hoje { color: var(--acc); }
+  .ag-dia-todo { flex: none; display: grid; gap: 1px; background: var(--ink-a1); border-bottom: 1px solid var(--ink-a1); }
+  .ag-dia-todo > div { background: var(--surf); min-height: 30px; padding: 4px; display: grid; gap: 3px; align-content: start; }
+  .ag-dia-todo > .ag-rotulo-hora { padding: 6px 8px; }
+  .ag-rolagem { flex: 1; min-height: 0; overflow: auto; }
+  .ag-semana { display: grid; grid-auto-rows: 56px; gap: 1px; background: var(--ink-a1); }
+  .ag-rotulo-hora { background: var(--surf); padding: 6px 8px; font-size: 11.5px; color: var(--ink3); text-align: right; white-space: nowrap; }
+  .ag-hora-cel { background: var(--surf); min-height: 0; padding: 4px; display: flex; gap: 4px; cursor: pointer; }
+  .ag-hora-cel:hover { background: var(--bg); }
+  .ag-hora-cel.ag-hoje, .ag-dia-todo > div.ag-hoje { background: var(--accbg2); }
+  .ag-bloco {
+    flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; background: var(--fill);
+    box-shadow: inset 2px 0 0 var(--ink); display: grid; gap: 1px; align-content: start; overflow: hidden; cursor: pointer;
+  }
+  .ag-bloco small { font: 600 11px var(--sans); color: var(--ink2); }
+  .ag-bloco span { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-bloco.ag-hoje { background: var(--act); }
+  .ag-bloco.ag-pagamento { background: var(--okbg); box-shadow: inset 2px 0 0 var(--verde); }
+  .ag-bloco.ag-pagamento small { color: var(--okt); }
+  .ag-bloco.ag-prazo { background: var(--accbg); box-shadow: inset 2px 0 0 var(--acc); }
+  .ag-bloco.ag-prazo small, .ag-bloco.ag-prazo span { color: var(--acc); }
+  .ag-bloco.ag-tarefa { box-shadow: inset 2px 0 0 var(--mute); }
+  .ag-bloco.ag-tarefa span { color: var(--ink3); }
+  .ag-bloco.ag-documento { box-shadow: inset 2px 0 0 var(--ambar); }
+  .ag-fora-da-grade {
+    flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px;
+    border-top: 1px solid var(--ink-a1); font-size: 12.5px; color: var(--ink2);
+  }
+  .ag-fora-da-grade b { font: 600 12px var(--sans); color: var(--ink3); }
+  .ag-fora-da-grade span { cursor: pointer; }
+  .ag-fora-da-grade span:hover { color: var(--ink); }
+
+  /* o painel do dia */
+  .ag-hora-linha { position: relative; display: flex; gap: 12px; align-items: flex-start; }
+  .ag-hora-linha .ag-hora { width: 44px; flex: none; font: 600 12.5px var(--sans); color: var(--ink); padding-top: 2px; }
+  .ag-hora-linha .ag-corpo { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ag-hora-linha .ag-corpo > span { font-size: 14px; color: var(--ink); }
+  .ag-hora-linha .ag-corpo small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ag-hora-linha.ag-prazo .ag-hora, .ag-hora-linha.ag-prazo .ag-corpo > span { color: var(--acc); }
+  .ag-hora-linha.ag-pagamento .ag-hora { color: var(--okt); }
+  .ag-hora-linha .ag-acoes { position: relative; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .ag-hora-linha .ag-acoes button { padding: 5px 10px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
+  .ag-risco { display: block; height: 1px; background: var(--ink-a08); }
+  .ag-sino {
+    position: relative; width: 32px; height: 32px; flex: none; border: 1px solid var(--ink-a15); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; color: var(--ink2);
+  }
+  .ag-sino i { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
+  .ag-tarefa-linha { display: flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; }
+  .ag-tarefa-linha .ag-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-tarefa-linha.ag-feita .ag-texto { color: var(--ink3); text-decoration: line-through; }
+  .ag-tarefa-linha .ag-quando { font: 600 12px var(--sans); color: var(--ink3); flex: none; }
+  .ag-feita-ic { color: var(--verde); cursor: pointer; }
+  .ag-circulo { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); flex: none; margin: 1px; box-sizing: border-box; cursor: pointer; }
+  .ag-circulo:hover { border-color: var(--ink); }
+  .ag-circulo.ag-grande { width: 18px; height: 18px; margin: 0; }
+  .ag-ligacao { border: none; background: none; padding: 0; text-align: left; cursor: pointer; font: 400 13px var(--sans); color: var(--ink3); justify-self: start; }
+  .ag-ligacao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-entrada { display: flex; gap: 8px; }
+  .ag-entrada input[type=text] {
+    flex: 1; min-width: 0; max-width: 100%; padding: 7px 10px; border: 1px solid var(--ink-a15); border-radius: 6px;
+    background: var(--surf); font: 400 13px var(--sans); color: var(--ink);
+  }
+  .ag-entrada button { white-space: nowrap; }
+  .ag-acc { color: var(--acc); font-weight: 600; }
+  .ag-nota {
+    width: 100%; max-width: none; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px;
+    background: var(--surf); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); resize: vertical; min-height: 64px;
+  }
+  .ag-nota:focus { color: var(--ink); outline: none; border-color: var(--ink-a3); }
+
+  /* o formulario de compromisso, pagamento, prazo interno ou tarefa */
+  .ag-form { padding: 4px 18px 16px; display: grid; gap: 14px; }
+  .ag-campo { display: grid; gap: 6px; }
+  .ag-campo > label { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-campo input, .ag-campo select, .ag-campo textarea {
+    width: 100%; max-width: none; min-width: 0; box-sizing: border-box; padding: 9px 12px;
+    border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink);
+  }
+  .ag-campo textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+  .ag-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ag-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ag-chips button { padding: 6px 12px; border-radius: 6px; font: 500 12.5px var(--sans); border: 1px solid var(--ink-a15); background: transparent; color: var(--ink); }
+  .ag-chips button:hover:not(:disabled) { border-color: var(--ink); background: transparent; color: var(--ink); }
+  .ag-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
+  .ag-chips button.on:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--bg); }
+  .ag-chips .ag-vazio-chip { font-size: 12.5px; color: var(--ink3); align-self: center; }
+  .ag-toggle { display: flex; align-items: center; gap: 12px; font-size: 13.5px; cursor: pointer; }
+  .ag-toggle span { flex: 1; color: var(--ink2); }
+  .ag-toggle.on span { color: var(--ink); }
+  .ag-toggle i { width: 34px; height: 20px; border-radius: 10px; position: relative; flex: none; border: 1px solid var(--ink-a25); box-sizing: border-box; }
+  .ag-toggle i::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink-a3); transition: left .15s, background .15s;
+  }
+  .ag-toggle.on i { background: var(--ink); border-color: var(--ink); }
+  .ag-toggle.on i::after { left: 16px; background: var(--bg); }
+  .ag-explica { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); margin: 0; }
+  .ag-form-rodape { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--ink-a1); padding-top: 14px; }
+  .ag-form-rodape .primario { margin-left: auto; padding: 8px 16px; }
+  .ag-form-rodape .ag-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
+  .ag-perigo-fino { border: 1px solid var(--accln); color: var(--acc); background: none; font: 500 12.5px var(--sans); padding: 6px 12px; border-radius: 6px; }
+  .ag-perigo-fino:hover:not(:disabled) { border-color: var(--acc); background: none; color: var(--acc); }
+
+  /* as tarefas: as listas a esquerda, a lista do dia no meio */
+  .ag-tarefas { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+  .ag-listas {
+    min-height: 0; overflow: auto; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+    padding: 8px; display: grid; gap: 1px; align-content: start;
+  }
+  .ag-lista-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
+    background: transparent; text-align: left; cursor: pointer; font: 500 13.5px var(--sans); color: var(--ink2);
+  }
+  .ag-lista-item:hover:not(:disabled) { background: var(--bg); border: none; color: var(--ink2); }
+  .ag-lista-item.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
+  .ag-lista-item.adiante { opacity: .5; }
+  .ag-lista-item .ag-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-lista-item .ag-conta { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-lista-item .ag-conta.ag-acc { color: var(--acc); }
+  .ag-cor { display: block; width: 7px; height: 7px; border-radius: 2px; background: var(--ink); flex: none; }
+  .ag-cor.ag-c1 { background: var(--verde); }
+  .ag-cor.ag-c2 { background: var(--acc); }
+  .ag-cor.ag-c3 { background: var(--ambar); }
+  .ag-adicionar { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .ag-adicionar .ag-mais-botao {
+    width: 30px; height: 30px; padding: 0; border-radius: 50%; border: none; background: var(--ink); color: var(--bg);
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .ag-adicionar .ag-mais-botao:hover:not(:disabled) { background: var(--ink0); border: none; color: var(--bg); }
+  .ag-adicionar input[type=text] { flex: 1; min-width: 0; max-width: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); outline: none; }
+  .ag-adicionar input[type=date] { border: none; background: none; padding: 4px 0; min-width: 0; width: auto; font: 500 12.5px var(--sans); color: var(--ink); }
+  .ag-linha { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a08); cursor: pointer; }
+  .ag-linha:hover { background: var(--sub); }
+  .ag-linha.aberta { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); }
+  .ag-linha .ag-texto { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .ag-linha .ag-texto b { font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-linha.aberta .ag-texto b { font-weight: 600; }
+  .ag-linha .ag-texto small { display: flex; gap: 8px; flex-wrap: wrap; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ag-estrela { border: none; background: none; padding: 0; color: var(--mute); display: flex; cursor: pointer; }
+  .ag-estrela:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-estrela.on { color: var(--acc); }
+  .ag-linha.ag-feita { padding: 11px 16px; }
+  .ag-linha.ag-feita .ag-texto b { font-weight: 400; color: var(--ink3); text-decoration: line-through; }
+  .ag-secao { padding: 10px 16px 6px; font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-vazio { padding: 28px 16px; display: grid; gap: 6px; }
+  .ag-vazio h4 { margin: 0; font: 400 18px var(--serif); }
+  .ag-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+
+  /* a ficha da tarefa no painel */
+  .ag-ficha-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 12px; }
+  .ag-ficha-cabeca h3 { flex: 1; min-width: 0; font: 400 20px/1.25 var(--serif); margin: 0; overflow-wrap: anywhere; }
+  .ag-ficha-cabeca .ag-circulo { margin-top: 4px; }
+  .ag-ficha-cabeca .ag-feita-ic { margin-top: 3px; }
+  .ag-ficha-cabeca .ag-estrela { margin-top: 3px; }
+  .ag-chave { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--ink-a06); min-height: 34px; }
+  .ag-chave:last-child { border-bottom: none; }
+  .ag-chave > span { flex: 1; color: var(--ink2); }
+  .ag-chave input, .ag-chave select {
+    width: auto; max-width: 58%; min-width: 0; border: none; background: none; padding: 2px 0; text-align: right;
+    font: 600 12.5px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .ag-chave select { text-align-last: right; }
+  .ag-chave input:focus, .ag-chave select:focus { outline: none; color: var(--acc); }
+  .ag-chave input.ag-acc { color: var(--acc); }
+  .ag-chave .ag-ligacao { font-weight: 600; color: var(--okt); }
+  .ag-chave .ag-ligacao.ag-fraca { color: var(--ink3); }
+  .ag-ligado { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; font-size: 13px; min-width: 0; }
+  .ag-ligado .glifo { flex: none; }
+  .ag-ligado > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-ligado button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--acc); cursor: pointer; white-space: nowrap; }
+  .ag-ligado button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-ligado button.ag-tirar { color: var(--ink3); display: flex; }
+  .ag-ligado-linha { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .ag-ligado-linha span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ag-ligado-linha button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--ink3); cursor: pointer; }
+  .ag-ligado-linha button.ag-acc { color: var(--acc); }
+  .ag-ligado-linha button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ag-escolher { max-height: 220px; overflow: auto; display: grid; gap: 4px; }
+  .ag-ficha-rodape { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--ink-a1); }
+  .ag-ficha-rodape small { flex: 1; font: 500 12.5px var(--sans); color: var(--ink3); }
+
+  /* pecas que outras telas usam e que nasceram com o calendario antigo */
+  .legenda { display: flex; gap: 18px; margin: 12px 0 4px; font-size: 12px; color: var(--ink3); }
+  .legenda span { display: flex; align-items: center; gap: 7px; }
+  .colunas-pares { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+

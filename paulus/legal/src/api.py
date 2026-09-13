@@ -285,9 +285,35 @@ class Busca(BaseModel):
 # ------------------------------------------------------------------- rotas
 
 
+SEM_CACHE = {"Cache-Control": "no-cache"}
+
+
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=SEM_CACHE)
+
+
+def _arquivo_do_frontend(pasta: str, arquivo: str, tipo: str) -> FileResponse:
+    """
+    Um arquivo de frontend/css ou frontend/js. O nome vem da propria pagina;
+    ainda assim, nada de subir pastas. "no-cache" faz o navegador embutido
+    conferir a data a cada abertura: sem isso, um CSS trocado so aparecia
+    depois de limpar o WebView2.
+    """
+    alvo = (FRONTEND_DIR / pasta / Path(arquivo).name).resolve()
+    if alvo.parent != (FRONTEND_DIR / pasta).resolve() or not alvo.exists():
+        raise HTTPException(status_code=404, detail="arquivo nao encontrado")
+    return FileResponse(alvo, media_type=tipo, headers=SEM_CACHE)
+
+
+@app.get("/css/{arquivo}")
+def css_da_pagina(arquivo: str) -> FileResponse:
+    return _arquivo_do_frontend("css", arquivo, "text/css")
+
+
+@app.get("/js/{arquivo}")
+def js_da_pagina(arquivo: str) -> FileResponse:
+    return _arquivo_do_frontend("js", arquivo, "text/javascript")
 
 
 @app.get("/fontes.css")
