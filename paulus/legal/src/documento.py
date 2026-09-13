@@ -655,6 +655,35 @@ def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
     return saida.getvalue()
 
 
+def proteger_com_senha(pdf: bytes, senha: str) -> bytes:
+    """
+    O mesmo PDF, agora pedindo senha para abrir.
+
+    Quem manda uma minuta com o CPF do cliente por e-mail nao controla a caixa
+    de entrada de quem recebe. A senha nao e sigilo forte - e a diferenca
+    entre o documento abrir sozinho na previa do e-mail e nao abrir.
+
+    A senha e a mesma para abrir e para editar: duas senhas diferentes num
+    documento que o escritorio manda pronto so dariam a chance de a pessoa
+    guardar a errada. Cifrar reescreve o arquivo inteiro, entao isto vem
+    sempre ANTES de qualquer assinatura - depois, quebraria a assinatura.
+    """
+    import io as _io
+
+    from pyhanko.pdf_utils.reader import PdfFileReader
+    from pyhanko.pdf_utils.writer import copy_into_new_writer
+
+    if not senha:
+        raise ValueError("escreva a senha que vai abrir o PDF")
+
+    leitor = PdfFileReader(_io.BytesIO(pdf))
+    escritor = copy_into_new_writer(leitor)
+    escritor.encrypt(senha, senha)
+    saida = _io.BytesIO()
+    escritor.write(saida)
+    return saida.getvalue()
+
+
 def mapa_de_paginas(blocos: list[Bloco], timbre: dict | None = None,
                     formato: dict | None = None) -> dict:
     """

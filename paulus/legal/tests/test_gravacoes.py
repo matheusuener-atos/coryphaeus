@@ -1,5 +1,5 @@
 """
-Servicos, Gravacoes e a transcricao local, pela API que a tela usa.
+Servicos, Gravacoes, planilha e transcricao local, pela API que a tela usa.
 
 Sobe o servidor numa porta livre e conversa com ele como a pagina conversa.
 O que e testado e o que a tela promete:
@@ -11,6 +11,8 @@ O que e testado e o que a tela promete:
     em portugues, sem trecho depois do fim do audio
   - a sessao ao vivo devolve o texto aos poucos enquanto o audio entra, e a
     gravacao arquivada com a sessao ja nasce transcrita
+  - a planilha traz para uma aba nova os honorarios do Financeiro e os prazos
+    lidos nos documentos do Acervo
 
 O audio de teste e falado pelas vozes em portugues do Windows (Maria e
 Daniel), gerado na hora; sem elas, ou sem o modelo de voz, as partes que
@@ -394,6 +396,75 @@ def test_ao_vivo(c: Cliente, criados: dict, pcm: bytes, audio: bytes, segundos: 
     checar(st == 200, "descartar uma sessao")
 
 
+def test_planilha_trazer(c: Cliente, criados: dict) -> None:
+    """
+    A planilha recebe o que o programa ja tem: honorarios e prazos.
+
+    Sempre numa aba nova - importacao que escreve por cima do que a pessoa
+    digitou nao se desfaz. Os valores entram como valor e o total como
+    formula, para continuar certo se alguem corrigir uma linha.
+    """
+    print("\nplanilha: trazer o Financeiro e os prazos")
+    st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Planilha Cliente", "documento": "98.765.432/0001-10"}})
+    criados["cadastros"].append(cli["id"])
+    for descricao, valor, pago in (("Teste — honorários de setembro", "1.200,00", ""),
+                                   ("Teste — honorários de outubro", "800,50", "2026-09-10")):
+        st, l = c.pedir("POST", "/api/financeiro/lancamentos", {"id": None, "dados": {
+            "tipo": "recebimento", "descricao": descricao, "centavos": valor, "categoria": "honorarios",
+            "cadastro_id": cli["id"], "vencimento": "2026-09-20", "liquidado_em": pago, "observacao": ""}})
+        if l.get("id"):
+            criados["lancamentos"].append(l["id"])
+        else:
+            checar(False, "lancamento de teste criado", (st, l))
+            return
+
+    st, doc = c.pedir("POST", "/api/documentos", {"titulo": "Teste — planilha trazida", "tipo": "planilha"})
+    checar(st == 200 and doc.get("id"), "planilha de teste criada", (st, doc))
+    criados["documentos"].append(doc["id"])
+
+    st, d = c.pedir("POST", f"/api/planilha/{doc['id']}/trazer", {"de": "financeiro", "mes": "", "categoria": "honorarios"})
+    checar(st == 200 and d.get("quantos", 0) >= 2, "os honorarios viram linhas numa aba nova", (st, d.get("detail") or d.get("aviso")))
+    if st != 200:
+        return
+    aba = d["abas"][d["aba_nova"]]
+    celulas = {k: v["valor"] for k, v in aba["celulas"].items()}
+    checar(len(d["abas"]) == 2 and aba["nome"].startswith("Honorários"), "a aba nova nao substitui a que existia", aba["nome"])
+    checar(celulas.get("A1") == "Cliente" and aba["congelar_cabecalho"], "com cabecalho congelado")
+    valores = [v for k, v in celulas.items() if k.startswith("D") and k != "D1"]
+    checar(any(v.startswith("=SOMA(") for v in valores), "e uma linha de total em formula", valores)
+    calculado = d["calculado"][d["aba_nova"]]
+    total = next((celula["texto"] for ref, celula in calculado.items() if ref.startswith("D") and "R$" in celula.get("texto", "") and ref != "D1"), "")
+    checar("2.000,50" in " ".join(x.get("texto", "") for x in calculado.values()),
+           "o total soma os lancamentos trazidos", total)
+    checar(any("a receber" == v for v in celulas.values()) and any("recebido" == v for v in celulas.values()),
+           "e cada linha diz se ja foi recebida")
+
+    # Prazos: a lista vem da classificacao dos documentos desta maquina, que
+    # pode estar vazia. Para o teste nao depender disso, o servidor responde
+    # com uma sugestao combinada - e volta ao normal em seguida.
+    import api
+
+    original = api.estado.tarefas.sugerir
+    api.estado.tarefas.sugerir = lambda *a, **k: [
+        {"titulo": "Conferir prazo — Contrato Teste.pdf", "prazo": "2099-12-31",
+         "lista": "Contrato", "cliente": "Teste Planilha Cliente", "sha1": "x", "arquivo": "Contrato Teste.pdf"},
+    ]
+    try:
+        st, d = c.pedir("POST", f"/api/planilha/{doc['id']}/trazer", {"de": "prazos"})
+        checar(st == 200 and d.get("quantos") == 1, "os prazos do Acervo viram outra aba", (st, d.get("detail")))
+        if st == 200:
+            aba = d["abas"][d["aba_nova"]]
+            celulas = {k: v["valor"] for k, v in aba["celulas"].items()}
+            checar(celulas.get("A2") == "Contrato Teste.pdf" and celulas.get("D2") == "31/12/2099",
+                   "com documento e data escritos como se digita aqui", celulas)
+            checar(int(celulas.get("E2", "0")) > 0, "e quantos dias faltam", celulas.get("E2"))
+    finally:
+        api.estado.tarefas.sugerir = original
+
+    st, d = c.pedir("POST", f"/api/planilha/{doc['id']}/trazer", {"de": "prazos"})
+    checar(st == 404 and "prazo" in (d.get("detail") or ""), "sem prazo nenhum, diz isso em vez de criar aba vazia", d)
+
+
 def test_lixeira(c: Cliente, criados: dict) -> None:
     print("\nlixeira: apagar guarda 30 dias, restaurar devolve tudo")
     st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Lixeira Cliente"}})
@@ -447,12 +518,13 @@ def test_lixeira(c: Cliente, criados: dict) -> None:
 
 def main() -> int:
     print("=" * 55)
-    print("  PAULUS - servicos, gravacoes e transcricao")
+    print("  PAULUS - servicos, gravacoes, planilha e transcricao")
     print("=" * 55)
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
     c = Cliente(porta)
-    criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": [], "trabalhos": [], "audio": b""}
+    criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": [],
+                     "trabalhos": [], "lancamentos": [], "documentos": [], "audio": b""}
     try:
         with tempfile.TemporaryDirectory() as tmp:
             caminho = Path(tmp) / "fala.wav"
@@ -467,6 +539,7 @@ def main() -> int:
                 segundos = max(1, round(w.getnframes() / w.getframerate()))
 
             test_servicos(c, criados)
+            test_planilha_trazer(c, criados)
             test_servico_pela_conversa(c, criados)
             test_gravacoes(c, criados, audio, falado)
             if falado:
@@ -493,6 +566,10 @@ def main() -> int:
             apagar_de_vez(f"/api/cadastros/{cid}")
         for tid in criados["trabalhos"]:
             apagar_de_vez(f"/api/trabalhos/{tid}")
+        for lid in criados["lancamentos"]:
+            apagar_de_vez(f"/api/financeiro/lancamentos/{lid}")
+        for did in criados["documentos"]:
+            apagar_de_vez(f"/api/documentos/{did}")
         st, sobra = c.pedir("GET", "/api/gravacoes?termo=Teste%20%E2%80%94")
         sobrou = [x["titulo"] for x in sobra.get("gravacoes", [])]
         checar(not sobrou, "nada de teste sobrou no disco", sobrou)

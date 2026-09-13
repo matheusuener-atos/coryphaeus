@@ -166,6 +166,41 @@ def test_pdf_e_docx() -> None:
     checar(vazio.startswith(b"%PDF"), "documento vazio nao derruba o gerador")
 
 
+def test_pdf_com_senha() -> None:
+    """
+    O PDF que sai para o cliente pode pedir senha para abrir.
+
+    Quem manda uma minuta com o CPF do cliente por e-mail nao controla a caixa
+    de entrada de quem recebe. O que se testa aqui e o que importa: sem a
+    senha o texto nao sai do arquivo; com ela, sai inteiro.
+    """
+    print("\nPDF com senha")
+    import pypdf
+
+    pdf = D.para_pdf(D.ler_html(CONTRATO), "Contrato", "Uener Advogados")
+    protegido = D.proteger_com_senha(pdf, "abre 123")
+    checar(protegido.startswith(b"%PDF"), "continua sendo um PDF")
+
+    leitor = pypdf.PdfReader(io.BytesIO(protegido))
+    checar(leitor.is_encrypted, "e o arquivo esta cifrado")
+    try:
+        leitor.pages[0].extract_text()
+        checar(False, "sem a senha, o texto nao sai")
+    except Exception as exc:
+        checar("decrypt" in type(exc).__name__.lower() or "decrypt" in str(exc).lower(),
+               f"sem a senha, o texto nao sai ({type(exc).__name__})")
+
+    leitor.decrypt("abre 123")
+    texto = leitor.pages[0].extract_text()
+    checar("CONTRATO" in texto.upper(), "com a senha, o documento abre inteiro", texto[:60])
+
+    try:
+        D.proteger_com_senha(pdf, "")
+        checar(False, "senha vazia e recusada")
+    except ValueError as exc:
+        checar("senha" in str(exc), f"senha vazia e recusada dizendo por que: {exc}")
+
+
 QUADRO = (
     "<h1>CONTRATO DE HONORÁRIOS</h1>"
     "<p>As partes ajustam o pagamento conforme o quadro abaixo:</p>"
@@ -950,6 +985,7 @@ def main() -> int:
 
     test_ler_html()
     test_pdf_e_docx()
+    test_pdf_com_senha()
     test_duas_paginas_ao_mesmo_tempo()
     test_quadro()
     test_pagina_medida()

@@ -24,7 +24,7 @@ import threading
 import time
 import uuid
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -3930,6 +3930,32 @@ def documentos_pdf(id_: int):
     )
 
 
+class PdfProtegido(BaseModel):
+    senha: str = ""
+
+
+@app.post("/api/documentos/{id_}/pdf")
+def documentos_pdf_com_senha(id_: int, payload: PdfProtegido):
+    """
+    O mesmo PDF, pedindo senha para abrir.
+
+    E POST, e nao um `?senha=` no endereco, de proposito: endereco fica no
+    historico do navegador e no registro do servidor, e uma senha nao tem por
+    que morar em nenhum dos dois.
+    """
+    from fastapi.responses import Response
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
+    try:
+        dados = documento.proteger_com_senha(_pdf_do_documento(item), payload.senha)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return Response(dados, media_type="application/pdf",
+                    headers=_anexo(_arquivo(item["titulo"]) + ".pdf"))
+
+
 @app.get("/api/documentos/{id_}/docx")
 def documentos_docx(id_: int):
     from fastapi.responses import Response
@@ -4057,6 +4083,7 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
     """
     item = _documento_ou_404(id_)
     formato = str((payload or {}).get("formato", "pdf")).lower()
+    senha = str((payload or {}).get("senha", ""))
 
     if item["tipo"] == "planilha":
         abas = planilha.de_dict(json.loads(item["corpo"] or "{}"))
@@ -4067,6 +4094,14 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
         sufixo = ".docx"
     else:
         dados = _pdf_do_documento(item)
+        # Com senha, o arquivo que vai para a biblioteca (e dali para o anexo
+        # do e-mail) ja sai protegido: proteger so o download deixaria passar
+        # justamente o caminho que sai desta maquina.
+        if senha:
+            try:
+                dados = documento.proteger_com_senha(dados, senha)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
         sufixo = ".pdf"
 
     estado.pasta.mkdir(parents=True, exist_ok=True)
@@ -4552,6 +4587,118 @@ def planilha_apagar_aba(id_: int, indice: int) -> dict:
     estado.documentos.salvar(id_, planilha.para_json(abas), nota=f"aba {fora.nome} apagada")
     return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
 
+
+class TrazerParaPlanilha(BaseModel):
+    de: str = ""          # "financeiro" ou "prazos"
+    mes: str = ""         # AAAA-MM; vazio traz tudo o que existe
+    categoria: str = "honorarios"
+
+
+@app.post("/api/planilha/{id_}/trazer")
+def planilha_trazer(id_: int, payload: TrazerParaPlanilha) -> dict:
+    """
+    Uma aba nova com o que ja esta no programa: honorarios ou prazos.
+
+    O painel da planilha oferecia as duas coisas e as duas diziam "em breve".
+    Sao dados que o programa ja tem - o que faltava era escreve-los em linhas
+    e colunas. Vem sempre numa ABA NOVA, nunca por cima do que a pessoa
+    escreveu: uma importacao que apaga trabalho alheio nao se desfaz.
+
+    O que entra e valor, nao formula: a planilha e uma fotografia do dia em
+    que foi feita, e o total e que e formula, para continuar certo se alguem
+    corrigir uma linha.
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "planilha":
+        raise HTTPException(status_code=400, detail="isso é um documento de texto")
+    abas = _abas_do(item)
+    if len(abas) >= 6:
+        raise HTTPException(status_code=400, detail="seis abas é o limite por planilha")
+
+    if payload.de == "financeiro":
+        aba, quantos = _aba_do_financeiro(payload.mes, payload.categoria)
+    elif payload.de == "prazos":
+        aba, quantos = _aba_dos_prazos()
+    else:
+        raise HTTPException(status_code=400, detail="não sei trazer isso")
+
+    if not quantos:
+        raise HTTPException(
+            status_code=404,
+            detail=("não achei honorários lançados nesse período" if payload.de == "financeiro"
+                    else "não há prazos lidos nos documentos do Acervo"))
+
+    abas.append(aba)
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=f"aba {aba.nome} criada")
+    return {**_resposta_planilha(id_, estado.documentos.obter(id_), abas),
+            "aba_nova": len(abas) - 1, "quantos": quantos,
+            "aviso": f"{_quantos(quantos, 'linha')} na aba “{aba.nome}”"}
+
+
+def _cabecalho_da_aba(aba, titulos: list[str]) -> None:
+    for coluna, titulo in enumerate(titulos):
+        aba.gravar(f"{planilha.letra_da_coluna(coluna)}1", {"valor": titulo, "negrito": True})
+    aba.congelar_cabecalho = True
+
+
+def _aba_do_financeiro(mes: str, categoria: str):
+    """Os honorarios do Financeiro em linhas: quem, quando, quanto, pago ou nao."""
+    lancamentos = [
+        x for x in estado.financeiro.listar(tipo="recebimento", mes=mes)
+        if not categoria or x.get("categoria") == categoria
+    ]
+    rotulo = financeiro.CATEGORIAS.get(categoria, "Recebimentos")
+    aba = planilha.Aba(nome=(rotulo + (" " + escritorio.mes_por_extenso(mes) if mes else ""))[:24])
+    _cabecalho_da_aba(aba, ["Cliente", "Descrição", "Vencimento", "Valor", "Situação"])
+
+    for i, l in enumerate(lancamentos, start=2):
+        aba.gravar(f"A{i}", {"valor": l.get("cadastro_nome") or "—"})
+        aba.gravar(f"B{i}", {"valor": l.get("descricao") or ""})
+        aba.gravar(f"C{i}", {"valor": _data_br(l.get("vencimento")), "formato": "data"})
+        # O valor vai em reais com virgula, como se digita aqui; a planilha
+        # entende isso como numero e soma.
+        aba.gravar(f"D{i}", {"valor": financeiro.em_reais(l.get("centavos", 0)).replace("R$ ", ""),
+                             "formato": "moeda"})
+        aba.gravar(f"E{i}", {"valor": "recebido" if l.get("liquidado_em") else "a receber"})
+
+    if lancamentos:
+        fim = len(lancamentos) + 1
+        aba.gravar(f"C{fim + 1}", {"valor": "Total", "negrito": True})
+        aba.gravar(f"D{fim + 1}", {"valor": f"=SOMA(D2:D{fim})", "formato": "moeda", "negrito": True})
+    return aba, len(lancamentos)
+
+
+def _aba_dos_prazos():
+    """Os prazos que os documentos do Acervo pedem para conferir."""
+    from classify import CacheClassificacao
+
+    cache = CacheClassificacao(CLASSIFICACAO_PATH).dados
+    prazos = estado.tarefas.sugerir(list(cache.values()))
+    aba = planilha.Aba(nome="Prazos do Acervo")
+    _cabecalho_da_aba(aba, ["Documento", "Cliente", "Tipo", "Prazo", "Faltam (dias)"])
+
+    hoje = date.today()
+    for i, p in enumerate(prazos, start=2):
+        aba.gravar(f"A{i}", {"valor": p.get("arquivo") or ""})
+        aba.gravar(f"B{i}", {"valor": p.get("cliente") or "—"})
+        aba.gravar(f"C{i}", {"valor": p.get("lista") or ""})
+        aba.gravar(f"D{i}", {"valor": _data_br(p.get("prazo")), "formato": "data"})
+        try:
+            faltam = (date.fromisoformat(p["prazo"]) - hoje).days
+        except (ValueError, KeyError, TypeError):
+            faltam = ""
+        aba.gravar(f"E{i}", {"valor": str(faltam), "formato": "numero"})
+    return aba, len(prazos)
+
+
+def _data_br(iso: str | None) -> str:
+    """2026-09-20 vira 20/09/2026 - a planilha guarda como se digita."""
+    if not iso:
+        return ""
+    try:
+        return date.fromisoformat(str(iso)[:10]).strftime("%d/%m/%Y")
+    except ValueError:
+        return str(iso)
 
 @app.post("/api/planilha/{id_}/importar")
 async def planilha_importar(id_: int, arquivo: UploadFile) -> dict:

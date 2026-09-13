@@ -21,6 +21,10 @@ const escr = {
   conversas: {},          // a conversa do painel, por documento
   pendente: null, antes: null, ocupada: false, guardarAoSair: true,
   previa: null, filtro: null, notaFormula: "", ouvindo: false, regua: false,
+  // A senha do PDF vive nesta tela e so nela: nao vai para o disco nem para
+  // as preferencias. Fechar o programa esquece, que e o certo - senha
+  // guardada junto do documento que ela protege nao protege nada.
+  senhaPdf: "",
 };
 
 const GLIFO_DO_TIPO = { texto: ["docx", "W"], planilha: ["xlsx", "X"], pdf: ["pdf", "PDF"] };
@@ -1313,7 +1317,12 @@ function painelDaPrevia() {
     '<button class="adiante" data-pv-adiante="WhatsApp">' + ic("chat", 16) + "WhatsApp</button>" +
     '<button id="pv-imprimir">' + ic("print", 16) + "Imprimir</button></div>" +
     '<div class="docs-toggles"><div class="' + classeGuardar + '" data-pv-guardar="1"><span>Guardar no Acervo ao sair</span><i></i></div>' +
-    '<div class="ag-toggle" data-pv-adiante="senha no PDF"><span>Proteger o PDF com senha</span><i></i></div></div>' +
+    '<div class="ag-toggle' + (escr.senhaPdf ? " on" : "") + '" data-pv-senha="1"><span>Proteger o PDF com senha</span><i></i></div>' +
+    (escr.senhaPdf
+      ? '<p class="docs-nota-senha">O PDF vai pedir senha para abrir — inclusive o que for anexado no e-mail. ' +
+        'Guarde a senha: sem ela nem você abre, e um PDF com senha não entra na busca do Acervo. ' +
+        '<button class="docs-ligacao" data-pv-senha-trocar="1">trocar a senha</button></p>'
+      : "") + "</div>" +
 
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Confira antes de sair</span>' +
     '<span class="contagem">' + (avisos.length ? '<span class="ag-acc">' + plural(avisos.length, "aviso") + "</span>" : "nada a apontar") + "</span></div>" +
@@ -1365,7 +1374,22 @@ function ligarPrevia() {
     l.onclick = () => compararComVersao(Number(l.dataset.pvVersao));
   });
 
-  ligar("pv-pdf", () => { window.location.href = "/api/documentos/" + p.id + "/pdf"; });
+  ligar("pv-pdf", async () => {
+    if (!escr.senhaPdf) { window.location.href = "/api/documentos/" + p.id + "/pdf"; return; }
+    // Com senha o arquivo vem por POST (senha nao mora em endereco), entao o
+    // download e feito aqui, a partir do que voltou.
+    const r = await fetch("/api/documentos/" + p.id + "/pdf", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senha: escr.senhaPdf }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    const bin = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(bin);
+    a.download = (escr.doc && escr.doc.titulo ? escr.doc.titulo : "documento") + ".pdf";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    avisoCert("PDF baixado com senha", { tom: "ok" });
+  });
   ligar("pv-docx", () => { window.location.href = "/api/documentos/" + p.id + "/docx"; });
   const assinar = async () => {
     const alvo = await guardarNaBiblioteca(p.id);
@@ -1374,7 +1398,7 @@ function ligarPrevia() {
   ligar("pv-assinar", assinar);
   ligar("pv-assinar-2", assinar);
   ligar("pv-email", async () => {
-    const alvo = await guardarNaBiblioteca(p.id);
+    const alvo = await guardarNaBiblioteca(p.id, escr.senhaPdf);
     if (!alvo) return;
     if (!mail.contas) {
       try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; }
@@ -1386,6 +1410,28 @@ function ligarPrevia() {
     mail.anexos = [{ path: alvo, nome: alvo.split(/[\\/]/).pop() }];
     desenharAnexos();
   });
+  const pedirSenhaPdf = async () => {
+    const senha = await perguntar({
+      titulo: "Senha do PDF",
+      contexto: "Documentos › " + (escr.doc ? escr.doc.titulo : "documento"),
+      texto: "Quem receber o arquivo vai precisar dela para abrir. Guarde: sem a senha nem " +
+        "você abre depois, e um PDF com senha não entra na busca do Acervo.",
+      campo: { rotulo: "Senha", tipo: "password", placeholder: "a senha que abre o PDF", obrigatorio: true },
+      confirmar: "Proteger",
+    });
+    if (!senha) return false;
+    escr.senhaPdf = senha;
+    desenharDocumentos();
+    avisoCert("o PDF vai sair protegido — a senha fica só nesta tela", { tom: "ok" });
+    return true;
+  };
+  const chaveSenha = raiz.querySelector("[data-pv-senha]");
+  if (chaveSenha) chaveSenha.onclick = async () => {
+    if (escr.senhaPdf) { escr.senhaPdf = ""; desenharDocumentos(); return; }
+    await pedirSenhaPdf();
+  };
+  const trocarSenha = raiz.querySelector("[data-pv-senha-trocar]");
+  if (trocarSenha) trocarSenha.onclick = pedirSenhaPdf;
   raiz.querySelectorAll("[data-pv-adiante]").forEach((b) => {
     b.onclick = () => avisoCert(b.dataset.pvAdiante + " ainda não tem motor nesta máquina — por enquanto, e-mail e PDF");
   });
@@ -1430,9 +1476,10 @@ async function compararComVersao(numero) {
   alvo.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function guardarNaBiblioteca(id) {
+async function guardarNaBiblioteca(id, senha) {
   const r = await fetch("/api/documentos/" + id + "/biblioteca", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(senha ? { senha: senha } : {}),
   });
   if (!r.ok) { avisoCert(await erroDe(r)); return ""; }
   const d = await r.json();
@@ -1569,13 +1616,49 @@ function painelDaPlanilha() {
     '<div class="docs-painel-cabeca">' + coroa(18) + '<span class="cresce">Pedir aqui</span><span>sobre a planilha</span></div>' +
     '<div class="docs-conversa" id="pl-fala">' + falasDoDocumento(conversaAtual()) + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que eu posso fazer</span></div><div class="docs-acoes-lista">' +
-    '<button class="adiante" data-pl-adiante="trazer o Financeiro para a planilha"><span>Importar os honorários do Financeiro</span>' + ic("chevron_right", 16) + "</button>" +
-    '<button class="adiante" data-pl-adiante="criar aba com os prazos do Acervo"><span>Criar aba com os prazos do Acervo</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-pl-trazer="financeiro"><span>Importar os honorários do Financeiro</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-pl-trazer="prazos"><span>Criar aba com os prazos do Acervo</span>' + ic("chevron_right", 16) + "</button>" +
     '<button data-pl-grafico="1"><span>Montar gráfico da seleção</span>' + ic("chevron_right", 16) + "</button></div></div>" +
     '<div class="docs-pedido"><div class="docs-pedido-linha"><input type="text" id="pl-pedido" placeholder="Descreva o cálculo em português…">' +
     '<button class="enviar" id="pl-pedir" aria-label="Enviar">' + ic("arrow_forward", 18) + "</button></div>" +
     "<small>A fórmula aparece na barra fx antes de ser aplicada.</small></div>" +
     "</div></aside>";
+}
+
+/* Traz para uma aba nova o que o programa ja tem: os honorarios lancados no
+   Financeiro ou os prazos lidos nos documentos do Acervo. Aba nova sempre -
+   escrever por cima do que a pessoa digitou nao se desfaz. */
+async function trazerParaPlanilha(de, botao) {
+  const p = escr.pl;
+  if (!p) return;
+  let mes = "";
+  if (de === "financeiro") {
+    const escolha = await dialogo({
+      titulo: "Trazer os honorários",
+      contexto: "Planilha › " + (escr.doc ? escr.doc.titulo : ""),
+      texto: "Entra uma aba nova com cliente, descrição, vencimento, valor e situação — " +
+        "mais a linha de total. A planilha fica como uma fotografia de hoje; o que está " +
+        "no Financeiro continua sendo o original.",
+      campo: { rotulo: "Mês", valor: "", placeholder: "AAAA-MM · vazio traz todos", dica: "deixe em branco para trazer tudo" },
+      confirmar: "Trazer",
+    });
+    if (!escolha || !escolha.ok) return;
+    mes = (escolha.valor || "").trim();
+    if (mes && !/^\d{4}-\d{2}$/.test(mes)) { avisoCert("o mês se escreve como 2026-09", { tom: "erro" }); return; }
+  }
+  if (botao) botao.disabled = true;
+  const r = await fetch("/api/planilha/" + p.id + "/trazer", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ de: de, mes: mes, categoria: "honorarios" }),
+  });
+  if (botao) botao.disabled = false;
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  escr.pl = d;
+  escr.aba = d.aba_nova;
+  escr.celula = "A1";
+  desenharDocumentos();
+  avisoCert(d.aviso, { tom: "ok" });
 }
 
 function gradePlanilha(aba, calc) {
@@ -1762,8 +1845,8 @@ function ligarPlanilha() {
   const fora = $("pl-filtro-fora");
   if (fora) fora.onclick = () => { escr.filtro = null; desenharPlanilha(); };
 
-  raiz.querySelectorAll("[data-pl-adiante]").forEach((b) => {
-    b.onclick = () => avisoCert(b.dataset.plAdiante + " ainda não tem motor — por enquanto, importe um CSV ou peça a fórmula");
+  raiz.querySelectorAll("[data-pl-trazer]").forEach((b) => {
+    b.onclick = () => trazerParaPlanilha(b.dataset.plTrazer, b);
   });
   raiz.querySelectorAll("[data-pl-grafico]").forEach((b) => { b.onclick = desenharGrafico; });
 

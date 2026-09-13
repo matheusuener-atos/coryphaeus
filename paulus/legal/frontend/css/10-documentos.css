@@ -203,6 +203,10 @@
   .docs-sinc.atencao i { background: var(--acc); }
   .conversa-topo .meta .salvando { color: var(--warnt); }
   .docs-toggles { padding: 4px 18px 12px; display: grid; gap: 10px; }
+  /* Com a senha ligada, a explicacao fica embaixo da chave: o que a pessoa
+     precisa saber e que sem a senha nem ela abre depois. */
+  .docs-nota-senha { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .docs-nota-senha .docs-ligacao { font-size: 12px; color: var(--acc); }
   .docs-aviso { display: flex; gap: 10px; align-items: flex-start; }
   .docs-aviso i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); margin-top: 6px; flex: none; }
   .docs-aviso.impede i { background: var(--acc); }
