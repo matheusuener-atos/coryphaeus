@@ -63,7 +63,7 @@ def checar(condicao: bool, descricao: str, detalhe: str = "") -> None:
 INICIAL = (
     "[pagina 1]\n"
     "EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA 3ª VARA CÍVEL DA COMARCA DE SÃO PAULO\n"
-    "Processo nº 1001234-55.2025.8.26.0100\n"
+    "Processo nº 1001234-20.2025.8.26.0100\n"
     "EMPRESA EXEMPLO LTDA., pessoa jurídica de direito privado, inscrita no CNPJ/MF sob o\n"
     "nº 31.984.284/0001-21, vem, por seu advogado, propor AÇÃO DE COBRANÇA em face de\n"
     "JOÃO DA SILVA, brasileiro, portador do CPF nº 111.444.777-35.\n\n"
@@ -94,7 +94,7 @@ INICIAL = (
 SENTENCA = (
     "[pagina 1]\n"
     "SENTENÇA\n"
-    "Processo nº 1001234-55.2025.8.26.0100\n"
+    "Processo nº 1001234-20.2025.8.26.0100\n"
     "Vistos.\n"
     "Trata-se de ação de cobrança ajuizada por EMPRESA EXEMPLO LTDA. em face de\n"
     "JOÃO DA SILVA.\n"
@@ -492,6 +492,77 @@ def test_roteador_separa_quem_alegou() -> None:
         bd.fechar()
 
 
+# ------------------------------------------------------------------ ligações
+
+# Um agravo: ele tem numero proprio, recorre de uma decisao de OUTRO processo
+# e foi distribuido por dependencia a um terceiro. Os tres numeros abaixo tem
+# digito verificador valido de verdade - com DV torto, o proprio extrator de
+# processo trataria o documento de outro jeito.
+AGRAVO = (
+    "[pagina 1]\n"
+    "AGRAVO DE INSTRUMENTO\n"
+    "Processo nº 2012345-90.2025.8.26.0000\n"
+    "Agravo de instrumento contra a decisão proferida em 12/05/2025 nos autos da ação de\n"
+    "cobrança nº 1001234-20.2025.8.26.0100, em trâmite na 3ª Vara Cível.\n"
+    "O feito foi distribuído por dependência aos autos nº 1009876-16.2024.8.26.0100.\n"
+    "Junte-se o termo aditivo ao contrato firmado em 12/03/2024.\n"
+    "Conforme o termo aditivo, o prazo mudou.\n"
+)
+
+
+def test_relacoes() -> None:
+    """
+    A que este documento se liga - e por que ele não se liga a si mesmo.
+
+    Esta é a coleção que a spec chama de base para o grafo. O erro que ela
+    não pode cometer é o mais bobo: o primeiro número de processo de uma peça
+    é o dela própria, e tratá-lo como referência daria um laço em cada nó.
+    """
+    print("\na que o documento se liga")
+    from inteligencia.extratores import regras_relacoes
+
+    itens = regras_relacoes.extrair(pedido_de(AGRAVO)).itens
+    tipos = [i.dados["kind"] for i in itens]
+    alvos = [i.dados["target"] for i in itens]
+
+    checar("2012345-90.2025.8.26.0000" not in alvos,
+           "o processo do próprio documento não é uma ligação", alvos)
+    checar(tipos == ["appeal_of", "depends_on", "amends"],
+           "recurso, dependência e aditivo, cada um com seu tipo", list(zip(tipos, alvos)))
+    checar(alvos[0] == "1001234-20.2025.8.26.0100",
+           "o agravo aponta para os autos de onde veio a decisão", alvos)
+    checar(tipos[0] == "appeal_of",
+           "e 'agravo contra' vence 'nos autos de', que está mais perto do número - "
+           "uma diz o que é a ligação, a outra só diz onde")
+    checar(itens[2].dados["target_kind"] == "document",
+           "o aditivo aponta para um documento descrito, não para um número",
+           itens[2].dados)
+    checar(not any("Conforme o termo aditivo, o prazo mudou" == i.dados["text"]
+                   for i in itens),
+           "e 'conforme o termo aditivo' sem dizer qual não é ligação nenhuma",
+           [i.dados["text"][:40] for i in itens])
+    checar(ancorados(itens, AGRAVO), "cada ligação aponta para o texto")
+
+    checar(regras_relacoes.extrair(pedido_de(INICIAL)).itens == [],
+           "uma inicial que só cita o próprio processo não se liga a nada")
+
+    docs = index_all_contracts(ACERVO, CACHE, verbose=False)
+    total = sum(len(regras_relacoes.extrair(Pedido(texto=d.text)).itens) for d in docs)
+    checar(total == 0, f"e no acervo real, sem peça de processo, nenhuma ligação ({total})")
+
+
+def test_roteador_lista_ligacoes() -> None:
+    print("\no roteador diz a que o documento se liga")
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, meta = biblioteca_com(AGRAVO, Path(tmp), paginas=1, sha1="sha-agravo")
+        pacote = decidir(meta, "há processos relacionados?")
+        checar(not pacote.fallback and len(pacote.fatos) == 3,
+               "'há processos relacionados?' responde do que já foi lido", pacote.trace)
+        checar(pacote.fatos[0].valor.startswith("1001234-20"),
+               "e a resposta começa pelo outro lado da ligação", pacote.fatos[0].valor[:60])
+        bd.fechar()
+
+
 # ----------------------------------------------------------------- roteador
 
 
@@ -622,6 +693,8 @@ def main() -> int:
     test_roteador_diz_o_que_e_pedido()
     test_teses()
     test_roteador_separa_quem_alegou()
+    test_relacoes()
+    test_roteador_lista_ligacoes()
 
     print("\n" + "=" * 55)
     if _falhas:

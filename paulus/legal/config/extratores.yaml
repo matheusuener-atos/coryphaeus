@@ -90,6 +90,10 @@ extratores:
     secao: claims
     nivel: 0
     modulo: regras_teses
+  relationship-rules/v1:
+    secao: relationships
+    nivel: 0
+    modulo: regras_relacoes
 
   # -------------------------------------------------------------- nivel 1
   # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario

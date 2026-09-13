@@ -118,6 +118,8 @@ PERGUNTAS = [
     ("o que o reu alega?", "", "escala", ""),
     ("o que o autor alega?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
      "escala", ""),
+    ("ha processos relacionados?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+     "escala", ""),
 ]
 
 

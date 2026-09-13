@@ -139,6 +139,12 @@ ENUMERACOES: list[tuple[str, str, str]] = [
      r"|que (documentos|provas|anexos) (foram )?(juntad|anexad|apresentad|produzid)"
      r"|o que (foi|esta) (juntad|anexad|acostad)|documentos (juntad|anexad|em anexo)"
      r"|lista de documentos|o que (foi )?apresentad)"),
+    ("relationships", "",
+     r"\b((quais|que|ha|existe|tem) (os |as )?(outros |algum )?processos? (relacionad|conex|"
+     r"apensad|vinculad|em apenso)"
+     r"|a que (processo|documento|contrato) (este|esse|ele)"
+     r"|(este|esse) (documento|processo) (esta|e) (apensad|vinculad|relacionad)"
+     r"|documentos? (relacionad|vinculad)|esta apensado)"),
     ("decisions", "",
      r"\b(qual (foi )?(a|o) (decisao|sentenca|dispositivo|resultado|desfecho)"
      r"|o que (o juiz|a juiza|o tribunal|a corte|o relator|a decisao|a sentenca)"
@@ -368,6 +374,9 @@ ROTULOS = {
     "testimony": "depoimento",
     "plaintiff": "autor", "defendant": "réu", "court": "juízo",
     "prosecutor": "Ministério Público", "third_party": "terceiro",
+    "references_case": "cita o processo", "depends_on": "por dependência",
+    "attached_to": "em apenso", "related_to": "conexo", "appeal_of": "recurso de",
+    "amends": "aditivo", "terminates": "encerra", "substitutes": "substitui",
 }
 
 # Como cada secao se chama na frase que vai para o modelo. O JSON fala ingles
@@ -377,6 +386,7 @@ SECOES_BR = {
     "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
     "classification": "tipo", "requests": "pedido", "decisions": "decisão",
     "events": "aconteceu", "evidence": "prova", "claims": "alegação",
+    "relationships": "ligação",
 }
 
 # O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
@@ -388,6 +398,7 @@ CABECALHOS = {
     "events": "O QUE O DOCUMENTO REGISTRA, EM ORDEM DE DATA",
     "evidence": "O QUE O DOCUMENTO JUNTA OU CHAMA DE PROVA",
     "claims": "O QUE O DOCUMENTO DIZ QUE CADA UM ALEGA",
+    "relationships": "A QUE OUTROS AUTOS E DOCUMENTOS ESTE SE LIGA",
 }
 
 # Quantos fatos entram numa resposta de nivel 0. Mais que isso deixa de ser
@@ -771,6 +782,10 @@ def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
         valor = str(item.dados.get("value_text") or valor)
     elif secao == "dates":
         valor = str(item.dados.get("date") or valor)
+    elif secao == "relationships":
+        # Numa ligacao, o que se procura e o outro lado dela: o numero do
+        # processo vem na frente, e a frase vai atras para dizer de onde saiu.
+        valor = f"{item.dados.get('target', '')} - {valor}".strip(" -")
     elif secao == "events":
         # Numa linha do tempo a data nao e um rotulo da frase: e a metade
         # esquerda dela. Sem a data na frente, a lista deixa de ser cronologia.
