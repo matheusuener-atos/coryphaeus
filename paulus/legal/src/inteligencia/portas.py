@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from . import esquema
+from . import alinhar, esquema
 from .catalogo import Catalogo, Extrator
 from .esquema import Metadata, Secao
 from .extratores.base import Pedido
@@ -126,9 +126,17 @@ def _rodar(extrator: Extrator, catalogo: Catalogo, meta: Metadata, biblioteca,
         ficha.duration_ms = int((time.time() - comeco) * 1000)
         return ficha, [], None
 
+    # O que o extrator afirmou sem ancorar no texto passa pela conferencia
+    # antes de virar qualquer coisa. Extrator de regra ja entrega o item preso
+    # a uma posicao do documento - a citacao E o texto daquela posicao -, entao
+    # ele nao paga por isso; o que vem de modelo, sim, sempre.
+    soltos = [i for i in resultado.itens if not i.source.resolvivel]
+    if soltos:
+        alinhar.verificar_todos(soltos, texto, meta.version_id, pedido.paginas)
+
     ficha.status = resultado.status
     ficha.item_count = len(resultado.itens) if resultado.itens else (1 if resultado.objeto else 0)
-    ficha.unverified_count = resultado.nao_verificados
+    ficha.unverified_count = len([i for i in resultado.itens if not i.verified])
     ficha.duration_ms = int((time.time() - comeco) * 1000)
     if resultado.modelo:
         ficha.model = resultado.modelo
