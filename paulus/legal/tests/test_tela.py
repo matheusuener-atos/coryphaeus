@@ -397,6 +397,75 @@ def main() -> int:
                 "o destino antigo Relatorios abre o Financeiro em Relatorios",
             )
 
+            print("\nconferir o extrato do banco com os lancamentos (A9)")
+            # O arquivo do banco vira uma lista de propostas: cada linha com o
+            # lancamento que parece ser ela. Nada e gravado antes do sim.
+            criado = pagina.evaluate("""async () => {
+              const r = await fetch('/api/financeiro/lancamentos', {method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: null, dados: {tipo: 'recebimento', descricao: 'Teste — extrato de tela',
+                  centavos: '1.234,56', categoria: 'honorarios', cadastro_id: null,
+                  vencimento: '2026-09-10', liquidado_em: '', observacao: ''}})});
+              return r.ok ? await r.json() : {erro: r.status};
+            }""")
+            id_lancamento = criado.get("id")
+            checar(bool(id_lancamento), "lancamento de teste criado para conferir", criado)
+            try:
+                lido = pagina.evaluate("""async () => {
+                  const ofx = ['OFXHEADER:100', '<OFX><BANKTRANLIST>', '<STMTTRN>', '<TRNTYPE>CREDIT',
+                    '<DTPOSTED>20260910', '<TRNAMT>1234.56', '<FITID>teste-1',
+                    '<MEMO>PIX RECEBIDO TESTE EXTRATO', '</STMTTRN>', '<STMTTRN>', '<TRNTYPE>DEBIT',
+                    '<DTPOSTED>20260911', '<TRNAMT>-77.00', '<FITID>teste-2',
+                    '<MEMO>TARIFA DE TESTE</MEMO>', '</STMTTRN>', '</BANKTRANLIST></OFX>'].join('\\n');
+                  const fd = new FormData();
+                  fd.append('arquivo', new Blob([ofx], {type: 'text/plain'}), 'extrato-teste.ofx');
+                  const r = await fetch('/api/financeiro/banco', {method: 'POST', body: fd});
+                  return r.ok ? await r.json() : {erro: r.status, detalhe: await r.text()};
+                }""")
+                checar(lido.get("resumo", {}).get("movimentos") == 2, "o extrato do banco e lido pela rota da tela", lido)
+                achou = [p for p in lido.get("pares", []) if p.get("lancamento_id") == id_lancamento]
+                checar(len(achou) == 1 and "valor igual" in achou[0]["porque"],
+                       "e o lancamento de teste aparece como par, com o motivo", achou)
+                checar(
+                    pagina.evaluate("async () => { const d = await (await fetch('/api/financeiro/lancamentos?mes=2026-09')).json();"
+                                    f" const l = (d.lancamentos || []).find((x) => x.id === {id_lancamento});"
+                                    " return l && !l.liquidado_em; }"),
+                    "ler o extrato nao da baixa em nada sozinho",
+                )
+                pagina.evaluate("(d) => { fin.visao = 'lancamentos'; fin.extrato = d;"
+                                " fin.baixas = new Set(d.pares.map((p, i) => (p.lancamento_id ? i : -1)).filter((i) => i >= 0));"
+                                " fin.novos = new Set(); desenharFinanceiro(); }", lido)
+                pagina.wait_for_timeout(800)
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('#financeiro .fin-conc').length === 2 && document.querySelectorAll('#financeiro .fin-conc.marcada').length === 1"),
+                    "o painel mostra as duas linhas, com so a que tem par marcada",
+                )
+                checar(
+                    pagina.evaluate("() => document.querySelector('[data-fin-conc-aplicar]').textContent.includes('1 linha')"),
+                    "e o botao diz quantas linhas serao conferidas",
+                )
+                aplicou = pagina.evaluate(f"""async () => {{
+                  const r = await fetch('/api/financeiro/banco/aplicar', {{method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{baixas: [{{lancamento_id: {id_lancamento}, data: '2026-09-10'}}], novos: []}})}});
+                  return r.ok ? await r.json() : {{erro: r.status}};
+                }}""")
+                checar(aplicou.get("baixados") == 1, "confirmar da a baixa no lancamento certo", aplicou)
+                checar(
+                    pagina.evaluate("async () => { const d = await (await fetch('/api/financeiro/lancamentos?mes=2026-09')).json();"
+                                    f" const l = (d.lancamentos || []).find((x) => x.id === {id_lancamento});"
+                                    " return l && l.liquidado_em === '2026-09-10'; }"),
+                    "e a data da baixa e a do banco, nao a de hoje",
+                )
+            finally:
+                if id_lancamento:
+                    pagina.evaluate(f"""async () => {{
+                      const r = await (await fetch('/api/financeiro/lancamentos/{id_lancamento}', {{method: 'DELETE'}})).json();
+                      if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{method: 'DELETE'}});
+                    }}""")
+                    pagina.evaluate("() => { fin.extrato = null; fin.baixas = new Set(); fin.novos = new Set(); }")
+                    pagina.wait_for_timeout(400)
+
             print("\nos Cadastros: clientes, equipe e despesas fixas")
             # Tres tabelas com a ficha editavel no painel
             # (docs/ui/03-telas-desktop.md, A10).

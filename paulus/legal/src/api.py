@@ -49,6 +49,7 @@ import bemestar
 import conexoes
 import documento
 import financeiro
+import extrato
 import acervo
 import citacao
 import escritorio
@@ -4910,6 +4911,95 @@ def financeiro_listar(tipo: str = "", mes: str = "", situacao: str = "") -> dict
 @app.get("/api/financeiro/extrato")
 def financeiro_extrato(mes: str = "") -> dict:
     return estado.financeiro.extrato(mes)
+
+
+# --------------------------------------------------- o extrato do banco
+
+MAX_EXTRATO_BYTES = 8 * 1024 * 1024
+
+
+@app.post("/api/financeiro/banco")
+async def financeiro_banco(arquivo: UploadFile = File(...)) -> dict:
+    """
+    Le o extrato do banco e diz o que parece ser o que - sem gravar nada.
+
+    Conciliar propoe; quem da baixa e a pessoa, na tela, marcando. Dar baixa
+    sozinho por causa de um valor igual seria escrever no livro-caixa de
+    alguem por palpite, e valor igual acontece toda semana num escritorio que
+    cobra honorario fixo.
+    """
+    nome = Path(arquivo.filename or "").name
+    dados = await arquivo.read(MAX_EXTRATO_BYTES + 1)
+    if len(dados) > MAX_EXTRATO_BYTES:
+        raise HTTPException(status_code=413, detail="esse arquivo passa de 8 MB")
+
+    try:
+        movimentos = extrato.ler(dados, nome)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    lancamentos: list[dict] = []
+    for mes in extrato.meses_do_extrato(movimentos):
+        lancamentos += estado.financeiro.listar(mes=mes)
+    vistos, unicos = set(), []
+    for l in lancamentos:
+        if l["id"] not in vistos:
+            vistos.add(l["id"])
+            unicos.append(l)
+
+    pares = extrato.conciliar(movimentos, unicos)
+    return {"arquivo": nome, "pares": [p.to_dict() for p in pares],
+            "resumo": extrato.resumo(pares),
+            "categorias": [{"valor": k, "rotulo": v} for k, v in financeiro.CATEGORIAS.items()]}
+
+
+class ConciliarEscolha(BaseModel):
+    # Os pares que a pessoa marcou: lancamento que recebe a baixa e a data do
+    # banco. Movimento sem lancamento pode virar lancamento novo.
+    baixas: list[dict] = []
+    novos: list[dict] = []
+
+
+@app.post("/api/financeiro/banco/aplicar")
+def financeiro_banco_aplicar(payload: ConciliarEscolha) -> dict:
+    """Da baixa no que foi marcado e lanca o que a pessoa mandou lancar."""
+    baixados, criados, erros = 0, 0, []
+
+    for item in payload.baixas:
+        id_ = int(item.get("lancamento_id") or 0)
+        quando = str(item.get("data") or "")[:10]
+        if not id_:
+            continue
+        if estado.financeiro.liquidar(id_, quando):
+            baixados += 1
+        else:
+            erros.append(f"lançamento {id_} não estava aberto")
+
+    for item in payload.novos:
+        dados = {
+            "tipo": "recebimento" if int(item.get("centavos", 0)) >= 0 else "despesa",
+            "descricao": str(item.get("descricao", ""))[:160] or "Do extrato do banco",
+            "centavos": abs(int(item.get("centavos", 0))),
+            "categoria": str(item.get("categoria") or "outros"),
+            "cadastro_id": item.get("cadastro_id"),
+            "vencimento": str(item.get("data") or "")[:10],
+            "liquidado_em": str(item.get("data") or "")[:10],
+            "observacao": "Lançado a partir do extrato do banco.",
+        }
+        try:
+            estado.financeiro.salvar(dados)
+            criados += 1
+        except ValueError as exc:
+            erros.append(str(exc))
+
+    partes = []
+    if baixados:
+        partes.append(_quantos(baixados, "baixa"))
+    if criados:
+        partes.append(_quantos(criados, "lançamento") + " novo" + ("s" if criados > 1 else ""))
+    aviso = " e ".join(partes) + " a partir do extrato" if partes else "nada foi marcado"
+    return {"baixados": baixados, "criados": criados, "erros": erros, "aviso": aviso,
+            **estado.financeiro.para_tela()}
 
 
 @app.post("/api/financeiro/lancamentos")

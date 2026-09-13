@@ -220,3 +220,27 @@
   .rel-acao .duas-linhas small { white-space: normal; }
   .rel-vazio { margin: 0; padding: 16px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
 
+
+  /* ------------------------ conferir com o banco (A9, extrato importado) */
+
+  /* Cada linha do extrato com o lancamento que parece ser ela. A caixa de
+     marcar e o que decide: o programa propoe, a pessoa confere. */
+  .fin-conc-lista { display: grid; padding: 4px 16px; }
+  .fin-conc {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; cursor: pointer;
+  }
+  .fin-conc:last-child { border-bottom: none; }
+  .fin-conc input { margin-top: 3px; flex: none; }
+  .fin-conc .duas-linhas { flex: 1; min-width: 0; }
+  .fin-conc .duas-linhas b { font-weight: 500; white-space: normal; }
+  .fin-conc .duas-linhas small { white-space: normal; color: var(--ink2); }
+  .fin-conc-porque { color: var(--ink3); }
+  .fin-conc.sozinha .duas-linhas b { color: var(--ink2); }
+  .fin-conc.marcada .duas-linhas b { color: var(--ink); font-weight: 600; }
+  .fin-conc-valor { display: grid; justify-items: end; gap: 2px; white-space: nowrap; }
+  .fin-conc-valor b { font: 600 13.5px var(--sans); font-variant-numeric: tabular-nums; }
+  .fin-conc-valor b.entra { color: var(--okt); }
+  .fin-conc-valor b.sai { color: var(--acc); }
+  .fin-conc-valor small { font: 500 11.5px var(--sans); color: var(--ink3); }
+  .fin-conc-nota { margin: 0; padding: 8px 16px 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }

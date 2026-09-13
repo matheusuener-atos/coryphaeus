@@ -20,6 +20,10 @@ const fin = {
   filtro: "todos", categoria: "", aberto: null, form: null, papel: null,
   folhaAberta: false, pedidos: [], rel: null, relAba: "financeiro",
   parecer: null, parecerErro: "", pedindo: false, numerosAbertos: false, escolhidos: new Set(),
+  // O extrato lido do banco e o que a pessoa marcou nele. Vive so na tela: o
+  // arquivo do banco nao fica guardado, e a conferencia so vira dado depois
+  // do sim, como lancamento liquidado.
+  extrato: null, baixas: new Set(), novos: new Set(),
 };
 
 const FIN_JSON = { "Content-Type": "application/json" };
@@ -90,7 +94,7 @@ function cabecalhoFinanceiro() {
     const fecha = (fin.dados.fechamento || {}).dias_para_fechar;
     titulo.textContent = "Financeiro";
     meta.innerHTML = esc(mesRotulo) + (fecha ? " · fechamento em " + plural(fecha, "dia") : " · mês encerrado") +
-      '<span class="fin-meta-ponto" title="Conciliação bancária ainda não existe: sem extrato importado, não há o que conferir"><i></i>conciliação bancária em breve</span>';
+      '<span class="fin-meta-ponto" title="Importe o extrato em OFX ou CSV para conferir com o banco"><i></i>conferência com o banco pelo extrato</span>';
   }
   const botao = (v, r) => {
     const classe = v === fin.visao ? "ativa" : "";
@@ -300,7 +304,7 @@ function painelDaVisaoGeral() {
   html += '<div class="painel-chaves">' +
     '<div class="chave-valor"><span>Fechamento</span><b' + (faltas.length ? ' class="acc" title="' + esc(faltas.map((x) => x.titulo).join("; ")) + '"' : "") + ">" +
     esc(fechaValor + (faltas.length ? " · " + plural(faltas.length, "pendência") : "")) + "</b></div>" +
-    '<div class="chave-valor"><span>Conciliação bancária</span><b class="mute">em breve</b></div>' +
+    '<div class="chave-valor"><span>Conferência com o banco</span><b>pelo extrato · OFX ou CSV</b></div>' +
     '<div class="chave-valor"><span>Permissão</span><b>só você · esta máquina</b></div></div>';
   return html + "</div></aside>";
 }
@@ -524,6 +528,7 @@ function statusDoLancamento(l) {
 }
 
 function painelDosLancamentos() {
+  if (fin.extrato) return painelDoExtrato();
   if (fin.form) return painelDoFormulario();
   if (fin.aberto) return painelDoLancamento(fin.aberto);
   return '<aside class="acervo-painel fin-painel"><div class="rolagem"><div class="painel-vazio"><h3>Nenhum lançamento aberto</h3>' +
@@ -833,7 +838,21 @@ function ligarFinanceiro() {
   if (seletor) seletor.onchange = () => { fin.mes = seletor.value; fin.aberto = null; fin.form = null; mostrarFinanceiro(); };
   clique("[data-fin-novo]", () => novoLancamento());
   clique("[data-fin-exportar]", () => { window.location.href = "/api/financeiro/exportar?mes=" + encodeURIComponent(fin.mes); });
-  clique("[data-fin-importar]", () => avisoCert("Importar extrato do banco ainda não existe — cada banco exporta num formato próprio; por enquanto lance à mão ou peça ao Assistente"));
+  clique("[data-fin-importar]", escolherExtrato);
+  clique("[data-fin-conc-aplicar]", aplicarConciliacao);
+  clique("[data-fin-conc-sair]", () => {
+    fin.extrato = null; fin.baixas = new Set(); fin.novos = new Set(); desenharFinanceiro();
+  });
+  cada("[data-fin-conc]", (caixa) => {
+    caixa.onclick = (ev) => {
+      ev.stopPropagation();
+      const i = Number(caixa.dataset.finConc);
+      const par = (fin.extrato.pares || [])[i] || {};
+      const conjunto = par.lancamento_id ? fin.baixas : fin.novos;
+      if (caixa.checked) conjunto.add(i); else conjunto.delete(i);
+      desenharFinanceiro();
+    };
+  });
   clique("[data-fin-pdf]", baixarRelatorio);
   clique("[data-fin-enviar]", enviarRelatorioPorEmail);
   clique("[data-fin-parecer]", pedirParecer);
@@ -1149,3 +1168,108 @@ function quandoDoRelatorio() {
   return ultimoDiaDoMes(fin.mes);
 }
 
+/* ------------------------------------------- o extrato do banco (A9) */
+
+/* O arquivo do banco vira uma lista de propostas: cada linha do extrato com o
+   lancamento que parece ser ela. Nada e gravado ate a pessoa marcar e
+   confirmar - dar baixa por conta propria num livro-caixa alheio, por causa
+   de um valor igual, seria palpite com a cara de conferencia. */
+function escolherExtrato() {
+  const campo = document.createElement("input");
+  campo.type = "file";
+  campo.accept = ".ofx,.csv,.txt";
+  campo.onchange = () => {
+    const arquivo = campo.files && campo.files[0];
+    if (arquivo) lerExtrato(arquivo);
+  };
+  campo.click();
+}
+
+async function lerExtrato(arquivo) {
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo, arquivo.name);
+  avisoCert("lendo o extrato…");
+  const r = await fetch("/api/financeiro/banco", { method: "POST", body: corpo });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  fin.extrato = d;
+  // Os pares que o programa achou ja vem marcados; os sem par, nao - lancar
+  // de novo o que ja esta lancado e o erro caro aqui.
+  fin.baixas = new Set(d.pares.map((p, i) => (p.lancamento_id ? i : -1)).filter((i) => i >= 0));
+  fin.novos = new Set();
+  fin.aberto = null;
+  fin.form = null;
+  fin.visao = "lancamentos";
+  desenharFinanceiro();
+  avisoCert(d.resumo.conciliados + " de " + plural(d.resumo.movimentos, "linha") + " com lançamento correspondente", { tom: "ok" });
+}
+
+function painelDoExtrato() {
+  const e = fin.extrato;
+  const r = e.resumo || {};
+  const linhas = (e.pares || []).map((p, i) => {
+    const m = p.movimento;
+    const entrada = m.centavos >= 0;
+    const marcada = p.lancamento_id ? fin.baixas.has(i) : fin.novos.has(i);
+    const classe = "fin-conc" + (marcada ? " marcada" : "") + (p.lancamento_id ? "" : " sozinha");
+    const alvo = p.lancamento
+      ? "<small>dá baixa em “" + esc(p.lancamento.descricao) + "”" +
+        (p.lancamento.cliente ? " · " + esc(p.lancamento.cliente) : "") +
+        (p.lancamento.vencimento ? " · vence " + dataCurta(p.lancamento.vencimento) : "") + "</small>" +
+        '<small class="fin-conc-porque">' + esc(p.porque) + "</small>"
+      : '<small class="fin-conc-porque">sem lançamento correspondente · marcar lança este valor como novo</small>';
+    return '<label class="' + classe + '"><input type="checkbox" data-fin-conc="' + i + '"' + (marcada ? " checked" : "") + ">" +
+      '<span class="duas-linhas"><b>' + esc(m.descricao) + "</b>" + alvo + "</span>" +
+      '<span class="fin-conc-valor"><b class="' + (entrada ? "entra" : "sai") + '">' + esc(emReais(m.centavos)) + "</b>" +
+      "<small>" + dataCurta(m.data) + "</small></span></label>";
+  }).join("");
+
+  const quantas = fin.baixas.size + fin.novos.size;
+  return '<aside class="acervo-painel fin-painel"><div class="rolagem">' +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Conferir com o banco</h3>' +
+    '<span class="meta">' + esc(e.arquivo || "extrato") + " · " + plural(r.movimentos || 0, "linha") +
+    (r.de ? " · " + dataCurta(r.de) + " a " + dataCurta(r.ate) : "") + "</span></span></div>" +
+    '<div class="painel-chaves"><div class="chave-valor"><span>Entrou</span><b>' + esc(emReais(r.entradas || 0)) + "</b></div>" +
+    '<div class="chave-valor"><span>Saiu</span><b>' + esc(emReais(-(r.saidas || 0))) + "</b></div>" +
+    '<div class="chave-valor"><span>Com lançamento</span><b>' + (r.conciliados || 0) + " de " + (r.movimentos || 0) + "</b></div></div>" +
+    '<div class="fin-conc-lista">' + linhas + "</div>" +
+    '<p class="fin-conc-nota">Nada é gravado até você confirmar. O que está marcado com lançamento recebe a baixa na data do banco; ' +
+    "o que está marcado sem lançamento entra como lançamento novo, já pago, na categoria Outros.</p>" +
+    '<div class="fin-botoes"><button class="primario" data-fin-conc-aplicar="1"' + (quantas ? "" : " disabled") + ">" +
+    ic("check", 16) + "Conferir " + plural(quantas, "linha") + "</button>" +
+    '<button data-fin-conc-sair="1">Descartar</button></div></div></aside>';
+}
+
+async function aplicarConciliacao() {
+  const e = fin.extrato;
+  const baixas = [];
+  const novos = [];
+  (e.pares || []).forEach((p, i) => {
+    const m = p.movimento;
+    if (p.lancamento_id && fin.baixas.has(i)) baixas.push({ lancamento_id: p.lancamento_id, data: m.data });
+    else if (!p.lancamento_id && fin.novos.has(i)) {
+      novos.push({ descricao: m.descricao, centavos: m.centavos, data: m.data, categoria: "outros" });
+    }
+  });
+  if (!baixas.length && !novos.length) { avisoCert("marque o que deve ser conferido"); return; }
+  if (!(await confirmar({
+    titulo: "Conferir com o banco?",
+    contexto: "Financeiro › " + (e.arquivo || "extrato"),
+    texto: plural(baixas.length, "lançamento") + " recebe baixa na data do banco" +
+      (novos.length ? " e " + plural(novos.length, "linha") + " entra como lançamento novo" : "") +
+      ". Dá para desfazer lançamento por lançamento depois, em Lançamentos.",
+    confirmar: "Conferir",
+  }))) return;
+
+  const r = await fetch("/api/financeiro/banco/aplicar", {
+    method: "POST", headers: FIN_JSON, body: JSON.stringify({ baixas: baixas, novos: novos }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  fin.extrato = null;
+  fin.baixas = new Set();
+  fin.novos = new Set();
+  await carregarFinanceiro();
+  avisoCert(d.aviso, { tom: "ok" });
+  if ((d.erros || []).length) avisoCert(d.erros[0], { tom: "erro" });
+}
