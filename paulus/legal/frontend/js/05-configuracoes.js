@@ -106,7 +106,9 @@ async function carregarSecao() {
     ]);
     cfg.cx = cx; cfg.contas = contas; cfg.cert = cert; cfg.acoes = (acoes && acoes.acoes) || [];
   } else if (cfg.secao === "aprendizado") {
-    cfg.hab = await pega("/api/habilidades");
+    const [hab, ctx] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos")]);
+    cfg.hab = hab;
+    cfg.ctx = ctx;
   } else if (cfg.secao === "plano") {
     const acoes = await pega("/api/relatorios/acoes?limite=60");
     cfg.acoes = (acoes && acoes.acoes) || [];
@@ -249,6 +251,14 @@ function secaoPerfil() {
 
   return '<div class="cfg-grade">' + cartaoCfg("Meus dados", metaCfg("usados nos documentos e no selo"), meus) +
     cartaoCfg("Escritório", metaCfg("timbre, selo e documentos"), escritorio) + "</div>";
+}
+
+/* A lista de lembretes de novo do servidor: apagar e restaurar mexem nela. */
+async function recarregarLembretes() {
+  try {
+    cfg.ctx = await (await fetch("/api/contextos")).json();
+  } catch (err) { /* sem lista, a secao fica com a que tinha */ }
+  if (cfg.secao === "aprendizado") desenharConfig();
 }
 
 /* A foto e a logo desta maquina, do jeito que /api/preferencias devolve. */
@@ -684,13 +694,32 @@ function secaoVinculos() {
 /* ---------------------------------------------------------- aprendizado */
 
 function secaoAprendizado() {
+  const ctx = cfg.ctx || { contextos: [], gavetas: [], caracteres: 0, limite: 2400, de_fora: 0 };
+  const gavetas = ctx.gavetas && ctx.gavetas.length ? ctx.gavetas : ["Regras de redação", "Modelos", "Clientes", "Correções"];
+  const emEdicao = cfg.ensinando || {};
+  const opcoes = gavetas.map((g) => '<option' + (g === (emEdicao.gaveta || gavetas[0]) ? " selected" : "") + ">" + esc(g) + "</option>").join("");
+
+  const guardados = (ctx.contextos || []).map((x) =>
+    '<div class="cfg-servico cfg-lembrete' + (x.entra ? "" : " de-fora") + '"><span class="cfg-servico-ic">' + ic("lightbulb", 18) + "</span>" +
+    '<div class="duas-linhas"><b>' + esc(x.titulo) + "</b><small>" + esc(x.texto) + "</small></div>" +
+    '<small class="cfg-lixo-quando">' + esc(x.gaveta) + (x.entra ? "" : " · fora do limite") + "</small>" +
+    '<button data-cfg-ensinar-editar="' + x.id + '">' + ic("edit", 16) + "Alterar</button>" +
+    '<button data-cfg-ensinar-tirar="' + x.id + '">' + ic("delete", 16) + "Apagar</button></div>").join("");
+
   const ensinar = '<div class="cfg-solta"><span>Arraste PDFs, DOCX ou imagens aqui</span><small>eu leio, resumo em contextos curtos e mostro antes de guardar · em breve</small>' +
     '<div class="cfg-botoes"><button class="primario adiante" data-cfg-adiante="Ensinar com arquivos ainda não existe — o que está no Acervo já é lido nas perguntas">' + ic("folder_open", 16) + "Escolher no computador</button></div></div>" +
     '<div class="cfg-sub"><b>Ensinar com suas palavras</b><div class="cfg-campos">' +
-    '<div class="ag-campo"><label>Título</label><input type="text" data-cfg-ensinar="titulo" placeholder="Prazo padrão de aviso"></div>' +
-    '<div class="ag-campo"><label>O que eu devo saber</label><textarea data-cfg-ensinar="texto" placeholder="Nos contratos do escritório o aviso de não renovação é sempre de…"></textarea></div>' +
-    '<div class="ag-duas"><div class="ag-campo"><label>Guardar em</label><select data-cfg-ensinar="onde"><option>Regras de redação</option><option>Modelos</option><option>Clientes</option><option>Correções</option></select></div>' +
-    '<div class="ag-campo"><label>&nbsp;</label><div class="cfg-botoes"><button class="primario adiante" data-cfg-adiante="Guardar contextos ainda não existe — por enquanto, o que o assistente sabe está no Acervo e nas habilidades ao lado">' + ic("check", 16) + "Guardar</button></div></div></div></div></div>";
+    '<div class="ag-campo"><label>Título</label><input type="text" id="cfg-ensinar-titulo" data-cfg-ensinar="titulo" maxlength="80" value="' + esc(emEdicao.titulo || "") + '" placeholder="Prazo padrão de aviso"></div>' +
+    '<div class="ag-campo"><label>O que eu devo saber</label><textarea id="cfg-ensinar-texto" data-cfg-ensinar="texto" maxlength="600" placeholder="Nos contratos do escritório o aviso de não renovação é sempre de…">' + esc(emEdicao.texto || "") + "</textarea></div>" +
+    '<div class="ag-duas"><div class="ag-campo"><label>Guardar em</label><select id="cfg-ensinar-gaveta" data-cfg-ensinar="gaveta">' + opcoes + "</select></div>" +
+    '<div class="ag-campo"><label>&nbsp;</label><div class="cfg-botoes"><button class="primario" data-cfg-ensinar-guardar="1">' + ic("check", 16) + (emEdicao.id ? "Guardar a alteração" : "Guardar") + "</button>" +
+    (emEdicao.id ? '<button data-cfg-ensinar-cancelar="1">Cancelar</button>' : "") + "</div></div></div></div>" +
+    (guardados ? '<div class="cfg-linhas">' + guardados + "</div>" : "") +
+    '<p class="cfg-explica">' + (ctx.contextos || []).length +
+    (((ctx.contextos || []).length === 1) ? " lembrete entra" : " lembretes entram") + " em toda pergunta da conversa, junto com os trechos dos documentos · " +
+    ctx.caracteres + " de " + ctx.limite + " caracteres em uso" +
+    (ctx.de_fora ? " · " + plural(ctx.de_fora, "lembrete") + " não cabe no limite e fica de fora" : "") +
+    ". As regras de redação vão junto quando eu escrevo no editor.</p></div>";
 
   const d = cfg.hab || { grupos: [], contagem: {} };
   const grupos = d.grupos || [];
@@ -715,7 +744,9 @@ function secaoAprendizado() {
     : '<p class="cfg-texto">Não consegui ler o catálogo de habilidades.</p>') +
     '<p class="cfg-explica">Cada habilidade é uma coisa que o programa faz por inteiro. As que ainda não existem estão marcadas — prefiro dizer do que prometer.</p>';
 
-  return '<div class="cfg-grade">' + cartaoCfg("Aprendizado", metaCfg("ensinar o PAULUS com arquivos e regras · em breve"), ensinar) +
+  const quantos = (ctx.contextos || []).length;
+  return '<div class="cfg-grade">' + cartaoCfg("Aprendizado",
+    metaCfg(quantos ? plural(quantos, "lembrete") + " · arquivos em breve" : "ensinar com suas palavras · arquivos em breve"), ensinar) +
     cartaoCfg("O que eu sei fazer", metaCfg((c.prontas || 0) + " prontas · " + (c.em_breve || 0) + " em breve"), sei) + "</div>";
 }
 
@@ -912,6 +943,42 @@ function ligarConfig() {
   clique("[data-cfg-salvar]", salvarConfig);
   clique("[data-cfg-descartar]", () => { cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual); cfg.sujo = false; desenharConfig(); });
   clique("[data-cfg-adiante]", (b) => avisoCert(b.dataset.cfgAdiante));
+  clique("[data-cfg-ensinar-guardar]", async (b) => {
+    const dados = {
+      id: (cfg.ensinando || {}).id || null,
+      titulo: $("cfg-ensinar-titulo").value,
+      texto: $("cfg-ensinar-texto").value,
+      gaveta: $("cfg-ensinar-gaveta").value,
+    };
+    b.disabled = true;
+    const r = await fetch("/api/contextos", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados),
+    });
+    b.disabled = false;
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    cfg.ctx = await r.json();
+    cfg.ensinando = null;
+    avisoCert(dados.id ? "lembrete alterado" : "guardado — já vale na próxima pergunta", { tom: "ok" });
+    desenharConfig();
+  });
+  clique("[data-cfg-ensinar-editar]", (b) => {
+    const item = ((cfg.ctx || {}).contextos || []).find((x) => x.id === Number(b.dataset.cfgEnsinarEditar));
+    if (!item) return;
+    cfg.ensinando = { id: item.id, titulo: item.titulo, texto: item.texto, gaveta: item.gaveta };
+    desenharConfig();
+    const campo = $("cfg-ensinar-titulo");
+    if (campo) campo.focus();
+  });
+  clique("[data-cfg-ensinar-cancelar]", () => { cfg.ensinando = null; desenharConfig(); });
+  clique("[data-cfg-ensinar-tirar]", async (b) => {
+    const id = Number(b.dataset.cfgEnsinarTirar);
+    const r = await fetch("/api/contextos/" + id, { method: "DELETE" });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    if ((cfg.ensinando || {}).id === id) cfg.ensinando = null;
+    // O aviso le a resposta (e dela que sai o Desfazer); a lista vem depois.
+    await avisarLixeira(r, recarregarLembretes);
+    await recarregarLembretes();
+  });
   clique("[data-cfg-marca]", (b) => escolherMarca(b.dataset.cfgMarca));
   clique("[data-cfg-marca-tirar]", async (b) => {
     const tipo = b.dataset.cfgMarcaTirar;

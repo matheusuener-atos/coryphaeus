@@ -216,6 +216,14 @@
   .cfg-segmento button:disabled { opacity: .5; }
 
 
+  /* Aprendizado (A13): o que o escritorio ensinou com as proprias palavras.
+     O que nao cabe no limite por pergunta fica apagado na lista, com a razao. */
+  .cfg-lembrete .duas-linhas { flex: 1; }
+  .cfg-lembrete .duas-linhas small { white-space: normal; }
+  .cfg-lembrete button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+  .cfg-lembrete.de-fora { opacity: .6; }
+  .cfg-lembrete.de-fora .cfg-lixo-quando { color: var(--acc); }
+
   /* A lixeira (docs/ui/05): a lista do que foi apagado, com Restaurar e Apagar de vez. */
   .cfg-lixo-linha .duas-linhas { flex: 1; }
   .cfg-lixo-linha .duas-linhas small { white-space: normal; }

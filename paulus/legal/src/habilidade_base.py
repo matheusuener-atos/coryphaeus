@@ -92,9 +92,13 @@ class Contexto:
         cancelado=None,
         antes_de_cada=None,
         ritmo=None,
+        ensinado="",
     ) -> None:
         self.searcher = searcher
         self.client = client
+        # O que o escritorio ensinou em Configuracoes > Aprendizado. Vem pronto
+        # como texto: a habilidade nao precisa saber que ha um banco atras.
+        self.ensinado = ensinado or ""
         # O que esta maquina ja mediu de si mesma: quanto ela le por segundo,
         # quanto escreve. Sem isso, a tela nao promete tempo nenhum.
         self.ritmo = ritmo

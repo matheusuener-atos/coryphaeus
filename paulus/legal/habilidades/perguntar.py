@@ -201,7 +201,7 @@ def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
     """
     def trabalho(empurrar):
         return ctx.client.ask(
-            pergunta, contexto, stream=True,
+            pergunta, contexto, stream=True, ensinado=getattr(ctx, "ensinado", ""),
             on_token=lambda t: empurrar(("token", {"t": t})),
             on_fase=lambda fase, dados: empurrar((fase, dados)),
         )

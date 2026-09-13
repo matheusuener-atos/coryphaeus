@@ -510,6 +510,53 @@ def main() -> int:
             pagina.wait_for_timeout(1600)
             checar(pagina.evaluate("() => cfg.secao === 'conexoes'"), "o destino antigo Conexoes abre a secao")
 
+            print("\nAprendizado: ensinar o assistente com as proprias palavras")
+            # O que o escritorio ensina entra em toda pergunta (A13). Guardar,
+            # alterar e apagar acontecem na propria secao, e o rodape diz
+            # quanto daquilo o assistente carrega a cada pergunta.
+            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('aprendizado'); }")
+            pagina.wait_for_timeout(1800)
+            id_lembrete = None
+            try:
+                pagina.evaluate("""() => {
+                  document.getElementById('cfg-ensinar-titulo').value = 'Teste — prazo de aviso';
+                  document.getElementById('cfg-ensinar-texto').value = 'Teste de tela: o aviso de nao renovacao e de 90 dias.';
+                  document.querySelector('[data-cfg-ensinar-guardar]').click();
+                }""")
+                pagina.wait_for_timeout(1500)
+                id_lembrete = pagina.evaluate("() => ((cfg.ctx || {}).contextos || []).map((x) => x.id)[0] || null")
+                checar(id_lembrete is not None, "Guardar grava o lembrete e a secao ja mostra")
+                checar(
+                    pagina.evaluate("() => !!Array.from(document.querySelectorAll('#cfg-tela .cfg-lembrete b')).find((b) => b.textContent.startsWith('Teste — prazo'))"),
+                    "o lembrete aparece na lista com o titulo que foi escrito",
+                )
+                checar(
+                    pagina.evaluate("() => document.querySelector('#cfg-tela .cfg-explica').textContent.includes('caracteres em uso')"),
+                    "e o rodape diz quanto disso vai em cada pergunta",
+                )
+                checar(
+                    pagina.evaluate("async () => { const d = await (await fetch('/api/contextos')).json(); return d.caracteres > 0; }"),
+                    "o servidor confirma que ha texto para o assistente",
+                )
+                pagina.evaluate("() => document.querySelector('[data-cfg-ensinar-editar]').click()")
+                pagina.wait_for_timeout(600)
+                checar(
+                    pagina.evaluate("() => document.getElementById('cfg-ensinar-titulo').value.startsWith('Teste — prazo') && !!document.querySelector('[data-cfg-ensinar-cancelar]')"),
+                    "Alterar traz o lembrete de volta para o formulario",
+                )
+                pagina.evaluate("() => document.querySelector('[data-cfg-ensinar-cancelar]').click()")
+                pagina.wait_for_timeout(400)
+                checar(pagina.evaluate("() => document.getElementById('cfg-ensinar-titulo').value === ''"),
+                       "e Cancelar limpa o formulario sem mexer no que esta guardado")
+            finally:
+                if id_lembrete is not None:
+                    pagina.evaluate(f"""async () => {{
+                      const r = await (await fetch('/api/contextos/{id_lembrete}', {{method: 'DELETE'}})).json();
+                      if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{method: 'DELETE'}});
+                      cfg.ctx = await (await fetch('/api/contextos')).json();
+                    }}""")
+                    pagina.wait_for_timeout(600)
+
             print("\nFoco e bem-estar: hoje e semana")
             # O ciclo no anel, os lembretes e o ritmo por hora no painel
             # (docs/ui/03-telas-desktop.md, A12).

@@ -61,6 +61,7 @@ import servicos as servicos_mod
 import gravacoes as gravacoes_mod
 import transcricao as transcricao_mod
 import lixeira as lixeira_mod
+import contextos as contextos_mod
 import marca as marca_mod
 import pastas
 import recursos
@@ -200,6 +201,8 @@ class Estado:
         self.puxando: dict | None = None
         # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
         self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
+        # O que o escritorio ensinou com as proprias palavras (docs/ui, A13).
+        self.contextos = contextos_mod.Contextos(self.base)
         # A foto de quem usa e a logo do escritorio (docs/ui, A13).
         self.marca = marca_mod.Marca(MARCA_DIR)
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
@@ -351,6 +354,39 @@ def imagem(arquivo: str) -> FileResponse:
     if alvo.parent != (FRONTEND_DIR / "img").resolve() or not alvo.exists():
         raise HTTPException(status_code=404, detail="imagem nao encontrada")
     return FileResponse(alvo)
+
+
+# --------------------------------------------------------------- contextos
+
+
+class NovoContexto(BaseModel):
+    id: int | None = None
+    titulo: str = ""
+    texto: str = ""
+    gaveta: str = ""
+
+
+@app.get("/api/contextos")
+def contextos_listar() -> dict:
+    return estado.contextos.para_tela()
+
+
+@app.post("/api/contextos")
+def contextos_salvar(payload: NovoContexto) -> dict:
+    try:
+        id_ = estado.contextos.salvar(payload.model_dump(), payload.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"id": id_, **estado.contextos.para_tela()}
+
+
+@app.delete("/api/contextos/{id_}")
+def contextos_apagar(id_: int) -> dict:
+    item = estado.contextos.obter(id_)
+    if not item:
+        raise HTTPException(status_code=404, detail="esse lembrete nao existe")
+    entrada = estado.lixeira.apagar_linha("contexto", id_, item["titulo"], item["gaveta"])
+    return {**_foi_para_lixeira(entrada, "contexto", id_), **estado.contextos.para_tela()}
 
 
 # ------------------------------------------------------------------- marca
@@ -563,6 +599,8 @@ def _contexto(registrar=None) -> Contexto:
         cancelado=estado.cancelar.is_set,
         antes_de_cada=lambda: recursos.esperar_maquina_livre(estado.devagar, limite_s=10),
         ritmo=estado.ritmo,
+        # Os lembretes de Configuracoes > Aprendizado entram em toda resposta.
+        ensinado=estado.contextos.bloco(),
     )
 
 
@@ -4082,8 +4120,11 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         contexto = f"Documento (início):\n{texto[:2500]}"
 
     try:
+        # No editor entram so as regras de redacao: como o escritorio escreve
+        # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
         resposta = estado.client.ask(INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}", contexto,
-                                     sistema=SISTEMA_EDITOR)
+                                     sistema=SISTEMA_EDITOR,
+                                     ensinado=estado.contextos.bloco(["Regras de redação"]))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

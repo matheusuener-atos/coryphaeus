@@ -219,6 +219,7 @@ class LlamaClient:
         context: str = "",
         *,
         sistema: str = "",
+        ensinado: str = "",
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
         on_fase: Callable[[str, dict], None] | None = None,
@@ -235,8 +236,14 @@ class LlamaClient:
         """
         molde = USER_TEMPLATE if not sistema else MOLDE_SIMPLES
         conteudo = molde.format(context=context, question=question) if context else question
+        # `ensinado` e o que o escritorio escreveu em Configuracoes > Aprendizado.
+        # Entra no fim da instrucao de sistema, e nao na mensagem do usuario:
+        # e regra permanente da casa, nao parte do que foi perguntado agora.
+        instrucao = sistema or SYSTEM_PROMPT
+        if ensinado.strip():
+            instrucao += "\n\n" + ensinado.strip()
         messages = [
-            {"role": "system", "content": sistema or SYSTEM_PROMPT},
+            {"role": "system", "content": instrucao},
             {"role": "user", "content": conteudo},
         ]
         return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase)

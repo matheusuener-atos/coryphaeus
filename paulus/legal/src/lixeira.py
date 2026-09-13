@@ -38,6 +38,7 @@ TIPOS = {
                   "filhos": [("versoes", "documento_id", ""), ("comentarios", "documento_id", "")]},
     "lancamento": {"rotulo": "Lançamento", "tabela": "lancamentos",
                    "filhos": [("comprovantes", "lancamento_id", "")]},
+    "contexto": {"rotulo": "Lembrete do assistente", "tabela": "contextos", "filhos": []},
     "cadastro": {"rotulo": "Cadastro", "tabela": "cadastros",
                  "filhos": [("vinculos", "alvo_id", "tipo = 'cadastro'")]},
 }

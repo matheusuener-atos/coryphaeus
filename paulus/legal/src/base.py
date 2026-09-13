@@ -445,6 +445,22 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_lixeira_apagado ON lixeira(apagado_em);
         """,
     ),
+    (
+        "018_contextos",
+        """
+        -- O que o escritorio ensinou ao assistente com as proprias palavras
+        -- (docs/ui/03-telas-desktop.md, A13 > Aprendizado). Poucas linhas que
+        -- valem em toda pergunta, ao contrario do Acervo, onde a busca
+        -- escolhe o trecho. Ver src/contextos.py.
+        CREATE TABLE contextos (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo    TEXT NOT NULL,
+            texto     TEXT NOT NULL,
+            gaveta    TEXT NOT NULL DEFAULT 'Regras de redação',
+            criado_em TEXT NOT NULL
+        );
+        """,
+    ),
 ]
 
 
