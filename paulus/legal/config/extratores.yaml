@@ -86,6 +86,10 @@ extratores:
     secao: evidence
     nivel: 0
     modulo: regras_provas
+  claim-rules/v1:
+    secao: claims
+    nivel: 0
+    modulo: regras_teses
 
   # -------------------------------------------------------------- nivel 1
   # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario

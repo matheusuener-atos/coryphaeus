@@ -423,6 +423,75 @@ def test_roteador_diz_o_que_e_pedido() -> None:
         bd.fechar()
 
 
+# --------------------------------------------------------------- alegações
+
+
+def test_teses() -> None:
+    """
+    Quem alega o quê - a coleção em que errar é pior do que não saber.
+
+    As outras guardam o que o documento fez: pediu, decidiu, juntou. Esta
+    guarda o que ele atribui a alguém, e sair errado aqui não produz um dado
+    errado: produz uma afirmação que uma das partes não fez.
+    """
+    print("\nquem alega o quê")
+    from inteligencia.extratores import regras_teses
+
+    itens = regras_teses.extrair(pedido_de(INICIAL)).itens
+    donos = [i.dados.get("holder", "") for i in itens]
+    checar(len(itens) == 3, "três alegações na peça", [i.dados["text"][:50] for i in itens])
+    checar(donos == ["plaintiff", "", "defendant"],
+           "o autor, uma sem sujeito escrito, e o réu", donos)
+    checar(donos[1] == "",
+           "sem sujeito na frase, o campo fica vazio - atribuir ao mais provável "
+           "seria pôr a tese na boca de quem não a fez")
+    checar(ancorados(itens, INICIAL), "e cada alegação aponta para o texto")
+
+    armadilhas = (
+        "Requer a sustentação oral na sessão de julgamento.\n"
+        "Alega o réu que o autor não pagou.\n"
+        "Alega-se que houve prescrição.\n"
+        "A COOBRAMEX sustenta que a licença foi concedida.\n"
+    )
+    achados = regras_teses.extrair(pedido_de(armadilhas)).itens
+    textos = [i.dados["text"] for i in achados]
+    checar(not any("sustentação oral" in t for t in textos),
+           "'sustentação oral' não é ninguém sustentando nada", textos)
+    checar(achados[0].dados.get("holder") == "defendant",
+           "'Alega o réu que' acha o sujeito depois do verbo",
+           achados[0].dados if achados else "")
+    checar(achados[1].dados.get("holder", "") == "", "'Alega-se que' não tem dono")
+    checar(achados[2].dados.get("holder", "") == "",
+           "e um nome próprio não é um papel - COOBRAMEX não vira 'autor'",
+           achados[2].dados)
+
+    docs = index_all_contracts(ACERVO, CACHE, verbose=False)
+    total = sum(len(regras_teses.extrair(Pedido(texto=d.text)).itens) for d in docs)
+    checar(total == 0,
+           f"nos {len(docs)} documentos reais, nenhuma alegação: eles não são peças "
+           f"de processo, e 'SUSTENTABILIDADE' não é alguém sustentando ({total})")
+
+
+def test_roteador_separa_quem_alegou() -> None:
+    print("\na pergunta diz de quem é a tese, e a resposta respeita")
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, meta = biblioteca_com(INICIAL, Path(tmp), sha1="sha-teses")
+
+        do_reu = decidir(meta, "o que o réu alega?")
+        checar(not do_reu.fallback and len(do_reu.fatos) == 1,
+               "'o que o réu alega?' traz só a do réu", [f.valor[:40] for f in do_reu.fatos])
+        checar("serviço não foi prestado" in do_reu.fatos[0].valor,
+               "e é a dele mesmo", do_reu.fatos[0].valor)
+
+        do_autor = decidir(meta, "o que o autor alega?")
+        checar(len(do_autor.fatos) == 1 and "celebrou" in do_autor.fatos[0].valor,
+               "e a do autor é outra", [f.valor[:40] for f in do_autor.fatos])
+
+        checar(decidir(meta, "o que o réu alega sobre a prescrição?").fallback,
+               "com recorte, volta a ser pergunta de leitura")
+        bd.fechar()
+
+
 # ----------------------------------------------------------------- roteador
 
 
@@ -551,6 +620,8 @@ def main() -> int:
     test_roteador_linha_do_tempo()
     test_provas()
     test_roteador_diz_o_que_e_pedido()
+    test_teses()
+    test_roteador_separa_quem_alegou()
 
     print("\n" + "=" * 55)
     if _falhas:

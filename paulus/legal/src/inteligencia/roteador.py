@@ -114,10 +114,26 @@ ENUMERACOES: list[tuple[str, str, str]] = [
      r"\b(linha do tempo|cronologia|hist[oó]rico (do|desse|deste|da)"
      r"|o que (ja )?aconteceu|andamento (do|desse|deste)"
      r"|(quais|que) (as |os )?(datas|prazos) (importantes|relevantes|do processo))"),
-    # "que documentos" pede a lista; "o que os documentos de 2015 dizem" pede
-    # leitura de varios - e uma versao mais frouxa deste padrao roubava a
-    # segunda da segunda, que e pergunta de recorte. O conjunto de regressao
-    # pegou; por isso o verbo de juntada e obrigatorio na forma com "que".
+    # Alegacao e a colecao em que a pergunta costuma dizer DE QUEM: "o que o
+    # reu alega" nao e "o que o autor alega", e responder as duas com a mesma
+    # lista seria atribuir tese a parte errada. Por isso os padroes com papel
+    # vem antes do generico.
+    ("claims", "defendant",
+     r"\b(o que (o reu|a re|o requerido|a requerida|a defesa|a contestacao|o executado"
+     r"|a reclamada|a parte contraria) (alega|sustenta|aduz|argumenta|afirma|alegou)"
+     r"|(quais|que) (as |os )?(alegacoes|teses|argumentos) (do reu|da re|da defesa))"),
+    ("claims", "plaintiff",
+     r"\b(o que (o autor|a autora|o requerente|o exequente|a inicial|o reclamante)"
+     r"\s*(alega|sustenta|aduz|argumenta|afirma|alegou)"
+     r"|(quais|que) (as |os )?(alegacoes|teses|argumentos) (do autor|da autora|da inicial))"),
+    ("claims", "",
+     r"\b((quais|que) (as |os )?(alegacoes|teses|argumentos)"
+     r"|o que (se )?(alega|alegam|sustenta|aduz)|o que (foi|esta sendo) alegad)"),
+    # "quais os documentos" pede a lista; "o que os documentos de 2015 dizem"
+    # pede leitura de varios. Uma versao mais frouxa deste padrao confundia as
+    # duas e fazia a segunda perder o recorte por ano que ela ja tinha - o
+    # conjunto de regressao pegou. Por isso, na forma com "que", o verbo de
+    # juntada e obrigatorio.
     ("evidence", "",
      r"\b(quais (os |as )?(documentos|provas|anexos)"
      r"|que (documentos|provas|anexos) (foram )?(juntad|anexad|apresentad|produzid)"
@@ -350,6 +366,8 @@ ROTULOS = {
     "conviction": "condenação", "acquittal": "absolvição", "order": "determinação",
     "document": "documento", "expert": "perícia", "witness": "testemunhal",
     "testimony": "depoimento",
+    "plaintiff": "autor", "defendant": "réu", "court": "juízo",
+    "prosecutor": "Ministério Público", "third_party": "terceiro",
 }
 
 # Como cada secao se chama na frase que vai para o modelo. O JSON fala ingles
@@ -358,7 +376,7 @@ SECOES_BR = {
     "case": "processo", "amounts": "valor", "dates": "data",
     "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
     "classification": "tipo", "requests": "pedido", "decisions": "decisão",
-    "events": "aconteceu", "evidence": "prova",
+    "events": "aconteceu", "evidence": "prova", "claims": "alegação",
 }
 
 # O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
@@ -369,6 +387,7 @@ CABECALHOS = {
     "decisions": "O QUE FOI DECIDIDO, COMO ESTÁ ESCRITO NO DOCUMENTO",
     "events": "O QUE O DOCUMENTO REGISTRA, EM ORDEM DE DATA",
     "evidence": "O QUE O DOCUMENTO JUNTA OU CHAMA DE PROVA",
+    "claims": "O QUE O DOCUMENTO DIZ QUE CADA UM ALEGA",
 }
 
 # Quantos fatos entram numa resposta de nivel 0. Mais que isso deixa de ser
@@ -694,8 +713,12 @@ def _pela_lista(pacote: Pacote, pergunta: str, metas: list[Metadata], nomes: dic
         return desistir("este documento ainda não foi lido para isso",
                         "seção não utilizável")
 
+    # O recorte da pergunta pode ser sobre o tipo do item (uma decisao de
+    # deferimento) ou sobre quem o disse (as alegacoes do reu). As duas coisas
+    # filtram do mesmo jeito, e nenhuma colecao usa os dois campos.
+    chave = pacote.intencao.chave
     itens = [i for i in meta.fatos(secao)
-             if not pacote.intencao.chave or i.dados.get("kind") == pacote.intencao.chave]
+             if not chave or chave in (i.dados.get("kind"), i.dados.get("holder"))]
     pacote.trace["achados"] = len(itens)
     if not itens:
         return desistir("o metadata não tem essa lista - pode estar no documento assim mesmo",
@@ -739,7 +762,10 @@ def _fatos_de(meta: Metadata, intencao: Intencao, nome: str) -> list[Fato]:
 
 
 def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
-    tipo = str(item.dados.get("kind") or "")
+    # O rotulo e o tipo do item; nas alegacoes, que nao tem tipo, e quem a
+    # fez - porque numa lista de teses o que precisa estar escrito em cada
+    # linha e de quem ela e.
+    tipo = str(item.dados.get("kind") or item.dados.get("holder") or "")
     valor = item.valor
     if secao == "amounts":
         valor = str(item.dados.get("value_text") or valor)
