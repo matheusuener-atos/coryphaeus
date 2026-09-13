@@ -285,6 +285,27 @@ class LlamaClient:
         resp.raise_for_status()
         return [m["name"] for m in resp.json().get("models", [])]
 
+    def digest(self, model: str = "") -> str:
+        """
+        A impressao digital do modelo instalado - o sha256 que o Ollama guarda.
+
+        Serve para saber que o modelo MUDOU. "llama3.2:3b" hoje e "llama3.2:3b"
+        depois de um `ollama pull` sao o mesmo nome e podem ser pesos
+        diferentes; sem o digest, o metadata extraido pelo modelo antigo
+        passaria por atual para sempre. Devolve vazio quando nao da para
+        perguntar: nao saber o digest nao pode impedir nada de rodar.
+        """
+        alvo = model or self.model
+        try:
+            resp = requests.get(f"{self.host}/api/tags", timeout=5)
+            resp.raise_for_status()
+            for instalado in resp.json().get("models", []):
+                if instalado.get("name") == alvo or instalado.get("model") == alvo:
+                    return str(instalado.get("digest", ""))[:24]
+        except Exception:
+            return ""
+        return ""
+
 
 def check_ollama(model: str = DEFAULT_MODEL, host: str = DEFAULT_HOST) -> tuple[bool, str]:
     """Valida servidor + presenca do modelo. Retorna (ok, mensagem)."""

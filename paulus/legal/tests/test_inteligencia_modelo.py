@@ -268,6 +268,55 @@ def test_conferidor_nao_promove() -> None:
     checar(sem_cliente.verified, "sem conferidor, o que a aritmetica aceitou continua aceito")
 
 
+
+def test_trocar_o_modelo_envelhece_so_o_que_ele_fez() -> None:
+    """
+    Trocar de modelo nao pode obrigar a reanalisar o acervo inteiro.
+
+    O que o modelo produziu envelhece; o que a regra produziu, nao - ela nao
+    mudou. E o caso silencioso importa: `ollama pull` no mesmo nome traz pesos
+    diferentes com o mesmo rotulo, e sem o digest o extraido pelo modelo
+    antigo passaria por atual para sempre.
+    """
+    print("\ntrocar o modelo envelhece so o que ele fez")
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, biblioteca, catalogo = biblioteca_nova(Path(tmp))
+        arquivo = Path(tmp) / "peca.txt"
+        arquivo.write_text(PECA, encoding="utf-8")
+
+        class ComDigest(ClienteFalso):
+            impressao = "digest-antigo"
+
+            def digest(self, model: str = "") -> str:
+                return self.impressao
+
+        cliente = ComDigest(json_=[], textos=["uma linha", "tres linhas"])
+        primeira = portas.analisar_documento(biblioteca, catalogo, arquivo, texto=PECA,
+                                             paginas=2, client=cliente)
+        checar("summary" in primeira.rodadas and "case" in primeira.rodadas,
+               "a primeira analise roda tudo", sorted(primeira.rodadas))
+        checar(primeira.metadata.secao("summary").model_digest == "digest-antigo",
+               "e grava o digest de quem produziu cada secao",
+               primeira.metadata.secao("summary").to_dict())
+        checar(primeira.metadata.secao("case").model is None,
+               "secao de regra nao anota modelo nenhum", primeira.metadata.secao("case").to_dict())
+
+        segunda = portas.analisar_documento(biblioteca, catalogo, arquivo, texto=PECA,
+                                            paginas=2, client=cliente)
+        checar(segunda.rodadas == [], "nada mudou, nada e refeito", segunda.rodadas)
+
+        cliente.impressao = "digest-novo"     # ollama pull, mesmo nome
+        terceira = portas.analisar_documento(biblioteca, catalogo, arquivo, texto=PECA,
+                                             paginas=2, client=cliente)
+        checar(sorted(terceira.rodadas) == ["parties", "summary"],
+               "trocar os pesos refaz so o que o modelo tinha feito", terceira.rodadas)
+        checar(terceira.metadata.secao("dates").status == "ok"
+               and terceira.metadata.secao("dates").generated_at
+               == primeira.metadata.secao("dates").generated_at,
+               "as secoes de regra ficam intactas, inclusive a hora")
+        bd.fechar()
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - extratores com modelo (passo 5)")
@@ -277,6 +326,7 @@ def main() -> int:
     test_resumo_e_nivel_1()
     test_sem_assistente_ligado()
     test_conferidor_nao_promove()
+    test_trocar_o_modelo_envelhece_so_o_que_ele_fez()
 
     print("\n" + "=" * 55)
     if _falhas:

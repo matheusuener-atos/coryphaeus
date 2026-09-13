@@ -387,8 +387,17 @@ class Biblioteca:
             mexidos += 1
         return mexidos
 
-    def desatualizadas(self, meta: Metadata, catalogo) -> list[str]:
-        """Quais secoes deste documento ficaram para tras do catalogo atual."""
+    def desatualizadas(self, meta: Metadata, catalogo, digest: str = "",
+                       modelo_atual: str = "") -> list[str]:
+        """
+        Quais secoes deste documento ficaram para tras do catalogo atual.
+
+        Cinco coisas envelhecem uma secao, e todas pelo mesmo motivo: o que
+        produziu aquele dado nao e mais o que produziria hoje. O extrator, a
+        versao do prompt, a versao do esquema, o modelo - e o DIGEST do
+        modelo, que e o unico que pega a troca silenciosa: "llama3.2:3b" hoje
+        e depois de um `ollama pull` tem o mesmo nome e pode ter outros pesos.
+        """
         velhas = []
         for nome in esquema.SECOES:
             ficha = meta.secao(nome)
@@ -398,9 +407,19 @@ class Biblioteca:
             extrator = catalogo.para_secao(nome)
             if not extrator:
                 continue
-            if (ficha.extractor != extrator.id
-                    or ficha.prompt_version != extrator.prompt_version
-                    or ficha.schema_version != "v0"):
+            # A comparacao e com o modelo que ESTA na maquina agora, e nao com
+            # o nome declarado no catalogo: quem troca de modelo na tela de
+            # Configuracoes nao mexe no YAML, e comparar com o YAML faria toda
+            # secao parecer velha para sempre.
+            mudou = (ficha.extractor != extrator.id
+                     or ficha.prompt_version != extrator.prompt_version
+                     or ficha.schema_version != "v0")
+            if extrator.modelo and ficha.model:
+                if modelo_atual and ficha.model != modelo_atual:
+                    mudou = True
+                elif digest and ficha.model_digest and ficha.model_digest != digest:
+                    mudou = True
+            if mudou:
                 velhas.append(nome)
         return velhas
 

@@ -65,7 +65,9 @@ def analisar_documento(biblioteca, catalogo: Catalogo, caminho, *, texto: str,
     alvo = list(secoes or [])
     if not alvo:
         alvo = (catalogo.secoes_declaradas() if forcar
-                else biblioteca.desatualizadas(meta, catalogo))
+                else biblioteca.desatualizadas(
+                    meta, catalogo, _digest_do(client) if client else "",
+                    getattr(client, "model", "") if client else ""))
 
     for nome in alvo:
         extrator = catalogo.para_secao(nome)
@@ -98,6 +100,14 @@ def analisar_documento(biblioteca, catalogo: Catalogo, caminho, *, texto: str,
     return analise
 
 
+def _digest_do(client) -> str:
+    """A impressao digital do modelo, quando da para perguntar."""
+    try:
+        return client.digest() if hasattr(client, "digest") else ""
+    except Exception:
+        return ""
+
+
 def _rodar(extrator: Extrator, catalogo: Catalogo, meta: Metadata, biblioteca,
            texto: str, *, client=None, registrar=None):
     """Roda um extrator e monta a ficha de producao da secao."""
@@ -114,6 +124,10 @@ def _rodar(extrator: Extrator, catalogo: Catalogo, meta: Metadata, biblioteca,
     ficha = Secao(
         extractor=extrator.id,
         model=(modelo.id if modelo else None),
+        # O digest diz que modelo produziu isto. Trocar o modelo com o mesmo
+        # nome - um `ollama pull` novo - muda o digest e envelhece a secao;
+        # sem ele, o extraido pelo modelo antigo passaria por atual sempre.
+        model_digest=(_digest_do(client) if extrator.modelo and client is not None else ""),
         prompt_version=extrator.prompt_version,
         schema_version="v0",
         generated_at=esquema.agora(),
@@ -151,6 +165,12 @@ def _rodar(extrator: Extrator, catalogo: Catalogo, meta: Metadata, biblioteca,
     ficha.duration_ms = int((time.time() - comeco) * 1000)
     if resultado.modelo:
         ficha.model = resultado.modelo
+    elif extrator.modelo:
+        # O extrator podia chamar o modelo e nao chamou - a regra decidiu
+        # sozinha. Anotar modelo e digest aqui faria a secao envelhecer no dia
+        # em que o modelo mudasse, sem que o modelo tivesse feito nada nela.
+        ficha.model = None
+        ficha.model_digest = ""
     if resultado.digest:
         ficha.model_digest = resultado.digest
     if resultado.erro:
