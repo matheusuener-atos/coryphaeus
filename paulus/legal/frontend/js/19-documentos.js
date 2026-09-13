@@ -1476,6 +1476,17 @@ async function compararComVersao(numero) {
   alvo.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+/* Ctrl+Shift+S: assina o documento que esta aberto. Guarda o PDF na
+   biblioteca antes, porque e o arquivo que a assinatura assina. */
+async function assinarDocumentoAberto() {
+  const id = (escr.doc && escr.doc.id) || escr.atual;
+  if (!id) { avisoCert("abra um documento para assinar"); return; }
+  const alvo = await guardarNaBiblioteca(id);
+  if (!alvo) return;
+  marcarDestino("assinar");
+  mostrarAssinar(alvo);
+}
+
 async function guardarNaBiblioteca(id, senha) {
   const r = await fetch("/api/documentos/" + id + "/biblioteca", {
     method: "POST", headers: { "Content-Type": "application/json" },

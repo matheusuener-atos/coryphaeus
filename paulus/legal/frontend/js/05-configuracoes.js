@@ -292,6 +292,36 @@ async function lerArquivoParaEnsinar(arquivo) {
   if (campo) { campo.focus(); campo.setSelectionRange(campo.value.length, campo.value.length); }
 }
 
+/* O que mudou no programa. Sai de docs/NOVIDADES.md, que vem junto com o
+   programa - a lista de novidades de uma versao e da versao, nao de um
+   servidor que esta maquina nem consulta. */
+async function mostrarNovidades() {
+  let d = null;
+  try {
+    d = await (await fetch("/api/novidades")).json();
+  } catch (err) { d = null; }
+  if (!d || !(d.blocos || []).length) {
+    avisoCert((d && d.aviso) || "não consegui ler a lista de novidades", { tom: "erro" });
+    return;
+  }
+  const html = (d.intro ? '<p class="cfg-explica">' + esc(d.intro) + "</p>" : "") +
+    d.blocos.map((b) => '<div class="cfg-novidade"><b>' + esc(b.titulo) + "</b><ul>" +
+      b.itens.map((x) => "<li>" + negrito(x) + "</li>").join("") + "</ul></div>").join("");
+  await dialogo({
+    titulo: "Novidades da versão",
+    contexto: "Configurações › Enviar feedback",
+    html: html,
+    confirmar: "Fechar",
+    larga: true,
+  });
+}
+
+/* O **negrito** do arquivo vira negrito na tela; o resto continua texto, com
+   os sinais escapados - a lista e um arquivo, e arquivo se edita. */
+function negrito(texto) {
+  return esc(texto).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+}
+
 /* A lista de lembretes de novo do servidor: apagar e restaurar mexem nela. */
 async function recarregarLembretes() {
   try {
@@ -836,8 +866,10 @@ function secaoAparencia() {
     atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Buscar em tudo", ["Ctrl", "K"]) + atalho("Salvar em Documentos e em Configurações", ["Ctrl", "S"]) +
     atalho("Ir para Assistente", ["Ctrl", "1"]) + atalho("Ir para Agenda", ["Ctrl", "2"]) + atalho("Ir para Acervo", ["Ctrl", "3"]) +
     atalho("Fechar menus e painéis soltos", ["Esc"]) +
-    atalho("Aprovar selecionados", ["Ctrl", "Enter"], true) + atalho("Iniciar / pausar foco", ["Ctrl", "Shift", "F"], true) + atalho("Assinar documento aberto", ["Ctrl", "Shift", "S"], true) + "</div>" +
-    '<div class="cfg-botoes"><button class="em-ligacao" data-cfg-adiante="Personalizar atalhos fica para depois">Personalizar atalhos →</button></div>';
+    atalho("Aprovar marcados (na tela de Aprovações)", ["Ctrl", "Enter"]) +
+    atalho("Começar o ciclo de foco, ou ir para a pausa", ["Ctrl", "Shift", "F"]) +
+    atalho("Assinar o documento aberto", ["Ctrl", "Shift", "S"]) + "</div>" +
+    '<p class="cfg-explica">Escolher outras teclas fica para depois; estas valem em qualquer tela, menos quando você está escrevendo num campo.</p>';
   return '<div class="cfg-grade">' + cartaoCfg("Aparência", metaCfg("tema, fonte e densidade"), aparencia) + cartaoCfg("Atalhos", metaCfg("teclado"), atalhos) + "</div>";
 }
 
@@ -872,7 +904,7 @@ function secaoFeedback() {
     "<div>" + ic("check_circle", 18) + "<span>Diga a tela e a hora: o registro do programa ajuda a achar o que aconteceu</span></div>" +
     "<div>" + ic("check_circle", 18) + "<span>Anexe uma captura quando existir anexo — ajuda muito</span></div>" +
     "<div>" + ic("check_circle", 18) + "<span>Nenhum documento do escritório vai junto; só o que você escrever</span></div></div></div>" +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Novidades da versão ficam para quando a atualização existir">' + ic("article", 16) + "Novidades da versão</button></div>";
+    '<div class="cfg-botoes"><button data-cfg-novidades="1">' + ic("article", 16) + "Novidades da versão</button></div>";
   return '<div class="cfg-grade feedback">' + cartaoCfg("Enviar feedback", metaCfg("elogios, sugestões, correções e bugs"), enviar) +
     cartaoCfg("Seus envios", metaCfg("nenhum ainda"), envios) + "</div>";
 }
@@ -911,6 +943,7 @@ function secaoPlano() {
   const ultima = saidasDaMaquina()[0];
   const atualizacoes = '<div class="cfg-chaves">' +
     chaveCfg("Versão", "em desenvolvimento · sem número ainda", "mute") +
+    chaveCfg("O que mudou", "a lista vem junto com o programa", "") +
     chaveCfg("Atualização automática", "em breve", "mute") +
     chaveCfg("Única saída para a internet", "atualizações, quando existirem, e o WhatsApp Web que você abre") +
     chaveCfg("Última saída registrada", ultima ? ultima.quando + " · " + ultima.titulo : "nenhuma nas últimas 24 h") + "</div>" +
@@ -1057,6 +1090,7 @@ function ligarConfig() {
     cfg.recarregar = true;
     mostrarConfig("assistente");
   });
+  clique("[data-cfg-novidades]", mostrarNovidades);
   clique("[data-cfg-marca]", (b) => escolherMarca(b.dataset.cfgMarca));
   clique("[data-cfg-marca-tirar]", async (b) => {
     const tipo = b.dataset.cfgMarcaTirar;

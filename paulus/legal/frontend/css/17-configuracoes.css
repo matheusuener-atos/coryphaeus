@@ -236,3 +236,11 @@
   .cfg-lixo-vazia h3 { margin: 0; font: 400 20px/1.15 var(--serif); }
   .cfg-lixo-vazia p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
   .cfg-lixo-pe { padding-top: 12px; }
+
+  /* A lista de novidades, dentro do dialogo do sistema. */
+  .cfg-novidade { display: grid; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); }
+  .cfg-novidade:last-child { border-bottom: none; }
+  .cfg-novidade > b { font: 600 13.5px var(--sans); }
+  .cfg-novidade ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .cfg-novidade li { font: 400 13px/1.55 var(--sans); color: var(--ink2); }
+  .cfg-novidade li b { color: var(--ink); font-weight: 600; }

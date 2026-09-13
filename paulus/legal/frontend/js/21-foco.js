@@ -460,6 +460,20 @@ function ligarFoco() {
   if (be.visao === "hoje" && be.dados.ciclo.estado !== "parado") be.relogio = setInterval(tiquetaqueDoFoco, 1000);
 }
 
+/* Ctrl+Shift+F de qualquer tela: comeca o ciclo, ou vai para a pausa se ele
+   ja estiver correndo. Abre o Foco junto - mexer no relogio de alguem sem
+   mostrar o relogio seria mexer as escondidas. */
+async function alternarFocoPorAtalho() {
+  let ciclo = ((be.dados || {}).ciclo) || null;
+  if (!ciclo) {
+    try { ciclo = (await (await fetch("/api/bemestar")).json()).ciclo; } catch (err) { ciclo = null; }
+  }
+  if (ciclo && ciclo.estado === "foco") await irParaPausaDoFoco();
+  else await comecarCicloDoFoco();
+  marcarDestino("foco");
+  await mostrarFoco("hoje");
+}
+
 async function comecarCicloDoFoco() {
   const foco = document.querySelector("[data-be-foco]");
   const pausa = document.querySelector("[data-be-pausa-min]");

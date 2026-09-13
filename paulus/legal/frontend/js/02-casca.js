@@ -53,6 +53,17 @@ document.addEventListener("keydown", (e) => {
   } else if (tecla === "1" || tecla === "2" || tecla === "3") {
     e.preventDefault();
     abrirDestino({ 1: "conversa", 2: "calendario", 3: "biblioteca" }[tecla]);
+  } else if (e.key === "Enter" && $("ap-todos")) {
+    // Aprovar o que esta marcado na fila. So vale com a tela de Aprovacoes
+    // aberta: aprovar por atalho a partir de outra tela seria decidir sem ver.
+    e.preventDefault();
+    aprovarMarcados();
+  } else if (e.shiftKey && tecla === "f") {
+    e.preventDefault();
+    alternarFocoPorAtalho();
+  } else if (e.shiftKey && tecla === "s") {
+    e.preventDefault();
+    assinarDocumentoAberto();
   }
 });
 

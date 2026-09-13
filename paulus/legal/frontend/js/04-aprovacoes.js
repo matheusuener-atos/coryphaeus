@@ -270,6 +270,14 @@ function ligarAprovacoes() {
   if (fechar) fechar.onclick = () => { aprov.aberto = null; desenharAprovacoes(); };
 }
 
+/* Ctrl+Enter na fila: aprova o que esta marcado. Sem nada marcado nao faz
+   nada calado - dizer "marque primeiro" e melhor que parecer que travou. */
+function aprovarMarcados() {
+  const ids = Array.from(aprov.marcados);
+  if (!ids.length) { avisoCert("marque os pedidos que você quer aprovar"); return; }
+  decidirPedidos(ids, true);
+}
+
 async function decidirPedidos(ids, aprovar) {
   if (!ids.length) return;
   const quais = ids.map((id) => aprov.pendentes.find((p) => p.id === id)).filter(Boolean);

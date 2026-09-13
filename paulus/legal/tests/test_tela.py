@@ -579,6 +579,43 @@ def main() -> int:
             pagina.wait_for_timeout(1600)
             checar(pagina.evaluate("() => cfg.secao === 'conexoes'"), "o destino antigo Conexoes abre a secao")
 
+            print("\nos tres atalhos novos e as novidades da versao")
+            # Ctrl+Shift+F liga o ciclo de foco de qualquer tela; Ctrl+Enter so
+            # vale com a fila aberta (aprovar sem ver seria decidir no escuro).
+            estado_foco = pagina.evaluate("""async () => {
+              const antes = (await (await fetch('/api/bemestar')).json()).ciclo.estado;
+              return antes;
+            }""")
+            pagina.keyboard.press("Control+Shift+F")
+            pagina.wait_for_timeout(2500)
+            depois = pagina.evaluate("async () => (await (await fetch('/api/bemestar')).json()).ciclo.estado")
+            checar(depois != estado_foco or depois == "foco", f"Ctrl+Shift+F mexe no ciclo de foco ({estado_foco} -> {depois})")
+            checar(pagina.evaluate("() => !!document.querySelector('.be-anel')"), "e abre a tela do Foco para ver o relogio")
+            pagina.evaluate("() => fetch('/api/bemestar/parar', {method: 'POST'})")
+            pagina.wait_for_timeout(600)
+
+            pagina.evaluate("() => abrirDestino('aprovacoes')")
+            pagina.wait_for_timeout(1600)
+            checar(pagina.evaluate("() => typeof aprovarMarcados === 'function' && !!document.getElementById('ap-todos')"),
+                   "a fila de Aprovacoes responde ao Ctrl+Enter")
+
+            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('feedback'); }")
+            pagina.wait_for_timeout(1800)
+            pagina.evaluate("() => document.querySelector('[data-cfg-novidades]').click()")
+            pagina.wait_for_timeout(1200)
+            novidades = pagina.evaluate("""() => {
+              const d = document.getElementById('veu-dialogo');
+              if (!d) return null;
+              return {blocos: d.querySelectorAll('.cfg-novidade').length,
+                      itens: d.querySelectorAll('.cfg-novidade li').length,
+                      titulo: (d.querySelector('h2, .dialogo-titulo') || {}).textContent || ''};
+            }""")
+            checar(novidades and novidades["blocos"] >= 3 and novidades["itens"] >= 8,
+                   "Novidades da versao abre com a lista lida do proprio programa", novidades)
+            pagina.keyboard.press("Escape")
+            pagina.wait_for_timeout(400)
+            checar(pagina.evaluate("() => !document.getElementById('veu-dialogo')"), "e Esc fecha")
+
             print("\nlimpar o cache e animacoes reduzidas (A13)")
             # Limpar cache pergunta antes, e o que custa caro para refazer (a
             # classificacao pelo modelo) so sai quando a pessoa marca.

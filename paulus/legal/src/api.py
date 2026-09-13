@@ -400,6 +400,39 @@ def cache_limpar(payload: LimparCache) -> dict:
             "refaz": "os documentos são lidos de novo no próximo Reindexar"}
 
 
+# --------------------------------------------------------------- novidades
+
+NOVIDADES_PATH = BASE_DIR / "docs" / "NOVIDADES.md"
+
+
+@app.get("/api/novidades")
+def novidades() -> dict:
+    """
+    O que mudou no programa, escrito para quem usa.
+
+    Sai de um arquivo do proprio repositorio, e nao de um servidor: o
+    programa nao busca nada na internet, e a lista de novidades de uma versao
+    e da versao - ela chega junto com o programa, nao depois dele.
+    """
+    if not NOVIDADES_PATH.exists():
+        return {"blocos": [], "aviso": "ainda não há lista de novidades nesta instalação"}
+
+    blocos: list[dict] = []
+    intro: list[str] = []
+    for linha in NOVIDADES_PATH.read_text(encoding="utf-8").splitlines():
+        crua = linha.rstrip()
+        if crua.startswith("## "):
+            blocos.append({"titulo": crua[3:].strip(), "itens": []})
+        elif crua.startswith("- ") and blocos:
+            blocos[-1]["itens"].append(crua[2:].strip())
+        elif crua.startswith("  ") and crua.strip() and blocos and blocos[-1]["itens"]:
+            # Continuacao da linha anterior: o arquivo quebra em 80 colunas.
+            blocos[-1]["itens"][-1] += " " + crua.strip()
+        elif crua and not crua.startswith("#") and not blocos:
+            intro.append(crua.strip())
+    return {"blocos": blocos, "intro": " ".join(intro)}
+
+
 # --------------------------------------------------------------- contextos
 
 
