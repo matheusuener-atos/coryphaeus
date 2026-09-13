@@ -260,8 +260,11 @@ def verificar_item(item: Item, texto: str, version_id: str,
         # escreveu: e ela que a pessoa vai conferir, e ela tem de ser a que
         # esta no papel.
         item.quote = resultado.trecho.strip()
-        if item.certainty not in ("explicit", "disputed"):
-            item.certainty = "explicit"
+        # A conferencia nunca PROMOVE. Achar a citacao prova que a frase existe
+        # no documento - nao prova que a afirmacao construida em cima dela esta
+        # certa. Quem marcou um item como deduzido (o extrator viu que o papel
+        # da parte nao esta escrito, por exemplo) sabia de alguma coisa que
+        # esta comparacao nao sabe, e subir a certeza aqui apagaria isso.
     else:
         item.verified = False
         if item.certainty == "explicit":

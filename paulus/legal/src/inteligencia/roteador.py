@@ -101,6 +101,13 @@ PEDE_LEITURA = re.compile(
 
 RE_INTENCOES = [(secao, chave, re.compile(padrao)) for secao, chave, padrao in INTENCOES]
 
+# "Do que se trata este documento?" tem resposta guardada: o resumo escrito na
+# ingestao. Ela e a unica coisa nesta camada que NAO e fato - e conclusao do
+# modelo sobre o texto -, e por isso sai rotulada como leitura do assistente.
+RE_RESUMO = re.compile(
+    r"\b(do que (se )?trata|sobre o que (e|é)|resum[ae]|resumo (deste|desse|do)|"
+    r"me (diga|fale) sobre (este|esse) documento|qual (o|e o) (assunto|objeto) (deste|desse|do))")
+
 
 @dataclass
 class Intencao:
@@ -115,6 +122,11 @@ class Intencao:
     def factual(self) -> bool:
         return self.nivel == METADATA and bool(self.secao)
 
+    @property
+    def resolvivel(self) -> bool:
+        """Da para tentar responder sem abrir o documento?"""
+        return self.nivel <= METADATA_E_RESUMO and bool(self.secao)
+
 
 def classificar(pergunta: str) -> Intencao:
     """
@@ -128,6 +140,9 @@ def classificar(pergunta: str) -> Intencao:
     plano = _plano(pergunta)
     if not plano:
         return Intencao(porque="pergunta vazia")
+    if RE_RESUMO.search(plano):
+        return Intencao(secao="summary", nivel=METADATA_E_RESUMO,
+                        porque="pergunta pelo assunto do documento")
     if PEDE_LEITURA.search(plano):
         return Intencao(porque="a pergunta pede leitura, nao um dado")
 
@@ -184,6 +199,9 @@ class Pacote:
     fallback: bool = True
     porque: str = ""
     intencao: Intencao = field(default_factory=Intencao)
+    # Ligado quando o que vai na resposta e conclusao do modelo (o resumo), e
+    # nao trecho conferido. A tela tem de dizer isso a quem le.
+    inferencia: bool = False
     ms: int = 0
     trace: dict = field(default_factory=dict)
 
@@ -199,6 +217,17 @@ class Pacote:
         conseguir responder com estes fatos diz ESCALAR, e a pergunta refaz o
         caminho de sempre.
         """
+        if self.inferencia:
+            return "\n".join([
+                f"RESUMO JÁ ESCRITO DE {', '.join(self.documentos)} (leitura do assistente, "
+                "não é trecho do documento):",
+                self.fatos[0].valor if self.fatos else "",
+                "",
+                "Responda em uma frase, usando exclusivamente o resumo acima.",
+                "Se ele não bastar para responder, responda exatamente: ESCALAR",
+                "",
+                f"Pergunta: {pergunta}",
+            ])
         linhas = [f"FATOS VERIFICADOS ({', '.join(self.documentos)}):"]
         linhas += [fato.linha() for fato in self.fatos]
         linhas += [
@@ -245,7 +274,7 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
     pacote.trace = {"pergunta": pergunta, "intencao": intencao.secao or "-",
                     "chave": intencao.chave, "documentos": len(metas), "em_foco": em_foco}
 
-    if not intencao.factual:
+    if not intencao.resolvivel:
         pacote.ms = int((time.time() - comeco) * 1000)
         pacote.trace["decisao"] = "escalou: não é pergunta de dado"
         return pacote
@@ -255,6 +284,9 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
         pacote.trace["decisao"] = "escalou: sem metadata"
         pacote.ms = int((time.time() - comeco) * 1000)
         return pacote
+
+    if intencao.secao == "summary":
+        return _pelo_resumo(pacote, metas, nomes or {}, em_foco, comeco)
 
     achados: list[Fato] = []
     sem_secao = 0
@@ -299,6 +331,44 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
     pacote.fallback = False
     pacote.porque = f"respondido pelo que já foi lido em {', '.join(documentos)}"
     pacote.trace["decisao"] = "nível 0"
+    pacote.ms = int((time.time() - comeco) * 1000)
+    return pacote
+
+
+def _pelo_resumo(pacote: Pacote, metas: list[Metadata], nomes: dict, em_foco: bool,
+                 comeco: float) -> Pacote:
+    """
+    Nivel 1: o resumo que foi escrito quando o documento entrou.
+
+    So com documento em foco. "Resuma o acervo" nao e uma pergunta que um
+    resumo por documento responde - e juntar catorze resumos numa resposta
+    seria dar a impressao de que o programa leu todos agora.
+    """
+    if not em_foco or len(metas) != 1:
+        pacote.porque = "resumir pede um documento de cada vez"
+        pacote.trace["decisao"] = "escalou: resumo sem documento em foco"
+        pacote.ms = int((time.time() - comeco) * 1000)
+        return pacote
+
+    meta = metas[0]
+    resumo = (meta.summary or {}) if meta.secao("summary").utilizavel else {}
+    texto = str(resumo.get("short") or resumo.get("one_line") or "").strip()
+    if not texto:
+        pacote.porque = "este documento ainda não foi resumido"
+        pacote.trace["decisao"] = "escalou: sem resumo guardado"
+        pacote.ms = int((time.time() - comeco) * 1000)
+        return pacote
+
+    nome = nomes.get(meta.version_id) or meta.titulo
+    pacote.nivel = METADATA_E_RESUMO
+    pacote.inferencia = True
+    pacote.fatos = [Fato(documento=nome, document_id=meta.document_id,
+                         version_id=meta.version_id, secao="summary",
+                         rotulo="leitura do assistente", valor=texto)]
+    pacote.documentos = [nome]
+    pacote.fallback = False
+    pacote.porque = "respondido pelo resumo guardado de " + nome
+    pacote.trace["decisao"] = "nível 1"
     pacote.ms = int((time.time() - comeco) * 1000)
     return pacote
 

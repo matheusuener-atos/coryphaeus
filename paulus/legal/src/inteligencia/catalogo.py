@@ -56,6 +56,9 @@ class Extrator:
     modo: str = ""          # "residual" = so no que a regra nao resolveu
     prompt_version: str = ""
     papel: str = ""         # "verifier" para o conferidor
+    # Extrator que USA o modelo mas nao depende dele (regra primeiro, modelo
+    # no residuo) roda mesmo com o assistente desligado.
+    exige_modelo: bool = True
 
     def carregar(self):
         """O modulo do extrator, importado na hora do uso."""
@@ -98,7 +101,8 @@ class Catalogo:
                 nivel=int(dados.get("nivel", 0) or 0), modulo=str(dados.get("modulo", "")),
                 modelo=str(dados.get("modelo", "") or ""), modo=str(dados.get("modo", "") or ""),
                 prompt_version=str(dados.get("prompt_version", "") or ""),
-                papel=str(dados.get("papel", "") or ""))
+                papel=str(dados.get("papel", "") or ""),
+                exige_modelo=bool(dados.get("exige_modelo", True)))
         return catalogo
 
     # -------------------------------------------------------------- buscar

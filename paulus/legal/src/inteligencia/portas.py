@@ -72,7 +72,7 @@ def analisar_documento(biblioteca, catalogo: Catalogo, caminho, *, texto: str,
         if not extrator:
             analise.puladas.append(nome)
             continue
-        if extrator.modelo and client is None:
+        if extrator.modelo and extrator.exige_modelo and client is None:
             # Sem assistente ligado a secao fica `missing`, e o roteador
             # escala. Nao e erro: e o programa dizendo o que nao sabe.
             meta.marcar_secao(nome, Secao(extractor=extrator.id, status="missing",
@@ -134,6 +134,16 @@ def _rodar(extrator: Extrator, catalogo: Catalogo, meta: Metadata, biblioteca,
     soltos = [i for i in resultado.itens if not i.source.resolvivel]
     if soltos:
         alinhar.verificar_todos(soltos, texto, meta.version_id, pedido.paginas)
+        # E o que passou pela aritmetica ainda passa pela leitura: o trecho
+        # existe, mas sustenta o que foi afirmado? Extrator e conferidor nunca
+        # sao a mesma chamada - auto-verificacao nao verifica nada.
+        conferidor = catalogo.verificador()
+        if conferidor and client is not None and extrator.modelo:
+            from .extratores import verificador as _conferidor
+
+            rebaixados = _conferidor.conferir_todos(client, soltos, extrator.secao)
+            if rebaixados:
+                ficha.error = f"{rebaixados} item(ns) reprovados pelo conferidor"[:200]
 
     ficha.status = resultado.status
     ficha.item_count = len(resultado.itens) if resultado.itens else (1 if resultado.objeto else 0)

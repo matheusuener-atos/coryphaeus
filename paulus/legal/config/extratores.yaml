@@ -57,3 +57,51 @@ extratores:
     secao: legal_references
     nivel: 0
     modulo: regras_leis
+
+  # ------------------------------------------------- nivel 0 (mais regras)
+  jurisdiction-rules/v1:
+    secao: jurisdiction
+    nivel: 0
+    modulo: regras_juizo
+
+  # -------------------------------------------------------------- nivel 1
+  # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario
+  # do cabecalho, e o modelo so e chamado quando a regra nao decide. Por isso
+  # `exige_modelo: false` - com o assistente desligado a secao continua
+  # existindo, com o que a regra achou.
+  doc-classifier/v1:
+    secao: classification
+    nivel: 1
+    modulo: llm_classificador
+    modelo: pequeno
+    exige_modelo: false
+    prompt_version: classification/v1
+
+  # -------------------------------------------------------------- nivel 2
+  # Estas precisam do modelo mesmo: quem e autor e quem e reu depende de ler a
+  # frase. Sem assistente ligado a secao fica `missing` e o roteador escala.
+  party-extractor/v2:
+    secao: parties
+    nivel: 2
+    modulo: llm_partes
+    modelo: grande
+    exige_modelo: true
+    prompt_version: parties/v2
+  summarizer/v1:
+    secao: summary
+    nivel: 2
+    modulo: llm_resumo
+    modelo: grande
+    exige_modelo: true
+    prompt_version: summary/v1
+
+  # -------------------------------------------------------------- nivel 3
+  # O conferidor le a afirmacao e o trecho citado e diz se um sustenta o
+  # outro. Nunca e o mesmo modelo na mesma chamada do extrator: auto-
+  # verificacao nao verifica nada.
+  span-verifier/v1:
+    papel: verifier
+    nivel: 3
+    modulo: verificador
+    modelo: pequeno
+    prompt_version: verifier/v1

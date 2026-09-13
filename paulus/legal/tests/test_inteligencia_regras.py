@@ -183,8 +183,12 @@ def test_analise_inteira() -> None:
 
         primeira = portas.analisar_documento(biblioteca, catalogo, arquivo, texto=PECA,
                                              paginas=2, sha1="sha-teste", titulo="peca.txt")
-        checar(sorted(primeira.rodadas) == ["amounts", "case", "dates", "legal_references"],
-               "as quatro secoes de regra rodaram", primeira.rodadas)
+        # Com o assistente desligado rodam as secoes que nao precisam dele:
+        # as quatro de regra pura mais classificacao e juizo, que so chamam o
+        # modelo quando a regra nao decide.
+        checar(sorted(primeira.rodadas) == ["amounts", "case", "classification", "dates",
+                                            "jurisdiction", "legal_references"],
+               "as secoes que nao precisam do modelo rodaram", primeira.rodadas)
         checar(not primeira.falhas, "sem falha", primeira.falhas)
 
         meta = primeira.metadata
