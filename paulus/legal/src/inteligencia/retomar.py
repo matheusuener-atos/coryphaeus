@@ -58,6 +58,35 @@ def pasta_do_acervo() -> Path:
     return RAIZ / "data" / "test_contracts"
 
 
+def exportar_sidecars(biblioteca, documentos) -> int:
+    """
+    Escreve o metadata ao lado de cada documento, por pedido explicito.
+
+    Isto NAO e o padrao, e a flag existe justamente para que seja uma escolha
+    consciente. O metadata tem as partes, os valores e as teses em texto
+    plano, prontos para qualquer coisa ler - ele costuma ser mais sensivel que
+    o PDF que descreve, e a pasta de trabalho de um escritorio quase sempre
+    esta sincronizada em alguma nuvem. Quem exporta assume isso.
+
+    O arquivo original continua intocado: o que se escreve e um vizinho.
+    """
+    import json
+
+    escritos = 0
+    for doc in documentos:
+        meta = biblioteca.ler_por_sha1(doc.sha1) or biblioteca.ler_por_caminho(doc.path)
+        if not meta:
+            continue
+        alvo = Path(doc.path).with_suffix(Path(doc.path).suffix + ".meta.json")
+        try:
+            alvo.write_text(json.dumps(meta.to_dict(), ensure_ascii=False, indent=1),
+                            encoding="utf-8")
+            escritos += 1
+        except OSError as exc:
+            print(f"  ! {alvo.name}: {exc}")
+    return escritos
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Analisa o acervo existente para a camada de inteligencia.")
     parser.add_argument("--pasta", default="", help="onde estao os documentos (padrao: a do programa)")
@@ -66,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--forcar", action="store_true", help="refaz secao que ja estava boa")
     parser.add_argument("--assistente", action="store_true",
                         help="liga o modelo para as secoes que precisam dele")
+    parser.add_argument("--sidecar", action="store_true",
+                        help="ALEM de analisar, escreve <documento>.meta.json ao lado de cada arquivo")
     argumentos = parser.parse_args(argv)
 
     pasta = Path(argumentos.pasta) if argumentos.pasta else pasta_do_acervo()
@@ -119,6 +150,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {i:3d}. {doc.name}: ja estava em dia")
         for secao, erro in (analise.falhas or {}).items():
             print(f"       ! {secao}: {erro}")
+
+    if argumentos.sidecar:
+        escritos = exportar_sidecars(biblioteca, documentos)
+        print(f"\n{escritos} arquivo(s) .meta.json escritos AO LADO dos documentos.")
+        print("  Atencao: o metadata tem partes, valores e teses em texto plano - "
+              "costuma ser mais sensivel que o proprio documento.")
 
     situacao = biblioteca.situacao()
     print(f"\n{mexidos} documento(s) analisado(s) em {round(time.time() - comeco, 1)} s")
