@@ -56,6 +56,7 @@ import relatorios
 import servicos as servicos_mod
 import gravacoes as gravacoes_mod
 import transcricao as transcricao_mod
+import lixeira as lixeira_mod
 import pastas
 import recursos
 import registro
@@ -113,6 +114,7 @@ RECIBOS_DIR = BASE_DIR / "data" / "recibos"
 EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
 GRAVACOES_DIR = BASE_DIR / "data" / "gravacoes"
 MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"
+LIXEIRA_DIR = BASE_DIR / "data" / "lixeira"
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
 RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
@@ -190,6 +192,9 @@ class Estado:
         self.erro_voz = ""
         # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
         self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
+        # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
+        self.lixeira = lixeira_mod.Lixeira(self.base, LIXEIRA_DIR)
+        self.lixeira.esvaziar_vencidos()
         for id_ in self.gravacoes.pendentes():
             self.fila_voz.put(id_)
         threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
@@ -1028,9 +1033,14 @@ def acontecendo_agora() -> dict:
 
 @app.delete("/api/trabalhos/{id_}")
 def trabalhos_remover(id_: str) -> dict:
-    if not estado.trabalhos.remover(id_):
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
         raise HTTPException(status_code=404, detail="trabalho nao encontrado")
-    return {"removido": id_}
+    caminho = estado.trabalhos.caminho_de(id_)
+    movidos = [estado.lixeira.mover_arquivo(caminho)] if caminho.exists() else []
+    entrada = estado.lixeira.guardar("conversa", id_, trabalho.titulo, "Assistente", {"id": id_}, movidos)
+    estado.trabalhos.remover(id_)
+    return _foi_para_lixeira(entrada, "removido", id_)
 
 
 def _em_foco(trabalho) -> list[str]:
@@ -1467,9 +1477,11 @@ def agenda_salvar(payload: FichaCompromisso) -> dict:
 
 @app.delete("/api/agenda/{id_}")
 def agenda_apagar(id_: int) -> dict:
-    if not estado.agenda.apagar(id_):
+    c = estado.base.um("SELECT titulo, data, hora FROM compromissos WHERE id = ?", (id_,))
+    if not c:
         raise HTTPException(status_code=404, detail="compromisso nao encontrado")
-    return {"apagado": id_}
+    entrada = estado.lixeira.apagar_linha("compromisso", id_, c["titulo"], "Agenda · " + c["data"] + " " + (c["hora"] or ""))
+    return _foi_para_lixeira(entrada, "apagado", id_)
 
 
 @app.post("/api/agenda/nota")
@@ -1535,9 +1547,11 @@ def cadastros_vincular(id_: int, payload: VinculoDoc) -> dict:
 
 @app.delete("/api/cadastros/{id_}")
 def cadastros_apagar(id_: int) -> dict:
-    if not estado.cadastros.apagar(id_):
+    f = estado.base.um("SELECT nome, tipo FROM cadastros WHERE id = ?", (id_,))
+    if not f:
         raise HTTPException(status_code=404, detail="cadastro nao encontrado")
-    return {"apagado": id_}
+    entrada = estado.lixeira.apagar_linha("cadastro", id_, f["nome"], "Cadastros · " + f["tipo"])
+    return _foi_para_lixeira(entrada, "apagado", id_)
 
 
 # ---------------------------------------------------------------- tarefas
@@ -1667,9 +1681,11 @@ def vinculo_apagar(id_: int) -> dict:
 
 @app.delete("/api/tarefas/{id_}")
 def tarefas_apagar(id_: int) -> dict:
-    if not estado.tarefas.apagar(id_):
+    t = estado.base.um("SELECT titulo, prazo FROM tarefas WHERE id = ?", (id_,))
+    if not t:
         raise HTTPException(status_code=404, detail="tarefa nao encontrada")
-    return {"apagada": id_}
+    entrada = estado.lixeira.apagar_linha("tarefa", id_, t["titulo"], "Agenda · Tarefas" + (" · prazo " + t["prazo"] if t["prazo"] else ""))
+    return _foi_para_lixeira(entrada, "apagada", id_)
 
 
 # ------------------------------------------------------------- aprovacoes
@@ -3313,9 +3329,11 @@ def documentos_gravar(id_: int, payload: GravarDocumento) -> dict:
 
 @app.delete("/api/documentos/{id_}")
 def documentos_apagar(id_: int) -> dict:
-    if not estado.documentos.apagar(id_):
+    d = estado.base.um("SELECT titulo, tipo FROM documentos WHERE id = ?", (id_,))
+    if not d:
         raise HTTPException(status_code=404, detail="documento não encontrado")
-    return {"apagado": id_}
+    entrada = estado.lixeira.apagar_linha("documento", id_, d["titulo"], "Documentos · " + ("planilha" if d["tipo"] == "planilha" else "texto"))
+    return _foi_para_lixeira(entrada, "apagado", id_)
 
 
 @app.get("/api/documentos/{id_}/versoes")
@@ -4414,9 +4432,12 @@ def financeiro_reabrir(id_: int) -> dict:
 
 @app.delete("/api/financeiro/lancamentos/{id_}")
 def financeiro_apagar(id_: int) -> dict:
-    if not estado.financeiro.apagar(id_):
+    l = estado.base.um("SELECT descricao, centavos, vencimento FROM lancamentos WHERE id = ?", (id_,))
+    if not l:
         raise HTTPException(status_code=404, detail="lançamento não encontrado")
-    return {"apagado": id_}
+    reais = f"R$ {l['centavos'] / 100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    entrada = estado.lixeira.apagar_linha("lancamento", id_, l["descricao"], "Financeiro · " + reais + (" · " + l["vencimento"] if l["vencimento"] else ""))
+    return _foi_para_lixeira(entrada, "apagado", id_)
 
 
 @app.post("/api/financeiro/lancamentos/{id_}/comprovante")
@@ -4709,9 +4730,11 @@ def servicos_obter(id_: int) -> dict:
 
 @app.delete("/api/servicos/{id_}")
 def servicos_apagar(id_: int) -> dict:
-    if not estado.servicos.apagar(id_):
+    s = estado.servicos.obter(id_)
+    if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
-    return {"apagado": id_}
+    entrada = estado.lixeira.apagar_linha("servico", id_, s["nome"], "Serviços" + (" · " + s["cliente_nome"] if s.get("cliente_nome") else ""))
+    return _foi_para_lixeira(entrada, "apagado", id_)
 
 
 @app.post("/api/servicos/{id_}/status")
@@ -5049,9 +5072,13 @@ def gravacoes_atualizar(id_: int, payload: dict) -> dict:
 
 @app.delete("/api/gravacoes/{id_}")
 def gravacoes_apagar(id_: int) -> dict:
-    if not estado.gravacoes.apagar(id_):
+    g = estado.gravacoes.obter(id_)
+    if not g:
         raise HTTPException(status_code=404, detail="gravação não encontrada")
-    return {"apagada": id_}
+    caminho = estado.gravacoes.caminho(id_)
+    entrada = estado.lixeira.apagar_linha("gravacao", id_, g["titulo"], "Gravações · " + g["tipo_rotulo"] + " · " + g["duracao_texto"],
+                                          arquivos=[str(caminho)] if caminho else [])
+    return _foi_para_lixeira(entrada, "apagada", id_)
 
 
 @app.get("/api/gravacoes/{id_}/audio")
@@ -5076,6 +5103,48 @@ def gravacoes_tirar_marcador(id_: int, indice: int) -> dict:
         return {"marcadores": estado.gravacoes.tirar_marcador(id_, indice)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# -------------------------------------------------------------- lixeira
+
+
+def _foi_para_lixeira(entrada: dict | None, chave: str, id_) -> dict:
+    """A resposta de um DELETE: o que saiu e o numero na lixeira, para o Desfazer do aviso."""
+    if not entrada:
+        raise HTTPException(status_code=404, detail="não encontrado")
+    return {chave: id_, "lixeira": entrada["id"], "titulo": entrada["titulo"],
+            "aviso": entrada["tipo_rotulo"] + " “" + entrada["titulo"] + "” foi para a lixeira · fica " + str(lixeira_mod.DIAS) + " dias"}
+
+
+@app.get("/api/lixeira")
+def lixeira_listar() -> dict:
+    estado.lixeira.esvaziar_vencidos()
+    itens = estado.lixeira.listar()
+    return {"itens": itens, "total": len(itens), "dias": lixeira_mod.DIAS, "pasta": str(LIXEIRA_DIR)}
+
+
+@app.post("/api/lixeira/esvaziar")
+def lixeira_esvaziar() -> dict:
+    return {"apagados": estado.lixeira.esvaziar()}
+
+
+@app.post("/api/lixeira/{id_}/restaurar")
+def lixeira_restaurar(id_: int) -> dict:
+    try:
+        e = estado.lixeira.restaurar(id_)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if e["tipo"] == "conversa":
+        estado.trabalhos.recarregar_um(e["alvo_id"])
+    return {"restaurado": e["alvo_id"], "tipo": e["tipo"], "titulo": e["titulo"],
+            "aviso": e["tipo_rotulo"] + " “" + e["titulo"] + "” voltou"}
+
+
+@app.delete("/api/lixeira/{id_}")
+def lixeira_tirar(id_: int) -> dict:
+    if not estado.lixeira.tirar(id_):
+        raise HTTPException(status_code=404, detail="essa entrada não está na lixeira")
+    return {"apagado_de_vez": id_}
 
 
 # ------------------------------------------------------------- conexoes

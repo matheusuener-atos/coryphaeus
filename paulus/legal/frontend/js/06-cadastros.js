@@ -609,12 +609,13 @@ async function salvarFicha() {
 
 async function apagarFicha(f) {
   if (!f) return;
-  if (!(await confirmar({ titulo: "Apagar a ficha de " + f.nome + "?", contexto: "Cadastros", texto: "Os lançamentos e documentos continuam onde estão, só perdem a ligação com a ficha.", confirmar: "Apagar", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Apagar a ficha de " + f.nome + "?", contexto: "Cadastros", texto: "Os lançamentos e documentos continuam onde estão, só perdem a ligação com a ficha. " + LIXEIRA_TEXTO + " Restaurar religa tudo.", confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/cadastros/" + f.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   cad.aberta = null;
   cad.form = null;
   mostrarCadastros();
+  avisarLixeira(r, () => mostrarCadastros());
 }
 
 function perguntarSobreFicha(f) {

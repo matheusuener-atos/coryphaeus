@@ -322,6 +322,57 @@ def test_ao_vivo(c: Cliente, criados: dict, pcm: bytes, audio: bytes, segundos: 
     checar(st == 200, "descartar uma sessao")
 
 
+def test_lixeira(c: Cliente, criados: dict) -> None:
+    print("\nlixeira: apagar guarda 30 dias, restaurar devolve tudo")
+    st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Lixeira Cliente"}})
+    criados["cadastros"].append(cli["id"])
+    st, s = c.pedir("POST", "/api/servicos", {"id": None, "dados": {"nome": "Teste Lixeira Serviço", "cadastro_id": cli["id"]}})
+    c.pedir("POST", f"/api/servicos/{s['id']}/etapas", {"titulo": "Etapa que volta"})
+    st, b = c.pedir("GET", "/api/biblioteca")
+    docs = b.get("documentos") or []
+    if docs:
+        c.pedir("POST", f"/api/servicos/{s['id']}/vincular", {"sha1": docs[0]["sha1"], "nome": docs[0]["nome"]})
+    st, r = c.pedir("DELETE", f"/api/servicos/{s['id']}")
+    checar(st == 200 and r.get("lixeira") and "lixeira" in r.get("aviso", ""), "apagar devolve o numero na lixeira e a frase do aviso", r)
+    st, x = c.pedir("GET", f"/api/servicos/{s['id']}")
+    checar(st == 404, "o servico sumiu da tela")
+    st, l = c.pedir("GET", "/api/lixeira")
+    entrada = next((e for e in l["itens"] if e["id"] == r["lixeira"]), None)
+    checar(entrada is not None and entrada["tipo"] == "servico" and entrada["dias_restantes"] >= 29, "a lixeira lista a entrada com os dias restantes", entrada)
+    st, v = c.pedir("POST", f"/api/lixeira/{r['lixeira']}/restaurar")
+    checar(st == 200 and v["restaurado"] == str(s["id"]), "restaurar responde", (st, v))
+    st, s2 = c.pedir("GET", f"/api/servicos/{s['id']}")
+    checar(st == 200 and s2["nome"] == "Teste Lixeira Serviço" and s2["cliente_nome"] == "Teste Lixeira Cliente", "o servico voltou com o mesmo numero e o cliente")
+    checar(len(s2["etapas"]) == 1 and s2["etapas"][0]["titulo"] == "Etapa que volta", "as etapas voltaram")
+    if docs:
+        checar(len(s2["arquivos"]) == 1, "o arquivo ligado voltou")
+    criados["servicos"].append(s["id"])
+    st, x = c.pedir("POST", f"/api/lixeira/{r['lixeira']}/restaurar")
+    checar(st == 409, "restaurar duas vezes nao duplica")
+
+    # A ficha do cliente: as ligacoes por cadastro_id voltam junto.
+    st, r2 = c.pedir("DELETE", f"/api/cadastros/{cli['id']}")
+    st, s3 = c.pedir("GET", f"/api/servicos/{s['id']}")
+    checar(s3["cadastro_id"] is None, "apagar a ficha desliga o servico")
+    st, v2 = c.pedir("POST", f"/api/lixeira/{r2['lixeira']}/restaurar")
+    st, s4 = c.pedir("GET", f"/api/servicos/{s['id']}")
+    checar(st == 200 and s4["cadastro_id"] == cli["id"], "restaurar a ficha religa o servico")
+
+    # Uma gravacao leva o audio junto e traz de volta.
+    st, g = c.enviar_audio({"titulo": "Teste Lixeira gravação", "tipo": "nota", "duracao_s": "1", "origem": "importada", "marcadores": "[]", "transcrever": "0"}, "lixo.wav", criados["audio"])
+    st, r3 = c.pedir("DELETE", f"/api/gravacoes/{g['id']}")
+    pasta = Path(RAIZ / "data" / "gravacoes" / g["arquivo"])
+    checar(not pasta.exists(), "o audio saiu de data/gravacoes")
+    st, v3 = c.pedir("POST", f"/api/lixeira/{r3['lixeira']}/restaurar")
+    st, g2 = c.pedir("GET", f"/api/gravacoes/{g['id']}")
+    checar(st == 200 and g2["existe"] and pasta.exists(), "restaurar traz o audio de volta")
+    criados["gravacoes"].append(g["id"])
+    st, r4 = c.pedir("DELETE", f"/api/gravacoes/{g['id']}")
+    st, x = c.pedir("DELETE", f"/api/lixeira/{r4['lixeira']}")
+    checar(st == 200 and not pasta.exists(), "apagar de vez tira a entrada e o arquivo")
+    criados["gravacoes"].remove(g["id"])
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - servicos, gravacoes e transcricao")
@@ -329,7 +380,7 @@ def main() -> int:
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
     c = Cliente(porta)
-    criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": []}
+    criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": [], "audio": b""}
     try:
         with tempfile.TemporaryDirectory() as tmp:
             caminho = Path(tmp) / "fala.wav"
@@ -338,6 +389,7 @@ def main() -> int:
                 wav_sintetico(caminho)
                 pular("audio falado pelas vozes do Windows", "sem a voz Microsoft Maria; usando um tom")
             audio = caminho.read_bytes()
+            criados["audio"] = audio
             with wave.open(str(caminho), "rb") as w:
                 pcm = w.readframes(w.getnframes())
                 segundos = max(1, round(w.getnframes() / w.getframerate()))
@@ -349,15 +401,23 @@ def main() -> int:
                 test_ao_vivo(c, criados, pcm, audio, segundos)
             else:
                 pular("transcricao e ao vivo", "sem audio falado")
+            test_lixeira(c, criados)
     finally:
+        # Apagar manda para a lixeira; o teste tira de la tambem, para nao
+        # deixar entrada de teste no meio das de verdade.
+        def apagar_de_vez(caminho: str) -> None:
+            st, r = c.pedir("DELETE", caminho)
+            if isinstance(r, dict) and r.get("lixeira"):
+                c.pedir("DELETE", f"/api/lixeira/{r['lixeira']}")
+
         for gid in criados["gravacoes"]:
-            c.pedir("DELETE", f"/api/gravacoes/{gid}")
+            apagar_de_vez(f"/api/gravacoes/{gid}")
         for sid in criados["servicos"]:
-            c.pedir("DELETE", f"/api/servicos/{sid}")
+            apagar_de_vez(f"/api/servicos/{sid}")
         for tid in criados["tarefas"]:
-            c.pedir("DELETE", f"/api/tarefas/{tid}")
+            apagar_de_vez(f"/api/tarefas/{tid}")
         for cid in criados["cadastros"]:
-            c.pedir("DELETE", f"/api/cadastros/{cid}")
+            apagar_de_vez(f"/api/cadastros/{cid}")
         st, sobra = c.pedir("GET", "/api/gravacoes?termo=Teste%20%E2%80%94")
         sobrou = [x["titulo"] for x in sobra.get("gravacoes", [])]
         checar(not sobrou, "nada de teste sobrou no disco", sobrou)

@@ -77,10 +77,11 @@ function abrirMenu(linha) {
 
   menu.querySelector('[data-a="apagar"]').onclick = async () => {
     fecharMenu();
-    if (!(await confirmar({ titulo: "Apagar esta conversa?", contexto: "Assistente › " + titulo, texto: "A conversa sai da lista e do disco. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
-    await fetch("/api/trabalhos/" + id, { method: "DELETE" });
+    if (!(await confirmar({ titulo: "Apagar esta conversa?", contexto: "Assistente › " + titulo, texto: "A conversa sai da lista. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
+    const r = await fetch("/api/trabalhos/" + id, { method: "DELETE" });
     if (id === estado.trabalhoId) $("nova").click();
     else carregarTrabalhos();
+    avisarLixeira(r, () => carregarTrabalhos());
   };
 }
 
@@ -120,9 +121,10 @@ $("nova").onclick = () => {
 
 $("apagar").onclick = async () => {
   if (!estado.trabalhoId) return;
-  if (!(await confirmar({ titulo: "Apagar esta conversa?", contexto: "Assistente › " + $("conversa-titulo").textContent, texto: "A conversa sai da lista e do disco. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
-  await fetch("/api/trabalhos/" + estado.trabalhoId, { method: "DELETE" });
+  if (!(await confirmar({ titulo: "Apagar esta conversa?", contexto: "Assistente › " + $("conversa-titulo").textContent, texto: "A conversa sai da lista. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
+  const r = await fetch("/api/trabalhos/" + estado.trabalhoId, { method: "DELETE" });
   $("nova").click();
+  avisarLixeira(r, (d) => { carregarTrabalhos(); if (d && d.restaurado) abrirTrabalho(d.restaurado); });
 };
 
 function exemplos() {

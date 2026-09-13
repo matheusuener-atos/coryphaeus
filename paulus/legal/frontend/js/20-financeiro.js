@@ -977,11 +977,12 @@ async function salvarLancamento() {
 async function apagarLancamento() {
   const v = fin.form;
   if (!v || !v.id) return;
-  if (!(await confirmar({ titulo: "Apagar este lançamento?", contexto: "Financeiro › Lançamentos", texto: "Os comprovantes ligados a ele vão junto. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
-  await fetch("/api/financeiro/lancamentos/" + v.id, { method: "DELETE" });
+  if (!(await confirmar({ titulo: "Apagar este lançamento?", contexto: "Financeiro › Lançamentos", texto: "Os comprovantes ligados a ele vão junto. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
+  const r = await fetch("/api/financeiro/lancamentos/" + v.id, { method: "DELETE" });
   fin.form = null;
   fin.aberto = null;
   mostrarFinanceiro();
+  avisarLixeira(r, () => mostrarFinanceiro());
 }
 
 async function liquidarLancamento(id) {

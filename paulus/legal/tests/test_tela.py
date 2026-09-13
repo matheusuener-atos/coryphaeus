@@ -444,7 +444,7 @@ def main() -> int:
             )
             checar(colunas == 2, f"o menu interno e a secao ficam lado a lado (achou {colunas})")
             secoes = pagina.evaluate("() => document.querySelectorAll('#cfg-tela [data-cfg-secao]').length")
-            checar(secoes == 9, f"o menu tem nove secoes (achou {secoes})")
+            checar(secoes == 10, f"o menu tem dez secoes, a Lixeira incluida (achou {secoes})")
             checar(
                 pagina.evaluate("() => document.querySelectorAll('#cfg-tela .cfg-grade > .cfg-cartao').length") == 2,
                 "Meus dados abre em dois cartoes lado a lado",
@@ -584,7 +584,7 @@ def main() -> int:
                 pagina.wait_for_selector("#sv-tela .sv-grade", timeout=20000)
                 checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Serviços", "a seta volta para as pastas")
             finally:
-                pagina.evaluate(f"() => fetch('/api/servicos/{id_servico}', {{ method: 'DELETE' }})")
+                pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/servicos/{id_servico}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
                 pagina.wait_for_timeout(300)
 
             print("\nGravacoes: lista, gravador e gravacao arquivada (A16)")
@@ -655,7 +655,7 @@ def main() -> int:
                 pagina.wait_for_selector("#gv-tela .gv-lista", timeout=20000)
                 checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Gravações", "a seta volta para a lista")
             finally:
-                pagina.evaluate(f"() => fetch('/api/gravacoes/{id_gravacao}', {{ method: 'DELETE' }})")
+                pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/gravacoes/{id_gravacao}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
                 pagina.wait_for_timeout(300)
 
             print("\ndialogos do sistema (P - Popups)")
@@ -685,6 +685,35 @@ def main() -> int:
             pagina.wait_for_timeout(200)
             pagina.evaluate("() => document.querySelector('#aviso-toast button').click()")
             checar(pagina.evaluate("() => window.__desfez === true"), "o aviso com Desfazer chama a acao")
+
+            print("\nlixeira (doc 05): apagar guarda 30 dias, o aviso desfaz, Configuracoes restaura")
+            id_tarefa = pagina.evaluate("""async () => {
+                const r = await fetch('/api/tarefas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: null, dados: { titulo: 'Teste de tela — vai e volta', prazo: '', cadastro_id: null, anotacao: '' } }) });
+                return (await r.json()).id;
+            }""")
+            try:
+                lixo = pagina.evaluate(f"async () => {{ const r = await fetch('/api/tarefas/{id_tarefa}', {{ method: 'DELETE' }}); avisarLixeira(r.clone(), null); return await r.json(); }}")
+                pagina.wait_for_timeout(300)
+                checar(
+                    bool(lixo.get("lixeira")) and pagina.evaluate("() => document.querySelector('#aviso-toast.visivel button') && document.querySelector('#aviso-toast.visivel button').textContent === 'Desfazer'"),
+                    "apagar avisa com Desfazer",
+                )
+                pagina.evaluate("() => mostrarConfig('lixeira')")
+                pagina.wait_for_selector("[data-cfg-lixo-restaurar]", timeout=40000)
+                checar(
+                    pagina.evaluate(f"() => !!document.querySelector('[data-cfg-lixo-restaurar=\"{lixo['lixeira']}\"]') && document.body.textContent.includes('Teste de tela — vai e volta')"),
+                    "Configuracoes > Lixeira lista a tarefa apagada",
+                )
+                pagina.evaluate(f"() => document.querySelector('[data-cfg-lixo-restaurar=\"{lixo['lixeira']}\"]').click()")
+                pagina.wait_for_timeout(1500)
+                checar(
+                    pagina.evaluate(f"async () => ((await (await fetch('/api/tarefas?filtro=abertas')).json()).tarefas || []).some((t) => t.id === {id_tarefa})"),
+                    "Restaurar traz a tarefa de volta",
+                )
+            finally:
+                pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/tarefas/{id_tarefa}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
+                pagina.wait_for_timeout(300)
 
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
@@ -717,7 +746,7 @@ def main() -> int:
                 str(folga),
             )
             pagina.evaluate(
-                "(id) => fetch('/api/documentos/' + id, {method: 'DELETE'})", id_planilha
+                "async (id) => { const r = await (await fetch('/api/documentos/' + id, {method: 'DELETE'})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {method: 'DELETE'}); }", id_planilha
             )
 
             navegador.close()

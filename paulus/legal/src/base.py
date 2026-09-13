@@ -426,6 +426,25 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE gravacoes ADD COLUMN resumo_em TEXT DEFAULT '';
         """,
     ),
+    (
+        "017_lixeira",
+        """
+        -- A lixeira (docs/ui/05): o que foi apagado fica 30 dias com tudo
+        -- que precisa para voltar - a linha e as filhas em JSON, e os
+        -- arquivos movidos para data/lixeira. Ver src/lixeira.py.
+        CREATE TABLE lixeira (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo       TEXT NOT NULL,
+            alvo_id    TEXT NOT NULL,
+            titulo     TEXT NOT NULL,
+            detalhe    TEXT DEFAULT '',
+            dados      TEXT NOT NULL,
+            arquivos   TEXT NOT NULL DEFAULT '[]',
+            apagado_em TEXT NOT NULL
+        );
+        CREATE INDEX idx_lixeira_apagado ON lixeira(apagado_em);
+        """,
+    ),
 ]
 
 

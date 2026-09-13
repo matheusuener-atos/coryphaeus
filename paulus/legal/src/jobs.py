@@ -244,6 +244,22 @@ class Trabalhos:
         self._caminho(id_).unlink(missing_ok=True)
         return True
 
+    def caminho_de(self, id_: str) -> Path:
+        return self._caminho(id_)
+
+    def recarregar_um(self, id_: str) -> bool:
+        """Le de novo o arquivo de um trabalho - o que a lixeira acabou de devolver."""
+        arquivo = self._caminho(id_)
+        try:
+            trabalho = _de_dict(json.loads(arquivo.read_text(encoding="utf-8")))
+        except (json.JSONDecodeError, OSError):
+            return False
+        if not trabalho:
+            return False
+        with self._trava:
+            self._itens[trabalho.id] = trabalho
+        return True
+
     def listar(self) -> dict:
         """
         Conversas agrupadas como a coluna da esquerda mostra.

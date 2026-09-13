@@ -1158,12 +1158,13 @@ async function salvarFormAgenda() {
 }
 
 async function apagarCompromisso(c) {
-  if (!(await confirmar({ titulo: "Excluir este compromisso?", contexto: "Agenda › " + c.titulo, texto: "Ele sai da agenda. Não dá para desfazer.", confirmar: "Excluir", perigo: true }))) return;
-  await fetch("/api/agenda/" + c.id, { method: "DELETE" });
+  if (!(await confirmar({ titulo: "Excluir este compromisso?", contexto: "Agenda › " + c.titulo, texto: "Ele sai da agenda. " + LIXEIRA_TEXTO, confirmar: "Excluir", perigo: true }))) return;
+  const r = await fetch("/api/agenda/" + c.id, { method: "DELETE" });
   ag.form = null;
   ag.painel = "dia";
   ag.diaAberto = null;
   mostrarAgenda();
+  avisarLixeira(r, () => mostrarAgenda());
 }
 
 /* ------------------------------------------------- a ficha da tarefa */
@@ -1251,13 +1252,14 @@ async function salvarCamposDaTarefa(t, mudancas) {
 
 async function apagarTarefa(id) {
   const t = ag.tar.itens.find((x) => x.id === id) || ag.form || {};
-  if (!(await confirmar({ titulo: "Excluir esta tarefa?", contexto: "Agenda › " + (t.titulo || "tarefa"), texto: "Ela sai da lista. Não dá para desfazer.", confirmar: "Excluir", perigo: true }))) return;
-  await fetch("/api/tarefas/" + id, { method: "DELETE" });
+  if (!(await confirmar({ titulo: "Excluir esta tarefa?", contexto: "Agenda › " + (t.titulo || "tarefa"), texto: "Ela sai da lista, com as etapas. " + LIXEIRA_TEXTO, confirmar: "Excluir", perigo: true }))) return;
+  const r = await fetch("/api/tarefas/" + id, { method: "DELETE" });
   ag.tar.aberta = null;
   ag.form = null;
   ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
   ag.diaAberto = null;
   recarregarAgenda();
+  avisarLixeira(r, () => recarregarAgenda());
 }
 
 /* O vinculo e pelo conteudo do arquivo: renomear ou mover nao quebra. */

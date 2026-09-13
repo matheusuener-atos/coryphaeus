@@ -62,3 +62,6 @@ data/clausulas.json
 # Modelos de voz (Whisper) e audios gravados: pesados e de cliente, ficam so na maquina.
 data/modelos/
 data/gravacoes/
+
+# A lixeira guarda por 30 dias o que foi apagado: arquivos de cliente, ficam so na maquina.
+data/lixeira/

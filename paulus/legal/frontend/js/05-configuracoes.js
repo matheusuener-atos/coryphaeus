@@ -29,6 +29,7 @@ const CFG_SECOES = [
   ["aparencia", "palette", "Aparência e atalhos", "Tema, fontes, densidade e atalhos"],
   ["feedback", "rate_review", "Feedback", "Elogios, sugestões, correções e bugs · com anexos"],
   ["plano", "favorite", "Plano e apoio", "Software livre · apoio, doação e atualizações"],
+  ["lixeira", "delete", "Lixeira", "O que foi apagado nos últimos 30 dias · restaurar ou apagar de vez"],
 ];
 
 const CFG_ICONE_HAB = {
@@ -113,6 +114,8 @@ async function carregarSecao() {
     cfg.recursos = await pega("/api/recursos");
   } else if (cfg.secao === "assistente") {
     cfg.voz = await pega("/api/voz");
+  } else if (cfg.secao === "lixeira") {
+    cfg.lixo = await pega("/api/lixeira");
   }
 }
 
@@ -132,6 +135,7 @@ function desenharConfig() {
   else if (cfg.secao === "aparencia") secao = secaoAparencia();
   else if (cfg.secao === "feedback") secao = secaoFeedback();
   else if (cfg.secao === "plano") secao = secaoPlano();
+  else if (cfg.secao === "lixeira") secao = secaoLixeira();
   else secao = secaoPerfil();
 
   $("centro").innerHTML = '<div class="acervo sem-painel cfg-tela" id="cfg-tela"><div class="cfg-corpo">' +
@@ -801,12 +805,65 @@ function secaoPlano() {
 
 /* ------------------------------------------------------------ as acoes */
 
+/* ------------------------------------------------------------- lixeira */
+/* O que foi apagado nos ultimos 30 dias, com Restaurar e Apagar de vez.
+   O que passou do prazo ja sumiu antes de a lista ser lida. */
+
+const CFG_ICONE_LIXO = {
+  conversa: "forum", tarefa: "task_alt", compromisso: "event", servico: "work", gravacao: "graphic_eq",
+  documento: "description", lancamento: "payments", cadastro: "person",
+};
+
+function secaoLixeira() {
+  const l = cfg.lixo;
+  if (!l) return cartaoCfg("Lixeira", "", '<p class="cfg-texto">não consegui ler a lixeira.</p>');
+  const itens = l.itens || [];
+  if (!itens.length) {
+    return cartaoCfg("Lixeira", metaCfg("vazia"), '<div class="cfg-lixo-vazia"><h3>Nada na lixeira</h3>' +
+      "<p>O que você apagar — conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha — fica aqui por " + (l.dias || 30) +
+      " dias, com tudo que precisa para voltar. Depois disso some sozinho.</p></div>");
+  }
+  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha"><span class="cfg-servico-ic">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
+    '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "")) + "</small></div>" +
+    '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>" +
+    '<button data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +
+    '<button class="mais-linha" data-cfg-lixo-tirar="' + e.id + '" title="Apagar de vez">' + ic("close", 16) + "</button></div>").join("");
+  return cartaoCfg("Lixeira", metaCfg(plural(itens.length, "item", "itens") + " · cada um fica " + (l.dias || 30) + " dias"),
+    '<div class="cfg-linhas">' + linhas + "</div>" +
+    '<div class="cfg-botoes cfg-lixo-pe"><button data-cfg-lixo-esvaziar="1">' + ic("delete", 16) + "Esvaziar a lixeira</button>" +
+    '<span class="cfg-explica">Restaurar devolve a linha, as ligações e os arquivos ao lugar de onde saíram.</span></div>');
+}
+
 function ligarConfig() {
   const cada = (seletor, fn) => document.querySelectorAll(seletor).forEach(fn);
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
 
   clique("[data-cfg-secao]", (b) => { cfg.secao = b.dataset.cfgSecao; mostrarConfig(); });
   clique("[data-cfg-manual]", () => { location.hash = "#boasvindas"; verificarPrimeiraAbertura(); });
+  clique("[data-cfg-lixo-restaurar]", async (b) => {
+    b.disabled = true;
+    await restaurarDaLixeira(Number(b.dataset.cfgLixoRestaurar), null);
+    cfg.recarregar = true;
+    mostrarConfig("lixeira");
+  });
+  clique("[data-cfg-lixo-tirar]", async (b) => {
+    const e = (cfg.lixo.itens || []).find((x) => x.id === Number(b.dataset.cfgLixoTirar));
+    if (!e) return;
+    if (!(await confirmar({ titulo: "Apagar de vez?", contexto: "Lixeira › " + e.titulo, texto: "Sai da lixeira agora, sem esperar os 30 dias. Não dá para desfazer.", confirmar: "Apagar de vez", perigo: true }))) return;
+    const r = await fetch("/api/lixeira/" + e.id, { method: "DELETE" });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    cfg.recarregar = true;
+    mostrarConfig("lixeira");
+  });
+  clique("[data-cfg-lixo-esvaziar]", async () => {
+    const quantos = (cfg.lixo.itens || []).length;
+    if (!(await confirmar({ titulo: "Esvaziar a lixeira?", contexto: "Configurações › Lixeira", texto: plural(quantos, "item", "itens") + " somem agora, sem esperar os 30 dias. Não dá para desfazer.", confirmar: "Esvaziar", perigo: true }))) return;
+    const r = await fetch("/api/lixeira/esvaziar", { method: "POST" });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    avisoCert("lixeira esvaziada", { tom: "ok" });
+    cfg.recarregar = true;
+    mostrarConfig("lixeira");
+  });
   clique("[data-cfg-sair]", () => avisoCert("sair não existe ainda — hoje o PAULUS abre com a sua conta do Windows, e fechar a janela basta"));
   clique("[data-cfg-salvar]", salvarConfig);
   clique("[data-cfg-descartar]", () => { cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual); cfg.sujo = false; desenharConfig(); });

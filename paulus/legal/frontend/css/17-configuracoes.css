@@ -211,3 +211,14 @@
   .cfg-segmento button.ativa { background: var(--surf); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px var(--sh-a12); }
   .cfg-segmento button:disabled { opacity: .5; }
 
+
+  /* A lixeira (docs/ui/05): a lista do que foi apagado, com Restaurar e Apagar de vez. */
+  .cfg-lixo-linha .duas-linhas { flex: 1; }
+  .cfg-lixo-linha .duas-linhas small { white-space: normal; }
+  .cfg-lixo-quando { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .cfg-lixo-linha button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+  .cfg-lixo-linha .mais-linha { padding: 0; }
+  .cfg-lixo-vazia { display: grid; gap: 8px; padding: 8px 0; }
+  .cfg-lixo-vazia h3 { margin: 0; font: 400 20px/1.15 var(--serif); }
+  .cfg-lixo-vazia p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .cfg-lixo-pe { padding-top: 12px; }

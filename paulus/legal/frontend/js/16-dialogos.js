@@ -121,6 +121,31 @@ function perguntar(o) {
   return dialogo(o).then((r) => (r && r.ok ? r.valor : null));
 }
 
+/* ------------------------------------------------------------- lixeira */
+/*
+   Apagar guarda por 30 dias (docs/ui/05). Cada DELETE devolve o numero da
+   entrada na lixeira e a frase do aviso; o aviso traz Desfazer, que chama
+   restaurar e depois a funcao que redesenha a tela de onde a coisa saiu.
+*/
+
+const LIXEIRA_TEXTO = "Vai para a Lixeira por 30 dias; dá para restaurar em Configurações › Lixeira.";
+
+async function avisarLixeira(resposta, depois) {
+  let r = null;
+  try { r = await resposta.json(); } catch (err) { r = null; }
+  if (!r || !r.lixeira) { avisoCert("apagado"); return; }
+  avisoCert(r.aviso || "foi para a lixeira", { tom: "ok", acao: { rotulo: "Desfazer", fazer: () => restaurarDaLixeira(r.lixeira, depois) } });
+}
+
+async function restaurarDaLixeira(id, depois) {
+  const r = await fetch("/api/lixeira/" + id + "/restaurar", { method: "POST" });
+  if (!r.ok) { avisoCert("não consegui restaurar: " + (await erroDe(r)), { tom: "erro" }); return null; }
+  const d = await r.json();
+  avisoCert(d.aviso || "restaurado", { tom: "ok" });
+  if (depois) depois(d);
+  return d;
+}
+
 /* O aviso no rodape. `opcoes.acao` = { rotulo, fazer } poe o Desfazer;
    `opcoes.tom` = "erro" faz o aviso branco com borda vinho; `opcoes.icone`
    troca o icone (info por padrao, check_circle com tom "ok"). */

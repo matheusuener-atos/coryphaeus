@@ -599,10 +599,11 @@ async function criarDocumento(tipo) {
 }
 
 async function apagarDocumento(d) {
-  if (!(await confirmar({ titulo: "Apagar este documento?", contexto: "Documentos › " + d.titulo, texto: "Todo o histórico de versões vai junto. Não dá para desfazer.", confirmar: "Apagar", perigo: true }))) return;
-  await fetch("/api/documentos/" + d.id, { method: "DELETE" });
+  if (!(await confirmar({ titulo: "Apagar este documento?", contexto: "Documentos › " + d.titulo, texto: "Todo o histórico de versões e os comentários vão junto. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
+  const r = await fetch("/api/documentos/" + d.id, { method: "DELETE" });
   fecharAba(d.id);
   mostrarDocumentos();
+  avisarLixeira(r, () => mostrarDocumentos());
 }
 
 /* Do Acervo: PDF abre so para ler; o resto vira uma copia editavel, e o

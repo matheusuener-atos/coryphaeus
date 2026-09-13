@@ -513,12 +513,12 @@ async function salvarServico() {
 }
 
 async function apagarServico(s) {
-  if (!(await confirmar({ titulo: "Apagar este serviço?", contexto: "Serviços › " + s.nome, texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda.", confirmar: "Apagar", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Apagar este serviço?", contexto: "Serviços › " + s.nome, texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/servicos/" + s.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   if (sv.aberto && sv.aberto.id === s.id) sv.aberto = null;
-  avisoCert("serviço apagado");
   mostrarServicos("pastas");
+  avisarLixeira(r, () => mostrarServicos("pastas"));
 }
 
 async function mudarStatusDoServico(id, status) {

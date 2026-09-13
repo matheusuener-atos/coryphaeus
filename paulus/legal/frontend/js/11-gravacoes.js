@@ -1134,12 +1134,12 @@ function baixarAudioGv(g) {
 }
 
 async function apagarGravacao(g) {
-  if (!(await confirmar({ titulo: "Apagar esta gravação?", contexto: "Gravações › " + g.titulo, texto: "O áudio, a transcrição e as notas saem desta máquina e não voltam.", confirmar: "Apagar", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Apagar esta gravação?", contexto: "Gravações › " + g.titulo, texto: "O áudio, a transcrição e as notas saem da lista. " + LIXEIRA_TEXTO + " Depois disso o áudio some desta máquina.", confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/gravacoes/" + g.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   if (gv.aberta && gv.aberta.id === g.id) gv.aberta = null;
-  avisoCert("gravação apagada");
   mostrarGravacoes("lista");
+  avisarLixeira(r, () => mostrarGravacoes("lista"));
 }
 
 function perguntarSobreGravacao(g) {
