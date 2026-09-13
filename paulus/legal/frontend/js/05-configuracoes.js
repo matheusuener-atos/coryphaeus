@@ -254,6 +254,44 @@ function secaoPerfil() {
     cartaoCfg("Escritório", metaCfg("timbre, selo e documentos"), escritorio) + "</div>";
 }
 
+/* Ensinar por arquivo: o programa le, escreve a proposta e enche o formulario.
+   Guardar continua sendo um clique da pessoa - o que entra na cabeca do
+   assistente ela leu antes. */
+function escolherArquivoParaEnsinar() {
+  const campo = document.createElement("input");
+  campo.type = "file";
+  campo.accept = ".pdf,.docx,.txt,.md";
+  campo.onchange = () => {
+    const arquivo = campo.files && campo.files[0];
+    if (arquivo) lerArquivoParaEnsinar(arquivo);
+  };
+  campo.click();
+}
+
+async function lerArquivoParaEnsinar(arquivo) {
+  cfg.lendoArquivo = arquivo.name;
+  desenharConfig();
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo, arquivo.name);
+  let r;
+  try {
+    r = await fetch("/api/contextos/ler", { method: "POST", body: corpo });
+  } catch (err) {
+    cfg.lendoArquivo = "";
+    desenharConfig();
+    avisoCert("não consegui ler o arquivo", { tom: "erro" });
+    return;
+  }
+  cfg.lendoArquivo = "";
+  if (!r.ok) { desenharConfig(); avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  cfg.ensinando = { id: null, titulo: d.titulo, texto: d.texto, gaveta: (cfg.ensinando || {}).gaveta || "" };
+  desenharConfig();
+  avisoCert(d.aviso, { tom: d.pelo_modelo ? "ok" : "erro" });
+  const campo = $("cfg-ensinar-texto");
+  if (campo) { campo.focus(); campo.setSelectionRange(campo.value.length, campo.value.length); }
+}
+
 /* A lista de lembretes de novo do servidor: apagar e restaurar mexem nela. */
 async function recarregarLembretes() {
   try {
@@ -707,8 +745,12 @@ function secaoAprendizado() {
     '<button data-cfg-ensinar-editar="' + x.id + '">' + ic("edit", 16) + "Alterar</button>" +
     '<button data-cfg-ensinar-tirar="' + x.id + '">' + ic("delete", 16) + "Apagar</button></div>").join("");
 
-  const ensinar = '<div class="cfg-solta"><span>Arraste PDFs, DOCX ou imagens aqui</span><small>eu leio, resumo em contextos curtos e mostro antes de guardar · em breve</small>' +
-    '<div class="cfg-botoes"><button class="primario adiante" data-cfg-adiante="Ensinar com arquivos ainda não existe — o que está no Acervo já é lido nas perguntas">' + ic("folder_open", 16) + "Escolher no computador</button></div></div>" +
+  const lendo = cfg.lendoArquivo || "";
+  const ensinar = '<div class="cfg-solta" id="cfg-solta-ensinar"><span>' +
+    (lendo ? "lendo “" + esc(lendo) + "”…" : "Arraste um PDF, DOCX, TXT ou MD aqui") + "</span>" +
+    '<small>eu leio, escrevo o lembrete em poucas linhas e mostro antes de guardar · o arquivo não fica guardado</small>' +
+    '<div class="cfg-botoes"><button class="primario" data-cfg-ensinar-arquivo="1"' + (lendo ? " disabled" : "") + ">" +
+    ic("folder_open", 16) + "Escolher no computador</button></div></div>" +
     '<div class="cfg-sub"><b>Ensinar com suas palavras</b><div class="cfg-campos">' +
     '<div class="ag-campo"><label>Título</label><input type="text" id="cfg-ensinar-titulo" data-cfg-ensinar="titulo" maxlength="80" value="' + esc(emEdicao.titulo || "") + '" placeholder="Prazo padrão de aviso"></div>' +
     '<div class="ag-campo"><label>O que eu devo saber</label><textarea id="cfg-ensinar-texto" data-cfg-ensinar="texto" maxlength="600" placeholder="Nos contratos do escritório o aviso de não renovação é sempre de…">' + esc(emEdicao.texto || "") + "</textarea></div>" +
@@ -944,6 +986,18 @@ function ligarConfig() {
   clique("[data-cfg-salvar]", salvarConfig);
   clique("[data-cfg-descartar]", () => { cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual); cfg.sujo = false; desenharConfig(); });
   clique("[data-cfg-adiante]", (b) => avisoCert(b.dataset.cfgAdiante));
+  clique("[data-cfg-ensinar-arquivo]", () => escolherArquivoParaEnsinar());
+  const solta = $("cfg-solta-ensinar");
+  if (solta) {
+    solta.ondragover = (e) => { e.preventDefault(); solta.classList.add("sobre"); };
+    solta.ondragleave = () => solta.classList.remove("sobre");
+    solta.ondrop = (e) => {
+      e.preventDefault();
+      solta.classList.remove("sobre");
+      const arquivo = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (arquivo) lerArquivoParaEnsinar(arquivo);
+    };
+  }
   clique("[data-cfg-ensinar-guardar]", async (b) => {
     const dados = {
       id: (cfg.ensinando || {}).id || null,

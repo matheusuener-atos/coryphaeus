@@ -16,6 +16,7 @@ import json
 import os
 import re
 import shutil
+import tempfile
 import subprocess
 import sys
 import queue
@@ -78,7 +79,7 @@ from habilidade_base import (
     PRECISA_DOCUMENTOS,
     Contexto,
 )
-from extract import SUPPORTED_SUFFIXES, index_all_contracts
+from extract import SUPPORTED_SUFFIXES, extract_file, index_all_contracts
 from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, Etapa, Trabalhos, titular
 from jobs import agora as jobs_agora
 from llama_client import (
@@ -420,6 +421,78 @@ def contextos_salvar(payload: NovoContexto) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": id_, **estado.contextos.para_tela()}
+
+
+# Arquivo de onde se aprende: ate aqui de tamanho, e so o que da para ler.
+MAX_ENSINAR_BYTES = 20 * 1024 * 1024
+FORMATOS_ENSINAR = (".pdf", ".docx", ".txt", ".md")
+
+
+@app.post("/api/contextos/ler")
+async def contextos_ler_arquivo(arquivo: UploadFile = File(...)) -> dict:
+    """
+    Le um arquivo e propoe o lembrete - sem guardar nada.
+
+    A tela promete "eu leio, resumo em contextos curtos e MOSTRO antes de
+    guardar", e e o que acontece: o que volta daqui vai para os campos do
+    formulario, onde a pessoa corrige e confirma. O arquivo nao entra no
+    Acervo nem fica no disco; o que sobra dele, se a pessoa guardar, sao as
+    quatro linhas que ela leu antes.
+    """
+    nome = Path(arquivo.filename or "").name
+    if not nome:
+        raise HTTPException(status_code=400, detail="arquivo sem nome")
+    if Path(nome).suffix.lower() not in FORMATOS_ENSINAR:
+        raise HTTPException(status_code=400,
+                            detail="dá para ler PDF, DOCX, TXT e MD; imagem ainda não")
+    dados = await arquivo.read(MAX_ENSINAR_BYTES + 1)
+    if len(dados) > MAX_ENSINAR_BYTES:
+        raise HTTPException(status_code=413, detail="esse arquivo passa de 20 MB")
+
+    def ler() -> tuple[str, int]:
+        # Em pasta temporaria: os leitores trabalham sobre caminho, e o
+        # arquivo nao tem por que ficar no computador depois disto.
+        with tempfile.TemporaryDirectory() as tmp:
+            alvo = Path(tmp) / nome
+            alvo.write_bytes(dados)
+            return extract_file(alvo)
+
+    try:
+        texto, paginas = await run_in_threadpool(ler)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"não consegui ler esse arquivo: {exc}") from exc
+
+    texto = " ".join((texto or "").split())
+    if len(texto) < 40:
+        raise HTTPException(
+            status_code=422,
+            detail="esse arquivo não tem texto para ler — se for um PDF digitalizado, passe o OCR antes")
+
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        # Sem modelo, ainda da para ensinar: o comeco do documento vai para o
+        # campo e a pessoa escreve a regra com as palavras dela. Dizer isso e
+        # melhor que devolver erro e deixar o arquivo sem serventia.
+        return {"titulo": contextos_mod.titulo_do_arquivo(nome), "texto": texto[:contextos_mod.MAX_TEXTO],
+                "de": nome, "paginas": paginas, "pelo_modelo": False,
+                "aviso": f"{motivo} — trouxe o começo do arquivo para você resumir com as suas palavras"}
+
+    try:
+        resposta = await run_in_threadpool(
+            lambda: estado.client.ask(contextos_mod.INSTRUCAO_DO_ARQUIVO,
+                                      f"Documento “{nome}”:\n{texto[:contextos_mod.LEITURA_MAX]}",
+                                      sistema=contextos_mod.INSTRUCAO_DO_ARQUIVO))
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    sugestao = " ".join(_limpar_sugestao(resposta).split())[:contextos_mod.MAX_TEXTO]
+    if not sugestao:
+        sugestao = texto[:contextos_mod.MAX_TEXTO]
+    return {"titulo": contextos_mod.titulo_do_arquivo(nome), "texto": sugestao,
+            "de": nome, "paginas": paginas, "pelo_modelo": True,
+            "aviso": "li o arquivo e escrevi isto — confira antes de guardar"}
 
 
 @app.delete("/api/contextos/{id_}")

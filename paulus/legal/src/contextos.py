@@ -21,6 +21,7 @@ mostra quanto ja esta em uso.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 # As gavetas do desenho. "Regras de redacao" tem um papel a mais: e a unica
@@ -34,6 +35,27 @@ MAX_TEXTO = 600
 
 # Quanto tudo isto pode ocupar em cada pergunta, somado. Ver o cabecalho.
 LIMITE_BLOCO = 2400
+
+
+# Quanto de um arquivo vai para o modelo quando alguem ensina por documento.
+# Um contrato inteiro nao cabe na janela junto com a instrucao, e as regras
+# que interessam costumam estar no comeco - qualificacao, objeto, prazos.
+LEITURA_MAX = 6000
+
+INSTRUCAO_DO_ARQUIVO = (
+    "Leia o documento abaixo e escreva o que um assistente do escritorio precisa "
+    "LEMBRAR dele para sempre: regras, prazos, nomes proprios como sao escritos, "
+    "o jeito da casa. Nao resuma o documento e nao conte o que aconteceu no caso. "
+    "No maximo 4 frases curtas, em portugues do Brasil, sem lista e sem titulo. "
+    "So o que estiver escrito no documento - nao invente nada."
+)
+
+
+def titulo_do_arquivo(nome: str) -> str:
+    """Um titulo apresentavel a partir do nome do arquivo."""
+    limpo = re.sub(r"\.[A-Za-z0-9]{1,5}$", "", str(nome or "")).replace("_", " ").replace("-", " ")
+    limpo = " ".join(limpo.split())[:MAX_TITULO]
+    return (limpo[0].upper() + limpo[1:]) if limpo else "Do arquivo"
 
 
 def _agora() -> str:

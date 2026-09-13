@@ -152,6 +152,8 @@
   .cfg-solta > span { font-size: 14px; }
   .cfg-solta small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .cfg-solta .cfg-botoes { margin-top: 4px; }
+  /* Arrastar um arquivo por cima: a moldura acende para dizer que da para soltar. */
+  .cfg-solta.sobre { border-color: var(--acc); background: var(--accbg); }
   .cfg-grupos { display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 8px; flex-wrap: wrap; }
   .cfg-grupos button { padding: 5px 10px; border: none; border-radius: 6px; background: transparent; font: 500 12.5px var(--sans); color: var(--ink2); }
   .cfg-grupos button:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }

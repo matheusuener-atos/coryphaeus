@@ -584,6 +584,38 @@ def main() -> int:
                     pagina.evaluate("async () => { const d = await (await fetch('/api/contextos')).json(); return d.caracteres > 0; }"),
                     "o servidor confirma que ha texto para o assistente",
                 )
+                # Ensinar por arquivo: o programa le, propoe e enche o
+                # formulario - guardar continua sendo um clique da pessoa.
+                # Com o modelo ligado isso leva o tempo de uma resposta dele.
+                # O modelo local leva ate um minuto para responder nesta
+                # maquina; a espera padrao do Playwright e de 30 s.
+                pagina.set_default_timeout(240000)
+                lido = pagina.evaluate("""async () => {
+                  const bin = new Blob(["Regra da casa: o aviso de nao renovacao deste escritorio e sempre de 90 dias, contados da data de assinatura. O nome da cliente se escreve Cooperativa Brasileira, por extenso."],
+                    {type: 'text/plain'});
+                  const fd = new FormData();
+                  fd.append('arquivo', bin, 'regras-da-casa.txt');
+                  const r = await fetch('/api/contextos/ler', {method: 'POST', body: fd});
+                  return r.ok ? await r.json() : {erro: r.status, texto: await r.text()};
+                }""")
+                checar(lido.get("titulo") == "Regras da casa" and len(lido.get("texto", "")) > 20,
+                       "ler um arquivo propoe titulo e texto sem guardar nada", lido)
+                checar("aviso" in lido and ("confira" in lido["aviso"] or "resumir" in lido["aviso"]),
+                       "e o aviso diz para conferir antes", lido.get("aviso"))
+                checar(
+                    pagina.evaluate("async () => { const d = await (await fetch('/api/contextos')).json(); return (d.contextos || []).filter((x) => x.titulo === 'Regras da casa').length === 0; }"),
+                    "ler nao guarda: a proposta so vai para o formulario",
+                )
+                recusou = pagina.evaluate("""async () => {
+                  const fd = new FormData();
+                  fd.append('arquivo', new Blob([new Uint8Array([1, 2, 3])], {type: 'image/png'}), 'foto.png');
+                  const r = await fetch('/api/contextos/ler', {method: 'POST', body: fd});
+                  return {status: r.status, detalhe: (await r.json()).detail || ''};
+                }""")
+                checar(recusou["status"] == 400 and "imagem" in recusou["detalhe"],
+                       "formato que nao da para ler e recusado dizendo por que", recusou)
+
+                pagina.set_default_timeout(30000)
                 pagina.evaluate("() => document.querySelector('[data-cfg-ensinar-editar]').click()")
                 pagina.wait_for_timeout(600)
                 checar(
