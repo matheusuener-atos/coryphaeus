@@ -113,6 +113,8 @@ PERGUNTAS = [
     ("qual foi a decisao?", "", "escala", ""),
     ("o pedido foi deferido?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
      "escala", ""),
+    ("qual a linha do tempo?", "", "escala", ""),
+    ("quais os documentos juntados?", "", "escala", ""),
 ]
 
 

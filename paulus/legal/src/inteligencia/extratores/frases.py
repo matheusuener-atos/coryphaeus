@@ -220,6 +220,50 @@ def itens_da_lista(texto: str, inicio: int, maximo_itens: int = 12,
     return spans
 
 
+def terminou_a_frase(texto: str, inicio: int, fim: int) -> bool:
+    """
+    Ha um ponto final de verdade entre estas duas posicoes?
+
+    Serve para saber se duas coisas escritas perto uma da outra estao na mesma
+    frase. "Requer: a) ...; b) ..." mantem tudo numa frase so - e por isso a
+    alinea b) tambem e um pedido, mesmo sem verbo proprio. Um ponto no meio
+    encerraria o assunto, e o que vem depois ja e outra coisa.
+    """
+    if fim <= inicio:
+        return False
+    ponto = _fechamento(texto, inicio, fim)
+    while ponto >= 0:
+        if texto[ponto] in ".!?":
+            return True
+        ponto = _fechamento(texto, ponto + 1, fim)
+    return False
+
+
+def sem_sobrepor(candidatos: list[dict]) -> list[dict]:
+    """
+    Um pedaco de texto vira um item so, e nao um por regra que o encontrou.
+
+    "as notas fiscais (docs. 02/04)" e achado duas vezes - pela referencia e
+    pelo nome do meio de prova - e as duas versoes descrevem a mesma coisa.
+    Fica uma; a outra sai por sobreposicao, nao por comparacao de texto,
+    porque as duas nunca sao iguais.
+
+    Quem fica e quem tem `prioridade` menor, e so depois a mais longa. Uma
+    regra precisa vence uma regra ampla mesmo cobrindo menos texto: "as notas
+    fiscais (docs. 02/04)" e melhor que a frase inteira que a contem, porque a
+    frase inteira engoliria tambem os outros dois documentos dela.
+    """
+    ordenados = sorted(candidatos, key=lambda c: (c.get("prioridade", 1), c["inicio"],
+                                                  -(c["fim"] - c["inicio"])))
+    aceitos: list[dict] = []
+    for candidato in ordenados:
+        if any(candidato["inicio"] < a["fim"] and a["inicio"] < candidato["fim"]
+               for a in aceitos):
+            continue
+        aceitos.append(candidato)
+    return aceitos
+
+
 def rotulo_por_pista(trecho: str, mapa: dict[str, tuple[str, ...]], padrao: str = "") -> str:
     """
     O rotulo cuja pista aparece PRIMEIRO dentro da frase.

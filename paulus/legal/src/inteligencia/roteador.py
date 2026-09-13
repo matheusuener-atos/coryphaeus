@@ -114,6 +114,15 @@ ENUMERACOES: list[tuple[str, str, str]] = [
      r"\b(linha do tempo|cronologia|hist[oó]rico (do|desse|deste|da)"
      r"|o que (ja )?aconteceu|andamento (do|desse|deste)"
      r"|(quais|que) (as |os )?(datas|prazos) (importantes|relevantes|do processo))"),
+    # "que documentos" pede a lista; "o que os documentos de 2015 dizem" pede
+    # leitura de varios - e uma versao mais frouxa deste padrao roubava a
+    # segunda da segunda, que e pergunta de recorte. O conjunto de regressao
+    # pegou; por isso o verbo de juntada e obrigatorio na forma com "que".
+    ("evidence", "",
+     r"\b(quais (os |as )?(documentos|provas|anexos)"
+     r"|que (documentos|provas|anexos) (foram )?(juntad|anexad|apresentad|produzid)"
+     r"|o que (foi|esta) (juntad|anexad|acostad)|documentos (juntad|anexad|em anexo)"
+     r"|lista de documentos|o que (foi )?apresentad)"),
     ("decisions", "",
      r"\b(qual (foi )?(a|o) (decisao|sentenca|dispositivo|resultado|desfecho)"
      r"|o que (o juiz|a juiza|o tribunal|a corte|o relator|a decisao|a sentenca)"
@@ -339,6 +348,8 @@ ROTULOS = {
     "merits_granted": "procedente", "merits_denied": "improcedente",
     "homologated": "homologado", "extinguished": "extinto",
     "conviction": "condenação", "acquittal": "absolvição", "order": "determinação",
+    "document": "documento", "expert": "perícia", "witness": "testemunhal",
+    "testimony": "depoimento",
 }
 
 # Como cada secao se chama na frase que vai para o modelo. O JSON fala ingles
@@ -347,7 +358,7 @@ SECOES_BR = {
     "case": "processo", "amounts": "valor", "dates": "data",
     "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
     "classification": "tipo", "requests": "pedido", "decisions": "decisão",
-    "events": "aconteceu",
+    "events": "aconteceu", "evidence": "prova",
 }
 
 # O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
@@ -357,6 +368,7 @@ CABECALHOS = {
     "requests": "PEDIDOS QUE CONSTAM EXPRESSAMENTE DA PEÇA",
     "decisions": "O QUE FOI DECIDIDO, COMO ESTÁ ESCRITO NO DOCUMENTO",
     "events": "O QUE O DOCUMENTO REGISTRA, EM ORDEM DE DATA",
+    "evidence": "O QUE O DOCUMENTO JUNTA OU CHAMA DE PROVA",
 }
 
 # Quantos fatos entram numa resposta de nivel 0. Mais que isso deixa de ser
@@ -397,7 +409,7 @@ def resolver(pergunta: str, metas: list[Metadata], *, nomes: dict | None = None,
         return _pelo_resumo(pacote, metas, nomes or {}, em_foco, comeco)
 
     if intencao.enumera:
-        return _pela_lista(pacote, metas, nomes or {}, em_foco, comeco)
+        return _pela_lista(pacote, pergunta, metas, nomes or {}, em_foco, comeco)
 
     achados: list[Fato] = []
     sem_secao = 0
@@ -640,8 +652,8 @@ def _pelo_resumo(pacote: Pacote, metas: list[Metadata], nomes: dict, em_foco: bo
     return pacote
 
 
-def _pela_lista(pacote: Pacote, metas: list[Metadata], nomes: dict, em_foco: bool,
-                comeco: float) -> Pacote:
+def _pela_lista(pacote: Pacote, pergunta: str, metas: list[Metadata], nomes: dict,
+                em_foco: bool, comeco: float) -> Pacote:
     """
     Nivel 0 para as colecoes de extensao: a resposta e a lista inteira.
 
@@ -661,9 +673,15 @@ def _pela_lista(pacote: Pacote, metas: list[Metadata], nomes: dict, em_foco: boo
       a pergunta vai para o caminho de hoje, que le o documento.
     """
     secao = pacote.intencao.secao
+
     def desistir(porque: str, decisao: str) -> Pacote:
         pacote.porque = porque
         pacote.trace["decisao"] = f"escalou: {decisao}"
+        # Nao conseguir responder nao pode custar o que a camada ainda sabe:
+        # se a pergunta traz um recorte ("os pedidos dos contratos de 2015"),
+        # o metadata continua sabendo em quais documentos procurar.
+        if metas and not em_foco:
+            return _pelo_filtro(pacote, pergunta, metas, nomes, comeco)
         pacote.ms = int((time.time() - comeco) * 1000)
         return pacote
 
@@ -740,9 +758,15 @@ def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
         if item.dados.get("item"):
             partes.append(str(item.dados["item"]))
         valor = ", ".join(p for p in partes if p) or valor
+    rotulo = ROTULOS.get(tipo, tipo)
+    if item.dados.get("stated") == "requested":
+        # Prova pedida nao e prova juntada, e a lista tem de dizer qual e qual -
+        # senao a camada responde "houve pericia" sobre um processo em que ela
+        # so foi requerida.
+        rotulo = (rotulo + " requerida").strip()
     return Fato(
         documento=nome, document_id=meta.document_id, version_id=meta.version_id,
-        secao=secao, rotulo=ROTULOS.get(tipo, tipo), valor=valor, quote=item.quote,
+        secao=secao, rotulo=rotulo, valor=valor, quote=item.quote,
         pagina=item.source.page, char_start=item.source.char_start,
         char_end=item.source.char_end,
     )

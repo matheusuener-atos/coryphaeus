@@ -372,6 +372,57 @@ def test_roteador_linha_do_tempo() -> None:
         bd.fechar()
 
 
+# ------------------------------------------------------------------- provas
+
+
+def test_provas() -> None:
+    """
+    O que foi juntado - e a diferença entre prova pedida e prova produzida.
+
+    "Requer a produção de prova pericial" e "conforme laudo pericial de fls.
+    120" usam as mesmas palavras e são coisas opostas. Confundi-las faria a
+    camada responder "houve perícia" sobre um processo em que ela só foi
+    requerida.
+    """
+    print("\no que o documento junta")
+    from inteligencia.extratores import regras_provas
+
+    itens = regras_provas.extrair(pedido_de(INICIAL)).itens
+    textos = [i.dados["text"] for i in itens]
+    refs = [i.dados.get("ref", "") for i in itens]
+
+    checar(refs[:3] == ["doc. 01", "docs. 02/04", "doc. 05"],
+           "as três referências da mesma frase viraram três itens", refs)
+    checar(textos[0] == "Junta-se o contrato assinado (doc. 01)"
+           and textos[1] == "as notas fiscais (docs. 02/04)",
+           "e cada uma leva o pedaço que a nomeia, não a frase inteira", textos)
+    checar([i.dados["stated"] for i in itens[:3]] == ["produced"] * 3,
+           "o que está juntado é 'produced'", [i.dados["stated"] for i in itens])
+    pedidas = [i for i in itens if i.dados["stated"] == "requested"]
+    checar(len(pedidas) == 1 and "prova documental" in pedidas[0].dados["text"],
+           "e a prova que a alínea d) pede é 'requested', mesmo sem verbo próprio",
+           [(i.dados["stated"], i.dados["text"][:40]) for i in itens])
+    checar(ancorados(itens, INICIAL), "cada prova aponta para o texto")
+
+    docs = index_all_contracts(ACERVO, CACHE, verbose=False)
+    comeco = time.time()
+    total = sum(len(regras_provas.extrair(Pedido(texto=d.text)).itens) for d in docs)
+    print(f"       {total} provas em {len(docs)} documentos reais, "
+          f"{round(time.time() - comeco, 3)} s")
+
+
+def test_roteador_diz_o_que_e_pedido() -> None:
+    print("\na lista de provas diz o que ainda é só pedido")
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, meta = biblioteca_com(INICIAL, Path(tmp), sha1="sha-provas")
+        pacote = decidir(meta, "quais os documentos juntados?")
+        checar(not pacote.fallback, "'quais os documentos juntados?' responde", pacote.trace)
+        rotulos = [f.rotulo for f in pacote.fatos]
+        checar(any("requerida" in r for r in rotulos),
+               "e a prova que só foi requerida chega rotulada assim", rotulos)
+        bd.fechar()
+
+
 # ----------------------------------------------------------------- roteador
 
 
@@ -498,6 +549,8 @@ def main() -> int:
     test_roteador_lista_decisoes()
     test_eventos()
     test_roteador_linha_do_tempo()
+    test_provas()
+    test_roteador_diz_o_que_e_pedido()
 
     print("\n" + "=" * 55)
     if _falhas:
