@@ -68,3 +68,7 @@ data/lixeira/
 
 # A foto de quem usa e a logo do escritorio: sao desta maquina, nao do projeto.
 data/marca/
+
+# A biblioteca de metadata da camada de inteligencia: e do acervo desta
+# maquina, e o que ha nela e mais sensivel que os proprios documentos.
+data/conhecimento/

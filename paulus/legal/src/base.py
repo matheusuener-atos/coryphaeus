@@ -461,6 +461,79 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "019_conhecimento",
+        """
+        -- A camada de inteligencia de documentos (legal-document/v0): o que ja
+        -- foi entendido de cada documento, para nao entender de novo a cada
+        -- pergunta. O metadata mora em data/conhecimento; estas tabelas sao o
+        -- espelho para achar rapido. Ver src/inteligencia/.
+        CREATE TABLE meta_documentos (
+            id            TEXT PRIMARY KEY,
+            titulo        TEXT NOT NULL DEFAULT '',
+            caminho       TEXT NOT NULL DEFAULT '',
+            versao_atual  TEXT NOT NULL DEFAULT '',
+            criado_em     TEXT NOT NULL,
+            atualizado_em TEXT NOT NULL
+        );
+        CREATE INDEX idx_meta_doc_caminho ON meta_documentos(caminho);
+
+        -- Uma versao por conteudo: o sha256 e que decide. A anterior fica,
+        -- porque e ela que sustenta as citacoes ja escritas.
+        CREATE TABLE meta_versoes (
+            id           TEXT PRIMARY KEY,
+            documento_id TEXT NOT NULL REFERENCES meta_documentos(id) ON DELETE CASCADE,
+            sha256       TEXT NOT NULL,
+            sha1         TEXT DEFAULT '',
+            caminho      TEXT DEFAULT '',
+            mtime        TEXT DEFAULT '',
+            mime         TEXT DEFAULT '',
+            paginas      INTEGER DEFAULT 0,
+            caracteres   INTEGER DEFAULT 0,
+            criado_em    TEXT NOT NULL
+        );
+        CREATE INDEX idx_meta_versao_sha ON meta_versoes(sha256);
+        CREATE INDEX idx_meta_versao_sha1 ON meta_versoes(sha1);
+        CREATE INDEX idx_meta_versao_doc ON meta_versoes(documento_id);
+
+        -- Quem produziu cada secao, com que modelo e em que versao de prompt:
+        -- trocar o extrator marca so a secao dele como velha.
+        CREATE TABLE meta_secoes (
+            versao_id       TEXT NOT NULL REFERENCES meta_versoes(id) ON DELETE CASCADE,
+            secao           TEXT NOT NULL,
+            extrator        TEXT DEFAULT '',
+            modelo          TEXT DEFAULT '',
+            digest          TEXT DEFAULT '',
+            prompt_versao   TEXT DEFAULT '',
+            esquema_versao  TEXT DEFAULT '',
+            estado          TEXT NOT NULL DEFAULT 'missing',
+            itens           INTEGER DEFAULT 0,
+            nao_verificados INTEGER DEFAULT 0,
+            ms              INTEGER DEFAULT 0,
+            quando          TEXT DEFAULT '',
+            PRIMARY KEY (versao_id, secao)
+        );
+
+        -- Os fatos conferidos, um por linha: e daqui que sai a resposta de
+        -- nivel 0, sem abrir o documento.
+        CREATE TABLE meta_fatos (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            versao_id    TEXT NOT NULL REFERENCES meta_versoes(id) ON DELETE CASCADE,
+            documento_id TEXT NOT NULL DEFAULT '',
+            secao        TEXT NOT NULL,
+            item_id      TEXT NOT NULL DEFAULT '',
+            chave        TEXT NOT NULL DEFAULT '',
+            valor        TEXT NOT NULL DEFAULT '',
+            mostrar      TEXT NOT NULL DEFAULT '',
+            numero       REAL,
+            pagina       INTEGER,
+            verificado   INTEGER NOT NULL DEFAULT 0,
+            certeza      TEXT DEFAULT ''
+        );
+        CREATE INDEX idx_meta_fato_busca ON meta_fatos(secao, chave, verificado);
+        CREATE INDEX idx_meta_fato_versao ON meta_fatos(versao_id);
+        """,
+    ),
 ]
 
 
