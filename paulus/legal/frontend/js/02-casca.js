@@ -102,20 +102,33 @@ function exportarConversa() {
 }
 $("exportar-conversa").onclick = exportarConversa;
 
-/* Quem usa, no avatar: as iniciais do nome cadastrado em Configuracoes. */
+/* Quem usa, no avatar: a foto enviada em Configuracoes ou, sem foto, as
+   iniciais do nome cadastrado la. */
 async function carregarUsuario() {
   try {
     const d = await (await fetch("/api/preferencias")).json();
     const p = d.preferencias || d;
+    const foto = (d.marca || {}).foto || {};
     const nome = String(p.nome || "").trim();
+    const partes = nome ? nome.split(/\s+/) : [];
+    // Sem nome cadastrado fica a sigla do produto, que e o que o HTML ja traz.
+    const iniciais = nome
+      ? (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase()
+      : "PL";
+
+    // A versao no endereco: sem ela, trocar a foto nao mudaria a tela, que
+    // continuaria mostrando a imagem que ja tem em maos. E tirar a foto tem
+    // de desfazer a imagem aqui, senao o circulo fica com um retrato quebrado.
+    const desenho = foto.tem ? '<img src="/marca/foto.png?v=' + foto.versao + '" alt="">' : "";
+    for (const id of ["avatar", "avatar-menu"]) {
+      if (desenho) $(id).innerHTML = desenho;
+      else $(id).textContent = iniciais;
+    }
+
     if (!nome) return;
-    const partes = nome.split(/\s+/);
-    const iniciais = (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
-    $("avatar").textContent = iniciais;
-    $("avatar-menu").textContent = iniciais;
     $("avatar").title = nome;
     $("usuario-nome").textContent = nome;
     if (p.oab) $("usuario-papel").textContent = "OAB " + p.oab;
-  } catch (err) { /* sem nome, fica a sigla do produto */ }
+  } catch (err) { /* sem preferencias, fica a sigla do produto */ }
 }
 

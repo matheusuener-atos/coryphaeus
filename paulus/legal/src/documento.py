@@ -697,14 +697,31 @@ def mapa_de_paginas(blocos: list[Bloco], timbre: dict | None = None,
 LINHA_TIMBRE_CM = 0.42
 
 
+# A logo do escritorio, quando existe, ocupa esta altura no alto do papel. A
+# largura sai da proporcao da imagem; e a altura que precisa ser constante,
+# porque e ela que empurra o texto para baixo.
+LOGO_ALTURA_CM = 1.3
+LOGO_FOLGA_CM = 0.3
+
+
+def _logo_do_timbre(timbre: dict):
+    """O caminho da logo, se o escritorio enviou uma e ela ainda esta la."""
+    caminho = str(timbre.get("logo") or "").strip()
+    if not caminho:
+        return None
+    alvo = Path(caminho)
+    return alvo if alvo.exists() else None
+
+
 def _altura_do_timbre(timbre: dict) -> float:
     from reportlab.lib.units import cm
 
     linhas = _linhas_do_timbre(timbre)
     if not linhas:
         return 0
+    alto_logo = (LOGO_ALTURA_CM + LOGO_FOLGA_CM) if _logo_do_timbre(timbre) else 0
     # O nome vai maior que o resto, e depois vem um fio separando do texto.
-    return (0.62 + LINHA_TIMBRE_CM * (len(linhas) - 1) + 0.55) * cm
+    return (alto_logo + 0.62 + LINHA_TIMBRE_CM * (len(linhas) - 1) + 0.55) * cm
 
 
 def _linhas_do_timbre(timbre: dict) -> list[str]:
@@ -740,10 +757,14 @@ def _decorar(rodape: str, timbre: dict | None, formato: dict | None = None):
     linhas = _linhas_do_timbre(timbre) if timbre else []
     numerar = _numerar(rodape, fonte["pdf"])
 
+    logo = _logo_do_timbre(timbre) if timbre else None
+
     def desenhar(canvas, doc):
         if linhas:
             canvas.saveState()
             topo = A4[1] - MARGEM_CM * cm
+            if logo:
+                topo = _desenhar_logo(canvas, logo, topo)
             canvas.setFillGray(0.1)
             canvas.setFont(fonte["pdf_negrito"], 12)
             canvas.drawCentredString(A4[0] / 2, topo - 0.3 * cm, linhas[0][:90])
@@ -763,6 +784,36 @@ def _decorar(rodape: str, timbre: dict | None, formato: dict | None = None):
         numerar(canvas, doc)
 
     return desenhar
+
+
+def _desenhar_logo(canvas, caminho, topo: float) -> float:
+    """
+    A logo centrada no alto, e o novo topo para o texto do timbre.
+
+    Se a imagem nao abrir - trocada por outro arquivo, disco removido -, o
+    timbre sai so com o texto. Um PDF sem logo e melhor que um PDF que nao sai.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.lib.utils import ImageReader
+
+    try:
+        imagem = ImageReader(str(caminho))
+        largura_px, altura_px = imagem.getSize()
+    except Exception:
+        return topo
+
+    altura = LOGO_ALTURA_CM * cm
+    largura = altura * (largura_px / altura_px if altura_px else 1)
+    # Logo muito larga (uma assinatura deitada, por exemplo) nao pode invadir
+    # as margens: ela encolhe ate caber entre elas.
+    limite = A4[0] - 2 * MARGEM_CM * cm
+    if largura > limite:
+        altura *= limite / largura
+        largura = limite
+    canvas.drawImage(imagem, (A4[0] - largura) / 2, topo - altura, width=largura,
+                     height=altura, mask="auto")
+    return topo - altura - LOGO_FOLGA_CM * cm
 
 
 def _numerar(rodape: str, fonte: str = "Times-Roman"):

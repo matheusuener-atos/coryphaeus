@@ -214,9 +214,11 @@ function secaoPerfil() {
   const r = cfg.rascunho;
   const p = r.pessoa;
   const e = r.escritorio;
-  const meus = '<div class="cfg-foto"><span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome || "?")) + "</span><div>" +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Foto no perfil ainda não existe — as iniciais fazem o papel por enquanto">' + ic("photo_camera", 16) + "Enviar foto</button></div>" +
-    '<span class="cfg-explica">PNG ou JPG · até 4 MB · em breve</span></div></div>' +
+  const foto = marcaDaTela("foto");
+  const meus = '<div class="cfg-foto">' + avatarDoPerfil(p.nome) + "<div>" +
+    '<div class="cfg-botoes"><button data-cfg-marca="foto">' + ic("photo_camera", 16) + (foto.tem ? "Trocar foto" : "Enviar foto") + "</button>" +
+    (foto.tem ? '<button data-cfg-marca-tirar="foto">' + ic("close", 16) + "Remover</button>" : "") + "</div>" +
+    '<span class="cfg-explica">PNG ou JPG · até 4 MB · fica nesta máquina e aparece no seu avatar</span></div></div>' +
     '<div class="cfg-campos">' + campoCfg("pessoa.nome", "Nome completo", p.nome) +
     '<div class="ag-duas">' + campoCfg("pessoa.cpf", "CPF", p.cpf, "000.000.000-00") + campoCfg("pessoa.oab", "OAB", p.oab, "GO 00000") + "</div>" +
     '<div class="ag-duas">' + campoCfg("pessoa.telefone", "Telefone", p.telefone, "(62) 90000-0000") + campoCfg("pessoa.email", "E-mail", p.email) + "</div>" +
@@ -228,9 +230,13 @@ function secaoPerfil() {
     ligaCfg("timbre_no_pdf", "Papel timbrado nos PDFs", "nome, OAB, endereço e contato no alto de todo PDF gerado aqui", r.timbre_no_pdf) +
     '<p class="cfg-explica" id="cfg-timbre-falta">' + esc(avisoDoTimbre()) + "</p></div>";
 
-  const escritorio = '<div class="cfg-foto"><span class="cfg-logo"><img src="/img/paulus-logo.svg" alt=""></span><div>' +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Trocar a logo ainda não existe — o selo usa o desenho que você fez em Assinatura">' + ic("upload", 16) + "Trocar logo</button></div>" +
-    '<span class="cfg-explica">usada no timbre e no selo de assinatura · em breve</span></div></div>' +
+  const logo = marcaDaTela("logo");
+  const escritorio = '<div class="cfg-foto"><span class="cfg-logo' + (logo.tem ? " cfg-logo-propria" : "") + '">' +
+    '<img src="' + (logo.tem ? "/marca/logo.png?v=" + logo.versao : "/img/paulus-logo.svg") + '" alt=""></span><div>' +
+    '<div class="cfg-botoes"><button data-cfg-marca="logo">' + ic("upload", 16) + (logo.tem ? "Trocar logo" : "Enviar logo") + "</button>" +
+    (logo.tem ? '<button data-cfg-marca-tirar="logo">' + ic("close", 16) + "Remover</button>" : "") + "</div>" +
+    '<span class="cfg-explica">' + (logo.tem ? "no alto do papel timbrado · PNG com fundo transparente fica melhor" :
+      "entra no alto do papel timbrado; o selo de assinatura usa o desenho feito em Assinatura") + "</span></div></div>" +
     '<div class="cfg-campos">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos") +
     '<div class="ag-duas">' + campoCfg("escritorio.cnpj", "CNPJ", e.cnpj, "00.000.000/0001-00") + campoCfg("escritorio.oab", "OAB da sociedade", e.oab, "GO 0000") + "</div>" +
     campoCfg("escritorio.rodape", "Rodapé dos documentos", e.rodape, "OAB/GO 00000 · Goiânia · GO") + "</div>" +
@@ -243,6 +249,44 @@ function secaoPerfil() {
 
   return '<div class="cfg-grade">' + cartaoCfg("Meus dados", metaCfg("usados nos documentos e no selo"), meus) +
     cartaoCfg("Escritório", metaCfg("timbre, selo e documentos"), escritorio) + "</div>";
+}
+
+/* A foto e a logo desta maquina, do jeito que /api/preferencias devolve. */
+function marcaDaTela(tipo) {
+  return ((cfg.prefs && cfg.prefs.marca) || {})[tipo] || { tem: false, versao: 0 };
+}
+
+/* O avatar do perfil: a foto, quando existe; as iniciais, quando nao. */
+function avatarDoPerfil(nome) {
+  const foto = marcaDaTela("foto");
+  return '<span class="cad-avatar">' + (foto.tem
+    ? '<img src="/marca/foto.png?v=' + foto.versao + '" alt="">'
+    : esc(iniciaisDoRemetente(nome || "?"))) + "</span>";
+}
+
+/* Escolher o arquivo no computador. O campo nasce e morre aqui: um input
+   escondido no HTML guardaria o arquivo escolhido entre uma vez e outra. */
+function escolherMarca(tipo) {
+  const campo = document.createElement("input");
+  campo.type = "file";
+  campo.accept = "image/png,image/jpeg,image/webp";
+  campo.onchange = () => {
+    const arquivo = campo.files && campo.files[0];
+    if (arquivo) enviarMarca(tipo, arquivo);
+  };
+  campo.click();
+}
+
+async function enviarMarca(tipo, arquivo) {
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo, arquivo.name || (tipo + ".png"));
+  const r = await fetch("/api/marca/" + tipo, { method: "POST", body: corpo });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  if (cfg.prefs) cfg.prefs.marca = d.marca;
+  desenharConfig();
+  carregarUsuario();
+  avisoCert(tipo === "foto" ? "foto guardada" : "logo guardada", { tom: "ok" });
 }
 
 /* Ligar o timbre com "Meus dados" em branco nao poe nada no papel: o nome e
@@ -868,6 +912,23 @@ function ligarConfig() {
   clique("[data-cfg-salvar]", salvarConfig);
   clique("[data-cfg-descartar]", () => { cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual); cfg.sujo = false; desenharConfig(); });
   clique("[data-cfg-adiante]", (b) => avisoCert(b.dataset.cfgAdiante));
+  clique("[data-cfg-marca]", (b) => escolherMarca(b.dataset.cfgMarca));
+  clique("[data-cfg-marca-tirar]", async (b) => {
+    const tipo = b.dataset.cfgMarcaTirar;
+    const eFoto = tipo === "foto";
+    if (!(await confirmar({
+      titulo: eFoto ? "Remover a foto?" : "Remover a logo?",
+      contexto: "Configurações › Meus dados",
+      texto: eFoto ? "O avatar volta a mostrar as suas iniciais." : "O papel timbrado volta a sair só com o texto.",
+      confirmar: "Remover", perigo: true,
+    }))) return;
+    const r = await fetch("/api/marca/" + tipo, { method: "DELETE" });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    const d = await r.json();
+    if (cfg.prefs) cfg.prefs.marca = d.marca;
+    desenharConfig();
+    carregarUsuario();
+  });
   clique("[data-cfg-vinculos]", () => { cfg.secao = "vinculos"; mostrarConfig(); });
   clique("[data-cfg-apoiar]", () => { marcarDestino("apoiar"); mostrarApoiar("contribuir"); });
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));

@@ -449,6 +449,53 @@ def main() -> int:
                 pagina.evaluate("() => document.querySelectorAll('#cfg-tela .cfg-grade > .cfg-cartao').length") == 2,
                 "Meus dados abre em dois cartoes lado a lado",
             )
+            # A foto do perfil e a logo do escritorio: escolher um arquivo no
+            # computador nao da para automatizar, entao o teste manda a imagem
+            # pela mesma rota que a tela usa e confere o que aparece depois.
+            enviou = pagina.evaluate("""async () => {
+              const lona = document.createElement('canvas');
+              lona.width = 120; lona.height = 60;
+              const t = lona.getContext('2d');
+              t.fillStyle = '#7a1f2b'; t.fillRect(0, 0, 120, 60);
+              const bin = await new Promise((ok) => lona.toBlob(ok, 'image/png'));
+              const saida = {};
+              for (const tipo of ['foto', 'logo']) {
+                const fd = new FormData();
+                fd.append('arquivo', bin, tipo + '.png');
+                const r = await fetch('/api/marca/' + tipo, {method: 'POST', body: fd});
+                saida[tipo] = r.ok ? await r.json() : {erro: r.status};
+              }
+              return saida;
+            }""")
+            checar(enviou["foto"].get("tem") and enviou["logo"].get("tem"), "a foto e a logo sobem pela rota da tela", enviou)
+            checar(enviou["foto"].get("largura") == enviou["foto"].get("altura"),
+                   "a foto chega quadrada para caber no circulo", enviou["foto"])
+            try:
+                pagina.evaluate("async () => { cfg.recarregar = true; await mostrarConfig('perfil'); await carregarUsuario(); }")
+                pagina.wait_for_timeout(1800)
+                checar(
+                    pagina.evaluate("() => !!document.querySelector('#cfg-tela .cfg-foto .cad-avatar img') && !!document.querySelector('#cfg-tela .cfg-logo-propria img')"),
+                    "Meus dados mostra a foto no avatar e a logo do escritorio",
+                )
+                checar(pagina.evaluate("() => !!document.querySelector('#avatar img')"),
+                       "e o avatar do trilho deixa de ser as iniciais")
+                redondo = pagina.evaluate("""() => {
+                  const i = document.querySelector('#cfg-tela .cfg-foto .cad-avatar img');
+                  const c = getComputedStyle(i);
+                  const r = i.getBoundingClientRect();
+                  return {corte: c.objectFit, largura: Math.round(r.width), altura: Math.round(r.height)};
+                }""")
+                checar(redondo["corte"] == "cover" and redondo["largura"] == redondo["altura"],
+                       "a foto preenche o circulo sem deformar", redondo)
+            finally:
+                pagina.evaluate("""async () => {
+                  for (const tipo of ['foto', 'logo']) await fetch('/api/marca/' + tipo, {method: 'DELETE'});
+                  cfg.recarregar = true; await mostrarConfig('perfil'); await carregarUsuario();
+                }""")
+                pagina.wait_for_timeout(1200)
+            checar(pagina.evaluate("() => !document.querySelector('#avatar img') && !document.querySelector('#cfg-tela .cfg-logo-propria')"),
+                   "remover devolve as iniciais e a marca do programa")
+
             pagina.evaluate("() => abrirDestino('desempenho')")
             pagina.wait_for_timeout(3200)
             checar(

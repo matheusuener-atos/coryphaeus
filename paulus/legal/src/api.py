@@ -61,6 +61,7 @@ import servicos as servicos_mod
 import gravacoes as gravacoes_mod
 import transcricao as transcricao_mod
 import lixeira as lixeira_mod
+import marca as marca_mod
 import pastas
 import recursos
 import registro
@@ -119,6 +120,7 @@ EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
 GRAVACOES_DIR = BASE_DIR / "data" / "gravacoes"
 MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"
 LIXEIRA_DIR = BASE_DIR / "data" / "lixeira"
+MARCA_DIR = BASE_DIR / "data" / "marca"
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
 RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
@@ -198,6 +200,8 @@ class Estado:
         self.puxando: dict | None = None
         # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
         self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
+        # A foto de quem usa e a logo do escritorio (docs/ui, A13).
+        self.marca = marca_mod.Marca(MARCA_DIR)
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
         self.lixeira = lixeira_mod.Lixeira(self.base, LIXEIRA_DIR)
         self.lixeira.esvaziar_vencidos()
@@ -347,6 +351,43 @@ def imagem(arquivo: str) -> FileResponse:
     if alvo.parent != (FRONTEND_DIR / "img").resolve() or not alvo.exists():
         raise HTTPException(status_code=404, detail="imagem nao encontrada")
     return FileResponse(alvo)
+
+
+# ------------------------------------------------------------------- marca
+
+
+@app.get("/marca/{tipo}.png")
+def marca_imagem(tipo: str) -> FileResponse:
+    """
+    A foto ou a logo, para a tela desenhar.
+
+    Sem cache: a imagem troca no lugar, com o mesmo endereco. O `?v=` que a
+    tela manda ja resolveria, mas quem abre o endereco direto tambem tem de
+    ver a atual.
+    """
+    alvo = estado.marca.caminho(tipo)
+    if not alvo:
+        raise HTTPException(status_code=404, detail="essa imagem nao foi enviada")
+    return FileResponse(alvo, media_type="image/png", headers=SEM_CACHE)
+
+
+@app.post("/api/marca/{tipo}")
+async def marca_enviar(tipo: str, arquivo: UploadFile = File(...)) -> dict:
+    """A imagem escolhida vira um PNG pequeno em data/marca."""
+    dados = await arquivo.read(marca_mod.MAX_BYTES + 1)
+    try:
+        item = await run_in_threadpool(estado.marca.guardar, tipo, dados)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"tipo": tipo, **item, "marca": estado.marca.info()}
+
+
+@app.delete("/api/marca/{tipo}")
+def marca_tirar(tipo: str) -> dict:
+    if tipo not in marca_mod.TIPOS:
+        raise HTTPException(status_code=404, detail="imagem desconhecida")
+    tirou = estado.marca.tirar(tipo)
+    return {"tirou": tirou, "marca": estado.marca.info()}
 
 
 @app.get("/api/status")
@@ -2219,6 +2260,7 @@ def preferencias_ler() -> dict:
     dados["modelos"] = _modelos_disponiveis()
     dados["modelo_atual"] = estado.client.model
     dados["pasta_acervo"] = str(estado.pasta)
+    dados["marca"] = estado.marca.info()
     return dados
 
 
@@ -3699,6 +3741,7 @@ def _timbre_do_escritorio() -> dict:
     # Configuracoes, e nao ao abrir o PDF e nao ver nada.
     if not str(pessoa.get("nome", "")).strip():
         return {}
+    logo = estado.marca.caminho("logo")
     return {
         "nome": pessoa.get("nome", ""),
         "oab": pessoa.get("oab", ""),
@@ -3706,6 +3749,9 @@ def _timbre_do_escritorio() -> dict:
         "endereco": pessoa.get("endereco", ""),
         "telefone": pessoa.get("telefone", ""),
         "email": pessoa.get("email", ""),
+        # A logo do escritorio vai no alto do papel, acima do nome. Quando nao
+        # ha logo, o timbre continua sendo so o texto, como antes.
+        "logo": str(logo) if logo else "",
     }
 
 

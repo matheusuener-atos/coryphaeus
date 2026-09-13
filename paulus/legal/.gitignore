@@ -65,3 +65,6 @@ data/gravacoes/
 
 # A lixeira guarda por 30 dias o que foi apagado: arquivos de cliente, ficam so na maquina.
 data/lixeira/
+
+# A foto de quem usa e a logo do escritorio: sao desta maquina, nao do projeto.
+data/marca/
