@@ -120,6 +120,11 @@ PERGUNTAS = [
      "escala", ""),
     ("ha processos relacionados?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
      "escala", ""),
+    # O CPF e o CNPJ sao os unicos dados do acervo que conferem a si mesmos, e
+    # por isso sao os unicos de resposta unica num contrato real.
+    ("qual o CPF?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+     "metadata", "037.061.712-60"),
+    ("qual o CNPJ?", "", "escala", ""),
 ]
 
 

@@ -93,6 +93,14 @@ INTENCOES: list[tuple[str, str, str]] = [
      r"\b(qual (o|e o) (tribunal|comarca|vara|foro|juizo)|em que (vara|comarca|tribunal))"),
     ("classification", "document_type",
      r"\b(que (tipo de )?documento e (este|esse)|qual (o|e o) tipo (deste|desse) documento)"),
+    # CPF, CNPJ e OAB sao perguntas de um dado so, e nao de lista - por isso
+    # entram aqui e nao nas enumeracoes. Sao tambem as unicas cujo valor o
+    # programa consegue conferir sozinho: o numero traz o proprio verificador.
+    ("organizations", "",
+     r"\b(qual (o|e o) cnpj|cnpj (da|do|de)|numero do cnpj|cnpj (da empresa|dela|dele))"),
+    ("people", "",
+     r"\b(qual (o|e o) cpf|cpf (da|do|de)|numero do cpf"
+     r"|qual (a|e a) oab|numero da oab|inscricao na oab)"),
 ]
 
 # As perguntas cuja resposta e uma LISTA do que o documento diz - a porta das
@@ -377,6 +385,10 @@ ROTULOS = {
     "references_case": "cita o processo", "depends_on": "por dependência",
     "attached_to": "em apenso", "related_to": "conexo", "appeal_of": "recurso de",
     "amends": "aditivo", "terminates": "encerra", "substitutes": "substitui",
+    "grantor": "outorgante", "grantee": "outorgado", "seller": "vendedor",
+    "buyer": "comprador", "lessor": "locador", "lessee": "locatário",
+    "contractor": "contratante", "contracted": "contratado", "lawyer": "advogado",
+    "guarantor": "fiador", "person": "", "organization": "",
 }
 
 # Como cada secao se chama na frase que vai para o modelo. O JSON fala ingles
@@ -386,7 +398,7 @@ SECOES_BR = {
     "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
     "classification": "tipo", "requests": "pedido", "decisions": "decisão",
     "events": "aconteceu", "evidence": "prova", "claims": "alegação",
-    "relationships": "ligação",
+    "relationships": "ligação", "people": "pessoa", "organizations": "empresa",
 }
 
 # O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
@@ -782,6 +794,10 @@ def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
         valor = str(item.dados.get("value_text") or valor)
     elif secao == "dates":
         valor = str(item.dados.get("date") or valor)
+    elif secao in ("people", "organizations"):
+        # O nome sozinho nao responde "qual o CNPJ?", e o numero sozinho nao
+        # diz de quem e. Os dois juntos respondem as duas perguntas.
+        valor = f"{valor} - {item.dados.get('document', '')}".strip(" -")
     elif secao == "relationships":
         # Numa ligacao, o que se procura e o outro lado dela: o numero do
         # processo vem na frente, e a frase vai atras para dizer de onde saiu.
@@ -800,6 +816,8 @@ def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
             partes.append(str(item.dados["item"]))
         valor = ", ".join(p for p in partes if p) or valor
     rotulo = ROTULOS.get(tipo, tipo)
+    if secao in ("people", "organizations") and item.dados.get("role"):
+        rotulo = ROTULOS.get(item.dados["role"], item.dados["role"])
     if item.dados.get("stated") == "requested":
         # Prova pedida nao e prova juntada, e a lista tem de dizer qual e qual -
         # senao a camada responde "houve pericia" sobre um processo em que ela

@@ -94,6 +94,14 @@ extratores:
     secao: relationships
     nivel: 0
     modulo: regras_relacoes
+  person-rules/v1:
+    secao: people
+    nivel: 0
+    modulo: regras_pessoas
+  organization-rules/v1:
+    secao: organizations
+    nivel: 0
+    modulo: regras_organizacoes
 
   # -------------------------------------------------------------- nivel 1
   # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario

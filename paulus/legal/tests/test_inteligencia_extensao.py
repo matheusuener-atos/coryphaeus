@@ -563,6 +563,100 @@ def test_roteador_lista_ligacoes() -> None:
         bd.fechar()
 
 
+# --------------------------------------------- pessoas e organizações
+
+
+def test_documento_traz_o_proprio_conferidor() -> None:
+    """
+    CPF e CNPJ conferem a si mesmos - e é isso que os torna a coleção mais
+    confiável das sete.
+
+    Ao contrário de um nome, de uma data ou de uma cláusula, dá para saber se
+    o número foi lido certo sem consultar coisa nenhuma: só com aritmética.
+    """
+    print("\no documento que confere a si mesmo")
+    from inteligencia.extratores import entidades
+
+    checar(entidades.cpf_valido("111.444.777-35"), "um CPF válido passa")
+    checar(not entidades.cpf_valido("111.444.777-36"), "com um dígito trocado, não passa")
+    checar(not entidades.cpf_valido("111.111.111-11"), "e a sequência repetida também não")
+    checar(entidades.cnpj_valido("31.984.284/0001-21"), "um CNPJ válido passa")
+    checar(not entidades.cnpj_valido("31.984.384/0001-21"),
+           "e o mesmo com um dígito trocado, não")
+
+
+def test_pessoas_e_empresas() -> None:
+    print("\nas pessoas e as empresas do documento")
+    from inteligencia.extratores import regras_organizacoes, regras_pessoas
+
+    pessoas = regras_pessoas.extrair(pedido_de(INICIAL)).itens
+    checar([p.dados["name"] for p in pessoas] == ["JOÃO DA SILVA"],
+           "o nome sai antes da qualificação, não do órgão expedidor",
+           [p.dados["name"] for p in pessoas])
+    checar(not pessoas[0].dados.get("role"),
+           "e sem papel, porque 'advogado' na frase é de outra pessoa - "
+           "quem está 'em face de' é o réu, e isso não é uma palavra da tabela",
+           pessoas[0].dados)
+
+    empresas = regras_organizacoes.extrair(pedido_de(PROCURACAO)).itens
+    checar(empresas[0].dados["name"] == "COOPERATIVA BRASILEIRA LTDA.",
+           "o nome da empresa vem inteiro", empresas[0].dados["name"])
+    checar(empresas[0].dados.get("role") == "grantor",
+           "e o papel colado no nome ('OUTORGANTE:') conta", empresas[0].dados)
+
+
+def test_acervo_real_tem_documento_errado() -> None:
+    """
+    A medição que justifica a coleção inteira.
+
+    Uma das procurações reais deste escritório traz o CNPJ da outorgante duas
+    vezes - no cabeçalho e na assinatura - com um dígito diferente entre elas.
+    Uma das duas está errada desde 2021 e ninguém notou. A camada nota, sem
+    rede e sem consultar nada.
+    """
+    print("\no que o acervo real tem de errado")
+    from inteligencia.extratores import regras_organizacoes, regras_pessoas
+
+    docs = index_all_contracts(ACERVO, CACHE, verbose=False)
+    comeco = time.time()
+    achados = [(d.name, i) for d in docs for m in (regras_pessoas, regras_organizacoes)
+               for i in m.extrair(Pedido(texto=d.text)).itens]
+    duracao = round(time.time() - comeco, 3)
+    tortos = [(n, i) for n, i in achados if not i.dados["document_valid"]]
+    print(f"       {len(achados)} entidades em {len(docs)} documentos reais, {duracao} s")
+
+    checar(len(achados) >= 25, f"o acervo real rende {len(achados)} entidades")
+    checar(len(tortos) == 2,
+           "e duas delas têm documento que não fecha a conta",
+           [(n[:28], i.dados["document"]) for n, i in tortos])
+    checar(any(i.dados["document"] == "31.984.384/0001-21" for _, i in tortos),
+           "inclusive o CNPJ com um dígito trocado na procuração",
+           [i.dados["document"] for _, i in tortos])
+    checar(all(i.certainty == "uncertain" and i.dados.get("note") for _, i in tortos),
+           "que entram marcados como duvidosos, com o recado escrito",
+           [i.dados.get("note") for _, i in tortos])
+    checar(all(i.pode_virar_fato is False for _, i in tortos),
+           "e por isso nunca respondem uma pergunta - o que não fecha não é fato")
+
+    papeis = [i for _, i in achados if i.dados.get("role")]
+    checar(len(papeis) <= len(achados) / 3,
+           f"papel só quando está escrito colado: {len(papeis)} de {len(achados)}",
+           [(i.dados["name"][:24], i.dados["role"]) for i in papeis])
+
+
+def test_roteador_responde_o_cnpj() -> None:
+    print("\na pergunta do CNPJ")
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, meta = biblioteca_com(PROCURACAO, Path(tmp), paginas=1, sha1="sha-cnpj")
+        pacote = decidir(meta, "qual o CNPJ da empresa?")
+        checar(not pacote.fallback, "responde do que já foi lido", pacote.trace)
+        checar("31.984.284/0001-21" in pacote.fatos[0].valor,
+               "com o número junto do nome", pacote.fatos[0].valor)
+        checar(pacote.fatos[0].rotulo == "outorgante",
+               "e o papel em português", pacote.fatos[0].rotulo)
+        bd.fechar()
+
+
 # ----------------------------------------------------------------- roteador
 
 
@@ -695,6 +789,10 @@ def main() -> int:
     test_roteador_separa_quem_alegou()
     test_relacoes()
     test_roteador_lista_ligacoes()
+    test_documento_traz_o_proprio_conferidor()
+    test_pessoas_e_empresas()
+    test_acervo_real_tem_documento_errado()
+    test_roteador_responde_o_cnpj()
 
     print("\n" + "=" * 55)
     if _falhas:
