@@ -98,6 +98,9 @@ SENTENCA = (
     "Vistos.\n"
     "Trata-se de ação de cobrança ajuizada por EMPRESA EXEMPLO LTDA. em face de\n"
     "JOÃO DA SILVA.\n"
+    "A inicial foi protocolada em 14/04/2025 e o réu foi citado em 02/05/2025.\n"
+    "A audiência de conciliação foi designada para 20/08/2025 e nela as partes\n"
+    "não se compuseram.\n"
     "Na decisão de fls. 45, INDEFIRO a tutela de urgência pleiteada, por ausência de\n"
     "perigo de dano.\n"
     "Ante o exposto, JULGO PARCIALMENTE PROCEDENTE o pedido, para condenar o réu ao\n"
@@ -306,6 +309,69 @@ def test_roteador_lista_decisoes() -> None:
         bd.fechar()
 
 
+# ------------------------------------------------------------------ eventos
+
+
+def test_eventos() -> None:
+    """
+    A linha do tempo - e a data que não vira evento.
+
+    Esta regra nasceu de uma medição, não de uma ideia: soltos sobre o acervo
+    real, os eventos vieram com coisas como "DO ESTADO DO PARÁ 02/09/2026" -
+    um pedaço de cabeçalho com uma data dentro, apresentado numa linha do
+    tempo como se fosse um fato do caso. Data cujo acontecimento a camada não
+    sabe nomear não é evento: é data, e `dates` já guarda datas.
+    """
+    print("\na linha do tempo")
+    from inteligencia.extratores import regras_eventos
+
+    itens = regras_eventos.extrair(pedido_de(SENTENCA)).itens
+    datas = [i.dados["date"] for i in itens]
+    tipos = [i.dados["kind"] for i in itens]
+
+    checar(datas == sorted(datas), "a lista sai em ordem de calendário, não de texto", datas)
+    checar(datas == ["2025-04-14", "2025-05-02", "2025-08-20"],
+           "as três datas com acontecimento nomeado viraram eventos", datas)
+    checar(tipos == ["filing", "publication", "hearing"],
+           "cada uma com o que o documento diz que houve", tipos)
+    checar(all("São Paulo, 20 de agosto" not in i.dados["text"] for i in itens),
+           "a linha de local e data não vira evento - ela não diz o que aconteceu",
+           [i.dados["text"] for i in itens])
+    checar(ancorados(itens, SENTENCA), "e cada evento aponta para o texto")
+
+    cabecalho = "[pagina 1]\nSECRETARIA DO ESTADO DO PARÁ 02/09/2026\nPROTOCOLO GERAL\n"
+    checar(regras_eventos.extrair(pedido_de(cabecalho)).itens == [],
+           "cabeçalho com data dentro não é acontecimento")
+
+    docs = index_all_contracts(ACERVO, CACHE, verbose=False)
+    comeco = time.time()
+    achados = [(d.name, i) for d in docs
+               for i in regras_eventos.extrair(Pedido(texto=d.text)).itens]
+    print(f"       {len(achados)} eventos em {len(docs)} documentos reais, "
+          f"{round(time.time() - comeco, 3)} s")
+    validades = [i for _, i in achados if i.dados["kind"] == "term"]
+    checar(len(validades) >= 4,
+           "e nas procurações reais ele acha a validade, que é o prazo que o "
+           "escritório mais precisa saber", [i.dados["text"][:60] for i in validades[:3]])
+
+
+def test_roteador_linha_do_tempo() -> None:
+    print("\no roteador monta a linha do tempo")
+    from inteligencia import roteador
+
+    with tempfile.TemporaryDirectory() as tmp:
+        bd, meta = biblioteca_com(SENTENCA, Path(tmp), sha1="sha-tempo")
+        pacote = decidir(meta, "qual a linha do tempo deste processo?")
+        checar(pacote.nivel == roteador.METADATA and pacote.enumera,
+               "'linha do tempo' responde do que já foi lido", pacote.trace)
+        checar(all(f.valor[:4].isdigit() for f in pacote.fatos),
+               "e cada linha começa pela data, que é o que faz dela cronologia",
+               [f.valor[:40] for f in pacote.fatos])
+        checar(decidir(meta, "quando o réu foi citado?").intencao.secao == "dates",
+               "mas 'quando o réu foi citado?' continua sendo pergunta de data")
+        bd.fechar()
+
+
 # ----------------------------------------------------------------- roteador
 
 
@@ -430,6 +496,8 @@ def main() -> int:
     test_lista_longa_demais_escala()
     test_decisoes()
     test_roteador_lista_decisoes()
+    test_eventos()
+    test_roteador_linha_do_tempo()
 
     print("\n" + "=" * 55)
     if _falhas:

@@ -43,6 +43,15 @@ ABREVIACOES = {
 # antes dele nao e abreviacao nem numero.
 RE_FECHA = re.compile(r"[.;:!?]\s|\n")
 
+# Palavra no fim de linha que so pode ser continuacao: nenhuma frase em
+# portugues termina em "de", "com" ou "que".
+LIGACOES = {
+    "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas", "ao", "aos",
+    "a", "o", "as", "os", "e", "ou", "com", "por", "para", "que", "sob", "sobre",
+    "entre", "sem", "ate", "desde", "pelo", "pela", "pelos", "pelas", "um", "uma",
+    "seu", "sua", "seus", "suas", "este", "esta", "esse", "essa", "aquele", "nao",
+}
+
 # O comeco de um item de lista: "a)", "1.", "I -", "- ", "•".
 RE_ENUMERADOR = re.compile(r"^(?:[a-zA-Z]\)|[ivxIVX]{1,4}\s*[-.)]|\d{1,2}\s*[-.)]|[-*•–])\s*")
 
@@ -88,8 +97,10 @@ def _quebra_real(texto: str, posicao: int) -> bool:
     ou uma linha que ja tinha acabado em pontuacao.
     """
     anterior = texto[:posicao].rstrip()
-    if anterior and anterior[-1] in ".;:,!?)":
-        return anterior[-1] != ","        # virgula no fim de linha e continuacao
+    if anterior and anterior[-1] in ".;:!?":
+        return True
+    if anterior and anterior[-1] == ",":
+        return False                      # virgula no fim de linha e continuacao
     resto = texto[posicao + 1:]
     if not resto.strip():
         return True
@@ -98,7 +109,15 @@ def _quebra_real(texto: str, posicao: int) -> bool:
     seguinte = resto.lstrip()
     if seguinte[:1] == "[" or RE_ENUMERADOR.match(seguinte):
         return True                       # marcador de pagina ou item de lista
-    return False
+    # Linha terminada em palavra de ligacao e linha que nao acabou: "propor
+    # acao em face de\nJOAO DA SILVA" e uma frase so, mesmo com o nome
+    # comecando em maiuscula na linha seguinte.
+    ultima = sem_acento(anterior).rsplit(None, 1)[-1] if anterior.split() else ""
+    if ultima in LIGACOES:
+        return False
+    # No resto, quem decide e a linha seguinte: continuacao de linha quebrada
+    # comeca em minuscula ou em numero; frase nova comeca em maiuscula.
+    return not (seguinte[:1].islower() or seguinte[:1].isdigit())
 
 
 def _fechamento(texto: str, inicio: int, limite: int) -> int:

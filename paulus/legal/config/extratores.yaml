@@ -78,6 +78,10 @@ extratores:
     secao: decisions
     nivel: 0
     modulo: regras_decisoes
+  event-rules/v1:
+    secao: events
+    nivel: 0
+    modulo: regras_eventos
 
   # -------------------------------------------------------------- nivel 1
   # Regra primeiro, modelo no residuo: o tipo do documento sai do vocabulario

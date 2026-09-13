@@ -110,6 +110,10 @@ ENUMERACOES: list[tuple[str, str, str]] = [
      r"|qual (o|e o) pedido|o que (o autor|a autora|o reu|a re|a parte|a peca|a inicial|ele|ela)"
      r"\s*(requer|pede|pleiteia|postula|pediu|requereu)"
      r"|o que (foi|esta sendo|se) (requerid|pedid|pleitead))"),
+    ("events", "",
+     r"\b(linha do tempo|cronologia|hist[oó]rico (do|desse|deste|da)"
+     r"|o que (ja )?aconteceu|andamento (do|desse|deste)"
+     r"|(quais|que) (as |os )?(datas|prazos) (importantes|relevantes|do processo))"),
     ("decisions", "",
      r"\b(qual (foi )?(a|o) (decisao|sentenca|dispositivo|resultado|desfecho)"
      r"|o que (o juiz|a juiza|o tribunal|a corte|o relator|a decisao|a sentenca)"
@@ -343,6 +347,7 @@ SECOES_BR = {
     "case": "processo", "amounts": "valor", "dates": "data",
     "legal_references": "lei citada", "parties": "parte", "jurisdiction": "juízo",
     "classification": "tipo", "requests": "pedido", "decisions": "decisão",
+    "events": "aconteceu",
 }
 
 # O cabecalho da lista, quando a resposta e a colecao inteira. Ele diz a
@@ -351,6 +356,7 @@ SECOES_BR = {
 CABECALHOS = {
     "requests": "PEDIDOS QUE CONSTAM EXPRESSAMENTE DA PEÇA",
     "decisions": "O QUE FOI DECIDIDO, COMO ESTÁ ESCRITO NO DOCUMENTO",
+    "events": "O QUE O DOCUMENTO REGISTRA, EM ORDEM DE DATA",
 }
 
 # Quantos fatos entram numa resposta de nivel 0. Mais que isso deixa de ser
@@ -721,6 +727,10 @@ def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
         valor = str(item.dados.get("value_text") or valor)
     elif secao == "dates":
         valor = str(item.dados.get("date") or valor)
+    elif secao == "events":
+        # Numa linha do tempo a data nao e um rotulo da frase: e a metade
+        # esquerda dela. Sem a data na frente, a lista deixa de ser cronologia.
+        valor = f"{item.dados.get('date', '')} - {valor}".strip(" -")
     elif secao == "legal_references":
         partes = [str(item.dados.get("instrument") or "")]
         if item.dados.get("article"):
