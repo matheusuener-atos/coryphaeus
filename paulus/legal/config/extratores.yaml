@@ -1,0 +1,59 @@
+# Quem extrai o que, e com qual modelo.
+#
+# Trocar de especialista e mudar uma linha aqui - nao ha codigo a alterar.
+# Trocar o extrator de uma secao marca SO AQUELA SECAO como velha em todo o
+# acervo, e ela e reprocessada sozinha; o resto do metadata fica.
+#
+# A ordem manda: para cada secao vale o extrator de MENOR nivel. Regra antes
+# de modelo, sempre - o que uma expressao regular acerta sempre e de graca nao
+# deve passar por um modelo de tres bilhoes de parametros.
+#
+#   nivel 0   regra deterministica
+#   nivel 1   modelo pequeno
+#   nivel 2   modelo grande
+#   nivel 3   verificador (confere o que os niveis 1 e 2 disseram)
+
+modelos:
+  # Nesta maquina ha um modelo so instalado, e os tres perfis apontam para ele.
+  # A separacao existe para o dia em que houver dois: a ingestao roda em
+  # segundo plano e pode usar o melhor; a consulta responde agora e usa o
+  # menor. Temperatura zero e semente fixa em todos: sem determinismo, duas
+  # execucoes produzem metadata diferente e nao ha como saber se uma troca de
+  # modelo melhorou ou piorou.
+  roteador:
+    id: llama3.2:3b
+    runtime: ollama
+    temperature: 0
+    seed: 42
+    num_ctx: 8192
+  pequeno:
+    id: llama3.2:3b
+    runtime: ollama
+    temperature: 0
+    seed: 42
+    num_ctx: 8192
+  grande:
+    id: llama3.2:3b
+    runtime: ollama
+    temperature: 0
+    seed: 42
+    num_ctx: 8192
+
+extratores:
+  # -------------------------------------------------------------- nivel 0
+  case-number-rules/v1:
+    secao: case
+    nivel: 0
+    modulo: regras_processo
+  date-parser/v1:
+    secao: dates
+    nivel: 0
+    modulo: regras_datas
+  amount-parser/v1:
+    secao: amounts
+    nivel: 0
+    modulo: regras_valores
+  lawref-rules/v1:
+    secao: legal_references
+    nivel: 0
+    modulo: regras_leis
