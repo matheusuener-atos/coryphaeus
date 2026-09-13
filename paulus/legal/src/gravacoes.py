@@ -12,7 +12,9 @@ fingir uma transcricao.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
+from html import escape as _esc
 from pathlib import Path
 
 TIPOS = {
@@ -230,6 +232,57 @@ class Gravacoes:
         for t in g.get("trechos", []):
             linhas.append((f"[{duracao_texto(int(t.get('inicio', 0)))}] " if com_minutos else "") + t.get("texto", ""))
         return "\n".join(linhas)
+
+    def corrigir(self, id_: int, de: str, para: str) -> int:
+        """
+        Troca um nome (ou qualquer palavra) na transcricao e no resumo.
+
+        O Whisper erra nome proprio - "Priscilla" por "Priscila" - e o
+        desenho pede "corrigir nomes". Palavra inteira, sem diferenciar
+        maiuscula; devolve quantos trechos mudaram.
+        """
+        de = " ".join(str(de or "").split())
+        para = " ".join(str(para or "").split())
+        if not de or de == para:
+            return 0
+        g = self.obter(id_)
+        if not g:
+            raise ValueError("gravação não encontrada")
+        limites = r"\b" if re.match(r"^\w", de) and re.search(r"\w$", de) else ""
+        padrao = re.compile(limites + re.escape(de) + limites, re.IGNORECASE)
+        trocados = 0
+        trechos = g.get("trechos", [])
+        for t in trechos:
+            novo, n = padrao.subn(para, t.get("texto", ""))
+            if n:
+                t["texto"] = novo
+                trocados += 1
+        resumo = padrao.sub(para, g.get("resumo") or "")
+        self.base.escrever("UPDATE gravacoes SET transcricao = ?, resumo = ? WHERE id = ?",
+                           (json.dumps(trechos, ensure_ascii=False), resumo, id_))
+        return trocados
+
+    def html_para_exportar(self, id_: int) -> tuple[str, str]:
+        """O titulo e o HTML (titulo, resumo, transcricao com minutos) que vira .docx."""
+        g = self.obter(id_)
+        if not g:
+            raise ValueError("gravação não encontrada")
+        quando = (g.get("criado_em") or "")[:16].replace("T", " ")
+        meta = " · ".join(x for x in [g.get("tipo_rotulo", ""), quando, g.get("duracao_texto", ""),
+                                      ", ".join(g.get("participantes_lista") or [])] if x)
+        partes = ["<h1>" + _esc(g["titulo"]) + "</h1>", "<p>" + _esc(meta) + "</p>"]
+        if g.get("resumo"):
+            partes.append("<h2>Resumo</h2>")
+            partes += ["<p>" + _esc(linha) + "</p>" for linha in g["resumo"].split("\n") if linha.strip()]
+        partes.append("<h2>Transcrição</h2>")
+        if g.get("trechos"):
+            partes += ["<p>[" + duracao_texto(int(t.get("inicio", 0))) + "] " + _esc(t.get("texto", "")) + "</p>" for t in g["trechos"]]
+        else:
+            partes.append("<p>Esta gravação ainda não foi transcrita.</p>")
+        if g.get("notas"):
+            partes.append("<h2>Notas</h2>")
+            partes += ["<p>" + _esc(linha) + "</p>" for linha in g["notas"].split("\n") if linha.strip()]
+        return g["titulo"], "".join(partes)
 
     def guardar_resumo(self, id_: int, texto: str) -> None:
         self.base.escrever("UPDATE gravacoes SET resumo = ?, resumo_em = ? WHERE id = ?", (texto, _agora(), id_))

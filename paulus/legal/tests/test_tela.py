@@ -651,6 +651,18 @@ def main() -> int:
                     pagina.evaluate("() => !!gv.voz && !!document.querySelector('#gv-conteudo [data-gv-transcrever], #gv-conteudo [data-gv-baixar-voz], #gv-conteudo #gv-progresso, #gv-conteudo .gv-trecho')"),
                     "a aba Transcricao sabe se o modelo de voz esta nesta maquina",
                 )
+                # Com a transcricao pronta a aba oferece corrigir nomes, exportar
+                # .docx e compartilhar; as pendencias do resumo viram tarefas.
+                pagina.evaluate("() => { gv.aberta.transcricao_estado = 'pronta'; gv.aberta.trechos = [{ inicio: 0, fim: 2, texto: 'Bom dia, Priscilla.' }]; gv.aberta.palavras = 3; gv.aba = 'transcricao'; redesenharConteudoGv(); }")
+                pagina.wait_for_timeout(300)
+                checar(
+                    pagina.evaluate("() => !!document.querySelector('[data-gv-corrigir]') && !!document.querySelector('[data-gv-exportar]') && document.querySelectorAll('.gv-trecho').length === 1"),
+                    "a transcricao pronta oferece Corrigir nomes e Exportar .docx",
+                )
+                checar(
+                    pagina.evaluate("() => { const p = pendenciasDoResumo('Resumo:\\nx\\nPendências:\\n- Conferir a procuração até 15/09\\n- Enviar o aditivo até sexta\\n'); return p.length === 2 && p[0].prazo.endsWith('-09-15') && p[1].prazo.length === 10; }"),
+                    "as pendencias do resumo viram itens com prazo",
+                )
                 pagina.evaluate("() => document.querySelector('[data-gv-voltar]').click()")
                 pagina.wait_for_selector("#gv-tela .gv-lista", timeout=20000)
                 checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Gravações", "a seta volta para a lista")

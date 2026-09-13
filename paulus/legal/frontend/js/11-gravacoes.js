@@ -145,7 +145,7 @@ function cabecalhoGravacoes() {
       " · " + statusDaGravacao(g);
     $("acoes-tela").innerHTML =
       '<div class="visoes">' + botao("transcricao", "Transcrição") + botao("resumo", "Resumo") + botao("marcadores", "Marcadores") + "</div>" +
-      '<button class="com-icone" data-gv-adiante="Compartilhar o resumo por e-mail entra junto com o resumo — que depende da transcrição local">' + ic("mail", 16) + "Compartilhar resumo</button>" +
+      '<button class="com-icone" data-gv-compartilhar="1">' + ic("mail", 16) + "Compartilhar resumo</button>" +
       '<button class="primario com-icone" data-gv-perguntar="1">' + ic("forum", 16) + "Perguntar sobre esta gravação</button>";
     return;
   }
@@ -384,7 +384,8 @@ function cartaoDaTranscricao(g) {
       (g.transcricao_tempo ? " em " + duracaoLongaGv(g.transcricao_tempo) : "");
     return '<div class="fin-cartao gv-transcrita">' + cabeca(meta,
       '<label class="busca-tela gv-busca-trecho">' + ic("search", 18) + '<input type="text" placeholder="Buscar na transcrição…" data-gv-busca-trecho="1" value="' + esc(gv.buscaTrecho) + '"></label>' +
-      '<button data-gv-adiante="Corrigir nomes entra com a separação por falante, que ainda não existe">Corrigir nomes</button>' +
+      '<button data-gv-corrigir="1">Corrigir nomes</button>' +
+      '<button data-gv-exportar="1">Exportar .docx</button>' +
       '<button data-gv-copiar-transcricao="1">Copiar</button>') +
       '<div class="gv-trechos">' + linhasDaTranscricao(g) + "</div></div>";
   }
@@ -429,7 +430,7 @@ function cartaoDoResumoGv(g) {
     return '<div class="fin-cartao gv-transcrita"><div class="fin-cartao-cabeca"><span>Resumo</span><small>escrito ' + esc(quandoCurtoSv(g.resumo_em)) + " · pelo modelo local, sobre a transcrição</small>" +
       '<div class="direita"><button data-gv-copiar-resumo="1">Copiar</button><button class="com-icone" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + ic("auto_awesome", 16) +
       (gv.resumindo ? "escrevendo…" : "Atualizar resumo") + "</button></div></div>" +
-      '<p class="gv-resumo-texto">' + esc(g.resumo) + "</p></div>";
+      '<p class="gv-resumo-texto">' + esc(g.resumo) + "</p>" + blocoDePendenciasGv(g) + "</div>";
   }
   const cabeca = '<div class="fin-cartao-cabeca"><span>Resumo</span><small>decisões · pendências · próximos passos</small></div>';
   if (gv.resumindo) {
@@ -445,6 +446,168 @@ function cartaoDoResumoGv(g) {
   return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "O resumo nasce da transcrição</b>" +
     "<p>Transcreva a gravação primeiro; depois o modelo local escreve o resumo com decisões e pendências. Até lá, as suas notas no painel e os marcadores são o registro.</p>" +
     '<div class="fin-botoes"><button data-gv-aba="transcricao">Ir para a transcrição</button></div></div></div>';
+}
+
+/* ------------------------------------------ o que sai da transcricao */
+/*
+   O que o desenho poe ao lado da transcricao e do resumo: corrigir um nome
+   que o modelo de voz errou, levar a transcricao em .docx, mandar o resumo
+   por e-mail (que passa por Aprovacoes como qualquer envio) e transformar
+   as pendencias do resumo em tarefas ou num compromisso na Agenda.
+*/
+
+async function corrigirNomesGv(g) {
+  if (!g) return;
+  const r = await dialogo({
+    titulo: "Corrigir nomes", contexto: "Gravações › " + g.titulo,
+    texto: "O modelo de voz erra nome próprio. A troca vale para a transcrição inteira e para o resumo; palavra inteira, sem diferenciar maiúsculas.",
+    campos: [
+      { chave: "de", rotulo: "Como saiu na transcrição", placeholder: "Priscilla", icone: "search" },
+      { chave: "para", rotulo: "Como é", placeholder: "Priscila", icone: "person", sugestoes: g.participantes_lista || [], obrigatorio: true },
+    ],
+    confirmar: "Corrigir",
+  });
+  if (!r || !r.ok) return;
+  const resp = await fetch("/api/gravacoes/" + g.id + "/corrigir", { method: "POST", headers: GV_JSON, body: JSON.stringify({ de: r.valores.de, para: r.valores.para }) });
+  if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); return; }
+  const d = await resp.json();
+  gv.aberta = d;
+  if (d.trocados) avisoCert(plural(d.trocados, "trecho") + (d.trocados === 1 ? " corrigido" : " corrigidos"), { tom: "ok" });
+  else avisoCert("não achei “" + r.valores.de + "” na transcrição", { tom: "erro" });
+  redesenharConteudoGv();
+}
+
+function baixarTranscricaoGv(g) {
+  if (!g) return;
+  const a = document.createElement("a");
+  a.href = "/api/gravacoes/" + g.id + "/transcricao.docx";
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* O e-mail nasce pronto - destinatario (o e-mail do cliente, se a ficha
+   tem), assunto, o resumo no corpo e a transcricao em .docx anexa - e vai
+   para a tela de escrever, que manda pela fila de Aprovacoes conforme o
+   limite que a pessoa escolheu. */
+async function compartilharResumoGv(g) {
+  if (!g) return;
+  if (!g.trechos || !g.trechos.length) { avisoCert("transcreva a gravação primeiro — o e-mail leva o resumo e a transcrição"); return; }
+  if (!g.resumo) {
+    const ok = await confirmar({ titulo: "Compartilhar sem resumo?", contexto: "Gravações › " + g.titulo,
+      texto: "Ainda não há resumo. O e-mail vai só com a transcrição em anexo; dá para pedir o resumo antes, na aba Resumo.", confirmar: "Compartilhar assim" });
+    if (!ok) return;
+  }
+  const r = await fetch("/api/gravacoes/" + g.id + "/exportar", { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const anexo = await r.json();
+  let para = "";
+  if (g.cadastro_id) {
+    try {
+      const d = await (await fetch("/api/cadastros?tipo=&termo=&ordem=nome")).json();
+      const f = (d.fichas || []).find((x) => x.id === g.cadastro_id);
+      if (f && f.email) para = f.email;
+    } catch (err) { /* sem e-mail na ficha: a pessoa escreve */ }
+  }
+  const corpo = "Segue o resumo de “" + g.titulo + "” (" + quandoDaGravacao(g) + ").\n\n" + (g.resumo || "").trim() + "\n\nA transcrição completa vai em anexo.";
+  const rascunho = { para: para, cc: "", cco: "", assunto: "Resumo · " + g.titulo, corpo: corpo, anexos: [anexo], quando: new Date().toISOString() };
+  // O rascunho fica guardado nesta maquina: se ainda nao ha conta de e-mail,
+  // a tela pede a conta e o e-mail continua pronto quando ela existir.
+  try { localStorage.setItem("paulus.email.rascunho", JSON.stringify(rascunho)); } catch (err) { /* sem memoria local */ }
+  marcarDestino("caixa");
+  await telaEscrever(rascunho);
+  if (mail.visao === "contas") avisoCert("cadastre uma conta de e-mail primeiro — o e-mail com o resumo fica guardado como rascunho", { tom: "erro" });
+  else avisoCert("e-mail pronto para revisar — enviar passa por Aprovações conforme o seu limite", { tom: "ok" });
+}
+
+/* As pendencias que o modelo escreveu no resumo ("Pendências:" e uma linha
+   por item), para virarem tarefas. A data, quando vem como dd/mm, "hoje",
+   "amanhã" ou um dia da semana, vira prazo. */
+function pendenciasDoResumo(texto) {
+  const itens = [];
+  let dentro = false;
+  for (const bruta of String(texto || "").split("\n")) {
+    const linha = bruta.trim();
+    if (!linha) continue;
+    if (/^pend[êe]ncias?\b/i.test(linha)) {
+      dentro = true;
+      const resto = linha.replace(/^pend[êe]ncias?\s*:?\s*/i, "").replace(/^[-•*\d.)\s]+/, "");
+      if (resto && !/^nenhuma/i.test(resto)) itens.push(resto);
+      continue;
+    }
+    if (/^(resumo|decis[õo]es|pr[óo]ximos passos|observa[çc][õo]es)\b/i.test(linha)) { if (dentro) break; continue; }
+    if (!dentro) continue;
+    const item = linha.replace(/^[-•*\d.)\s]+/, "").trim();
+    if (item && !/^nenhuma/i.test(item)) itens.push(item);
+  }
+  return itens.map((t) => ({ texto: t, prazo: prazoNoTexto(t) }));
+}
+
+function prazoNoTexto(t) {
+  const hoje = new Date();
+  const m = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(t);
+  if (m) {
+    let ano = m[3] ? Number(m[3]) : hoje.getFullYear();
+    if (ano < 100) ano += 2000;
+    const d = new Date(ano, Number(m[2]) - 1, Number(m[1]));
+    if (!isNaN(d) && d.getMonth() === Number(m[2]) - 1) return iso(d);
+  }
+  if (/\bhoje\b/i.test(t)) return iso(hoje);
+  if (/\bamanh[ãa]\b/i.test(t)) { const d = new Date(hoje); d.setDate(d.getDate() + 1); return iso(d); }
+  const dias = ["domingo", "segunda", "ter[çc]a", "quarta", "quinta", "sexta", "s[áa]bado"];
+  for (let i = 0; i < 7; i++) {
+    if (new RegExp("\\b" + dias[i] + "(-feira)?\\b", "i").test(t)) {
+      const d = new Date(hoje);
+      let delta = (i - d.getDay() + 7) % 7;
+      if (delta === 0) delta = 7;
+      d.setDate(d.getDate() + delta);
+      return iso(d);
+    }
+  }
+  return "";
+}
+
+function blocoDePendenciasGv(g) {
+  const itens = pendenciasDoResumo(g.resumo);
+  if (!itens.length) return '<div class="gv-pendencias"><p class="nota">O resumo não separou pendências. Se houver, peça um resumo novo — ou anote no painel.</p></div>';
+  return '<div class="gv-pendencias"><div class="painel-bloco-cabeca">Pendências<span class="contagem">' + itens.length + "</span></div>" +
+    itens.map((p, i) => '<label class="gv-pendencia"><input type="checkbox" data-gv-pendencia="' + i + '" checked><span>' + esc(p.texto) +
+      (p.prazo ? ' <small>· prazo ' + esc(dataCurta(p.prazo)) + "</small>" : "") + "</span></label>").join("") +
+    '<div class="fin-botoes"><button class="primario com-icone" data-gv-criar-tarefas="1">' + ic("add_task", 16) + "Criar tarefas</button>" +
+    '<button class="com-icone" data-gv-agenda="1">' + ic("event_upcoming", 16) + "Levar para a Agenda</button></div></div>";
+}
+
+async function criarTarefasDoResumo(g) {
+  if (!g) return;
+  const itens = pendenciasDoResumo(g.resumo);
+  const marcadas = Array.from(document.querySelectorAll("[data-gv-pendencia]")).filter((c) => c.checked).map((c) => itens[Number(c.dataset.gvPendencia)]).filter(Boolean);
+  if (!marcadas.length) { avisoCert("marque ao menos uma pendência"); return; }
+  let criadas = 0;
+  for (const p of marcadas) {
+    const r = await fetch("/api/tarefas", { method: "POST", headers: GV_JSON, body: JSON.stringify({ id: null, dados: {
+      titulo: p.texto.slice(0, 140), prazo: p.prazo || "", cadastro_id: g.cadastro_id || null,
+      anotacao: "Da gravação “" + g.titulo + "” (" + quandoDaGravacao(g) + ").",
+    } }) });
+    if (r.ok) criadas += 1;
+  }
+  if (g.servico_id && criadas) {
+    fetch("/api/servicos/" + g.servico_id + "/anotacoes", { method: "POST", headers: GV_JSON, body: JSON.stringify({ texto: plural(criadas, "tarefa") + " da gravação “" + g.titulo + "” na Agenda." }) });
+  }
+  avisoCert(plural(criadas, "tarefa") + (criadas === 1 ? " criada" : " criadas") + " na Agenda", { tom: "ok" });
+}
+
+function levarParaAgendaGv(g) {
+  if (!g) return;
+  const itens = pendenciasDoResumo(g.resumo);
+  ag.visao = "semana";
+  ag.painel = "form";
+  ag.form = Object.assign(compromissoEmBranco("compromisso"), {
+    cadastro_id: g.cadastro_id || null, titulo: "Retorno · " + g.titulo,
+    anotacao: itens.length ? "Pendências da gravação:\n" + itens.map((p) => "- " + p.texto).join("\n") : "Retorno da gravação “" + g.titulo + "”.",
+  });
+  marcarDestino("calendario");
+  mostrarAgenda("semana");
 }
 
 function vigiarVoz() {
@@ -547,8 +710,8 @@ function painelDaGravacao() {
     '<select data-gv-ligar="servico_id">' + servicos + "</select></div></div>" +
     '<div class="gv-arquivado">' + ic("person", 18) + '<div class="duas-linhas">' + (g.cliente_nome ? "<b>" + esc(g.cliente_nome) + "</b>" : "") + '<select data-gv-ligar="cadastro_id">' + clientes + "</select></div></div>" +
     '<div class="gv-arquivado">' + ic("description", 18) + '<div class="duas-linhas"><b>Transcrição' + (g.resumo ? " e resumo" : "") + "</b><small>" +
-    esc(g.transcricao_estado === "pronta" ? plural(g.palavras || 0, "palavra") + " · " + rotuloDoModeloGv(g.transcricao_modelo) + " · copiar pela aba" : statusDaGravacao(g)) + "</small></div></div>" +
-    '<p class="gv-nota-pe">Áudio, transcrição e notas ficam nesta máquina. Compartilhar o resumo por e-mail vai passar por Aprovações; ainda não está ligado.</p></div>' +
+    esc(g.transcricao_estado === "pronta" ? plural(g.palavras || 0, "palavra") + " · " + rotuloDoModeloGv(g.transcricao_modelo) + " · .docx pela aba" : statusDaGravacao(g)) + "</small></div></div>" +
+    '<p class="gv-nota-pe">Áudio, transcrição e notas ficam nesta máquina. Compartilhar o resumo monta o e-mail com a transcrição anexa; enviar passa por Aprovações conforme o seu limite.</p></div>' +
     "</div></aside>";
 }
 
@@ -637,6 +800,11 @@ function ligarGravacoes() {
   clique("[data-gv-resumo]", () => pedirResumoDaGravacao());
   clique("[data-gv-copiar-transcricao]", () => copiarTexto(gv.aberta.trechos.map((t) => "[" + duracaoGv(t.inicio) + "] " + t.texto).join("\n"), "transcrição copiada"));
   clique("[data-gv-copiar-resumo]", () => copiarTexto(gv.aberta.resumo || "", "resumo copiado"));
+  clique("[data-gv-corrigir]", () => corrigirNomesGv(gv.aberta));
+  clique("[data-gv-exportar]", () => baixarTranscricaoGv(gv.aberta));
+  clique("[data-gv-compartilhar]", () => compartilharResumoGv(gv.aberta));
+  clique("[data-gv-criar-tarefas]", () => criarTarefasDoResumo(gv.aberta));
+  clique("[data-gv-agenda]", () => levarParaAgendaGv(gv.aberta));
   const buscaTrecho = document.querySelector("[data-gv-busca-trecho]");
   if (buscaTrecho) buscaTrecho.oninput = () => {
     gv.buscaTrecho = buscaTrecho.value;

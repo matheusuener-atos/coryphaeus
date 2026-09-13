@@ -24,23 +24,27 @@ function dialogo(o) {
   return new Promise((resolve) => {
     if (dialogoAberto) dialogoAberto.fechar(null);
     const origem = document.activeElement;
-    const campo = o.campo || null;
+    // Um campo (o.campo) ou varios (o.campos, cada um com `chave`); o primeiro
+    // e o de sempre - id dialogo-campo, foco, `valor` no resultado.
+    const campos = (o.campos || (o.campo ? [o.campo] : [])).map((c, i) => Object.assign({ chave: "valor" + (i ? i : "") }, c));
+    const campo = campos[0] || null;
     const veu = document.createElement("div");
     veu.className = "veu-dialogo";
     veu.id = "veu-dialogo";
     const classe = "dialogo" + (o.larga ? " larga" : "");
     const paragrafos = o.texto ? String(o.texto).split("\n").map((p) => p.trim()).filter(Boolean).map((p) => "<p>" + esc(p) + "</p>").join("") : "";
     let miolo = "";
-    if (campo) {
-      miolo += '<div class="dialogo-campo">' + (campo.rotulo ? '<label for="dialogo-campo">' + esc(campo.rotulo) + "</label>" : "") +
-        '<div class="dialogo-caixa">' + (campo.icone ? ic(campo.icone, 18) : "") +
-        '<input id="dialogo-campo" type="' + (campo.tipo || "text") + '" value="' + esc(campo.valor || "") + '" placeholder="' + esc(campo.placeholder || "") + '" autocomplete="off" spellcheck="false">' +
-        (campo.sufixo ? '<span class="dialogo-sufixo">' + esc(campo.sufixo) + "</span>" : "") + "</div>" +
-        (campo.sugestoes && campo.sugestoes.length
-          ? '<div class="dialogo-sugestoes">' + campo.sugestoes.map((s) => '<button type="button" data-dialogo-sugestao="' + esc(s) + '">' + esc(s) + "</button>").join("") + "</div>"
+    campos.forEach((c, i) => {
+      const id = i ? "dialogo-campo-" + i : "dialogo-campo";
+      miolo += '<div class="dialogo-campo">' + (c.rotulo ? '<label for="' + id + '">' + esc(c.rotulo) + "</label>" : "") +
+        '<div class="dialogo-caixa">' + (c.icone ? ic(c.icone, 18) : "") +
+        '<input id="' + id + '" data-dialogo-chave="' + esc(c.chave) + '" type="' + (c.tipo || "text") + '" value="' + esc(c.valor || "") + '" placeholder="' + esc(c.placeholder || "") + '" autocomplete="off" spellcheck="false">' +
+        (c.sufixo ? '<span class="dialogo-sufixo">' + esc(c.sufixo) + "</span>" : "") + "</div>" +
+        (c.sugestoes && c.sugestoes.length
+          ? '<div class="dialogo-sugestoes">' + c.sugestoes.map((s) => '<button type="button" data-dialogo-sugestao="' + esc(s) + '" data-dialogo-para="' + id + '">' + esc(s) + "</button>").join("") + "</div>"
           : "") +
-        (campo.dica ? '<span class="dialogo-dica">' + esc(campo.dica) + "</span>" : "") + "</div>";
-    }
+        (c.dica ? '<span class="dialogo-dica">' + esc(c.dica) + "</span>" : "") + "</div>";
+    });
     if (o.marcar) {
       miolo += '<label class="dialogo-marcar"><input type="checkbox" id="dialogo-marcar"' + (o.marcar.marcada ? " checked" : "") + "><span>" + esc(o.marcar.rotulo) + "</span></label>";
     }
@@ -73,7 +77,15 @@ function dialogo(o) {
     };
     const confirmarAgora = () => {
       if (entrada && obrigatorio && !entrada.value.trim()) { entrada.focus(); return; }
-      fechar({ ok: true, valor: entrada ? entrada.value.trim() : "", marcada: marcar ? marcar.checked : false });
+      const valores = {};
+      let falta = null;
+      veu.querySelectorAll("[data-dialogo-chave]").forEach((el, i) => {
+        valores[el.dataset.dialogoChave] = el.value.trim();
+        const espec = campos[i] || {};
+        if (i && espec.obrigatorio && !el.value.trim() && !falta) falta = el;
+      });
+      if (falta) { falta.focus(); return; }
+      fechar({ ok: true, valor: entrada ? entrada.value.trim() : "", valores: valores, marcada: marcar ? marcar.checked : false });
     };
     const teclas = (e) => {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fechar(null); return; }
@@ -99,7 +111,12 @@ function dialogo(o) {
     veu.querySelectorAll('[data-dialogo="cancelar"]').forEach((b) => { b.onclick = () => fechar(null); });
     botaoOk.onclick = confirmarAgora;
     veu.querySelectorAll("[data-dialogo-sugestao]").forEach((b) => {
-      b.onclick = () => { entrada.value = b.dataset.dialogoSugestao; conferir(); entrada.focus(); };
+      b.onclick = () => {
+        const alvo = veu.querySelector("#" + b.dataset.dialogoPara) || entrada;
+        alvo.value = b.dataset.dialogoSugestao;
+        conferir();
+        alvo.focus();
+      };
     });
     if (entrada) {
       entrada.oninput = conferir;

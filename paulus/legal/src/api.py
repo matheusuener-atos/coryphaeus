@@ -5221,6 +5221,46 @@ def gravacoes_audio(id_: int) -> FileResponse:
     return FileResponse(caminho, media_type=gravacoes_mod.MEDIA_TYPES.get(caminho.suffix.lower(), "application/octet-stream"))
 
 
+@app.post("/api/gravacoes/{id_}/corrigir")
+def gravacoes_corrigir(id_: int, payload: dict) -> dict:
+    try:
+        trocados = estado.gravacoes.corrigir(id_, str(payload.get("de", "")), str(payload.get("para", "")))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    g = estado.gravacoes.obter(id_) or {}
+    g["trocados"] = trocados
+    return _com_progresso(g)
+
+
+def _docx_da_gravacao(id_: int) -> tuple[str, bytes]:
+    try:
+        titulo, html = estado.gravacoes.html_para_exportar(id_)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return titulo, documento.para_docx(documento.ler_html(html), titulo)
+
+
+@app.get("/api/gravacoes/{id_}/transcricao.docx")
+def gravacoes_docx(id_: int):
+    """A transcricao (com o resumo e as notas) em Word, para continuar fora do PAULUS."""
+    from fastapi.responses import Response
+
+    titulo, dados = _docx_da_gravacao(id_)
+    return Response(dados, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers=_anexo(_arquivo(titulo) + " - transcricao.docx"))
+
+
+@app.post("/api/gravacoes/{id_}/exportar")
+def gravacoes_exportar(id_: int) -> dict:
+    """Grava o .docx em data/exportacoes e devolve o caminho: e o que vai anexo no e-mail."""
+    titulo, dados = _docx_da_gravacao(id_)
+    EXPORTACOES_DIR.mkdir(parents=True, exist_ok=True)
+    nome = _arquivo(titulo) + " - transcricao.docx"
+    caminho = EXPORTACOES_DIR / nome
+    caminho.write_bytes(dados)
+    return {"path": str(caminho), "nome": nome, "mb": round(len(dados) / (1024 * 1024), 2)}
+
+
 @app.post("/api/gravacoes/{id_}/marcadores")
 def gravacoes_marcar(id_: int, payload: dict) -> dict:
     try:

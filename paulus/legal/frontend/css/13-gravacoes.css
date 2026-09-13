@@ -109,3 +109,10 @@
   .gv-trecho .em-ligacao.forte.fixo { cursor: default; }
 
 
+
+  /* As pendencias do resumo, para virarem tarefas ou irem para a Agenda. */
+  .gv-pendencias { display: grid; gap: 8px; padding: 0 16px 16px; }
+  .gv-pendencias .painel-bloco-cabeca { padding-top: 6px; }
+  .gv-pendencia { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; line-height: 1.5; cursor: pointer; }
+  .gv-pendencia input { margin: 3px 0 0; accent-color: var(--ink); flex: none; }
+  .gv-pendencia small { color: var(--ink3); font-weight: 500; white-space: nowrap; }

@@ -283,6 +283,17 @@ def test_transcricao(c: Cliente, criados: dict, audio: bytes, segundos: int) -> 
     checar(g["transcricao_modelo"] and g["transcricao_tempo"] > 0 and g["palavras"] > 40, "modelo, tempo e palavras registrados")
     st, lista = c.pedir("GET", "/api/gravacoes?termo=aditivo")
     checar(any(x["id"] == g["id"] for x in lista["gravacoes"]), "a busca acha pelo que foi dito")
+
+    # Corrigir um nome vale para a transcricao inteira; o .docx sai com titulo, resumo e minutos.
+    st, r = c.pedir("POST", f"/api/gravacoes/{g['id']}/corrigir", {"de": "aditivo", "para": "TERMO-X"})
+    checar(st == 200 and r["trocados"] >= 1 and any("TERMO-X" in t["texto"] for t in r["trechos"]), "corrigir troca a palavra em todos os trechos")
+    st, r = c.pedir("POST", f"/api/gravacoes/{g['id']}/corrigir", {"de": "TERMO-X", "para": "aditivo"})
+    checar(st == 200 and not any("TERMO-X" in t["texto"] for t in r["trechos"]), "corrigir de volta")
+    st, tipo, corpo = c.baixar(f"/api/gravacoes/{g['id']}/transcricao.docx")
+    checar(st == 200 and "wordprocessingml" in tipo and corpo[:2] == b"PK", "a transcricao sai em .docx")
+    st, ex = c.pedir("POST", f"/api/gravacoes/{g['id']}/exportar")
+    checar(st == 200 and Path(ex["path"]).exists(), "exportar guarda o .docx para anexar")
+    Path(ex["path"]).unlink(missing_ok=True)
     st, r = c.pedir("POST", f"/api/gravacoes/{g['id']}/resumo")
     checar(st in (200, 503), "pedir resumo responde (200 com o Ollama, 503 sem)", (st, r))
 
