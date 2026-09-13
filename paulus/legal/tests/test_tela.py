@@ -800,6 +800,42 @@ def main() -> int:
             pagina.wait_for_timeout(1500)
             checar(pagina.evaluate("() => document.querySelectorAll('.esqueleto').length === 0 && typeof esqueleto('lista') === 'string' && esqueleto('lista').includes('esq-fila')"), "o esqueleto existe para as listas que abrem")
 
+            print("\na proposta de abrir um servico (A15)")
+            # "abra um servico para X: Y" volta da conversa como proposta com
+            # os tres campos a vista. Entender nao e fazer: a pasta so nasce
+            # no clique, e por isso os campos sao editaveis antes do sim.
+            pagina.evaluate("""() => {
+              const d = {tipo: 'servico', titulo: 'Renovação do contrato',
+                campos: {nome: 'Renovação do contrato', cliente: 'Cooperativa Brasileira', descricao: 'Aviso e aditivo'},
+                porque: '“abra” e “serviço”', falta: ''};
+              $('centro').innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal" id="teste-proposta">' + cartaoProposta(d) + '</div></div>';
+            }""")
+            pagina.wait_for_timeout(200)
+            campos_prop = pagina.evaluate(
+                "() => Array.from(document.querySelectorAll('#teste-proposta [data-pc]')).map((e) => e.dataset.pc + '=' + e.value)")
+            checar(campos_prop == ["nome=Renovação do contrato", "cliente=Cooperativa Brasileira", "descricao=Aviso e aditivo"],
+                   "os tres campos do servico vem preenchidos e editaveis", campos_prop)
+            checar(
+                pagina.evaluate("() => document.querySelector('#teste-proposta [data-prop=\\\"fazer\\\"]').textContent === 'Abrir o serviço' && !!document.querySelector('#teste-proposta [data-prop=\\\"nao\\\"]')"),
+                "o botao diz o que vai acontecer, e da para recusar",
+            )
+            largura_prop = pagina.evaluate("""() => {
+              const p = document.querySelector('#teste-proposta .proposta');
+              const i = document.querySelector('#teste-proposta [data-pc=\\\"nome\\\"]');
+              return {cartao: p.getBoundingClientRect().width, campo: i.getBoundingClientRect().width};
+            }""")
+            checar(largura_prop["campo"] > 80 and largura_prop["campo"] <= largura_prop["cartao"],
+                   "o campo do nome cabe no cartao", largura_prop)
+            pagina.evaluate("""() => {
+              const d = {tipo: 'servico', titulo: '', campos: {nome: '', cliente: '', descricao: ''},
+                porque: '“abra” e “serviço”', falta: 'não achei o nome do serviço nessa frase'};
+              $('teste-proposta').innerHTML = cartaoProposta(d);
+            }""")
+            checar(
+                pagina.evaluate("() => document.querySelector('#teste-proposta .pv-grau').textContent === 'falta um dado' && document.querySelector('#teste-proposta .explica').textContent.includes('não achei o nome')"),
+                "sem nome, o cartao diz o que falta em vez de inventar",
+            )
+
             print("\ncelulas da planilha")
             id_planilha = pagina.evaluate("""async () => {
               const r = await fetch('/api/documentos', {method: 'POST',

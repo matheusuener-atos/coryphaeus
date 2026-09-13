@@ -270,6 +270,113 @@ ENFEITE = {
 }
 
 
+# "abra um serviço para a Cooperativa: renovação do contrato" - a pasta de
+# trabalho de Serviços nasce da conversa (docs/ui, A15). "Abra" é o mesmo
+# verbo de abrir arquivo; o que decide é a palavra "serviço", que nenhum
+# arquivo tem no nome.
+VERBOS_SERVICO = ("abra", "abrir", "abre", "crie", "criar", "cria", "monte", "montar",
+                  "monta", "inicie", "iniciar", "inicia", "comece", "comecar", "comeca",
+                  "registre", "registrar", "registra", "cadastre", "cadastrar", "cadastra")
+COISAS_SERVICO = ("servico", "pasta de trabalho", "novo caso", "nova pasta")
+RE_PEDIDO_SERVICO = re.compile(
+    r"\b(" + "|".join(VERBOS_SERVICO) + r")\b"
+    r"(?:\s+(?:um|uma|o|a|novo|nova|outro|outra|mais|esse|essa|este|esta|ai|aqui|la|pra mim|para mim))*"
+    r"\s+(servico|pasta de trabalho|novo caso|nova pasta)\b")
+RE_COISA_SERVICO = re.compile(r"(servi[çc]o|pasta de trabalho|novo caso|nova pasta)\s*(?:novo|nova)?\s*(.*)$", re.I | re.S)
+CONECTORES = ("para o cliente", "para a cliente", "do cliente", "da cliente", "chamado", "chamada",
+              "para", "com", "de", "do", "da", "o", "a", "um", "uma")
+# No fim do nome só caem preposições: "Fornecedor A" termina em "A" e é nome.
+CONECTORES_NO_FIM = ("para o cliente", "para a cliente", "do cliente", "da cliente",
+                     "chamado", "chamada", "para", "com", "de", "do", "da")
+
+
+def _cliente_citado(plano: str, cadastros) -> str:
+    """O cadastro cujo nome inteiro aparece na frase - o mais longo, se mais de um."""
+    melhor = ""
+    for nome in cadastros or []:
+        n = _plano(str(nome)).strip()
+        if len(n) >= 3 and re.search(r"\b" + re.escape(n) + r"\b", plano) and len(n) > len(melhor):
+            melhor = str(nome)
+    return melhor
+
+
+def _sem_conectores(texto: str) -> str:
+    """Tira "para", "de", "chamado"... do começo e do fim do que sobrou como nome."""
+    t = texto.strip(" .:;,-–—")
+    mudou = True
+    while mudou and t:
+        mudou = False
+        for c in CONECTORES:
+            if re.match(r"^" + re.escape(c) + r"\b", t, re.I):
+                t = t[len(c):].strip(" .:;,-–—")
+                mudou = True
+            if c in CONECTORES_NO_FIM and re.search(r"\b" + re.escape(c) + r"$", t, re.I):
+                t = t[: len(t) - len(c)].strip(" .:;,-–—")
+                mudou = True
+    return t
+
+
+def _sem_conectores_no_fim(texto: str) -> str:
+    """Tira do fim tudo que só liga ao que vinha depois - inclusive artigos."""
+    t = texto.strip(" .:;,-–—")
+    mudou = True
+    while mudou and t:
+        mudou = False
+        for c in CONECTORES:
+            if re.search(r"(?:^|\s)" + re.escape(c) + r"$", t, re.I):
+                t = t[: len(t) - len(c)].strip(" .:;,-–—")
+                mudou = True
+    return t
+
+
+def ler_servico(texto: str, plano: str, cadastros=None) -> Intencao | None:
+    """
+    "abra um serviço para X: Y" vira a proposta de uma pasta de trabalho.
+
+    O nome é o que vem depois de "serviço", sem o cliente (quando a frase cita
+    um cadastro) e sem os conectores; o que vem depois de ":" ou "sobre" é a
+    descrição. Sem nome nenhum, a proposta diz o que falta.
+    """
+    # "serviço" tem de ser a coisa pedida, logo depois do verbo: "abra um
+    # serviço", "crie serviço", "monte uma nova pasta de trabalho". Em "abra o
+    # contrato de serviço" a coisa é o contrato, e o arquivo é que abre.
+    m_pedido = RE_PEDIDO_SERVICO.search(plano)
+    if not m_pedido:
+        return None
+    antes = re.findall(r"[a-z0-9]+", plano[: m_pedido.start()])
+    if not all(palavra in ENFEITE for palavra in antes):
+        return None
+    verbo, coisa = m_pedido.group(1), m_pedido.group(2)
+    cliente = _cliente_citado(plano, cadastros)
+    m = RE_COISA_SERVICO.search(texto)
+    resto = m.group(2).strip() if m else ""
+    descricao = ""
+    if ":" in resto:
+        resto, descricao = resto.split(":", 1)
+    elif re.search(r"\bsobre\b", resto, re.I):
+        resto, descricao = re.split(r"\bsobre\b", resto, maxsplit=1, flags=re.I)
+    nome = resto
+    if cliente:
+        onde = _plano(nome).find(_plano(cliente))
+        if onde >= 0:
+            # O que colava no cliente ("com a", "para o cliente") cai junto.
+            antes_do_cliente = _sem_conectores_no_fim(nome[:onde])
+            depois_do_cliente = _sem_conectores(nome[onde + len(cliente):])
+            nome = antes_do_cliente + " " + depois_do_cliente
+    nome = " ".join(_sem_conectores(nome).split())
+    descricao = " ".join(descricao.split()).strip(" .")
+    if not nome and descricao:
+        nome, descricao = _sem_conectores(descricao)[:80], ""
+    if nome:
+        nome = nome[0].upper() + nome[1:]
+    return Intencao(
+        tipo="servico", titulo=nome or (cliente or ""),
+        campos={"nome": nome, "cliente": cliente, "descricao": descricao},
+        porque=_porque(verbo, coisa),
+        falta="" if nome else "não achei o nome do serviço nessa frase",
+    )
+
+
 def _verbo_de_comando(plano: str) -> str:
     """
     O verbo de ação, e só quando está no começo da frase.
@@ -553,12 +660,14 @@ def documento_citado(texto: str, documentos=None) -> str:
     return achados[0] if len(achados) == 1 else ""
 
 
-def ler(texto: str, hoje: date | None = None, documentos=None) -> Intencao:
+def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -> Intencao:
     """
     O que a frase pede.
 
     Devolve sempre alguma coisa: quando nada é reconhecido, o tipo é
-    "documentos" e a conversa segue pelo caminho de antes.
+    "documentos" e a conversa segue pelo caminho de antes. `cadastros` são
+    os nomes das fichas, para "abra um serviço para a Cooperativa" ligar a
+    pasta ao cliente certo.
     """
     texto = (texto or "").strip()
     plano = _plano(texto)
@@ -567,6 +676,11 @@ def ler(texto: str, hoje: date | None = None, documentos=None) -> Intencao:
 
     if any(p in plano for p in SOBRE):
         return Intencao(tipo="sobre", porque="pergunta sobre o próprio programa")
+
+    # Antes de "abrir arquivo": "abra um serviço" tem o mesmo verbo.
+    servico = ler_servico(texto, plano, cadastros)
+    if servico:
+        return servico
 
     # Abrir um arquivo pelo nome. Só vira ação quando o arquivo existe: sem
     # isso, "mostre o que diz sobre multa" viraria tentativa de abrir nada.

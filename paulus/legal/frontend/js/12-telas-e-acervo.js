@@ -851,6 +851,25 @@ function cartaoProposta(d) {
       '<button data-prop="nao">Deixa pra lá</button></div></div>';
   }
 
+  // Um serviço nasce da conversa: nome, cliente (como está em Cadastros) e o
+  // que está sendo feito. A pessoa confere e confirma; a pasta abre em Serviços.
+  if (d.tipo === "servico") {
+    const explica = d.falta
+      ? "Entendi que você quer abrir um serviço (" + esc(d.porque) + "), mas " + esc(d.falta) + ". Dê o nome aqui."
+      : "Li isso de " + esc(d.porque) + " na sua frase. A pasta nasce em Serviços" +
+        (c.cliente ? ", ligada a " + esc(c.cliente) : ", sem cliente — escreva o nome como está em Cadastros para ligar") +
+        ". Confira antes — eu não gravo nada sem o seu sim.";
+    return '<div class="proposta"><div class="proposta-topo">' +
+      '<span class="' + (d.falta ? "pv-grau" : "rotulo") + '">' + (d.falta ? "falta um dado" : "vou abrir um serviço") + "</span>" +
+      "<b>" + esc(c.nome || d.titulo || "Serviço") + "</b></div>" +
+      '<div class="linha-form"><input type="text" data-pc="nome" value="' + esc(c.nome || "") + '" placeholder="nome do serviço"' + (d.falta ? " autofocus" : "") + ">" +
+      '<input type="text" data-pc="cliente" value="' + esc(c.cliente || "") + '" placeholder="cliente, como está em Cadastros"></div>' +
+      '<div class="linha-form"><input type="text" data-pc="descricao" value="' + esc(c.descricao || "") + '" placeholder="o que está sendo feito (opcional)"></div>' +
+      '<p class="explica">' + explica + "</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="fazer">Abrir o serviço</button>' +
+      '<button data-prop="nao">Deixa pra lá</button></div></div>';
+  }
+
   if (d.falta) {
     return '<div class="proposta"><div class="proposta-topo">' +
       '<span class="pv-grau">falta um dado</span>' +
@@ -970,6 +989,7 @@ function ligarProposta(caixa, d, ondeResponder) {
       marcarDestino(feito.onde);
       if (feito.onde === "calendario") mostrarCalendario();
       else if (feito.onde === "tarefas") mostrarTarefas();
+      else if (feito.onde === "servicos") abrirServico(Number(feito.id));
       else mostrarBiblioteca();
     };
     carregarStatus();

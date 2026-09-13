@@ -97,6 +97,24 @@ class Cliente:
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read() or b"{}")
 
+    def conversar(self, caminho: str, dados: dict) -> list[tuple[str, dict]]:
+        """Os eventos (tipo, dados) de uma resposta em Server-Sent Events."""
+        req = urllib.request.Request(self.base + caminho, data=json.dumps(dados).encode(), method="POST",
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            texto = r.read().decode("utf-8")
+        eventos = []
+        for bloco in texto.split("\n\n"):
+            tipo, corpo = "", ""
+            for linha in bloco.splitlines():
+                if linha.startswith("event: "):
+                    tipo = linha[7:]
+                elif linha.startswith("data: "):
+                    corpo += linha[6:]
+            if tipo:
+                eventos.append((tipo, json.loads(corpo or "{}")))
+        return eventos
+
     def enviar_audio(self, campos: dict, nome: str, conteudo: bytes):
         limite = "----paulus" + uuid.uuid4().hex
         corpo = b""
@@ -215,6 +233,49 @@ def test_servicos(c: Cliente, criados: dict) -> None:
     checar(st == 200 and s["status"] == "concluido" and s["concluido_em"], "concluir marca a data")
     st, lista = c.pedir("GET", "/api/servicos?filtro=concluidos")
     checar(any(x["id"] == sid for x in lista["servicos"]), "concluido aparece no filtro certo")
+
+
+def test_servico_pela_conversa(c: Cliente, criados: dict) -> None:
+    """
+    "abra um servico para X: Y" na conversa vira uma proposta; o sim abre a
+    pasta em Servicos, ligada ao cadastro citado, com a trilha dizendo de
+    onde veio. Nada e gravado antes do sim.
+    """
+    print("\nservicos: abrir pela conversa")
+    frase = "abra um serviço para a Teste Servicos Cliente Ltda: renovação do contrato de logística"
+    st, t = c.pedir("POST", "/api/trabalhos", {"pedido": frase})
+    checar(st == 200 and t.get("id"), "conversa criada", (st, t))
+    criados["trabalhos"].append(t["id"])
+
+    eventos = c.conversar(f"/api/trabalhos/{t['id']}/perguntar", {"pergunta": frase})
+    propostas = [d for tipo, d in eventos if tipo == "proposta"]
+    checar(len(propostas) == 1 and propostas[0]["tipo"] == "servico", "a frase vira proposta de servico",
+           [tipo for tipo, _ in eventos])
+    if not propostas:
+        return
+    p = propostas[0]
+    checar(p["campos"].get("cliente") == "Teste Servicos Cliente Ltda", "o cliente e o cadastro citado", p["campos"])
+    checar(p["campos"].get("nome") == "Renovação do contrato de logística", "o nome e o que vem depois dos dois-pontos", p["campos"])
+    st, lista = c.pedir("GET", "/api/servicos?termo=Renova%C3%A7%C3%A3o%20do%20contrato%20de%20log")
+    checar(not any(x["nome"] == "Renovação do contrato de logística" for x in lista.get("servicos", [])),
+           "antes do sim, nada foi gravado")
+
+    st, feito = c.pedir("POST", f"/api/trabalhos/{t['id']}/fazer", {"tipo": "servico", "campos": p["campos"]})
+    checar(st == 200 and feito.get("onde") == "servicos" and feito.get("id"), "o sim abre a pasta", (st, feito))
+    if feito.get("id"):
+        criados["servicos"].append(feito["id"])
+        st, s = c.pedir("GET", f"/api/servicos/{feito['id']}")
+        checar(s.get("cliente_nome") == "Teste Servicos Cliente Ltda", "a pasta esta ligada ao cliente", s.get("cliente_nome"))
+        checar(any("a partir da conversa" in x["texto"] for x in s.get("trilha", [])), "a trilha diz de onde veio", s.get("trilha"))
+        checar("Teste Servicos Cliente Ltda" in feito.get("resumo", ""), "o resumo nomeia o cliente", feito.get("resumo"))
+
+    st, feito = c.pedir("POST", f"/api/trabalhos/{t['id']}/fazer",
+                        {"tipo": "servico", "campos": {"nome": "Teste — Sem ficha", "cliente": "Ninguem Assim", "descricao": ""}})
+    checar(st == 200 and "não está em Cadastros" in feito.get("resumo", ""), "cliente sem ficha: a pasta abre e o resumo avisa", feito)
+    if feito.get("id"):
+        criados["servicos"].append(feito["id"])
+        st, s = c.pedir("GET", f"/api/servicos/{feito['id']}")
+        checar(s.get("cadastro_id") is None, "e fica sem cliente ligado")
 
 
 def test_gravacoes(c: Cliente, criados: dict, audio: bytes, falado: bool) -> int:
@@ -391,7 +452,7 @@ def main() -> int:
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
     c = Cliente(porta)
-    criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": [], "audio": b""}
+    criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": [], "trabalhos": [], "audio": b""}
     try:
         with tempfile.TemporaryDirectory() as tmp:
             caminho = Path(tmp) / "fala.wav"
@@ -406,6 +467,7 @@ def main() -> int:
                 segundos = max(1, round(w.getnframes() / w.getframerate()))
 
             test_servicos(c, criados)
+            test_servico_pela_conversa(c, criados)
             test_gravacoes(c, criados, audio, falado)
             if falado:
                 test_transcricao(c, criados, audio, segundos)
@@ -429,6 +491,8 @@ def main() -> int:
             apagar_de_vez(f"/api/tarefas/{tid}")
         for cid in criados["cadastros"]:
             apagar_de_vez(f"/api/cadastros/{cid}")
+        for tid in criados["trabalhos"]:
+            apagar_de_vez(f"/api/trabalhos/{tid}")
         st, sobra = c.pedir("GET", "/api/gravacoes?termo=Teste%20%E2%80%94")
         sobrou = [x["titulo"] for x in sobra.get("gravacoes", [])]
         checar(not sobrou, "nada de teste sobrou no disco", sobrou)

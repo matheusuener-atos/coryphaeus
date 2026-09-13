@@ -256,6 +256,57 @@ def test_abrir_arquivo() -> None:
            "sem a lista de documentos, nao inventa arquivo")
 
 
+def test_abrir_servico() -> None:
+    """
+    "abra um serviço para a Cooperativa: renovação do contrato" abre uma
+    pasta de trabalho em Serviços (docs/ui, A15) - antes ia para a busca,
+    ou tentava abrir um arquivo chamado "serviço".
+
+    A palavra "serviço" decide: o verbo é o mesmo de abrir arquivo. O cliente
+    só entra quando o nome inteiro de uma ficha está na frase; o nome do
+    serviço é o que sobra, e o que vem depois de ":" ou "sobre" é a descrição.
+    """
+    print("\nabrir um serviço pela conversa")
+    cadastros = ["Cooperativa Brasileira", "Maria Vasconcelos", "Norte Soluções Digitais"]
+    from types import SimpleNamespace
+    acervo = [SimpleNamespace(name="Contrato de serviço - Cooperativa.pdf")]
+
+    def ler(frase):
+        return intencao.ler(frase, HOJE, acervo, cadastros)
+
+    i = ler("abra um serviço para a Cooperativa Brasileira: renovação do contrato de logística")
+    checar(i.tipo == "servico", f"vira pedido de abrir serviço ({i.tipo})")
+    checar(i.campos["cliente"] == "Cooperativa Brasileira", f"liga ao cadastro citado ({i.campos['cliente']})")
+    checar(i.campos["nome"] == "Renovação do contrato de logística",
+           f"o que vem depois dos dois-pontos vira o nome ({i.campos['nome']!r})")
+    checar(not i.falta, "e não falta nada")
+
+    i = ler("Crie um serviço Renovação Fornecedor A")
+    checar(i.tipo == "servico" and i.campos["nome"] == "Renovação Fornecedor A",
+           f"nome logo depois de “serviço”, e o “A” do fim fica ({i.campos.get('nome')!r})")
+    checar(i.campos["cliente"] == "", "sem ficha citada, sem cliente")
+
+    i = ler("por favor, abre um novo serviço para Maria Vasconcelos sobre o inventário")
+    checar(i.campos["cliente"] == "Maria Vasconcelos" and i.campos["nome"] == "Inventário",
+           f"“sobre” separa, e o artigo cai ({i.campos.get('nome')!r})")
+
+    i = ler("monte uma pasta de trabalho chamada Apólice 2026 com a Cooperativa Brasileira")
+    checar(i.tipo == "servico" and i.campos["nome"] == "Apólice 2026",
+           f"“pasta de trabalho chamada X com Y” ({i.campos.get('nome')!r})")
+
+    i = ler("abra um serviço")
+    checar(i.tipo == "servico" and i.falta, "sem nome, a proposta diz o que falta")
+
+    checar(ler("o serviço de logística está no contrato?").tipo == "documentos",
+           "pergunta sobre serviço continua indo aos documentos")
+    checar(ler("abra o contrato de serviço da Cooperativa").tipo == "abrir",
+           "“abra o contrato de serviço” ainda abre o arquivo")
+    checar(intencao.ler("abra um serviço para a Cooperativa Brasileira", HOJE).tipo == "servico",
+           "sem lista de cadastros, ainda entende o pedido")
+    checar(intencao.ler("abra um serviço para a Cooperativa Brasileira", HOJE).campos["nome"] == "Cooperativa Brasileira",
+           "e o que sobra vira o nome")
+
+
 def test_pergunta_nomeia_um_documento() -> None:
     """
     Perguntar sobre um documento e ler os nove.
@@ -490,6 +541,7 @@ def main() -> int:
     test_sem_data_nao_inventa()
     test_tarefas()
     test_abrir_arquivo()
+    test_abrir_servico()
     test_pergunta_nomeia_um_documento()
     test_o_referido_documento()
     test_escopo_da_conversa()

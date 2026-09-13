@@ -256,8 +256,15 @@ def test_destinos() -> None:
     # Lido do proprio roteador da interface, nao de uma lista a parte: uma
     # lista escrita aqui so provaria que alguem lembrou de atualiza-la, e o
     # que precisa ser verdade e que a tela realmente sabe abrir o destino.
-    pagina = (RAIZ / "frontend" / "index.html").read_text(encoding="utf-8")
-    ABRE_CONHECIDO = set(re.findall(r'd\.abre === "([a-z]+)"', pagina))
+    # A pagina virou index.html + css + js; o roteador mora no js dos destinos.
+    # Le-se a pasta inteira para o teste nao quebrar de novo se ele mudar de
+    # arquivo - o que importa e que ALGUMA parte da interface saiba abrir.
+    pasta = RAIZ / "frontend"
+    codigo = "\n".join(
+        a.read_text(encoding="utf-8")
+        for a in [pasta / "index.html"] + sorted((pasta / "js").glob("*.js"))
+    )
+    ABRE_CONHECIDO = set(re.findall(r'd\.abre === "([a-z]+)"', codigo))
     checar(bool(ABRE_CONHECIDO), f"o roteador da interface foi lido ({len(ABRE_CONHECIDO)} destinos)")
 
     ids = [d.id for d in destinos.DESTINOS]

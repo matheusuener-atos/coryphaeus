@@ -1243,7 +1243,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # falando de contrato de compra e venda.
     citado, explicito = _escopo_da_pergunta(trabalho, pergunta, payload)
 
-    lido = intencao.ler(pergunta, documentos=estado.searcher.documents)
+    lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
+                        cadastros=[f["nome"] for f in estado.cadastros.listar()])
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
@@ -1253,7 +1254,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             tipo="abrir", titulo=explicito[0], campos={"nome": explicito[0]},
             porque="“o referido documento” — o que esta conversa vinha lendo",
         )
-    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir"):
+    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
 
     trabalho.etapas = [
@@ -1419,6 +1420,27 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
             if feito.get("prazo"):
                 resumo += f", com prazo em {escritorio._br(feito['prazo'])}"
             onde = "tarefas"
+        elif payload.tipo == "servico":
+            # A pasta de trabalho nasce da conversa (docs/ui, A15). O cliente
+            # e ligado pelo nome como esta em Cadastros; sem ficha, a pasta
+            # abre sem cliente e o resumo diz isso.
+            nome_cliente = " ".join(str(campos.get("cliente", "")).split())
+            ficha = None
+            if nome_cliente:
+                ficha = next((f for f in estado.cadastros.listar()
+                              if " ".join(f["nome"].split()).lower() == nome_cliente.lower()), None)
+            novo = estado.servicos.salvar({
+                "nome": str(campos.get("nome", "")), "cadastro_id": ficha["id"] if ficha else None,
+                "descricao": str(campos.get("descricao", "")),
+            })
+            estado.servicos.trilha(novo, "Serviço aberto a partir da conversa “" + trabalho.titulo + "”")
+            feito = estado.servicos.obter(novo)
+            resumo = f"Abri o serviço “{feito['nome']}”"
+            if feito.get("cliente_nome"):
+                resumo += f" para {feito['cliente_nome']}"
+            elif nome_cliente:
+                resumo += f" sem cliente ligado — “{nome_cliente}” não está em Cadastros"
+            onde = "servicos"
         else:
             raise HTTPException(status_code=400, detail="nao sei fazer isso")
     except ValueError as exc:
@@ -1505,6 +1527,8 @@ def _o_que_eu_faco() -> str:
         "  anotar na agenda — “anote uma reunião dia 20/10 às 14h com lembrete "
         "30 minutos antes”",
         "  criar tarefa — “crie uma tarefa para revisar o contrato até sexta”",
+        "  abrir um serviço — “abra um serviço para a Cooperativa: renovação "
+        "do contrato de logística”",
         "",
         "Antes de gravar qualquer coisa eu mostro o que entendi, e você "
         "confirma. As outras telas estão no menu à esquerda.",
