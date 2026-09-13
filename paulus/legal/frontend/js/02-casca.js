@@ -102,6 +102,14 @@ function exportarConversa() {
 }
 $("exportar-conversa").onclick = exportarConversa;
 
+/* Animacoes reduzidas (Configuracoes > Aparencia). A classe fica no <html>
+   para valer sobre tudo, e a escolha tambem vai para o navegador: as
+   preferencias chegam por rede, e ate elas chegarem a tela ja se moveu. */
+function aplicarAnimacoes(reduzidas) {
+  document.documentElement.classList.toggle("sem-animacao", Boolean(reduzidas));
+  try { localStorage.setItem("paulus.animacoes", reduzidas ? "reduzidas" : "normais"); } catch (err) { /* sem memoria */ }
+}
+
 /* Quem usa, no avatar: a foto enviada em Configuracoes ou, sem foto, as
    iniciais do nome cadastrado la. */
 async function carregarUsuario() {
@@ -109,6 +117,7 @@ async function carregarUsuario() {
     const d = await (await fetch("/api/preferencias")).json();
     const p = d.preferencias || d;
     const foto = (d.marca || {}).foto || {};
+    aplicarAnimacoes(p.animacoes_reduzidas);
     const nome = String(p.nome || "").trim();
     const partes = nome ? nome.split(/\s+/) : [];
     // Sem nome cadastrado fica a sigla do produto, que e o que o HTML ja traz.

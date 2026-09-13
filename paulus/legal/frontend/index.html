@@ -21,6 +21,15 @@
       else if (guardado === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
     } catch (e) { /* sem memoria do navegador, fica no escuro mesmo */ }
     document.documentElement.dataset.tema = tema;
+
+    /* Animacoes reduzidas, pela mesma razao: a primeira pintura ja tem de
+       vir parada para quem pediu tela parada. As preferencias confirmam
+       depois, quando o servidor responde. */
+    try {
+      if (localStorage.getItem("paulus.animacoes") === "reduzidas") {
+        document.documentElement.classList.add("sem-animacao");
+      }
+    } catch (e) { /* sem memoria do navegador */ }
   })();
 </script>
 <!-- O CSS e o JS moram em frontend/css e frontend/js, um arquivo por tela,

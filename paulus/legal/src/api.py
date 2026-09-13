@@ -356,6 +356,48 @@ def imagem(arquivo: str) -> FileResponse:
     return FileResponse(alvo)
 
 
+# ------------------------------------------------------------------- cache
+
+
+class LimparCache(BaseModel):
+    classificacao: bool = False
+
+
+@app.post("/api/cache/limpar")
+def cache_limpar(payload: LimparCache) -> dict:
+    """
+    Apaga o que foi guardado para nao refazer trabalho.
+
+    Sao dois caches, e eles custam coisas diferentes para refazer. O da
+    extracao e o texto tirado de cada PDF: volta sozinho na proxima leitura,
+    so demora. O da classificacao e o que o MODELO decidiu sobre cada
+    documento - tipo, partes, datas -, e refazer aquilo e rodar o modelo de
+    novo em tudo, o que nesta maquina leva minutos por documento. Por isso o
+    segundo so vai embora quando a pessoa marca, e a tela diz o preco.
+    """
+    sumiu, apagados = 0, []
+    alvos = [("extração", CACHE_PATH)]
+    if payload.classificacao:
+        alvos.append(("classificação", CLASSIFICACAO_PATH))
+    for rotulo, caminho in alvos:
+        if caminho.exists():
+            sumiu += caminho.stat().st_size
+            try:
+                caminho.unlink()
+            except OSError as exc:
+                raise HTTPException(status_code=500, detail=f"nao consegui apagar o cache de {rotulo}: {exc}") from exc
+            apagados.append(rotulo)
+
+    if not apagados:
+        return {"apagados": [], "mb": 0, "aviso": "o cache já estava vazio"}
+
+    mb = round(sumiu / 1024 / 1024, 1)
+    aviso = "cache de " + " e de ".join(apagados) + " apagado"
+    aviso += f" · {mb} MB liberados" if mb >= 0.1 else " · era menos de 0,1 MB"
+    return {"apagados": apagados, "mb": mb, "aviso": aviso,
+            "refaz": "os documentos são lidos de novo no próximo Reindexar"}
+
+
 # --------------------------------------------------------------- contextos
 
 

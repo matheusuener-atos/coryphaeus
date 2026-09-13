@@ -94,6 +94,7 @@ function rascunhoDe(pr, modelo) {
     modelo: modelo || pr.modelo || "",
     timbre_no_pdf: Boolean(pr.timbre_no_pdf),
     devagar: Boolean(pr.devagar),
+    animacoes_reduzidas: Boolean(pr.animacoes_reduzidas),
   };
 }
 
@@ -374,7 +375,7 @@ function secaoAssistente() {
     chaveCfg("Cache de extração", "local · SHA-1") +
     chaveCfg("Assistente", ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ligado ? "" : "acc") + "</div>" +
     '<div class="cfg-botoes"><button data-cfg-reindexar="1">' + ic("sync", 16) + "Reindexar tudo</button>" +
-    '<button class="adiante" data-cfg-adiante="Limpar o cache ainda não existe — ele é reaproveitado por SHA-1 e não cresce com arquivo repetido">' + ic("delete", 16) + "Limpar cache</button></div></div>" +
+    '<button data-cfg-cache="1">' + ic("delete", 16) + "Limpar cache</button></div></div>" +
     '<div class="cfg-sub"><b>Códigos de lei</b><div id="cfg-leis"><p class="nota">abrindo os códigos…</p></div></div>';
 
   return '<div class="cfg-grade">' +
@@ -782,7 +783,7 @@ function secaoAparencia() {
     '<div class="ag-campo"><label>Densidade</label><div class="cfg-segmento"><button class="ativa" disabled>Confortável</button><button disabled>Compacta</button></div></div></div>' +
     '<p class="cfg-explica">Fontes e densidade seguem o desenho; trocar por aqui fica para depois.</p>' +
     '<div class="cfg-sub">' + ligaCfg("", "Menu lateral abre ao passar o mouse", "sempre ligado por enquanto", true, true) +
-    ligaCfg("", "Animações reduzidas", "em breve", false, true) + "</div>";
+    ligaCfg("animacoes_reduzidas", "Animações reduzidas", "sem deslizes nem pulsos — a tela troca direto", Boolean((cfg.rascunho || {}).animacoes_reduzidas)) + "</div>";
 
   const atalho = (rotulo, teclas, futura) => {
     const classe = "cfg-atalho" + (futura ? " futura" : "");
@@ -979,6 +980,29 @@ function ligarConfig() {
     await avisarLixeira(r, recarregarLembretes);
     await recarregarLembretes();
   });
+  clique("[data-cfg-cache]", async (b) => {
+    const resposta = await dialogo({
+      titulo: "Limpar o cache?",
+      contexto: "Configurações › Limites da IA",
+      texto: "O cache guarda o texto já extraído de cada arquivo, por SHA-1. Apagar não " +
+        "tira documento nenhum do Acervo: eles são lidos de novo no próximo Reindexar, " +
+        "o que demora mais nessa primeira vez.",
+      marcar: { rotulo: "Apagar também o que o assistente já classificou (refazer isso roda o modelo em todo o acervo)", marcada: false },
+      confirmar: "Limpar cache",
+      perigo: true,
+    });
+    if (!resposta || !resposta.ok) return;
+    b.disabled = true;
+    const r = await fetch("/api/cache/limpar", {
+      method: "POST", headers: CFG_JSON, body: JSON.stringify({ classificacao: Boolean(resposta.marcada) }),
+    });
+    b.disabled = false;
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    const d = await r.json();
+    avisoCert(d.aviso, { tom: "ok" });
+    cfg.recarregar = true;
+    mostrarConfig("assistente");
+  });
   clique("[data-cfg-marca]", (b) => escolherMarca(b.dataset.cfgMarca));
   clique("[data-cfg-marca-tirar]", async (b) => {
     const tipo = b.dataset.cfgMarcaTirar;
@@ -1078,12 +1102,14 @@ async function salvarConfig() {
     body: JSON.stringify({
       pessoa: r.pessoa, autonomia: r.autonomia, escritorio: r.escritorio,
       modelo: r.modelo, timbre_no_pdf: r.timbre_no_pdf, devagar: r.devagar,
+      animacoes_reduzidas: r.animacoes_reduzidas,
     }),
   });
   if (!resposta.ok) { avisoCert("não consegui salvar: " + (await erroDe(resposta))); return; }
   cfg.prefs = await resposta.json();
   cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual);
   cfg.sujo = false;
+  aplicarAnimacoes(cfg.prefs.preferencias.animacoes_reduzidas);
   avisoCert("salvo em data/preferencias.json, nesta máquina");
   carregarStatus();
   if ($("cfg-tela")) desenharConfig();

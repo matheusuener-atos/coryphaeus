@@ -14,3 +14,24 @@
     .conversa-col.vazia .compositor { padding: 16px 20px 24px; }
     .fluxo { padding: 16px 20px 8px; }
   }
+
+  /* ------------------------------------------ animacoes reduzidas (A13) */
+
+  /* Quem pede tela parada tem tela parada: a classe entra no <html> ainda no
+     cabecalho da pagina, antes da primeira pintura. Nao se apaga a animacao
+     com display:none - o que ela anima tem de continuar aparecendo, so que
+     de uma vez. Vale tambem para quem pediu isso no proprio Windows. */
+  html.sem-animacao *, html.sem-animacao *::before, html.sem-animacao *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
+  }

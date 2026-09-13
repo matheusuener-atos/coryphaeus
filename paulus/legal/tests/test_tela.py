@@ -510,6 +510,52 @@ def main() -> int:
             pagina.wait_for_timeout(1600)
             checar(pagina.evaluate("() => cfg.secao === 'conexoes'"), "o destino antigo Conexoes abre a secao")
 
+            print("\nlimpar o cache e animacoes reduzidas (A13)")
+            # Limpar cache pergunta antes, e o que custa caro para refazer (a
+            # classificacao pelo modelo) so sai quando a pessoa marca.
+            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('assistente'); }")
+            pagina.wait_for_timeout(2500)
+            checar(pagina.evaluate("() => !!document.querySelector('[data-cfg-cache]')"),
+                   "o botao Limpar cache deixou de ser um aviso de em breve")
+            pagina.evaluate("() => document.querySelector('[data-cfg-cache]').click()")
+            pagina.wait_for_timeout(700)
+            checar(
+                pagina.evaluate("() => !!document.getElementById('veu-dialogo') && !!document.getElementById('dialogo-marcar') && !document.getElementById('dialogo-marcar').checked"),
+                "o dialogo abre e a classificacao vem desmarcada",
+            )
+            pagina.keyboard.press("Escape")
+            pagina.wait_for_timeout(400)
+            checar(pagina.evaluate("() => !document.getElementById('veu-dialogo')"), "Esc fecha sem apagar nada")
+            limpou = pagina.evaluate("""async () => {
+              const r = await fetch('/api/cache/limpar', {method: 'POST',
+                headers: {'Content-Type': 'application/json'}, body: JSON.stringify({classificacao: false})});
+              return r.ok ? await r.json() : {erro: r.status};
+            }""")
+            checar("aviso" in limpou and "classifica" not in " ".join(limpou.get("apagados", [])),
+                   "limpar sem marcar mexe so no cache de extracao", limpou)
+            # O cache que o teste apagou volta agora: a maquina de quem roda o
+            # teste nao pode ficar mais lenta por causa dele.
+            refez = pagina.evaluate("""async () => {
+              const r = await fetch('/api/reindex', {method: 'POST'});
+              return r.ok ? await r.json() : {erro: r.status};
+            }""")
+            checar(refez.get("contratos", 0) >= 0 and "erro" not in refez, "e o Reindexar reconstroi o que foi apagado", refez)
+
+            pagina.evaluate("() => aplicarAnimacoes(true)")
+            pagina.wait_for_timeout(300)
+            parado = pagina.evaluate("""() => {
+              const el = document.querySelector('.trilho-item');
+              return {classe: document.documentElement.classList.contains('sem-animacao'),
+                      transicao: getComputedStyle(el).transitionDuration,
+                      guardado: localStorage.getItem('paulus.animacoes')};
+            }""")
+            checar(parado["classe"] and parado["guardado"] == "reduzidas" and parado["transicao"].startswith("0.001"),
+                   "animacoes reduzidas param a tela e ficam guardadas", parado)
+            pagina.evaluate("() => aplicarAnimacoes(false)")
+            pagina.wait_for_timeout(200)
+            checar(pagina.evaluate("() => !document.documentElement.classList.contains('sem-animacao')"),
+                   "e desligar devolve o movimento")
+
             print("\nAprendizado: ensinar o assistente com as proprias palavras")
             # O que o escritorio ensina entra em toda pergunta (A13). Guardar,
             # alterar e apagar acontecem na propria secao, e o rodape diz

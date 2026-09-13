@@ -78,6 +78,10 @@ PADRAO: dict = {
     # Timbre no PDF: desligado por padrao. Uma minuta interna com papel
     # timbrado parece peca protocolada, e o dado pode nem estar preenchido.
     "timbre_no_pdf": False,
+    # Animacoes reduzidas: quem sente enjoo com movimento na tela, ou trabalha
+    # num notebook que engasga, desliga aqui. Fica guardado nas preferencias
+    # (e nao so no navegador) porque e escolha da pessoa, nao da maquina.
+    "animacoes_reduzidas": False,
     "pessoa": {
         "nome": "",
         "cpf": "",
