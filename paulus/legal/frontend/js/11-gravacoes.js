@@ -1010,7 +1010,7 @@ function cartaoAoVivo() {
       "Ao parar e arquivar, a gravação já nasce transcrita. Separar quem disse o quê ainda não existe.</p></div></div>";
   }
   return '<div class="fin-cartao gv-transcricao">' + cabeca("literal · " + voz.rotulo + " · " + plural(v.transcricao.length, "trecho"),
-    '<button data-gv-adiante="Corrigir nomes entra com a separação por falante, que ainda não existe">Corrigir nomes</button>' +
+    '<button data-gv-adiante="Corrigir nomes fica para depois de arquivar: na gravação, a troca vale para a transcrição inteira">Corrigir nomes</button>' +
     '<button class="' + (v.rolar ? "primario" : "") + '" data-gv-rolar="1">Rolar junto</button>') +
     '<div class="gv-vivo-trechos" id="gv-vivo-trechos">' + v.transcricao.map(linhaAoVivo).join("") + rodapeAoVivo() + "</div></div>";
 }
