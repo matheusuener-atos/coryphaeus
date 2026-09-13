@@ -778,6 +778,9 @@ function blocoDoQueJaFoiLido() {
     case: "Número do processo", dates: "Datas", amounts: "Valores",
     legal_references: "Leis citadas", jurisdiction: "Vara e comarca",
     classification: "Tipo do documento", parties: "Partes", summary: "Resumo",
+    people: "Pessoas (CPF)", organizations: "Empresas (CNPJ)",
+    requests: "Pedidos", decisions: "Decisões", events: "Linha do tempo",
+    evidence: "Provas e anexos", claims: "Alegações", relationships: "Ligações",
   };
   const linhas = Object.keys(ROTULO).filter((k) => secoes[k]).map((k) => {
     const estados = secoes[k] || {};
@@ -796,7 +799,8 @@ function blocoDoQueJaFoiLido() {
       Boolean((cfg.rascunho || {}).inteligencia)) +
     '<p class="cfg-explica">Partes e resumo precisam do assistente ligado e são lidos uma vez por documento, ' +
     'em segundo plano — pelo terminal, com <code>python -m inteligencia.retomar --assistente</code>. ' +
-    'O que é regra (processo, datas, valores, leis) já roda sozinho na indexação. ' +
+    'Todo o resto é regra e já roda sozinho na indexação, em milissegundos por documento — ' +
+    'inclusive conferir se o CPF e o CNPJ escritos no documento fecham a conta. ' +
     'Nada disso sai desta máquina: o que foi entendido fica em ' + esc(d.pasta || "data/conhecimento") + '.</p>';
 }
 

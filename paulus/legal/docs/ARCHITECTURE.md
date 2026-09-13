@@ -102,10 +102,49 @@ As regras que impedem a otimizacao de virar erro:
   casa com o texto, e digitos e numeros por extenso tem de bater exatamente.
 
 Medido nesta maquina (14 documentos, modelo local de 3B): a analise por regra
-leva 0,3 s para o acervo inteiro; "qual o valor do contrato?" com o documento
-em foco caiu de 57 s para 12,5 s; as secoes que dependem do modelo levam ~106 s
-por documento e rodam so pelo terminal (`python -m inteligencia.retomar
---assistente`), em janela ociosa.
+leva 0,43 s para o acervo inteiro - 31 ms por documento, com as catorze secoes
+de regra; "qual o valor do contrato?" com o documento em foco caiu de 57 s
+para 12,5 s; as secoes que dependem do modelo levam ~106 s por documento e
+rodam so pelo terminal (`python -m inteligencia.retomar --assistente`), em
+janela ociosa.
+
+### As colecoes de extensao
+
+O passo 7 da spec: sete colecoes novas, todas de regra, cada uma um extrator
+independente e uma linha no YAML. Elas nao ganharam campo proprio no esquema -
+ficam num dicionario e sobem para o primeiro nivel do JSON na hora de gravar -,
+e por isso acrescentar a oitava nao migra nada do que ja esta em disco.
+
+| Colecao | O que guarda | O que ela responde |
+|---|---|---|
+| `requests` | as frases em que a peca pede | "quais os pedidos?" |
+| `decisions` | o dispositivo, com o desfecho de cada um | "qual foi a decisao?" |
+| `events` | as datas que o documento NOMEIA, em ordem | "linha do tempo" |
+| `evidence` | "(doc. 01)", "fls. 45", os meios de prova | "o que foi juntado?" |
+| `claims` | o que cada parte alega, com quem alegou | "o que o reu alega?" |
+| `relationships` | os outros autos a que o documento se liga | "ha processo conexo?" |
+| `people` / `organizations` | quem tem CPF, CNPJ ou OAB no documento | "qual o CNPJ?" |
+
+As tres regras que as mantem honestas, todas nascidas de medicao no acervo
+real e nao de principio:
+
+- **lista que nao cabe na resposta escala.** Uma lista de tres quando havia
+  quinze tem a mesma cara de uma lista completa, e quem le nao tem como saber
+  que faltou - entao, quando os itens passam do limite da resposta, a pergunta
+  volta a ler o documento;
+- **a forma do verbo decide.** "Requer" pede; "requerer" e um poder de
+  procuracao. "Indefiro" contem "defiro" e "improcedente" contem "procedente",
+  e quem ganha e a pista que comeca mais cedo na frase;
+- **papel e dono so quando estao escritos colados.** "Alega-se que" fica sem
+  dono, um nome proprio nao vira papel, e "por seu advogado, ... em face de
+  JOAO" nao faz de JOAO um advogado.
+
+O CPF e o CNPJ sao a unica coisa deste programa que confere a si mesma: o
+digito verificador diz, offline e em microssegundos, se o numero foi escrito
+certo. No acervo de teste real isso encontrou dois documentos com digito que
+nao fecha - entre eles um CNPJ que aparece com um digito trocado na assinatura
+de uma procuracao de 2021. Eles entram no metadata marcados como duvidosos,
+com o recado em portugues, e nunca respondem uma pergunta.
 
 O que fica em disco: `data/conhecimento/documents/<id>/versions/<id>/` com o
 texto normalizado, o mapa de paginas e o `metadata.json`; o banco guarda um
