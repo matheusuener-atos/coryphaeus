@@ -4072,6 +4072,9 @@ class PedidoAoAssistente(BaseModel):
     pedido: str = ""
     trecho: str = ""            # o que estava selecionado, quando havia
     selecao: str = ""           # celulas, na planilha
+    # O editor aberto ao lado de uma conversa: o pedido e o que foi feito
+    # ficam nela, como qualquer outra coisa dita ali.
+    trabalho_id: str = ""
 
 
 class CelulaPlanilha(BaseModel):
@@ -4845,6 +4848,15 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
                     "Selecione no texto o trecho que você quer mudar e peça de "
                     "novo — com o trecho à mão ele acerta."),
         )
+
+    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
+    if trabalho:
+        onde = "o trecho selecionado" if payload.trecho.strip() else "o fim do documento"
+        trabalho.dizer("pessoa", pedido)
+        trabalho.dizer("paulus", f"Escrevi em “{item['titulo']}” ({onde}). A alteração ficou marcada "
+                                 "no documento, esperando você manter ou descartar.",
+                       feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
+        estado.trabalhos.salvar(trabalho)
 
     return {
         "sugestao": sugestao,

@@ -366,97 +366,92 @@
   .visor-caixa:empty { display: none; }
 
 
-  /* ------------------------------- a conversa com o editor ao lado */
-  /* A terceira visao do Assistente no desenho: conversa a esquerda (400 px),
-     documento a direita, a alteracao marcada dentro do proprio texto. Ocupa a
-     area inteira; o cabecalho da conversa da lugar ao dela. */
-  .conversa-col.tela-dupla .conversa-topo { display: none; }
-  /* A folha rola dentro do cartao dela, e nao a tela inteira: com o fluxo
-     rolando, um documento de tres paginas esticava a dupla ate 2000 px e
-     empurrava a caixa de pedido da conversa para fora da janela. */
-  .conversa-col.tela-dupla .fluxo { padding: 0; gap: 0; overflow: hidden; align-items: stretch; }
-  .conversa-col.tela-dupla .conversa-principal::after { display: none; }
-  .conversa-col.tela-dupla .centro { flex: 1; min-height: 0; }
-  .dupla { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  .dupla-topo {
-    flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px;
-    padding: 10px 20px; border-bottom: 1px solid var(--ink-a1);
+  /* ------------------------------- o editor ao lado da conversa */
+  /* A conversa fica: o editor abre AO LADO dela, na mesma tela, e a caixa de
+     pedido continua sendo a da conversa. Antes ele era outra tela, com uma
+     conversa de mentira dentro - vazia, sem o que tinha sido dito.
+
+     O painel e posicionado sobre a coluna, do cabecalho ao pe da janela, e o
+     corpo e o rodape da conversa abrem espaco para ele pela direita. Nenhum
+     fio separa as partes: o painel e uma superficie, a mesa e outro tom, e as
+     paginas sao papel. */
+  .conversa-col.com-editor .conversa-corpo,
+  .conversa-col.com-editor .conversa-rodape { padding-right: calc(var(--margem-pagina) + var(--editor-largura) + 28px); }
+  .conversa-col.com-editor .ir-ao-fim { left: calc(50% - (var(--editor-largura) + 28px) / 2); }
+
+  .editor-lado {
+    position: absolute; z-index: 5; top: 96px; bottom: 20px;
+    right: var(--margem-pagina); width: var(--editor-largura);
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--surf); border-radius: 16px; overflow: hidden;
+    box-shadow: var(--elev-cartao);
+    animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
   }
-  .dupla-titulo {
-    font: 400 22px var(--serif); letter-spacing: -.01em; margin: 0; outline: none;
+  .edl-topo { flex: none; display: flex; align-items: center; gap: 6px; padding: 14px 14px 4px 20px; }
+  .edl-nome { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .edl-titulo {
+    margin: 0; outline: none; font: 400 21px var(--serif); letter-spacing: -.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .dupla-colunas {
-    display: grid; grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
-    flex: 1; min-height: 0;
+  .edl-barra { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 14px 10px 16px; }
+  .edl-barra button {
+    height: 30px; min-width: 30px; padding: 0 8px; border: none; border-radius: 8px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 500 12.5px var(--sans);
   }
-  @media (max-width: 1120px) {
-    .dupla-colunas { grid-template-columns: minmax(0, 1fr); }
-  }
-  .dupla-conversa { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--ink-a1); }
-  .dupla-cabeca {
-    flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px;
-    border-bottom: 1px solid var(--ink-a1); font: 500 10.5px var(--sans); color: var(--ink3);
-  }
-  .dupla-fala { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
-  .dupla-fala .bolha-pessoa { max-width: 88%; padding: 10px 14px; font-size: 13.5px; }
-  .dupla-resposta { display: grid; gap: 10px; max-width: 94%; font-size: 13.5px; line-height: 1.6; }
-  .dupla-resposta p { margin: 0; }
-  .dupla-resposta .linha-form { margin: 0; }
-  .dupla-resposta .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
-  .dupla-trecho {
-    margin: 0; padding: 8px 12px; border-left: 2px solid var(--destaque-linha); background: var(--destaque-fundo);
-    font-size: 12.5px; line-height: 1.6; color: var(--ink2);
-  }
-  .dupla-atalhos { flex: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--ink-a1); }
-  .dupla-atalhos button { padding: 6px 11px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
-  .dupla-atalhos button:hover:not(:disabled) { background: var(--act); border: none; }
-  .dupla-pedido { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 16px 14px; border-top: 1px solid var(--ink-a1); }
-  .dupla-pedido input[type=text] {
-    flex: 1; min-width: 0; max-width: 100%; height: 40px; padding: 10px 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
-    color: var(--ink); font: 400 13.5px var(--sans); outline: none;
-  }
-  .dupla-pedido input[type=text]:focus { border-color: var(--ink); }
-  .dupla-pedido .enviar { margin-left: 0; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; }
-
-  /* O editor e um cartao so, de cima a baixo: barra de ferramentas, um fio de
-     1 px sem recuo, o papel, outro fio, e a linha da sincronia. Barra e
-     rodape sao LINHAS com separador - nunca caixas com borda inteira. */
-  .dupla-editor {
-    display: flex; flex-direction: column; min-height: 0; min-width: 0;
-    margin: 14px 16px 16px 0; background: var(--surf);
-    border: 1px solid var(--hair); border-radius: 14px; box-shadow: var(--elev-cartao);
-    overflow: hidden; animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
-  }
-  .dupla-barra {
-    flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px 10px;
-    border-bottom: 1px solid var(--hair); background: none; font-size: 12px;
-  }
-  .dupla-barra button {
-    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .dupla-barra button:hover:not(:disabled) { background: var(--fill); border: none; }
-  .dupla-barra button.com-texto { width: auto; padding: 5px 10px; font: 500 12.5px var(--sans); }
-  .dupla-barra button.primario { width: auto; padding: 5px 12px; font: 600 12.5px var(--sans); background: var(--btn); color: var(--btnt); }
-  .dupla-barra button.primario:hover:not(:disabled) { background: var(--ink0); }
-  .divisa-v { width: 1px; height: 18px; background: var(--ink-a12); margin: 0 4px; flex: none; }
-  .fonte-folha { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; }
-  .fonte-folha .ic { color: var(--ink3); }
+  .edl-barra button:hover:not(:disabled) { background: var(--fill); border: none; }
+  .edl-barra button.primario { padding: 0 12px; font-weight: 600; background: var(--btn); color: var(--btnt); }
+  .edl-barra button.primario:hover:not(:disabled) { background: var(--ink0); }
+  .edl-vao { width: 10px; flex: none; }
   .sinc { margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--sans); color: var(--okt); }
   .sinc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* O papel ocupa a largura interna inteira do cartao e nao flutua dentro
-     dele: a folha ja E o cartao. Papel dentro de papel com sombra entre os
-     dois e o que fazia a coluna parecer uma janela dentro de outra. */
-  .dupla-folha-caixa { flex: 1; overflow-y: auto; padding: 0; min-height: 0; display: flex; justify-content: center; align-items: flex-start; background: var(--papel); }
-  .dupla-folha-caixa .ed-folha {
-    width: 100%; max-width: 700px; min-height: 0;
-    background: var(--papel); color: var(--tinta); border: none; box-shadow: none;
-    padding: 40px 48px 48px;
-    font: 400 15px/1.7 var(--serif); display: flex; flex-direction: column; gap: 14px;
+
+  /* A mesa: o tom de fundo sobre o qual as paginas ficam. */
+  .edl-mesa {
+    flex: 1; min-height: 0; overflow-y: auto; margin: 0 12px; padding: 22px 26px 30px;
+    border-radius: 12px; background: var(--fill);
   }
-  .dupla-folha-caixa .ed-folha p { margin: 0; }
+  .edl-papel { position: relative; max-width: 780px; margin: 0 auto; }
+  /* A folha continua sendo UMA area editavel - so assim o texto passa de uma
+     pagina para a outra enquanto se escreve. As paginas sao desenhadas: o
+     espaco entre elas e um recorte da cor da mesa por cima da folha, na altura
+     em que o PDF quebra, e o texto da pagina seguinte desce ate a margem dela. */
+  /* .edl-papel na frente: .ed-folha (07-escrita) carrega depois e poria de
+     volta o contorno da folha. */
+  .edl-papel .edl-folha {
+    min-height: 0; border: none; box-shadow: none; border-radius: 3px; background: var(--papel); color: var(--tinta);
+    display: flex; flex-direction: column; gap: 10px; overflow-wrap: anywhere;
+  }
+  .edl-papel .edl-folha p, .edl-papel .edl-folha h1, .edl-papel .edl-folha h2, .edl-papel .edl-folha h3 { margin: 0; }
+  .edl-entre { position: absolute; inset: 0; pointer-events: none; }
+  .edl-entre-paginas {
+    position: absolute; left: -2px; right: -2px; background: var(--fill);
+    display: flex; align-items: center; justify-content: center;
+    font: 500 9.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3);
+  }
+  .edl-rodape {
+    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px 12px 20px;
+    font: 400 11.5px var(--sans); color: var(--ink3);
+  }
+  .edl-rodape button { height: 30px; border-radius: 8px; }
+
+  /* Na caixa de pedido, enquanto o editor esta aberto: para onde vai o pedido
+     e os atalhos de escrita. */
+  .edl-atalhos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .edl-destino { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--fill); margin-right: 4px; }
+  .edl-destino button {
+    display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border: none;
+    border-radius: 999px; background: none; font: 500 12px var(--sans); color: var(--ink3);
+  }
+  .edl-destino button:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .edl-destino button.ativa, .edl-destino button.ativa:hover:not(:disabled) { background: var(--surf); color: var(--ink); box-shadow: var(--elev-float); }
+  .edl-atalho { height: 32px; padding: 0 12px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .edl-atalho:hover:not(:disabled) { background: var(--act); border: none; }
+  .edl-trecho {
+    margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--destaque-fundo);
+    font-size: 12.5px; line-height: 1.6; color: var(--ink2);
+  }
+  .divisa-v { width: 1px; height: 18px; background: var(--ink-a12); margin: 0 4px; flex: none; }
+
   /* O que acabou de mudar, marcado dentro do proprio texto. Ver a alteracao no
      lugar dela e diferente de ler uma sugestao num painel ao lado. */
   .ed-novo { background: var(--papel-accbg); color: inherit; box-shadow: inset 0 -2px 0 var(--papel-acc); }
@@ -470,12 +465,6 @@
   .dupla-cartao .explica { color: var(--papel-ink3); }
   .dupla-cartao .linha-form { margin: 2px 0 0; gap: 8px; }
   .dupla-cartao .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
-  .dupla-rodape {
-    flex: none; display: flex; align-items: center; gap: 14px; padding: 9px 16px;
-    border-top: 1px solid var(--hair); background: none;
-    font: 400 11.5px var(--sans); color: var(--ink3);
-  }
-  .acoes-rodape { margin-left: auto; display: flex; gap: 8px; }
 
   /* A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
      Terminou, vira uma linha so, clicavel para reabrir. */

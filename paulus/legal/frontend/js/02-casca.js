@@ -340,7 +340,7 @@ function mostrarLateral(aberta) {
   /* So o corpo ganha a coluna do painel: a caixa de pedido, no rodape, nao
      se mexe quando ele abre (ver 02-conversa.css). */
   $("conversa-corpo").classList.toggle("com-lateral", aberta);
-  $("alternar-lateral").hidden = !$("centro").classList.contains("prosa");
+  $("alternar-lateral").hidden = !$("centro").classList.contains("prosa") || editorNaConversaAberto();
 }
 
 $("alternar-lateral").onclick = () => {
@@ -359,7 +359,7 @@ function entrarNaConversa() {
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
   $("exportar-conversa").hidden = false;
-  mostrarLateral(lateralPreferida());
+  mostrarLateral(lateralPreferida() && !editorNaConversaAberto());
 }
 
 /* EXPORTAR A CONVERSA, em Markdown (padrao), texto ou Word.

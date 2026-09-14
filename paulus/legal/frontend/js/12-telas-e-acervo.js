@@ -6,6 +6,7 @@
 
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
+  fecharEditorNaConversa();
   guardarLugarDoAssistente();
   deixarDitadoPendente();
   transicaoDeTela("tela:" + nome);
@@ -1102,7 +1103,6 @@ function ligarBotoesDeDocumento(caixa, d) {
         estado.trabalho.mensagens.push({ autor: "paulus", texto: "Abri “" + novo.de + "” para editar.",
           feito: { tipo: "editar", id: novo.id, nome: novo.de } });
       }
-      marcarDestino("editor");
       mostrarDupla(novo.id);
     };
   });

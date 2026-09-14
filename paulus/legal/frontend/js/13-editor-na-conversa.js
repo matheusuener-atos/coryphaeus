@@ -136,208 +136,391 @@ function segundosBR(s) {
 }
 
 
-/* ------------------------------------------- conversa com o editor ao lado */
+/* ------------------------------------------- o editor ao lado da conversa */
 /*
    Pedir "abra a procuração" e receber o texto transcrito dentro da resposta é
    o pior dos dois mundos: não dá para editar e ainda ocupa a conversa inteira.
-   O documento tem que aparecer ao lado, editável, e a conversa tem que
-   escrever NELE.
+   O documento aparece AO LADO da conversa, editável, e a conversa continua ali
+   — com o que foi dito, e com a mesma caixa de pedido.
 
-   A diferença para o painel "Pedir aqui" do editor é onde a alteração cai: ali
-   a sugestão ficava num painel embaixo, e a pessoa mandava inserir. Aqui ela
-   cai no documento, marcada, e a pessoa decide se fica. É mais perto de ver o
-   que aconteceu — e mais fácil de desfazer, porque o antes está guardado.
+   Da caixa, o pedido vai para um de dois lugares: para o documento ("deixe
+   mais formal", "acrescente uma cláusula de foro") ou para a conversa ("qual
+   o prazo desta procuração?"). Quem decide é a regra, pelo verbo que abre a
+   frase — e a caixa mostra o destino enquanto se digita, com um clique para
+   trocar. A alteração cai no documento, marcada, e a pessoa decide se fica.
+
+   A folha tem aspecto de páginas: A4 na escala do PDF, e o espaço entre as
+   páginas na altura em que o próprio PDF quebra (a mesma medida do editor de
+   Documentos).
 */
 
 const dupla = {
-  doc: null, antes: null, pendente: null, ocupada: false, conversa: [],
+  doc: null, antes: null, pendente: null, ocupada: false, relogio: null,
+  paginacao: null, relogioPaginas: null, destino: "",
 };
 
+// O rótulo cabe na coluna da conversa; o pedido que vai ao modelo é o inteiro.
+const ATALHOS_DO_EDITOR = [["Mais formal", "Deixar mais formal"], ["Citar a lei", "Citar a lei"],
+  ["Resumir", "Resumir em 1 página"]];
+
+function editorNaConversaAberto() {
+  return Boolean(dupla.doc && $("editor-lado") && $("conversa-col").classList.contains("com-editor"));
+}
+
 async function mostrarDupla(id) {
-  abrirTela("Editor de texto");
-  const centro = $("centro");
-  centro.innerHTML = '<div class="catalogo">' + esqueleto("lista") + '</div>';
+  /* O editor mora ao lado de uma conversa. Vindo de outra tela (Documentos),
+     a conversa é a última aberta no Assistente — ou uma nova, com o nome do
+     documento. */
+  if (!estado.trabalhoId) {
+    let aberta = lembrancaDoAssistente.trabalhoId && await abrirTrabalho(lembrancaDoAssistente.trabalhoId);
+    if (!aberta) {
+      const doc = await fetch("/api/documentos/" + id).then((r) => (r.ok ? r.json() : null));
+      const r = await fetch("/api/trabalhos", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedido: "Editar " + (doc ? doc.titulo : "documento") }),
+      });
+      if (r.ok) aberta = await abrirTrabalho((await r.json()).id);
+    }
+    if (!aberta) return;
+    marcarDestino("conversa");
+  }
 
   const r = await fetch("/api/documentos/" + id);
-  if (!r.ok) {
-    centro.innerHTML = '<div class="catalogo"><p class="nota">' + esc(await erroDe(r)) + "</p></div>";
-    return;
-  }
+  if (!r.ok) { avisoNaJanela("Não consegui abrir o documento: " + (await erroDe(r)), { icone: "error" }); return; }
+  if (dupla.doc && dupla.doc.id !== id) await gravarDupla();
   dupla.doc = await r.json();
   dupla.antes = null;
   dupla.pendente = null;
-  desenharDupla();
+  dupla.paginacao = null;
+  dupla.destino = "";
+  desenharEditorAoLado();
 }
 
-function desenharDupla() {
+function desenharEditorAoLado() {
   const d = dupla.doc;
   const c = d.contagem || { palavras: 0 };
-  $("conversa-col").classList.add("tela-dupla");
-  mostrarLateral(false);
-
-  $("centro").innerHTML =
-    '<div class="dupla">' +
-
-    '<div class="dupla-topo">' +
-    '<button class="voltar" id="dp-voltar" title="Voltar" aria-label="Voltar">' + ic("arrow_back", 20) + "</button>" +
-    '<div class="conversa-nome"><h2 class="dupla-titulo" id="dp-titulo" contenteditable="true">' + esc(d.titulo) + "</h2>" +
-    '<span class="meta" id="dp-selo">versão ' + d.versao + " · " + plural(c.palavras, "palavra") + "</span></div>" +
-    '<div class="conversa-acoes"><button id="dp-so-editor">' + ic("description", 18) + "Abrir no Editor</button>" +
-    '<button class="primario" id="dp-pdf">' + ic("picture_as_pdf", 18) + "Exportar PDF</button></div></div>" +
-
-    '<div class="dupla-colunas">' +
-
-    // ------------------------------------------------------------ conversa
-    '<div class="dupla-conversa"><div class="dupla-cabeca">' + coroa(18) +
-    '<span class="cresce">Conversa</span>' +
-    '<span id="dp-estado-conversa">escrevendo ao lado</span></div>' +
-    '<div class="dupla-fala" id="dp-fala">' + falasDaDupla() + "</div>" +
-    '<div class="dupla-atalhos">' +
-    ["Deixar mais formal", "Citar a lei", "Resumir em 1 página"].map((a) =>
-      '<button data-dp-atalho="' + esc(a) + '">' + esc(a) + "</button>").join("") +
-    "</div>" +
-    '<div class="dupla-pedido"><input type="text" id="dp-pedido" ' +
-    'placeholder="Peça uma mudança no documento…">' +
-    '<button class="enviar" id="dp-enviar" aria-label="Enviar">' + ic("arrow_forward", 18) + "</button></div></div>" +
-
-    // -------------------------------------------------------------- editor
-    '<div class="dupla-editor"><div class="dupla-barra">' +
-    '<span class="fonte-folha">EB Garamond' + ic("expand_more", 16) + "</span>" +
-    '<button data-cmd="undo" title="Desfazer">' + ic("undo", 18) + "</button>" +
-    '<button data-cmd="redo" title="Refazer">' + ic("redo", 18) + "</button>" +
-    '<span class="divisa-v"></span>' +
-    '<button data-cmd="bold" title="Negrito">' + ic("format_bold", 18) + "</button>" +
-    '<button data-cmd="italic" title="Itálico">' + ic("format_italic", 18) + "</button>" +
-    '<button data-cmd="insertOrderedList" title="Numeração">' + ic("format_list_numbered", 18) + "</button>" +
-    '<button id="dp-citacao" title="Citação">' + ic("format_quote", 18) + "</button>" +
-    '<span class="divisa-v"></span>' +
-    '<button class="com-texto" id="dp-numerar" title="Renumerar as cláusulas">' + ic("format_list_numbered", 16) + "Numerar</button>" +
-    '<button class="com-texto" id="dp-qualificar" title="Qualificação das partes">' + ic("group", 16) + "Qualificar</button>" +
-    '<button class="com-texto" id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
-    '<span class="divisa-v"></span>' +
-    '<button class="com-texto" id="dp-alteracoes" title="Ir até a alteração">' + ic("difference", 16) +
-    'Alterações · <span id="dp-alteracoes-n">0</span></button>' +
-    '<button class="primario" id="dp-salvar">' + ic("save", 16) + "Salvar edições</button>" +
-    '<span class="sinc"><i class="ponto-verde"></i><span id="dp-sinc">sincronizado com a conversa</span></span>' +
-    "</div>" +
-    '<div class="dupla-folha-caixa"><div class="ed-folha" id="dp-folha" contenteditable="true">' +
-    (d.corpo || "<p><br></p>") + "</div></div>" +
-    '<div class="dupla-rodape"><span>' +
-    plural(d.paginacao ? d.paginacao.paginas : 1, "página") + " · " +
-    plural(c.palavras, "palavra") + "</span>" +
-    '<span class="acoes-rodape"><button id="dp-guardar">Salvar na biblioteca</button>' +
-    '<button id="dp-assinar">Assinar</button></span></div>' +
-
-    "</div></div></div>";
-
-  ligarDupla();
-  // Voltar volta para a conversa de onde o editor foi aberto - e nela o
-  // cartao do documento continua, para abrir o editor de novo.
-  $("dp-voltar").onclick = () => voltarAoAssistente();
-  $("dp-salvar").onclick = () => gravarDupla();
-  $("dp-citacao").onmousedown = (e) => { e.preventDefault(); document.execCommand("formatBlock", false, "blockquote"); };
-  $("dp-alteracoes").onclick = () => {
-    const m = $("dp-folha").querySelector(".ed-novo");
-    if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
-}
-
-function falasDaDupla() {
-  if (!dupla.conversa.length) {
-    return '<p class="explica">Peça uma mudança abaixo. Eu escrevo no documento ' +
-      "ao lado e marco o que mexi — você decide se fica.</p>";
+  let lado = $("editor-lado");
+  if (!lado) {
+    lado = document.createElement("aside");
+    lado.className = "editor-lado";
+    lado.id = "editor-lado";
+    $("conversa-col").appendChild(lado);
   }
-  return dupla.conversa.map((m, i) =>
-    m.autor === "pessoa"
-      ? '<div class="bolha-pessoa">' + esc(m.texto) + "</div>"
-      : '<div class="dupla-resposta"><p>' + esc(m.texto) + "</p>" +
-        (m.antes !== undefined
-          ? '<div class="linha-form"><button data-dp-ver="' + i + '">Ver o que mudei</button>' +
-            '<button data-dp-desfazer="' + i + '">Desfazer</button></div>'
-          : "") +
-        (m.trecho ? '<blockquote class="dupla-trecho">' + esc(m.trecho) + "</blockquote>" : "") +
-        "</div>").join("");
+  $("conversa-col").classList.add("com-editor");
+  mostrarLateral(false);
+  posicionarEditorAoLado();
+
+  const botao = (cmd, icone, titulo) =>
+    '<button data-cmd="' + cmd + '" title="' + titulo + '" aria-label="' + titulo + '">' + ic(icone, 18) + "</button>";
+  lado.innerHTML =
+    '<div class="edl-topo"><div class="edl-nome">' +
+    '<h3 class="edl-titulo" id="dp-titulo" contenteditable="true" spellcheck="false">' + esc(d.titulo) + "</h3>" +
+    '<span class="meta" id="dp-selo">versão ' + d.versao + " · " + plural(c.palavras, "palavra") + "</span></div>" +
+    '<button class="botao-icone" id="dp-so-editor" title="Abrir no Editor, em tela cheia" aria-label="Abrir no Editor">' + ic("open_in_new", 18) + "</button>" +
+    '<button class="botao-icone" id="dp-pdf" title="Exportar PDF" aria-label="Exportar PDF">' + ic("picture_as_pdf", 18) + "</button>" +
+    '<button class="botao-icone" id="dp-fechar" title="Fechar o editor" aria-label="Fechar o editor">' + ic("close", 18) + "</button></div>" +
+
+    '<div class="edl-barra">' +
+    botao("undo", "undo", "Desfazer") + botao("redo", "redo", "Refazer") + '<span class="edl-vao"></span>' +
+    botao("bold", "format_bold", "Negrito") + botao("italic", "format_italic", "Itálico") +
+    botao("insertOrderedList", "format_list_numbered", "Numeração") +
+    '<button id="dp-citacao" title="Citação" aria-label="Citação">' + ic("format_quote", 18) + "</button>" +
+    '<span class="edl-vao"></span>' +
+    '<button id="dp-numerar" title="Renumerar as cláusulas">' + ic("format_list_numbered", 16) + "Numerar</button>" +
+    '<button id="dp-qualificar" title="Qualificação das partes">' + ic("group", 16) + "Qualificar</button>" +
+    '<button id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
+    '<button id="dp-alteracoes" title="Ir até a alteração">' + ic("difference", 16) +
+    'Alterações · <span id="dp-alteracoes-n">0</span></button>' +
+    '<span class="sinc"><i class="ponto-verde"></i><span id="dp-sinc">ao lado da conversa</span></span>' +
+    '<button class="primario" id="dp-salvar">' + ic("save", 16) + "Salvar</button></div>" +
+
+    '<div class="edl-mesa" id="dp-mesa"><div class="edl-papel">' +
+    '<div class="ed-folha edl-folha" id="dp-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
+    '<div class="edl-entre" id="dp-entre"></div></div><div id="dp-abaixo"></div></div>' +
+
+    '<div class="edl-rodape"><span id="dp-paginas">' + plural(c.palavras, "palavra") + "</span>" +
+    '<span class="cresce"></span><button id="dp-guardar">Salvar na biblioteca</button>' +
+    '<button id="dp-assinar">Assinar</button></div>' +
+    '<style id="dp-estilo-paginas"></style>';
+
+  desenharAtalhosDoEditor();
+  ligarDupla();
+  atualizarPostura();
+  desenharPaginas();
+  pedirPaginasDaFolha(true);
 }
+
+/* Do cabeçalho ao pé da janela: o topo é a altura do cabeçalho da conversa,
+   que muda com o título e a meta. */
+function posicionarEditorAoLado() {
+  const lado = $("editor-lado");
+  if (lado) lado.style.top = ($("conversa-topo").offsetHeight + 8) + "px";
+}
+
+window.addEventListener("resize", () => {
+  if (!editorNaConversaAberto()) return;
+  posicionarEditorAoLado();
+  desenharPaginas();
+});
+
+async function fecharEditorNaConversa() {
+  if (!dupla.doc) return;
+  clearTimeout(dupla.relogio);
+  clearTimeout(dupla.relogioPaginas);
+  if ($("dp-folha")) await gravarDupla();
+  dupla.doc = null;
+  dupla.pendente = null;
+  dupla.destino = "";
+  const lado = $("editor-lado");
+  if (lado) lado.remove();
+  const faixa = $("edl-atalhos");
+  if (faixa) faixa.remove();
+  $("conversa-col").classList.remove("com-editor");
+  if (estado.trabalhoId && $("centro").classList.contains("prosa")) mostrarLateral(lateralPreferida());
+  atualizarPostura();
+}
+
+/* ------------------------------------------------ para onde vai o pedido */
+
+// O verbo que abre a frase diz se é mudança no documento. Sem ele, é conversa.
+const RE_PEDIDO_DE_MUDANCA = new RegExp(
+  "^\\s*(?:(?:por favor|pfv|pode|poderia|agora|entao|quero que voce|preciso que voce|me ajude a)[\\s,]+)*" +
+  "(deix[ae]|torn[ae]|reescrev[ae]|escrev[ae]|redij[ao]|redige|troqu?e|troca|substitu[ai]|acrescent[ae]|" +
+  "adicion[ae]|inclu[ai]|insir[ao]|insere|alter[ae]|mud[ae]|corrij[ao]|corrige|remov[ae]|retir[ae]|" +
+  "apagu?e|apaga|resum[ae]|encurt[ae]|melhor[ae]|formaliz[ae]|cit[ae]|numer[ae]|renumer[ae]|revis[ae]|" +
+  "ajust[ae]|complet[ae]|traduz[ae]?)\\b");
+
+function destinoDoPedido(texto) {
+  if (dupla.destino) return dupla.destino;
+  const plano = String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (!plano.trim()) return "";
+  return RE_PEDIDO_DE_MUDANCA.test(plano) ? "documento" : "conversa";
+}
+
+function desenharAtalhosDoEditor() {
+  let faixa = $("edl-atalhos");
+  if (!faixa) {
+    faixa = document.createElement("div");
+    faixa.id = "edl-atalhos";
+    faixa.className = "edl-atalhos";
+    $("cartao-campo").before(faixa);
+  }
+  faixa.innerHTML = '<div class="edl-destino" role="group" aria-label="Para onde vai o pedido">' +
+    '<button data-edl-destino="documento" title="O pedido muda o documento aberto ao lado">' + ic("edit_note", 16) + "No documento</button>" +
+    '<button data-edl-destino="conversa" title="O pedido é uma pergunta para a conversa">' + ic("forum", 16) + "Na conversa</button></div>" +
+    ATALHOS_DO_EDITOR.map((a) => '<button class="edl-atalho" data-dp-atalho="' + esc(a[1]) + '" title="' + esc(a[1]) + '">' +
+      esc(a[0]) + "</button>").join("");
+  faixa.querySelectorAll("[data-edl-destino]").forEach((b) => {
+    b.onclick = () => {
+      dupla.destino = dupla.destino === b.dataset.edlDestino ? "" : b.dataset.edlDestino;
+      atualizarDestino();
+      $("pedido").focus();
+    };
+  });
+  faixa.querySelectorAll("[data-dp-atalho]").forEach((b) => {
+    b.onclick = () => pedirNoDocumento(b.dataset.dpAtalho);
+  });
+  atualizarDestino();
+}
+
+function atualizarDestino() {
+  const faixa = $("edl-atalhos");
+  if (!faixa) return;
+  const alvo = destinoDoPedido($("pedido").value);
+  faixa.querySelectorAll("[data-edl-destino]").forEach((b) => {
+    b.classList.toggle("ativa", b.dataset.edlDestino === alvo);
+  });
+}
+
+$("pedido").addEventListener("input", atualizarDestino);
+
+/* ----------------------------------------------------------- as páginas */
+
+const A4_ALTURA_POR_LARGURA = 297 / 210;
+const ESPACO_ENTRE_PAGINAS = 24;
+
+function htmlDaFolha() {
+  // O cartão da alteração é da tela, não do documento.
+  const folha = $("dp-folha").cloneNode(true);
+  folha.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+  return folha.innerHTML;
+}
+
+function pedirPaginasDaFolha(agora) {
+  clearTimeout(dupla.relogioPaginas);
+  const fazer = async () => {
+    if (!$("dp-folha") || !dupla.doc) return;
+    try {
+      const r = await fetch("/api/documentos/" + dupla.doc.id + "/paginacao", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corpo: htmlDaFolha() }),
+      });
+      if (!r.ok || !dupla.doc) return;
+      dupla.paginacao = await r.json();
+      if (dupla.paginacao.formato) dupla.doc.formato = dupla.paginacao.formato;
+      desenharPaginas();
+    } catch (err) { /* medir a página não pode atrapalhar quem está escrevendo */ }
+  };
+  if (agora) fazer(); else dupla.relogioPaginas = setTimeout(fazer, 700);
+}
+
+/* O caminho do bloco dentro da folha, para a regra de margem não precisar de
+   classe nem estilo NO bloco: o que está dentro da folha vai para o arquivo. */
+function seletorNaFolha(el) {
+  const partes = [];
+  let n = el;
+  while (n && n.id !== "dp-folha") {
+    partes.unshift(":nth-child(" + (Array.prototype.indexOf.call(n.parentNode.children, n) + 1) + ")");
+    n = n.parentNode;
+  }
+  return "#dp-folha > " + partes.join(" > ");
+}
+
+/* Cada página tem a altura de um A4 na largura da folha. Onde o PDF quebra, o
+   texto seguinte desce para o topo da próxima página (margem de cima
+   incluída), e o recorte da cor da mesa é desenhado no espaço entre elas. */
+function desenharPaginas() {
+  const folha = $("dp-folha");
+  const entre = $("dp-entre");
+  const estilo = $("dp-estilo-paginas");
+  if (!folha || !entre || !estilo || !dupla.doc) return;
+  if (dupla.doc.formato) vestirFolhaEm(folha, dupla.doc.formato);
+  estilo.textContent = "";
+  entre.innerHTML = "";
+  folha.style.minHeight = "";
+
+  const largura = folha.offsetWidth;
+  if (!largura) return;
+  const altura = largura * A4_ALTURA_POR_LARGURA;
+  const margem = parseFloat(getComputedStyle(folha).paddingBottom) || 0;
+  const mapa = dupla.paginacao;
+  const elementos = mapa ? blocosDaFolha(folha) : [];
+  const topo = () => folha.getBoundingClientRect().top;
+
+  let inicio = 0;
+  let pagina = 1;
+  const regras = [];
+  if (mapa && elementos.length === mapa.de_bloco.length) {
+    for (let i = 1; i < elementos.length; i += 1) {
+      if (mapa.de_bloco[i] === mapa.de_bloco[i - 1]) continue;
+      const fimDoTexto = elementos[i - 1].getBoundingClientRect().bottom - topo();
+      const fimDaPagina = Math.max(inicio + altura, fimDoTexto + margem);
+      const proxima = fimDaPagina + ESPACO_ENTRE_PAGINAS;
+      const atual = elementos[i].getBoundingClientRect().top - topo();
+      const margemAtual = parseFloat(getComputedStyle(elementos[i]).marginTop) || 0;
+      regras.push(seletorNaFolha(elementos[i]) + " { margin-top: " +
+        Math.max(0, margemAtual + proxima + margem - atual).toFixed(1) + "px !important; }");
+      estilo.textContent = regras.join("\n");
+      pagina += 1;
+      entre.insertAdjacentHTML("beforeend", '<div class="edl-entre-paginas" style="top:' + fimDaPagina.toFixed(1) +
+        "px;height:" + ESPACO_ENTRE_PAGINAS + 'px">página ' + pagina + "</div>");
+      inicio = proxima;
+    }
+  }
+  /* Página que o PDF tem e nenhum bloco começa nela: é a continuação de um
+     parágrafo longo. A folha cresce até ela, e o recorte só é desenhado onde
+     não há texto embaixo — cortar uma linha ao meio seria pior que não
+     mostrar a quebra. */
+  let fimDaFolha = inicio + altura;
+  const ultimo = elementos.length ? elementos[elementos.length - 1] : null;
+  const fimDoConteudo = ultimo ? ultimo.getBoundingClientRect().bottom - topo() + margem : 0;
+  for (let resta = (mapa ? mapa.paginas : 1) - pagina; resta > 0; resta -= 1) {
+    pagina += 1;
+    if (fimDaFolha >= fimDoConteudo) {
+      entre.insertAdjacentHTML("beforeend", '<div class="edl-entre-paginas" style="top:' + fimDaFolha.toFixed(1) +
+        "px;height:" + ESPACO_ENTRE_PAGINAS + 'px">página ' + pagina + "</div>");
+    }
+    fimDaFolha += ESPACO_ENTRE_PAGINAS + altura;
+  }
+  folha.style.minHeight = fimDaFolha.toFixed(1) + "px";
+
+  const contador = $("dp-paginas");
+  const c = dupla.doc.contagem || { palavras: 0 };
+  if (contador) contador.textContent = plural(mapa ? mapa.paginas : pagina, "página") + " · " + plural(c.palavras, "palavra");
+}
+
+/* -------------------------------------------------------- a folha viva */
 
 function ligarDupla() {
-  const centro = $("centro");
-  const enviar = () => pedirNaDupla($("dp-pedido").value.trim());
-
-  $("dp-enviar").onclick = enviar;
-  $("dp-pedido").onkeydown = (e) => { if (e.key === "Enter") enviar(); };
-  centro.querySelectorAll("[data-dp-atalho]").forEach((b) => {
-    b.onclick = () => pedirNaDupla(b.dataset.dpAtalho);
-  });
-
-  $("dp-so-editor").onclick = () => abrirDocumento(dupla.doc.id);
+  const lado = $("editor-lado");
+  $("dp-fechar").onclick = () => fecharEditorNaConversa();
+  $("dp-so-editor").onclick = async () => { const id = dupla.doc.id; await fecharEditorNaConversa(); abrirDocumento(id); };
   $("dp-assinar").onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
   $("dp-citar").onclick = painelCodigosNaDupla;
   $("dp-numerar").onclick = renumerarClausulas;
   $("dp-qualificar").onclick = inserirQualificacao;
   $("dp-guardar").onclick = () => guardarNaBiblioteca(dupla.doc.id);
   $("dp-pdf").onclick = () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; };
+  $("dp-salvar").onclick = () => gravarDupla();
+  $("dp-citacao").onmousedown = (e) => { e.preventDefault(); document.execCommand("formatBlock", false, "blockquote"); marcarDuplaSuja(); };
+  $("dp-alteracoes").onclick = () => {
+    const m = $("dp-folha").querySelector(".ed-novo");
+    if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
 
-  centro.querySelectorAll("[data-cmd]").forEach((b) => {
-    b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); };
+  lado.querySelectorAll("[data-cmd]").forEach((b) => {
+    b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); marcarDuplaSuja(); };
   });
-
-  const folha = $("dp-folha");
-  folha.oninput = () => marcarDuplaSuja();
+  $("dp-folha").oninput = () => marcarDuplaSuja();
   $("dp-titulo").oninput = () => marcarDuplaSuja();
-
-  centro.querySelectorAll("[data-dp-ver]").forEach((b) => {
-    b.onclick = () => {
-      const marca = $("dp-folha").querySelector(".ed-novo");
-      if (marca) marca.scrollIntoView({ behavior: "smooth", block: "center" });
-      else avisoCert("essa alteração já foi aceita e virou parte do texto");
-    };
-  });
-  centro.querySelectorAll("[data-dp-desfazer]").forEach((b) => {
-    b.onclick = () => desfazerNaDupla(Number(b.dataset.dpDesfazer));
-  });
 }
 
-/* O pedido vira alteração no documento, marcada. Não é uma sugestão num painel
-   ao lado: é o texto mudado, à vista, esperando o sim. */
-async function pedirNaDupla(pedido) {
-  if (!pedido || dupla.ocupada) return;
+/* O pedido vira alteração no documento, marcada — e a conversa registra o
+   pedido e o que foi feito, como qualquer outra coisa dita nela. */
+async function pedirNoDocumento(pedido) {
+  if (!pedido || dupla.ocupada || !dupla.doc) return;
   dupla.ocupada = true;
-  $("dp-pedido").value = "";
-  dupla.conversa.push({ autor: "pessoa", texto: pedido });
-  $("dp-fala").innerHTML = falasDaDupla() +
-    '<p class="nota" id="dp-pensando">escrevendo… isso leva cerca de um minuto nesta máquina</p>';
-  $("dp-fala").scrollTop = $("dp-fala").scrollHeight;
-  $("dp-estado-conversa").textContent = "escrevendo ao lado…";
+  const titulo = dupla.doc.titulo;
+  const centro = $("centro");
+  centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
+  const resposta = document.createElement("div");
+  resposta.className = "resposta";
+  resposta.innerHTML = '<p class="nota">escrevendo em “' + esc(titulo) + "”… isso leva cerca de um minuto nesta máquina</p>";
+  centro.appendChild(resposta);
+  atualizarPostura();
+  rolar();
+  if ($("dp-sinc")) $("dp-sinc").textContent = "escrevendo…";
 
   // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
-  dupla.antes = $("dp-folha").innerHTML;
-
+  const antes = htmlDaFolha();
+  const docId = dupla.doc.id;
   try {
-    const r = await fetch("/api/documentos/" + dupla.doc.id + "/assistente", {
+    const r = await fetch("/api/documentos/" + docId + "/assistente", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla() }),
+      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla(), trabalho_id: estado.trabalhoId || "" }),
     });
     if (!r.ok) throw new Error(await erroDe(r));
     const sugestao = await r.json();
+    if (!dupla.doc || dupla.doc.id !== docId) throw new Error("o editor foi fechado antes de a alteração chegar");
 
+    dupla.antes = antes;
     aplicarNaDupla(sugestao);
-    dupla.conversa.push({
-      autor: "paulus",
-      texto: sugestao.sobre
-        ? "Troquei o trecho que você selecionou. A alteração está marcada no documento."
-        : "Escrevi no fim do documento. A alteração está marcada — confira antes de manter.",
-      trecho: sugestao.sugestao.slice(0, 180),
-      antes: dupla.antes,
-    });
+    resposta.innerHTML = '<div class="texto">' + esc(sugestao.sobre
+      ? "Troquei o trecho que você selecionou em “" + titulo + "”. A alteração está marcada no documento."
+      : "Escrevi no fim de “" + titulo + "”. A alteração está marcada — confira antes de manter.") + "</div>" +
+      '<blockquote class="edl-trecho">' + esc(sugestao.sugestao.slice(0, 180)) + "</blockquote>" +
+      '<div class="linha-form"><button data-edl-ver="1">Ver no documento</button>' +
+      '<button data-edl-desfazer="1">Desfazer</button></div>';
+    resposta.querySelector("[data-edl-ver]").onclick = () => {
+      const marca = $("dp-folha") && $("dp-folha").querySelector(".ed-novo");
+      if (marca) marca.scrollIntoView({ behavior: "smooth", block: "center" });
+      else avisoNaJanela("Essa alteração já foi aceita e virou parte do texto");
+    };
+    resposta.querySelector("[data-edl-desfazer]").onclick = () => {
+      if (!dupla.doc || dupla.doc.id !== docId) { avisoNaJanela("Abra o documento de novo para desfazer"); return; }
+      $("dp-folha").innerHTML = antes;
+      dupla.pendente = null;
+      gravarDupla();
+      marcarDuplaSuja();
+      resposta.innerHTML = '<div class="texto">Desfeito. “' + esc(titulo) + "” voltou ao que era antes dessa alteração.</div>";
+    };
   } catch (err) {
-    dupla.conversa.push({ autor: "paulus", texto: "Não consegui: " + err });
+    resposta.innerHTML = '<div class="texto">Não consegui: ' + esc(String((err && err.message) || err)) + "</div>";
   } finally {
     dupla.ocupada = false;
-    $("dp-estado-conversa").textContent = "sincronizado com o documento";
-    $("dp-fala").innerHTML = falasDaDupla();
-    $("dp-fala").scrollTop = $("dp-fala").scrollHeight;
-    ligarDupla();
+    if ($("dp-sinc")) $("dp-sinc").textContent = "ao lado da conversa";
+    rolar();
   }
 }
 
@@ -363,8 +546,8 @@ function aplicarNaDupla(sugestao) {
 
   dupla.pendente = { aviso: sugestao.aviso, resumo: sugestao.sugestao.slice(0, 120) };
   desenharCartaoDaAlteracao();
-  marca.scrollIntoView({ behavior: "smooth", block: "center" });
   marcarDuplaSuja();
+  marca.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function desenharCartaoDaAlteracao() {
@@ -390,6 +573,7 @@ function desenharCartaoDaAlteracao() {
     $("dp-folha").querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
     dupla.pendente = null;
     cartao.remove();
+    marcarDuplaSuja();
     gravarDupla();
   };
   $("dp-descartar").onclick = () => {
@@ -397,6 +581,7 @@ function desenharCartaoDaAlteracao() {
     dupla.pendente = null;
     const c = $("dp-cartao");
     if (c) c.remove();
+    marcarDuplaSuja();
     gravarDupla();
   };
 }
@@ -408,19 +593,6 @@ function desmarcar(marca) {
   pai.removeChild(marca);
 }
 
-function desfazerNaDupla(indice) {
-  const m = dupla.conversa[indice];
-  if (!m || m.antes === undefined) return;
-  $("dp-folha").innerHTML = m.antes;
-  dupla.pendente = null;
-  const c = $("dp-cartao");
-  if (c) c.remove();
-  dupla.conversa.push({ autor: "paulus", texto: "Desfeito. O documento voltou ao que era antes dessa alteração." });
-  $("dp-fala").innerHTML = falasDaDupla();
-  ligarDupla();
-  gravarDupla();
-}
-
 function trechoSelecionadoNaDupla() {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed) return "";
@@ -429,26 +601,28 @@ function trechoSelecionadoNaDupla() {
 }
 
 function marcarDuplaSuja() {
+  if (!$("dp-folha")) return;
   $("dp-selo").textContent = "alterações não salvas";
+  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
   clearTimeout(dupla.relogio);
   dupla.relogio = setTimeout(gravarDupla, 1600);
+  desenharPaginas();
+  pedirPaginasDaFolha();
 }
 
 async function gravarDupla() {
-  if (!dupla.doc) return;
-  // O cartão é da tela, não do documento: salvar com ele dentro gravaria os
-  // botões no corpo do texto.
-  const folha = $("dp-folha").cloneNode(true);
-  folha.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
-
-  const r = await fetch("/api/documentos/" + dupla.doc.id, {
+  if (!dupla.doc || !$("dp-folha")) return;
+  clearTimeout(dupla.relogio);
+  const id = dupla.doc.id;
+  const r = await fetch("/api/documentos/" + id, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: folha.innerHTML, titulo: $("dp-titulo").textContent.trim() }),
+    body: JSON.stringify({ corpo: htmlDaFolha(), titulo: $("dp-titulo").textContent.trim() }),
   });
+  if (!$("dp-selo") || !dupla.doc || dupla.doc.id !== id) return;
   if (!r.ok) { $("dp-selo").textContent = "não consegui salvar"; return; }
 
   const d = await r.json();
-  dupla.doc = d;
+  dupla.doc = Object.assign(dupla.doc, d);
   const c = d.contagem || { palavras: 0 };
   $("dp-selo").textContent = "versão " + d.versao + " · " + plural(c.palavras, "palavra") +
     " · salvo às " + new Date().toTimeString().slice(0, 5);
@@ -648,7 +822,7 @@ function documentoAberto() {
 }
 
 function abaixoDoEditor() {
-  return $("dp-fala") ? null : $("ed-abaixo");
+  return $("dp-abaixo") || $("ed-abaixo");
 }
 
 async function renumerarClausulas() {

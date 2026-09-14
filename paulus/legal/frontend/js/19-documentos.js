@@ -848,6 +848,9 @@ function blocosDaFolha(folha) {
     /* O quadro é UM bloco, como no PDF — os parágrafos dentro das células não
        contam separado, senão a conta daqui deixa de bater com a de lá. */
     .filter((el) => el.tagName === "TABLE" || !el.closest("table"))
+    /* O cartão da alteração sugerida é da tela: não vai para o arquivo, e
+       contado aqui desencontrava a conta do PDF enquanto estava aberto. */
+    .filter((el) => !el.closest(".dupla-cartao"))
     .filter((el) => el.textContent.trim() || el.querySelector("br"));
 }
 
@@ -883,7 +886,12 @@ const PT_LARGURA_A4 = 595.3;
 const CM_LARGURA_A4 = 21;
 
 function vestirFolha(formato) {
-  const folha = $("ed-folha");
+  vestirFolhaEm($("ed-folha"), formato);
+}
+
+/* A mesma escala para qualquer folha: a do editor de Documentos e a do
+   editor ao lado da conversa. */
+function vestirFolhaEm(folha, formato) {
   if (!folha || !formato || !folha.clientWidth) return;
   const largura = folha.clientWidth;
 

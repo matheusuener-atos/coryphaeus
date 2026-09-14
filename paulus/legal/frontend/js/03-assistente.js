@@ -1092,6 +1092,16 @@ async function enviar(opcoes) {
   const pedido = (o.texto || $("pedido").value).trim();
   if (!pedido) return;
 
+  // Com o editor aberto ao lado, pedido de mudança vai para o documento.
+  if (!o.retomar && editorNaConversaAberto() && destinoDoPedido(pedido) === "documento") {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+    dupla.destino = "";
+    atualizarDestino();
+    pedirNoDocumento(pedido);
+    return;
+  }
+
   if (!estado.trabalhoId) {
     const r = await fetch("/api/trabalhos", {
       method: "POST",

@@ -86,6 +86,7 @@ function abrirMenu(linha) {
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return false;
+  if (id !== estado.trabalhoId) fecharEditorNaConversa();
   transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;
   estado.trabalho = await r.json();
@@ -133,6 +134,7 @@ $("compositor").addEventListener("scroll", () => {
 }, { passive: true });
 
 $("nova").onclick = () => {
+  fecharEditorNaConversa();
   lembrancaDoAssistente.trabalhoId = null;
   transicaoDeTela("inicio");
   estado.trabalhoId = null;
@@ -186,9 +188,11 @@ function atualizarPostura() {
   // O cartao do ditado mora em "Acontecendo agora" no inicio e em cima da
   // caixa de pedido numa conversa: trocar de postura o leva junto.
   if (ditado.estado) setTimeout(desenharCartaoDoDitado, 0);
-  $("pedido").placeholder = temConversa
-    ? "Pergunte outra coisa ou aponte outra pasta…"
-    : "Peça o que precisa dos seus documentos…";
+  $("pedido").placeholder = !temConversa
+    ? "Peça o que precisa dos seus documentos…"
+    : (editorNaConversaAberto()
+      ? "Pergunte, ou peça uma mudança no documento…"
+      : "Pergunte outra coisa ou aponte outra pasta…");
   if (!temConversa) {
     atualizarSaudacao();
     $("lista-conversas").hidden = !lembrancaDoInicio.lista;

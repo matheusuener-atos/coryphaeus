@@ -28,6 +28,8 @@
     --margem-lado: 44px;
     --margem-topo: 40px;
     --margem-pagina: max(var(--margem-lado), calc((100% - var(--pagina)) / 2));
+    /* O editor ao lado da conversa ocupa um pouco mais da metade da pagina. */
+    --editor-largura: calc((100% - 2 * var(--margem-pagina)) * .56);
     --barra: 760px;
 
     --bg: #faf9f6;
