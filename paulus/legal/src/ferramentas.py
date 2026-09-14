@@ -582,21 +582,140 @@ def _emitir_nfse(estado, campos: dict) -> dict:
     return {"id": 0, "registro": limpos, "resumo": resumo, "onde": "", "pendente": True}
 
 
-# Um livro de 300 páginas não cabe num cartão de conversa. O começo cabe, e o
-# cartão diz que cortou.
-LIMITE_DE_PARAGRAFOS = 1500
+# O visor da conversa mostra PÁGINAS, sempre — do mesmo jeito para PDF e para
+# Word. Havia dois visores: o PDF desenhado e o Word em parágrafos corridos,
+# e o mesmo documento parecia duas coisas diferentes conforme o formato. O
+# que não é PDF passa pelo mesmo gerador de PDF do editor (documento.para_pdf)
+# e é desenhado página a página: o que aparece é o que sairia impresso.
+
+# Os PDFs montados ficam na memória enquanto a pessoa folheia. Poucos: é o
+# documento aberto agora, e trocar de documento descarta o mais antigo.
+_FOLHAS: dict = {}
+_FOLHAS_NO_MAXIMO = 6
 
 
-def leitura(doc) -> dict:
-    """O que o visor da conversa mostra: páginas desenhadas no PDF, parágrafos no resto."""
+def _eh_pdf(doc) -> bool:
     from pathlib import Path
 
-    if Path(doc.path).suffix.lower() == ".pdf":
-        return {"nome": doc.name, "tipo": "pdf", "paginas": int(doc.pages or 0) or 1}
-    paragrafos = [p.strip() for p in (doc.text or "").splitlines() if p.strip()]
-    return {"nome": doc.name, "tipo": "texto", "paginas": int(doc.pages or 0),
-            "paragrafos": paragrafos[:LIMITE_DE_PARAGRAFOS],
-            "cortado": len(paragrafos) > LIMITE_DE_PARAGRAFOS}
+    return Path(doc.path).suffix.lower() == ".pdf"
+
+
+def _paragrafos(doc) -> list[str]:
+    return [p.strip() for p in (doc.text or "").splitlines() if p.strip()]
+
+
+def _blocos(doc):
+    import html
+
+    import documento
+
+    corpo = "".join(f"<p>{html.escape(p)}</p>" for p in _paragrafos(doc)) or "<p></p>"
+    return documento.ler_html(corpo)
+
+
+def pdf_do_documento(doc) -> bytes:
+    """O documento que não é PDF, montado como PDF pelo gerador do editor."""
+    from pathlib import Path
+
+    import documento
+
+    try:
+        marca = Path(doc.path).stat().st_mtime
+    except OSError:
+        marca = 0
+    chave = (doc.path, marca, len(doc.text or ""))
+    if chave not in _FOLHAS:
+        while len(_FOLHAS) >= _FOLHAS_NO_MAXIMO:
+            _FOLHAS.pop(next(iter(_FOLHAS)))
+        _FOLHAS[chave] = documento.para_pdf(_blocos(doc))
+    return _FOLHAS[chave]
+
+
+def pagina_png(doc, numero: int, largura: int = 1000) -> bytes:
+    """Uma página de qualquer documento do Acervo, desenhada."""
+    import assinatura
+    import documento
+
+    largura = max(240, min(1600, int(largura)))
+    if _eh_pdf(doc):
+        return assinatura.pagina_png(doc.path, numero, largura=largura)
+    return documento.pagina_png(pdf_do_documento(doc), numero, largura=largura)
+
+
+def _comparavel(texto: str) -> str:
+    return " ".join(str(texto or "").lower().split())
+
+
+# O texto lido de um PDF marca onde cada página começa (extract.extract_pdf).
+RE_MARCA_PAGINA = re.compile(r"\[pagina (\d+)\]")
+
+
+def paginas_citadas(textos_por_pagina: list[str], trechos) -> list[int]:
+    """
+    Em que páginas caem os trechos citados — contadas a partir de 1.
+
+    O texto das páginas vira uma tira só, e cada página guarda onde começa
+    nela: o trecho é achado na tira pelo começo dele, e as páginas que ele
+    atravessa são as citadas. Assim um trecho que começa no pé de uma página
+    e termina na seguinte marca as duas — procurar página por página não o
+    achava em nenhuma. As marcas "[pagina N]" do texto lido saem antes.
+    """
+    inicios, tira = [], ""
+    for texto in textos_por_pagina:
+        inicios.append(len(tira))
+        tira += _comparavel(RE_MARCA_PAGINA.sub(" ", texto)) + " "
+    citadas: set[int] = set()
+    for trecho in trechos or []:
+        chave = _comparavel(RE_MARCA_PAGINA.sub(" ", str(trecho)))
+        if len(chave) < 20:
+            continue
+        comeco = tira.find(chave[:80])
+        if comeco < 0:
+            continue
+        fim = comeco + len(chave)
+        for numero, inicio in enumerate(inicios, start=1):
+            proximo = inicios[numero] if numero < len(inicios) else len(tira)
+            if inicio < fim and proximo > comeco:
+                citadas.add(numero)
+    return sorted(citadas)
+
+
+def _textos_das_paginas_do_pdf(doc, total: int) -> list[str]:
+    """O texto lido do PDF repartido pelas marcas de página."""
+    textos = [""] * total
+    partes = RE_MARCA_PAGINA.split(doc.text or "")
+    for k in range(1, len(partes) - 1, 2):
+        numero = int(partes[k])
+        if 1 <= numero <= total:
+            textos[numero - 1] += partes[k + 1]
+    return textos
+
+
+def leitura(doc, trechos=()) -> dict:
+    """
+    O que o visor da conversa desenha: quantas páginas o documento tem, e em
+    quais delas estão os trechos que a resposta citou.
+    """
+    import documento
+    import leitor_pdf
+
+    if _eh_pdf(doc):
+        with leitor_pdf.abrir(doc.path) as pdf:
+            total = len(pdf)
+        textos = _textos_das_paginas_do_pdf(doc, total) if trechos else []
+        origem = "pdf"
+    else:
+        total = documento.paginas_de(pdf_do_documento(doc))
+        textos = []
+        if trechos:
+            de_bloco = documento.mapa_de_paginas(_blocos(doc))["de_bloco"]
+            textos = [""] * total
+            for indice, paragrafo in enumerate(_paragrafos(doc)[:len(de_bloco)]):
+                pagina = min(max(de_bloco[indice], 1), total)
+                textos[pagina - 1] += paragrafo + "\n"
+        origem = "texto"
+    return {"nome": doc.name, "paginas": max(total, 1), "origem": origem,
+            "citadas": paginas_citadas(textos, trechos) if trechos else []}
 
 
 def _exibir_documento(estado, campos: dict) -> dict:
@@ -606,7 +725,10 @@ def _exibir_documento(estado, campos: dict) -> dict:
     doc = next((d for d in estado.searcher.documents if d.name == nome), None)
     if not doc:
         raise ValueError("esse documento não está mais no Acervo")
-    return {"id": 0, "registro": leitura(doc), "resumo": f"Mostrei “{nome}” aqui na conversa", "onde": ""}
+    # Os trechos vêm do cartão da oferta, para abrir já na página citada.
+    trechos = [str(t)[:400] for t in (campos.get("trechos") or [])[:12] if isinstance(t, str)]
+    return {"id": 0, "registro": leitura(doc, trechos),
+            "resumo": f"Mostrei “{nome}” aqui na conversa", "onde": ""}
 
 
 def oferta_de_exibir(fontes: list[dict], documentos, ja_oferecidos=()) -> dict | None:

@@ -523,15 +523,24 @@
   .oferta-doc { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-width: 0; color: var(--ink2); }
   .oferta-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--ink); }
   .leitor-topo { align-items: center; flex-wrap: nowrap; margin-bottom: 10px; }
-  .leitor-texto {
-    max-height: 420px; overflow-y: auto; padding: 14px 18px; border-radius: 8px;
-    background: var(--surf); border: 1px solid var(--hair); font: 400 14.5px/1.65 var(--serif); color: var(--ink);
+  .leitor-conta { white-space: nowrap; }
+  .leitor-ir {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: none;
+    border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); white-space: nowrap;
   }
-  .leitor-par { margin: 0 0 10px; padding: 2px 8px; border-radius: 4px; }
-  .leitor-par.citado { background: var(--fill2); box-shadow: inset 3px 0 0 var(--destaque); }
-  .leitor-pagina { max-height: 560px; overflow-y: auto; border-radius: 8px; background: var(--surf); border: 1px solid var(--hair); }
-  .leitor-pagina img { display: block; max-width: 100%; margin: 0 auto; }
-  .leitor-andar { align-items: center; justify-content: center; }
+  .leitor-ir:hover:not(:disabled) { background: var(--act); border: none; }
+  /* As páginas empilhadas sobre o fundo, como a folha do editor: cada uma é
+     a página desenhada, com a sombra do papel. */
+  .leitor-paginas {
+    max-height: 600px; overflow-y: auto; padding: 18px; border-radius: 10px;
+    background: var(--fill); display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+  .leitor-folha {
+    display: block; width: 100%; max-width: 760px; height: auto; aspect-ratio: auto 210 / 297;
+    background: var(--papel); border: 1px solid var(--papel-linha); border-radius: 2px;
+    box-shadow: 0 18px 44px -28px var(--papel-sombra);
+  }
+  .leitor-folha.citada { outline: 2px solid var(--destaque); outline-offset: 3px; }
   .oferta .proposta-topo { margin-bottom: 4px; }
   .leitor-conversa > .linha-form:last-child { justify-content: flex-end; }
 

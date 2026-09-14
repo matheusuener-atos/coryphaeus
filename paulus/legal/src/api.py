@@ -1087,12 +1087,14 @@ def biblioteca_pagina(nome: str, numero: int = 1, largura: int = 1000):
     doc = next((d for d in estado.searcher.documents if d.name == nome), None)
     if not doc:
         raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
-    alvo = Path(doc.path)
-    if alvo.suffix.lower() != ".pdf" or not alvo.exists():
-        raise HTTPException(status_code=400, detail="so da para desenhar PDF")
+    if not Path(doc.path).exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
 
+    # PDF e desenhado do arquivo; Word e o resto, do PDF que o gerador do
+    # editor monta a partir do texto lido - o visor da conversa mostra paginas
+    # para qualquer formato.
     try:
-        png = assinatura.pagina_png(alvo, numero, largura=max(240, min(1600, largura)))
+        png = ferramentas.pagina_png(doc, numero, largura)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"nao consegui desenhar: {exc}") from exc
     return Response(png, media_type="image/png",

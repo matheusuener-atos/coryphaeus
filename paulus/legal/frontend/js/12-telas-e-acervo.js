@@ -971,73 +971,57 @@ function ligarEscopo(caixa, d) {
   if (anexar) anexar.onclick = () => abrirAnexar();
 }
 
-/* O visor dentro da conversa. PDF é a página desenhada, com o andar de
-   página; o resto é o texto lido, parágrafo por parágrafo, com os parágrafos
-   dos trechos citados marcados e a rolagem já no primeiro deles. */
+/* O visor dentro da conversa: as PÁGINAS do documento, empilhadas, como no
+   editor. Um visor só para PDF e Word — antes eram dois (a página desenhada
+   do PDF e o Word em parágrafos corridos), e o mesmo documento parecia duas
+   coisas diferentes conforme o formato. O Word é desenhado a partir do PDF
+   que o gerador do editor monta. As páginas onde estão os trechos citados
+   ganham o fio de destaque, e o visor já abre na primeira delas. */
 function srcDaPagina(nome, pagina) {
-  return "/api/biblioteca/pagina?nome=" + encodeURIComponent(nome) + "&numero=" + pagina + "&largura=900";
+  return "/api/biblioteca/pagina?nome=" + encodeURIComponent(nome) + "&numero=" + pagina + "&largura=1100";
 }
 
-function textoComparavel(t) {
-  return String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-/* Parágrafo curto não é marcado: "Matheus Uener" aparece dentro de quase
-   todo trecho, e um título marcado por isso aponta o lugar errado. */
-function paragrafoCitado(p, trechos) {
-  const np = textoComparavel(p);
-  if (np.length < 40) return false;
-  return trechos.some((t) => t.includes(np.slice(0, 60)) || np.includes(t.slice(0, 60)));
-}
-
-function leitorNaConversa(reg, d) {
-  const trechos = (((d && d.trechos) || {})[reg.nome] || []).map(textoComparavel).filter((t) => t.length >= 12);
+function leitorNaConversa(reg) {
+  const citadas = reg.citadas || [];
   const topo = '<div class="proposta-topo leitor-topo"><span class="rotulo">só leitura</span>' +
     '<b class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</b>" +
+    '<span class="explica leitor-conta">' + plural(reg.paginas || 1, "página") + "</span>" +
+    (citadas.length
+      ? '<button class="leitor-ir" data-leitor-ir="' + citadas[0] + '">' + ic("format_quote", 16) +
+        (citadas.length === 1 ? "trecho citado na pág. " + citadas[0] : "trechos nas págs. " + citadas.join(", ")) + "</button>"
+      : "") +
     '<button class="botao-icone" data-visor="fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>";
-  let corpo;
-  if (reg.tipo === "pdf") {
-    const pedida = Number((((d && d.paginas) || {})[reg.nome]) || 1);
-    const pagina = Math.max(1, Math.min(reg.paginas || 1, pedida));
-    corpo = '<div class="leitor-pagina"><img data-visor-img alt="página ' + pagina + '" src="' + srcDaPagina(reg.nome, pagina) + '"></div>' +
-      '<div class="linha-form leitor-andar">' +
-      '<button class="botao-icone" data-leitor-andar="-1" title="Página anterior" aria-label="Página anterior">' + ic("chevron_left", 18) + "</button>" +
-      '<span class="explica">Pág. <b data-visor-num>' + pagina + "</b> de " + (reg.paginas || 1) + "</span>" +
-      '<button class="botao-icone" data-leitor-andar="1" title="Próxima página" aria-label="Próxima página">' + ic("chevron_right", 18) + "</button></div>";
-  } else {
-    corpo = '<div class="leitor-texto">' + (reg.paragrafos || []).map((p) => {
-      const classe = paragrafoCitado(p, trechos) ? "leitor-par citado" : "leitor-par";
-      return '<p class="' + classe + '">' + esc(p) + "</p>";
-    }).join("") +
-      (reg.cortado ? '<p class="nota">O documento continua — aqui vai só o começo. Abra no Windows para ler inteiro.</p>' : "") +
-      "</div>";
+  let paginas = "";
+  for (let n = 1; n <= (reg.paginas || 1); n++) {
+    const classe = citadas.includes(n) ? "leitor-folha citada" : "leitor-folha";
+    paginas += '<img class="' + classe + '" data-leitor-pagina="' + n + '" loading="lazy" alt="página ' + n +
+      '" src="' + srcDaPagina(reg.nome, n) + '">';
   }
-  return '<div class="proposta leitor-conversa">' + topo + corpo +
+  return '<div class="proposta leitor-conversa">' + topo +
+    '<div class="leitor-paginas">' + paginas + "</div>" +
     '<div class="linha-form"><button data-prop="editar" data-nome="' + esc(reg.nome) + '">Abrir para editar</button>' +
     '<button data-prop="windows" data-nome="' + esc(reg.nome) + '">Abrir no Windows</button></div></div>';
 }
 
 function ligarLeitor(caixa, reg, d) {
-  const texto = caixa.querySelector(".leitor-texto");
-  const primeiro = texto && texto.querySelector(".citado");
-  if (primeiro) texto.scrollTop += primeiro.getBoundingClientRect().top - texto.getBoundingClientRect().top - 16;
-
-  let pagina = Number((caixa.querySelector("[data-visor-num]") || {}).textContent || 1);
-  caixa.querySelectorAll("[data-leitor-andar]").forEach((b) => {
-    b.onclick = () => {
-      const nova = Math.max(1, Math.min(reg.paginas || 1, pagina + Number(b.dataset.leitorAndar)));
-      if (nova === pagina) return;
-      pagina = nova;
-      const img = caixa.querySelector("[data-visor-img]");
-      img.src = srcDaPagina(reg.nome, pagina);
-      img.alt = "página " + pagina;
-      caixa.querySelector("[data-visor-num]").textContent = pagina;
-    };
-  });
+  const rolagem = caixa.querySelector(".leitor-paginas");
+  const irPara = (n, suave) => {
+    const folha = rolagem.querySelector('[data-leitor-pagina="' + n + '"]');
+    if (!folha) return;
+    rolagem.scrollTo({
+      top: rolagem.scrollTop + folha.getBoundingClientRect().top - rolagem.getBoundingClientRect().top - 12,
+      behavior: suave && animacoesLigadas() ? "smooth" : "auto",
+    });
+  };
+  const ir = caixa.querySelector("[data-leitor-ir]");
+  if (ir) {
+    ir.onclick = () => irPara(Number(ir.dataset.leitorIr), true);
+    irPara((reg.citadas || [])[0], false);
+  }
 
   caixa.querySelector('[data-visor="fechar"]').onclick = () => {
     caixa.innerHTML = '<div class="proposta oferta"><div class="oferta-doc">' +
-      ic(reg.tipo === "pdf" ? "picture_as_pdf" : "description", 18) +
+      ic(reg.origem === "pdf" ? "picture_as_pdf" : "description", 18) +
       '<span class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</span>" +
       '<button data-prop="exibir" data-nome="' + esc(reg.nome) + '">Mostrar de novo</button></div></div>';
     ligarBotoesDeDocumento(caixa, d);
@@ -1061,7 +1045,10 @@ function ligarBotoesDeDocumento(caixa, d) {
       b.disabled = true;
       const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tipo: "exibir", campos: { nome: nomeDe(b) } }),
+        // Os trechos da resposta vão junto: o visor abre na página deles.
+        body: JSON.stringify({ tipo: "exibir", campos: {
+          nome: nomeDe(b), trechos: ((d.trechos || {})[nomeDe(b)] || []),
+        } }),
       });
       if (!r.ok) {
         b.disabled = false;
@@ -1069,7 +1056,7 @@ function ligarBotoesDeDocumento(caixa, d) {
         return;
       }
       const reg = (await r.json()).registro;
-      caixa.innerHTML = leitorNaConversa(reg, d);
+      caixa.innerHTML = leitorNaConversa(reg);
       ligarLeitor(caixa, reg, d);
       if (pertoDoFim()) rolar();
     };

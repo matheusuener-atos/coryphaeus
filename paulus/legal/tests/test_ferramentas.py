@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.parse
 from datetime import date
 from pathlib import Path
 
@@ -321,14 +322,22 @@ def test_oferta_de_exibir() -> None:
     o = ferramentas.oferta_de_exibir([{"documento": "B.pdf", "texto": "x", "pagina": 4}], docs)
     checar(o and o["paginas"]["B.pdf"] == 4, "PDF abre na página citada, quando se sabe", o)
 
-    leitura = ferramentas.leitura(_Doc("A.docx", "c:/x/A.docx", "Primeiro.\n\n  Segundo parágrafo.  \n"))
-    checar(leitura["tipo"] == "texto" and leitura["paragrafos"] == ["Primeiro.", "Segundo parágrafo."],
-           "texto: parágrafos, sem linhas vazias", leitura)
-    grande = ferramentas.leitura(_Doc("G.docx", "G.docx", "\n".join(f"p{i}" for i in range(2000))))
-    checar(len(grande["paragrafos"]) == ferramentas.LIMITE_DE_PARAGRAFOS and grande["cortado"],
-           "documento enorme: corta e avisa")
-    checar(ferramentas.leitura(_Doc("B.pdf", "c:/x/B.PDF", "", 7)) == {"nome": "B.pdf", "tipo": "pdf", "paginas": 7},
-           "PDF: páginas desenhadas, sem texto")
+    print("\nem que página cai o trecho citado")
+    paginas = ["Cláusula primeira: o prazo de entrega é de trinta dias corridos.",
+               "Cláusula segunda: a multa por atraso é de dez por cento do valor total.",
+               "Cláusula terceira: fica eleito o foro da comarca de São Félix do Xingu."]
+    citadas = ferramentas.paginas_citadas
+    checar(citadas(paginas, ["a multa por atraso é de dez por cento"]) == [2], "trecho dentro de uma página")
+    checar(citadas(paginas, ["A   MULTA por atraso\né de dez"]) == [2], "sem diferença de espaço e maiúscula")
+    checar(citadas(paginas, ["trinta dias corridos. Cláusula segunda: a multa"]) == [1, 2],
+           "trecho que atravessa a quebra marca as duas páginas")
+    checar(citadas(paginas, ["[pagina 3]\nCláusula terceira: fica eleito o foro"]) == [3],
+           "a marca [pagina N] do texto lido não atrapalha")
+    checar(citadas(paginas, ["nada disso está no documento"]) == [], "trecho que não está: nenhuma página")
+    checar(citadas(paginas, ["prazo"]) == [], "pedaço curto demais não marca página")
+    pdf_lido = _Doc("B.pdf", "B.pdf", "[pagina 1]\nprimeira folha\n\n[pagina 3]\nterceira folha")
+    checar(ferramentas._textos_das_paginas_do_pdf(pdf_lido, 3) == ["\nprimeira folha\n\n", "", "\nterceira folha"],
+           "o texto do PDF é repartido pelas marcas, e página sem texto fica vazia")
 
 
 # ---------------------------------------------------------------- pela API
@@ -458,11 +467,20 @@ def test_pela_api() -> None:
                    [tipo for tipo, _ in eventos])
 
             st, mostrado = c.pedir("POST", f"/api/trabalhos/{t2['id']}/fazer",
-                                   {"tipo": "exibir", "campos": {"nome": doc.name}})
+                                   {"tipo": "exibir", "campos": {"nome": doc.name, "trechos": [doc.text[:300]]}})
             reg = mostrado.get("registro") or {}
-            checar(st == 200 and reg.get("nome") == doc.name and reg.get("tipo") in ("pdf", "texto"),
-                   "o clique em Mostrar aqui devolve o que o visor desenha", (st, mostrado))
+            checar(st == 200 and reg.get("nome") == doc.name and reg.get("paginas", 0) >= 1,
+                   "o clique em Mostrar aqui devolve as páginas que o visor desenha", (st, mostrado))
+            checar(reg.get("citadas") == [1], "com a página do trecho citado", reg)
             checar(mostrado.get("id") == 0 and mostrado.get("onde") == "", "mostrar não grava nada")
+
+            # O visor é um só: PDF e Word saem como páginas desenhadas.
+            for exemplo in ([d for d in documentos if d.path.lower().endswith(".pdf")][:1]
+                            + [d for d in documentos if d.path.lower().endswith(".docx")][:1]):
+                caminho = "/api/biblioteca/pagina?nome=" + urllib.parse.quote(exemplo.name) + "&numero=1&largura=600"
+                st, tipo, png = c.baixar(caminho)
+                checar(st == 200 and tipo == "image/png" and png[:4] == b"\x89PNG",
+                       f"a página 1 de {exemplo.name[-5:]} sai desenhada", (st, tipo))
             st, erro = c.pedir("POST", f"/api/trabalhos/{t2['id']}/fazer",
                                {"tipo": "exibir", "campos": {"nome": "Nao Existe Aqui.docx"}})
             checar(st == 400, "documento que não está no Acervo é recusado", (st, erro))
