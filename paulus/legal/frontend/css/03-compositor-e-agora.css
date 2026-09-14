@@ -5,7 +5,9 @@
     Recentes ficam no meio da coluna. Com conversa andando, a caixa vira uma
     linha so e encosta embaixo, porque ali o que importa e a resposta acima.
   */
-  .compositor { flex: none; padding: 6px 0 14px; }
+  /* 32 px embaixo: com 14 a caixa encostava no fim da janela e parecia
+     cortada. */
+  .compositor { flex: none; padding: 6px 0 32px; }
   .compositor > .centro { max-width: 760px; margin: 0 auto; gap: 8px; }
 
   .conversa-col.vazia .conversa-topo { display: none; }

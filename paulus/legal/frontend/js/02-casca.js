@@ -312,10 +312,9 @@ function lateralPreferida() {
 
 function mostrarLateral(aberta) {
   $("lateral").hidden = !aberta;
-  /* Corpo e rodape carregam a MESMA grade: e o que impede a coluna da direita
-     de passar por baixo da barra de pedido quando ela aparece. */
+  /* So o corpo ganha a coluna do painel: a caixa de pedido, no rodape, nao
+     se mexe quando ele abre (ver 02-conversa.css). */
   $("conversa-corpo").classList.toggle("com-lateral", aberta);
-  $("conversa-rodape").classList.toggle("com-lateral", aberta);
   $("alternar-lateral").hidden = !$("centro").classList.contains("prosa");
 }
 

@@ -66,8 +66,6 @@
   .conversa-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
   .conversa-acoes button { display: inline-flex; align-items: center; gap: 7px; height: 32px; border-radius: 8px; }
 
-  /* O corpo e o rodape usam a MESMA grade. E o que garante que a coluna da
-     direita nunca chegue por baixo da barra de pedido. */
   /* Cabecalho, corpo e rodape ocupam a coluna inteira, e a margem editorial
      e o recuo deles (`--margem-pagina`), nao um teto de largura: assim o
      que rola continua rolando com o ponteiro em qualquer ponto da janela, e
@@ -79,12 +77,15 @@
     transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
   }
   .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr) 316px; }
+  /* O rodape NAO acompanha a grade do corpo. Quando acompanhava, abrir o
+     painel da direita encolhia a coluna do rodape e a caixa de pedido
+     escorregava para a esquerda no meio da conversa. Agora ela fica parada no
+     meio da pagina, com o painel aberto ou fechado; o painel mora no corpo e
+     termina acima dela, entao nao ha como um passar por cima do outro. */
   .conversa-rodape {
     padding-inline: var(--margem-pagina);
     flex: none; display: grid; grid-template-columns: minmax(0, 1fr);
-    transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
   }
-  .conversa-rodape.com-lateral { grid-template-columns: minmax(0, 1fr) 316px; }
   /* No inicio nao ha fio: quem ocupa a altura e o rodape, que ali e a tela
      inteira - saudacao, caixa de pedido e lista. */
   .conversa-col.vazia .conversa-corpo { flex: none; }
