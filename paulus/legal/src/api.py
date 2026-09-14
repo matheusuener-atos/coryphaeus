@@ -161,6 +161,11 @@ class Estado:
         # O botao de parar da conversa: um sinal por resposta sendo escrita,
         # pelo id da conversa. Sai daqui quando a resposta termina.
         self.respondendo: dict[str, threading.Event] = {}
+        # O andamento de verdade de cada resposta sendo escrita, para o cartao
+        # de "Acontecendo agora": a fase, desde quando, a previsao de leitura
+        # medida nesta maquina (quando ha) e as palavras ja escritas. So em
+        # memoria - acabou a resposta, sai daqui.
+        self.andamento: dict[str, dict] = {}
         # Habilidades carregadas da pasta do projeto, uma por arquivo.
         self.registro = registro.carregar(HABILIDADES_DIR)
         # Fila do que espera decisao humana, e as preferencias da casa.
@@ -1593,14 +1598,30 @@ def acontecendo_agora() -> dict:
             continue
         if trabalho.estado == EXECUTANDO:
             atual = next((e for e in trabalho.etapas if e.estado == EXECUTANDO), None)
-            executando.append({
+            item = {
                 "id": trabalho.id,
                 "titulo": trabalho.titulo,
                 "etapa": atual.titulo if atual else "",
                 "feitos": atual.feitos if atual else 0,
                 "total": atual.total if atual else 0,
                 "progresso": trabalho.progresso or 0,
-            })
+            }
+            # A resposta andando diz em que fase esta e ha quanto tempo - e a
+            # barra so existe onde ha medida: leitura com previsao desta
+            # maquina. A conta de etapas (1 de 2) deixava a barra parada em
+            # 50% a leitura inteira.
+            a = estado.andamento.get(trabalho.id)
+            if a:
+                agora = time.time()
+                item["andamento"] = {
+                    "fase": a["fase"],
+                    "decorrido_s": round(agora - a["inicio"], 1),
+                    "fase_s": round(agora - a["desde"], 1),
+                    "previsao_s": a["previsao_s"],
+                    "palavras": a["palavras"],
+                    "documentos": a["documentos"],
+                }
+            executando.append(item)
 
     return {
         "executando": executando,
@@ -1764,6 +1785,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         try:
             yield from _gerar()
         finally:
+            estado.andamento.pop(id_, None)
             if estado.respondendo.get(id_) is parar:
                 del estado.respondendo[id_]
             if trabalho.estado == EXECUTANDO:
@@ -1777,6 +1799,13 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         partes: list[str] = []
         cobertura: dict = {}
         fontes: list[dict] = []
+        andamento = {"fase": "procurando", "inicio": inicio, "desde": inicio,
+                     "previsao_s": 0, "palavras": 0, "documentos": 0, "caracteres": 0}
+        estado.andamento[id_] = andamento
+
+        def fase(nome: str) -> None:
+            andamento["fase"] = nome
+            andamento["desde"] = time.time()
         medida: dict = {}
         lido_chars = 0
         # O nivel com que a camada respondeu, quando ela respondeu. Nulo quer
@@ -1793,6 +1822,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                 if parar.is_set():
                     break
                 if tipo == "fontes":
+                    andamento["documentos"] = len(dados.get("consultados") or [])
                     nivel = dados.get("nivel", nivel)
                     inferencia = bool(dados.get("inferencia", inferencia))
                     cobertura = {
@@ -1811,6 +1841,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                     yield _sse("fontes", dados)
                     yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
                 elif tipo == "lendo":
+                    fase("lendo")
+                    previsao = dados.get("previsao") or {}
+                    andamento["previsao_s"] = previsao.get("segundos", 0) if previsao.get("sabe") else 0
+                    andamento["caracteres"] = dados.get("caracteres", 0)
                     lido_chars = dados["caracteres"]
                     trabalho.etapas[1].titulo = "Lendo os documentos"
                     trabalho.etapas[1].estado = EXECUTANDO
@@ -1818,6 +1852,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                     yield _sse("lendo", dados)
                     yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
                 elif tipo == "escrevendo":
+                    fase("escrevendo")
                     # A leitura acabou de verdade: a primeira palavra saiu.
                     trabalho.etapas[1].estado = CONCLUIDO
                     trabalho.etapas[1].detalhe = f"{dados['lendo_segundos']} s"
@@ -1829,6 +1864,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
                     yield _sse("medida", dados)
                 elif tipo == "token":
                     partes.append(dados["t"])
+                    # Contar a cada dez pedacos basta para o cartao, e nao
+                    # refaz a conta do texto inteiro a cada palavra.
+                    if len(partes) % 10 == 0:
+                        andamento["palavras"] = len("".join(partes).split())
                     yield _sse("token", dados)
                 elif tipo == "vazio":
                     trabalho.etapas[0].estado = CONCLUIDO

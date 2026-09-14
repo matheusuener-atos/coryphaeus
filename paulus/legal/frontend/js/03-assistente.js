@@ -1437,6 +1437,58 @@ setInterval(() => { $("relogio").textContent = contexto().hora; }, 30000);
 
 /* ------------------------------------------------- acontecendo agora */
 
+/* O ANDAMENTO DO CARTAO, so com numero de verdade. A barra aparece onde ha
+   medida: um trabalho que conta (12 de 40 documentos) ou a leitura de uma
+   resposta quando esta maquina ja mediu leituras daquele tamanho - ai ela e
+   o tempo decorrido sobre a previsao, parando em 95% ate a primeira palavra
+   sair. Sem previsao, e escrevendo (nao ha como saber o tamanho da
+   resposta), nao ha barra: ha o tempo e o que ja saiu. Antes a barra era a
+   conta de etapas, e ficava parada em 50% a leitura inteira. */
+function segundosCurtos(s) {
+  s = Math.max(0, Math.round(s));
+  return s < 60 ? s + " s" : Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s";
+}
+
+function andamentoDoCartao(t) {
+  if (t.total) {
+    const pct = Math.round((t.feitos / t.total) * 100);
+    return '<div class="barra-fina"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="rodape">' + esc(t.etapa || "trabalhando") + " · " + t.feitos + " de " + t.total + "</div>";
+  }
+  const a = t.andamento;
+  if (!a) return '<div class="rodape">' + esc(t.etapa || "trabalhando") + "</div>";
+  const docs = a.documentos ? plural(a.documentos, "documento") : "os documentos";
+  const vivo = ' data-andamento="1" data-fase="' + a.fase + '" data-fase-s="' + a.fase_s + '" data-previsao="' + (a.previsao_s || 0) +
+    '" data-palavras="' + (a.palavras || 0) + '" data-docs="' + esc(docs) + '" data-recebido="' + Date.now() + '"';
+  if (a.fase === "lendo" && a.previsao_s) {
+    const pct = Math.min(95, (a.fase_s / a.previsao_s) * 100);
+    return '<div class="barra-fina"' + vivo + '><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+      '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs) + "</div>";
+  }
+  return '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs) + "</div>";
+}
+
+function textoDoAndamento(fase, s, previsao, palavras, docs) {
+  if (fase === "procurando") return "Procurando nos documentos · " + segundosCurtos(s);
+  if (fase === "lendo") {
+    return "Lendo " + docs + " · " + segundosCurtos(s) +
+      (previsao ? " de ~" + segundosCurtos(previsao) : " · primeira leitura deste tamanho, sem previsão ainda");
+  }
+  return "Escrevendo a resposta · " + (palavras ? plural(palavras, "palavra") + " · " : "") + segundosCurtos(s);
+}
+
+/* Entre uma consulta e outra (5 s), o tempo e a barra andam aqui, a cada
+   meio segundo, a partir do que o servidor disse. */
+setInterval(() => {
+  document.querySelectorAll("[data-andamento]").forEach((el) => {
+    const s = Number(el.dataset.faseS) + (Date.now() - Number(el.dataset.recebido)) / 1000;
+    const previsao = Number(el.dataset.previsao);
+    const barra = el.querySelector("i");
+    if (barra && previsao) barra.style.width = Math.min(95, (s / previsao) * 100).toFixed(1) + "%";
+    if (!barra) el.textContent = textoDoAndamento(el.dataset.fase, s, previsao, Number(el.dataset.palavras), el.dataset.docs || "os documentos");
+  });
+}, 500);
+
 async function carregarAgora() {
   if (!$("conversa-col").classList.contains("vazia")) {
     $("agora").hidden = true;
@@ -1454,15 +1506,11 @@ async function carregarAgora() {
   const cartoes = [];
 
   for (const t of d.executando) {
-    const quanto = t.total
-      ? t.feitos + " de " + t.total
-      : (t.progresso ? t.progresso + "%" : "começando");
     cartoes.push(
       '<div class="cartao-agora" data-abre="' + esc(t.id) + '"><div class="cabeca">' + coroa(20) +
       '<span class="nome corta">' + esc(t.titulo) + "</span>" +
       '<button class="agora-parar" data-parar-trabalho="' + esc(t.id) + '" title="Interromper" aria-label="Interromper">' + ic("stop", 18) + "</button></div>" +
-      '<div class="barra-fina"><i style="width:' + (t.progresso || 4) + '%"></i></div>' +
-      '<div class="rodape">' + esc(t.etapa || "trabalhando") + " · " + esc(quanto) + "</div></div>"
+      andamentoDoCartao(t) + "</div>"
     );
   }
 
