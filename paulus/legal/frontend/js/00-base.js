@@ -50,6 +50,8 @@ const estado = {
   contratos: 0,
   // Os documentos de que esta conversa trata. Lista vazia = o acervo inteiro.
   escopo: [],
+  foco: [],          // o documento que a conversa vinha lendo
+  modoEscopo: "",    // foco | acervo | perguntar (ver definirFoco)
   abertos: [],
   recentes: [],
   modelo: "",

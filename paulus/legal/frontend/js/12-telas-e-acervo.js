@@ -958,14 +958,14 @@ function ligarEscopo(caixa, d) {
   caixa.querySelectorAll("[data-escopo-doc]").forEach((b) => {
     b.onclick = () => {
       const nome = b.dataset.escopoDoc;
-      definirEscopo([nome]);
+      definirFoco([nome]);
       escolher("Procurando só em “" + nome + "”.", { apenas: [nome] });
     };
   });
   const tudo = caixa.querySelector("[data-escopo-tudo]");
   if (tudo) tudo.onclick = () => {
-    definirEscopo([]);
-    estado.escopoTudo = true;
+    estado.modoEscopo = "acervo";
+    desenharEscopo();
     escolher("Procurando em todo o Acervo.", { tudo: true });
   };
   const anexar = caixa.querySelector("[data-escopo-anexar]");

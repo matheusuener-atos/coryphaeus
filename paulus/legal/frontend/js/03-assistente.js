@@ -1158,18 +1158,23 @@ async function enviar(opcoes) {
     if (c) c.textContent = Math.round((Date.now() - inicio) / 1000) + " s";
   }, 1000);
 
+  /* Os anexos vão com esta mensagem e saem da caixa; o documento deles vira o
+     foco da conversa. */
+  const envio = o.apenas || o.tudo
+    ? { apenas: o.apenas || [], tudo: Boolean(o.tudo), sem_anexo: false }
+    : escopoDoEnvio();
+  if (!o.apenas && !o.tudo && estado.escopo.length) {
+    definirEscopo([]);
+    definirFoco(envio.apenas);
+  }
+
   try {
     const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
       // a pergunta com a escolha feita ali.
-      body: JSON.stringify({
-        pergunta: pedido, retomar: Boolean(o.retomar),
-        apenas: o.apenas || estado.escopo,
-        tudo: o.tudo !== undefined ? Boolean(o.tudo) : Boolean(estado.escopoTudo),
-        sem_anexo: o.apenas || o.tudo ? false : Boolean(estado.escopoTirado),
-      }),
+      body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar) }, envio)),
       signal: estado.controle.signal,
     });
     if (!r.ok) throw new Error("não consegui responder");
@@ -1195,7 +1200,7 @@ async function enviar(opcoes) {
           /* Quando a pergunta nomeia um arquivo, a leitura para nele — e o
              bastidor diz isso, porque "li 1 de 9" sem explicação parece falha
              de cobertura quando é obediência ao que foi pedido. */
-          definirEscopo(dados.apenas || []);
+          if ((dados.apenas || []).length) definirFoco(dados.apenas);
           anotarBastidor(dados.apenas.length
             ? (dados.apenas.length === 1
                 ? "a pergunta é sobre “" + dados.apenas[0] + "” · li só ele, "
@@ -1336,17 +1341,58 @@ async function carregarAbertos() {
 
 /* Lista, e nao um nome so: anexar dois arquivos e perguntar sobre "eles" e o
    caso comum - quem arrasta um contrato e o aditivo quer os dois lidos. */
-/* Três estados sem anexo, e a diferença entre eles é o que a pessoa disse:
-   - nada escolhido ainda: o Acervo inteiro, como sempre;
-   - `escopoTudo`: "procurar em todos", dito com todas as letras;
-   - `escopoTirado`: tirou o anexo. Não é "leia os dezessete" — a próxima
-     pergunta sem documento nomeado volta com um cartão perguntando onde. */
+/* ANEXO E FOCO SÃO COISAS DIFERENTES.
+
+   O anexo vale para a mensagem em que foi anexado — como em qualquer chat:
+   anexa, pergunta, e ele sai da caixa. Antes o anexo ficava preso na caixa
+   depois da resposta, e a conversa parecia pedir o mesmo arquivo de novo a
+   cada pergunta.
+
+   Sem anexo, a pílula diz onde a próxima pergunta procura, e um clique
+   alterna entre os três modos:
+   - "foco": o documento que esta conversa vinha lendo;
+   - "acervo": todos os documentos abertos;
+   - "perguntar": sem escolher — a pergunta que não nomeia documento volta
+     com um cartão perguntando onde. */
+const MODOS_DO_ESCOPO = ["foco", "acervo", "perguntar"];
+
 function definirEscopo(nomes) {
   const lista = Array.isArray(nomes) ? nomes : (nomes ? [nomes] : []);
   estado.escopo = lista.filter((n, i) => n && lista.indexOf(n) === i);
-  estado.escopoTirado = false;
-  estado.escopoTudo = false;
   desenharEscopo();
+}
+
+/* O documento da conversa: sai da resposta (os documentos que ela leu) ou da
+   conversa reaberta. Com foco, o modo passa a ser o foco; sem, fica no que
+   estava — a não ser que estivesse no foco, que deixou de existir. */
+function definirFoco(nomes) {
+  const lista = (Array.isArray(nomes) ? nomes : (nomes ? [nomes] : [])).filter(Boolean);
+  estado.foco = lista.filter((n, i) => lista.indexOf(n) === i);
+  if (estado.foco.length) estado.modoEscopo = "foco";
+  else if (!estado.modoEscopo || estado.modoEscopo === "foco") estado.modoEscopo = "acervo";
+  desenharEscopo();
+}
+
+function modoDoEscopo() {
+  const modo = estado.modoEscopo || "acervo";
+  return modo === "foco" && !(estado.foco || []).length ? "acervo" : modo;
+}
+
+function alternarModoDoEscopo() {
+  const ordem = (estado.foco || []).length ? MODOS_DO_ESCOPO : ["acervo", "perguntar"];
+  estado.modoEscopo = ordem[(ordem.indexOf(modoDoEscopo()) + 1) % ordem.length];
+  desenharEscopo();
+}
+
+/* O que a pergunta leva, dos anexos e do modo. */
+function escopoDoEnvio() {
+  if (estado.escopo.length) return { apenas: estado.escopo.slice(), tudo: false, sem_anexo: false };
+  const modo = modoDoEscopo();
+  return {
+    apenas: modo === "foco" ? estado.foco.slice() : [],
+    tudo: modo === "acervo",
+    sem_anexo: modo === "perguntar",
+  };
 }
 
 function somarAoEscopo(nome) {
@@ -1355,10 +1401,12 @@ function somarAoEscopo(nome) {
 
 function tirarDoEscopo(nome) {
   definirEscopo(estado.escopo.filter((n) => n !== nome));
-  if (!estado.escopo.length && estado.trabalhoId) {
-    estado.escopoTirado = true;
-    desenharEscopo();
-  }
+}
+
+function nomeDoFoco() {
+  const foco = estado.foco || [];
+  if (foco.length === 1) return foco[0].length > 30 ? foco[0].slice(0, 28) + "…" : foco[0];
+  return plural(foco.length, "documento") + " da conversa";
 }
 
 function desenharEscopo() {
@@ -1366,46 +1414,44 @@ function desenharEscopo() {
   if (!caixa) return;
   atualizarPropriedades();
   caixa.hidden = false;
-  if (!estado.escopo.length && estado.escopoTirado) {
-    caixa.classList.remove("com-anexos");
-    caixa.innerHTML = '<span class="escopo-acervo escopo-livre" id="escopo-livre" role="button" tabindex="0" ' +
-      'title="Sem anexo: na próxima pergunta eu pergunto onde procurar. Clique para procurar em todo o Acervo">' +
-      ic("help", 18) + "<b>Sem anexo · pergunto onde procurar</b></span>";
-    $("escopo-livre").onclick = () => {
-      estado.escopoTirado = false;
-      estado.escopoTudo = true;
-      desenharEscopo();
-      $("pedido").focus();
-    };
-    return;
-  }
+
   if (!estado.escopo.length) {
     caixa.classList.remove("com-anexos");
-    caixa.innerHTML = '<span class="escopo-acervo" title="Lendo o acervo inteiro — anexe um documento, ou digite / na caixa, para focar num só">' + ic("folder", 18) + "<b>" +
-      (estado.contratos ? "Acervo · " + plural(estado.contratos, "documento") : "Acervo vazio") + "</b></span>";
+    const modo = modoDoEscopo();
+    const total = estado.contratos ? "Acervo · " + plural(estado.contratos, "documento") : "Acervo vazio";
+    const rotulo = modo === "foco"
+      ? ((estado.foco.length === 1 ? glifo(estado.foco[0]) : ic("description", 18)) + "<b>" + esc(nomeDoFoco()) + "</b>")
+      : modo === "perguntar"
+        ? ic("help", 18) + "<b>Pergunto onde procurar</b>"
+        : ic("folder", 18) + "<b>" + total + "</b>";
+    const ordem = (estado.foco || []).length ? "o documento da conversa, todo o Acervo, ou perguntar onde procurar" : "todo o Acervo, ou perguntar onde procurar";
+    const agora = modo === "foco"
+      ? "A próxima pergunta lê só " + (estado.foco.length === 1 ? "“" + estado.foco[0] + "”" : "os documentos da conversa: " + estado.foco.join(", "))
+      : modo === "perguntar"
+        ? "A próxima pergunta que não nomear documento volta com um cartão perguntando onde procurar"
+        : "A próxima pergunta procura em todo o Acervo";
+    caixa.innerHTML = '<span class="escopo-acervo escopo-livre" id="escopo-modo" role="button" tabindex="0" title="' +
+      esc(agora + ". Clique para alternar entre " + ordem + ".") + '">' + rotulo + "</span>";
+    const botao = $("escopo-modo");
+    botao.onclick = () => { alternarModoDoEscopo(); $("pedido").focus(); };
+    botao.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternarModoDoEscopo(); } };
     return;
   }
 
-  /* Os documentos em foco sao ANEXOS: cada um com o icone do tipo (PDF,
-     Word), o nome e o X. Numa conversa eles ganham uma linha propria, acima
-     do texto - dividindo a linha com ele, espremiam o campo ate o texto
-     quebrar palavra por palavra. */
-  caixa.hidden = false;
+  /* Os anexos da próxima mensagem: cada um com o ícone do tipo (PDF, Word),
+     o nome e o X. Numa conversa eles ganham uma linha própria, acima do
+     texto - dividindo a linha com ele, espremiam o campo até o texto quebrar
+     palavra por palavra. */
   caixa.innerHTML = estado.escopo.map((nome) =>
-      '<span class="escopo-pilula" title="' + esc(nome) + ' — a pergunta lê só os documentos anexados">' + glifo(nome) +
+      '<span class="escopo-pilula" title="' + esc(nome) + ' — a próxima pergunta lê só os documentos anexados">' + glifo(nome) +
       '<b class="corta">' + esc(nome) + "</b>" +
       '<button data-tirar="' + esc(nome) + '" title="Tirar este documento" ' +
-      'aria-label="Tirar ' + esc(nome) + '">' + ic("close", 14) + "</button></span>").join("") +
-    (estado.escopo.length > 1
-      ? '<button class="escopo-limpar" id="escopo-tirar">procurar em todos</button>'
-      : "");
+      'aria-label="Tirar ' + esc(nome) + '">' + ic("close", 14) + "</button></span>").join("");
 
   caixa.classList.add("com-anexos");
   caixa.querySelectorAll("[data-tirar]").forEach((b) => {
     b.onclick = () => { tirarDoEscopo(b.dataset.tirar); $("pedido").focus(); };
   });
-  const limpar = $("escopo-tirar");
-  if (limpar) limpar.onclick = () => { definirEscopo([]); estado.escopoTudo = true; $("pedido").focus(); };
 }
 
 /* O "/" e o que vem depois dele, até o cursor. Só vale no começo de uma
@@ -1636,8 +1682,9 @@ async function carregarModelo() {
 function atualizarPropriedades() {
   $("prop-modelo-nome").textContent = estado.modelo || "—";
   let pasta = "—";
-  if (estado.escopo.length === 1) pasta = estado.escopo[0];
-  else if (estado.escopo.length > 1) pasta = plural(estado.escopo.length, "documento") + " em foco";
+  const foco = estado.escopo.length ? estado.escopo : (modoDoEscopo() === "foco" ? estado.foco : []);
+  if (foco.length === 1) pasta = foco[0];
+  else if (foco.length > 1) pasta = plural(foco.length, "documento") + " em foco";
   else if (estado.contratos) pasta = "Acervo · " + plural(estado.contratos, "documento");
   $("prop-pasta").textContent = pasta;
   $("prop-trechos").textContent = estado.trechos ? plural(estado.trechos, "trecho") + " indexados" : "—";

@@ -341,8 +341,8 @@ class Pergunta(BaseModel):
     apenas: list[str] = []
     # "olha o acervo inteiro", dito pelo botao em vez de pela frase.
     tudo: bool = False
-    # A pessoa tirou o anexo da caixa. Nao e "leia tudo": a conversa pergunta
-    # onde procurar antes de sair lendo o acervo inteiro.
+    # A pilula da caixa em "pergunto onde procurar": sem documento nomeado, a
+    # conversa pergunta onde antes de sair lendo o acervo inteiro.
     sem_anexo: bool = False
     # O botao Retomar do cartao "Parado": a mesma pergunta de novo, sem
     # repeti-la no historico e trocando a resposta que parou no meio.
