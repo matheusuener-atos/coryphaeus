@@ -197,7 +197,11 @@ def main() -> int:
               return {
                 largura: Math.round(t.getBoundingClientRect().width),
                 vaza: t.scrollHeight > t.clientHeight + 1,
-                fechado: getComputedStyle(m).opacity === '0',
+                // Fechado agora e o menu invisivel e sem receber clique: a
+                // faixa fica montada o tempo todo e o que abre e o recorte
+                // dela, para a animacao nao refazer o layout a cada quadro.
+                fechado: getComputedStyle(document.getElementById('menu')).opacity === '0'
+                  && getComputedStyle(m).pointerEvents === 'none',
                 coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
                 destinos: [...new Set(ids)],
               };

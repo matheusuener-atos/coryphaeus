@@ -161,7 +161,7 @@
     padding: 9px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: none;
     cursor: pointer; font: 400 13px var(--sans); color: var(--ink2); text-align: left;
   }
-  .registro-cabeca:hover:not(:disabled) { background: var(--sub); border-color: var(--ink-a1); color: var(--ink2); }
+  .registro-cabeca:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); color: var(--ink2); }
   .registro-agora { flex: 1; min-width: 0; }
   .registro-seta { color: var(--ink3); transition: transform 0.2s; }
   .registro.aberto .registro-seta { transform: rotate(180deg); }
@@ -338,7 +338,7 @@
     animation: pv-spin 1.6s linear infinite;
   }
   @media (prefers-reduced-motion: reduce) {
-    .indicador i, .trilho-logo .anel { animation: none; }
+    .indicador i { animation: none; }
     .progresso i, .medidor .pista i, .barra-fina i { transition: none; }
   }
 

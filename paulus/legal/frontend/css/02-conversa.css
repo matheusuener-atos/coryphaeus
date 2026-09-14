@@ -1,10 +1,15 @@
   /* ---------------------------------------------------------- conversa */
 
+  /* A faixa do relogio e o que se agarra para arrastar a janela no inicio,
+     onde nao ha cabecalho. Com a janela propria, ela recua 152 px a direita
+     para nao passar por baixo dos tres botoes. */
   .relogio-canto {
-    display: none; flex: none; justify-content: flex-end; padding: 20px 44px 0;
+    display: none; flex: none; align-items: center; justify-content: flex-end;
+    height: 32px; padding: 8px 44px 0;
     font: 500 11px var(--sans); color: var(--ink3);
   }
   .conversa-col.vazia .relogio-canto { display: flex; }
+  html.com-janela .relogio-canto { padding-right: 152px; }
 
   /* O cabecalho da conversa nao tem borda embaixo: a separacao vem da
      vinheta do fio, que apaga o texto ao entrar na rolagem. Uma linha aqui
@@ -375,7 +380,7 @@
     display: flex; align-items: center; gap: 10px; padding: 9px 12px;
     font-size: 13px; color: var(--ink2); cursor: pointer; border-radius: 8px;
   }
-  .bastidor-topo:hover { background: var(--sub); }
+  .bastidor-topo:hover { background: var(--fill); }
   .bastidor-titulo { flex: 1; min-width: 0; }
   .bastidor-topo .num { font: 500 11px var(--sans); color: var(--ink3); }
   .bastidor-topo .ic { color: var(--ink3); transition: transform .2s; }

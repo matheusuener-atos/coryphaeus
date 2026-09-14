@@ -28,6 +28,38 @@ TITULO = "PAULUS Legal"
 # A janela mora aqui fora, e nao dentro da Ponte. O motivo esta na classe.
 _JANELA = None
 
+# O identificador da janela no Windows, lido UMA vez, na thread da interface,
+# quando ela aparece. Ler `janela.native` de outra thread e o que derrubava o
+# programa antes (ver a Ponte), e aqui basta o numero.
+_HWND = 0
+_MAXIMIZADA = False
+
+# Redimensionar sem moldura: diz-se ao Windows "comece a redimensionar por
+# esta borda" e o proprio sistema toma conta do gesto, com o encaixe nas
+# laterais e a fluidez de sempre.
+#
+# A mensagem e WM_SYSCOMMAND e nao WM_NCLBUTTONDOWN, que seria o caminho
+# obvio: aquele exige um `ReleaseCapture()` antes, e `ReleaseCapture` so
+# solta a captura da THREAD que chama. A chamada vem do JavaScript, que o
+# pywebview atende numa thread de trabalho - nao na thread da janela -, e ali
+# ele nao solta nada. `WM_SYSCOMMAND` e postado na fila da janela e roda na
+# thread certa.
+_WM_SYSCOMMAND = 0x0112
+_SC_SIZE = 0xF000
+_BORDAS = {
+    "left": 1, "right": 2, "top": 3, "topleft": 4, "topright": 5,
+    "bottom": 6, "bottomleft": 7, "bottomright": 8,
+}
+
+
+def _mandar_para_o_windows(codigo: int) -> bool:
+    if not _HWND:
+        return False
+    from ctypes import windll
+
+    windll.user32.PostMessageW(_HWND, _WM_SYSCOMMAND, _SC_SIZE + codigo, 0)
+    return True
+
 
 class Ponte:
     """
@@ -69,6 +101,74 @@ class Ponte:
         if not escolha:
             return ""
         return escolha[0] if isinstance(escolha, (list, tuple)) else str(escolha)
+
+    # ------------------------------------------------------------- a janela
+    # A moldura do Windows saiu, e com ela os tres botoes do canto e a barra
+    # que se arrasta. Estes metodos sao o que a pagina chama no lugar deles.
+
+    def janela_minimizar(self) -> bool:
+        if _JANELA is None:
+            return False
+        _JANELA.minimize()
+        return True
+
+    def janela_alternar_tamanho(self) -> bool:
+        """Maximiza ou volta ao tamanho de antes. Devolve se ficou maximizada."""
+        global _MAXIMIZADA
+        if _JANELA is None:
+            return False
+        if _MAXIMIZADA:
+            _JANELA.restore()
+        else:
+            _JANELA.maximize()
+        _MAXIMIZADA = not _MAXIMIZADA
+        return _MAXIMIZADA
+
+    def janela_fechar(self) -> bool:
+        if _JANELA is None:
+            return False
+        _JANELA.destroy()
+        return True
+
+    def janela_borda(self, qual: str) -> bool:
+        """O clique foi numa borda: daqui em diante quem redimensiona e o Windows."""
+        codigo = _BORDAS.get(str(qual or "").lower())
+        return _mandar_para_o_windows(codigo) if codigo else False
+
+    def janela_maximizada(self) -> bool:
+        return _MAXIMIZADA
+
+
+def _preparar_janela_nativa() -> None:
+    """
+    O que so da para ajustar com a janela ja criada: o numero dela e o limite
+    de quando maximiza.
+
+    **O limite existe porque janela sem moldura maximiza errado.** O Windows
+    encaixa a janela normal na area de trabalho - a tela menos a barra de
+    tarefas -, mas uma janela sem borda ele estica pela tela inteira, e a
+    barra de tarefas some atras dela. Dizer o `MaximizedBounds` devolve o
+    comportamento de qualquer outro programa.
+
+    Este e o unico ponto que toca em `janela.native`, e ele roda no evento
+    `shown`, de dentro da thread da interface. Ler isso de outra thread e o
+    que travava a janela.
+    """
+    global _HWND
+    try:
+        nativa = _JANELA.native
+        _HWND = int(nativa.Handle.ToInt64())
+    except Exception:
+        _HWND = 0
+        return
+    try:
+        from System.Windows.Forms import Screen
+
+        nativa.MaximizedBounds = Screen.FromControl(nativa).WorkingArea
+    except Exception:
+        # Sem isso a janela maximiza por cima da barra de tarefas; nao e
+        # motivo para nao abrir.
+        pass
 
 
 def _porta_livre(preferida: int = 8000) -> int:
@@ -125,6 +225,10 @@ def main() -> int:
         return 1
 
     global _JANELA
+    # Sem moldura: os tres botoes e a barra de titulo passam a ser da propria
+    # pagina. `easy_drag=False` porque quem decide onde se arrasta e ela - com
+    # ele ligado, a janela inteira vira area de arraste e selecionar texto
+    # move a janela.
     _JANELA = webview.create_window(
         TITULO,
         f"http://127.0.0.1:{porta}",
@@ -132,7 +236,17 @@ def main() -> int:
         width=1280,
         height=860,
         min_size=(900, 620),
+        frameless=True,
+        easy_drag=False,
     )
+    _JANELA.events.shown += _preparar_janela_nativa
+
+    # Arrastar a janela e do proprio pywebview: a pagina marca com a classe
+    # `pywebview-drag-region` o que pode ser agarrado. `DIRECT_TARGET_ONLY`
+    # exige que o clique seja NAQUELE elemento e nao num filho dele - sem
+    # isso, apertar qualquer botao do cabecalho e mexer o mouse dois pixels
+    # arrastaria a janela junto.
+    webview.settings['DRAG_REGION_DIRECT_TARGET_ONLY'] = True
     # private_mode=False com storage_path guarda a sessao do navegador embutido
     # numa pasta do proprio programa. E o que faz a tela de Conexoes valer a
     # pena: sem isso, o WhatsApp Web pediria o codigo a cada abertura.

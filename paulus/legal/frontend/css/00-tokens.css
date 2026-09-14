@@ -53,6 +53,10 @@
     --grnt: #2f6b42;
     --amb: #f7f2e7;
     --ambt: #8a5a12;
+    /* O vermelho do botao de fechar a janela. E o do proprio Windows, nos dois
+       temas: fechar tem de parecer fechar em qualquer lugar. */
+    --fechar: #c42b1c;
+    --fechar-ink: #ffffff;
 
     --ink-a06: rgba(28,28,26,.06);
     --ink-a08: rgba(28,28,26,.08);

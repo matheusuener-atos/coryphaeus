@@ -43,6 +43,9 @@ SEM_ESTILO = {
     "pausado", "alta", "media", "baixa", "pronta", "futura", "em_breve",
     "com_problema", "primario", "perigo", "largo", "pastilha", "coroa",
     "exemplo", "hab-usar", "voltar-bancada",
+    # A classe que o pywebview procura para saber o que arrasta a janela.
+    # Quem desenha a area e a regra da propria peca (.conversa-topo, .relogio-canto).
+    "pywebview-drag-region",
     # nome de variavel do JS dentro de class="msg " + classe
     "classe",
 }

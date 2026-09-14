@@ -673,8 +673,12 @@ $("pedido").addEventListener("blur", () => setTimeout(fecharMencao, 120));
 
 /* ------------------------------------------------------------- estado */
 
+/* A marca do trilho e so a marca: quando o assistente trabalha, quem diz e a
+   propria conversa - o cartao do plano, a linha do que esta acontecendo e o
+   ponto no cabecalho. Um anel girando em volta do logo repetia isso no canto
+   do olho, longe de onde a pessoa esta lendo. */
 function atualizarSelo(trabalhando) {
-  $("trilho-logo").classList.toggle("trabalhando", trabalhando);
+  document.documentElement.classList.toggle("trabalhando", Boolean(trabalhando));
 }
 
 async function carregarStatus() {

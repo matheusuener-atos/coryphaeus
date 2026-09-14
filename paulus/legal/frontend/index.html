@@ -63,12 +63,26 @@
 
 <div class="corpo">
 
+  <!-- A janela e sem moldura do Windows: estes tres botoes e as oito bordas
+       abaixo sao o que sobra dela. Ficam escondidos no navegador, onde quem
+       manda na janela e o navegador - so aparecem quando a pagina esta dentro
+       do programa (`pywebviewready`). -->
+  <div class="botoes-janela" id="botoes-janela" hidden>
+    <button class="botao-janela" id="janela-minimizar" title="Minimizar" aria-label="Minimizar"><span class="ic ic-16">remove</span></button>
+    <button class="botao-janela" id="janela-tamanho" title="Maximizar" aria-label="Maximizar"><span class="ic ic-16">crop_square</span></button>
+    <button class="botao-janela fechar" id="janela-fechar" title="Fechar" aria-label="Fechar"><span class="ic ic-16">close</span></button>
+  </div>
+  <div class="bordas-janela" id="bordas-janela" hidden>
+    <i data-borda="top"></i><i data-borda="bottom"></i><i data-borda="left"></i><i data-borda="right"></i>
+    <i data-borda="topleft"></i><i data-borda="topright"></i><i data-borda="bottomleft"></i><i data-borda="bottomright"></i>
+  </div>
+
   <!-- O trilho: 64 px, um icone por destino (docs/ui/01-shell.md). Passar o
        mouse abre o menu com os nomes por cima do conteudo, sem deslocar nada.
        Servicos, Gravacoes e Apoiar estao no desenho mas ainda nao tem motor:
        clicar explica o que falta. -->
   <nav class="trilho" id="trilho" aria-label="Destinos">
-    <span class="trilho-logo" id="trilho-logo" title="PAULUS Legal">P<i class="anel"></i></span>
+    <span class="trilho-logo" id="trilho-logo" title="PAULUS Legal">P</span>
     <button class="trilho-item" id="nova" title="Nova conversa" aria-label="Nova conversa"><span class="ic">add</span></button>
     <span class="trilho-risco"></span>
     <button class="trilho-item" data-destino="conversa" title="Assistente" aria-label="Assistente"><span class="ic">forum</span></button>
@@ -93,7 +107,12 @@
   </nav>
 
   <div class="menu-flutuante" id="menu-flutuante">
+   <!-- A faixa e o que cresce de 64 para 260 px. A gaveta fica FORA dela: se
+        ficasse dentro, o corte que esconde os nomes cortaria a gaveta junto. -->
+   <div class="menu-faixa">
     <nav class="menu" id="menu" aria-label="Menu">
+      <!-- Uma palavra so. O recuo e calculado para que o "P" caia exatamente
+           sobre o "P" do trilho - ver o CSS. -->
       <div class="menu-cabeca"><span>PAVLVS</span></div>
       <button class="menu-item" data-nova="1"><span class="caixa-ic"><span class="ic">add</span></span><span class="rotulo-botao">Nova conversa</span></button>
       <span class="menu-divisa"></span>
@@ -126,6 +145,7 @@
       <button class="menu-item" data-destino="config"><span class="caixa-ic"><span class="ic">settings</span></span><span class="rotulo-botao">Configurações</span></button>
       <div class="menu-usuario"><span class="avatar" id="avatar-menu">PL</span><span class="nome-usuario"><span id="usuario-nome">PAULUS Legal</span><small id="usuario-papel">Software livre</small></span></div>
     </nav>
+   </div>
     <div class="menu-gaveta" id="gaveta-antigos" hidden>
       <div class="gaveta-cabeca">Ainda sem lugar no desenho</div>
       <div id="menu-antigos"></div>
@@ -133,12 +153,12 @@
   </div>
 
   <section class="conversa-col vazia" id="conversa-col">
-    <div class="relogio-canto"><span id="relogio"></span></div>
+    <div class="relogio-canto pywebview-drag-region"><span id="relogio"></span></div>
 
-    <header class="conversa-topo" id="conversa-topo">
+    <header class="conversa-topo pywebview-drag-region" id="conversa-topo">
       <button class="voltar" id="voltar" title="Voltar ao início" aria-label="Voltar"><span class="ic ic-20">arrow_back</span></button>
       <div class="nav-tela" id="nav-tela"></div>
-      <div class="conversa-nome">
+      <div class="conversa-nome pywebview-drag-region">
         <h2 class="corta" id="conversa-titulo">Nova conversa</h2>
         <div class="meta" id="conversa-meta">nenhum documento aberto</div>
       </div>

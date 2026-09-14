@@ -5,6 +5,66 @@
    qualquer tela; Ctrl+N abre uma conversa nova.
 */
 
+/* ------------------------------------------------------------- a janela */
+/*
+   A moldura do Windows saiu (frameless). O que ela fazia passa a ser feito
+   aqui: os tres botoes do canto, arrastar pelo alto da tela e redimensionar
+   pelas bordas.
+
+   Arrastar e redimensionar NAO sao feitos a mão. Cada gesto manda UMA
+   mensagem ao Python, que diz ao Windows "o clique foi na barra de titulo" ou
+   "foi na borda de baixo"; dali em diante quem move e quem redimensiona e o
+   proprio sistema, com o encaixe nas laterais e a fluidez de sempre. A
+   alternativa - mandar a coordenada a cada movimento do mouse - seria uma
+   viagem ate o Python por pixel, e a janela arrastaria aos solavancos.
+*/
+
+/* Quem arrasta a janela e o proprio pywebview, pela classe
+   `pywebview-drag-region` no cabecalho da tela - com `DIRECT_TARGET_ONLY`
+   ligado, so o clique no espaco vazio dele conta, e nao o clique nos botoes
+   que ele contem. Aqui fica so o duplo-clique, que maximiza. */
+function podeArrastarDaqui(e) {
+  return e.button === 0 && e.target && e.target.classList &&
+    e.target.classList.contains("pywebview-drag-region");
+}
+
+function ligarJanelaPropria() {
+  const api = (window.pywebview || {}).api;
+  if (!api || !api.janela_borda) return;
+  document.documentElement.classList.add("com-janela");
+  $("botoes-janela").hidden = false;
+  $("bordas-janela").hidden = false;
+
+  $("janela-minimizar").onclick = () => api.janela_minimizar();
+  $("janela-fechar").onclick = () => api.janela_fechar();
+  $("janela-tamanho").onclick = () => api.janela_alternar_tamanho().then(marcarTamanhoDaJanela);
+
+  $("bordas-janela").querySelectorAll("[data-borda]").forEach((borda) => {
+    borda.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      api.janela_borda(borda.dataset.borda);
+    });
+  });
+
+  document.addEventListener("dblclick", (e) => {
+    if (!podeArrastarDaqui(e)) return;
+    api.janela_alternar_tamanho().then(marcarTamanhoDaJanela);
+  });
+}
+
+/* O icone do meio continua o mesmo quadrado nos dois estados, como no
+   desenho: o glifo de "restaurar" (dois quadrados sobrepostos) nao esta na
+   fonte embutida, e o que muda e o que o botao diz ao passar o mouse. */
+function marcarTamanhoDaJanela(maximizada) {
+  const botao = $("janela-tamanho");
+  botao.title = maximizada ? "Restaurar" : "Maximizar";
+  botao.setAttribute("aria-label", botao.title);
+}
+
+window.addEventListener("pywebviewready", ligarJanelaPropria);
+if (window.pywebview) ligarJanelaPropria();
+
 /* Os icones do trilho entram um a um, de cima para baixo. A ordem sai daqui
    e nao do CSS porque o CSS teria de contar filhos - e o trilho tem riscos de
    separacao no meio, que mudam a conta a cada destino que entra ou sai. */
