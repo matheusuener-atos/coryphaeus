@@ -115,35 +115,38 @@
     pointer-events: none;
   }
   .menu-flutuante.aberto { pointer-events: auto; }
-  /* A faixa ja nasce com os 260 px e nunca muda de tamanho: o que se anima e
-     o RECORTE dela. Animar a largura obrigava o navegador a refazer o layout
-     dos dezesseis itens a cada quadro - os nomes reposicionando enquanto a
-     barra abria -, e era isso que dava a sensacao de dureza. Recortar nao
-     mexe em layout nenhum: a barra ja esta montada, e o que acontece e ela
-     ser revelada. */
+  /* A BARRA NAO APARECE: ELA E REVELADA.
+     O fundo e a sombra sao da faixa, que e OPACA o tempo todo, e o que se
+     anima e o recorte dela - uma cortina que corre da esquerda para a
+     direita. Nada nunca fica semitransparente por cima da conversa.
+
+     Foram duas tentativas antes desta. Animar a largura obrigava o navegador
+     a refazer o layout dos dezesseis itens a cada quadro, e a abertura ficava
+     dura. Animar a opacidade do painel deixava a conversa aparecer ATRAVES
+     dele no meio do caminho - era isso que piscava.
+
+     A cortina funciona porque, nos primeiros 64 px, a barra e um desenho
+     identico ao do trilho: mesmo fundo, mesmos icones nas mesmas posicoes,
+     mesmo "P". Cada coluna de pixels que a cortina cobre e substituida por
+     uma igual, e o olho nao ve troca nenhuma - ve a barra continuar para a
+     direita. */
   .menu-faixa {
     height: 100%; width: 100%; will-change: clip-path;
-    clip-path: inset(0 196px 0 0);
+    background-color: var(--bg);
+    box-shadow: inset -1px 0 0 var(--hair2), 12px 0 26px -22px var(--sh-a12), 2px 0 6px -5px var(--sh-a12);
+    clip-path: inset(0 100% 0 0);
     transition: clip-path .42s cubic-bezier(.22,.61,.36,1);
   }
   .menu-flutuante.aberto .menu-faixa {
     clip-path: inset(0 0 0 0);
     transition: clip-path .46s cubic-bezier(.22,.61,.36,1);
   }
-  /* O fundo e a sombra da barra entram por opacidade, junto com o recorte: e
-     o que evita a faixa "pular" para dentro do nada. */
-  .menu-flutuante .menu { opacity: 0; transition: opacity .2s ease; }
-  .menu-flutuante.aberto .menu { opacity: 1; transition: opacity .18s ease; }
-  /* O nome so entra depois que o recorte ja andou boa parte do caminho: texto
-     surgindo junto com a borda do recorte aparece cortado ao meio. */
-  .menu-flutuante .rotulo-botao, .menu-flutuante .menu-cabeca span,
-  .menu-flutuante .nome-usuario {
-    opacity: 0; transition: opacity .14s ease;
-  }
-  .menu-flutuante.aberto .rotulo-botao, .menu-flutuante.aberto .menu-cabeca span,
-  .menu-flutuante.aberto .nome-usuario {
-    opacity: 1; transition: opacity .26s ease .16s;
-  }
+  /* O realce da linha ativa fica ligado o tempo todo. Tentei atrasa-lo para
+     ele nao aparecer como tarja larga enquanto a cortina cruza os 64 px, e o
+     remedio foi pior: durante o atraso a pastilha do trilho ja estava coberta
+     e a da barra ainda nao tinha chegado, entao o item ativo ficava sem
+     realce nenhum por um instante - e ISSO se ve. A tarja a mais dura os
+     quarenta milissegundos em que a cortina anda de 12 a 64 px. */
   /* A GEOMETRIA DO MENU E A DO TRILHO.
      O menu abre POR CIMA do trilho, e por isso todo numero vertical aqui e
      copia do de la: item de 36 px, risco de 1 px com 7 de folga, recuo de
@@ -151,11 +154,11 @@
      item - abrir o menu fazia a coluna inteira de icones escorregar para
      baixo. O desenho traz 38 px para a barra expandida, mas la ela e uma
      barra sozinha; aqui ela e a mesma barra com os nomes aparecendo. */
+  /* Sem fundo proprio: quem pinta e a faixa, que e o que a cortina revela. */
   .menu {
     height: 100%; width: 260px; box-sizing: border-box; min-width: 0;
     display: flex; flex-direction: column; gap: 1px;
-    padding: 12px 10px 10px; background-color: var(--bg);
-    box-shadow: inset -1px 0 0 var(--hair2), 12px 0 26px -22px var(--sh-a12), 2px 0 6px -5px var(--sh-a12);
+    padding: 12px 10px 10px; background: none;
   }
   /* O "P" de PAVLVS cai sobre o "P" do trilho, e a palavra segue a partir
      dele. O recuo nao e escolhido: e medido. O "P" em Garamond 23 px tem

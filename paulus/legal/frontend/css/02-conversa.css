@@ -3,9 +3,12 @@
   /* A faixa do relogio e o que se agarra para arrastar a janela no inicio,
      onde nao ha cabecalho. Com a janela propria, ela recua 152 px a direita
      para nao passar por baixo dos tres botoes. */
+  /* A altura e o recuo sao os dos botoes da janela - 32 px, sem folga em
+     cima - para que a hora fique na mesma linha do meio que eles. Com 8 px de
+     recuo no topo, o texto caia 4 px abaixo do centro deles. */
   .relogio-canto {
     display: none; flex: none; align-items: center; justify-content: flex-end;
-    height: 32px; padding: 8px 44px 0;
+    height: 32px; padding: 0 44px;
     font: 500 11px var(--sans); color: var(--ink3);
   }
   .conversa-col.vazia .relogio-canto { display: flex; }

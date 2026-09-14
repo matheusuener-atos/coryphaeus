@@ -88,7 +88,10 @@ $("trilho").addEventListener("mouseenter", abrirFlutuante);
    movimento rapido para o conteudo nunca geraria o mouseleave. */
 document.addEventListener("mousemove", (e) => {
   if (!$("menu-flutuante").classList.contains("aberto")) return;
-  if (e.target && e.target.closest && e.target.closest("#menu-flutuante, #trilho")) return;
+  /* As bordas de redimensionar da janela sem moldura ficam POR CIMA de tudo,
+     inclusive dos seis pixels da esquerda do trilho. Sem contar com elas
+     aqui, encostar o mouse na beirada fechava o menu. */
+  if (e.target && e.target.closest && e.target.closest("#menu-flutuante, #trilho, #bordas-janela")) return;
   fecharFlutuante();
 });
 
