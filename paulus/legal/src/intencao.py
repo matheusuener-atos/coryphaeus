@@ -234,12 +234,15 @@ def ler_aviso(texto: str) -> int:
 class Intencao:
     """O que a frase pede, com os campos já lidos."""
 
-    tipo: str                       # agenda | tarefa | sobre | documentos
+    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | documentos
     titulo: str = ""
     campos: dict = field(default_factory=dict)
     resumo: str = ""
     porque: str = ""                # o que na frase levou a esta leitura
     falta: str = ""                 # o que impede de fazer, quando impede
+    # A ação é certa, mas um campo obrigatório não saiu por regra e a frase
+    # tem com o que preencher: vale chamar o modelo para completar.
+    precisa_modelo: bool = False
 
 
 def _porque(verbo: str, coisa: str) -> str:
@@ -374,6 +377,230 @@ def ler_servico(texto: str, plano: str, cadastros=None) -> Intencao | None:
         campos={"nome": nome, "cliente": cliente, "descricao": descricao},
         porque=_porque(verbo, coisa),
         falta="" if nome else "não achei o nome do serviço nessa frase",
+    )
+
+
+# "cadastre o cliente João Souza, CPF 123..." e "emita uma NFS-e para a
+# Cooperativa de R$ 1.500": as ferramentas de ferramentas.py. A regra acha a
+# ação e tira dela o que é inequívoco — CPF, e-mail, telefone, valor, data.
+# Quando a ação é certa mas um campo obrigatório não sai por regra, a leitura
+# marca `precisa_modelo`, e o modelo é chamado só para completar.
+VERBOS_CADASTRO = ("cadastre", "cadastrar", "cadastra", "registre", "registrar", "registra",
+                   "adicione", "adicionar", "adiciona", "inclua", "incluir", "inclui",
+                   "crie", "criar", "cria", "salve", "salvar", "salva")
+RE_PEDIDO_CADASTRO = re.compile(
+    r"\b(" + "|".join(VERBOS_CADASTRO) + r")\b"
+    r"(?:\s+(?:um|uma|o|a|novo|nova|outro|outra|mais|esse|essa|este|esta|ai|aqui|pra mim|para mim|como))*"
+    r"\s+(cliente|cadastro|contato|ficha)\b(?:\s+(?:novo|nova)\b)?")
+# "cadastre o João Souza": o verbo sozinho já diz a coisa.
+RE_SO_CADASTRE = re.compile(r"\b(cadastre|cadastrar|cadastra)\b")
+RE_NOVO_CLIENTE = re.compile(r"^\s*(?:(?:um|uma)\s+)?(novo|nova)\s+(cliente|cadastro|contato)\b")
+
+RE_CNPJ = re.compile(r"(?<![\d/])\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}(?![\d/])")
+RE_CPF = re.compile(r"(?<![\d/])\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?![\d/])")
+RE_TELEFONE = re.compile(r"(?<![\d/.-])(?:\+?55\s*)?\(?\d{2}\)?\s*9?\s?\d{4}[-\s.]?\d{4}(?![\d/-])")
+RE_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+RE_ROTULO = re.compile(
+    r"(?i)\b(?:com\s+(?:o\s+|a\s+)?)?(?:cpf|cnpj|documento|doc|telefone|tel|fone|celular|cel|"
+    r"whatsapp|whats|zap|e-?mail)\b\s*(?:n[ºo°.]\s*|n[uú]mero\s*|:\s*|é\s*|e\s+)?$")
+RE_CORTA_NOME = re.compile(
+    r"(?i)[,;|:\n\d]|\s[-–—]\s|\b(?:com\s+(?:o\s+|a\s+)?)?(?:cpf|cnpj|documento|telefone|tel|fone|celular|"
+    r"whatsapp|whats|e-?mail|endere[cç]o|mora|morador|residente|que|para|pra|no|na|nos|nas)\b")
+RE_ENDERECO = re.compile(
+    r"(?i)\b(?:endere[cç]o|residente(?:\s+e\s+domiciliad[oa])?(?:\s+(?:na|no|em))?|mora(?:dor[a]?)?\s+(?:na|no|em))"
+    r"\s*:?\s*(.+?)\s*(?=[;|]|(?:[,.]\s*|\s+e\s+|\s+com\s+)(?:cpf|cnpj|tel|telefone|fone|celular|whats\w*|e-?mail)\b|$)")
+PARTICULAS = {"da", "de", "do", "das", "dos", "e"}
+PALAVRAS_NUMERO = ("mil", "cem", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos")
+
+
+def _nfc(texto: str) -> str:
+    """Letra acentuada num caractere só: é o que mantém texto e plano do mesmo tamanho."""
+    return unicodedata.normalize("NFC", texto or "")
+
+
+def _nome_proprio(nome: str) -> str:
+    """ "joão da silva" -> "João da Silva". Quem digitou com maiúscula fica como digitou."""
+    nome = " ".join(nome.split()).strip(" .,;:-–—")
+    if not nome or nome != nome.lower():
+        return nome
+    return " ".join(p if p in PARTICULAS and i else p[:1].upper() + p[1:]
+                    for i, p in enumerate(nome.split()))
+
+
+def _nome_valido(nome: str) -> bool:
+    palavras = nome.split()
+    return (bool(re.search(r"[A-Za-zÀ-ÿ]{2}", nome)) and len(palavras) <= 10 and len(nome) <= 90
+            and _plano(palavras[0]) not in ENFEITE | {"o", "a", "um", "uma", "cliente", "cadastro"})
+
+
+def ler_cadastro(texto: str, plano: str) -> Intencao | None:
+    """
+    "cadastre o cliente João Souza, CPF 529.982.247-25, joao@x.com" vira a
+    proposta de uma ficha em Cadastros.
+
+    CPF/CNPJ, e-mail e telefone saem por padrão — números e arroba não são
+    ambíguos. O nome é o que vem depois do pedido até a primeira vírgula ou
+    rótulo. Sem nome, a proposta diz o que falta; e, se sobrou texto que a
+    regra não soube ler, pede ajuda ao modelo.
+    """
+    texto = _nfc(texto)
+    m = RE_PEDIDO_CADASTRO.search(plano) or RE_NOVO_CLIENTE.search(plano)
+    so_verbo = False
+    if not m:
+        m = RE_SO_CADASTRE.search(plano)
+        so_verbo = True
+    if not m:
+        return None
+    antes = re.findall(r"[a-z0-9]+", plano[: m.start()])
+    if not all(palavra in ENFEITE for palavra in antes):
+        return None
+    # "cadastre uma reunião", "crie o cadastro do serviço": outra coisa.
+    if _tem(plano, COISAS_AGENDA + COISAS_TAREFA + COISAS_PRAZO) or re.search(r"\bservicos?\b", plano):
+        return None
+    if so_verbo and re.search(r"\b(documento|arquivo|nota|lancamento|processo|prazo)\b", plano):
+        return None
+
+    verbo = m.group(1)
+    coisa = "cliente" if so_verbo else m.group(2)
+    campos = {"nome": "", "documento": "", "telefone": "", "email": "", "endereco": "", "observacao": ""}
+    problema = ""
+
+    # Tira as peças inequívocas do texto, deixando uma marca "|" no lugar:
+    # a marca corta o nome, e o rótulo que vinha antes ("CPF", "tel") sai junto.
+    marcado = texto
+    for chave, padrao in (("email", RE_EMAIL), ("documento", RE_CNPJ), ("documento", RE_CPF),
+                          ("telefone", RE_TELEFONE)):
+        achado = padrao.search(marcado)
+        if not achado or campos[chave]:
+            continue
+        bruto = achado.group(0).strip()
+        try:
+            import ferramentas
+
+            campos[chave] = {"email": ferramentas.email, "documento": ferramentas.cpf_ou_cnpj,
+                             "telefone": ferramentas.telefone}[chave](bruto)
+        except ValueError as exc:
+            campos[chave] = bruto
+            problema = problema or str(exc)
+        inicio = achado.start()
+        rotulo = RE_ROTULO.search(marcado[:inicio])
+        if rotulo:
+            inicio = rotulo.start()
+        marcado = marcado[:inicio] + " | " + marcado[achado.end():]
+
+    endereco = RE_ENDERECO.search(marcado)
+    if endereco:
+        campos["endereco"] = " ".join(endereco.group(1).split()).strip(" .,;")
+        marcado = marcado[: endereco.start()] + " | " + marcado[endereco.end():]
+
+    # O nome: depois do pedido, até o primeiro corte.
+    m_texto = (RE_PEDIDO_CADASTRO if not so_verbo else RE_SO_CADASTRE).search(_plano(marcado)) \
+        or RE_NOVO_CLIENTE.search(_plano(marcado))
+    resto = marcado[m_texto.end():] if m_texto else ""
+    resto = re.sub(r"(?i)^[\s:,-]*(?:(?:um|uma|o|a)\s+)?(?:(?:novo|nova)\s+)?"
+                   r"(?:(?:cliente|cadastro|contato|ficha)\s+)?(?:(?:novo|nova)\s+)?"
+                   r"(?:(?:chamad[oa]|de nome|com o nome de|com nome|que se chama)\s+)?[:\s]*", "", resto)
+    corte = RE_CORTA_NOME.search(resto)
+    nome = _sem_conectores_no_fim(resto[: corte.start()] if corte else resto)
+    nome = _nome_proprio(nome)
+    if not _nome_valido(nome):
+        nome = ""
+    campos["nome"] = nome
+
+    sobra = re.sub(r"[|,;:.\s]+", " ", _plano(resto)).strip()
+    falta = "" if nome else "não achei o nome do cliente nessa frase"
+    return Intencao(
+        tipo="cadastro", titulo=nome, campos=campos,
+        porque=_porque(verbo, coisa),
+        falta=falta or problema,
+        precisa_modelo=not nome and bool(re.search(r"[a-z]{3,}", sobra)),
+    )
+
+
+VERBOS_NOTA = ("emita", "emitir", "emite", "gere", "gerar", "gera", "faca", "fazer", "faz",
+               "tire", "tirar", "tira", "crie", "criar", "cria", "prepare", "preparar", "prepara")
+RE_PEDIDO_NOTA = re.compile(
+    r"\b(" + "|".join(VERBOS_NOTA) + r")\b"
+    r"(?:\s+(?:um|uma|a|nova|outra|mais|essa|esta|ai|aqui|pra mim|para mim))*"
+    r"\s+(nfs-?e|nf-?e|nota fiscal(?: de servicos?| eletronica)?|nota)\b")
+# O que diz o valor sai inteiro — "no valor de", "de R$", "reais" —, para não
+# sobrar "no reais" colado no nome do cliente.
+RE_VALOR = re.compile(
+    r"(?:\b(?:no\s+)?valor(?:\s+de)?\s*(?:r\$)?\s*|\b(?:de\s+)?r\$\s*|\bde\s+(?=\d[\d.,]*\s*(?:mil\s*)?(?:reais|real)\b))"
+    r"(\d[\d.,]*(?:\s*mil\b)?)(?:\s*(?:reais|real)\b)?"
+    r"|(\d[\d.,]*(?:\s*mil)?)\s*(?:reais|real)\b")
+RE_DESCRICAO_NOTA = re.compile(
+    r"(?i)\b(?:referente\s+(?:a|ao|aos|as|à|às)|pel[oa]s?|sobre)\s+(.+?)\s*"
+    r"(?=[,;]|\bno valor\b|\bde\s+R\$|R\$|\bvalor\b|\bpara\b|\bpra\b|\.\s|\.?$)")
+PARA_QUEM = re.compile(r"(?i)\b(?:para|pra|pro)\s+(?:(?:o|a)\s+)?(?:(?:cliente|tomador|tomadora)\s+)?")
+CORTA_CLIENTE = re.compile(
+    r"(?i)[,;:\d]|\.(?:\s|$)|R\$|\b(?:no valor|valor|de\s+R\$|referente|pel[oa]s?|sobre|por|hoje|amanh\w*|"
+    r"dia|em|com|data|emitida|emitir|de\s+(?=\d))\b")
+NAO_E_CLIENTE = {"o", "a", "dia", "hoje", "amanha", "mes", "semana", "referente", "valor", "mim"}
+
+
+def ler_nota(texto: str, plano: str, cadastros=None, hoje: date | None = None) -> Intencao | None:
+    """
+    "emita uma NFS-e para a Cooperativa de R$ 1.500,00 referente à consultoria"
+    vira a proposta de uma nota fiscal de serviço.
+
+    "nota" sozinha só conta quando a frase tem valor em dinheiro: "crie uma
+    nota sobre a reunião" é anotação, não nota fiscal. A emissão em si ainda
+    não existe — a proposta confere os dados e diz isso.
+    """
+    texto = _nfc(texto)
+    m = RE_PEDIDO_NOTA.search(plano)
+    if not m:
+        return None
+    antes = re.findall(r"[a-z0-9]+", plano[: m.start()])
+    if not all(palavra in ENFEITE for palavra in antes):
+        return None
+
+    import ferramentas
+
+    centavos = 0
+    sem_valor = texto
+    achado = RE_VALOR.search(plano)
+    if achado:
+        bruto = next(g for g in achado.groups() if g).rstrip(".,")
+        try:
+            centavos = ferramentas.centavos_de(bruto)
+        except ValueError:
+            centavos = 0
+        sem_valor = texto[: achado.start()] + " " + texto[achado.end():]
+    if m.group(2) == "nota" and not achado:
+        return None
+
+    cliente = _cliente_citado(plano, cadastros)
+    if not cliente:
+        for para in PARA_QUEM.finditer(sem_valor):
+            depois = sem_valor[para.end():]
+            corte = CORTA_CLIENTE.search(depois)
+            candidato = _sem_conectores_no_fim(depois[: corte.start()] if corte else depois)
+            candidato = _nome_proprio(candidato)
+            if candidato and _plano(candidato.split()[0]) not in NAO_E_CLIENTE and _nome_valido(candidato):
+                cliente = candidato
+                break
+
+    descricao = ""
+    d = RE_DESCRICAO_NOTA.search(sem_valor)
+    if d:
+        descricao = " ".join(d.group(1).split()).strip(" .")
+    elif ":" in sem_valor:
+        descricao = " ".join(sem_valor.split(":", 1)[1].split()).strip(" .")
+    data, _ = ler_data(sem_valor, hoje)
+
+    campos = {"cliente": cliente, "valor": centavos, "descricao": descricao, "data": data}
+    falta = ferramentas.o_que_falta("emitir_nfse", campos)
+    resto = _plano(sem_valor[m.end():] if len(sem_valor) >= m.end() else "")
+    precisa = bool(
+        (not cliente and re.search(r"\b(para|pra|pro)\s+\w{3,}", resto))
+        or (not centavos and (re.search(r"\d", resto)
+                              or any(re.search(r"\b" + p + r"\b", resto) for p in PALAVRAS_NUMERO))))
+    return Intencao(
+        tipo="nota", titulo=cliente or "NFS-e", campos=campos,
+        porque=_porque(m.group(1), "nota fiscal" if m.group(2).startswith("nota") else "NFS-e"),
+        falta=falta, precisa_modelo=precisa,
     )
 
 
@@ -682,6 +909,14 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if servico:
         return servico
 
+    cadastro = ler_cadastro(texto, plano)
+    if cadastro:
+        return cadastro
+
+    nota = ler_nota(texto, plano, cadastros, hoje)
+    if nota:
+        return nota
+
     # Abrir um arquivo pelo nome. Só vira ação quando o arquivo existe: sem
     # isso, "mostre o que diz sobre multa" viraria tentativa de abrir nada.
     palavras = re.findall(r"[a-z0-9]+", plano)
@@ -711,11 +946,16 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
         # Compromisso sem data não é compromisso. Em vez de marcar hoje por
         # conta própria, o pedido diz o que falta.
         if not data:
+            import ferramentas
+
             return Intencao(
                 tipo="agenda", titulo=titulo,
                 campos={"titulo": titulo, "hora": hora, "avisar_min": aviso},
                 porque=_porque(verbo, coisa_agenda),
                 falta="não achei a data nessa frase",
+                # "na terça que vem", "daqui a duas semanas": a regra não lê,
+                # e o modelo pode. Sem indício de data nenhum, nem pergunta.
+                precisa_modelo=ferramentas.tem_indicio_de_data(texto),
             )
         return Intencao(
             tipo="agenda",

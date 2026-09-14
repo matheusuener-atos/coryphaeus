@@ -877,6 +877,9 @@ function cartaoProposta(d) {
       '<button data-prop="nao">Deixa pra lá</button></div></div>';
   }
 
+  // Cadastro e nota fiscal: ferramentas do catálogo (src/ferramentas.py).
+  if (FERRAMENTAS_DA_CONVERSA[d.tipo]) return cartaoFerramenta(d);
+
   if (d.falta) {
     return '<div class="proposta"><div class="proposta-topo">' +
       '<span class="pv-grau">falta um dado</span>' +
@@ -896,6 +899,71 @@ function cartaoProposta(d) {
     "Confira antes — eu não gravo nada sem o seu sim.</p>" +
     '<div class="linha-form"><button class="primario" data-prop="fazer">' +
     (ehAgenda ? "Anotar na agenda" : "Criar a tarefa") + "</button>" +
+    '<button data-prop="nao">Deixa pra lá</button></div></div>';
+}
+
+/* As ferramentas que a conversa propõe e a tela confere. Cada campo é um
+   parâmetro do catálogo do servidor; o que a pessoa corrigir aqui é o que
+   vai para /fazer, e o servidor confere de novo (CPF pelo dígito, valor em
+   centavos). */
+const FERRAMENTAS_DA_CONVERSA = {
+  cadastro: {
+    rotulo: "vou cadastrar o cliente", botao: "Cadastrar", padrao: "Cliente",
+    campos: [["nome", "nome completo ou razão social"], ["documento", "CPF ou CNPJ"],
+      ["telefone", "telefone com DDD"], ["email", "e-mail"],
+      ["endereco", "endereço"], ["observacao", "anotação (opcional)"]],
+  },
+  nota: {
+    rotulo: "vou preparar a NFS-e", botao: "Conferir a nota", padrao: "NFS-e",
+    campos: [["cliente", "cliente, como está em Cadastros"], ["valor", "valor, em reais"],
+      ["descricao", "serviço prestado"], ["data", "data de emissão", "date"]],
+  },
+};
+
+const NOMES_DE_CAMPO = {
+  nome: "o nome", documento: "o CPF/CNPJ", telefone: "o telefone", email: "o e-mail",
+  endereco: "o endereço", cliente: "o cliente", valor: "o valor", descricao: "a descrição",
+  data: "a data", titulo: "o título", hora: "a hora",
+};
+
+function cartaoFerramenta(d) {
+  const cfg = FERRAMENTAS_DA_CONVERSA[d.tipo];
+  const c = d.campos || {};
+  let focou = false;
+  const entradas = cfg.campos.map((f) => {
+    let valor = c[f[0]] || "";
+    // O servidor manda o valor em centavos; a pessoa lê e escreve em reais.
+    if (f[0] === "valor" && typeof valor === "number") valor = emReais(valor);
+    let foco = "";
+    if (d.falta && !valor && !focou) { foco = " autofocus"; focou = true; }
+    return '<input type="' + (f[2] || "text") + '" data-pc="' + f[0] + '" value="' + esc(valor) +
+      '" placeholder="' + esc(f[1]) + '"' + foco + ">";
+  });
+  let linhas = "";
+  for (let i = 0; i < entradas.length; i += 2) {
+    linhas += '<div class="linha-form">' + entradas.slice(i, i + 2).join("") + "</div>";
+  }
+
+  // Quando a regra não bastou e o modelo completou, a tela diz o quê: é o
+  // campo que mais merece um segundo olhar.
+  const ajudou = (d.ajuda_do_modelo || []).map((n) => NOMES_DE_CAMPO[n] || n);
+  const ajuda = ajudou.length
+    ? " O modelo local completou " + ajudou.join(", ") + " — confira com atenção."
+    : "";
+  const garantia = d.disponivel === false
+    ? " A emissão ainda não está ligada: confirmar confere os dados, mas nada é enviado nem gravado."
+    : " Confira antes — eu não gravo nada sem o seu sim.";
+  const explica = d.falta
+    ? "Entendi o pedido (" + d.porque + "), mas " + d.falta + ". Complete aqui."
+    : "Li isso de " + d.porque + " na sua frase.";
+  const classe = d.falta ? "pv-grau" : "rotulo";
+
+  return '<div class="proposta"><div class="proposta-topo">' +
+    '<span class="' + classe + '">' + (d.falta ? "falta um dado" : cfg.rotulo) + "</span>" +
+    "<b>" + esc(c.nome || c.cliente || d.titulo || cfg.padrao) + "</b></div>" +
+    linhas +
+    '<p class="explica">' + esc(explica + ajuda + garantia) + "</p>" +
+    '<div class="linha-form"><button class="primario" data-prop="fazer">' + cfg.botao + "</button>" +
     '<button data-prop="nao">Deixa pra lá</button></div></div>';
 }
 
@@ -988,15 +1056,22 @@ function ligarProposta(caixa, d, ondeResponder) {
     }
 
     const feito = await r.json();
-    caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
+    // Pendente é a ferramenta que ainda só confere (a NFS-e): não há o que
+    // ver na tela, e o rótulo não pode dizer "feito".
+    const classe = feito.pendente ? "pv-grau" : "rotulo";
+    caixa.innerHTML = '<div class="proposta-topo"><span class="' + classe + '">' +
+      (feito.pendente ? "conferido" : "feito") + "</span>" +
       "<b>" + esc(feito.resumo) + "</b></div>" +
-      '<div class="linha-form"><button data-ver="' + esc(feito.onde) + '">Ver na tela</button></div>';
+      (feito.onde
+        ? '<div class="linha-form"><button data-ver="' + esc(feito.onde) + '">Ver na tela</button></div>'
+        : "");
     const ver = caixa.querySelector("[data-ver]");
     if (ver) ver.onclick = () => {
       marcarDestino(feito.onde);
       if (feito.onde === "calendario") mostrarCalendario();
       else if (feito.onde === "tarefas") mostrarTarefas();
       else if (feito.onde === "servicos") abrirServico(Number(feito.id));
+      else if (feito.onde === "cadastros") mostrarCadastros();
       else mostrarBiblioteca();
     };
     carregarStatus();

@@ -53,6 +53,7 @@ import extrato
 import acervo
 import citacao
 import escritorio
+import ferramentas
 import intencao
 import leis
 import redacao
@@ -1800,7 +1801,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             tipo="abrir", titulo=explicito[0], campos={"nome": explicito[0]},
             porque="“o referido documento” — o que esta conversa vinha lendo",
         )
-    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico"):
+    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
 
     trabalho.etapas = [
@@ -2008,6 +2009,7 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
         raise HTTPException(status_code=404, detail="trabalho nao encontrado")
 
     campos = dict(payload.campos or {})
+    pendente = False
     try:
         if payload.tipo == "abrir":
             nome = str(campos.get("nome", ""))
@@ -2024,14 +2026,16 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
             feito = {"nome": nome, "caminho": str(alvo)}
             resumo = f"Abri “{nome}” no programa padrao do Windows"
             onde = "biblioteca"
-        elif payload.tipo == "agenda":
-            novo = estado.agenda.salvar(campos)
-            feito = estado.agenda.obter(novo)
-            resumo = (f"Anotei “{feito['titulo']}” em {escritorio._br(feito['data'])} "
-                      f"às {feito['hora']}")
-            if feito.get("avisar_min"):
-                resumo += f", avisando {feito['avisar_min']} minutos antes"
-            onde = "calendario"
+        elif payload.tipo in ferramentas.POR_PROPOSTA:
+            # Agenda, cadastro e nota fiscal: as ferramentas do catalogo. O
+            # catalogo confere os campos do jeito que o modelo e a tela os
+            # mandam, e so entao grava - ou, na NFS-e, so confere.
+            feito_ferramenta = ferramentas.executar(ferramentas.POR_PROPOSTA[payload.tipo], campos, estado)
+            novo = feito_ferramenta["id"]
+            feito = feito_ferramenta["registro"]
+            resumo = feito_ferramenta["resumo"]
+            onde = feito_ferramenta["onde"]
+            pendente = bool(feito_ferramenta.get("pendente"))
         elif payload.tipo == "tarefa":
             novo = estado.tarefas.salvar(campos)
             feito = estado.tarefas.obter(novo)
@@ -2065,9 +2069,10 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    trabalho.dizer("paulus", resumo + ".", feito={"tipo": payload.tipo, "id": novo, "onde": onde})
+    trabalho.dizer("paulus", resumo + ".", feito={"tipo": payload.tipo, "id": novo, "onde": onde,
+                                                  "pendente": pendente})
     estado.trabalhos.salvar(trabalho)
-    return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito}
+    return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito, "pendente": pendente}
 
 
 def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingResponse:
@@ -2092,6 +2097,29 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
             yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
             return
 
+        # A regra achou a acao mas nao um campo obrigatorio, e a frase tem com
+        # o que preencher: so aqui o modelo e chamado. E um minuto no
+        # computador sem placa de video, entao a etapa aparece andando.
+        ajuda: list[str] = []
+        ferramenta = ferramentas.POR_PROPOSTA.get(lido.tipo, "")
+        if lido.precisa_modelo and ferramenta:
+            import time
+
+            agora = time.time()
+            trabalho.etapas = [Etapa("Entender o pedido", estado=EXECUTANDO)]
+            trabalho.estado = EXECUTANDO
+            estado.trabalhos.salvar(trabalho)
+            estado.andamento[trabalho.id] = {"fase": "entendendo", "inicio": agora, "desde": agora,
+                                             "previsao_s": 0, "palavras": 0, "documentos": 0,
+                                             "caracteres": 0}
+            yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+            try:
+                ajuda = ferramentas.completar_com_modelo(
+                    lido, pergunta,
+                    lambda instrucao, sistema: estado.client.ask_json(instrucao, sistema=sistema))
+            finally:
+                estado.andamento.pop(trabalho.id, None)
+
         proposta = {
             "tipo": lido.tipo,
             "titulo": lido.titulo,
@@ -2099,6 +2127,9 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
             "porque": lido.porque,
             "falta": lido.falta,
             "pergunta": pergunta,
+            "ferramenta": ferramenta,
+            "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
+            "ajuda_do_modelo": ajuda,
         }
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO

@@ -1674,6 +1674,7 @@ function andamentoDoCartao(t) {
 }
 
 function textoDoAndamento(fase, s, previsao, palavras, docs) {
+  if (fase === "entendendo") return "Entendendo o pedido · " + segundosCurtos(s);
   if (fase === "procurando") return "Procurando nos documentos · " + segundosCurtos(s);
   if (fase === "lendo") {
     return "Lendo " + docs + " · " + segundosCurtos(s) +

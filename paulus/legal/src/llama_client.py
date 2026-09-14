@@ -259,10 +259,14 @@ class LlamaClient:
         extra = {"parar": parar} if parar else {}
         return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase, **extra)
 
-    def ask_json(self, instruction: str, context: str = "", schema_hint: str = "") -> dict | list | None:
+    def ask_json(self, instruction: str, context: str = "", schema_hint: str = "",
+                 sistema: str = "") -> dict | list | None:
         """
         Extracao estruturada. Usado a partir da Semana 2 (vencimentos -> Excel).
         Retorna None se o modelo nao produzir JSON valido.
+
+        `sistema` troca a instrucao de sistema: o contrato das ferramentas nao
+        e o de ler contratos.
         """
         prompt = instruction
         if schema_hint:
@@ -271,7 +275,7 @@ class LlamaClient:
             prompt = f"Trechos de contratos:\n\n{context}\n\n{prompt}"
 
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": sistema or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
         bruto = self._chat(messages, fmt="json")
