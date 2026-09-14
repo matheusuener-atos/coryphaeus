@@ -301,7 +301,7 @@ function desenharTrabalho() {
       if (m.fontes && m.fontes.length) { fontes = m.fontes; perguntaDasFontes = pergunta; }
     }
   });
-  if (t.etapas.length && t.estado !== "concluido") html += cartaoPlano(t.etapas, t.etapa_atual);
+  if (t.etapas.length && t.estado !== "concluido") html += cartaoPlano(t.etapas, t.etapa_atual, t.estado === "executando" || estado.ocupado);
   if (t.aprovacao) html += cartaoAprovacao(t.aprovacao);
 
   $("centro").innerHTML = html || exemplos();
@@ -318,6 +318,23 @@ function desenharTrabalho() {
   desenharAtividade(t.atividade);
   atualizarPostura();
   rolar();
+  vigiarTrabalhoEmCurso(t);
+}
+
+/* Trabalho em curso que não é desta página (continuou enquanto a pessoa
+   estava fora): a conversa se redesenha sozinha quando ele termina. */
+let vigiaDoTrabalho = null;
+function vigiarTrabalhoEmCurso(t) {
+  clearTimeout(vigiaDoTrabalho);
+  if (t.estado !== "executando" || estado.ocupado || dupla.ocupada) return;
+  vigiaDoTrabalho = setTimeout(async () => {
+    if (estado.trabalhoId !== t.id) return;
+    const novo = await fetch("/api/trabalhos/" + t.id).then((r) => (r.ok ? r.json() : null));
+    if (!novo || estado.trabalhoId !== t.id) return;
+    if (novo.estado === "executando") { vigiarTrabalhoEmCurso(novo); return; }
+    estado.trabalho = novo;
+    desenharTrabalho();
+  }, 3000);
 }
 
 function bolhaPessoa(texto) {
@@ -546,9 +563,12 @@ async function retomarTrabalho() {
   enviar({ texto: pergunta, retomar: true });
 }
 
-function cartaoPlano(etapas, atual) {
+/* `andando`: a conversa reaberta com trabalho em curso (um pedido ao documento
+   que continuou enquanto a pessoa estava em outra tela) está trabalhando,
+   mesmo sem nada andando nesta página. */
+function cartaoPlano(etapas, atual, andando) {
   const total = etapas.length;
-  const rodando = estado.ocupado;
+  const rodando = andando !== undefined ? Boolean(andando) : estado.ocupado;
   const retomar = !rodando && perguntaParaRetomar()
     ? '<button class="cartao-retomar" data-retomar="1">' + ic("play_arrow", 16) + "Retomar</button>" : "";
   return '<div class="cartao"><div class="cartao-topo">' +
@@ -1774,7 +1794,7 @@ function andamentoDoCartao(t) {
   const docs = a.documentos ? plural(a.documentos, "documento") : "os documentos";
   const vivo = ' data-andamento="1" data-fase="' + a.fase + '" data-fase-s="' + a.fase_s + '" data-previsao="' + (a.previsao_s || 0) +
     '" data-palavras="' + (a.palavras || 0) + '" data-docs="' + esc(docs) + '" data-recebido="' + Date.now() + '"';
-  if (a.fase === "lendo" && a.previsao_s) {
+  if ((a.fase === "lendo" || a.fase === "documento") && a.previsao_s) {
     const pct = Math.min(95, (a.fase_s / a.previsao_s) * 100);
     return '<div class="barra-fina"' + vivo + '><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
       '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs) + "</div>";
@@ -1784,6 +1804,9 @@ function andamentoDoCartao(t) {
 
 function textoDoAndamento(fase, s, previsao, palavras, docs) {
   if (fase === "entendendo") return "Entendendo o pedido · " + segundosCurtos(s);
+  if (fase === "documento") {
+    return "Escrevendo no documento · " + segundosCurtos(s) + (previsao ? " de ~" + segundosCurtos(previsao) : "");
+  }
   if (fase === "procurando") return "Procurando nos documentos · " + segundosCurtos(s);
   if (fase === "lendo") {
     return "Lendo " + docs + " · " + segundosCurtos(s) +

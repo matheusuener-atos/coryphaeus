@@ -250,6 +250,21 @@ function desenharEditorAoLado() {
   ligarDupla();
   atualizarPostura();
   posicionarEditorAoLado();
+  const marcada = $("dp-folha").querySelector(".ed-novo");
+  if (marcada) {
+    const sem = $("dp-folha").cloneNode(true);
+    sem.querySelectorAll(".ed-novo").forEach((m) => {
+      const pai = m.parentNode;
+      m.remove();
+      if (pai !== sem && !pai.textContent.trim()) pai.remove();
+    });
+    dupla.antes = sem.innerHTML;
+    dupla.pendente = {
+      aviso: "Escrita enquanto o editor estava fechado, por um modelo pequeno nesta máquina. Confira nomes, datas e valores antes de manter.",
+      resumo: marcada.textContent.slice(0, 120),
+    };
+    desenharCartaoDaAlteracao();
+  }
   desenharPaginas();
   pedirPaginasDaFolha(true);
 }
@@ -495,15 +510,17 @@ async function pedirNoDocumento(pedido) {
   if (!pedido || dupla.ocupada || !dupla.doc) return;
   dupla.ocupada = true;
   const titulo = dupla.doc.titulo;
+  const tid = estado.trabalhoId;
   const centro = $("centro");
   centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
   const resposta = document.createElement("div");
   resposta.className = "resposta";
-  resposta.innerHTML = '<p class="nota">escrevendo em “' + esc(titulo) + "”… isso leva cerca de um minuto nesta máquina</p>";
+  resposta.innerHTML = cartaoDoPedidoNoDocumento(titulo);
   centro.appendChild(resposta);
   atualizarPostura();
   rolar();
   if ($("dp-selo")) $("dp-selo").textContent = "escrevendo…";
+  const acompanhar = acompanharPedidoNoDocumento(resposta, tid);
 
   // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
   const antes = htmlDaFolha();
@@ -511,11 +528,22 @@ async function pedirNoDocumento(pedido) {
   try {
     const r = await fetch("/api/documentos/" + docId + "/assistente", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla(), trabalho_id: estado.trabalhoId || "" }),
+      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla(), trabalho_id: tid || "" }),
     });
     if (!r.ok) throw new Error(await erroDe(r));
     const sugestao = await r.json();
-    if (!dupla.doc || dupla.doc.id !== docId) throw new Error("o editor foi fechado antes de a alteração chegar");
+
+    /* O editor foi fechado (ou trocou de documento) enquanto o modelo
+       escrevia: a alteração não se perde — entra no documento, marcada, e o
+       cartão de manter ou descartar aparece quando ele for aberto. */
+    if (!dupla.doc || dupla.doc.id !== docId) {
+      await guardarAlteracaoNoDocumento(docId, sugestao);
+      resposta.innerHTML = '<div class="texto">Escrevi em “' + esc(titulo) + "”. O editor estava fechado, então a " +
+        "alteração ficou marcada no documento — abra o editor para manter ou descartar.</div>" +
+        '<div class="linha-form"><button data-edl-abrir="1">Abrir editor</button></div>';
+      resposta.querySelector("[data-edl-abrir]").onclick = () => mostrarDupla(docId);
+      return;
+    }
 
     dupla.antes = antes;
     aplicarNaDupla(sugestao);
@@ -541,10 +569,59 @@ async function pedirNoDocumento(pedido) {
   } catch (err) {
     resposta.innerHTML = '<div class="texto">Não consegui: ' + esc(String((err && err.message) || err)) + "</div>";
   } finally {
+    clearInterval(acompanhar);
     dupla.ocupada = false;
     if ($("dp-selo") && $("dp-selo").textContent === "escrevendo…") $("dp-selo").textContent = "alterações não salvas";
-    rolar();
+    // Quem saiu e voltou para a conversa enquanto isso vê a conversa redesenhada
+    // do servidor: o cartão que esta função preenchia já não está na tela.
+    if (!resposta.isConnected && estado.trabalhoId === tid && tid) {
+      const t = await fetch("/api/trabalhos/" + tid).then((x) => (x.ok ? x.json() : null));
+      if (t && estado.trabalhoId === tid) { estado.trabalho = t; desenharTrabalho(); }
+    } else {
+      rolar();
+    }
   }
+}
+
+/* O cartão de trabalho, o mesmo das perguntas: etapas, a coroa andando e o
+   tempo. A barra começa indefinida e vira medida quando o servidor diz a
+   previsão desta máquina. */
+function cartaoDoPedidoNoDocumento(titulo) {
+  return '<div class="cartao"><div class="cartao-topo">' + coroa(20) +
+    '<span class="quem">Trabalhando · etapa 2 de 2</span><span class="tempo" data-edl-tempo="1">0 s</span></div>' +
+    '<div class="cartao-corpo">' +
+    linhaEtapa({ titulo: "Entender o pedido", estado: "concluido" }) +
+    linhaEtapa({ titulo: "Escrever em “" + titulo + "”", estado: "executando" }) +
+    '<div class="edl-andamento" data-edl-andamento="1"><div class="bastidor-barra indefinida"><i></i></div></div>' +
+    "</div></div>";
+}
+
+function acompanharPedidoNoDocumento(resposta, tid) {
+  const inicio = Date.now();
+  let perguntou = false;
+  return setInterval(async () => {
+    const tempo = resposta.querySelector("[data-edl-tempo]");
+    if (tempo) tempo.textContent = segundosCurtos((Date.now() - inicio) / 1000);
+    if (perguntou || Date.now() - inicio < 900) return;
+    perguntou = true;
+    try {
+      const agora = await (await fetch("/api/agora")).json();
+      const item = (agora.executando || []).find((x) => x.id === tid);
+      const lugar = resposta.querySelector("[data-edl-andamento]");
+      if (item && item.andamento && item.andamento.previsao_s && lugar) lugar.innerHTML = andamentoDoCartao(item);
+    } catch (err) { /* sem previsão, a barra continua indefinida */ }
+  }, 500);
+}
+
+async function guardarAlteracaoNoDocumento(id, sugestao) {
+  const d = await (await fetch("/api/documentos/" + id)).json();
+  const marca = document.createElement("mark");
+  marca.className = "ed-novo";
+  marca.textContent = sugestao.sugestao;
+  await fetch("/api/documentos/" + id, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corpo: (d.corpo || "") + "<p>" + marca.outerHTML + "</p>", titulo: d.titulo }),
+  });
 }
 
 function aplicarNaDupla(sugestao) {

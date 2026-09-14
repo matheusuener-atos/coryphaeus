@@ -450,6 +450,8 @@
   }
   .edl-papel .edl-folha p, .edl-papel .edl-folha h1, .edl-papel .edl-folha h2, .edl-papel .edl-folha h3 { margin: 0; }
   #dp-selo::before { content: "·"; margin-right: 8px; }
+  /* A barra do pedido ao documento, no cartao de trabalho da conversa. */
+  .edl-andamento { display: grid; gap: 6px; margin: 2px 0 0 30px; font: 400 12px var(--sans); color: var(--ink3); }
   .edl-rodape {
     flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px 12px 20px;
     font: 400 11.5px var(--sans); color: var(--ink3);

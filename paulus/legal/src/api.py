@@ -4829,34 +4829,69 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     else:
         texto = documento.para_texto(documento.ler_html(item["corpo"]))
         contexto = f"Documento (início):\n{texto[:2500]}"
+    instrucao = INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}"
+
+    # Vindo de uma conversa, o pedido e trabalho dela como qualquer pergunta:
+    # a conversa fica "trabalhando" com as etapas a vista, o cartao
+    # "Acontecendo agora" da tela inicial mostra o andamento - com barra, quando
+    # esta maquina ja mediu quanto le e escreve -, e o botao de parar alcanca.
+    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
+    parar = threading.Event()
+    if trabalho:
+        agora = time.time()
+        trabalho.dizer("pessoa", pedido)
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO),
+                           Etapa(f"Escrever em “{item['titulo']}”", estado=EXECUTANDO)]
+        trabalho.estado = EXECUTANDO
+        estado.trabalhos.salvar(trabalho)
+        estado.respondendo[trabalho.id] = parar
+        estado.andamento[trabalho.id] = {
+            "fase": "documento", "inicio": agora, "desde": agora,
+            "previsao_s": _previsao_de_escrita(len(instrucao) + len(contexto)),
+            "palavras": 0, "documentos": 1, "caracteres": len(contexto),
+        }
+
+    def terminar(etapa: str, texto: str, **extras) -> None:
+        if not trabalho:
+            return
+        estado.andamento.pop(trabalho.id, None)
+        estado.respondendo.pop(trabalho.id, None)
+        trabalho.etapas[-1].estado = etapa
+        trabalho.estado = CONCLUIDO if etapa == CONCLUIDO else (PAUSADO if etapa == PAUSADO else "falhou")
+        trabalho.dizer("paulus", texto, **extras)
+        estado.trabalhos.salvar(trabalho)
 
     try:
         # No editor entram so as regras de redacao: como o escritorio escreve
         # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
-        resposta = estado.client.ask(INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}", contexto,
+        resposta = estado.client.ask(instrucao, contexto,
                                      sistema=SISTEMA_EDITOR,
-                                     ensinado=estado.contextos.bloco(["Regras de redação"]))
+                                     ensinado=estado.contextos.bloco(["Regras de redação"]),
+                                     parar=parar.is_set)
     except OllamaError as exc:
+        terminar("falhou", f"Não consegui escrever em “{item['titulo']}”: {exc}")
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception:
+        terminar("falhou", f"Não consegui escrever em “{item['titulo']}”.")
+        raise
+
+    if parar.is_set():
+        terminar(PAUSADO, f"Parei antes de escrever em “{item['titulo']}”. O documento ficou como estava.")
+        raise HTTPException(status_code=409, detail="parei antes de terminar a alteração")
 
     sugestao = _limpar_sugestao(resposta)
     inteiro = documento.para_texto(documento.ler_html(item["corpo"]))
     if _e_o_documento_de_volta(sugestao, inteiro):
-        raise HTTPException(
-            status_code=422,
-            detail=("o modelo devolveu o documento de volta em vez da alteração. "
-                    "Selecione no texto o trecho que você quer mudar e peça de "
-                    "novo — com o trecho à mão ele acerta."),
-        )
+        detalhe = ("o modelo devolveu o documento de volta em vez da alteração. "
+                   "Selecione no texto o trecho que você quer mudar e peça de "
+                   "novo — com o trecho à mão ele acerta.")
+        terminar("falhou", "Não consegui: " + detalhe)
+        raise HTTPException(status_code=422, detail=detalhe)
 
-    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
-    if trabalho:
-        onde = "o trecho selecionado" if payload.trecho.strip() else "o fim do documento"
-        trabalho.dizer("pessoa", pedido)
-        trabalho.dizer("paulus", f"Escrevi em “{item['titulo']}” ({onde}). A alteração ficou marcada "
-                                 "no documento, esperando você manter ou descartar.",
-                       feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
-        estado.trabalhos.salvar(trabalho)
+    onde = "o trecho selecionado" if payload.trecho.strip() else "o fim do documento"
+    terminar(CONCLUIDO, f"Escrevi em “{item['titulo']}” ({onde}). A alteração ficou marcada "
+                        "no documento, esperando você manter ou descartar.",
+             feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
 
     return {
         "sugestao": sugestao,
@@ -4866,6 +4901,19 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
             "datas, valores e qualquer artigo de lei antes de aceitar."
         ),
     }
+
+
+def _previsao_de_escrita(caracteres: int) -> float:
+    """
+    Quanto uma alteracao no documento deve levar nesta maquina: ler o pedido
+    e o trecho, e escrever uns 120 palavras. Zero quando nao ha medida - a
+    tela mostra a barra so com numero de verdade atras.
+    """
+    leitura = estado.ritmo.previsao_de_leitura(estado.client.model, caracteres)
+    if not leitura.get("sabe"):
+        return 0
+    por_segundo = estado.ritmo.palavras_por_segundo(estado.client.model)
+    return round(leitura["segundos"] + (120 / por_segundo if por_segundo else 0), 1)
 
 
 def _limpar_sugestao(texto: str) -> str:
