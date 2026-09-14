@@ -1354,6 +1354,47 @@ async def upload(arquivos: list[UploadFile]) -> dict:
     return {"salvos": salvos, "recusados": recusados, "contratos": total}
 
 
+class AnexarCaminhos(BaseModel):
+    caminhos: list[str]
+
+
+@app.post("/api/anexar/caminhos")
+def anexar_caminhos(payload: AnexarCaminhos) -> dict:
+    """
+    Anexar a partir do computador, pelo caminho do arquivo.
+
+    E o "Meu computador" do pop-up de anexar: a tela navega pelas pastas desta
+    maquina e manda os caminhos escolhidos, e aqui o arquivo e copiado para o
+    acervo e lido - o mesmo que /api/upload faz com o que chega pelo seletor
+    do Windows, sem o arquivo precisar atravessar o navegador. Arquivo que ja
+    esta na pasta do acervo nao e copiado sobre ele mesmo.
+    """
+    salvos: list[str] = []
+    recusados: list[dict] = []
+    for bruto in payload.caminhos:
+        origem = Path(bruto)
+        nome = origem.name
+        if not origem.is_file():
+            recusados.append({"nome": nome or bruto, "motivo": "arquivo nao encontrado"})
+            continue
+        if origem.suffix.lower() not in SUPPORTED_SUFFIXES:
+            recusados.append({"nome": nome, "motivo": "formato nao suportado"})
+            continue
+        try:
+            if origem.stat().st_size > MAX_UPLOAD_BYTES:
+                recusados.append({"nome": nome, "motivo": "arquivo maior que 50 MB"})
+                continue
+            destino = estado.pasta / nome
+            if destino.resolve() != origem.resolve():
+                shutil.copy2(origem, destino)
+        except OSError as exc:
+            recusados.append({"nome": nome, "motivo": f"nao consegui copiar: {exc.strerror or exc}"})
+            continue
+        salvos.append(nome)
+    total = estado.recarregar() if salvos else len(estado.searcher.documents)
+    return {"salvos": salvos, "recusados": recusados, "contratos": total}
+
+
 # ------------------------------------------------------ trabalhos (conversas)
 
 
@@ -2870,9 +2911,10 @@ def organizar_opcoes() -> dict:
 
 
 @app.get("/api/pastas")
-def navegar_pastas(caminho: str = "") -> dict:
-    """Um nivel do seletor de pastas. Sem caminho, mostra unidades e atalhos."""
-    dados = pastas.listar(caminho)
+def navegar_pastas(caminho: str = "", arquivos: bool = False) -> dict:
+    """Um nivel do seletor de pastas. Sem caminho, mostra unidades e atalhos.
+    Com `arquivos`, lista tambem os documentos que o programa sabe ler."""
+    dados = pastas.listar(caminho, sufixos=SUPPORTED_SUFFIXES if arquivos else None)
     dados["migalhas"] = pastas.migalhas(caminho)
     return dados
 

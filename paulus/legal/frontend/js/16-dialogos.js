@@ -13,7 +13,8 @@
    o.campo { rotulo, valor, placeholder, sufixo, icone, tipo, dica,
              sugestoes, obrigatorio (padrao sim), selecionar (padrao sim),
              max (limite de caracteres) },
-   o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga.
+   o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga,
+   o.classe (uma classe a mais no cartao, para dialogos com miolo proprio).
 
    Enter confirma, Esc fecha, o foco fica preso dentro e volta para o
    elemento de origem ao fechar. So um dialogo aberto por vez. As teclas
@@ -33,7 +34,7 @@ function dialogo(o) {
     const veu = document.createElement("div");
     veu.className = "veu-dialogo";
     veu.id = "veu-dialogo";
-    const classe = "dialogo" + (o.larga ? " larga" : "");
+    const classe = "dialogo" + (o.larga ? " larga" : "") + (o.classe ? " " + o.classe : "");
     const paragrafos = o.texto ? String(o.texto).split("\n").map((p) => p.trim()).filter(Boolean).map((p) => "<p>" + esc(p) + "</p>").join("") : "";
     let miolo = "";
     campos.forEach((c, i) => {

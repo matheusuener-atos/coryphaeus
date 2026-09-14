@@ -1,6 +1,167 @@
 /* ----------------------------------------------------------- anexar */
 
-$("anexar").onclick = () => $("arquivos").click();
+/* ANEXAR abre um pop-up com duas visoes, como a alternancia da lista de
+   conversas: ACERVO, o padrao - os documentos que o programa ja tem, com
+   busca, para marcar -, e MEU COMPUTADOR - a navegacao por pastas desta
+   maquina, com os arquivos que o programa sabe ler. Do acervo, o marcado
+   entra direto em foco; do computador, o servidor copia o arquivo para o
+   acervo, le e poe em foco. O seletor do Windows continua a um clique, e
+   arrastar arquivos para a conversa continua valendo. */
+const anx = { visao: "acervo", acervo: new Set(), computador: new Map(), caminho: "", termo: "", docs: null };
+
+async function abrirAnexar() {
+  anx.acervo = new Set();
+  anx.computador = new Map();
+  anx.termo = "";
+  anx.docs = null;
+  const escolha = dialogo({
+    titulo: "Anexar documentos", contexto: "Assistente", classe: "dialogo-anexar", confirmar: "Anexar",
+    html: '<div class="anx">' +
+      '<div class="anx-topo"><span class="visoes lc-visoes">' +
+      '<button type="button" data-anx-visao="acervo">Acervo</button>' +
+      '<button type="button" data-anx-visao="computador">Meu computador</button></span>' +
+      '<label class="lc-busca anx-busca">' + ic("search", 15) + '<input type="text" id="anx-busca" placeholder="Buscar…" autocomplete="off"></label></div>' +
+      '<div class="anx-migalhas" id="anx-migalhas" hidden></div>' +
+      '<div class="anx-lista" id="anx-lista"></div>' +
+      '<div class="anx-rodape"><span id="anx-conta"></span>' +
+      '<button type="button" class="anx-windows" id="anx-windows">' + ic("open_in_new", 14) + "Usar o seletor do Windows</button></div></div>",
+  });
+  const veu = $("veu-dialogo");
+  veu.querySelectorAll("[data-anx-visao]").forEach((b) => {
+    b.onclick = () => { anx.visao = b.dataset.anxVisao; anx.termo = ""; $("anx-busca").value = ""; desenharAnexar(); };
+  });
+  $("anx-busca").oninput = (e) => { anx.termo = e.target.value.trim().toLowerCase(); desenharListaDoAnexar(); };
+  $("anx-windows").onclick = () => { if (dialogoAberto) dialogoAberto.fechar(null); $("arquivos").click(); };
+  desenharAnexar();
+  const r = await escolha;
+  if (r && r.ok) anexarEscolhidos();
+}
+
+function contarAnexar() {
+  const total = anx.acervo.size + anx.computador.size;
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  if (botao) {
+    botao.disabled = !total;
+    botao.textContent = total ? "Anexar " + total : "Anexar";
+  }
+  const conta = $("anx-conta");
+  if (conta) conta.textContent = total ? plural(total, "documento") + " para anexar" : "";
+}
+
+async function desenharAnexar() {
+  const veu = $("veu-dialogo");
+  if (!veu) return;
+  veu.querySelectorAll("[data-anx-visao]").forEach((b) => b.classList.toggle("ativa", b.dataset.anxVisao === anx.visao));
+  $("anx-busca").placeholder = anx.visao === "acervo" ? "Buscar no acervo…" : "Buscar nesta pasta…";
+  $("anx-windows").hidden = anx.visao !== "computador";
+  $("anx-lista").innerHTML = '<p class="anx-vazio">abrindo…</p>';
+  if (anx.visao === "acervo") {
+    $("anx-migalhas").hidden = true;
+    if (!anx.docs) {
+      try { anx.docs = (await (await fetch("/api/biblioteca?ordem=modificacao")).json()).documentos || []; }
+      catch (err) { anx.docs = []; }
+    }
+  } else {
+    try { anx.pasta = await (await fetch("/api/pastas?arquivos=1&caminho=" + encodeURIComponent(anx.caminho))).json(); }
+    catch (err) { anx.pasta = { erro: "não consegui abrir: " + err, atalhos: [], unidades: [], pastas: [], arquivos: [], migalhas: [] }; }
+  }
+  desenharListaDoAnexar();
+}
+
+function desenharListaDoAnexar() {
+  const lista = $("anx-lista");
+  if (!lista) return;
+  const casa = (nome) => !anx.termo || nome.toLowerCase().includes(anx.termo);
+  let html = "";
+  if (anx.visao === "acervo") {
+    const docs = (anx.docs || []).filter((d) => casa(d.nome));
+    html = docs.map((d) => {
+      const ja = estado.escopo.includes(d.nome);
+      const marcado = ja || anx.acervo.has(d.nome);
+      const classe = "anx-linha" + (marcado ? " escolhida" : "") + (ja ? " ja" : "");
+      return '<div class="' + classe + '" data-anx-doc="' + esc(d.nome) + '">' +
+        '<span class="marcar' + (marcado ? " on" : "") + '">' + ic("check", 12) + "</span>" + glifo(d.nome) +
+        '<span class="duas-linhas"><b class="corta">' + esc(d.nome) + '</b><small class="corta">' + esc(d.pasta_curta || "") + "</small></span>" +
+        (ja ? '<span class="anx-ja">já anexado</span>' : '<span class="anx-quando">' + esc(d.modificado || "") + "</span>") + "</div>";
+    }).join("") || '<p class="anx-vazio">' + (anx.termo ? "Nenhum documento com esse nome no acervo." : "O acervo ainda está vazio — anexe pelo Meu computador.") + "</p>";
+  } else {
+    const d = anx.pasta || {};
+    const migalhas = $("anx-migalhas");
+    migalhas.hidden = false;
+    migalhas.innerHTML = '<button type="button" data-anx-ir="">Este computador</button>' +
+      (d.migalhas || []).map((m) => '<span class="lc-sep">›</span><button type="button" data-anx-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>").join("");
+    const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-anx-ir="' + esc(p.caminho) + '">' + ic(icone, 17) +
+      '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" +
+      (p.caminho && icone !== "folder" ? "" : "") + ic("chevron_right", 16) + "</div>";
+    if ((d.atalhos || []).length) html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.filter((a) => casa(a.nome)).map((a) => pasta(a, "folder")).join("");
+    if ((d.unidades || []).length) html += '<div class="nav-grupo">Unidades</div>' + d.unidades.filter((u) => casa(u.nome)).map((u) => pasta(u, "desktop_windows")).join("");
+    html += (d.pastas || []).filter((p) => casa(p.nome)).map((p) => pasta(p, "folder")).join("");
+    html += (d.arquivos || []).filter((a) => casa(a.nome)).map((a) => {
+      const marcado = anx.computador.has(a.caminho);
+      const classe = "anx-linha" + (marcado ? " escolhida" : "");
+      return '<div class="' + classe + '" data-anx-arq="' + esc(a.caminho) + '" data-nome="' + esc(a.nome) + '">' +
+        '<span class="marcar' + (marcado ? " on" : "") + '">' + ic("check", 12) + "</span>" + glifo(a.nome) +
+        '<span class="duas-linhas"><b class="corta">' + esc(a.nome) + "</b></span>" +
+        '<span class="anx-quando">' + esc(dataCurta(a.modificado)) + "</span></div>";
+    }).join("");
+    if (d.erro) html += '<p class="anx-vazio">' + esc(d.erro) + "</p>";
+    else if (!html) html = '<p class="anx-vazio">' + (anx.termo ? "Nada com esse nome nesta pasta." : "Nenhum documento que eu saiba ler nesta pasta (PDF, Word, texto).") + "</p>";
+    migalhas.querySelectorAll("[data-anx-ir]").forEach((b) => { b.onclick = () => { anx.caminho = b.dataset.anxIr; anx.termo = ""; $("anx-busca").value = ""; desenharAnexar(); }; });
+  }
+  lista.innerHTML = html;
+  lista.querySelectorAll("[data-anx-doc]").forEach((l) => {
+    l.onclick = () => {
+      const nome = l.dataset.anxDoc;
+      if (estado.escopo.includes(nome)) return;
+      if (anx.acervo.has(nome)) anx.acervo.delete(nome); else anx.acervo.add(nome);
+      desenharListaDoAnexar();
+    };
+  });
+  lista.querySelectorAll(".anx-pasta[data-anx-ir]").forEach((l) => {
+    l.onclick = () => { anx.caminho = l.dataset.anxIr; anx.termo = ""; $("anx-busca").value = ""; desenharAnexar(); };
+  });
+  lista.querySelectorAll("[data-anx-arq]").forEach((l) => {
+    l.onclick = () => {
+      if (anx.computador.has(l.dataset.anxArq)) anx.computador.delete(l.dataset.anxArq);
+      else anx.computador.set(l.dataset.anxArq, l.dataset.nome);
+      desenharListaDoAnexar();
+    };
+  });
+  contarAnexar();
+}
+
+async function anexarEscolhidos() {
+  const doAcervo = [...anx.acervo];
+  const caminhos = [...anx.computador.keys()];
+  let lidos = [];
+  if (caminhos.length) {
+    avisoNaJanela("Lendo " + plural(caminhos.length, "arquivo") + "…", { icone: "sync", girar: true, dura: 0 });
+    try {
+      const r = await fetch("/api/anexar/caminhos", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminhos: caminhos }),
+      });
+      const res = await r.json();
+      lidos = res.salvos || [];
+      let texto = lidos.length ? plural(lidos.length, "documento") + (lidos.length === 1 ? " anexado" : " anexados") : "Nenhum arquivo foi anexado.";
+      if ((res.recusados || []).length) {
+        texto += " Não consegui abrir: " + res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".";
+      }
+      avisoNaJanela(texto, (res.recusados || []).length ? { tom: "erro", dura: 12000 } : { icone: "task_alt" });
+      estado.contratos = res.contratos;
+      carregarStatus();
+      await carregarAbertos();
+    } catch (err) {
+      avisoNaJanela("Não consegui anexar: " + String(err), { tom: "erro", dura: 12000 });
+    }
+  } else if (doAcervo.length) {
+    avisoCert(plural(doAcervo.length, "documento") + (doAcervo.length === 1 ? " anexado" : " anexados"), { tom: "ok" });
+  }
+  const todos = doAcervo.concat(lidos);
+  if (todos.length) definirEscopo([...new Set(estado.escopo.concat(todos))]);
+  $("pedido").focus();
+}
+
+$("anexar").onclick = () => abrirAnexar();
 $("arquivos").onchange = (e) => {
   const lista = Array.from(e.target.files);
   e.target.value = "";

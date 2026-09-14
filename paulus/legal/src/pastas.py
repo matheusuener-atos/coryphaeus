@@ -9,6 +9,7 @@ sugestoes ja marcadas convida ao acidente de varrer o disco inteiro.
 from __future__ import annotations
 
 import os
+from datetime import datetime
 import string
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,11 +79,14 @@ def _interessa(nome: str) -> bool:
     return nome.lower() not in OCULTAS
 
 
-def listar(caminho: str | None = None) -> dict:
+def listar(caminho: str | None = None, sufixos: set[str] | None = None) -> dict:
     """
     Um nivel de navegacao.
 
-    Sem caminho, devolve unidades e atalhos - a tela inicial do seletor.
+    Sem caminho, devolve unidades e atalhos - a tela inicial do seletor. Com
+    `sufixos`, devolve tambem os arquivos daquela pasta que tem uma dessas
+    extensoes - e o que o "Anexar > Meu computador" usa para escolher arquivo,
+    e nao so pasta.
     """
     if not caminho:
         return {
@@ -104,6 +108,7 @@ def listar(caminho: str | None = None) -> dict:
         }
 
     pastas: list[dict] = []
+    arquivos: list[dict] = []
     erro = ""
     try:
         with os.scandir(alvo) as itens:
@@ -111,6 +116,10 @@ def listar(caminho: str | None = None) -> dict:
                 try:
                     if item.is_dir(follow_symlinks=False) and _interessa(item.name):
                         pastas.append(vars(Entrada(nome=item.name, caminho=item.path)))
+                    elif sufixos and item.is_file() and Path(item.name).suffix.lower() in sufixos and not item.name.startswith("~$"):
+                        info = item.stat()
+                        arquivos.append({"nome": item.name, "caminho": item.path, "bytes": info.st_size,
+                                         "modificado": datetime.fromtimestamp(info.st_mtime).isoformat(timespec="seconds")})
                 except OSError:
                     continue
     except PermissionError:
@@ -119,6 +128,7 @@ def listar(caminho: str | None = None) -> dict:
         erro = f"não consegui abrir: {exc.strerror or exc}"
 
     pastas.sort(key=lambda p: p["nome"].lower())
+    arquivos.sort(key=lambda a: a["modificado"], reverse=True)
     pai = str(alvo.parent) if alvo.parent != alvo else ""
 
     return {
@@ -128,6 +138,7 @@ def listar(caminho: str | None = None) -> dict:
         "unidades": [],
         "atalhos": [],
         "pastas": pastas,
+        "arquivos": arquivos,
         "erro": erro,
     }
 
