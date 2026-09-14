@@ -211,7 +211,7 @@
     border-radius: 5px; background: var(--okbg); color: var(--okt); font: 600 11.5px var(--sans);
   }
   .ponto-verde { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
-  .ponto-acc { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); flex: none; }
+  .ponto-acc { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--destaque); flex: none; }
   .ponto-cinza { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--mute2); flex: none; }
 
   /* cartao de aprovacao */
@@ -346,7 +346,7 @@
   .dupla-resposta .linha-form { margin: 0; }
   .dupla-resposta .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
   .dupla-trecho {
-    margin: 0; padding: 8px 12px; border-left: 2px solid var(--acc); background: var(--accbg2);
+    margin: 0; padding: 8px 12px; border-left: 2px solid var(--destaque-linha); background: var(--destaque-fundo);
     font-size: 12.5px; line-height: 1.6; color: var(--ink2);
   }
   .dupla-atalhos { flex: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--ink-a1); }
@@ -453,13 +453,13 @@
   }
 
   /* O que entendi do pedido, antes de gravar: uma proposta esperando o sim. */
-  .proposta { border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); padding: 14px 16px; }
+  .proposta { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 14px 16px; }
   .proposta-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
   .proposta-topo b { font: 600 14px var(--sans); }
   .proposta .linha-form { margin-top: 10px; }
   .proposta label.explica { align-self: center; white-space: nowrap; }
 
-  .aprovacao { border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); padding: 18px; display: grid; gap: 12px; }
+  .aprovacao { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 18px; display: grid; gap: 12px; }
   .aprovacao .cabeca { display: flex; align-items: center; gap: 11px; }
   .aprovacao .nome { font: 600 14.5px var(--sans); }
   .aprovacao p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }

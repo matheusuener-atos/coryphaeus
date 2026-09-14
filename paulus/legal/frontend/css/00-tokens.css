@@ -91,6 +91,15 @@
     --accbg3: oklch(98.5% 0.005 25);
     --accln: oklch(80% 0.06 25);
     --accln2: oklch(70% 0.1 25);
+    /* O DESTAQUE E NEUTRO. Carregando, progresso, selecao, "hoje", foco,
+       cartao que espera voce, citacao, link ao passar o mouse: tudo isso e
+       tinta (branco no escuro, quase preto no claro), a mesma do medidor e da
+       opcao escolhida. O vinho ficou so para o que pede cuidado - erro,
+       prazo, atraso, apagar, gravando -, e por isso volta a chamar atencao
+       quando aparece. Nomes sobre os da tinta: valem nos dois temas. */
+    --destaque: var(--ink);
+    --destaque-fundo: var(--fill);
+    --destaque-linha: var(--ink-a2);
     --okt: oklch(38% 0.1 150);
     --okbg: oklch(95% 0.03 150);
     --warnt: oklch(45% 0.1 70);

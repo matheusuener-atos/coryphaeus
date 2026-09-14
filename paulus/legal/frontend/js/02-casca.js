@@ -80,9 +80,9 @@ function marcarTamanhoDaJanela(maximizada) {
 */
 const faixaJanela = { base: null, passageiro: false, relogio: 0 };
 
+/* So a opcao do programa desliga o movimento - ver 22-responsivo.css. */
 function animacoesLigadas() {
-  if (document.documentElement.classList.contains("sem-animacao")) return false;
-  return !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  return !document.documentElement.classList.contains("sem-animacao");
 }
 
 function pintarFaixa(texto, o) {

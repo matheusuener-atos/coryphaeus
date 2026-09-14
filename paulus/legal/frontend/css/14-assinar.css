@@ -16,13 +16,13 @@
   .as-cartao .docs-miniaturas { background: var(--surf); }
   .as-visor { padding: 20px 24px; }
   .as-visor .pdf-folha { width: 100%; max-width: 680px; align-self: flex-start; position: relative; line-height: 0; }
-  .as-mini-selo { position: absolute; right: 5px; bottom: 12px; width: 14px; height: 8px; background: var(--acc); border-radius: 1px; }
+  .as-mini-selo { position: absolute; right: 5px; bottom: 12px; width: 14px; height: 8px; background: var(--destaque); border-radius: 1px; }
   .as-cartao .docs-mini { position: relative; }
   .as-mais { font: 500 11px var(--sans); color: var(--ink3); }
 
   /* o selo arrastavel: a previa de verdade, na escala da pagina */
   .as-cartao .pdf-selo {
-    position: absolute; box-sizing: border-box; border: 1px dashed var(--acc); border-radius: 4px; background: var(--accbg2);
+    position: absolute; box-sizing: border-box; border: 1px dashed var(--destaque); border-radius: 4px; background: var(--destaque-fundo);
     cursor: move; overflow: visible; padding: 0; display: block; font-size: 12px; text-align: left; user-select: none; color: var(--ink);
   }
   .as-cartao .pdf-selo.pegando { border-style: solid; cursor: grabbing; }
@@ -31,9 +31,9 @@
   .as-visor .pdf-folha .as-selo-dentro .selo-previa img { max-width: 62px; max-height: 46px; width: auto; height: auto; }
   .as-selo-legenda {
     position: absolute; left: 0; top: 100%; margin-top: 6px; display: flex; align-items: center; gap: 6px;
-    font: 500 11px var(--sans); color: var(--acc); white-space: nowrap; pointer-events: none;
+    font: 500 11px var(--sans); color: var(--destaque); white-space: nowrap; pointer-events: none;
   }
-  .as-alca { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--surf); border: 1.5px solid var(--acc); pointer-events: none; }
+  .as-alca { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--surf); border: 1.5px solid var(--destaque); pointer-events: none; }
   .as-alca.a { left: -5px; top: -5px; } .as-alca.b { right: -5px; top: -5px; } .as-alca.c { left: -5px; bottom: -5px; } .as-alca.d { right: -5px; bottom: -5px; }
   .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 80px; }
 
@@ -63,7 +63,7 @@
   .as-lista .ag-toggle .duas-linhas b { font-weight: 400; font-size: 13.5px; }
   .as-lista .ag-toggle .duas-linhas small { white-space: normal; }
   .as-lista .em-senha { margin-top: -2px; }
-  .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--accln); border-radius: 10px; background: var(--accbg2); display: grid; gap: 12px; }
+  .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--destaque-linha); border-radius: 10px; background: var(--destaque-fundo); display: grid; gap: 12px; }
   .as-pronto.feito { border-color: var(--ink-a15); background: var(--okbg); }
   .as-pronto-cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
   .as-pronto-cabeca .ic { color: var(--verde); }
@@ -90,7 +90,7 @@
     border: 1px dashed var(--ink-a25); border-radius: 10px; padding: 18px; display: grid; justify-items: center; gap: 6px; text-align: center;
     transition: border-color .15s, background .15s;
   }
-  .as-solta.sobre { border-color: var(--ink); background: var(--accbg2); }
+  .as-solta.sobre { border-color: var(--ink); background: var(--destaque-fundo); }
   .as-solta > span { font-size: 14px; }
   .as-solta small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .as-solta-acoes { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }

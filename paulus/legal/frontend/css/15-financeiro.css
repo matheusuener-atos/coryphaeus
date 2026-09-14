@@ -82,9 +82,9 @@
   /* o painel: precisa de voce, parecer, papeis e chaves */
   .fin-painel .painel-cabeca .meta b { color: var(--acc); font-weight: 600; }
   .fin-pedidos { padding: 0 18px 12px; display: grid; gap: 8px; }
-  .fin-pede { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--accln); border-radius: 8px; background: var(--accbg2); }
+  .fin-pede { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--destaque-linha); border-radius: 8px; background: var(--destaque-fundo); }
   .fin-pede.atencao { border-color: var(--ink-a1); background: var(--bg); }
-  .fin-pede > i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); flex: none; margin-top: 6px; }
+  .fin-pede > i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--destaque); flex: none; margin-top: 6px; }
   .fin-pede.atencao > i { background: var(--ink3); }
   .fin-pede > span { display: grid; gap: 4px; min-width: 0; flex: 1; }
   .fin-pede-titulo { font-size: 13.5px; line-height: 1.5; }
@@ -167,7 +167,7 @@
   .fin-nota { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   .fin-historico { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
   .fin-solta { border: 1px dashed var(--ink-a25); border-radius: 8px; padding: 12px; display: grid; justify-items: center; gap: 6px; text-align: center; font: 500 12.5px var(--sans); color: var(--ink3); }
-  .fin-solta.sobre { border-color: var(--ink); background: var(--accbg2); }
+  .fin-solta.sobre { border-color: var(--ink); background: var(--destaque-fundo); }
   .fin-solta button { display: inline-flex; align-items: center; gap: 6px; }
   .fin-form .ag-chips { padding-bottom: 2px; }
 

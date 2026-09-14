@@ -54,6 +54,5 @@
   .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); filter: brightness(.9); }
   @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .veu-dialogo, .dialogo { animation: none; } }
 
 

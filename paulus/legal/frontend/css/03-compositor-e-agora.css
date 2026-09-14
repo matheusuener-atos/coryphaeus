@@ -49,8 +49,8 @@
   }
   .cartao-agora[data-abre] { cursor: pointer; }
   .cartao-agora:hover { border-color: var(--ink-a2); }
-  .cartao-agora.chama { border-color: var(--accln); background: var(--accbg2); }
-  .cartao-agora.chama:hover { border-color: var(--acc); }
+  .cartao-agora.chama { border-color: var(--destaque-linha); background: var(--destaque-fundo); }
+  .cartao-agora.chama:hover { border-color: var(--destaque); }
   .cartao-agora .cabeca { display: flex; align-items: center; gap: 11px; }
   .cartao-agora .nome { font: 600 14.5px var(--sans); flex: 1; min-width: 0; }
   .cartao-agora .corpo { font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
@@ -58,9 +58,9 @@
   .cartao-agora .acoes { display: flex; align-items: center; gap: 10px; }
   .cartao-agora .acoes .primario { margin-left: auto; padding: 7px 14px; border-radius: 6px; font-size: 12.5px; }
   .cartao-agora .acoes .fantasma { padding: 0; border: none; background: none; font: 600 13px var(--sans); color: var(--ink); }
-  .cartao-agora .acoes .fantasma:hover:not(:disabled) { background: none; border: none; color: var(--acc); }
+  .cartao-agora .acoes .fantasma:hover:not(:disabled) { background: none; border: none; color: var(--destaque); }
   .barra-fina { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
-  .barra-fina i { display: block; height: 3px; background: var(--acc); transition: width 0.3s; }
+  .barra-fina i { display: block; height: 3px; background: var(--destaque); transition: width 0.3s; }
 
   /* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta. */
   .recentes { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }

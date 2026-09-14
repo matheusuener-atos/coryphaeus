@@ -145,7 +145,7 @@
   .cfg-casas { display: flex; gap: 4px; }
   .cfg-casas span { width: 30px; height: 36px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); display: flex; align-items: center; justify-content: center; font: 400 15px var(--mono); color: var(--ink3); }
   .cfg-endereco { font: 400 11.5px var(--mono); color: var(--ink3); border: 1px solid var(--ink-a1); border-radius: 8px; padding: 9px 11px; overflow-wrap: anywhere; }
-  .cfg-pronto { padding: 12px 14px; border: 1px solid var(--accln); border-radius: 10px; background: var(--accbg2); display: grid; gap: 8px; }
+  .cfg-pronto { padding: 12px 14px; border: 1px solid var(--destaque-linha); border-radius: 10px; background: var(--destaque-fundo); display: grid; gap: 8px; }
 
   /* aprendizado */
   .cfg-solta { border: 1px dashed var(--ink-a25); border-radius: 10px; padding: 18px; display: grid; justify-items: center; gap: 6px; text-align: center; }
@@ -153,7 +153,7 @@
   .cfg-solta small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .cfg-solta .cfg-botoes { margin-top: 4px; }
   /* Arrastar um arquivo por cima: a moldura acende para dizer que da para soltar. */
-  .cfg-solta.sobre { border-color: var(--acc); background: var(--accbg); }
+  .cfg-solta.sobre { border-color: var(--destaque); background: var(--destaque-fundo); }
   .cfg-grupos { display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 8px; flex-wrap: wrap; }
   .cfg-grupos button { padding: 5px 10px; border: none; border-radius: 6px; background: transparent; font: 500 12.5px var(--sans); color: var(--ink2); }
   .cfg-grupos button:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }

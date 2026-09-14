@@ -328,7 +328,7 @@
   button.perigo { color: var(--acc); border-color: var(--accln); }
   button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
   button:focus-visible, [tabindex]:focus-visible {
-    outline: 2px solid var(--acc);
+    outline: 2px solid var(--destaque);
     outline-offset: 2px;
   }
   textarea:focus, textarea:focus-visible,
@@ -349,18 +349,16 @@
   button .ic { pointer-events: none; }
 
   /* ------------------------------------------------------- indicador */
-  /* O indicador de trabalho do desenho: um anel fino com o topo em vinho,
-     girando. Nunca barra indeterminada. */
+  /* O indicador de trabalho do desenho: um anel fino com o topo em tinta,
+     girando. Nunca barra indeterminada. Ele gira mesmo com animacoes
+     reduzidas (ver 22-responsivo.css): parado, nao diz que ha trabalho. */
   .indicador { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
   .indicador i {
     position: absolute; inset: 2px; border-radius: 50%;
-    border: 1.5px solid var(--ink-a15); border-top-color: var(--acc);
+    border: 1.5px solid var(--ink-a15); border-top-color: var(--destaque);
     animation: pv-spin 1.6s linear infinite;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .indicador i { animation: none; }
-    .progresso i, .medidor .pista i, .barra-fina i { transition: none; }
-  }
+  html.sem-animacao .progresso i, html.sem-animacao .medidor .pista i, html.sem-animacao .barra-fina i { transition: none; }
 
 
   /* Estados de tela (docs/ui/05). Carregando: esqueleto com a forma do

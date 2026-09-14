@@ -56,7 +56,7 @@
   .gv-posicao { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink2); }
   .gv-barra { flex: 1; min-width: 60px; height: 6px; border-radius: 3px; background: var(--fill2); cursor: pointer; position: relative; overflow: hidden; }
   .gv-barra i { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--ink); border-radius: 3px; }
-  .gv-barra u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--acc); }
+  .gv-barra u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--destaque); }
   .gv-player .botao-icone { width: 34px; height: 34px; }
   .gv-vel { font: 600 12px var(--sans); min-width: 46px; padding: 5px 8px; }
   .gv-conteudo { flex: 1; min-height: 0; display: flex; flex-direction: column; }

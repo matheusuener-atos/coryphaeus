@@ -16,7 +16,7 @@
   .doc-meta { font: 500 11px var(--sans); color: var(--ink3); margin-top: 3px; }
   .doc-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
   .etiqueta { font: 600 11.5px var(--sans); border-radius: 5px; padding: 2px 8px; background: var(--fill); color: var(--ink2); white-space: nowrap; }
-  .etiqueta.tipo { background: var(--accbg); color: var(--acc); }
+  .etiqueta.tipo { background: var(--destaque-fundo); color: var(--destaque); }
   .doc-acoes { display: flex; gap: 7px; flex-shrink: 0; }
   .doc-linha.sumido .doc-nome { color: var(--ink3); text-decoration: line-through; }
 
@@ -99,7 +99,7 @@
   .painel-botoes { padding: 0 18px 16px; display: flex; gap: 6px; flex-wrap: wrap; }
   .painel-botoes button { display: inline-flex; align-items: center; gap: 6px; }
   .ligacao-painel { font: 600 13px var(--sans); color: var(--ink); background: none; border: none; padding: 0; text-align: left; cursor: pointer; justify-self: start; }
-  .ligacao-painel:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .ligacao-painel:hover:not(:disabled) { color: var(--destaque); background: none; border: none; }
   .historico-painel { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
 
   /* a coluna da esquerda: filtros e pastas indexadas */
@@ -139,7 +139,7 @@
     flex: none; display: flex; align-items: center; gap: 8px; min-height: 49px;
     padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); background: var(--bg); white-space: nowrap;
   }
-  .tabela-barra .selecao { display: flex; align-items: center; gap: 10px; font: 600 13px var(--sans); margin-right: 4px; }
+  .tabela-barra .selecao { display: flex; align-items: center; gap: 12px; font: 600 13px var(--sans); margin-right: 4px; flex: none; }
   .tabela-barra .limpar { border: none; background: none; padding: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
   .tabela-barra .limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .tabela-barra .divisa-v { height: 18px; background: var(--ink-a15); }
@@ -174,7 +174,7 @@
     border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3);
   }
   .tabela-rodape .mais { border: none; background: none; padding: 0; font: 600 13px var(--sans); color: var(--ink); }
-  .tabela-rodape .mais:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .tabela-rodape .mais:hover:not(:disabled) { color: var(--destaque); background: none; border: none; }
   .colunas-documentos { grid-template-columns: 20px minmax(0, 1fr) 110px 170px 28px; }
   .colunas-conferir { grid-template-columns: 20px minmax(0, 1fr) 150px 84px; }
   .colunas-prazos { grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) 100px 150px 150px; }
@@ -273,7 +273,7 @@
   /* O navegador de pastas ocupa o cartao inteiro: e a unica coisa nele. */
   .navegador { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; }
   .nav-lista { flex: 1; min-height: 0; overflow-y: auto; background: var(--surf); }
-  .fase.atual .ic { color: var(--acc); }
+  .fase.atual .ic { color: var(--destaque); }
   /* pecas de outras telas que nasceram na biblioteca antiga */
   .acervo-cortes { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
   .acervo-pasta { font: 500 12.5px var(--sans); color: var(--ink3); margin-top: 2px; }
@@ -305,7 +305,7 @@
   }
   .campo-painel .com-botao { display: flex; gap: 8px; }
   .campo-painel .com-botao input[type=text] { flex: 1; max-width: 100%; }
-  .cartao-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--accln); border-radius: 10px; background: var(--accbg2); display: grid; gap: 12px; }
+  .cartao-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--destaque-linha); border-radius: 10px; background: var(--destaque-fundo); display: grid; gap: 12px; }
   .cartao-pronto .cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
   .cartao-pronto p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .cartao-pronto .acoes { display: flex; align-items: center; gap: 10px; }
@@ -328,7 +328,7 @@
   .prazo-cartao.acc .data { color: var(--acc); }
   .arquivo-painel { display: flex; align-items: center; gap: 10px; font-size: 13px; min-width: 0; }
   .arquivo-painel span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .arquivo-painel button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--acc); cursor: pointer; }
+  .arquivo-painel button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--destaque); cursor: pointer; }
   .arquivo-painel button:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
 
   /* ------------------------------------------------------ organizador */
@@ -393,17 +393,26 @@
      o texto nao e selecionavel, senao segurar o botao pinta texto. */
   .selecionando { user-select: none; }
   .selecionando .tabela-linha, .selecionando .sv-pasta, .selecionando .ag-linha { cursor: pointer; }
-  .selecionando .tabela-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--acc); }
-  .sv-pasta.escolhida { border-color: var(--acc); box-shadow: 0 0 0 2px var(--accbg); background: var(--fill); }
-  .ag-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--acc); }
+  .selecionando .tabela-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--destaque); }
+  .sv-pasta.escolhida { border-color: var(--destaque); box-shadow: 0 0 0 2px var(--destaque-linha); background: var(--fill); }
+  .ag-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--destaque); }
   .barra-selecao {
     flex: none; display: flex; align-items: center; gap: 8px; min-height: 49px; padding: 8px 12px 8px 16px;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); white-space: nowrap;
   }
-  .barra-selecao .selecao { display: flex; align-items: center; gap: 10px; font: 600 13px var(--sans); margin-right: 4px; }
-  .barra-selecao .limpar { border: none; background: none; padding: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
-  .barra-selecao .limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
-  .barra-selecao .divisa-v { height: 18px; width: 1px; background: var(--ink-a15); }
-  .barra-selecao button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; }
-  .barra-selecao .botao-icone { background: transparent; padding: 0; }
-  .barra-selecao .botao-icone.perigo { color: var(--acc); border: none; }
+  /* A barra de selecao e UMA linha: marca, "N selecionadas", Selecionar
+     todas, Limpar, divisa e as acoes. Nada dela quebra - numa lista estreita
+     quem cede e a busca ao lado, nao o texto da contagem. A lista de
+     conversas usa a mesma barra dentro do proprio cabecalho (.lc-selecao). */
+  .lc-selecao { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .barra-selecao .selecao, .lc-selecao .selecao { display: flex; align-items: center; gap: 12px; font: 600 13px var(--sans); margin-right: 4px; flex: none; }
+  .selecao-conta { white-space: nowrap; }
+  .barra-selecao .limpar, .lc-selecao .limpar { border: none; background: none; padding: 0; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .barra-selecao .limpar:hover:not(:disabled), .lc-selecao .limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .barra-selecao .divisa-v, .lc-selecao .divisa-v { height: 18px; width: 1px; background: var(--ink-a15); }
+  .barra-selecao button, .lc-selecao button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; white-space: nowrap; flex: none; }
+  .barra-selecao .botao-icone, .lc-selecao .botao-icone { background: transparent; padding: 0; }
+  .barra-selecao .botao-icone.perigo, .lc-selecao .botao-icone.perigo { color: var(--acc); border: none; }
+  /* Segurar o clique numa linha e o gesto de selecionar - e o navegador
+     entendia como comecar a marcar texto, e a contagem ficava azul. */
+  [data-sel] { -webkit-user-select: none; user-select: none; }

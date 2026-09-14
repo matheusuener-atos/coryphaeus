@@ -243,8 +243,10 @@ function desenharBiblioteca() {
 
   const quantos = bib.escolhidos.size;
   const barra = quantos
-    ? '<span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" + plural(quantos, "selecionado") +
-      '<button class="limpar" id="lote-limpar">limpar</button></span><span class="divisa-v"></span>' +
+    ? '<span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" +
+      '<span class="selecao-conta">' + plural(quantos, "selecionado") + "</span>" +
+      '<button class="limpar" data-selecionar-todos="1">Selecionar todos</button>' +
+      '<button class="limpar" id="lote-limpar">Limpar</button></span><span class="divisa-v"></span>' +
       '<button class="primario" data-lote="perguntar">' + ic("forum", 16) + "Perguntar sobre estes</button>" +
       '<button class="botao-icone" data-lote="analisar" title="Tomar vista de novo" aria-label="Tomar vista de novo">' + ic("visibility", 18) + "</button>" +
       '<button class="botao-icone" data-lote="mover" title="Mover para pasta" aria-label="Mover para pasta">' + ic("drive_file_move", 18) + "</button>" +

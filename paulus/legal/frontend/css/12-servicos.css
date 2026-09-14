@@ -46,7 +46,7 @@
   .sv-resumo, .sv-etapas { min-height: 0; }
   .sv-cartao-corpo { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
   .sv-resumo .fin-cartao-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
-  .sv-faisca { color: var(--acc); display: inline-flex; }
+  .sv-faisca { color: var(--destaque); display: inline-flex; }
   .sv-resumo-texto { margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-line; }
   .sv-resumo-texto.vazio { color: var(--ink2); }
   .sv-falta { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
@@ -74,7 +74,7 @@
   .sv-pessoa, .sv-prazo, .sv-doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .sv-pessoa .mais-linha, .sv-doc .em-ligacao { flex: none; }
   .sv-prazo-data { flex: none; width: 82px; font: 600 12.5px var(--sans); color: var(--ink2); }
-  .sv-prazo-data.hoje { color: var(--acc); }
+  .sv-prazo-data.hoje { color: var(--destaque); }
   .sv-nota { display: grid; gap: 4px; }
   .sv-nota-cabeca { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .sv-nota-cabeca .cad-avatar { width: 22px; height: 22px; font-size: 9px; }

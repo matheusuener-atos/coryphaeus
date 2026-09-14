@@ -159,14 +159,16 @@ function desenharRecentes() {
      criterio antigo e deixou de existir: com ele o botao so sabia abrir. */
   const aberta = !$("lista-conversas").hidden;
   alvo.hidden = false;
+  /* Com a lista aberta, "Ver mais" sai: o botao de recolher ja esta na barra
+     da propria lista, e dois botoes para a mesma coisa, um em cima do outro,
+     so confundem. Ele volta quando a lista recolhe. */
   alvo.innerHTML = '<span class="rotulo-suave">Recentes</span>' +
     lista.map((t) =>
       '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 15) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
-    '<button class="ver-mais" id="recentes-mais" title="' + (aberta ? "Recolher" : "Ver todas as conversas") + '">' +
-    (aberta ? ic("view_sidebar", 17) : "Ver mais" + ic("chevron_right", 16)) + "</button>";
+    (aberta ? "" : '<button class="ver-mais" id="recentes-mais" title="Ver todas as conversas">Ver mais' + ic("chevron_right", 16) + "</button>");
   alvo.querySelectorAll("[data-abre]").forEach((b) => { b.onclick = () => abrirTrabalho(b.dataset.abre); });
-  $("recentes-mais").onclick = () => alternarListaDeConversas(!aberta);
+  if (!aberta) $("recentes-mais").onclick = () => alternarListaDeConversas(true);
   if (aberta) desenharListaDeConversas();
 }
 
@@ -222,9 +224,9 @@ function desenharListaDeConversas() {
 
   const quantos = lcSel.escolhidos.size;
   const barra = quantos
-    ? '<span class="cresce">' + barraDeSelecao(quantos, true,
+    ? '<span class="lc-selecao">' + barraDeSelecao(quantos, true,
       '<button data-lc-grupo="1">' + ic("folder", 16) + "Mover para grupo</button><span class=\"divisa-v\"></span>" +
-      '<button class="botao-icone perigo" data-lc-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-lc-limpar") + "</span>"
+      '<button class="botao-icone perigo" data-lc-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-lc-limpar", lista.length) + "</span>"
     : '<span class="lc-conta">' + plural(todas.length, "conversa") + "</span>";
   caixa.innerHTML = '<div class="lc-cartao"><div class="lc-barra">' + barra +
     '<label class="lc-busca">' + ic("search", 15) +

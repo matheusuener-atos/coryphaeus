@@ -85,7 +85,7 @@
   .trilho-vazio { flex: 1; }
   .conta {
     position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px;
-    border-radius: 8px; background: var(--acc); color: var(--surf);
+    border-radius: 8px; background: var(--destaque); color: var(--bg);
     font: 700 10px var(--sans); display: flex; align-items: center; justify-content: center;
   }
   .conta[hidden] { display: none; }
@@ -249,7 +249,7 @@
   .item .titulo { flex: 1; min-width: 0; }
   .item .marca { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--mute); }
   .item .marca.executando { background: var(--verde); animation: pv-pulse 3.2s ease-in-out infinite; }
-  .item .marca.aguardando { background: var(--acc); }
+  .item .marca.aguardando { background: var(--destaque); }
   .item .marca.concluido { background: var(--verde); }
   .item .marca.pausado { background: var(--mute2); }
   .item .mais-item {

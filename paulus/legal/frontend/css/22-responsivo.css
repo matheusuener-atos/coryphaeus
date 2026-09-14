@@ -20,18 +20,24 @@
   /* Quem pede tela parada tem tela parada: a classe entra no <html> ainda no
      cabecalho da pagina, antes da primeira pintura. Nao se apaga a animacao
      com display:none - o que ela anima tem de continuar aparecendo, so que
-     de uma vez. Vale tambem para quem pediu isso no proprio Windows. */
+     de uma vez.
+
+     QUEM DECIDE E A OPCAO DO PROGRAMA, e nao a do Windows. Seguir o
+     "efeitos de animacao" do sistema parava a tela inteira em maquina onde
+     ele vem desligado por desempenho, sem a pessoa ter pedido nada disso ao
+     programa - a barra lateral abria seca e o indicador de trabalho ficava
+     parado, parecendo travado. Quem quer tela parada liga em Configuracoes >
+     Aparencia.
+
+     O indicador de trabalho e a faixa "lendo..." giram mesmo assim: parados,
+     eles nao dizem que ha trabalho acontecendo. */
   html.sem-animacao *, html.sem-animacao *::before, html.sem-animacao *::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
   }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 1ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 1ms !important;
-      scroll-behavior: auto !important;
-    }
+  html.sem-animacao .indicador i, html.sem-animacao .faixa-janela.girando > .ic {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
   }

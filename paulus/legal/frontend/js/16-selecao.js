@@ -97,11 +97,29 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* A barra de selecao que as listas mostram no lugar dos filtros. `acoes` e
-   o HTML dos botoes da tela; o "limpar" e o mesmo em todas. */
-function barraDeSelecao(quantos, feminino, acoes, atributoLimpar) {
-  return '<span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" + plural(quantos, feminino ? "selecionada" : "selecionado") +
-    '<button class="limpar" ' + atributoLimpar + '="1">limpar</button></span><span class="divisa-v"></span>' + acoes;
+   o HTML dos botoes da tela; "Selecionar todas" e "Limpar" sao os mesmos em
+   todas. Com `total`, "Selecionar todas" some quando ja estao todas. */
+function barraDeSelecao(quantos, feminino, acoes, atributoLimpar, total) {
+  const todas = total !== undefined && quantos >= total;
+  return '<span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" +
+    '<span class="selecao-conta">' + plural(quantos, feminino ? "selecionada" : "selecionado") + "</span>" +
+    (todas ? "" : '<button class="limpar" data-selecionar-todos="1">' + (feminino ? "Selecionar todas" : "Selecionar todos") + "</button>") +
+    '<button class="limpar" ' + atributoLimpar + '="1">Limpar</button></span><span class="divisa-v"></span>' + acoes;
 }
+
+/* "Selecionar todos" e o Ctrl+A em forma de botao: marca todas as linhas da
+   lista que tem a selecao. Por delegacao, porque cada tela redesenha a barra
+   inteira a cada clique. */
+document.addEventListener("click", (e) => {
+  const botao = e.target && e.target.closest && e.target.closest("[data-selecionar-todos]");
+  if (!botao) return;
+  const s = selecaoAtiva;
+  if (!s || !document.contains(s.raiz)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  s.raiz.querySelectorAll(s.o.linhas).forEach((linha) => s.o.escolhidos.add(s.chave(linha)));
+  s.o.aoMudar();
+});
 
 /* Apaga varios de uma vez pela lixeira e avisa uma vez so, com um Desfazer
    que devolve todos. `urlDe(id)` e a rota DELETE de cada um. */

@@ -80,7 +80,7 @@
   .docs-status .cresce { flex: 1; }
   .docs-divisa-fina { width: 1px; height: 11px; background: var(--ink-a15); }
   .docs-ligacao { border: none; background: none; padding: 0; cursor: pointer; font: 500 12.5px var(--sans); color: var(--ink); }
-  .docs-ligacao:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .docs-ligacao:hover:not(:disabled) { color: var(--destaque); background: none; border: none; }
   .docs-papel-area { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; }
   .docs-papel { width: 100%; max-width: 720px; align-self: flex-start; }
   .docs .ed-regua { margin-bottom: 10px; }
@@ -170,7 +170,7 @@
   .docs-resposta p { margin: 0; }
   .docs-resposta code { font: 600 12.5px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 4px; }
   .docs-trecho {
-    margin: 0; padding: 8px 12px; border-left: 2px solid var(--acc); background: var(--accbg2);
+    margin: 0; padding: 8px 12px; border-left: 2px solid var(--destaque-linha); background: var(--destaque-fundo);
     font: 400 14px/1.6 var(--serif); color: var(--ink2);
   }
   .docs-resposta-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -206,7 +206,7 @@
   /* Com a senha ligada, a explicacao fica embaixo da chave: o que a pessoa
      precisa saber e que sem a senha nem ela abre depois. */
   .docs-nota-senha { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
-  .docs-nota-senha .docs-ligacao { font-size: 12px; color: var(--acc); }
+  .docs-nota-senha .docs-ligacao { font-size: 12px; color: var(--destaque); }
   .docs-aviso { display: flex; gap: 10px; align-items: flex-start; }
   .docs-aviso i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); margin-top: 6px; flex: none; }
   .docs-aviso.impede i { background: var(--acc); }
