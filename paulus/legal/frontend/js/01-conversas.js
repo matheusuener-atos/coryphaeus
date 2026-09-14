@@ -85,13 +85,35 @@ function abrirMenu(linha) {
 
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
-  if (!r.ok) return;
+  if (!r.ok) return false;
   transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;
   estado.trabalho = await r.json();
   estado.trabalhoId = id;
   desenharTrabalho();
   carregarTrabalhos();
+  return true;
+}
+
+/* O ASSISTENTE LEMBRA ONDE ESTAVA. Sair de uma conversa para Servicos e
+   voltar pelo Assistente reabre aquela conversa - antes o destino sempre
+   abria uma conversa nova, e a pessoa tinha de ir procurar a dela na lista.
+   Quem sai do inicio volta ao inicio. "Nova conversa" e a seta de voltar
+   continuam levando ao inicio, e esquecem a conversa guardada. So nesta
+   sessao, como a memoria do inicio. */
+const lembrancaDoAssistente = { trabalhoId: null };
+
+function guardarLugarDoAssistente() {
+  if (estado.trabalhoId) lembrancaDoAssistente.trabalhoId = estado.trabalhoId;
+  else if (String(troca.tela || "").startsWith("inicio")) lembrancaDoAssistente.trabalhoId = null;
+}
+
+async function voltarAoAssistente() {
+  const id = lembrancaDoAssistente.trabalhoId;
+  if (id && id === estado.trabalhoId) return;
+  // A conversa guardada pode ter sido apagada: ai, o inicio.
+  if (id && await abrirTrabalho(id)) return;
+  $("nova").click();
 }
 
 /* O INICIO LEMBRA COMO FICOU. Sair para outra tela e voltar devolve o
@@ -106,6 +128,7 @@ $("compositor").addEventListener("scroll", () => {
 }, { passive: true });
 
 $("nova").onclick = () => {
+  lembrancaDoAssistente.trabalhoId = null;
   transicaoDeTela("inicio");
   estado.trabalhoId = null;
   estado.trabalho = null;

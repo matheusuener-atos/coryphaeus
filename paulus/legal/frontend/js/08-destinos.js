@@ -98,7 +98,7 @@ function abrirDestino(id) {
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "apoiar") return mostrarApoiar("contribuir");
   if (!d.pronta) return telaAdiante(d);
-  if (d.abre === "conversa") return $("nova").click();
+  if (d.abre === "conversa") return voltarAoAssistente();
   if (d.abre === "biblioteca") return mostrarBiblioteca();
   if (d.abre === "habilidades") return mostrarHabilidades();
   if (d.abre === "maquina") return mostrarMaquina();
