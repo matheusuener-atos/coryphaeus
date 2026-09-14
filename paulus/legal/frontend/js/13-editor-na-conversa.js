@@ -213,9 +213,11 @@ function desenharEditorAoLado() {
   const botao = (cmd, icone, titulo) =>
     '<button data-cmd="' + cmd + '" title="' + titulo + '" aria-label="' + titulo + '">' + ic(icone, 18) + "</button>";
   lado.innerHTML =
-    '<div class="edl-topo"><div class="edl-nome">' +
+    // Duas linhas no alto, e só: o nome com os botões, e a barra de edição.
+    // Versão, contagem e "salvo às" moram no rodapé.
+    '<div class="edl-topo">' +
     '<h3 class="edl-titulo" id="dp-titulo" contenteditable="true" spellcheck="false">' + esc(d.titulo) + "</h3>" +
-    '<span class="meta" id="dp-selo">versão ' + d.versao + " · " + plural(c.palavras, "palavra") + "</span></div>" +
+    '<button class="botao-icone" id="dp-salvar" title="Salvar agora (salva sozinho enquanto você escreve)" aria-label="Salvar agora">' + ic("save", 18) + "</button>" +
     '<button class="botao-icone" id="dp-so-editor" title="Abrir no Editor, em tela cheia" aria-label="Abrir no Editor">' + ic("open_in_new", 18) + "</button>" +
     '<button class="botao-icone" id="dp-pdf" title="Exportar PDF" aria-label="Exportar PDF">' + ic("picture_as_pdf", 18) + "</button>" +
     '<button class="botao-icone" id="dp-fechar" title="Fechar o editor" aria-label="Fechar o editor">' + ic("close", 18) + "</button></div>" +
@@ -231,14 +233,14 @@ function desenharEditorAoLado() {
     '<button id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
     '<button id="dp-alteracoes" title="Ir até a alteração">' + ic("difference", 16) +
     'Alterações · <span id="dp-alteracoes-n">0</span></button>' +
-    '<span class="sinc"><i class="ponto-verde"></i><span id="dp-sinc">ao lado da conversa</span></span>' +
-    '<button class="primario" id="dp-salvar">' + ic("save", 16) + "Salvar</button></div>" +
+    "</div>" +
 
     '<div class="edl-mesa" id="dp-mesa"><div class="edl-papel">' +
     '<div class="ed-folha edl-folha" id="dp-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
     '<div class="edl-entre" id="dp-entre"></div></div><div id="dp-abaixo"></div></div>' +
 
     '<div class="edl-rodape"><span id="dp-paginas">' + plural(c.palavras, "palavra") + "</span>" +
+    '<span id="dp-selo">versão ' + d.versao + "</span>" +
     '<span class="cresce"></span><button id="dp-guardar">Salvar na biblioteca</button>' +
     '<button id="dp-assinar">Assinar</button></div>' +
     '<style id="dp-estilo-paginas"></style>';
@@ -246,15 +248,25 @@ function desenharEditorAoLado() {
   desenharAtalhosDoEditor();
   ligarDupla();
   atualizarPostura();
+  posicionarEditorAoLado();
   desenharPaginas();
   pedirPaginasDaFolha(true);
 }
 
-/* Do cabeçalho ao pé da janela: o topo é a altura do cabeçalho da conversa,
-   que muda com o título e a meta. */
+/* Do cabeçalho até logo acima da caixa de pedido. A caixa não se mexe quando
+   o editor abre — quem encolhe é a conversa acima dela —, então o painel
+   termina onde o rodapé começa. O rodapé muda de altura (o registro abre, o
+   texto cresce, os atalhos entram), e o painel acompanha. */
 function posicionarEditorAoLado() {
   const lado = $("editor-lado");
-  if (lado) lado.style.top = ($("conversa-topo").offsetHeight + 8) + "px";
+  if (!lado) return;
+  lado.style.top = ($("conversa-topo").offsetHeight + 8) + "px";
+  lado.style.bottom = ($("conversa-rodape").offsetHeight + 12) + "px";
+}
+
+if (window.ResizeObserver) {
+  new ResizeObserver(() => { if (editorNaConversaAberto()) posicionarEditorAoLado(); })
+    .observe($("conversa-rodape"));
 }
 
 window.addEventListener("resize", () => {
@@ -480,7 +492,7 @@ async function pedirNoDocumento(pedido) {
   centro.appendChild(resposta);
   atualizarPostura();
   rolar();
-  if ($("dp-sinc")) $("dp-sinc").textContent = "escrevendo…";
+  if ($("dp-selo")) $("dp-selo").textContent = "escrevendo…";
 
   // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
   const antes = htmlDaFolha();
@@ -519,7 +531,7 @@ async function pedirNoDocumento(pedido) {
     resposta.innerHTML = '<div class="texto">Não consegui: ' + esc(String((err && err.message) || err)) + "</div>";
   } finally {
     dupla.ocupada = false;
-    if ($("dp-sinc")) $("dp-sinc").textContent = "ao lado da conversa";
+    if ($("dp-selo") && $("dp-selo").textContent === "escrevendo…") $("dp-selo").textContent = "alterações não salvas";
     rolar();
   }
 }
@@ -624,8 +636,7 @@ async function gravarDupla() {
   const d = await r.json();
   dupla.doc = Object.assign(dupla.doc, d);
   const c = d.contagem || { palavras: 0 };
-  $("dp-selo").textContent = "versão " + d.versao + " · " + plural(c.palavras, "palavra") +
-    " · salvo às " + new Date().toTimeString().slice(0, 5);
+  $("dp-selo").textContent = "versão " + d.versao + " · salvo às " + new Date().toTimeString().slice(0, 5);
 }
 
 async function painelCodigosNaDupla() {

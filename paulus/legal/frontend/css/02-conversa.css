@@ -385,9 +385,9 @@
      corpo e o rodape da conversa abrem espaco para ele pela direita. Nenhum
      fio separa as partes: o painel e uma superficie, a mesa e outro tom, e as
      paginas sao papel. */
-  .conversa-col.com-editor .conversa-corpo,
-  .conversa-col.com-editor .conversa-rodape { padding-right: calc(var(--margem-pagina) + var(--editor-largura) + 28px); }
-  .conversa-col.com-editor .ir-ao-fim { left: calc(50% - (var(--editor-largura) + 28px) / 2); }
+  /* So o corpo abre espaco: o rodape - a caixa de pedido - fica onde estava,
+     e o painel termina acima dele. */
+  .conversa-col.com-editor .conversa-corpo { padding-right: calc(var(--margem-pagina) + var(--editor-largura) + 28px); }
 
   .editor-lado {
     position: absolute; z-index: 5; top: 96px; bottom: 20px;
@@ -397,23 +397,23 @@
     box-shadow: var(--elev-cartao);
     animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
   }
-  .edl-topo { flex: none; display: flex; align-items: center; gap: 6px; padding: 14px 14px 4px 20px; }
-  .edl-nome { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 12px 2px 20px; }
   .edl-titulo {
-    margin: 0; outline: none; font: 400 21px var(--serif); letter-spacing: -.01em;
+    flex: 1; min-width: 0; margin: 0; outline: none; font: 400 21px var(--serif); letter-spacing: -.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .edl-barra { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 14px 10px 16px; }
+  /* Uma linha so: sem espaco para tudo, a barra rola de lado em vez de quebrar. */
+  .edl-barra {
+    flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 4px 12px 10px 16px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .edl-barra::-webkit-scrollbar { display: none; }
   .edl-barra button {
-    height: 30px; min-width: 30px; padding: 0 8px; border: none; border-radius: 8px; background: none; color: var(--ink);
+    flex: none; white-space: nowrap; height: 30px; min-width: 30px; padding: 0 8px; border: none; border-radius: 8px; background: none; color: var(--ink);
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 500 12.5px var(--sans);
   }
   .edl-barra button:hover:not(:disabled) { background: var(--fill); border: none; }
-  .edl-barra button.primario { padding: 0 12px; font-weight: 600; background: var(--btn); color: var(--btnt); }
-  .edl-barra button.primario:hover:not(:disabled) { background: var(--ink0); }
   .edl-vao { width: 10px; flex: none; }
-  .sinc { margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--sans); color: var(--okt); }
-  .sinc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* A mesa: o tom de fundo sobre o qual as paginas ficam. */
   .edl-mesa {
@@ -438,6 +438,7 @@
     display: flex; align-items: center; justify-content: center;
     font: 500 9.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3);
   }
+  #dp-selo::before { content: "·"; margin-right: 8px; }
   .edl-rodape {
     flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px 12px 20px;
     font: 400 11.5px var(--sans); color: var(--ink3);
@@ -519,8 +520,10 @@
 
   /* Quer ver o documento? A oferta embaixo da resposta, e o visor só leitura. */
   .assinatura ~ .proposta-caixa { margin-top: 14px; }
-  .oferta-doc { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-width: 0; color: var(--ink2); }
-  .oferta-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--ink); }
+  /* Na coluna estreita (editor aberto ao lado) os botoes descem para a linha
+     de baixo, em vez de passar da borda do cartao. */
+  .oferta-doc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; min-width: 0; color: var(--ink2); }
+  .oferta-nome { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--ink); }
   .leitor-topo { align-items: center; flex-wrap: nowrap; margin-bottom: 10px; }
   .leitor-conta { white-space: nowrap; }
   .leitor-ir {
