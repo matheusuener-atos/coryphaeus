@@ -398,20 +398,21 @@
     position: absolute; z-index: 5; top: 96px; bottom: 20px;
     right: var(--margem-pagina); width: var(--editor-largura);
     display: flex; flex-direction: column; min-height: 0;
-    /* Sem cartao em volta: nome, barra e rodape ficam sobre o fundo da tela,
-       como o cabecalho da conversa, e a mesa das paginas e a unica superficie.
-       Cartao dentro de cartao era o painel inteiro com outra caixa no meio. */
-    background: none;
+    /* Um cartao so, com a borda da caixa de pedido. Dentro dele a mesa das
+       paginas e uma faixa de ponta a ponta, sem canto nem margem: cartao
+       dentro de cartao era a mesa arredondada no meio do painel. */
+    border: 1px solid var(--hair); border-radius: 14px; background: var(--surf);
+    box-shadow: var(--elev-cartao); overflow: hidden;
     animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
   }
-  .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 0 0 2px 4px; }
+  .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 12px 2px 20px; }
   .edl-titulo {
     flex: 1; min-width: 0; margin: 0; outline: none; font: 400 21px var(--serif); letter-spacing: -.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* Uma linha so: sem espaco para tudo, a barra rola de lado em vez de quebrar. */
   .edl-barra {
-    flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 4px 0 10px 0;
+    flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 4px 12px 10px 16px;
     overflow-x: auto; scrollbar-width: none;
   }
   .edl-barra::-webkit-scrollbar { display: none; }
@@ -425,7 +426,7 @@
   /* A mesa: o tom de fundo sobre o qual as paginas ficam. */
   .edl-mesa {
     flex: 1; min-height: 0; overflow-y: auto; padding: 22px 26px 30px;
-    border-radius: 14px; background: var(--fill);
+    background: var(--fill);
   }
   .edl-papel { position: relative; max-width: 780px; margin: 0 auto; }
   /* A folha continua sendo UMA area editavel - so assim o texto passa de uma
@@ -447,7 +448,7 @@
   }
   #dp-selo::before { content: "·"; margin-right: 8px; }
   .edl-rodape {
-    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 0 0 4px;
+    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px 12px 20px;
     font: 400 11.5px var(--sans); color: var(--ink3);
   }
   .edl-rodape button { height: 30px; border-radius: 8px; }
