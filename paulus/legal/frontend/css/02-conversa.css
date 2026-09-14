@@ -556,9 +556,10 @@
   }
   .trecho-ver:hover:not(:disabled) { color: var(--ink); border: none; background: none; }
 
+  /* Mesmo branco/cinza da faixa de avisos do rodape: aviso e aviso, em qualquer lugar. */
   .aviso-cobertura {
-    background: var(--warnbg); border: 1px solid var(--ink-a1); border-radius: 10px;
-    padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--warnt); white-space: normal;
+    background: var(--destaque); border: 1px solid var(--destaque); border-radius: 10px;
+    padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--bg); white-space: normal;
   }
 
 
