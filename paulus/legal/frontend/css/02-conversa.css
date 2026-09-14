@@ -125,15 +125,25 @@
      que ha mais para baixo e o botao de ir ao fim. */
   .fluxo { flex: 1; overflow-y: auto; padding: 22px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .fluxo.arrastando { outline: 2px dashed var(--ink-a3); outline-offset: -8px; }
-  /* Sem vinheta em cima. Embaixo, sim - e so ali, logo acima do registro e
-     da caixa de pedido, que agora moram no rodape: sem ela, abrir o registro
-     cortava a conversa numa linha seca. O degrade fica na coluna da
-     conversa, e nao no rodape inteiro, para nao apagar o pe do painel. */
+  /* A vinheta nas duas bordas da conversa. Embaixo, logo acima do registro e
+     da caixa de pedido: sem ela, abrir o registro cortava a conversa numa
+     linha seca. Em cima, logo abaixo do cabecalho: a mensagem que sobe some
+     no fundo, em vez de ser cortada rente ao titulo. O degrade fica na coluna
+     da conversa, e nao na tela inteira, para nao apagar o painel ao lado. */
+  .conversa-principal::before,
   .conversa-principal::after {
-    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+    content: ""; position: absolute; left: 0; right: 0; height: 36px;
     pointer-events: none; z-index: 3;
-    background: linear-gradient(to top, var(--bg), transparent);
   }
+  .conversa-principal::before { top: 0; background: linear-gradient(to bottom, var(--bg), transparent); display: none; }
+  /* Em cima, so na conversa: as outras telas que moram aqui (Acervo,
+     Servicos) tem cabecalho proprio no alto, e o degrade apagaria ele. O
+     fluxo desce a mesma altura, para a primeira mensagem nao nascer embaixo
+     da vinheta. */
+  .conversa-principal:has(> .fluxo > .centro.prosa)::before { display: block; }
+  .conversa-principal:has(> .fluxo > .centro.prosa) > .fluxo { padding-top: 36px; }
+  .conversa-principal::after { bottom: 0; background: linear-gradient(to top, var(--bg), transparent); }
+  .conversa-col.vazia .conversa-principal::before,
   .conversa-col.vazia .conversa-principal::after { display: none; }
   /* Sem teto: a coluna manda. Quem e prosa carrega a propria medida. */
   .centro { width: 100%; display: flex; flex-direction: column; gap: 16px; }

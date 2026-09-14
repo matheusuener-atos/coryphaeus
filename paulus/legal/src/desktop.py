@@ -23,6 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 TITULO = "PAULUS Legal"
+# O "P" do programa (frontend/img/paulus-logo.svg), desenhado de 16 a 256 px.
+ICONE = Path(__file__).parent.parent / "frontend" / "img" / "paulus.ico"
 
 
 # A janela mora aqui fora, e nao dentro da Ponte. O motivo esta na classe.
@@ -217,6 +219,24 @@ def _esperar_servidor(porta: int, timeout: float = 30.0) -> bool:
     return False
 
 
+def _identidade_no_windows() -> None:
+    """
+    O programa aparece como ele mesmo na barra de tarefas, e nao como Python.
+
+    Quem roda e o python.exe, e o Windows agrupa a janela pelo executavel:
+    sem uma identidade propria, a barra mostra o icone do Python mesmo com o
+    icone da janela trocado. Tem de ser dito antes de a janela existir.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Coryphaeus.PaulusLegal")
+    except Exception:  # noqa: BLE001 - sem isso o programa abre igual, so com o icone do Python
+        pass
+
+
 def main() -> int:
     try:
         import webview
@@ -246,6 +266,7 @@ def main() -> int:
         return 1
 
     global _JANELA
+    _identidade_no_windows()
     # Sem moldura: os tres botoes e a barra de titulo passam a ser da propria
     # pagina. `easy_drag=False` porque quem decide onde se arrasta e ela - com
     # ele ligado, a janela inteira vira area de arraste e selecionar texto
@@ -273,7 +294,8 @@ def main() -> int:
     # pena: sem isso, o WhatsApp Web pediria o codigo a cada abertura.
     sessoes = Path(__file__).parent.parent / "data" / "sessoes"
     sessoes.mkdir(parents=True, exist_ok=True)
-    webview.start(private_mode=False, storage_path=str(sessoes))
+    webview.start(private_mode=False, storage_path=str(sessoes),
+                  icon=str(ICONE) if ICONE.exists() else None)
 
     servidor.should_exit = True
     return 0
