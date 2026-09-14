@@ -162,7 +162,12 @@ class Trabalho:
 # --------------------------------------------------------------------------
 
 
-def titular(pedido: str, limite: int = 46) -> str:
+# Nome de conversa e de grupo: 30 caracteres. A lista tem uma coluna de
+# largura fixa para o nome, e o que passa disso so viraria reticencias.
+LIMITE_DE_NOME = 30
+
+
+def titular(pedido: str, limite: int = LIMITE_DE_NOME) -> str:
     """
     Nome curto do trabalho, tirado da propria frase da pessoa.
 

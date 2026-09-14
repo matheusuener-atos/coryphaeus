@@ -449,7 +449,7 @@ function desenharListaDeConversas() {
 }
 
 async function renomearConversa(id, titulo) {
-  const novo = await perguntar({ titulo: "Renomear conversa", contexto: "Assistente", campo: { rotulo: "Nome", valor: titulo, icone: "forum" }, confirmar: "Renomear" });
+  const novo = await perguntar({ titulo: "Renomear conversa", contexto: "Assistente", campo: { rotulo: "Nome", valor: titulo, icone: "forum", max: LIMITE_DE_NOME }, confirmar: "Renomear" });
   if (!novo || !novo.trim()) return;
   await fetch("/api/trabalhos/" + id + "/renomear", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -458,6 +458,10 @@ async function renomearConversa(id, titulo) {
   if (id === estado.trabalhoId) $("conversa-titulo").textContent = novo.trim();
   carregarTrabalhos();
 }
+
+/* Nome de conversa e de grupo tem 30 caracteres (o mesmo limite do
+   servidor): a coluna do nome na lista e fixa. */
+const LIMITE_DE_NOME = 30;
 
 /* O nome da conversa, no cabecalho, e o campo de renomear: clicar nele
    deixa escrever ali mesmo. Enter ou sair do campo guarda, Esc desiste. So
@@ -483,10 +487,11 @@ $("conversa-titulo").addEventListener("click", () => {
     terminou = true;
     h.removeEventListener("keydown", teclas);
     h.removeEventListener("blur", sair);
+    h.removeEventListener("beforeinput", limitar);
     h.contentEditable = "false";
     h.classList.remove("editando");
     h.scrollLeft = 0;
-    const novo = h.textContent.replace(/\s+/g, " ").trim().slice(0, 80);
+    const novo = h.textContent.replace(/\s+/g, " ").trim().slice(0, LIMITE_DE_NOME);
     if (!guardar || !novo || novo === antes) { h.textContent = antes; return; }
     h.textContent = novo;
     const r = await fetch("/api/trabalhos/" + id + "/renomear", {
@@ -506,8 +511,17 @@ $("conversa-titulo").addEventListener("click", () => {
     else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); terminar(false); }
   };
   const sair = () => terminar(true);
+  /* Passou de 30, nao entra mais letra - a nao ser por cima de um trecho
+     selecionado, que substitui. */
+  const limitar = (e) => {
+    if (!e.inputType || !e.inputType.startsWith("insert")) return;
+    const escolhido = String(window.getSelection() || "").length;
+    const entra = (e.data || "").length || 1;
+    if (h.textContent.length - escolhido + entra > LIMITE_DE_NOME) e.preventDefault();
+  };
   h.addEventListener("keydown", teclas);
   h.addEventListener("blur", sair);
+  h.addEventListener("beforeinput", limitar);
 });
 
 /* Renomear um grupo leva todas as conversas dele junto. Com o nome de um
@@ -515,7 +529,7 @@ $("conversa-titulo").addEventListener("click", () => {
 async function renomearGrupo(grupo) {
   const novo = await perguntar({
     titulo: "Renomear grupo", contexto: "Conversas › Grupos",
-    campo: { rotulo: "Nome do grupo", valor: grupo, icone: "folder",
+    campo: { rotulo: "Nome do grupo", valor: grupo, icone: "folder", max: LIMITE_DE_NOME,
              dica: "Se já existir um grupo com esse nome, as conversas deste passam para ele." },
     confirmar: "Renomear",
   });
@@ -597,7 +611,7 @@ function ligarItensDeGrupo(caixa, ids, atual, fechar) {
     fechar();
     const novo = await perguntar({
       titulo: "Novo grupo", contexto: "Conversas › " + (ids.length === 1 ? "Mover para grupo" : "Mover " + plural(ids.length, "conversa")),
-      campo: { rotulo: "Nome do grupo", placeholder: "ex.: Clientes", icone: "create_new_folder" },
+      campo: { rotulo: "Nome do grupo", placeholder: "ex.: Clientes", icone: "create_new_folder", max: LIMITE_DE_NOME },
       confirmar: "Criar e mover",
     });
     if (novo === null || !novo.trim()) return;

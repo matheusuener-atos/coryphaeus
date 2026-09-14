@@ -11,7 +11,8 @@
 
    o.titulo, o.contexto (onde estou), o.texto (paragrafos), o.html (extra),
    o.campo { rotulo, valor, placeholder, sufixo, icone, tipo, dica,
-             sugestoes, obrigatorio (padrao sim), selecionar (padrao sim) },
+             sugestoes, obrigatorio (padrao sim), selecionar (padrao sim),
+             max (limite de caracteres) },
    o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga.
 
    Enter confirma, Esc fecha, o foco fica preso dentro e volta para o
@@ -38,7 +39,7 @@ function dialogo(o) {
       const id = i ? "dialogo-campo-" + i : "dialogo-campo";
       miolo += '<div class="dialogo-campo">' + (c.rotulo ? '<label for="' + id + '">' + esc(c.rotulo) + "</label>" : "") +
         '<div class="dialogo-caixa">' + (c.icone ? ic(c.icone, 18) : "") +
-        '<input id="' + id + '" data-dialogo-chave="' + esc(c.chave) + '" type="' + (c.tipo || "text") + '" value="' + esc(c.valor || "") + '" placeholder="' + esc(c.placeholder || "") + '" autocomplete="off" spellcheck="false">' +
+        '<input id="' + id + '" data-dialogo-chave="' + esc(c.chave) + '" type="' + (c.tipo || "text") + '" value="' + esc(c.valor || "") + '" placeholder="' + esc(c.placeholder || "") + '"' + (c.max ? ' maxlength="' + Number(c.max) + '"' : "") + ' autocomplete="off" spellcheck="false">' +
         (c.sufixo ? '<span class="dialogo-sufixo">' + esc(c.sufixo) + "</span>" : "") + "</div>" +
         (c.sugestoes && c.sugestoes.length
           ? '<div class="dialogo-sugestoes">' + c.sugestoes.map((s) => '<button type="button" data-dialogo-sugestao="' + esc(s) + '" data-dialogo-para="' + id + '">' + esc(s) + "</button>").join("") + "</div>"

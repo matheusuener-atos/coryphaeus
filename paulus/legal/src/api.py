@@ -84,7 +84,7 @@ from habilidade_base import (
     Contexto,
 )
 from extract import SUPPORTED_SUFFIXES, extract_file, index_all_contracts
-from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, PAUSADO, Etapa, Trabalhos, titular
+from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, LIMITE_DE_NOME, PAUSADO, Etapa, Trabalhos, titular
 from jobs import agora as jobs_agora
 from llama_client import (
     DEFAULT_MODEL,
@@ -1477,7 +1477,7 @@ def trabalhos_renomear(id_: str, payload: Renomear) -> dict:
     if not trabalho:
         raise HTTPException(status_code=404, detail="conversa nao encontrada")
 
-    titulo = " ".join(payload.titulo.split())[:80]
+    titulo = " ".join(payload.titulo.split())[:LIMITE_DE_NOME]
     if not titulo:
         raise HTTPException(status_code=400, detail="o nome nao pode ficar vazio")
 
@@ -1492,7 +1492,7 @@ def trabalhos_grupo(id_: str, payload: MoverGrupo) -> dict:
     if not trabalho:
         raise HTTPException(status_code=404, detail="conversa nao encontrada")
 
-    trabalho.grupo = " ".join(payload.grupo.split())[:40]
+    trabalho.grupo = " ".join(payload.grupo.split())[:LIMITE_DE_NOME]
     trabalho.atualizado_em = jobs_agora()
     estado.trabalhos.salvar(trabalho)
     return trabalho.resumo()
@@ -1550,7 +1550,7 @@ def grupos_renomear(payload: RenomearGrupo) -> dict:
     volta so aquelas conversas).
     """
     de = " ".join(payload.de.split())
-    para = " ".join(payload.para.split())[:40]
+    para = " ".join(payload.para.split())[:LIMITE_DE_NOME]
     if not de:
         raise HTTPException(status_code=400, detail="diga qual grupo")
     ids = estado.trabalhos.renomear_grupo(de, para)

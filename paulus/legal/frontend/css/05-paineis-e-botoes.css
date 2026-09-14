@@ -273,6 +273,18 @@
   }
   .enviar:hover:not(:disabled) { background: var(--casca-hover); color: var(--casca-ink); border: none; }
   .enviar .so-conversa { display: none; }
+  /* O microfone do ditado, ao lado do enviar: redondo e sem fundo quando
+     parado; ouvindo, na cor de destaque com o pulso. */
+  .ditar {
+    margin-left: auto; width: 34px; height: 34px; flex: none; padding: 0;
+    border: none; border-radius: 50%; background: none; color: var(--ink2);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: background .18s ease, color .18s ease;
+  }
+  .ditar:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .ditar + .enviar { margin-left: 0; }
+  .ditar.ouvindo, .ditar.ouvindo:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
+  .ditar.ouvindo .ic { animation: pv-pulse 1.4s ease-in-out infinite; }
   /* Parar: o mesmo lugar e o mesmo tamanho do enviar, na cor de destaque e
      com o quadrado cheio - o sinal de parar de qualquer tocador. */
   .enviar.parar, .enviar.parar:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
@@ -299,7 +311,8 @@
   .conversa-col:not(.vazia) .pilula-inicio { display: none; }
   .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
   .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
-  .conversa-col:not(.vazia) .enviar { order: 4; width: 30px; height: 30px; border-radius: 8px; margin-left: 0; }
+  .conversa-col:not(.vazia) .ditar { order: 4; width: 30px; height: 30px; border-radius: 8px; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar { order: 5; width: 30px; height: 30px; border-radius: 8px; margin-left: 0; }
   .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
   .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
 
