@@ -43,12 +43,12 @@
 
   .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
-    border: 1px solid var(--hair2); border-radius: 14px; padding: 22px;
+    border: 1px solid var(--hair); border-radius: 14px; padding: 22px;
     display: grid; gap: 12px; align-content: start; background: var(--surf);
     box-shadow: var(--elev-cartao); transition: border-color .18s;
   }
   .cartao-agora[data-abre] { cursor: pointer; }
-  .cartao-agora:hover { border-color: var(--hair); }
+  .cartao-agora:hover { border-color: var(--ink-a2); }
   .cartao-agora.chama { border-color: var(--accln); background: var(--accbg2); }
   .cartao-agora.chama:hover { border-color: var(--acc); }
   .cartao-agora .cabeca { display: flex; align-items: center; gap: 11px; }
@@ -65,20 +65,24 @@
   /* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta. */
   .recentes { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   .recentes .rotulo-suave { margin-right: 2px; font-size: 11.5px; }
+  /* Mesma peca da pilula da caixa de pedido: retangulo preenchido, sem
+     contorno, como as etiquetas da tela de boas-vindas. */
   .recente {
-    display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; max-width: 320px;
-    border: 1px solid var(--hair); border-radius: 15px; background: var(--bg);
-    color: var(--ink); font: 500 12.5px var(--sans); cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; max-width: 320px;
+    border: none; border-radius: 6px; background: var(--fill);
+    color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer; white-space: nowrap;
+    transition: background .16s ease, color .16s ease;
   }
-  .recente:hover:not(:disabled) { border-color: var(--hair); background: var(--fill); color: var(--ink); }
+  .recente:hover:not(:disabled) { border: none; background: var(--fill2); color: var(--ink); }
   .recente .ic { color: var(--ink3); font-size: 15px; width: 15px; height: 15px; }
   .recente span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ver-mais {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    height: 30px; padding: 0 12px; border: 1px solid var(--hair); border-radius: 8px;
-    background: var(--bg); color: var(--ink); font: 500 12.5px var(--sans); cursor: pointer;
+    height: 28px; padding: 0 10px; border: none; border-radius: 6px;
+    background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer;
+    transition: background .16s ease, color .16s ease;
   }
-  .ver-mais:hover:not(:disabled) { color: var(--ink); background: var(--fill); border-color: var(--hair); }
+  .ver-mais:hover:not(:disabled) { color: var(--ink); background: var(--fill); border: none; }
 
   /* "Ver mais": a lista inteira de conversas surge embaixo. Ela nao e uma
      tabela - e um cartao com linhas, separadas por um fio de 1 px. A
@@ -86,14 +90,14 @@
      uma conversa tem so quatro coisas para mostrar. */
   .lista-conversas { display: grid; flex: none; width: 100%; max-width: var(--fio); margin-top: 6px; }
   .lc-cartao {
-    display: grid; background: var(--surf); border: 1px solid var(--hair2);
+    display: grid; background: var(--surf); border: 1px solid var(--hair);
     border-radius: 14px; box-shadow: var(--elev-cartao); overflow: hidden;
   }
   .lc-barra { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
   .lc-conta { font-size: 12.5px; color: var(--ink2); flex: 1; min-width: 0; }
   .lc-busca {
     display: flex; align-items: center; gap: 7px; width: 190px; height: 28px; padding: 0 10px;
-    border: 1px solid var(--hair); border-radius: 8px; color: var(--ink3); flex: none;
+    border: none; border-radius: 6px; background: var(--fill); color: var(--ink3); flex: none;
   }
   .lc-busca .ic { font-size: 15px; width: 15px; height: 15px; }
   /* `input[type=text]` no seletor por causa da regra geral de campo, que tem
@@ -105,10 +109,10 @@
   }
   .lc-recolher {
     display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-    padding: 0; border: 1px solid var(--hair); border-radius: 8px; background: var(--bg);
-    color: var(--ink); cursor: pointer; flex: none;
+    padding: 0; border: none; border-radius: 6px; background: var(--fill);
+    color: var(--ink2); cursor: pointer; flex: none;
   }
-  .lc-recolher:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
+  .lc-recolher:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
   .lc-linha {
     display: flex; align-items: center; gap: 14px; padding: 14px;
     border-top: 1px solid var(--hair2); color: var(--ink); cursor: pointer;
@@ -125,15 +129,12 @@
   }
   .lc-mais:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .lc-vazio { padding: 16px 14px; border-top: 1px solid var(--hair2); font-size: 12.5px; color: var(--ink3); }
-  .estado-conversa {
-    flex: 0 1 120px; min-width: 0; display: flex; align-items: center; gap: 7px;
-    font-size: 12.5px; color: var(--ink2); white-space: nowrap; overflow: hidden;
-  }
-  .estado-conversa .marca { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--mute); }
-  .estado-conversa .marca.falhou { background: var(--ambt); }
-  .estado-conversa .marca.executando { background: var(--grnt); animation: pv-pulse 3.2s ease-in-out infinite; }
-  .estado-conversa .marca.aguardando { background: var(--ambt); }
-  .estado-conversa .marca.concluido { background: var(--grnt); }
-  .estado-conversa .marca.pausado { background: var(--mute2); }
+  /* O estado e uma etiqueta, como o "pronto" do cartao de instalacao nas
+     boas-vindas: verde para o que andou, ambar para o que pede atencao,
+     cinza para o que parou. Um ponto com texto solto ao lado se perdia no
+     meio da linha. */
+  .estado-conversa { flex: 0 1 132px; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+  .etiqueta.atencao { background: var(--amb); color: var(--ambt); }
+  .etiqueta.anda { animation: pv-pulse 3.2s ease-in-out infinite; }
   .lista-conversas .menu-conversa { top: calc(100% - 8px); }
 

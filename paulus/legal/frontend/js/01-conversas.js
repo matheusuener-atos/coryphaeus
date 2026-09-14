@@ -95,7 +95,7 @@ $("nova").onclick = () => {
   $("exportar-conversa").hidden = true;
   $("centro").innerHTML = exemplos();
   $("centro").classList.remove("prosa");
-  $("conversa-col").classList.remove("tela-dupla", "tela-cheia", "com-lista");
+  $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
   $("lista-conversas").hidden = true;
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
@@ -150,7 +150,9 @@ function desenharRecentes() {
   const alvo = $("recentes");
   const lista = (estado.recentes || []).slice(0, 3);
   if (!lista.length) { alvo.hidden = true; alvo.innerHTML = ""; return; }
-  const aberta = $("conversa-col").classList.contains("com-lista");
+  /* Aberta e a lista estar a vista - e nao uma classe na coluna, que era o
+     criterio antigo e deixou de existir: com ele o botao so sabia abrir. */
+  const aberta = !$("lista-conversas").hidden;
   alvo.hidden = false;
   alvo.innerHTML = '<span class="rotulo-suave">Recentes</span>' +
     lista.map((t) =>
@@ -163,9 +165,8 @@ function desenharRecentes() {
   if (aberta) desenharListaDeConversas();
 }
 
-/* A lista inteira, na propria tela: o bloco do pedido sobe e a tabela surge
-   embaixo. O deslocamento e animado a partir da posicao medida antes e
-   depois - a caixa vai para onde precisa ir, e o olho acompanha. */
+/* A lista inteira, na propria tela, embaixo das recentes. Nada sobe nem se
+   desloca: o inicio comeca no alto, e a lista so entra depois dele. */
 function alternarListaDeConversas(abrir) {
   $("lista-conversas").hidden = !abrir;
   if (abrir) desenharListaDeConversas();
@@ -178,6 +179,12 @@ function alternarListaDeConversas(abrir) {
 
 const ESTADO_DA_CONVERSA = {
   executando: "trabalhando", aguardando: "esperando você", concluido: "concluída", pausado: "parada", falhou: "não deu",
+};
+
+/* A cor da etiqueta de cada estado. Parada fica cinza de proposito: ela nao
+   deu errado nem deu certo - so nao terminou. */
+const TOM_DO_ESTADO = {
+  executando: "ok anda", aguardando: "atencao", concluido: "ok", falhou: "atencao",
 };
 
 /* A selecao da lista: segurar numa linha marca; a barra troca os filtros por
@@ -203,7 +210,8 @@ function desenharListaDeConversas() {
       ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 17) +
       '<span class="lc-nome"><b>' + esc(t.titulo) + "</b><small>" + esc(quando) +
       (t.grupo ? " · " + esc(t.grupo) : "") + "</small></span>" +
-      '<span class="estado-conversa"><i class="marca ' + esc(t.estado) + '"></i>' + (ESTADO_DA_CONVERSA[t.estado] || esc(t.estado)) + "</span>" +
+      '<span class="estado-conversa"><span class="etiqueta ' + (TOM_DO_ESTADO[t.estado] || "") + '">' +
+      (ESTADO_DA_CONVERSA[t.estado] || esc(t.estado)) + "</span></span>" +
       '<button class="lc-mais" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 17) + "</button></div>";
   }).join("") : '<p class="lc-vazio">' + (termo ? "Nenhuma conversa com esse nome." : "Nenhuma conversa ainda.") + "</p>";
 

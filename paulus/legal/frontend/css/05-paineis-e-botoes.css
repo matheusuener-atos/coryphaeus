@@ -172,10 +172,16 @@
 
   /* O rodape de garantia. Nao e decoracao: e o argumento de venda do
      produto, repetido onde a duvida aparece. */
+  /* O mesmo selo do alto da tela de boas-vindas: verde, monoespacado, em
+     maiusculas, com o ponto na frente. Em texto corrido cinza ele se lia como
+     rodape; assim ele se le como garantia. */
   .rodape-garantia {
-    flex: none; display: none; align-items: center; gap: 14px; height: 32px; padding: 0 20px;
-    border-top: 1px solid var(--ink-a06); background: var(--bg);
-    font: 400 11.5px var(--sans); color: var(--ink3);
+    flex: none; display: none; align-items: center; gap: 8px; height: 32px; padding: 0 26px;
+    border-top: 1px solid var(--hair); background: var(--bg);
+    font: 500 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--okt);
+  }
+  .rodape-garantia::before {
+    content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none;
   }
   .conversa-col.vazia .rodape-garantia { display: flex; }
   .rodape-garantia.alerta { color: var(--warnt); }
@@ -184,11 +190,11 @@
      cartao do desenho - superficie, fio de 1 px, 14 px de raio, 22 px de
      recuo e a sombra longa que assenta em vez de elevar. */
   .cartao-campo {
-    position: relative; border: 1px solid var(--hair2); border-radius: 14px; background: var(--surf);
+    position: relative; border: 1px solid var(--hair); border-radius: 14px; background: var(--surf);
     box-shadow: var(--elev-cartao); padding: 22px;
     display: grid; gap: 16px; transition: border-color .18s;
   }
-  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--hair); }
+  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a2); }
 
   /* No inicio o que se pede e escrito em Garamond, como o titulo acima dele:
      a caixa e a continuacao da frase da saudacao, nao um formulario. */
@@ -200,14 +206,20 @@
   }
   textarea::placeholder { color: var(--ink3); }
 
-  .pilulas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* A pilula segue a etiqueta da tela de boas-vindas: um retangulo PREENCHIDO,
+     sem contorno. O contorno foi a primeira versao, copiada do guia do
+     Assistente, e destoava da unica tela que ja estava no desenho novo - la
+     nada pequeno tem borda; tem fundo. */
+  .pilulas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .pilula {
-    display: inline-flex; align-items: center; gap: 7px; height: 30px;
-    padding: 0 12px; border: 1px solid var(--hair); border-radius: 15px; background: var(--bg);
-    font: 500 12.5px var(--sans); color: var(--ink); cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 7px; height: 28px;
+    padding: 0 10px; border: none; border-radius: 6px; background: var(--fill);
+    font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap;
+    transition: background .16s ease, color .16s ease;
   }
-  .pilula:hover:not(:disabled) { background: var(--fill); color: var(--ink); border-color: var(--hair); }
-  .pilula .ic { font-size: 16px; width: 16px; height: 16px; }
+  .pilula:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
+  .pilula .ic { font-size: 16px; width: 16px; height: 16px; color: var(--ink3); }
+  .pilula:hover:not(:disabled) .ic { color: var(--ink2); }
   .pilula .rotulo-botao { flex: none; padding: 0; }
 
   /* A pilula do escopo fica a vista o tempo todo: enquanto estiver ali, a
@@ -215,11 +227,15 @@
      quanto ler o acervo inteiro calado. */
   .escopo { display: contents; }
   .escopo[hidden] { display: none; }
+  /* O escopo e informacao, nao acao - e por isso ganha o mesmo fundo das
+     etiquetas das boas-vindas ("IA 100% local"), e nao um contorno. Solto sem
+     fundo no meio das pilulas, ele parecia texto que tinha escapado da fila. */
   .escopo-pilula {
-    display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
-    padding: 6px 6px 6px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink);
+    display: inline-flex; align-items: center; gap: 6px; max-width: 260px; height: 28px;
+    padding: 0 6px 0 10px; border-radius: 6px; background: var(--fill);
+    font: 500 12.5px var(--sans); color: var(--ink);
   }
-  .escopo-pilula:hover { background: var(--fill); }
+  .escopo-pilula:hover { background: var(--fill2); }
   .escopo-pilula b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escopo-pilula button {
     border: none; background: none; color: var(--ink3); cursor: pointer;
@@ -227,9 +243,11 @@
   }
   .escopo-pilula button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .escopo-acervo {
-    display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
-    padding: 6px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink2);
+    display: inline-flex; align-items: center; gap: 7px; max-width: 260px; height: 28px;
+    padding: 0 10px; border-radius: 6px; background: var(--fill);
+    font: 500 12.5px var(--sans); color: var(--ink2);
   }
+  .escopo-acervo .ic { color: var(--ink3); }
   .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escopo-limpar {
     border: none; background: none; color: var(--ink3); cursor: pointer;

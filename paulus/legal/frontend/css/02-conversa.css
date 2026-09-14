@@ -1,11 +1,9 @@
   /* ---------------------------------------------------------- conversa */
 
   /* A faixa do relogio e o que se agarra para arrastar a janela no inicio,
-     onde nao ha cabecalho. Com a janela propria, ela recua 152 px a direita
-     para nao passar por baixo dos tres botoes. */
-  /* A altura e o recuo sao os dos botoes da janela - 32 px, sem folga em
-     cima - para que a hora fique na mesma linha do meio que eles. Com 8 px de
-     recuo no topo, o texto caia 4 px abaixo do centro deles. */
+     onde nao ha cabecalho. Ela tem a altura dos botoes da janela - 32 px, sem
+     folga em cima -, para que a hora fique na mesma linha do meio que eles, e
+     recua 152 px a direita para nao passar por baixo deles. */
   .relogio-canto {
     display: none; flex: none; align-items: center; justify-content: flex-end;
     height: 32px; padding: 0 44px;
@@ -91,22 +89,25 @@
   .assinatura button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
   /* o plano de execucao */
-  .cartao { border: 1px solid var(--hair2); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); overflow: hidden; }
+  .cartao { border: 1px solid var(--hair); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); overflow: hidden; }
   .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--hair2); }
   .cartao-topo .quem { font: 600 14px var(--sans); flex: 1; }
   .cartao-topo .tempo { font: 500 11px var(--sans); color: var(--ink3); }
   .cartao-corpo { padding: 12px 16px; display: grid; gap: 10px; font-size: 13.5px; }
   .etapa { display: flex; align-items: center; gap: 12px; }
   .etapa .marcador { color: var(--ink3); }
-  .etapa.concluido .marcador { color: var(--verde); }
-  .etapa.executando .marcador { color: var(--acc); }
+  /* As cores do checklist das boas-vindas: verde para o que ficou pronto,
+     neutro para o que esta andando. O vinho fica so para o que deu errado -
+     numa etapa em curso ele se lia como erro. */
+  .etapa.concluido .marcador { color: var(--okt); }
+  .etapa.executando .marcador { color: var(--ink); }
   .etapa.falhou .marcador { color: var(--acc); }
   .etapa .texto { flex: 1; min-width: 0; color: var(--ink2); }
   .etapa.executando .texto { color: var(--ink); }
   .etapa.na_fila .texto { color: var(--ink3); }
   .etapa .estado { font: 500 11px var(--sans); color: var(--ink3); }
   .progresso { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
-  .progresso i { display: block; height: 100%; background: var(--acc); transition: width 0.25s; }
+  .progresso i { display: block; height: 100%; background: var(--ink2); transition: width 0.25s; }
 
   /* O painel da direita e um CARTAO, nao uma coluna colada na borda: ele tem
      margem, raio e a mesma sombra de todo cartao do desenho. A diferenca
@@ -115,7 +116,7 @@
   .lateral {
     min-width: 0; min-height: 0; overflow: auto; position: relative; z-index: 1;
     margin: 14px 16px 16px 0; padding: 22px;
-    background: var(--surf); border: 1px solid var(--hair2); border-radius: 14px;
+    background: var(--surf); border: 1px solid var(--hair); border-radius: 14px;
     box-shadow: var(--elev-cartao);
     display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; grid-auto-rows: min-content;
     animation: pv-troca .46s cubic-bezier(.22,.61,.36,1) both;
@@ -127,16 +128,19 @@
   .lateral-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
   .lateral-cabeca .ic { color: var(--ink3); }
   .contagem { font: 400 11.5px var(--sans); color: var(--ink3); }
-  .lat-etapas { display: grid; gap: 9px; font-size: 12.5px; color: var(--ink3); }
+  /* O progresso do painel e o checklist da tela de boas-vindas: o que ficou
+     pronto ganha o circulo verde e CONTINUA legivel. Riscado e apagado, ele
+     parecia cancelado, e nao concluido. */
+  .lat-etapas { display: grid; gap: 9px; font-size: 13px; color: var(--ink); }
   .lat-etapa { display: flex; gap: 9px; align-items: center; }
-  .lat-etapa .ic { color: var(--grnt); }
+  .lat-etapa .ic { color: var(--okt); }
   /* `> span:last-child` e nao `span`: o icone tambem e um span, e com
      `flex: 1` nele o glifo esticava e empurrava o texto para o meio do
      painel. */
   .lat-etapa > span:last-child { flex: 1; min-width: 0; }
-  .lat-etapa.feita span:last-child { text-decoration: line-through; }
   .lat-etapa.andando { color: var(--ink); }
-  .lat-etapa.andando .ic { color: var(--ambt); }
+  .lat-etapa.andando .ic { color: var(--ink); }
+  .lat-etapa.fila { color: var(--ink2); }
   .lat-etapa.fila .ic { color: var(--ink3); }
   .lat-etapa.falhou .ic { color: var(--acc); }
   .lat-lista { display: grid; gap: 9px; }
@@ -165,8 +169,8 @@
   .propriedades { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 8px 10px; align-items: baseline; font-size: 12.5px; color: var(--ink3); }
   .valor-prop { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip-modelo {
-    justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px;
-    border-radius: 12px; background: var(--grn); color: var(--grnt); font: 600 11.5px var(--sans);
+    justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+    border-radius: 5px; background: var(--okbg); color: var(--okt); font: 600 11.5px var(--sans);
   }
   .ponto-verde { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
   .ponto-acc { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); flex: none; }
@@ -325,7 +329,7 @@
   .dupla-editor {
     display: flex; flex-direction: column; min-height: 0; min-width: 0;
     margin: 14px 16px 16px 0; background: var(--surf);
-    border: 1px solid var(--hair2); border-radius: 14px; box-shadow: var(--elev-cartao);
+    border: 1px solid var(--hair); border-radius: 14px; box-shadow: var(--elev-cartao);
     overflow: hidden; animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
   }
   .dupla-barra {
@@ -378,7 +382,7 @@
 
   /* A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
      Terminou, vira uma linha so, clicavel para reabrir. */
-  .bastidor { border: 1px solid var(--hair2); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); }
+  .bastidor { border: 1px solid var(--hair); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); }
   .bastidor-topo {
     display: flex; align-items: center; gap: 10px; padding: 9px 12px;
     font-size: 13px; color: var(--ink2); cursor: pointer; border-radius: 8px;
@@ -387,7 +391,7 @@
   .bastidor-titulo { flex: 1; min-width: 0; }
   .bastidor-topo .num { font: 500 11px var(--sans); color: var(--ink3); }
   .bastidor-topo .ic { color: var(--ink3); transition: transform .2s; }
-  .bastidor-topo .marcador-feito { color: var(--verde); }
+  .bastidor-topo .marcador-feito { color: var(--okt); }
   .bastidor.fechado .bastidor-topo .ic { transform: rotate(-90deg); }
   .bastidor-linhas { max-height: 172px; overflow-y: auto; padding: 6px 12px 8px; border-top: 1px solid var(--ink-a06); }
   .bastidor.fechado .bastidor-linhas { display: none; }
@@ -402,7 +406,7 @@
   .bastidor-linha.feito { color: var(--okt); }
   .bastidor-linha > span:last-child { flex: 1; min-width: 0; }
   .bastidor-barra { height: 2px; border-radius: 1px; background: var(--fill2); margin-top: 5px; overflow: hidden; }
-  .bastidor-barra > i { display: block; height: 100%; background: var(--acc); }
+  .bastidor-barra > i { display: block; height: 100%; background: var(--ink2); }
   .bastidor-barra.indefinida > i { width: 32%; animation: vaivem 1.5s ease-in-out infinite; }
   @keyframes vaivem {
     0%   { margin-left: 0; }
