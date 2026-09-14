@@ -94,6 +94,7 @@ class Contexto:
         ritmo=None,
         ensinado="",
         saber=None,
+        parar=None,
     ) -> None:
         self.searcher = searcher
         self.client = client
@@ -113,6 +114,8 @@ class Contexto:
         self._recarregar = recarregar
         self._registrar = registrar
         self.cancelado = cancelado or (lambda: False)
+        # Parar UMA resposta, e nao o organizador inteiro (que e `cancelado`).
+        self.parar = parar
         self.antes_de_cada = antes_de_cada or (lambda: None)
 
     # -------------------------------------------------------------- estado
@@ -157,10 +160,16 @@ class Ponte:
         usar(ponte.resultado)
     """
 
-    def __init__(self, trabalho: Callable[[Callable[[Any], None]], Any]) -> None:
+    def __init__(self, trabalho: Callable[[Callable[[Any], None]], Any],
+                 parar: Callable[[], bool] | None = None) -> None:
         import queue
         import threading
 
+        # Com `parar`, quem consome deixa de esperar assim que ele disser que
+        # sim, mesmo no silencio longo em que o modelo le e nao emite nada. A
+        # thread do trabalho segue ate onde ela mesma perceber (o cliente do
+        # modelo olha o mesmo `parar`), mas a tela ja nao fica presa nela.
+        self._parar = parar
         self._fila: queue.Queue = queue.Queue()
         self._fim = object()
         self._resultado: Any = None
@@ -178,8 +187,19 @@ class Ponte:
         threading.Thread(target=rodar, daemon=True).start()
 
     def __iter__(self) -> Iterator[Any]:
+        import queue
+
         while True:
-            item = self._fila.get()
+            if self._parar is None:
+                item = self._fila.get()
+            else:
+                try:
+                    item = self._fila.get(timeout=0.25)
+                except queue.Empty:
+                    if self._parar():
+                        self._terminou = True
+                        return
+                    continue
             if item is self._fim:
                 self._terminou = True
                 if self._erro:

@@ -118,6 +118,7 @@ class LlamaClient:
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
         on_fase: Callable[[str, dict], None] | None = None,
+        parar: Callable[[], bool] | None = None,
     ) -> str:
         payload: dict = {
             "model": self.model,
@@ -170,6 +171,12 @@ class LlamaClient:
         partes: list[str] = []
 
         for linha in resp.iter_lines(decode_unicode=True):
+            # A pessoa apertou parar: fechar a conexao e o que faz o Ollama
+            # largar a geracao - ele cancela quando o cliente vai embora. O que
+            # ja foi escrito volta, e quem chamou decide o que fazer com ele.
+            if parar and parar():
+                resp.close()
+                break
             if not linha:
                 continue
             try:
@@ -223,6 +230,7 @@ class LlamaClient:
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
         on_fase: Callable[[str, dict], None] | None = None,
+        parar: Callable[[], bool] | None = None,
     ) -> str:
         """
         Pergunta com contexto de contratos.
@@ -246,7 +254,10 @@ class LlamaClient:
             {"role": "system", "content": instrucao},
             {"role": "user", "content": conteudo},
         ]
-        return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase)
+        # `parar` so vai quando existe: quem troca o `_chat` num teste nao
+        # precisa conhecer o argumento.
+        extra = {"parar": parar} if parar else {}
+        return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase, **extra)
 
     def ask_json(self, instruction: str, context: str = "", schema_hint: str = "") -> dict | list | None:
         """

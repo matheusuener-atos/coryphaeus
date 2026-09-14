@@ -84,7 +84,7 @@ from habilidade_base import (
     Contexto,
 )
 from extract import SUPPORTED_SUFFIXES, extract_file, index_all_contracts
-from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, Etapa, Trabalhos, titular
+from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, PAUSADO, Etapa, Trabalhos, titular
 from jobs import agora as jobs_agora
 from llama_client import (
     DEFAULT_MODEL,
@@ -158,6 +158,9 @@ class Estado:
         self.devagar = False
         # Levantado quando a pessoa pede para parar a leitura em andamento.
         self.cancelar = threading.Event()
+        # O botao de parar da conversa: um sinal por resposta sendo escrita,
+        # pelo id da conversa. Sai daqui quando a resposta termina.
+        self.respondendo: dict[str, threading.Event] = {}
         # Habilidades carregadas da pasta do projeto, uma por arquivo.
         self.registro = registro.carregar(HABILIDADES_DIR)
         # Fila do que espera decisao humana, e as preferencias da casa.
@@ -807,9 +810,10 @@ def _disponibilidade() -> dict:
     }
 
 
-def _contexto(registrar=None) -> Contexto:
+def _contexto(registrar=None, parar=None) -> Contexto:
     """O que as habilidades enxergam da aplicacao."""
     return Contexto(
+        parar=parar,
         searcher=estado.searcher,
         client=estado.client,
         pasta=estado.pasta,
@@ -1509,6 +1513,32 @@ def _escopo_da_pergunta(trabalho, pergunta: str, payload: Pergunta) -> tuple[lis
     return escolhidos, explicito
 
 
+@app.post("/api/trabalhos/{id_}/parar")
+def trabalhos_parar(id_: str) -> dict:
+    """
+    O botao de parar da caixa de pedido.
+
+    Com resposta sendo escrita, levanta o sinal dela: a leitura larga o modelo
+    em ate um quarto de segundo, guarda o que ja saiu e fecha a conversa como
+    parada. Sem resposta nenhuma andando - a conversa ficou "trabalhando" de
+    uma sessao que ja nao existe -, a propria rota a devolve como parada.
+    """
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa nao encontrada")
+    sinal = estado.respondendo.get(id_)
+    if sinal:
+        sinal.set()
+        return {"parando": True, "estado": trabalho.estado}
+    if trabalho.estado == EXECUTANDO:
+        for etapa in trabalho.etapas:
+            if etapa.estado == EXECUTANDO:
+                etapa.estado = PAUSADO
+        trabalho.estado = PAUSADO
+        estado.trabalhos.salvar(trabalho)
+    return {"parando": False, "estado": trabalho.estado}
+
+
 @app.post("/api/trabalhos/{id_}/perguntar")
 def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     """
@@ -1569,7 +1599,34 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     def registrar(texto: str) -> None:
         trabalho.registrar(texto)
 
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def pausar_o_que_executava() -> None:
+        for etapa in trabalho.etapas:
+            if etapa.estado == EXECUTANDO:
+                etapa.estado = PAUSADO
+        trabalho.estado = PAUSADO
+
     def gerar() -> Iterator[str]:
+        """
+        A resposta e o que sempre garante que a conversa nao fica presa.
+
+        Se quem esta do outro lado some no meio - a janela fechou, a pagina
+        recarregou -, o gerador e fechado sem chegar ao fim, e a conversa
+        ficava "trabalhando" para sempre: foi o que apareceu com 345 s no
+        relogio. O `finally` a devolve como parada.
+        """
+        try:
+            yield from _gerar()
+        finally:
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                pausar_o_que_executava()
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar() -> Iterator[str]:
         import time
 
         inicio = time.time()
@@ -1583,11 +1640,14 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         nivel: int | None = None
         inferencia = False
 
+        passos = habilidade.executar(
+            _contexto(registrar, parar=parar.is_set), pergunta=pergunta, top=payload.top,
+            apenas=citado,
+        )
         try:
-            for tipo, dados in habilidade.executar(
-                _contexto(registrar), pergunta=pergunta, top=payload.top,
-                apenas=citado,
-            ):
+            for tipo, dados in passos:
+                if parar.is_set():
+                    break
                 if tipo == "fontes":
                     nivel = dados.get("nivel", nivel)
                     inferencia = bool(dados.get("inferencia", inferencia))
@@ -1644,6 +1704,24 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             return
 
         segundos = round(time.time() - inicio, 1)
+
+        # Parou no meio: guarda o que o modelo ja tinha escrito, marcado como
+        # interrompido, e a conversa fica "parada" - da para perguntar de novo.
+        # Nada disso entra no historico de ritmo: uma leitura cortada nao e
+        # medida de quanto esta maquina leva.
+        if parar.is_set():
+            passos.close()
+            pausar_o_que_executava()
+            escrito = "".join(partes).strip()
+            if escrito:
+                trabalho.dizer(
+                    "paulus", escrito,
+                    fontes=fontes, cobertura=cobertura, segundos=segundos,
+                    nivel=nivel, inferencia=inferencia, interrompida=True,
+                )
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(escrito)})
+            return
 
         # O que acabou de acontecer entra no historico da maquina: e dele que
         # sai o "leituras deste tamanho levaram ~70 s aqui" da proxima vez.

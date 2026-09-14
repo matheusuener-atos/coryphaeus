@@ -102,6 +102,7 @@ $("buscar").onclick = async () => {
 function desenharTrabalho() {
   const t = estado.trabalho;
   $("conversa-titulo").textContent = t.titulo;
+  modoDoEnviar(estado.ocupado || t.estado === "executando" ? "parar" : "enviar");
   entrarNaConversa();
 
   let html = "";
@@ -139,6 +140,7 @@ function blocoResposta(m, pergunta) {
   if (m.cobertura && m.cobertura.ignorados && m.cobertura.ignorados.length) {
     html += avisoCobertura(m.cobertura);
   }
+  if (m.interrompida) html += etiquetaDeParada();
   if (m.inferencia) html += etiquetaDeLeitura();
   html += '<div class="texto">' + esc(m.texto) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
@@ -150,6 +152,12 @@ function blocoResposta(m, pergunta) {
 /* O que veio do resumo guardado nao e trecho de documento: e conclusao do
    assistente sobre ele. A resposta tem de dizer isso antes de ser lida - uma
    frase que parece citacao e nao e vale menos que nada. */
+/* A resposta que a pessoa parou no meio: o texto e o que o modelo tinha
+   escrito ate ali, e quem le precisa saber que nao e a resposta inteira. */
+function etiquetaDeParada() {
+  return '<div class="etiqueta-inferencia">' + ic("pause", 14) + "resposta parada no meio</div>";
+}
+
 function etiquetaDeLeitura() {
   return '<div class="etiqueta-inferencia">' + ic("auto_awesome", 14) +
     "leitura do assistente, não trecho do documento</div>";
@@ -247,8 +255,8 @@ function desenharProgresso(etapas) {
   bloco.hidden = false;
   const feitas = etapas.filter((e) => e.estado === "concluido").length;
   $("lat-progresso-conta").textContent = feitas + " de " + etapas.length;
-  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error" };
-  const classe = { concluido: "feita", executando: "andando", na_fila: "fila", falhou: "falhou" };
+  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error", pausado: "pause" };
+  const classe = { concluido: "feita", executando: "andando", na_fila: "fila", falhou: "falhou", pausado: "fila" };
   $("lat-etapas").innerHTML = etapas.map((e) =>
     '<div class="lat-etapa ' + (classe[e.estado] || "fila") + '">' +
     ic(icone[e.estado] || "radio_button_unchecked", 18) +
@@ -266,8 +274,8 @@ function cartaoPlano(etapas, atual) {
 }
 
 function linhaEtapa(e) {
-  const rotulos = { concluido: "concluído", executando: "", na_fila: "na fila", falhou: "não deu" };
-  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error" };
+  const rotulos = { concluido: "concluído", executando: "", na_fila: "na fila", falhou: "não deu", pausado: "parada" };
+  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error", pausado: "pause" };
   const direita = e.total
     ? '<span class="estado">' + e.feitos + " / " + e.total + "</span>"
     : '<span class="estado">' + (rotulos[e.estado] || "") + "</span>";
@@ -327,6 +335,54 @@ function rolar() { $("fluxo").scrollTop = $("fluxo").scrollHeight; }
 
 /* ------------------------------------------------------------ enviar */
 
+/* O botao da caixa de pedido tem tres rostos. ENVIAR e o de sempre. PARAR
+   aparece enquanto uma resposta esta sendo escrita - por esta pagina ou por
+   uma sessao que ja nao existe e deixou a conversa "trabalhando". PARANDO e o
+   instante entre o clique e o servidor confirmar: o botao fica apagado para
+   ninguem clicar duas vezes. */
+const ENVIAR_ORIGINAL = $("enviar").innerHTML;
+
+function modoDoEnviar(modo) {
+  const botao = $("enviar");
+  const parar = modo === "parar" || modo === "parando";
+  botao.classList.toggle("parar", parar);
+  botao.disabled = modo === "parando";
+  botao.title = parar ? "Parar a resposta" : "Enviar";
+  botao.setAttribute("aria-label", botao.title);
+  botao.innerHTML = parar ? ic("stop", 18) : ENVIAR_ORIGINAL;
+}
+
+/* Conversa aberta "trabalhando" sem resposta andando nesta pagina: a janela
+   foi recarregada no meio, ou a resposta e de antes. Ainda da para parar. */
+function respondendoFora() {
+  return Boolean(!estado.ocupado && estado.trabalho && estado.trabalho.estado === "executando");
+}
+
+async function pararResposta() {
+  const id = estado.trabalhoId;
+  if (!id) return;
+  modoDoEnviar("parando");
+  let d = {};
+  try {
+    d = await (await fetch("/api/trabalhos/" + id + "/parar", { method: "POST" })).json();
+  } catch (err) { /* o servidor sumiu: cortar a leitura daqui mesmo */ }
+  if (estado.ocupado) {
+    /* A resposta desta pagina termina sozinha com o evento "parado", em ate
+       um quarto de segundo. Se nao terminar - servidor travado -, a pagina
+       corta a leitura dela e segue. */
+    const controle = estado.controle;
+    setTimeout(() => { if (estado.ocupado && estado.controle === controle && controle) controle.abort(); }, 5000);
+    return;
+  }
+  /* Nada andando por aqui: a rota ja devolveu a conversa como parada. */
+  if (!d.parando) {
+    abrirTrabalho(id);
+  } else {
+    setTimeout(() => abrirTrabalho(id), 700);
+  }
+}
+
+
 async function enviar() {
   if (estado.ocupado) return;
   const pedido = $("pedido").value.trim();
@@ -346,7 +402,8 @@ async function enviar() {
 
   entrarNaConversa();
   estado.ocupado = true;
-  $("enviar").disabled = true;
+  estado.controle = new AbortController();
+  modoDoEnviar("parar");
   $("pedido").value = "";
   $("pedido").style.height = "auto";
   atualizarSelo(true);
@@ -387,6 +444,7 @@ async function enviar() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pergunta: pedido, apenas: estado.escopo }),
+      signal: estado.controle.signal,
     });
     if (!r.ok) throw new Error("não consegui responder");
 
@@ -481,6 +539,15 @@ async function enviar() {
         } else if (mt[1] === "erro") {
           plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
             esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" onclick="location.reload()">Tentar de novo</button></div></div>';
+        } else if (mt[1] === "parado") {
+          // A pessoa parou: o que ja saiu fica, com a marca de que parou ali.
+          fecharBastidor();
+          plano.remove();
+          if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
+          resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
+          resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido));
+          ligarResposta(resposta);
+          $("conversa-titulo").textContent = dados.titulo;
         } else if (mt[1] === "fim") {
           fecharBastidor();
           plano.remove();
@@ -491,12 +558,19 @@ async function enviar() {
       }
     }
   } catch (err) {
-    texto.textContent = "Não consegui responder: " + err;
+    if (err && err.name === "AbortError") {
+      plano.remove();
+      if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
+      resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
+    } else {
+      texto.textContent = "Não consegui responder: " + err;
+    }
   } finally {
     fecharBastidor();
     clearInterval(relogio);
     estado.ocupado = false;
-    $("enviar").disabled = false;
+    estado.controle = null;
+    modoDoEnviar("enviar");
     atualizarSelo(false);
     carregarTrabalhos();
     if (estado.trabalhoId) {
@@ -646,7 +720,7 @@ function andarNaMencao(passo) {
   });
 }
 
-$("enviar").onclick = enviar;
+$("enviar").onclick = () => ((estado.ocupado || respondendoFora()) ? pararResposta() : enviar());
 $("pedido").addEventListener("keydown", (e) => {
   if (mencao.aberta) {
     if (e.key === "ArrowDown") { e.preventDefault(); andarNaMencao(1); return; }

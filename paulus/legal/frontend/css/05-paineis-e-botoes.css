@@ -268,6 +268,12 @@
   }
   .enviar:hover:not(:disabled) { background: var(--casca-hover); color: var(--casca-ink); border: none; }
   .enviar .so-conversa { display: none; }
+  /* Parar: o mesmo lugar e o mesmo tamanho do enviar, na cor de destaque e
+     com o quadrado cheio - o sinal de parar de qualquer tocador. */
+  .enviar.parar, .enviar.parar:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
+  .enviar.parar:hover:not(:disabled) { opacity: .85; }
+  .enviar.parar .ic { font-variation-settings: 'FILL' 1; }
+  .enviar.parar:disabled { opacity: .5; }
 
   /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
      em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */

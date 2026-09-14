@@ -302,12 +302,17 @@ def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
     e a primeira palavra saiu, e os numeros que o Ollama devolve no fim -
     tokens lidos e escritos, contados por ele, nao estimados por mim.
     """
+    # O botao de parar da tela chega aqui como `ctx.parar`: o cliente do modelo
+    # fecha a conexao e a ponte deixa de esperar.
+    parar = getattr(ctx, "parar", None)
+
     def trabalho(empurrar):
         return ctx.client.ask(
             pergunta, contexto, stream=True, ensinado=getattr(ctx, "ensinado", ""),
             on_token=lambda t: empurrar(("token", {"t": t})),
             on_fase=lambda fase, dados: empurrar((fase, dados)),
+            parar=parar,
         )
 
-    for item in Ponte(trabalho):
+    for item in Ponte(trabalho, parar=parar):
         yield item

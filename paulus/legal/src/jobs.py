@@ -55,6 +55,9 @@ class Mensagem:
     # resposta veio do resumo, que nao e trecho de documento.
     nivel: int | None = None
     inferencia: bool = False
+    # A pessoa apertou parar no meio. O que ficou e o que o modelo ja tinha
+    # escrito, e a conversa reaberta tem de dizer que parou ali.
+    interrompida: bool = False
 
 
 @dataclass

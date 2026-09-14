@@ -240,6 +240,111 @@ def test_ponte() -> None:
         pass
     checar(naoconsumida, "pedir resultado antes de consumir e erro explicito")
 
+    # O botao de parar: no silencio longo em que o modelo le e nao emite nada,
+    # quem consome a ponte tem de largar sem esperar a thread acabar.
+    import threading
+    import time
+
+    sinal = threading.Event()
+
+    def le_devagar(empurrar):
+        empurrar("comecou")
+        time.sleep(5)
+        empurrar("tarde demais")
+
+    ponte4 = Ponte(le_devagar, parar=sinal.is_set)
+    threading.Timer(0.3, sinal.set).start()
+    comeco = time.time()
+    itens = list(ponte4)
+    checar(itens == ["comecou"] and time.time() - comeco < 1.5,
+           "com parar, a ponte larga a espera em menos de um segundo e meio")
+
+
+# -------------------------------------------------------------- parar
+
+
+def test_parar_resposta() -> None:
+    """
+    O botao de parar pela API, de ponta a ponta: a resposta que esta sendo
+    escrita para, o que ja saiu fica guardado como interrompido, e a conversa
+    volta como parada. Sem Ollama: a habilidade de perguntar e trocada por
+    uma que escreve devagar e obedece ao `ctx.parar`, que e o contrato real.
+    """
+    print("\nparar a resposta pela caixa de pedido")
+    import threading
+    import time
+
+    import requests
+    import api
+
+    habilidade = api.estado.registro.obter("perguntar")
+    guardado = (habilidade.executar, habilidade.estado)
+
+    def devagar(ctx, pergunta="", top=6, apenas=None):
+        yield "fontes", {"consultados": [], "ignorados": [], "total_contratos": 0, "trechos": []}
+        yield "lendo", {"caracteres": 10}
+
+        def escreve(empurrar):
+            empurrar(("escrevendo", {"lendo_segundos": 0}))
+            for i in range(400):
+                if ctx.parar and ctx.parar():
+                    return
+                empurrar(("token", {"t": f"palavra{i} "}))
+                time.sleep(0.02)
+
+        for item in Ponte(escreve, parar=ctx.parar):
+            yield item
+        yield "fim", {}
+
+    habilidade.executar, habilidade.estado = devagar, "pronta"
+    # Servidor de verdade, e nao o TestClient: o TestClient junta a resposta
+    # inteira antes de entregar a primeira linha, e o parar so chegaria
+    # depois do fim - o teste mediria o cliente de teste, nao o programa.
+    from test_tela import _porta_livre, _subir_servidor
+
+    porta = _porta_livre()
+    servidor = _subir_servidor(porta)
+    base = f"http://127.0.0.1:{porta}"
+    criado = None
+    try:
+        criado = requests.post(base + "/api/trabalhos", json={"pedido": "teste do parar"}).json()
+        eventos: list[str] = []
+        comeco = time.time()
+        with requests.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
+                           json={"pergunta": "qual o prazo do contrato?"}, stream=True) as r:
+            pediu = False
+            for linha in r.iter_lines(decode_unicode=True):
+                if linha.startswith("event: "):
+                    eventos.append(linha[7:])
+                    if linha == "event: token" and eventos.count("token") == 5 and not pediu:
+                        pediu = True
+                        threading.Thread(target=lambda: requests.post(f"{base}/api/trabalhos/{criado['id']}/parar")).start()
+        demorou = time.time() - comeco
+        print("         eventos: " + ", ".join(dict.fromkeys(eventos)))
+        checar("parado" in eventos and "fim" not in eventos, "a resposta termina com 'parado', e nao com 'fim'")
+        checar(demorou < 4, f"e para logo (escreveria 8 s; parou em {demorou:.1f} s)")
+        depois = requests.get(f"{base}/api/trabalhos/{criado['id']}").json()
+        ultima = depois["mensagens"][-1]
+        checar(depois["estado"] == "pausado", "a conversa volta como parada")
+        checar(ultima["autor"] == "paulus" and ultima["interrompida"] and ultima["texto"].startswith("palavra0"),
+               "o que ja tinha sido escrito fica guardado, marcado como interrompido")
+        checar(criado["id"] not in api.estado.respondendo, "o sinal da resposta e solto no fim")
+
+        # Conversa presa em "trabalhando" de uma sessao que ja acabou.
+        preso = api.estado.trabalhos.obter(criado["id"])
+        preso.estado = "executando"
+        r = requests.post(f"{base}/api/trabalhos/{criado['id']}/parar").json()
+        checar(r["parando"] is False and r["estado"] == "pausado",
+               "sem resposta andando, parar destrava a conversa presa")
+    finally:
+        habilidade.executar, habilidade.estado = guardado
+        if criado:
+            # Apagar manda para a lixeira; o teste nao deixa rastro la.
+            lixo = requests.delete(f"{base}/api/trabalhos/{criado['id']}").json().get("lixeira")
+            if lixo:
+                api.estado.lixeira.tirar(lixo)
+        servidor.should_exit = True
+
 
 # ------------------------------------------------------------- destinos
 
@@ -310,6 +415,7 @@ def main() -> int:
     test_id_repetido()
     test_pasta_ausente()
     test_ponte()
+    test_parar_resposta()
     test_destinos()
 
     total = len(registro.carregar(PASTA).habilidades)
