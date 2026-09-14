@@ -134,6 +134,37 @@
   .lc-nome { display: grid; gap: 1px; flex: 1 1 240px; min-width: 150px; }
   .lc-nome b { font: 500 15px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lc-nome small { font-size: 11.5px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A pasta da conversa, quando ela aparece fora da pasta (na busca). */
+  .lc-quando { display: flex; align-items: center; gap: 8px; }
+  .lc-grupo {
+    display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px;
+    background: var(--fill2); color: var(--ink2); font: 500 11px var(--sans);
+  }
+  .lc-grupo .ic { color: var(--ink3); }
+  /* A linha de pasta: o mesmo desenho da conversa, com a seta de entrar no
+     lugar do menu. */
+  .lc-pasta > .ic { color: var(--ink); }
+  /* "Sem grupo" nao se renomeia nem se exclui: o lugar do "..." fica vazio,
+     para a seta de entrar continuar alinhada com a das outras pastas. */
+  .lc-mais-vazio { width: 28px; flex: none; }
+  .lc-entrar { width: 28px; display: flex; justify-content: center; color: var(--ink3); flex: none; transition: transform .2s ease, color .2s ease; }
+  .lc-pasta:hover .lc-entrar { color: var(--ink); transform: translateX(2px); }
+  /* O caminho dentro da pasta: "‹ Conversas › Clientes  2 conversas". */
+  .lc-caminho { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; white-space: nowrap; }
+  .lc-caminho b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+  .lc-caminho small { color: var(--ink3); font-size: 11.5px; }
+  .lc-sep { color: var(--ink3); }
+  /* A alternancia Conversas / Grupos: o seletor de visoes das telas, na
+     medida da barra da lista, com a contagem de cada lado. */
+  .lc-visoes { flex: none; padding: 2px; }
+  .lc-visoes button { padding: 4px 10px; font-size: 12.5px; display: inline-flex; align-items: baseline; gap: 5px; }
+  .lc-visoes button small { font: 500 11px var(--sans); color: var(--ink3); }
+  .lc-visoes button.ativa small { color: var(--ink2); }
+  .lc-migalha {
+    display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 8px 0 4px; border: none; border-radius: 6px;
+    background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer;
+  }
+  .lc-migalha:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .lc-mais {
     padding: 0; border: none; background: none; color: var(--ink3); cursor: pointer;
     display: flex; align-items: center; flex: none;

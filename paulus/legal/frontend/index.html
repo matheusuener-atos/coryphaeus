@@ -103,7 +103,6 @@
     <button class="trilho-item apoiar" data-destino="apoiar" title="Apoiar o projeto" aria-label="Apoiar o projeto"><span class="ic">favorite</span></button>
     <button class="trilho-item" id="tema" title="Tema escuro" aria-label="Alternar tema"><span class="ic" id="tema-icone">dark_mode</span></button>
     <button class="trilho-item" data-destino="config" title="Configurações" aria-label="Configurações"><span class="ic">settings</span></button>
-    <span class="avatar" id="avatar">PL</span>
   </nav>
 
   <div class="menu-flutuante" id="menu-flutuante">
@@ -113,7 +112,7 @@
     <nav class="menu" id="menu" aria-label="Menu">
       <!-- Uma palavra so. O recuo e calculado para que o "P" caia exatamente
            sobre o "P" do trilho - ver o CSS. -->
-      <div class="menu-cabeca"><span>PAVLVS</span></div>
+      <div class="menu-cabeca"><span>P<span class="menu-marca-resto">AVLVS</span></span></div>
       <button class="menu-item" data-nova="1"><span class="caixa-ic"><span class="ic">add</span></span><span class="rotulo-botao">Nova conversa</span></button>
       <span class="menu-divisa"></span>
       <button class="menu-item" data-destino="conversa"><span class="caixa-ic"><span class="ic">forum</span></span><span class="rotulo-botao">Assistente</span></button>
@@ -143,7 +142,6 @@
       <button class="menu-item apoiar" data-destino="apoiar"><span class="caixa-ic"><span class="ic">favorite</span></span><span class="rotulo-botao">Apoiar o projeto</span></button>
       <button class="menu-item" id="tema-menu"><span class="caixa-ic"><span class="ic" id="tema-menu-icone">dark_mode</span></span><span class="rotulo-botao" id="tema-rotulo">Tema escuro</span></button>
       <button class="menu-item" data-destino="config"><span class="caixa-ic"><span class="ic">settings</span></span><span class="rotulo-botao">Configurações</span></button>
-      <div class="menu-usuario"><span class="avatar" id="avatar-menu">PL</span><span class="nome-usuario"><span id="usuario-nome">PAULUS Legal</span><small id="usuario-papel">Software livre</small></span></div>
     </nav>
    </div>
     <div class="menu-gaveta" id="gaveta-antigos" hidden>
@@ -189,8 +187,10 @@
           <div class="lat-etapas" id="lat-etapas"></div>
         </section>
         <section class="lateral-bloco" id="lat-trechos" hidden>
-          <div class="lateral-cabeca"><span><span class="ic ic-16">format_quote</span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></div>
-          <div class="lat-lista" id="lat-trechos-lista"></div>
+          <!-- Arvore: fechada, e so esta linha. Abre em documentos, cada
+               documento em trechos, cada trecho no texto dele. -->
+          <button class="lateral-cabeca arv-raiz" id="lat-trechos-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">chevron_right</span><span class="ic ic-16">format_quote</span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></button>
+          <div class="lat-lista" id="lat-trechos-lista" hidden></div>
         </section>
         <section class="lateral-bloco" id="lat-propriedades">
           <div class="lateral-cabeca"><span><span class="ic ic-16">tune</span>Propriedades</span></div>
@@ -207,6 +207,8 @@
     <!-- O rodape fica fora da grade do corpo: a caixa de pedido nao se mexe
          quando o painel da direita abre, e o painel termina acima dela. -->
     <div class="conversa-rodape" id="conversa-rodape">
+        <!-- Aparece quando a pessoa sobe na conversa: volta ao fim num clique. -->
+        <button class="ir-ao-fim" id="ir-ao-fim" title="Ir para o fim da conversa" aria-label="Ir para o fim da conversa"><span class="ic ic-18">arrow_downward</span></button>
         <!-- O registro do que o assistente fez mora aqui, logo acima da caixa
              de pedido e na mesma medida dela: no corpo ele centralizava pela
              coluna da conversa, que encolhe com o painel, e ficava torto em

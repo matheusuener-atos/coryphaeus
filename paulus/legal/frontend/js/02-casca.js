@@ -170,15 +170,6 @@ function fecharFlutuante() {
   fecharMenu();
 }
 
-/* Os nomes do menu entram em cascata, de cima para baixo, atras da cortina.
-   A ordem sai daqui pelo mesmo motivo da do trilho. */
-function ordenarMenu() {
-  $("menu").querySelectorAll(".rotulo-botao, .menu-secao-botao, .nome-usuario").forEach((item, i) => {
-    item.style.setProperty("--ordem", String(i));
-  });
-}
-ordenarMenu();
-
 $("trilho").addEventListener("mouseenter", () => {
   clearTimeout(menuIntencao.fecha);
   menuIntencao.fecha = 0;
@@ -328,6 +319,8 @@ $("alternar-lateral").onclick = () => {
    ganha a medida de prosa e o painel da direita entra. */
 function entrarNaConversa() {
   $("centro").classList.add("prosa");
+  $("conversa-titulo").classList.add("renomeavel");
+  $("conversa-titulo").title = "Clique para renomear";
   $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
@@ -359,34 +352,14 @@ function aplicarAnimacoes(reduzidas) {
   try { localStorage.setItem("paulus.animacoes", reduzidas ? "reduzidas" : "normais"); } catch (err) { /* sem memoria */ }
 }
 
-/* Quem usa, no avatar: a foto enviada em Configuracoes ou, sem foto, as
-   iniciais do nome cadastrado la. */
+/* As preferencias da pessoa que a casca usa na abertura. O avatar e o nome
+   no pe da barra lateral sairam (pedido): a foto e o nome continuam em
+   Configuracoes > Meus dados, onde sao editados. */
 async function carregarUsuario() {
   try {
     const d = await (await fetch("/api/preferencias")).json();
     const p = d.preferencias || d;
-    const foto = (d.marca || {}).foto || {};
     aplicarAnimacoes(p.animacoes_reduzidas);
-    const nome = String(p.nome || "").trim();
-    const partes = nome ? nome.split(/\s+/) : [];
-    // Sem nome cadastrado fica a sigla do produto, que e o que o HTML ja traz.
-    const iniciais = nome
-      ? (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase()
-      : "PL";
-
-    // A versao no endereco: sem ela, trocar a foto nao mudaria a tela, que
-    // continuaria mostrando a imagem que ja tem em maos. E tirar a foto tem
-    // de desfazer a imagem aqui, senao o circulo fica com um retrato quebrado.
-    const desenho = foto.tem ? '<img src="/marca/foto.png?v=' + foto.versao + '" alt="">' : "";
-    for (const id of ["avatar", "avatar-menu"]) {
-      if (desenho) $(id).innerHTML = desenho;
-      else $(id).textContent = iniciais;
-    }
-
-    if (!nome) return;
-    $("avatar").title = nome;
-    $("usuario-nome").textContent = nome;
-    if (p.oab) $("usuario-papel").textContent = "OAB " + p.oab;
-  } catch (err) { /* sem preferencias, fica a sigla do produto */ }
+  } catch (err) { /* sem preferencias, fica o padrao */ }
 }
 

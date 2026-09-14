@@ -197,11 +197,11 @@ def main() -> int:
               return {
                 largura: Math.round(t.getBoundingClientRect().width),
                 vaza: t.scrollHeight > t.clientHeight + 1,
-                // Fechado agora e a cortina toda fechada e o menu sem receber
-                // clique: a faixa fica montada o tempo todo e o que abre e o
-                // recorte dela, para a animacao nao refazer o layout a cada
-                // quadro nem deixar a conversa aparecer atraves do painel.
-                fechado: getComputedStyle(m.querySelector('.menu-faixa')).clipPath.includes('100%')
+                // Fechado e a faixa na largura do trilho e o menu sem receber
+                // clique: ela fica montada o tempo todo e abre crescendo, com o
+                // menu de largura fixa dentro, para nao refazer o layout dos
+                // itens a cada quadro nem deixar a conversa aparecer atraves.
+                fechado: getComputedStyle(m.querySelector('.menu-faixa')).width === '64px'
                   && getComputedStyle(m).pointerEvents === 'none',
                 coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
                 destinos: [...new Set(ids)],
@@ -551,8 +551,6 @@ def main() -> int:
                     pagina.evaluate("() => !!document.querySelector('#cfg-tela .cfg-foto .cad-avatar img') && !!document.querySelector('#cfg-tela .cfg-logo-propria img')"),
                     "Meus dados mostra a foto no avatar e a logo do escritorio",
                 )
-                checar(pagina.evaluate("() => !!document.querySelector('#avatar img')"),
-                       "e o avatar do trilho deixa de ser as iniciais")
                 redondo = pagina.evaluate("""() => {
                   const i = document.querySelector('#cfg-tela .cfg-foto .cad-avatar img');
                   const c = getComputedStyle(i);
@@ -567,7 +565,7 @@ def main() -> int:
                   cfg.recarregar = true; await mostrarConfig('perfil'); await carregarUsuario();
                 }""")
                 pagina.wait_for_timeout(1200)
-            checar(pagina.evaluate("() => !document.querySelector('#avatar img') && !document.querySelector('#cfg-tela .cfg-logo-propria')"),
+            checar(pagina.evaluate("() => !document.querySelector('#cfg-tela .cfg-foto .cad-avatar img') && !document.querySelector('#cfg-tela .cfg-logo-propria')"),
                    "remover devolve as iniciais e a marca do programa")
 
             pagina.evaluate("() => abrirDestino('desempenho')")

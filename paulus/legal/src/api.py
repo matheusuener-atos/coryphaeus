@@ -1388,6 +1388,11 @@ class MoverGrupo(BaseModel):
     grupo: str
 
 
+class RenomearGrupo(BaseModel):
+    de: str
+    para: str = ""
+
+
 @app.post("/api/trabalhos/{id_}/renomear")
 def trabalhos_renomear(id_: str, payload: Renomear) -> dict:
     trabalho = estado.trabalhos.obter(id_)
@@ -1413,6 +1418,25 @@ def trabalhos_grupo(id_: str, payload: MoverGrupo) -> dict:
     trabalho.atualizado_em = jobs_agora()
     estado.trabalhos.salvar(trabalho)
     return trabalho.resumo()
+
+
+@app.post("/api/grupos/renomear")
+def grupos_renomear(payload: RenomearGrupo) -> dict:
+    """
+    Renomeia um grupo de conversas - ou o desfaz, com `para` vazio.
+
+    Desfazer o grupo nao apaga conversa nenhuma: elas vao para "Sem grupo".
+    A resposta traz os ids, para a tela oferecer Desfazer (que e renomear de
+    volta so aquelas conversas).
+    """
+    de = " ".join(payload.de.split())
+    para = " ".join(payload.para.split())[:40]
+    if not de:
+        raise HTTPException(status_code=400, detail="diga qual grupo")
+    ids = estado.trabalhos.renomear_grupo(de, para)
+    if not ids:
+        raise HTTPException(status_code=404, detail="grupo nao encontrado")
+    return {"ids": ids, "de": de, "para": para}
 
 
 @app.post("/api/trabalhos/{id_}/duplicar")

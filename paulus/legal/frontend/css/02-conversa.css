@@ -55,6 +55,18 @@
   }
   .conversa-nome { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.15; }
   .conversa-topo h2 { font: 400 23px var(--serif); letter-spacing: -.005em; }
+  /* O nome da conversa se renomeia no lugar. Parado, ele e titulo; ao passar
+     o mouse, ganha o fundo de campo; escrevendo, o fio. O recuo negativo
+     devolve os 6 px do respiro, e o texto nao anda quando vira campo. */
+  .conversa-topo h2.renomeavel {
+    justify-self: start; max-width: calc(100% + 6px);
+    cursor: text; margin-left: -6px; padding: 0 6px; border-radius: 6px;
+    transition: background .15s ease, box-shadow .15s ease;
+  }
+  .conversa-topo h2.renomeavel:hover { background: var(--fill); }
+  .conversa-topo h2.editando, .conversa-topo h2.editando:hover {
+    background: var(--fill); box-shadow: inset 0 0 0 1px var(--destaque-linha); outline: none; text-overflow: clip;
+  }
   .conversa-topo .meta { font: 400 11.5px var(--sans); color: var(--ink3); }
   .voltar {
     width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: none;
@@ -80,7 +92,25 @@
      escorregava para a esquerda no meio da conversa. Agora ela fica parada no
      meio da pagina, com o painel aberto ou fechado; o painel mora no corpo e
      termina acima dela, entao nao ha como um passar por cima do outro. */
+  /* O botao de ir ao fim: redondo, centrado sobre a caixa de pedido, sobe
+     e aparece quando a pessoa rola para cima, e some quando ela volta. */
+  .ir-ao-fim {
+    position: absolute; left: 50%; top: -52px; z-index: 4;
+    width: 36px; height: 36px; padding: 0; border-radius: 50%;
+    border: 1px solid var(--hair); background: var(--surf); color: var(--ink);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: var(--elev-float);
+    opacity: 0; transform: translate(-50%, 8px); pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .ir-ao-fim.visivel {
+    opacity: 1; transform: translate(-50%, 0); pointer-events: auto;
+    transition: opacity .32s cubic-bezier(.16,1,.3,1), transform .4s cubic-bezier(.16,1,.3,1);
+  }
+  .ir-ao-fim:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); color: var(--ink); }
+  .conversa-col.vazia .ir-ao-fim { display: none; }
   .conversa-rodape {
+    position: relative;
     padding-inline: var(--margem-pagina);
     flex: none; display: grid; grid-template-columns: minmax(0, 1fr);
   }
@@ -90,11 +120,21 @@
   .conversa-col.vazia .conversa-rodape { flex: 1 1 auto; min-height: 0; padding-inline: 0; }
   .conversa-principal { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
 
+  /* A conversa tambem rola sem barra, como o resto do programa: a barra
+     fina foi experimentada e o usuario pediu para esconder de novo. Quem diz
+     que ha mais para baixo e o botao de ir ao fim. */
   .fluxo { flex: 1; overflow-y: auto; padding: 22px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .fluxo.arrastando { outline: 2px dashed var(--ink-a3); outline-offset: -8px; }
-  /* Sem vinheta em cima e embaixo da rolagem: o degrade apagava a ultima
-     linha da resposta e cortava o registro pela metade, e parecia defeito. O
-     texto rola ate a borda, como em qualquer pagina. */
+  /* Sem vinheta em cima. Embaixo, sim - e so ali, logo acima do registro e
+     da caixa de pedido, que agora moram no rodape: sem ela, abrir o registro
+     cortava a conversa numa linha seca. O degrade fica na coluna da
+     conversa, e nao no rodape inteiro, para nao apagar o pe do painel. */
+  .conversa-principal::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+    pointer-events: none; z-index: 3;
+    background: linear-gradient(to top, var(--bg), transparent);
+  }
+  .conversa-col.vazia .conversa-principal::after { display: none; }
   /* Sem teto: a coluna manda. Quem e prosa carrega a propria medida. */
   .centro { width: 100%; display: flex; flex-direction: column; gap: 16px; }
   .centro.prosa { max-width: var(--fio); margin: 0 auto; }
@@ -179,24 +219,34 @@
   .lat-etapa.fila { color: var(--ink2); }
   .lat-etapa.fila .ic { color: var(--ink3); }
   .lat-etapa.falhou .ic { color: var(--acc); }
-  .lat-lista { display: grid; gap: 9px; }
-  /* Cada trecho e uma regua de 2 px a esquerda, nao um cartao: cartao dentro
-     de cartao vira caixa dentro de caixa, e sao seis num painel de 316 px. */
-  .trecho-cartao {
-    display: grid; gap: 6px; padding: 2px 0 2px 13px; cursor: pointer;
-    box-shadow: inset 2px 0 0 var(--hair);
+  /* OS TRECHOS CITADOS SAO UMA ARVORE. Uma leitura cita 82 trechos de 15
+     documentos, e a lista corrida deles empurrava Propriedades para fora do
+     painel. Agora tudo chega compacto em "Trechos citados"; abrir mostra os
+     documentos, cada documento abre nos seus trechos, cada trecho no texto.
+     Fechar um ramo fecha tudo o que esta abaixo dele. O fio a esquerda de
+     cada nivel e o que mostra de quem e cada linha. */
+  .arv-raiz {
+    width: 100%; padding: 0; border: none; border-radius: 0; background: none;
+    color: var(--ink); text-align: left; cursor: pointer;
   }
-  .trecho-cartao:hover { box-shadow: inset 2px 0 0 var(--ink3); }
-  .trecho-cartao.marcado { box-shadow: inset 2px 0 0 var(--ink); }
-  .trecho-origem { display: flex; align-items: center; gap: 8px; min-width: 0; font: 400 11px var(--sans); color: var(--ink3); }
-  .trecho-origem b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font: 600 11.5px var(--sans); }
-  .trecho-origem .onde { white-space: nowrap; flex: none; }
-  /* A fonte embutida nao traz `expand_less`: quem aponta para cima e o mesmo
-     glifo virado. Um icone a mais custaria refazer o subset da fonte. */
-  .vira { transition: transform .2s cubic-bezier(.2,.7,.3,1); }
-  .trecho-cartao.marcado .vira { transform: rotate(180deg); }
-  .trecho-texto { font-size: 11.5px; line-height: 1.55; color: var(--ink2); max-height: 120px; overflow: hidden; }
-  .trecho-cartao:not(.marcado) .trecho-texto, .trecho-cartao:not(.marcado) .trecho-ver { display: none; }
+  .arv-raiz:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .arv-seta { transition: transform .22s cubic-bezier(.16,1,.3,1); }
+  .arv-raiz[aria-expanded="true"] .arv-seta, .arv-no[aria-expanded="true"] > .arv-seta { transform: rotate(90deg); }
+  .lat-lista { display: grid; gap: 2px; }
+  .arv-ramo { display: grid; min-width: 0; }
+  .arv-no {
+    display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; height: 28px;
+    padding: 0 6px 0 2px; border: none; border-radius: 6px; background: none;
+    color: var(--ink2); font: 500 12px var(--sans); text-align: left; cursor: pointer;
+  }
+  .arv-no:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .arv-no > .ic { color: var(--ink3); }
+  .arv-doc b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--sans); color: var(--ink); }
+  .arv-no small { flex: none; font: 400 11px var(--sans); color: var(--ink3); }
+  .arv-trecho .onde { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .arv-filhos { display: grid; gap: 2px; margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--hair); }
+  .arv-folha { gap: 6px; padding: 4px 4px 8px 12px; }
+  .trecho-texto { font-size: 11.5px; line-height: 1.55; color: var(--ink2); max-height: 160px; overflow: hidden; }
   /* A ancora numerada da citacao. */
   .cit {
     display: inline-flex; align-items: center; justify-content: center; flex: none;

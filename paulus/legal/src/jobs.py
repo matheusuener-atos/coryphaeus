@@ -294,6 +294,26 @@ class Trabalhos:
             "em_andamento": [t.resumo() for t in ordenados if t.aberto],
         }
 
+    def renomear_grupo(self, de: str, para: str) -> list[str]:
+        """
+        Troca o nome de um grupo em todas as conversas dele, de uma vez.
+
+        Grupo nao e registro proprio: e o nome gravado em cada conversa. Por
+        isso renomear e reescrever as conversas - e, se `para` ja e o nome de
+        outro grupo, as conversas se juntam a ele. A data da conversa nao muda:
+        mudar a pasta nao e mexer na conversa, e ela nao pode pular para o topo
+        da lista por isso. Devolve os ids que mudaram.
+        """
+        mudaram = []
+        with self._trava:
+            alvos = [t for t in self._itens.values() if de and t.grupo == de]
+            for trabalho in alvos:
+                trabalho.grupo = para
+                mudaram.append(trabalho.id)
+        for trabalho in alvos:
+            self.salvar(trabalho)
+        return mudaram
+
     def duplicar(self, id_: str) -> Trabalho | None:
         """
         Copia a conversa, sem o historico.

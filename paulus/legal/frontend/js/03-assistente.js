@@ -207,6 +207,7 @@ function ligarResposta(caixa) {
     b.onclick = () => {
       try { localStorage.setItem("paulus.lateral", "1"); } catch (err) { /* sem memoria */ }
       mostrarLateral(true);
+      alternarRamo($("lat-trechos-cabeca"), true);
       $("lat-trechos").scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
@@ -225,17 +226,30 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
   /* Um por vez aberto: o painel tem 316 px e seis trechos abertos ao mesmo
      tempo empurrariam Propriedades para fora da tela. O primeiro ja vem
      aberto porque e o mais citado. */
-  lista.innerHTML = fontes.map((f, i) =>
-    '<div class="trecho-cartao' + (i === 0 ? " marcado" : "") + '">' +
-    '<div class="trecho-origem"><span class="cit">' + (i + 1) + "</span><b>" + esc(f.documento) + "</b>" +
-    '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span>" +
-    '<span class="ic ic-16 vira">expand_more</span></div>' +
-    '<div class="trecho-texto">' + esc(f.texto) + "</div>" +
-    '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div>').join("");
-
-  lista.querySelectorAll(".trecho-cartao").forEach((c) => {
-    c.onclick = () => lista.querySelectorAll(".trecho-cartao").forEach((o) => o.classList.toggle("marcado", o === c));
+  /* Arvore: documento > trecho > texto, na ordem em que foram citados. Uma
+     leitura nova chega sempre compacta. A numeracao continua a da citacao,
+     que e a que a resposta usa. */
+  const porDocumento = new Map();
+  fontes.forEach((f, i) => {
+    if (!porDocumento.has(f.documento)) porDocumento.set(f.documento, []);
+    porDocumento.get(f.documento).push(i);
   });
+  const seta = '<span class="ic ic-16 arv-seta">chevron_right</span>';
+  lista.innerHTML = [...porDocumento].map(([documento, indices]) =>
+    '<div class="arv-ramo">' +
+    '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + esc(documento) + "</b>" +
+    "<small>" + plural(indices.length, "trecho") + "</small></button>" +
+    '<div class="arv-filhos" hidden>' + indices.map((i) => {
+      const f = fontes[i];
+      return '<div class="arv-ramo">' +
+        '<button class="arv-no arv-trecho" aria-expanded="false">' + seta + '<span class="cit">' + (i + 1) + "</span>" +
+        '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span></button>" +
+        '<div class="arv-filhos arv-folha" hidden><div class="trecho-texto">' + esc(f.texto) + "</div>" +
+        '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div></div>';
+    }).join("") + "</div></div>").join("");
+  lista.hidden = true;
+  $("lat-trechos-cabeca").setAttribute("aria-expanded", "false");
+  lista.querySelectorAll(".arv-no").forEach((no) => { no.onclick = () => alternarRamo(no); });
   const caixa = ondeVisor || Array.from($("centro").querySelectorAll(".visor-caixa")).pop();
   lista.querySelectorAll("[data-ver-cit]").forEach((b) => {
     b.onclick = (e) => {
@@ -247,6 +261,44 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
     };
   });
 }
+
+/* Abre ou fecha um ramo da arvore (o botao e o que vem logo depois dele).
+   Fechar leva junto tudo o que estava aberto abaixo: reabrir mostra o ramo
+   compacto de novo, e nao a arvore inteira do jeito que ficou. */
+function alternarRamo(no, abrir) {
+  const filhos = no.nextElementSibling;
+  if (!filhos) return;
+  const vai = abrir === undefined ? filhos.hidden : abrir;
+  if (vai === !filhos.hidden) return;
+  no.setAttribute("aria-expanded", String(vai));
+  if (!vai) {
+    filhos.querySelectorAll('.arv-no[aria-expanded="true"]').forEach((n) => {
+      n.setAttribute("aria-expanded", "false");
+      n.nextElementSibling.hidden = true;
+    });
+  }
+  abrirComoGaveta(filhos, vai);
+}
+
+/* A gaveta de sempre: cresce ate a altura dela enquanto aparece (curva expo)
+   e encolhe mais rapido ao fechar. A mesma da lista de conversas. */
+function abrirComoGaveta(el, abrir) {
+  if (el.gaveta) { el.gaveta.cancel(); el.gaveta = null; el.style.overflow = ""; }
+  if (!animacoesLigadas()) { el.hidden = !abrir; return; }
+  el.style.overflow = "hidden";
+  if (abrir) {
+    el.hidden = false;
+    el.gaveta = el.animate([{ height: "0px", opacity: 0 }, { height: el.scrollHeight + "px", opacity: 1 }],
+      { duration: 360, easing: CURVA_ENTRA });
+    el.gaveta.onfinish = () => { el.gaveta = null; el.style.overflow = ""; };
+  } else {
+    el.gaveta = el.animate([{ height: el.offsetHeight + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+      { duration: 240, easing: "cubic-bezier(.55,0,.45,1)" });
+    el.gaveta.onfinish = () => { el.gaveta = null; el.hidden = true; el.style.overflow = ""; };
+  }
+}
+
+$("lat-trechos-cabeca").onclick = () => alternarRamo($("lat-trechos-cabeca"));
 
 /* O progresso do plano, no painel: etapa feita fica riscada. */
 function desenharProgresso(etapas) {
@@ -331,7 +383,31 @@ function quando(iso) {
   return "há " + Math.floor(seg / 3600) + " h";
 }
 
-function rolar() { $("fluxo").scrollTop = $("fluxo").scrollHeight; }
+function rolar() {
+  $("fluxo").scrollTop = $("fluxo").scrollHeight;
+  atualizarIrAoFim();
+}
+
+/* A pessoa subiu para reler: a resposta que esta chegando nao a arrasta de
+   volta para baixo, e o botao de ir ao fim aparece. Perto do fim (120 px) e
+   o mesmo que estar no fim - uma linha nova nao conta como ter subido. */
+const FOLGA_DO_FIM = 120;
+
+function pertoDoFim() {
+  const f = $("fluxo");
+  return f.scrollHeight - f.scrollTop - f.clientHeight < FOLGA_DO_FIM;
+}
+
+function atualizarIrAoFim() {
+  const longe = !$("conversa-col").classList.contains("vazia") && !pertoDoFim();
+  $("ir-ao-fim").classList.toggle("visivel", longe);
+}
+
+$("fluxo").addEventListener("scroll", atualizarIrAoFim, { passive: true });
+$("ir-ao-fim").onclick = () => {
+  const f = $("fluxo");
+  f.scrollTo({ top: f.scrollHeight, behavior: animacoesLigadas() ? "smooth" : "auto" });
+};
 
 /* ------------------------------------------------------------ enviar */
 
@@ -523,7 +599,7 @@ async function enviar() {
           // Palavras escritas ate agora: e o numero que a janelinha mostra
           // subindo enquanto o modelo escreve. Contado, nao estimado.
           bastidor.palavras = texto.textContent.trim().split(/\s+/).filter(Boolean).length;
-          rolar();
+          if (pertoDoFim()) rolar(); else atualizarIrAoFim();
         } else if (mt[1] === "proposta") {
           // Pedido de ação: nada de procurar nos documentos. O cartão mostra
           // o que eu entendi, e quem grava é a pessoa.

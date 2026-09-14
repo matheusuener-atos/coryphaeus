@@ -89,11 +89,6 @@
     font: 700 10px var(--sans); display: flex; align-items: center; justify-content: center;
   }
   .conta[hidden] { display: none; }
-  .avatar {
-    width: 26px; height: 26px; border-radius: 50%; background: var(--fill2); flex: none;
-    display: flex; align-items: center; justify-content: center;
-    font: 600 9.5px var(--sans); color: var(--ink); margin-top: 8px;
-  }
 
   /* O menu sobreposto. Nao existe botao de expandir: passar o mouse sobre o
      trilho abre, sair dele fecha.
@@ -136,16 +131,30 @@
      cortava tambem a sombra, e a barra aberta parecia colada na tela. Aberta,
      a cortina passa 48 px da borda e a sombra aparece - a barra fica um plano
      acima da conversa, que e o que ela e. */
+  /* A GAVETA (pedido: "a mesma animacao do Ver mais"). A faixa cresce de 64
+     para 260 px como o cartao da lista cresce ate a altura dele - curva expo,
+     .46 s para abrir, .3 s para recolher -, e os nomes esmaecem no mesmo
+     ritmo (ver abaixo).
+
+     Crescer largura era o que deixava a abertura dura da primeira vez, porque
+     os dezesseis itens refaziam o layout a cada quadro. Aqui nao: o menu
+     dentro dela tem 260 px fixos e so e revelado pelo `overflow: hidden` da
+     faixa - o que muda por quadro e so a largura de uma caixa. A faixa segue
+     opaca, e nos primeiros 64 px e o desenho do trilho, entao fechada ela
+     some exatamente sobre ele. */
   .menu-faixa {
-    height: 100%; width: 100%; will-change: clip-path;
+    height: 100%; width: 64px; overflow: hidden; will-change: width;
     background-color: var(--bg);
     box-shadow: inset -1px 0 0 var(--hair2), 18px 0 34px -24px var(--sh-a12), 4px 0 10px -6px var(--sh-a12);
-    clip-path: inset(0 100% 0 0);
-    transition: clip-path .34s cubic-bezier(.55,0,.45,1);
+    /* Fechada, a faixa de 64 px deixava a vista o comeco de "PAVLVS" em cima
+       do "P" do trilho. Ela so fica visivel enquanto abre, esta aberta ou
+       termina de fechar; no fim do fechamento, some. */
+    visibility: hidden;
+    transition: width .3s cubic-bezier(.55,0,.45,1), visibility 0s linear .3s;
   }
   .menu-flutuante.aberto .menu-faixa {
-    clip-path: inset(0 -48px 0 0);
-    transition: clip-path .56s cubic-bezier(.16,1,.3,1);
+    width: 260px; visibility: visible;
+    transition: width .46s cubic-bezier(.16,1,.3,1), visibility 0s;
   }
   /* Os nomes nao sao so descobertos pela cortina: chegam atras dela, 6 px
      da esquerda para o lugar, em cascata de cima para baixo (ordem em
@@ -153,15 +162,19 @@
      para ela nunca passar por cima de um nome ainda inteiro. Icones, o "P" e
      o avatar nao entram nisso: estao sobre os do trilho e tem de ficar
      parados, senao piscam. */
-  .menu .rotulo-botao, .menu .menu-secao-botao, .menu .nome-usuario, .menu-item .conta {
-    opacity: 0; transform: translateX(-6px);
-    transition: opacity .16s ease, transform .16s ease;
+  /* Os nomes so ESMAECEM, todos juntos e no mesmo ritmo da barra (.46 s,
+     curva expo): nada de deslizar nem de cascata, que davam um tremor de
+     letras entrando em cima da cortina. O "AVLVS" de PAVLVS vai junto - o P
+     fica, porque e o mesmo do trilho, e sem isso a faixa de 64 px mostrava
+     "PAV" no primeiro instante da abertura. */
+  .menu .rotulo-botao, .menu .menu-secao-botao, .menu-item .conta, .menu-marca-resto {
+    opacity: 0;
+    transition: opacity .18s ease;
   }
   .menu-flutuante.aberto .menu .rotulo-botao, .menu-flutuante.aberto .menu .menu-secao-botao,
-  .menu-flutuante.aberto .menu .nome-usuario, .menu-flutuante.aberto .menu-item .conta {
-    opacity: 1; transform: none;
-    transition: opacity .42s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
-    transition-delay: calc(var(--ordem, 0) * 14ms + 60ms);
+  .menu-flutuante.aberto .menu-item .conta, .menu-flutuante.aberto .menu-marca-resto {
+    opacity: 1;
+    transition: opacity .46s cubic-bezier(.16,1,.3,1) .04s;
   }
   /* O realce da linha ativa fica ligado o tempo todo. Tentei atrasa-lo para
      ele nao aparecer como tarja larga enquanto a cortina cruza os 64 px, e o
@@ -213,16 +226,6 @@
   .menu-divisa { height: 1px; background: var(--hair); margin: 7px 12px; flex: none; }
   .menu-rolagem { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
   .menu-secao { font: 500 11px var(--sans); color: var(--ink3); padding: 10px 8px 4px; flex: none; }
-  /* Mesma conta do avatar do trilho: 26 px de circulo com 8 de folga em
-     cima, e recuo tal que o centro dele caia nos 32 px de sempre. */
-  .menu-usuario { display: flex; align-items: center; gap: 11px; height: 26px; padding: 0 9px; margin-top: 8px; flex: none; }
-  .menu-usuario .avatar { margin: 0; }
-  /* Com foto, o avatar deixa de ser as iniciais: a imagem preenche o circulo
-     (a foto ja vem quadrada do servidor, entao nada deforma). */
-  .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
-  .nome-usuario { display: grid; line-height: 1.25; min-width: 0; font: 500 12.5px var(--sans); }
-  .nome-usuario span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .nome-usuario small { font: 500 10px var(--sans); color: var(--ink3); }
 
   /* A secao do fim do menu, que abre a gaveta das telas antigas. */
   .menu-secao-botao {
@@ -273,6 +276,15 @@
   .menu-conversa button:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .menu-conversa button .seta { margin-left: auto; color: var(--ink3); }
   .menu-conversa button.perigo { color: var(--acc); }
+  .menu-conversa button .ic { color: var(--ink3); margin-right: 8px; }
+  .menu-conversa button.atual { color: var(--ink); font-weight: 600; }
+  .menu-conversa button.atual .ic { color: var(--ink); }
+  /* A lista de grupos abre AO LADO do menu, a esquerda (o menu mora na borda
+     direita da lista); a altura acompanha a linha "Mover para grupo". */
+  .menu-conversa.menu-sub { right: calc(100% + 6px); top: 0; max-height: 300px; overflow-y: auto; }
+  /* Na barra de selecao, embaixo do proprio botao. */
+  .lc-mover { position: relative; display: inline-flex; }
+  .menu-conversa.menu-mover { left: 0; right: auto; top: calc(100% + 6px); max-height: 300px; overflow-y: auto; }
   .menu-risco { height: 1px; background: var(--ink-a12); margin: 5px 0; }
   .vazio-lista { padding: 8px; font-size: 12.5px; color: var(--ink3); }
 

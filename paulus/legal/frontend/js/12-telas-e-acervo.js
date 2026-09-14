@@ -13,6 +13,8 @@ function abrirTela(nome, opcoes) {
      ele so ocupava o rodape sem ter o que fazer ali. */
   $("compositor").hidden = true;
   $("conversa-titulo").textContent = nome;
+  $("conversa-titulo").classList.remove("renomeavel");
+  $("conversa-titulo").removeAttribute("title");
   $("conversa-meta").textContent = "";
   $("apagar").hidden = true;
   $("exportar-conversa").hidden = true;
