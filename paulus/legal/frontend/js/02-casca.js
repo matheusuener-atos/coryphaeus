@@ -346,8 +346,43 @@ function mostrarLateral(aberta) {
 $("alternar-lateral").onclick = () => {
   const abrir = $("lateral").hidden;
   try { localStorage.setItem("paulus.lateral", abrir ? "1" : "0"); } catch (err) { /* sem memoria */ }
-  mostrarLateral(abrir);
+  alternarLateralAnimada(abrir);
 };
+
+/* O botao do painel anima os dois lados. Esconder so com `hidden` fazia o
+   painel sumir de uma vez e a conversa pular para o meio; a transicao do CSS
+   nao ajudava, porque a grade trocava de uma coluna para duas e isso nao se
+   interpola. Aqui a coluna do painel vai de 316 px a 0 (mesmo numero de
+   colunas, entao anda), o painel esmaece junto, e so no fim ele e escondido.
+   Abrir faz o caminho inverso. */
+let animacaoDaLateral = null;
+function alternarLateralAnimada(abrir) {
+  const corpo = $("conversa-corpo");
+  const lateral = $("lateral");
+  if (animacaoDaLateral) { animacaoDaLateral.forEach((a) => a.cancel()); animacaoDaLateral = null; }
+  if (!animacoesLigadas()) { mostrarLateral(abrir); return; }
+  const cheia = "minmax(0px, 1fr) 316px";
+  const vazia = "minmax(0px, 1fr) 0px";
+  if (abrir) {
+    mostrarLateral(true);
+    const coluna = corpo.animate([{ gridTemplateColumns: vazia }, { gridTemplateColumns: cheia }],
+      { duration: 460, easing: CURVA_ENTRA });
+    coluna.onfinish = () => { animacaoDaLateral = null; };
+    animacaoDaLateral = [coluna];
+    return;
+  }
+  const coluna = corpo.animate([{ gridTemplateColumns: cheia }, { gridTemplateColumns: vazia }],
+    { duration: 380, easing: "cubic-bezier(.55,0,.45,1)", fill: "forwards" });
+  const painel = lateral.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(18px)" }],
+    { duration: 240, easing: "ease-in", fill: "forwards" });
+  animacaoDaLateral = [coluna, painel];
+  coluna.onfinish = () => {
+    mostrarLateral(false);
+    coluna.cancel();
+    painel.cancel();
+    animacaoDaLateral = null;
+  };
+}
 
 /* A tela passa da postura de inicio para a de conversa: a coluna do texto
    ganha a medida de prosa e o painel da direita entra. */

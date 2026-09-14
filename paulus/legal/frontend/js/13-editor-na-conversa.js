@@ -200,6 +200,9 @@ function desenharEditorAoLado() {
   const d = dupla.doc;
   const c = d.contagem || { palavras: 0 };
   let lado = $("editor-lado");
+  const corpo = $("conversa-corpo");
+  const recuoAntes = getComputedStyle(corpo).paddingRight;
+  const abrindo = !lado;
   if (!lado) {
     lado = document.createElement("aside");
     lado.className = "editor-lado";
@@ -209,6 +212,11 @@ function desenharEditorAoLado() {
   $("conversa-col").classList.add("com-editor");
   mostrarLateral(false);
   posicionarEditorAoLado();
+  // A conversa encolhe andando, enquanto o painel entra - e não num pulo.
+  if (abrindo && animacoesLigadas()) {
+    corpo.animate([{ paddingRight: recuoAntes }, { paddingRight: getComputedStyle(corpo).paddingRight }],
+      { duration: 460, easing: CURVA_ENTRA });
+  }
 
   const botao = (cmd, icone, titulo) =>
     '<button data-cmd="' + cmd + '" title="' + titulo + '" aria-label="' + titulo + '">' + ic(icone, 18) + "</button>";
@@ -294,21 +302,42 @@ window.addEventListener("resize", () => {
   desenharPaginas();
 });
 
-async function fecharEditorNaConversa() {
+/* `animar`: fechar pelo X anima — o painel esmaece e sai de lado, e a
+   conversa volta à largura cheia andando. Sair da conversa (outra tela,
+   outra conversa) fecha na hora: a tela inteira já está trocando. */
+async function fecharEditorNaConversa(opcoes) {
   if (!dupla.doc) return;
+  const animar = Boolean(opcoes && opcoes.animar) && animacoesLigadas();
   clearTimeout(dupla.relogio);
   clearTimeout(dupla.relogioPaginas);
-  if ($("dp-folha")) await gravarDupla();
+  // Gravar lê a folha agora e manda: pode seguir enquanto o painel sai.
+  const salvando = $("dp-folha") ? gravarDupla() : Promise.resolve();
+  const lado = $("editor-lado");
+  const faixa = $("edl-atalhos");
+  const corpo = $("conversa-corpo");
+  const recuoAntes = getComputedStyle(corpo).paddingRight;
   dupla.doc = null;
   dupla.pendente = null;
   dupla.destino = "";
-  const lado = $("editor-lado");
+
+  if (animar && lado) {
+    const saidas = [lado.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(24px)" }],
+      { duration: 240, easing: "ease-in", fill: "forwards" })];
+    if (faixa) saidas.push(faixa.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-in", fill: "forwards" }));
+    await Promise.all(saidas.map((a) => a.finished.catch(() => null)));
+  }
   if (lado) lado.remove();
-  const faixa = $("edl-atalhos");
   if (faixa) faixa.remove();
   $("conversa-col").classList.remove("com-editor");
-  if (estado.trabalhoId && $("centro").classList.contains("prosa")) mostrarLateral(lateralPreferida());
+  if (animar) {
+    corpo.animate([{ paddingRight: recuoAntes }, { paddingRight: getComputedStyle(corpo).paddingRight }],
+      { duration: 460, easing: CURVA_ENTRA });
+  }
+  if (estado.trabalhoId && $("centro").classList.contains("prosa") && lateralPreferida()) {
+    if (animar) alternarLateralAnimada(true); else mostrarLateral(true);
+  }
   atualizarPostura();
+  await salvando;
 }
 
 /* ------------------------------------------------ para onde vai o pedido */
@@ -481,7 +510,7 @@ function redesenharPaginas() {
 
 function ligarDupla() {
   const lado = $("editor-lado");
-  $("dp-fechar").onclick = () => fecharEditorNaConversa();
+  $("dp-fechar").onclick = () => fecharEditorNaConversa({ animar: true });
   $("dp-so-editor").onclick = async () => { const id = dupla.doc.id; await fecharEditorNaConversa(); abrirDocumento(id); };
   $("dp-assinar").onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
   $("dp-citar").onclick = painelCodigosNaDupla;
