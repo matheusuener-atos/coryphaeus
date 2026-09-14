@@ -388,6 +388,9 @@
   /* So o corpo abre espaco: o rodape - a caixa de pedido - fica onde estava,
      e o painel termina acima dele. */
   .conversa-col.com-editor .conversa-corpo { padding-right: calc(var(--margem-pagina) + var(--editor-largura) + 28px); }
+  /* O registro ("3 trechos de 1 documento") sai de cena com o editor aberto: o
+     que importa ali e o documento, e a faixa so roubava altura do painel. */
+  .conversa-col.com-editor .registro { display: none; }
   /* O botao de ir ao fim sobe da caixa de pedido; com o editor aberto ele cairia
      no rodape do editor. Fica no meio da coluna da conversa, que e o que rola. */
   .conversa-col.com-editor .ir-ao-fim {
