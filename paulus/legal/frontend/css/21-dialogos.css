@@ -56,18 +56,4 @@
   @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .veu-dialogo, .dialogo { animation: none; } }
 
-  /* O aviso (toast) do mesmo mockup: icone, texto e, quando da para
-     desfazer, a acao em negrito. O de erro e branco com borda vinho. */
-  .aviso-toast {
-    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; z-index: 60;
-    display: flex; align-items: center; gap: 12px; width: 420px; max-width: calc(100vw - 32px); padding: 12px 14px; border-radius: 10px;
-    background: var(--ink); color: var(--bg); font: 500 13px/1.45 var(--sans); box-shadow: var(--elev-float); transition: opacity .2s, transform .2s;
-  }
-  .aviso-toast.visivel { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-  .aviso-toast > .ic { flex: none; }
-  .aviso-toast > span:not(.ic) { flex: 1; min-width: 0; }
-  .aviso-toast > button { border: none; background: none; padding: 0; color: inherit; font: 700 13px var(--sans); white-space: nowrap; }
-  .aviso-toast > button:hover:not(:disabled) { background: none; border: none; color: inherit; text-decoration: underline; }
-  .aviso-toast.erro { background: var(--surf); color: var(--ink); border: 1px solid var(--accln); }
-  .aviso-toast.erro > .ic { color: var(--acc); }
 

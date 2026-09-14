@@ -1017,7 +1017,7 @@ def main() -> int:
             checar(pagina.evaluate("async () => (await window.__p) === 'novo nome' && !document.getElementById('veu-dialogo')"), "Enter confirma e devolve o texto digitado")
             pagina.evaluate("() => avisoCert('teste de aviso', { acao: { rotulo: 'Desfazer', fazer: () => { window.__desfez = true; } } })")
             pagina.wait_for_timeout(200)
-            pagina.evaluate("() => document.querySelector('#aviso-toast button').click()")
+            pagina.evaluate("() => document.querySelector('#faixa-janela button').click()")
             checar(pagina.evaluate("() => window.__desfez === true"), "o aviso com Desfazer chama a acao")
 
             print("\nlixeira (doc 05): apagar guarda 30 dias, o aviso desfaz, Configuracoes restaura")
@@ -1030,7 +1030,7 @@ def main() -> int:
                 lixo = pagina.evaluate(f"async () => {{ const r = await fetch('/api/tarefas/{id_tarefa}', {{ method: 'DELETE' }}); avisarLixeira(r.clone(), null); return await r.json(); }}")
                 pagina.wait_for_timeout(300)
                 checar(
-                    bool(lixo.get("lixeira")) and pagina.evaluate("() => document.querySelector('#aviso-toast.visivel button') && document.querySelector('#aviso-toast.visivel button').textContent === 'Desfazer'"),
+                    bool(lixo.get("lixeira")) and pagina.evaluate("() => document.querySelector('#faixa-janela.visivel button') && document.querySelector('#faixa-janela.visivel button').textContent === 'Desfazer'"),
                     "apagar avisa com Desfazer",
                 )
                 pagina.evaluate("() => mostrarConfig('lixeira')")

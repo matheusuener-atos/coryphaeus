@@ -1,31 +1,44 @@
   /* ---------------------------------------------------------- conversa */
 
-  /* A faixa do relogio e o que se agarra para arrastar a janela no inicio,
-     onde nao ha cabecalho. Ela tem a altura dos botoes da janela - 32 px, sem
-     folga em cima -, para que a hora fique na mesma linha do meio que eles, e
-     recua 152 px a direita para nao passar por baixo deles. */
-  .relogio-canto {
-    display: none; flex: none; align-items: center; justify-content: flex-end;
-    height: 32px; padding: 0 44px;
+  /* A BARRA DE TITULO. A janela nao tem moldura, e esta linha e o que fica
+     no lugar dela, em toda tela: 32 px, a altura dos botoes da janela, para
+     que o que estiver nela caia na mesma linha do meio que eles. E o que se
+     agarra para arrastar a janela, e e onde o programa avisa - a faixa - e,
+     no inicio, onde fica a hora. A direita ela recua o que os tres botoes
+     ocupam, para nada passar por baixo deles.
+
+     Antes ela so existia no inicio. Nas outras telas o aviso teria de abrir
+     uma linha nova e empurrar a tela inteira para baixo a cada "copiado" -
+     com a linha sempre ali, avisar nunca mexe no conteudo. */
+  .barra-titulo {
+    flex: none; display: flex; align-items: center; gap: 16px;
+    height: 32px; padding: 0 44px 0 20px;
     font: 500 11px var(--sans); color: var(--ink3);
   }
-  .conversa-col.vazia .relogio-canto { display: flex; }
-  html.com-janela .relogio-canto { padding-right: 152px; }
+  html.com-janela .barra-titulo { padding-right: 152px; }
+  #relogio { flex: none; margin-left: auto; }
+  .conversa-col:not(.vazia) #relogio { display: none; }
 
-  /* O aviso na linha da barra de titulo: icone e frase em tinta secundaria,
-     sem caixa nem borda, na mesma altura dos botoes da janela. No inicio ele
-     divide a linha com a hora (fica a esquerda dela); nas outras telas nao ha
-     essa linha, e ela abre acima do cabecalho enquanto o aviso dura. */
+  /* O aviso: icone e frase em tinta secundaria, sem caixa nem borda. Ele
+     desce 3 px enquanto aparece e sobe enquanto some - o bastante para o olho
+     notar que chegou algo, pouco para parecer que a barra se mexeu. */
   .faixa-janela {
-    flex: none; display: flex; align-items: center; gap: 8px;
-    height: 0; padding: 0 20px; overflow: hidden; opacity: 0; pointer-events: none;
+    position: relative; flex: 1; min-width: 0; height: 100%;
+    display: flex; align-items: center; gap: 8px;
     font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap;
-    transition: height .22s ease, opacity .18s ease;
+    opacity: 0; transform: translateY(-3px); visibility: hidden; pointer-events: none;
+    transition: opacity .26s cubic-bezier(.4,0,.2,1), transform .26s cubic-bezier(.4,0,.2,1), visibility 0s linear .26s;
   }
-  .faixa-janela.visivel { height: 32px; opacity: 1; pointer-events: auto; }
-  html.com-janela .faixa-janela { padding-right: 152px; }
-  .conversa-col.vazia .faixa-janela { position: absolute; top: 0; left: 0; right: 96px; height: 32px; z-index: 1; }
-  html.com-janela .conversa-col.vazia .faixa-janela { right: 204px; padding-right: 0; }
+  .faixa-janela.visivel {
+    opacity: 1; transform: none; visibility: visible; pointer-events: auto;
+    transition: opacity .38s cubic-bezier(.16,1,.3,1), transform .38s cubic-bezier(.16,1,.3,1), visibility 0s;
+  }
+  /* A primeira abertura cobre a casca inteira, e um dialogo cobre a tela com
+     um veu: nos dois casos a faixa continua na linha do alto, por cima. */
+  body:has(#boas-vindas:not([hidden])) .faixa-janela {
+    position: fixed; top: 0; left: 0; right: 138px; height: 32px; padding-left: 20px; z-index: 55;
+  }
+  body:has(.veu-dialogo) .faixa-janela { z-index: 85; }
   .faixa-janela > .ic { color: var(--ink3); }
   .faixa-janela.girando > .ic { animation: pv-spin 1.1s linear infinite; }
   .faixa-janela.erro > .ic { color: var(--acc); }
@@ -38,10 +51,11 @@
 
   /* O cabecalho da conversa nao tem borda embaixo: a separacao vem da
      vinheta do fio, que apaga o texto ao entrar na rolagem. Uma linha aqui
-     mais a vinheta ali seriam dois separadores para a mesma juncao. */
+     mais a vinheta ali seriam dois separadores para a mesma juncao. O alto
+     e curto porque a barra de titulo ja da o respiro de cima. */
   .conversa-topo {
-    flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px;
-    padding: 14px 26px 10px;
+    flex: none; display: flex; align-items: center; gap: 12px; min-height: 44px;
+    padding: 0 26px 10px;
   }
   .conversa-nome { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.15; }
   .conversa-topo h2 { font: 400 23px var(--serif); letter-spacing: -.005em; }

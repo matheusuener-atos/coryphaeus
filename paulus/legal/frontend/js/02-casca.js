@@ -62,31 +62,74 @@ function marcarTamanhoDaJanela(maximizada) {
   botao.setAttribute("aria-label", botao.title);
 }
 
-/* O aviso na barra de titulo. `opcoes.icone` (info por padrao), `girar` para
-   o que ainda esta em curso, `tom: "erro"`, `acao: { rotulo, fazer }` para o
-   link sublinhado e `dura` em ms - 0 deixa o aviso ate o proximo. A fonte
-   embutida nao tem ampulheta: o que espera gira `sync`. */
-function avisoNaJanela(texto, opcoes) {
-  const o = opcoes || {};
+/* ------------------------------------------------------------ os avisos */
+/*
+   TODO aviso do programa sai na barra de titulo: icone pequeno, frase em
+   tinta secundaria e, quando ha o que fazer, um link sublinhado. `avisoCert`
+   (16-dialogos.js), que as telas chamam, desagua aqui.
+
+   Ha dois tipos. O passageiro (`avisoNaJanela`) diz o que acabou de
+   acontecer e some sozinho. O fixo (`avisoFixoNaJanela`) diz um estado que
+   continua valendo - o vinculo esperando o responsavel - e volta a aparecer
+   sempre que um passageiro termina.
+
+   `opcoes`: `icone` (info por padrao), `girar` para o que ainda esta em
+   curso, `tom: "erro"`, `acao: { rotulo, fazer }` e `dura` em ms - 0 deixa o
+   aviso ate o proximo. A fonte embutida nao tem ampulheta: o que espera gira
+   `sync`, e o estado fixo usa `schedule`.
+*/
+const faixaJanela = { base: null, passageiro: false, relogio: 0 };
+
+function animacoesLigadas() {
+  if (document.documentElement.classList.contains("sem-animacao")) return false;
+  return !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+}
+
+function pintarFaixa(texto, o) {
   const faixa = $("faixa-janela");
+  const jaVisivel = faixa.classList.contains("visivel");
   faixa.className = "faixa-janela pywebview-drag-region visivel" + (o.girar ? " girando" : "") + (o.tom === "erro" ? " erro" : "");
   faixa.innerHTML = ic(o.icone || (o.tom === "erro" ? "error" : "info"), 16) +
     '<span class="faixa-texto pywebview-drag-region"></span>' +
     (o.acao ? '<button type="button"></button>' : "");
   faixa.querySelector(".faixa-texto").textContent = texto;
+  faixa.title = texto;
   if (o.acao) {
     const botao = faixa.querySelector("button");
     botao.textContent = o.acao.rotulo;
     botao.onclick = () => { fecharAvisoNaJanela(); o.acao.fazer(); };
   }
-  clearTimeout(faixa.relogio);
-  if (o.dura !== 0) faixa.relogio = setTimeout(fecharAvisoNaJanela, o.dura || 6000);
+  /* Um aviso por cima de outro que ainda esta a vista: a transicao de
+     aparecer nao roda (ja esta visivel), e a troca seria seca. */
+  if (jaVisivel && animacoesLigadas()) {
+    faixa.animate(
+      [{ opacity: 0.2, transform: "translateY(-3px)" }, { opacity: 1, transform: "none" }],
+      { duration: 320, easing: "cubic-bezier(.16,1,.3,1)" });
+  }
+}
+
+function avisoNaJanela(texto, opcoes) {
+  const o = opcoes || {};
+  pintarFaixa(texto, o);
+  faixaJanela.passageiro = true;
+  clearTimeout(faixaJanela.relogio);
+  if (o.dura !== 0) {
+    faixaJanela.relogio = setTimeout(fecharAvisoNaJanela, o.dura || (o.acao ? 8000 : (o.tom === "erro" ? 10000 : 6000)));
+  }
+}
+
+function avisoFixoNaJanela(texto, opcoes) {
+  faixaJanela.base = texto ? { texto: texto, opcoes: opcoes || {} } : null;
+  if (faixaJanela.passageiro) return;
+  if (faixaJanela.base) pintarFaixa(faixaJanela.base.texto, faixaJanela.base.opcoes);
+  else $("faixa-janela").classList.remove("visivel");
 }
 
 function fecharAvisoNaJanela() {
-  const faixa = $("faixa-janela");
-  clearTimeout(faixa.relogio);
-  faixa.classList.remove("visivel");
+  clearTimeout(faixaJanela.relogio);
+  faixaJanela.passageiro = false;
+  const base = faixaJanela.base;
+  avisoFixoNaJanela(base && base.texto, base && base.opcoes);
 }
 
 window.addEventListener("pywebviewready", ligarJanelaPropria);
@@ -102,14 +145,51 @@ function ordenarTrilho() {
 }
 ordenarTrilho();
 
-function abrirFlutuante() { $("menu-flutuante").classList.add("aberto"); }
+/* A intencao antes do gesto. O menu nao abre no primeiro pixel em que o
+   ponteiro toca o trilho - quem so passa por ele a caminho da borda da janela
+   nao quer uma cortina correndo -, e nao fecha no primeiro pixel fora dele,
+   que e o que fazia a barra piscar num movimento torto de volta. */
+const MENU_ABRE_MS = 70;
+const MENU_FECHA_MS = 140;
+const menuIntencao = { abre: 0, fecha: 0 };
+
+function esquecerIntencao() {
+  clearTimeout(menuIntencao.abre);
+  clearTimeout(menuIntencao.fecha);
+  menuIntencao.abre = 0;
+  menuIntencao.fecha = 0;
+}
+function abrirFlutuante() {
+  esquecerIntencao();
+  $("menu-flutuante").classList.add("aberto");
+}
 function fecharFlutuante() {
+  esquecerIntencao();
   $("menu-flutuante").classList.remove("aberto");
   fecharGavetas();
   fecharMenu();
 }
 
-$("trilho").addEventListener("mouseenter", abrirFlutuante);
+/* Os nomes do menu entram em cascata, de cima para baixo, atras da cortina.
+   A ordem sai daqui pelo mesmo motivo da do trilho. */
+function ordenarMenu() {
+  $("menu").querySelectorAll(".rotulo-botao, .menu-secao-botao, .nome-usuario").forEach((item, i) => {
+    item.style.setProperty("--ordem", String(i));
+  });
+}
+ordenarMenu();
+
+$("trilho").addEventListener("mouseenter", () => {
+  clearTimeout(menuIntencao.fecha);
+  menuIntencao.fecha = 0;
+  if ($("menu-flutuante").classList.contains("aberto") || menuIntencao.abre) return;
+  menuIntencao.abre = setTimeout(abrirFlutuante, MENU_ABRE_MS);
+});
+$("trilho").addEventListener("mouseleave", () => {
+  if ($("menu-flutuante").classList.contains("aberto")) return;
+  clearTimeout(menuIntencao.abre);
+  menuIntencao.abre = 0;
+});
 /* Fecha quando o ponteiro esta fora do trilho e do menu. Nao e mouseleave
    porque o menu abre DEBAIXO do ponteiro sem receber mouseenter - um
    movimento rapido para o conteudo nunca geraria o mouseleave. */
@@ -118,9 +198,65 @@ document.addEventListener("mousemove", (e) => {
   /* As bordas de redimensionar da janela sem moldura ficam POR CIMA de tudo,
      inclusive dos seis pixels da esquerda do trilho. Sem contar com elas
      aqui, encostar o mouse na beirada fechava o menu. */
-  if (e.target && e.target.closest && e.target.closest("#menu-flutuante, #trilho, #bordas-janela")) return;
-  fecharFlutuante();
+  if (e.target && e.target.closest && e.target.closest("#menu-flutuante, #trilho, #bordas-janela")) {
+    clearTimeout(menuIntencao.fecha);
+    menuIntencao.fecha = 0;
+    return;
+  }
+  if (!menuIntencao.fecha) menuIntencao.fecha = setTimeout(fecharFlutuante, MENU_FECHA_MS);
 });
+
+/* ------------------------------------------------------- troca de tela */
+/*
+   Toda tela nova ENTRA: cabecalho, corpo e rodape sobem 10 px enquanto
+   aparecem, nessa ordem, com 50 ms entre um e outro. A barra de titulo e o
+   trilho nao se mexem - sao a moldura, e moldura que pisca parece janela
+   recarregando.
+
+   O que chega depois (a tela abre com "somando..." e o conteudo vem da rede
+   meio segundo mais tarde) nao pode entrar seco no fim da animacao: nos
+   primeiros instantes depois da troca, a primeira vez que o `#centro` muda
+   ele esmaece para dentro. Passado esse tempo nao ha mais esmaecer - uma
+   tela que redesenha a cada tecla digitada na busca ficaria piscando.
+
+   Trocar de visao dentro da mesma tela (Financeiro > Lancamentos) nao roda
+   a entrada inteira: so o esmaecer do conteudo.
+
+   Web Animations, e nao classe com @keyframes: nao precisa forcar reflow
+   para reiniciar, e cancelar a anterior e uma chamada.
+*/
+const CURVA_ENTRA = "cubic-bezier(.16,1,.3,1)";
+const troca = { tela: null, quando: 0, conteudo: false };
+
+function transicaoDeTela(chave) {
+  const outraTela = chave !== troca.tela;
+  troca.tela = chave;
+  troca.quando = performance.now();
+  troca.conteudo = true;
+  if (!outraTela || !animacoesLigadas()) return;
+  [["conversa-topo", 0], ["conversa-corpo", 50], ["conversa-rodape", 90]].forEach(([id, atraso]) => {
+    const el = $(id);
+    el.getAnimations().forEach((x) => x.cancel());
+    el.animate(
+      [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
+      { duration: 520, delay: atraso, easing: CURVA_ENTRA, fill: "backwards" });
+  });
+}
+
+new MutationObserver(() => {
+  if (!troca.conteudo) return;
+  const passou = performance.now() - troca.quando;
+  if (passou > 2000) { troca.conteudo = false; return; }
+  /* Durante a entrada o conteudo ja esta aparecendo junto. */
+  if (passou < 360) return;
+  troca.conteudo = false;
+  if (!animacoesLigadas()) return;
+  const centro = $("centro");
+  centro.getAnimations().forEach((x) => x.cancel());
+  centro.animate(
+    [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }],
+    { duration: 340, easing: CURVA_ENTRA });
+}).observe($("centro"), { childList: true });
 
 /* A gaveta ao lado do menu: as telas antigas que ainda nao tem lugar. */
 function fecharGavetas() {

@@ -78,6 +78,7 @@ function abrirMenu(linha) {
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return;
+  transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;
   estado.trabalho = await r.json();
   estado.trabalhoId = id;
@@ -86,6 +87,7 @@ async function abrirTrabalho(id) {
 }
 
 $("nova").onclick = () => {
+  transicaoDeTela("inicio");
   estado.trabalhoId = null;
   estado.trabalho = null;
   definirEscopo([]);
@@ -129,6 +131,9 @@ function atualizarPostura() {
     ($("centro") && $("centro").querySelector(".bolha-pessoa, .resposta, .catalogo, .painel, .cartao, .bancada, .dupla, .acervo, .sv-grade"))
   );
   $("conversa-col").classList.toggle("vazia", !temConversa);
+  /* A primeira pergunta tira a tela do inicio sem trocar de tela; voltar ao
+     inicio depois disso e uma troca, e tem de animar. */
+  if (temConversa && troca.tela === "inicio") troca.tela = "inicio:conversa";
   $("pedido").placeholder = temConversa
     ? "Pergunte outra coisa ou aponte outra pasta…"
     : "Peça o que precisa dos seus documentos…";

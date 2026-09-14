@@ -6,6 +6,7 @@
 
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
+  transicaoDeTela("tela:" + nome);
   estado.trabalhoId = null;
   estado.trabalho = null;
   /* O campo de pergunta e da conversa. Numa tela de Financeiro ou de Planilha

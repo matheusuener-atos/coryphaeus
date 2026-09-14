@@ -196,11 +196,13 @@
   }
   .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a2); }
 
-  /* No inicio o que se pede e escrito em Garamond, como o titulo acima dele:
-     a caixa e a continuacao da frase da saudacao, nao um formulario. */
+  /* No inicio o que se pede e escrito na mesma letra do texto da saudacao,
+     logo acima: a caixa e a continuacao daquela conversa, nao um formulario.
+     Era Garamond, a letra do titulo, e ficava parecendo uma segunda chamada
+     em vez do lugar onde a pessoa responde. */
   textarea {
     display: block; width: 100%;
-    font: 400 19px/1.4 var(--serif); resize: none;
+    font: 400 16px/1.65 var(--sans); resize: none;
     border: none; background: none; outline: none;
     padding: 0; max-height: 190px; color: var(--ink);
   }

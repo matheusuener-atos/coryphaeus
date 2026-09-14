@@ -31,9 +31,6 @@
   .bordas-janela > i[data-borda="topright"] { top: 0; right: 0; width: 8px; height: 8px; cursor: nesw-resize; }
   .bordas-janela > i[data-borda="bottomleft"] { bottom: 0; left: 0; width: 8px; height: 8px; cursor: nesw-resize; }
   .bordas-janela > i[data-borda="bottomright"] { bottom: 0; right: 0; width: 8px; height: 8px; cursor: nwse-resize; }
-  /* Com a janela propria, o cabecalho da conversa guarda lugar para os tres
-     botoes - senao o botao de esconder o painel fica debaixo do de fechar. */
-  html.com-janela .conversa-topo { padding-right: 152px; }
 
   .ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--verde); flex-shrink: 0; }
 
@@ -130,16 +127,41 @@
      mesmo "P". Cada coluna de pixels que a cortina cobre e substituida por
      uma igual, e o olho nao ve troca nenhuma - ve a barra continuar para a
      direita. */
+  /* O RITMO. Abrir e desacelerar: a cortina sai rapida e chega devagar
+     (curva expo, .56 s), como uma gaveta boa. Recolher e o contrario e mais
+     curto (.34 s, entra devagar e acelera), porque quem tira o mouse ja
+     decidiu e nao quer esperar a barra ir embora.
+
+     A sombra: com a cortina fechando no proprio limite da faixa, o recorte
+     cortava tambem a sombra, e a barra aberta parecia colada na tela. Aberta,
+     a cortina passa 48 px da borda e a sombra aparece - a barra fica um plano
+     acima da conversa, que e o que ela e. */
   .menu-faixa {
     height: 100%; width: 100%; will-change: clip-path;
     background-color: var(--bg);
-    box-shadow: inset -1px 0 0 var(--hair2), 12px 0 26px -22px var(--sh-a12), 2px 0 6px -5px var(--sh-a12);
+    box-shadow: inset -1px 0 0 var(--hair2), 18px 0 34px -24px var(--sh-a12), 4px 0 10px -6px var(--sh-a12);
     clip-path: inset(0 100% 0 0);
-    transition: clip-path .42s cubic-bezier(.22,.61,.36,1);
+    transition: clip-path .34s cubic-bezier(.55,0,.45,1);
   }
   .menu-flutuante.aberto .menu-faixa {
-    clip-path: inset(0 0 0 0);
-    transition: clip-path .46s cubic-bezier(.22,.61,.36,1);
+    clip-path: inset(0 -48px 0 0);
+    transition: clip-path .56s cubic-bezier(.16,1,.3,1);
+  }
+  /* Os nomes nao sao so descobertos pela cortina: chegam atras dela, 6 px
+     da esquerda para o lugar, em cascata de cima para baixo (ordem em
+     `ordenarMenu`). Ao recolher eles saem todos juntos e antes da cortina,
+     para ela nunca passar por cima de um nome ainda inteiro. Icones, o "P" e
+     o avatar nao entram nisso: estao sobre os do trilho e tem de ficar
+     parados, senao piscam. */
+  .menu .rotulo-botao, .menu .menu-secao-botao, .menu .nome-usuario, .menu-item .conta {
+    opacity: 0; transform: translateX(-6px);
+    transition: opacity .16s ease, transform .16s ease;
+  }
+  .menu-flutuante.aberto .menu .rotulo-botao, .menu-flutuante.aberto .menu .menu-secao-botao,
+  .menu-flutuante.aberto .menu .nome-usuario, .menu-flutuante.aberto .menu-item .conta {
+    opacity: 1; transform: none;
+    transition: opacity .42s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
+    transition-delay: calc(var(--ordem, 0) * 14ms + 60ms);
   }
   /* O realce da linha ativa fica ligado o tempo todo. Tentei atrasa-lo para
      ele nao aparecer como tarja larga enquanto a cortina cruza os 64 px, e o
@@ -214,6 +236,7 @@
     position: absolute; left: 260px; top: 0; bottom: 0; width: 280px; z-index: 6;
     overflow-y: auto; padding: 12px; background: var(--bg);
     border-right: 1px solid var(--ink-a1); box-shadow: var(--elev-panel);
+    animation: pv-side .4s cubic-bezier(.16,1,.3,1) both;
   }
   .gaveta-cabeca { font: 500 11px var(--sans); color: var(--ink3); padding: 10px 8px 6px; }
   .item {

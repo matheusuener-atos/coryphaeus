@@ -176,25 +176,17 @@ async function restaurarDaLixeira(id, depois) {
   return d;
 }
 
-/* O aviso no rodape. `opcoes.acao` = { rotulo, fazer } poe o Desfazer;
-   `opcoes.tom` = "erro" faz o aviso branco com borda vinho; `opcoes.icone`
-   troca o icone (info por padrao, check_circle com tom "ok"). */
+/* O aviso de todas as telas. Era um toast no rodape; agora todo aviso sai na
+   barra de titulo (`avisoNaJanela`, em 02-casca.js), e este nome ficou porque
+   e o que as telas chamam. `opcoes.acao` = { rotulo, fazer } poe o Desfazer;
+   `opcoes.tom` = "erro" ou "ok"; `opcoes.icone` troca o icone. */
 function avisoCert(texto, opcoes) {
   const o = opcoes || {};
-  let faixa = $("aviso-toast");
-  if (!faixa) {
-    faixa = document.createElement("div");
-    faixa.id = "aviso-toast";
-    document.body.appendChild(faixa);
-  }
-  faixa.className = "aviso-toast" + (o.tom === "erro" ? " erro" : "");
-  const icone = o.icone || (o.tom === "erro" ? "error" : (o.tom === "ok" ? "check_circle" : "info"));
-  faixa.innerHTML = ic(icone, 18) + "<span></span>" + (o.acao ? '<button type="button">' + esc(o.acao.rotulo || "Desfazer") + "</button>" : "");
-  faixa.querySelector("span:not(.ic)").textContent = texto;
-  if (o.acao) faixa.querySelector("button").onclick = () => { faixa.classList.remove("visivel"); o.acao.fazer(); };
-  faixa.classList.add("visivel");
-  clearTimeout(faixa.relogio);
-  faixa.relogio = setTimeout(() => faixa.classList.remove("visivel"), o.acao ? 8000 : 4200);
+  avisoNaJanela(texto, {
+    tom: o.tom === "erro" ? "erro" : "",
+    icone: o.icone || (o.tom === "ok" ? "check_circle" : ""),
+    acao: o.acao ? { rotulo: o.acao.rotulo || "Desfazer", fazer: o.acao.fazer } : null,
+  });
 }
 
 async function erroDe(resposta) {

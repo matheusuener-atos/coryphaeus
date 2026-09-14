@@ -839,15 +839,18 @@ function contexto() {
   };
 }
 
+/* O texto da saudacao fala como gente, nao como o painel de controle:
+   nada de "indexar", "trecho" ou "varrer". Quem le e advogado, e o que ele
+   quer saber e se pode pedir e se o que e dele fica com ele. */
 function saudacao(c, temDocumentos) {
-  const semDocs = "Comece anexando documentos, ou me mande varrer uma pasta.";
-  const padrao = "Peça o que precisa dos seus documentos. Tudo é lido e respondido no seu computador.";
+  const semDocs = "Para começar, me mande alguns documentos — ou me mostre a pasta onde eles estão.";
+  const padrao = "É só me dizer o que você precisa. Eu leio e respondo tudo aqui mesmo, no seu computador.";
   const sub = temDocumentos ? padrao : semDocs;
 
   if (c.periodo === "madrugada") {
-    return ["Ainda de pé a esta hora?", temDocumentos ? "Posso adiantar a leitura enquanto você descansa." : semDocs];
+    return ["Ainda de pé a esta hora?", temDocumentos ? "Se quiser, eu adianto a leitura enquanto você descansa." : semDocs];
   }
-  if (c.periodo === "noite_alta") return ["Trabalhando até tarde?!", temDocumentos ? "Diga o que falta e eu adianto por aqui." : semDocs];
+  if (c.periodo === "noite_alta") return ["Trabalhando até tarde?!", temDocumentos ? "Me conta o que falta, e eu vou adiantando por aqui." : semDocs];
   if (c.dia === "sexta-feira") return ["Sexta. Fechamos algo antes do fim do dia?", sub];
   if (c.dia === "segunda-feira" && c.periodo === "manha") return ["Segunda. Por onde começamos?", sub];
   return ["Olá. Por onde começamos?", sub];
@@ -913,18 +916,21 @@ async function carregarAgora() {
      seria dar a eles o peso de quem espera resposta, que e dos de cima. */
   const sub = $("sub-chamada");
   const base = sub.dataset.base || sub.textContent;
-  sub.textContent = d.biblioteca.documentos
-    ? base + " O acervo está em dia — " + plural(d.biblioteca.documentos, "documento") +
-      (d.biblioteca.documentos === 1 ? " indexado, " : " indexados, ") +
-      d.biblioteca.trechos + " trechos lidos, e nada saiu desta máquina hoje."
+  const docs = d.biblioteca.documentos;
+  sub.textContent = docs
+    ? base + (docs === 1
+      ? " Seu documento já está lido e pronto para consulta"
+      : " Seus " + docs + " documentos já estão lidos e prontos para consulta") +
+      " — e nada saiu deste computador hoje."
     : base;
 
   const nota = $("sub-nota");
   nota.hidden = !d.pausados;
   if (d.pausados) {
-    nota.textContent = plural(d.pausados, "conversa") +
-      (d.pausados === 1 ? " parou" : " pararam") +
-      " no meio quando o programa fechou. Abra pelo menu para continuar de onde estavam.";
+    nota.textContent = (d.pausados === 1
+      ? "Uma conversa ficou pela metade"
+      : plural(d.pausados, "conversa") + " ficaram pela metade") +
+      " quando o programa fechou. É só abrir pelo menu para continuar de onde paramos.";
   }
 
   const espera = vinculoPendente() ? [cartaoDeEsperaDoVinculo()] : [];

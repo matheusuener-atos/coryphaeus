@@ -416,6 +416,23 @@ function aplicarModoLimitado() {
   document.querySelectorAll("[data-destino]").forEach((b) => {
     b.classList.toggle("presa", pendente && DESTINOS_PRESOS.has(b.dataset.destino));
   });
+  /* O estado fica dito na barra de titulo enquanto durar - e nao so no cartao
+     do inicio, que some assim que a pessoa abre outra tela. */
+  avisoFixoNaJanela(pendente
+    ? "Aguardando o responsável adicionar você ao escritório · só o que é desta máquina funciona por enquanto."
+    : null, { icone: "schedule", acao: { rotulo: "Mostrar meu código", fazer: mostrarMeuCodigo } });
+}
+
+async function mostrarMeuCodigo() {
+  const v = lerVinculo();
+  if (!v) return;
+  const r = await dialogo({
+    titulo: "Seu código", contexto: "Escritório e vínculos",
+    texto: "O responsável digita este código em Configurações › Escritório e vínculos para adicionar você ao escritório.",
+    html: casasDoCodigo(v.meuCodigo),
+    confirmar: "Copiar código", cancelar: "Fechar",
+  });
+  if (r && r.ok) copiarTexto(v.meuCodigo || "", "código copiado");
 }
 
 async function cancelarVinculo() {
