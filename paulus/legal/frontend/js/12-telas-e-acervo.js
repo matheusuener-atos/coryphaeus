@@ -858,7 +858,7 @@ function cartaoProposta(d) {
       "conversa, só para leitura, ou crio um rascunho editável ao lado — o " +
       "arquivo original não é tocado. Ou abro no programa padrão do Windows.</p>" +
       '<div class="linha-form"><button class="primario" data-prop="exibir" data-nome="' + esc(c.nome) + '">Mostrar aqui</button>' +
-      '<button data-prop="editar">Abrir para editar</button>' +
+      '<button data-prop="editar">Abrir editor</button>' +
       '<button data-prop="fazer">Abrir no Windows</button>' +
       '<button data-prop="nao">Deixa pra lá</button></div></div>';
   }
@@ -917,7 +917,7 @@ function cartaoOferta(d) {
     '<div class="oferta-doc">' + ic(/\.pdf$/i.test(n) ? "picture_as_pdf" : "description", 18) +
     '<span class="oferta-nome" title="' + esc(n) + '">' + esc(n) + "</span>" +
     '<button class="primario" data-prop="exibir" data-nome="' + esc(n) + '">Mostrar aqui</button>' +
-    '<button data-prop="editar" data-nome="' + esc(n) + '">Editar</button>' +
+    '<button data-prop="editar" data-nome="' + esc(n) + '">Abrir editor</button>' +
     '<button data-prop="windows" data-nome="' + esc(n) + '">No Windows</button></div>').join("");
   const porque = d.porque || "a resposta saiu " + (nomes.length === 1 ? "deste documento" : "destes documentos");
   return '<div class="proposta oferta"><div class="proposta-topo">' +
@@ -991,7 +991,7 @@ function leitorNaConversa(reg) {
       ? '<button class="leitor-ir" data-leitor-ir="' + citadas[0] + '">' + ic("format_quote", 16) +
         (citadas.length === 1 ? "trecho citado na pág. " + citadas[0] : "trechos nas págs. " + citadas.join(", ")) + "</button>"
       : "") +
-    '<button class="botao-icone" data-visor="fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>";
+    '<button class="botao-icone" data-visor="minimizar" title="Minimizar" aria-label="Minimizar">' + ic("remove", 18) + "</button></div>";
   let paginas = "";
   for (let n = 1; n <= (reg.paginas || 1); n++) {
     const classe = citadas.includes(n) ? "leitor-folha citada" : "leitor-folha";
@@ -1000,7 +1000,7 @@ function leitorNaConversa(reg) {
   }
   return '<div class="proposta leitor-conversa">' + topo +
     '<div class="leitor-paginas">' + paginas + "</div>" +
-    '<div class="linha-form"><button data-prop="editar" data-nome="' + esc(reg.nome) + '">Abrir para editar</button>' +
+    '<div class="linha-form"><button data-prop="editar" data-nome="' + esc(reg.nome) + '">Abrir editor</button>' +
     '<button data-prop="windows" data-nome="' + esc(reg.nome) + '">Abrir no Windows</button></div></div>';
 }
 
@@ -1020,11 +1020,18 @@ function ligarLeitor(caixa, reg, d) {
     irPara((reg.citadas || [])[0], false);
   }
 
-  caixa.querySelector('[data-visor="fechar"]').onclick = () => {
+  /* Minimizar devolve o cartão de onde o visor saiu — a oferta ou o "vou
+     abrir este arquivo" —, com os mesmos botões, no mesmo lugar. */
+  caixa.querySelector('[data-visor="minimizar"]').onclick = () => {
+    if (d && (d.tipo === "exibir" || d.tipo === "abrir")) {
+      caixa.innerHTML = cartaoProposta(d);
+      ligarProposta(caixa, d);
+      return;
+    }
     caixa.innerHTML = '<div class="proposta oferta"><div class="oferta-doc">' +
       ic(reg.origem === "pdf" ? "picture_as_pdf" : "description", 18) +
       '<span class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</span>" +
-      '<button data-prop="exibir" data-nome="' + esc(reg.nome) + '">Mostrar de novo</button></div></div>';
+      '<button data-prop="exibir" data-nome="' + esc(reg.nome) + '">Mostrar aqui</button></div></div>';
     ligarBotoesDeDocumento(caixa, d);
   };
   ligarBotoesDeDocumento(caixa, d);
@@ -1085,7 +1092,7 @@ function ligarBotoesDeDocumento(caixa, d) {
      o cartão continua aqui, e clicar de novo volta ao MESMO rascunho — antes
      o cartão sumia, e cada clique criava outra cópia. */
   caixa.querySelectorAll('[data-prop="editar"]').forEach((editar) => {
-    if (rascunhoDaConversa(nomeDe(editar))) editar.textContent = "Voltar ao editor";
+
     editar.onclick = async () => {
       editar.disabled = true;
       const r = await fetch("/api/documentos/importar", {
@@ -1098,7 +1105,6 @@ function ligarBotoesDeDocumento(caixa, d) {
         return;
       }
       const novo = await r.json();
-      editar.textContent = "Voltar ao editor";
       if (!novo.reaberto && estado.trabalho) {
         estado.trabalho.mensagens.push({ autor: "paulus", texto: "Abri “" + novo.de + "” para editar.",
           feito: { tipo: "editar", id: novo.id, nome: novo.de } });

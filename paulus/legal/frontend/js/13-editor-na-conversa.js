@@ -236,8 +236,9 @@ function desenharEditorAoLado() {
     "</div>" +
 
     '<div class="edl-mesa" id="dp-mesa"><div class="edl-papel">' +
+    '<div class="edl-folhas" id="dp-folhas" aria-hidden="true"></div>' +
     '<div class="ed-folha edl-folha" id="dp-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
-    '<div class="edl-entre" id="dp-entre"></div></div><div id="dp-abaixo"></div></div>' +
+    '</div><div id="dp-abaixo"></div></div>' +
 
     '<div class="edl-rodape"><span id="dp-paginas">' + plural(c.palavras, "palavra") + "</span>" +
     '<span id="dp-selo">versão ' + d.versao + "</span>" +
@@ -391,67 +392,74 @@ function seletorNaFolha(el) {
   return "#dp-folha > " + partes.join(" > ");
 }
 
-/* Cada página tem a altura de um A4 na largura da folha. Onde o PDF quebra, o
-   texto seguinte desce para o topo da próxima página (margem de cima
-   incluída), e o recorte da cor da mesa é desenhado no espaço entre elas. */
+/* AS PÁGINAS, COMO NO WORD. Cada página é uma folha A4 na largura da mesa:
+   papel de borda reta com sombra, desenhado ATRÁS do texto — a área editável
+   continua uma só e transparente, que é o que deixa o texto passar de uma
+   página para a outra enquanto se escreve.
+
+   A divisão é medida na própria tela: o bloco que não cabe no que resta da
+   página desce para o topo da seguinte (margem de cima incluída), por uma
+   regra de estilo fora da folha — nada de tela vai para o arquivo. Um bloco
+   maior que uma página inteira não tem onde quebrar sem mexer no texto: a
+   página dele estica até ele caber. */
 function desenharPaginas() {
   const folha = $("dp-folha");
-  const entre = $("dp-entre");
+  const folhas = $("dp-folhas");
   const estilo = $("dp-estilo-paginas");
-  if (!folha || !entre || !estilo || !dupla.doc) return;
+  if (!folha || !folhas || !estilo || !dupla.doc) return;
   if (dupla.doc.formato) vestirFolhaEm(folha, dupla.doc.formato);
   estilo.textContent = "";
-  entre.innerHTML = "";
   folha.style.minHeight = "";
 
   const largura = folha.offsetWidth;
   if (!largura) return;
   const altura = largura * A4_ALTURA_POR_LARGURA;
-  const margem = parseFloat(getComputedStyle(folha).paddingBottom) || 0;
-  const mapa = dupla.paginacao;
-  const elementos = mapa ? blocosDaFolha(folha) : [];
+  const medidas = getComputedStyle(folha);
+  const margemCima = parseFloat(medidas.paddingTop) || 0;
+  const margemBaixo = parseFloat(medidas.paddingBottom) || 0;
   const topo = () => folha.getBoundingClientRect().top;
 
-  let inicio = 0;
-  let pagina = 1;
+  // Só os blocos de ponta: um div que embrulha parágrafos desce junto com eles.
+  const todos = blocosDaFolha(folha);
+  const blocos = todos.filter((el) => !todos.some((outro) => outro !== el && el.contains(outro)));
+
+  const paginas = [{ topo: 0, altura: altura }];
   const regras = [];
-  if (mapa && elementos.length === mapa.de_bloco.length) {
-    for (let i = 1; i < elementos.length; i += 1) {
-      if (mapa.de_bloco[i] === mapa.de_bloco[i - 1]) continue;
-      const fimDoTexto = elementos[i - 1].getBoundingClientRect().bottom - topo();
-      const fimDaPagina = Math.max(inicio + altura, fimDoTexto + margem);
-      const proxima = fimDaPagina + ESPACO_ENTRE_PAGINAS;
-      const atual = elementos[i].getBoundingClientRect().top - topo();
-      const margemAtual = parseFloat(getComputedStyle(elementos[i]).marginTop) || 0;
-      regras.push(seletorNaFolha(elementos[i]) + " { margin-top: " +
-        Math.max(0, margemAtual + proxima + margem - atual).toFixed(1) + "px !important; }");
+  for (const el of blocos) {
+    let pagina = paginas[paginas.length - 1];
+    let caixa = el.getBoundingClientRect();
+    if (caixa.bottom - topo() <= pagina.topo + pagina.altura - margemBaixo) continue;
+
+    const noAltoDaPagina = caixa.top - topo() <= pagina.topo + margemCima + 1;
+    if (!noAltoDaPagina) {
+      const proxima = pagina.topo + pagina.altura + ESPACO_ENTRE_PAGINAS;
+      const margemAtual = parseFloat(getComputedStyle(el).marginTop) || 0;
+      regras.push(seletorNaFolha(el) + " { margin-top: " +
+        (margemAtual + proxima + margemCima - (caixa.top - topo())).toFixed(1) + "px !important; }");
       estilo.textContent = regras.join("\n");
-      pagina += 1;
-      entre.insertAdjacentHTML("beforeend", '<div class="edl-entre-paginas" style="top:' + fimDaPagina.toFixed(1) +
-        "px;height:" + ESPACO_ENTRE_PAGINAS + 'px">página ' + pagina + "</div>");
-      inicio = proxima;
+      pagina = { topo: proxima, altura: altura };
+      paginas.push(pagina);
+      caixa = el.getBoundingClientRect();
     }
+    const fim = caixa.bottom - topo() + margemBaixo;
+    if (fim > pagina.topo + pagina.altura) pagina.altura = fim - pagina.topo;
   }
-  /* Página que o PDF tem e nenhum bloco começa nela: é a continuação de um
-     parágrafo longo. A folha cresce até ela, e o recorte só é desenhado onde
-     não há texto embaixo — cortar uma linha ao meio seria pior que não
-     mostrar a quebra. */
-  let fimDaFolha = inicio + altura;
-  const ultimo = elementos.length ? elementos[elementos.length - 1] : null;
-  const fimDoConteudo = ultimo ? ultimo.getBoundingClientRect().bottom - topo() + margem : 0;
-  for (let resta = (mapa ? mapa.paginas : 1) - pagina; resta > 0; resta -= 1) {
-    pagina += 1;
-    if (fimDaFolha >= fimDoConteudo) {
-      entre.insertAdjacentHTML("beforeend", '<div class="edl-entre-paginas" style="top:' + fimDaFolha.toFixed(1) +
-        "px;height:" + ESPACO_ENTRE_PAGINAS + 'px">página ' + pagina + "</div>");
-    }
-    fimDaFolha += ESPACO_ENTRE_PAGINAS + altura;
-  }
-  folha.style.minHeight = fimDaFolha.toFixed(1) + "px";
+
+  const ultima = paginas[paginas.length - 1];
+  folha.style.minHeight = (ultima.topo + ultima.altura).toFixed(1) + "px";
+  folhas.innerHTML = paginas.map((p) =>
+    '<div class="edl-pagina" style="top:' + p.topo.toFixed(1) + "px;height:" + p.altura.toFixed(1) + 'px"></div>').join("");
 
   const contador = $("dp-paginas");
   const c = dupla.doc.contagem || { palavras: 0 };
-  if (contador) contador.textContent = plural(mapa ? mapa.paginas : pagina, "página") + " · " + plural(c.palavras, "palavra");
+  if (contador) contador.textContent = plural(paginas.length, "página") + " · " + plural(c.palavras, "palavra");
+}
+
+/* Escrever redesenha as páginas uma vez por quadro, não uma vez por tecla. */
+let quadroDasPaginas = 0;
+function redesenharPaginas() {
+  cancelAnimationFrame(quadroDasPaginas);
+  quadroDasPaginas = requestAnimationFrame(desenharPaginas);
 }
 
 /* -------------------------------------------------------- a folha viva */
@@ -621,8 +629,7 @@ function marcarDuplaSuja() {
   $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
   clearTimeout(dupla.relogio);
   dupla.relogio = setTimeout(gravarDupla, 1600);
-  desenharPaginas();
-  pedirPaginasDaFolha();
+  redesenharPaginas();
 }
 
 async function gravarDupla() {
