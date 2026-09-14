@@ -388,23 +388,30 @@
   /* So o corpo abre espaco: o rodape - a caixa de pedido - fica onde estava,
      e o painel termina acima dele. */
   .conversa-col.com-editor .conversa-corpo { padding-right: calc(var(--margem-pagina) + var(--editor-largura) + 28px); }
+  /* O botao de ir ao fim sobe da caixa de pedido; com o editor aberto ele cairia
+     no rodape do editor. Fica no meio da coluna da conversa, que e o que rola. */
+  .conversa-col.com-editor .ir-ao-fim {
+    left: calc(var(--margem-pagina) + (100% - 2 * var(--margem-pagina) - var(--editor-largura) - 28px) / 2);
+  }
 
   .editor-lado {
     position: absolute; z-index: 5; top: 96px; bottom: 20px;
     right: var(--margem-pagina); width: var(--editor-largura);
     display: flex; flex-direction: column; min-height: 0;
-    background: var(--surf); border-radius: 16px; overflow: hidden;
-    box-shadow: var(--elev-cartao);
+    /* Sem cartao em volta: nome, barra e rodape ficam sobre o fundo da tela,
+       como o cabecalho da conversa, e a mesa das paginas e a unica superficie.
+       Cartao dentro de cartao era o painel inteiro com outra caixa no meio. */
+    background: none;
     animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
   }
-  .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 12px 2px 20px; }
+  .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 0 0 2px 4px; }
   .edl-titulo {
     flex: 1; min-width: 0; margin: 0; outline: none; font: 400 21px var(--serif); letter-spacing: -.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* Uma linha so: sem espaco para tudo, a barra rola de lado em vez de quebrar. */
   .edl-barra {
-    flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 4px 12px 10px 16px;
+    flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 4px 0 10px 0;
     overflow-x: auto; scrollbar-width: none;
   }
   .edl-barra::-webkit-scrollbar { display: none; }
@@ -417,8 +424,8 @@
 
   /* A mesa: o tom de fundo sobre o qual as paginas ficam. */
   .edl-mesa {
-    flex: 1; min-height: 0; overflow-y: auto; margin: 0 12px; padding: 22px 26px 30px;
-    border-radius: 12px; background: var(--fill);
+    flex: 1; min-height: 0; overflow-y: auto; padding: 22px 26px 30px;
+    border-radius: 14px; background: var(--fill);
   }
   .edl-papel { position: relative; max-width: 780px; margin: 0 auto; }
   /* A folha continua sendo UMA area editavel - so assim o texto passa de uma
@@ -440,7 +447,7 @@
   }
   #dp-selo::before { content: "·"; margin-right: 8px; }
   .edl-rodape {
-    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px 12px 20px;
+    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 0 0 4px;
     font: 400 11.5px var(--sans); color: var(--ink3);
   }
   .edl-rodape button { height: 30px; border-radius: 8px; }

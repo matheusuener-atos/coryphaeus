@@ -260,7 +260,10 @@ function desenharEditorAoLado() {
 function posicionarEditorAoLado() {
   const lado = $("editor-lado");
   if (!lado) return;
-  lado.style.top = ($("conversa-topo").offsetHeight + 8) + "px";
+  // Pelo retângulo, e não pela altura: o cabeçalho tem margem em cima, e
+  // somar só a altura dele punha o painel por cima do botão Exportar.
+  const coluna = $("conversa-col").getBoundingClientRect();
+  lado.style.top = Math.round($("conversa-topo").getBoundingClientRect().bottom - coluna.top + 14) + "px";
   lado.style.bottom = ($("conversa-rodape").offsetHeight + 12) + "px";
 }
 
