@@ -231,7 +231,9 @@ function desenharDupla() {
     "</div></div></div>";
 
   ligarDupla();
-  $("dp-voltar").onclick = () => $("nova").click();
+  // Voltar volta para a conversa de onde o editor foi aberto - e nela o
+  // cartao do documento continua, para abrir o editor de novo.
+  $("dp-voltar").onclick = () => voltarAoAssistente();
   $("dp-salvar").onclick = () => gravarDupla();
   $("dp-citacao").onmousedown = (e) => { e.preventDefault(); document.execCommand("formatBlock", false, "blockquote"); };
   $("dp-alteracoes").onclick = () => {

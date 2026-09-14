@@ -58,7 +58,8 @@ COISAS_PRAZO = ("prazo", "vencimento")
 # abrir um arquivo. Ia parar na busca, que respondia "nao encontrei essa
 # informacao" - sobre um arquivo que esta ali, com esse nome.
 VERBOS_ABRIR = ("abra", "abrir", "abre", "mostre", "mostrar", "mostra",
-                "exiba", "exibir", "ver", "veja")
+                "exiba", "exibir", "ver", "veja", "reexiba", "reexibir", "reexibe",
+                "reabra", "reabrir", "reabre")
 
 # Palavras que dizem o TIPO da coisa e nao aparecem no nome do arquivo. "o
 # contrato Wanderson" nomeia um arquivo chamado "COMPRA E VENDA - WANDERSON".
@@ -790,7 +791,7 @@ def quer_todo_o_acervo(texto: str) -> bool:
 
 
 def escopo(texto: str, abertos=None, em_foco=None, pedidos=None,
-           tudo: bool = False) -> tuple[list[str], list[str]]:
+           tudo: bool = False, herdar_foco: bool = True) -> tuple[list[str], list[str]]:
     """
     Sobre quais documentos é esta pergunta. Lista vazia = o acervo inteiro.
 
@@ -812,6 +813,11 @@ def escopo(texto: str, abertos=None, em_foco=None, pedidos=None,
        documento continua nele até dizer o contrário.
     6. Nada: o acervo inteiro.
 
+    `herdar_foco=False` é a pessoa que tirou o anexo da caixa: a regra 5 não
+    vale, porque ela acabou de dizer que não quer só aquele. Tirar o anexo
+    também não é pedir o acervo inteiro — quem decide isso é a conversa,
+    perguntando. "o documento" continua apontando o que estava em foco.
+
     A regra 5 só é honesta porque a tela mostra as pílulas o tempo todo.
     Escopo silencioso seria tão ruim quanto ler tudo calado: a pessoa leria
     "não achei" sem saber que a busca não saiu de um arquivo.
@@ -824,16 +830,47 @@ def escopo(texto: str, abertos=None, em_foco=None, pedidos=None,
 
     pelo_nome = documento_citado(texto, abertos)
     por_anafora = ""
-    if not pelo_nome and len(em_foco) == 1 and fala_do_documento_em_foco(texto):
+    if not pelo_nome and len(em_foco) == 1 and (fala_do_documento_em_foco(texto)
+                                                 or pede_so_o_documento(texto)):
         por_anafora = em_foco[0]
     explicito = [n for n in (pelo_nome or por_anafora,) if n]
 
     escolhidos = explicito
     if not escolhidos:
         escolhidos = [n for n in (pedidos or []) if n in nomes]
-    if not escolhidos:
+    if not escolhidos and herdar_foco:
         escolhidos = em_foco
     return escolhidos, explicito
+
+
+# O que pode acompanhar "abra" sem virar pergunta sobre o conteúdo: "abra o
+# documento", "reexiba ele aqui", "mostre esse arquivo de novo pra mim".
+SO_O_DOCUMENTO = {
+    "o", "a", "os", "as", "um", "este", "esse", "esta", "essa", "estes", "esses", "aquele",
+    "documento", "documentos", "arquivo", "arquivos", "anexo", "anexos", "ele", "ela", "eles",
+    "elas", "isso", "isto", "pdf", "docx", "word", "de", "novo", "novamente", "outra", "vez",
+    "aqui", "ai", "la", "pra", "para", "mim", "me", "no", "na", "chat", "conversa", "tela",
+    "referido", "mesmo", "citado", "acima", "anexado", "anexados", "que", "eu", "anexei",
+    "por", "favor", "agora", "entao", "so",
+}
+
+
+def pede_so_o_documento(texto: str) -> bool:
+    """
+    "Quero que você abra o documento", "reexiba o arquivo": o pedido é o
+    arquivo, e não o que está escrito nele.
+
+    Depois do verbo de abrir só pode vir referência ao documento. Com qualquer
+    outra palavra — "mostre o VALOR do adiantamento", "exiba o CONTEÚDO aqui"
+    — é pergunta, e segue para a leitura: é o "a não ser que seja pedido".
+    """
+    palavras = re.findall(r"[a-z0-9]+", _plano(texto))
+    for posicao, palavra in enumerate(palavras[:6]):
+        if palavra in VERBOS_ABRIR:
+            if not all(anterior in ENFEITE for anterior in palavras[:posicao]):
+                return False
+            return all(p in SO_O_DOCUMENTO for p in palavras[posicao + 1:])
+    return False
 
 
 def quer_abrir(texto: str) -> bool:

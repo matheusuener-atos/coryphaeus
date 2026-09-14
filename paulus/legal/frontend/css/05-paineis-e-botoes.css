@@ -244,6 +244,8 @@
     font: 500 12.5px var(--sans); color: var(--ink2);
   }
   .escopo-acervo .ic { color: var(--ink3); }
+  .escopo-acervo.escopo-livre { cursor: pointer; }
+  .escopo-acervo.escopo-livre:hover { background: var(--act); color: var(--ink); }
   .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escopo-limpar {
     border: none; background: none; color: var(--ink3); cursor: pointer;

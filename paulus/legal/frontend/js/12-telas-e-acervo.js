@@ -847,6 +847,7 @@ function cartaoProposta(d) {
   // Abrir é o único que não tem campo para conferir: ou é este arquivo, ou
   // não é. O que a pessoa confere é o nome — e onde quer abrir.
   if (d.tipo === "exibir") return cartaoOferta(d);
+  if (d.tipo === "escopo") return cartaoEscopo(d);
 
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
@@ -909,18 +910,65 @@ function cartaoProposta(d) {
    documentos, o servidor oferece mostrá-los (exibir_documento). O cartão só
    oferece: nada abre sem o clique, e mostrar não copia nem altera nada. */
 function cartaoOferta(d) {
-  const nomes = d.nomes && d.nomes.length ? d.nomes : [(d.campos || {}).nome];
+  const c = d.campos || {};
+  const nomes = d.nomes && d.nomes.length ? d.nomes : (c.nomes && c.nomes.length ? c.nomes : [c.nome]);
   const linhas = nomes.map((n) =>
     '<div class="oferta-doc">' + ic(/\.pdf$/i.test(n) ? "picture_as_pdf" : "description", 18) +
     '<span class="oferta-nome" title="' + esc(n) + '">' + esc(n) + "</span>" +
     '<button class="primario" data-prop="exibir" data-nome="' + esc(n) + '">Mostrar aqui</button>' +
+    '<button data-prop="editar" data-nome="' + esc(n) + '">Editar</button>' +
     '<button data-prop="windows" data-nome="' + esc(n) + '">No Windows</button></div>').join("");
+  const porque = d.porque || "a resposta saiu " + (nomes.length === 1 ? "deste documento" : "destes documentos");
   return '<div class="proposta oferta"><div class="proposta-topo">' +
     '<span class="rotulo">' + (nomes.length === 1 ? "quer ver o documento?" : "quer ver os documentos?") + "</span></div>" +
     linhas +
-    '<p class="explica">A resposta saiu ' + (nomes.length === 1 ? "deste documento" : "destes documentos") +
-    ". Mostro aqui mesmo, só para leitura, com os trechos citados marcados.</p>" +
+    '<p class="explica">' + esc(porque.charAt(0).toUpperCase() + porque.slice(1)) +
+    ". Mostro aqui mesmo, só para leitura" + (d.trechos ? ", com os trechos citados marcados" : "") +
+    " — ou abro no editor, ou no Windows.</p>" +
     '<div class="linha-form"><button data-prop="nao">Agora não</button></div></div>';
+}
+
+/* ONDE EU PROCURO? A pessoa tirou o anexo e perguntou sem nomear documento.
+   Em vez de sair lendo o Acervo inteiro — minutos, neste computador —, a
+   conversa pergunta. Escolher refaz a pergunta com o Retomar. */
+function nomeCurto(nome) {
+  return nome.length > 34 ? nome.slice(0, 32) + "…" : nome;
+}
+
+function cartaoEscopo(d) {
+  const nomes = d.nomes || [];
+  return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">onde eu procuro?</span></div>' +
+    '<p class="explica">' + (nomes.length
+      ? "Você tirou o anexo. Sigo só no documento que esta conversa vinha lendo, ou procuro nos "
+      : "Sem anexo, eu procuraria nos ") +
+    plural(d.total || 0, "documento") + " do Acervo — ler todos leva mais tempo.</p>" +
+    '<div class="linha-form">' +
+    nomes.map((n, i) => "<button" + (i === 0 ? ' class="primario"' : "") + ' data-escopo-doc="' + esc(n) +
+      '" title="' + esc(n) + '">Só em “' + esc(nomeCurto(n)) + "”</button>").join("") +
+    "<button" + (nomes.length ? "" : ' class="primario"') + ' data-escopo-tudo="1">Em todo o Acervo</button>' +
+    '<button data-escopo-anexar="1">Anexar outro</button></div></div>';
+}
+
+function ligarEscopo(caixa, d) {
+  const escolher = (aviso, opcoes) => {
+    caixa.innerHTML = '<p class="explica">' + esc(aviso) + "</p>";
+    enviar(Object.assign({ texto: d.pergunta, retomar: true }, opcoes));
+  };
+  caixa.querySelectorAll("[data-escopo-doc]").forEach((b) => {
+    b.onclick = () => {
+      const nome = b.dataset.escopoDoc;
+      definirEscopo([nome]);
+      escolher("Procurando só em “" + nome + "”.", { apenas: [nome] });
+    };
+  });
+  const tudo = caixa.querySelector("[data-escopo-tudo]");
+  if (tudo) tudo.onclick = () => {
+    definirEscopo([]);
+    estado.escopoTudo = true;
+    escolher("Procurando em todo o Acervo.", { tudo: true });
+  };
+  const anexar = caixa.querySelector("[data-escopo-anexar]");
+  if (anexar) anexar.onclick = () => abrirAnexar();
 }
 
 /* O visor dentro da conversa. PDF é a página desenhada, com o andar de
@@ -997,6 +1045,11 @@ function ligarLeitor(caixa, reg, d) {
   ligarBotoesDeDocumento(caixa, d);
 }
 
+function rascunhoDaConversa(nome) {
+  return ((estado.trabalho || {}).mensagens || []).some((m) =>
+    m.feito && m.feito.tipo === "editar" && m.feito.nome === nome);
+}
+
 /* Mostrar aqui, abrir no Windows e abrir para editar: os mesmos três botões
    no cartão de abrir, na oferta depois da resposta e dentro do visor. O nome
    vem do botão — a oferta pode ter dois documentos. */
@@ -1040,27 +1093,28 @@ function ligarBotoesDeDocumento(caixa, d) {
 
   /* Abrir para editar traz o documento para dentro do programa, como rascunho:
      o .docx de origem pode já ter sido assinado ou protocolado, e editar ele
-     no lugar seria mexer no que já saiu. */
+     no lugar seria mexer no que já saiu. O rascunho fica ligado à conversa:
+     o cartão continua aqui, e clicar de novo volta ao MESMO rascunho — antes
+     o cartão sumia, e cada clique criava outra cópia. */
   caixa.querySelectorAll('[data-prop="editar"]').forEach((editar) => {
+    if (rascunhoDaConversa(nomeDe(editar))) editar.textContent = "Voltar ao editor";
     editar.onclick = async () => {
       editar.disabled = true;
-      caixa.insertAdjacentHTML("beforeend",
-        '<p class="nota">trazendo o documento para o editor…</p>');
       const r = await fetch("/api/documentos/importar", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: nomeDe(editar) }),
+        body: JSON.stringify({ nome: nomeDe(editar), trabalho_id: estado.trabalhoId || "" }),
       });
+      editar.disabled = false;
       if (!r.ok) {
-        editar.disabled = false;
-        caixa.insertAdjacentHTML("beforeend",
-          '<p class="explica">' + esc(await erroDe(r)) + "</p>");
+        avisoNaJanela("Não consegui abrir no editor: " + (await erroDe(r)), { icone: "error" });
         return;
       }
       const novo = await r.json();
-      caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
-        "<b>“" + esc(novo.titulo) + "” aberto para editar</b></div>" +
-        '<p class="explica">Cópia editável de ' + esc(novo.de) +
-        ", com " + plural(novo.paragrafos, "parágrafo") + ". O original continua onde estava.</p>";
+      editar.textContent = "Voltar ao editor";
+      if (!novo.reaberto && estado.trabalho) {
+        estado.trabalho.mensagens.push({ autor: "paulus", texto: "Abri “" + novo.de + "” para editar.",
+          feito: { tipo: "editar", id: novo.id, nome: novo.de } });
+      }
       marcarDestino("editor");
       mostrarDupla(novo.id);
     };
@@ -1165,6 +1219,7 @@ function camposProposta(d, faltando) {
 /* Ligar os botões do cartão. O que vai para o servidor é o que está nos
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
 function ligarProposta(caixa, d, ondeResponder) {
+  if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
   ligarBotoesDeDocumento(caixa, d);

@@ -341,6 +341,9 @@ class Pergunta(BaseModel):
     apenas: list[str] = []
     # "olha o acervo inteiro", dito pelo botao em vez de pela frase.
     tudo: bool = False
+    # A pessoa tirou o anexo da caixa. Nao e "leia tudo": a conversa pergunta
+    # onde procurar antes de sair lendo o acervo inteiro.
+    sem_anexo: bool = False
     # O botao Retomar do cartao "Parado": a mesma pergunta de novo, sem
     # repeti-la no historico e trocando a resposta que parou no meio.
     retomar: bool = False
@@ -1718,6 +1721,7 @@ def _escopo_da_pergunta(trabalho, pergunta: str, payload: Pergunta) -> tuple[lis
         em_foco=_em_foco(trabalho),
         pedidos=payload.apenas,
         tudo=payload.tudo,
+        herdar_foco=not payload.sem_anexo,
     )
     trabalho.contexto["documento_em_foco"] = escolhidos
     return escolhidos, explicito
@@ -1772,7 +1776,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         trabalho.titulo = titular(pergunta)
 
     ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
-    if payload.retomar and ultima and ultima.autor == "paulus" and ultima.interrompida:
+    # Retomar troca a resposta parada - e tambem o cartao "onde eu procuro?",
+    # que a pessoa respondeu escolhendo onde.
+    if (payload.retomar and ultima and ultima.autor == "paulus"
+            and (ultima.interrompida or (ultima.proposta or {}).get("tipo") == "escopo")):
         trabalho.mensagens.pop()
         ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
@@ -1788,6 +1795,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # nao nomeia arquivo nenhum, cai na busca e e respondido pelo acervo
     # inteiro: foi assim que a pergunta sobre um comprovante de viagem voltou
     # falando de contrato de compra e venda.
+    foco_antes = _em_foco(trabalho)
     citado, explicito = _escopo_da_pergunta(trabalho, pergunta, payload)
 
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
@@ -1795,14 +1803,33 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
-    if (lido.tipo == "documentos" and len(explicito) == 1
-            and intencao.quer_abrir(pergunta)):
-        lido = intencao.Intencao(
-            tipo="abrir", titulo=explicito[0], campos={"nome": explicito[0]},
-            porque="“o referido documento” — o que esta conversa vinha lendo",
-        )
-    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota"):
+    # "Quero que voce abra o documento", com o anexo na caixa: o pedido e o
+    # arquivo. Antes ia para o modelo, que respondia copiando o texto inteiro
+    # na conversa. Agora vem o cartao - mostrar aqui, editar ou abrir no
+    # Windows -, a nao ser que a frase peca o conteudo.
+    if lido.tipo == "documentos" and intencao.quer_abrir(pergunta):
+        alvo = explicito if len(explicito) == 1 else (
+            citado if citado and intencao.pede_so_o_documento(pergunta) else [])
+        if len(alvo) == 1:
+            lido = intencao.Intencao(
+                tipo="abrir", titulo=alvo[0], campos={"nome": alvo[0]},
+                porque="“" + pergunta.strip().rstrip(".!?") + "”",
+            )
+        elif alvo:
+            lido = intencao.Intencao(
+                tipo="exibir", titulo=alvo[0], campos={"nome": alvo[0], "nomes": alvo[:4]},
+                porque="você pediu para abrir os documentos anexados",
+            )
+    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
+
+    # Tirou o anexo e perguntou sem nomear documento: antes de ler os
+    # dezessete, pergunta onde - so no que a conversa vinha lendo, ou no
+    # acervo inteiro. Ler tudo leva minutos, e nao foi o que a pessoa disse.
+    if (payload.sem_anexo and not citado and not payload.tudo
+            and not intencao.quer_todo_o_acervo(pergunta)):
+        trabalho.contexto["documento_em_foco"] = foco_antes
+        return _perguntar_onde_procurar(trabalho, pergunta, foco_antes)
 
     trabalho.etapas = [
         Etapa("Procurar nos documentos", estado=EXECUTANDO),
@@ -1997,12 +2024,19 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
 
 
 def _documentos_ja_oferecidos(trabalho) -> set[str]:
-    """Os arquivos que esta conversa ja ofereceu mostrar, ou ja mostrou."""
+    """
+    Os arquivos que esta conversa ja ofereceu mostrar, ja mostrou, ou que a
+    pessoa pediu para abrir - o cartao deles continua na conversa, e oferecer
+    de novo embaixo da resposta seguinte seria o mesmo convite duas vezes.
+    """
     vistos: set[str] = set()
     for m in trabalho.mensagens:
-        if (m.proposta or {}).get("tipo") == "exibir":
-            vistos.update(m.proposta.get("nomes") or [])
-        if (m.feito or {}).get("tipo") in ("exibir", "abrir") and (m.feito or {}).get("nome"):
+        proposta = m.proposta or {}
+        if proposta.get("tipo") == "exibir":
+            vistos.update(proposta.get("nomes") or (proposta.get("campos") or {}).get("nomes") or [])
+        if proposta.get("tipo") == "abrir" and (proposta.get("campos") or {}).get("nome"):
+            vistos.add(proposta["campos"]["nome"])
+        if (m.feito or {}).get("tipo") in ("exibir", "abrir", "editar") and (m.feito or {}).get("nome"):
             vistos.add(m.feito["nome"])
     return vistos
 
@@ -2149,6 +2183,35 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
             "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
             "ajuda_do_modelo": ajuda,
         }
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", "", proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _perguntar_onde_procurar(trabalho, pergunta: str, foco: list[str]) -> StreamingResponse:
+    """
+    O cartao "onde eu procuro?": so no que a conversa vinha lendo, ou no
+    acervo inteiro. Fica guardado como proposta; escolher refaz a pergunta
+    com o Retomar, que troca o cartao pela resposta.
+    """
+    abertos = {d.name for d in estado.searcher.documents}
+    proposta = {
+        "tipo": "escopo", "titulo": "", "campos": {}, "porque": "", "falta": "",
+        "pergunta": pergunta,
+        "nomes": [n for n in foco if n in abertos][:3],
+        "total": len(estado.searcher.documents),
+    }
+
+    def gerar() -> Iterator[str]:
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", "", proposta=proposta)
@@ -4043,6 +4106,9 @@ def documentos_criar(payload: NovoDocumento) -> dict:
 class ImportarParaEditar(BaseModel):
     caminho: str = ""
     nome: str = ""
+    # Vindo de uma conversa: o rascunho fica ligado a ela, e abrir para
+    # editar de novo volta ao mesmo rascunho em vez de criar outra copia.
+    trabalho_id: str = ""
 
 
 @app.post("/api/documentos/importar")
@@ -4067,14 +4133,28 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
     if lido is None:
         raise HTTPException(status_code=400, detail="esse arquivo ainda nao foi lido")
 
+    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
+    if trabalho:
+        for m in reversed(trabalho.mensagens):
+            feito = m.feito or {}
+            if feito.get("tipo") == "editar" and feito.get("nome") == lido.name:
+                rascunho = estado.documentos.obter(int(feito.get("id") or 0))
+                if rascunho:
+                    return {"id": rascunho["id"], "titulo": rascunho["titulo"], "de": lido.name,
+                            "paragrafos": 0, "reaberto": True}
+
     # Paragrafo por paragrafo: o texto extraido vem com quebras de linha, e
     # jogar tudo num <p> so daria um bloco unico impossivel de editar.
     paragrafos = [p.strip() for p in lido.text.splitlines() if p.strip()]
     corpo = "".join(f"<p>{_escapar(p)}</p>" for p in paragrafos) or "<p><br></p>"
 
     id_ = estado.documentos.criar(Path(lido.name).stem, "texto", corpo, None)
+    if trabalho:
+        trabalho.dizer("paulus", f"Abri “{lido.name}” para editar.",
+                       feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "editor"})
+        estado.trabalhos.salvar(trabalho)
     return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name,
-            "paragrafos": len(paragrafos)}
+            "paragrafos": len(paragrafos), "reaberto": False}
 
 
 def _escapar(texto: str) -> str:

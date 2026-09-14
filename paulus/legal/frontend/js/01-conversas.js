@@ -90,6 +90,11 @@ async function abrirTrabalho(id) {
   $("compositor").hidden = false;
   estado.trabalho = await r.json();
   estado.trabalhoId = id;
+  // As pílulas mostram o que a conversa vai ler de verdade: o documento em
+  // foco dela. Sem isso a caixa dizia "Acervo" e a pergunta seguinte lia só
+  // aquele arquivo, calada.
+  const foco = (estado.trabalho.contexto || {}).documento_em_foco || [];
+  definirEscopo(Array.isArray(foco) ? foco : [foco]);
   desenharTrabalho();
   carregarTrabalhos();
   return true;

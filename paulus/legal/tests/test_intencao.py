@@ -472,6 +472,42 @@ def test_escopo_da_conversa() -> None:
            "foco herdado não conta como referência explícita")
 
 
+def test_pede_so_o_documento() -> None:
+    """
+    "Quero que você abra o documento", com o anexo na caixa, ia para o modelo
+    — que respondia copiando o texto inteiro na conversa. O pedido era o
+    arquivo: vira o cartão de abrir, a não ser que a frase peça o conteúdo.
+    """
+    print("\npede só o documento")
+    for frase in ("Quero que você abra o documento", "Reexiba o documento", "abra",
+                  "reabra ele aqui pra mim", "mostre esse arquivo de novo", "por favor exiba o anexo"):
+        checar(intencao.pede_so_o_documento(frase), f"é o arquivo: {frase!r}")
+    for frase in ("mostre o valor do adiantamento", "exiba o conteúdo do documento aqui no chat",
+                  "qual o prazo do documento?", "o documento mostra a validade?", "veja se há multa"):
+        checar(not intencao.pede_so_o_documento(frase), f"é pergunta: {frase!r}")
+
+
+def test_tirar_o_anexo() -> None:
+    """
+    Tirar o anexo da caixa não é pedir o acervo inteiro, e também não é
+    continuar calado no mesmo arquivo: sem herdar o foco, a pergunta sem nome
+    fica sem escopo — e a conversa pergunta onde procurar. "o documento"
+    continua apontando o que estava em foco.
+    """
+    print("\ntirar o anexo")
+    from types import SimpleNamespace
+    A, B = "procuracao coobramex x matheus.docx", "compra e venda wanderson.pdf"
+    acervo = [SimpleNamespace(name=n) for n in (A, B)]
+    checar(intencao.escopo("qual a validade?", acervo, [A], [])[0] == [A],
+           "com o anexo guardado, segue no foco")
+    checar(intencao.escopo("qual a validade?", acervo, [A], [], herdar_foco=False) == ([], []),
+           "tirado o anexo, a pergunta sem nome fica sem escopo")
+    checar(intencao.escopo("Reexiba o documento", acervo, [A], [], herdar_foco=False) == ([A], [A]),
+           "\"reexiba o documento\" ainda é o que estava em foco")
+    checar(intencao.escopo("e na compra e venda wanderson?", acervo, [A], [], herdar_foco=False)[0] == [B],
+           "nomear outro documento vale")
+
+
 def test_pedir_o_acervo_inteiro() -> None:
     """
     A saída do foco, dita com todas as letras.
@@ -546,6 +582,8 @@ def main() -> int:
     test_o_referido_documento()
     test_escopo_da_conversa()
     test_pedir_o_acervo_inteiro()
+    test_pede_so_o_documento()
+    test_tirar_o_anexo()
     test_sobre_o_programa()
     test_texto_vazio()
 

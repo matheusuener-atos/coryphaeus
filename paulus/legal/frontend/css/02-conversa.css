@@ -371,7 +371,11 @@
      documento a direita, a alteracao marcada dentro do proprio texto. Ocupa a
      area inteira; o cabecalho da conversa da lugar ao dela. */
   .conversa-col.tela-dupla .conversa-topo { display: none; }
-  .conversa-col.tela-dupla .fluxo { padding: 0; gap: 0; }
+  /* A folha rola dentro do cartao dela, e nao a tela inteira: com o fluxo
+     rolando, um documento de tres paginas esticava a dupla ate 2000 px e
+     empurrava a caixa de pedido da conversa para fora da janela. */
+  .conversa-col.tela-dupla .fluxo { padding: 0; gap: 0; overflow: hidden; align-items: stretch; }
+  .conversa-col.tela-dupla .conversa-principal::after { display: none; }
   .conversa-col.tela-dupla .centro { flex: 1; min-height: 0; }
   .dupla { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .dupla-topo {

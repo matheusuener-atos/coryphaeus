@@ -291,21 +291,25 @@ function desenharTrabalho() {
   let html = "";
   let pergunta = "";
   let fontes = [], perguntaDasFontes = "";
-  for (const m of t.mensagens) {
+  propostasGuardadas.length = 0;
+  t.mensagens.forEach((m, i) => {
     if (m.autor === "pessoa") {
       pergunta = m.texto;
       html += bolhaPessoa(m.texto);
     } else {
-      html += blocoResposta(m, pergunta);
+      html += blocoResposta(m, pergunta, i === t.mensagens.length - 1);
       if (m.fontes && m.fontes.length) { fontes = m.fontes; perguntaDasFontes = pergunta; }
     }
-  }
+  });
   if (t.etapas.length && t.estado !== "concluido") html += cartaoPlano(t.etapas, t.etapa_atual);
   if (t.aprovacao) html += cartaoAprovacao(t.aprovacao);
 
   $("centro").innerHTML = html || exemplos();
   ligarExemplos();
   ligarResposta($("centro"));
+  $("centro").querySelectorAll("[data-proposta-guardada]").forEach((caixa) => {
+    ligarProposta(caixa, propostasGuardadas[Number(caixa.dataset.propostaGuardada)]);
+  });
   ligarAprovacaoNaConversa($("centro"));
   const botaoRetomar = $("centro").querySelector("[data-retomar]");
   if (botaoRetomar) botaoRetomar.onclick = retomarTrabalho;
@@ -320,7 +324,21 @@ function bolhaPessoa(texto) {
   return '<div class="bolha-pessoa">' + esc(texto) + "</div>";
 }
 
-function blocoResposta(m, pergunta) {
+/* Os cartões que continuam valendo quando a conversa é reaberta: abrir e
+   mostrar um documento (só leitura, podem ser usados de novo) e o "onde eu
+   procuro?" que ainda espera resposta. Proposta de gravar alguma coisa não
+   volta: refazer o cartão de uma agenda já anotada convidaria a anotar duas. */
+const propostasGuardadas = [];
+
+function cartaoGuardado(m, ultima) {
+  const p = m.proposta || {};
+  if (!(p.tipo === "abrir" || p.tipo === "exibir" || (p.tipo === "escopo" && ultima))) return "";
+  propostasGuardadas.push(p);
+  return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +
+    cartaoProposta(p) + "</div>";
+}
+
+function blocoResposta(m, pergunta, ultima) {
   let html = '<div class="resposta">';
   if (m.cobertura && m.cobertura.ignorados && m.cobertura.ignorados.length) {
     html += avisoCobertura(m.cobertura);
@@ -331,6 +349,7 @@ function blocoResposta(m, pergunta) {
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
   if (m.segundos) html += linhaAssinatura(m.segundos, citados, pergunta || "");
+  html += cartaoGuardado(m, ultima);
   return html + "</div>";
 }
 
@@ -1133,7 +1152,14 @@ async function enviar(opcoes) {
     const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pergunta: pedido, apenas: estado.escopo, retomar: Boolean(o.retomar) }),
+      // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
+      // a pergunta com a escolha feita ali.
+      body: JSON.stringify({
+        pergunta: pedido, retomar: Boolean(o.retomar),
+        apenas: o.apenas || estado.escopo,
+        tudo: o.tudo !== undefined ? Boolean(o.tudo) : Boolean(estado.escopoTudo),
+        sem_anexo: o.apenas || o.tudo ? false : Boolean(estado.escopoTirado),
+      }),
       signal: estado.controle.signal,
     });
     if (!r.ok) throw new Error("não consegui responder");
@@ -1300,9 +1326,16 @@ async function carregarAbertos() {
 
 /* Lista, e nao um nome so: anexar dois arquivos e perguntar sobre "eles" e o
    caso comum - quem arrasta um contrato e o aditivo quer os dois lidos. */
+/* Três estados sem anexo, e a diferença entre eles é o que a pessoa disse:
+   - nada escolhido ainda: o Acervo inteiro, como sempre;
+   - `escopoTudo`: "procurar em todos", dito com todas as letras;
+   - `escopoTirado`: tirou o anexo. Não é "leia os dezessete" — a próxima
+     pergunta sem documento nomeado volta com um cartão perguntando onde. */
 function definirEscopo(nomes) {
   const lista = Array.isArray(nomes) ? nomes : (nomes ? [nomes] : []);
   estado.escopo = lista.filter((n, i) => n && lista.indexOf(n) === i);
+  estado.escopoTirado = false;
+  estado.escopoTudo = false;
   desenharEscopo();
 }
 
@@ -1312,6 +1345,10 @@ function somarAoEscopo(nome) {
 
 function tirarDoEscopo(nome) {
   definirEscopo(estado.escopo.filter((n) => n !== nome));
+  if (!estado.escopo.length && estado.trabalhoId) {
+    estado.escopoTirado = true;
+    desenharEscopo();
+  }
 }
 
 function desenharEscopo() {
@@ -1319,6 +1356,19 @@ function desenharEscopo() {
   if (!caixa) return;
   atualizarPropriedades();
   caixa.hidden = false;
+  if (!estado.escopo.length && estado.escopoTirado) {
+    caixa.classList.remove("com-anexos");
+    caixa.innerHTML = '<span class="escopo-acervo escopo-livre" id="escopo-livre" role="button" tabindex="0" ' +
+      'title="Sem anexo: na próxima pergunta eu pergunto onde procurar. Clique para procurar em todo o Acervo">' +
+      ic("help", 18) + "<b>Sem anexo · pergunto onde procurar</b></span>";
+    $("escopo-livre").onclick = () => {
+      estado.escopoTirado = false;
+      estado.escopoTudo = true;
+      desenharEscopo();
+      $("pedido").focus();
+    };
+    return;
+  }
   if (!estado.escopo.length) {
     caixa.classList.remove("com-anexos");
     caixa.innerHTML = '<span class="escopo-acervo" title="Lendo o acervo inteiro — anexe um documento, ou digite / na caixa, para focar num só">' + ic("folder", 18) + "<b>" +
@@ -1345,7 +1395,7 @@ function desenharEscopo() {
     b.onclick = () => { tirarDoEscopo(b.dataset.tirar); $("pedido").focus(); };
   });
   const limpar = $("escopo-tirar");
-  if (limpar) limpar.onclick = () => { definirEscopo([]); $("pedido").focus(); };
+  if (limpar) limpar.onclick = () => { definirEscopo([]); estado.escopoTudo = true; $("pedido").focus(); };
 }
 
 /* O "/" e o que vem depois dele, até o cursor. Só vale no começo de uma

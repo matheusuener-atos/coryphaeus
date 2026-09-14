@@ -343,7 +343,7 @@ def test_pela_api() -> None:
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
     c = Cliente(porta)
-    criados = {"cadastros": [], "trabalhos": []}
+    criados = {"cadastros": [], "trabalhos": [], "rascunhos": []}
 
     chamadas: list[tuple] = []
     original = api.estado.client.ask_json
@@ -430,7 +430,10 @@ def test_pela_api() -> None:
         habilidade = api.estado.registro.obter("perguntar")
         guardado = (habilidade.executar, habilidade.estado)
 
+        leituras: list = []
+
         def responde(ctx, pergunta="", top=6, apenas=None):
+            leituras.append(list(apenas or []))
             trecho = {"documento": doc.name, "trecho": 1, "score": 1.0, "texto": doc.text[:300]}
             yield "fontes", {"consultados": [doc.name], "ignorados": [], "total_contratos": 1,
                              "trechos": [trecho, dict(trecho, trecho=2)], "apenas": []}
@@ -463,6 +466,43 @@ def test_pela_api() -> None:
             st, erro = c.pedir("POST", f"/api/trabalhos/{t2['id']}/fazer",
                                {"tipo": "exibir", "campos": {"nome": "Nao Existe Aqui.docx"}})
             checar(st == 400, "documento que não está no Acervo é recusado", (st, erro))
+
+            print("\npela API: abrir o anexo, e tirar o anexo")
+            chamadas_antes = len(leituras)
+            st, t3 = c.pedir("POST", "/api/trabalhos", {"pedido": "abrir"})
+            criados["trabalhos"].append(t3["id"])
+            eventos = c.conversar(f"/api/trabalhos/{t3['id']}/perguntar",
+                                  {"pergunta": "Quero que você abra o documento", "apenas": [doc.name]})
+            p = next((d for tipo, d in eventos if tipo == "proposta"), {})
+            checar(p.get("tipo") == "abrir" and p["campos"]["nome"] == doc.name,
+                   "\"abra o documento\" com anexo vira o cartão de abrir", p)
+            checar(len(leituras) == chamadas_antes, "sem ler nem escrever o documento na conversa")
+
+            st, r1 = c.pedir("POST", "/api/documentos/importar", {"nome": doc.name, "trabalho_id": t3["id"]})
+            if r1.get("id"):
+                criados["rascunhos"].append(r1["id"])
+            st, r2 = c.pedir("POST", "/api/documentos/importar", {"nome": doc.name, "trabalho_id": t3["id"]})
+            checar(r1.get("id") and r2.get("id") == r1["id"] and r2.get("reaberto") is True,
+                   "abrir para editar de novo volta ao mesmo rascunho", (r1, r2))
+
+            eventos = c.conversar(f"/api/trabalhos/{t3['id']}/perguntar",
+                                  {"pergunta": "qual a validade?", "apenas": [], "sem_anexo": True})
+            p = next((d for tipo, d in eventos if tipo == "proposta"), {})
+            checar(p.get("tipo") == "escopo" and p.get("nomes") == [doc.name] and p.get("total"),
+                   "tirado o anexo, a conversa pergunta onde procurar", p)
+            checar(len(leituras) == chamadas_antes, "e não sai lendo o Acervo antes da resposta")
+
+            eventos = c.conversar(f"/api/trabalhos/{t3['id']}/perguntar",
+                                  {"pergunta": "qual a validade?", "apenas": [doc.name], "retomar": True})
+            checar(len(leituras) == chamadas_antes + 1 and leituras[-1] == [doc.name],
+                   "escolher \"só neste\" lê só ele", leituras[-1:])
+            st, conversa = c.pedir("GET", f"/api/trabalhos/{t3['id']}")
+            tipos_guardados = [(m["autor"], (m.get("proposta") or {}).get("tipo", "")) for m in conversa["mensagens"]]
+            checar(("paulus", "escopo") not in tipos_guardados and
+                   [m["texto"] for m in conversa["mensagens"] if m["autor"] == "pessoa"].count("qual a validade?") == 1,
+                   "a resposta troca o cartão, sem repetir a pergunta", tipos_guardados)
+            checar(not any(tipo == "oferta" for tipo, _ in eventos),
+                   "documento aberto pelo cartão não é oferecido de novo embaixo da resposta")
         finally:
             habilidade.executar, habilidade.estado = guardado
     finally:
@@ -473,6 +513,10 @@ def test_pela_api() -> None:
                 c.pedir("DELETE", f"/api/lixeira/{r['lixeira']}")
         for tid in criados["trabalhos"]:
             st, r = c.pedir("DELETE", f"/api/trabalhos/{tid}")
+            if isinstance(r, dict) and r.get("lixeira"):
+                c.pedir("DELETE", f"/api/lixeira/{r['lixeira']}")
+        for rid in criados["rascunhos"]:
+            st, r = c.pedir("DELETE", f"/api/documentos/{rid}")
             if isinstance(r, dict) and r.get("lixeira"):
                 c.pedir("DELETE", f"/api/lixeira/{r['lixeira']}")
         sobrou = c.pedir("GET", "/api/cadastros?termo=Teste%20Ferramentas")[1].get("fichas", [])
