@@ -146,6 +146,8 @@ function desenharTrabalho() {
   ligarExemplos();
   ligarResposta($("centro"));
   ligarAprovacaoNaConversa($("centro"));
+  const botaoRetomar = $("centro").querySelector("[data-retomar]");
+  if (botaoRetomar) botaoRetomar.onclick = retomarTrabalho;
   desenharProgresso(t.etapas || []);
   desenharTrechos(fontes, perguntaDasFontes, null);
   desenharAtividade(t.atividade);
@@ -337,13 +339,42 @@ function desenharProgresso(etapas) {
     "<span>" + esc(e.titulo) + (e.total ? " · " + e.feitos + " / " + e.total : "") + "</span></div>").join("");
 }
 
+/* A pergunta que da para retomar: a ultima da conversa, quando ela ficou sem
+   resposta ou com a resposta parada no meio. */
+function perguntaParaRetomar() {
+  const t = estado.trabalho;
+  if (!t || !["pausado", "falhou"].includes(t.estado)) return "";
+  const msgs = t.mensagens || [];
+  const fim = msgs[msgs.length - 1];
+  if (!fim || (fim.autor === "paulus" && !fim.interrompida)) return "";
+  const pessoa = [...msgs].reverse().find((m) => m.autor === "pessoa");
+  return pessoa ? pessoa.texto : "";
+}
+
+/* RETOMAR: refaz a ultima pergunta onde ela parou - o programa fechou no
+   meio, a pessoa apertou parar, ou deu errado. A resposta interrompida sai
+   da tela e do historico; a pergunta nao se repete. */
+async function retomarTrabalho() {
+  const t = estado.trabalho;
+  const pergunta = perguntaParaRetomar();
+  if (!t || !pergunta || estado.ocupado) return;
+  const fim = t.mensagens[t.mensagens.length - 1];
+  if (fim && fim.autor === "paulus" && fim.interrompida) t.mensagens.pop();
+  t.etapas = [];
+  t.estado = "executando";
+  desenharTrabalho();
+  enviar({ texto: pergunta, retomar: true });
+}
+
 function cartaoPlano(etapas, atual) {
   const total = etapas.length;
   const rodando = estado.ocupado;
+  const retomar = !rodando && perguntaParaRetomar()
+    ? '<button class="cartao-retomar" data-retomar="1">' + ic("play_arrow", 16) + "Retomar</button>" : "";
   return '<div class="cartao"><div class="cartao-topo">' +
     (rodando ? coroa(20) : '<span class="ic ic-20 marcador">pause</span>') +
     '<span class="quem">' + (rodando ? "Trabalhando" : "Parado") + " · etapa " + atual + " de " + total + "</span>" +
-    '<span class="tempo" id="cronometro"></span></div><div class="cartao-corpo">' +
+    '<span class="tempo" id="cronometro"></span>' + retomar + '</div><div class="cartao-corpo">' +
     etapas.map(linhaEtapa).join("") + "</div></div>";
 }
 
@@ -871,11 +902,14 @@ async function pararResposta() {
 }
 
 
-async function enviar() {
+/* `opcoes.retomar` com `opcoes.texto`: refaz a ultima pergunta de uma
+   conversa parada - sem nova bolha, sem mexer no que esta escrito no campo. */
+async function enviar(opcoes) {
+  const o = opcoes && opcoes.texto ? opcoes : {};
   if (estado.ocupado) return;
   // Enviar com ditado aberto ou pendente: primeiro o texto ditado entra no campo.
-  if (ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
-  const pedido = $("pedido").value.trim();
+  if (!o.retomar && ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
+  const pedido = (o.texto || $("pedido").value).trim();
   if (!pedido) return;
 
   if (!estado.trabalhoId) {
@@ -896,12 +930,14 @@ async function enviar() {
   estado.respondendoId = estado.trabalhoId;
   estado.controle = new AbortController();
   modoDoEnviar("parar");
-  $("pedido").value = "";
-  $("pedido").style.height = "auto";
+  if (!o.retomar) {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+  }
   atualizarSelo(true);
 
   const centro = $("centro");
-  centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
+  if (!o.retomar) centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
   atualizarPostura();
   animarInicioParaConversa(caixaNoInicio);
 
@@ -936,7 +972,7 @@ async function enviar() {
     const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pergunta: pedido, apenas: estado.escopo }),
+      body: JSON.stringify({ pergunta: pedido, apenas: estado.escopo, retomar: Boolean(o.retomar) }),
       signal: estado.controle.signal,
     });
     if (!r.ok) throw new Error("não consegui responder");
@@ -1070,7 +1106,9 @@ async function enviar() {
     if (estado.trabalhoId) {
       fetch("/api/trabalhos/" + estado.trabalhoId)
         .then((r) => r.json())
-        .then((t) => { estado.trabalho = t; desenharAtividade(t.atividade); desenharProgresso(t.etapas || []); });
+        // O botao espera o estado de verdade: o Retomar marca a conversa como
+        // "executando" na tela, e sem isto ele ficava em "parar" depois do fim.
+        .then((t) => { estado.trabalho = t; desenharAtividade(t.atividade); desenharProgresso(t.etapas || []); atualizarBotaoEnviar(); });
     }
     rolar();
     $("pedido").focus();
@@ -1119,21 +1157,27 @@ function desenharEscopo() {
   atualizarPropriedades();
   caixa.hidden = false;
   if (!estado.escopo.length) {
+    caixa.classList.remove("com-anexos");
     caixa.innerHTML = '<span class="escopo-acervo" title="Lendo o acervo inteiro — anexe um documento, ou digite / na caixa, para focar num só">' + ic("folder", 18) + "<b>" +
       (estado.contratos ? "Acervo · " + plural(estado.contratos, "documento") : "Acervo vazio") + "</b></span>";
     return;
   }
 
+  /* Os documentos em foco sao ANEXOS: cada um com o icone do tipo (PDF,
+     Word), o nome e o X. Numa conversa eles ganham uma linha propria, acima
+     do texto - dividindo a linha com ele, espremiam o campo ate o texto
+     quebrar palavra por palavra. */
   caixa.hidden = false;
   caixa.innerHTML = estado.escopo.map((nome) =>
-      '<span class="escopo-pilula" title="Lendo só este documento">' + ic("folder", 18) +
+      '<span class="escopo-pilula" title="' + esc(nome) + ' — a pergunta lê só os documentos anexados">' + glifo(nome) +
       '<b class="corta">' + esc(nome) + "</b>" +
-      '<button data-tirar="' + esc(nome) + '" title="Tirar este documento do foco" ' +
-      'aria-label="Tirar ' + esc(nome) + ' do foco">✕</button></span>').join("") +
+      '<button data-tirar="' + esc(nome) + '" title="Tirar este documento" ' +
+      'aria-label="Tirar ' + esc(nome) + '">' + ic("close", 14) + "</button></span>").join("") +
     (estado.escopo.length > 1
       ? '<button class="escopo-limpar" id="escopo-tirar">procurar em todos</button>'
       : "");
 
+  caixa.classList.add("com-anexos");
   caixa.querySelectorAll("[data-tirar]").forEach((b) => {
     b.onclick = () => { tirarDoEscopo(b.dataset.tirar); $("pedido").focus(); };
   });

@@ -225,17 +225,19 @@
      etiquetas das boas-vindas ("IA 100% local"), e nao um contorno. Solto sem
      fundo no meio das pilulas, ele parecia texto que tinha escapado da fila. */
   .escopo-pilula {
-    display: inline-flex; align-items: center; gap: 6px; max-width: 260px; height: 28px;
-    padding: 0 6px 0 10px; border-radius: 6px; background: var(--fill);
+    display: inline-flex; align-items: center; gap: 8px; max-width: 240px; height: 30px;
+    padding: 0 4px 0 6px; border-radius: 8px; background: var(--fill); border: 1px solid var(--hair2);
     font: 500 12.5px var(--sans); color: var(--ink);
   }
   .escopo-pilula:hover { background: var(--fill2); }
-  .escopo-pilula b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .escopo-pilula .glifo { width: 18px; height: 18px; border-radius: 4px; font-size: 10px; }
+  .escopo-pilula .glifo.pdf { font-size: 6.5px; }
+  .escopo-pilula b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escopo-pilula button {
-    border: none; background: none; color: var(--ink3); cursor: pointer;
-    padding: 0 2px; font-size: 14px; line-height: 1;
+    width: 22px; height: 22px; flex: none; padding: 0; border: none; border-radius: 6px; background: none;
+    color: var(--ink3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
   }
-  .escopo-pilula button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .escopo-pilula button:hover:not(:disabled) { color: var(--ink); background: var(--fill2); border: none; }
   .escopo-acervo {
     display: inline-flex; align-items: center; gap: 7px; max-width: 260px; height: 28px;
     padding: 0 10px; border-radius: 6px; background: var(--fill);
@@ -245,7 +247,7 @@
   .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escopo-limpar {
     border: none; background: none; color: var(--ink3); cursor: pointer;
-    font: 500 12px var(--sans); text-decoration: underline; padding: 2px 4px;
+    font: 500 12px var(--sans); padding: 2px 6px; white-space: nowrap;
   }
   .escopo-limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
@@ -314,9 +316,18 @@
   .conversa-col:not(.vazia) .pilula-anexar .rotulo-botao { display: none; }
   .conversa-col:not(.vazia) .pilula-inicio { display: none; }
   .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
+  /* Com anexos, a caixa quebra em duas linhas: os anexos em cima, na largura
+     toda, e embaixo a linha de sempre - anexar, o texto, o microfone, enviar. */
+  .conversa-col:not(.vazia) .cartao-campo { flex-wrap: wrap; row-gap: 10px; }
+  .conversa-col:not(.vazia) .escopo.com-anexos {
+    order: 0; flex: 1 0 100%; flex-wrap: wrap; gap: 6px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--hair2);
+  }
   .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
-  .conversa-col:not(.vazia) .ditar { order: 4; width: 30px; height: 30px; border-radius: 8px; margin-left: 0; }
-  .conversa-col:not(.vazia) .enviar { order: 5; width: 30px; height: 30px; border-radius: 8px; margin-left: 0; }
+  /* Microfone e enviar sao redondos nas duas posturas: na conversa eles eram
+     quadrados de canto arredondado, e destoavam do inicio. */
+  .conversa-col:not(.vazia) .ditar { order: 4; width: 32px; height: 32px; border-radius: 50%; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar { order: 5; width: 32px; height: 32px; border-radius: 50%; margin-left: 0; }
   .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
   .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
 

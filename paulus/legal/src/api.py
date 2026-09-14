@@ -340,6 +340,9 @@ class Pergunta(BaseModel):
     apenas: list[str] = []
     # "olha o acervo inteiro", dito pelo botao em vez de pela frase.
     tudo: bool = False
+    # O botao Retomar do cartao "Parado": a mesma pergunta de novo, sem
+    # repeti-la no historico e trocando a resposta que parou no meio.
+    retomar: bool = False
 
 
 class Busca(BaseModel):
@@ -1726,7 +1729,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     if trabalho.titulo == "Nova conversa" and not trabalho.mensagens:
         trabalho.titulo = titular(pergunta)
 
-    trabalho.dizer("pessoa", pergunta)
+    ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
+    if payload.retomar and ultima and ultima.autor == "paulus" and ultima.interrompida:
+        trabalho.mensagens.pop()
+        ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
+    if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
+        trabalho.dizer("pessoa", pergunta)
 
     # Antes de sair procurando: o que a pessoa pediu? A conversa tinha um
     # caminho so, e "anote uma reuniao no calendario" virava busca pela

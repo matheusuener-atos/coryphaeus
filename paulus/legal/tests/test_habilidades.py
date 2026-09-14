@@ -330,6 +330,19 @@ def test_parar_resposta() -> None:
                "o que ja tinha sido escrito fica guardado, marcado como interrompido")
         checar(criado["id"] not in api.estado.respondendo, "o sinal da resposta e solto no fim")
 
+        # Retomar: a mesma pergunta de novo nao se repete no historico, e a
+        # resposta que tinha parado no meio da lugar a nova.
+        with requests.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
+                           json={"pergunta": "qual o prazo do contrato?", "retomar": True}, stream=True) as r:
+            pediu = False
+            for linha in r.iter_lines(decode_unicode=True):
+                if linha == "event: token" and not pediu:
+                    pediu = True
+                    threading.Thread(target=lambda: requests.post(f"{base}/api/trabalhos/{criado['id']}/parar")).start()
+        retomada = requests.get(f"{base}/api/trabalhos/{criado['id']}").json()["mensagens"]
+        checar([m["autor"] for m in retomada] == ["pessoa", "paulus"],
+               "retomar nao repete a pergunta e troca a resposta parada pela nova")
+
         # Conversa presa em "trabalhando" de uma sessao que ja acabou.
         preso = api.estado.trabalhos.obter(criado["id"])
         preso.estado = "executando"

@@ -73,7 +73,9 @@
   .ditado-cartao .acoes .fantasma { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
   .ditado-cartao .acoes .fantasma:hover:not(:disabled) { color: var(--ink); }
   .ditado-cartao .acoes .primario { display: inline-flex; align-items: center; gap: 6px; }
-  .ditado-rodape { padding-bottom: 10px; }
+  /* Entre o registro ("30 trechos de 1 documento") e o cartao do ditado, o
+     mesmo respiro que ha entre o cartao e a caixa de pedido. */
+  .ditado-rodape { padding: 16px 0 10px; }
   .ditado-rodape > .centro { max-width: 760px; margin: 0 auto; }
   .ditado-rodape .cartao-agora { padding: 16px 18px; gap: 10px; }
   /* Interromper, no cartao de uma resposta andando: icone, sem cara de botao. */
