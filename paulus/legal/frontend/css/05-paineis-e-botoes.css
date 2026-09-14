@@ -180,29 +180,34 @@
   .conversa-col.vazia .rodape-garantia { display: flex; }
   .rodape-garantia.alerta { color: var(--warnt); }
 
-  /* A caixa de pedido: a peca mais usada do produto. */
+  /* A caixa de pedido: a peca mais usada do produto. Ela usa o modelo de
+     cartao do desenho - superficie, fio de 1 px, 14 px de raio, 22 px de
+     recuo e a sombra longa que assenta em vez de elevar. */
   .cartao-campo {
-    position: relative; border: 1px solid var(--ink-a15); border-radius: 14px; background: var(--surf);
-    box-shadow: 0 18px 44px -28px var(--sh-a45); padding: 16px 16px 12px;
+    position: relative; border: 1px solid var(--hair2); border-radius: 14px; background: var(--surf);
+    box-shadow: var(--elev-cartao); padding: 22px;
     display: grid; gap: 16px; transition: border-color .18s;
   }
-  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a35); }
+  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--hair); }
 
+  /* No inicio o que se pede e escrito em Garamond, como o titulo acima dele:
+     a caixa e a continuacao da frase da saudacao, nao um formulario. */
   textarea {
     display: block; width: 100%;
-    font: 400 16px/1.5 var(--sans); resize: none;
+    font: 400 19px/1.4 var(--serif); resize: none;
     border: none; background: none; outline: none;
     padding: 0; max-height: 190px; color: var(--ink);
   }
   textarea::placeholder { color: var(--ink3); }
 
-  .pilulas { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .pilulas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .pilula {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 10px; border: none; border-radius: 8px; background: none;
-    font: 500 13px var(--sans); color: var(--ink); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; height: 30px;
+    padding: 0 12px; border: 1px solid var(--hair); border-radius: 15px; background: var(--bg);
+    font: 500 12.5px var(--sans); color: var(--ink); cursor: pointer; white-space: nowrap;
   }
-  .pilula:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .pilula:hover:not(:disabled) { background: var(--fill); color: var(--ink); border-color: var(--hair); }
+  .pilula .ic { font-size: 16px; width: 16px; height: 16px; }
   .pilula .rotulo-botao { flex: none; padding: 0; }
 
   /* A pilula do escopo fica a vista o tempo todo: enquanto estiver ali, a
@@ -250,30 +255,35 @@
   .mencao-vazio { padding: 10px 12px; font-size: 12.5px; color: var(--ink3); }
 
   .enviar {
-    margin-left: auto; width: 36px; height: 36px; flex: none;
+    margin-left: auto; width: 34px; height: 34px; flex: none;
     border-radius: 50%; border: none; padding: 0;
-    background: var(--btn); color: var(--btnt);
+    background: var(--casca); color: var(--casca-ink);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    box-shadow: 0 10px 24px -12px var(--sh-a6);
+    transition: background .18s ease;
   }
-  .enviar:hover:not(:disabled) { background: var(--ink0); color: var(--btnt); border: none; }
+  .enviar:hover:not(:disabled) { background: var(--casca-hover); color: var(--casca-ink); border: none; }
   .enviar .so-conversa { display: none; }
 
   /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
      em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */
   .conversa-col:not(.vazia) .cartao-campo {
-    display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px;
-    box-shadow: 0 8px 30px -18px var(--sh-a35);
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
   }
-  .conversa-col:not(.vazia) .cartao-campo textarea { order: 2; flex: 1; min-width: 0; max-width: 100%; font-size: 15px; }
+  .conversa-col:not(.vazia) .cartao-campo textarea {
+    order: 2; flex: 1; min-width: 0; max-width: 100%;
+    font: 400 13.5px/1.5 var(--sans);
+  }
   .conversa-col:not(.vazia) .pilulas { display: contents; }
   .conversa-col:not(.vazia) .pilula { order: 1; }
-  .conversa-col:not(.vazia) .pilula-anexar { width: 32px; height: 32px; padding: 0; justify-content: center; color: var(--ink2); }
+  .conversa-col:not(.vazia) .pilula-anexar {
+    width: 24px; height: 24px; padding: 0; justify-content: center;
+    border: none; background: none; color: var(--ink2);
+  }
   .conversa-col:not(.vazia) .pilula-anexar .rotulo-botao { display: none; }
   .conversa-col:not(.vazia) .pilula-inicio { display: none; }
   .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
   .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
-  .conversa-col:not(.vazia) .enviar { order: 4; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar { order: 4; width: 30px; height: 30px; border-radius: 8px; margin-left: 0; }
   .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
   .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
 

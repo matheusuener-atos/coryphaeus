@@ -141,7 +141,6 @@ function atualizarPostura() {
     $("agora").hidden = true;
     $("recentes").hidden = true;
     $("lista-conversas").hidden = true;
-    $("conversa-col").classList.remove("com-lista");
   }
 }
 
@@ -155,10 +154,10 @@ function desenharRecentes() {
   alvo.hidden = false;
   alvo.innerHTML = '<span class="rotulo-suave">Recentes</span>' +
     lista.map((t) =>
-      '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 16) +
+      '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 15) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
-    '<button class="ver-mais" id="recentes-mais">' +
-    (aberta ? "Recolher" + ic("chevron_left", 16) : "Ver mais" + ic("chevron_right", 16)) + "</button>";
+    '<button class="ver-mais" id="recentes-mais" title="' + (aberta ? "Recolher" : "Ver todas as conversas") + '">' +
+    (aberta ? ic("view_sidebar", 17) : "Ver mais" + ic("chevron_right", 16)) + "</button>";
   alvo.querySelectorAll("[data-abre]").forEach((b) => { b.onclick = () => abrirTrabalho(b.dataset.abre); });
   $("recentes-mais").onclick = () => alternarListaDeConversas(!aberta);
   if (aberta) desenharListaDeConversas();
@@ -168,23 +167,9 @@ function desenharRecentes() {
    embaixo. O deslocamento e animado a partir da posicao medida antes e
    depois - a caixa vai para onde precisa ir, e o olho acompanha. */
 function alternarListaDeConversas(abrir) {
-  const bloco = $("cartao-campo");
-  const antes = bloco.getBoundingClientRect().top;
-  $("conversa-col").classList.toggle("com-lista", abrir);
   $("lista-conversas").hidden = !abrir;
   if (abrir) desenharListaDeConversas();
   desenharRecentes();
-  const depois = bloco.getBoundingClientRect().top;
-  const delta = antes - depois;
-  const alvo = $("compositor").querySelector(".centro");
-  if (delta && alvo) {
-    alvo.style.transition = "none";
-    alvo.style.transform = "translateY(" + delta + "px)";
-    requestAnimationFrame(() => {
-      alvo.style.transition = "transform .32s cubic-bezier(.2,.7,.3,1)";
-      alvo.style.transform = "";
-    });
-  }
   if (abrir) {
     const busca = $("lc-busca");
     if (busca) busca.focus();
@@ -207,41 +192,39 @@ function desenharListaDeConversas() {
   const lista = termo ? todas.filter((t) => (t.titulo || "").toLowerCase().includes(termo)) : todas;
   for (const id of [...lcSel.escolhidos]) if (!todas.some((t) => t.id === id)) lcSel.escolhidos.delete(id);
 
+  /* A linha tem quatro coisas, e so quatro: o que e, o nome com a hora, como
+     acabou e o menu. O grupo entra na segunda linha do nome, junto da hora -
+     uma coluna so para ele custaria mais tela do que informa. */
   const linhas = lista.length ? lista.map((t) => {
-    const andamento = t.estado === "aguardando"
-      ? plural(t.pendencias || 1, "pedido") + " na fila"
-      : (t.progresso !== null && t.progresso !== undefined && t.aberto ? t.progresso + "%" : "");
-    const classe = "tabela-linha colunas-conversas" + (lcSel.escolhidos.has(t.id) ? " escolhida" : "");
+    const quando = t.atualizado_em ? dataHoraCurta(t.atualizado_em) : "";
+    const classe = "lc-linha" + (lcSel.escolhidos.has(t.id) ? " escolhida" : "");
     return '<div class="' + classe + '" data-id="' + esc(t.id) + '" data-sel="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) +
       '" data-grupo="' + esc(t.grupo || "") + '">' +
-      '<span class="nome-doc"><span class="caixa-tipo">' + ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 18) + "</span>" +
-      '<span class="duas-linhas"><b>' + esc(t.titulo) + "</b><small>" + esc(t.atualizado_em ? dataHoraCurta(t.atualizado_em) : "") + "</small></span></span>" +
-      "<span>" + (t.grupo ? '<span class="etiqueta">' + esc(t.grupo) + "</span>" : '<span class="quando-doc">—</span>') + "</span>" +
+      ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 17) +
+      '<span class="lc-nome"><b>' + esc(t.titulo) + "</b><small>" + esc(quando) +
+      (t.grupo ? " · " + esc(t.grupo) : "") + "</small></span>" +
       '<span class="estado-conversa"><i class="marca ' + esc(t.estado) + '"></i>' + (ESTADO_DA_CONVERSA[t.estado] || esc(t.estado)) + "</span>" +
-      '<span class="quando-doc">' + andamento + "</span>" +
-      '<button class="mais-linha" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></div>";
-  }).join("") : '<p class="nota">' + (termo ? "Nenhuma conversa com esse nome." : "Nenhuma conversa ainda.") + "</p>";
+      '<button class="lc-mais" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 17) + "</button></div>";
+  }).join("") : '<p class="lc-vazio">' + (termo ? "Nenhuma conversa com esse nome." : "Nenhuma conversa ainda.") + "</p>";
 
   const quantos = lcSel.escolhidos.size;
   const barra = quantos
-    ? barraDeSelecao(quantos, true,
+    ? '<span class="cresce">' + barraDeSelecao(quantos, true,
       '<button data-lc-grupo="1">' + ic("folder", 16) + "Mover para grupo</button><span class=\"divisa-v\"></span>" +
-      '<button class="botao-icone perigo" data-lc-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-lc-limpar")
-    : '<span class="nota-barra">' + plural(todas.length, "conversa") + "</span>";
-  caixa.innerHTML = '<div class="tabela-cartao"><div class="tabela-barra">' + barra +
-    '<span class="direita"><label class="busca-tela">' + ic("search", 18) +
+      '<button class="botao-icone perigo" data-lc-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-lc-limpar") + "</span>"
+    : '<span class="lc-conta">' + plural(todas.length, "conversa") + "</span>";
+  caixa.innerHTML = '<div class="lc-cartao"><div class="lc-barra">' + barra +
+    '<label class="lc-busca">' + ic("search", 15) +
     '<input type="text" id="lc-busca" placeholder="Buscar conversa…" value="' + esc(caixa.dataset.termo || "") + '"></label>' +
-    '<button class="fantasma com-icone" id="lc-recolher">' + ic("chevron_left", 16) + "Recolher</button></span></div>" +
-    '<div class="tabela-cabecalho colunas-conversas"><span>Conversa</span><span>Grupo</span><span>Estado</span><span>Andamento</span><span></span></div>' +
-    '<div class="tabela-corpo">' + linhas + "</div>" +
-    '<div class="tabela-rodape"><span>clique para abrir · segure para selecionar várias · ··· para renomear, mover ou apagar</span><span class="cresce"></span><span>nada saiu da máquina hoje</span></div></div>';
+    '<button class="lc-recolher" id="lc-recolher" title="Recolher" aria-label="Recolher">' + ic("view_sidebar", 16) + "</button></div>" +
+    linhas + "</div>";
 
-  caixa.querySelectorAll(".tabela-linha").forEach((linha) => {
+  caixa.querySelectorAll(".lc-linha").forEach((linha) => {
     linha.onclick = () => abrirTrabalho(linha.dataset.id);
     linha.querySelector("[data-lc-menu]").onclick = (e) => { e.stopPropagation(); abrirMenu(linha); };
   });
-  ligarSelecao(caixa.querySelector(".tabela-corpo"), {
-    linhas: ".tabela-linha[data-sel]", escolhidos: lcSel.escolhidos, aoMudar: desenharListaDeConversas,
+  ligarSelecao(caixa.querySelector(".lc-cartao"), {
+    linhas: ".lc-linha[data-sel]", escolhidos: lcSel.escolhidos, aoMudar: desenharListaDeConversas,
     apagar: (ids) => apagarConversasEmLote(ids),
     renomear: (id) => { const t = todas.find((x) => x.id === id); if (t) renomearConversa(id, t.titulo); },
   });

@@ -5,6 +5,16 @@
    qualquer tela; Ctrl+N abre uma conversa nova.
 */
 
+/* Os icones do trilho entram um a um, de cima para baixo. A ordem sai daqui
+   e nao do CSS porque o CSS teria de contar filhos - e o trilho tem riscos de
+   separacao no meio, que mudam a conta a cada destino que entra ou sai. */
+function ordenarTrilho() {
+  $("trilho").querySelectorAll(".trilho-item").forEach((item, i) => {
+    item.style.setProperty("--ordem", String(i));
+  });
+}
+ordenarTrilho();
+
 function abrirFlutuante() { $("menu-flutuante").classList.add("aberto"); }
 function fecharFlutuante() {
   $("menu-flutuante").classList.remove("aberto");

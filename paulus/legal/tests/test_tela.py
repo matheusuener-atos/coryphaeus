@@ -1060,16 +1060,16 @@ def main() -> int:
             }""")
             try:
                 pagina.evaluate("() => { $('nova').click(); alternarListaDeConversas(true); }")
-                pagina.wait_for_selector("#lista-conversas .tabela-linha[data-sel]", timeout=20000)
-                caixa = pagina.locator("#lista-conversas .tabela-linha[data-sel]").first.bounding_box()
+                pagina.wait_for_selector("#lista-conversas .lc-linha[data-sel]", timeout=20000)
+                caixa = pagina.locator("#lista-conversas .lc-linha[data-sel]").first.bounding_box()
                 pagina.mouse.move(caixa["x"] + caixa["width"] / 2, caixa["y"] + caixa["height"] / 2)
                 pagina.mouse.down()
                 pagina.wait_for_timeout(650)
                 pagina.mouse.up()
                 pagina.wait_for_timeout(300)
                 checar(
-                    pagina.evaluate("() => lcSel.escolhidos.size === 1 && !!document.querySelector('#lista-conversas .tabela-linha.escolhida')"
-                                    " && document.querySelector('#lista-conversas .tabela-barra .selecao').textContent.includes('1 selecionada')"),
+                    pagina.evaluate("() => lcSel.escolhidos.size === 1 && !!document.querySelector('#lista-conversas .lc-linha.escolhida')"
+                                    " && document.querySelector('#lista-conversas .lc-barra .selecao').textContent.includes('1 selecionada')"),
                     "segurar numa conversa marca e a barra mostra a selecao",
                 )
                 pagina.keyboard.press("Escape")

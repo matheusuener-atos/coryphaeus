@@ -819,12 +819,19 @@ function contexto() {
   const d = new Date();
   const dias = ["domingo", "segunda-feira", "terça-feira", "quarta-feira",
                 "quinta-feira", "sexta-feira", "sábado"];
+  const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const h = d.getHours();
   const periodo = h < 5 ? "madrugada" : h < 12 ? "manha" : h < 18 ? "tarde" : h < 22 ? "noite" : "noite_alta";
+  const hora = String(h).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   return {
     dia: dias[d.getDay()],
-    hora: String(h).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"),
+    hora: hora,
     periodo: periodo,
+    /* A etiqueta do alto da saudacao. O dia sai sem "-feira" porque ali ele e
+       um carimbo, nao uma frase. */
+    momento: dias[d.getDay()].replace("-feira", "") + ", " + d.getDate() + " de " +
+      meses[d.getMonth()] + " · " + hora.replace(":", "h"),
   };
 }
 
@@ -845,7 +852,12 @@ function saudacao(c, temDocumentos) {
 function atualizarSaudacao() {
   const c = contexto();
   const [titulo, sub] = saudacao(c, estado.contratos > 0);
+  $("momento").textContent = c.momento;
   $("chamada").textContent = titulo;
+  /* O texto base fica guardado aqui porque `carregarAgora` acrescenta a
+     situacao do acervo a esta mesma frase, e ele roda a cada cinco segundos:
+     sem a base, a frase cresceria sozinha a cada volta. */
+  $("sub-chamada").dataset.base = sub;
   $("sub-chamada").textContent = sub;
   $("relogio").textContent = c.hora;
 }
@@ -892,23 +904,23 @@ async function carregarAgora() {
     );
   }
 
-  if (d.biblioteca.documentos) {
-    cartoes.push(
-      '<div class="cartao-agora" data-abre="biblioteca">' +
-      '<div class="cabeca"><i class="ponto-verde"></i><span class="nome">Acervo em dia</span></div>' +
-      '<div class="corpo">' + plural(d.biblioteca.documentos, "documento") +
+  /* O acervo em dia e as conversas paradas nao sao cartoes: sao duas frases
+     da saudacao. Nenhum dos dois pede acao nenhuma - virar cartao com botao
+     seria dar a eles o peso de quem espera resposta, que e dos de cima. */
+  const sub = $("sub-chamada");
+  const base = sub.dataset.base || sub.textContent;
+  sub.textContent = d.biblioteca.documentos
+    ? base + " O acervo está em dia — " + plural(d.biblioteca.documentos, "documento") +
       (d.biblioteca.documentos === 1 ? " indexado, " : " indexados, ") +
-      d.biblioteca.trechos + " trechos lidos.</div>" +
-      '<div class="rodape">nada saiu da máquina hoje</div></div>'
-    );
-  }
+      d.biblioteca.trechos + " trechos lidos, e nada saiu desta máquina hoje."
+    : base;
 
+  const nota = $("sub-nota");
+  nota.hidden = !d.pausados;
   if (d.pausados) {
-    cartoes.push(
-      '<div class="cartao-agora"><div class="cabeca"><i class="ponto-cinza"></i>' +
-      '<span class="nome">' + plural(d.pausados, "parada") + " no meio</span></div>" +
-      '<div class="corpo">Ficaram assim quando o programa fechou. Abra pelo menu para continuar.</div></div>'
-    );
+    nota.textContent = plural(d.pausados, "conversa") +
+      (d.pausados === 1 ? " parou" : " pararam") +
+      " no meio quando o programa fechou. Abra pelo menu para continuar de onde estavam.";
   }
 
   const espera = vinculoPendente() ? [cartaoDeEsperaDoVinculo()] : [];

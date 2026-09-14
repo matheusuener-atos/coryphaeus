@@ -14,45 +14,71 @@
     --leitura: 900px;
     /* Campo de uma linha so. */
     --campo: 560px;
+    /* A medida do Assistente (A1): o fio da conversa e o bloco de inicio
+       carregam a MESMA largura, e a barra de pedido e mais estreita que os
+       dois. Sao tres numeros do desenho, nao tres decisoes por tela. */
+    --fio: 1080px;
+    --barra: 760px;
 
-    --bg: #f6f6f4;
+    --bg: #faf9f6;
     --surf: #ffffff;
     --sub: #fafaf9;
     --paper: #fbfaf6;
-    --fill: #f1f1ee;
-    --fill2: #ebebe8;
-    --act: #e6e6e2;
-    --ink: #171716;
-    --ink2: #5c5c59;
-    --ink3: #8a8a86;
+    --fill: #f2f1ee;
+    --fill2: #e8e2d8;
+    --act: #e4e2db;
+    --ink: #1c1c1a;
+    --ink2: #6b6b65;
+    --ink3: #9a9a93;
     --mute: #c9c9c4;
     --mute2: #a3a39f;
     --ink0: #000000;
     --btn: #171716;
     --btnt: #f6f6f4;
 
-    --ink-a06: rgba(23,23,22,.06);
-    --ink-a08: rgba(23,23,22,.08);
-    --ink-a1: rgba(23,23,22,.1);
-    --ink-a12: rgba(23,23,22,.12);
-    --ink-a15: rgba(23,23,22,.15);
-    --ink-a2: rgba(23,23,22,.2);
-    --ink-a25: rgba(23,23,22,.25);
-    --ink-a28: rgba(23,23,22,.28);
-    --ink-a3: rgba(23,23,22,.3);
-    --ink-a35: rgba(23,23,22,.35);
-    --ink-a45: rgba(23,23,22,.45);
-    --ink-a5: rgba(23,23,22,.5);
-    --ink-a6: rgba(23,23,22,.6);
+    /* O fio de 1 px que separa tudo no desenho novo. Ele e mais claro nas
+       bordas de cartao (--hair2) do que nas divisas internas (--hair): um
+       cartao inteiro contornado com a linha das divisas fica pesado. */
+    --hair: rgba(0,0,0,.09);
+    --hair2: rgba(0,0,0,.07);
+    /* A cor do botao solido e do trilho: um marrom quase preto, nao o preto.
+       Ele e a unica cor "de marca" da interface. */
+    --casca: #26251f;
+    --casca-hover: #35332b;
+    --casca-ink: #f2f1ec;
+    /* Os dois pares de estado: verde para o que deu certo, ambar para o que
+       exige atencao. Fundo e texto sempre juntos, para nunca ficar um sem o
+       outro. */
+    --grn: #edf5ee;
+    --grnt: #2f6b42;
+    --amb: #f7f2e7;
+    --ambt: #8a5a12;
 
-    --sh-a12: rgba(23,23,22,.12);
-    --sh-a35: rgba(23,23,22,.35);
-    --sh-a45: rgba(23,23,22,.45);
-    --sh-a5: rgba(23,23,22,.5);
-    --sh-a6: rgba(23,23,22,.6);
+    --ink-a06: rgba(28,28,26,.06);
+    --ink-a08: rgba(28,28,26,.08);
+    --ink-a1: rgba(28,28,26,.1);
+    --ink-a12: rgba(28,28,26,.12);
+    --ink-a15: rgba(28,28,26,.15);
+    --ink-a2: rgba(28,28,26,.2);
+    --ink-a25: rgba(28,28,26,.25);
+    --ink-a28: rgba(28,28,26,.28);
+    --ink-a3: rgba(28,28,26,.3);
+    --ink-a35: rgba(28,28,26,.35);
+    --ink-a45: rgba(28,28,26,.45);
+    --ink-a5: rgba(28,28,26,.5);
+    --ink-a6: rgba(28,28,26,.6);
+
+    --sh-a12: rgba(28,28,26,.12);
+    --sh-a35: rgba(28,28,26,.35);
+    --sh-a45: rgba(28,28,26,.45);
+    --sh-a5: rgba(28,28,26,.5);
+    --sh-a6: rgba(28,28,26,.6);
     --elev-card: 0 8px 24px -16px var(--sh-a12);
     --elev-panel: 18px 0 40px -30px var(--sh-a45);
     --elev-float: 0 14px 30px -12px var(--sh-a35);
+    /* A sombra do modelo de cartao do desenho novo: longa, baixa e quase
+       invisivel. Ela nao eleva o cartao - ela assenta o cartao. */
+    --elev-cartao: 0 30px 60px -40px var(--sh-a35);
 
     /* Acento e vinho, sempre em oklch: prazo, atraso, destrutivo, citacao. */
     --acc: oklch(42% 0.13 25);
@@ -84,7 +110,7 @@
     --papel-linha: #c9c4bb;
     --papel-realce: #eeece7;
     --papel-veu: rgba(251,250,248,.94);
-    --papel-sombra: rgba(23,23,22,.5);
+    --papel-sombra: rgba(28,28,26,.5);
     --papel-acc: oklch(42% 0.13 25);
     --papel-accbg: oklch(95% 0.02 25);
     --papel-accbg2: oklch(97.5% 0.01 25);
@@ -128,35 +154,47 @@
   }
 
   [data-tema="escuro"] {
-    --bg: #141413;
-    --surf: #1c1c1b;
+    --bg: #131312;
+    --surf: #1a1a18;
     --sub: #202020;
     --paper: #232322;
-    --fill: #262625;
-    --fill2: #2c2c2a;
-    --act: #343432;
-    --ink: #f0f0ec;
-    --ink2: #b3b3ae;
-    --ink3: #8f8f8a;
+    --fill: #222220;
+    --fill2: #2a2a27;
+    --act: #34322c;
+    --ink: #f2f1ec;
+    --ink2: #a8a69e;
+    --ink3: #95938a;
     --mute: #5a5a57;
     --mute2: #6f6f6b;
     --ink0: #ffffff;
     --btn: #f6f6f4;
     --btnt: #171716;
 
-    --ink-a06: rgba(246,246,244,.06);
-    --ink-a08: rgba(246,246,244,.08);
-    --ink-a1: rgba(246,246,244,.1);
-    --ink-a12: rgba(246,246,244,.12);
-    --ink-a15: rgba(246,246,244,.15);
-    --ink-a2: rgba(246,246,244,.2);
-    --ink-a25: rgba(246,246,244,.25);
-    --ink-a28: rgba(246,246,244,.28);
-    --ink-a3: rgba(246,246,244,.3);
-    --ink-a35: rgba(246,246,244,.35);
-    --ink-a45: rgba(246,246,244,.45);
-    --ink-a5: rgba(246,246,244,.5);
-    --ink-a6: rgba(246,246,244,.6);
+    --hair: rgba(242,241,236,.1);
+    --hair2: rgba(242,241,236,.08);
+    /* No escuro a casca clareia em vez de escurecer: um botao mais escuro que
+       o fundo desapareceria. */
+    --casca: #34322c;
+    --casca-hover: #413e35;
+    --casca-ink: #f2f1ec;
+    --grn: #16281c;
+    --grnt: #8fd0a3;
+    --amb: #3a2c12;
+    --ambt: #e8c283;
+
+    --ink-a06: rgba(242,241,236,.06);
+    --ink-a08: rgba(242,241,236,.08);
+    --ink-a1: rgba(242,241,236,.1);
+    --ink-a12: rgba(242,241,236,.12);
+    --ink-a15: rgba(242,241,236,.15);
+    --ink-a2: rgba(242,241,236,.2);
+    --ink-a25: rgba(242,241,236,.25);
+    --ink-a28: rgba(242,241,236,.28);
+    --ink-a3: rgba(242,241,236,.3);
+    --ink-a35: rgba(242,241,236,.35);
+    --ink-a45: rgba(242,241,236,.45);
+    --ink-a5: rgba(242,241,236,.5);
+    --ink-a6: rgba(242,241,236,.6);
 
     /* No escuro a sombra vai a preto quase solido: sombra clara sobre fundo
        escuro suja. */
@@ -188,6 +226,16 @@
   @keyframes pv-grow { from { width: 0; } to { width: 64%; } }
   @keyframes pulsa { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
+  /* As do desenho novo. `pv-side` e `pv-marca` sao a entrada do trilho, uma
+     por item; `pv-troca` e a coluna da direita chegando; `pv-chat-a/b` e o
+     fio deslizando na direcao da mudanca - para a esquerda quando o editor
+     abre, para a direita quando ele fecha. */
+  @keyframes pv-side { from { opacity: 0; transform: translateX(-7px); } to { opacity: 1; transform: none; } }
+  @keyframes pv-marca { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: none; } }
+  @keyframes pv-troca { from { opacity: 0; transform: translateX(14px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes pv-chat-a { from { opacity: .4; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+  @keyframes pv-chat-b { from { opacity: .4; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
   /* Barras de rolagem ocultas em todo o aplicativo: a janela nao deve
      parecer um site. Onde ha rolagem, a sombra de borda avisa. */
   * { scrollbar-width: none; }
@@ -201,7 +249,7 @@
 
   body {
     margin: 0;
-    font: 400 14px/1.5 var(--sans);
+    font: 400 13.5px/1.5 var(--sans);
     color: var(--ink);
     background-color: var(--bg);
     height: 100vh;

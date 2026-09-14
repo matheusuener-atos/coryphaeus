@@ -22,15 +22,24 @@
   .ic-18 { font-size: 18px; width: 18px; height: 18px; }
   .ic-20 { font-size: 20px; width: 20px; height: 20px; }
 
+  /* A separacao do trilho nao e uma borda: e uma sombra para dentro de 1 px
+     mais duas rasas para fora. Uma borda desenha uma linha; isto desenha a
+     ideia de que o conteudo esta um plano atras. */
   .trilho {
     width: 64px; flex: none; position: relative; z-index: 2;
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 12px 0 10px; background: var(--bg);
-    border-right: 1px solid var(--ink-a1);
-    box-shadow: 4px 0 16px -8px var(--sh-a12);
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 12px 0 10px; background-color: var(--bg);
+    box-shadow: inset -1px 0 0 var(--hair2), 12px 0 26px -22px var(--sh-a12), 2px 0 6px -5px var(--sh-a12);
   }
-  .trilho-logo { position: relative; width: 30px; height: 30px; margin-bottom: 12px; flex: none; }
-  .trilho-logo img { width: 30px; height: 30px; border-radius: 7px; display: block; filter: var(--logo); }
+  /* A marca no trilho e uma letra, nao um desenho: o "P" em Garamond,
+     no mesmo tipo dos titulos. */
+  .trilho-logo {
+    position: relative; width: 36px; height: 30px; margin-bottom: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font: 500 23px/1 var(--serif); color: var(--ink);
+    animation: pv-marca .5s cubic-bezier(.2,.7,.3,1) both;
+  }
+  .trilho-logo img { display: none; }
   /* Quando o assistente trabalha, um anel gira ao redor do logo: e o unico
      indicador global de trabalho. */
   .trilho-logo .anel {
@@ -40,15 +49,22 @@
   }
   .trilho-logo.trabalhando .anel { display: block; }
   .trilho-item {
-    position: relative; width: 40px; height: 40px; padding: 0; flex: none;
-    border: none; border-radius: 8px; background: none; color: var(--ink);
+    position: relative; width: 36px; height: 36px; padding: 0; flex: none;
+    border: none; border-radius: 8px; background: none; color: var(--ink2);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: background .2s cubic-bezier(.2,.7,.3,1), color .2s ease;
+    /* A ordem chega do JS (`ordenarTrilho`): os icones entram um a um, de
+       cima para baixo. Contar filhos no CSS quebraria a cada risco de
+       separacao a mais ou a menos. */
+    animation: pv-side .44s cubic-bezier(.2,.7,.3,1) both;
+    animation-delay: calc(var(--ordem, 0) * 26ms + 66ms);
   }
-  .trilho-item:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
-  .trilho-item.ativo { background: var(--act); }
+  .trilho-item .ic { font-size: 20px; width: 20px; height: 20px; }
+  .trilho-item:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .trilho-item.ativo { background: var(--fill2); color: var(--ink); }
   .trilho-item.apoiar { color: var(--acc); }
   .trilho-item.adiante { opacity: .45; }
-  .trilho-risco { width: 28px; height: 1px; background: var(--ink-a12); margin: 5px 0; flex: none; }
+  .trilho-risco { width: 26px; height: 1px; background: var(--hair); margin: 7px 0; flex: none; }
   .trilho-vazio { flex: 1; }
   .conta {
     position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px;
@@ -57,9 +73,9 @@
   }
   .conta[hidden] { display: none; }
   .avatar {
-    width: 28px; height: 28px; border-radius: 50%; background: var(--fill2); flex: none;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--fill2); flex: none;
     display: flex; align-items: center; justify-content: center;
-    font: 700 11px var(--sans); color: var(--ink2); margin-top: 6px;
+    font: 600 9.5px var(--sans); color: var(--ink); margin-top: 8px;
   }
 
   /* O menu sobreposto. Nao existe botao de expandir: passar o mouse sobre o
@@ -75,33 +91,35 @@
   }
   .menu {
     height: 100%; width: 260px; box-sizing: border-box; min-width: 0;
-    display: flex; flex-direction: column; gap: 2px;
-    padding: 12px 12px 10px; background: var(--bg);
-    border-right: 1px solid var(--ink-a1);
-    box-shadow: 18px 0 40px -30px var(--sh-a45);
+    display: flex; flex-direction: column; gap: 1px;
+    padding: 14px 10px 12px; background-color: var(--bg);
+    box-shadow: inset -1px 0 0 var(--hair2), 12px 0 26px -22px var(--sh-a12), 2px 0 6px -5px var(--sh-a12);
   }
-  .menu-cabeca { display: flex; align-items: center; gap: 10px; height: 30px; margin-bottom: 12px; padding-left: 5px; flex: none; }
-  .menu-cabeca img { width: 30px; height: 30px; border-radius: 7px; filter: var(--logo); }
-  .menu-cabeca span { font: 500 20px/1 var(--serif); }
+  .menu-cabeca { display: flex; align-items: center; padding: 2px 13px 0; margin-bottom: 14px; flex: none; }
+  .menu-cabeca img { display: none; }
+  .menu-cabeca span { font: 500 23px/1 var(--serif); letter-spacing: .02em; }
   .menu-item {
-    position: relative; display: flex; align-items: center; height: 40px; flex: none; width: 100%;
-    border: none; border-radius: 8px; background: none; padding: 0;
-    color: var(--ink); text-align: left; cursor: pointer; font: 500 13px var(--sans);
+    position: relative; display: flex; align-items: center; gap: 13px; height: 38px; flex: none; width: 100%;
+    border: none; border-radius: 8px; background: none; padding: 0 13px;
+    color: var(--ink2); text-align: left; cursor: pointer; font: 500 13.5px var(--sans);
+    transition: background .2s cubic-bezier(.2,.7,.3,1), color .2s ease;
   }
-  .menu-item:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
-  .menu-item.ativo { background: var(--act); font-weight: 600; }
+  .menu-item:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .menu-item.ativo { background: var(--fill2); color: var(--ink); font-weight: 600; }
   .menu-item.apoiar { color: var(--acc); }
   .menu-item.adiante { opacity: .45; }
-  /* A caixa do icone tem 40 px fixos: assim ele fica exatamente sobre o do
-     trilho quando o menu abre. */
-  .caixa-ic { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex: none; }
-  .rotulo-botao { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
-  .menu-item .conta { position: static; margin-right: 10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; }
-  .menu-divisa { height: 1px; background: var(--ink-a12); margin: 5px 6px; flex: none; }
+  /* O icone do menu cai exatamente sobre o do trilho: 10 px de recuo do
+     menu mais 13 px do item poem o centro do glifo nos mesmos 32 px em que
+     o trilho o poe (14 + 36/2). Abrir o menu nao move nenhum icone. */
+  .caixa-ic { width: 19px; height: 19px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .caixa-ic .ic { font-size: 19px; width: 19px; height: 19px; }
+  .rotulo-botao { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-item .conta { position: static; margin-right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; }
+  .menu-divisa { height: 1px; background: var(--hair); margin: 8px 12px; flex: none; }
   .menu-rolagem { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
   .menu-secao { font: 500 11px var(--sans); color: var(--ink3); padding: 10px 8px 4px; flex: none; }
-  .menu-usuario { display: flex; align-items: center; height: 40px; margin-top: 6px; flex: none; }
-  .menu-usuario .avatar { margin: 0 6px; }
+  .menu-usuario { display: flex; align-items: center; gap: 11px; height: 44px; padding: 0 13px; margin-top: 4px; flex: none; }
+  .menu-usuario .avatar { margin: 0; }
   /* Com foto, o avatar deixa de ser as iniciais: a imagem preenche o circulo
      (a foto ja vem quadrada do servidor, entao nada deforma). */
   .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }

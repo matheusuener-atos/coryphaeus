@@ -68,7 +68,7 @@
        Servicos, Gravacoes e Apoiar estao no desenho mas ainda nao tem motor:
        clicar explica o que falta. -->
   <nav class="trilho" id="trilho" aria-label="Destinos">
-    <span class="trilho-logo" id="trilho-logo" title="PAULUS Legal"><img src="/img/paulus-logo.svg" alt="PAULUS"><i class="anel"></i></span>
+    <span class="trilho-logo" id="trilho-logo" title="PAULUS Legal">P<i class="anel"></i></span>
     <button class="trilho-item" id="nova" title="Nova conversa" aria-label="Nova conversa"><span class="ic">add</span></button>
     <span class="trilho-risco"></span>
     <button class="trilho-item" data-destino="conversa" title="Assistente" aria-label="Assistente"><span class="ic">forum</span></button>
@@ -94,7 +94,7 @@
 
   <div class="menu-flutuante" id="menu-flutuante">
     <nav class="menu" id="menu" aria-label="Menu">
-      <div class="menu-cabeca"><img src="/img/paulus-logo.svg" alt=""><span>PAVLVS</span></div>
+      <div class="menu-cabeca"><span>PAVLVS</span></div>
       <button class="menu-item" data-nova="1"><span class="caixa-ic"><span class="ic">add</span></span><span class="rotulo-botao">Nova conversa</span></button>
       <span class="menu-divisa"></span>
       <button class="menu-item" data-destino="conversa"><span class="caixa-ic"><span class="ic">forum</span></span><span class="rotulo-botao">Assistente</span></button>
@@ -170,8 +170,10 @@
         <div class="compositor" id="compositor">
           <div class="centro">
             <div class="saudacao-bloco">
+              <span class="rotulo-momento" id="momento"></span>
               <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
               <p class="sub-chamada" id="sub-chamada">Peça o que precisa dos seus documentos. Tudo é lido e respondido no seu computador.</p>
+              <p class="sub-nota" id="sub-nota" hidden></p>
             </div>
 
             <div class="aviso-motor" id="aviso-motor" hidden></div>
