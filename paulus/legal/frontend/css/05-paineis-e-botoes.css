@@ -291,16 +291,19 @@
   /* Quatro tipos, um so formato (docs/ui/02-componentes.md): secundario e o
      padrao, primario e o cheio, fantasma sem borda, destrutivo em vinho. */
 
+  /* O botao do desenho novo: fio de 1 px, fundo da casca e nao transparente,
+     e a tipografia da interface. O fundo importa - dentro de um cartao branco
+     e ele que faz o botao existir sem precisar de sombra. */
   button {
-    font: 500 13px var(--sans);
+    font: 500 12.5px var(--sans);
     cursor: pointer;
     border-radius: 8px;
-    padding: 7px 14px;
-    border: 1px solid var(--ink-a15);
-    background: transparent;
+    padding: 7px 13px;
+    border: 1px solid var(--hair);
+    background: var(--bg);
     color: var(--ink);
   }
-  button:hover:not(:disabled) { background: var(--fill2); border-color: var(--ink-a15); color: var(--ink); }
+  button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); color: var(--ink); }
   button:disabled { opacity: 0.4; cursor: default; }
   button.perigo { color: var(--acc); border-color: var(--accln); }
   button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
@@ -310,10 +313,10 @@
   }
   textarea:focus, textarea:focus-visible,
   input:focus, input:focus-visible { outline: none; }
-  button.primario { background: var(--btn); border-color: var(--btn); color: var(--btnt); font-weight: 600; }
-  button.primario:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--btnt); }
-  button.aprovar-secundario { background: transparent; border-color: var(--ink-a15); color: var(--ink); }
-  button.fantasma { border-color: transparent; color: var(--ink2); }
+  button.primario { background: var(--casca); border-color: var(--casca); color: var(--casca-ink); font-weight: 500; }
+  button.primario:hover:not(:disabled) { background: var(--casca-hover); border-color: var(--casca-hover); color: var(--casca-ink); }
+  button.aprovar-secundario { background: var(--bg); border-color: var(--hair); color: var(--ink); }
+  button.fantasma { border-color: transparent; background: none; color: var(--ink2); }
   button.fantasma:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink); }
   button.largo { width: 100%; }
   button.pastilha { border-radius: 999px; padding: 5px 12px; font-size: 12px; }

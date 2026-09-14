@@ -33,8 +33,10 @@
   }
   /* A marca no trilho e uma letra, nao um desenho: o "P" em Garamond,
      no mesmo tipo dos titulos. */
+  /* Quadrado, e nao 36x30 como no desenho, porque aqui o logo carrega o anel
+     de trabalho: num retangulo o anel vira uma elipse. */
   .trilho-logo {
-    position: relative; width: 36px; height: 30px; margin-bottom: 10px; flex: none;
+    position: relative; width: 34px; height: 34px; margin-bottom: 8px; flex: none;
     display: flex; align-items: center; justify-content: center;
     font: 500 23px/1 var(--serif); color: var(--ink);
     animation: pv-marca .5s cubic-bezier(.2,.7,.3,1) both;
@@ -43,8 +45,8 @@
   /* Quando o assistente trabalha, um anel gira ao redor do logo: e o unico
      indicador global de trabalho. */
   .trilho-logo .anel {
-    position: absolute; inset: -5px; border-radius: 50%; display: none;
-    border: 1.5px solid var(--ink-a15); border-top-color: var(--acc);
+    position: absolute; inset: 0; border-radius: 50%; display: none;
+    border: 1.5px solid var(--hair); border-top-color: var(--ink2);
     animation: pv-spin 1.6s linear infinite;
   }
   .trilho-logo.trabalhando .anel { display: block; }

@@ -167,6 +167,33 @@
           </div>
         </div>
 
+      </div>
+
+      <aside class="lateral" id="lateral" hidden>
+        <section class="lateral-bloco" id="lat-progresso" hidden>
+          <div class="lateral-cabeca"><span><span class="ic ic-16">check_circle</span>Progresso</span><span class="contagem" id="lat-progresso-conta"></span></div>
+          <div class="lat-etapas" id="lat-etapas"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-trechos" hidden>
+          <div class="lateral-cabeca"><span><span class="ic ic-16">format_quote</span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></div>
+          <div class="lat-lista" id="lat-trechos-lista"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-propriedades">
+          <div class="lateral-cabeca"><span><span class="ic ic-16">tune</span>Propriedades</span></div>
+          <div class="propriedades">
+            <span>Modelo</span><span class="chip-modelo" id="prop-modelo"><i class="ponto-verde"></i><span id="prop-modelo-nome">—</span></span>
+            <span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span>
+            <span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span>
+            <span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- O rodape tem a MESMA grade do corpo: assim a coluna da direita nunca
+         invade a barra de pedido, e o painel para em cima dela em vez de
+         descer ate o fim da tela. -->
+    <div class="conversa-rodape" id="conversa-rodape">
         <div class="compositor" id="compositor">
           <div class="centro">
             <div class="saudacao-bloco">
@@ -197,31 +224,10 @@
             <div class="recentes" id="recentes" hidden></div>
             <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
           </div>
-          <!-- Fora do bloco centralizado de proposito: a lista usa a largura
-               toda da coluna, como uma tabela; so o pedido fica a 880 px. -->
+          <!-- Fora do bloco centralizado de proposito: ela e um cartao com a
+               largura do fio, e nao um bloco dentro da caixa de pedido. -->
           <div class="lista-conversas" id="lista-conversas" hidden></div>
         </div>
-      </div>
-
-      <aside class="lateral" id="lateral" hidden>
-        <section class="lateral-bloco" id="lat-progresso" hidden>
-          <div class="lateral-cabeca"><span>Progresso</span><span class="contagem" id="lat-progresso-conta"></span></div>
-          <div class="lat-etapas" id="lat-etapas"></div>
-        </section>
-        <section class="lateral-bloco" id="lat-trechos" hidden>
-          <div class="lateral-cabeca"><span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></div>
-          <div class="lat-lista" id="lat-trechos-lista"></div>
-        </section>
-        <section class="lateral-bloco" id="lat-propriedades">
-          <div class="lateral-cabeca"><span>Propriedades</span></div>
-          <div class="propriedades">
-            <span>Modelo</span><span class="chip-modelo" id="prop-modelo"><i class="ponto-verde"></i><span id="prop-modelo-nome">—</span></span>
-            <span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span>
-            <span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span>
-            <span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span>
-          </div>
-        </section>
-      </aside>
     </div>
 
     <div class="rodape-garantia" id="rodape-garantia"><span id="privacidade">nenhuma requisição à internet</span></div>

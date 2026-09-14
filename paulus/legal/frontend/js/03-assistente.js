@@ -218,10 +218,14 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
 
   bloco.hidden = false;
   $("lat-trechos-conta").textContent = fontes.length;
+  /* Um por vez aberto: o painel tem 316 px e seis trechos abertos ao mesmo
+     tempo empurrariam Propriedades para fora da tela. O primeiro ja vem
+     aberto porque e o mais citado. */
   lista.innerHTML = fontes.map((f, i) =>
     '<div class="trecho-cartao' + (i === 0 ? " marcado" : "") + '">' +
     '<div class="trecho-origem"><span class="cit">' + (i + 1) + "</span><b>" + esc(f.documento) + "</b>" +
-    '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span></div>" +
+    '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span>" +
+    '<span class="ic ic-16 vira">expand_more</span></div>' +
     '<div class="trecho-texto">' + esc(f.texto) + "</div>" +
     '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div>').join("");
 

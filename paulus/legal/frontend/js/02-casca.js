@@ -86,7 +86,10 @@ function lateralPreferida() {
 
 function mostrarLateral(aberta) {
   $("lateral").hidden = !aberta;
+  /* Corpo e rodape carregam a MESMA grade: e o que impede a coluna da direita
+     de passar por baixo da barra de pedido quando ela aparece. */
   $("conversa-corpo").classList.toggle("com-lateral", aberta);
+  $("conversa-rodape").classList.toggle("com-lateral", aberta);
   $("alternar-lateral").hidden = !$("centro").classList.contains("prosa");
 }
 

@@ -6,60 +6,85 @@
   }
   .conversa-col.vazia .relogio-canto { display: flex; }
 
+  /* O cabecalho da conversa nao tem borda embaixo: a separacao vem da
+     vinheta do fio, que apaga o texto ao entrar na rolagem. Uma linha aqui
+     mais a vinheta ali seriam dois separadores para a mesma juncao. */
   .conversa-topo {
     flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px;
-    padding: 10px 20px; border-bottom: 1px solid var(--ink-a1);
+    padding: 14px 26px 10px;
   }
-  .conversa-nome { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
-  .conversa-topo h2 { font: 400 22px var(--serif); letter-spacing: -.01em; }
-  .conversa-topo .meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .conversa-nome { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.15; }
+  .conversa-topo h2 { font: 400 23px var(--serif); letter-spacing: -.005em; }
+  .conversa-topo .meta { font: 400 11.5px var(--sans); color: var(--ink3); }
   .voltar {
-    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none;
+    width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: none;
     color: var(--ink2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none;
   }
   .voltar:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .conversa-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
-  .conversa-acoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .conversa-acoes button { display: inline-flex; align-items: center; gap: 7px; height: 32px; border-radius: 8px; }
 
+  /* O corpo e o rodape usam a MESMA grade. E o que garante que a coluna da
+     direita nunca chegue por baixo da barra de pedido. */
   .conversa-corpo {
     flex: 1; min-height: 0; display: grid;
     grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+    transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
   }
-  .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr) 320px; }
+  .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr) 316px; }
+  .conversa-rodape {
+    flex: none; display: grid; grid-template-columns: minmax(0, 1fr);
+    transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
+  }
+  .conversa-rodape.com-lateral { grid-template-columns: minmax(0, 1fr) 316px; }
+  /* No inicio nao ha fio: quem ocupa a altura e o rodape, que ali e a tela
+     inteira - saudacao, caixa de pedido e lista. */
+  .conversa-col.vazia .conversa-corpo { flex: none; }
+  .conversa-col.vazia .conversa-rodape { flex: 1 1 auto; min-height: 0; }
   .conversa-principal { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
 
-  .fluxo { flex: 1; overflow-y: auto; padding: 20px 32px 8px; display: flex; flex-direction: column; gap: 16px; }
+  .fluxo { flex: 1; overflow-y: auto; padding: 22px 26px 8px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .fluxo.arrastando { outline: 2px dashed var(--ink-a3); outline-offset: -8px; }
+  /* As duas vinhetas: o texto some ao entrar e ao sair da rolagem, em vez de
+     ser cortado por uma borda. */
+  .conversa-principal::before, .conversa-principal::after {
+    content: ""; position: absolute; left: 0; right: 0; pointer-events: none; z-index: 3;
+  }
+  .conversa-principal::before { top: 0; height: 26px; background: linear-gradient(to bottom, var(--bg), transparent); }
+  .conversa-principal::after { bottom: 0; height: 30px; background: linear-gradient(to top, var(--bg), transparent); }
+  .conversa-col.vazia .conversa-principal::before, .conversa-col.vazia .conversa-principal::after { display: none; }
   /* Sem teto: a coluna manda. Quem e prosa carrega a propria medida. */
   .centro { width: 100%; display: flex; flex-direction: column; gap: 16px; }
-  .centro.prosa { max-width: 760px; margin: 0 auto; }
+  .centro.prosa { max-width: var(--fio); margin: 0 auto; }
 
+  /* A pergunta e uma bolha; a resposta nao. A assimetria e proposital: o
+     assistente escreve no papel, a pessoa fala. */
   .bolha-pessoa {
     align-self: flex-end;
-    max-width: min(70%, var(--leitura));
+    max-width: 78%;
     background: var(--fill); color: var(--ink);
-    border-radius: 12px; padding: 12px 16px;
-    font-size: 15px; line-height: 1.5;
+    border-radius: 14px 14px 4px 14px; padding: 10px 14px;
+    font-size: 14.5px; line-height: 1.65;
     white-space: pre-wrap; word-wrap: break-word;
   }
   .resposta {
-    font-size: 15px; line-height: 1.65; word-wrap: break-word;
-    max-width: var(--leitura); display: grid; gap: 14px;
+    font-size: 14px; line-height: 1.7; word-wrap: break-word;
+    display: grid; gap: 14px;
   }
   .resposta .texto { white-space: pre-wrap; }
   .assinatura {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
-    font: 500 11.5px var(--sans); color: var(--ink3);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    font: 400 11.5px var(--sans); color: var(--ink3);
   }
   .assinatura button {
-    display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none;
-    font: 500 11.5px var(--sans); color: var(--ink); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px; padding: 0; border: none; background: none;
+    font: 400 12px var(--sans); color: var(--ink2); cursor: pointer;
   }
-  .assinatura button:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .assinatura button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
   /* o plano de execucao */
-  .cartao { border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); overflow: hidden; }
-  .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .cartao { border: 1px solid var(--hair2); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); overflow: hidden; }
+  .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--hair2); }
   .cartao-topo .quem { font: 600 14px var(--sans); flex: 1; }
   .cartao-topo .tempo { font: 500 11px var(--sans); color: var(--ink3); }
   .cartao-corpo { padding: 12px 16px; display: grid; gap: 10px; font-size: 13.5px; }
@@ -75,48 +100,67 @@
   .progresso { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
   .progresso i { display: block; height: 100%; background: var(--acc); transition: width 0.25s; }
 
-  /* o painel da direita: progresso, trechos citados, propriedades */
+  /* O painel da direita e um CARTAO, nao uma coluna colada na borda: ele tem
+     margem, raio e a mesma sombra de todo cartao do desenho. A diferenca
+     entre as duas coisas e a mesma entre um painel de ferramenta e uma ficha
+     ao lado do texto - e aqui e uma ficha. */
   .lateral {
-    border-left: 1px solid var(--ink-a1); min-height: 0; overflow: auto; background: var(--surf);
-    box-shadow: -6px 0 24px -12px var(--sh-a12); position: relative; z-index: 1;
+    min-width: 0; min-height: 0; overflow: auto; position: relative; z-index: 1;
+    margin: 14px 16px 16px 0; padding: 22px;
+    background: var(--surf); border: 1px solid var(--hair2); border-radius: 14px;
+    box-shadow: var(--elev-cartao);
+    display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; grid-auto-rows: min-content;
+    animation: pv-troca .46s cubic-bezier(.22,.61,.36,1) both;
   }
-  .lateral-bloco { padding: 12px 18px; border-bottom: 1px solid var(--ink-a1); display: grid; gap: 10px; }
-  .lateral-bloco:last-child { border-bottom: none; }
-  .lateral-cabeca { display: flex; align-items: center; justify-content: space-between; font: 600 14px var(--sans); }
-  .contagem { font: 500 11px var(--sans); color: var(--ink3); }
-  .lat-etapas { display: grid; gap: 8px; font-size: 12.5px; color: var(--ink3); }
-  .lat-etapa { display: flex; gap: 10px; align-items: flex-start; }
-  .lat-etapa .ic { color: var(--verde); }
+  .lateral-bloco { padding: 14px 0; border-top: 1px solid var(--hair2); display: grid; gap: 9px; }
+  .lateral-bloco:first-child { padding: 0 0 14px; border-top: none; }
+  .lateral-bloco:last-child { padding-bottom: 0; }
+  .lateral-cabeca { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font: 600 14px var(--sans); }
+  .lateral-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
+  .lateral-cabeca .ic { color: var(--ink3); }
+  .contagem { font: 400 11.5px var(--sans); color: var(--ink3); }
+  .lat-etapas { display: grid; gap: 9px; font-size: 12.5px; color: var(--ink3); }
+  .lat-etapa { display: flex; gap: 9px; align-items: center; }
+  .lat-etapa .ic { color: var(--grnt); }
+  /* `> span:last-child` e nao `span`: o icone tambem e um span, e com
+     `flex: 1` nele o glifo esticava e empurrava o texto para o meio do
+     painel. */
+  .lat-etapa > span:last-child { flex: 1; min-width: 0; }
   .lat-etapa.feita span:last-child { text-decoration: line-through; }
   .lat-etapa.andando { color: var(--ink); }
-  .lat-etapa.andando .ic { color: var(--acc); }
+  .lat-etapa.andando .ic { color: var(--ambt); }
   .lat-etapa.fila .ic { color: var(--ink3); }
   .lat-etapa.falhou .ic { color: var(--acc); }
-  .lat-lista { display: grid; gap: 10px; }
+  .lat-lista { display: grid; gap: 9px; }
+  /* Cada trecho e uma regua de 2 px a esquerda, nao um cartao: cartao dentro
+     de cartao vira caixa dentro de caixa, e sao seis num painel de 316 px. */
   .trecho-cartao {
-    border: 1px solid var(--ink-a12); border-radius: 8px; padding: 10px 12px;
-    display: grid; gap: 6px; cursor: pointer;
+    display: grid; gap: 6px; padding: 2px 0 2px 13px; cursor: pointer;
+    box-shadow: inset 2px 0 0 var(--hair);
   }
-  .trecho-cartao:hover { border-color: var(--ink-a35); }
-  .trecho-cartao.marcado { border-color: var(--acc); background: var(--accbg3); }
-  .trecho-origem { display: flex; align-items: center; gap: 8px; min-width: 0; font: 500 10.5px var(--sans); color: var(--ink2); }
-  .trecho-origem b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 500; }
-  .trecho-origem .onde { margin-left: auto; white-space: nowrap; }
-  .trecho-texto { font-size: 12.5px; line-height: 1.5; color: var(--ink2); max-height: 120px; overflow: hidden; }
-  .trecho-cartao.marcado .trecho-texto { color: var(--ink); }
+  .trecho-cartao:hover { box-shadow: inset 2px 0 0 var(--ink3); }
+  .trecho-cartao.marcado { box-shadow: inset 2px 0 0 var(--ink); }
+  .trecho-origem { display: flex; align-items: center; gap: 8px; min-width: 0; font: 400 11px var(--sans); color: var(--ink3); }
+  .trecho-origem b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font: 600 11.5px var(--sans); }
+  .trecho-origem .onde { white-space: nowrap; flex: none; }
+  /* A fonte embutida nao traz `expand_less`: quem aponta para cima e o mesmo
+     glifo virado. Um icone a mais custaria refazer o subset da fonte. */
+  .vira { transition: transform .2s cubic-bezier(.2,.7,.3,1); }
+  .trecho-cartao.marcado .vira { transform: rotate(180deg); }
+  .trecho-texto { font-size: 11.5px; line-height: 1.55; color: var(--ink2); max-height: 120px; overflow: hidden; }
+  .trecho-cartao:not(.marcado) .trecho-texto, .trecho-cartao:not(.marcado) .trecho-ver { display: none; }
   /* A ancora numerada da citacao. */
   .cit {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 5px;
-    background: var(--accbg); color: var(--acc); font: 500 11px var(--sans); flex: none;
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    min-width: 12px; font: 500 10.5px var(--mono); letter-spacing: .04em; color: var(--ink3);
   }
-  .propriedades { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: center; font-size: 12.5px; color: var(--ink2); }
+  .propriedades { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 8px 10px; align-items: baseline; font-size: 12.5px; color: var(--ink3); }
   .valor-prop { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip-modelo {
-    justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px;
-    border: 1px solid var(--ink-a12); border-radius: 6px; color: var(--ink); font: 500 11.5px var(--sans);
+    justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px;
+    border-radius: 12px; background: var(--grn); color: var(--grnt); font: 600 11.5px var(--sans);
   }
-  .ponto-verde { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--verde); flex: none; }
+  .ponto-verde { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
   .ponto-acc { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); flex: none; }
   .ponto-cinza { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--mute2); flex: none; }
 
@@ -267,10 +311,18 @@
   .dupla-pedido input[type=text]:focus { border-color: var(--ink); }
   .dupla-pedido .enviar { margin-left: 0; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; }
 
-  .dupla-editor { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+  /* O editor e um cartao so, de cima a baixo: barra de ferramentas, um fio de
+     1 px sem recuo, o papel, outro fio, e a linha da sincronia. Barra e
+     rodape sao LINHAS com separador - nunca caixas com borda inteira. */
+  .dupla-editor {
+    display: flex; flex-direction: column; min-height: 0; min-width: 0;
+    margin: 14px 16px 16px 0; background: var(--surf);
+    border: 1px solid var(--hair2); border-radius: 14px; box-shadow: var(--elev-cartao);
+    overflow: hidden; animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
+  }
   .dupla-barra {
-    flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px;
-    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12.5px;
+    flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--hair); background: none; font-size: 12px;
   }
   .dupla-barra button {
     width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
@@ -285,12 +337,15 @@
   .fonte-folha .ic { color: var(--ink3); }
   .sinc { margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--sans); color: var(--okt); }
   .sinc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dupla-folha-caixa { flex: 1; overflow-y: auto; padding: 22px 24px; min-height: 0; display: flex; justify-content: center; align-items: flex-start; }
+  /* O papel ocupa a largura interna inteira do cartao e nao flutua dentro
+     dele: a folha ja E o cartao. Papel dentro de papel com sombra entre os
+     dois e o que fazia a coluna parecer uma janela dentro de outra. */
+  .dupla-folha-caixa { flex: 1; overflow-y: auto; padding: 0; min-height: 0; display: flex; justify-content: center; align-items: flex-start; background: var(--papel); }
   .dupla-folha-caixa .ed-folha {
-    width: 100%; max-width: 640px; min-height: 0;
-    background: var(--papel); color: var(--tinta); border: 1px solid var(--papel-linha);
-    box-shadow: 0 18px 44px -28px var(--papel-sombra); padding: 48px 52px;
-    font: 400 15px/1.8 var(--serif); display: flex; flex-direction: column; gap: 16px;
+    width: 100%; max-width: 700px; min-height: 0;
+    background: var(--papel); color: var(--tinta); border: none; box-shadow: none;
+    padding: 40px 48px 48px;
+    font: 400 15px/1.7 var(--serif); display: flex; flex-direction: column; gap: 14px;
   }
   .dupla-folha-caixa .ed-folha p { margin: 0; }
   /* O que acabou de mudar, marcado dentro do proprio texto. Ver a alteracao no
@@ -307,15 +362,15 @@
   .dupla-cartao .linha-form { margin: 2px 0 0; gap: 8px; }
   .dupla-cartao .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
   .dupla-rodape {
-    flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 16px;
-    border-top: 1px solid var(--ink-a1); background: var(--surf);
-    font: 500 10.5px var(--sans); color: var(--ink3);
+    flex: none; display: flex; align-items: center; gap: 14px; padding: 9px 16px;
+    border-top: 1px solid var(--hair); background: none;
+    font: 400 11.5px var(--sans); color: var(--ink3);
   }
   .acoes-rodape { margin-left: auto; display: flex; gap: 8px; }
 
   /* A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
      Terminou, vira uma linha so, clicavel para reabrir. */
-  .bastidor { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .bastidor { border: 1px solid var(--hair2); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); }
   .bastidor-topo {
     display: flex; align-items: center; gap: 10px; padding: 9px 12px;
     font-size: 13px; color: var(--ink2); cursor: pointer; border-radius: 8px;
@@ -362,21 +417,22 @@
   .aprovacao .acoes { display: flex; align-items: center; gap: 10px; }
   .aprovacao .acoes .primario { margin-left: auto; }
 
-  /* Os trechos moram no painel da direita; na resposta fica so a conta. */
-  .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 500 11.5px var(--sans); color: var(--ink3); }
+  /* Os trechos moram no painel da direita; na resposta fica so a conta - uma
+     linha, nunca um cartao. */
+  .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12.5px var(--sans); color: var(--ink3); }
   .fontes button {
-    display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none;
-    font: 500 11.5px var(--sans); color: var(--ink2); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; padding: 0; border: none; background: none;
+    font: 400 12.5px var(--sans); color: var(--ink2); cursor: pointer;
   }
-  .fontes button:hover:not(:disabled) { color: var(--acc); background: none; border: none; }
+  .fontes button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .trecho { border: 1px solid var(--ink-a12); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; background: var(--surf); display: grid; gap: 6px; }
   .trecho .origem { font: 500 10.5px var(--sans); color: var(--ink2); }
   .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink2); max-height: 170px; overflow-y: auto; line-height: 1.5; }
   .trecho-ver {
-    justify-self: start; padding: 2px 8px; font: 500 11px var(--sans);
-    border: 1px solid var(--ink-a15); border-radius: 6px; background: none; color: var(--ink2);
+    justify-self: start; padding: 0; font: 600 11.5px var(--sans);
+    border: none; border-radius: 0; background: none; color: var(--ink2);
   }
-  .trecho-ver:hover:not(:disabled) { color: var(--acc); border-color: var(--acc); background: none; }
+  .trecho-ver:hover:not(:disabled) { color: var(--ink); border: none; background: none; }
 
   .aviso-cobertura {
     background: var(--warnbg); border: 1px solid var(--ink-a1); border-radius: 10px;
