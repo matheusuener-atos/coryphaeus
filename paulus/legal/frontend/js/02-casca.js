@@ -62,6 +62,33 @@ function marcarTamanhoDaJanela(maximizada) {
   botao.setAttribute("aria-label", botao.title);
 }
 
+/* O aviso na barra de titulo. `opcoes.icone` (info por padrao), `girar` para
+   o que ainda esta em curso, `tom: "erro"`, `acao: { rotulo, fazer }` para o
+   link sublinhado e `dura` em ms - 0 deixa o aviso ate o proximo. A fonte
+   embutida nao tem ampulheta: o que espera gira `sync`. */
+function avisoNaJanela(texto, opcoes) {
+  const o = opcoes || {};
+  const faixa = $("faixa-janela");
+  faixa.className = "faixa-janela pywebview-drag-region visivel" + (o.girar ? " girando" : "") + (o.tom === "erro" ? " erro" : "");
+  faixa.innerHTML = ic(o.icone || (o.tom === "erro" ? "error" : "info"), 16) +
+    '<span class="faixa-texto pywebview-drag-region"></span>' +
+    (o.acao ? '<button type="button"></button>' : "");
+  faixa.querySelector(".faixa-texto").textContent = texto;
+  if (o.acao) {
+    const botao = faixa.querySelector("button");
+    botao.textContent = o.acao.rotulo;
+    botao.onclick = () => { fecharAvisoNaJanela(); o.acao.fazer(); };
+  }
+  clearTimeout(faixa.relogio);
+  if (o.dura !== 0) faixa.relogio = setTimeout(fecharAvisoNaJanela, o.dura || 6000);
+}
+
+function fecharAvisoNaJanela() {
+  const faixa = $("faixa-janela");
+  clearTimeout(faixa.relogio);
+  faixa.classList.remove("visivel");
+}
+
 window.addEventListener("pywebviewready", ligarJanelaPropria);
 if (window.pywebview) ligarJanelaPropria();
 

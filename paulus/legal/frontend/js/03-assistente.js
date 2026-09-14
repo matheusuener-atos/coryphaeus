@@ -26,12 +26,7 @@ async function subirArquivos(lista) {
   const dados = new FormData();
   lista.forEach((a) => dados.append("arquivos", a));
 
-  const nota = document.createElement("div");
-  nota.className = "painel";
-  nota.innerHTML = '<div style="display:flex;align-items:center;gap:9px">' + coroa(17) +
-    "<span>Lendo " + plural(lista.length, "arquivo") + "…</span></div>";
-  $("centro").appendChild(nota);
-  rolar();
+  avisoNaJanela("Lendo " + plural(lista.length, "arquivo") + "…", { icone: "sync", girar: true, dura: 0 });
 
   try {
     const r = await fetch("/api/upload", { method: "POST", body: dados });
@@ -45,7 +40,9 @@ async function subirArquivos(lista) {
       texto += " Não consegui abrir: " +
         res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".";
     }
-    nota.innerHTML = "<div>" + esc(texto) + "</div>";
+    avisoNaJanela(texto, res.recusados.length
+      ? { tom: "erro", dura: 12000 }
+      : { icone: res.salvos.length ? "task_alt" : "info" });
     estado.contratos = res.contratos;
     carregarStatus();
     await carregarAbertos();
@@ -54,9 +51,8 @@ async function subirArquivos(lista) {
        caracteres e um minuto — como se nada tivesse sido anexado. */
     if (res.salvos.length) definirEscopo(estado.escopo.concat(res.salvos));
   } catch (err) {
-    nota.innerHTML = '<div>Não consegui abrir os arquivos: ' + esc(String(err)) + "</div>";
+    avisoNaJanela("Não consegui abrir os arquivos: " + String(err), { tom: "erro", dura: 12000 });
   }
-  rolar();
 }
 
 /* ------------------------------------------------------------ buscar */
