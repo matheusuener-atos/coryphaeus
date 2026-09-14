@@ -470,7 +470,7 @@ function marcarTempo(parando) {
 
 function previaDoDitado() {
   const t = ditado.texto.trim();
-  if (!t) return '<span class="vazio">o texto aparece aqui a cada pausa na fala</span>';
+  if (!t) return "";
   return esc(t.length > 240 ? "…" + t.slice(-240) : t);
 }
 
@@ -478,7 +478,7 @@ function juntarAoDitado(trechos) {
   const novos = (trechos || []).map((x) => (x.texto || "").trim()).filter(Boolean);
   if (!novos.length) return;
   ditado.texto = (ditado.texto.trim() ? ditado.texto.trim() + " " : "") + novos.join(" ");
-  document.querySelectorAll("[data-ditado-texto]").forEach((p) => { p.innerHTML = previaDoDitado(); });
+  document.querySelectorAll("[data-ditado-texto]").forEach((p) => { p.hidden = false; p.innerHTML = previaDoDitado(); });
 }
 
 /* O CARTAO DO DITADO. So o aviso la embaixo nao bastava para saber se o
@@ -490,7 +490,7 @@ function cartaoDoDitado() {
   if (!e) return "";
   const nomes = { ouvindo: "Ditando", pausado: "Ditado em pausa", pendente: "Ditado pendente", finalizando: "Transcrevendo o que sobrou…" };
   const notas = {
-    ouvindo: "modelo de voz desta máquina · nada sai do computador",
+    ouvindo: "",
     pausado: "o microfone não ouve nada até continuar",
     pendente: "o microfone fechou quando você saiu do Assistente",
     finalizando: "o texto vai para o campo em alguns segundos",
@@ -512,8 +512,8 @@ function cartaoDoDitado() {
     '<span class="nome">' + nomes[e] + "</span>" +
     '<span class="ditado-tempo" data-ditado-tempo="1">' + tempoDoDitado() + "</span></div>" +
     (dsAberto() ? '<canvas class="ditado-onda" data-ditado-onda="1"></canvas>' : "") +
-    '<p class="ditado-texto" data-ditado-texto="1">' + previaDoDitado() + "</p>" +
-    '<div class="rodape">' + notas[e] + "</div>" +
+    '<p class="ditado-texto" data-ditado-texto="1"' + (ditado.texto.trim() ? "" : " hidden") + ">" + previaDoDitado() + "</p>" +
+    (notas[e] ? '<div class="rodape">' + notas[e] + "</div>" : "") +
     (acoes ? '<div class="acoes">' + acoes + "</div>" : "") + "</div>";
 }
 
