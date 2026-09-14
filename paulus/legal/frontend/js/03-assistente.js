@@ -1214,7 +1214,9 @@ async function enviar(opcoes) {
           // subindo enquanto o modelo escreve. Contado, nao estimado.
           bastidor.palavras = texto.textContent.trim().split(/\s+/).filter(Boolean).length;
           if (pertoDoFim()) rolar(); else atualizarIrAoFim();
-        } else if (mt[1] === "proposta") {
+        } else if (mt[1] === "proposta" || mt[1] === "oferta") {
+          // "oferta" chega depois do fim: quer ver o documento de onde saiu
+          // a resposta? O cartão fica embaixo da resposta.
           // Pedido de ação: nada de procurar nos documentos. O cartão mostra
           // o que eu entendi, e quem grava é a pessoa.
           plano.remove();

@@ -6,7 +6,7 @@ O que pode dar errado aqui custa caro — uma ficha com o nome que ninguém
 disse, um CPF torto gravado, uma nota "emitida" sem o sim —, então os testes
 cobrem as garantias, não só o caminho feliz:
 
-  - o catálogo declara as três ferramentas, e todas exigem confirmação
+  - o catálogo declara as quatro ferramentas, e todas exigem confirmação
   - o JSON do modelo é conferido: tipo, ferramenta e parâmetros; o que não
     segue o contrato é recusado, parâmetro desconhecido cai
   - CPF e CNPJ pelo dígito verificador; valor em centavos; data em ISO
@@ -15,6 +15,8 @@ cobrem as garantias, não só o caminho feliz:
   - o que o modelo devolve e não está na frase é invenção e não entra
   - pela API: a proposta não grava nada; só o sim grava; a NFS-e confere e
     não emite; com a regra bastando, o modelo nem é chamado
+  - depois de uma resposta tirada de um ou dois documentos, a conversa
+    oferece mostrá-los — uma vez por documento — e só mostra com o clique
 
 Não precisa do Ollama: o modelo é trocado por respostas prontas. Tudo que o
 teste cria é apagado no fim.
@@ -68,7 +70,9 @@ def recusa(funcao, *args) -> str:
 def test_catalogo() -> None:
     print("\no catálogo")
     cat = ferramentas.CATALOGO_FERRAMENTAS
-    checar(set(cat) == {"cadastrar_cliente", "criar_compromisso", "emitir_nfse"}, "as três ferramentas", list(cat))
+    checar(set(cat) == {"cadastrar_cliente", "criar_compromisso", "emitir_nfse", "exibir_documento"},
+           "as quatro ferramentas", list(cat))
+    checar(cat["exibir_documento"]["modulo"] == "acervo", "exibir_documento -> acervo")
     checar(cat["cadastrar_cliente"]["modulo"] == "cadastros", "cadastrar_cliente -> cadastros")
     checar(cat["criar_compromisso"]["modulo"] == "agenda", "criar_compromisso -> agenda")
     checar(cat["emitir_nfse"]["modulo"] == "escritorio", "emitir_nfse -> escritorio")
@@ -76,7 +80,8 @@ def test_catalogo() -> None:
     checar(all(f["exige_confirmacao"] for f in cat.values()), "e todas as outras também")
     checar(cat["emitir_nfse"]["disponivel"] is False, "a NFS-e ainda não emite de verdade")
     checar(ferramentas.POR_PROPOSTA == {"cadastro": "cadastrar_cliente", "agenda": "criar_compromisso",
-                                        "nota": "emitir_nfse"}, "cada proposta da tela aponta uma ferramenta")
+                                        "nota": "emitir_nfse", "exibir": "exibir_documento"},
+           "cada proposta da tela aponta uma ferramenta")
 
 
 def test_prompt() -> None:
@@ -285,6 +290,47 @@ def test_completar_com_modelo() -> None:
            "a data que a regra não leu vem do modelo", (ajuda, l.campos, l.falta))
 
 
+# ------------------------------------------------------- exibir documento
+
+
+class _Doc:
+    def __init__(self, name, path, text="", pages=0):
+        self.name, self.path, self.text, self.pages = name, path, text, pages
+
+
+def test_oferta_de_exibir() -> None:
+    print("\nquer ver o documento? (a regra da oferta)")
+    docs = [_Doc("A.docx", "A.docx"), _Doc("B.pdf", "B.pdf"), _Doc("C.docx", "C.docx")]
+
+    def trechos(*nomes):
+        return [{"documento": n, "texto": f"trecho de {n}"} for n in nomes]
+
+    o = ferramentas.oferta_de_exibir(trechos("A.docx", "A.docx"), docs)
+    checar(o and o["tipo"] == "exibir" and o["nomes"] == ["A.docx"], "um documento: oferece ele", o)
+    checar(o and o["campos"] == {"nome": "A.docx"} and o["trechos"]["A.docx"], "com os trechos, para marcar no visor", o)
+    o = ferramentas.oferta_de_exibir(trechos("A.docx", "B.pdf", "A.docx"), docs)
+    checar(o and o["nomes"] == ["A.docx", "B.pdf"], "dois documentos: oferece os dois", o)
+    o = ferramentas.oferta_de_exibir(trechos("A.docx", "B.pdf", "C.docx"), docs)
+    checar(o is None, "três documentos sem nenhum dominante: não oferece", o)
+    o = ferramentas.oferta_de_exibir(trechos("A.docx", "A.docx", "A.docx", "B.pdf", "C.docx"), docs)
+    checar(o and o["nomes"] == ["A.docx"], "três, com um dando mais da metade: oferece esse", o)
+    checar(ferramentas.oferta_de_exibir(trechos("A.docx"), docs, ja_oferecidos={"A.docx"}) is None,
+           "já oferecido nesta conversa: não oferece de novo")
+    checar(ferramentas.oferta_de_exibir(trechos("Sumiu.docx"), docs) is None, "arquivo que saiu do Acervo: não oferece")
+    checar(ferramentas.oferta_de_exibir([], docs) is None, "sem trechos: não oferece")
+    o = ferramentas.oferta_de_exibir([{"documento": "B.pdf", "texto": "x", "pagina": 4}], docs)
+    checar(o and o["paginas"]["B.pdf"] == 4, "PDF abre na página citada, quando se sabe", o)
+
+    leitura = ferramentas.leitura(_Doc("A.docx", "c:/x/A.docx", "Primeiro.\n\n  Segundo parágrafo.  \n"))
+    checar(leitura["tipo"] == "texto" and leitura["paragrafos"] == ["Primeiro.", "Segundo parágrafo."],
+           "texto: parágrafos, sem linhas vazias", leitura)
+    grande = ferramentas.leitura(_Doc("G.docx", "G.docx", "\n".join(f"p{i}" for i in range(2000))))
+    checar(len(grande["paragrafos"]) == ferramentas.LIMITE_DE_PARAGRAFOS and grande["cortado"],
+           "documento enorme: corta e avisa")
+    checar(ferramentas.leitura(_Doc("B.pdf", "c:/x/B.PDF", "", 7)) == {"nome": "B.pdf", "tipo": "pdf", "paginas": 7},
+           "PDF: páginas desenhadas, sem texto")
+
+
 # ---------------------------------------------------------------- pela API
 
 
@@ -372,6 +418,53 @@ def test_pela_api() -> None:
 
         st, erro = c.pedir("POST", f"/api/trabalhos/{tid}/fazer", {"tipo": "apagar_tudo", "campos": {}})
         checar(st == 400, "tipo fora do catálogo continua recusado", st)
+
+        # Quer ver o documento? A habilidade de perguntar é trocada por uma
+        # que responde de um documento de verdade do Acervo, sem Ollama.
+        print("\npela API: a oferta de mostrar o documento")
+        documentos = api.estado.searcher.documents
+        checar(bool(documentos), "há documento no Acervo para o teste")
+        if not documentos:
+            return
+        doc = documentos[0]
+        habilidade = api.estado.registro.obter("perguntar")
+        guardado = (habilidade.executar, habilidade.estado)
+
+        def responde(ctx, pergunta="", top=6, apenas=None):
+            trecho = {"documento": doc.name, "trecho": 1, "score": 1.0, "texto": doc.text[:300]}
+            yield "fontes", {"consultados": [doc.name], "ignorados": [], "total_contratos": 1,
+                             "trechos": [trecho, dict(trecho, trecho=2)], "apenas": []}
+            yield "escrevendo", {"lendo_segundos": 0}
+            yield "token", {"t": "Resposta de teste."}
+            yield "fim", {}
+
+        habilidade.executar, habilidade.estado = responde, "pronta"
+        try:
+            st, t2 = c.pedir("POST", "/api/trabalhos", {"pedido": "oferta"})
+            criados["trabalhos"].append(t2["id"])
+            eventos = c.conversar(f"/api/trabalhos/{t2['id']}/perguntar", {"pergunta": "o que diz a cláusula primeira?"})
+            tipos = [tipo for tipo, _ in eventos]
+            oferta = next((d for tipo, d in eventos if tipo == "oferta"), None)
+            checar(bool(oferta) and oferta["nomes"] == [doc.name], "a resposta termina oferecendo o documento", tipos)
+            checar("fim" in tipos and "oferta" in tipos and tipos.index("fim") < tipos.index("oferta"),
+                   "a oferta vem depois do fim da resposta", tipos)
+            checar(not any(tipo == "proposta" for tipo in tipos), "e não é uma proposta de ação")
+
+            eventos = c.conversar(f"/api/trabalhos/{t2['id']}/perguntar", {"pergunta": "e a cláusula segunda?"})
+            checar(not any(tipo == "oferta" for tipo, _ in eventos), "o mesmo documento não é oferecido duas vezes",
+                   [tipo for tipo, _ in eventos])
+
+            st, mostrado = c.pedir("POST", f"/api/trabalhos/{t2['id']}/fazer",
+                                   {"tipo": "exibir", "campos": {"nome": doc.name}})
+            reg = mostrado.get("registro") or {}
+            checar(st == 200 and reg.get("nome") == doc.name and reg.get("tipo") in ("pdf", "texto"),
+                   "o clique em Mostrar aqui devolve o que o visor desenha", (st, mostrado))
+            checar(mostrado.get("id") == 0 and mostrado.get("onde") == "", "mostrar não grava nada")
+            st, erro = c.pedir("POST", f"/api/trabalhos/{t2['id']}/fazer",
+                               {"tipo": "exibir", "campos": {"nome": "Nao Existe Aqui.docx"}})
+            checar(st == 400, "documento que não está no Acervo é recusado", (st, erro))
+        finally:
+            habilidade.executar, habilidade.estado = guardado
     finally:
         api.estado.client.ask_json = original
         for cid in criados["cadastros"]:
@@ -400,6 +493,7 @@ def main() -> int:
     test_regra_le_a_nota()
     test_regra_da_agenda()
     test_completar_com_modelo()
+    test_oferta_de_exibir()
     test_pela_api()
 
     print("\n" + "=" * 55)

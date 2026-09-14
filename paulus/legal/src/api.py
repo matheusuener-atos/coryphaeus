@@ -1974,19 +1974,37 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             if etapa.estado == EXECUTANDO:
                 etapa.estado = CONCLUIDO
         trabalho.estado = CONCLUIDO
+        # Quer ver o documento? A oferta sai por regra dos trechos usados, e
+        # fica guardada na propria resposta - e assim que a conversa sabe que
+        # ja ofereceu e nao oferece o mesmo arquivo de novo.
+        oferta = ferramentas.oferta_de_exibir(
+            fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(
             "paulus", "".join(partes).strip(),
             fontes=fontes, cobertura=cobertura, segundos=segundos,
-            nivel=nivel, inferencia=inferencia,
+            nivel=nivel, inferencia=inferencia, proposta=oferta or {},
         )
         estado.trabalhos.salvar(trabalho)
         yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo})
+        if oferta:
+            yield _sse("oferta", oferta)
 
     return StreamingResponse(
         gerar(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _documentos_ja_oferecidos(trabalho) -> set[str]:
+    """Os arquivos que esta conversa ja ofereceu mostrar, ou ja mostrou."""
+    vistos: set[str] = set()
+    for m in trabalho.mensagens:
+        if (m.proposta or {}).get("tipo") == "exibir":
+            vistos.update(m.proposta.get("nomes") or [])
+        if (m.feito or {}).get("tipo") in ("exibir", "abrir") and (m.feito or {}).get("nome"):
+            vistos.add(m.feito["nome"])
+    return vistos
 
 
 class PropostaConfirmada(BaseModel):
@@ -2070,7 +2088,7 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     trabalho.dizer("paulus", resumo + ".", feito={"tipo": payload.tipo, "id": novo, "onde": onde,
-                                                  "pendente": pendente})
+                                                  "pendente": pendente, "nome": str(campos.get("nome", ""))})
     estado.trabalhos.salvar(trabalho)
     return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito, "pendente": pendente}
 

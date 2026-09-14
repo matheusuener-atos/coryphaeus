@@ -22,6 +22,10 @@ CNPJ passam pelo dígito verificador; valor vira centavos; data vira ISO. E o
 que o modelo escreveu precisa estar na frase: um nome que a pessoa não disse
 é invenção, e invenção não entra no cartão.
 
+**Oferecer não é abrir.** Depois de uma resposta tirada de um ou dois
+documentos, a conversa oferece mostrá-los ali mesmo (exibir_documento) — e só
+mostra com o clique.
+
 **Entender não é fazer.** Toda ferramenta exige confirmação. A emissão de
 NFS-e existe no catálogo e na rota, mas ainda não emite: confirmar confere os
 dados e diz isso, sem enviar nada a prefeitura nenhuma.
@@ -68,6 +72,17 @@ CATALOGO_FERRAMENTAS: dict[str, dict] = {
             "hora": {"tipo": "hora", "descricao": "hora de início, HH:MM"},
             "duracao": {"tipo": "minutos", "descricao": "duração em minutos"},
             "avisar_min": {"tipo": "minutos", "descricao": "quantos minutos antes avisar"},
+        },
+    },
+    "exibir_documento": {
+        "descricao": "Mostra um documento do Acervo dentro da conversa, só para leitura.",
+        "modulo": "acervo",
+        "proposta": "exibir",
+        "exige_confirmacao": True,
+        "disponivel": True,
+        "parametros": {
+            "nome": {"tipo": "texto", "descricao": "nome do arquivo, como está no Acervo",
+                     "obrigatorio": "diga qual documento mostrar"},
         },
     },
     "emitir_nfse": {
@@ -567,9 +582,71 @@ def _emitir_nfse(estado, campos: dict) -> dict:
     return {"id": 0, "registro": limpos, "resumo": resumo, "onde": "", "pendente": True}
 
 
+# Um livro de 300 páginas não cabe num cartão de conversa. O começo cabe, e o
+# cartão diz que cortou.
+LIMITE_DE_PARAGRAFOS = 1500
+
+
+def leitura(doc) -> dict:
+    """O que o visor da conversa mostra: páginas desenhadas no PDF, parágrafos no resto."""
+    from pathlib import Path
+
+    if Path(doc.path).suffix.lower() == ".pdf":
+        return {"nome": doc.name, "tipo": "pdf", "paginas": int(doc.pages or 0) or 1}
+    paragrafos = [p.strip() for p in (doc.text or "").splitlines() if p.strip()]
+    return {"nome": doc.name, "tipo": "texto", "paginas": int(doc.pages or 0),
+            "paragrafos": paragrafos[:LIMITE_DE_PARAGRAFOS],
+            "cortado": len(paragrafos) > LIMITE_DE_PARAGRAFOS}
+
+
+def _exibir_documento(estado, campos: dict) -> dict:
+    # Só leitura: nada é gravado, nenhuma cópia nasce. Confirmar é o clique
+    # em "Mostrar aqui".
+    nome = _conferir("exibir_documento", campos)["nome"]
+    doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+    if not doc:
+        raise ValueError("esse documento não está mais no Acervo")
+    return {"id": 0, "registro": leitura(doc), "resumo": f"Mostrei “{nome}” aqui na conversa", "onde": ""}
+
+
+def oferta_de_exibir(fontes: list[dict], documentos, ja_oferecidos=()) -> dict | None:
+    """
+    Depois de uma resposta, quais documentos vale oferecer mostrar.
+
+    Por regra, e sem modelo: os documentos de onde saíram os trechos. Um ou
+    dois, oferecidos os dois; mais que isso, só o que deu mais da metade dos
+    trechos — oferecer seis arquivos é não oferecer nenhum. O que já foi
+    oferecido nesta conversa não volta a ser: perguntar três vezes do mesmo
+    contrato não pode virar três convites.
+    """
+    contagem: dict[str, int] = {}
+    for f in fontes or []:
+        nome = str(f.get("documento") or "")
+        if nome:
+            contagem[nome] = contagem.get(nome, 0) + 1
+    existentes = {d.name for d in documentos or []}
+    nomes = [n for n in contagem if n in existentes]
+    if len(nomes) > 2:
+        mais = max(nomes, key=lambda n: contagem[n])
+        nomes = [mais] if contagem[mais] * 2 > sum(contagem.values()) else []
+    nomes = [n for n in nomes if n not in set(ja_oferecidos)]
+    if not nomes:
+        return None
+    trechos = {n: [str(f.get("texto") or "")[:400] for f in fontes if f.get("documento") == n] for n in nomes}
+    paginas = {n: next((f["pagina"] for f in fontes if f.get("documento") == n and f.get("pagina")), 0)
+               for n in nomes}
+    return {
+        "tipo": "exibir", "ferramenta": "exibir_documento", "titulo": nomes[0],
+        "campos": {"nome": nomes[0]}, "nomes": nomes, "trechos": trechos, "paginas": paginas,
+        "porque": "a resposta saiu " + ("deste documento" if len(nomes) == 1 else "destes documentos"),
+        "falta": "", "disponivel": True, "ajuda_do_modelo": [],
+    }
+
+
 EXECUTORES = {
     "cadastrar_cliente": _cadastrar_cliente,
     "criar_compromisso": _criar_compromisso,
+    "exibir_documento": _exibir_documento,
     "emitir_nfse": _emitir_nfse,
 }
 

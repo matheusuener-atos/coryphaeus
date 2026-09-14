@@ -846,14 +846,17 @@ function cartaoProposta(d) {
 
   // Abrir é o único que não tem campo para conferir: ou é este arquivo, ou
   // não é. O que a pessoa confere é o nome — e onde quer abrir.
+  if (d.tipo === "exibir") return cartaoOferta(d);
+
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
       '<span class="rotulo">vou abrir este arquivo</span>' +
       "<b>" + esc(c.nome) + "</b></div>" +
-      '<p class="explica">Li isso de ' + esc(d.porque) + ". Abrir aqui cria um " +
-      "rascunho editável ao lado da conversa — o arquivo original não é " +
-      "tocado. Ou abro no programa padrão do Windows, se você preferir.</p>" +
-      '<div class="linha-form"><button class="primario" data-prop="editar">Abrir aqui para editar</button>' +
+      '<p class="explica">Li isso de ' + esc(d.porque) + ". Mostro aqui na " +
+      "conversa, só para leitura, ou crio um rascunho editável ao lado — o " +
+      "arquivo original não é tocado. Ou abro no programa padrão do Windows.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="exibir" data-nome="' + esc(c.nome) + '">Mostrar aqui</button>' +
+      '<button data-prop="editar">Abrir para editar</button>' +
       '<button data-prop="fazer">Abrir no Windows</button>' +
       '<button data-prop="nao">Deixa pra lá</button></div></div>';
   }
@@ -900,6 +903,168 @@ function cartaoProposta(d) {
     '<div class="linha-form"><button class="primario" data-prop="fazer">' +
     (ehAgenda ? "Anotar na agenda" : "Criar a tarefa") + "</button>" +
     '<button data-prop="nao">Deixa pra lá</button></div></div>';
+}
+
+/* QUER VER O DOCUMENTO? Depois de uma resposta tirada de um ou dois
+   documentos, o servidor oferece mostrá-los (exibir_documento). O cartão só
+   oferece: nada abre sem o clique, e mostrar não copia nem altera nada. */
+function cartaoOferta(d) {
+  const nomes = d.nomes && d.nomes.length ? d.nomes : [(d.campos || {}).nome];
+  const linhas = nomes.map((n) =>
+    '<div class="oferta-doc">' + ic(/\.pdf$/i.test(n) ? "picture_as_pdf" : "description", 18) +
+    '<span class="oferta-nome" title="' + esc(n) + '">' + esc(n) + "</span>" +
+    '<button class="primario" data-prop="exibir" data-nome="' + esc(n) + '">Mostrar aqui</button>' +
+    '<button data-prop="windows" data-nome="' + esc(n) + '">No Windows</button></div>').join("");
+  return '<div class="proposta oferta"><div class="proposta-topo">' +
+    '<span class="rotulo">' + (nomes.length === 1 ? "quer ver o documento?" : "quer ver os documentos?") + "</span></div>" +
+    linhas +
+    '<p class="explica">A resposta saiu ' + (nomes.length === 1 ? "deste documento" : "destes documentos") +
+    ". Mostro aqui mesmo, só para leitura, com os trechos citados marcados.</p>" +
+    '<div class="linha-form"><button data-prop="nao">Agora não</button></div></div>';
+}
+
+/* O visor dentro da conversa. PDF é a página desenhada, com o andar de
+   página; o resto é o texto lido, parágrafo por parágrafo, com os parágrafos
+   dos trechos citados marcados e a rolagem já no primeiro deles. */
+function srcDaPagina(nome, pagina) {
+  return "/api/biblioteca/pagina?nome=" + encodeURIComponent(nome) + "&numero=" + pagina + "&largura=900";
+}
+
+function textoComparavel(t) {
+  return String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/* Parágrafo curto não é marcado: "Matheus Uener" aparece dentro de quase
+   todo trecho, e um título marcado por isso aponta o lugar errado. */
+function paragrafoCitado(p, trechos) {
+  const np = textoComparavel(p);
+  if (np.length < 40) return false;
+  return trechos.some((t) => t.includes(np.slice(0, 60)) || np.includes(t.slice(0, 60)));
+}
+
+function leitorNaConversa(reg, d) {
+  const trechos = (((d && d.trechos) || {})[reg.nome] || []).map(textoComparavel).filter((t) => t.length >= 12);
+  const topo = '<div class="proposta-topo leitor-topo"><span class="rotulo">só leitura</span>' +
+    '<b class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</b>" +
+    '<button class="botao-icone" data-visor="fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>";
+  let corpo;
+  if (reg.tipo === "pdf") {
+    const pedida = Number((((d && d.paginas) || {})[reg.nome]) || 1);
+    const pagina = Math.max(1, Math.min(reg.paginas || 1, pedida));
+    corpo = '<div class="leitor-pagina"><img data-visor-img alt="página ' + pagina + '" src="' + srcDaPagina(reg.nome, pagina) + '"></div>' +
+      '<div class="linha-form leitor-andar">' +
+      '<button class="botao-icone" data-leitor-andar="-1" title="Página anterior" aria-label="Página anterior">' + ic("chevron_left", 18) + "</button>" +
+      '<span class="explica">Pág. <b data-visor-num>' + pagina + "</b> de " + (reg.paginas || 1) + "</span>" +
+      '<button class="botao-icone" data-leitor-andar="1" title="Próxima página" aria-label="Próxima página">' + ic("chevron_right", 18) + "</button></div>";
+  } else {
+    corpo = '<div class="leitor-texto">' + (reg.paragrafos || []).map((p) => {
+      const classe = paragrafoCitado(p, trechos) ? "leitor-par citado" : "leitor-par";
+      return '<p class="' + classe + '">' + esc(p) + "</p>";
+    }).join("") +
+      (reg.cortado ? '<p class="nota">O documento continua — aqui vai só o começo. Abra no Windows para ler inteiro.</p>' : "") +
+      "</div>";
+  }
+  return '<div class="proposta leitor-conversa">' + topo + corpo +
+    '<div class="linha-form"><button data-prop="editar" data-nome="' + esc(reg.nome) + '">Abrir para editar</button>' +
+    '<button data-prop="windows" data-nome="' + esc(reg.nome) + '">Abrir no Windows</button></div></div>';
+}
+
+function ligarLeitor(caixa, reg, d) {
+  const texto = caixa.querySelector(".leitor-texto");
+  const primeiro = texto && texto.querySelector(".citado");
+  if (primeiro) texto.scrollTop += primeiro.getBoundingClientRect().top - texto.getBoundingClientRect().top - 16;
+
+  let pagina = Number((caixa.querySelector("[data-visor-num]") || {}).textContent || 1);
+  caixa.querySelectorAll("[data-leitor-andar]").forEach((b) => {
+    b.onclick = () => {
+      const nova = Math.max(1, Math.min(reg.paginas || 1, pagina + Number(b.dataset.leitorAndar)));
+      if (nova === pagina) return;
+      pagina = nova;
+      const img = caixa.querySelector("[data-visor-img]");
+      img.src = srcDaPagina(reg.nome, pagina);
+      img.alt = "página " + pagina;
+      caixa.querySelector("[data-visor-num]").textContent = pagina;
+    };
+  });
+
+  caixa.querySelector('[data-visor="fechar"]').onclick = () => {
+    caixa.innerHTML = '<div class="proposta oferta"><div class="oferta-doc">' +
+      ic(reg.tipo === "pdf" ? "picture_as_pdf" : "description", 18) +
+      '<span class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</span>" +
+      '<button data-prop="exibir" data-nome="' + esc(reg.nome) + '">Mostrar de novo</button></div></div>';
+    ligarBotoesDeDocumento(caixa, d);
+  };
+  ligarBotoesDeDocumento(caixa, d);
+}
+
+/* Mostrar aqui, abrir no Windows e abrir para editar: os mesmos três botões
+   no cartão de abrir, na oferta depois da resposta e dentro do visor. O nome
+   vem do botão — a oferta pode ter dois documentos. */
+function ligarBotoesDeDocumento(caixa, d) {
+  const nomeDe = (b) => b.dataset.nome || (d.campos || {}).nome;
+
+  caixa.querySelectorAll('[data-prop="exibir"]').forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "exibir", campos: { nome: nomeDe(b) } }),
+      });
+      if (!r.ok) {
+        b.disabled = false;
+        caixa.insertAdjacentHTML("beforeend", '<p class="explica">Não consegui mostrar: ' + esc(await erroDe(r)) + "</p>");
+        return;
+      }
+      const reg = (await r.json()).registro;
+      caixa.innerHTML = leitorNaConversa(reg, d);
+      ligarLeitor(caixa, reg, d);
+      if (pertoDoFim()) rolar();
+    };
+  });
+
+  caixa.querySelectorAll('[data-prop="windows"]').forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "abrir", campos: { nome: nomeDe(b) } }),
+      });
+      if (!r.ok) {
+        b.disabled = false;
+        avisoNaJanela("Não consegui abrir: " + (await erroDe(r)), { icone: "error" });
+        return;
+      }
+      b.textContent = "Aberto no Windows";
+    };
+  });
+
+  /* Abrir para editar traz o documento para dentro do programa, como rascunho:
+     o .docx de origem pode já ter sido assinado ou protocolado, e editar ele
+     no lugar seria mexer no que já saiu. */
+  caixa.querySelectorAll('[data-prop="editar"]').forEach((editar) => {
+    editar.onclick = async () => {
+      editar.disabled = true;
+      caixa.insertAdjacentHTML("beforeend",
+        '<p class="nota">trazendo o documento para o editor…</p>');
+      const r = await fetch("/api/documentos/importar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: nomeDe(editar) }),
+      });
+      if (!r.ok) {
+        editar.disabled = false;
+        caixa.insertAdjacentHTML("beforeend",
+          '<p class="explica">' + esc(await erroDe(r)) + "</p>");
+        return;
+      }
+      const novo = await r.json();
+      caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
+        "<b>“" + esc(novo.titulo) + "” aberto para editar</b></div>" +
+        '<p class="explica">Cópia editável de ' + esc(novo.de) +
+        ", com " + plural(novo.paragrafos, "parágrafo") + ". O original continua onde estava.</p>";
+      marcarDestino("editor");
+      mostrarDupla(novo.id);
+    };
+  });
 }
 
 /* As ferramentas que a conversa propõe e a tela confere. Cada campo é um
@@ -1002,38 +1167,15 @@ function camposProposta(d, faltando) {
 function ligarProposta(caixa, d, ondeResponder) {
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
+  ligarBotoesDeDocumento(caixa, d);
 
-  /* Abrir para editar traz o documento para dentro do programa, como rascunho:
-     o .docx de origem pode já ter sido assinado ou protocolado, e editar ele
-     no lugar seria mexer no que já saiu. */
-  const editar = caixa.querySelector('[data-prop="editar"]');
-  if (editar) editar.onclick = async () => {
-    editar.disabled = true;
-    caixa.insertAdjacentHTML("beforeend",
-      '<p class="nota">trazendo o documento para o editor…</p>');
-    const r = await fetch("/api/documentos/importar", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome: (d.campos || {}).nome }),
-    });
-    if (!r.ok) {
-      editar.disabled = false;
-      caixa.insertAdjacentHTML("beforeend",
-        '<p class="explica">' + esc(await erroDe(r)) + "</p>");
-      return;
-    }
-    const novo = await r.json();
-    caixa.innerHTML = '<div class="proposta-topo"><span class="rotulo">feito</span>' +
-      "<b>“" + esc(novo.titulo) + "” aberto para editar</b></div>" +
-      '<p class="explica">Cópia editável de ' + esc(novo.de) +
-      ", com " + plural(novo.paragrafos, "parágrafo") + ". O original continua onde estava.</p>";
-    marcarDestino("editor");
-    mostrarDupla(novo.id);
+  if (nao) nao.onclick = () => {
+    caixa.innerHTML = '<p class="explica">' + (d.tipo === "exibir"
+      ? "Tudo bem — se quiser ver depois, é só pedir: “mostre o documento”."
+      : "Tudo bem — não anotei nada.") + "</p>";
   };
 
-  nao.onclick = () => {
-    caixa.innerHTML = '<p class="explica">Tudo bem — não anotei nada.</p>';
-  };
-
+  if (!fazer) return;
   fazer.onclick = async () => {
     const campos = Object.assign({}, d.campos);
     caixa.querySelectorAll("[data-pc]").forEach((el) => {
