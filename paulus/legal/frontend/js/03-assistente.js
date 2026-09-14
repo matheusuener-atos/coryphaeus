@@ -687,14 +687,6 @@ async function carregarStatus() {
     $("conversa-meta").textContent = s.contratos
       ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos"
       : "nenhum documento aberto";
-    const rodape = $("rodape-garantia");
-    if (!s.ollama) {
-      $("privacidade").textContent = "o assistente está desligado — abra o Ollama e tente de novo";
-      rodape.classList.add("alerta");
-    } else {
-      $("privacidade").textContent = "nenhuma requisição à internet";
-      rodape.classList.remove("alerta");
-    }
     desenharAvisoDoMotor(s);
     desenharEscopo();
     if ($("conversa-col").classList.contains("vazia")) desenharRecentes();

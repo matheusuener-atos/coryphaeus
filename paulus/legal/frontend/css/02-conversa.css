@@ -3,13 +3,8 @@
   /* A BARRA DE TITULO. A janela nao tem moldura, e esta linha e o que fica
      no lugar dela, em toda tela: 32 px, a altura dos botoes da janela, para
      que o que estiver nela caia na mesma linha do meio que eles. E o que se
-     agarra para arrastar a janela, e e onde o programa avisa - a faixa - e,
-     no inicio, onde fica a hora. A direita ela recua o que os tres botoes
-     ocupam, para nada passar por baixo deles.
-
-     Antes ela so existia no inicio. Nas outras telas o aviso teria de abrir
-     uma linha nova e empurrar a tela inteira para baixo a cada "copiado" -
-     com a linha sempre ali, avisar nunca mexe no conteudo. */
+     agarra para arrastar a janela e, no inicio, onde fica a hora. A direita
+     ela recua o que os tres botoes ocupam, para nada passar por baixo deles. */
   .barra-titulo {
     flex: none; display: flex; align-items: center; gap: 16px;
     height: 32px; padding: 0 44px 0 20px;
@@ -19,35 +14,38 @@
   #relogio { flex: none; margin-left: auto; }
   .conversa-col:not(.vazia) #relogio { display: none; }
 
-  /* O aviso: icone e frase em tinta secundaria, sem caixa nem borda. Ele
-     desce 3 px enquanto aparece e sobe enquanto some - o bastante para o olho
-     notar que chegou algo, pouco para parecer que a barra se mexeu. */
+  /* OS AVISOS, EMBAIXO. Uma faixa na largura inteira da janela, em tinta
+     (branca no escuro, quase preta no claro) com a letra na cor do fundo -
+     a cor de destaque do programa, a mesma do botao escolhido. Ela nao flutua
+     por cima de nada: e uma linha do proprio corpo da pagina que cresce de 0
+     a 36 px, e a tela sobe junto, suave, para dar lugar. Assim a caixa de
+     pedido encostada embaixo nunca fica escondida atras de um "copiado".
+
+     O conteudo chega 6 px de baixo enquanto a faixa abre, e sai antes dela
+     fechar. A faixa fica acima da primeira abertura e do veu dos dialogos. */
   .faixa-janela {
-    position: relative; flex: 1; min-width: 0; height: 100%;
-    display: flex; align-items: center; gap: 8px;
-    font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap;
-    opacity: 0; transform: translateY(-3px); visibility: hidden; pointer-events: none;
-    transition: opacity .26s cubic-bezier(.4,0,.2,1), transform .26s cubic-bezier(.4,0,.2,1), visibility 0s linear .26s;
+    flex: none; position: relative; z-index: 90; height: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 24px;
+    background: var(--destaque); color: var(--bg);
+    font: 500 12.5px var(--sans); white-space: nowrap;
+    transition: height .3s cubic-bezier(.55,0,.45,1);
   }
-  .faixa-janela.visivel {
-    opacity: 1; transform: none; visibility: visible; pointer-events: auto;
-    transition: opacity .38s cubic-bezier(.16,1,.3,1), transform .38s cubic-bezier(.16,1,.3,1), visibility 0s;
+  .faixa-janela.visivel { height: 36px; transition: height .46s cubic-bezier(.16,1,.3,1); }
+  .faixa-janela > * {
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .16s ease, transform .16s ease;
   }
-  /* A primeira abertura cobre a casca inteira, e um dialogo cobre a tela com
-     um veu: nos dois casos a faixa continua na linha do alto, por cima. */
-  body:has(#boas-vindas:not([hidden])) .faixa-janela {
-    position: fixed; top: 0; left: 0; right: 138px; height: 32px; padding-left: 20px; z-index: 55;
+  .faixa-janela.visivel > * {
+    opacity: 1; transform: none;
+    transition: opacity .36s cubic-bezier(.16,1,.3,1) .08s, transform .44s cubic-bezier(.16,1,.3,1) .08s;
   }
-  body:has(.veu-dialogo) .faixa-janela { z-index: 85; }
-  .faixa-janela > .ic { color: var(--ink3); }
   .faixa-janela.girando > .ic { animation: pv-spin 1.1s linear infinite; }
-  .faixa-janela.erro > .ic { color: var(--acc); }
   .faixa-janela > .faixa-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .faixa-janela > button {
     flex: none; height: auto; padding: 0; border: none; border-radius: 0; background: none;
-    font: 500 12.5px var(--sans); color: var(--ink2); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+    font: 600 12.5px var(--sans); color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
   }
-  .faixa-janela > button:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .faixa-janela > button:hover:not(:disabled) { color: inherit; background: none; border: none; opacity: .75; }
 
   /* O cabecalho da conversa nao tem borda embaixo: a separacao vem da
      vinheta do fio, que apaga o texto ao entrar na rolagem. Uma linha aqui
@@ -55,7 +53,7 @@
      e curto porque a barra de titulo ja da o respiro de cima. */
   .conversa-topo {
     flex: none; display: flex; align-items: center; gap: 12px; min-height: 44px;
-    padding: 0 26px 10px;
+    padding: var(--margem-topo) var(--margem-pagina) 14px;
   }
   .conversa-nome { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.15; }
   .conversa-topo h2 { font: 400 23px var(--serif); letter-spacing: -.005em; }
@@ -70,13 +68,19 @@
 
   /* O corpo e o rodape usam a MESMA grade. E o que garante que a coluna da
      direita nunca chegue por baixo da barra de pedido. */
+  /* Cabecalho, corpo e rodape ocupam a coluna inteira, e a margem editorial
+     e o recuo deles (`--margem-pagina`), nao um teto de largura: assim o
+     que rola continua rolando com o ponteiro em qualquer ponto da janela, e
+     as tres faixas ficam alinhadas na mesma medida. */
   .conversa-corpo {
+    padding-inline: var(--margem-pagina);
     flex: 1; min-height: 0; display: grid;
     grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
     transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
   }
   .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr) 316px; }
   .conversa-rodape {
+    padding-inline: var(--margem-pagina);
     flex: none; display: grid; grid-template-columns: minmax(0, 1fr);
     transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
   }
@@ -84,10 +88,10 @@
   /* No inicio nao ha fio: quem ocupa a altura e o rodape, que ali e a tela
      inteira - saudacao, caixa de pedido e lista. */
   .conversa-col.vazia .conversa-corpo { flex: none; }
-  .conversa-col.vazia .conversa-rodape { flex: 1 1 auto; min-height: 0; }
+  .conversa-col.vazia .conversa-rodape { flex: 1 1 auto; min-height: 0; padding-inline: 0; }
   .conversa-principal { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
 
-  .fluxo { flex: 1; overflow-y: auto; padding: 22px 26px 8px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .fluxo { flex: 1; overflow-y: auto; padding: 22px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .fluxo.arrastando { outline: 2px dashed var(--ink-a3); outline-offset: -8px; }
   /* As duas vinhetas: o texto some ao entrar e ao sair da rolagem, em vez de
      ser cortado por uma borda. */
@@ -153,7 +157,7 @@
      ao lado do texto - e aqui e uma ficha. */
   .lateral {
     min-width: 0; min-height: 0; overflow: auto; position: relative; z-index: 1;
-    margin: 14px 16px 16px 0; padding: 22px;
+    margin: 14px 0 16px 20px; padding: 22px;
     background: var(--surf); border: 1px solid var(--hair); border-radius: 14px;
     box-shadow: var(--elev-cartao);
     display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; grid-auto-rows: min-content;

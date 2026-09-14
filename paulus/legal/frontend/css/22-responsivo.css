@@ -29,7 +29,7 @@
      parado, parecendo travado. Quem quer tela parada liga em Configuracoes >
      Aparencia.
 
-     O indicador de trabalho e a faixa "lendo..." giram mesmo assim: parados,
+     O indicador de trabalho e o aviso "lendo..." giram mesmo assim: parados,
      eles nao dizem que ha trabalho acontecendo. */
   html.sem-animacao *, html.sem-animacao *::before, html.sem-animacao *::after {
     animation-duration: 1ms !important;

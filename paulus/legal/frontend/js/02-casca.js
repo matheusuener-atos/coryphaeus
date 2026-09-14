@@ -64,9 +64,9 @@ function marcarTamanhoDaJanela(maximizada) {
 
 /* ------------------------------------------------------------ os avisos */
 /*
-   TODO aviso do programa sai na barra de titulo: icone pequeno, frase em
-   tinta secundaria e, quando ha o que fazer, um link sublinhado. `avisoCert`
-   (16-dialogos.js), que as telas chamam, desagua aqui.
+   TODO aviso do programa sai na faixa de baixo, na largura inteira da
+   janela: icone, frase e, quando ha o que fazer, um link sublinhado.
+   `avisoCert` (16-dialogos.js), que as telas chamam, desagua aqui.
 
    Ha dois tipos. O passageiro (`avisoNaJanela`) diz o que acabou de
    acontecer e some sozinho. O fixo (`avisoFixoNaJanela`) diz um estado que
@@ -88,9 +88,9 @@ function animacoesLigadas() {
 function pintarFaixa(texto, o) {
   const faixa = $("faixa-janela");
   const jaVisivel = faixa.classList.contains("visivel");
-  faixa.className = "faixa-janela pywebview-drag-region visivel" + (o.girar ? " girando" : "") + (o.tom === "erro" ? " erro" : "");
+  faixa.className = "faixa-janela visivel" + (o.girar ? " girando" : "");
   faixa.innerHTML = ic(o.icone || (o.tom === "erro" ? "error" : "info"), 16) +
-    '<span class="faixa-texto pywebview-drag-region"></span>' +
+    '<span class="faixa-texto"></span>' +
     (o.acao ? '<button type="button"></button>' : "");
   faixa.querySelector(".faixa-texto").textContent = texto;
   faixa.title = texto;
@@ -102,9 +102,9 @@ function pintarFaixa(texto, o) {
   /* Um aviso por cima de outro que ainda esta a vista: a transicao de
      aparecer nao roda (ja esta visivel), e a troca seria seca. */
   if (jaVisivel && animacoesLigadas()) {
-    faixa.animate(
-      [{ opacity: 0.2, transform: "translateY(-3px)" }, { opacity: 1, transform: "none" }],
-      { duration: 320, easing: "cubic-bezier(.16,1,.3,1)" });
+    Array.from(faixa.children).forEach((filho) => filho.animate(
+      [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+      { duration: 360, easing: "cubic-bezier(.16,1,.3,1)" }));
   }
 }
 

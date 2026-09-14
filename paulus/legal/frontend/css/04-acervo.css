@@ -61,14 +61,16 @@
   }
   .acervo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
   .acervo.sem-painel { grid-template-columns: minmax(0, 1fr); }
-  .acervo-principal { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 0 16px 20px; }
-  .acervo.sem-painel .acervo-principal { padding-right: 20px; }
+  .acervo-principal { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 0; }
+  /* Na pagina editorial o painel nao encosta mais na borda da janela: ele
+     fica dentro da medida, e por isso vira cartao - fio, raio e a sombra de
+     todo cartao do desenho -, como a ficha ao lado da conversa. */
   .acervo-painel {
-    position: relative; min-height: 0; margin-left: 20px; z-index: 1;
-    border-left: 1px solid var(--ink-a1); box-shadow: -6px 0 24px -12px var(--sh-a12);
+    position: relative; min-height: 0; margin: 16px 0 16px 20px; z-index: 1;
+    border: 1px solid var(--hair); border-radius: 14px; box-shadow: var(--elev-cartao);
     background: var(--surf); display: flex; flex-direction: column;
   }
-  .acervo-painel .rolagem { flex: 1; min-height: 0; overflow: auto; }
+  .acervo-painel .rolagem { flex: 1; min-height: 0; overflow: auto; border-radius: inherit; }
   .alca-painel {
     position: absolute; left: -13px; top: 50%; transform: translateY(-50%); z-index: 3;
     width: 24px; height: 44px; padding: 0; border-radius: 12px;

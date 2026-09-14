@@ -18,6 +18,16 @@
        carregam a MESMA largura, e a barra de pedido e mais estreita que os
        dois. Sao tres numeros do desenho, nao tres decisoes por tela. */
     --fio: 1080px;
+    /* A PAGINA EDITORIAL. Toda tela tem a coluna no meio, com respiro dos
+       lados e em cima, como o inicio. O inicio le a 1080 px (`--fio`); as
+       telas de ferramenta - arvore, tabela e painel lado a lado - a 1280, que
+       e o minimo em que a coluna do nome no Acervo nao some. `--margem-lado`
+       e o respiro minimo; em janela larga quem manda e a sobra, dividida igual
+       dos dois lados. */
+    --pagina: 1280px;
+    --margem-lado: 44px;
+    --margem-topo: 40px;
+    --margem-pagina: max(var(--margem-lado), calc((100% - var(--pagina)) / 2));
     --barra: 760px;
 
     --bg: #faf9f6;

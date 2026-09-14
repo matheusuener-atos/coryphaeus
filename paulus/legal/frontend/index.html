@@ -156,7 +156,6 @@
     <!-- A barra de titulo: a linha dos botoes da janela, em toda tela. E nela
          que o programa avisa (a faixa) e, no inicio, que mostra a hora. -->
     <div class="barra-titulo pywebview-drag-region" id="barra-titulo">
-      <div class="faixa-janela pywebview-drag-region" id="faixa-janela" role="status" aria-live="polite"></div>
       <span id="relogio"></span>
     </div>
 
@@ -255,10 +254,14 @@
         </div>
     </div>
 
-    <div class="rodape-garantia" id="rodape-garantia"><span id="privacidade">nenhuma requisição à internet</span></div>
   </section>
 
 </div>
+
+<!-- Os avisos do programa: uma faixa na largura inteira da janela, embaixo
+     de tudo. Ela abre empurrando a tela para cima e fecha devolvendo o
+     espaco - nunca cobre o que estiver no rodape. -->
+<div class="faixa-janela" id="faixa-janela" role="status" aria-live="polite"></div>
 
 <!-- A primeira abertura: cobre o programa inteiro ate a pessoa terminar. -->
 <div class="boas-vindas" id="boas-vindas" hidden></div>
