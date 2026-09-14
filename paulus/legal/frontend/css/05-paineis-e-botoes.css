@@ -291,6 +291,8 @@
   .enviar.parar:hover:not(:disabled) { opacity: .85; }
   .enviar.parar .ic { font-variation-settings: 'FILL' 1; }
   .enviar.parar:disabled { opacity: .5; }
+  /* Esperando: outra conversa esta respondendo - o enviar fica esmaecido. */
+  .enviar.esperando:disabled { opacity: .35; cursor: default; }
 
   /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
      em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */

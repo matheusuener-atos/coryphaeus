@@ -6,6 +6,7 @@
 
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
+  deixarDitadoPendente();
   transicaoDeTela("tela:" + nome);
   estado.trabalhoId = null;
   estado.trabalho = null;

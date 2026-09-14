@@ -154,6 +154,10 @@ function atualizarPostura() {
   /* A primeira pergunta tira a tela do inicio sem trocar de tela; voltar ao
      inicio depois disso e uma troca, e tem de animar. */
   if (temConversa && troca.tela === "inicio") troca.tela = "inicio:conversa";
+  atualizarBotaoEnviar();
+  // O cartao do ditado mora em "Acontecendo agora" no inicio e em cima da
+  // caixa de pedido numa conversa: trocar de postura o leva junto.
+  if (ditado.estado) setTimeout(desenharCartaoDoDitado, 0);
   $("pedido").placeholder = temConversa
     ? "Pergunte outra coisa ou aponte outra pasta…"
     : "Peça o que precisa dos seus documentos…";

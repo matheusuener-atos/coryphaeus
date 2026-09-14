@@ -1007,8 +1007,8 @@ def main() -> int:
             pagina.evaluate("() => { window.__p = perguntar({ titulo: 'Renomear', contexto: 'Teste de tela', campo: { rotulo: 'Nome', valor: 'antigo', sufixo: '.pdf' }, confirmar: 'Renomear' }); }")
             pagina.wait_for_selector("#dialogo-campo", timeout=5000)
             checar(
-                pagina.evaluate("() => document.activeElement === document.getElementById('dialogo-campo') && !!document.querySelector('.dialogo-teclas')"),
-                "o dialogo com campo abre com o foco no campo e a dica de teclas",
+                pagina.evaluate("() => document.activeElement === document.getElementById('dialogo-campo') && !document.querySelector('.dialogo-teclas')"),
+                "o dialogo com campo abre com o foco no campo, sem a dica de teclas no rodape",
             )
             pagina.keyboard.type("novo nome")
             pagina.keyboard.press("Enter")

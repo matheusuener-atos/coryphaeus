@@ -16,7 +16,8 @@
    o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga.
 
    Enter confirma, Esc fecha, o foco fica preso dentro e volta para o
-   elemento de origem ao fechar. So um dialogo aberto por vez.
+   elemento de origem ao fechar. So um dialogo aberto por vez. As teclas
+   continuam valendo, mas nao sao mais escritas no rodape (pedido).
 */
 
 let dialogoAberto = null;
@@ -54,8 +55,7 @@ function dialogo(o) {
       (o.contexto ? '<span class="dialogo-contexto">' + esc(o.contexto) + "</span>" : "") + "</span>" +
       '<button type="button" class="dialogo-fechar" data-dialogo="cancelar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
       '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + "</div>" +
-      '<div class="dialogo-pe">' + (campo ? '<span class="dialogo-teclas"><kbd>Enter</kbd> confirma · <kbd>Esc</kbd> cancela</span>' : "") +
-      '<span class="cresce"></span>' +
+      '<div class="dialogo-pe"><span class="cresce"></span>' +
       '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
       '<button type="button" class="primario' + (o.perigo ? " perigo" : "") + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
     document.body.appendChild(veu);

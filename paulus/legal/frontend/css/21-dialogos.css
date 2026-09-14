@@ -1,57 +1,70 @@
   /* ------------------------------------------------------------ dialogos */
   /*
     Dialogos do sistema (docs/ui/05-interacoes-e-estados.md, mockup P -
-    Popups): veu escuro, cartao de 440px com titulo em Garamond e contexto
+    Popups): veu escuro, cartao de 440px com titulo em Manrope e contexto
     em cinza dizendo onde estou, campo com foco preto, acao primaria a
     direita e destrutiva em vinho com o efeito escrito. Enter confirma, Esc
     fecha, o foco fica preso dentro e volta para onde estava. Substituem o
     confirm() e o prompt() do navegador, que na janela do programa apareciam
     como "localhost diz".
   */
+  /* O VISUAL NOVO (14/09/2026). O titulo e na letra do texto da saudacao
+     (Manrope), e nao em Garamond: num cartao pequeno o serifado pesava e
+     brigava com o contexto logo abaixo. O veu e sombra, e nao tinta: no tema
+     escuro a tinta com transparencia CLAREAVA a tela por tras, e o dialogo
+     parecia desbotado. O rodape nao tem mais fio nem a dica das teclas. */
   .veu-dialogo {
-    position: fixed; inset: 0; z-index: 80; background: var(--ink-a3); display: flex; align-items: center; justify-content: center;
-    padding: 24px; animation: dialogo-veu .15s ease-out;
+    position: fixed; inset: 0; z-index: 80; background: var(--veu); display: flex; align-items: center; justify-content: center;
+    padding: 24px; animation: dialogo-veu .18s ease-out;
   }
   .dialogo {
     width: 440px; max-width: 100%; max-height: calc(100vh - 48px); overflow: auto; display: flex; flex-direction: column;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 14px; box-shadow: 0 30px 80px -30px var(--sh-a35);
-    animation: dialogo-entra .16s ease-out;
+    background: var(--surf); border: 1px solid var(--hair); border-radius: 16px; box-shadow: var(--elev-float), 0 30px 80px -30px var(--sh-a45);
+    animation: dialogo-entra .26s cubic-bezier(.16,1,.3,1);
   }
   .dialogo.larga { width: 520px; }
-  .dialogo-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 0; }
-  .dialogo-titulos { display: grid; gap: 3px; min-width: 0; flex: 1; }
-  .dialogo-titulos h2 { margin: 0; font: 400 21px/1.15 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
+  .dialogo-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 22px 24px 0; }
+  .dialogo-titulos { display: grid; gap: 4px; min-width: 0; flex: 1; }
+  .dialogo-titulos h2 { margin: 0; font: 600 17px/1.3 var(--sans); letter-spacing: -.005em; color: var(--ink); overflow-wrap: anywhere; }
   .dialogo-contexto { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dialogo-fechar {
-    width: 28px; height: 28px; flex: none; margin: -4px -6px 0 0; padding: 0; border: none; background: none; border-radius: 6px;
+    width: 28px; height: 28px; flex: none; margin: -4px -8px 0 0; padding: 0; border: none; background: none; border-radius: 8px;
     color: var(--ink3); display: inline-flex; align-items: center; justify-content: center;
   }
   .dialogo-fechar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .dialogo-corpo { padding: 16px 20px; display: grid; gap: 14px; }
+  .dialogo-corpo { padding: 18px 24px 20px; display: grid; gap: 14px; }
   .dialogo-corpo p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
   .dialogo-corpo p b { font-weight: 600; color: var(--ink); }
-  .dialogo-campo { display: grid; gap: 6px; }
+  .dialogo-campo { display: grid; gap: 8px; }
   .dialogo-campo label { font: 500 12px var(--sans); color: var(--ink3); }
-  .dialogo-caixa { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); }
-  .dialogo-caixa:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px var(--ink-a08); }
+  /* O campo e recuado no cartao (fundo da casca, fio discreto); com foco,
+     ganha o fio de destaque e um halo raso - nada de contorno branco cheio. */
+  .dialogo-caixa {
+    display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px;
+    border: 1px solid var(--hair); border-radius: 10px; background: var(--bg);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .dialogo-caixa:focus-within { border-color: var(--destaque-linha); box-shadow: 0 0 0 3px var(--ink-a06); }
   .dialogo-caixa .ic { color: var(--ink3); flex: none; }
-  .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; border: none; background: none; padding: 10px 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
+  .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; height: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
   .dialogo-caixa input:focus { outline: none; box-shadow: none; border: none; }
+  .dialogo-caixa input::selection { background: var(--ink-a25); color: var(--ink); }
   .dialogo-sufixo { font: 500 12.5px var(--sans); color: var(--ink3); flex: none; }
   .dialogo-dica { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .dialogo-sugestoes { display: flex; gap: 6px; flex-wrap: wrap; }
-  .dialogo-sugestoes button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
+  .dialogo-sugestoes button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink2); }
   .dialogo-sugestoes button:hover:not(:disabled) { background: var(--fill2); border: none; color: var(--ink); }
   .dialogo-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
   .dialogo-marcar input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); flex: none; }
-  .dialogo-pe { display: flex; align-items: center; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--ink-a1); }
-  .dialogo-teclas { display: flex; align-items: center; gap: 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .dialogo-teclas kbd { font: 400 10.5px var(--mono); padding: 2px 6px; border: 1px solid var(--ink-a15); border-radius: 4px; color: var(--ink3); }
-  .dialogo-pe button { padding: 8px 14px; border-radius: 6px; font-size: 13px; white-space: nowrap; }
-  .dialogo-cancelar { border: none; background: none; color: var(--ink2); font-weight: 500; }
+  .dialogo-pe { display: flex; align-items: center; gap: 8px; padding: 0 24px 22px; }
+  .dialogo-pe button { height: 36px; padding: 0 16px; border-radius: 8px; font: 500 13px var(--sans); white-space: nowrap; }
+  .dialogo-cancelar { border: none; background: none; color: var(--ink2); }
   .dialogo-cancelar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .dialogo-pe .primario.perigo { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); }
-  .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--acc); border-color: var(--acc); color: var(--sobre-acc); filter: brightness(.9); }
+  .dialogo-pe .primario { font-weight: 600; }
+  /* Destrutivo: o par vinho de fundo e texto do tema. O vinho cheio com letra
+     branca, no escuro, era rosa-claro com branco - nao se lia. */
+  .dialogo-pe .primario.perigo { background: var(--accbg); border: 1px solid var(--accln); color: var(--acc); }
+  .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
   @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
 

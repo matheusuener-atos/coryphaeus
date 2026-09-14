@@ -122,7 +122,7 @@ $("buscar").onclick = async () => {
 function desenharTrabalho() {
   const t = estado.trabalho;
   $("conversa-titulo").textContent = t.titulo;
-  modoDoEnviar(estado.ocupado || t.estado === "executando" ? "parar" : "enviar");
+  atualizarBotaoEnviar();
   entrarNaConversa();
 
   let html = "";
@@ -433,21 +433,215 @@ $("ir-ao-fim").onclick = () => {
 /*
    O microfone da caixa de pedido. Usa o modelo de voz que ja mora nesta
    maquina (o mesmo das Gravacoes): o audio vai em pedacos de 2 s para uma
-   sessao ao vivo no servidor local, e o texto entra no campo a cada pausa
-   na fala, alguns segundos depois. Nada sai do computador - foi a escolha
-   entre isto e o ditado do Windows, que em portugues manda o audio para a
-   Microsoft. Clicar de novo, ou enviar, transcreve o que sobrou e fecha.
-   A captura e a conversao do audio sao as das Gravacoes (11-gravacoes.js).
-*/
-const ditado = { ligado: false, sessao: "", fluxo: null, captura: null, amostras: [], relogio: 0, enviando: false, recebidos: 0 };
+   sessao ao vivo no servidor local, que devolve o texto a cada pausa na
+   fala. Nada sai do computador - foi a escolha entre isto e o ditado do
+   Windows, que em portugues manda o audio para a Microsoft. A captura e a
+   conversao do audio sao as das Gravacoes (11-gravacoes.js).
 
-function escreverDitado(trechos) {
-  const novos = (trechos || []).map((t) => (t.texto || "").trim()).filter(Boolean);
+   O que e ditado junta NO CARTAO DO DITADO, e so vai para o campo quando a
+   pessoa manda ("Usar no chat", clicar de novo no microfone ou enviar). O
+   cartao mostra a voz chegando num equalizador, o tempo e o texto. Estados:
+
+     ouvindo     microfone aberto
+     pausado     microfone aberto, mas nada e ouvido
+     pendente    a pessoa saiu do Assistente: o microfone fechou, o texto e
+                 a sessao ficam, e o cartao oferece continuar, usar ou
+                 descartar
+     finalizando transcrevendo o que sobrou antes de ir para o campo
+*/
+const ditado = {
+  estado: "", sessao: "", texto: "", fluxo: null, captura: null, amostras: [],
+  relogio: 0, enviando: false, recebidos: 0, inicio: 0, acumulado: 0, quadro: 0,
+};
+
+const dsAberto = () => ditado.estado === "ouvindo" || ditado.estado === "pausado";
+
+/* O tempo que o microfone ficou ouvindo, sem contar pausas nem o pendente. */
+function tempoDoDitado() {
+  const ms = ditado.acumulado + (ditado.estado === "ouvindo" ? performance.now() - ditado.inicio : 0);
+  const s = Math.floor(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+
+function marcarTempo(parando) {
+  if (ditado.estado === "ouvindo" && parando) ditado.acumulado += performance.now() - ditado.inicio;
+  if (!parando) ditado.inicio = performance.now();
+}
+
+function previaDoDitado() {
+  const t = ditado.texto.trim();
+  if (!t) return '<span class="vazio">o texto aparece aqui a cada pausa na fala</span>';
+  return esc(t.length > 240 ? "…" + t.slice(-240) : t);
+}
+
+function juntarAoDitado(trechos) {
+  const novos = (trechos || []).map((x) => (x.texto || "").trim()).filter(Boolean);
   if (!novos.length) return;
-  const campo = $("pedido");
-  campo.value = (campo.value.trim() ? campo.value.replace(/\s+$/, "") + " " : "") + novos.join(" ");
-  campo.style.height = "auto";
-  campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
+  ditado.texto = (ditado.texto.trim() ? ditado.texto.trim() + " " : "") + novos.join(" ");
+  document.querySelectorAll("[data-ditado-texto]").forEach((p) => { p.innerHTML = previaDoDitado(); });
+}
+
+/* O CARTAO DO DITADO. So o aviso la embaixo nao bastava para saber se o
+   microfone estava ouvindo. No inicio ele e o primeiro cartao de
+   "Acontecendo agora"; numa conversa, onde essa secao nao existe, fica logo
+   acima da caixa de pedido. */
+function cartaoDoDitado() {
+  const e = ditado.estado;
+  if (!e) return "";
+  const nomes = { ouvindo: "Ditando", pausado: "Ditado em pausa", pendente: "Ditado pendente", finalizando: "Transcrevendo o que sobrou…" };
+  const notas = {
+    ouvindo: "modelo de voz desta máquina · nada sai do computador",
+    pausado: "o microfone não ouve nada até continuar",
+    pendente: "o microfone fechou quando você saiu do Assistente",
+    finalizando: "o texto vai para o campo em alguns segundos",
+  };
+  const botao = (dado, icone, rotulo, classe) => '<button class="' + (classe || "fantasma") + '" ' + dado + '="1">' + ic(icone, 16) + rotulo + "</button>";
+  let acoes = "";
+  if (e === "ouvindo" || e === "pausado") {
+    acoes = botao("data-ditado-cancelar", "close", "Cancelar") +
+      botao("data-ditado-pausar", e === "pausado" ? "play_arrow" : "pause", e === "pausado" ? "Continuar" : "Pausar") +
+      botao("data-ditado-usar", "arrow_upward", "Usar no chat", "primario");
+  } else if (e === "pendente") {
+    acoes = botao("data-ditado-cancelar", "delete", "Descartar") +
+      botao("data-ditado-continuar", "mic", "Continuar gravação") +
+      botao("data-ditado-usar", "arrow_upward", "Usar no chat", "primario");
+  }
+  const classe = "cartao-agora ditado-cartao " + e;
+  return '<div class="' + classe + '">' +
+    '<div class="cabeca">' + (e === "finalizando" ? coroa(20) : ic(e === "pendente" ? "pause" : "mic", 20)) +
+    '<span class="nome">' + nomes[e] + "</span>" +
+    '<span class="ditado-tempo" data-ditado-tempo="1">' + tempoDoDitado() + "</span></div>" +
+    (dsAberto() ? '<canvas class="ditado-onda" data-ditado-onda="1"></canvas>' : "") +
+    '<p class="ditado-texto" data-ditado-texto="1">' + previaDoDitado() + "</p>" +
+    '<div class="rodape">' + notas[e] + "</div>" +
+    (acoes ? '<div class="acoes">' + acoes + "</div>" : "") + "</div>";
+}
+
+function ligarCartaoDoDitado() {
+  const ligar = (dado, fazer) => document.querySelectorAll("[" + dado + "]").forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); fazer(); }; });
+  ligar("data-ditado-cancelar", () => cancelarDitado());
+  ligar("data-ditado-pausar", () => pausarDitado(ditado.estado === "ouvindo"));
+  ligar("data-ditado-continuar", () => continuarDitado());
+  ligar("data-ditado-usar", () => usarDitadoNoChat());
+  document.querySelectorAll("[data-ditado-onda]").forEach((cv) => desenharOnda(cv, null));
+}
+
+function desenharCartaoDoDitado() {
+  const html = cartaoDoDitado();
+  const noInicio = $("conversa-col").classList.contains("vazia");
+  const lista = $("agora-cartoes");
+  lista.querySelectorAll(".ditado-cartao").forEach((c) => c.remove());
+  if (noInicio) {
+    if (html) lista.insertAdjacentHTML("afterbegin", html);
+    $("agora").hidden = !lista.children.length;
+  }
+  const rodape = $("ditado-rodape");
+  rodape.hidden = !html || noInicio;
+  rodape.querySelector(".centro").innerHTML = html && !noInicio ? html : "";
+  $("ditar").classList.toggle("ouvindo", dsAberto());
+  $("ditar").title = dsAberto() ? "Usar o ditado no chat" : (ditado.estado === "pendente" ? "Continuar o ditado" : "Ditar — o modelo de voz desta máquina escreve no campo");
+  ligarCartaoDoDitado();
+}
+
+/* O equalizador: barras finas, espelhadas a partir do centro - os graves da
+   voz no meio, os agudos nas pontas -, como uma onda. Le o analisador do
+   proprio contexto de audio da captura; em pausa, as barras deitam. */
+function desenharOnda(cv, dados) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth;
+  const h = cv.clientHeight;
+  if (!w || !h) return;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+  }
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  g.fillStyle = getComputedStyle(cv).color;
+  const barra = 3;
+  const passo = 6;
+  const n = Math.max(1, Math.floor(w / passo));
+  const sobra = (w - n * passo + (passo - barra)) / 2;
+  const util = dados ? Math.max(1, Math.floor(dados.length * 0.5)) : 1;
+  for (let i = 0; i < n; i++) {
+    const pos = n > 1 ? Math.abs(i - (n - 1) / 2) / ((n - 1) / 2) : 0;
+    const valor = dados && ditado.estado === "ouvindo" ? dados[Math.floor(pos * (util - 1))] / 255 : 0;
+    const alt = Math.max(2, valor * h * (1 - pos * 0.4));
+    g.fillRect(sobra + i * passo, (h - alt) / 2, barra, alt);
+  }
+}
+
+function animarDitado() {
+  const captura = ditado.captura;
+  if (!dsAberto() || !captura) { ditado.quadro = 0; return; }
+  const dados = new Uint8Array(captura.analisador.frequencyBinCount);
+  captura.analisador.getByteFrequencyData(dados);
+  document.querySelectorAll("[data-ditado-onda]").forEach((cv) => desenharOnda(cv, dados));
+  document.querySelectorAll("[data-ditado-tempo]").forEach((t) => { t.textContent = tempoDoDitado(); });
+  ditado.quadro = requestAnimationFrame(animarDitado);
+}
+
+async function novaSessaoDeDitado() {
+  const r = await fetch("/api/voz/ao-vivo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => null);
+  if (!r || !r.ok) {
+    avisoCert("não consegui abrir o ditado" + (r ? ": " + (await erroDe(r)) : ""), { tom: "erro" });
+    return "";
+  }
+  ditado.recebidos = 0;
+  return (await r.json()).sessao;
+}
+
+/* Abre o microfone e a captura. Falhou, nao muda o estado do ditado. */
+async function abrirCapturaDoDitado() {
+  let fluxo;
+  try {
+    fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    avisoCert("não consegui usar o microfone: " + (err && err.message ? err.message : err), { tom: "erro" });
+    return false;
+  }
+  try {
+    let ctx;
+    try { ctx = new AudioContext({ sampleRate: 16000 }); } catch (err) { ctx = new AudioContext(); }
+    const fonte = ctx.createMediaStreamSource(fluxo);
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([GV_CAPTADOR], { type: "application/javascript" })));
+    const no = new AudioWorkletNode(ctx, "paulus-captador");
+    no.port.onmessage = (e) => { if (ditado.estado === "ouvindo") ditado.amostras.push(e.data); };
+    fonte.connect(no);
+    no.connect(ctx.destination);
+    const analisador = ctx.createAnalyser();
+    analisador.fftSize = 128;
+    analisador.smoothingTimeConstant = 0.72;
+    fonte.connect(analisador);
+    ditado.fluxo = fluxo;
+    ditado.captura = { ctx: ctx, no: no, fonte: fonte, analisador: analisador };
+  } catch (err) {
+    fluxo.getTracks().forEach((t) => t.stop());
+    avisoCert("esta janela não deixou capturar o áudio (" + (err && err.message ? err.message : err) + ")", { tom: "erro" });
+    return false;
+  }
+  clearInterval(ditado.relogio);
+  ditado.relogio = setInterval(enviarPedacoDoDitado, 2000);
+  return true;
+}
+
+function fecharCapturaDoDitado() {
+  clearInterval(ditado.relogio);
+  cancelAnimationFrame(ditado.quadro);
+  if (ditado.captura) {
+    try { ditado.captura.no.disconnect(); ditado.captura.fonte.disconnect(); ditado.captura.ctx.close(); } catch (err) { /* ja fechado */ }
+    ditado.captura = null;
+  }
+  if (ditado.fluxo) { ditado.fluxo.getTracks().forEach((t) => t.stop()); ditado.fluxo = null; }
+}
+
+function ouvir() {
+  ditado.estado = "ouvindo";
+  marcarTempo(false);
+  desenharCartaoDoDitado();
+  cancelAnimationFrame(ditado.quadro);
+  ditado.quadro = requestAnimationFrame(animarDitado);
 }
 
 async function comecarDitado() {
@@ -459,120 +653,172 @@ async function comecarDitado() {
     });
     return;
   }
-  try {
-    ditado.fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (err) {
-    avisoCert("não consegui usar o microfone: " + (err && err.message ? err.message : err), { tom: "erro" });
-    return;
-  }
-  const r = await fetch("/api/voz/ao-vivo", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => null);
-  if (!r || !r.ok) {
-    ditado.fluxo.getTracks().forEach((t) => t.stop());
-    avisoCert("não consegui abrir o ditado" + (r ? ": " + (await erroDe(r)) : ""), { tom: "erro" });
-    return;
-  }
-  ditado.sessao = (await r.json()).sessao;
+  const sessao = await novaSessaoDeDitado();
+  if (!sessao) return;
+  if (!(await abrirCapturaDoDitado())) { fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {}); return; }
+  ditado.sessao = sessao;
+  ditado.texto = "";
   ditado.amostras = [];
-  ditado.recebidos = 0;
-  try {
-    let ctx;
-    try { ctx = new AudioContext({ sampleRate: 16000 }); } catch (err) { ctx = new AudioContext(); }
-    const fonte = ctx.createMediaStreamSource(ditado.fluxo);
-    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([GV_CAPTADOR], { type: "application/javascript" })));
-    const no = new AudioWorkletNode(ctx, "paulus-captador");
-    no.port.onmessage = (e) => { if (ditado.ligado) ditado.amostras.push(e.data); };
-    fonte.connect(no);
-    no.connect(ctx.destination);
-    ditado.captura = { ctx: ctx, no: no, fonte: fonte };
-  } catch (err) {
-    fecharDitado();
-    avisoCert("esta janela não deixou capturar o áudio (" + (err && err.message ? err.message : err) + ")", { tom: "erro" });
-    return;
+  ditado.acumulado = 0;
+  ouvir();
+}
+
+function pausarDitado(pausar) {
+  if (!dsAberto()) return;
+  if (pausar) {
+    marcarTempo(true);
+    ditado.estado = "pausado";
+    enviarPedacoDoDitado();   // o que foi ouvido antes da pausa vai logo
+    desenharCartaoDoDitado();
+  } else {
+    ouvir();
   }
-  ditado.ligado = true;
-  $("ditar").classList.add("ouvindo");
-  $("ditar").title = "Parar de ditar";
-  ditado.relogio = setInterval(enviarPedacoDoDitado, 2000);
-  avisoNaJanela("ouvindo… o texto entra no campo a cada pausa na fala", { icone: "mic", dura: 0 });
-  $("pedido").focus();
+}
+
+/* Voltar do pendente: o microfone abre de novo na mesma sessao. */
+async function continuarDitado() {
+  if (ditado.estado !== "pendente") return;
+  if (!(await abrirCapturaDoDitado())) return;
+  ouvir();
+}
+
+/* SAIR DO ASSISTENTE com o microfone aberto: ele fecha - ninguem quer o
+   microfone ouvindo enquanto mexe no Financeiro -, mas o que foi ditado e a
+   sessao ficam, e o cartao espera a pessoa voltar. */
+function deixarDitadoPendente() {
+  if (!dsAberto()) return;
+  marcarTempo(true);
+  fecharCapturaDoDitado();
+  ditado.estado = "pendente";
+  enviarPedacoDoDitado();
+  desenharCartaoDoDitado();
 }
 
 async function enviarPedacoDoDitado() {
   if (!ditado.sessao || ditado.enviando || !ditado.amostras.length) return;
+  const sessao = ditado.sessao;
   const partes = ditado.amostras;
   ditado.amostras = [];
-  const junto = new Float32Array(partes.reduce((s, p) => s + p.length, 0));
+  const junto = new Float32Array(partes.reduce((n, p) => n + p.length, 0));
   let i = 0;
   partes.forEach((p) => { junto.set(p, i); i += p.length; });
   const taxa = ditado.captura ? ditado.captura.ctx.sampleRate : 16000;
   ditado.enviando = true;
   try {
-    const r = await fetch("/api/voz/ao-vivo/" + ditado.sessao + "/audio", {
+    const r = await fetch("/api/voz/ao-vivo/" + sessao + "/audio", {
       method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: pcm16De(reamostrarGv(junto, taxa, 16000)),
     });
-    if (!r.ok) { avisoCert("o ditado parou: " + (await erroDe(r)), { tom: "erro" }); fecharDitado(); return; }
+    if (ditado.sessao !== sessao) return;   // descartado enquanto transcrevia
+    if (r.status === 404) {
+      // O servidor descarta sessao parada ha 15 min (pendente esquecido):
+      // abre outra e o pedaco tenta de novo. O texto do cartao nao se perde.
+      ditado.sessao = await novaSessaoDeDitado();
+      ditado.amostras = partes.concat(ditado.amostras);
+      return;
+    }
+    if (!r.ok) { avisoCert("o ditado parou: " + (await erroDe(r)), { tom: "erro" }); deixarDitadoPendente(); return; }
     const d = await r.json();
     if (d.trechos && d.trechos.length) {
       ditado.recebidos += d.trechos.length;
-      escreverDitado(d.trechos);
+      juntarAoDitado(d.trechos);
     }
   } catch (err) {
-    ditado.amostras = partes.concat(ditado.amostras);
+    if (ditado.sessao === sessao) ditado.amostras = partes.concat(ditado.amostras);
   } finally {
     ditado.enviando = false;
   }
 }
 
-function fecharDitado() {
-  clearInterval(ditado.relogio);
-  ditado.ligado = false;
-  if (ditado.captura) {
-    try { ditado.captura.no.disconnect(); ditado.captura.fonte.disconnect(); ditado.captura.ctx.close(); } catch (err) { /* ja fechado */ }
-    ditado.captura = null;
-  }
-  if (ditado.fluxo) { ditado.fluxo.getTracks().forEach((t) => t.stop()); ditado.fluxo = null; }
-  $("ditar").classList.remove("ouvindo");
-  $("ditar").title = "Ditar — o modelo de voz desta máquina escreve no campo";
+function zerarDitado() {
+  ditado.estado = "";
+  ditado.sessao = "";
+  ditado.texto = "";
+  ditado.amostras = [];
+  ditado.acumulado = 0;
+  desenharCartaoDoDitado();
 }
 
-/* Parar: o que ficou sem pausa ainda e transcrito, e a sessao e descartada -
-   a fila de transcricao das Gravacoes espera enquanto ha sessao aberta. */
-async function pararDitado() {
-  if (!ditado.ligado && !ditado.sessao) return;
+/* Cancelar (ou Descartar, no pendente): o microfone fecha, a sessao e
+   descartada sem transcrever o resto, e o texto ditado vai embora. O campo
+   nao muda - o ditado nunca chegou nele. */
+function cancelarDitado() {
+  if (!ditado.estado) return;
   const sessao = ditado.sessao;
-  fecharDitado();
-  avisoNaJanela("transcrevendo o que sobrou…", { icone: "sync", girar: true, dura: 0 });
-  while (ditado.enviando) await new Promise((fim) => setTimeout(fim, 100));
-  if (ditado.amostras.length) await enviarPedacoDoDitado();
-  try {
-    const r = await fetch("/api/voz/ao-vivo/" + sessao + "/fim", { method: "POST" });
-    if (r.ok) escreverDitado(((await r.json()).trechos || []).slice(ditado.recebidos));
-  } catch (err) { /* o que ja entrou no campo fica */ }
-  fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
-  ditado.sessao = "";
-  fecharAvisoNaJanela();
+  fecharCapturaDoDitado();
+  if (sessao) fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
+  zerarDitado();
   $("pedido").focus();
 }
 
-$("ditar").onclick = () => (ditado.ligado ? pararDitado() : comecarDitado());
+/* Usar no chat: o que ficou sem pausa ainda e transcrito, o texto todo entra
+   no campo (depois do que ja estava escrito) e a sessao e descartada - a
+   fila de transcricao das Gravacoes espera enquanto ha sessao aberta. */
+async function usarDitadoNoChat() {
+  if (!ditado.estado || ditado.estado === "finalizando") return;
+  if (dsAberto()) marcarTempo(true);
+  fecharCapturaDoDitado();
+  ditado.estado = "finalizando";
+  desenharCartaoDoDitado();
+  while (ditado.enviando) await new Promise((fimEspera) => setTimeout(fimEspera, 100));
+  if (ditado.amostras.length) await enviarPedacoDoDitado();
+  const sessao = ditado.sessao;
+  if (sessao) {
+    try {
+      const r = await fetch("/api/voz/ao-vivo/" + sessao + "/fim", { method: "POST" });
+      if (r.ok) juntarAoDitado(((await r.json()).trechos || []).slice(ditado.recebidos));
+    } catch (err) { /* o que ja foi transcrito continua valendo */ }
+    fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
+  }
+  const texto = ditado.texto.trim();
+  if (texto) {
+    const campo = $("pedido");
+    campo.value = (campo.value.trim() ? campo.value.replace(/\s+$/, "") + " " : "") + texto;
+    campo.style.height = "auto";
+    campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
+  } else {
+    avisoCert("não ouvi nada para escrever");
+  }
+  zerarDitado();
+  $("pedido").focus();
+}
+
+$("ditar").onclick = () => {
+  if (dsAberto()) return usarDitadoNoChat();
+  if (ditado.estado === "pendente") return continuarDitado();
+  if (!ditado.estado) return comecarDitado();
+};
+
+/* Fechar a janela com uma sessao aberta: ela e descartada, para a fila de
+   transcricao nao ficar esperando por ninguem. */
+window.addEventListener("pagehide", () => {
+  if (ditado.sessao) navigator.sendBeacon && fetch("/api/voz/ao-vivo/" + ditado.sessao, { method: "DELETE", keepalive: true }).catch(() => {});
+});
 
 /* ------------------------------------------------------------ enviar */
 
-/* O botao da caixa de pedido tem tres rostos. ENVIAR e o de sempre. PARAR
-   aparece enquanto uma resposta esta sendo escrita - por esta pagina ou por
-   uma sessao que ja nao existe e deixou a conversa "trabalhando". PARANDO e o
-   instante entre o clique e o servidor confirmar: o botao fica apagado para
-   ninguem clicar duas vezes. */
+/* O botao da caixa de pedido tem quatro rostos. ENVIAR e o de sempre. PARAR
+   aparece na conversa cuja resposta esta sendo escrita - por esta pagina ou
+   por uma sessao que ja nao existe e a deixou "trabalhando". PARANDO e o
+   instante entre o clique e o servidor confirmar. ESPERANDO e fora dessa
+   conversa (no inicio, em outra): uma resposta anda por vez, entao o enviar
+   fica esmaecido, e interromper e pelo icone do cartao em "Acontecendo
+   agora" - antes o botao virava parar ali tambem, e nao parava nada. */
 const ENVIAR_ORIGINAL = $("enviar").innerHTML;
 
 function modoDoEnviar(modo) {
   const botao = $("enviar");
   const parar = modo === "parar" || modo === "parando";
   botao.classList.toggle("parar", parar);
-  botao.disabled = modo === "parando";
-  botao.title = parar ? "Parar a resposta" : "Enviar";
+  botao.classList.toggle("esperando", modo === "esperando");
+  botao.disabled = modo === "parando" || modo === "esperando";
+  botao.title = parar ? "Parar a resposta" : (modo === "esperando" ? "Uma resposta está sendo escrita — interrompa pelo cartão em Acontecendo agora" : "Enviar");
   botao.setAttribute("aria-label", botao.title);
   botao.innerHTML = parar ? ic("stop", 18) : ENVIAR_ORIGINAL;
+}
+
+function atualizarBotaoEnviar() {
+  if (estado.ocupado) modoDoEnviar(estado.trabalhoId && estado.trabalhoId === estado.respondendoId ? "parar" : "esperando");
+  else modoDoEnviar(estado.trabalho && estado.trabalho.estado === "executando" ? "parar" : "enviar");
 }
 
 /* Conversa aberta "trabalhando" sem resposta andando nesta pagina: a janela
@@ -608,8 +854,8 @@ async function pararResposta() {
 
 async function enviar() {
   if (estado.ocupado) return;
-  // Enviar com o ditado ligado: primeiro entra o que ainda estava sendo dito.
-  if (ditado.ligado) await pararDitado();
+  // Enviar com ditado aberto ou pendente: primeiro o texto ditado entra no campo.
+  if (ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
   const pedido = $("pedido").value.trim();
   if (!pedido) return;
 
@@ -627,6 +873,7 @@ async function enviar() {
 
   entrarNaConversa();
   estado.ocupado = true;
+  estado.respondendoId = estado.trabalhoId;
   estado.controle = new AbortController();
   modoDoEnviar("parar");
   $("pedido").value = "";
@@ -794,8 +1041,9 @@ async function enviar() {
     fecharBastidor();
     clearInterval(relogio);
     estado.ocupado = false;
+    estado.respondendoId = null;
     estado.controle = null;
-    modoDoEnviar("enviar");
+    atualizarBotaoEnviar();
     atualizarSelo(false);
     carregarTrabalhos();
     if (estado.trabalhoId) {
@@ -945,7 +1193,10 @@ function andarNaMencao(passo) {
   });
 }
 
-$("enviar").onclick = () => ((estado.ocupado || respondendoFora()) ? pararResposta() : enviar());
+$("enviar").onclick = () => {
+  const aqui = estado.ocupado && estado.trabalhoId && estado.trabalhoId === estado.respondendoId;
+  return (aqui || respondendoFora()) ? pararResposta() : enviar();
+};
 $("pedido").addEventListener("keydown", (e) => {
   if (mencao.aberta) {
     if (e.key === "ArrowDown") { e.preventDefault(); andarNaMencao(1); return; }
@@ -1187,7 +1438,8 @@ async function carregarAgora() {
       : (t.progresso ? t.progresso + "%" : "começando");
     cartoes.push(
       '<div class="cartao-agora" data-abre="' + esc(t.id) + '"><div class="cabeca">' + coroa(20) +
-      '<span class="nome corta">' + esc(t.titulo) + "</span></div>" +
+      '<span class="nome corta">' + esc(t.titulo) + "</span>" +
+      '<button class="agora-parar" data-parar-trabalho="' + esc(t.id) + '" title="Interromper" aria-label="Interromper">' + ic("stop", 18) + "</button></div>" +
       '<div class="barra-fina"><i style="width:' + (t.progresso || 4) + '%"></i></div>' +
       '<div class="rodape">' + esc(t.etapa || "trabalhando") + " · " + esc(quanto) + "</div></div>"
     );
@@ -1224,14 +1476,27 @@ async function carregarAgora() {
   sub.textContent = situacao ? base + " " + situacao : base;
 
   const espera = vinculoPendente() ? [cartaoDeEsperaDoVinculo()] : [];
-  $("agora").hidden = cartoes.length + espera.length === 0;
-  $("agora-cartoes").innerHTML = espera.concat(cartoes).join("");
+  const ditando = cartaoDoDitado();
+  $("agora").hidden = cartoes.length + espera.length === 0 && !ditando;
+  $("agora-cartoes").innerHTML = ditando + espera.concat(cartoes).join("");
+  ligarCartaoDoDitado();
   ligarEsperaDoVinculo();
   $("agora-cartoes").querySelectorAll("[data-abre]").forEach((el) => {
     el.onclick = (e) => {
       e.stopPropagation();
       if (el.dataset.abre === "biblioteca") { marcarDestino("biblioteca"); mostrarBiblioteca(); }
       else abrirTrabalho(el.dataset.abre);
+    };
+  });
+  /* Interromper daqui: vale para qualquer resposta andando, inclusive a que
+     esta pagina esta lendo - que entao termina sozinha com "parada". */
+  $("agora-cartoes").querySelectorAll("[data-parar-trabalho]").forEach((el) => {
+    el.onclick = async (e) => {
+      e.stopPropagation();
+      el.disabled = true;
+      try { await fetch("/api/trabalhos/" + el.dataset.pararTrabalho + "/parar", { method: "POST" }); } catch (err) { /* a lista se refaz */ }
+      avisoCert("resposta interrompida", { tom: "ok" });
+      setTimeout(carregarAgora, 600);
     };
   });
   $("agora-cartoes").querySelectorAll("[data-fila]").forEach((el) => {

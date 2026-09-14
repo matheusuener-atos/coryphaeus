@@ -85,6 +85,8 @@
     --sh-a12: rgba(28,28,26,.12);
     --sh-a35: rgba(28,28,26,.35);
     --sh-a45: rgba(28,28,26,.45);
+    /* O veu atras dos dialogos: escurece a tela sem apagar o que esta atras. */
+    --veu: rgba(28,28,26,.32);
     --sh-a5: rgba(28,28,26,.5);
     --sh-a6: rgba(28,28,26,.6);
     --elev-card: 0 8px 24px -16px var(--sh-a12);
@@ -224,6 +226,7 @@
     --sh-a12: rgba(0,0,0,.45);
     --sh-a35: rgba(0,0,0,.77);
     --sh-a45: rgba(0,0,0,.99);
+    --veu: rgba(0,0,0,.55);
     --sh-a5: rgba(0,0,0,1);
     --sh-a6: rgba(0,0,0,1);
 
