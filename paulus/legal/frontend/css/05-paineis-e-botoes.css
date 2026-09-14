@@ -176,8 +176,10 @@
   /* A caixa de pedido: a peca mais usada do produto. Ela usa o modelo de
      cartao do desenho - superficie, fio de 1 px, 14 px de raio, 22 px de
      recuo e a sombra longa que assenta em vez de elevar. */
+  /* Acima do degrade do pe da conversa: quando a caixa desliza do inicio
+     para o pe, ela passa por baixo dele e escurecia pela metade. */
   .cartao-campo {
-    position: relative; border: 1px solid var(--hair); border-radius: 14px; background: var(--surf);
+    position: relative; z-index: 4; border: 1px solid var(--hair); border-radius: 14px; background: var(--surf);
     box-shadow: var(--elev-cartao); padding: 22px;
     display: grid; gap: 16px; transition: border-color .18s;
   }

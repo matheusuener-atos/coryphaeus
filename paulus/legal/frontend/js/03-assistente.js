@@ -84,9 +84,11 @@ $("buscar").onclick = async () => {
   $("pedido").style.height = "auto";
 
   const centro = $("centro");
+  const caixaNoInicio = medirInicio();
   if (!estado.trabalhoId) centro.innerHTML = "";
   centro.insertAdjacentHTML("beforeend", bolhaPessoa(termo));
   atualizarPostura();
+  animarInicioParaConversa(caixaNoInicio);
 
   const bloco = document.createElement("div");
   bloco.className = "resposta";
@@ -888,6 +890,7 @@ async function enviar() {
     $("centro").innerHTML = "";
   }
 
+  const caixaNoInicio = medirInicio();
   entrarNaConversa();
   estado.ocupado = true;
   estado.respondendoId = estado.trabalhoId;
@@ -900,6 +903,7 @@ async function enviar() {
   const centro = $("centro");
   centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
   atualizarPostura();
+  animarInicioParaConversa(caixaNoInicio);
 
   const plano = document.createElement("div");
   // "Entender o pedido" vem primeiro porque e o que acontece primeiro: nem

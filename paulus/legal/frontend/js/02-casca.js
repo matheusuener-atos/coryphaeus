@@ -234,6 +234,40 @@ function transicaoDeTela(chave) {
   });
 }
 
+/* DO INICIO PARA A CONVERSA. A primeira pergunta nao troca de tela - a
+   mesma tela muda de postura: a saudacao some, a caixa de pedido desce para
+   o pe e vira uma linha, o cabecalho e a conversa aparecem. Sem animacao era
+   um salto. Agora a caixa DESLIZA de onde estava ate onde ficou (mede-se a
+   posicao antes e depois e anima-se a diferenca, que e o jeito de animar
+   uma mudanca de layout sem refazer o layout a cada quadro), o cabecalho
+   desce aparecendo e a conversa sobe aparecendo, um pouco depois.
+   `medirInicio()` antes de mudar a postura; `animarInicioParaConversa()`
+   logo depois. */
+function medirInicio() {
+  return $("conversa-col").classList.contains("vazia") ? $("cartao-campo").getBoundingClientRect() : null;
+}
+
+function animarInicioParaConversa(antes) {
+  if (!antes || $("conversa-col").classList.contains("vazia")) return;
+  // A troca de postura ja e esta animacao: o esmaecer do conteudo nao repete.
+  troca.tela = "inicio:conversa";
+  troca.conteudo = false;
+  if (!animacoesLigadas()) return;
+  const caixa = $("cartao-campo");
+  const depois = caixa.getBoundingClientRect();
+  const dx = (antes.left + antes.width / 2) - (depois.left + depois.width / 2);
+  const dy = (antes.top + antes.height / 2) - (depois.top + depois.height / 2);
+  caixa.animate(
+    [{ transform: "translate(" + dx + "px, " + dy + "px)", opacity: 0.7 }, { transform: "none", opacity: 1 }],
+    { duration: 620, easing: CURVA_ENTRA });
+  $("conversa-topo").animate(
+    [{ opacity: 0, transform: "translateY(-8px)" }, { opacity: 1, transform: "none" }],
+    { duration: 460, delay: 140, easing: CURVA_ENTRA, fill: "backwards" });
+  $("centro").animate(
+    [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "none" }],
+    { duration: 520, delay: 200, easing: CURVA_ENTRA, fill: "backwards" });
+}
+
 new MutationObserver(() => {
   if (!troca.conteudo) return;
   const passou = performance.now() - troca.quando;
