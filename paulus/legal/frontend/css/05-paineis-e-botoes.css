@@ -154,7 +154,7 @@
 
   /* -------------------------------------------------------- registro */
   /* Uma linha so, aberta sob demanda: o que o programa acabou de fazer. */
-  .registro { flex: none; padding: 0 32px; }
+  .registro { flex: none; padding: 0; }
   .registro > .centro { max-width: 760px; margin: 0 auto; gap: 0; }
   .registro-cabeca {
     display: flex; align-items: center; gap: 10px; width: 100%;

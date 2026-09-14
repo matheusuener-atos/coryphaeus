@@ -836,7 +836,7 @@ function contexto() {
    quer saber e se pode pedir e se o que e dele fica com ele. */
 function saudacao(c, temDocumentos) {
   const semDocs = "Para começar, me mande alguns documentos — ou me mostre a pasta onde eles estão.";
-  const padrao = "É só me dizer o que você precisa. Eu leio e respondo tudo aqui mesmo, no seu computador.";
+  const padrao = "É só me dizer o que você precisa — eu leio e respondo aqui mesmo.";
   const sub = temDocumentos ? padrao : semDocs;
 
   if (c.periodo === "madrugada") {
@@ -903,27 +903,25 @@ async function carregarAgora() {
     );
   }
 
-  /* O acervo em dia e as conversas paradas nao sao cartoes: sao duas frases
-     da saudacao. Nenhum dos dois pede acao nenhuma - virar cartao com botao
-     seria dar a eles o peso de quem espera resposta, que e dos de cima. */
+  /* O acervo em dia e as conversas paradas nao sao cartoes: sao frases da
+     saudacao. Nenhum dos dois pede acao nenhuma - virar cartao com botao
+     seria dar a eles o peso de quem espera resposta, que e dos de cima.
+
+     Embaixo do titulo cabem DUAS linhas, entao entra uma frase de situacao
+     so, depois da de abertura. A conversa que ficou pela metade vence o
+     acervo em dia: e a unica das duas que a pessoa talvez queira retomar. */
   const sub = $("sub-chamada");
   const base = sub.dataset.base || sub.textContent;
   const docs = d.biblioteca.documentos;
-  sub.textContent = docs
-    ? base + (docs === 1
-      ? " Seu documento já está lido e pronto para consulta"
-      : " Seus " + docs + " documentos já estão lidos e prontos para consulta") +
-      " — e nada saiu deste computador hoje."
-    : base;
-
-  const nota = $("sub-nota");
-  nota.hidden = !d.pausados;
+  let situacao = "";
   if (d.pausados) {
-    nota.textContent = (d.pausados === 1
-      ? "Uma conversa ficou pela metade"
-      : plural(d.pausados, "conversa") + " ficaram pela metade") +
-      " quando o programa fechou. É só abrir pelo menu para continuar de onde paramos.";
+    situacao = (d.pausados === 1 ? "Uma conversa ficou pela metade" : plural(d.pausados, "conversa") + " ficaram pela metade") +
+      " — abra pelo menu para continuar.";
+  } else if (docs) {
+    situacao = (docs === 1 ? "Seu documento já está lido" : "Seus " + docs + " documentos já estão lidos") +
+      ", e nada saiu deste computador hoje.";
   }
+  sub.textContent = situacao ? base + " " + situacao : base;
 
   const espera = vinculoPendente() ? [cartaoDeEsperaDoVinculo()] : [];
   $("agora").hidden = cartoes.length + espera.length === 0;

@@ -22,26 +22,28 @@
   .conversa-col.vazia .compositor > .centro { max-width: var(--fio); gap: 22px; }
 
   /* A saudacao tem medida propria e mais estreita que o resto: linha de texto
-     corrida a 1080 px nao se le. */
-  .saudacao-bloco { display: none; gap: 14px; max-width: 30em; padding: 76px 0 8px; }
+     corrida a 1080 px nao se le. 720 px e o que faz a frase de abertura e a
+     de situacao caberem em DUAS linhas - era 30em (405 px), e o mesmo texto
+     descia em tres, mais uma nota embaixo. */
+  .saudacao-bloco { display: none; gap: 14px; max-width: 720px; padding: 76px 0 8px; }
   .conversa-col.vazia .saudacao-bloco { display: grid; }
   .rotulo-momento { font: 500 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink3); }
   .chamada {
     font: 400 clamp(34px, 3.4vw, 46px)/1.02 var(--serif);
     letter-spacing: -.015em; margin: 0; text-wrap: balance;
   }
-  .sub-chamada { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); text-wrap: pretty; }
-  /* A terceira linha: o que ficou pendente da ultima vez. Ela e mais apagada
-     que a de cima de proposito - e nota de rodape da saudacao, nao recado. */
-  .sub-nota { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink3); text-wrap: pretty; }
-  .sub-nota[hidden] { display: none; }
+  /* Duas linhas e o teto, e o teto e garantido: se um texto futuro passar
+     disso, ele e cortado com reticencias em vez de empurrar a caixa de pedido. */
+  .sub-chamada {
+    margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); text-wrap: pretty;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
 
   /* ------------------------------------------------- acontecendo agora */
 
   .agora { display: grid; gap: 14px; }
   .agora-cabeca { display: flex; align-items: center; gap: 14px; }
   .rotulo-suave { font: 500 11px var(--sans); color: var(--ink3); }
-  .risco-fino { flex: 1; height: 1px; background: var(--ink-a1); }
 
   .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
@@ -90,11 +92,17 @@
      tabela - e um cartao com linhas, separadas por um fio de 1 px. A
      diferenca importa: tabela pede cabecalho de coluna e larguras fixas, e
      uma conversa tem so quatro coisas para mostrar. */
-  .lista-conversas { display: grid; flex: none; width: 100%; max-width: var(--fio); margin-top: 6px; }
+  /* 16 px entre a linha de Recentes e o cartao da lista: com 6 o cartao
+     encostava nas pilulas e parecia parte delas. */
+  .lista-conversas { display: grid; flex: none; width: 100%; max-width: var(--fio); margin-top: 16px; }
   .lc-cartao {
     display: grid; background: var(--surf); border: 1px solid var(--hair);
-    border-radius: 14px; box-shadow: var(--elev-cartao); overflow: hidden;
+    border-radius: 14px; box-shadow: var(--elev-cartao);
   }
+  /* Sem overflow: hidden no cartao: ele cortava o menu do "...", que abre
+     por baixo da linha e passa da borda. Quem arredonda o fundo da ultima
+     linha (no hover e na selecao) e ela mesma. */
+  .lc-cartao > .lc-linha:last-child { border-radius: 0 0 13px 13px; }
   .lc-barra { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
   .lc-conta { font-size: 12.5px; color: var(--ink2); flex: 1; min-width: 0; }
   .lc-busca {
@@ -116,6 +124,7 @@
   }
   .lc-recolher:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
   .lc-linha {
+    position: relative;
     display: flex; align-items: center; gap: 14px; padding: 14px;
     border-top: 1px solid var(--hair2); color: var(--ink); cursor: pointer;
   }

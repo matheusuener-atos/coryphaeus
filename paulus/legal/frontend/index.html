@@ -180,16 +180,6 @@
           <div class="centro" id="centro"></div>
         </div>
 
-        <div class="registro" id="registro" hidden>
-          <div class="centro">
-            <button class="registro-cabeca" id="registro-cabeca">
-              <span class="ponto"></span>
-              <span class="registro-agora corta" id="registro-agora"></span>
-              <span class="registro-seta ic ic-18">expand_more</span>
-            </button>
-            <div class="registro-lista" id="atividade" hidden></div>
-          </div>
-        </div>
 
       </div>
 
@@ -217,13 +207,26 @@
     <!-- O rodape fica fora da grade do corpo: a caixa de pedido nao se mexe
          quando o painel da direita abre, e o painel termina acima dela. -->
     <div class="conversa-rodape" id="conversa-rodape">
+        <!-- O registro do que o assistente fez mora aqui, logo acima da caixa
+             de pedido e na mesma medida dela: no corpo ele centralizava pela
+             coluna da conversa, que encolhe com o painel, e ficava torto em
+             relacao a caixa. -->
+        <div class="registro" id="registro" hidden>
+          <div class="centro">
+            <button class="registro-cabeca" id="registro-cabeca">
+              <span class="ponto"></span>
+              <span class="registro-agora corta" id="registro-agora"></span>
+              <span class="registro-seta ic ic-18">expand_more</span>
+            </button>
+            <div class="registro-lista" id="atividade" hidden></div>
+          </div>
+        </div>
         <div class="compositor" id="compositor">
           <div class="centro">
             <div class="saudacao-bloco">
               <span class="rotulo-momento" id="momento"></span>
               <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
-              <p class="sub-chamada" id="sub-chamada">É só me dizer o que você precisa. Eu leio e respondo tudo aqui mesmo, no seu computador.</p>
-              <p class="sub-nota" id="sub-nota" hidden></p>
+              <p class="sub-chamada" id="sub-chamada">É só me dizer o que você precisa — eu leio e respondo aqui mesmo.</p>
             </div>
 
             <div class="aviso-motor" id="aviso-motor" hidden></div>
@@ -240,7 +243,7 @@
             </div>
 
             <div class="agora" id="agora" hidden>
-              <div class="agora-cabeca"><span class="rotulo-suave">Acontecendo agora</span><span class="risco-fino"></span></div>
+              <div class="agora-cabeca"><span class="rotulo-suave">Acontecendo agora</span></div>
               <div class="agora-cartoes" id="agora-cartoes"></div>
             </div>
 

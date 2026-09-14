@@ -162,7 +162,7 @@ function desenharRecentes() {
   /* Com a lista aberta, "Ver mais" sai: o botao de recolher ja esta na barra
      da propria lista, e dois botoes para a mesma coisa, um em cima do outro,
      so confundem. Ele volta quando a lista recolhe. */
-  alvo.innerHTML = '<span class="rotulo-suave">Recentes</span>' +
+  alvo.innerHTML = '<span class="rotulo-suave">Conversas recentes</span>' +
     lista.map((t) =>
       '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 15) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
@@ -173,15 +173,69 @@ function desenharRecentes() {
 }
 
 /* A lista inteira, na propria tela, embaixo das recentes. Nada sobe nem se
-   desloca: o inicio comeca no alto, e a lista so entra depois dele. */
+   desloca: o inicio comeca no alto, e a lista so entra depois dele.
+
+   Ela ABRE como gaveta, no ritmo do resto do programa: o cartao cresce de 0
+   ate a altura dele (curva expo, .46 s) enquanto aparece, e as linhas chegam
+   em cascata 6 px de baixo. "Ver mais" esmaece antes de sair. Recolher e o
+   caminho de volta, mais curto (.3 s), e so no fim a lista some e "Ver mais"
+   volta, esmaecendo para dentro. Web Animations, e nao transicao de CSS:
+   `hidden` nao anima, e a altura de destino so se sabe depois de desenhar. */
+const LISTA_ABRE_MS = 460;
+const LISTA_FECHA_MS = 300;
+
 function alternarListaDeConversas(abrir) {
-  $("lista-conversas").hidden = !abrir;
-  if (abrir) desenharListaDeConversas();
-  desenharRecentes();
+  const caixa = $("lista-conversas");
+  if (caixa.recolhendo) { caixa.recolhendo.cancel(); caixa.recolhendo = null; caixa.style.overflow = ""; }
+  const animar = animacoesLigadas();
+
   if (abrir) {
+    const verMais = $("recentes-mais");
+    caixa.hidden = false;
+    desenharListaDeConversas();
+    if (animar) {
+      caixa.style.overflow = "hidden";
+      const altura = caixa.scrollHeight;
+      const margem = getComputedStyle(caixa).marginTop;
+      caixa.animate(
+        [{ height: "0px", marginTop: "0px", opacity: 0 }, { height: altura + "px", marginTop: margem, opacity: 1 }],
+        { duration: LISTA_ABRE_MS, easing: CURVA_ENTRA }).onfinish = () => { caixa.style.overflow = ""; };
+      caixa.querySelectorAll(".lc-linha").forEach((linha, i) => {
+        if (i > 12) return;
+        linha.animate(
+          [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+          { duration: 380, delay: 90 + i * 28, easing: CURVA_ENTRA, fill: "backwards" });
+      });
+    }
+    if (verMais && animar) {
+      verMais.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: "ease", fill: "forwards" })
+        .onfinish = () => desenharRecentes();
+    } else {
+      desenharRecentes();
+    }
     const busca = $("lc-busca");
-    if (busca) busca.focus();
+    if (busca) busca.focus({ preventScroll: true });
+    return;
   }
+
+  const fim = () => {
+    caixa.hidden = true;
+    caixa.style.overflow = "";
+    desenharRecentes();
+    const verMais = $("recentes-mais");
+    if (verMais && animar) {
+      verMais.animate([{ opacity: 0, transform: "translateX(-4px)" }, { opacity: 1, transform: "none" }],
+        { duration: 320, easing: CURVA_ENTRA });
+    }
+  };
+  if (!animar || caixa.hidden) { fim(); return; }
+  caixa.style.overflow = "hidden";
+  const anim = caixa.animate(
+    [{ height: caixa.offsetHeight + "px", marginTop: getComputedStyle(caixa).marginTop, opacity: 1 },
+     { height: "0px", marginTop: "0px", opacity: 0 }],
+    { duration: LISTA_FECHA_MS, easing: "cubic-bezier(.55,0,.45,1)", fill: "forwards" });
+  caixa.recolhendo = anim;
+  anim.onfinish = () => { caixa.recolhendo = null; fim(); anim.cancel(); };
 }
 
 const ESTADO_DA_CONVERSA = {
