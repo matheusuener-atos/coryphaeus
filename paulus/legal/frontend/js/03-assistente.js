@@ -438,20 +438,24 @@ $("ir-ao-fim").onclick = () => {
    Windows, que em portugues manda o audio para a Microsoft. A captura e a
    conversao do audio sao as das Gravacoes (11-gravacoes.js).
 
-   O que e ditado junta NO CARTAO DO DITADO, e so vai para o campo quando a
-   pessoa manda ("Usar no chat", clicar de novo no microfone ou enviar). O
-   cartao mostra a voz chegando num equalizador, o tempo e o texto. Estados:
+   O que e ditado entra DIRETO NO CAMPO de pedido, a cada pausa na fala, com
+   o foco nele e o cursor no fim - a pessoa ve o texto onde ele vai ser usado
+   e pode corrigir enquanto fala. O cartao mostra a voz chegando num
+   equalizador, o tempo e as saidas. Estados:
 
      ouvindo     microfone aberto
      pausado     microfone aberto, mas nada e ouvido
-     pendente    a pessoa saiu do Assistente: o microfone fechou, o texto e
-                 a sessao ficam, e o cartao oferece continuar, usar ou
-                 descartar
-     finalizando transcrevendo o que sobrou antes de ir para o campo
+     pendente    a pessoa saiu do Assistente: o microfone fechou, o texto
+                 ja esta no campo e a sessao fica; o cartao oferece
+                 continuar, concluir ou descartar
+     finalizando transcrevendo o que sobrou
 */
 const ditado = {
-  estado: "", sessao: "", texto: "", fluxo: null, captura: null, amostras: [],
+  estado: "", sessao: "", fluxo: null, captura: null, amostras: [],
   relogio: 0, enviando: false, recebidos: 0, inicio: 0, acumulado: 0, quadro: 0,
+  // O campo antes do ditado e como ele ficou depois do ultimo trecho: e o
+  // que deixa Cancelar tirar so o que foi ditado.
+  campoAntes: "", campoDepois: "",
 };
 
 const dsAberto = () => ditado.estado === "ouvindo" || ditado.estado === "pausado";
@@ -468,17 +472,28 @@ function marcarTempo(parando) {
   if (!parando) ditado.inicio = performance.now();
 }
 
-function previaDoDitado() {
-  const t = ditado.texto.trim();
-  if (!t) return "";
-  return esc(t.length > 240 ? "…" + t.slice(-240) : t);
+/* O foco volta para o campo de pedido - a nao ser que a pessoa esteja
+   escrevendo em outro campo (a busca da lista, um dialogo): ai o texto
+   entra do mesmo jeito, mas ninguem tira o cursor de onde ela esta. */
+function focarCampoDoDitado() {
+  const campo = $("pedido");
+  const ativo = document.activeElement;
+  const escrevendoEmOutro = ativo && ativo !== campo && (ativo.tagName === "INPUT" || ativo.tagName === "TEXTAREA" || ativo.isContentEditable);
+  if (escrevendoEmOutro || document.getElementById("veu-dialogo")) return;
+  campo.focus();
+  campo.setSelectionRange(campo.value.length, campo.value.length);
 }
 
 function juntarAoDitado(trechos) {
   const novos = (trechos || []).map((x) => (x.texto || "").trim()).filter(Boolean);
   if (!novos.length) return;
-  ditado.texto = (ditado.texto.trim() ? ditado.texto.trim() + " " : "") + novos.join(" ");
-  document.querySelectorAll("[data-ditado-texto]").forEach((p) => { p.hidden = false; p.innerHTML = previaDoDitado(); });
+  const campo = $("pedido");
+  campo.value = (campo.value.trim() ? campo.value.replace(/\s+$/, "") + " " : "") + novos.join(" ");
+  campo.style.height = "auto";
+  campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
+  campo.scrollTop = campo.scrollHeight;
+  ditado.campoDepois = campo.value;
+  focarCampoDoDitado();
 }
 
 /* O CARTAO DO DITADO. So o aviso la embaixo nao bastava para saber se o
@@ -493,18 +508,18 @@ function cartaoDoDitado() {
     ouvindo: "",
     pausado: "o microfone não ouve nada até continuar",
     pendente: "o microfone fechou quando você saiu do Assistente",
-    finalizando: "o texto vai para o campo em alguns segundos",
+    finalizando: "o último trecho entra no campo em alguns segundos",
   };
   const botao = (dado, icone, rotulo, classe) => '<button class="' + (classe || "fantasma") + '" ' + dado + '="1">' + ic(icone, 16) + rotulo + "</button>";
   let acoes = "";
   if (e === "ouvindo" || e === "pausado") {
     acoes = botao("data-ditado-cancelar", "close", "Cancelar") +
       botao("data-ditado-pausar", e === "pausado" ? "play_arrow" : "pause", e === "pausado" ? "Continuar" : "Pausar") +
-      botao("data-ditado-usar", "arrow_upward", "Usar no chat", "primario");
+      botao("data-ditado-usar", "check", "Concluir", "primario");
   } else if (e === "pendente") {
     acoes = botao("data-ditado-cancelar", "delete", "Descartar") +
       botao("data-ditado-continuar", "mic", "Continuar gravação") +
-      botao("data-ditado-usar", "arrow_upward", "Usar no chat", "primario");
+      botao("data-ditado-usar", "check", "Concluir", "primario");
   }
   const classe = "cartao-agora ditado-cartao " + e;
   return '<div class="' + classe + '">' +
@@ -512,13 +527,15 @@ function cartaoDoDitado() {
     '<span class="nome">' + nomes[e] + "</span>" +
     '<span class="ditado-tempo" data-ditado-tempo="1">' + tempoDoDitado() + "</span></div>" +
     (dsAberto() ? '<canvas class="ditado-onda" data-ditado-onda="1"></canvas>' : "") +
-    '<p class="ditado-texto" data-ditado-texto="1"' + (ditado.texto.trim() ? "" : " hidden") + ">" + previaDoDitado() + "</p>" +
     (notas[e] ? '<div class="rodape">' + notas[e] + "</div>" : "") +
     (acoes ? '<div class="acoes">' + acoes + "</div>" : "") + "</div>";
 }
 
 function ligarCartaoDoDitado() {
-  const ligar = (dado, fazer) => document.querySelectorAll("[" + dado + "]").forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); fazer(); }; });
+  const ligar = (dado, fazer) => document.querySelectorAll("[" + dado + "]").forEach((b) => {
+    b.onmousedown = (ev) => ev.preventDefault();   // clicar no cartao nao tira o foco do campo
+    b.onclick = (ev) => { ev.stopPropagation(); fazer(); focarCampoDoDitado(); };
+  });
   ligar("data-ditado-cancelar", () => cancelarDitado());
   ligar("data-ditado-pausar", () => pausarDitado(ditado.estado === "ouvindo"));
   ligar("data-ditado-continuar", () => continuarDitado());
@@ -657,10 +674,12 @@ async function comecarDitado() {
   if (!sessao) return;
   if (!(await abrirCapturaDoDitado())) { fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {}); return; }
   ditado.sessao = sessao;
-  ditado.texto = "";
   ditado.amostras = [];
   ditado.acumulado = 0;
+  ditado.campoAntes = $("pedido").value;
+  ditado.campoDepois = ditado.campoAntes;
   ouvir();
+  focarCampoDoDitado();
 }
 
 function pausarDitado(pausar) {
@@ -732,27 +751,33 @@ async function enviarPedacoDoDitado() {
 function zerarDitado() {
   ditado.estado = "";
   ditado.sessao = "";
-  ditado.texto = "";
   ditado.amostras = [];
   ditado.acumulado = 0;
   desenharCartaoDoDitado();
 }
 
 /* Cancelar (ou Descartar, no pendente): o microfone fecha, a sessao e
-   descartada sem transcrever o resto, e o texto ditado vai embora. O campo
-   nao muda - o ditado nunca chegou nele. */
+   descartada sem transcrever o resto, e o que foi ditado sai do campo - o
+   campo volta a ser o de antes. Se a pessoa mexeu no campo depois do ultimo
+   trecho, o texto dela nao e desfeito: so o ditado para. */
 function cancelarDitado() {
   if (!ditado.estado) return;
   const sessao = ditado.sessao;
   fecharCapturaDoDitado();
   if (sessao) fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
+  const campo = $("pedido");
+  if (campo.value === ditado.campoDepois) {
+    campo.value = ditado.campoAntes;
+    campo.style.height = "auto";
+    campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
+  }
   zerarDitado();
-  $("pedido").focus();
+  focarCampoDoDitado();
 }
 
-/* Usar no chat: o que ficou sem pausa ainda e transcrito, o texto todo entra
-   no campo (depois do que ja estava escrito) e a sessao e descartada - a
-   fila de transcricao das Gravacoes espera enquanto ha sessao aberta. */
+/* Concluir: o que ficou sem pausa ainda e transcrito e entra no campo, e a
+   sessao e descartada - a fila de transcricao das Gravacoes espera enquanto
+   ha sessao aberta. */
 async function usarDitadoNoChat() {
   if (!ditado.estado || ditado.estado === "finalizando") return;
   if (dsAberto()) marcarTempo(true);
@@ -769,17 +794,9 @@ async function usarDitadoNoChat() {
     } catch (err) { /* o que ja foi transcrito continua valendo */ }
     fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
   }
-  const texto = ditado.texto.trim();
-  if (texto) {
-    const campo = $("pedido");
-    campo.value = (campo.value.trim() ? campo.value.replace(/\s+$/, "") + " " : "") + texto;
-    campo.style.height = "auto";
-    campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
-  } else {
-    avisoCert("não ouvi nada para escrever");
-  }
+  if ($("pedido").value === ditado.campoAntes) avisoCert("não ouvi nada para escrever");
   zerarDitado();
-  $("pedido").focus();
+  focarCampoDoDitado();
 }
 
 $("ditar").onclick = () => {
