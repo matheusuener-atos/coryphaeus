@@ -6,7 +6,11 @@ async function carregarTrabalhos() {
   const r = await fetch("/api/trabalhos");
   const d = await r.json();
   gruposConhecidos = d.nomes_de_grupo || [];
-  estado.recentes = d.grupos.flatMap((g) => g.trabalhos);
+  /* O servidor manda agrupado (grupos em ordem alfabetica, depois os sem
+     grupo); a tela mostra por data: a criada ou mexida por ultimo em cima,
+     nas recentes, na visao Conversas e dentro de cada pasta. */
+  estado.recentes = d.grupos.flatMap((g) => g.trabalhos)
+    .sort((a, b) => String(b.atualizado_em || "").localeCompare(String(a.atualizado_em || "")));
 
   /* A lista mora no Assistente: tres recentes e "Ver mais" com todas. */
   if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
@@ -327,8 +331,11 @@ function desenharListaDeConversas() {
   else if (lcNav.grupo) lista = grupos.get(lcNav.grupo);
   else {
     lista = [];
-    // "Sem grupo" por ultimo: e a sobra, e nao um grupo como os outros.
-    pastas = [...grupos.keys()].filter((g) => g !== SEM_GRUPO).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    // As pastas tambem por data - a da conversa mais recente de cada uma (a
+    // lista ja vem ordenada, entao e a primeira). "Sem grupo" por ultimo: e a
+    // sobra, e nao um grupo como os outros.
+    const ultima = (g) => String(grupos.get(g)[0].atualizado_em || "");
+    pastas = [...grupos.keys()].filter((g) => g !== SEM_GRUPO).sort((a, b) => ultima(b).localeCompare(ultima(a)));
     if (semGrupo.length) pastas.push(SEM_GRUPO);
   }
   for (const id of [...lcSel.escolhidos]) if (!todas.some((t) => t.id === id)) lcSel.escolhidos.delete(id);
@@ -338,7 +345,7 @@ function desenharListaDeConversas() {
     const andando = dentro.filter((t) => t.estado === "executando").length;
     return '<div class="lc-linha lc-pasta" data-pasta="' + esc(g) + '" role="button" tabindex="0">' +
       ic(g === SEM_GRUPO ? "folder_open" : "folder", 17) +
-      '<span class="lc-nome"><b>' + esc(nomeDaPasta(g)) + "</b><small>" + plural(dentro.length, "conversa") + "</small></span>" +
+      '<span class="lc-nome lc-nome-linha"><b>' + esc(nomeDaPasta(g)) + '</b><small class="lc-quando"><span class="lc-meta">' + ic("forum", 14) + plural(dentro.length, "conversa") + "</span></small></span>" +
       '<span class="estado-conversa">' + (andando ? '<span class="etiqueta ok anda">trabalhando</span>' : "") + "</span>" +
       (g === SEM_GRUPO ? '<span class="lc-mais-vazio"></span>'
         : '<button class="lc-mais" data-lc-menu-grupo="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 17) + "</button>") +
@@ -351,11 +358,12 @@ function desenharListaDeConversas() {
   const linhasDeConversa = lista.map((t) => {
     const quando = t.atualizado_em ? dataHoraCurta(t.atualizado_em) : "";
     const classe = "lc-linha" + (lcSel.escolhidos.has(t.id) ? " escolhida" : "");
-    const pasta = t.grupo && (termo || lcNav.visao === "conversas") ? '<span class="lc-grupo">' + ic("folder", 13) + esc(t.grupo) + "</span>" : "";
+    const pasta = t.grupo && (termo || lcNav.visao === "conversas") ? '<span class="lc-meta">' + ic("folder", 14) + esc(t.grupo) + "</span>" : "";
     return '<div class="' + classe + '" data-id="' + esc(t.id) + '" data-sel="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) +
       '" data-grupo="' + esc(t.grupo || "") + '">' +
       ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 17) +
-      '<span class="lc-nome"><b>' + esc(t.titulo) + '</b><small class="lc-quando">' + esc(quando) + pasta + "</small></span>" +
+      '<span class="lc-nome lc-nome-linha"><b>' + esc(t.titulo) + '</b><small class="lc-quando">' +
+      (quando ? '<span class="lc-meta">' + ic("schedule", 14) + esc(quando) + "</span>" : "") + pasta + "</small></span>" +
       '<span class="estado-conversa"><span class="etiqueta ' + (TOM_DO_ESTADO[t.estado] || "") + '">' +
       (ESTADO_DA_CONVERSA[t.estado] || esc(t.estado)) + "</span></span>" +
       '<button class="lc-mais" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 17) + "</button></div>";

@@ -328,21 +328,38 @@ function entrarNaConversa() {
   mostrarLateral(lateralPreferida());
 }
 
-/* A conversa em texto, para levar para fora. E o que "Exportar" faz enquanto
-   nao existe formato melhor. */
-function exportarConversa() {
-  const t = estado.trabalho;
-  if (!t) return;
-  const linhas = [t.titulo, ""];
-  for (const m of t.mensagens) linhas.push((m.autor === "pessoa" ? "Você: " : "PAULUS: ") + m.texto, "");
-  const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = (t.titulo || "conversa").replace(/[\\/:*?"<>|]+/g, "-") + ".txt";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+/* EXPORTAR A CONVERSA, em Markdown (padrao), texto ou Word.
+
+   Na janela do programa o download do navegador nao funcionava - o link com
+   `download` simplesmente nao levava a lugar nenhum. Ali a tela abre o
+   "Salvar como" do Windows (com os tres tipos, Markdown primeiro) e o
+   servidor grava o arquivo no caminho escolhido. No navegador, um menu com
+   os tres formatos baixa o arquivo pelo servidor. */
+async function exportarConversa() {
+  const id = estado.trabalhoId;
+  if (!id) return;
+  const api = (window.pywebview || {}).api;
+  const nome = (($("conversa-titulo").textContent || "conversa").replace(/[\\/:*?"<>|]+/g, "-").trim() || "conversa") + ".md";
+  if (api && api.salvar_como) {
+    const caminho = await api.salvar_como(nome);
+    if (!caminho) return;
+    const r = await fetch("/api/trabalhos/" + id + "/exportar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caminho: caminho }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    const d = await r.json();
+    avisoCert("conversa exportada · " + d.nome, { tom: "ok" });
+    return;
+  }
+  const baixar = (formato) => { location.href = "/api/trabalhos/" + id + "/exportar?formato=" + formato; };
+  menuNaLinha($("exportar-conversa"), [
+    { rotulo: "Markdown (.md)", icone: "description", acao: () => baixar("md") },
+    { rotulo: "Texto (.txt)", icone: "notes", acao: () => baixar("txt") },
+    { rotulo: "Word (.docx)", icone: "article", acao: () => baixar("docx") },
+  ]);
 }
-$("exportar-conversa").onclick = exportarConversa;
+$("exportar-conversa").onclick = (e) => { e.stopPropagation(); exportarConversa(); };
 
 /* Animacoes reduzidas (Configuracoes > Aparencia). A classe fica no <html>
    para valer sobre tudo, e a escolha tambem vai para o navegador: as

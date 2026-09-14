@@ -210,6 +210,9 @@
   .pilula .ic { font-size: 16px; width: 16px; height: 16px; color: var(--ink3); }
   .pilula:hover:not(:disabled) .ic { color: var(--ink2); }
   .pilula .rotulo-botao { flex: none; padding: 0; }
+  /* Buscar ligado: a pilula na cor de destaque, como quem esta apertado. */
+  .pilula.ativa, .pilula.ativa:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
+  .pilula.ativa .ic, .pilula.ativa:hover:not(:disabled) .ic { color: var(--bg); }
 
   /* A pilula do escopo fica a vista o tempo todo: enquanto estiver ali, a
      pergunta e lida SO naquele documento. Escopo silencioso seria tao ruim

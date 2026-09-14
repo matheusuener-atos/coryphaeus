@@ -187,7 +187,10 @@
   }
   .marcar .ic { display: none; font-size: 12px; width: 12px; height: 12px; }
   .marcar.on { background: var(--ink); border-color: var(--ink); }
-  .marcar.on .ic { display: block; }
+  /* O check da caixa marcada e escuro sobre a caixa clara (a cor do fundo
+     sobre a tinta), e mais grosso: herdando o cinza dos icones ao redor, ele
+     sumia dentro da caixa. */
+  .marcar.on .ic { display: block; color: var(--bg); font-weight: 700; }
   .glifo {
     flex: none; width: 20px; height: 20px; border-radius: 4px; color: var(--surf);
     display: inline-flex; align-items: center; justify-content: center;

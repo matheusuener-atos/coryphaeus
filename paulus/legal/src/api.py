@@ -34,7 +34,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 import requests
@@ -1393,6 +1393,84 @@ class RenomearGrupo(BaseModel):
     para: str = ""
 
 
+class ExportarConversa(BaseModel):
+    caminho: str
+
+
+FORMATOS_DE_CONVERSA = {"md": "text/markdown", "txt": "text/plain", "docx":
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+
+
+def _conversa_exportada(trabalho, formato: str) -> bytes:
+    """
+    A conversa num arquivo, para levar para fora do programa.
+
+    Markdown e o padrao: abre legivel em qualquer editor e vira documento
+    formatado onde houver quem o leia. Texto e o mesmo sem marcacao. Word sai
+    com o titulo, quem falou em negrito e o texto em paragrafos. Em todos, a
+    resposta que a pessoa parou no meio diz isso, e a que citou trechos diz
+    de quais documentos.
+    """
+    from datetime import datetime
+
+    def quando(iso: str) -> str:
+        try:
+            return datetime.fromisoformat(iso).strftime("%d/%m/%Y %H:%M")
+        except (TypeError, ValueError):
+            return ""
+
+    falas = []
+    for m in trabalho.mensagens:
+        quem = "Você" if m.autor == "pessoa" else "PAULUS"
+        notas = []
+        if getattr(m, "interrompida", False):
+            notas.append("resposta parada no meio")
+        documentos = sorted({f.get("documento", "") for f in (m.fontes or []) if f.get("documento")})
+        if documentos:
+            notas.append("trechos de " + ", ".join(documentos))
+        falas.append((quem, quando(m.em), (m.texto or "").strip(), notas))
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    if formato == "docx":
+        import io
+
+        from docx import Document
+        from docx.shared import Pt
+
+        doc = Document()
+        doc.add_heading(trabalho.titulo, level=1)
+        rodape = doc.add_paragraph()
+        rodape.add_run(f"Exportado do PAULUS Legal em {agora}").italic = True
+        for quem, em, texto, notas in falas:
+            cabeca = doc.add_paragraph()
+            cabeca.add_run(quem).bold = True
+            if em:
+                cabeca.add_run(f"  ·  {em}").font.size = Pt(9)
+            for paragrafo in (texto.split("\n") if texto else [""]):
+                doc.add_paragraph(paragrafo)
+            for nota in notas:
+                doc.add_paragraph().add_run(nota).italic = True
+        saida = io.BytesIO()
+        doc.save(saida)
+        return saida.getvalue()
+
+    linhas: list[str] = []
+    if formato == "md":
+        linhas += [f"# {trabalho.titulo}", "", f"*Exportado do PAULUS Legal em {agora}*", ""]
+        for quem, em, texto, notas in falas:
+            linhas += [f"**{quem}**" + (f" · {em}" if em else ""), "", texto, ""]
+            linhas += [f"> _{nota}_" for nota in notas]
+            if notas:
+                linhas.append("")
+    else:
+        linhas += [trabalho.titulo, f"Exportado do PAULUS Legal em {agora}", ""]
+        for quem, em, texto, notas in falas:
+            linhas += [quem + (f" - {em}" if em else ""), texto]
+            linhas += [f"({nota})" for nota in notas]
+            linhas.append("")
+    return "\n".join(linhas).rstrip("\n").encode("utf-8") + b"\n"
+
+
 @app.post("/api/trabalhos/{id_}/renomear")
 def trabalhos_renomear(id_: str, payload: Renomear) -> dict:
     trabalho = estado.trabalhos.obter(id_)
@@ -1418,6 +1496,48 @@ def trabalhos_grupo(id_: str, payload: MoverGrupo) -> dict:
     trabalho.atualizado_em = jobs_agora()
     estado.trabalhos.salvar(trabalho)
     return trabalho.resumo()
+
+
+@app.get("/api/trabalhos/{id_}/exportar")
+def trabalhos_exportar_baixar(id_: str, formato: str = "md") -> Response:
+    """A conversa como download - o caminho de quem abre pelo navegador."""
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa nao encontrada")
+    formato = formato if formato in FORMATOS_DE_CONVERSA else "md"
+    nome = re.sub(r'[\\/:*?"<>|]+', "-", trabalho.titulo or "conversa").strip() or "conversa"
+    from urllib.parse import quote
+
+    return Response(
+        content=_conversa_exportada(trabalho, formato),
+        media_type=FORMATOS_DE_CONVERSA[formato],
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nome + '.' + formato)}"},
+    )
+
+
+@app.post("/api/trabalhos/{id_}/exportar")
+def trabalhos_exportar_gravar(id_: str, payload: ExportarConversa) -> dict:
+    """
+    A conversa gravada no caminho que a pessoa escolheu no "Salvar como".
+
+    Na janela do programa, download de navegador nao chega a lugar nenhum: a
+    tela pede o caminho ao Windows e o servidor grava. O formato sai da
+    extensao escolhida; sem extensao, e Markdown.
+    """
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa nao encontrada")
+    caminho = Path(payload.caminho)
+    formato = caminho.suffix.lower().lstrip(".")
+    if formato not in FORMATOS_DE_CONVERSA:
+        formato = "md"
+        caminho = caminho.with_name(caminho.name + ".md")
+    try:
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_bytes(_conversa_exportada(trabalho, formato))
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"nao consegui gravar o arquivo: {exc}") from exc
+    return {"caminho": str(caminho), "nome": caminho.name, "formato": formato}
 
 
 @app.post("/api/grupos/renomear")

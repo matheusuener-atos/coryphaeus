@@ -57,9 +57,29 @@ async function subirArquivos(lista) {
 
 /* ------------------------------------------------------------ buscar */
 
+/* BUSCAR sem nada escrito nao pode ser um clique que nao faz nada - era o
+   que parecia quebrado. Vazio, ele liga o modo de busca: a pilula acende, o
+   campo pede a palavra e ganha o foco, e Enter busca em vez de perguntar ao
+   assistente. Clicar de novo ou Esc desliga. */
+function modoDeBusca(ligar) {
+  const campo = $("pedido");
+  estado.modoBusca = Boolean(ligar);
+  $("buscar").classList.toggle("ativa", estado.modoBusca);
+  if (estado.modoBusca) {
+    if (!campo.dataset.placeholderAntes) campo.dataset.placeholderAntes = campo.placeholder;
+    campo.placeholder = "Qual palavra procurar nos documentos?";
+    campo.focus();
+  } else if (campo.dataset.placeholderAntes) {
+    campo.placeholder = campo.dataset.placeholderAntes;
+    delete campo.dataset.placeholderAntes;
+  }
+}
+
 $("buscar").onclick = async () => {
   const termo = $("pedido").value.trim();
-  if (!termo || estado.ocupado) return;
+  if (estado.ocupado) return;
+  if (!termo) { modoDeBusca(!estado.modoBusca); return; }
+  modoDeBusca(false);
   $("pedido").value = "";
   $("pedido").style.height = "auto";
 
@@ -82,10 +102,10 @@ $("buscar").onclick = async () => {
     const d = await r.json();
 
     if (!d.resultados.length) {
-      bloco.innerHTML = "<div>Não achei essa palavra nos " + plural(d.contratos, "contrato") + " abertos.</div>";
+      bloco.innerHTML = "<div>Não achei “" + esc(termo) + "” nos " + plural(d.documentos, "documento") + " abertos.</div>";
     } else {
       const nomes = new Set(d.resultados.map((x) => x.documento));
-      bloco.innerHTML = "<div>" + plural(d.resultados.length, "trecho") + " em " + plural(nomes.size, "contrato") + ", sem passar pelo assistente.</div>" +
+      bloco.innerHTML = "<div>" + plural(d.resultados.length, "trecho") + " com “" + esc(termo) + "” em " + plural(nomes.size, "documento") + ", sem passar pelo assistente.</div>" +
         d.resultados.map((x) =>
           '<div class="trecho"><div class="origem">' + esc(x.documento) + " · trecho " + x.trecho +
           "</div><pre>" + esc(x.texto) + "</pre></div>"
@@ -808,7 +828,8 @@ $("pedido").addEventListener("keydown", (e) => {
       return;
     }
   }
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
+  if (estado.modoBusca && e.key === "Escape") { e.preventDefault(); modoDeBusca(false); return; }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (estado.modoBusca) $("buscar").click(); else enviar(); }
 });
 $("pedido").addEventListener("input", (e) => {
   e.target.style.height = "auto";

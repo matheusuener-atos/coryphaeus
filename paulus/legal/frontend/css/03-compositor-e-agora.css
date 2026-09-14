@@ -134,13 +134,18 @@
   .lc-nome { display: grid; gap: 1px; flex: 1 1 240px; min-width: 150px; }
   .lc-nome b { font: 500 15px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lc-nome small { font-size: 11.5px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* A pasta da conversa, quando ela aparece fora da pasta (na busca). */
-  .lc-quando { display: flex; align-items: center; gap: 8px; }
-  .lc-grupo {
-    display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px;
-    background: var(--fill2); color: var(--ink2); font: 500 11px var(--sans);
-  }
-  .lc-grupo .ic { color: var(--ink3); }
+  /* A segunda linha da conversa: quando e em que grupo, cada um com o seu
+     icone, na mesma tinta apagada da hora. A etiqueta com fundo que o grupo
+     teve chamava mais atencao que o proprio nome da conversa. */
+  .lc-quando { display: flex; align-items: center; gap: 12px; }
+  .lc-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+  .lc-meta .ic { color: var(--ink3); }
+  /* Conversa e pasta numa linha so: o nome e, logo a frente, o que se sabe
+     dele - quando e em que grupo, ou quantas conversas a pasta tem. O nome
+     cede (reticencias) antes das informacoes. */
+  .lc-nome.lc-nome-linha { display: flex; align-items: center; gap: 14px; }
+  .lc-nome-linha b { flex: 0 1 auto; min-width: 0; }
+  .lc-nome-linha small { flex: none; }
   /* A linha de pasta: o mesmo desenho da conversa, com a seta de entrar no
      lugar do menu. */
   .lc-pasta > .ic { color: var(--ink); }

@@ -102,6 +102,27 @@ class Ponte:
             return ""
         return escolha[0] if isinstance(escolha, (list, tuple)) else str(escolha)
 
+    def salvar_como(self, nome: str) -> str:
+        """
+        O "Salvar como" do Windows, para exportar a conversa. Markdown vem
+        primeiro na lista de tipos, e por isso e o padrao.
+        """
+        import webview
+
+        if _JANELA is None:
+            return ""
+        try:
+            tipo = webview.FileDialog.SAVE
+        except AttributeError:
+            tipo = webview.SAVE_DIALOG
+        escolha = _JANELA.create_file_dialog(
+            tipo, save_filename=nome,
+            file_types=("Markdown (*.md)", "Texto (*.txt)", "Documento do Word (*.docx)"),
+        )
+        if not escolha:
+            return ""
+        return escolha[0] if isinstance(escolha, (list, tuple)) else str(escolha)
+
     # ------------------------------------------------------------- a janela
     # A moldura do Windows saiu, e com ela os tres botoes do canto e a barra
     # que se arrasta. Estes metodos sao o que a pagina chama no lugar deles.
