@@ -168,15 +168,13 @@ function compromissoEmBranco(tipo) {
            onde: (tipo || "compromisso") === "compromisso" ? "online" : "", avisar_min: 30 };
 }
 
+/* O cabeçalho é o da página - "Agenda" -, com as visões e o Novo. O mês (ou a
+   semana) e as setas ficam dentro do calendário, como no calendário
+   miniatura. */
 function cabecalhoAgenda() {
-  const nav = $("nav-tela");
-  nav.innerHTML = ag.visao === "tarefas" ? "" :
-    '<button class="voltar" data-ag-andar="-1" title="Anterior" aria-label="Anterior">' + ic("chevron_left", 18) + "</button>" +
-    '<button class="voltar" data-ag-andar="1" title="Próximo" aria-label="Próximo">' + ic("chevron_right", 18) + "</button>";
-  nav.querySelectorAll("[data-ag-andar]").forEach((b) => { b.onclick = () => andarAgenda(Number(b.dataset.agAndar)); });
+  $("nav-tela").innerHTML = "";
 
   $("acoes-tela").innerHTML =
-    '<button id="ag-hoje">Hoje</button>' +
     '<div class="visoes">' +
     [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "Tarefas"]].map(([v, r]) => {
       const classe = v === ag.visao ? "ativa" : "";
@@ -184,15 +182,6 @@ function cabecalhoAgenda() {
     }).join("") + "</div>" +
     '<div class="com-menu"><button class="primario com-icone" id="ag-novo">Novo' + ic("expand_more", 16) + "</button></div>";
   $("acoes-tela").querySelectorAll("[data-visao]").forEach((b) => { b.onclick = () => mostrarAgenda(b.dataset.visao); });
-  $("ag-hoje").onclick = () => {
-    const h = new Date();
-    ag.mes = new Date(h.getFullYear(), h.getMonth(), 1);
-    ag.semana = iso(segundaDe(h));
-    ag.dia = iso(h);
-    if (ag.visao === "tarefas") { ag.tar.filtro = "meu_dia"; ag.tar.lista = ""; }
-    else if (ag.painel === "dia") ag.diaAberto = null;
-    mostrarAgenda();
-  };
   $("ag-novo").onclick = (e) => {
     e.stopPropagation();
     menuNaLinha($("ag-novo"), [
@@ -210,13 +199,14 @@ function tituloDaAgenda() {
   const c = ag.tar.contagens || {};
   let titulo, meta;
   if (ag.visao === "mes") {
-    titulo = maiuscula(MESES_NOME[ag.mes.getMonth()]) + " de " + ag.mes.getFullYear();
+    titulo = "Agenda";
     const n = (ag.grade && ag.grade.contagem) || {};
     meta = plural(n.compromissos || 0, "compromisso") + " · " + plural(n.prazos || 0, "prazo") +
       " · " + plural(c.abertas || 0, "tarefa aberta", "tarefas abertas");
   } else if (ag.visao === "semana") {
     const seg = deIso(ag.semana), dom = andarDias(seg, 6);
-    titulo = "Semana de " + seg.getDate() +
+    titulo = "Agenda";
+    meta = "Semana de " + seg.getDate() +
       (seg.getMonth() !== dom.getMonth() ? " de " + MESES_NOME[seg.getMonth()] : "") +
       " a " + dom.getDate() + " de " + MESES_NOME[dom.getMonth()];
     const cs = (ag.grade && ag.grade.compromissos) || [];
@@ -226,13 +216,31 @@ function tituloDaAgenda() {
       " · " + plural(prazos, "prazo");
   } else {
     const f = FILTROS_TAREFA.find((x) => x.id === ag.tar.filtro);
-    titulo = ag.tar.lista || (f ? f.rotulo : "Tarefas");
+    titulo = "Agenda";
     const abertas = ag.tar.itens.filter((t) => !t.concluida).length;
-    meta = maiuscula(diaPorExtenso(iso(new Date()))) + " · " + plural(abertas, "tarefa") +
+    meta = (ag.tar.lista || (f ? f.rotulo : "Tarefas")) + " · " + plural(abertas, "tarefa") +
       " · " + plural(ag.tar.itens.length - abertas, "concluída");
   }
   $("conversa-titulo").textContent = titulo;
   $("conversa-meta").textContent = meta;
+}
+
+function irParaHojeNaAgenda() {
+  const h = new Date();
+  ag.mes = new Date(h.getFullYear(), h.getMonth(), 1);
+  ag.semana = iso(segundaDe(h));
+  ag.dia = iso(h);
+  if (ag.painel === "dia") ag.diaAberto = null;
+  mostrarAgenda();
+}
+
+/* A faixa de cima do calendário: as setas, o mês (ou a semana) e Hoje. */
+function topoDoCalendario(titulo) {
+  return '<div class="ag-cal-topo">' +
+    '<button class="cal-seta" data-ag-andar="-1" title="Anterior" aria-label="Anterior">' + ic("chevron_left", 18) + "</button>" +
+    '<b class="ag-cal-titulo">' + esc(titulo) + "</b>" +
+    '<button class="cal-seta" data-ag-andar="1" title="Próximo" aria-label="Próximo">' + ic("chevron_right", 18) + "</button>" +
+    '<button class="cal-rodape-botao ag-cal-hoje" data-ag-hoje="1">Hoje</button></div>';
 }
 
 function andarAgenda(n) {
@@ -340,10 +348,16 @@ function legendaDaAgenda(generos, dica) {
   }).join("") + '<span class="ag-dica">' + dica + "</span></div>";
 }
 
+/* O MÊS COMO O CALENDÁRIO MINIATURA, EM TAMANHO GRANDE. A faixa de cima traz
+   as setas, o mês e Hoje; cada dia é o número num círculo (hoje com o fio de
+   destaque, o dia escolhido cheio) e, embaixo, um ponto por tipo do que tem
+   nele e a conta. Clicar escolhe o dia - o painel mostra tudo dele -, e o
+   duplo clique marca um compromisso. */
 function vistaMes() {
   const hoje = iso(new Date());
   const g = ag.grade;
-  let html = '<div class="ag-cartao"><div class="ag-dias">' +
+  const titulo = maiuscula(MESES_NOME[ag.mes.getMonth()]) + " " + ag.mes.getFullYear();
+  let html = '<div class="ag-cartao ag-calendario">' + topoDoCalendario(titulo) + '<div class="ag-dias">' +
     DIAS_CURTOS.map((d, i) => {
       const classe = i >= 5 ? "ag-fds" : "";
       return '<span class="' + classe + '">' + d + "</span>";
@@ -355,14 +369,16 @@ function vistaMes() {
     const fds = c.data.getDay() === 0 || c.data.getDay() === 6;
     const classe = "ag-cel" + (c.fora ? " ag-fora" : "") + (fds ? " ag-fds" : "") +
       (dia === hoje ? " ag-hoje" : "") + (dia === ag.dia ? " ag-escolhido" : "");
-    html += '<div class="' + classe + '" data-ag-dia="' + dia + '">' +
-      '<span class="ag-cel-num"><b>' + c.data.getDate() + "</b>" + (dia === hoje ? "<small>Hoje</small>" : "") + "</span>" +
-      itens.slice(0, 3).map((x) => marcaDoItem(x, dia)).join("") +
-      (itens.length > 3 ? '<span class="ag-mais">+' + (itens.length - 3) + "</span>" : "") +
+    const generos = [...new Set(itens.map(generoDaMarca))].slice(0, 4);
+    const pontos = generos.map((x) => { const classe = "ag-ponto ag-" + x; return '<i class="' + classe + '"></i>'; }).join("");
+    const dica = itens.map((x) => (x.hora ? x.hora + " " : "") + x.titulo).join("\n");
+    html += '<div class="' + classe + '" data-ag-dia="' + dia + '"' + (dica ? ' title="' + esc(dica) + '"' : "") + ">" +
+      '<span class="ag-cel-num"><b>' + c.data.getDate() + "</b></span>" +
+      (itens.length ? '<span class="ag-pontos">' + pontos + "</span>" + '<small class="ag-cel-conta">' + plural(itens.length, "item", "itens") + "</small>" : "") +
       "</div>";
   }
-  html += "</div>" + legendaDaAgenda(["compromisso", "prazo", "pedido", "tarefa", "documento"],
-    "Clique no dia para abrir · duplo clique marca um compromisso") + "</div>";
+  html += "</div>" + legendaDaAgenda(["compromisso", "prazo", "tarefa", "pagamento", "documento"],
+    "Clique no dia para ver · duplo clique marca um compromisso") + "</div>";
   return html;
 }
 
@@ -433,7 +449,10 @@ function vistaSemanaAgenda() {
       }).join("") + "</div>"
     : "";
 
-  return '<div class="ag-cartao">' + cabeca + diaTodo + grade + fora +
+  const dom = andarDias(seg, 6);
+  const tituloSemana = seg.getDate() + (seg.getMonth() !== dom.getMonth() ? " " + MESES_NOME[seg.getMonth()].slice(0, 3) : "") +
+    " – " + dom.getDate() + " " + MESES_NOME[dom.getMonth()].slice(0, 3) + " " + dom.getFullYear();
+  return '<div class="ag-cartao">' + topoDoCalendario(tituloSemana) + cabeca + diaTodo + grade + fora +
     legendaDaAgenda(["compromisso", "prazo", "pedido", "pagamento"], "Clique numa hora vazia para marcar") + "</div>";
 }
 
@@ -566,7 +585,9 @@ function painelDoDia() {
   const comps = d.compromissos;
   const abertas = d.tarefas.filter((t) => !t.concluida);
   const feitas = d.tarefas.length - abertas.length;
-  const meta = plural(comps.length, "compromisso") + " · " + plural(abertas.length, "prazo") + " · " + plural(d.tarefas.length, "tarefa");
+  const total = comps.length + d.tarefas.length;
+  const meta = total ? plural(total, "item", "itens") + " · " + plural(comps.length, "compromisso") + " · " + plural(d.tarefas.length, "tarefa") +
+    (d.tarefas.length ? " (" + feitas + " feita" + (feitas === 1 ? "" : "s") + ")" : "") : "nada neste dia";
   const comAviso = comps.filter((c) => c.avisar_min).length;
 
   const linhas = comps.map((c) => {
@@ -578,34 +599,33 @@ function painelDoDia() {
       ? '<span class="ag-acoes"><button class="primario" data-ag-reuniao="' + c.id + '">' + ic("videocam", 16) + "Criar reunião" + ic("expand_more", 16) + "</button>" +
         '<button data-ag-sala="meet">Meet</button><button data-ag-sala="teams">Teams</button></span>'
       : "";
-    return '<div class="' + classe + '"><span class="ag-hora">' + esc(c.hora) + '</span><span class="ag-corpo"><span>' +
+    return { hora: c.hora || "", html: '<div class="' + classe + '"><span class="ag-hora">' + esc(c.hora) + '</span><span class="ag-corpo"><span>' +
       (genero === "prazo" ? "Prazo: " : "") + esc(c.titulo) + "</span><small>" + esc(detalhe) + "</small>" + acoes + "</span>" +
-      '<button class="mais-linha" data-ag-mais="' + c.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
+      '<button class="mais-linha" data-ag-mais="' + c.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>" };
   });
 
+  // A tarefa entra na mesma lista: no lugar da hora, a marca de concluir.
   const tarefas = d.tarefas.map((t) => {
-    const classe = "ag-tarefa-linha" + (t.concluida ? " ag-feita" : "");
-    return '<div class="' + classe + '" data-ag-abrir-tarefa="' + t.id + '">' +
+    const classe = "ag-hora-linha ag-tarefa ag-tarefa-dia" + (t.concluida ? " ag-feita" : "");
+    const detalhe = ["tarefa", t.lista, t.cadastro_nome, t.importante && !t.concluida ? "importante" : ""].filter(Boolean).join(" · ");
+    return { hora: "", html: '<div class="' + classe + '" data-ag-abrir-tarefa="' + t.id + '"><span class="ag-hora">' +
       (t.concluida
         ? '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>'
         : '<span class="ag-circulo" data-ag-concluir="' + t.id + '" title="Concluir"></span>') +
-      '<span class="ag-texto">' + esc(t.titulo) + "</span>" +
-      (t.importante && !t.concluida ? '<span class="ag-quando ag-acc">importante</span>' : "") + "</div>";
+      '</span><span class="ag-corpo"><span>' + esc(t.titulo) + "</span><small>" + esc(detalhe) + "</small></span></div>" };
   });
+  // Tudo numa lista: o que tem hora em ordem, e as tarefas do dia depois.
+  const doDia = linhas.slice().sort((a, b) => a.hora.localeCompare(b.hora)).concat(tarefas);
 
   return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + titulo + '</h3><span class="meta">' + meta + "</span></span>" +
     '<span class="ag-sino" title="' + (comAviso ? plural(comAviso, "compromisso") + " com aviso" : "nenhum aviso marcado") + '">' +
     ic("notifications", 18) + (comAviso ? "<i></i>" : "") + "</span></div>" +
 
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos</span>' +
-    '<button class="ag-ligacao" data-ag-marcar="1">+ marcar</button></div>' +
-    (linhas.length ? linhas.join('<span class="ag-risco"></span>') : "<p>Nada marcado para este dia.</p>") + "</div>" +
-
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Tarefas do dia</span><span class="contagem">' +
-    (d.tarefas.length ? feitas + " de " + d.tarefas.length : "nenhuma") + "</span></div>" +
-    tarefas.join("") +
-    '<button class="ag-ligacao" data-ag-nova-tarefa="1">+ nova tarefa</button>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos e tarefas</span>' +
+    '<button class="ag-ligacao" data-ag-marcar="1">+ novo</button></div>' +
+    (doDia.length ? doDia.map((x) => x.html).join('<span class="ag-risco"></span>') : "<p>Nada neste dia.</p>") +
+    '<button class="ag-ligacao" data-ag-nova-tarefa="1">+ tarefa rápida</button>' +
     '<span class="ag-entrada" data-ag-entrada-tarefa="1" hidden><input type="text" placeholder="O que precisa ser feito neste dia…">' +
     "<button>Adicionar</button></span></div>" +
 
@@ -761,6 +781,8 @@ function painelSugestoes() {
 function ligarAgenda() {
   const raiz = $("agenda");
 
+  raiz.querySelectorAll("[data-ag-andar]").forEach((b) => { b.onclick = () => andarAgenda(Number(b.dataset.agAndar)); });
+  raiz.querySelectorAll("[data-ag-hoje]").forEach((b) => { b.onclick = () => irParaHojeNaAgenda(); });
   raiz.querySelectorAll("[data-ag-dia]").forEach((el) => {
     el.onclick = () => escolherDia(el.dataset.agDia);
     el.ondblclick = () => { ag.dia = el.dataset.agDia; criarNaAgenda("compromisso"); };
@@ -925,7 +947,17 @@ function ligarPainelDoDia(p) {
   if (!d) return;
   const compromisso = (el, nome) => d.compromissos.find((x) => x.id === Number(el.dataset[nome]));
 
-  p.querySelectorAll("[data-ag-marcar]").forEach((b) => { b.onclick = () => criarNaAgenda("compromisso"); });
+  p.querySelectorAll("[data-ag-marcar]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      menuNaLinha(b, [
+        { rotulo: "Compromisso", acao: () => criarNaAgenda("compromisso") },
+        { rotulo: "Tarefa", acao: () => criarNaAgenda("tarefa") },
+        { rotulo: "Prazo interno", acao: () => criarNaAgenda("prazo_interno") },
+        { rotulo: "Pagamento", acao: () => criarNaAgenda("pagamento") },
+      ]);
+    };
+  });
   p.querySelectorAll("[data-ag-mais]").forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();

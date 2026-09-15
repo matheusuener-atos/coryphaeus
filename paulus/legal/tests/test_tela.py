@@ -363,7 +363,7 @@ def main() -> int:
             pagina.evaluate("() => abrirDestino('tarefas')")
             pagina.wait_for_timeout(1200)
             checar(
-                pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Meu dia",
+                pagina.evaluate("() => ag.visao === 'tarefas' && ag.tar.filtro === 'meu_dia' && document.getElementById('conversa-meta').textContent.startsWith('Meu dia')"),
                 "o destino antigo Tarefas abre a Agenda em Meu dia",
             )
 

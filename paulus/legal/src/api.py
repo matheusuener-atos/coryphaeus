@@ -2350,7 +2350,9 @@ def agenda_grade(de: str = "", ate: str = "", pessoa: int = 0) -> dict:
 
 @app.get("/api/agenda/dia")
 def agenda_dia(dia: str) -> dict:
-    tarefas = [t for t in estado.tarefas.listar("todas") if t.get("prazo") == dia]
+    # As abertas e as concluidas do dia: a grade conta as duas, e o painel
+    # mostra a feita riscada em vez de sumir com ela.
+    tarefas = [t for t in estado.tarefas.listar("todas") + estado.tarefas.listar("concluidas") if t.get("prazo") == dia]
     return {
         "dia": dia,
         "compromissos": estado.agenda.listar(dia, dia),
