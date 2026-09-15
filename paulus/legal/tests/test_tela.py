@@ -900,8 +900,8 @@ def main() -> int:
                     "sem barra ao lado: ficha, equipe, e prazos e anotacoes lado a lado na pagina",
                 )
                 checar(
-                    pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-arquivos') && !!document.querySelector('[data-sv-resumo]')"),
-                    "a etapa no status, a tabela de arquivos e o botao do Resumo da IA",
+                    pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-arquivos') && !!document.querySelector('.sv-abertura > .sv-resumo-topo + .sv-ficha')"),
+                    "a etapa no status, os arquivos e o resumo da IA no topo, antes da ficha",
                 )
                 pagina.evaluate("() => document.querySelector('[data-sv-voltar]').click()")
                 pagina.wait_for_selector("#sv-tela .sv-grade", timeout=20000)

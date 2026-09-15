@@ -45,9 +45,6 @@
   .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
 
   .sv-faisca { color: var(--destaque); display: inline-flex; }
-  /* O texto do resumo na letra do sistema, como o resto do pop-up. */
-  .sv-resumo-texto { margin: 0; font: 400 14px/1.65 var(--sans); color: var(--ink); white-space: pre-line; }
-  .sv-resumo-texto.vazio { color: var(--ink2); }
   .sv-marca { border: none; background: none; padding: 0; color: var(--ink3); display: inline-flex; cursor: pointer; flex: none; }
   .sv-marca:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .sv-data { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; text-align: right; }
@@ -77,8 +74,15 @@
   .sv-ligacao .ic { color: var(--ink3); }
 
   /* A abertura: o lide em serifa e a ficha em faixa, entre dois fios. */
-  .sv-abertura { display: grid; gap: 26px; }
-  .sv-lede { margin: 0; max-width: 620px; font: 400 21px/1.45 var(--serif); color: var(--ink); white-space: pre-line; }
+  .sv-abertura { display: grid; gap: 22px; }
+  /* O resumo da IA no topo: titulo na serifa, o texto na letra do sistema. */
+  .sv-resumo-topo { display: grid; gap: 10px; padding: 4px 2px 0; }
+  .sv-resumo-cabeca { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .sv-resumo-cabeca h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 400 28px/1.2 var(--serif); color: var(--ink); }
+  .sv-resumo-quando { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-resumo-cabeca .sv-ligacao { margin-left: auto; }
+  .sv-resumo-corpo { margin: 0; max-width: 860px; font: 400 15px/1.7 var(--sans); color: var(--ink2); white-space: pre-line; }
+  .sv-resumo-corpo.vazio { color: var(--ink3); }
   /* A ficha e um cartao em faixa: as quatro colunas numa linha so. */
   .sv-ficha {
     display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 20px; padding: 14px 18px;
@@ -261,6 +265,3 @@
   .sv-d-pessoa.on .sv-d-marca .ic { opacity: 1; }
   .sv-d-nova { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--hair2); }
 
-  /* O resumo da IA, no pop-up. */
-  .sv-resumo-pop { display: grid; gap: 10px; min-height: 72px; align-content: start; }
-  .sv-resumo-quando { font: 500 12px var(--sans); color: var(--ink3); }

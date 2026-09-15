@@ -82,7 +82,6 @@ function desenharServicos() {
   if (depois && topo) depois.scrollTop = topo;
   ligarServicos();
   atualizarPostura();
-  atualizarResumoAberto();
 }
 
 /* ------------------------------------------------------ o cabecalho */
@@ -105,7 +104,6 @@ function cabecalhoServicos() {
     renomeadorDoTitulo = { limite: 80, guardar: (novo) => renomearServico(s, novo) };
     meta.textContent = (s.cliente_nome ? s.cliente_nome + " · " : "") + s.status_rotulo.toLowerCase() + " · " + plural(s.arquivos.length, "arquivo");
     $("acoes-tela").innerHTML =
-      '<button class="com-icone" data-sv-resumo="1"><span class="sv-faisca">' + ic("auto_awesome", 16) + "</span>Resumo da IA</button>" +
       '<button class="com-icone" data-sv-editar="1">' + ic("edit", 16) + "Editar</button>" +
       (s.status === "concluido"
         ? '<button class="com-icone" data-sv-status="andamento">' + ic("restart_alt", 16) + "Reabrir serviço</button>"
@@ -237,8 +235,8 @@ function haQuantoSv(iso) {
    LADO. Numa medida de leitura: o que está sendo feito, a ficha em faixa
    (cliente, status, aberto em, pasta no Acervo), a equipe, o status para
    conclusão, prazos e anotações lado a lado e, como já eram, o histórico do
-   serviço (com o assistente) e os arquivos. O resumo da IA abre no pop-up
-   do cabeçalho. */
+   serviço (com o assistente) e os arquivos. No topo, antes de tudo, o
+   resumo da IA. */
 function corpoDoTrabalho() {
   const s = sv.aberto;
   return '<div class="acervo-principal sv-principal" data-sv-id="' + s.id + '"><div class="sv-medida">' +
@@ -249,8 +247,26 @@ function corpoDoTrabalho() {
 
 /* ------------------------------------------------------- a abertura */
 
+/* O resumo da IA abre a pasta: o título na serifa e o texto embaixo. Sem
+   resumo ainda, fica a descrição do serviço e o convite para fazer um. */
+function resumoNoTopo(s) {
+  let corpo;
+  if (sv.pedindo) {
+    corpo = '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + (sv.pedindoDesde || Date.now()) + '">lendo o que está gravado na pasta…</span></p>';
+  } else if (s.resumo) {
+    // O modelo costuma abrir com "Resumo do serviço:" - o título já diz isso.
+    corpo = '<p class="sv-resumo-corpo">' + esc(s.resumo.replace(/^\s*resumo[^\n:]{0,40}:\s*/i, "")) + "</p>";
+  } else {
+    corpo = '<p class="sv-resumo-corpo' + (s.descricao ? "" : " vazio") + '">' +
+      esc(s.descricao || "Ainda sem resumo. O assistente lê o que está gravado na pasta — etapas, prazos, anotações e o nome dos arquivos — e escreve onde o serviço está e o que falta.") + "</p>";
+  }
+  const quando = s.resumo_em && s.resumo ? '<small class="sv-resumo-quando">escrito ' + esc(quandoCurtoSv(s.resumo_em)) + "</small>" : "";
+  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2><span class="sv-faisca">' + ic("auto_awesome", 20) + "</span>Resumo da IA</h2>" + quando +
+    '<button type="button" class="sv-ligacao" data-sv-resumo-atualizar="1"' + (sv.pedindo ? " disabled" : "") + ">" +
+    ic("refresh", 15) + (s.resumo ? "atualizar resumo" : "fazer um resumo") + "</button></div>" + corpo + "</div>";
+}
+
 function aberturaDoServico(s) {
-  const lede = s.descricao ? '<p class="sv-lede">' + esc(s.descricao) + "</p>" : "";
   const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
   // Concluído em verde e suspenso em vinho, como no selo das pastas.
   const classe = "corta sv-valor-" + (s.status || "andamento");
@@ -259,7 +275,7 @@ function aberturaDoServico(s) {
     ? item("Pasta no Acervo", '<button type="button" class="sv-ficha-pasta corta" data-sv-pasta-windows="1" title="Abrir a pasta no Windows">' +
       esc("Serviços › " + (s.pasta || s.nome)) + "</button>")
     : "";
-  return '<header class="sv-abertura">' + lede + '<div class="sv-ficha">' +
+  return '<header class="sv-abertura">' + resumoNoTopo(s) + '<div class="sv-ficha">' +
     item("Cliente", '<b class="corta">' + esc(s.cliente_nome || "sem cliente") + "</b>") +
     item("Status", '<b class="' + classe + '">' + esc(s.status_rotulo + " · " + s.progresso + "%") + "</b>") +
     item("Aberto em", "<b>" + (aberto ? dataCurta(aberto) + " " + aberto.slice(0, 4) : "—") + "</b>") +
@@ -561,47 +577,6 @@ function secaoDasAnotacoes(s) {
   return '<section class="sv-secao sv-anotacoes"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("edit_note", 16) + 'Anotações</span>' +
     '<span class="sv-secao-meta">' + (s.anotacoes.length || "") + "</span></div>" + linhas +
     '<textarea class="sv-nova-nota" rows="1" placeholder="Nova anotação…  (Enter guarda)" data-sv-nota="1"></textarea></section>';
-}
-
-/* ------------------------------------------------ o resumo da IA */
-
-/* O resumo abre num pop-up, pelo botão do alto: o centro da pasta é o
-   histórico. O pop-up fica aberto enquanto o assistente escreve. */
-function corpoDoResumo(s) {
-  if (sv.pedindo) {
-    return '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + (sv.pedindoDesde || Date.now()) + '">lendo o que está gravado na pasta…</span></p>';
-  }
-  if (!s.resumo) {
-    return '<p class="sv-resumo-texto vazio">Ainda não há resumo. O assistente lê o que está gravado na pasta — etapas, prazos, anotações e o nome dos arquivos — e escreve onde o serviço está e o que falta.</p>';
-  }
-  return '<p class="sv-resumo-texto">' + esc(s.resumo) + "</p>" +
-    '<small class="sv-resumo-quando">escrito ' + esc(quandoCurtoSv(s.resumo_em)) + " · só com o que está gravado na pasta</small>";
-}
-
-function atualizarResumoAberto() {
-  const lugar = document.getElementById("sv-resumo-pop");
-  if (!lugar || !sv.aberto) return;
-  lugar.innerHTML = corpoDoResumo(sv.aberto);
-  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
-  if (botao) {
-    botao.disabled = sv.pedindo;
-    botao.textContent = sv.pedindo ? "Escrevendo…" : (sv.aberto.resumo ? "Atualizar resumo" : "Fazer um resumo");
-  }
-}
-
-async function abrirResumoDoServico() {
-  const s = sv.aberto;
-  if (!s) return;
-  const escolha = dialogo({
-    titulo: "Resumo da IA", contexto: "Serviços › " + s.nome, classe: "dialogo-servico", larga: true,
-    html: '<div class="sv-resumo-pop" id="sv-resumo-pop"></div>', cancelar: "Fechar", confirmar: "Atualizar resumo",
-  });
-  atualizarResumoAberto();
-  // Atualizar escreve com o pop-up aberto; não fecha.
-  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
-  if (botao) botao.addEventListener("click", (e) => { e.stopImmediatePropagation(); pedirResumoDoServico(); }, true);
-  const r = await escolha;
-  if (r && r.ok) pedirResumoDoServico();
 }
 
 /* ----------------------------------------------- o que se faz na pasta */
@@ -918,7 +893,7 @@ function ligarServicos() {
   clique("[data-sv-sel-concluir]", () => concluirServicosEmLote([...sv.escolhidos]));
   clique("[data-sv-mais]", (b) => menuDoServico(b, sv.lista.find((x) => x.id === Number(b.dataset.svMais))));
   clique("[data-sv-editar]", () => dialogoDoServico(sv.aberto));
-  clique("[data-sv-resumo]", () => abrirResumoDoServico());
+  clique("[data-sv-resumo-atualizar]", () => pedirResumoDoServico());
   clique("[data-sv-pasta-windows]", () => abrirPastaNoWindows(sv.aberto.pasta_caminho));
   clique("[data-sv-redator]", (b) => menuDoRedator(b, Number(b.dataset.svRedator)));
   clique("[data-sv-etapa-quem]", (b) => responsavelDaEtapa(b, Number(b.dataset.svEtapaQuem)));
