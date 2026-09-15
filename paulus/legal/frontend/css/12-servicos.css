@@ -181,8 +181,13 @@
   .sv-arquivos .tabela-linha { cursor: pointer; }
   .colunas-sv-arquivos { grid-template-columns: 28px minmax(0, 1fr) 110px 28px; }
   /* As gravacoes da pasta: o icone, o titulo e a duracao; a linha aberta traz o tocador. */
-  .colunas-sv-gravacoes { grid-template-columns: 28px minmax(0, 1fr) 80px; }
+  .colunas-sv-gravacoes { grid-template-columns: 28px minmax(0, 1fr) 80px 28px; }
   .sv-gravacoes { flex: none; }
+  /* Os cartoes da pasta tem poucas linhas: o menu do "..." abre para fora do
+     cartao, e por isso nada corta o que passa da borda. */
+  .tabela-cartao.sv-arquivos, .sv-arquivos .tabela-corpo { overflow: visible; }
+  .sv-arquivos .tabela-barra { border-radius: 12px 12px 0 0; }
+  .sv-arquivos .tabela-corpo > :last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
   .sv-gravacoes .gv-linha-tocador { padding-left: 58px; }
   .sv-historico { flex: none; display: flex; flex-direction: column; min-height: 0; }
   .sv-tempo { max-height: 520px; overflow-y: auto; padding: 14px 18px 6px; display: grid; gap: 16px; scrollbar-width: none; }

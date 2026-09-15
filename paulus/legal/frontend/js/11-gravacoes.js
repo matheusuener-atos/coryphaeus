@@ -1687,16 +1687,16 @@ function redesenharConteudoGv() {
 }
 
 /* Ligar a gravação a um serviço sem abrir a gravação: pelo "⋯" da linha. */
-async function ligarGravacaoDaLista(g, servicoId) {
+async function ligarGravacaoDaLista(g, servicoId, servicos, depois) {
   if ((g.servico_id || null) === servicoId) return;
   const r = await fetch("/api/gravacoes/" + g.id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ servico_id: servicoId }) });
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
   const nova = await r.json();
   const i = gv.lista.findIndex((x) => x.id === g.id);
   if (i >= 0) gv.lista[i] = Object.assign({}, gv.lista[i], nova);
-  const servico = gv.servicos.find((x) => x.id === servicoId);
+  const servico = (servicos || gv.servicos).find((x) => x.id === servicoId);
   avisoCert(servico ? "“" + g.titulo + "” ligada a " + servico.nome : "“" + g.titulo + "” sem serviço", { tom: "ok" });
-  desenharGravacoes();
+  if (depois) depois(); else desenharGravacoes();
 }
 
 async function ligarGravacaoA(campo, valor) {
@@ -1735,26 +1735,32 @@ async function anotarNaGravacao(url, metodo, corpo) {
   return true;
 }
 
-async function renomearGravacao(id) {
-  const g = gv.lista.find((x) => x.id === id);
+async function renomearGravacao(id, gravacao, depois) {
+  const g = gravacao || gv.lista.find((x) => x.id === id);
   if (!g) return;
   const novo = await perguntar({ titulo: "Renomear gravação", contexto: "Gravações", campo: { rotulo: "Título", valor: g.titulo, icone: "graphic_eq" }, confirmar: "Renomear" });
   if (!novo) return;
   const r = await fetch("/api/gravacoes/" + id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ titulo: novo }) });
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
-  mostrarGravacoes("lista");
+  if (depois) depois(); else mostrarGravacoes("lista");
 }
 
-function menuDaGravacao(botao, g) {
+/* O "⋯" de uma gravação — na lista de Gravações ou nos Arquivos de um
+   serviço. `o.depois` redesenha a tela de onde o menu veio (padrão: a lista
+   de Gravações) e `o.servicos` são os serviços do submenu. */
+function menuDaGravacao(botao, g, o) {
   if (!g) return;
+  const opcoes = o || {};
+  const depois = opcoes.depois || (() => mostrarGravacoes("lista"));
+  const servicos = opcoes.servicos || gv.servicos;
   menuNaLinha(botao, [
     { rotulo: "Abrir", icone: "graphic_eq", acao: () => abrirGravacao(g.id) },
-    { rotulo: "Renomear", icone: "edit", acao: () => renomearGravacao(g.id) },
-    { rotulo: "Ligar a um serviço", sub: [{ rotulo: "Sem serviço", atual: !g.servico_id, acao: () => ligarGravacaoDaLista(g, null) }, "-"]
-      .concat(gv.servicos.map((x) => ({ rotulo: x.nome, atual: x.id === g.servico_id, acao: () => ligarGravacaoDaLista(g, x.id) }))) },
+    { rotulo: "Renomear", icone: "edit", acao: () => renomearGravacao(g.id, g, depois) },
+    { rotulo: "Ligar a um serviço", sub: [{ rotulo: "Sem serviço", atual: !g.servico_id, acao: () => ligarGravacaoDaLista(g, null, servicos, opcoes.depois) }, "-"]
+      .concat(servicos.map((x) => ({ rotulo: x.nome, atual: x.id === g.servico_id, acao: () => ligarGravacaoDaLista(g, x.id, servicos, opcoes.depois) }))) },
     { rotulo: "Baixar o áudio", icone: "download", acao: () => baixarAudioGv(g) },
     "-",
-    { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarGravacao(g) },
+    { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarGravacao(g, depois) },
   ]);
 }
 
@@ -1779,13 +1785,14 @@ async function baixarAudioGv(g) {
   location.href = "/api/gravacoes/" + g.id + "/audio?baixar=1";
 }
 
-async function apagarGravacao(g) {
+async function apagarGravacao(g, depois) {
   if (!(await confirmar({ titulo: "Apagar esta gravação?", contexto: "Gravações › " + g.titulo, texto: "O áudio, a transcrição e as notas saem da lista. " + LIXEIRA_TEXTO + " Depois disso o áudio some desta máquina.", confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/gravacoes/" + g.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   if (gv.aberta && gv.aberta.id === g.id) gv.aberta = null;
-  mostrarGravacoes("lista");
-  avisarLixeira(r, () => mostrarGravacoes("lista"));
+  const refazer = depois || (() => mostrarGravacoes("lista"));
+  refazer();
+  avisarLixeira(r, refazer);
 }
 
 function perguntarSobreGravacao(g) {

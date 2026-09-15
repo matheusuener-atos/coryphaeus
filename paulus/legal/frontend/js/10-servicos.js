@@ -541,7 +541,9 @@ function cartaoDasGravacoesDoServico(s) {
     const sub = [g.tipo_rotulo, quandoDaGravacao(g), statusDaGravacao(g)].filter(Boolean).join(" · ");
     return '<div class="' + classe + '" data-sv-gravacao="' + g.id + '" title="Clique para ouvir">' + iconeDaLinhaGv(g) +
       '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" +
-      '<span class="sv-data">' + duracaoGv(g.duracao_s) + "</span></div>" + (aberta ? tocadorNaLinhaGv(g) : "");
+      '<span class="sv-data">' + duracaoGv(g.duracao_s) + "</span>" +
+      '<button class="mais-linha" data-sv-gravacao-mais="' + g.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>" +
+      (aberta ? tocadorNaLinhaGv(g) : "");
   }).join("");
   const total = lista.reduce((soma, g) => soma + (Number(g.duracao_s) || 0), 0);
   const conta = lista.length ? plural(lista.length, "gravação", "gravações") + " · " + duracaoLongaGv(total) : "nenhuma gravação";
@@ -1061,6 +1063,10 @@ function ligarServicos() {
     desenharServicos();
   });
   clique("[data-sv-gravar]", () => gravarNoServico(sv.aberto));
+  // O "⋯" da gravação é o mesmo de Gravações; depois de cada ação, a pasta se refaz.
+  clique("[data-sv-gravacao-mais]", (b) => menuDaGravacao(b, (sv.aberto.gravacoes || []).find((x) => x.id === Number(b.dataset.svGravacaoMais)), {
+    depois: () => recarregarServico(), servicos: sv.lista.map((x) => ({ id: x.id, nome: x.nome })),
+  }));
   ligarTocadorNaLinhaGv();
   clique("[data-sv-etapa-data]", (b) => escolherPrazoDaEtapa(b));
   const tempo = document.getElementById("sv-tempo");
