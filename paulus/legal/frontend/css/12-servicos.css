@@ -157,9 +157,13 @@
     background: none; box-shadow: none; font: 500 14px var(--sans); color: var(--ink);
   }
   .sv-nova-etapa input[type="text"]:focus { outline: none; box-shadow: none; }
-  /* Os botoes da nova etapa tem a cor de todo botao: fundo da casca, fio e
-     tinta - os do cabecalho. */
-  .sv-escolher-data { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; white-space: nowrap; }
+  /* Os botoes da nova etapa, dentro do cartao, tem o padrao do Adicionar
+     dos Arquivos: o fundo do proprio cartao e o fio, nao o fundo da casca. */
+  .sv-escolher-data {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; white-space: nowrap;
+    background: var(--surf); border-color: var(--hair);
+  }
+  .sv-escolher-data:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
   .sv-escolher-data .ic { color: var(--ink2); }
   .sv-escolher-data.atrasado { color: var(--acc); border-color: var(--accln); }
   .sv-data-rotulo { white-space: nowrap; }
@@ -235,9 +239,16 @@
   .sv-prazos .sv-dica { margin: 10px 16px 8px; }
   .sv-prazo-linha { display: flex; align-items: baseline; gap: 12px; min-width: 0; margin: 0 16px; padding: 11px 0; border-bottom: 1px solid var(--hair); font: 500 14px var(--sans); color: var(--ink); }
   .sv-prazo-linha .corta { flex: 1; min-width: 0; }
-  .sv-prazo-quando { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .sv-prazo-linha .mais-linha, .sv-anotacao .mais-linha { flex: none; align-self: center; opacity: 0; }
+  .sv-prazo-linha:hover .mais-linha, .sv-anotacao:hover .mais-linha { opacity: 1; }
+  .sv-prazo-quando {
+    flex: none; padding: 2px 6px; border: none; border-radius: 6px; background: none;
+    font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; cursor: pointer;
+  }
+  .sv-prazo-quando:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .sv-prazo-quando.perto { font-weight: 700; color: var(--ink); }
-  .sv-anotacao { display: grid; gap: 4px; margin: 0 16px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+  .sv-anotacao { display: flex; gap: 10px; margin: 0 16px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+  .sv-anotacao-texto { flex: 1; min-width: 0; display: grid; gap: 4px; }
   .sv-anotacao p { margin: 0; font: 500 14px/1.5 var(--sans); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
   .sv-anotacao small { font: 400 11.5px var(--mono); color: var(--ink3); }
   .sv-nova-nota {
@@ -265,3 +276,14 @@
   .sv-d-pessoa.on .sv-d-marca .ic { opacity: 1; }
   .sv-d-nova { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--hair2); }
 
+  /* Editar no lugar: o texto que se clica para editar e o campo que entra
+     no lugar dele, com a mesma letra. */
+  .sv-editavel { cursor: text; border-radius: 4px; transition: background-color .12s ease, box-shadow .12s ease; }
+  .sv-editavel:hover { background: var(--fill); box-shadow: 0 0 0 3px var(--fill); }
+  .sv-editavel:has(.sv-editando) { background: none; box-shadow: none; }
+  .sv-editando {
+    display: block; width: 100%; max-width: none; height: auto; min-height: 0; margin: -3px -6px; padding: 2px 6px;
+    border: 1px solid var(--ink-a2); border-radius: 6px; background: var(--bg); box-shadow: none;
+    font: inherit; line-height: inherit; color: var(--ink); resize: none; overflow: hidden;
+  }
+  .sv-editando:focus { outline: none; border-color: var(--ink-a35); box-shadow: none; }

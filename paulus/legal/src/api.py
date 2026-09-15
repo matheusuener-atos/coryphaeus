@@ -73,7 +73,7 @@ import pastas
 import recursos
 import registro
 from classify import Classificacao, ROTULOS
-from agenda import Agenda, ONDES, TIPOS as TIPOS_AGENDA
+from agenda import Agenda, CAMPOS as CAMPOS_AGENDA, ONDES, TIPOS as TIPOS_AGENDA
 from base import Base
 from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
@@ -6131,6 +6131,65 @@ def servicos_anotar(id_: int, payload: dict) -> dict:
         return {"anotacoes": estado.servicos.anotar(id_, str(payload.get("texto", "")), _quem_sou())}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/servicos/{id_}/anotacoes/{indice}")
+def servicos_anotacao_editar(id_: int, indice: int, payload: dict) -> dict:
+    try:
+        return {"anotacoes": estado.servicos.anotacao_editar(id_, indice, str(payload.get("texto", "")), _quem_sou())}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete("/api/servicos/{id_}/anotacoes/{indice}")
+def servicos_anotacao_remover(id_: int, indice: int) -> dict:
+    try:
+        return {"anotacoes": estado.servicos.anotacao_remover(id_, indice)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/servicos/{id_}/prazos/{origem}/{item_id}")
+def servicos_prazo_editar(id_: int, origem: str, item_id: int, payload: dict) -> dict:
+    """
+    Trocar o titulo, a data ou a hora de um prazo da pasta, sem mexer no
+    resto da ficha. O compromisso e a tarefa sao gravados inteiros (a Agenda
+    e Tarefas regravam todos os campos): aqui a ficha atual e lida e so o que
+    veio no corpo muda.
+    """
+    if not estado.servicos.obter(id_):
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    titulo = " ".join(str(payload.get("titulo", "")).split()) if "titulo" in payload else None
+    if titulo == "":
+        raise HTTPException(status_code=400, detail="o prazo precisa de um título")
+    try:
+        if origem == "compromisso":
+            atual = estado.agenda.obter(item_id)
+            if not atual:
+                raise HTTPException(status_code=404, detail="compromisso não encontrado")
+            dados = {c: atual.get(c) for c in CAMPOS_AGENDA}
+            if titulo is not None:
+                dados["titulo"] = titulo
+            if payload.get("data"):
+                dados["data"] = servicos_mod.data_de_prazo(str(payload["data"])) or dados["data"]
+            if payload.get("hora"):
+                dados["hora"] = str(payload["hora"])[:5]
+            estado.agenda.salvar(dados, item_id)
+        elif origem == "tarefa":
+            atual = estado.tarefas.obter(item_id)
+            if not atual:
+                raise HTTPException(status_code=404, detail="tarefa não encontrada")
+            dados = {c: atual.get(c) for c in tarefas_mod.CAMPOS}
+            if titulo is not None:
+                dados["titulo"] = titulo
+            if payload.get("data"):
+                dados["prazo"] = servicos_mod.data_de_prazo(str(payload["data"])) or dados["prazo"]
+            estado.tarefas.salvar(dados, item_id)
+        else:
+            raise HTTPException(status_code=400, detail="prazo desconhecido")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"prazos": (estado.servicos.obter(id_) or {}).get("prazos", [])}
 
 
 @app.post("/api/servicos/{id_}/vincular")

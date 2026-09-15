@@ -276,6 +276,26 @@ def test_servico_pasta_e_agenda(c: Cliente, criados: dict) -> None:
         st, t = c.pedir("GET", "/api/tarefas?filtro=concluidas")
         checar(st == 200 and not any(x["id"] == tarefa for x in t["tarefas"]), "sem data, a etapa deixa de ser tarefa")
 
+        # editar no lugar: a anotacao ganha a hora da edicao; o prazo muda so o que veio
+        c.pedir("POST", f"/api/servicos/{sid}/anotacoes", {"texto": "Primeira versão."})
+        linha = api.estado.base.um("SELECT anotacoes FROM servicos WHERE id = ?", (sid,))
+        api.estado.base.escrever("UPDATE servicos SET anotacoes = ? WHERE id = ?",
+                                 (linha["anotacoes"].replace(date.today().isoformat(), "2026-01-02"), sid))
+        st, a = c.pedir("POST", f"/api/servicos/{sid}/anotacoes/0", {"texto": "Versão revista."})
+        checar(st == 200 and a["anotacoes"][0]["texto"] == "Versão revista." and a["anotacoes"][0]["editada"]
+               and a["anotacoes"][0]["quando"][:10] == date.today().isoformat(), "editar a anotacao atualiza a data e a hora", a)
+        st, a = c.pedir("DELETE", f"/api/servicos/{sid}/anotacoes/0")
+        checar(st == 200 and a["anotacoes"] == [], "a anotacao sai pelo x")
+        st, ag = c.pedir("POST", "/api/agenda", {"id": None, "dados": {"titulo": "Teste Pasta reunião", "data": amanha, "hora": "09:00",
+                                                                        "duracao": 45, "onde": "online", "servico_id": sid}})
+        st, p = c.pedir("POST", f"/api/servicos/{sid}/prazos/compromisso/{ag['id']}", {"titulo": "Teste Pasta reunião revista", "hora": "14:30"})
+        comp = api.estado.agenda.obter(ag["id"])
+        checar(st == 200 and comp["titulo"] == "Teste Pasta reunião revista" and comp["hora"] == "14:30" and comp["duracao"] == 45
+               and comp["onde"] == "online" and comp.get("servico_id") == sid, "editar o prazo muda so o titulo e a hora", comp)
+        st, r = c.pedir("DELETE", f"/api/agenda/{ag['id']}")
+        if isinstance(r, dict) and r.get("lixeira"):
+            c.pedir("DELETE", f"/api/lixeira/{r['lixeira']}")
+
         docs = api.estado.searcher.documents
         if len(docs) >= 2:
             st, r = c.pedir("POST", f"/api/servicos/{sid}/anexar", {"caminhos": [docs[0].path]})

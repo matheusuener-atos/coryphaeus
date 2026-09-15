@@ -534,6 +534,48 @@ class Servicos:
                     tipo="anotacao", dados={"texto": texto})
         return anotacoes
 
+    def _anotacoes(self, id_: int) -> list[dict]:
+        linha = self.base.um("SELECT anotacoes FROM servicos WHERE id = ?", (id_,))
+        if not linha:
+            raise ValueError("serviço não encontrado")
+        return _json(linha["anotacoes"], [])
+
+    def _gravar_anotacoes(self, id_: int, anotacoes: list[dict]) -> None:
+        self.base.escrever("UPDATE servicos SET anotacoes = ?, atualizado_em = ? WHERE id = ?",
+                           (json.dumps(anotacoes, ensure_ascii=False), _agora(), id_))
+
+    def anotacao_editar(self, id_: int, indice: int, texto: str, quem: str = "") -> list[dict]:
+        """
+        Reescrever uma anotacao. A data e a hora passam a ser as da edicao -
+        e o que a pessoa leu por ultimo -, e a anotacao fica marcada como
+        editada, com quem editou.
+        """
+        texto = str(texto or "").strip()
+        if not texto:
+            raise ValueError("a anotação está vazia")
+        anotacoes = self._anotacoes(id_)
+        if indice < 0 or indice >= len(anotacoes):
+            raise ValueError("anotação não encontrada")
+        a = anotacoes[indice]
+        if a.get("texto") == texto:
+            return anotacoes
+        a.update({"texto": texto, "quando": _agora(), "editada": True, "editada_por": quem or self._quem()})
+        self._gravar_anotacoes(id_, anotacoes)
+        self.trilha(id_, "Anotação editada: " + (texto[:60] + ("…" if len(texto) > 60 else "")), quem,
+                    tipo="anotacao_editada", dados={"texto": texto})
+        return anotacoes
+
+    def anotacao_remover(self, id_: int, indice: int) -> list[dict]:
+        anotacoes = self._anotacoes(id_)
+        if indice < 0 or indice >= len(anotacoes):
+            raise ValueError("anotação não encontrada")
+        tirada = anotacoes.pop(indice)
+        self._gravar_anotacoes(id_, anotacoes)
+        texto = tirada.get("texto", "")
+        self.trilha(id_, "Anotação removida: " + (texto[:60] + ("…" if len(texto) > 60 else "")),
+                    tipo="anotacao_removida", dados={"texto": texto})
+        return anotacoes
+
     def vincular(self, id_: int, sha1: str, nome: str, quem: str = "") -> None:
         self.base.escrever(
             "INSERT OR IGNORE INTO vinculos (tipo, alvo_id, sha1, nome, criado_em) "

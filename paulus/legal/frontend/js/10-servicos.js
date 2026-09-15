@@ -335,7 +335,7 @@ function secaoDasEtapas(s) {
     return '<div class="' + classe + '">' +
       '<button type="button" class="sv-marca" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir a etapa" : "Concluir a etapa") + '">' +
       ic(e.feita ? "check_circle" : "radio_button_unchecked", 17) + "</button>" +
-      '<span class="sv-etapa-titulo">' + esc(e.titulo) + "</span>" +
+      '<span class="sv-etapa-titulo sv-editavel" data-sv-etapa-editar="' + i + '" title="Clique para editar">' + esc(e.titulo) + "</span>" +
       botaoDoResponsavel(e, i) + prazoDaEtapa(e, i) +
       '<button type="button" class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 15) + "</button></div>";
   }).join("");
@@ -561,10 +561,13 @@ function quandoDoPrazoSv(p) {
 }
 
 function secaoDosPrazos(s) {
-  const linhas = s.prazos.map((p) => {
+  const linhas = s.prazos.map((p, k) => {
     const dias = diasAte(p.quando);
     const classe = "sv-prazo-quando" + (dias <= 1 ? " perto" : "");
-    return '<div class="sv-prazo-linha"><span class="corta">' + esc(p.titulo) + '</span><span class="' + classe + '">' + esc(quandoDoPrazoSv(p)) + "</span></div>";
+    return '<div class="sv-prazo-linha"><span class="corta sv-editavel" data-sv-prazo-titulo="' + k + '" title="Clique para editar">' + esc(p.titulo) + "</span>" +
+      '<button type="button" class="' + classe + '" data-sv-prazo-quando="' + k + '" title="Trocar a data' + (p.origem === "compromisso" ? " e a hora" : "") + '">' +
+      esc(quandoDoPrazoSv(p)) + "</button>" +
+      '<button type="button" class="mais-linha" data-sv-prazo-tirar="' + k + '" title="Remover">' + ic("close", 15) + "</button></div>";
   }).join("");
   return '<section class="sv-secao sv-prazos"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("event", 16) + 'Prazos e agendamentos</span>' +
     '<button type="button" class="sv-ligacao" data-sv-agendar="1">' + ic("add", 15) + "agendar</button></div>" + linhas +
@@ -572,14 +575,115 @@ function secaoDosPrazos(s) {
 }
 
 function secaoDasAnotacoes(s) {
-  const linhas = s.anotacoes.slice(0, 6).map((a) => '<div class="sv-anotacao"><p>' + esc(a.texto) + "</p>" +
-    "<small>" + esc(a.quem + " · " + quandoCurtoSv(a.quando)) + "</small></div>").join("");
+  const linhas = s.anotacoes.slice(0, 6).map((a, i) => '<div class="sv-anotacao"><div class="sv-anotacao-texto">' +
+    '<p class="sv-editavel" data-sv-nota-editar="' + i + '" title="Clique para editar">' + esc(a.texto) + "</p>" +
+    "<small>" + esc(a.quem + " · " + quandoCurtoSv(a.quando) + (a.editada ? " · editada" : "")) + "</small></div>" +
+    '<button type="button" class="mais-linha" data-sv-nota-tirar="' + i + '" title="Remover a anotação">' + ic("close", 15) + "</button></div>").join("");
   return '<section class="sv-secao sv-anotacoes"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("edit_note", 16) + 'Anotações</span>' +
     '<span class="sv-secao-meta">' + (s.anotacoes.length || "") + "</span></div>" + linhas +
     '<textarea class="sv-nova-nota" rows="1" placeholder="Nova anotação…  (Enter guarda)" data-sv-nota="1"></textarea></section>';
 }
 
 /* ----------------------------------------------- o que se faz na pasta */
+
+/* EDITAR NO LUGAR. Clicar no texto de uma etapa, de um prazo ou de uma
+   anotação troca o texto por um campo com o mesmo tamanho de letra. Enter
+   (ou sair do campo) guarda, Esc desiste; texto igual ou vazio não grava. */
+function editarNoLugar(el, o) {
+  if (!el || el.querySelector(".sv-editando")) return;
+  const antes = el.innerHTML;
+  const campo = document.createElement(o.varias ? "textarea" : "input");
+  campo.className = "sv-editando";
+  campo.value = o.valor || "";
+  if (o.max) campo.maxLength = o.max;
+  el.innerHTML = "";
+  el.appendChild(campo);
+  const crescer = () => { if (o.varias) { campo.style.height = "auto"; campo.style.height = campo.scrollHeight + "px"; } };
+  crescer();
+  campo.oninput = crescer;
+  campo.focus();
+  campo.setSelectionRange(campo.value.length, campo.value.length);
+  let feito = false;
+  const terminar = async (guardar) => {
+    if (feito) return;
+    feito = true;
+    const novo = campo.value.trim();
+    if (!guardar || !novo || novo === String(o.valor || "").trim()) { el.innerHTML = antes; return; }
+    campo.disabled = true;
+    if ((await o.aoGuardar(novo)) === false && el.isConnected) el.innerHTML = antes;
+  };
+  campo.onkeydown = (e) => {
+    if (e.key === "Enter" && !(o.varias && e.shiftKey)) { e.preventDefault(); terminar(true); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); terminar(false); }
+  };
+  campo.onblur = () => terminar(true);
+  campo.onclick = (e) => e.stopPropagation();
+}
+
+async function guardarNaPasta(url, metodo, corpo) {
+  const r = await fetch(url, { method: metodo, headers: SV_JSON, body: corpo ? JSON.stringify(corpo) : undefined });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return false; }
+  await recarregarServico();
+  return true;
+}
+
+function editarTituloDaEtapa(el, i) {
+  editarNoLugar(el, { valor: sv.aberto.etapas[i].titulo, max: 160,
+    aoGuardar: (novo) => guardarNaPasta("/api/servicos/" + sv.aberto.id + "/etapas/" + i + "/editar", "POST", { titulo: novo }) });
+}
+
+function editarTituloDoPrazo(el, k) {
+  const p = sv.aberto.prazos[k];
+  editarNoLugar(el, { valor: p.titulo, max: 120,
+    aoGuardar: (novo) => guardarNaPasta("/api/servicos/" + sv.aberto.id + "/prazos/" + p.origem + "/" + p.id, "POST", { titulo: novo }) });
+}
+
+/* "hoje 09:00": o dia pelo calendário e, se for compromisso, a hora. */
+function trocarQuandoDoPrazo(botao, k) {
+  const p = sv.aberto.prazos[k];
+  const hoje = hojeIso();
+  calendarioPopover(botao, {
+    valor: p.quando, min: somarAnosIso(hoje, -5), max: somarAnosIso(hoje, 5), passado: true,
+    marcados: sv.aberto.prazos.map((x) => x.quando),
+    aoEscolher: async (iso) => {
+      if (!iso) return;
+      const dados = { data: iso };
+      if (p.origem === "compromisso") {
+        const r = await dialogo({
+          titulo: "Que horas?", contexto: p.titulo + " · " + maiuscula(dataPorExtenso(iso)), classe: "dialogo-servico",
+          campo: { rotulo: "Hora", valor: p.hora || "09:00", tipo: "time", icone: "schedule", selecionar: false }, confirmar: "Guardar",
+        });
+        if (!r || !r.ok) return;
+        dados.hora = r.valor;
+      }
+      if (await guardarNaPasta("/api/servicos/" + sv.aberto.id + "/prazos/" + p.origem + "/" + p.id, "POST", dados)) {
+        avisoCert("agora " + dataPorExtenso(iso) + (dados.hora ? " às " + dados.hora : ""), { tom: "ok" });
+      }
+    },
+  });
+}
+
+/* O prazo sai para a lixeira, com Desfazer - é um compromisso ou uma tarefa
+   de verdade, da Agenda. */
+async function tirarPrazoDaPasta(k) {
+  const p = sv.aberto.prazos[k];
+  const r = await fetch((p.origem === "compromisso" ? "/api/agenda/" : "/api/tarefas/") + p.id, { method: "DELETE" });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  avisarLixeira(r, () => recarregarServico());
+  recarregarServico();
+}
+
+function editarAnotacao(el, i) {
+  editarNoLugar(el, { valor: sv.aberto.anotacoes[i].texto, varias: true,
+    aoGuardar: (novo) => guardarNaPasta("/api/servicos/" + sv.aberto.id + "/anotacoes/" + i, "POST", { texto: novo }) });
+}
+
+async function tirarAnotacao(i) {
+  const a = sv.aberto.anotacoes[i];
+  if (!(await confirmar({ titulo: "Remover esta anotação?", contexto: "Serviços › " + sv.aberto.nome,
+    texto: "“" + a.texto.slice(0, 140) + (a.texto.length > 140 ? "…" : "") + "”", confirmar: "Remover", perigo: true }))) return;
+  if (await guardarNaPasta("/api/servicos/" + sv.aberto.id + "/anotacoes/" + i, "DELETE")) avisoCert("anotação removida");
+}
 
 async function conversarSobreServico(pergunta) {
   pergunta = String(pergunta || "").trim();
@@ -921,6 +1025,12 @@ function ligarServicos() {
   clique("[data-sv-arquivo-mais]", (b) => menuDoArquivoDoServico(b, b.dataset.svArquivoMais));
   clique("[data-sv-pessoa]", () => dialogoDaEquipe());
   clique("[data-sv-agendar]", (b) => agendarNoServico(b));
+  clique("[data-sv-etapa-editar]", (b) => editarTituloDaEtapa(b, Number(b.dataset.svEtapaEditar)));
+  clique("[data-sv-prazo-titulo]", (b) => editarTituloDoPrazo(b, Number(b.dataset.svPrazoTitulo)));
+  clique("[data-sv-prazo-quando]", (b) => trocarQuandoDoPrazo(b, Number(b.dataset.svPrazoQuando)));
+  clique("[data-sv-prazo-tirar]", (b) => tirarPrazoDaPasta(Number(b.dataset.svPrazoTirar)));
+  clique("[data-sv-nota-editar]", (b) => editarAnotacao(b, Number(b.dataset.svNotaEditar)));
+  clique("[data-sv-nota-tirar]", (b) => tirarAnotacao(Number(b.dataset.svNotaTirar)));
   const nota = document.querySelector("[data-sv-nota]");
   if (nota) nota.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); anotarNoServico(nota.value); } };
 }
