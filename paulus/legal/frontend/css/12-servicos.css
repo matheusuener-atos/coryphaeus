@@ -44,99 +44,187 @@
   .sv-vazio h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
 
-  .sv-resumo, .sv-etapas { min-height: 0; }
-  .sv-cartao-corpo { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
-  .sv-resumo .fin-cartao-cabeca > span:first-child, .sv-historico .fin-cartao-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
   .sv-faisca { color: var(--destaque); display: inline-flex; }
   .sv-resumo-texto { margin: 0; font: 400 17px/1.6 var(--serif); white-space: pre-line; }
   .sv-resumo-texto.vazio { color: var(--ink2); }
-  .sv-falta { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .sv-marca { border: none; background: none; padding: 0; color: var(--ink3); display: inline-flex; cursor: pointer; flex: none; }
   .sv-marca:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
-  .sv-arquivos .tabela-barra > b, .sv-trilha-cartao .tabela-barra > b { font: 600 14px var(--sans); }
-  /* A barra dos arquivos tem a cara do cabecalho do Resumo da IA. */
-  .sv-arquivos .tabela-barra { background: var(--surf); border-bottom-color: var(--ink-a1); }
-  /* So o Adicionar, no tom da barra. */
-  .sv-arquivos .tabela-barra .direita button { background: var(--surf); border-color: var(--hair); }
-  .sv-arquivos .tabela-barra .direita button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
-  .sv-arquivos .tabela-linha { cursor: pointer; }
-  .colunas-sv-arquivos { grid-template-columns: 28px minmax(0, 1fr) 110px 28px; }
-  .sv-data { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; text-align: right; }
+  .sv-data { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; text-align: right; }
+  /* Usados tambem pela Gravacao arquivada (marcadores e o que falta). */
+  .sv-falta { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .sv-evento { display: grid; gap: 2px; font-size: 13.5px; min-width: 0; }
   .sv-evento b { font-weight: 500; }
   .sv-evento small { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-evento.grande { padding: 10px 16px; border-bottom: 1px solid var(--ink-a08); }
-
-  .sv-trilha { display: grid; gap: 8px; }
-  .sv-busca-acervo { width: 100%; }
   @media (max-width: 1180px) {
     .sv-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .sv-colunas { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ----------------------------------------------- a pasta aberta */
-  .sv-principal { display: flex; flex-direction: column; gap: 30px; overflow-y: auto; padding: 10px 2px 48px; }
-  .sv-principal > * { flex: none; }
-  .sv-historico { flex: none; display: flex; flex-direction: column; min-height: 0; }
-  .sv-tempo { max-height: 520px; overflow-y: auto; padding: 14px 18px 6px; display: grid; gap: 16px; scrollbar-width: none; }
-  .sv-tempo::-webkit-scrollbar { display: none; }
-  .sv-ev { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
-  .sv-ev-ic {
-    width: 28px; height: 28px; border-radius: 50%; background: var(--fill); color: var(--ink2);
-    display: inline-flex; align-items: center; justify-content: center;
+  /* O desenho do modelo (A15 · Servicos v3): uma medida de leitura no
+     centro, que rola sozinha, e um cartao a direita com prazos, anotacoes e
+     o resumo da IA. */
+  .acervo.sv-pasta-aberta:not(.sem-painel) { grid-template-columns: minmax(0, 1fr) 300px; }
+  .sv-principal { overflow-y: auto; padding: 8px 24px 56px; }
+  .sv-medida { width: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+  .sv-medida > * { flex: none; }
+  .sv-alternar-painel { width: 36px; height: 36px; }
+  .sv-kicker { font: 600 11px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
+  .sv-dica { margin: 10px 0 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .sv-ligacao {
+    flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: none; background: none;
+    font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; cursor: pointer;
   }
-  .sv-ev-resumo .sv-ev-ic, .sv-ev-conversa .sv-ev-ic { color: var(--ink); }
-  .sv-ev-corpo { display: grid; gap: 6px; min-width: 0; padding-top: 4px; }
-  .sv-ev-topo { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-  .sv-ev-topo b { font: 500 13.5px var(--sans); color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
-  .sv-ev-topo small { margin-left: auto; flex: none; font: 500 11.5px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .sv-ev-texto { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
-  .sv-ev-texto.riscado { text-decoration: line-through; color: var(--ink3); }
-  .sv-ev-docs { display: grid; gap: 2px; }
-  .sv-ev-doc {
-    display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; padding: 0 8px; border: none; border-radius: 8px;
-    background: none; color: var(--ink); font: 500 13px var(--sans); text-align: left; cursor: pointer;
+  .sv-ligacao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .sv-ligacao .ic { color: var(--ink3); }
+
+  /* A abertura: o lide em serifa e a ficha em faixa, entre dois fios. */
+  .sv-abertura { display: grid; gap: 26px; }
+  .sv-lede { margin: 0; max-width: 620px; font: 400 21px/1.45 var(--serif); color: var(--ink); white-space: pre-line; }
+  .sv-ficha {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 20px;
+    padding: 14px 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
   }
-  .sv-ev-doc:hover:not(:disabled) { background: var(--fill); border: none; }
-  .sv-ev-doc:disabled { color: var(--ink3); cursor: default; }
-  .sv-ev-tarefa {
-    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid var(--hair); border-radius: 10px;
-    background: var(--bg); color: var(--ink3); text-align: left; cursor: pointer;
+  .sv-ficha-item { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .sv-ficha-item b { font: 500 14px var(--sans); color: var(--ink); }
+  .sv-valor-concluido { color: var(--okt); }
+  .sv-ficha-item b.sv-valor-concluido { color: var(--okt); }
+  .sv-ficha-item b.sv-valor-suspenso { color: var(--acc); }
+  .sv-ficha-pasta {
+    justify-self: start; max-width: 100%; padding: 0; border: none; background: none; text-align: left;
+    font: 500 14px var(--sans); color: var(--ink); cursor: pointer;
   }
-  .sv-ev-tarefa:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--bg); color: var(--ink); }
-  .sv-ev-tarefa .duas-linhas b { color: var(--ink); font-weight: 500; }
-  .sv-ev-tarefa.feita { color: var(--okt); }
-  .sv-ev-tarefa.feita .duas-linhas b { color: var(--ink3); text-decoration: line-through; }
-  .sv-ev-citacao { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--fill); font-size: 13px; line-height: 1.55; color: var(--ink2); white-space: pre-line; }
-  .sv-ev-pergunta { margin: 0; justify-self: start; padding: 8px 12px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.5; color: var(--ink); }
-  .sv-ev-resposta { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink); white-space: pre-line; }
-  .sv-ev-pensando { margin: 0; display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
-  .sv-conversa { padding: 10px 14px 14px; display: grid; gap: 10px; }
-  .sv-comandos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sv-ficha-pasta:hover:not(:disabled) { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* As secoes: rotulo em caixa alta, a conta a direita, linhas com fio. */
+  .sv-secao { display: grid; align-content: start; min-width: 0; }
+  .sv-secao-cabeca { display: flex; align-items: center; gap: 16px; min-width: 0; padding-bottom: 10px; border-bottom: 1px solid var(--hair); }
+  .sv-secao-cabeca .sv-kicker { flex: 1; min-width: 0; }
+  .sv-secao-meta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+
+  /* Equipe. */
+  .sv-equipe .sv-secao-cabeca { border-bottom: none; padding-bottom: 12px; }
+  .sv-redatores { display: flex; flex-wrap: wrap; gap: 12px 36px; }
+  .sv-redator {
+    display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 300px; padding: 0; border: none; background: none;
+    color: var(--ink); text-align: left; cursor: pointer;
+  }
+  .sv-redator:hover:not(:disabled) { background: none; border: none; }
+  .sv-redator .cad-avatar { width: 36px; height: 36px; background: none; border: 1px solid var(--ink-a2); font-size: 11px; }
+  .sv-redator .duas-linhas b { font: 600 14px var(--sans); }
+  .sv-redator:hover .duas-linhas b { text-decoration: underline; text-underline-offset: 3px; }
+  .sv-redator .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); }
+
+  /* Status para conclusao. */
+  .sv-linha-etapa { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 4px 0; border-bottom: 1px solid var(--hair); }
+  .sv-linha-etapa .sv-marca { color: var(--ink2); }
+  .sv-linha-etapa.feita .sv-marca { color: var(--okt); }
+  .sv-etapa-titulo { flex: 1; min-width: 0; font: 500 14px/1.4 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  .sv-linha-etapa.feita .sv-etapa-titulo { color: var(--ink3); text-decoration: line-through; }
+  .sv-etapa-quem {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: 150px; padding: 0 8px 0 3px;
+    border: none; border-radius: 999px; background: none; font: 500 12px var(--sans); color: var(--ink3); opacity: 0; transition: opacity .15s ease;
+  }
+  .sv-etapa-quem.com { opacity: 1; color: var(--ink2); }
+  .sv-linha-etapa:hover .sv-etapa-quem, .sv-etapa-quem:focus-visible { opacity: 1; }
+  .sv-etapa-quem:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .sv-etapa-quem .cad-avatar { width: 20px; height: 20px; font-size: 8.5px; }
+  .sv-etapa-prazo {
+    flex: none; padding: 3px 4px; border: none; border-radius: 6px; background: none; text-align: right;
+    font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .sv-etapa-prazo:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .sv-etapa-prazo:disabled { opacity: 1; cursor: default; }
+  .sv-etapa-prazo.hoje { color: var(--destaque); }
+  .sv-etapa-prazo.atrasada { color: var(--acc); }
+  .sv-linha-etapa .mais-linha { opacity: 0; }
+  .sv-linha-etapa:hover .mais-linha { opacity: 1; }
+  .sv-status .sv-dica { margin-top: 12px; }
+  .sv-nova-etapa { display: flex; align-items: center; gap: 8px; padding-top: 12px; }
+  .sv-nova-marca { flex: none; display: inline-flex; color: var(--ink3); }
+  .sv-nova-etapa input[type="text"] {
+    flex: 1; min-width: 0; max-width: none; height: 34px; padding: 0 2px; border: none; border-radius: 0;
+    background: none; box-shadow: none; font: 500 14px var(--sans); color: var(--ink);
+  }
+  .sv-nova-etapa input[type="text"]:focus { outline: none; box-shadow: none; }
+  .sv-escolher-data {
+    display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; white-space: nowrap;
+    border: 1px solid var(--hair); border-radius: 8px; background: none; font: 500 13px var(--sans); color: var(--ink3);
+  }
+  .sv-escolher-data:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a2); color: var(--ink); }
+  .sv-escolher-data.com-data { color: var(--ink); }
+  .sv-escolher-data.atrasado { color: var(--acc); border-color: var(--accln); }
+  .sv-data-rotulo { white-space: nowrap; }
+  .sv-escolher-data.sv-adicionar-etapa { color: var(--ink); font-weight: 600; }
+
+  /* O historico, num cartao com fio. */
+  .sv-historico { display: grid; padding: 18px 22px 20px; border: 1px solid var(--hair); border-radius: 14px; }
+  .sv-historico-cabeca { display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--hair); }
+  .sv-historico-cabeca h3 { flex: 1; margin: 0; font: 400 21px/1.2 var(--serif); color: var(--ink); }
+  .sv-historico-cabeca small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-tempo { display: grid; }
+  .sv-ev { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+  .sv-ev-ic { display: inline-flex; padding-top: 1px; color: var(--ink3); }
+  .sv-ev-corpo { display: grid; gap: 3px; min-width: 0; }
+  .sv-ev-corpo b { font: 500 14px/1.45 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  .sv-ev-corpo small { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); overflow-wrap: anywhere; }
+  .sv-ev.sv-ev-longo small { white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .sv-ev.sv-ev-resposta small { white-space: pre-line; font-size: 13.5px; color: var(--ink2); }
+  .sv-ev-quando { padding-top: 2px; font: 400 11.5px var(--mono); color: var(--ink3); white-space: nowrap; }
+  .sv-ev-pensando { margin: 0; display: inline-flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-comandos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 16px 0 12px; }
+  .sv-comandos .sv-ligacao { margin-left: auto; }
   .sv-comando {
-    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: none; border-radius: 999px;
-    background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink);
+    display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border: 1px solid var(--hair); border-radius: 8px;
+    background: none; font: 500 13px var(--sans); color: var(--ink);
   }
-  .sv-comando:hover:not(:disabled) { background: var(--act); border: none; }
+  .sv-comando:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a2); }
   .sv-comando .ic { color: var(--ink3); }
   .sv-caixa {
-    display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px;
-    border: 1px solid var(--hair); border-radius: 12px; background: var(--bg);
-    transition: border-color .15s ease;
+    display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 14px;
+    border: 1px solid var(--hair); border-radius: 10px; background: none; transition: border-color .15s ease;
   }
   .sv-caixa:focus-within { border-color: var(--ink-a2); }
   .sv-caixa input { flex: 1; min-width: 0; max-width: none; height: 32px; border: none; background: none; padding: 0; box-shadow: none; font: 400 14px var(--sans); color: var(--ink); }
   .sv-caixa input:focus { outline: none; border: none; box-shadow: none; }
-  .sv-caixa .enviar { margin-left: 0; width: 32px; height: 32px; }
-  .sv-arquivos-pe { display: flex; justify-content: center; padding: 6px 0 10px; }
-  .sv-escolher-data {
-    display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; white-space: nowrap;
-    border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 500 12.5px var(--sans); color: var(--ink3);
+  .sv-caixa .enviar { margin-left: 0; width: 30px; height: 30px; }
+
+  /* Os arquivos, em lista aberta. */
+  .sv-arquivos .sv-secao-meta { min-width: 0; }
+  .sv-arquivos-corpo { display: grid; }
+  .sv-arquivo { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 28px; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--hair); cursor: pointer; }
+  .sv-arquivo:hover .duas-linhas b { text-decoration: underline; text-underline-offset: 3px; }
+  .sv-arquivo .duas-linhas b { font: 500 14px var(--sans); }
+  .sv-arquivo .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-arquivos-pe { justify-self: start; margin-top: 14px; }
+
+  /* O painel: prazos, anotacoes e o resumo da IA. */
+  .sv-painel .sv-secao { padding: 20px 22px; border-bottom: 1px solid var(--hair); }
+  .sv-painel .sv-secao:last-child { border-bottom: none; }
+  .sv-painel .sv-secao-cabeca { border-bottom: none; padding-bottom: 12px; }
+  .sv-painel .sv-kicker { font-size: 10.5px; letter-spacing: 0.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sv-painel .sv-secao-cabeca .sv-ligacao { font-size: 12.5px; gap: 3px; }
+  .sv-prazos .sv-dica { margin-top: 12px; }
+  .sv-prazo-linha { display: flex; align-items: baseline; gap: 12px; min-width: 0; padding: 9px 0; border-bottom: 1px solid var(--hair); font: 500 13px var(--sans); color: var(--ink); }
+  .sv-prazo-linha .corta { flex: 1; min-width: 0; }
+  .sv-prazo-quando { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .sv-prazo-quando.perto { font-weight: 700; color: var(--ink); }
+  .sv-anotacao { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+  .sv-anotacao p { margin: 0; font: 500 13px/1.5 var(--sans); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+  .sv-anotacao small { font: 400 11.5px var(--mono); color: var(--ink3); }
+  .sv-nova-nota {
+    width: 100%; min-height: 36px; margin-top: 6px; padding: 8px 0; resize: none; border: none; border-radius: 0;
+    background: none; box-shadow: none; font: 500 13px var(--sans); color: var(--ink);
   }
-  .sv-escolher-data.com-data { color: var(--ink); }
-  .sv-data-rotulo { white-space: nowrap; }
-  .sv-escolher-data.atrasado { color: var(--acc); border-color: var(--accln); }
-  .duas-linhas small.sv-atrasada { color: var(--acc); }
+  .sv-nova-nota:focus { outline: none; box-shadow: none; }
+  .sv-anotacoes .sv-secao-meta:empty { display: none; }
+  .sv-resumo-lateral { margin: 0; font: 500 13px/1.6 var(--sans); color: var(--ink); white-space: pre-line; }
+  .sv-resumo-secao .sv-ligacao { justify-self: start; margin-top: 12px; }
+  @media (max-width: 1180px) {
+    .sv-ficha { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  /* A equipe no pop-up. */
   .sv-d-pessoas { display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
   .sv-d-pessoa {
     display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid transparent; border-radius: 10px;
@@ -149,99 +237,6 @@
   .sv-d-pessoa.on .sv-d-marca { background: var(--destaque); border-color: var(--destaque); color: var(--bg); }
   .sv-d-pessoa.on .sv-d-marca .ic { opacity: 1; }
   .sv-d-nova { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--hair2); }
-
-  /* ----------------------------------- a pasta aberta, como pagina */
-  /* Abertura: o que esta sendo feito (em serifa, como o lide de uma
-     materia), a ficha em colunas separadas por fio e a equipe assinando. */
-  .sv-abertura { display: grid; gap: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--hair); }
-  .sv-lede { margin: 0; max-width: 64ch; font: 400 21px/1.45 var(--serif); color: var(--ink); white-space: pre-line; }
-  .sv-lede.vazia { padding: 0; border: none; background: none; text-align: left; color: var(--ink3); cursor: text; }
-  .sv-lede.vazia:hover:not(:disabled) { color: var(--ink2); background: none; border: none; }
-  .sv-kicker { font: 600 11px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
-  .sv-ficha { display: flex; flex-wrap: wrap; row-gap: 12px; }
-  .sv-ficha-item { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 0 24px; border-left: 1px solid var(--hair); }
-  .sv-ficha-item:first-child { padding-left: 0; border-left: none; }
-  .sv-ficha-item b { font: 600 14px var(--sans); color: var(--ink); }
-  .sv-ficha-item .fin-status { justify-self: start; }
-  .sv-ficha-pasta {
-    display: inline-flex; align-items: center; gap: 6px; max-width: 340px; padding: 0; border: none; background: none;
-    font: 600 14px var(--sans); color: var(--ink); cursor: pointer;
-  }
-  .sv-ficha-pasta .ic { flex: none; color: var(--ink3); }
-  .sv-ficha-pasta:hover:not(:disabled) { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; }
-  .sv-equipe { display: grid; gap: 12px; }
-  .sv-redatores { display: flex; flex-wrap: wrap; gap: 10px 32px; }
-  .sv-redator {
-    display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 300px; padding: 0; border: none; background: none;
-    color: var(--ink); text-align: left; cursor: pointer;
-  }
-  .sv-redator:hover:not(:disabled) { background: none; border: none; }
-  .sv-redator .duas-linhas b { font: 600 14.5px var(--sans); }
-  .sv-redator:hover .duas-linhas b { text-decoration: underline; text-underline-offset: 3px; }
-  .sv-redator .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .sv-redator-novo .cad-avatar { background: none; border: 1px dashed var(--ink-a35); color: var(--ink3); }
-  .sv-redator-novo .duas-linhas b { color: var(--ink2); }
-
-  /* As secoes abertas na pagina: rotulo em caixa alta, a conta a direita,
-     linhas separadas por fio. */
-  .sv-secao { display: grid; align-content: start; min-width: 0; }
-  .sv-secao-cabeca { display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--ink-a2); }
-  .sv-secao-cabeca .sv-kicker { flex: 1; }
-  .sv-secao-meta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
-  .sv-vazio-linha { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--hair); font-size: 13.5px; line-height: 1.55; color: var(--ink3); }
-
-  /* Status para conclusao: a barra fina e o fio de cima da lista. */
-  .sv-status .sv-secao-cabeca { border-bottom: none; }
-  .sv-status .barra-fina { height: 2px; border-radius: 0; }
-  .sv-status .barra-fina i { height: 2px; }
-  .sv-linha-etapa { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; border-bottom: 1px solid var(--hair); }
-  .sv-linha-etapa.feita .sv-marca { color: var(--okt); }
-  .sv-etapa-titulo { flex: 1; min-width: 0; font: 500 14.5px/1.4 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
-  .sv-linha-etapa.feita .sv-etapa-titulo { color: var(--ink3); text-decoration: line-through; }
-  .sv-etapa-quem {
-    flex: none; display: inline-flex; align-items: center; gap: 6px; height: 28px; max-width: 150px; padding: 0 8px 0 3px;
-    border: none; border-radius: 999px; background: none; font: 500 12.5px var(--sans); color: var(--ink3); opacity: 0; transition: opacity .15s ease;
-  }
-  .sv-etapa-quem.com { opacity: 1; color: var(--ink2); }
-  .sv-linha-etapa:hover .sv-etapa-quem, .sv-etapa-quem:focus-visible { opacity: 1; }
-  .sv-etapa-quem:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .sv-etapa-quem .cad-avatar { width: 22px; height: 22px; font-size: 9px; }
-  .sv-etapa-prazo {
-    flex: none; min-width: 128px; padding: 4px 6px; border: none; border-radius: 6px; background: none; text-align: right;
-    font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; font-variant-numeric: tabular-nums;
-  }
-  .sv-etapa-prazo:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .sv-etapa-prazo:disabled { opacity: 1; cursor: default; }
-  .sv-etapa-prazo.sem { color: var(--ink-a35); }
-  .sv-etapa-prazo.hoje { color: var(--destaque); }
-  .sv-etapa-prazo.atrasada { color: var(--acc); }
-  .sv-linha-etapa .mais-linha { opacity: 0; }
-  .sv-linha-etapa:hover .mais-linha { opacity: 1; }
-  .sv-nova-etapa { display: flex; align-items: center; gap: 8px; padding-top: 10px; }
-  .sv-nova-marca { flex: none; display: inline-flex; color: var(--ink3); }
-  .sv-nova-etapa input[type="text"] {
-    flex: 1; min-width: 0; max-width: none; height: 36px; padding: 0 2px; border: none; border-bottom: 1px solid transparent;
-    border-radius: 0; background: none; box-shadow: none; font: 500 14.5px var(--sans); color: var(--ink);
-  }
-  .sv-nova-etapa input[type="text"]:focus { outline: none; box-shadow: none; border-bottom-color: var(--ink-a2); }
-  .sv-nova-etapa .primario { height: 34px; }
-
-  /* Historico ao lado de prazos e anotacoes. */
-  .sv-colunas { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 32px; align-items: start; }
-  .sv-lado { display: grid; gap: 30px; align-content: start; min-width: 0; }
-  .sv-historico .fin-cartao-cabeca .ic { color: var(--ink3); }
-  .sv-prazos .em-ligacao { flex: none; }
-  .sv-anotacoes .sv-secao-meta:empty { display: none; }
-  .sv-prazo-linha { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--hair); }
-  .sv-prazo-linha .duas-linhas b { font-weight: 500; }
-  .sv-prazo-dia { flex: none; width: 42px; display: grid; justify-items: center; color: var(--ink); }
-  .sv-prazo-dia b { font: 400 24px/1 var(--serif); font-variant-numeric: tabular-nums; }
-  .sv-prazo-dia small { margin-top: 3px; font: 600 10.5px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
-  .sv-prazo-dia.hoje b, .sv-prazo-dia.hoje small { color: var(--destaque); }
-  .sv-anotacao { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--hair); display: grid; gap: 6px; }
-  .sv-anotacao blockquote { margin: 0; font: 400 16px/1.5 var(--serif); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
-  .sv-anotacao figcaption { font: 500 12px var(--sans); color: var(--ink3); }
-  .sv-nova-nota { width: 100%; margin-top: 12px; resize: vertical; }
 
   /* O resumo da IA, no pop-up. */
   .sv-resumo-pop { display: grid; gap: 10px; min-height: 72px; align-content: start; }

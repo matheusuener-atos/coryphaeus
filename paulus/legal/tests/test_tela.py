@@ -869,9 +869,10 @@ def main() -> int:
             )
 
             print("\nServicos: pastas e visao de trabalho (A15)")
-            # A grade de pastas em tres colunas e, dentro da pasta, a pagina
-            # editorial: abertura com a equipe, status, historico, prazos,
-            # anotacoes e arquivos. O teste abre uma pasta de verdade e apaga no fim.
+            # A grade de pastas em tres colunas e, dentro da pasta, o desenho
+            # do modelo: no centro ficha, equipe, status, historico e arquivos;
+            # no painel, prazos, anotacoes e resumo. O teste abre uma pasta de
+            # verdade e apaga no fim.
             id_servico = pagina.evaluate("""async () => {
                 const r = await fetch('/api/servicos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: null, dados: { nome: 'Teste de tela — pasta', descricao: 'Pasta aberta pelo teste de tela.' } }) });
@@ -895,8 +896,8 @@ def main() -> int:
                     "o historico da pasta com os comandos e a caixa de pedido",
                 )
                 checar(
-                    pagina.evaluate("() => !document.querySelector('#sv-tela .acervo-painel') && !!document.querySelector('.sv-abertura .sv-equipe') && document.querySelectorAll('#sv-tela .sv-secao').length === 3"),
-                    "sem painel: abertura com a equipe, status, prazos e anotacoes na pagina",
+                    pagina.evaluate("() => !!document.querySelector('.sv-medida .sv-ficha') && !!document.querySelector('.sv-medida .sv-equipe') && document.querySelectorAll('#sv-tela .sv-painel .sv-secao').length === 3"),
+                    "no centro a ficha e a equipe; no painel prazos, anotacoes e resumo",
                 )
                 checar(
                     pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-arquivos') && !!document.querySelector('[data-sv-resumo]')"),
