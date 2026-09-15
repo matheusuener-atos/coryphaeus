@@ -65,7 +65,7 @@
   /* O desenho do modelo (A15 · Servicos v3), sem barra ao lado: uma medida
      de leitura que rola sozinha. */
   .sv-principal { overflow-y: auto; padding: 8px 24px 56px; }
-  .sv-medida { width: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+  .sv-medida { width: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .sv-medida > * { flex: none; }
   .sv-kicker { font: 600 11px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
   .sv-dica { margin: 10px 0 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
@@ -79,9 +79,10 @@
   /* A abertura: o lide em serifa e a ficha em faixa, entre dois fios. */
   .sv-abertura { display: grid; gap: 26px; }
   .sv-lede { margin: 0; max-width: 620px; font: 400 21px/1.45 var(--serif); color: var(--ink); white-space: pre-line; }
+  /* A ficha e um cartao em faixa: as quatro colunas numa linha so. */
   .sv-ficha {
-    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 20px;
-    padding: 14px 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 20px; padding: 14px 18px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: 0 8px 24px -16px var(--sh-a12);
   }
   .sv-ficha-item { display: grid; gap: 6px; align-content: start; min-width: 0; }
   .sv-ficha-item b { font: 500 14px var(--sans); color: var(--ink); }
@@ -95,14 +96,21 @@
   .sv-ficha-pasta:hover:not(:disabled) { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; }
 
   /* As secoes: rotulo em caixa alta, a conta a direita, linhas com fio. */
-  .sv-secao { display: grid; align-content: start; min-width: 0; }
-  .sv-secao-cabeca { display: flex; align-items: center; gap: 16px; min-width: 0; min-height: 30px; padding-bottom: 8px; border-bottom: 1px solid var(--hair); }
-  .sv-secao-cabeca .sv-kicker { flex: 1; min-width: 0; }
+  /* Cada secao e um cartao, com o cabecalho do Historico do servico: icone,
+     titulo, a conta ou a acao a direita e o fio embaixo. Sem overflow
+     escondido - os menus das linhas abrem para fora do cartao. */
+  .sv-secao {
+    display: grid; align-content: start; min-width: 0; padding-bottom: 6px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: 0 8px 24px -16px var(--sh-a12);
+  }
+  .sv-secao-cabeca { display: flex; align-items: center; gap: 16px; min-width: 0; min-height: 46px; padding: 8px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .sv-secao-titulo { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font: 600 14px var(--sans); color: var(--ink); }
+  .sv-secao-titulo .ic { color: var(--ink3); }
   .sv-secao-meta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
 
   /* Equipe. */
-  .sv-equipe .sv-secao-cabeca { border-bottom: none; padding-bottom: 12px; }
-  .sv-redatores { display: flex; flex-wrap: wrap; gap: 12px 36px; }
+  .sv-redatores { display: flex; flex-wrap: wrap; gap: 12px 36px; padding: 14px 16px 8px; }
+  .sv-equipe .sv-dica { margin: 14px 16px 8px; }
   .sv-redator {
     display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 300px; padding: 0; border: none; background: none;
     color: var(--ink); text-align: left; cursor: pointer;
@@ -114,7 +122,7 @@
   .sv-redator .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); }
 
   /* Status para conclusao. */
-  .sv-linha-etapa { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 4px 0; border-bottom: 1px solid var(--hair); }
+  .sv-linha-etapa { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 0 16px; padding: 4px 0; border-bottom: 1px solid var(--hair); }
   .sv-linha-etapa .sv-marca { color: var(--ink2); }
   .sv-linha-etapa.feita .sv-marca { color: var(--okt); }
   .sv-etapa-titulo { flex: 1; min-width: 0; font: 500 14px/1.4 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
@@ -137,8 +145,8 @@
   .sv-etapa-prazo.atrasada { color: var(--acc); }
   .sv-linha-etapa .mais-linha { opacity: 0; }
   .sv-linha-etapa:hover .mais-linha { opacity: 1; }
-  .sv-status .sv-dica { margin-top: 12px; }
-  .sv-nova-etapa { display: flex; align-items: center; gap: 8px; padding-top: 12px; }
+  .sv-status .sv-dica { margin: 8px 16px 8px; }
+  .sv-nova-etapa { display: flex; align-items: center; gap: 8px; padding: 10px 16px 0; }
   .sv-nova-marca { flex: none; display: inline-flex; color: var(--ink3); }
   .sv-nova-etapa input[type="text"] {
     flex: 1; min-width: 0; max-width: none; height: 34px; padding: 0 2px; border: none; border-radius: 0;
@@ -219,24 +227,24 @@
   .duas-linhas small.sv-atrasada { color: var(--acc); }
 
   /* Prazos e anotacoes, lado a lado na pagina. */
-  .sv-duas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: start; }
-  .sv-prazos .sv-dica { margin-top: 12px; }
-  .sv-prazo-linha { display: flex; align-items: baseline; gap: 12px; min-width: 0; padding: 11px 0; border-bottom: 1px solid var(--hair); font: 500 14px var(--sans); color: var(--ink); }
+  .sv-duas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+  .sv-prazos .sv-dica { margin: 10px 16px 8px; }
+  .sv-prazo-linha { display: flex; align-items: baseline; gap: 12px; min-width: 0; margin: 0 16px; padding: 11px 0; border-bottom: 1px solid var(--hair); font: 500 14px var(--sans); color: var(--ink); }
   .sv-prazo-linha .corta { flex: 1; min-width: 0; }
   .sv-prazo-quando { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .sv-prazo-quando.perto { font-weight: 700; color: var(--ink); }
-  .sv-anotacao { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+  .sv-anotacao { display: grid; gap: 4px; margin: 0 16px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
   .sv-anotacao p { margin: 0; font: 500 14px/1.5 var(--sans); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
   .sv-anotacao small { font: 400 11.5px var(--mono); color: var(--ink3); }
   .sv-nova-nota {
-    width: 100%; min-height: 36px; margin-top: 6px; padding: 8px 0; resize: none; border: none; border-radius: 0;
+    width: calc(100% - 32px); min-height: 36px; margin: 4px 16px 0; padding: 8px 0; resize: none; border: none; border-radius: 0;
     background: none; box-shadow: none; font: 500 13px var(--sans); color: var(--ink);
   }
   .sv-nova-nota:focus { outline: none; box-shadow: none; }
   .sv-anotacoes .sv-secao-meta:empty { display: none; }
   @media (max-width: 1180px) {
     .sv-ficha { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .sv-duas { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+    .sv-duas { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* A equipe no pop-up. */

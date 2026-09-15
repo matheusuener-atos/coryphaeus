@@ -278,7 +278,7 @@ function secaoDaEquipe(s) {
     '<button type="button" class="sv-redator" data-sv-redator="' + p.id + '">' +
     '<span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + "</span>" +
     '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(papelDaPessoa(p, i)) + "</small></span></button>").join("");
-  return '<section class="sv-secao sv-equipe"><div class="sv-secao-cabeca"><span class="sv-kicker">Equipe</span>' +
+  return '<section class="sv-secao sv-equipe"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("group", 16) + 'Equipe</span>' +
     '<button type="button" class="sv-ligacao" data-sv-pessoa="1">' + ic("person_add", 15) + "Adicionar pessoa</button></div>" +
     (redatores ? '<div class="sv-redatores">' + redatores + "</div>" : '<p class="sv-dica">Ninguém na equipe ainda. A primeira pessoa é a responsável.</p>') +
     "</section>";
@@ -324,7 +324,7 @@ function secaoDasEtapas(s) {
       '<button type="button" class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 15) + "</button></div>";
   }).join("");
   const conta = total ? s.progresso + "% · " + s.etapas_feitas + " de " + plural(total, "etapa") : "nenhuma etapa";
-  return '<section class="sv-secao sv-status"><div class="sv-secao-cabeca"><span class="sv-kicker">Status para conclusão</span>' +
+  return '<section class="sv-secao sv-status"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("checklist", 16) + 'Status para conclusão</span>' +
     '<span class="sv-secao-meta">' + conta + "</span></div>" + linhas +
     '<form class="sv-nova-etapa" data-sv-nova-etapa="1"><span class="sv-nova-marca">' + ic("add", 16) + "</span>" +
     '<input type="text" placeholder="Nova etapa…" data-sv-etapa-titulo="1" autocomplete="off">' +
@@ -550,7 +550,7 @@ function secaoDosPrazos(s) {
     const classe = "sv-prazo-quando" + (dias <= 1 ? " perto" : "");
     return '<div class="sv-prazo-linha"><span class="corta">' + esc(p.titulo) + '</span><span class="' + classe + '">' + esc(quandoDoPrazoSv(p)) + "</span></div>";
   }).join("");
-  return '<section class="sv-secao sv-prazos"><div class="sv-secao-cabeca"><span class="sv-kicker">Prazos e agendamentos</span>' +
+  return '<section class="sv-secao sv-prazos"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("event", 16) + 'Prazos e agendamentos</span>' +
     '<button type="button" class="sv-ligacao" data-sv-agendar="1">' + ic("add", 15) + "agendar</button></div>" + linhas +
     '<p class="sv-dica">' + (linhas ? "" : "Nada agendado ainda. ") + "O que for agendado por aqui, e os prazos do cliente ligado à pasta, aparecem nesta lista.</p></section>";
 }
@@ -558,7 +558,7 @@ function secaoDosPrazos(s) {
 function secaoDasAnotacoes(s) {
   const linhas = s.anotacoes.slice(0, 6).map((a) => '<div class="sv-anotacao"><p>' + esc(a.texto) + "</p>" +
     "<small>" + esc(a.quem + " · " + quandoCurtoSv(a.quando)) + "</small></div>").join("");
-  return '<section class="sv-secao sv-anotacoes"><div class="sv-secao-cabeca"><span class="sv-kicker">Anotações</span>' +
+  return '<section class="sv-secao sv-anotacoes"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("edit_note", 16) + 'Anotações</span>' +
     '<span class="sv-secao-meta">' + (s.anotacoes.length || "") + "</span></div>" + linhas +
     '<textarea class="sv-nova-nota" rows="1" placeholder="Nova anotação…  (Enter guarda)" data-sv-nota="1"></textarea></section>';
 }
