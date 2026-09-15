@@ -182,6 +182,9 @@
   .colunas-sv-arquivos { grid-template-columns: 28px minmax(0, 1fr) 110px 28px; }
   .sv-historico { flex: none; display: flex; flex-direction: column; min-height: 0; }
   .sv-tempo { max-height: 520px; overflow-y: auto; padding: 14px 18px 6px; display: grid; gap: 16px; scrollbar-width: none; }
+  /* Na aba Trilha o historico e a pagina: usa a altura da janela e deixa a
+     caixa de pedido a vista. */
+  .sv-aba-trilha .sv-tempo { max-height: calc(100vh - 330px); min-height: 240px; }
   .sv-tempo::-webkit-scrollbar { display: none; }
   .sv-ev { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
   .sv-ev-ic {

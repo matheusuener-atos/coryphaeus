@@ -13,7 +13,7 @@ const SV_JSON = { "Content-Type": "application/json" };
 
 const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
-  aberto: null, acervo: null,
+  aberto: null, acervo: null, aba: "geral",
   pedindo: false, salvando: false, escolhidos: new Set(), conversando: null, arquivosAbertos: false,
 };
 
@@ -51,6 +51,7 @@ async function mostrarServicos(visao) {
 async function abrirServico(id) {
   sv.aberto = { id: id };
   sv.arquivosAbertos = false;
+  sv.aba = "geral";
   await mostrarServicos("trabalho");
 }
 
@@ -68,7 +69,7 @@ function desenharServicos() {
   // A pasta aberta é uma página que rola: marcar uma etapa lá embaixo não
   // pode devolver a pessoa ao topo. Só a mesma pasta guarda a posição.
   const antes = document.querySelector("#sv-tela .sv-principal");
-  const topo = antes && sv.aberto && antes.dataset.svId === String(sv.aberto.id) ? antes.scrollTop : 0;
+  const topo = antes && sv.aberto && antes.dataset.svId === sv.aberto.id + ":" + sv.aba ? antes.scrollTop : 0;
   let html;
   if (sv.visao === "trabalho") {
     const classe = "acervo sv-tela sem-painel sv-pasta-aberta";
@@ -104,6 +105,7 @@ function cabecalhoServicos() {
     renomeadorDoTitulo = { limite: 80, guardar: (novo) => renomearServico(s, novo) };
     meta.textContent = (s.cliente_nome ? s.cliente_nome + " · " : "") + s.status_rotulo.toLowerCase() + " · " + plural(s.arquivos.length, "arquivo");
     $("acoes-tela").innerHTML =
+      '<div class="visoes">' + ABAS_DA_PASTA.map(([v, r]) => botao("aba", v, r)).join("") + "</div>" +
       '<button class="com-icone" data-sv-editar="1">' + ic("edit", 16) + "Editar</button>" +
       (s.status === "concluido"
         ? '<button class="com-icone" data-sv-status="andamento">' + ic("restart_alt", 16) + "Reabrir serviço</button>"
@@ -237,12 +239,23 @@ function haQuantoSv(iso) {
    conclusão, prazos e anotações lado a lado e, como já eram, o histórico do
    serviço (com o assistente) e os arquivos. No topo, antes de tudo, o
    resumo da IA. */
+/* Tudo numa tela só era demais: a pasta se divide em três abas, no
+   cabeçalho. Visão geral é o trabalho (resumo, ficha, equipe, etapas,
+   prazos e anotações); Arquivos, a lista inteira; Trilha, o histórico com o
+   assistente. */
+const ABAS_DA_PASTA = [["geral", "Visão geral"], ["arquivos", "Arquivos"], ["trilha", "Trilha"]];
+
 function corpoDoTrabalho() {
   const s = sv.aberto;
-  return '<div class="acervo-principal sv-principal" data-sv-id="' + s.id + '"><div class="sv-medida">' +
-    aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
-    '<div class="sv-duas">' + secaoDosPrazos(s) + secaoDasAnotacoes(s) + "</div>" +
-    cartaoDoHistorico(s) + cartaoDosArquivos(s) + "</div></div>";
+  let miolo;
+  if (sv.aba === "arquivos") miolo = cartaoDosArquivos(s);
+  else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
+  else {
+    miolo = aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
+      '<div class="sv-duas">' + secaoDosPrazos(s) + secaoDasAnotacoes(s) + "</div>";
+  }
+  const classe = "sv-medida sv-aba-" + sv.aba;
+  return '<div class="acervo-principal sv-principal" data-sv-id="' + s.id + ":" + sv.aba + '"><div class="' + classe + '">' + miolo + "</div></div>";
 }
 
 /* ------------------------------------------------------- a abertura */
@@ -491,7 +504,9 @@ const ARQUIVOS_A_VISTA = 3;
 
 function cartaoDosArquivos(s) {
   const todos = s.arquivos.map(arquivoDoAcervo);
-  const mostrar = sv.arquivosAbertos ? todos : todos.slice(0, ARQUIVOS_A_VISTA);
+  // Na aba Arquivos a lista vem inteira, sem "Ver mais".
+  const inteira = sv.aba === "arquivos" || sv.arquivosAbertos;
+  const mostrar = inteira ? todos : todos.slice(0, ARQUIVOS_A_VISTA);
   const linhas = mostrar.map((a) => {
     const sub = [a.tipo_rotulo, a.paginas ? plural(a.paginas, "página") : "", a.analise ? "analisado" : "", a.existe === false ? "não está mais no Acervo" : ""]
       .filter(Boolean).join(" · ");
@@ -500,7 +515,7 @@ function cartaoDosArquivos(s) {
       '<span class="sv-data">' + esc(a.modificado || quandoCurtoSv(a.ligado_em)) + "</span>" +
       '<button class="mais-linha" data-sv-arquivo-mais="' + esc(a.sha1) + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
-  const verMais = todos.length > ARQUIVOS_A_VISTA
+  const verMais = sv.aba !== "arquivos" && todos.length > ARQUIVOS_A_VISTA
     ? '<div class="sv-arquivos-pe"><button class="ver-mais" data-sv-arquivos-mais="1">' +
       (sv.arquivosAbertos ? "Ver menos" + ic("expand_less", 16) : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA) + ic("chevron_right", 16)) + "</button></div>"
     : "";
@@ -986,6 +1001,7 @@ function ligarServicos() {
     busca.oninput = () => { clearTimeout(t); const v = busca.value; t = setTimeout(() => { sv.termo = v.trim(); mostrarServicos("pastas"); }, 280); };
   }
   clique("[data-sv-filtro]", (b) => { sv.filtro = b.dataset.svFiltro; mostrarServicos("pastas"); });
+  clique("[data-sv-aba]", (b) => { sv.aba = b.dataset.svAba; desenharServicos(); });
   clique("[data-sv-voltar]", () => { sv.visao = "pastas"; mostrarServicos("pastas"); });
   clique("[data-sv-novo]", () => dialogoDoServico(null));
   clique("[data-sv-abrir]", (b) => abrirServico(Number(b.dataset.svAbrir)));

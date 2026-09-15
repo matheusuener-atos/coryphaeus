@@ -890,19 +890,28 @@ def main() -> int:
                     "o cartao tracejado e a contagem do cabecalho aparecem",
                 )
                 pagina.evaluate(f"() => abrirServico({id_servico})")
-                pagina.wait_for_selector("#sv-tela .sv-historico", timeout=20000)
+                pagina.wait_for_selector("#sv-tela .sv-status", timeout=20000)
                 checar(
-                    pagina.evaluate("() => document.querySelectorAll('.sv-historico .sv-ev').length >= 2 && !!document.querySelector('.sv-historico [data-sv-conversa]') && document.querySelectorAll('.sv-comando').length >= 2"),
-                    "o historico da pasta com os comandos e a caixa de pedido",
+                    pagina.evaluate("() => [...document.querySelectorAll('[data-sv-aba]')].map(b => b.textContent).join('|') === 'Visão geral|Arquivos|Trilha' && document.querySelector('[data-sv-aba=geral]').classList.contains('ativa') && !document.querySelector('#sv-tela .sv-historico')"),
+                    "a pasta abre na Visao geral, com as abas Arquivos e Trilha no cabecalho",
                 )
                 checar(
                     pagina.evaluate("() => !!document.querySelector('.sv-medida .sv-ficha') && !!document.querySelector('.sv-medida .sv-equipe') && document.querySelectorAll('#sv-tela .sv-duas .sv-secao').length === 2 && !document.querySelector('#sv-tela .acervo-painel')"),
                     "sem barra ao lado: ficha, equipe, e prazos e anotacoes lado a lado na pagina",
                 )
                 checar(
-                    pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-arquivos') && !!document.querySelector('.sv-abertura > .sv-resumo-topo + .sv-ficha')"),
-                    "a etapa no status, os arquivos e o resumo da IA no topo, antes da ficha",
+                    pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-abertura > .sv-resumo-topo + .sv-ficha')"),
+                    "a etapa no status e o resumo da IA no topo, antes da ficha",
                 )
+                pagina.evaluate("() => document.querySelector('[data-sv-aba=trilha]').click()")
+                pagina.wait_for_selector("#sv-tela .sv-historico", timeout=5000)
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('.sv-historico .sv-ev').length >= 2 && !!document.querySelector('.sv-historico [data-sv-conversa]') && document.querySelectorAll('.sv-comando').length >= 2 && !document.querySelector('.sv-status')"),
+                    "a Trilha traz o historico com os comandos e a caixa de pedido, sozinho",
+                )
+                pagina.evaluate("() => document.querySelector('[data-sv-aba=arquivos]').click()")
+                pagina.wait_for_selector("#sv-tela .sv-arquivos", timeout=5000)
+                checar(pagina.evaluate("() => !document.querySelector('.sv-historico')"), "a aba Arquivos traz so os arquivos")
                 pagina.evaluate("() => document.querySelector('[data-sv-voltar]').click()")
                 pagina.wait_for_selector("#sv-tela .sv-grade", timeout=20000)
                 checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Serviços", "a seta volta para as pastas")
