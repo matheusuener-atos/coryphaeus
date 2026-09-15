@@ -65,6 +65,9 @@
   .sv-arquivos .tabela-barra > b, .sv-trilha-cartao .tabela-barra > b { font: 600 14px var(--sans); }
   /* A barra dos arquivos tem a cara do cabecalho do Resumo da IA. */
   .sv-arquivos .tabela-barra { background: var(--surf); border-bottom-color: var(--ink-a1); }
+  /* So o Adicionar, no tom da barra. */
+  .sv-arquivos .tabela-barra .direita button { background: var(--surf); border-color: var(--hair); }
+  .sv-arquivos .tabela-barra .direita button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
   .sv-arquivos .tabela-linha { cursor: pointer; }
   .colunas-sv-arquivos { grid-template-columns: 28px minmax(0, 1fr) 110px 28px; }
   .sv-data { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; text-align: right; }

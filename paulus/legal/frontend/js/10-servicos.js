@@ -362,13 +362,6 @@ function arquivoDoAcervo(a) {
   return doc ? Object.assign({}, doc, { sha1: a.sha1, ligado_em: a.criado_em, nome: doc.nome || a.nome }) : Object.assign({ existe: false, ligado_em: a.criado_em }, a);
 }
 
-function pastaDosArquivos(arquivos) {
-  const contas = {};
-  arquivos.forEach((a) => { if (a.pasta_curta) contas[a.pasta_curta] = (contas[a.pasta_curta] || 0) + 1; });
-  const pastas = Object.keys(contas).sort((x, y) => contas[y] - contas[x]);
-  return pastas[0] || "";
-}
-
 /* Três à vista e "Ver mais" com o resto, como as conversas recentes do
    Assistente. */
 const ARQUIVOS_A_VISTA = 3;
@@ -376,7 +369,6 @@ const ARQUIVOS_A_VISTA = 3;
 function cartaoDosArquivos(s) {
   const todos = s.arquivos.map(arquivoDoAcervo);
   const mostrar = sv.arquivosAbertos ? todos : todos.slice(0, ARQUIVOS_A_VISTA);
-  const pasta = pastaDosArquivos(todos);
   const linhas = mostrar.map((a) => {
     const sub = [a.tipo_rotulo, a.paginas ? plural(a.paginas, "página") : "", a.analise ? "analisado" : "", a.existe === false ? "não está mais no Acervo" : ""]
       .filter(Boolean).join(" · ");
@@ -389,9 +381,12 @@ function cartaoDosArquivos(s) {
     ? '<div class="sv-arquivos-pe"><button class="ver-mais" data-sv-arquivos-mais="1">' +
       (sv.arquivosAbertos ? "Ver menos" + ic("expand_less", 16) : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA) + ic("chevron_right", 16)) + "</button></div>"
     : "";
-  return '<div class="tabela-cartao sv-arquivos" id="sv-arquivos"><div class="tabela-barra"><b>Arquivos</b><span class="nota-barra">' + todos.length +
-    (pasta ? " · pasta " + esc(pasta) : "") + "</span>" +
-    '<div class="direita"><button data-sv-ligar="1">' + ic("add", 16) + 'Adicionar</button><button data-sv-acervo="1">' + ic("inventory_2", 16) + "Abrir no Acervo</button></div></div>" +
+  // "2 documentos · 7 páginas": a conta que diz o tamanho da pasta. O nome
+  // da pasta do disco era ruído de caminho, não informação.
+  const paginas = todos.reduce((soma, a) => soma + (Number(a.paginas) || 0), 0);
+  const conta = todos.length ? plural(todos.length, "documento") + (paginas ? " · " + plural(paginas, "página") : "") : "nenhum documento";
+  return '<div class="tabela-cartao sv-arquivos" id="sv-arquivos"><div class="tabela-barra"><b>Arquivos</b><span class="nota-barra">' + esc(conta) + "</span>" +
+    '<div class="direita"><button data-sv-ligar="1">' + ic("add", 16) + "Adicionar</button></div></div>" +
     '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum arquivo ligado. Adicionar traz um documento do Acervo para esta pasta — o arquivo continua onde está.</p>') + "</div>" +
     verMais + "</div>";
 }
@@ -784,7 +779,6 @@ function ligarServicos() {
   const nova = document.querySelector("[data-sv-nova-etapa]");
   if (nova) nova.onsubmit = (e) => { e.preventDefault(); adicionarEtapa(nova); };
   clique("[data-sv-ligar]", () => adicionarArquivosAoServico());
-  clique("[data-sv-acervo]", () => verNoAcervo(sv.aberto.cliente_nome || ""));
   clique("[data-sv-arquivo]", (b) => abrirArquivoDoServico(b.dataset.svArquivo));
   clique("[data-sv-arquivo-mais]", (b) => menuDoArquivoDoServico(b, b.dataset.svArquivoMais));
   clique("[data-sv-pessoa]", () => dialogoDaEquipe());
