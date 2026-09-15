@@ -19,6 +19,10 @@ async function abrirAnexar(opcoes) {
   anx.termo = "";
   anx.docs = null;
   anx.verbo = o.verbo || "Anexar";
+  // Quem pede os caminhos (a pasta de um serviço) copia os arquivos por
+  // conta própria: o seletor do Windows, que sobe para a raiz do Acervo,
+  // não aparece.
+  anx.soCaminhos = Boolean(o.aoCaminhos);
   const escolha = dialogo({
     titulo: o.titulo || "Anexar documentos", contexto: o.contexto || "Assistente", classe: "dialogo-anexar", confirmar: anx.verbo,
     html: '<div class="anx">' +
@@ -40,6 +44,11 @@ async function abrirAnexar(opcoes) {
   desenharAnexar();
   const r = await escolha;
   if (!r || !r.ok) return;
+  if (o.aoCaminhos) {
+    const doAcervo = [...anx.acervo].map((nome) => ((anx.docs || []).find((d) => d.nome === nome) || {}).caminho).filter(Boolean);
+    o.aoCaminhos(doAcervo.concat([...anx.computador.keys()]));
+    return;
+  }
   const nomes = await anexarEscolhidos();
   if (o.aoAnexar) { o.aoAnexar(nomes); return; }
   if (nomes.length) definirEscopo([...new Set(estado.escopo.concat(nomes))]);
@@ -62,7 +71,7 @@ async function desenharAnexar() {
   if (!veu) return;
   veu.querySelectorAll("[data-anx-visao]").forEach((b) => b.classList.toggle("ativa", b.dataset.anxVisao === anx.visao));
   $("anx-busca").placeholder = anx.visao === "acervo" ? "Buscar no acervo…" : "Buscar nesta pasta…";
-  $("anx-windows").hidden = anx.visao !== "computador";
+  $("anx-windows").hidden = anx.visao !== "computador" || anx.soCaminhos;
   $("anx-lista").innerHTML = '<p class="anx-vazio">abrindo…</p>';
   if (anx.visao === "acervo") {
     $("anx-migalhas").hidden = true;

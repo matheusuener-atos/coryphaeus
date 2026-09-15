@@ -32,7 +32,9 @@ TIPOS = {
                "filhos": [("etapas", "tarefa_id", ""), ("vinculos", "alvo_id", "tipo = 'tarefa'")]},
     "compromisso": {"rotulo": "Compromisso", "tabela": "compromissos", "filhos": []},
     "servico": {"rotulo": "Serviço", "tabela": "servicos",
-                "filhos": [("vinculos", "alvo_id", "tipo = 'servico'")]},
+                # As etapas com data viram tarefas (src/servicos.py): saem e
+                # voltam com o servico, e a Agenda nao mostra prazo de pasta apagada.
+                "filhos": [("vinculos", "alvo_id", "tipo = 'servico'"), ("tarefas", "servico_id", "")]},
     "gravacao": {"rotulo": "Gravação", "tabela": "gravacoes", "filhos": []},
     "documento": {"rotulo": "Documento", "tabela": "documentos",
                   "filhos": [("versoes", "documento_id", ""), ("comentarios", "documento_id", "")]},

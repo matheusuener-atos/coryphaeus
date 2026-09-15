@@ -534,6 +534,28 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_meta_fato_versao ON meta_fatos(versao_id);
         """,
     ),
+    (
+        "020_servico_pasta_e_agenda",
+        """
+        -- Cada servico tem uma pasta no Acervo (Servicos/<nome>): o nome da
+        -- pasta fica gravado, porque dois servicos podem ter o mesmo nome e
+        -- renomear o servico renomeia a pasta.
+        ALTER TABLE servicos ADD COLUMN pasta TEXT DEFAULT '';
+
+        -- A etapa com data de um servico e uma tarefa com prazo: e assim que
+        -- ela aparece na Agenda e em Tarefas. servico_id diz de onde veio;
+        -- responsavel_id e quem cuida - o que vai deixar cada pessoa ver a
+        -- propria agenda. Os compromissos marcados pela pasta levam o mesmo.
+        ALTER TABLE tarefas ADD COLUMN servico_id INTEGER;
+        ALTER TABLE tarefas ADD COLUMN responsavel_id INTEGER;
+        ALTER TABLE compromissos ADD COLUMN servico_id INTEGER;
+        ALTER TABLE compromissos ADD COLUMN responsavel_id INTEGER;
+        CREATE INDEX idx_tarefas_servico ON tarefas(servico_id);
+        CREATE INDEX idx_tarefas_responsavel ON tarefas(responsavel_id);
+        CREATE INDEX idx_compromissos_servico ON compromissos(servico_id);
+        CREATE INDEX idx_compromissos_responsavel ON compromissos(responsavel_id);
+        """,
+    ),
 ]
 
 

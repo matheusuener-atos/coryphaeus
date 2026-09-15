@@ -1,18 +1,19 @@
 /* ----------------------------------------------------------- servicos */
 /*
    Servicos (docs/ui/03-telas-desktop.md, A15): a grade de pastas e, dentro
-   de cada uma, a visao de trabalho - Resumo da IA, etapas, arquivos - com o
-   painel de equipe, prazos, anotacoes e trilha. O servidor guarda a pasta
-   (src/servicos.py); os arquivos sao vinculos ao Acervo, os prazos vem da
-   Agenda pelo cliente e a equipe vem de Cadastros. O resumo e escrito pelo
-   modelo local sobre o que esta gravado; sem modelo, a tela diz isso.
+   de cada uma, a pasta aberta como pagina editorial - o que esta sendo feito,
+   a equipe como assinatura, o status para conclusao, o historico, os prazos,
+   as anotacoes e os arquivos. O servidor guarda a pasta (src/servicos.py):
+   os arquivos sao copiados para Servicos/<nome> no Acervo, a etapa com data
+   vira tarefa (e aparece na Agenda) e a equipe vem de Cadastros. O resumo e
+   escrito pelo modelo local sobre o que esta gravado, e abre num pop-up.
 */
 
 const SV_JSON = { "Content-Type": "application/json" };
 
 const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
-  aberto: null, acervo: null, largo: false,
+  aberto: null, acervo: null,
   pedindo: false, salvando: false, escolhidos: new Set(), conversando: null, arquivosAbertos: false,
 };
 
@@ -64,17 +65,24 @@ async function recarregarServico() {
 
 function desenharServicos() {
   cabecalhoServicos();
+  // A pasta aberta é uma página que rola: marcar uma etapa lá embaixo não
+  // pode devolver a pessoa ao topo. Só a mesma pasta guarda a posição.
+  const antes = document.querySelector("#sv-tela .sv-principal");
+  const topo = antes && sv.aberto && antes.dataset.svId === String(sv.aberto.id) ? antes.scrollTop : 0;
   let html;
   if (sv.visao === "trabalho") {
-    const classe = "acervo sv-tela" + (sv.largo ? " painel-largo" : "");
-    html = '<div class="' + classe + '" id="sv-tela">' + corpoDoTrabalho() + painelDoTrabalho() + "</div>";
+    const classe = "acervo sv-tela sem-painel sv-pasta-aberta";
+    html = '<div class="' + classe + '" id="sv-tela">' + corpoDoTrabalho() + "</div>";
   } else {
     const classe = "acervo sv-tela sem-painel";
     html = '<div class="' + classe + '" id="sv-tela">' + corpoDasPastas() + "</div>";
   }
   $("centro").innerHTML = html;
+  const depois = document.querySelector("#sv-tela .sv-principal");
+  if (depois && topo) depois.scrollTop = topo;
   ligarServicos();
   atualizarPostura();
+  atualizarResumoAberto();
 }
 
 /* ------------------------------------------------------ o cabecalho */
@@ -97,6 +105,7 @@ function cabecalhoServicos() {
     renomeadorDoTitulo = { limite: 80, guardar: (novo) => renomearServico(s, novo) };
     meta.textContent = (s.cliente_nome ? s.cliente_nome + " · " : "") + s.status_rotulo + " · " + s.progresso + "%";
     $("acoes-tela").innerHTML =
+      '<button class="com-icone" data-sv-resumo="1"><span class="sv-faisca">' + ic("auto_awesome", 16) + "</span>Resumo da IA</button>" +
       '<button class="com-icone" data-sv-editar="1">' + ic("edit", 16) + "Editar</button>" +
       (s.status === "concluido"
         ? '<button class="com-icone" data-sv-status="andamento">' + ic("restart_alt", 16) + "Reabrir serviço</button>"
@@ -224,16 +233,18 @@ function haQuantoSv(iso) {
 
 /* ------------------------------------------------ a visao de trabalho */
 
-/* A PASTA ABERTA. No centro, o histórico: o que aconteceu no serviço em
-   ordem, do começo até agora — criado, documentos anexados (em lista),
-   etapas (com a marca de concluir), anotações, resumos e as perguntas feitas
-   aqui, com a resposta. Embaixo dele, os comandos prontos e uma caixa de
-   pedido pequena para conversar sobre a pasta. Depois, os arquivos, com
-   "Ver mais" como no Assistente. O painel traz equipe, etapas, prazos e
-   anotações. */
+/* A PASTA ABERTA, COMO PÁGINA. Sem painel ao lado: o título fica no alto da
+   tela e, embaixo dele, a abertura — o que está sendo feito, a ficha
+   (cliente, status, a pasta no Acervo) e a equipe como assinatura de
+   redatores. Depois, o status para conclusão na largura toda, que é o
+   trabalho. Então o histórico do serviço (o que aconteceu, com os comandos e
+   a caixa de pedido) ao lado dos prazos e das anotações, e os arquivos. */
 function corpoDoTrabalho() {
   const s = sv.aberto;
-  return '<div class="acervo-principal sv-principal">' + cartaoDoHistorico(s) + cartaoDosArquivos(s) + "</div>";
+  return '<div class="acervo-principal sv-principal" data-sv-id="' + s.id + '">' +
+    aberturaDoServico(s) + secaoDasEtapas(s) +
+    '<div class="sv-colunas">' + cartaoDoHistorico(s) + '<div class="sv-lado">' + secaoDosPrazos(s) + secaoDasAnotacoes(s) + "</div></div>" +
+    cartaoDosArquivos(s) + "</div>";
 }
 
 /* Eventos antigos só tinham texto: o começo diz o que eram. */
@@ -307,6 +318,9 @@ function eventoDoHistorico(ev, s, usadas, ultimoResumo) {
     case "etapa_feita": return linhaDoHistorico("task_alt", "Etapa concluída: " + d.titulo, ev);
     case "etapa_reaberta": return linhaDoHistorico("replay", "Etapa reaberta: " + d.titulo, ev);
     case "etapa_removida": return linhaDoHistorico("remove_circle_outline", "Etapa removida: " + d.titulo, ev);
+    case "etapa_prazo": return linhaDoHistorico("event", d.quando ? "Prazo da etapa: " + d.titulo + " · até " + dataCurta(d.quando) : "Etapa sem prazo: " + d.titulo, ev);
+    case "etapa_responsavel": return linhaDoHistorico("person", d.responsavel ? d.titulo + " · com " + d.responsavel : d.titulo + " · sem responsável", ev);
+    case "etapa_renomeada": return linhaDoHistorico("edit", "Etapa renomeada: " + d.titulo, ev, d.antes ? '<p class="sv-ev-texto riscado">' + esc(d.antes) + "</p>" : "");
     case "arquivo_desligado": return linhaDoHistorico("link_off", "Documento desligado: " + d.nome, ev);
     case "anotacao": return linhaDoHistorico("edit_note", "Anotação", ev, '<p class="sv-ev-citacao">' + esc(d.texto) + "</p>");
     case "resumo": {
@@ -343,11 +357,10 @@ function cartaoDoHistorico(s) {
   const ocupado = Boolean(sv.conversando || sv.pedindo);
   const comando = (chave, icone, rotulo) => '<button type="button" class="sv-comando" data-sv-comando="' + chave + '"' + (ocupado && chave !== "assistente" ? " disabled" : "") + ">" +
     ic(icone, 16) + rotulo + "</button>";
-  return '<section class="fin-cartao sv-historico"><div class="fin-cartao-cabeca"><span><span class="sv-faisca">' + ic("auto_awesome", 16) +
-    "</span>Resumo da IA</span><small>histórico do serviço · " + plural(eventos.length, "evento") + "</small></div>" +
+  return '<section class="fin-cartao sv-historico"><div class="fin-cartao-cabeca"><span>' + ic("history", 16) +
+    "Histórico do serviço</span><small>" + plural(eventos.length, "evento") + "</small></div>" +
     '<div class="sv-tempo" id="sv-tempo">' + (linhas || '<p class="nota">Nada aconteceu ainda.</p>') + "</div>" +
     '<div class="sv-conversa"><div class="sv-comandos">' +
-    comando("resumo", "auto_awesome", s.resumo ? "Atualizar o resumo" : "Fazer um resumo") +
     comando("falta", "checklist", "O que falta?") +
     comando("assistente", "forum", "Perguntar no Assistente") +
     (s.cadastro_id ? comando("cobrar", "payments", "Cobrar") : "") + "</div>" +
@@ -358,7 +371,11 @@ function cartaoDoHistorico(s) {
 /* Os arquivos da pasta sao apontadores para o Acervo: a ficha de cada um
    (tipo, paginas, analise) vem de la, pelo sha1. */
 function arquivoDoAcervo(a) {
-  const doc = (sv.acervo || []).find((d) => d.sha1 === a.sha1);
+  // O mesmo conteúdo pode estar no Acervo duas vezes (o original e a cópia
+  // na pasta do serviço): a cópia da pasta vem primeiro.
+  const pasta = ((sv.aberto && sv.aberto.pasta_caminho) || "").toLowerCase();
+  const iguais = (sv.acervo || []).filter((d) => d.sha1 === a.sha1);
+  const doc = iguais.find((d) => pasta && String(d.caminho || "").toLowerCase().startsWith(pasta)) || iguais[0];
   return doc ? Object.assign({}, doc, { sha1: a.sha1, ligado_em: a.criado_em, nome: doc.nome || a.nome }) : Object.assign({ existe: false, ligado_em: a.criado_em }, a);
 }
 
@@ -387,7 +404,8 @@ function cartaoDosArquivos(s) {
   const conta = todos.length ? plural(todos.length, "documento") + (paginas ? " · " + plural(paginas, "página") : "") : "nenhum documento";
   return '<div class="tabela-cartao sv-arquivos" id="sv-arquivos"><div class="tabela-barra"><b>Arquivos</b><span class="nota-barra">' + esc(conta) + "</span>" +
     '<div class="direita"><button data-sv-ligar="1">' + ic("add", 16) + "Adicionar</button></div></div>" +
-    '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum arquivo ligado. Adicionar traz um documento do Acervo para esta pasta — o arquivo continua onde está.</p>') + "</div>" +
+    '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum arquivo ainda. Adicionar copia o documento para a pasta ' +
+      esc("Serviços › " + (s.pasta || s.nome)) + ' no Acervo — o original fica onde está. O que for posto nessa pasta pelo Windows entra aqui sozinho.</p>') + "</div>" +
     verMais + "</div>";
 }
 
@@ -415,51 +433,97 @@ function alternarArquivosDoServico() {
   }
 }
 
-/* ---------------------------------------------------------- o painel */
+/* ------------------------------------------------------- a abertura */
 
-function painelDoTrabalho() {
-  const alca = '<button class="alca-painel" data-sv-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(sv.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
-  const s = sv.aberto;
-  return '<aside class="acervo-painel sv-painel">' + alca + '<div class="rolagem">' +
-    blocoDaEquipe(s) + blocoDasEtapas(s) + blocoDosPrazos(s) + blocoDasAnotacoes(s) + "</div></aside>";
-}
-
+/* Quem trabalha no serviço, como a assinatura de uma matéria: avatar, nome
+   e cargo. A primeira pessoa é a responsável. */
 function papelDaPessoa(p, i) {
-  const tipo = p.tipo === "socio" ? "sócio" : (p.tipo === "colaborador" ? "colaborador" : p.tipo);
-  return (i === 0 ? "responsável · " : "") + (p.observacao ? p.observacao : tipo);
+  const funcao = p.observacao || (p.tipo === "socio" ? "Sócio" : (p.tipo === "colaborador" ? "Colaborador" : maiuscula(p.tipo || "")));
+  return funcao + (i === 0 ? " · responsável" : "");
 }
 
-function blocoDaEquipe(s) {
-  const linhas = s.equipe.map((p, i) => '<div class="sv-pessoa"><span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) +
-    '</span><div class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(papelDaPessoa(p, i)) + "</small></div>" +
-    (i === 0 ? '<span class="cad-pill">responsável</span>' : "") +
-    '<button class="mais-linha" data-sv-pessoa-tirar="' + p.id + '" title="Tirar da equipe">' + ic("close", 16) + "</button></div>").join("");
-  return '<div class="painel-bloco"><div class="painel-bloco-cabeca">Equipe<button class="em-ligacao forte" data-sv-pessoa="1">+ pessoa</button></div>' +
-    (linhas || '<p class="nota">Ninguém ainda. A primeira pessoa é a responsável.</p>') + "</div>";
+function aberturaDoServico(s) {
+  const lede = s.descricao
+    ? '<p class="sv-lede">' + esc(s.descricao) + "</p>"
+    : '<button type="button" class="sv-lede vazia" data-sv-editar="1">Escreva em uma frase o que está sendo feito neste serviço…</button>';
+  const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
+  const pasta = s.pasta_caminho
+    ? item("Pasta no Acervo", '<button type="button" class="sv-ficha-pasta" data-sv-pasta-windows="1" title="Abrir a pasta no Windows">' +
+      ic("folder_open", 16) + '<span class="corta">' + esc("Serviços › " + (s.pasta || s.nome)) + "</span></button>")
+    : "";
+  return '<header class="sv-abertura">' + lede + '<div class="sv-ficha">' +
+    item("Cliente", "<b>" + esc(s.cliente_nome || "sem cliente") + "</b>") +
+    item("Status", seloDoStatusSv(s)) +
+    item("Aberto em", "<b>" + dataCurta((s.criado_em || "").slice(0, 10)) + "</b>") +
+    pasta + "</div>" + secaoDaEquipe(s) + "</header>";
 }
 
-function blocoDasEtapas(s) {
+function secaoDaEquipe(s) {
+  const redatores = s.equipe.map((p, i) =>
+    '<button type="button" class="sv-redator" data-sv-redator="' + p.id + '">' +
+    '<span class="cad-avatar grande">' + esc(iniciaisDoRemetente(p.nome)) + "</span>" +
+    '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(papelDaPessoa(p, i)) + "</small></span></button>").join("");
+  return '<div class="sv-equipe"><span class="sv-kicker">Equipe</span><div class="sv-redatores">' + redatores +
+    '<button type="button" class="sv-redator sv-redator-novo" data-sv-pessoa="1"><span class="cad-avatar grande">' + ic("person_add", 18) + "</span>" +
+    '<span class="duas-linhas"><b>' + (s.equipe.length ? "Adicionar pessoa" : "Montar a equipe") + "</b><small>de Cadastros ou nova</small></span></button>" +
+    "</div></div>";
+}
+
+/* ------------------------------------------ o status para conclusão */
+
+function textoDoPrazoDaEtapa(e) {
+  if (e.feita) return "concluída " + quandoCurtoSv(e.feita_em) + (e.por ? " · " + e.por : "");
+  if (!e.quando) return "sem data";
+  const dias = diasAte(e.quando);
+  if (dias < 0) return "atrasada · " + dataCurta(e.quando);
+  if (dias === 0) return "hoje, " + dataCurta(e.quando);
+  if (dias === 1) return "até amanhã, " + dataCurta(e.quando);
+  return "até " + dataCurta(e.quando);
+}
+
+function prazoDaEtapa(e, i) {
+  const dias = e.quando ? diasAte(e.quando) : 9999;
+  const classe = "sv-etapa-prazo" + (!e.feita && dias < 0 ? " atrasada" : "") + (!e.feita && dias === 0 ? " hoje" : "") +
+    (!e.feita && !e.quando ? " sem" : "");
+  const titulo = e.feita ? "" : (e.quando ? "Até " + dataPorExtenso(e.quando) + " — clique para trocar" : "Pôr um prazo — entra na Agenda");
+  return '<button type="button" class="' + classe + '" data-sv-etapa-prazo="' + i + '" title="' + esc(titulo) + '"' + (e.feita ? " disabled" : "") + ">" +
+    esc(textoDoPrazoDaEtapa(e)) + "</button>";
+}
+
+function botaoDoResponsavel(e, i) {
+  const p = e.responsavel;
+  const classe = "sv-etapa-quem" + (p ? " com" : "");
+  return '<button type="button" class="' + classe + '" data-sv-etapa-quem="' + i + '" title="' + esc(p ? "Com " + p.nome : "Atribuir a alguém da equipe") + '">' +
+    (p ? '<span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + '</span><span class="corta">' + esc(p.nome.split(" ")[0]) + "</span>" : ic("person_add", 16)) +
+    "</button>";
+}
+
+function secaoDasEtapas(s) {
   const total = s.etapas.length;
   const linhas = s.etapas.map((e, i) => {
-    const classe = "sv-etapa" + (e.feita ? " feita" : "");
-    return '<div class="' + classe + '"><button class="sv-marca" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir a etapa" : "Concluir a etapa") + '">' +
+    const classe = "sv-linha-etapa" + (e.feita ? " feita" : "");
+    return '<div class="' + classe + '">' +
+      '<button type="button" class="sv-marca" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir a etapa" : "Concluir a etapa") + '">' +
       ic(e.feita ? "check_circle" : "radio_button_unchecked", 20) + "</button>" +
-      '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b>" + subDaEtapa(e) + "</div>" +
-      '<button class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 16) + "</button></div>";
+      '<span class="sv-etapa-titulo">' + esc(e.titulo) + "</span>" +
+      botaoDoResponsavel(e, i) + prazoDaEtapa(e, i) +
+      '<button type="button" class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 16) + "</button></div>";
   }).join("");
-  return '<div class="painel-bloco"><div class="painel-bloco-cabeca">Status para conclusão<span class="contagem">' +
-    (total ? s.progresso + "% · " + s.etapas_feitas + " de " + total : "sem etapas") + "</span></div>" +
-    (total ? '<div class="barra-fina"><i style="width:' + s.progresso + '%"></i></div>' : "") +
-    (linhas || '<p class="nota">Divida o serviço em etapas: o andamento da pasta é a conta delas.</p>') +
-    '<form class="sv-nova-etapa" data-sv-nova-etapa="1"><input type="text" placeholder="Nova etapa…" data-sv-etapa-titulo="1">' +
-    '<input type="hidden" data-sv-etapa-quando="1">' +
+  const conta = total ? s.progresso + "% · " + s.etapas_feitas + " de " + plural(total, "etapa") : "nenhuma etapa";
+  return '<section class="sv-secao sv-status"><div class="sv-secao-cabeca"><span class="sv-kicker">Status para conclusão</span>' +
+    '<span class="sv-secao-meta">' + conta + "</span></div>" +
+    '<div class="barra-fina"><i style="width:' + (total ? s.progresso : 0) + '%"></i></div>' +
+    '<div class="sv-etapas">' + (linhas || '<p class="sv-vazio-linha">Divida o serviço em etapas: o andamento da pasta é a conta delas. Etapa com prazo entra na Agenda de quem cuida dela.</p>') + "</div>" +
+    '<form class="sv-nova-etapa" data-sv-nova-etapa="1"><span class="sv-nova-marca">' + ic("add", 20) + "</span>" +
+    '<input type="text" placeholder="Nova etapa…" data-sv-etapa-titulo="1" autocomplete="off">' +
+    '<input type="hidden" data-sv-etapa-quando="1"><input type="hidden" data-sv-nova-resp="1">' +
+    '<button type="button" class="sv-escolher-data" data-sv-nova-quem="1" title="Quem cuida">' + ic("person", 16) + '<span class="sv-data-rotulo">responsável</span></button>' +
     '<button type="button" class="sv-escolher-data" data-sv-etapa-data="1" title="Até quando">' + ic("event", 16) + '<span class="sv-data-rotulo">prazo</span></button>' +
-    '<button class="primario" type="submit" title="Adicionar" aria-label="Adicionar etapa">' + ic("add", 16) + "</button></form></div>";
+    '<button class="primario com-icone" type="submit">' + ic("add", 16) + "Adicionar etapa</button></form></section>";
 }
 
-/* A linha de baixo da etapa. Prazo que já passou, com a etapa aberta, sai
-   em vinho e escrito: "atrasado". */
+/* A linha de baixo da etapa, no histórico. Prazo que já passou, com a etapa
+   aberta, sai em vinho e escrito: "atrasado". */
 function subDaEtapa(e) {
   const atrasada = !e.feita && e.quando && diasAte(e.quando) < 0;
   const classe = atrasada ? "sv-atrasada" : "";
@@ -469,29 +533,72 @@ function subDaEtapa(e) {
   return '<small class="' + classe + '">' + esc(texto) + "</small>";
 }
 
-function quandoDoPrazoSv(p) {
-  const dias = diasAte(p.quando);
-  const hora = p.hora ? " " + p.hora : "";
-  if (dias === 0) return "hoje" + hora;
-  if (dias === 1) return "amanhã" + hora;
-  return dataCurta(p.quando) + hora;
-}
+/* ------------------------------------------- prazos e anotações */
 
-function blocoDosPrazos(s) {
+const TIPOS_DO_PRAZO_SV = { compromisso: "compromisso", prazo_interno: "prazo interno", pagamento: "pagamento" };
+
+function secaoDosPrazos(s) {
   const linhas = s.prazos.map((p) => {
-    const classe = "sv-prazo-data" + (diasAte(p.quando) <= 0 ? " hoje" : "");
-    return '<div class="sv-prazo"><span class="' + classe + '">' + esc(quandoDoPrazoSv(p)) + '</span><div class="duas-linhas"><b>' + esc(p.titulo) +
-      "</b><small>" + esc(p.detalhe) + "</small></div></div>";
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(p.quando) || [0, 0, 1, 0];
+    const dias = diasAte(p.quando);
+    const classe = "sv-prazo-dia" + (dias <= 0 ? " hoje" : "");
+    const sub = [dias === 0 ? "hoje" : (dias === 1 ? "amanhã" : ""), p.hora, TIPOS_DO_PRAZO_SV[p.detalhe] || p.detalhe].filter(Boolean).join(" · ");
+    return '<div class="sv-prazo-linha"><span class="' + classe + '"><b>' + Number(m[3]) + "</b><small>" + MESES_CURTOS[Number(m[2]) - 1] + "</small></span>" +
+      '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small>" + esc(sub) + "</small></span></div>";
   }).join("");
-  return '<div class="painel-bloco"><div class="painel-bloco-cabeca">Prazos e agendamentos<button class="em-ligacao forte" data-sv-agendar="1">+ agendar</button></div>' +
-    (linhas || '<p class="nota">' + (s.cadastro_id ? "Nada agendado para este cliente." : "Ligue um cliente à pasta para ver os prazos e os compromissos dele aqui.") + "</p>") + "</div>";
+  return '<section class="sv-secao sv-prazos"><div class="sv-secao-cabeca"><span class="sv-kicker">Prazos e agendamentos</span>' +
+    '<button type="button" class="em-ligacao forte" data-sv-agendar="1">+ agendar</button></div>' +
+    (linhas || '<p class="sv-vazio-linha">' + (s.cadastro_id ? "Nada agendado para este serviço nem para o cliente." : "Nada agendado. O que for agendado por aqui, e os prazos do cliente ligado à pasta, aparecem nesta lista.") + "</p>") +
+    "</section>";
 }
 
-function blocoDasAnotacoes(s) {
-  const linhas = s.anotacoes.slice(0, 4).map((a) => '<div class="sv-nota"><div class="sv-nota-cabeca"><span class="cad-avatar">' +
-    esc(iniciaisDoRemetente(a.quem)) + "</span><b>" + esc(a.quem) + "</b><small>" + esc(quandoCurtoSv(a.quando)) + "</small></div><p>" + esc(a.texto) + "</p></div>").join("");
-  return '<div class="painel-bloco"><div class="painel-bloco-cabeca">Anotações<span class="contagem">' + s.anotacoes.length + "</span></div>" + linhas +
-    '<textarea class="sv-nova-nota" rows="2" placeholder="Nova anotação… (Enter guarda)" data-sv-nota="1"></textarea></div>';
+function secaoDasAnotacoes(s) {
+  const linhas = s.anotacoes.slice(0, 4).map((a) => '<figure class="sv-anotacao"><blockquote>' + esc(a.texto) + "</blockquote>" +
+    "<figcaption>— " + esc(a.quem) + " · " + esc(quandoCurtoSv(a.quando)) + "</figcaption></figure>").join("");
+  return '<section class="sv-secao sv-anotacoes"><div class="sv-secao-cabeca"><span class="sv-kicker">Anotações</span>' +
+    '<span class="sv-secao-meta">' + (s.anotacoes.length ? plural(s.anotacoes.length, "anotação", "anotações") : "") + "</span></div>" + linhas +
+    '<textarea class="sv-nova-nota" rows="2" placeholder="Nova anotação… (Enter guarda)" data-sv-nota="1"></textarea></section>';
+}
+
+/* ------------------------------------------------ o resumo da IA */
+
+/* O resumo abre num pop-up, pelo botão do alto: o centro da pasta é o
+   histórico. O pop-up fica aberto enquanto o assistente escreve. */
+function corpoDoResumo(s) {
+  if (sv.pedindo) {
+    return '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + (sv.pedindoDesde || Date.now()) + '">lendo o que está gravado na pasta…</span></p>';
+  }
+  if (!s.resumo) {
+    return '<p class="sv-resumo-texto vazio">Ainda não há resumo. O assistente lê o que está gravado na pasta — etapas, prazos, anotações e o nome dos arquivos — e escreve onde o serviço está e o que falta.</p>';
+  }
+  return '<p class="sv-resumo-texto">' + esc(s.resumo) + "</p>" +
+    '<small class="sv-resumo-quando">escrito ' + esc(quandoCurtoSv(s.resumo_em)) + " · só com o que está gravado na pasta</small>";
+}
+
+function atualizarResumoAberto() {
+  const lugar = document.getElementById("sv-resumo-pop");
+  if (!lugar || !sv.aberto) return;
+  lugar.innerHTML = corpoDoResumo(sv.aberto);
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  if (botao) {
+    botao.disabled = sv.pedindo;
+    botao.textContent = sv.pedindo ? "Escrevendo…" : (sv.aberto.resumo ? "Atualizar resumo" : "Fazer um resumo");
+  }
+}
+
+async function abrirResumoDoServico() {
+  const s = sv.aberto;
+  if (!s) return;
+  const escolha = dialogo({
+    titulo: "Resumo da IA", contexto: "Serviços › " + s.nome, classe: "dialogo-servico", larga: true,
+    html: '<div class="sv-resumo-pop" id="sv-resumo-pop"></div>', cancelar: "Fechar", confirmar: "Atualizar resumo",
+  });
+  atualizarResumoAberto();
+  // Atualizar escreve com o pop-up aberto; não fecha.
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  if (botao) botao.addEventListener("click", (e) => { e.stopImmediatePropagation(); pedirResumoDoServico(); }, true);
+  const r = await escolha;
+  if (r && r.ok) pedirResumoDoServico();
 }
 
 /* ----------------------------------------------- o que se faz na pasta */
@@ -611,6 +718,54 @@ function escolherPrazoDaEtapa(botao) {
   });
 }
 
+/* Quem cuida da etapa: alguém da equipe, ou ninguém. A etapa com data vai
+   para a Agenda com essa pessoa — é o que deixa cada um ver a sua. */
+function menuDoResponsavel(botao, atual, aoEscolher) {
+  const equipe = sv.aberto.equipe;
+  const itens = equipe.map((p) => ({ rotulo: p.nome, atual: p.id === atual, acao: () => aoEscolher(p) }));
+  if (equipe.length) itens.push("-");
+  if (atual) itens.push({ rotulo: "Ninguém", acao: () => aoEscolher(null) });
+  itens.push({ rotulo: equipe.length ? "Outra pessoa…" : "Montar a equipe…", acao: () => dialogoDaEquipe() });
+  menuNaLinha(botao, itens);
+}
+
+async function editarEtapa(i, dados) {
+  const r = await fetch("/api/servicos/" + sv.aberto.id + "/etapas/" + i + "/editar", { method: "POST", headers: SV_JSON, body: JSON.stringify(dados) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  recarregarServico();
+}
+
+function responsavelDaEtapa(botao, i) {
+  const e = sv.aberto.etapas[i];
+  menuDoResponsavel(botao, e.responsavel_id, (p) => editarEtapa(i, { responsavel_id: p ? p.id : null }));
+}
+
+function responsavelDaNovaEtapa(botao) {
+  const campo = botao.closest("form").querySelector("[data-sv-nova-resp]");
+  menuDoResponsavel(botao, Number(campo.value) || null, (p) => {
+    campo.value = p ? p.id : "";
+    botao.querySelector(".sv-data-rotulo").textContent = p ? p.nome.split(" ")[0] : "responsável";
+    botao.classList.toggle("com-data", Boolean(p));
+  });
+}
+
+/* Trocar o prazo de uma etapa já criada: o mesmo calendário, a mesma regra. */
+function trocarPrazoDaEtapa(botao, i) {
+  const e = sv.aberto.etapas[i];
+  const hoje = hojeIso();
+  calendarioPopover(botao, {
+    valor: e.quando || "", min: somarAnosIso(hoje, -5), max: somarAnosIso(hoje, 5), limpar: true, passado: true,
+    marcados: sv.aberto.etapas.map((x) => x.quando).filter(Boolean),
+    aoEscolher: (iso) => { if ((iso || "") !== (e.quando || "")) editarEtapa(i, { quando: iso || "" }); },
+  });
+}
+
+async function abrirPastaNoWindows(caminho) {
+  if (!caminho) return;
+  const r = await fetch("/api/biblioteca/abrir-pasta", { method: "POST", headers: SV_JSON, body: JSON.stringify({ caminho: caminho }) });
+  if (!r.ok) avisoCert(await erroDe(r));
+}
+
 /* Agendar pela pasta: o dia no calendário (nada no passado; os dias que já
    têm algo do cliente vêm marcados), depois o que é e a hora. */
 function agendarNoServico(botao) {
@@ -625,7 +780,6 @@ function agendarNoServico(botao) {
       const avisos = [];
       if (semana === 0 || semana === 6) avisos.push("Cai num fim de semana.");
       if (s.prazos.some((p) => p.quando === iso)) avisos.push("Já há algo do cliente neste dia.");
-      if (!s.cadastro_id) avisos.push("Sem cliente ligado à pasta, o compromisso vai para a Agenda mas não aparece aqui.");
       const html = '<div class="dialogo-duas"><div class="dialogo-campo"><label for="sv-a-hora">Hora</label><div class="dialogo-caixa">' + ic("schedule", 18) +
         '<input id="sv-a-hora" type="time" data-dialogo-chave="hora" value="09:00"></div></div>' +
         '<div class="dialogo-campo"><label for="sv-a-tipo">Tipo</label><div class="dialogo-caixa"><select id="sv-a-tipo" data-dialogo-chave="tipo">' +
@@ -639,7 +793,8 @@ function agendarNoServico(botao) {
       if (!r || !r.ok) return;
       const v = r.valores || {};
       const resposta = await fetch("/api/agenda", { method: "POST", headers: SV_JSON, body: JSON.stringify({
-        id: null, dados: { titulo: r.valor, tipo: v.tipo || "compromisso", data: iso, hora: v.hora || "09:00", cadastro_id: s.cadastro_id || null } }) });
+        id: null, dados: { titulo: r.valor, tipo: v.tipo || "compromisso", data: iso, hora: v.hora || "09:00", cadastro_id: s.cadastro_id || null,
+          servico_id: s.id, responsavel_id: s.equipe.length ? s.equipe[0].id : null } }) });
       if (!resposta.ok) { avisoCert(await erroDe(resposta)); return; }
       avisoCert("agendado para " + dataPorExtenso(iso) + (v.hora ? " às " + v.hora : ""), { tom: "ok" });
       recarregarServico();
@@ -760,10 +915,15 @@ function ligarServicos() {
   clique("[data-sv-sel-concluir]", () => concluirServicosEmLote([...sv.escolhidos]));
   clique("[data-sv-mais]", (b) => menuDoServico(b, sv.lista.find((x) => x.id === Number(b.dataset.svMais))));
   clique("[data-sv-editar]", () => dialogoDoServico(sv.aberto));
+  clique("[data-sv-resumo]", () => abrirResumoDoServico());
+  clique("[data-sv-pasta-windows]", () => abrirPastaNoWindows(sv.aberto.pasta_caminho));
+  clique("[data-sv-redator]", (b) => menuDoRedator(b, Number(b.dataset.svRedator)));
+  clique("[data-sv-etapa-quem]", (b) => responsavelDaEtapa(b, Number(b.dataset.svEtapaQuem)));
+  clique("[data-sv-etapa-prazo]", (b) => trocarPrazoDaEtapa(b, Number(b.dataset.svEtapaPrazo)));
+  clique("[data-sv-nova-quem]", (b) => responsavelDaNovaEtapa(b));
   clique("[data-sv-comando]", (b) => {
     const c = b.dataset.svComando;
-    if (c === "resumo") pedirResumoDoServico();
-    else if (c === "falta") conversarSobreServico("O que falta para concluir este serviço?");
+    if (c === "falta") conversarSobreServico("O que falta para concluir este serviço?");
     else if (c === "assistente") perguntarSobreServico(sv.aberto);
     else if (c === "cobrar") cobrarDoServico(sv.aberto);
   });
@@ -782,19 +942,32 @@ function ligarServicos() {
   clique("[data-sv-arquivo]", (b) => abrirArquivoDoServico(b.dataset.svArquivo));
   clique("[data-sv-arquivo-mais]", (b) => menuDoArquivoDoServico(b, b.dataset.svArquivoMais));
   clique("[data-sv-pessoa]", () => dialogoDaEquipe());
-  clique("[data-sv-pessoa-tirar]", (b) => mudarEquipeDoServico(sv.aberto.equipe.map((p) => p.id).filter((id) => id !== Number(b.dataset.svPessoaTirar))));
   clique("[data-sv-agendar]", (b) => agendarNoServico(b));
   const nota = document.querySelector("[data-sv-nota]");
   if (nota) nota.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); anotarNoServico(nota.value); } };
-  clique("[data-sv-alca]", () => { sv.largo = !sv.largo; desenharServicos(); });
 }
 
 /* ------------------------------------------------------------ acoes */
 
+/* Uma pessoa da assinatura: passar a responsável, ou sair da equipe. */
+function menuDoRedator(botao, id) {
+  const ids = sv.aberto.equipe.map((p) => p.id);
+  const itens = [];
+  if (ids[0] !== id) itens.push({ rotulo: "Tornar responsável", acao: () => mudarEquipeDoServico([id].concat(ids.filter((x) => x !== id))) });
+  itens.push({ rotulo: "Mudar a equipe…", acao: () => dialogoDaEquipe() });
+  itens.push("-");
+  itens.push({ rotulo: "Tirar da equipe", perigo: true, acao: () => mudarEquipeDoServico(ids.filter((x) => x !== id)) });
+  menuNaLinha(botao, itens);
+}
+
 function menuDoServico(botao, s) {
   if (!s) return;
   menuNaLinha(botao, [
-    { rotulo: "Abrir a pasta", acao: () => abrirServico(s.id) },
+    { rotulo: "Abrir", acao: () => abrirServico(s.id) },
+    { rotulo: "Mostrar a pasta no Windows", acao: async () => {
+      const r = await fetch("/api/servicos/" + s.id);
+      if (r.ok) abrirPastaNoWindows((await r.json()).pasta_caminho);
+    } },
     { rotulo: "Editar", acao: () => dialogoDoServico(s) },
     { rotulo: "Marcar", sub: sv.status.filter((x) => x.valor !== s.status)
       .map((x) => ({ rotulo: x.rotulo, acao: () => mudarStatusDoServico(s.id, x.valor) })) },
@@ -854,8 +1027,10 @@ async function tirarEtapa(i) {
 async function adicionarEtapa(form) {
   const titulo = form.querySelector("[data-sv-etapa-titulo]").value.trim();
   const quando = form.querySelector("[data-sv-etapa-quando]").value;
+  const responsavel = Number(form.querySelector("[data-sv-nova-resp]").value) || null;
   if (!titulo) return;
-  const r = await fetch("/api/servicos/" + sv.aberto.id + "/etapas", { method: "POST", headers: SV_JSON, body: JSON.stringify({ titulo: titulo, quando: quando }) });
+  const r = await fetch("/api/servicos/" + sv.aberto.id + "/etapas", { method: "POST", headers: SV_JSON,
+    body: JSON.stringify({ titulo: titulo, quando: quando, responsavel_id: responsavel }) });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   await recarregarServico();
   const campo = document.querySelector("[data-sv-etapa-titulo]");
@@ -879,24 +1054,29 @@ async function mudarEquipeDoServico(ids) {
 }
 
 /* Adicionar abre o mesmo pop-up do anexar da conversa: os documentos do
-   Acervo, ou as pastas deste computador. O que vem do computador é copiado
-   para o Acervo e lido; depois, tudo é ligado à pasta pelo sha1. */
+   Acervo, ou as pastas deste computador. Tudo é copiado para a pasta do
+   serviço no Acervo (o original fica onde está), lido e ligado. */
 function adicionarArquivosAoServico() {
   const s = sv.aberto;
   if (!s) return;
   abrirAnexar({
     titulo: "Adicionar à pasta", contexto: "Serviços › " + s.nome, verbo: "Adicionar",
-    aoAnexar: async (nomes) => {
-      if (!nomes.length) return;
-      try { sv.acervo = (await (await fetch("/api/biblioteca")).json()).documentos || []; } catch (err) { /* segue com o que tinha */ }
-      let ligados = 0;
-      for (const nome of nomes) {
-        const doc = (sv.acervo || []).find((d) => d.nome === nome);
-        if (!doc) continue;
-        const r = await fetch("/api/servicos/" + s.id + "/vincular", { method: "POST", headers: SV_JSON, body: JSON.stringify({ sha1: doc.sha1, nome: doc.nome }) });
-        if (r.ok) ligados += 1;
+    aoCaminhos: async (caminhos) => {
+      if (!caminhos.length) return;
+      avisoNaJanela("Copiando " + plural(caminhos.length, "arquivo") + " para a pasta do serviço…", { icone: "sync", girar: true, dura: 0 });
+      try {
+        const r = await fetch("/api/servicos/" + s.id + "/anexar", { method: "POST", headers: SV_JSON, body: JSON.stringify({ caminhos: caminhos }) });
+        if (!r.ok) throw new Error(await erroDe(r));
+        const res = await r.json();
+        const n = (res.ligados || []).length;
+        let texto = n ? plural(n, "documento") + (n === 1 ? " adicionado à pasta" : " adicionados à pasta") : "Nenhum documento foi adicionado.";
+        if ((res.recusados || []).length) texto += " Não consegui: " + res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".";
+        avisoNaJanela(texto, (res.recusados || []).length ? { tom: "erro", dura: 12000 } : { icone: "task_alt" });
+        sv.acervo = (await (await fetch("/api/biblioteca")).json()).documentos || [];
+        carregarStatus();
+      } catch (err) {
+        avisoNaJanela("Não consegui adicionar: " + String((err && err.message) || err), { tom: "erro", dura: 12000 });
       }
-      avisoCert(ligados ? plural(ligados, "documento") + (ligados === 1 ? " adicionado à pasta" : " adicionados à pasta") : "nenhum documento foi adicionado", { tom: ligados ? "ok" : "erro" });
       recarregarServico();
     },
   });
@@ -925,19 +1105,16 @@ function menuDoArquivoDoServico(botao, sha1) {
 }
 
 async function pedirResumoDoServico() {
-  if (sv.pedindo) return;
+  if (sv.pedindo || !sv.aberto) return;
+  const id = sv.aberto.id;
   sv.pedindo = true;
   sv.pedindoDesde = Date.now();
   desenharServicos();
-  const r = await fetch("/api/servicos/" + sv.aberto.id + "/resumo", { method: "POST" });
+  const r = await fetch("/api/servicos/" + id + "/resumo", { method: "POST" });
   sv.pedindo = false;
-  if (!r.ok) {
-    avisoCert("sem resumo agora: " + (await erroDe(r)));
-    desenharServicos();
-    return;
-  }
-  sv.aberto = await r.json();
-  desenharServicos();
+  if (!r.ok) avisoCert("sem resumo agora: " + (await erroDe(r)));
+  else if (sv.aberto && sv.aberto.id === id) sv.aberto = await r.json();
+  if (sv.visao === "trabalho" && sv.aberto && sv.aberto.id === id) desenharServicos();
 }
 
 function perguntarSobreServico(s) {

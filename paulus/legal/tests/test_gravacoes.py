@@ -237,6 +237,83 @@ def test_servicos(c: Cliente, criados: dict) -> None:
     checar(any(x["id"] == sid for x in lista["servicos"]), "concluido aparece no filtro certo")
 
 
+def test_servico_pasta_e_agenda(c: Cliente, criados: dict) -> None:
+    """
+    A pasta do servico no Acervo (Servicos/<nome>): criada com o servico,
+    recebe a copia do que se adiciona, liga sozinha o que aparece nela,
+    nao religa o que foi desligado e muda de nome com o servico. E a etapa
+    com data e uma tarefa: aparece na Agenda de quem cuida, e concluir em
+    Tarefas conclui a etapa.
+    """
+    import shutil
+    from datetime import date, timedelta
+
+    import api
+
+    print("\nservicos: a pasta no Acervo e a etapa na Agenda")
+    amanha = (date.today() + timedelta(days=1)).isoformat()
+    st, pes = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "colaborador", "nome": "Teste Pasta Redatora", "observacao": "Advogada"}})
+    criados["cadastros"].append(pes["id"])
+    st, s = c.pedir("POST", "/api/servicos", {"id": None, "dados": {"nome": "Teste Pasta: renovação?"}})
+    sid = s["id"]
+    criados["servicos"].append(sid)
+    pastas = [Path(s.get("pasta_caminho") or "")]
+    try:
+        checar(s.get("pasta") == "Teste Pasta renovação" and pastas[0].is_dir() and pastas[0].parent.name == "Serviços",
+               "o servico tem a pasta Servicos/<nome>, sem os caracteres que o Windows recusa", s.get("pasta_caminho"))
+
+        st, e = c.pedir("POST", f"/api/servicos/{sid}/etapas", {"titulo": "Minutar aditivo", "quando": amanha, "responsavel_id": pes["id"]})
+        tarefa = e["etapas"][0].get("tarefa_id") if st == 200 else None
+        st, g = c.pedir("GET", f"/api/agenda?de={amanha}&ate={amanha}&pessoa={pes['id']}")
+        checar(tarefa and any(x["titulo"] == "Minutar aditivo" and x.get("servico_id") == sid for x in g["dias"].get(amanha, [])),
+               "a etapa com data esta na Agenda de quem cuida", g.get("dias"))
+        st, g = c.pedir("GET", f"/api/agenda?de={amanha}&ate={amanha}&pessoa=987654")
+        checar(not any(x["titulo"] == "Minutar aditivo" for x in g["dias"].get(amanha, [])), "e nao na de outra pessoa")
+        c.pedir("POST", f"/api/tarefas/{tarefa}/concluir", {"valor": True})
+        st, s = c.pedir("GET", f"/api/servicos/{sid}")
+        checar(s["etapas"][0]["feita"] and s["progresso"] == 100, "concluir a tarefa conclui a etapa", s["etapas"])
+        st, e = c.pedir("POST", f"/api/servicos/{sid}/etapas/0/editar", {"quando": ""})
+        st, t = c.pedir("GET", "/api/tarefas?filtro=concluidas")
+        checar(st == 200 and not any(x["id"] == tarefa for x in t["tarefas"]), "sem data, a etapa deixa de ser tarefa")
+
+        docs = api.estado.searcher.documents
+        if len(docs) >= 2:
+            st, r = c.pedir("POST", f"/api/servicos/{sid}/anexar", {"caminhos": [docs[0].path]})
+            copia = pastas[0] / Path(docs[0].path).name
+            checar(st == 200 and r["ligados"] and copia.is_file() and Path(docs[0].path).is_file(),
+                   "adicionar copia para a pasta e o original fica", r)
+            c.pedir("POST", f"/api/servicos/{sid}/anexar", {"caminhos": [docs[0].path]})
+            checar(len([p for p in pastas[0].iterdir() if p.is_file()]) == 1, "adicionar de novo nao duplica a copia")
+
+            posto = pastas[0] / ("posto " + Path(docs[1].path).name)
+            shutil.copy2(docs[1].path, posto)
+            st, s = c.pedir("GET", f"/api/servicos/{sid}")
+            ligado = [a for a in s["arquivos"] if a["nome"] == posto.name]
+            checar(bool(ligado), "o que e posto na pasta pelo Windows entra no servico", [a["nome"] for a in s["arquivos"]])
+            if ligado:
+                c.pedir("DELETE", f"/api/servicos/{sid}/vinculos/{ligado[0]['sha1']}")
+                st, s = c.pedir("GET", f"/api/servicos/{sid}")
+                checar(not any(a["nome"] == posto.name for a in s["arquivos"]), "desligado de proposito nao volta sozinho")
+
+            st, s = c.pedir("POST", "/api/servicos", {"id": sid, "dados": {"nome": "Teste Pasta renomeada", "status": "andamento"}})
+            pastas.append(Path(s.get("pasta_caminho") or ""))
+            checar(s.get("pasta") == "Teste Pasta renomeada" and pastas[1].is_dir() and not pastas[0].exists() and (pastas[1] / copia.name).is_file(),
+                   "renomear o servico renomeia a pasta", s.get("pasta_caminho"))
+        else:
+            pular("a pasta recebe arquivos", "menos de dois documentos no Acervo")
+    finally:
+        st, r = c.pedir("DELETE", f"/api/servicos/{sid}")
+        if isinstance(r, dict) and r.get("lixeira"):
+            c.pedir("DELETE", f"/api/lixeira/{r['lixeira']}")
+        criados["servicos"].remove(sid)
+        for p in pastas:
+            if p.name and p.is_dir():
+                shutil.rmtree(p)
+        api.estado.recarregar()
+    st, t = c.pedir("GET", "/api/tarefas?filtro=todas")
+    checar(not any(x.get("servico_id") == sid for x in t["tarefas"]), "apagar o servico leva as tarefas das etapas")
+
+
 def test_servico_pela_conversa(c: Cliente, criados: dict) -> None:
     """
     "abra um servico para X: Y" na conversa vira uma proposta; o sim abre a
@@ -539,6 +616,7 @@ def main() -> int:
                 segundos = max(1, round(w.getnframes() / w.getframerate()))
 
             test_servicos(c, criados)
+            test_servico_pasta_e_agenda(c, criados)
             test_planilha_trazer(c, criados)
             test_servico_pela_conversa(c, criados)
             test_gravacoes(c, criados, audio, falado)

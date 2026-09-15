@@ -121,15 +121,23 @@ class Agenda:
                 f"UPDATE compromissos SET {atribui} WHERE id = ?",
                 tuple(limpo[c] for c in CAMPOS) + (id_,),
             )
-            return id_
+        else:
+            colunas = ", ".join(CAMPOS)
+            marcas = ", ".join("?" for _ in CAMPOS)
+            id_ = self.base.escrever(
+                f"INSERT INTO compromissos ({colunas}, criado_em) "
+                f"VALUES ({marcas}, datetime('now','localtime'))",
+                tuple(limpo[c] for c in CAMPOS),
+            )
 
-        colunas = ", ".join(CAMPOS)
-        marcas = ", ".join("?" for _ in CAMPOS)
-        return self.base.escrever(
-            f"INSERT INTO compromissos ({colunas}, criado_em) "
-            f"VALUES ({marcas}, datetime('now','localtime'))",
-            tuple(limpo[c] for c in CAMPOS),
-        )
+        # De onde veio e quem cuida: so mudam quando a ficha diz. A tela da
+        # Agenda nao manda esses campos, e editar la nao desliga o compromisso
+        # do servico que o marcou.
+        for coluna in ("servico_id", "responsavel_id"):
+            if coluna in dados:
+                self.base.escrever(f"UPDATE compromissos SET {coluna} = ? WHERE id = ?",
+                                   (int(dados[coluna]) if dados[coluna] else None, id_))
+        return id_
 
     def apagar(self, id_: int) -> bool:
         return self.base.escrever("DELETE FROM compromissos WHERE id = ?", (id_,)) > 0
@@ -151,20 +159,29 @@ class Agenda:
 
     # ------------------------------------------------------------- a grade
 
-    def grade(self, de: str, ate: str, tarefas=None, documentos=None) -> dict:
+    def grade(self, de: str, ate: str, tarefas=None, documentos=None, pessoa: int | None = None) -> dict:
         """
         Tudo o que tem data no periodo, junto.
 
         Compromisso, prazo de tarefa e data de contrato entram na mesma grade
         porque e assim que o dia acontece - separados em telas diferentes, o
         prazo que estava so no contrato e o que se perde.
+
+        `pessoa` e a agenda de alguem da equipe: so o que tem essa pessoa como
+        responsavel (a etapa de servico atribuida a ela, o compromisso marcado
+        para ela). Os documentos nao tem dono e ficam de fora.
         """
         por_dia: dict[str, list[dict]] = {}
 
         def por(dia: str) -> list[dict]:
             return por_dia.setdefault(dia, [])
 
+        def dela(item: dict) -> bool:
+            return not pessoa or item.get("responsavel_id") == pessoa
+
         for c in self.listar(de, ate):
+            if not dela(c):
+                continue
             por(c["data"]).append({
                 "genero": "compromisso",
                 "id": c["id"],
@@ -172,10 +189,12 @@ class Agenda:
                 "hora": c["hora"],
                 "detalhe": c["cadastro_nome"] or c["tipo_rotulo"],
                 "tipo": c["tipo"],
+                "servico_id": c.get("servico_id"),
+                "responsavel_id": c.get("responsavel_id"),
             })
 
         for t in (tarefas or []):
-            if t.get("prazo") and de <= t["prazo"] <= ate:
+            if t.get("prazo") and de <= t["prazo"] <= ate and dela(t):
                 por(t["prazo"]).append({
                     "genero": "prazo" if not t.get("concluida") else "tarefa",
                     "id": t["id"],
@@ -183,9 +202,11 @@ class Agenda:
                     "hora": "",
                     "detalhe": t.get("cadastro_nome") or t.get("lista") or "",
                     "tipo": "tarefa",
+                    "servico_id": t.get("servico_id"),
+                    "responsavel_id": t.get("responsavel_id"),
                 })
 
-        for d in (documentos or []):
+        for d in ([] if pessoa else (documentos or [])):
             data = (d.get("data") or "")[:10]
             if data and de <= data <= ate:
                 por(data).append({

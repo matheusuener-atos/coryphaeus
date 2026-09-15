@@ -84,7 +84,7 @@ from habilidade_base import (
     PRECISA_DOCUMENTOS,
     Contexto,
 )
-from extract import SUPPORTED_SUFFIXES, extract_file, index_all_contracts
+from extract import SUPPORTED_SUFFIXES, extract_file, file_sha1, index_all_contracts
 from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, LIMITE_DE_NOME, PAUSADO, Etapa, Trabalhos, titular
 from jobs import agora as jobs_agora
 from llama_client import (
@@ -201,7 +201,7 @@ class Estado:
         self.papeis = escritorio.PapeisFiscais(self.base)
         self.bem_estar = bemestar.BemEstar(self.base)
         # Servicos: as pastas de trabalho (docs/ui, A15).
-        self.servicos = servicos_mod.Servicos(self.base, _quem_sou)
+        self.servicos = servicos_mod.Servicos(self.base, _quem_sou, lambda: self.pasta)
         # Gravacoes de audio, guardadas nesta maquina (docs/ui, A16).
         self.gravacoes = gravacoes_mod.Gravacoes(self.base, GRAVACOES_DIR)
         # Transcricao: o modelo de voz desta maquina e uma fila de fundo, um
@@ -2324,10 +2324,11 @@ def _documentos_com_data() -> list[dict]:
 
 
 @app.get("/api/agenda")
-def agenda_grade(de: str = "", ate: str = "") -> dict:
+def agenda_grade(de: str = "", ate: str = "", pessoa: int = 0) -> dict:
     """
     Tudo o que tem data no periodo: compromisso, prazo de tarefa e data de
-    contrato na mesma grade.
+    contrato na mesma grade. `pessoa` (id de Cadastros) e a agenda de alguem
+    da equipe: so o que esta com essa pessoa.
     """
     from datetime import date, timedelta
 
@@ -2336,7 +2337,10 @@ def agenda_grade(de: str = "", ate: str = "") -> dict:
         de = (hoje - timedelta(days=hoje.day - 1)).isoformat()
         ate = (date.fromisoformat(de) + timedelta(days=45)).isoformat()
 
-    grade = estado.agenda.grade(de, ate, estado.tarefas.listar("todas"), _documentos_com_data())
+    # "todas" sao as abertas; as concluidas que sao etapa de servico entram
+    # para a etapa feita continuar no dia dela.
+    tarefas = estado.tarefas.listar("todas") + [t for t in estado.tarefas.listar("concluidas") if t.get("servico_id")]
+    grade = estado.agenda.grade(de, ate, tarefas, _documentos_com_data(), pessoa or None)
     grade["compromissos"] = estado.agenda.listar(de, ate)
     grade["tipos"] = [{"valor": k, "rotulo": v} for k, v in TIPOS_AGENDA.items()]
     grade["ondes"] = [{"valor": k, "rotulo": v} for k, v in ONDES.items() if k]
@@ -5922,21 +5926,78 @@ def servicos_listar(filtro: str = "", termo: str = "") -> dict:
     }
 
 
+# Arquivos da pasta de um servico que o indice ja tentou ler e nao conseguiu
+# (PDF escaneado, arquivo corrompido): caminho e data de modificacao. Sem
+# isso, cada abertura da pasta mandaria reler o Acervo atras deles.
+_TENTADOS_NA_PASTA: set[tuple[str, float]] = set()
+
+
+def _chave_do_arquivo(p: Path) -> tuple[str, float]:
+    try:
+        return (os.path.normcase(str(p.resolve())), p.stat().st_mtime)
+    except OSError:
+        return (os.path.normcase(str(p)), 0.0)
+
+
+def _documentos_por_caminho() -> dict:
+    return {os.path.normcase(str(Path(d.path).resolve())): d for d in estado.searcher.documents}
+
+
+def _sincronizar_pasta_do_servico(id_: int) -> Path | None:
+    """
+    O que esta na pasta do servico no disco entra no servico.
+
+    Arquivo posto na pasta pelo Windows ainda nao foi lido: o Acervo e relido
+    uma vez e o arquivo, ja com sha1, e ligado. Arquivo que alguem desligou
+    de proposito nao volta sozinho.
+    """
+    pasta = estado.servicos.pasta_de(id_, criar=True)
+    if not pasta or not pasta.is_dir():
+        return pasta
+    arquivos = [p for p in pasta.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES]
+    if not arquivos:
+        return pasta
+    por_caminho = _documentos_por_caminho()
+    novos = [p for p in arquivos
+             if _chave_do_arquivo(p)[0] not in por_caminho and _chave_do_arquivo(p) not in _TENTADOS_NA_PASTA]
+    if novos:
+        estado.recarregar()
+        por_caminho = _documentos_por_caminho()
+        _TENTADOS_NA_PASTA.update(_chave_do_arquivo(p) for p in novos if _chave_do_arquivo(p)[0] not in por_caminho)
+    ligados = {a["sha1"] for a in estado.servicos.arquivos_de(id_)}
+    desligados = estado.servicos.desligados(id_)
+    for p in arquivos:
+        doc = por_caminho.get(_chave_do_arquivo(p)[0])
+        if doc and doc.sha1 not in ligados and doc.sha1 not in desligados:
+            estado.servicos.vincular(id_, doc.sha1, doc.name, "Pasta do serviço")
+            ligados.add(doc.sha1)
+    return pasta
+
+
 @app.post("/api/servicos")
 def servicos_salvar(payload: FichaServico) -> dict:
+    antes = estado.servicos.pasta_de(payload.id, criar=False) if payload.id else None
     try:
         id_ = estado.servicos.salvar(payload.dados, payload.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return estado.servicos.obter(id_) or {}
+    # Renomear o servico renomeou a pasta: os caminhos no indice mudaram.
+    depois = estado.servicos.pasta_de(id_, criar=False)
+    if antes and depois and antes != depois and depois.is_dir() and any(depois.iterdir()):
+        estado.recarregar()
+    return servicos_obter(id_)
 
 
 @app.get("/api/servicos/{id_}")
 def servicos_obter(id_: int) -> dict:
+    if not estado.base.um("SELECT id FROM servicos WHERE id = ?", (id_,)):
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    pasta = _sincronizar_pasta_do_servico(id_)
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
     s["gravacoes"] = [g for g in estado.gravacoes.listar() if g.get("servico_id") == id_][:6]
+    s["pasta_caminho"] = str(pasta) if pasta else ""
     return s
 
 
@@ -5945,8 +6006,80 @@ def servicos_apagar(id_: int) -> dict:
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
+    pasta = estado.servicos.pasta_de(id_, criar=False)
     entrada = estado.lixeira.apagar_linha("servico", id_, s["nome"], "Serviços" + (" · " + s["cliente_nome"] if s.get("cliente_nome") else ""))
+    # A pasta vazia sai; com arquivos, fica no Acervo - os arquivos sao do
+    # escritorio, nao do servico.
+    servicos_mod.remover_pasta_vazia(pasta)
     return _foi_para_lixeira(entrada, "apagado", id_)
+
+
+class AnexarAoServico(BaseModel):
+    caminhos: list[str]
+
+
+def _nome_livre_de_arquivo(pasta: Path, nome: str) -> Path:
+    alvo = pasta / nome
+    n = 2
+    while alvo.exists():
+        alvo = pasta / f"{Path(nome).stem} ({n}){Path(nome).suffix}"
+        n += 1
+    return alvo
+
+
+@app.post("/api/servicos/{id_}/anexar")
+def servicos_anexar(id_: int, payload: AnexarAoServico) -> dict:
+    """
+    Adicionar arquivos ao servico: copia cada um para a pasta do servico no
+    Acervo e liga a copia.
+
+    Vale para o que vem do Acervo e do computador. O original fica onde
+    estava; o que ja esta na pasta nao e copiado sobre si mesmo, e o mesmo
+    conteudo com o mesmo nome nao vira "(2)".
+    """
+    pasta = estado.servicos.pasta_de(id_, criar=True)
+    if not pasta:
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    destinos: list[Path] = []
+    recusados: list[dict] = []
+    for bruto in payload.caminhos:
+        origem = Path(bruto)
+        nome = origem.name
+        if not origem.is_file():
+            recusados.append({"nome": nome or bruto, "motivo": "arquivo não encontrado"})
+            continue
+        if origem.suffix.lower() not in SUPPORTED_SUFFIXES:
+            recusados.append({"nome": nome, "motivo": "formato não suportado"})
+            continue
+        try:
+            if origem.stat().st_size > MAX_UPLOAD_BYTES:
+                recusados.append({"nome": nome, "motivo": "arquivo maior que 50 MB"})
+                continue
+            if origem.resolve().is_relative_to(pasta.resolve()):
+                destino = origem
+            else:
+                destino = pasta / nome
+                if destino.exists() and file_sha1(destino) != file_sha1(origem):
+                    destino = _nome_livre_de_arquivo(pasta, nome)
+                if not destino.exists():
+                    shutil.copy2(origem, destino)
+        except OSError as exc:
+            recusados.append({"nome": nome, "motivo": f"não consegui copiar: {exc.strerror or exc}"})
+            continue
+        destinos.append(destino)
+    if destinos:
+        estado.recarregar()
+    por_caminho = _documentos_por_caminho()
+    ligados: list[str] = []
+    for destino in destinos:
+        doc = por_caminho.get(_chave_do_arquivo(destino)[0])
+        if not doc:
+            recusados.append({"nome": destino.name, "motivo": "sem texto para ler (PDF escaneado?)"})
+            continue
+        estado.servicos.vincular(id_, doc.sha1, doc.name)
+        ligados.append(doc.name)
+    return {"ligados": ligados, "recusados": recusados, "pasta": str(pasta),
+            "arquivos": estado.servicos.arquivos_de(id_)}
 
 
 @app.post("/api/servicos/{id_}/status")
@@ -5961,7 +6094,17 @@ def servicos_status(id_: int, payload: dict) -> dict:
 @app.post("/api/servicos/{id_}/etapas")
 def servicos_etapa_nova(id_: int, payload: dict) -> dict:
     try:
-        return {"etapas": estado.servicos.etapa_adicionar(id_, str(payload.get("titulo", "")), str(payload.get("quando", "")))}
+        return {"etapas": estado.servicos.etapa_adicionar(id_, str(payload.get("titulo", "")), str(payload.get("quando", "")),
+                                                          payload.get("responsavel_id"))}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/servicos/{id_}/etapas/{indice}/editar")
+def servicos_etapa_editar(id_: int, indice: int, payload: dict) -> dict:
+    """O prazo, o nome ou quem cuida de uma etapa - so o que vier no corpo."""
+    try:
+        return {"etapas": estado.servicos.etapa_editar(id_, indice, payload)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

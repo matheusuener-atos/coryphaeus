@@ -1,9 +1,9 @@
   /* ----------------------------------------------------------- servicos */
   /*
     Servicos (docs/ui/03-telas-desktop.md, A15): a grade de pastas em tres
-    colunas e, dentro de cada pasta, a visao de trabalho em duas - Resumo da
-    IA e etapas - com os arquivos embaixo e o painel de equipe, prazos,
-    anotacoes e trilha. Prefixo sv-.
+    colunas e, dentro de cada pasta, uma pagina editorial sem painel: a
+    abertura com a equipe como assinatura, o status para conclusao na largura
+    toda, o historico ao lado de prazos e anotacoes, e os arquivos. Prefixo sv-.
   */
   .sv-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: start; }
   .sv-pasta {
@@ -44,24 +44,15 @@
   .sv-vazio h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
 
-  /* A visao de trabalho: resumo e etapas lado a lado, arquivos embaixo. */
-  .sv-trabalho { flex: none; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
   .sv-resumo, .sv-etapas { min-height: 0; }
   .sv-cartao-corpo { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
   .sv-resumo .fin-cartao-cabeca > span:first-child, .sv-historico .fin-cartao-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
   .sv-faisca { color: var(--destaque); display: inline-flex; }
-  .sv-resumo-texto { margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-line; }
+  .sv-resumo-texto { margin: 0; font: 400 17px/1.6 var(--serif); white-space: pre-line; }
   .sv-resumo-texto.vazio { color: var(--ink2); }
   .sv-falta { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .sv-etapa { display: flex; align-items: center; gap: 10px; }
-  .sv-etapa.feita .duas-linhas b { color: var(--ink3); text-decoration: line-through; }
   .sv-marca { border: none; background: none; padding: 0; color: var(--ink3); display: inline-flex; cursor: pointer; flex: none; }
   .sv-marca:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
-  .sv-etapa.feita .sv-marca { color: var(--okt); }
-  .sv-nova-etapa { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--ink-a08); }
-  .sv-nova-etapa input[type="text"] { flex: 1; min-width: 0; max-width: none; }
-  .sv-nova-etapa input[type="date"] { width: 140px; max-width: 140px; }
-  .sv-nova-etapa .primario { display: inline-flex; padding: 7px 9px; }
   .sv-arquivos .tabela-barra > b, .sv-trilha-cartao .tabela-barra > b { font: 600 14px var(--sans); }
   /* A barra dos arquivos tem a cara do cabecalho do Resumo da IA. */
   .sv-arquivos .tabela-barra { background: var(--surf); border-bottom-color: var(--ink-a1); }
@@ -76,29 +67,16 @@
   .sv-evento small { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-evento.grande { padding: 10px 16px; border-bottom: 1px solid var(--ink-a08); }
 
-  /* O painel: equipe, prazos, anotacoes, trilha; ou o formulario; ou o Acervo para ligar. */
-  .sv-painel .rolagem { display: flex; flex-direction: column; }
-  .sv-painel .painel-bloco-cabeca .em-ligacao { margin-left: auto; }
-  .sv-pessoa, .sv-prazo, .sv-doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .sv-pessoa .mais-linha, .sv-doc .em-ligacao { flex: none; }
-  .sv-prazo-data { flex: none; width: 82px; font: 600 12.5px var(--sans); color: var(--ink2); }
-  .sv-prazo-data.hoje { color: var(--destaque); }
-  .sv-nota { display: grid; gap: 4px; }
-  .sv-nota-cabeca { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .sv-nota-cabeca .cad-avatar { width: 22px; height: 22px; font-size: 9px; }
-  .sv-nota-cabeca small { font: 500 12px var(--sans); color: var(--ink3); }
-  .sv-nota p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink2); white-space: pre-line; }
-  .sv-nova-nota { width: 100%; resize: vertical; }
   .sv-trilha { display: grid; gap: 8px; }
   .sv-busca-acervo { width: 100%; }
-  .sv-doc + .sv-doc { border-top: 1px solid var(--ink-a06); padding-top: 8px; }
   @media (max-width: 1180px) {
     .sv-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .sv-trabalho { grid-template-columns: minmax(0, 1fr); }
+    .sv-colunas { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ----------------------------------------------- a pasta aberta */
-  .sv-principal { display: flex; flex-direction: column; gap: 14px; }
+  .sv-principal { display: flex; flex-direction: column; gap: 30px; overflow-y: auto; padding: 10px 2px 48px; }
+  .sv-principal > * { flex: none; }
   .sv-historico { flex: none; display: flex; flex-direction: column; min-height: 0; }
   .sv-tempo { max-height: 520px; overflow-y: auto; padding: 14px 18px 6px; display: grid; gap: 16px; scrollbar-width: none; }
   .sv-tempo::-webkit-scrollbar { display: none; }
@@ -171,3 +149,100 @@
   .sv-d-pessoa.on .sv-d-marca { background: var(--destaque); border-color: var(--destaque); color: var(--bg); }
   .sv-d-pessoa.on .sv-d-marca .ic { opacity: 1; }
   .sv-d-nova { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--hair2); }
+
+  /* ----------------------------------- a pasta aberta, como pagina */
+  /* Abertura: o que esta sendo feito (em serifa, como o lide de uma
+     materia), a ficha em colunas separadas por fio e a equipe assinando. */
+  .sv-abertura { display: grid; gap: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--hair); }
+  .sv-lede { margin: 0; max-width: 64ch; font: 400 21px/1.45 var(--serif); color: var(--ink); white-space: pre-line; }
+  .sv-lede.vazia { padding: 0; border: none; background: none; text-align: left; color: var(--ink3); cursor: text; }
+  .sv-lede.vazia:hover:not(:disabled) { color: var(--ink2); background: none; border: none; }
+  .sv-kicker { font: 600 11px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
+  .sv-ficha { display: flex; flex-wrap: wrap; row-gap: 12px; }
+  .sv-ficha-item { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 0 24px; border-left: 1px solid var(--hair); }
+  .sv-ficha-item:first-child { padding-left: 0; border-left: none; }
+  .sv-ficha-item b { font: 600 14px var(--sans); color: var(--ink); }
+  .sv-ficha-item .fin-status { justify-self: start; }
+  .sv-ficha-pasta {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 340px; padding: 0; border: none; background: none;
+    font: 600 14px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .sv-ficha-pasta .ic { flex: none; color: var(--ink3); }
+  .sv-ficha-pasta:hover:not(:disabled) { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; }
+  .sv-equipe { display: grid; gap: 12px; }
+  .sv-redatores { display: flex; flex-wrap: wrap; gap: 10px 32px; }
+  .sv-redator {
+    display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 300px; padding: 0; border: none; background: none;
+    color: var(--ink); text-align: left; cursor: pointer;
+  }
+  .sv-redator:hover:not(:disabled) { background: none; border: none; }
+  .sv-redator .duas-linhas b { font: 600 14.5px var(--sans); }
+  .sv-redator:hover .duas-linhas b { text-decoration: underline; text-underline-offset: 3px; }
+  .sv-redator .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-redator-novo .cad-avatar { background: none; border: 1px dashed var(--ink-a35); color: var(--ink3); }
+  .sv-redator-novo .duas-linhas b { color: var(--ink2); }
+
+  /* As secoes abertas na pagina: rotulo em caixa alta, a conta a direita,
+     linhas separadas por fio. */
+  .sv-secao { display: grid; align-content: start; min-width: 0; }
+  .sv-secao-cabeca { display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--ink-a2); }
+  .sv-secao-cabeca .sv-kicker { flex: 1; }
+  .sv-secao-meta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .sv-vazio-linha { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--hair); font-size: 13.5px; line-height: 1.55; color: var(--ink3); }
+
+  /* Status para conclusao: a barra fina e o fio de cima da lista. */
+  .sv-status .sv-secao-cabeca { border-bottom: none; }
+  .sv-status .barra-fina { height: 2px; border-radius: 0; }
+  .sv-status .barra-fina i { height: 2px; }
+  .sv-linha-etapa { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; border-bottom: 1px solid var(--hair); }
+  .sv-linha-etapa.feita .sv-marca { color: var(--okt); }
+  .sv-etapa-titulo { flex: 1; min-width: 0; font: 500 14.5px/1.4 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  .sv-linha-etapa.feita .sv-etapa-titulo { color: var(--ink3); text-decoration: line-through; }
+  .sv-etapa-quem {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; height: 28px; max-width: 150px; padding: 0 8px 0 3px;
+    border: none; border-radius: 999px; background: none; font: 500 12.5px var(--sans); color: var(--ink3); opacity: 0; transition: opacity .15s ease;
+  }
+  .sv-etapa-quem.com { opacity: 1; color: var(--ink2); }
+  .sv-linha-etapa:hover .sv-etapa-quem, .sv-etapa-quem:focus-visible { opacity: 1; }
+  .sv-etapa-quem:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .sv-etapa-quem .cad-avatar { width: 22px; height: 22px; font-size: 9px; }
+  .sv-etapa-prazo {
+    flex: none; min-width: 128px; padding: 4px 6px; border: none; border-radius: 6px; background: none; text-align: right;
+    font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .sv-etapa-prazo:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .sv-etapa-prazo:disabled { opacity: 1; cursor: default; }
+  .sv-etapa-prazo.sem { color: var(--ink-a35); }
+  .sv-etapa-prazo.hoje { color: var(--destaque); }
+  .sv-etapa-prazo.atrasada { color: var(--acc); }
+  .sv-linha-etapa .mais-linha { opacity: 0; }
+  .sv-linha-etapa:hover .mais-linha { opacity: 1; }
+  .sv-nova-etapa { display: flex; align-items: center; gap: 8px; padding-top: 10px; }
+  .sv-nova-marca { flex: none; display: inline-flex; color: var(--ink3); }
+  .sv-nova-etapa input[type="text"] {
+    flex: 1; min-width: 0; max-width: none; height: 36px; padding: 0 2px; border: none; border-bottom: 1px solid transparent;
+    border-radius: 0; background: none; box-shadow: none; font: 500 14.5px var(--sans); color: var(--ink);
+  }
+  .sv-nova-etapa input[type="text"]:focus { outline: none; box-shadow: none; border-bottom-color: var(--ink-a2); }
+  .sv-nova-etapa .primario { height: 34px; }
+
+  /* Historico ao lado de prazos e anotacoes. */
+  .sv-colunas { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .sv-lado { display: grid; gap: 30px; align-content: start; min-width: 0; }
+  .sv-historico .fin-cartao-cabeca .ic { color: var(--ink3); }
+  .sv-prazos .em-ligacao { flex: none; }
+  .sv-anotacoes .sv-secao-meta:empty { display: none; }
+  .sv-prazo-linha { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+  .sv-prazo-linha .duas-linhas b { font-weight: 500; }
+  .sv-prazo-dia { flex: none; width: 42px; display: grid; justify-items: center; color: var(--ink); }
+  .sv-prazo-dia b { font: 400 24px/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .sv-prazo-dia small { margin-top: 3px; font: 600 10.5px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
+  .sv-prazo-dia.hoje b, .sv-prazo-dia.hoje small { color: var(--destaque); }
+  .sv-anotacao { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--hair); display: grid; gap: 6px; }
+  .sv-anotacao blockquote { margin: 0; font: 400 16px/1.5 var(--serif); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+  .sv-anotacao figcaption { font: 500 12px var(--sans); color: var(--ink3); }
+  .sv-nova-nota { width: 100%; margin-top: 12px; resize: vertical; }
+
+  /* O resumo da IA, no pop-up. */
+  .sv-resumo-pop { display: grid; gap: 10px; min-height: 72px; align-content: start; }
+  .sv-resumo-quando { font: 500 12px var(--sans); color: var(--ink3); }
