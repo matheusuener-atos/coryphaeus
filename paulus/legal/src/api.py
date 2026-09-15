@@ -5913,13 +5913,72 @@ class FichaServico(BaseModel):
 
 @app.get("/api/servicos")
 def servicos_listar(filtro: str = "", termo: str = "") -> dict:
+    servicos = estado.servicos.listar(filtro, termo)
+    abertos = estado.servicos.listar("andamento")
+    a_faturar = _valores_dos_servicos(servicos, abertos)
+    prefs = estado.prefs.dados
     return {
-        "servicos": estado.servicos.listar(filtro, termo),
+        "servicos": servicos,
+        # O alto da pagina editorial: o nome do escritorio (ou da pessoa, quando
+        # o escritorio nao tem nome), o que ha a faturar no trimestre e os
+        # prazos mais proximos das pastas abertas.
+        "escritorio": (str(prefs.get("escritorio", {}).get("nome", "")).strip()
+                       or str(prefs.get("pessoa", {}).get("nome", "")).strip()),
+        "a_faturar": a_faturar,
+        "proximos": _proximos_dos_servicos(abertos),
         "contagem": estado.servicos.contagem(),
         "status": [{"valor": k, "rotulo": v} for k, v in servicos_mod.STATUS.items()],
         "clientes": [{"id": f["id"], "nome": f["nome"], "tipo": f["tipo"], "observacao": f.get("observacao", "")}
                      for f in estado.cadastros.listar()],
     }
+
+
+def _valores_dos_servicos(servicos: list[dict], abertos: list[dict]) -> dict:
+    """
+    O dinheiro em aberto de cada pasta, e o que falta faturar no trimestre.
+
+    O servico nao tem preco proprio: o valor e o que o Financeiro tem a
+    receber dele. Conta o lancamento de receita em aberto do cliente cuja
+    descricao traz o nome do servico - e assim que "Cobrar" os escreve. Sem
+    nenhum assim, e o cliente so tem esta pasta aberta, todo o aberto dele e
+    desta pasta; com mais de uma, nao ha como saber de qual, e o cartao nao
+    finge. Grava `valor_centavos` em cada servico da lista.
+    """
+    receitas = estado.base.buscar(
+        "SELECT id, cadastro_id, descricao, centavos, vencimento FROM lancamentos "
+        "WHERE tipo = 'recebimento' AND liquidado_em = '' AND cadastro_id IS NOT NULL")
+    abertos_por_cliente: dict = {}
+    for s in abertos:
+        if s.get("cadastro_id"):
+            abertos_por_cliente[s["cadastro_id"]] = abertos_por_cliente.get(s["cadastro_id"], 0) + 1
+
+    for s in servicos:
+        do_cliente = [r for r in receitas if s.get("cadastro_id") and r["cadastro_id"] == s["cadastro_id"]]
+        nome = str(s.get("nome", "")).strip().lower()
+        proprias = [r for r in do_cliente if nome and nome in str(r["descricao"]).lower()]
+        if not proprias and s.get("status") != "concluido" and abertos_por_cliente.get(s.get("cadastro_id")) == 1:
+            proprias = do_cliente
+        s["valor_centavos"] = sum(int(r["centavos"]) for r in proprias)
+
+    hoje = date.today()
+    inicio = date(hoje.year, 3 * ((hoje.month - 1) // 3) + 1, 1)
+    fim = date(inicio.year + (inicio.month == 10), (inicio.month + 2) % 12 + 1, 1)
+    clientes = set(abertos_por_cliente)
+    no_trimestre = [r for r in receitas if r["cadastro_id"] in clientes
+                    and inicio.isoformat() <= str(r["vencimento"])[:10] < fim.isoformat()]
+    return {"centavos": sum(int(r["centavos"]) for r in no_trimestre),
+            "trimestre": f"{(hoje.month - 1) // 3 + 1}º trimestre"}
+
+
+def _proximos_dos_servicos(abertos: list[dict], quantos: int = 3) -> list[dict]:
+    """Os prazos e compromissos mais proximos das pastas abertas, do mais cedo."""
+    itens = []
+    for s in abertos:
+        datas = [d for d in (s.get("proximo_prazo"), (s.get("proximo_compromisso") or {}).get("data")) if d]
+        if datas:
+            itens.append({"id": s["id"], "nome": s["nome"], "cliente": s.get("cliente_nome") or "",
+                          "status": s.get("status", ""), "quando": min(datas)[:10]})
+    return sorted(itens, key=lambda x: x["quando"])[:quantos]
 
 
 @app.post("/api/servicos")

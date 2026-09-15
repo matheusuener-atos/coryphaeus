@@ -390,7 +390,7 @@ function entrarNaConversa() {
   $("centro").classList.add("prosa");
   $("conversa-titulo").classList.add("renomeavel");
   $("conversa-titulo").title = "Clique para renomear";
-  $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
+  $("conversa-col").classList.remove("tela-dupla", "tela-cheia", "tela-editorial");
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
   $("exportar-conversa").hidden = false;

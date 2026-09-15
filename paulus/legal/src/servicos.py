@@ -52,6 +52,8 @@ class Servicos:
         parametros: list = []
         if filtro == "andamento":
             sql += " AND s.status != 'concluido'"
+        elif filtro == "aguardando":
+            sql += " AND s.status = 'aguardando'"
         elif filtro == "concluidos":
             sql += " AND s.status = 'concluido'"
         if termo:
@@ -67,11 +69,14 @@ class Servicos:
     def contagem(self) -> dict:
         linhas = self.base.buscar("SELECT status, COUNT(*) AS n FROM servicos GROUP BY status")
         por = {l["status"]: int(l["n"]) for l in linhas}
+        total = sum(por.values())
         return {
             "andamento": por.get("andamento", 0) + por.get("revisao", 0),
             "aguardando": por.get("aguardando", 0),
             "concluidos": por.get("concluido", 0),
-            "total": sum(por.values()),
+            # Tudo que nao foi concluido: e o que a primeira pilula da tela lista.
+            "abertos": total - por.get("concluido", 0),
+            "total": total,
         }
 
     def obter(self, id_: int) -> dict | None:

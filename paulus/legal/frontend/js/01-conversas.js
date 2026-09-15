@@ -151,7 +151,7 @@ $("nova").onclick = () => {
   $("exportar-conversa").hidden = true;
   $("centro").innerHTML = exemplos();
   $("centro").classList.remove("prosa");
-  $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
+  $("conversa-col").classList.remove("tela-dupla", "tela-cheia", "tela-editorial");
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
   mostrarLateral(false);

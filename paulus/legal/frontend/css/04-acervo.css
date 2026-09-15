@@ -36,6 +36,22 @@
   /* o cabecalho da tela: busca, seletor de visoes e a acao principal */
   .acoes-tela { display: flex; align-items: center; gap: 10px; }
   .acoes-tela:empty { display: none; }
+  /* ----------------------------------------- a pagina editorial */
+  /* O alto das telas em formato editorial (Servicos primeiro): sobretitulo
+     com o nome do escritorio, titulo na letra da saudacao, um texto de
+     abertura que sai dos numeros e uma nota, e a barra de filtros. O
+     cabecalho da conversa sai de cena enquanto a pagina traz o seu. */
+  .conversa-col.tela-editorial .conversa-topo { display: none; }
+  .pagina-cabeca { display: grid; gap: 14px; max-width: 560px; padding: 36px 0 30px; }
+  .pagina-titulo { margin: 0; font: 400 clamp(34px, 3.4vw, 46px)/1.02 var(--serif); letter-spacing: -.015em; }
+  .pagina-abertura { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); text-wrap: pretty; }
+  .pagina-nota { margin: -4px 0 0; font-size: 14px; line-height: 1.6; color: var(--ink3); text-wrap: pretty; }
+  .pagina-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .pagina-filtros { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pagina-barra > button, .pagina-menu > button { height: 34px; }
+  .pagina-menu > button.ativo { background: var(--fill); }
+  /* O menu que abre do botao se posiciona por ele. */
+  .pagina-menu { position: relative; display: inline-flex; }
   .busca-tela {
     display: flex; align-items: center; gap: 8px; width: 260px; height: 34px; padding: 0 12px;
     border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); color: var(--ink3);

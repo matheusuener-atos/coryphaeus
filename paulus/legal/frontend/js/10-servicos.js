@@ -12,6 +12,7 @@ const SV_JSON = { "Content-Type": "application/json" };
 
 const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
+  escritorio: "", aFaturar: { centavos: 0 }, proximos: [], ordem: "recentes", soPrazo: false,
   aberto: null, aba: "geral", form: null, acervo: null, acervoTermo: "", ligar: false, largo: false,
   pedindo: false, salvando: false, escolhidos: new Set(),
 };
@@ -33,6 +34,9 @@ async function mostrarServicos(visao) {
     const [d, s, b] = await Promise.all(pedidos);
     sv.lista = d.servicos || [];
     sv.contagem = d.contagem || {};
+    sv.escritorio = d.escritorio || "";
+    sv.aFaturar = d.a_faturar || { centavos: 0 };
+    sv.proximos = d.proximos || [];
     sv.status = d.status || [];
     sv.clientes = d.clientes || [];
     if (b) sv.acervo = b.documentos || [];
@@ -75,6 +79,9 @@ function desenharServicos() {
     const classe = "acervo sv-tela" + (sv.form ? (sv.largo ? " painel-largo" : "") : " sem-painel");
     html = '<div class="' + classe + '" id="sv-tela">' + corpoDasPastas() + (sv.form ? painelDoFormServico() : "") + "</div>";
   }
+  // As pastas são página editorial: o título grande mora na própria página, e
+  // o cabeçalho da conversa sai de cena. Dentro de uma pasta, ele volta.
+  $("conversa-col").classList.toggle("tela-editorial", sv.visao !== "trabalho");
   $("centro").innerHTML = html;
   ligarServicos();
   atualizarPostura();
@@ -103,55 +110,176 @@ function cabecalhoServicos() {
         : '<button class="com-icone" data-sv-status="concluido">' + ic("task_alt", 16) + "Concluir serviço</button>");
     return;
   }
+  // Nas pastas o cabeçalho da conversa fica escondido (a página traz o seu),
+  // mas o título continua certo: é o que a janela e a volta de tela leem.
   nav.innerHTML = "";
   titulo.textContent = "Serviços";
   const c = sv.contagem;
   meta.textContent = (c.andamento || 0) + " em andamento · " + (c.aguardando || 0) + " aguardando cliente · " + (c.concluidos || 0) + " concluídos";
-  $("acoes-tela").innerHTML =
-    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="sv-busca" placeholder="Buscar serviços…" value="' + esc(sv.termo) + '"></label>' +
-    '<div class="visoes">' + botao("filtro", "andamento", "Em andamento") + botao("filtro", "todos", "Todos") + botao("filtro", "concluidos", "Concluídos") + "</div>" +
-    '<button class="primario com-icone" data-sv-novo="1">' + ic("add", 16) + "Novo serviço</button>";
+  $("acoes-tela").innerHTML = "";
+}
+
+/* ---------------------------------------------- a página editorial */
+
+const EXTENSO = ["nenhum", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez",
+  "onze", "doze", "treze", "catorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove", "vinte"];
+
+function porExtenso(n, feminino) {
+  if (n > 20) return String(n);
+  const palavra = EXTENSO[n];
+  if (!feminino) return palavra;
+  return { nenhum: "nenhuma", um: "uma", dois: "duas" }[palavra] || palavra;
+}
+
+/* "R$ 62,9 mil": o texto de abertura lê melhor com o valor redondo. */
+function reaisPorAlto(centavos) {
+  const reais = centavos / 100;
+  const curto = (v) => v.toFixed(1).replace(".", ",").replace(/,0$/, "");
+  if (reais >= 1e6) return "R$ " + curto(reais / 1e6) + " mi";
+  if (reais >= 1e4) return "R$ " + curto(reais / 1e3) + " mil";
+  return emReais(centavos);
+}
+
+function juntarComE(partes) {
+  return partes.length > 1 ? partes.slice(0, -1).join(", ") + " e " + partes[partes.length - 1] : (partes[0] || "");
+}
+
+/* O texto de abertura sai dos números, por regra: quantos andam, quantos
+   esperam o cliente, quanto há a faturar no trimestre. Nada escrito à mão. */
+function aberturaDosServicos() {
+  const c = sv.contagem;
+  if (!c.total) {
+    return "Nenhum serviço ainda. Um serviço é a pasta de trabalho de um assunto: cliente, etapas, arquivos, prazos e a trilha do que aconteceu.";
+  }
+  const partes = [];
+  const andando = c.andamento || 0;
+  partes.push(andando
+    ? porExtenso(andando) + (andando === 1 ? " serviço em andamento" : " serviços em andamento")
+    : "nenhum serviço andando agora");
+  if (c.aguardando) partes.push(porExtenso(c.aguardando) + (c.aguardando === 1 ? " parado esperando o cliente" : " parados esperando o cliente"));
+  if (sv.aFaturar.centavos) partes.push(reaisPorAlto(sv.aFaturar.centavos) + " a faturar neste trimestre");
+  if (!c.abertos && c.concluidos) return maiuscula(porExtenso(c.concluidos)) + (c.concluidos === 1 ? " serviço, já concluído." : " serviços, todos concluídos.");
+  return maiuscula(juntarComE(partes)) + ".";
+}
+
+/* A segunda linha: o prazo que pede atenção primeiro. */
+function notaDosServicos() {
+  const p = sv.proximos || [];
+  if (!p.length) return "";
+  const atrasados = p.filter((x) => diasAte(x.quando) < 0);
+  const quem = (x) => "“" + x.nome + "”" + (x.cliente ? ", de " + x.cliente : "");
+  if (atrasados.length) {
+    return maiuscula(porExtenso(atrasados.length)) + (atrasados.length === 1 ? " está com prazo atrasado: " : " estão com prazo atrasado, a começar por ") +
+      quem(atrasados[0]) + ".";
+  }
+  const x = p[0];
+  const dias = diasAte(x.quando);
+  if (dias === 0) return "Um vence hoje: " + quem(x) + ".";
+  if (dias === 1) return "Um vence amanhã: " + quem(x) + ".";
+  return "O próximo prazo é de " + quem(x) + ", em " + dataCurta(x.quando) + ".";
+}
+
+function cabecaDaPaginaDeServicos() {
+  const c = sv.contagem;
+  const nota = notaDosServicos();
+  const pilula = (valor, rotulo, n) => {
+    const classe = "pilula" + (sv.filtro === valor ? " ativa" : "");
+    return '<button class="' + classe + '" data-sv-filtro="' + valor + '">' + rotulo + " · " + (n || 0) + "</button>";
+  };
+  const filtrando = sv.ordem !== "recentes" || sv.soPrazo;
+  const classeFiltros = "com-icone" + (filtrando ? " ativo" : "");
+  return '<header class="pagina-cabeca">' +
+    (sv.escritorio ? '<span class="rotulo-momento">' + esc(sv.escritorio) + "</span>" : "") +
+    '<h1 class="pagina-titulo">Serviços</h1>' +
+    '<p class="pagina-abertura">' + esc(aberturaDosServicos()) + "</p>" +
+    (nota ? '<p class="pagina-nota">' + esc(nota) + "</p>" : "") +
+    "</header>" +
+    '<div class="pagina-barra">' +
+    '<div class="pagina-filtros">' +
+    pilula("andamento", "Em aberto", c.abertos) + pilula("aguardando", "Aguardando cliente", c.aguardando) +
+    pilula("concluidos", "Concluídos", c.concluidos) + pilula("todos", "Todos", c.total) + "</div>" +
+    '<span class="cresce"></span>' +
+    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="sv-busca" placeholder="Buscar serviço…" value="' + esc(sv.termo) + '"></label>' +
+    '<span class="pagina-menu"><button class="' + classeFiltros + '" data-sv-filtros="1">' + ic("tune", 16) + "Filtros</button></span>" +
+    '<button class="primario com-icone" data-sv-novo="1">' + ic("add", 16) + "Novo serviço</button>" +
+    "</div>";
+}
+
+function menuDosFiltros(botao) {
+  const marca = (ligado) => (ligado ? "check" : "");
+  const ordem = (valor, rotulo) => ({ rotulo: rotulo, icone: marca(sv.ordem === valor) || "sort", acao: () => { sv.ordem = valor; desenharServicos(); } });
+  menuNaLinha(botao, [
+    ordem("recentes", "Mexidos por último"),
+    ordem("prazo", "Prazo mais próximo"),
+    ordem("valor", "Maior valor em aberto"),
+    ordem("nome", "Nome, de A a Z"),
+    "-",
+    { rotulo: "Só com prazo nos próximos 7 dias", icone: marca(sv.soPrazo) || "event_upcoming", acao: () => { sv.soPrazo = !sv.soPrazo; desenharServicos(); } },
+  ]);
+}
+
+function servicosNaOrdem() {
+  let lista = sv.lista.slice();
+  const quando = (s) => { const p = proximoDoServico(s); return p ? p.quando : "9999"; };
+  if (sv.soPrazo) lista = lista.filter((s) => { const p = proximoDoServico(s); return p && diasAte(p.quando) <= 7; });
+  if (sv.ordem === "prazo") lista.sort((a, b) => quando(a).localeCompare(quando(b)));
+  else if (sv.ordem === "valor") lista.sort((a, b) => (b.valor_centavos || 0) - (a.valor_centavos || 0));
+  else if (sv.ordem === "nome") lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return lista;
 }
 
 /* --------------------------------------------------------- as pastas */
 
 function corpoDasPastas() {
-  const cartoes = sv.lista.map(cartaoDoServico).join("");
+  const lista = servicosNaOrdem();
+  const cartoes = lista.map(cartaoDoServico).join("");
   for (const id of [...sv.escolhidos]) if (!sv.lista.some((s) => String(s.id) === id)) sv.escolhidos.delete(id);
   const barra = sv.escolhidos.size
     ? '<div class="barra-selecao">' + barraDeSelecao(sv.escolhidos.size, false,
       '<button data-sv-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
       '<button class="botao-icone perigo" data-sv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-sv-sel-limpar") + "</div>"
     : "";
-  return '<div class="acervo-principal">' + barra + '<div class="sv-grade">' + (sv.lista.length ? "" : vazioDosServicos()) + cartoes +
-    '<button class="sv-novo" data-sv-novo="1">' + ic("add", 20) + "<b>Novo serviço</b><small>ou peça ao Assistente: “abra um serviço para…”</small></button>" +
-    "</div></div>";
+  return '<div class="acervo-principal sv-pagina">' + cabecaDaPaginaDeServicos() + barra +
+    '<div class="sv-grade">' + (lista.length ? "" : vazioDosServicos()) + cartoes + "</div></div>";
 }
 
 function vazioDosServicos() {
   let h3, p;
   if (sv.termo) { h3 = "Nada com “" + esc(sv.termo) + "”"; p = "Procurei no nome, na descrição e no cliente."; }
+  else if (sv.soPrazo && sv.lista.length) { h3 = "Nenhum prazo nos próximos 7 dias"; p = "Tire o filtro em Filtros para ver todas as pastas."; }
   else if (sv.filtro === "concluidos") { h3 = "Nenhum serviço concluído"; p = "Quando uma pasta chega ao fim, Concluir serviço traz ela para cá — com a trilha inteira guardada."; }
+  else if (sv.filtro === "aguardando") { h3 = "Ninguém esperando o cliente"; p = "Nenhuma pasta está parada à espera de algo do cliente."; }
   else if (sv.contagem.total) { h3 = "Nada em andamento"; p = "Todas as pastas estão concluídas. Abra uma nova ou veja Todos."; }
-  else { h3 = "Nenhum serviço ainda"; p = "Um serviço é a pasta de trabalho de um assunto: nome próprio, cliente, o que está sendo feito, as etapas, quem cuida, os arquivos do Acervo, os prazos e a trilha do que aconteceu. Abra a primeira pelo cartão ao lado."; }
+  else { h3 = "Nenhum serviço ainda"; p = "Abra o primeiro em Novo serviço — ou peça ao Assistente: “abra um serviço para…”."; }
   return '<div class="sv-vazio"><h3>' + h3 + "</h3><p>" + p + "</p></div>";
 }
 
+/* O cartão da pasta, na página editorial: situação e prazo no alto, o nome
+   na letra do título, o cliente, o que está sendo feito, e embaixo o valor em
+   aberto no Financeiro — ou, sem valor lançado, as etapas. */
 function cartaoDoServico(s) {
   const classe = "sv-pasta" + (s.status === "concluido" ? " feita" : "") + (sv.escolhidos.has(String(s.id)) ? " escolhida" : "");
-  const sub = (s.cliente_nome || "sem cliente") + (tipoDoDocumentoSv(s.cliente_documento) ? " · " + tipoDoDocumentoSv(s.cliente_documento) : "");
   const proximo = proximoDoServico(s);
-  const classeProximo = "sv-proximo" + (proximo && proximo.atrasado ? " atrasado" : "");
+  const classePonto = "sv-ponto " + (s.status || "andamento");
+  let quando = "";
+  if (proximo) {
+    const dias = diasAte(proximo.quando);
+    const classeQuando = "sv-quando" + (dias < 0 ? " atrasado" : (dias <= 1 ? " perto" : ""));
+    const rotulo = dias < 0 ? "Atrasado" : dias === 0 ? "Hoje" : dias === 1 ? "Amanhã" : dataCurta(proximo.quando);
+    quando = '<span class="' + classeQuando + '" title="' + esc(proximo.texto) + '">' + rotulo + "</span>";
+  }
+  const etapas = s.etapas && s.etapas.length ? s.etapas_feitas + " de " + plural(s.etapas.length, "etapa") : "";
+  const valor = s.valor_centavos
+    ? '<b class="sv-valor" title="Em aberto no Financeiro">' + emReais(s.valor_centavos) + "</b>"
+    : '<span class="sv-valor vazio">' + esc(etapas || "sem valor lançado") + "</span>";
   return '<div class="' + classe + '" data-sv-abrir="' + s.id + '" data-sel="' + s.id + '">' +
-    '<div class="sv-pasta-cabeca">' + ic("folder", 20) + '<div class="duas-linhas"><b>' + esc(s.nome) + "</b><small>" + esc(sub) + "</small></div>" +
-    '<button class="mais-linha" data-sv-mais="' + s.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>" +
-    "<p>" + esc(s.descricao || "Sem descrição ainda — abra a pasta e escreva o que está sendo feito.") + "</p>" +
-    '<div class="sv-pasta-pe"><span class="fin-status">' + esc(s.status_rotulo) + '</span><b class="sv-pct">' + s.progresso + "%</b>" +
-    (s.equipe.length ? '<span class="sv-avatares">' + s.equipe.slice(0, 3).map((p) =>
-      '<span class="cad-avatar" title="' + esc(p.nome) + '">' + esc(iniciaisDoRemetente(p.nome)) + "</span>").join("") + "</span>" : "") +
-    "<span>" + plural(s.arquivos_quantos, "arquivo") + " · " + plural(s.prazos_quantos, "prazo") + "</span>" +
-    (proximo ? '<span class="' + classeProximo + '">' + ic("event_upcoming", 16) + esc(proximo.texto) + "</span>" : "") +
-    "</div></div>";
+    '<div class="sv-pasta-topo"><i class="' + classePonto + '"></i><span>' + esc(s.status_rotulo) + "</span>" + quando + "</div>" +
+    '<h3 class="sv-pasta-nome">' + esc(s.nome) + "</h3>" +
+    '<span class="sv-pasta-cliente">' + esc(s.cliente_nome || "sem cliente") + "</span>" +
+    '<p class="sv-pasta-texto">' + esc(s.descricao || "Sem descrição ainda — abra a pasta e escreva o que está sendo feito.") + "</p>" +
+    '<div class="sv-pasta-pe">' + valor +
+    '<button class="mais-linha sv-mais" data-sv-mais="' + s.id + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button>" +
+    ic("chevron_right", 18) + "</div></div>";
 }
 
 function tipoDoDocumentoSv(documento) {
@@ -175,7 +303,7 @@ function proximoDoServico(s) {
   if (dias === 0) texto = "hoje · " + texto;
   else if (dias === 1) texto = "amanhã · " + texto;
   else if (dias < 0) texto += " · atrasado";
-  return { texto: (x.rotulo ? x.rotulo + " " : "") + texto, atrasado: dias < 0 };
+  return { texto: (x.rotulo ? x.rotulo + " " : "") + texto, atrasado: dias < 0, quando: x.quando };
 }
 
 function diasAte(iso) {
@@ -433,6 +561,7 @@ function ligarServicos() {
     busca.oninput = () => { clearTimeout(t); const v = busca.value; t = setTimeout(() => { sv.termo = v.trim(); mostrarServicos("pastas"); }, 280); };
   }
   clique("[data-sv-filtro]", (b) => { sv.filtro = b.dataset.svFiltro; mostrarServicos("pastas"); });
+  clique("[data-sv-filtros]", (b) => menuDosFiltros(b));
   clique("[data-sv-aba]", (b) => { sv.aba = b.dataset.svAba; desenharServicos(); });
   clique("[data-sv-voltar]", () => { sv.visao = "pastas"; sv.form = null; sv.ligar = false; mostrarServicos("pastas"); });
   clique("[data-sv-novo]", () => { sv.form = formDoServico(null); sv.ligar = false; desenharServicos(); const c = document.querySelector('[data-sv-campo="nome"]'); if (c) c.focus(); });
@@ -694,7 +823,7 @@ function cobrarDoServico(s) {
   fin.visao = "lancamentos";
   fin.aberto = null;
   fin.form = {
-    id: null, tipo: "receita", descricao: "Honorários — " + s.nome, valor: "", categoria: "honorarios",
+    id: null, tipo: "recebimento", descricao: "Honorários — " + s.nome, valor: "", categoria: "honorarios",
     cadastro_id: s.cadastro_id, vencimento: ultimoDiaDoMes(mes), liquidado_em: "",
   };
   mostrarFinanceiro("lancamentos");
