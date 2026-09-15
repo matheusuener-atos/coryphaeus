@@ -148,6 +148,9 @@
   .ag-tarefa-linha { display: flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; }
   /* A tarefa na lista do dia: a marca de concluir no lugar da hora. */
   .ag-tarefa-dia { cursor: pointer; }
+  .ag-adicionar-dia { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+  .ag-adicionar-dia button { flex: 1; justify-content: center; background: var(--surf); border-color: var(--hair); }
+  .ag-adicionar-dia button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
   .ag-tarefa-dia .ag-hora { display: flex; justify-content: flex-start; padding-top: 3px; }
   .ag-tarefa-dia.ag-feita .ag-corpo > span { color: var(--ink3); text-decoration: line-through; }
   .ag-tarefa-dia .ag-feita-ic { color: var(--okt); cursor: pointer; }

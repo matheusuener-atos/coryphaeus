@@ -654,18 +654,15 @@ function painelDoDia() {
     '<span class="ag-sino" title="' + (comAviso ? plural(comAviso, "compromisso") + " com aviso" : "nenhum aviso marcado") + '">' +
     ic("notifications", 18) + (comAviso ? "<i></i>" : "") + "</span></div>" +
 
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos e tarefas</span>' +
-    '<button class="ag-ligacao" data-ag-marcar="1">+ novo</button></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos e tarefas</span></div>' +
     (doDia.length ? doDia.map((x) => x.html).join('<span class="ag-risco"></span>') : "<p>Nada neste dia.</p>") +
-    '<button class="ag-ligacao" data-ag-nova-tarefa="1">+ tarefa rápida</button>' +
-    '<span class="ag-entrada" data-ag-entrada-tarefa="1" hidden><input type="text" placeholder="O que precisa ser feito neste dia…">' +
-    "<button>Adicionar</button></span></div>" +
+    // Os dois caminhos, em botões iguais: o compromisso abre o formulário
+    // aqui no painel; a tarefa leva à visão Tarefas, já com a data do dia.
+    '<div class="ag-adicionar-dia"><button class="com-icone" data-ag-marcar="1">' + ic("event", 16) + "Adicionar compromisso</button>" +
+    '<button class="com-icone" data-ag-ir-tarefas="1">' + ic("task_alt", 16) + "Adicionar tarefa</button></div></div>" +
 
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Pedidos pelo link</span><span class="contagem">em breve</span></div>' +
     "<p>Quando a sua página de agendamento existir, quem pedir horário por ela aparece aqui, com Aceitar e Propor outro horário.</p></div>" +
-
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Anotação do dia</span></div>' +
-    '<textarea class="ag-nota" data-ag-nota="1" placeholder="Escreva uma nota para este dia…">' + esc(d.nota || "") + "</textarea></div>" +
     "</div></aside>";
 }
 
@@ -986,17 +983,8 @@ function ligarPainelDoDia(p) {
   if (!d) return;
   const compromisso = (el, nome) => d.compromissos.find((x) => x.id === Number(el.dataset[nome]));
 
-  p.querySelectorAll("[data-ag-marcar]").forEach((b) => {
-    b.onclick = (e) => {
-      e.stopPropagation();
-      menuNaLinha(b, [
-        { rotulo: "Compromisso", acao: () => criarNaAgenda("compromisso") },
-        { rotulo: "Tarefa", acao: () => criarNaAgenda("tarefa") },
-        { rotulo: "Prazo interno", acao: () => criarNaAgenda("prazo_interno") },
-        { rotulo: "Pagamento", acao: () => criarNaAgenda("pagamento") },
-      ]);
-    };
-  });
+  p.querySelectorAll("[data-ag-marcar]").forEach((b) => { b.onclick = () => criarNaAgenda("compromisso"); });
+  p.querySelectorAll("[data-ag-ir-tarefas]").forEach((b) => { b.onclick = () => adicionarTarefaNoDia(ag.dia); });
   p.querySelectorAll("[data-ag-mais]").forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();
@@ -1037,12 +1025,20 @@ function ligarPainelDoDia(p) {
       if (t) concluirTarefa(t.id, !t.concluida);
     };
   });
-  ligarEntrada(p, "[data-ag-nova-tarefa]", "[data-ag-entrada-tarefa]",
-    (texto) => criarTarefa({ titulo: texto, prazo: ag.dia }));
-  const nota = p.querySelector("[data-ag-nota]");
-  if (nota) nota.onchange = () => {
-    fetch("/api/agenda/nota", { method: "POST", headers: AG_JSON, body: JSON.stringify({ dia: ag.dia, texto: nota.value }) });
-  };
+}
+
+/* Adicionar tarefa pelo dia: a visão Tarefas, no filtro em que a tarefa vai
+   aparecer, com a caixa de adicionar já com a data do dia e o cursor nela. */
+async function adicionarTarefaNoDia(dia) {
+  const hoje = iso(new Date());
+  ag.tar.filtro = dia > hoje ? "planejadas" : "meu_dia";
+  ag.tar.lista = "";
+  ag.tar.aberta = null;
+  await mostrarAgenda("tarefas");
+  const prazo = document.querySelector("[data-ag-nova-prazo]");
+  if (prazo) prazo.value = dia;
+  const campo = document.querySelector("[data-ag-nova]");
+  if (campo) campo.focus();
 }
 
 /* Um "+ algo" que vira campo de texto ao clicar. */
