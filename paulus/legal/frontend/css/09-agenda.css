@@ -35,7 +35,7 @@
   .ag-zoom-celula { height: 100%; min-height: 60px; border-radius: 12px; font: 500 16px var(--sans); }
   .ag-zoom-celula.ag-hoje:not(.escolhido) { box-shadow: inset 0 0 0 1.5px var(--destaque-linha); font-weight: 700; }
   /* A data do painel do dia na letra sem serifa. */
-  #agenda .painel-cabeca h3.ag-dia-titulo { font: 600 16px var(--sans); letter-spacing: 0; }
+  #agenda .painel-cabeca h3.ag-dia-titulo { display: flex; align-items: center; gap: 8px; font: 600 14px var(--sans); letter-spacing: 0; }
   .ag-dias span.ag-fds { color: var(--ink3); }
   /* O mes e o calendario miniatura grande: sem grade de linhas, cada dia um
      botao arredondado com o numero num circulo e os pontos do que tem nele. */
@@ -140,11 +140,8 @@
   .ag-hora-linha .ag-acoes { position: relative; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .ag-hora-linha .ag-acoes button { padding: 5px 10px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
   .ag-risco { display: block; height: 1px; background: var(--ink-a08); }
-  .ag-sino {
-    position: relative; width: 32px; height: 32px; flex: none; border: 1px solid var(--ink-a15); border-radius: 6px;
-    display: flex; align-items: center; justify-content: center; color: var(--ink2);
-  }
-  .ag-sino i { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--destaque); }
+  .ag-sino { position: relative; flex: none; display: inline-flex; align-items: center; color: var(--ink3); }
+  .ag-sino i { position: absolute; top: -1px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: var(--destaque); }
   .ag-tarefa-linha { display: flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; }
   /* A tarefa na lista do dia: a marca de concluir no lugar da hora. */
   .ag-tarefa-dia { cursor: pointer; }

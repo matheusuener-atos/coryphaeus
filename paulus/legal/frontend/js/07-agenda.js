@@ -648,9 +648,10 @@ function painelDoDia() {
   const doDia = comHora.concat(tarefas.filter((x) => !x.hora));
 
   return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3 class="ag-dia-titulo">' + titulo + '</h3><span class="meta">' + meta + "</span></span>" +
+    // O sino fica a esquerda do titulo, como os icones dos outros cabecalhos.
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3 class="ag-dia-titulo">' +
     '<span class="ag-sino" title="' + (comAviso ? plural(comAviso, "compromisso") + " com aviso" : "nenhum aviso marcado") + '">' +
-    ic("notifications", 18) + (comAviso ? "<i></i>" : "") + "</span></div>" +
+    ic("notifications", 16) + (comAviso ? "<i></i>" : "") + "</span>" + titulo + '</h3><span class="meta">' + meta + "</span></span></div>" +
 
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos e tarefas</span></div>' +
     (doDia.length ? doDia.map((x) => x.html).join('<span class="ag-risco"></span>') : "<p>Nada neste dia.</p>") +
