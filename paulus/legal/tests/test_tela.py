@@ -945,7 +945,7 @@ def main() -> int:
                 colunas = pagina.evaluate("() => getComputedStyle(document.querySelector('.tabela-cabecalho.colunas-gravacoes')).gridTemplateColumns.split(' ').length")
                 checar(colunas == 6, f"a lista de gravacoes tem seis colunas (achou {colunas})")
                 checar(
-                    pagina.evaluate(f"() => !!document.querySelector('[data-gv-abrir=\"{id_gravacao}\"] .gv-avatares .cad-avatar')"),
+                    pagina.evaluate(f"() => !!document.querySelector('[data-gv-expandir=\"{id_gravacao}\"] .gv-avatares .cad-avatar')"),
                     "a linha mostra os participantes",
                 )
                 pagina.evaluate("() => document.querySelector('#acoes-tela [data-gv-nova]').click()")

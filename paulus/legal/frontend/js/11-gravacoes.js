@@ -19,7 +19,10 @@ const gv = {
   escolhidas: new Set(),
   // O tocador da lista: um só áudio, fora da página, a gravação que está nele
   // e a forma da onda de cada uma, lida uma vez.
-  som: null, tocandoId: null, picos: {},
+  // O tocador na linha: um só áudio, fora da página; a gravação que está nele,
+  // a linha aberta e as gravações que as linhas desenharam (a lista ou a
+  // pasta de um serviço).
+  som: null, tocandoId: null, expandida: null, naLinha: {},
   vivo: {
     estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
     form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
@@ -77,7 +80,7 @@ function desenharGravacoes() {
   ligarGravacoes();
   atualizarPostura();
   vigiarVoz();
-  if (gv.visao === "vivo") animarEqualizadorVivo();
+  if (gv.visao === "vivo" || gv.visao === "lista") animarEqualizadorVivo();
 }
 
 /* ------------------------------------------------------------ tempo */
@@ -141,10 +144,13 @@ function cabecalhoGravacoes() {
     const g = gv.aberta;
     nav.innerHTML = voltar;
     titulo.textContent = g.titulo;
+    // O nome da gravação se renomeia clicando nele, como o de uma pasta.
+    titulo.classList.add("renomeavel");
+    titulo.title = "Clique para renomear";
+    renomeadorDoTitulo = { limite: 120, guardar: (novo) => renomearGravacaoAberta(novo) };
     meta.textContent = [quandoDaGravacao(g), duracaoLongaGv(g.duracao_s), g.participantes_lista.join(", ")].filter(Boolean).join(" · ") +
       " · " + statusDaGravacao(g);
     $("acoes-tela").innerHTML =
-      '<div class="visoes">' + botao("transcricao", "Transcrição") + botao("resumo", "Resumo") + botao("marcadores", "Marcadores") + "</div>" +
       '<button class="com-icone" data-gv-compartilhar="1">' + ic("mail", 16) + "Compartilhar resumo</button>" +
       '<button class="primario com-icone" data-gv-perguntar="1">' + ic("forum", 16) + "Perguntar sobre esta gravação</button>";
     return;
@@ -193,11 +199,13 @@ function corpoDaListaGv() {
   const linhas = lista.map((g) => {
     const sub = [quandoDaGravacao(g), g.servico_nome ? "Serviço: " + g.servico_nome : "", !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
     const status = statusDaGravacao(g);
-    const classe = "tabela-linha colunas-gravacoes" + (gv.escolhidas.has(String(g.id)) ? " escolhida" : "");
-    return '<div class="' + classe + '" data-gv-abrir="' + g.id + '" data-sel="' + g.id + '">' + iconeDaLinhaGv(g) +
+    const aberta = gv.expandida === g.id;
+    const classe = "tabela-linha colunas-gravacoes" + (gv.escolhidas.has(String(g.id)) ? " escolhida" : "") + (aberta ? " aberta" : "");
+    return '<div class="' + classe + '" data-gv-expandir="' + g.id + '" data-sel="' + g.id + '" title="Clique para ouvir · duplo clique abre">' + iconeDaLinhaGv(g) +
       '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" + avataresGv(g.participantes_lista) +
       '<span class="gv-duracao">' + duracaoGv(g.duracao_s) + '</span><span class="fin-status">' + status + "</span>" +
-      '<button class="mais-linha" data-gv-mais="' + g.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
+      '<button class="mais-linha" data-gv-mais="' + g.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>" +
+      (aberta ? tocadorNaLinhaGv(g) : "");
   }).join("");
   let vazio = "";
   if (!linhas && !linhaAoVivoGv()) {
@@ -207,7 +215,7 @@ function corpoDaListaGv() {
   const barra = gv.escolhidas.size
     ? barraDeSelecao(gv.escolhidas.size, true, '<button class="botao-icone perigo" data-gv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-gv-sel-limpar")
     : '<div class="ag-chips">' + chips + "</div>";
-  return '<div class="acervo-principal">' + tocadorDaListaGv() + '<div class="tabela-cartao gv-lista">' +
+  return '<div class="acervo-principal">' + cartaoDoGravadorGv(true) + '<div class="tabela-cartao gv-lista">' +
     '<div class="tabela-barra">' + barra +
     '<div class="direita"><input type="file" id="gv-importar" hidden accept="audio/*,.webm,.ogg,.opus,.mp3,.m4a,.wav,.aac,.flac,.mp4">' +
     '<button data-gv-importar="1">' + ic("upload", 16) + "Importar áudio</button></div></div>" +
@@ -217,190 +225,177 @@ function corpoDaListaGv() {
     '<span class="direita">' + esc(notaDaVoz()) + "</span></div></div></div>";
 }
 
-/* ------------------------------------------------ o tocador da lista */
+/* ------------------------------------------------ o tocador na linha */
 
-/* O TOCADOR DA LISTA. Fora de cartão, acima da tabela: a gravação escolhida
-   (a mais recente, até alguém tocar outra), a forma da onda — que se clica
-   para ir a um ponto —, o tempo e a velocidade. A linha que está tocando
-   mostra o equalizador. O áudio é um objeto só, fora da página: trocar o
-   filtro redesenha a lista sem cortar o som; sair da lista para. */
-const GV_BARRAS = 96;
-// Forma da onda só de gravação de até meia hora: ler o áudio inteiro de uma
-// audiência de três horas para desenhar barras não vale a memória.
-const GV_ONDA_ATE_S = 30 * 60;
-
+/* O TOCADOR NA LINHA. Clicar numa gravação — na lista ou nos Arquivos de um
+   serviço — abre a linha e mostra o tocador: tocar, o equalizador do ditado
+   lendo o som, a barra com os marcadores (clica-se para ir a um ponto), o
+   tempo, a velocidade e Abrir gravação. O áudio é um objeto só, fora da
+   página: redesenhar não corta o som; fechar a linha, abrir outra ou sair da
+   tela para. */
 function somGv() {
   if (!gv.som) {
     const som = new Audio();
     som.preload = "metadata";
-    som.ontimeupdate = () => pintarTocadorGv(false);
-    som.onplay = som.onpause = som.onended = () => pintarTocadorGv(true);
+    som.onplay = som.onpause = som.onended = () => estadoDoSomGv();
     som.onerror = () => { if (som.getAttribute("src")) avisoCert("não consegui tocar o áudio — o formato pode não ser reconhecido por esta janela"); };
     gv.som = som;
   }
   return gv.som;
 }
 
-function gravacaoDoTocadorGv() {
-  return gv.lista.find((g) => g.id === gv.tocandoId) || gv.lista.find((g) => g.existe);
+function totalDoSomGv() {
+  const som = gv.som;
+  const g = gv.naLinha[gv.tocandoId];
+  return som && isFinite(som.duration) && som.duration ? som.duration : (g ? g.duracao_s : 0);
 }
 
 function tocandoAgoraGv(id) {
-  return Boolean(gv.som && gv.tocandoId === id && !gv.som.paused);
+  return Boolean(gv.som && gv.tocandoId === id && !gv.som.paused && !gv.som.ended);
 }
 
 function iconeDaLinhaGv(g) {
-  if (!g.existe) return '<span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>";
   const tocando = tocandoAgoraGv(g.id);
   const classe = "gv-ic-linha" + (tocando ? " tocando" : "");
-  const parado = tocando ? '<span class="gv-ic-onda gv-eq"><i></i><i></i><i></i><i></i></span>' : '<span class="gv-ic-onda">' + ic("graphic_eq", 20) + "</span>";
-  return '<button type="button" class="' + classe + '" data-gv-tocar-linha="' + g.id + '" title="' + (tocando ? "Pausar" : "Tocar") + '">' +
-    parado + '<span class="gv-ic-tocar">' + ic(tocando ? "pause" : "play_arrow", 20) + "</span></button>";
+  return '<span class="' + classe + '" data-gv-icone="' + g.id + '">' +
+    (tocando ? '<span class="gv-eq"><i></i><i></i><i></i><i></i></span>' : ic("graphic_eq", 20)) + "</span>";
 }
 
-function tocadorDaListaGv() {
-  const g = gravacaoDoTocadorGv();
-  if (!g) return "";
-  const som = gv.som;
-  const deste = Boolean(som && gv.tocandoId === g.id);
+function tocadorNaLinhaGv(g) {
+  gv.naLinha[g.id] = g;
+  if (!g.existe) return '<div class="gv-linha-tocador"><span class="nota-barra">o áudio desta gravação não está mais no disco</span></div>';
+  const deste = Boolean(gv.som && gv.tocandoId === g.id);
   const tocando = tocandoAgoraGv(g.id);
-  const total = deste && isFinite(som.duration) && som.duration ? som.duration : g.duracao_s;
-  const agora = deste ? som.currentTime : 0;
-  const picos = gv.picos[g.id] || Array.from({ length: GV_BARRAS }, () => 0.14);
-  const tocadas = total ? Math.round((agora / total) * picos.length) : 0;
-  const barras = picos.map((p, i) => {
-    const classe = i < tocadas ? "tocada" : "";
-    return '<i class="' + classe + '" style="height:' + Math.max(10, Math.round(p * 100)) + '%"></i>';
-  }).join("");
-  const classe = "gv-radio" + (tocando ? " tocando" : "");
-  return '<div class="' + classe + '" id="gv-radio" data-gv-radio="' + g.id + '">' +
-    '<button class="gv-radio-tocar" data-gv-radio-tocar="1" title="' + (tocando ? "Pausar" : "Tocar") + '" aria-label="' + (tocando ? "Pausar" : "Tocar") + '">' +
-    ic(tocando ? "pause" : "play_arrow", 24) + "</button>" +
-    '<div class="duas-linhas gv-radio-titulo"><b>' + esc(g.titulo) + "</b><small>" + esc([quandoDaGravacao(g), statusDaGravacao(g)].filter(Boolean).join(" · ")) + "</small></div>" +
-    '<div class="gv-onda" data-gv-onda="1" title="Clique para ir a este ponto">' + barras + "</div>" +
-    '<span class="gv-radio-tempo"><span id="gv-radio-pos">' + duracaoGv(agora) + "</span> / " + duracaoGv(total) + "</span>" +
-    '<button class="gv-vel" data-gv-radio-vel="1" title="Velocidade">' + velocidadeGv() + "</button></div>";
+  const total = deste ? totalDoSomGv() : g.duracao_s;
+  const agora = deste ? gv.som.currentTime : 0;
+  const marcas = (g.marcadores || []).map((m) => '<u style="left:' + porcentagemGv(m.t, total) + '%" title="' + esc(m.texto || duracaoGv(m.t)) + '"></u>').join("");
+  return '<div class="gv-linha-tocador" data-gv-linha-tocador="' + g.id + '">' +
+    '<button class="gv-radio-tocar" data-gv-lt-tocar="1" title="' + (tocando ? "Pausar" : "Tocar") + '" aria-label="' + (tocando ? "Pausar" : "Tocar") + '">' +
+    ic(tocando ? "pause" : "play_arrow", 22) + "</button>" +
+    '<div class="gv-lt-meio"><canvas class="ditado-onda gv-lt-onda" data-gv-lt-onda="1"></canvas>' +
+    '<div class="gv-barra" data-gv-lt-barra="1" title="Clique para ir a este ponto"><i data-gv-lt-fill="1" style="width:' + porcentagemGv(agora, total) + '%"></i>' + marcas + "</div></div>" +
+    '<span class="ditado-tempo gv-lt-tempo"><span data-gv-lt-pos="1">' + duracaoGv(agora) + "</span> / " + duracaoGv(total) + "</span>" +
+    '<button class="fantasma gv-vel" data-gv-lt-vel="1" title="Velocidade">' + velocidadeGv() + "</button>" +
+    '<button class="com-icone" data-gv-lt-abrir="' + g.id + '">' + ic("open_in_new", 16) + "Abrir gravação</button></div>";
 }
 
-/* O tempo e as barras andam sem redesenhar; tocar e pausar trocam os ícones
-   do tocador e das linhas. Sem o tocador na página, a lista foi embora:
-   o som para. */
-function pintarTocadorGv(mudouEstado) {
-  const som = gv.som;
-  const radio = document.getElementById("gv-radio");
-  if (!som) return;
-  if (!radio) { if (!som.paused) som.pause(); return; }
-  if (mudouEstado) {
-    redesenharTocadorGv();
-    document.querySelectorAll("[data-gv-tocar-linha]").forEach((b) => {
-      const g = gv.lista.find((x) => x.id === Number(b.dataset.gvTocarLinha));
-      if (g) b.outerHTML = iconeDaLinhaGv(g);
-    });
-    ligarLinhasDoTocadorGv();
+/* O equalizador do tocador na linha lê o próprio áudio. O contexto nasce no
+   primeiro Tocar (a janela só deixa depois de um clique) e o áudio só pode
+   ser ligado a um contexto uma vez — por isso o áudio é um só. */
+function equalizadorDoSomGv() {
+  if (gv.somAnalisador) {
+    if (gv.somContexto.state === "suspended") gv.somContexto.resume().catch(() => {});
     return;
   }
-  if (Number(radio.dataset.gvRadio) !== gv.tocandoId) return;
-  const g = gravacaoDoTocadorGv();
-  const total = isFinite(som.duration) && som.duration ? som.duration : (g ? g.duracao_s : 0);
-  const barras = radio.querySelectorAll(".gv-onda i");
-  const ate = total ? Math.round((som.currentTime / total) * barras.length) : 0;
-  barras.forEach((b, i) => b.classList.toggle("tocada", i < ate));
-  const pos = document.getElementById("gv-radio-pos");
-  if (pos) pos.textContent = duracaoGv(som.currentTime);
-}
-
-/* Trocar de tela para o tocador da lista - menos voltar à própria lista
-   (a busca, que redesenha tudo, não corta o som). A gravação aberta tem o
-   tocador dela. */
-function pararTocadorDaListaGv(tela) {
-  if (!gv.som || gv.som.paused) return;
-  if (tela === "Gravações" && gv.visao === "lista") return;
-  gv.som.pause();
-}
-
-function redesenharTocadorGv() {
-  const radio = document.getElementById("gv-radio");
-  if (!radio) return;
-  radio.outerHTML = tocadorDaListaGv();
-  ligarTocadorDaListaGv();
-}
-
-async function tocarNaListaGv(id, fracao) {
-  const som = somGv();
-  if (gv.tocandoId === id && som.getAttribute("src")) {
-    if (fracao !== undefined) {
-      const g = gravacaoDoTocadorGv();
-      const total = isFinite(som.duration) && som.duration ? som.duration : (g ? g.duracao_s : 0);
-      som.currentTime = fracao * total;
-      if (som.paused) som.play().catch(() => {});
-      pintarTocadorGv(false);
-    } else if (som.paused) som.play().catch(() => {});
-    else som.pause();
-    return;
-  }
-  gv.tocandoId = id;
-  som.src = "/api/gravacoes/" + id + "/audio";
-  som.playbackRate = gv.velocidade;
-  if (fracao !== undefined) som.onloadedmetadata = () => { som.onloadedmetadata = null; if (isFinite(som.duration)) som.currentTime = fracao * som.duration; };
-  som.play().catch(() => {});
-  redesenharTocadorGv();
-  carregarOndaGv(id);
-}
-
-/* A forma da onda: o áudio lido uma vez numa taxa baixa, o pico de cada
-   pedaço, em GV_BARRAS barras. Formato que a janela não lê fica com as
-   barras baixas - sem inventar onda. */
-async function carregarOndaGv(id) {
-  const g = gv.lista.find((x) => x.id === id);
-  if (!g || gv.picos[id] || !g.existe || (g.duracao_s || 0) > GV_ONDA_ATE_S || !window.OfflineAudioContext) return;
-  gv.picos[id] = null;
+  const Contexto = window.AudioContext || window.webkitAudioContext;
+  if (!Contexto) return;
   try {
-    const dados = await (await fetch("/api/gravacoes/" + id + "/audio")).arrayBuffer();
-    const buffer = await new OfflineAudioContext(1, 1, 8000).decodeAudioData(dados);
-    const canal = buffer.getChannelData(0);
-    const passo = Math.max(1, Math.floor(canal.length / GV_BARRAS));
-    const picos = [];
-    for (let b = 0; b < GV_BARRAS; b++) {
-      let maior = 0;
-      for (let i = b * passo, fim = Math.min(canal.length, (b + 1) * passo); i < fim; i++) {
-        const v = Math.abs(canal[i]);
-        if (v > maior) maior = v;
-      }
-      picos.push(maior);
-    }
-    const teto = Math.max(...picos) || 1;
-    gv.picos[id] = picos.map((p) => Math.sqrt(p / teto));
-  } catch (err) {
-    delete gv.picos[id];
+    const contexto = new Contexto();
+    const analisador = contexto.createAnalyser();
+    analisador.fftSize = 256;
+    analisador.smoothingTimeConstant = 0.72;
+    contexto.createMediaElementSource(gv.som).connect(analisador);
+    analisador.connect(contexto.destination);
+    gv.somContexto = contexto;
+    gv.somAnalisador = analisador;
+  } catch (err) { /* sem equalizador; o som toca do mesmo jeito */ }
+}
+
+function tocarNaLinhaGv(g, fracao) {
+  const som = somGv();
+  equalizadorDoSomGv();
+  if (gv.tocandoId !== g.id || !som.getAttribute("src")) {
+    gv.tocandoId = g.id;
+    gv.naLinha[g.id] = g;
+    som.src = "/api/gravacoes/" + g.id + "/audio";
+    som.playbackRate = gv.velocidade;
+    if (fracao !== undefined) som.onloadedmetadata = () => { som.onloadedmetadata = null; som.currentTime = fracao * totalDoSomGv(); };
+    som.play().catch(() => {});
     return;
   }
-  const radio = document.getElementById("gv-radio");
-  if (radio && Number(radio.dataset.gvRadio) === id) redesenharTocadorGv();
+  if (fracao !== undefined) {
+    som.currentTime = fracao * totalDoSomGv();
+    if (som.paused) som.play().catch(() => {});
+    animarLinhaGv();
+    return;
+  }
+  if (som.paused || som.ended) som.play().catch(() => {});
+  else som.pause();
 }
 
-function ligarLinhasDoTocadorGv() {
-  document.querySelectorAll("[data-gv-tocar-linha]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); tocarNaListaGv(Number(b.dataset.gvTocarLinha)); };
-  });
+function estadoDoSomGv() {
+  document.querySelectorAll("[data-gv-icone]").forEach((el) => { el.outerHTML = iconeDaLinhaGv({ id: Number(el.dataset.gvIcone) }); });
+  const caixa = document.querySelector('[data-gv-linha-tocador="' + gv.tocandoId + '"]');
+  if (caixa) {
+    const tocando = tocandoAgoraGv(gv.tocandoId);
+    const botao = caixa.querySelector("[data-gv-lt-tocar]");
+    botao.innerHTML = ic(tocando ? "pause" : "play_arrow", 22);
+    botao.title = tocando ? "Pausar" : "Tocar";
+    caixa.classList.toggle("tocando", tocando);
+  }
+  animarLinhaGv();
 }
 
-function ligarTocadorDaListaGv() {
-  const radio = document.getElementById("gv-radio");
-  if (!radio) return;
-  const id = Number(radio.dataset.gvRadio);
-  radio.querySelector("[data-gv-radio-tocar]").onclick = () => tocarNaListaGv(id);
-  const onda = radio.querySelector("[data-gv-onda]");
-  onda.onclick = (e) => {
-    const caixa = onda.getBoundingClientRect();
-    tocarNaListaGv(id, Math.max(0, Math.min(1, (e.clientX - caixa.left) / caixa.width)));
+/* O quadro do tocador: o equalizador, a barra e o tempo. Sem a linha dele
+   na página, o som para. */
+function animarLinhaGv() {
+  cancelAnimationFrame(gv.quadroLinha || 0);
+  gv.quadroLinha = 0;
+  const som = gv.som;
+  if (!som || !som.getAttribute("src")) return;
+  const caixa = document.querySelector('[data-gv-linha-tocador="' + gv.tocandoId + '"]');
+  if (!caixa) { if (!som.paused) som.pause(); return; }
+  const tocando = !som.paused && !som.ended;
+  let dados = null;
+  if (tocando && gv.somAnalisador) {
+    dados = new Uint8Array(gv.somAnalisador.frequencyBinCount);
+    gv.somAnalisador.getByteFrequencyData(dados);
+  }
+  const tela = caixa.querySelector("[data-gv-lt-onda]");
+  if (tela) desenharOnda(tela, dados, tocando);
+  const total = totalDoSomGv();
+  const fill = caixa.querySelector("[data-gv-lt-fill]");
+  if (fill) fill.style.width = porcentagemGv(som.currentTime, total) + "%";
+  const pos = caixa.querySelector("[data-gv-lt-pos]");
+  if (pos) pos.textContent = duracaoGv(som.currentTime);
+  if (tocando) gv.quadroLinha = requestAnimationFrame(animarLinhaGv);
+}
+
+/* Liga o tocador que estiver na página, qualquer que seja a tela. */
+function ligarTocadorNaLinhaGv() {
+  const caixa = document.querySelector("[data-gv-linha-tocador]");
+  if (!caixa) { animarLinhaGv(); return; }
+  const id = Number(caixa.dataset.gvLinhaTocador);
+  const g = gv.naLinha[id];
+  if (!g) return;
+  caixa.onclick = (e) => e.stopPropagation();
+  caixa.querySelector("[data-gv-lt-tocar]").onclick = () => tocarNaLinhaGv(g);
+  const barra = caixa.querySelector("[data-gv-lt-barra]");
+  barra.onclick = (e) => {
+    const r = barra.getBoundingClientRect();
+    tocarNaLinhaGv(g, Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
   };
-  radio.querySelector("[data-gv-radio-vel]").onclick = (e) => {
+  caixa.querySelector("[data-gv-lt-vel]").onclick = (e) => {
     const i = GV_VELOCIDADES.indexOf(gv.velocidade);
     gv.velocidade = GV_VELOCIDADES[(i + 1) % GV_VELOCIDADES.length];
     if (gv.som) gv.som.playbackRate = gv.velocidade;
     e.currentTarget.textContent = velocidadeGv();
   };
-  carregarOndaGv(id);
+  caixa.querySelector("[data-gv-lt-abrir]").onclick = () => abrirGravacao(id);
+  const tela = caixa.querySelector("[data-gv-lt-onda]");
+  if (gv.tocandoId === id) animarLinhaGv();
+  else {
+    animarLinhaGv();
+    if (tela) desenharOnda(tela, null, false);
+  }
+}
+
+/* Trocar de tela para o som - menos voltar à própria lista (a busca, que
+   redesenha tudo, não corta o som). */
+function pararTocadorDaListaGv(tela) {
+  if (!gv.som || gv.som.paused) return;
+  if (tela === "Gravações" && gv.visao === "lista") return;
+  gv.som.pause();
 }
 
 /* ---------------------------------------------------------- ao vivo */
@@ -413,16 +408,19 @@ function corpoAoVivo() {
    o equalizador do microfone no meio (em pausa, as barras deitam), uma
    linha de rodapé e as ações embaixo — Começar a gravar, e depois Pausar,
    Marcar momento e Parar e arquivar. */
-function cartaoDoGravadorGv() {
+function cartaoDoGravadorGv(naLista) {
   const v = gv.vivo;
   const nomes = { pronto: "Pronto para gravar", gravando: "Gravando", pausada: "Gravação em pausa", salvando: "Guardando o áudio…" };
   const salvando = v.estado === "salvando";
   const botao = (dado, icone, rotulo, classe) => '<button class="' + (classe || "fantasma") + '" ' + dado + '="1"' + (salvando ? " disabled" : "") + ">" +
     ic(icone, 16) + rotulo + "</button>";
+  // Na lista, o cartão é a gravação rápida: começa ali mesmo, e Abrir
+  // gravação leva à tela inteira (detalhes, transcrição ao vivo, painel).
+  const abrir = naLista ? botao("data-gv-vivo", "open_in_new", "Abrir gravação") : "";
   const acoes = v.estado === "pronto"
-    ? '<span class="gv-vivo-dica">Avise os participantes de que a conversa está sendo gravada.</span>' + botao("data-gv-comecar", "mic", "Começar a gravar", "primario")
+    ? '<span class="gv-vivo-dica">Avise os participantes de que a conversa está sendo gravada.</span>' + abrir + botao("data-gv-comecar", "mic", "Começar a gravar", "primario")
     : botao("data-gv-pausar", v.estado === "pausada" ? "play_arrow" : "pause", v.estado === "pausada" ? "Continuar" : "Pausar") +
-      botao("data-gv-marcar-vivo", "bookmark_add", "Marcar momento") +
+      botao("data-gv-marcar-vivo", "bookmark_add", "Marcar momento") + abrir +
       botao("data-gv-parar", "stop_circle", "Parar e arquivar", "primario");
   const modo = { pronto: "pronto", gravando: "ouvindo", pausada: "pausado", salvando: "finalizando" }[v.estado];
   const classe = "cartao-agora ditado-cartao gv-vivo-cartao " + modo;
@@ -561,17 +559,28 @@ function velocidadeGv() {
   return String(gv.velocidade).replace(".", ",") + "×";
 }
 
+/* O CARTÃO CONTEÚDO: Transcrição, Resumo e Marcadores são abas à direita da
+   barra dele; as ferramentas de cada aba vêm numa faixa logo abaixo. */
 function conteudoDaGravacao() {
+  const abas = [["transcricao", "Transcrição"], ["resumo", "Resumo"], ["marcadores", "Marcadores"]].map(([v, r]) => {
+    const classe = v === gv.aba ? "ativa" : "";
+    return '<button class="' + classe + '" data-gv-aba="' + v + '">' + r + "</button>";
+  }).join("");
+  return '<div class="fin-cartao gv-conteudo-cartao"><div class="fin-cartao-cabeca"><span>Conteúdo</span><div class="visoes gv-abas">' + abas + "</div></div>" +
+    mioloDaGravacao() + "</div>";
+}
+
+function mioloDaGravacao() {
   const g = gv.aberta;
   if (gv.aba === "marcadores") {
     const linhas = g.marcadores.map((m, i) => '<div class="gv-marcador sv-evento grande">' + ic("bookmark", 18) +
       '<button class="em-ligacao forte" data-gv-ir="' + m.t + '">' + duracaoGv(m.t) + "</button>" +
       '<input type="text" value="' + esc(m.texto) + '" placeholder="o que aconteceu aqui" data-gv-marcador="' + i + '">' +
       '<button class="mais-linha" data-gv-marcador-tirar="' + i + '" title="Tirar">' + ic("close", 16) + "</button></div>").join("");
-    return '<div class="tabela-cartao"><div class="tabela-barra"><b>Marcadores</b><span class="nota-barra">' + g.marcadores.length + "</span>" +
+    return '<div class="gv-miolo gv-marcadores"><div class="gv-ferramentas"><small>' + plural(g.marcadores.length, "marcador", "marcadores") + "</small>" +
       '<div class="direita gv-marcar"><input type="text" placeholder="o que aconteceu neste momento" data-gv-marcar-texto="1" value="' + esc(gv.marcarTexto) + '">' +
       '<button data-gv-marcar="1"' + (g.existe ? "" : " disabled") + ">" + ic("bookmark_add", 16) + 'Marcar em <span id="gv-marcar-em">' + duracaoGv(posicaoDoAudio()) + "</span></button></div></div>" +
-      '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum marcador. Toque o áudio e marque os momentos que importam; o minuto fica clicável.</p>') + "</div></div>";
+      '<div class="gv-miolo-corpo">' + (linhas || '<p class="nota">Nenhum marcador. Toque o áudio e marque os momentos que importam; o minuto fica clicável.</p>') + "</div></div>";
   }
   if (gv.aba === "resumo") return cartaoDoResumoGv(g);
   return cartaoDaTranscricao(g);
@@ -636,13 +645,13 @@ function textoDoDownloadGv(v) {
    os trechos com o minuto clicavel e a busca com realce. */
 function cartaoDaTranscricao(g) {
   const v = gv.voz || {};
-  const cabeca = (meta, direita) => '<div class="fin-cartao-cabeca"><span>Transcrição</span><small>' + esc(meta) + "</small>" +
-    (direita ? '<div class="direita">' + direita + "</div>" : "") + "</div>";
+  // A conta (palavras, modelo, tempo) mora no painel; aqui ficam as ferramentas.
+  const cabeca = (meta, direita) => (direita ? '<div class="gv-ferramentas">' + direita + "</div>" : "");
   const corpo = (titulo, icone, texto, extra) => '<div class="gv-adiante"><b>' + ic(icone, 18) + esc(titulo) + "</b><p>" + texto + "</p>" + (extra || "") + "</div>";
   if (g.transcricao_estado === "pronta" && g.trechos && g.trechos.length) {
     const meta = "literal · " + duracaoLongaGv(g.duracao_s) + " · " + plural(g.palavras || 0, "palavra") + " · " + rotuloDoModeloGv(g.transcricao_modelo) +
       (g.transcricao_tempo ? " em " + duracaoLongaGv(g.transcricao_tempo) : "");
-    return '<div class="fin-cartao gv-transcrita">' + cabeca(meta,
+    return '<div class="gv-miolo gv-transcrita">' + cabeca(meta,
       '<label class="busca-tela gv-busca-trecho">' + ic("search", 18) + '<input type="text" placeholder="Buscar na transcrição…" data-gv-busca-trecho="1" value="' + esc(gv.buscaTrecho) + '"></label>' +
       '<button data-gv-corrigir="1">Corrigir nomes</button>' +
       '<button data-gv-exportar="1">Exportar .docx</button>' +
@@ -650,35 +659,35 @@ function cartaoDaTranscricao(g) {
       '<div class="gv-trechos">' + linhasDaTranscricao(g) + "</div></div>";
   }
   if (!g.existe) {
-    return '<div class="fin-cartao">' + cabeca("sem áudio") + corpo("O áudio não está mais no disco", "error",
+    return '<div class="gv-miolo">' + cabeca("sem áudio") + corpo("O áudio não está mais no disco", "error",
       "Ele ficava em " + esc(gv.pasta) + ". Sem o arquivo não há o que transcrever.") + "</div>";
   }
   if (g.transcricao_estado === "fila" || g.transcricao_estado === "transcrevendo") {
-    return '<div class="fin-cartao">' + cabeca("em andamento") + corpo("Transcrevendo nesta máquina", "graphic_eq",
+    return '<div class="gv-miolo">' + cabeca("em andamento") + corpo("Transcrevendo nesta máquina", "graphic_eq",
       "O áudio não sai daqui. Dá para sair desta tela e voltar; a lista mostra o andamento e a transcrição aparece sozinha quando terminar.",
       '<div class="gv-progresso"><i id="gv-progresso" style="width:' + Math.round((g.progresso || 0) * 100) + '%"></i></div>' +
       '<small class="nota" id="gv-progresso-texto">' + esc(textoDoProgressoGv(g)) + "</small>") + "</div>";
   }
   if (g.transcricao_estado === "erro") {
-    return '<div class="fin-cartao">' + cabeca("não deu certo") + corpo("A transcrição falhou", "error",
+    return '<div class="gv-miolo">' + cabeca("não deu certo") + corpo("A transcrição falhou", "error",
       esc(g.transcricao_erro || "erro desconhecido"),
       '<div class="fin-botoes"><button class="primario com-icone" data-gv-transcrever="1">' + ic("refresh", 16) + "Tentar de novo</button></div>") + "</div>";
   }
   if (v.disponivel) {
-    return '<div class="fin-cartao">' + cabeca("ainda não transcrita") + corpo("Transcrever nesta máquina", "graphic_eq",
+    return '<div class="gv-miolo">' + cabeca("ainda não transcrita") + corpo("Transcrever nesta máquina", "graphic_eq",
       "O " + esc(v.rotulo) + " lê o áudio aqui mesmo — nada sai do computador — e devolve o texto literal com o minuto de cada trecho. Para " +
       duracaoLongaGv(g.duracao_s) + " de áudio costuma levar " + estimativaGv(g.duracao_s) + "; roda em segundo plano.",
       '<div class="fin-botoes"><button class="primario com-icone" data-gv-transcrever="1">' + ic("graphic_eq", 16) + "Transcrever nesta máquina</button></div>") + "</div>";
   }
   if (v.baixando) {
-    return '<div class="fin-cartao">' + cabeca("baixando o modelo de voz") + corpo("Baixando o modelo de voz", "download",
+    return '<div class="gv-miolo">' + cabeca("baixando o modelo de voz") + corpo("Baixando o modelo de voz", "download",
       "Uma vez só, com internet. Depois disso a transcrição roda aqui, sem mandar o áudio para fora.",
       '<small class="nota" id="gv-baixando-texto">' + esc(textoDoDownloadGv(v)) + "</small>") + "</div>";
   }
   const modelos = (v.modelos || []).map((m) => '<button class="' + (m.nome === v.modelo ? "primario " : "") + 'com-icone" data-gv-baixar-voz="' + m.nome + '">' +
     ic("download", 16) + "Baixar " + esc(m.rotulo) + " (" + esc(String(Math.round(m.mb / 100) / 10).replace(".", ",")) + " GB)</button>").join("");
   const notas = (v.modelos || []).map((m) => "<li><b>" + esc(m.rotulo) + "</b> — " + esc(m.nota) + "</li>").join("");
-  return '<div class="fin-cartao">' + cabeca("sem modelo de voz nesta máquina") + corpo("Baixe o modelo de voz para transcrever aqui", "graphic_eq",
+  return '<div class="gv-miolo">' + cabeca("sem modelo de voz nesta máquina") + corpo("Baixe o modelo de voz para transcrever aqui", "graphic_eq",
     "A transcrição é feita nesta máquina, e para isso o modelo de voz precisa estar baixado nela. É um download só, com internet; depois o áudio nunca sai do computador." +
     (v.erro ? '<br><span class="gv-erro">' + esc(v.erro) + "</span>" : ""),
     '<ul class="sv-falta">' + notas + "</ul>" + '<div class="fin-botoes">' + modelos + "</div>") + "</div>";
@@ -687,23 +696,23 @@ function cartaoDaTranscricao(g) {
 function cartaoDoResumoGv(g) {
   const transcrita = g.transcricao_estado === "pronta" && g.trechos && g.trechos.length;
   if (g.resumo) {
-    return '<div class="fin-cartao gv-transcrita"><div class="fin-cartao-cabeca"><span>Resumo</span><small>escrito ' + esc(quandoCurtoSv(g.resumo_em)) + " · pelo modelo local, sobre a transcrição</small>" +
-      '<div class="direita"><button data-gv-copiar-resumo="1">Copiar</button><button class="com-icone" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + ic("auto_awesome", 16) +
+    return '<div class="gv-miolo gv-transcrita"><div class="gv-ferramentas"><small>escrito ' + esc(quandoCurtoSv(g.resumo_em)) + " · pelo modelo local, sobre a transcrição</small>" +
+      '<div class="direita"><button data-gv-copiar-resumo="1">Copiar</button><button class="com-icone" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + ic("refresh", 16) +
       (gv.resumindo ? "escrevendo…" : "Atualizar resumo") + "</button></div></div>" +
       '<p class="gv-resumo-texto">' + esc(g.resumo) + "</p>" + blocoDePendenciasGv(g) + "</div>";
   }
-  const cabeca = '<div class="fin-cartao-cabeca"><span>Resumo</span><small>decisões · pendências · próximos passos</small></div>';
+  const cabeca = "";
   if (gv.resumindo) {
-    return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "Escrevendo o resumo…</b>" +
+    return '<div class="gv-miolo">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "Escrevendo o resumo…</b>" +
       "<p>O modelo local lê a transcrição inteira e escreve resumo, decisões e pendências. Em CPU leva alguns minutos; a tela espera aqui.</p></div></div>";
   }
   if (transcrita) {
-    return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "Pedir o resumo ao modelo local</b>" +
+    return '<div class="gv-miolo">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "Pedir o resumo ao modelo local</b>" +
       "<p>Ele lê a transcrição e escreve: do que se tratou, o que foi decidido e o que ficou pendente — só com o que está dito, sem inventar nome, valor ou data. " +
       "Em CPU leva alguns minutos" + (g.palavras > 3000 ? ", e uma gravação longa é resumida em partes" : "") + ".</p>" +
-      '<div class="fin-botoes"><button class="primario com-icone" data-gv-resumo="1">' + ic("auto_awesome", 16) + "Pedir resumo</button></div></div></div>";
+      '<div class="fin-botoes"><button class="primario com-icone" data-gv-resumo="1">' + ic("refresh", 16) + "Fazer um resumo</button></div></div></div>";
   }
-  return '<div class="fin-cartao">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "O resumo nasce da transcrição</b>" +
+  return '<div class="gv-miolo">' + cabeca + '<div class="gv-adiante"><b>' + ic("auto_awesome", 18) + "O resumo nasce da transcrição</b>" +
     "<p>Transcreva a gravação primeiro; depois o modelo local escreve o resumo com decisões e pendências. Até lá, as suas notas no painel e os marcadores são o registro.</p>" +
     '<div class="fin-botoes"><button data-gv-aba="transcricao">Ir para a transcrição</button></div></div></div>';
 }
@@ -951,28 +960,43 @@ async function pedirResumoDaGravacao() {
 
 function painelDaGravacao() {
   const g = gv.aberta;
-  const servicos = '<option value="">ligar a um serviço…</option>' + gv.servicos.map((s) => '<option value="' + s.id + '"' + (s.id === g.servico_id ? " selected" : "") + ">" + esc(s.nome) + "</option>").join("");
-  const clientes = '<option value="">ligar a um cliente…</option>' + gv.clientes.map((c) => '<option value="' + c.id + '"' + (c.id === g.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
-  return '<aside class="acervo-painel gv-painel"><div class="rolagem">' +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo da IA</span><span class="contagem">' +
-    esc(g.resumo ? "escrito " + quandoCurtoSv(g.resumo_em) : (g.transcricao_estado === "pronta" ? "a pedir" : "depende da transcrição")) + "</span></div>" +
+  const servicos = '<option value="">sem serviço</option>' + gv.servicos.map((x) => '<option value="' + x.id + '"' + (x.id === g.servico_id ? " selected" : "") + ">" + esc(x.nome) + "</option>").join("");
+  const clientes = '<option value="">sem cliente</option>' + gv.clientes.map((c) => '<option value="' + c.id + '"' + (c.id === g.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
+  const transcrita = g.transcricao_estado === "pronta";
+  // Resumo da IA: o botão é o de Serviços - "atualizar resumo".
+  const botaoResumo = transcrita
+    ? '<button type="button" class="sv-ligacao" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + ic("refresh", 15) +
+      (gv.resumindo ? "escrevendo…" : (g.resumo ? "atualizar resumo" : "fazer um resumo")) + "</button>"
+    : "";
+  const resumo = '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo da IA</span><span class="contagem">' +
+    esc(g.resumo ? "escrito " + quandoCurtoSv(g.resumo_em) : (transcrita ? "a fazer" : "depende da transcrição")) + "</span></div>" +
     (g.resumo
       ? '<p class="gv-resumo-curto">' + esc(g.resumo) + '</p><button class="em-ligacao forte" data-gv-aba="resumo">Ver o resumo inteiro</button>'
-      : (g.transcricao_estado === "pronta"
-        ? '<p class="nota">A transcrição está pronta. O modelo local pode escrever o resumo com decisões e pendências.</p><button class="em-ligacao forte" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + (gv.resumindo ? "escrevendo…" : "Pedir resumo") + "</button>"
-        : '<p class="nota">O resumo nasce da transcrição: transcreva a gravação primeiro (aba Transcrição).</p>')) + "</div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Notas<span class="contagem">' + (g.notas ? "guardadas" : "suas") + "</span></div>" +
-    '<textarea class="gv-notas" rows="4" placeholder="O que foi combinado, o que ficou pendente… (guarda ao sair do campo)" data-gv-notas="1">' + esc(g.notas || "") + "</textarea></div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Arquivado em</div>' +
-    '<div class="gv-arquivado">' + ic("inventory_2", 18) + '<div class="duas-linhas"><b>Nesta máquina</b><small>' + esc((g.arquivo || "—") + " · " + g.mb + " MB · " + (g.origem === "importada" ? "importada" : "gravada aqui")) + "</small></div></div>" +
-    '<div class="gv-arquivado">' + ic("work", 18) + '<div class="duas-linhas">' +
-    (g.servico_nome ? "<b>Serviço: " + esc(g.servico_nome) + '</b><small><button class="em-ligacao" data-gv-abrir-servico="' + g.servico_id + '">abrir a pasta</button> · trilha atualizada</small>' : "") +
-    '<select data-gv-ligar="servico_id">' + servicos + "</select></div></div>" +
-    '<div class="gv-arquivado">' + ic("person", 18) + '<div class="duas-linhas">' + (g.cliente_nome ? "<b>" + esc(g.cliente_nome) + "</b>" : "") + '<select data-gv-ligar="cadastro_id">' + clientes + "</select></div></div>" +
-    '<div class="gv-arquivado">' + ic("description", 18) + '<div class="duas-linhas"><b>Transcrição' + (g.resumo ? " e resumo" : "") + "</b><small>" +
-    esc(g.transcricao_estado === "pronta" ? plural(g.palavras || 0, "palavra") + " · " + rotuloDoModeloGv(g.transcricao_modelo) + " · .docx pela aba" : statusDaGravacao(g)) + "</small></div></div>" +
-    '<p class="gv-nota-pe">Áudio, transcrição e notas ficam nesta máquina. Compartilhar o resumo monta o e-mail com a transcrição anexa; enviar passa por Aprovações conforme o seu limite.</p></div>' +
-    "</div></aside>";
+      : '<p class="nota">' + (transcrita ? "A transcrição está pronta. O modelo local pode escrever o resumo com decisões e pendências." : "O resumo nasce da transcrição: transcreva a gravação primeiro.") + "</p>") +
+    botaoResumo + "</div>";
+  // Anotações: as de Serviços - clicar edita, o x remove, Enter guarda.
+  const anotacoes = (g.anotacoes || []).map((a, i) => '<div class="sv-anotacao"><div class="sv-anotacao-texto">' +
+    '<p class="sv-editavel" data-gv-nota-editar="' + i + '" title="Clique para editar">' + esc(a.texto) + "</p>" +
+    "<small>" + esc([a.quem, a.quando ? quandoCurtoSv(a.quando) : "", a.editada ? "editada" : ""].filter(Boolean).join(" · ")) + "</small></div>" +
+    '<button type="button" class="mais-linha" data-gv-nota-tirar="' + i + '" title="Remover a anotação">' + ic("close", 15) + "</button></div>").join("");
+  const blocoAnotacoes = '<div class="painel-bloco gv-anotacoes"><div class="painel-bloco-cabeca">Anotações<span class="contagem">' + ((g.anotacoes || []).length || "") + "</span></div>" +
+    anotacoes + '<textarea class="sv-nova-nota" rows="1" placeholder="Nova anotação…  (Enter guarda)" data-gv-nota-nova="1"></textarea></div>';
+  const onde = g.servico_nome ? "Pasta do serviço" : "Nesta máquina";
+  const arquivado = '<div class="painel-bloco"><div class="painel-bloco-cabeca">Arquivado em</div>' +
+    '<div class="gv-arquivado">' + ic(g.servico_nome ? "folder" : "inventory_2", 18) + '<div class="duas-linhas"><b>' + esc(onde) + "</b><small>" +
+    esc([g.servico_nome ? "Serviços › " + g.servico_nome : "", g.mb + " MB", g.origem === "importada" ? "importada" : "gravada aqui"].filter(Boolean).join(" · ")) + "</small></div>" +
+    (g.existe ? '<button class="mais-linha" data-gv-baixar="1" title="Baixar o áudio">' + ic("download", 16) + "</button>" : "") + "</div>" +
+    '<div class="gv-arquivado">' + ic("work", 18) + '<div class="gv-ligar"><label>Serviço</label><select data-gv-ligar="servico_id">' + servicos + "</select>" +
+    (g.servico_id ? '<button class="em-ligacao" data-gv-abrir-servico="' + g.servico_id + '">abrir a pasta do serviço</button>' : "<small>ligar move o áudio para a pasta do serviço</small>") + "</div></div>" +
+    '<div class="gv-arquivado">' + ic("person", 18) + '<div class="gv-ligar"><label>Cliente</label><select data-gv-ligar="cadastro_id">' + clientes + "</select></div></div></div>";
+  const detalheDaTranscricao = transcrita
+    ? [plural(g.palavras || 0, "palavra"), plural(g.trechos_quantos || (g.trechos || []).length, "trecho"), rotuloDoModeloGv(g.transcricao_modelo),
+      g.transcricao_tempo ? "levou " + duracaoLongaGv(g.transcricao_tempo) : ""].filter(Boolean).join(" · ")
+    : (g.transcricao_estado === "fila" || g.transcricao_estado === "transcrevendo" ? "em andamento — a aba Transcrição mostra o progresso"
+      : "ainda sem transcrição — Transcrever fica na aba Transcrição do Conteúdo");
+  const transcricao = '<div class="painel-bloco"><div class="painel-bloco-cabeca">Transcrição<span class="contagem">' + esc(g.transcricao_rotulo || statusDaGravacao(g)) + "</span></div>" +
+    '<p class="nota">' + esc(detalheDaTranscricao) + "</p></div>";
+  return '<aside class="acervo-painel gv-painel"><div class="rolagem">' + resumo + blocoAnotacoes + arquivado + transcricao + "</div></aside>";
 }
 
 function posicaoDoAudio() {
@@ -993,9 +1017,16 @@ function ligarGravacoes() {
   clique("[data-gv-nova]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
   clique("[data-gv-vivo]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
   clique("[data-gv-tipo]", (b) => { gv.tipo = b.dataset.gvTipo; desenharGravacoes(); });
-  clique("[data-gv-abrir]", (b) => abrirGravacao(Number(b.dataset.gvAbrir)));
-  ligarLinhasDoTocadorGv();
-  ligarTocadorDaListaGv();
+  document.querySelectorAll("[data-gv-expandir]").forEach((linha) => {
+    const id = Number(linha.dataset.gvExpandir);
+    linha.onclick = (e) => {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || gv.escolhidas.size) return;
+      gv.expandida = gv.expandida === id ? null : id;
+      desenharGravacoes();
+    };
+    linha.ondblclick = () => abrirGravacao(id);
+  });
+  ligarTocadorNaLinhaGv();
   ligarSelecao(document.querySelector("#gv-tela .gv-lista .tabela-corpo"), {
     linhas: ".tabela-linha[data-sel]", escolhidos: gv.escolhidas, aoMudar: desenharGravacoes,
     apagar: (ids) => apagarGravacoesEmLote(ids), renomear: (id) => renomearGravacao(Number(id)),
@@ -1018,8 +1049,6 @@ function ligarGravacoes() {
       return;
     }
     gv.aba = aba;
-    cabecalhoGravacoes();
-    ligarGravacoes();
     const alvo = $("gv-conteudo");
     if (alvo) { alvo.innerHTML = conteudoDaGravacao(); ligarGravacoes(); }
   });
@@ -1052,8 +1081,25 @@ function ligarGravacoes() {
     el.onchange = () => renomearMarcadorGv(Number(el.dataset.gvMarcador), el.value);
   });
   clique("[data-gv-marcador-tirar]", (b) => tirarMarcadorGv(Number(b.dataset.gvMarcadorTirar)));
-  const notas = document.querySelector("[data-gv-notas]");
-  if (notas) notas.onblur = () => guardarNotasGv(notas.value);
+  const novaNota = document.querySelector("[data-gv-nota-nova]");
+  if (novaNota) novaNota.onkeydown = (e) => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    e.preventDefault();
+    if (novaNota.value.trim()) anotarNaGravacao("/api/gravacoes/" + gv.aberta.id + "/anotacoes", "POST", { texto: novaNota.value.trim() });
+  };
+  clique("[data-gv-nota-editar]", (b) => {
+    const i = Number(b.dataset.gvNotaEditar);
+    editarNoLugar(b, { valor: gv.aberta.anotacoes[i].texto, varias: true,
+      aoGuardar: (novo) => anotarNaGravacao("/api/gravacoes/" + gv.aberta.id + "/anotacoes/" + i, "POST", { texto: novo }) });
+  });
+  clique("[data-gv-nota-tirar]", async (b) => {
+    const i = Number(b.dataset.gvNotaTirar);
+    const a = gv.aberta.anotacoes[i];
+    if (!(await confirmar({ titulo: "Remover esta anotação?", contexto: "Gravações › " + gv.aberta.titulo,
+      texto: "“" + a.texto.slice(0, 140) + (a.texto.length > 140 ? "…" : "") + "”", confirmar: "Remover", perigo: true }))) return;
+    anotarNaGravacao("/api/gravacoes/" + gv.aberta.id + "/anotacoes/" + i, "DELETE");
+  });
+  clique("[data-gv-baixar]", () => baixarAudioGv(gv.aberta));
   document.querySelectorAll("[data-gv-ligar]").forEach((el) => { el.onchange = () => ligarGravacaoA(el.dataset.gvLigar, Number(el.value) || null); });
   clique("[data-gv-abrir-servico]", (b) => abrirServico(Number(b.dataset.gvAbrirServico)));
   clique("[data-gv-perguntar]", () => perguntarSobreGravacao(gv.aberta));
@@ -1588,15 +1634,6 @@ function redesenharConteudoGv() {
   ligarGravacoes();
 }
 
-async function guardarNotasGv(texto) {
-  const g = gv.aberta;
-  if (!g || (g.notas || "") === texto) return;
-  const r = await fetch("/api/gravacoes/" + g.id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ notas: texto }) });
-  if (!r.ok) { avisoCert(await erroDe(r)); return; }
-  g.notas = texto;
-  avisoCert("notas guardadas");
-}
-
 /* Ligar a gravação a um serviço sem abrir a gravação: pelo "⋯" da linha. */
 async function ligarGravacaoDaLista(g, servicoId) {
   if ((g.servico_id || null) === servicoId) return;
@@ -1628,6 +1665,24 @@ function apagarGravacoesEmLote(ids) {
   });
 }
 
+async function renomearGravacaoAberta(novo) {
+  const g = gv.aberta;
+  if (!g) return false;
+  const r = await fetch("/api/gravacoes/" + g.id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ titulo: novo }) });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return false; }
+  const salvo = await r.json();
+  g.titulo = salvo.titulo;
+  return true;
+}
+
+async function anotarNaGravacao(url, metodo, corpo) {
+  const r = await fetch(url, { method: metodo, headers: GV_JSON, body: corpo ? JSON.stringify(corpo) : undefined });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return false; }
+  gv.aberta.anotacoes = (await r.json()).anotacoes || [];
+  redesenharPainelGv();
+  return true;
+}
+
 async function renomearGravacao(id) {
   const g = gv.lista.find((x) => x.id === id);
   if (!g) return;
@@ -1651,14 +1706,25 @@ function menuDaGravacao(botao, g) {
   ]);
 }
 
-function baixarAudioGv(g) {
-  if (!g.existe) { avisoCert("o áudio não está mais no disco"); return; }
-  const a = document.createElement("a");
-  a.href = "/api/gravacoes/" + g.id + "/audio";
-  a.download = g.arquivo || "gravacao";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+/* Baixar o áudio. Na janela do programa o link com `download` não leva a
+   lugar nenhum: abre o "Salvar como" do Windows e o servidor copia o arquivo
+   para lá. No navegador, o próprio download. */
+async function baixarAudioGv(g) {
+  if (!g || !g.existe) { avisoCert("o áudio não está mais no disco"); return; }
+  const api = (window.pywebview || {}).api;
+  if (api && api.salvar_como) {
+    const r = await fetch("/api/gravacoes/" + g.id + "/audio/nome");
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    const nome = (await r.json()).nome;
+    const extensao = nome.split(".").pop();
+    const caminho = await api.salvar_como(nome, ["Áudio (*." + extensao + ")"]);
+    if (!caminho) return;
+    const salvo = await fetch("/api/gravacoes/" + g.id + "/audio/salvar", { method: "POST", headers: GV_JSON, body: JSON.stringify({ caminho: caminho }) });
+    if (!salvo.ok) { avisoCert(await erroDe(salvo), { tom: "erro" }); return; }
+    avisoCert("áudio salvo · " + (await salvo.json()).nome, { tom: "ok" });
+    return;
+  }
+  location.href = "/api/gravacoes/" + g.id + "/audio?baixar=1";
 }
 
 async function apagarGravacao(g) {

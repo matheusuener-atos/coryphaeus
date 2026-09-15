@@ -23,35 +23,29 @@
   .gv-lista .tabela-barra .direita button:not(.primario) { background: var(--surf); border-color: var(--hair); }
   .gv-lista .tabela-barra .direita button:not(.primario):hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
 
-  /* O tocador da lista, fora de cartao: o botao redondo, o titulo, a forma
-     da onda que se clica, o tempo e a velocidade. */
-  .gv-radio { flex: none; display: flex; align-items: center; gap: 18px; min-width: 0; padding: 2px 4px 6px; }
+  /* O tocador na linha: a gravacao clicada abre a linha e mostra o botao
+     redondo, o equalizador do ditado com a barra e os marcadores embaixo, o
+     tempo, a velocidade e Abrir gravacao. Vale na lista e nos Arquivos de
+     um servico. */
+  .gv-linha-tocador {
+    display: flex; align-items: center; gap: 16px; min-width: 0; padding: 12px 16px 14px 62px;
+    border-bottom: 1px solid var(--ink-a08); background: var(--bg);
+  }
   .gv-radio-tocar {
-    flex: none; width: 44px; height: 44px; padding: 0; border-radius: 50%;
+    flex: none; width: 40px; height: 40px; padding: 0; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
     background: var(--btn); border-color: var(--btn); color: var(--btnt);
   }
   .gv-radio-tocar:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--btnt); }
-  .gv-radio-titulo { flex: 0 1 260px; min-width: 120px; }
-  .gv-radio-titulo b { font: 600 14px var(--sans); }
-  .gv-radio-titulo small { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .gv-onda { flex: 1; min-width: 120px; height: 42px; display: flex; align-items: center; gap: 2px; cursor: pointer; }
-  .gv-onda i { flex: 1; min-width: 2px; border-radius: 2px; background: var(--ink-a2); transition: background-color .15s ease; }
-  .gv-onda:hover i:not(.tocada) { background: var(--ink-a35); }
-  .gv-onda i.tocada { background: var(--ink); }
-  .gv-radio.tocando .gv-onda i.tocada { background: var(--destaque); }
-  .gv-radio-tempo { flex: none; font: 500 12.5px var(--mono); color: var(--ink3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gv-lt-meio { flex: 1; min-width: 120px; display: grid; gap: 6px; }
+  .gv-lt-onda { height: 34px; opacity: .35; }
+  .gv-linha-tocador.tocando .gv-lt-onda { opacity: 1; }
+  .gv-lt-tempo { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .gv-linha-tocador .fantasma { padding: 4px 6px; border: none; background: none; color: var(--ink2); }
+  .gv-linha-tocador .fantasma:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .gv-linha-tocador .com-icone { flex: none; }
 
-  /* O icone da linha toca a gravacao: onda parada, equalizador tocando, e o
-     play ou a pausa ao passar o mouse. */
-  button.gv-ic-linha {
-    width: 32px; height: 32px; padding: 0; border: none; border-radius: 50%; background: none;
-    align-items: center; justify-content: center; cursor: pointer;
-  }
-  button.gv-ic-linha:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .gv-ic-linha .gv-ic-tocar { display: none; }
-  button.gv-ic-linha:hover .gv-ic-onda { display: none; }
-  button.gv-ic-linha:hover .gv-ic-tocar { display: inline-flex; }
+  /* O icone da linha: a onda parada, o equalizador tocando. */
   .gv-ic-linha.tocando { color: var(--destaque); }
   .gv-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
   .gv-eq i { width: 3px; height: 100%; border-radius: 1px; background: currentColor; transform-origin: bottom; animation: gv-eq .9s ease-in-out infinite; }
@@ -110,6 +104,21 @@
   .gv-vel { font: 600 12px var(--sans); min-width: 46px; padding: 5px 8px; }
   .gv-conteudo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .gv-conteudo .fin-cartao { flex: 1; min-height: 0; }
+  /* O cartao Conteudo: as abas a direita da barra, as ferramentas da aba numa
+     faixa embaixo dela e o miolo rolando. */
+  .gv-conteudo-cartao { display: flex; flex-direction: column; }
+  .gv-abas { margin-left: auto; }
+  .gv-marcadores .gv-marcador { padding: 10px 16px; }
+  .gv-miolo { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+  .gv-miolo-corpo { flex: 1; min-height: 0; overflow: auto; }
+  .gv-ferramentas {
+    flex: none; display: flex; align-items: center; gap: 6px; min-width: 0; padding: 8px 16px;
+    border-bottom: 1px solid var(--ink-a08);
+  }
+  .gv-ferramentas > small { font: 500 12.5px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gv-ferramentas .direita { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .gv-ferramentas button { padding: 5px 10px; font-size: 12.5px; }
+  .gv-ferramentas .gv-busca-trecho { margin-right: auto; }
   .gv-marcador { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .gv-marcador > .ic { color: var(--ink3); flex: none; }
   .gv-marcador .em-ligacao.forte { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -118,11 +127,19 @@
   .gv-marcador .mais-linha { flex: none; }
   .gv-marcar { display: flex; gap: 6px; align-items: center; }
   .gv-marcar input[type="text"] { flex: 1; min-width: 0; max-width: none; }
-  .gv-notas { width: 100%; resize: vertical; }
   .gv-arquivado { display: flex; align-items: flex-start; gap: 10px; }
   .gv-arquivado > .ic { color: var(--ink3); flex: none; margin-top: 2px; }
-  .gv-arquivado select { max-width: 100%; }
-  .gv-nota-pe { font: 500 12px/1.5 var(--sans); color: var(--ink3); margin: 0; }
+  .gv-arquivado .duas-linhas { flex: 1; min-width: 0; }
+  .gv-arquivado .mais-linha { flex: none; }
+  .gv-ligar { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .gv-ligar label { font: 500 12px var(--sans); color: var(--ink3); }
+  .gv-ligar select { width: 100%; max-width: 100%; }
+  .gv-ligar small { font: 500 12px var(--sans); color: var(--ink3); }
+  .gv-ligar .em-ligacao { justify-self: start; }
+  /* As anotacoes da gravacao sao as de Servicos, sem a margem do cartao de la. */
+  .gv-anotacoes .sv-anotacao { margin: 0; }
+  .gv-anotacoes .sv-nova-nota { width: 100%; margin: 2px 0 0; }
+  .gv-anotacoes .painel-bloco-cabeca .contagem:empty { display: none; }
   .gv-tela .acervo-principal { gap: 14px; }
   .gv-painel .rolagem { display: flex; flex-direction: column; }
   .gv-painel .cfg-liga { padding: 2px 0; }
@@ -130,11 +147,6 @@
   /* A transcricao de verdade: trechos com o minuto clicavel, busca com
      realce, a barra de andamento e o resumo escrito pelo modelo local. */
   .gv-transcrita { display: flex; flex-direction: column; min-height: 0; }
-  .gv-transcrita .fin-cartao-cabeca { flex-wrap: wrap; }
-  .gv-transcrita .fin-cartao-cabeca > span:first-child { flex: none; }
-  .gv-transcrita .fin-cartao-cabeca > small { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .gv-transcrita .fin-cartao-cabeca .direita { margin-left: auto; display: flex; gap: 6px; align-items: center; }
-  .gv-transcrita .fin-cartao-cabeca .direita button { padding: 5px 10px; font-size: 12.5px; }
   .gv-busca-trecho { width: 220px; height: 30px; }
   .gv-trechos { flex: 1; min-height: 0; overflow: auto; padding: 6px 0; }
   .gv-trecho { display: flex; align-items: flex-start; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--ink-a06); }

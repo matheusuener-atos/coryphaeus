@@ -248,7 +248,7 @@ const ABAS_DA_PASTA = [["geral", "Visão geral"], ["arquivos", "Arquivos"], ["tr
 function corpoDoTrabalho() {
   const s = sv.aberto;
   let miolo;
-  if (sv.aba === "arquivos") miolo = cartaoDosArquivos(s);
+  if (sv.aba === "arquivos") miolo = cartaoDosArquivos(s) + cartaoDasGravacoesDoServico(s);
   else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
   else {
     miolo = aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
@@ -528,6 +528,33 @@ function cartaoDosArquivos(s) {
     '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum arquivo ainda. Adicionar copia o documento para a pasta ' +
       esc("Serviços › " + (s.pasta || s.nome)) + ' no Acervo — o original fica onde está. O que for posto nessa pasta pelo Windows entra aqui sozinho.</p>') + "</div>" +
     verMais + "</div>";
+}
+
+/* AS GRAVAÇÕES DA PASTA, num cartão só delas: ligar uma gravação ao serviço
+   traz o áudio para a pasta do serviço. Clicar na linha abre o tocador, como
+   na lista de Gravações. */
+function cartaoDasGravacoesDoServico(s) {
+  const lista = s.gravacoes || [];
+  const linhas = lista.map((g) => {
+    const aberta = gv.expandida === g.id;
+    const classe = "tabela-linha colunas-sv-gravacoes" + (aberta ? " aberta" : "");
+    const sub = [g.tipo_rotulo, quandoDaGravacao(g), statusDaGravacao(g)].filter(Boolean).join(" · ");
+    return '<div class="' + classe + '" data-sv-gravacao="' + g.id + '" title="Clique para ouvir">' + iconeDaLinhaGv(g) +
+      '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" +
+      '<span class="sv-data">' + duracaoGv(g.duracao_s) + "</span></div>" + (aberta ? tocadorNaLinhaGv(g) : "");
+  }).join("");
+  const total = lista.reduce((soma, g) => soma + (Number(g.duracao_s) || 0), 0);
+  const conta = lista.length ? plural(lista.length, "gravação", "gravações") + " · " + duracaoLongaGv(total) : "nenhuma gravação";
+  return '<div class="tabela-cartao sv-arquivos sv-gravacoes"><div class="tabela-barra"><b>Gravações</b><span class="nota-barra">' + esc(conta) + "</span>" +
+    '<div class="direita"><button data-sv-gravar="1">' + ic("mic", 16) + "Gravar</button></div></div>" +
+    '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhuma gravação ligada. Grave por aqui, ou ligue uma gravação a este serviço em Gravações — o áudio vem para a pasta do serviço.</p>') + "</div></div>";
+}
+
+/* Gravar pela pasta: a Nova gravação já vem ligada ao serviço. */
+function gravarNoServico(s) {
+  if (gv.vivo.estado === "pronto") gv.vivo.form.servico_id = s.id;
+  gv.aba = "vivo";
+  mostrarGravacoes("vivo");
 }
 
 /* Abrir e recolher a lista andam, como o "Ver mais" do Assistente. */
@@ -1028,6 +1055,13 @@ function ligarServicos() {
   const conversa = document.querySelector("[data-sv-conversa]");
   if (conversa) conversa.onsubmit = (e) => { e.preventDefault(); conversarSobreServico(conversa.querySelector("[data-sv-pergunta]").value); };
   clique("[data-sv-arquivos-mais]", () => alternarArquivosDoServico());
+  clique("[data-sv-gravacao]", (b) => {
+    const id = Number(b.dataset.svGravacao);
+    gv.expandida = gv.expandida === id ? null : id;
+    desenharServicos();
+  });
+  clique("[data-sv-gravar]", () => gravarNoServico(sv.aberto));
+  ligarTocadorNaLinhaGv();
   clique("[data-sv-etapa-data]", (b) => escolherPrazoDaEtapa(b));
   const tempo = document.getElementById("sv-tempo");
   if (tempo) tempo.scrollTop = tempo.scrollHeight;

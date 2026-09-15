@@ -180,6 +180,10 @@
   .sv-arquivos .tabela-barra .direita button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
   .sv-arquivos .tabela-linha { cursor: pointer; }
   .colunas-sv-arquivos { grid-template-columns: 28px minmax(0, 1fr) 110px 28px; }
+  /* As gravacoes da pasta: o icone, o titulo e a duracao; a linha aberta traz o tocador. */
+  .colunas-sv-gravacoes { grid-template-columns: 28px minmax(0, 1fr) 80px; }
+  .sv-gravacoes { flex: none; }
+  .sv-gravacoes .gv-linha-tocador { padding-left: 58px; }
   .sv-historico { flex: none; display: flex; flex-direction: column; min-height: 0; }
   .sv-tempo { max-height: 520px; overflow-y: auto; padding: 14px 18px 6px; display: grid; gap: 16px; scrollbar-width: none; }
   /* Na aba Trilha o historico e a pagina: usa a altura da janela e deixa a
