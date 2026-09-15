@@ -277,8 +277,13 @@ function andarAgenda(n) {
   mostrarAgenda();
 }
 
+/* Cada coisa na sua visão: a tarefa leva a Tarefas (com a data do dia), e o
+   compromisso leva à Semana - a agenda de horários -, com o formulário. */
 function criarNaAgenda(tipo) {
-  if (tipo === "tarefa") return abrirFormAgenda({ tipo: "tarefa", prazo: ag.dia, lista: ag.tar.lista || "" });
+  if (tipo === "tarefa") {
+    if (ag.visao === "tarefas") return abrirFormAgenda({ tipo: "tarefa", prazo: ag.dia, lista: ag.tar.lista || "" });
+    return adicionarTarefaNoDia(ag.dia);
+  }
   abrirFormAgenda(compromissoEmBranco(tipo));
 }
 
@@ -663,7 +668,9 @@ function conteudoDoDia(d) {
 
 async function abrirDiaNoPopup() {
   const d = ag.diaAberto;
-  if (!d || d.dia !== ag.dia) return;
+  // O duplo clique marca um compromisso: o clique que chega depois nao
+  // reabre o pop-up por cima do formulario.
+  if (!d || d.dia !== ag.dia || ag.painel === "form") return;
   const x = conteudoDoDia(d);
   const outra = ag.visao === "mes" ? "Abrir na semana" : "Abrir no mês";
   const escolha = dialogo({
@@ -982,6 +989,15 @@ function abrirFormAgenda(v) {
   fecharPopupDoDia();
   ag.form = v;
   ag.painel = "form";
+  if (v.tipo !== "tarefa" && ag.visao !== "semana") {
+    // O compromisso se marca na Semana: a do dia dele.
+    const dia = deIso(v.data || ag.dia);
+    ag.dia = iso(dia);
+    ag.semana = iso(segundaDe(dia));
+    ag.visao = "semana";
+    ag.zoom = "dias";
+    return mostrarAgenda();
+  }
   desenharPainel();
 }
 
