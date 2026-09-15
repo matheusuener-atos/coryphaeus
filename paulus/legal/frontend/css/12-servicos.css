@@ -37,8 +37,9 @@
   .sv-novo:hover:not(:disabled) { border: 1px dashed var(--ink); color: var(--ink); background: transparent; }
   .sv-novo b { font: 600 13.5px var(--sans); }
   .sv-novo small { font: 500 12px var(--sans); color: var(--ink3); }
-  .sv-vazio { grid-column: span 2; padding: 20px 22px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 8px; }
-  .sv-vazio h3 { margin: 0; font: 400 24px/1.15 var(--serif); }
+  .sv-vazio { grid-column: span 2; padding: 20px 22px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 8px; align-content: start; }
+  /* O titulo dos cartoes de vazio e o dos cartoes comuns: letra sem serifa. */
+  .sv-vazio h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
 
   /* A visao de trabalho: resumo e etapas lado a lado, arquivos embaixo. */

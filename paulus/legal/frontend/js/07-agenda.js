@@ -1040,7 +1040,12 @@ function menuNaLinha(botao, itens) {
     ? '<div class="menu-risco"></div>'
     : '<button data-i="' + i + '"' + (it.perigo ? ' class="perigo"' : "") + ">" +
       (it.icone ? ic(it.icone, 18) : "") + esc(it.rotulo) + "</button>").join("");
-  botao.parentElement.appendChild(menu);
+  /* O menu se posiciona pelo contêiner do botão (.menu-conversa é absoluto).
+     Contêiner sem posição mandava o menu para fora da tela — foi o que
+     acontecia no "⋯" dos cartões de Serviços. */
+  const casa = botao.parentElement;
+  if (getComputedStyle(casa).position === "static") casa.style.position = "relative";
+  casa.appendChild(menu);
   menu.querySelectorAll("[data-i]").forEach((b) => {
     b.onclick = (e) => { e.stopPropagation(); menu.remove(); itens[Number(b.dataset.i)].acao(); };
   });

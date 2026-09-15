@@ -15,7 +15,7 @@
   .em-nota { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .em-vazio { padding: 28px 18px; display: grid; gap: 6px; }
   .em-vazio.grande { padding: 48px 32px; max-width: 520px; }
-  .em-vazio h4 { margin: 0; font: 400 18px var(--serif); }
+  .em-vazio h4 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .em-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .em-vazio-acao { padding: 4px 18px 18px; display: flex; gap: 8px; flex-wrap: wrap; }
   .em-vazio.grande .em-vazio-acao { padding: 10px 0 0; }
