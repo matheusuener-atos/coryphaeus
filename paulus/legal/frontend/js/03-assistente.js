@@ -812,7 +812,10 @@ function desenharCartaoDoDitado() {
 /* O equalizador: barras finas, espelhadas a partir do centro - os graves da
    voz no meio, os agudos nas pontas -, como uma onda. Le o analisador do
    proprio contexto de audio da captura; em pausa, as barras deitam. */
-function desenharOnda(cv, dados) {
+function desenharOnda(cv, dados, ativo) {
+  // `ativo`: quem desenha diz se o som esta chegando (o tocador das
+  // Gravacoes usa o mesmo desenho); sem ele, vale o estado do ditado.
+  const ouvindo = ativo === undefined ? ditado.estado === "ouvindo" : ativo;
   const dpr = window.devicePixelRatio || 1;
   const w = cv.clientWidth;
   const h = cv.clientHeight;
@@ -832,7 +835,7 @@ function desenharOnda(cv, dados) {
   const util = dados ? Math.max(1, Math.floor(dados.length * 0.5)) : 1;
   for (let i = 0; i < n; i++) {
     const pos = n > 1 ? Math.abs(i - (n - 1) / 2) / ((n - 1) / 2) : 0;
-    const valor = dados && ditado.estado === "ouvindo" ? dados[Math.floor(pos * (util - 1))] / 255 : 0;
+    const valor = dados && ouvindo ? dados[Math.floor(pos * (util - 1))] / 255 : 0;
     const alt = Math.max(2, valor * h * (1 - pos * 0.4));
     g.fillRect(sobra + i * passo, (h - alt) / 2, barra, alt);
   }

@@ -93,13 +93,21 @@
   .gv-transcricao .fin-cartao-cabeca .direita { margin-left: auto; display: flex; gap: 6px; }
   .gv-transcricao .fin-cartao-cabeca .direita button { padding: 5px 10px; font-size: 12.5px; }
 
-  /* O tocador da gravacao arquivada. */
-  .gv-player { flex: none; display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
-  .gv-posicao { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink2); }
-  .gv-barra { flex: 1; min-width: 60px; height: 6px; border-radius: 3px; background: var(--fill2); cursor: pointer; position: relative; overflow: hidden; }
+  /* O tocador da gravacao arquivada, com a cara do cartao do ditado da
+     conversa (cartao-agora): estado e tempo, o equalizador, a barra com os
+     marcadores e as acoes. */
+  .gv-player { flex: none; padding: 16px 18px; gap: 10px; }
+  .gv-player .cabeca > .ic { color: var(--ink3); }
+  .gv-player.tocando .cabeca > .ic { color: var(--destaque); }
+  .gv-player .ditado-onda { opacity: .35; }
+  .gv-player.tocando .ditado-onda { opacity: 1; }
+  .gv-player .acoes .fantasma { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
+  .gv-player .acoes .fantasma:hover:not(:disabled) { color: var(--ink); }
+  .gv-player .acoes .primario { display: inline-flex; align-items: center; gap: 6px; }
+  .gv-posicao { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gv-barra { min-width: 60px; height: 4px; border-radius: 2px; background: var(--fill2); cursor: pointer; position: relative; overflow: hidden; }
   .gv-barra i { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--ink); border-radius: 3px; }
   .gv-barra u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--destaque); }
-  .gv-player .botao-icone { width: 34px; height: 34px; }
   .gv-vel { font: 600 12px var(--sans); min-width: 46px; padding: 5px 8px; }
   .gv-conteudo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .gv-conteudo .fin-cartao { flex: 1; min-height: 0; }
@@ -124,6 +132,8 @@
      realce, a barra de andamento e o resumo escrito pelo modelo local. */
   .gv-transcrita { display: flex; flex-direction: column; min-height: 0; }
   .gv-transcrita .fin-cartao-cabeca { flex-wrap: wrap; }
+  .gv-transcrita .fin-cartao-cabeca > span:first-child { flex: none; }
+  .gv-transcrita .fin-cartao-cabeca > small { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .gv-transcrita .fin-cartao-cabeca .direita { margin-left: auto; display: flex; gap: 6px; align-items: center; }
   .gv-transcrita .fin-cartao-cabeca .direita button { padding: 5px 10px; font-size: 12.5px; }
   .gv-busca-trecho { width: 220px; height: 30px; }

@@ -213,7 +213,7 @@ function corpoDaListaGv() {
   return '<div class="acervo-principal">' + tocadorDaListaGv() + '<div class="tabela-cartao gv-lista">' +
     '<div class="tabela-barra">' + barra +
     '<div class="direita"><input type="file" id="gv-importar" hidden accept="audio/*,.webm,.ogg,.opus,.mp3,.m4a,.wav,.aac,.flac,.mp4">' +
-    '<button data-gv-importar="1">' + ic("upload", 16) + 'Importar áudio</button><button class="primario" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button></div></div>" +
+    '<button data-gv-importar="1">' + ic("upload", 16) + "Importar áudio</button></div></div>" +
     '<div class="tabela-cabecalho colunas-gravacoes"><span></span><span>Gravação</span><span>Participantes</span><span>Duração</span><span>Status</span><span></span></div>' +
     '<div class="tabela-corpo">' + linhaAoVivoGv() + linhas + vazio + "</div>" +
     '<div class="tabela-rodape"><span>' + lista.length + " de " + gv.lista.length + " · " + duracaoLongaGv(gv.totalSegundos) + ' gravados</span>' +
@@ -470,15 +470,23 @@ function painelAoVivo() {
 
 function corpoDaGravacao() {
   const g = gv.aberta;
+  // O tocador tem a cara do cartão do ditado da conversa: o estado e o
+  // tempo em cima, o equalizador espelhado no meio (a voz tocando, na cor de
+  // destaque; em pausa, as barras deitam), a barra com os marcadores e as
+  // ações embaixo.
   const player = g.existe
-    ? '<div class="gv-player"><audio id="gv-audio" src="/api/gravacoes/' + g.id + '/audio" preload="metadata"></audio>' +
-      '<button class="gv-redondo primario" data-gv-tocar="1" title="Tocar">' + ic("play_arrow", 26) + "</button>" +
-      '<span class="gv-posicao"><span id="gv-posicao">0:00</span> / ' + duracaoGv(g.duracao_s) + "</span>" +
+    ? '<div class="cartao-agora gv-player" id="gv-player"><audio id="gv-audio" src="/api/gravacoes/' + g.id + '/audio" preload="metadata"></audio>' +
+      '<div class="cabeca">' + ic("graphic_eq", 20) + '<span class="nome" id="gv-player-nome">Pronto para ouvir</span>' +
+      '<span class="ditado-tempo gv-posicao"><span id="gv-posicao">0:00</span> / ' + duracaoGv(g.duracao_s) + "</span></div>" +
+      '<canvas class="ditado-onda" data-gv-onda-tocador="1"></canvas>' +
       '<div class="gv-barra" data-gv-barra="1"><i id="gv-barra-fill"></i>' + g.marcadores.map((m) => '<u style="left:' + porcentagemGv(m.t, g.duracao_s) + '%" title="' + esc(m.texto || duracaoGv(m.t)) + '"></u>').join("") + "</div>" +
-      '<button class="botao-icone" data-gv-pular="-10" title="Voltar 10 s">' + ic("replay_10", 20) + "</button>" +
-      '<button class="botao-icone" data-gv-pular="10" title="Avançar 10 s">' + ic("forward_10", 20) + "</button>" +
-      '<button class="gv-vel" data-gv-velocidade="1" title="Velocidade">' + velocidadeGv() + "</button></div>"
-    : '<div class="gv-player"><span class="gv-posicao">— / ' + duracaoGv(g.duracao_s) + '</span><span class="nota-barra">o arquivo de áudio não está mais em ' + esc(gv.pasta) + "</span></div>";
+      '<div class="acoes">' +
+      '<button class="fantasma" data-gv-pular="-10" title="Voltar 10 s">' + ic("replay_10", 16) + "10 s</button>" +
+      '<button class="fantasma" data-gv-pular="10" title="Avançar 10 s">' + ic("forward_10", 16) + "10 s</button>" +
+      '<button class="fantasma gv-vel" data-gv-velocidade="1" title="Velocidade">' + velocidadeGv() + "</button>" +
+      '<button class="primario" data-gv-tocar="1">' + ic("play_arrow", 16) + "Tocar</button></div></div>"
+    : '<div class="cartao-agora gv-player"><div class="cabeca">' + ic("graphic_eq", 20) + '<span class="nome">Sem áudio</span>' +
+      '<span class="ditado-tempo gv-posicao">— / ' + duracaoGv(g.duracao_s) + '</span></div><div class="rodape">o arquivo de áudio não está mais em ' + esc(gv.pasta) + "</div></div>";
   return '<div class="acervo-principal">' + player + '<div class="gv-conteudo" id="gv-conteudo">' + conteudoDaGravacao() + "</div></div>";
 }
 
@@ -1387,9 +1395,18 @@ function ligarTocador() {
     if (em) em.textContent = duracaoGv(audio.currentTime);
   };
   audio.ontimeupdate = pintar;
-  audio.onplay = () => { if (botao) botao.innerHTML = ic("pause", 26); };
-  audio.onpause = () => { if (botao) botao.innerHTML = ic("play_arrow", 26); };
-  audio.onended = () => { if (botao) botao.innerHTML = ic("play_arrow", 26); };
+  const estado = (tocando) => {
+    if (botao) botao.innerHTML = ic(tocando ? "pause" : "play_arrow", 16) + (tocando ? "Pausar" : "Tocar");
+    const nome = $("gv-player-nome");
+    if (nome) nome.textContent = tocando ? "Tocando" : (audio.currentTime > 0 && !audio.ended ? "Em pausa" : "Pronto para ouvir");
+    const cartao = $("gv-player");
+    if (cartao) cartao.classList.toggle("tocando", tocando);
+    if (tocando) { equalizadorDoTocadorGv(audio); if (!gv.quadroTocador) animarTocadorGv(); } else animarTocadorGv();
+  };
+  audio.onplay = () => estado(true);
+  audio.onpause = () => estado(false);
+  audio.onended = () => estado(false);
+  animarTocadorGv();
   audio.onerror = () => avisoCert("não consegui tocar o áudio — o formato pode não ser reconhecido por esta janela");
   if (botao) botao.onclick = () => { if (audio.paused) audio.play(); else audio.pause(); };
   document.querySelectorAll("[data-gv-pular]").forEach((b) => {
@@ -1409,6 +1426,47 @@ function ligarTocador() {
     audio.currentTime = fracao * total();
     pintar();
   };
+}
+
+/* O equalizador da gravação aberta: o mesmo desenho do ditado (barras finas
+   espelhadas a partir do centro), lendo o som que está tocando. O contexto
+   de áudio nasce no primeiro Tocar - a janela só deixa depois de um clique -
+   e cada elemento de áudio só pode ser ligado a um contexto uma vez. */
+function equalizadorDoTocadorGv(audio) {
+  if (audio.analisadorGv) {
+    if (gv.contextoTocador && gv.contextoTocador.state === "suspended") gv.contextoTocador.resume().catch(() => {});
+    return audio.analisadorGv;
+  }
+  const Contexto = window.AudioContext || window.webkitAudioContext;
+  if (!Contexto) return null;
+  try {
+    if (gv.contextoTocador) gv.contextoTocador.close().catch(() => {});
+    const contexto = new Contexto();
+    const analisador = contexto.createAnalyser();
+    analisador.fftSize = 256;
+    analisador.smoothingTimeConstant = 0.72;
+    contexto.createMediaElementSource(audio).connect(analisador);
+    analisador.connect(contexto.destination);
+    gv.contextoTocador = contexto;
+    audio.analisadorGv = analisador;
+    return analisador;
+  } catch (err) {
+    return null;
+  }
+}
+
+function animarTocadorGv() {
+  const audio = $("gv-audio");
+  const tela = document.querySelector("[data-gv-onda-tocador]");
+  if (!audio || !tela) { gv.quadroTocador = 0; return; }
+  const tocando = !audio.paused && !audio.ended;
+  let dados = null;
+  if (tocando && audio.analisadorGv) {
+    dados = new Uint8Array(audio.analisadorGv.frequencyBinCount);
+    audio.analisadorGv.getByteFrequencyData(dados);
+  }
+  desenharOnda(tela, dados, tocando);
+  gv.quadroTocador = tocando ? requestAnimationFrame(animarTocadorGv) : 0;
 }
 
 function irParaGv(segundo) {
@@ -1472,6 +1530,19 @@ async function guardarNotasGv(texto) {
   avisoCert("notas guardadas");
 }
 
+/* Ligar a gravação a um serviço sem abrir a gravação: pelo "⋯" da linha. */
+async function ligarGravacaoDaLista(g, servicoId) {
+  if ((g.servico_id || null) === servicoId) return;
+  const r = await fetch("/api/gravacoes/" + g.id, { method: "POST", headers: GV_JSON, body: JSON.stringify({ servico_id: servicoId }) });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const nova = await r.json();
+  const i = gv.lista.findIndex((x) => x.id === g.id);
+  if (i >= 0) gv.lista[i] = Object.assign({}, gv.lista[i], nova);
+  const servico = gv.servicos.find((x) => x.id === servicoId);
+  avisoCert(servico ? "“" + g.titulo + "” ligada a " + servico.nome : "“" + g.titulo + "” sem serviço", { tom: "ok" });
+  desenharGravacoes();
+}
+
 async function ligarGravacaoA(campo, valor) {
   const g = gv.aberta;
   const dados = {};
@@ -1505,6 +1576,8 @@ function menuDaGravacao(botao, g) {
   menuNaLinha(botao, [
     { rotulo: "Abrir", icone: "graphic_eq", acao: () => abrirGravacao(g.id) },
     { rotulo: "Renomear", icone: "edit", acao: () => renomearGravacao(g.id) },
+    { rotulo: "Ligar a um serviço", sub: [{ rotulo: "Sem serviço", atual: !g.servico_id, acao: () => ligarGravacaoDaLista(g, null) }, "-"]
+      .concat(gv.servicos.map((x) => ({ rotulo: x.nome, atual: x.id === g.servico_id, acao: () => ligarGravacaoDaLista(g, x.id) }))) },
     { rotulo: "Baixar o áudio", icone: "download", acao: () => baixarAudioGv(g) },
     "-",
     { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarGravacao(g) },

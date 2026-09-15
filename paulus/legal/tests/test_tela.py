@@ -948,7 +948,7 @@ def main() -> int:
                     pagina.evaluate(f"() => !!document.querySelector('[data-gv-abrir=\"{id_gravacao}\"] .gv-avatares .cad-avatar')"),
                     "a linha mostra os participantes",
                 )
-                pagina.evaluate("() => document.querySelector('.tabela-barra [data-gv-nova]').click()")
+                pagina.evaluate("() => document.querySelector('#acoes-tela [data-gv-nova]').click()")
                 pagina.wait_for_selector("[data-gv-comecar]", timeout=20000)
                 checar(
                     pagina.evaluate("() => !!document.querySelector('.gv-forma') && !!document.querySelector('.gv-adiante') && document.querySelectorAll('#gv-tela .gv-painel .painel-bloco').length === 4"),
