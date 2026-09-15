@@ -15,7 +15,6 @@ const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
   aberto: null, acervo: null,
   pedindo: false, salvando: false, escolhidos: new Set(), conversando: null, arquivosAbertos: false,
-  semPainel: false,
 };
 
 async function mostrarServicos(visao) {
@@ -72,7 +71,7 @@ function desenharServicos() {
   const topo = antes && sv.aberto && antes.dataset.svId === String(sv.aberto.id) ? antes.scrollTop : 0;
   let html;
   if (sv.visao === "trabalho") {
-    const classe = "acervo sv-tela sv-pasta-aberta" + (sv.semPainel ? " sem-painel" : "");
+    const classe = "acervo sv-tela sem-painel sv-pasta-aberta";
     html = '<div class="' + classe + '" id="sv-tela">' + corpoDoTrabalho() + "</div>";
   } else {
     const classe = "acervo sv-tela sem-painel";
@@ -110,9 +109,7 @@ function cabecalhoServicos() {
       '<button class="com-icone" data-sv-editar="1">' + ic("edit", 16) + "Editar</button>" +
       (s.status === "concluido"
         ? '<button class="com-icone" data-sv-status="andamento">' + ic("restart_alt", 16) + "Reabrir serviço</button>"
-        : '<button class="com-icone" data-sv-status="concluido">' + ic("task_alt", 16) + "Concluir serviço</button>") +
-      '<button class="botao-icone sv-alternar-painel" data-sv-painel="1" title="' + (sv.semPainel ? "Mostrar" : "Esconder") +
-      ' prazos, anotações e resumo" aria-label="Mostrar ou esconder o painel">' + ic("view_sidebar", 18) + "</button>";
+        : '<button class="com-icone" data-sv-status="concluido">' + ic("task_alt", 16) + "Concluir serviço</button>");
     return;
   }
   nav.innerHTML = "";
@@ -236,17 +233,18 @@ function haQuantoSv(iso) {
 
 /* ------------------------------------------------ a visao de trabalho */
 
-/* A PASTA ABERTA, NO DESENHO DO MODELO (A15 · Serviços v3). No centro, numa
-   medida de leitura: o que está sendo feito, a ficha em faixa (cliente,
-   status, aberto em, pasta no Acervo), a equipe, o status para conclusão e,
-   como já eram, o histórico do serviço (com o assistente) e os arquivos.
-   À direita, um cartão com prazos e agendamentos, anotações e o resumo da
-   IA — que se esconde pelo botão do cabeçalho. */
+/* A PASTA ABERTA, NO DESENHO DO MODELO (A15 · Serviços v3), SEM BARRA AO
+   LADO. Numa medida de leitura: o que está sendo feito, a ficha em faixa
+   (cliente, status, aberto em, pasta no Acervo), a equipe, o status para
+   conclusão, prazos e anotações lado a lado e, como já eram, o histórico do
+   serviço (com o assistente) e os arquivos. O resumo da IA abre no pop-up
+   do cabeçalho. */
 function corpoDoTrabalho() {
   const s = sv.aberto;
   return '<div class="acervo-principal sv-principal" data-sv-id="' + s.id + '"><div class="sv-medida">' +
-    aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) + cartaoDoHistorico(s) + cartaoDosArquivos(s) +
-    "</div></div>" + (sv.semPainel ? "" : painelDoServico(s));
+    aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
+    '<div class="sv-duas">' + secaoDosPrazos(s) + secaoDasAnotacoes(s) + "</div>" +
+    cartaoDoHistorico(s) + cartaoDosArquivos(s) + "</div></div>";
 }
 
 /* ------------------------------------------------------- a abertura */
@@ -536,12 +534,7 @@ function subDaEtapa(e) {
   return '<small class="' + classe + '">' + esc(texto) + "</small>";
 }
 
-/* ---------------------------------------------------------- o painel */
-
-function painelDoServico(s) {
-  return '<aside class="acervo-painel sv-painel"><div class="rolagem">' +
-    secaoDosPrazos(s) + secaoDasAnotacoes(s) + secaoDoResumo(s) + "</div></aside>";
-}
+/* ------------------------------------------- prazos e anotações */
 
 function quandoDoPrazoSv(p) {
   const dias = diasAte(p.quando);
@@ -568,21 +561,6 @@ function secaoDasAnotacoes(s) {
   return '<section class="sv-secao sv-anotacoes"><div class="sv-secao-cabeca"><span class="sv-kicker">Anotações</span>' +
     '<span class="sv-secao-meta">' + (s.anotacoes.length || "") + "</span></div>" + linhas +
     '<textarea class="sv-nova-nota" rows="1" placeholder="Nova anotação…  (Enter guarda)" data-sv-nota="1"></textarea></section>';
-}
-
-function secaoDoResumo(s) {
-  let corpo;
-  if (sv.pedindo) {
-    corpo = '<p class="sv-ev-pensando">' + coroa(14) + '<span data-sv-pensando="' + (sv.pedindoDesde || Date.now()) + '">lendo o que está gravado…</span></p>';
-  } else if (s.resumo) {
-    corpo = '<p class="sv-resumo-lateral">' + esc(s.resumo) + "</p>";
-  } else {
-    corpo = '<p class="sv-dica">Ainda sem resumo. O assistente lê o que está gravado na pasta e escreve onde o serviço está e o que falta.</p>';
-  }
-  return '<section class="sv-secao sv-resumo-secao"><div class="sv-secao-cabeca"><span class="sv-kicker">Resumo da IA</span>' +
-    '<span class="sv-secao-meta">' + (s.resumo_em ? esc(quandoCurtoSv(s.resumo_em)) : "") + "</span></div>" + corpo +
-    '<button type="button" class="sv-ligacao" data-sv-resumo-atualizar="1"' + (sv.pedindo ? " disabled" : "") + ">" +
-    ic("auto_awesome", 15) + (s.resumo ? "atualizar resumo" : "fazer um resumo") + "</button></section>";
 }
 
 /* ------------------------------------------------ o resumo da IA */
@@ -956,10 +934,8 @@ function ligarServicos() {
   if (conversa) conversa.onsubmit = (e) => { e.preventDefault(); conversarSobreServico(conversa.querySelector("[data-sv-pergunta]").value); };
   clique("[data-sv-arquivos-mais]", () => alternarArquivosDoServico());
   clique("[data-sv-etapa-data]", (b) => escolherPrazoDaEtapa(b));
-  clique("[data-sv-painel]", () => { sv.semPainel = !sv.semPainel; desenharServicos(); });
   const tempo = document.getElementById("sv-tempo");
   if (tempo) tempo.scrollTop = tempo.scrollHeight;
-  clique("[data-sv-resumo-atualizar]", () => pedirResumoDoServico());
   clique("[data-sv-status]", (b) => mudarStatusDoServico(sv.aberto.id, b.dataset.svStatus));
   clique("[data-sv-etapa]", (b) => alternarEtapa(Number(b.dataset.svEtapa)));
   clique("[data-sv-etapa-tirar]", (b) => tirarEtapa(Number(b.dataset.svEtapaTirar)));

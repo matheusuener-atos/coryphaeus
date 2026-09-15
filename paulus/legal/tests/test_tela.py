@@ -896,8 +896,8 @@ def main() -> int:
                     "o historico da pasta com os comandos e a caixa de pedido",
                 )
                 checar(
-                    pagina.evaluate("() => !!document.querySelector('.sv-medida .sv-ficha') && !!document.querySelector('.sv-medida .sv-equipe') && document.querySelectorAll('#sv-tela .sv-painel .sv-secao').length === 3"),
-                    "no centro a ficha e a equipe; no painel prazos, anotacoes e resumo",
+                    pagina.evaluate("() => !!document.querySelector('.sv-medida .sv-ficha') && !!document.querySelector('.sv-medida .sv-equipe') && document.querySelectorAll('#sv-tela .sv-duas .sv-secao').length === 2 && !document.querySelector('#sv-tela .acervo-painel')"),
+                    "sem barra ao lado: ficha, equipe, e prazos e anotacoes lado a lado na pagina",
                 )
                 checar(
                     pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-arquivos') && !!document.querySelector('[data-sv-resumo]')"),
