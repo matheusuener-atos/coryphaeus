@@ -73,6 +73,9 @@
     color: var(--ink2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none;
   }
   .voltar:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  /* Uma seta so: a tela que poe a sua (voltar as pastas) esconde a de voltar
+     ao inicio. Duas setas lado a lado nao diziam para onde cada uma ia. */
+  .conversa-topo:has(> .nav-tela > .voltar) > #voltar { display: none; }
   .conversa-acoes { display: flex; align-items: center; gap: 8px; flex: none; position: relative; }
   .conversa-acoes button { display: inline-flex; align-items: center; gap: 7px; height: 32px; border-radius: 8px; }
 

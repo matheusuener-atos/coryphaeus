@@ -14,7 +14,9 @@
              sugestoes, obrigatorio (padrao sim), selecionar (padrao sim),
              max (limite de caracteres) },
    o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga,
-   o.classe (uma classe a mais no cartao, para dialogos com miolo proprio).
+   o.classe (uma classe a mais no cartao, para dialogos com miolo proprio),
+   o.depois (HTML depois dos campos: listas, texto longo, botoes - o que
+   tiver `data-dialogo-chave` volta em `valores`).
 
    Enter confirma, Esc fecha, o foco fica preso dentro e volta para o
    elemento de origem ao fechar. So um dialogo aberto por vez. As teclas
@@ -55,7 +57,7 @@ function dialogo(o) {
       '<div class="dialogo-cabeca"><span class="dialogo-titulos"><h2 id="dialogo-titulo">' + esc(o.titulo || "") + "</h2>" +
       (o.contexto ? '<span class="dialogo-contexto">' + esc(o.contexto) + "</span>" : "") + "</span>" +
       '<button type="button" class="dialogo-fechar" data-dialogo="cancelar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-      '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + "</div>" +
+      '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + (o.depois || "") + "</div>" +
       '<div class="dialogo-pe"><span class="cresce"></span>' +
       '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
       '<button type="button" class="primario' + (o.perigo ? " perigo" : "") + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
@@ -95,13 +97,15 @@ function dialogo(o) {
         const alvo = e.target;
         if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogo === "cancelar") return;
         if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogoSugestao !== undefined) return;
+        // No texto longo, Enter quebra a linha.
+        if (alvo && alvo.tagName === "TEXTAREA") return;
         e.preventDefault();
         e.stopPropagation();
         confirmarAgora();
         return;
       }
       if (e.key === "Tab") {
-        const focaveis = Array.from(caixa.querySelectorAll("button:not(:disabled), input:not([type=hidden])"));
+        const focaveis = Array.from(caixa.querySelectorAll("button:not(:disabled), input:not([type=hidden]), select, textarea"));
         if (!focaveis.length) return;
         const i = focaveis.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); focaveis[focaveis.length - 1].focus(); }

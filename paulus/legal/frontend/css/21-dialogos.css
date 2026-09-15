@@ -48,6 +48,18 @@
   .dialogo-caixa .ic { color: var(--ink3); flex: none; }
   .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; height: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
   .dialogo-caixa input:focus { outline: none; box-shadow: none; border: none; }
+  /* Listas e texto longo dentro da mesma caixa dos campos. */
+  .dialogo-caixa select, .dialogo-caixa textarea {
+    flex: 1; min-width: 0; max-width: none; border: none; background: none; padding: 0; box-shadow: none; border-radius: 0;
+    font: 400 14px var(--sans); color: var(--ink);
+  }
+  .dialogo-caixa select { height: 100%; cursor: pointer; }
+  .dialogo-caixa select:focus, .dialogo-caixa textarea:focus { outline: none; box-shadow: none; border: none; }
+  .dialogo-caixa.texto-longo { height: auto; align-items: flex-start; padding-block: 10px; }
+  .dialogo-caixa textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+  .dialogo-duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .dialogo-servico .dialogo-corpo { gap: 16px; }
+  .dialogo-corpo p.dialogo-dica { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .dialogo-caixa input::selection { background: var(--ink-a25); color: var(--ink); }
   .dialogo-sufixo { font: 500 12.5px var(--sans); color: var(--ink3); flex: none; }
   .dialogo-dica { font: 500 12px/1.5 var(--sans); color: var(--ink3); }

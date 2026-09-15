@@ -17,6 +17,7 @@ function abrirTela(nome, opcoes) {
   $("compositor").hidden = true;
   $("conversa-titulo").textContent = nome;
   $("conversa-titulo").classList.remove("renomeavel");
+  renomeadorDoTitulo = null;
   $("conversa-titulo").removeAttribute("title");
   $("conversa-meta").textContent = "";
   $("apagar").hidden = true;

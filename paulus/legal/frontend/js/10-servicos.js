@@ -19,7 +19,7 @@ const sv = {
 async function mostrarServicos(visao) {
   if (visao) sv.visao = visao;
   if (sv.visao === "trabalho" && !sv.aberto) sv.visao = "pastas";
-  if (sv.visao === "pastas") { sv.ligar = false; sv.form = sv.form && !sv.form.id ? sv.form : null; }
+  if (sv.visao === "pastas") sv.ligar = false;
   abrirTela("Serviços", { cheia: true });
   marcarDestino("servicos");
   $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
@@ -51,7 +51,6 @@ async function mostrarServicos(visao) {
 async function abrirServico(id) {
   sv.aberto = { id: id };
   sv.aba = "geral";
-  sv.form = null;
   sv.ligar = false;
   await mostrarServicos("trabalho");
 }
@@ -72,8 +71,8 @@ function desenharServicos() {
     const classe = "acervo sv-tela" + (sv.largo ? " painel-largo" : "");
     html = '<div class="' + classe + '" id="sv-tela">' + corpoDoTrabalho() + painelDoTrabalho() + "</div>";
   } else {
-    const classe = "acervo sv-tela" + (sv.form ? (sv.largo ? " painel-largo" : "") : " sem-painel");
-    html = '<div class="' + classe + '" id="sv-tela">' + corpoDasPastas() + (sv.form ? painelDoFormServico() : "") + "</div>";
+    const classe = "acervo sv-tela sem-painel";
+    html = '<div class="' + classe + '" id="sv-tela">' + corpoDasPastas() + "</div>";
   }
   $("centro").innerHTML = html;
   ligarServicos();
@@ -94,6 +93,10 @@ function cabecalhoServicos() {
     const s = sv.aberto;
     nav.innerHTML = '<button class="voltar" data-sv-voltar="1" title="Voltar às pastas" aria-label="Voltar às pastas">' + ic("arrow_back", 18) + "</button>";
     titulo.textContent = s.nome;
+    // O nome da pasta se renomeia clicando nele, como o de uma conversa.
+    titulo.classList.add("renomeavel");
+    titulo.title = "Clique para renomear";
+    renomeadorDoTitulo = { limite: 80, guardar: (novo) => renomearServico(s, novo) };
     meta.textContent = (s.cliente_nome ? s.cliente_nome + " · " : "") + s.status_rotulo + " · " + s.progresso + "%";
     $("acoes-tela").innerHTML =
       '<div class="visoes">' + botao("aba", "geral", "Visão geral") + botao("aba", "arquivos", "Arquivos") + botao("aba", "trilha", "Trilha") + "</div>" +
@@ -105,6 +108,9 @@ function cabecalhoServicos() {
   }
   nav.innerHTML = "";
   titulo.textContent = "Serviços";
+  titulo.classList.remove("renomeavel");
+  titulo.removeAttribute("title");
+  renomeadorDoTitulo = null;
   const c = sv.contagem;
   meta.textContent = (c.andamento || 0) + " em andamento · " + (c.aguardando || 0) + " aguardando cliente · " + (c.concluidos || 0) + " concluídos";
   $("acoes-tela").innerHTML =
@@ -313,7 +319,6 @@ function cartaoDaTrilha(s) {
 function painelDoTrabalho() {
   const alca = '<button class="alca-painel" data-sv-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
     ic(sv.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
-  if (sv.form) return painelDoFormServico();
   if (sv.ligar) return painelDeLigar();
   const s = sv.aberto;
   return '<aside class="acervo-painel sv-painel">' + alca + '<div class="rolagem">' +
@@ -391,36 +396,94 @@ function painelDeLigar() {
 
 /* ------------------------------------------------------ o formulario */
 
-function formDoServico(s) {
-  return {
-    id: s ? s.id : null, nome: s ? s.nome : "", cadastro_id: s ? (s.cadastro_id || null) : null,
-    descricao: s ? (s.descricao || "") : "", status: s ? s.status : "andamento",
-    equipe: s ? s.equipe.map((p) => p.id) : [],
+/* NOVO SERVIÇO E EDITAR, NO POP-UP DO SISTEMA. Antes era uma coluna lateral
+   que empurrava as pastas; agora é o mesmo diálogo da conversa (Novo grupo,
+   Renomear): nome, cliente, status, o que está sendo feito e a equipe. */
+async function dialogoDoServico(s) {
+  const clientes = sv.clientes.filter((c) => c.tipo === "cliente");
+  const pessoas = sv.clientes.filter((c) => c.tipo === "colaborador" || c.tipo === "socio");
+  const equipe = s ? s.equipe.map((p) => p.id) : [];
+  const status = s ? s.status : "andamento";
+  const opcoesCliente = '<option value="">sem cliente</option>' + clientes.map((c) =>
+    '<option value="' + c.id + '"' + (s && c.id === s.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
+  const opcoesStatus = sv.status.map((x) =>
+    '<option value="' + x.valor + '"' + (x.valor === status ? " selected" : "") + ">" + esc(x.rotulo) + "</option>").join("");
+  const chips = pessoas.length
+    ? pessoas.map((p) => {
+      const classe = equipe.includes(p.id) ? "on" : "";
+      return '<button type="button" class="' + classe + '" data-sv-chip="' + p.id + '">' + esc(p.nome) + "</button>";
+    }).join("")
+    : '<span class="ag-vazio-chip">ninguém na equipe em Cadastros ainda</span>';
+  const html =
+    '<div class="dialogo-duas">' +
+    '<div class="dialogo-campo"><label for="sv-d-cliente">Cliente</label><div class="dialogo-caixa">' +
+    '<select id="sv-d-cliente" data-dialogo-chave="cadastro_id">' + opcoesCliente + "</select></div></div>" +
+    '<div class="dialogo-campo"><label for="sv-d-status">Status</label><div class="dialogo-caixa">' +
+    '<select id="sv-d-status" data-dialogo-chave="status">' + opcoesStatus + "</select></div></div></div>" +
+    '<div class="dialogo-campo"><label for="sv-d-descricao">O que está sendo feito</label><div class="dialogo-caixa texto-longo">' +
+    '<textarea id="sv-d-descricao" rows="3" data-dialogo-chave="descricao" placeholder="Aviso de não renovação, renegociação do contrato e aditivo com novo prazo.">' +
+    esc(s ? s.descricao || "" : "") + "</textarea></div></div>" +
+    '<div class="dialogo-campo"><label>Equipe — a primeira pessoa é a responsável</label>' +
+    '<div class="ag-chips" id="sv-d-equipe">' + chips + "</div>" +
+    '<input type="hidden" id="sv-d-equipe-ids" data-dialogo-chave="equipe" value="' + equipe.join(",") + '"></div>';
+
+  // Os botões da equipe entram depois que o diálogo existe.
+  setTimeout(() => {
+    const lugar = document.getElementById("sv-d-equipe");
+    const ids = document.getElementById("sv-d-equipe-ids");
+    if (!lugar || !ids) return;
+    lugar.querySelectorAll("[data-sv-chip]").forEach((b) => {
+      b.onclick = () => {
+        const id = Number(b.dataset.svChip);
+        const atuais = ids.value ? ids.value.split(",").map(Number) : [];
+        const novos = atuais.includes(id) ? atuais.filter((x) => x !== id) : atuais.concat([id]);
+        ids.value = novos.join(",");
+        b.classList.toggle("on", novos.includes(id));
+      };
+    });
+  }, 0);
+
+  const r = await dialogo({
+    titulo: s ? "Editar serviço" : "Novo serviço",
+    contexto: s ? "Serviços › " + s.nome : "Serviços",
+    campo: { rotulo: "Nome", valor: s ? s.nome : "", placeholder: "Renovação Fornecedor A", icone: "folder", max: 80 },
+    classe: "dialogo-servico",
+    larga: true,
+    depois: html + '<p class="dialogo-dica">' + (s ? "A trilha da pasta guarda a mudança." : "Arquivos, prazos e anotações entram depois, dentro da pasta.") + "</p>",
+    confirmar: s ? "Guardar" : "Abrir serviço",
+  });
+  if (!r || !r.ok) return;
+  const v = r.valores || {};
+  const dados = {
+    nome: r.valor, cadastro_id: Number(v.cadastro_id) || null, status: v.status || "andamento",
+    descricao: v.descricao || "", equipe: v.equipe ? v.equipe.split(",").map(Number) : [],
   };
+  const resposta = await fetch("/api/servicos", { method: "POST", headers: SV_JSON, body: JSON.stringify({ id: s ? s.id : null, dados: dados }) });
+  if (!resposta.ok) { avisoCert(await erroDe(resposta)); return; }
+  const salvo = await resposta.json();
+  if (s) {
+    avisoCert("serviço guardado");
+    if (sv.visao === "trabalho" && sv.aberto && sv.aberto.id === salvo.id) { sv.aberto = salvo; return mostrarServicos("trabalho"); }
+    return mostrarServicos("pastas");
+  }
+  avisoCert("serviço aberto: " + salvo.nome);
+  abrirServico(salvo.id);
 }
 
-function painelDoFormServico() {
-  const f = sv.form;
-  const clientes = sv.clientes.filter((c) => c.tipo === "cliente");
-  const equipe = sv.clientes.filter((c) => c.tipo === "colaborador" || c.tipo === "socio");
-  const opcoes = '<option value="">sem cliente</option>' + clientes.map((c) =>
-    '<option value="' + c.id + '"' + (c.id === f.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
-  const status = sv.status.map((x) => '<option value="' + x.valor + '"' + (x.valor === f.status ? " selected" : "") + ">" + esc(x.rotulo) + "</option>").join("");
-  const chips = equipe.length
-    ? equipe.map((p) => { const classe = f.equipe.includes(p.id) ? "on" : ""; return '<button type="button" class="' + classe + '" data-sv-chip="' + p.id + '">' + esc(p.nome) + "</button>"; }).join("")
-    : '<span class="ag-vazio-chip">ninguém na equipe em Cadastros ainda</span>';
-  return '<aside class="acervo-painel sv-painel"><div class="rolagem">' +
-    '<div class="painel-cabeca"><div class="titulo-painel"><h3>' + (f.id ? "Editar serviço" : "Novo serviço") + '</h3><div class="meta">' +
-    (f.id ? "a trilha guarda a mudança" : "uma pasta de trabalho com nome próprio") + "</div></div></div>" +
-    '<div class="ag-form">' +
-    '<div class="ag-campo"><label>Nome</label><input type="text" data-sv-campo="nome" value="' + esc(f.nome) + '" placeholder="Renovação Fornecedor A"></div>' +
-    '<div class="ag-duas"><div class="ag-campo"><label>Cliente</label><select data-sv-campo="cadastro_id">' + opcoes + "</select></div>" +
-    '<div class="ag-campo"><label>Status</label><select data-sv-campo="status">' + status + "</select></div></div>" +
-    '<div class="ag-campo"><label>O que está sendo feito</label><textarea rows="3" data-sv-campo="descricao" placeholder="Aviso de não renovação, renegociação do contrato e aditivo com novo prazo.">' + esc(f.descricao) + "</textarea></div>" +
-    '<div class="ag-campo"><label>Equipe — a primeira pessoa é a responsável</label><div class="ag-chips">' + chips + "</div></div>" +
-    '<div class="ag-form-rodape"><button class="primario" data-sv-salvar="1"' + (sv.salvando ? " disabled" : "") + ">" + (f.id ? "Guardar" : "Abrir serviço") + "</button>" +
-    '<button data-sv-cancelar="1">Cancelar</button><p class="ag-explica">Arquivos, prazos e anotações entram depois, dentro da pasta.</p></div>' +
-    "</div></div></aside>";
+/* O nome da pasta, escrito no próprio título. O resto da ficha vai junto
+   como está: o servidor grava a ficha inteira. */
+async function renomearServico(s, novo) {
+  const r = await fetch("/api/servicos", {
+    method: "POST", headers: SV_JSON,
+    body: JSON.stringify({ id: s.id, dados: {
+      nome: novo, cadastro_id: s.cadastro_id || null, descricao: s.descricao || "", status: s.status,
+      equipe: (s.equipe || []).map((p) => p.id),
+    } }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return false; }
+  const salvo = await r.json();
+  if (sv.aberto && sv.aberto.id === s.id) Object.assign(sv.aberto, { nome: salvo.nome });
+  return true;
 }
 
 /* ------------------------------------------------------------ ligar */
@@ -434,8 +497,8 @@ function ligarServicos() {
   }
   clique("[data-sv-filtro]", (b) => { sv.filtro = b.dataset.svFiltro; mostrarServicos("pastas"); });
   clique("[data-sv-aba]", (b) => { sv.aba = b.dataset.svAba; desenharServicos(); });
-  clique("[data-sv-voltar]", () => { sv.visao = "pastas"; sv.form = null; sv.ligar = false; mostrarServicos("pastas"); });
-  clique("[data-sv-novo]", () => { sv.form = formDoServico(null); sv.ligar = false; desenharServicos(); const c = document.querySelector('[data-sv-campo="nome"]'); if (c) c.focus(); });
+  clique("[data-sv-voltar]", () => { sv.visao = "pastas"; sv.ligar = false; mostrarServicos("pastas"); });
+  clique("[data-sv-novo]", () => dialogoDoServico(null));
   clique("[data-sv-abrir]", (b) => abrirServico(Number(b.dataset.svAbrir)));
   ligarSelecao(document.querySelector("#sv-tela .sv-grade"), {
     linhas: ".sv-pasta[data-sel]", escolhidos: sv.escolhidos, aoMudar: desenharServicos, apagar: (ids) => apagarServicosEmLote(ids),
@@ -466,19 +529,6 @@ function ligarServicos() {
   const nota = document.querySelector("[data-sv-nota]");
   if (nota) nota.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); anotarNoServico(nota.value); } };
   clique("[data-sv-alca]", () => { sv.largo = !sv.largo; desenharServicos(); });
-  document.querySelectorAll("[data-sv-campo]").forEach((el) => {
-    const guardar = () => { sv.form[el.dataset.svCampo] = el.dataset.svCampo === "cadastro_id" ? (Number(el.value) || null) : el.value; };
-    el.oninput = guardar;
-    el.onchange = guardar;
-    if (el.tagName === "INPUT") el.onkeydown = (e) => { if (e.key === "Enter") { guardar(); salvarServico(); } };
-  });
-  clique("[data-sv-chip]", (b) => {
-    const id = Number(b.dataset.svChip);
-    sv.form.equipe = sv.form.equipe.includes(id) ? sv.form.equipe.filter((x) => x !== id) : sv.form.equipe.concat([id]);
-    b.classList.toggle("on", sv.form.equipe.includes(id));
-  });
-  clique("[data-sv-salvar]", () => salvarServico());
-  clique("[data-sv-cancelar]", () => { sv.form = null; desenharServicos(); });
 }
 
 /* So o painel, para a busca do Acervo nao perder o foco a cada letra. */
@@ -495,7 +545,7 @@ function menuDoServico(botao, s) {
   if (!s) return;
   const itens = [
     { rotulo: "Abrir a pasta", icone: "folder_open", acao: () => abrirServico(s.id) },
-    { rotulo: "Editar", icone: "edit", acao: () => { sv.form = formDoServico(s); desenharServicos(); } },
+    { rotulo: "Editar", icone: "edit", acao: () => dialogoDoServico(s) },
     "-",
   ];
   sv.status.filter((x) => x.valor !== s.status).forEach((x) => {
@@ -503,25 +553,6 @@ function menuDoServico(botao, s) {
   });
   itens.push("-", { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarServico(s) });
   menuNaLinha(botao, itens);
-}
-
-async function salvarServico() {
-  const f = sv.form;
-  if (!f || sv.salvando) return;
-  if (!f.nome.trim()) { avisoCert("o serviço precisa de um nome"); return; }
-  sv.salvando = true;
-  const r = await fetch("/api/servicos", { method: "POST", headers: SV_JSON, body: JSON.stringify({ id: f.id, dados: f }) });
-  sv.salvando = false;
-  if (!r.ok) { avisoCert(await erroDe(r)); return; }
-  const s = await r.json();
-  sv.form = null;
-  if (f.id) {
-    avisoCert("serviço guardado");
-    if (sv.visao === "trabalho") { sv.aberto = s; return mostrarServicos("trabalho"); }
-    return mostrarServicos("pastas");
-  }
-  avisoCert("serviço aberto: " + s.nome);
-  abrirServico(s.id);
 }
 
 async function apagarServico(s) {
@@ -617,7 +648,6 @@ async function abrirLigarDoAcervo() {
     try { sv.acervo = (await (await fetch("/api/biblioteca")).json()).documentos || []; } catch (err) { sv.acervo = []; }
   }
   sv.ligar = true;
-  sv.form = null;
   sv.acervoTermo = "";
   desenharServicos();
   const el = document.querySelector("[data-sv-acervo-termo]");

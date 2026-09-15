@@ -506,10 +506,16 @@ const LIMITE_DE_NOME = 30;
    deixa escrever ali mesmo. Enter ou sair do campo guarda, Esc desiste. So
    vale com uma conversa aberta - nas outras telas o titulo e o nome da tela,
    e nao se renomeia "Financeiro". */
+/* Uma tela com nome próprio (a pasta aberta em Serviços) põe aqui como
+   guardar o nome e o limite dele; sem isso, o título renomeia a conversa. */
+let renomeadorDoTitulo = null;
+
 $("conversa-titulo").addEventListener("click", () => {
   const h = $("conversa-titulo");
   const id = estado.trabalhoId;
-  if (!h.classList.contains("renomeavel") || h.isContentEditable || !id) return;
+  const outro = renomeadorDoTitulo;
+  if (!h.classList.contains("renomeavel") || h.isContentEditable || (!id && !outro)) return;
+  const limite = outro ? outro.limite : LIMITE_DE_NOME;
   const antes = h.textContent;
   h.contentEditable = "plaintext-only";
   h.classList.add("editando");
@@ -530,9 +536,13 @@ $("conversa-titulo").addEventListener("click", () => {
     h.contentEditable = "false";
     h.classList.remove("editando");
     h.scrollLeft = 0;
-    const novo = h.textContent.replace(/\s+/g, " ").trim().slice(0, LIMITE_DE_NOME);
+    const novo = h.textContent.replace(/\s+/g, " ").trim().slice(0, limite);
     if (!guardar || !novo || novo === antes) { h.textContent = antes; return; }
     h.textContent = novo;
+    if (outro) {
+      if (!(await outro.guardar(novo))) h.textContent = antes;
+      return;
+    }
     const r = await fetch("/api/trabalhos/" + id + "/renomear", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ titulo: novo }),
@@ -556,7 +566,7 @@ $("conversa-titulo").addEventListener("click", () => {
     if (!e.inputType || !e.inputType.startsWith("insert")) return;
     const escolhido = String(window.getSelection() || "").length;
     const entra = (e.data || "").length || 1;
-    if (h.textContent.length - escolhido + entra > LIMITE_DE_NOME) e.preventDefault();
+    if (h.textContent.length - escolhido + entra > limite) e.preventDefault();
   };
   h.addEventListener("keydown", teclas);
   h.addEventListener("blur", sair);
