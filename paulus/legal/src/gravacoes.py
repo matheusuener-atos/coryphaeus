@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from datetime import datetime
 from html import escape as _esc
 from pathlib import Path
@@ -116,6 +117,7 @@ class Gravacoes:
         except json.JSONDecodeError:
             g["marcadores"] = []
         g["participantes_lista"] = [p.strip() for p in str(g.get("participantes") or "").split(",") if p.strip()]
+        g["anotacoes"] = anotacoes_de(g.get("notas"), g.get("criado_em", ""))
         g["existe"] = bool(g.get("arquivo")) and (self.pasta / g["arquivo"]).exists()
         # A transcricao inteira so vai quando a gravacao esta aberta: uma
         # audiencia de hora e meia sao mil trechos, e a lista nao precisa.
@@ -284,6 +286,85 @@ class Gravacoes:
             partes += ["<p>" + _esc(linha) + "</p>" for linha in g["notas"].split("\n") if linha.strip()]
         return g["titulo"], "".join(partes)
 
+    # anotacoes: as de Servicos - texto, quem e quando, editaveis e removiveis
+
+    def _anotacoes(self, id_: int) -> list[dict]:
+        g = self.base.um("SELECT notas, criado_em FROM gravacoes WHERE id = ?", (id_,))
+        if not g:
+            raise ValueError("gravação não encontrada")
+        return anotacoes_de(g["notas"], g["criado_em"])
+
+    def _gravar_anotacoes(self, id_: int, anotacoes: list[dict]) -> list[dict]:
+        self.base.escrever("UPDATE gravacoes SET notas = ? WHERE id = ?",
+                           (json.dumps(anotacoes, ensure_ascii=False) if anotacoes else "", id_))
+        return anotacoes
+
+    def anotar(self, id_: int, texto: str, quem: str = "") -> list[dict]:
+        texto = str(texto or "").strip()
+        if not texto:
+            raise ValueError("a anotação está vazia")
+        anotacoes = self._anotacoes(id_)
+        anotacoes.insert(0, {"quem": quem, "quando": _agora(), "texto": texto})
+        return self._gravar_anotacoes(id_, anotacoes)
+
+    def anotacao_editar(self, id_: int, indice: int, texto: str, quem: str = "") -> list[dict]:
+        """A anotacao reescrita ganha a data e a hora da edicao, como em Servicos."""
+        texto = str(texto or "").strip()
+        if not texto:
+            raise ValueError("a anotação está vazia")
+        anotacoes = self._anotacoes(id_)
+        if indice < 0 or indice >= len(anotacoes):
+            raise ValueError("anotação não encontrada")
+        a = anotacoes[indice]
+        if a.get("texto") != texto:
+            a.update({"texto": texto, "quando": _agora(), "editada": True, "editada_por": quem})
+        return self._gravar_anotacoes(id_, anotacoes)
+
+    def anotacao_remover(self, id_: int, indice: int) -> list[dict]:
+        anotacoes = self._anotacoes(id_)
+        if indice < 0 or indice >= len(anotacoes):
+            raise ValueError("anotação não encontrada")
+        anotacoes.pop(indice)
+        return self._gravar_anotacoes(id_, anotacoes)
+
+    # a pasta do audio
+
+    def mover_para(self, id_: int, pasta: Path | None) -> Path | None:
+        """
+        Leva o audio para outra pasta - a do servico a que a gravacao foi
+        ligada, ou de volta para a pasta das gravacoes (pasta=None). Na pasta
+        das gravacoes o nome fica relativo, como sempre foi; fora dela, o
+        caminho inteiro. Nome repetido no destino vira "(2)".
+        """
+        atual = self.caminho(id_)
+        if not atual:
+            return None
+        destino = Path(pasta) if pasta else self.pasta
+        destino.mkdir(parents=True, exist_ok=True)
+        if atual.parent.resolve() == destino.resolve():
+            return atual
+        alvo = destino / atual.name
+        n = 2
+        while alvo.exists():
+            alvo = destino / f"{atual.stem} ({n}){atual.suffix}"
+            n += 1
+        shutil.move(str(atual), str(alvo))
+        arquivo = alvo.name if destino.resolve() == self.pasta.resolve() else str(alvo)
+        self.base.escrever("UPDATE gravacoes SET arquivo = ? WHERE id = ?", (arquivo, id_))
+        return alvo
+
+    def trocar_pasta(self, antes: Path, depois: Path) -> int:
+        """A pasta de um servico mudou de nome: os audios que estavam nela vao junto."""
+        prefixo = str(antes)
+        trocados = 0
+        for g in self.base.buscar("SELECT id, arquivo FROM gravacoes WHERE arquivo LIKE ?", (prefixo + "%",)):
+            resto = g["arquivo"][len(prefixo):]
+            if resto and resto[0] not in "\\/":
+                continue
+            self.base.escrever("UPDATE gravacoes SET arquivo = ? WHERE id = ?", (str(depois) + resto, g["id"]))
+            trocados += 1
+        return trocados
+
     def guardar_resumo(self, id_: int, texto: str) -> None:
         self.base.escrever("UPDATE gravacoes SET resumo = ?, resumo_em = ? WHERE id = ?", (texto, _agora(), id_))
 
@@ -296,3 +377,22 @@ class Gravacoes:
             except OSError:
                 pass
         return apagou
+
+
+def anotacoes_de(notas: str | None, criado_em: str = "") -> list[dict]:
+    """
+    As anotacoes guardadas na coluna `notas`. Antes das anotacoes, a coluna
+    guardava um texto solto: ele vira a primeira anotacao, com a data da
+    gravacao, e nada se perde.
+    """
+    texto = str(notas or "").strip()
+    if not texto:
+        return []
+    if texto.startswith("["):
+        try:
+            valor = json.loads(texto)
+            if isinstance(valor, list):
+                return [a for a in valor if isinstance(a, dict) and a.get("texto")]
+        except json.JSONDecodeError:
+            pass
+    return [{"quem": "", "quando": criado_em or "", "texto": texto}]

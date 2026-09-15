@@ -5981,10 +5981,13 @@ def servicos_salvar(payload: FichaServico) -> dict:
         id_ = estado.servicos.salvar(payload.dados, payload.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    # Renomear o servico renomeou a pasta: os caminhos no indice mudaram.
+    # Renomear o servico renomeou a pasta: os caminhos no indice e os dos
+    # audios que moram nela mudaram.
     depois = estado.servicos.pasta_de(id_, criar=False)
-    if antes and depois and antes != depois and depois.is_dir() and any(depois.iterdir()):
-        estado.recarregar()
+    if antes and depois and antes != depois and depois.is_dir():
+        estado.gravacoes.trocar_pasta(antes, depois)
+        if any(depois.iterdir()):
+            estado.recarregar()
     return servicos_obter(id_)
 
 
@@ -5996,7 +5999,7 @@ def servicos_obter(id_: int) -> dict:
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
-    s["gravacoes"] = [g for g in estado.gravacoes.listar() if g.get("servico_id") == id_][:6]
+    s["gravacoes"] = [g for g in estado.gravacoes.listar() if g.get("servico_id") == id_]
     s["pasta_caminho"] = str(pasta) if pasta else ""
     return s
 
@@ -6418,7 +6421,10 @@ async def gravacoes_guardar(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     g = estado.gravacoes.obter(id_) or {}
     if g.get("servico_id"):
+        # Gravada ja ligada a um servico: o audio vai para a pasta dele.
+        _mover_audio_da_gravacao(id_, int(g["servico_id"]))
         estado.servicos.trilha(int(g["servico_id"]), "Gravação arquivada: " + g["titulo"])
+        g = estado.gravacoes.obter(id_) or g
     viva = estado.ao_vivo.pop(sessao, None) if sessao else None
     if viva is not None:
         # O que foi transcrito enquanto gravava ja serve; fecha o que sobrou.
@@ -6505,11 +6511,54 @@ def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
     return _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
 
 
+def _mover_audio_da_gravacao(id_: int, servico_id: int | None) -> None:
+    """
+    Ligar a gravacao a um servico leva o audio para a pasta do servico no
+    Acervo; desligar traz de volta para a pasta das gravacoes.
+    """
+    pasta = estado.servicos.pasta_de(servico_id, criar=True) if servico_id else None
+    try:
+        estado.gravacoes.mover_para(id_, pasta)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui mover o áudio: {exc}") from exc
+
+
 @app.post("/api/gravacoes/{id_}")
 def gravacoes_atualizar(id_: int, payload: dict) -> dict:
-    if not estado.gravacoes.atualizar(id_, payload):
+    antes = estado.gravacoes.obter(id_)
+    if not antes or not estado.gravacoes.atualizar(id_, payload):
         raise HTTPException(status_code=404, detail="gravação não encontrada")
-    return estado.gravacoes.obter(id_) or {}
+    depois = estado.gravacoes.obter(id_) or {}
+    if (antes.get("servico_id") or None) != (depois.get("servico_id") or None):
+        _mover_audio_da_gravacao(id_, depois.get("servico_id"))
+        if depois.get("servico_id"):
+            estado.servicos.trilha(int(depois["servico_id"]), "Gravação ligada: " + depois["titulo"])
+        depois = estado.gravacoes.obter(id_) or depois
+    return depois
+
+
+@app.post("/api/gravacoes/{id_}/anotacoes")
+def gravacoes_anotar(id_: int, payload: dict) -> dict:
+    try:
+        return {"anotacoes": estado.gravacoes.anotar(id_, str(payload.get("texto", "")), _quem_sou())}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/gravacoes/{id_}/anotacoes/{indice}")
+def gravacoes_anotacao_editar(id_: int, indice: int, payload: dict) -> dict:
+    try:
+        return {"anotacoes": estado.gravacoes.anotacao_editar(id_, indice, str(payload.get("texto", "")), _quem_sou())}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete("/api/gravacoes/{id_}/anotacoes/{indice}")
+def gravacoes_anotacao_remover(id_: int, indice: int) -> dict:
+    try:
+        return {"anotacoes": estado.gravacoes.anotacao_remover(id_, indice)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.delete("/api/gravacoes/{id_}")
@@ -6523,12 +6572,47 @@ def gravacoes_apagar(id_: int) -> dict:
     return _foi_para_lixeira(entrada, "apagada", id_)
 
 
+def _nome_para_baixar(id_: int, caminho: Path) -> str:
+    g = estado.gravacoes.obter(id_) or {}
+    titulo = re.sub(r'[\\/:*?"<>|]+', "-", str(g.get("titulo") or caminho.stem)).strip() or caminho.stem
+    return titulo + caminho.suffix.lower()
+
+
 @app.get("/api/gravacoes/{id_}/audio")
-def gravacoes_audio(id_: int) -> FileResponse:
+def gravacoes_audio(id_: int, baixar: int = 0) -> FileResponse:
     caminho = estado.gravacoes.caminho(id_)
     if not caminho:
         raise HTTPException(status_code=404, detail="o áudio não está mais no disco")
-    return FileResponse(caminho, media_type=gravacoes_mod.MEDIA_TYPES.get(caminho.suffix.lower(), "application/octet-stream"))
+    tipo = gravacoes_mod.MEDIA_TYPES.get(caminho.suffix.lower(), "application/octet-stream")
+    if baixar:
+        return FileResponse(caminho, media_type=tipo, filename=_nome_para_baixar(id_, caminho))
+    return FileResponse(caminho, media_type=tipo)
+
+
+@app.post("/api/gravacoes/{id_}/audio/salvar")
+def gravacoes_audio_salvar(id_: int, payload: dict) -> dict:
+    """Baixar o audio na janela do programa: o "Salvar como" do Windows escolhe onde, e aqui o arquivo e copiado."""
+    caminho = estado.gravacoes.caminho(id_)
+    if not caminho:
+        raise HTTPException(status_code=404, detail="o áudio não está mais no disco")
+    destino = Path(str(payload.get("caminho", "")))
+    if not destino.name:
+        raise HTTPException(status_code=400, detail="escolha onde salvar")
+    if not destino.suffix:
+        destino = destino.with_suffix(caminho.suffix)
+    try:
+        shutil.copy2(caminho, destino)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui salvar: {exc.strerror or exc}") from exc
+    return {"nome": destino.name, "caminho": str(destino)}
+
+
+@app.get("/api/gravacoes/{id_}/audio/nome")
+def gravacoes_audio_nome(id_: int) -> dict:
+    caminho = estado.gravacoes.caminho(id_)
+    if not caminho:
+        raise HTTPException(status_code=404, detail="o áudio não está mais no disco")
+    return {"nome": _nome_para_baixar(id_, caminho)}
 
 
 @app.post("/api/gravacoes/{id_}/corrigir")

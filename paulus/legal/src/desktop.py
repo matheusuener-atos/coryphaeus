@@ -104,10 +104,11 @@ class Ponte:
             return ""
         return escolha[0] if isinstance(escolha, (list, tuple)) else str(escolha)
 
-    def salvar_como(self, nome: str) -> str:
+    def salvar_como(self, nome: str, tipos: list | None = None) -> str:
         """
-        O "Salvar como" do Windows, para exportar a conversa. Markdown vem
-        primeiro na lista de tipos, e por isso e o padrao.
+        O "Salvar como" do Windows. Sem `tipos`, e o de exportar a conversa:
+        Markdown vem primeiro na lista, e por isso e o padrao. O audio de uma
+        gravacao manda os tipos dele.
         """
         import webview
 
@@ -119,7 +120,7 @@ class Ponte:
             tipo = webview.SAVE_DIALOG
         escolha = _JANELA.create_file_dialog(
             tipo, save_filename=nome,
-            file_types=("Markdown (*.md)", "Texto (*.txt)", "Documento do Word (*.docx)"),
+            file_types=tuple(tipos) if tipos else ("Markdown (*.md)", "Texto (*.txt)", "Documento do Word (*.docx)"),
         )
         if not escolha:
             return ""
