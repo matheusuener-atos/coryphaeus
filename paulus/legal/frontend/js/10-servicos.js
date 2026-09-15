@@ -261,7 +261,7 @@ function resumoNoTopo(s) {
       esc(s.descricao || "Ainda sem resumo. O assistente lê o que está gravado na pasta — etapas, prazos, anotações e o nome dos arquivos — e escreve onde o serviço está e o que falta.") + "</p>";
   }
   const quando = s.resumo_em && s.resumo ? '<small class="sv-resumo-quando">escrito ' + esc(quandoCurtoSv(s.resumo_em)) + "</small>" : "";
-  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2><span class="sv-faisca">' + ic("auto_awesome", 20) + "</span>Resumo da IA</h2>" + quando +
+  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Resumo da IA</h2>' + quando +
     '<button type="button" class="sv-ligacao" data-sv-resumo-atualizar="1"' + (sv.pedindo ? " disabled" : "") + ">" +
     ic("refresh", 15) + (s.resumo ? "atualizar resumo" : "fazer um resumo") + "</button></div>" + corpo + "</div>";
 }
