@@ -17,6 +17,9 @@ const gv = {
   visao: "lista", tipo: "", termo: "", lista: [], totalSegundos: 0, tipos: [], clientes: [], servicos: [], pasta: "",
   aberta: null, aba: "transcricao", velocidade: 1, marcarTexto: "", voz: null, relogioVoz: null, buscaTrecho: "", resumindo: false,
   escolhidas: new Set(),
+  // O tocador da lista: um só áudio, fora da página, a gravação que está nele
+  // e a forma da onda de cada uma, lida uma vez.
+  som: null, tocandoId: null, picos: {},
   vivo: {
     estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
     form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
@@ -194,7 +197,7 @@ function corpoDaListaGv() {
     const sub = [quandoDaGravacao(g), g.servico_nome ? "Serviço: " + g.servico_nome : "", !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
     const status = statusDaGravacao(g);
     const classe = "tabela-linha colunas-gravacoes" + (gv.escolhidas.has(String(g.id)) ? " escolhida" : "");
-    return '<div class="' + classe + '" data-gv-abrir="' + g.id + '" data-sel="' + g.id + '"><span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>" +
+    return '<div class="' + classe + '" data-gv-abrir="' + g.id + '" data-sel="' + g.id + '">' + iconeDaLinhaGv(g) +
       '<div class="duas-linhas"><b>' + esc(g.titulo) + "</b><small>" + esc(sub) + "</small></div>" + avataresGv(g.participantes_lista) +
       '<span class="gv-duracao">' + duracaoGv(g.duracao_s) + '</span><span class="fin-status">' + status + "</span>" +
       '<button class="mais-linha" data-gv-mais="' + g.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
@@ -207,7 +210,7 @@ function corpoDaListaGv() {
   const barra = gv.escolhidas.size
     ? barraDeSelecao(gv.escolhidas.size, true, '<button class="botao-icone perigo" data-gv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-gv-sel-limpar")
     : '<div class="ag-chips">' + chips + "</div>";
-  return '<div class="acervo-principal"><div class="tabela-cartao gv-lista">' +
+  return '<div class="acervo-principal">' + tocadorDaListaGv() + '<div class="tabela-cartao gv-lista">' +
     '<div class="tabela-barra">' + barra +
     '<div class="direita"><input type="file" id="gv-importar" hidden accept="audio/*,.webm,.ogg,.opus,.mp3,.m4a,.wav,.aac,.flac,.mp4">' +
     '<button data-gv-importar="1">' + ic("upload", 16) + 'Importar áudio</button><button class="primario" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button></div></div>" +
@@ -215,6 +218,192 @@ function corpoDaListaGv() {
     '<div class="tabela-corpo">' + linhaAoVivoGv() + linhas + vazio + "</div>" +
     '<div class="tabela-rodape"><span>' + lista.length + " de " + gv.lista.length + " · " + duracaoLongaGv(gv.totalSegundos) + ' gravados</span>' +
     '<span class="direita">' + esc(notaDaVoz()) + "</span></div></div></div>";
+}
+
+/* ------------------------------------------------ o tocador da lista */
+
+/* O TOCADOR DA LISTA. Fora de cartão, acima da tabela: a gravação escolhida
+   (a mais recente, até alguém tocar outra), a forma da onda — que se clica
+   para ir a um ponto —, o tempo e a velocidade. A linha que está tocando
+   mostra o equalizador. O áudio é um objeto só, fora da página: trocar o
+   filtro redesenha a lista sem cortar o som; sair da lista para. */
+const GV_BARRAS = 96;
+// Forma da onda só de gravação de até meia hora: ler o áudio inteiro de uma
+// audiência de três horas para desenhar barras não vale a memória.
+const GV_ONDA_ATE_S = 30 * 60;
+
+function somGv() {
+  if (!gv.som) {
+    const som = new Audio();
+    som.preload = "metadata";
+    som.ontimeupdate = () => pintarTocadorGv(false);
+    som.onplay = som.onpause = som.onended = () => pintarTocadorGv(true);
+    som.onerror = () => { if (som.getAttribute("src")) avisoCert("não consegui tocar o áudio — o formato pode não ser reconhecido por esta janela"); };
+    gv.som = som;
+  }
+  return gv.som;
+}
+
+function gravacaoDoTocadorGv() {
+  return gv.lista.find((g) => g.id === gv.tocandoId) || gv.lista.find((g) => g.existe);
+}
+
+function tocandoAgoraGv(id) {
+  return Boolean(gv.som && gv.tocandoId === id && !gv.som.paused);
+}
+
+function iconeDaLinhaGv(g) {
+  if (!g.existe) return '<span class="gv-ic-linha">' + ic("graphic_eq", 20) + "</span>";
+  const tocando = tocandoAgoraGv(g.id);
+  const classe = "gv-ic-linha" + (tocando ? " tocando" : "");
+  const parado = tocando ? '<span class="gv-ic-onda gv-eq"><i></i><i></i><i></i><i></i></span>' : '<span class="gv-ic-onda">' + ic("graphic_eq", 20) + "</span>";
+  return '<button type="button" class="' + classe + '" data-gv-tocar-linha="' + g.id + '" title="' + (tocando ? "Pausar" : "Tocar") + '">' +
+    parado + '<span class="gv-ic-tocar">' + ic(tocando ? "pause" : "play_arrow", 20) + "</span></button>";
+}
+
+function tocadorDaListaGv() {
+  const g = gravacaoDoTocadorGv();
+  if (!g) return "";
+  const som = gv.som;
+  const deste = Boolean(som && gv.tocandoId === g.id);
+  const tocando = tocandoAgoraGv(g.id);
+  const total = deste && isFinite(som.duration) && som.duration ? som.duration : g.duracao_s;
+  const agora = deste ? som.currentTime : 0;
+  const picos = gv.picos[g.id] || Array.from({ length: GV_BARRAS }, () => 0.14);
+  const tocadas = total ? Math.round((agora / total) * picos.length) : 0;
+  const barras = picos.map((p, i) => {
+    const classe = i < tocadas ? "tocada" : "";
+    return '<i class="' + classe + '" style="height:' + Math.max(10, Math.round(p * 100)) + '%"></i>';
+  }).join("");
+  const classe = "gv-radio" + (tocando ? " tocando" : "");
+  return '<div class="' + classe + '" id="gv-radio" data-gv-radio="' + g.id + '">' +
+    '<button class="gv-radio-tocar" data-gv-radio-tocar="1" title="' + (tocando ? "Pausar" : "Tocar") + '" aria-label="' + (tocando ? "Pausar" : "Tocar") + '">' +
+    ic(tocando ? "pause" : "play_arrow", 24) + "</button>" +
+    '<div class="duas-linhas gv-radio-titulo"><b>' + esc(g.titulo) + "</b><small>" + esc([quandoDaGravacao(g), statusDaGravacao(g)].filter(Boolean).join(" · ")) + "</small></div>" +
+    '<div class="gv-onda" data-gv-onda="1" title="Clique para ir a este ponto">' + barras + "</div>" +
+    '<span class="gv-radio-tempo"><span id="gv-radio-pos">' + duracaoGv(agora) + "</span> / " + duracaoGv(total) + "</span>" +
+    '<button class="gv-vel" data-gv-radio-vel="1" title="Velocidade">' + velocidadeGv() + "</button></div>";
+}
+
+/* O tempo e as barras andam sem redesenhar; tocar e pausar trocam os ícones
+   do tocador e das linhas. Sem o tocador na página, a lista foi embora:
+   o som para. */
+function pintarTocadorGv(mudouEstado) {
+  const som = gv.som;
+  const radio = document.getElementById("gv-radio");
+  if (!som) return;
+  if (!radio) { if (!som.paused) som.pause(); return; }
+  if (mudouEstado) {
+    redesenharTocadorGv();
+    document.querySelectorAll("[data-gv-tocar-linha]").forEach((b) => {
+      const g = gv.lista.find((x) => x.id === Number(b.dataset.gvTocarLinha));
+      if (g) b.outerHTML = iconeDaLinhaGv(g);
+    });
+    ligarLinhasDoTocadorGv();
+    return;
+  }
+  if (Number(radio.dataset.gvRadio) !== gv.tocandoId) return;
+  const g = gravacaoDoTocadorGv();
+  const total = isFinite(som.duration) && som.duration ? som.duration : (g ? g.duracao_s : 0);
+  const barras = radio.querySelectorAll(".gv-onda i");
+  const ate = total ? Math.round((som.currentTime / total) * barras.length) : 0;
+  barras.forEach((b, i) => b.classList.toggle("tocada", i < ate));
+  const pos = document.getElementById("gv-radio-pos");
+  if (pos) pos.textContent = duracaoGv(som.currentTime);
+}
+
+/* Trocar de tela para o tocador da lista - menos voltar à própria lista
+   (a busca, que redesenha tudo, não corta o som). A gravação aberta tem o
+   tocador dela. */
+function pararTocadorDaListaGv(tela) {
+  if (!gv.som || gv.som.paused) return;
+  if (tela === "Gravações" && gv.visao === "lista") return;
+  gv.som.pause();
+}
+
+function redesenharTocadorGv() {
+  const radio = document.getElementById("gv-radio");
+  if (!radio) return;
+  radio.outerHTML = tocadorDaListaGv();
+  ligarTocadorDaListaGv();
+}
+
+async function tocarNaListaGv(id, fracao) {
+  const som = somGv();
+  if (gv.tocandoId === id && som.getAttribute("src")) {
+    if (fracao !== undefined) {
+      const g = gravacaoDoTocadorGv();
+      const total = isFinite(som.duration) && som.duration ? som.duration : (g ? g.duracao_s : 0);
+      som.currentTime = fracao * total;
+      if (som.paused) som.play().catch(() => {});
+      pintarTocadorGv(false);
+    } else if (som.paused) som.play().catch(() => {});
+    else som.pause();
+    return;
+  }
+  gv.tocandoId = id;
+  som.src = "/api/gravacoes/" + id + "/audio";
+  som.playbackRate = gv.velocidade;
+  if (fracao !== undefined) som.onloadedmetadata = () => { som.onloadedmetadata = null; if (isFinite(som.duration)) som.currentTime = fracao * som.duration; };
+  som.play().catch(() => {});
+  redesenharTocadorGv();
+  carregarOndaGv(id);
+}
+
+/* A forma da onda: o áudio lido uma vez numa taxa baixa, o pico de cada
+   pedaço, em GV_BARRAS barras. Formato que a janela não lê fica com as
+   barras baixas - sem inventar onda. */
+async function carregarOndaGv(id) {
+  const g = gv.lista.find((x) => x.id === id);
+  if (!g || gv.picos[id] || !g.existe || (g.duracao_s || 0) > GV_ONDA_ATE_S || !window.OfflineAudioContext) return;
+  gv.picos[id] = null;
+  try {
+    const dados = await (await fetch("/api/gravacoes/" + id + "/audio")).arrayBuffer();
+    const buffer = await new OfflineAudioContext(1, 1, 8000).decodeAudioData(dados);
+    const canal = buffer.getChannelData(0);
+    const passo = Math.max(1, Math.floor(canal.length / GV_BARRAS));
+    const picos = [];
+    for (let b = 0; b < GV_BARRAS; b++) {
+      let maior = 0;
+      for (let i = b * passo, fim = Math.min(canal.length, (b + 1) * passo); i < fim; i++) {
+        const v = Math.abs(canal[i]);
+        if (v > maior) maior = v;
+      }
+      picos.push(maior);
+    }
+    const teto = Math.max(...picos) || 1;
+    gv.picos[id] = picos.map((p) => Math.sqrt(p / teto));
+  } catch (err) {
+    delete gv.picos[id];
+    return;
+  }
+  const radio = document.getElementById("gv-radio");
+  if (radio && Number(radio.dataset.gvRadio) === id) redesenharTocadorGv();
+}
+
+function ligarLinhasDoTocadorGv() {
+  document.querySelectorAll("[data-gv-tocar-linha]").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); tocarNaListaGv(Number(b.dataset.gvTocarLinha)); };
+  });
+}
+
+function ligarTocadorDaListaGv() {
+  const radio = document.getElementById("gv-radio");
+  if (!radio) return;
+  const id = Number(radio.dataset.gvRadio);
+  radio.querySelector("[data-gv-radio-tocar]").onclick = () => tocarNaListaGv(id);
+  const onda = radio.querySelector("[data-gv-onda]");
+  onda.onclick = (e) => {
+    const caixa = onda.getBoundingClientRect();
+    tocarNaListaGv(id, Math.max(0, Math.min(1, (e.clientX - caixa.left) / caixa.width)));
+  };
+  radio.querySelector("[data-gv-radio-vel]").onclick = (e) => {
+    const i = GV_VELOCIDADES.indexOf(gv.velocidade);
+    gv.velocidade = GV_VELOCIDADES[(i + 1) % GV_VELOCIDADES.length];
+    if (gv.som) gv.som.playbackRate = gv.velocidade;
+    e.currentTarget.textContent = velocidadeGv();
+  };
+  carregarOndaGv(id);
 }
 
 /* ---------------------------------------------------------- ao vivo */
@@ -734,6 +923,8 @@ function ligarGravacoes() {
   clique("[data-gv-vivo]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
   clique("[data-gv-tipo]", (b) => { gv.tipo = b.dataset.gvTipo; desenharGravacoes(); });
   clique("[data-gv-abrir]", (b) => abrirGravacao(Number(b.dataset.gvAbrir)));
+  ligarLinhasDoTocadorGv();
+  ligarTocadorDaListaGv();
   ligarSelecao(document.querySelector("#gv-tela .gv-lista .tabela-corpo"), {
     linhas: ".tabela-linha[data-sel]", escolhidos: gv.escolhidas, aoMudar: desenharGravacoes,
     apagar: (ids) => apagarGravacoesEmLote(ids), renomear: (id) => renomearGravacao(Number(id)),

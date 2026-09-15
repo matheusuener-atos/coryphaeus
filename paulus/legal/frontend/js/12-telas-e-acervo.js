@@ -7,6 +7,7 @@
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
   fecharEditorNaConversa();
+  pararTocadorDaListaGv(nome);
   guardarLugarDoAssistente();
   deixarDitadoPendente();
   transicaoDeTela("tela:" + nome);
