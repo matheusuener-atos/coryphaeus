@@ -45,7 +45,8 @@
   .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
 
   .sv-faisca { color: var(--destaque); display: inline-flex; }
-  .sv-resumo-texto { margin: 0; font: 400 17px/1.6 var(--serif); white-space: pre-line; }
+  /* O texto do resumo na letra do sistema, como o resto do pop-up. */
+  .sv-resumo-texto { margin: 0; font: 400 14px/1.65 var(--sans); color: var(--ink); white-space: pre-line; }
   .sv-resumo-texto.vazio { color: var(--ink2); }
   .sv-marca { border: none; background: none; padding: 0; color: var(--ink3); display: inline-flex; cursor: pointer; flex: none; }
   .sv-marca:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
