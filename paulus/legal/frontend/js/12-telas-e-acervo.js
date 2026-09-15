@@ -24,7 +24,7 @@ function abrirTela(nome, opcoes) {
   $("registro").hidden = true;
   $("agora").hidden = true;
   $("centro").classList.remove("prosa");
-  $("conversa-col").classList.remove("tela-dupla", "tela-editorial");
+  $("conversa-col").classList.remove("tela-dupla");
   $("conversa-col").classList.toggle("tela-cheia", Boolean(o.cheia));
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";

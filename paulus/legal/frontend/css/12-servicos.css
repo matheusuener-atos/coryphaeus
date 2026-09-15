@@ -5,43 +5,38 @@
     IA e etapas - com os arquivos embaixo e o painel de equipe, prazos,
     anotacoes e trilha. Prefixo sv-.
   */
-  /* A pagina editorial das pastas: sobretitulo, titulo grande, abertura e a
-     barra de filtros, e os cartoes em tres colunas. */
-  .sv-pagina { display: grid; gap: 0; align-content: start; }
-  .sv-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-content: start; }
+  .sv-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: start; }
   .sv-pasta {
-    display: flex; flex-direction: column; min-width: 0; min-height: 212px; padding: 20px 22px 16px; text-align: left;
-    border: 1px solid var(--hair); border-radius: 14px; background: var(--surf); cursor: pointer;
-    transition: border-color .16s ease;
+    display: grid; gap: 10px; min-width: 0; padding: 16px 18px; text-align: left;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); cursor: pointer;
   }
-  .sv-pasta:hover { border-color: var(--ink-a2); }
+  .sv-pasta:hover { border-color: var(--ink); }
   .sv-pasta.feita { color: var(--ink3); }
-  .sv-pasta-topo { display: flex; align-items: center; gap: 8px; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
-  .sv-ponto { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--ink3); }
-  .sv-ponto.andamento { background: var(--verde); }
-  .sv-ponto.aguardando { background: var(--ambar); }
-  .sv-ponto.revisao { background: var(--glifo-word); }
-  .sv-quando { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .sv-quando.perto { color: var(--ink); font-weight: 600; }
-  .sv-quando.atrasado { color: var(--acc); font-weight: 600; }
-  .sv-pasta-nome {
-    margin: 16px 0 3px; font: 400 21px/1.2 var(--serif); letter-spacing: -.005em; color: var(--ink);
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .sv-pasta.feita .sv-pasta-nome { color: var(--ink2); }
-  .sv-pasta-cliente { font: 400 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sv-pasta-texto {
-    margin: 14px 0 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2);
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  .sv-pasta-cabeca { display: flex; align-items: center; gap: 10px; }
+  .sv-pasta-cabeca > .ic { color: var(--ink3); flex: none; }
+  .sv-pasta-cabeca .duas-linhas b { font-weight: 600; font-size: 15px; }
+  .sv-pasta p {
+    margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   }
   .sv-pasta-pe {
-    position: relative; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--hair2);
-    display: flex; align-items: center; gap: 6px; color: var(--ink3);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 10px;
+    border-top: 1px solid var(--ink-a08); font: 500 12.5px var(--sans); color: var(--ink3);
   }
-  .sv-valor { font: 600 15px var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
-  .sv-valor.vazio { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .sv-pasta-pe .sv-mais { margin-left: auto; opacity: 0; transition: opacity .16s ease; }
-  .sv-pasta:hover .sv-mais, .sv-pasta .sv-mais:focus-visible { opacity: 1; }
+  .sv-pct { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .sv-pasta.feita .sv-pct { color: var(--ink3); }
+  .sv-avatares { display: flex; }
+  .sv-avatares .cad-avatar { width: 24px; height: 24px; font-size: 9.5px; border: 2px solid var(--surf); margin-left: -6px; }
+  .sv-avatares .cad-avatar:first-child { margin-left: 0; }
+  .sv-proximo { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .sv-proximo.atrasado { color: var(--acc); }
+  .sv-novo {
+    display: grid; place-items: center; align-content: center; gap: 6px; min-height: 180px; padding: 16px; text-align: center;
+    border: 1px dashed var(--ink-a25); border-radius: 12px; background: transparent; color: var(--ink2); cursor: pointer;
+  }
+  .sv-novo:hover:not(:disabled) { border: 1px dashed var(--ink); color: var(--ink); background: transparent; }
+  .sv-novo b { font: 600 13.5px var(--sans); }
+  .sv-novo small { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-vazio { grid-column: span 2; padding: 20px 22px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 8px; }
   .sv-vazio h3 { margin: 0; font: 400 24px/1.15 var(--serif); }
   .sv-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }

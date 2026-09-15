@@ -885,12 +885,8 @@ def main() -> int:
                 colunas = pagina.evaluate("() => getComputedStyle(document.querySelector('.sv-grade')).gridTemplateColumns.split(' ').length")
                 checar(colunas == 3, f"as pastas ficam em tres colunas (achou {colunas})")
                 checar(
-                    pagina.evaluate("() => document.querySelector('.pagina-titulo').textContent === 'Serviços' && !!document.querySelector('.pagina-abertura').textContent.trim() && document.querySelectorAll('.pagina-filtros .pilula').length === 4 && !!document.querySelector('.pagina-filtros .pilula.ativa') && !!document.querySelector('[data-sv-novo]')"),
-                    "a pagina editorial traz titulo, abertura, as quatro pilulas e Novo servico",
-                )
-                checar(
-                    pagina.evaluate("() => getComputedStyle(document.getElementById('conversa-topo')).display === 'none'"),
-                    "nas pastas o cabecalho da conversa sai de cena",
+                    pagina.evaluate("() => !!document.querySelector('.sv-novo') && document.getElementById('conversa-meta').textContent.includes('em andamento')"),
+                    "o cartao tracejado e a contagem do cabecalho aparecem",
                 )
                 pagina.evaluate(f"() => abrirServico({id_servico})")
                 pagina.wait_for_selector("#sv-tela .sv-trabalho", timeout=20000)
