@@ -337,7 +337,7 @@ def main() -> int:
                 "() => { const g = document.querySelector('.ag-semana');"
                 " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
             )
-            checar(colunas == 6, f"a semana tem a faixa de horas e cinco dias (achou {colunas})")
+            checar(colunas == 8, f"a semana tem a faixa de horas e os sete dias, como o mes (achou {colunas})")
             alturas = pagina.evaluate(
                 "() => [...document.querySelectorAll('.ag-semana-dias span')]"
                 ".map(e => Math.round(e.getBoundingClientRect().height))"
@@ -347,8 +347,8 @@ def main() -> int:
                 f"os cabecalhos da semana tem a mesma altura ({sorted(set(alturas))})",
             )
             checar(
-                pagina.evaluate("() => !!document.querySelector('#agenda .ag-form')"),
-                "a semana abre com o formulario de novo compromisso no painel",
+                pagina.evaluate("() => !!document.querySelector('#agenda .acervo-painel .painel-cabeca .ag-dia-titulo')"),
+                "a semana abre com o painel do dia, como o mes",
             )
 
             pagina.evaluate("() => document.querySelector('[data-visao=tarefas]').click()")

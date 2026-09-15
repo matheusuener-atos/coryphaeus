@@ -94,33 +94,39 @@
   .ag-legenda span { display: flex; align-items: center; gap: 7px; }
   .ag-legenda .ag-dica { margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
 
-  /* a semana: faixa de hora a esquerda, altura de hora fixa, so a grade rola */
-  .ag-semana-dias, .ag-dia-todo, .ag-semana { grid-template-columns: 64px repeat(5, minmax(0, 1fr)); }
-  .ag-semana-dias { flex: none; display: grid; border-bottom: 1px solid var(--ink-a1); }
-  .ag-semana-dias span.ag-hoje { color: var(--destaque); }
-  .ag-dia-todo { flex: none; display: grid; gap: 1px; background: var(--ink-a1); border-bottom: 1px solid var(--ink-a1); }
-  .ag-dia-todo > div { background: var(--surf); min-height: 30px; padding: 4px; display: grid; gap: 3px; align-content: start; }
-  .ag-dia-todo > .ag-rotulo-hora { padding: 6px 8px; }
-  .ag-rolagem { flex: 1; min-height: 0; overflow: auto; }
-  .ag-semana { display: grid; grid-auto-rows: 56px; gap: 1px; background: var(--ink-a1); }
-  .ag-rotulo-hora { background: var(--surf); padding: 6px 8px; font-size: 11.5px; color: var(--ink3); text-align: right; white-space: nowrap; }
-  .ag-hora-cel { background: var(--surf); min-height: 0; padding: 4px; display: flex; gap: 4px; cursor: pointer; }
-  .ag-hora-cel:hover { background: var(--bg); }
-  .ag-hora-cel.ag-hoje, .ag-dia-todo > div.ag-hoje { background: var(--destaque-fundo); }
-  .ag-bloco {
-    flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; background: var(--fill);
-    box-shadow: inset 2px 0 0 var(--ink); display: grid; gap: 1px; align-content: start; overflow: hidden; cursor: pointer;
+  /* A semana no desenho do mes: os sete dias com o numero num circulo, as
+     horas com um fio fino, sem grade pesada, e os blocos com o ponto do tipo.
+     So a grade das horas rola. */
+  .ag-semana-dias, .ag-dia-todo, .ag-semana { grid-template-columns: 56px repeat(7, minmax(0, 1fr)); padding: 0 10px; }
+  .ag-semana-dias { flex: none; display: grid; column-gap: 4px; padding-bottom: 8px; }
+  .ag-cartao-semana .ag-semana-dias span { padding: 0; }
+  .ag-semana-dia { display: grid; justify-items: center; gap: 4px; padding: 4px 0; border-radius: 12px; cursor: pointer; transition: background .15s; }
+  .ag-semana-dia:hover { background: var(--fill); }
+  .ag-semana-dia small { font: 600 11.5px var(--sans); color: var(--ink3); }
+  .ag-semana-dia b {
+    display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
+    font: 500 14px var(--sans); color: var(--ink); font-variant-numeric: tabular-nums;
   }
-  .ag-bloco small { font: 600 11px var(--sans); color: var(--ink2); }
+  .ag-semana-dia.ag-fds b { color: var(--ink2); }
+  .ag-semana-dia.ag-hoje b { box-shadow: inset 0 0 0 1.5px var(--destaque-linha); font-weight: 700; }
+  .ag-semana-dia.ag-escolhido b { background: var(--destaque); color: var(--bg); font-weight: 700; }
+  .ag-dia-todo { flex: none; display: grid; column-gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--ink-a08); }
+  .ag-dia-todo > div { min-height: 30px; padding: 2px 0; display: grid; gap: 3px; align-content: start; }
+  .ag-dia-todo > .ag-rotulo-hora { padding: 8px 8px 0 0; }
+  .ag-rolagem { flex: 1; min-height: 0; overflow: auto; }
+  .ag-semana { display: grid; grid-auto-rows: 52px; column-gap: 4px; padding-bottom: 8px; }
+  .ag-rotulo-hora { padding: 4px 8px 0 0; font: 500 11px var(--sans); color: var(--ink3); text-align: right; white-space: nowrap; border-top: 1px solid transparent; }
+  .ag-hora-cel { min-height: 0; padding: 3px 0; display: flex; gap: 3px; border-top: 1px solid var(--ink-a06); cursor: pointer; }
+  .ag-hora-cel:hover { background: var(--fill); border-radius: 6px; }
+  .ag-bloco {
+    flex: 1; min-width: 0; padding: 5px 8px; border-radius: 8px; background: var(--fill);
+    display: grid; gap: 1px; align-content: start; overflow: hidden; cursor: pointer;
+  }
+  .ag-bloco:hover { background: var(--act); }
+  .ag-bloco small { display: flex; align-items: center; gap: 5px; font: 600 11px var(--sans); color: var(--ink2); }
+  .ag-bloco small .ag-ponto { flex: none; }
   .ag-bloco span { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ag-bloco.ag-hoje { background: var(--act); }
-  .ag-bloco.ag-pagamento { background: var(--okbg); box-shadow: inset 2px 0 0 var(--verde); }
-  .ag-bloco.ag-pagamento small { color: var(--okt); }
-  .ag-bloco.ag-prazo { background: var(--accbg); box-shadow: inset 2px 0 0 var(--acc); }
-  .ag-bloco.ag-prazo small, .ag-bloco.ag-prazo span { color: var(--acc); }
-  .ag-bloco.ag-tarefa { box-shadow: inset 2px 0 0 var(--mute); }
-  .ag-bloco.ag-tarefa span { color: var(--ink3); }
-  .ag-bloco.ag-documento { box-shadow: inset 2px 0 0 var(--ambar); }
+  .ag-bloco.ag-tarefa span { color: var(--ink3); text-decoration: line-through; }
   .ag-fora-da-grade {
     flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px;
     border-top: 1px solid var(--ink-a1); font-size: 12.5px; color: var(--ink2);

@@ -150,7 +150,7 @@ async function mostrarAgenda(visao) {
   if (trocou) {
     ag.zoom = "dias";
     ag.form = null;
-    ag.painel = ag.visao === "tarefas" ? "tarefa" : (ag.visao === "semana" ? "form" : "dia");
+    ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
   }
   if (ag.painel === "form" && !ag.form) ag.form = compromissoEmBranco();
 
@@ -422,17 +422,22 @@ function marcaDoItem(x, dia) {
 
 /* Das 7 as 20, segunda a sexta: fora disso o escritorio raramente marca, e o
    que cair fora aparece numa faixa abaixo da grade em vez de sumir. */
+/* A SEMANA NO MESMO DESENHO DO MÊS. Os sete dias, com o número num círculo
+   (hoje com o fio de destaque, o dia escolhido cheio) - clicar escolhe o dia
+   e o painel mostra tudo dele. Embaixo, as horas com um fio fino, sem a
+   grade pesada; o que tem hora vira um bloco com o ponto do tipo, como no
+   mês. O que cai fora das 7 às 20 aparece numa faixa abaixo. */
 function vistaSemanaAgenda() {
   const seg = deIso(ag.semana);
   const hoje = iso(new Date());
   const g = ag.grade;
-  const dias = [0, 1, 2, 3, 4].map((i) => andarDias(seg, i));
+  const dias = [0, 1, 2, 3, 4, 5, 6].map((i) => andarDias(seg, i));
 
   const cabeca = '<div class="ag-semana-dias"><span></span>' + dias.map((d) => {
     const k = iso(d);
-    const classe = k === hoje ? "ag-hoje" : "";
-    return '<span class="' + classe + '">' + DIAS_CURTOS[(d.getDay() + 6) % 7] + " " + d.getDate() +
-      (k === hoje ? " · hoje" : "") + "</span>";
+    const fds = d.getDay() === 0 || d.getDay() === 6;
+    const classe = "ag-semana-dia" + (fds ? " ag-fds" : "") + (k === hoje ? " ag-hoje" : "") + (k === ag.dia ? " ag-escolhido" : "");
+    return '<span class="' + classe + '" data-ag-dia="' + k + '"><small>' + DIAS_CURTOS[(d.getDay() + 6) % 7] + "</small><b>" + d.getDate() + "</b></span>";
   }).join("") + "</div>";
 
   const semHora = dias.map((d) => (g.dias[iso(d)] || []).filter((x) => !x.hora));
@@ -440,8 +445,7 @@ function vistaSemanaAgenda() {
   if (semHora.some((l) => l.length)) {
     diaTodo = '<div class="ag-dia-todo"><div class="ag-rotulo-hora">dia todo</div>' + dias.map((d, i) => {
       const k = iso(d);
-      const classe = k === hoje ? "ag-hoje" : "";
-      return '<div class="' + classe + '">' + semHora[i].map((x) => blocoDaSemana(x, k)).join("") + "</div>";
+      return "<div>" + semHora[i].map((x) => blocoDaSemana(x, k)).join("") + "</div>";
     }).join("") + "</div>";
   }
 
@@ -450,8 +454,9 @@ function vistaSemanaAgenda() {
     grade += '<div class="ag-rotulo-hora">' + String(h).padStart(2, "0") + ":00</div>";
     dias.forEach((d) => {
       const k = iso(d);
+      const fds = d.getDay() === 0 || d.getDay() === 6;
       const naHora = (g.dias[k] || []).filter((x) => x.hora && Number(x.hora.split(":")[0]) === h);
-      const classe = "ag-hora-cel" + (k === hoje ? " ag-hoje" : "");
+      const classe = "ag-hora-cel" + (fds ? " ag-fds" : "");
       grade += '<div class="' + classe + '" data-ag-hora="' + k + "T" + String(h).padStart(2, "0") + ':00">' +
         naHora.map((x) => blocoDaSemana(x, k)).join("") + "</div>";
     });
@@ -459,17 +464,13 @@ function vistaSemanaAgenda() {
   grade += "</div></div>";
 
   const resto = [];
-  [5, 6].forEach((i) => {
-    const k = iso(andarDias(seg, i));
-    (g.dias[k] || []).forEach((x) => resto.push({ item: x, dia: k }));
-  });
   dias.forEach((d) => {
     const k = iso(d);
     (g.dias[k] || []).filter((x) => x.hora && (Number(x.hora.split(":")[0]) < HORA_INICIO ||
       Number(x.hora.split(":")[0]) > HORA_FIM)).forEach((x) => resto.push({ item: x, dia: k }));
   });
   const fora = resto.length
-    ? '<div class="ag-fora-da-grade"><b>Fora da grade</b>' + resto.map((r) => {
+    ? '<div class="ag-fora-da-grade"><b>Fora das 7h às 20h</b>' + resto.map((r) => {
         const chave = chaveDoItem(r.item);
         ag.itens[chave] = r;
         return '<span data-ag-item="' + esc(chave) + '">' + esc(diaCurto(r.dia)) +
@@ -480,18 +481,19 @@ function vistaSemanaAgenda() {
   const dom = andarDias(seg, 6);
   const tituloSemana = seg.getDate() + (seg.getMonth() !== dom.getMonth() ? " " + MESES_NOME[seg.getMonth()].slice(0, 3) : "") +
     " – " + dom.getDate() + " " + MESES_NOME[dom.getMonth()].slice(0, 3) + " " + dom.getFullYear();
-  return '<div class="ag-cartao">' + topoDoCalendario(tituloSemana) + cabeca + diaTodo + grade + fora +
-    legendaDaAgenda(["compromisso", "prazo", "pedido"], "Clique numa hora vazia para marcar") + "</div>";
+  return '<div class="ag-cartao ag-calendario ag-cartao-semana">' + topoDoCalendario(tituloSemana) + cabeca + diaTodo + grade + fora +
+    legendaDaAgenda(["compromisso", "prazo", "tarefa", "documento"], "Clique no dia para ver · clique numa hora vazia para marcar") + "</div>";
 }
 
 function blocoDaSemana(x, dia) {
   const chave = chaveDoItem(x);
   ag.itens[chave] = { item: x, dia: dia };
   const genero = generoDaMarca(x);
-  const classe = "ag-bloco ag-" + genero + (dia === iso(new Date()) && genero === "compromisso" ? " ag-hoje" : "");
-  const rotulo = { pagamento: "Pagamento", prazo: "Prazo", tarefa: "Tarefa", documento: "Documento" }[genero] || x.hora;
-  return '<div class="' + classe + '" data-ag-item="' + esc(chave) + '" title="' + esc(x.titulo) + '"><small>' +
-    esc(rotulo) + "</small><span>" + esc(x.titulo) + "</span></div>";
+  const classe = "ag-bloco ag-" + genero;
+  const ponto = "ag-ponto ag-" + genero;
+  const rotulo = x.hora || { prazo: "tarefa", tarefa: "feita", documento: "documento" }[genero] || "";
+  return '<div class="' + classe + '" data-ag-item="' + esc(chave) + '" title="' + esc((x.hora ? x.hora + " " : "") + x.titulo) + '">' +
+    '<small><i class="' + ponto + '"></i>' + esc(rotulo) + "</small><span>" + esc(x.titulo) + "</span></div>";
 }
 
 /* -------------------------------------------------------- as tarefas */
