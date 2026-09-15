@@ -352,9 +352,10 @@ function desenharAgenda() {
   if (ag.visao === "mes") principal = ag.zoom === "dias" ? vistaMes() : zoomDoCalendario();
   else if (ag.visao === "semana") principal = vistaSemanaAgenda();
   else principal = vistaTarefas();
-  const classe = "acervo agenda" + (ag.largo ? " painel-largo" : "");
+  const painel = painelDaAgenda();
+  const classe = "acervo agenda" + (painel ? "" : " sem-painel");
   $("centro").innerHTML = '<div class="' + classe + '" id="agenda"><div class="acervo-principal">' +
-    principal + "</div>" + painelDaAgenda() + "</div>";
+    principal + "</div>" + painel + "</div>";
   ligarAgenda();
 }
 
@@ -593,11 +594,14 @@ function botaoEstrela(t) {
 
 /* ---------------------------------------------------------- o painel */
 
+/* Mês e Semana não têm coluna: o dia abre num pop-up. A coluna só aparece
+   enquanto um compromisso (ou os prazos lidos nos documentos) está aberto, e
+   na visão Tarefas, com a ficha da tarefa. */
 function painelDaAgenda() {
   if (ag.painel === "form" && ag.form) return painelFormAgenda();
   if (ag.painel === "sugestoes") return painelSugestoes();
   if (ag.visao === "tarefas") return painelDaTarefa();
-  return painelDoDia();
+  return "";
 }
 
 /* O painel da Agenda tem a largura dele: a alça de alargar saiu. */
@@ -605,13 +609,12 @@ function alcaDoPainel() {
   return "";
 }
 
-function painelDoDia() {
-  const d = ag.diaAberto;
-  const titulo = maiuscula(diaPorExtenso(ag.dia));
-  if (!d || d.dia !== ag.dia) {
-    return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem"><div class="painel-vazio"><h3>' +
-      titulo + "</h3><p>abrindo o dia…</p></div></div></aside>";
-  }
+/* O DIA NUM POP-UP. Clicar num dia do mês ou da semana abre o que há nele
+   - compromissos e tarefas numa lista só, em ordem de hora -, com Adicionar
+   compromisso e Adicionar tarefa, e o botão de abrir o dia na outra visão da
+   Agenda. */
+function conteudoDoDia(d) {
+  const titulo = maiuscula(diaPorExtenso(d.dia));
   const comps = d.compromissos;
   const abertas = d.tarefas.filter((t) => !t.concluida);
   const feitas = d.tarefas.length - abertas.length;
@@ -649,22 +652,49 @@ function painelDoDia() {
   const comHora = linhas.concat(tarefas.filter((x) => x.hora)).sort((a, b) => a.hora.localeCompare(b.hora));
   const doDia = comHora.concat(tarefas.filter((x) => !x.hora));
 
-  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
-    // O sino fica a esquerda do titulo, como os icones dos outros cabecalhos.
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3 class="ag-dia-titulo">' +
-    '<span class="ag-sino" title="' + (comAviso ? plural(comAviso, "compromisso") + " com aviso" : "nenhum aviso marcado") + '">' +
-    ic("notifications", 16) + (comAviso ? "<i></i>" : "") + "</span>" + titulo + '</h3><span class="meta">' + meta + "</span></span></div>" +
+  return {
+    titulo: titulo,
+    meta: meta + (comAviso ? " · " + plural(comAviso, "compromisso") + " com aviso" : ""),
+    html: (doDia.length ? doDia.map((x) => x.html).join('<span class="ag-risco"></span>') : '<p class="nota">Nada neste dia.</p>') +
+      '<div class="ag-adicionar-dia"><button class="com-icone" data-ag-marcar="1">' + ic("event", 16) + "Adicionar compromisso</button>" +
+      '<button class="com-icone" data-ag-ir-tarefas="1">' + ic("task_alt", 16) + "Adicionar tarefa</button></div>",
+  };
+}
 
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compromissos e tarefas</span></div>' +
-    (doDia.length ? doDia.map((x) => x.html).join('<span class="ag-risco"></span>') : "<p>Nada neste dia.</p>") +
-    // Os dois caminhos, em botões iguais: o compromisso abre o formulário
-    // aqui no painel; a tarefa leva à visão Tarefas, já com a data do dia.
-    '<div class="ag-adicionar-dia"><button class="com-icone" data-ag-marcar="1">' + ic("event", 16) + "Adicionar compromisso</button>" +
-    '<button class="com-icone" data-ag-ir-tarefas="1">' + ic("task_alt", 16) + "Adicionar tarefa</button></div></div>" +
+async function abrirDiaNoPopup() {
+  const d = ag.diaAberto;
+  if (!d || d.dia !== ag.dia) return;
+  const x = conteudoDoDia(d);
+  const outra = ag.visao === "mes" ? "Abrir na semana" : "Abrir no mês";
+  const escolha = dialogo({
+    titulo: x.titulo, contexto: x.meta, classe: "dialogo-dia", larga: true,
+    html: '<div class="ag-dia-pop" id="ag-dia-pop">' + x.html + "</div>", cancelar: "Fechar", confirmar: outra,
+  });
+  const caixa = document.getElementById("ag-dia-pop");
+  if (caixa) {
+    ligarPainelDoDia(caixa);
+    // Concluir no pop-up refaz o pop-up, com a tarefa riscada.
+    caixa.querySelectorAll("[data-ag-concluir]").forEach((el) => {
+      el.onclick = async (e) => {
+        e.stopPropagation();
+        const t = d.tarefas.find((k) => k.id === Number(el.dataset.agConcluir));
+        if (!t) return;
+        await fetch("/api/tarefas/" + t.id + "/concluir", { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: !t.concluida }) });
+        await carregarDia();
+        recarregarAgenda().then(() => abrirDiaNoPopup());
+      };
+    });
+  }
+  const r = await escolha;
+  if (!r || !r.ok) return;
+  const alvo = deIso(ag.dia);
+  if (ag.visao === "mes") { ag.semana = iso(segundaDe(alvo)); mostrarAgenda("semana"); }
+  else { ag.mes = new Date(alvo.getFullYear(), alvo.getMonth(), 1); mostrarAgenda("mes"); }
+}
 
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Pedidos pelo link</span><span class="contagem">em breve</span></div>' +
-    "<p>Quando a sua página de agendamento existir, quem pedir horário por ela aparece aqui, com Aceitar e Propor outro horário.</p></div>" +
-    "</div></aside>";
+/* O que sai do pop-up para outra coisa (o formulário, a tarefa) fecha ele antes. */
+function fecharPopupDoDia() {
+  if (dialogoAberto && document.getElementById("ag-dia-pop")) dialogoAberto.fechar(null);
 }
 
 function painelFormAgenda() {
@@ -912,10 +942,11 @@ function ligarAgenda() {
 
 function desenharPainel() {
   const velho = document.querySelector("#agenda .acervo-painel");
-  if (!velho) return;
-  velho.insertAdjacentHTML("afterend", painelDaAgenda());
+  const novo = painelDaAgenda();
+  // A coluna aparece ou some: a tela inteira se refaz.
+  if (!velho || !novo) { desenharAgenda(); return; }
+  velho.insertAdjacentHTML("afterend", novo);
   velho.remove();
-  $("agenda").classList.toggle("painel-largo", ag.largo);
   ligarPainel();
 }
 
@@ -932,7 +963,6 @@ function ligarPainel() {
 async function fecharPainelDaAgenda() {
   ag.form = null;
   ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
-  if (ag.painel === "dia" && (!ag.diaAberto || ag.diaAberto.dia !== ag.dia)) await carregarDia();
   desenharPainel();
 }
 
@@ -944,10 +974,12 @@ async function escolherDia(dia) {
     el.classList.toggle("ag-escolhido", el.dataset.agDia === dia);
   });
   await carregarDia();
-  desenharPainel();
+  if (document.querySelector("#agenda .acervo-painel")) desenharPainel();
+  abrirDiaNoPopup();
 }
 
 function abrirFormAgenda(v) {
+  fecharPopupDoDia();
   ag.form = v;
   ag.painel = "form";
   desenharPainel();
@@ -972,6 +1004,7 @@ function abrirItem(chave) {
 
 /* A tarefa abre na visao Tarefas, no filtro em que ela esta. */
 function abrirTarefaNaAgenda(id, dia, concluida) {
+  fecharPopupDoDia();
   const hoje = iso(new Date());
   ag.tar.filtro = concluida ? "concluidas" : (dia && dia > hoje ? "planejadas" : "meu_dia");
   ag.tar.lista = "";
@@ -1035,6 +1068,7 @@ function ligarPainelDoDia(p) {
 /* Adicionar tarefa pelo dia: a visão Tarefas, no filtro em que a tarefa vai
    aparecer, com a caixa de adicionar já com a data do dia e o cursor nela. */
 async function adicionarTarefaNoDia(dia) {
+  fecharPopupDoDia();
   const hoje = iso(new Date());
   ag.tar.filtro = dia > hoje ? "planejadas" : "meu_dia";
   ag.tar.lista = "";

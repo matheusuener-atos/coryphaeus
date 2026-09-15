@@ -312,8 +312,8 @@ def main() -> int:
             )
             checar(colunas == 7, f"o mes abre em sete colunas (achou {colunas})")
             checar(
-                pagina.evaluate("() => !!document.querySelector('#agenda .acervo-painel .painel-cabeca')"),
-                "o painel do dia abre junto do mes",
+                pagina.evaluate("async () => { if (document.querySelector('#agenda .acervo-painel')) return false; document.querySelector('.ag-cel:not(.ag-fora)').click(); await new Promise(r => setTimeout(r, 900)); const ok = !!document.querySelector('.dialogo-dia #ag-dia-pop [data-ag-marcar]'); if (dialogoAberto) dialogoAberto.fechar(null); return ok; }"),
+                "o mes nao tem coluna e o dia abre num pop-up com o adicionar",
             )
 
             # Uma regra `.hoje { margin-top: 22px }` de outra tela ja fez a
@@ -347,8 +347,8 @@ def main() -> int:
                 f"os cabecalhos da semana tem a mesma altura ({sorted(set(alturas))})",
             )
             checar(
-                pagina.evaluate("() => !!document.querySelector('#agenda .acervo-painel .painel-cabeca .ag-dia-titulo')"),
-                "a semana abre com o painel do dia, como o mes",
+                pagina.evaluate("() => !document.querySelector('#agenda .acervo-painel') && document.getElementById('agenda').classList.contains('sem-painel')"),
+                "a semana tambem nao tem coluna, como o mes",
             )
 
             pagina.evaluate("() => document.querySelector('[data-visao=tarefas]').click()")
