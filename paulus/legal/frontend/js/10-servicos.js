@@ -15,7 +15,7 @@ const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
   aberto: null, acervo: null,
   pedindo: false, salvando: false, escolhidos: new Set(), conversando: null, arquivosAbertos: false,
-  semPainel: false, trilhaAberta: false,
+  semPainel: false,
 };
 
 async function mostrarServicos(visao) {
@@ -52,7 +52,6 @@ async function mostrarServicos(visao) {
 async function abrirServico(id) {
   sv.aberto = { id: id };
   sv.arquivosAbertos = false;
-  sv.trilhaAberta = false;
   await mostrarServicos("trabalho");
 }
 
@@ -239,14 +238,14 @@ function haQuantoSv(iso) {
 
 /* A PASTA ABERTA, NO DESENHO DO MODELO (A15 · Serviços v3). No centro, numa
    medida de leitura: o que está sendo feito, a ficha em faixa (cliente,
-   status, aberto em, pasta no Acervo), a equipe, o status para conclusão, o
-   histórico do serviço com os comandos e a caixa de pedido, e os arquivos.
+   status, aberto em, pasta no Acervo), a equipe, o status para conclusão e,
+   como já eram, o histórico do serviço (com o assistente) e os arquivos.
    À direita, um cartão com prazos e agendamentos, anotações e o resumo da
    IA — que se esconde pelo botão do cabeçalho. */
 function corpoDoTrabalho() {
   const s = sv.aberto;
   return '<div class="acervo-principal sv-principal" data-sv-id="' + s.id + '"><div class="sv-medida">' +
-    aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) + cartaoDoHistorico(s) + secaoDosArquivos(s) +
+    aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) + cartaoDoHistorico(s) + cartaoDosArquivos(s) +
     "</div></div>" + (sv.semPainel ? "" : painelDoServico(s));
 }
 
@@ -348,11 +347,9 @@ const COMECOS_DA_TRILHA = [
   ["Status: ", "status"], ["Equipe: ", "equipe"], ["Pergunta: ", "conversa"],
 ];
 
-/* Do mais novo para o mais antigo. Documentos anexados no mesmo dia, pela
-   mesma via, viram um evento só. */
 function eventosDoHistorico(s) {
   const saida = [];
-  s.trilha.forEach((e) => {
+  s.trilha.slice().reverse().forEach((e) => {
     let tipo = e.tipo;
     let dados = e.dados || null;
     if (!tipo) {
@@ -364,9 +361,9 @@ function eventosDoHistorico(s) {
       }
     }
     dados = dados || {};
+    // Documentos anexados no mesmo dia viram uma lista só.
     const anterior = saida[saida.length - 1];
-    if (tipo === "arquivo" && anterior && anterior.tipo === "arquivo" && anterior.quem === e.quem &&
-        anterior.quando.slice(0, 10) === e.quando.slice(0, 10)) {
+    if (tipo === "arquivo" && anterior && anterior.tipo === "arquivo" && anterior.quando.slice(0, 10) === e.quando.slice(0, 10)) {
       anterior.itens.push(dados);
       return;
     }
@@ -375,81 +372,93 @@ function eventosDoHistorico(s) {
   return saida;
 }
 
-function linhaDoHistorico(icone, titulo, ev, sub, modo) {
-  const quando = ev.quando ? quandoCurtoSv(ev.quando) + (ev.quem ? " · " + ev.quem : "") : "agora";
-  const classe = "sv-ev sv-ev-" + ev.tipo + (modo ? " " + modo : "");
-  return '<div class="' + classe + '"><span class="sv-ev-ic">' + ic(icone, 15) + "</span>" +
-    '<div class="sv-ev-corpo"><b>' + esc(titulo) + "</b>" + (sub ? "<small>" + sub + "</small>" : "") + "</div>" +
-    '<span class="sv-ev-quando">' + esc(quando) + "</span></div>";
+function linhaDoHistorico(icone, titulo, ev, extra) {
+  const quando = quandoCurtoSv(ev.quando) + (ev.quem ? " · " + ev.quem : "");
+  const classe = "sv-ev sv-ev-" + ev.tipo;
+  return '<div class="' + classe + '"><span class="sv-ev-ic">' + ic(icone, 16) + "</span>" +
+    '<div class="sv-ev-corpo"><div class="sv-ev-topo"><b>' + esc(titulo) + "</b><small>" + esc(quando) + "</small></div>" +
+    (extra || "") + "</div></div>";
 }
 
-function eventoDoHistorico(ev, s, ultimoResumo) {
+function eventoDoHistorico(ev, s, usadas, ultimoResumo) {
   const d = ev.dados;
-  const aspas = (t) => "“" + (t || "") + "”";
   switch (ev.tipo) {
     case "criado": {
       const resto = ev.texto.replace(/^Serviço aberto\s*/, "");
-      return linhaDoHistorico("create_new_folder", "Abriu o serviço", ev, resto ? esc(maiuscula(resto)) : "");
+      return linhaDoHistorico("create_new_folder", "Serviço criado", ev, resto ? '<p class="sv-ev-texto">' + esc(maiuscula(resto)) + "</p>" : "");
     }
     case "arquivo": {
-      const via = ev.quem === "Pasta do serviço" ? "posto na pasta do serviço" : "copiado para a pasta do serviço";
-      if (ev.itens.length === 1) return linhaDoHistorico("attach_file", "Anexou " + ev.itens[0].nome, ev, via);
-      return linhaDoHistorico("attach_file", "Anexou " + plural(ev.itens.length, "documento"), ev, esc(ev.itens.map((a) => a.nome).join(", ")));
+      const linhas = ev.itens.map((a) => {
+        const noAcervo = (sv.acervo || []).some((x) => x.sha1 === a.sha1) || (s.arquivos || []).some((x) => x.sha1 === a.sha1 || x.nome === a.nome);
+        const alvo = a.sha1 ? ' data-sv-arquivo="' + esc(a.sha1) + '"' : "";
+        return '<button type="button" class="sv-ev-doc"' + alvo + (noAcervo && a.sha1 ? "" : " disabled") + ">" + glifo(a.nome) +
+          '<span class="corta">' + esc(a.nome) + "</span></button>";
+      }).join("");
+      const titulo = ev.itens.length === 1 ? "Documento anexado" : plural(ev.itens.length, "documento anexado", "documentos anexados");
+      return linhaDoHistorico("attach_file", titulo, ev, '<div class="sv-ev-docs">' + linhas + "</div>");
     }
-    case "etapa": return linhaDoHistorico("add_task", "Adicionou a etapa " + aspas(d.titulo), ev, d.quando ? "até " + dataCurta(d.quando) : "");
-    case "etapa_feita": return linhaDoHistorico("task_alt", "Concluiu a etapa " + aspas(d.titulo), ev);
-    case "etapa_reaberta": return linhaDoHistorico("replay", "Reabriu a etapa " + aspas(d.titulo), ev);
-    case "etapa_removida": return linhaDoHistorico("remove_circle_outline", "Removeu a etapa " + aspas(d.titulo), ev);
-    case "etapa_prazo": return linhaDoHistorico("event", "Mudou o prazo de " + aspas(d.titulo), ev, d.quando ? "até " + dataCurta(d.quando) : "sem prazo");
-    case "etapa_responsavel":
-      return linhaDoHistorico("person", d.responsavel ? "Passou " + aspas(d.titulo) + " para " + d.responsavel : "Tirou o responsável de " + aspas(d.titulo), ev);
-    case "etapa_renomeada": return linhaDoHistorico("edit", "Renomeou a etapa para " + aspas(d.titulo), ev, d.antes ? "antes: " + esc(d.antes) : "");
-    case "arquivo_desligado": return linhaDoHistorico("link_off", "Desligou " + d.nome, ev, "o arquivo continua no Acervo");
-    case "anotacao": return linhaDoHistorico("edit_note", "Deixou uma anotação", ev, esc(d.texto), "sv-ev-longo");
+    case "etapa": {
+      const i = s.etapas.findIndex((e, k) => e.titulo === d.titulo && !usadas.has(k));
+      if (i < 0) return linhaDoHistorico("add_task", "Etapa adicionada", ev, '<p class="sv-ev-texto riscado">' + esc(d.titulo) + " · removida depois</p>");
+      usadas.add(i);
+      const e = s.etapas[i];
+      const classe = "sv-ev-tarefa" + (e.feita ? " feita" : "");
+      return linhaDoHistorico("add_task", "Etapa adicionada", ev,
+        '<button type="button" class="' + classe + '" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir" : "Marcar como concluída") + '">' +
+        ic(e.feita ? "check_circle" : "radio_button_unchecked", 20) + '<span class="duas-linhas"><b>' + esc(e.titulo) + "</b>" + subDaEtapa(e) + "</span></button>");
+    }
+    case "etapa_feita": return linhaDoHistorico("task_alt", "Etapa concluída: " + d.titulo, ev);
+    case "etapa_reaberta": return linhaDoHistorico("replay", "Etapa reaberta: " + d.titulo, ev);
+    case "etapa_removida": return linhaDoHistorico("remove_circle_outline", "Etapa removida: " + d.titulo, ev);
+    case "etapa_prazo": return linhaDoHistorico("event", d.quando ? "Prazo da etapa: " + d.titulo + " · até " + dataCurta(d.quando) : "Etapa sem prazo: " + d.titulo, ev);
+    case "etapa_responsavel": return linhaDoHistorico("person", d.responsavel ? d.titulo + " · com " + d.responsavel : d.titulo + " · sem responsável", ev);
+    case "etapa_renomeada": return linhaDoHistorico("edit", "Etapa renomeada: " + d.titulo, ev, d.antes ? '<p class="sv-ev-texto riscado">' + esc(d.antes) + "</p>" : "");
+    case "arquivo_desligado": return linhaDoHistorico("link_off", "Documento desligado: " + d.nome, ev);
+    case "anotacao": return linhaDoHistorico("edit_note", "Anotação", ev, '<p class="sv-ev-citacao">' + esc(d.texto) + "</p>");
     case "resumo": {
       const texto = d.texto || (ultimoResumo ? s.resumo : "");
-      return linhaDoHistorico("auto_awesome", "Escreveu o resumo da pasta", ev, esc(texto), "sv-ev-longo");
+      return linhaDoHistorico("auto_awesome", "Resumo do assistente", ev, texto ? '<p class="sv-ev-resposta">' + esc(texto) + "</p>" : "");
     }
     case "conversa":
-      return linhaDoHistorico("forum", d.pergunta || d.texto || "Pergunta sobre o serviço", ev, esc(d.resposta || ""), "sv-ev-resposta");
-    case "status": return linhaDoHistorico("flag", "Marcou como " + ev.texto.replace(/^Status:\s*/, "").toLowerCase(), ev);
-    case "equipe": return linhaDoHistorico("group", "Mudou a equipe", ev, esc(ev.texto.replace(/^Equipe:\s*/, "")));
+      return linhaDoHistorico("forum", "Pergunta sobre o serviço", ev,
+        '<p class="sv-ev-pergunta">' + esc(d.pergunta || d.texto || "") + "</p>" +
+        (d.resposta ? '<p class="sv-ev-resposta">' + esc(d.resposta) + "</p>" : ""));
+    case "status": return linhaDoHistorico("flag", ev.texto, ev);
+    case "equipe": return linhaDoHistorico("group", ev.texto, ev);
     default: return linhaDoHistorico("history", ev.texto, ev);
   }
 }
 
-/* As últimas à vista; "trilha completa" abre o resto. */
-const EVENTOS_A_VISTA = 5;
-
 function cartaoDoHistorico(s) {
   const eventos = eventosDoHistorico(s);
-  const ultimoResumo = eventos.findIndex((e) => e.tipo === "resumo");
-  const mostrar = sv.trilhaAberta ? eventos : eventos.slice(0, EVENTOS_A_VISTA);
-  let linhas = "";
-  // O que está sendo pedido agora entra no alto, andando.
-  const pensando = (desde, texto) => '<span class="sv-ev-pensando">' + coroa(14) + '<span data-sv-pensando="' + desde + '">' + texto + "</span></span>";
+  const usadas = new Set();
+  const ultimoResumo = eventos.map((e) => e.tipo).lastIndexOf("resumo");
+  let linhas = eventos.map((ev, i) => eventoDoHistorico(ev, s, usadas, i === ultimoResumo)).join("");
+  // O que está sendo pedido agora entra no fim, andando.
   if (sv.conversando) {
-    linhas += linhaDoHistorico("forum", sv.conversando.pergunta, { tipo: "conversa pendente" }, pensando(sv.conversando.desde, "pensando…"));
+    linhas += '<div class="sv-ev sv-ev-conversa pendente"><span class="sv-ev-ic">' + ic("forum", 16) + "</span>" +
+      '<div class="sv-ev-corpo"><div class="sv-ev-topo"><b>Pergunta sobre o serviço</b><small>agora</small></div>' +
+      '<p class="sv-ev-pergunta">' + esc(sv.conversando.pergunta) + "</p>" +
+      '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + sv.conversando.desde + '">pensando…</span></p></div></div>';
   }
   if (sv.pedindo) {
-    linhas += linhaDoHistorico("auto_awesome", "Escrevendo o resumo da pasta", { tipo: "resumo pendente" }, pensando(sv.pedindoDesde || Date.now(), "lendo o que está gravado…"));
+    linhas += '<div class="sv-ev sv-ev-resumo pendente"><span class="sv-ev-ic">' + ic("auto_awesome", 16) + "</span>" +
+      '<div class="sv-ev-corpo"><div class="sv-ev-topo"><b>Resumo do assistente</b><small>agora</small></div>' +
+      '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + (sv.pedindoDesde || Date.now()) + '">lendo o que está gravado na pasta…</span></p></div></div>';
   }
-  linhas += mostrar.map((ev) => eventoDoHistorico(ev, s, eventos.indexOf(ev) === ultimoResumo)).join("");
   const ocupado = Boolean(sv.conversando || sv.pedindo);
   const comando = (chave, icone, rotulo) => '<button type="button" class="sv-comando" data-sv-comando="' + chave + '"' + (ocupado && chave !== "assistente" ? " disabled" : "") + ">" +
-    ic(icone, 15) + rotulo + "</button>";
-  const trilha = eventos.length > EVENTOS_A_VISTA
-    ? '<button type="button" class="sv-ligacao" data-sv-trilha="1">' + (sv.trilhaAberta ? "só as últimas" + ic("expand_less", 15) : "trilha completa" + ic("arrow_forward", 15)) + "</button>"
-    : "";
-  return '<section class="sv-historico"><div class="sv-historico-cabeca"><h3>Histórico do serviço</h3><small>' + plural(eventos.length, "evento") + "</small></div>" +
-    '<div class="sv-tempo">' + (linhas || '<p class="sv-dica">Nada aconteceu ainda.</p>') + "</div>" +
-    '<div class="sv-comandos">' + comando("falta", "check", "O que falta?") + comando("assistente", "forum", "Perguntar no Assistente") +
-    (s.cadastro_id ? comando("cobrar", "payments", "Cobrar") : "") + trilha + "</div>" +
+    ic(icone, 16) + rotulo + "</button>";
+  return '<section class="fin-cartao sv-historico"><div class="fin-cartao-cabeca"><span>' + ic("history", 16) +
+    "Histórico do serviço</span><small>" + plural(eventos.length, "evento") + "</small></div>" +
+    '<div class="sv-tempo" id="sv-tempo">' + (linhas || '<p class="nota">Nada aconteceu ainda.</p>') + "</div>" +
+    '<div class="sv-conversa"><div class="sv-comandos">' +
+    comando("falta", "checklist", "O que falta?") +
+    comando("assistente", "forum", "Perguntar no Assistente") +
+    (s.cadastro_id ? comando("cobrar", "payments", "Cobrar") : "") + "</div>" +
     '<form class="sv-caixa" data-sv-conversa="1"><input type="text" data-sv-pergunta="1" placeholder="Pergunte algo sobre este serviço…"' + (ocupado ? " disabled" : "") + ">" +
-    '<button class="enviar" type="submit" title="Enviar" aria-label="Enviar"' + (ocupado ? " disabled" : "") + ">" + ic("arrow_upward", 16) + "</button></form></section>";
+    '<button class="enviar" type="submit" title="Enviar" aria-label="Enviar"' + (ocupado ? " disabled" : "") + ">" + ic("arrow_upward", 18) + "</button></form></div></section>";
 }
-
-/* ------------------------------------------------------ os arquivos */
 
 /* Os arquivos da pasta sao apontadores para o Acervo: a ficha de cada um
    (tipo, paginas, analise) vem de la, pelo sha1. */
@@ -462,54 +471,69 @@ function arquivoDoAcervo(a) {
   return doc ? Object.assign({}, doc, { sha1: a.sha1, ligado_em: a.criado_em, nome: doc.nome || a.nome }) : Object.assign({ existe: false, ligado_em: a.criado_em }, a);
 }
 
-const ARQUIVOS_A_VISTA = 4;
+/* Três à vista e "Ver mais" com o resto, como as conversas recentes do
+   Assistente. */
+const ARQUIVOS_A_VISTA = 3;
 
-function secaoDosArquivos(s) {
+function cartaoDosArquivos(s) {
   const todos = s.arquivos.map(arquivoDoAcervo);
   const mostrar = sv.arquivosAbertos ? todos : todos.slice(0, ARQUIVOS_A_VISTA);
   const linhas = mostrar.map((a) => {
     const sub = [a.tipo_rotulo, a.paginas ? plural(a.paginas, "página") : "", a.analise ? "analisado" : "", a.existe === false ? "não está mais no Acervo" : ""]
       .filter(Boolean).join(" · ");
-    return '<div class="sv-arquivo" data-sv-arquivo="' + esc(a.sha1) + '">' + glifo(a.nome) +
+    return '<div class="tabela-linha colunas-sv-arquivos" data-sv-arquivo="' + esc(a.sha1) + '">' + glifo(a.nome) +
       '<div class="duas-linhas"><b>' + esc(a.nome) + "</b><small>" + esc(sub || "no Acervo") + "</small></div>" +
       '<span class="sv-data">' + esc(a.modificado || quandoCurtoSv(a.ligado_em)) + "</span>" +
-      '<button class="mais-linha" data-sv-arquivo-mais="' + esc(a.sha1) + '" title="Mais">' + ic("more_horiz", 16) + "</button></div>";
+      '<button class="mais-linha" data-sv-arquivo-mais="' + esc(a.sha1) + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
-  const resto = todos.length - ARQUIVOS_A_VISTA;
-  const verMais = resto > 0
-    ? '<button type="button" class="sv-ligacao sv-arquivos-pe" data-sv-arquivos-mais="1">' +
-      (sv.arquivosAbertos ? "ver menos" + ic("expand_less", 15) : "ver " + (resto === 1 ? "o outro arquivo" : "os outros " + resto + " arquivos") + ic("arrow_forward", 15)) + "</button>"
+  const verMais = todos.length > ARQUIVOS_A_VISTA
+    ? '<div class="sv-arquivos-pe"><button class="ver-mais" data-sv-arquivos-mais="1">' +
+      (sv.arquivosAbertos ? "Ver menos" + ic("expand_less", 16) : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA) + ic("chevron_right", 16)) + "</button></div>"
     : "";
-  const conta = (todos.length ? todos.length + " · " : "") + "pasta " + (s.pasta || s.nome);
-  return '<section class="sv-secao sv-arquivos" id="sv-arquivos"><div class="sv-secao-cabeca"><span class="sv-kicker">Arquivos</span>' +
-    '<span class="sv-secao-meta corta">' + esc(conta) + "</span>" +
-    '<button type="button" class="sv-ligacao" data-sv-ligar="1">' + ic("add", 15) + "Adicionar</button></div>" +
-    '<div class="sv-arquivos-corpo">' + (linhas || '<p class="sv-dica">Nenhum arquivo ainda. Adicionar copia o documento para a pasta ' +
-      esc("Serviços › " + (s.pasta || s.nome)) + " no Acervo — o original fica onde está. O que for posto nessa pasta pelo Windows entra aqui sozinho.</p>") + "</div>" +
-    verMais + "</section>";
+  // "2 documentos · 7 páginas": a conta que diz o tamanho da pasta. O nome
+  // da pasta do disco era ruído de caminho, não informação.
+  const paginas = todos.reduce((soma, a) => soma + (Number(a.paginas) || 0), 0);
+  const conta = todos.length ? plural(todos.length, "documento") + (paginas ? " · " + plural(paginas, "página") : "") : "nenhum documento";
+  return '<div class="tabela-cartao sv-arquivos" id="sv-arquivos"><div class="tabela-barra"><b>Arquivos</b><span class="nota-barra">' + esc(conta) + "</span>" +
+    '<div class="direita"><button data-sv-ligar="1">' + ic("add", 16) + "Adicionar</button></div></div>" +
+    '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum arquivo ainda. Adicionar copia o documento para a pasta ' +
+      esc("Serviços › " + (s.pasta || s.nome)) + ' no Acervo — o original fica onde está. O que for posto nessa pasta pelo Windows entra aqui sozinho.</p>') + "</div>" +
+    verMais + "</div>";
 }
 
 /* Abrir e recolher a lista andam, como o "Ver mais" do Assistente. */
 function alternarArquivosDoServico() {
   const velho = document.getElementById("sv-arquivos");
   if (!velho) return;
-  const antes = velho.querySelector(".sv-arquivos-corpo").offsetHeight;
+  const corpoVelho = velho.querySelector(".tabela-corpo");
+  const antes = corpoVelho.offsetHeight;
   sv.arquivosAbertos = !sv.arquivosAbertos;
-  velho.outerHTML = secaoDosArquivos(sv.aberto);
+  velho.outerHTML = cartaoDosArquivos(sv.aberto);
   ligarServicos();
-  const corpo = document.querySelector("#sv-arquivos .sv-arquivos-corpo");
+  const corpo = document.querySelector("#sv-arquivos .tabela-corpo");
   if (!corpo || !animacoesLigadas()) return;
   const depois = corpo.offsetHeight;
   corpo.style.overflow = "hidden";
   corpo.animate([{ height: antes + "px" }, { height: depois + "px" }], { duration: 420, easing: CURVA_ENTRA })
     .onfinish = () => { corpo.style.overflow = ""; };
   if (sv.arquivosAbertos) {
-    corpo.querySelectorAll(".sv-arquivo").forEach((linha, i) => {
+    corpo.querySelectorAll(".tabela-linha").forEach((linha, i) => {
       if (i < ARQUIVOS_A_VISTA || i > 14) return;
       linha.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
         { duration: 360, delay: 60 + (i - ARQUIVOS_A_VISTA) * 26, easing: CURVA_ENTRA, fill: "backwards" });
     });
   }
+}
+
+/* A linha de baixo da etapa, no histórico. Prazo que já passou, com a etapa
+   aberta, sai em vinho e escrito: "atrasado". */
+function subDaEtapa(e) {
+  const atrasada = !e.feita && e.quando && diasAte(e.quando) < 0;
+  const classe = atrasada ? "sv-atrasada" : "";
+  const texto = e.feita
+    ? "concluído · " + quandoCurtoSv(e.feita_em) + (e.por ? " · " + e.por : "")
+    : (e.quando ? "até " + dataCurta(e.quando) + (atrasada ? " · atrasado" : "") : "a fazer");
+  return '<small class="' + classe + '">' + esc(texto) + "</small>";
 }
 
 /* ---------------------------------------------------------- o painel */
@@ -933,7 +957,8 @@ function ligarServicos() {
   clique("[data-sv-arquivos-mais]", () => alternarArquivosDoServico());
   clique("[data-sv-etapa-data]", (b) => escolherPrazoDaEtapa(b));
   clique("[data-sv-painel]", () => { sv.semPainel = !sv.semPainel; desenharServicos(); });
-  clique("[data-sv-trilha]", () => { sv.trilhaAberta = !sv.trilhaAberta; desenharServicos(); });
+  const tempo = document.getElementById("sv-tempo");
+  if (tempo) tempo.scrollTop = tempo.scrollHeight;
   clique("[data-sv-resumo-atualizar]", () => pedirResumoDoServico());
   clique("[data-sv-status]", (b) => mudarStatusDoServico(sv.aberto.id, b.dataset.svStatus));
   clique("[data-sv-etapa]", (b) => alternarEtapa(Number(b.dataset.svEtapa)));
