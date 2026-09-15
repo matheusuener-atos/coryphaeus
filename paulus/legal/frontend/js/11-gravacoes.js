@@ -77,6 +77,7 @@ function desenharGravacoes() {
   ligarGravacoes();
   atualizarPostura();
   vigiarVoz();
+  if (gv.visao === "vivo") animarEqualizadorVivo();
 }
 
 /* ------------------------------------------------------------ tempo */
@@ -133,11 +134,7 @@ function cabecalhoGravacoes() {
     nav.innerHTML = voltar;
     titulo.textContent = v.estado === "pronto" ? "Nova gravação" : (v.form.titulo || tituloPadraoGv(v.form));
     meta.textContent = v.estado === "pronto" ? "microfone desta máquina · o áudio fica só aqui" : metaAoVivo();
-    $("acoes-tela").innerHTML =
-      '<div class="visoes">' + botao("vivo", "Ao vivo") + botao("transcricao", "Transcrição") + botao("resumo", "Resumo") + "</div>" +
-      (v.estado === "pronto"
-        ? '<button class="primario com-icone" data-gv-comecar="1">' + ic("mic", 16) + "Começar a gravar</button>"
-        : '<button class="primario com-icone" data-gv-parar="1"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic("stop_circle", 16) + "Parar e arquivar</button>");
+    $("acoes-tela").innerHTML = '<div class="visoes">' + botao("vivo", "Ao vivo") + botao("transcricao", "Transcrição") + "</div>";
     return;
   }
   if (gv.visao === "gravacao" && gv.aberta) {
@@ -409,64 +406,130 @@ function ligarTocadorDaListaGv() {
 /* ---------------------------------------------------------- ao vivo */
 
 function corpoAoVivo() {
-  const v = gv.vivo;
-  let gravador;
-  if (v.estado === "pronto") gravador = formaDaGravacao();
-  else {
-    const classe = "gv-estado" + (v.estado === "pausada" ? " parada" : "");
-    const rotulo = v.estado === "pausada" ? "Pausada" : (v.estado === "salvando" ? "Guardando o áudio…" : "Gravando");
-    gravador = '<div class="fin-cartao"><div class="gv-gravador">' +
-      '<span class="' + classe + '"><i class="gv-pulso"></i>' + rotulo + "</span>" +
-      '<div class="gv-tempo" id="gv-tempo">' + duracaoGv(segundosGravados()) + "</div>" +
-      '<span class="meta">' + esc((v.form.titulo || tituloPadraoGv(v.form)) + " · " + plural(v.marcadores.length, "marcador", "marcadores") + " · microfone desta máquina") + "</span>" +
-      '<div class="gv-controles">' +
-      '<button class="gv-redondo" data-gv-pausar="1" title="' + (v.estado === "pausada" ? "Continuar" : "Pausar") + '"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic(v.estado === "pausada" ? "play_arrow" : "pause", 22) + "</button>" +
-      '<button class="gv-redondo primario" data-gv-parar="1" title="Parar e arquivar"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic("stop", 26) + "</button>" +
-      '<button class="gv-redondo" data-gv-marcar-vivo="1" title="Marcar momento"' + (v.estado === "salvando" ? " disabled" : "") + ">" + ic("bookmark_add", 22) + "</button></div>" +
-      '<p class="gv-aviso">Avise os participantes de que a reunião está sendo gravada. O áudio fica só nesta máquina; trocar de tela não interrompe a gravação.</p>' +
-      "</div></div>";
-  }
-  const transcricao = cartaoAoVivo();
-  return '<div class="acervo-principal">' + gravador + transcricao + "</div>";
+  return '<div class="acervo-principal gv-vivo">' + cartaoDoGravadorGv() + cartaoDosDetalhesGv() + cartaoAoVivo() + "</div>";
 }
 
-function formaDaGravacao() {
+/* O GRAVADOR É O CARTÃO DO DITADO DA CONVERSA: o estado e o tempo em cima,
+   o equalizador do microfone no meio (em pausa, as barras deitam), uma
+   linha de rodapé e as ações embaixo — Começar a gravar, e depois Pausar,
+   Marcar momento e Parar e arquivar. */
+function cartaoDoGravadorGv() {
+  const v = gv.vivo;
+  const nomes = { pronto: "Pronto para gravar", gravando: "Gravando", pausada: "Gravação em pausa", salvando: "Guardando o áudio…" };
+  const salvando = v.estado === "salvando";
+  const botao = (dado, icone, rotulo, classe) => '<button class="' + (classe || "fantasma") + '" ' + dado + '="1"' + (salvando ? " disabled" : "") + ">" +
+    ic(icone, 16) + rotulo + "</button>";
+  const acoes = v.estado === "pronto"
+    ? '<span class="gv-vivo-dica">Avise os participantes de que a conversa está sendo gravada.</span>' + botao("data-gv-comecar", "mic", "Começar a gravar", "primario")
+    : botao("data-gv-pausar", v.estado === "pausada" ? "play_arrow" : "pause", v.estado === "pausada" ? "Continuar" : "Pausar") +
+      botao("data-gv-marcar-vivo", "bookmark_add", "Marcar momento") +
+      botao("data-gv-parar", "stop_circle", "Parar e arquivar", "primario");
+  const modo = { pronto: "pronto", gravando: "ouvindo", pausada: "pausado", salvando: "finalizando" }[v.estado];
+  const classe = "cartao-agora ditado-cartao gv-vivo-cartao " + modo;
+  return '<div class="' + classe + '">' +
+    '<div class="cabeca">' + (salvando ? coroa(20) : ic("mic", 20)) + '<span class="nome">' + nomes[v.estado] + "</span>" +
+    '<span class="ditado-tempo" id="gv-tempo">' + duracaoGv(segundosGravados()) + "</span></div>" +
+    '<canvas class="ditado-onda" data-gv-onda-vivo="1"></canvas>' +
+    (v.erro ? '<div class="gv-erro">' + esc(v.erro) + "</div>" : "") +
+    (v.estado === "pronto" ? "" : '<div class="rodape" id="gv-vivo-rodape">' + esc(rodapeDoGravadorGv()) + "</div>") +
+    '<div class="acoes">' + acoes + "</div></div>";
+}
+
+function rodapeDoGravadorGv() {
+  const v = gv.vivo;
+  if (v.estado === "pronto") return "microfone desta máquina · o áudio fica só aqui";
+  return (v.form.titulo || tituloPadraoGv(v.form)) + " · " + plural(v.marcadores.length, "marcador", "marcadores") + " · trocar de tela não interrompe a gravação";
+}
+
+/* O que se sabe da gravação, num cartão à parte. Vale mudar durante a
+   gravação: tudo entra no arquivo ao parar e arquivar. */
+function cartaoDosDetalhesGv() {
   const f = gv.vivo.form;
   const tipos = gv.tipos.map((t) => { const classe = t.valor === f.tipo ? "on" : ""; return '<button type="button" class="' + classe + '" data-gv-form-tipo="' + t.valor + '">' + esc(t.rotulo) + "</button>"; }).join("");
   const clientes = '<option value="">sem cliente</option>' + gv.clientes.map((c) => '<option value="' + c.id + '"' + (c.id === f.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
-  const servicos = '<option value="">sem serviço</option>' + gv.servicos.map((s) => '<option value="' + s.id + '"' + (s.id === f.servico_id ? " selected" : "") + ">" + esc(s.nome) + "</option>").join("");
-  return '<div class="fin-cartao"><div class="gv-gravador">' +
-    '<span class="gv-estado pronta"><i class="gv-pulso"></i>Pronto para gravar</span>' +
-    '<div class="gv-tempo">0:00</div>' +
-    (gv.vivo.erro ? '<div class="gv-erro">' + esc(gv.vivo.erro) + "</div>" : "") +
+  const servicos = '<option value="">sem serviço</option>' + gv.servicos.map((x) => '<option value="' + x.id + '"' + (x.id === f.servico_id ? " selected" : "") + ">" + esc(x.nome) + "</option>").join("");
+  return '<div class="fin-cartao gv-detalhes"><div class="fin-cartao-cabeca"><span>Detalhes da gravação</span><small>entram no arquivo ao parar e arquivar</small></div>' +
     '<div class="gv-forma">' +
     '<div class="ag-campo"><label>Título</label><input type="text" data-gv-form="titulo" value="' + esc(f.titulo) + '" placeholder="' + esc(tituloPadraoGv(f)) + '"></div>' +
-    '<div class="ag-campo"><label>Tipo</label><div class="ag-chips">' + tipos + "</div></div>" +
-    '<div class="ag-duas"><div class="ag-campo"><label>Cliente</label><select data-gv-form="cadastro_id">' + clientes + "</select></div>" +
-    '<div class="ag-campo"><label>Serviço</label><select data-gv-form="servico_id">' + servicos + "</select></div></div>" +
     '<div class="ag-campo"><label>Participantes</label><input type="text" data-gv-form="participantes" value="' + esc(f.participantes) + '" placeholder="Priscila Almeida, João Medeiros"></div>' +
-    '<div class="ag-form-rodape"><button class="primario com-icone" data-gv-comecar="1">' + ic("mic", 16) + "Começar a gravar</button>" +
-    '<p class="ag-explica">Microfone desta máquina. Avise os participantes de que a reunião está sendo gravada; o áudio fica só aqui.</p></div>' +
-    "</div></div></div>";
+    '<div class="ag-campo gv-forma-inteira"><label>Tipo</label><div class="ag-chips">' + tipos + "</div></div>" +
+    '<div class="ag-campo"><label>Cliente</label><select data-gv-form="cadastro_id">' + clientes + "</select></div>" +
+    '<div class="ag-campo"><label>Serviço</label><select data-gv-form="servico_id">' + servicos + "</select></div>" +
+    "</div></div>";
 }
 
+/* O painel do ao vivo: os marcadores primeiro (é o que se usa gravando), o
+   contexto, a sugestão de respostas e a pergunta ao PAULUS no modelo do
+   assistente da pasta de Serviços — comandos prontos e a caixa pequena. */
 function painelAoVivo() {
   const v = gv.vivo;
+  const gravando = v.estado === "gravando" || v.estado === "pausada";
   const marcadores = v.marcadores.map((m, i) => '<div class="gv-marcador">' + ic("bookmark", 18) + '<span class="em-ligacao forte">' + duracaoGv(m.t) + "</span>" +
     '<input type="text" value="' + esc(m.texto) + '" placeholder="o que aconteceu aqui" data-gv-marcador-vivo="' + i + '">' +
     '<button class="mais-linha" data-gv-marcador-vivo-tirar="' + i + '" title="Tirar">' + ic("close", 16) + "</button></div>").join("");
+  const comando = (texto, icone) => '<button type="button" class="sv-comando" data-gv-pergunta-pronta="' + esc(texto) + '">' + ic(icone, 16) + esc(texto) + "</button>";
   return '<aside class="acervo-painel gv-painel"><div class="rolagem">' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Marcadores' +
+    (gravando ? '<button class="em-ligacao forte" data-gv-marcar-vivo="1">+ marcar agora</button>' : '<span class="contagem">' + v.marcadores.length + "</span>") + "</div>" +
+    (marcadores || '<p class="nota">' + (gravando ? "Nenhum marcador ainda. Marque o minuto que importa e escreva o que aconteceu." : "Durante a gravação, Marcar momento guarda o minuto — e você escreve o que aconteceu.") + "</p>") + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Contexto ao vivo</span><span class="contagem">só nesta máquina</span></div>' +
-    '<p class="nota">Quando houver transcrição, o assistente vai cruzar o que está sendo dito com os arquivos do serviço e o Acervo: a cláusula citada, o valor em atraso, o prazo que muda, o que já foi combinado antes. Sem o modelo de voz local, este painel fica assim, sem inventar contexto.</p></div>' +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Marcadores<span class="contagem">' + v.marcadores.length + "</span></div>" +
-    (marcadores || '<p class="nota">' + (v.estado === "pronto" ? "Durante a gravação, o botão de marcador guarda o minuto — e você escreve o que aconteceu." : "Nenhum marcador ainda. Use o botão de marcador para guardar este minuto.") + "</p>") + "</div>" +
+    '<p class="nota">Com a transcrição, o assistente vai cruzar o que é dito com os arquivos do serviço e o Acervo — a cláusula citada, o valor em atraso, o prazo que muda. Até lá, este espaço não inventa contexto.</p></div>' +
     '<div class="painel-bloco">' + ligaCfg("", "Sugerir respostas enquanto ouço", "com base nos arquivos do serviço e no Acervo · entra com a transcrição", false, true) + "</div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Perguntar ao PAULUS sem parar a gravação</div>' +
-    '<textarea class="gv-pergunta" rows="2" placeholder="Pergunte algo sobre o que está sendo dito… (Enter abre a conversa; a gravação continua)" data-gv-pergunta="1"></textarea></div>' +
+    '<div class="painel-bloco gv-perguntar"><div class="painel-bloco-cabeca">Perguntar ao PAULUS<span class="contagem">' + (gravando ? "a gravação continua" : "abre a conversa") + "</span></div>" +
+    '<div class="sv-comandos">' + comando("O que foi combinado até agora?", "checklist") + comando("Quais prazos e valores foram citados?", "event") + "</div>" +
+    '<form class="sv-caixa" data-gv-pergunta-form="1"><input type="text" data-gv-pergunta="1" placeholder="Pergunte algo sobre o que está sendo dito…">' +
+    '<button class="enviar" type="submit" title="Perguntar" aria-label="Perguntar">' + ic("arrow_upward", 18) + "</button></form></div>" +
     "</div></aside>";
 }
 
-/* --------------------------------------------------------- gravacao */
+/* O equalizador do gravador: o analisador lê o próprio microfone, num
+   contexto de áudio só dele, e o desenho é o do ditado. */
+function ligarEqualizadorVivo(fluxo) {
+  const v = gv.vivo;
+  pararEqualizadorVivo();
+  const Contexto = window.AudioContext || window.webkitAudioContext;
+  if (Contexto) {
+    try {
+      const contexto = new Contexto();
+      const analisador = contexto.createAnalyser();
+      analisador.fftSize = 256;
+      analisador.smoothingTimeConstant = 0.7;
+      contexto.createMediaStreamSource(fluxo).connect(analisador);
+      v.equalizador = { contexto: contexto, analisador: analisador };
+    } catch (err) {
+      v.equalizador = null;
+    }
+  }
+  animarEqualizadorVivo();
+}
+
+function animarEqualizadorVivo() {
+  const v = gv.vivo;
+  cancelAnimationFrame(v.quadroEq || 0);
+  const tela = document.querySelector("[data-gv-onda-vivo]");
+  const ouvindo = v.estado === "gravando";
+  if (tela) {
+    let dados = null;
+    if (ouvindo && v.equalizador) {
+      dados = new Uint8Array(v.equalizador.analisador.frequencyBinCount);
+      v.equalizador.analisador.getByteFrequencyData(dados);
+    }
+    desenharOnda(tela, dados, ouvindo);
+  }
+  v.quadroEq = ouvindo ? requestAnimationFrame(animarEqualizadorVivo) : 0;
+}
+
+function pararEqualizadorVivo() {
+  const v = gv.vivo;
+  cancelAnimationFrame(v.quadroEq || 0);
+  v.quadroEq = 0;
+  if (v.equalizador) {
+    try { v.equalizador.contexto.close(); } catch (err) { /* ja fechado */ }
+    v.equalizador = null;
+  }
+}
+
+/* --------------------------------------------------------- gravacao *//* --------------------------------------------------------- gravacao */
 
 function corpoDaGravacao() {
   const g = gv.aberta;
@@ -973,8 +1036,9 @@ function ligarGravacoes() {
   clique("[data-gv-rolar]", (b) => { gv.vivo.rolar = !gv.vivo.rolar; b.classList.toggle("primario", gv.vivo.rolar); if (gv.vivo.rolar) desenharTrechosAoVivo(); });
   document.querySelectorAll("[data-gv-marcador-vivo]").forEach((el) => { el.oninput = () => { gv.vivo.marcadores[Number(el.dataset.gvMarcadorVivo)].texto = el.value; }; });
   clique("[data-gv-marcador-vivo-tirar]", (b) => { gv.vivo.marcadores.splice(Number(b.dataset.gvMarcadorVivoTirar), 1); redesenharPainelGv(); });
-  const pergunta = document.querySelector("[data-gv-pergunta]");
-  if (pergunta) pergunta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); perguntarSemParar(pergunta.value); } };
+  const pergunta = document.querySelector("[data-gv-pergunta-form]");
+  if (pergunta) pergunta.onsubmit = (e) => { e.preventDefault(); const t = pergunta.querySelector("[data-gv-pergunta]").value; if (t.trim()) perguntarSemParar(t); };
+  clique("[data-gv-pergunta-pronta]", (b) => perguntarSemParar(b.dataset.gvPerguntaPronta));
   // gravacao arquivada
   ligarTocador();
   clique("[data-gv-ir]", (b) => irParaGv(Number(b.dataset.gvIr)));
@@ -1057,6 +1121,7 @@ async function comecarGravacao() {
   if (!v.form.titulo) v.form.titulo = tituloPadraoGv(v.form);
   comecarTranscricaoAoVivo(fluxo);
   desenharGravacoes();
+  ligarEqualizadorVivo(fluxo);
 }
 
 function tiquetaqueGv() {
@@ -1090,8 +1155,8 @@ function marcarMomentoAoVivo() {
   const campos = document.querySelectorAll("[data-gv-marcador-vivo]");
   const ultimo = campos[campos.length - 1];
   if (ultimo) ultimo.focus();
-  const meta = document.querySelector("#gv-tela .gv-gravador .meta");
-  if (meta) meta.textContent = (v.form.titulo || tituloPadraoGv(v.form)) + " · " + plural(v.marcadores.length, "marcador", "marcadores") + " · microfone desta máquina";
+  const rodape = $("gv-vivo-rodape");
+  if (rodape) rodape.textContent = rodapeDoGravadorGv();
 }
 
 function limparGravacaoAoVivo() {
@@ -1099,6 +1164,7 @@ function limparGravacaoAoVivo() {
   clearInterval(v.relogio);
   clearInterval(v.relogioEnvio);
   pararCaptura(v);
+  pararEqualizadorVivo();
   if (v.fluxo) v.fluxo.getTracks().forEach((t) => t.stop());
   Object.assign(v, { estado: "pronto", inicio: 0, decorrido: 0, relogio: null, gravador: null, pedacos: [], fluxo: null, marcadores: [], erro: "",
     form: { titulo: "", tipo: "reuniao", cadastro_id: null, servico_id: null, participantes: "" },
@@ -1117,6 +1183,7 @@ async function pararGravacao() {
     gravador.stop();
   });
   v.fluxo.getTracks().forEach((t) => t.stop());
+  pararEqualizadorVivo();
   clearInterval(v.relogio);
   const mime = gravador.mimeType || "";
   const extensao = /ogg/.test(mime) ? ".ogg" : (/mp4/.test(mime) ? ".m4a" : ".webm");

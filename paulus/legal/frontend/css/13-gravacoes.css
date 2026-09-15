@@ -61,28 +61,27 @@
   @keyframes gv-eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
   .gv-lista .tabela-rodape .direita { margin-left: auto; }
 
-  /* O gravador: o pulso, o tempo grande e os tres botoes redondos. */
-  .gv-gravador { padding: 22px 24px; display: grid; gap: 14px; justify-items: center; text-align: center; }
-  .gv-estado { display: inline-flex; align-items: center; gap: 8px; font: 600 13px var(--sans); color: var(--acc); }
-  .gv-estado.parada, .gv-estado.pronta { color: var(--ink3); }
+  /* O pulso da transcricao ao vivo ("ouvindo..."). */
   .gv-pulso { width: 10px; height: 10px; border-radius: 50%; background: var(--acc); animation: gv-pulsar 1.2s ease-in-out infinite; }
-  .gv-estado.parada .gv-pulso { animation: none; background: var(--ink3); }
   @keyframes gv-pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
-  .gv-tempo { font: 500 48px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--ink); }
-  .gv-gravador .meta { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .gv-controles { display: flex; align-items: center; gap: 14px; padding-top: 4px; }
-  .gv-redondo {
-    width: 44px; height: 44px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink);
-  }
-  .gv-redondo:hover:not(:disabled) { border-color: var(--ink); background: var(--surf); color: var(--ink); }
-  .gv-redondo.primario { width: 56px; height: 56px; background: var(--btn); border-color: var(--btn); color: var(--btnt); }
-  .gv-redondo.primario:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--btnt); }
-  .gv-aviso { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); max-width: 520px; }
-  .gv-erro { padding: 10px 14px; border-radius: 8px; background: var(--accbg); color: var(--acc); font: 500 13px/1.5 var(--sans); max-width: 560px; }
-  .gv-forma { width: 100%; max-width: 640px; text-align: left; display: grid; gap: 12px; }
-  .gv-forma .ag-form-rodape { flex-wrap: wrap; }
-  .gv-forma .ag-form-rodape .ag-explica { flex: 1; min-width: 200px; }
+
+  /* O ao vivo: o gravador e o cartao do ditado da conversa; os detalhes num
+     cartao a parte, em duas colunas; a transcricao embaixo. */
+  .gv-vivo { overflow-y: auto; padding-bottom: 24px; }
+  .gv-vivo > * { flex: none; }
+  .gv-vivo-cartao { padding: 18px 20px; gap: 12px; }
+  .gv-vivo-cartao.pronto .cabeca > .ic { color: var(--ink3); }
+  .gv-vivo-cartao.pronto .ditado-onda { opacity: .35; }
+  .gv-vivo-cartao.finalizando .ditado-onda { opacity: .35; }
+  .gv-vivo-dica { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .gv-erro { padding: 10px 14px; border-radius: 8px; background: var(--accbg); color: var(--acc); font: 500 13px/1.5 var(--sans); }
+  .gv-forma { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; padding: 14px 16px 16px; }
+  .gv-detalhes { flex: none; }
+  .gv-forma-inteira { grid-column: 1 / -1; }
+  .gv-forma input[type="text"], .gv-forma select { width: 100%; max-width: none; }
+  .gv-vivo .gv-transcricao { min-height: 220px; }
+  .gv-perguntar .sv-comandos { gap: 6px; }
+  .gv-perguntar .sv-comando { height: auto; min-height: 30px; padding: 5px 11px; text-align: left; white-space: normal; }
 
   /* Onde a transcricao, o resumo e o contexto ao vivo vao ficar. */
   .gv-adiante { display: grid; gap: 8px; padding: 18px 16px; color: var(--ink2); font-size: 13.5px; line-height: 1.6; }
