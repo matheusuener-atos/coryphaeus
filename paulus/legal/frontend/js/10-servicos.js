@@ -906,10 +906,9 @@ function agendarNoServico(botao) {
       const avisos = [];
       if (semana === 0 || semana === 6) avisos.push("Cai num fim de semana.");
       if (s.prazos.some((p) => p.quando === iso)) avisos.push("Já há algo do cliente neste dia.");
-      const html = '<div class="dialogo-duas"><div class="dialogo-campo"><label for="sv-a-hora">Hora</label><div class="dialogo-caixa">' + ic("schedule", 18) +
+      // Agendar é compromisso: prazo da pasta é etapa, no status para conclusão.
+      const html = '<div class="dialogo-campo"><label for="sv-a-hora">Hora</label><div class="dialogo-caixa">' + ic("schedule", 18) +
         '<input id="sv-a-hora" type="time" data-dialogo-chave="hora" value="09:00"></div></div>' +
-        '<div class="dialogo-campo"><label for="sv-a-tipo">Tipo</label><div class="dialogo-caixa"><select id="sv-a-tipo" data-dialogo-chave="tipo">' +
-        '<option value="compromisso">Compromisso</option><option value="prazo_interno">Prazo interno</option></select></div></div></div>' +
         (avisos.length ? '<p class="dialogo-dica">' + esc(avisos.join(" ")) + "</p>" : "");
       const r = await dialogo({
         titulo: "Agendar", contexto: maiuscula(dataPorExtenso(iso)), classe: "dialogo-servico",
@@ -919,7 +918,7 @@ function agendarNoServico(botao) {
       if (!r || !r.ok) return;
       const v = r.valores || {};
       const resposta = await fetch("/api/agenda", { method: "POST", headers: SV_JSON, body: JSON.stringify({
-        id: null, dados: { titulo: r.valor, tipo: v.tipo || "compromisso", data: iso, hora: v.hora || "09:00", cadastro_id: s.cadastro_id || null,
+        id: null, dados: { titulo: r.valor, tipo: "compromisso", data: iso, hora: v.hora || "09:00", cadastro_id: s.cadastro_id || null,
           servico_id: s.id, responsavel_id: s.equipe.length ? s.equipe[0].id : null } }) });
       if (!resposta.ok) { avisoCert(await erroDe(resposta)); return; }
       avisoCert("agendado para " + dataPorExtenso(iso) + (v.hora ? " às " + v.hora : ""), { tom: "ok" });

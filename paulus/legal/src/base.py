@@ -556,6 +556,21 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_compromissos_responsavel ON compromissos(responsavel_id);
         """,
     ),
+    (
+        "021_compromisso_e_tarefa",
+        """
+        -- Compromisso e o que se agenda: reuniao, videoconferencia, audiencia,
+        -- com hora, duracao e lugar. Tarefa e o do dia a dia, com prazo e, se
+        -- quiser, uma hora. Prazo interno e pagamento nao sao agendados: os que
+        -- existiam como compromisso viram tarefas, na lista do que eram.
+        ALTER TABLE tarefas ADD COLUMN hora TEXT DEFAULT '';
+        INSERT INTO tarefas (titulo, lista, prazo, hora, cadastro_id, anotacao, criada_em, servico_id, responsavel_id)
+            SELECT titulo, CASE tipo WHEN 'pagamento' THEN 'Pagamentos' ELSE 'Prazos internos' END,
+                   data, hora, cadastro_id, anotacao, criado_em, servico_id, responsavel_id
+            FROM compromissos WHERE tipo IN ('pagamento', 'prazo_interno');
+        DELETE FROM compromissos WHERE tipo IN ('pagamento', 'prazo_interno');
+        """,
+    ),
 ]
 
 

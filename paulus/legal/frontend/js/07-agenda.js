@@ -38,15 +38,17 @@ const FILTROS_TAREFA = [
   { id: "planejadas", rotulo: "Planejadas" },
   { id: "concluidas", rotulo: "Concluídas" },
 ];
+/* COMPROMISSO E TAREFA. Compromisso é o que se agenda — reunião,
+   videoconferência, audiência —, com hora, duração e lugar. Tarefa é o do
+   dia a dia (inclusive prazo interno e pagamento), com prazo e, se quiser,
+   uma hora. Na grade, a tarefa aberta é o gênero "prazo" e a feita, "tarefa". */
 const NOME_DO_TIPO = {
   compromisso: ["Novo compromisso", "Editar compromisso"],
-  pagamento: ["Novo pagamento", "Editar pagamento"],
-  prazo_interno: ["Novo prazo interno", "Editar prazo interno"],
   tarefa: ["Nova tarefa", "Editar tarefa"],
 };
 const LEGENDA_DA_AGENDA = {
-  compromisso: "Compromisso", prazo: "Prazo", pedido: "Pedido pelo link",
-  tarefa: "Tarefa", documento: "Data em documento", pagamento: "Pagamento",
+  compromisso: "Compromisso", prazo: "Tarefa", pedido: "Pedido pelo link",
+  tarefa: "Tarefa feita", documento: "Data em documento", pagamento: "Pagamento",
 };
 const SALAS = {
   meet: "https://meet.google.com/new",
@@ -110,7 +112,7 @@ function quandoDaTarefa(t) {
   if (!t.prazo) return { texto: "sem prazo", acc: false };
   const s = t.situacao || "";
   if (s.indexOf("atrasada") === 0) return { texto: s.replace("dia(s)", "dias").replace("1 dias", "1 dia"), acc: true };
-  if (s === "hoje") return { texto: "hoje", acc: true };
+  if (s === "hoje") return { texto: "hoje" + (t.hora ? " " + t.hora : ""), acc: true };
   if (s === "amanhã") return { texto: "até " + dataCurta(t.prazo), acc: true };
   return { texto: s, acc: false };
 }
@@ -188,8 +190,6 @@ function cabecalhoAgenda() {
     e.stopPropagation();
     menuNaLinha($("ag-novo"), [
       { icone: "event", rotulo: "Compromisso", acao: () => criarNaAgenda("compromisso") },
-      { icone: "payments", rotulo: "Pagamento", acao: () => criarNaAgenda("pagamento") },
-      { icone: "flag", rotulo: "Prazo interno", acao: () => criarNaAgenda("prazo_interno") },
       { icone: "task_alt", rotulo: "Tarefa", acao: () => criarNaAgenda("tarefa") },
       "-",
       { icone: "auto_awesome", rotulo: "Prazos lidos nos documentos", acao: abrirSugestoes },
@@ -203,8 +203,7 @@ function tituloDaAgenda() {
   if (ag.visao === "mes") {
     titulo = "Agenda";
     const n = (ag.grade && ag.grade.contagem) || {};
-    meta = plural(n.compromissos || 0, "compromisso") + " · " + plural(n.prazos || 0, "prazo") +
-      " · " + plural(c.abertas || 0, "tarefa aberta", "tarefas abertas");
+    meta = plural(n.compromissos || 0, "compromisso") + " · " + plural(c.abertas || 0, "tarefa aberta", "tarefas abertas");
   } else if (ag.visao === "semana") {
     const seg = deIso(ag.semana), dom = andarDias(seg, 6);
     titulo = "Agenda";
@@ -212,10 +211,7 @@ function tituloDaAgenda() {
       (seg.getMonth() !== dom.getMonth() ? " de " + MESES_NOME[seg.getMonth()] : "") +
       " a " + dom.getDate() + " de " + MESES_NOME[dom.getMonth()];
     const cs = (ag.grade && ag.grade.compromissos) || [];
-    const por = (t) => cs.filter((x) => x.tipo === t).length;
-    const prazos = por("prazo_interno") + ((ag.grade && ag.grade.contagem.prazos) || 0);
-    meta = plural(por("compromisso"), "compromisso") + " · " + plural(por("pagamento"), "pagamento") +
-      " · " + plural(prazos, "prazo");
+    meta = plural(cs.length, "compromisso") + " · " + plural((ag.grade && ag.grade.contagem.prazos) || 0, "tarefa aberta", "tarefas abertas");
   } else {
     const f = FILTROS_TAREFA.find((x) => x.id === ag.tar.filtro);
     titulo = "Agenda";
@@ -409,7 +405,7 @@ function vistaMes() {
       (itens.length ? '<span class="ag-pontos">' + pontos + "</span>" + '<small class="ag-cel-conta">' + plural(itens.length, "item", "itens") + "</small>" : "") +
       "</div>";
   }
-  html += "</div>" + legendaDaAgenda(["compromisso", "prazo", "tarefa", "pagamento", "documento"],
+  html += "</div>" + legendaDaAgenda(["compromisso", "prazo", "tarefa", "documento"],
     "Clique no dia para ver · duplo clique marca um compromisso") + "</div>";
   return html;
 }
@@ -485,7 +481,7 @@ function vistaSemanaAgenda() {
   const tituloSemana = seg.getDate() + (seg.getMonth() !== dom.getMonth() ? " " + MESES_NOME[seg.getMonth()].slice(0, 3) : "") +
     " – " + dom.getDate() + " " + MESES_NOME[dom.getMonth()].slice(0, 3) + " " + dom.getFullYear();
   return '<div class="ag-cartao">' + topoDoCalendario(tituloSemana) + cabeca + diaTodo + grade + fora +
-    legendaDaAgenda(["compromisso", "prazo", "pedido", "pagamento"], "Clique numa hora vazia para marcar") + "</div>";
+    legendaDaAgenda(["compromisso", "prazo", "pedido"], "Clique numa hora vazia para marcar") + "</div>";
 }
 
 function blocoDaSemana(x, dia) {
@@ -639,15 +635,17 @@ function painelDoDia() {
   // A tarefa entra na mesma lista: no lugar da hora, a marca de concluir.
   const tarefas = d.tarefas.map((t) => {
     const classe = "ag-hora-linha ag-tarefa ag-tarefa-dia" + (t.concluida ? " ag-feita" : "");
-    const detalhe = ["tarefa", t.lista, t.cadastro_nome, t.importante && !t.concluida ? "importante" : ""].filter(Boolean).join(" · ");
-    return { hora: "", html: '<div class="' + classe + '" data-ag-abrir-tarefa="' + t.id + '"><span class="ag-hora">' +
+    const detalhe = [t.hora ? t.hora : "", "tarefa", t.lista, t.cadastro_nome, t.importante && !t.concluida ? "importante" : ""].filter(Boolean).join(" · ");
+    return { hora: t.hora || "", html: '<div class="' + classe + '" data-ag-abrir-tarefa="' + t.id + '"><span class="ag-hora">' +
       (t.concluida
         ? '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>'
         : '<span class="ag-circulo" data-ag-concluir="' + t.id + '" title="Concluir"></span>') +
       '</span><span class="ag-corpo"><span>' + esc(t.titulo) + "</span><small>" + esc(detalhe) + "</small></span></div>" };
   });
-  // Tudo numa lista: o que tem hora em ordem, e as tarefas do dia depois.
-  const doDia = linhas.slice().sort((a, b) => a.hora.localeCompare(b.hora)).concat(tarefas);
+  // Tudo numa lista: o que tem hora (compromisso ou tarefa) em ordem, e as
+  // tarefas sem hora depois.
+  const comHora = linhas.concat(tarefas.filter((x) => x.hora)).sort((a, b) => a.hora.localeCompare(b.hora));
+  const doDia = comHora.concat(tarefas.filter((x) => !x.hora));
 
   return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3 class="ag-dia-titulo">' + titulo + '</h3><span class="meta">' + meta + "</span></span>" +
@@ -672,10 +670,10 @@ function painelFormAgenda() {
   const tarefa = v.tipo === "tarefa";
   const nomes = NOME_DO_TIPO[v.tipo] || NOME_DO_TIPO.compromisso;
   const sub = tarefa
-    ? (v.prazo ? maiuscula(diaCurto(v.prazo)) : "sem prazo")
+    ? (v.prazo ? maiuscula(diaCurto(v.prazo)) + (v.hora ? " · " + v.hora : "") : "sem prazo")
     : maiuscula(diaCurto(v.data || ag.dia)) + " · " + (v.hora || "");
 
-  const chips = [["compromisso", "Compromisso"], ["pagamento", "Pagamento"], ["prazo_interno", "Prazo interno"], ["tarefa", "Tarefa"]]
+  const chips = [["compromisso", "Compromisso"], ["tarefa", "Tarefa"]]
     .map(([t, r]) => {
       const classe = t === v.tipo ? "on" : "";
       return '<button class="' + classe + '" data-ag-tipo="' + t + '">' + r + "</button>";
@@ -687,8 +685,9 @@ function painelFormAgenda() {
   if (tarefa) {
     campos =
       '<div class="ag-duas"><div class="ag-campo"><label>Prazo</label><input type="date" data-c="prazo" value="' + esc(v.prazo || "") + '"></div>' +
+      '<div class="ag-campo"><label>Hora <small>(opcional)</small></label><input type="time" data-c="hora" value="' + esc(v.hora || "") + '"></div></div>' +
       '<div class="ag-campo"><label>Lista</label><input type="text" data-c="lista" list="ag-listas-dl" value="' + esc(v.lista || "") + '" placeholder="nenhuma">' +
-      '<datalist id="ag-listas-dl">' + ag.tar.listas.map((l) => '<option value="' + esc(l.nome) + '">').join("") + "</datalist></div></div>" +
+      '<datalist id="ag-listas-dl">' + ag.tar.listas.map((l) => '<option value="' + esc(l.nome) + '">').join("") + "</datalist></div>" +
       '<div class="ag-campo"><label>Cliente</label><select data-c="cadastro_id">' + clientes + "</select></div>" +
       '<div class="ag-campo"><label>Anotação</label><textarea data-c="anotacao" placeholder="O que vale lembrar…">' + esc(v.anotacao || "") + "</textarea></div>";
   } else {
@@ -721,7 +720,9 @@ function painelFormAgenda() {
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + nomes[novo ? 0 : 1] + '</h3><span class="meta">' + esc(sub) + "</span></span>" +
     '<button class="voltar" data-ag-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
     '<div class="ag-form">' +
-    '<div class="ag-campo"><label>O que vou agendar</label><div class="ag-chips">' + chips + "</div></div>" +
+    '<div class="ag-campo"><label>O que é</label><div class="ag-chips">' + chips + "</div>" +
+    '<small class="ag-explica">' + (tarefa ? "Tarefa é o do dia a dia — prazo interno, pagamento, o que fazer —, com prazo e, se quiser, hora." :
+      "Compromisso é o que se agenda: reunião, videoconferência, audiência, com hora, duração e lugar.") + "</small></div>" +
     '<div class="ag-campo"><label>Título</label><input type="text" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="' +
     (tarefa ? "Adicionar uma tarefa…" : "Renovação — Fornecedor A") + '"></div>' +
     campos +
@@ -770,6 +771,7 @@ function painelDaTarefa() {
     '<div class="ag-chave"><span>Meu dia</span><button class="' + classeMeuDia + '" data-ag-meu-dia="1">' + (t.meu_dia ? "já está" : "adicionar") + "</button></div>" +
     '<div class="ag-chave"><span>Lembrar-me</span><input type="time" data-ag-campo="lembrar_em" value="' + esc(t.lembrar_em || "") + '"></div>' +
     '<div class="ag-chave"><span>Prazo</span><input type="date" class="' + classePrazo + '" data-ag-campo="prazo" value="' + esc(t.prazo || "") + '"></div>' +
+    '<div class="ag-chave"><span>Hora</span><input type="time" data-ag-campo="hora" value="' + esc(t.hora || "") + '" title="opcional"></div>' +
     '<div class="ag-chave"><span>Repetir</span><select data-ag-campo="repetir">' +
     rep.map((r) => '<option value="' + esc(r.valor) + '"' + ((t.repetir || "") === r.valor ? " selected" : "") + ">" + esc(r.rotulo) + "</option>").join("") + "</select></div>" +
     '<div class="ag-chave"><span>Cliente</span><select data-ag-campo="cadastro_id"><option value="">nenhum</option>' +
@@ -1238,7 +1240,7 @@ async function salvarFormAgenda() {
       const r = await fetch("/api/tarefas", {
         method: "POST", headers: AG_JSON,
         body: JSON.stringify({ id: v.id || null, dados: {
-          titulo: v.titulo.trim(), prazo: v.prazo || "", lista: (v.lista || "").trim(),
+          titulo: v.titulo.trim(), prazo: v.prazo || "", hora: v.prazo ? (v.hora || "") : "", lista: (v.lista || "").trim(),
           cadastro_id: v.cadastro_id || null, anotacao: v.anotacao || "",
         } }),
       });
@@ -1257,7 +1259,7 @@ async function salvarFormAgenda() {
     }
 
     const dados = {
-      titulo: v.titulo.trim(), tipo: v.tipo, data: v.data, hora: v.hora || "09:00",
+      titulo: v.titulo.trim(), tipo: "compromisso", data: v.data, hora: v.hora || "09:00",
       duracao: Number(v.duracao) || 60, onde: v.onde || "", cadastro_id: v.cadastro_id || null,
       anotacao: v.anotacao || "", avisar_min: Number(v.avisar_min) || 0,
     };
@@ -1365,7 +1367,7 @@ async function marcarImportante(id, valor) {
 
 async function salvarCamposDaTarefa(t, mudancas) {
   const dados = Object.assign({
-    titulo: t.titulo, importante: t.importante, prazo: t.prazo || "", lembrar_em: t.lembrar_em || "",
+    titulo: t.titulo, importante: t.importante, prazo: t.prazo || "", hora: t.hora || "", lembrar_em: t.lembrar_em || "",
     repetir: t.repetir || "", lista: t.lista || "", cadastro_id: t.cadastro_id || null, anotacao: t.anotacao || "",
   }, mudancas);
   const r = await fetch("/api/tarefas", { method: "POST", headers: AG_JSON, body: JSON.stringify({ id: t.id, dados: dados }) });

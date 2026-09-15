@@ -16,10 +16,11 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
 
+# Compromisso e o que se agenda - reuniao, videoconferencia, audiencia -, com
+# hora, duracao e lugar. O resto (prazo interno, pagamento, o do dia a dia) e
+# tarefa, em src/tarefas.py: com prazo e, se quiser, hora.
 TIPOS = {
     "compromisso": "Compromisso",
-    "pagamento": "Pagamento",
-    "prazo_interno": "Prazo interno",
 }
 
 ONDES = {
@@ -105,7 +106,7 @@ class Agenda:
 
         limpo = {
             "titulo": titulo,
-            "tipo": dados.get("tipo") if dados.get("tipo") in TIPOS else "compromisso",
+            "tipo": "compromisso",
             "data": str(dados["data"])[:10],
             "hora": str(dados.get("hora", "09:00"))[:5],
             "duracao": int(dados.get("duracao") or 60),
@@ -199,7 +200,7 @@ class Agenda:
                     "genero": "prazo" if not t.get("concluida") else "tarefa",
                     "id": t["id"],
                     "titulo": t["titulo"],
-                    "hora": "",
+                    "hora": t.get("hora") or "",
                     "detalhe": t.get("cadastro_nome") or t.get("lista") or "",
                     "tipo": "tarefa",
                     "servico_id": t.get("servico_id"),

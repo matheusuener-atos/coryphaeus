@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-CAMPOS = ("titulo", "lista", "importante", "prazo", "cadastro_id", "anotacao",
+CAMPOS = ("titulo", "lista", "importante", "prazo", "hora", "cadastro_id", "anotacao",
           "lembrar_em", "repetir")
 
 # Repetir e comportamento, nao rotulo: concluir uma tarefa que repete cria a
@@ -44,6 +44,16 @@ def _andar(prazo: str, repetir: str) -> str:
                              31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1])
         return date(ano, mes, dia).isoformat()
     return (base + timedelta(days=PASSO_DIAS.get(repetir, 7))).isoformat()
+
+
+def _hora_ou_nada(valor) -> str:
+    """HH:MM valida, ou vazio - hora que nao existe nao vira hora."""
+    import re
+
+    achado = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*", str(valor or ""))
+    if not achado or int(achado.group(1)) > 23 or int(achado.group(2)) > 59:
+        return ""
+    return f"{int(achado.group(1)):02d}:{achado.group(2)}"
 
 
 def hoje() -> str:
@@ -84,7 +94,7 @@ class Tarefas:
         )
         if onde:
             sql += " WHERE " + " AND ".join(onde)
-        sql += " ORDER BY (prazo = '') ASC, prazo ASC, importante DESC, id DESC"
+        sql += " ORDER BY (prazo = '') ASC, prazo ASC, (hora = '') ASC, hora ASC, importante DESC, id DESC"
 
         tarefas = self.base.buscar(sql, tuple(parametros))
         for t in tarefas:
@@ -180,6 +190,9 @@ class Tarefas:
             "lista": str(dados.get("lista", "")).strip(),
             "importante": 1 if dados.get("importante") else 0,
             "prazo": str(dados.get("prazo", "")).strip()[:10],
+            # A hora e opcional: tarefa e do dia a dia; com hora, entra na
+            # lista do dia na ordem dela, junto dos compromissos.
+            "hora": _hora_ou_nada(dados.get("hora", "")),
             "cadastro_id": dados.get("cadastro_id") or None,
             "anotacao": str(dados.get("anotacao", "")),
             "lembrar_em": str(dados.get("lembrar_em", "")).strip()[:5],
