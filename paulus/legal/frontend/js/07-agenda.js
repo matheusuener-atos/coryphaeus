@@ -20,6 +20,7 @@ const ag = {
   sugestoes: [],
   itens: {},             // os itens desenhados na grade, por chave
   largo: false,
+  zoom: "dias",          // dias | meses | anos - o calendario do mes, como o miniatura
   tar: { filtro: "meu_dia", lista: "", itens: [], contagens: {}, listas: [],
          clientes: [], repeticoes: [], aberta: null, escolhidas: new Set() },
 };
@@ -145,6 +146,7 @@ async function mostrarAgenda(visao) {
   if (!ag.semana) ag.semana = iso(segundaDe(h));
   if (!ag.dia) ag.dia = iso(h);
   if (trocou) {
+    ag.zoom = "dias";
     ag.form = null;
     ag.painel = ag.visao === "tarefas" ? "tarefa" : (ag.visao === "semana" ? "form" : "dia");
   }
@@ -227,6 +229,7 @@ function tituloDaAgenda() {
 
 function irParaHojeNaAgenda() {
   const h = new Date();
+  ag.zoom = "dias";
   ag.mes = new Date(h.getFullYear(), h.getMonth(), 1);
   ag.semana = iso(segundaDe(h));
   ag.dia = iso(h);
@@ -235,15 +238,44 @@ function irParaHojeNaAgenda() {
 }
 
 /* A faixa de cima do calendário: as setas, o mês (ou a semana) e Hoje. */
-function topoDoCalendario(titulo) {
-  return '<div class="ag-cal-topo">' +
-    '<button class="cal-seta" data-ag-andar="-1" title="Anterior" aria-label="Anterior">' + ic("chevron_left", 18) + "</button>" +
-    '<b class="ag-cal-titulo">' + esc(titulo) + "</b>" +
-    '<button class="cal-seta" data-ag-andar="1" title="Próximo" aria-label="Próximo">' + ic("chevron_right", 18) + "</button>" +
+function topoDoCalendario(titulo, subir) {
+  const rotulo = subir ? '<button type="button" class="cal-titulo ag-cal-titulo" data-ag-subir="1" title="' +
+      (ag.zoom === "dias" ? "Ver os meses" : "Ver os anos") + '">' + esc(titulo) + "</button>"
+    : '<b class="ag-cal-titulo">' + esc(titulo) + "</b>";
+  return '<div class="ag-cal-topo"><div class="ag-cal-centro">' +
+    '<button class="cal-seta" data-ag-andar="-1" title="Anterior" aria-label="Anterior">' + ic("chevron_left", 18) + "</button>" + rotulo +
+    '<button class="cal-seta" data-ag-andar="1" title="Próximo" aria-label="Próximo">' + ic("chevron_right", 18) + "</button></div>" +
     '<button class="cal-rodape-botao ag-cal-hoje" data-ag-hoje="1">Hoje</button></div>';
 }
 
+/* OS MESES E OS ANOS, COMO NO CALENDÁRIO MINIATURA. Clicar no mês mostra os
+   doze meses do ano; clicar de novo, os anos da década. Escolher um ano
+   volta aos meses dele, e escolher um mês volta aos dias. */
+function zoomDoCalendario() {
+  const ano = ag.mes.getFullYear();
+  const hoje = new Date();
+  if (ag.zoom === "meses") {
+    const celulas = MESES_NOME.map((nome, m) => {
+      const classe = "cal-celula ag-zoom-celula" + (m === ag.mes.getMonth() ? " escolhido" : "") +
+        (ano === hoje.getFullYear() && m === hoje.getMonth() ? " ag-hoje" : "");
+      return '<button type="button" class="' + classe + '" data-ag-zoom-mes="' + m + '">' + maiuscula(nome) + "</button>";
+    }).join("");
+    return '<div class="ag-cartao ag-calendario">' + topoDoCalendario(String(ano), true) + '<div class="ag-zoom">' + celulas + "</div></div>";
+  }
+  const decada = Math.floor(ano / 10) * 10;
+  let celulas = "";
+  for (let a = decada - 1; a <= decada + 10; a++) {
+    const classe = "cal-celula ag-zoom-celula" + (a < decada || a > decada + 9 ? " fora-do-mes" : "") + (a === ano ? " escolhido" : "") +
+      (a === hoje.getFullYear() ? " ag-hoje" : "");
+    celulas += '<button type="button" class="' + classe + '" data-ag-zoom-ano="' + a + '">' + a + "</button>";
+  }
+  return '<div class="ag-cartao ag-calendario">' + topoDoCalendario(decada + "–" + (decada + 9), false) + '<div class="ag-zoom">' + celulas + "</div></div>";
+}
+
 function andarAgenda(n) {
+  // Nos meses a seta anda um ano; nos anos, uma década.
+  if (ag.visao === "mes" && ag.zoom === "meses") { ag.mes = new Date(ag.mes.getFullYear() + n, ag.mes.getMonth(), 1); desenharAgenda(); return; }
+  if (ag.visao === "mes" && ag.zoom === "anos") { ag.mes = new Date(ag.mes.getFullYear() + 10 * n, ag.mes.getMonth(), 1); desenharAgenda(); return; }
   if (ag.visao === "mes") ag.mes = new Date(ag.mes.getFullYear(), ag.mes.getMonth() + n, 1);
   else ag.semana = iso(andarDias(deIso(ag.semana), 7 * n));
   mostrarAgenda();
@@ -321,7 +353,7 @@ function desenharAgenda() {
   tituloDaAgenda();
   ag.itens = {};
   let principal;
-  if (ag.visao === "mes") principal = vistaMes();
+  if (ag.visao === "mes") principal = ag.zoom === "dias" ? vistaMes() : zoomDoCalendario();
   else if (ag.visao === "semana") principal = vistaSemanaAgenda();
   else principal = vistaTarefas();
   const classe = "acervo agenda" + (ag.largo ? " painel-largo" : "");
@@ -357,7 +389,7 @@ function vistaMes() {
   const hoje = iso(new Date());
   const g = ag.grade;
   const titulo = maiuscula(MESES_NOME[ag.mes.getMonth()]) + " " + ag.mes.getFullYear();
-  let html = '<div class="ag-cartao ag-calendario">' + topoDoCalendario(titulo) + '<div class="ag-dias">' +
+  let html = '<div class="ag-cartao ag-calendario">' + topoDoCalendario(titulo, true) + '<div class="ag-dias">' +
     DIAS_CURTOS.map((d, i) => {
       const classe = i >= 5 ? "ag-fds" : "";
       return '<span class="' + classe + '">' + d + "</span>";
@@ -570,9 +602,9 @@ function painelDaAgenda() {
   return painelDoDia();
 }
 
+/* O painel da Agenda tem a largura dele: a alça de alargar saiu. */
 function alcaDoPainel() {
-  return '<button class="alca-painel" data-ag-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(ag.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
+  return "";
 }
 
 function painelDoDia() {
@@ -618,7 +650,7 @@ function painelDoDia() {
   const doDia = linhas.slice().sort((a, b) => a.hora.localeCompare(b.hora)).concat(tarefas);
 
   return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + titulo + '</h3><span class="meta">' + meta + "</span></span>" +
+    '<div class="painel-cabeca"><span class="titulo-painel"><h3 class="ag-dia-titulo">' + titulo + '</h3><span class="meta">' + meta + "</span></span>" +
     '<span class="ag-sino" title="' + (comAviso ? plural(comAviso, "compromisso") + " com aviso" : "nenhum aviso marcado") + '">' +
     ic("notifications", 18) + (comAviso ? "<i></i>" : "") + "</span></div>" +
 
@@ -783,6 +815,15 @@ function ligarAgenda() {
 
   raiz.querySelectorAll("[data-ag-andar]").forEach((b) => { b.onclick = () => andarAgenda(Number(b.dataset.agAndar)); });
   raiz.querySelectorAll("[data-ag-hoje]").forEach((b) => { b.onclick = () => irParaHojeNaAgenda(); });
+  raiz.querySelectorAll("[data-ag-subir]").forEach((b) => {
+    b.onclick = () => { ag.zoom = ag.zoom === "dias" ? "meses" : "anos"; desenharAgenda(); };
+  });
+  raiz.querySelectorAll("[data-ag-zoom-mes]").forEach((b) => {
+    b.onclick = () => { ag.mes = new Date(ag.mes.getFullYear(), Number(b.dataset.agZoomMes), 1); ag.zoom = "dias"; mostrarAgenda(); };
+  });
+  raiz.querySelectorAll("[data-ag-zoom-ano]").forEach((b) => {
+    b.onclick = () => { ag.mes = new Date(Number(b.dataset.agZoomAno), ag.mes.getMonth(), 1); ag.zoom = "meses"; desenharAgenda(); };
+  });
   raiz.querySelectorAll("[data-ag-dia]").forEach((el) => {
     el.onclick = () => escolherDia(el.dataset.agDia);
     el.ondblclick = () => { ag.dia = el.dataset.agDia; criarNaAgenda("compromisso"); };
@@ -879,8 +920,6 @@ function desenharPainel() {
 function ligarPainel() {
   const p = document.querySelector("#agenda .acervo-painel");
   if (!p) return;
-  const alca = p.querySelector("[data-ag-alca]");
-  if (alca) alca.onclick = () => { ag.largo = !ag.largo; desenharPainel(); };
   p.querySelectorAll("[data-ag-fechar]").forEach((b) => { b.onclick = fecharPainelDaAgenda; });
   if (ag.painel === "form" && ag.form) return ligarFormAgenda(p);
   if (ag.painel === "sugestoes") return ligarSugestoes(p);

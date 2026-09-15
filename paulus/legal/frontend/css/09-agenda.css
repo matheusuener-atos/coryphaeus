@@ -24,10 +24,18 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* A faixa de cima do calendario, a do calendario miniatura: setas, o mes e Hoje. */
-  .ag-cal-topo { flex: none; display: flex; align-items: center; gap: 6px; padding: 12px 14px 8px; }
+  .ag-cal-topo { position: relative; flex: none; display: flex; align-items: center; justify-content: center; padding: 12px 14px 8px; }
+  .ag-cal-centro { display: flex; align-items: center; gap: 6px; }
   .ag-cal-topo .cal-seta { width: 34px; height: 34px; }
-  .ag-cal-titulo { min-width: 180px; text-align: center; font: 600 16px var(--sans); color: var(--ink); }
-  .ag-cal-hoje { margin-left: auto; height: 30px; }
+  .ag-cal-titulo { min-width: 180px; height: 34px; padding: 0 12px; text-align: center; font: 600 16px var(--sans); color: var(--ink); }
+  b.ag-cal-titulo { display: inline-flex; align-items: center; justify-content: center; }
+  .ag-cal-hoje { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); margin-top: 2px; height: 30px; }
+  /* Os meses e os anos: a grade do miniatura, grande. */
+  .ag-zoom { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; padding: 10px 14px 14px; }
+  .ag-zoom-celula { height: 100%; min-height: 60px; border-radius: 12px; font: 500 16px var(--sans); }
+  .ag-zoom-celula.ag-hoje:not(.escolhido) { box-shadow: inset 0 0 0 1.5px var(--destaque-linha); font-weight: 700; }
+  /* A data do painel do dia na letra sem serifa. */
+  #agenda .painel-cabeca h3.ag-dia-titulo { font: 600 16px var(--sans); letter-spacing: 0; }
   .ag-dias span.ag-fds { color: var(--ink3); }
   /* O mes e o calendario miniatura grande: sem grade de linhas, cada dia um
      botao arredondado com o numero num circulo e os pontos do que tem nele. */
