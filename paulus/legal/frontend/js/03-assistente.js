@@ -7,15 +7,20 @@
    entra direto em foco; do computador, o servidor copia o arquivo para o
    acervo, le e poe em foco. O seletor do Windows continua a um clique, e
    arrastar arquivos para a conversa continua valendo. */
-const anx = { visao: "acervo", acervo: new Set(), computador: new Map(), caminho: "", termo: "", docs: null };
+const anx = { visao: "acervo", acervo: new Set(), computador: new Map(), caminho: "", termo: "", docs: null, verbo: "Anexar" };
 
-async function abrirAnexar() {
+/* `opcoes` deixa outra tela usar o mesmo pop-up: título, contexto, o verbo do
+   botão e `aoAnexar(nomes)`, o que fazer com os documentos (já no Acervo).
+   Sem isso, é o anexar da conversa: os documentos entram em foco. */
+async function abrirAnexar(opcoes) {
+  const o = opcoes || {};
   anx.acervo = new Set();
   anx.computador = new Map();
   anx.termo = "";
   anx.docs = null;
+  anx.verbo = o.verbo || "Anexar";
   const escolha = dialogo({
-    titulo: "Anexar documentos", contexto: "Assistente", classe: "dialogo-anexar", confirmar: "Anexar",
+    titulo: o.titulo || "Anexar documentos", contexto: o.contexto || "Assistente", classe: "dialogo-anexar", confirmar: anx.verbo,
     html: '<div class="anx">' +
       '<div class="anx-topo"><span class="visoes lc-visoes">' +
       '<button type="button" data-anx-visao="acervo">Acervo</button>' +
@@ -34,7 +39,11 @@ async function abrirAnexar() {
   $("anx-windows").onclick = () => { if (dialogoAberto) dialogoAberto.fechar(null); $("arquivos").click(); };
   desenharAnexar();
   const r = await escolha;
-  if (r && r.ok) anexarEscolhidos();
+  if (!r || !r.ok) return;
+  const nomes = await anexarEscolhidos();
+  if (o.aoAnexar) { o.aoAnexar(nomes); return; }
+  if (nomes.length) definirEscopo([...new Set(estado.escopo.concat(nomes))]);
+  $("pedido").focus();
 }
 
 function contarAnexar() {
@@ -42,7 +51,7 @@ function contarAnexar() {
   const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
   if (botao) {
     botao.disabled = !total;
-    botao.textContent = total ? "Anexar " + total : "Anexar";
+    botao.textContent = total ? anx.verbo + " " + total : anx.verbo;
   }
   const conta = $("anx-conta");
   if (conta) conta.textContent = total ? plural(total, "documento") + " para anexar" : "";
@@ -156,9 +165,7 @@ async function anexarEscolhidos() {
   } else if (doAcervo.length) {
     avisoCert(plural(doAcervo.length, "documento") + (doAcervo.length === 1 ? " anexado" : " anexados"), { tom: "ok" });
   }
-  const todos = doAcervo.concat(lidos);
-  if (todos.length) definirEscopo([...new Set(estado.escopo.concat(todos))]);
-  $("pedido").focus();
+  return doAcervo.concat(lidos);
 }
 
 $("anexar").onclick = () => abrirAnexar();

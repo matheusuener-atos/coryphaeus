@@ -286,6 +286,12 @@
     overflow: hidden;
   }
 
+  /* A lista que o <select> abre e desenhada pelo sistema: com o campo de
+     fundo transparente, o Chromium no Windows a pintava de branco com a tinta
+     clara do tema escuro - texto quase invisivel. As opcoes levam a cor do
+     tema. */
+  select option, select optgroup { background-color: var(--surf); color: var(--ink); }
+
   h1, h2, h3 { text-wrap: balance; margin: 0; }
   p { text-wrap: pretty; }
 

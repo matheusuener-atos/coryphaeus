@@ -889,16 +889,18 @@ def main() -> int:
                     "o cartao tracejado e a contagem do cabecalho aparecem",
                 )
                 pagina.evaluate(f"() => abrirServico({id_servico})")
-                pagina.wait_for_selector("#sv-tela .sv-trabalho", timeout=20000)
-                colunas = pagina.evaluate("() => getComputedStyle(document.querySelector('.sv-trabalho')).gridTemplateColumns.split(' ').length")
-                checar(colunas == 2, f"resumo e etapas lado a lado (achou {colunas})")
+                pagina.wait_for_selector("#sv-tela .sv-historico", timeout=20000)
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('.sv-historico .sv-ev').length >= 2 && !!document.querySelector('.sv-historico [data-sv-conversa]') && document.querySelectorAll('.sv-comando').length >= 3"),
+                    "no centro, o historico da pasta com os comandos e a caixa de pedido",
+                )
                 checar(
                     pagina.evaluate("() => document.querySelectorAll('#sv-tela .sv-painel .painel-bloco').length") == 4,
                     "o painel traz equipe, prazos, anotacoes e trilha",
                 )
                 checar(
                     pagina.evaluate("() => document.querySelectorAll('.sv-etapa').length === 1 && !!document.querySelector('.sv-arquivos')"),
-                    "a etapa e a tabela de arquivos estao na visao geral",
+                    "a etapa (no painel) e a tabela de arquivos estao na pasta",
                 )
                 pagina.evaluate("() => document.querySelector('[data-sv-voltar]').click()")
                 pagina.wait_for_selector("#sv-tela .sv-grade", timeout=20000)

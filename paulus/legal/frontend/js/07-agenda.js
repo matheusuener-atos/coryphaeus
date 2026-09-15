@@ -1032,22 +1032,58 @@ function copiarTexto(texto, aviso) {
     () => avisoCert("não consegui copiar"));
 }
 
+/* O menu da linha, no padrão do menu das conversas: só o texto, sem ícone,
+   e o item com `sub` abre a lista dele ao lado (passar o mouse ou clicar),
+   com a seta. `icone` nos itens é ignorado — ficou de antes. */
 function menuNaLinha(botao, itens) {
   document.querySelectorAll(".menu-conversa.menu-novo").forEach((m) => m.remove());
   const menu = document.createElement("div");
   menu.className = "menu-conversa menu-novo";
-  menu.innerHTML = itens.map((it, i) => it === "-"
-    ? '<div class="menu-risco"></div>'
-    : '<button data-i="' + i + '"' + (it.perigo ? ' class="perigo"' : "") + ">" +
-      (it.icone ? ic(it.icone, 18) : "") + esc(it.rotulo) + "</button>").join("");
+  const botaoDoItem = (it, i, prefixo) => {
+    const classe = [it.perigo ? "perigo" : "", it.atual ? "atual" : ""].filter(Boolean).join(" ");
+    return '<button data-' + prefixo + '="' + i + '"' + (classe ? ' class="' + classe + '"' : "") + ">" + esc(it.rotulo) +
+      (it.sub ? '<span class="seta">›</span>' : "") + "</button>";
+  };
+  menu.innerHTML = itens.map((it, i) => it === "-" ? '<div class="menu-risco"></div>' : botaoDoItem(it, i, "i")).join("");
   /* O menu se posiciona pelo contêiner do botão (.menu-conversa é absoluto).
      Contêiner sem posição mandava o menu para fora da tela — foi o que
      acontecia no "⋯" dos cartões de Serviços. */
   const casa = botao.parentElement;
   if (getComputedStyle(casa).position === "static") casa.style.position = "relative";
   casa.appendChild(menu);
+  const fecharSub = () => { const sub = menu.querySelector(".menu-sub"); if (sub) sub.remove(); };
   menu.querySelectorAll("[data-i]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); menu.remove(); itens[Number(b.dataset.i)].acao(); };
+    const item = itens[Number(b.dataset.i)];
+    if (item.sub) {
+      const abrirSub = (e) => {
+        if (e) e.stopPropagation();
+        if (menu.querySelector(".menu-sub")) return;
+        const sub = document.createElement("div");
+        sub.className = "menu-conversa menu-sub";
+        sub.style.top = (b.offsetTop - 6) + "px";
+        sub.innerHTML = item.sub.map((x, k) => x === "-" ? '<div class="menu-risco"></div>' : botaoDoItem(x, k, "k")).join("");
+        menu.appendChild(sub);
+        // Abre do lado que tem espaço — medido contra quem corta (a área que
+        // rola), e não só a janela: medir só a janela deixava a lista cortada.
+        let limite = { left: 0, right: innerWidth };
+        for (let el = menu.parentElement; el && el !== document.body; el = el.parentElement) {
+          const estilo = getComputedStyle(el);
+          if (/(auto|hidden|scroll|clip)/.test(estilo.overflowX + estilo.overflow)) { limite = el.getBoundingClientRect(); break; }
+        }
+        const caixa = sub.getBoundingClientRect();
+        if (caixa.left < limite.left + 8) { sub.style.right = "auto"; sub.style.left = "calc(100% + 6px)"; }
+        const depois = sub.getBoundingClientRect();
+        if (depois.right > limite.right - 8 && caixa.left >= limite.left + 8) { sub.style.left = ""; sub.style.right = ""; }
+        sub.querySelectorAll("[data-k]").forEach((x) => {
+          x.onclick = (ev) => { ev.stopPropagation(); menu.remove(); item.sub[Number(x.dataset.k)].acao(); };
+        });
+      };
+      b.onclick = abrirSub;
+      b.onmouseenter = () => abrirSub();
+      return;
+    }
+    b.onmouseenter = fecharSub;
+    b.onclick = (e) => { e.stopPropagation(); menu.remove(); item.acao(); };
   });
   setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 0);
 }

@@ -109,4 +109,54 @@
   @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
 
+  /* ------------------------------------------------ calendario popover */
+  .calendario {
+    position: fixed; z-index: 120; width: 272px; padding: 12px;
+    background: var(--surf); border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--elev-float);
+    font: 500 13px var(--sans); color: var(--ink);
+  }
+  .cal-topo { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+  .cal-seta, .cal-titulo {
+    height: 30px; border: none; border-radius: 8px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .cal-seta { width: 30px; padding: 0; flex: none; }
+  .cal-titulo { flex: 1; font: 600 13.5px var(--sans); }
+  .cal-seta:hover:not(:disabled), .cal-titulo:hover:not(:disabled) { background: var(--fill); border: none; }
+  .cal-grade { display: grid; gap: 2px; }
+  .cal-grade.dias { grid-template-columns: repeat(7, 1fr); }
+  .cal-grade.meses, .cal-grade.anos { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .cal-semana { height: 26px; display: flex; align-items: center; justify-content: center; font: 600 11px var(--sans); color: var(--ink3); }
+  .cal-dia, .cal-celula {
+    position: relative; height: 32px; padding: 0; border: none; border-radius: 8px; background: none; color: var(--ink);
+    font: 500 13px var(--sans); cursor: pointer; font-variant-numeric: tabular-nums;
+  }
+  .cal-celula { height: 44px; }
+  .cal-dia:hover:not(:disabled), .cal-celula:hover:not(:disabled) { background: var(--fill); border: none; }
+  .cal-dia.fora-do-mes, .cal-celula.fora-do-mes { color: var(--ink3); }
+  .cal-dia.hoje { box-shadow: inset 0 0 0 1px var(--destaque-linha); font-weight: 700; }
+  .cal-dia.escolhido, .cal-celula.escolhido, .cal-dia.escolhido:hover:not(:disabled), .cal-celula.escolhido:hover:not(:disabled) {
+    background: var(--destaque); color: var(--bg); font-weight: 700;
+  }
+  .cal-dia.marcado::after {
+    content: ""; position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; margin-left: -2px;
+    border-radius: 50%; background: currentColor; opacity: .7;
+  }
+  .cal-dia.passado:not(.escolhido) { color: var(--acc); }
+  .cal-dia.passado.fora-do-mes:not(.escolhido) { color: var(--accln2); }
+  .cal-dia:disabled, .cal-celula:disabled { color: var(--ink-a25); cursor: not-allowed; background: none; }
+  .cal-pe { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+  .cal-rodape-botao { height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); }
+  .cal-rodape-botao:hover:not(:disabled) { background: var(--act); border: none; }
 
+  /* ------------------------------------------------- caixa de escolha */
+  .escolha-botao {
+    flex: 1; min-width: 0; height: 100%; padding: 0; border: none; background: none; box-shadow: none; border-radius: 0;
+    display: flex; align-items: center; gap: 8px; font: 400 14px var(--sans); color: var(--ink); text-align: left; cursor: pointer;
+  }
+  .escolha-botao:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .escolha-botao:focus-visible { outline: none; }
+  .escolha-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .escolha-botao .ic { color: var(--ink3); }
+  .menu-conversa.escolha-lista { position: fixed; right: auto; z-index: 130; max-height: 280px; overflow-y: auto; }
+  .escolha-lista button:focus-visible { outline: none; background: var(--fill); }

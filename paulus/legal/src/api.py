@@ -6027,6 +6027,34 @@ def servicos_resumo(id_: int) -> dict:
     return estado.servicos.obter(id_) or {}
 
 
+@app.post("/api/servicos/{id_}/conversar")
+def servicos_conversar(id_: int, payload: dict) -> dict:
+    """
+    Conversar sobre a pasta, da caixa de pedido dela.
+
+    O modelo recebe o que esta gravado no servico - e as ultimas perguntas,
+    para a conversa continuar -, responde, e a pergunta com a resposta entram
+    no historico da pasta. Como o resumo, nao le os arquivos: isso e a
+    conversa do Assistente, que tem o Acervo.
+    """
+    pergunta = " ".join(str(payload.get("pergunta", "")).split())
+    if not pergunta:
+        raise HTTPException(status_code=400, detail="escreva a pergunta")
+    s = estado.servicos.obter(id_)
+    if not s:
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        resposta = estado.client.ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
+                                     estado.servicos.texto_para_conversa(s))
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    estado.servicos.conversar(id_, pergunta, _limpar_sugestao(resposta), _quem_sou())
+    return estado.servicos.obter(id_) or {}
+
+
 # ------------------------------------------------------------------ voz
 
 

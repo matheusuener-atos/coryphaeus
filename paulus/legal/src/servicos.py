@@ -14,12 +14,14 @@ ninguem lembra depois.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 STATUS = {
     "andamento": "Em andamento",
     "aguardando": "Aguardando cliente",
     "revisao": "Em revisão",
+    # Parado por decisao do escritorio ou do cliente, sem data para voltar.
+    "suspenso": "Suspenso",
     "concluido": "Concluído",
 }
 
@@ -172,11 +174,11 @@ class Servicos:
             )
             # A trilha diz o que mudou, nao so que algo mudou.
             if (atual["nome"], atual["cadastro_id"], atual["descricao"]) != (nome, cadastro_id, descricao):
-                self.trilha(id_, "Dados do serviço atualizados")
+                self.trilha(id_, "Dados do serviço atualizados", tipo="dados")
             if _json(atual["equipe"], []) != equipe:
-                self.trilha(id_, "Equipe: " + (", ".join(p["nome"] for p in self._equipe(equipe)) or "ninguém"))
+                self.trilha(id_, "Equipe: " + (", ".join(p["nome"] for p in self._equipe(equipe)) or "ninguém"), tipo="equipe")
             if atual["status"] != status:
-                self.trilha(id_, "Status: " + STATUS[status])
+                self.trilha(id_, "Status: " + STATUS[status], tipo="status", dados={"status": status})
             return id_
 
         novo = self.base.escrever(
@@ -184,7 +186,7 @@ class Servicos:
             "criado_em, atualizado_em) VALUES (?, ?, ?, ?, '[]', ?, '[]', '[]', ?, ?)",
             (nome, cadastro_id, descricao, status, json.dumps(equipe), _agora(), _agora()),
         )
-        self.trilha(novo, "Serviço aberto")
+        self.trilha(novo, "Serviço aberto", tipo="criado")
         return novo
 
     def apagar(self, id_: int) -> bool:
@@ -199,7 +201,7 @@ class Servicos:
             "concluido_em = CASE WHEN ? = 'concluido' THEN ? ELSE '' END WHERE id = ?",
             (status, _agora(), status, _agora(), id_),
         )
-        self.trilha(id_, "Status: " + STATUS[status])
+        self.trilha(id_, "Status: " + STATUS[status], tipo="status", dados={"status": status})
 
     # etapas
 
@@ -217,10 +219,11 @@ class Servicos:
         titulo = " ".join(str(titulo or "").split())
         if not titulo:
             raise ValueError("a etapa precisa de um nome")
+        quando = data_de_prazo(quando)
         etapas = self._etapas(id_)
-        etapas.append({"titulo": titulo, "feita": False, "quando": quando or "", "feita_em": "", "por": ""})
+        etapas.append({"titulo": titulo, "feita": False, "quando": quando, "feita_em": "", "por": ""})
         self._gravar_etapas(id_, etapas)
-        self.trilha(id_, "Etapa adicionada: " + titulo)
+        self.trilha(id_, "Etapa adicionada: " + titulo, tipo="etapa", dados={"titulo": titulo, "quando": quando})
         return etapas
 
     def etapa_alternar(self, id_: int, indice: int, quem: str = "") -> list[dict]:
@@ -233,7 +236,8 @@ class Servicos:
         e["feita_em"] = _agora() if e["feita"] else ""
         e["por"] = quem if e["feita"] else ""
         self._gravar_etapas(id_, etapas)
-        self.trilha(id_, ("Etapa concluída: " if e["feita"] else "Etapa reaberta: ") + e["titulo"], quem)
+        self.trilha(id_, ("Etapa concluída: " if e["feita"] else "Etapa reaberta: ") + e["titulo"], quem,
+                    tipo="etapa_feita" if e["feita"] else "etapa_reaberta", dados={"titulo": e["titulo"]})
         return etapas
 
     def etapa_remover(self, id_: int, indice: int) -> list[dict]:
@@ -242,7 +246,8 @@ class Servicos:
             raise ValueError("etapa não encontrada")
         tirada = etapas.pop(indice)
         self._gravar_etapas(id_, etapas)
-        self.trilha(id_, "Etapa removida: " + tirada.get("titulo", ""))
+        self.trilha(id_, "Etapa removida: " + tirada.get("titulo", ""), tipo="etapa_removida",
+                    dados={"titulo": tirada.get("titulo", "")})
         return etapas
 
     # anotacoes, arquivos, trilha, resumo
@@ -259,7 +264,8 @@ class Servicos:
         anotacoes.insert(0, {"quem": quem, "quando": _agora(), "texto": texto})
         self.base.escrever("UPDATE servicos SET anotacoes = ?, atualizado_em = ? WHERE id = ?",
                            (json.dumps(anotacoes, ensure_ascii=False), _agora(), id_))
-        self.trilha(id_, "Anotação: " + (texto[:60] + ("…" if len(texto) > 60 else "")), quem)
+        self.trilha(id_, "Anotação: " + (texto[:60] + ("…" if len(texto) > 60 else "")), quem,
+                    tipo="anotacao", dados={"texto": texto})
         return anotacoes
 
     def vincular(self, id_: int, sha1: str, nome: str) -> None:
@@ -268,28 +274,45 @@ class Servicos:
             "VALUES ('servico', ?, ?, ?, datetime('now','localtime'))",
             (id_, sha1, nome),
         )
-        self.trilha(id_, "Arquivo ligado: " + nome)
+        self.trilha(id_, "Arquivo ligado: " + nome, tipo="arquivo", dados={"sha1": sha1, "nome": nome})
 
     def desvincular(self, id_: int, sha1: str) -> None:
         linha = self.base.um("SELECT nome FROM vinculos WHERE tipo = 'servico' AND alvo_id = ? AND sha1 = ?", (id_, sha1))
         self.base.escrever("DELETE FROM vinculos WHERE tipo = 'servico' AND alvo_id = ? AND sha1 = ?", (id_, sha1))
         if linha:
-            self.trilha(id_, "Arquivo desligado: " + linha["nome"])
+            self.trilha(id_, "Arquivo desligado: " + linha["nome"], tipo="arquivo_desligado",
+                        dados={"sha1": sha1, "nome": linha["nome"]})
 
-    def trilha(self, id_: int, texto: str, quem: str = "") -> None:
+    def trilha(self, id_: int, texto: str, quem: str = "", tipo: str = "", dados: dict | None = None) -> None:
+        """
+        Um evento na trilha. `tipo` e `dados` sao o que o historico da pasta
+        desenha: o arquivo que entrou vira linha de documento, a etapa vira a
+        marca de concluir, a conversa vira pergunta e resposta. Eventos antigos
+        (so texto) continuam valendo - a tela os reconhece pelo comeco.
+        """
         quem = quem or self._quem()
         linha = self.base.um("SELECT trilha FROM servicos WHERE id = ?", (id_,))
         if not linha:
             return
         eventos = _json(linha["trilha"], [])
-        eventos.insert(0, {"quando": _agora(), "quem": quem, "texto": texto})
+        evento = {"quando": _agora(), "quem": quem, "texto": texto}
+        if tipo:
+            evento["tipo"] = tipo
+        if dados:
+            evento["dados"] = dados
+        eventos.insert(0, evento)
         self.base.escrever("UPDATE servicos SET trilha = ? WHERE id = ?",
                            (json.dumps(eventos[:200], ensure_ascii=False), id_))
 
     def guardar_resumo(self, id_: int, texto: str) -> None:
         self.base.escrever("UPDATE servicos SET resumo = ?, resumo_em = ? WHERE id = ?",
                            (texto, _agora(), id_))
-        self.trilha(id_, "Resumo escrito pelo assistente", "Assistente")
+        self.trilha(id_, "Resumo escrito pelo assistente", "Assistente", tipo="resumo", dados={"texto": texto})
+
+    def conversar(self, id_: int, pergunta: str, resposta: str, quem: str = "") -> None:
+        """A pergunta sobre a pasta e a resposta do assistente entram no historico."""
+        self.trilha(id_, "Pergunta: " + pergunta[:60], quem, tipo="conversa",
+                    dados={"pergunta": pergunta, "resposta": resposta})
 
     def texto_para_resumo(self, s: dict) -> str:
         """O que o modelo recebe: so o que esta gravado no servico."""
@@ -308,6 +331,52 @@ class Servicos:
         for arq in s.get("arquivos", [])[:12]:
             linhas.append(f"Arquivo: {arq['nome']}")
         return "\n".join(linhas)
+
+    def texto_para_conversa(self, s: dict) -> str:
+        """O servico, e as ultimas perguntas feitas sobre ele - a conversa continua."""
+        linhas = [self.texto_para_resumo(s)]
+        linha = self.base.um("SELECT trilha FROM servicos WHERE id = ?", (s["id"],))
+        conversas = [e for e in _json(linha["trilha"] if linha else "[]", []) if e.get("tipo") == "conversa"][:3]
+        for e in reversed(conversas):
+            d = e.get("dados") or {}
+            linhas.append(f"Pergunta anterior: {d.get('pergunta', '')}\nResposta anterior: {d.get('resposta', '')}")
+        return "\n\n".join(linhas)
+
+
+# Quanto a frente e quanto para tras um prazo de etapa pode ir: cinco anos
+# cobre qualquer servico, e barra o ano digitado errado (2062 ou 1926 no
+# lugar de 2026).
+ANOS_A_FRENTE = 5
+ANOS_PARA_TRAS = 5
+
+
+def data_de_prazo(quando: str, hoje: date | None = None) -> str:
+    """
+    A data de uma etapa, conferida: ISO valida, dentro de cinco anos para
+    cada lado. Data que ja passou vale - a etapa registrada depois do fato e
+    comum - e a tela a mostra como atrasada. Vazia continua vazia.
+    """
+    quando = str(quando or "").strip()[:10]
+    if not quando:
+        return ""
+    try:
+        dia = date.fromisoformat(quando)
+    except ValueError as exc:
+        raise ValueError("essa data não existe") from exc
+    hoje = hoje or date.today()
+    if dia < hoje - timedelta(days=365 * ANOS_PARA_TRAS + 1):
+        raise ValueError(f"a data da etapa passa de {ANOS_PARA_TRAS} anos atrás — confira o ano")
+    if dia > hoje + timedelta(days=365 * ANOS_A_FRENTE + 1):
+        raise ValueError(f"a data da etapa passa de {ANOS_A_FRENTE} anos — confira o ano")
+    return dia.isoformat()
+
+
+INSTRUCAO_CONVERSA = """Você é assistente de um escritório de advocacia brasileiro. Abaixo está o
+que foi gravado sobre um serviço (uma pasta de trabalho) e as últimas
+perguntas feitas sobre ele. Responda à pergunta em português do Brasil, em
+poucas frases, usando só o que está escrito. Não invente datas, valores,
+nomes nem cláusulas. Se a resposta não estiver no que foi gravado, diga isso
+e sugira o que registrar na pasta."""
 
 
 INSTRUCAO_RESUMO = """Você é assistente de um escritório de advocacia brasileiro. Abaixo está o
