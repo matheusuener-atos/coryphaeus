@@ -457,26 +457,20 @@ function cartaoDosDetalhesGv() {
 }
 
 /* O painel do ao vivo: os marcadores primeiro (é o que se usa gravando), o
-   contexto, a sugestão de respostas e a pergunta ao PAULUS no modelo do
-   assistente da pasta de Serviços — comandos prontos e a caixa pequena. */
+   contexto e a sugestão de respostas. */
 function painelAoVivo() {
   const v = gv.vivo;
   const gravando = v.estado === "gravando" || v.estado === "pausada";
   const marcadores = v.marcadores.map((m, i) => '<div class="gv-marcador">' + ic("bookmark", 18) + '<span class="em-ligacao forte">' + duracaoGv(m.t) + "</span>" +
     '<input type="text" value="' + esc(m.texto) + '" placeholder="o que aconteceu aqui" data-gv-marcador-vivo="' + i + '">' +
     '<button class="mais-linha" data-gv-marcador-vivo-tirar="' + i + '" title="Tirar">' + ic("close", 16) + "</button></div>").join("");
-  const comando = (texto, icone) => '<button type="button" class="sv-comando" data-gv-pergunta-pronta="' + esc(texto) + '">' + ic(icone, 16) + esc(texto) + "</button>";
   return '<aside class="acervo-painel gv-painel"><div class="rolagem">' +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca">Marcadores' +
     (gravando ? '<button class="em-ligacao forte" data-gv-marcar-vivo="1">+ marcar agora</button>' : '<span class="contagem">' + v.marcadores.length + "</span>") + "</div>" +
     (marcadores || '<p class="nota">' + (gravando ? "Nenhum marcador ainda. Marque o minuto que importa e escreva o que aconteceu." : "Durante a gravação, Marcar momento guarda o minuto — e você escreve o que aconteceu.") + "</p>") + "</div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Contexto ao vivo</span><span class="contagem">só nesta máquina</span></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca">Contexto ao vivo<span class="contagem">só nesta máquina</span></div>' +
     '<p class="nota">Com a transcrição, o assistente vai cruzar o que é dito com os arquivos do serviço e o Acervo — a cláusula citada, o valor em atraso, o prazo que muda. Até lá, este espaço não inventa contexto.</p></div>' +
     '<div class="painel-bloco">' + ligaCfg("", "Sugerir respostas enquanto ouço", "com base nos arquivos do serviço e no Acervo · entra com a transcrição", false, true) + "</div>" +
-    '<div class="painel-bloco gv-perguntar"><div class="painel-bloco-cabeca">Perguntar ao PAULUS<span class="contagem">' + (gravando ? "a gravação continua" : "abre a conversa") + "</span></div>" +
-    '<div class="sv-comandos">' + comando("O que foi combinado até agora?", "checklist") + comando("Quais prazos e valores foram citados?", "event") + "</div>" +
-    '<form class="sv-caixa" data-gv-pergunta-form="1"><input type="text" data-gv-pergunta="1" placeholder="Pergunte algo sobre o que está sendo dito…">' +
-    '<button class="enviar" type="submit" title="Perguntar" aria-label="Perguntar">' + ic("arrow_upward", 18) + "</button></form></div>" +
     "</div></aside>";
 }
 
@@ -1065,9 +1059,6 @@ function ligarGravacoes() {
   clique("[data-gv-rolar]", (b) => { gv.vivo.rolar = !gv.vivo.rolar; b.classList.toggle("primario", gv.vivo.rolar); if (gv.vivo.rolar) desenharTrechosAoVivo(); });
   document.querySelectorAll("[data-gv-marcador-vivo]").forEach((el) => { el.oninput = () => { gv.vivo.marcadores[Number(el.dataset.gvMarcadorVivo)].texto = el.value; }; });
   clique("[data-gv-marcador-vivo-tirar]", (b) => { gv.vivo.marcadores.splice(Number(b.dataset.gvMarcadorVivoTirar), 1); redesenharPainelGv(); });
-  const pergunta = document.querySelector("[data-gv-pergunta-form]");
-  if (pergunta) pergunta.onsubmit = (e) => { e.preventDefault(); const t = pergunta.querySelector("[data-gv-pergunta]").value; if (t.trim()) perguntarSemParar(t); };
-  clique("[data-gv-pergunta-pronta]", (b) => perguntarSemParar(b.dataset.gvPerguntaPronta));
   // gravacao arquivada
   ligarTocador();
   clique("[data-gv-ir]", (b) => irParaGv(Number(b.dataset.gvIr)));
@@ -1259,21 +1250,6 @@ async function pararGravacao() {
   gv.aberta = g;
   gv.aba = "transcricao";
   mostrarGravacoes("gravacao");
-}
-
-function perguntarSemParar(texto) {
-  const v = gv.vivo;
-  $("nova").click();
-  marcarDestino("conversa");
-  const campo = $("pedido");
-  if (campo) {
-    const dito = v.transcricao.slice(-6).map((t) => t.texto).join(" ").slice(-700);
-    campo.value = (v.estado === "pronto" ? "" : "Durante a gravação “" + (v.form.titulo || tituloPadraoGv(v.form)) + "”" +
-      (dito ? ", em que acabou de ser dito: “" + dito + "”" : "") + ". ") + (texto || "").trim();
-    campo.focus();
-    campo.setSelectionRange(campo.value.length, campo.value.length);
-  }
-  if (v.estado !== "pronto") avisoCert("a gravação continua — volte por Gravações para parar e arquivar");
 }
 
 /* ------------------------------------------------------- ao vivo */
