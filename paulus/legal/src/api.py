@@ -6389,8 +6389,28 @@ def gravacoes_listar(tipo: str = "", termo: str = "") -> dict:
         "tipos": [{"valor": k, "rotulo": v} for k, v in gravacoes_mod.TIPOS.items()],
         "clientes": [{"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar("cliente")],
         "servicos": [{"id": s["id"], "nome": s["nome"]} for s in estado.servicos.listar("andamento")],
+        "pessoas": _pessoas_para_gravacao(),
         "pasta": str(GRAVACOES_DIR),
     }
+
+
+def _pessoas_para_gravacao() -> list[dict]:
+    """
+    Os nomes que o campo Participantes sugere: as fichas de Cadastros (equipe,
+    clientes, fornecedores) e quem ja participou de outra gravacao. Nome
+    repetido aparece uma vez, com o que se sabe dele.
+    """
+    rotulos = {"colaborador": "equipe", "socio": "sócio", "cliente": "cliente"}
+    vistos: dict[str, dict] = {}
+    for f in estado.cadastros.listar():
+        nome = " ".join(str(f.get("nome", "")).split())
+        if nome and nome.casefold() not in vistos:
+            vistos[nome.casefold()] = {"nome": nome, "detalhe": f.get("observacao") or rotulos.get(f.get("tipo", ""), f.get("tipo", ""))}
+    for g in estado.gravacoes.listar():
+        for nome in g.get("participantes_lista", []):
+            if nome.casefold() not in vistos:
+                vistos[nome.casefold()] = {"nome": nome, "detalhe": "participou de uma gravação"}
+    return sorted(vistos.values(), key=lambda p: p["nome"].casefold())
 
 
 @app.post("/api/gravacoes")

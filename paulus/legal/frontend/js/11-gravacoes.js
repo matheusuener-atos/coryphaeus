@@ -50,6 +50,7 @@ async function mostrarGravacoes(visao) {
     gv.totalSegundos = d.total_segundos || 0;
     gv.tipos = d.tipos || [];
     gv.clientes = d.clientes || [];
+    gv.pessoas = d.pessoas || [];
     gv.servicos = d.servicos || [];
     gv.pasta = d.pasta || "";
     if (gv.visao === "gravacao") {
@@ -137,7 +138,7 @@ function cabecalhoGravacoes() {
     nav.innerHTML = voltar;
     titulo.textContent = v.estado === "pronto" ? "Nova gravação" : (v.form.titulo || tituloPadraoGv(v.form));
     meta.textContent = v.estado === "pronto" ? "microfone desta máquina · o áudio fica só aqui" : metaAoVivo();
-    $("acoes-tela").innerHTML = '<div class="visoes">' + botao("vivo", "Ao vivo") + botao("transcricao", "Transcrição") + "</div>";
+    $("acoes-tela").innerHTML = "";
     return;
   }
   if (gv.visao === "gravacao" && gv.aberta) {
@@ -401,7 +402,7 @@ function pararTocadorDaListaGv(tela) {
 /* ---------------------------------------------------------- ao vivo */
 
 function corpoAoVivo() {
-  return '<div class="acervo-principal gv-vivo">' + cartaoDoGravadorGv() + cartaoDosDetalhesGv() + cartaoAoVivo() + "</div>";
+  return '<div class="acervo-principal gv-vivo">' + cartaoDosDetalhesGv() + cartaoDoGravadorGv() + cartaoAoVivo() + "</div>";
 }
 
 /* O GRAVADOR É O CARTÃO DO DITADO DA CONVERSA: o estado e o tempo em cima,
@@ -449,7 +450,8 @@ function cartaoDosDetalhesGv() {
   return '<div class="fin-cartao gv-detalhes"><div class="fin-cartao-cabeca"><span>Detalhes da gravação</span><small>entram no arquivo ao parar e arquivar</small></div>' +
     '<div class="gv-forma">' +
     '<div class="ag-campo"><label>Título</label><input type="text" data-gv-form="titulo" value="' + esc(f.titulo) + '" placeholder="' + esc(tituloPadraoGv(f)) + '"></div>' +
-    '<div class="ag-campo"><label>Participantes</label><input type="text" data-gv-form="participantes" value="' + esc(f.participantes) + '" placeholder="Priscila Almeida, João Medeiros"></div>' +
+    '<div class="ag-campo gv-participantes"><label>Participantes</label><input type="text" data-gv-form="participantes" data-gv-participantes="1" value="' + esc(f.participantes) + '" placeholder="Priscila Almeida, João Medeiros" autocomplete="off">' +
+    '<div class="mencao gv-sugestoes" data-gv-sugestoes="1" hidden></div></div>' +
     '<div class="ag-campo gv-forma-inteira"><label>Tipo</label><div class="ag-chips">' + tipos + "</div></div>" +
     '<div class="ag-campo"><label>Cliente</label><select data-gv-form="cadastro_id">' + clientes + "</select></div>" +
     '<div class="ag-campo"><label>Serviço</label><select data-gv-form="servico_id">' + servicos + "</select></div>" +
@@ -472,6 +474,79 @@ function painelAoVivo() {
     '<p class="nota">Com a transcrição, o assistente vai cruzar o que é dito com os arquivos do serviço e o Acervo — a cláusula citada, o valor em atraso, o prazo que muda. Até lá, este espaço não inventa contexto.</p></div>' +
     '<div class="painel-bloco">' + ligaCfg("", "Sugerir respostas enquanto ouço", "com base nos arquivos do serviço e no Acervo · entra com a transcrição", false, true) + "</div>" +
     "</div></aside>";
+}
+
+/* PARTICIPANTES COMO O "/" DA CONVERSA. O campo sugere os nomes que o
+   programa conhece (Cadastros e quem já participou de outra gravação),
+   filtrando pelo nome que está sendo escrito depois da última vírgula; setas
+   andam, Enter ou Tab escolhem, Esc fecha. Sem nome que combine, o campo só
+   recebe o que se digita. */
+function ligarParticipantesGv() {
+  const campo = document.querySelector("[data-gv-participantes]");
+  const caixa = document.querySelector("[data-gv-sugestoes]");
+  if (!campo || !caixa) return;
+  const plano = (t) => String(t || "").normalize("NFD").replace(new RegExp("[\u0300-\u036f]", "g"), "").toLowerCase();
+  let itens = [];
+  let marcado = 0;
+  const fechar = () => { caixa.hidden = true; caixa.innerHTML = ""; itens = []; };
+  const pedaco = () => {
+    const ate = campo.value.slice(0, campo.selectionStart);
+    const inicio = ate.lastIndexOf(",") + 1;
+    return { inicio: inicio, termo: ate.slice(inicio).trim() };
+  };
+  const abrir = () => {
+    const { termo } = pedaco();
+    const ja = new Set(campo.value.split(",").map((n) => plano(n.trim())).filter(Boolean));
+    // Cada palavra digitada precisa estar no nome, em qualquer ordem: "teste pri" acha "Priscila Teste".
+    const partes = plano(termo).split(/\s+/).filter(Boolean);
+    itens = (gv.pessoas || []).filter((p) => !ja.has(plano(p.nome)) && partes.every((x) => plano(p.nome).includes(x))).slice(0, 8);
+    if (!itens.length) { fechar(); return; }
+    marcado = 0;
+    caixa.hidden = false;
+    caixa.innerHTML = itens.map((p, i) => {
+      const classe = "mencao-item" + (i === 0 ? " marcado" : "");
+      return '<button type="button" class="' + classe + '" data-gv-pessoa="' + i + '"><b>' + esc(p.nome) + "</b>" +
+        (p.detalhe ? '<span class="rotulo">' + esc(p.detalhe) + "</span>" : "") + "</button>";
+    }).join("");
+    caixa.querySelectorAll("[data-gv-pessoa]").forEach((b) => {
+      b.onmousedown = (e) => { e.preventDefault(); escolher(itens[Number(b.dataset.gvPessoa)]); };
+    });
+  };
+  const escolher = (p) => {
+    const { inicio } = pedaco();
+    const depois = campo.value.slice(campo.selectionStart).replace(/^[^,]*,?\s*/, "");
+    const antes = campo.value.slice(0, inicio).replace(/\s*$/, "");
+    campo.value = (antes ? antes + " " : "") + p.nome + ", " + depois;
+    const fim = ((antes ? antes + " " : "") + p.nome + ", ").length;
+    campo.setSelectionRange(fim, fim);
+    gv.vivo.form.participantes = campo.value.replace(/,\s*$/, "");
+    fechar();
+    abrir();
+  };
+  const andar = (passo) => {
+    marcado = (marcado + passo + itens.length) % itens.length;
+    caixa.querySelectorAll(".mencao-item").forEach((b, i) => {
+      b.classList.toggle("marcado", i === marcado);
+      if (i === marcado) b.scrollIntoView({ block: "nearest" });
+    });
+  };
+  campo.onfocus = abrir;
+  campo.onclick = abrir;
+  campo.addEventListener("input", () => {
+    gv.vivo.form.participantes = campo.value;
+    abrir();
+  });
+  campo.onkeydown = (e) => {
+    if (caixa.hidden || !itens.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); andar(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); andar(-1); }
+    else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); escolher(itens[marcado]); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fechar(); }
+  };
+  campo.onblur = () => {
+    setTimeout(fechar, 120);
+    gv.vivo.form.participantes = campo.value.replace(/,\s*$/, "").trim();
+  };
 }
 
 /* O equalizador do gravador: o analisador lê o próprio microfone, num
@@ -1051,6 +1126,7 @@ function ligarGravacoes() {
     el.oninput = () => { gv.vivo.form[el.dataset.gvForm] = /_id$/.test(el.dataset.gvForm) ? (Number(el.value) || null) : el.value; };
     el.onchange = el.oninput;
   });
+  ligarParticipantesGv();
   clique("[data-gv-form-tipo]", (b) => { gv.vivo.form.tipo = b.dataset.gvFormTipo; document.querySelectorAll("[data-gv-form-tipo]").forEach((x) => x.classList.toggle("on", x === b)); });
   clique("[data-gv-comecar]", () => comecarGravacao());
   clique("[data-gv-pausar]", () => pausarGravacao());
