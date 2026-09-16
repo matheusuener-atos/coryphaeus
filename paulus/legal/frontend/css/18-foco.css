@@ -6,25 +6,37 @@
   .be-tela.acervo { grid-template-columns: minmax(0, 1fr) 380px; }
   .be-grade { flex: 1; min-height: 420px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; }
   .be-grade.semana { grid-template-rows: minmax(0, 1.3fr) auto; grid-template-columns: minmax(0, 1fr); }
-  .be-ciclo { flex: 1; min-height: 0; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; overflow: auto; }
+  /* HOJE: o relogio solto em cima - sem cartao, como a abertura de uma
+     pagina - e, embaixo, o cartao dos lembretes com o resto da altura. */
+  .be-hoje { display: flex; flex-direction: column; gap: 14px; }
+  .be-hoje > .fin-cartao { flex: 1; min-height: 260px; }
+  .be-relogio { flex: none; display: flex; align-items: center; gap: 28px; padding: 2px 4px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .be-relogio-lado { flex: 1; min-width: 0; max-width: 560px; display: grid; gap: 12px; }
+  .be-relogio-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .be-relogio-topo h3 { margin: 0; font: 400 20px/1.2 var(--serif); letter-spacing: -.01em; }
+  .be-relogio .be-meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-relogio .be-botoes { justify-content: flex-start; }
+  .be-relogio .cfg-liga { width: 100%; }
   .be-anel {
-    position: relative; width: 200px; height: 200px; flex: none; border-radius: 50%;
+    position: relative; width: 176px; height: 176px; flex: none; border-radius: 50%;
     background: conic-gradient(var(--ink) 0 var(--be-p), var(--fill2) var(--be-p) 100%);
   }
   .be-anel.pausa { background: conic-gradient(var(--verde) 0 var(--be-p), var(--fill2) var(--be-p) 100%); }
   .be-anel.parado { background: conic-gradient(var(--fill2) 0 100%, var(--fill2) 0 100%); }
   .be-anel > div { position: absolute; inset: 8px; border-radius: 50%; background: var(--surf); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-  .be-tempo { font: 400 44px/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .be-tempo { font: 400 38px/1 var(--serif); font-variant-numeric: tabular-nums; }
   .be-fase { font: 500 12.5px var(--sans); color: var(--ink3); }
   .be-botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .be-botoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; white-space: nowrap; }
   .be-ajustes { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .be-ajustes div { padding: 10px 12px; background: var(--bg); border-radius: 8px; display: grid; gap: 2px; }
+  .be-ajustes .be-tarefa { grid-column: 1 / -1; }
+  /* Fora do cartao, o campo precisa do proprio fio: sobre o fundo da pagina
+     o recuo sozinho sumia. */
+  .be-ajustes div { padding: 9px 12px; background: var(--surf); border: 1px solid var(--hair); border-radius: 10px; display: grid; gap: 2px; }
   .be-ajustes small { font: 500 12px var(--sans); color: var(--ink3); }
   .be-ajustes select, .be-ajustes .escolha-botao { width: 100%; max-width: none; min-width: 0; padding: 4px 0; border: none; background: transparent; font: 600 14px var(--sans); color: var(--ink); cursor: pointer; }
   .be-tarefa { width: 100%; }
-  .be-tarefa select, .be-tarefa .escolha-botao { width: 100%; max-width: none; min-width: 0; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink); }
-  .be-ciclo .cfg-liga { width: 100%; }
+  .be-dica { margin: 0; padding: 0 18px 14px; font: 500 12.5px/1.55 var(--sans); color: var(--ink3); }
   .be-lembretes { flex: 1; min-height: 0; overflow: auto; }
   .be-lembrete { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; }
   .be-lembrete:last-child { border-bottom: none; }

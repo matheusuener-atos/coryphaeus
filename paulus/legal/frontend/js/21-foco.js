@@ -145,19 +145,23 @@ function corpoDeHoje() {
     '<option value="' + esc(t.titulo) + '"' + (t.titulo === tarefaAtual ? " selected" : "") + ">" + esc(t.titulo) + "</option>").join("") +
     (tarefaAtual && !be.tarefas.some((t) => t.titulo === tarefaAtual) ? '<option value="' + esc(tarefaAtual) + '" selected>' + esc(tarefaAtual) + "</option>" : "");
 
-  const ciclo = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Ciclo de foco</span><small>' +
-    esc(c.tarefa ? "tarefa deste ciclo: " + c.tarefa : "sem tarefa marcada") + "</small></div>" +
-    '<div class="be-ciclo">' +
+  // O RELOGIO FICA SOLTO NA PAGINA, sem cartao: ele e a peca de abertura da
+  // tela, e o cartao so o empurrava para o meio de um vazio. Ao lado dele, o
+  // que o ciclo precisa: os botoes, os tempos, a tarefa e o silenciar.
+  const ciclo = '<section class="be-relogio">' +
     '<div class="' + classeAnel + '" id="be-anel" style="--be-p:' + progressoDoCiclo(c) + '%"><div><span class="be-tempo" id="be-relogio">' +
     esc(c.estado === "parado" ? String(c.foco_min).padStart(2, "0") + ":00" : c.restante_texto) + '</span><span class="be-fase" id="be-fase">' + esc(faseDoCiclo(c)) + "</span></div></div>" +
+    '<div class="be-relogio-lado">' +
+    '<div class="be-relogio-topo"><h3>Ciclo de foco</h3><span class="be-meta">' +
+    esc(c.tarefa ? "tarefa deste ciclo: " + c.tarefa : "sem tarefa marcada") + "</span></div>" +
     '<div class="be-botoes">' + botoes + "</div>" +
     '<div class="be-ajustes"><div><small>Foco</small><select data-be-foco="1"' + (c.estado === "parado" ? "" : " disabled") + ">" +
     [15, 25, 45, 50, 90].map((m) => '<option value="' + m + '"' + (c.foco_min === m ? " selected" : "") + ">" + m + " min</option>").join("") + "</select></div>" +
     '<div><small>Pausa</small><select data-be-pausa-min="1"' + (c.estado === "parado" ? "" : " disabled") + ">" +
-    [5, 10, 15].map((m) => '<option value="' + m + '"' + (c.pausa_min === m ? " selected" : "") + ">" + m + " min</option>").join("") + "</select></div></div>" +
-    '<div class="be-tarefa ag-campo"><label>Tarefa deste ciclo</label><select data-be-tarefa="1"' + (c.estado === "parado" ? "" : " disabled") + ">" + opcoes + "</select></div>" +
+    [5, 10, 15].map((m) => '<option value="' + m + '"' + (c.pausa_min === m ? " selected" : "") + ">" + m + " min</option>").join("") + "</select></div>" +
+    '<div class="be-tarefa"><small>Tarefa deste ciclo</small><select data-be-tarefa="1"' + (c.estado === "parado" ? "" : " disabled") + ">" + opcoes + "</select></div></div>" +
     '<div class="cfg-liga presa"><span class="duas-linhas"><b>Silenciar avisos durante o foco</b><small>segurar e-mail, WhatsApp e Aprovações até a pausa ainda não existe</small></span><i></i></div>' +
-    "</div></div>";
+    "</div></section>";
 
   const linhas = lembretes.map((l) => {
     const atrasado = l.ligado && !l.cumprido && l.atrasado_min > 0;
@@ -176,7 +180,7 @@ function corpoDeHoje() {
     '<div class="be-lembretes">' + (linhas || '<p class="rel-vazio">Nenhum lembrete. Crie um em Ajustar lembretes.</p>') + "</div>" +
     '<div class="be-rodape"><span>Lembretes ficam nesta máquina · nada é compartilhado</span><button class="em-ligacao forte" data-be-ajustar="1">Ajustar lembretes →</button></div></div>';
 
-  return '<div class="acervo-principal"><div class="be-grade">' + ciclo + lista + "</div></div>";
+  return '<div class="acervo-principal be-hoje">' + ciclo + lista + "</div>";
 }
 
 function painelDeHoje() {
@@ -296,7 +300,7 @@ function painelDosAjustes() {
   return '<aside class="acervo-painel be-painel"><div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + (v ? (v.id ? "Editar lembrete" : "Novo lembrete") : "Ajustar lembretes") + '</h3><span class="meta">tocam só nesta máquina</span></span>' +
     '<button class="botao-icone" data-be-ajustar="1" title="Fechar">' + ic("close", 18) + "</button></div>" + miolo +
-    '<div class="painel-chaves"><div class="chave-valor"><span>Água</span><b>um lembrete com “água” no nome conta copos</b></div></div>' +
+    '<p class="be-dica">Um lembrete com “água” no nome conta copos: o que você marca ali vira o número de copos do dia.</p>' +
     "</div></aside>";
 }
 

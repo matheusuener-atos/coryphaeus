@@ -1608,9 +1608,14 @@ async function carregarStatus() {
     estado.modelo = s.modelo || "";
     estado.trechos = s.trechos || 0;
     estado.pasta = s.pasta || "";
-    $("conversa-meta").textContent = s.contratos
-      ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos"
-      : "nenhum documento aberto";
+    /* O subtitulo e de quem esta na tela. O status chega de tempos em tempos e
+       escrevia por cima de qualquer tela aberta: a Agenda dizia "17 documentos
+       abertos" no lugar da semana, o Foco no lugar do tempo ativo. */
+    if (!String(troca.tela || "").startsWith("tela:")) {
+      $("conversa-meta").textContent = s.contratos
+        ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos"
+        : "nenhum documento aberto";
+    }
     desenharAvisoDoMotor(s);
     desenharEscopo();
     if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
