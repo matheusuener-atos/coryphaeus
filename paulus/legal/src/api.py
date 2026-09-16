@@ -5921,6 +5921,13 @@ def bemestar_marcar(id_: int) -> dict:
     return {"lembretes": estado.bem_estar.lembretes(), "hoje": estado.bem_estar.dia()}
 
 
+@app.post("/api/bemestar/lembretes/restaurar")
+def bemestar_restaurar_lembretes() -> dict:
+    """Devolve a lista de fabrica para quem se perdeu editando."""
+    quantos = estado.bem_estar.restaurar_lembretes()
+    return {"lembretes": estado.bem_estar.lembretes(), "restaurados": quantos}
+
+
 @app.delete("/api/bemestar/lembretes/{id_}")
 def bemestar_apagar_lembrete(id_: int) -> dict:
     estado.bem_estar.apagar_lembrete(id_)

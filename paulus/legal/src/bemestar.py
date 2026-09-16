@@ -287,6 +287,20 @@ class BemEstar:
     def apagar_lembrete(self, id_: int) -> bool:
         return self.base.escrever("DELETE FROM lembretes WHERE id = ?", (id_,)) > 0
 
+    def restaurar_lembretes(self) -> int:
+        """
+        Devolve a lista de fabrica.
+
+        Quem editou demais - apagou o de beber agua, trocou os tempos, criou
+        seis parecidos - nao tem como voltar item a item; este apaga o que ha
+        e recria os sugeridos. So os lembretes: o que foi medido (copos,
+        pausas, ciclos) fica.
+        """
+        self.base.escrever("DELETE FROM lembretes")
+        for titulo, cada, meta in LEMBRETES_SUGERIDOS:
+            self.salvar_lembrete({"titulo": titulo, "cada_min": cada, "meta_dia": meta})
+        return len(LEMBRETES_SUGERIDOS)
+
     def sugerir_lembretes(self) -> int:
         """Cria a lista inicial, para a tela nao comecar em branco."""
         if self.base.contar("lembretes"):

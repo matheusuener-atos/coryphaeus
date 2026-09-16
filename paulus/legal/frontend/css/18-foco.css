@@ -9,11 +9,12 @@
   /* HOJE: o relogio solto em cima - sem cartao, como a abertura de uma
      pagina - e, embaixo, o cartao dos lembretes com o resto da altura. */
   .be-hoje { display: flex; flex-direction: column; gap: 14px; }
-  .be-hoje > .fin-cartao { flex: 1; min-height: 260px; }
-  .be-relogio { flex: none; display: flex; align-items: center; gap: 28px; padding: 2px 4px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .be-hoje > .fin-cartao { flex: none; }
+  /* Sem fio entre o relogio e o cartao: o cartao ja se separa sozinho. */
+  .be-relogio { flex: none; display: flex; align-items: center; gap: 28px; padding: 2px 4px 10px; }
   .be-relogio-lado { flex: 1; min-width: 0; max-width: 560px; display: grid; gap: 12px; }
   .be-relogio-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .be-relogio-topo h3 { margin: 0; font: 400 20px/1.2 var(--serif); letter-spacing: -.01em; }
+  .be-relogio-topo h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .be-relogio .be-meta { font: 500 12.5px var(--sans); color: var(--ink3); }
   .be-relogio .be-botoes { justify-content: flex-start; }
   .be-relogio .cfg-liga { width: 100%; }
@@ -24,7 +25,7 @@
   .be-anel.pausa { background: conic-gradient(var(--verde) 0 var(--be-p), var(--fill2) var(--be-p) 100%); }
   .be-anel.parado { background: conic-gradient(var(--fill2) 0 100%, var(--fill2) 0 100%); }
   .be-anel > div { position: absolute; inset: 8px; border-radius: 50%; background: var(--surf); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-  .be-tempo { font: 400 38px/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .be-tempo { font: 600 36px/1 var(--sans); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
   .be-fase { font: 500 12.5px var(--sans); color: var(--ink3); }
   .be-botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .be-botoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; white-space: nowrap; }
@@ -38,7 +39,7 @@
   .be-tarefa { width: 100%; }
   .be-dica { margin: 0; padding: 0 18px 14px; font: 500 12.5px/1.55 var(--sans); color: var(--ink3); }
   .be-lembretes { flex: 1; min-height: 0; overflow: auto; }
-  .be-lembrete { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; }
+  .be-lembrete { display: flex; align-items: center; gap: 12px; padding: 7px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
   .be-lembrete:last-child { border-bottom: none; }
   .be-lembrete.atrasado { background: var(--accbg2); }
   .be-lembrete.desligado .duas-linhas b, .be-lembrete.desligado .duas-linhas small { color: var(--ink3); }
@@ -47,7 +48,8 @@
   .be-lembrete .ic { color: var(--verde); flex: none; }
   .be-lembrete .duas-linhas b { font-weight: 500; }
   .be-lembrete .duas-linhas small.acc { color: var(--acc); }
-  .be-lembrete button { padding: 5px 10px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
+  .be-lembrete button { padding: 4px 10px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
+  .be-lembrete .duas-linhas small { font-size: 12px; }
   .be-lembrete button.primario { font-weight: 600; }
   .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
 
@@ -66,27 +68,31 @@
   .be-sugestao .fin-pede-acoes { padding-top: 0; }
   .be-painel .painel-bloco .cfg-liga { padding: 2px 0; }
 
-  /* a semana */
-  .be-semana-grade {
-    flex: 1; min-height: 160px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; align-items: end;
-    background-image: linear-gradient(var(--ink-a06) 1px, transparent 1px); background-size: 100% 25%; border-bottom: 1px solid var(--ink-a1);
-  }
-  .be-dia { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
-  .be-dia small { font: 500 11px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
-  .be-dia i { display: block; width: 100%; max-width: 44px; min-height: 2px; background: var(--ink); border-radius: 4px 4px 0 0; }
-  .be-dia.hoje i { background: var(--destaque); }
-  .be-dia.vazio i { background: var(--fill2); }
-  .be-semana-rotulos { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
-  .be-semana-rotulos span { display: grid; gap: 1px; font: 500 12px var(--sans); color: var(--ink2); }
-  .be-semana-rotulos small { font: 500 11px var(--sans); color: var(--ink3); }
+  /* A SEMANA. O grafico sai do cartao e ocupa a largura: sete barras
+     deitadas e finas, o dia a esquerda e o numero a direita. */
+  .be-semana-tela { display: flex; flex-direction: column; gap: 14px; }
+  .be-semana-tela > .fin-cartao { flex: none; }
+  .be-semana { display: grid; gap: 12px; padding: 2px 4px 14px; }
+  .be-semana-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .be-semana-topo h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
+  .be-semana .be-meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-barras { display: grid; gap: 6px; }
+  .be-barra { display: grid; grid-template-columns: 52px minmax(0, 1fr) 130px; align-items: center; gap: 12px; font-size: 13px; }
+  .be-barra > span { color: var(--ink2); }
+  .be-barra i { display: block; height: 8px; border-radius: 4px; background: var(--fill2); overflow: hidden; }
+  .be-barra i b { display: block; height: 100%; border-radius: 4px; background: var(--ink); }
+  .be-barra.hoje i b { background: var(--destaque); }
+  .be-barra.hoje > span { color: var(--ink); font-weight: 600; }
+  .be-barra small { font: 500 12px var(--sans); color: var(--ink3); text-align: right; font-variant-numeric: tabular-nums; }
+  .be-barra.vazio small { color: var(--mute); }
   .be-semana-somas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .be-semana-somas div { padding: 10px 12px; background: var(--bg); border-radius: 8px; display: grid; gap: 2px; }
+  .be-semana-somas div { padding: 9px 12px; background: var(--surf); border: 1px solid var(--hair); border-radius: 10px; display: grid; gap: 2px; }
   .be-semana-somas small { font: 500 12px var(--sans); color: var(--ink3); }
   .be-semana-somas b { font: 600 15px var(--sans); font-variant-numeric: tabular-nums; }
-  .be-habitos { padding: 8px 16px 12px; display: grid; gap: 2px; }
-  .be-habito { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(7, 28px) minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
+  .be-habitos { padding: 4px 16px 10px; display: grid; }
+  .be-habito { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(7, 18px) minmax(0, 1fr); gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13px; }
   .be-habito:last-child { border-bottom: none; }
-  .be-habito i { display: block; width: 28px; height: 28px; border-radius: 6px; background: var(--mute); }
+  .be-habito i { display: block; width: 18px; height: 18px; border-radius: 5px; background: var(--mute); }
   .be-habito i.cheio { background: var(--ink); }
   .be-habito i.meio { background: var(--ink3); }
   .be-habito i.futuro { background: var(--fill2); }
@@ -94,6 +100,8 @@
   .be-habito.adiante > span:first-child { color: var(--ink3); }
 
   /* ajustar lembretes, no painel */
+  .be-painel .painel-cabeca h3 { font: 600 14px var(--sans); letter-spacing: 0; }
+  .be-painel .fin-painel-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
   .be-editor { padding: 0 18px 12px; display: grid; gap: 8px; }
   .be-editor-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
   .be-editor-linha:last-child { border-bottom: none; }

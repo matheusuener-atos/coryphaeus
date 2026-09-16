@@ -295,13 +295,35 @@ function painelDosAjustes() {
       (l.meta_dia ? " · meta " + l.meta_dia + " por dia" : " · sem meta") + (l.ligado ? "" : " · desligado") + "</small></span>" +
       '<button data-be-editar="' + l.id + '">Editar</button><button class="botao-icone" data-be-tirar="' + l.id + '" title="Apagar">' + ic("close", 16) + "</button></div>").join("") +
       "</div>" +
-      '<div class="fin-botoes fin-painel-botoes"><button class="primario" data-be-novo="1">' + ic("add", 16) + "Novo lembrete</button></div>";
+      '<div class="fin-botoes fin-painel-botoes"><button class="primario" data-be-novo="1">' + ic("add", 16) + "Novo lembrete</button>" +
+      '<button data-be-restaurar="1">' + ic("restart_alt", 16) + "Restaurar os de fábrica</button></div>";
   }
   return '<aside class="acervo-painel be-painel"><div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + (v ? (v.id ? "Editar lembrete" : "Novo lembrete") : "Ajustar lembretes") + '</h3><span class="meta">tocam só nesta máquina</span></span>' +
     '<button class="botao-icone" data-be-ajustar="1" title="Fechar">' + ic("close", 18) + "</button></div>" + miolo +
     '<p class="be-dica">Um lembrete com “água” no nome conta copos: o que você marca ali vira o número de copos do dia.</p>' +
     "</div></aside>";
+}
+
+/* Quem editou demais - apagou o de beber agua, trocou os tempos, criou seis
+   parecidos - volta para a lista de fabrica. Pergunta antes, porque apaga os
+   que estao la. */
+async function restaurarLembretes() {
+  const quantos = (be.dados.lembretes || []).length;
+  const certo = await confirmar({
+    titulo: "Restaurar os lembretes de fábrica?",
+    contexto: "Foco e bem-estar › Ajustar lembretes",
+    texto: (quantos ? "Os " + plural(quantos, "lembrete") + " de agora saem da lista e voltam os quatro do começo — beber água, levantar e caminhar, olhar para longe e alongar." : "Voltam os quatro do começo: beber água, levantar e caminhar, olhar para longe e alongar.") +
+      "\nO que já foi medido (copos, pausas, ciclos) fica.",
+    confirmar: "Restaurar",
+    perigo: true,
+  });
+  if (!certo) return;
+  const r = await fetch("/api/bemestar/lembretes/restaurar", { method: "POST" });
+  if (!r.ok) { avisoCert("não consegui restaurar: " + await erroDe(r)); return; }
+  be.form = null;
+  await mostrarFoco();
+  avisoCert("lembretes de fábrica de volta", { tom: "ok" });
 }
 
 /* ------------------------------------------------------------ semana */
@@ -316,22 +338,26 @@ function corpoDaSemana() {
   const media = comDado.length ? total / comDado.length : 0;
   const melhor = comDado.length ? comDado.reduce((a, b) => (b.minutos_ativos > a.minutos_ativos ? b : a)) : null;
 
+  // BARRAS DEITADAS, DE PONTA A PONTA. Em pe e dentro de um cartao, um dia
+  // com 1,7 h virava uma torre no vazio e os outros seis sumiam; deitadas, o
+  // dia e o numero se leem na mesma linha e a semana cabe em sete linhas.
   const barras = dias.map((x) => {
-    const classe = "be-dia" + (x.dia === hoje ? " hoje" : "") + (x.minutos_ativos ? "" : " vazio");
-    return '<div class="' + classe + '"><small>' + esc(horasCurtas(x.minutos_ativos)) + '</small><i style="height:' +
-      (x.minutos_ativos ? Math.max(4, Math.round(x.minutos_ativos * 100 / teto)) : 2) + '%"></i></div>';
+    const minutos = x.minutos_ativos || 0;
+    const classe = "be-barra" + (x.dia === hoje ? " hoje" : "") + (minutos ? "" : " vazio");
+    return '<div class="' + classe + '"><span>' + esc(maiuscula(x.rotulo)) + "</span>" +
+      '<i><b style="width:' + (minutos ? Math.max(2, Math.round(minutos * 100 / teto)) : 0) + '%"></b></i>' +
+      "<small>" + esc(minutos ? horasCurtas(minutos) : "—") + (x.pausas ? " · " + plural(x.pausas, "pausa") : "") + "</small></div>";
   }).join("");
-  const rotulos = dias.map((x) => "<span>" + esc(maiuscula(x.rotulo)) + "<small>" + esc(x.pausas ? plural(x.pausas, "pausa") : "—") + "</small></span>").join("");
 
-  const foco = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Foco na semana</span><small>' +
-    esc(dataCurta(s.de) + " a " + dataCurta(s.ate) + " · " + horasEmTexto(total)) + "</small></div>" +
-    '<div class="fin-fluxo"><div class="be-semana-grade">' + barras + "</div>" +
-    '<div class="be-semana-rotulos">' + rotulos + "</div>" +
+  const foco = '<section class="be-semana">' +
+    '<div class="be-semana-topo"><h3>Foco na semana</h3><span class="be-meta">' +
+    esc(dataCurta(s.de) + " a " + dataCurta(s.ate) + " · " + horasEmTexto(total)) + "</span></div>" +
+    '<div class="be-barras">' + barras + "</div>" +
     '<div class="be-semana-somas"><div><small>Média por dia medido</small><b>' + esc(comDado.length ? horasEmTexto(media) : "—") + "</b></div>" +
     "<div><small>Dia mais ativo</small><b>" + esc(melhor ? maiuscula(melhor.rotulo) + " · " + horasEmTexto(melhor.minutos_ativos) : "—") + "</b></div>" +
     "<div><small>Pausas feitas</small><b>" + esc(s.pausas + " em " + plural(s.ciclos, "ciclo")) + "</b></div></div>" +
     (s.tem_dado ? "" : '<p class="cfg-explica">Nenhum dia com medição nesta semana. Ligue o acompanhamento e a semana aparece aqui — sem isso, qualquer gráfico seria invenção.</p>') +
-    "</div></div>";
+    "</section>";
 
   const celulas = (valor, meta, dia) => {
     let classe;
@@ -348,7 +374,7 @@ function corpoDaSemana() {
     '<div class="be-habito adiante"><span>Levantar, alongar, almoço sem tela</span>' + dias.map(() => '<i class="futuro"></i>').join("") + "<small>histórico por dia em breve</small></div>" +
     "</div></div>";
 
-  return '<div class="acervo-principal"><div class="be-grade semana">' + foco + habitos + "</div></div>";
+  return '<div class="acervo-principal be-semana-tela">' + foco + habitos + "</div>";
 }
 
 /* O parecer e regra sobre os totais da semana: quem foi o dia mais ativo,
@@ -435,6 +461,7 @@ function ligarFoco() {
     const l = (be.dados.lembretes || []).find((x) => x.id === Number(b.dataset.beEditar));
     if (l) { be.form = { id: l.id, titulo: l.titulo, cada_min: l.cada_min, meta_dia: l.meta_dia || "", ligado: l.ligado }; desenharFoco(); }
   });
+  clique("[data-be-restaurar]", () => restaurarLembretes());
   clique("[data-be-novo]", () => { be.form = { titulo: "", cada_min: 60, meta_dia: "", ligado: 1 }; desenharFoco(); const campo = document.querySelector('[data-be-campo="titulo"]'); if (campo) campo.focus(); });
   clique("[data-be-cancelar]", () => { be.form = null; desenharFoco(); });
   cada("[data-be-campo]", (el) => { el.oninput = () => { be.form[el.dataset.beCampo] = el.value; }; el.onchange = el.oninput; });

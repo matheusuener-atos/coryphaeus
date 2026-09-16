@@ -816,11 +816,14 @@ def main() -> int:
             checar(colunas == 11, f"o ritmo por hora tem onze colunas (achou {colunas})")
             pagina.evaluate("() => document.querySelector('[data-be-visao=semana]').click()")
             pagina.wait_for_timeout(2200)
-            colunas = pagina.evaluate(
-                "() => { const g = document.querySelector('.be-semana-grade');"
-                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            # O grafico da semana virou sete barras deitadas, de ponta a ponta
+            # e fora do cartao: cada dia e uma linha.
+            barras = pagina.evaluate("() => document.querySelectorAll('.be-semana .be-barra').length")
+            checar(barras == 7, f"a semana tem sete dias, um por barra (achou {barras})")
+            checar(
+                pagina.evaluate("() => { const g = document.querySelector('.be-semana'); return !!g && !g.closest('.fin-cartao'); }"),
+                "o grafico da semana fica fora do cartao, na largura da pagina",
             )
-            checar(colunas == 7, f"a semana tem sete dias (achou {colunas})")
             checar(
                 pagina.evaluate("() => !!document.querySelector('#be-tela .be-habito') && !!document.querySelector('#be-tela .fin-parecer')"),
                 "a semana traz os habitos e o parecer",
