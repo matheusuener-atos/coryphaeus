@@ -21,7 +21,7 @@ const ag = {
   itens: {},             // os itens desenhados na grade, por chave
   largo: false,
   zoom: "dias",          // dias | meses | anos - o calendario do mes, como o miniatura
-  tar: { filtro: "meu_dia", lista: "", itens: [], contagens: {}, listas: [],
+  tar: { filtro: "meu_dia", lista: "", itens: [], compromissos: [], contagens: {}, listas: [],
          clientes: [], repeticoes: [], aberta: null, escolhidas: new Set() },
 };
 
@@ -180,7 +180,7 @@ function cabecalhoAgenda() {
 
   $("acoes-tela").innerHTML =
     '<div class="visoes">' +
-    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "Tarefas"]].map(([v, r]) => {
+    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "Tarefas e compromissos"]].map(([v, r]) => {
       const classe = v === ag.visao ? "ativa" : "";
       return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
     }).join("") + "</div>" +
@@ -216,7 +216,9 @@ function tituloDaAgenda() {
     const f = FILTROS_TAREFA.find((x) => x.id === ag.tar.filtro);
     titulo = "Agenda";
     const abertas = ag.tar.itens.filter((t) => !t.concluida).length;
+    const comps = ag.tar.lista ? 0 : (ag.tar.compromissos || []).length;
     meta = (ag.tar.lista || (f ? f.rotulo : "Tarefas")) + " · " + plural(abertas, "tarefa") +
+      (comps ? " · " + plural(comps, "compromisso") : "") +
       " · " + plural(ag.tar.itens.length - abertas, "concluída");
   }
   $("conversa-titulo").textContent = titulo;
@@ -281,7 +283,9 @@ function andarAgenda(n) {
    compromisso leva à Semana - a agenda de horários -, com o formulário. */
 function criarNaAgenda(tipo) {
   if (tipo === "tarefa") {
-    if (ag.visao === "tarefas") return abrirFormAgenda({ tipo: "tarefa", prazo: ag.dia, lista: ag.tar.lista || "" });
+    // Pop-up é só do compromisso: a tarefa nasce na caixa de adicionar.
+    const campo = ag.visao === "tarefas" && document.querySelector("[data-ag-nova]");
+    if (campo) return campo.focus();
     return adicionarTarefaNoDia(ag.dia);
   }
   abrirFormAgenda(compromissoEmBranco(tipo));
@@ -315,7 +319,7 @@ async function carregarAgenda() {
   if (ag.visao === "tarefas") {
     const d = await (await fetch("/api/tarefas?filtro=" + ag.tar.filtro +
       "&lista=" + encodeURIComponent(ag.tar.lista))).json();
-    Object.assign(ag.tar, { itens: d.tarefas, contagens: d.contagens, listas: d.listas,
+    Object.assign(ag.tar, { itens: d.tarefas, compromissos: d.compromissos || [], contagens: d.contagens, listas: d.listas,
                             clientes: d.clientes, repeticoes: d.repeticoes || [] });
     if (ag.tar.aberta && !ag.tar.itens.some((t) => t.id === ag.tar.aberta)) ag.tar.aberta = null;
     return;
@@ -362,6 +366,9 @@ function desenharAgenda() {
   $("centro").innerHTML = '<div class="' + classe + '" id="agenda"><div class="acervo-principal">' +
     principal + "</div>" + painel + "</div>";
   ligarAgenda();
+  // No Mês e na Semana o formulário é um pop-up: quem chega com ele pedido
+  // (Agendar em Cadastros, a gravação, a troca para a Semana) o encontra aberto.
+  if (ag.painel === "form" && ag.form && !document.getElementById("ag-form-pop")) abrirFormNoPopup();
 }
 
 function generoDaMarca(x) {
@@ -509,10 +516,11 @@ function vistaTarefas() {
   const listas = ag.tar.listas.slice();
   if (ag.tar.lista && !listas.some((l) => l.nome === ag.tar.lista)) listas.push({ nome: ag.tar.lista, abertas: 0 });
 
+  const somaComps = { meu_dia: c.compromissos_hoje || 0, planejadas: c.compromissos_planejados || 0 };
   const filtros = FILTROS_TAREFA.map((f) => {
     const classe = "ag-lista-item" + (!ag.tar.lista && f.id === ag.tar.filtro ? " ativa" : "");
     return '<button class="' + classe + '" data-ag-filtro="' + f.id + '"><span class="ag-nome">' + f.rotulo + "</span>" +
-      (f.id === "concluidas" ? "" : contaDaLista(c[f.id] || 0, f.id === "importante")) + "</button>";
+      (f.id === "concluidas" ? "" : contaDaLista((c[f.id] || 0) + (somaComps[f.id] || 0), f.id === "importante")) + "</button>";
   });
   /* "Atribuidas a mim" pede equipe, que so existe quando Cadastros tiver. */
   filtros.splice(3, 0, '<button class="ag-lista-item adiante" data-ag-adiante="1" title="Quando houver equipe em Cadastros">' +
@@ -531,21 +539,25 @@ function vistaTarefas() {
 
   const abertas = ag.tar.itens.filter((t) => !t.concluida);
   const feitas = ag.tar.itens.filter((t) => t.concluida);
+  const comps = ag.tar.lista ? [] : (ag.tar.compromissos || []);
   const prazoSugerido = ag.tar.filtro === "meu_dia" || ag.tar.filtro === "importante" ? iso(new Date()) : "";
   let corpo;
-  if (!ag.tar.itens.length) {
+  if (!ag.tar.itens.length && !comps.length) {
     corpo = '<div class="ag-vazio"><h4>' + (ag.tar.filtro === "meu_dia" && !ag.tar.lista ? "Nada pendente para hoje" : "Nada aqui") + "</h4><p>" +
       (ag.tar.filtro === "meu_dia" && !ag.tar.lista
-        ? "O que tem prazo para hoje, o que já venceu e o que você trouxe para o dia aparece nesta lista."
-        : "Nenhuma tarefa " + (ag.tar.lista ? "nesta lista" : "neste filtro") + " ainda.") + "</p></div>";
+        ? "Os compromissos de hoje, o que tem prazo para hoje, o que já venceu e o que você trouxe para o dia aparecem nesta lista."
+        : ag.tar.filtro === "planejadas" && !ag.tar.lista
+          ? "Nenhum compromisso nem tarefa com data daqui para a frente."
+          : "Nenhuma tarefa " + (ag.tar.lista ? "nesta lista" : "neste filtro") + " ainda.") + "</p></div>";
   } else {
-    corpo = abertas.map(linhaDaTarefa).join("") +
+    corpo = linhasDoPeriodo(abertas, comps) +
       (feitas.length ? '<div class="ag-secao">Concluídas · ' + feitas.length + "</div>" + feitas.map(linhaDaTarefa).join("") : "");
   }
   const direita = '<div class="ag-cartao"><div class="ag-adicionar">' +
     '<button class="ag-mais-botao" data-ag-add="1" title="Adicionar">' + ic("add", 18) + "</button>" +
     '<input type="text" data-ag-nova="1" placeholder="Adicionar uma tarefa…">' +
-    '<input type="date" data-ag-nova-prazo="1" value="' + prazoSugerido + '" title="Prazo"></div>' +
+    '<input type="date" data-ag-nova-prazo="1" value="' + prazoSugerido + '" title="Prazo">' +
+    '<button class="com-icone ag-add-comp" data-ag-add-comp="1" title="Marcar um compromisso no dia escolhido">' + ic("event", 16) + "Compromisso</button></div>" +
     (ag.tar.escolhidas.size
       ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
         '<button data-ag-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
@@ -554,6 +566,43 @@ function vistaTarefas() {
     '<div class="tabela-corpo">' + corpo + "</div></div>";
 
   return '<div class="ag-tarefas">' + esquerda + direita + "</div>";
+}
+
+/* Tarefas e compromissos numa lista só, na ordem do dia e da hora. A tarefa
+   sem prazo (trazida para Meu dia) conta como de hoje e vai depois do que tem
+   hora; a atrasada vem antes. Em Planejadas, cada dia ganha o cabeçalho dele.
+   Em Importante e nas listas não há compromisso, e a ordem é a das tarefas. */
+function linhasDoPeriodo(abertas, comps) {
+  const hoje = iso(new Date());
+  const porDia = ag.tar.filtro === "planejadas" && !ag.tar.lista;
+  if (!comps.length && !porDia) return abertas.map(linhaDaTarefa).join("");
+  const itens = abertas.map((t) => ({ dia: t.prazo || hoje, hora: t.hora || "99", html: linhaDaTarefa(t) }))
+    .concat(comps.map((k) => ({ dia: k.data, hora: k.hora || "99", html: linhaDoCompromisso(k) })));
+  itens.sort((a, b) => (a.dia + a.hora).localeCompare(b.dia + b.hora));
+  if (!porDia) return itens.map((x) => x.html).join("");
+  const amanha = iso(andarDias(new Date(), 1));
+  let dia = "";
+  return itens.map((x) => {
+    const cabeca = x.dia !== dia ? '<div class="ag-secao">' + (x.dia === amanha ? "Amanhã" : maiuscula(diaCurto(x.dia))) + "</div>" : "";
+    dia = x.dia;
+    return cabeca + x.html;
+  }).join("");
+}
+
+/* O compromisso na lista: a agenda no lugar da marca de concluir, a hora, o
+   lugar e com quem. O que já acabou hoje fica apagado. Clicar abre a exibição. */
+function linhaDoCompromisso(k) {
+  const agora = new Date();
+  const hoje = iso(agora);
+  const hhmm = String(agora.getHours()).padStart(2, "0") + ":" + String(agora.getMinutes()).padStart(2, "0");
+  const passou = k.data === hoje && (k.fim || k.hora) < hhmm;
+  const quando = (k.data === hoje ? "hoje " : "") + k.hora + (k.fim ? "–" + k.fim : "");
+  const pecas = ['<span class="' + (passou ? "" : "ag-comp-quando") + '">' + esc(quando) + "</span>"];
+  if (k.onde_rotulo) pecas.push("<span>" + esc(k.onde_rotulo) + "</span>");
+  if (k.cadastro_nome) pecas.push("<span>" + esc(k.cadastro_nome) + "</span>");
+  return '<div class="ag-linha ag-linha-comp' + (passou ? " ag-passou" : "") + '" data-ag-comp="' + k.id + '" title="Compromisso">' +
+    '<span class="ag-comp-marca">' + ic("event", 18) + "</span>" +
+    '<span class="ag-texto"><b>' + esc(k.titulo) + "</b><small>" + pecas.join("") + "</small></span>" + ic("chevron_right", 18) + "</div>";
 }
 
 function contaDaLista(n, acc) {
@@ -599,11 +648,10 @@ function botaoEstrela(t) {
 
 /* ---------------------------------------------------------- o painel */
 
-/* Mês e Semana não têm coluna: o dia abre num pop-up. A coluna só aparece
-   enquanto um compromisso (ou os prazos lidos nos documentos) está aberto, e
-   na visão Tarefas, com a ficha da tarefa. */
+/* Mês e Semana não têm coluna: o dia e o compromisso abrem num pop-up. A
+   coluna só aparece com os prazos lidos nos documentos, e na visão Tarefas,
+   com a ficha da tarefa. O cadastro (novo ou editar) é sempre pop-up. */
 function painelDaAgenda() {
-  if (ag.painel === "form" && ag.form) return painelFormAgenda();
   if (ag.painel === "sugestoes") return painelSugestoes();
   if (ag.visao === "tarefas") return painelDaTarefa();
   return "";
@@ -633,13 +681,11 @@ function conteudoDoDia(d) {
     const classe = "ag-hora-linha ag-" + genero;
     const detalhe = [duracaoEmTexto(c.duracao), (c.onde_rotulo || "").toLowerCase(), c.cadastro_nome]
       .filter(Boolean).join(" · ");
-    const acoes = c.onde === "online"
-      ? '<span class="ag-acoes"><button class="primario" data-ag-reuniao="' + c.id + '">' + ic("videocam", 16) + "Criar reunião" + ic("expand_more", 16) + "</button>" +
-        '<button data-ag-sala="meet">Meet</button><button data-ag-sala="teams">Teams</button></span>'
-      : "";
-    return { hora: c.hora || "", html: '<div class="' + classe + '"><span class="ag-hora">' + esc(c.hora) + '</span><span class="ag-corpo"><span>' +
-      (genero === "prazo" ? "Prazo: " : "") + esc(c.titulo) + "</span><small>" + esc(detalhe) + "</small>" + acoes + "</span>" +
-      '<button class="mais-linha" data-ag-mais="' + c.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>" };
+    // A linha abre a exibição do compromisso: as ações (sala, convite,
+    // editar) moram nela, e não na lista.
+    return { hora: c.hora || "", html: '<div class="' + classe + ' ag-linha-ver" data-ag-ver="' + c.id + '"><span class="ag-hora">' + esc(c.hora) +
+      '</span><span class="ag-corpo"><span>' + (genero === "prazo" ? "Prazo: " : "") + esc(c.titulo) + "</span><small>" + esc(detalhe) + "</small></span>" +
+      ic("chevron_right", 18) + "</div>" };
   });
 
   // A tarefa entra na mesma lista: no lugar da hora, a marca de concluir.
@@ -674,7 +720,7 @@ async function abrirDiaNoPopup() {
   const x = conteudoDoDia(d);
   const outra = ag.visao === "mes" ? "Abrir na semana" : "Abrir no mês";
   const escolha = dialogo({
-    titulo: x.titulo, contexto: x.meta, classe: "dialogo-dia", larga: true,
+    titulo: x.titulo, contexto: x.meta, classe: "dialogo-ver dialogo-dia", larga: true,
     html: '<div class="ag-dia-pop" id="ag-dia-pop">' + x.html + "</div>", cancelar: "Fechar", confirmar: outra,
   });
   const caixa = document.getElementById("ag-dia-pop");
@@ -704,80 +750,142 @@ function fecharPopupDoDia() {
   if (dialogoAberto && document.getElementById("ag-dia-pop")) dialogoAberto.fechar(null);
 }
 
-function painelFormAgenda() {
-  const v = ag.form;
-  const novo = !v.id;
-  const tarefa = v.tipo === "tarefa";
-  const nomes = NOME_DO_TIPO[v.tipo] || NOME_DO_TIPO.compromisso;
-  const sub = tarefa
-    ? (v.prazo ? maiuscula(diaCurto(v.prazo)) + (v.hora ? " · " + v.hora : "") : "sem prazo")
-    : maiuscula(diaCurto(v.data || ag.dia)) + " · " + (v.hora || "");
+/* A EXIBIÇÃO DO COMPROMISSO (pop-up de exibição, docs/ui/05): só leitura, a
+   ficha com os dados e as ações que servem ao compromisso. Editar troca para
+   o cadastro; excluir fica no cadastro. */
+const AVISOS_ANTES = [[0, "não avisar"], [10, "10 min antes"], [30, "30 min antes"], [60, "1 h antes"], [1440, "um dia antes"]];
 
-  const chips = [["compromisso", "Compromisso"], ["tarefa", "Tarefa"]]
-    .map(([t, r]) => {
-      const classe = t === v.tipo ? "on" : "";
-      return '<button class="' + classe + '" data-ag-tipo="' + t + '">' + r + "</button>";
-    }).join("");
-  const clientes = '<option value="">' + (tarefa ? "nenhum" : "ninguém do cadastro") + "</option>" +
-    ag.tar.clientes.map((k) => '<option value="' + k.id + '"' + (k.id === v.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("");
-
-  let campos;
-  if (tarefa) {
-    campos =
-      '<div class="ag-duas"><div class="ag-campo"><label>Prazo</label><input type="date" data-c="prazo" value="' + esc(v.prazo || "") + '"></div>' +
-      '<div class="ag-campo"><label>Hora <small>(opcional)</small></label><input type="time" data-c="hora" value="' + esc(v.hora || "") + '"></div></div>' +
-      '<div class="ag-campo"><label>Lista</label><input type="text" data-c="lista" list="ag-listas-dl" value="' + esc(v.lista || "") + '" placeholder="nenhuma">' +
-      '<datalist id="ag-listas-dl">' + ag.tar.listas.map((l) => '<option value="' + esc(l.nome) + '">').join("") + "</datalist></div>" +
-      '<div class="ag-campo"><label>Cliente</label><select data-c="cadastro_id">' + clientes + "</select></div>" +
-      '<div class="ag-campo"><label>Anotação</label><textarea data-c="anotacao" placeholder="O que vale lembrar…">' + esc(v.anotacao || "") + "</textarea></div>";
-  } else {
-    const duracoes = [15, 30, 45, 60, 90, 120, 180];
-    if (v.duracao && duracoes.indexOf(Number(v.duracao)) < 0) duracoes.push(Number(v.duracao));
-    const ondes = [["online", "Reunião online"], ["escritorio", "No escritório"], ["telefone", "Telefone"], ["", "Sem local"]].map(([o, r]) => {
-      const classe = o === (v.onde || "") ? "on" : "";
-      return '<button class="' + classe + '" data-ag-onde="' + o + '">' + r + "</button>";
-    }).join("");
-    const classeConvite = "ag-toggle" + (v.convite ? " on" : "");
-    campos =
-      '<div class="ag-duas"><div class="ag-campo"><label>Data</label><input type="date" data-c="data" value="' + esc(v.data || "") + '"></div>' +
-      '<div class="ag-campo"><label>Hora</label><input type="time" data-c="hora" value="' + esc(v.hora || "") + '"></div></div>' +
-      '<div class="ag-duas"><div class="ag-campo"><label>Duração</label><select data-c="duracao">' +
-      duracoes.sort((a, b) => a - b).map((m) => '<option value="' + m + '"' + (m === Number(v.duracao) ? " selected" : "") + ">" + duracaoEmTexto(m) + "</option>").join("") +
-      "</select></div>" +
-      '<div class="ag-campo"><label>Avisar antes</label><select data-c="avisar_min">' +
-      [[0, "não avisar"], [10, "10 min antes"], [30, "30 min antes"], [60, "1 h antes"], [1440, "um dia antes"]].map(([m, r]) =>
-        '<option value="' + m + '"' + (m === Number(v.avisar_min || 0) ? " selected" : "") + ">" + r + "</option>").join("") +
-      "</select></div></div>" +
-      '<div class="ag-campo"><label>Com quem</label><select data-c="cadastro_id">' + clientes + "</select></div>" +
-      '<div class="ag-campo"><label>Onde</label><div class="ag-chips">' + ondes + "</div></div>" +
-      '<div class="ag-campo"><label>Cabe nestes horários</label><div class="ag-chips" data-ag-livres="1"><span class="ag-vazio-chip">procurando…</span></div></div>' +
-      '<div class="ag-campo"><label>Anotação</label><textarea data-c="anotacao" placeholder="Pauta, endereço, o que levar…">' + esc(v.anotacao || "") + "</textarea></div>" +
-      '<div class="' + classeConvite + '" data-ag-convite="1"><span>Enviar convite por e-mail ao salvar</span><i></i></div>' +
-      '<p class="ag-explica">O convite sai pelo seu e-mail e passa pela tela de Aprovações antes de ser enviado.</p>';
+async function verCompromisso(c) {
+  const aviso = AVISOS_ANTES.find(([m]) => m === Number(c.avisar_min || 0));
+  const horario = c.hora + (c.fim ? " às " + c.fim : "") + (c.duracao ? " (" + duracaoEmTexto(c.duracao) + ")" : "");
+  const salas = c.onde === "online"
+    ? '<button type="button" class="com-icone" data-ag-sala="meet">' + ic("videocam", 16) + "Sala no Meet</button>" +
+      '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
+      '<button type="button" class="com-icone" data-ag-link="1">' + ic("link", 16) + "Convite com link</button>"
+    : "";
+  const escolha = dialogo({
+    titulo: c.titulo, contexto: "Agenda › " + maiuscula(diaCurto(c.data)) + " · " + c.hora,
+    classe: "dialogo-ver", larga: true, cancelar: "Fechar", confirmar: "Editar",
+    html: fichaDoDialogo([
+      ["Quando", maiuscula(diaPorExtenso(c.data)) + ", " + horario],
+      ["Onde", c.onde_rotulo || "sem local"],
+      ["Com quem", c.cadastro_nome || "ninguém do cadastro"],
+      ["Aviso", aviso ? aviso[1] : ""],
+      c.anotacao ? ["Anotação", c.anotacao] : null,
+    ]) +
+      '<div class="dialogo-acoes">' + salas +
+      '<button type="button" class="com-icone" data-ag-copiar="1">' + ic("content_copy", 16) + "Copiar convite</button></div>",
+  });
+  const dlg = document.querySelector(".dialogo-ver");
+  if (dlg) {
+    dlg.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
+    const copiar = dlg.querySelector("[data-ag-copiar]");
+    if (copiar) copiar.onclick = () => copiarTexto(conviteDe(c, ""), "convite copiado");
+    const link = dlg.querySelector("[data-ag-link]");
+    if (link) link.onclick = () => pedirLinkDaSala(c);
   }
+  const r = await escolha;
+  if (r && r.ok) abrirFormAgenda(Object.assign({}, c));
+}
 
-  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + nomes[novo ? 0 : 1] + '</h3><span class="meta">' + esc(sub) + "</span></span>" +
-    '<button class="voltar" data-ag-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-    '<div class="ag-form">' +
-    '<div class="ag-campo"><label>O que é</label><div class="ag-chips">' + chips + "</div>" +
-    '<small class="ag-explica">' + (tarefa ? "Tarefa é o do dia a dia — prazo interno, pagamento, o que fazer —, com prazo e, se quiser, hora." :
-      "Compromisso é o que se agenda: reunião, videoconferência, audiência, com hora, duração e lugar.") + "</small></div>" +
-    '<div class="ag-campo"><label>Título</label><input type="text" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="' +
-    (tarefa ? "Adicionar uma tarefa…" : "Renovação — Fornecedor A") + '"></div>' +
-    campos +
-    '<div class="ag-form-rodape"><button class="ag-ligacao" data-ag-fechar="1">Cancelar</button>' +
-    (novo ? "" : '<button class="ag-perigo-fino" data-ag-apagar="1">Excluir</button>') +
-    '<span class="ag-aviso" data-ag-aviso="1"></span>' +
-    '<button class="primario" data-ag-salvar="1">' + (tarefa ? (novo ? "Adicionar" : "Salvar") : (novo ? "Marcar" : "Salvar")) + "</button></div>" +
-    "</div></div></aside>";
+/* O link da sala vira convite: um cadastro pequeno, no padrão. */
+async function pedirLinkDaSala(c) {
+  const link = await perguntar({
+    titulo: "Convite com link", contexto: "Agenda › " + c.titulo,
+    campo: { rotulo: "Link da reunião", placeholder: "https://meet.google.com/…", icone: "link", dica: "O link do Meet, do Zoom ou do Teams." },
+    confirmar: "Montar convite",
+  });
+  if (!link) return;
+  if (!/^https?:/i.test(link)) { avisoCert("isso não parece um link de reunião"); return; }
+  enviarConvite(c.titulo, conviteDe(c, link));
+}
+
+/* O CADASTRO (pop-up de cadastro, docs/ui/05): Novo ou Editar, os campos na
+   caixa do sistema, Excluir à esquerda do rodapé só ao editar, Cancelar e a
+   ação à direita. Salvar com erro avisa no rodapé e não fecha. */
+function abrirFormNoPopup() {
+  const v = ag.form;
+  const f = partesDoFormAgenda(v);
+  const vez = ag.formVez = (ag.formVez || 0) + 1;
+  const escolha = dialogo({
+    titulo: f.titulo, contexto: f.sub, classe: "dialogo-cadastro", larga: true,
+    html: '<div class="dialogo-form" id="ag-form-pop">' + f.corpo + "</div>",
+    rodape: f.excluir + '<span class="dialogo-aviso" data-ag-aviso="1"></span>',
+    cancelar: "Cancelar", confirmar: f.botao, aoConfirmar: salvarFormAgenda,
+  });
+  const caixa = document.getElementById("ag-form-pop");
+  if (caixa) ligarFormAgenda(caixa.closest(".dialogo"));
+  // Fechou sem salvar (Cancelar, Esc, clique fora): o formulário sai junto.
+  escolha.then(() => {
+    if (ag.formVez !== vez || ag.form !== v) return;
+    ag.form = null;
+    ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
+  });
+}
+
+/* Com o pop-up aberto, refaz o miolo nele mesmo, sem piscar. */
+function redesenharFormAgenda() {
+  const caixa = document.getElementById("ag-form-pop");
+  if (!caixa) return abrirFormNoPopup();
+  const dlg = caixa.closest(".dialogo");
+  const f = partesDoFormAgenda(ag.form);
+  dlg.querySelector("#dialogo-titulo").textContent = f.titulo;
+  const contexto = dlg.querySelector(".dialogo-contexto");
+  if (contexto) contexto.textContent = f.sub;
+  dlg.querySelector('[data-dialogo="confirmar"]').textContent = f.botao;
+  caixa.innerHTML = f.corpo;
+  ligarFormAgenda(dlg);
+}
+
+function fecharFormNoPopup() {
+  if (dialogoAberto && document.getElementById("ag-form-pop")) dialogoAberto.fechar(null);
+}
+
+function partesDoFormAgenda(v) {
+  const novo = !v.id;
+  const nomes = NOME_DO_TIPO.compromisso;
+  const sub = "Agenda › " + maiuscula(diaCurto(v.data || ag.dia)) + " · " + (v.hora || "");
+  const clientes = '<option value="">ninguém do cadastro</option>' +
+    ag.tar.clientes.map((k) => '<option value="' + k.id + '"' + (k.id === v.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("");
+  const campo = (rotulo, controle, id, longo) => '<div class="dialogo-campo"><label for="' + id + '">' + rotulo + "</label>" +
+    '<div class="dialogo-caixa' + (longo ? " texto-longo" : "") + '">' + controle + "</div></div>";
+  const duas = (a, b) => '<div class="dialogo-duas">' + a + b + "</div>";
+
+  const duracoes = [15, 30, 45, 60, 90, 120, 180];
+  if (v.duracao && duracoes.indexOf(Number(v.duracao)) < 0) duracoes.push(Number(v.duracao));
+  const ondes = [["online", "Reunião online"], ["escritorio", "No escritório"], ["telefone", "Telefone"], ["", "Sem local"]].map(([o, r]) => {
+    const classe = o === (v.onde || "") ? "on" : "";
+    return '<button type="button" class="' + classe + '" data-ag-onde="' + o + '">' + r + "</button>";
+  }).join("");
+  const classeConvite = "ag-toggle" + (v.convite ? " on" : "");
+  const corpo =
+    campo("Título", '<input type="text" id="ag-f-titulo" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="Renovação — Fornecedor A" autocomplete="off">', "ag-f-titulo") +
+    duas(campo("Data", '<input type="date" id="ag-f-data" data-c="data" value="' + esc(v.data || "") + '">', "ag-f-data"),
+      campo("Hora", '<input type="time" id="ag-f-hora" data-c="hora" value="' + esc(v.hora || "") + '">', "ag-f-hora")) +
+    duas(campo("Duração", '<select id="ag-f-duracao" data-c="duracao">' +
+        duracoes.sort((a, b) => a - b).map((m) => '<option value="' + m + '"' + (m === Number(v.duracao) ? " selected" : "") + ">" + duracaoEmTexto(m) + "</option>").join("") +
+        "</select>", "ag-f-duracao"),
+      campo("Avisar antes", '<select id="ag-f-aviso" data-c="avisar_min">' +
+        AVISOS_ANTES.map(([m, r]) => '<option value="' + m + '"' + (m === Number(v.avisar_min || 0) ? " selected" : "") + ">" + r + "</option>").join("") +
+        "</select>", "ag-f-aviso")) +
+    campo("Com quem", '<select id="ag-f-cliente" data-c="cadastro_id">' + clientes + "</select>", "ag-f-cliente") +
+    '<div class="dialogo-campo"><label>Onde</label><div class="dialogo-chips">' + ondes + "</div></div>" +
+    '<div class="dialogo-campo"><label>Cabe nestes horários</label><div class="dialogo-chips" data-ag-livres="1"><span class="dialogo-dica">procurando…</span></div></div>' +
+    campo("Anotação", '<textarea id="ag-f-anotacao" rows="3" data-c="anotacao" placeholder="Pauta, endereço, o que levar…">' + esc(v.anotacao || "") + "</textarea>", "ag-f-anotacao", true) +
+    '<div class="dialogo-campo"><div class="' + classeConvite + '" data-ag-convite="1"><span>Enviar convite por e-mail ao salvar</span><i></i></div>' +
+    '<span class="dialogo-dica">O convite sai pelo seu e-mail e passa pela tela de Aprovações antes de ser enviado.</span></div>';
+  return {
+    titulo: nomes[novo ? 0 : 1], sub: sub, corpo: corpo,
+    excluir: novo ? "" : '<button type="button" class="dialogo-excluir" data-ag-apagar="1">Excluir</button>',
+    botao: novo ? "Marcar" : "Salvar",
+  };
 }
 
 function painelDaTarefa() {
   const t = ag.tar.itens.find((x) => x.id === ag.tar.aberta);
   if (!t) {
     return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma tarefa aberta</h3>' +
-      "<p>Clique numa tarefa para ver as etapas, o prazo e o que ela tem ligado.</p></div></div></aside>";
+      "<p>Clique numa tarefa para ver as etapas, o prazo e o que ela tem ligado. O compromisso abre num pop-up.</p></div></div></aside>";
   }
   const feitas = t.etapas.filter((e) => e.feita).length;
   const q = quandoDaTarefa(t);
@@ -920,6 +1028,19 @@ function ligarAgenda() {
   if (selApagar) selApagar.onclick = (e) => { e.stopPropagation(); apagarTarefasEmLote([...ag.tar.escolhidas]); };
   const selConcluir = raiz.querySelector("[data-ag-sel-concluir]");
   if (selConcluir) selConcluir.onclick = (e) => { e.stopPropagation(); concluirTarefasEmLote([...ag.tar.escolhidas]); };
+  raiz.querySelectorAll("[data-ag-comp]").forEach((el) => {
+    el.onclick = () => {
+      const k = (ag.tar.compromissos || []).find((x) => x.id === Number(el.dataset.agComp));
+      if (k) verCompromisso(k);
+    };
+  });
+  const addComp = raiz.querySelector("[data-ag-add-comp]");
+  if (addComp) addComp.onclick = () => {
+    const prazo = raiz.querySelector("[data-ag-nova-prazo]");
+    ag.dia = (prazo && prazo.value) || iso(new Date());
+    const titulo = raiz.querySelector("[data-ag-nova]");
+    abrirFormAgenda(Object.assign(compromissoEmBranco("compromisso"), { titulo: titulo ? titulo.value.trim() : "" }));
+  };
   raiz.querySelectorAll("[data-ag-tarefa]").forEach((el) => {
     el.onclick = () => {
       const id = Number(el.dataset.agTarefa);
@@ -961,7 +1082,6 @@ function ligarPainel() {
   const p = document.querySelector("#agenda .acervo-painel");
   if (!p) return;
   p.querySelectorAll("[data-ag-fechar]").forEach((b) => { b.onclick = fecharPainelDaAgenda; });
-  if (ag.painel === "form" && ag.form) return ligarFormAgenda(p);
   if (ag.painel === "sugestoes") return ligarSugestoes(p);
   if (ag.visao === "tarefas") return ligarFichaDaTarefa(p);
   ligarPainelDoDia(p);
@@ -989,8 +1109,9 @@ function abrirFormAgenda(v) {
   fecharPopupDoDia();
   ag.form = v;
   ag.painel = "form";
-  if (v.tipo !== "tarefa" && ag.visao !== "semana") {
-    // O compromisso se marca na Semana: a do dia dele.
+  if (ag.visao === "mes") {
+    // Do Mês, o compromisso se marca na Semana: a do dia dele. Em Tarefas e
+    // compromissos ele fica, porque a lista também é dele.
     const dia = deIso(v.data || ag.dia);
     ag.dia = iso(dia);
     ag.semana = iso(segundaDe(dia));
@@ -998,7 +1119,7 @@ function abrirFormAgenda(v) {
     ag.zoom = "dias";
     return mostrarAgenda();
   }
-  desenharPainel();
+  redesenharFormAgenda();
 }
 
 function abrirItem(chave) {
@@ -1007,7 +1128,7 @@ function abrirItem(chave) {
   const x = r.item;
   if (x.genero === "compromisso") {
     const c = (ag.grade.compromissos || []).find((k) => k.id === x.id);
-    if (c) abrirFormAgenda(Object.assign({}, c));
+    if (c) verCompromisso(c);
     return;
   }
   if (x.genero === "documento") {
@@ -1039,33 +1160,9 @@ function ligarPainelDoDia(p) {
 
   p.querySelectorAll("[data-ag-marcar]").forEach((b) => { b.onclick = () => criarNaAgenda("compromisso"); });
   p.querySelectorAll("[data-ag-ir-tarefas]").forEach((b) => { b.onclick = () => adicionarTarefaNoDia(ag.dia); });
-  p.querySelectorAll("[data-ag-mais]").forEach((b) => {
-    b.onclick = (e) => {
-      e.stopPropagation();
-      const c = compromisso(b, "agMais");
-      if (!c) return;
-      menuNaLinha(b, [
-        { icone: "edit", rotulo: "Abrir", acao: () => abrirFormAgenda(Object.assign({}, c)) },
-        { icone: "content_copy", rotulo: "Copiar convite", acao: () => copiarTexto(conviteDe(c, ""), "convite copiado") },
-        "-",
-        { icone: "delete", rotulo: "Excluir", perigo: true, acao: () => apagarCompromisso(c) },
-      ]);
-    };
+  p.querySelectorAll("[data-ag-ver]").forEach((el) => {
+    el.onclick = () => { const c = compromisso(el, "agVer"); if (c) verCompromisso(c); };
   });
-  p.querySelectorAll("[data-ag-reuniao]").forEach((b) => {
-    b.onclick = (e) => {
-      e.stopPropagation();
-      const c = compromisso(b, "agReuniao");
-      if (!c) return;
-      menuNaLinha(b, [
-        { icone: "videocam", rotulo: "Abrir uma sala no Meet", acao: () => window.open(SALAS.meet, "_blank") },
-        { icone: "videocam", rotulo: "Abrir uma sala no Teams", acao: () => window.open(SALAS.teams, "_blank") },
-        "-",
-        { icone: "link", rotulo: "Colar o link e montar o convite", acao: () => pedirLinkDaSala(b, c) },
-      ]);
-    };
-  });
-  p.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
   p.querySelectorAll("[data-ag-abrir-tarefa]").forEach((el) => {
     el.onclick = () => {
       const t = d.tarefas.find((x) => x.id === Number(el.dataset.agAbrirTarefa));
@@ -1109,24 +1206,6 @@ function ligarEntrada(p, ligacao, entrada, criar) {
     if (e.key === "Enter") enviar();
     if (e.key === "Escape") { ent.hidden = true; lig.hidden = false; }
   };
-}
-
-function pedirLinkDaSala(botao, c) {
-  const corpo = botao.closest(".ag-corpo");
-  if (!corpo || corpo.querySelector("[data-ag-link]")) return;
-  const caixa = document.createElement("span");
-  caixa.className = "ag-entrada";
-  caixa.innerHTML = '<input type="text" data-ag-link="1" placeholder="cole o link do Meet, Zoom ou Teams"><button>Montar convite</button>';
-  corpo.appendChild(caixa);
-  const campo = caixa.querySelector("input");
-  campo.focus();
-  const montar = () => {
-    const link = campo.value.trim();
-    if (!/^https?:\/\//i.test(link)) { avisoCert("isso não parece um link de reunião"); return; }
-    enviarConvite(c.titulo, conviteDe(c, link));
-  };
-  caixa.querySelector("button").onclick = montar;
-  campo.onkeydown = (e) => { if (e.key === "Enter") montar(); if (e.key === "Escape") caixa.remove(); };
 }
 
 function conviteDe(c, link) {
@@ -1214,20 +1293,8 @@ function menuNaLinha(botao, itens) {
 
 function ligarFormAgenda(p) {
   const v = ag.form;
-  p.querySelectorAll("[data-ag-tipo]").forEach((b) => {
-    b.onclick = () => {
-      const t = b.dataset.agTipo;
-      if (t === v.tipo) return;
-      if (t === "tarefa") {
-        v.prazo = v.prazo || v.data || ag.dia;
-      } else if (v.tipo === "tarefa") {
-        Object.assign(v, compromissoEmBranco(t), { titulo: v.titulo, data: v.prazo || ag.dia, anotacao: v.anotacao });
-      }
-      v.tipo = t;
-      if (t === "compromisso" && !v.onde) v.onde = "online";
-      desenharPainel();
-    };
-  });
+  // As listas com a cara das do sistema (a do Vínculo), e não a do navegador.
+  p.querySelectorAll(".dialogo-caixa select").forEach(melhorarSelect);
   p.querySelectorAll("[data-ag-onde]").forEach((b) => {
     b.onclick = () => {
       v.onde = b.dataset.agOnde;
@@ -1240,16 +1307,18 @@ function ligarFormAgenda(p) {
     };
     el.oninput = guardar;
     el.onchange = () => { guardar(); if (el.dataset.c === "data" || el.dataset.c === "duracao") carregarLivres(p); };
-    if (el.tagName === "INPUT") el.onkeydown = (e) => { if (e.key === "Enter") { guardar(); salvarFormAgenda(); } };
   });
   const convite = p.querySelector("[data-ag-convite]");
   if (convite) convite.onclick = () => { v.convite = !v.convite; convite.classList.toggle("on", v.convite); };
-  p.querySelector("[data-ag-salvar]").onclick = salvarFormAgenda;
   const apagar = p.querySelector("[data-ag-apagar]");
-  if (apagar) apagar.onclick = () => (v.tipo === "tarefa" ? apagarTarefa(v.id) : apagarCompromisso(v));
+  if (apagar) apagar.onclick = async () => {
+    // A pergunta de excluir toma o lugar do pop-up; desistir o traz de volta.
+    const foi = await apagarCompromisso(v);
+    if (!foi) abrirFormAgenda(v);
+  };
   const titulo = p.querySelector('[data-c="titulo"]');
   if (titulo && !v.titulo) titulo.focus();
-  if (v.tipo !== "tarefa") carregarLivres(p);
+  carregarLivres(p);
 }
 
 /* Os horarios em que cabe: o que era a tela de Agendamento. */
@@ -1257,8 +1326,8 @@ async function carregarLivres(p) {
   const alvo = p.querySelector("[data-ag-livres]");
   if (!alvo) return;
   const v = ag.form;
-  if (!v.data) { alvo.innerHTML = '<span class="ag-vazio-chip">escolha a data</span>'; return; }
-  alvo.innerHTML = '<span class="ag-vazio-chip">procurando…</span>';
+  if (!v.data) { alvo.innerHTML = '<span class="dialogo-dica">escolha a data</span>'; return; }
+  alvo.innerHTML = '<span class="dialogo-dica">procurando…</span>';
   let d;
   try {
     d = await (await fetch("/api/agenda/livres?dia=" + v.data + "&duracao=" + (Number(v.duracao) || 60))).json();
@@ -1267,7 +1336,7 @@ async function carregarLivres(p) {
     return;
   }
   if (!d.horarios.length) {
-    alvo.innerHTML = '<span class="ag-vazio-chip">nenhum horário livre neste dia com essa duração</span>';
+    alvo.innerHTML = '<span class="dialogo-dica">nenhum horário livre neste dia com essa duração</span>';
     return;
   }
   alvo.innerHTML = d.horarios.slice(0, 8).map((h) => {
@@ -1289,28 +1358,6 @@ async function salvarFormAgenda() {
   const aviso = document.querySelector("[data-ag-aviso]");
   if (!(v.titulo || "").trim()) { aviso.textContent = "dê um título"; return; }
   try {
-    if (v.tipo === "tarefa") {
-      const r = await fetch("/api/tarefas", {
-        method: "POST", headers: AG_JSON,
-        body: JSON.stringify({ id: v.id || null, dados: {
-          titulo: v.titulo.trim(), prazo: v.prazo || "", hora: v.prazo ? (v.hora || "") : "", lista: (v.lista || "").trim(),
-          cadastro_id: v.cadastro_id || null, anotacao: v.anotacao || "",
-        } }),
-      });
-      if (!r.ok) throw new Error(await erroDe(r));
-      const t = await r.json();
-      ag.form = null;
-      if (ag.visao === "tarefas") {
-        ag.tar.aberta = t.id;
-        ag.painel = "tarefa";
-      } else {
-        ag.painel = "dia";
-        ag.diaAberto = null;
-        avisoCert("tarefa criada" + (t.prazo ? " para " + dataCurta(t.prazo) : ""));
-      }
-      return mostrarAgenda();
-    }
-
     const dados = {
       titulo: v.titulo.trim(), tipo: "compromisso", data: v.data, hora: v.hora || "09:00",
       duracao: Number(v.duracao) || 60, onde: v.onde || "", cadastro_id: v.cadastro_id || null,
@@ -1328,6 +1375,7 @@ async function salvarFormAgenda() {
     ag.semana = iso(segundaDe(d));
     ag.form = null;
     ag.painel = "dia";
+    fecharFormNoPopup();
     await mostrarAgenda();
     if (v.convite) enviarConvite(c.titulo, conviteDe(c, ""));
   } catch (err) {
@@ -1336,13 +1384,14 @@ async function salvarFormAgenda() {
 }
 
 async function apagarCompromisso(c) {
-  if (!(await confirmar({ titulo: "Excluir este compromisso?", contexto: "Agenda › " + c.titulo, texto: "Ele sai da agenda. " + LIXEIRA_TEXTO, confirmar: "Excluir", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Excluir este compromisso?", contexto: "Agenda › " + c.titulo, texto: "Ele sai da agenda. " + LIXEIRA_TEXTO, confirmar: "Excluir", perigo: true }))) return false;
   const r = await fetch("/api/agenda/" + c.id, { method: "DELETE" });
   ag.form = null;
   ag.painel = "dia";
   ag.diaAberto = null;
   mostrarAgenda();
   avisarLixeira(r, () => mostrarAgenda());
+  return true;
 }
 
 /* ------------------------------------------------- a ficha da tarefa */
@@ -1444,7 +1493,7 @@ async function concluirTarefasEmLote(ids) {
 
 async function apagarTarefa(id) {
   const t = ag.tar.itens.find((x) => x.id === id) || ag.form || {};
-  if (!(await confirmar({ titulo: "Excluir esta tarefa?", contexto: "Agenda › " + (t.titulo || "tarefa"), texto: "Ela sai da lista, com as etapas. " + LIXEIRA_TEXTO, confirmar: "Excluir", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Excluir esta tarefa?", contexto: "Agenda › " + (t.titulo || "tarefa"), texto: "Ela sai da lista, com as etapas. " + LIXEIRA_TEXTO, confirmar: "Excluir", perigo: true }))) return false;
   const r = await fetch("/api/tarefas/" + id, { method: "DELETE" });
   ag.tar.aberta = null;
   ag.form = null;
@@ -1452,6 +1501,7 @@ async function apagarTarefa(id) {
   ag.diaAberto = null;
   recarregarAgenda();
   avisarLixeira(r, () => recarregarAgenda());
+  return true;
 }
 
 /* O vinculo e pelo conteudo do arquivo: renomear ou mover nao quebra. */

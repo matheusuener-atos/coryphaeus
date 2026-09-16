@@ -27,7 +27,8 @@
   .ag-cal-topo { position: relative; flex: none; display: flex; align-items: center; justify-content: center; padding: 12px 14px 8px; }
   .ag-cal-centro { display: flex; align-items: center; gap: 6px; }
   .ag-cal-topo .cal-seta { width: 34px; height: 34px; }
-  .ag-cal-titulo { min-width: 180px; height: 34px; padding: 0 12px; text-align: center; font: 600 16px var(--sans); color: var(--ink); }
+  /* No tamanho dos titulos de bloco (14 px), como a data do painel do dia. */
+  .ag-cal-titulo { min-width: 180px; height: 34px; padding: 0 12px; text-align: center; font: 600 14px var(--sans); color: var(--ink); }
   b.ag-cal-titulo { display: inline-flex; align-items: center; justify-content: center; }
   .ag-cal-hoje { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); margin-top: 2px; height: 30px; }
   /* Os meses e os anos: a grade do miniatura, grande. */
@@ -152,8 +153,12 @@
   /* A tarefa na lista do dia: a marca de concluir no lugar da hora. */
   .ag-tarefa-dia { cursor: pointer; }
   /* O dia no pop-up: a lista do dia rola, os botoes de adicionar embaixo. */
-  .ag-dia-pop { display: grid; gap: 10px; max-height: min(60vh, 520px); overflow-y: auto; padding: 2px 2px 4px; }
-  .dialogo-dia .ag-hora-linha .mais-linha { flex: none; }
+  .ag-dia-pop { display: grid; gap: 10px; padding: 2px 2px 4px; }
+  /* O compromisso na lista do dia abre a exibicao dele: a linha inteira e o
+     botao, com a seta de "tem mais" a direita. */
+  .ag-linha-ver { margin: -6px -8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+  .ag-linha-ver:hover { background: var(--fill); }
+  .ag-linha-ver > .ic { color: var(--ink3); align-self: center; }
   .ag-adicionar-dia { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
   .ag-adicionar-dia button { flex: 1; justify-content: center; background: var(--surf); border-color: var(--hair); }
   .ag-adicionar-dia button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
@@ -256,6 +261,14 @@
   .ag-linha.ag-feita { padding: 11px 16px; }
   .ag-linha.ag-feita .ag-texto b { font-weight: 400; color: var(--ink3); text-decoration: line-through; }
   .ag-secao { padding: 10px 16px 6px; font: 500 12px var(--sans); color: var(--ink3); }
+  /* O compromisso na lista de Tarefas e compromissos: a agenda no lugar do
+     circulo de concluir, a hora em destaque e a seta de que abre. */
+  .ag-linha-comp .ag-comp-marca { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--ink2); }
+  .ag-linha-comp > .ic { color: var(--ink3); flex: none; }
+  .ag-linha-comp .ag-comp-quando { color: var(--ink); font-weight: 600; }
+  .ag-linha-comp.ag-passou .ag-texto b, .ag-linha-comp.ag-passou .ag-comp-marca { color: var(--ink3); }
+  .ag-adicionar .ag-add-comp { flex: none; height: 30px; padding: 0 10px; font: 500 12.5px var(--sans); background: none; border-color: var(--hair); }
+  .ag-adicionar .ag-add-comp .ic { color: var(--ink3); }
   .ag-vazio { padding: 28px 16px; display: grid; gap: 6px; }
   .ag-vazio h4 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .ag-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }

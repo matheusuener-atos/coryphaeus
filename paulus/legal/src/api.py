@@ -2467,9 +2467,27 @@ class NovaEtapa(BaseModel):
 
 @app.get("/api/tarefas")
 def tarefas_listar(filtro: str = "meu_dia", lista: str = "") -> dict:
+    """
+    A visao Tarefas e compromissos da Agenda. O compromisso entra em Meu dia
+    (os de hoje) e em Planejadas (os que vem); nas listas, em Importante e em
+    Concluidas, nao - compromisso nao tem lista, estrela nem conclusao.
+    """
+    from datetime import date, timedelta
+
+    hoje = date.today().isoformat()
+    amanha = (date.today() + timedelta(days=1)).isoformat()
+    compromissos: list[dict] = []
+    if not lista and filtro == "meu_dia":
+        compromissos = estado.agenda.listar(hoje, hoje)
+    elif not lista and filtro == "planejadas":
+        compromissos = estado.agenda.listar(amanha, "9999-12-31")
+    contagens = estado.tarefas.contagens()
+    contagens["compromissos_hoje"] = estado.agenda.base.contar("compromissos", "data = ?", (hoje,))
+    contagens["compromissos_planejados"] = estado.agenda.base.contar("compromissos", "data > ?", (hoje,))
     return {
         "tarefas": estado.tarefas.listar(filtro, lista),
-        "contagens": estado.tarefas.contagens(),
+        "compromissos": compromissos,
+        "contagens": contagens,
         "listas": estado.tarefas.listas(),
         "clientes": [
             {"id": f["id"], "nome": f["nome"]}

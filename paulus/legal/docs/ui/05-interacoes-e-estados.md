@@ -18,6 +18,39 @@ Diálogos existentes: renomear arquivo · renomear pasta · renomear escritório
 renomear conversa · nova pasta · mover · excluir · remover pessoa ·
 compartilhar · renomear na lista (**F2**).
 
+### Exibição e cadastro
+
+Pop-up com conteúdo é de um de dois tipos, e não mistura os dois
+(decidido em 15/09/2026). Na Agenda, pop-up serve **só para exibir e marcar
+compromisso** (e para ver o dia): a tarefa nasce na caixa de adicionar de
+Tarefas e compromissos e se edita na ficha da coluna. Os dois usam
+`dialogo()`; o título e o rodapé ficam parados e só o miolo rola.
+
+**Exibição** (`classe: "dialogo-ver"`) — ver o que já existe.
+- Título: o nome da coisa ("Atualizar memória da IA"). Contexto: onde e
+  quando ("Agenda › Ter 15/09 · 09:00").
+- Miolo só de leitura: a ficha (`fichaDoDialogo`, rótulo à esquerda, valor à
+  direita) ou a lista (o dia), e as ações que servem ao que se vê
+  (`.dialogo-acoes`: abrir a sala, copiar o convite).
+- Rodapé: **Fechar** como texto e **uma** ação primária que leva adiante
+  (Editar, Abrir na semana). Enter faz a primária.
+- Não exclui. Nenhum campo editável.
+- Clicar num item (compromisso na grade ou na lista do dia) abre a exibição,
+  nunca direto o cadastro.
+
+**Cadastro** (`classe: "dialogo-cadastro"`) — criar ou mudar.
+- Título: "Novo X" ou "Editar X". Contexto: "Tela › dado principal".
+- Campos na caixa do sistema: `.dialogo-campo` com rótulo cinza e
+  `.dialogo-caixa` (fundo recuado, 42 px, halo no foco); duas colunas com
+  `.dialogo-duas`; listas pelo `melhorarSelect`, nunca a do navegador;
+  escolhas curtas em `.dialogo-chips`; explicação em `.dialogo-dica`.
+- Rodapé: **Excluir** em vinho à esquerda (`.dialogo-excluir`, só ao editar
+  algo que existe), o aviso do erro (`.dialogo-aviso`), **Cancelar** como
+  texto e a ação à direita (Marcar, Adicionar, Salvar).
+- Salvar com erro avisa no rodapé e **não fecha** (`aoConfirmar`): o que foi
+  escrito não se perde. Excluir abre a pergunta; desistir volta ao cadastro.
+- Enter salva, exceto no texto longo e em botão com foco (que aperta o botão).
+
 ## Avisos (toasts)
 
 Toda ação concluída gera aviso. Se é reversível, o aviso traz **Desfazer** — e

@@ -77,6 +77,37 @@
      branca, no escuro, era rosa-claro com branco - nao se lia. */
   .dialogo-pe .primario.perigo { background: var(--accbg); border: 1px solid var(--accln); color: var(--acc); }
   .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
+  /* OS DOIS POP-UPS DE CONTEUDO (docs/ui/05, Pop-ups).
+     Exibicao (.dialogo-ver): so leitura - a ficha, as acoes do que se ve e,
+     no rodape, Fechar e a acao que leva adiante (Editar). Nao exclui.
+     Cadastro (.dialogo-cadastro): Novo ou Editar - campos na caixa do
+     sistema, e no rodape Excluir a esquerda (so ao editar), o aviso do erro,
+     Cancelar e a acao. Nos dois, titulo e rodape ficam parados e so o miolo
+     rola. */
+  .dialogo.dialogo-ver, .dialogo.dialogo-cadastro { overflow: hidden; }
+  .dialogo-ver .dialogo-corpo, .dialogo-cadastro .dialogo-corpo { overflow-y: auto; min-height: 0; }
+  .dialogo-cadastro .dialogo-pe, .dialogo-ver .dialogo-pe { padding-top: 14px; border-top: 1px solid var(--ink-a1); }
+  .dialogo-cadastro .dialogo-cabeca, .dialogo-ver .dialogo-cabeca { padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
+  .dialogo-form { display: grid; gap: 14px; }
+  .dialogo-ficha { margin: 0; display: grid; }
+  .dialogo-ficha > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
+  .dialogo-ficha > div:first-child { padding-top: 0; }
+  .dialogo-ficha > div:last-child { border-bottom: none; }
+  .dialogo-ficha dt { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .dialogo-ficha dd { margin: 0; font: 400 14px/1.5 var(--sans); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dialogo-acoes button { height: 32px; padding: 0 12px; border-radius: 8px; font: 500 12.5px var(--sans); background: var(--surf); border-color: var(--hair); }
+  .dialogo-acoes button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
+  .dialogo-acoes button .ic { color: var(--ink3); }
+  .dialogo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dialogo-chips button { height: 32px; padding: 0 12px; border-radius: 8px; font: 500 12.5px var(--sans); border: 1px solid var(--hair); background: var(--bg); color: var(--ink); }
+  .dialogo-chips button:hover:not(:disabled) { border-color: var(--ink-a3); background: var(--bg); color: var(--ink); }
+  .dialogo-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
+  .dialogo-chips button.on:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--bg); }
+  .dialogo-campo label small { font-size: inherit; color: var(--mute); }
+  .dialogo-pe .dialogo-excluir { border: 1px solid var(--accln); background: none; color: var(--acc); }
+  .dialogo-pe .dialogo-excluir:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
+  .dialogo-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
   /* O pop-up de anexar: largo e alto o bastante para ser uma lista, com a
      alternancia Acervo / Meu computador e a busca no alto. */
   .dialogo.dialogo-anexar { width: 760px; height: min(640px, calc(100vh - 48px)); }

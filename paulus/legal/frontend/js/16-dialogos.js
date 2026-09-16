@@ -16,7 +16,10 @@
    o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga,
    o.classe (uma classe a mais no cartao, para dialogos com miolo proprio),
    o.depois (HTML depois dos campos: listas, texto longo, botoes - o que
-   tiver `data-dialogo-chave` volta em `valores`).
+   tiver `data-dialogo-chave` volta em `valores`), o.rodape (HTML a esquerda
+   do rodape), o.aoConfirmar (quem chama salva e fecha: Confirmar e Enter
+   chamam a funcao e o dialogo fica aberto - para formularios que avisam o
+   erro sem perder o que foi escrito).
 
    Enter confirma, Esc fecha, o foco fica preso dentro e volta para o
    elemento de origem ao fechar. So um dialogo aberto por vez. As teclas
@@ -58,7 +61,7 @@ function dialogo(o) {
       (o.contexto ? '<span class="dialogo-contexto">' + esc(o.contexto) + "</span>" : "") + "</span>" +
       '<button type="button" class="dialogo-fechar" data-dialogo="cancelar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
       '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + (o.depois || "") + "</div>" +
-      '<div class="dialogo-pe"><span class="cresce"></span>' +
+      '<div class="dialogo-pe">' + (o.rodape || "") + '<span class="cresce"></span>' +
       '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
       '<button type="button" class="primario' + (o.perigo ? " perigo" : "") + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
     document.body.appendChild(veu);
@@ -82,6 +85,7 @@ function dialogo(o) {
       resolve(resultado);
     };
     const confirmarAgora = () => {
+      if (o.aoConfirmar) { o.aoConfirmar(); return; }
       if (entrada && obrigatorio && !entrada.value.trim()) { entrada.focus(); return; }
       const valores = {};
       let falta = null;
@@ -99,6 +103,9 @@ function dialogo(o) {
         const alvo = e.target;
         if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogo === "cancelar") return;
         if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogoSugestao !== undefined) return;
+        // Enter num botao que nao e o Confirmar (um chip, Excluir, uma acao da
+        // exibicao) aperta aquele botao.
+        if (alvo && alvo.tagName === "BUTTON" && alvo.dataset.dialogo !== "confirmar") return;
         // No texto longo, Enter quebra a linha.
         if (alvo && alvo.tagName === "TEXTAREA") return;
         e.preventDefault();
@@ -136,6 +143,13 @@ function dialogo(o) {
     }
     dialogoAberto = { fechar: fechar };
   });
+}
+
+/* A ficha do pop-up de exibicao: rotulo a esquerda, valor a direita, uma
+   linha por dado. Linha nula sai; valor vazio vira travessao. */
+function fichaDoDialogo(linhas) {
+  return '<dl class="dialogo-ficha">' + linhas.filter(Boolean).map(([rotulo, valor]) =>
+    "<div><dt>" + esc(rotulo) + "</dt><dd>" + esc(valor || "—") + "</dd></div>").join("") + "</dl>";
 }
 
 function confirmar(o) {
