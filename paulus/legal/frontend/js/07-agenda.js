@@ -918,7 +918,7 @@ function painelDaTarefa() {
     '<div class="painel-chaves">' +
     '<div class="ag-chave"><span>Meu dia</span><button class="' + classeMeuDia + '" data-ag-meu-dia="1">' + (t.meu_dia ? "já está" : "adicionar") + "</button></div>" +
     '<div class="ag-chave"><span>Lembrar-me</span><input type="time" data-ag-campo="lembrar_em" value="' + esc(t.lembrar_em || "") + '"></div>' +
-    '<div class="ag-chave"><span>Prazo</span><input type="date" class="' + classePrazo + '" data-ag-campo="prazo" value="' + esc(t.prazo || "") + '"></div>' +
+    '<div class="ag-chave"><span>Prazo</span><input type="date" class="' + classePrazo + '" data-ag-campo="prazo" data-par="[data-ag-campo=hora]" value="' + esc(t.prazo || "") + '"></div>' +
     '<div class="ag-chave"><span>Hora</span><input type="time" data-ag-campo="hora" value="' + esc(t.hora || "") + '" title="opcional"></div>' +
     '<div class="ag-chave"><span>Repetir</span><select data-ag-campo="repetir">' +
     rep.map((r) => '<option value="' + esc(r.valor) + '"' + ((t.repetir || "") === r.valor ? " selected" : "") + ">" + esc(r.rotulo) + "</option>").join("") + "</select></div>" +
@@ -1423,10 +1423,21 @@ function ligarFichaDaTarefa(p) {
     await fetch("/api/tarefas/" + t.id + "/meu-dia", { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: !t.meu_dia }) });
     recarregarAgenda();
   };
+  /* O calendario com hora muda prazo e hora na mesma tacada: as duas
+     mudancas viram uma gravacao so. Em duas, a segunda saia com o valor
+     velho da primeira e desfazia o que a pessoa acabara de escolher. */
+  let pendentes = null;
+  let aGuardar = null;
   p.querySelectorAll("[data-ag-campo]").forEach((el) => {
     el.onchange = () => {
       const c = el.dataset.agCampo;
-      salvarCamposDaTarefa(t, { [c]: c === "cadastro_id" ? (Number(el.value) || null) : el.value });
+      pendentes = Object.assign(pendentes || {}, { [c]: c === "cadastro_id" ? (Number(el.value) || null) : el.value });
+      clearTimeout(aGuardar);
+      aGuardar = setTimeout(() => {
+        const mudancas = pendentes;
+        pendentes = null;
+        salvarCamposDaTarefa(t, mudancas);
+      }, 80);
     };
   });
   const ligar = p.querySelector("[data-ag-ligar]");

@@ -300,13 +300,20 @@
   .ag-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
 
   /* a ficha da tarefa no painel */
-  .ag-ficha-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 12px; }
+  /* A linha do cabecalho: a marca de concluir, o titulo, a estrela e o
+     fechar no mesmo eixo. Antes cada um tinha a sua margem de cima e a
+     estrela ficava fora de linha. */
+  .ag-ficha-cabeca { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
   /* O titulo da tarefa na letra do texto, como a data do painel do dia: o
      serifado grande brigava com os titulos de bloco logo abaixo. */
   .ag-ficha-cabeca h3 { flex: 1; min-width: 0; font: 600 14px/1.45 var(--sans); margin: 0; overflow-wrap: anywhere; }
-  .ag-ficha-cabeca .ag-circulo { margin-top: 1px; }
-  .ag-ficha-cabeca .ag-feita-ic { margin-top: 0; }
-  .ag-ficha-cabeca .ag-estrela { margin-top: 0; }
+  .ag-ficha-cabeca .ag-circulo, .ag-ficha-cabeca .ag-feita-ic { margin: 0; flex: none; }
+  /* Estrela e fechar no mesmo tamanho de alvo, como no cabecalho do dialogo. */
+  .ag-ficha-cabeca .ag-estrela {
+    width: 28px; height: 28px; margin: 0; flex: none; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ag-ficha-cabeca .ag-estrela:hover:not(:disabled) { background: var(--fill); }
   .ag-chave { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--ink-a06); min-height: 34px; }
   .ag-chave:last-child { border-bottom: none; }
   .ag-chave > span { flex: 1; color: var(--ink2); }

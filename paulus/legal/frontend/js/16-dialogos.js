@@ -266,7 +266,12 @@ function quandoCurto(iso) {
    (fica apagado), entao prazo no passado ou ano digitado errado nao passam
    despercebidos. `marcados` poe um ponto nos dias que ja tem algo.
 
-   calendarioPopover(ancora, { valor, min, max, marcados, limpar, passado, aoEscolher })
+   calendarioPopover(ancora, { valor, min, max, marcados, limpar, passado,
+                              atalhos, comHora, hora, aoEscolher })
+   `atalhos` poe a barra de cima - Hoje, Amanha, Proxima segunda. `comHora`
+   junta o relogio embaixo do calendario, com o campo dizendo o que ficou
+   escolhido: ai o dia nao fecha o popover, quem fecha e o Pronto, e
+   aoEscolher(data, hora) recebe os dois.
    `passado`: os dias antes de hoje podem ser escolhidos, mas vêm em vinho -
    quem escolhe vê que a data já passou.
    valor/min/max em ISO (AAAA-MM-DD). aoEscolher(iso) - "" quando limpou.
@@ -306,6 +311,12 @@ function calendarioPopover(ancora, opcoes) {
   const marcados = new Set(o.marcados || []);
   const inicio = (o.valor || (min && hojeIso() < min ? min : hojeIso())).split("-").map(Number);
   const vista = { modo: "dias", ano: inicio[0], mes: inicio[1] - 1 };
+  const comHora = Boolean(o.comHora);
+  const passoMin = 5;
+  let escolhido = o.valor || "";
+  const relogio = /^(\d{1,2}):(\d{2})$/.exec(o.hora || "") || [null, "9", "00"];
+  let hh = Math.min(23, Number(relogio[1]));
+  let mm = Math.min(59, Number(relogio[2]));
   const caixa = document.createElement("div");
   caixa.className = "calendario";
   caixa.setAttribute("role", "dialog");
@@ -328,7 +339,7 @@ function calendarioPopover(ancora, opcoes) {
         const d = new Date(inicioGrade.getFullYear(), inicioGrade.getMonth(), inicioGrade.getDate() + i);
         const iso = isoDoDia(d.getFullYear(), d.getMonth(), d.getDate());
         const classe = "cal-dia" + (d.getMonth() !== vista.mes ? " fora-do-mes" : "") + (iso === hoje ? " hoje" : "") +
-          (iso === o.valor ? " escolhido" : "") + (marcados.has(iso) ? " marcado" : "") + (o.passado && iso < hoje ? " passado" : "");
+          (iso === escolhido ? " escolhido" : "") + (marcados.has(iso) ? " marcado" : "") + (o.passado && iso < hoje ? " passado" : "");
         dias += '<button type="button" class="' + classe + '" data-cal-dia="' + iso + '"' + (fora(iso) ? " disabled" : "") +
           ' aria-label="' + d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + '">' +
           d.getDate() + "</button>";
@@ -338,7 +349,7 @@ function calendarioPopover(ancora, opcoes) {
     } else if (vista.modo === "meses") {
       titulo = String(vista.ano);
       grade = NOMES_DOS_MESES.map((nome, m) => {
-        const classe = "cal-celula" + (o.valor && o.valor.slice(0, 7) === isoDoDia(vista.ano, m, 1).slice(0, 7) ? " escolhido" : "");
+        const classe = "cal-celula" + (escolhido && escolhido.slice(0, 7) === isoDoDia(vista.ano, m, 1).slice(0, 7) ? " escolhido" : "");
         return '<button type="button" class="' + classe + '" data-cal-mes="' + m + '"' + (mesFora(vista.ano, m) ? " disabled" : "") + ">" + nome.slice(0, 3) + "</button>";
       }).join("");
       classeGrade = "cal-grade meses";
@@ -347,25 +358,69 @@ function calendarioPopover(ancora, opcoes) {
       titulo = decada + "–" + (decada + 9);
       grade = "";
       for (let a = decada - 1; a <= decada + 10; a++) {
-        const classe = "cal-celula" + (a < decada || a > decada + 9 ? " fora-do-mes" : "") + (o.valor && Number(o.valor.slice(0, 4)) === a ? " escolhido" : "");
+        const classe = "cal-celula" + (a < decada || a > decada + 9 ? " fora-do-mes" : "") + (escolhido && Number(escolhido.slice(0, 4)) === a ? " escolhido" : "");
         grade += '<button type="button" class="' + classe + '" data-cal-ano="' + a + '"' + (anoFora(a) ? " disabled" : "") + ">" + a + "</button>";
       }
       classeGrade = "cal-grade anos";
     }
+    // Os atalhos do dia a dia, na barra de cima: hoje, amanha e a proxima
+    // segunda, cada um dizendo em que dia cai.
+    let atalhos = "";
+    if (o.atalhos) {
+      const hoje = new Date();
+      const segunda = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + ((8 - hoje.getDay()) % 7 || 7));
+      const opcoes = [
+        ["Hoje", new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())],
+        ["Amanhã", new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1)],
+        ["Próxima segunda", segunda],
+      ];
+      atalhos = '<div class="cal-atalhos">' + opcoes.map(([nome, d]) => {
+        const iso = isoDoDia(d.getFullYear(), d.getMonth(), d.getDate());
+        if (fora(iso)) return "";
+        const classe = "cal-atalho" + (iso === escolhido ? " escolhido" : "");
+        return '<button type="button" class="' + classe + '" data-cal-dia="' + iso + '"><span>' + nome + "</span>" +
+          '<small>' + INICIAIS_DA_SEMANA[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0") + "</small></button>";
+      }).join("") + "</div>";
+    }
+    // O relogio junto: o campo diz o que ficou escolhido e as duas reguas
+    // mexem na hora, como no popover da hora.
+    let hora = "";
+    if (comHora) {
+      const dia = escolhido ? escolhido.split("-").reverse().join("/") : "sem data";
+      hora = '<div class="cal-hora">' +
+        '<div class="cal-hora-campo"><span>' + dia + "</span><b>" + String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0") + "</b></div>" +
+        '<label class="relogio-regua"><span>Horas</span><input type="range" min="0" max="23" step="1" value="' + hh +
+        '" style="--andado: ' + (hh / 23 * 100) + '%" data-cal-range="h"></label>' +
+        '<label class="relogio-regua"><span>Minutos</span><input type="range" min="0" max="59" step="' + passoMin + '" value="' + mm +
+        '" style="--andado: ' + (mm / 59 * 100) + '%" data-cal-range="m"></label></div>';
+    }
     const pe = [];
-    if (!fora(hojeIso())) pe.push('<button type="button" class="cal-rodape-botao" data-cal-hoje="1">Hoje</button>');
-    if (o.limpar && o.valor) pe.push('<button type="button" class="cal-rodape-botao" data-cal-limpar="1">Sem data</button>');
-    caixa.innerHTML = '<div class="cal-topo">' +
+    if (!fora(hojeIso()) && !o.atalhos) pe.push('<button type="button" class="cal-rodape-botao" data-cal-hoje="1">Hoje</button>');
+    if (o.limpar && (escolhido || comHora)) pe.push('<button type="button" class="cal-rodape-botao" data-cal-limpar="1">Sem data</button>');
+    if (comHora) pe.push('<span class="cresce"></span><button type="button" class="primario cal-rodape-botao" data-cal-pronto="1">Pronto</button>');
+    caixa.innerHTML = atalhos + '<div class="cal-topo">' +
       '<button type="button" class="cal-seta" data-cal-passo="-1" aria-label="Anterior">' + ic("chevron_left", 18) + "</button>" +
       '<button type="button" class="cal-titulo" data-cal-subir="1">' + titulo + "</button>" +
       '<button type="button" class="cal-seta" data-cal-passo="1" aria-label="Próximo">' + ic("chevron_right", 18) + "</button></div>" +
-      '<div class="' + classeGrade + '">' + grade + "</div>" +
+      '<div class="' + classeGrade + '">' + grade + "</div>" + hora +
       (pe.length ? '<div class="cal-pe">' + pe.join("") + "</div>" : "");
+    if (comHora) {
+      caixa.querySelectorAll("[data-cal-range]").forEach((r) => {
+        r.oninput = () => {
+          if (r.dataset.calRange === "h") hh = Number(r.value); else mm = Number(r.value);
+          r.style.setProperty("--andado", (Number(r.value) / Number(r.max) * 100) + "%");
+          const campo = caixa.querySelector(".cal-hora-campo b");
+          if (campo) campo.textContent = String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+        };
+      });
+    }
   };
 
   const escolher = (iso) => {
+    // Com o relogio junto, o dia so marca: quem fecha e o Pronto.
+    if (comHora && iso) { escolhido = iso; return desenhar(); }
     fecharCalendario();
-    if (o.aoEscolher) o.aoEscolher(iso);
+    if (o.aoEscolher) o.aoEscolher(iso, comHora ? String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0") : undefined);
   };
 
   caixa.addEventListener("click", (e) => {
@@ -376,7 +431,12 @@ function calendarioPopover(ancora, opcoes) {
     if (b.dataset.calMes) { vista.mes = Number(b.dataset.calMes); vista.modo = "dias"; return desenhar(); }
     if (b.dataset.calAno) { vista.ano = Number(b.dataset.calAno); vista.modo = "meses"; return desenhar(); }
     if (b.dataset.calHoje) return escolher(hojeIso());
-    if (b.dataset.calLimpar) return escolher("");
+    if (b.dataset.calLimpar) { fecharCalendario(); if (o.aoEscolher) o.aoEscolher("", comHora ? "" : undefined); return; }
+    if (b.dataset.calPronto) {
+      fecharCalendario();
+      if (o.aoEscolher) o.aoEscolher(escolhido || hojeIso(), String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0"));
+      return;
+    }
     if (b.dataset.calSubir) { vista.modo = vista.modo === "dias" ? "meses" : "anos"; return desenhar(); }
     if (b.dataset.calPasso) {
       const passo = Number(b.dataset.calPasso);
@@ -670,6 +730,58 @@ function melhorarHora(campo) {
   };
 }
 
+/* O campo de data, como o de hora: o input continua guardando o valor e
+   some, e na frente dele fica o botao com a data. O calendario que abre e o
+   do programa - com os atalhos e, quando o campo tem uma hora ao lado, com
+   o relogio junto. O par se diz em `data-par` (um seletor); sem isso, vale
+   a unica hora que houver na mesma caixa. */
+function melhorarData(campo) {
+  if (campo.dataset.melhorado) return;
+  campo.dataset.melhorado = "1";
+  campo.hidden = true;
+  const botao = document.createElement("button");
+  botao.type = "button";
+  botao.className = "escolha-botao data-botao" + (campo.className ? " " + campo.className : "");
+  if (campo.id) {
+    const rotulo = document.querySelector('label[for="' + campo.id + '"]');
+    if (rotulo) rotulo.htmlFor = campo.id + "-botao";
+    botao.id = campo.id + "-botao";
+  }
+  botao.innerHTML = '<span class="escolha-rotulo"></span>' + ic("calendar_month", 18);
+  campo.after(botao);
+  const rotular = () => {
+    botao.querySelector(".escolha-rotulo").textContent = campo.value ? campo.value.split("-").reverse().join("/") : "--/--/----";
+    botao.classList.toggle("vazio", !campo.value);
+  };
+  rotular();
+  campo.addEventListener("change", rotular);
+  const paraDoLado = () => {
+    const caixa = campo.closest(".painel-chaves, .dialogo-form, .ag-form, .cfg-campos, .linha-form") || campo.parentElement;
+    if (!caixa) return null;
+    if (campo.dataset.par) return caixa.querySelector(campo.dataset.par);
+    const horas = caixa.querySelectorAll('input[type="time"]');
+    return horas.length === 1 ? horas[0] : null;
+  };
+  botao.onclick = (e) => {
+    e.stopPropagation();
+    if (calendarioAberto) { fecharCalendario(); return; }
+    const par = paraDoLado();
+    calendarioPopover(botao, {
+      valor: campo.value, limpar: !campo.required, passado: true, atalhos: true,
+      comHora: Boolean(par), hora: par ? par.value : "",
+      aoEscolher: (data, hora) => {
+        campo.value = data;
+        rotular();
+        campo.dispatchEvent(new Event("change", { bubbles: true }));
+        if (par && hora !== undefined) {
+          par.value = hora;
+          par.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      },
+    });
+  };
+}
+
 /* TODA LISTA E TODA HORA DA TELA no padrao do programa - a caixa de escolha
    e o relogio -, inclusive as que aparecem depois, quando uma tela se
    redesenha. E por isso que a melhora passa por um observador: cada tela
@@ -680,6 +792,7 @@ function melhorarCampos(raiz) {
     if (!s.size || s.size <= 1) melhorarSelect(s);
   });
   onde.querySelectorAll('input[type="time"]:not([data-melhorado])').forEach(melhorarHora);
+  onde.querySelectorAll('input[type="date"]:not([data-melhorado])').forEach(melhorarData);
 }
 
 const olhoDosCampos = new MutationObserver(() => melhorarCampos(document));
