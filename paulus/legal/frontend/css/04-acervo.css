@@ -152,7 +152,7 @@
   .tabela-barra .direita { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .tabela-barra .nota-barra { font: 500 12.5px var(--sans); color: var(--ink3); }
   .tabela-barra .direita button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; }
-  select.ordem-sel {
+  select.ordem-sel, .escolha-botao.ordem-sel {
     border: none; background: transparent; padding: 4px 0; cursor: pointer;
     font: 500 12.5px var(--sans); color: var(--ink); min-width: 0; max-width: none; width: auto;
   }
@@ -223,12 +223,12 @@
     font: 500 12.5px var(--sans); color: var(--ink3);
   }
   .campo-cliente:focus { color: var(--ink); }
-  select.campo-tipo {
+  select.campo-tipo, .escolha-botao.campo-tipo {
     width: 100%; min-width: 0; max-width: none; padding: 5px 10px;
     border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
     font: 400 12.5px var(--sans); color: var(--ink);
   }
-  .tabela-linha.fora select.campo-tipo { color: var(--ink3); }
+  .tabela-linha.fora select.campo-tipo, .tabela-linha.fora .escolha-botao.campo-tipo { color: var(--ink3); }
 
   /* pilulas de estado e de certeza */
   .pilula-estado {
@@ -303,7 +303,7 @@
   .plano-linha.fora { color: var(--ink3); border-bottom: none; border-top: 1px solid var(--ink-a06); }
   .campo-painel { display: grid; gap: 6px; }
   .campo-painel label { font: 500 12px var(--sans); color: var(--ink3); }
-  .campo-painel select, .campo-painel input[type=text] {
+  .campo-painel select, .campo-painel input[type=text], .campo-painel .escolha-botao {
     width: 100%; max-width: none; min-width: 0; padding: 7px 10px;
     border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
     font: 400 12.5px var(--sans); color: var(--ink);
@@ -357,15 +357,15 @@
 
   .linha-form { display: flex; gap: 8px; align-items: center; margin-bottom: 9px; flex-wrap: wrap; }
   .linha-form label { font-size: 12.5px; color: var(--ink3); min-width: 108px; }
-  input[type=text], select {
+  input[type=text], select, .escolha-botao {
     font: 400 13px var(--sans); border: 1px solid var(--ink-a15);
     border-radius: 10px; padding: 9px 12px; background: var(--surf);
     color: inherit; flex: 1; min-width: 200px; max-width: var(--campo);
   }
-  input[type=text]:focus, select:focus { border-color: var(--ink); }
+  input[type=text]:focus, select:focus, .escolha-botao:focus { border-color: var(--ink); }
   /* Quem manda na largura e a caixa, nao o teto: campo dentro de grade
      acompanha a celula. */
-  .campo-form input, td input[type=text], td select { max-width: none; }
+  .campo-form input, td input[type=text], td select, td .escolha-botao { max-width: none; }
   input[type=text]::placeholder { color: var(--ink3); }
 
   .tabela-caixa { border: 1px solid var(--ink-a1); border-radius: 10px; overflow: auto; max-height: 320px; }
@@ -379,11 +379,11 @@
   tbody tr:last-child td { border-bottom: none; }
   tbody tr.fora { opacity: 0.4; }
   td .arq { max-width: 210px; }
-  td input[type=text], td select {
+  td input[type=text], td select, td .escolha-botao {
     border-color: transparent; background: transparent; padding: 4px 6px;
     border-radius: 6px; min-width: 0; font-size: 12.5px;
   }
-  td input[type=text]:hover, td select:hover { border-color: var(--ink-a15); background: var(--sub); }
+  td input[type=text]:hover, td select:hover, td .escolha-botao:hover { border-color: var(--ink-a15); background: var(--sub); }
   .selo-conf { font: 600 12px var(--sans); padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
   .selo-conf.alta { background: var(--okbg); color: var(--okt); }
   .selo-conf.media { background: var(--warnbg); color: var(--warnt); }

@@ -531,11 +531,11 @@ function vistaTarefas() {
     (listas.length
       ? listas.map((l, i) => {
           const classe = "ag-lista-item" + (l.nome === ag.tar.lista ? " ativa" : "");
-          return '<button class="' + classe + '" data-ag-lista="' + esc(l.nome) + '">' + corDaLista(i) +
+          return '<button class="' + classe + '" data-ag-lista="' + esc(l.nome) + '" title="' + esc(l.nome) + '">' + corDaLista(i) +
             '<span class="ag-nome">' + esc(l.nome) + "</span>" + contaDaLista(l.abertas || 0, false) + "</button>";
         }).join("")
       : '<span class="ac-secao">nenhuma ainda</span>') +
-    '<button class="ac-incluir" data-ag-nova-lista="1">+ nova lista</button></div>';
+    '<button class="ac-incluir" data-ag-nova-lista="1">' + ic("add", 16) + "Nova lista</button></div>";
 
   const abertas = ag.tar.itens.filter((t) => !t.concluida);
   const feitas = ag.tar.itens.filter((t) => t.concluida);
@@ -912,7 +912,7 @@ function painelDaTarefa() {
 
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Etapas</span><span class="contagem">' +
     (t.etapas.length ? feitas + " de " + t.etapas.length : "nenhuma") + "</span></div>" + etapas +
-    '<button class="ag-ligacao" data-ag-nova-etapa="1">+ próxima etapa</button>' +
+    '<button class="ag-incluir" data-ag-nova-etapa="1">' + ic("add", 16) + "Próxima etapa</button>" +
     '<span class="ag-entrada" data-ag-entrada-etapa="1" hidden><input type="text" placeholder="Próxima etapa…"><button>Acrescentar</button></span></div>' +
 
     '<div class="painel-chaves">' +
@@ -927,8 +927,9 @@ function painelDaTarefa() {
     '<div class="ag-chave"><span>Lista</span><input type="text" data-ag-campo="lista" value="' + esc(t.lista || "") + '" placeholder="nenhuma"></div>' +
     "</div>" +
 
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Ligado a</span><button class="ag-ligacao" data-ag-ligar="1">+ documento</button></div>' +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Ligado a</span></div>' +
     '<div data-ag-vinculos="1"><p>carregando…</p></div>' +
+    '<button class="ag-incluir" data-ag-ligar="1">' + ic("attach_file", 16) + "Ligar documento</button>" +
     (t.cadastro_nome ? '<div class="ag-ligado-linha"><span>' + esc(t.cadastro_nome) + '</span><button data-ag-cadastro="1">cadastro</button></div>' : "") +
     (t.prazo ? '<div class="ag-ligado-linha"><span>Prazo no calendário · ' + esc(diaCurto(t.prazo)) + '</span><button class="ag-acc" data-ag-ver-dia="' + esc(t.prazo) + '">abrir</button></div>' : "") +
     "</div>" +
@@ -936,7 +937,7 @@ function painelDaTarefa() {
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Anotação</span></div>' +
     '<textarea class="ag-nota" data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea></div>" +
 
-    '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + '</small><button class="ag-perigo-fino" data-ag-apagar-tarefa="1">Excluir</button></div>' +
+    '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + '</small><button class="dialogo-excluir" data-ag-apagar-tarefa="1">Excluir</button></div>' +
     "</div></aside>";
 }
 
@@ -1532,30 +1533,30 @@ async function carregarVinculosDaTarefa(id) {
   });
 }
 
+/* Ligar documento: o mesmo pop-up de anexar do Assistente - Acervo ou Meu
+   computador -, e nao uma lista solta dentro da ficha. O que vem de fora e
+   copiado para o acervo antes, e o vinculo e pelo conteudo (SHA-1). */
 async function escolherDocumentoParaTarefa(id) {
-  const alvo = document.querySelector("[data-ag-vinculos]");
-  if (!alvo) return;
-  alvo.innerHTML = "<p>lendo o acervo…</p>";
-  let d;
-  try {
-    d = await (await fetch("/api/biblioteca")).json();
-  } catch (err) {
-    alvo.innerHTML = "<p>não consegui ler o acervo.</p>";
-    return;
-  }
-  alvo.innerHTML = '<div class="ag-escolher">' +
-    (d.documentos.length
-      ? d.documentos.slice(0, 40).map((x) =>
-          '<div class="ag-ligado">' + glifo(x.nome) + "<span>" + esc(x.nome) + '</span><button data-ag-liga="' + esc(x.sha1) +
-          '" data-nome="' + esc(x.nome) + '">Ligar</button></div>').join("")
-      : "<p>O acervo está vazio.</p>") + "</div>";
-  alvo.querySelectorAll("[data-ag-liga]").forEach((b) => {
-    b.onclick = async () => {
-      await fetch("/api/tarefas/" + id + "/vincular", {
-        method: "POST", headers: AG_JSON, body: JSON.stringify({ sha1: b.dataset.agLiga, nome: b.dataset.nome }),
-      });
+  const t = ag.tar.itens.find((x) => x.id === id) || {};
+  abrirAnexar({
+    titulo: "Ligar documento", contexto: "Agenda › " + (t.titulo || "tarefa"), verbo: "Ligar",
+    aoAnexar: async (nomes) => {
+      if (!nomes || !nomes.length) return;
+      let docs = [];
+      try {
+        docs = (await (await fetch("/api/biblioteca")).json()).documentos || [];
+      } catch (err) {
+        docs = [];
+      }
+      for (const nome of nomes) {
+        const d = docs.find((x) => x.nome === nome);
+        await fetch("/api/tarefas/" + id + "/vincular", {
+          method: "POST", headers: AG_JSON, body: JSON.stringify({ sha1: d ? d.sha1 : "", nome: nome }),
+        });
+      }
       carregarVinculosDaTarefa(id);
-    };
+      avisoCert(plural(nomes.length, "documento") + (nomes.length === 1 ? " ligado" : " ligados") + " à tarefa", { tom: "ok" });
+    },
   });
 }
 

@@ -75,7 +75,7 @@
   /* As sugestoes de participantes abrem embaixo do campo, como o "/" da conversa abre em cima. */
   .gv-participantes { position: relative; }
   .gv-sugestoes { top: calc(100% + 4px); bottom: auto; }
-  .gv-forma input[type="text"], .gv-forma select { width: 100%; max-width: none; }
+  .gv-forma input[type="text"], .gv-forma select, .gv-forma .escolha-botao { width: 100%; max-width: none; }
   .gv-vivo .gv-transcricao { min-height: 220px; }
 
   /* Onde a transcricao, o resumo e o contexto ao vivo vao ficar. */
@@ -138,7 +138,7 @@
   .gv-arquivado .mais-linha { flex: none; }
   .gv-ligar { flex: 1; min-width: 0; display: grid; gap: 4px; }
   .gv-ligar label { font: 500 12px var(--sans); color: var(--ink3); }
-  .gv-ligar select { width: 100%; max-width: 100%; }
+  .gv-ligar select, .gv-ligar .escolha-botao { width: 100%; max-width: 100%; }
   .gv-ligar small { font: 500 12px var(--sans); color: var(--ink3); }
   .gv-ligar .em-ligacao { justify-self: start; }
   /* As anotacoes da gravacao sao as de Servicos, sem a margem do cartao de la. */

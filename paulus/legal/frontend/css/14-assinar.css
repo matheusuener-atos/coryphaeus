@@ -118,7 +118,7 @@
   .as-rodape-cartao { flex: none; padding: 12px 18px; border-top: 1px solid var(--ink-a1); display: grid; gap: 10px; }
   .as-duas-colunas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; }
   .as-duas-colunas .ag-chave { border-bottom: none; padding: 0; min-height: 0; }
-  .as-duas-colunas .ag-chave select { max-width: 50%; }
+  .as-duas-colunas .ag-chave select, .as-duas-colunas .ag-chave .escolha-botao { max-width: 50%; }
 
   /* o selo, no painel */
   .as-selo-caixa { margin: 0 18px 12px; padding: 20px 18px; background: var(--bg); border-radius: 10px; display: flex; justify-content: center; overflow: hidden; }

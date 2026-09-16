@@ -181,17 +181,20 @@
   }
   .ag-entrada button { white-space: nowrap; }
   .ag-acc { color: var(--acc); font-weight: 600; }
+  /* A anotacao na caixa dos campos do sistema: fundo recuado, fio discreto e
+     o halo no foco, como no pop-up de cadastro. */
   .ag-nota {
-    width: 100%; max-width: none; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px;
-    background: var(--surf); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); resize: vertical; min-height: 64px;
+    width: 100%; max-width: none; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--hair); border-radius: 10px;
+    background: var(--bg); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); resize: vertical; min-height: 64px;
+    transition: border-color .15s ease, box-shadow .15s ease;
   }
-  .ag-nota:focus { color: var(--ink); outline: none; border-color: var(--ink-a3); }
+  .ag-nota:focus { color: var(--ink); outline: none; border-color: var(--destaque-linha); box-shadow: 0 0 0 3px var(--ink-a06); }
 
   /* o formulario de compromisso, pagamento, prazo interno ou tarefa */
   .ag-form { padding: 4px 18px 16px; display: grid; gap: 14px; }
   .ag-campo { display: grid; gap: 6px; }
   .ag-campo > label { font: 500 12px var(--sans); color: var(--ink3); }
-  .ag-campo input, .ag-campo select, .ag-campo textarea {
+  .ag-campo input, .ag-campo select, .ag-campo textarea, .ag-campo .escolha-botao {
     width: 100%; max-width: none; min-width: 0; box-sizing: border-box; padding: 9px 12px;
     border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink);
   }
@@ -217,14 +220,19 @@
   .ag-form-rodape { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--ink-a1); padding-top: 14px; }
   .ag-form-rodape .primario { margin-left: auto; padding: 8px 16px; }
   .ag-form-rodape .ag-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
-  .ag-perigo-fino { border: 1px solid var(--accln); color: var(--acc); background: none; font: 500 12.5px var(--sans); padding: 6px 12px; border-radius: 6px; }
-  .ag-perigo-fino:hover:not(:disabled) { border-color: var(--acc); background: none; color: var(--acc); }
+  /* Excluir e o mesmo dos pop-ups (.dialogo-excluir): vinho de fio, altura de
+     botao do rodape. */
+  .ag-perigo-fino { border: 1px solid var(--accln); color: var(--acc); background: none; font: 500 12.5px var(--sans); height: 32px; padding: 0 12px; border-radius: 8px; }
+  .ag-perigo-fino:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
 
   /* as tarefas: as listas a esquerda, a lista do dia no meio */
   .ag-tarefas { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+  /* A trilha do grid e a largura da coluna (minmax(0, 1fr)): sem isso ela
+     crescia com o nome mais longo da lista e o texto vazava para fora do
+     cartao, em vez de virar reticencias. */
   .ag-listas {
     min-height: 0; overflow: auto; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
-    padding: 8px; display: grid; gap: 1px; align-content: start;
+    padding: 8px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start;
   }
   .ag-lista-item {
     display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
@@ -236,6 +244,24 @@
   .ag-lista-item .ag-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ag-lista-item .ag-conta { font: 500 12px var(--sans); color: var(--ink3); }
   .ag-lista-item .ag-conta.ag-acc { color: var(--acc); }
+  /* Acrescentar algo (nova lista, proxima etapa): um botao de verdade - fio
+     pontilhado, o mais e o nome -, e nao a ligacao fraca de antes. */
+  .ag-incluir {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 2px; padding: 8px 12px;
+    border: 1px dashed var(--ink-a15); border-radius: 6px; background: none;
+    font: 500 13px var(--sans); color: var(--ink3);
+  }
+  .ag-incluir:hover:not(:disabled) { border: 1px dashed var(--ink-a3); background: var(--bg); color: var(--ink); }
+  .ag-incluir .ic { color: var(--ink3); flex: none; }
+  .ag-incluir:hover .ic { color: var(--ink); }
+  .ag-listas .ac-incluir {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 6px; padding: 8px 12px;
+    border: 1px dashed var(--ink-a15); border-radius: 6px; background: none;
+    font: 500 13px var(--sans); color: var(--ink3);
+  }
+  .ag-listas .ac-incluir:hover:not(:disabled) { border: 1px dashed var(--ink-a3); background: var(--bg); color: var(--ink); }
+  .ag-listas .ac-incluir .ic { color: var(--ink3); flex: none; }
+  .ag-listas .ac-incluir:hover .ic { color: var(--ink); }
   .ag-cor { display: block; width: 7px; height: 7px; border-radius: 2px; background: var(--ink); flex: none; }
   .ag-cor.ag-c1 { background: var(--verde); }
   .ag-cor.ag-c2 { background: var(--acc); }
@@ -275,19 +301,22 @@
 
   /* a ficha da tarefa no painel */
   .ag-ficha-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 12px; }
-  .ag-ficha-cabeca h3 { flex: 1; min-width: 0; font: 400 20px/1.25 var(--serif); margin: 0; overflow-wrap: anywhere; }
-  .ag-ficha-cabeca .ag-circulo { margin-top: 4px; }
-  .ag-ficha-cabeca .ag-feita-ic { margin-top: 3px; }
-  .ag-ficha-cabeca .ag-estrela { margin-top: 3px; }
+  /* O titulo da tarefa na letra do texto, como a data do painel do dia: o
+     serifado grande brigava com os titulos de bloco logo abaixo. */
+  .ag-ficha-cabeca h3 { flex: 1; min-width: 0; font: 600 14px/1.45 var(--sans); margin: 0; overflow-wrap: anywhere; }
+  .ag-ficha-cabeca .ag-circulo { margin-top: 1px; }
+  .ag-ficha-cabeca .ag-feita-ic { margin-top: 0; }
+  .ag-ficha-cabeca .ag-estrela { margin-top: 0; }
   .ag-chave { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--ink-a06); min-height: 34px; }
   .ag-chave:last-child { border-bottom: none; }
   .ag-chave > span { flex: 1; color: var(--ink2); }
-  .ag-chave input, .ag-chave select {
+  .ag-chave input, .ag-chave select, .ag-chave .escolha-botao {
     width: auto; max-width: 58%; min-width: 0; border: none; background: none; padding: 2px 0; text-align: right;
     font: 600 12.5px var(--sans); color: var(--ink); cursor: pointer;
   }
-  .ag-chave select { text-align-last: right; }
-  .ag-chave input:focus, .ag-chave select:focus { outline: none; color: var(--destaque); }
+  .ag-chave select, .ag-chave .escolha-botao { text-align-last: right; }
+  .ag-chave .escolha-botao { justify-content: flex-end; gap: 4px; }
+  .ag-chave input:focus, .ag-chave select:focus, .ag-chave .escolha-botao:focus { outline: none; color: var(--destaque); }
   .ag-chave input.ag-acc { color: var(--acc); }
   .ag-chave .ag-ligacao { font-weight: 600; color: var(--okt); }
   .ag-chave .ag-ligacao.ag-fraca { color: var(--ink3); }

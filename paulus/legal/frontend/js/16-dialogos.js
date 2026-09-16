@@ -441,7 +441,9 @@ function melhorarSelect(select) {
   select.hidden = true;
   const botao = document.createElement("button");
   botao.type = "button";
-  botao.className = "escolha-botao";
+  // O botao leva as classes do select: o que a tela desenhou para o campo
+  // (largura, cor, tamanho) continua valendo nele.
+  botao.className = "escolha-botao" + (select.className ? " " + select.className : "");
   botao.setAttribute("aria-haspopup", "listbox");
   if (select.id) {
     const rotulo = document.querySelector('label[for="' + select.id + '"]');
@@ -528,3 +530,160 @@ function abrirListaDeEscolha(select, botao) {
     },
   };
 }
+
+/* ------------------------------------------------------------ o relogio */
+/*
+   A HORA NO PADRAO DO PROGRAMA. O campo de hora do navegador e uma caixinha
+   de sistema - fundo claro, setinhas minusculas, o relogio do Windows - que
+   nao combina com o tema escuro nem com o resto dos campos. No lugar dele:
+   um botao com a hora e, ao clicar, um popover com a hora grande e duas
+   reguas, horas e minutos, como no desenho pedido.
+
+   relogioPopover(ancora, { valor, aoEscolher, limpar, passo })
+   valor "HH:MM" (ou vazio), aoEscolher(hora) - "" quando limpou.
+   `passo` e o pulo dos minutos (5 por padrao).
+*/
+
+let relogioAberto = null;
+
+function fecharRelogio() {
+  if (!relogioAberto) return;
+  relogioAberto.remover();
+  relogioAberto = null;
+}
+
+function horaAgora() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+function relogioPopover(ancora, opcoes) {
+  fecharRelogio();
+  const o = opcoes || {};
+  const passo = Number(o.passo) || 5;
+  const partes = /^(\d{1,2}):(\d{2})$/.exec(o.valor || "");
+  let h = partes ? Math.min(23, Number(partes[1])) : 9;
+  let m = partes ? Math.min(59, Number(partes[2])) : 0;
+
+  const caixa = document.createElement("div");
+  caixa.className = "relogio-pop";
+  caixa.innerHTML =
+    '<div class="relogio-mostrador"><b data-rel-h>00</b><i>:</i><b data-rel-m>00</b></div>' +
+    '<label class="relogio-regua"><span>Horas</span>' +
+    '<input type="range" min="0" max="23" step="1" data-rel-range="h"></label>' +
+    '<label class="relogio-regua"><span>Minutos</span>' +
+    '<input type="range" min="0" max="59" step="' + passo + '" data-rel-range="m"></label>' +
+    '<div class="relogio-pe"><button type="button" data-rel="agora">Agora</button>' +
+    (o.limpar ? '<button type="button" data-rel="limpar">Limpar</button>' : "") +
+    '<span class="cresce"></span><button type="button" class="primario" data-rel="pronto">Pronto</button></div>';
+  document.body.appendChild(caixa);
+
+  // Abre embaixo do campo (ou em cima, sem espaco embaixo), alinhado a ele.
+  const ondeEsta = ancora.getBoundingClientRect();
+  const altura = caixa.offsetHeight;
+  caixa.style.left = Math.max(8, Math.min(ondeEsta.left, innerWidth - caixa.offsetWidth - 8)) + "px";
+  caixa.style.top = (ondeEsta.bottom + 4 + altura > innerHeight ? Math.max(8, ondeEsta.top - 4 - altura) : ondeEsta.bottom + 4) + "px";
+  if (animacoesLigadas()) {
+    caixa.animate([{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], { duration: 160, easing: CURVA_ENTRA });
+  }
+
+  const reguaH = caixa.querySelector('[data-rel-range="h"]');
+  const reguaM = caixa.querySelector('[data-rel-range="m"]');
+  const texto = () => String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  const mostrar = () => {
+    caixa.querySelector("[data-rel-h]").textContent = String(h).padStart(2, "0");
+    caixa.querySelector("[data-rel-m]").textContent = String(m).padStart(2, "0");
+    reguaH.value = h;
+    reguaM.value = m;
+    // A parte andada da regua fica em tinta; o resto, no fio.
+    reguaH.style.setProperty("--andado", (h / 23 * 100) + "%");
+    reguaM.style.setProperty("--andado", (m / 59 * 100) + "%");
+  };
+  mostrar();
+  reguaH.oninput = () => { h = Number(reguaH.value); mostrar(); };
+  reguaM.oninput = () => { m = Number(reguaM.value); mostrar(); };
+
+  const responder = (valor) => { fecharRelogio(); if (o.aoEscolher) o.aoEscolher(valor); };
+  caixa.querySelector('[data-rel="pronto"]').onclick = () => responder(texto());
+  caixa.querySelector('[data-rel="agora"]').onclick = () => {
+    const agora = horaAgora().split(":").map(Number);
+    h = agora[0];
+    m = Math.round(agora[1] / passo) * passo;
+    if (m > 59) m = 59 - (59 % passo);
+    mostrar();
+  };
+  const limpar = caixa.querySelector('[data-rel="limpar"]');
+  if (limpar) limpar.onclick = () => responder("");
+
+  const teclas = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); fecharRelogio(); ancora.focus(); return; }
+    if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); responder(texto()); }
+  };
+  const cliqueFora = (e) => { if (!caixa.contains(e.target) && e.target !== ancora && !ancora.contains(e.target)) responder(texto()); };
+  window.addEventListener("keydown", teclas, true);
+  setTimeout(() => document.addEventListener("mousedown", cliqueFora), 0);
+  reguaH.focus();
+  relogioAberto = {
+    ancora: ancora,
+    remover: () => {
+      window.removeEventListener("keydown", teclas, true);
+      document.removeEventListener("mousedown", cliqueFora);
+      caixa.remove();
+    },
+  };
+}
+
+/* O campo de hora, como a lista: o input continua guardando o valor (quem le
+   o formulario nao muda nada) e some; na frente dele, o botao com a hora. */
+function melhorarHora(campo) {
+  if (campo.dataset.melhorado) return;
+  campo.dataset.melhorado = "1";
+  campo.hidden = true;
+  const botao = document.createElement("button");
+  botao.type = "button";
+  botao.className = "escolha-botao relogio-botao" + (campo.className ? " " + campo.className : "");
+  if (campo.id) {
+    const rotulo = document.querySelector('label[for="' + campo.id + '"]');
+    if (rotulo) rotulo.htmlFor = campo.id + "-botao";
+    botao.id = campo.id + "-botao";
+  }
+  botao.innerHTML = '<span class="escolha-rotulo"></span>' + ic("schedule", 18);
+  campo.after(botao);
+  const rotular = () => {
+    const vazio = !campo.value;
+    botao.querySelector(".escolha-rotulo").textContent = campo.value || "--:--";
+    botao.classList.toggle("vazio", vazio);
+  };
+  rotular();
+  campo.addEventListener("change", rotular);
+  botao.onclick = (e) => {
+    e.stopPropagation();
+    if (relogioAberto && relogioAberto.ancora === botao) { fecharRelogio(); return; }
+    relogioPopover(botao, {
+      valor: campo.value, limpar: !campo.required,
+      aoEscolher: (valor) => {
+        campo.value = valor;
+        rotular();
+        campo.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+    });
+  };
+}
+
+/* TODA LISTA E TODA HORA DA TELA no padrao do programa - a caixa de escolha
+   e o relogio -, inclusive as que aparecem depois, quando uma tela se
+   redesenha. E por isso que a melhora passa por um observador: cada tela
+   monta o HTML dela do jeito dela, e nenhuma precisa lembrar de chamar. */
+function melhorarCampos(raiz) {
+  const onde = raiz || document;
+  onde.querySelectorAll("select:not([multiple]):not([data-melhorado])").forEach((s) => {
+    if (!s.size || s.size <= 1) melhorarSelect(s);
+  });
+  onde.querySelectorAll('input[type="time"]:not([data-melhorado])').forEach(melhorarHora);
+}
+
+const olhoDosCampos = new MutationObserver(() => melhorarCampos(document));
+document.addEventListener("DOMContentLoaded", () => {
+  melhorarCampos(document);
+  olhoDosCampos.observe(document.body, { childList: true, subtree: true });
+});

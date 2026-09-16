@@ -49,12 +49,12 @@
   .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; height: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
   .dialogo-caixa input:focus { outline: none; box-shadow: none; border: none; }
   /* Listas e texto longo dentro da mesma caixa dos campos. */
-  .dialogo-caixa select, .dialogo-caixa textarea {
+  .dialogo-caixa select, .dialogo-caixa textarea, .dialogo-caixa .escolha-botao {
     flex: 1; min-width: 0; max-width: none; border: none; background: none; padding: 0; box-shadow: none; border-radius: 0;
     font: 400 14px var(--sans); color: var(--ink);
   }
-  .dialogo-caixa select { height: 100%; cursor: pointer; }
-  .dialogo-caixa select:focus, .dialogo-caixa textarea:focus { outline: none; box-shadow: none; border: none; }
+  .dialogo-caixa select, .dialogo-caixa .escolha-botao { height: 100%; cursor: pointer; }
+  .dialogo-caixa select:focus, .dialogo-caixa textarea:focus, .dialogo-caixa .escolha-botao:focus { outline: none; box-shadow: none; border: none; }
   .dialogo-caixa.texto-longo { height: auto; align-items: flex-start; padding-block: 10px; }
   .dialogo-caixa textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
   .dialogo-duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
@@ -105,6 +105,11 @@
   .dialogo-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
   .dialogo-chips button.on:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--bg); }
   .dialogo-campo label small { font-size: inherit; color: var(--mute); }
+  .dialogo-excluir {
+    height: 32px; padding: 0 12px; border-radius: 8px; font: 500 12.5px var(--sans);
+    border: 1px solid var(--accln); background: none; color: var(--acc);
+  }
+  .dialogo-excluir:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
   .dialogo-pe .dialogo-excluir { border: 1px solid var(--accln); background: none; color: var(--acc); }
   .dialogo-pe .dialogo-excluir:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
   .dialogo-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
@@ -181,13 +186,50 @@
   .cal-rodape-botao:hover:not(:disabled) { background: var(--act); border: none; }
 
   /* ------------------------------------------------- caixa de escolha */
-  .escolha-botao {
-    flex: 1; min-width: 0; height: 100%; padding: 0; border: none; background: none; box-shadow: none; border-radius: 0;
-    display: flex; align-items: center; gap: 8px; font: 400 14px var(--sans); color: var(--ink); text-align: left; cursor: pointer;
-  }
-  .escolha-botao:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  /* Fora do dialogo, a caixa de escolha herda o desenho de campo da tela em
+     que esta: as regras que falavam de <select> falam dela tambem. Aqui fica
+     so o que e dela - a linha com o rotulo e a seta. */
+  .escolha-botao { display: inline-flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
+  .escolha-botao:hover:not(:disabled) { color: var(--ink); }
   .escolha-botao:focus-visible { outline: none; }
   .escolha-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .escolha-botao .ic { color: var(--ink3); }
+  .escolha-botao .ic { color: var(--ink3); flex: none; }
+  .relogio-botao.vazio .escolha-rotulo { color: var(--ink3); }
+  /* Dentro do campo do dialogo ela e o campo inteiro, sem fio proprio. */
+  .dialogo-caixa .escolha-botao {
+    flex: 1; min-width: 0; max-width: none; height: 100%; padding: 0; border: none; background: none; box-shadow: none;
+    border-radius: 0; font: 400 14px var(--sans); color: var(--ink);
+  }
+  .dialogo-caixa .escolha-botao:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+
+  /* O RELOGIO (o campo de hora): a hora grande e duas reguas, horas e
+     minutos. O campo do navegador era uma caixinha de sistema, com o fundo
+     claro e o relogio do Windows por cima do tema escuro. */
+  .relogio-pop {
+    position: fixed; z-index: 130; width: 268px; padding: 16px; display: grid; gap: 12px;
+    background: var(--surf); border: 1px solid var(--hair); border-radius: 14px; box-shadow: var(--elev-float);
+  }
+  .relogio-mostrador { display: flex; align-items: baseline; justify-content: center; gap: 6px; color: var(--ink); }
+  .relogio-mostrador b { font: 600 30px/1 var(--sans); font-variant-numeric: tabular-nums; }
+  .relogio-mostrador i { font-style: normal; font-size: 24px; color: var(--ink3); }
+  .relogio-regua { display: grid; gap: 6px; }
+  .relogio-regua > span { font: 500 12px var(--sans); color: var(--ink3); }
+  .relogio-regua input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 0; padding: 0;
+    background: none; border: none; cursor: pointer;
+  }
+  .relogio-regua input[type=range]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--ink) var(--andado, 0%), var(--ink-a15) var(--andado, 0%));
+  }
+  .relogio-regua input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+    background: var(--ink); border: 2px solid var(--surf); box-shadow: 0 1px 4px var(--sh-a12);
+  }
+  .relogio-regua input[type=range]:focus-visible { outline: none; }
+  .relogio-regua input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--ink-a15); }
+  .relogio-pe { display: flex; align-items: center; gap: 6px; }
+  .relogio-pe button { height: 30px; padding: 0 10px; border-radius: 8px; font: 500 12.5px var(--sans); }
+  .relogio-pe .primario { font-weight: 600; }
   .menu-conversa.escolha-lista { position: fixed; right: auto; z-index: 130; max-height: 280px; overflow-y: auto; }
   .escolha-lista button:focus-visible { outline: none; background: var(--fill); }
