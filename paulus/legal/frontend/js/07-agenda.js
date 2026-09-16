@@ -180,7 +180,7 @@ function cabecalhoAgenda() {
 
   $("acoes-tela").innerHTML =
     '<div class="visoes">' +
-    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "Tarefas e compromissos"]].map(([v, r]) => {
+    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "To-do"]].map(([v, r]) => {
       const classe = v === ag.visao ? "ativa" : "";
       return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
     }).join("") + "</div>" +
@@ -549,8 +549,13 @@ function vistaTarefas() {
       (feitas.length ? '<div class="ag-secao">Concluídas · ' + feitas.length + "</div>" + feitas.map(linhaDaTarefa).join("") : "");
   }
   // Tarefa e compromisso nascem no pop-up (o Novo, em cima): a caixa de
-  // adicionar da lista saiu.
+  // adicionar da lista saiu. A barra de cima diz o que a lista tem.
+  const f = FILTROS_TAREFA.find((x) => x.id === ag.tar.filtro);
+  const nAbertas = abertas.length + comps.length;
   const direita = '<div class="ag-cartao">' +
+    '<div class="tabela-barra"><b>Tarefas e compromissos</b><span class="nota-barra">' +
+    esc(ag.tar.lista || (f ? f.rotulo : "Tarefas")) + " · " +
+    (ag.tar.filtro === "concluidas" ? plural(feitas.length, "concluída") : plural(nAbertas, "item", "itens")) + "</span></div>" +
     (ag.tar.escolhidas.size
       ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
         '<button data-ag-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +

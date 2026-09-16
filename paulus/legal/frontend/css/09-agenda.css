@@ -291,15 +291,16 @@
      linha, vem tudo o que antes ficava na coluna da direita. */
   .ag-seta-linha { flex: none; display: inline-flex; color: var(--ink3); transition: transform .18s ease; }
   .ag-seta-linha.aberta { transform: rotate(180deg); color: var(--ink); }
-  .ag-linha.aberta { background: var(--sub); box-shadow: inset 3px 0 0 var(--ink); border-bottom: none; }
+  /* A linha aberta nao troca de cor: o que marca e o fio a esquerda e a seta
+     virada, como na lista de gravacoes. Quem tem fundo proprio e o que ela
+     revela. */
+  .ag-linha.aberta { box-shadow: inset 3px 0 0 var(--ink); border-bottom: none; }
   .ag-linha-ficha {
-    display: grid; gap: 14px; padding: 4px 18px 16px 46px; background: var(--sub);
+    display: grid; gap: 14px; padding: 4px 24px 18px 46px; background: var(--bg);
     border-bottom: 1px solid var(--ink-a08);
   }
-  /* O fundo vai de ponta a ponta; o conteudo para na medida de leitura. */
-  .ag-linha-ficha > * { max-width: 760px; }
   .ag-linha-ficha .painel-chaves { margin: 0; }
-  .ag-linha-ficha .ag-ficha-rodape { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+  .ag-linha-ficha .ag-ficha-rodape { display: flex; align-items: center; gap: 10px; padding: 4px 0 0; border-top: 1px solid var(--ink-a08); }
   .ag-linha-ficha .ag-ficha-rodape small { flex: 1; color: var(--ink3); }
   .ag-incluir-fino { width: auto; margin: 0; padding: 0 12px; height: 32px; border-style: solid; }
   /* O compromisso na lista de Tarefas e compromissos: a agenda no lugar do
