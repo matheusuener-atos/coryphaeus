@@ -356,9 +356,26 @@ def main() -> int:
             checar(
                 pagina.evaluate(
                     "() => !!document.querySelector('.ag-tarefas .ag-listas')"
-                    " && !!document.querySelector('[data-ag-nova]')"
+                    " && !!document.querySelector('.ag-linha[data-ag-tarefa]')"
+                    " && !document.querySelector('[data-ag-nova]')"
                 ),
-                "as tarefas abrem com as listas e a caixa de adicionar",
+                "as tarefas abrem com as listas e a lista do dia, sem caixa de adicionar",
+            )
+            # A linha se abre no lugar da coluna: a ficha vem debaixo dela.
+            checar(
+                pagina.evaluate(
+                    "async () => { document.querySelector('.ag-linha[data-ag-tarefa]').click();"
+                    " await new Promise(r => setTimeout(r, 900));"
+                    " const ok = !!document.querySelector('.ag-linha.aberta')"
+                    " && !!document.querySelector('.ag-linha-ficha .painel-chaves')"
+                    " && !document.querySelector('#agenda .acervo-painel');"
+                    # Fecha de novo: a ficha aberta empurra as linhas para baixo
+                    # da janela, e as checagens seguintes clicam nelas.
+                    " document.querySelector('.ag-linha.aberta').click();"
+                    " await new Promise(r => setTimeout(r, 600));"
+                    " return ok; }"
+                ),
+                "clicar na tarefa abre a ficha na propria linha, sem coluna",
             )
             pagina.evaluate("() => abrirDestino('tarefas')")
             pagina.wait_for_timeout(1200)

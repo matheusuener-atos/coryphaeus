@@ -192,15 +192,6 @@
   .cal-atalho:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .cal-atalho.escolhido { background: var(--fill); font-weight: 600; }
   .cal-atalho small { font: 500 12px var(--sans); color: var(--ink3); }
-  /* O relogio embaixo do calendario: o campo com o que ficou escolhido e as
-     duas reguas do popover da hora. */
-  .cal-hora { display: grid; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ink-a08); }
-  .cal-hora-campo {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;
-    border: 1px solid var(--hair); border-radius: 10px; background: var(--bg);
-    font: 400 13px var(--sans); color: var(--ink2);
-  }
-  .cal-hora-campo b { font: 600 15px var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
   .cal-pe { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 8px; }
   .cal-rodape-botao { height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); }
   .cal-rodape-botao:hover:not(:disabled) { background: var(--act); border: none; }

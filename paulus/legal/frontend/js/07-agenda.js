@@ -22,7 +22,7 @@ const ag = {
   largo: false,
   zoom: "dias",          // dias | meses | anos - o calendario do mes, como o miniatura
   tar: { filtro: "meu_dia", lista: "", itens: [], compromissos: [], contagens: {}, listas: [],
-         clientes: [], repeticoes: [], aberta: null, escolhidas: new Set() },
+         clientes: [], repeticoes: [], aberta: null, aberto: null, escolhidas: new Set() },
 };
 
 const AG_JSON = { "Content-Type": "application/json" };
@@ -282,12 +282,7 @@ function andarAgenda(n) {
 /* Cada coisa na sua visão: a tarefa leva a Tarefas (com a data do dia), e o
    compromisso leva à Semana - a agenda de horários -, com o formulário. */
 function criarNaAgenda(tipo) {
-  if (tipo === "tarefa") {
-    // Pop-up é só do compromisso: a tarefa nasce na caixa de adicionar.
-    const campo = ag.visao === "tarefas" && document.querySelector("[data-ag-nova]");
-    if (campo) return campo.focus();
-    return adicionarTarefaNoDia(ag.dia);
-  }
+  if (tipo === "tarefa") return abrirFormAgenda({ tipo: "tarefa", prazo: ag.dia, lista: ag.tar.lista || "" });
   abrirFormAgenda(compromissoEmBranco(tipo));
 }
 
@@ -553,11 +548,9 @@ function vistaTarefas() {
     corpo = linhasDoPeriodo(abertas, comps) +
       (feitas.length ? '<div class="ag-secao">Concluídas · ' + feitas.length + "</div>" + feitas.map(linhaDaTarefa).join("") : "");
   }
-  const direita = '<div class="ag-cartao"><div class="ag-adicionar">' +
-    '<button class="ag-mais-botao" data-ag-add="1" title="Adicionar">' + ic("add", 18) + "</button>" +
-    '<input type="text" data-ag-nova="1" placeholder="Adicionar uma tarefa…">' +
-    '<input type="date" data-ag-nova-prazo="1" value="' + prazoSugerido + '" title="Prazo">' +
-    '<button class="com-icone ag-add-comp" data-ag-add-comp="1" title="Marcar um compromisso no dia escolhido">' + ic("event", 16) + "Compromisso</button></div>" +
+  // Tarefa e compromisso nascem no pop-up (o Novo, em cima): a caixa de
+  // adicionar da lista saiu.
+  const direita = '<div class="ag-cartao">' +
     (ag.tar.escolhidas.size
       ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
         '<button data-ag-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
@@ -600,9 +593,12 @@ function linhaDoCompromisso(k) {
   const pecas = ['<span class="' + (passou ? "" : "ag-comp-quando") + '">' + esc(quando) + "</span>"];
   if (k.onde_rotulo) pecas.push("<span>" + esc(k.onde_rotulo) + "</span>");
   if (k.cadastro_nome) pecas.push("<span>" + esc(k.cadastro_nome) + "</span>");
-  return '<div class="ag-linha ag-linha-comp' + (passou ? " ag-passou" : "") + '" data-ag-comp="' + k.id + '" title="Compromisso">' +
+  const aberto = ag.tar.aberto === k.id;
+  return '<div class="ag-linha ag-linha-comp' + (passou ? " ag-passou" : "") + (aberto ? " aberta" : "") +
+    '" data-ag-comp="' + k.id + '" title="Compromisso">' +
     '<span class="ag-comp-marca">' + ic("event", 18) + "</span>" +
-    '<span class="ag-texto"><b>' + esc(k.titulo) + "</b><small>" + pecas.join("") + "</small></span>" + ic("chevron_right", 18) + "</div>";
+    '<span class="ag-texto"><b>' + esc(k.titulo) + "</b><small>" + pecas.join("") + "</small></span>" +
+    setaDaLinha(aberto) + "</div>" + (aberto ? fichaDoCompromissoNaLinha(k) : "");
 }
 
 function contaDaLista(n, acc) {
@@ -615,18 +611,28 @@ function corDaLista(i) {
   return '<i class="' + classe + '"></i>';
 }
 
+/* A LINHA QUE SE ABRE (como a da gravacao, que revela o tocador). Clicar
+   numa tarefa ou num compromisso abre, debaixo da linha, tudo o que antes
+   morava na coluna da direita - por isso a coluna acabou. */
 function linhaDaTarefa(t) {
+  const aberta = ag.tar.aberta === t.id;
   if (t.concluida) {
-    const classeFeita = "ag-linha ag-feita" + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
+    const classeFeita = "ag-linha ag-feita" + (aberta ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
     return '<div class="' + classeFeita + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
       '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>' +
-      '<span class="ag-texto"><b>' + esc(t.titulo) + "</b></span></div>";
+      '<span class="ag-texto"><b>' + esc(t.titulo) + "</b></span>" + setaDaLinha(aberta) + "</div>" +
+      (aberta ? fichaDaTarefaNaLinha(t) : "");
   }
-  const classe = "ag-linha" + (ag.tar.aberta === t.id ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
+  const classe = "ag-linha" + (aberta ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
   return '<div class="' + classe + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
     '<span class="ag-circulo ag-grande" data-ag-concluir="' + t.id + '" title="Concluir"></span>' +
     '<span class="ag-texto"><b>' + esc(t.titulo) + "</b><small>" + metaDaTarefa(t) + "</small></span>" +
-    botaoEstrela(t) + "</div>";
+    botaoEstrela(t) + setaDaLinha(aberta) + "</div>" +
+    (aberta ? fichaDaTarefaNaLinha(t) : "");
+}
+
+function setaDaLinha(aberta) {
+  return '<span class="ag-seta-linha' + (aberta ? " aberta" : "") + '">' + ic("expand_more", 18) + "</span>";
 }
 
 function metaDaTarefa(t) {
@@ -652,8 +658,6 @@ function botaoEstrela(t) {
    coluna só aparece com os prazos lidos nos documentos, e na visão Tarefas,
    com a ficha da tarefa. O cadastro (novo ou editar) é sempre pop-up. */
 function painelDaAgenda() {
-  if (ag.painel === "sugestoes") return painelSugestoes();
-  if (ag.visao === "tarefas") return painelDaTarefa();
   return "";
 }
 
@@ -842,6 +846,7 @@ function fecharFormNoPopup() {
 }
 
 function partesDoFormAgenda(v) {
+  if (v.tipo === "tarefa") return partesDoFormTarefa(v);
   const novo = !v.id;
   const nomes = NOME_DO_TIPO.compromisso;
   const sub = "Agenda › " + maiuscula(diaCurto(v.data || ag.dia)) + " · " + (v.hora || "");
@@ -881,16 +886,10 @@ function partesDoFormAgenda(v) {
   };
 }
 
-function painelDaTarefa() {
-  const t = ag.tar.itens.find((x) => x.id === ag.tar.aberta);
-  if (!t) {
-    return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma tarefa aberta</h3>' +
-      "<p>Clique numa tarefa para ver as etapas, o prazo e o que ela tem ligado. O compromisso abre num pop-up.</p></div></div></aside>";
-  }
+function fichaDaTarefaNaLinha(t) {
   const feitas = t.etapas.filter((e) => e.feita).length;
   const q = quandoDaTarefa(t);
   const rep = ag.tar.repeticoes.length ? ag.tar.repeticoes : [{ valor: "", rotulo: "Não repete" }];
-  const classeEstrela = "ag-estrela" + (t.importante ? " on" : "");
   const classePrazo = q.acc ? "ag-acc" : "";
   const classeMeuDia = "ag-ligacao" + (t.meu_dia ? "" : " ag-fraca");
 
@@ -901,15 +900,7 @@ function painelDaTarefa() {
       '<span class="ag-texto">' + esc(e.titulo) + "</span></div>";
   }).join("");
 
-  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
-    '<div class="ag-ficha-cabeca">' +
-    (t.concluida
-      ? '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>'
-      : '<span class="ag-circulo ag-grande" data-ag-concluir="' + t.id + '" title="Concluir"></span>') +
-    "<h3>" + esc(t.titulo) + "</h3>" +
-    '<button class="' + classeEstrela + '" data-ag-estrela="' + t.id + '" title="Importante">' + ic(t.importante ? "star" : "star_outline", 18) + "</button>" +
-    '<button class="voltar" data-ag-fechar-tarefa="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-
+  return '<div class="ag-linha-ficha" data-ag-ficha="' + t.id + '">' +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Etapas</span><span class="contagem">' +
     (t.etapas.length ? feitas + " de " + t.etapas.length : "nenhuma") + "</span></div>" + etapas +
     '<button class="ag-incluir" data-ag-nova-etapa="1">' + ic("add", 16) + "Próxima etapa</button>" +
@@ -918,7 +909,7 @@ function painelDaTarefa() {
     '<div class="painel-chaves">' +
     '<div class="ag-chave"><span>Meu dia</span><button class="' + classeMeuDia + '" data-ag-meu-dia="1">' + (t.meu_dia ? "já está" : "adicionar") + "</button></div>" +
     '<div class="ag-chave"><span>Lembrar-me</span><input type="time" data-ag-campo="lembrar_em" value="' + esc(t.lembrar_em || "") + '"></div>' +
-    '<div class="ag-chave"><span>Prazo</span><input type="date" class="' + classePrazo + '" data-ag-campo="prazo" data-par="[data-ag-campo=hora]" value="' + esc(t.prazo || "") + '"></div>' +
+    '<div class="ag-chave"><span>Prazo</span><input type="date" class="' + classePrazo + '" data-ag-campo="prazo" value="' + esc(t.prazo || "") + '"></div>' +
     '<div class="ag-chave"><span>Hora</span><input type="time" data-ag-campo="hora" value="' + esc(t.hora || "") + '" title="opcional"></div>' +
     '<div class="ag-chave"><span>Repetir</span><select data-ag-campo="repetir">' +
     rep.map((r) => '<option value="' + esc(r.valor) + '"' + ((t.repetir || "") === r.valor ? " selected" : "") + ">" + esc(r.rotulo) + "</option>").join("") + "</select></div>" +
@@ -937,23 +928,68 @@ function painelDaTarefa() {
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Anotação</span></div>' +
     '<textarea class="ag-nota" data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea></div>" +
 
-    '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + '</small><button class="dialogo-excluir" data-ag-apagar-tarefa="1">Excluir</button></div>' +
-    "</div></aside>";
+    '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + "</small>" +
+    '<button class="ag-incluir ag-incluir-fino" data-ag-editar-tarefa="' + t.id + '">' + ic("edit", 16) + "Editar</button>" +
+    '<button class="dialogo-excluir" data-ag-apagar-tarefa="1">Excluir</button></div>' +
+    "</div>";
 }
 
-function painelSugestoes() {
-  const s = ag.sugestoes || [];
-  return '<aside class="acervo-painel">' + alcaDoPainel() + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>Prazos lidos nos documentos</h3><span class="meta">' +
-    (s.length ? plural(s.length, "data") + " que ainda não " + (s.length === 1 ? "virou" : "viraram") + " tarefa" : "nada a sugerir") + "</span></span>" +
-    '<button class="voltar" data-ag-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-    '<div class="painel-bloco">' +
-    (s.length
-      ? "<p>Datas que o assistente já leu nos contratos abertos. Escolha as que quiser.</p>" +
-        s.map((x, i) => '<div class="ag-ligado"><span class="duas-linhas"><b>' + esc(x.titulo) + "</b><small>" + dataLonga(x.prazo) +
-          (x.cliente ? " · " + esc(x.cliente) : "") + '</small></span><button data-ag-aceitar="' + i + '">Criar</button></div>').join("")
-      : "<p>Os documentos abertos não trazem data dentro dos próximos 90 dias, ou todas já viraram tarefa.</p>") +
-    "</div></div></aside>";
+/* O compromisso aberto na linha: a mesma ficha do pop-up de exibicao - so
+   leitura -, com as acoes dele, Editar e Excluir. */
+function fichaDoCompromissoNaLinha(k) {
+  const aviso = AVISOS_ANTES.find(([m]) => m === Number(k.avisar_min || 0));
+  const horario = k.hora + (k.fim ? " às " + k.fim : "") + (k.duracao ? " (" + duracaoEmTexto(k.duracao) + ")" : "");
+  const salas = k.onde === "online"
+    ? '<button type="button" class="com-icone" data-ag-sala="meet">' + ic("videocam", 16) + "Sala no Meet</button>" +
+      '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
+      '<button type="button" class="com-icone" data-ag-link="' + k.id + '">' + ic("link", 16) + "Convite com link</button>"
+    : "";
+  return '<div class="ag-linha-ficha" data-ag-ficha-comp="' + k.id + '">' +
+    fichaDoDialogo([
+      ["Quando", maiuscula(diaPorExtenso(k.data)) + ", " + horario],
+      ["Onde", k.onde_rotulo || "sem local"],
+      ["Com quem", k.cadastro_nome || "ninguém do cadastro"],
+      ["Aviso", aviso ? aviso[1] : ""],
+      k.anotacao ? ["Anotação", k.anotacao] : null,
+    ]) +
+    '<div class="dialogo-acoes">' + salas +
+    '<button type="button" class="com-icone" data-ag-copiar="' + k.id + '">' + ic("content_copy", 16) + "Copiar convite</button></div>" +
+    '<div class="ag-ficha-rodape"><small>' + esc(maiuscula(diaCurto(k.data))) + "</small>" +
+    '<button class="ag-incluir ag-incluir-fino" data-ag-editar-comp="' + k.id + '">' + ic("edit", 16) + "Editar</button>" +
+    '<button class="dialogo-excluir" data-ag-apagar-comp="' + k.id + '">Excluir</button></div>' +
+    "</div>";
+}
+
+/* O CADASTRO DA TAREFA. Tarefa e compromisso nascem e se editam no pop-up;
+   a linha aberta na lista mostra e age, mas nao escreve. */
+function partesDoFormTarefa(v) {
+  const novo = !v.id;
+  const rep = ag.tar.repeticoes.length ? ag.tar.repeticoes : [{ valor: "", rotulo: "Não repete" }];
+  const campo = (rotulo, controle, id, longo) => '<div class="dialogo-campo"><label for="' + id + '">' + rotulo + "</label>" +
+    '<div class="dialogo-caixa' + (longo ? " texto-longo" : "") + '">' + controle + "</div></div>";
+  const corpo =
+    campo("Título", '<input type="text" id="ag-f-titulo" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="Entregar o contrato revisado" autocomplete="off">', "ag-f-titulo") +
+    '<div class="dialogo-duas">' +
+    campo("Prazo", '<input type="date" id="ag-f-prazo" data-c="prazo" value="' + esc(v.prazo || "") + '">', "ag-f-prazo") +
+    campo("Hora <small>(opcional)</small>", '<input type="time" id="ag-f-hora" data-c="hora" value="' + esc(v.hora || "") + '">', "ag-f-hora") + "</div>" +
+    '<div class="dialogo-duas">' +
+    campo("Lista", '<input type="text" id="ag-f-lista" data-c="lista" list="ag-listas-dl" value="' + esc(v.lista || "") + '" placeholder="nenhuma" autocomplete="off">' +
+      '<datalist id="ag-listas-dl">' + ag.tar.listas.map((l) => '<option value="' + esc(l.nome) + '">').join("") + "</datalist>", "ag-f-lista") +
+    campo("Repetir", '<select id="ag-f-repetir" data-c="repetir">' +
+      rep.map((r) => '<option value="' + esc(r.valor) + '"' + ((v.repetir || "") === r.valor ? " selected" : "") + ">" + esc(r.rotulo) + "</option>").join("") +
+      "</select>", "ag-f-repetir") + "</div>" +
+    campo("Cliente", '<select id="ag-f-cliente" data-c="cadastro_id"><option value="">nenhum</option>' +
+      ag.tar.clientes.map((k) => '<option value="' + k.id + '"' + (k.id === v.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("") +
+      "</select>", "ag-f-cliente") +
+    campo("Lembrar-me <small>(opcional)</small>", '<input type="time" id="ag-f-lembrar" data-c="lembrar_em" value="' + esc(v.lembrar_em || "") + '">', "ag-f-lembrar") +
+    campo("Anotação", '<textarea id="ag-f-anotacao" rows="3" data-c="anotacao" placeholder="O que vale lembrar…">' + esc(v.anotacao || "") + "</textarea>", "ag-f-anotacao", true);
+  return {
+    titulo: NOME_DO_TIPO.tarefa[novo ? 0 : 1],
+    sub: "Agenda › " + (v.prazo ? maiuscula(diaCurto(v.prazo)) + (v.hora ? " · " + v.hora : "") : "sem prazo"),
+    corpo: corpo,
+    excluir: novo ? "" : '<button type="button" class="dialogo-excluir" data-ag-apagar="1">Excluir</button>',
+    botao: novo ? "Adicionar" : "Salvar",
+  };
 }
 
 /* -------------------------------------------------------- o que liga */
@@ -1010,16 +1046,6 @@ function ligarAgenda() {
     avisoCert("a lista “" + ag.tar.lista + "” nasce com a primeira tarefa que você criar nela");
     mostrarAgenda();
   };
-  const nova = raiz.querySelector("[data-ag-nova]");
-  if (nova) {
-    const criar = async () => {
-      if (!nova.value.trim()) { nova.focus(); return; }
-      const prazo = raiz.querySelector("[data-ag-nova-prazo]").value;
-      await criarTarefa({ titulo: nova.value.trim(), prazo: prazo, lista: ag.tar.lista });
-    };
-    raiz.querySelector("[data-ag-add]").onclick = criar;
-    nova.onkeydown = (e) => { if (e.key === "Enter") criar(); };
-  }
   ligarSelecao(raiz.querySelector(".ag-tarefas .tabela-corpo"), {
     linhas: ".ag-linha[data-sel]", escolhidos: ag.tar.escolhidas, aoMudar: desenharAgenda, apagar: (ids) => apagarTarefasEmLote(ids),
   });
@@ -1029,28 +1055,32 @@ function ligarAgenda() {
   if (selApagar) selApagar.onclick = (e) => { e.stopPropagation(); apagarTarefasEmLote([...ag.tar.escolhidas]); };
   const selConcluir = raiz.querySelector("[data-ag-sel-concluir]");
   if (selConcluir) selConcluir.onclick = (e) => { e.stopPropagation(); concluirTarefasEmLote([...ag.tar.escolhidas]); };
+  // A linha se abre e se fecha no lugar: a de baixo mostra tudo o que antes
+  // ficava na coluna da direita.
   raiz.querySelectorAll("[data-ag-comp]").forEach((el) => {
-    el.onclick = () => {
-      const k = (ag.tar.compromissos || []).find((x) => x.id === Number(el.dataset.agComp));
-      if (k) verCompromisso(k);
-    };
-  });
-  const addComp = raiz.querySelector("[data-ag-add-comp]");
-  if (addComp) addComp.onclick = () => {
-    const prazo = raiz.querySelector("[data-ag-nova-prazo]");
-    ag.dia = (prazo && prazo.value) || iso(new Date());
-    const titulo = raiz.querySelector("[data-ag-nova]");
-    abrirFormAgenda(Object.assign(compromissoEmBranco("compromisso"), { titulo: titulo ? titulo.value.trim() : "" }));
-  };
-  raiz.querySelectorAll("[data-ag-tarefa]").forEach((el) => {
-    el.onclick = () => {
-      const id = Number(el.dataset.agTarefa);
-      ag.tar.aberta = ag.tar.aberta === id ? null : id;
-      ag.form = null;
-      ag.painel = "tarefa";
+    el.onclick = (e) => {
+      if (e.target.closest(".ag-linha-ficha")) return;
+      const id = Number(el.dataset.agComp);
+      ag.tar.aberto = ag.tar.aberto === id ? null : id;
+      ag.tar.aberta = null;
       desenharAgenda();
     };
   });
+  raiz.querySelectorAll("[data-ag-tarefa]").forEach((el) => {
+    el.onclick = (e) => {
+      if (e.target.closest(".ag-linha-ficha")) return;
+      const id = Number(el.dataset.agTarefa);
+      ag.tar.aberta = ag.tar.aberta === id ? null : id;
+      ag.tar.aberto = null;
+      ag.form = null;
+      desenharAgenda();
+    };
+  });
+  // O que a ficha aberta na linha liga: as etapas, as chaves, o documento.
+  const ficha = raiz.querySelector(".ag-linha-ficha[data-ag-ficha]");
+  if (ficha) ligarFichaDaTarefa(ficha);
+  const fichaComp = raiz.querySelector(".ag-linha-ficha[data-ag-ficha-comp]");
+  if (fichaComp) ligarFichaDoCompromisso(fichaComp);
   raiz.querySelectorAll(".acervo-principal [data-ag-concluir]").forEach((el) => {
     el.onclick = (e) => {
       e.stopPropagation();
@@ -1066,32 +1096,6 @@ function ligarAgenda() {
     };
   });
 
-  ligarPainel();
-}
-
-function desenharPainel() {
-  const velho = document.querySelector("#agenda .acervo-painel");
-  const novo = painelDaAgenda();
-  // A coluna aparece ou some: a tela inteira se refaz.
-  if (!velho || !novo) { desenharAgenda(); return; }
-  velho.insertAdjacentHTML("afterend", novo);
-  velho.remove();
-  ligarPainel();
-}
-
-function ligarPainel() {
-  const p = document.querySelector("#agenda .acervo-painel");
-  if (!p) return;
-  p.querySelectorAll("[data-ag-fechar]").forEach((b) => { b.onclick = fecharPainelDaAgenda; });
-  if (ag.painel === "sugestoes") return ligarSugestoes(p);
-  if (ag.visao === "tarefas") return ligarFichaDaTarefa(p);
-  ligarPainelDoDia(p);
-}
-
-async function fecharPainelDaAgenda() {
-  ag.form = null;
-  ag.painel = ag.visao === "tarefas" ? "tarefa" : "dia";
-  desenharPainel();
 }
 
 async function escolherDia(dia) {
@@ -1102,7 +1106,6 @@ async function escolherDia(dia) {
     el.classList.toggle("ag-escolhido", el.dataset.agDia === dia);
   });
   await carregarDia();
-  if (document.querySelector("#agenda .acervo-painel")) desenharPainel();
   abrirDiaNoPopup();
 }
 
@@ -1140,16 +1143,17 @@ function abrirItem(chave) {
   abrirTarefaNaAgenda(x.id, r.dia, x.genero === "tarefa");
 }
 
-/* A tarefa abre na visao Tarefas, no filtro em que ela esta. */
+/* A tarefa abre na visao Tarefas e compromissos, no filtro em que ela esta,
+   com a linha dela aberta. */
 function abrirTarefaNaAgenda(id, dia, concluida) {
   fecharPopupDoDia();
   const hoje = iso(new Date());
   ag.tar.filtro = concluida ? "concluidas" : (dia && dia > hoje ? "planejadas" : "meu_dia");
   ag.tar.lista = "";
   ag.tar.aberta = id;
+  ag.tar.aberto = null;
   ag.form = null;
   mostrarAgenda("tarefas");
-  ag.painel = "tarefa";
 }
 
 /* ------------------------------------------------ o painel do dia */
@@ -1179,19 +1183,10 @@ function ligarPainelDoDia(p) {
   });
 }
 
-/* Adicionar tarefa pelo dia: a visão Tarefas, no filtro em que a tarefa vai
-   aparecer, com a caixa de adicionar já com a data do dia e o cursor nela. */
-async function adicionarTarefaNoDia(dia) {
+/* Adicionar tarefa pelo dia: o pop-up de cadastro, com o prazo no dia. */
+function adicionarTarefaNoDia(dia) {
   fecharPopupDoDia();
-  const hoje = iso(new Date());
-  ag.tar.filtro = dia > hoje ? "planejadas" : "meu_dia";
-  ag.tar.lista = "";
-  ag.tar.aberta = null;
-  await mostrarAgenda("tarefas");
-  const prazo = document.querySelector("[data-ag-nova-prazo]");
-  if (prazo) prazo.value = dia;
-  const campo = document.querySelector("[data-ag-nova]");
-  if (campo) campo.focus();
+  abrirFormAgenda({ tipo: "tarefa", prazo: dia, lista: ag.tar.lista || "" });
 }
 
 /* Um "+ algo" que vira campo de texto ao clicar. */
@@ -1314,12 +1309,12 @@ function ligarFormAgenda(p) {
   const apagar = p.querySelector("[data-ag-apagar]");
   if (apagar) apagar.onclick = async () => {
     // A pergunta de excluir toma o lugar do pop-up; desistir o traz de volta.
-    const foi = await apagarCompromisso(v);
+    const foi = await (v.tipo === "tarefa" ? apagarTarefa(v.id) : apagarCompromisso(v));
     if (!foi) abrirFormAgenda(v);
   };
   const titulo = p.querySelector('[data-c="titulo"]');
   if (titulo && !v.titulo) titulo.focus();
-  carregarLivres(p);
+  if (v.tipo !== "tarefa") carregarLivres(p);
 }
 
 /* Os horarios em que cabe: o que era a tela de Agendamento. */
@@ -1359,6 +1354,28 @@ async function salvarFormAgenda() {
   const aviso = document.querySelector("[data-ag-aviso]");
   if (!(v.titulo || "").trim()) { aviso.textContent = "dê um título"; return; }
   try {
+    if (v.tipo === "tarefa") {
+      const r = await fetch("/api/tarefas", {
+        method: "POST", headers: AG_JSON,
+        body: JSON.stringify({ id: v.id || null, dados: {
+          titulo: v.titulo.trim(), prazo: v.prazo || "", hora: v.prazo ? (v.hora || "") : "",
+          lista: (v.lista || "").trim(), cadastro_id: v.cadastro_id || null, anotacao: v.anotacao || "",
+          repetir: v.repetir || "", importante: v.importante || false, lembrar_em: v.lembrar_em || "",
+        } }),
+      });
+      if (!r.ok) throw new Error(await erroDe(r));
+      const t = await r.json();
+      ag.form = null;
+      ag.painel = "dia";
+      ag.diaAberto = null;
+      ag.tar.aberta = t.id;
+      ag.tar.aberto = null;
+      fecharFormNoPopup();
+      await mostrarAgenda();
+      if (!v.id) avisoCert("tarefa criada" + (t.prazo ? " para " + dataCurta(t.prazo) : ""));
+      return;
+    }
+
     const dados = {
       titulo: v.titulo.trim(), tipo: "compromisso", data: v.data, hora: v.hora || "09:00",
       duracao: Number(v.duracao) || 60, onde: v.onde || "", cadastro_id: v.cadastro_id || null,
@@ -1400,11 +1417,8 @@ async function apagarCompromisso(c) {
 function ligarFichaDaTarefa(p) {
   const t = ag.tar.itens.find((x) => x.id === ag.tar.aberta);
   if (!t) return;
-  p.querySelectorAll("[data-ag-concluir]").forEach((el) => { el.onclick = () => concluirTarefa(t.id, !t.concluida); });
-  const estrela = p.querySelector("[data-ag-estrela]");
-  if (estrela) estrela.onclick = () => marcarImportante(t.id, !t.importante);
-  const fechar = p.querySelector("[data-ag-fechar-tarefa]");
-  if (fechar) fechar.onclick = () => { ag.tar.aberta = null; desenharAgenda(); };
+  const editar = p.querySelector("[data-ag-editar-tarefa]");
+  if (editar) editar.onclick = () => editarTarefa(t);
 
   p.querySelectorAll("[data-ag-etapa]").forEach((el) => {
     el.onclick = async () => {
@@ -1457,11 +1471,28 @@ function ligarFichaDaTarefa(p) {
   carregarVinculosDaTarefa(t.id);
 }
 
-async function criarTarefa(dados) {
-  const r = await fetch("/api/tarefas", { method: "POST", headers: AG_JSON, body: JSON.stringify({ dados: dados }) });
-  if (!r.ok) { avisoCert("não consegui criar: " + await erroDe(r)); return; }
-  ag.diaAberto = null;
-  recarregarAgenda();
+/* O compromisso aberto na linha: as acoes dele, Editar e Excluir. */
+function ligarFichaDoCompromisso(p) {
+  const k = (ag.tar.compromissos || []).find((x) => x.id === ag.tar.aberto);
+  if (!k) return;
+  p.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
+  const copiar = p.querySelector("[data-ag-copiar]");
+  if (copiar) copiar.onclick = () => copiarTexto(conviteDe(k, ""), "convite copiado");
+  const link = p.querySelector("[data-ag-link]");
+  if (link) link.onclick = () => pedirLinkDaSala(k);
+  const editar = p.querySelector("[data-ag-editar-comp]");
+  if (editar) editar.onclick = () => abrirFormAgenda(Object.assign({}, k));
+  const apagar = p.querySelector("[data-ag-apagar-comp]");
+  if (apagar) apagar.onclick = () => apagarCompromisso(k);
+}
+
+/* Editar a tarefa: o pop-up de cadastro, com o que ela tem hoje. */
+function editarTarefa(t) {
+  abrirFormAgenda({
+    tipo: "tarefa", id: t.id, titulo: t.titulo, prazo: t.prazo || "", hora: t.hora || "",
+    lista: t.lista || "", cadastro_id: t.cadastro_id || null, anotacao: t.anotacao || "",
+    repetir: t.repetir || "", importante: t.importante, lembrar_em: t.lembrar_em || "",
+  });
 }
 
 async function concluirTarefa(id, valor) {
@@ -1573,32 +1604,52 @@ async function escolherDocumentoParaTarefa(id) {
 
 /* ---------------------------------------------- prazos dos documentos */
 
+/* Os prazos que o assistente leu nos documentos, num pop-up de exibição:
+   cada data com o botão de virar tarefa. */
 async function abrirSugestoes() {
-  let s;
+  let lidos;
   try {
-    s = (await (await fetch("/api/tarefas/sugestoes")).json()).sugestoes;
+    lidos = (await (await fetch("/api/tarefas/sugestoes")).json()).sugestoes;
   } catch (err) {
     avisoCert("não consegui ler os documentos");
     return;
   }
-  ag.sugestoes = s;
-  ag.form = null;
-  ag.painel = "sugestoes";
-  desenharPainel();
+  ag.sugestoes = lidos;
+  const escolha = dialogo({
+    titulo: "Prazos lidos nos documentos",
+    contexto: lidos.length ? plural(lidos.length, "data") + " que ainda não " + (lidos.length === 1 ? "virou" : "viraram") + " tarefa" : "nada a sugerir",
+    classe: "dialogo-ver", larga: true, cancelar: "Fechar", confirmar: "Criar todas",
+    html: '<div id="ag-sugestoes">' + (lidos.length
+      ? "<p>Datas que o assistente já leu nos contratos abertos. Escolha as que quiser.</p>" +
+        lidos.map((x, i) => '<div class="ag-ligado"><span class="duas-linhas"><b>' + esc(x.titulo) + "</b><small>" + dataLonga(x.prazo) +
+          (x.cliente ? " · " + esc(x.cliente) : "") + '</small></span><button type="button" data-ag-aceitar="' + i + '">Criar</button></div>').join("")
+      : "<p>Os documentos abertos não trazem data dentro dos próximos 90 dias, ou todas já viraram tarefa.</p>") + "</div>",
+  });
+  const caixa = document.getElementById("ag-sugestoes");
+  if (caixa) ligarSugestoes(caixa);
+  const r = await escolha;
+  if (!r || !r.ok || !lidos.length) return;
+  for (const x of lidos) await criarTarefaDaSugestao(x);
+  avisoCert(plural(lidos.length, "tarefa") + (lidos.length === 1 ? " criada" : " criadas"), { tom: "ok" });
+  mostrarAgenda();
+}
+
+async function criarTarefaDaSugestao(x) {
+  const r = await fetch("/api/tarefas", {
+    method: "POST", headers: AG_JSON,
+    body: JSON.stringify({ dados: { titulo: x.titulo, prazo: x.prazo, lista: x.lista } }),
+  });
+  if (!r.ok) { avisoCert("não consegui criar: " + await erroDe(r)); return false; }
+  ag.diaAberto = null;
+  return true;
 }
 
 function ligarSugestoes(p) {
   p.querySelectorAll("[data-ag-aceitar]").forEach((b) => {
     b.onclick = async () => {
-      const x = ag.sugestoes[Number(b.dataset.agAceitar)];
-      const r = await fetch("/api/tarefas", {
-        method: "POST", headers: AG_JSON,
-        body: JSON.stringify({ dados: { titulo: x.titulo, prazo: x.prazo, lista: x.lista } }),
-      });
-      if (!r.ok) { avisoCert("não consegui criar: " + await erroDe(r)); return; }
+      if (!(await criarTarefaDaSugestao(ag.sugestoes[Number(b.dataset.agAceitar)]))) return;
       b.disabled = true;
       b.textContent = "criada";
-      ag.diaAberto = null;
       try { await carregarAgenda(); } catch (err) { return; }
       tituloDaAgenda();
     };
