@@ -911,12 +911,23 @@ function fichaDaTarefaNaLinha(t) {
       '<span class="ag-texto">' + esc(e.titulo) + "</span></div>";
   }).join("");
 
-  return '<div class="ag-linha-ficha" data-ag-ficha="' + t.id + '">' +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Etapas</span><span class="contagem">' +
-    (t.etapas.length ? feitas + " de " + t.etapas.length : "nenhuma") + "</span></div>" + etapas +
-    '<button class="ag-incluir" data-ag-nova-etapa="1">' + ic("add", 16) + "Próxima etapa</button>" +
-    '<span class="ag-entrada" data-ag-entrada-etapa="1" hidden><input type="text" placeholder="Próxima etapa…"><button>Acrescentar</button></span></div>' +
+  // À esquerda o que se faz (etapas, documentos, anotação); à direita o que a
+  // tarefa é (quando, repete, de quem, em que lista), numa ficha estreita -
+  // rótulo e valor perto um do outro, e não nas duas pontas da tela.
+  const esquerda =
+    blocoDaFicha("Etapas", t.etapas.length ? feitas + " de " + t.etapas.length : "nenhuma",
+      etapas +
+      '<button class="ag-incluir" data-ag-nova-etapa="1">' + ic("add", 16) + "Próxima etapa</button>" +
+      '<span class="ag-entrada" data-ag-entrada-etapa="1" hidden><input type="text" placeholder="Próxima etapa…"><button>Acrescentar</button></span>') +
+    blocoDaFicha("Ligado a", "",
+      '<div data-ag-vinculos="1"><p>carregando…</p></div>' +
+      '<button class="ag-incluir" data-ag-ligar="1">' + ic("attach_file", 16) + "Ligar documento</button>" +
+      (t.cadastro_nome ? '<div class="ag-ligado-linha"><span>' + esc(t.cadastro_nome) + '</span><button data-ag-cadastro="1">cadastro</button></div>' : "") +
+      (t.prazo ? '<div class="ag-ligado-linha"><span>Prazo no calendário · ' + esc(diaCurto(t.prazo)) + '</span><button class="ag-acc" data-ag-ver-dia="' + esc(t.prazo) + '">abrir</button></div>' : "")) +
+    blocoDaFicha("Anotação", "",
+      '<textarea class="ag-nota" data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea>");
 
+  const direita = blocoDaFicha("A tarefa", "",
     '<div class="painel-chaves">' +
     '<div class="ag-chave"><span>Meu dia</span><button class="' + classeMeuDia + '" data-ag-meu-dia="1">' + (t.meu_dia ? "já está" : "adicionar") + "</button></div>" +
     '<div class="ag-chave"><span>Lembrar-me</span><input type="time" data-ag-campo="lembrar_em" value="' + esc(t.lembrar_em || "") + '"></div>' +
@@ -927,22 +938,21 @@ function fichaDaTarefaNaLinha(t) {
     '<div class="ag-chave"><span>Cliente</span><select data-ag-campo="cadastro_id"><option value="">nenhum</option>' +
     ag.tar.clientes.map((k) => '<option value="' + k.id + '"' + (k.id === t.cadastro_id ? " selected" : "") + ">" + esc(k.nome) + "</option>").join("") + "</select></div>" +
     '<div class="ag-chave"><span>Lista</span><input type="text" data-ag-campo="lista" value="' + esc(t.lista || "") + '" placeholder="nenhuma"></div>' +
-    "</div>" +
+    "</div>");
 
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Ligado a</span></div>' +
-    '<div data-ag-vinculos="1"><p>carregando…</p></div>' +
-    '<button class="ag-incluir" data-ag-ligar="1">' + ic("attach_file", 16) + "Ligar documento</button>" +
-    (t.cadastro_nome ? '<div class="ag-ligado-linha"><span>' + esc(t.cadastro_nome) + '</span><button data-ag-cadastro="1">cadastro</button></div>' : "") +
-    (t.prazo ? '<div class="ag-ligado-linha"><span>Prazo no calendário · ' + esc(diaCurto(t.prazo)) + '</span><button class="ag-acc" data-ag-ver-dia="' + esc(t.prazo) + '">abrir</button></div>' : "") +
-    "</div>" +
-
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Anotação</span></div>' +
-    '<textarea class="ag-nota" data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea></div>" +
-
+  return '<div class="ag-linha-ficha" data-ag-ficha="' + t.id + '">' +
+    '<div class="ag-ficha-col">' + esquerda + "</div>" +
+    '<div class="ag-ficha-col">' + direita + "</div>" +
     '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + "</small>" +
     '<button class="ag-incluir ag-incluir-fino" data-ag-editar-tarefa="' + t.id + '">' + ic("edit", 16) + "Editar</button>" +
     '<button class="dialogo-excluir" data-ag-apagar-tarefa="1">Excluir</button></div>' +
     "</div>";
+}
+
+/* Um bloco da ficha: o titulo fino, a contagem a direita e o miolo. */
+function blocoDaFicha(titulo, contagem, miolo) {
+  return '<div class="ag-ficha-bloco"><div class="ag-ficha-bloco-cabeca"><span>' + titulo + "</span>" +
+    (contagem ? '<span class="contagem">' + esc(contagem) + "</span>" : "") + "</div>" + miolo + "</div>";
 }
 
 /* O compromisso aberto na linha: a mesma ficha do pop-up de exibicao - so
@@ -956,15 +966,17 @@ function fichaDoCompromissoNaLinha(k) {
       '<button type="button" class="com-icone" data-ag-link="' + k.id + '">' + ic("link", 16) + "Convite com link</button>"
     : "";
   return '<div class="ag-linha-ficha" data-ag-ficha-comp="' + k.id + '">' +
-    fichaDoDialogo([
+    '<div class="ag-ficha-col">' +
+    blocoDaFicha("O compromisso", "", fichaDoDialogo([
       ["Quando", maiuscula(diaPorExtenso(k.data)) + ", " + horario],
       ["Onde", k.onde_rotulo || "sem local"],
       ["Com quem", k.cadastro_nome || "ninguém do cadastro"],
       ["Aviso", aviso ? aviso[1] : ""],
       k.anotacao ? ["Anotação", k.anotacao] : null,
-    ]) +
-    '<div class="dialogo-acoes">' + salas +
-    '<button type="button" class="com-icone" data-ag-copiar="' + k.id + '">' + ic("content_copy", 16) + "Copiar convite</button></div>" +
+    ])) + "</div>" +
+    '<div class="ag-ficha-col">' +
+    blocoDaFicha("O que dá para fazer", "", '<div class="dialogo-acoes">' + salas +
+      '<button type="button" class="com-icone" data-ag-copiar="' + k.id + '">' + ic("content_copy", 16) + "Copiar convite</button></div>") + "</div>" +
     '<div class="ag-ficha-rodape"><small>' + esc(maiuscula(diaCurto(k.data))) + "</small>" +
     '<button class="ag-incluir ag-incluir-fino" data-ag-editar-comp="' + k.id + '">' + ic("edit", 16) + "Editar</button>" +
     '<button class="dialogo-excluir" data-ag-apagar-comp="' + k.id + '">Excluir</button></div>' +

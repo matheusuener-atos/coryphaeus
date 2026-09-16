@@ -295,13 +295,35 @@
      virada, como na lista de gravacoes. Quem tem fundo proprio e o que ela
      revela. */
   .ag-linha.aberta { box-shadow: inset 3px 0 0 var(--ink); border-bottom: none; }
+  /* O QUE A LINHA REVELA, EM DUAS COLUNAS. Empilhado, cada bloco pegava a
+     largura toda e o rotulo ficava numa ponta e o valor na outra. Agora: a
+     esquerda o que se faz (etapas, documentos, anotacao), a direita o que a
+     tarefa e, numa ficha estreita. */
   .ag-linha-ficha {
-    display: grid; gap: 14px; padding: 4px 24px 18px 46px; background: var(--bg);
-    border-bottom: 1px solid var(--ink-a08);
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px 16px; align-items: start;
+    padding: 10px 24px 16px 46px; background: var(--bg); border-bottom: 1px solid var(--ink-a08);
   }
-  .ag-linha-ficha .painel-chaves { margin: 0; }
-  .ag-linha-ficha .ag-ficha-rodape { display: flex; align-items: center; gap: 10px; padding: 4px 0 0; border-top: 1px solid var(--ink-a08); }
+  .ag-ficha-col { min-width: 0; display: grid; gap: 12px; align-content: start; }
+  .ag-ficha-bloco {
+    display: grid; gap: 10px; padding: 12px 14px;
+    border: 1px solid var(--hair); border-radius: 12px; background: var(--surf);
+  }
+  .ag-ficha-bloco-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .ag-ficha-bloco-cabeca .contagem { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-linha-ficha .painel-chaves { margin: 0; padding: 0; border: none; }
+  .ag-linha-ficha .ag-chave { min-height: 30px; padding: 4px 0; }
+  .ag-linha-ficha .ag-chave input, .ag-linha-ficha .ag-chave .escolha-botao { max-width: 62%; }
+  .ag-linha-ficha .ag-nota { background: var(--bg); }
+  .ag-linha-ficha .dialogo-ficha > div { padding: 7px 0; }
+  .ag-linha-ficha .dialogo-ficha > div:first-child { padding-top: 0; }
+  .ag-linha-ficha .ag-ficha-rodape {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 10px;
+    padding: 4px 0 0; border-top: 1px solid var(--ink-a08);
+  }
   .ag-linha-ficha .ag-ficha-rodape small { flex: 1; color: var(--ink3); }
+  @media (max-width: 1180px) {
+    .ag-linha-ficha { grid-template-columns: minmax(0, 1fr); }
+  }
   .ag-incluir-fino { width: auto; margin: 0; padding: 0 12px; height: 32px; border-style: solid; }
   /* O compromisso na lista de Tarefas e compromissos: a agenda no lugar do
      circulo de concluir, a hora em destaque e a seta de que abre. */
