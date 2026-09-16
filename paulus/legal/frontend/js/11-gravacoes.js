@@ -78,6 +78,10 @@ function desenharGravacoes() {
   else if (gv.visao === "gravacao") html = '<div class="acervo gv-tela" id="gv-tela">' + corpoDaGravacao() + painelDaGravacao() + "</div>";
   else html = '<div class="acervo gv-tela sem-painel" id="gv-tela">' + corpoDaListaGv() + "</div>";
   $("centro").innerHTML = html;
+  if (conteudoNovo("gravacoes:" + gv.visao + ":" + (gv.aberta ? gv.aberta.id : "") + ":" + (gv.aba || ""))) {
+    entraConteudo($("centro").firstElementChild);
+    entraLista($("centro"), ".tabela-linha, .gv-trecho, .gv-cartao");
+  }
   ligarGravacoes();
   atualizarPostura();
   vigiarVoz();
@@ -1090,8 +1094,10 @@ function ligarGravacoes() {
     const id = Number(linha.dataset.gvExpandir);
     linha.onclick = (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || gv.escolhidas.size) return;
-      gv.expandida = gv.expandida === id ? null : id;
+      const abrindo = gv.expandida !== id;
+      gv.expandida = abrindo ? id : null;
       desenharGravacoes();
+      if (abrindo) abrirEmAltura(document.querySelector(".gv-linha-tocador"));
     };
     linha.ondblclick = () => abrirGravacao(id);
   });

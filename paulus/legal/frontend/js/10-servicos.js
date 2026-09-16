@@ -79,6 +79,10 @@ function desenharServicos() {
     html = '<div class="' + classe + '" id="sv-tela">' + corpoDasPastas() + "</div>";
   }
   $("centro").innerHTML = html;
+  if (conteudoNovo("servicos:" + sv.visao + ":" + (sv.aberto ? sv.aberto.id : "") + ":" + (sv.aba || "") + ":" + sv.filtro)) {
+    entraConteudo($("centro").firstElementChild);
+    entraLista($("centro"), ".sv-pasta, .tabela-linha, .sv-linha-etapa, .sv-prazo-linha");
+  }
   const depois = document.querySelector("#sv-tela .sv-principal");
   if (depois && topo) depois.scrollTop = topo;
   ligarServicos();

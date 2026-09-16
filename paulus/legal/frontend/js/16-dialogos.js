@@ -79,7 +79,13 @@ function dialogo(o) {
       fechado = true;
       document.removeEventListener("keydown", teclas, true);
       fecharListaDeEscolha();
-      veu.remove();
+      // O dialogo sai andando, como entrou. Fechado e fechado na hora: perde
+      // o id e deixa de receber clique enquanto some, senao quem procura o
+      // dialogo (ou clica atras dele) ainda o encontra na tela.
+      veu.id = "";
+      veu.classList.add("saindo");
+      sairDoAr(caixa, { para: "translateY(6px) scale(.985)" });
+      sairDoAr(veu, { para: "none", aoFim: () => veu.remove() });
       dialogoAberto = null;
       if (origem && origem.focus && document.contains(origem)) origem.focus();
       resolve(resultado);
@@ -435,7 +441,7 @@ function calendarioPopover(ancora, opcoes) {
     remover: () => {
       document.removeEventListener("mousedown", cliqueFora);
       document.removeEventListener("keydown", teclas, true);
-      caixa.remove();
+      sairDoAr(caixa, { para: "translateY(-4px)" });
     },
   };
 }
@@ -482,6 +488,7 @@ function melhorarSelect(select) {
   };
   rotular();
   select.addEventListener("change", rotular);
+  botao.setAttribute("aria-expanded", "false");
   botao.onclick = (e) => { e.stopPropagation(); if (listaDeEscolha && listaDeEscolha.botao === botao) fecharListaDeEscolha(); else abrirListaDeEscolha(select, botao); };
   botao.onkeydown = (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); abrirListaDeEscolha(select, botao); }
@@ -490,6 +497,7 @@ function melhorarSelect(select) {
 
 function abrirListaDeEscolha(select, botao) {
   fecharListaDeEscolha();
+  botao.setAttribute("aria-expanded", "true");
   const lista = document.createElement("div");
   lista.className = "menu-conversa escolha-lista";
   lista.setAttribute("role", "listbox");
@@ -550,7 +558,8 @@ function abrirListaDeEscolha(select, botao) {
     remover: () => {
       window.removeEventListener("keydown", teclas, true);
       document.removeEventListener("mousedown", cliqueFora);
-      lista.remove();
+      botao.setAttribute("aria-expanded", "false");
+      sairDoAr(lista, { para: "translateY(-4px)", duracao: 120 });
     },
   };
 }
@@ -652,7 +661,7 @@ function relogioPopover(ancora, opcoes) {
     remover: () => {
       window.removeEventListener("keydown", teclas, true);
       document.removeEventListener("mousedown", cliqueFora);
-      caixa.remove();
+      sairDoAr(caixa, { para: "translateY(-4px)" });
     },
   };
 }

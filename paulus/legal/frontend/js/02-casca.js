@@ -268,20 +268,98 @@ function animarInicioParaConversa(antes) {
     { duration: 520, delay: 200, easing: CURVA_ENTRA, fill: "backwards" });
 }
 
+/* A tela que nao avisa (as antigas, que desenham direto) continua ganhando a
+   entrada pelo observador; quem chama entraConteudo() ja animou e some daqui
+   pelo `troca.conteudo`. */
 new MutationObserver(() => {
   if (!troca.conteudo) return;
   const passou = performance.now() - troca.quando;
-  if (passou > 2000) { troca.conteudo = false; return; }
-  /* Durante a entrada o conteudo ja esta aparecendo junto. */
-  if (passou < 360) return;
-  troca.conteudo = false;
-  if (!animacoesLigadas()) return;
+  if (passou > 4000) { troca.conteudo = false; return; }
   const centro = $("centro");
-  centro.getAnimations().forEach((x) => x.cancel());
-  centro.animate(
-    [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }],
-    { duration: 340, easing: CURVA_ENTRA });
-}).observe($("centro"), { childList: true });
+  // O esqueleto de carregando nao conta: a entrada e do conteudo.
+  if (centro.querySelector(".esqueleto")) return;
+  troca.conteudo = false;
+  entraConteudo(centro, { y: 6, duracao: 340 });
+}).observe($("centro"), { childList: true, subtree: true });
+
+/* ------------------------------------------------------- o movimento */
+/*
+   AS PECAS DE MOVIMENTO QUE TODA TELA USA (docs/ui/05). Ate aqui so a troca
+   de tela animava - e animava cedo demais: a animacao rodava no esqueleto,
+   porque a tela pede os dados e so depois desenha. Quem desenha agora diz
+   "isto e conteudo novo" e a entrada acontece na hora certa.
+
+   entraConteudo(el, o)    a entrada de um bloco (o.y, o.duracao, o.atraso)
+   conteudoNovo(chave)     true quando o que vai na tela mudou de assunto
+   abrirEmAltura(el)       o que a lista revela cresce em vez de saltar
+   fecharEmAltura(el, fim) e encolhe antes de sair
+   sairDoAr(el, o)         a saida de um pop-up ou de um popover
+*/
+
+function entraConteudo(el, opcoes) {
+  const o = opcoes || {};
+  // Quem anima por conta propria dispensa a entrada do observador.
+  troca.conteudo = false;
+  if (!el || !animacoesLigadas()) return;
+  el.getAnimations().forEach((x) => x.cancel());
+  el.animate(
+    [{ opacity: 0, transform: "translateY(" + (o.y === undefined ? 8 : o.y) + "px)" }, { opacity: 1, transform: "none" }],
+    { duration: o.duracao || 320, delay: o.atraso || 0, easing: CURVA_ENTRA, fill: "backwards" });
+}
+
+/* A tela se redesenha a cada clique (concluir, abrir uma linha): so vale
+   animar quando o ASSUNTO muda - outra tela, outra visao, outro filtro. */
+const assuntoNaTela = { chave: null };
+
+function conteudoNovo(chave) {
+  if (assuntoNaTela.chave === chave) return false;
+  assuntoNaTela.chave = chave;
+  return true;
+}
+
+/* A LISTA ENTRA LINHA A LINHA. Um atraso curto entre as primeiras faz a
+   lista "montar" em vez de aparecer pronta; da decima em diante todas entram
+   juntas, senao a espera vira lentidao. */
+function entraLista(raiz, seletor) {
+  if (!raiz || !animacoesLigadas()) return;
+  const linhas = [...raiz.querySelectorAll(seletor)].slice(0, 24);
+  linhas.forEach((linha, i) => {
+    linha.animate(
+      [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+      { duration: 260, delay: Math.min(i, 9) * 26, easing: CURVA_ENTRA, fill: "backwards" });
+  });
+}
+
+function abrirEmAltura(el) {
+  if (!el || !animacoesLigadas()) return;
+  const altura = el.scrollHeight;
+  el.animate(
+    [{ height: "0px", opacity: 0, transform: "translateY(-4px)" }, { height: altura + "px", opacity: 1, transform: "none" }],
+    { duration: 260, easing: CURVA_ENTRA });
+}
+
+function fecharEmAltura(el, aoFim) {
+  if (!el) { if (aoFim) aoFim(); return; }
+  if (!animacoesLigadas()) { if (aoFim) aoFim(); return; }
+  const animacao = el.animate(
+    [{ height: el.scrollHeight + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+    { duration: 180, easing: "cubic-bezier(.4,0,.6,1)" });
+  animacao.onfinish = () => { if (aoFim) aoFim(); };
+  animacao.oncancel = () => { if (aoFim) aoFim(); };
+}
+
+/* A saida: o pop-up e o popover somem andando, e nao no corte seco. `aoFim`
+   e quem tira da tela de verdade. */
+function sairDoAr(el, opcoes) {
+  const o = opcoes || {};
+  const fim = o.aoFim || (() => el.remove());
+  if (!el || !animacoesLigadas()) { fim(); return; }
+  const animacao = el.animate(
+    [{ opacity: 1, transform: "none" }, { opacity: 0, transform: o.para || "translateY(6px) scale(.985)" }],
+    { duration: o.duracao || 140, easing: "cubic-bezier(.4,0,1,1)" });
+  animacao.onfinish = fim;
+  animacao.oncancel = fim;
+}
 
 /* A gaveta ao lado do menu: as telas antigas que ainda nao tem lugar. */
 function fecharGavetas() {

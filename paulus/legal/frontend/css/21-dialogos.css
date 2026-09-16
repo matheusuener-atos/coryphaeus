@@ -17,6 +17,7 @@
     position: fixed; inset: 0; z-index: 80; background: var(--veu); display: flex; align-items: center; justify-content: center;
     padding: 24px; animation: dialogo-veu .18s ease-out;
   }
+  .veu-dialogo.saindo { pointer-events: none; }
   .dialogo {
     width: 440px; max-width: 100%; max-height: calc(100vh - 48px); overflow: auto; display: flex; flex-direction: column;
     background: var(--surf); border: 1px solid var(--hair); border-radius: 16px; box-shadow: var(--elev-float), 0 30px 80px -30px var(--sh-a45);
@@ -204,7 +205,8 @@
   .escolha-botao:hover:not(:disabled) { color: var(--ink); }
   .escolha-botao:focus-visible { outline: none; }
   .escolha-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .escolha-botao .ic { color: var(--ink3); flex: none; }
+  .escolha-botao .ic { color: var(--ink3); flex: none; transition: transform .18s cubic-bezier(.16,1,.3,1); }
+  .escolha-botao[aria-expanded="true"] .ic { transform: rotate(180deg); color: var(--ink); }
   .relogio-botao.vazio .escolha-rotulo { color: var(--ink3); }
   /* Dentro do campo do dialogo ela e o campo inteiro, sem fio proprio. */
   .dialogo-caixa .escolha-botao {

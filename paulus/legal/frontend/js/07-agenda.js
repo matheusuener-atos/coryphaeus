@@ -361,6 +361,12 @@ function desenharAgenda() {
   $("centro").innerHTML = '<div class="' + classe + '" id="agenda"><div class="acervo-principal">' +
     principal + "</div>" + painel + "</div>";
   ligarAgenda();
+  // A entrada e do assunto: outra visao, outro filtro, outra lista. Concluir
+  // uma tarefa tambem redesenha, e ali a tela nao pode piscar.
+  if (conteudoNovo("agenda:" + ag.visao + ":" + ag.zoom + ":" + ag.tar.filtro + ":" + ag.tar.lista)) {
+    entraConteudo($("centro").firstElementChild);
+    entraLista($("centro"), ".ag-linha, .ag-cel, .ag-semana-dia");
+  }
   // No Mês e na Semana o formulário é um pop-up: quem chega com ele pedido
   // (Agendar em Cadastros, a gravação, a troca para a Semana) o encontra aberto.
   if (ag.painel === "form" && ag.form && !document.getElementById("ag-form-pop")) abrirFormNoPopup();
@@ -1066,19 +1072,23 @@ function ligarAgenda() {
     el.onclick = (e) => {
       if (e.target.closest(".ag-linha-ficha")) return;
       const id = Number(el.dataset.agComp);
-      ag.tar.aberto = ag.tar.aberto === id ? null : id;
+      const abrindo = ag.tar.aberto !== id;
+      ag.tar.aberto = abrindo ? id : null;
       ag.tar.aberta = null;
       desenharAgenda();
+      if (abrindo) abrirEmAltura(document.querySelector(".ag-linha-ficha"));
     };
   });
   raiz.querySelectorAll("[data-ag-tarefa]").forEach((el) => {
     el.onclick = (e) => {
       if (e.target.closest(".ag-linha-ficha")) return;
       const id = Number(el.dataset.agTarefa);
-      ag.tar.aberta = ag.tar.aberta === id ? null : id;
+      const abrindo = ag.tar.aberta !== id;
+      ag.tar.aberta = abrindo ? id : null;
       ag.tar.aberto = null;
       ag.form = null;
       desenharAgenda();
+      if (abrindo) abrirEmAltura(document.querySelector(".ag-linha-ficha"));
     };
   });
   // O que a ficha aberta na linha liga: as etapas, as chaves, o documento.
