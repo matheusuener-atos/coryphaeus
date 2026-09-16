@@ -184,17 +184,14 @@ function cabecalhoAgenda() {
       const classe = v === ag.visao ? "ativa" : "";
       return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
     }).join("") + "</div>" +
-    '<div class="com-menu"><button class="primario com-icone" id="ag-novo">Novo' + ic("expand_more", 16) + "</button></div>";
+    '<button class="com-icone" data-ag-novo="compromisso">' + ic("event", 16) + "Adicionar compromisso</button>" +
+    '<button class="primario com-icone" data-ag-novo="tarefa">' + ic("task_alt", 16) + "Adicionar tarefa</button>";
   $("acoes-tela").querySelectorAll("[data-visao]").forEach((b) => { b.onclick = () => mostrarAgenda(b.dataset.visao); });
-  $("ag-novo").onclick = (e) => {
-    e.stopPropagation();
-    menuNaLinha($("ag-novo"), [
-      { icone: "event", rotulo: "Compromisso", acao: () => criarNaAgenda("compromisso") },
-      { icone: "task_alt", rotulo: "Tarefa", acao: () => criarNaAgenda("tarefa") },
-      "-",
-      { icone: "auto_awesome", rotulo: "Prazos lidos nos documentos", acao: abrirSugestoes },
-    ]);
-  };
+  // Os dois do pop-up do dia sao os dois daqui: um menu para duas coisas era
+  // um clique a mais para dizer o que ja cabia escrito.
+  $("acoes-tela").querySelectorAll("[data-ag-novo]").forEach((b) => {
+    b.onclick = () => criarNaAgenda(b.dataset.agNovo);
+  });
 }
 
 function tituloDaAgenda() {
@@ -561,7 +558,9 @@ function vistaTarefas() {
   const direita = '<div class="ag-cartao">' +
     '<div class="tabela-barra"><b>Tarefas e compromissos</b><span class="nota-barra">' +
     esc(ag.tar.lista || (f ? f.rotulo : "Tarefas")) + " · " +
-    (ag.tar.filtro === "concluidas" ? plural(feitas.length, "concluída") : plural(nAbertas, "item", "itens")) + "</span></div>" +
+    (ag.tar.filtro === "concluidas" ? plural(feitas.length, "concluída") : plural(nAbertas, "item", "itens")) + "</span>" +
+    '<span class="direita"><button data-ag-sugestoes="1" title="Datas que o assistente leu nos contratos abertos">' +
+    ic("auto_awesome", 16) + "Prazos lidos nos documentos</button></span></div>" +
     (ag.tar.escolhidas.size
       ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
         '<button data-ag-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
@@ -1060,6 +1059,8 @@ function ligarAgenda() {
   raiz.querySelectorAll("[data-ag-adiante]").forEach((b) => {
     b.onclick = () => avisoCert("quando houver equipe em Cadastros, as tarefas atribuídas a você aparecem aqui");
   });
+  const sugestoes = raiz.querySelector("[data-ag-sugestoes]");
+  if (sugestoes) sugestoes.onclick = abrirSugestoes;
   const novaLista = raiz.querySelector("[data-ag-nova-lista]");
   if (novaLista) novaLista.onclick = async () => {
     const nome = await perguntar({ titulo: "Nova lista", contexto: "Agenda › Tarefas", campo: { rotulo: "Nome da lista", placeholder: "Prazos do trimestre", icone: "format_list_bulleted" }, confirmar: "Criar" });

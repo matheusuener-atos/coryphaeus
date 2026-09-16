@@ -159,7 +159,8 @@
   .ag-linha-ver { margin: -6px -8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
   .ag-linha-ver:hover { background: var(--fill); }
   .ag-linha-ver > .ic { color: var(--ink3); align-self: center; }
-  .ag-adicionar-dia { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+  /* Os dois de adicionar nao encostam na lista: um fio e um respiro antes. */
+  .ag-adicionar-dia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--ink-a08); }
   .ag-adicionar-dia button { flex: 1; justify-content: center; background: var(--surf); border-color: var(--hair); }
   .ag-adicionar-dia button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
   .ag-tarefa-dia .ag-hora { display: flex; justify-content: flex-start; padding-top: 3px; }
