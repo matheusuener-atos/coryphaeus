@@ -1,7 +1,7 @@
 """
 PAULUS Legal - Cliente Ollama.
 
-Fala com o servidor local do Ollama (http://localhost:11434). Nenhum dado sai
+Fala com o servidor local do Ollama (http://127.0.0.1:11434). Nenhum dado sai
 da maquina.
 """
 
@@ -13,7 +13,22 @@ from collections.abc import Callable
 
 import requests
 
-DEFAULT_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+
+def _host_do_ollama(bruto: str) -> str:
+    """
+    O endereco do Ollama, com 127.0.0.1 no lugar de "localhost".
+
+    No Windows, "localhost" tenta primeiro o IPv6 (::1); o Ollama so escuta
+    no IPv4, e cada pedido esperava ~2 s o IPv6 desistir. Medido: 2.072 ms
+    por localhost, 32 ms por 127.0.0.1 - em toda conversa e em todo status.
+    """
+    host = bruto.strip().rstrip("/")
+    if "://" not in host:
+        host = "http://" + host
+    return host.replace("://localhost", "://127.0.0.1")
+
+
+DEFAULT_HOST = _host_do_ollama(os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434"))
 DEFAULT_MODEL = os.getenv("PAULUS_MODEL", "llama3.2:3b")
 
 # A janela do modelo não pode ser menor que o acervo que ele precisa ler.
@@ -103,7 +118,7 @@ class LlamaClient:
         timeout: int = 300,
     ) -> None:
         self.model = model
-        self.host = host.rstrip("/")
+        self.host = _host_do_ollama(host)
         self.temperature = temperature
         self.num_ctx = num_ctx
         self.timeout = timeout
@@ -324,7 +339,7 @@ class LlamaClient:
 
 def check_ollama(model: str = DEFAULT_MODEL, host: str = DEFAULT_HOST) -> tuple[bool, str]:
     """Valida servidor + presenca do modelo. Retorna (ok, mensagem)."""
-    host = host.rstrip("/")
+    host = _host_do_ollama(host)
     try:
         resp = requests.get(f"{host}/api/tags", timeout=5)
         resp.raise_for_status()

@@ -510,8 +510,10 @@ function abrirListaDeEscolha(select, botao) {
   // A lista tem a largura da caixa do campo e abre embaixo dela (ou em cima,
   // sem espaço embaixo).
   const caixa = (botao.closest(".dialogo-caixa") || botao).getBoundingClientRect();
-  lista.style.width = caixa.width + "px";
-  lista.style.left = caixa.left + "px";
+  // Nunca mais estreita que um rotulo legivel: campo curto (o corpo "12")
+  // abria uma lista de 30 px com o texto quebrado letra a letra.
+  lista.style.width = Math.max(caixa.width, 170) + "px";
+  lista.style.left = Math.max(8, Math.min(caixa.left, innerWidth - Math.max(caixa.width, 170) - 8)) + "px";
   const altura = lista.offsetHeight;
   lista.style.top = (caixa.bottom + 4 + altura > innerHeight ? Math.max(8, caixa.top - 4 - altura) : caixa.bottom + 4) + "px";
   if (animacoesLigadas()) {

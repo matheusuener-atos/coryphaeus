@@ -43,6 +43,10 @@ SEM_ESTILO = {
     "pausado", "alta", "media", "baixa", "pronta", "futura", "em_breve",
     "com_problema", "primario", "perigo", "largo", "pastilha", "coroa",
     "exemplo", "hab-usar", "voltar-bancada",
+    # Ganchos que o JS procura (querySelector), sem regra propria: o relogio
+    # de sete segmentos, o cartao de lembretes do Foco e o modal de
+    # certificados do Windows.
+    "be-digito", "be-dois-pontos", "be-cartao-lembretes", "be-troca", "cw",
     # A classe que o pywebview procura para saber o que arrasta a janela.
     # Quem desenha a area e a regra da propria peca (.conversa-topo, .barra-titulo).
     "pywebview-drag-region",

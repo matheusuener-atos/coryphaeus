@@ -159,7 +159,12 @@ def ler(caminho: Path | str, senha: str) -> Certificado:
 
     if cert is None:
         return Certificado(erro="o arquivo não traz certificado")
+    return _de_x509(cert, alvo.name)
 
+
+def _de_x509(cert, arquivo: str) -> Certificado:
+    """O que o certificado e, lido do proprio X.509 - vale para o .pfx e para
+    o que esta instalado no Windows."""
     emissor = cert.issuer.rfc4514_string()
     assunto_texto = cert.subject.rfc4514_string()
 
@@ -186,8 +191,28 @@ def ler(caminho: Path | str, senha: str) -> Certificado:
         valido_ate=_data(cert.not_valid_after_utc),
         vence_em=cert.not_valid_after_utc.astimezone(timezone.utc).isoformat(),
         icp_brasil=e_icp(emissor),
-        arquivo=alvo.name,
+        arquivo=arquivo,
     )
+
+
+def ler_do_windows(der_base64: str) -> Certificado:
+    """
+    O certificado instalado no Windows, lido da parte publica guardada no
+    cofre. Nao precisa de senha: titular, emissor e validade sao publicos -
+    so a chave e secreta, e ela nunca sai do Windows.
+    """
+    import base64
+
+    from cryptography import x509
+
+    try:
+        cert = x509.load_der_x509_certificate(base64.b64decode(der_base64))
+    except Exception as exc:
+        return Certificado(erro=f"não consegui ler o certificado do Windows: {exc}")
+    certificado = _de_x509(cert, "instalado no Windows")
+    # "A1" e o tipo do arquivo .pfx; o daqui a tela chama de "instalado no Windows".
+    certificado.tipo = certificado.tipo.replace(" A1", "")
+    return certificado
 
 
 def e_icp(emissor: str) -> bool:
@@ -294,6 +319,11 @@ PADRAO_SELO = {
 
 PADRAO_COFRE = {
     "arquivo": "",
+    # Certificado instalado no Windows: so a parte publica (impressao, o
+    # certificado e a cadeia). A chave nunca sai do Windows. Com ele, a senha
+    # de uso e uma senha do PAULUS - aqui fica so a marca dela.
+    "windows": {},
+    "senha_paulus": "",
     "guardar_senha": False,
     "senha_protegida": "",   # DPAPI + base64; nunca a senha em texto
     "minutos": 15,
@@ -313,6 +343,30 @@ POSICOES = {
 
 def dpapi_disponivel() -> bool:
     return segredos.disponivel()
+
+
+def _marca_da_senha(senha: str) -> str:
+    """A senha do PAULUS vira uma marca (PBKDF2 com sal): da para conferir,
+    nao da para ler de volta."""
+    import hashlib
+    import os
+
+    sal = os.urandom(16)
+    voltas = 200_000
+    marca = hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), sal, voltas)
+    return f"pbkdf2${voltas}${sal.hex()}${marca.hex()}"
+
+
+def _confere_senha(senha: str, marca: str) -> bool:
+    import hashlib
+    import hmac
+
+    try:
+        _, voltas, sal, esperado = (marca or "").split("$")
+        calculado = hashlib.pbkdf2_hmac("sha256", (senha or "").encode("utf-8"), bytes.fromhex(sal), int(voltas))
+    except ValueError:
+        return False
+    return hmac.compare_digest(calculado.hex(), esperado)
 
 
 class Cofre:
@@ -370,8 +424,59 @@ class Cofre:
         destino = self.pasta / f"certificado{sufixo}"
         destino.write_bytes(conteudo)
         self.dados["arquivo"] = str(destino)
+        # Um certificado por vez: o .pfx novo tira o do Windows.
+        self.dados["windows"] = {}
+        self.dados["senha_paulus"] = ""
         self.salvar()
         return destino
+
+    @property
+    def windows(self) -> dict:
+        return self.dados.get("windows") or {}
+
+    @property
+    def origem(self) -> str:
+        """De onde vem o certificado: "windows" (instalado) ou "arquivo" (.pfx)."""
+        return "windows" if self.windows.get("impressao") else "arquivo"
+
+    @property
+    def instalado(self) -> bool:
+        return bool(self.windows.get("impressao")) or bool(self.arquivo and self.arquivo.exists())
+
+    def usar_windows(self, publico: dict, senha: str) -> None:
+        """
+        Passa a usar um certificado do Windows. Guarda so a parte publica e a
+        marca da senha do PAULUS; a copia de .pfx que havia sai, porque o
+        programa trabalha com um certificado por vez.
+        """
+        alvo = self.arquivo
+        if alvo and alvo.exists() and alvo.parent.resolve() == self.pasta.resolve():
+            try:
+                alvo.unlink()
+            except OSError:
+                pass
+        self.dados.update(
+            arquivo="", senha_protegida="", guardar_senha=False,
+            windows={k: publico.get(k) for k in ("impressao", "der", "cadeia")},
+            senha_paulus=_marca_da_senha(senha),
+        )
+        self.esquecer_senha()
+        self.lembrar(senha)
+        self.salvar()
+
+    def abrir(self, senha: str) -> Certificado:
+        """
+        Confere a senha e devolve o certificado. No .pfx, a senha abre o
+        arquivo; no do Windows, e a senha do PAULUS, conferida pela marca.
+        """
+        if self.origem == "windows":
+            if not _confere_senha(senha, self.dados.get("senha_paulus") or ""):
+                return Certificado(erro="senha do PAULUS incorreta")
+            return ler_do_windows(self.windows.get("der") or "")
+        alvo = self.arquivo
+        if not alvo or not alvo.exists():
+            return Certificado(erro="nenhum certificado instalado")
+        return ler(alvo, senha)
 
     def remover(self) -> None:
         """Tira o certificado do programa: apaga a copia e a senha guardada."""
@@ -384,6 +489,8 @@ class Cofre:
         self.dados["arquivo"] = ""
         self.dados["senha_protegida"] = ""
         self.dados["guardar_senha"] = False
+        self.dados["windows"] = {}
+        self.dados["senha_paulus"] = ""
         self.esquecer_senha()
         self.salvar()
 
@@ -462,7 +569,10 @@ class Cofre:
     # -------------------------------------------------------------- leitura
 
     def certificado(self) -> Certificado | None:
-        """Le o certificado com a senha disponivel. Sem senha, nao adivinha."""
+        """Le o certificado com a senha disponivel. Sem senha, nao adivinha.
+        O do Windows se le sem senha: a parte publica esta no cofre."""
+        if self.origem == "windows":
+            return ler_do_windows(self.windows.get("der") or "")
         alvo = self.arquivo
         if not alvo or not alvo.exists():
             return None
@@ -476,10 +586,12 @@ class Cofre:
 
     def para_tela(self) -> dict:
         cert = self.certificado()
+        do_windows = self.origem == "windows"
         return {
-            "instalado": bool(self.arquivo and self.arquivo.exists()),
+            "instalado": self.instalado,
+            "origem": self.origem,
             "certificado": cert.to_dict() if cert else None,
-            "guardado_em": str(self.arquivo) if self.arquivo else "",
+            "guardado_em": "Windows · a chave não sai de lá" if do_windows else (str(self.arquivo) if self.arquivo else ""),
             "guardar_senha": bool(self.dados.get("guardar_senha")),
             "tem_senha_guardada": bool(self.dados.get("senha_protegida")),
             "senha_na_memoria": bool(self._senha_viva and self.minutos_restantes),
@@ -492,6 +604,30 @@ class Cofre:
             "posicoes": [{"valor": k, "rotulo": v} for k, v in POSICOES.items()],
             "pode_guardar_senha": dpapi_disponivel(),
         }
+
+
+def _powershell(script: str, extra: dict | None = None, timeout: int = 30):
+    """
+    Roda o Windows PowerShell 5.1 com o ambiente limpo de PSModulePath.
+
+    Aberto a partir de um terminal do PowerShell 7, o programa herda o
+    PSModulePath dele, e o 5.1 passa a procurar modulos no lugar errado: a
+    unidade Cert: e o Export-PfxCertificate somem, e a lista de certificados
+    saia vazia sem erro nenhum na tela. Os modulos tambem sao importados a
+    mao, por garantia.
+    """
+    import os
+    import subprocess
+
+    ambiente = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+    ambiente.update(extra or {})
+    cabeca = "Import-Module Microsoft.PowerShell.Security, PKI -ErrorAction SilentlyContinue\n"
+    return subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", cabeca + script],
+        capture_output=True, text=True, timeout=timeout, env=ambiente,
+        encoding="utf-8", errors="replace",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
 
 
 def listar_windows() -> list[dict]:
@@ -514,15 +650,11 @@ def listar_windows() -> list[dict]:
         "Get-ChildItem Cert:\\CurrentUser\\My | "
         # NotAfter cru sai como /Date(1809...) no JSON do PowerShell: pedir o
         # texto ja formatado evita ter que decifrar isso do lado de ca.
-        "Select-Object Subject,Issuer,HasPrivateKey,"
+        "Select-Object Subject,Issuer,HasPrivateKey,Thumbprint,"
         "@{N='Ate';E={$_.NotAfter.ToString('yyyy-MM-dd')}} | ConvertTo-Json -Compress"
     )
     try:
-        saida = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-            capture_output=True, text=True, timeout=20,
-            encoding="utf-8", errors="replace",
-        )
+        saida = _powershell(script, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return []
 
@@ -533,16 +665,131 @@ def listar_windows() -> list[dict]:
     if isinstance(bruto, dict):
         bruto = [bruto]
 
+    from datetime import date
+
+    hoje = date.today().isoformat()
     achados = []
     for item in bruto:
         if not isinstance(item, dict):
             continue
         emissor = str(item.get("Issuer", ""))
+        valido_ate = str(item.get("Ate", ""))[:10]
         achados.append({
             "titular": _nome_curto(str(item.get("Subject", ""))),
             "emissor": _nome_curto(emissor),
-            "valido_ate": str(item.get("Ate", ""))[:10],
+            "valido_ate": valido_ate,
+            "vencido": bool(valido_ate) and valido_ate < hoje,
             "tem_chave": bool(item.get("HasPrivateKey")),
             "icp_brasil": e_icp(emissor),
+            "impressao": str(item.get("Thumbprint", "")).upper(),
         })
+    # Os de pessoa (ICP-Brasil) primeiro; os tecnicos do sistema depois.
+    achados.sort(key=lambda c: (not c["icp_brasil"], c["vencido"], c["titular"].lower()))
     return achados
+
+
+def _impressao_valida(impressao: str) -> str:
+    """A impressao digital (SHA-1 em hexa) - o unico jeito de apontar um
+    certificado do Windows. Qualquer outra coisa nao entra no PowerShell."""
+    import re
+
+    impressao = (impressao or "").strip().upper()
+    return impressao if re.fullmatch(r"[0-9A-F]{40}", impressao) else ""
+
+
+def publico_do_windows(impressao: str) -> dict:
+    """
+    A parte publica de um certificado instalado: o proprio certificado e a
+    cadeia ate a raiz, em DER/base64. E o que o cofre guarda - nada secreto.
+
+    A cadeia vai junto na assinatura: sem ela, quem confere o PDF depois
+    nao sabe ligar o certificado a AC que o emitiu.
+    """
+    import json
+    import subprocess
+
+    alvo = _impressao_valida(impressao)
+    if not alvo:
+        return {"erro": "certificado desconhecido"}
+    script = (
+        "$ErrorActionPreference = 'Stop'\n"
+        "$c = Get-Item -LiteralPath ('Cert:\\CurrentUser\\My\\' + $env:PAULUS_IMPRESSAO)\n"
+        "$cadeia = New-Object System.Security.Cryptography.X509Certificates.X509Chain\n"
+        "$cadeia.ChainPolicy.RevocationMode = 'NoCheck'\n"
+        "$null = $cadeia.Build($c)\n"
+        "@{ der = [Convert]::ToBase64String($c.RawData); chave = $c.HasPrivateKey;"
+        " cadeia = @($cadeia.ChainElements | Select-Object -Skip 1 | ForEach-Object { [Convert]::ToBase64String($_.Certificate.RawData) }) }"
+        " | ConvertTo-Json -Compress\n"
+    )
+    try:
+        feito = _powershell(script, {"PAULUS_IMPRESSAO": alvo}, timeout=30)
+        dados = json.loads(feito.stdout or "{}")
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return {"erro": "não consegui ler o certificado no Windows"}
+    if not dados.get("der"):
+        return {"erro": "esse certificado não está mais no Windows"}
+    if not dados.get("chave"):
+        return {"erro": "este certificado não tem a chave para assinar - só a parte pública"}
+    cadeia = dados.get("cadeia") or []
+    return {"impressao": alvo, "der": dados["der"], "cadeia": cadeia if isinstance(cadeia, list) else [cadeia]}
+
+
+# Os nomes que o .NET usa para cada resumo que a pyHanko pode pedir.
+_HASH_DOTNET = {"sha1": "SHA1", "sha256": "SHA256", "sha384": "SHA384", "sha512": "SHA512"}
+
+
+def assinar_com_windows(impressao: str, dados: bytes, resumo: str = "sha256") -> bytes:
+    """
+    Assina `dados` com a chave que esta no Windows - sem tirar a chave de la.
+
+    E o que torna possivel usar um e-CPF instalado como NAO EXPORTAVEL: essa
+    trava impede exportar a chave, nao usa-la. Se o certificado foi
+    instalado com protecao forte, e AQUI que o Windows abre a janela dele
+    pedindo a senha. Os bytes vao por variavel de ambiente, em base64.
+    """
+    import base64
+    import subprocess
+
+    alvo = _impressao_valida(impressao)
+    nome = _HASH_DOTNET.get((resumo or "").lower())
+    if not alvo:
+        raise RuntimeError("certificado desconhecido")
+    if not nome:
+        raise RuntimeError(f"resumo {resumo} não suportado")
+    script = (
+        "$ErrorActionPreference = 'Stop'\n"
+        "$c = Get-Item -LiteralPath ('Cert:\\CurrentUser\\My\\' + $env:PAULUS_IMPRESSAO)\n"
+        "$k = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($c)\n"
+        "if (-not $k) { Write-Error 'SEM_CHAVE_RSA' }\n"
+        "$b = [Convert]::FromBase64String($env:PAULUS_DADOS)\n"
+        "$s = $k.SignData($b, [System.Security.Cryptography.HashAlgorithmName]::" + nome + ","
+        " [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)\n"
+        "[Convert]::ToBase64String($s)\n"
+    )
+    try:
+        # Sem prazo curto: a janela de senha do Windows espera a pessoa.
+        feito = _powershell(script, {"PAULUS_IMPRESSAO": alvo, "PAULUS_DADOS": base64.b64encode(dados).decode("ascii")}, timeout=300)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("não consegui falar com o Windows para assinar") from exc
+    erro = (feito.stderr or "").lower()
+    if feito.returncode != 0 or not (feito.stdout or "").strip():
+        if "sem_chave_rsa" in erro:
+            raise RuntimeError("a chave deste certificado não é RSA - ainda não sei assinar com ela")
+        if "cancel" in erro or "0x800704c7" in erro or "8010006e" in erro:
+            raise RuntimeError("a senha do certificado não foi confirmada na janela do Windows")
+        raise RuntimeError("o Windows não assinou com este certificado")
+    return base64.b64decode(feito.stdout.strip())
+
+
+def abrir_janela_do_windows() -> bool:
+    """A janela "Certificados" do proprio Windows, para quem prefere ver la."""
+    import subprocess
+    import sys
+
+    if sys.platform != "win32":
+        return False
+    try:
+        subprocess.Popen(["rundll32.exe", "cryptui.dll,CryptUIStartCertMgr"])
+        return True
+    except OSError:
+        return False

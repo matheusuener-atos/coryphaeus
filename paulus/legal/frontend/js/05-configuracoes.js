@@ -96,6 +96,7 @@ function rascunhoDe(pr, modelo) {
     devagar: Boolean(pr.devagar),
     animacoes_reduzidas: Boolean(pr.animacoes_reduzidas),
     inteligencia: pr.inteligencia !== false,
+    avisos_windows: pr.avisos_windows !== false,
   };
 }
 
@@ -122,6 +123,8 @@ async function carregarSecao() {
     cfg.saber = saber;
   } else if (cfg.secao === "lixeira") {
     cfg.lixo = await pega("/api/lixeira");
+  } else if (cfg.secao === "aparencia") {
+    cfg.avisos = await pega("/api/avisos");
   }
 }
 
@@ -914,7 +917,19 @@ function secaoAparencia() {
     atalho("Começar o ciclo de foco, ou ir para a pausa", ["Ctrl", "Shift", "F"]) +
     atalho("Assinar o documento aberto", ["Ctrl", "Shift", "S"]) + "</div>" +
     '<p class="cfg-explica">Escolher outras teclas fica para depois; estas valem em qualquer tela, menos quando você está escrevendo num campo.</p>';
-  return '<div class="cfg-grade">' + cartaoCfg("Aparência", metaCfg("tema, fonte e densidade"), aparencia) + cartaoCfg("Atalhos", metaCfg("teclado"), atalhos) + "</div>";
+  // Os avisos do Windows (src/avisos.py). A mesma chave que o interruptor da
+  // tela de Foco muda; aqui ela segue o rascunho, como o resto da tela.
+  const av = cfg.avisos || {};
+  const avisosDoWindows = av.disponivel
+    ? '<div class="cfg-sub">' + ligaCfg("avisos_windows", "Avisar no Windows",
+        "a notificação no canto da tela e o botão do PAULUS piscando na barra de tarefas: lembretes, fim do ciclo de foco e da pausa, e o alerta de 90 min sem pausa",
+        Boolean((cfg.rascunho || {}).avisos_windows)) + "</div>" +
+      '<p class="cfg-explica">Lembretes e o alerta só avisam no horário de trabalho' + (av.horario ? " (" + esc(av.horario) + ")" : "") +
+      ". O fim do ciclo avisa sempre, porque foi você quem ligou o relógio.</p>" +
+      '<div><button class="com-icone" data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
+    : '<div class="cfg-sub">' + ligaCfg("", "Avisar no Windows", "só existe no Windows", false, true) + "</div>";
+  return '<div class="cfg-grade">' + cartaoCfg("Aparência", metaCfg("tema, fonte e densidade"), aparencia) + cartaoCfg("Atalhos", metaCfg("teclado"), atalhos) +
+    cartaoCfg("Avisos", metaCfg("notificações do Windows"), avisosDoWindows) + "</div>";
 }
 
 /* ------------------------------------------------------------- feedback */
@@ -929,7 +944,7 @@ function secaoFeedback() {
     const classe = "cfg-tipo" + (id === f.tipo ? " on" : "");
     return '<button class="' + classe + '" data-cfg-tipo="' + id + '">' + ic(icone, 18) + "<span>" + rotulo + "</span></button>";
   }).join("");
-  const telas = ["Assistente", "Agenda", "Acervo", "Documentos", "E-mail", "Assinatura", "Financeiro", "Cadastros", "Aprovações", "Configurações", "Outra"];
+  const telas = ["Assistente", "Agenda", "Acervo", "Editor de documentos", "E-mail", "Assinatura", "Financeiro", "Cadastros", "Aprovações", "Configurações", "Outra"];
   const tecnico = "Windows · " + (s.modelo || "modelo local") + (s.tamanho_gb ? " · " + String(s.tamanho_gb).replace(".", ",") + " GB" : "") + " · nenhum documento do escritório vai junto";
   const enviar = '<div class="cfg-campos"><div class="ag-campo"><label>Sobre o que é</label><div class="cfg-tipos">' + tipos + "</div></div>" +
     '<div class="ag-campo"><label>Onde aconteceu</label><select data-cfg-fb="onde"><option value="">escolha a tela…</option>' +
@@ -1195,6 +1210,12 @@ function ligarConfig() {
       if (aviso) aviso.textContent = avisoDoTimbre();
     };
   });
+  clique("[data-cfg-aviso-teste]", async (b) => {
+    b.disabled = true;
+    const t = await fetch("/api/avisos/teste", { method: "POST" }).then((x) => x.json()).catch(() => ({ ok: false }));
+    b.disabled = false;
+    avisoCert(t.ok ? "mandei um aviso de teste para o canto da tela" : "o Windows não mostrou o aviso de teste");
+  });
   cada("[data-cfg-select]", (el) => { el.onchange = () => { porNoRascunho(el.dataset.cfgSelect, el.value); marcarConfigSuja(); desenharConfig(); }; });
   clique("[data-cfg-modelo]", (b) => { cfg.rascunho.modelo = b.dataset.cfgModelo; marcarConfigSuja(); desenharConfig(); });
   clique("[data-cfg-liga]", (b) => {
@@ -1235,6 +1256,7 @@ async function salvarConfig() {
       pessoa: r.pessoa, autonomia: r.autonomia, escritorio: r.escritorio,
       modelo: r.modelo, timbre_no_pdf: r.timbre_no_pdf, devagar: r.devagar,
       animacoes_reduzidas: r.animacoes_reduzidas, inteligencia: r.inteligencia,
+      avisos_windows: r.avisos_windows,
     }),
   });
   if (!resposta.ok) { avisoCert("não consegui salvar: " + (await erroDe(resposta))); return; }

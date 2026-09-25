@@ -139,7 +139,7 @@ function corpoDoIndice() {
   return [...grupos].map(([pasta, docs]) => {
     const caminho = docs[0].pasta;
     const sem = docs.filter((x) => (x.analise || {}).estado !== "analisado").length;
-    return '<section class="sv-secao ae-pasta"><div class="sv-secao-cabeca"><button type="button" class="sv-secao-titulo ae-pasta-nome" data-ac-pasta="' + esc(caminho) + '" title="Ver só esta pasta">' +
+    return '<section class="sv-secao"><div class="sv-secao-cabeca"><button type="button" class="sv-secao-titulo ae-pasta-nome" data-ac-pasta="' + esc(caminho) + '" title="Ver só esta pasta">' +
       ic("folder", 16) + esc(pasta) + "</button>" +
       '<span class="sv-secao-meta">' + plural(docs.length, "documento") + (sem ? " · " + sem + " a ler" : "") + "</span></div>" +
       docs.map(linhaDoIndice).join("") + "</section>";
@@ -237,7 +237,7 @@ function corpoDoMisto() {
   const secoes = grupos.size ? [...grupos].map(([pasta, docs]) => {
     const sem = docs.filter((x) => (x.analise || {}).estado !== "analisado").length;
     const [raiz, ...resto] = pasta.split(" › ");
-    return '<section class="sv-secao ae-pasta"><div class="sv-secao-cabeca"><button type="button" class="sv-secao-titulo ae-pasta-nome" data-ac-pasta="' + esc(docs[0].pasta) + '" title="Ver só esta pasta">' +
+    return '<section class="sv-secao"><div class="sv-secao-cabeca"><button type="button" class="sv-secao-titulo ae-pasta-nome" data-ac-pasta="' + esc(docs[0].pasta) + '" title="Ver só esta pasta">' +
       (resto.length ? '<small class="ae-pasta-raiz">' + esc(raiz) + " ›</small>" : "") + esc(resto.join(" › ") || raiz) + "</button>" +
       '<span class="sv-secao-meta">' + plural(docs.length, "documento") + (sem ? " · " + sem + " a ler" : "") + "</span></div>" +
       docs.map(linhaDoMisto).join("") + "</section>";
@@ -253,7 +253,7 @@ function desenharAcervoEditorial() {
   const desenho = desenhoDoAcervo();
   const mais = !bib.pastaFiltro && d.achados > bib.limite;
   const corpo = desenho === "sumario" ? corpoDoSumario() : desenho === "misto" ? corpoDoMisto() : corpoDoIndice();
-  $("centro").innerHTML = '<div class="acervo sem-painel ae-tela ae-desenho-' + desenho + '"><div class="acervo-principal sv-principal"><div class="sv-medida">' +
+  $("centro").innerHTML = '<div class="acervo sem-painel ae-tela ' + ("ae-desenho-" + desenho) + '"><div class="acervo-principal sv-principal"><div class="sv-medida">' +
     abreAcervo(d) + chipsDoAcervo(d) + barraDoLote() + corpo +
     (mais ? '<button class="ae-mais" id="bib-mais">Mais documentos · mostrando ' + bib.documentos.length + " de " + d.achados + "</button>" : "") +
     "</div></div></div>";

@@ -119,9 +119,8 @@
      mais longo ("Compra e Venda › Nome Longo de Cliente Ltda") e o sumario
      invadia a lista ao lado. */
   .ae-tela .sv-secao { grid-template-columns: minmax(0, 1fr); }
-  .am-pasta { min-width: 0; }
   .am-pasta {
-    display: flex; align-items: center; gap: 8px; width: auto; min-height: 40px; margin: 0 16px; padding: 0; border: none; border-bottom: 1px solid var(--hair);
+    min-width: 0; display: flex; align-items: center; gap: 8px; width: auto; min-height: 40px; margin: 0 16px; padding: 0; border: none; border-bottom: 1px solid var(--hair);
     border-radius: 0; background: none; text-align: left; color: var(--ink2); font: 500 13.5px var(--sans); cursor: pointer;
   }
   .am-pasta:last-child { border-bottom: none; }

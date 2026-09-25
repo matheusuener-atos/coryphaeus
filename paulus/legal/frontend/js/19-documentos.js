@@ -17,7 +17,7 @@ const escr = {
   escolhidos: new Set(),  // a selecao da lista (segurar, Shift, Ctrl)
   atual: null,            // id da aba ativa; null e a lista de documentos
   lista: [],              // /api/documentos
-  largo: false,
+  foco: (() => { try { return !!localStorage.getItem("paulus.docs.foco"); } catch (err) { return false; } })(),
   conversas: {},          // a conversa do painel, por documento
   pendente: null, antes: null, ocupada: false, guardarAoSair: true,
   previa: null, filtro: null, notaFormula: "", ouvindo: false, regua: false,
@@ -103,7 +103,7 @@ function fecharAba(id) {
 }
 
 async function mostrarDocumentos(visao) {
-  abrirTela("Documentos", { cheia: true });
+  abrirTela("Editor de documentos", { cheia: true });
   marcarDestino("editor");
   recuperarAbas();
   if (visao) escr.visao = visao;
@@ -189,7 +189,7 @@ function desenharDocumentos() {
   }
 
   const cheia = escr.visao === "previa" && escr.previa && escr.previa.cheia && aba && aba.tipo === "texto";
-  const classe = "acervo docs-corpo" + (cheia ? " sem-painel" : (escr.largo ? " painel-largo" : ""));
+  const classe = "acervo docs-corpo" + (cheia ? " sem-painel" : (escr.foco && aba ? " painel-oculto" : ""));
   $("centro").innerHTML = '<div class="docs" id="docs">' + abasDosDocumentos() + barras +
     '<div class="' + classe + '" id="docs-corpo"><div class="acervo-principal">' + principal + "</div>" +
     (cheia ? "" : painel) + "</div></div>";
@@ -201,7 +201,7 @@ function desenharEditor() { desenharDocumentos(); }
 function cabecalhoDocumentos(aba) {
   const titulo = $("conversa-titulo");
   const meta = $("conversa-meta");
-  titulo.textContent = aba ? aba.titulo : "Documentos";
+  titulo.textContent = aba ? aba.titulo : "Editor de documentos";
   titulo.title = aba && aba.tipo !== "pdf" ? "Clique duas vezes para renomear" : "";
   titulo.ondblclick = aba && aba.tipo !== "pdf" ? () => renomearDocumento(aba) : null;
 
@@ -258,7 +258,7 @@ function cabecalhoDocumentos(aba) {
 }
 
 async function renomearDocumento(aba) {
-  const nome = await perguntar({ titulo: "Renomear documento", contexto: "Documentos", campo: { rotulo: "Nome", valor: aba.titulo, icone: "description" }, confirmar: "Renomear" });
+  const nome = await perguntar({ titulo: "Renomear documento", contexto: "Editor", campo: { rotulo: "Nome", valor: aba.titulo, icone: "description" }, confirmar: "Renomear" });
   if (nome === null || !nome.trim()) return;
   aba.titulo = nome.trim();
   const campo = $("ed-titulo");
@@ -292,7 +292,8 @@ function abasDosDocumentos() {
   }).join("");
   const classe = "docs-aba-mais" + (escr.atual === null ? " ativa" : "");
   return '<div class="docs-abas">' + abas +
-    '<button class="' + classe + '" data-docs-lista="1" title="Abrir ou criar um documento">' + ic("add", 18) + "</button></div>";
+    '<button class="' + classe + '" data-docs-lista="1" title="Abrir ou criar um documento">' + ic("add", 18) + "</button>" +
+    (escr.atual !== null ? botaoDoFoco() : "") + "</div>";
 }
 
 /* ----------------------------------------------------- a lista */
@@ -331,7 +332,7 @@ function listaDeDocumentos() {
 }
 
 function painelDaLista() {
-  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+  return '<aside class="acervo-painel" id="docs-painel"><div class="rolagem docs-painel">' + regioesDeFerramenta() +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Comece por aqui</h3><span class="meta">criar, abrir ou trazer do Acervo</span></span></div>' +
     '<div class="painel-acoes"><button class="primario" data-doc-criar="texto">' + ic("description", 16) + "Novo documento</button>" +
     '<button data-doc-criar="planilha">' + ic("table", 16) + "Nova planilha</button>" +
@@ -342,9 +343,36 @@ function painelDaLista() {
     "</div></aside>";
 }
 
-function alcaDosDocumentos() {
-  return '<button class="alca-painel" data-docs-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(escr.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
+/* Foco no documento: o painel sai de cena inteiro e a folha fica sozinha no
+   centro. Volta pelo mesmo botao, ou sozinho quando alguma ferramenta
+   escreve nele (Folha, Clausulas, a resposta do assistente) - resposta num
+   painel escondido seria resposta perdida. */
+function botaoDoFoco() {
+  const rotulo = escr.foco ? "Mostrar o painel" : "Ocultar o painel";
+  return '<button class="docs-foco' + (escr.foco ? " on" : "") + '" data-docs-foco="1" title="' + rotulo + '" aria-pressed="' + escr.foco + '">' +
+    ic("view_sidebar", 18) + '<span>' + (escr.foco ? "Painel" : "Foco") + "</span></button>";
+}
+
+function alternarFoco(foco) {
+  escr.foco = foco === undefined ? !escr.foco : foco;
+  try { localStorage.setItem("paulus.docs.foco", escr.foco ? "1" : ""); } catch (err) { /* so conveniencia */ }
+  const corpo = $("docs-corpo");
+  if (corpo) corpo.classList.toggle("painel-oculto", escr.foco);
+  const b = document.querySelector("[data-docs-foco]");
+  if (b) b.outerHTML = botaoDoFoco();
+  const novo = document.querySelector("[data-docs-foco]");
+  if (novo) novo.onclick = () => alternarFoco();
+  /* A folha muda de largura so depois da transicao da coluna: medir antes
+     vestiria a letra na escala errada. */
+  setTimeout(revestirFolha, animacoesLigadas() ? 280 : 0);
+}
+
+/* Qualquer coisa que entre no painel escondido traz o painel de volta. */
+function vigiarPainelEscondido() {
+  const painel = $("docs-painel");
+  if (!painel) return;
+  const vigia = new MutationObserver(() => { if (escr.foco && document.body.contains(painel)) alternarFoco(false); });
+  painel.querySelectorAll(".docs-ferramenta, .docs-conversa").forEach((el) => vigia.observe(el, { childList: true }));
 }
 
 /* Os paineis de ferramenta que o motor ja tinha (historico, clausulas, quadro,
@@ -397,25 +425,29 @@ function cartaoDoEditor() {
   return '<div class="docs-cartao">' +
     '<div class="docs-status"><span id="ed-regua-fim">A4 · margens 2,5 cm</span><span class="cresce"></span>' +
     '<button class="docs-ligacao" id="ed-regua-botao">' + (escr.regua ? "Esconder a régua" : "Régua") + "</button>" +
-    '<span class="docs-divisa-fina"></span><button class="docs-ligacao" id="ed-formato">Folha</button></div>' +
+    '<span class="docs-divisa-fina"></span><button class="docs-ligacao" id="ed-formato">Formato</button>' +
+    '<span class="docs-divisa-fina"></span><button class="docs-ligacao docs-modo-folha' + (escr.modoFolha ? " on" : "") + '" id="ed-modo-folha">' + ic("edit_document", 16) + (escr.modoFolha ? "Concluir a folha" : "Editar a folha") + "</button></div>" +
     '<div class="docs-papel-area"><div class="docs-papel">' +
     '<div class="ed-regua" id="ed-regua"' + (escr.regua ? "" : " hidden") + '><div class="ed-regua-barra"><span class="ed-regua-margem" style="width:11.9%"></span>' +
     '<span class="ed-regua-texto"></span><span class="ed-regua-margem" style="width:11.9%"></span></div>' +
     '<div class="ed-regua-legenda"><span>a folha, na escala do PDF</span><span>2,5 cm de cada lado</span></div></div>' +
-    '<div class="ed-papel"><div class="ed-folha" id="ed-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
-    '<div class="ed-quebras" id="ed-quebras"></div><div class="ed-notas" id="ed-notas"></div></div>' +
+    '<div class="ed-papel paginado' + (escr.modoFolha ? " modo-folha" : "") + '" id="ed-papel"><div class="ed-folhas" id="ed-folhas" aria-hidden="true"></div>' +
+    '<div class="ed-folha" id="ed-folha" contenteditable="' + (escr.modoFolha ? "false" : "true") + '">' + (d.corpo || "<p><br></p>") + "</div>" +
+    '<div class="ed-margens" id="ed-margens"></div>' +
+    '<div class="ed-quebras" id="ed-quebras"></div><div class="ed-notas" id="ed-notas"></div><style id="ed-saltos"></style></div>' +
     '<input type="text" id="ed-titulo" value="' + esc(d.titulo) + '" hidden><span id="ed-paginas-nota" hidden></span>' +
     "</div></div></div>";
 }
 
 function painelDoEditor() {
-  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+  return '<aside class="acervo-painel" id="docs-painel"><div class="rolagem docs-painel">' + regioesDeFerramenta() +
     '<div class="docs-painel-cabeca">' + coroa(18) + '<span class="cresce">Pedir aqui</span><span id="ed-sobre">sobre o documento</span></div>' +
     '<div class="docs-conversa" id="ed-fala">' + falasDoDocumento(conversaAtual()) + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que eu posso fazer</span></div><div class="docs-acoes-lista">' +
     '<button data-ed-fazer="Revisar a redação deste trecho"><span>Revisar a redação deste trecho</span>' + ic("chevron_right", 16) + "</button>" +
     '<button data-ed-fazer="Padronizar este documento com as cláusulas do escritório"><span>Padronizar com o modelo do escritório</span>' + ic("chevron_right", 16) + "</button>" +
-    '<button data-ed-conferir="1"><span>Conferir prazos e datas do documento</span>' + ic("chevron_right", 16) + "</button></div></div>" +
+    '<button data-ed-conferir="1"><span>Conferir prazos e datas do documento</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-ed-timbre="1"><span>Montar o papel timbrado e o rodapé</span>' + ic("chevron_right", 16) + "</button></div></div>" +
     '<div class="docs-chips"><button class="adiante" data-adiante="jurisprudência">Buscar jurisprudência</button>' +
     '<button data-ed-citar="1">Citar artigo</button>' +
     '<button data-ed-fazer="Reescrever este trecho com mais clareza">Reescrever trecho</button>' +
@@ -489,8 +521,9 @@ function ligarDocumentos(aba) {
   });
   const mais = raiz.querySelector("[data-docs-lista]");
   if (mais) mais.onclick = () => { escr.atual = null; lembrarAbas(); mostrarDocumentos(); };
-  const alca = raiz.querySelector("[data-docs-alca]");
-  if (alca) alca.onclick = () => { escr.largo = !escr.largo; $("docs-corpo").classList.toggle("painel-largo", escr.largo); alca.innerHTML = ic(escr.largo ? "chevron_right" : "chevron_left", 18); };
+  const foco = raiz.querySelector("[data-docs-foco]");
+  if (foco) foco.onclick = () => alternarFoco();
+  if (aba) vigiarPainelEscondido();
   raiz.querySelectorAll("[data-adiante]").forEach((b) => {
     b.onclick = () => avisoCert("a base de " + b.dataset.adiante + " ainda não está instalada nesta máquina — por enquanto só os códigos");
   });
@@ -552,7 +585,7 @@ function trocarDeVisao(visao) {
 
 function apagarDocumentosEmLote(ids) {
   return apagarEmLote(ids, (id) => "/api/documentos/" + id, {
-    rotulo: "documento", contexto: "Documentos", texto: "O histórico de versões e os comentários vão junto.",
+    rotulo: "documento", contexto: "Editor", texto: "O histórico de versões e os comentários vão junto.",
     depois: () => { escr.escolhidos.clear(); ids.forEach((id) => fecharAba(Number(id))); mostrarDocumentos(); },
   });
 }
@@ -608,7 +641,7 @@ function ligarLista() {
 
 async function criarDocumento(tipo) {
   const ehTexto = tipo !== "planilha";
-  const titulo = await perguntar({ titulo: ehTexto ? "Novo documento" : "Nova planilha", contexto: "Documentos", campo: { rotulo: "Nome", valor: ehTexto ? "Documento sem título" : "Planilha sem título", icone: ehTexto ? "description" : "table" }, confirmar: "Criar" });
+  const titulo = await perguntar({ titulo: ehTexto ? "Novo documento" : "Nova planilha", contexto: "Editor", campo: { rotulo: "Nome", valor: ehTexto ? "Documento sem título" : "Planilha sem título", icone: ehTexto ? "description" : "table" }, confirmar: "Criar" });
   if (titulo === null) return;
   const r = await fetch("/api/documentos", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -621,33 +654,69 @@ async function criarDocumento(tipo) {
 }
 
 async function apagarDocumento(d) {
-  if (!(await confirmar({ titulo: "Apagar este documento?", contexto: "Documentos › " + d.titulo, texto: "Todo o histórico de versões e os comentários vão junto. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Apagar este documento?", contexto: "Editor › " + d.titulo, texto: "Todo o histórico de versões e os comentários vão junto. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/documentos/" + d.id, { method: "DELETE" });
   fecharAba(d.id);
   mostrarDocumentos();
   avisarLixeira(r, () => mostrarDocumentos());
 }
 
-/* Do Acervo: PDF abre so para ler; o resto vira uma copia editavel, e o
-   arquivo original nao e tocado. */
+/* Do Acervo, num pop-up proprio - como o de anexar -, e nao mais na
+   coluna. PDF abre so para ler; o resto vira uma copia editavel, e o
+   arquivo original nao e tocado. Clique escolhe; clique duplo abre. */
+const aa = { docs: null, termo: "", escolhido: -1 };
+
 async function escolherDoAcervo() {
-  const alvo = $("ed-abaixo");
-  if (!alvo) return;
-  alvo.innerHTML = '<div class="painel"><p class="nota">lendo o acervo…</p></div>';
-  let d;
-  try { d = await (await fetch("/api/biblioteca")).json(); } catch (err) { alvo.innerHTML = ""; return; }
-  const docs = (d.documentos || []).filter((x) => x.existe !== false).slice(0, 60);
-  alvo.innerHTML = '<div class="painel"><h3>Abrir do Acervo</h3>' +
-    (docs.length
-      ? '<div class="ag-escolher">' + docs.map((x, i) =>
-          '<div class="ag-ligado">' + glifo(x.nome) + "<span>" + esc(x.nome) + '</span><button data-doc-acervo="' + i + '">' +
-          (/\.pdf$/i.test(x.nome) ? "Ler" : "Editar cópia") + "</button></div>").join("") + "</div>"
-      : '<p class="explica">O Acervo está vazio.</p>') +
-    '<div class="linha-form"><button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
-  alvo.querySelector("[data-doc-fechar-ferramenta]").onclick = () => { alvo.innerHTML = ""; };
-  alvo.querySelectorAll("[data-doc-acervo]").forEach((b) => {
-    b.onclick = () => abrirDoAcervo(docs[Number(b.dataset.docAcervo)]);
+  aa.docs = null;
+  aa.termo = "";
+  aa.escolhido = -1;
+  const escolha = dialogo({
+    titulo: "Abrir do Acervo", contexto: "Editor de documentos", classe: "dialogo-anexar", confirmar: "Abrir",
+    html: '<div class="anx">' +
+      '<div class="anx-topo"><span class="aa-dica">PDF abre só para ler; Word e texto viram uma cópia editável — o original fica como está.</span>' +
+      '<label class="lc-busca anx-busca">' + ic("search", 15) + '<input type="text" id="aa-busca" placeholder="Buscar no acervo…" autocomplete="off"></label></div>' +
+      '<div class="anx-lista" id="aa-lista"><p class="anx-vazio">lendo o acervo…</p></div>' +
+      '<div class="anx-rodape"><span id="aa-conta"></span></div></div>',
   });
+  $("aa-busca").oninput = (e) => { aa.termo = e.target.value.trim().toLowerCase(); aa.escolhido = -1; desenharAbrirDoAcervo(); };
+  conferirAbrirDoAcervo();
+  try {
+    const d = await (await fetch("/api/biblioteca?filtro=todos&ordem=modificacao&limite=0")).json();
+    aa.docs = (d.documentos || []).filter((x) => x.existe !== false);
+  } catch (err) {
+    aa.docs = [];
+  }
+  desenharAbrirDoAcervo();
+  $("aa-busca").focus();
+  const r = await escolha;
+  if (r && r.ok && aa.escolhido >= 0) abrirDoAcervo(aa.docs[aa.escolhido]);
+}
+
+function desenharAbrirDoAcervo() {
+  const lista = $("aa-lista");
+  if (!lista || !aa.docs) return;
+  const casa = (x) => !aa.termo || x.nome.toLowerCase().includes(aa.termo) || String(x.pasta_curta || "").toLowerCase().includes(aa.termo);
+  const linhas = aa.docs.map((x, i) => [x, i]).filter(([x]) => casa(x));
+  lista.innerHTML = linhas.map(([x, i]) => {
+    const classe = "anx-linha" + (i === aa.escolhido ? " escolhida" : "");
+    return '<div class="' + classe + '" data-aa="' + i + '">' + glifo(x.nome) +
+      '<span class="duas-linhas"><b class="corta">' + esc(x.nome) + '</b><small class="corta">' + esc(x.pasta_curta || "") + "</small></span>" +
+      '<span class="anx-quando">' + (/\.pdf$/i.test(x.nome) ? "Ler" : "Editar cópia") + "</span></div>";
+  }).join("") || '<p class="anx-vazio">' + (aa.termo ? "Nenhum documento com esse nome no acervo." : "O Acervo está vazio.") + "</p>";
+  lista.querySelectorAll("[data-aa]").forEach((el) => {
+    el.onclick = () => { aa.escolhido = Number(el.dataset.aa); desenharAbrirDoAcervo(); };
+    el.ondblclick = () => { aa.escolhido = Number(el.dataset.aa); if (dialogoAberto) dialogoAberto.fechar({ ok: true }); };
+  });
+  conferirAbrirDoAcervo();
+}
+
+function conferirAbrirDoAcervo() {
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  const x = aa.docs && aa.escolhido >= 0 ? aa.docs[aa.escolhido] : null;
+  if (botao) botao.textContent = x ? (/\.pdf$/i.test(x.nome) ? "Ler" : "Editar cópia") : "Abrir";
+  if (botao) botao.disabled = !x;
+  const conta = $("aa-conta");
+  if (conta) conta.textContent = x ? "escolhido: " + x.nome : (aa.docs ? plural(aa.docs.length, "documento") + " no acervo" : "");
 }
 
 async function abrirDoAcervo(x) {
@@ -683,7 +752,7 @@ function visorDoPdf(aba) {
 }
 
 function painelDoPdf(aba) {
-  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+  return '<aside class="acervo-painel" id="docs-painel"><div class="rolagem docs-painel">' + regioesDeFerramenta() +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(aba.titulo) + '</h3><span class="meta">PDF do Acervo · só leitura</span></span></div>' +
     '<div class="painel-acoes"><button class="primario" id="doc-editar-copia-2">' + ic("edit", 16) + "Abrir para editar</button>" +
     '<button data-doc-no-acervo="1">' + ic("inventory_2", 16) + "Ver no Acervo</button></div>" +
@@ -738,8 +807,7 @@ function ligarEditor() {
   $("ed-versoes").onclick = () => painelVersoes(id);
   $("ed-imprimir").onclick = async () => {
     await gravarDocumento();
-    const janela = window.open("/api/documentos/" + id + "/pdf", "_blank");
-    if (!janela) avisoCert("o navegador bloqueou a janela de impressão");
+    abrirImprimir(id, escr.doc.titulo, 1, escr.paginacao ? escr.paginacao.paginas : 1);
   };
   $("ed-pdf").onclick = async () => { await gravarDocumento(); window.location.href = "/api/documentos/" + id + "/pdf"; };
 
@@ -756,6 +824,8 @@ function ligarEditor() {
   $("ed-conferir").onclick = () => painelConferir(id);
   $("ed-qualificar").onclick = inserirQualificacao;
   $("ed-formato").onclick = painelFormato;
+  $("ed-modo-folha").onclick = alternarModoFolha;
+  raiz.querySelectorAll("[data-ed-timbre]").forEach((b) => { b.onclick = () => { abrirModoFolha(); const c = $("ed-pedido"); if (c) c.focus(); }; });
   $("ed-regua-botao").onclick = () => {
     escr.regua = !escr.regua;
     $("ed-regua").hidden = !escr.regua;
@@ -771,7 +841,7 @@ function ligarEditor() {
   raiz.querySelectorAll("[data-ed-citar]").forEach((b) => { b.onclick = painelCodigos; });
   ligarFalas($("ed-fala"), conversaAtual());
 
-  folha.addEventListener("input", () => pedirPaginacao());
+  folha.addEventListener("input", () => { pedirPaginacao(); repaginarLogo(); });
   if (!escr.ouvindo) {
     escr.ouvindo = true;
     document.addEventListener("selectionchange", mostrarPaginaDoCursor);
@@ -779,7 +849,8 @@ function ligarEditor() {
     document.addEventListener("selectionchange", mostrarSobreOQue);
     window.addEventListener("resize", revestirFolha);
   }
-  aplicarPaginacao(escr.doc.paginacao);
+  aplicarPaginacao(Object.assign({}, escr.doc.paginacao, { folha: escr.doc.folha }));
+  if (escr.modoFolha) { aplicarModoFolha(); painelDoModoFolha(); }
   carregarNotas();
   if (escr.pendente) desenharCartaoNoEditor();
 }
@@ -916,6 +987,7 @@ function aplicarPaginacao(mapa) {
   if (!folha || !tela || !mapa) return;
   escr.paginacao = mapa;
   if (mapa.formato) escr.doc.formato = mapa.formato;
+  if (mapa.folha) escr.doc.folha = mapa.folha;
   vestirFolha(escr.doc.formato);
 
   const contador = $("ed-paginas");
@@ -925,28 +997,17 @@ function aplicarPaginacao(mapa) {
   tela.innerHTML = "";
   const nota = $("ed-paginas-nota");
 
+  paginarNaTela();
+
   if (elementos.length !== mapa.de_bloco.length) {
     /* Acontece com HTML colado de fora, com estrutura que o editor não cria.
-       O total continua medido; o que não dá para provar é onde a quebra cai. */
+       O total continua medido; as folhas da tela quebram pelo que cabe nelas. */
     if (nota) {
-      nota.textContent = "Contagem medida no PDF. As linhas de quebra não aparecem " +
-        "neste documento: a estrutura do texto não bate com a da folha impressa.";
+      nota.textContent = "Contagem medida no PDF. Neste documento as folhas da tela " +
+        "quebram pelo que cabe nelas: a estrutura do texto não bate com a da folha impressa.";
     }
     mostrarPaginaDoCursor();
     return;
-  }
-
-  /* Medido pelo retângulo na tela, e não por offsetTop: offsetTop depende de
-     qual ancestral está posicionado, e essa resposta muda com o CSS. */
-  const topo = tela.getBoundingClientRect().top;
-  for (let i = 1; i < elementos.length; i += 1) {
-    if (mapa.de_bloco[i] === mapa.de_bloco[i - 1]) continue;
-    const anterior = elementos[i - 1];
-    const linha = document.createElement("div");
-    linha.className = "ed-quebra";
-    linha.style.top = (anterior.getBoundingClientRect().bottom - topo) + "px";
-    linha.innerHTML = "<span>página " + mapa.de_bloco[i] + "</span>";
-    tela.appendChild(linha);
   }
 
   desenharNotas();
@@ -957,6 +1018,366 @@ function aplicarPaginacao(mapa) {
         "número de palavras.";
   }
   mostrarPaginaDoCursor();
+}
+
+/* -------------------------------------------- as folhas, como no Word
+
+   O texto continua num campo editável só - é o que deixa o cursor, o
+   desfazer e a seleção funcionarem sem biblioteca. As folhas são desenhadas
+   ATRÁS dele (ed-folhas), e cada bloco que abre página ganha uma margem de
+   cima que o leva ao topo da folha seguinte.
+
+   Essa margem não pode ir no bloco: o que está dentro do contenteditable
+   acaba no arquivo. Ela vai numa folha de estilo à parte (ed-saltos), com
+   seletor pela posição do bloco. Parágrafo que atravessa o pé da folha é
+   partido do mesmo jeito: um ::before que flutua com shape-outside empurra
+   só as linhas que cairiam no vão entre as folhas.
+
+   Onde a página quebra vem do PDF (o mapa medido); se a tela não couber o
+   mesmo que o papel, a tela quebra antes em vez de invadir o vão. */
+const VAO_ENTRE_FOLHAS = 28;
+
+function seletorDoBloco(el, folha) {
+  const passos = [];
+  for (let no = el; no && no !== folha; no = no.parentElement) {
+    passos.unshift(":nth-child(" + (Array.prototype.indexOf.call(no.parentElement.children, no) + 1) + ")");
+  }
+  return "#ed-folha > " + passos.join(" > ");
+}
+
+function desenhoDaFolha() {
+  const f = escr.doc && escr.doc.folha;
+  return (f && f.desenho) || { linhas: [], logo: false, logo_cm: 1.3, alinhar: "centro", fio: true, rodape: escr.doc ? escr.doc.titulo : "",
+    numeracao: "pagina", numeracao_onde: "direita", topo_cm: 2.5, base_cm: 2.5, margem_cm: 2.5 };
+}
+
+let quadroDaPaginacao = 0;
+function repaginarLogo() {
+  cancelAnimationFrame(quadroDaPaginacao);
+  quadroDaPaginacao = requestAnimationFrame(paginarNaTela);
+}
+
+function paginarNaTela() {
+  const folha = $("ed-folha");
+  const fundo = $("ed-folhas");
+  const saltos = $("ed-saltos");
+  if (!folha || !fundo || !saltos || !folha.clientWidth) return;
+
+  const d = desenhoDaFolha();
+  const cm = folha.clientWidth / CM_LARGURA_A4;
+  const alto = 29.7 * cm;
+  folha.style.paddingTop = (d.topo_cm * cm).toFixed(1) + "px";
+  folha.style.paddingBottom = (d.base_cm * cm).toFixed(1) + "px";
+  folha.style.minHeight = alto + "px";
+  saltos.textContent = "";
+
+  const inicio = (k) => (k - 1) * (alto + VAO_ENTRE_FOLHAS) + d.topo_cm * cm;
+  const fim = (k) => (k - 1) * (alto + VAO_ENTRE_FOLHAS) + alto - d.base_cm * cm;
+  const regras = new Map();
+  const escrever = () => { saltos.textContent = Array.from(regras.values()).join("\n"); };
+  const base = () => folha.getBoundingClientRect().top;
+  const topoDe = (el) => el.getBoundingClientRect().top - base();
+  const peDe = (el) => el.getBoundingClientRect().bottom - base();
+
+  /* Levar o bloco até `alvo`: a margem colapsa com a do bloco de cima, então
+     mede, corrige e mede de novo em vez de confiar na conta. */
+  const levar = (el, alvo) => {
+    const sel = seletorDoBloco(el, folha);
+    let margem = parseFloat(getComputedStyle(el).marginTop) || 0;
+    for (let n = 0; n < 3; n += 1) {
+      const falta = alvo - topoDe(el);
+      if (Math.abs(falta) < 0.5) break;
+      margem = Math.max(0, margem + falta);
+      regras.set(sel, sel + " { margin-top: " + margem.toFixed(1) + "px !important; }");
+      escrever();
+    }
+  };
+
+  const mapa = escr.paginacao;
+  const blocos = blocosDaFolha(folha);
+  const confere = mapa && mapa.de_bloco && blocos.length === mapa.de_bloco.length;
+  /* Só as folhas da árvore: um div que embrulha parágrafos não se move, os
+     parágrafos dentro dele é que se movem. */
+  const embrulhos = new Set();
+  blocos.forEach((el) => { for (let p = el.parentElement; p && p !== folha; p = p.parentElement) embrulhos.add(p); });
+
+  let k = 1;
+  blocos.forEach((el, i) => {
+    if (embrulhos.has(el)) return;
+    /* A folha da tela só anda por causa do PDF quando está atrás dele: se a
+       tela já partiu o parágrafo anterior, a página nova já começou. */
+    const quebraNoPdf = confere && mapa.de_bloco[i] > k;
+    let topo = topoDe(el);
+    if (quebraNoPdf || topo >= fim(k) - 1) {
+      k = quebraNoPdf ? mapa.de_bloco[i] : k + 1;
+      levar(el, inicio(k));
+      topo = topoDe(el);
+    }
+    if (peDe(el) <= fim(k) + 1) return;
+
+    const partivel = el.tagName !== "TABLE" && topo < fim(k);
+    if (partivel) {
+      const y = Math.max(0, fim(k) - topo);
+      const vao = inicio(k + 1) - fim(k);
+      const sel = seletorDoBloco(el, folha) + "::before";
+      regras.set(sel, sel + ' { content: ""; float: left; width: 100%; height: ' + (y + vao).toFixed(1) +
+        "px; shape-outside: inset(" + y.toFixed(1) + "px 0 0 0); }");
+      escrever();
+      k += 1;
+    } else if (topo > inicio(k) + 1) {
+      k += 1;
+      levar(el, inicio(k));
+    }
+  });
+
+  const total = Math.max(k, Math.ceil((folha.scrollHeight + VAO_ENTRE_FOLHAS) / (alto + VAO_ENTRE_FOLHAS)));
+  folha.style.minHeight = (total * alto + (total - 1) * VAO_ENTRE_FOLHAS) + "px";
+  desenharFolhas(total, alto, cm, d);
+}
+
+/* As folhas atrás do texto e, por cima das margens, o cabeçalho e o rodapé
+   de cada uma - na mesma medida do PDF. Duplo clique neles abre o modo
+   Folha, como no Word. */
+function desenharFolhas(total, alto, cm, d) {
+  const fundo = $("ed-folhas");
+  const margens = $("ed-margens");
+  if (!fundo || !margens) return;
+  const pt = cm * CM_LARGURA_A4 / PT_LARGURA_A4;
+  const fonte = (escr.doc.formato || {}).fonte === "sem-serifa" ? "Arial, Helvetica, sans-serif" : "'Times New Roman', Times, Georgia, serif";
+  const paginasDoPdf = escr.paginacao && escr.paginacao.paginas ? escr.paginacao.paginas : total;
+  const numero = (n) => {
+    if (d.numeracao === "nenhuma") return "";
+    if (d.numeracao === "numero") return String(n);
+    if (d.numeracao === "pagina_de") return "página " + n + " de " + Math.max(paginasDoPdf, total);
+    return "página " + n;
+  };
+  const ladoDoTexto = d.numeracao_onde === "esquerda" ? "direita" : "esquerda";
+  const logo = d.logo ? '<img class="ed-cab-logo" src="/marca/logo.png?v=' + (escr.versaoDaLogo || 0) + '" alt="" style="height:' + (d.logo_cm * cm).toFixed(1) + 'px">' : "";
+
+  let folhas = "", cabecas = "";
+  for (let n = 1; n <= total; n += 1) {
+    const topo = (n - 1) * (alto + VAO_ENTRE_FOLHAS);
+    folhas += '<div class="ed-pagina" style="top:' + topo + "px;height:" + alto + 'px"></div>';
+    const cab = d.linhas.length
+      ? '<div class="ed-cab lado-' + d.alinhar + (d.fio ? " com-fio" : "") + '" data-ed-cab="1" title="Clique duas vezes para editar o cabeçalho" style="top:' + (topo + d.margem_cm * cm) +
+        "px;height:" + ((d.topo_cm - d.margem_cm - 0.3) * cm).toFixed(1) + "px;left:" + (d.margem_cm * cm) + "px;right:" + (d.margem_cm * cm) + "px;font-family:" + fonte + '">' +
+        logo + '<b style="font-size:' + (12 * pt).toFixed(1) + 'px">' + esc(d.linhas[0]) + "</b>" +
+        d.linhas.slice(1).map((l) => '<span style="font-size:' + (8.5 * pt).toFixed(1) + 'px">' + esc(l) + "</span>").join("") + "</div>"
+      : '<div class="ed-cab vazio" data-ed-cab="1" title="Clique duas vezes para criar um cabeçalho" style="top:' + (topo + 0.6 * cm) + "px;height:" + ((d.margem_cm - 0.9) * cm).toFixed(1) +
+        "px;left:" + (d.margem_cm * cm) + "px;right:" + (d.margem_cm * cm) + 'px"></div>';
+    const pe = '<div class="ed-pe" data-ed-pe="1" title="Clique duas vezes para editar o rodapé" style="top:' + (topo + alto - 1.4 * cm - 8.5 * pt) + "px;left:" + (d.margem_cm * cm) +
+      "px;right:" + (d.margem_cm * cm) + "px;font-size:" + (8.5 * pt).toFixed(1) + "px;font-family:" + fonte + '">' +
+      '<span class="lado-' + ladoDoTexto + '">' + esc(d.rodape || "") + '</span><span class="lado-' + d.numeracao_onde + '">' + esc(numero(n)) + "</span></div>";
+    cabecas += cab + pe;
+  }
+  fundo.innerHTML = folhas;
+  margens.innerHTML = cabecas;
+  margens.querySelectorAll("[data-ed-cab], [data-ed-pe]").forEach((z) => {
+    z.ondblclick = () => abrirModoFolha(z.dataset.edPe ? "rodape" : "cabecalho");
+  });
+}
+
+/* ------------------------------------------------------ o modo Folha
+
+   Mexer na folha, e não no texto: o papel timbrado, o rodapé, a logo e a
+   numeração. O texto fica esmaecido e travado enquanto isso - quem clica no
+   cabeçalho não pode acabar escrevendo no contrato. Tudo grava na hora e
+   não cria versão: mudou como o documento sai, não o que ele diz. */
+
+const ROTULO_DA_NUMERACAO = { pagina: "página 1", pagina_de: "página 1 de 3", numero: "1", nenhuma: "sem número" };
+const ROTULO_DO_LADO = { esquerda: "Esquerda", centro: "Centro", direita: "Direita" };
+
+function abrirModoFolha(onde) {
+  if (!escr.modoFolha) { escr.modoFolha = true; aplicarModoFolha(); }
+  if (escr.foco) alternarFoco(false);
+  painelDoModoFolha(onde);
+}
+
+function alternarModoFolha() {
+  if (escr.modoFolha) { escr.modoFolha = false; aplicarModoFolha(); } else abrirModoFolha();
+}
+
+function aplicarModoFolha() {
+  const papel = $("ed-papel");
+  const folha = $("ed-folha");
+  const b = $("ed-modo-folha");
+  if (papel) papel.classList.toggle("modo-folha", escr.modoFolha);
+  if (folha) folha.contentEditable = escr.modoFolha ? "false" : "true";
+  if (b) {
+    b.classList.toggle("on", escr.modoFolha);
+    b.innerHTML = ic("edit_document", 16) + (escr.modoFolha ? "Concluir a folha" : "Editar a folha");
+  }
+  const pedido = $("ed-pedido");
+  if (pedido) pedido.placeholder = escr.modoFolha ? "Descreva a folha: timbre, rodapé, numeração…" : "Peça uma alteração ou uma pesquisa…";
+  if (!escr.modoFolha) {
+    const alvo = $("ed-abaixo");
+    if (alvo && alvo.querySelector(".folha-painel")) alvo.innerHTML = "";
+    if (folha) folha.focus();
+  }
+}
+
+function folhaAtual() {
+  const f = Object.assign({}, escr.doc.folha || {});
+  delete f.desenho;
+  delete f.escritorio;
+  return f;
+}
+
+/* O modo "padrao" (seguir a chave de Configurações) aparece como a escolha
+   que ele resolve hoje; tocar num botão troca para a escolha explícita. */
+function cabecalhoEfetivo(f) {
+  if (f.cabecalho !== "padrao") return f.cabecalho;
+  const e = (escr.doc.folha || {}).escritorio || {};
+  return e.timbre_ligado ? "escritorio" : "nenhum";
+}
+
+function painelDoModoFolha(onde) {
+  const alvo = $("ed-abaixo");
+  if (!alvo || !escr.doc) return;
+  const f = folhaAtual();
+  const esc_ = (escr.doc.folha || {}).escritorio || { linhas: [], logo: false };
+  const cab = cabecalhoEfetivo(f);
+  const segmento = (grupo, valor, rotulo, atual) =>
+    '<button type="button" class="' + (valor === atual ? "ativa" : "") + '" data-fl-' + grupo + '="' + valor + '">' + rotulo + "</button>";
+  const linhas = [0, 1, 2, 3].map((i) =>
+    '<input type="text" class="fl-linha' + (i === 0 ? " destaque" : "") + '" data-fl-linha="' + i + '" maxlength="130" value="' + esc(f.linhas[i] || "") + '" placeholder="' +
+    ["Nome em destaque", "OAB · CPF ou CNPJ", "Endereço · telefone · e-mail", "Mais uma linha (opcional)"][i] + '">').join("");
+
+  alvo.innerHTML = '<div class="painel folha-painel">' +
+    '<div class="fl-cabeca"><h3>A folha deste documento</h3><button class="docs-ligacao" data-fl-concluir="1">Concluir</button></div>' +
+    '<p class="explica">Sai em toda página: no PDF, na impressão e na assinatura. O texto do documento não muda.</p>' +
+
+    '<section class="fl-bloco" id="fl-cabecalho"><h4>Cabeçalho</h4>' +
+    '<div class="visoes fl-seg">' + segmento("cab", "escritorio", "Do escritório", cab) + segmento("cab", "proprio", "Escrever", cab) + segmento("cab", "nenhum", "Nenhum", cab) + "</div>" +
+    (f.cabecalho === "padrao" ? '<small class="fl-nota">Segue a chave de Configurações › timbre no PDF (' + (esc_.timbre_ligado ? "ligada" : "desligada") + ").</small>" : "") +
+    (cab === "escritorio"
+      ? (esc_.linhas.length
+        ? '<div class="fl-previa-linhas">' + esc_.linhas.map((l, i) => (i ? "<span>" : "<b>") + esc(l) + (i ? "</span>" : "</b>")).join("") + "</div>" +
+          '<button class="docs-ligacao" data-fl-copiar="1">Copiar para editar só neste documento</button>'
+        : '<small class="fl-nota">Seus dados profissionais ainda estão vazios. <button class="docs-ligacao" data-fl-config="1">Preencher em Configurações</button></small>')
+      : "") +
+    (cab === "proprio" ? '<div class="fl-linhas">' + linhas + "</div>" +
+      (esc_.linhas.length ? '<button class="docs-ligacao" data-fl-meus="1">Trazer meus dados profissionais</button>' : "") : "") +
+    (cab !== "nenhum"
+      ? '<div class="fl-linha-form"><span>Alinhar</span><div class="visoes fl-seg pequeno">' +
+        ["esquerda", "centro", "direita"].map((l) => segmento("alinhar", l, ROTULO_DO_LADO[l], f.alinhar)).join("") + "</div></div>" +
+        '<label class="fl-marcar"><input type="checkbox" data-fl-logo="1"' + (f.logo ? " checked" : "") + "><span>Com a logo" +
+        (esc_.logo ? "" : " <small>(nenhuma enviada)</small>") + '</span><button class="docs-ligacao" data-fl-trocar-logo="1">' + (esc_.logo ? "Trocar a logo" : "Enviar a logo") + "</button></label>" +
+        '<label class="fl-marcar"><input type="checkbox" data-fl-fio="1"' + (f.fio ? " checked" : "") + "><span>Fio separando do texto</span></label>"
+      : "") +
+    '<input type="file" id="fl-logo-arquivo" accept="image/png,image/jpeg,image/webp" hidden></section>' +
+
+    '<section class="fl-bloco" id="fl-rodape"><h4>Rodapé</h4>' +
+    '<div class="visoes fl-seg">' + segmento("rod", "titulo", "Título", f.rodape) + segmento("rod", "proprio", "Escrever", f.rodape) + segmento("rod", "nenhum", "Nenhum", f.rodape) + "</div>" +
+    (f.rodape === "proprio" ? '<input type="text" class="fl-linha" data-fl-rodape="1" maxlength="110" value="' + esc(f.rodape_texto || "") + '" placeholder="Ex.: Documento confidencial · www.seusite.com.br">' : "") +
+    '<div class="fl-linha-form"><span>Numeração</span><select class="docs-sel" id="fl-numeracao">' +
+    Object.keys(ROTULO_DA_NUMERACAO).map((n) => '<option value="' + n + '"' + (n === f.numeracao ? " selected" : "") + ">" + ROTULO_DA_NUMERACAO[n] + "</option>").join("") + "</select></div>" +
+    (f.numeracao !== "nenhuma"
+      ? '<div class="fl-linha-form"><span>Posição</span><div class="visoes fl-seg pequeno">' +
+        ["esquerda", "centro", "direita"].map((l) => segmento("onde", l, ROTULO_DO_LADO[l], f.numeracao_onde)).join("") + "</div></div>"
+      : "") + "</section>" +
+
+    '<section class="fl-bloco">' + '<h4>' + coroa(14) + "Pedir ao assistente</h4>" +
+    '<small class="fl-nota">Descreva a folha na conversa aqui embaixo — ex.: “timbre com meu nome e OAB à esquerda, página 1 de 3 no centro, sem logo”. ' +
+    "Eu aplico e você mantém ou desfaz. Número de OAB, telefone ou endereço só entram se estiverem nos seus dados.</small></section></div>";
+
+  const salvarJa = (mudanca) => salvarFolha(Object.assign(folhaAtual(), mudanca), true);
+  alvo.querySelector("[data-fl-concluir]").onclick = () => { escr.modoFolha = false; aplicarModoFolha(); };
+  alvo.querySelectorAll("[data-fl-cab]").forEach((b) => { b.onclick = () => {
+    const mudanca = { cabecalho: b.dataset.flCab };
+    if (b.dataset.flCab === "proprio" && !folhaAtual().linhas.length) mudanca.linhas = esc_.linhas.slice(0, 4);
+    salvarJa(mudanca);
+  }; });
+  alvo.querySelectorAll("[data-fl-rod]").forEach((b) => { b.onclick = () => salvarJa({ rodape: b.dataset.flRod }); });
+  alvo.querySelectorAll("[data-fl-alinhar]").forEach((b) => { b.onclick = () => salvarJa({ alinhar: b.dataset.flAlinhar }); });
+  alvo.querySelectorAll("[data-fl-onde]").forEach((b) => { b.onclick = () => salvarJa({ numeracao_onde: b.dataset.flOnde }); });
+  const ligar = (sel, fazer) => { const el = alvo.querySelector(sel); if (el) fazer(el); };
+  ligar("[data-fl-logo]", (el) => { el.onchange = () => salvarJa({ logo: el.checked }); });
+  ligar("[data-fl-fio]", (el) => { el.onchange = () => salvarJa({ fio: el.checked }); });
+  ligar("#fl-numeracao", (el) => { el.onchange = () => salvarJa({ numeracao: el.value }); });
+  ligar("[data-fl-copiar]", (el) => { el.onclick = () => salvarJa({ cabecalho: "proprio", linhas: esc_.linhas.slice(0, 4) }); });
+  ligar("[data-fl-meus]", (el) => { el.onclick = () => salvarJa({ linhas: esc_.linhas.slice(0, 4) }); });
+  ligar("[data-fl-config]", (el) => { el.onclick = () => mostrarConfig("perfil"); });
+  ligar("[data-fl-trocar-logo]", (el) => { el.onclick = (e) => { e.preventDefault(); $("fl-logo-arquivo").click(); }; });
+  ligar("#fl-logo-arquivo", (el) => { el.onchange = () => enviarLogoDaFolha(el.files[0]); });
+  /* Texto grava sem redesenhar o painel: o cursor fica onde a pessoa está. */
+  alvo.querySelectorAll("[data-fl-linha]").forEach((el) => {
+    el.oninput = () => {
+      const linhas = Array.from(alvo.querySelectorAll("[data-fl-linha]")).map((c) => c.value);
+      salvarFolha(Object.assign(folhaAtual(), { cabecalho: "proprio", linhas: linhas }), false);
+    };
+  });
+  ligar("[data-fl-rodape]", (el) => { el.oninput = () => salvarFolha(Object.assign(folhaAtual(), { rodape: "proprio", rodape_texto: el.value }), false); });
+  alvo.querySelectorAll("select").forEach(melhorarSelect);
+
+  const secao = onde === "rodape" ? $("fl-rodape") : $("fl-cabecalho");
+  if (secao) secao.scrollIntoView({ behavior: animacoesLigadas() ? "smooth" : "auto", block: "nearest" });
+}
+
+let relogioDaFolha = null;
+function salvarFolha(folha, redesenhar) {
+  clearTimeout(relogioDaFolha);
+  const fazer = async () => {
+    const r = await fetch("/api/documentos/" + escr.doc.id + "/formato", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formato: Object.assign({}, escr.doc.formato, { folha: folha }), corpo: $("ed-folha").innerHTML }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+    escr.doc.formato = d.formato;
+    aplicarPaginacao(d);
+    if (redesenhar && escr.modoFolha) painelDoModoFolha();
+  };
+  if (redesenhar) return fazer();
+  relogioDaFolha = setTimeout(fazer, 450);
+}
+
+async function enviarLogoDaFolha(arquivo) {
+  if (!arquivo) return;
+  const dados = new FormData();
+  dados.append("arquivo", arquivo);
+  const r = await fetch("/api/marca/logo", { method: "POST", body: dados });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  escr.versaoDaLogo = Date.now();
+  await salvarFolha(Object.assign(folhaAtual(), { logo: true }), true);
+}
+
+/* O assistente monta a folha: a regra resolve as escolhas, o modelo escreve
+   as linhas. Aplica na hora e oferece desfazer - o mesmo trato do texto. */
+async function pedirNaFolha(pedido) {
+  const conversa = conversaAtual();
+  escr.ocupada = true;
+  conversa.push({ autor: "pessoa", texto: pedido });
+  redesenharFalas("ed-fala");
+  const antes = folhaAtual();
+  try {
+    const r = await fetch("/api/documentos/" + escr.doc.id + "/folha/sugerir", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido: pedido, folha: antes }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const s = await r.json();
+    await salvarFolha(s.folha, true);
+    const f = s.folha;
+    const partes = [];
+    if (f.cabecalho === "proprio" && f.linhas.length) partes.push("cabeçalho com " + plural(f.linhas.length, "linha"));
+    else if (f.cabecalho === "nenhum") partes.push("sem cabeçalho");
+    partes.push("numeração " + ROTULO_DA_NUMERACAO[f.numeracao] + (f.numeracao === "nenhuma" ? "" : " à " + ROTULO_DO_LADO[f.numeracao_onde].toLowerCase()));
+    if (f.rodape === "proprio") partes.push("rodapé “" + f.rodape_texto + "”");
+    conversa.push({
+      autor: "paulus",
+      html: esc("Montei a folha: " + partes.join(", ") + "." + (s.nota ? " (" + s.nota + ")" : "") + " Confira nas páginas ao lado."),
+      acoes: [
+        { icone: "check", rotulo: "Manter", primario: true, acao: (b) => { b.closest(".docs-resposta-acoes").innerHTML = '<span class="nota">mantido</span>'; } },
+        { icone: "undo", rotulo: "Desfazer", acao: () => salvarFolha(antes, true) },
+      ],
+    });
+  } catch (err) {
+    conversa.push({ autor: "paulus", html: esc("Não consegui montar a folha: " + (err.message || err)) });
+  } finally {
+    escr.ocupada = false;
+    redesenharFalas("ed-fala");
+  }
 }
 
 /* Em que página está o cursor. Sai do mesmo mapa medido: é a página do bloco
@@ -1030,6 +1451,7 @@ function trechoSelecionado() {
    desenho. Nada entra no contrato sem o sim. */
 async function pedirNoEditor(pedido) {
   if (!pedido || escr.ocupada) return;
+  if (escr.modoFolha) return pedirNaFolha(pedido);
   const conversa = conversaAtual();
   escr.ocupada = true;
   conversa.push({ autor: "pessoa", texto: pedido });
@@ -1189,7 +1611,7 @@ async function painelClausulas() {
   $("cl-nova").onclick = async () => {
     const texto = trechoSelecionado();
     if (!texto) { avisoCert("selecione o trecho no documento antes"); return; }
-    const titulo = await perguntar({ titulo: "Guardar cláusula", contexto: "Documentos › Cláusulas", campo: { rotulo: "Nome desta cláusula", valor: texto.slice(0, 40), icone: "draft" }, confirmar: "Guardar" });
+    const titulo = await perguntar({ titulo: "Guardar cláusula", contexto: "Editor › Cláusulas", campo: { rotulo: "Nome desta cláusula", valor: texto.slice(0, 40), icone: "draft" }, confirmar: "Guardar" });
     if (!titulo) return;
     await fetch("/api/documentos/modelos", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -1233,7 +1655,7 @@ async function painelVersoes(id) {
   });
   alvo.querySelectorAll("[data-voltar]").forEach((b) => {
     b.onclick = async () => {
-      if (!(await confirmar({ titulo: "Voltar para a v" + b.dataset.voltar + "?", contexto: "Documentos › Versões", texto: "Isso cria uma versão nova com aquele conteúdo. Nada é perdido: as versões seguintes continuam no histórico.", confirmar: "Voltar para a v" + b.dataset.voltar }))) return;
+      if (!(await confirmar({ titulo: "Voltar para a v" + b.dataset.voltar + "?", contexto: "Editor › Versões", texto: "Isso cria uma versão nova com aquele conteúdo. Nada é perdido: as versões seguintes continuam no histórico.", confirmar: "Voltar para a v" + b.dataset.voltar }))) return;
       const r = await (await fetch("/api/documentos/" + id + "/restaurar", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ numero: Number(b.dataset.voltar) }),
@@ -1315,7 +1737,7 @@ function painelDaPrevia() {
   const d = p.dados;
   const avisos = d.avisos || [];
   const classeGuardar = "ag-toggle" + (escr.guardarAoSair ? " on" : "");
-  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+  return '<aside class="acervo-painel" id="docs-painel"><div class="rolagem docs-painel">' + regioesDeFerramenta() +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>O que fazer agora</h3><span class="meta">Versão ' + d.versao + " · " +
     plural(d.paginas, "página") + " · " + (d.impedem ? plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span></span></div>" +
     '<div class="painel-acoes"><button class="primario" id="pv-pdf">' + ic("picture_as_pdf", 16) + "Baixar PDF</button>" +
@@ -1371,10 +1793,7 @@ function ligarPrevia() {
   ligar("pv-cheia", () => { p.cheia = !p.cheia; desenharDocumentos(); });
   /* Imprimir é o PDF de verdade indo para a impressora, não a tela impressa:
      o que sai do papel tem que ser o mesmo arquivo que vai para o cliente. */
-  ligar("pv-imprimir", () => {
-    const janela = window.open("/api/documentos/" + p.id + "/pdf", "_blank");
-    if (!janela) avisoCert("o navegador bloqueou a janela de impressão");
-  });
+  ligar("pv-imprimir", () => abrirImprimir(p.id, (abaAtual() || {}).titulo, p.pagina, p.dados.paginas));
   const comparar = () => { if (p.cheia) { p.cheia = false; desenharDocumentos(); } compararVersoes(); };
   ligar("pv-comparar", comparar);
   ligar("pv-comparar-b", comparar);
@@ -1421,7 +1840,7 @@ function ligarPrevia() {
   const pedirSenhaPdf = async () => {
     const senha = await perguntar({
       titulo: "Senha do PDF",
-      contexto: "Documentos › " + (escr.doc ? escr.doc.titulo : "documento"),
+      contexto: "Editor › " + (escr.doc ? escr.doc.titulo : "documento"),
       texto: "Quem receber o arquivo vai precisar dela para abrir. Guarde: sem a senha nem " +
         "você abre depois, e um PDF com senha não entra na busca do Acervo.",
       campo: { rotulo: "Senha", tipo: "password", placeholder: "a senha que abre o PDF", obrigatorio: true },
@@ -1473,7 +1892,7 @@ async function compararComVersao(numero) {
     '<button data-doc-fechar-ferramenta="1">Fechar</button></div></div>';
   alvo.querySelector("[data-doc-fechar-ferramenta]").onclick = () => { alvo.innerHTML = ""; };
   alvo.querySelector("[data-pv-voltar]").onclick = async () => {
-    if (!(await confirmar({ titulo: "Voltar para a v" + c.de + "?", contexto: "Documentos › Versões", texto: "Isso cria uma versão nova com aquele conteúdo. Nada é perdido: as versões seguintes continuam no histórico.", confirmar: "Voltar para a v" + c.de }))) return;
+    if (!(await confirmar({ titulo: "Voltar para a v" + c.de + "?", contexto: "Editor › Versões", texto: "Isso cria uma versão nova com aquele conteúdo. Nada é perdido: as versões seguintes continuam no histórico.", confirmar: "Voltar para a v" + c.de }))) return;
     const r2 = await (await fetch("/api/documentos/" + p.id + "/restaurar", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numero: c.de }),
@@ -1631,7 +2050,7 @@ function cartaoDaPlanilha() {
 }
 
 function painelDaPlanilha() {
-  return '<aside class="acervo-painel">' + alcaDosDocumentos() + '<div class="rolagem docs-painel">' + regioesDeFerramenta() +
+  return '<aside class="acervo-painel" id="docs-painel"><div class="rolagem docs-painel">' + regioesDeFerramenta() +
     '<div class="docs-painel-cabeca">' + coroa(18) + '<span class="cresce">Pedir aqui</span><span>sobre a planilha</span></div>' +
     '<div class="docs-conversa" id="pl-fala">' + falasDoDocumento(conversaAtual()) + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que eu posso fazer</span></div><div class="docs-acoes-lista">' +
@@ -1681,6 +2100,8 @@ async function trazerParaPlanilha(de, botao) {
 }
 
 function gradePlanilha(aba, calc) {
+  // A grade que cresce com a rolagem, com medidas e alca: 26-planilha-excel.js.
+  if (typeof plxGrade === "function") return plxGrade(aba, calc);
   const escondidas = escr.filtro ? new Set(escr.filtro.esconder) : null;
   let html = '<div class="pl-caixa' + (aba.congelar_cabecalho ? " congelada" : "") +
     '"><table class="pl-grade"><thead><tr><th class="canto"></th>';
@@ -1740,35 +2161,9 @@ function ligarPlanilha() {
   const aba = p.abas[escr.aba];
   const raiz = $("docs");
 
-  /* Arrastar para selecionar, e shift para esticar — os dois jeitos que
-     qualquer planilha tem, porque são os dois que a pessoa já sabe. */
-  let arrastando = false;
-  raiz.querySelectorAll("[data-ref]").forEach((td) => {
-    td.onmousedown = (e) => {
-      arrastando = true;
-      escolherCelula(td.dataset.ref, e.shiftKey);
-      e.preventDefault();
-    };
-    td.onmouseenter = () => { if (arrastando) escolherCelula(td.dataset.ref, true); };
-    td.ondblclick = () => { escolherCelula(td.dataset.ref); $("pl-entrada").focus(); };
-  });
-  document.addEventListener("mouseup", () => { arrastando = false; });
-
-  /* Clicar no cabeçalho seleciona a coluna ou a linha inteira. */
-  raiz.querySelectorAll("[data-coluna]").forEach((th) => {
-    th.onclick = () => {
-      const letra = th.dataset.coluna;
-      escolherCelula(letra + "1");
-      escolherCelula(letra + aba.linhas, true);
-    };
-  });
-  raiz.querySelectorAll("[data-linha]").forEach((td) => {
-    td.onclick = () => {
-      const linha = td.dataset.linha;
-      escolherCelula("A" + linha);
-      escolherCelula(letraColuna(aba.colunas - 1) + linha, true);
-    };
-  });
+  /* Selecionar (arrastar, Shift, cabeçalhos), menu do botão direito, medidas,
+     alça de preencher e teclado moram em 26-planilha-excel.js — ligados
+     no fim desta função, por cima do que ela liga. */
   raiz.querySelectorAll("[data-aba]").forEach((b) => {
     b.onclick = () => { escr.aba = Number(b.dataset.aba); escr.celula = "A1"; escr.ancora = null; desenharPlanilha(); };
   });
@@ -1873,6 +2268,7 @@ function ligarPlanilha() {
   $("pl-pedir").onclick = pedir;
   $("pl-pedido").onkeydown = (e) => { if (e.key === "Enter") pedir(); };
   ligarFalas($("pl-fala"), conversaAtual());
+  if (typeof plxLigar === "function") plxLigar(raiz, aba);
   pintarSelecao();
   mostrarSelecao();
 }
@@ -2133,6 +2529,8 @@ function faixaAtual() {
 }
 
 function pintarSelecao() {
+  // Com moldura, alça e cabeçalhos acesos: 26-planilha-excel.js.
+  if (typeof plxPintar === "function") return plxPintar();
   const dentro = new Set(refsDaFaixa(escr.ancora || escr.celula, escr.celula));
   document.querySelectorAll("[data-ref]").forEach((td) => {
     td.classList.toggle("escolhida", td.dataset.ref === escr.celula);

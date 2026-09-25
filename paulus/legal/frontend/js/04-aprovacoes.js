@@ -25,6 +25,17 @@ const CHAVE_DA_CATEGORIA = { organizar: "organizar_mover", assinatura: "assinar"
 const ICONE_REGRA = { ler_pastas: "inventory_2", organizar_mover: "drive_file_move", assinar: "draw", enviar_mensagem: "mail", modelo_nuvem: "cloud_upload" };
 const VERBO_APROVAR = { organizar: "Aprovar e mover", email: "Aprovar e enviar", assinatura: "Aprovar e assinar", financeiro: "Aprovar e pagar", permissao: "Aprovar" };
 
+/* Para onde a pessoa vai depois do sim, por tipo de pedido. A fila nao e o
+   fim do trabalho: quem pediu uma assinatura quer ver o documento assinado,
+   quem organizou quer ver as pastas. Cada entrada recebe o que o servidor
+   devolveu para aquele pedido ({id, categoria, resultado, desfecho}) e
+   devolve true se levou a pessoa para outro lugar. Tipo sem entrada fica
+   na fila, com o aviso de aprovado - e o padrao. */
+const DEPOIS_DE_APROVAR = {
+  assinatura: (feito) => abrirAssinado(feito.desfecho),
+  organizar: () => organizarDesfecho(),
+};
+
 function dataHoraCurta(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -304,10 +315,17 @@ async function decidirPedidos(ids, aprovar) {
     }
     carregarStatus();
     contarPendencias();
-    // Um mover de organizacao aprovado nao termina na fila: a pessoa volta
-    // ao Organizar e ve como as pastas ficaram, com o desfazer a mao.
-    const feitos = new Set((d.feitos || []).map((f) => f.id));
-    if (aprovar && quais.some((p) => p.categoria === "organizar" && feitos.has(p.id))) await organizarDesfecho();
+    // O aprovado nao termina na fila: a pessoa vai ver o que foi feito (a
+    // assinatura abre o documento assinado; organizar volta as pastas, com
+    // o desfazer a mao). Com varios aprovados, vale o primeiro que tem para
+    // onde ir; o resto fica no Historico.
+    if (aprovar) {
+      for (const f of d.feitos || []) {
+        const categoria = f.categoria || ((quais.find((p) => p.id === f.id) || {}).categoria);
+        const ir = DEPOIS_DE_APROVAR[categoria];
+        if (ir && (await ir(f))) break;
+      }
+    }
   } catch (err) {
     avisoCert("Falha ao decidir: " + err);
   } finally {

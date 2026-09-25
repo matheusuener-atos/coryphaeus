@@ -33,8 +33,58 @@
     position: absolute; left: 0; top: 100%; margin-top: 6px; display: flex; align-items: center; gap: 6px;
     font: 500 11px var(--sans); color: var(--destaque); white-space: nowrap; pointer-events: none;
   }
-  .as-alca { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--surf); border: 1.5px solid var(--destaque); pointer-events: none; }
-  .as-alca.a { left: -5px; top: -5px; } .as-alca.b { right: -5px; top: -5px; } .as-alca.c { left: -5px; bottom: -5px; } .as-alca.d { right: -5px; bottom: -5px; }
+  .as-cartao .pdf-selo.redimensionando { border-style: solid; }
+  /* as alcas redimensionam de verdade: a area de pegar e maior que o ponto */
+  .as-alca { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--surf); border: 1.5px solid var(--destaque); box-sizing: border-box; z-index: 2; }
+  .as-alca::after { content: ""; position: absolute; inset: -7px; }
+  .as-alca.a { left: -6px; top: -6px; cursor: nwse-resize; } .as-alca.b { right: -6px; top: -6px; cursor: nesw-resize; }
+  .as-alca.c { left: -6px; bottom: -6px; cursor: nesw-resize; } .as-alca.d { right: -6px; bottom: -6px; cursor: nwse-resize; }
+
+  /* a barrinha do selo: replicar nas outras paginas e tirar */
+  .as-selo-barra {
+    position: absolute; right: -1px; bottom: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
+    background: var(--surf); border: 1px solid var(--ink-a15); border-radius: 8px; box-shadow: 0 6px 18px -10px var(--sh-a12);
+    line-height: normal; cursor: default; z-index: 3;
+  }
+  .pdf-selo.barra-embaixo .as-selo-barra { bottom: auto; top: 100%; margin: 8px 0 0; }
+  .pdf-selo.barra-embaixo .as-selo-legenda { display: none; }
+  .as-selo-barra > button {
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: none; border-radius: 6px; background: transparent;
+    font: 500 12px var(--sans); color: var(--ink2); white-space: nowrap; cursor: pointer; min-height: 0;
+  }
+  .as-selo-barra > button:hover { background: var(--fill); color: var(--ink); }
+  .as-selo-barra > button[aria-expanded="true"] { background: var(--fill); color: var(--ink); }
+  .as-selo-menu {
+    position: absolute; right: 0; bottom: 100%; margin-bottom: 4px; min-width: 220px; padding: 6px; display: grid; gap: 2px;
+    background: var(--surf); border: 1px solid var(--ink-a15); border-radius: 10px; box-shadow: 0 12px 28px -14px var(--sh-a12); z-index: 4;
+  }
+  /* o menu abre para longe da pagina: para cima, ou para baixo se a barra desceu */
+  .pdf-selo.menu-embaixo .as-selo-menu { bottom: auto; top: 100%; margin: 4px 0 0; }
+  .as-selo-menu small { padding: 4px 8px 6px; font: 500 11.5px var(--sans); color: var(--ink3); white-space: normal; }
+  .as-selo-menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: none; border-radius: 6px; background: transparent;
+    font: 500 13px var(--sans); color: var(--ink2); text-align: left; cursor: pointer; min-height: 0;
+  }
+  .as-selo-menu button:hover { background: var(--fill); color: var(--ink); }
+  .as-selo-menu button .ic { color: transparent; }
+  .as-selo-menu button.on { color: var(--ink); }
+  .as-selo-menu button.on .ic { color: var(--verde); }
+
+  /* sem selo: o convite para por, sobre a pagina */
+  .as-visor .pdf-folha.pondo { cursor: crosshair; }
+  .as-adicionar {
+    position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 3; line-height: normal;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: default;
+  }
+  .as-adicionar button { box-shadow: 0 10px 24px -12px var(--sh-a12); }
+  .as-adicionar small, .as-nesta {
+    padding: 3px 10px; border-radius: 999px; background: var(--surf); border: 1px solid var(--ink-a1);
+    font: 500 11.5px var(--sans); color: var(--ink3); white-space: nowrap;
+  }
+  .as-nesta {
+    position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 3; line-height: normal;
+    display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12.5px; color: var(--ink2);
+  }
   .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 80px; }
 
   /* o painel de antes de assinar */
@@ -64,9 +114,24 @@
   .as-lista .ag-toggle .duas-linhas small { white-space: normal; }
   .as-lista .em-senha { margin-top: -2px; }
   .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--destaque-linha); border-radius: 10px; background: var(--destaque-fundo); display: grid; gap: 12px; }
-  .as-pronto.feito { border-color: var(--ink-a15); background: var(--okbg); }
+  .as-pronto.feito, .as-pronto.pronto, .as-pronto.quase { border-color: var(--ink-a15); background: var(--okbg); }
+  /* falta alguma coisa: neutro, sem cara de erro nem de "carregando" */
+  .as-pronto.falta { border-color: var(--ink-a15); background: var(--bg); }
+  .as-pronto.falta .as-pronto-cabeca .ic { color: var(--ink3); }
   .as-pronto-cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
   .as-pronto-cabeca .ic { color: var(--verde); }
+  .as-passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .as-passos li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); }
+  .as-passos li.feito .ic { color: var(--verde); }
+  .as-passos li.espera { color: var(--ink); font-weight: 600; }
+  .as-passos li.espera .ic { color: var(--destaque); }
+  .as-selo-coluna { padding: 0 18px 12px; }
+  .as-add-coluna { width: 100%; justify-content: center; }
+  .as-selo-linha { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; }
+  .as-selo-linha > .ic { color: var(--verde); flex: none; }
+  .as-selo-linha .duas-linhas { flex: 1; min-width: 0; }
+  .as-selo-linha .duas-linhas b { font-size: 13.5px; font-weight: 600; }
+  .as-selo-linha .duas-linhas small { white-space: normal; }
   .as-pronto-cabeca .contagem { margin-left: auto; }
   .as-pronto p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .as-pronto input[type=password] { width: 100%; max-width: 100%; box-sizing: border-box; border-radius: 8px; border-color: var(--ink-a15); background: var(--surf); }

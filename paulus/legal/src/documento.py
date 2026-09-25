@@ -104,7 +104,201 @@ def normalizar_formato(bruto) -> dict:
         "recuo_cm": _uma_das(bruto.get("recuo_cm"), RECUOS_CM, FORMATO_PADRAO["recuo_cm"]),
         "entrelinhas": _uma_das(bruto.get("entrelinhas"), ENTRELINHAS,
                                 FORMATO_PADRAO["entrelinhas"]),
+        "folha": normalizar_folha(bruto.get("folha")),
     }
+
+
+# ------------------------------------------------- a folha: timbre e rodape
+#
+# O que se desenha em volta do texto, em toda pagina: o cabecalho (o papel
+# timbrado), o rodape e o numero da pagina. E do documento, e nao do
+# escritorio inteiro: a peca protocolada sai timbrada, a minuta interna nao.
+#
+# "padrao" segue a chave de Configuracoes, como era antes de a folha existir:
+# documento que ninguem mexeu continua saindo igual.
+CABECALHOS = ("padrao", "escritorio", "proprio", "nenhum")
+RODAPES = ("titulo", "proprio", "nenhum")
+NUMERACOES = ("pagina", "pagina_de", "numero", "nenhuma")
+LADOS = ("esquerda", "centro", "direita")
+LINHAS_DO_CABECALHO = 4
+
+FOLHA_PADRAO = {
+    "cabecalho": "padrao",
+    "linhas": [],
+    "logo": True,
+    "alinhar": "centro",
+    "fio": True,
+    "rodape": "titulo",
+    "rodape_texto": "",
+    "numeracao": "pagina",
+    "numeracao_onde": "direita",
+}
+FORMATO_PADRAO["folha"] = FOLHA_PADRAO
+
+
+def normalizar_folha(bruto) -> dict:
+    """A folha pedida, reduzida ao que o PDF desenha. Fora da lista, o padrao."""
+    if not isinstance(bruto, dict):
+        bruto = {}
+
+    def uma(chave, opcoes):
+        valor = bruto.get(chave)
+        return valor if valor in opcoes else FOLHA_PADRAO[chave]
+
+    linhas = bruto.get("linhas")
+    if not isinstance(linhas, list):
+        linhas = []
+    linhas = [" ".join(str(x).split())[:130] for x in linhas][:LINHAS_DO_CABECALHO]
+    # Linha vazia no fim nao e linha: e o campo que a pessoa deixou em branco.
+    while linhas and not linhas[-1]:
+        linhas.pop()
+
+    return {
+        "cabecalho": uma("cabecalho", CABECALHOS),
+        "linhas": linhas,
+        "logo": bool(bruto.get("logo", FOLHA_PADRAO["logo"])),
+        "alinhar": uma("alinhar", LADOS),
+        "fio": bool(bruto.get("fio", FOLHA_PADRAO["fio"])),
+        "rodape": uma("rodape", RODAPES),
+        "rodape_texto": " ".join(str(bruto.get("rodape_texto") or "").split())[:110],
+        "numeracao": uma("numeracao", NUMERACOES),
+        "numeracao_onde": uma("numeracao_onde", LADOS),
+    }
+
+
+# O que a regra resolve sem modelo: e o grosso dos pedidos ("pagina 1 de 3",
+# "sem logo", "centralizado"), e responde na hora.
+_REGRAS_DA_FOLHA = (
+    (r"\bde\s+(y|n|total)\b|p[aá]gina\s*\w*\s*de\s*\w+|x\s*de\s*y", {"numeracao": "pagina_de"}),
+    (r"sem\s+numera|sem\s+n[uú]mero", {"numeracao": "nenhuma"}),
+    (r"s[oó]\s+o\s+n[uú]mero", {"numeracao": "numero"}),
+    (r"sem\s+(cabe[cç]alho|timbre)", {"cabecalho": "nenhum"}),
+    (r"sem\s+logo", {"logo": False}),
+    (r"com\s+(a\s+)?logo", {"logo": True}),
+    (r"sem\s+(o\s+)?(fio|linha|tra[cç]o)", {"fio": False}),
+    (r"sem\s+rodap[eé]", {"rodape": "nenhum"}),
+    # O lado do cabecalho so quando a frase fala do cabecalho: "numeracao no
+    # centro" nao pode centralizar o timbre. A virgula separa os assuntos.
+    (r"(timbre|cabe[cç]alho|logo)\s+[^.,]*\b(centraliz\w*|centrad\w*|no\s+centro)", {"alinhar": "centro"}),
+    (r"(timbre|cabe[cç]alho|logo)\s+[^.,]*\besquerda", {"alinhar": "esquerda"}),
+    (r"(timbre|cabe[cç]alho|logo)\s+[^.,]*\bdireita", {"alinhar": "direita"}),
+    (r"n[uú]mer\w*\s+[^.]*\b(no\s+)?centro", {"numeracao_onde": "centro"}),
+    (r"n[uú]mer\w*\s+[^.]*\besquerda", {"numeracao_onde": "esquerda"}),
+)
+
+
+def sugerir_folha(pedido: str, atual: dict, escritorio: list[str], titulo: str,
+                   perguntar=None) -> dict:
+    """
+    A folha que o pedido descreve, partindo da atual. Nao grava: a tela mostra
+    e a pessoa aplica.
+
+    A regra resolve o que e escolha (numeracao, alinhamento, logo). O modelo
+    so escreve texto - as linhas do cabecalho e o rodape - e so com os dados
+    que o escritorio ja cadastrou: linha com numero que nao esta nos dados nem
+    no pedido e descartada, porque OAB e telefone inventados num timbre sao
+    piores que timbre nenhum.
+    """
+    import re as _re
+
+    folha = dict(normalizar_folha(atual))
+    baixo = pedido.lower()
+    feitas = []
+    for padrao, mudanca in _REGRAS_DA_FOLHA:
+        if _re.search(padrao, baixo):
+            folha.update(mudanca)
+            feitas.append(mudanca)
+
+    quer_texto = _re.search(r"cabe[cç]alho|timbr|rodap[eé]|escrev|slogan|frase|nome|endere|contato|site|telefone|e-?mail|oab", baixo)
+    nota = ""
+    if quer_texto and perguntar:
+        dados = "\n".join(escritorio) or "(nenhum dado profissional cadastrado)"
+        sistema = ("Você monta o papel timbrado de documentos de um escritório de advocacia brasileiro. "
+                   "Use SOMENTE os dados fornecidos; nunca invente número de OAB, CPF, telefone, endereço ou e-mail.")
+        instrucao = (f"Dados do escritório:\n{dados}\n\nTítulo do documento: {titulo}\n\n"
+                     f"Pedido: {pedido}\n\nEscreva o cabeçalho (até 4 linhas curtas; a primeira é o nome, em destaque) "
+                     "e, se o pedido falar de rodapé, um texto curto para o rodapé.")
+        esquema = '{"linhas": ["linha 1", "linha 2"], "rodape_texto": ""}'
+        try:
+            r = perguntar(instrucao, sistema, esquema)
+        except Exception:
+            r = None
+        if isinstance(r, dict):
+            fonte = (dados + " " + pedido).replace(" ", "")
+            linhas = []
+            for linha in r.get("linhas") or []:
+                linha = " ".join(str(linha).split())
+                numeros = _re.findall(r"\d[\d.\-/]{2,}", linha)
+                if linha and all(n.replace(" ", "") in fonte for n in numeros):
+                    linhas.append(linha)
+            if linhas:
+                folha["cabecalho"] = "proprio"
+                folha["linhas"] = linhas[:LINHAS_DO_CABECALHO]
+            rodape = " ".join(str(r.get("rodape_texto") or "").split())
+            if rodape and _re.search(r"rodap[eé]", baixo) and "sem rodap" not in baixo:
+                folha["rodape"] = "proprio"
+                folha["rodape_texto"] = rodape
+        else:
+            nota = "o modelo não respondeu; apliquei só o que a regra entende"
+    elif quer_texto and not folha["linhas"] and escritorio:
+        folha["cabecalho"] = "proprio"
+        folha["linhas"] = escritorio[:LINHAS_DO_CABECALHO]
+
+    return {"folha": normalizar_folha(folha), "regras": len(feitas), "nota": nota}
+
+
+def texto_do_rodape(folha: dict, titulo: str) -> str:
+    """O texto do rodape desta folha: o titulo, o que a pessoa escreveu ou nada."""
+    folha = normalizar_folha(folha)
+    if folha["rodape"] == "nenhum":
+        return ""
+    if folha["rodape"] == "proprio":
+        return folha["rodape_texto"]
+    return titulo or ""
+
+
+def numero_da_pagina(numeracao: str, pagina: int, total: int = 0) -> str:
+    """Como o numero aparece: 'página 2', 'página 2 de 5', '2' ou nada."""
+    if numeracao == "nenhuma":
+        return ""
+    if numeracao == "numero":
+        return str(pagina)
+    if numeracao == "pagina_de" and total:
+        return f"página {pagina} de {total}"
+    return f"página {pagina}"
+
+
+def desenho_da_folha(timbre: dict | None, formato, titulo: str = "") -> dict:
+    """
+    O que o editor desenha em volta do texto em cada pagina da tela: as linhas
+    do cabecalho ja resolvidas, se ha logo, o rodape e as medidas. E a mesma
+    conta do PDF, para a folha na tela ser a folha impressa.
+    """
+    folha = normalizar_formato(formato)["folha"]
+    linhas = _linhas_do_timbre(timbre) if timbre else []
+    return {
+        "linhas": linhas,
+        "logo": bool(linhas and timbre and _logo_do_timbre(timbre)),
+        "logo_cm": LOGO_ALTURA_CM,
+        "alinhar": folha["alinhar"],
+        "fio": folha["fio"],
+        "rodape": texto_do_rodape(folha, titulo),
+        "numeracao": folha["numeracao"],
+        "numeracao_onde": folha["numeracao_onde"],
+        **medidas_da_folha(timbre if linhas else None),
+    }
+
+
+def medidas_da_folha(timbre: dict | None) -> dict:
+    """
+    Onde o texto comeca e termina na folha, em centimetros - o que o editor
+    precisa para desenhar as paginas na tela no mesmo lugar que o PDF.
+    """
+    from reportlab.lib.units import cm
+
+    alto = _altura_do_timbre(timbre) / cm if timbre else 0
+    return {"largura_cm": 21.0, "altura_cm": 29.7, "margem_cm": MARGEM_CM,
+            "topo_cm": round(MARGEM_CM + alto, 3), "base_cm": MARGEM_CM}
 
 
 ALINHAMENTOS = {
@@ -615,7 +809,7 @@ def _celula_pdf(texto: str, estilo):
     return Paragraph(escape(texto) or "&nbsp;", estilo)
 
 
-def _construir(classe, blocos, titulo, rodape, timbre, formato):
+def _construir(classe, blocos, titulo, rodape, timbre, formato, total=0):
     """A folha montada uma vez so, para quem quiser os bytes ou as paginas."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -634,7 +828,7 @@ def _construir(classe, blocos, titulo, rodape, timbre, formato):
         topMargin=MARGEM_CM * cm + alto, bottomMargin=MARGEM_CM * cm,
         title=titulo or "Documento", author="PAULUS",
     )
-    desenhar = _decorar(rodape, timbre, formato)
+    desenhar = _decorar(rodape, timbre, formato, total)
     doc.build(_montar_fluxo(blocos, estilos, formato),
               onFirstPage=desenhar, onLaterPages=desenhar)
     return saida, doc
@@ -651,7 +845,13 @@ def para_pdf(blocos: list[Bloco], titulo: str = "", rodape: str = "",
     """
     from reportlab.platypus import SimpleDocTemplate
 
-    saida, _ = _construir(SimpleDocTemplate, blocos, titulo, rodape, timbre, formato)
+    total = 0
+    if normalizar_formato(formato)["folha"]["numeracao"] == "pagina_de":
+        # "pagina 2 de 5" precisa do 5 antes de desenhar a pagina 1: monta uma
+        # vez para contar. O rodape nao muda a altura util, entao a conta vale.
+        _, rascunho = _construir(SimpleDocTemplate, blocos, titulo, rodape, timbre, formato)
+        total = rascunho.page
+    saida, _ = _construir(SimpleDocTemplate, blocos, titulo, rodape, timbre, formato, total)
     return saida.getvalue()
 
 
@@ -759,7 +959,13 @@ def _linhas_do_timbre(timbre: dict) -> list[str]:
 
     Nada de rotulo vazio: um timbre com "OAB:" e nada depois e pior que um
     timbre sem OAB.
+
+    Timbre com "linhas" e o que a pessoa escreveu na folha do documento: vai
+    como esta, a primeira linha em destaque.
     """
+    if isinstance(timbre.get("linhas"), list):
+        return [str(x).strip() for x in timbre["linhas"] if str(x).strip()][:LINHAS_DO_CABECALHO]
+
     nome = str(timbre.get("nome", "")).strip()
     if not nome:
         return []
@@ -777,14 +983,30 @@ def _linhas_do_timbre(timbre: dict) -> list[str]:
     return [x for x in (nome, segunda, terceira) if x]
 
 
-def _decorar(rodape: str, timbre: dict | None, formato: dict | None = None):
+def _escrever_alinhado(canvas, lado: str, y: float, texto: str) -> None:
+    """Uma linha na largura util, do lado pedido."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+
+    if lado == "esquerda":
+        canvas.drawString(MARGEM_CM * cm, y, texto)
+    elif lado == "direita":
+        canvas.drawRightString(A4[0] - MARGEM_CM * cm, y, texto)
+    else:
+        canvas.drawCentredString(A4[0] / 2, y, texto)
+
+
+def _decorar(rodape: str, timbre: dict | None, formato: dict | None = None, total: int = 0):
     """Numero de pagina no rodape, e o timbre no alto quando ha um."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
 
-    fonte = FONTES[normalizar_formato(formato)["fonte"]]
+    formato = normalizar_formato(formato)
+    folha = formato["folha"]
+    fonte = FONTES[formato["fonte"]]
     linhas = _linhas_do_timbre(timbre) if timbre else []
-    numerar = _numerar(rodape, fonte["pdf"])
+    numerar = _numerar(rodape, fonte["pdf"], folha, total)
+    lado = folha["alinhar"]
 
     logo = _logo_do_timbre(timbre) if timbre else None
 
@@ -793,29 +1015,32 @@ def _decorar(rodape: str, timbre: dict | None, formato: dict | None = None):
             canvas.saveState()
             topo = A4[1] - MARGEM_CM * cm
             if logo:
-                topo = _desenhar_logo(canvas, logo, topo)
+                topo = _desenhar_logo(canvas, logo, topo, lado)
             canvas.setFillGray(0.1)
             canvas.setFont(fonte["pdf_negrito"], 12)
-            canvas.drawCentredString(A4[0] / 2, topo - 0.3 * cm, linhas[0][:90])
+            _escrever_alinhado(canvas, lado, topo - 0.3 * cm, linhas[0][:90])
 
             canvas.setFont(fonte["pdf"], 8.5)
             canvas.setFillGray(0.35)
             for i, linha in enumerate(linhas[1:], start=1):
-                canvas.drawCentredString(
-                    A4[0] / 2, topo - 0.3 * cm - (0.62 + LINHA_TIMBRE_CM * (i - 1)) * cm,
+                _escrever_alinhado(
+                    canvas, lado, topo - 0.3 * cm - (0.62 + LINHA_TIMBRE_CM * (i - 1)) * cm,
                     linha[:130])
 
-            fio = topo - _altura_do_timbre(timbre) + 0.3 * cm
-            canvas.setStrokeGray(0.75)
-            canvas.setLineWidth(0.6)
-            canvas.line(MARGEM_CM * cm, fio, A4[0] - MARGEM_CM * cm, fio)
+            if folha["fio"]:
+                fio = topo - _altura_do_timbre(timbre) + 0.3 * cm
+                if logo:
+                    fio += (LOGO_ALTURA_CM + LOGO_FOLGA_CM) * cm
+                canvas.setStrokeGray(0.75)
+                canvas.setLineWidth(0.6)
+                canvas.line(MARGEM_CM * cm, fio, A4[0] - MARGEM_CM * cm, fio)
             canvas.restoreState()
         numerar(canvas, doc)
 
     return desenhar
 
 
-def _desenhar_logo(canvas, caminho, topo: float) -> float:
+def _desenhar_logo(canvas, caminho, topo: float, lado: str = "centro") -> float:
     """
     A logo centrada no alto, e o novo topo para o texto do timbre.
 
@@ -840,23 +1065,40 @@ def _desenhar_logo(canvas, caminho, topo: float) -> float:
     if largura > limite:
         altura *= limite / largura
         largura = limite
-    canvas.drawImage(imagem, (A4[0] - largura) / 2, topo - altura, width=largura,
+    if lado == "esquerda":
+        x = MARGEM_CM * cm
+    elif lado == "direita":
+        x = A4[0] - MARGEM_CM * cm - largura
+    else:
+        x = (A4[0] - largura) / 2
+    canvas.drawImage(imagem, x, topo - altura, width=largura,
                      height=altura, mask="auto")
     return topo - altura - LOGO_FOLGA_CM * cm
 
 
-def _numerar(rodape: str, fonte: str = "Times-Roman"):
-    """Numero de pagina no rodape, como todo documento juridico tem."""
-    from reportlab.lib.pagesizes import A4
+def _numerar(rodape: str, fonte: str = "Times-Roman", folha: dict | None = None,
+             total: int = 0):
+    """
+    Numero de pagina no rodape, como todo documento juridico tem.
+
+    O texto do rodape fica a esquerda; se o numero pedir a esquerda, o texto
+    passa para a direita - os dois no mesmo canto se atropelariam.
+    """
     from reportlab.lib.units import cm
+
+    folha = normalizar_folha(folha)
+    onde = folha["numeracao_onde"]
+    lado_do_texto = "direita" if onde == "esquerda" else "esquerda"
 
     def desenhar(canvas, doc):
         canvas.saveState()
         canvas.setFont(fonte, 8.5)
         canvas.setFillGray(0.4)
         if rodape:
-            canvas.drawString(MARGEM_CM * cm, 1.4 * cm, rodape[:110])
-        canvas.drawRightString(A4[0] - MARGEM_CM * cm, 1.4 * cm, f"página {doc.page}")
+            _escrever_alinhado(canvas, lado_do_texto, 1.4 * cm, rodape[:110])
+        numero = numero_da_pagina(folha["numeracao"], doc.page, total)
+        if numero:
+            _escrever_alinhado(canvas, onde, 1.4 * cm, numero)
         canvas.restoreState()
 
     return desenhar
@@ -1237,6 +1479,10 @@ class Documentos:
         """
         import json
 
+        # Quem troca so a fonte (a barra, o painel antigo de Folha) nao manda a
+        # folha: sem isto, trocar o corpo apagaria o timbre do documento.
+        if isinstance(pedido, dict) and "folha" not in pedido:
+            pedido = {**pedido, "folha": self.formato(id_)["folha"]}
         limpo = normalizar_formato(pedido)
         mexeu = self.base.escrever(
             "UPDATE documentos SET formato = ?, "

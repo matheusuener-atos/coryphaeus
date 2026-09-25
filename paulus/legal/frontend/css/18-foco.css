@@ -1,81 +1,104 @@
   /* ------------------------------------------------ foco e bem-estar (A12) */
   /*
-    Foco e bem-estar (docs/ui/03-telas-desktop.md, A12): Hoje e Semana, com
-    o painel fixo sem alca. Prefixo be-.
+    Foco e bem-estar (docs/ui/03-telas-desktop.md, A12): Hoje e Semana numa
+    coluna so, na largura util. Em cima, o ciclo e os lembretes lado a lado;
+    embaixo, os cartoes do dia. Prefixo be-.
   */
-  .be-tela.acervo { grid-template-columns: minmax(0, 1fr) 380px; }
-  .be-grade { flex: 1; min-height: 420px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; }
-  .be-grade.semana { grid-template-rows: minmax(0, 1.3fr) auto; grid-template-columns: minmax(0, 1fr); }
-  /* HOJE: o relogio solto em cima - sem cartao, como a abertura de uma
-     pagina - e, embaixo, o cartao dos lembretes com o resto da altura. */
-  .be-hoje { display: flex; flex-direction: column; gap: 14px; }
-  .be-hoje > .fin-cartao { flex: none; }
-  /* Sem fio entre o relogio e o cartao: o cartao ja se separa sozinho. */
-  .be-relogio { flex: none; display: flex; align-items: center; gap: 28px; padding: 2px 4px 10px; }
-  .be-relogio-lado { flex: 1; min-width: 0; max-width: 560px; display: grid; gap: 12px; }
-  .be-relogio-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .be-relogio-topo h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
+  .be-tela.acervo { grid-template-columns: minmax(0, 1fr); }
+  .be-tela .acervo-principal { overflow-y: auto; gap: 16px; }
+  .be-tela .fin-cartao { flex: none; }
+
+  /* A linha de baixo: o que era a coluna, em tres cartoes iguais. */
+  .be-cartoes { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+  .be-cartoes .fin-cartao { display: flex; flex-direction: column; }
+
+  /* HOJE: o relogio no centro, solto, como a abertura de uma pagina. */
+  .be-relogio { flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 4px 0 2px; }
   .be-relogio .be-meta { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .be-relogio .be-botoes { justify-content: flex-start; }
-  .be-relogio .cfg-liga { width: 100%; }
-  .be-anel {
-    position: relative; width: 176px; height: 176px; flex: none; border-radius: 50%;
-    background: conic-gradient(var(--ink) 0 var(--be-p), var(--fill2) var(--be-p) 100%);
+  /* A barra do ciclo: os botoes a esquerda, as escolhas a direita. */
+  .be-controles {
+    flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: 0 8px 24px -16px var(--sh-a12);
   }
-  .be-anel.pausa { background: conic-gradient(var(--verde) 0 var(--be-p), var(--fill2) var(--be-p) 100%); }
-  .be-anel.parado { background: conic-gradient(var(--fill2) 0 100%, var(--fill2) 0 100%); }
-  .be-anel > div { position: absolute; inset: 8px; border-radius: 50%; background: var(--surf); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-  .be-tempo { font: 600 36px/1 var(--sans); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
-  .be-fase { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-controles .be-botoes { justify-content: flex-start; }
+  .be-campos { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+  .be-campo { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px 0 12px; border: 1px solid var(--hair); border-radius: 8px; cursor: pointer; }
+  .be-campo small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .be-campo select, .be-campo .escolha-botao {
+    width: auto; min-width: 0; max-width: 260px; padding: 4px 2px; border: none; background: transparent;
+    font: 600 13.5px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  /* Os numeros soltos na pagina, sem moldura, e a barra de progresso deitada
+     embaixo, na largura toda. */
+  .be-mostrador { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0 2px; }
+  /* Sete segmentos em SVG (21-foco.js, mostradorDigital): cada digito com
+     largura fixa, levemente inclinado como num relogio digital, e os
+     segmentos apagados quase sumindo no fundo. */
+  .be-tempo { display: inline-flex; align-items: center; gap: 12px; height: 92px; padding: 0 6px; transform: skewX(-6deg); color: var(--ink); }
+  .be-tempo svg { height: 100%; width: auto; overflow: visible; }
+  .be-tempo polygon, .be-tempo circle { fill: currentColor; transition: opacity .15s ease; }
+  .be-tempo polygon.apagado { opacity: .07; }
+  .be-fase { font: 600 11.5px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  .be-progresso { align-self: stretch; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
+  .be-progresso i { display: block; width: var(--be-p, 0%); height: 100%; border-radius: 3px; background: var(--ink); transition: width .6s linear; }
+  .be-anel.pausa .be-progresso i { background: var(--verde); }
+  .be-anel.pausa .be-tempo { color: var(--verde); }
   .be-botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .be-botoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; white-space: nowrap; }
-  .be-ajustes { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .be-ajustes .be-tarefa { grid-column: 1 / -1; }
-  /* Fora do cartao, o campo precisa do proprio fio: sobre o fundo da pagina
-     o recuo sozinho sumia. */
-  .be-ajustes div { padding: 9px 12px; background: var(--surf); border: 1px solid var(--hair); border-radius: 10px; display: grid; gap: 2px; }
-  .be-ajustes small { font: 500 12px var(--sans); color: var(--ink3); }
-  .be-ajustes select, .be-ajustes .escolha-botao { width: 100%; max-width: none; min-width: 0; padding: 4px 0; border: none; background: transparent; font: 600 14px var(--sans); color: var(--ink); cursor: pointer; }
-  .be-tarefa { width: 100%; }
-  .be-dica { margin: 0; padding: 0 18px 14px; font: 500 12.5px/1.55 var(--sans); color: var(--ink3); }
-  .be-lembretes { flex: 1; min-height: 0; overflow: auto; }
-  .be-lembrete { display: flex; align-items: center; gap: 12px; padding: 7px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
+
+  /* Os lembretes: marca, nome, Feito e o interruptor na mesma linha. */
+  .be-lembretes { min-height: 0; }
+  .be-lembrete { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 7px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
   .be-lembrete:last-child { border-bottom: none; }
   .be-lembrete.atrasado { background: var(--accbg2); }
   .be-lembrete.desligado .duas-linhas b, .be-lembrete.desligado .duas-linhas small { color: var(--ink3); }
-  .be-marca { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); flex: none; box-sizing: border-box; }
+  /* O circulo de marcar: clicar registra o feito; marcado fica verde ate
+     vencer o proximo intervalo. */
+  .be-lembrete .be-marca {
+    width: 18px; height: 18px; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+    padding: 0; border: 1.5px solid var(--ink-a3); border-radius: 50%; background: none; cursor: pointer;
+  }
+  .be-lembrete button.be-marca:hover:not(:disabled) { border-color: var(--ink); background: var(--fill); }
+  .be-lembrete button.be-marca:disabled { cursor: default; opacity: .5; }
   .be-lembrete.atrasado .be-marca { border-color: var(--acc); }
-  .be-lembrete .ic { color: var(--verde); flex: none; }
+  .be-lembrete .be-marca.on { border-color: var(--verde); background: var(--verde); cursor: default; }
+  /* Em "Ajustar", o circulo so guarda o lugar: o texto nao pula. */
+  .be-lembrete .be-marca.vaga { visibility: hidden; }
+  .be-lembrete .be-marca.on .ic { color: var(--surf); }
+  .be-lembrete .duas-linhas { flex: 1; min-width: 0; }
   .be-lembrete .duas-linhas b { font-weight: 500; }
+  .be-lembrete .duas-linhas small { font-size: 12px; }
   .be-lembrete .duas-linhas small.acc { color: var(--acc); }
   .be-lembrete button { padding: 4px 10px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
-  .be-lembrete .duas-linhas small { font-size: 12px; }
   .be-lembrete button.primario { font-weight: 600; }
-  .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-lembrete .botao-icone { width: 26px; height: 26px; padding: 0; }
+  .be-lembrete .interruptor-min { flex: none; cursor: pointer; }
+  .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-rodape button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; font: 500 12.5px var(--sans); }
+  .be-form { padding: 14px 16px; }
+  .be-avisos { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; color: var(--ink2); }
+  .be-rodape .be-avisos .interruptor-min { flex: none; }
+  .be-avisos:hover { color: var(--ink); }
 
-  /* o painel de hoje */
-  .be-painel .fin-bloco-cabeca { padding: 14px 18px 10px; }
-  .be-ritmo { padding: 0 18px 12px; display: grid; gap: 12px; }
-  .be-horas { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; align-items: end; height: 90px; border-bottom: 1px solid var(--ink-a1); }
+  /* Os cartoes do dia. */
+  .be-ritmo { padding: 14px 16px; display: grid; gap: 10px; }
+  .be-horas { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; align-items: end; height: 72px; border-bottom: 1px solid var(--ink-a1); }
   .be-horas span { display: block; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--ink); }
   .be-horas span.agora { background: var(--destaque); }
   .be-horas span.vazia { background: var(--fill2); }
   .be-horas-rotulos { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); text-align: center; font: 500 11px var(--sans); color: var(--ink3); }
   .be-ritmo p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .be-sugestao { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; }
+  .be-chaves { padding: 4px 16px 8px; }
+  .be-sugestao { flex: 1; display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; }
   .be-sugestao > .ic { color: var(--ink2); flex: none; }
-  .be-sugestao > span { display: grid; gap: 6px; font-size: 13.5px; line-height: 1.5; }
+  .be-sugestao > span { display: grid; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
   .be-sugestao .fin-pede-acoes { padding-top: 0; }
-  .be-painel .painel-bloco .cfg-liga { padding: 2px 0; }
 
-  /* A SEMANA. O grafico sai do cartao e ocupa a largura: sete barras
-     deitadas e finas, o dia a esquerda e o numero a direita. */
-  .be-semana-tela { display: flex; flex-direction: column; gap: 14px; }
-  .be-semana-tela > .fin-cartao { flex: none; }
-  .be-semana { display: grid; gap: 12px; padding: 2px 4px 14px; }
-  .be-semana-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .be-semana-topo h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
-  .be-semana .be-meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  /* A SEMANA. O ciclo em cima, como em Hoje; o grafico e os habitos lado a
+     lado; o parecer embaixo, na largura toda. */
+  .be-semana-tela { display: flex; flex-direction: column; gap: 16px; }
+  .be-duas { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+  .be-semana { display: grid; gap: 12px; padding: 14px 16px; }
   .be-barras { display: grid; gap: 6px; }
   .be-barra { display: grid; grid-template-columns: 52px minmax(0, 1fr) 130px; align-items: center; gap: 12px; font-size: 13px; }
   .be-barra > span { color: var(--ink2); }
@@ -89,6 +112,8 @@
   .be-semana-somas div { padding: 9px 12px; background: var(--surf); border: 1px solid var(--hair); border-radius: 10px; display: grid; gap: 2px; }
   .be-semana-somas small { font: 500 12px var(--sans); color: var(--ink3); }
   .be-semana-somas b { font: 600 15px var(--sans); font-variant-numeric: tabular-nums; }
+  .be-parecer .fin-parecer { padding: 14px 16px 6px; }
+  .be-sugestoes { padding: 0 16px 12px; }
   .be-habitos { padding: 4px 16px 10px; display: grid; }
   .be-habito { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(7, 18px) minmax(0, 1fr); gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13px; }
   .be-habito:last-child { border-bottom: none; }
@@ -99,13 +124,6 @@
   .be-habito small { font: 500 12.5px var(--sans); color: var(--ink3); text-align: right; }
   .be-habito.adiante > span:first-child { color: var(--ink3); }
 
-  /* ajustar lembretes, no painel */
-  .be-painel .painel-cabeca h3 { font: 600 14px var(--sans); letter-spacing: 0; }
-  .be-painel .fin-painel-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
-  .be-editor { padding: 0 18px 12px; display: grid; gap: 8px; }
-  .be-editor-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
-  .be-editor-linha:last-child { border-bottom: none; }
-  .be-editor-linha .duas-linhas b { font-weight: 500; }
-  .be-editor-linha button { padding: 4px 9px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
-  .be-editor-linha .botao-icone { width: 24px; height: 24px; padding: 0; }
-
+  @media (max-width: 1180px) {
+    .be-cartoes, .be-duas { grid-template-columns: minmax(0, 1fr); }
+  }

@@ -137,9 +137,12 @@
     flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
   }
+  /* Na cor do cartao, e nao na do fundo da pagina: no tema escuro a barra
+     virava uma faixa mais escura no topo de cada tabela. As telas refeitas
+     (Servicos, Gravacoes) ja trocavam isso uma a uma; agora e o padrao. */
   .tabela-barra {
     flex: none; display: flex; align-items: center; gap: 8px; min-height: 49px;
-    padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); background: var(--bg); white-space: nowrap;
+    padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); background: var(--surf); white-space: nowrap;
   }
   .tabela-barra .selecao { display: flex; align-items: center; gap: 12px; font: 600 13px var(--sans); margin-right: 4px; flex: none; }
   .tabela-barra .limpar { border: none; background: none; padding: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
@@ -324,32 +327,48 @@
 
   /* Organizar, o seletor em arvore: recuo por nivel, a seta so onde ha o
      que abrir, a caixinha de marcar das listas. */
-  .arv-no { gap: 6px; padding-left: calc(8px + var(--nivel, 0) * 22px); }
+  .nav-item.arv-no { gap: 6px; padding-left: calc(8px + var(--nivel, 0) * 22px); }
   .arv-no .corta { flex: 0 1 auto; min-width: 0; }
   .arv-no.marcada { color: var(--ink); }
   .arv-no .marcar { margin-right: 4px; cursor: pointer; }
   .arv-no .marcar.herdada { opacity: .45; }
-  .arv-seta {
+  .nav-item > .arv-seta {
     flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
     padding: 0; border: none; border-radius: 4px; background: none; color: var(--ink3); cursor: pointer;
   }
-  .arv-seta:hover:not(:disabled) { border: none; background: var(--fill); color: var(--ink); }
+  .nav-item > .arv-seta:hover:not(:disabled) { border: none; background: var(--fill); color: var(--ink); }
   .arv-vazio { padding: 8px 12px 8px calc(64px + var(--nivel, 0) * 22px); }
 
   /* Organizar, o painel: onde procuro, o plano e o pronto para mover. */
   .org-largo { width: 100%; justify-content: center; }
   .org-nota { font: 500 12px/1.45 var(--sans); color: var(--ink3); }
   .org-nota:empty { display: none; }
-  .org-raizes { display: grid; }
-  .org-raiz { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); }
-  .org-raiz:last-child { border-bottom: none; }
-  .org-raiz > .ic { flex: none; color: var(--ink3); }
-  .org-raiz .duas-linhas { flex: 1; min-width: 0; display: grid; gap: 1px; }
-  .org-raiz b { font: 600 13.5px var(--sans); }
-  .org-raiz small { font: 500 11.5px var(--sans); color: var(--ink3); }
-  .org-tirar { flex: none; display: flex; padding: 4px; border: none; border-radius: 6px; background: none; color: var(--ink3); }
-  .org-tirar:hover:not(:disabled) { border: none; background: var(--fill); color: var(--ink); }
-  .org-onde .sv-ligacao { justify-self: start; }
+  /* O pedido foi para a fila: confirmacao de verdade, no meio do cartao. */
+  .org-confirma { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 36px 24px; text-align: center; }
+  .org-confirma-selo {
+    display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 50%;
+    background: var(--verde); color: var(--surf); box-shadow: 0 0 0 8px color-mix(in srgb, var(--verde) 16%, transparent);
+    animation: org-selo .5s cubic-bezier(.2,.9,.3,1.3) both;
+  }
+  @keyframes org-selo { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+  .org-confirma h3 { margin: 4px 0 0; font: 600 20px/1.3 var(--sans); color: var(--ink); }
+  .org-confirma > p { margin: 0; max-width: 520px; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .org-confirma-passos {
+    list-style: none; margin: 4px 0 0; padding: 12px 16px; display: grid; gap: 8px; min-width: 340px; text-align: left;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg);
+  }
+  .org-confirma-passos li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink); }
+  .org-confirma-passos li.feito .ic { color: var(--verde); }
+  .org-confirma-passos li.espera { color: var(--ink2); font-weight: 600; }
+  .org-confirma-passos li.espera .ic { color: var(--destaque); }
+  .org-confirma-acoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+  .org-confirma-acoes button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; }
+  .org-confirma > small { font: 500 12.5px var(--sans); color: var(--ink3); }
+
+  /* O rodape da arvore: as pastas marcadas e o procurar, lado a lado. */
+  .org-onde { flex-wrap: wrap; }
+  .org-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .org-onde .chip-pasta { color: var(--ink); }
   .org-plano { display: grid; gap: 10px; }
   .org-plano-grupo { display: grid; gap: 2px; }
   .org-plano-topo, .org-plano-folha { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; }

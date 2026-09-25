@@ -67,6 +67,9 @@ PADRAO: dict = {
     # Organizar moveu documentos. Sem isso, o que foi organizado sumia da
     # tela Documentos - estava no disco, mas fora do que o indice le.
     "pastas_acervo": [],
+    # Avisos do Windows (src/avisos.py): a notificacao do canto da tela e o
+    # botao piscando na barra de tarefas, para lembretes e ciclo de foco.
+    "avisos_windows": True,
     "modelo": "",
     "devagar": False,
     "autonomia": {a["chave"]: a["padrao"] for a in AUTONOMIA},

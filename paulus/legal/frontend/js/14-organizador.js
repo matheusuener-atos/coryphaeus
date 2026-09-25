@@ -22,6 +22,7 @@ function usarHabilidade(acao) {
 const org = {
   raizes: [], tipos: [], docs: [], selecao: new Set(), padroes: [], padrao: "", destino: "",
   fase: 0, plano: null, encontrados: null, escolhidos: new Set(), resultado: null, parado: false,
+  operacao: "mover",   // "mover" tira da pasta de origem; "copiar" deixa o original
   semPedir: false,
 };
 
@@ -38,7 +39,7 @@ function fitaOrg(feitos, total) {
     org.raizes.length ? plural(org.raizes.length, "pasta") : "",
     org.fase === 1 && total ? (feitos || 0) + " de " + total : (org.docs.length ? plural(org.docs.length, "doc") : ""),
     org.fase === 2 ? "agora" : (org.fase > 2 && org.selecao.size ? plural(org.selecao.size, "marcado") : ""),
-    org.fase === 3 ? "agora" : (org.fase > 3 ? "feito" : ""),
+    org.fase === 3 ? (org.pedido ? "aprovação" : "agora") : (org.fase > 3 ? "feito" : ""),
   ];
   // O anel so gira quando e a maquina que trabalha (ler, mover). Nas fases
   // em que a pessoa decide, o marcador e parcial, sem movimento.
@@ -52,30 +53,21 @@ function fitaOrg(feitos, total) {
   }).join("") + "</div>";
 }
 
-/* Onde procuro, no painel: as pastas escolhidas, uma por linha, e - na
-   primeira fase - o botao de procurar logo embaixo delas. */
+/* Onde procuro, no rodape da arvore: as pastas marcadas, cada uma com o x
+   para tirar, e o botao de procurar ao lado - junto de onde se marca. A
+   coluna fica so com o que diz como as pastas vao ficar. */
 function ondeProcuro() {
   const n = org.raizes.length;
-  // Depois de ler, as pastas ficam so para lembrar de onde veio; sem elas
-  // (o fim do fluxo aberto pela fila, noutra sessao) o bloco nao diz nada.
-  if (org.fase >= 2 && !n) return '<div id="org-onde"></div>';
-  // Tirar so antes de procurar: depois, a lista do cartao ja veio delas.
-  const tirar = org.fase === 0;
-  const linhas = n
-    ? '<div class="org-raizes">' + org.raizes.map((c, i) => {
+  const chips = n
+    ? org.raizes.map((c, i) => {
         const nome = c.split(/[\\/]/).filter(Boolean).pop() || c;
-        return '<div class="org-raiz">' + ic("folder", 16) +
-          '<span class="duas-linhas"><b class="corta">' + esc(nome) + '</b><small class="corta" title="' + esc(c) + '">' + esc(c) + "</small></span>" +
-          (tirar ? '<button class="org-tirar" data-tirar-raiz="' + i + '" title="Tirar esta pasta" aria-label="Tirar esta pasta">' + ic("close", 14) + "</button>" : "") + "</div>";
-      }).join("") + "</div>"
-    : "<p>Nenhuma pasta ainda. Marque na árvore as pastas onde devo procurar.</p>";
-  const acao = org.fase === 0
-    ? '<button class="primario com-icone org-largo" id="org-varrer"' + (n ? "" : " disabled") + ">" + ic("search", 16) + "Procurar documentos</button>" +
-      '<small class="org-nota" id="org-nota"></small>'
-    : (org.fase === 1 ? '<button class="sv-ligacao" data-outras="1">' + ic("add", 15) + "incluir outra pasta</button>" : "");
-  return '<div class="painel-bloco org-onde" id="org-onde"><div class="painel-bloco-cabeca"><span>Onde eu procuro</span>' +
-    '<span class="contagem">' + (n ? plural(n, "pasta") : "") + "</span></div>" + linhas + acao +
-    '<small class="org-nota">Não entro em pastas do sistema nem de programas.</small></div>';
+        return '<span class="chip-pasta" title="' + esc(c) + '">' + ic("folder", 16) + "<span>" + esc(nome) + "</span>" +
+          '<button data-tirar-raiz="' + i + '" title="Tirar esta pasta" aria-label="Tirar esta pasta">' + ic("close", 14) + "</button></span>";
+      }).join("")
+    : "<span>nenhuma pasta marcada</span>";
+  return '<div class="tabela-rodape org-onde" id="org-onde"><span class="org-chips">' + chips + "</span>" +
+    '<small class="org-nota" id="org-nota"></small>' +
+    '<button class="primario com-icone" id="org-varrer"' + (n ? "" : " disabled") + ">" + ic("search", 16) + "Procurar documentos</button></div>";
 }
 
 /* A tela inteira: a fita e o cartao da fase de um lado, o painel do outro. */
@@ -106,16 +98,13 @@ function ligarOnde() {
       desenharArvore();
     };
   });
-  document.querySelectorAll("[data-outras]").forEach((b) => {
-    b.onclick = () => { org.fase = 0; passoOnde(); };
-  });
   const varrer = $("org-varrer");
   if (varrer) varrer.onclick = organizarVarrer;
 }
 
 function limparOrg() {
   org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null;
-  org.parado = false; org.encontrados = null; org.escolhidos = new Set();
+  org.parado = false; org.encontrados = null; org.escolhidos = new Set(); org.pedido = null;
 }
 
 /* `manter` abre a tela sem zerar o que ja foi feito: e por onde a fila de
@@ -128,10 +117,7 @@ async function organizarComecar(manter) {
   if (!manter) { estado.trabalhoId = null; estado.trabalho = null; }
   $("conversa-meta").textContent = "nada foi movido ainda";
 
-  const [o, pr] = await Promise.all([
-    fetch("/api/organizar/opcoes").then((r) => r.json()),
-    fetch("/api/preferencias").then((r) => r.json()).catch(() => null),
-  ]);
+  const o = await (await fetch("/api/organizar/opcoes")).json();
   org.tipos = o.tipos;
   org.padroes = o.padroes;
   if (!manter || !org.padrao) org.padrao = (o.padroes[0] || {}).padrao || "";
@@ -139,7 +125,7 @@ async function organizarComecar(manter) {
   org.diarios = o.diarios;
   // Com a permissao de mover desligada (o padrao), o botao diz a verdade:
   // o pedido vai para a fila, nada se move ainda.
-  org.semPedir = Boolean((((pr && (pr.preferencias || pr)) || {}).autonomia || {}).organizar_mover);
+  org.semPedir = Boolean(o.mover_sem_pedir);
   if (manter) return;
 
   org.raizes = [];      // nada pre-selecionado: a pessoa escolhe onde procurar
@@ -178,10 +164,10 @@ function passoOnde() {
   org.fase = 0;
   desenharOrg(
     '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Onde eu procuro</b>' +
-    "<small>Marque as pastas onde devo procurar. Cada uma entra com tudo o que estiver dentro; a seta abre a pasta para marcar só uma parte.</small></span></div>" +
+    "<small>Marque as pastas onde devo procurar. Cada uma entra com tudo o que estiver dentro; a seta abre a pasta para marcar só uma parte. " +
+    "Pastas do sistema e de programas ficam de fora.</small></span></div>" +
     '<div class="cartao-miolo"><div class="navegador"><div class="nav-lista" id="nav-lista"><div class="nav-vazio">abrindo…</div></div></div></div>' +
-    '<div class="tabela-rodape"><span id="nav-nota">nenhuma pasta marcada</span><span class="cresce"></span>' +
-    "<span>Nada é lido antes de você mandar procurar</span></div>"
+    ondeProcuro()
   );
   carregarTopoDaArvore();
 }
@@ -200,7 +186,7 @@ function noDaArvore(e, nivel) {
   const pode = e.tem_subpastas !== false;
   const aberto = pode && arv.abertos.has(k);
   const marca = marcaDaPasta(e.caminho);
-  const icone = e.tipo === "unidade" ? "desktop_windows" : (aberto ? "folder_open" : "folder");
+  const icone = e.tipo === "unidade" ? "desktop_windows" : (e.tipo === "acervo" ? "inventory_2" : (aberto ? "folder_open" : "folder"));
   const marcada = marca === "on" || marca === "herdada";
   let html = '<div class="nav-item arv-no' + (marcada ? " marcada" : "") + '" data-no="' + esc(e.caminho) + '" data-pode="' + (pode ? 1 : 0) +
     '" style="--nivel:' + nivel + '">' +
@@ -230,6 +216,10 @@ function desenharArvore() {
   const rolagem = lista.scrollTop;
   const t = arv.topo;
   lista.innerHTML =
+    // No topo, as pastas que o proprio PAULUS le: e por elas que se
+    // reorganiza o acervo que ja esta no sistema.
+    ((t.acervo || []).length ? '<div class="nav-grupo">Acervo PAULUS</div>' +
+      t.acervo.map((a) => noDaArvore(Object.assign({ cam: a.caminho }, a), 0)).join("") : "") +
     (t.atalhos.length ? '<div class="nav-grupo">Começar por</div>' +
       t.atalhos.map((a) => noDaArvore(Object.assign({ cam: a.caminho }, a), 0)).join("") : "") +
     (t.unidades.length ? '<div class="nav-grupo">Unidades</div>' + t.unidades.map((u) => noDaArvore(u, 0)).join("") : "") +
@@ -242,8 +232,6 @@ function desenharArvore() {
       abrirNo(caminho);
     };
   });
-  const n = org.raizes.length;
-  $("nav-nota").textContent = n ? plural(n, "pasta marcada", "pastas marcadas") : "nenhuma pasta marcada";
 }
 
 async function abrirNo(caminho) {
@@ -382,6 +370,8 @@ function contaDaLeitura() {
   }
   if (ocultos > 0 && todos) texto += " Os outros " + ocultos + " que não cabem na lista entram também.";
   $("org-tempo-leitura").innerHTML = texto;
+  // Com tudo marcado, o mesmo botao desmarca.
+  $("org-ler-todos").textContent = todos && lista.length ? "Desmarcar todos" : "Marcar todos";
 }
 
 function ligarLeitura() {
@@ -397,7 +387,11 @@ function ligarLeitura() {
       contaDaLeitura();
     };
   });
-  $("org-ler-todos").onclick = () => { org.escolhidos = new Set(lista.map((a) => a.path)); passoEscolherLeitura(); };
+  $("org-ler-todos").onclick = () => {
+    const todos = lista.every((a) => org.escolhidos.has(a.path));
+    org.escolhidos = todos ? new Set() : new Set(lista.map((a) => a.path));
+    passoEscolherLeitura();
+  };
   $("org-so-novos").onclick = () => { org.escolhidos = new Set(lista.filter((a) => !a.lido).map((a) => a.path)); passoEscolherLeitura(); };
   $("org-voltar").onclick = () => { org.fase = 0; passoOnde(); };
   $("org-ler").onclick = () => {
@@ -508,7 +502,7 @@ function cartaoConferir() {
   return '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Confira antes de eu mexer em alguma coisa</b>' +
     "<small>Cliente e tipo são palpite meu. Corrija o que estiver errado e desmarque o que não deve entrar.</small></span>" +
     '<span class="direita"><span class="nota-barra" id="org-marcados">' + org.selecao.size + " de " + org.docs.length + " marcados</span>" +
-    '<button id="org-todos">Marcar todos</button><button id="org-incertos">Só os incertos</button></span></div>' +
+    '<button id="org-todos">' + rotuloMarcarTodos() + '</button><button id="org-incertos">Só os incertos</button></span></div>' +
     (org.parado
       ? '<div class="tabela-barra"><span class="nota-barra">Leitura interrompida: li ' + plural(org.docs.length, "documento") +
         " antes de parar. Se mandar ler de novo, continua daqui.</span></div>"
@@ -536,6 +530,12 @@ function linhaConferir(d, i) {
     '<span class="certeza ' + esc(d.confianca) + '">' + (rotulo[d.confianca] || esc(d.confianca)) + "</span></div>";
 }
 
+/* Com tudo o que da para marcar marcado, o mesmo botao desmarca. */
+function rotuloMarcarTodos() {
+  const validos = org.docs.filter((d) => !d.erro);
+  return validos.length && validos.every((d) => org.selecao.has(d.arquivo)) ? "Desmarcar todos" : "Marcar todos";
+}
+
 function ligarConferir() {
   const corpo = $("org-corpo");
   corpo.querySelectorAll(".tabela-linha").forEach((tr) => {
@@ -548,6 +548,7 @@ function ligarConferir() {
       tr.classList.toggle("fora", !dentro);
       tr.querySelector('[data-a="marcar"]').classList.toggle("on", dentro);
       $("org-marcados").textContent = org.selecao.size + " de " + org.docs.length + " marcados";
+      $("org-todos").textContent = rotuloMarcarTodos();
       atualizarFita();
       montarPlano();
     };
@@ -565,7 +566,8 @@ function ligarConferir() {
     }
   });
   $("org-todos").onclick = () => {
-    org.selecao = new Set(org.docs.filter((d) => !d.erro).map((d) => d.arquivo));
+    const validos = org.docs.filter((d) => !d.erro).map((d) => d.arquivo);
+    org.selecao = validos.every((a) => org.selecao.has(a)) ? new Set() : new Set(validos);
     passoConferir();
   };
   $("org-incertos").onclick = () => {
@@ -603,11 +605,20 @@ function painelOrgPlano() {
   const feito = org.fase === 4 && org.resultado;
   const p = feito ? { total: org.resultado.movidos, pastas: org.resultado.pastas || [], destino: org.resultado.destino, ignorados: [] } : org.plano;
   const pronto = org.fase === 2 && p && p.total;
-  const meta = feito ? plural(p.total, "arquivo") + " no lugar novo"
+  const copiar = (feito ? org.resultado.operacao : org.operacao) === "copiar";
+  const meta = feito ? plural(p.total, "arquivo") + (copiar ? " copiados" : " no lugar novo")
     : (p ? plural(p.total, "arquivo") + " em " + plural(p.pastas.length, "pasta") : "O plano aparece depois de ler e conferir");
+  // O que fica de fora do plano: o que ja esta no lugar e o que nao tem
+  // classificacao.
+  const noLugar = p ? p.ignorados.filter((x) => x.motivo === "já está no lugar").length : 0;
+  const semClasse = p ? p.ignorados.length - noLugar : 0;
+  const fora = [noLugar ? plural(noLugar, "arquivo") + " já no lugar" : "", semClasse ? plural(semClasse, "arquivo") + " sem classificação" : ""]
+    .filter(Boolean).join(" e ");
   return '<div class="painel-cabeca"><span class="titulo-painel"><h3>Como as pastas ficam</h3><span class="meta">' + meta + "</span></span></div>" +
-    ondeProcuro() +
-    '<div class="painel-bloco"><div class="campo-painel"><label for="org-padrao">Estrutura</label><select id="org-padrao"' + (feito ? " disabled" : "") + ">" +
+    '<div class="painel-bloco"><div class="campo-painel"><label for="org-operacao">O que fazer com os arquivos</label><select id="org-operacao"' + (feito ? " disabled" : "") + ">" +
+    '<option value="mover"' + (copiar ? "" : " selected") + ">Mover · tira da pasta de origem</option>" +
+    '<option value="copiar"' + (copiar ? " selected" : "") + ">Copiar · o original fica onde está</option></select></div>" +
+    '<div class="campo-painel"><label for="org-padrao">Estrutura</label><select id="org-padrao"' + (feito ? " disabled" : "") + ">" +
     (org.padroes || []).map((x) => '<option value="' + esc(x.padrao) + '"' + (org.padrao === x.padrao ? " selected" : "") + ">" + esc(x.rotulo) + "</option>").join("") +
     "</select></div>" +
     '<div class="campo-painel"><label for="org-destino">Pasta de destino</label><div class="com-botao">' +
@@ -617,16 +628,19 @@ function painelOrgPlano() {
     (p && p.pastas.length ? plural(p.pastas.length, "pasta") + " em " + esc(nomeDaPasta(p.destino)) : "") + "</span></div>" +
     (p && p.pastas.length
       ? arvoreDoPlano(p.pastas, p.destino) +
-        (p.ignorados.length ? '<small class="org-nota">' + plural(p.ignorados.length, "arquivo") + " sem classificação ficam onde estão.</small>" : "")
-      : "<p>Escolha as pastas, mande ler e confira a classificação. O plano se monta sozinho.</p>") + "</div>" +
+        (fora ? '<small class="org-nota">' + fora + " ficam onde estão.</small>" : "")
+      : (p && noLugar
+        ? "<p>Tudo o que está marcado já está no lugar que esta estrutura pede: nada a " + (copiar ? "copiar" : "mover") + ".</p>"
+        : "<p>Escolha as pastas, mande ler e confira a classificação. O plano se monta sozinho.</p>")) + "</div>" +
     (pronto
       ? '<div class="painel-bloco org-pronto"><p>' +
-        (org.semPedir ? "Vou mover " : "Peço para mover ") + "<b>" + plural(p.total, "arquivo") + "</b> para <b>" + plural(p.pastas.length, "pasta") +
+        (org.semPedir ? "Vou " : "Peço para ") + (copiar ? "copiar " : "mover ") + "<b>" + plural(p.total, "arquivo") + "</b> para <b>" + plural(p.pastas.length, "pasta") +
         "</b> em <b>" + esc(nomeDaPasta(p.destino)) + "</b>. " +
-        (org.semPedir ? "" : "O pedido vai para Aprovações e nada se move antes do seu sim. ") +
+        (copiar ? "Os originais ficam onde estão. " : "") +
+        (org.semPedir ? "" : "O pedido vai para Aprovações e nada " + (copiar ? "é copiado" : "se move") + " antes do seu sim. ") +
         "Nada é apagado nem sobrescrito, e dá para desfazer depois.</p>" +
-        '<button class="primario com-icone org-largo" id="org-aprovar">' + ic("drive_file_move", 16) +
-        (org.semPedir ? "Mover agora" : "Enviar para aprovação") + "</button>" +
+        '<button class="primario com-icone org-largo" id="org-aprovar">' + ic(copiar ? "content_copy" : "drive_file_move", 16) +
+        (org.semPedir ? (copiar ? "Copiar agora" : "Mover agora") : "Enviar para aprovação") + "</button>" +
         '<div class="org-links"><button class="sv-ligacao" id="org-revisar">Revisar o plano</button><span class="cresce"></span>' +
         '<button class="sv-ligacao" id="org-recomecar">' + ic("restart_alt", 15) + "Começar de novo</button></div></div>"
       : (org.fase >= 2 && !feito
@@ -636,6 +650,8 @@ function painelOrgPlano() {
 
 function ligarPainelOrg() {
   ligarOnde();
+  const operacao = $("org-operacao");
+  if (operacao) operacao.onchange = (e) => { org.operacao = e.target.value; montarPlano(); };
   const padrao = $("org-padrao");
   if (padrao) padrao.onchange = (e) => { org.padrao = e.target.value; montarPlano(); };
   const destino = $("org-destino");
@@ -664,6 +680,7 @@ function atualizarPainelOrg() {
 function corpoPlano() {
   return {
     destino: org.destino || "",
+    operacao: org.operacao || "mover",
     padrao: org.padrao || "",
     apenas: Array.from(org.selecao),
     ajustes: org.docs.filter((d) => org.selecao.has(d.arquivo))
@@ -702,8 +719,9 @@ async function organizarAplicar() {
   atualizarFita();
   atualizarSelo(true);
   const cartao = $("org-cartao");
-  cartao.innerHTML = '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Movendo…</b><small>Nada é apagado nem sobrescrito.</small></span></div>' +
-    '<div class="cartao-miolo"><div class="linha-form">' + coroa(18) + " movendo os arquivos</div></div>";
+  const copiar = org.operacao === "copiar";
+  cartao.innerHTML = '<div class="cartao-cabeca"><span class="texto-cabeca"><b>' + (copiar ? "Copiando…" : "Movendo…") + "</b><small>Nada é apagado nem sobrescrito.</small></span></div>" +
+    '<div class="cartao-miolo"><div class="linha-form">' + coroa(18) + (copiar ? " copiando os arquivos" : " movendo os arquivos") + "</div></div>";
 
   try {
     const r = await fetch("/api/organizar/aplicar", {
@@ -715,10 +733,9 @@ async function organizarAplicar() {
 
     if (d.aguardando_aprovacao) {
       org.pedido = d.pedido.id;
-      cartao.innerHTML = '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Pedido enviado para aprovação</b><small>Nada foi movido ainda. ' +
-        plural(d.total, "arquivo") + " esperam o seu sim em Aprovações. Depois de aprovar, eu trago você de volta para ver como ficou.</small></span></div>" +
-        '<div class="cartao-miolo"><div class="linha-form"><button class="primario" id="org-ver-fila">Abrir Aprovações</button></div></div>';
-      $("org-ver-fila").onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
+      cartao.innerHTML = cartaoAguardando(d);
+      $("org-ver-fila").onclick = () => { aprov.aberto = org.pedido; marcarDestino("aprovacoes"); mostrarAprovacoes(); };
+      $("org-outra-fila").onclick = () => { limparOrg(); passoOnde(); };
       contarPendencias();
       atualizarPainelOrg();
       return;
@@ -735,6 +752,29 @@ async function organizarAplicar() {
   }
 }
 
+/* O pedido foi para a fila: uma confirmacao de verdade, e nao uma linha
+   solta. Diz que o trabalho todo deu certo - o que ja foi feito, passo a
+   passo - e que so falta o sim em Aprovacoes. */
+function cartaoAguardando(d) {
+  const copiar = org.operacao === "copiar";
+  const pastas = (d.pastas || []).length;
+  const passo = (feito, texto) => '<li class="' + (feito ? "feito" : "espera") + '">' + ic(feito ? "check_circle" : "schedule", 18) + "<span>" + texto + "</span></li>";
+  return '<div class="org-confirma">' +
+    '<span class="org-confirma-selo">' + ic("check", 30) + "</span>" +
+    "<h3>Está quase pronto — só falta a confirmação</h3>" +
+    "<p>Li, classifiquei e montei o plano sem nenhum problema. Nada foi " + (copiar ? "copiado" : "movido") +
+    " ainda: falta só o seu sim. Confira e aprove em Aprovações.</p>" +
+    '<ul class="org-confirma-passos">' +
+    passo(true, plural(org.raizes.length || 1, "pasta escolhida", "pastas escolhidas")) +
+    passo(true, plural(org.docs.length, "documento lido", "documentos lidos") + " e classificados") +
+    passo(true, plural(org.selecao.size || d.total, "documento conferido", "documentos conferidos")) +
+    passo(true, "Plano: " + (copiar ? "copiar " : "mover ") + plural(d.total, "arquivo") + " para " + plural(pastas, "pasta") + " em " + esc(nomeDaPasta(org.destino))) +
+    passo(false, "Sua confirmação em Aprovações") + "</ul>" +
+    '<div class="org-confirma-acoes"><button class="primario com-icone" id="org-ver-fila">' + ic("verified", 16) + "Confirmar em Aprovações</button>" +
+    '<button class="com-icone" id="org-outra-fila">' + ic("search", 16) + "Organizar outra pasta</button></div>" +
+    "<small>Depois do sim, eu trago você de volta para ver como ficou.</small></div>";
+}
+
 /* O fim do fluxo: quantos foram, para onde, e o desfazer a um clique. Serve
    ao mover direto e ao mover que passou pela fila. */
 function mostrarMovidos(d) {
@@ -742,12 +782,14 @@ function mostrarMovidos(d) {
   org.resultado = d;
   org.pedido = null;
   const falhas = d.falhas || [];
+  const copia = d.operacao === "copiar";
   desenharOrg(
-    '<div class="cartao-cabeca"><span class="texto-cabeca"><b>' + plural(d.movidos, "arquivo") + " no lugar novo</b><small>" +
-    (d.destino ? "Em " + esc(d.destino) + ". " : "") + "Nada foi apagado nem sobrescrito, e dá para voltar ao estado anterior.</small></span></div>" +
+    '<div class="cartao-cabeca"><span class="texto-cabeca"><b>' + plural(d.movidos, "arquivo") + (copia ? " copiados" : " no lugar novo") + "</b><small>" +
+    (d.destino ? "Em " + esc(d.destino) + ". " : "") + (copia ? "Os originais ficaram onde estavam. " : "") +
+    "Nada foi apagado nem sobrescrito, e dá para voltar ao estado anterior.</small></span></div>" +
     '<div class="cartao-miolo">' +
     (falhas.length
-      ? '<div class="aprovacao"><p><strong>' + plural(falhas.length, "arquivo") + " não deu para mover:</strong> " +
+      ? '<div class="aprovacao"><p><strong>' + plural(falhas.length, "arquivo") + " não deu para " + (copia ? "copiar" : "mover") + ":</strong> " +
         esc(falhas.map((f) => f.nome || f.arquivo || f).join(", ")) + ". Eles ficaram onde estavam.</p></div>"
       : "") +
     '<div class="linha-form">' +
@@ -755,26 +797,30 @@ function mostrarMovidos(d) {
     '<button class="com-icone" id="org-outra">' + ic("search", 16) + "Organizar outra pasta</button>" +
     '<span class="cresce"></span><button class="com-icone" id="org-desfazer">' + ic("undo", 16) + "Desfazer tudo</button></div>" +
     '<p class="nota-barra" id="org-nota3"></p></div>' +
-    '<div class="tabela-rodape"><span>' + (falhas.length ? plural(falhas.length, "falha") : "Tudo movido") + '</span><span class="cresce"></span>' +
+    '<div class="tabela-rodape"><span>' + (falhas.length ? plural(falhas.length, "falha") : (copia ? "Tudo copiado" : "Tudo movido")) + '</span><span class="cresce"></span>' +
     "<span>Registrado no diário da organização</span></div>"
   );
-  $("conversa-meta").textContent = plural(d.movidos, "arquivo") + " movidos";
+  $("conversa-meta").textContent = plural(d.movidos, "arquivo") + (copia ? " copiados" : " movidos");
   const abrir = $("org-abrir-destino");
   if (abrir) abrir.onclick = () => fetch("/api/biblioteca/abrir-pasta", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminho: d.destino }),
   });
   $("org-outra").onclick = () => { limparOrg(); passoOnde(); };
   $("org-desfazer").onclick = async () => {
-    if (!(await confirmar({ titulo: "Devolver os " + plural(d.movidos, "arquivo") + "?", contexto: "Acervo › Organizar", texto: "Cada arquivo volta para a pasta onde estava antes desta organização.", confirmar: "Devolver" }))) return;
+    const certo = await confirmar(copia
+      ? { titulo: "Tirar as " + plural(d.movidos, "cópia") + "?", contexto: "Acervo › Organizar", texto: "Saem só as cópias que eu fiz; os originais continuam onde sempre estiveram. Cópia que você mudou depois fica.", confirmar: "Tirar as cópias" }
+      : { titulo: "Devolver os " + plural(d.movidos, "arquivo") + "?", contexto: "Acervo › Organizar", texto: "Cada arquivo volta para a pasta onde estava antes desta organização.", confirmar: "Devolver" });
+    if (!certo) return;
     $("org-desfazer").disabled = true;
-    $("org-nota3").textContent = "devolvendo…";
+    $("org-nota3").textContent = copia ? "tirando as cópias…" : "devolvendo…";
     try {
       const rr = await fetch("/api/organizar/desfazer", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ diario: d.diario }),
       });
       const dd = await rr.json();
-      $("org-nota3").textContent = plural(dd.revertidos, "arquivo") + " de volta ao lugar de origem";
+      $("org-nota3").textContent = copia ? plural(dd.revertidos, "cópia") + (dd.revertidos === 1 ? " tirada" : " tiradas") + "; os originais ficaram"
+        : plural(dd.revertidos, "arquivo") + " de volta ao lugar de origem";
     } catch (err) {
       $("org-desfazer").disabled = false;
       $("org-nota3").textContent = "não consegui desfazer: " + err;

@@ -45,6 +45,7 @@ import certificado
 import correio
 import correio_contas
 import destinos
+import avisos
 import bemestar
 import conexoes
 import documento
@@ -204,6 +205,9 @@ class Estado:
         self.folha = escritorio.Folha(self.base)
         self.papeis = escritorio.PapeisFiscais(self.base)
         self.bem_estar = bemestar.BemEstar(self.base)
+        # Avisos do Windows: olha os lembretes e o ciclo de foco no servidor,
+        # para o aviso chegar com a janela minimizada ou noutra tela.
+        self.vigia = avisos.Vigia(self.bem_estar, self.prefs)
         # Servicos: as pastas de trabalho (docs/ui, A15).
         self.servicos = servicos_mod.Servicos(self.base, _quem_sou, lambda: self.pasta)
         # Gravacoes de audio, guardadas nesta maquina (docs/ui, A16).
@@ -337,9 +341,11 @@ estado = Estado()
 async def lifespan(app: FastAPI):
     estado.pasta.mkdir(parents=True, exist_ok=True)
     total = estado.recarregar()
+    estado.vigia.comecar()
     print(f"\n  PAULUS Legal - abra http://localhost:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     yield
+    estado.vigia.parar()
 
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
@@ -2686,8 +2692,18 @@ def aprovacoes_decidir(payload: Decisao) -> dict:
 
         try:
             resultado = executor(pedido)
+            # O executor devolve a frase do historico ou, quando ha para onde
+            # levar a pessoa depois do sim, {"texto", "desfecho"}: a tela usa
+            # o desfecho para abrir o que acabou de ser feito.
+            desfecho = None
+            if isinstance(resultado, dict):
+                desfecho = resultado.get("desfecho")
+                resultado = resultado.get("texto", "")
             estado.fila.registrar_resultado(id_, resultado)
-            feitos.append({"id": id_, "estado": pedido.estado, "resultado": resultado})
+            feito = {"id": id_, "estado": pedido.estado, "categoria": pedido.categoria, "resultado": resultado}
+            if desfecho:
+                feito["desfecho"] = desfecho
+            feitos.append(feito)
         except Exception as exc:
             estado.fila.registrar_resultado(id_, f"nao consegui: {exc}", falhou=True)
             falhas.append({"id": id_, "motivo": str(exc)})
@@ -2705,16 +2721,18 @@ def _executar_mover(pedido) -> str:
         destino=dados.get("destino", ""),
         padrao=dados.get("padrao", ""),
         ignorados=dados.get("ignorados", []),
+        operacao=dados.get("operacao", "mover"),
     )
     resultado = aplicar_plano(plano, DIARIOS_DIR)
     _guardar_organizacao(plano, resultado, pedido.id)
     estado.recarregar(force=True)
+    verbo = "copiado(s)" if plano.operacao == "copiar" else "movido(s)"
     if resultado.falhas:
-        return f"{resultado.movidos} movido(s), {len(resultado.falhas)} falha(s)"
-    return f"{resultado.movidos} arquivo(s) movido(s)"
+        return f"{resultado.movidos} {verbo}, {len(resultado.falhas)} falha(s)"
+    return f"{resultado.movidos} arquivo(s) {verbo}"
 
 
-def _executar_assinar(pedido) -> str:
+def _executar_assinar(pedido) -> dict:
     """Assina o que estava esperando o sim na fila."""
     senha = estado.cofre.senha_agora()
     if not senha:
@@ -2725,7 +2743,11 @@ def _executar_assinar(pedido) -> str:
         raise RuntimeError(resultado.erro)
 
     aviso = "" if resultado.icp_brasil else " (certificado fora da ICP-Brasil)"
-    return f"assinado, codigo {resultado.codigo}{aviso}"
+    return {
+        "texto": f"assinado, codigo {resultado.codigo}{aviso}",
+        # Depois do sim, a tela abre o documento ja assinado.
+        "desfecho": {"tipo": "assinatura", "origem": pedido.dados.get("arquivo", ""), **resultado.to_dict()},
+    }
 
 
 def _executar_enviar(pedido) -> str:
@@ -3076,6 +3098,7 @@ class PedidoPlano(BaseModel):
     ajustes: list[Ajuste] = []
     incluir_baixa_confianca: bool = True
     apenas: list[str] = []          # caminhos marcados; vazio = todos
+    operacao: str = "mover"         # "mover" ou "copiar" (o original fica)
 
 
 class PedidoDesfazer(BaseModel):
@@ -3102,6 +3125,7 @@ def _guardar_organizacao(plano, resultado, pedido: str = "") -> dict:
         "falhas": resultado.falhas,
         "diario": resultado.diario,
         "destino": plano.destino,
+        "operacao": plano.operacao,
         "pastas": plano.resumo_por_pasta(),
     }
     return estado.ultima_organizacao
@@ -3114,6 +3138,10 @@ def organizar_opcoes() -> dict:
         "tipos": [{"valor": k, "rotulo": v} for k, v in ROTULOS.items()],
         "destino_sugerido": str(Path.home() / "Documentos" / "Acervo PAULUS"),
         "diarios": listar_diarios(DIARIOS_DIR),
+        # O botao diz "Mover agora" ou "Enviar para aprovacao" por isto. Vem
+        # aqui, e nao de /api/preferencias, que pergunta ao Ollama a lista
+        # de modelos e fazia a tela esperar.
+        "mover_sem_pedir": estado.prefs.pode("organizar_mover"),
     }
 
 
@@ -3123,6 +3151,15 @@ def navegar_pastas(caminho: str = "", arquivos: bool = False) -> dict:
     Com `arquivos`, lista tambem os documentos que o programa sabe ler."""
     dados = pastas.listar(caminho, sufixos=SUPPORTED_SUFFIXES if arquivos else None)
     dados["migalhas"] = pastas.migalhas(caminho)
+    if not caminho:
+        # As pastas que o proprio PAULUS le, no topo: e por elas que se
+        # reorganiza o acervo que ja esta no sistema.
+        padrao = Path(estado.pasta).resolve()
+        dados["acervo"] = [
+            {"nome": NOME_DA_PASTA_PADRAO if p.resolve() == padrao else (p.name or str(p)),
+             "caminho": str(p), "tipo": "acervo"}
+            for p in estado.pastas_do_acervo() if p.is_dir()
+        ]
     return dados
 
 
@@ -3274,6 +3311,7 @@ def organizar_plano(payload: PedidoPlano) -> dict:
         Path(payload.destino),
         payload.padrao,
         incluir_baixa_confianca=payload.incluir_baixa_confianca,
+        operacao=payload.operacao,
     )
     return plano.to_dict()
 
@@ -3295,14 +3333,15 @@ def organizar_aplicar(payload: PedidoPlano) -> dict:
         Path(payload.destino),
         payload.padrao,
         incluir_baixa_confianca=payload.incluir_baixa_confianca,
+        operacao=payload.operacao,
     )
     if not plano.movimentos:
-        raise HTTPException(status_code=400, detail="o plano nao tem nenhum movimento")
+        raise HTTPException(status_code=400, detail="nada a fazer: os marcados já estão no lugar")
 
     if not estado.prefs.pode("organizar_mover"):
         pastas_alvo = plano.resumo_por_pasta()
         pedido = estado.fila.pedir(
-            f"Mover {plano.total} arquivo(s) para "
+            ("Copiar" if plano.operacao == "copiar" else "Mover") + f" {plano.total} arquivo(s) para "
             + (NOME_DA_PASTA_PADRAO if Path(plano.destino).resolve() == Path(estado.pasta).resolve()
                else Path(plano.destino).name or plano.destino),
             "organizar",
@@ -3330,6 +3369,7 @@ def organizar_aplicar(payload: PedidoPlano) -> dict:
     return {
         "aguardando_aprovacao": False,
         "destino": plano.destino,
+        "operacao": plano.operacao,
         "pastas": plano.resumo_por_pasta(),
         "movidos": resultado.movidos,
         "falhas": resultado.falhas,
@@ -3387,6 +3427,9 @@ class PedidoAssinatura(BaseModel):
     posicao: str = "rodape_direita"
     x: float | None = None
     y: float | None = None
+    # Largura do selo em pontos do PDF, quando a pessoa redimensionou na tela.
+    # Vazio, o tamanho de sempre; a altura acompanha na mesma proporcao.
+    tamanho: float | None = None
     senha_pdf: str = ""
     motivo: str = ""
     guardar_biblioteca: bool = True
@@ -3415,6 +3458,43 @@ def certificado_windows() -> dict:
     return {"certificados": certificado.listar_windows()}
 
 
+class CertificadoDoWindows(BaseModel):
+    impressao: str
+    senha: str
+
+
+@app.post("/api/certificado/windows/usar")
+def certificado_windows_usar(payload: CertificadoDoWindows) -> dict:
+    """
+    Pre-seleciona um certificado instalado no Windows. Nada e exportado: o
+    cofre guarda so a parte publica e a marca da senha do PAULUS que a
+    pessoa criou agora. Ao assinar, o PAULUS confere essa senha e pede a
+    conta ao Windows, com a chave que nunca sai de la - e, se o
+    certificado tiver protecao forte, o Windows pede a senha dele tambem.
+    """
+    if len(payload.senha) < 4:
+        raise HTTPException(status_code=400, detail="crie uma senha de pelo menos 4 caracteres")
+    escolhido = next((c for c in certificado.listar_windows() if c["impressao"] == payload.impressao.strip().upper()), None)
+    if not escolhido:
+        raise HTTPException(status_code=400, detail="esse certificado não está mais no Windows")
+    if escolhido["vencido"]:
+        raise HTTPException(status_code=400, detail="esse certificado está vencido")
+
+    publico = certificado.publico_do_windows(escolhido["impressao"])
+    if publico.get("erro"):
+        raise HTTPException(status_code=400, detail=publico["erro"])
+    estado.cofre.usar_windows(publico, payload.senha)
+    return {**estado.cofre.para_tela(), "aviso": "certificado de " + escolhido["titular"] + " pronto para assinar"}
+
+
+@app.post("/api/certificado/windows/abrir")
+def certificado_windows_abrir() -> dict:
+    """Abre a janela "Certificados" do Windows."""
+    if not certificado.abrir_janela_do_windows():
+        raise HTTPException(status_code=400, detail="não consegui abrir a janela do Windows")
+    return {"aberta": True}
+
+
 @app.post("/api/certificado/arquivo")
 async def certificado_arquivo(arquivo: UploadFile) -> dict:
     nome = arquivo.filename or "certificado.pfx"
@@ -3438,11 +3518,10 @@ def certificado_senha(payload: SenhaCertificado) -> dict:
     A senha so vira memoria depois de abrir o certificado de verdade: guardar
     uma senha errada faria o programa falhar mais tarde, longe daqui.
     """
-    alvo = estado.cofre.arquivo
-    if not alvo or not alvo.exists():
+    if not estado.cofre.instalado:
         raise HTTPException(status_code=400, detail="nenhum certificado instalado")
 
-    lido = certificado.ler(alvo, payload.senha)
+    lido = estado.cofre.abrir(payload.senha)
     if lido.erro:
         raise HTTPException(status_code=400, detail=lido.erro)
 
@@ -3538,7 +3617,7 @@ def certificado_teste() -> dict:
     assina de verdade do ponto de vista criptografico e NAO tem validade
     juridica - a tela repete isso em cada passo, e o registro grava assim.
     """
-    if estado.cofre.arquivo and estado.cofre.arquivo.exists():
+    if estado.cofre.instalado:
         raise HTTPException(
             status_code=400,
             detail="já existe um certificado instalado - remova antes de criar um de teste",
@@ -3566,6 +3645,7 @@ def assinar_documento(arquivo: str) -> dict:
         "documento": doc.to_dict(),
         "certificado": cofre["certificado"],
         "instalado": cofre["instalado"],
+        "origem": cofre["origem"],
         "selo": cofre["selo"],
         "posicoes": cofre["posicoes"],
         "escolhas": [{"valor": k, "rotulo": v} for k, v in assinatura.ESCOLHAS_PAGINA.items()],
@@ -3616,15 +3696,14 @@ def assinar_agora(payload: PedidoAssinatura) -> dict:
     if doc.erro:
         raise HTTPException(status_code=400, detail=doc.erro)
 
-    alvo_pfx = estado.cofre.arquivo
-    if not alvo_pfx or not alvo_pfx.exists():
+    if not estado.cofre.instalado:
         raise HTTPException(status_code=400, detail="nenhum certificado instalado")
 
     senha = payload.senha_certificado or estado.cofre.senha_agora()
     if not senha:
         raise HTTPException(status_code=400, detail="preciso da senha do certificado")
 
-    cert = certificado.ler(alvo_pfx, senha)
+    cert = estado.cofre.abrir(senha)
     if cert.erro:
         raise HTTPException(status_code=400, detail=cert.erro)
     if payload.senha_certificado:
@@ -3671,16 +3750,24 @@ def _assinar_de_fato(dados: dict, senha: str) -> "assinatura.Resultado":
     if dados.get("x") is not None and dados.get("y") is not None:
         ponto = (float(dados["x"]), float(dados["y"]))
 
+    do_windows = estado.cofre.origem == "windows"
+    if do_windows:
+        # A senha do PAULUS e a porta: sem ela certa, o Windows nem e chamado.
+        conferido = estado.cofre.abrir(senha)
+        if conferido.erro:
+            return assinatura.Resultado(erro=conferido.erro)
     resultado = assinatura.assinar(
         origem,
         destino,
-        arquivo_pfx=str(estado.cofre.arquivo),
+        arquivo_pfx="" if do_windows else str(estado.cofre.arquivo),
+        windows=estado.cofre.windows if do_windows else None,
         senha=senha,
         selo=estado.cofre.dados.get("selo") or {},
         escolha_paginas=dados.get("paginas", "ultima"),
         intervalo=dados.get("intervalo", ""),
         posicao=dados.get("posicao", "rodape_direita"),
         ponto=ponto,
+        tamanho=float(dados["tamanho"]) if dados.get("tamanho") else None,
         senha_pdf=dados.get("senha_pdf", ""),
         motivo=dados.get("motivo", ""),
         imagem=estado.cofre.caminho_do_selo("desenho") or estado.cofre.caminho_do_selo("imagem"),
@@ -4335,8 +4422,9 @@ def documentos_obter(id_: int) -> dict:
         # Pagina medida, nao estimada: a conta antiga era palavras/450, e
         # errava em todo documento com titulo, lista ou paragrafo curto.
         item["paginacao"] = documento.mapa_de_paginas(
-            blocos, timbre=_timbre_do_escritorio() or None, formato=item.get("formato"))
+            blocos, timbre=_timbre_do_documento(item.get("formato")), formato=item.get("formato"))
         item["formato"] = documento.normalizar_formato(item.get("formato"))
+        item["folha"] = _folha_para_tela(item)
     return item
 
 
@@ -4559,10 +4647,14 @@ def _timbre_do_escritorio() -> dict:
     por outro, nem todo documento sai em papel timbrado - uma minuta interna
     com timbre parece peca protocolada.
     """
-    prefs = estado.prefs.dados
-    if not prefs.get("timbre_no_pdf"):
+    if not estado.prefs.dados.get("timbre_no_pdf"):
         return {}
-    pessoa = prefs.get("pessoa", {})
+    return _dados_do_escritorio()
+
+
+def _dados_do_escritorio() -> dict:
+    """O timbre montado dos dados profissionais, com a chave ligada ou nao."""
+    pessoa = estado.prefs.dados.get("pessoa", {})
     # Sem nome nao ha timbre: o resto sozinho sairia como um endereco solto no
     # alto da folha. Quem ligou a chave precisa saber disso na tela de
     # Configuracoes, e nao ao abrir o PDF e nao ver nada.
@@ -4582,11 +4674,52 @@ def _timbre_do_escritorio() -> dict:
     }
 
 
+def _timbre_do_documento(formato) -> dict | None:
+    """
+    O cabecalho que ESTE documento leva, pela folha dele: o timbre de
+    Configuracoes (quando a chave esta ligada, ou sempre), o que a pessoa
+    escreveu, ou nenhum.
+    """
+    folha = documento.normalizar_formato(formato)["folha"]
+    modo = folha["cabecalho"]
+    if modo == "nenhum":
+        return None
+    if modo == "padrao":
+        base = _timbre_do_escritorio()
+    elif modo == "escritorio":
+        base = _dados_do_escritorio()
+    else:
+        logo = estado.marca.caminho("logo")
+        base = {"linhas": folha["linhas"], "logo": str(logo) if logo else ""}
+    if not base:
+        return None
+    if not folha["logo"]:
+        base = {**base, "logo": ""}
+    return base
+
+
+def _folha_para_tela(item: dict) -> dict:
+    """A folha do documento e o desenho dela, para o editor e o modo Folha."""
+    formato = documento.normalizar_formato(item.get("formato"))
+    escritorio = _dados_do_escritorio()
+    return {
+        **formato["folha"],
+        "desenho": documento.desenho_da_folha(
+            _timbre_do_documento(formato), formato, item.get("titulo", "")),
+        "escritorio": {
+            "linhas": documento._linhas_do_timbre(escritorio) if escritorio else [],
+            "logo": bool(estado.marca.caminho("logo")),
+            "timbre_ligado": bool(estado.prefs.dados.get("timbre_no_pdf")),
+        },
+    }
+
+
 def _pdf_do_documento(item: dict, timbre: dict | None = None) -> bytes:
     blocos = documento.ler_html(item["corpo"])
-    rodape = item["titulo"]
+    formato = documento.normalizar_formato(item.get("formato"))
+    rodape = documento.texto_do_rodape(formato["folha"], item["titulo"])
     if timbre is None:
-        timbre = _timbre_do_escritorio()
+        timbre = _timbre_do_documento(formato)
     return documento.para_pdf(blocos, item["titulo"], rodape, timbre=timbre or None,
                               formato=item.get("formato"))
 
@@ -4602,6 +4735,37 @@ def documentos_pdf(id_: int):
         _pdf_do_documento(item), media_type="application/pdf",
         headers=_anexo(_arquivo(item["titulo"]) + ".pdf"),
     )
+
+
+@app.get("/api/impressoras")
+def impressoras_listar() -> dict:
+    """As impressoras desta conta do Windows, para o dialogo de imprimir."""
+    import impressao
+
+    try:
+        lista = impressao.listar()
+    except Exception as exc:  # driver quebrado nao pode derrubar a tela
+        return {"disponivel": impressao.disponivel(), "impressoras": [], "erro": str(exc)}
+    return {"disponivel": impressao.disponivel(), "impressoras": lista}
+
+
+@app.post("/api/documentos/{id_}/imprimir")
+def documentos_imprimir(id_: int, payload: dict) -> dict:
+    """O documento direto na impressora escolhida, sem o dialogo do navegador."""
+    import impressao
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX para imprimir")
+    try:
+        return impressao.imprimir(
+            _pdf_do_documento(item), str(payload.get("impressora", "")), item["titulo"],
+            paginas=str(payload.get("paginas", "todas")), copias=int(payload.get("copias", 1) or 1),
+            cor=bool(payload.get("cor", True)), frente_verso=bool(payload.get("frente_verso", False)))
+    except impressao.ErroDeImpressao as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="não entendi o pedido de impressão") from exc
 
 
 class PdfProtegido(BaseModel):
@@ -4695,10 +4859,18 @@ def documentos_paginacao(id_: int, payload: dict) -> dict:
 
     corpo = payload.get("corpo")
     blocos = documento.ler_html(item["corpo"] if corpo is None else corpo)
+    # Com `formato`, mede uma folha proposta sem gravar nada.
+    formato = item.get("formato")
+    if isinstance(payload.get("formato"), dict):
+        pedido = payload["formato"]
+        if "folha" not in pedido:
+            pedido = {**pedido, "folha": documento.normalizar_formato(formato)["folha"]}
+        formato = documento.normalizar_formato(pedido)
     mapa = documento.mapa_de_paginas(
-        blocos, timbre=_timbre_do_escritorio() or None, formato=item.get("formato"))
+        blocos, timbre=_timbre_do_documento(formato), formato=formato)
 
-    return {**mapa, "blocos": len(blocos), "formato": documento.normalizar_formato(item.get("formato"))}
+    return {**mapa, "blocos": len(blocos), "formato": documento.normalizar_formato(formato),
+            "folha": _folha_para_tela({**item, "formato": formato})}
 
 
 @app.post("/api/documentos/{id_}/formato")
@@ -4716,8 +4888,28 @@ def documentos_formato(id_: int, payload: dict) -> dict:
     corpo = payload.get("corpo")
     blocos = documento.ler_html(item["corpo"] if corpo is None else corpo)
     mapa = documento.mapa_de_paginas(
-        blocos, timbre=_timbre_do_escritorio() or None, formato=formato)
-    return {**mapa, "blocos": len(blocos), "formato": formato}
+        blocos, timbre=_timbre_do_documento(formato), formato=formato)
+    return {**mapa, "blocos": len(blocos), "formato": formato,
+            "folha": _folha_para_tela({**item, "formato": formato})}
+
+
+@app.post("/api/documentos/{id_}/folha/sugerir")
+def documentos_folha_sugerir(id_: int, payload: dict) -> dict:
+    """
+    O papel timbrado que o pedido descreve ("cabecalho com meu nome e OAB,
+    pagina 1 de 3 no rodape"). Devolve a proposta sem gravar.
+    """
+    item = _documento_ou_404(id_)
+    pedido = str(payload.get("pedido", "")).strip()[:600]
+    if not pedido:
+        raise HTTPException(status_code=400, detail="diga como quer a folha")
+    atual = payload.get("folha") or documento.normalizar_formato(item.get("formato"))["folha"]
+    escritorio = _dados_do_escritorio()
+    linhas = documento._linhas_do_timbre(escritorio) if escritorio else []
+    return documento.sugerir_folha(
+        pedido, atual, linhas, item.get("titulo", ""),
+        lambda instrucao, sistema, esquema: estado.client.ask_json(
+            instrucao, schema_hint=esquema, sistema=sistema))
 
 
 @app.get("/api/documentos/{id_}/conferir")
@@ -5082,6 +5274,8 @@ def _resposta_planilha(id_: int, item: dict, abas: list) -> dict:
         "calculado": calculados,
         "resumos": [planilha.resumo(a, c) for a, c in zip(abas, calculados)],
         "formatos": [{"valor": k, "rotulo": v} for k, v in planilha.FORMATOS.items()],
+        # Ate onde a grade cresce quando a pessoa rola.
+        "limites": {"linhas": planilha.MAX_LINHAS, "colunas": planilha.MAX_COLUNAS},
         "funcoes": [
             {"nome": n, "exemplo": e, "explica": x} for n, e, x in planilha.AJUDA_FUNCOES
         ],
@@ -5162,6 +5356,109 @@ def planilha_grafico(id_: int, payload: dict) -> dict:
 
     aba = abas[indice]
     return planilha.serie_da_faixa(aba, planilha.calcular_aba(aba), payload.get("faixa", ""))
+
+
+def _aba_do_pedido(item: dict, payload: dict) -> tuple[list, int]:
+    abas = _abas_do(item)
+    try:
+        indice = int(payload.get("aba", 0))
+    except (TypeError, ValueError):
+        indice = -1
+    if not 0 <= indice < len(abas):
+        raise HTTPException(status_code=400, detail="aba não encontrada")
+    return abas, indice
+
+
+@app.post("/api/planilha/{id_}/lote")
+def planilha_lote(id_: int, payload: dict) -> dict:
+    """
+    Varias celulas numa chamada so: colar, preencher com a alca, limpar,
+    recortar. Uma versao no Historico para a operacao inteira - que e o que a
+    pessoa fez: "colei a tabela", e nao "mudei 200 celulas".
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "planilha":
+        raise HTTPException(status_code=400, detail="isso não é uma planilha")
+    abas, indice = _aba_do_pedido(item, payload)
+    itens = payload.get("itens")
+    if not isinstance(itens, list) or not itens:
+        raise HTTPException(status_code=400, detail="nada para gravar")
+    if len(itens) > planilha.MAX_LINHAS * 10:
+        raise HTTPException(status_code=400, detail="seleção grande demais")
+
+    feitas = planilha.gravar_lote(abas[indice], itens)
+    nota = " ".join(str(payload.get("nota") or "").split())[:80] or "células alteradas"
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=nota)
+    return {**_resposta_planilha(id_, estado.documentos.obter(id_), abas), "feitas": feitas}
+
+
+@app.post("/api/planilha/{id_}/estrutura")
+def planilha_estrutura(id_: int, payload: dict) -> dict:
+    """
+    Inserir ou excluir linhas e colunas, com as formulas seguindo as celulas.
+
+    `em` e o numero da linha (1, 2, ...) ou a letra/indice da coluna.
+    """
+    item = _documento_ou_404(id_)
+    abas, indice = _aba_do_pedido(item, payload)
+    eixo = str(payload.get("eixo", ""))
+    em = payload.get("em", 1)
+    if eixo == "colunas" and isinstance(em, str) and not em.strip().isdigit():
+        em = planilha.indice_da_coluna(em.strip())
+    try:
+        feito = planilha.reestruturar(abas[indice], eixo, str(payload.get("acao", "")),
+                                      int(em), int(payload.get("quantas", 1) or 1))
+    except (TypeError, ValueError) as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+
+    if eixo == "linhas":
+        onde = f"linha {feito['em']}" if feito["quantas"] == 1 else f"linhas {feito['em']}-{feito['em'] + feito['quantas'] - 1}"
+    else:
+        letra = planilha.letra_da_coluna(feito["em"])
+        onde = f"coluna {letra}" if feito["quantas"] == 1 else (
+            f"colunas {letra}-{planilha.letra_da_coluna(feito['em'] + feito['quantas'] - 1)}")
+    estado.documentos.salvar(
+        id_, planilha.para_json(abas),
+        nota=("inseriu " if feito["acao"] == "inserir" else "excluiu ") + onde)
+    return {**_resposta_planilha(id_, estado.documentos.obter(id_), abas), "feito": feito}
+
+
+@app.post("/api/planilha/{id_}/layout")
+def planilha_layout(id_: int, payload: dict) -> dict:
+    """
+    Largura de coluna, altura de linha e o que esta oculto.
+
+    {"larguras": {"B": 180, "C": null}, "alturas": {"3": 40},
+     "ocultar": {"colunas": ["D"], "linhas": [7]}, "reexibir": {...}}
+    null volta a medida ao padrao.
+    """
+    item = _documento_ou_404(id_)
+    abas, indice = _aba_do_pedido(item, payload)
+    aba = abas[indice]
+    larguras = payload.get("larguras") or {}
+    alturas = payload.get("alturas") or {}
+    ocultar = payload.get("ocultar") or {}
+    reexibir = payload.get("reexibir") or {}
+    if not all(isinstance(x, dict) for x in (larguras, alturas, ocultar, reexibir)):
+        raise HTTPException(status_code=400, detail="formato inválido")
+    try:
+        aba.medir(larguras, alturas)
+        aba.ocultar(ocultar.get("colunas") or [], ocultar.get("linhas") or [], True)
+        aba.ocultar(reexibir.get("colunas") or [], reexibir.get("linhas") or [], False)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="medida inválida")
+
+    partes = []
+    if larguras:
+        partes.append("largura de " + ", ".join(sorted(str(k).upper() for k in larguras)))
+    if alturas:
+        partes.append("altura da linha " + ", ".join(sorted((str(k) for k in alturas), key=lambda x: int(x) if x.isdigit() else 0)))
+    if ocultar:
+        partes.append("ocultou")
+    if reexibir:
+        partes.append("reexibiu")
+    estado.documentos.salvar(id_, planilha.para_json(abas), nota=("; ".join(partes) or "layout")[:80])
+    return _resposta_planilha(id_, estado.documentos.obter(id_), abas)
 
 
 @app.post("/api/planilha/{id_}/mesclar")
@@ -5949,6 +6246,30 @@ def bemestar_ver() -> dict:
     return dados
 
 
+@app.get("/api/avisos")
+def avisos_ver() -> dict:
+    """Se da para avisar no Windows, se a pessoa quer e em que horario."""
+    d = estado.prefs.dados.get("disponibilidade") or {}
+    nomes = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+    dias = sorted(d.get("dias") or [0, 1, 2, 3, 4])
+    faixa = (f"{nomes[dias[0]]} a {nomes[dias[-1]]}" if dias == list(range(dias[0], dias[-1] + 1))
+             else ", ".join(nomes[i] for i in dias))
+    return {
+        "disponivel": avisos.disponivel(),
+        "ligado": estado.vigia.ligado(),
+        "horario": f"{faixa}, das {d.get('inicio') or '00:00'} às {d.get('fim') or '23:59'}",
+    }
+
+
+@app.post("/api/avisos/teste")
+def avisos_teste() -> dict:
+    """Um aviso de verdade, para a pessoa ver como chega - espera o Windows responder."""
+    if not avisos.disponivel():
+        raise HTTPException(status_code=400, detail="avisos do Windows só existem no Windows")
+    ok = avisos.notificar("Avisos ligados", "É assim que os lembretes e o fim do ciclo de foco vão chegar.", esperar=True)
+    return {"ok": ok}
+
+
 @app.get("/api/bemestar/semana")
 def bemestar_semana(ate: str = "") -> dict:
     """Uma semana qualquer, para comparar a atual com a anterior."""
@@ -6003,18 +6324,18 @@ def bemestar_salvar_lembrete(payload: FichaLembrete) -> dict:
     return {"lembretes": estado.bem_estar.lembretes()}
 
 
-@app.post("/api/bemestar/lembretes/{id_}/feito")
-def bemestar_marcar(id_: int) -> dict:
-    if not estado.bem_estar.marcar_lembrete(id_):
-        raise HTTPException(status_code=404, detail="lembrete não encontrado")
-    return {"lembretes": estado.bem_estar.lembretes(), "hoje": estado.bem_estar.dia()}
-
-
 @app.post("/api/bemestar/lembretes/restaurar")
 def bemestar_restaurar_lembretes() -> dict:
     """Devolve a lista de fabrica para quem se perdeu editando."""
     quantos = estado.bem_estar.restaurar_lembretes()
     return {"lembretes": estado.bem_estar.lembretes(), "restaurados": quantos}
+
+
+@app.post("/api/bemestar/lembretes/{id_}/feito")
+def bemestar_marcar(id_: int) -> dict:
+    if not estado.bem_estar.marcar_lembrete(id_):
+        raise HTTPException(status_code=404, detail="lembrete não encontrado")
+    return {"lembretes": estado.bem_estar.lembretes(), "hoje": estado.bem_estar.dia()}
 
 
 @app.delete("/api/bemestar/lembretes/{id_}")

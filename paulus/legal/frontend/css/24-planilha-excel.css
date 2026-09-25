@@ -1,0 +1,94 @@
+  /*
+    Planilha no jeito do Excel (26-planilha-excel.js): a grade com largura
+    de coluna de verdade, a moldura da selecao, a alca de preencher, as
+    bordas de medir nos cabecalhos, o campo que escreve dentro da celula e o
+    menu do botao direito. So tokens - o tema escuro vem junto.
+  */
+
+  /* A grade mede pela coluna (colgroup), e nao pelo conteudo: e isso que
+     deixa arrastar a borda e guardar a largura. */
+  .docs .plx-caixa { position: relative; outline: none; }
+  .docs .plx-grade { table-layout: fixed; border-collapse: collapse; }
+  .docs .plx-grade tr { height: 34px; }
+  .docs .plx-grade td { height: auto; }
+  .docs .plx-grade td.pl-cel { min-width: 0; max-width: none; user-select: none; }
+  .docs .plx-grade th { min-width: 0; position: sticky; top: 0; z-index: 5; user-select: none; cursor: default; overflow: hidden; white-space: nowrap; }
+  .docs .plx-grade th.canto { left: 0; z-index: 6; cursor: cell; }
+  .docs .plx-grade td.cabeca-linha { position: sticky; left: 0; z-index: 4; user-select: none; text-align: center; cursor: default; }
+  .docs .plx-caixa.congelada tbody tr:first-child td { z-index: 3; }
+  .docs .plx-caixa.congelada tbody tr:first-child td.cabeca-linha { z-index: 4; }
+
+  /* Cabecalho da selecao aceso, como no Excel: bate o olho e sabe a linha
+     e a coluna. Coluna ou linha inteira, mais forte. */
+  .docs .plx-grade th.plx-sel, .docs .plx-grade td.cabeca-linha.plx-sel { background: var(--fill); color: var(--ink); }
+  .docs .plx-grade th.plx-sel-toda, .docs .plx-grade td.cabeca-linha.plx-sel-toda { background: var(--act); color: var(--ink); font-weight: 600; }
+
+  /* A borda de medir: uma faixa fina na beira direita da letra e na beira de
+     baixo do numero. */
+  .plx-borda-c, .plx-borda-l { position: absolute; display: block; z-index: 2; }
+  .plx-borda-c { top: 0; right: -3px; width: 7px; height: 100%; cursor: col-resize; }
+  .plx-borda-l { left: 0; bottom: -3px; width: 100%; height: 7px; cursor: row-resize; }
+  .plx-borda-c:hover, .plx-borda-l:hover { background: var(--ink-a25); }
+  .plx-medindo-c, .plx-medindo-c * { cursor: col-resize !important; }
+  .plx-medindo-l, .plx-medindo-l * { cursor: row-resize !important; }
+
+  /* O que esta oculto deixa uma marca dupla no cabecalho do lado. */
+  .docs .plx-grade th.plx-apos-oculta { box-shadow: inset 3px 0 0 -1px var(--ink-a35); }
+  .docs .plx-grade th.plx-antes-oculta { box-shadow: inset -3px 0 0 -1px var(--ink-a35); }
+  .docs .plx-grade th.plx-apos-oculta.plx-antes-oculta { box-shadow: inset 3px 0 0 -1px var(--ink-a35), inset -3px 0 0 -1px var(--ink-a35); }
+  .docs .plx-grade td.cabeca-linha.plx-apos-oculta { box-shadow: inset 0 3px 0 -1px var(--ink-a35); }
+
+  /* A moldura da selecao, a alca, o recortado/copiado e a previa da alca
+     andam com a rolagem porque moram dentro da caixa. */
+  .plx-moldura, .plx-copia, .plx-previa { position: absolute; pointer-events: none; z-index: 3; box-sizing: border-box; }
+  .plx-moldura { border: 2px solid var(--ink); }
+  .plx-previa { border: 1.5px dashed var(--ink2); background: var(--ink-a06); }
+  .plx-copia {
+    border: 2px dashed var(--ink2);
+    animation: plx-formigas 0.9s linear infinite;
+  }
+  .plx-copia.recorte { border-color: var(--acc); }
+  @keyframes plx-formigas { 50% { border-color: var(--ink-a25); } }
+  .sem-animacao .plx-copia { animation: none; }
+
+  .plx-alca {
+    position: absolute; z-index: 4; width: 8px; height: 8px; box-sizing: border-box;
+    background: var(--ink); border: 1.5px solid var(--surf); cursor: crosshair;
+  }
+  .plx-alca:hover { transform: scale(1.25); }
+  .plx-cruz, .plx-cruz * { cursor: crosshair !important; }
+
+  /* A celula com comentario tem o canto marcado, como no Excel. */
+  .docs .plx-grade td.pl-cel.plx-nota { position: relative; }
+  .docs .plx-grade td.pl-cel.plx-nota::after {
+    content: ""; position: absolute; top: 0; right: 0;
+    border-style: solid; border-width: 0 7px 7px 0; border-color: transparent var(--acc) transparent transparent;
+  }
+
+  /* Escrever dentro da celula. */
+  .plx-editor {
+    position: absolute; z-index: 4; box-sizing: border-box; margin: 0;
+    padding: 0 11px; border: 2px solid var(--ink); border-radius: 0; outline: none;
+    background: var(--surf); color: var(--ink); box-shadow: var(--elev-float); max-width: none;
+  }
+
+  /* A dica da alca: o valor que vai cair na ultima celula. */
+  .plx-dica {
+    position: fixed; z-index: 140; pointer-events: none; padding: 4px 8px; border-radius: 6px;
+    background: var(--casca); color: var(--casca-ink); font: 500 12px var(--sans);
+    box-shadow: var(--elev-float); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* O menu do botao direito: o menu do sistema, solto onde o mouse clicou. */
+  .menu-conversa.plx-menu {
+    position: fixed; right: auto; width: auto; min-width: 232px; max-width: 320px; z-index: 130;
+    max-height: calc(100vh - 16px); overflow-y: auto;
+  }
+  .menu-conversa.plx-menu button { gap: 16px; padding: 7px 10px; white-space: nowrap; }
+  .menu-conversa.plx-menu button:disabled { color: var(--mute2); cursor: default; }
+  .menu-conversa.plx-menu button.plx-aberto { background: var(--fill); color: var(--ink); }
+  .menu-conversa.plx-menu button:focus-visible { outline: none; background: var(--fill); color: var(--ink); }
+  .plx-rotulo { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .plx-atalho { margin-left: auto; font: 500 11px var(--sans); color: var(--ink3); }
+  .menu-conversa.plx-menu button .seta { margin-left: 0; }
+  .menu-conversa.plx-menu.plx-sub { z-index: 131; }

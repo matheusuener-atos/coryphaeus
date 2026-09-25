@@ -143,6 +143,30 @@
   .anx-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 22px; font: 500 12.5px var(--sans); color: var(--ink2); }
   .anx-windows { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: none; background: none; color: var(--ink3); font: 500 12.5px var(--sans); }
   .anx-windows:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+
+  /* Abrir do Acervo (19-documentos.js): o pop-up do anexar, com a dica do
+     que acontece com cada tipo no lugar das visoes. */
+  .aa-dica { flex: 1; min-width: 0; font: 500 12.5px/1.45 var(--sans); color: var(--ink3); }
+
+  /* Os certificados do Windows (15-certificado.js): o mesmo pop-up do
+     anexar, com escolha de um so e o campo da senha da copia embaixo. */
+  .cw-linha .duas-linhas { flex: 1; min-width: 0; }
+  .cw-linha > .ic { flex: none; color: var(--ink3); }
+  .cw-linha.escolhida > .ic { color: var(--ink); }
+  .cw-radio { width: 16px; height: 16px; flex: none; box-sizing: border-box; border: 1.5px solid var(--ink-a3); border-radius: 50%; }
+  .cw-radio.on { border: 5px solid var(--ink); }
+  .cw-linha.cw-sistema .duas-linhas { opacity: .7; }
+  .cw-linha.cw-off { cursor: default; opacity: .5; }
+  .cw-linha.cw-off:hover { background: none; }
+  .cw-senha { display: grid; gap: 6px; }
+  .cw-senha label { font: 600 12.5px var(--sans); color: var(--ink2); }
+  .cw-senha input {
+    height: 40px; padding: 0 12px; max-width: none; border: 1px solid var(--hair); border-radius: 10px; background: var(--bg);
+    font: 400 14px var(--sans); color: var(--ink);
+  }
+  .cw-senha input:focus { outline: none; border-color: var(--destaque-linha); box-shadow: 0 0 0 3px var(--ink-a06); }
+  .cw-senha small { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .dialogo-corpo p.cw-erro { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accbg); color: var(--acc); font: 500 13px/1.5 var(--sans); }
   @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
 
@@ -246,3 +270,28 @@
   .relogio-pe .primario { font-weight: 600; }
   .menu-conversa.escolha-lista { position: fixed; right: auto; z-index: 130; max-height: 280px; overflow-y: auto; }
   .escolha-lista button:focus-visible { outline: none; background: var(--fill); }
+
+  /* Imprimir: a folha de verdade a esquerda, as escolhas a direita. */
+  .dialogo.dialogo-imprimir { width: 780px; max-width: calc(100vw - 32px); }
+  .imp { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
+  .imp-previa { display: grid; gap: 8px; justify-items: center; padding: 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--ink-a1); }
+  .imp-folha { width: 100%; aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: 0 12px 28px -20px var(--papel-sombra); overflow: hidden; }
+  .imp-folha img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .imp-andar { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .imp-andar .botao-icone, .imp-copias .botao-icone { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+  .imp-campos { display: grid; gap: 6px; align-content: start; }
+  .imp-rotulo { font: 600 12.5px var(--sans); color: var(--ink2); margin-top: 8px; }
+  .imp-rotulo:first-child { margin-top: 0; }
+  .imp-campos select, .imp-campos .escolha-botao { width: 100%; max-width: none; min-width: 0; }
+  .imp-dica { font: 500 12px/1.45 var(--sans); color: var(--ink3); min-height: 0; }
+  .imp-dica:empty { display: none; }
+  .imp-copias { display: flex; align-items: center; gap: 6px; }
+  .imp-copias input { width: 56px; min-width: 0; flex: none; text-align: center; padding: 6px 8px; }
+  .imp-paginas { display: grid; gap: 6px; }
+  .imp-paginas label { display: flex; align-items: center; gap: 8px; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
+  .imp-paginas small { color: var(--ink3); font-weight: 500; }
+  .imp-intervalo input[type=text] { flex: 1; min-width: 0; max-width: 180px; padding: 6px 10px; margin-left: 4px; }
+  .imp-chave { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
+  .imp-erro { margin: 6px 0 0; font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
+  .imp-windows { display: inline-flex; align-items: center; gap: 6px; color: var(--ink3); font-size: 12.5px; }
+  @media (max-width: 720px) { .imp { grid-template-columns: 1fr; } .imp-previa { max-width: 260px; justify-self: center; } }

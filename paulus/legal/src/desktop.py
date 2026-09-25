@@ -185,6 +185,13 @@ def _preparar_janela_nativa() -> None:
     except Exception:
         _HWND = 0
         return
+    # Os avisos do Windows piscam o botao desta janela na barra de tarefas.
+    try:
+        import avisos
+
+        avisos.definir_janela(_HWND)
+    except Exception:  # noqa: BLE001 - sem isso so a notificacao sai, sem piscar
+        pass
     try:
         from System.Windows.Forms import Screen
 

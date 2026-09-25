@@ -32,6 +32,10 @@ import leitor_pdf
 SELO_LARGURA = 228
 SELO_ALTURA = 62
 MARGEM = 28
+# A tela deixa redimensionar o selo, sempre na mesma proporcao. Menor que
+# isto o texto de 6 pt vira borrao; maior que tres vezes, vira cartaz.
+SELO_MIN = 114
+SELO_MAX = SELO_LARGURA * 3
 
 ESCOLHAS_PAGINA = {
     "todas": "Todas as páginas",
@@ -262,7 +266,21 @@ def caixa(posicao: str, largura: float, altura: float) -> tuple[int, int, int, i
     return int(x), int(y), int(x + SELO_LARGURA), int(y + SELO_ALTURA)
 
 
-def _estilo(texto: str, imagem: Path | None):
+def medidas_do_selo(tamanho: float | None, largura_pagina: float = 595) -> tuple[float, float]:
+    """
+    Largura e altura do selo, em pontos, para a largura pedida pela tela.
+
+    Sem pedido, o tamanho de sempre. Com pedido, a proporcao nao muda - so a
+    escala - e o selo nunca fica maior que a pagina.
+    """
+    if not tamanho:
+        return float(SELO_LARGURA), float(SELO_ALTURA)
+    teto = min(float(SELO_MAX), float(largura_pagina or 595))
+    largura = max(float(SELO_MIN), min(float(tamanho), teto))
+    return largura, largura * SELO_ALTURA / SELO_LARGURA
+
+
+def _estilo(texto: str, imagem: Path | None, escala: float = 1.0):
     """O desenho do selo: moldura, texto pequeno e, se houver, a rubrica."""
     from pyhanko.pdf_utils.layout import (
         AxisAlignment,
@@ -282,6 +300,14 @@ def _estilo(texto: str, imagem: Path | None):
         except Exception:
             fundo = None
 
+    # A pyHanko calcula a caixa com Fraction: medida em float quebra a conta.
+    # Em fracao (de denominador pequeno), a escala passa sem arredondar o texto.
+    from fractions import Fraction
+
+    escala = Fraction(escala).limit_denominator(64)
+    if escala == 1:
+        escala = 1
+
     return TextStampStyle(
         stamp_text="%(corpo)s",
         border_width=1,
@@ -290,14 +316,15 @@ def _estilo(texto: str, imagem: Path | None):
         background_layout=SimpleBoxLayoutRule(
             x_align=AxisAlignment.ALIGN_MIN,
             y_align=AxisAlignment.ALIGN_MID,
-            margins=Margins(left=4, right=4, top=4, bottom=4),
+            margins=Margins(left=4 * escala, right=4 * escala, top=4 * escala, bottom=4 * escala),
         ),
         # O padrao do pyHanko e Courier. Num documento juridico o selo em
         # monoespacada destoa da pagina inteira; Helvetica acompanha o texto.
+        # Selo redimensionado leva o texto junto, para caber igual.
         text_box_style=TextBoxStyle(
             font=SimpleFontEngineFactory("Helvetica", 0.5),
-            font_size=6,
-            leading=8,
+            font_size=6 * escala,
+            leading=8 * escala,
         ),
     )
 
@@ -320,17 +347,51 @@ class Resultado:
         return asdict(self)
 
 
+def _assinante_do_windows(windows: dict):
+    """
+    Um assinador da pyHanko cuja conta final e feita pelo Windows.
+
+    Tudo o mais - o PDF, o selo, a posicao, o PAdES - e o de sempre; so a
+    assinatura dos bytes vai para certificado.assinar_com_windows, com a
+    chave que nunca sai do Windows. A cadeia vai junto para quem conferir
+    o PDF depois ligar o certificado a AC que o emitiu.
+    """
+    import base64
+
+    from asn1crypto import x509 as asn1_x509
+    from pyhanko.sign import signers
+    from pyhanko_certvalidator.registry import SimpleCertificateStore
+
+    from certificado import assinar_com_windows
+
+    proprio = asn1_x509.Certificate.load(base64.b64decode(windows["der"]))
+    cadeia = [asn1_x509.Certificate.load(base64.b64decode(d)) for d in (windows.get("cadeia") or [])]
+    impressao = windows["impressao"]
+    tamanho = proprio.public_key.bit_size // 8
+
+    class AssinanteDoWindows(signers.Signer):
+        async def async_sign_raw(self, data: bytes, digest_algorithm: str, dry_run=False) -> bytes:
+            # O ensaio so mede o espaco da assinatura: nao incomoda o Windows.
+            if dry_run:
+                return bytes(tamanho)
+            return assinar_com_windows(impressao, data, digest_algorithm)
+
+    return AssinanteDoWindows(signing_cert=proprio, cert_registry=SimpleCertificateStore.from_certs([proprio, *cadeia]))
+
+
 def assinar(
     origem: Path | str,
     destino: Path | str,
     *,
-    arquivo_pfx: Path | str,
-    senha: str,
+    arquivo_pfx: Path | str = "",
+    senha: str = "",
+    windows: dict | None = None,
     selo: dict,
     escolha_paginas: str = "ultima",
     intervalo: str = "",
     posicao: str = "rodape_direita",
     ponto: tuple[float, float] | None = None,
+    tamanho: float | None = None,
     senha_pdf: str = "",
     motivo: str = "",
     imagem: Path | None = None,
@@ -374,18 +435,28 @@ def assinar(
             )
         )
 
-    try:
-        assinante = signers.SimpleSigner.load_pkcs12(
-            pfx_file=str(arquivo_pfx), passphrase=senha.encode("utf-8")
-        )
-    except Exception as exc:
-        return Resultado(erro=f"não consegui abrir o certificado: {exc}")
-    if assinante is None:
-        return Resultado(erro="senha do certificado incorreta")
-
     from certificado import ler as ler_cert
+    from certificado import ler_do_windows
 
-    cert = ler_cert(arquivo_pfx, senha)
+    if windows:
+        # Certificado do Windows: a senha do PAULUS ja foi conferida por
+        # quem chamou; aqui so se monta o assinador que pede a conta ao
+        # Windows.
+        try:
+            assinante = _assinante_do_windows(windows)
+        except Exception as exc:
+            return Resultado(erro=f"não consegui preparar o certificado do Windows: {exc}")
+        cert = ler_do_windows(windows.get("der") or "")
+    else:
+        try:
+            assinante = signers.SimpleSigner.load_pkcs12(
+                pfx_file=str(arquivo_pfx), passphrase=senha.encode("utf-8")
+            )
+        except Exception as exc:
+            return Resultado(erro=f"não consegui abrir o certificado: {exc}")
+        if assinante is None:
+            return Resultado(erro="senha do certificado incorreta")
+        cert = ler_cert(arquivo_pfx, senha)
     if cert.erro:
         return Resultado(erro=cert.erro)
     if cert.vencido:
@@ -393,7 +464,8 @@ def assinar(
 
     codigo = codigo_de(origem, quando)
     corpo = texto_do_selo(selo, cert, codigo, quando)
-    estilo = _estilo(corpo, imagem)
+    largura_selo, altura_selo = medidas_do_selo(tamanho, doc.largura)
+    estilo = _estilo(corpo, imagem, largura_selo / SELO_LARGURA)
 
     destino.parent.mkdir(parents=True, exist_ok=True)
 
@@ -417,13 +489,18 @@ def assinar(
 
             principal, repetidas = alvos[0], alvos[1:]
 
-            for numero in repetidas:
-                x, y, _, _ = _posicao_na_pagina(escritor, numero, posicao, ponto, doc)
-                TextStamp(escritor, estilo, text_params={"corpo": corpo}).apply(
-                    dest_page=numero - 1, x=x, y=y
-                )
+            # A copia visual tem a mesma caixa do campo da assinatura: o selo
+            # sai do mesmo tamanho em todas as paginas, como a tela mostrou.
+            from pyhanko.pdf_utils.layout import BoxConstraints
 
-            x1, y1, x2, y2 = _posicao_na_pagina(escritor, principal, posicao, ponto, doc, caixa_toda=True)
+            for numero in repetidas:
+                x, y, _, _ = _posicao_na_pagina(escritor, numero, posicao, ponto, doc, tamanho=tamanho)
+                TextStamp(
+                    escritor, estilo, text_params={"corpo": corpo},
+                    box=BoxConstraints(width=int(largura_selo), height=int(altura_selo)),
+                ).apply(dest_page=numero - 1, x=x, y=y)
+
+            x1, y1, x2, y2 = _posicao_na_pagina(escritor, principal, posicao, ponto, doc, caixa_toda=True, tamanho=tamanho)
             campo = fields.SigFieldSpec(
                 sig_field_name=f"PAULUS {quando.strftime('%Y%m%d%H%M%S')}",
                 on_page=principal - 1,
@@ -444,7 +521,14 @@ def assinar(
                     escritor, output=saida, appearance_text_params={"corpo": corpo}
                 )
     except Exception as exc:
-        return Resultado(erro=f"não consegui assinar: {exc}")
+        # Falha no meio deixa um PDF pela metade: ele sai, para ninguem
+        # achar que aquilo esta assinado.
+        try:
+            destino.unlink(missing_ok=True)
+        except OSError:
+            pass
+        motivo = str(exc)
+        return Resultado(erro=motivo if windows and motivo.startswith(("a senha", "o Windows", "a chave")) else f"não consegui assinar: {exc}")
 
     return Resultado(
         destino=str(destino),
@@ -458,21 +542,37 @@ def assinar(
 
 
 def _posicao_na_pagina(escritor, numero: int, posicao: str, ponto, doc: Documento,
-                       caixa_toda: bool = False):
+                       caixa_toda: bool = False, tamanho: float | None = None):
     """
     Onde o selo cai. O arrasto na tela manda; sem arrasto, vale o canto.
 
     A tela envia a posicao em pontos do PDF, com origem no canto de cima - o
     PDF conta do canto de baixo, entao a conversao acontece aqui, num lugar so.
     """
-    largura, altura = doc.largura or 595, doc.altura or 842
+    return caixa_na_pagina(posicao, ponto, doc.largura or 595, doc.altura or 842, tamanho)
+
+
+def caixa_na_pagina(posicao: str, ponto, largura: float, altura: float,
+                    tamanho: float | None = None) -> tuple[int, int, int, int]:
+    """
+    A caixa do selo em pontos do PDF (origem embaixo), para o ponto e o
+    tamanho vindos da tela - ou, sem ponto, para o canto escolhido.
+    """
+    largura, altura = float(largura or 595), float(altura or 842)
+    w, h = medidas_do_selo(tamanho, largura)
     if ponto:
-        x = max(0.0, min(float(ponto[0]), largura - SELO_LARGURA))
-        y = max(0.0, min(altura - float(ponto[1]) - SELO_ALTURA, altura - SELO_ALTURA))
-        pontos = (int(x), int(y), int(x + SELO_LARGURA), int(y + SELO_ALTURA))
+        x = max(0.0, min(float(ponto[0]), largura - w))
+        y = max(0.0, min(altura - float(ponto[1]) - h, altura - h))
+    elif tamanho:
+        x1, y1, x2, y2 = caixa(posicao, largura, altura)
+        # O canto continua o mesmo; o selo cresce ou encolhe a partir dele.
+        x = x1 if posicao == "rodape_esquerda" else (x1 + x2 - w) / 2 if posicao == "rodape_centro" else x2 - w
+        y = y2 - h if posicao == "topo_direita" else y1
+        x = max(0.0, min(x, largura - w))
+        y = max(0.0, min(y, altura - h))
     else:
-        pontos = caixa(posicao, largura, altura)
-    return pontos if caixa_toda else pontos
+        return caixa(posicao, largura, altura)
+    return int(x), int(y), int(x + w), int(y + h)
 
 
 # -------------------------------------------------------------- verificar

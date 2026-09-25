@@ -4,9 +4,15 @@ PAULUS Legal - Plano de organizacao de arquivos.
 Regras que nao se negociam neste modulo:
 
 1. Nada se move sem plano aprovado. `montar_plano` nao toca em disco.
-2. Nada e apagado. Nada e sobrescrito - colisao ganha sufixo.
+2. Nada e apagado. Nada e sobrescrito - colisao ganha sufixo. (A unica
+   excecao e desfazer uma COPIA: sai a copia que o proprio plano criou; o
+   original nunca foi tocado.)
 3. Todo movimento vai para um diario, e `desfazer` reverte o lote inteiro.
 4. Nada sai da pasta de destino escolhida.
+
+O plano move (tira da origem) ou copia (a origem fica). Arquivo que ja esta
+no lugar que o padrao pede fica onde esta: reorganizar o proprio acervo nao
+pode criar "contrato (2).pdf" de si mesmo.
 
 Reorganizar o acervo de um escritorio e destrutivo e dificil de conferir no
 olho. O diario e o que separa "ferramenta" de "acidente".
@@ -58,12 +64,16 @@ class Movimento:
         return str(Path(self.destino).parent)
 
 
+OPERACOES = ("mover", "copiar")
+
+
 @dataclass
 class Plano:
     movimentos: list[Movimento]
     destino: str
     padrao: str
     ignorados: list[dict]
+    operacao: str = "mover"        # "mover" tira da origem; "copiar" deixa o original
 
     @property
     def total(self) -> int:
@@ -82,6 +92,7 @@ class Plano:
         return {
             "destino": self.destino,
             "padrao": self.padrao,
+            "operacao": self.operacao,
             "total": self.total,
             "movimentos": [asdict(m) for m in self.movimentos],
             "ignorados": self.ignorados,
@@ -208,12 +219,14 @@ def montar_plano(
     padrao: str,
     *,
     incluir_baixa_confianca: bool = True,
+    operacao: str = "mover",
 ) -> Plano:
     """Monta o plano de movimentacao. NAO toca em disco."""
     raiz = Path(destino)
     movimentos: list[Movimento] = []
     ignorados: list[dict] = []
     ocupados: set[str] = set()
+    operacao = operacao if operacao in OPERACOES else "mover"
 
     for resultado in resultados:
         if resultado.erro:
@@ -225,7 +238,13 @@ def montar_plano(
             continue
 
         relativo, motivo = render_padrao(padrao, resultado)
-        alvo = caminho_livre(raiz / relativo / resultado.nome, ocupados)
+        ideal = raiz / relativo / resultado.nome
+        if _mesmo_arquivo(ideal, Path(resultado.arquivo)):
+            # Ja esta onde o padrao pede. Mover para o mesmo lugar geraria
+            # "nome (2)" do proprio arquivo; copiar, uma copia inutil.
+            ignorados.append({"nome": resultado.nome, "motivo": "já está no lugar"})
+            continue
+        alvo = caminho_livre(ideal, ocupados)
         ocupados.add(str(alvo).lower())
 
         movimentos.append(
@@ -240,7 +259,14 @@ def montar_plano(
             )
         )
 
-    return Plano(movimentos, str(raiz), padrao, ignorados)
+    return Plano(movimentos, str(raiz), padrao, ignorados, operacao)
+
+
+def _mesmo_arquivo(a: Path, b: Path) -> bool:
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return str(a).lower() == str(b).lower()
 
 
 # --------------------------------------------------------------------------
@@ -270,10 +296,12 @@ def aplicar_plano(plano: Plano, diario_dir: Path | str) -> Resultado:
     pasta_diario.mkdir(parents=True, exist_ok=True)
     diario = pasta_diario / f"movimentos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
+    copiar = plano.operacao == "copiar"
     registro = {
         "criado_em": datetime.now().isoformat(timespec="seconds"),
         "destino": plano.destino,
         "padrao": plano.padrao,
+        "operacao": plano.operacao,
         "movimentos": [],
     }
     falhas: list[dict] = []
@@ -295,7 +323,10 @@ def aplicar_plano(plano: Plano, diario_dir: Path | str) -> Resultado:
             alvo.parent.mkdir(parents=True, exist_ok=True)
             registro["movimentos"].append({"origem": str(origem), "destino": str(alvo)})
             gravar()  # diario antes do movimento: falha no meio nao perde rastro
-            shutil.move(str(origem), str(alvo))
+            if copiar:
+                shutil.copy2(str(origem), str(alvo))
+            else:
+                shutil.move(str(origem), str(alvo))
             movidos += 1
         except OSError as exc:
             registro["movimentos"].pop()
@@ -306,13 +337,50 @@ def aplicar_plano(plano: Plano, diario_dir: Path | str) -> Resultado:
     registro["movidos"] = movidos
     gravar()
 
+    if not copiar:
+        # Reorganizar a propria pasta de destino esvazia as pastas antigas
+        # ("Compra e Venda > ..."): saem as que ficaram vazias, so dentro do
+        # destino. Pasta de origem de fora (a que a pessoa escolheu) fica.
+        _limpar_pastas_vazias_acima(
+            [Path(m["origem"]).parent for m in registro["movimentos"]], plano.destino
+        )
+
     return Resultado(movidos=movidos, falhas=falhas, diario=str(diario))
 
 
+def _limpar_pastas_vazias_acima(pastas: list[Path], raiz: str) -> None:
+    """Sobe de cada pasta ate a raiz tirando as que ficaram vazias. Nunca arquivo."""
+    try:
+        base = Path(raiz).resolve()
+    except OSError:
+        return
+    for pasta in sorted({p for p in pastas}, key=lambda p: len(p.parts), reverse=True):
+        atual = pasta
+        while True:
+            try:
+                real = atual.resolve()
+            except OSError:
+                break
+            if real == base or base not in real.parents:
+                break
+            try:
+                atual.rmdir()   # so remove pasta vazia; com qualquer coisa dentro, falha
+            except OSError:
+                break
+            atual = atual.parent
+
+
 def desfazer(diario_path: Path | str) -> Resultado:
-    """Devolve cada arquivo ao lugar de origem, na ordem inversa."""
+    """
+    Devolve cada arquivo ao lugar de origem, na ordem inversa.
+
+    Num lote de copia, desfazer e tirar as copias: o original nunca saiu do
+    lugar. So sai a copia que ainda e a mesma que o plano criou (mesmo
+    tamanho do original) - se a pessoa editou a copia depois, ela fica.
+    """
     caminho = Path(diario_path)
     registro = json.loads(caminho.read_text(encoding="utf-8"))
+    copia = registro.get("operacao") == "copiar"
 
     falhas: list[dict] = []
     revertidos = 0
@@ -327,6 +395,19 @@ def desfazer(diario_path: Path | str) -> Resultado:
             continue
 
         try:
+            if copia:
+                # Sem o original, a copia virou o unico exemplar: nao sai.
+                if not volta.exists():
+                    falhas.append({"nome": atual.name, "motivo": "o original não existe mais - a cópia ficou"})
+                    restantes.append(item)
+                    continue
+                if volta.stat().st_size != atual.stat().st_size:
+                    falhas.append({"nome": atual.name, "motivo": "a cópia mudou depois de copiada - ficou"})
+                    restantes.append(item)
+                    continue
+                atual.unlink()
+                revertidos += 1
+                continue
             volta.parent.mkdir(parents=True, exist_ok=True)
             destino_final = caminho_livre(volta)
             shutil.move(str(atual), str(destino_final))

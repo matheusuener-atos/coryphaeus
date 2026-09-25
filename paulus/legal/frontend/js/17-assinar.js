@@ -1,13 +1,21 @@
 /* --------------------------------------------- assinar documento (A8) */
 
+/* O selo em pontos do PDF: o tamanho de sempre, os limites do redimensionar
+   e a margem dos cantos. Os mesmos numeros moram em src/assinatura.py. */
+const SELO_PT = { largura: 228, altura: 62, minimo: 114, maximo: 684, margem: 28 };
+
 const assina = {
-  doc: null, cofre: null, pagina: 1, x: null, y: null,
+  doc: null, cofre: null, pagina: 1,
   paginas: "ultima", intervalo: "", posicao: "rodape_direita",
-  baixar: true, biblioteca: true, manter: true, senhaPdf: "", proteger: false, repetir: true,
+  baixar: true, biblioteca: true, manter: true, senhaPdf: "", proteger: false,
+  /* O selo posto pela pessoa: {x, y, largura} em pontos do PDF, com origem
+     no canto de cima. Nulo ate ela pedir "Adicionar assinatura" - escolher o
+     PDF nao carimba nada sozinho. */
+  selo: null, menuSelo: false,
   pdfs: [], feito: null,
 };
 
-async function mostrarAssinar(caminho) {
+async function mostrarAssinar(caminho, feito) {
   abrirTela("Assinatura", { cheia: true });
   marcarDestino("assinar");
   cert.visao = "assinar";
@@ -22,6 +30,8 @@ async function mostrarAssinar(caminho) {
     return;
   }
 
+  // Voltar do Certificado para o mesmo documento nao desfaz o selo posto.
+  const mesmo = Boolean(caminho && assina.doc && assina.doc.caminho === caminho && !feito);
   assina.doc = null;
   if (caminho) {
     const r = await fetch("/api/assinar/documento?arquivo=" + encodeURIComponent(caminho));
@@ -31,11 +41,15 @@ async function mostrarAssinar(caminho) {
       const d = await r.json();
       assina.doc = d.documento;
       assina.cofre = d;
-      assina.pagina = d.documento.paginas;
-      assina.paginas = "ultima";
-      assina.intervalo = "";
-      assina.x = assina.y = null;
-      assina.posicao = (d.selo && d.selo.posicao) || "rodape_direita";
+      if (!mesmo) {
+        assina.pagina = d.documento.paginas;
+        assina.paginas = "ultima";
+        assina.intervalo = "";
+        assina.selo = null;
+        assina.posicao = (d.selo && d.selo.posicao) || "rodape_direita";
+      }
+      assina.menuSelo = false;
+      if (feito) assina.feito = feito;
     }
   }
   if (!assina.doc) {
@@ -43,6 +57,25 @@ async function mostrarAssinar(caminho) {
   }
   desenharAssinatura();
   atualizarPostura();
+  const pronto = assina.feito ? document.querySelector(".as-pronto.feito") : null;
+  if (pronto) pronto.scrollIntoView({ block: "nearest" });
+}
+
+/* Depois de assinar - direto ou pelo sim em Aprovacoes -, a tela abre o PDF
+   ja assinado, com o selo de verdade na pagina. Se o assinado nao abrir
+   (protegido por senha, por exemplo), mostra o original com o resultado. */
+async function abrirAssinado(feito) {
+  if (!feito || !feito.destino) return false;
+  let caminho = feito.destino;
+  try {
+    const r = await fetch("/api/assinar/documento?arquivo=" + encodeURIComponent(caminho));
+    if (!r.ok) caminho = feito.origem || "";
+  } catch (err) {
+    caminho = feito.origem || "";
+  }
+  if (!caminho) { avisoCert("documento assinado · código " + (feito.codigo || ""), { tom: "ok" }); return false; }
+  await mostrarAssinar(caminho, feito);
+  return true;
 }
 
 /* ---------------------------------------------------- escolher o PDF */
@@ -77,7 +110,7 @@ function painelSemDocumento() {
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Antes de assinar</h3><span class="meta">escolha o PDF na lista</span></span></div>' +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Com qual certificado</span>' + seloDeSituacao() + "</div>" + cartaoDoCertificadoEmUso() + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Como funciona</span></div>' +
-    "<p>Você escolhe as páginas e onde o selo fica; o selo é o desenho, a assinatura é o dado criptográfico que cobre o documento inteiro.</p>" +
+    "<p>Você adiciona a assinatura na página, arrasta para onde quiser e ajusta o tamanho; o selo é o desenho, a assinatura é o dado criptográfico que cobre o documento inteiro.</p>" +
     "<p>Vou pedir sua confirmação e a senha do certificado antes de gravar. O original nunca é sobrescrito: o assinado nasce ao lado.</p>" +
     "<p>Nada é enviado para a internet.</p></div></div></aside>";
 }
@@ -111,7 +144,7 @@ function ligarListaDePdfs() {
 
 function visorParaAssinar() {
   const doc = assina.doc;
-  const alvos = new Set(paginasEscolhidas());
+  const alvos = new Set(assina.selo ? paginasEscolhidas() : []);
   const total = Math.min(doc.paginas, 40);
   const minis = [];
   for (let i = 1; i <= total; i += 1) {
@@ -120,16 +153,24 @@ function visorParaAssinar() {
       encodeURIComponent(doc.caminho) + "&numero=" + i + '&largura=96"><span>' + i + "</span>" +
       (alvos.has(i) ? '<i class="as-mini-selo"></i>' : "") + "</button>");
   }
+  const pondo = !assina.selo && !assina.feito;
   return '<div class="as-cartao"><div class="docs-status">' +
     '<button class="voltar" id="pdf-antes" title="Página anterior">' + ic("chevron_left", 18) + "</button>" +
     '<span class="docs-pagina-num">Pág. <b id="pdf-num">' + assina.pagina + "</b> / " + doc.paginas + "</span>" +
     '<button class="voltar" id="pdf-depois" title="Próxima página">' + ic("chevron_right", 18) + "</button>" +
-    '<span class="docs-divisa-fina"></span><span>lido da sua máquina</span><span class="cresce"></span>' + seloDeSituacao() + "</div>" +
+    '<span class="docs-divisa-fina"></span><span>' + (assina.feito && !assina.feito.aguardando_aprovacao ? "o documento assinado" : "lido da sua máquina") + '</span><span class="cresce"></span>' + seloDeSituacao() + "</div>" +
     '<div class="docs-previa"><div class="docs-miniaturas" id="pdf-minis">' + minis.join("") + (doc.paginas > total ? '<small class="as-mais">+' + (doc.paginas - total) + "</small>" : "") + "</div>" +
-    '<div class="docs-pv-rolagem as-visor"><div class="pdf-folha" id="pdf-folha"><img class="docs-pagina" id="pdf-img" alt="página ' + assina.pagina + '">' +
+    '<div class="docs-pv-rolagem as-visor"><div class="pdf-folha' + (pondo ? " pondo" : "") + '" id="pdf-folha"><img class="docs-pagina" id="pdf-img" alt="página ' + assina.pagina + '">' +
+    '<div class="as-adicionar" id="pdf-adicionar"' + (pondo ? "" : " hidden") + '><button class="primario com-icone" id="assina-add-pagina">' + ic("add", 16) + "Adicionar assinatura</button>" +
+    "<small>ou clique na página onde ela deve ficar</small></div>" +
+    '<div class="as-nesta" id="pdf-nesta" hidden><span>A assinatura não entra nesta página</span><button class="em-ligacao forte" id="assina-por-aqui">pôr aqui também</button></div>' +
     '<div class="pdf-selo" id="pdf-selo" hidden><div class="as-selo-dentro" id="pdf-selo-conteudo">' + previaSelo(cert.dados || {}) + "</div>" +
-    '<span class="as-selo-legenda">' + ic("open_with", 14) + '<span id="pdf-selo-texto">Selo entra aqui · arraste para mover</span></span>' +
-    '<i class="as-alca a"></i><i class="as-alca b"></i><i class="as-alca c"></i><i class="as-alca d"></i></div></div></div></div></div>';
+    '<div class="as-selo-barra" id="pdf-selo-barra">' +
+    '<button type="button" id="selo-replicar" title="Repetir o selo em outras páginas" aria-haspopup="menu">' + ic("content_copy", 14) + '<span id="selo-replicar-rotulo">Replicar</span></button>' +
+    '<button type="button" id="selo-remover" title="Tirar a assinatura" aria-label="Tirar a assinatura">' + ic("delete", 14) + "</button>" +
+    '<div class="as-selo-menu" id="selo-menu" role="menu" hidden></div></div>' +
+    '<span class="as-selo-legenda">' + ic("open_with", 14) + '<span id="pdf-selo-texto">arraste para mover · puxe um canto para mudar o tamanho</span></span>' +
+    '<i class="as-alca a" data-alca="a"></i><i class="as-alca b" data-alca="b"></i><i class="as-alca c" data-alca="c"></i><i class="as-alca d" data-alca="d"></i></div></div></div></div></div>';
 }
 
 function painelAntesDeAssinar() {
@@ -141,11 +182,10 @@ function painelAntesDeAssinar() {
     return '<div class="' + classe + '" data-as-pag="' + valor + '"><i></i><span>' + rotulo + "</span>" + (extra || "") + "</div>";
   };
   const escolhas = (d.escolhas || []).map((e) => {
-    if (e.valor === "todas") return radio("todas", "Todas as " + doc.paginas + " páginas");
+    if (e.valor === "todas") return radio("todas", doc.paginas > 1 ? "Todas as " + doc.paginas + " páginas" : "A única página");
     if (e.valor === "intervalo") return radio("intervalo", "Intervalo", '<input type="text" id="assina-intervalo" placeholder="ex. 1-3, 7, 12" value="' + esc(assina.intervalo) + '">');
     return radio(e.valor, e.rotulo);
   }).join("");
-  const classeRepetir = "ag-toggle" + (assina.repetir ? " on" : "");
   const classeProteger = "ag-toggle" + (assina.proteger ? " on" : "");
   const marca = (chave, rotulo) => {
     const classe = "as-marca liga" + (assina[chave] ? " on" : "");
@@ -155,10 +195,13 @@ function painelAntesDeAssinar() {
   let pronto;
   const f = assina.feito;
   if (f && f.aguardando_aprovacao) {
-    pronto = '<div class="as-pronto"><div class="as-pronto-cabeca">' + coroa(18) + "<span>Esperando o seu sim</span></div>" +
+    const passo = (feito, texto) => '<li class="' + (feito ? "feito" : "espera") + '">' + ic(feito ? "check_circle" : "schedule", 16) + "<span>" + texto + "</span></li>";
+    pronto = '<div class="as-pronto quase"><div class="as-pronto-cabeca">' + ic("task_alt", 18) + "<span>Está quase pronto — só falta a confirmação</span></div>" +
       "<p><b>" + esc(f.pedido.titulo) + "</b> — " + esc(f.pedido.resumo) + "</p>" +
-      "<p>Assinar tem efeito jurídico, então o pedido parou na fila de Aprovações. Nada foi assinado ainda.</p>" +
-      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-voltar">Mudar as escolhas</button><button class="primario com-icone" id="assina-ver-fila">' + ic("verified", 16) + "Abrir a fila</button></div></div>";
+      '<ul class="as-passos">' + passo(true, "Documento e páginas escolhidos") + passo(true, "Assinatura posicionada na página") +
+      passo(true, "Certificado conferido") + passo(false, "Sua confirmação em Aprovações") + "</ul>" +
+      "<p>Nada foi assinado ainda: assinar tem efeito jurídico, então falta só o seu sim. Confira e aprove em Aprovações — depois do sim, eu trago você de volta para o documento já assinado.</p>" +
+      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-voltar">Mudar as escolhas</button><button class="primario com-icone" id="assina-ver-fila">' + ic("verified", 16) + "Confirmar em Aprovações</button></div></div>";
   } else if (f) {
     pronto = '<div class="as-pronto feito"><div class="as-pronto-cabeca">' + ic("check_circle", 18) + "<span>Documento assinado</span>" +
       '<span class="contagem">código ' + esc(f.codigo) + "</span></div>" +
@@ -169,22 +212,19 @@ function painelAntesDeAssinar() {
       '<div class="as-pronto-acoes"><button class="em-ligacao" id="assinado-conferir">Conferir a assinatura</button><button class="primario com-icone" id="assinado-baixar">' + ic("download", 16) + "Baixar o PDF</button></div>" +
       '<div id="assinado-conferencia"></div></div>';
   } else {
-    pronto = '<div class="as-pronto"><div class="as-pronto-cabeca">' + coroa(18) + "<span>Pronto para assinar</span></div>" +
-      '<p id="assina-frase"></p>' +
-      (d.precisa_senha ? '<input type="password" id="assina-senha-cert" placeholder="senha do certificado">' : "") +
-      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-previa">Ver a prévia</button><button class="primario com-icone" id="assina-agora">' + ic("draw", 16) + "Assinar agora</button></div>" +
-      "<small>" + (d.pede_confirmacao ? "Vou pedir sua confirmação" + (d.precisa_senha ? " e a senha do certificado" : "") + " antes de gravar." : "A assinatura sai direto, sem nova confirmação.") + "</small></div>";
+    // O miolo depende do selo e do certificado: atualizarPronto preenche.
+    pronto = '<div class="as-pronto" id="assina-pronto"></div>';
   }
 
   const podeCompartilhar = Boolean(f && !f.aguardando_aprovacao);
   const bloqueio = podeCompartilhar ? "" : " disabled";
   return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Antes de assinar</h3><span class="meta">' + esc(doc.nome) + " · " + plural(doc.paginas, "página") + "</span></span></div>" +
+    (f ? "" : '<div class="as-selo-coluna" id="assina-selo-coluna"></div>') +
     '<div class="as-opcoes">' + escolhas +
-    '<div class="ag-chave"><span>Onde o selo fica na página</span><select id="assina-posicao">' +
+    '<div class="ag-chave"><span>Onde a assinatura entra</span><select id="assina-posicao">' +
     (d.posicoes || []).map((p) => '<option value="' + esc(p.valor) + '"' + (assina.posicao === p.valor ? " selected" : "") + ">" + esc(p.rotulo) + "</option>").join("") +
-    "</select></div>" +
-    '<div class="' + classeRepetir + '" id="assina-repetir"><span>Repetir o selo em todo canto igual</span><i></i></div></div>' +
+    "</select></div></div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Com qual certificado</span>' + seloDeSituacao() + "</div>" + cartaoDoCertificadoEmUso() +
     (c && !c.icp_brasil && !c.erro ? '<p class="as-explica">Este certificado é de fora da ICP-Brasil: a assinatura será íntegra, mas sem a validade jurídica de um e-CPF ou e-CNPJ credenciado.</p>' : "") + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Depois de assinar</span></div><div class="as-lista">' +
@@ -214,26 +254,18 @@ function ligarAssinar() {
   raiz.querySelectorAll("[data-as-pag]").forEach((r) => {
     r.onclick = (e) => {
       if (e.target.tagName === "INPUT") return;
-      assina.paginas = r.dataset.asPag;
-      raiz.querySelectorAll("[data-as-pag]").forEach((x) => x.classList.toggle("on", x === r));
+      escolherPaginas(r.dataset.asPag);
       const campo = $("assina-intervalo");
       if (assina.paginas === "intervalo" && campo) campo.focus();
-      atualizarFrase();
     };
   });
   const intervalo = $("assina-intervalo");
-  if (intervalo) intervalo.oninput = (e) => { assina.paginas = "intervalo"; raiz.querySelectorAll("[data-as-pag]").forEach((x) => x.classList.toggle("on", x.dataset.asPag === "intervalo")); assina.intervalo = e.target.value; atualizarFrase(); };
+  if (intervalo) intervalo.oninput = (e) => { assina.paginas = "intervalo"; assina.intervalo = e.target.value; marcarEscolhaDePaginas(); atualizarFrase(); };
 
   $("assina-posicao").onchange = (e) => {
     assina.posicao = e.target.value;
-    assina.x = assina.y = null;   /* escolher o canto desfaz o arrasto */
-    posicionarSelo();
-    atualizarFrase();
-  };
-  $("assina-repetir").onclick = () => {
-    assina.repetir = !assina.repetir;
-    $("assina-repetir").classList.toggle("on", assina.repetir);
-    if (!assina.repetir) { assina.x = assina.y = null; posicionarSelo(); }
+    // Com o selo ja na pagina, escolher o canto leva o selo para la, no mesmo tamanho.
+    if (assina.selo) assina.selo = seloNoCanto(assina.posicao, assina.selo.largura);
     atualizarFrase();
   };
 
@@ -255,17 +287,22 @@ function ligarAssinar() {
     $("assina-mostrar-pdf").textContent = campo.type === "password" ? "mostrar" : "esconder";
   };
 
-  const agora = $("assina-agora");
-  if (agora) agora.onclick = assinarAgora;
   const agoraTopo = $("assina-agora-topo");
-  if (agoraTopo) agoraTopo.onclick = () => { if (assina.feito) { avisoCert("este documento já foi assinado — abra o assinado ou troque o documento"); return; } assinarAgora(); };
-  const previa = $("assina-previa");
-  if (previa) previa.onclick = () => { const alvos = paginasEscolhidas(); if (alvos.length) { assina.pagina = alvos[0]; carregarPagina(); } };
+  if (agoraTopo) agoraTopo.onclick = () => {
+    if (assina.feito) { avisoCert("este documento já foi assinado — abra o assinado ou troque o documento"); return; }
+    if (!assina.selo) { avisoCert("adicione a assinatura na página antes de assinar"); return; }
+    assinarAgora();
+  };
 
   const voltar = $("assina-voltar");
   if (voltar) voltar.onclick = () => { assina.feito = null; desenharAssinatura(); };
   const fila = $("assina-ver-fila");
-  if (fila) fila.onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
+  if (fila) fila.onclick = () => {
+    // Abre Aprovacoes com o pedido desta assinatura ja aberto no painel.
+    if (assina.feito && assina.feito.pedido && typeof aprov !== "undefined") aprov.aberto = assina.feito.pedido.id;
+    marcarDestino("aprovacoes");
+    mostrarAprovacoes();
+  };
 
   const f = assina.feito;
   if (f && !f.aguardando_aprovacao) {
@@ -286,7 +323,7 @@ function ligarAssinar() {
     };
   }
 
-  ligarArrasto();
+  ligarSelo();
   carregarPagina();
   atualizarFrase();
 }
@@ -300,77 +337,211 @@ async function carregarPagina() {
   img.onload = posicionarSelo;
 }
 
+/* ------------------------------------------------ o selo, em pontos do PDF */
+
+function medidasDoSelo(largura) {
+  const teto = Math.min(SELO_PT.maximo, assina.doc.largura || 595);
+  const w = Math.max(SELO_PT.minimo, Math.min(largura || SELO_PT.largura, teto));
+  return { w: w, h: w * SELO_PT.altura / SELO_PT.largura };
+}
+
+function prenderNaPagina(s) {
+  const L = assina.doc.largura || 595, A = assina.doc.altura || 842;
+  const m = medidasDoSelo(s.largura);
+  return { x: Math.max(0, Math.min(s.x, L - m.w)), y: Math.max(0, Math.min(s.y, A - m.h)), largura: m.w };
+}
+
+/* O canto escolhido na coluna, no tamanho pedido. */
+function seloNoCanto(posicao, largura) {
+  const L = assina.doc.largura || 595, A = assina.doc.altura || 842, margem = SELO_PT.margem;
+  const m = medidasDoSelo(largura);
+  const x = posicao === "rodape_esquerda" ? margem : posicao === "rodape_centro" ? (L - m.w) / 2 : L - m.w - margem;
+  const y = posicao === "topo_direita" ? margem : A - m.h - margem;
+  return prenderNaPagina({ x: x, y: y, largura: m.w });
+}
+
+/* Poe o selo: no ponto clicado (centro do selo) ou no canto da coluna. Se a
+   pagina a vista nao estava entre as escolhidas, a escolha passa a ser ela:
+   o selo aparece onde a pessoa estava olhando, nunca em outra pagina. */
+function adicionarSelo(centro) {
+  if (!assina.doc || assina.feito) return;
+  if (centro) {
+    const m = medidasDoSelo();
+    assina.selo = prenderNaPagina({ x: centro.x - m.w / 2, y: centro.y - m.h / 2, largura: m.w });
+  } else {
+    assina.selo = seloNoCanto(assina.posicao);
+  }
+  if (paginasEscolhidas().indexOf(assina.pagina) < 0) escolherPaginas("intervalo", String(assina.pagina));
+  else atualizarFrase();
+  // O canto padrao costuma ser o rodape: traz o selo para a vista.
+  const selo = $("pdf-selo");
+  if (selo && !selo.hidden) selo.scrollIntoView({ block: "nearest", behavior: animacoesLigadas() ? "smooth" : "auto" });
+}
+
+function removerSelo() {
+  assina.selo = null;
+  assina.menuSelo = false;
+  atualizarFrase();
+}
+
+function escolherPaginas(valor, intervalo) {
+  assina.paginas = valor;
+  if (intervalo !== undefined) assina.intervalo = intervalo;
+  marcarEscolhaDePaginas();
+  atualizarFrase();
+}
+
+function marcarEscolhaDePaginas() {
+  document.querySelectorAll("[data-as-pag]").forEach((x) => x.classList.toggle("on", x.dataset.asPag === assina.paginas));
+  const campo = $("assina-intervalo");
+  if (campo && campo.value !== assina.intervalo) campo.value = assina.intervalo;
+}
+
+/* "Replicar" no proprio selo: as mesmas escolhas da coluna, mais "so nesta". */
+function menuDoSelo() {
+  const total = assina.doc.paginas;
+  const aqui = String(assina.pagina);
+  const itens = [["aqui", "Só nesta página (" + assina.pagina + ")"]];
+  ((assina.cofre && assina.cofre.escolhas) || []).forEach((e) => {
+    if (e.valor === "intervalo") return;
+    if (e.valor === "todas") itens.push(["todas", total > 1 ? "Todas as " + total + " páginas" : "A única página"]);
+    else itens.push([e.valor, e.rotulo]);
+  });
+  const atual = assina.paginas === "intervalo" && assina.intervalo.trim() === aqui ? "aqui" : assina.paginas;
+  return '<small>Repetir o selo, no mesmo lugar e tamanho</small>' + itens.map(([v, r]) =>
+    '<button type="button" role="menuitemradio" aria-checked="' + (v === atual) + '" data-replicar="' + v + '"' + (v === atual ? ' class="on"' : "") + ">" +
+    ic("check", 14) + "<span>" + esc(r) + "</span></button>").join("");
+}
+
+function rotuloDasPaginas(alvos) {
+  const total = assina.doc.paginas;
+  if (!alvos.length) return "nenhuma página";
+  if (alvos.length === total && total > 1) return "todas as " + total + " páginas";
+  if (alvos.length === 1) return "página " + alvos[0];
+  return "páginas " + alvos.join(", ");
+}
+
 /* O selo so aparece nas paginas que vao recebe-lo, e na posicao real: o que
    a tela mostra e o que o PDF vai receber. */
 function posicionarSelo() {
   const selo = $("pdf-selo");
   const img = $("pdf-img");
+  const folha = $("pdf-folha");
   if (!selo || !img || !img.clientWidth) return;
 
+  const s = assina.selo;
   const alvos = paginasEscolhidas();
-  if (alvos.indexOf(assina.pagina) < 0 || assina.feito) { selo.hidden = true; return; }
+  const pondo = !s && !assina.feito;
+  folha.classList.toggle("pondo", pondo);
+  $("pdf-adicionar").hidden = !pondo;
+  $("pdf-nesta").hidden = !(s && !assina.feito && alvos.indexOf(assina.pagina) < 0);
+
+  if (!s || assina.feito || alvos.indexOf(assina.pagina) < 0) { selo.hidden = true; return; }
   selo.hidden = false;
 
   const escala = img.clientWidth / (assina.doc.largura || 595);
-  const largura = 228 * escala;
-  const altura = 62 * escala;
-
-  let x, y;
-  if (assina.x !== null && assina.repetir) {
-    x = assina.x * escala;
-    y = assina.y * escala;
-  } else {
-    const margem = 28 * escala;
-    const alturaPag = (assina.doc.altura || 842) * escala;
-    x = assina.posicao === "rodape_esquerda" ? margem
-      : assina.posicao === "rodape_centro" ? (img.clientWidth - largura) / 2
-      : img.clientWidth - largura - margem;
-    y = assina.posicao === "topo_direita" ? margem : alturaPag - altura - margem;
-  }
-
-  selo.style.width = largura + "px";
-  selo.style.height = altura + "px";
-  selo.style.left = Math.max(0, Math.min(x, img.clientWidth - largura)) + "px";
-  selo.style.top = Math.max(0, Math.min(y, img.clientHeight - altura)) + "px";
+  const m = medidasDoSelo(s.largura);
+  selo.style.width = m.w * escala + "px";
+  selo.style.height = m.h * escala + "px";
+  selo.style.left = s.x * escala + "px";
+  selo.style.top = s.y * escala + "px";
+  // Perto do topo da pagina a barra do selo desce, para nao sumir no corte.
+  selo.classList.toggle("barra-embaixo", s.y * escala < 44);
+  selo.classList.toggle("menu-embaixo", s.y * escala < 200);
   const dentro = $("pdf-selo-conteudo");
-  if (dentro) dentro.style.transform = "scale(" + escala.toFixed(3) + ")";
-  const texto = $("pdf-selo-texto");
-  const posicao = ((assina.cofre && assina.cofre.posicoes) || []).find((p) => p.valor === assina.posicao);
-  if (texto) texto.textContent = "Selo entra aqui · arraste para mover · " + (assina.x !== null && assina.repetir ? "posição escolhida" : (posicao ? posicao.rotulo.toLowerCase() : assina.posicao));
+  if (dentro) dentro.style.transform = "scale(" + (escala * m.w / SELO_PT.largura).toFixed(3) + ")";
+
+  const rotulo = $("selo-replicar-rotulo");
+  if (rotulo) rotulo.textContent = alvos.length > 1 ? "Em " + alvos.length + " páginas" : "Replicar";
+  const menu = $("selo-menu");
+  if (menu) {
+    menu.hidden = !assina.menuSelo;
+    if (assina.menuSelo) menu.innerHTML = menuDoSelo();
+  }
+  $("selo-replicar").setAttribute("aria-expanded", String(assina.menuSelo));
 }
 
-function ligarArrasto() {
+function ligarSelo() {
   const selo = $("pdf-selo");
   const img = $("pdf-img");
+  const folha = $("pdf-folha");
   if (!selo) return;
-  let pegando = false, dx = 0, dy = 0;
 
+  $("assina-add-pagina").onclick = (e) => { e.stopPropagation(); adicionarSelo(); };
+  $("assina-por-aqui").onclick = (e) => {
+    e.stopPropagation();
+    const alvos = new Set(paginasEscolhidas());
+    alvos.add(assina.pagina);
+    escolherPaginas("intervalo", [...alvos].sort((a, b) => a - b).join(", "));
+  };
+
+  // Sem selo, clicar na pagina poe o selo ali mesmo.
+  folha.onclick = (e) => {
+    if (assina.menuSelo && !e.target.closest(".as-selo-barra")) { assina.menuSelo = false; posicionarSelo(); return; }
+    if (assina.selo || assina.feito || e.target.closest("button, .pdf-selo, .as-adicionar, .as-nesta")) return;
+    const r = img.getBoundingClientRect();
+    if (!r.width) return;
+    const escala = r.width / (assina.doc.largura || 595);
+    adicionarSelo({ x: (e.clientX - r.left) / escala, y: (e.clientY - r.top) / escala });
+  };
+
+  $("selo-replicar").onclick = (e) => { e.stopPropagation(); assina.menuSelo = !assina.menuSelo; posicionarSelo(); };
+  $("selo-remover").onclick = (e) => { e.stopPropagation(); removerSelo(); };
+  $("selo-menu").onclick = (e) => {
+    e.stopPropagation();
+    const b = e.target.closest("[data-replicar]");
+    if (!b) return;
+    assina.menuSelo = false;
+    const v = b.dataset.replicar;
+    if (v === "aqui") escolherPaginas("intervalo", String(assina.pagina));
+    else escolherPaginas(v);
+    // A pagina a vista saiu da escolha: vai para uma que tem o selo.
+    const alvos = paginasEscolhidas();
+    if (alvos.length && alvos.indexOf(assina.pagina) < 0) { assina.pagina = alvos[alvos.length - 1]; carregarPagina(); }
+  };
+
+  /* Mover e redimensionar. Guarda em pontos do PDF, nao em pixels da tela:
+     o zoom muda, o PDF nao. O redimensionar prende o canto oposto e mantem
+     a proporcao do selo. */
+  let gesto = null;
   selo.onpointerdown = (e) => {
-    pegando = true;
+    if (e.button !== 0 || e.target.closest(".as-selo-barra") || !assina.selo) return;
+    e.preventDefault();
+    const alca = e.target.dataset ? e.target.dataset.alca : "";
+    const m = medidasDoSelo(assina.selo.largura);
+    gesto = { alca: alca || "", x0: e.clientX, y0: e.clientY, s0: { x: assina.selo.x, y: assina.selo.y, w: m.w, h: m.h } };
     selo.setPointerCapture(e.pointerId);
-    selo.classList.add("pegando");
-    dx = e.clientX - selo.offsetLeft;
-    dy = e.clientY - selo.offsetTop;
+    selo.classList.add(alca ? "redimensionando" : "pegando");
   };
   selo.onpointermove = (e) => {
-    if (!pegando) return;
+    if (!gesto) return;
     const escala = img.clientWidth / (assina.doc.largura || 595);
-    const x = Math.max(0, Math.min(e.clientX - dx, img.clientWidth - selo.offsetWidth));
-    const y = Math.max(0, Math.min(e.clientY - dy, img.clientHeight - selo.offsetHeight));
-    selo.style.left = x + "px";
-    selo.style.top = y + "px";
-    /* Guarda em pontos do PDF, nao em pixels da tela: o zoom muda, o PDF nao. */
-    assina.x = x / escala;
-    assina.y = y / escala;
-    assina.repetir = true;
+    const dx = (e.clientX - gesto.x0) / escala;
+    const dy = (e.clientY - gesto.y0) / escala;
+    const s0 = gesto.s0;
+    if (!gesto.alca) {
+      assina.selo = prenderNaPagina({ x: s0.x + dx, y: s0.y + dy, largura: s0.w });
+    } else {
+      const esquerda = gesto.alca === "a" || gesto.alca === "c";
+      const cima = gesto.alca === "a" || gesto.alca === "b";
+      // O canto puxado segue o maior dos dois deslocamentos, na proporcao.
+      const pelaLargura = esquerda ? -dx : dx;
+      const pelaAltura = (cima ? -dy : dy) * SELO_PT.largura / SELO_PT.altura;
+      const m = medidasDoSelo(s0.w + (Math.abs(pelaLargura) > Math.abs(pelaAltura) ? pelaLargura : pelaAltura));
+      const x = esquerda ? s0.x + s0.w - m.w : s0.x;
+      const y = cima ? s0.y + s0.h - m.h : s0.y;
+      assina.selo = prenderNaPagina({ x: x, y: y, largura: m.w });
+    }
+    posicionarSelo();
   };
-  selo.onpointerup = () => {
-    pegando = false;
-    selo.classList.remove("pegando");
-    const r = $("assina-repetir");
-    if (r) r.classList.add("on");
+  const soltar = () => {
+    if (!gesto) return;
+    gesto = null;
+    selo.classList.remove("pegando", "redimensionando");
     atualizarFrase();
   };
+  selo.onpointerup = soltar;
+  selo.onpointercancel = soltar;
 }
 
 function paginasEscolhidas() {
@@ -395,78 +566,157 @@ function paginasEscolhidas() {
   return Array.from({ length: total }, (_, i) => i + 1);
 }
 
+/* O que ainda falta para assinar, na ordem em que a pessoa resolve. */
+function oQueFalta() {
+  const d = cert.dados || {};
+  const c = d.certificado || {};
+  if (!d.instalado || c.erro || c.vencido) {
+    return { icone: "workspace_premium", titulo: "Falta o certificado", texto: "Instale o certificado ou digite a senha dele em Certificado digital.", botao: '<button class="primario com-icone" data-as-visao="certificado">' + ic("workspace_premium", 16) + "Abrir o certificado</button>" };
+  }
+  if (!assina.selo) {
+    return { icone: "draw", titulo: "Falta adicionar a assinatura", texto: "Diga onde o selo entra: clique em Adicionar assinatura, ou direto na página. Depois dá para arrastar, mudar o tamanho e replicar nas outras páginas.", botao: '<button class="primario com-icone" id="assina-add-pronto">' + ic("add", 16) + "Adicionar assinatura</button>" };
+  }
+  if (!paginasEscolhidas().length) {
+    return { icone: "info", titulo: "Falta dizer as páginas", texto: "O intervalo não tem nenhuma página deste documento. Escreva, por exemplo, 1-3 ou 7.", botao: "" };
+  }
+  return null;
+}
+
 /* A ultima coisa que a pessoa le antes de usar o certificado dela. */
-function atualizarFrase() {
-  const alvo = $("assina-frase");
+function fraseDeAssinar() {
   const alvos = paginasEscolhidas();
   const c = (cert.dados || {}).certificado || {};
   const total = assina.doc.paginas;
-  const podeAssinar = Boolean((cert.dados || {}).instalado && !c.erro && !c.vencido);
-
-  const onde = !alvos.length ? "em nenhuma página"
-    : alvos.length === total && total > 1 ? "em todas as " + total + " páginas"
+  const onde = alvos.length === total && total > 1 ? "em todas as " + total + " páginas"
     : alvos.length === 1 ? "na página " + alvos[0]
     : "nas páginas " + alvos.join(", ");
-
-  let frase = "Vou carimbar o selo " + onde + " e assinar o documento com o " +
+  let frase = "O selo entra " + onde + ", onde você o colocou, e o documento é assinado com o " +
     (c.tipo || "certificado") + " de " + (c.titular || "você") + ".";
   if (assina.senhaPdf) frase += " O arquivo sai protegido por senha.";
   if (alvos.length > 1) frase += " A assinatura digital é uma só e cobre o documento inteiro.";
-  frase += " Nada é enviado para a internet.";
-  if (!podeAssinar) frase = "Falta um certificado aberto e válido: instale ou digite a senha dele em Certificado digital.";
+  return frase + " Nada é enviado para a internet.";
+}
 
-  if (alvo) alvo.textContent = frase;
-  const botao = $("assina-agora");
-  if (botao) botao.disabled = !alvos.length || !podeAssinar;
+function atualizarPronto() {
+  const caixa = $("assina-pronto");
+  if (!caixa) return;
+  const d = assina.cofre || {};
+  const falta = oQueFalta();
+  if (falta) {
+    caixa.className = "as-pronto falta";
+    caixa.innerHTML = '<div class="as-pronto-cabeca">' + ic(falta.icone, 18) + "<span>" + falta.titulo + "</span></div>" +
+      "<p>" + falta.texto + "</p>" +
+      '<div class="as-pronto-acoes">' + falta.botao + '<button class="com-icone" id="assina-agora" disabled title="' + esc(falta.titulo) + '">' + ic("draw", 16) + "Assinar agora</button></div>";
+  } else {
+    caixa.className = "as-pronto pronto";
+    caixa.innerHTML = '<div class="as-pronto-cabeca">' + ic("task_alt", 18) + "<span>Tudo pronto para assinar</span></div>" +
+      '<p id="assina-frase">' + esc(fraseDeAssinar()) + "</p>" +
+      '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-previa">Ver onde entra</button><button class="primario com-icone" id="assina-agora">' + ic("draw", 16) + "Assinar agora</button></div>" +
+      "<small>" + (d.pede_confirmacao || d.precisa_senha
+        ? "Antes de gravar, peço sua confirmação" + (d.precisa_senha ? (d.origem === "windows" ? " e a senha do PAULUS" : " e a senha do certificado") : "") + "."
+        : "A assinatura sai direto, sem nova confirmação.") + "</small>";
+  }
+  const agora = $("assina-agora");
+  if (agora && !agora.disabled) agora.onclick = assinarAgora;
+  const add = $("assina-add-pronto");
+  if (add) add.onclick = () => adicionarSelo();
+  const previa = $("assina-previa");
+  if (previa) previa.onclick = () => { const alvos = paginasEscolhidas(); if (alvos.length) { assina.pagina = alvos[0]; carregarPagina(); } };
+  caixa.querySelectorAll("[data-as-visao]").forEach((b) => { b.onclick = () => mostrarCertificado(); });
+}
+
+/* A linha do selo na coluna: o botao de por, ou o que ja foi posto. */
+function atualizarColunaDoSelo() {
+  const alvo = $("assina-selo-coluna");
+  if (!alvo) return;
+  const s = assina.selo;
+  if (!s) {
+    alvo.innerHTML = '<button class="com-icone as-add-coluna" id="assina-add-coluna">' + ic("add", 16) + "Adicionar assinatura</button>";
+    $("assina-add-coluna").onclick = () => adicionarSelo();
+    return;
+  }
+  const m = medidasDoSelo(s.largura);
+  const cm = (pt) => (pt * 2.54 / 72).toFixed(1).replace(".", ",");
+  alvo.innerHTML = '<div class="as-selo-linha">' + ic("draw", 18) + '<span class="duas-linhas"><b>Assinatura na página</b><small>' +
+    rotuloDasPaginas(paginasEscolhidas()) + " · " + cm(m.w) + " × " + cm(m.h) + " cm</small></span>" +
+    '<button class="em-ligacao" id="assina-tirar-coluna">tirar</button></div>';
+  $("assina-tirar-coluna").onclick = removerSelo;
+}
+
+function atualizarFrase() {
+  if (!assina.doc) return;
+  const falta = assina.feito ? null : oQueFalta();
   const topo = $("assina-agora-topo");
-  if (topo) topo.disabled = !alvos.length || !podeAssinar;
-  const marcados = new Set(alvos);
+  if (topo) topo.disabled = Boolean(assina.feito) || Boolean(falta);
+  const marcados = new Set(assina.selo ? paginasEscolhidas() : []);
   document.querySelectorAll("[data-pdf-pagina]").forEach((b) => {
     const n = Number(b.dataset.pdfPagina);
     const tem = b.querySelector(".as-mini-selo");
     if (marcados.has(n) && !tem) b.insertAdjacentHTML("beforeend", '<i class="as-mini-selo"></i>');
     if (!marcados.has(n) && tem) tem.remove();
   });
+  atualizarColunaDoSelo();
+  atualizarPronto();
   posicionarSelo();
 }
 
 async function assinarAgora() {
   const botao = $("assina-agora");
-  const senhaCert = $("assina-senha-cert");
   const alvos = paginasEscolhidas();
-  if (!alvos.length) return;
-  if (assina.cofre.precisa_senha && senhaCert && !senhaCert.value) { senhaCert.focus(); avisoCert("digite a senha do certificado"); return; }
+  if (!alvos.length || !assina.selo) return;
 
-  if (assina.cofre.pede_confirmacao) {
-    if (!(await confirmar({ titulo: "Assinar agora?", contexto: "Assinatura", texto: $("assina-frase").textContent, confirmar: "Assinar" }))) return;
+  // A confirmacao e a senha num modal so: "Assinar como FULANO?". Com o
+  // certificado do Windows, a senha e a do PAULUS - e o Windows ainda pede a
+  // dele depois, se o certificado tiver protecao forte.
+  const c = assina.cofre;
+  const doWindows = c.origem === "windows";
+  let senha = "";
+  if (c.pede_confirmacao || c.precisa_senha) {
+    const titular = (c.certificado && c.certificado.titular) || "";
+    const r = await dialogo({
+      titulo: titular ? "Assinar como " + titular + "?" : "Assinar agora?", contexto: "Assinatura",
+      texto: fraseDeAssinar() + (doWindows ? "\nSe o certificado foi instalado com proteção forte, o Windows vai pedir a senha dele em seguida." : ""),
+      campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do PAULUS" : "Senha do certificado", tipo: "password", icone: "lock", selecionar: false } : undefined,
+      confirmar: "Assinar",
+    });
+    if (!r || !r.ok) return;
+    senha = c.precisa_senha ? r.valor : "";
   }
 
   if (botao) { botao.disabled = true; botao.textContent = "assinando…"; }
+  const origem = assina.doc.caminho;
   const r = await fetch("/api/assinar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      arquivo: assina.doc.caminho,
+      arquivo: origem,
       paginas: assina.paginas,
       intervalo: assina.intervalo,
       posicao: assina.posicao,
-      x: assina.repetir ? assina.x : null,
-      y: assina.repetir ? assina.y : null,
+      x: assina.selo.x,
+      y: assina.selo.y,
+      tamanho: medidasDoSelo(assina.selo.largura).w,
       senha_pdf: assina.senhaPdf,
       guardar_biblioteca: assina.biblioteca,
       manter_original: assina.manter,
-      senha_certificado: senhaCert ? senhaCert.value : "",
+      senha_certificado: senha,
     }),
   });
   if (botao) { botao.disabled = false; botao.innerHTML = ic("draw", 16) + "Assinar agora"; }
 
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   const d = await r.json();
-  assina.feito = d;
-  desenharAssinatura();
-  if (!d.aguardando_aprovacao && assina.baixar) {
-    window.location.href = "/api/assinar/baixar?arquivo=" + encodeURIComponent(d.destino);
+  if (d.aguardando_aprovacao) {
+    assina.feito = d;
+    desenharAssinatura();
+    contarPendencias();
+    // O recado de "quase pronto" fica no pe da coluna: traz para a vista.
+    const quase = document.querySelector(".as-pronto.quase");
+    if (quase) quase.scrollIntoView({ block: "nearest", behavior: animacoesLigadas() ? "smooth" : "auto" });
+    return;
   }
+  if (assina.baixar) window.location.href = "/api/assinar/baixar?arquivo=" + encodeURIComponent(d.destino);
+  await abrirAssinado(Object.assign({ origem: origem }, d));
 }
 
 async function conferirAssinado() {
@@ -494,4 +744,3 @@ function telaAssinado(d) {
 function nomeDe(caminho) {
   return String(caminho || "").split(/[\\/]/).pop();
 }
-

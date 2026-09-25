@@ -27,7 +27,15 @@ from pathlib import Path
 LINHAS_PADRAO = 40
 COLUNAS_PADRAO = 8
 MAX_LINHAS = 2000
-MAX_COLUNAS = 40
+# CZ. A grade cresce com a rolagem ate aqui; o teto existe porque a tela
+# desenha tudo que tem, e uma tabela de escritorio nao passa de algumas
+# dezenas de colunas.
+MAX_COLUNAS = 104
+
+# Largura e altura sao em pixels da tela, e so as que a pessoa mudou ficam
+# guardadas: as outras seguem o padrao.
+LARGURA_MIN, LARGURA_MAX = 24, 900
+ALTURA_MIN, ALTURA_MAX = 18, 400
 
 FORMATOS = {
     "": "Texto",
@@ -63,17 +71,29 @@ class Celula:
     # Quantas colunas esta celula ocupa. 1 e o normal; maior que 1 e uma
     # celula juntada com as da direita - um titulo atravessando o quadro.
     juntar: int = 1
+    # Nota presa na celula, como o comentario do Excel: aparece ao passar o
+    # mouse e vai junto para o XLSX.
+    comentario: str = ""
 
     @property
     def e_formula(self) -> bool:
         return self.valor.startswith("=")
 
+    @property
+    def vazia(self) -> bool:
+        return (not self.valor and not self.formato and not self.negrito
+                and not self.italico and not self.borda and self.juntar <= 1
+                and not self.comentario)
+
     def to_dict(self) -> dict:
-        return {
+        saida = {
             "valor": self.valor, "formato": self.formato,
             "negrito": self.negrito, "italico": self.italico,
             "borda": self.borda, "juntar": self.juntar,
         }
+        if self.comentario:
+            saida["comentario"] = self.comentario
+        return saida
 
 
 @dataclass
@@ -83,6 +103,12 @@ class Aba:
     linhas: int = LINHAS_PADRAO
     colunas: int = COLUNAS_PADRAO
     congelar_cabecalho: bool = False
+    # Só o que foi mudado: {"B": 180} e {"3": 40}. Coluna por letra e linha
+    # pelo numero que aparece na tela, que e como a pessoa pensa nelas.
+    larguras: dict[str, int] = field(default_factory=dict)
+    alturas: dict[str, int] = field(default_factory=dict)
+    colunas_ocultas: list[str] = field(default_factory=list)
+    linhas_ocultas: list[int] = field(default_factory=list)
 
     def obter(self, ref: str) -> Celula | None:
         return self.celulas.get(ref.upper())
@@ -91,15 +117,16 @@ class Aba:
         ref = ref.upper()
         celula = self.celulas.get(ref) or Celula()
         if "valor" in dados:
-            celula.valor = str(dados["valor"])
+            celula.valor = str(dados["valor"] if dados["valor"] is not None else "")
         for campo in ("formato", "negrito", "italico", "borda"):
             if campo in dados:
-                setattr(celula, campo, dados[campo] if campo == "formato" else bool(dados[campo]))
+                setattr(celula, campo, str(dados[campo] or "") if campo == "formato" else bool(dados[campo]))
         if "juntar" in dados:
             celula.juntar = max(1, min(int(dados["juntar"] or 1), MAX_COLUNAS))
+        if "comentario" in dados:
+            celula.comentario = str(dados["comentario"] or "").strip()[:2000]
 
-        if (not celula.valor and not celula.formato and not celula.negrito
-                and not celula.italico and not celula.borda and celula.juntar <= 1):
+        if celula.vazia:
             self.celulas.pop(ref, None)
             return celula
 
@@ -115,8 +142,49 @@ class Aba:
             "linhas": self.linhas,
             "colunas": self.colunas,
             "congelar_cabecalho": self.congelar_cabecalho,
+            "larguras": dict(self.larguras),
+            "alturas": dict(self.alturas),
+            "colunas_ocultas": list(self.colunas_ocultas),
+            "linhas_ocultas": list(self.linhas_ocultas),
             "celulas": {k: c.to_dict() for k, c in self.celulas.items()},
         }
+
+    # ------------------------------------------------ a forma da grade
+
+    def medir(self, larguras: dict | None = None, alturas: dict | None = None) -> None:
+        """
+        Muda largura de coluna e altura de linha. `None` volta ao padrao.
+
+        Medida fora do razoavel e presa no limite em vez de recusada: quem
+        arrasta a borda ate o fim da tela quer a coluna larga, nao um erro.
+        """
+        for letra, px in (larguras or {}).items():
+            letra = str(letra).upper().strip()
+            if not re.fullmatch(r"[A-Z]{1,2}", letra):
+                continue
+            if px is None:
+                self.larguras.pop(letra, None)
+            else:
+                self.larguras[letra] = max(LARGURA_MIN, min(int(px), LARGURA_MAX))
+        for linha, px in (alturas or {}).items():
+            chave = str(linha).strip()
+            if not chave.isdigit() or not 1 <= int(chave) <= MAX_LINHAS:
+                continue
+            if px is None:
+                self.alturas.pop(chave, None)
+            else:
+                self.alturas[chave] = max(ALTURA_MIN, min(int(px), ALTURA_MAX))
+
+    def ocultar(self, colunas=(), linhas=(), ocultar: bool = True) -> None:
+        """Esconde ou mostra colunas e linhas. Esconder nao apaga nada."""
+        cols = {str(c).upper().strip() for c in colunas if re.fullmatch(r"[A-Za-z]{1,2}", str(c).strip())}
+        lins = {int(l) for l in linhas if str(l).strip().isdigit() and 1 <= int(l) <= MAX_LINHAS}
+        if ocultar:
+            self.colunas_ocultas = sorted(set(self.colunas_ocultas) | cols, key=indice_da_coluna)
+            self.linhas_ocultas = sorted(set(self.linhas_ocultas) | lins)
+        else:
+            self.colunas_ocultas = [c for c in self.colunas_ocultas if c not in cols]
+            self.linhas_ocultas = [l for l in self.linhas_ocultas if l not in lins]
 
 
 def letra_da_coluna(indice: int) -> str:
@@ -225,6 +293,7 @@ class ErroFormula(Exception):
 TOKEN = re.compile(r"""
     (?P<numero>\d+(?:,\d+)?|\,\d+)
   | (?P<texto>"[^"]*")
+  | (?P<refperdida>\#REF!)
   | (?P<faixa>\$?[A-Za-z]{1,2}\$?\d{1,4}\s*:\s*\$?[A-Za-z]{1,2}\$?\d{1,4})
   | (?P<celula>\$?[A-Za-z]{1,2}\$?\d{1,4})
   | (?P<funcao>[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9._]*)
@@ -342,6 +411,10 @@ class _Analisador:
         if tipo == "texto":
             self._comer()
             return texto[1:-1]
+        if tipo == "refperdida":
+            # A celula que a formula usava foi excluida junto com a linha ou
+            # a coluna dela.
+            raise ErroFormula(ERRO_REF)
         if tipo == "faixa":
             self._comer()
             return _Faixa(texto.replace("$", "").replace(" ", ""))
@@ -1014,6 +1087,188 @@ def filtrar(aba: Aba, calculado: dict, faixa: str, coluna: str, criterio: str,
     }
 
 
+# ---------------------------------------- inserir e excluir linha e coluna
+
+# Referencia com ou sem $, sozinha ou em faixa. O olhar para tras evita pegar
+# o meio de um nome; o olhar para frente evita nome de funcao ("LOG10(").
+RE_REF_COMPLETA = re.compile(
+    r"(?<![A-Za-z0-9_$.])(\$?)([A-Za-z]{1,2})(\$?)(\d{1,4})(?![0-9A-Za-z_(])"
+    r"(?:(\s*:\s*)(\$?)([A-Za-z]{1,2})(\$?)(\d{1,4})(?![0-9A-Za-z_(]))?")
+
+
+def _mover(x: int, em: int, quantas: int, inserir: bool) -> int | None:
+    """Onde a posicao `x` vai parar. None e posicao que foi excluida."""
+    if inserir:
+        return x + quantas if x >= em else x
+    if x < em:
+        return x
+    if x >= em + quantas:
+        return x - quantas
+    return None
+
+
+def _mover_faixa(a: int, b: int, em: int, quantas: int, inserir: bool) -> tuple[int, int] | None:
+    """
+    Uma faixa encolhe ou estica com a estrutura, como no Excel.
+
+    =SOMA(B2:B10) com uma linha inserida na 5 vira =SOMA(B2:B11): a linha nova
+    entra na conta. Excluir as linhas 9 a 12 encolhe para B2:B8. So quando a
+    faixa inteira some a formula vira #REF!.
+    """
+    if inserir:
+        return _mover(a, em, quantas, True), _mover(b, em, quantas, True)
+    fim = em + quantas - 1
+    novo_a = a if a < em else (em if a <= fim else a - quantas)
+    novo_b = b if b < em else (em - 1 if b <= fim else b - quantas)
+    if novo_a > novo_b:
+        return None
+    return novo_a, novo_b
+
+
+def ajustar_formula(valor: str, eixo: str, em: int, quantas: int, inserir: bool) -> str:
+    """
+    As referencias de uma formula depois de inserir ou excluir linhas/colunas.
+
+    Aqui o $ nao prende: a celula mudou de lugar, e a formula tem que seguir a
+    celula - e o que o Excel faz. `em` conta de 1 para linhas e de 0 para
+    colunas. Referencia a uma celula excluida vira #REF!, visivel na hora, em
+    vez de passar a apontar para a vizinha sem ninguem ver.
+    """
+    if not str(valor).startswith("="):
+        return valor
+
+    def trocar(m: re.Match) -> str:
+        d1, col1, d2, lin1, sep, d3, col2, d4, lin2 = m.groups()
+        if sep is None:
+            if eixo == "linhas":
+                nova = _mover(int(lin1), em, quantas, inserir)
+                return "#REF!" if nova is None else f"{d1}{col1.upper()}{d2}{nova}"
+            nova = _mover(indice_da_coluna(col1), em, quantas, inserir)
+            return "#REF!" if nova is None else f"{d1}{letra_da_coluna(nova)}{d2}{lin1}"
+
+        if eixo == "linhas":
+            faixa = _mover_faixa(int(lin1), int(lin2), em, quantas, inserir)
+            if faixa is None:
+                return "#REF!"
+            return f"{d1}{col1.upper()}{d2}{faixa[0]}:{d3}{col2.upper()}{d4}{faixa[1]}"
+        faixa = _mover_faixa(indice_da_coluna(col1), indice_da_coluna(col2), em, quantas, inserir)
+        if faixa is None:
+            return "#REF!"
+        return (f"{d1}{letra_da_coluna(faixa[0])}{d2}{lin1}:"
+                f"{d3}{letra_da_coluna(faixa[1])}{d4}{lin2}")
+
+    saida = []
+    for pedaco in re.split(r'("(?:[^"]|"")*")', valor):
+        saida.append(pedaco if pedaco.startswith('"') else RE_REF_COMPLETA.sub(trocar, pedaco))
+    return "".join(saida)
+
+
+def reestruturar(aba: Aba, eixo: str, acao: str, em: int, quantas: int = 1) -> dict:
+    """
+    Insere ou exclui linhas (eixo "linhas", `em` contando de 1) ou colunas
+    (eixo "colunas", `em` contando de 0).
+
+    Tudo anda junto: as celulas, as formulas de toda a aba, as larguras, as
+    alturas, o que estava oculto e as celulas juntadas. Inserir que empurraria
+    conteudo para fora da grade e recusado, em vez de cortar o fim da tabela.
+    """
+    if eixo not in ("linhas", "colunas") or acao not in ("inserir", "excluir"):
+        raise ValueError("operação desconhecida")
+    inserir = acao == "inserir"
+    limite = MAX_LINHAS if eixo == "linhas" else MAX_COLUNAS
+    base = 1 if eixo == "linhas" else 0
+    quantas = int(quantas or 1)
+    em = int(em)
+    if quantas < 1 or quantas > limite:
+        raise ValueError("quantidade inválida")
+    if not base <= em < limite + base:
+        raise ValueError("posição fora da grade")
+
+    def posicao(ref: str) -> tuple[int, int]:
+        linha, coluna = _posicao(ref)
+        return linha + 1, coluna
+
+    if inserir:
+        maior = max((posicao(r)[0 if eixo == "linhas" else 1] for r in aba.celulas), default=base - 1)
+        if maior >= em and maior + quantas >= limite + base:
+            raise ValueError("não cabe: o conteúdo passaria do fim da grade")
+
+    novas: dict[str, Celula] = {}
+    removidas = 0
+    for ref, celula in aba.celulas.items():
+        linha, coluna = posicao(ref)
+        if eixo == "linhas":
+            nova = _mover(linha, em, quantas, inserir)
+            if nova is None:
+                removidas += 1
+                continue
+            destino = f"{letra_da_coluna(coluna)}{nova}"
+        else:
+            if celula.juntar > 1:
+                faixa = _mover_faixa(coluna, coluna + celula.juntar - 1, em, quantas, inserir)
+                if faixa is None or _mover(coluna, em, quantas, inserir) is None:
+                    removidas += 1
+                    continue
+                celula.juntar = faixa[1] - faixa[0] + 1
+            nova = _mover(coluna, em, quantas, inserir)
+            if nova is None:
+                removidas += 1
+                continue
+            destino = f"{letra_da_coluna(nova)}{linha}"
+        novas[destino] = celula
+
+    formulas = 0
+    for celula in novas.values():
+        if celula.e_formula:
+            novo = ajustar_formula(celula.valor, eixo, em, quantas, inserir)
+            if novo != celula.valor:
+                formulas += 1
+                celula.valor = novo
+    aba.celulas = novas
+
+    if eixo == "linhas":
+        aba.alturas = {str(n): px for k, px in aba.alturas.items()
+                       if (n := _mover(int(k), em, quantas, inserir)) is not None}
+        aba.linhas_ocultas = sorted(n for l in aba.linhas_ocultas
+                                    if (n := _mover(int(l), em, quantas, inserir)) is not None)
+        aba.linhas = max(1, min(aba.linhas + (quantas if inserir else -quantas), MAX_LINHAS))
+    else:
+        aba.larguras = {letra_da_coluna(n): px for k, px in aba.larguras.items()
+                        if (n := _mover(indice_da_coluna(k), em, quantas, inserir)) is not None}
+        aba.colunas_ocultas = [letra_da_coluna(n) for c in aba.colunas_ocultas
+                               if (n := _mover(indice_da_coluna(c), em, quantas, inserir)) is not None]
+        aba.colunas = max(1, min(aba.colunas + (quantas if inserir else -quantas), MAX_COLUNAS))
+
+    return {"eixo": eixo, "acao": acao, "em": em, "quantas": quantas,
+            "formulas": formulas, "removidas": removidas}
+
+
+def gravar_lote(aba: Aba, itens: list) -> int:
+    """
+    Varias celulas de uma vez: colar, preencher arrastando a alca, limpar.
+
+    Uma chamada por celula num colar de 200 celulas seriam 200 versoes do
+    documento no Historico - e 200 idas ao disco.
+    """
+    feitas = 0
+    for item in itens:
+        if not isinstance(item, dict):
+            continue
+        ref = str(item.get("ref", "")).upper()
+        dados = item.get("dados")
+        if not RE_CELULA.match(ref) or not isinstance(dados, dict):
+            continue
+        linha, coluna = _posicao(ref)
+        if linha >= MAX_LINHAS or coluna >= MAX_COLUNAS:
+            continue
+        permitidos = {k: v for k, v in dados.items()
+                      if k in ("valor", "formato", "negrito", "italico", "borda", "comentario")}
+        if permitidos:
+            aba.gravar(ref, permitidos)
+            feitas += 1
+    return feitas
+
+
 # --------------------------------------------------------- entrar e sair
 
 
@@ -1131,6 +1386,22 @@ def para_xlsx(abas: list[Aba], calculados: list[dict]) -> bytes:
                 folha.merge_cells(f"{ref}:{fim}")
         if aba.congelar_cabecalho:
             folha.freeze_panes = "A2"
+        # Largura em pixels vira a unidade do Excel (mais ou menos 7 px por
+        # caractere) e altura vira pontos: a coluna que a pessoa alargou para
+        # caber o nome do cliente chega larga do outro lado.
+        for letra, px in aba.larguras.items():
+            folha.column_dimensions[letra].width = round(px / 7, 2)
+        for linha, px in aba.alturas.items():
+            folha.row_dimensions[int(linha)].height = round(px * 0.75, 2)
+        for letra in aba.colunas_ocultas:
+            folha.column_dimensions[letra].hidden = True
+        for linha in aba.linhas_ocultas:
+            folha.row_dimensions[int(linha)].hidden = True
+        for ref, celula in aba.celulas.items():
+            if celula.comentario:
+                from openpyxl.comments import Comment
+
+                folha[ref].comment = Comment(celula.comentario, "PAULUS")
 
     saida = io.BytesIO()
     livro.save(saida)
@@ -1146,6 +1417,14 @@ def de_dict(bruto: dict) -> list[Aba]:
             colunas=int(item.get("colunas", COLUNAS_PADRAO)),
             congelar_cabecalho=bool(item.get("congelar_cabecalho")),
         )
+        # Planilha gravada antes de existir largura e altura simplesmente nao
+        # tem esses campos - e abre com tudo no padrao.
+        if isinstance(item.get("larguras"), dict) or isinstance(item.get("alturas"), dict):
+            try:
+                aba.medir(item.get("larguras") or {}, item.get("alturas") or {})
+            except (TypeError, ValueError):
+                pass
+        aba.ocultar(item.get("colunas_ocultas") or [], item.get("linhas_ocultas") or [])
         for ref, dados in (item.get("celulas") or {}).items():
             if isinstance(dados, dict):
                 aba.celulas[ref.upper()] = Celula(
@@ -1155,6 +1434,7 @@ def de_dict(bruto: dict) -> list[Aba]:
                     italico=bool(dados.get("italico")),
                     borda=bool(dados.get("borda")),
                     juntar=max(1, int(dados.get("juntar") or 1)),
+                    comentario=str(dados.get("comentario") or ""),
                 )
         abas.append(aba)
     return abas or [Aba()]
