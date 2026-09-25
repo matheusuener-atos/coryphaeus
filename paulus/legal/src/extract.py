@@ -164,28 +164,42 @@ def _save_cache(cache_path: Path, docs: list[Document]) -> None:
 
 
 def index_all_contracts(
-    folder: Path,
+    folder: Path | list[Path],
     cache_path: Path | None = None,
     *,
     force: bool = False,
     verbose: bool = True,
 ) -> list[Document]:
     """
-    Extrai todos os contratos de `folder` (recursivamente).
+    Extrai todos os contratos de `folder` (recursivamente) - ou de varias
+    pastas, numa passada so.
+
+    Varias pastas vao juntas, e nao numa chamada por pasta, porque o cache e
+    gravado inteiro no fim: a segunda chamada apagaria do cache o que a
+    primeira leu. Pasta dentro de outra da lista nao conta duas vezes.
 
     Arquivos ja extraidos com o mesmo conteudo (mesmo sha1) sao lidos do cache.
     Passe force=True para reprocessar tudo.
     """
-    folder = Path(folder)
-    if not folder.exists():
+    pastas = [Path(f) for f in (folder if isinstance(folder, (list, tuple)) else [folder])]
+    pastas = [p for p in pastas if p.exists()]
+    if not pastas:
         return []
 
     cache = {} if (force or cache_path is None) else _load_cache(Path(cache_path))
     docs: list[Document] = []
 
-    arquivos = sorted(
-        p for p in folder.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES
-    )
+    vistos: set[str] = set()
+    arquivos: list[Path] = []
+    for pasta in pastas:
+        for p in pasta.rglob("*"):
+            if not (p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES):
+                continue
+            chave = str(p.resolve()).lower()
+            if chave not in vistos:
+                vistos.add(chave)
+                arquivos.append(p)
+    arquivos.sort()
 
     for path in arquivos:
         sha = file_sha1(path)

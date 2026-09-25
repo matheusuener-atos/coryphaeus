@@ -1,0 +1,156 @@
+  /* ---------------------------------------------------- acervo editorial */
+  /* O Acervo no desenho das telas refeitas: coluna de leitura, abertura com
+     lide e ficha em faixa, ficha do documento na propria linha. Prefixo ae-;
+     reaproveita sv- (abertura, ficha, secao) de 12-servicos.css. */
+  /* Na largura das outras telas: rente ao cabecalho, sem a medida de leitura. */
+  .ae-tela .sv-principal { padding: 16px 0 56px; }
+  .ae-tela .sv-medida { max-width: none; gap: 18px; }
+  .ae-acc { color: var(--acc) !important; }
+
+  /* A barra dos filtros: pilulas soltas, o ordenar a direita. */
+  .ae-barra { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 6px; }
+  .ae-chips { flex: 1; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  .ae-chips button {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--ink-a1); border-radius: 999px;
+    background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer; font-variant-numeric: tabular-nums;
+  }
+  .ae-chips button:hover:not(:disabled) { border-color: var(--ink-a3); background: none; color: var(--ink); }
+  .ae-chips button.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+  .ae-ordem { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ae-tela .ae-ordem select { min-width: 0; width: auto; max-width: 180px; height: 30px; padding: 0 8px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); color: var(--ink); font: 500 12.5px var(--sans); }
+
+  /* As linhas: sem colunas de tabela. Marca, glifo, nome, quando, analise. */
+  /* A linha tem o recuo das tabelas do sistema: e nele que a selecao
+     desenha o fundo e o fio da borda (.selecionando .escolhida). Sem recuo,
+     o fio colava na caixinha. */
+  .ae-tela .tabela-linha.ae-linha {
+    display: flex; align-items: center; gap: 12px; min-height: 52px; margin: 0; padding: 8px 16px;
+    border-bottom: 1px solid var(--hair); font-size: 14px;
+  }
+  .ae-tela .tabela-linha.ae-linha:last-child { border-bottom: none; }
+  .ae-tela .tabela-linha.ae-linha:hover .duas-linhas b { text-decoration: underline; text-underline-offset: 3px; }
+  .ae-tela .tabela-linha.aberta { box-shadow: none; background: none; }
+  .ae-linha .duas-linhas { flex: 1; min-width: 0; }
+  .ae-linha .duas-linhas b { display: flex; align-items: center; gap: 5px; font: 500 14px var(--sans); }
+  .ae-linha .duas-linhas b .ic { color: var(--ink3); }
+  .ae-linha .quando-doc { width: 104px; flex: none; text-align: right; color: var(--ink3); white-space: nowrap; }
+  .ae-linha .analise-doc { width: 150px; }
+  .ae-linha .marcar, .ae-verbete .marcar { opacity: 0; transition: opacity .15s ease; }
+  .ae-linha:hover .marcar, .ae-linha .marcar.on, .ae-verbete:hover .marcar, .ae-verbete .marcar.on, .ae-tela:has(.barra-selecao) .marcar { opacity: 1; }
+  .ae-linha .mais-linha { opacity: 0; }
+  .ae-linha:hover .mais-linha, .ae-linha.aberta .mais-linha { opacity: 1; }
+  .ae-linha.apagada .duas-linhas b { color: var(--ink3); text-decoration: line-through; }
+  .ae-tela .acervo-trecho { flex-basis: 100%; }
+  .ae-pasta-nome { padding: 0; border: none; background: none; text-align: left; cursor: pointer; }
+  .ae-pasta-nome:hover:not(:disabled) { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* A ficha na linha: um recuo de papel sob o documento aberto. */
+  .ae-ficha {
+    display: grid; gap: 14px; margin: 0 16px 10px; padding: 18px 20px; border-radius: 10px; background: var(--sub);
+    box-shadow: inset 0 0 0 1px var(--hair); animation: pv-troca .32s cubic-bezier(.16,1,.3,1) both;
+  }
+  .ae-ficha-lide { margin: 0; max-width: 760px; font: 400 17px/1.55 var(--serif); color: var(--ink); text-wrap: pretty; }
+  .ae-ficha-faixa { box-shadow: none; padding: 12px 16px; }
+  .ae-ficha-faixa .sv-ficha-item b { font-size: 13.5px; }
+  .ae-ficha-bloco { display: grid; gap: 4px; }
+  .ae-prazo { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--hair); }
+  .ae-prazo:last-child { border-bottom: none; }
+  .ae-prazo-data { display: grid; justify-items: center; width: 40px; flex: none; line-height: 1; }
+  .ae-prazo-data b { font: 400 22px/1 var(--serif); color: var(--acc); }
+  .ae-prazo-data small { font: 600 10px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin-top: 3px; }
+  .ae-prazo .duas-linhas { flex: 1; min-width: 0; }
+  .ae-ficha-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ae-ficha-onde { font: 500 12px var(--sans); color: var(--ink3); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-ficha .visor-caixa:empty { display: none; }
+
+  .ae-mais {
+    justify-self: center; align-self: center; height: 34px; padding: 0 16px; border: 1px solid var(--ink-a1); border-radius: 999px;
+    background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer;
+  }
+  .ae-mais:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); background: none; }
+
+  /* ------------------------------------------------- B: o sumario */
+  .ae-duas { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 44px; align-items: start; padding-top: 6px; }
+  .ae-sumario { position: sticky; top: 0; display: grid; gap: 2px; padding-top: 10px; }
+  .ae-sumario > .sv-kicker { margin-bottom: 10px; }
+  .ae-sum-grupo { display: grid; gap: 2px; padding-top: 14px; }
+  .ae-sum-raiz { font: 400 19px/1.2 var(--serif); color: var(--ink); padding-bottom: 4px; }
+  .ae-sum-item {
+    display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 5px 0; border: none; background: none; text-align: left;
+    color: var(--ink2); font: 500 13px var(--sans); cursor: pointer;
+  }
+  .ae-sum-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-sum-item i { flex: 1; min-width: 12px; border-bottom: 1px dotted var(--ink-a3); transform: translateY(-3px); }
+  .ae-sum-item small { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .ae-sum-item:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  .ae-sum-item.on { color: var(--ink); font-weight: 700; }
+  .ae-sum-item.on small { color: var(--ink); }
+  .ae-sum-incluir {
+    display: inline-flex; align-items: center; gap: 6px; justify-self: start; margin-top: 16px; padding: 0; border: none; background: none;
+    color: var(--ink3); font: 500 12.5px var(--sans); cursor: pointer;
+  }
+  .ae-sum-incluir:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+
+  .ae-verbetes { display: grid; min-width: 0; }
+  .ae-verbetes-cabeca { display: flex; align-items: baseline; gap: 14px; padding: 4px 0 14px; border-bottom: 1px solid var(--ink); }
+  .ae-verbetes-cabeca h2 { margin: 0; font: 400 28px/1.15 var(--serif); }
+  .ae-verbetes-cabeca small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ae-tela .tabela-linha.ae-verbete {
+    display: flex; align-items: flex-start; gap: 14px; padding: 18px 0; margin: 0; border-bottom: 1px solid var(--hair); background: none;
+  }
+  .ae-tela .tabela-linha.ae-verbete:hover { background: none; }
+  .ae-verbete .marcar { margin-top: 26px; }
+  .ae-verbete-corpo { flex: 1; min-width: 0; display: grid; gap: 6px; }
+  .ae-verbete h3 { display: flex; align-items: center; gap: 10px; margin: 0; min-width: 0; font: 400 21px/1.25 var(--serif); color: var(--ink); }
+  .ae-verbete:hover h3 span { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .ae-verbete p { margin: 0; font: 400 14px/1.55 var(--sans); color: var(--ink2); max-width: 720px; }
+  .ae-verbete p.vazio { color: var(--ink3); }
+  .ae-verbete-pe { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ae-verbete .mais-linha { opacity: 0; margin-top: 20px; }
+  .ae-verbete:hover .mais-linha, .ae-verbete.aberta .mais-linha { opacity: 1; }
+  .ae-verbetes .ae-ficha { margin: 0 0 12px 30px; }
+  .ae-verbetes .ae-ficha-lide { display: none; }
+
+  /* ------------------------------------ C: sumario + secoes */
+  .ae-secoes { display: grid; gap: 16px; min-width: 0; }
+  .am-duas { grid-template-columns: 260px minmax(0, 1fr); gap: 20px; padding-top: 0; }
+  .am-sumario { position: sticky; top: 0; }
+  /* A coluna da secao cabe no cartao: sem isto, a grade crescia ate o nome
+     mais longo ("Compra e Venda › Nome Longo de Cliente Ltda") e o sumario
+     invadia a lista ao lado. */
+  .ae-tela .sv-secao { grid-template-columns: minmax(0, 1fr); }
+  .am-pasta { min-width: 0; }
+  .am-pasta {
+    display: flex; align-items: center; gap: 8px; width: auto; min-height: 40px; margin: 0 16px; padding: 0; border: none; border-bottom: 1px solid var(--hair);
+    border-radius: 0; background: none; text-align: left; color: var(--ink2); font: 500 13.5px var(--sans); cursor: pointer;
+  }
+  .am-pasta:last-child { border-bottom: none; }
+  .am-pasta.recuo { padding-left: 12px; }
+  .am-pasta span { flex: 1; min-width: 0; }
+  .am-pasta i { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); flex: none; }
+  .am-pasta small { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .am-pasta:hover:not(:disabled) { color: var(--ink); background: none; border-color: var(--hair); }
+  .am-pasta:hover span { text-decoration: underline; text-underline-offset: 3px; }
+  .am-pasta.on { color: var(--ink); font-weight: 700; }
+  .am-pasta.on small { color: var(--ink); }
+  .am-raiz { margin: 10px 16px 0; padding-bottom: 4px; font: 600 10.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+  .ae-secoes .ae-verbetes-cabeca { margin-bottom: 2px; }
+  .ae-pasta-raiz { margin-right: 6px; font: 500 12px var(--sans); color: var(--ink3); letter-spacing: 0; }
+  .ae-tela .tabela-linha.ae-linha-misto { min-height: 60px; padding: 11px 16px; }
+  .ae-linha-misto .duas-linhas { gap: 3px; }
+  .ae-linha-misto .duas-linhas b { font: 500 15px/1.3 var(--sans); color: var(--ink); }
+  .ae-linha-misto:hover .duas-linhas b { text-decoration: none; }
+  .ae-linha-misto:hover .duas-linhas b .corta { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  .ae-linha-misto .duas-linhas small { font: 400 13px var(--sans); color: var(--ink2); }
+  .ae-linha-misto .duas-linhas small.vazio { color: var(--ink3); }
+  .ae-linha-misto .analise-doc { width: 130px; }
+  .ae-secoes .ae-ficha { margin: 0 16px 10px; }
+  .ae-secoes .ae-ficha-lide { display: block; }
+
+  @media (max-width: 1100px) {
+    .am-duas { grid-template-columns: minmax(0, 1fr); }
+    .am-sumario { position: static; }
+    .ae-duas { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .ae-sumario { position: static; }
+    .ae-linha .analise-doc { width: auto; }
+  }

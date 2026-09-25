@@ -28,6 +28,24 @@ class Entrada:
     nome: str
     caminho: str
     tipo: str = "pasta"     # "pasta" | "unidade"
+    # Se ha subpasta para abrir. A arvore do seletor so mostra a seta onde
+    # ha o que abrir; entrar numa pasta sem nada dentro era um beco.
+    tem_subpastas: bool = True
+
+
+def _tem_subpastas(caminho: str) -> bool:
+    """Para na primeira subpasta que interessa - nao lista a pasta inteira."""
+    try:
+        with os.scandir(caminho) as itens:
+            for item in itens:
+                try:
+                    if item.is_dir(follow_symlinks=False) and _interessa(item.name):
+                        return True
+                except OSError:
+                    continue
+    except OSError:
+        return False
+    return False
 
 
 def unidades() -> list[Entrada]:
@@ -115,7 +133,8 @@ def listar(caminho: str | None = None, sufixos: set[str] | None = None) -> dict:
             for item in itens:
                 try:
                     if item.is_dir(follow_symlinks=False) and _interessa(item.name):
-                        pastas.append(vars(Entrada(nome=item.name, caminho=item.path)))
+                        pastas.append(vars(Entrada(nome=item.name, caminho=item.path,
+                                                   tem_subpastas=_tem_subpastas(item.path))))
                     elif sufixos and item.is_file() and Path(item.name).suffix.lower() in sufixos and not item.name.startswith("~$"):
                         info = item.stat()
                         arquivos.append({"nome": item.name, "caminho": item.path, "bytes": info.st_size,

@@ -17,7 +17,7 @@
 
 const aprov = {
   pendentes: [], hoje: [], leitura: null, marcados: new Set(), aberto: null,
-  visao: "fila", filtro: "", largo: false, regras: null, regraAberta: null,
+  visao: "fila", filtro: "", regras: null, regraAberta: null,
 };
 
 const ICONE_CATEGORIA = { organizar: "drive_file_move", arquivo: "folder", email: "mail", assinatura: "draw", permissao: "shield_person", financeiro: "payments" };
@@ -143,7 +143,7 @@ function desenharAprovacoes() {
   const todosMarcados = n > 0 && m === n;
   const classe = "marcar" + (todosMarcados ? " on" : "");
   $("centro").innerHTML =
-    '<div class="acervo' + (aprov.largo ? " painel-largo" : "") + '"><div class="acervo-principal"><div class="tabela-cartao">' +
+    '<div class="acervo ap-tela"><div class="acervo-principal"><div class="tabela-cartao">' +
     '<div class="tabela-barra">' + chips + acoes + "</div>" +
     '<div class="tabela-cabecalho colunas-fila"><span class="' + classe + '" id="ap-todos" role="checkbox" aria-checked="' +
     (todosMarcados ? "true" : "false") + '" title="Marcar todos">' + ic("check", 12) + "</span>" +
@@ -173,12 +173,10 @@ function linhaPedido(p) {
 
 /* O painel do pedido: o que vai sair, o efeito, se da para desfazer. */
 function painelDoPedido() {
-  const alca = '<button class="alca-painel" id="ap-alca" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(aprov.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
   const p = aprov.pendentes.find((x) => x.id === aprov.aberto);
   if (!p) {
     const linhas = aprov.leitura && aprov.leitura.linhas ? aprov.leitura.linhas : [];
-    return '<aside class="acervo-painel">' + alca + '<div class="rolagem"><div class="painel-vazio"><h3>' +
+    return '<aside class="acervo-painel">' + '<div class="rolagem"><div class="painel-vazio"><h3>' +
       (linhas.length ? "Leitura da fila" : "Nenhum pedido aberto") + "</h3>" +
       (linhas.length
         ? '<div class="leitura-fila">' + linhas.map((x) => "<span>" + ic("info", 18) + "<span>" + esc(x) + "</span></span>").join("") + "</div>"
@@ -210,7 +208,7 @@ function painelDoPedido() {
       "</div>"
     : "";
 
-  return '<aside class="acervo-painel">' + alca + '<div class="rolagem">' +
+  return '<aside class="acervo-painel">' + '<div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(p.titulo) + '</h3><span class="meta">Pedido por ' +
     esc(p.pedido_por || "Assistente") + " · " + esc(quando(p.criado_em)) + " · " + esc(p.categoria_rotulo) + "</span></span>" +
     '<button class="voltar" id="ap-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
@@ -264,8 +262,6 @@ function ligarAprovacoes() {
   const aprovar = $("ap-aprovar"), recusar = $("ap-recusar");
   if (aprovar) aprovar.onclick = () => decidirPedidos(Array.from(aprov.marcados), true);
   if (recusar) recusar.onclick = () => decidirPedidos(Array.from(aprov.marcados), false);
-  const alca = $("ap-alca");
-  if (alca) alca.onclick = () => { aprov.largo = !aprov.largo; desenharAprovacoes(); };
   const fechar = $("ap-fechar");
   if (fechar) fechar.onclick = () => { aprov.aberto = null; desenharAprovacoes(); };
 }
@@ -308,6 +304,10 @@ async function decidirPedidos(ids, aprovar) {
     }
     carregarStatus();
     contarPendencias();
+    // Um mover de organizacao aprovado nao termina na fila: a pessoa volta
+    // ao Organizar e ve como as pastas ficaram, com o desfazer a mao.
+    const feitos = new Set((d.feitos || []).map((f) => f.id));
+    if (aprovar && quais.some((p) => p.categoria === "organizar" && feitos.has(p.id))) await organizarDesfecho();
   } catch (err) {
     avisoCert("Falha ao decidir: " + err);
   } finally {
@@ -356,7 +356,7 @@ function desenharHistorico() {
     : '<div class="painel-vazio"><h3>Nenhuma decisão hoje</h3><p>O que você aprovar ou recusar aparece aqui, com o resultado.</p></div>';
 
   $("centro").innerHTML =
-    '<div class="acervo' + (aprov.largo ? " painel-largo" : "") + '"><div class="acervo-principal"><div class="tabela-cartao">' +
+    '<div class="acervo ap-tela"><div class="acervo-principal"><div class="tabela-cartao">' +
     '<div class="tabela-barra"><span class="visoes"><button class="ativa">Hoje · ' + lista.length + "</button></span>" +
     '<span class="nota-barra">O histórico completo fica em disco; a tela mostra o de hoje</span></div>' +
     '<div class="tabela-cabecalho colunas-historico"><span>Pedido</span><span>Pedido por</span><span>Decidido por</span><span>Quando</span><span style="text-align:right">Resultado</span></div>' +
@@ -367,16 +367,14 @@ function desenharHistorico() {
 }
 
 function painelDoHistorico(lista) {
-  const alca = '<button class="alca-painel" id="ap-alca" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(aprov.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
   const p = lista.find((x) => x.id === aprov.aberto);
   if (!p) {
-    return '<aside class="acervo-painel">' + alca + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma decisão aberta</h3>' +
+    return '<aside class="acervo-painel">' + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma decisão aberta</h3>' +
       "<p>Clique numa linha para ver a linha do tempo do pedido.</p></div></div></aside>";
   }
   const hora = (iso) => (iso || "").slice(11, 16);
   const decisao = p.estado === "aprovado" ? "Aprovado" : (p.estado === "recusado" ? "Recusado" : "Não deu");
-  return '<aside class="acervo-painel">' + alca + '<div class="rolagem">' +
+  return '<aside class="acervo-painel">' + '<div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(p.titulo) + '</h3><span class="meta">' + decisao +
     " por você · " + dataHoraCurta(p.decidido_em) + " · " + esc(p.categoria_rotulo) + "</span></span>" +
     '<button class="voltar" id="ap-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
@@ -396,8 +394,6 @@ function ligarHistorico() {
   centro.querySelectorAll("[data-pedido]").forEach((l) => {
     l.onclick = () => { aprov.aberto = aprov.aberto === l.dataset.pedido ? null : l.dataset.pedido; desenharHistorico(); };
   });
-  const alca = $("ap-alca");
-  if (alca) alca.onclick = () => { aprov.largo = !aprov.largo; desenharHistorico(); };
   const fechar = $("ap-fechar");
   if (fechar) fechar.onclick = () => { aprov.aberto = null; desenharHistorico(); };
 }
@@ -446,7 +442,7 @@ function desenharRegras() {
   }).join("");
 
   $("centro").innerHTML =
-    '<div class="acervo' + (aprov.largo ? " painel-largo" : "") + '"><div class="acervo-principal"><div class="tabela-cartao">' +
+    '<div class="acervo ap-tela"><div class="acervo-principal"><div class="tabela-cartao">' +
     '<div class="tabela-barra"><span style="font:600 14px var(--sans)">Quem aprova o quê</span>' +
     '<span class="nota-barra">Nada com efeito externo acontece sem aprovação</span></div>' +
     '<div class="tabela-cabecalho colunas-regras"><span>Tipo de pedido</span><span>Quem aprova</span><span>Limite</span><span>Se ninguém decidir</span><span></span></div>' +
@@ -458,16 +454,14 @@ function desenharRegras() {
 }
 
 function painelDaRegra(opcoes, ligadas) {
-  const alca = '<button class="alca-painel" id="ap-alca" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(aprov.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
   const o = opcoes.find((x) => x.chave === aprov.regraAberta);
   if (!o) {
-    return '<aside class="acervo-painel">' + alca + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma regra aberta</h3>' +
+    return '<aside class="acervo-painel">' + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma regra aberta</h3>' +
       "<p>Ligada, a ação acontece direto. Desligada, para na fila e espera o seu sim. O padrão é sempre o mais cauteloso.</p></div></div></aside>";
   }
   const ligada = Boolean(ligadas[o.chave]);
   const naFila = aprov.pendentes.filter((p) => CHAVE_DA_CATEGORIA[p.categoria] === o.chave).length;
-  return '<aside class="acervo-painel">' + alca + '<div class="rolagem">' +
+  return '<aside class="acervo-painel">' + '<div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(o.titulo) + '</h3><span class="meta">' + esc(o.explica) + "</span></span>" +
     '<button class="voltar" id="ap-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
     (o.travada
@@ -495,8 +489,6 @@ function ligarRegras() {
     const o = ((aprov.regras && aprov.regras.autonomia_opcoes) || []).find((x) => x.chave === aprov.regraAberta);
     if (o) gravarRegra(o.chave, Boolean(o.padrao));
   };
-  const alca = $("ap-alca");
-  if (alca) alca.onclick = () => { aprov.largo = !aprov.largo; desenharRegras(); };
   const fechar = $("ap-fechar");
   if (fechar) fechar.onclick = () => { aprov.regraAberta = null; desenharRegras(); };
 }

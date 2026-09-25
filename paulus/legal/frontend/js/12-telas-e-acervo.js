@@ -248,6 +248,9 @@ function desenharBiblioteca() {
     return;
   }
 
+  // O desenho editorial (js/25-acervo-editorial.js) substitui a tabela com painel.
+  if (typeof desenharAcervoEditorial === "function") return desenharAcervoEditorial();
+
   const quantos = bib.escolhidos.size;
   const barra = quantos
     ? '<span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" +
@@ -547,6 +550,15 @@ async function acaoEmLote(acao) {
 
   if (acao === "analisar") return tomarVista(caminhos);
 
+  // Apagar e o unico do lote que nao volta: o arquivo sai do disco, sem
+  // lixeira. Pergunta antes mesmo de virar pedido na fila.
+  if (acao === "apagar" && !(await confirmar({
+    titulo: "Apagar " + plural(caminhos.length, "documento") + "?",
+    contexto: "Acervo",
+    texto: "O arquivo é apagado do disco e não vai para a lixeira. O pedido vai para Aprovações e nada é apagado antes do seu sim lá.",
+    confirmar: "Apagar", perigo: true,
+  }))) return;
+
   let destino = "";
   if (acao === "mover" || acao === "exportar") {
     destino = await escolherPastaDoSistema(
@@ -625,7 +637,7 @@ function adicionarPastaAoAcervo() {
    modelo leu, e a tela diz isso.
 */
 
-const prazos = { sugestoes: [], tarefas: [], ignorados: new Set(), aberto: null, soAbertos: true, largo: false };
+const prazos = { sugestoes: [], tarefas: [], ignorados: new Set(), aberto: null, soAbertos: true };
 
 async function mostrarPrazos() {
   abrirTela("Prazos", { cheia: true });
@@ -695,11 +707,17 @@ function desenharPrazos() {
         ? "Nada aguardando confirmação."
         : "Os documentos lidos não trazem data nos próximos 90 dias.") + "</p>";
 
+  // A faixa de indicadores e a mesma das telas vizinhas (Documentos,
+  // Organizar): um cartao em faixa no alto da coluna.
+  const item = (rotulo, valor, classe) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" +
+    '<b class="' + (classe || "") + '">' + valor + "</b></div>";
   $("centro").innerHTML =
-    '<div class="acervo' + (prazos.largo ? " painel-largo" : "") + '"><div class="acervo-principal">' +
-    '<div class="tiles"><div class="tile"><b>' + todas.length + "</b><span>Nos próximos 90 dias</span></div>" +
-    '<div class="tile acc"><b>' + abertas.length + "</b><span>Aguardando sua confirmação</span></div>" +
-    '<div class="tile apagado"><b>' + prazos.tarefas.length + "</b><span>Já na Agenda</span></div></div>" +
+    '<div class="acervo pz-tela"><div class="acervo-principal">' +
+    '<div class="sv-ficha">' +
+    item("Nos próximos 90 dias", todas.length ? plural(todas.length, "prazo") : "nenhum") +
+    item("Aguardando confirmação", abertas.length || "nenhum", abertas.length ? "ae-acc" : "") +
+    item("Já na Agenda", prazos.tarefas.length || "nenhum") +
+    item("Documentos com data", docs.size || "nenhum") + "</div>" +
     '<div class="tabela-cartao"><div class="tabela-barra"><span class="visoes">' +
     '<button class="' + (prazos.soAbertos ? "ativa" : "") + '" data-so="1">Em aberto · ' + abertas.length + "</button>" +
     '<button class="' + (prazos.soAbertos ? "" : "ativa") + '" data-so="0">Todos · ' + todas.length + "</button></span>" +
@@ -715,16 +733,14 @@ function desenharPrazos() {
 }
 
 function painelDePrazo(todas) {
-  const alca = '<button class="alca-painel" id="prazos-alca" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(prazos.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
   const p = todas.find((x) => x.id === prazos.aberto);
   if (!p) {
-    return '<aside class="acervo-painel">' + alca + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhum prazo aberto</h3>' +
+    return '<aside class="acervo-painel"><div class="rolagem"><div class="painel-vazio"><h3>Nenhum prazo aberto</h3>' +
       "<p>Clique numa linha para ver de onde a data veio e o que fazer com ela.</p></div></div></aside>";
   }
   const outros = todas.filter((x) => x.arquivo === p.arquivo && x.id !== p.id);
   const confirmado = p.estado === "confirmado";
-  return '<aside class="acervo-painel">' + alca + '<div class="rolagem">' +
+  return '<aside class="acervo-painel"><div class="rolagem">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(p.titulo) + " — " + esc(p.arquivo) + '</h3><span class="meta">' +
     esc(p.cliente || p.lista || "") + (p.cliente || p.lista ? " · " : "") + "vence " + dataLonga(p.prazo) + "</span></span>" +
     '<button class="voltar" id="prazos-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
@@ -791,8 +807,6 @@ function ligarPrazos() {
     await carregarPrazos(false);
     avisoCert("prazos levados para a Agenda");
   };
-  const alca = $("prazos-alca");
-  if (alca) alca.onclick = () => { prazos.largo = !prazos.largo; desenharPrazos(); };
   const fechar = $("prazos-fechar");
   if (fechar) fechar.onclick = () => { prazos.aberto = null; desenharPrazos(); };
 }

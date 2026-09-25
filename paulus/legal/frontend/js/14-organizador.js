@@ -14,66 +14,76 @@ function usarHabilidade(acao) {
 /*
    A visao Organizar do Acervo (docs/ui/03-telas-desktop.md, A5): quatro fases
    numa fita - Escolher, Ler, Conferir, Mover -, o cartao da fase no meio e,
-   no painel, como as pastas ficam. Nada e apagado nem sobrescrito, e da para
-   desfazer. Entrar na tela nao e comecar um trabalho: a conversa nasce quando
-   a varredura comeca, que e quando existe trabalho.
+   no painel, onde procuro e como as pastas ficam. Nada e apagado nem
+   sobrescrito, e da para desfazer. Entrar na tela nao e comecar um trabalho:
+   a conversa nasce quando a varredura comeca, que e quando existe trabalho.
 */
 
 const org = {
   raizes: [], tipos: [], docs: [], selecao: new Set(), padroes: [], padrao: "", destino: "",
-  fase: 0, plano: null, largo: false, encontrados: null, resultado: null, parado: false,
+  fase: 0, plano: null, encontrados: null, escolhidos: new Set(), resultado: null, parado: false,
+  semPedir: false,
 };
 
+// Na fita vai o verbo; o nome inteiro da fase fica no title.
 const ETAPAS_ORG = [
-  "Escolher onde procurar",
-  "Ler e classificar",
-  "Conferir a classificação",
-  "Mover para a estrutura nova",
+  ["Escolher", "Escolher onde procurar"],
+  ["Ler", "Ler e classificar"],
+  ["Conferir", "Conferir a classificação"],
+  ["Mover", "Mover para a estrutura nova"],
 ];
 
 function fitaOrg(feitos, total) {
   const metas = [
     org.raizes.length ? plural(org.raizes.length, "pasta") : "",
     org.fase === 1 && total ? (feitos || 0) + " de " + total : (org.docs.length ? plural(org.docs.length, "doc") : ""),
-    org.fase === 2 ? "agora" : (org.fase > 2 ? plural(org.selecao.size, "marcado") : ""),
+    org.fase === 2 ? "agora" : (org.fase > 2 && org.selecao.size ? plural(org.selecao.size, "marcado") : ""),
     org.fase === 3 ? "agora" : (org.fase > 3 ? "feito" : ""),
   ];
   // O anel so gira quando e a maquina que trabalha (ler, mover). Nas fases
   // em que a pessoa decide, o marcador e parcial, sem movimento.
   const agora = org.trabalhando ? coroa(18) : ic("radio_button_partial", 18);
-  return '<div class="fita" id="org-fita">' + ETAPAS_ORG.map((t, i) => {
+  return '<div class="fita" id="org-fita">' + ETAPAS_ORG.map(([curto, longo], i) => {
     const classe = i < org.fase ? "feita" : (i === org.fase ? "atual" : "");
     const icone = i < org.fase ? ic("check_circle", 18) : (i === org.fase ? agora : ic("radio_button_unchecked", 18));
     return (i ? '<span class="ic ic-16 seta">chevron_right</span>' : "") +
-      '<div class="fase ' + classe + '">' + icone + '<span class="rotulo-fase">' + t + "</span>" +
-      '<span class="meta-fase">' + esc(metas[i] || (i > org.fase ? "na fila" : "")) + "</span></div>";
+      '<div class="fase ' + classe + '" title="' + longo + '">' + icone + '<span class="rotulo-fase">' + curto + "</span>" +
+      '<span class="meta-fase">' + esc(metas[i] || "") + "</span></div>";
   }).join("") + "</div>";
 }
 
+/* Onde procuro, no painel: as pastas escolhidas, uma por linha, e - na
+   primeira fase - o botao de procurar logo embaixo delas. */
 function ondeProcuro() {
-  return '<div class="onde-procuro" id="org-onde"><span class="rotulo-suave">Onde eu procuro:</span>' +
-    (org.raizes.length
-      ? org.raizes.map((c, i) =>
-          '<span class="chip-pasta">' + ic("folder", 16) + "<span>" + esc(c) + "</span>" +
-          '<button data-tirar-raiz="' + i + '" title="tirar" aria-label="tirar">' + ic("close", 14) + "</button></span>").join("")
-      : '<span class="nota-barra">nenhuma pasta escolhida ainda</span>') +
-    (org.fase === 0 ? "" : '<button class="ac-incluir" data-outras="1">+ incluir pasta</button>') +
-    '<span class="nota-direita">Não entro em pastas do sistema nem de programas</span></div>';
+  const n = org.raizes.length;
+  // Depois de ler, as pastas ficam so para lembrar de onde veio; sem elas
+  // (o fim do fluxo aberto pela fila, noutra sessao) o bloco nao diz nada.
+  if (org.fase >= 2 && !n) return '<div id="org-onde"></div>';
+  // Tirar so antes de procurar: depois, a lista do cartao ja veio delas.
+  const tirar = org.fase === 0;
+  const linhas = n
+    ? '<div class="org-raizes">' + org.raizes.map((c, i) => {
+        const nome = c.split(/[\\/]/).filter(Boolean).pop() || c;
+        return '<div class="org-raiz">' + ic("folder", 16) +
+          '<span class="duas-linhas"><b class="corta">' + esc(nome) + '</b><small class="corta" title="' + esc(c) + '">' + esc(c) + "</small></span>" +
+          (tirar ? '<button class="org-tirar" data-tirar-raiz="' + i + '" title="Tirar esta pasta" aria-label="Tirar esta pasta">' + ic("close", 14) + "</button>" : "") + "</div>";
+      }).join("") + "</div>"
+    : "<p>Nenhuma pasta ainda. Marque na árvore as pastas onde devo procurar.</p>";
+  const acao = org.fase === 0
+    ? '<button class="primario com-icone org-largo" id="org-varrer"' + (n ? "" : " disabled") + ">" + ic("search", 16) + "Procurar documentos</button>" +
+      '<small class="org-nota" id="org-nota"></small>'
+    : (org.fase === 1 ? '<button class="sv-ligacao" data-outras="1">' + ic("add", 15) + "incluir outra pasta</button>" : "");
+  return '<div class="painel-bloco org-onde" id="org-onde"><div class="painel-bloco-cabeca"><span>Onde eu procuro</span>' +
+    '<span class="contagem">' + (n ? plural(n, "pasta") : "") + "</span></div>" + linhas + acao +
+    '<small class="org-nota">Não entro em pastas do sistema nem de programas.</small></div>';
 }
 
-/* A tela inteira: fita, pastas escolhidas, o cartao da fase e o painel. */
-function desenharOrg(cartao, painel) {
+/* A tela inteira: a fita e o cartao da fase de um lado, o painel do outro. */
+function desenharOrg(cartao) {
   $("centro").innerHTML =
-    '<div class="acervo' + (org.largo ? " painel-largo" : "") + '"><div class="acervo-principal">' +
-    fitaOrg() + ondeProcuro() + '<div class="tabela-cartao" id="org-cartao">' + cartao + "</div></div>" +
-    '<aside class="acervo-painel"><button class="alca-painel" id="org-alca" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(org.largo ? "chevron_right" : "chevron_left", 18) + '</button><div class="rolagem" id="org-painel">' + painel + "</div></aside></div>";
-  $("org-alca").onclick = () => {
-    org.largo = !org.largo;
-    $("centro").querySelector(".acervo").classList.toggle("painel-largo", org.largo);
-    $("org-alca").innerHTML = ic(org.largo ? "chevron_right" : "chevron_left", 18);
-  };
-  ligarOnde();
+    '<div class="acervo org-tela"><div class="acervo-principal">' + fitaOrg() +
+    '<div class="tabela-cartao" id="org-cartao">' + cartao + "</div></div>" +
+    '<aside class="acervo-painel"><div class="rolagem" id="org-painel">' + painelOrgPlano() + "</div></aside></div>";
   ligarPainelOrg();
 }
 
@@ -93,124 +103,173 @@ function ligarOnde() {
       org.raizes.splice(Number(b.dataset.tirarRaiz), 1);
       atualizarOnde();
       atualizarFita();
-      const v = $("org-varrer");
-      if (v) v.disabled = !org.raizes.length;
+      desenharArvore();
     };
   });
   document.querySelectorAll("[data-outras]").forEach((b) => {
     b.onclick = () => { org.fase = 0; passoOnde(); };
   });
+  const varrer = $("org-varrer");
+  if (varrer) varrer.onclick = organizarVarrer;
 }
 
-async function organizarComecar() {
+function limparOrg() {
+  org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null;
+  org.parado = false; org.encontrados = null; org.escolhidos = new Set();
+}
+
+/* `manter` abre a tela sem zerar o que ja foi feito: e por onde a fila de
+   aprovacoes devolve a pessoa ao fim do fluxo. */
+async function organizarComecar(manter) {
   abrirTela("Organizar pastas", { cheia: true });
   bib.visao = "organizar";
   cabecalhoAcervo("organizar", '<button class="com-icone" id="org-de-novo">' + ic("search", 16) + "Procurar de novo</button>");
-  $("org-de-novo").onclick = () => {
-    org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null; org.parado = false;
-    passoOnde();
-  };
-  estado.trabalhoId = null;
-  estado.trabalho = null;
+  $("org-de-novo").onclick = () => { limparOrg(); passoOnde(); };
+  if (!manter) { estado.trabalhoId = null; estado.trabalho = null; }
   $("conversa-meta").textContent = "nada foi movido ainda";
 
-  const o = await (await fetch("/api/organizar/opcoes")).json();
-  org.raizes = [];      // nada pre-selecionado: a pessoa escolhe onde procurar
+  const [o, pr] = await Promise.all([
+    fetch("/api/organizar/opcoes").then((r) => r.json()),
+    fetch("/api/preferencias").then((r) => r.json()).catch(() => null),
+  ]);
   org.tipos = o.tipos;
   org.padroes = o.padroes;
-  org.padrao = (o.padroes[0] || {}).padrao || "";
-  org.destino = o.destino_sugerido;
+  if (!manter || !org.padrao) org.padrao = (o.padroes[0] || {}).padrao || "";
+  if (!manter || !org.destino) org.destino = o.destino_sugerido;
   org.diarios = o.diarios;
-  org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null; org.parado = false;
+  // Com a permissao de mover desligada (o padrao), o botao diz a verdade:
+  // o pedido vai para a fila, nada se move ainda.
+  org.semPedir = Boolean((((pr && (pr.preferencias || pr)) || {}).autonomia || {}).organizar_mover);
+  if (manter) return;
 
+  org.raizes = [];      // nada pre-selecionado: a pessoa escolhe onde procurar
+  arv.abertos.clear(); arv.filhos.clear(); arv.topo = null;   // o disco pode ter mudado
+  limparOrg();
   passoOnde();
   atualizarPostura();
 }
 
-/* Fase 0: onde procurar. O navegador de pastas do proprio programa. */
+/* Fase 0: onde procurar, numa arvore de pastas. A seta abre a pasta ali
+   mesmo, sem sair de onde se esta; a caixinha marca onde procurar. Pasta sem
+   subpasta nao tem seta - clicar nela marca. Entrar numa pasta so para
+   descobrir que nao havia nada dentro era um beco. */
+const arv = { abertos: new Set(), filhos: new Map(), topo: null };
+
+function chaveDe(c) {
+  return (c || "").replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+}
+
+/* `c` esta dentro de `r` (e nao e a propria `r`). */
+function dentroDe(c, r) {
+  const a = chaveDe(c), b = chaveDe(r);
+  return a !== b && a.startsWith(b + "\\");
+}
+
+/* "on": marcada. "herdada": entra porque uma pasta de cima esta marcada.
+   "parcial": alguma pasta de dentro esta marcada. */
+function marcaDaPasta(c) {
+  if (org.raizes.some((r) => chaveDe(r) === chaveDe(c))) return "on";
+  if (org.raizes.some((r) => dentroDe(c, r))) return "herdada";
+  if (org.raizes.some((r) => dentroDe(r, c))) return "parcial";
+  return "";
+}
+
 function passoOnde() {
   org.fase = 0;
   desenharOrg(
     '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Onde eu procuro</b>' +
-    "<small>Navegue até a pasta e clique em Incluir esta pasta. Vou procurar nela e em tudo o que estiver dentro.</small></span>" +
-    '<span class="direita"><span class="nota-barra" id="nav-atual"></span>' +
-    '<button class="com-icone" id="nav-incluir" disabled>' + ic("add", 16) + "Incluir esta pasta</button></span></div>" +
-    '<div class="cartao-miolo"><div class="navegador"><div class="migalhas" id="nav-migalhas"></div>' +
-    '<div class="nav-lista" id="nav-lista"></div></div></div>' +
-    '<div class="tabela-rodape"><span id="org-nota">nenhuma pasta escolhida ainda</span><span class="cresce"></span>' +
-    '<button class="primario com-icone" id="org-varrer" disabled>' + ic("search", 16) + "Procurar documentos</button></div>",
-    painelOrgPlano()
+    "<small>Marque as pastas onde devo procurar. Cada uma entra com tudo o que estiver dentro; a seta abre a pasta para marcar só uma parte.</small></span></div>" +
+    '<div class="cartao-miolo"><div class="navegador"><div class="nav-lista" id="nav-lista"><div class="nav-vazio">abrindo…</div></div></div></div>' +
+    '<div class="tabela-rodape"><span id="nav-nota">nenhuma pasta marcada</span><span class="cresce"></span>' +
+    "<span>Nada é lido antes de você mandar procurar</span></div>"
   );
-  navegar("");
-  $("nav-incluir").onclick = () => {
-    if (!org.navegando) return;
-    if (!org.raizes.some((r) => r.toLowerCase() === org.navegando.toLowerCase())) {
-      org.raizes.push(org.navegando);
-    }
-    atualizarOnde();
-    atualizarFita();
-    $("org-varrer").disabled = false;
-    $("org-nota").textContent = plural(org.raizes.length, "pasta") + " para procurar";
-  };
-  $("org-varrer").onclick = organizarVarrer;
-  $("org-varrer").disabled = !org.raizes.length;
-  if (org.raizes.length) $("org-nota").textContent = plural(org.raizes.length, "pasta") + " para procurar";
+  carregarTopoDaArvore();
 }
 
-async function navegar(caminho) {
+async function carregarTopoDaArvore() {
+  if (!arv.topo) {
+    try { arv.topo = await (await fetch("/api/pastas")).json(); } catch (err) {
+      arv.topo = { atalhos: [], unidades: [], erro: "não consegui abrir: " + err };
+    }
+  }
+  desenharArvore();
+}
+
+function noDaArvore(e, nivel) {
+  const k = chaveDe(e.caminho);
+  const pode = e.tem_subpastas !== false;
+  const aberto = pode && arv.abertos.has(k);
+  const marca = marcaDaPasta(e.caminho);
+  const icone = e.tipo === "unidade" ? "desktop_windows" : (aberto ? "folder_open" : "folder");
+  const marcada = marca === "on" || marca === "herdada";
+  let html = '<div class="nav-item arv-no' + (marcada ? " marcada" : "") + '" data-no="' + esc(e.caminho) + '" data-pode="' + (pode ? 1 : 0) +
+    '" style="--nivel:' + nivel + '">' +
+    (pode
+      ? '<button class="arv-seta" aria-expanded="' + aberto + '" aria-label="' + (aberto ? "Fechar" : "Abrir") + " a pasta\">" +
+        ic(aberto ? "expand_more" : "chevron_right", 16) + "</button>"
+      : '<span class="arv-seta"></span>') +
+    '<span class="marcar' + (marca ? " on " + marca : "") + '" data-marcar-pasta="1" role="checkbox" aria-checked="' +
+    (marca === "parcial" ? "mixed" : String(marcada)) + '"' + (marca === "herdada" ? ' title="Já entra pela pasta de cima"' : "") + ">" +
+    ic(marca === "parcial" ? "remove" : "check", 12) + "</span>" +
+    ic(icone, 16) + '<span class="corta">' + esc(e.nome) + "</span>" +
+    (e.cam ? '<span class="cam">' + esc(e.cam) + "</span>" : "") + "</div>";
+  if (aberto) {
+    const f = arv.filhos.get(k);
+    const vazio = (t) => '<div class="nav-vazio arv-vazio" style="--nivel:' + (nivel + 1) + '">' + esc(t) + "</div>";
+    if (!f) html += vazio("abrindo…");
+    else if (f.erro) html += vazio(f.erro);
+    else if (!f.pastas.length) html += vazio("nenhuma subpasta");
+    else html += f.pastas.map((x) => noDaArvore(x, nivel + 1)).join("");
+  }
+  return html;
+}
+
+function desenharArvore() {
   const lista = $("nav-lista");
-  lista.innerHTML = '<div class="nav-vazio">abrindo…</div>';
+  if (!lista || !arv.topo) return;
+  const rolagem = lista.scrollTop;
+  const t = arv.topo;
+  lista.innerHTML =
+    (t.atalhos.length ? '<div class="nav-grupo">Começar por</div>' +
+      t.atalhos.map((a) => noDaArvore(Object.assign({ cam: a.caminho }, a), 0)).join("") : "") +
+    (t.unidades.length ? '<div class="nav-grupo">Unidades</div>' + t.unidades.map((u) => noDaArvore(u, 0)).join("") : "") +
+    (t.erro ? '<div class="nav-vazio">' + esc(t.erro) + "</div>" : "");
+  lista.scrollTop = rolagem;
+  lista.querySelectorAll("[data-no]").forEach((linha) => {
+    linha.onclick = (ev) => {
+      const caminho = linha.dataset.no;
+      if (ev.target.closest("[data-marcar-pasta]") || linha.dataset.pode !== "1") return marcarPasta(caminho);
+      abrirNo(caminho);
+    };
+  });
+  const n = org.raizes.length;
+  $("nav-nota").textContent = n ? plural(n, "pasta marcada", "pastas marcadas") : "nenhuma pasta marcada";
+}
 
+async function abrirNo(caminho) {
+  const k = chaveDe(caminho);
+  if (arv.abertos.has(k)) { arv.abertos.delete(k); desenharArvore(); return; }
+  arv.abertos.add(k);
+  desenharArvore();
+  if (arv.filhos.has(k)) return;
   let d;
-  try {
-    d = await (await fetch("/api/pastas?caminho=" + encodeURIComponent(caminho))).json();
-  } catch (err) {
-    lista.innerHTML = '<div class="nav-vazio">não consegui abrir: ' + esc(String(err)) + "</div>";
-    return;
+  try { d = await (await fetch("/api/pastas?caminho=" + encodeURIComponent(caminho))).json(); } catch (err) {
+    d = { pastas: [], erro: "não consegui abrir: " + err };
   }
+  arv.filhos.set(k, { pastas: d.pastas || [], erro: d.erro || "" });
+  desenharArvore();
+}
 
-  org.navegando = d.atual;
-  $("nav-incluir").disabled = !d.atual;
-  $("nav-atual").textContent = d.atual || "escolha uma pasta abaixo";
-
-  let trilha = '<button data-ir="">Este computador</button>';
-  for (const m of d.migalhas) {
-    trilha += '<span class="sep">›</span><button data-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>";
-  }
-  $("nav-migalhas").innerHTML = trilha;
-  $("nav-migalhas").querySelectorAll("button").forEach((b) => {
-    b.onclick = () => navegar(b.dataset.ir);
-  });
-
-  let html = "";
-  if (d.atalhos.length) {
-    html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.map((a) =>
-      '<div class="nav-item" data-ir="' + esc(a.caminho) + '">' + ic("folder", 16) +
-      "<span>" + esc(a.nome) + '</span><span class="cam">' + esc(a.caminho) + "</span></div>"
-    ).join("");
-  }
-  if (d.unidades.length) {
-    html += '<div class="nav-grupo">Unidades</div>' + d.unidades.map((u) =>
-      '<div class="nav-item" data-ir="' + esc(u.caminho) + '">' + ic("desktop_windows", 16) +
-      "<span>" + esc(u.nome) + "</span></div>"
-    ).join("");
-  }
-  if (d.pai) {
-    html += '<div class="nav-item" data-ir="' + esc(d.pai) + '">' + ic("subdirectory_arrow_right", 16) +
-      "<span>.. voltar</span></div>";
-  }
-  html += d.pastas.map((p) =>
-    '<div class="nav-item" data-ir="' + esc(p.caminho) + '">' + ic("folder", 16) +
-    "<span>" + esc(p.nome) + "</span></div>"
-  ).join("");
-
-  if (d.erro) html += '<div class="nav-vazio">' + esc(d.erro) + "</div>";
-  else if (!html) html = '<div class="nav-vazio">nenhuma subpasta aqui</div>';
-
-  lista.innerHTML = html;
-  lista.querySelectorAll(".nav-item").forEach((el) => {
-    el.onclick = () => navegar(el.dataset.ir);
-  });
+/* Marcar uma pasta leva tudo o que ha dentro: as de dentro que ja estavam
+   marcadas saem da lista, que elas ja entram por esta. */
+function marcarPasta(caminho) {
+  const marca = marcaDaPasta(caminho);
+  if (marca === "herdada") { avisoCert("Esta pasta já entra pela pasta de cima."); return; }
+  if (marca === "on") org.raizes = org.raizes.filter((r) => chaveDe(r) !== chaveDe(caminho));
+  else org.raizes = org.raizes.filter((r) => !dentroDe(r, caminho)).concat([caminho]);
+  desenharArvore();
+  atualizarOnde();
+  atualizarFita();
 }
 
 async function organizarVarrer() {
@@ -243,44 +302,112 @@ async function organizarVarrer() {
       return;
     }
     org.encontrados = d;
-    passoConfirmarLeitura(d);
+    org.escolhidos = new Set((d.arquivos || []).map((a) => a.path));
+    passoEscolherLeitura();
   } catch (err) {
     $("org-nota").textContent = "não consegui procurar: " + err;
     $("org-varrer").disabled = false;
   }
 }
 
-/* Varrer e barato; ler custa ~20 s por documento. Encadear os dois sem
-   perguntar foi o que fez o programa sair lendo o computador inteiro. */
-function passoConfirmarLeitura(d) {
+/* Fase 1: o que a varredura achou, documento por documento, para a pessoa
+   escolher o que vale ler. Varrer e barato; ler custa ~20 s por documento.
+   Encadear os dois sem perguntar foi o que fez o programa sair lendo o
+   computador inteiro. */
+function passoEscolherLeitura() {
+  const d = org.encontrados;
   org.fase = 1;
+  desenharOrg(cartaoLeitura(d));
+  $("conversa-meta").textContent = plural(d.total, "documento") + " encontrados · nada foi movido ainda";
+  ligarLeitura();
+}
+
+function cartaoLeitura(d) {
   let detalhe = plural(d.total, "documento") + " em " + plural(d.pastas_visitadas, "pasta");
   if (d.em_cache) detalhe += " · " + d.em_cache + (d.em_cache === 1 ? " já lido antes" : " já lidos antes");
   if (d.sem_permissao) detalhe += " · " + d.sem_permissao + " sem permissão de leitura";
   if (d.grandes) detalhe += " · " + d.grandes + " grandes demais";
+  const lista = d.arquivos || [];
+  return '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Encontrei ' + plural(d.total, "documento") + "</b><small>" +
+    esc(detalhe) + "</small></span>" +
+    '<span class="direita"><span class="nota-barra" id="org-escolhidos"></span>' +
+    '<button id="org-ler-todos">Marcar todos</button><button id="org-so-novos">Só os novos</button></span></div>' +
+    '<div class="tabela-barra org-estimativa"><span class="org-tempo" id="org-tempo-leitura"></span>' +
+    '<span class="direita"><button id="org-voltar">Escolher outras pastas</button>' +
+    '<button class="primario com-icone" id="org-ler">' + ic("visibility", 16) + "Ler e classificar</button></span></div>" +
+    '<div class="org-andamento" id="org-andamento"></div>' +
+    '<div class="tabela-cabecalho colunas-ler"><span></span><span>Documento e pasta</span><span>Tamanho</span><span>Leitura</span></div>' +
+    '<div class="tabela-corpo" id="org-achados">' + lista.map(linhaAchado).join("") + "</div>" +
+    '<div class="tabela-rodape"><span>Mostrando ' + lista.length + " de " + d.total +
+    '</span><span class="cresce"></span><span>Nada foi lido ainda</span></div>';
+}
 
-  const tempo = d.novos === 0
-    ? "Todos já foram lidos antes: sai na hora."
-    : "Ler os " + plural(d.novos, "documento") + (d.novos === 1 ? " novo" : " novos") +
-      " deve levar de <strong>" + formatarMinutos(d.minutos_min) + " a " + formatarMinutos(d.minutos_max) +
-      "</strong>. Dá para parar no meio, e o que já foi lido fica guardado.";
+/* A pasta do documento contada a partir da pasta escolhida, que e o que a
+   pessoa reconhece: "MES 06 › Contratos", nao o caminho inteiro. */
+function pastaRelativa(pasta) {
+  const raiz = org.raizes.find((r) => pasta.toLowerCase().startsWith(r.toLowerCase()));
+  if (!raiz) return pasta;
+  const base = raiz.split(/[\\/]/).filter(Boolean).pop() || raiz;
+  return [base].concat(pasta.slice(raiz.length).split(/[\\/]/).filter(Boolean)).join(" › ");
+}
 
-  desenharOrg(
-    '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Encontrei ' + plural(d.total, "documento") + "</b><small>" +
-    esc(detalhe) + "</small></span></div>" +
-    '<div class="cartao-miolo"><p>' + tempo + "</p>" +
-    '<div class="linha-form"><button class="primario com-icone" id="org-ler">' + ic("visibility", 16) + "Ler e classificar</button>" +
-    '<button id="org-voltar">Escolher outras pastas</button></div><div id="org-andamento"></div></div>' +
-    '<div class="tabela-rodape"><span>Nada foi lido ainda</span></div>',
-    painelOrgPlano()
-  );
-  $("conversa-meta").textContent = plural(d.total, "documento") + " encontrados · nada foi movido ainda";
-  $("org-ler").onclick = () => {
-    $("org-ler").disabled = true;
-    $("org-voltar").disabled = true;
-    organizarClassificar(d.total);
-  };
+function linhaAchado(a) {
+  const on = org.escolhidos.has(a.path);
+  return '<div class="tabela-linha colunas-ler' + (on ? "" : " fora") + '" data-achado="' + esc(a.path) + '">' +
+    '<span class="marcar' + (on ? " on" : "") + '" role="checkbox" aria-checked="' + on + '">' + ic("check", 12) + "</span>" +
+    '<span class="nome-doc">' + glifo(a.nome) + '<span class="duas-linhas"><b>' + esc(a.nome) + "</b>" +
+    '<small title="' + esc(a.pasta) + '">' + esc(pastaRelativa(a.pasta || "")) + "</small></span></span>" +
+    '<span class="quando-doc">' + tamanho(Math.round((a.mb || 0) * 1024 * 1024)) + "</span>" +
+    '<span class="org-lido' + (a.lido ? " ok" : "") + '">' + (a.lido ? "já lido" : "novo") + "</span></div>";
+}
+
+/* A conta do tempo refeita a cada marca: o mesmo 8 a 25 s por documento
+   novo que o servidor usa; o ja lido sai na hora. */
+function contaDaLeitura() {
+  const d = org.encontrados;
+  const lista = d.arquivos || [];
+  const escolhidos = lista.filter((a) => org.escolhidos.has(a.path));
+  const novos = escolhidos.filter((a) => !a.lido).length;
+  const ocultos = d.total - lista.length;
+  const todos = escolhidos.length === lista.length;
+  $("org-escolhidos").textContent = escolhidos.length + " de " + lista.length + " marcados";
+  $("org-ler").disabled = !escolhidos.length;
+  let texto;
+  if (!escolhidos.length) texto = "Marque o que devo ler.";
+  else if (!novos) texto = "Todos os marcados já foram lidos antes: sai na hora.";
+  else {
+    const de = formatarMinutos(novos * 8 / 60), ate = formatarMinutos(novos * 25 / 60);
+    texto = "Ler " + plural(novos, "documento novo", "documentos novos") + " deve levar " +
+      (de === ate ? "<strong>" + de + "</strong>" : "de <strong>" + de + " a " + ate + "</strong>") + ". Dá para parar no meio.";
+  }
+  if (ocultos > 0 && todos) texto += " Os outros " + ocultos + " que não cabem na lista entram também.";
+  $("org-tempo-leitura").innerHTML = texto;
+}
+
+function ligarLeitura() {
+  const lista = org.encontrados.arquivos || [];
+  $("org-achados").querySelectorAll("[data-achado]").forEach((linha) => {
+    linha.onclick = () => {
+      if (org.trabalhando) return;
+      const c = linha.dataset.achado;
+      if (org.escolhidos.has(c)) org.escolhidos.delete(c); else org.escolhidos.add(c);
+      const on = org.escolhidos.has(c);
+      linha.classList.toggle("fora", !on);
+      linha.querySelector(".marcar").classList.toggle("on", on);
+      contaDaLeitura();
+    };
+  });
+  $("org-ler-todos").onclick = () => { org.escolhidos = new Set(lista.map((a) => a.path)); passoEscolherLeitura(); };
+  $("org-so-novos").onclick = () => { org.escolhidos = new Set(lista.filter((a) => !a.lido).map((a) => a.path)); passoEscolherLeitura(); };
   $("org-voltar").onclick = () => { org.fase = 0; passoOnde(); };
+  $("org-ler").onclick = () => {
+    // Tudo marcado manda ler tudo - inclusive o que passou do limite da
+    // lista. Com alguma coisa desmarcada, vai so o que esta marcado.
+    const todos = lista.every((a) => org.escolhidos.has(a.path));
+    ["org-ler", "org-voltar", "org-ler-todos", "org-so-novos"].forEach((id) => { $(id).disabled = true; });
+    organizarClassificar(todos ? [] : [...org.escolhidos]);
+  };
+  contaDaLeitura();
 }
 
 function formatarMinutos(m) {
@@ -289,9 +416,10 @@ function formatarMinutos(m) {
   return (m / 60).toFixed(1).replace(".", ",") + " h";
 }
 
-/* Fase 1: ler. Um acervo grande leva quase uma hora; desistir tem que estar
-   a um clique, nao a um fechar-a-janela. */
-async function organizarClassificar(total) {
+/* Ler. Um acervo grande leva quase uma hora; desistir tem que estar a um
+   clique, nao a um fechar-a-janela. */
+async function organizarClassificar(apenas) {
+  const total = apenas.length || org.encontrados.total;
   org.fase = 1;
   org.trabalhando = true;
   atualizarFita(0, total);
@@ -308,7 +436,10 @@ async function organizarClassificar(total) {
 
   const inicio = Date.now();
   try {
-    const r = await fetch("/api/organizar/classificar", { method: "POST" });
+    const r = await fetch("/api/organizar/classificar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apenas: apenas }),
+    });
     if (!r.ok) throw new Error((await r.json()).detail);
 
     const leitor = r.body.getReader();
@@ -367,7 +498,7 @@ async function organizarClassificar(total) {
    e desmarca. O plano do painel se monta sozinho conforme ela mexe. */
 function passoConferir() {
   org.fase = 2;
-  desenharOrg(cartaoConferir(), painelOrgPlano());
+  desenharOrg(cartaoConferir());
   $("conversa-meta").textContent = plural(org.docs.length, "documento") + " encontrados · nada foi movido ainda";
   ligarConferir();
   montarPlano();
@@ -443,42 +574,68 @@ function ligarConferir() {
   };
 }
 
-/* O painel: estrutura, destino e o plano - como as pastas ficam. */
+/* As pastas do plano contadas a partir do destino e agrupadas pela
+   primeira pasta (o cliente, no padrao de sempre): o caminho inteiro nao
+   cabe no painel e repete o destino em toda linha. */
+function arvoreDoPlano(pastas, destino) {
+  const base = (destino || "").replace(/[\\/]+$/, "").toLowerCase();
+  const grupos = new Map();
+  for (const x of pastas) {
+    const rel = x.pasta.toLowerCase().startsWith(base) ? x.pasta.slice(base.length) : x.pasta;
+    const [topo, ...resto] = rel.split(/[\\/]/).filter(Boolean);
+    const g = grupos.get(topo || x.pasta) || { n: 0, folhas: [] };
+    g.n += x.arquivos;
+    if (resto.length) g.folhas.push({ nome: resto.join(" › "), n: x.arquivos });
+    grupos.set(topo || x.pasta, g);
+  }
+  return '<div class="org-plano">' + [...grupos].map(([topo, g]) =>
+    '<div class="org-plano-grupo"><div class="org-plano-topo">' + ic("folder", 16) + '<span class="corta">' + esc(topo) + "</span><small>" + g.n + "</small></div>" +
+    g.folhas.map((f) => '<div class="org-plano-folha"><span class="corta">' + esc(f.nome) + "</span><small>" + f.n + "</small></div>").join("") +
+    "</div>").join("") + "</div>";
+}
+
+function nomeDaPasta(caminho) {
+  return (caminho || "").split(/[\\/]/).filter(Boolean).pop() || caminho || "";
+}
+
+/* O painel: onde procuro, a estrutura, o destino e o plano. */
 function painelOrgPlano() {
-  const p = org.plano;
+  const feito = org.fase === 4 && org.resultado;
+  const p = feito ? { total: org.resultado.movidos, pastas: org.resultado.pastas || [], destino: org.resultado.destino, ignorados: [] } : org.plano;
   const pronto = org.fase === 2 && p && p.total;
-  return '<div class="painel-cabeca"><span class="titulo-painel"><h3>Como as pastas ficam</h3><span class="meta">' +
-    (p ? "Plano · " + plural(p.total, "arquivo") + " em " + plural(p.pastas.length, "pasta") : "O plano aparece depois de ler e conferir") +
-    "</span></span></div>" +
-    '<div style="padding:0 18px 12px;display:grid;gap:12px">' +
-    '<div class="campo-painel"><label for="org-padrao">Estrutura</label><select id="org-padrao">' +
+  const meta = feito ? plural(p.total, "arquivo") + " no lugar novo"
+    : (p ? plural(p.total, "arquivo") + " em " + plural(p.pastas.length, "pasta") : "O plano aparece depois de ler e conferir");
+  return '<div class="painel-cabeca"><span class="titulo-painel"><h3>Como as pastas ficam</h3><span class="meta">' + meta + "</span></span></div>" +
+    ondeProcuro() +
+    '<div class="painel-bloco"><div class="campo-painel"><label for="org-padrao">Estrutura</label><select id="org-padrao"' + (feito ? " disabled" : "") + ">" +
     (org.padroes || []).map((x) => '<option value="' + esc(x.padrao) + '"' + (org.padrao === x.padrao ? " selected" : "") + ">" + esc(x.rotulo) + "</option>").join("") +
     "</select></div>" +
     '<div class="campo-painel"><label for="org-destino">Pasta de destino</label><div class="com-botao">' +
-    '<input type="text" id="org-destino" value="' + esc(org.destino || "") + '">' +
-    (window.pywebview ? '<button id="org-escolher">Trocar</button>' : "") + "</div></div></div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Plano</span><span class="contagem">' +
-    (p ? plural(p.pastas.length, "pasta") : "—") + "</span></div>" +
-    (p
-      ? "<div>" + p.pastas.map((x) =>
-          '<div class="plano-linha">' + ic("folder", 16) + "<span>" + esc(x.pasta) + '</span><span class="contagem">' + x.arquivos + "</span></div>").join("") +
-        (p.ignorados.length
-          ? '<div class="plano-linha fora">' + ic("folder", 16) + '<span>Sem classificação · ficam onde estão</span><span class="contagem">' + p.ignorados.length + "</span></div>"
-          : "") + "</div>"
-      : "<p>Escolha as pastas, mande ler, confira a classificação. O plano se monta sozinho.</p>") + "</div>" +
+    '<input type="text" id="org-destino" value="' + esc(org.destino || "") + '"' + (feito ? " disabled" : "") + ">" +
+    (window.pywebview && !feito ? '<button id="org-escolher">Trocar</button>' : "") + "</div></div></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>' + (feito ? "Como ficou" : "Plano") + '</span><span class="contagem">' +
+    (p && p.pastas.length ? plural(p.pastas.length, "pasta") + " em " + esc(nomeDaPasta(p.destino)) : "") + "</span></div>" +
+    (p && p.pastas.length
+      ? arvoreDoPlano(p.pastas, p.destino) +
+        (p.ignorados.length ? '<small class="org-nota">' + plural(p.ignorados.length, "arquivo") + " sem classificação ficam onde estão.</small>" : "")
+      : "<p>Escolha as pastas, mande ler e confira a classificação. O plano se monta sozinho.</p>") + "</div>" +
     (pronto
-      ? '<div class="cartao-pronto"><div class="cabeca">' + coroa(18) + "Pronto para mover</div>" +
-        "<p>Vou mover " + plural(p.total, "arquivo") + " para " + plural(p.pastas.length, "pasta") + " dentro de " + esc(p.destino) +
-        ". Nada é apagado nem sobrescrito, e dá para desfazer tudo depois.</p>" +
-        '<div class="acoes"><button class="fantasma" id="org-revisar">Revisar o plano</button>' +
-        '<button class="primario" id="org-aprovar">' + ic("drive_file_move", 16) + "Aprovar e mover</button></div></div>"
-      : "") +
-    (org.fase >= 2
-      ? '<div class="painel-botoes"><button class="com-icone" id="org-recomecar">' + ic("restart_alt", 16) + "Começar de novo</button></div>"
-      : "");
+      ? '<div class="painel-bloco org-pronto"><p>' +
+        (org.semPedir ? "Vou mover " : "Peço para mover ") + "<b>" + plural(p.total, "arquivo") + "</b> para <b>" + plural(p.pastas.length, "pasta") +
+        "</b> em <b>" + esc(nomeDaPasta(p.destino)) + "</b>. " +
+        (org.semPedir ? "" : "O pedido vai para Aprovações e nada se move antes do seu sim. ") +
+        "Nada é apagado nem sobrescrito, e dá para desfazer depois.</p>" +
+        '<button class="primario com-icone org-largo" id="org-aprovar">' + ic("drive_file_move", 16) +
+        (org.semPedir ? "Mover agora" : "Enviar para aprovação") + "</button>" +
+        '<div class="org-links"><button class="sv-ligacao" id="org-revisar">Revisar o plano</button><span class="cresce"></span>' +
+        '<button class="sv-ligacao" id="org-recomecar">' + ic("restart_alt", 15) + "Começar de novo</button></div></div>"
+      : (org.fase >= 2 && !feito
+        ? '<div class="painel-bloco org-links"><span class="cresce"></span><button class="sv-ligacao" id="org-recomecar">' + ic("restart_alt", 15) + "Começar de novo</button></div>"
+        : ""));
 }
 
 function ligarPainelOrg() {
+  ligarOnde();
   const padrao = $("org-padrao");
   if (padrao) padrao.onchange = (e) => { org.padrao = e.target.value; montarPlano(); };
   const destino = $("org-destino");
@@ -496,10 +653,7 @@ function ligarPainelOrg() {
   const aprovar = $("org-aprovar");
   if (aprovar) aprovar.onclick = organizarAplicar;
   const recomecar = $("org-recomecar");
-  if (recomecar) recomecar.onclick = () => {
-    org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null; org.parado = false;
-    passoOnde();
-  };
+  if (recomecar) recomecar.onclick = () => { limparOrg(); passoOnde(); };
 }
 
 function atualizarPainelOrg() {
@@ -540,7 +694,8 @@ function montarPlano() {
 }
 
 /* Fase 3: mover. Ou o pedido vai para a fila, se a permissao de mover sem
-   pedir estiver desligada. */
+   pedir estiver desligada; nesse caso o fim do fluxo volta para ca depois
+   do sim, por organizarDesfecho. */
 async function organizarAplicar() {
   org.fase = 3;
   org.trabalhando = true;
@@ -557,11 +712,11 @@ async function organizarAplicar() {
     });
     if (!r.ok) throw new Error((await r.json()).detail);
     const d = await r.json();
-    org.resultado = d;
 
     if (d.aguardando_aprovacao) {
+      org.pedido = d.pedido.id;
       cartao.innerHTML = '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Pedido enviado para aprovação</b><small>Nada foi movido ainda. ' +
-        plural(d.total, "arquivo") + " esperam o seu sim em Aprovações — a permissão de mover sem pedir está desligada.</small></span></div>" +
+        plural(d.total, "arquivo") + " esperam o seu sim em Aprovações. Depois de aprovar, eu trago você de volta para ver como ficou.</small></span></div>" +
         '<div class="cartao-miolo"><div class="linha-form"><button class="primario" id="org-ver-fila">Abrir Aprovações</button></div></div>';
       $("org-ver-fila").onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };
       contarPendencias();
@@ -569,36 +724,7 @@ async function organizarAplicar() {
       return;
     }
 
-    org.fase = 4;
-    atualizarFita();
-    cartao.innerHTML = '<div class="cartao-cabeca"><span class="texto-cabeca"><b>' + plural(d.movidos, "arquivo") + " no lugar novo</b><small>" +
-      (d.falhas.length
-        ? d.falhas.length + " não deu para mover: " + esc(d.falhas.map((f) => f.nome).join(", "))
-        : "Dá para voltar ao estado anterior.") + "</small></span></div>" +
-      '<div class="cartao-miolo"><div class="linha-form"><button class="com-icone" id="org-desfazer">' + ic("undo", 16) + "Desfazer tudo</button>" +
-      '<span class="nota-barra" id="org-nota3"></span></div></div>';
-    $("conversa-meta").textContent = plural(d.movidos, "arquivo") + " movidos";
-    $("org-desfazer").onclick = async () => {
-      if (!(await confirmar({ titulo: "Devolver os " + plural(d.movidos, "arquivo") + "?", contexto: "Acervo › Organizar", texto: "Cada arquivo volta para a pasta onde estava antes desta organização.", confirmar: "Devolver" }))) return;
-      $("org-desfazer").disabled = true;
-      $("org-nota3").textContent = "devolvendo…";
-      try {
-        const rr = await fetch("/api/organizar/desfazer", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ diario: d.diario }),
-        });
-        const dd = await rr.json();
-        $("org-nota3").textContent = plural(dd.revertidos, "arquivo") + " de volta ao lugar de origem";
-      } catch (err) {
-        $("org-desfazer").disabled = false;
-        $("org-nota3").textContent = "não consegui desfazer: " + err;
-      }
-    };
-    estado.contratos = 0;
-    bib.todos = [];
-    bib.sugestoes = null;
-    carregarStatus();
-    atualizarPainelOrg();
+    mostrarMovidos(d);
   } catch (err) {
     cartao.innerHTML = '<div class="cartao-miolo"><div class="aprovacao"><p><strong>Não consegui mover.</strong> ' + esc(String(err)) + "</p></div></div>";
   } finally {
@@ -609,3 +735,66 @@ async function organizarAplicar() {
   }
 }
 
+/* O fim do fluxo: quantos foram, para onde, e o desfazer a um clique. Serve
+   ao mover direto e ao mover que passou pela fila. */
+function mostrarMovidos(d) {
+  org.fase = 4;
+  org.resultado = d;
+  org.pedido = null;
+  const falhas = d.falhas || [];
+  desenharOrg(
+    '<div class="cartao-cabeca"><span class="texto-cabeca"><b>' + plural(d.movidos, "arquivo") + " no lugar novo</b><small>" +
+    (d.destino ? "Em " + esc(d.destino) + ". " : "") + "Nada foi apagado nem sobrescrito, e dá para voltar ao estado anterior.</small></span></div>" +
+    '<div class="cartao-miolo">' +
+    (falhas.length
+      ? '<div class="aprovacao"><p><strong>' + plural(falhas.length, "arquivo") + " não deu para mover:</strong> " +
+        esc(falhas.map((f) => f.nome || f.arquivo || f).join(", ")) + ". Eles ficaram onde estavam.</p></div>"
+      : "") +
+    '<div class="linha-form">' +
+    (d.destino ? '<button class="com-icone" id="org-abrir-destino">' + ic("folder_open", 16) + "Abrir a pasta</button>" : "") +
+    '<button class="com-icone" id="org-outra">' + ic("search", 16) + "Organizar outra pasta</button>" +
+    '<span class="cresce"></span><button class="com-icone" id="org-desfazer">' + ic("undo", 16) + "Desfazer tudo</button></div>" +
+    '<p class="nota-barra" id="org-nota3"></p></div>' +
+    '<div class="tabela-rodape"><span>' + (falhas.length ? plural(falhas.length, "falha") : "Tudo movido") + '</span><span class="cresce"></span>' +
+    "<span>Registrado no diário da organização</span></div>"
+  );
+  $("conversa-meta").textContent = plural(d.movidos, "arquivo") + " movidos";
+  const abrir = $("org-abrir-destino");
+  if (abrir) abrir.onclick = () => fetch("/api/biblioteca/abrir-pasta", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminho: d.destino }),
+  });
+  $("org-outra").onclick = () => { limparOrg(); passoOnde(); };
+  $("org-desfazer").onclick = async () => {
+    if (!(await confirmar({ titulo: "Devolver os " + plural(d.movidos, "arquivo") + "?", contexto: "Acervo › Organizar", texto: "Cada arquivo volta para a pasta onde estava antes desta organização.", confirmar: "Devolver" }))) return;
+    $("org-desfazer").disabled = true;
+    $("org-nota3").textContent = "devolvendo…";
+    try {
+      const rr = await fetch("/api/organizar/desfazer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ diario: d.diario }),
+      });
+      const dd = await rr.json();
+      $("org-nota3").textContent = plural(dd.revertidos, "arquivo") + " de volta ao lugar de origem";
+    } catch (err) {
+      $("org-desfazer").disabled = false;
+      $("org-nota3").textContent = "não consegui desfazer: " + err;
+    }
+  };
+  estado.contratos = 0;
+  bib.todos = [];
+  bib.sugestoes = null;
+  carregarStatus();
+}
+
+/* Chamado pela fila de aprovacoes depois do sim num pedido de organizar:
+   a pessoa volta para esta tela e ve o desfecho, em vez de parar na fila. */
+async function organizarDesfecho() {
+  let d;
+  try { d = await (await fetch("/api/organizar/ultima")).json(); } catch (err) { return false; }
+  if (!d || !d.diario) return false;
+  marcarDestino("biblioteca");
+  await organizarComecar(true);
+  mostrarMovidos(d);
+  atualizarPostura();
+  return true;
+}

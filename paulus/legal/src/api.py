@@ -106,6 +106,7 @@ from search import ContractSearcher
 
 BASE_DIR = Path(__file__).parent.parent
 CONTRACTS_DIR = BASE_DIR / "data" / "test_contracts"
+NOME_DA_PASTA_PADRAO = "Documentos do escritório"
 CACHE_PATH = BASE_DIR / "data" / "extractions" / "index.json"
 CLASSIFICACAO_PATH = BASE_DIR / "data" / "extractions" / "classificacao.json"
 DIARIOS_DIR = BASE_DIR / "data" / "diarios"
@@ -154,6 +155,9 @@ class Estado:
         # Organizador: resultado da ultima varredura/classificacao, por caminho.
         self.encontrados: list[dict] = []
         self.classificacoes: dict[str, Classificacao] = {}
+        # O fim da ultima organizacao (movidos, falhas, diario para desfazer):
+        # quando o mover passa pela fila, e daqui que a tela tira o desfecho.
+        self.ultima_organizacao: dict | None = None
         # Conversas persistidas e o interruptor "ir devagar".
         self.trabalhos = Trabalhos(TRABALHOS_DIR)
         self.devagar = False
@@ -269,8 +273,24 @@ class Estado:
                 self.transcrevendo = None
                 self.fila_voz.task_done()
 
+    def pastas_do_acervo(self) -> list[Path]:
+        """A pasta do programa e as que o Organizar encheu - o que o Acervo le."""
+        extras = [Path(p) for p in self.prefs.dados.get("pastas_acervo") or []]
+        return [Path(self.pasta)] + [p for p in extras if p.is_dir()]
+
+    def incluir_no_acervo(self, pasta: str | Path) -> bool:
+        """Passa a ler `pasta` no Acervo. Pasta ja lida (ou dentro de uma) nao entra de novo."""
+        alvo = Path(pasta).resolve()
+        for ja in self.pastas_do_acervo():
+            ja = ja.resolve()
+            if alvo == ja or ja in alvo.parents:
+                return False
+        extras = list(self.prefs.dados.get("pastas_acervo") or [])
+        self.prefs.atualizar({"pastas_acervo": extras + [str(alvo)]})
+        return True
+
     def recarregar(self, *, force: bool = False) -> int:
-        docs = index_all_contracts(self.pasta, CACHE_PATH, force=force, verbose=False)
+        docs = index_all_contracts(self.pastas_do_acervo(), CACHE_PATH, force=force, verbose=False)
         searcher = ContractSearcher()
         searcher.add_contracts(docs)
         searcher.build()
@@ -946,6 +966,29 @@ def _itens_da_biblioteca() -> list[dict]:
     for c in estado.searcher.chunks:
         trechos_por_nome[c.doc_name] = trechos_por_nome.get(c.doc_name, 0) + 1
 
+    # A pasta padrao tem nome de programador no disco (test_contracts); na tela
+    # ela e o acervo do escritorio. So o nome mostrado muda: o caminho segue o
+    # mesmo, porque e por ele que o indice acha cada documento. Subpasta sai
+    # contada da raiz que o Acervo le - "Acervo PAULUS › Cliente › Tipo" -,
+    # que e o que a tela agrupa; so o ultimo nome repetia "Locacao" para
+    # cada cliente.
+    padrao = Path(estado.pasta).resolve()
+    raizes = [(padrao, NOME_DA_PASTA_PADRAO)] + [
+        (p.resolve(), p.name or str(p)) for p in estado.pastas_do_acervo()[1:]
+    ]
+    nomes: dict[Path, str] = {}
+
+    def nome_da_pasta(pasta: Path) -> str:
+        if pasta not in nomes:
+            real = pasta.resolve()
+            nome = pasta.name or str(pasta)
+            for raiz, rotulo in raizes:
+                if real == raiz or raiz in real.parents:
+                    nome = " › ".join([rotulo, *real.relative_to(raiz).parts])
+                    break
+            nomes[pasta] = nome
+        return nomes[pasta]
+
     itens: list[dict] = []
     for doc in estado.searcher.documents:
         caminho = Path(doc.path)
@@ -965,7 +1008,7 @@ def _itens_da_biblioteca() -> list[dict]:
             "nome": doc.name,
             "caminho": str(caminho),
             "pasta": str(caminho.parent),
-            "pasta_curta": caminho.parent.name or str(caminho.parent),
+            "pasta_curta": nome_da_pasta(caminho.parent),
             "existe": existe,
             "bytes": tamanho,
             "paginas": doc.pages,
@@ -2664,6 +2707,7 @@ def _executar_mover(pedido) -> str:
         ignorados=dados.get("ignorados", []),
     )
     resultado = aplicar_plano(plano, DIARIOS_DIR)
+    _guardar_organizacao(plano, resultado, pedido.id)
     estado.recarregar(force=True)
     if resultado.falhas:
         return f"{resultado.movidos} movido(s), {len(resultado.falhas)} falha(s)"
@@ -3038,6 +3082,31 @@ class PedidoDesfazer(BaseModel):
     diario: str
 
 
+class PedidoLeitura(BaseModel):
+    apenas: list[str] = []          # caminhos escolhidos na varredura; vazio = todos
+
+
+def _guardar_organizacao(plano, resultado, pedido: str = "") -> dict:
+    """
+    O desfecho de um mover, na forma que a tela mostra e desfaz.
+
+    O destino passa a ser lido pelo Acervo: organizar e trazer os documentos
+    para ca. Antes, o que foi movido sumia da tela Documentos - estava no
+    disco, fora da unica pasta que o indice lia.
+    """
+    if resultado.movidos and plano.destino:
+        estado.incluir_no_acervo(plano.destino)
+    estado.ultima_organizacao = {
+        "pedido": pedido,
+        "movidos": resultado.movidos,
+        "falhas": resultado.falhas,
+        "diario": resultado.diario,
+        "destino": plano.destino,
+        "pastas": plano.resumo_por_pasta(),
+    }
+    return estado.ultima_organizacao
+
+
 @app.get("/api/organizar/opcoes")
 def organizar_opcoes() -> dict:
     return {
@@ -3079,8 +3148,12 @@ def organizar_escanear(payload: Escaneamento) -> dict:
     ]
 
     # Quanto ja esta em cache define o tempo real da leitura: documento
-    # conhecido sai em milissegundos, novo custa ~8 a 25 s.
-    conhecidos = _quantos_em_cache([a["path"] for a in estado.encontrados])
+    # conhecido sai em milissegundos, novo custa ~8 a 25 s. Cada arquivo leva
+    # a marca, para a tela refazer a conta quando a pessoa escolhe quais ler.
+    lidos = _em_cache([a["path"] for a in estado.encontrados])
+    for a in estado.encontrados:
+        a["lido"] = a["path"] in lidos
+    conhecidos = len(lidos)
     novos = varredura.total - conhecidos
 
     return {
@@ -3096,34 +3169,39 @@ def organizar_escanear(payload: Escaneamento) -> dict:
     }
 
 
-def _quantos_em_cache(caminhos: list[str]) -> int:
-    """Quantos desses documentos ja foram lidos antes (mesmo conteudo)."""
+def _em_cache(caminhos: list[str]) -> set[str]:
+    """Quais desses documentos ja foram lidos antes (mesmo conteudo)."""
     from classify import CacheClassificacao
     from extract import file_sha1
 
     cache = CacheClassificacao(CLASSIFICACAO_PATH)
     if not cache.dados:
-        return 0
+        return set()
 
-    total = 0
+    lidos: set[str] = set()
     for caminho in caminhos:
         try:
             if file_sha1(Path(caminho)) in cache.dados:
-                total += 1
+                lidos.add(caminho)
         except OSError:
             continue
-    return total
+    return lidos
 
 
 @app.post("/api/organizar/classificar")
-def organizar_classificar() -> StreamingResponse:
+def organizar_classificar(payload: PedidoLeitura | None = None) -> StreamingResponse:
     """
-    Le o que a varredura achou.
+    Le o que a varredura achou - ou so o que a pessoa escolheu dela.
 
     A leitura em si mora em habilidades/classificar.py. Aqui fica so o que e do
     servidor: guardar o resultado para os passos seguintes do organizador.
     """
     caminhos = [a["path"] for a in estado.encontrados]
+    if payload and payload.apenas:
+        # So caminhos que a varredura achou: a lista vem da tela, e ler um
+        # caminho qualquer que chegasse aqui seria abrir o disco inteiro.
+        escolhidos = set(payload.apenas)
+        caminhos = [c for c in caminhos if c in escolhidos]
     if not caminhos:
         raise HTTPException(status_code=400, detail="nada para ler - faca a varredura antes")
 
@@ -3224,7 +3302,9 @@ def organizar_aplicar(payload: PedidoPlano) -> dict:
     if not estado.prefs.pode("organizar_mover"):
         pastas_alvo = plano.resumo_por_pasta()
         pedido = estado.fila.pedir(
-            f"Mover {plano.total} arquivo(s) para {Path(plano.destino).name or plano.destino}",
+            f"Mover {plano.total} arquivo(s) para "
+            + (NOME_DA_PASTA_PADRAO if Path(plano.destino).resolve() == Path(estado.pasta).resolve()
+               else Path(plano.destino).name or plano.destino),
             "organizar",
             resumo=(
                 f"{plano.total} arquivo(s) em {len(pastas_alvo)} pasta(s), "
@@ -3243,16 +3323,25 @@ def organizar_aplicar(payload: PedidoPlano) -> dict:
         }
 
     resultado = aplicar_plano(plano, DIARIOS_DIR)
+    _guardar_organizacao(plano, resultado)
     estado.classificacoes = {}
     estado.encontrados = []
     estado.recarregar(force=True)
     return {
         "aguardando_aprovacao": False,
+        "destino": plano.destino,
+        "pastas": plano.resumo_por_pasta(),
         "movidos": resultado.movidos,
         "falhas": resultado.falhas,
         "diario": resultado.diario,
         "diarios": listar_diarios(DIARIOS_DIR),
     }
+
+
+@app.get("/api/organizar/ultima")
+def organizar_ultima() -> dict:
+    """O desfecho da ultima organizacao - a tela volta a ele depois da fila."""
+    return estado.ultima_organizacao or {}
 
 
 @app.post("/api/organizar/desfazer")

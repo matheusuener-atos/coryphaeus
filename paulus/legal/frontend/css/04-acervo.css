@@ -296,11 +296,6 @@
   .nav-item .cam { margin-left: auto; font: 500 11.5px var(--sans); color: var(--ink3); }
   .nav-grupo { padding: 8px 12px 4px; font: 500 12px var(--sans); color: var(--ink3); background: var(--sub); }
   .nav-vazio { padding: 16px 12px; font-size: 12.5px; color: var(--ink3); }
-  .plano-linha { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; border-bottom: 1px solid var(--ink-a06); color: var(--ink); }
-  .plano-linha .ic { color: var(--ink3); }
-  .plano-linha span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .plano-linha .contagem { flex: none; }
-  .plano-linha.fora { color: var(--ink3); border-bottom: none; border-top: 1px solid var(--ink-a06); }
   .campo-painel { display: grid; gap: 6px; }
   .campo-painel label { font: 500 12px var(--sans); color: var(--ink3); }
   .campo-painel select, .campo-painel input[type=text], .campo-painel .escolha-botao {
@@ -310,11 +305,62 @@
   }
   .campo-painel .com-botao { display: flex; gap: 8px; }
   .campo-painel .com-botao input[type=text] { flex: 1; max-width: 100%; }
-  .cartao-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--destaque-linha); border-radius: 10px; background: var(--destaque-fundo); display: grid; gap: 12px; }
-  .cartao-pronto .cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
-  .cartao-pronto p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .cartao-pronto .acoes { display: flex; align-items: center; gap: 10px; }
-  .cartao-pronto .acoes .primario { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+
+  /* Organizar e Aprovacoes: o titulo do painel na letra do sistema, como o
+     resto da coluna. */
+  .org-tela .titulo-painel h3, .ap-tela .titulo-painel h3, .pz-tela .titulo-painel h3 { font: 600 16px/1.3 var(--sans); letter-spacing: 0; }
+  .pz-tela .sv-ficha { flex: none; }
+
+  /* Organizar, fase Ler: o que a varredura achou, para marcar o que ler. */
+  .colunas-ler { grid-template-columns: 20px minmax(0, 1fr) 90px 72px; }
+  .org-lido { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .org-lido.ok { color: var(--okt); }
+  .tabela-barra.org-estimativa { white-space: normal; background: var(--surf); }
+  .org-estimativa .direita { flex: none; white-space: nowrap; }
+  .org-tempo { min-width: 0; font: 500 13px/1.45 var(--sans); color: var(--ink2); }
+  .org-tempo strong { color: var(--ink); }
+  .org-andamento { padding: 10px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .org-andamento:empty { display: none; }
+
+  /* Organizar, o seletor em arvore: recuo por nivel, a seta so onde ha o
+     que abrir, a caixinha de marcar das listas. */
+  .arv-no { gap: 6px; padding-left: calc(8px + var(--nivel, 0) * 22px); }
+  .arv-no .corta { flex: 0 1 auto; min-width: 0; }
+  .arv-no.marcada { color: var(--ink); }
+  .arv-no .marcar { margin-right: 4px; cursor: pointer; }
+  .arv-no .marcar.herdada { opacity: .45; }
+  .arv-seta {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+    padding: 0; border: none; border-radius: 4px; background: none; color: var(--ink3); cursor: pointer;
+  }
+  .arv-seta:hover:not(:disabled) { border: none; background: var(--fill); color: var(--ink); }
+  .arv-vazio { padding: 8px 12px 8px calc(64px + var(--nivel, 0) * 22px); }
+
+  /* Organizar, o painel: onde procuro, o plano e o pronto para mover. */
+  .org-largo { width: 100%; justify-content: center; }
+  .org-nota { font: 500 12px/1.45 var(--sans); color: var(--ink3); }
+  .org-nota:empty { display: none; }
+  .org-raizes { display: grid; }
+  .org-raiz { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); }
+  .org-raiz:last-child { border-bottom: none; }
+  .org-raiz > .ic { flex: none; color: var(--ink3); }
+  .org-raiz .duas-linhas { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .org-raiz b { font: 600 13.5px var(--sans); }
+  .org-raiz small { font: 500 11.5px var(--sans); color: var(--ink3); }
+  .org-tirar { flex: none; display: flex; padding: 4px; border: none; border-radius: 6px; background: none; color: var(--ink3); }
+  .org-tirar:hover:not(:disabled) { border: none; background: var(--fill); color: var(--ink); }
+  .org-onde .sv-ligacao { justify-self: start; }
+  .org-plano { display: grid; gap: 10px; }
+  .org-plano-grupo { display: grid; gap: 2px; }
+  .org-plano-topo, .org-plano-folha { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; }
+  .org-plano-topo { font-weight: 600; color: var(--ink); }
+  .org-plano-topo .ic { flex: none; color: var(--ink3); }
+  .org-plano-folha { padding: 3px 0 3px 24px; color: var(--ink2); }
+  .org-plano .corta { flex: 1; min-width: 0; }
+  .org-plano small { flex: none; font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .org-pronto { background: var(--sub); }
+  .org-pronto p b { font-weight: 600; color: var(--ink); }
+  .org-links { display: flex; align-items: center; gap: 12px; }
 
   /* prazos: os numeros do topo e a clausula de origem */
   .tiles { flex: none; display: flex; gap: 12px; }

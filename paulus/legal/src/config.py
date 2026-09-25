@@ -63,6 +63,10 @@ AUTONOMIA = [
 
 PADRAO: dict = {
     "pastas": [],
+    # Pastas lidas pelo Acervo alem da pasta do programa: para onde o
+    # Organizar moveu documentos. Sem isso, o que foi organizado sumia da
+    # tela Documentos - estava no disco, mas fora do que o indice le.
+    "pastas_acervo": [],
     "modelo": "",
     "devagar": False,
     "autonomia": {a["chave"]: a["padrao"] for a in AUTONOMIA},
