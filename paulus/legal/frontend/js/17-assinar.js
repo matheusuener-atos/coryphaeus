@@ -85,7 +85,8 @@ function listaDePdfs() {
     '<div class="tabela-linha colunas-pdfs" data-pdf="' + esc(p.path) + '">' +
     '<span class="nome-doc">' + glifo(p.nome) + '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
     (p.paginas ? plural(p.paginas, "página") + " · " : "") + String(p.mb).replace(".", ",") + " MB</small></span></span>" +
-    '<span class="quando-doc">PDF do Acervo</span><span class="acoes-linha"><button data-pdf-abrir="' + esc(p.path) + '">Abrir</button></span></div>').join("");
+    '<span class="quando-doc">PDF do Acervo</span><span class="acoes-linha"><button data-pdf-abrir="' + esc(p.path) + '">Abrir</button>' +
+    '<button class="mais-linha" data-pdf-mais="' + esc(p.path) + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></span></div>").join("");
   return '<div class="tabela-cartao"><div class="tabela-barra"><span class="selecao">' + plural(assina.pdfs.length, "PDF", "PDFs") + " que já conheço</span>" +
     '<span class="nota-barra">só assino PDF · outro arquivo? escolha no computador</span></div>' +
     '<div class="tabela-corpo">' + (linhas || '<div class="ag-vazio"><h4>Nenhum PDF no acervo ainda</h4><p>Inclua a pasta onde eles estão, ou escolha um arquivo direto no computador — eu subo uma cópia para o Acervo e assino a cópia.</p></div>') + "</div>" +
@@ -106,7 +107,7 @@ function cartaoDoCertificadoEmUso() {
 }
 
 function painelSemDocumento() {
-  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+  return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Antes de assinar</h3><span class="meta">escolha o PDF na lista</span></span></div>' +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Com qual certificado</span>' + seloDeSituacao() + "</div>" + cartaoDoCertificadoEmUso() + "</div>" +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Como funciona</span></div>' +
@@ -119,6 +120,13 @@ function ligarListaDePdfs() {
   const raiz = $("assinatura");
   raiz.querySelectorAll("[data-pdf], [data-pdf-abrir]").forEach((b) => {
     b.onclick = (e) => { e.stopPropagation(); mostrarAssinar(b.dataset.pdf || b.dataset.pdfAbrir); };
+  });
+  raiz.querySelectorAll("[data-pdf-mais]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const p = assina.pdfs.find((x) => x.path === b.dataset.pdfMais);
+      if (p) menuDoPdf(b, p, () => mostrarAssinar());
+    };
   });
   /* O navegador nao entrega o caminho do arquivo escolhido, so o conteudo.
      Como o assinador precisa do arquivo no disco, este botao sobe uma copia
@@ -218,7 +226,7 @@ function painelAntesDeAssinar() {
 
   const podeCompartilhar = Boolean(f && !f.aguardando_aprovacao);
   const bloqueio = podeCompartilhar ? "" : " disabled";
-  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+  return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Antes de assinar</h3><span class="meta">' + esc(doc.nome) + " · " + plural(doc.paginas, "página") + "</span></span></div>" +
     (f ? "" : '<div class="as-selo-coluna" id="assina-selo-coluna"></div>') +
     '<div class="as-opcoes">' + escolhas +
@@ -676,7 +684,7 @@ async function assinarAgora() {
     const r = await dialogo({
       titulo: titular ? "Assinar como " + titular + "?" : "Assinar agora?", contexto: "Assinatura",
       texto: fraseDeAssinar() + (doWindows ? "\nSe o certificado foi instalado com proteção forte, o Windows vai pedir a senha dele em seguida." : ""),
-      campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do PAULUS" : "Senha do certificado", tipo: "password", icone: "lock", selecionar: false } : undefined,
+      campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do PAULUS" : "Senha do certificado", tipo: "password", icone: "key", selecionar: false } : undefined,
       confirmar: "Assinar",
     });
     if (!r || !r.ok) return;

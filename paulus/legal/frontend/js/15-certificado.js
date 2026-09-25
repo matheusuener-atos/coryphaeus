@@ -90,11 +90,6 @@ function cabecalhoAssinatura() {
   $("nav-tela").innerHTML = "";
 }
 
-function alcaDaAssinatura() {
-  return '<button class="alca-painel" data-as-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(cert.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
-}
-
 /* ------------------------------------- os certificados que estao no Windows */
 /* Um pop-up nosso, como o de anexar: os certificados instalados nesta conta
    do Windows, os de pessoa (ICP-Brasil) em cima e os tecnicos do sistema
@@ -291,7 +286,7 @@ function painelDoSelo() {
     const classe = "as-marca" + (ligado ? " on" : "") + (chave ? " liga" : "");
     return '<div class="' + classe + '"' + (chave ? ' data-selo="' + chave + '"' : "") + '><span class="as-caixinha">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
   };
-  return '<aside class="acervo-painel">' + alcaDaAssinatura() + '<div class="rolagem as-painel">' +
+  return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Selo de assinatura</h3><span class="meta">Prévia em tamanho real</span></span></div>' +
     '<div class="as-selo-caixa"><div class="as-selo-escala" id="selo-previa">' + previaSelo(d) + "</div></div>" +
     '<div class="as-painel-miolo"><div class="visoes as-abas">' +
@@ -374,8 +369,6 @@ function painelSelo() {
 
 function ligarAssinatura() {
   const raiz = $("assinatura");
-  const alca = raiz.querySelector("[data-as-alca]");
-  if (alca) alca.onclick = () => { cert.largo = !cert.largo; raiz.classList.toggle("painel-largo", cert.largo); alca.innerHTML = ic(cert.largo ? "chevron_right" : "chevron_left", 18); };
   document.querySelectorAll("[data-as-visao]").forEach((b) => {
     b.onclick = () => (b.dataset.asVisao === "certificado" ? mostrarCertificado() : mostrarAssinar(assina.doc ? assina.doc.caminho : ""));
   });

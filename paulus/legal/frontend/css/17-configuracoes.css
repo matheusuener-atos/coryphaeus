@@ -34,6 +34,8 @@
   .cfg-cartao-corpo { padding: 16px; display: grid; gap: 14px; align-content: start; }
   .cfg-sub { display: grid; gap: 10px; padding-top: 10px; border-top: 1px solid var(--ink-a1); }
   .cfg-sub > b { font: 600 14px var(--sans); }
+  /* Os tipos de aviso, recuados sob o interruptor geral. */
+  .cfg-sub.cfg-avisos-tipos { gap: 8px; padding-left: 14px; border-top: none; padding-top: 2px; border-left: 2px solid var(--ink-a1); margin-left: 2px; }
   .cfg-explica { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   .cfg-texto { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
   .cfg-chaves { display: grid; }

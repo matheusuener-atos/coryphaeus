@@ -290,9 +290,15 @@ function abasDosDocumentos() {
       (a.tipo === "pdf" ? "<small>só leitura</small>" : "") +
       '<span class="ic ic-16 docs-fechar" data-docs-fechar="' + esc(String(a.id)) + '" title="Fechar">close</span></button>';
   }).join("");
-  const classe = "docs-aba-mais" + (escr.atual === null ? " ativa" : "");
-  return '<div class="docs-abas">' + abas +
-    '<button class="' + classe + '" data-docs-lista="1" title="Abrir ou criar um documento">' + ic("add", 18) + "</button>" +
+  /* A lista ganhou aba propria (Arquivos); o botao de criar diz o que cria e
+     cria de fato - no modo Planilha, planilha. */
+  const planilha = escr.visao === "planilha";
+  const ativa = escr.atual === null ? " ativa" : "";
+  return '<div class="docs-abas">' +
+    '<button class="docs-aba docs-aba-lista' + ativa + '" data-docs-lista="1" title="Todos os documentos e planilhas">' + ic("list", 16) + '<span class="docs-aba-nome">Arquivos</span></button>' +
+    abas +
+    '<button class="docs-aba-novo" data-docs-novo="' + (planilha ? "planilha" : "texto") + '">' +
+    (planilha ? "Nova planilha" : "Novo documento") + ic("add", 16) + "</button>" +
     (escr.atual !== null ? botaoDoFoco() : "") + "</div>";
 }
 
@@ -349,30 +355,75 @@ function painelDaLista() {
    painel escondido seria resposta perdida. */
 function botaoDoFoco() {
   const rotulo = escr.foco ? "Mostrar o painel" : "Ocultar o painel";
+  const conta = escr.foco ? (escr.naoVistas || 0) : 0;
   return '<button class="docs-foco' + (escr.foco ? " on" : "") + '" data-docs-foco="1" title="' + rotulo + '" aria-pressed="' + escr.foco + '">' +
-    ic("view_sidebar", 18) + '<span>' + (escr.foco ? "Painel" : "Foco") + "</span></button>";
+    ic("view_sidebar", 18) + '<span class="docs-foco-rotulo">' + (escr.foco ? "Painel" : "Foco") + "</span>" +
+    '<span class="docs-foco-conta"' + (conta ? "" : " hidden") + ">" + conta + "</span></button>";
 }
 
+/* O botao muda no lugar - cor, icone e rotulo em transicao -, e nao e
+   redesenhado: redesenhar trocava tudo de uma vez, sem movimento. */
 function alternarFoco(foco) {
   escr.foco = foco === undefined ? !escr.foco : foco;
+  if (!escr.foco) escr.naoVistas = 0;
   try { localStorage.setItem("paulus.docs.foco", escr.foco ? "1" : ""); } catch (err) { /* so conveniencia */ }
   const corpo = $("docs-corpo");
   if (corpo) corpo.classList.toggle("painel-oculto", escr.foco);
   const b = document.querySelector("[data-docs-foco]");
-  if (b) b.outerHTML = botaoDoFoco();
-  const novo = document.querySelector("[data-docs-foco]");
-  if (novo) novo.onclick = () => alternarFoco();
+  if (b) {
+    b.classList.toggle("on", escr.foco);
+    b.title = escr.foco ? "Mostrar o painel" : "Ocultar o painel";
+    b.setAttribute("aria-pressed", String(escr.foco));
+    const rotulo = b.querySelector(".docs-foco-rotulo");
+    const texto = escr.foco ? "Painel" : "Foco";
+    if (rotulo && animacoesLigadas()) {
+      rotulo.classList.add("trocando");
+      setTimeout(() => { rotulo.textContent = texto; rotulo.classList.remove("trocando"); }, 150);
+    } else if (rotulo) rotulo.textContent = texto;
+    mostrarNaoVistas();
+  }
   /* A folha muda de largura so depois da transicao da coluna: medir antes
      vestiria a letra na escala errada. */
-  setTimeout(revestirFolha, animacoesLigadas() ? 280 : 0);
+  setTimeout(revestirFolha, animacoesLigadas() ? 320 : 0);
 }
 
-/* Qualquer coisa que entre no painel escondido traz o painel de volta. */
+function mostrarNaoVistas() {
+  const conta = document.querySelector("[data-docs-foco] .docs-foco-conta");
+  if (!conta) return;
+  const n = escr.foco ? (escr.naoVistas || 0) : 0;
+  const antes = conta.hidden;
+  conta.textContent = n > 9 ? "9+" : String(n);
+  conta.hidden = !n;
+  if (n && antes && animacoesLigadas()) {
+    conta.animate([{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1.15)", opacity: 1 }, { transform: "scale(1)" }],
+      { duration: 320, easing: "cubic-bezier(.2,.7,.3,1)" });
+  }
+}
+
+/* Painel recolhido:
+   - ferramenta aberta (Formato, Cláusulas, Conferir prazos...) foi a pessoa
+     que pediu - o painel volta, senão o clique não mostraria nada;
+   - o que chega na conversa (a resposta, que leva cerca de um minuto) não
+     arranca o foco de quem está escrevendo: vira um número no botão, como o
+     de Aprovações, e some quando o painel abre. */
 function vigiarPainelEscondido() {
   const painel = $("docs-painel");
   if (!painel) return;
-  const vigia = new MutationObserver(() => { if (escr.foco && document.body.contains(painel)) alternarFoco(false); });
-  painel.querySelectorAll(".docs-ferramenta, .docs-conversa").forEach((el) => vigia.observe(el, { childList: true }));
+  const ferramentas = new MutationObserver(() => { if (escr.foco && document.body.contains(painel)) alternarFoco(false); });
+  painel.querySelectorAll(".docs-ferramenta").forEach((el) => ferramentas.observe(el, { childList: true }));
+  /* A conversa e redesenhada inteira a cada fala: conta-se o total de
+     respostas, e so o que passou do ultimo total e novidade. */
+  painel.querySelectorAll(".docs-conversa").forEach((el) => {
+    let vistas = el.querySelectorAll(".docs-resposta").length;
+    new MutationObserver(() => {
+      const agora = el.querySelectorAll(".docs-resposta").length;
+      const novas = agora - vistas;
+      vistas = agora;
+      if (novas <= 0 || !escr.foco || !document.body.contains(painel)) return;
+      escr.naoVistas = (escr.naoVistas || 0) + novas;
+      mostrarNaoVistas();
+    }).observe(el, { childList: true });
+  });
 }
 
 /* Os paineis de ferramenta que o motor ja tinha (historico, clausulas, quadro,
@@ -520,7 +571,9 @@ function ligarDocumentos(aba) {
     x.onclick = (e) => { e.stopPropagation(); fecharDocumento(idDaAba(x.dataset.docsFechar)); };
   });
   const mais = raiz.querySelector("[data-docs-lista]");
-  if (mais) mais.onclick = () => { escr.atual = null; lembrarAbas(); mostrarDocumentos(); };
+  if (mais) mais.onclick = () => { if (escr.atual === null) return; escr.atual = null; lembrarAbas(); mostrarDocumentos(); };
+  const novo = raiz.querySelector("[data-docs-novo]");
+  if (novo) novo.onclick = () => criarDocumento(novo.dataset.docsNovo);
   const foco = raiz.querySelector("[data-docs-foco]");
   if (foco) foco.onclick = () => alternarFoco();
   if (aba) vigiarPainelEscondido();

@@ -70,6 +70,10 @@ PADRAO: dict = {
     # Avisos do Windows (src/avisos.py): a notificacao do canto da tela e o
     # botao piscando na barra de tarefas, para lembretes e ciclo de foco.
     "avisos_windows": True,
+    # Quais avisos, um a um (avisos.TIPOS). Cada chave precisa estar aqui:
+    # _fundir so grava o que o padrao ja conhece.
+    "avisos_tipos": {"bem_estar": True, "resposta": True, "aprovacao": True,
+                     "gravacao": True, "agenda": True},
     "modelo": "",
     "devagar": False,
     "autonomia": {a["chave"]: a["padrao"] for a in AUTONOMIA},

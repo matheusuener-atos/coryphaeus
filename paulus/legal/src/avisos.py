@@ -136,6 +136,68 @@ def notificar(titulo: str, texto: str, *, esperar: bool = False) -> bool:
     return True
 
 
+# ------------------------------------------------------- os tipos de aviso
+#
+# Cada aviso tem um tipo, e cada tipo se liga ou desliga em Configuracoes.
+# Os de evento (resposta, aprovacao, transcricao) so saem com a janela do
+# PAULUS fora da frente: com ela na frente, a propria tela ja mostra - um
+# aviso no canto por cima do que a pessoa esta olhando seria ruido.
+TIPOS: dict[str, dict] = {
+    "bem_estar": {"rotulo": "Bem-estar e foco", "padrao": True, "so_fora": False,
+                  "explica": "lembretes, fim do ciclo de foco e da pausa, e o alerta de 90 min sem pausa"},
+    "resposta": {"rotulo": "Resposta pronta", "padrao": True, "so_fora": True,
+                 "explica": "quando o assistente termina de responder e você está em outra janela"},
+    "aprovacao": {"rotulo": "Aprovação pendente", "padrao": True, "so_fora": True,
+                  "explica": "quando um pedido entra na fila de Aprovações e você está em outra janela"},
+    "gravacao": {"rotulo": "Transcrição pronta", "padrao": True, "so_fora": True,
+                 "explica": "quando uma gravação termina de ser transcrita e você está em outra janela"},
+    "agenda": {"rotulo": "Compromisso chegando", "padrao": True, "so_fora": False,
+               "explica": "antes de um compromisso da agenda: no aviso escolhido nele, ou 15 min"},
+}
+ANTECEDENCIA_DA_AGENDA = timedelta(minutes=15)
+
+_prefs = None
+
+
+def configurar(prefs) -> None:
+    """As preferencias de onde `avisar` le o que esta ligado."""
+    global _prefs
+    _prefs = prefs
+
+
+def tipo_ligado(dados: dict, tipo: str) -> bool:
+    if not dados.get("avisos_windows", True):
+        return False
+    return bool((dados.get("avisos_tipos") or {}).get(tipo, TIPOS[tipo]["padrao"]))
+
+
+def janela_na_frente() -> bool:
+    """Se a janela do PAULUS e a que a pessoa esta usando agora. Sem janela
+    propria (no navegador), nao da para saber: conta como fora."""
+    if sys.platform != "win32" or not _hwnd:
+        return False
+    try:
+        import ctypes
+
+        return int(ctypes.windll.user32.GetForegroundWindow() or 0) == _hwnd
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def avisar(tipo: str, titulo: str, texto: str) -> bool:
+    """
+    O aviso de um tipo, se ele estiver ligado - e, nos de evento, so com a
+    janela fora da frente. Devolve se mandou.
+    """
+    if tipo not in TIPOS or os.environ.get("PAULUS_SEM_AVISOS") or _prefs is None:
+        return False
+    if not tipo_ligado(_prefs.dados, tipo):
+        return False
+    if TIPOS[tipo]["so_fora"] and janela_na_frente():
+        return False
+    return notificar(titulo, texto)
+
+
 def piscar() -> bool:
     """
     O botao do PAULUS pisca na barra de tarefas ate a janela voltar para a
@@ -187,9 +249,11 @@ class Vigia:
 
     INTERVALO = 30
 
-    def __init__(self, bem_estar, prefs) -> None:
+    def __init__(self, bem_estar, prefs, agenda=None) -> None:
         self.bem_estar = bem_estar
         self.prefs = prefs
+        self.agenda = agenda
+        self.compromissos_avisados: set = set()
         self.desde = datetime.now()
         self.avisados: dict[int, datetime] = {}
         self.ciclo_avisado: tuple | None = None
@@ -222,6 +286,12 @@ class Vigia:
         agora = agora or datetime.now()
         feitos: list[str] = []
         no_horario = _no_horario(self.prefs.dados.get("disponibilidade"), agora)
+
+        if self.agenda is not None and tipo_ligado(self.prefs.dados, "agenda"):
+            feitos += self._olhar_agenda(agora)
+
+        if not tipo_ligado(self.prefs.dados, "bem_estar"):
+            return feitos
 
         c = self.bem_estar.estado_do_ciclo()
         chave = (c.get("estado"), c.get("comeca_em"))
@@ -259,4 +329,30 @@ class Vigia:
                 notificar(alerta["titulo"], "Feche este ciclo, beba água e caminhe cinco minutos.")
                 feitos.append(alerta["titulo"])
 
+        return feitos
+
+    def _olhar_agenda(self, agora: datetime) -> list[str]:
+        """
+        Compromisso de hoje que comeca dentro da antecedencia dele - a que a
+        pessoa escolheu no compromisso (avisar_min) ou 15 min. Uma vez por
+        compromisso e horario: remarcou, avisa de novo.
+        """
+        feitos = []
+        hoje = agora.strftime("%Y-%m-%d")
+        for c in self.agenda.listar(hoje, hoje):
+            hora = str(c.get("hora") or "")[:5]
+            try:
+                comeca = datetime.fromisoformat(f"{hoje}T{hora}")
+            except ValueError:
+                continue
+            antes = timedelta(minutes=int(c.get("avisar_min") or 0)) or ANTECEDENCIA_DA_AGENDA
+            chave = (c.get("id"), hoje, hora)
+            if chave in self.compromissos_avisados or not (agora <= comeca <= agora + antes):
+                continue
+            self.compromissos_avisados.add(chave)
+            minutos = round((comeca - agora).total_seconds() / 60)
+            onde = c.get("onde_rotulo") or ""
+            texto = f"às {hora}" + (f", em {minutos} min" if minutos else ", agora") + (f" · {onde}" if onde else "")
+            notificar(c.get("titulo") or "Compromisso", texto)
+            feitos.append(c.get("titulo") or "Compromisso")
         return feitos

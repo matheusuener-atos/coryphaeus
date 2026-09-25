@@ -136,6 +136,105 @@ def test_alerta() -> None:
     checar(len(_enviados) == 2, "depois de uma hora, avisa de novo")
 
 
+class AgendaFalsa:
+    def __init__(self, itens) -> None:
+        self.itens = itens
+
+    def listar(self, de: str, ate: str) -> list[dict]:
+        return [dict(c) for c in self.itens if de <= c["data"] <= ate]
+
+
+def test_tipos() -> None:
+    bem = BemEstarFalso()
+    bem.ciclo = {"estado": "foco", "comeca_em": 1.0, "acabou": True, "pausa_min": 5}
+    vigia = avisos.Vigia(bem, Prefs(avisos_tipos={"bem_estar": False}))
+    _enviados.clear()
+    vigia.olhar(datetime(2026, 9, 21, 10, 0))
+    checar(not _enviados, "bem-estar desligado: nem o fim do ciclo avisa")
+
+
+def test_agenda() -> None:
+    bem = BemEstarFalso()
+    bem.itens = []
+    agenda = AgendaFalsa([
+        {"id": 1, "titulo": "Audiência", "data": "2026-09-21", "hora": "14:00", "avisar_min": 0, "onde_rotulo": "Fórum"},
+        {"id": 2, "titulo": "Reunião", "data": "2026-09-21", "hora": "15:00", "avisar_min": 60, "onde_rotulo": ""},
+    ])
+    vigia = avisos.Vigia(bem, Prefs(), agenda=agenda)
+    _enviados.clear()
+    vigia.olhar(datetime(2026, 9, 21, 13, 40))
+    checar(not _enviados, "20 min antes, sem aviso escolhido: ainda não avisa")
+    vigia.olhar(datetime(2026, 9, 21, 13, 46))
+    checar([t for t, _ in _enviados] == ["Audiência"], "15 min antes avisa", str(_enviados))
+    checar("em 14 min" in _enviados[0][1] and "Fórum" in _enviados[0][1], "diz a hora que falta e onde", _enviados[0][1] if _enviados else "")
+    _enviados.clear()
+    vigia.olhar(datetime(2026, 9, 21, 13, 50))
+    checar(not _enviados, "o mesmo compromisso não avisa duas vezes")
+    vigia.olhar(datetime(2026, 9, 21, 14, 0))
+    checar([t for t, _ in _enviados] == ["Reunião"], "com aviso de 60 min escolhido, avisa uma hora antes", str(_enviados))
+    _enviados.clear()
+    agenda.itens[0]["hora"] = "14:05"
+    vigia.olhar(datetime(2026, 9, 21, 13, 52))
+    checar([t for t, _ in _enviados] == ["Audiência"], "remarcou: avisa de novo")
+
+    vigia = avisos.Vigia(bem, Prefs(avisos_tipos={"agenda": False}), agenda=agenda)
+    _enviados.clear()
+    vigia.olhar(datetime(2026, 9, 21, 13, 52))
+    checar(not _enviados, "agenda desligada não avisa")
+
+
+def test_avisar() -> None:
+    import os
+
+    antes = os.environ.pop("PAULUS_SEM_AVISOS", None)
+    frente = avisos.janela_na_frente
+    try:
+        avisos.configurar(Prefs())
+        avisos.janela_na_frente = lambda: True
+        _enviados.clear()
+        avisos.avisar("resposta", "Resposta pronta", "x")
+        checar(not _enviados, "janela na frente: resposta não vira aviso do Windows")
+        avisos.avisar("agenda", "Audiência", "x")
+        checar(len(_enviados) == 1, "compromisso avisa mesmo com a janela na frente")
+        avisos.janela_na_frente = lambda: False
+        _enviados.clear()
+        avisos.avisar("resposta", "Resposta pronta", "x")
+        checar(len(_enviados) == 1, "janela atrás: resposta avisa")
+        avisos.configurar(Prefs(avisos_tipos={"resposta": False}))
+        _enviados.clear()
+        avisos.avisar("resposta", "Resposta pronta", "x")
+        checar(not _enviados, "tipo desligado não avisa")
+        avisos.configurar(Prefs(avisos_windows=False))
+        avisos.avisar("aprovacao", "Aprovação pendente", "x")
+        checar(not _enviados, "geral desligado cala todos os tipos")
+        os.environ["PAULUS_SEM_AVISOS"] = "1"
+        avisos.configurar(Prefs())
+        avisos.avisar("resposta", "Resposta pronta", "x")
+        checar(not _enviados, "servidor de teste (PAULUS_SEM_AVISOS) não avisa")
+    finally:
+        avisos.janela_na_frente = frente
+        avisos.configurar(None)
+        os.environ.pop("PAULUS_SEM_AVISOS", None)
+        if antes is not None:
+            os.environ["PAULUS_SEM_AVISOS"] = antes
+
+
+def test_fila_avisa() -> None:
+    import tempfile
+
+    import aprovacoes
+
+    with tempfile.TemporaryDirectory() as pasta:
+        fila = aprovacoes.Fila(Path(pasta) / "fila.json")
+        chegou = []
+        fila.ao_pedir = lambda p: chegou.append(p.titulo)
+        fila.pedir("Assinar contrato", "assinatura")
+        checar(chegou == ["Assinar contrato"], "pedido novo na fila chama o aviso")
+        fila.ao_pedir = lambda p: 1 / 0
+        p = fila.pedir("Outro", "assinatura")
+        checar(fila.obter(p.id) is not None, "aviso que quebra não desfaz o pedido")
+
+
 def test_roteiro() -> None:
     r = avisos._roteiro("Revisar o “contrato” d'Ávila", "a < b & c")
     checar("d''Ávila" in r, "aspa simples dobrada dentro do roteiro do PowerShell")
@@ -150,6 +249,10 @@ def main() -> int:
         test_lembretes()
         test_ciclo()
         test_alerta()
+        test_tipos()
+        test_agenda()
+        test_avisar()
+        test_fila_avisa()
         test_roteiro()
     finally:
         avisos.notificar = original

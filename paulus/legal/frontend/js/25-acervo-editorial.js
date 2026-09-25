@@ -89,10 +89,13 @@ function fichaNaLinha(x) {
   const analisado = a.estado === "analisado";
   const ext = (x.nome.split(".").pop() || "").toUpperCase();
   const prazos = (bib.sugestoes || []).filter((s) => s.arquivo === x.nome);
+  /* Sem análise, a frase diz o que já dá para fazer (buscar no texto) e o
+     que tomar vista acrescenta - sem prometer o que a leitura pode não achar. */
   const texto = x.tipo_rotulo
     ? maiuscula(x.tipo_rotulo) + (x.cliente ? " de " + x.cliente : "") + (x.data ? ", com data de " + x.data : "") + (x.valor ? ", no valor de " + x.valor : "") +
       ". Li " + plural(x.trechos || 0, "trecho") + (x.caracteres ? " em " + milhar(x.caracteres) + " caracteres" : "") + "."
-    : "Ainda não tomei vista deste documento: sei o nome e a pasta, e " + plural(x.trechos || 0, "trecho") + " já estão indexados para a busca.";
+    : "Ainda não tomei vista deste documento. O texto já entra na busca (" + plural(x.trechos || 0, "trecho") + "); " +
+      "tomando vista, eu anoto o tipo, o cliente, a data e o valor que estiverem escritos nele.";
   const item = (rotulo, valor) => valor ? '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + '</span><b class="corta" title="' + esc(valor) + '">' + esc(valor) + "</b></div>" : "";
   const linhasPrazo = prazos.map((s) => '<div class="ae-prazo"><span class="ae-prazo-data"><b>' + esc(s.prazo.slice(8, 10)) + "</b><small>" + esc(mesCurto(s.prazo.slice(0, 7)).slice(0, 3)) + "</small></span>" +
     '<span class="duas-linhas"><b>' + esc(s.titulo || "Conferir prazo") + "</b><small>" + esc(dataLonga(s.prazo) + (s.lista ? " · " + s.lista : "")) + "</small></span>" +
@@ -100,14 +103,28 @@ function fichaNaLinha(x) {
   return '<div class="ae-ficha">' +
     '<p class="ae-ficha-lide">' + esc(texto) + "</p>" +
     '<div class="sv-ficha ae-ficha-faixa">' + item("Cliente", x.cliente) + item("Tipo", x.tipo_rotulo) + item("Data", x.data) + item("Valor", x.valor) +
-    item("Arquivo", ext + " · " + tamanho(x.bytes) + (x.paginas ? " · " + plural(x.paginas, "página") : "")) + "</div>" +
+    item("Arquivo", ext + " · " + tamanho(x.bytes) + (x.paginas ? " · " + plural(x.paginas, "página") : "")) +
+    (x.assinado ? item("Assinatura", "tem assinatura digital") : "") + "</div>" +
     (linhasPrazo ? '<div class="ae-ficha-bloco"><span class="sv-kicker">Datas lidas neste documento</span>' + linhasPrazo + "</div>" : "") +
-    '<div class="ae-ficha-acoes"><button class="primario com-icone" data-ficha="perguntar">' + ic("forum", 16) + "Perguntar sobre este</button>" +
+    '<div class="ae-ficha-acoes">' +
+    /* A ação principal é a que falta: sem análise, tomar vista; lido, perguntar. */
+    (analisado ? "" : '<button class="primario com-icone" data-ficha="vista">' + ic("visibility", 16) + "Tomar vista</button>") +
+    '<button class="' + (analisado ? "primario " : "") + 'com-icone" data-ficha="perguntar">' + ic("forum", 16) + "Perguntar sobre este</button>" +
     '<button class="com-icone" data-ficha="aqui">' + ic("open_in_new", 16) + "Abrir aqui</button>" +
-    (ext === "PDF" ? '<button class="com-icone" data-ficha="assinar">' + ic("draw", 16) + "Assinar</button>" : "") +
-    (analisado ? "" : '<button class="com-icone" data-ficha="vista">' + ic("visibility", 16) + "Tomar vista</button>") +
+    (ext === "PDF"
+      ? (x.assinado
+        ? '<button class="com-icone" data-ficha-conferir="1">' + ic("verified", 16) + "Verificar assinatura</button>"
+        : '<button class="com-icone" data-ficha="assinar">' + ic("draw", 16) + "Assinar</button>")
+      : "") +
     '<span class="cresce"></span><small class="ae-ficha-onde" title="' + esc(x.pasta) + '">' + esc(x.pasta_curta || x.pasta) + " · modificado " + esc(x.modificado || "—") + "</small></div>" +
     '<div class="visor-caixa" id="bib-visor"></div></div>';
+}
+
+/* Sem análise, a linha diz o que se sabe do arquivo - o "sem análise" já
+   está no selo ao lado, repetir embaixo do nome não informava nada. */
+function fatosDoArquivo(x) {
+  const ext = (x.nome.split(".").pop() || "").toUpperCase();
+  return [ext, x.paginas ? plural(x.paginas, "página") : "", tamanho(x.bytes), x.assinado ? "com assinatura digital" : ""].filter(Boolean).join(" · ");
 }
 
 function marcaDoDoc(x) {
@@ -122,7 +139,7 @@ function classeDaLinha(x, base) {
 /* ---------------------------------------------------- A: o indice */
 
 function linhaDoIndice(x) {
-  const sub = [x.tipo_rotulo, x.cliente, x.existe ? "" : "não está mais no disco"].filter(Boolean).join(" · ") || "sem análise ainda";
+  const sub = [x.tipo_rotulo, x.cliente, x.existe ? "" : "não está mais no disco"].filter(Boolean).join(" · ") || fatosDoArquivo(x);
   return '<div class="' + classeDaLinha(x, "ae-linha") + '" data-doc="' + esc(x.caminho) + '">' + marcaDoDoc(x) + glifo(x.nome) +
     '<span class="duas-linhas"><b>' + (x.fixado ? ic("push_pin", 14) : "") + esc(x.nome) + "</b><small>" + esc(sub) + "</small></span>" +
     '<span class="quando-doc">' + esc(x.modificado || "") + "</span>" + estadoDaAnalise(x) +
@@ -197,7 +214,7 @@ function corpoDoSumario() {
 function linhaDoMisto(x) {
   const lide = x.tipo_rotulo
     ? [maiuscula(x.tipo_rotulo), x.cliente, x.data, x.valor].filter(Boolean).join(" · ")
-    : (x.existe ? "ainda sem análise" : "não está mais no disco");
+    : (x.existe ? fatosDoArquivo(x) : "não está mais no disco");
   return '<div class="' + classeDaLinha(x, "ae-linha ae-linha-misto") + '" data-doc="' + esc(x.caminho) + '">' + marcaDoDoc(x) + glifo(x.nome) +
     '<span class="duas-linhas"><b>' + (x.fixado ? ic("push_pin", 14) : "") + '<span class="corta">' + esc(x.nome.replace(/\.[^.]+$/, "")) + "</span></b>" +
     '<small class="' + (x.tipo_rotulo ? "" : "vazio") + '">' + esc(lide) + "</small></span>" +

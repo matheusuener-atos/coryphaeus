@@ -82,6 +82,7 @@ class Fila:
         self.caminho = Path(caminho)
         self._itens: dict[str, Pedido] = {}
         self._trava = threading.Lock()
+        self.ao_pedir = None
         self._carregar()
 
     # ---------------------------------------------------------------- disco
@@ -113,6 +114,13 @@ class Fila:
             pedido = Pedido(id=uuid.uuid4().hex[:12], titulo=titulo, categoria=categoria, **extras)
             self._itens[pedido.id] = pedido
         self.salvar()
+        # Quem precisa saber que chegou pedido (o aviso do Windows) se pendura
+        # aqui; um aviso que falha nao pode desfazer o pedido gravado.
+        if self.ao_pedir:
+            try:
+                self.ao_pedir(pedido)
+            except Exception:  # noqa: BLE001
+                pass
         return pedido
 
     def obter(self, id_: str) -> Pedido | None:

@@ -97,6 +97,7 @@ function rascunhoDe(pr, modelo) {
     animacoes_reduzidas: Boolean(pr.animacoes_reduzidas),
     inteligencia: pr.inteligencia !== false,
     avisos_windows: pr.avisos_windows !== false,
+    avisos_tipos: Object.assign({}, pr.avisos_tipos || {}),
   };
 }
 
@@ -922,10 +923,16 @@ function secaoAparencia() {
   const av = cfg.avisos || {};
   const avisosDoWindows = av.disponivel
     ? '<div class="cfg-sub">' + ligaCfg("avisos_windows", "Avisar no Windows",
-        "a notificação no canto da tela e o botão do PAULUS piscando na barra de tarefas: lembretes, fim do ciclo de foco e da pausa, e o alerta de 90 min sem pausa",
+        "a notificação no canto da tela e o botão do PAULUS piscando na barra de tarefas",
         Boolean((cfg.rascunho || {}).avisos_windows)) + "</div>" +
-      '<p class="cfg-explica">Lembretes e o alerta só avisam no horário de trabalho' + (av.horario ? " (" + esc(av.horario) + ")" : "") +
-      ". O fim do ciclo avisa sempre, porque foi você quem ligou o relógio.</p>" +
+      /* Um interruptor por tipo, recuado sob o geral: desligar o geral cala todos. */
+      ((cfg.rascunho || {}).avisos_windows
+        ? '<div class="cfg-sub cfg-avisos-tipos">' + (av.tipos || []).map((t) =>
+            ligaCfg("avisos_tipos." + t.chave, t.rotulo, t.explica, ((cfg.rascunho.avisos_tipos || {})[t.chave]) !== false)).join("") + "</div>"
+        : "") +
+      '<p class="cfg-explica">Resposta, aprovação e transcrição só avisam quando o PAULUS não está na frente — com ele aberto, a tela já mostra. ' +
+      "Lembretes e o alerta de pausa só avisam no horário de trabalho" + (av.horario ? " (" + esc(av.horario) + ")" : "") +
+      "; o fim do ciclo avisa sempre, porque foi você quem ligou o relógio.</p>" +
       '<div><button class="com-icone" data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
     : '<div class="cfg-sub">' + ligaCfg("", "Avisar no Windows", "só existe no Windows", false, true) + "</div>";
   return '<div class="cfg-grade">' + cartaoCfg("Aparência", metaCfg("tema, fonte e densidade"), aparencia) + cartaoCfg("Atalhos", metaCfg("teclado"), atalhos) +
@@ -1225,6 +1232,7 @@ function ligarConfig() {
     if (chave.startsWith("feedback.")) { cfg.feedback[chave.split(".")[1]] = ligada; return; }
     porNoRascunho(chave, ligada);
     marcarConfigSuja();
+    if (chave === "avisos_windows") { desenharConfig(); return; }
     const aviso = $("cfg-timbre-falta");
     if (aviso) aviso.textContent = avisoDoTimbre();
   });
@@ -1256,7 +1264,7 @@ async function salvarConfig() {
       pessoa: r.pessoa, autonomia: r.autonomia, escritorio: r.escritorio,
       modelo: r.modelo, timbre_no_pdf: r.timbre_no_pdf, devagar: r.devagar,
       animacoes_reduzidas: r.animacoes_reduzidas, inteligencia: r.inteligencia,
-      avisos_windows: r.avisos_windows,
+      avisos_windows: r.avisos_windows, avisos_tipos: r.avisos_tipos,
     }),
   });
   if (!resposta.ok) { avisoCert("não consegui salvar: " + (await erroDe(resposta))); return; }

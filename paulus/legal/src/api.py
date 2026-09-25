@@ -207,7 +207,12 @@ class Estado:
         self.bem_estar = bemestar.BemEstar(self.base)
         # Avisos do Windows: olha os lembretes e o ciclo de foco no servidor,
         # para o aviso chegar com a janela minimizada ou noutra tela.
-        self.vigia = avisos.Vigia(self.bem_estar, self.prefs)
+        self.vigia = avisos.Vigia(self.bem_estar, self.prefs, agenda=self.agenda)
+        # Os avisos de evento (resposta, aprovacao, transcricao) leem daqui o
+        # que esta ligado em Configuracoes.
+        avisos.configurar(self.prefs)
+        self.fila.ao_pedir = lambda p: avisos.avisar(
+            "aprovacao", "Aprovação pendente", f"{p.titulo} — espera a sua confirmação em Aprovações.")
         # Servicos: as pastas de trabalho (docs/ui, A15).
         self.servicos = servicos_mod.Servicos(self.base, _quem_sou, lambda: self.pasta)
         # Gravacoes de audio, guardadas nesta maquina (docs/ui, A16).
@@ -270,6 +275,8 @@ class Estado:
                 g = self.gravacoes.obter(id_)
                 if g and g.get("servico_id"):
                     self.servicos.trilha(int(g["servico_id"]), "Gravação transcrita: " + g["titulo"], "Assistente")
+                if g:
+                    avisos.avisar("gravacao", "Transcrição pronta", g.get("titulo") or "Gravação")
             except Exception as exc:  # noqa: BLE001 - a fila nao pode morrer por um audio
                 self.gravacoes.marcar_transcricao(id_, "erro", erro=str(exc)[:300])
             finally:
@@ -1031,10 +1038,35 @@ def _itens_da_biblioteca() -> list[dict]:
             "data": conhecido.get("data", ""),
             "valor": conhecido.get("valor", ""),
         }
+        item["assinado"] = _tem_assinatura_digital(caminho, tamanho, modificado) if existe else False
         item["analise"] = acervo.estado_da_analise(item)
         itens.append(item)
 
     return itens
+
+
+_ASSINATURA_NO_ARQUIVO: dict[tuple, bool] = {}
+LIMITE_PARA_PROCURAR_ASSINATURA = 40 * 1024 * 1024
+
+
+def _tem_assinatura_digital(caminho: Path, tamanho: int, modificado: str) -> bool:
+    """
+    Se o PDF traz uma assinatura digital - so a presenca, nao a validade.
+
+    Toda assinatura de PDF grava um /ByteRange (o trecho do arquivo que ela
+    cobre); sem ele nao ha assinatura. Procurar a palavra no arquivo e barato,
+    e o resultado fica guardado ate o arquivo mudar. Se ela vale, quem diz e
+    /api/assinaturas/conferir, que le a assinatura de verdade.
+    """
+    if caminho.suffix.lower() != ".pdf" or not tamanho or tamanho > LIMITE_PARA_PROCURAR_ASSINATURA:
+        return False
+    chave = (str(caminho), tamanho, modificado)
+    if chave not in _ASSINATURA_NO_ARQUIVO:
+        try:
+            _ASSINATURA_NO_ARQUIVO[chave] = b"/ByteRange" in caminho.read_bytes()
+        except OSError:
+            return False
+    return _ASSINATURA_NO_ARQUIVO[chave]
 
 
 @app.get("/api/documentos-abertos")
@@ -2063,6 +2095,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             nivel=nivel, inferencia=inferencia, proposta=oferta or {},
         )
         estado.trabalhos.salvar(trabalho)
+        # Uma resposta leva cerca de um minuto nesta maquina: quem foi para
+        # outra janela esperar fica sabendo que acabou.
+        resumo = " ".join("".join(partes).split())
+        avisos.avisar("resposta", "Resposta pronta · " + (trabalho.titulo or "Conversa")[:60],
+                      resumo[:140] + ("…" if len(resumo) > 140 else ""))
         yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo})
         if oferta:
             yield _sse("oferta", oferta)
@@ -3806,6 +3843,73 @@ def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
     return destino
 
 
+CONFORMIDADE_DIR = BASE_DIR / "data" / "conformidade"
+
+
+def _pdf_conhecido(caminho: str) -> Path:
+    """
+    O PDF pedido, se for um que o programa conhece: do Acervo, de uma pasta
+    que o Acervo le, ou um relatorio de conformidade gerado aqui. Um caminho
+    qualquer vindo da tela nao abre nem baixa arquivo arbitrario do disco.
+    """
+    try:
+        alvo = Path(caminho).resolve()
+    except (OSError, ValueError):
+        raise HTTPException(status_code=404, detail="arquivo não encontrado") from None
+    if alvo.suffix.lower() != ".pdf" or not alvo.is_file():
+        raise HTTPException(status_code=404, detail="arquivo não encontrado")
+    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve()]
+    conhecidos = {Path(d.path).resolve() for d in estado.searcher.documents}
+    if alvo in conhecidos or any(r == alvo.parent or r in alvo.parents for r in raizes):
+        return alvo
+    raise HTTPException(status_code=403, detail="esse arquivo não é do Acervo")
+
+
+@app.post("/api/arquivos/abrir")
+def arquivos_abrir(payload: dict) -> dict:
+    """O PDF no programa padrao do Windows."""
+    import os
+
+    alvo = _pdf_conhecido(str(payload.get("caminho", "")))
+    try:
+        os.startfile(str(alvo))  # noqa: S606 - abre no programa do proprio Windows
+    except (OSError, AttributeError) as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui abrir: {exc}") from exc
+    return {"aberto": str(alvo)}
+
+
+@app.get("/api/arquivos/baixar")
+def arquivos_baixar(caminho: str) -> FileResponse:
+    alvo = _pdf_conhecido(caminho)
+    return FileResponse(alvo, media_type="application/pdf", filename=alvo.name)
+
+
+@app.get("/api/arquivos/pagina")
+def arquivos_pagina(caminho: str, numero: int = 1, largura: int = 700):
+    """Uma pagina desenhada - a previa do relatorio antes de baixar."""
+    from fastapi.responses import Response
+
+    alvo = _pdf_conhecido(caminho)
+    return Response(documento.pagina_png(alvo.read_bytes(), numero, largura),
+                    media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/api/assinaturas/conformidade")
+def assinaturas_conformidade(payload: dict) -> dict:
+    """
+    O "PAVLVS - Certificado de conformidade" do PDF: conferencia feita agora,
+    gravada em data/conformidade para ver, baixar ou mandar.
+    """
+    import conformidade
+
+    alvo = _pdf_conhecido(str(payload.get("arquivo", "")))
+    assinaturas = assinatura.verificar(alvo, str(payload.get("senha", "")))
+    relatorio = conformidade.gerar(alvo, assinaturas, CONFORMIDADE_DIR)
+    tom, frase = conformidade.veredito(assinaturas)
+    return {"caminho": str(relatorio), "nome": relatorio.name, "tom": tom, "veredito": frase,
+            "paginas": documento.paginas_de(relatorio.read_bytes())}
+
+
 @app.get("/api/assinar/baixar")
 def assinar_baixar(arquivo: str) -> FileResponse:
     """Entrega o PDF assinado para o navegador salvar."""
@@ -3834,9 +3938,17 @@ def assinaturas_conferir(arquivo: str, senha: str = "") -> dict:
     O que da para afirmar - o documento foi mexido depois de assinado, ou nao -
     e o que vale a pena responder, e e o que vai aqui.
     """
+    import conformidade
+
+    assinaturas = assinatura.verificar(arquivo, senha)
+    tom, frase = conformidade.veredito(assinaturas)
+    alvo = Path(arquivo)
     return {
-        "assinaturas": assinatura.verificar(arquivo, senha),
+        "assinaturas": assinaturas,
         "conferencia_limitada": True,
+        "tom": tom,
+        "veredito": frase,
+        "arquivo": {"nome": alvo.name, **(conformidade.resumo_do_arquivo(alvo) if alvo.is_file() else {})},
     }
 
 # ----------------------------------------------------------------- e-mail
@@ -5197,6 +5309,8 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     terminar(CONCLUIDO, f"Escrevi em “{item['titulo']}” ({onde}). A alteração ficou marcada "
                         "no documento, esperando você manter ou descartar.",
              feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
+    avisos.avisar("resposta", "Alteração pronta · " + item["titulo"][:60],
+                  f"Escrevi em {onde}. Está marcada no documento, esperando você manter ou descartar.")
 
     return {
         "sugestao": sugestao,
@@ -6257,6 +6371,8 @@ def avisos_ver() -> dict:
     return {
         "disponivel": avisos.disponivel(),
         "ligado": estado.vigia.ligado(),
+        "tipos": [{"chave": k, "rotulo": t["rotulo"], "explica": t["explica"], "so_fora": t["so_fora"]}
+                  for k, t in avisos.TIPOS.items()],
         "horario": f"{faixa}, das {d.get('inicio') or '00:00'} às {d.get('fim') or '23:59'}",
     }
 

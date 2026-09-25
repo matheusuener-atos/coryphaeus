@@ -652,7 +652,40 @@ def _uma_assinatura(assinada, e_icp) -> dict:
         "quando": _quando_de(assinada),
         "intacta": intacta,
         "cobre_documento_todo": cobre_tudo,
+        "tecnico": _detalhes_tecnicos(assinada),
     }
+
+
+def _detalhes_tecnicos(assinada) -> dict:
+    """
+    O que o proprio arquivo diz da assinatura, para quem quer conferir a
+    fundo: campo, padrao, algoritmos, o certificado (serie e validade) e se
+    ha carimbo de tempo. Cada item e lido a parte: PDF de outro assinador
+    pode nao ter algum, e um item que falta nao pode derrubar os outros.
+    """
+    d: dict = {}
+
+    def tenta(chave, ler):
+        try:
+            valor = ler()
+            if valor not in (None, ""):
+                d[chave] = valor
+        except Exception:  # noqa: BLE001
+            pass
+
+    tenta("campo", lambda: assinada.field_name)
+    tenta("padrao", lambda: str(assinada.sig_object.get("/SubFilter", "")).lstrip("/"))
+    tenta("algoritmo_resumo", lambda: str(assinada.md_algorithm).upper())
+    tenta("algoritmo_assinatura", lambda: assinada.signer_info["signature_algorithm"].signature_algo.upper())
+    cert = assinada.signer_cert
+    tenta("numero_de_serie", lambda: format(cert.serial_number, "X"))
+    validade = cert["tbs_certificate"]["validity"]
+    tenta("valido_de", lambda: validade["not_before"].native.strftime("%d/%m/%Y"))
+    tenta("valido_ate", lambda: validade["not_after"].native.strftime("%d/%m/%Y"))
+    tenta("carimbo_de_tempo", lambda: "sim" if any(
+        a["type"] == "signature_time_stamp_token"
+        for a in (assinada.signer_info["unsigned_attrs"].native or [])) else "não")
+    return d
 
 
 def _cn_asn1(nome: dict) -> str:

@@ -424,17 +424,19 @@ function ligarBiblioteca() {
   const fechar = $("bib-fechar");
   if (fechar) fechar.onclick = () => { bib.aberto = null; desenharBiblioteca(); };
   centro.querySelectorAll("[data-ficha]").forEach((b) => {
-    b.onclick = () => acaoDaFicha(b.dataset.ficha);
+    b.onclick = () => acaoDaFicha(b.dataset.ficha, b);
   });
+  const conferir = centro.querySelector("[data-ficha-conferir]");
+  if (conferir) conferir.onclick = () => { const x = docDoAcervo(bib.aberto); if (x) abrirVerificacao(x.caminho, x.nome); };
 }
 
-function acaoDaFicha(qual) {
+function acaoDaFicha(qual, botao) {
   const x = docDoAcervo(bib.aberto);
   if (!x) return;
   if (qual === "perguntar") return perguntarSobre(x);
   if (qual === "prazos") return mostrarPrazos();
-  if (qual === "vista") return tomarVista([x.caminho]);
-  if (qual === "assinar") { marcarDestino("assinar"); return mostrarAssinar(); }
+  if (qual === "vista") return tomarVista([x.caminho], botao);
+  if (qual === "assinar") { marcarDestino("assinar"); return mostrarAssinar(x.caminho); }
   if (qual === "aqui") {
     // O visor do PDF, dentro da ficha: e o de sempre, so mudou de onde e
     // chamado. O painel alarga para a pagina caber.
@@ -469,6 +471,7 @@ function menuDoDocumento(botao, caminho) {
     '<button data-i="analisar">Tomar vista de novo</button>' +
     '<button data-i="mover">Mover para pasta<span class="seta">›</span></button>' +
     '<button data-i="fixar">' + (doc.fixado ? "Desfixar" : "Fixar") + "</button>" +
+    (/\.pdf$/i.test(doc.nome) ? '<button data-i="verificar">Verificar assinatura</button>' : "") +
     '<button data-i="pasta">Abrir a pasta no Windows</button>' +
     '<div class="menu-risco"></div>' +
     '<button class="perigo" data-i="apagar">Apagar do acervo</button>';
@@ -494,6 +497,8 @@ function menuDoDocumento(botao, caminho) {
     });
     buscarAcervo();
   };
+  const verificar = menu.querySelector('[data-i="verificar"]');
+  if (verificar) verificar.onclick = () => { fechar(); abrirVerificacao(caminho, doc.nome); };
   menu.querySelector('[data-i="pasta"]').onclick = () => {
     fechar();
     fetch("/api/biblioteca/abrir-pasta", {
@@ -589,10 +594,13 @@ async function acaoEmLote(acao) {
 
 /* Ler de novo leva perto de um minuto por documento nesta maquina. O andamento
    que aparece e o numero de documentos prontos - contado, nao estimado. */
-async function tomarVista(caminhos) {
-  const alvo = $("bib-lista");
+async function tomarVista(caminhos, botao) {
+  /* Da ficha (um documento, com o botao na mao) o progresso fica no botao e a
+     lista continua onde estava; em lote, a lista vira o andamento. */
+  const alvo = botao ? null : $("bib-lista");
   const antes = alvo ? alvo.innerHTML : "";
   if (alvo) alvo.innerHTML = '<p class="nota" id="vista-passo">lendo 0 de ' + caminhos.length + "…</p>";
+  if (botao) { botao.disabled = true; botao.innerHTML = ic("visibility", 16) + '<span id="vista-passo">lendo…</span>'; }
   atualizarSelo(true);
 
   try {
@@ -604,16 +612,17 @@ async function tomarVista(caminhos) {
 
     await lerEventos(r, (tipo, dados) => {
       const passo = $("vista-passo");
-      if (tipo === "progresso" && passo) {
+      if (tipo === "progresso" && passo && !botao) {
         passo.textContent = "lendo " + dados.indice + " de " + dados.total + " — " + dados.nome;
       }
     });
-    bib.escolhidos.clear();
+    if (!botao) bib.escolhidos.clear();
     bib.sugestoes = null;
     await buscarAcervo();
-    avisoCert(plural(caminhos.length, "documento") + " lidos de novo");
+    avisoCert(caminhos.length === 1 ? "documento lido" : caminhos.length + " documentos lidos");
   } catch (err) {
     if (alvo) alvo.innerHTML = antes;
+    if (botao && document.body.contains(botao)) { botao.disabled = false; botao.innerHTML = ic("visibility", 16) + "Tomar vista"; }
     avisoCert("não consegui ler: " + err);
   } finally {
     atualizarSelo(false);

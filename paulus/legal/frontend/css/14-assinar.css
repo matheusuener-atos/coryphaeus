@@ -85,7 +85,8 @@
     position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 3; line-height: normal;
     display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12.5px; color: var(--ink2);
   }
-  .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 80px; }
+  .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 118px; }
+  .colunas-pdfs .acoes-linha { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 
   /* o painel de antes de assinar */
   .as-painel { display: flex; flex-direction: column; }
@@ -113,8 +114,12 @@
   .as-lista .ag-toggle .duas-linhas b { font-weight: 400; font-size: 13.5px; }
   .as-lista .ag-toggle .duas-linhas small { white-space: normal; }
   .as-lista .em-senha { margin-top: -2px; }
-  .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--destaque-linha); border-radius: 10px; background: var(--destaque-fundo); display: grid; gap: 12px; }
-  .as-pronto.feito, .as-pronto.pronto, .as-pronto.quase { border-color: var(--ink-a15); background: var(--okbg); }
+  /* O cartao e neutro em todo estado: o verde fica so nos checks, que e onde
+     ele diz alguma coisa. */
+  .as-pronto { margin: 12px 18px; padding: 14px; border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--bg); display: grid; gap: 12px; }
+  /* O titulo da coluna na letra do sistema, como nas outras telas. */
+  .as-pronto.feito, .as-pronto.pronto, .as-pronto.quase { border-color: var(--ink-a15); }
+  #assinatura .titulo-painel h3 { font: 600 16px/1.3 var(--sans); letter-spacing: 0; }
   /* falta alguma coisa: neutro, sem cara de erro nem de "carregando" */
   .as-pronto.falta { border-color: var(--ink-a15); background: var(--bg); }
   .as-pronto.falta .as-pronto-cabeca .ic { color: var(--ink3); }
