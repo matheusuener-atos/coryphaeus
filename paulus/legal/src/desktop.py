@@ -297,6 +297,10 @@ def main() -> int:
     # isso, apertar qualquer botao do cabecalho e mexer o mouse dois pixels
     # arrastaria a janela junto.
     webview.settings['DRAG_REGION_DIRECT_TARGET_ONLY'] = True
+    # Sem isto, todo download por link (Exportar PDF, DOCX, XLSX, o relatorio
+    # do Financeiro) era cancelado em silencio na janela do programa. Ligado,
+    # o proprio pywebview abre o "Salvar como" do Windows.
+    webview.settings['ALLOW_DOWNLOADS'] = True
     # private_mode=False com storage_path guarda a sessao do navegador embutido
     # numa pasta do proprio programa. E o que faz a tela de Conexoes valer a
     # pena: sem isso, o WhatsApp Web pediria o codigo a cada abertura.

@@ -117,7 +117,7 @@ function mostrarConformidade() {
           '</button><span id="vc-num"></span><button type="button" class="botao-icone" data-vc-andar="1" aria-label="Próxima página">' + ic("chevron_right", 18) + "</button></div>"
         : "") + "</div>",
     confirmar: "Baixar", cancelar: "Fechar",
-    aoConfirmar: () => { window.location.href = "/api/arquivos/baixar?caminho=" + encodeURIComponent(rel.caminho); },
+    aoConfirmar: () => baixarArquivo(rel.caminho),
     rodape: '<button type="button" class="docs-ligacao vc-acao" id="vc-windows">' + ic("open_in_new", 16) + "Abrir no Windows</button>" +
       '<button type="button" class="docs-ligacao vc-acao" id="vc-email">' + ic("mail", 16) + "Enviar por e-mail</button>",
   });
@@ -142,8 +142,25 @@ async function abrirNoWindows(caminho) {
   if (!r.ok) avisoCert(await erroDe(r));
 }
 
-function baixarArquivo(caminho) {
-  window.location.href = "/api/arquivos/baixar?caminho=" + encodeURIComponent(caminho);
+/* Na janela do programa, download de navegador nao chega a lugar nenhum: o
+   PDF passa pelo "Salvar como" do Windows e o servidor grava a copia. No
+   navegador, download comum. */
+async function baixarArquivo(caminho, rota) {
+  const api = (window.pywebview || {}).api || {};
+  const nome = String(caminho).split(/[\\/]/).pop();
+  if (api.salvar_como) {
+    const destino = await api.salvar_como(nome, ["PDF (*.pdf)"]);
+    if (!destino) return;
+    const r = await fetch("/api/arquivos/salvar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caminho: caminho, destino: destino }),
+    });
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+    avisoCert("salvo em " + d.pasta + " — " + d.nome);
+    return;
+  }
+  window.location.href = (rota || "/api/arquivos/baixar?caminho=") + encodeURIComponent(caminho);
 }
 
 /* Compartilhar e o e-mail do proprio PAULUS, com o arquivo ja anexado. Sem

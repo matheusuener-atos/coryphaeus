@@ -546,6 +546,20 @@ class Cofre:
         self.salvar()
         return selo
 
+    def restaurar_selo(self) -> dict:
+        """O selo de fabrica: texto, marcas e posicao padrao, sem rubrica nem
+        logotipo - os PNGs guardados saem do disco junto."""
+        for campo in ("imagem", "desenho"):
+            alvo = self.caminho_do_selo(campo)
+            if alvo:
+                try:
+                    alvo.unlink()
+                except OSError:
+                    pass
+        self.dados["selo"] = dict(PADRAO_SELO)
+        self.salvar()
+        return self.dados["selo"]
+
     def guardar_imagem(self, campo: str, conteudo: bytes) -> str:
         """Grava o PNG do logotipo ou do desenho da assinatura."""
         if campo not in ("imagem", "desenho"):

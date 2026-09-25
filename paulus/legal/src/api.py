@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
@@ -2787,6 +2787,31 @@ def _executar_assinar(pedido) -> dict:
     }
 
 
+def _executar_assinar_lote(pedido) -> dict:
+    """
+    Assina os documentos de um lote que esperava o sim na fila.
+
+    Um documento que falha nao derruba os outros: cada um tem a sua
+    assinatura, e o desfecho diz quais sairam e quais nao. So quando nenhum
+    sai o pedido conta como falho.
+    """
+    senha = estado.cofre.senha_agora()
+    if not senha:
+        raise RuntimeError("a senha do certificado expirou - abra o certificado e tente de novo")
+
+    feitos, falhas = _assinar_varios(pedido.dados.get("itens") or [], senha)
+    if not feitos:
+        motivo = falhas[0]["motivo"] if falhas else "o lote estava vazio"
+        raise RuntimeError(f"nenhum documento assinado: {motivo}")
+
+    texto = f"{len(feitos)} de {len(feitos) + len(falhas)} documento(s) assinado(s)"
+    if falhas:
+        texto += f"; {len(falhas)} com problema"
+    if not all(f.get("icp_brasil") for f in feitos):
+        texto += " (certificado fora da ICP-Brasil)"
+    return {"texto": texto, "desfecho": {"tipo": "assinatura_lote", "feitos": feitos, "falhas": falhas}}
+
+
 def _executar_enviar(pedido) -> str:
     """Manda o e-mail que estava esperando o sim na fila."""
     resultado = _enviar_de_fato(pedido.dados)
@@ -2863,6 +2888,7 @@ EXECUTORES = {
     "acervo.apagar": _executar_apagar_do_acervo,
     "acervo.exportar": _executar_exportar,
     "assinatura.assinar": _executar_assinar,
+    "assinatura.lote": _executar_assinar_lote,
     "correio.enviar": _executar_enviar,
 }
 
@@ -3474,6 +3500,36 @@ class PedidoAssinatura(BaseModel):
     senha_certificado: str = ""
 
 
+class ItemDoLote(BaseModel):
+    """Um documento do lote: onde o selo entra nele, posto pela pessoa na tela."""
+    arquivo: str
+    paginas: str = "ultima"
+    intervalo: str = ""
+    posicao: str = "rodape_direita"
+    x: float | None = None
+    y: float | None = None
+    tamanho: float | None = None
+
+
+class PedidoLote(BaseModel):
+    """Varios documentos, uma senha: o que vale para todos fica fora dos itens."""
+    itens: list[ItemDoLote] = []
+    senha_pdf: str = ""
+    motivo: str = ""
+    guardar_biblioteca: bool = True
+    manter_original: bool = True
+    senha_certificado: str = ""
+
+
+class AssinadosParaSalvar(BaseModel):
+    arquivos: list[str] = []
+    caminho: str = ""               # o .zip, escolhido no "Salvar como"
+    pasta: str = ""                 # a pasta, para salvar um a um
+
+
+MAX_LOTE = 200
+
+
 @app.get("/api/certificado")
 def certificado_ler() -> dict:
     dados = estado.cofre.para_tela()
@@ -3622,6 +3678,11 @@ def certificado_selo_imagem(payload: DesenhoSelo) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"selo": estado.cofre.dados["selo"], "arquivo": nome}
+
+
+@app.post("/api/certificado/selo/restaurar")
+def certificado_selo_restaurar() -> dict:
+    return {"selo": estado.cofre.restaurar_selo()}
 
 
 @app.delete("/api/certificado/selo/{campo}")
@@ -3778,7 +3839,109 @@ def assinar_agora(payload: PedidoAssinatura) -> dict:
     return {"aguardando_aprovacao": False, **resultado.to_dict()}
 
 
-def _assinar_de_fato(dados: dict, senha: str) -> "assinatura.Resultado":
+@app.post("/api/assinar/lote")
+def assinar_lote(payload: PedidoLote) -> dict:
+    """
+    Assina varios documentos com uma senha so - ou poe o lote na fila.
+
+    Cada documento leva o selo onde a pessoa pos na tela e recebe a SUA
+    assinatura: o lote e so a forma de pedir, nao junta os PDFs. A regra de
+    alcada e a mesma do documento avulso; quando ela pede aprovacao, o lote
+    vira UM pedido, aprovado (ou recusado) de uma vez, com os arquivos
+    listados nele. Documento que nao da para assinar (nao abre, sem pagina
+    escolhida) volta em `falhas` com o motivo, sem parar os outros.
+    """
+    if not payload.itens:
+        raise HTTPException(status_code=400, detail="nenhum documento no lote")
+    if len(payload.itens) > MAX_LOTE:
+        raise HTTPException(status_code=400, detail=f"o lote aceita até {MAX_LOTE} documentos de uma vez")
+    vistos = set()
+    for item in payload.itens:
+        chave = str(Path(item.arquivo)).lower()
+        if chave in vistos:
+            raise HTTPException(status_code=400, detail=f"{Path(item.arquivo).name} aparece duas vezes no lote")
+        vistos.add(chave)
+
+    if not estado.cofre.instalado:
+        raise HTTPException(status_code=400, detail="nenhum certificado instalado")
+    senha = payload.senha_certificado or estado.cofre.senha_agora()
+    if not senha:
+        raise HTTPException(status_code=400, detail="preciso da senha do certificado")
+    cert = estado.cofre.abrir(senha)
+    if cert.erro:
+        raise HTTPException(status_code=400, detail=cert.erro)
+    if payload.senha_certificado:
+        estado.cofre.lembrar(payload.senha_certificado)
+
+    comum = payload.model_dump(exclude={"itens", "senha_certificado"})
+    prontos, recusados = [], []
+    for item in payload.itens:
+        doc = assinatura.ler(item.arquivo)
+        nome = Path(item.arquivo).name
+        if doc.erro:
+            recusados.append({"arquivo": item.arquivo, "nome": nome, "motivo": doc.erro})
+            continue
+        alvos = assinatura.paginas_alvo(item.paginas, doc.paginas, item.intervalo)
+        if not alvos:
+            recusados.append({"arquivo": item.arquivo, "nome": nome, "motivo": "nenhuma página escolhida"})
+            continue
+        prontos.append({**comum, **item.model_dump(), "paginas_alvo": alvos,
+                        "titular": cert.titular, "icp_brasil": cert.icp_brasil})
+    if not prontos:
+        raise HTTPException(status_code=400, detail="nenhum documento do lote pode ser assinado: " +
+                            "; ".join(f"{r['nome']} ({r['motivo']})" for r in recusados[:3]))
+
+    if not estado.prefs.pode("assinar"):
+        etiquetas = ["não dá para desfazer", "lote"]
+        if not cert.icp_brasil:
+            etiquetas.append("certificado fora da ICP-Brasil")
+        nomes = [Path(d["arquivo"]).name for d in prontos]
+        lista = ", ".join(nomes[:5]) + (f" e mais {len(nomes) - 5}" if len(nomes) > 5 else "")
+        quem = cert.titular or "seu certificado"
+        quantos = f"{len(prontos)} documentos" if len(prontos) > 1 else "1 documento"
+        resumo = (f"Vou assinar {quantos} com o {getattr(cert, 'tipo', '') or 'certificado'} de {quem}: {lista}. "
+                  "Cada um recebe a sua assinatura, com o selo onde você o pôs na tela.")
+        if payload.senha_pdf:
+            resumo += " Os arquivos saem protegidos por senha."
+        resumo += " Nada é enviado para a internet."
+        pedido = estado.fila.pedir(
+            f"Assinar {len(prontos)} documentos" if len(prontos) > 1 else f"Assinar {nomes[0]}",
+            "assinatura",
+            resumo=resumo,
+            etiquetas=etiquetas,
+            acao="assinatura.lote",
+            # `arquivos` e o que Aprovacoes lista em "O que vai sair".
+            dados={"itens": prontos, "arquivos": [d["arquivo"] for d in prontos]},
+            reversivel=False,
+        )
+        return {"aguardando_aprovacao": True, "pedido": pedido.to_dict(), "falhas": recusados}
+
+    feitos, falhas = _assinar_varios(prontos, senha)
+    return {"aguardando_aprovacao": False, "feitos": feitos, "falhas": recusados + falhas}
+
+
+def _assinar_varios(itens: list[dict], senha: str) -> tuple[list[dict], list[dict]]:
+    """
+    Assina um por um, sem parar no primeiro erro, e rele o Acervo UMA vez no
+    fim - reler a cada documento deixaria um lote de vinte muito lento.
+    """
+    feitos, falhas = [], []
+    for dados in itens:
+        origem = dados.get("arquivo", "")
+        try:
+            resultado = _assinar_de_fato(dados, senha, recarregar=False)
+        except Exception as exc:  # noqa: BLE001 - um PDF ruim nao derruba o lote
+            resultado = assinatura.Resultado(erro=str(exc) or "erro ao assinar")
+        if resultado.erro:
+            falhas.append({"arquivo": origem, "nome": Path(origem).name, "motivo": resultado.erro})
+        else:
+            feitos.append({"origem": origem, **resultado.to_dict()})
+    if feitos and any(d.get("guardar_biblioteca", True) for d in itens):
+        estado.recarregar(force=True)
+    return feitos, falhas
+
+
+def _assinar_de_fato(dados: dict, senha: str, recarregar: bool = True) -> "assinatura.Resultado":
     """O trabalho em si, chamado direto ou depois do sim na fila."""
     origem = Path(dados["arquivo"])
     destino = _nome_do_assinado(origem, dados.get("guardar_biblioteca", True))
@@ -3820,7 +3983,7 @@ def _assinar_de_fato(dados: dict, senha: str) -> "assinatura.Resultado":
         except OSError:
             pass
 
-    if dados.get("guardar_biblioteca", True):
+    if recarregar and dados.get("guardar_biblioteca", True):
         estado.recarregar(force=True)
 
     return resultado
@@ -3884,6 +4047,36 @@ def arquivos_baixar(caminho: str) -> FileResponse:
     return FileResponse(alvo, media_type="application/pdf", filename=alvo.name)
 
 
+@app.post("/api/arquivos/salvar")
+def arquivos_salvar(payload: dict) -> dict:
+    """
+    Uma copia do PDF onde a pessoa escolheu no "Salvar como" do Windows.
+
+    Na janela do programa, download de navegador nao chega a lugar nenhum:
+    quem salva e o servidor. Vale para PDF do Acervo, relatorio gerado aqui ou
+    PDF assinado por este programa - nunca um caminho qualquer.
+    """
+    import shutil
+
+    origem = str(payload.get("caminho", ""))
+    try:
+        alvo = _pdf_conhecido(origem)
+    except HTTPException:
+        alvo = _assinados_daqui([origem])[0]
+    destino = Path(str(payload.get("destino", "")))
+    if not str(destino) or not destino.parent.is_dir():
+        raise HTTPException(status_code=400, detail="escolha uma pasta que exista")
+    if destino.suffix.lower() != ".pdf":
+        destino = destino.with_name(destino.name + ".pdf")
+    if destino.resolve() == alvo.resolve():
+        return {"nome": destino.name, "pasta": str(destino.parent)}
+    try:
+        shutil.copy2(alvo, destino)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui salvar: {exc}") from exc
+    return {"nome": destino.name, "pasta": str(destino.parent)}
+
+
 @app.get("/api/arquivos/pagina")
 def arquivos_pagina(caminho: str, numero: int = 1, largura: int = 700):
     """Uma pagina desenhada - a previa do relatorio antes de baixar."""
@@ -3917,6 +4110,124 @@ def assinar_baixar(arquivo: str) -> FileResponse:
     if not alvo.exists() or alvo.suffix.lower() != ".pdf":
         raise HTTPException(status_code=404, detail="arquivo não encontrado")
     return FileResponse(alvo, media_type="application/pdf", filename=alvo.name)
+
+
+def _assinados_daqui(arquivos: list[str]) -> list[Path]:
+    """
+    Os PDFs pedidos, se todos foram assinados por este programa.
+
+    O .zip e a copia para uma pasta so aceitam o que esta no registro de
+    assinaturas: um caminho qualquer vindo da tela nao vira um jeito de
+    empacotar arquivo arbitrario do disco.
+    """
+    if not arquivos:
+        raise HTTPException(status_code=400, detail="nenhum documento para salvar")
+    conhecidos = set()
+    for item in estado.assinaturas.itens:
+        try:
+            conhecidos.add(Path(item.get("destino") or "").resolve())
+        except (OSError, ValueError):
+            continue
+    achados, vistos = [], set()
+    for bruto in arquivos:
+        try:
+            alvo = Path(bruto).resolve()
+        except (OSError, ValueError):
+            raise HTTPException(status_code=404, detail="arquivo não encontrado") from None
+        if alvo in vistos:
+            continue
+        if alvo not in conhecidos:
+            raise HTTPException(status_code=403, detail=f"{alvo.name} não foi assinado por aqui")
+        if not alvo.is_file():
+            raise HTTPException(status_code=404, detail=f"{alvo.name} não está mais no disco")
+        vistos.add(alvo)
+        achados.append(alvo)
+    return achados
+
+
+def _nomes_no_zip(arquivos: list[Path]) -> list[str]:
+    """Um nome por arquivo, sem colisao: o segundo "x.pdf" vira "x (2).pdf"."""
+    usados, nomes = set(), []
+    for alvo in arquivos:
+        nome = alvo.name
+        conta = 2
+        while nome.lower() in usados:
+            nome = f"{alvo.stem} ({conta}){alvo.suffix}"
+            conta += 1
+        usados.add(nome.lower())
+        nomes.append(nome)
+    return nomes
+
+
+def _zip_dos_assinados(arquivos: list[Path]) -> bytes:
+    import io
+    import zipfile
+
+    memoria = io.BytesIO()
+    # PDF ja vem comprimido por dentro: guardar sem recomprimir e mais rapido
+    # e o arquivo sai do mesmo tamanho.
+    with zipfile.ZipFile(memoria, "w", zipfile.ZIP_STORED) as z:
+        for alvo, nome in zip(arquivos, _nomes_no_zip(arquivos)):
+            z.write(alvo, nome)
+    return memoria.getvalue()
+
+
+def _nome_do_zip() -> str:
+    return f"PDFs assinados {datetime.now():%Y-%m-%d %H%M}.zip"
+
+
+@app.get("/api/assinar/zip")
+def assinar_zip_baixar(arquivo: list[str] = Query(default=[])) -> Response:
+    """Os assinados num .zip, para o navegador baixar (um `arquivo=` por PDF)."""
+    from urllib.parse import quote
+
+    conteudo = _zip_dos_assinados(_assinados_daqui(arquivo))
+    return Response(conteudo, media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(_nome_do_zip())}"})
+
+
+@app.post("/api/assinar/zip")
+def assinar_zip_gravar(payload: AssinadosParaSalvar) -> dict:
+    """
+    Os assinados num .zip gravado onde a pessoa escolheu no "Salvar como".
+    Na janela do programa, download de navegador nao chega a lugar nenhum.
+    """
+    arquivos = _assinados_daqui(payload.arquivos)
+    if not payload.caminho:
+        raise HTTPException(status_code=400, detail="diga onde gravar o .zip")
+    caminho = Path(payload.caminho)
+    if caminho.suffix.lower() != ".zip":
+        caminho = caminho.with_name(caminho.name + ".zip")
+    try:
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_bytes(_zip_dos_assinados(arquivos))
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui gravar o .zip: {exc}") from exc
+    return {"caminho": str(caminho), "nome": caminho.name, "quantos": len(arquivos)}
+
+
+@app.post("/api/assinar/copiar")
+def assinar_copiar(payload: AssinadosParaSalvar) -> dict:
+    """
+    Os assinados, um a um, copiados para a pasta escolhida. Nunca passa por
+    cima de um arquivo que ja esta la: o repetido ganha "(2)" no nome.
+    """
+    arquivos = _assinados_daqui(payload.arquivos)
+    pasta = Path(payload.pasta) if payload.pasta else None
+    if not pasta or not pasta.is_dir():
+        raise HTTPException(status_code=400, detail="escolha uma pasta que exista")
+    copiados, usados = [], set()
+    for alvo in arquivos:
+        destino = pasta / alvo.name
+        if destino.exists() or str(destino).lower() in usados:
+            destino = acervo._nome_livre(pasta, alvo.name, usados)
+        try:
+            shutil.copy2(alvo, destino)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"não consegui copiar {alvo.name}: {exc}") from exc
+        usados.add(str(destino).lower())
+        copiados.append(destino.name)
+    return {"pasta": str(pasta), "copiados": copiados}
 
 
 @app.get("/api/assinaturas")

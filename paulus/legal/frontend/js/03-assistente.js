@@ -23,6 +23,11 @@ async function abrirAnexar(opcoes) {
   // conta própria: o seletor do Windows, que sobe para a raiz do Acervo,
   // não aparece.
   anx.soCaminhos = Boolean(o.aoCaminhos);
+  // Outra tela (Assinar) pode pedir so um tipo de arquivo, um arquivo so, e
+  // o seu proprio seletor do Windows. "Ja anexado" e coisa da conversa.
+  anx.filtro = o.so || null;
+  anx.um = Boolean(o.um);
+  anx.daConversa = !o.aoAnexar && !o.aoCaminhos;
   const escolha = dialogo({
     titulo: o.titulo || "Anexar documentos", contexto: o.contexto || "Assistente", classe: "dialogo-anexar", confirmar: anx.verbo,
     html: '<div class="anx">' +
@@ -40,7 +45,7 @@ async function abrirAnexar(opcoes) {
     b.onclick = () => { anx.visao = b.dataset.anxVisao; anx.termo = ""; $("anx-busca").value = ""; desenharAnexar(); };
   });
   $("anx-busca").oninput = (e) => { anx.termo = e.target.value.trim().toLowerCase(); desenharListaDoAnexar(); };
-  $("anx-windows").onclick = () => { if (dialogoAberto) dialogoAberto.fechar(null); $("arquivos").click(); };
+  $("anx-windows").onclick = () => { if (dialogoAberto) dialogoAberto.fechar(null); if (o.aoWindows) o.aoWindows(); else $("arquivos").click(); };
   desenharAnexar();
   const r = await escolha;
   if (!r || !r.ok) return;
@@ -60,10 +65,12 @@ function contarAnexar() {
   const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
   if (botao) {
     botao.disabled = !total;
-    botao.textContent = total ? anx.verbo + " " + total : anx.verbo;
+    botao.textContent = total && !anx.um ? anx.verbo + " " + total : anx.verbo;
   }
   const conta = $("anx-conta");
-  if (conta) conta.textContent = total ? plural(total, "documento") + " para anexar" : "";
+  // Fora da conversa (Assinar, a pasta de um servico) nada e "anexado".
+  const feito = anx.daConversa ? " para anexar" : (total === 1 ? " escolhido" : " escolhidos");
+  if (conta) conta.textContent = total ? (anx.um ? "1 escolhido" : plural(total, "documento") + feito) : "";
 }
 
 async function desenharAnexar() {
@@ -90,11 +97,12 @@ function desenharListaDoAnexar() {
   const lista = $("anx-lista");
   if (!lista) return;
   const casa = (nome) => !anx.termo || nome.toLowerCase().includes(anx.termo);
+  const serve = (nome) => !anx.filtro || anx.filtro.test(nome);
   let html = "";
   if (anx.visao === "acervo") {
-    const docs = (anx.docs || []).filter((d) => casa(d.nome));
+    const docs = (anx.docs || []).filter((d) => casa(d.nome) && serve(d.nome));
     html = docs.map((d) => {
-      const ja = estado.escopo.includes(d.nome);
+      const ja = anx.daConversa && estado.escopo.includes(d.nome);
       const marcado = ja || anx.acervo.has(d.nome);
       const classe = "anx-linha" + (marcado ? " escolhida" : "") + (ja ? " ja" : "");
       return '<div class="' + classe + '" data-anx-doc="' + esc(d.nome) + '">' +
@@ -114,7 +122,7 @@ function desenharListaDoAnexar() {
     if ((d.atalhos || []).length) html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.filter((a) => casa(a.nome)).map((a) => pasta(a, "folder")).join("");
     if ((d.unidades || []).length) html += '<div class="nav-grupo">Unidades</div>' + d.unidades.filter((u) => casa(u.nome)).map((u) => pasta(u, "desktop_windows")).join("");
     html += (d.pastas || []).filter((p) => casa(p.nome)).map((p) => pasta(p, "folder")).join("");
-    html += (d.arquivos || []).filter((a) => casa(a.nome)).map((a) => {
+    html += (d.arquivos || []).filter((a) => casa(a.nome) && serve(a.nome)).map((a) => {
       const marcado = anx.computador.has(a.caminho);
       const classe = "anx-linha" + (marcado ? " escolhida" : "");
       return '<div class="' + classe + '" data-anx-arq="' + esc(a.caminho) + '" data-nome="' + esc(a.nome) + '">' +
@@ -130,8 +138,9 @@ function desenharListaDoAnexar() {
   lista.querySelectorAll("[data-anx-doc]").forEach((l) => {
     l.onclick = () => {
       const nome = l.dataset.anxDoc;
-      if (estado.escopo.includes(nome)) return;
-      if (anx.acervo.has(nome)) anx.acervo.delete(nome); else anx.acervo.add(nome);
+      if (anx.daConversa && estado.escopo.includes(nome)) return;
+      if (anx.acervo.has(nome)) anx.acervo.delete(nome);
+      else { if (anx.um) { anx.acervo.clear(); anx.computador.clear(); } anx.acervo.add(nome); }
       desenharListaDoAnexar();
     };
   });
@@ -141,7 +150,7 @@ function desenharListaDoAnexar() {
   lista.querySelectorAll("[data-anx-arq]").forEach((l) => {
     l.onclick = () => {
       if (anx.computador.has(l.dataset.anxArq)) anx.computador.delete(l.dataset.anxArq);
-      else anx.computador.set(l.dataset.anxArq, l.dataset.nome);
+      else { if (anx.um) { anx.acervo.clear(); anx.computador.clear(); } anx.computador.set(l.dataset.anxArq, l.dataset.nome); }
       desenharListaDoAnexar();
     };
   });
@@ -160,7 +169,8 @@ async function anexarEscolhidos() {
       });
       const res = await r.json();
       lidos = res.salvos || [];
-      let texto = lidos.length ? plural(lidos.length, "documento") + (lidos.length === 1 ? " anexado" : " anexados") : "Nenhum arquivo foi anexado.";
+      const feito = anx.daConversa ? (lidos.length === 1 ? " anexado" : " anexados") : (lidos.length === 1 ? " trazido para o Acervo" : " trazidos para o Acervo");
+      let texto = lidos.length ? plural(lidos.length, "documento") + feito : "Nenhum arquivo foi trazido.";
       if ((res.recusados || []).length) {
         texto += " Não consegui abrir: " + res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".";
       }
@@ -171,7 +181,7 @@ async function anexarEscolhidos() {
     } catch (err) {
       avisoNaJanela("Não consegui anexar: " + String(err), { tom: "erro", dura: 12000 });
     }
-  } else if (doAcervo.length) {
+  } else if (doAcervo.length && anx.daConversa) {
     avisoCert(plural(doAcervo.length, "documento") + (doAcervo.length === 1 ? " anexado" : " anexados"), { tom: "ok" });
   }
   return doAcervo.concat(lidos);
