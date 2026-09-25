@@ -58,7 +58,7 @@ def pelo_nome(nome: str) -> str:
     O tipo pelo nome do arquivo - so quando o texto empatou.
 
     Num escritorio o nome do arquivo e escrito por gente: "Contrato de Compra
-    e Venda - Matheus X Caroline.pdf" diz o que o documento e. Medido no
+    e Venda - Parte A X Parte B.pdf" diz o que o documento e. Medido no
     acervo de teste, a regra de vocabulario empata nos contratos de compra e
     venda (o texto tem termos de mais de um tipo) e devolve "outro"; o nome
     resolve sem chamar modelo nenhum.

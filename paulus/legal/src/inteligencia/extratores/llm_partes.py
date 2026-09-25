@@ -79,7 +79,7 @@ def papel_esta_escrito(texto_plano: str, nome: str, papel_br: str, alcance: int 
 
     Esta e uma peneira deterministica que o conferidor de modelo nao substitui,
     e a medicao mostrou por que: com o modelo pequeno desta maquina, uma
-    procuracao saiu com "COOBRAMEX - reu". O trecho citado era real, o nome era
+    procuracao saiu com "EMPRESA X - reu". O trecho citado era real, o nome era
     real, e o conferidor disse SIM. So que a palavra "reu" nao aparece em
     lugar nenhum daquele documento.
 

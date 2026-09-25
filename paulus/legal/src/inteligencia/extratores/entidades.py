@@ -9,11 +9,11 @@ conferidor.**
 
 Um CPF e um CNPJ tem digito verificador. Isso quer dizer que, ao contrario de
 um nome, de uma data ou de uma clausula, da para saber se o que foi lido esta
-certo sem consultar coisa nenhuma - so com aritmetica. Num acervo de verdade
-isso aparece: entre as procuracoes deste escritorio ha um documento em que o
-CNPJ da outorgante aparece duas vezes, com um digito diferente entre elas.
-Uma das duas esta errada, e ate hoje ninguem notou. A camada nota, e sem
-inventar nada: guarda a que fecha e marca a que nao fecha.
+certo sem consultar coisa nenhuma - so com aritmetica. Num acervo de teste
+isso aparece: entre os documentos de teste ha um em que um documento-chave
+aparece duas vezes, com um digito diferente entre elas. Uma das duas esta
+errada, e a camada nota, e sem inventar nada: guarda a que fecha e marca
+a que nao fecha.
 
 A outra metade do problema e o nome. Numa qualificacao brasileira ele vem
 antes do documento, separado dele por uma lista de adjetivos:

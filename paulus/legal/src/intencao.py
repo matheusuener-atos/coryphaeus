@@ -54,7 +54,7 @@ COISAS_TAREFA = ("tarefa", "lembrete", "pendencia", "a fazer", "todo",
                  "na lista", "nas tarefas")
 COISAS_PRAZO = ("prazo", "vencimento")
 
-# "abra a procuracao Matheus" nao e pergunta sobre o conteudo: e pedido para
+# "abra a procuracao ABC" nao e pergunta sobre o conteudo: e pedido para
 # abrir um arquivo. Ia parar na busca, que respondia "nao encontrei essa
 # informacao" - sobre um arquivo que esta ali, com esse nome.
 VERBOS_ABRIR = ("abra", "abrir", "abre", "mostre", "mostrar", "mostra",
@@ -62,7 +62,7 @@ VERBOS_ABRIR = ("abra", "abrir", "abre", "mostre", "mostrar", "mostra",
                 "reabra", "reabrir", "reabre")
 
 # Palavras que dizem o TIPO da coisa e nao aparecem no nome do arquivo. "o
-# contrato Wanderson" nomeia um arquivo chamado "COMPRA E VENDA - WANDERSON".
+# contrato XYZ" nomeia um arquivo chamado "COMPRA E VENDA - XYZ".
 GENERICAS = {"contrato", "documento", "arquivo", "pdf", "docx", "papel",
              "peca", "minuta"}
 
@@ -715,10 +715,10 @@ def _documento_pedido(plano: str, documentos) -> str:
     if len(exatos) == 1:
         return exatos[0]
 
-    # Segunda tentativa sem as palavras de tipo: "mostre o contrato Wanderson"
+    # Segunda tentativa sem as palavras de tipo: "mostre o contrato ABC"
     # nomeia um arquivo que não tem "contrato" no nome. A primeira passada vem
-    # antes de propósito — "procuração Matheus" acha pelo conjunto inteiro, e
-    # só por "matheus" acharia duas.
+    # antes de propósito — "procuração XYZ" acha pelo conjunto inteiro, e
+    # só por "xyz" acharia duas.
     sem_tipo = [p for p in palavras if p not in GENERICAS]
     if sem_tipo and sem_tipo != palavras:
         soltos = casam(sem_tipo)

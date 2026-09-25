@@ -9,9 +9,9 @@ com um recado em portugues, porque um CPF errado num documento e justamente o
 tipo de coisa que alguem precisa ver.
 
 O papel (advogado, parte, testemunha) so aparece quando esta escrito perto do
-nome. E a mesma regra que o extrator de partes aprendeu a duras penas: o
-modelo local escreveu "COOBRAMEX - reu" numa procuracao onde a palavra "reu"
-nao existe, e desde entao papel nao conferido nao vira papel.
+nome. E a mesma regra que o extrator de partes aprendeu a duras penas: um
+modelo pequeno gerou um papel falso numa procuracao onde a palavra nao existe,
+e desde entao papel nao conferido nao vira papel.
 """
 
 from __future__ import annotations

@@ -74,33 +74,33 @@ PERGUNTAS = [
     ("onde diz que o pagamento é parcelado?", "", "escala", ""),
 
     # --- com um documento em foco: o caminho rapido aparece -----------------
-    ("qual o valor do contrato?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("qual o valor do contrato?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "metadata", "250.000,00"),
-    ("quanto custa?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("quanto custa?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "metadata", "250.000,00"),
-    ("quais artigos aparecem?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("quais artigos aparecem?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "metadata", "421"),
-    ("que leis são citadas?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("que leis são citadas?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "metadata", "10.406"),
-    ("qual o valor do contrato?", "COMPRA E VENDA - WANDERSON X VALTER UENER R$ 200.000,00.pdf",
+    ("qual o valor do contrato?", "Contrato de Compra e Venda - Pessoa X X Pessoa Y R$ 200.000,00.pdf",
      "metadata", "200.000,00"),
-    ("qual a data do documento?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("qual a data do documento?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "metadata", "2025-01-23"),
 
     # --- em foco, mas a pergunta pede leitura: escala do mesmo jeito --------
     ("o que este contrato alega sobre a rescisão?",
-     "Contrato de Compra e Venda - Matheus X Caroline.pdf", "escala", ""),
-    ("resuma este documento", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+     "Contrato de Compra e Venda - Parte A X Parte B.pdf", "escala", ""),
+    ("resuma este documento", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "escala", ""),
     ("explique a cláusula de arrependimento",
-     "Contrato de Compra e Venda - Matheus X Caroline.pdf", "escala", ""),
+     "Contrato de Compra e Venda - Parte A X Parte B.pdf", "escala", ""),
 
     # --- em foco, mas o dado nao esta no metadata: escala, nao nega ---------
-    ("qual o número do processo?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("qual o número do processo?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "escala", ""),
-    ("quem é o autor?", "Contrato de Compra e Venda - Matheus X Caroline.pdf", "escala", ""),
-    ("qual o tribunal?", "Contrato de Compra e Venda - Matheus X Caroline.pdf", "escala", ""),
-    ("qual o valor da causa?", "Procuraçao COOBRAMEX x Matheus.pdf", "escala", ""),
+    ("quem é o autor?", "Contrato de Compra e Venda - Parte A X Parte B.pdf", "escala", ""),
+    ("qual o tribunal?", "Contrato de Compra e Venda - Parte A X Parte B.pdf", "escala", ""),
+    ("qual o valor da causa?", "Procuração Empresa ABC X Pessoa.pdf", "escala", ""),
 
     # --- as colecoes de extensao (passo 7) sobre um acervo que nao tem peca -
     # Nenhum destes documentos e peticao ou sentenca. A resposta certa para
@@ -108,22 +108,22 @@ PERGUNTAS = [
     # que e verdade, e "este contrato nao decide nada", que tambem e - mas
     # dita por quem nao procurou direito soa igual a dita por quem procurou.
     ("quais os pedidos?", "", "escala", ""),
-    ("quais os pedidos?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("quais os pedidos?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "escala", ""),
     ("qual foi a decisao?", "", "escala", ""),
-    ("o pedido foi deferido?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("o pedido foi deferido?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "escala", ""),
     ("qual a linha do tempo?", "", "escala", ""),
     ("quais os documentos juntados?", "", "escala", ""),
     ("o que o reu alega?", "", "escala", ""),
-    ("o que o autor alega?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("o que o autor alega?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "escala", ""),
-    ("ha processos relacionados?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
+    ("ha processos relacionados?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
      "escala", ""),
     # O CPF e o CNPJ sao os unicos dados do acervo que conferem a si mesmos, e
-    # por isso sao os unicos de resposta unica num contrato real.
-    ("qual o CPF?", "Contrato de Compra e Venda - Matheus X Caroline.pdf",
-     "metadata", "037.061.712-60"),
+    # por isso sao os unicos de resposta unica num contrato de teste.
+    ("qual o CPF?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
+     "metadata", "111.222.333-44"),
     ("qual o CNPJ?", "", "escala", ""),
 ]
 
