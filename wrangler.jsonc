@@ -1,15 +1,22 @@
 // O site publico do PAULUS (paulus.ia.br) no Cloudflare, publicado pelo
 // "npx wrangler deploy" que o Workers Builds roda a cada push.
 //
-// So a pasta site/ vai para o ar. O resto do repositorio - o programa, os
-// dados e o oauth_app.json com a chave do Google - nunca e publicado.
+// So a pasta site/ e o worker/ vao para o ar. O resto do repositorio - o
+// programa, os dados e o oauth_app.json com a chave do Google - nunca e
+// publicado. As chaves do Mercado Pago sao segredos do Worker
+// (npx wrangler secret put MP_ACCESS_TOKEN / MP_WEBHOOK_SECRET).
 {
   "name": "paulus",
   "compatibility_date": "2026-09-25",
+  // As rotas /api/* (pagamento do "Apoiar o projeto"); o resto e o site.
+  "main": "worker/index.js",
   "assets": {
     "directory": "./site",
+    "binding": "ASSETS",
     // /politica-de-privacidade abre site/politica-de-privacidade/index.html
     "html_handling": "auto-trailing-slash",
-    "not_found_handling": "none"
+    "not_found_handling": "none",
+    // O Worker responde /api/* antes de procurar arquivo do site.
+    "run_worker_first": ["/api/*"]
   }
 }

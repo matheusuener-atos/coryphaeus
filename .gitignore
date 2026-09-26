@@ -215,3 +215,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# cache local do wrangler (dry-run, dev)
+.wrangler/
