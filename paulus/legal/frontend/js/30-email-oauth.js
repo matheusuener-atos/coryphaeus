@@ -8,16 +8,30 @@
    programa nao tem nada para configurar.
 
    Tres entradas para quem desenha a tela de contas:
-     botoesDeLoginOAuth()            o HTML dos botoes (com a explicacao)
+     botoesDeLoginOAuth()            o HTML dos botoes
      ligarLoginOAuth(raiz, aoLigar)  liga os cliques; aoLigar(conta) no fim
      entrarDeNovoOAuth(conta, aoLigar)  refaz o login de uma conta vencida
+
+   A espera e discreta: o botao vira "aguardando o navegador" com um giro e
+   um "cancelar". So se passar de EO_ESPERA_LONGA sem voltar (ou se o
+   navegador nem abriu) aparece a linha com "reabrir o navegador" e "copiar
+   o endereco". Leitura e envio funcionando, vai direto para a caixa; se uma
+   das pontas falhar, diz qual numa linha, com a acao que resolve.
 */
 
-const eo = { relogio: null, versao: 0 };
+const eo = { relogio: null, versao: 0, inicio: 0, url: "", botoes: "", desenho: "" };
 const EO_ROTULO = { google: "Google", microsoft: "Microsoft" };
+const EO_ESPERA_LONGA = 45000;
 
 function eoInfo() {
   return (typeof mail !== "undefined" && mail.contas && mail.contas.oauth) || null;
+}
+
+/* Os provedores com login neste PAULUS, na ordem em que aparecem. */
+function provedoresOAuth(info) {
+  const o = info || eoInfo();
+  if (!o) return [];
+  return ["google", "microsoft"].filter((p) => Boolean(o[p] && o[p].configurado));
 }
 
 /* O simbolo de cada provedor, como as diretrizes de "Entrar com" deles pedem:
@@ -39,13 +53,15 @@ function eoMarca(p) {
   return EO_SIMBOLO[p] || "";
 }
 
+/* O primeiro provedor e o botao principal do passo; os outros, contornados. */
+function eoBotao(p, desligado, principal) {
+  return '<button class="eo-botao' + (principal ? " primario" : "") + '" data-eo-entrar="' + p + '"' + (desligado ? " disabled" : "") + ">" + eoMarca(p) + "<span>Entrar com " + EO_ROTULO[p] + "</span></button>";
+}
+
 function botoesDeLoginOAuth(info) {
-  const o = info || eoInfo();
-  if (!o) return "";
-  const prontos = ["google", "microsoft"].filter((p) => Boolean(o[p] && o[p].configurado));
+  const prontos = provedoresOAuth(info);
   if (!prontos.length) return "";
-  return '<div class="eo-login"><div class="eo-botoes">' + prontos.map((p) => '<button class="eo-botao" data-eo-entrar="' + p + '">' +
-    eoMarca(p) + "<span>Entrar com " + EO_ROTULO[p] + "</span></button>").join("") + "</div></div>";
+  return '<div class="eo-login"><div class="eo-botoes">' + prontos.map((p, i) => eoBotao(p, false, i === 0)).join("") + "</div></div>";
 }
 
 function ligarLoginOAuth(raiz, aoLigar) {
@@ -59,23 +75,21 @@ function ligarLoginOAuth(raiz, aoLigar) {
   });
 }
 
-/* Refaz o login de uma conta que venceu: o mesmo provedor, o mesmo endereco. */
+/* Refaz o login de uma conta que venceu: o mesmo provedor, o mesmo endereco.
+   Comeca sozinho - quem clicou na conta ja disse que quer entrar. */
 function entrarDeNovoOAuth(conta, aoLigar) {
   const raiz = document.querySelector(".ec-cartao") || $("email");
   if (!raiz || !conta) return;
   const p = conta.autenticacao;
-  const o = eoInfo() || {};
-  const pronto = Boolean(o[p] && o[p].configurado);
-  const motivo = conta.precisa_entrar
-    ? "A autorização do " + EO_ROTULO[p] + " para esta conta venceu ou foi revogada. Entre de novo na página do " + EO_ROTULO[p] + "."
-    : "Entre de novo na página do " + EO_ROTULO[p] + " para renovar a autorização desta conta.";
+  const pronto = provedoresOAuth().includes(p);
   const marca = raiz.querySelector(".ec-marca");
-  raiz.innerHTML = (marca ? marca.outerHTML : "") + '<div class="eo-denovo"><h2>Entrar de novo</h2><p class="eo-sub">' + esc(conta.email) + " · login " + EO_ROTULO[p] + "</p>" +
-    '<p class="eo-texto">' + esc(motivo) + "</p>" +
-    '<div class="eo-login"><div class="eo-botoes">' +
-    '<button class="eo-botao" data-eo-entrar="' + p + '"' + (pronto ? "" : " disabled") + ">" + eoMarca(p) + "<span>Entrar com " + EO_ROTULO[p] + "</span></button></div>" +
+  raiz.innerHTML = (marca ? marca.outerHTML : "") + '<div class="eo-denovo">' +
+    '<button class="ec-quem" data-eo-voltar="1" title="Voltar">' + ic("arrow_back", 16) + avatarDaConta({ email: conta.email }) + "<span>" + esc(conta.email) + "</span></button>" +
+    "<h2>Entrar de novo</h2>" +
+    (conta.precisa_entrar ? '<p class="eo-texto">A autorização do ' + EO_ROTULO[p] + " venceu.</p>" : "") +
+    '<div class="eo-login"><div class="eo-botoes">' + eoBotao(p, !pronto, true) + "</div>" +
     (pronto ? "" : '<p class="eo-explica">' + ic("info", 15) + "<span>Esta versão do PAULUS não traz o login do " + EO_ROTULO[p] + ".</span></p>") +
-    '</div><div class="eo-rodape"><button data-eo-voltar="1">Voltar</button></div></div>';
+    "</div></div>";
   raiz.querySelector("[data-eo-voltar]").onclick = () => {
     eoParar();
     fetch("/api/email/oauth/cancelar", { method: "POST" }).catch(() => {});
@@ -100,21 +114,26 @@ function eoMostrar(raiz, html) {
   if (caixa) caixa.innerHTML = html;
 }
 
+/* Os botoes voltam como estavam antes do clique, com o motivo em cima. */
 function eoRestaurar(raiz, aoLigar, mensagem) {
   const caixa = eoCaixa(raiz);
   if (!caixa) return;
-  const tmp = document.createElement("div");
-  tmp.innerHTML = botoesDeLoginOAuth();
-  const novo = tmp.querySelector(".eo-login");
-  caixa.innerHTML = (mensagem ? '<p class="eo-erro">' + ic("error", 16) + "<span>" + esc(mensagem) + "</span></p>" : "") +
-    (novo ? novo.innerHTML : "");
+  caixa.innerHTML = (mensagem ? '<p class="eo-erro">' + ic("error", 16) + "<span>" + esc(mensagem) + "</span></p>" : "") + eo.botoes;
   ligarLoginOAuth(raiz, aoLigar);
+  const denovo = raiz.querySelector(".eo-denovo [data-eo-entrar]");
+  if (denovo) {
+    const conta = raiz.querySelector(".ec-quem span:last-child");
+    denovo.onclick = () => eoComecar(denovo.dataset.eoEntrar, raiz, aoLigar, conta ? conta.textContent : "");
+  }
 }
 
 async function eoComecar(p, raiz, aoLigar, dica) {
   eoParar();
   const versao = eo.versao;
-  eoMostrar(raiz, '<div class="eo-espera"><p class="eo-titulo">' + ic("open_in_new", 18) + "<span>Abrindo o navegador…</span></p></div>");
+  const caixa = eoCaixa(raiz);
+  if (caixa && !caixa.querySelector(".eo-espera")) eo.botoes = caixa.innerHTML.replace(/<p class="eo-erro">[\s\S]*?<\/p>/, "");
+  Object.assign(eo, { inicio: Date.now(), url: "", desenho: "" });
+  eoDesenharEspera(raiz, aoLigar, { fase: "aguardando", abriu_navegador: true });
   let r;
   try {
     r = await fetch("/api/email/oauth/entrar", {
@@ -130,35 +149,49 @@ async function eoComecar(p, raiz, aoLigar, dica) {
   eoAcompanhar(raiz, aoLigar, versao);
 }
 
+/* A espera: so o giro e o cancelar. A linha de socorro so aparece quando o
+   navegador nao abriu ou a volta demora. Redesenha so quando muda algo, para
+   o giro nao recomecar a cada consulta. */
 function eoDesenharEspera(raiz, aoLigar, d) {
-  const rotulo = d.rotulo || EO_ROTULO[d.provedor] || "";
-  const minutos = Math.max(1, Math.round((d.prazo_s || 300) / 60));
-  let titulo = "Abrimos o navegador — entre na sua conta " + rotulo + " lá e volte aqui.";
-  let sub = "O login acontece na página do próprio " + rotulo + ". Espero até " + minutos + " min.";
-  if (d.fase === "trocando" || d.fase === "testando") {
-    titulo = "Recebi o login. Conferindo a conexão com o servidor de e-mail…";
-    sub = "Leva alguns segundos.";
-  }
-  const semNavegador = d.fase === "aguardando" && d.url && !d.abriu_navegador;
-  eoMostrar(raiz, '<div class="eo-espera" aria-live="polite"><p class="eo-titulo">' + ic("open_in_new", 18) + "<span>" + esc(titulo) + "</span></p>" +
-    '<p class="eo-sub">' + esc(sub) + "</p>" +
-    (semNavegador ? '<p class="eo-sub">Não consegui abrir o navegador. Copie o endereço e abra nele: <button class="eo-ligacao" data-eo-copiar="1">copiar endereço</button></p>' : "") +
-    '<div class="eo-rodape"><button data-eo-cancelar="1">Cancelar</button></div></div>');
-  const copiar = raiz.querySelector("[data-eo-copiar]");
-  if (copiar) copiar.onclick = async () => {
-    try { await navigator.clipboard.writeText(d.url); avisoCert("endereço copiado"); } catch (err) { avisoCert("não consegui copiar"); }
-  };
-  raiz.querySelector("[data-eo-cancelar]").onclick = async () => {
+  if (d.url) eo.url = d.url;
+  const conferindo = d.fase === "trocando" || d.fase === "testando";
+  const travou = !conferindo && Boolean(eo.url) && (d.abriu_navegador === false || Date.now() - eo.inicio > EO_ESPERA_LONGA);
+  const desenho = (conferindo ? "c" : "a") + (travou ? "t" : "");
+  if (desenho === eo.desenho && eoCaixa(raiz) && eoCaixa(raiz).querySelector(".eo-espera")) return;
+  eo.desenho = desenho;
+  eoMostrar(raiz, '<div class="eo-espera" aria-live="polite"><div class="eo-aguardo"><span class="eo-giro" aria-hidden="true"></span><span>' +
+    (conferindo ? "conferindo a conexão…" : "aguardando o navegador…") + "</span>" +
+    '<button class="eo-ligacao" data-eo-cancelar="1">cancelar</button></div>' +
+    (travou ? '<p class="eo-travou">' + (d.abriu_navegador === false ? "O navegador não abriu." : "Não voltou?") +
+      ' <button class="eo-ligacao" data-eo-reabrir="1">reabrir o navegador</button> · <button class="eo-ligacao" data-eo-copiar="1">copiar o endereço</button></p>' : "") +
+    "</div>");
+  const cancelar = raiz.querySelector("[data-eo-cancelar]");
+  if (cancelar) cancelar.onclick = async () => {
     eoParar();
     try { await fetch("/api/email/oauth/cancelar", { method: "POST" }); } catch (err) { /* o prazo encerra do outro lado */ }
     eoRestaurar(raiz, aoLigar, "");
+  };
+  const copiar = raiz.querySelector("[data-eo-copiar]");
+  if (copiar) copiar.onclick = async () => {
+    try { await navigator.clipboard.writeText(eo.url); avisoCert("endereço copiado · cole no navegador"); } catch (err) { avisoCert("não consegui copiar"); }
+  };
+  const reabrir = raiz.querySelector("[data-eo-reabrir]");
+  if (reabrir) reabrir.onclick = async () => {
+    let r = null;
+    try { r = await (await fetch("/api/email/oauth/reabrir", { method: "POST" })).json(); } catch (err) { /* abaixo */ }
+    if (!r || !r.abriu_navegador) avisoCert("não consegui abrir o navegador · copie o endereço");
   };
 }
 
 function eoAcompanhar(raiz, aoLigar, versao) {
   eo.relogio = setTimeout(async () => {
     if (versao !== eo.versao) return;
-    if (!document.body.contains(raiz)) { eoParar(); return; }
+    /* A pessoa saiu da tela no meio: o login que ficou esperando e cancelado. */
+    if (!document.body.contains(raiz)) {
+      eoParar();
+      fetch("/api/email/oauth/cancelar", { method: "POST" }).catch(() => {});
+      return;
+    }
     let d;
     try {
       d = await (await fetch("/api/email/oauth/andamento")).json();
@@ -167,7 +200,7 @@ function eoAcompanhar(raiz, aoLigar, versao) {
     }
     if (versao !== eo.versao) return;
     if (!d || d.fase === "aguardando" || d.fase === "trocando" || d.fase === "testando" || d.fase === "preparando") {
-      if (d && d.fase !== "aguardando") eoDesenharEspera(raiz, aoLigar, d);
+      eoDesenharEspera(raiz, aoLigar, d || { fase: "aguardando" });
       return eoAcompanhar(raiz, aoLigar, versao);
     }
     eo.relogio = null;
@@ -183,11 +216,10 @@ function eoPronto(raiz, aoLigar, d) {
   const conta = res.conta || null;
   const prova = res.prova || {};
   if (prova.entrada && prova.saida) return aoLigar && aoLigar(conta);
-  /* Entrou, mas uma das pontas nao funcionou: diz qual, antes de seguir. */
-  const linha = (ok, texto, erro) => '<div class="em-conferencia ' + (ok ? "ok" : "aviso") + '">' + ic(ok ? "check_circle" : "error", 18) +
-    "<span>" + texto + (ok ? " funciona" : ": " + esc(erro || "não")) + "</span></div>";
-  eoMostrar(raiz, '<div class="eo-espera"><p class="eo-titulo">' + ic("check_circle", 18) + "<span>Login feito" + (conta ? " · " + esc(conta.email) : "") + "</span></p>" +
-    '<div class="em-conferencias">' + linha(prova.entrada, "Ler as mensagens (IMAP)", prova.erro_entrada) + linha(prova.saida, "Enviar (SMTP)", prova.erro_saida) + "</div>" +
-    '<div class="eo-rodape"><button class="primario" data-eo-seguir="1">Continuar</button></div></div>');
+  /* Sem leitura nao ha caixa: o botao volta, que e o "tentar de novo". */
+  if (!prova.entrada) return eoRestaurar(raiz, aoLigar, "Entrou, mas não consegui ler as mensagens: " + (prova.erro_entrada || "o servidor recusou"));
+  /* Le mas nao envia: diz isso e deixa seguir. */
+  eoMostrar(raiz, '<p class="eo-erro">' + ic("error", 16) + "<span>Lê, mas não envia: " + esc(prova.erro_saida || "o servidor recusou") +
+    '. <button class="eo-ligacao" data-eo-seguir="1">abrir a caixa assim mesmo</button></span></p>');
   raiz.querySelector("[data-eo-seguir]").onclick = () => aoLigar && aoLigar(conta);
 }

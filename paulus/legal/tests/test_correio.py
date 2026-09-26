@@ -486,6 +486,8 @@ def test_rascunho_limpo() -> None:
     checar("**" not in limpo, "tira marcacao que nao existe em e-mail")
     checar("Vou verificar" in limpo, "e mantem o texto")
     checar(correio._limpar_rascunho("") == "", "rascunho vazio nao quebra")
+    eco = correio._limpar_rascunho("Prezado,\nSegue.\n\nPedido: Reescreva o e-mail em tom mais formal")
+    checar(eco == "Prezado,\nSegue.", "corta o pedido que o modelo repete no fim", eco)
 
 
 # ------------------------------------------------------ a fila decide

@@ -4554,6 +4554,13 @@ def email_oauth_cancelar() -> dict:
     return entrada.andamento() if entrada else {"fase": "nenhum"}
 
 
+@app.post("/api/email/oauth/reabrir")
+def email_oauth_reabrir() -> dict:
+    """Abre de novo a pagina do login que esta esperando - o mesmo pedido, nao outro."""
+    entrada = estado.entrada_oauth
+    return entrada.reabrir() if entrada else {"fase": "nenhum"}
+
+
 # --------------------------------------------------------- caixa de entrada
 
 
@@ -4645,7 +4652,23 @@ def email_guardar_anexo(payload: dict) -> dict:
 
 @app.post("/api/email/arquivar")
 def email_arquivar(payload: dict) -> dict:
+    """Uma (`uid`) ou varias (`uids`, a selecao da lista) numa conexao so."""
     conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    if isinstance(payload.get("uids"), list):
+        uids = correio._uids_validos(payload["uids"])
+        if not uids:
+            raise HTTPException(status_code=400, detail="nenhuma mensagem escolhida")
+        try:
+            feito = correio.arquivar_varias(conta, senha, uids)
+        except correio.ErroCorreio as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        so_lidas = feito["so_lidas"]
+        return {
+            **feito,
+            "aviso": ("" if not so_lidas else
+                      "seu servidor não tem pasta de arquivo - marquei como lidas" if not feito["arquivadas"] else
+                      f"{so_lidas} não foram copiadas para o arquivo - ficaram na caixa, marcadas como lidas"),
+        }
     uid = str(payload.get("uid", ""))
     try:
         movida = correio.arquivar(conta, senha, uid)
@@ -4655,6 +4678,97 @@ def email_arquivar(payload: dict) -> dict:
         "arquivada": movida,
         "aviso": "" if movida else "seu servidor não tem pasta de arquivo - marquei só como lida",
     }
+
+
+@app.post("/api/email/marcar")
+def email_marcar(payload: dict) -> dict:
+    """Marca como lidas (ou nao lidas) as mensagens escolhidas na lista."""
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    uids = correio._uids_validos(payload.get("uids") or [])
+    if not uids:
+        raise HTTPException(status_code=400, detail="nenhuma mensagem escolhida")
+    lido = bool(payload.get("lido", True))
+    try:
+        n = correio.marcar_lidas(conta, senha, uids, lido)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"marcadas": n, "lido": lido, "uids": uids}
+
+
+# O resumo da caixa pelo modelo: em segundo plano, um por vez, guardado pela
+# chave das mensagens. A regra responde na hora, no mesmo pedido.
+_resumos_da_caixa = correio.ResumosDaCaixa()
+
+
+def _cabecalhos_do_pedido(payload: dict) -> list[dict]:
+    campos = ("uid", "de_nome", "de_email", "de_cadastro", "assunto", "prazo", "lido", "respondido", "tem_anexo")
+    return [{k: m.get(k) for k in campos} for m in (payload.get("mensagens") or [])[:200] if isinstance(m, dict)]
+
+
+@app.post("/api/email/caixa/resumo")
+def email_caixa_resumo(payload: dict) -> dict:
+    """
+    O resumo da lista que a tela mostra: a regra agora, o modelo depois.
+
+    Recebe os cabecalhos que a lista ja tem - nenhum corpo sai do servidor
+    de e-mail para isto. O modelo roda numa thread; a resposta volta na hora
+    com "resumindo" e a tela pergunta de novo em GET.
+    """
+    mensagens = _cabecalhos_do_pedido(payload)
+    chave = correio.chave_do_resumo(str(payload.get("conta_id", "")), mensagens)
+    regra = correio.resumo_por_regra(mensagens)
+    modelo = _resumos_da_caixa.estado(chave)
+    if modelo.get("estado") in ("pronto", "resumindo", "na_fila") or not mensagens:
+        return {"chave": chave, "regra": regra, "modelo": modelo if mensagens else {"estado": "nenhum"}}
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        return {"chave": chave, "regra": regra, "modelo": {"estado": "indisponivel", "motivo": motivo}}
+    return {"chave": chave, "regra": regra, "modelo": _resumos_da_caixa.pedir(chave, mensagens, estado.client)}
+
+
+@app.get("/api/email/caixa/resumo")
+def email_caixa_resumo_estado(chave: str) -> dict:
+    return {"chave": chave, "modelo": _resumos_da_caixa.estado(chave)}
+
+
+@app.post("/api/email/reescrever")
+def email_reescrever(payload: dict) -> dict:
+    """
+    O "Pedir aqui" do Escrever: o modelo reescreve o corpo do e-mail.
+
+    Volta como sugestao - a tela troca o texto e oferece manter ou
+    descartar. Leva cerca de um minuto nesta maquina.
+    """
+    pedido = str(payload.get("pedido", "")).strip()
+    if not pedido:
+        raise HTTPException(status_code=400, detail="diga o que mudar no e-mail")
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        texto = correio.reescrever_email(estado.client, pedido,
+                                         str(payload.get("assunto", "")), str(payload.get("corpo", "")))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"sugestao": texto, "pedido": pedido}
+
+
+@app.post("/api/email/anexos/conferir")
+def email_anexos_conferir(payload: dict) -> dict:
+    """Nome e tamanho dos arquivos escolhidos para anexar - e se passam do limite."""
+    achados = []
+    for bruto in (payload.get("caminhos") or [])[:40]:
+        alvo = Path(str(bruto))
+        existe = alvo.is_file()
+        tamanho = alvo.stat().st_size if existe else 0
+        achados.append({
+            "path": str(alvo), "nome": alvo.name, "existe": existe,
+            "mb": round(tamanho / (1024 * 1024), 2),
+            "grande": tamanho > correio.MAX_ANEXO_BYTES,
+        })
+    return {"anexos": achados, "limite_mb": correio.MAX_ANEXO_BYTES // (1024 * 1024)}
 
 
 @app.post("/api/email/rascunho")

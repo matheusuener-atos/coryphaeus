@@ -322,6 +322,23 @@ def _com_validade(tokens: dict) -> dict:
     return tokens
 
 
+# O escopo que abre a caixa, por provedor. O login pode entrar sem ele: o
+# Google descarta escopo que o app nao declarou em "Acesso a dados", e a
+# tela de consentimento deixa a pessoa desmarcar o Gmail. Sem ele, o
+# servidor de e-mail recusaria o acesso depois, com uma frase generica.
+ESCOPO_DO_EMAIL = {"google": "https://mail.google.com/"}
+
+
+def _conferir_escopo_do_email(provedor: str, tokens: dict) -> None:
+    exigido = ESCOPO_DO_EMAIL.get(provedor)
+    concedidos = str(tokens.get("scope") or "").split()
+    if exigido and concedidos and exigido not in concedidos:
+        raise ErroOAuth(
+            "o Google entrou, mas não concedeu o acesso ao Gmail - na tela de permissão, "
+            "marque o acesso aos e-mails. Se essa opção nem aparece, o escopo "
+            "https://mail.google.com/ precisa estar em Acesso a dados, no Google Cloud")
+
+
 def trocar_codigo(provedor: str, credenciais: dict, code: str, verificador: str,
                   redirect_uri: str, *, endpoint: str = "") -> dict:
     """O `code` do navegador vira access token e refresh token."""
@@ -340,6 +357,7 @@ def trocar_codigo(provedor: str, credenciais: dict, code: str, verificador: str,
     tokens = _postar(endpoint or dados["token"], campos)
     if not tokens.get("access_token"):
         raise ErroOAuth("o servidor de login não devolveu o acesso")
+    _conferir_escopo_do_email(provedor, tokens)
     return _com_validade(tokens)
 
 
@@ -358,6 +376,7 @@ def renovar(provedor: str, credenciais: dict, refresh_token: str, *, endpoint: s
     tokens = _postar(endpoint or dados["token"], campos)
     if not tokens.get("access_token"):
         raise ErroOAuth("o servidor de login não devolveu o acesso")
+    _conferir_escopo_do_email(provedor, tokens)
     return _com_validade(tokens)
 
 
@@ -484,6 +503,19 @@ class Entrada:
         if self.fase in ("preparando", "aguardando"):
             self.fase = "cancelado"
             self.mensagem = "login cancelado"
+
+    def reabrir(self) -> dict:
+        """
+        Abre de novo a mesma pagina de login, sem comecar outro login: quem
+        fechou a aba (ou o navegador nao abriu) volta ao mesmo pedido, e a
+        resposta continua caindo na mesma porta local.
+        """
+        if self.fase == "aguardando" and self.url:
+            try:
+                self.abriu_navegador = bool(self.abrir(self.url))
+            except Exception:
+                self.abriu_navegador = False
+        return self.andamento()
 
     @property
     def terminou(self) -> bool:

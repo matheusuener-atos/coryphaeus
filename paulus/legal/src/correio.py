@@ -75,6 +75,11 @@ class Mensagem:
     prazo: str = ""               # data ISO, quando o texto indica um
     prazo_trecho: str = ""
     de_cadastro: str = ""         # nome do cliente, quando o remetente e um
+    # A versao em HTML, limpa (sem script, formulario nem evento), com as
+    # imagens embutidas (cid:) ja dentro. A tela mostra num iframe isolado,
+    # com CSP que nao busca nada de fora ate a pessoa pedir.
+    html: str = ""
+    imagens_remotas: int = 0      # imagens de fora, bloqueadas por padrao
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -195,11 +200,25 @@ def detectar_prazo(texto: str) -> tuple[str, str]:
     return "", ""
 
 
-def _corpo_legivel(msg) -> tuple[str, list[dict]]:
-    """Texto da mensagem e a lista de anexos, sem baixar os anexos."""
+LIMITE_IMAGEM_EMBUTIDA = 2 * 1024 * 1024
+LIMITE_EMBUTIDAS_TOTAL = 6 * 1024 * 1024
+
+
+def _corpo_legivel(msg) -> tuple[str, list[dict], str, int]:
+    """
+    Texto da mensagem, a lista de anexos (sem baixar os anexos), e a versao
+    em HTML ja limpa com a contagem de imagens de fora.
+
+    Imagem embutida (Content-ID, citada no HTML como cid:) nao e anexo: e a
+    logo do remetente, o grafico do corpo. Vai para dentro do HTML como data
+    URI. A que o HTML nao cita continua na lista de anexos.
+    """
+    import base64
+
     anexos: list[dict] = []
     texto = ""
     html = ""
+    embutidas: dict[str, tuple[str, bytes, dict]] = {}
 
     for parte in msg.walk():
         if parte.is_multipart():
@@ -207,6 +226,15 @@ def _corpo_legivel(msg) -> tuple[str, list[dict]]:
         disposicao = (parte.get_content_disposition() or "").lower()
         tipo = parte.get_content_type()
         nome = _texto_cabecalho(parte.get_filename())
+        cid = str(parte.get("Content-ID") or "").strip().strip("<>")
+
+        if cid and tipo.startswith("image/") and disposicao != "attachment":
+            carga = parte.get_payload(decode=True) or b""
+            embutidas[cid] = (tipo, carga, {
+                "nome": nome or "imagem", "tipo": tipo, "bytes": len(carga),
+                "kb": round(len(carga) / 1024, 1), "parte": nome or tipo,
+            })
+            continue
 
         if disposicao == "attachment" or (nome and tipo != "text/plain"):
             carga = parte.get_payload(decode=True) or b""
@@ -237,7 +265,58 @@ def _corpo_legivel(msg) -> tuple[str, list[dict]]:
 
     if not texto and html:
         texto = _html_para_texto(html)
-    return _corrigir_c1(texto).strip(), anexos
+
+    # Embutida que o HTML cita vira data URI; a que nao cita e anexo de verdade.
+    dados_cid: dict[str, str] = {}
+    total = 0
+    for cid, (tipo, carga, ficha) in embutidas.items():
+        citada = html and re.search(r"cid:" + re.escape(cid), html, re.I)
+        if citada and len(carga) <= LIMITE_IMAGEM_EMBUTIDA and total + len(carga) <= LIMITE_EMBUTIDAS_TOTAL:
+            total += len(carga)
+            dados_cid[cid] = f"data:{tipo};base64," + base64.b64encode(carga).decode("ascii")
+        elif not citada:
+            anexos.append(ficha)
+
+    seguro, remotas = sanitizar_html(_corrigir_c1(html), dados_cid) if html else ("", 0)
+    return _corrigir_c1(texto).strip(), anexos, seguro, remotas
+
+
+# Tags que nao tem o que fazer num e-mail mostrado: executam codigo, enviam
+# dados, carregam outra pagina ou mudam o endereco base.
+_TAGS_PROIBIDAS = ("script", "iframe", "frame", "frameset", "object", "embed", "applet",
+                   "form", "base", "meta", "link", "portal", "template")
+
+
+def sanitizar_html(html: str, dados_cid: dict | None = None) -> tuple[str, int]:
+    """
+    O HTML de um e-mail pronto para o iframe isolado, e quantas imagens de fora ele pede.
+
+    Nao e a unica barreira: a tela mostra num iframe sem permissao de script e
+    com CSP que so aceita o que veio dentro do e-mail. Aqui sai o que nao
+    tem motivo de estar - codigo, formulario, eventos, links javascript: -, e
+    as imagens embutidas (cid:) entram como data URI.
+    """
+    dados_cid = dados_cid or {}
+    limpo = html
+    for tag in _TAGS_PROIBIDAS:
+        limpo = re.sub(rf"<{tag}\b[^>]*>.*?</{tag}\s*>", "", limpo, flags=re.S | re.I)
+        limpo = re.sub(rf"</?{tag}\b[^>]*>", "", limpo, flags=re.I)
+    # Eventos (onclick, onload...) e enderecos que executam codigo.
+    limpo = re.sub(r"""\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)""", "", limpo, flags=re.I)
+    limpo = re.sub(r"""(href|src|action|formaction|xlink:href)\s*=\s*(["']?)\s*(javascript|vbscript|data:text/html)[^"'\s>]*\2""",
+                   r'\1="#"', limpo, flags=re.I)
+    limpo = re.sub(r"@import[^;]+;", "", limpo, flags=re.I)
+    limpo = re.sub(r"expression\s*\(", "(", limpo, flags=re.I)
+
+    def trocar_cid(m):
+        cid = m.group(2)
+        return f'{m.group(1)}"{dados_cid[cid]}"' if cid in dados_cid else m.group(0)
+
+    limpo = re.sub(r"""(src\s*=\s*)["']cid:([^"']+)["']""", trocar_cid, limpo, flags=re.I)
+
+    remotas = len(re.findall(r"""<img\b[^>]*\bsrc\s*=\s*["']?\s*https?:""", limpo, flags=re.I))
+    remotas += len(re.findall(r"""url\(\s*["']?\s*https?:""", limpo, flags=re.I))
+    return limpo.strip(), remotas
 
 
 def _html_para_texto(html: str) -> str:
@@ -284,7 +363,7 @@ def montar_mensagem(bruto: bytes, uid: str = "", *, so_cabecalho: bool = False) 
     if so_cabecalho:
         return item
 
-    item.corpo, item.anexos = _corpo_legivel(msg)
+    item.corpo, item.anexos, item.html, item.imagens_remotas = _corpo_legivel(msg)
     item.tem_anexo = bool(item.anexos)
     item.previa = " ".join(item.corpo.split())[:180]
     item.prazo, item.prazo_trecho = detectar_prazo(f"{item.assunto}\n{item.corpo}")
@@ -629,6 +708,92 @@ def arquivar(conta, senha: str, uid: str) -> bool:
             pass
 
 
+def _uids_validos(uids) -> list[str]:
+    """
+    So numeros, sem repetir, na ordem em que vieram.
+
+    O UID entra no comando IMAP como texto. Um "1:*" vindo da tela marcaria a
+    caixa inteira; um "1 FLAGS" quebraria o comando. Numero ou nada.
+    """
+    achados: list[str] = []
+    for uid in uids or []:
+        limpo = str(uid).strip()
+        if re.fullmatch(r"\d{1,12}", limpo) and limpo not in achados:
+            achados.append(limpo)
+    return achados
+
+
+def marcar_lidas(conta, senha: str, uids, lido: bool = True) -> int:
+    """
+    Marca (ou desmarca) como lidas. Nao move, nao apaga, nao abre nada.
+
+    E a mesma marca que o webmail poe quando a pessoa abre a mensagem; o
+    corpo continua no servidor.
+    """
+    lista = _uids_validos(uids)
+    if not lista:
+        return 0
+    con = _abrir_imap(conta, senha)
+    try:
+        estado, _ = con.select("INBOX")
+        if estado != "OK":
+            raise ErroCorreio("não consegui abrir a caixa de entrada")
+        estado, _ = con.uid("STORE", ",".join(lista), "+FLAGS" if lido else "-FLAGS", "(\\Seen)")
+        if estado != "OK":
+            raise ErroCorreio("o servidor não aceitou marcar as mensagens")
+        return len(lista)
+    finally:
+        try:
+            con.logout()
+        except Exception:
+            pass
+
+
+def arquivar_varias(conta, senha: str, uids) -> dict:
+    """
+    Tira varias da caixa de entrada numa conexao so.
+
+    A mesma regra de `arquivar`: copia para a pasta de arquivo e so entao
+    tira da caixa; sem pasta de arquivo no servidor, so marca como lida.
+    Nada e apagado sem antes existir a copia.
+    """
+    lista = _uids_validos(uids)
+    if not lista:
+        return {"arquivadas": 0, "so_lidas": 0}
+    con = _abrir_imap(conta, senha)
+    try:
+        con.select("INBOX")
+        con.uid("STORE", ",".join(lista), "+FLAGS", "(\\Seen)")
+        destino = ""
+        for pasta in ("Archive", "Arquivo", "[Gmail]/Todos os e-mails", "[Gmail]/All Mail"):
+            try:
+                estado, _ = con.uid("COPY", lista[0], f'"{pasta}"')
+            except Exception:
+                continue
+            if estado == "OK":
+                destino = pasta
+                break
+        if not destino:
+            return {"arquivadas": 0, "so_lidas": len(lista)}
+
+        movidas = [lista[0]]
+        for uid in lista[1:]:
+            try:
+                estado, _ = con.uid("COPY", uid, f'"{destino}"')
+            except Exception:
+                continue
+            if estado == "OK":
+                movidas.append(uid)
+        con.uid("STORE", ",".join(movidas), "+FLAGS", "(\\Deleted)")
+        con.expunge()
+        return {"arquivadas": len(movidas), "so_lidas": len(lista) - len(movidas)}
+    finally:
+        try:
+            con.logout()
+        except Exception:
+            pass
+
+
 # -------------------------------------------------------------- enviar
 
 
@@ -794,9 +959,11 @@ def _limpar_rascunho(texto: str) -> str:
     while linhas and not linhas[0].strip():
         linhas.pop(0)
 
-    # Corta a partir de um tracejado de assinatura, se o modelo puser um.
+    # Corta a partir de um tracejado de assinatura, ou de onde o modelo
+    # comeca a repetir o proprio pedido ("Pedido: ...") ou o contexto.
     for i, linha in enumerate(linhas):
-        if re.fullmatch(r"\s*-{2,}\s*", linha):
+        if (re.fullmatch(r"\s*-{2,}\s*", linha)
+                or re.match(r"^\s*(pedido|texto atual do e-mail|instru[cç][aã]o)\s*:", linha, re.I)):
             linhas = linhas[:i]
             break
 
@@ -804,6 +971,215 @@ def _limpar_rascunho(texto: str) -> str:
     limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
     limpo = re.sub(r"^\s*[*-]\s+", "", limpo, flags=re.M)
     return limpo
+
+
+# ------------------------------------------------ reescrever no Escrever
+
+# Os atalhos do "Pedir aqui" viram pedidos com palavras exatas: modelo pequeno
+# segue melhor "reescreva mais formal" do que um rotulo de botao.
+PEDIDOS_PRONTOS = {
+    "formal": "Reescreva o e-mail em tom mais formal, como um advogado escreve a um cliente ou a outro escritório. Mantenha tudo o que o texto diz.",
+    "resumir": "Reescreva o e-mail mais curto, com as mesmas informações, sem perder nome, data, valor ou pedido que estejam nele.",
+}
+
+SISTEMA_EMAIL = """Voce ajuda um advogado brasileiro a escrever um e-mail. Responda
+em portugues do Brasil.
+
+Devolva APENAS o corpo do e-mail, pronto para enviar: sem assunto, sem
+explicar o que mudou, sem aspas em volta, sem marcacao, sem asteriscos.
+
+Nunca invente nome, data, valor, prazo, numero de processo ou promessa que nao
+estejam no texto ou no pedido. Se faltar informacao, deixe a lacuna entre
+colchetes, por exemplo [DATA].
+
+Nao escreva assinatura nem despedida com nome: o programa acrescenta a
+assinatura da conta.
+
+Voce NAO conhece a tela deste programa. Nunca diga onde clicar."""
+
+
+def reescrever_email(cliente, pedido: str, assunto: str = "", corpo: str = "") -> str:
+    """
+    O corpo do e-mail reescrito pelo modelo, a pedido.
+
+    Volta como sugestao: a tela mostra, e so fica no e-mail se a pessoa
+    mantiver. Nada sai daqui sem passar pelo Enviar de sempre.
+    """
+    instrucao = PEDIDOS_PRONTOS.get(pedido, pedido).strip()
+    if not instrucao:
+        raise ValueError("diga o que mudar no e-mail")
+    if pedido in PEDIDOS_PRONTOS and not corpo.strip():
+        raise ValueError("escreva o texto do e-mail antes - não há o que reescrever")
+    contexto = (f"Assunto: {assunto.strip() or '(sem assunto)'}\n\n"
+                f"Texto atual do e-mail:\n{corpo.strip()[:4000] or '(vazio)'}")
+    resposta = cliente.ask(f"Pedido: {instrucao}", contexto, sistema=SISTEMA_EMAIL)
+    limpo = _limpar_rascunho(resposta)
+    if not limpo:
+        raise ValueError("o modelo devolveu um texto vazio - tente de novo")
+    return limpo
+
+
+# ------------------------------------------------ resumo da caixa
+
+# O modelo so ve o que a lista ja tem: remetente, assunto, data e as marcas do
+# servidor. O corpo das mensagens continua no servidor - e a promessa da tela.
+RESUMO_MAX_MENSAGENS = 30
+
+INSTRUCAO_RESUMO_CAIXA = """Abaixo esta a lista da caixa de entrada de um
+advogado: so remetente, assunto e marcas. Voce NAO leu o texto das mensagens.
+
+Em duas ou tres frases curtas, em portugues do Brasil, diga o que parece pedir
+atencao primeiro e por que, citando remetente e assunto. Nao invente o
+conteudo das mensagens, nao invente prazo, nao de conselho juridico. Sem
+listas, sem marcacao, sem titulo."""
+
+
+def _quem(m: dict) -> str:
+    return (m.get("de_cadastro") or m.get("de_nome") or m.get("de_email") or "?").strip()
+
+
+def pede_resposta(m: dict) -> bool:
+    """A mesma regra da tela: nao respondida e (nao lida ou com prazo)."""
+    return not m.get("respondido") and (not m.get("lido") or bool(m.get("prazo")))
+
+
+def resumo_por_regra(mensagens: list[dict]) -> dict:
+    """
+    O resumo que sai na hora, sem modelo: contagem, quem mais escreveu e os
+    prazos achados no assunto. Tudo o que diz esta nos cabecalhos.
+    """
+    total = len(mensagens)
+    pedem = [m for m in mensagens if pede_resposta(m)]
+    nao_lidas = sum(1 for m in mensagens if not m.get("lido"))
+    com_anexo = sum(1 for m in mensagens if m.get("tem_anexo"))
+    clientes = sum(1 for m in mensagens if m.get("de_cadastro"))
+
+    contagem: dict[str, int] = {}
+    for m in mensagens:
+        contagem[_quem(m)] = contagem.get(_quem(m), 0) + 1
+    remetentes = sorted(contagem.items(), key=lambda x: (-x[1], x[0].lower()))[:3]
+
+    prazos = sorted(
+        ({"prazo": m["prazo"], "assunto": m.get("assunto", ""), "de": _quem(m), "uid": m.get("uid", "")}
+         for m in mensagens if m.get("prazo") and not m.get("respondido")),
+        key=lambda p: p["prazo"],
+    )[:3]
+    return {
+        "total": total,
+        "pedem_resposta": len(pedem),
+        "nao_lidas": nao_lidas,
+        "com_anexo": com_anexo,
+        "de_clientes": clientes,
+        "remetentes": [{"nome": n, "quantas": q} for n, q in remetentes],
+        "prazos": prazos,
+    }
+
+
+def resumir_caixa(cliente, mensagens: list[dict]) -> str:
+    """Duas ou tres frases do modelo, a partir so dos cabecalhos."""
+    linhas = []
+    for m in mensagens[:RESUMO_MAX_MENSAGENS]:
+        marcas = []
+        if not m.get("lido"):
+            marcas.append("não lida")
+        if m.get("respondido"):
+            marcas.append("respondida")
+        if m.get("prazo"):
+            marcas.append(f"prazo {m['prazo']}")
+        if m.get("de_cadastro"):
+            marcas.append("cliente")
+        if m.get("tem_anexo"):
+            marcas.append("com anexo")
+        linhas.append(f"- De: {_quem(m)} | Assunto: {m.get('assunto', '')[:140]}"
+                      + (f" | {', '.join(marcas)}" if marcas else ""))
+    if not linhas:
+        return ""
+    resposta = cliente.ask(INSTRUCAO_RESUMO_CAIXA, "\n".join(linhas), sistema=INSTRUCAO_RESUMO_CAIXA)
+    limpo = re.sub(r"^\s*(resumo|em resumo)[^\n:]{0,30}:\s*", "", (resposta or "").strip(), flags=re.I)
+    limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
+    return limpo.strip()
+
+
+def chave_do_resumo(conta_id: str, mensagens: list[dict]) -> str:
+    """
+    A chave do cache: a conta e as mensagens que o modelo leria.
+
+    So os UIDs, sem as marcas. Abrir uma mensagem muda "lida" e nao pode
+    custar mais um minuto de modelo; chegar mensagem nova, sim.
+    """
+    import hashlib
+
+    uids = ",".join(str(m.get("uid", "")) for m in mensagens[:RESUMO_MAX_MENSAGENS])
+    return hashlib.sha1(f"{conta_id}|{uids}".encode("utf-8")).hexdigest()[:16]
+
+
+class ResumosDaCaixa:
+    """
+    O resumo do modelo em segundo plano, um de cada vez, guardado por chave.
+
+    A tela nunca espera por ele: pede, recebe "resumindo" e pergunta de novo
+    depois. Um pedido novo enquanto outro roda fica na fila - so o ultimo,
+    porque o de antes ja nao e a caixa que a pessoa esta vendo.
+    """
+
+    LIMITE = 30
+
+    def __init__(self) -> None:
+        import threading
+        from collections import OrderedDict
+
+        self._trava = threading.Lock()
+        self._feitos: OrderedDict[str, dict] = OrderedDict()
+        self._rodando = ""
+        self._proximo: tuple[str, list[dict], object] | None = None
+        self.threads: list = []
+
+    def estado(self, chave: str) -> dict:
+        with self._trava:
+            if chave in self._feitos:
+                return dict(self._feitos[chave])
+            if chave == self._rodando:
+                return {"estado": "resumindo"}
+            if self._proximo and self._proximo[0] == chave:
+                return {"estado": "na_fila"}
+        return {"estado": "nenhum"}
+
+    def pedir(self, chave: str, mensagens: list[dict], cliente) -> dict:
+        import threading
+
+        with self._trava:
+            if chave in self._feitos and self._feitos[chave].get("estado") == "pronto":
+                return dict(self._feitos[chave])
+            if chave == self._rodando:
+                return {"estado": "resumindo"}
+            if self._rodando:
+                self._proximo = (chave, list(mensagens), cliente)
+                return {"estado": "na_fila"}
+            self._feitos.pop(chave, None)
+            self._rodando = chave
+        t = threading.Thread(target=self._trabalhar, args=(chave, list(mensagens), cliente), daemon=True)
+        self.threads.append(t)
+        t.start()
+        return {"estado": "resumindo"}
+
+    def _trabalhar(self, chave: str, mensagens: list[dict], cliente) -> None:
+        from datetime import datetime as _dt
+
+        try:
+            texto = resumir_caixa(cliente, mensagens)
+            feito = {"estado": "pronto", "texto": texto, "quando": _dt.now().isoformat(timespec="seconds")}
+            if not texto:
+                feito = {"estado": "falhou", "erro": "o modelo devolveu um texto vazio"}
+        except Exception as exc:  # o erro vai para a tela, nao derruba nada
+            feito = {"estado": "falhou", "erro": str(exc)}
+        with self._trava:
+            self._feitos[chave] = feito
+            while len(self._feitos) > self.LIMITE:
+                self._feitos.popitem(last=False)
+            self._rodando = ""
+            proximo, self._proximo = self._proximo, None
+        if proximo:
+            self.pedir(*proximo)
 
 
 # ------------------------------------------------------- registro de envios

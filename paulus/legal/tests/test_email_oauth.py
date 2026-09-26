@@ -527,7 +527,14 @@ def test_entrada_completa(token: TokenFalso) -> None:
     andamento = e.iniciar()
     q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(andamento["url"]).query))
     checar(q["redirect_uri"].startswith("http://localhost:"), "Microsoft volta para http://localhost:<porta>")
+    reabertas = []
+    e.abrir = lambda url: reabertas.append(url) or True
+    de_novo = e.reabrir()
+    checar(reabertas == [andamento["url"]] and de_novo["fase"] == "aguardando" and de_novo["id"] == andamento["id"],
+           "reabrir abre a mesma pagina, sem comecar outro login")
     e.cancelar()
+    e.reabrir()
+    checar(len(reabertas) == 1, "depois de cancelado, reabrir nao abre nada")
     e.esperar(3)
     checar(e.fase == "cancelado", "Cancelar encerra o login")
 
