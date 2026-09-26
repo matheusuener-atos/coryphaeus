@@ -1,0 +1,682 @@
+{
+ "_sobre": "Mapa do programa para a conversa responder 'como faço X' sem modelo. Montado em 26/09/2026 lendo o código de cada tela; cada tarefa aponta o arquivo:linha onde o rótulo foi conferido. tests/test_programa.py confere que os rótulos citados nos passos existem no frontend. Tela nova ou botão renomeado: atualize aqui.",
+ "telas": [
+  {"destino": "conversa",
+   "apelidos": ["assistente", "conversa", "chat", "nova conversa"],
+   "faz": [
+    "Responde perguntas sobre os documentos do Acervo, citando os trechos de origem.",
+    "Anexa documentos pelo botão Anexar (abas Acervo e Meu computador), arrastando arquivos ou digitando / para escolher um documento.",
+    "Busca uma palavra nos documentos pelo botão Buscar, sem passar pelo assistente.",
+    "Entende pedidos para anotar compromisso, criar tarefa, abrir serviço, cadastrar cliente e abrir documento, e mostra um cartão para você conferir antes de gravar.",
+    "Responde sobre o próprio programa: o que tem na agenda, as tarefas atrasadas, o mês do Financeiro, a fila de Aprovações e como fazer as coisas em cada tela.",
+    "Exporta a conversa em Markdown, texto ou Word pelo botão Exportar."
+   ],
+   "nao_faz": [
+    "Não emite nota fiscal: o cartão da NFS-e só confere os dados.",
+    "Não grava nada só por entender a frase: tudo passa pelo cartão de confirmação."
+   ],
+   "tarefas": [
+    {"pergunta": "Como faço uma pergunta sobre um contrato específico?", "palavras": ["perguntar sobre", "anexar", "anexo", "pergunta sobre um documento"],
+     "passos": ["Clique em Nova conversa.", "Clique em Anexar e marque o documento na aba Acervo, ou na aba Meu computador.", "O documento aparece como pílula acima do campo. Escreva a pergunta e envie."],
+     "evidencia": "frontend/js/03-assistente.js:32"},
+    {"pergunta": "Como anoto uma audiência na agenda pela conversa?", "palavras": ["anotar pela conversa", "anotar na agenda", "marcar pela conversa"],
+     "passos": ["Escreva na conversa algo como “marque uma audiência dia 20/10 às 14h com lembrete 30 minutos antes”.", "Confira título, data, hora e aviso no cartão “vou anotar na agenda”.", "Clique em Anotar na agenda."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:933"},
+    {"pergunta": "Como crio uma tarefa escrevendo na conversa?", "palavras": ["tarefa pela conversa", "criar tarefa pela conversa"],
+     "passos": ["Escreva, por exemplo, “crie uma tarefa para revisar o contrato até sexta”.", "Confira o título e o prazo no cartão “vou criar a tarefa”.", "Clique em Criar a tarefa."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:933"},
+    {"pergunta": "Como cadastro um cliente pela conversa?", "palavras": ["cadastrar pela conversa", "cliente pela conversa"],
+     "passos": ["Escreva, por exemplo, “cadastre o cliente João Souza, CPF 529.982.247-25, joao@x.com”.", "Confira ou complete os campos no cartão que aparece.", "Clique em Cadastrar."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:1150"},
+    {"pergunta": "Como abro um documento pelo nome na conversa?", "palavras": ["abrir documento", "abrir arquivo", "mostrar documento", "exibir documento"],
+     "passos": ["Escreva “abra” seguido do nome do arquivo, por exemplo “abra a procuração ABC”.", "No cartão “vou abrir este arquivo”, escolha Mostrar aqui, Abrir editor ou Abrir no Windows."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:887"},
+    {"pergunta": "Como acho uma palavra nos documentos sem esperar o assistente?", "palavras": ["buscar palavra", "procurar palavra", "achar palavra", "busca rapida"],
+     "passos": ["Escreva a palavra no campo da conversa.", "Clique em Buscar. Os trechos que têm a palavra aparecem com o nome do documento."],
+     "evidencia": "frontend/js/03-assistente.js:265"},
+    {"pergunta": "Como começo uma nova conversa?", "palavras": ["nova conversa", "novo chat", "comecar conversa", "ctrl n"],
+     "passos": ["Clique em Nova conversa, no alto do menu à esquerda.", "Ou aperte Ctrl+N em qualquer tela."],
+     "evidencia": "frontend/js/02-casca.js:386"},
+    {"pergunta": "Como exporto ou renomeio uma conversa?", "palavras": ["exportar conversa", "renomear conversa", "salvar conversa", "baixar conversa"],
+     "passos": ["Com a conversa aberta, clique em Exportar no topo e escolha onde salvar (Markdown, texto ou Word).", "Para renomear, clique no título da conversa."],
+     "evidencia": "frontend/js/02-casca.js:485"}
+   ]},
+
+  {"destino": "calendario",
+   "apelidos": ["agenda", "calendario", "calendário", "compromissos"],
+   "faz": [
+    "Mostra o mês com compromissos, tarefas e datas lidas em documentos, cada tipo com um ponto de cor.",
+    "Clicar num dia abre tudo o que há nele, com Adicionar compromisso e Adicionar tarefa.",
+    "O compromisso tem Título, Data, Hora, Duração, Avisar antes, Com quem, Onde e Anotação.",
+    "Ctrl+2 abre a Agenda de qualquer tela."
+   ],
+   "nao_faz": [
+    "Agendamento pedido por terceiros por link ainda não existe.",
+    "Não cria a reunião online sozinha: Sala no Meet e Sala no Teams só abrem a página do serviço."
+   ],
+   "tarefas": [
+    {"pergunta": "Como marco uma audiência ou reunião?", "palavras": ["marcar", "agendar", "audiencia", "reuniao", "compromisso", "novo compromisso"],
+     "passos": ["Abra Agenda no menu à esquerda.", "Clique em Adicionar compromisso (ou dê duplo clique no dia).", "Preencha Título, Data, Hora, Duração, Avisar antes, Com quem e Onde.", "Clique em Marcar."],
+     "evidencia": "frontend/js/07-agenda.js:187"},
+    {"pergunta": "Como vejo o que tenho num dia?", "palavras": ["ver o dia", "o que tenho no dia", "compromissos do dia"],
+     "passos": ["Abra Agenda e fique na visão Mês.", "Clique no dia: abre uma janela com os compromissos e as tarefas em ordem de hora."],
+     "evidencia": "frontend/js/07-agenda.js:735"},
+    {"pergunta": "Como edito ou excluo um compromisso?", "palavras": ["editar compromisso", "alterar compromisso", "excluir compromisso", "apagar compromisso", "remarcar", "desmarcar"],
+     "passos": ["Na Agenda, clique no compromisso.", "Na janela do compromisso, clique em Editar.", "Altere e clique em Salvar, ou clique em Excluir e confirme."],
+     "evidencia": "frontend/js/07-agenda.js:894"},
+    {"pergunta": "Como coloco um aviso antes do compromisso?", "palavras": ["aviso antes", "avisar antes", "alerta", "lembrete do compromisso"],
+     "passos": ["Abra o cadastro do compromisso (Adicionar compromisso ou Editar).", "No campo Avisar antes, escolha quanto tempo antes.", "Clique em Marcar (ou Salvar)."],
+     "evidencia": "frontend/js/07-agenda.js:770"}
+   ]},
+
+  {"destino": "agendamento",
+   "apelidos": ["agendamento", "horarios livres", "disponibilidade", "semana"],
+   "faz": [
+    "É a visão Semana da Agenda: os sete dias com as horas das 7h às 20h.",
+    "No cadastro do compromisso, “Cabe nestes horários” sugere horários livres do dia.",
+    "Para compromisso online, oferece Sala no Meet, Sala no Teams, Convite com link e Copiar convite."
+   ],
+   "nao_faz": [
+    "Não cria a reunião no Meet nem no Teams: os botões só abrem a página de nova reunião.",
+    "O convite por e-mail não sai sozinho: abre o e-mail para você revisar."
+   ],
+   "tarefas": [
+    {"pergunta": "Como vejo os horários livres para marcar uma reunião?", "palavras": ["horario livre", "horarios livres", "horario disponivel", "disponibilidade", "vago", "cabe"],
+     "passos": ["Abra Agenda e clique em Adicionar compromisso.", "Escolha a Data e a Duração.", "Em “Cabe nestes horários”, clique num dos horários sugeridos.", "Clique em Marcar."],
+     "evidencia": "frontend/js/07-agenda.js:888"},
+    {"pergunta": "Como mando o convite da reunião para o cliente?", "palavras": ["convite", "mandar convite", "enviar convite", "convite por email"],
+     "passos": ["No cadastro do compromisso, ligue “Enviar convite por e-mail ao salvar” e clique em Marcar.", "Ou, com o compromisso aberto, clique em Convite com link, cole o link da reunião e clique em Montar convite.", "Termine o envio na tela de escrever e-mail que abrir."],
+     "evidencia": "frontend/js/07-agenda.js:890"},
+    {"pergunta": "Como crio a sala da videoconferência?", "palavras": ["meet", "teams", "sala", "videoconferencia", "reuniao online", "link da reuniao"],
+     "passos": ["Marque o compromisso com Onde em “Reunião online”.", "Clique no compromisso para abri-lo.", "Clique em Sala no Meet ou Sala no Teams para abrir a página de nova reunião."],
+     "evidencia": "frontend/js/07-agenda.js:776"}
+   ]},
+
+  {"destino": "tarefas",
+   "apelidos": ["tarefas", "to-do", "todo", "lista de tarefas", "meu dia"],
+   "faz": [
+    "É a visão To-do da Agenda, com os filtros Meu dia, Importante, Planejadas e Concluídas, e Minhas listas.",
+    "Meu dia mostra os compromissos de hoje, as tarefas com prazo até hoje (inclusive as atrasadas) e as que você trouxe para o dia.",
+    "Prazos lidos nos documentos sugere tarefas a partir de datas encontradas nos contratos."
+   ],
+   "nao_faz": [
+    "“Atribuídas a mim” ainda não funciona: depende de equipe em Cadastros.",
+    "Nova lista não cria uma lista vazia: a lista passa a existir com a primeira tarefa nela."
+   ],
+   "tarefas": [
+    {"pergunta": "Como crio uma tarefa?", "palavras": ["criar tarefa", "nova tarefa", "adicionar tarefa", "tarefa"],
+     "passos": ["Abra Agenda no menu à esquerda.", "Clique em Adicionar tarefa.", "Preencha Título e, se quiser, Prazo, Hora, Lista, Repetir, Cliente e Lembrar-me.", "Clique em Adicionar."],
+     "evidencia": "frontend/js/07-agenda.js:188"},
+    {"pergunta": "Onde vejo as tarefas atrasadas?", "palavras": ["tarefas atrasadas", "tarefa atrasada", "vencidas", "venceu"],
+     "passos": ["Abra Agenda e clique em To-do no topo.", "Clique em Meu dia: as tarefas vencidas aparecem ali com “atrasada N dias”.", "Ou pergunte aqui: “quais tarefas estão atrasadas?”."],
+     "evidencia": "src/tarefas.py:75"},
+    {"pergunta": "Como concluo uma tarefa?", "palavras": ["concluir", "concluida", "terminar tarefa", "finalizar tarefa", "marcar como feita"],
+     "passos": ["Em Agenda › To-do, clique no círculo à esquerda da tarefa.", "Para várias, selecione-as e clique em Concluir na barra de seleção."],
+     "evidencia": "frontend/js/07-agenda.js:638"},
+    {"pergunta": "Como marco uma tarefa como importante?", "palavras": ["importante", "estrela", "prioridade", "urgente"],
+     "passos": ["Em Agenda › To-do, clique na estrela da tarefa.", "Veja todas as marcadas no filtro Importante."],
+     "evidencia": "frontend/js/07-agenda.js:661"},
+    {"pergunta": "Como divido uma tarefa em etapas ou ligo um documento a ela?", "palavras": ["etapa", "etapas", "ligar documento", "vincular documento"],
+     "passos": ["Em Agenda › To-do, clique na tarefa para abrir a ficha.", "Clique em Próxima etapa, escreva e clique em Acrescentar.", "Clique em Ligar documento e escolha no Acervo ou em Meu computador."],
+     "evidencia": "frontend/js/07-agenda.js:919"},
+    {"pergunta": "Como transformo os prazos dos contratos em tarefas?", "palavras": ["prazos dos contratos", "prazos lidos", "datas dos documentos", "prazos dos documentos"],
+     "passos": ["Em Agenda › To-do, clique em Prazos lidos nos documentos.", "Clique em Criar ao lado de cada data que quiser, ou em Criar todas."],
+     "evidencia": "frontend/js/07-agenda.js:1649"},
+    {"pergunta": "Como faço uma tarefa se repetir ou me lembrar numa hora?", "palavras": ["repetir", "recorrente", "lembrar-me", "lembrar numa hora"],
+     "passos": ["Abra a tarefa e clique em Editar (ou use Adicionar tarefa).", "Escolha a opção em Repetir e a hora em Lembrar-me.", "Clique em Salvar."],
+     "evidencia": "frontend/js/07-agenda.js:1000"}
+   ]},
+
+  {"destino": "foco",
+   "apelidos": ["foco", "bem-estar", "foco e bem-estar", "pomodoro"],
+   "faz": [
+    "Ciclo de foco com relógio: Começar, Ir para a pausa, Reiniciar, Parar e Novo ciclo.",
+    "Lembretes de hoje (beber água, levantar...), com Feito ou Bebi e um interruptor para cada um.",
+    "Ligar acompanhamento mede só o tempo ativo, nunca o que é digitado.",
+    "Ctrl+Shift+F começa o ciclo, ou vai para a pausa, de qualquer tela."
+   ],
+   "nao_faz": [
+    "Não segura e-mail, WhatsApp nem Aprovações durante o foco.",
+    "Sem o acompanhamento ligado, a semana fica vazia e o parecer não opina."
+   ],
+   "tarefas": [
+    {"pergunta": "Como começo um ciclo de foco?", "palavras": ["ciclo", "pomodoro", "concentrar", "timer", "comecar foco"],
+     "passos": ["Abra Foco e bem-estar no menu à esquerda.", "Escolha os minutos em Foco e Pausa e, se quiser, uma Tarefa.", "Clique em Começar (ou use Ctrl+Shift+F)."],
+     "evidencia": "frontend/js/21-foco.js:180"},
+    {"pergunta": "Como crio ou mudo um lembrete de bem-estar?", "palavras": ["lembrete de agua", "beber agua", "ajustar lembretes", "lembrete de bem-estar"],
+     "passos": ["Em Foco e bem-estar, clique em Ajustar lembretes.", "Clique em Novo lembrete, ou em Editar num lembrete existente.", "Preencha O que lembrar, A cada e Meta por dia, e clique em Guardar."],
+     "evidencia": "frontend/js/21-foco.js:233"},
+    {"pergunta": "Como vejo meu tempo de foco da semana?", "palavras": ["tempo de foco", "foco na semana", "habitos", "parecer da semana", "acompanhamento"],
+     "passos": ["Em Foco e bem-estar, clique em Ligar acompanhamento para começar a medir.", "Clique em Semana no topo da tela.", "Veja Foco na semana, Hábitos e Parecer da semana."],
+     "evidencia": "frontend/js/21-foco.js:81"}
+   ]},
+
+  {"destino": "biblioteca",
+   "apelidos": ["acervo", "biblioteca", "meus documentos", "documentos lidos"],
+   "faz": [
+    "Lista os documentos das pastas lidas, agrupados por pasta, com os filtros Todos, Recentes, Fixados e Sem análise.",
+    "A busca procura no nome, na pasta e no texto dos documentos.",
+    "Clicar numa linha abre a ficha, com tipo, cliente, data, valor, trechos lidos e datas encontradas.",
+    "Tem três visões no topo: Documentos, Organizar e Prazos.",
+    "Mover, exportar e apagar em lote viram pedido em Aprovações. Nada acontece antes do sim."
+   ],
+   "nao_faz": [
+    "Incluir pasta não lê a pasta onde ela está: abre Organizar pastas, e os documentos entram quando são movidos ou copiados para a pasta de destino.",
+    "A visão Prazos não calcula prazo: mostra a data que o modelo leu no documento, nos próximos 90 dias."
+   ],
+   "tarefas": [
+    {"pergunta": "Como adiciono uma pasta ou documentos ao Acervo?", "palavras": ["incluir pasta", "adicionar pasta", "adicionar documentos", "importar pasta", "colocar documentos"],
+     "passos": ["Abra Acervo no menu à esquerda.", "Clique em Incluir pasta (com o Acervo vazio, o botão se chama Escolher pasta).", "Em Organizar pastas, marque as pastas, clique em Procurar documentos e depois em Ler e classificar.", "Confira e envie o plano: os documentos entram quando são movidos ou copiados para a pasta de destino, depois do sim em Aprovações."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:141"},
+    {"pergunta": "Como vejo o que o programa já leu de um documento?", "palavras": ["o que foi lido", "ja leu", "sem analise", "ficha do documento"],
+     "passos": ["Abra Acervo no menu à esquerda.", "Clique na linha do documento para abrir a ficha logo abaixo.", "Para ver o que ainda não foi analisado, clique no filtro Sem análise."],
+     "evidencia": "frontend/js/25-acervo-editorial.js:94"},
+    {"pergunta": "Como faço o programa ler (tomar vista de) um documento?", "palavras": ["tomar vista", "ler documento", "analisar documento", "reler", "classificar documento"],
+     "passos": ["Abra Acervo e clique na linha do documento.", "Na ficha, clique em Tomar vista.", "Para vários, marque as caixinhas e use Tomar vista de novo na barra de seleção."],
+     "evidencia": "frontend/js/25-acervo-editorial.js:111"},
+    {"pergunta": "Como procuro um documento no Acervo?", "palavras": ["procurar documento", "achar documento", "pesquisar acervo", "buscar no acervo"],
+     "passos": ["Abra Acervo no menu à esquerda.", "Digite no campo de busca no topo: ele procura no nome, na pasta e no texto.", "Aperte Esc para limpar."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:101"},
+    {"pergunta": "Como vejo e confirmo os prazos lidos nos documentos?", "palavras": ["prazos lidos", "confirmar prazo", "levar para a agenda", "prazos do acervo"],
+     "passos": ["Abra Acervo e clique em Prazos, no topo.", "Em cada linha, clique em Confirmar para criar a tarefa na Agenda, ou em Ignorar.", "Para todos de uma vez, clique em Levar todos para a Agenda."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:713"},
+    {"pergunta": "Como movo, exporto ou apago documentos do Acervo?", "palavras": ["mover documento", "exportar documento", "apagar documento", "excluir documento", "remover do acervo"],
+     "passos": ["Abra Acervo e marque as caixinhas dos documentos.", "Na barra de seleção, clique em Mover para pasta, Exportar ou Apagar do acervo.", "O pedido vai para Aprovações. Confirme lá para que aconteça."],
+     "evidencia": "frontend/js/12-telas-e-acervo.js:588"}
+   ]},
+
+  {"destino": "organizar",
+   "apelidos": ["organizar", "organizar pastas", "organizador", "arrumar pastas"],
+   "faz": [
+    "Abre pelo botão Organizar no topo do Acervo, pela pílula da tela inicial ou por Incluir pasta.",
+    "Trabalha em quatro fases: Escolher, Ler, Conferir, Mover.",
+    "Move ou copia para a pasta de destino, sem apagar nem sobrescrever nada, e dá para desfazer."
+   ],
+   "nao_faz": [
+    "Não move nada antes do sim em Aprovações, a menos que Mover arquivos sem pedir esteja ligado em Configurações.",
+    "Cliente e tipo são palpites do modelo: a tela pede que você confira."
+   ],
+   "tarefas": [
+    {"pergunta": "Como organizo minhas pastas?", "palavras": ["organizar pastas", "arrumar pastas", "organizar documentos", "organizo"],
+     "passos": ["Abra Acervo e clique em Organizar, no topo.", "Marque as pastas na árvore e clique em Procurar documentos.", "Escolha o que ler e clique em Ler e classificar.", "Confira a classificação e clique em Enviar para aprovação."],
+     "evidencia": "frontend/js/14-organizador.js:70"},
+    {"pergunta": "Como escolho entre mover ou copiar e para qual pasta?", "palavras": ["mover ou copiar", "pasta de destino", "estrutura das pastas"],
+     "passos": ["No painel das pastas, escolha em “O que fazer com os arquivos”: Mover ou Copiar.", "Escolha a Estrutura das pastas.", "Em Pasta de destino, digite o caminho ou clique em Trocar."],
+     "evidencia": "frontend/js/14-organizador.js:618"},
+    {"pergunta": "Por que os arquivos ainda não foram movidos?", "palavras": ["nao moveu", "nao foram movidos", "ainda nao moveu", "confirmar organizacao"],
+     "passos": ["Por padrão, o plano vai para Aprovações e nada se move antes do sim.", "Clique em Confirmar em Aprovações e aprove o pedido."],
+     "evidencia": "frontend/js/14-organizador.js:773"},
+    {"pergunta": "Como desfaço uma organização?", "palavras": ["desfazer organizacao", "reverter organizacao", "voltar arquivos", "devolver arquivos"],
+     "passos": ["Na tela final da organização, clique em Desfazer tudo.", "Confirme em Devolver (arquivos movidos) ou em Tirar as cópias (arquivos copiados)."],
+     "evidencia": "frontend/js/14-organizador.js:798"}
+   ]},
+
+  {"destino": "editor",
+   "apelidos": ["editor", "editor de documentos", "editor de texto", "pre-visualizacao"],
+   "faz": [
+    "No topo ficam as visões Editor, Planilha e Pré-visualização.",
+    "Cria documentos, abre cópias editáveis do Acervo e salva sozinho, gerando versões.",
+    "O assistente escreve dentro do documento e marca o que mudou; você escolhe Manter ou Descartar.",
+    "Exporta PDF e DOCX e imprime pela janela própria do programa."
+   ],
+   "nao_faz": [
+    "Jurisprudência e Súmulas ainda não têm base instalada.",
+    "Conferir prazos não confere prazos nem datas: confere lacunas, CPF/CNPJ, valor sem número e cadastro.",
+    "PDF do Acervo abre só para leitura; Word ou texto vira uma cópia editável, e o original não é alterado."
+   ],
+   "tarefas": [
+    {"pergunta": "Como crio um novo documento?", "palavras": ["novo documento", "criar documento", "redigir", "escrever documento", "escrever uma peca"],
+     "passos": ["Abra Editor de documentos no menu à esquerda.", "Clique em Novo documento.", "Dê um nome e clique em Criar."],
+     "evidencia": "frontend/js/19-documentos.js:343"},
+    {"pergunta": "Como abro um documento do Acervo para editar?", "palavras": ["editar documento", "abrir do acervo", "editar word", "editar copia"],
+     "passos": ["No Editor de documentos, clique em Abrir do Acervo.", "Escolha o documento e clique em Editar cópia (um PDF aparece como Ler, só leitura).", "Com um PDF aberto, clique em Abrir para editar para criar uma cópia editável."],
+     "evidencia": "frontend/js/19-documentos.js:727"},
+    {"pergunta": "Como peço ao assistente para alterar o texto?", "palavras": ["alterar o texto", "reescrever", "revisar redacao", "mais formal", "assistente no documento"],
+     "passos": ["Com o documento aberto, selecione o trecho se o pedido for só para ele.", "Escreva o pedido no campo do painel e envie.", "A alteração aparece marcada: clique em Manter ou Descartar."],
+     "evidencia": "frontend/js/19-documentos.js:1591"},
+    {"pergunta": "Como vejo as versões anteriores ou volto a uma delas?", "palavras": ["versoes", "versao anterior", "voltar versao", "historico do documento", "comparar versoes"],
+     "passos": ["Com o documento aberto, clique em Histórico.", "Clique em Comparar com a atual para ver o que mudou.", "Clique em Voltar para esta e confirme: isso cria uma versão nova, e nenhuma se perde."],
+     "evidencia": "frontend/js/19-documentos.js:1690"},
+    {"pergunta": "Como confiro o documento antes de enviar?", "palavras": ["conferir documento", "conferencia", "revisar antes de enviar", "lacuna"],
+     "passos": ["Com o documento aberto, clique em Pré-visualização no topo.", "Leia o bloco de conferência: lacuna de modelo, CPF/CNPJ com dígito errado, valor sem número e diferença em relação ao cadastro.", "Clique em Corrigir no editor, ou em Sair assim mesmo."],
+     "evidencia": "frontend/js/19-documentos.js:1810"},
+    {"pergunta": "Como exporto o documento em PDF ou Word?", "palavras": ["exportar pdf", "exportar documento", "docx", "word", "pdf com senha"],
+     "passos": ["No editor, clique em Exportar PDF.", "Para Word, abra Pré-visualização e clique em Baixar DOCX.", "Para proteger o PDF, ligue a senha na Pré-visualização antes de clicar em Baixar PDF."],
+     "evidencia": "frontend/js/19-documentos.js:1796"},
+    {"pergunta": "Como imprimo um documento?", "palavras": ["imprimir", "impressao", "impressora", "frente e verso"],
+     "passos": ["Com o documento aberto no editor, clique em Imprimir.", "Escolha impressora, cópias, páginas, cor e frente e verso.", "Clique em Imprimir. Para a janela do sistema, clique em Usar a janela do Windows."],
+     "evidencia": "frontend/js/28-imprimir.js:36"},
+    {"pergunta": "Como coloco papel timbrado, rodapé e número de página no documento?", "palavras": ["cabecalho do documento", "rodape", "numeracao", "numero de pagina", "editar a folha"],
+     "passos": ["Com o documento aberto, clique em Editar a folha.", "Em Cabeçalho, escolha Do escritório, Escrever ou Nenhum.", "Em Rodapé, escolha e ajuste a numeração.", "Clique em Concluir."],
+     "evidencia": "frontend/js/19-documentos.js:1300"}
+   ]},
+
+  {"destino": "planilha",
+   "apelidos": ["planilha", "planilhas", "excel"],
+   "faz": [
+    "Fica dentro do Editor de documentos, no botão Planilha do topo.",
+    "Aceita fórmulas em português (ponto e vírgula separa argumentos, vírgula é o decimal).",
+    "O assistente escreve a fórmula na barra fx; quem calcula é a planilha.",
+    "Importa CSV/XLSX, baixa XLSX, traz honorários do Financeiro ou prazos do Acervo e faz gráfico de barras."
+   ],
+   "nao_faz": ["Não tem botão de imprimir.", "O gráfico é só de barras.", "Filtrar só esconde linhas na tela e não altera o arquivo."],
+   "tarefas": [
+    {"pergunta": "Como crio uma planilha?", "palavras": ["nova planilha", "criar planilha"],
+     "passos": ["Abra Editor de documentos no menu à esquerda.", "Clique em Planilha no topo.", "Clique em Nova planilha, dê um nome e clique em Criar."],
+     "evidencia": "frontend/js/19-documentos.js:344"},
+    {"pergunta": "Como peço uma fórmula em português?", "palavras": ["formula", "calcular na planilha", "somar", "calculo"],
+     "passos": ["Clique na célula onde quer o resultado.", "Descreva o cálculo em português no campo do painel e envie.", "A fórmula aparece na barra fx: clique em Manter ou em Desfazer."],
+     "evidencia": "frontend/js/19-documentos.js:2680"},
+    {"pergunta": "Como importo um CSV ou Excel?", "palavras": ["importar csv", "importar excel", "abrir excel", "csv"],
+     "passos": ["Com a planilha aberta, clique em Importar CSV.", "Escolha um arquivo .csv, .xlsx ou .txt. Ele entra numa aba."],
+     "evidencia": "frontend/js/19-documentos.js:246"},
+    {"pergunta": "Como trago os honorários do Financeiro para a planilha?", "palavras": ["honorarios na planilha", "trazer honorarios", "importar honorarios"],
+     "passos": ["Com a planilha aberta, clique em Importar os honorários do Financeiro, no painel.", "Informe o mês (AAAA-MM) ou deixe em branco para todos, e clique em Trazer."],
+     "evidencia": "frontend/js/19-documentos.js:2110"},
+    {"pergunta": "Como faço um gráfico?", "palavras": ["grafico", "grafico de barras"],
+     "passos": ["Selecione a coluna de valores e, se quiser rótulos, a coluna de texto ao lado.", "Clique em Gráfico na barra."],
+     "evidencia": "frontend/js/19-documentos.js:2352"}
+   ]},
+
+  {"destino": "assinar",
+   "apelidos": ["assinatura", "assinar", "assinar documento", "assinatura digital"],
+   "faz": [
+    "No topo ficam as visões Assinar documento e Certificado digital.",
+    "Lista os PDFs do Acervo e aceita PDFs do computador (uma cópia sobe para o Acervo).",
+    "Você põe o selo na página, arrasta, redimensiona, replica e assina com o certificado.",
+    "Assina em lote e verifica assinaturas, gerando o Certificado de conformidade.",
+    "Por padrão, a assinatura vira pedido em Aprovações e só é feita depois do sim."
+   ],
+   "nao_faz": [
+    "A verificação não confere revogação nem a cadeia até a raiz da ICP-Brasil, porque isso exige internet.",
+    "Certificado fora da ICP-Brasil assina, mas sem validade jurídica.",
+    "Não sobrescreve o original: o arquivo assinado é criado ao lado dele."
+   ],
+   "tarefas": [
+    {"pergunta": "Como assino um PDF?", "palavras": ["assinar", "assino", "assinatura", "assinar pdf", "assinar documento", "assinar contrato"],
+     "passos": ["Abra Assinatura no menu à esquerda.", "Clique no PDF da lista (ou em Escolher PDFs para um arquivo do computador).", "Clique em Adicionar assinatura e arraste o selo para o lugar certo.", "Clique em Assinar agora e confirme com a senha em Assinar."],
+     "evidencia": "frontend/js/17-assinar.js:255"},
+    {"pergunta": "A assinatura foi para Aprovações. Como concluo?", "palavras": ["assinatura pendente", "nao assinou", "assinatura em aprovacoes", "confirmar assinatura"],
+     "passos": ["Por padrão, assinar vira um pedido em Aprovações e nada é assinado antes do sim.", "Clique em Confirmar em Aprovações e aprove o pedido.", "Depois do sim, o programa volta para o documento já assinado."],
+     "evidencia": "frontend/js/17-assinar.js:302"},
+    {"pergunta": "Como assino vários documentos de uma vez?", "palavras": ["assinar varios", "assinar em lote", "lote", "assinar todos"],
+     "passos": ["Na lista da Assinatura, use Ctrl+clique para marcar vários, ou clique em Selecionar todos.", "Clique em Assinar N documentos.", "Em cada documento, ponha o selo e clique em Próximo documento.", "No fim, assine e clique em Salvar os assinados."],
+     "evidencia": "frontend/js/17-assinar.js:116"},
+    {"pergunta": "Como verifico a assinatura de um PDF?", "palavras": ["verificar assinatura", "validar assinatura", "conferir assinatura", "conformidade", "autenticidade"],
+     "passos": ["Na lista da Assinatura, clique em “…” no PDF e escolha Verificar assinatura.", "O quadro mostra quem assinou, a autoridade certificadora, quando, e se o arquivo mudou depois.", "Clique em Certificado de conformidade para gerar o relatório."],
+     "evidencia": "frontend/js/29-verificar.js:30"},
+    {"pergunta": "Como escolho em quais páginas a assinatura entra?", "palavras": ["paginas da assinatura", "todas as paginas", "ultima pagina", "replicar"],
+     "passos": ["Com o PDF aberto, escolha no painel Só a última página, Primeira e última, Todas as páginas ou Intervalo.", "Escolha o canto da página onde a assinatura entra.", "No próprio selo, Replicar repete a assinatura em outras páginas."],
+     "evidencia": "frontend/js/17-assinar.js:279"}
+   ]},
+
+  {"destino": "certificado",
+   "apelidos": ["certificado", "certificado digital", "e-cpf", "e-cnpj", "a1", "pfx"],
+   "faz": [
+    "Fica em Assinatura, no botão Certificado digital do topo.",
+    "Instala um certificado A1 (.pfx ou .p12) ou usa um já instalado no Windows.",
+    "Mostra emissor, validade e se é da ICP-Brasil, e avisa quando vence em 30 dias.",
+    "Configura o selo de assinatura (rubrica desenhada, texto ou imagem PNG)."
+   ],
+   "nao_faz": [
+    "Não lê token A3 pelo driver do fabricante.",
+    "O certificado de teste não tem validade jurídica.",
+    "Nunca envia o arquivo nem a senha para fora da máquina."
+   ],
+   "tarefas": [
+    {"pergunta": "Como cadastro meu certificado A1?", "palavras": ["cadastrar certificado", "instalar certificado", "certificado", "a1", "pfx", "p12", "e-cpf", "e-cnpj"],
+     "passos": ["Abra Assinatura no menu e clique em Certificado digital, no topo.", "Clique em Escolher no computador (ou arraste o arquivo .pfx ou .p12).", "Digite a senha do certificado e clique em Abrir."],
+     "evidencia": "frontend/js/15-certificado.js:222"},
+    {"pergunta": "Como uso um certificado que já está instalado no Windows?", "palavras": ["certificado do windows", "certificado instalado"],
+     "passos": ["Em Assinatura › Certificado digital, clique em Usar um já instalado no Windows.", "Escolha o certificado na lista.", "Crie uma senha do PAULUS e clique em Usar este certificado."],
+     "evidencia": "frontend/js/15-certificado.js:111"},
+    {"pergunta": "Como vejo a validade do meu certificado?", "palavras": ["validade do certificado", "certificado vence", "certificado vencido", "vencimento do certificado"],
+     "passos": ["Abra Assinatura › Certificado digital.", "O cartão mostra Emissor, Válido até (com os dias que faltam) e o número de série."],
+     "evidencia": "frontend/js/15-certificado.js:240"},
+    {"pergunta": "Como personalizo o selo ou desenho minha rubrica?", "palavras": ["selo", "rubrica", "desenhar assinatura", "imagem da assinatura"],
+     "passos": ["Em Assinatura › Certificado digital, use o painel do selo de assinatura.", "Desenhe e clique em Usar no selo, ou envie um PNG, ou edite o texto.", "Escolha a posição padrão e clique em Salvar selo."],
+     "evidencia": "frontend/js/15-certificado.js:302"},
+    {"pergunta": "Como testo a assinatura sem ter certificado?", "palavras": ["certificado de teste", "testar assinatura", "sem certificado"],
+     "passos": ["Abra Assinatura › Certificado digital (a opção só aparece sem certificado instalado).", "Clique em Criar certificado de teste. A senha aparece no aviso.", "Esse certificado assina, mas não tem validade jurídica."],
+     "evidencia": "frontend/js/15-certificado.js:227"}
+   ]},
+
+  {"destino": "financeiro",
+   "apelidos": ["financeiro", "lancamentos", "lançamentos", "contas a pagar", "contas a receber", "fluxo de caixa"],
+   "faz": [
+    "Soma o mês a partir dos lançamentos: Saldo em caixa, A receber, A pagar, Em atraso e Fechamento.",
+    "Lança despesa ou recebimento em Novo lançamento, com vencimento, cliente e categoria.",
+    "Dá baixa com Registrar pagamento ou Registrar recebimento, e desfaz com Reabrir.",
+    "Confere o extrato do banco (.ofx, .csv, .txt) e só grava depois de Conferir.",
+    "Prepara a cobrança como rascunho de e-mail, que passa por Aprovações antes de sair.",
+    "Monta a folha de pagamento com quem tem vínculo em Cadastros."
+   ],
+   "nao_faz": [
+    "Não emite nota fiscal nem gera boleto: aqui fica só o registro.",
+    "Não paga nem recebe de verdade: registrar o pagamento só marca o lançamento.",
+    "Não cobra por WhatsApp: a cobrança sai só como rascunho de e-mail."
+   ],
+   "tarefas": [
+    {"pergunta": "Como lanço uma despesa?", "palavras": ["lancar despesa", "despesa", "conta a pagar", "novo lancamento", "registrar gasto", "gasto"],
+     "passos": ["Abra Financeiro no menu à esquerda.", "Clique em Novo lançamento.", "Em Tipo, escolha Despesa e preencha Descrição, Valor, Categoria e Vencimento.", "Clique em Lançar (se já pagou, preencha antes Já pago em)."],
+     "evidencia": "frontend/js/20-financeiro.js:868"},
+    {"pergunta": "Como lanço um recebimento de honorários?", "palavras": ["lancar recebimento", "recebimento", "honorarios", "conta a receber", "receita"],
+     "passos": ["Abra Financeiro e clique em Novo lançamento.", "Em Tipo, escolha Recebimento.", "Preencha Descrição, Valor, Categoria, Cliente e Vencimento.", "Clique em Lançar."],
+     "evidencia": "frontend/js/20-financeiro.js:879"},
+    {"pergunta": "Como dou baixa numa conta paga ou num valor recebido?", "palavras": ["dar baixa", "baixa", "registrar pagamento", "registrar recebimento", "quitar", "liquidar"],
+     "passos": ["Abra Financeiro e clique em Lançamentos.", "Clique na linha do lançamento.", "Clique em Registrar pagamento (despesa) ou Registrar recebimento.", "Para desfazer, abra o lançamento e clique em Reabrir."],
+     "evidencia": "frontend/js/20-financeiro.js:791"},
+    {"pergunta": "Como anexo o comprovante de um pagamento?", "palavras": ["comprovante", "anexar comprovante", "guardar comprovante"],
+     "passos": ["Abra Financeiro e clique em Lançamentos.", "Clique no lançamento.", "Em Comprovantes, arraste o arquivo ou escolha no computador."],
+     "evidencia": "frontend/js/20-financeiro.js:812"},
+    {"pergunta": "Como confiro o extrato do banco?", "palavras": ["extrato do banco", "extrato bancario", "conciliar", "conciliacao", "ofx", "importar extrato"],
+     "passos": ["Abra Financeiro, clique em Lançamentos e depois em Importar extrato.", "Escolha o arquivo do banco (.ofx, .csv ou .txt).", "Marque as linhas que devem receber baixa ou entrar como lançamento novo.", "Clique em Conferir e confirme."],
+     "evidencia": "frontend/js/20-financeiro.js:1224"},
+    {"pergunta": "Como cobro um cliente atrasado?", "palavras": ["cobrar", "cobranca", "cliente devendo", "inadimplente", "cobrar por email"],
+     "passos": ["Abra Financeiro e clique em Lançamentos.", "Clique no recebimento e depois em Cobrar por e-mail.", "Revise o e-mail que abre pronto e clique em Enviar para aprovação.", "Aprove o envio em Aprovações."],
+     "evidencia": "frontend/js/20-financeiro.js:790"},
+    {"pergunta": "Como monto e lanço a folha de pagamento?", "palavras": ["folha", "folha de pagamento", "salario", "salarios", "funcionarios"],
+     "passos": ["Abra Financeiro e, em Papéis do mês, clique em Montar a folha.", "Clique em Ver a folha para conferir pessoas e totais.", "Clique em Lançar em contas a pagar."],
+     "evidencia": "frontend/js/20-financeiro.js:1020"},
+    {"pergunta": "Como registro uma nota fiscal emitida?", "palavras": ["nota fiscal", "registrar nota", "nota emitida", "nfse"],
+     "passos": ["Abra Financeiro e, em Papéis do mês, na parte de Notas fiscais, clique em Registrar.", "Preencha Número da nota, Valor, Emitida em e Cliente.", "Clique em Guardar registro. A nota em si sai no sistema da prefeitura."],
+     "evidencia": "frontend/js/20-financeiro.js:1069"}
+   ]},
+
+  {"destino": "relatorios",
+   "apelidos": ["relatorios", "relatórios", "relatorio", "relatório", "relatorio do mes", "prestacao de contas"],
+   "faz": [
+    "É uma visão do Financeiro: abre pelo botão Relatórios no cabeçalho do Financeiro.",
+    "Tem três abas: Tarefas do dia, Financeiro e Ações de IA aprovadas.",
+    "Baixa o relatório em PDF (Baixar PDF) e a planilha (Baixar XLSX)."
+   ],
+   "nao_faz": ["Não envia o relatório direto: Enviar por e-mail abre o e-mail pronto, e o envio passa por Aprovações."],
+   "tarefas": [
+    {"pergunta": "Como gero o relatório financeiro do mês em PDF?", "palavras": ["relatorio", "relatorio em pdf", "relatorio mensal", "relatorio financeiro", "baixar pdf"],
+     "passos": ["Abra Financeiro no menu à esquerda.", "Clique em Relatórios no cabeçalho.", "Escolha o mês no seletor.", "Clique em Baixar PDF."],
+     "evidencia": "frontend/js/20-financeiro.js:118"},
+    {"pergunta": "Como envio o relatório por e-mail?", "palavras": ["enviar relatorio", "relatorio por email", "mandar relatorio"],
+     "passos": ["Abra Financeiro e clique em Relatórios.", "Clique em Enviar por e-mail.", "Preencha o destinatário e clique em Enviar para aprovação."],
+     "evidencia": "frontend/js/20-financeiro.js:119"},
+    {"pergunta": "Como peço um parecer sobre os números do mês?", "palavras": ["parecer do mes", "analise do mes", "parecer financeiro"],
+     "passos": ["Abra Financeiro e clique em Relatórios.", "Clique em Pedir o parecer e aguarde cerca de um minuto."],
+     "evidencia": "frontend/js/20-financeiro.js:364"},
+    {"pergunta": "Como exporto a planilha do mês?", "palavras": ["exportar planilha", "xlsx", "excel", "baixar planilha"],
+     "passos": ["Abra Financeiro no menu à esquerda.", "Na Visão geral, clique em Exportar (em Relatórios, clique em Baixar XLSX)."],
+     "evidencia": "frontend/js/20-financeiro.js:535"}
+   ]},
+
+  {"destino": "cadastros",
+   "apelidos": ["cadastros", "cadastro", "fichas", "clientes", "equipe", "despesas fixas"],
+   "faz": [
+    "Três listas: Clientes, Equipe e Despesas fixas, com busca por nome, CPF/CNPJ ou e-mail.",
+    "Cadastra cliente, pessoa da equipe e despesa fixa, e abre a ficha com Editar, Apagar, Perguntar sobre, Novo e-mail e Agendar.",
+    "Sugere cadastros com os nomes lidos nos contratos do Acervo.",
+    "A despesa fixa pode ser lançada no mês, o que cria a conta a pagar no Financeiro."
+   ],
+   "nao_faz": [
+    "Importar e exportar cadastros ainda não existem.",
+    "Papéis e alçadas por pessoa ainda não têm efeito."
+   ],
+   "tarefas": [
+    {"pergunta": "Como cadastro um cliente novo?", "palavras": ["cadastrar cliente", "novo cliente", "cliente novo", "adicionar cliente", "ficha do cliente"],
+     "passos": ["Abra Cadastros no menu à esquerda (a lista Clientes já vem aberta).", "Clique em Novo cliente.", "Preencha nome, CNPJ / CPF, Telefone e E-mail para cobrança.", "Clique em Salvar cadastro."],
+     "evidencia": "frontend/js/06-cadastros.js:716"},
+    {"pergunta": "Como cadastro alguém da equipe e coloco na folha?", "palavras": ["equipe", "colaborador", "socio", "funcionario", "estagiario", "nova pessoa", "vinculo"],
+     "passos": ["Abra Cadastros e clique em Equipe.", "Clique em Nova pessoa e preencha Nome completo, CPF, Função, E-mail e Telefone.", "Escolha Papel e Vínculo e preencha Salário ou retirada.", "Clique em Salvar cadastro."],
+     "evidencia": "frontend/js/06-cadastros.js:711"},
+    {"pergunta": "Como cadastro uma despesa fixa, como aluguel?", "palavras": ["despesa fixa", "aluguel", "mensalidade", "fornecedor", "nova despesa"],
+     "passos": ["Abra Cadastros e clique em Despesas fixas.", "Clique em Nova despesa.", "Preencha Descrição, Valor mensal e Dia de vencimento.", "Clique em Salvar cadastro."],
+     "evidencia": "frontend/js/06-cadastros.js:702"},
+    {"pergunta": "Como edito ou apago uma ficha?", "palavras": ["editar cadastro", "alterar cliente", "apagar cadastro", "excluir cliente", "corrigir ficha"],
+     "passos": ["Abra Cadastros e clique na linha da pessoa.", "Na ficha, clique em Editar, altere e clique em Salvar.", "Para remover, clique em Apagar e confirme (vai para a Lixeira)."],
+     "evidencia": "frontend/js/06-cadastros.js:497"},
+    {"pergunta": "Como aproveito os nomes lidos nos contratos para cadastrar?", "palavras": ["nomes dos contratos", "sugestao de cadastro", "levantamento", "cadastrar do acervo"],
+     "passos": ["Abra Cadastros e veja o cartão dos nomes lidos nos contratos, ainda sem ficha.", "Clique em Cadastrar para abrir o cadastro já preenchido, confira e salve.", "Clique em Ignorar para não sugerir mais o nome."],
+     "evidencia": "frontend/js/06-cadastros.js:219"}
+   ]},
+
+  {"destino": "caixa",
+   "apelidos": ["e-mail", "email", "caixa de entrada", "correio", "gmail", "outlook"],
+   "faz": [
+    "Conecta conta pelo Entrar com Google ou por Outro provedor (IMAP e SMTP).",
+    "Lista as mensagens com as visões Todas, Pedem resposta, Não lidas, Com anexo e Clientes.",
+    "Abre a mensagem com prazo detectado (Criar na Agenda / Criar tarefa) e anexos (Abrir / Guardar no Acervo).",
+    "Responde, encaminha e escreve rascunho pelo assistente; o envio vai para Aprovações por padrão.",
+    "Traduz para o português mensagens em inglês ou espanhol, com o tradutor desta máquina."
+   ],
+   "nao_faz": [
+    "Não envia sozinho por padrão: todo envio passa por Aprovações.",
+    "Tradução só de inglês e espanhol para o português.",
+    "Entrar com Microsoft não aparece nesta instalação: Outlook e Hotmail entram por Outro provedor (IMAP e SMTP)."
+   ],
+   "tarefas": [
+    {"pergunta": "Como conecto meu Gmail?", "palavras": ["conectar gmail", "gmail", "google", "entrar com google", "adicionar conta", "conectar email", "conectar e-mail"],
+     "passos": ["Abra E-mail no menu à esquerda e clique em Contas.", "Clique em Adicionar conta e depois em Entrar com Google.", "Faça o login na página do Google que abre no navegador e autorize.", "Volte ao PAULUS: a caixa de entrada abre sozinha."],
+     "evidencia": "frontend/js/30-email-oauth.js:58"},
+    {"pergunta": "Como conecto um e-mail de outro provedor (IMAP/SMTP ou senha de app)?", "palavras": ["imap", "smtp", "senha de app", "outlook", "hotmail", "outro provedor", "dominio proprio"],
+     "passos": ["Abra E-mail, clique em Contas e em Adicionar conta.", "Clique em Outro provedor (IMAP e SMTP).", "Preencha E-mail e Senha (o servidor é detectado pelo domínio).", "Clique em Entrar."],
+     "evidencia": "frontend/js/28-email-contas.js:141"},
+    {"pergunta": "Como respondo um e-mail?", "palavras": ["responder", "responder email", "responder e-mail", "encaminhar", "rascunho pelo assistente"],
+     "passos": ["Abra a mensagem na Caixa de entrada.", "Clique em Responder, Responder a todos ou Encaminhar (ou em Rascunho pelo assistente).", "Revise o texto e clique em Enviar para aprovação.", "Aprove o envio em Aprovações."],
+     "evidencia": "frontend/js/29-email-caixa.js:936"},
+    {"pergunta": "Como traduzo um e-mail?", "palavras": ["traduzir", "traducao", "ingles", "espanhol", "traduzir email"],
+     "passos": ["Abra a mensagem em inglês ou espanhol.", "Clique no ícone Traduzir para o português no alto da mensagem.", "Para voltar ao texto, clique em ver o original."],
+     "evidencia": "frontend/js/29-email-caixa.js:427"},
+    {"pergunta": "Como salvo o anexo de um e-mail?", "palavras": ["anexo do email", "baixar anexo", "salvar anexo", "guardar no acervo"],
+     "passos": ["Abra a mensagem com anexo.", "Clique no ícone Abrir para ver o arquivo.", "Clique no ícone Guardar no Acervo para guardá-lo no Acervo."],
+     "evidencia": "frontend/js/29-email-caixa.js:713"},
+    {"pergunta": "Como escrevo um e-mail novo com anexo?", "palavras": ["escrever email", "novo email", "enviar email", "mandar email", "escrever e-mail"],
+     "passos": ["Abra E-mail e clique em Escrever.", "Preencha Para, Assunto e o texto.", "Clique em Anexar arquivos e escolha do Acervo ou do computador.", "Clique em Enviar para aprovação e aprove em Aprovações."],
+     "evidencia": "frontend/js/18-email.js:267"},
+    {"pergunta": "Como configuro a assinatura do e-mail?", "palavras": ["assinatura do email", "assinatura de email", "rodape do email"],
+     "passos": ["Abra E-mail e clique em Configurações.", "No cartão Assinatura, escolha a conta e escreva a assinatura.", "Clique em Salvar assinatura."],
+     "evidencia": "frontend/js/31-email-ajustes.js:99"}
+   ]},
+
+  {"destino": "aprovacoes",
+   "apelidos": ["aprovacoes", "aprovações", "aprovacao", "aprovação", "fila de aprovacao", "alcada", "alçada"],
+   "faz": [
+    "Mostra em Esperando você tudo o que tem efeito fora do programa (enviar e-mail, assinar, mover arquivos).",
+    "Aprova ou recusa pedido a pedido ou em lote.",
+    "Guarda no Histórico as decisões de hoje, com o resultado.",
+    "Regras de alçada liga ou desliga o que o assistente pode fazer sem pedir."
+   ],
+   "nao_faz": [
+    "Recusar não executa nada: o pedido só sai da fila.",
+    "O Histórico mostra só as decisões de hoje.",
+    "Pedido aprovado sem desfazer (como e-mail enviado) não volta."
+   ],
+   "tarefas": [
+    {"pergunta": "Como aprovo o envio de um e-mail ou outro pedido?", "palavras": ["aprovar", "liberar envio", "autorizar"],
+     "passos": ["Abra Aprovações no menu à esquerda.", "Clique no pedido para ver o que vai sair e se dá para desfazer.", "Clique em Aprovar e confirme."],
+     "evidencia": "frontend/js/04-aprovacoes.js:218"},
+    {"pergunta": "Como recuso um pedido?", "palavras": ["recusar", "negar", "rejeitar", "nao aprovar"],
+     "passos": ["Abra Aprovações no menu à esquerda.", "Clique em Recusar na linha do pedido.", "Confirme em Recusar: nada é feito e o pedido vai para o Histórico."],
+     "evidencia": "frontend/js/04-aprovacoes.js:217"},
+    {"pergunta": "Como aprovo vários pedidos de uma vez?", "palavras": ["aprovar varios", "aprovar todos", "em lote", "aprovar em lote"],
+     "passos": ["Abra Aprovações no menu à esquerda.", "Marque os pedidos (ou a caixa do cabeçalho para marcar todos).", "Clique em Aprovar e confirme. Com a tela aberta, Ctrl+Enter aprova os marcados."],
+     "evidencia": "frontend/js/04-aprovacoes.js:178"},
+    {"pergunta": "Como deixo o assistente agir sem pedir aprovação?", "palavras": ["regras de alcada", "alcada", "sem pedir", "sem aprovacao", "sem confirmar", "autonomia"],
+     "passos": ["Abra Aprovações e clique em Regras de alçada.", "Ligue a chave da regra, por exemplo Enviar e-mail e mensagem sem confirmar.", "Clique em Salvar (Restaurar padrão volta ao mais cauteloso)."],
+     "evidencia": "frontend/js/04-aprovacoes.js:483"}
+   ]},
+
+  {"destino": "servicos",
+   "apelidos": ["servicos", "serviços", "servico", "serviço", "pastas de trabalho", "casos"],
+   "faz": [
+    "Mostra os serviços como pastas, com os filtros Em andamento, Todos e Concluídos.",
+    "Dentro da pasta: Visão geral, Arquivos e Trilha, com etapas que entram na Agenda quando têm prazo.",
+    "Adiciona arquivos copiando-os para a pasta do serviço no Acervo (o original fica onde está).",
+    "Escreve o resumo do serviço com o assistente local e responde “O que falta?” na Trilha."
+   ],
+   "nao_faz": [
+    "Cobrar não envia cobrança: só abre um lançamento a receber já preenchido no Financeiro.",
+    "Apagar o serviço não apaga os arquivos nem os prazos."
+   ],
+   "tarefas": [
+    {"pergunta": "Como abro um serviço novo para um cliente?", "palavras": ["novo servico", "abrir servico", "criar pasta", "novo caso", "abrir caso", "pasta de trabalho"],
+     "passos": ["Abra Serviços no menu à esquerda.", "Clique em Novo serviço.", "Preencha Nome, Cliente, Status e O que está sendo feito, e marque a Equipe.", "Clique em Abrir serviço. Pela conversa também dá: “abra um serviço para a Cooperativa”."],
+     "evidencia": "frontend/js/10-servicos.js:992"},
+    {"pergunta": "Como adiciono uma etapa com prazo ao serviço?", "palavras": ["etapa do servico", "status para conclusao", "checklist", "responsavel"],
+     "passos": ["Abra o serviço em Serviços.", "Na Visão geral, em Status para conclusão, escreva a nova etapa.", "Escolha o responsável e o prazo.", "Clique em Adicionar etapa (a etapa com prazo entra na Agenda)."],
+     "evidencia": "frontend/js/10-servicos.js:367"},
+    {"pergunta": "Como coloco documentos na pasta do serviço?", "palavras": ["arquivos do servico", "documento no servico", "juntar arquivo"],
+     "passos": ["Abra o serviço e clique na aba Arquivos.", "Clique em Adicionar.", "Escolha os documentos do Acervo ou do computador e confirme em Adicionar."],
+     "evidencia": "frontend/js/10-servicos.js:531"},
+    {"pergunta": "Como concluo um serviço?", "palavras": ["concluir servico", "finalizar servico", "encerrar caso", "fechar servico", "reabrir servico"],
+     "passos": ["Abra o serviço em Serviços.", "Clique em Concluir serviço no cabeçalho (para voltar atrás, Reabrir serviço)."],
+     "evidencia": "frontend/js/10-servicos.js:116"}
+   ]},
+
+  {"destino": "gravacoes",
+   "apelidos": ["gravacoes", "gravações", "gravacao", "gravação", "gravador", "transcricao", "transcrição"],
+   "faz": [
+    "Grava pelo microfone desta máquina ou importa um áudio; o áudio fica só nesta máquina.",
+    "Transcreve nesta máquina, com o minuto de cada trecho, depois de baixar o modelo de voz uma vez.",
+    "Escreve o resumo com o modelo local a partir da transcrição, e cria tarefas das pendências."
+   ],
+   "nao_faz": [
+    "Não separa quem disse o quê: a transcrição por falante ainda não existe.",
+    "Sem o modelo de voz baixado não há transcrição; o áudio é gravado normalmente.",
+    "O resumo só existe depois da transcrição."
+   ],
+   "tarefas": [
+    {"pergunta": "Como gravo uma reunião ou atendimento?", "palavras": ["gravar", "gravar reuniao", "gravar atendimento", "microfone", "nova gravacao"],
+     "passos": ["Abra Gravações no menu à esquerda e clique em Nova gravação.", "Preencha Título, Participantes, Tipo e, se quiser, Cliente e Serviço.", "Clique em Começar a gravar.", "Clique em Parar e arquivar."],
+     "evidencia": "frontend/js/11-gravacoes.js:426"},
+    {"pergunta": "Como transcrevo uma gravação?", "palavras": ["transcrever", "transcricao", "degravar", "degravacao", "modelo de voz", "texto do audio"],
+     "passos": ["Abra Gravações e abra a gravação.", "Na aba Transcrição, clique em Transcrever nesta máquina.", "Se pedir o modelo de voz, baixe uma vez e transcreva."],
+     "evidencia": "frontend/js/11-gravacoes.js:753"},
+    {"pergunta": "Como faço o resumo de uma gravação?", "palavras": ["resumo da gravacao", "ata", "resumir reuniao", "resumir gravacao"],
+     "passos": ["Abra a gravação já transcrita.", "Clique na aba Resumo.", "Clique em Fazer um resumo."],
+     "evidencia": "frontend/js/11-gravacoes.js:786"},
+    {"pergunta": "Como importo um áudio do WhatsApp ou do celular?", "palavras": ["importar audio", "audio do whatsapp", "arquivo de audio", "mp3", "m4a", "ogg"],
+     "passos": ["Abra Gravações no menu à esquerda.", "Clique em Importar áudio.", "Escolha o arquivo (mp3, m4a, ogg, opus, wav e outros)."],
+     "evidencia": "frontend/js/11-gravacoes.js:226"}
+   ]},
+
+  {"destino": "config",
+   "apelidos": ["configuracoes", "configurações", "configuracao", "ajustes", "preferencias", "preferências"],
+   "faz": [
+    "Seções: Meus dados, Assistente e modelo, Desempenho, Conexões, Escritório e vínculos, Aprendizado, Aparência e avisos, Feedback, Apoio e versão e Lixeira.",
+    "Assistente e modelo: escolhe o modelo do Ollama, liga “Ir devagar quando eu usar o PC”, define os Limites da IA e reindexa o Acervo.",
+    "Na Lixeira os itens apagados ficam por 30 dias e podem ser restaurados.",
+    "As mudanças só valem depois de Salvar alterações (ou Ctrl+S)."
+   ],
+   "nao_faz": [
+    "Não instala modelo de linguagem pela tela: é preciso rodar “ollama pull nome” no terminal.",
+    "Vincular outras máquinas ao escritório ainda não existe.",
+    "O programa não se atualiza sozinho.",
+    "O feedback não é enviado direto: abre o Escrever do E-mail já endereçado a contato@paulus.ia.br, ou copia o texto."
+   ],
+   "tarefas": [
+    {"pergunta": "Como mudo para o tema escuro?", "palavras": ["tema", "escuro", "tema escuro", "modo escuro", "modo noturno", "dark", "aparencia"],
+     "passos": ["Abra Configurações no menu à esquerda.", "No sumário, clique em Aparência e avisos.", "No cartão Tema, clique em Escuro (ou Claro, ou Seguir o Windows). A troca vale na hora."],
+     "evidencia": "frontend/js/05-configuracoes.js:954"},
+    {"pergunta": "Como troco o modelo de linguagem?", "palavras": ["trocar modelo", "modelo de linguagem", "ollama", "llama", "qual modelo"],
+     "passos": ["Abra Configurações e clique em Assistente e modelo.", "No cartão Modelo de linguagem, clique no modelo que quer usar.", "Clique em Salvar alterações. A troca vale a partir da próxima pergunta."],
+     "evidencia": "frontend/js/05-configuracoes.js:477"},
+    {"pergunta": "Como mando feedback ou relato um problema?", "palavras": ["feedback", "bug", "relatar", "sugestao", "reclamar", "elogio"],
+     "passos": ["Abra Configurações e clique em Feedback.", "Escolha o tipo e a tela, e preencha Título e a descrição.", "Clique em Escrever e-mail: abre a mensagem endereçada a contato@paulus.ia.br para você revisar. Sem conta de e-mail, o texto é copiado."],
+     "evidencia": "frontend/js/05-configuracoes.js:1020"},
+    {"pergunta": "Como coloco meus dados e minha foto?", "palavras": ["meus dados", "perfil", "foto", "minha oab", "logo do escritorio"],
+     "passos": ["Abra Configurações: a seção Meus dados abre primeiro.", "Preencha Nome completo, CPF, OAB, Telefone, E-mail e Endereço profissional.", "Clique em Enviar foto (ou Enviar logo) e escolha um PNG ou JPG.", "Clique em Salvar alterações."],
+     "evidencia": "frontend/js/05-configuracoes.js:249"},
+    {"pergunta": "Como ligo o papel timbrado nos PDFs?", "palavras": ["timbrado", "papel timbrado", "timbre", "cabecalho do pdf"],
+     "passos": ["Abra Configurações, na seção Meus dados.", "Preencha pelo menos o Nome completo.", "Ligue Papel timbrado nos PDFs.", "Clique em Salvar alterações."],
+     "evidencia": "frontend/js/05-configuracoes.js:257"},
+    {"pergunta": "Como recupero algo que apaguei?", "palavras": ["lixeira", "restaurar", "recuperar", "apaguei", "excluido", "apagado"],
+     "passos": ["Abra Configurações e clique em Lixeira.", "Ache o item: ele fica ali por 30 dias.", "Clique em Restaurar."],
+     "evidencia": "frontend/js/05-configuracoes.js:1102"},
+    {"pergunta": "Como reindexo o Acervo ou limpo o cache?", "palavras": ["reindexar", "indice", "limpar cache", "cache", "atualizar busca"],
+     "passos": ["Abra Configurações e clique em Assistente e modelo.", "No cartão do Acervo e índice, clique em Reindexar tudo.", "Para apagar o texto já extraído, clique em Limpar cache e confirme. Nenhum documento sai do Acervo."],
+     "evidencia": "frontend/js/05-configuracoes.js:497"},
+    {"pergunta": "Como faço o programa pesar menos enquanto uso o PC?", "palavras": ["devagar", "pesado", "travando", "lento", "ir devagar"],
+     "passos": ["Abra Configurações e clique em Assistente e modelo.", "No cartão Modelo de linguagem, ligue Ir devagar quando eu usar o PC.", "Clique em Salvar alterações."],
+     "evidencia": "frontend/js/05-configuracoes.js:484"},
+    {"pergunta": "Quais são os atalhos de teclado?", "palavras": ["atalhos", "atalho", "teclado", "tecla", "ctrl"],
+     "passos": ["Ctrl+N nova conversa, Ctrl+K busca, Ctrl+S salva em Configurações, Ctrl+1/2/3 Assistente, Agenda e Acervo.", "Ctrl+Enter aprova os marcados em Aprovações, Ctrl+Shift+F começa o foco e Ctrl+Shift+S assina o documento aberto.", "A lista fica em Configurações › Aparência e avisos, no cartão Atalhos."],
+     "evidencia": "frontend/js/05-configuracoes.js:961"},
+    {"pergunta": "Como ligo os avisos do Windows?", "palavras": ["avisos do windows", "notificacao", "notificacoes", "aviso de teste"],
+     "passos": ["Abra Configurações e clique em Aparência e avisos.", "No cartão Avisos, ligue Avisar no Windows e escolha os tipos de aviso.", "Clique em Salvar alterações e, se quiser, em Mandar um aviso de teste."],
+     "evidencia": "frontend/js/05-configuracoes.js:974"}
+   ]},
+
+  {"destino": "habilidades",
+   "apelidos": ["aprendizado", "habilidades", "ensinar o assistente"],
+   "faz": [
+    "Fica em Configurações › Aprendizado.",
+    "Guarda lembretes que entram em toda pergunta da conversa; as regras de redação também entram quando o assistente escreve no editor.",
+    "Lê um PDF, DOCX, TXT ou MD e propõe um lembrete; guardar continua sendo um clique seu."
+   ],
+   "nao_faz": ["O arquivo usado para ensinar não é guardado: só o lembrete que você confirmar."],
+   "tarefas": [
+    {"pergunta": "Como ensino uma regra do escritório ao assistente?", "palavras": ["ensinar", "ensino", "regra do escritorio", "aprendizado", "instrucao", "lembrete para o assistente"],
+     "passos": ["Abra Configurações e clique em Aprendizado.", "No cartão Lembretes, clique em Escrever lembrete.", "Preencha Título e “O que eu devo saber” e escolha onde guardar.", "Clique em Guardar. O lembrete já vale na próxima pergunta."],
+     "evidencia": "frontend/js/05-configuracoes.js:893"},
+    {"pergunta": "Como ensino o assistente a partir de um arquivo?", "palavras": ["ensinar com arquivo", "ensinar a partir de arquivo", "lembrete de arquivo"],
+     "passos": ["Abra Configurações e clique em Aprendizado.", "Arraste um PDF, DOCX, TXT ou MD para a área indicada, ou clique em Escolher arquivo.", "Confira a proposta de lembrete e clique em Guardar."],
+     "evidencia": "frontend/js/05-configuracoes.js:890"}
+   ]},
+
+  {"destino": "conexoes",
+   "apelidos": ["conexoes", "conexões", "whatsapp", "whatsapp web", "zap"],
+   "faz": [
+    "Fica em Configurações › Conexões.",
+    "Abre o WhatsApp Web numa janela própria do programa, com a sessão guardada nesta máquina.",
+    "Preparar mensagem: escolhe o contato, escreve a mensagem e abre a conversa com o texto pronto."
+   ],
+   "nao_faz": [
+    "Não aperta enviar no WhatsApp por você e não lê as suas conversas.",
+    "O anexo não vai sozinho: você arrasta o arquivo para a conversa."
+   ],
+   "tarefas": [
+    {"pergunta": "Como conecto o WhatsApp?", "palavras": ["conectar whatsapp", "whatsapp", "qr code", "zap"],
+     "passos": ["Abra Configurações e clique em Conexões.", "Na linha WhatsApp Web, clique em Abrir.", "Leia o código com o celular, como faria no navegador. A sessão fica nesta máquina."],
+     "evidencia": "frontend/js/05-configuracoes.js:690"},
+    {"pergunta": "Como preparo uma mensagem de WhatsApp para um cliente?", "palavras": ["mensagem de whatsapp", "mandar whatsapp", "enviar whatsapp", "preparar mensagem"],
+     "passos": ["Abra Configurações, clique em Conexões e, na linha WhatsApp Web, clique em Preparar mensagem.", "Escolha o contato ou digite o telefone, e escreva a mensagem.", "Clique em Preparar no WhatsApp. Apertar enviar é com você."],
+     "evidencia": "frontend/js/05-configuracoes.js:775"}
+   ]},
+
+  {"destino": "desempenho",
+   "apelidos": ["desempenho", "memoria", "memória", "processador", "cpu"],
+   "faz": [
+    "Fica em Configurações › Desempenho e mede a máquina a cada 2 segundos.",
+    "Mostra Processador, Memória e Vídeo, e o modelo em uso com o tamanho em GB."
+   ],
+   "nao_faz": ["Não mede disco nem rede.", "Não troca o modelo: isso é em Configurações › Assistente e modelo."],
+   "tarefas": [
+    {"pergunta": "Como vejo quanto de memória e processador o programa está usando?", "palavras": ["memoria", "processador", "cpu", "ram", "uso da maquina"],
+     "passos": ["Abra Configurações e clique em Desempenho.", "Veja Processador, Memória e Vídeo.", "Clique em um deles para ver o gráfico do último minuto."],
+     "evidencia": "frontend/js/05-configuracoes.js:607"}
+   ]},
+
+  {"destino": "apoiar",
+   "apelidos": ["apoiar", "apoiar o projeto", "doar", "doacao", "contribuir"],
+   "faz": [
+    "Pix uma vez (QR e copia e cola, valem 30 minutos) ou cartão todo mês pelo Mercado Pago.",
+    "Baixa o extrato de apoio em PDF depois do primeiro pagamento."
+   ],
+   "nao_faz": [
+    "O mural público de apoiadores ainda não existe.",
+    "O cartão nunca é digitado no programa, só na página do Mercado Pago.",
+    "O Pix não é recorrente: mensal só no cartão."
+   ],
+   "tarefas": [
+    {"pergunta": "Como apoio o projeto com Pix?", "palavras": ["pix", "apoiar com pix", "doar"],
+     "passos": ["Clique em Apoiar o projeto no menu à esquerda.", "Escolha Pix · uma vez e o valor.", "Preencha o e-mail para o recibo e clique em Gerar o Pix.", "Pague pelo app do banco com o QR ou o código."],
+     "evidencia": "frontend/js/09-apoiar.js:189"},
+    {"pergunta": "Como faço um apoio mensal no cartão?", "palavras": ["apoio mensal", "cartao", "assinatura mensal", "todo mes"],
+     "passos": ["Clique em Apoiar o projeto no menu e escolha Cartão · todo mês.", "Escolha o valor e preencha o e-mail para o recibo.", "Clique em Assinar no cartão e ponha o cartão na página do Mercado Pago."],
+     "evidencia": "frontend/js/09-apoiar.js:169"},
+    {"pergunta": "Como cancelo ou diminuo minha assinatura de apoio?", "palavras": ["cancelar assinatura", "interromper assinatura", "diminuir valor", "parar apoio"],
+     "passos": ["Abra Apoiar o projeto no menu.", "No cartão Sua assinatura, clique em Interromper assinatura.", "Para pagar menos, ajuste o valor e clique em Diminuir o valor."],
+     "evidencia": "frontend/js/09-apoiar.js:152"},
+    {"pergunta": "Como baixo o extrato do meu apoio?", "palavras": ["extrato de apoio", "recibo do apoio", "comprovante do apoio"],
+     "passos": ["Abra Apoiar o projeto no menu.", "Clique em Baixar extrato de apoio (aparece depois do primeiro pagamento).", "Escolha onde salvar o PDF."],
+     "evidencia": "frontend/js/09-apoiar.js:138"}
+   ]}
+ ]
+}

@@ -876,6 +876,7 @@ function cartaoProposta(d) {
   // não é. O que a pessoa confere é o nome — e onde quer abrir.
   if (d.tipo === "exibir") return cartaoOferta(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
+  if (d.tipo === "programa") return cartaoPrograma(d);
 
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
@@ -975,6 +976,37 @@ function cartaoEscopo(d) {
       '" title="' + esc(n) + '">Só em “' + esc(nomeCurto(n)) + "”</button>").join("") +
     "<button" + (nomes.length ? "" : ' class="primario"') + ' data-escopo-tudo="1">Em todo o Acervo</button>' +
     '<button data-escopo-anexar="1">Anexar outro</button></div></div>';
+}
+
+/* O PROGRAMA RESPONDEU. A pergunta era sobre o próprio PAULUS — o que está
+   na agenda, como se faz algo, abrir uma tela — e a resposta saiu do banco ou
+   do mapa das telas, não dos documentos. O cartão diz de onde veio e deixa a
+   saída à vista: se era sobre os documentos, um clique refaz a pergunta lá. */
+function cartaoPrograma(d) {
+  const c = d.campos || {};
+  const rotulo = { consulta: "do que está gravado", como: "passo a passo", ir: "abrir tela" }[c.modo] || "programa";
+  const origem = c.modo === "consulta"
+    ? "Respondi pelo que está gravado no programa, sem ler documentos"
+    : c.modo === "como" ? "Tirei do mapa das telas do programa" : "Você pediu para abrir esta tela";
+  const modelo = d.por_modelo && d.julgamento
+    ? " O modelo local escolheu este caminho com " + Math.round((d.julgamento.p || 0) * 100) + "% de probabilidade."
+    : "";
+  return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">' + esc(rotulo) + "</span>" +
+    "<b>" + esc(c.nome || d.titulo || "") + "</b></div>" +
+    '<p class="explica">' + esc(origem) + "." + esc(modelo) + " Se a pergunta era sobre os documentos, procuro lá.</p>" +
+    '<div class="linha-form"><button class="primario" data-prog="ir">Abrir ' + esc(c.nome || "a tela") + "</button>" +
+    '<button data-prog="documentos">Procurar nos documentos</button></div></div>';
+}
+
+function ligarPrograma(caixa, d) {
+  const c = d.campos || {};
+  const ir = caixa.querySelector('[data-prog="ir"]');
+  if (ir) ir.onclick = () => abrirDestino(c.destino);
+  const docs = caixa.querySelector('[data-prog="documentos"]');
+  if (docs) docs.onclick = () => {
+    caixa.innerHTML = '<p class="explica">Procurando nos documentos.</p>';
+    enviar({ texto: d.pergunta, retomar: true, documentos: true });
+  };
 }
 
 function ligarEscopo(caixa, d) {
@@ -1240,6 +1272,7 @@ function camposProposta(d, faltando) {
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
+  if (d.tipo === "programa") return ligarPrograma(caixa, d);
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
   ligarBotoesDeDocumento(caixa, d);

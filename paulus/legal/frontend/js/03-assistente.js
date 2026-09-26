@@ -375,7 +375,7 @@ const propostasGuardadas = [];
 
 function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
-  if (!(p.tipo === "abrir" || p.tipo === "exibir" || (p.tipo === "escopo" && ultima))) return "";
+  if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || (p.tipo === "escopo" && ultima))) return "";
   propostasGuardadas.push(p);
   return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +
     cartaoProposta(p) + "</div>";
@@ -391,7 +391,9 @@ function blocoResposta(m, pergunta, ultima) {
   html += '<div class="texto">' + esc(m.texto) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
-  if (m.segundos) html += linhaAssinatura(m.segundos, citados, pergunta || "");
+  const p = m.proposta || {};
+  if (p.tipo === "programa") html += linhaAssinatura(0, 0, pergunta || "", p.por_modelo ? "" : "sem modelo");
+  else if (m.segundos) html += linhaAssinatura(m.segundos, citados, pergunta || "");
   html += cartaoGuardado(m, ultima);
   return html + "</div>";
 }
@@ -427,8 +429,11 @@ function blocoFontes(fontes, cobertura) {
 
 /* A linha que fecha a resposta, como no desenho: modelo, tempo, quantos
    arquivos foram citados, e Copiar / Refazer. */
-function linhaAssinatura(segundos, citados, pergunta) {
-  return '<div class="assinatura"><span>' + esc(estado.modelo || "assistente local") + " · " +
+/* `quem` troca o nome do modelo quando a resposta não passou por ele: a
+   camada do programa responde do banco e do mapa das telas, e assinar
+   "llama3.2:3b" embaixo seria dizer que o modelo escreveu. */
+function linhaAssinatura(segundos, citados, pergunta, quem) {
+  return '<div class="assinatura"><span>' + esc(quem || estado.modelo || "assistente local") + " · " +
     esc(String(segundos)) + " s" +
     (citados ? " · " + plural(citados, "arquivo citado", "arquivos citados") : "") + "</span>" +
     '<button data-copiar="1">' + ic("content_copy", 16) + "<span>Copiar</span></button>" +
@@ -1223,14 +1228,14 @@ async function enviar(opcoes) {
       headers: { "Content-Type": "application/json" },
       // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
       // a pergunta com a escolha feita ali.
-      body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar) }, envio)),
+      body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos) }, envio)),
       signal: estado.controle.signal,
     });
     if (!r.ok) throw new Error("não consegui responder");
 
     const leitor = r.body.getReader();
     const dec = new TextDecoder();
-    let buffer = "", primeiro = true;
+    let buffer = "", primeiro = true, abrirAoFim = "", assinaSemModelo = false;
 
     while (true) {
       const passo = await leitor.read();
@@ -1315,6 +1320,10 @@ async function enviar(opcoes) {
           caixa.innerHTML = cartaoProposta(dados);
           resposta.appendChild(caixa);
           ligarProposta(caixa, dados);
+          // "abra o financeiro": o pedido era a tela. Abre depois do fim,
+          // para a conversa terminar de se gravar antes de sair dela.
+          if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
+          if (dados.tipo === "programa" && !dados.por_modelo) assinaSemModelo = true;
           rolar();
         } else if (mt[1] === "vazio") {
           texto.textContent = dados.mensagem;
@@ -1333,9 +1342,11 @@ async function enviar(opcoes) {
         } else if (mt[1] === "fim") {
           fecharBastidor();
           plano.remove();
-          resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido));
+          resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
+            assinaSemModelo ? "sem modelo" : ""));
           ligarResposta(resposta);
           $("conversa-titulo").textContent = dados.titulo;
+          if (abrirAoFim) { const id = abrirAoFim; setTimeout(() => abrirDestino(id), 700); }
         }
       }
     }

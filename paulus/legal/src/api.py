@@ -60,6 +60,8 @@ import citacao
 import escritorio
 import ferramentas
 import intencao
+import juizo
+import programa
 import leis
 import redacao
 import ritmo as ritmo_mod
@@ -399,6 +401,10 @@ class Pergunta(BaseModel):
     # O botao Retomar do cartao "Parado": a mesma pergunta de novo, sem
     # repeti-la no historico e trocando a resposta que parou no meio.
     retomar: bool = False
+    # O botao "Procurar nos documentos" do cartao da camada do programa: a
+    # pessoa disse que a pergunta era sobre os documentos, e a camada nao
+    # decide de novo.
+    documentos: bool = False
 
 
 class Busca(BaseModel):
@@ -1893,7 +1899,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
     # Retomar troca a resposta parada - e tambem o cartao "onde eu procuro?",
     # que a pessoa respondeu escolhendo onde.
     if (payload.retomar and ultima and ultima.autor == "paulus"
-            and (ultima.interrompida or (ultima.proposta or {}).get("tipo") == "escopo")):
+            and (ultima.interrompida or (ultima.proposta or {}).get("tipo") in ("escopo", "programa"))):
         trabalho.mensagens.pop()
         ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
@@ -1936,6 +1942,17 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
             )
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
+
+    # O que o programa sabe de si: a agenda, as tarefas, o Financeiro, a
+    # fila, e como se faz cada coisa em cada tela. Antes, "quanto recebi este
+    # mes?" ia procurar dentro dos contratos. A regra decide o que pode; so a
+    # duvida vai ao modelo, como ESCOLHA de uma letra entre o que a regra
+    # montou (programa.py, juizo.py). Com documento anexado, a pergunta e
+    # sobre ele - a camada nem olha.
+    if lido.tipo == "documentos" and not payload.documentos and not payload.apenas and not explicito:
+        leitura = programa.ler(pergunta, dados=estado, juiz=_juiz(), em_foco=citado)
+        if leitura:
+            return _responder_programa(trabalho, leitura, pergunta)
 
     # Tirou o anexo e perguntou sem nomear documento: antes de ler os
     # dezessete, pergunta onde - so no que a conversa vinha lendo, ou no
@@ -2316,6 +2333,55 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
     )
 
 
+_JUIZES: dict[str, juizo.Juiz] = {}
+
+
+def _juiz() -> juizo.Juiz | None:
+    """
+    O juiz da conversa, no mesmo modelo que responde - trocar de modelo no
+    Ollama custa carregar outro. A janela e a minima da conversa pelo mesmo
+    motivo: outro `num_ctx` faz o Ollama recarregar o modelo. Vinte segundos
+    de paciencia: passou disso, a pergunta segue para os documentos.
+    """
+    modelo = estado.client.model
+    if modelo not in _JUIZES:
+        from llama_client import JANELA_MINIMA
+
+        _JUIZES[modelo] = juizo.Juiz(model=modelo, host=estado.client.host, timeout=20,
+                                     num_ctx=JANELA_MINIMA)
+    return _JUIZES[modelo]
+
+
+def _responder_programa(trabalho, leitura, pergunta: str) -> StreamingResponse:
+    """
+    A resposta da camada do programa: o texto que o codigo montou (a consulta
+    ao banco, os passos do mapa) e um cartao com dois botoes - abrir a tela e,
+    se nao era isso, procurar nos documentos. Nenhum dos dois grava nada.
+    """
+    texto = leitura.texto or f"Abrindo {leitura.nome_tela}."
+    proposta = {
+        "tipo": "programa", "titulo": leitura.nome_tela,
+        "campos": {"destino": leitura.destino, "nome": leitura.nome_tela, "modo": leitura.tipo},
+        "porque": leitura.porque, "falta": "", "pergunta": pergunta,
+        "por_modelo": leitura.por_modelo, "julgamento": leitura.julgamento,
+    }
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Responder", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 def _perguntar_onde_procurar(trabalho, pergunta: str, foco: list[str]) -> StreamingResponse:
     """
     O cartao "onde eu procuro?": so no que a conversa vinha lendo, ou no
@@ -2379,6 +2445,10 @@ def _o_que_eu_faco() -> str:
         "  criar tarefa — “crie uma tarefa para revisar o contrato até sexta”",
         "  abrir um serviço — “abra um serviço para a Cooperativa: renovação "
         "do contrato de logística”",
+        "  perguntar o que está gravado — “quais compromissos tenho amanhã?”, "
+        "“tenho tarefa atrasada?”, “quanto recebi este mês?”",
+        "  perguntar como se faz — “como assino um PDF?”, “como conecto meu Gmail?”",
+        "  abrir uma tela — “abra o financeiro”",
         "",
         "Antes de gravar qualquer coisa eu mostro o que entendi, e você "
         "confirma. As outras telas estão no menu à esquerda.",
