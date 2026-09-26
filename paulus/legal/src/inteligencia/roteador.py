@@ -831,7 +831,32 @@ def _fato_do_item(meta: Metadata, item: Item, nome: str, secao: str) -> Fato:
     )
 
 
+# O que uma resposta de nivel 0 diz quando os fatos guardados nao bastam e o
+# modelo, em vez de ESCALAR, escreve a falta por extenso. Medido em 26/09/2026
+# no roteiro da demonstracao (tools/demo/roteiro.py), llama3.2:3b: "Nao ha
+# informacoes sobre o prazo de aviso... ESCALAR" (a palavra no FIM, e a frase
+# ia para a tela inteira) e "Nao ha informacoes sobre prazo de notificacao"
+# (sem ESCALAR nenhum) - os dois sobre documentos que tinham a resposta.
+# Nos fatos, ausencia nunca vira "nao ha": escala, e o documento e lido.
+RE_FALTA_NOS_FATOS = re.compile(
+    r"\b(?:nao ha (?:informac|dados|mencao|registro|fatos|nada)"
+    r"|nao (?:encontrei|localizei|achei)"
+    r"|nao (?:consta|constam) (?:nos|nesses|destes|dos) fatos"
+    r"|nao (?:foi|e) possivel (?:determinar|responder|saber|afirmar|identificar|informar)"
+    r"|nao (?:tenho|temos) (?:informac|dados)"
+    r"|os fatos (?:nao|fornecidos nao)"
+    r"|sem (?:informac|dados) (?:sobre|suficientes)"
+    r"|nao (?:ha|foram) fornecid"
+    r"|informac\w* (?:nao (?:disponive|fornecid|encontrad)|insuficiente))"
+)
+
+
 def pediu_escalar(resposta: str) -> bool:
-    """O modelo avisou que os fatos nao bastavam."""
-    limpo = _plano(resposta)[:40]
-    return limpo.startswith("escalar") or limpo == "escalar"
+    """
+    O modelo avisou que os fatos nao bastavam - dizendo ESCALAR em qualquer
+    lugar da resposta, ou escrevendo a falta com outras palavras. Um "nao"
+    que responde ("a procuracao nao da poderes para renunciar") nao escala:
+    so o que declara falta de informacao.
+    """
+    limpo = _plano(resposta)
+    return "escalar" in limpo or bool(RE_FALTA_NOS_FATOS.search(limpo))

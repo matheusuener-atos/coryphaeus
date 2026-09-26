@@ -317,6 +317,31 @@ def test_trocar_o_modelo_envelhece_so_o_que_ele_fez() -> None:
         bd.fechar()
 
 
+def test_resposta_que_declara_falta_escala() -> None:
+    print("\nnivel 0: falta de informacao nunca vira resposta")
+    # Medido no roteiro da demonstracao (26/09/2026): o 3B escreveu ESCALAR no
+    # fim da frase, e tambem escreveu a falta sem ESCALAR nenhum - as duas
+    # respostas foram para a tela, sobre documentos que tinham a resposta.
+    escala = [
+        "ESCALAR",
+        "Não há informações sobre o prazo de aviso para não renovar o contrato de transporte. ESCALAR",
+        "Não há informações sobre prazo de notificação para a Rio Fresco.",
+        "Não foi possível determinar o prazo.",
+        "Os fatos não informam o foro.",
+        "Não encontrei essa informação.",
+    ]
+    responde = [
+        "Não. A procuração exclui os poderes para renunciar a créditos (página 1).",
+        "O valor mensal é de R$ 18.500,00.",
+        "O contrato não renova se houver aviso com 60 dias.",
+        "A locatária não pode sublocar.",
+    ]
+    for r in escala:
+        checar(roteador.pediu_escalar(r), f"escala: {r[:60]}")
+    for r in responde:
+        checar(not roteador.pediu_escalar(r), f"responde: {r[:60]}")
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - extratores com modelo (passo 5)")
@@ -327,6 +352,7 @@ def main() -> int:
     test_sem_assistente_ligado()
     test_conferidor_nao_promove()
     test_trocar_o_modelo_envelhece_so_o_que_ele_fez()
+    test_resposta_que_declara_falta_escala()
 
     print("\n" + "=" * 55)
     if _falhas:
