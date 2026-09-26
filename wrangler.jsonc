@@ -1,0 +1,15 @@
+// O site publico do PAULUS (paulus.ia.br) no Cloudflare, publicado pelo
+// "npx wrangler deploy" que o Workers Builds roda a cada push.
+//
+// So a pasta site/ vai para o ar. O resto do repositorio - o programa, os
+// dados e o oauth_app.json com a chave do Google - nunca e publicado.
+{
+  "name": "paulus",
+  "compatibility_date": "2026-09-25",
+  "assets": {
+    "directory": "./site",
+    // /politica-de-privacidade abre site/politica-de-privacidade/index.html
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}
