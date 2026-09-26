@@ -65,11 +65,40 @@ def main() -> int:
             checar(False, "o erro do site chega em português")
         except apoio.ErroDeApoio as exc:
             checar("R$ 5" in str(exc), "o erro do site chega em português", str(exc))
-        a = apoio.criar_assinatura(40, "apoiador@exemplo.com.br", "qualquer")
+        a = apoio.criar_assinatura(40, "apoiador@exemplo.com.br")
         checar(a["link"].startswith("https://www.mercadopago.com.br/"), "a assinatura volta com o link do Mercado Pago")
-        checar(chamadas[-1][2]["frequencia"] == "mensal", "frequência desconhecida vira mensal")
+        apoio.mudar_valor("PRE0001", "chave-1", 36)
+        checar(chamadas[-1][1].endswith("/api/mp/assinatura/PRE0001/valor") and chamadas[-1][2] == {"chave": "chave-1", "valor": 36},
+               "diminuir manda a chave e o valor novo", str(chamadas[-1]))
+        apoio.interromper("PRE0001", "chave-1")
+        checar(chamadas[-1][1].endswith("/api/mp/assinatura/PRE0001/interromper"), "interromper chama o site")
     finally:
         apoio.requests.request = original
+
+    print("\nExtrato de apoio")
+    import tempfile
+
+    import extrato_apoio
+
+    linhas = extrato_apoio.montar_linhas(
+        [{"data": "2026-09-26T10:00:00", "valor": 5, "id": "ORD01X"}],
+        [{"data": "2026-08-27T00:00:00.000-04:00", "valor": 50, "id": "7001", "situacao": "approved"},
+         {"data": "2026-09-27T00:00:00.000-04:00", "valor": 50, "id": "7002", "situacao": "scheduled"}])
+    checar([l["forma"] for l in linhas] == ["Cartão · mensal", "Pix", "Cartão · mensal"], "do mais antigo ao mais novo, Pix e cartão juntos")
+    checar([l["situacao"] for l in linhas] == ["pago", "pago", "agendado"], "situação em português", str(linhas))
+    with tempfile.TemporaryDirectory() as pasta:
+        pdf = extrato_apoio.gerar(Path(pasta), nome="Escritório Exemplo", email="apoiador@exemplo.com.br",
+                                  pix=[{"data": "2026-09-26T10:00:00", "valor": 5, "id": "ORD01X"}],
+                                  cobrancas=[{"data": "2026-08-27", "valor": 50, "id": "7001", "situacao": "approved"},
+                                             {"data": "2026-09-27", "valor": 50, "id": "7002", "situacao": "scheduled"}])
+        import pypdfium2 as pdfium
+        documento = pdfium.PdfDocument(pdf.read_bytes())
+        texto = documento[0].get_textpage().get_text_range()
+        documento.close()
+    checar("R$ 55,00" in texto, "o total soma só o que foi pago (5 + 50)", texto[:200])
+    checar("art. 538" in texto and "10.406/2002" in texto, "cita a doação do Código Civil")
+    checar("9.250/1995" in texto and "Não é dedutível" in texto, "diz que não é dedutível do IR, com a lei")
+    checar("Não é recibo fiscal" in texto, "diz que não é recibo fiscal")
 
     print("\n" + "=" * 55)
     if _falhas:

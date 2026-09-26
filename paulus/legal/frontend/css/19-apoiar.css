@@ -9,6 +9,26 @@
   .apoio-tela .sv-medida { gap: 20px; }
   .apoio-tela .cfg-valor b { font: 600 17px/1.1 var(--sans); }
   .apoio-outro { display: flex; align-items: center; gap: 8px; }
+  .apoio-moeda { font: 600 14px var(--sans); color: var(--ink2); }
+  /* a forma de pagamento em destaque, no alto do cartao */
+  .apoio-formas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* a tabela de valores: quatro valores e o "Outro" */
+  .apoio-tela .cfg-valores:not(.apoio-formas) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .apoio-tela .cfg-valor.apoio-forma { padding: 14px 16px; text-align: left; }
+  .apoio-tela .cfg-valor.apoio-forma b { font: 600 16px/1.2 var(--sans); }
+  .apoio-tela .cfg-valor.apoio-forma small { font-size: 12.5px; }
+  /* o que ja foi feito, numa linha embaixo da abertura */
+  .apoio-situacao { margin: 4px 0 0; display: flex; align-items: center; gap: 8px; font: 500 13.5px/1.5 var(--sans); color: var(--ink2); }
+  .apoio-situacao .ic { color: var(--ink3); }
+  .apoio-extrato { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .apoio-extrato button { display: inline-flex; align-items: center; gap: 6px; }
+  .apoio-extrato small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  /* o agradecimento depois do pagamento confirmado */
+  .apoio-obrigado { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 6px 4px 2px; }
+  .apoio-obrigado p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .apoio-obrigado p b { color: var(--ink); font-size: 16px; }
+  .apoio-obrigado-coracao { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--fill); color: var(--ink); animation: apoio-bate 1.4s ease-in-out 2; }
+  @keyframes apoio-bate { 0%, 100% { transform: scale(1); } 20% { transform: scale(1.12); } 40% { transform: scale(1); } 60% { transform: scale(1.08); } }
   .apoio-outro input[type=text] { flex: 1; min-width: 0; max-width: 220px; padding: 8px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink); }
   .apoio-radios { display: flex; gap: 18px; flex-wrap: wrap; }
   .apoio-radios .as-radio { min-height: 20px; }
@@ -31,18 +51,29 @@
   .apoio-estado { display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 13px var(--sans); color: var(--ink3); }
   .apoio-estado.ok { color: var(--okt); }
 
-  /* quem ja apoia */
-  .apoio-lista-topo { padding-bottom: 4px; }
-  .apoio-barra { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--ink-a1); flex-wrap: wrap; }
-  .apoio-secao { padding: 6px 16px 10px; }
-  .apoio-secao-cabeca { display: flex; align-items: center; gap: 10px; padding: 10px 0 6px; font: 600 14px var(--sans); }
-  .apoio-secao-cabeca small { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .apoio-nome { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13.5px; }
-  .apoio-nome:last-child { border-bottom: none; }
-  .apoio-nome .duas-linhas b { font-weight: 600; }
-  .apoio-vazio { margin: 0; padding: 6px 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink3); }
-  .apoio-mais { display: flex; align-items: center; gap: 12px; margin: 8px 16px 16px; padding: 12px 14px; border: 1px dashed var(--ink-a25); border-radius: 10px; background: transparent; text-align: left; width: calc(100% - 32px); cursor: pointer; }
-  .apoio-mais:hover:not(:disabled) { border: 1px dashed var(--ink); background: transparent; }
-  .apoio-mais .ic { color: var(--ink3); }
-  .apoio-mais .duas-linhas b { font-weight: 600; }
+  /* a assinatura, enquanto existir: valor, desde quando e o interromper */
+  .apoio-assinatura { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .apoio-assinatura .duas-linhas { flex: 1; min-width: 200px; gap: 2px; }
+  .apoio-assinatura .duas-linhas b { font: 600 17px var(--sans); }
+  .apoio-assinatura-coracao { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--fill); color: var(--ink); }
+  .apoio-interromper { display: inline-flex; align-items: center; gap: 6px; }
+  .apoio-interromper-mesmo { padding: 0; border: none; background: none; font: 500 12.5px var(--sans); color: var(--ink3); text-decoration: underline; text-underline-offset: 3px; }
+  .apoio-interromper-mesmo:hover:not(:disabled) { background: none; border: none; color: var(--acc); }
+  .apoio-antes { padding-bottom: 4px; }
 
+  /* o mural: um cartaz por apoiador, sem divisoes */
+  .apoio-mural { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .apoio-cartaz {
+    position: relative; display: grid; justify-items: center; align-content: start; gap: 6px; min-height: 190px; box-sizing: border-box;
+    padding: 26px 18px 20px; border: 1px solid var(--ink-a1); border-radius: 14px; background: var(--surf); text-align: center;
+    box-shadow: 0 10px 28px -20px var(--sh-a12);
+  }
+  .apoio-cartaz-iniciais { width: 64px; height: 64px; margin-bottom: 6px; display: grid; place-items: center; border-radius: 50%; background: var(--fill); font: 400 24px/1 var(--serif); color: var(--ink); }
+  .apoio-cartaz-nome { font: 600 16px/1.3 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  .apoio-cartaz-cidade { font: 500 13px var(--sans); color: var(--ink2); }
+  .apoio-cartaz-desde { font: 500 12px var(--sans); color: var(--ink3); }
+  .apoio-cartaz.voce { border-color: var(--ink-a2); }
+  .apoio-cartaz-voce { position: absolute; top: 12px; right: 12px; padding: 1px 8px; border-radius: 999px; background: var(--fill); font: 600 11px/1.6 var(--sans); color: var(--ink2); }
+  .apoio-cartaz.convite { border-style: dashed; background: transparent; box-shadow: none; cursor: pointer; }
+  .apoio-cartaz.convite:hover:not(:disabled) { border: 1px dashed var(--ink-a35); background: var(--sub); }
+  .apoio-cartaz.convite .apoio-cartaz-iniciais { background: transparent; border: 1px dashed var(--ink-a25); color: var(--ink3); }

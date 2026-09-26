@@ -4136,6 +4136,7 @@ def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
 
 
 CONFORMIDADE_DIR = BASE_DIR / "data" / "conformidade"
+APOIO_DIR = BASE_DIR / "data" / "apoio"
 
 
 def _pdf_conhecido(caminho: str) -> Path:
@@ -4150,7 +4151,7 @@ def _pdf_conhecido(caminho: str) -> Path:
         raise HTTPException(status_code=404, detail="arquivo não encontrado") from None
     if alvo.suffix.lower() != ".pdf" or not alvo.is_file():
         raise HTTPException(status_code=404, detail="arquivo não encontrado")
-    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve()]
+    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve(), APOIO_DIR.resolve()]
     conhecidos = {Path(d.path).resolve() for d in estado.searcher.documents}
     if alvo in conhecidos or any(r == alvo.parent or r in alvo.parents for r in raizes):
         return alvo
@@ -4955,12 +4956,60 @@ def apoio_assinatura_situacao(id_: str) -> dict:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@app.post("/api/apoio/extrato")
+def apoio_extrato(payload: dict) -> dict:
+    """
+    O "PAULUS - Extrato de apoio" em PDF: os Pix confirmados nesta maquina
+    (a tela manda) e as cobrancas do cartao, consultadas no Mercado Pago
+    agora. Gravado em data/apoio, para baixar pela janela de sempre.
+    """
+    import extrato_apoio
+
+    pix = [p for p in (payload.get("pix") or []) if isinstance(p, dict)][:500]
+    cobrancas: list = []
+    assinatura = None
+    # A assinatura de agora e as ja interrompidas: as cobrancas de todas.
+    for i, ass in enumerate([a for a in (payload.get("assinaturas") or []) if isinstance(a, dict)][:20]):
+        if not (ass.get("id") and ass.get("chave")):
+            continue
+        try:
+            cobrancas += apoio.pagamentos_da_assinatura(str(ass["id"]), str(ass["chave"])).get("pagamentos", [])
+            if i == 0 and ass.get("atual"):
+                situacao = apoio.situacao_da_assinatura(str(ass["id"]))
+                assinatura = {"situacao": situacao.get("situacao", ""), "valor": ass.get("valor")}
+        except apoio.ErroDeApoio as exc:
+            raise HTTPException(status_code=502, detail=f"não consegui as cobranças do cartão: {exc}") from exc
+    try:
+        caminho = extrato_apoio.gerar(APOIO_DIR, nome=str(payload.get("nome", ""))[:80], email=str(payload.get("email", ""))[:120],
+                                      pix=pix, cobrancas=cobrancas, assinatura=assinatura)
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui montar o extrato: {exc}") from exc
+    return {"caminho": str(caminho), "nome": caminho.name}
+
+
+@app.post("/api/apoio/assinatura/{id_}/valor")
+def apoio_assinatura_valor(id_: str, payload: dict) -> dict:
+    try:
+        return apoio.mudar_valor(id_, str(payload.get("chave", "")), float(payload.get("valor") or 0))
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="valor inválido") from exc
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/apoio/assinatura/{id_}/interromper")
+def apoio_assinatura_interromper(id_: str, payload: dict) -> dict:
+    try:
+        return apoio.interromper(id_, str(payload.get("chave", "")))
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @app.post("/api/apoio/assinatura")
 def apoio_assinatura(payload: dict) -> dict:
     """A assinatura no cartao: devolve o link da pagina do Mercado Pago."""
     try:
-        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")),
-                                      str(payload.get("frequencia", "mensal")))
+        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")))
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=400, detail="valor inválido") from exc
     except apoio.ErroDeApoio as exc:

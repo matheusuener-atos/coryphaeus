@@ -10,6 +10,9 @@
 //   POST /api/mp/assinatura   cria a assinatura no cartao e devolve o link
 //                             da pagina do Mercado Pago onde se poe o cartao
 //   GET  /api/mp/assinatura/:id  se a assinatura ja foi ativada (cartao posto)
+//   POST /api/mp/assinatura/:id/valor        muda o valor mensal  } so com a
+//   POST /api/mp/assinatura/:id/interromper  cancela a assinatura } chave dela
+//   POST /api/mp/assinatura/:id/pagamentos   as cobrancas mensais }
 //   POST /api/mp/aviso        o webhook do Mercado Pago (assinatura conferida)
 //
 // O que o webhook confirma fica no KV APOIOS (so situacao, valor e data): o
@@ -24,7 +27,7 @@ const KV_VALIDADE_S = 400 * 24 * 60 * 60;
 
 const MP = "https://api.mercadopago.com";
 const VALOR_MINIMO = 5;
-const VALOR_MAXIMO = 5000;
+const VALOR_MAXIMO = 50000;
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // O aviso do Mercado Pago mais velho que isto e recusado (repeticao).
 const AVISO_VALIDADE_MS = 10 * 60 * 1000;
@@ -42,6 +45,12 @@ export default {
       if (url.pathname === "/api/mp/assinatura" && request.method === "POST") return await criarAssinatura(request, env);
       const ass = url.pathname.match(/^\/api\/mp\/assinatura\/([A-Za-z0-9_-]{6,64})$/);
       if (ass && request.method === "GET") return await situacaoDaAssinatura(ass[1], env);
+      const mudar = url.pathname.match(/^\/api\/mp\/assinatura\/([A-Za-z0-9_-]{6,64})\/(valor|interromper|pagamentos)$/);
+      if (mudar && request.method === "POST") {
+        if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+        if (mudar[2] === "pagamentos") return await pagamentosDaAssinatura(mudar[1], request, env);
+        return mudar[2] === "valor" ? await mudarValor(mudar[1], request, env) : await interromper(mudar[1], request, env);
+      }
       if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env, ctx);
       return json({ erro: "rota não existe" }, 404);
     } catch (erro) {
@@ -184,13 +193,13 @@ async function criarAssinatura(request, env) {
   const pedido = await lerPedido(request);
   const c = conferir(pedido);
   if (c.erro) return json({ erro: c.erro }, 400);
-  const anual = pedido.frequencia === "anual";
+  // O apoio no cartao e sempre mensal.
   const r = await chamarMP(env, "/preapproval", "POST", {
-    reason: "Apoio ao PAULUS " + (anual ? "(anual)" : "(mensal)"),
+    reason: "Apoio mensal ao PAULUS",
     external_reference: "apoio-assinatura-" + crypto.randomUUID().slice(0, 18),
     payer_email: c.email,
     auto_recurring: {
-      frequency: anual ? 12 : 1,
+      frequency: 1,
       frequency_type: "months",
       transaction_amount: c.valor,
       currency_id: "BRL",
@@ -199,7 +208,63 @@ async function criarAssinatura(request, env) {
     status: "pending",
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou criar a assinatura", status: r.status }, 502);
-  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "" });
+  // A chave da assinatura: so quem a recebeu (o programa de quem assinou)
+  // consegue depois diminuir o valor ou interromper.
+  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", chave: await chaveDaAssinatura(env, r.dados.id) });
+}
+
+async function chaveDaAssinatura(env, id) {
+  return hmacHex(env.MP_WEBHOOK_SECRET || env.MP_ACCESS_TOKEN, "assinatura:" + id);
+}
+
+async function chaveConfere(env, id, chave) {
+  return typeof chave === "string" && igual(await chaveDaAssinatura(env, id), chave.toLowerCase());
+}
+
+/* Diminuir (ou mudar) o valor da assinatura. */
+async function mudarValor(id, request, env) {
+  const pedido = (await lerPedido(request)) || {};
+  if (!(await chaveConfere(env, id, pedido.chave))) return json({ erro: "essa assinatura não é desta instalação" }, 403);
+  const valor = Math.round(Number(pedido.valor) * 100) / 100;
+  if (!Number.isFinite(valor) || valor < VALOR_MINIMO || valor > VALOR_MAXIMO) {
+    return json({ erro: `o valor precisa estar entre R$ ${VALOR_MINIMO} e R$ ${VALOR_MAXIMO}` }, 400);
+  }
+  const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "PUT", {
+    auto_recurring: { transaction_amount: valor, currency_id: "BRL" },
+  });
+  if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor", status: r.status }, 502);
+  await guardar(env, "assinatura:" + id, { situacao: r.dados.status, valor });
+  return json({ id, situacao: r.dados.status, valor });
+}
+
+/* As cobrancas mensais da assinatura (as "faturas" do Mercado Pago), para o
+   extrato de apoio: data, valor e se foi paga. */
+async function pagamentosDaAssinatura(id, request, env) {
+  const pedido = (await lerPedido(request)) || {};
+  if (!(await chaveConfere(env, id, pedido.chave))) return json({ erro: "essa assinatura não é desta instalação" }, 403);
+  const r = await chamarMP(env, "/authorized_payments/search?preapproval_id=" + encodeURIComponent(id) + "&limit=100", "GET");
+  if (!r.ok) return json({ erro: "o Mercado Pago não devolveu as cobranças", status: r.status }, 502);
+  const pagamentos = ((r.dados && r.dados.results) || []).map((f) => {
+    const pagamento = f.payment || {};
+    return {
+      id: String(f.id || ""),
+      data: f.debit_date || f.date_created || "",
+      valor: Number(f.transaction_amount) || 0,
+      situacao: pagamento.status || f.status || "",
+      pago: pagamento.status === "approved",
+    };
+  });
+  return json({ id, pagamentos });
+}
+
+/* Interromper: a assinatura e cancelada no Mercado Pago - nada mais e cobrado. */
+async function interromper(id, request, env) {
+  const pedido = (await lerPedido(request)) || {};
+  if (!(await chaveConfere(env, id, pedido.chave))) return json({ erro: "essa assinatura não é desta instalação" }, 403);
+  const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "PUT", { status: "cancelled" });
+  if (!r.ok) return json({ erro: "o Mercado Pago recusou interromper", status: r.status }, 502);
+  await guardar(env, "assinatura:" + id, { situacao: "cancelled" });
+  return json({ id, situacao: "cancelled" });
 }
 
 // ---------------------------------------------------------------- aviso

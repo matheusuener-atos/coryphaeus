@@ -64,6 +64,17 @@ checar(JSON.parse(guardados.get("assinatura:PRE0001") || "{}").situacao === "aut
 const sit = await (await worker.fetch(new Request("https://paulus.ia.br/api/mp/assinatura/PRE0001"), env)).json();
 checar(sit.ativa === true && sit.fonte === "aviso", "a situação da assinatura vem do que o aviso guardou");
 
+// Mudar o valor e interromper so com a chave que a criacao devolveu.
+const { createHmac: hmac2 } = await import("node:crypto");
+const chaveBoa = hmac2("sha256", env.MP_WEBHOOK_SECRET).update("assinatura:PRE0001").digest("hex");
+const postar = (caminho, corpo) => worker.fetch(new Request("https://paulus.ia.br" + caminho, { method: "POST", body: JSON.stringify(corpo) }), env);
+const semChave = await postar("/api/mp/assinatura/PRE0001/interromper", { chave: "abc" });
+checar(semChave.status === 403, "interromper sem a chave certa é recusado");
+const outraChave = await postar("/api/mp/assinatura/PRE0002X/valor", { chave: chaveBoa, valor: 20 });
+checar(outraChave.status === 403, "a chave de uma assinatura não serve para outra");
+const valorBaixo = await postar("/api/mp/assinatura/PRE0001/valor", { chave: chaveBoa, valor: 2 });
+checar(valorBaixo.status === 400, "diminuir abaixo do mínimo é recusado");
+
 // O limite: a 11a tentativa no minuto e recusada antes de chamar o Mercado Pago.
 chamadasNoLimite = 0;
 let ultima = null;

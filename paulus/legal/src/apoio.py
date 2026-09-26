@@ -8,8 +8,10 @@ repositorio). Aqui so se repassa o pedido ao Worker e a resposta a tela:
     criar_pix(valor, email)            o QR do Pix
     situacao_do_pix(id)                se ja foi pago
     situacao_da_assinatura(id)         se o cartao foi posto e esta ativa
-    criar_assinatura(valor, email, f)  o link da pagina do Mercado Pago onde
-                                       a pessoa poe o cartao
+    criar_assinatura(valor, email)     o link da pagina do Mercado Pago onde
+                                       a pessoa poe o cartao (mensal)
+    mudar_valor(id, chave, valor)      diminuir o valor da assinatura
+    interromper(id, chave)             cancelar a assinatura
 
 O endereco do site pode ser trocado por PAULUS_SITE (para testar num Worker
 local, por exemplo).
@@ -61,6 +63,27 @@ def situacao_da_assinatura(id_: str) -> dict:
     return _chamar("GET", f"/api/mp/assinatura/{id_}")
 
 
-def criar_assinatura(valor: float, email: str, frequencia: str) -> dict:
-    frequencia = "anual" if frequencia == "anual" else "mensal"
-    return _chamar("POST", "/api/mp/assinatura", {"valor": valor, "email": email, "frequencia": frequencia})
+def criar_assinatura(valor: float, email: str) -> dict:
+    """A assinatura mensal no cartao. Volta com o link e a `chave` dela."""
+    return _chamar("POST", "/api/mp/assinatura", {"valor": valor, "email": email})
+
+
+def mudar_valor(id_: str, chave: str, valor: float) -> dict:
+    """Diminuir (ou mudar) o valor mensal - so com a chave da assinatura."""
+    if not RE_ID.match(id_ or ""):
+        raise ErroDeApoio("identificador de assinatura inválido")
+    return _chamar("POST", f"/api/mp/assinatura/{id_}/valor", {"chave": chave, "valor": valor})
+
+
+def interromper(id_: str, chave: str) -> dict:
+    """Cancela a assinatura no Mercado Pago - nada mais e cobrado."""
+    if not RE_ID.match(id_ or ""):
+        raise ErroDeApoio("identificador de assinatura inválido")
+    return _chamar("POST", f"/api/mp/assinatura/{id_}/interromper", {"chave": chave})
+
+
+def pagamentos_da_assinatura(id_: str, chave: str) -> dict:
+    """As cobrancas mensais da assinatura, para o extrato."""
+    if not RE_ID.match(id_ or ""):
+        raise ErroDeApoio("identificador de assinatura inválido")
+    return _chamar("POST", f"/api/mp/assinatura/{id_}/pagamentos", {"chave": chave})
