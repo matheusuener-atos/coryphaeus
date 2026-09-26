@@ -1,0 +1,75 @@
+  /* ------------------------------------------------------ e-mail: contas */
+  /* Contas de e-mail em passos (js/28-email-contas.js). Prefixo ec-;
+     reaproveita sv-kicker e sv-ligacao (12-servicos.css), em-conferencia e
+     em-avatar (11-email.css) e ag-toggle (09-agenda.css). */
+  .ec-palco { flex: 1 0 auto; min-height: 100%; box-sizing: border-box; display: grid; align-content: safe center; justify-content: center; justify-items: center; gap: 20px; padding: 40px 24px 56px; }
+  .ec-cartao {
+    width: min(460px, 100%); box-sizing: border-box; display: grid; gap: 16px; padding: 34px 40px 30px;
+    border: 1px solid var(--ink-a1); border-radius: 14px; background: var(--surf); box-shadow: 0 18px 48px -28px var(--sh-a12);
+  }
+  .ec-marca { display: flex; align-items: center; gap: 8px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  .ec-marca img { width: 20px; height: 20px; border-radius: 5px; }
+  .ec-cartao h2 { margin: 4px 0 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+  .ec-lide { margin: -6px 0 4px; font: 400 16px/1.5 var(--serif); color: var(--ink2); text-wrap: pretty; }
+  .ec-campo { display: grid; gap: 2px; min-width: 0; }
+  .ec-tela .ec-campo input, .ec-tela .ec-campo textarea {
+    width: 100%; max-width: none; box-sizing: border-box; height: 40px; padding: 6px 0; border: none; border-bottom: 1px solid var(--ink-a3);
+    border-radius: 0; background: none; box-shadow: none; outline: none; font: 400 17px var(--sans); color: var(--ink);
+  }
+  .ec-tela .ec-campo input:focus, .ec-tela .ec-campo textarea:focus { border-bottom-color: var(--ink); box-shadow: 0 1px 0 var(--ink); }
+  .ec-tela .ec-campo textarea { height: 60px; resize: vertical; font: 400 15px/1.5 var(--sans); }
+  .ec-senha { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--ink-a3); }
+  .ec-senha:focus-within { border-bottom-color: var(--ink); box-shadow: 0 1px 0 var(--ink); }
+  .ec-tela .ec-senha input { flex: 1; min-width: 0; max-width: 100%; border-bottom: none !important; box-shadow: none !important; }
+  .ec-erro { display: flex; align-items: flex-start; gap: 6px; margin: -6px 0 0; font: 500 13px/1.45 var(--sans); color: var(--acc); }
+  .ec-erro .ic { flex: none; margin-top: 1px; }
+  .ec-nota { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .ec-botoes { display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px; }
+  .ec-botoes button { min-width: 104px; height: 36px; justify-content: center; }
+  .ec-quem {
+    justify-self: start; max-width: 100%; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 8px;
+    border: 1px solid var(--ink-a1); border-radius: 999px; background: none; font: 500 13px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .ec-quem:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a1); color: var(--ink); }
+  .ec-quem span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ec-quem .em-avatar { width: 20px; height: 20px; border-radius: 50%; font-size: 9px; }
+  .ec-lista { display: grid; margin: 0 -40px; border-top: 1px solid var(--hair); }
+  .ec-conta { display: flex; align-items: center; border-bottom: 1px solid var(--hair); }
+  .ec-conta-botao {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 13px 8px 13px 40px;
+    border: none; border-radius: 0; background: none; text-align: left; cursor: pointer;
+  }
+  .ec-conta-botao:hover:not(:disabled) { background: var(--sub); border: none; }
+  .ec-conta-botao:hover .ec-conta-texto b { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .ec-conta-texto { display: grid; gap: 2px; min-width: 0; }
+  .ec-conta-texto b { font: 400 17px/1.25 var(--serif); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ec-conta-texto small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ec-conta.padrao .ec-conta-texto b { font-weight: 600; }
+  .ec-conta.problema .ec-conta-texto small { color: var(--acc); }
+  .ec-lista .em-avatar.grande { border-radius: 50%; }
+  .ec-mais { flex: none; width: 36px; height: 36px; margin-right: 28px; padding: 0; display: grid; place-items: center; border: none; border-radius: 8px; background: none; color: var(--ink3); }
+  .ec-mais:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .ec-outra { flex: none; padding-right: 40px; }
+  .ec-mais-ic { width: 36px; height: 36px; flex: none; box-sizing: border-box; display: grid; place-items: center; border: 1px dashed var(--ink-a3); border-radius: 50%; color: var(--ink2); }
+  .ec-pe { display: flex; justify-content: center; }
+  .ec-aviso { display: grid; gap: 4px; padding: 10px 12px; border-left: 2px solid var(--acc); background: var(--accbg2); }
+  .ec-aviso b { font: 600 13px var(--sans); }
+  .ec-aviso p { margin: 0; font: 400 13px/1.5 var(--sans); color: var(--ink2); }
+  .ec-ajuda summary { list-style: none; cursor: pointer; font: 500 13px var(--sans); color: var(--ink2); }
+  .ec-ajuda summary::-webkit-details-marker { display: none; }
+  .ec-ajuda summary::before { content: "+ "; }
+  .ec-ajuda[open] summary::before { content: "− "; }
+  .ec-ajuda summary:hover { color: var(--ink); }
+  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--ink-a1); font: 400 15px/1.5 var(--serif); color: var(--ink2); }
+  .ec-servidor { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ec-servidor span:not(.ic) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ec-manual { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 10px 16px; }
+  .ec-tela .ec-manual input { font-size: 14.5px; height: 34px; }
+  .ec-prova { font-size: 13.5px; }
+  .ec-cartao .ag-toggle { padding-top: 2px; }
+  /* Entrar com o provedor (botoesDeLoginOAuth, de outro arquivo), acima do endereco. */
+  .ec-oauth { display: grid; gap: 8px; }
+  .ec-ou { display: flex; align-items: center; gap: 12px; font: 500 12px var(--sans); color: var(--ink3); }
+  .ec-ou::before, .ec-ou::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
+  .ec-regras { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; max-width: 520px; font: 500 12px var(--sans); color: var(--ink3); }
+

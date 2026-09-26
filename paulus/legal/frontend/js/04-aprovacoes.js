@@ -290,10 +290,22 @@ async function decidirPedidos(ids, aprovar) {
   const quais = ids.map((id) => aprov.pendentes.find((p) => p.id === id)).filter(Boolean);
   const semVolta = quais.filter((p) => !p.reversivel);
 
-  const titulo = (aprovar ? "Aprovar " : "Recusar ") + plural(ids.length, "pedido") + "?";
-  let texto = aprovar ? "A ação é executada agora." : "Os pedidos saem da fila sem executar.";
-  if (aprovar && semVolta.length) texto += "\n" + plural(semVolta.length, "não tem", "não têm") + " como desfazer depois.";
-  if (!(await confirmar({ titulo: titulo, contexto: "Aprovações", texto: texto, confirmar: aprovar ? "Aprovar" : "Recusar", perigo: aprovar && semVolta.length > 0 }))) return;
+  /* Um pedido: o titulo diz qual. Varios: quantos, e quais nao tem volta.
+     Aprovar e o sim - botao verde; so recusar e que e vermelho. */
+  const um = quais.length === 1 ? quais[0] : null;
+  const nome = (p) => "“" + (p.titulo || "pedido") + "”";
+  let titulo, texto;
+  if (aprovar) {
+    titulo = um ? "Aprovar " + nome(um) + "?" : "Aprovar " + ids.length + " pedidos?";
+    texto = um ? "Ao aprovar, eu faço isso agora." : "Ao aprovar, eu faço os " + ids.length + " agora, um depois do outro.";
+    if (um && semVolta.length) texto += "\nDepois de feito, não tem como desfazer — confira antes.";
+    else if (semVolta.length === quais.length && quais.length > 1) texto += "\nNenhum deles tem como ser desfeito depois — confira antes.";
+    else if (semVolta.length) texto += "\nNão têm como ser desfeitos depois: " + semVolta.map(nome).join(", ") + ".";
+  } else {
+    titulo = um ? "Recusar " + nome(um) + "?" : "Recusar " + ids.length + " pedidos?";
+    texto = "Nada é feito: " + (um ? "o pedido sai" : "os pedidos saem") + " da fila e " + (um ? "fica registrado" : "ficam registrados") + " no Histórico.";
+  }
+  if (!(await confirmar({ titulo: titulo, contexto: "Aprovações", texto: texto, confirmar: aprovar ? "Aprovar" : "Recusar", perigo: !aprovar, sucesso: aprovar }))) return;
 
   atualizarSelo(true);
   try {

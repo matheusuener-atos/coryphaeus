@@ -121,6 +121,8 @@ PADRAO: dict = {
     "voz": {
         "modelo": "turbo",
     },
+    # Os IDs do login de e-mail (Google e Microsoft) nao sao preferencia: sao
+    # do aplicativo PAULUS e vem no codigo, em src/oauth_app.py.
 }
 
 

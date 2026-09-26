@@ -1,0 +1,29 @@
+  /* ------------------------------------------ e-mail: entrar com o provedor */
+  /* Os botoes "Entrar com Google/Microsoft", o andamento do login e o cartao
+     dos IDs em Configuracoes (js/30-email-oauth.js). Prefixo eo-; reaproveita
+     em-avatar e em-conferencia (11-email.css) e cfg-* (17-configuracoes.css). */
+  .eo-login { display: grid; gap: 10px; }
+  .eo-botoes { display: grid; gap: 8px; }
+  .eo-botao {
+    display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 42px; box-sizing: border-box;
+    border: 1px solid var(--ink-a2); border-radius: 8px; background: var(--surf); font: 500 14.5px var(--sans); color: var(--ink); cursor: pointer;
+  }
+  .eo-botao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a3); color: var(--ink); }
+  .eo-botao:disabled { opacity: .55; cursor: not-allowed; }
+  .eo-simbolo { width: 18px; height: 18px; flex: none; display: block; }
+  .eo-explica { display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .eo-explica .ic { flex: none; margin-top: 1px; }
+  .eo-ligacao { border: none; background: none; padding: 0; cursor: pointer; font: 600 12.5px var(--sans); color: var(--acc); text-decoration: underline; text-underline-offset: 2px; }
+  .eo-ligacao:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .eo-espera { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--ink-a12); border-radius: 10px; background: var(--sub); }
+  .eo-titulo { display: flex; align-items: flex-start; gap: 8px; margin: 0; font: 600 14px/1.45 var(--sans); color: var(--ink); }
+  .eo-titulo .ic { flex: none; margin-top: 1px; color: var(--ink2); }
+  .eo-sub { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .eo-texto { margin: 0; font: 400 15px/1.5 var(--serif); color: var(--ink2); }
+  .eo-erro { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 500 13px/1.45 var(--sans); color: var(--acc); }
+  .eo-erro .ic { flex: none; margin-top: 1px; }
+  .eo-rodape { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+  .eo-rodape button { min-width: 96px; height: 34px; justify-content: center; }
+  .eo-denovo { display: grid; gap: 14px; }
+  .eo-denovo h2 { margin: 4px 0 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+  .eo-passos { margin: 0; padding-left: 20px; display: grid; gap: 4px; font: 400 13px/1.5 var(--sans); color: var(--ink2); }

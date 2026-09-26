@@ -142,25 +142,20 @@ async function abrirNoWindows(caminho) {
   if (!r.ok) avisoCert(await erroDe(r));
 }
 
-/* Na janela do programa, download de navegador nao chega a lugar nenhum: o
-   PDF passa pelo "Salvar como" do Windows e o servidor grava a copia. No
-   navegador, download comum. */
-async function baixarArquivo(caminho, rota) {
-  const api = (window.pywebview || {}).api || {};
+/* Baixar e escolher a pasta no seletor do PAULUS - nao o "Salvar como" do
+   Windows - e o servidor grava a copia la. Vale igual na janela do programa
+   e no navegador. */
+async function baixarArquivo(caminho) {
   const nome = String(caminho).split(/[\\/]/).pop();
-  if (api.salvar_como) {
-    const destino = await api.salvar_como(nome, ["PDF (*.pdf)"]);
-    if (!destino) return;
-    const r = await fetch("/api/arquivos/salvar", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caminho: caminho, destino: destino }),
-    });
-    if (!r.ok) { avisoCert(await erroDe(r)); return; }
-    const d = await r.json();
-    avisoCert("salvo em " + d.pasta + " — " + d.nome);
-    return;
-  }
-  window.location.href = (rota || "/api/arquivos/baixar?caminho=") + encodeURIComponent(caminho);
+  const e = await escolherPastaNossa({ titulo: "Onde salvar o PDF", contexto: nome, nome: nome });
+  if (!e) return;
+  const r = await fetch("/api/arquivos/salvar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ caminho: caminho, destino: e.pasta.replace(/[\\/]+$/, "") + "\\" + e.nome }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  const d = await r.json();
+  avisoCert("salvo em " + d.pasta + " — " + d.nome);
 }
 
 /* O nosso "escolher pasta", no visual do anexar: atalhos, unidades e pastas

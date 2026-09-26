@@ -1388,8 +1388,6 @@ async function perguntarComoSalvar() {
   const arquivos = l ? l.itens.filter((it) => it.feito).map((it) => it.feito.destino) : [];
   if (!arquivos.length) { avisoCert("nenhum documento assinado para salvar ainda"); return; }
   const n = arquivos.length;
-  const api = (window.pywebview || {}).api || {};
-  const naJanela = Boolean(api.salvar_como && api.escolher_pasta);
   let modo = n > 1 ? "zip" : "um";
   const opcao = (valor, icone, titulo, sub) => {
     const classe = "as-salvar-opcao" + (valor === modo ? " on" : "");
@@ -1402,9 +1400,7 @@ async function perguntarComoSalvar() {
     texto: "Eles já estão gravados nesta máquina. Aqui você leva uma cópia para onde quiser.",
     html: '<div class="as-salvar-opcoes">' +
       opcao("zip", "archive", "Um .zip com todos", (n === 1 ? "o PDF" : "os " + n + " PDFs") + " num arquivo só · nome repetido ganha um número") +
-      opcao("um", "picture_as_pdf", "Um a um", naJanela
-        ? "cada PDF solto, na pasta que você escolher · nada que já está lá é substituído"
-        : "cada PDF baixado separado · o navegador pode pedir licença para baixar vários") + "</div>",
+      opcao("um", "picture_as_pdf", "Um a um", "cada PDF solto, na pasta que você escolher · nada que já está lá é substituído") + "</div>",
     confirmar: "Salvar", cancelar: "Agora não",
   });
   const botoes = document.querySelectorAll("#veu-dialogo [data-salvar]");

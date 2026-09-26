@@ -13,7 +13,7 @@
    o.campo { rotulo, valor, placeholder, sufixo, icone, tipo, dica,
              sugestoes, obrigatorio (padrao sim), selecionar (padrao sim),
              max (limite de caracteres) },
-   o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.larga,
+   o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.sucesso (botao verde: aprovar), o.larga,
    o.classe (uma classe a mais no cartao, para dialogos com miolo proprio),
    o.depois (HTML depois dos campos: listas, texto longo, botoes - o que
    tiver `data-dialogo-chave` volta em `valores`), o.rodape (HTML a esquerda
@@ -63,7 +63,7 @@ function dialogo(o) {
       '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + (o.depois || "") + "</div>" +
       '<div class="dialogo-pe">' + (o.rodape || "") + '<span class="cresce"></span>' +
       '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
-      '<button type="button" class="primario' + (o.perigo ? " perigo" : "") + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
+      '<button type="button" class="primario' + (o.perigo ? " perigo" : (o.sucesso ? " sucesso" : "")) + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
     document.body.appendChild(veu);
     veu.querySelectorAll(".dialogo-caixa select").forEach(melhorarSelect);
 

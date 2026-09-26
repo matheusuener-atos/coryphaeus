@@ -300,8 +300,8 @@ def test_detectar_servidor() -> None:
 
     m = correio_contas.detectar("alguem@outlook.com", sondar=False)
     checar(m.get("bloqueado") is True, "marca conta Microsoft como bloqueada")
-    checar("OAuth" in m.get("aviso", ""),
-           "e avisa por que, antes de a pessoa tentar e falhar")
+    checar("login da Microsoft" in m.get("aviso", "") and "use outra conta" in m.get("aviso", ""),
+           "e avisa por que, antes de a pessoa tentar e falhar (e o que fazer por enquanto)")
 
     proprio = correio_contas.detectar("adv@escritorio-que-nao-existe-xyz.com.br", sondar=False)
     checar(not proprio["achou"], "dominio proprio sem sondar nao inventa servidor")

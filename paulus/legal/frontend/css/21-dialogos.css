@@ -78,6 +78,9 @@
      branca, no escuro, era rosa-claro com branco - nao se lia. */
   .dialogo-pe .primario.perigo { background: var(--accbg); border: 1px solid var(--accln); color: var(--acc); }
   .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
+  /* Aprovar e o sim que faz: verde, no mesmo desenho do perigo. */
+  .dialogo-pe .primario.sucesso { background: var(--okbg); border: 1px solid var(--verde); color: var(--okt); }
+  .dialogo-pe .primario.sucesso:hover:not(:disabled) { background: var(--okbg); border-color: var(--okt); color: var(--okt); }
   /* OS DOIS POP-UPS DE CONTEUDO (docs/ui/05, Pop-ups).
      Exibicao (.dialogo-ver): so leitura - a ficha, as acoes do que se ve e,
      no rodape, Fechar e a acao que leva adiante (Editar). Nao exclui.

@@ -294,9 +294,34 @@ def montar_mensagem(bruto: bytes, uid: str = "", *, so_cabecalho: bool = False) 
 # --------------------------------------------------------------- conexao
 
 
-def _erro_amigavel(exc: Exception, onde: str) -> ErroCorreio:
+def _por_login(conta) -> str:
+    """"google" ou "microsoft" quando a conta entra pelo login OAuth; "" se por senha."""
+    modo = getattr(conta, "autenticacao", "senha") or "senha"
+    return modo if modo in ("google", "microsoft") else ""
+
+
+def xoauth2(email_: str, token: str) -> str:
+    """A linha do SASL XOAUTH2 (imaplib e smtplib aplicam o base64)."""
+    return f"user={email_}\x01auth=Bearer {token}\x01\x01"
+
+
+def _erro_amigavel(exc: Exception, onde: str, conta=None) -> ErroCorreio:
     texto = str(exc).lower()
-    if "authentication" in texto or "login" in texto or "credential" in texto:
+    provedor = _por_login(conta) if conta is not None else ""
+    recusou = ("authentication" in texto or "authenticate" in texto or "login" in texto
+               or "credential" in texto or "xoauth2" in texto)
+    if recusou and provedor:
+        rotulo = "Google" if provedor == "google" else "Microsoft"
+        frase = f"o servidor de {onde} recusou o acesso do login {rotulo}."
+        if provedor == "microsoft" and onde == "saída":
+            frase += (" Em contas Microsoft 365 de empresa, o administrador pode ter "
+                      "desligado o envio autenticado (SMTP AUTH) desta caixa.")
+        elif provedor == "microsoft":
+            frase += " Em contas Microsoft 365 de empresa, o administrador pode ter desligado o IMAP."
+        else:
+            frase += " Tente entrar de novo com o Google."
+        return ErroCorreio(frase)
+    if recusou:
         return ErroCorreio(
             "o servidor recusou a senha. Se for Gmail, precisa ser uma Senha de app, "
             "não a senha da conta."
@@ -309,10 +334,15 @@ def _erro_amigavel(exc: Exception, onde: str) -> ErroCorreio:
 
 
 def _abrir_imap(conta, senha: str) -> imaplib.IMAP4:
+    """
+    Conecta e entra. `senha` e a senha da conta - ou, na conta de login
+    (Google/Microsoft), o access token, que entra por XOAUTH2.
+    """
     if not conta.imap_host:
         raise ErroCorreio("falta o servidor de entrada (IMAP) desta conta")
+    provedor = _por_login(conta)
     if not senha:
-        raise ErroCorreio("preciso da senha desta conta")
+        raise ErroCorreio("é preciso entrar de novo nesta conta" if provedor else "preciso da senha desta conta")
 
     try:
         if conta.imap_ssl:
@@ -324,13 +354,17 @@ def _abrir_imap(conta, senha: str) -> imaplib.IMAP4:
         raise _erro_amigavel(exc, "entrada") from exc
 
     try:
-        con.login(conta.email, senha)
+        if provedor:
+            linha = xoauth2(conta.email, senha).encode("utf-8")
+            con.authenticate("XOAUTH2", lambda _desafio: linha)
+        else:
+            con.login(conta.email, senha)
     except Exception as exc:
         try:
             con.logout()
         except Exception:
             pass
-        raise _erro_amigavel(exc, "entrada") from exc
+        raise _erro_amigavel(exc, "entrada", conta) from exc
     return con
 
 
@@ -349,13 +383,25 @@ def _abrir_smtp(conta, senha: str) -> smtplib.SMTP:
         raise _erro_amigavel(exc, "saída") from exc
 
     try:
-        con.login(conta.email, senha)
+        if _por_login(conta):
+            linha = xoauth2(conta.email, senha)
+
+            # Primeira chamada (sem desafio) manda a linha; se o servidor
+            # recusar, ele manda um desafio com o motivo e espera resposta
+            # vazia antes do 535 - devolver a linha de novo ficaria em laco.
+            def _xoauth2(desafio=None):
+                return linha if desafio is None else ""
+
+            con.ehlo_or_helo_if_needed()
+            con.auth("XOAUTH2", _xoauth2, initial_response_ok=True)
+        else:
+            con.login(conta.email, senha)
     except Exception as exc:
         try:
             con.quit()
         except Exception:
             pass
-        raise _erro_amigavel(exc, "saída") from exc
+        raise _erro_amigavel(exc, "saída", conta) from exc
     return con
 
 

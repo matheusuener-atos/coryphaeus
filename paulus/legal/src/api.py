@@ -44,6 +44,8 @@ import assinatura
 import certificado
 import correio
 import correio_contas
+import correio_oauth
+import segredos
 import destinos
 import avisos
 import bemestar
@@ -145,6 +147,16 @@ def _quem_sou() -> str:
     return nome.split(" ")[0] if nome else "você"
 
 
+def _credenciais_oauth(provedor: str) -> dict:
+    """
+    Client ID (e, no Google, o secret) do aplicativo PAULUS - vem do codigo
+    (src/oauth_app.py), igual em toda instalacao. Quem usa so faz login.
+    """
+    import oauth_app
+
+    return oauth_app.credenciais(provedor)
+
+
 class Estado:
     """Indice em memoria, compartilhado entre as requisicoes."""
 
@@ -187,7 +199,10 @@ class Estado:
         self.assinaturas = assinatura.Registro(ASSINATURAS_PATH)
         # Contas de e-mail e o historico do que ja saiu daqui.
         self.contas = correio_contas.Contas(CONTAS_EMAIL_PATH)
+        self.contas.credenciais_oauth = _credenciais_oauth
         self.envios = correio.RegistroEnvios(ENVIOS_PATH)
+        # O login com Google/Microsoft em andamento (um por vez).
+        self.entrada_oauth: correio_oauth.Entrada | None = None
         # Documentos de texto e planilhas, com historico de versoes.
         self.documentos = documento.Documentos(self.base)
         self.comentarios = documento.Comentarios(self.base)
@@ -4082,6 +4097,10 @@ def arquivos_salvar(payload: dict) -> dict:
         destino = destino.with_name(destino.name + ".pdf")
     if destino.resolve() == alvo.resolve():
         return {"nome": destino.name, "pasta": str(destino.parent)}
+    # O seletor do PAULUS nao pergunta "substituir?": o que ja esta na pasta
+    # fica, e a copia ganha "(2)" no nome.
+    if destino.exists():
+        destino = acervo._nome_livre(destino.parent, destino.name, set())
     try:
         shutil.copy2(alvo, destino)
     except OSError as exc:
@@ -4307,15 +4326,40 @@ class PedidoEnvio(BaseModel):
     senha: str = ""
 
 
+def _credencial_ou_http(conta) -> str:
+    """
+    A senha, ou o access token renovado, da conta.
+
+    401 quando falta algo que so a pessoa resolve (senha, ou entrar de novo
+    pelo login); 502 quando o problema e de rede, que passa sozinho.
+    """
+    try:
+        senha = estado.contas.credencial(conta)
+    except correio_oauth.ErroOAuth as exc:
+        codigo = 401 if exc.precisa_entrar else 502
+        raise HTTPException(status_code=codigo, detail=str(exc)) from exc
+    if not senha:
+        raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
+    return senha
+
+
 def _conta_e_senha(id_: str = "") -> tuple:
-    """A conta pedida (ou a em uso) com a senha disponivel."""
+    """A conta pedida (ou a em uso) com a senha (ou o token) disponivel."""
     conta = estado.contas.obter(id_) if id_ else estado.contas.em_uso
     if not conta:
         raise HTTPException(status_code=400, detail="nenhuma conta de e-mail conectada")
-    senha = estado.contas.senha(conta)
-    if not senha:
-        raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
-    return conta, senha
+    return conta, _credencial_ou_http(conta)
+
+
+def _info_oauth() -> dict:
+    """Quais logins este PAULUS oferece: os provedores que vem registrados."""
+    import oauth_app
+
+    return {
+        "google": {"configurado": oauth_app.configurado("google")},
+        "microsoft": {"configurado": oauth_app.configurado("microsoft")},
+        "prazo_s": correio_oauth.PRAZO_LOGIN,
+    }
 
 
 def _emails_dos_cadastros() -> dict:
@@ -4330,16 +4374,28 @@ def _emails_dos_cadastros() -> dict:
 
 @app.get("/api/email/contas")
 def email_contas() -> dict:
-    dados = estado.contas.para_tela()
+    dados = _contas_para_tela()
     dados["registro"] = estado.envios.para_tela(10)
     dados["pode_enviar_sozinho"] = estado.prefs.pode("enviar_mensagem")
+    return dados
+
+
+def _contas_para_tela() -> dict:
+    dados = estado.contas.para_tela()
+    oauth = _info_oauth()
+    dados["oauth"] = oauth
+    if oauth["microsoft"]["configurado"]:
+        dados["aviso_microsoft"] = correio_contas.AVISO_MICROSOFT_OAUTH
     return dados
 
 
 @app.post("/api/email/detectar")
 def email_detectar(payload: EnderecoEmail) -> dict:
     """Acha os servidores do endereco, pela tabela ou sondando o dominio."""
-    return correio_contas.detectar(payload.email)
+    oauth = _info_oauth()
+    return correio_contas.detectar(
+        payload.email, oauth={p: oauth[p]["configurado"] for p in ("google", "microsoft")},
+    )
 
 
 @app.post("/api/email/testar")
@@ -4359,6 +4415,9 @@ def email_testar(payload: FichaConta) -> dict:
     senha = payload.senha
     if not senha and payload.dados.get("id"):
         guardada = estado.contas.obter(str(payload.dados["id"]))
+        if guardada and guardada.por_login:
+            # A conta de login se testa com ela mesma: servidores e token dela.
+            return correio.testar(guardada, _credencial_ou_http(guardada))
         senha = estado.contas.senha(guardada) if guardada else ""
     if not senha:
         raise HTTPException(status_code=400, detail="informe a senha para testar")
@@ -4374,7 +4433,7 @@ def email_salvar_conta(payload: FichaConta) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if payload.senha:
         estado.contas.lembrar(conta.id, payload.senha)
-    return estado.contas.para_tela()
+    return _contas_para_tela()
 
 
 @app.post("/api/email/contas/senha")
@@ -4383,6 +4442,17 @@ def email_senha_conta(payload: SenhaConta) -> dict:
     conta = estado.contas.obter(payload.id)
     if not conta:
         raise HTTPException(status_code=404, detail="conta não encontrada")
+    if conta.por_login and not payload.senha:
+        raise HTTPException(
+            status_code=400,
+            detail=f"esta conta entra pelo login {correio_oauth.rotulo(conta.autenticacao)} - use o botão de entrar",
+        )
+    if conta.por_login:
+        # Senha de app numa conta que entrava pelo login: prova com a senha,
+        # nos servidores dela, antes de trocar o jeito de entrar.
+        import dataclasses
+
+        conta = dataclasses.replace(conta, autenticacao="senha")
 
     prova = correio.testar(conta, payload.senha)
     if not prova["entrada"]:
@@ -4390,30 +4460,98 @@ def email_senha_conta(payload: SenhaConta) -> dict:
         raise HTTPException(status_code=400, detail=prova["erro_entrada"] or "o servidor recusou a senha")
 
     estado.contas.lembrar(conta.id, payload.senha)
-    if conta.guardar_senha:
-        estado.contas.salvar_conta({"id": conta.id, "email": conta.email}, payload.senha)
-    estado.contas.marcar_ok(conta)
-    return estado.contas.para_tela()
+    guardada = estado.contas.salvar_conta({"id": conta.id, "email": conta.email}, payload.senha)
+    estado.contas.marcar_ok(guardada)
+    return _contas_para_tela()
 
 
 @app.post("/api/email/contas/{id_}/usar")
 def email_usar_conta(id_: str) -> dict:
     if not estado.contas.usar(id_):
         raise HTTPException(status_code=404, detail="conta não encontrada")
-    return estado.contas.para_tela()
+    return _contas_para_tela()
 
 
 @app.delete("/api/email/contas/{id_}")
 def email_apagar_conta(id_: str) -> dict:
     if not estado.contas.apagar(id_):
         raise HTTPException(status_code=404, detail="conta não encontrada")
-    return estado.contas.para_tela()
+    return _contas_para_tela()
 
 
 @app.post("/api/email/esquecer-senhas")
 def email_esquecer_senhas() -> dict:
     quantas = estado.contas.esquecer_senhas()
-    return {**estado.contas.para_tela(), "apagadas": quantas}
+    return {**_contas_para_tela(), "apagadas": quantas}
+
+
+# ------------------------------------------- login com Google e Microsoft
+
+
+class PedidoEntrada(BaseModel):
+    provedor: str = ""
+    email: str = ""          # login_hint, opcional
+
+
+@app.get("/api/email/oauth")
+def email_oauth_info() -> dict:
+    return _info_oauth()
+
+
+def _concluir_entrada(provedor: str, tokens: dict, email: str, nome: str) -> dict:
+    """Guarda a conta que entrou e prova a conexao, dizendo o que funcionou."""
+    conta = estado.contas.ligar_oauth(provedor, email, nome, tokens)
+    prova = correio.testar(conta, tokens["access_token"])
+    if prova["entrada"]:
+        estado.contas.marcar_ok(conta)
+    else:
+        estado.contas.marcar_erro(conta, prova["erro_entrada"])
+    return {"conta": conta.to_dict(em_uso=estado.contas.em_uso is conta), "prova": prova}
+
+
+@app.post("/api/email/oauth/entrar")
+def email_oauth_entrar(payload: PedidoEntrada) -> dict:
+    """
+    Comeca o login: sobe o servidor de volta e abre o navegador.
+
+    Um login por vez: comecar outro cancela o que estava esperando.
+    """
+    provedor = payload.provedor.strip().lower()
+    if provedor not in correio_oauth.PROVEDORES:
+        raise HTTPException(status_code=400, detail="provedor desconhecido")
+    anterior = estado.entrada_oauth
+    if anterior and not anterior.terminou:
+        anterior.cancelar()
+    try:
+        entrada = correio_oauth.Entrada(
+            provedor, _credenciais_oauth(provedor), _concluir_entrada,
+            login_hint=payload.email.strip() if "@" in payload.email else "",
+        )
+        estado.entrada_oauth = entrada
+        return entrada.iniciar()
+    except correio_oauth.ErroOAuth as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui abrir a porta local para o login: {exc}") from exc
+
+
+@app.get("/api/email/oauth/andamento")
+def email_oauth_andamento() -> dict:
+    entrada = estado.entrada_oauth
+    if not entrada:
+        return {"fase": "nenhum"}
+    dados = entrada.andamento()
+    if entrada.fase == "pronto":
+        dados["contas"] = _contas_para_tela()
+    return dados
+
+
+@app.post("/api/email/oauth/cancelar")
+def email_oauth_cancelar() -> dict:
+    entrada = estado.entrada_oauth
+    if entrada and not entrada.terminou:
+        entrada.cancelar()
+    return entrada.andamento() if entrada else {"fase": "nenhum"}
 
 
 # --------------------------------------------------------- caixa de entrada
@@ -4629,9 +4767,14 @@ def email_enviar(payload: PedidoEnvio) -> dict:
     """
     conta, msg, para = _montar_do_pedido(payload)
 
-    if payload.senha:
+    if payload.senha and not conta.por_login:
         estado.contas.lembrar(conta.id, payload.senha)
-    if not estado.contas.senha(conta):
+    if not estado.contas.tem_credencial(conta):
+        if conta.por_login:
+            raise HTTPException(
+                status_code=401,
+                detail=f"é preciso entrar de novo com {correio_oauth.rotulo(conta.autenticacao)} em {conta.email}",
+            )
         raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
 
     anexos = [Path(a).name for a in payload.anexos]
@@ -4658,7 +4801,10 @@ def _enviar_de_fato(dados: dict) -> dict:
     payload = PedidoEnvio(**{k: v for k, v in dados.items() if k in PedidoEnvio.model_fields})
     conta, msg, _ = _montar_do_pedido(payload)
 
-    senha = estado.contas.senha(conta)
+    try:
+        senha = estado.contas.credencial(conta)
+    except correio_oauth.ErroOAuth as exc:
+        raise RuntimeError(str(exc)) from exc
     if not senha:
         raise RuntimeError(f"a senha de {conta.email} não está mais disponível - entre na conta de novo")
 
