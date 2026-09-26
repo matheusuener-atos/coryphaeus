@@ -271,7 +271,7 @@ function cartaoDosLembretes() {
     else sub = "a cada " + horasEmTexto(l.cada_min) + (l.meta_dia ? " · " + l.meta_texto : "") + (l.proximo ? " · próximo às " + l.proximo : "");
     const agua = /água|agua/i.test(l.titulo);
     const circulo = marcado
-      ? '<span class="be-marca on" title="' + (l.cumprido ? "Meta de hoje cumprida" : "Feito · volta às " + esc(horaDeVolta(l))) + '">' + ic("check", 12) + "</span>"
+      ? '<span class="ic ic-18 ag-feita-ic" title="' + (l.cumprido ? "Meta de hoje cumprida" : "Feito · volta às " + esc(horaDeVolta(l))) + '">check_circle</span>'
       : '<button class="be-marca" data-be-feito="' + l.id + '"' + (l.ligado ? "" : " disabled") + ' title="Marcar como feito" aria-label="Marcar ' + esc(l.titulo) + ' como feito"></button>';
     // Em dia, o botao some - a nao ser a agua, que pode ser mais de um copo.
     const botao = l.ligado && !l.cumprido && (!marcado || agua)
@@ -291,7 +291,7 @@ function cartaoDosLembretes() {
 
 function interruptorDoLembrete(l) {
   return '<span class="interruptor-min' + (l.ligado ? " on" : "") + '" data-be-ligar="' + l.id + '" role="switch" aria-checked="' + Boolean(l.ligado) +
-    '" title="' + (l.ligado ? "Desligar" : "Ligar") + ' este lembrete"><span class="chave"></span></span>';
+    '" title="' + (l.ligado ? "Desligar" : "Ligar") + ' este lembrete"></span>';
 }
 
 /* Entrar e sair de "Ajustar" (e abrir o formulario) sem salto: a altura do
@@ -338,9 +338,8 @@ function feitoNoIntervalo(l) {
 function interruptorDosAvisos() {
   const a = be.avisos || {};
   if (!a.disponivel) return "<span>Ficam nesta máquina · nada é compartilhado</span>";
-  return '<span class="be-avisos" data-be-avisos="1" role="switch" aria-checked="' + Boolean(a.ligado) + '" title="A notificação do Windows e o botão piscando na barra de tarefas">' +
-    "<span>Avisar no Windows" + (a.ligado ? "" : " · desligado") + "</span>" +
-    '<span class="interruptor-min' + (a.ligado ? " on" : "") + '"><span class="chave"></span></span></span>';
+  return '<span class="ag-toggle' + (a.ligado ? " on" : "") + '" data-be-avisos="1" role="switch" aria-checked="' + Boolean(a.ligado) + '" title="A notificação do Windows e o botão piscando na barra de tarefas">' +
+    "<span>Avisar no Windows" + (a.ligado ? "" : " · desligado") + "</span><i></i></span>";
 }
 
 /* Tarefas concluidas por hora, de hoje. */

@@ -295,7 +295,7 @@ function abasDosDocumentos() {
   const planilha = escr.visao === "planilha";
   const ativa = escr.atual === null ? " ativa" : "";
   return '<div class="docs-abas">' +
-    '<button class="docs-aba docs-aba-lista' + ativa + '" data-docs-lista="1" title="Todos os documentos e planilhas">' + ic("list", 16) + '<span class="docs-aba-nome">Arquivos</span></button>' +
+    '<button class="docs-aba' + ativa + '" data-docs-lista="1" title="Todos os documentos e planilhas">' + ic("list", 16) + '<span class="docs-aba-nome">Arquivos</span></button>' +
     abas +
     '<button class="docs-aba-novo" data-docs-novo="' + (planilha ? "planilha" : "texto") + '">' +
     (planilha ? "Nova planilha" : "Novo documento") + ic("add", 16) + "</button>" +
@@ -356,9 +356,9 @@ function painelDaLista() {
 function botaoDoFoco() {
   const rotulo = escr.foco ? "Mostrar o painel" : "Ocultar o painel";
   const conta = escr.foco ? (escr.naoVistas || 0) : 0;
-  return '<button class="docs-foco' + (escr.foco ? " on" : "") + '" data-docs-foco="1" title="' + rotulo + '" aria-pressed="' + escr.foco + '">' +
+  return '<button class="chip docs-foco' + (escr.foco ? " on" : "") + '" data-docs-foco="1" title="' + rotulo + '" aria-pressed="' + escr.foco + '">' +
     ic("view_sidebar", 18) + '<span class="docs-foco-rotulo">' + (escr.foco ? "Painel" : "Foco") + "</span>" +
-    '<span class="docs-foco-conta"' + (conta ? "" : " hidden") + ">" + conta + "</span></button>";
+    '<span class="conta docs-foco-conta"' + (conta ? "" : " hidden") + ">" + conta + "</span></button>";
 }
 
 /* O botao muda no lugar - cor, icone e rotulo em transicao -, e nao e
@@ -476,12 +476,12 @@ function cartaoDoEditor() {
   return '<div class="docs-cartao">' +
     '<div class="docs-status"><span id="ed-regua-fim">A4 · margens 2,5 cm</span><span class="cresce"></span>' +
     '<button class="docs-ligacao" id="ed-regua-botao">' + (escr.regua ? "Esconder a régua" : "Régua") + "</button>" +
-    '<span class="docs-divisa-fina"></span><button class="docs-ligacao" id="ed-formato">Formato</button>' +
-    '<span class="docs-divisa-fina"></span><button class="docs-ligacao docs-modo-folha' + (escr.modoFolha ? " on" : "") + '" id="ed-modo-folha">' + ic("edit_document", 16) + (escr.modoFolha ? "Concluir a folha" : "Editar a folha") + "</button></div>" +
+    '<span class="divisa-v"></span><button class="docs-ligacao" id="ed-formato">Formato</button>' +
+    '<span class="divisa-v"></span><button class="docs-ligacao docs-modo-folha' + (escr.modoFolha ? " on" : "") + '" id="ed-modo-folha">' + ic("edit_document", 16) + (escr.modoFolha ? "Concluir a folha" : "Editar a folha") + "</button></div>" +
     '<div class="docs-papel-area"><div class="docs-papel">' +
     '<div class="ed-regua" id="ed-regua"' + (escr.regua ? "" : " hidden") + '><div class="ed-regua-barra"><span class="ed-regua-margem" style="width:11.9%"></span>' +
     '<span class="ed-regua-texto"></span><span class="ed-regua-margem" style="width:11.9%"></span></div>' +
-    '<div class="ed-regua-legenda"><span>a folha, na escala do PDF</span><span>2,5 cm de cada lado</span></div></div>' +
+    '<div class="ed-regua-legenda rotulo"><span>a folha, na escala do PDF</span><span>2,5 cm de cada lado</span></div></div>' +
     '<div class="ed-papel paginado' + (escr.modoFolha ? " modo-folha" : "") + '" id="ed-papel"><div class="ed-folhas" id="ed-folhas" aria-hidden="true"></div>' +
     '<div class="ed-folha" id="ed-folha" contenteditable="' + (escr.modoFolha ? "false" : "true") + '">' + (d.corpo || "<p><br></p>") + "</div>" +
     '<div class="ed-margens" id="ed-margens"></div>' +
@@ -727,7 +727,7 @@ async function escolherDoAcervo() {
     titulo: "Abrir do Acervo", contexto: "Editor de documentos", classe: "dialogo-anexar", confirmar: "Abrir",
     html: '<div class="anx">' +
       '<div class="anx-topo"><span class="aa-dica">PDF abre só para ler; Word e texto viram uma cópia editável — o original fica como está.</span>' +
-      '<label class="lc-busca anx-busca">' + ic("search", 15) + '<input type="text" id="aa-busca" placeholder="Buscar no acervo…" autocomplete="off"></label></div>' +
+      '<label class="lc-busca anx-busca">' + ic("search", 18) + '<input type="text" id="aa-busca" placeholder="Buscar no acervo…" autocomplete="off"></label></div>' +
       '<div class="anx-lista" id="aa-lista"><p class="anx-vazio">lendo o acervo…</p></div>' +
       '<div class="anx-rodape"><span id="aa-conta"></span></div></div>',
   });
@@ -1684,7 +1684,7 @@ async function painelVersoes(id) {
     '<p class="explica">Voltar para uma versão antiga cria uma versão nova — o caminho de ' +
     "volta continua existindo.</p>" +
     d.versoes.map((v) =>
-      '<div class="doc-lista-linha"><span class="doc-versao">v' + v.numero + "</span>" +
+      '<div class="doc-lista-linha"><span class="etiqueta">v' + v.numero + "</span>" +
       '<span class="cresce corta">' + esc(v.nota || "sem nota") + "</span>" +
       '<span class="num">' + esc(quandoCurto(v.criada_em)) + "</span>" +
       '<button data-ver="' + v.numero + '">Comparar com a atual</button>' +
@@ -1735,7 +1735,7 @@ function blocoAvisos(d) {
     (d.avisos.length ?plural(d.avisos.length, "aviso") + "" : "nada a apontar") + "</p>" +
     (d.avisos.length
       ? d.avisos.map((a) =>
-          '<div class="pv-aviso"><span class="pv-grau ' + (a.grau === "impede" ? "impede" : "") + '">' +
+          '<div class="pv-aviso"><span class="etiqueta ' + (a.grau === "impede" ? "prazo" : "atencao") + '">' +
           (a.grau === "impede" ? "resolver" : "confira") + "</span>" +
           "<span><b>" + esc(a.titulo) + "</b><br>" + esc(a.detalhe) + "</span></div>").join("")
       : '<p class="explica">Não achei lacuna de modelo, CPF ou CNPJ com dígito errado, nem valor sem número.</p>');
@@ -1775,7 +1775,7 @@ function folhaDaPrevia() {
   }).join("");
   const classeSinc = "docs-sinc" + (d.impedem ? " atencao" : "");
   return '<div class="docs-cartao previa">' +
-    '<div class="docs-status"><span>Página ' + p.pagina + " de " + d.paginas + '</span><span class="docs-divisa-fina"></span>' +
+    '<div class="docs-status"><span>Página ' + p.pagina + " de " + d.paginas + '</span><span class="divisa-v"></span>' +
     '<span class="' + classeSinc + '"><i></i>' + (d.impedem ? plural(d.impedem, "ponto") + " a resolver" : "Sem alterações pendentes") + "</span>" +
     '<span class="cresce"></span><span>' + (d.impedem ? "Confira antes de sair" : "Pronto para sair") + "</span></div>" +
     '<div class="docs-previa">' + (p.cheia ? "" : '<div class="docs-miniaturas">' + miniaturas + "</div>") +
@@ -2091,11 +2091,11 @@ function cartaoDaPlanilha() {
       ? '<div class="docs-filtro-aviso">Filtro na coluna ' + esc(escr.filtro.coluna) + ": mostrando " + escr.filtro.mostrando +
         " de " + plural(escr.filtro.de, "linha") + '. O arquivo continua inteiro. <button class="docs-ligacao" id="pl-filtro-fora">Mostrar tudo</button></div>'
       : "") +
-    '<div class="docs-abas-pl">' +
+    '<div class="docs-abas-pl"><span class="visoes">' +
     p.abas.map((a, i) => {
-      const classe = "docs-aba-pl" + (i === escr.aba ? " ativa" : "");
+      const classe = i === escr.aba ? "ativa" : "";
       return '<button class="' + classe + '" data-aba="' + i + '">' + esc(a.nome) + "</button>";
-    }).join("") +
+    }).join("") + "</span>" +
     '<button class="docs-aba-pl-mais" id="pl-nova-aba" title="Nova aba">' + ic("add", 16) + "</button>" +
     (p.abas.length > 1 ? '<button class="docs-ligacao" id="pl-tirar-aba">apagar aba</button>' : "") +
     '<span class="docs-selecao" id="pl-selecao"></span>' +
@@ -2386,7 +2386,7 @@ async function desenharGrafico() {
       Math.max(1, Math.round(Math.abs(p.valor) * 100 / teto)) + '%"' +
       (p.valor < 0 ? ' class="negativo"' : "") + ' title="' + esc(p.texto) + '"></i>' +
       '<span class="rotulo corta">' + esc(p.rotulo) + "</span></div>").join("") + "</div>" +
-    '<div class="pl-status"><span>maior ' + moedaBR(d.maior) + "</span>" +
+    '<div class="pl-status rotulo"><span>maior ' + moedaBR(d.maior) + "</span>" +
     "<span>menor " + moedaBR(d.menor) + "</span></div>" +
     '<div class="linha-form"><button id="pl-graf-fechar">Fechar</button></div></div>';
 

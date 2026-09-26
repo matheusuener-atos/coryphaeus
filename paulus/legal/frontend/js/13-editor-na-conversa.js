@@ -70,8 +70,8 @@ function tiquetaqueBastidor() {
         (passados > p.segundos ? " (passou do previsto)" : "") +
         '<div class="bastidor-barra"><i style="width:' + parte + '%"></i></div>';
     } else {
-      viva.innerHTML = "lendo… " + Math.round(passados) + " s" +
-        '<div class="bastidor-barra indefinida"><i></i></div>';
+      // Sem previsão não há barra: a coroa do topo já diz que há trabalho.
+      viva.innerHTML = "lendo… " + Math.round(passados) + " s";
     }
   } else if (bastidor.fase === "escrevendo") {
     const desde = (Date.now() - bastidor.escreveDesde) / 1000;
@@ -231,11 +231,11 @@ function desenharEditorAoLado() {
     '<button class="botao-icone" id="dp-fechar" title="Fechar o editor" aria-label="Fechar o editor">' + ic("close", 18) + "</button></div>" +
 
     '<div class="edl-barra">' +
-    botao("undo", "undo", "Desfazer") + botao("redo", "redo", "Refazer") + '<span class="edl-vao"></span>' +
+    botao("undo", "undo", "Desfazer") + botao("redo", "redo", "Refazer") + '<span class="divisa-v"></span>' +
     botao("bold", "format_bold", "Negrito") + botao("italic", "format_italic", "Itálico") +
     botao("insertOrderedList", "format_list_numbered", "Numeração") +
     '<button id="dp-citacao" title="Citação" aria-label="Citação">' + ic("format_quote", 18) + "</button>" +
-    '<span class="edl-vao"></span>' +
+    '<span class="divisa-v"></span>' +
     '<button id="dp-numerar" title="Renumerar as cláusulas">' + ic("format_list_numbered", 16) + "Numerar</button>" +
     '<button id="dp-qualificar" title="Qualificação das partes">' + ic("group", 16) + "Qualificar</button>" +
     '<button id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
@@ -365,7 +365,7 @@ function desenharAtalhosDoEditor() {
     faixa.className = "edl-atalhos";
     $("cartao-campo").before(faixa);
   }
-  faixa.innerHTML = '<div class="edl-destino" role="group" aria-label="Para onde vai o pedido">' +
+  faixa.innerHTML = '<div class="visoes edl-destino" role="group" aria-label="Para onde vai o pedido">' +
     '<button data-edl-destino="documento" title="O pedido muda o documento aberto ao lado">' + ic("edit_note", 16) + "No documento</button>" +
     '<button data-edl-destino="conversa" title="O pedido é uma pergunta para a conversa">' + ic("forum", 16) + "Na conversa</button></div>" +
     ATALHOS_DO_EDITOR.map((a) => '<button class="edl-atalho" data-dp-atalho="' + esc(a[1]) + '" title="' + esc(a[1]) + '">' +
@@ -613,15 +613,15 @@ async function pedirNoDocumento(pedido) {
 }
 
 /* O cartão de trabalho, o mesmo das perguntas: etapas, a coroa andando e o
-   tempo. A barra começa indefinida e vira medida quando o servidor diz a
-   previsão desta máquina. */
+   tempo. Sem previsão, só a coroa anda; a barra aparece quando o servidor
+   diz a previsão desta máquina. */
 function cartaoDoPedidoNoDocumento(titulo) {
   return '<div class="cartao"><div class="cartao-topo">' + coroa(20) +
     '<span class="quem">Trabalhando · etapa 2 de 2</span><span class="tempo" data-edl-tempo="1">0 s</span></div>' +
     '<div class="cartao-corpo">' +
     linhaEtapa({ titulo: "Entender o pedido", estado: "concluido" }) +
     linhaEtapa({ titulo: "Escrever em “" + titulo + "”", estado: "executando" }) +
-    '<div class="edl-andamento" data-edl-andamento="1"><div class="bastidor-barra indefinida"><i></i></div></div>' +
+    '<div class="edl-andamento" data-edl-andamento="1"></div>' +
     "</div></div>";
 }
 
@@ -638,7 +638,7 @@ function acompanharPedidoNoDocumento(resposta, tid) {
       const item = (agora.executando || []).find((x) => x.id === tid);
       const lugar = resposta.querySelector("[data-edl-andamento]");
       if (item && item.andamento && item.andamento.previsao_s && lugar) lugar.innerHTML = andamentoDoCartao(item);
-    } catch (err) { /* sem previsão, a barra continua indefinida */ }
+    } catch (err) { /* sem previsão, só a coroa anda; a barra aparece quando o servidor diz a previsão */ }
   }, 500);
 }
 
@@ -844,10 +844,10 @@ function desenharVisor() {
     '<button data-vs="antes" ' + (visor.pagina <= 1 ? "disabled" : "") + ">‹</button>" +
     '<span class="rotulo">pág. ' + visor.pagina + " / " + visor.total + "</span>" +
     '<button data-vs="depois" ' + (visor.pagina >= visor.total ? "disabled" : "") + ">›</button>" +
-    '<span class="visor-divisa"></span>' +
+    '<span class="divisa-v"></span>' +
     '<button data-vs="menos">−</button><span class="rotulo">' + visor.escala + "%</span>" +
     '<button data-vs="mais">+</button>' +
-    '<span class="visor-divisa"></span>' +
+    '<span class="divisa-v"></span>' +
     '<button data-vs="fora">Abrir fora</button>' +
     '<button data-vs="fechar">Fechar</button></div></div>' +
 
@@ -1441,7 +1441,7 @@ function painelFormato() {
   const campo = (chave) => {
     const o = FORMATO_OPCOES[chave];
     const atual = String(f[chave] === undefined ? "" : f[chave]);
-    return '<div class="campo-form"><label class="rotulo">' + o.rotulo + "</label>" +
+    return '<div class="campo-form"><label>' + o.rotulo + "</label>" +
       '<select data-formato="' + chave + '">' +
       o.itens.map(([v, t]) => '<option value="' + v + '"' +
         (Number(v) === Number(atual) || v === atual ? " selected" : "") + ">" + t + "</option>").join("") +

@@ -20,7 +20,7 @@
   .veu-dialogo.saindo { pointer-events: none; }
   .dialogo {
     width: 440px; max-width: 100%; max-height: calc(100vh - 48px); overflow: auto; display: flex; flex-direction: column;
-    background: var(--surf); border: 1px solid var(--hair); border-radius: 16px; box-shadow: var(--elev-float), 0 30px 80px -30px var(--sh-a45);
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 16px; box-shadow: var(--elev-float);
     animation: dialogo-entra .26s cubic-bezier(.16,1,.3,1);
   }
   .dialogo.larga { width: 520px; }
@@ -28,36 +28,30 @@
   .dialogo-titulos { display: grid; gap: 4px; min-width: 0; flex: 1; }
   .dialogo-titulos h2 { margin: 0; font: 600 17px/1.3 var(--sans); letter-spacing: -.005em; color: var(--ink); overflow-wrap: anywhere; }
   .dialogo-contexto { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dialogo-fechar {
-    width: 28px; height: 28px; flex: none; margin: -4px -8px 0 0; padding: 0; border: none; background: none; border-radius: 8px;
-    color: var(--ink3); display: inline-flex; align-items: center; justify-content: center;
-  }
-  .dialogo-fechar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .dialogo-fechar { margin: -4px -8px 0 0; }
   .dialogo-corpo { padding: 18px 24px 20px; display: grid; gap: 14px; }
   .dialogo-corpo p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
   .dialogo-corpo p b { font-weight: 600; color: var(--ink); }
-  .dialogo-campo { display: grid; gap: 8px; }
-  .dialogo-campo label { font: 500 12px var(--sans); color: var(--ink3); }
-  /* O campo e recuado no cartao (fundo da casca, fio discreto); com foco,
-     ganha o fio de destaque e um halo raso - nada de contorno branco cheio. */
+  .dialogo-campo { display: grid; gap: 6px; }
+  /* A caixa e o campo do sistema (04-acervo.css): fio --ink-a15, fundo --surf,
+     40 px; com foco, o fio vira tinta - sem halo. O icone e o sufixo moram
+     dentro dela, e o input fica nu. */
   .dialogo-caixa {
-    display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px;
-    border: 1px solid var(--hair); border-radius: 10px; background: var(--bg);
-    transition: border-color .15s ease, box-shadow .15s ease;
+    display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px;
+    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
+    transition: border-color .15s ease;
   }
-  .dialogo-caixa:focus-within { border-color: var(--destaque-linha); box-shadow: 0 0 0 3px var(--ink-a06); }
+  .dialogo-caixa:focus-within { border-color: var(--ink); }
   .dialogo-caixa .ic { color: var(--ink3); flex: none; }
   .dialogo-caixa input { flex: 1; min-width: 0; max-width: none; height: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); box-shadow: none; border-radius: 0; }
-  .dialogo-caixa input:focus { outline: none; box-shadow: none; border: none; }
   /* Listas e texto longo dentro da mesma caixa dos campos. */
   .dialogo-caixa select, .dialogo-caixa textarea, .dialogo-caixa .escolha-botao {
     flex: 1; min-width: 0; max-width: none; border: none; background: none; padding: 0; box-shadow: none; border-radius: 0;
     font: 400 14px var(--sans); color: var(--ink);
   }
+  .dialogo-caixa textarea { line-height: 1.5; }
   .dialogo-caixa select, .dialogo-caixa .escolha-botao { height: 100%; cursor: pointer; }
-  .dialogo-caixa select:focus, .dialogo-caixa textarea:focus, .dialogo-caixa .escolha-botao:focus { outline: none; box-shadow: none; border: none; }
   .dialogo-caixa.texto-longo { height: auto; align-items: flex-start; padding-block: 10px; }
-  .dialogo-caixa textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
   .dialogo-duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
   .dialogo-servico .dialogo-corpo { gap: 16px; }
   .dialogo-corpo p.dialogo-dica { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
@@ -65,22 +59,12 @@
   .dialogo-sufixo { font: 500 12.5px var(--sans); color: var(--ink3); flex: none; }
   .dialogo-dica { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .dialogo-sugestoes { display: flex; gap: 6px; flex-wrap: wrap; }
-  .dialogo-sugestoes button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink2); }
-  .dialogo-sugestoes button:hover:not(:disabled) { background: var(--fill2); border: none; color: var(--ink); }
   .dialogo-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
-  .dialogo-marcar input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); flex: none; }
   .dialogo-pe { display: flex; align-items: center; gap: 8px; padding: 0 24px 22px; }
-  .dialogo-pe button { height: 36px; padding: 0 16px; border-radius: 8px; font: 500 13px var(--sans); white-space: nowrap; }
-  .dialogo-cancelar { border: none; background: none; color: var(--ink2); }
-  .dialogo-cancelar:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .dialogo-pe .primario { font-weight: 600; }
-  /* Destrutivo: o par vinho de fundo e texto do tema. O vinho cheio com letra
-     branca, no escuro, era rosa-claro com branco - nao se lia. */
-  .dialogo-pe .primario.perigo { background: var(--accbg); border: 1px solid var(--accln); color: var(--acc); }
-  .dialogo-pe .primario.perigo:hover:not(:disabled) { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
-  /* Aprovar e o sim que faz: verde, no mesmo desenho do perigo. */
-  .dialogo-pe .primario.sucesso { background: var(--okbg); border: 1px solid var(--verde); color: var(--okt); }
-  .dialogo-pe .primario.sucesso:hover:not(:disabled) { background: var(--okbg); border-color: var(--okt); color: var(--okt); }
+  /* Os botoes do rodape sao os do sistema (05): Cancelar e o fantasma,
+     confirmar e o primario, destrutivo e o .perigo (vinho de fio: o vinho
+     cheio com letra branca, no escuro, nao se lia) e Aprovar e o .sucesso. */
+  .dialogo-pe button { white-space: nowrap; }
   /* OS DOIS POP-UPS DE CONTEUDO (docs/ui/05, Pop-ups).
      Exibicao (.dialogo-ver): so leitura - a ficha, as acoes do que se ve e,
      no rodape, Fechar e a acao que leva adiante (Editar). Nao exclui.
@@ -93,59 +77,45 @@
   .dialogo-cadastro .dialogo-pe, .dialogo-ver .dialogo-pe { padding-top: 14px; border-top: 1px solid var(--ink-a1); }
   .dialogo-cadastro .dialogo-cabeca, .dialogo-ver .dialogo-cabeca { padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
   .dialogo-form { display: grid; gap: 14px; }
-  .dialogo-ficha { margin: 0; display: grid; }
-  .dialogo-ficha > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
-  .dialogo-ficha > div:first-child { padding-top: 0; }
-  .dialogo-ficha > div:last-child { border-bottom: none; }
-  .dialogo-ficha dt { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
-  .dialogo-ficha dd { margin: 0; font: 400 14px/1.5 var(--sans); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* A grade de ficha (chave em cima de 112 px, valor ao lado), uma regra so
+     para o dialogo, o cabecalho do e-mail (.ex-meta) e a tabela das boas-vindas
+     (.bv-tabela, que usa span em vez de dt). Cada uma guarda so os extras. */
+  .dialogo-ficha, .ex-meta, .bv-tabela { margin: 0; display: grid; }
+  :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
+  :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div:first-child { padding-top: 0; }
+  :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div:last-child { border-bottom: none; }
+  :is(.dialogo-ficha, .ex-meta) dt, .bv-tabela > div > span:first-child { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  :is(.dialogo-ficha, .ex-meta) dd { margin: 0; font: 400 14px/1.5 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  .dialogo-ficha dd { white-space: pre-wrap; }
   .dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
-  .dialogo-acoes button { height: 32px; padding: 0 12px; border-radius: 8px; font: 500 12.5px var(--sans); background: var(--surf); border-color: var(--hair); }
-  .dialogo-acoes button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
   .dialogo-acoes button .ic { color: var(--ink3); }
   .dialogo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .dialogo-chips button { height: 32px; padding: 0 12px; border-radius: 8px; font: 500 12.5px var(--sans); border: 1px solid var(--hair); background: var(--bg); color: var(--ink); }
-  .dialogo-chips button:hover:not(:disabled) { border-color: var(--ink-a3); background: var(--bg); color: var(--ink); }
-  .dialogo-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
-  .dialogo-chips button.on:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--bg); }
   .dialogo-campo label small { font-size: inherit; color: var(--mute); }
-  .dialogo-excluir {
-    height: 32px; padding: 0 12px; border-radius: 8px; font: 500 12.5px var(--sans);
-    border: 1px solid var(--accln); background: none; color: var(--acc);
-  }
-  .dialogo-excluir:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
-  .dialogo-pe .dialogo-excluir { border: 1px solid var(--accln); background: none; color: var(--acc); }
-  .dialogo-pe .dialogo-excluir:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
-  .dialogo-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
+  .dialogo-aviso { font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
   /* O pop-up de anexar: largo e alto o bastante para ser uma lista, com a
      alternancia Acervo / Meu computador e a busca no alto. */
-  .dialogo.dialogo-anexar { width: 760px; height: min(640px, calc(100vh - 48px)); }
+  .dialogo.dialogo-anexar, .dialogo.dialogo-imprimir { width: 760px; }
+  .dialogo.dialogo-anexar { height: min(640px, calc(100vh - 48px)); }
   .dialogo-anexar .dialogo-corpo { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 14px; }
   .anx { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   .anx-topo { display: flex; align-items: center; gap: 10px; }
   .anx-busca { margin-left: auto; width: 240px; }
-  .anx-migalhas { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; font-size: 12.5px; }
-  .anx-migalhas button { height: 26px; padding: 0 8px; border: none; border-radius: 6px; background: none; color: var(--ink2); font: 500 12.5px var(--sans); }
+  .anx-migalhas { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
   .anx-migalhas button:last-child { color: var(--ink); font-weight: 600; }
-  .anx-migalhas button:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .anx-lista { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--hair); border-radius: 10px; background: var(--bg); }
+  .anx-lista { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); }
   .anx-linha {
-    display: flex; align-items: center; gap: 10px; padding: 9px 12px; min-height: 44px; box-sizing: border-box;
-    border-top: 1px solid var(--hair2); cursor: pointer; font-size: 13px; color: var(--ink); user-select: none;
+    display: flex; align-items: center; gap: 12px; padding: 11px 16px; box-sizing: border-box;
+    border-top: 1px solid var(--ink-a08); cursor: pointer; font-size: 14px; color: var(--ink); user-select: none;
   }
   .anx-linha:first-child { border-top: none; }
-  .anx-linha:hover { background: var(--fill); }
-  .anx-linha.escolhida { background: var(--fill2); }
+  .anx-linha:hover { background: var(--sub); }
   .anx-linha.ja { cursor: default; opacity: .6; }
   .anx-linha b { font-weight: 500; }
-  .anx-linha small { font-size: 11.5px; color: var(--ink3); }
+  .anx-linha small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .anx-pasta > .ic { color: var(--ink3); }
   .anx-quando, .anx-ja { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .anx-vazio { margin: 0; padding: 18px 14px; font-size: 13px; color: var(--ink3); }
-  .anx-lista .nav-grupo { background: var(--sub); }
+  .anx-vazio { margin: 0; padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
   .anx-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 22px; font: 500 12.5px var(--sans); color: var(--ink2); }
-  .anx-windows { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: none; background: none; color: var(--ink3); font: 500 12.5px var(--sans); }
-  .anx-windows:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
   /* Abrir do Acervo (19-documentos.js): o pop-up do anexar, com a dica do
      que acontece com cada tipo no lugar das visoes. */
@@ -156,43 +126,34 @@
   .cw-linha .duas-linhas { flex: 1; min-width: 0; }
   .cw-linha > .ic { flex: none; color: var(--ink3); }
   .cw-linha.escolhida > .ic { color: var(--ink); }
-  .cw-radio { width: 16px; height: 16px; flex: none; box-sizing: border-box; border: 1.5px solid var(--ink-a3); border-radius: 50%; }
-  .cw-radio.on { border: 5px solid var(--ink); }
   .cw-linha.cw-sistema .duas-linhas { opacity: .7; }
   .cw-linha.cw-off { cursor: default; opacity: .5; }
   .cw-linha.cw-off:hover { background: none; }
   .cw-senha { display: grid; gap: 6px; }
-  .cw-senha label { font: 600 12.5px var(--sans); color: var(--ink2); }
-  .cw-senha input {
-    height: 40px; padding: 0 12px; max-width: none; border: 1px solid var(--hair); border-radius: 10px; background: var(--bg);
-    font: 400 14px var(--sans); color: var(--ink);
-  }
-  .cw-senha input:focus { outline: none; border-color: var(--destaque-linha); box-shadow: 0 0 0 3px var(--ink-a06); }
+  .cw-senha input { width: 100%; max-width: none; }
   .cw-senha small { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
-  .dialogo-corpo p.cw-erro { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accbg); color: var(--acc); font: 500 13px/1.5 var(--sans); }
+  .dialogo-corpo p.cw-erro { margin: 0; padding: 10px 12px; border: 1px solid var(--accln); border-radius: 8px; background: var(--accbg2); color: var(--acc); font: 500 13px/1.5 var(--sans); }
   @keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes dialogo-veu { from { opacity: 0; } to { opacity: 1; } }
 
   /* ------------------------------------------------ calendario popover */
   .calendario {
     position: fixed; z-index: 120; width: 272px; padding: 12px;
-    background: var(--surf); border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--elev-float);
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; box-shadow: var(--elev-float);
     font: 500 13px var(--sans); color: var(--ink);
   }
   .cal-topo { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
-  .cal-seta, .cal-titulo {
-    height: 30px; border: none; border-radius: 8px; background: none; color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  .cal-titulo {
+    flex: 1; height: 28px; border: none; border-radius: 6px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: 600 13.5px var(--sans);
   }
-  .cal-seta { width: 30px; padding: 0; flex: none; }
-  .cal-titulo { flex: 1; font: 600 13.5px var(--sans); }
-  .cal-seta:hover:not(:disabled), .cal-titulo:hover:not(:disabled) { background: var(--fill); border: none; }
+  .cal-titulo:hover:not(:disabled) { background: var(--fill); border: none; }
   .cal-grade { display: grid; gap: 2px; }
   .cal-grade.dias { grid-template-columns: repeat(7, 1fr); }
   .cal-grade.meses, .cal-grade.anos { grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .cal-semana { height: 26px; display: flex; align-items: center; justify-content: center; font: 600 11px var(--sans); color: var(--ink3); }
   .cal-dia, .cal-celula {
-    position: relative; height: 32px; padding: 0; border: none; border-radius: 8px; background: none; color: var(--ink);
+    position: relative; height: 32px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
     font: 500 13px var(--sans); cursor: pointer; font-variant-numeric: tabular-nums;
   }
   .cal-celula { height: 44px; }
@@ -211,35 +172,31 @@
   .cal-dia:disabled, .cal-celula:disabled { color: var(--ink-a25); cursor: not-allowed; background: none; }
   /* Os atalhos do calendario, na barra de cima: o nome e, embaixo, em que
      dia cai - como no modelo pedido (Hoje, Amanha, Proxima segunda). */
-  .cal-atalhos { display: grid; gap: 4px; margin: -4px -4px 8px; padding-bottom: 8px; border-bottom: 1px solid var(--ink-a08); }
+  .cal-atalhos { display: grid; gap: 4px; margin: -4px -4px 8px; padding-bottom: 8px; border-bottom: 1px solid var(--ink-a1); }
   .cal-atalho {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-    padding: 7px 10px; border: none; border-radius: 8px; background: none; cursor: pointer;
-    font: 500 13px var(--sans); color: var(--ink);
+    padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer;
+    font: 500 13px var(--sans); color: var(--ink2);
   }
-  .cal-atalho:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .cal-atalho.escolhido { background: var(--fill); font-weight: 600; }
+  .cal-atalho:hover:not(:disabled), .cal-atalho:focus-visible { outline: none; background: var(--fill); border: none; color: var(--ink); }
+  .cal-atalho.escolhido { background: var(--fill); color: var(--ink); font-weight: 600; }
   .cal-atalho small { font: 500 12px var(--sans); color: var(--ink3); }
   .cal-pe { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 8px; }
-  .cal-rodape-botao { height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); }
-  .cal-rodape-botao:hover:not(:disabled) { background: var(--act); border: none; }
 
   /* ------------------------------------------------- caixa de escolha */
   /* Fora do dialogo, a caixa de escolha herda o desenho de campo da tela em
      que esta: as regras que falavam de <select> falam dela tambem. Aqui fica
      so o que e dela - a linha com o rotulo e a seta. */
   .escolha-botao { display: inline-flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
-  .escolha-botao:hover:not(:disabled) { color: var(--ink); }
-  .escolha-botao:focus-visible { outline: none; }
+  /* Passar o mouse: o fio escurece um pouco, como no seletor da barra de
+     Documentos; sem o fundo --fill do hover generico de button. */
+  .escolha-botao:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a35); color: var(--ink); }
   .escolha-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escolha-botao .ic { color: var(--ink3); flex: none; transition: transform .18s cubic-bezier(.16,1,.3,1); }
   .escolha-botao[aria-expanded="true"] .ic { transform: rotate(180deg); color: var(--ink); }
-  .relogio-botao.vazio .escolha-rotulo { color: var(--ink3); }
-  /* Dentro do campo do dialogo ela e o campo inteiro, sem fio proprio. */
-  .dialogo-caixa .escolha-botao {
-    flex: 1; min-width: 0; max-width: none; height: 100%; padding: 0; border: none; background: none; box-shadow: none;
-    border-radius: 0; font: 400 14px var(--sans); color: var(--ink);
-  }
+  .relogio-botao.vazio .escolha-rotulo, .data-botao.vazio .escolha-rotulo { color: var(--ink3); }
+  /* Dentro do campo do dialogo ela e o campo inteiro, sem fio proprio (a
+     regra nua mora no alto, com o select e a textarea da .dialogo-caixa). */
   .dialogo-caixa .escolha-botao:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
 
   /* O RELOGIO (o campo de hora): a hora grande e duas reguas, horas e
@@ -247,11 +204,11 @@
      claro e o relogio do Windows por cima do tema escuro. */
   .relogio-pop {
     position: fixed; z-index: 130; width: 268px; padding: 16px; display: grid; gap: 12px;
-    background: var(--surf); border: 1px solid var(--hair); border-radius: 14px; box-shadow: var(--elev-float);
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; box-shadow: var(--elev-float);
   }
   .relogio-mostrador { display: flex; align-items: baseline; justify-content: center; gap: 6px; color: var(--ink); }
-  .relogio-mostrador b { font: 600 30px/1 var(--sans); font-variant-numeric: tabular-nums; }
-  .relogio-mostrador i { font-style: normal; font-size: 24px; color: var(--ink3); }
+  .relogio-mostrador b { font: 600 26px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
+  .relogio-mostrador i { font-style: normal; font-size: 20px; color: var(--ink3); }
   .relogio-regua { display: grid; gap: 6px; }
   .relogio-regua > span { font: 500 12px var(--sans); color: var(--ink3); }
   .relogio-regua input[type=range] {
@@ -264,60 +221,54 @@
   }
   .relogio-regua input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
-    background: var(--ink); border: 2px solid var(--surf); box-shadow: 0 1px 4px var(--sh-a12);
+    background: var(--ink); border: 2px solid var(--surf);
   }
   .relogio-regua input[type=range]:focus-visible { outline: none; }
-  .relogio-regua input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--ink-a15); }
+  .relogio-regua input[type=range]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--destaque); outline-offset: 2px; }
   .relogio-pe { display: flex; align-items: center; gap: 6px; }
-  .relogio-pe button { height: 30px; padding: 0 10px; border-radius: 8px; font: 500 12.5px var(--sans); }
-  .relogio-pe .primario { font-weight: 600; }
   .menu-conversa.escolha-lista { position: fixed; right: auto; z-index: 130; max-height: 280px; overflow-y: auto; }
-  .escolha-lista button:focus-visible { outline: none; background: var(--fill); }
 
   /* Imprimir: a folha de verdade a esquerda, as escolhas a direita. */
-  .dialogo.dialogo-imprimir { width: 780px; max-width: calc(100vw - 32px); }
   .imp { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
   .imp-previa { display: grid; gap: 8px; justify-items: center; padding: 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--ink-a1); }
-  .imp-folha { width: 100%; aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: 0 12px 28px -20px var(--papel-sombra); overflow: hidden; }
+  .imp-folha { width: 100%; aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); overflow: hidden; }
   .imp-folha img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .imp-andar { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink2); }
-  .imp-andar .botao-icone, .imp-copias .botao-icone { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
   .imp-campos { display: grid; gap: 6px; align-content: start; }
-  .imp-rotulo { font: 600 12.5px var(--sans); color: var(--ink2); margin-top: 8px; }
+  .imp-rotulo { margin-top: 8px; }
   .imp-rotulo:first-child { margin-top: 0; }
   .imp-campos select, .imp-campos .escolha-botao { width: 100%; max-width: none; min-width: 0; }
   .imp-dica { font: 500 12px/1.45 var(--sans); color: var(--ink3); min-height: 0; }
   .imp-dica:empty { display: none; }
   .imp-copias { display: flex; align-items: center; gap: 6px; }
-  .imp-copias input { width: 56px; min-width: 0; flex: none; text-align: center; padding: 6px 8px; }
+  .imp-copias input { width: 56px; min-width: 0; flex: none; text-align: center; }
   .imp-paginas { display: grid; gap: 6px; }
-  .imp-paginas label { display: flex; align-items: center; gap: 8px; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
+  .imp-paginas label { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
   .imp-paginas small { color: var(--ink3); font-weight: 500; }
-  .imp-intervalo input[type=text] { flex: 1; min-width: 0; max-width: 180px; padding: 6px 10px; margin-left: 4px; }
-  .imp-chave { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
+  .imp-intervalo input[type=text] { flex: 1; max-width: 180px; margin-left: 4px; }
+  .imp-chave { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
   .imp-erro { margin: 6px 0 0; font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
-  .imp-windows { display: inline-flex; align-items: center; gap: 6px; color: var(--ink3); font-size: 12.5px; }
   @media (max-width: 720px) { .imp { grid-template-columns: 1fr; } .imp-previa { max-width: 260px; justify-self: center; } }
 
   /* Verificar assinatura: o veredito, cada assinatura recolhida (clicar
-     revela o tecnico) e o arquivo conferido. */
-  .dialogo.dialogo-verificar { width: 600px; max-width: calc(100vw - 32px); }
+     revela o tecnico) e o arquivo conferido. O dialogo e o largo do sistema
+     (larga: true na chamada). */
   .vr { display: grid; gap: 10px; }
-  .vr-veredito { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--bg); }
+  .vr-veredito { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
   .vr-veredito > span:not(.ic) { display: grid; gap: 2px; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
   .vr-veredito b { font: 600 14px var(--sans); color: var(--ink); }
   .vr-veredito .ic { flex: none; margin-top: 1px; color: var(--ink3); }
   .vr-veredito.ok .ic { color: var(--verde); }
   .vr-veredito.alerta .ic { color: var(--acc); }
   .vr-veredito.sem .ic { color: var(--ink3); }
-  .vr-cartao { border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; }
+  .vr-cartao { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); overflow: hidden; }
   .vr-cartao-cabeca {
     width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none; border-radius: 0;
     background: none; text-align: left; cursor: pointer; color: var(--ink);
   }
   .vr-cartao-cabeca:hover:not(:disabled) { background: var(--fill); border: none; }
   .vr-cartao-cabeca .duas-linhas { flex: 1; min-width: 0; }
-  .vr-cartao-cabeca .duas-linhas b { font: 600 13.5px var(--sans); }
+  .vr-cartao-cabeca .duas-linhas b { font: 600 14px var(--sans); color: var(--ink); }
   .vr-cartao-cabeca .duas-linhas small { font: 500 12px var(--sans); color: var(--ink3); }
   .vr-selo { flex: none; display: inline-flex; color: var(--ink3); }
   .vr-selo.ok { color: var(--verde); }
@@ -325,27 +276,26 @@
   .vr-mais { flex: none; display: inline-flex; align-items: center; gap: 2px; font: 500 12px var(--sans); color: var(--ink3); }
   .vr-mais .ic { transition: transform .2s ease; }
   .vr-cartao-cabeca[aria-expanded="true"] .vr-mais .ic { transform: rotate(180deg); }
-  .vr-tecnico { display: grid; padding: 4px 12px 10px 40px; border-top: 1px solid var(--ink-a1); background: var(--bg); }
-  .vr-linha { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--ink-a08); font: 500 12px/1.45 var(--sans); }
+  .vr-tecnico { display: grid; padding: 10px 12px 16px 40px; border-top: 1px solid var(--ink-a1); background: var(--bg); }
+  .vr-linha { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
   .vr-linha:last-child { border-bottom: none; }
-  .vr-linha span { color: var(--ink3); }
-  .vr-linha b { font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+  .vr-linha span { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .vr-linha b { font: 400 14px/1.5 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
   .vr-hash { font-family: var(--mono) !important; font-size: 11px; }
-  .vr-arquivo { border: 1px solid var(--ink-a1); border-radius: 10px; padding: 8px 12px; }
-  .vr-arquivo summary { cursor: pointer; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .vr-arquivo { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); padding: 10px 12px; }
+  .vr-arquivo summary { font: 600 12.5px var(--sans); color: var(--ink2); }
   .vr-arquivo[open] summary { margin-bottom: 4px; }
   .vr-nota { margin: 2px 0 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .vr-limite { font: 500 12px var(--sans); color: var(--ink3); }
 
-  /* O certificado de conformidade: a folha, e baixar / abrir / mandar. */
-  .dialogo.dialogo-conformidade { width: 620px; max-width: calc(100vw - 32px); }
+  /* O certificado de conformidade: a folha, e baixar / abrir / mandar. Tambem
+     no dialogo largo do sistema. */
   .vc { display: grid; gap: 8px; justify-items: center; padding: 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--ink-a1); }
-  .vc-folha { width: min(100%, 420px); aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: 0 12px 28px -20px var(--papel-sombra); overflow: hidden; }
+  .vc-folha { width: min(100%, 420px); aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); overflow: hidden; }
   .vc-folha img { width: 100%; height: 100%; object-fit: contain; display: block; }
-  .vc-acao { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); margin-right: 12px; }
+  .vc-acao { margin-right: 12px; }
 
-  /* O nosso "escolher pasta": o anexar sem arquivos, e o nome do que vai ser gravado. */
-  .dialogo.dialogo-pasta { width: 640px; height: min(560px, calc(100vh - 48px)); }
-  .ep-nome { display: grid; gap: 6px; margin-top: 10px; font: 500 12.5px var(--sans); color: var(--ink2); }
-  .ep-nome input[type=text] { width: 100%; max-width: none; min-width: 0; padding: 9px 12px; border-radius: 10px; }
+  /* O nosso "escolher pasta": o anexar sem arquivos (na medida do anexar), e o nome do que vai ser gravado. */
+  .ep-nome { display: grid; gap: 6px; margin-top: 10px; }
+  .ep-nome input[type=text] { width: 100%; max-width: none; min-width: 0; }
   .ep-onde { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink3); }

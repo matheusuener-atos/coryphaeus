@@ -650,7 +650,7 @@ function mioloDaGravacao() {
       '<button class="em-ligacao forte" data-gv-ir="' + m.t + '">' + duracaoGv(m.t) + "</button>" +
       '<input type="text" value="' + esc(m.texto) + '" placeholder="o que aconteceu aqui" data-gv-marcador="' + i + '">' +
       '<button class="mais-linha" data-gv-marcador-tirar="' + i + '" title="Tirar">' + ic("close", 16) + "</button></div>").join("");
-    return '<div class="gv-miolo gv-marcadores"><div class="gv-ferramentas"><small>' + plural(g.marcadores.length, "marcador", "marcadores") + "</small>" +
+    return '<div class="gv-miolo"><div class="gv-ferramentas"><small>' + plural(g.marcadores.length, "marcador", "marcadores") + "</small>" +
       '<div class="direita gv-marcar"><input type="text" placeholder="o que aconteceu neste momento" data-gv-marcar-texto="1" value="' + esc(gv.marcarTexto) + '">' +
       '<button data-gv-marcar="1"' + (g.existe ? "" : " disabled") + ">" + ic("bookmark_add", 16) + 'Marcar em <span id="gv-marcar-em">' + duracaoGv(posicaoDoAudio()) + "</span></button></div></div>" +
       '<div class="gv-miolo-corpo">' + (linhas || '<p class="nota">Nenhum marcador. Toque o áudio e marque os momentos que importam; o minuto fica clicável.</p>') + "</div></div>";
@@ -1353,13 +1353,14 @@ function linhaAoVivo(t) {
 function rodapeAoVivo() {
   const v = gv.vivo;
   if (v.avisoVivo) return '<p class="nota gv-vivo-aviso">' + esc(v.avisoVivo) + "</p>";
-  const classe = "gv-ouvindo" + (v.estado === "gravando" && v.sessao ? " viva" : "");
+  const viva = v.estado === "gravando" && v.sessao;
+  const classe = "gv-ouvindo" + (viva ? " viva" : "");
   let texto;
   if (v.estado === "pausada") texto = "pausada — volta a ouvir quando a gravação continuar";
   else if (v.estado === "salvando") texto = "transcrevendo o que sobrou…";
   else if (!v.sessao) texto = "abrindo a sessão de transcrição…";
   else texto = v.transcricao.length ? "ouvindo… o próximo trecho chega na próxima pausa" : "ouvindo… o texto chega a cada pausa na fala, alguns segundos depois";
-  return '<div class="' + classe + '"><i class="gv-pulso"></i>' + texto + "</div>";
+  return '<div class="' + classe + '"><i class="ponto' + (viva ? " pulsa" : "") + '"></i>' + texto + "</div>";
 }
 
 function cartaoAoVivo() {

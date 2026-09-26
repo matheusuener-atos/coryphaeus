@@ -73,7 +73,7 @@ function ondeProcuro() {
 /* A tela inteira: a fita e o cartao da fase de um lado, o painel do outro. */
 function desenharOrg(cartao) {
   $("centro").innerHTML =
-    '<div class="acervo org-tela"><div class="acervo-principal">' + fitaOrg() +
+    '<div class="acervo"><div class="acervo-principal">' + fitaOrg() +
     '<div class="tabela-cartao" id="org-cartao">' + cartao + "</div></div>" +
     '<aside class="acervo-painel"><div class="rolagem" id="org-painel">' + painelOrgPlano() + "</div></aside></div>";
   ligarPainelOrg();
@@ -192,7 +192,7 @@ function noDaArvore(e, nivel) {
     '" style="--nivel:' + nivel + '">' +
     (pode
       ? '<button class="arv-seta" aria-expanded="' + aberto + '" aria-label="' + (aberto ? "Fechar" : "Abrir") + " a pasta\">" +
-        ic(aberto ? "expand_more" : "chevron_right", 16) + "</button>"
+        ic("expand_more", 16) + "</button>"
       : '<span class="arv-seta"></span>') +
     '<span class="marcar' + (marca ? " on " + marca : "") + '" data-marcar-pasta="1" role="checkbox" aria-checked="' +
     (marca === "parcial" ? "mixed" : String(marcada)) + '"' + (marca === "herdada" ? ' title="Já entra pela pasta de cima"' : "") + ">" +
@@ -527,7 +527,7 @@ function linhaConferir(d, i) {
     '<select class="campo-tipo" data-a="tipo"' + (d.erro ? " disabled" : "") + ">" +
     org.tipos.map((t) => '<option value="' + t.valor + '"' + (t.valor === d.tipo ? " selected" : "") + ">" + esc(t.rotulo) + "</option>").join("") +
     "</select>" +
-    '<span class="certeza ' + esc(d.confianca) + '">' + (rotulo[d.confianca] || esc(d.confianca)) + "</span></div>";
+    '<span class="etiqueta ' + ({ alta: "ok", media: "atencao", baixa: "prazo" }[d.confianca] || "") + '">' + (rotulo[d.confianca] || esc(d.confianca)) + "</span></div>";
 }
 
 /* Com tudo o que da para marcar marcado, o mesmo botao desmarca. */

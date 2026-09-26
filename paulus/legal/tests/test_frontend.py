@@ -47,6 +47,10 @@ SEM_ESTILO = {
     # de sete segmentos, o cartao de lembretes do Foco e o modal de
     # certificados do Windows.
     "be-digito", "be-dois-pontos", "be-cartao-lembretes", "be-troca", "cw",
+    # Ganchos que ficaram sem regra na padronizacao visual (26/09/2026): a
+    # pre-visualizacao de Documentos (.docs-cartao.previa) e o cartao "quase
+    # pronto" da assinatura (.as-pronto.quase). O visual e o da peca base.
+    "previa", "quase",
     # A classe que o pywebview procura para saber o que arrasta a janela.
     # Quem desenha a area e a regra da propria peca (.conversa-topo, .barra-titulo).
     "pywebview-drag-region",
@@ -127,11 +131,13 @@ def test_css_completo() -> None:
         ", ".join(orfas[:12]) if orfas else "",
     )
 
-    # As pecas que ja quebraram uma vez ficam checadas por nome.
+    # As pecas que ja quebraram uma vez ficam checadas por nome. O .medidor
+    # saiu em 26/09/2026: nenhuma tela o desenha mais (o Desempenho usa
+    # .cfg-medida), e a regra foi apagada na padronizacao visual.
     essenciais = [
         ".doc-linha", ".doc-marca", ".doc-acoes", ".etiqueta",
         ".cfg-menu", ".cfg-hab", ".catalogo", ".bib-topo",
-        ".medidor", ".trilho", ".menu-flutuante", ".lateral",
+        ".trilho", ".menu-flutuante", ".lateral",
         ".cartao-campo", ".pilula", ".enviar",
         ".menu-conversa", ".cartao-agora", ".chamada",
     ]

@@ -63,7 +63,7 @@ function dialogo(o) {
       '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + (o.depois || "") + "</div>" +
       '<div class="dialogo-pe">' + (o.rodape || "") + '<span class="cresce"></span>' +
       '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
-      '<button type="button" class="primario' + (o.perigo ? " perigo" : (o.sucesso ? " sucesso" : "")) + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
+      '<button type="button" class="' + (o.perigo ? "perigo" : (o.sucesso ? "sucesso" : "primario")) + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
     document.body.appendChild(veu);
     veu.querySelectorAll(".dialogo-caixa select").forEach(melhorarSelect);
 
@@ -430,7 +430,7 @@ function calendarioPopover(ancora, opcoes) {
   caixa.style.top = topo + "px";
   caixa.style.left = Math.max(8, Math.min(r.left, innerWidth - largura - 8)) + "px";
   if (animacoesLigadas()) {
-    caixa.animate([{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], { duration: 180, easing: CURVA_ENTRA });
+    caixa.animate([{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], { duration: 160, easing: CURVA_ENTRA });
   }
 
   const cliqueFora = (e) => { if (!caixa.contains(e.target) && !ancora.contains(e.target)) fecharCalendario(); };
@@ -516,9 +516,8 @@ function abrirListaDeEscolha(select, botao) {
   lista.style.left = Math.max(8, Math.min(caixa.left, innerWidth - Math.max(caixa.width, 170) - 8)) + "px";
   const altura = lista.offsetHeight;
   lista.style.top = (caixa.bottom + 4 + altura > innerHeight ? Math.max(8, caixa.top - 4 - altura) : caixa.bottom + 4) + "px";
-  if (animacoesLigadas()) {
-    lista.animate([{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], { duration: 160, easing: CURVA_ENTRA });
-  }
+  // A entrada e a do .menu-conversa (menu-entra .16s no CSS); o
+  // html.sem-animacao ja a encurta.
 
   const itens = () => Array.from(lista.querySelectorAll("button:not(:disabled)"));
   const escolher = (i) => {

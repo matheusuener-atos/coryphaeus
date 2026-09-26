@@ -91,7 +91,7 @@ async function procurarLei() {
   alvo.innerHTML = '<div style="margin-top:12px">' + d.achados.map((a, i) =>
     '<div class="artigo' + (a.revogado ? " revogado" : "") + '">' +
     '<div class="artigo-topo"><b>' + esc(a.citacao) + "</b>" +
-    (a.revogado ? '<span class="artigo-selo">revogado</span>' : "") +
+    (a.revogado ? '<span class="etiqueta prazo">revogado</span>' : "") +
     (a.alterado_por ? '<span class="rotulo">' + esc(a.alterado_por) + "</span>" : "") +
     "</div>" +
     (a.contexto ? '<span class="rotulo">' + esc(a.contexto) + "</span>" : "") +

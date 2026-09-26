@@ -1,35 +1,28 @@
   /* ------------------------------------------ e-mail: entrar com o provedor */
   /* Os botoes "Entrar com Google/Microsoft" e o andamento do login
-     (js/30-email-oauth.js). Prefixo eo-; os botoes sao contornados, sem
-     preenchimento, e o "entrar de novo" reaproveita ec-quem
-     (26-email-contas.css). */
+     (js/30-email-oauth.js). Prefixo eo-; os botoes sao os do sistema, largos,
+     e o "entrar de novo" reaproveita ec-quem (26-email-contas.css). A ligacao
+     eo-ligacao e o anel de espera (.indicador) vem de 05-paineis-e-botoes.css. */
   .eo-login { display: grid; gap: 10px; }
   .eo-botoes { display: grid; gap: 8px; }
   .eo-botao {
-    display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 40px; box-sizing: border-box; padding: 0 14px;
-    border: 1px solid var(--ink-a2); border-radius: 8px; background: var(--surf); font: 500 14px var(--sans); color: var(--ink); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; box-sizing: border-box;
     transition: background-color .15s, border-color .15s;
   }
-  .eo-botao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a3); color: var(--ink); }
-  .eo-botao:disabled { opacity: .55; cursor: not-allowed; }
   .eo-simbolo { width: 18px; height: 18px; flex: none; display: block; }
   .eo-explica { display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   .eo-explica .ic { flex: none; margin-top: 1px; }
-  .eo-ligacao { border: none; background: none; padding: 0; cursor: pointer; font: 600 12.5px var(--sans); color: var(--ink2); text-decoration: underline; text-decoration-color: var(--ink-a3); text-underline-offset: 3px; }
-  .eo-ligacao:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
   /* A espera ocupa o lugar do botao, do mesmo tamanho: nada pula quando volta. */
   .eo-espera { display: grid; gap: 8px; }
   .eo-aguardo {
-    display: flex; align-items: center; justify-content: center; gap: 10px; height: 50px; box-sizing: border-box; padding: 0 12px;
-    border: 1px solid var(--ink-a1); border-radius: 10px; font: 500 14px var(--sans); color: var(--ink3);
+    display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; box-sizing: border-box; padding: 0 12px;
+    border: 1px solid var(--ink-a1); border-radius: 8px; font: 500 12.5px var(--sans); color: var(--ink3);
   }
-  .eo-aguardo > span:not(.eo-giro) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .eo-aguardo .eo-ligacao { flex: none; margin-left: 4px; font-weight: 500; color: var(--ink3); }
-  .eo-giro { width: 14px; height: 14px; flex: none; box-sizing: border-box; border: 2px solid var(--ink-a1); border-top-color: var(--ink2); border-radius: 50%; animation: pv-spin .9s linear infinite; }
+  .eo-aguardo > span:not(.indicador) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .eo-aguardo .eo-ligacao { flex: none; margin-left: 4px; }
   .eo-travou { margin: 0; text-align: center; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
-  .eo-erro { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 500 13px/1.45 var(--sans); color: var(--acc); }
+  .eo-erro { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
   .eo-erro .ic { flex: none; margin-top: 1px; }
-  .eo-erro .eo-ligacao { font-size: 13px; }
   .eo-texto { margin: -6px 0 2px; font: 400 16px/1.5 var(--serif); color: var(--ink2); }
   .eo-denovo { display: grid; gap: 16px; }
-  .eo-denovo h2 { margin: 4px 0 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+  .eo-denovo h2 { margin: 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }

@@ -119,7 +119,7 @@ function quemPediu(nome) {
   const assistente = !nome || nome === "Assistente" || nome === "PAULUS";
   const iniciais = (nome || "").trim().split(/\s+/).map((x) => x[0] || "").slice(0, 2).join("").toUpperCase();
   return '<span class="quem">' +
-    (assistente ? '<span class="avatar-p">P</span>' : '<span class="avatar-mini">' + esc(iniciais || "?") + "</span>") +
+    (assistente ? '<span class="cad-avatar avatar-p">P</span>' : '<span class="cad-avatar">' + esc(iniciais || "?") + "</span>") +
     "<span>" + esc(nome || "Assistente") + "</span></span>";
 }
 
@@ -175,13 +175,13 @@ function apFila(categorias) {
     : "";
   const acoes = '<span class="direita">' +
     '<button class="perigo com-icone" id="ap-recusar"' + (m ? "" : " disabled") + ">" + ic("close", 16) + "Recusar" + (m ? " · " + m : "") + "</button>" +
-    '<button class="ap-sim com-icone" id="ap-aprovar"' + (m ? "" : " disabled") + ">" + ic("done_all", 16) + "Aprovar" + (m ? " · " + m : "") + "</button></span>";
+    '<button class="sucesso com-icone" id="ap-aprovar"' + (m ? "" : " disabled") + ">" + ic("done_all", 16) + "Aprovar" + (m ? " · " + m : "") + "</button></span>";
 
   const linhas = lista.length
     ? lista.map(linhaPedido).join("")
     : (n
       ? '<p class="nota">Nada nesta categoria.</p>'
-      : '<div class="painel-vazio ap-vazio"><h3>Nada esperando você</h3><p>' +
+      : '<div class="painel-vazio"><h3>Nada esperando você</h3><p>' +
         "Quando o assistente quiser fazer algo com efeito fora do programa — mover arquivos em lote, " +
         "assinar, enviar mensagem — o pedido para aqui e espera o seu sim.</p></div>");
 
@@ -214,8 +214,8 @@ function linhaPedido(p) {
     (p.vence_hoje ? '<span class="ap-vence">vence hoje</span> · ' : "") + esc(metaDoPedido(p)) + "</small></span></span>" +
     quemPediu(p.pedido_por) +
     '<span class="espera">' + esc(esperandoHa(p.criado_em)) + "</span>" +
-    '<span class="acoes-linha direita"><button class="ap-nao" data-recusar="' + esc(p.id) + '">Recusar</button>' +
-    '<button class="ap-sim" data-aprovar="' + esc(p.id) + '">Aprovar</button></span></div>';
+    '<span class="acoes-linha direita"><button class="perigo" data-recusar="' + esc(p.id) + '">Recusar</button>' +
+    '<button class="sucesso" data-aprovar="' + esc(p.id) + '">Aprovar</button></span></div>';
 }
 
 /* ----------------------------------------------------------- historico */
@@ -464,7 +464,7 @@ function apLinhaDeRegra(o, ligada) {
     '<span class="ap-regra-estado">' + estadoTexto + "</span>" +
     (o.travada ? "<span></span>"
       : '<button type="button" class="interruptor-min' + (ligada ? " on" : "") + '" data-ap-ligar="' + esc(o.chave) +
-        '" role="switch" aria-checked="' + (ligada ? "true" : "false") + '" aria-label="' + esc(o.titulo) + '"><span class="chave"></span></button>') +
+        '" role="switch" aria-checked="' + (ligada ? "true" : "false") + '" aria-label="' + esc(o.titulo) + '"></button>') +
     "</div>";
 }
 

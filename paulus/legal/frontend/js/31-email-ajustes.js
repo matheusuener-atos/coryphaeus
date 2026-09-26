@@ -104,7 +104,7 @@ function ejCartaoAssinatura() {
 function desenharAjustesDoEmail() {
   cabecalhoEmail();
   const p = emailPrefs();
-  $("centro").innerHTML = '<div class="acervo sem-painel ej-tela" id="email"><div class="acervo-principal sv-principal"><div class="ej-palco">' +
+  $("centro").innerHTML = '<div class="acervo sem-painel" id="email"><div class="acervo-principal sv-principal"><div class="ej-palco">' +
     // Um cartao embaixo do outro, na ordem de uso: como abre, imagens, assinatura.
     '<div class="cfg-grade larga">' + ejCartaoCor(p) + ejCartaoImagens(p) + ejCartaoAssinatura() + "</div>" +
     "</div></div></div>";

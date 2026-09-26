@@ -51,7 +51,7 @@ async function abrirImprimir(id, titulo, paginaAtual, total) {
   dialogo({
     titulo: "Imprimir", contexto: titulo || "Documento", classe: "dialogo-imprimir", html: html,
     confirmar: "Imprimir", aoConfirmar: enviarParaImpressora,
-    rodape: '<button type="button" class="docs-ligacao imp-windows" id="imp-windows">' + ic("open_in_new", 16) + "Usar a janela do Windows</button>",
+    rodape: '<button type="button" class="docs-ligacao" id="imp-windows">' + ic("open_in_new", 16) + "Usar a janela do Windows</button>",
   });
   $("dialogo-titulo").closest(".dialogo").querySelectorAll("select").forEach(melhorarSelect);
   $("imp-windows").onclick = () => { if (dialogoAberto) dialogoAberto.fechar(null); imprimirPeloWindows(id); };

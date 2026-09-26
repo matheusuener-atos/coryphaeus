@@ -14,33 +14,22 @@
   .docs-corpo.painel-oculto { grid-template-columns: minmax(0, 1fr) 0px; }
   .docs-corpo.painel-oculto > .acervo-painel { opacity: 0; margin-left: 0; overflow: hidden; pointer-events: none; visibility: hidden; border-width: 0; transition: opacity .15s ease, margin-left .3s cubic-bezier(.2,.7,.3,1), visibility 0s .3s; }
   @media (prefers-reduced-motion: reduce) { .docs-corpo, .docs-corpo > .acervo-painel { transition: none; } }
+  /* O Foco/Painel e o chip de filtro (.chip, 04-acervo.css); aqui so o lugar
+     e a transicao. */
   .docs-foco {
-    position: relative; margin: 0 0 6px auto; align-self: center; flex: none; display: inline-flex; align-items: center; gap: 6px;
-    height: 30px; padding: 0 12px 0 10px; border: 1px solid var(--ink-a15); border-radius: 999px;
-    background: var(--surf); font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer;
+    position: relative; margin: 0 0 6px auto; align-self: center; flex: none;
     transition: background-color .25s ease, border-color .25s ease, color .25s ease;
   }
-  .docs-foco:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); color: var(--ink); }
-  .docs-foco.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-  .docs-foco.on:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); opacity: .9; }
   /* O icone gira meia volta ao recolher: o painel "sai" para a direita. */
   .docs-foco .ic { transition: transform .3s cubic-bezier(.2,.7,.3,1); }
   .docs-foco.on .ic { transform: scaleX(-1); }
   .docs-foco-rotulo { display: inline-block; transition: opacity .15s ease; }
   .docs-foco-rotulo.trocando { opacity: 0; }
-  /* O que chegou no painel recolhido: o mesmo selo do trilho (Aprovações). */
-  .docs-foco-conta {
-    position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
-    background: var(--destaque); color: var(--bg); font: 700 10px/18px var(--sans); text-align: center;
-    box-shadow: 0 0 0 2px var(--bg); pointer-events: none;
-  }
-  .docs-foco-conta[hidden] { display: none; }
-  .docs-aba-novo {
-    flex: none; align-self: center; display: inline-flex; align-items: center; gap: 6px; margin: 0 0 4px 6px;
-    height: 30px; padding: 0 10px 0 12px; border: 1px dashed var(--ink-a15); border-radius: 8px; background: none;
-    font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap; cursor: pointer;
-  }
-  .docs-aba-novo:hover:not(:disabled) { border: 1px solid var(--ink-a35); background: var(--fill); color: var(--ink); }
+  /* O que chegou no painel recolhido: o .conta do trilho (01-casca.css),
+     preso no canto do botao com um anel na cor do fundo. */
+  .docs-foco-conta { position: absolute; top: -6px; right: -6px; box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
+  /* O tracejado vem da receita do .ac-incluir (09-agenda.css); aqui so o lugar na faixa das abas. */
+  .docs-aba-novo { flex: none; align-self: center; display: inline-flex; width: auto; gap: 6px; margin: 0 0 4px 6px; white-space: nowrap; }
   .docs-corpo .acervo-principal { padding: 12px 0 14px; gap: 10px; }
 
   /* as abas dos documentos abertos */
@@ -48,66 +37,44 @@
     flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 8px 20px 0; overflow-x: auto;
     background: var(--bg); border-bottom: 1px solid var(--ink-a1);
   }
-  .docs-aba, .docs-aba-mais {
+  .docs-aba {
     display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px 12px; margin-bottom: -1px; flex: none;
     border: 1px solid transparent; border-radius: 8px 8px 0 0; background: transparent;
     font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; max-width: 320px; cursor: pointer;
   }
-  .docs-aba:hover:not(:disabled), .docs-aba-mais:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
+  .docs-aba:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
   .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); font-weight: 600; }
-  .docs-aba .glifo { width: 18px; height: 18px; font-size: 10px; }
-  .docs-aba .glifo.pdf { font-size: 6.5px; }
   .docs-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .docs-aba small { font: 500 11.5px var(--sans); color: var(--ink3); }
   /* O x e um icone dentro do botao da aba, e `button .ic` (05-paineis) deixa
      icone de botao sem clique - o clique atravessava para a aba e nada
      fechava. Aqui o x volta a receber o clique. */
-  /* O titulo da coluna na letra do sistema, como nas outras telas. */
-  .docs-corpo .titulo-painel h3 { font: 600 16px/1.3 var(--sans); letter-spacing: 0; }
-  .docs-aba .docs-fechar { color: var(--mute2); margin-left: 2px; border-radius: 4px; pointer-events: auto; cursor: pointer; }
-  .docs-fechar:hover { color: var(--ink); background: var(--fill); }
-  .docs-aba-mais { width: 32px; height: 34px; padding: 0; justify-content: center; }
-  .docs-aba-mais.ativa { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); }
+  .docs-aba .docs-fechar { width: 22px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; margin-left: 2px; border-radius: 6px; color: var(--ink3); pointer-events: auto; cursor: pointer; }
+  .docs-fechar:hover { color: var(--ink); background: var(--fill2); }
 
-  /* as barras de ferramentas: a de formatar e a juridica */
+  /* as barras de ferramentas: a de formatar e a juridica. O botao de icone
+     e a variante com texto (.com-texto) moram em 05-paineis-e-botoes.css. */
   .docs-barra {
     flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 20px;
     border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12.5px;
   }
   .docs-barra.juridica { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
-  .docs-barra button {
-    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none;
-  }
-  .docs-barra button:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .docs-barra button.on { background: var(--fill); }
-  .docs-barra button.com-texto { width: auto; padding: 5px 10px; font: 500 12.5px var(--sans); white-space: nowrap; }
   .docs-barra button.adiante { opacity: .5; }
-  .docs-barra button.docs-chip {
-    width: auto; padding: 4px 8px; border: 1px solid var(--ink-a15); font: 600 12px var(--sans); color: var(--ink2);
-  }
-  .docs-barra button.docs-chip:hover:not(:disabled) { border: 1px solid var(--ink); color: var(--ink); background: none; }
-  .docs-rotulo { font: 500 12px var(--sans); color: var(--ink3); padding-left: 4px; }
-  .docs-sel {
-    height: 28px; padding: 0 28px 0 10px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
-    font: 400 12.5px var(--sans); color: var(--ink); min-width: 0; max-width: none; width: auto; cursor: pointer;
-  }
-  .docs-sel.curta { padding-right: 22px; }
-  /* O select vira botao (melhorarSelect), e `.docs-barra button` acima o
-     espremia em 28 px de icone: rotulo cortado e lista estreita. */
-  .docs-barra .escolha-botao.docs-sel {
-    width: auto; height: 28px; padding: 0 6px 0 10px; gap: 4px; flex: none;
-    border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
-    font: 400 12.5px var(--sans); white-space: nowrap;
-  }
-  .docs-barra .escolha-botao.docs-sel:hover:not(:disabled) { border: 1px solid var(--ink-a35); background: var(--surf); }
+  .docs-rotulo { padding-left: 4px; }
+  /* O select vira botao (melhorarSelect), e `.docs-barra button` (05-paineis-e-botoes.css) o
+     espremia em 28 px de icone: rotulo cortado e lista estreita. A receita
+     (o campo compacto) mora em 04-acervo.css, com esta especificidade. */
+  .docs-sel, .docs-barra .escolha-botao.docs-sel { width: auto; flex: none; }
+  .docs-barra .escolha-botao.docs-sel:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); color: var(--ink); }
   .docs-barra.fx { flex-wrap: nowrap; gap: 10px; }
   .docs-ref { padding: 4px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; font: 600 12.5px var(--sans); white-space: nowrap; }
   .docs-fx { font: 500 12.5px var(--sans); color: var(--ink3); font-style: italic; }
-  .docs-fx-entrada {
-    flex: 1; min-width: 0; max-width: 100%; border: none; background: none; padding: 4px 0;
-    font: 400 13px var(--mono); color: var(--ink); outline: none;
+  input[type=text].docs-fx-entrada {
+    flex: 1; min-width: 0; max-width: 100%; height: auto; padding: 4px 0; border: none; border-radius: 0;
+    background: none; box-shadow: none; outline: none; font: 400 13px var(--mono); color: var(--ink);
   }
+  input[type=text].docs-fx-entrada:focus { box-shadow: inset 0 -1px 0 var(--ink); }
   .docs-fx-nota { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
   .docs-pagina-num { font: 600 12.5px var(--sans); padding: 0 4px; white-space: nowrap; }
   .docs-nota-direita { margin-left: auto; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
@@ -115,23 +82,17 @@
   /* o cartao com a folha, a grade ou a pagina */
   .docs-cartao {
     flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); overflow: hidden;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); box-shadow: var(--elev-card); overflow: hidden;
   }
   .docs-status {
     flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--ink-a1);
     background: var(--surf); font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap;
   }
   .docs-status .cresce { flex: 1; }
-  .docs-divisa-fina { width: 1px; height: 11px; background: var(--ink-a15); }
-  .docs-ligacao { border: none; background: none; padding: 0; cursor: pointer; font: 500 12.5px var(--sans); color: var(--ink); }
-  .docs-ligacao:hover:not(:disabled) { color: var(--destaque); background: none; border: none; }
   .docs-papel-area { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; }
   .docs-papel { width: 100%; max-width: 720px; align-self: flex-start; }
   .docs .ed-regua { margin-bottom: 10px; }
-  .docs .ed-folha {
-    border: 1px solid var(--papel-linha); box-shadow: 0 18px 44px -28px var(--papel-sombra);
-    min-height: 640px;
-  }
+  .docs .ed-folha { min-height: 640px; }
   /* As folhas separadas: o texto e um campo so, transparente, por cima das
      folhas desenhadas atras (ed-folhas). Cabecalho e rodape ficam por cima,
      nas margens, onde nao ha texto para cobrir. */
@@ -143,7 +104,7 @@
   .ed-folhas { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
   .ed-pagina {
     position: absolute; left: 0; right: 0; background: var(--papel);
-    border: 1px solid var(--papel-linha); box-shadow: 0 18px 44px -28px var(--papel-sombra);
+    border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel);
   }
   .ed-margens { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
   .ed-cab, .ed-pe { position: absolute; pointer-events: auto; color: var(--tinta); border-radius: 4px; cursor: default; }
@@ -167,39 +128,36 @@
   .ed-papel.modo-folha .ed-cab.vazio::after {
     content: "clique duas vezes para criar um cabeçalho"; margin: auto; font: 500 11px var(--sans); color: var(--destaque);
   }
-  .docs-ligacao.docs-modo-folha { display: inline-flex; align-items: center; gap: 5px; }
+  /* A ligacao em si (.docs-ligacao) mora em 05-paineis-e-botoes.css; aqui so o
+     estado de "editando a folha". */
   .docs-ligacao.docs-modo-folha.on { color: var(--destaque); font-weight: 600; }
 
   /* o painel do modo Folha */
-  .folha-painel { display: grid; gap: 10px; }
+  .folha-painel { display: grid; gap: 12px; }
   .folha-painel .fl-cabeca { display: flex; align-items: center; justify-content: space-between; }
-  .folha-painel .fl-cabeca h3 { margin: 0 !important; }
-  .fl-bloco { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--ink-a1); }
-  .fl-bloco h4 { margin: 0; font: 600 13px var(--sans); display: flex; align-items: center; gap: 6px; }
+  .folha-painel .fl-cabeca h3 { margin: 0; }
+  .fl-bloco { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--ink-a1); }
+  .fl-bloco h4 { margin: 0; font: 600 14px var(--sans); display: flex; align-items: center; gap: 6px; }
   .fl-seg { display: flex; width: 100%; }
-  .fl-seg button { flex: 1; }
+  .fl-seg button { flex: 1; justify-content: center; }
   .fl-seg.pequeno { width: auto; flex: 1; }
   .fl-nota { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
-  .fl-nota .docs-ligacao { font-size: 12px; color: var(--destaque); }
   .fl-linhas { display: grid; gap: 6px; }
-  .folha-painel input.fl-linha { min-width: 0; max-width: none; width: 100%; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; }
+  .folha-painel input.fl-linha { min-width: 0; max-width: none; width: 100%; }
   .folha-painel input.fl-linha.destaque { font-weight: 600; }
-  .fl-linha-form { display: flex; align-items: center; gap: 10px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .fl-linha-form { display: flex; align-items: center; gap: 10px; }
   .fl-linha-form > span { min-width: 72px; }
-  .fl-linha-form .escolha-botao { min-width: 0; flex: 1; padding: 6px 10px; border-radius: 8px; font-size: 12.5px; }
-  .fl-marcar { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink); }
+  .fl-linha-form .escolha-botao { min-width: 0; flex: 1; }
+  .fl-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
   .fl-marcar span { flex: 1; }
   .fl-marcar small { color: var(--ink3); font-weight: 500; }
-  .fl-marcar .docs-ligacao { font-size: 12px; color: var(--destaque); }
-  .fl-previa-linhas { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); font: 400 12px/1.45 var(--serif); color: var(--ink2); }
+  .fl-previa-linhas { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); font: 400 12px/1.45 var(--serif); color: var(--ink2); }
   .fl-previa-linhas b { font-weight: 600; color: var(--ink); }
   .folha-painel > .fl-bloco:first-of-type { border-top: none; padding-top: 0; }
 
   .docs .rotulo-cartao { display: flex; align-items: center; gap: 8px; }
-  .docs .dupla-cartao .linha-form button.primario { background: var(--btn); color: var(--btnt); border-color: var(--btn); }
 
   /* a pre-visualizacao: miniaturas e a pagina */
-  .docs-cartao.previa { background: var(--bg); }
   .docs-previa { flex: 1; min-height: 0; display: flex; }
   .docs-miniaturas {
     width: 84px; flex: none; border-right: 1px solid var(--ink-a1); padding: 14px 0; overflow: auto;
@@ -210,61 +168,41 @@
     display: flex; flex-direction: column; align-items: center; gap: 2px; padding-bottom: 3px; cursor: pointer;
   }
   .docs-mini img { width: 100%; height: auto; display: block; opacity: .85; }
-  .docs-mini span { font: 500 10px var(--sans); color: var(--ink3); }
-  .docs-mini:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); }
-  .docs-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surf), 0 0 0 3px var(--ink); }
+  .docs-mini span { font: 500 11px var(--sans); color: var(--ink3); }
+  .docs-mini:hover:not(:disabled) { border-color: var(--ink); background: var(--surf); }
+  .docs-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   .docs-mini.atual span { color: var(--ink); font-weight: 600; }
   .docs-pv-rolagem { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; align-items: flex-start; }
   .docs-pv-rolagem .pv-paginas { width: 100%; max-width: 760px; }
   .docs-pv-rolagem .pv-paginas.duas { max-width: none; }
-  .docs-pagina { width: 100%; height: auto; display: block; border: 1px solid var(--ink-a1); box-shadow: 0 18px 44px -28px var(--sh-a45); background: var(--papel); }
+  .docs-pagina { width: 100%; height: auto; display: block; border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); background: var(--papel); }
 
-  /* a grade da planilha dentro do cartao */
-  .docs .pl-caixa { flex: 1; min-height: 0; max-height: none; border: none; overflow: auto; background: var(--surf); }
-  .docs .pl-grade { font-size: 13px; }
-  .docs .pl-grade th, .docs .pl-grade td { border-color: var(--ink-a08); }
-  .docs .pl-grade th {
-    background: var(--bg); color: var(--ink3); font: 500 12px var(--sans); letter-spacing: 0; text-align: left;
-    padding: 8px 12px; height: auto; border-bottom: 1px solid var(--ink-a1);
-  }
-  .docs .pl-grade th.canto { min-width: 44px; }
-  .docs .pl-grade td { height: 34px; }
-  .docs .pl-grade td.cabeca-linha { background: var(--bg); color: var(--ink3); font: 500 12px var(--sans); min-width: 44px; border-right: 1px solid var(--ink-a1); }
-  .docs .pl-grade td.pl-cel { padding: 0 12px; }
+  /* a grade da planilha dentro do cartao: a grade em si e de 07-escrita.css;
+     aqui so o que e da tela (hover da linha e a faixa escolhida) */
   .docs .pl-grade tr:hover td.pl-cel { background: var(--sub); }
-  .docs .pl-cel.escolhida { outline: 2px solid var(--ink); outline-offset: -2px; }
-  .docs .pl-cel.na-faixa { background: var(--accbg) !important; }
-  .docs .pl-cel.ruim { color: var(--acc); }
-  .docs .pl-cel input { background: var(--surf); }
-  .docs .pl-caixa.congelada tbody tr:first-child td { background: var(--bg); top: 33px; }
+  .docs .pl-cel.na-faixa { background: var(--fill) !important; }
   .docs-filtro-aviso {
     flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px;
-    border-top: 1px solid var(--ink-a1); background: var(--warnbg); color: var(--warnt); font-size: 12.5px;
+    background: var(--warnbg); color: var(--warnt); font-size: 12.5px;
   }
+  /* As abas da planilha sao um seletor de visoes (.visoes, 04-acervo.css) e o
+     botao de nova aba e o botao de icone de 05. */
   .docs-abas-pl {
     flex: none; display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-top: 1px solid var(--ink-a1);
     background: var(--surf); font-size: 12.5px; overflow: hidden;
   }
-  .docs-aba-pl { padding: 5px 12px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap; }
-  .docs-aba-pl:hover:not(:disabled) { background: var(--bg); border: none; color: var(--ink2); }
-  .docs-aba-pl.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
-  .docs-aba-pl-mais { width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink2); display: flex; align-items: center; justify-content: center; }
-  .docs-aba-pl-mais:hover:not(:disabled) { background: var(--bg); border: none; }
-  .docs-abas-pl .docs-ligacao { color: var(--ink3); margin-left: 6px; font-size: 12px; }
+  .docs-abas-pl .docs-ligacao { margin-left: 6px; }
   .docs-selecao { margin-left: 12px; display: flex; gap: 12px; flex-wrap: wrap; font: 500 12px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; white-space: nowrap; }
   .docs-selecao span:first-child { color: var(--ink); }
 
   /* o painel: as ferramentas no alto, a conversa embaixo */
-  .docs-painel { display: flex; flex-direction: column; }
   .docs-ferramenta:empty { display: none; }
   .docs-ferramenta .painel {
     margin: 0 !important; padding: 12px 18px; border: none; border-bottom: 1px solid var(--ink-a1);
-    border-radius: 0; background: var(--sub); box-shadow: none;
+    border-radius: 0; background: transparent; box-shadow: none;
   }
-  .docs-ferramenta .painel h3 { font: 600 14px var(--sans); margin: 0 0 6px; }
   .docs-ferramenta .painel .explica { font-size: 12.5px; }
   .docs-ferramenta .proposta { margin: 12px 18px; }
-  .docs-ferramenta > p.nota { padding: 12px 18px; }
   .docs-painel-cabeca {
     flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px;
     font: 500 12.5px var(--sans); color: var(--ink3);
@@ -273,36 +211,31 @@
   .docs-conversa { flex: 1; min-height: 120px; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 12px; }
   .docs-explica { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); }
   .docs-bolha { align-self: flex-end; max-width: 90%; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.5; }
-  .docs-resposta { display: grid; gap: 10px; max-width: 95%; font-size: 13.5px; line-height: 1.6; }
+  .docs-resposta { display: grid; gap: 10px; max-width: 95%; font-size: 14px; line-height: 1.6; }
   .docs-resposta p { margin: 0; }
-  .docs-resposta code { font: 600 12.5px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 4px; }
+  .docs-resposta code { font: 600 12.5px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 5px; }
   .docs-trecho {
-    margin: 0; padding: 8px 12px; border-left: 2px solid var(--destaque-linha); background: var(--destaque-fundo);
+    margin: 0; padding: 8px 12px; border-left: 2px solid var(--ink-a15); background: var(--destaque-fundo);
     font: 400 14px/1.6 var(--serif); color: var(--ink2);
   }
   .docs-resposta-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
-  .docs-resposta-acoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; font-size: 13px; }
+  .docs-resposta-acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .docs-acoes-lista { display: grid; gap: 1px; }
   .docs-acoes-lista button {
-    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
-    background: none; text-align: left; font: 400 13.5px var(--sans); color: var(--ink);
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+    background: none; text-align: left; font: 500 13.5px var(--sans); color: var(--ink2);
   }
   .docs-acoes-lista button span { flex: 1; }
   .docs-acoes-lista button .ic { color: var(--ink3); }
-  .docs-acoes-lista button:hover:not(:disabled) { background: var(--bg); border: none; }
+  .docs-acoes-lista button:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .docs-acoes-lista button.adiante { opacity: .5; }
+  /* Os chips de atalho sao a pilula preenchida de 05-paineis-e-botoes.css. */
   .docs-chips { flex: none; margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-top: 1px solid var(--ink-a1); }
-  .docs-chips button { padding: 6px 11px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
-  .docs-chips button:hover:not(:disabled) { background: var(--act); border: none; }
   .docs-chips button.adiante { opacity: .5; }
   .docs-pedido { flex: none; padding: 10px 18px 14px; display: grid; gap: 8px; }
   .docs-pedido-linha { display: flex; align-items: center; gap: 10px; }
-  .docs-pedido input[type=text] {
-    flex: 1; min-width: 0; max-width: 100%; height: 40px; padding: 10px 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); color: var(--ink); font: 400 13.5px var(--sans); outline: none;
-  }
-  .docs-pedido input[type=text]:focus { border-color: var(--ink-a35); }
-  .docs-pedido .enviar { margin-left: 0; width: 34px; height: 34px; border-radius: 8px; box-shadow: none; flex: none; }
+  .docs-pedido input[type=text] { flex: 1; min-width: 0; max-width: 100%; }
+  .docs-pedido .enviar { margin-left: 0; }
   .docs-pedido small { font: 500 12px var(--sans); color: var(--ink3); }
   .docs-sinc { display: inline-flex; align-items: center; gap: 6px; color: var(--okt); }
   .docs-sinc i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--verde); }
@@ -313,9 +246,8 @@
   /* Com a senha ligada, a explicacao fica embaixo da chave: o que a pessoa
      precisa saber e que sem a senha nem ela abre depois. */
   .docs-nota-senha { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
-  .docs-nota-senha .docs-ligacao { font-size: 12px; color: var(--destaque); }
   .docs-aviso { display: flex; gap: 10px; align-items: flex-start; }
-  .docs-aviso i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); margin-top: 6px; flex: none; }
+  .docs-aviso i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ambar); margin-top: 7px; flex: none; }
   .docs-aviso.impede i { background: var(--acc); }
   .docs-aviso.confira i { background: var(--ambar); }
   .docs-aviso.ok i { background: var(--verde); }
@@ -323,13 +255,13 @@
   .docs-aviso b { font-weight: 400; font-size: 13.5px; line-height: 1.5; }
   .docs-aviso small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .docs-aviso-acoes { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
-  .docs-aviso-acoes .docs-ligacao { color: var(--ink2); }
-  .docs-aviso-acoes .primario { margin-left: auto; padding: 7px 12px; font-size: 13px; }
+  .docs-aviso-acoes .primario { margin-left: auto; }
   .docs-versoes { display: grid; gap: 1px; }
-  .docs-versao { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
-  .docs-versao:hover, .docs-versao.atual { background: var(--bg); }
+  .docs-versao { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font: 500 13.5px var(--sans); color: var(--ink2); cursor: pointer; }
+  .docs-versao:hover { background: var(--fill); color: var(--ink); }
+  .docs-versao.atual { background: var(--fill); color: var(--ink); font-weight: 600; }
   .docs-versao b { font-weight: 600; min-width: 26px; }
-  .docs-versao span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
+  .docs-versao span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .docs-versao small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .colunas-docs { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 70px 130px 28px; }
 

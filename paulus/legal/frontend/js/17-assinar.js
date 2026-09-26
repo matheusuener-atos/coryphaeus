@@ -248,13 +248,13 @@ function visorParaAssinar() {
     '<button class="voltar" id="pdf-antes" title="Página anterior">' + ic("chevron_left", 18) + "</button>" +
     '<span class="docs-pagina-num">Pág. <b id="pdf-num">' + assina.pagina + "</b> / " + doc.paginas + "</span>" +
     '<button class="voltar" id="pdf-depois" title="Próxima página">' + ic("chevron_right", 18) + "</button>" +
-    '<span class="docs-divisa-fina"></span><span>' + (assina.feito && !assina.feito.aguardando_aprovacao ? "o documento assinado" : "lido da sua máquina") + "</span>" +
+    '<span class="divisa-v"></span><span>' + (assina.feito && !assina.feito.aguardando_aprovacao ? "o documento assinado" : "lido da sua máquina") + "</span>" +
     /* O convite e o aviso de pagina ficam na barra, e nao sobre a folha: em
        cima do documento eles cobriam justamente o cabecalho dele. */
-    '<span class="as-adicionar" id="pdf-adicionar"' + (pondo ? "" : " hidden") + '><span class="docs-divisa-fina"></span>' +
+    '<span class="as-adicionar" id="pdf-adicionar"' + (pondo ? "" : " hidden") + '><span class="divisa-v"></span>' +
     '<button class="primario com-icone" id="assina-add-pagina">' + ic("add", 16) + "Adicionar assinatura</button>" +
     "<small>ou clique na página</small></span>" +
-    '<span class="as-nesta" id="pdf-nesta" hidden><span class="docs-divisa-fina"></span><span>Sem assinatura nesta página</span><button class="em-ligacao forte" id="assina-por-aqui">pôr aqui também</button></span>' +
+    '<span class="as-nesta" id="pdf-nesta" hidden><span class="divisa-v"></span><span>Sem assinatura nesta página</span><button class="em-ligacao forte" id="assina-por-aqui">pôr aqui também</button></span>' +
     '<span class="cresce"></span>' + seloDeSituacao() + "</div>" +
     '<div class="docs-previa"><div class="docs-miniaturas" id="pdf-minis">' + minis.join("") + (doc.paginas > total ? '<small class="as-mais">+' + (doc.paginas - total) + "</small>" : "") + "</div>" +
     '<div class="docs-pv-rolagem as-visor"><div class="pdf-folha' + (pondo ? " pondo" : "") + '" id="pdf-folha"><img class="docs-pagina" id="pdf-img" alt="página ' + assina.pagina + '">' +
@@ -283,7 +283,7 @@ function painelAntesDeAssinar() {
   const classeProteger = "ag-toggle" + (assina.proteger ? " on" : "");
   const marca = (chave, rotulo) => {
     const classe = "as-marca liga" + (assina[chave] ? " on" : "");
-    return '<div class="' + classe + '" data-depois="' + chave + '"><span class="as-caixinha">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
+    return '<div class="' + classe + '" data-depois="' + chave + '"><span class="marcar' + (assina[chave] ? " on" : "") + '">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
   };
 
   let pronto;
@@ -293,7 +293,7 @@ function painelAntesDeAssinar() {
     // No lote, o "quase pronto" e do lote inteiro: mora no bloco do lote.
     pronto = "";
   } else if (f && f.aguardando_aprovacao) {
-    const passo = (feito, texto) => '<li class="' + (feito ? "feito" : "espera") + '">' + ic(feito ? "check_circle" : "schedule", 16) + "<span>" + texto + "</span></li>";
+    const passo = (feito, texto) => '<li class="' + (feito ? "feito" : "espera") + '">' + ic(feito ? "check_circle" : "schedule", 18) + "<span>" + texto + "</span></li>";
     pronto = '<div class="as-pronto quase"><div class="as-pronto-cabeca">' + ic("task_alt", 18) + "<span>Está quase pronto — só falta a confirmação</span></div>" +
       "<p><b>" + esc(f.pedido.titulo) + "</b> — " + esc(f.pedido.resumo) + "</p>" +
       '<ul class="as-passos">' + passo(true, "Documento e páginas escolhidos") + passo(true, "Assinatura posicionada na página") +
@@ -332,7 +332,7 @@ function painelAntesDeAssinar() {
     '<button class="com-icone" id="as-codigo"' + bloqueio + ">" + ic("link", 16) + "Copiar o código de verificação</button></div></div>";
   return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + (lote ? "Assinar em lote" : "Antes de assinar") + '</h3><span class="meta">' + esc(doc.nome) + " · " + plural(doc.paginas, "página") + "</span></span></div>" +
-    (lote ? '<div class="painel-bloco as-lote-bloco" id="as-lote-bloco">' + blocoDoLote() + "</div>" : "") +
+    (lote ? '<div class="painel-bloco" id="as-lote-bloco">' + blocoDoLote() + "</div>" : "") +
     (f ? "" : '<div class="as-selo-coluna" id="assina-selo-coluna"></div>') +
     '<div class="as-opcoes">' + escolhas +
     '<div class="ag-chave"><span>Onde a assinatura entra</span><select id="assina-posicao">' +
@@ -381,7 +381,14 @@ function ligarAssinar() {
   };
 
   raiz.querySelectorAll("[data-depois]").forEach((m) => {
-    m.onclick = () => { assina[m.dataset.depois] = !assina[m.dataset.depois]; m.classList.toggle("on", assina[m.dataset.depois]); atualizarFrase(); };
+    m.onclick = () => {
+      assina[m.dataset.depois] = !assina[m.dataset.depois];
+      m.classList.toggle("on", assina[m.dataset.depois]);
+      // A caixinha e o .marcar comum (04-acervo.css): o "on" dela e o proprio.
+      const caixa = m.querySelector(".marcar");
+      if (caixa) caixa.classList.toggle("on", assina[m.dataset.depois]);
+      atualizarFrase();
+    };
   });
   const proteger = $("assina-proteger");
   proteger.onclick = () => {
@@ -1065,7 +1072,7 @@ function faixaDoLote() {
     '<button class="voltar" id="lote-antes" title="Documento anterior" aria-label="Documento anterior"' + (l.atual > 0 ? "" : " disabled") + ">" + ic("chevron_left", 18) + "</button>" +
     '<span class="as-lote-conta">Documento <b>' + (l.atual + 1) + "</b> de " + n + "</span>" +
     '<button class="voltar" id="lote-depois" title="Próximo documento" aria-label="Próximo documento"' + (l.atual < n - 1 ? "" : " disabled") + ">" + ic("chevron_right", 18) + "</button>" +
-    '<span class="docs-divisa-fina"></span><span class="' + classeAviso + '">' + aviso + "</span><span class=\"cresce\"></span>" +
+    '<span class="divisa-v"></span><span class="' + classeAviso + '">' + aviso + "</span><span class=\"cresce\"></span>" +
     (pendente && e.chave === "pulado" ? '<button class="em-ligacao" id="lote-incluir">Incluir de novo</button>' : "") +
     (pendente && e.chave !== "pulado" ? '<button class="em-ligacao" id="lote-pular">Pular este</button>' : "") +
     (l.atual < n - 1 ? '<button class="com-icone" id="lote-proximo">Próximo' + ic("chevron_right", 16) + "</button>" : "") + "</div>";

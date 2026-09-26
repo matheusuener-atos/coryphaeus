@@ -34,7 +34,7 @@ async function abrirAnexar(opcoes) {
       '<div class="anx-topo"><span class="visoes lc-visoes">' +
       '<button type="button" data-anx-visao="acervo">Acervo</button>' +
       '<button type="button" data-anx-visao="computador">Meu computador</button></span>' +
-      '<label class="lc-busca anx-busca">' + ic("search", 15) + '<input type="text" id="anx-busca" placeholder="Buscar…" autocomplete="off"></label></div>' +
+      '<label class="lc-busca anx-busca">' + ic("search", 18) + '<input type="text" id="anx-busca" placeholder="Buscar…" autocomplete="off"></label></div>' +
       '<div class="anx-migalhas" id="anx-migalhas" hidden></div>' +
       '<div class="anx-lista" id="anx-lista"></div>' +
       '<div class="anx-rodape"><span id="anx-conta"></span>' +
@@ -402,11 +402,11 @@ function blocoResposta(m, pergunta, ultima) {
 /* A resposta que a pessoa parou no meio: o texto e o que o modelo tinha
    escrito ate ali, e quem le precisa saber que nao e a resposta inteira. */
 function etiquetaDeParada() {
-  return '<div class="etiqueta-inferencia">' + ic("pause", 14) + "resposta parada no meio</div>";
+  return '<div class="etiqueta">' + ic("pause", 14) + "resposta parada no meio</div>";
 }
 
 function etiquetaDeLeitura() {
-  return '<div class="etiqueta-inferencia">' + ic("auto_awesome", 14) +
+  return '<div class="etiqueta">' + ic("auto_awesome", 14) +
     "leitura do assistente, não trecho do documento</div>";
 }
 
@@ -481,7 +481,7 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
     if (!porDocumento.has(f.documento)) porDocumento.set(f.documento, []);
     porDocumento.get(f.documento).push(i);
   });
-  const seta = '<span class="ic ic-16 arv-seta">chevron_right</span>';
+  const seta = '<span class="ic ic-16 arv-seta">expand_more</span>';
   lista.innerHTML = [...porDocumento].map(([documento, indices]) =>
     '<div class="arv-ramo">' +
     '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + esc(documento) + "</b>" +
@@ -547,7 +547,7 @@ function abrirComoGaveta(el, abrir) {
 
 $("lat-trechos-cabeca").onclick = () => alternarRamo($("lat-trechos-cabeca"));
 
-/* O progresso do plano, no painel: etapa feita fica riscada. */
+/* O progresso do plano, no painel: a lista de etapas do sistema (.lat-etapa). */
 function desenharProgresso(etapas) {
   const bloco = $("lat-progresso");
   if (!etapas || !etapas.length) { bloco.hidden = true; return; }
@@ -596,7 +596,7 @@ function cartaoPlano(etapas, atual, andando) {
   const total = etapas.length;
   const rodando = andando !== undefined ? Boolean(andando) : estado.ocupado;
   const retomar = !rodando && perguntaParaRetomar()
-    ? '<button class="cartao-retomar" data-retomar="1">' + ic("play_arrow", 16) + "Retomar</button>" : "";
+    ? '<button class="primario com-icone" data-retomar="1">' + ic("play_arrow", 16) + "Retomar</button>" : "";
   return '<div class="cartao"><div class="cartao-topo">' +
     (rodando ? coroa(20) : '<span class="ic ic-20 marcador">pause</span>') +
     '<span class="quem">' + (rodando ? "Trabalhando" : "Parado") + " · etapa " + atual + " de " + total + "</span>" +
@@ -623,7 +623,7 @@ function cartaoAprovacao(a) {
   return '<div class="aprovacao"><div class="cabeca"><i class="ponto-acc"></i><span class="nome">Esperando você</span></div>' +
     "<p>" + esc(a.pergunta) + "</p>" +
     (a.detalhe ? '<p class="detalhe">' + esc(a.detalhe) + "</p>" : "") +
-    '<div class="acoes"><button class="fantasma aprovar-secundario">Revisar</button>' +
+    '<div class="acoes"><button>Revisar</button>' +
     '<button class="primario">Aprovar</button></div></div>';
 }
 
@@ -1675,7 +1675,7 @@ function desenharAvisoDoMotor(s) {
     return;
   }
   alvo.innerHTML = '<div class="cartao-erro"><b>' + esc(titulo) + "</b><p>" + esc(causa) + '</p><div class="acoes">' + acao + "</div>" +
-    (m.mensagem && !puxando.andando ? "<details><summary>Detalhes</summary><pre>" + esc(m.mensagem) + "</pre></details>" : "") + "</div>";
+    (m.mensagem && !puxando.andando ? "<details><summary>" + ic("expand_more", 16) + "Detalhes</summary><pre>" + esc(m.mensagem) + "</pre></details>" : "") + "</div>";
   alvo.hidden = false;
   const ligar = alvo.querySelector("[data-motor-ligar]");
   if (ligar) ligar.onclick = () => ligarMotor(ligar);

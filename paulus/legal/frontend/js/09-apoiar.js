@@ -145,7 +145,7 @@ function cartaoDaAssinatura() {
   if (!apoio.assinaturaId) return "";
   const valor = apoio.ativa ? apoio.ativaValor : apoio.assinaturaValor;
   const corpo = '<div class="apoio-assinatura">' +
-    '<span class="apoio-assinatura-coracao">' + ic("favorite", 20) + "</span>" +
+    '<span class="apoio-assinatura-coracao">' + ic("favorite", 24) + "</span>" +
     '<span class="duas-linhas"><b>' + emReais(Math.round((valor || 0) * 100)) + " por mês</b><small>" +
     (apoio.ativa ? "ativa desde " + esc(apoio.ativa) + " · no cartão, pelo Mercado Pago"
       : "esperando o cartão na página do Mercado Pago · esta tela confere sozinha") + "</small></span>" +
@@ -237,7 +237,7 @@ function corpoDoMural() {
       '<b class="apoio-cartaz-nome">' + esc(nome) + "</b>" +
       (apoio.cidade ? '<span class="apoio-cartaz-cidade">' + esc(apoio.cidade) + "</span>" : "") +
       '<span class="apoio-cartaz-desde">' + (categoria === "mensal" ? "apoia todo mês" : "apoiou com Pix") + (desde ? " · desde " + esc(desde) : "") + "</span>" +
-      '<span class="apoio-cartaz-voce">você</span></article>'
+      '<span class="etiqueta apoio-cartaz-voce">você</span></article>'
     : "";
   const convite = '<button class="apoio-cartaz convite" data-apoio-editar-lista="1"><span class="apoio-cartaz-iniciais">' + ic(voce ? "edit" : "favorite", 22) + "</span>" +
     '<b class="apoio-cartaz-nome">' + (voce ? "Mudar como apareço" : "Seu nome aqui") + "</b>" +
@@ -363,7 +363,7 @@ async function apoioPagarPix() {
     '<div class="apoio-pix-texto"><b>' + emReais(Math.round(Number(d.valor) * 100)) + " · vale por " + (d.vence_em_minutos || 30) + " minutos</b>" +
     "<p>Abra o app do banco, escolha pagar com Pix e aponte a câmera para o QR — ou copie o código.</p>" +
     '<div class="apoio-codigo"><span>' + esc(d.qr_code || "") + '</span><button type="button" class="sv-ligacao" data-apoio-copiar="1">copiar código</button></div>' +
-    '<p class="apoio-estado" id="apoio-pix-estado"><span class="indicador"></span>esperando o pagamento…</p></div></div>';
+    '<p class="apoio-estado" id="apoio-pix-estado">' + coroa(16) + 'esperando o pagamento…</p></div></div>';
   let pago = false;
   const fecharPopup = () => { const f = document.querySelector('#veu-dialogo [data-dialogo="cancelar"]'); if (f) f.click(); };
   const conferir = async () => {

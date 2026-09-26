@@ -152,7 +152,7 @@ function desenharCertificadosDoWindows() {
       '<span class="cw-radio' + (marcado ? " on" : "") + '"></span>' + ic("workspace_premium", 18) +
       '<span class="duas-linhas"><b class="corta">' + esc(w.titular || "sem nome") + '</b><small class="corta">' + esc(w.emissor || "") +
       (w.valido_ate ? " · válido até " + esc(dataBR(w.valido_ate)) : "") + "</small></span>" +
-      (bloqueio ? '<span class="em-pilula">' + bloqueio + "</span>" : (w.icp_brasil ? '<span class="em-pilula ok">ICP-Brasil</span>' : "")) + "</div>";
+      (bloqueio ? '<span class="etiqueta">' + bloqueio + "</span>" : (w.icp_brasil ? '<span class="etiqueta ok">ICP-Brasil</span>' : "")) + "</div>";
   };
   const pessoais = cw.lista.filter((w) => w.icp_brasil);
   const sistema = cw.lista.filter((w) => !w.icp_brasil);
@@ -232,7 +232,7 @@ function cartaoDoCertificado() {
       '<span class="duas-linhas"><b class="as-nome">' + esc(c.titular || "Certificado instalado") + "</b><small>" +
       esc(c.tipo || "certificado A1") + (c.documento ? " · " + esc(c.documento) : "") + (doWindows ? " · instalado no Windows" : " · arquivo .pfx") + "</small></span>" +
       '<span class="as-titular-acoes"><button class="com-icone" id="cert-trocar">' + ic("upload", 16) + "Substituir</button>" +
-      '<button class="ag-perigo-fino" id="cert-remover">Remover</button></span></div>' +
+      '<button class="perigo" id="cert-remover">Remover</button></span></div>' +
       (c.erro
         ? '<p class="as-explica">' + esc(String(c.erro).replace(/[.\s]*$/, ".")) + " Digite a senha abaixo para eu conseguir ler o titular, o emissor e a validade.</p>"
         : '<div class="as-grade4">' +
@@ -293,12 +293,12 @@ function painelDoSelo() {
   const esteMes = reg.filter((a) => String(a.quando || "").startsWith(mes)).length;
   const marca = (ligado, rotulo, chave) => {
     const classe = "as-marca" + (ligado ? " on" : "") + (chave ? " liga" : "");
-    return '<div class="' + classe + '"' + (chave ? ' data-selo="' + chave + '"' : "") + '><span class="as-caixinha">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
+    return '<div class="' + classe + '"' + (chave ? ' data-selo="' + chave + '"' : "") + '><span class="marcar' + (ligado ? " on" : "") + '">' + ic("check", 12) + "</span><span>" + rotulo + "</span></div>";
   };
   return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>Selo de assinatura</h3><span class="meta">Prévia em tamanho real</span></span></div>' +
     '<div class="as-selo-caixa"><div class="as-selo-escala" id="selo-previa">' + previaSelo(d) + "</div></div>" +
-    '<div class="as-painel-miolo"><div class="as-abas-selo" role="tablist">' +
+    '<div class="as-painel-miolo"><div class="visoes as-abas-selo" role="tablist">' +
     [["desenhar", "Desenhar", "draw"], ["escrever", "Escrever", "edit_note"], ["imagem", "Imagem", "upload"]].map(([v, r, icone]) => {
       const classe = "as-aba-selo" + (v === cert.aba ? " ativa" : "");
       return '<button class="' + classe + '" data-aba="' + v + '" role="tab">' + ic(icone, 18) + "<span>" + r + "</span></button>";
@@ -317,7 +317,7 @@ function painelDoSelo() {
     '<div class="chave-valor"><span>Assinaturas este mês</span><b>' + esteMes + "</b></div>" +
     '<div class="chave-valor"><span>Última</span><b>' + (reg[0] ? esc(quandoCurto(reg[0].quando)) + " · " + esc(reg[0].documento) : "nenhuma ainda") + "</b></div>" +
     '<div class="chave-valor"><span>Feitas nesta máquina</span><b>' + ((d.registro && d.registro.total) || reg.length) + "</b></div></div>" +
-    '<div class="as-painel-rodape"><button class="docs-ligacao as-restaurar" id="selo-restaurar">' + ic("restart_alt", 16) + "Restaurar padrão</button>" +
+    '<div class="as-painel-rodape"><button class="docs-ligacao" id="selo-restaurar">' + ic("restart_alt", 16) + "Restaurar padrão</button>" +
     '<span class="cresce"></span><button class="com-icone" id="cert-ir-assinar">' + ic("draw", 16) + "Testar</button>" +
     '<button class="primario com-icone" id="selo-salvar">' + ic("check", 16) + "Salvar selo</button></div>" +
     "</div></aside>";
@@ -508,7 +508,15 @@ function ligarCertificado() {
 
   document.querySelectorAll("[data-aba]").forEach((b) => { b.onclick = () => { cert.aba = b.dataset.aba; painelSelo(); }; });
   painelSelo();
-  document.querySelectorAll("[data-selo]").forEach((m) => { m.onclick = () => m.classList.toggle("on"); });
+  /* O estado fica na linha (.as-marca.on, que o Salvar le); a caixa .marcar
+     dentro dela recebe o mesmo "on" porque e ela que desenha o check. */
+  document.querySelectorAll("[data-selo]").forEach((m) => {
+    m.onclick = () => {
+      const ligado = m.classList.toggle("on");
+      const caixa = m.querySelector(".marcar");
+      if (caixa) caixa.classList.toggle("on", ligado);
+    };
+  });
 
   $("selo-salvar").onclick = async () => {
     const texto = $("selo-texto");
@@ -582,7 +590,7 @@ function ligarCanvas() {
 
   const redesenhar = () => {
     pincel.clearRect(0, 0, tela.width, tela.height);
-    pincel.strokeStyle = "#14120f";
+    pincel.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--tinta").trim() || "#14120f";
     pincel.lineWidth = 3;
     pincel.lineCap = "round";
     pincel.lineJoin = "round";

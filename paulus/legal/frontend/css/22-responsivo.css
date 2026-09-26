@@ -6,7 +6,7 @@
     .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr); }
     .conversa-corpo.com-lateral .lateral {
       position: absolute; top: 0; right: 0; bottom: 0; width: 320px; z-index: 3;
-      margin: 14px 14px 14px 0; box-shadow: var(--elev-panel), var(--elev-cartao);
+      margin: 14px 14px 14px 0; box-shadow: var(--elev-float);
     }
     .conversa-corpo { position: relative; }
   }

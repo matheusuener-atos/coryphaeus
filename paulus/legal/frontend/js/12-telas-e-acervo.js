@@ -243,7 +243,7 @@ function desenharBiblioteca() {
     $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' +
       '<div class="tabela-cartao"><div class="painel-vazio"><h3>Nenhum documento ainda</h3>' +
       "<p>Aponte uma pasta e eu leio o que houver lá dentro. Os documentos ficam em " + esc(bib.pasta) + ".</p>" +
-      '<div><button class="primario" id="bib-pasta-vazio">Escolher pasta</button></div></div></div></div></div>';
+      '<div class="em-vazio-acao"><button class="primario" id="bib-pasta-vazio">Escolher pasta</button></div></div></div></div></div>';
     $("bib-pasta-vazio").onclick = adicionarPastaAoAcervo;
     return;
   }
@@ -401,8 +401,10 @@ function ligarBiblioteca() {
   });
   centro.querySelectorAll("[data-doc]").forEach((linha) => {
     linha.onclick = () => {
-      bib.aberto = bib.aberto === linha.dataset.doc ? null : linha.dataset.doc;
+      const abrindo = bib.aberto !== linha.dataset.doc;
+      bib.aberto = abrindo ? linha.dataset.doc : null;
       desenharBiblioteca();
+      if (abrindo) abrirEmAltura(document.querySelector(".ae-ficha"));
     };
   });
   // Segurar o botao numa linha marca, como a caixinha; Delete apaga a selecao.
@@ -897,7 +899,7 @@ function cartaoProposta(d) {
         (c.cliente ? ", ligada a " + esc(c.cliente) : ", sem cliente — escreva o nome como está em Cadastros para ligar") +
         ". Confira antes — eu não gravo nada sem o seu sim.";
     return '<div class="proposta"><div class="proposta-topo">' +
-      '<span class="' + (d.falta ? "pv-grau" : "rotulo") + '">' + (d.falta ? "falta um dado" : "vou abrir um serviço") + "</span>" +
+      '<span class="' + (d.falta ? "etiqueta atencao" : "rotulo") + '">' + (d.falta ? "falta um dado" : "vou abrir um serviço") + "</span>" +
       "<b>" + esc(c.nome || d.titulo || "Serviço") + "</b></div>" +
       '<div class="linha-form"><input type="text" data-pc="nome" value="' + esc(c.nome || "") + '" placeholder="nome do serviço"' + (d.falta ? " autofocus" : "") + ">" +
       '<input type="text" data-pc="cliente" value="' + esc(c.cliente || "") + '" placeholder="cliente, como está em Cadastros"></div>' +
@@ -912,7 +914,7 @@ function cartaoProposta(d) {
 
   if (d.falta) {
     return '<div class="proposta"><div class="proposta-topo">' +
-      '<span class="pv-grau">falta um dado</span>' +
+      '<span class="etiqueta atencao">falta um dado</span>' +
       "<b>" + esc(d.titulo || "Compromisso") + "</b></div>" +
       '<p class="explica">Entendi que você quer anotar isso na agenda (' +
       esc(d.porque) + "), mas " + esc(d.falta) + ". Diga o dia — ou preencha aqui.</p>" +
@@ -1193,7 +1195,7 @@ function cartaoFerramenta(d) {
   const explica = d.falta
     ? "Entendi o pedido (" + d.porque + "), mas " + d.falta + ". Complete aqui."
     : "Li isso de " + d.porque + " na sua frase.";
-  const classe = d.falta ? "pv-grau" : "rotulo";
+  const classe = d.falta ? "etiqueta atencao" : "rotulo";
 
   return '<div class="proposta"><div class="proposta-topo">' +
     '<span class="' + classe + '">' + (d.falta ? "falta um dado" : cfg.rotulo) + "</span>" +
@@ -1273,7 +1275,7 @@ function ligarProposta(caixa, d, ondeResponder) {
     const feito = await r.json();
     // Pendente é a ferramenta que ainda só confere (a NFS-e): não há o que
     // ver na tela, e o rótulo não pode dizer "feito".
-    const classe = feito.pendente ? "pv-grau" : "rotulo";
+    const classe = feito.pendente ? "etiqueta atencao" : "rotulo";
     caixa.innerHTML = '<div class="proposta-topo"><span class="' + classe + '">' +
       (feito.pendente ? "conferido" : "feito") + "</span>" +
       "<b>" + esc(feito.resumo) + "</b></div>" +

@@ -113,7 +113,7 @@ function passoBoasVindas() {
   const modeloTxt = s.modelo
     ? "Modelo " + esc(s.modelo) + (s.tamanho_gb ? " · " + String(s.tamanho_gb).replace(".", ",") + " GB" : " · ainda não baixado")
     : "Modelo: nenhum encontrado no Ollama";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">BEM-VINDO</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">BEM-VINDO</span>' +
     "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
     "<p>Seis passos rápidos: o escritório, seus dados, como a IA funciona, o que conectar e como atualizar. Tudo pode ser mudado depois em Configurações.</p>" +
     '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre · gratuito</span><span class="etiqueta">IA 100% local</span><span class="etiqueta">Cerca de 3 minutos</span></div></div>' +
@@ -135,7 +135,7 @@ function passoEscritorio() {
       '<span class="duas-linhas"><span class="bv-opcao-titulo">' + ic(icone, 18) + titulo +
       '<span class="etiqueta ok">' + pill + "</span></span><small>" + texto + "</small></span></div>";
   };
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 1 — ESCRITÓRIO</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 1 — ESCRITÓRIO</span>' +
     "<h1>Este computador começa um escritório novo ou entra em um que já existe?</h1>" +
     "<p>O escritório é o grupo de máquinas que compartilham cadastros, agenda, serviços e aprovações pela rede local. Quem cria o escritório vira o responsável e define as alçadas; os demais entram com um código de vínculo.</p>" +
     '<div class="bv-infos">' + [
@@ -155,7 +155,7 @@ function passoDados() {
   const campo = (chave, rotulo, modo) =>
     '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
     '" data-bv-pessoa="' + chave + '" value="' + esc(bv.pessoa[chave] || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") + "></div>";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 2 — SEUS DADOS</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 2 — SEUS DADOS</span>' +
     "<h1>Quem vai usar o PAULUS?</h1>" +
     "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p></div>" +
     '<div class="bv-cartao"><div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
@@ -171,7 +171,7 @@ function passoDadosVinculo() {
   const campo = (chave, rotulo, valor, atributo, modo) =>
     '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
     '" ' + atributo + '="' + chave + '" value="' + esc(valor || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") + "></div>";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 2 — SEUS DADOS</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 2 — SEUS DADOS</span>' +
     "<h1>Quem é você no escritório?</h1>" +
     "<p>Esses dados vão para o responsável junto com o seu pedido de acesso. Ele confirma o cargo e define o que você pode aprovar sozinho.</p></div>" +
     '<div class="bv-cartao"><div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
@@ -199,7 +199,7 @@ function passoCodigos() {
     }).join("") + "</div>";
   };
   const nome = bv.pessoa.nome || "você";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 3 — CÓDIGOS</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 3 — CÓDIGOS</span>' +
     "<h1>Dois códigos: um que você recebe, um que você passa.</h1>" +
     "<p>O primeiro é o código do responsável: ele gera no PAULUS dele e vincula esta máquina ao escritório. O segundo é gerado aqui e identifica você: o responsável digita em Configurações › Escritório e vínculos para adicionar você ao escritório, com cargo e alçada.</p>" +
     '<div class="bv-infos">' + [
@@ -241,7 +241,7 @@ function passoIA() {
     ["E-mail", "seu servidor (IMAP/SMTP) · opcional", false],
     ["Atualizações", "pelo instalador · nada sai sozinho", false],
   ];
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 3 — COMO A IA FUNCIONA</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 3 — COMO A IA FUNCIONA</span>' +
     "<h1>A inteligência artificial roda aqui, nesta máquina. Ponto.</h1>" +
     "<p>O modelo, o índice dos seus documentos e as senhas ficam no seu computador. Não existe chamada a nenhum serviço de IA na internet. Você pode desligar o Wi-Fi e tudo continua funcionando.</p>" +
     '<div class="bv-checks">' + [
@@ -262,7 +262,7 @@ function passoIA() {
 function passoConexoes() {
   const conta = (letra, titulo, sub, acao) =>
     '<div class="bv-conta"><span class="bv-conta-letra">' + letra + '</span><span class="duas-linhas"><b>' + titulo + "</b><small>" + sub + "</small></span>" + acao + "</div>";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 4 — CONEXÕES</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 4 — CONEXÕES</span>' +
     "<h1>O que você quer conectar? Tudo opcional.</h1>" +
     "<p>O e-mail do escritório pode ser lido e respondido daqui, com envio passando por Aprovações. A IA continua local: o PAULUS lê aqui e não devolve nada sem o seu sim.</p>" +
     '<div class="bv-infos">' + [
@@ -278,7 +278,7 @@ function passoConexoes() {
 }
 
 function passoAtualizacoes() {
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">PASSO 5 — ATUALIZAÇÕES</span>' +
+  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 5 — ATUALIZAÇÕES</span>' +
     "<h1>Como o PAULUS deve se atualizar?</h1>" +
     "<p>Nesta versão, atualizar é rodar o instalador novo: o programa não verifica nada na internet sozinho. Quando a verificação automática chegar, ela vai baixar só o instalador — nenhum dado seu vai junto — e você poderá desligá-la.</p></div>" +
     '<div class="bv-cartao"><div class="bv-checks">' +

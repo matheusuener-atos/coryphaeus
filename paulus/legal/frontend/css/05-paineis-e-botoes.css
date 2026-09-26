@@ -2,57 +2,33 @@
   /* O menu mora na casca, no comeco do CSS. Aqui ficou so a tela de destino
      ainda nao construido. */
 
-  .adiante-tela { max-width: 620px; }
-  .adiante-tela h2 { font: 500 30px/1.15 var(--sans); letter-spacing: -0.02em; color: var(--ink-titulo); margin: 8px 0 12px; }
-  .adiante-tela > p { margin: 0 0 22px; font-size: 15px; line-height: 1.6; color: var(--ink-2); }
-  .precisa { border-top: 1px solid var(--linha); padding-top: 16px; margin-bottom: 22px; }
+  .adiante-tela { max-width: 620px; display: grid; gap: 12px; }
+  .adiante-tela h2 { font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); margin: 0; }
+  .adiante-tela > p { margin: 0; font-size: 15px; line-height: 1.6; color: var(--ink2); }
+  .precisa { border-top: 1px solid var(--ink-a1); padding-top: 16px; margin-bottom: 0; }
   .precisa .rotulo { display: block; margin-bottom: 10px; }
-  .precisa ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; }
+  .precisa ul { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 13.5px; }
   .precisa li { margin-bottom: 5px; }
 
-  /* ---------------------------------------------- aprovacoes e config */
-
-  .tela-topo { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  .tela-topo h2 { font: 400 26px/1.15 var(--serif); letter-spacing: -0.01em; color: var(--ink); margin-bottom: 6px; }
-  .tela-acoes { margin-left: auto; display: flex; gap: 8px; }
-  .rodape-tela {
-    margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--ink-a06);
-    font: 500 11.5px var(--sans); color: var(--ink3);
-  }
+  /* ---------------------------------------------------- aprovacoes */
 
   /* A fila de aprovacoes (docs/ui/03-telas-desktop.md, A11): fila, historico
      e regras sobre a mesma grade do Acervo. */
   .colunas-fila { grid-template-columns: 20px minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 170px; }
   .colunas-historico { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 130px 150px; }
-  .colunas-regras { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; }
   .caixa-tipo { width: 32px; height: 32px; border-radius: 8px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; }
   .caixa-tipo .ic { color: var(--ink2); }
   .quem { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
   .quem span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .avatar-p {
-    width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--bg); flex: none;
-    display: flex; align-items: center; justify-content: center; font: 400 14px/1 var(--serif);
-  }
-  .avatar-mini {
-    width: 24px; height: 24px; border-radius: 50%; background: var(--fill2); color: var(--ink2); flex: none;
-    display: flex; align-items: center; justify-content: center; font: 700 10px var(--sans);
-  }
+  /* O avatar do assistente na fila: o .cad-avatar (32 px) com a marca da
+     casa - o "P" em Garamond sobre a tinta, o mesmo do trilho. E a unica
+     excecao ao avatar de iniciais. */
+  .avatar-p { background: var(--ink); color: var(--bg); font: 500 15px/1 var(--serif); }
   .espera { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .acoes-linha.direita { justify-content: flex-end; }
-  .pill-papel { padding: 2px 8px; border-radius: 5px; font: 600 11.5px var(--sans); white-space: nowrap; background: var(--fill); color: var(--ink2); }
-  .pill-papel.forte { background: var(--ink); color: var(--bg); }
   .papeis { display: flex; gap: 6px; flex-wrap: wrap; }
   .chave-valor b.acc { color: var(--acc); }
   .arquivo-painel .glifo { flex: none; }
-  .linha-tempo { display: grid; gap: 10px; font-size: 13px; }
-  .linha-tempo div { display: flex; gap: 12px; align-items: flex-start; }
-  .linha-tempo .hora { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; min-width: 40px; flex: none; }
-  .linha-tempo span:last-child { line-height: 1.5; }
-  .leitura-fila { display: grid; gap: 8px; font-size: 13.5px; }
-  .leitura-fila span { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
-  .leitura-fila span .ic { color: var(--ink3); }
-  .resumo-painel { padding: 4px 18px 12px; }
-  .resumo-painel p { margin: 0; font-size: 13.5px; line-height: 1.6; }
 
   /* Aprovacoes na medida de leitura (js/04-aprovacoes.js): sem coluna ao
      lado, dois cartoes de tabela um embaixo do outro - a fila e o
@@ -60,136 +36,45 @@
      cartao em sans; verde so no aprovar, vinho no recusar e no erro.
      Prefixo ap-. */
   .ap-tela .sv-medida { gap: 20px; padding-top: 8px; }
-  .tabela-cartao.ap-cartao { flex: none; overflow: visible; box-shadow: 0 8px 24px -16px var(--sh-a12); }
+  .tabela-cartao.ap-cartao { flex: none; overflow: visible; }
   .ap-cartao .tabela-barra { border-radius: 12px 12px 0 0; }
   .ap-cartao .tabela-corpo { overflow: visible; }
-  .ap-cartao .tabela-corpo > :last-child { border-bottom: none; }
   .ap-cartao .tabela-rodape { border-radius: 0 0 12px 12px; }
   .ap-titulo { font: 600 14px var(--sans); color: var(--ink); }
-  .ap-conta { font: 600 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; margin-right: 6px; }
+  .ap-conta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; margin-right: 6px; }
   .ap-direita { text-align: right; }
   .ap-vence { color: var(--acc); font-weight: 600; }
-  .ap-vazio { padding: 28px 20px; }
   .ap-colunas-historico { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) 96px 96px 110px; }
-  button.ap-sim { background: var(--okbg); border-color: var(--verde); color: var(--okt); }
-  button.ap-sim:hover:not(:disabled) { background: var(--okbg); border-color: var(--okt); color: var(--okt); }
-  button.ap-nao:hover:not(:disabled) { background: var(--accbg2); border-color: var(--accln); color: var(--acc); }
   .ap-resumo { margin: 0 0 14px; font: 400 14px/1.6 var(--sans); color: var(--ink2); }
-  .ap-saida { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ink-a08); }
+  .ap-saida { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ink-a1); }
   .ap-saida-lista { display: grid; gap: 8px; }
   .ap-saida-lista .arquivo-painel .ic { flex: none; color: var(--ink3); }
   .ap-dialogo-leitura .dialogo-cancelar { display: none; }
-  .dialogo.ap-dialogo-regras { width: 640px; max-width: calc(100vw - 32px); }
-  .ap-regras { display: grid; margin-top: 4px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .ap-regras { display: grid; margin-top: 4px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
   .ap-regra {
     display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 34px; align-items: center; gap: 12px;
-    padding: 10px 14px; border-bottom: 1px solid var(--ink-a08);
+    padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 14px;
   }
   .ap-regra:last-child { border-bottom: none; }
   .ap-regra.travada { opacity: .6; }
   .ap-regra .duas-linhas b, .ap-regra .duas-linhas small { white-space: normal; line-height: 1.45; }
   .ap-regra-estado { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .ap-regras button.interruptor-min { padding: 0; }
-  .ap-regras button.interruptor-min:hover:not(:disabled) { background: none; border-color: var(--ink-a25); }
-  .ap-regras button.interruptor-min.on:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); }
-
-  /* Pecas que a tela de Tarefas ainda usa (sugestoes de prazo). */
-  .fila { border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; }
-  .pedido { display: flex; align-items: flex-start; gap: 13px; padding: 12px 14px; border-bottom: 1px solid var(--ink-a06); }
-  .pedido:last-child { border-bottom: none; }
-  .pedido.marcado { background: var(--bg); }
-  .pedido-marca { flex-shrink: 0; padding-top: 2px; cursor: pointer; }
-  .pedido-corpo { flex: 1; min-width: 0; }
-  .pedido-titulo { font: 500 14px var(--sans); margin-bottom: 6px; }
-  .pedido-resumo { font-size: 13px; color: var(--ink2); margin-top: 7px; }
-  .pedido-corpo .num { margin-top: 6px; display: block; }
-  .pedido-acoes { flex-shrink: 0; }
-  .etiqueta.prazo { background: var(--accbg); color: var(--acc); }
-
-  .decididos-hoje { margin-top: 22px; }
-  .decididos-hoje > .rotulo { display: block; margin-bottom: 9px; }
-  .hoje-linha { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13px; }
-  .hoje-linha:last-child { border-bottom: none; }
-  .selo-decisao { font: 600 11.5px var(--sans); padding: 2px 8px; border-radius: 5px; flex-shrink: 0; background: var(--fill); color: var(--ink3); }
-  .selo-decisao.aprovado { background: var(--okbg); color: var(--okt); }
-  .selo-decisao.falhou { background: var(--warnbg); color: var(--warnt); }
-
-  /* Configuracoes: o interruptor tem que ficar perto do texto dele. */
-  .permissao {
-    display: flex; align-items: center; gap: 16px; max-width: 1040px;
-    padding: 13px 0; border-bottom: 1px solid var(--ink-a06); cursor: pointer;
-  }
-  .permissao:last-of-type { border-bottom: none; }
-  .permissao-texto { flex: 1; min-width: 0; }
-  .permissao-titulo { font: 500 13.5px var(--sans); margin-bottom: 3px; }
-  .permissao.travada { cursor: default; opacity: 0.72; }
-
-  /* O interruptor pequeno do desenho: 34 x 20, botao de 14. */
-  .interruptor-min {
-    width: 34px; height: 20px; flex-shrink: 0; position: relative; border-radius: 10px; cursor: pointer;
-    border: 1px solid var(--ink-a25); background: none; transition: background 0.2s;
-  }
-  .interruptor-min .chave {
-    position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
-    background: var(--ink-a3); transition: transform 0.2s, background 0.2s;
-  }
-  .interruptor-min.on { background: var(--ink); border-color: var(--ink); }
-  .interruptor-min.on .chave { transform: translateX(14px); background: var(--bg); }
+  /* A chave como <button> (Aprovacoes): o hover generico de botao nao pode
+     pintar o trilho. A chave em si mora em 09-agenda.css (.ag-toggle i, .interruptor-min). */
+  button.interruptor-min:hover:not(:disabled) { background: none; border-color: var(--ink-a25); }
+  button.interruptor-min.on:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); }
 
   .grade-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
   .campo-form { display: flex; flex-direction: column; gap: 6px; }
-  .campo-form input { width: 100%; }
+  /* Quem manda na largura e a caixa, nao o teto do campo. */
+  .campo-form input { width: 100%; max-width: none; }
 
-  /* --------------------------------------------- cadastros e tarefas */
-
-  .campo-nota {
-    font: 400 13px/1.5 var(--sans); border: 1px solid var(--linha-media);
-    background: var(--surface-1); color: inherit; padding: 9px 11px; resize: vertical;
-  }
-
-  input[type=date] {
-    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
-    background: var(--surface-1); color: inherit; padding: 8px 11px;
-    flex: 0 0 auto; min-width: 150px;
-  }
-  [data-tema="escuro"] input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
-
-  input[type=time] {
-    font: 400 13px var(--sans); border: 1px solid var(--linha-media);
-    background: var(--surface-1); color: inherit; padding: 8px 11px;
-  }
-  [data-tema="escuro"] input[type=time]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
-
-  /* ------------------------------------------------- maquina na coluna */
-  /* Os medidores sairam da coluna: no desenho eles moram em Configuracoes >
-     Desempenho. A tela "Seu computador" ainda os usa. */
-
-  .medidor { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
-  .medidor .nome { font-size: 12.5px; color: var(--ink2); width: 68px; flex-shrink: 0; }
-  .medidor .pista { flex: 1; height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
-  .medidor .pista i { display: block; height: 3px; width: 0; background: var(--ink); transition: width 0.4s; }
-  .medidor .valor {
-    font: 500 11px var(--sans); color: var(--ink3);
-    width: 52px; text-align: right; flex-shrink: 0;
-  }
-
-  /* O interruptor do desenho: 40 x 24, botao de 18. */
-  .interruptor {
-    display: flex; align-items: center; gap: 10px; margin-top: 13px; min-height: 44px;
-    padding: 6px 0; font-size: 13.5px; color: var(--ink2); cursor: pointer;
-  }
-  .interruptor .chave {
-    margin-left: auto; width: 40px; height: 24px; flex-shrink: 0; border-radius: 12px;
-    border: 1px solid var(--ink-a25); background: none; position: relative; transition: background 0.2s;
-  }
-  .interruptor .chave::after {
-    content: ""; position: absolute; top: 2px; left: 2px;
-    width: 18px; height: 18px; border-radius: 50%; background: var(--ink-a3);
-    transition: transform 0.2s, background 0.2s;
-  }
-  .interruptor.on { color: var(--ink); }
-  .interruptor.on .chave { background: var(--ink); border-color: var(--ink); }
-  .interruptor.on .chave::after { transform: translateX(16px); background: var(--bg); }
+  /* A caixa nativa (input type=checkbox e type=radio), onde o JS le .checked:
+     o navegador desenha, na tinta e no tamanho da .marcar (16 px). Mora nos
+     dialogos, no imprimir, na conciliacao do banco, nas pendencias da
+     gravacao, no editor e na folha. O interruptor do sistema e o .ag-toggle
+     de 09-agenda.css (34 x 20); o de 40 x 24 que ficava aqui ninguem emitia. */
+  input[type=checkbox], input[type=radio] { width: 16px; height: 16px; margin: 0; padding: 0; flex: none; accent-color: var(--ink); cursor: pointer; }
 
   /* -------------------------------------------------------- registro */
   /* Uma linha so, aberta sob demanda: o que o programa acabou de fazer. */
@@ -200,9 +85,9 @@
     padding: 9px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: none;
     cursor: pointer; font: 400 13px var(--sans); color: var(--ink2); text-align: left;
   }
-  .registro-cabeca:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); color: var(--ink2); }
+  .registro-cabeca:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a1); color: var(--ink2); }
   .registro-agora { flex: 1; min-width: 0; }
-  .registro-seta { color: var(--ink3); transition: transform 0.2s; }
+  .registro-seta { color: var(--ink3); transition: transform .2s ease; }
   .registro.aberto .registro-seta { transform: rotate(180deg); }
   /* Aberto, o registro tem teto: com vinte linhas ele empurrava a conversa
      para fora da tela. Passou disso, rola por dentro. */
@@ -212,44 +97,46 @@
   .atividade-linha .num { display: block; }
 
 
-  /* A caixa de pedido: a peca mais usada do produto. Ela usa o modelo de
-     cartao do desenho - superficie, fio de 1 px, 14 px de raio, 22 px de
-     recuo e a sombra longa que assenta em vez de elevar. */
+  /* A caixa de pedido: a peca mais usada do produto. Ela usa o cartao do
+     sistema - superficie, fio --ink-a1, 12 px de raio e --elev-card - com
+     22 px de recuo no inicio, onde o texto e maior. */
   /* Acima do degrade do pe da conversa: quando a caixa desliza do inicio
      para o pe, ela passa por baixo dele e escurecia pela metade. */
   .cartao-campo {
-    position: relative; z-index: 4; border: 1px solid var(--hair); border-radius: 14px; background: var(--surf);
-    box-shadow: var(--elev-cartao); padding: 22px;
+    position: relative; z-index: 4; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+    box-shadow: var(--elev-card); padding: 22px;
     display: grid; gap: 16px; transition: border-color .18s;
   }
-  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a2); }
+  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink); }
 
   /* No inicio o que se pede e escrito na mesma letra do texto da saudacao,
      logo acima: a caixa e a continuacao daquela conversa, nao um formulario.
      Era Garamond, a letra do titulo, e ficava parecendo uma segunda chamada
-     em vez do lugar onde a pessoa responde. */
-  textarea {
-    display: block; width: 100%;
+     em vez do lugar onde a pessoa responde. A regra e SO da caixa de pedido;
+     as outras areas de texto sao o campo do sistema (04-acervo.css). */
+  .cartao-campo textarea {
+    display: block; width: 100%; min-height: 0;
     font: 400 16px/1.65 var(--sans); resize: none;
-    border: none; background: none; outline: none;
+    border: none; border-radius: 0; background: none; box-shadow: none; outline: none;
     padding: 0; max-height: 190px; color: var(--ink);
   }
-  textarea::placeholder { color: var(--ink3); }
 
   /* A pilula segue a etiqueta da tela de boas-vindas: um retangulo PREENCHIDO,
      sem contorno. O contorno foi a primeira versao, copiada do guia do
      Assistente, e destoava da unica tela que ja estava no desenho novo - la
-     nada pequeno tem borda; tem fundo. */
+     nada pequeno tem borda; tem fundo. Vale tambem para Recentes, Ir a
+     pagina, o rodape do calendario, os atalhos do editor e os comandos da
+     pasta. */
   .pilulas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .pilula {
+  .pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button {
     display: inline-flex; align-items: center; gap: 7px; height: 28px;
     padding: 0 10px; border: none; border-radius: 6px; background: var(--fill);
     font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap;
     transition: background .16s ease, color .16s ease;
   }
-  .pilula:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
-  .pilula .ic { font-size: 16px; width: 16px; height: 16px; color: var(--ink3); }
-  .pilula:hover:not(:disabled) .ic { color: var(--ink2); }
+  :is(.pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button):hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
+  :is(.pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button) .ic { font-size: 16px; width: 16px; height: 16px; color: var(--ink3); }
+  :is(.pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button):hover:not(:disabled) .ic { color: var(--ink2); }
   .pilula .rotulo-botao { flex: none; padding: 0; }
   /* Buscar ligado: a pilula na cor de destaque, como quem esta apertado. */
   .pilula.ativa, .pilula.ativa:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
@@ -264,33 +151,25 @@
      etiquetas das boas-vindas ("IA 100% local"), e nao um contorno. Solto sem
      fundo no meio das pilulas, ele parecia texto que tinha escapado da fila. */
   .escopo-pilula {
-    display: inline-flex; align-items: center; gap: 8px; max-width: 240px; height: 30px;
-    padding: 0 4px 0 6px; border-radius: 8px; background: var(--fill); border: 1px solid var(--hair2);
+    display: inline-flex; align-items: center; gap: 6px; max-width: 240px; height: 28px;
+    padding: 0 6px 0 8px; border: none; border-radius: 6px; background: var(--fill);
     font: 500 12.5px var(--sans); color: var(--ink);
   }
-  .escopo-pilula:hover { background: var(--fill2); }
-  .escopo-pilula .glifo { width: 18px; height: 18px; border-radius: 4px; font-size: 10px; }
-  .escopo-pilula .glifo.pdf { font-size: 6.5px; }
   .escopo-pilula b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .escopo-pilula button {
+  .escopo-pilula button, .chip-pasta button, .em-anexo-ficha button {
     width: 22px; height: 22px; flex: none; padding: 0; border: none; border-radius: 6px; background: none;
     color: var(--ink3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
   }
-  .escopo-pilula button:hover:not(:disabled) { color: var(--ink); background: var(--fill2); border: none; }
+  .escopo-pilula button:hover:not(:disabled), .chip-pasta button:hover:not(:disabled), .em-anexo-ficha button:hover:not(:disabled) { color: var(--ink); background: var(--fill2); border: none; }
   .escopo-acervo {
-    display: inline-flex; align-items: center; gap: 7px; max-width: 260px; height: 28px;
-    padding: 0 10px; border-radius: 6px; background: var(--fill);
-    font: 500 12.5px var(--sans); color: var(--ink2);
+    display: inline-flex; align-items: center; gap: 6px; max-width: 260px; height: 28px;
+    padding: 0 8px; border-radius: 6px; background: var(--fill);
+    font: 500 12.5px var(--sans); color: var(--ink);
   }
   .escopo-acervo .ic { color: var(--ink3); }
   .escopo-acervo.escopo-livre { cursor: pointer; }
-  .escopo-acervo.escopo-livre:hover { background: var(--act); color: var(--ink); }
+  .escopo-acervo.escopo-livre:hover { background: var(--fill2); color: var(--ink); }
   .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .escopo-limpar {
-    border: none; background: none; color: var(--ink3); cursor: pointer;
-    font: 500 12px var(--sans); padding: 2px 6px; white-space: nowrap;
-  }
-  .escopo-limpar:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
   /* A lista que o "/" abre. Sobe por cima da caixa, como todo autocompletar. */
   .mencao {
@@ -298,16 +177,17 @@
     max-height: 260px; overflow-y: auto; z-index: 40; padding: 6px;
     border: 1px solid var(--ink-a1); border-radius: 10px;
     background: var(--surf); box-shadow: var(--elev-float);
+    animation: menu-entra .16s cubic-bezier(.16,1,.3,1);
   }
   .mencao-item {
-    display: flex; align-items: baseline; gap: 10px; width: 100%;
+    display: flex; align-items: center; gap: 8px; width: 100%;
     padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer;
-    text-align: left; font: inherit; color: var(--ink2);
+    text-align: left; font: 500 13px var(--sans); color: var(--ink2);
   }
   .mencao-item:hover, .mencao-item.marcado { background: var(--fill); color: var(--ink); }
   .mencao-item b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mencao-item .rotulo { flex-shrink: 0; margin-left: auto; }
-  .mencao-vazio { padding: 10px 12px; font-size: 12.5px; color: var(--ink3); }
+  .mencao-vazio { padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
 
   .enviar {
     margin-left: auto; width: 34px; height: 34px; flex: none;
@@ -329,7 +209,7 @@
   .ditar:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .ditar + .enviar { margin-left: 0; }
   .ditar.ouvindo, .ditar.ouvindo:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
-  .ditar.ouvindo .ic { animation: pv-pulse 1.4s ease-in-out infinite; }
+  .ditar.ouvindo .ic { animation: pv-pulse 3.2s ease-in-out infinite; }
   /* Parar: o mesmo lugar e o mesmo tamanho do enviar, na cor de destaque e
      com o quadrado cheio - o sinal de parar de qualquer tocador. */
   .enviar.parar, .enviar.parar:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
@@ -342,7 +222,7 @@
   /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
      em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */
   .conversa-col:not(.vazia) .cartao-campo {
-    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; flex-wrap: wrap; row-gap: 10px;
   }
   .conversa-col:not(.vazia) .cartao-campo textarea {
     order: 2; flex: 1; min-width: 0; max-width: 100%;
@@ -351,30 +231,33 @@
   .conversa-col:not(.vazia) .pilulas { display: contents; }
   .conversa-col:not(.vazia) .pilula { order: 1; }
   .conversa-col:not(.vazia) .pilula-anexar {
-    width: 24px; height: 24px; padding: 0; justify-content: center;
+    width: 28px; height: 28px; padding: 0; justify-content: center;
     border: none; background: none; color: var(--ink2);
   }
+  .conversa-col:not(.vazia) .pilula-anexar:hover:not(:disabled) { background: var(--fill); color: var(--ink); }
   .conversa-col:not(.vazia) .pilula-anexar .rotulo-botao { display: none; }
   .conversa-col:not(.vazia) .pilula-inicio { display: none; }
   .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
-  /* Com anexos, a caixa quebra em duas linhas: os anexos em cima, na largura
-     toda, e embaixo a linha de sempre - anexar, o texto, o microfone, enviar. */
-  .conversa-col:not(.vazia) .cartao-campo { flex-wrap: wrap; row-gap: 10px; }
+  /* Com anexos, a caixa quebra em duas linhas (o flex-wrap e o row-gap estao
+     na regra da caixa, acima): os anexos em cima, na largura toda, e embaixo
+     a linha de sempre - anexar, o texto, o microfone, enviar. */
   .conversa-col:not(.vazia) .escopo.com-anexos {
     order: 0; flex: 1 0 100%; flex-wrap: wrap; gap: 6px;
-    padding-bottom: 10px; border-bottom: 1px solid var(--hair2);
+    padding-bottom: 10px; border-bottom: 1px solid var(--ink-a1);
   }
   .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
-  /* Microfone e enviar sao redondos nas duas posturas: na conversa eles eram
-     quadrados de canto arredondado, e destoavam do inicio. */
-  .conversa-col:not(.vazia) .ditar { order: 4; width: 32px; height: 32px; border-radius: 50%; margin-left: 0; }
-  .conversa-col:not(.vazia) .enviar { order: 5; width: 32px; height: 32px; border-radius: 50%; margin-left: 0; }
+  /* Microfone e enviar sao os mesmos redondos de 34 px nas duas posturas:
+     na conversa eles eram quadrados de canto arredondado, e destoavam do
+     inicio. */
+  .conversa-col:not(.vazia) .ditar { order: 4; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar { order: 5; margin-left: 0; }
   .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
   .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
 
   /* --------------------------------------------------------- botoes */
-  /* Quatro tipos, um so formato (docs/ui/02-componentes.md): secundario e o
-     padrao, primario e o cheio, fantasma sem borda, destrutivo em vinho. */
+  /* Cinco tipos, um so formato (docs/ui/02-componentes.md): secundario e o
+     padrao, primario e o cheio, fantasma sem borda, destrutivo em vinho e
+     sucesso em verde. */
 
   /* O botao do desenho novo: fio de 1 px, fundo da casca e nao transparente,
      e a tipografia da interface. O fundo importa - dentro de um cartao branco
@@ -384,14 +267,18 @@
     cursor: pointer;
     border-radius: 8px;
     padding: 7px 13px;
-    border: 1px solid var(--hair);
+    border: 1px solid var(--ink-a1);
     background: var(--bg);
     color: var(--ink);
   }
-  button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); color: var(--ink); }
+  button:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a1); color: var(--ink); }
   button:disabled { opacity: 0.4; cursor: default; }
-  button.perigo { color: var(--acc); border-color: var(--accln); }
-  button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
+  /* Dentro de cartao e de dialogo o botao usa o fundo do proprio cartao
+     (--surf), e nao o da casca: sobre o branco, o --bg fazia mancha. O
+     `:where` zera a especificidade - qualquer classe (primario, fantasma,
+     pilula, botao-icone) continua mandando. Substitui as sete correcoes
+     que cada tela fazia com o seu seletor. */
+  :where(.tabela-cartao, .barra-selecao, .fin-cartao, .cfg-cartao, .sv-secao, .sv-ficha, .ag-cartao, .ag-listas, .as-cartao, .em-compor, .em-contas, .cad-sug, .ec-cartao, .be-controles, .dialogo, .cartao, .cartao-agora, .lateral, .acervo-painel, .bv-cartao, .lc-cartao, .editor-lado, .painel, .ex-msg-folha, .sv-pasta, .ac-arvore, .visor) button { background: var(--surf); }
   button:focus-visible, [tabindex]:focus-visible {
     outline: 2px solid var(--destaque);
     outline-offset: 2px;
@@ -400,17 +287,40 @@
   input:focus, input:focus-visible { outline: none; }
   button.primario { background: var(--casca); border-color: var(--casca); color: var(--casca-ink); font-weight: 500; }
   button.primario:hover:not(:disabled) { background: var(--casca-hover); border-color: var(--casca-hover); color: var(--casca-ink); }
-  button.aprovar-secundario { background: var(--bg); border-color: var(--hair); color: var(--ink); }
-  button.fantasma { border-color: transparent; background: none; color: var(--ink2); }
-  button.fantasma:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink); }
+  /* Destrutivo e sucesso vem DEPOIS do primario: sao a mesma especificidade,
+     e um botao que ganhe as duas classes tem de sair vinho ou verde. */
+  button.perigo { color: var(--acc); border-color: var(--accln); }
+  button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
+  /* Aprovar e o sim que faz: o par verde, no mesmo desenho do perigo. */
+  button.sucesso { background: var(--okbg); border-color: var(--verde); color: var(--okt); }
+  button.sucesso:hover:not(:disabled) { background: var(--okbg); border-color: var(--okt); color: var(--okt); }
+  button.fantasma, .dialogo-cancelar, .ver-mais { border-color: transparent; background: none; color: var(--ink2); }
+  button.fantasma:hover:not(:disabled), .dialogo-cancelar:hover:not(:disabled), .ver-mais:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink); }
   button.largo { width: 100%; }
-  button.pastilha { border-radius: 999px; padding: 5px 12px; font-size: 12px; }
-  .botao-icone {
-    width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px;
-    background: var(--fill); color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center;
+  /* O botao de icone: 28 px (a ultima coluna da tabela), raio 6, sem fundo
+     em repouso e --fill ao passar o mouse. Uma receita para o menu da
+     linha, o voltar, as barras de ferramentas e os fechar. */
+  .botao-icone, .mais-linha, .voltar, .dialogo-fechar, .docs-barra button, .edl-barra button, .em-msg-acoes > button, .ex-estrela, .ex-rem-botao, .cal-seta, .lc-recolher, .lc-mais, .agora-parar, .cert-olho, .docs-aba-pl-mais, .as-selo-barra > button, .sv-marca, .ag-estrela {
+    width: 28px; height: 28px; padding: 0; flex: none; border: none; border-radius: 6px;
+    background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
   }
-  .botao-icone:hover:not(:disabled) { background: var(--fill2); border: none; }
+  .botao-icone:hover:not(:disabled), .mais-linha:hover:not(:disabled), .voltar:hover:not(:disabled), .dialogo-fechar:hover:not(:disabled), .docs-barra button:hover:not(:disabled), .edl-barra button:hover:not(:disabled), .em-msg-acoes > button:hover:not(:disabled), .ex-estrela:hover:not(:disabled), .ex-rem-botao:hover:not(:disabled), .cal-seta:hover:not(:disabled), .lc-recolher:hover:not(:disabled), .lc-mais:hover:not(:disabled), .agora-parar:hover:not(:disabled), .cert-olho:hover:not(:disabled), .docs-aba-pl-mais:hover:not(:disabled), .as-selo-barra > button:hover:not(:disabled), .sv-marca:hover:not(:disabled), .ag-estrela:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  /* Na barra de selecao, o apagar em vinho. */
+  .botao-icone.perigo { color: var(--acc); border: none; }
+  /* O mesmo botao com rotulo, nas barras de ferramentas. */
+  .docs-barra button.com-texto, .edl-barra button, .as-selo-barra > button { width: auto; padding: 0 8px; gap: 6px; font: 500 12.5px var(--sans); white-space: nowrap; }
+  /* A LIGACAO: o botao que parece texto. Uma receita para as vinte classes
+     que faziam isso - 13 px, peso 500, --ink2 em repouso e --ink ao passar o
+     mouse, sem sublinhado. `.forte` e `.acc` sao os dois estados. */
+  .sv-ligacao, .em-ligacao, .docs-ligacao, .ligacao-painel, .bv-ligacao, .ag-ligacao, .eo-ligacao, .apoio-interromper-mesmo, .tabela-rodape .mais, .limpar, .trecho-ver, .fontes button, .assinatura button, .arquivo-painel button, .ag-ligado button, .ag-ligado-linha button, .anx-windows, .ae-sum-incluir, .ex-para-mim {
+    display: inline-flex; align-items: center; gap: 5px; padding: 0; border: none; border-radius: 0; background: none;
+    font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; cursor: pointer; text-decoration: none;
+  }
+  :is(.sv-ligacao, .em-ligacao, .docs-ligacao, .ligacao-painel, .bv-ligacao, .ag-ligacao, .eo-ligacao, .apoio-interromper-mesmo, .tabela-rodape .mais, .limpar, .trecho-ver, .fontes button, .assinatura button, .arquivo-painel button, .ag-ligado button, .ag-ligado-linha button, .anx-windows, .ae-sum-incluir, .ex-para-mim):hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  :is(.sv-ligacao, .em-ligacao, .docs-ligacao, .ligacao-painel, .bv-ligacao, .ag-ligacao, .eo-ligacao, .apoio-interromper-mesmo, .tabela-rodape .mais, .limpar, .trecho-ver, .fontes button, .assinatura button, .arquivo-painel button, .ag-ligado button, .ag-ligado-linha button, .anx-windows, .ae-sum-incluir, .ex-para-mim).forte { color: var(--ink); font-weight: 600; }
+  :is(.sv-ligacao, .em-ligacao, .docs-ligacao, .ligacao-painel, .bv-ligacao, .ag-ligacao, .eo-ligacao, .apoio-interromper-mesmo, .tabela-rodape .mais, .limpar, .trecho-ver, .fontes button, .assinatura button, .arquivo-painel button, .ag-ligado button, .ag-ligado-linha button, .anx-windows, .ae-sum-incluir, .ex-para-mim).acc { color: var(--acc); }
+  :is(.sv-ligacao, .em-ligacao, .docs-ligacao, .ligacao-painel, .bv-ligacao, .ag-ligacao, .eo-ligacao, .apoio-interromper-mesmo, .tabela-rodape .mais, .limpar, .trecho-ver, .fontes button, .assinatura button, .arquivo-painel button, .ag-ligado button, .ag-ligado-linha button, .anx-windows, .ae-sum-incluir, .ex-para-mim) .ic { color: var(--ink3); }
   button .ic { pointer-events: none; }
 
   /* ------------------------------------------------------- indicador */
@@ -423,7 +333,6 @@
     border: 1.5px solid var(--ink-a15); border-top-color: var(--destaque);
     animation: pv-spin 1.6s linear infinite;
   }
-  html.sem-animacao .progresso i, html.sem-animacao .medidor .pista i, html.sem-animacao .barra-fina i { transition: none; }
 
 
   /* Estados de tela (docs/ui/05). Carregando: esqueleto com a forma do
@@ -432,21 +341,26 @@
      fica recolhido, em Fira Code. */
   .esqueleto { display: grid; gap: 12px; padding: 16px 20px; }
   .esqueleto.esq-lista { gap: 14px; }
-  .esqueleto .esq-linha { display: block; height: 12px; border-radius: 6px; background: var(--fill); }
+  .esqueleto .esq-linha { display: block; height: 12px; border-radius: 999px; background: var(--fill); }
   .esqueleto .esq-linha.media { width: 60%; }
   .esqueleto .esq-linha.curta { width: 35%; }
   .esq-fila { display: flex; align-items: center; gap: 12px; }
   .esq-fila > span { flex: 1; display: grid; gap: 8px; }
   .esq-bolinha { width: 28px; height: 28px; border-radius: 8px; background: var(--fill); flex: none; }
   .esq-cartoes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .esq-cartao { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--ink-a1); border-radius: 12px; }
+  .esq-cartao { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
   .cartao-erro { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); }
-  .cartao-erro > b { font: 600 15px var(--sans); color: var(--ink); }
+  .cartao-erro > b { font: 600 14px var(--sans); color: var(--ink); }
   .cartao-erro > p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .cartao-erro .acoes { display: grid; gap: 8px; padding-top: 2px; }
   .cartao-erro .acoes button { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
   .cartao-erro .acoes small { font: 500 12px var(--sans); color: var(--ink3); }
   .cartao-erro details { font: 500 12px var(--sans); color: var(--ink3); }
-  .cartao-erro summary { cursor: pointer; }
+  /* Os <details> do sistema abrem com a mesma seta dos outros expansores:
+     expand_more, que gira 180 graus. Sem o triangulo do navegador. */
+  .cartao-erro summary, .ec-ajuda summary, .vr-arquivo summary { list-style: none; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .cartao-erro summary::-webkit-details-marker, .ec-ajuda summary::-webkit-details-marker, .vr-arquivo summary::-webkit-details-marker { display: none; }
+  .cartao-erro summary .ic, .ec-ajuda summary .ic, .vr-arquivo summary .ic { color: var(--ink3); transition: transform .2s ease; }
+  .cartao-erro details[open] > summary .ic, .ec-ajuda[open] > summary .ic, .vr-arquivo[open] > summary .ic { transform: rotate(180deg); }
   .cartao-erro pre { margin: 6px 0 0; white-space: pre-wrap; font: 400 11px/1.5 var(--mono); color: var(--ink2); }
   .aviso-motor { margin-bottom: 16px; }

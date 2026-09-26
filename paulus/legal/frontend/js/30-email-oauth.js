@@ -158,7 +158,7 @@ function eoDesenharEspera(raiz, aoLigar, d) {
   const desenho = (conferindo ? "c" : "a") + (travou ? "t" : "");
   if (desenho === eo.desenho && eoCaixa(raiz) && eoCaixa(raiz).querySelector(".eo-espera")) return;
   eo.desenho = desenho;
-  eoMostrar(raiz, '<div class="eo-espera" aria-live="polite"><div class="eo-aguardo"><span class="eo-giro" aria-hidden="true"></span><span>' +
+  eoMostrar(raiz, '<div class="eo-espera" aria-live="polite"><div class="eo-aguardo">' + coroa(16) + '<span>' +
     (conferindo ? "conferindo a conexão…" : "aguardando o navegador…") + "</span>" +
     '<button class="eo-ligacao" data-eo-cancelar="1">cancelar</button></div>' +
     (travou ? '<p class="eo-travou">' + (d.abriu_navegador === false ? "O navegador não abriu." : "Não voltou?") +

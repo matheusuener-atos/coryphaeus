@@ -14,7 +14,8 @@
                                                paragrafo por paragrafo
 
    Redesenho que nao muda nada disso (marcar uma linha, abrir mensagem) nao
-   anima a tela: a mensagem aberta tem a animacao dela (27-email-caixa.css).
+   anima a tela: a mensagem aberta abre por abrirEmAltura (02-casca.js), em
+   exAbrir (29-email-caixa.js).
    Com "Animacoes reduzidas" ligado, nada disto roda.
 */
 

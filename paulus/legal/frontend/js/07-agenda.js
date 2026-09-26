@@ -635,7 +635,7 @@ function linhaDaTarefa(t) {
   }
   const classe = "ag-linha" + (aberta ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
   return '<div class="' + classe + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
-    '<span class="ag-circulo ag-grande" data-ag-concluir="' + t.id + '" title="Concluir"></span>' +
+    '<span class="ag-circulo" data-ag-concluir="' + t.id + '" title="Concluir"></span>' +
     '<span class="ag-texto"><b>' + esc(t.titulo) + "</b><small>" + metaDaTarefa(t) + "</small></span>" +
     botaoEstrela(t) + setaDaLinha(aberta) + "</div>" +
     (aberta ? fichaDaTarefaNaLinha(t) : "");
@@ -891,7 +891,7 @@ function partesDoFormAgenda(v) {
     '<span class="dialogo-dica">O convite sai pelo seu e-mail e passa pela tela de Aprovações antes de ser enviado.</span></div>';
   return {
     titulo: nomes[novo ? 0 : 1], sub: sub, corpo: corpo,
-    excluir: novo ? "" : '<button type="button" class="dialogo-excluir" data-ag-apagar="1">Excluir</button>',
+    excluir: novo ? "" : '<button type="button" class="perigo" data-ag-apagar="1">Excluir</button>',
     botao: novo ? "Marcar" : "Salvar",
   };
 }
@@ -901,7 +901,7 @@ function fichaDaTarefaNaLinha(t) {
   const q = quandoDaTarefa(t);
   const rep = ag.tar.repeticoes.length ? ag.tar.repeticoes : [{ valor: "", rotulo: "Não repete" }];
   const classePrazo = q.acc ? "ag-acc" : "";
-  const classeMeuDia = "ag-ligacao" + (t.meu_dia ? "" : " ag-fraca");
+  const classeMeuDia = "ag-ligacao" + (t.meu_dia ? " forte" : "");
 
   const etapas = t.etapas.map((e) => {
     const classe = "ag-tarefa-linha" + (e.feita ? " ag-feita" : "");
@@ -922,9 +922,9 @@ function fichaDaTarefaNaLinha(t) {
       '<div data-ag-vinculos="1"><p>carregando…</p></div>' +
       '<button class="ag-incluir" data-ag-ligar="1">' + ic("attach_file", 16) + "Ligar documento</button>" +
       (t.cadastro_nome ? '<div class="ag-ligado-linha"><span>' + esc(t.cadastro_nome) + '</span><button data-ag-cadastro="1">cadastro</button></div>' : "") +
-      (t.prazo ? '<div class="ag-ligado-linha"><span>Prazo no calendário · ' + esc(diaCurto(t.prazo)) + '</span><button class="ag-acc" data-ag-ver-dia="' + esc(t.prazo) + '">abrir</button></div>' : "")) +
+      (t.prazo ? '<div class="ag-ligado-linha"><span>Prazo no calendário · ' + esc(diaCurto(t.prazo)) + '</span><button class="acc" data-ag-ver-dia="' + esc(t.prazo) + '">abrir</button></div>' : "")) +
     blocoDaFicha("Anotação", "",
-      '<textarea class="ag-nota" data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea>");
+      '<textarea data-ag-campo="anotacao" placeholder="Escreva uma anotação…">' + esc(t.anotacao || "") + "</textarea>");
 
   const direita = blocoDaFicha("A tarefa", "",
     '<div class="painel-chaves">' +
@@ -943,8 +943,8 @@ function fichaDaTarefaNaLinha(t) {
     '<div class="ag-ficha-col">' + esquerda + "</div>" +
     '<div class="ag-ficha-col">' + direita + "</div>" +
     '<div class="ag-ficha-rodape"><small>' + criadaHa(t.criada_em) + "</small>" +
-    '<button class="ag-incluir ag-incluir-fino" data-ag-editar-tarefa="' + t.id + '">' + ic("edit", 16) + "Editar</button>" +
-    '<button class="dialogo-excluir" data-ag-apagar-tarefa="1">Excluir</button></div>' +
+    '<button class="com-icone" data-ag-editar-tarefa="' + t.id + '">' + ic("edit", 16) + "Editar</button>" +
+    '<button class="perigo" data-ag-apagar-tarefa="1">Excluir</button></div>' +
     "</div>";
 }
 
@@ -977,8 +977,8 @@ function fichaDoCompromissoNaLinha(k) {
     blocoDaFicha("O que dá para fazer", "", '<div class="dialogo-acoes">' + salas +
       '<button type="button" class="com-icone" data-ag-copiar="' + k.id + '">' + ic("content_copy", 16) + "Copiar convite</button></div>") + "</div>" +
     '<div class="ag-ficha-rodape"><small>' + esc(maiuscula(diaCurto(k.data))) + "</small>" +
-    '<button class="ag-incluir ag-incluir-fino" data-ag-editar-comp="' + k.id + '">' + ic("edit", 16) + "Editar</button>" +
-    '<button class="dialogo-excluir" data-ag-apagar-comp="' + k.id + '">Excluir</button></div>' +
+    '<button class="com-icone" data-ag-editar-comp="' + k.id + '">' + ic("edit", 16) + "Editar</button>" +
+    '<button class="perigo" data-ag-apagar-comp="' + k.id + '">Excluir</button></div>' +
     "</div>";
 }
 
@@ -1009,7 +1009,7 @@ function partesDoFormTarefa(v) {
     titulo: NOME_DO_TIPO.tarefa[novo ? 0 : 1],
     sub: "Agenda › " + (v.prazo ? maiuscula(diaCurto(v.prazo)) + (v.hora ? " · " + v.hora : "") : "sem prazo"),
     corpo: corpo,
-    excluir: novo ? "" : '<button type="button" class="dialogo-excluir" data-ag-apagar="1">Excluir</button>',
+    excluir: novo ? "" : '<button type="button" class="perigo" data-ag-apagar="1">Excluir</button>',
     botao: novo ? "Adicionar" : "Salvar",
   };
 }

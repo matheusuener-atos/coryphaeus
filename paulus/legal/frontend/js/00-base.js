@@ -30,7 +30,7 @@ function esc(t) {
 }
 
 /*
-   O indicador de trabalho do desenho: um anel fino com o topo em vinho,
+   O indicador de trabalho do desenho: um anel fino com o topo em destaque (neutro),
    girando. A funcao guarda o nome antigo (coroa) porque quatro telas a
    chamam; o desenho da coroa foi embora com a marca antiga.
 */

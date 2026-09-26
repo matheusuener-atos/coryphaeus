@@ -39,7 +39,7 @@
     opacity: 1; transform: none;
     transition: opacity .36s cubic-bezier(.16,1,.3,1) .08s, transform .44s cubic-bezier(.16,1,.3,1) .08s;
   }
-  .faixa-janela.girando > .ic { animation: pv-spin 1.1s linear infinite; }
+  .faixa-janela.girando > .ic { animation: pv-spin 1.6s linear infinite; }
   .faixa-janela > .faixa-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .faixa-janela > button {
     flex: none; height: auto; padding: 0; border: none; border-radius: 0; background: none;
@@ -60,24 +60,19 @@
      devolve os 6 px do respiro, e o texto nao anda quando vira campo. */
   .conversa-topo h2.renomeavel {
     justify-self: start; max-width: calc(100% + 6px);
-    cursor: text; margin-left: -6px; padding: 0 6px; border-radius: 6px;
+    cursor: text; margin-left: -6px; padding: 0 6px; border-radius: 8px;
     transition: background .15s ease, box-shadow .15s ease;
   }
   .conversa-topo h2.renomeavel:hover { background: var(--fill); }
   .conversa-topo h2.editando, .conversa-topo h2.editando:hover {
-    background: var(--fill); box-shadow: inset 0 0 0 1px var(--destaque-linha); outline: none; text-overflow: clip;
+    background: var(--fill); box-shadow: inset 0 0 0 1px var(--ink); outline: none; text-overflow: clip;
   }
   .conversa-topo .meta { font: 400 11.5px var(--sans); color: var(--ink3); }
-  .voltar {
-    width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: none;
-    color: var(--ink2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none;
-  }
-  .voltar:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   /* Uma seta so: a tela que poe a sua (voltar as pastas) esconde a de voltar
      ao inicio. Duas setas lado a lado nao diziam para onde cada uma ia. */
   .conversa-topo:has(> .nav-tela > .voltar) > #voltar { display: none; }
   .conversa-acoes { display: flex; align-items: center; gap: 8px; flex: none; position: relative; }
-  .conversa-acoes button { display: inline-flex; align-items: center; gap: 7px; height: 32px; border-radius: 8px; }
+  .conversa-acoes button { display: inline-flex; align-items: center; gap: 7px; }
 
   /* Cabecalho, corpo e rodape ocupam a coluna inteira, e a margem editorial
      e o recuo deles (`--margem-pagina`), nao um teto de largura: assim o
@@ -99,8 +94,8 @@
      e aparece quando a pessoa rola para cima, e some quando ela volta. */
   .ir-ao-fim {
     position: absolute; left: 50%; top: -52px; z-index: 4;
-    width: 36px; height: 36px; padding: 0; border-radius: 50%;
-    border: 1px solid var(--hair); background: var(--surf); color: var(--ink);
+    width: 34px; height: 34px; padding: 0; border-radius: 50%;
+    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     box-shadow: var(--elev-float);
     opacity: 0; transform: translate(-50%, 8px); pointer-events: none;
@@ -110,7 +105,7 @@
     opacity: 1; transform: translate(-50%, 0); pointer-events: auto;
     transition: opacity .32s cubic-bezier(.16,1,.3,1), transform .4s cubic-bezier(.16,1,.3,1);
   }
-  .ir-ao-fim:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); color: var(--ink); }
+  .ir-ao-fim:hover:not(:disabled) { background: var(--fill); border-color: var(--ink); color: var(--ink); }
   .conversa-col.vazia .ir-ao-fim { display: none; }
   .conversa-rodape {
     position: relative;
@@ -127,7 +122,7 @@
      fina foi experimentada e o usuario pediu para esconder de novo. Quem diz
      que ha mais para baixo e o botao de ir ao fim. */
   .fluxo { flex: 1; overflow-y: auto; padding: 22px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .fluxo.arrastando { outline: 2px dashed var(--ink-a3); outline-offset: -8px; }
+  .fluxo.arrastando { outline: 1px dashed var(--ink); outline-offset: -8px; }
   /* A vinheta nas duas bordas da conversa. Embaixo, logo acima do registro e
      da caixa de pedido: sem ela, abrir o registro cortava a conversa numa
      linha seca. Em cima, logo abaixo do cabecalho: a mensagem que sobe some
@@ -160,12 +155,12 @@
     align-self: flex-end;
     max-width: 78%;
     background: var(--fill); color: var(--ink);
-    border-radius: 14px 14px 4px 14px; padding: 10px 14px;
-    font-size: 14.5px; line-height: 1.65;
+    border-radius: 12px; padding: 10px 14px;
+    font-size: 13.5px; line-height: 1.5;
     white-space: pre-wrap; word-wrap: break-word;
   }
   .resposta {
-    font-size: 14px; line-height: 1.7; word-wrap: break-word;
+    font-size: 14px; line-height: 1.6; word-wrap: break-word;
     display: grid; gap: 14px;
   }
   .resposta .texto { white-space: pre-wrap; }
@@ -173,39 +168,34 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
     font: 400 11.5px var(--sans); color: var(--ink3);
   }
-  .assinatura button {
-    display: inline-flex; align-items: center; gap: 5px; padding: 0; border: none; background: none;
-    font: 400 12px var(--sans); color: var(--ink2); cursor: pointer;
-  }
-  .assinatura button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
 
   /* o plano de execucao */
-  .cartao { border: 1px solid var(--hair); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); overflow: hidden; }
-  .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--hair2); }
+  .cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); overflow: hidden; }
+  .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
   .cartao-topo .quem { font: 600 14px var(--sans); flex: 1; }
-  .cartao-topo .tempo { font: 500 11px var(--sans); color: var(--ink3); }
-  /* Retomar, no cartao "Parado": o botao solido da casca, pequeno. */
-  .cartao-retomar {
-    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 8px;
-    border: none; border-radius: 8px; background: var(--destaque); color: var(--bg);
-    font: 600 12.5px var(--sans); cursor: pointer;
-  }
-  .cartao-retomar:hover:not(:disabled) { background: var(--destaque); color: var(--bg); border: none; opacity: .88; }
-  .cartao-corpo { padding: 12px 16px; display: grid; gap: 10px; font-size: 13.5px; }
-  .etapa { display: flex; align-items: center; gap: 12px; }
-  .etapa .marcador { color: var(--ink3); }
-  /* As cores do checklist das boas-vindas: verde para o que ficou pronto,
-     neutro para o que esta andando. O vinho fica so para o que deu errado -
+  .cartao-topo .tempo { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .cartao-corpo { padding: 14px 16px; display: grid; gap: 10px; font-size: 13.5px; }
+  /* A LISTA DE ETAPAS COM ICONE, uma receita so: o cartao do plano (.etapa),
+     o progresso do painel (.lat-etapa), o "quase pronto" da assinatura
+     (.as-passos li), o do organizador (.org-confirma-passos li) e o checklist
+     das boas-vindas (.bv-check). Os nomes de estado vem de cada tela; as cores
+     sao as mesmas. */
+  .etapa, .lat-etapa, .as-passos li, .org-confirma-passos li, .bv-check { display: flex; align-items: center; gap: 12px; color: var(--ink2); }
+  .etapa .marcador, .lat-etapa .ic, .as-passos li .ic, .org-confirma-passos li .ic, .bv-check .ic { color: var(--ink3); }
+  /* Feita em --okt, andando em --ink; o vinho so para o que deu errado -
      numa etapa em curso ele se lia como erro. */
-  .etapa.concluido .marcador { color: var(--okt); }
-  .etapa.executando .marcador { color: var(--ink); }
-  .etapa.falhou .marcador { color: var(--acc); }
-  .etapa .texto { flex: 1; min-width: 0; color: var(--ink2); }
-  .etapa.executando .texto { color: var(--ink); }
-  .etapa.na_fila .texto { color: var(--ink3); }
+  .etapa.concluido .marcador, .lat-etapa.feita .ic, .as-passos li.feito .ic, .org-confirma-passos li.feito .ic, .bv-check.ok .ic { color: var(--okt); }
+  .etapa.executando .marcador, .lat-etapa.andando .ic, .as-passos li.espera .ic, .org-confirma-passos li.espera .ic { color: var(--ink); }
+  .etapa.falhou .marcador, .lat-etapa.falhou .ic { color: var(--acc); }
+  /* `> span:last-child` e nao `span`: o icone tambem e um span, e com
+     `flex: 1` nele o glifo esticava e empurrava o texto para o meio do
+     painel. */
+  .etapa .texto, .lat-etapa > span:last-child { flex: 1; min-width: 0; }
+  .etapa.executando .texto, .lat-etapa.andando, .as-passos li.espera, .org-confirma-passos li.espera { color: var(--ink); }
+  .etapa.na_fila .texto, .etapa.pausado .texto, .lat-etapa.fila { color: var(--ink3); }
   .etapa .estado { font: 500 11px var(--sans); color: var(--ink3); }
-  .progresso { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
-  .progresso i { display: block; height: 100%; background: var(--ink2); transition: width 0.25s; }
+  .progresso { height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
+  .progresso i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
 
   /* O painel da direita e um CARTAO, nao uma coluna colada na borda: ele tem
      margem, raio e a mesma sombra de todo cartao do desenho. A diferenca
@@ -213,34 +203,27 @@
      ao lado do texto - e aqui e uma ficha. */
   .lateral {
     min-width: 0; min-height: 0; overflow: auto; position: relative; z-index: 1;
-    margin: 14px 0 16px 20px; padding: 22px;
-    background: var(--surf); border: 1px solid var(--hair); border-radius: 14px;
-    box-shadow: var(--elev-cartao);
+    margin: 14px 0 16px 20px; padding: 0;
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px;
+    box-shadow: var(--elev-card);
     display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; grid-auto-rows: min-content;
-    animation: pv-troca .46s cubic-bezier(.22,.61,.36,1) both;
+    animation: pv-troca .46s cubic-bezier(.16,1,.3,1) both;
   }
-  .lateral-bloco { padding: 14px 0; border-top: 1px solid var(--hair2); display: grid; gap: 9px; }
-  .lateral-bloco:first-child { padding: 0 0 14px; border-top: none; }
-  .lateral-bloco:last-child { padding-bottom: 0; }
-  .lateral-cabeca { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font: 600 14px var(--sans); }
+  /* O bloco do painel (.lateral-bloco) e o .painel-bloco de 04-acervo.css, que
+     o lista: recuo 12px 18px, fio --ink-a1 em cima, gap 10; a cabeca
+     (.lateral-cabeca) tambem mora la, com a .painel-bloco-cabeca. Aqui so o primeiro
+     bloco VISIVEL, que nao tem fio e respira 16 px em cima como a cabeca dos
+     outros paineis. Nao e :first-child: Progresso e Trechos quase sempre estao
+     [hidden], e o primeiro que aparece costuma ser Propriedades. */
+  .lateral > .lateral-bloco:not(.lateral-bloco:not([hidden]) ~ .lateral-bloco) { border-top: none; padding-top: 16px; }
   .lateral-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
   .lateral-cabeca .ic { color: var(--ink3); }
-  .contagem { font: 400 11.5px var(--sans); color: var(--ink3); }
+  .contagem { font: 500 12.5px var(--sans); color: var(--ink3); }
   /* O progresso do painel e o checklist da tela de boas-vindas: o que ficou
      pronto ganha o circulo verde e CONTINUA legivel. Riscado e apagado, ele
-     parecia cancelado, e nao concluido. */
-  .lat-etapas { display: grid; gap: 9px; font-size: 13px; color: var(--ink); }
-  .lat-etapa { display: flex; gap: 9px; align-items: center; }
-  .lat-etapa .ic { color: var(--okt); }
-  /* `> span:last-child` e nao `span`: o icone tambem e um span, e com
-     `flex: 1` nele o glifo esticava e empurrava o texto para o meio do
-     painel. */
-  .lat-etapa > span:last-child { flex: 1; min-width: 0; }
-  .lat-etapa.andando { color: var(--ink); }
-  .lat-etapa.andando .ic { color: var(--ink); }
-  .lat-etapa.fila { color: var(--ink2); }
-  .lat-etapa.fila .ic { color: var(--ink3); }
-  .lat-etapa.falhou .ic { color: var(--acc); }
+     parecia cancelado, e nao concluido. As cores de cada .lat-etapa moram na
+     receita unica das etapas, acima, ao lado de .etapa. */
+  .lat-etapas { display: grid; gap: 10px; }
   /* OS TRECHOS CITADOS SAO UMA ARVORE. Uma leitura cita 82 trechos de 15
      documentos, e a lista corrida deles empurrava Propriedades para fora do
      painel. Agora tudo chega compacto em "Trechos citados"; abrir mostra os
@@ -248,25 +231,27 @@
      Fechar um ramo fecha tudo o que esta abaixo dele. O fio a esquerda de
      cada nivel e o que mostra de quem e cada linha. */
   .arv-raiz {
-    width: 100%; padding: 0; border: none; border-radius: 0; background: none;
+    width: calc(100% + 12px); margin: -4px -6px; padding: 4px 6px; border: none; border-radius: 8px; background: none;
     color: var(--ink); text-align: left; cursor: pointer;
   }
-  .arv-raiz:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
-  .arv-seta { transition: transform .22s cubic-bezier(.16,1,.3,1); }
-  .arv-raiz[aria-expanded="true"] .arv-seta, .arv-no[aria-expanded="true"] > .arv-seta { transform: rotate(90deg); }
+  .arv-raiz:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .arv-seta { transition: transform .2s ease; }
+  .arv-raiz[aria-expanded="true"] .arv-seta, .arv-no[aria-expanded="true"] > .arv-seta, .arv-seta[aria-expanded="true"] { transform: rotate(180deg); }
   .lat-lista { display: grid; gap: 2px; }
   .arv-ramo { display: grid; min-width: 0; }
-  .arv-no {
+  /* Presa a .lat-lista: o organizador (14-organizador.js) usa .arv-no na
+     .nav-item, que tem altura, raio e hover de linha de lista proprios. */
+  .lat-lista .arv-no {
     display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; height: 28px;
-    padding: 0 6px 0 2px; border: none; border-radius: 6px; background: none;
+    padding: 0 6px 0 2px; border: none; border-radius: 8px; background: none;
     color: var(--ink2); font: 500 12px var(--sans); text-align: left; cursor: pointer;
   }
-  .arv-no:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .lat-lista .arv-no:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .arv-no > .ic { color: var(--ink3); }
   .arv-doc b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--sans); color: var(--ink); }
   .arv-no small { flex: none; font: 400 11px var(--sans); color: var(--ink3); }
   .arv-trecho .onde { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .arv-filhos { display: grid; gap: 2px; margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--hair); }
+  .arv-filhos { display: grid; gap: 2px; margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--ink-a1); }
   .arv-folha { gap: 6px; padding: 4px 4px 8px 12px; }
   .trecho-texto { font-size: 11.5px; line-height: 1.55; color: var(--ink2); max-height: 160px; overflow: hidden; }
   /* A ancora numerada da citacao. */
@@ -274,15 +259,14 @@
     display: inline-flex; align-items: center; justify-content: center; flex: none;
     min-width: 12px; font: 500 10.5px var(--mono); letter-spacing: .04em; color: var(--ink3);
   }
-  .propriedades { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 8px 10px; align-items: baseline; font-size: 12.5px; color: var(--ink3); }
-  .valor-prop { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chip-modelo {
-    justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
-    border-radius: 5px; background: var(--okbg); color: var(--okt); font: 600 11.5px var(--sans);
-  }
-  .ponto-verde { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
-  .ponto-acc { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--destaque); flex: none; }
-  .ponto-cinza { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--mute2); flex: none; }
+  /* A ficha do painel: a grade de ficha da lista (chave 112 px, valor ao lado,
+     fio --ink-a08 entre as linhas). */
+  .propriedades { display: grid; margin: 0; }
+  .propriedades > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
+  .propriedades > div:first-child { padding-top: 0; }
+  .propriedades > div:last-child { border-bottom: none; }
+  .propriedades > div > span:first-child { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .valor-prop { font: 400 14px/1.5 var(--sans); color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 
   /* cartao de aprovacao */
   /* Duas páginas lado a lado, e a tela cheia: é como se lê contrato de
@@ -290,20 +274,18 @@
   .pv-paginas { display: grid; gap: 12px; }
   .pv-paginas.duas { grid-template-columns: 1fr 1fr; }
   .pv-paginas img { width: 100%; height: auto; display: block; }
-  .pv-cheia .pv-folha { max-width: none; }
-  .pv-cheia .pv-paginas img { max-height: none; }
 
   .comparar { margin: 10px 0; max-height: 240px; overflow-y: auto; }
   .comparar-linha {
     display: grid; grid-template-columns: 70px minmax(0, 1fr);
     gap: 10px; align-items: baseline; padding: 4px 0;
-    font-size: 12.5px; border-bottom: 1px solid var(--linha);
+    font-size: 12.5px; border-bottom: 1px solid var(--ink-a08);
   }
   .comparar-linha:last-child { border-bottom: none; }
-  .comparar-linha.entrou { color: var(--ok-texto); }
-  .comparar-linha.saiu { color: var(--atencao); }
+  .comparar-linha.entrou { color: var(--okt); }
+  .comparar-linha.saiu { color: var(--acc); }
   .comparar-linha.saiu span:last-child { text-decoration: line-through; }
-  .comparar-depois { color: var(--ok-texto); }
+  .comparar-depois { color: var(--okt); }
   /* A lista de alteracoes tem uma coluna a mais - a do "Descartar esta" - e
      por isso nao reaproveita .comparar-linha: encaixar um terceiro filho numa
      grade de duas colunas joga o botao para a linha de baixo. */
@@ -311,15 +293,15 @@
   .al-linha {
     display: grid; grid-template-columns: 70px minmax(0, 1fr) auto;
     gap: 10px; align-items: baseline; padding: 5px 0;
-    font-size: 12.5px; border-bottom: 1px solid var(--linha);
+    font-size: 12.5px; border-bottom: 1px solid var(--ink-a08);
   }
   .al-linha:last-child { border-bottom: none; }
-  .al-linha.entrou > span:nth-child(2) { color: var(--ok-texto); }
-  .al-saiu { text-decoration: line-through; color: var(--atencao); }
+  .al-linha.entrou > span:nth-child(2) { color: var(--okt); }
+  .al-saiu { text-decoration: line-through; color: var(--acc); }
   .al-linha.desfeita { opacity: .5; }
 
   .comparar-folhas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
-  .comparar-folhas img { width: 100%; height: auto; display: block; border: 1px solid var(--linha); }
+  .comparar-folhas img { width: 100%; height: auto; display: block; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); }
 
   /* A lista do que a renumeracao vai mudar, antes de mudar. Monoespacada
      porque e comparacao de numero com numero. */
@@ -327,33 +309,32 @@
   .renum-linha {
     display: grid; grid-template-columns: 88px minmax(0, 1fr) 20px minmax(0, 1fr);
     gap: 8px; align-items: baseline; padding: 3px 0;
-    font: 400 12px var(--mono); color: var(--ink-2);
+    font: 400 12px var(--mono); color: var(--ink2);
   }
-  .renum-seta { color: var(--ink-3); text-align: center; }
-  .renum-linha b { color: var(--acento); font-weight: 500; }
+  .renum-seta { color: var(--ink3); text-align: center; }
+  .renum-linha b { color: var(--ink); font-weight: 500; }
 
   /* ----------------------- o documento aberto dentro da conversa */
   /* A página é o PDF rasterizado, não uma aproximação em HTML: o que está na
      tela é o arquivo. O papel fica claro nos dois temas — é papel. */
-  .visor { border: 1px solid var(--linha); background: var(--surface-2); margin-top: 12px; }
+  .visor { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); margin-top: 12px; overflow: hidden; }
   .visor-topo {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--linha); flex-wrap: wrap;
+    gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); flex-wrap: wrap;
   }
   .visor-acoes { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .visor-acoes button { padding: 4px 10px; font-size: 12px; }
-  .visor-divisa { width: 1px; height: 16px; background: var(--linha-media); }
 
   .visor-miniaturas {
     display: flex; align-items: center; gap: 8px; padding: 10px 12px;
-    overflow-x: auto; border-bottom: 1px solid var(--linha);
+    overflow-x: auto; border-bottom: 1px solid var(--ink-a1);
   }
   .visor-mini {
-    flex: 0 0 auto; padding: 0; border: 1px solid var(--linha-media);
+    flex: 0 0 auto; padding: 0; border: 1px solid var(--papel-linha); border-radius: 0;
     background: var(--papel); line-height: 0;
   }
   .visor-mini img { width: 58px; height: auto; display: block; opacity: 0.75; }
-  .visor-mini.atual { border-color: var(--acento); }
+  .visor-mini:hover:not(:disabled) { border-color: var(--ink); background: var(--papel); }
+  .visor-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   .visor-mini.atual img { opacity: 1; }
 
   .visor-corpo {
@@ -366,17 +347,17 @@
   }
   /* A pagina tem altura de A4: solta, ela empurra a conversa inteira para
      fora da tela. Rola dentro de si, como um documento aberto numa janela. */
-  .visor-rolagem { max-height: 62vh; overflow-y: auto; background: var(--papel); }
+  .visor-rolagem { max-height: 62vh; overflow-y: auto; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); }
   .visor-pagina { position: relative; line-height: 0; background: var(--papel); }
   .visor-pagina img { width: 100%; height: auto; display: block; }
   /* A marca vem em fração da página: acompanha o zoom sem recalcular nada. */
   .visor-marca {
-    position: absolute; background: var(--acento-fraco);
-    box-shadow: inset 0 0 0 1px var(--acento); mix-blend-mode: multiply;
+    position: absolute; background: var(--fill);
+    box-shadow: inset 0 0 0 1px var(--ink); mix-blend-mode: multiply;
   }
   [data-tema="escuro"] .visor-marca { mix-blend-mode: normal; opacity: 0.45; }
 
-  .visor-porque { border-left: 1px solid var(--linha); padding-left: 14px; }
+  .visor-porque { border-left: 1px solid var(--ink-a1); padding-left: 14px; }
   .visor-porque .explica { margin: 8px 0; }
   .visor-selo { display: block; margin-top: 16px; }
   .visor-caixa:empty { display: none; }
@@ -407,16 +388,17 @@
     position: absolute; z-index: 5; top: 96px; bottom: 20px;
     right: var(--margem-pagina); width: var(--editor-largura);
     display: flex; flex-direction: column; min-height: 0;
-    /* Um cartao so, com a borda da caixa de pedido. Dentro dele a mesa das
-       paginas e uma faixa de ponta a ponta, sem canto nem margem: cartao
-       dentro de cartao era a mesa arredondada no meio do painel. */
-    border: 1px solid var(--hair); border-radius: 14px; background: var(--surf);
-    box-shadow: var(--elev-cartao); overflow: hidden;
-    animation: pv-troca .34s cubic-bezier(.2,.7,.3,1) both;
+    /* Um cartao so, com o fio, o raio e a sombra de todo cartao do desenho.
+       Dentro dele a mesa das paginas e uma faixa de ponta a ponta, sem canto
+       nem margem: cartao dentro de cartao era a mesa arredondada no meio do
+       painel. */
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+    box-shadow: var(--elev-card); overflow: hidden;
+    animation: pv-troca .46s cubic-bezier(.16,1,.3,1) both;
   }
   .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 12px 2px 20px; }
   .edl-titulo {
-    flex: 1; min-width: 0; margin: 0; outline: none; font: 400 21px var(--serif); letter-spacing: -.01em;
+    flex: 1; min-width: 0; margin: 0; outline: none; font: 400 20px/1.25 var(--serif);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* Uma linha so: sem espaco para tudo, a barra rola de lado em vez de quebrar. */
@@ -425,24 +407,20 @@
     overflow-x: auto; scrollbar-width: none;
   }
   .edl-barra::-webkit-scrollbar { display: none; }
-  .edl-barra button {
-    flex: none; white-space: nowrap; height: 30px; min-width: 30px; padding: 0 8px; border: none; border-radius: 8px; background: none; color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 500 12.5px var(--sans);
-  }
-  .edl-barra button:hover:not(:disabled) { background: var(--fill); border: none; }
-  .edl-vao { width: 10px; flex: none; }
+  .edl-barra button { flex: none; }
 
-  /* A mesa tem a cor do cartao: as folhas se destacam pela sombra, como no Word. */
+  /* A mesa e o fundo da casca (--bg), como a area da folha em Documentos: as
+     folhas se destacam pela sombra e pelo tom, como no Word. */
   .edl-mesa {
     flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px 36px;
-    background: var(--surf);
+    background: var(--bg);
   }
   .edl-papel { position: relative; max-width: 780px; margin: 0 auto; }
   /* As folhas: papel A4 de borda reta e sombra suave, atras do texto. */
   .edl-folhas { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
   .edl-pagina {
     position: absolute; left: 0; right: 0; background: var(--papel);
-    box-shadow: 0 1px 3px -1px var(--papel-sombra), 0 12px 30px -20px var(--papel-sombra);
+    border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel);
   }
   /* .edl-papel na frente: .ed-folha (07-escrita) carrega depois e poria de
      volta o contorno e o fundo da folha. A area editavel e transparente: o
@@ -460,25 +438,16 @@
     flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px 12px 20px;
     font: 400 11.5px var(--sans); color: var(--ink3);
   }
-  .edl-rodape button { height: 30px; border-radius: 8px; }
 
   /* Na caixa de pedido, enquanto o editor esta aberto: para onde vai o pedido
-     e os atalhos de escrita. */
+     e os atalhos de escrita. O seletor de destino e o .visoes de todas as
+     telas e os atalhos sao a pilula (05); aqui fica so o respiro entre eles. */
   .edl-atalhos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
-  .edl-destino { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--fill); margin-right: 4px; }
-  .edl-destino button {
-    display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border: none;
-    border-radius: 999px; background: none; font: 500 12px var(--sans); color: var(--ink3);
-  }
-  .edl-destino button:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
-  .edl-destino button.ativa, .edl-destino button.ativa:hover:not(:disabled) { background: var(--surf); color: var(--ink); box-shadow: var(--elev-float); }
-  .edl-atalho { height: 32px; padding: 0 12px; border-radius: 999px; border: none; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
-  .edl-atalho:hover:not(:disabled) { background: var(--act); border: none; }
+  .edl-destino { margin-right: 4px; }
   .edl-trecho {
     margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--destaque-fundo);
     font-size: 12.5px; line-height: 1.6; color: var(--ink2);
   }
-  .divisa-v { width: 1px; height: 18px; background: var(--ink-a12); margin: 0 4px; flex: none; }
 
   /* O que acabou de mudar, marcado dentro do proprio texto. Ver a alteracao no
      lugar dela e diferente de ler uma sugestao num painel ao lado. */
@@ -488,26 +457,25 @@
     padding: 10px 14px; margin: 12px 0; display: grid; gap: 6px;
     font: 400 12.5px/1.55 var(--sans); color: var(--tinta);
   }
-  .rotulo-cartao { font: 500 10px var(--sans); color: var(--papel-ink2); }
+  .rotulo-cartao { font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--papel-ink2); }
   .dupla-cartao p { margin: 0; }
   .dupla-cartao .explica { color: var(--papel-ink3); }
   .dupla-cartao .linha-form { margin: 2px 0 0; gap: 8px; }
-  .dupla-cartao .linha-form button { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
 
   /* A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
      Terminou, vira uma linha so, clicavel para reabrir. */
-  .bastidor { border: 1px solid var(--hair); border-radius: 14px; background: var(--surf); box-shadow: var(--elev-cartao); }
+  .bastidor { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
   .bastidor-topo {
     display: flex; align-items: center; gap: 10px; padding: 9px 12px;
     font-size: 13px; color: var(--ink2); cursor: pointer; border-radius: 8px;
   }
   .bastidor-topo:hover { background: var(--fill); }
   .bastidor-titulo { flex: 1; min-width: 0; }
-  .bastidor-topo .num { font: 500 11px var(--sans); color: var(--ink3); }
-  .bastidor-topo .ic { color: var(--ink3); transition: transform .2s; }
+  .bastidor-topo .ic { color: var(--ink3); }
+  .bastidor-topo > .ic:last-child { transition: transform .2s ease; }
   .bastidor-topo .marcador-feito { color: var(--okt); }
-  .bastidor.fechado .bastidor-topo .ic { transform: rotate(-90deg); }
-  .bastidor-linhas { max-height: 172px; overflow-y: auto; padding: 6px 12px 8px; border-top: 1px solid var(--ink-a06); }
+  .bastidor:not(.fechado) .bastidor-topo > .ic:last-child { transform: rotate(180deg); }
+  .bastidor-linhas { max-height: 172px; overflow-y: auto; padding: 6px 12px 8px; border-top: 1px solid var(--ink-a1); }
   .bastidor.fechado .bastidor-linhas { display: none; }
   .bastidor-linha {
     display: flex; gap: 10px; align-items: baseline;
@@ -519,14 +487,8 @@
   .bastidor-linha.atencao { color: var(--acc); }
   .bastidor-linha.feito { color: var(--okt); }
   .bastidor-linha > span:last-child { flex: 1; min-width: 0; }
-  .bastidor-barra { height: 2px; border-radius: 1px; background: var(--fill2); margin-top: 5px; overflow: hidden; }
-  .bastidor-barra > i { display: block; height: 100%; background: var(--ink2); }
-  .bastidor-barra.indefinida > i { width: 32%; animation: vaivem 1.5s ease-in-out infinite; }
-  @keyframes vaivem {
-    0%   { margin-left: 0; }
-    50%  { margin-left: 68%; }
-    100% { margin-left: 0; }
-  }
+  .bastidor-barra { height: 4px; border-radius: 2px; background: var(--fill2); margin-top: 5px; overflow: hidden; }
+  .bastidor-barra > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
 
   /* O que entendi do pedido, antes de gravar: uma proposta esperando o sim. */
   .proposta { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 14px 16px; }
@@ -543,63 +505,45 @@
   .oferta-nome { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--ink); }
   .leitor-topo { align-items: center; flex-wrap: nowrap; margin-bottom: 10px; }
   .leitor-conta { white-space: nowrap; }
-  .leitor-ir {
-    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: none;
-    border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); white-space: nowrap;
-  }
-  .leitor-ir:hover:not(:disabled) { background: var(--act); border: none; }
   /* As páginas empilhadas sobre o fundo, como a folha do editor: cada uma é
      a página desenhada, com a sombra do papel. */
   .leitor-paginas {
-    max-height: 600px; overflow-y: auto; padding: 18px; border-radius: 10px;
-    background: var(--fill); display: flex; flex-direction: column; align-items: center; gap: 16px;
+    max-height: 600px; overflow-y: auto; padding: 14px; border: 1px solid var(--ink-a1); border-radius: 12px;
+    background: var(--bg); display: flex; flex-direction: column; align-items: center; gap: 16px;
   }
   .leitor-folha {
     display: block; width: 100%; max-width: 760px; height: auto; aspect-ratio: auto 210 / 297;
-    background: var(--papel); border: 1px solid var(--papel-linha); border-radius: 2px;
-    box-shadow: 0 18px 44px -28px var(--papel-sombra);
+    background: var(--papel); border: 1px solid var(--papel-linha);
+    box-shadow: var(--elev-papel);
   }
   .leitor-folha.citada { outline: 2px solid var(--destaque); outline-offset: 3px; }
   .oferta .proposta-topo { margin-bottom: 4px; }
   .leitor-conversa > .linha-form:last-child { justify-content: flex-end; }
 
-  .aprovacao { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 18px; display: grid; gap: 12px; }
+  .aprovacao { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 14px 16px; display: grid; gap: 12px; }
   .aprovacao .cabeca { display: flex; align-items: center; gap: 11px; }
-  .aprovacao .nome { font: 600 14.5px var(--sans); }
+  .aprovacao .nome { font: 600 14px var(--sans); }
   .aprovacao p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .aprovacao .detalhe { font: 500 11px var(--sans); color: var(--ink3); }
+  .aprovacao .detalhe { font: 500 12.5px var(--sans); color: var(--ink3); }
   .aprovacao .acoes { display: flex; align-items: center; gap: 10px; }
   .aprovacao .acoes .primario { margin-left: auto; }
 
   /* Os trechos moram no painel da direita; na resposta fica so a conta - uma
      linha, nunca um cartao. */
   .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12.5px var(--sans); color: var(--ink3); }
-  .fontes button {
-    display: inline-flex; align-items: center; gap: 7px; padding: 0; border: none; background: none;
-    font: 400 12.5px var(--sans); color: var(--ink2); cursor: pointer;
-  }
-  .fontes button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
-  .trecho { border: 1px solid var(--ink-a12); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; background: var(--surf); display: grid; gap: 6px; }
-  .trecho .origem { font: 500 10.5px var(--sans); color: var(--ink2); }
+  .trecho { border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; background: var(--surf); display: grid; gap: 6px; }
+  .trecho .origem { font: 500 12.5px var(--sans); color: var(--ink3); }
   .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink2); max-height: 170px; overflow-y: auto; line-height: 1.5; }
-  .trecho-ver {
-    justify-self: start; padding: 0; font: 600 11.5px var(--sans);
-    border: none; border-radius: 0; background: none; color: var(--ink2);
-  }
-  .trecho-ver:hover:not(:disabled) { color: var(--ink); border: none; background: none; }
+  .trecho-ver { justify-self: start; }
 
-  /* Mesmo branco/cinza da faixa de avisos do rodape: aviso e aviso, em qualquer lugar. */
+  /* Aviso em tinta cheia (--destaque com letra --bg), a mesma da faixa de avisos (.faixa-janela): aviso e aviso, em qualquer lugar. */
   .aviso-cobertura {
-    background: var(--destaque); border: 1px solid var(--destaque); border-radius: 10px;
+    background: var(--destaque); border: 1px solid var(--destaque); border-radius: 8px;
     padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--bg); white-space: normal;
   }
 
 
-  /* A etiqueta da resposta que veio do resumo guardado: ela avisa, antes do
-     texto, que aquilo e leitura do assistente e nao trecho do documento. */
-  .etiqueta-inferencia {
-    display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px;
-    padding: 3px 9px; border-radius: 999px; background: var(--fill);
-    font: 600 11.5px var(--sans); color: var(--ink3);
-  }
-  .etiqueta-inferencia .ic { color: var(--ink3); }
+  /* A etiqueta da resposta que veio do resumo guardado ("leitura do
+     assistente") e a da resposta parada no meio sao a .etiqueta comum
+     (04-acervo.css), emitidas em js/03-assistente.js; o icone de 14 cabe
+     nela pelo gap da propria etiqueta. */

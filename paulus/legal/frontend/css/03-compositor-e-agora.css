@@ -27,7 +27,6 @@
      descia em tres, mais uma nota embaixo. */
   .saudacao-bloco { display: none; gap: 14px; max-width: 720px; padding: 76px 0 8px; }
   .conversa-col.vazia .saudacao-bloco { display: grid; }
-  .rotulo-momento { font: 500 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink3); }
   .chamada {
     font: 400 clamp(34px, 3.4vw, 46px)/1.02 var(--serif);
     letter-spacing: -.015em; margin: 0; text-wrap: balance;
@@ -43,26 +42,22 @@
 
   .agora { display: grid; gap: 14px; }
   .agora-cabeca { display: flex; align-items: center; gap: 14px; }
-  .rotulo-suave { font: 500 11px var(--sans); color: var(--ink3); }
 
   .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
-    border: 1px solid var(--hair); border-radius: 14px; padding: 22px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; padding: 14px 16px;
     display: grid; gap: 12px; align-content: start; background: var(--surf);
-    box-shadow: var(--elev-cartao); transition: border-color .18s;
+    box-shadow: var(--elev-card); transition: border-color .18s;
   }
   .cartao-agora[data-abre] { cursor: pointer; }
-  .cartao-agora:hover { border-color: var(--ink-a2); }
-  .cartao-agora.chama { border-color: var(--destaque-linha); background: var(--destaque-fundo); }
-  .cartao-agora.chama:hover { border-color: var(--destaque); }
+  .cartao-agora[data-abre]:hover { border-color: var(--ink); }
+  .cartao-agora.chama, .cartao-agora.espera { border-color: var(--destaque-linha); background: var(--destaque-fundo); }
   .cartao-agora .cabeca { display: flex; align-items: center; gap: 11px; }
-  .cartao-agora .nome { font: 600 14.5px var(--sans); flex: 1; min-width: 0; }
+  .cartao-agora .nome { font: 600 14px var(--sans); flex: 1; min-width: 0; }
   .cartao-agora .corpo { font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .cartao-agora .rodape { font: 500 11px var(--sans); color: var(--ink3); }
+  .cartao-agora .rodape { font: 500 12.5px var(--sans); color: var(--ink3); }
   .cartao-agora .acoes { display: flex; align-items: center; gap: 10px; }
-  .cartao-agora .acoes .primario { margin-left: auto; padding: 7px 14px; border-radius: 6px; font-size: 12.5px; }
-  .cartao-agora .acoes .fantasma { padding: 0; border: none; background: none; font: 600 13px var(--sans); color: var(--ink); }
-  .cartao-agora .acoes .fantasma:hover:not(:disabled) { background: none; border: none; color: var(--destaque); }
+  .cartao-agora .acoes .primario { margin-left: auto; }
   /* O cartao do ditado: o equalizador na cor de destaque, o tempo em
      monoespaco a direita, a previa do texto em duas linhas. */
   .ditado-cartao .cabeca > .ic { color: var(--destaque); }
@@ -70,46 +65,27 @@
   .ditado-tempo { margin-left: auto; font: 500 12.5px var(--mono); color: var(--ink2); letter-spacing: .04em; }
   .ditado-onda { display: block; width: 100%; height: 48px; color: var(--destaque); transition: opacity .2s ease; }
   .ditado-cartao.pausado .ditado-onda { opacity: .35; }
-  .ditado-cartao .acoes .fantasma { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
-  .ditado-cartao .acoes .fantasma:hover:not(:disabled) { color: var(--ink); }
+  .ditado-cartao .acoes .fantasma { display: inline-flex; align-items: center; gap: 6px; }
   .ditado-cartao .acoes .primario { display: inline-flex; align-items: center; gap: 6px; }
   /* Entre o registro ("30 trechos de 1 documento") e o cartao do ditado, o
      mesmo respiro que ha entre o cartao e a caixa de pedido. */
   .ditado-rodape { padding: 16px 0 10px; }
   .ditado-rodape > .centro { max-width: 760px; margin: 0 auto; }
-  .ditado-rodape .cartao-agora { padding: 16px 18px; gap: 10px; }
-  /* Interromper, no cartao de uma resposta andando: icone, sem cara de botao. */
-  .agora-parar {
-    margin-left: auto; width: 24px; height: 24px; padding: 0; flex: none;
-    border: none; border-radius: 0; background: none; color: var(--ink3);
-    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-  }
-  .agora-parar:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .ditado-rodape .cartao-agora { gap: 10px; }
+  /* Interromper, no cartao de uma resposta andando: o botao de icone do
+     sistema, com o quadrado cheio de parar. */
+  .agora-parar { margin-left: auto; }
   .agora-parar .ic { font-variation-settings: 'FILL' 1; }
-  .barra-fina { height: 3px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
-  .barra-fina i { display: block; height: 3px; background: var(--destaque); transition: width 0.3s; }
+  .barra-fina { height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .barra-fina i { display: block; height: 100%; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
 
   /* Recentes: as ultimas conversas, no lugar dos exemplos de pergunta. */
   .recentes { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-  .recentes .rotulo-suave { margin-right: 2px; font-size: 11.5px; }
-  /* Mesma peca da pilula da caixa de pedido: retangulo preenchido, sem
-     contorno, como as etiquetas da tela de boas-vindas. */
-  .recente {
-    display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; max-width: 320px;
-    border: none; border-radius: 6px; background: var(--fill);
-    color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer; white-space: nowrap;
-    transition: background .16s ease, color .16s ease;
-  }
-  .recente:hover:not(:disabled) { border: none; background: var(--fill2); color: var(--ink); }
-  .recente .ic { color: var(--ink3); font-size: 15px; width: 15px; height: 15px; }
+  .recentes .sv-kicker { margin-right: 2px; }
+  /* Mesma peca da pilula da caixa de pedido (a receita mora em 05). */
+  .recente { max-width: 320px; }
   .recente span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ver-mais {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    height: 28px; padding: 0 10px; border: none; border-radius: 6px;
-    background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer;
-    transition: background .16s ease, color .16s ease;
-  }
-  .ver-mais:hover:not(:disabled) { color: var(--ink); background: var(--fill); border: none; }
+  .ver-mais { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 
   /* "Ver mais": a lista inteira de conversas surge embaixo. Ela nao e uma
      tabela - e um cartao com linhas, separadas por um fio de 1 px. A
@@ -119,44 +95,25 @@
      encostava nas pilulas e parecia parte delas. */
   .lista-conversas { display: grid; flex: none; width: 100%; max-width: var(--fio); margin-top: 16px; }
   .lc-cartao {
-    display: grid; background: var(--surf); border: 1px solid var(--hair);
-    border-radius: 14px; box-shadow: var(--elev-cartao);
+    display: grid; background: var(--surf); border: 1px solid var(--ink-a1);
+    border-radius: 12px; box-shadow: var(--elev-card);
   }
   /* Sem overflow: hidden no cartao: ele cortava o menu do "...", que abre
      por baixo da linha e passa da borda. Quem arredonda o fundo da ultima
      linha (no hover e na selecao) e ela mesma. */
-  .lc-cartao > .lc-linha:last-child { border-radius: 0 0 13px 13px; }
-  .lc-barra { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
-  .lc-conta { font-size: 12.5px; color: var(--ink2); flex: 1; min-width: 0; }
-  .lc-busca {
-    display: flex; align-items: center; gap: 7px; width: 190px; height: 28px; padding: 0 10px;
-    border: none; border-radius: 6px; background: var(--fill); color: var(--ink3); flex: none;
-  }
-  .lc-busca .ic { font-size: 15px; width: 15px; height: 15px; }
-  /* `input[type=text]` no seletor por causa da regra geral de campo, que tem
-     a mesma especificidade e vem num arquivo depois deste: sem o atributo
-     aqui, o `min-width: 200px` de la estoura a caixa de 190 px. */
-  .lc-busca input[type=text] {
-    flex: 1; min-width: 0; max-width: 100%; height: 100%; padding: 0; border: none;
-    background: none; outline: none; color: var(--ink); font: 400 12px var(--sans);
-  }
-  .lc-recolher {
-    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-    padding: 0; border: none; border-radius: 6px; background: var(--fill);
-    color: var(--ink2); cursor: pointer; flex: none;
-  }
-  .lc-recolher:hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
+  .lc-cartao > .lc-linha:last-child { border-radius: 0 0 11px 11px; border-bottom: none; }
+  .lc-barra { display: flex; align-items: center; gap: 12px; min-height: 49px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); }
+  /* A caixa de busca (.lc-busca) mora com a .busca-tela, em 04-acervo.css. */
   .lc-linha {
     position: relative;
-    display: flex; align-items: center; gap: 14px; padding: 14px;
-    border-top: 1px solid var(--hair2); color: var(--ink); cursor: pointer;
+    display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+    border-bottom: 1px solid var(--ink-a08); color: var(--ink); cursor: pointer;
   }
-  .lc-linha:hover { background: var(--fill); }
-  .lc-linha.escolhida { background: var(--fill2); }
+  .lc-linha:hover { background: var(--sub); }
   .lc-linha > .ic { color: var(--ink2); font-size: 17px; width: 16px; height: 16px; }
   .lc-nome { display: grid; gap: 1px; flex: 1 1 240px; min-width: 150px; }
-  .lc-nome b { font: 500 15px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lc-nome small { font-size: 11.5px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lc-nome b { font: 500 14px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lc-nome small { font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* A segunda linha da conversa: quando e em que grupo, cada um com o seu
      icone, na mesma tinta apagada da hora. A etiqueta com fundo que o grupo
      teve chamava mais atencao que o proprio nome da conversa. */
@@ -187,31 +144,23 @@
   /* O caminho dentro da pasta: "‹ Conversas › Clientes  2 conversas". */
   .lc-caminho { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; white-space: nowrap; }
   .lc-caminho b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-  .lc-caminho small { color: var(--ink3); font-size: 11.5px; }
+  .lc-caminho small { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
   .lc-sep { color: var(--ink3); }
-  /* A alternancia Conversas / Grupos: o seletor de visoes das telas, na
-     medida da barra da lista, com a contagem de cada lado. */
-  .lc-visoes { flex: none; padding: 2px; }
-  .lc-visoes button { padding: 4px 10px; font-size: 12.5px; display: inline-flex; align-items: baseline; gap: 5px; }
-  .lc-visoes button small { font: 500 11px var(--sans); color: var(--ink3); }
-  .lc-visoes button.ativa small { color: var(--ink2); }
-  .lc-migalha {
-    display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 8px 0 4px; border: none; border-radius: 6px;
+  /* A alternancia Conversas / Grupos: o seletor de visoes das telas, com a
+     contagem de cada lado (.visoes button small, 04-acervo.css). */
+  .lc-visoes { flex: none; }
+  /* A MIGALHA, uma receita: aqui (‹ Grupos), no anexar e no escolher pasta
+     (.anx-migalhas, 21-dialogos.css). 26 px, raio 8, o ultimo em 600. */
+  .anx-migalhas button, .lc-migalha {
+    display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 8px; border: none; border-radius: 8px;
     background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer;
   }
-  .lc-migalha:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
-  .lc-mais {
-    padding: 0; border: none; background: none; color: var(--ink3); cursor: pointer;
-    display: flex; align-items: center; flex: none;
-  }
-  .lc-mais:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
-  .lc-vazio { padding: 16px 14px; border-top: 1px solid var(--hair2); font-size: 12.5px; color: var(--ink3); }
+  .anx-migalhas button:hover:not(:disabled), .lc-migalha:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .lc-vazio { padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
   /* O estado e uma etiqueta, como o "pronto" do cartao de instalacao nas
      boas-vindas: verde para o que andou, ambar para o que pede atencao,
      cinza para o que parou. Um ponto com texto solto ao lado se perdia no
      meio da linha. */
   .estado-conversa { flex: 0 1 132px; min-width: 0; display: flex; align-items: center; overflow: hidden; }
-  .etiqueta.atencao { background: var(--amb); color: var(--ambt); }
-  .etiqueta.anda { animation: pv-pulse 3.2s ease-in-out infinite; }
   .lista-conversas .menu-conversa { top: calc(100% - 8px); }
 

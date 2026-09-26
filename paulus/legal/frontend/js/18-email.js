@@ -323,7 +323,7 @@ function painelDeEscrever() {
    escreve), desligado (com o motivo) ou pronto. */
 function andamentoDoPedido() {
   const m = mail.modelo;
-  if (mail.pedindo) return '<p class="em-andamento ativo">' + coroa(15) + "<span>Escrevendo “" + esc(mail.pedindo) + "”… cerca de um minuto nesta máquina.</span></p>";
+  if (mail.pedindo) return '<p class="em-andamento ativo">' + coroa(16) + "<span>Escrevendo “" + esc(mail.pedindo) + "”… cerca de um minuto nesta máquina.</span></p>";
   if (!m) return '<p class="em-andamento">Conferindo se o assistente local está respondendo…</p>';
   if (!m.ok) return '<p class="em-andamento fora">' + ic("error", 15) + "<span>O assistente local não está respondendo agora, então “Deixar mais formal”, " +
     "“Resumir” e o pedido livre ficam parados. Os outros atalhos continuam valendo.</span></p>";
@@ -397,7 +397,7 @@ function cartaoDeContas() {
       : "<small>" + esc(c.resumo_servidor || "") + " · " + esc(c.quando_ok ? "sincronizado " + c.quando_ok : (c.tem_senha ? "ainda não sincronizada" : "sem senha guardada")) + "</small>";
     return '<div class="' + classe + '" data-em-conta-linha="' + esc(c.id) + '">' + avatarDaConta(c, true) +
       '<span class="duas-linhas"><b>' + esc(c.email) + "</b>" + meta + "</span>" +
-      (c.em_uso ? '<span class="em-pilula ok">padrão de envio</span>' : '<button data-em-usar="' + esc(c.id) + '">Usar como padrão</button>') +
+      (c.em_uso ? '<span class="etiqueta ok">padrão de envio</span>' : '<button data-em-usar="' + esc(c.id) + '">Usar como padrão</button>') +
       (c.ultimo_erro || !c.tem_senha ? '<button class="com-icone" data-em-reconectar="' + esc(c.id) + '">' + ic("sync", 16) + "Reconectar</button>" : "") +
       '<button class="mais-linha" data-em-mais-conta="' + esc(c.id) + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
@@ -869,7 +869,7 @@ function depoisDoEnvio(d, enviado) {
       n ? ["Anexos", plural(n, "arquivo")] : null].filter((l) => l && l[1]);
     caixa.innerHTML = '<div class="em-espera"><h4>' + ic("schedule_send", 18) + "Aguardando a sua aprovação</h4>" +
       "<p>Nada foi enviado. O e-mail só sai depois que você aprovar em Aprovações.</p>" +
-      (linhas.length ? '<dl class="em-espera-ficha">' + linhas.map((l) => "<dt>" + l[0] + "</dt><dd>" + esc(l[1]) + "</dd>").join("") + "</dl>" : "") +
+      (linhas.length ? '<dl class="em-espera-ficha">' + linhas.map((l) => "<div><dt>" + l[0] + "</dt><dd>" + esc(l[1]) + "</dd></div>").join("") + "</dl>" : "") +
       '<div class="em-vazio-acao"><button class="primario com-icone" id="nm-fila">' + ic("verified", 16) + "Ir para Aprovações</button>" +
       '<button id="nm-outro">Escrever outro</button></div></div>';
     $("nm-fila").onclick = () => { marcarDestino("aprovacoes"); mostrarAprovacoes(); };

@@ -130,7 +130,7 @@ function seletorDeMes() {
   return '<label class="fin-mes-sel" title="Mês"><select id="fin-mes">' +
     (fin.dados.meses || []).map((m) => '<option value="' + esc(m.valor) + '"' + (m.valor === fin.mes ? " selected" : "") + ">" +
       esc(m.valor === mesDeHoje() ? "Este mês" : maiuscula(m.rotulo)) + "</option>").join("") +
-    "</select>" + ic("expand_more", 16) + "</label>";
+    "</select></label>";
 }
 
 /* Uma secao da pagina, no cabecalho de Servicos: titulo curto em sans, a
@@ -226,7 +226,7 @@ function finPedidosHtml() {
   const mostrados = fin.pedidosTodos ? pedidos : pedidos.slice(0, 3);
   const resto = pedidos.length - mostrados.length;
   let mais = "";
-  if (resto > 0) mais = '<button class="sv-ligacao fin-pede-mais" data-fin-pede-todos="1">' + ic("expand_more", 15) + "Ver mais " + plural(resto, "item", "itens") + "</button>";
+  if (resto > 0) mais = '<button class="sv-ligacao fin-pede-mais" data-fin-pede-todos="1">' + ic("expand_more", 16) + "Ver mais " + plural(resto, "item", "itens") + "</button>";
   else if (pedidos.length > 3) mais = '<button class="sv-ligacao fin-pede-mais" data-fin-pede-todos="1">Mostrar só os três primeiros</button>';
   const linhas = mostrados.map((p, i) => {
     const classe = "fin-pede-linha" + (p.grau === "atraso" ? " atraso" : "");
@@ -284,7 +284,7 @@ function finContasHtml(tipo) {
   const quantos = receber ? p.a_receber_quantos : p.a_pagar_quantos;
   const linhas = mostrados.length
     ? '<div class="fin-contas">' + mostrados.map(finLinhaDeConta).join("") + "</div>"
-    : '<p class="sv-dica fin-contas-vazio">' + (receber ? "Nenhuma cobrança em aberto." : "Nenhuma conta em aberto.") + "</p>";
+    : '<p class="rel-vazio">' + (receber ? "Nenhuma cobrança em aberto." : "Nenhuma conta em aberto.") + "</p>";
   const pe = '<div class="fin-contas-pe"><span>' + (quantos > mostrados.length ? mostrados.length + " de " + quantos : "") + "</span>" +
     '<button class="sv-ligacao" data-fin-ver-lancamentos="' + (receber ? "receber" : "pagar") + '">Ver em Lançamentos' + ic("arrow_forward", 15) + "</button></div>";
   return finSecao("fin-contas-secao", ic(receber ? "payments" : "schedule", 16) + (receber ? "A receber" : "A pagar"),
@@ -464,7 +464,7 @@ function linhaDeLancamento(l) {
   } else if (l.aberto && l.tipo === "despesa" && status.classe === "vence") {
     acoes = '<button data-fin-liquidar="' + l.id + '">Pagar</button>';
   } else {
-    acoes = '<button class="fin-acao-ver" data-fin-abrir="' + l.id + '">Abrir</button>';
+    acoes = '<button class="fantasma" data-fin-abrir="' + l.id + '">Abrir</button>';
   }
   return '<div class="' + classe + '" data-fin-abrir="' + l.id + '" data-sel="' + l.id + '">' +
     '<span class="fin-data">' + esc(dataCurta(l.vencimento || l.liquidado_em)) + "</span>" +
@@ -509,7 +509,7 @@ function cartoesFinanceiros(m) {
   const resultado = (m.entradas || 0) - (m.saidas || 0);
   const linha = (rotulo, valor, tom) => {
     const classe = tom || "";
-    return '<div class="rel-linha"><span>' + esc(rotulo) + '</span><b class="' + classe + '">' + esc(valor) + "</b></div>";
+    return '<div class="chave-valor"><span>' + esc(rotulo) + '</span><b class="' + classe + '">' + esc(valor) + "</b></div>";
   };
   const cats = fin.dados.categorias || [];
   const teto = Math.max(1, ...cats.map((c) => c.total));
@@ -520,10 +520,10 @@ function cartoesFinanceiros(m) {
     '<div class="rel-linhas">' +
     linha("Entradas", "+ " + semReais(emReais(m.entradas || 0))) +
     linha("Saídas", "− " + semReais(emReais(m.saidas || 0))) +
-    linha("Resultado", (resultado >= 0 ? "+ " : "− ") + semReais(emReais(Math.abs(resultado))), resultado >= 0 ? "" : "fin-acc") +
+    linha("Resultado", (resultado >= 0 ? "+ " : "− ") + semReais(emReais(Math.abs(resultado))), resultado >= 0 ? "" : "acc") +
     linha("A receber em aberto", semReais(p.a_receber_texto)) +
     linha("A pagar em aberto", semReais(p.a_pagar_texto)) +
-    linha("Em atraso", semReais(p.atrasado_texto), p.atrasado > 0 ? "fin-acc" : "") + "</div>" +
+    linha("Em atraso", semReais(p.atrasado_texto), p.atrasado > 0 ? "acc" : "") + "</div>" +
     (m.comparacao && m.comparacao.tem_base
       ? '<p class="rel-explica">Contra ' + esc(m.comparacao.mes_anterior) + ": entradas " + esc(m.comparacao.entradas.texto) + ", saídas " + esc(m.comparacao.saidas.texto) + ".</p>"
       : '<p class="rel-explica">Sem lançamento em ' + esc(m.comparacao ? m.comparacao.mes_anterior : "mês anterior") + ", não dá para comparar.</p>") +
@@ -551,8 +551,8 @@ function cartoesDoDia(dia) {
   const tarefas = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Tarefas do dia</span><small>' + esc(dia.rotulo) + "</small></div>" +
     '<div class="rel-tarefas">' +
     (t.planejado ? '<p class="rel-explica">' + t.feitas.length + " de " + t.planejado + " feitas · " + t.percentual + "%</p>" : "") +
-    t.feitas.map((x) => '<div class="rel-tarefa feita">' + ic("check_circle", 18) + '<span class="cresce">' + esc(x.titulo) + "</span><small>" + esc(x.hora) + "</small></div>").join("") +
-    t.abertas.map((x) => '<div class="rel-tarefa"><span class="rel-aberta"></span><span class="cresce">' + esc(x.titulo) + "</span><small>" + esc(x.quando) + "</small></div>").join("") +
+    t.feitas.map((x) => '<div class="rel-tarefa feita"><span class="ic ic-18 ag-feita-ic">check_circle</span><span class="cresce">' + esc(x.titulo) + "</span><small>" + esc(x.hora) + "</small></div>").join("") +
+    t.abertas.map((x) => '<div class="rel-tarefa"><span class="ag-circulo"></span><span class="cresce">' + esc(x.titulo) + "</span><small>" + esc(x.quando) + "</small></div>").join("") +
     (t.planejado ? "" : '<p class="rel-vazio">Nada estava no Meu dia nem vencia neste dia.</p>') + "</div></div>";
   const medido = dia.medido || {};
   const numeros = '<div class="fin-cartao"><div class="fin-cartao-cabeca"><span>Números do dia</span><small>somados do que ficou gravado</small></div>' +
@@ -592,7 +592,7 @@ function finSugestoesSecao() {
   return finSecao("fin-sugestoes-secao", ic("checklist", 16) + "Sugestões", sugestoes.length ? "saem de regra, não de opinião" : "", direita,
     sugestoes.length
       ? '<div class="fin-sugestoes">' + sugestoes.map((s) => '<div class="fin-sugestao"><i></i><span>' + esc(s.texto) + "</span></div>").join("") + "</div>"
-      : '<p class="sv-dica fin-contas-vazio">Nada a sugerir: nenhuma cobrança atrasada, nenhuma conta vencendo nesta semana e nenhum papel faltando.</p>');
+      : '<p class="rel-vazio">Nada a sugerir: nenhuma cobrança atrasada, nenhuma conta vencendo nesta semana e nenhum papel faltando.</p>');
 }
 
 function sugestoesDoMes() {
@@ -890,7 +890,7 @@ function finAbrirForm() {
     titulo: titulo, contexto: v.id ? "Financeiro › " + v.descricao : "Financeiro · entra na soma assim que for salvo",
     classe: "dialogo-cadastro fin-dlg-form", larga: true,
     html: '<div class="dialogo-form" id="fin-form-pop">' + corpo + "</div>",
-    rodape: (v.id ? '<button type="button" class="dialogo-excluir" data-fin-apagar="1">Excluir</button>' : "") + '<span class="dialogo-aviso" data-fin-aviso="1"></span>',
+    rodape: (v.id ? '<button type="button" class="perigo" data-fin-apagar="1">Excluir</button>' : "") + '<span class="dialogo-aviso" data-fin-aviso="1"></span>',
     cancelar: "Cancelar", confirmar: v.id ? "Salvar" : "Lançar", aoConfirmar: salvarLancamento,
   });
   const dlg = document.querySelector(".fin-dlg-form");

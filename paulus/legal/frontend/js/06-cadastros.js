@@ -386,7 +386,7 @@ function linhaDeCliente(f) {
   return '<div class="' + classe + '" data-cad-abrir="' + f.id + '" data-sel="' + f.id + '">' +
     '<span class="cad-nome"><span class="cad-avatar">' + esc(iniciaisDoRemetente(f.nome)) + '</span><span class="duas-linhas"><b>' + esc(f.nome) + '</b><small class="' + classeSub + '">' + esc(sub) + "</small></span></span>" +
     '<span class="cad-contato">' + esc(contato) + "</span>" +
-    '<span class="cad-ligado">' + (ligado.length ? ligado.map((x) => "<span>" + esc(x) + "</span>").join("") : "<small>sem vínculo</small>") + "</span>" +
+    '<span class="cad-ligado">' + (ligado.length ? ligado.map((x) => '<span class="etiqueta">' + esc(x) + "</span>").join("") : "<small>sem vínculo</small>") + "</span>" +
     '<span class="' + classeValor + '">' + esc(f.aberto_centavos ? semReais(f.aberto) : "—") + "</span>" +
     menuDaLinha(f.id) + "</div>";
 }
@@ -415,7 +415,7 @@ function corpoDaEquipe() {
 function linhaDaEquipe(f) {
   const classe = "tabela-linha colunas-equipe" + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const socio = f.tipo === "socio";
-  const classePapel = "cad-pill" + (socio ? " forte" : "");
+  const classePapel = "etiqueta" + (socio ? " forte" : "");
   const sub = [f.observacao, rotuloDoVinculo(f.vinculo) === "não entra na folha" ? "" : rotuloDoVinculo(f.vinculo)].filter(Boolean).join(" · ") || (f.documento ? "CPF " + f.documento : "sem função anotada");
   const folha = folhaDe(f);
   const classeValor = "fin-valor fin-valor-col" + (folha ? "" : " cad-zero");
@@ -494,7 +494,7 @@ function verFicha(id) {
   const p = partesDaFicha(f);
   const escolha = dialogo({
     titulo: f.nome, contexto: p.contexto, classe: "dialogo-ver cad-dialogo", larga: true,
-    html: p.corpo, rodape: '<button type="button" class="dialogo-excluir" data-cad-apagar="1">Apagar</button>',
+    html: p.corpo, rodape: '<button type="button" class="perigo" data-cad-apagar="1">Apagar</button>',
     cancelar: "Fechar", confirmar: "Editar",
   });
   const dlg = document.querySelector(".dialogo.cad-dialogo");
@@ -722,7 +722,7 @@ function partesDoFormCad(v) {
   }
   return {
     titulo: titulo, contexto: contexto, corpo: corpo, botao: nova ? "Salvar cadastro" : "Salvar",
-    excluir: nova ? "" : '<button type="button" class="dialogo-excluir" data-cad-apagar-form="1">Apagar</button>',
+    excluir: nova ? "" : '<button type="button" class="perigo" data-cad-apagar-form="1">Apagar</button>',
   };
 }
 

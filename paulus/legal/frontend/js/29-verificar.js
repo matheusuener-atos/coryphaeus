@@ -25,7 +25,7 @@ async function abrirVerificacao(caminho, nome) {
   ver.nome = nome || String(caminho).split(/[\\/]/).pop();
   ver.dados = null;
   dialogo({
-    titulo: "Verificar assinatura", contexto: ver.nome, classe: "dialogo-verificar",
+    titulo: "Verificar assinatura", contexto: ver.nome, classe: "dialogo-verificar", larga: true,
     html: '<div class="vr" id="vr-corpo"><p class="nota">conferindo as assinaturas deste PDF…</p></div>',
     confirmar: "Certificado de conformidade", cancelar: "Fechar", aoConfirmar: gerarConformidade,
     rodape: '<small class="vr-limite">Conferido nesta máquina, sem internet.</small>',
@@ -68,7 +68,7 @@ function desenharVerificacao() {
         '<div class="vr-tecnico" hidden>' + linhas.map(([r, v]) => '<div class="vr-linha"><span>' + esc(r) + "</span><b>" + esc(v) + "</b></div>").join("") + "</div></div>";
     }).join("") +
     (arq.sha256
-      ? '<details class="vr-arquivo"><summary>O arquivo conferido</summary>' +
+      ? '<details class="vr-arquivo"><summary>' + ic("expand_more", 16) + 'O arquivo conferido</summary>' +
         '<div class="vr-linha"><span>Arquivo</span><b>' + esc(arq.nome || ver.nome) + "</b></div>" +
         (arq.paginas ? '<div class="vr-linha"><span>Páginas</span><b>' + arq.paginas + "</b></div>" : "") +
         '<div class="vr-linha"><span>SHA-256</span><b class="vr-hash">' + esc(arq.sha256) + "</b></div></details>"
@@ -110,7 +110,7 @@ function mostrarConformidade() {
   const rel = ver.relatorio;
   if (!rel) return;
   dialogo({
-    titulo: "PAVLVS · Certificado de conformidade", contexto: ver.nome, classe: "dialogo-conformidade",
+    titulo: "PAVLVS · Certificado de conformidade", contexto: ver.nome, classe: "dialogo-conformidade", larga: true,
     html: '<div class="vc"><div class="vc-folha"><img id="vc-img" alt="Certificado de conformidade"></div>' +
       (rel.paginas > 1
         ? '<div class="imp-andar"><button type="button" class="botao-icone" data-vc-andar="-1" aria-label="Página anterior">' + ic("chevron_left", 18) +

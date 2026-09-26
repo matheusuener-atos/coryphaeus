@@ -18,16 +18,14 @@
   /* A barra do ciclo: os botoes a esquerda, as escolhas a direita. */
   .be-controles {
     flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: 0 8px 24px -16px var(--sh-a12);
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
   }
   .be-controles .be-botoes { justify-content: flex-start; }
   .be-campos { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-  .be-campo { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px 0 12px; border: 1px solid var(--hair); border-radius: 8px; cursor: pointer; }
-  .be-campo small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .be-campo select, .be-campo .escolha-botao {
-    width: auto; min-width: 0; max-width: 260px; padding: 4px 2px; border: none; background: transparent;
-    font: 600 13.5px var(--sans); color: var(--ink); cursor: pointer;
-  }
+  .be-campo { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; cursor: pointer; }
+  .be-campo small { white-space: nowrap; }
+  /* A escolha embutida (sem fio, 600 12.5) e a regra consolidada em 04; aqui so o teto de largura. */
+  .be-campo select, .be-campo .escolha-botao { max-width: 260px; }
   /* Os numeros soltos na pagina, sem moldura, e a barra de progresso deitada
      embaixo, na largura toda. */
   .be-mostrador { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0 2px; }
@@ -38,47 +36,37 @@
   .be-tempo svg { height: 100%; width: auto; overflow: visible; }
   .be-tempo polygon, .be-tempo circle { fill: currentColor; transition: opacity .15s ease; }
   .be-tempo polygon.apagado { opacity: .07; }
-  .be-fase { font: 600 11.5px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
-  .be-progresso { align-self: stretch; height: 6px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
-  .be-progresso i { display: block; width: var(--be-p, 0%); height: 100%; border-radius: 3px; background: var(--ink); transition: width .6s linear; }
+  .be-fase { font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  .be-progresso { align-self: stretch; height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .be-progresso i { display: block; width: var(--be-p, 0%); height: 100%; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
   .be-anel.pausa .be-progresso i { background: var(--verde); }
   .be-anel.pausa .be-tempo { color: var(--verde); }
   .be-botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-  .be-botoes button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px; white-space: nowrap; }
+  .be-botoes button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 
   /* Os lembretes: marca, nome, Feito e o interruptor na mesma linha. */
   .be-lembretes { min-height: 0; }
-  .be-lembrete { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 7px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
+  .be-lembrete { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
   .be-lembrete:last-child { border-bottom: none; }
   .be-lembrete.atrasado { background: var(--accbg2); }
   .be-lembrete.desligado .duas-linhas b, .be-lembrete.desligado .duas-linhas small { color: var(--ink3); }
-  /* O circulo de marcar: clicar registra o feito; marcado fica verde ate
-     vencer o proximo intervalo. */
-  .be-lembrete .be-marca {
-    width: 18px; height: 18px; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
-    padding: 0; border: 1.5px solid var(--ink-a3); border-radius: 50%; background: none; cursor: pointer;
-  }
-  .be-lembrete button.be-marca:hover:not(:disabled) { border-color: var(--ink); background: var(--fill); }
-  .be-lembrete button.be-marca:disabled { cursor: default; opacity: .5; }
+  /* O circulo de marcar e o .be-marca (um <button>), com a receita do
+     .ag-circulo (09-agenda.css:162); clicar registra o feito; marcado vira o
+     check_circle em --okt (.ag-feita-ic) ate vencer o proximo intervalo.
+     Aqui ficam so os estados. Desligado, a opacidade e a da base
+     (button:disabled); so o cursor precisa voltar aqui, porque a receita
+     do circulo (0,2,0) poe pointer por cima do button:disabled (0,1,1). */
+  .be-lembrete button.be-marca:disabled { cursor: default; }
   .be-lembrete.atrasado .be-marca { border-color: var(--acc); }
-  .be-lembrete .be-marca.on { border-color: var(--verde); background: var(--verde); cursor: default; }
   /* Em "Ajustar", o circulo so guarda o lugar: o texto nao pula. */
   .be-lembrete .be-marca.vaga { visibility: hidden; }
-  .be-lembrete .be-marca.on .ic { color: var(--surf); }
   .be-lembrete .duas-linhas { flex: 1; min-width: 0; }
   .be-lembrete .duas-linhas b { font-weight: 500; }
-  .be-lembrete .duas-linhas small { font-size: 12px; }
   .be-lembrete .duas-linhas small.acc { color: var(--acc); }
-  .be-lembrete button { padding: 4px 10px; border-radius: 6px; font: 500 12px var(--sans); flex: none; }
-  .be-lembrete button.primario { font-weight: 600; }
-  .be-lembrete .botao-icone { width: 26px; height: 26px; padding: 0; }
-  .be-lembrete .interruptor-min { flex: none; cursor: pointer; }
+  .be-lembrete button { flex: none; }
   .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
-  .be-rodape button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; font: 500 12.5px var(--sans); }
+  .be-rodape button { display: inline-flex; align-items: center; gap: 6px; }
   .be-form { padding: 14px 16px; }
-  .be-avisos { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; color: var(--ink2); }
-  .be-rodape .be-avisos .interruptor-min { flex: none; }
-  .be-avisos:hover { color: var(--ink); }
 
   /* Os cartoes do dia. */
   .be-ritmo { padding: 14px 16px; display: grid; gap: 10px; }
@@ -102,20 +90,20 @@
   .be-barras { display: grid; gap: 6px; }
   .be-barra { display: grid; grid-template-columns: 52px minmax(0, 1fr) 130px; align-items: center; gap: 12px; font-size: 13px; }
   .be-barra > span { color: var(--ink2); }
-  .be-barra i { display: block; height: 8px; border-radius: 4px; background: var(--fill2); overflow: hidden; }
-  .be-barra i b { display: block; height: 100%; border-radius: 4px; background: var(--ink); }
+  .be-barra i { display: block; height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+  .be-barra i b { display: block; height: 100%; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
   .be-barra.hoje i b { background: var(--destaque); }
   .be-barra.hoje > span { color: var(--ink); font-weight: 600; }
   .be-barra small { font: 500 12px var(--sans); color: var(--ink3); text-align: right; font-variant-numeric: tabular-nums; }
   .be-barra.vazio small { color: var(--mute); }
   .be-semana-somas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .be-semana-somas div { padding: 9px 12px; background: var(--surf); border: 1px solid var(--hair); border-radius: 10px; display: grid; gap: 2px; }
+  .be-semana-somas div { padding: 10px 12px; background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 2px; }
   .be-semana-somas small { font: 500 12px var(--sans); color: var(--ink3); }
-  .be-semana-somas b { font: 600 15px var(--sans); font-variant-numeric: tabular-nums; }
+  .be-semana-somas b { font: 600 22px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
   .be-parecer .fin-parecer { padding: 14px 16px 6px; }
   .be-sugestoes { padding: 0 16px 12px; }
   .be-habitos { padding: 4px 16px 10px; display: grid; }
-  .be-habito { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(7, 18px) minmax(0, 1fr); gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--ink-a06); font-size: 13px; }
+  .be-habito { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(7, 18px) minmax(0, 1fr); gap: 6px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
   .be-habito:last-child { border-bottom: none; }
   .be-habito i { display: block; width: 18px; height: 18px; border-radius: 5px; background: var(--mute); }
   .be-habito i.cheio { background: var(--ink); }

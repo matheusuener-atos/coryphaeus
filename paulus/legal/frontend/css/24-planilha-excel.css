@@ -66,7 +66,7 @@
   }
 
   /* Escrever dentro da celula. */
-  .plx-editor {
+  input[type=text].plx-editor {
     position: absolute; z-index: 4; box-sizing: border-box; margin: 0;
     padding: 0 11px; border: 2px solid var(--ink); border-radius: 0; outline: none;
     background: var(--surf); color: var(--ink); box-shadow: var(--elev-float); max-width: none;
@@ -74,20 +74,19 @@
 
   /* A dica da alca: o valor que vai cair na ultima celula. */
   .plx-dica {
-    position: fixed; z-index: 140; pointer-events: none; padding: 4px 8px; border-radius: 6px;
+    position: fixed; z-index: 140; pointer-events: none; padding: 4px 8px; border-radius: 8px;
     background: var(--casca); color: var(--casca-ink); font: 500 12px var(--sans);
     box-shadow: var(--elev-float); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis;
   }
 
   /* O menu do botao direito: o menu do sistema, solto onde o mouse clicou. */
   .menu-conversa.plx-menu {
-    position: fixed; right: auto; width: auto; min-width: 232px; max-width: 320px; z-index: 130;
+    position: fixed; right: auto; z-index: 130;
     max-height: calc(100vh - 16px); overflow-y: auto;
   }
-  .menu-conversa.plx-menu button { gap: 16px; padding: 7px 10px; white-space: nowrap; }
+  .menu-conversa.plx-menu button { white-space: nowrap; }
   .menu-conversa.plx-menu button:disabled { color: var(--mute2); cursor: default; }
   .menu-conversa.plx-menu button.plx-aberto { background: var(--fill); color: var(--ink); }
-  .menu-conversa.plx-menu button:focus-visible { outline: none; background: var(--fill); color: var(--ink); }
   .plx-rotulo { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   .plx-atalho { margin-left: auto; font: 500 11px var(--sans); color: var(--ink3); }
   .menu-conversa.plx-menu button .seta { margin-left: 0; }

@@ -9,45 +9,39 @@
   .nav-tela { display: flex; gap: 2px; flex: none; }
   .nav-tela:empty { display: none; }
   .com-menu { position: relative; }
-  .menu-novo { right: 0; width: 236px; }
-  .menu-novo button { gap: 10px; }
-  .menu-novo .ic { color: var(--ink3); }
+  .menu-novo { right: 0; }
 
   .ag-cartao {
     flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
-    box-shadow: 0 8px 24px -16px var(--sh-a12);
+    box-shadow: var(--elev-card);
   }
   .ag-dias { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--ink-a1); }
   .ag-dias span, .ag-semana-dias span {
-    padding: 8px 9px; font: 600 12px var(--sans); color: var(--ink2);
+    padding: 8px 9px; font: 500 12px var(--sans); color: var(--ink3);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* A faixa de cima do calendario, a do calendario miniatura: setas, o mes e Hoje. */
   .ag-cal-topo { position: relative; flex: none; display: flex; align-items: center; justify-content: center; padding: 12px 14px 8px; }
   .ag-cal-centro { display: flex; align-items: center; gap: 6px; }
-  .ag-cal-topo .cal-seta { width: 34px; height: 34px; }
-  /* No tamanho dos titulos de bloco (14 px), como a data do painel do dia. */
-  .ag-cal-titulo { min-width: 180px; height: 34px; padding: 0 12px; text-align: center; font: 600 14px var(--sans); color: var(--ink); }
+  /* Na medida do .cal-titulo (21-dialogos.css), clicavel ou nao. */
+  .ag-cal-titulo { min-width: 180px; height: 28px; padding: 0 12px; text-align: center; font: 600 13.5px var(--sans); color: var(--ink); }
   b.ag-cal-titulo { display: inline-flex; align-items: center; justify-content: center; }
-  .ag-cal-hoje { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); margin-top: 2px; height: 30px; }
+  .ag-cal-hoje { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); margin-top: 2px; }
   /* Os meses e os anos: a grade do miniatura, grande. */
   .ag-zoom { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; padding: 10px 14px 14px; }
-  .ag-zoom-celula { height: 100%; min-height: 60px; border-radius: 12px; font: 500 16px var(--sans); }
-  .ag-zoom-celula.ag-hoje:not(.escolhido) { box-shadow: inset 0 0 0 1.5px var(--destaque-linha); font-weight: 700; }
-  /* A data do painel do dia na letra sem serifa. */
-  #agenda .painel-cabeca h3.ag-dia-titulo { display: flex; align-items: center; gap: 8px; font: 600 14px var(--sans); letter-spacing: 0; }
-  .ag-dias span.ag-fds { color: var(--ink3); }
+  .ag-zoom-celula { min-height: 60px; }
+  .ag-zoom-celula.ag-hoje:not(.escolhido) { box-shadow: inset 0 0 0 1px var(--destaque-linha); font-weight: 700; }
   /* O mes e o calendario miniatura grande: sem grade de linhas, cada dia um
      botao arredondado com o numero num circulo e os pontos do que tem nele. */
   .ag-calendario .ag-dias { border-bottom: none; padding: 0 10px; }
-  .ag-calendario .ag-dias span { text-align: center; font: 600 11.5px var(--sans); color: var(--ink3); }
+  .ag-calendario .ag-dias span { text-align: center; }
   .ag-mes {
     flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr); gap: 4px; padding: 4px 10px 10px;
   }
   .ag-cel {
-    position: relative; min-height: 0; padding: 8px 6px; border-radius: 12px; display: flex; flex-direction: column;
+    position: relative; min-height: 0; padding: 8px 6px; border-radius: 6px; display: flex; flex-direction: column;
     align-items: center; justify-content: flex-start; gap: 6px; overflow: hidden; cursor: pointer; transition: background .15s;
   }
   .ag-cel:hover { background: var(--fill); }
@@ -57,13 +51,13 @@
   }
   .ag-cel.ag-fds .ag-cel-num b { color: var(--ink2); }
   .ag-cel.ag-fora .ag-cel-num b { color: var(--mute); }
-  .ag-cel.ag-hoje .ag-cel-num b { box-shadow: inset 0 0 0 1.5px var(--destaque-linha); font-weight: 700; }
+  .ag-cel.ag-hoje .ag-cel-num b { box-shadow: inset 0 0 0 1px var(--destaque-linha); font-weight: 700; }
   .ag-cel.ag-escolhido .ag-cel-num b { background: var(--destaque); color: var(--bg); font-weight: 700; }
   .ag-cel.ag-escolhido { background: var(--fill); }
   .ag-pontos { display: flex; gap: 4px; }
   .ag-ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
   .ag-ponto.ag-prazo { background: var(--acc); }
-  .ag-ponto.ag-tarefa { background: var(--mute); }
+  .ag-ponto.ag-tarefa { background: var(--mute2); }
   .ag-ponto.ag-pagamento { background: var(--verde); }
   .ag-ponto.ag-documento { background: var(--ambar); }
   .ag-ponto.ag-pedido { background: var(--accln); }
@@ -87,9 +81,8 @@
   .ag-marca.ag-pagamento i, .ag-legenda .ag-pagamento i { background: var(--verde); }
   .ag-legenda .ag-compromisso i { background: var(--ink); }
   .ag-legenda .ag-pedido i { width: 0; background: transparent; border-left: 2px dashed var(--acc); }
-  .ag-mais { font: 500 11px var(--sans); color: var(--ink3); }
   .ag-legenda {
-    flex: none; display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--ink-a1);
+    flex: none; display: flex; align-items: center; gap: 14px; padding: 9px 16px; border-top: 1px solid var(--ink-a1);
     font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden;
   }
   .ag-legenda span { display: flex; align-items: center; gap: 7px; }
@@ -101,24 +94,24 @@
   .ag-semana-dias, .ag-dia-todo, .ag-semana { grid-template-columns: 56px repeat(7, minmax(0, 1fr)); padding: 0 10px; }
   .ag-semana-dias { flex: none; display: grid; column-gap: 4px; padding-bottom: 8px; }
   .ag-cartao-semana .ag-semana-dias span { padding: 0; }
-  .ag-semana-dia { display: grid; justify-items: center; gap: 4px; padding: 4px 0; border-radius: 12px; cursor: pointer; transition: background .15s; }
+  .ag-semana-dia { display: grid; justify-items: center; gap: 4px; padding: 4px 0; border-radius: 6px; cursor: pointer; transition: background .15s; }
   .ag-semana-dia:hover { background: var(--fill); }
-  .ag-semana-dia small { font: 600 11.5px var(--sans); color: var(--ink3); }
+  .ag-semana-dia small { font: 500 12px var(--sans); color: var(--ink3); }
   .ag-semana-dia b {
     display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
     font: 500 14px var(--sans); color: var(--ink); font-variant-numeric: tabular-nums;
   }
   .ag-semana-dia.ag-fds b { color: var(--ink2); }
-  .ag-semana-dia.ag-hoje b { box-shadow: inset 0 0 0 1.5px var(--destaque-linha); font-weight: 700; }
+  .ag-semana-dia.ag-hoje b { box-shadow: inset 0 0 0 1px var(--destaque-linha); font-weight: 700; }
   .ag-semana-dia.ag-escolhido b { background: var(--destaque); color: var(--bg); font-weight: 700; }
-  .ag-dia-todo { flex: none; display: grid; column-gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--ink-a08); }
+  .ag-dia-todo { flex: none; display: grid; column-gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--ink-a1); }
   .ag-dia-todo > div { min-height: 30px; padding: 2px 0; display: grid; gap: 3px; align-content: start; }
   .ag-dia-todo > .ag-rotulo-hora { padding: 8px 8px 0 0; }
   .ag-rolagem { flex: 1; min-height: 0; overflow: auto; }
   .ag-semana { display: grid; grid-auto-rows: 52px; column-gap: 4px; padding-bottom: 8px; }
   .ag-rotulo-hora { padding: 4px 8px 0 0; font: 500 11px var(--sans); color: var(--ink3); text-align: right; white-space: nowrap; border-top: 1px solid transparent; }
-  .ag-hora-cel { min-height: 0; padding: 3px 0; display: flex; gap: 3px; border-top: 1px solid var(--ink-a06); cursor: pointer; }
-  .ag-hora-cel:hover { background: var(--fill); border-radius: 6px; }
+  .ag-hora-cel { min-height: 0; padding: 3px 0; display: flex; gap: 3px; border-top: 1px solid var(--ink-a08); cursor: pointer; }
+  .ag-hora-cel:hover { background: var(--fill); border-radius: 8px; }
   .ag-bloco {
     flex: 1; min-width: 0; padding: 5px 8px; border-radius: 8px; background: var(--fill);
     display: grid; gap: 1px; align-content: start; overflow: hidden; cursor: pointer;
@@ -129,7 +122,7 @@
   .ag-bloco span { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ag-bloco.ag-tarefa span { color: var(--ink3); text-decoration: line-through; }
   .ag-fora-da-grade {
-    flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px;
+    flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 9px 16px;
     border-top: 1px solid var(--ink-a1); font-size: 12.5px; color: var(--ink2);
   }
   .ag-fora-da-grade b { font: 600 12px var(--sans); color: var(--ink3); }
@@ -144,11 +137,6 @@
   .ag-hora-linha .ag-corpo small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .ag-hora-linha.ag-prazo .ag-hora, .ag-hora-linha.ag-prazo .ag-corpo > span { color: var(--acc); }
   .ag-hora-linha.ag-pagamento .ag-hora { color: var(--okt); }
-  .ag-hora-linha .ag-acoes { position: relative; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-  .ag-hora-linha .ag-acoes button { padding: 5px 10px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
-  .ag-risco { display: block; height: 1px; background: var(--ink-a08); }
-  .ag-sino { position: relative; flex: none; display: inline-flex; align-items: center; color: var(--ink3); }
-  .ag-sino i { position: absolute; top: -1px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: var(--destaque); }
   .ag-tarefa-linha { display: flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; }
   /* A tarefa na lista do dia: a marca de concluir no lugar da hora. */
   .ag-tarefa-dia { cursor: pointer; }
@@ -156,235 +144,161 @@
   .ag-dia-pop { display: grid; gap: 10px; padding: 2px 2px 4px; }
   /* O compromisso na lista do dia abre a exibicao dele: a linha inteira e o
      botao, com a seta de "tem mais" a direita. */
-  .ag-linha-ver { margin: -6px -8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+  .ag-linha-ver { margin: -6px -8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
   .ag-linha-ver:hover { background: var(--fill); }
   .ag-linha-ver > .ic { color: var(--ink3); align-self: center; }
   /* Os dois de adicionar nao encostam na lista: um fio e um respiro antes. */
-  .ag-adicionar-dia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--ink-a08); }
-  .ag-adicionar-dia button { flex: 1; justify-content: center; background: var(--surf); border-color: var(--hair); }
-  .ag-adicionar-dia button:hover:not(:disabled) { background: var(--fill); border-color: var(--hair); }
+  .ag-adicionar-dia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--ink-a1); }
+  .ag-adicionar-dia button { flex: 1; justify-content: center; }
   .ag-tarefa-dia .ag-hora { display: flex; justify-content: flex-start; padding-top: 3px; }
   .ag-tarefa-dia.ag-feita .ag-corpo > span { color: var(--ink3); text-decoration: line-through; }
-  .ag-tarefa-dia .ag-feita-ic { color: var(--okt); cursor: pointer; }
   .ag-tarefa-linha .ag-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ag-tarefa-linha.ag-feita .ag-texto { color: var(--ink3); text-decoration: line-through; }
-  .ag-tarefa-linha .ag-quando { font: 600 12px var(--sans); color: var(--ink3); flex: none; }
-  .ag-feita-ic { color: var(--verde); cursor: pointer; }
-  .ag-circulo { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a3); flex: none; margin: 1px; box-sizing: border-box; cursor: pointer; }
-  .ag-circulo:hover { border-color: var(--ink); }
-  .ag-circulo.ag-grande { width: 18px; height: 18px; margin: 0; }
-  .ag-ligacao { border: none; background: none; padding: 0; text-align: left; cursor: pointer; font: 400 13px var(--sans); color: var(--ink3); justify-self: start; }
-  .ag-ligacao:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  /* O estado feito de qualquer tarefa ou etapa: o icone check_circle de 18 px
+     em --okt no lugar do circulo. Tambem no Foco, nos Servicos e no relatorio. */
+  .ag-feita-ic { color: var(--okt); cursor: pointer; }
+  /* O circulo de concluir: 18 px, do tamanho do check_circle que o substitui.
+     O do Foco (.be-marca, um <button>) e o mesmo. */
+  .ag-circulo, .be-lembrete .be-marca { width: 18px; height: 18px; flex: none; box-sizing: border-box; margin: 0; padding: 0; border: 1.5px solid var(--ink-a3); border-radius: 50%; background: none; cursor: pointer; }
+  .ag-circulo:hover, .be-lembrete button.be-marca:hover:not(:disabled) { border-color: var(--ink); background: none; }
+  .ag-ligacao { text-align: left; justify-self: start; }
   .ag-entrada { display: flex; gap: 8px; }
-  .ag-entrada input[type=text] {
-    flex: 1; min-width: 0; max-width: 100%; padding: 7px 10px; border: 1px solid var(--ink-a15); border-radius: 6px;
-    background: var(--surf); font: 400 13px var(--sans); color: var(--ink);
-  }
+  .ag-entrada input[type=text] { flex: 1; min-width: 0; max-width: 100%; }
   .ag-entrada button { white-space: nowrap; }
   .ag-acc { color: var(--acc); font-weight: 600; }
-  /* A anotacao na caixa dos campos do sistema: fundo recuado, fio discreto e
-     o halo no foco, como no pop-up de cadastro. */
-  .ag-nota {
-    width: 100%; max-width: none; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--hair); border-radius: 10px;
-    background: var(--bg); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); resize: vertical; min-height: 64px;
-    transition: border-color .15s ease, box-shadow .15s ease;
-  }
-  .ag-nota:focus { color: var(--ink); outline: none; border-color: var(--destaque-linha); box-shadow: 0 0 0 3px var(--ink-a06); }
 
   /* o formulario de compromisso, pagamento, prazo interno ou tarefa */
   .ag-form { padding: 4px 18px 16px; display: grid; gap: 14px; }
   .ag-campo { display: grid; gap: 6px; }
-  .ag-campo > label { font: 500 12px var(--sans); color: var(--ink3); }
-  .ag-campo input, .ag-campo select, .ag-campo textarea, .ag-campo .escolha-botao {
-    width: 100%; max-width: none; min-width: 0; box-sizing: border-box; padding: 9px 12px;
-    border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); font: 400 13.5px var(--sans); color: var(--ink);
-  }
-  .ag-campo textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+  .ag-campo input, .ag-campo select, .ag-campo textarea, .ag-campo .escolha-botao { width: 100%; max-width: none; min-width: 0; }
   .ag-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .ag-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .ag-chips button { padding: 6px 12px; border-radius: 6px; font: 500 12.5px var(--sans); border: 1px solid var(--ink-a15); background: transparent; color: var(--ink); }
-  .ag-chips button:hover:not(:disabled) { border-color: var(--ink); background: transparent; color: var(--ink); }
-  .ag-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 600; }
-  .ag-chips button.on:hover:not(:disabled) { background: var(--ink0); border-color: var(--ink0); color: var(--bg); }
   .ag-chips .ag-vazio-chip { font-size: 12.5px; color: var(--ink3); align-self: center; }
+  /* O interruptor do sistema (docs/ui/02): a linha .ag-toggle - texto a
+     esquerda, chave a direita - e, quando a linha nao e um rotulo (regras de
+     Aprovacoes, lembretes do Foco), a chave sozinha, .interruptor-min.
+     34 x 20, botao de 14. Desligado: fio --ink-a25 e botao --ink-a3; ligado:
+     --ink e botao --bg; o rotulo escurece ao ligar. Era tambem .cfg-liga
+     (Configuracoes) e um .interruptor de 40 x 24 que ninguem emitia. */
   .ag-toggle { display: flex; align-items: center; gap: 12px; font-size: 13.5px; cursor: pointer; }
   .ag-toggle span { flex: 1; color: var(--ink2); }
   .ag-toggle.on span { color: var(--ink); }
-  .ag-toggle i { width: 34px; height: 20px; border-radius: 10px; position: relative; flex: none; border: 1px solid var(--ink-a25); box-sizing: border-box; }
-  .ag-toggle i::after {
+  .ag-toggle .duas-linhas { gap: 2px; }
+  .ag-toggle .duas-linhas b, .ag-toggle .duas-linhas small { white-space: normal; }
+  .ag-toggle i, .interruptor-min { width: 34px; height: 20px; padding: 0; border-radius: 10px; position: relative; flex: none; border: 1px solid var(--ink-a25); background: none; box-sizing: border-box; cursor: pointer; }
+  .ag-toggle i::after, .interruptor-min::after {
     content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
     background: var(--ink-a3); transition: left .15s, background .15s;
   }
-  .ag-toggle.on i { background: var(--ink); border-color: var(--ink); }
-  .ag-toggle.on i::after { left: 16px; background: var(--bg); }
+  .ag-toggle.on i, .interruptor-min.on { background: var(--ink); border-color: var(--ink); }
+  .ag-toggle.on i::after, .interruptor-min.on::after { left: 16px; background: var(--bg); }
   .ag-explica { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); margin: 0; }
   .ag-form-rodape { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--ink-a1); padding-top: 14px; }
-  .ag-form-rodape .primario { margin-left: auto; padding: 8px 16px; }
-  .ag-form-rodape .ag-aviso { font: 500 12.5px var(--sans); color: var(--acc); }
-  /* Excluir e o mesmo dos pop-ups (.dialogo-excluir): vinho de fio, altura de
-     botao do rodape. */
-  .ag-perigo-fino { border: 1px solid var(--accln); color: var(--acc); background: none; font: 500 12.5px var(--sans); height: 32px; padding: 0 12px; border-radius: 8px; }
-  .ag-perigo-fino:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg); color: var(--acc); }
+  .ag-form-rodape .primario { margin-left: auto; }
 
   /* as tarefas: as listas a esquerda, a lista do dia no meio */
-  .ag-tarefas { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+  .ag-tarefas { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
   /* A trilha do grid e a largura da coluna (minmax(0, 1fr)): sem isso ela
      crescia com o nome mais longo da lista e o texto vazava para fora do
      cartao, em vez de virar reticencias. */
   .ag-listas {
-    min-height: 0; overflow: auto; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+    min-height: 0; overflow: auto; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
     padding: 8px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start;
   }
   .ag-lista-item {
-    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
     background: transparent; text-align: left; cursor: pointer; font: 500 13.5px var(--sans); color: var(--ink2);
   }
-  .ag-lista-item:hover:not(:disabled) { background: var(--bg); border: none; color: var(--ink2); }
+  .ag-lista-item:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .ag-lista-item.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
   .ag-lista-item.adiante { opacity: .5; }
   .ag-lista-item .ag-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ag-lista-item .ag-conta { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-lista-item .ag-conta { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
   .ag-lista-item .ag-conta.ag-acc { color: var(--acc); }
-  /* Acrescentar algo (nova lista, proxima etapa): um botao de verdade - fio
-     pontilhado, o mais e o nome -, e nao a ligacao fraca de antes. */
-  .ag-incluir {
-    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 2px; padding: 8px 12px;
-    border: 1px dashed var(--ink-a15); border-radius: 6px; background: none;
-    font: 500 13px var(--sans); color: var(--ink3);
+  /* Acrescentar algo (nova lista, nova pasta, proxima etapa): um botao de
+     verdade - fio tracejado, o mais e o nome -, e nao a ligacao fraca de
+     antes. A mesma receita no Acervo (.ac-incluir), na Agenda, no + das abas
+     dos Documentos (.docs-aba-novo) e no Anexar do e-mail (.em-anexar-vazio);
+     cada um guarda na sua tela so o que muda de lugar. */
+  .ac-incluir, .ag-incluir, .docs-aba-novo, .em-anexar-vazio {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 2px; padding: 7px 13px;
+    border: 1px dashed var(--ink-a15); border-radius: 8px; background: none;
+    font: 500 12.5px var(--sans); color: var(--ink2); text-align: left; cursor: pointer;
   }
-  .ag-incluir:hover:not(:disabled) { border: 1px dashed var(--ink-a3); background: var(--bg); color: var(--ink); }
-  .ag-incluir .ic { color: var(--ink3); flex: none; }
-  .ag-incluir:hover .ic { color: var(--ink); }
-  .ag-listas .ac-incluir {
-    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 6px; padding: 8px 12px;
-    border: 1px dashed var(--ink-a15); border-radius: 6px; background: none;
-    font: 500 13px var(--sans); color: var(--ink3);
-  }
-  .ag-listas .ac-incluir:hover:not(:disabled) { border: 1px dashed var(--ink-a3); background: var(--bg); color: var(--ink); }
-  .ag-listas .ac-incluir .ic { color: var(--ink3); flex: none; }
-  .ag-listas .ac-incluir:hover .ic { color: var(--ink); }
+  .ac-incluir:hover:not(:disabled), .ag-incluir:hover:not(:disabled), .docs-aba-novo:hover:not(:disabled), .em-anexar-vazio:hover:not(:disabled) { border: 1px dashed var(--ink-a35); background: var(--fill); color: var(--ink); }
+  .ac-incluir .ic, .ag-incluir .ic, .docs-aba-novo .ic, .em-anexar-vazio .ic { color: var(--ink3); flex: none; }
+  .ac-incluir:hover .ic, .ag-incluir:hover .ic, .docs-aba-novo:hover .ic, .em-anexar-vazio:hover .ic { color: var(--ink); }
   .ag-cor { display: block; width: 7px; height: 7px; border-radius: 2px; background: var(--ink); flex: none; }
   .ag-cor.ag-c1 { background: var(--verde); }
   .ag-cor.ag-c2 { background: var(--acc); }
   .ag-cor.ag-c3 { background: var(--ambar); }
   .ag-adicionar { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
-  .ag-adicionar .ag-mais-botao {
-    width: 30px; height: 30px; padding: 0; border-radius: 50%; border: none; background: var(--ink); color: var(--bg);
-    display: flex; align-items: center; justify-content: center; flex: none;
-  }
-  .ag-adicionar .ag-mais-botao:hover:not(:disabled) { background: var(--ink0); border: none; color: var(--bg); }
-  .ag-adicionar input[type=text] { flex: 1; min-width: 0; max-width: 100%; border: none; background: none; padding: 0; font: 400 14px var(--sans); color: var(--ink); outline: none; }
-  .ag-adicionar input[type=date] { border: none; background: none; padding: 4px 0; min-width: 0; width: auto; font: 500 12.5px var(--sans); color: var(--ink); }
-  .ag-linha { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a08); cursor: pointer; }
+  .ag-linha { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); cursor: pointer; }
   .ag-linha:hover { background: var(--sub); }
-  .ag-linha.aberta { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); }
+  /* A linha aberta e a de toda lista do sistema (.tabela-linha.aberta): fundo
+     --bg, fio de 3 px a esquerda, a seta virada e sem fio embaixo - o que ela
+     revela traz o proprio fio. */
+  .ag-linha.aberta { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); border-bottom-color: transparent; }
   .ag-linha .ag-texto { flex: 1; min-width: 0; display: grid; gap: 3px; }
   .ag-linha .ag-texto b { font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ag-linha.aberta .ag-texto b { font-weight: 600; }
   .ag-linha .ag-texto small { display: flex; gap: 8px; flex-wrap: wrap; font: 500 12.5px var(--sans); color: var(--ink3); }
-  .ag-estrela { border: none; background: none; padding: 0; color: var(--mute); display: flex; cursor: pointer; }
-  .ag-estrela:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
+  /* A estrela de importante e o botao de icone do sistema (a receita mora
+     em 05-paineis-e-botoes.css); aqui so a cor: em repouso --mute, ligada --acc. */
+  .ag-estrela { color: var(--mute); }
   .ag-estrela.on { color: var(--acc); }
-  .ag-linha.ag-feita { padding: 11px 16px; }
   .ag-linha.ag-feita .ag-texto b { font-weight: 400; color: var(--ink3); text-decoration: line-through; }
-  .ag-secao { padding: 10px 16px 6px; font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-secao { padding: 10px 16px 6px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
   /* A LINHA QUE SE ABRE (como a da gravacao): a seta gira e, embaixo da
      linha, vem tudo o que antes ficava na coluna da direita. */
-  .ag-seta-linha { flex: none; display: inline-flex; color: var(--ink3); transition: transform .18s ease; }
+  .ag-seta-linha { flex: none; display: inline-flex; color: var(--ink3); transition: transform .2s ease; }
   .ag-seta-linha.aberta { transform: rotate(180deg); color: var(--ink); }
-  /* A linha aberta nao troca de cor: o que marca e o fio a esquerda e a seta
-     virada, como na lista de gravacoes. Quem tem fundo proprio e o que ela
-     revela. */
-  .ag-linha.aberta { box-shadow: inset 3px 0 0 var(--ink); border-bottom: none; }
   /* O QUE A LINHA REVELA, EM DUAS COLUNAS. Empilhado, cada bloco pegava a
      largura toda e o rotulo ficava numa ponta e o valor na outra. Agora: a
      esquerda o que se faz (etapas, documentos, anotacao), a direita o que a
      tarefa e, numa ficha estreita. */
   .ag-linha-ficha {
     display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px 16px; align-items: start;
-    padding: 10px 24px 16px 46px; background: var(--bg); border-bottom: 1px solid var(--ink-a08);
+    padding: 10px 16px 16px 46px; background: var(--bg); border-bottom: 1px solid var(--ink-a08);
   }
   .ag-ficha-col { min-width: 0; display: grid; gap: 12px; align-content: start; }
   .ag-ficha-bloco {
-    display: grid; gap: 10px; padding: 12px 14px;
-    border: 1px solid var(--hair); border-radius: 12px; background: var(--surf);
+    display: grid; gap: 10px; padding: 14px 16px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
   }
-  .ag-ficha-bloco-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 600 12.5px var(--sans); color: var(--ink2); }
-  .ag-ficha-bloco-cabeca .contagem { font: 500 12px var(--sans); color: var(--ink3); }
+  .ag-ficha-bloco-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 600 14px var(--sans); color: var(--ink); }
   .ag-linha-ficha .painel-chaves { margin: 0; padding: 0; border: none; }
-  .ag-linha-ficha .ag-chave { min-height: 30px; padding: 4px 0; }
-  .ag-linha-ficha .ag-chave input, .ag-linha-ficha .ag-chave .escolha-botao { max-width: 62%; }
-  .ag-linha-ficha .ag-nota { background: var(--bg); }
-  .ag-linha-ficha .dialogo-ficha > div { padding: 7px 0; }
-  .ag-linha-ficha .dialogo-ficha > div:first-child { padding-top: 0; }
   .ag-linha-ficha .ag-ficha-rodape {
-    grid-column: 1 / -1; display: flex; align-items: center; gap: 10px;
-    padding: 4px 0 0; border-top: 1px solid var(--ink-a08);
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 14px;
+    padding: 9px 0 0; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3);
   }
   .ag-linha-ficha .ag-ficha-rodape small { flex: 1; color: var(--ink3); }
   @media (max-width: 1180px) {
     .ag-linha-ficha { grid-template-columns: minmax(0, 1fr); }
   }
-  .ag-incluir-fino { width: auto; margin: 0; padding: 0 12px; height: 32px; border-style: solid; }
   /* O compromisso na lista de Tarefas e compromissos: a agenda no lugar do
      circulo de concluir, a hora em destaque e a seta de que abre. */
   .ag-linha-comp .ag-comp-marca { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--ink2); }
   .ag-linha-comp > .ic { color: var(--ink3); flex: none; }
   .ag-linha-comp .ag-comp-quando { color: var(--ink); font-weight: 600; }
   .ag-linha-comp.ag-passou .ag-texto b, .ag-linha-comp.ag-passou .ag-comp-marca { color: var(--ink3); }
-  .ag-adicionar .ag-add-comp { flex: none; height: 30px; padding: 0 10px; font: 500 12.5px var(--sans); background: none; border-color: var(--hair); }
-  .ag-adicionar .ag-add-comp .ic { color: var(--ink3); }
-  .ag-vazio { padding: 28px 16px; display: grid; gap: 6px; }
+  .ag-vazio { padding: 28px 18px; display: grid; gap: 6px; }
   .ag-vazio h4 { margin: 0; font: 600 15px/1.3 var(--sans); }
   .ag-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
 
-  /* a ficha da tarefa no painel */
-  /* A linha do cabecalho: a marca de concluir, o titulo, a estrela e o
-     fechar no mesmo eixo. Antes cada um tinha a sua margem de cima e a
-     estrela ficava fora de linha. */
-  .ag-ficha-cabeca { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
-  /* O titulo da tarefa na letra do texto, como a data do painel do dia: o
-     serifado grande brigava com os titulos de bloco logo abaixo. */
-  .ag-ficha-cabeca h3 { flex: 1; min-width: 0; font: 600 14px/1.45 var(--sans); margin: 0; overflow-wrap: anywhere; }
-  .ag-ficha-cabeca .ag-circulo, .ag-ficha-cabeca .ag-feita-ic { margin: 0; flex: none; }
-  /* Estrela e fechar no mesmo tamanho de alvo, como no cabecalho do dialogo. */
-  .ag-ficha-cabeca .ag-estrela {
-    width: 28px; height: 28px; margin: 0; flex: none; border-radius: 8px;
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .ag-ficha-cabeca .ag-estrela:hover:not(:disabled) { background: var(--fill); }
-  .ag-chave { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--ink-a06); min-height: 34px; }
-  .ag-chave:last-child { border-bottom: none; }
-  .ag-chave > span { flex: 1; color: var(--ink2); }
-  .ag-chave input, .ag-chave select, .ag-chave .escolha-botao {
-    width: auto; max-width: 58%; min-width: 0; border: none; background: none; padding: 2px 0; text-align: right;
-    font: 600 12.5px var(--sans); color: var(--ink); cursor: pointer;
-  }
+  .ag-chave input, .ag-chave select, .ag-chave .escolha-botao { max-width: 60%; text-align: right; font-variant-numeric: tabular-nums; }
   .ag-chave select, .ag-chave .escolha-botao { text-align-last: right; }
   .ag-chave .escolha-botao { justify-content: flex-end; gap: 4px; }
-  .ag-chave input:focus, .ag-chave select:focus, .ag-chave .escolha-botao:focus { outline: none; color: var(--destaque); }
-  .ag-chave input.ag-acc { color: var(--acc); }
-  .ag-chave .ag-ligacao { font-weight: 600; color: var(--okt); }
-  .ag-chave .ag-ligacao.ag-fraca { color: var(--ink3); }
-  .ag-ligado { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; font-size: 13px; min-width: 0; }
+  .ag-chave input.ag-acc, .ag-chave .escolha-botao.ag-acc { color: var(--acc); }
+  .ag-ligado { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 6px 4px 8px; border: none; border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); min-width: 0; }
   .ag-ligado .glifo { flex: none; }
   .ag-ligado > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ag-ligado button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--destaque); cursor: pointer; white-space: nowrap; }
-  .ag-ligado button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
   .ag-ligado button.ag-tirar { color: var(--ink3); display: flex; }
   .ag-ligado-linha { display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .ag-ligado-linha span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ag-ligado-linha button { border: none; background: none; padding: 0; font: 500 12px var(--sans); color: var(--ink3); cursor: pointer; }
-  .ag-ligado-linha button.ag-acc { color: var(--acc); }
-  .ag-ligado-linha button:hover:not(:disabled) { color: var(--ink); background: none; border: none; }
-  .ag-escolher { max-height: 220px; overflow: auto; display: grid; gap: 4px; }
-  .ag-ficha-rodape { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--ink-a1); }
-  .ag-ficha-rodape small { flex: 1; font: 500 12.5px var(--sans); color: var(--ink3); }
 
-  /* pecas que outras telas usam e que nasceram com o calendario antigo */
   .legenda { display: flex; gap: 18px; margin: 12px 0 4px; font-size: 12px; color: var(--ink3); }
   .legenda span { display: flex; align-items: center; gap: 7px; }
-  .colunas-pares { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
 
 
   /* A barra de selecao das tarefas mora dentro do cartao, sem borda propria. */

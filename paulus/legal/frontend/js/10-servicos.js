@@ -351,7 +351,7 @@ function secaoDasEtapas(s) {
     const classe = "sv-linha-etapa" + (e.feita ? " feita" : "");
     return '<div class="' + classe + '">' +
       '<button type="button" class="sv-marca" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir a etapa" : "Concluir a etapa") + '">' +
-      ic(e.feita ? "check_circle" : "radio_button_unchecked", 17) + "</button>" +
+      (e.feita ? '<span class="ic ic-18 ag-feita-ic">check_circle</span>' : '<span class="ag-circulo"></span>') + "</button>" +
       '<span class="sv-etapa-titulo sv-editavel" data-sv-etapa-editar="' + i + '" title="Clique para editar">' + esc(e.titulo) + "</span>" +
       botaoDoResponsavel(e, i) + prazoDaEtapa(e, i) +
       '<button type="button" class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 15) + "</button></div>";
@@ -406,7 +406,7 @@ function eventosDoHistorico(s) {
 function linhaDoHistorico(icone, titulo, ev, extra) {
   const quando = quandoCurtoSv(ev.quando) + (ev.quem ? " · " + ev.quem : "");
   const classe = "sv-ev sv-ev-" + ev.tipo;
-  return '<div class="' + classe + '"><span class="sv-ev-ic">' + ic(icone, 16) + "</span>" +
+  return '<div class="' + classe + '"><span class="caixa-tipo sv-ev-ic">' + ic(icone, 18) + "</span>" +
     '<div class="sv-ev-corpo"><div class="sv-ev-topo"><b>' + esc(titulo) + "</b><small>" + esc(quando) + "</small></div>" +
     (extra || "") + "</div></div>";
 }
@@ -436,7 +436,7 @@ function eventoDoHistorico(ev, s, usadas, ultimoResumo) {
       const classe = "sv-ev-tarefa" + (e.feita ? " feita" : "");
       return linhaDoHistorico("add_task", "Etapa adicionada", ev,
         '<button type="button" class="' + classe + '" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir" : "Marcar como concluída") + '">' +
-        ic(e.feita ? "check_circle" : "radio_button_unchecked", 20) + '<span class="duas-linhas"><b>' + esc(e.titulo) + "</b>" + subDaEtapa(e) + "</span></button>");
+        (e.feita ? '<span class="ic ic-18 ag-feita-ic">check_circle</span>' : '<span class="ag-circulo"></span>') + '<span class="duas-linhas"><b>' + esc(e.titulo) + "</b>" + subDaEtapa(e) + "</span></button>");
     }
     case "etapa_feita": return linhaDoHistorico("task_alt", "Etapa concluída: " + d.titulo, ev);
     case "etapa_reaberta": return linhaDoHistorico("replay", "Etapa reaberta: " + d.titulo, ev);
@@ -467,13 +467,13 @@ function cartaoDoHistorico(s) {
   let linhas = eventos.map((ev, i) => eventoDoHistorico(ev, s, usadas, i === ultimoResumo)).join("");
   // O que está sendo pedido agora entra no fim, andando.
   if (sv.conversando) {
-    linhas += '<div class="sv-ev sv-ev-conversa pendente"><span class="sv-ev-ic">' + ic("forum", 16) + "</span>" +
+    linhas += '<div class="sv-ev sv-ev-conversa pendente"><span class="caixa-tipo sv-ev-ic">' + ic("forum", 18) + "</span>" +
       '<div class="sv-ev-corpo"><div class="sv-ev-topo"><b>Pergunta sobre o serviço</b><small>agora</small></div>' +
       '<p class="sv-ev-pergunta">' + esc(sv.conversando.pergunta) + "</p>" +
       '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + sv.conversando.desde + '">pensando…</span></p></div></div>';
   }
   if (sv.pedindo) {
-    linhas += '<div class="sv-ev sv-ev-resumo pendente"><span class="sv-ev-ic">' + ic("auto_awesome", 16) + "</span>" +
+    linhas += '<div class="sv-ev sv-ev-resumo pendente"><span class="caixa-tipo sv-ev-ic">' + ic("auto_awesome", 18) + "</span>" +
       '<div class="sv-ev-corpo"><div class="sv-ev-topo"><b>Resumo do assistente</b><small>agora</small></div>' +
       '<p class="sv-ev-pensando">' + coroa(16) + '<span data-sv-pensando="' + (sv.pedindoDesde || Date.now()) + '">lendo o que está gravado na pasta…</span></p></div></div>';
   }
@@ -520,8 +520,8 @@ function cartaoDosArquivos(s) {
       '<button class="mais-linha" data-sv-arquivo-mais="' + esc(a.sha1) + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
   const verMais = sv.aba !== "arquivos" && todos.length > ARQUIVOS_A_VISTA
-    ? '<div class="sv-arquivos-pe"><button class="ver-mais" data-sv-arquivos-mais="1">' +
-      (sv.arquivosAbertos ? "Ver menos" : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA) + ic("chevron_right", 16)) + "</button></div>"
+    ? '<div class="sv-arquivos-pe"><button class="ver-mais' + (sv.arquivosAbertos ? " aberto" : "") + '" data-sv-arquivos-mais="1">' +
+      (sv.arquivosAbertos ? "Ver menos" : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA)) + ic("expand_more", 16) + "</button></div>"
     : "";
   // "2 documentos · 7 páginas": a conta que diz o tamanho da pasta. O nome
   // da pasta do disco era ruído de caminho, não informação.
@@ -772,7 +772,7 @@ async function dialogoDaEquipe() {
   const equipe = s.equipe.map((p) => p.id);
   const linha = (p) => {
     const classe = "sv-d-pessoa" + (equipe.includes(p.id) ? " on" : "");
-    return '<button type="button" class="' + classe + '" data-sv-d-pessoa="' + p.id + '"><span class="sv-d-marca">' + ic("check", 12) + "</span>" +
+    return '<button type="button" class="' + classe + '" data-sv-d-pessoa="' + p.id + '"><span class="marcar' + (equipe.includes(p.id) ? " on" : "") + '">' + ic("check", 12) + "</span>" +
       '<span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + '</span><span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
       esc(p.observacao || (p.tipo === "socio" ? "sócio" : "colaborador")) + "</small></span></button>";
   };
@@ -799,6 +799,8 @@ async function dialogoDaEquipe() {
         const novos = atuais.includes(id) ? atuais.filter((x) => x !== id) : atuais.concat([id]);
         ids.value = novos.join(",");
         b.classList.toggle("on", novos.includes(id));
+        const m = b.querySelector(".marcar");
+        if (m) m.classList.toggle("on", novos.includes(id));
       };
     });
   }, 0);

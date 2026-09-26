@@ -47,7 +47,7 @@ function editorRico(o) {
   return '<div class="er' + (o.classe ? " " + o.classe : "") + '" data-er="' + o.id + '">' +
     '<div class="docs-barra er-barra" role="toolbar" aria-label="Formatação">' +
     '<select class="docs-sel" data-er-fonte="1" title="Fonte">' + ER_FONTES.map((f) => '<option value="' + f.id + '">' + f.rotulo + "</option>").join("") + "</select>" +
-    '<select class="docs-sel curta" data-er-tamanho="1" title="Tamanho">' + ER_TAMANHOS.map((t) => '<option value="' + t.id + '"' + (t.id === "3" ? " selected" : "") + ">" + t.rotulo + "</option>").join("") + "</select>" +
+    '<select class="docs-sel" data-er-tamanho="1" title="Tamanho">' + ER_TAMANHOS.map((t) => '<option value="' + t.id + '"' + (t.id === "3" ? " selected" : "") + ">" + t.rotulo + "</option>").join("") + "</select>" +
     '<span class="divisa-v"></span>' +
     botao("undo", "undo", "Desfazer") + botao("redo", "redo", "Refazer") +
     '<span class="divisa-v"></span>' +

@@ -195,16 +195,16 @@
         <section class="lateral-bloco" id="lat-trechos" hidden>
           <!-- Arvore: fechada, e so esta linha. Abre em documentos, cada
                documento em trechos, cada trecho no texto dele. -->
-          <button class="lateral-cabeca arv-raiz" id="lat-trechos-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">chevron_right</span><span class="ic ic-16">format_quote</span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></button>
+          <button class="lateral-cabeca arv-raiz" id="lat-trechos-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">expand_more</span><span class="ic ic-16">format_quote</span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></button>
           <div class="lat-lista" id="lat-trechos-lista" hidden></div>
         </section>
         <section class="lateral-bloco" id="lat-propriedades">
           <div class="lateral-cabeca"><span><span class="ic ic-16">tune</span>Propriedades</span></div>
           <div class="propriedades">
-            <span>Modelo</span><span class="chip-modelo" id="prop-modelo"><i class="ponto-verde"></i><span id="prop-modelo-nome">—</span></span>
-            <span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span>
-            <span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span>
-            <span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span>
+            <div><span>Modelo</span><span class="etiqueta ok" id="prop-modelo"><i></i><span id="prop-modelo-nome">—</span></span></div>
+            <div><span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span></div>
+            <div><span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span></div>
+            <div><span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span></div>
           </div>
         </section>
       </aside>
@@ -235,7 +235,7 @@
         <div class="compositor" id="compositor">
           <div class="centro">
             <div class="saudacao-bloco">
-              <span class="rotulo-momento" id="momento"></span>
+              <span class="rotulo" id="momento"></span>
               <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
               <p class="sub-chamada" id="sub-chamada">É só me dizer o que você precisa — eu leio e respondo aqui mesmo.</p>
             </div>
@@ -255,7 +255,7 @@
             </div>
 
             <div class="agora" id="agora" hidden>
-              <div class="agora-cabeca"><span class="rotulo-suave">Acontecendo agora</span></div>
+              <div class="agora-cabeca"><span class="sv-kicker">Acontecendo agora</span></div>
               <div class="agora-cartoes" id="agora-cartoes"></div>
             </div>
 

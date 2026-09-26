@@ -224,7 +224,7 @@ function desenharRecentes() {
   /* Com a lista aberta, "Ver mais" sai: o botao de recolher ja esta na barra
      da propria lista, e dois botoes para a mesma coisa, um em cima do outro,
      so confundem. Ele volta quando a lista recolhe. */
-  alvo.innerHTML = '<span class="rotulo-suave">Conversas recentes</span>' +
+  alvo.innerHTML = '<span class="sv-kicker">Conversas recentes</span>' +
     lista.map((t) =>
       '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 15) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
@@ -308,7 +308,7 @@ const ESTADO_DA_CONVERSA = {
 /* A cor da etiqueta de cada estado. Parada fica cinza de proposito: ela nao
    deu errado nem deu certo - so nao terminou. */
 const TOM_DO_ESTADO = {
-  executando: "ok anda", aguardando: "atencao", concluido: "ok", falhou: "atencao",
+  executando: "ok anda", aguardando: "atencao", concluido: "ok", falhou: "prazo",
 };
 
 /* A selecao da lista: segurar numa linha marca; a barra troca os filtros por
@@ -427,7 +427,7 @@ function desenharListaDeConversas() {
             '<span class="lc-sep">›</span><b>' + esc(nomeDaPasta(lcNav.grupo)) + "</b><small>" + plural(lista.length, "conversa") + "</small>"
           : "")) + "</span>";
   caixa.innerHTML = '<div class="lc-cartao"><div class="lc-barra">' + barra +
-    '<label class="lc-busca">' + ic("search", 15) +
+    '<label class="lc-busca">' + ic("search", 18) +
     '<input type="text" id="lc-busca" placeholder="Buscar conversa…" value="' + esc(caixa.dataset.termo || "") + '"></label>' +
     '<button class="lc-recolher" id="lc-recolher" title="Recolher" aria-label="Recolher">' + ic("view_sidebar", 16) + "</button></div>" +
     linhas + "</div>";

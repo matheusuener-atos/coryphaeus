@@ -80,7 +80,7 @@ function ecEmailValido(v) {
 }
 
 function ecCampoSenha(e) {
-  return '<label class="ec-campo"><span class="sv-kicker">Senha</span><span class="ec-senha"><input type="' + (e.mostrar ? "text" : "password") + '" id="ee-senha" value="' + esc(e.senha) + '" placeholder="••••••••" autocomplete="current-password">' +
+  return '<label class="ec-campo"><span class="ec-rotulo">Senha</span><span class="ec-senha"><input type="' + (e.mostrar ? "text" : "password") + '" id="ee-senha" value="' + esc(e.senha) + '" placeholder="••••••••" autocomplete="current-password">' +
     '<button class="sv-ligacao" id="ee-mostrar">' + (e.mostrar ? "esconder" : "mostrar") + "</button></span></label>";
 }
 
@@ -90,10 +90,10 @@ function ecServidor(e) {
   const d = e.deteccaoDe === e.email.trim() ? e.deteccao : null;
   if (e.manual) {
     return '<div class="ec-manual">' +
-      '<label class="ec-campo"><span class="sv-kicker">IMAP · ler</span><input type="text" id="ee-imap" value="' + esc(e.imap) + '" placeholder="imap.dominio.com.br"></label>' +
-      '<label class="ec-campo"><span class="sv-kicker">Porta</span><input type="text" inputmode="numeric" id="ee-imap-porta" value="' + esc(e.imapPorta) + '"></label>' +
-      '<label class="ec-campo"><span class="sv-kicker">SMTP · enviar</span><input type="text" id="ee-smtp" value="' + esc(e.smtp) + '" placeholder="smtp.dominio.com.br"></label>' +
-      '<label class="ec-campo"><span class="sv-kicker">Porta</span><input type="text" inputmode="numeric" id="ee-smtp-porta" value="' + esc(e.smtpPorta) + '"></label></div>' +
+      '<label class="ec-campo"><span class="ec-rotulo">IMAP · ler</span><input type="text" id="ee-imap" value="' + esc(e.imap) + '" placeholder="imap.dominio.com.br"></label>' +
+      '<label class="ec-campo"><span class="ec-rotulo">Porta</span><input type="text" inputmode="numeric" id="ee-imap-porta" value="' + esc(e.imapPorta) + '"></label>' +
+      '<label class="ec-campo"><span class="ec-rotulo">SMTP · enviar</span><input type="text" id="ee-smtp" value="' + esc(e.smtp) + '" placeholder="smtp.dominio.com.br"></label>' +
+      '<label class="ec-campo"><span class="ec-rotulo">Porta</span><input type="text" inputmode="numeric" id="ee-smtp-porta" value="' + esc(e.smtpPorta) + '"></label></div>' +
       (d && !d.achou ? '<p class="ec-nota">' + esc(maiuscula(d.motivo || "não achei o servidor")) + ". Seu provedor informa esses endereços.</p>" : "");
   }
   if (e.detectando) return '<div class="ec-servidor">' + ic("lan", 15) + "<span>procurando o servidor…</span></div>";
@@ -143,10 +143,10 @@ function ecCartao() {
     const d = e.deteccaoDe === e.email.trim() ? e.deteccao : null;
     const volta = ecTemOAuth() ? "entrar" : contas.length ? "lista" : "";
     corpo = "<h2>" + (ecTemOAuth() ? "IMAP e SMTP" : "Entrar") + "</h2>" +
-      '<label class="ec-campo"><span class="sv-kicker">E-mail</span><input type="email" id="ee-email" value="' + esc(e.email) + '" placeholder="nome@dominio.com.br" autocomplete="email"></label>' +
+      '<label class="ec-campo"><span class="ec-rotulo">E-mail</span><input type="email" id="ee-email" value="' + esc(e.email) + '" placeholder="nome@dominio.com.br" autocomplete="email"></label>' +
       ecCampoSenha(e) +
       (d && d.aviso ? '<div class="ec-aviso"><b>Esta conta não funciona aqui</b><p>' + esc(d.aviso) + "</p></div>" : "") +
-      (d && d.ajuda ? '<details class="ec-ajuda"' + (e.ajudaAberta ? " open" : "") + "><summary>Senha de app</summary><p>" + esc(d.ajuda) + "</p></details>" : "") +
+      (d && d.ajuda ? '<details class="ec-ajuda"' + (e.ajudaAberta ? " open" : "") + "><summary>" + ic("expand_more", 16) + "Senha de app</summary><p>" + esc(d.ajuda) + "</p></details>" : "") +
       ecServidor(e) +
       ecErro(e) + ecProva(e) +
       '<div class="ec-botoes">' + ecVolta(volta) + '<button class="primario" id="ee-entrar"' + (e.ocupado ? " disabled" : "") + ">" + (e.ocupado ? "Conferindo…" : "Entrar") + "</button></div>";
@@ -165,8 +165,8 @@ function ecCartao() {
       "<h2>" + (pode ? "Guardar a senha?" : "Quase pronto") + "</h2>" +
       '<p class="ec-lide">' + (pode ? "Cifrada pela sua conta do Windows. Sem guardar, ela vale até fechar o programa."
         : "Este sistema não guarda senha com segurança: ela vale até fechar o programa.") + "</p>" +
-      '<label class="ec-campo"><span class="sv-kicker">Seu nome, para quem recebe</span><input type="text" id="ee-nome" value="' + esc(e.nome) + '" placeholder="Nome e sobrenome"></label>' +
-      '<label class="ec-campo"><span class="sv-kicker">Assinatura · opcional</span><textarea id="ee-assinatura" placeholder="Nome · OAB/UF 00000">' + esc(e.assinatura) + "</textarea></label>" +
+      '<label class="ec-campo"><span class="ec-rotulo">Seu nome, para quem recebe</span><input type="text" id="ee-nome" value="' + esc(e.nome) + '" placeholder="Nome e sobrenome"></label>' +
+      '<label class="ec-campo"><span class="ec-rotulo">Assinatura · opcional</span><textarea id="ee-assinatura" placeholder="Nome · OAB/UF 00000">' + esc(e.assinatura) + "</textarea></label>" +
       '<div class="ag-toggle' + (e.padrao ? " on" : "") + '" data-ee-padrao="1"><span>Conta padrão de envio</span><i></i></div>' +
       ecErro(e) +
       '<div class="ec-botoes">' + (pode ? '<button data-ee-guardar="nao">Não guardar</button><button class="primario" data-ee-guardar="sim">Guardar</button>'

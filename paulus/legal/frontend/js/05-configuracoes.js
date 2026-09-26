@@ -214,7 +214,7 @@ function campoCfg(chave, rotulo, valor, dica, extra) {
 }
 
 function ligaCfg(chave, titulo, sub, ligada, presa) {
-  const classe = "cfg-liga" + (ligada ? " on" : "") + (presa ? " presa" : "");
+  const classe = "ag-toggle" + (ligada ? " on" : "") + (presa ? " presa" : "");
   return '<div class="' + classe + '"' + (chave ? ' data-cfg-liga="' + chave + '"' : "") + '><span class="duas-linhas"><b>' + esc(titulo) + "</b>" +
     (sub ? "<small>" + esc(sub) + "</small>" : "") + "</span><i></i></div>";
 }
@@ -451,12 +451,12 @@ function cartaoDaVozCfg() {
     const classe = "cfg-modelo" + (emUso ? " on" : "");
     const gb = String(Math.round(m.mb / 100) / 10).replace(".", ",") + " GB";
     let acao = "";
-    if (v.baixando === m.nome) acao = '<span class="cfg-pill">baixando · ' + (v.baixado_mb || 0) + " MB</span>";
+    if (v.baixando === m.nome) acao = '<span class="etiqueta">baixando · ' + (v.baixado_mb || 0) + " MB</span>";
     else if (!m.instalado) acao = '<button data-cfg-voz-baixar="' + m.nome + '">' + ic("download", 16) + "Baixar</button>";
     else if (!emUso) acao = '<button data-cfg-voz-usar="' + m.nome + '">Usar este</button>';
     return '<div class="' + classe + '"><i></i><span class="duas-linhas"><b>' + esc(m.rotulo) + '</b><small class="cfg-voz-nota">' + esc(m.nota) +
       (m.instalado ? "" : " · não baixado") + "</small></span><small>" + gb + "</small>" +
-      (emUso && m.instalado ? '<span class="cfg-pill">em uso</span>' : (emUso ? '<span class="cfg-pill">escolhido · falta baixar</span>' : "")) + acao + "</div>";
+      (emUso && m.instalado ? '<span class="etiqueta">em uso</span>' : (emUso ? '<span class="etiqueta">escolhido · falta baixar</span>' : "")) + acao + "</div>";
   }).join("");
   return '<div class="cfg-voz"><div class="cfg-modelos">' + lista + "</div>" +
     '<p class="cfg-explica">Em CPU, com ' + plural(v.nucleos || 0, "núcleo") + "; o áudio não sai do computador. " +
@@ -475,7 +475,7 @@ function secaoAssistente() {
       const classe = "cfg-modelo" + (emUso ? " on" : "");
       const tamanho = emUso && s.tamanho_gb ? String(s.tamanho_gb).replace(".", ",") + " GB" : "";
       return '<div class="' + classe + '" data-cfg-modelo="' + esc(m) + '"><i></i><span class="duas-linhas"><b>' + esc(m) + "</b></span>" +
-        (tamanho ? "<small>" + esc(tamanho) + "</small>" : "") + (emUso ? '<span class="cfg-pill">em uso</span>' : "") + "</div>";
+        (tamanho ? "<small>" + esc(tamanho) + "</small>" : "") + (emUso ? '<span class="etiqueta">em uso</span>' : "") + "</div>";
     }).join("") + "</div>"
     : '<p class="cfg-texto">Nenhum modelo encontrado no Ollama. Instale um com <code>ollama pull llama3.2:3b</code> e abra esta tela de novo.</p>';
 
@@ -525,7 +525,7 @@ async function blocoLeis() {
     '<div class="cfg-linhas">' + (d.codigos || []).map((c) =>
       '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(c.lei) +
       (c.instalado ? " · " + plural(c.artigos, "artigo") + " · " + esc(quandoCurto(c.importado_em)) : " · não instalado") + "</small></span>" +
-      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>' : '<span class="cfg-pill mute">falta</span>') +
+      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>' : '<span class="etiqueta">falta</span>') +
       "</div>").join("") + "</div>" +
     '<p class="cfg-explica">' + esc(d.como_baixar) + "</p>" +
     '<div class="cfg-botoes"><button data-cfg-lei-pasta="1">' + ic("folder_open", 16) + "Importar de uma pasta</button>" +
@@ -681,7 +681,7 @@ function secaoConexoes() {
   const cert = cfg.cert || {};
   const ponto = (texto, tom) => { const classe = "fin-meta-ponto" + (tom ? " " + tom : ""); return '<span class="' + classe + '"><i></i>' + esc(texto) + "</span>"; };
   const servico = (icone, nome, sub, estado, acao) =>
-    '<div class="cfg-servico"><span class="cfg-servico-ic">' + ic(icone, 18) + '</span><span class="duas-linhas"><b>' + nome + "</b><small>" + esc(sub) + "</small></span>" +
+    '<div class="cfg-servico"><span class="caixa-tipo">' + ic(icone, 18) + '</span><span class="duas-linhas"><b>' + nome + "</b><small>" + esc(sub) + "</small></span>" +
     estado + '<span class="cfg-botoes">' + acao + "</span></div>";
 
   const lista =
@@ -886,7 +886,7 @@ function secaoAprendizado() {
     '<button data-cfg-ensinar-editar="' + x.id + '">Alterar</button>' +
     '<button class="mais-linha" data-cfg-ensinar-tirar="' + x.id + '" title="Apagar">' + ic("delete", 16) + "</button></div>").join("");
 
-  const lembretes = (guardados ? '<div class="cfg-linhas">' + guardados + "</div>" : '<p class="cfg-texto">Nenhum lembrete ainda.</p>') +
+  const lembretes = (guardados ? '<div class="cfg-linhas">' + guardados + "</div>" : '<p class="nota">Nenhum lembrete ainda.</p>') +
     '<div class="cfg-solta" id="cfg-solta-ensinar"><span class="duas-linhas"><b>' + (lendo ? "lendo “" + esc(lendo) + "”…" : "Arraste um PDF, DOCX, TXT ou MD para cá") + "</b>" +
     "<small>eu leio e proponho o lembrete; o arquivo não fica guardado</small></span>" +
     '<span class="cfg-botoes"><button data-cfg-ensinar-arquivo="1"' + (lendo ? " disabled" : "") + ">" + ic("folder_open", 16) + "Escolher arquivo</button>" +
@@ -1063,9 +1063,9 @@ function secaoLixeira() {
   const itens = l.itens || [];
   if (!itens.length) {
     return aberturaCfg() + cartaoCfg("Itens apagados", metaCfg("vazia"),
-      '<p class="cfg-texto">Nada na lixeira. Conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha que você apagar aparece aqui.</p>');
+      '<p class="nota">Nada na lixeira. Conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha que você apagar aparece aqui.</p>');
   }
-  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha"><span class="cfg-servico-ic">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
+  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha"><span class="caixa-tipo">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
     '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "")) + "</small></div>" +
     '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>" +
     '<button data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +

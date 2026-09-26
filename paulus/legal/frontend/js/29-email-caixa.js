@@ -306,7 +306,7 @@ function exBarra() {
   const pedem = mail.caixa ? mail.caixa.mensagens.filter(exPede).length : 0;
   const visoes = naEntrada && !mail.erroCaixa
     ? '<div class="visoes ex-visoes">' + EX_VISOES.map((v) => '<button class="' + (v.id === cx.visao ? "ativa" : "") + '" data-ex-visao="' + v.id + '">' + v.rotulo +
-        (v.id === "pedem" && pedem ? '<span class="ex-visao-conta">' + pedem + "</span>" : "") + "</button>").join("") + "</div>"
+        (v.id === "pedem" && pedem ? '<span class="conta ex-visao-conta">' + pedem + "</span>" : "") + "</button>").join("") + "</div>"
     : (naEntrada ? "" : '<button class="com-icone" data-ex-pasta="entrada">' + ic("arrow_back", 16) + "Caixa de entrada</button>");
   const pastas = '<button class="com-icone ex-pastas-botao" data-ex-pastas="1">' + ic("folder_open", 16) + "Pastas" + ic("expand_more", 16) + "</button>";
   return '<span class="selecao">' + exContagem() + "</span>" + '<div class="direita">' + visoes + pastas + "</div>";
@@ -326,8 +326,8 @@ function exBotoesDoErro() {
 function exMarcas(m) {
   const marcas = [];
   if (m.sinalizada) marcas.push('<span class="ex-marca-ic ex-marca-estrela" title="Com estrela">' + ic("star", 16) + "</span>");
-  if (m.prazo && !m.respondido) marcas.push('<span class="em-pilula acc" title="Prazo achado no assunto">' + esc(rotuloDoPrazo(m.prazo)) + "</span>");
-  if (m.de_cadastro) marcas.push('<span class="em-pilula" title="' + esc(m.de_cadastro) + '">cliente</span>');
+  if (m.prazo && !m.respondido) marcas.push('<span class="etiqueta prazo" title="Prazo achado no assunto">' + esc(rotuloDoPrazo(m.prazo)) + "</span>");
+  if (m.de_cadastro) marcas.push('<span class="etiqueta" title="' + esc(m.de_cadastro) + '">cliente</span>');
   if (m.tem_anexo) marcas.push('<span class="ex-marca-ic" title="Com anexo">' + ic("attach_file", 16) + "</span>");
   if (m.respondido) marcas.push('<span class="ex-marca-ic" title="Respondida">' + ic("reply", 16) + "</span>");
   return marcas.join("");
@@ -377,12 +377,12 @@ function exCorpoDaLista() {
   }
   if (mail.pasta === "rascunhos") {
     const r = lerRascunhoLocal();
-    return r ? exLinhaSimples('data-ex-rascunho="1"', false, r.para || "sem destinatário", r.assunto, '<span class="em-pilula">nesta máquina</span>', quandoCurto(r.quando))
+    return r ? exLinhaSimples('data-ex-rascunho="1"', false, r.para || "sem destinatário", r.assunto, '<span class="etiqueta">nesta máquina</span>', quandoCurto(r.quando))
       : exVazio("Nenhum rascunho", "O que você começa a escrever fica guardado aqui até sair.");
   }
   return mail.fila.length
     ? mail.fila.map((p) => exLinhaSimples('data-ex-pedido="' + esc(p.id) + '"', mail.pedidoAberto === p.id, p.titulo, p.resumo,
-        '<span class="em-pilula acc">esperando você</span>', quandoCurto(p.criado_em)) + (mail.pedidoAberto === p.id ? exPedidoAberto(p) : "")).join("")
+        '<span class="etiqueta atencao">esperando você</span>', quandoCurto(p.criado_em)) + (mail.pedidoAberto === p.id ? exPedidoAberto(p) : "")).join("")
     : exVazio("Nada esperando", "Nenhum envio esperando o seu sim agora.");
 }
 
@@ -470,13 +470,13 @@ function exCabecaMsg(item, m) {
       linha("Recebida em", esc(c ? c.email : "")) + "</dl>"
     : "";
   return '<header class="ex-mod ex-mod-cabeca"><div class="ex-cabeca-linha"><h2 class="ex-assunto">' + esc(item.assunto || "(sem assunto)") +
-    ' <span class="ex-etiqueta">' + esc(pasta) + "</span></h2>" + exIcones(m) + "</div>" +
+    ' <span class="etiqueta">' + esc(pasta) + "</span></h2>" + exIcones(m) + "</div>" +
     '<div class="ex-remetente"><span class="ex-avatar" aria-hidden="true">' + esc(iniciaisDoRemetente(nome)) + "</span>" +
     '<div class="ex-rem-texto"><div class="ex-rem-nome"><b>' + esc(nome) + "</b>" +
     (item.de_nome ? ' <span class="ex-meta-email">&lt;' + esc(item.de_email) + "&gt;</span>" : "") +
-    (item.de_cadastro ? ' <span class="em-pilula">cliente · ' + esc(item.de_cadastro) + "</span>" : "") + "</div>" +
+    (item.de_cadastro ? ' <span class="etiqueta">cliente · ' + esc(item.de_cadastro) + "</span>" : "") + "</div>" +
     '<button class="ex-para-mim" data-ex-detalhes="' + esc(item.uid) + '" aria-expanded="' + aberto + '">' + esc(paraQuem + mais) +
-    '<i class="ex-seta" aria-hidden="true"></i></button></div>' +
+    ic("expand_more", 16) + '</button></div>' +
     '<div class="ex-rem-dir"><span class="ex-rem-quando" title="' + esc(exDataInteira(quando, item.quando_curto)) + '">' +
     esc(exDataCurta(quando, item.quando_curto)) + (ha ? " (" + ha + ")" : "") + "</span>" +
     '<button class="ex-estrela' + (item.sinalizada ? " on" : "") + '" data-ex-estrela="' + esc(item.uid) + '" title="' + (item.sinalizada ? "Tirar a estrela" : "Pôr estrela") +
@@ -625,7 +625,7 @@ function exTextoDoContexto(m) {
   if (e === "pronto" && k.texto) return '<p class="ex-mod-texto">' + esc(k.texto) + "</p>";
   const regra = '<p class="ex-mod-texto">' + exEntendi(m) + "</p>";
   if (e === "resumindo" || e === "na_fila" || !e) {
-    return regra + '<p class="sv-ev-pensando">' + coroa(14) + "<span>lendo a mensagem… cerca de um minuto nesta máquina</span></p>";
+    return regra + '<p class="sv-ev-pensando">' + coroa(16) + "<span>lendo a mensagem… cerca de um minuto nesta máquina</span></p>";
   }
   if (e === "indisponivel") return regra + '<p class="ex-contexto-nota">O assistente local não está respondendo agora; a frase acima é por regra.</p>';
   return regra + '<p class="ex-contexto-nota">Não consegui o contexto: ' + esc(k.erro || "sem resposta") +
@@ -723,7 +723,7 @@ function exModCorpo(m) {
   const vendoTraducao = !!(t && cx.tradVista === m.uid && t.estado !== "erro");
   const original = '<button class="sv-ligacao ex-html-troca" data-ex-original="1">ver o original</button>';
   if (vendoTraducao && t.estado === "andando") {
-    return exModulo("", '<p class="em-andamento ativo"><span class="indicador"></span>Traduzindo nesta máquina…</p>' +
+    return exModulo("", '<p class="em-andamento ativo">' + coroa(16) + 'Traduzindo nesta máquina…</p>' +
       esqueleto("texto") + original, "ex-mod-corpo");
   }
   // A traducao usa o mesmo desenho do original: o HTML traduzido no quadro,
@@ -933,9 +933,9 @@ function exModResposta(m) {
   // Como no Gmail: responder, responder a todos (so quando ha mais gente) e
   // encaminhar, lado a lado; o rascunho do assistente vem depois.
   const todos = exTodos(m).length > 1;
-  return exModulo("Resposta", '<div class="ex-resp-botoes"><button class="ex-pilula com-icone" id="mail-responder">' + ic("reply", 16) + "Responder</button>" +
-    (todos ? '<button class="ex-pilula com-icone" id="mail-responder-todos">' + ic("reply", 16) + "Responder a todos</button>" : "") +
-    '<button class="ex-pilula com-icone" id="mail-encaminhar-pe">' + ic("forward", 16) + "Encaminhar</button>" +
+  return exModulo("Resposta", '<div class="ex-resp-botoes"><button class="com-icone" id="mail-responder">' + ic("reply", 16) + "Responder</button>" +
+    (todos ? '<button class="com-icone" id="mail-responder-todos">' + ic("reply", 16) + "Responder a todos</button>" : "") +
+    '<button class="com-icone" id="mail-encaminhar-pe">' + ic("forward", 16) + "Encaminhar</button>" +
     (m.pode_rascunhar
       ? '<button class="com-icone" id="mail-responder-rascunho">' + ic("auto_awesome", 16) + "Rascunho pelo assistente</button><small>cerca de um minuto nesta máquina · você revisa antes de sair</small>"
       : "<small>Esta conta não permite rascunho pelo assistente.</small>") + "</div>", "ex-mod-resposta");
@@ -985,7 +985,7 @@ function exPedidoAberto(p) {
   return exFolha('<header class="ex-mod ex-mod-cabeca"><div class="ex-cabeca-linha"><h2 class="ex-assunto">' + esc(p.titulo) + "</h2>" + exIcones(null) + "</div>" +
     '<dl class="ex-meta"><div><dt>Pedido em</dt><dd>' + esc(quandoCurto(p.criado_em)) + "</dd></div></dl></header>" +
     exModulo("O envio", '<p class="ex-mod-texto">' + esc(p.resumo || "") + "</p>" +
-      (p.etiquetas && p.etiquetas.length ? '<div class="ex-etiquetas">' + p.etiquetas.map((t) => '<span class="em-pilula">' + esc(t) + "</span>").join("") + "</div>" : "")) +
+      (p.etiquetas && p.etiquetas.length ? '<div class="ex-etiquetas">' + p.etiquetas.map((t) => '<span class="etiqueta">' + esc(t) + "</span>").join("") + "</div>" : "")) +
     '<footer class="ex-msg-pe"><span class="ex-teclas">O e-mail só sai depois do seu sim.</span><span class="cresce"></span>' +
     '<button class="primario com-icone" data-em-aprovacoes="1">' + ic("verified", 16) + "Decidir em Aprovações</button></footer>");
 }
@@ -1136,6 +1136,7 @@ function exAbrir(uid, forcar) {
   cx.aberta = uid; cx.falhou = null; cx.rolarPara = uid;
   mail.aberta = null;
   desenharEmail();
+  abrirEmAltura(document.querySelector(".ex-msg"));
   abrirMensagem(uid).catch(() => {}).then(() => {
     if (cx.aberta !== uid) return;
     if (!mail.aberta || mail.aberta.uid !== uid) { cx.falhou = uid; if (mail.visao === "caixa") desenharEmail(); return; }
