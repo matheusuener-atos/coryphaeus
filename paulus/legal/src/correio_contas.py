@@ -122,6 +122,9 @@ class Conta:
     senha_protegida: str = ""
     guardar_senha: bool = True
     assinatura: str = ""
+    # A assinatura com formatacao e imagem pequena (HTML limpo). `assinatura`
+    # fica sendo a versao em texto puro dela.
+    assinatura_html: str = ""
     pode_rascunhar: bool = True
     pode_anexar: bool = True
     pode_enviar_sem_confirmar: bool = False
@@ -391,6 +394,11 @@ class Contas:
         for campo in ("imap_host", "smtp_host", "assinatura"):
             if campo in dados:
                 setattr(conta, campo, str(dados[campo]).strip())
+        if "assinatura_html" in dados:
+            import correio
+
+            conta.assinatura_html = correio.limpar_assinatura(str(dados["assinatura_html"]))
+            conta.assinatura = correio.html_para_texto(conta.assinatura_html)
         for campo in ("imap_porta", "smtp_porta"):
             if campo in dados:
                 setattr(conta, campo, int(dados[campo] or 0) or getattr(conta, campo))

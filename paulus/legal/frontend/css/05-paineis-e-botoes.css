@@ -54,6 +54,45 @@
   .resumo-painel { padding: 4px 18px 12px; }
   .resumo-painel p { margin: 0; font-size: 13.5px; line-height: 1.6; }
 
+  /* Aprovacoes na medida de leitura (js/04-aprovacoes.js): sem coluna ao
+     lado, dois cartoes de tabela um embaixo do outro - a fila e o
+     Historico. O pedido aberto e as regras de alcada sao pop-ups. Titulo de
+     cartao em sans; verde so no aprovar, vinho no recusar e no erro.
+     Prefixo ap-. */
+  .ap-tela .sv-medida { gap: 20px; padding-top: 8px; }
+  .tabela-cartao.ap-cartao { flex: none; overflow: visible; box-shadow: 0 8px 24px -16px var(--sh-a12); }
+  .ap-cartao .tabela-barra { border-radius: 12px 12px 0 0; }
+  .ap-cartao .tabela-corpo { overflow: visible; }
+  .ap-cartao .tabela-corpo > :last-child { border-bottom: none; }
+  .ap-cartao .tabela-rodape { border-radius: 0 0 12px 12px; }
+  .ap-titulo { font: 600 14px var(--sans); color: var(--ink); }
+  .ap-conta { font: 600 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; margin-right: 6px; }
+  .ap-direita { text-align: right; }
+  .ap-vence { color: var(--acc); font-weight: 600; }
+  .ap-vazio { padding: 28px 20px; }
+  .ap-colunas-historico { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) 96px 96px 110px; }
+  button.ap-sim { background: var(--okbg); border-color: var(--verde); color: var(--okt); }
+  button.ap-sim:hover:not(:disabled) { background: var(--okbg); border-color: var(--okt); color: var(--okt); }
+  button.ap-nao:hover:not(:disabled) { background: var(--accbg2); border-color: var(--accln); color: var(--acc); }
+  .ap-resumo { margin: 0 0 14px; font: 400 14px/1.6 var(--sans); color: var(--ink2); }
+  .ap-saida { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ink-a08); }
+  .ap-saida-lista { display: grid; gap: 8px; }
+  .ap-saida-lista .arquivo-painel .ic { flex: none; color: var(--ink3); }
+  .ap-dialogo-leitura .dialogo-cancelar { display: none; }
+  .dialogo.ap-dialogo-regras { width: 640px; max-width: calc(100vw - 32px); }
+  .ap-regras { display: grid; margin-top: 4px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .ap-regra {
+    display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 34px; align-items: center; gap: 12px;
+    padding: 10px 14px; border-bottom: 1px solid var(--ink-a08);
+  }
+  .ap-regra:last-child { border-bottom: none; }
+  .ap-regra.travada { opacity: .6; }
+  .ap-regra .duas-linhas b, .ap-regra .duas-linhas small { white-space: normal; line-height: 1.45; }
+  .ap-regra-estado { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .ap-regras button.interruptor-min { padding: 0; }
+  .ap-regras button.interruptor-min:hover:not(:disabled) { background: none; border-color: var(--ink-a25); }
+  .ap-regras button.interruptor-min.on:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); }
+
   /* Pecas que a tela de Tarefas ainda usa (sugestoes de prazo). */
   .fila { border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; }
   .pedido { display: flex; align-items: flex-start; gap: 13px; padding: 12px 14px; border-bottom: 1px solid var(--ink-a06); }

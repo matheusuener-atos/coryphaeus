@@ -8,7 +8,8 @@
      imagens     mostrar as imagens de fora sem pedir, ou bloquear ate o
                  "mostrar" de cada mensagem (o padrao)
      so texto    abrir as mensagens no texto puro
-     assinatura  o texto de rodape da conta, o mesmo que Contas grava
+     assinatura  o rodape da conta, com formatacao e imagem pequena, na
+                 mesma faixa de edicao do Escrever (js/33-email-editor.js)
 
    As tres primeiras ficam nesta maquina (localStorage, como o tema). A
    assinatura vai para a conta, pela rota de sempre (/api/email/contas), e
@@ -37,7 +38,8 @@ function guardarEmailPrefs(mudanca) {
   return p;
 }
 
-const ej = { contaId: "", assinatura: null, salvando: false };
+// `assinatura` e o HTML que esta no campo; `base`, o de quando abriu.
+const ej = { contaId: "", assinatura: null, base: null, mudou: false, salvando: false };
 
 function ejConta() {
   const contas = mail.contas.contas;
@@ -71,33 +73,40 @@ function ejCartaoImagens(p) {
   return cartaoCfg("Imagens", metaCfg(p.imagens ? "carregam sozinhas" : "bloqueadas até pedir"), corpo);
 }
 
+/* A assinatura como estava gravada, em HTML: a formatada, ou a de texto
+   puro das contas antigas. */
+function ejInicial(c) {
+  return c.assinatura_html || (c.assinatura ? erTextoParaHtml(c.assinatura) : "");
+}
+
 function ejCartaoAssinatura() {
   const contas = mail.contas.contas;
   const c = ejConta();
   if (!c) {
     return cartaoCfg("Assinatura", "", '<p class="cfg-explica">Conecte uma conta em Contas para escrever a assinatura dela.</p>');
   }
-  if (ej.assinatura === null || ej.assinaturaDe !== c.id) { ej.assinatura = c.assinatura || ""; ej.assinaturaDe = c.id; }
-  const mudou = ej.assinatura.trim() !== (c.assinatura || "").trim();
+  if (ej.assinatura === null || ej.assinaturaDe !== c.id) { ej.assinatura = ejInicial(c); ej.assinaturaDe = c.id; ej.base = null; ej.mudou = false; }
   const escolha = contas.length > 1
     ? '<div class="ag-campo"><label>Conta</label><select id="ej-conta">' + contas.map((x) =>
       '<option value="' + esc(x.id) + '"' + (x.id === c.id ? " selected" : "") + ">" + esc(x.email) + "</option>").join("") + "</select></div>"
     : "";
+  // O HTML da assinatura ja vem limpo do servidor (correio.limpar_assinatura).
   const corpo = escolha +
-    '<div class="ag-campo"><label>Texto da assinatura' + (contas.length > 1 ? "" : " · " + esc(c.email)) + "</label>" +
-    '<textarea id="ej-assinatura" class="ej-assinatura" rows="4" placeholder="Nome · OAB/UF 00000&#10;Telefone">' + esc(ej.assinatura) + "</textarea></div>" +
-    '<p class="cfg-explica">Vai no fim de cada e-mail enviado por esta conta, depois de uma linha com “--”. Em branco, o e-mail sai sem assinatura.</p>' +
-    '<div class="cfg-botoes"><button class="primario com-icone" id="ej-salvar"' + (mudou && !ej.salvando ? "" : " disabled") + ">" +
+    '<div class="ag-campo"><label>Assinatura' + (contas.length > 1 ? "" : " · " + esc(c.email)) + "</label>" +
+    editorRico({ id: "ej-assinatura", html: ej.assinatura, placeholder: "Nome · OAB/UF 00000", imagem: true, classe: "ej-er" }) + "</div>" +
+    '<p class="cfg-explica">Vai no fim de cada e-mail enviado por esta conta, com a formatação e a imagem. A imagem é reduzida nesta máquina (até 150 KB) e vai dentro do e-mail. Em branco, o e-mail sai sem assinatura.</p>' +
+    '<div class="cfg-botoes"><button class="primario com-icone" id="ej-salvar"' + (ej.mudou && !ej.salvando ? "" : " disabled") + ">" +
     ic("check", 16) + (ej.salvando ? "Salvando…" : "Salvar assinatura") + "</button>" +
-    (mudou ? '<button id="ej-desfazer">Desfazer</button>' : "") + "</div>";
-  return cartaoCfg("Assinatura", metaCfg(c.assinatura ? "em uso" : "sem assinatura"), corpo);
+    (ej.mudou ? '<button id="ej-desfazer">Desfazer</button>' : "") + "</div>";
+  return cartaoCfg("Assinatura", metaCfg(c.assinatura || c.assinatura_html ? "em uso" : "sem assinatura"), corpo);
 }
 
 function desenharAjustesDoEmail() {
   cabecalhoEmail();
   const p = emailPrefs();
   $("centro").innerHTML = '<div class="acervo sem-painel ej-tela" id="email"><div class="acervo-principal sv-principal"><div class="ej-palco">' +
-    '<div class="cfg-grade">' + ejCartaoCor(p) + '<div class="ej-coluna">' + ejCartaoImagens(p) + ejCartaoAssinatura() + "</div></div>" +
+    // Um cartao embaixo do outro, na ordem de uso: como abre, imagens, assinatura.
+    '<div class="cfg-grade larga">' + ejCartaoCor(p) + ejCartaoImagens(p) + ejCartaoAssinatura() + "</div>" +
     "</div></div></div>";
   ligarEmail();
 }
@@ -131,21 +140,22 @@ function ligarAjustesDoEmail() {
     if (typeof melhorarSelect === "function") melhorarSelect(conta);
     conta.onchange = () => { ej.contaId = conta.value; ej.assinatura = null; redesenharAjustes(); };
   }
-  const texto = $("ej-assinatura");
-  if (texto) {
-    texto.oninput = () => {
-      ej.assinatura = texto.value;
-      const c = ejConta();
-      const mudou = texto.value.trim() !== ((c && c.assinatura) || "").trim();
-      const salvar = $("ej-salvar");
-      if (salvar) salvar.disabled = !mudou || ej.salvando;
-      const desfazer = $("ej-desfazer");
-      if (mudou && !desfazer) {
-        salvar.insertAdjacentHTML("afterend", '<button id="ej-desfazer">Desfazer</button>');
-        $("ej-desfazer").onclick = desfazerAssinatura;
-      } else if (!mudou && desfazer) desfazer.remove();
-    };
-  }
+  // A mesma faixa de edicao do Escrever, com o botao de imagem.
+  const texto = ligarEditorRico("ej-assinatura", () => {
+    ej.assinatura = texto.html;
+    const mudou = texto.html !== ej.base;
+    if (mudou === ej.mudou) return;
+    ej.mudou = mudou;
+    const salvar = $("ej-salvar");
+    if (salvar) salvar.disabled = !mudou || ej.salvando;
+    const desfazer = $("ej-desfazer");
+    if (mudou && !desfazer && salvar) {
+      salvar.insertAdjacentHTML("afterend", '<button id="ej-desfazer">Desfazer</button>');
+      $("ej-desfazer").onclick = desfazerAssinatura;
+    } else if (!mudou && desfazer) desfazer.remove();
+  });
+  // A base e o HTML como o navegador o escreve, para comparar igual com igual.
+  if (texto && ej.base === null) ej.base = texto.html;
   const desfazer = $("ej-desfazer");
   if (desfazer) desfazer.onclick = desfazerAssinatura;
   const salvar = $("ej-salvar");
@@ -160,14 +170,14 @@ function desfazerAssinatura() {
 async function salvarAssinaturaDoEmail() {
   const c = ejConta();
   if (!c || ej.salvando) return;
-  const vazia = !ej.assinatura.trim();
+  const vazia = !ej.assinatura;
   ej.salvando = true;
   redesenharAjustes();
   let r;
   try {
     r = await fetch("/api/email/contas", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dados: { id: c.id, email: c.email, assinatura: ej.assinatura.trim() } }),
+      body: JSON.stringify({ dados: { id: c.id, email: c.email, assinatura_html: ej.assinatura } }),
     });
   } catch (err) { r = null; }
   ej.salvando = false;

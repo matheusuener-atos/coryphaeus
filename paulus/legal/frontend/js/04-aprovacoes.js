@@ -5,24 +5,28 @@
 */
 
 /*
-   A fila de aprovacoes do desenho (docs/ui/03-telas-desktop.md, A11): fila,
-   historico e regras de alcada, sobre a mesma grade do Acervo. A regra
-   central do produto mora aqui: nada com efeito externo acontece sem o sim
-   de uma pessoa.
+   A fila de aprovacoes (docs/ui/03-telas-desktop.md, A11), na medida de
+   leitura de Servicos e da caixa de E-mail (1080px, 12-servicos.css): uma
+   pagina so, sem coluna ao lado. Em cima, o que espera o seu sim; embaixo,
+   o Historico do que ja foi decidido hoje. O detalhe de um pedido e as
+   regras de alcada abrem em pop-up (16-dialogos.js).
 
    O servidor guarda os pedidos pendentes e os decididos hoje. As regras de
    alcada sao a autonomia do assistente, a mesma de Configuracoes: ligada, a
    acao acontece direto; desligada, para na fila.
 */
 
+// Quantas decisoes o Historico mostra de cada vez.
+const AP_HISTORICO_PASSO = 8;
+
 const aprov = {
-  pendentes: [], hoje: [], leitura: null, marcados: new Set(), aberto: null,
-  visao: "fila", filtro: "", regras: null, regraAberta: null,
+  pendentes: [], hoje: [], marcados: new Set(), aberto: null,
+  visao: "fila", filtro: "", regras: null, histMostra: AP_HISTORICO_PASSO,
 };
 
 const ICONE_CATEGORIA = { organizar: "drive_file_move", arquivo: "folder", email: "mail", assinatura: "draw", permissao: "shield_person", financeiro: "payments" };
 const CHAVE_DA_CATEGORIA = { organizar: "organizar_mover", assinatura: "assinar", email: "enviar_mensagem" };
-const ICONE_REGRA = { ler_pastas: "inventory_2", organizar_mover: "drive_file_move", assinar: "draw", enviar_mensagem: "mail", modelo_nuvem: "cloud_upload" };
+const ICONE_REGRA = { ler_pastas: "folder_open", organizar_mover: "drive_file_move", assinar: "draw", enviar_mensagem: "mail", modelo_nuvem: "upload" };
 const VERBO_APROVAR = { organizar: "Aprovar e mover", email: "Aprovar e enviar", assinatura: "Aprovar e assinar", financeiro: "Aprovar e pagar", permissao: "Aprovar" };
 
 /* Para onde a pessoa vai depois do sim, por tipo de pedido. A fila nao e o
@@ -39,7 +43,7 @@ const DEPOIS_DE_APROVAR = {
 function dataHoraCurta(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
-  if (isNaN(d)) return esc(iso);
+  if (isNaN(d)) return String(iso);
   const hoje = new Date();
   const hora = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -50,24 +54,17 @@ function dataHoraCurta(iso) {
   return d.getDate() + " " + MESES_CURTOS[d.getMonth()] + " " + hora;
 }
 
-function cabecalhoAprovacoes(visao) {
-  const botao = (v, r) => {
-    const classe = v === visao ? "ativa" : "";
-    return '<button class="' + classe + '" data-visao-ap="' + v + '">' + r + "</button>";
-  };
-  $("acoes-tela").innerHTML =
-    '<div class="visoes">' + botao("fila", "Fila") + botao("historico", "Histórico") + "</div>" +
-    '<div class="visoes">' + botao("regras", "Regras de alçada") + "</div>";
-  $("acoes-tela").querySelectorAll("[data-visao-ap]").forEach((b) => {
-    b.onclick = () => abrirVisaoDeAprovacoes(b.dataset.visaoAp);
-  });
+/* O cabecalho: a fila e o historico moram na mesma pagina; so as regras de
+   alcada tem botao, e abrem em pop-up. */
+function cabecalhoAprovacoes() {
+  $("acoes-tela").innerHTML = '<button class="com-icone" id="ap-regras">' + ic("tune", 16) + "Regras de alçada</button>";
+  $("ap-regras").onclick = () => abrirRegrasDeAlcada();
 }
 
-function abrirVisaoDeAprovacoes(visao) {
-  marcarDestino("aprovacoes");
-  if (visao === "historico") return mostrarHistoricoDeAprovacoes();
-  if (visao === "regras") return mostrarRegrasDeAlcada();
-  return mostrarAprovacoes();
+/* A casca da pagina: a medida de leitura, sem painel ao lado. */
+function apCasca(miolo) {
+  return '<div class="acervo sem-painel ap-tela" id="ap-tela"><div class="acervo-principal sv-principal"><div class="sv-medida">' +
+    miolo + "</div></div></div>";
 }
 
 async function carregarFila() {
@@ -75,11 +72,9 @@ async function carregarFila() {
     const d = await (await fetch("/api/aprovacoes")).json();
     aprov.pendentes = d.pendentes;
     aprov.hoje = d.hoje;
-    aprov.leitura = d.leitura;
     return true;
   } catch (err) {
-    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
-      esc(String(err)) + "</p></div></div>";
+    $("centro").innerHTML = apCasca('<p class="nota">não consegui abrir: ' + esc(String(err)) + "</p>");
     return false;
   }
 }
@@ -87,14 +82,37 @@ async function carregarFila() {
 async function mostrarAprovacoes() {
   abrirTela("Aprovações", { cheia: true });
   aprov.visao = "fila";
-  cabecalhoAprovacoes("fila");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">abrindo a fila…</p></div></div>';
+  aprov.histMostra = AP_HISTORICO_PASSO;
+  cabecalhoAprovacoes();
+  $("centro").innerHTML = apCasca(esqueleto("lista"));
   if (!(await carregarFila())) return;
   if (!aprov.regras) {
     try { aprov.regras = await (await fetch("/api/preferencias")).json(); } catch (err) { aprov.regras = null; }
   }
   desenharAprovacoes();
   atualizarPostura();
+  // Quem chega de outra tela apontando um pedido (o organizador) ve o
+  // detalhe dele aberto.
+  if (aprov.aberto) {
+    const id = aprov.aberto;
+    aprov.aberto = null;
+    verPedido(id);
+  }
+}
+
+/* O Historico nao e mais outra tela: e a secao de baixo da mesma pagina.
+   Quem chamava a tela de Historico cai nela, ja rolada ate la. */
+async function mostrarHistoricoDeAprovacoes() {
+  await mostrarAprovacoes();
+  const secao = document.getElementById("ap-historico");
+  if (secao) secao.scrollIntoView({ block: "start" });
+}
+
+/* As regras de alcada abrem em pop-up sobre a fila. Quem chama de fora
+   (Cadastros) abre a fila por baixo. */
+async function mostrarRegrasDeAlcada() {
+  if (!document.getElementById("ap-tela")) await mostrarAprovacoes();
+  abrirRegrasDeAlcada();
 }
 
 function quemPediu(nome) {
@@ -107,7 +125,6 @@ function quemPediu(nome) {
 
 function metaDoPedido(p) {
   const partes = [p.categoria_rotulo].concat(p.etiquetas || []);
-  if (p.vence_hoje) partes.push("vence hoje");
   if (!p.reversivel) partes.push("sem desfazer");
   return partes.filter(Boolean).join(" · ");
 }
@@ -126,118 +143,134 @@ function desenharAprovacoes() {
   const todos = aprov.pendentes;
   const categorias = [...new Set(todos.map((p) => p.categoria))];
   if (aprov.filtro && !categorias.includes(aprov.filtro)) aprov.filtro = "";
-  const lista = aprov.filtro ? todos.filter((p) => p.categoria === aprov.filtro) : todos;
   for (const id of [...aprov.marcados]) if (!todos.some((p) => p.id === id)) aprov.marcados.delete(id);
-  if (aprov.aberto && !todos.some((p) => p.id === aprov.aberto)) aprov.aberto = null;
-  const n = todos.length, m = aprov.marcados.size;
+  const n = todos.length;
   $("conversa-meta").textContent = (n ? n + " esperando você" : "nada esperando você") + " · nada sai sem aprovação";
 
-  const chips = '<span class="visoes">' +
-    [["", "Tudo"]].concat(categorias.map((c) => [c, (todos.find((p) => p.categoria === c) || {}).categoria_rotulo || c])).map(([v, r]) => {
-      const classe = v === aprov.filtro ? "ativa" : "";
-      return '<button class="' + classe + '" data-filtro-ap="' + esc(v) + '">' + esc(r) + "</button>";
-    }).join("") + "</span>";
+  const antes = document.querySelector("#ap-tela .sv-principal");
+  const topo = antes ? antes.scrollTop : 0;
+  $("centro").innerHTML = apCasca(apFila(categorias) + apHistorico());
+  const novo = document.querySelector("#ap-tela .sv-principal");
+  if (novo && topo) novo.scrollTop = topo;
+  if (conteudoNovo("aprovacoes:" + aprov.filtro)) {
+    entraConteudo($("centro").firstElementChild);
+    entraLista($("centro"), ".tabela-linha");
+  }
+  ligarAprovacoes();
+}
+
+/* O cartao de cima: o que espera o seu sim. */
+function apFila(categorias) {
+  const todos = aprov.pendentes;
+  const lista = aprov.filtro ? todos.filter((p) => p.categoria === aprov.filtro) : todos;
+  const n = todos.length, m = aprov.marcados.size;
+
+  // Filtro por tipo so quando ha mais de um tipo na fila.
+  const chips = categorias.length > 1
+    ? '<span class="visoes">' +
+      [["", "Tudo"]].concat(categorias.map((c) => [c, (todos.find((p) => p.categoria === c) || {}).categoria_rotulo || c])).map(([v, r]) => {
+        const classe = v === aprov.filtro ? "ativa" : "";
+        return '<button class="' + classe + '" data-filtro-ap="' + esc(v) + '">' + esc(r) + "</button>";
+      }).join("") + "</span>"
+    : "";
   const acoes = '<span class="direita">' +
-    '<button class="com-icone" id="ap-recusar"' + (m ? "" : " disabled") + ">" + ic("close", 16) + "Recusar" + (m ? " · " + m : "") + "</button>" +
-    '<button class="primario com-icone" id="ap-aprovar"' + (m ? "" : " disabled") + ">" + ic("done_all", 16) + "Aprovar" + (m ? " · " + m : "") + "</button></span>";
+    '<button class="perigo com-icone" id="ap-recusar"' + (m ? "" : " disabled") + ">" + ic("close", 16) + "Recusar" + (m ? " · " + m : "") + "</button>" +
+    '<button class="ap-sim com-icone" id="ap-aprovar"' + (m ? "" : " disabled") + ">" + ic("done_all", 16) + "Aprovar" + (m ? " · " + m : "") + "</button></span>";
 
   const linhas = lista.length
     ? lista.map(linhaPedido).join("")
     : (n
       ? '<p class="nota">Nada nesta categoria.</p>'
-      : '<div class="painel-vazio"><h3>Nada esperando você</h3><p>' +
-        (aprov.hoje.length
-          ? "Hoje você já decidiu " + plural(aprov.hoje.length, "pedido") + ". O que precisar do seu sim aparece aqui."
-          : "Quando o assistente quiser fazer algo com efeito fora do programa — mover arquivos em lote, " +
-            "assinar, enviar mensagem — o pedido para aqui e espera.") + "</p></div>");
+      : '<div class="painel-vazio ap-vazio"><h3>Nada esperando você</h3><p>' +
+        "Quando o assistente quiser fazer algo com efeito fora do programa — mover arquivos em lote, " +
+        "assinar, enviar mensagem — o pedido para aqui e espera o seu sim.</p></div>");
 
   const todosMarcados = n > 0 && m === n;
   const classe = "marcar" + (todosMarcados ? " on" : "");
-  $("centro").innerHTML =
-    '<div class="acervo ap-tela"><div class="acervo-principal"><div class="tabela-cartao">' +
-    '<div class="tabela-barra">' + chips + acoes + "</div>" +
-    '<div class="tabela-cabecalho colunas-fila"><span class="' + classe + '" id="ap-todos" role="checkbox" aria-checked="' +
-    (todosMarcados ? "true" : "false") + '" title="Marcar todos">' + ic("check", 12) + "</span>" +
-    '<span>O que precisa do seu sim</span><span>Pedido por</span><span>Esperando há</span><span style="text-align:right">Ação</span></div>' +
+  return '<section class="tabela-cartao ap-cartao" id="ap-fila">' +
+    '<div class="tabela-barra"><span class="ap-titulo">Esperando você</span>' +
+    (n ? '<span class="ap-conta">' + n + "</span>" + chips + acoes : "") + "</div>" +
+    (n
+      ? '<div class="tabela-cabecalho colunas-fila"><span class="' + classe + '" id="ap-todos" role="checkbox" aria-checked="' +
+        (todosMarcados ? "true" : "false") + '" title="Marcar todos">' + ic("check", 12) + "</span>" +
+        '<span>O que precisa do seu sim</span><span>Pedido por</span><span>Esperando há</span><span class="ap-direita">Ação</span></div>'
+      : "") +
     '<div class="tabela-corpo">' + linhas + "</div>" +
-    '<div class="tabela-rodape"><span>' + (n ? n + " esperando você" : "nada esperando você") + " · nada sai sem aprovação</span>" +
-    '<span class="cresce"></span><span>Aprovado ou recusado, tudo fica registrado no Histórico</span></div>' +
-    "</div></div>" + painelDoPedido() + "</div>";
-  ligarAprovacoes();
+    (n
+      ? '<div class="tabela-rodape"><span>Clique num pedido para ver o que vai sair e se dá para desfazer</span>' +
+        '<span class="cresce"></span><span>Aprovado ou recusado, vai para o Histórico, logo abaixo</span></div>'
+      : "") +
+    "</section>";
 }
 
 function linhaPedido(p) {
   const marcado = aprov.marcados.has(p.id);
-  const classe = "tabela-linha colunas-fila" + (marcado ? " escolhida" : "") + (aprov.aberto === p.id ? " aberta" : "");
-  return '<div class="' + classe + '" data-pedido="' + esc(p.id) + '">' +
+  const classe = "tabela-linha colunas-fila" + (marcado ? " escolhida" : "");
+  return '<div class="' + classe + '" data-pedido="' + esc(p.id) + '" title="Ver o pedido">' +
     '<span class="marcar' + (marcado ? " on" : "") + '" data-marcar="' + esc(p.id) + '" role="checkbox" aria-checked="' +
     (marcado ? "true" : "false") + '">' + ic("check", 12) + "</span>" +
     '<span class="nome-doc"><span class="caixa-tipo">' + ic(ICONE_CATEGORIA[p.categoria] || "verified", 18) + "</span>" +
-    '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small" + (p.vence_hoje ? ' style="color:var(--acc)"' : "") + ">" +
-    esc(metaDoPedido(p)) + "</small></span></span>" +
+    '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small>" +
+    (p.vence_hoje ? '<span class="ap-vence">vence hoje</span> · ' : "") + esc(metaDoPedido(p)) + "</small></span></span>" +
     quemPediu(p.pedido_por) +
     '<span class="espera">' + esc(esperandoHa(p.criado_em)) + "</span>" +
-    '<span class="acoes-linha direita"><button data-ver="' + esc(p.id) + '">Ver</button>' +
-    '<button data-recusar="' + esc(p.id) + '">Recusar</button>' +
-    '<button class="primario" data-aprovar="' + esc(p.id) + '">Aprovar</button></span></div>';
+    '<span class="acoes-linha direita"><button class="ap-nao" data-recusar="' + esc(p.id) + '">Recusar</button>' +
+    '<button class="ap-sim" data-aprovar="' + esc(p.id) + '">Aprovar</button></span></div>';
 }
 
-/* O painel do pedido: o que vai sair, o efeito, se da para desfazer. */
-function painelDoPedido() {
-  const p = aprov.pendentes.find((x) => x.id === aprov.aberto);
-  if (!p) {
-    const linhas = aprov.leitura && aprov.leitura.linhas ? aprov.leitura.linhas : [];
-    return '<aside class="acervo-painel">' + '<div class="rolagem"><div class="painel-vazio"><h3>' +
-      (linhas.length ? "Leitura da fila" : "Nenhum pedido aberto") + "</h3>" +
-      (linhas.length
-        ? '<div class="leitura-fila">' + linhas.map((x) => "<span>" + ic("info", 18) + "<span>" + esc(x) + "</span></span>").join("") + "</div>"
-        : "<p>Clique numa linha para ver o que vai sair, o efeito e se dá para desfazer.</p>") +
-      "</div></div></aside>";
-  }
+/* ----------------------------------------------------------- historico */
+/* O servidor devolve as decisoes de hoje; e o que a secao mostra, dizendo
+   isso. As mais recentes primeiro, de oito em oito. */
 
-  const chave = CHAVE_DA_CATEGORIA[p.categoria];
-  const regra = chave && autonomiaAtual()[chave]
-    ? "o assistente pode fazer isso sem pedir"
-    : "você aprova · o assistente não faz isso sozinho";
-  const dados = p.dados || {};
-  const arquivos = Array.isArray(dados.arquivos) ? dados.arquivos : (Array.isArray(dados.caminhos) ? dados.caminhos : []);
-  const para = Array.isArray(dados.para) ? dados.para : (Array.isArray(dados.destinatarios) ? dados.destinatarios : (dados.para ? [dados.para] : []));
-  // Caminho inteiro vira so o nome do arquivo: a pasta esta no resumo.
-  const nomeDe = (x) => {
-    const bruto = typeof x === "string" ? x : (x.nome || x.arquivo || x.caminho || x.email || "");
-    return bruto.includes("@") ? bruto : bruto.split(/[\\/]/).pop();
-  };
-  const saida = (arquivos.length || para.length)
-    ? '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que vai sair</span><span class="contagem">' +
-      (para.length ? plural(para.length, "destinatário") : plural(arquivos.length, "arquivo")) + "</span></div>" +
-      (para.length ? '<div style="display:grid;gap:8px">' + para.slice(0, 8).map((x) =>
-        '<div class="arquivo-painel">' + ic("mail", 16) + "<span>" + esc(nomeDe(x)) + "</span></div>").join("") + "</div>" : "") +
-      (arquivos.length ? '<div style="display:grid;gap:8px">' + arquivos.slice(0, 8).map((x) => {
-        const nome = nomeDe(x);
-        return '<div class="arquivo-painel">' + glifo(nome) + "<span>" + esc(nome) + "</span></div>";
-      }).join("") + (arquivos.length > 8 ? '<span class="nota-barra">e mais ' + (arquivos.length - 8) + "</span>" : "") + "</div>" : "") +
-      "</div>"
+function seloDecisao(p) {
+  if (p.estado === "aprovado") return '<span class="pilula-estado ok"><i></i>Aprovado</span>';
+  if (p.estado === "recusado") return '<span class="pilula-estado prazo"><i></i>Recusado</span>';
+  return '<span class="pilula-estado prazo"><i></i>Não deu</span>';
+}
+
+function apDecididos() {
+  return aprov.hoje.slice().sort((a, b) => (b.decidido_em || "").localeCompare(a.decidido_em || ""));
+}
+
+function apHistorico() {
+  const lista = apDecididos();
+  const vistos = lista.slice(0, aprov.histMostra);
+  const aprovados = lista.filter((p) => p.estado === "aprovado").length;
+  const recusados = lista.filter((p) => p.estado === "recusado").length;
+  const falhas = lista.length - aprovados - recusados;
+
+  const linhas = vistos.length ? vistos.map((p) =>
+    '<div class="tabela-linha ap-colunas-historico" data-decidido="' + esc(p.id) + '" title="Ver a decisão">' +
+      '<span class="nome-doc"><span class="caixa-tipo">' + ic(ICONE_CATEGORIA[p.categoria] || "verified", 18) + "</span>" +
+      '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small>" +
+      esc([p.categoria_rotulo, p.resultado].filter(Boolean).join(" · ")) + "</small></span></span>" +
+      quemPediu(p.pedido_por) +
+      '<span class="espera">' + esc(dataHoraCurta(p.criado_em)) + "</span>" +
+      '<span class="espera">' + esc(dataHoraCurta(p.decidido_em)) + "</span>" +
+      '<span class="acoes-linha direita">' + seloDecisao(p) + "</span></div>").join("")
+    : '<p class="nota">Nenhuma decisão hoje. O que você aprovar ou recusar aparece aqui, com o resultado.</p>';
+
+  const resumo = lista.length
+    ? [aprovados ? plural(aprovados, "aprovado") : "", recusados ? plural(recusados, "recusado") : "",
+      falhas ? falhas + " não " + (falhas === 1 ? "deu" : "deram") : ""].filter(Boolean).join(" · ")
     : "";
-
-  return '<aside class="acervo-painel">' + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(p.titulo) + '</h3><span class="meta">Pedido por ' +
-    esc(p.pedido_por || "Assistente") + " · " + esc(quando(p.criado_em)) + " · " + esc(p.categoria_rotulo) + "</span></span>" +
-    '<button class="voltar" id="ap-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-    '<div class="painel-acoes"><button class="primario" data-aprovar="' + esc(p.id) + '">' + ic("check", 16) + esc(VERBO_APROVAR[p.categoria] || "Aprovar") + "</button>" +
-    '<button data-recusar="' + esc(p.id) + '">' + ic("close", 16) + "Recusar</button></div>" +
-    (p.resumo ? '<div class="resumo-painel"><p>' + esc(p.resumo) + "</p></div>" : "") +
-    saida +
-    '<div class="painel-chaves">' +
-    '<div class="chave-valor"><span>Regra de alçada</span><b>' + regra + "</b></div>" +
-    '<div class="chave-valor"><span>Efeito</span><b class="' + (p.reversivel ? "" : "acc") + '">' + (p.reversivel ? "dá para desfazer" : "externo · irreversível") + "</b></div>" +
-    (p.prazo ? '<div class="chave-valor"><span>Prazo</span><b class="' + (p.vence_hoje ? "acc" : "") + '">' + dataLonga(p.prazo) + "</b></div>" : "") +
-    '<div class="chave-valor"><span>Se recusar</span><b>encerra o pedido · nada é executado</b></div>' +
-    '<div class="chave-valor"><span>Pedido em</span><b>' + dataHoraCurta(p.criado_em) + "</b></div></div>" +
-    ((p.etiquetas || []).length
-      ? '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Etiquetas</span></div><div class="doc-etiquetas">' +
-        p.etiquetas.map((e) => '<span class="etiqueta">' + esc(e) + "</span>").join("") + "</div></div>"
+  const faltam = lista.length - vistos.length;
+  return '<section class="tabela-cartao ap-cartao" id="ap-historico">' +
+    '<div class="tabela-barra"><span class="ap-titulo">Histórico</span>' +
+    '<span class="nota-barra">o que foi decidido hoje</span>' +
+    (resumo ? '<span class="direita nota-barra">' + resumo + "</span>" : "") + "</div>" +
+    (lista.length
+      ? '<div class="tabela-cabecalho ap-colunas-historico"><span>Pedido</span><span>Pedido por</span><span>Pedido em</span>' +
+        '<span>Decidido em</span><span class="ap-direita">Decisão</span></div>'
       : "") +
-    "</div></aside>";
+    '<div class="tabela-corpo">' + linhas + "</div>" +
+    (lista.length
+      ? '<div class="tabela-rodape"><span>' + (faltam ? "mostrando " + vistos.length + " de " + lista.length + " decisões de hoje"
+        : plural(lista.length, "decisão", "decisões") + " hoje") + "</span>" + '<span class="cresce"></span>' +
+        (faltam ? '<button class="mais" id="ap-historico-mais">Ver mais ' + Math.min(faltam, AP_HISTORICO_PASSO) + "</button>" : "") +
+        "</div>"
+      : "") +
+    "</section>";
 }
 
 function ligarAprovacoes() {
@@ -255,14 +288,15 @@ function ligarAprovacoes() {
   });
   const todos = $("ap-todos");
   if (todos) todos.onclick = () => {
+    if (!aprov.pendentes.length) return;
     aprov.marcados = aprov.marcados.size === aprov.pendentes.length ? new Set() : new Set(aprov.pendentes.map((p) => p.id));
     desenharAprovacoes();
   };
   centro.querySelectorAll("[data-pedido]").forEach((l) => {
-    l.onclick = () => { aprov.aberto = aprov.aberto === l.dataset.pedido ? null : l.dataset.pedido; desenharAprovacoes(); };
+    l.onclick = () => verPedido(l.dataset.pedido);
   });
-  centro.querySelectorAll("[data-ver]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); aprov.aberto = b.dataset.ver; desenharAprovacoes(); };
+  centro.querySelectorAll("[data-decidido]").forEach((l) => {
+    l.onclick = () => verDecidido(l.dataset.decidido);
   });
   centro.querySelectorAll("[data-aprovar]").forEach((b) => {
     b.onclick = (e) => { e.stopPropagation(); decidirPedidos([b.dataset.aprovar], true); };
@@ -273,8 +307,81 @@ function ligarAprovacoes() {
   const aprovar = $("ap-aprovar"), recusar = $("ap-recusar");
   if (aprovar) aprovar.onclick = () => decidirPedidos(Array.from(aprov.marcados), true);
   if (recusar) recusar.onclick = () => decidirPedidos(Array.from(aprov.marcados), false);
-  const fechar = $("ap-fechar");
-  if (fechar) fechar.onclick = () => { aprov.aberto = null; desenharAprovacoes(); };
+  const mais = $("ap-historico-mais");
+  if (mais) mais.onclick = () => { aprov.histMostra += AP_HISTORICO_PASSO; desenharAprovacoes(); };
+}
+
+/* ----------------------------------------------------- o pedido aberto */
+/* O que vai sair, o efeito, se da para desfazer - num pop-up, e nao mais na
+   coluna ao lado. Aprovar daqui passa pela mesma confirmacao da fila. */
+
+function apSaida(p) {
+  const dados = p.dados || {};
+  const arquivos = Array.isArray(dados.arquivos) ? dados.arquivos : (Array.isArray(dados.caminhos) ? dados.caminhos : []);
+  const para = Array.isArray(dados.para) ? dados.para : (Array.isArray(dados.destinatarios) ? dados.destinatarios : (dados.para ? [dados.para] : []));
+  if (!arquivos.length && !para.length) return "";
+  // Caminho inteiro vira so o nome do arquivo: a pasta esta no resumo.
+  const nomeDe = (x) => {
+    const bruto = typeof x === "string" ? x : (x.nome || x.arquivo || x.caminho || x.email || "");
+    return bruto.includes("@") ? bruto : bruto.split(/[\\/]/).pop();
+  };
+  const itens = para.slice(0, 8).map((x) => '<div class="arquivo-painel">' + ic("mail", 16) + "<span>" + esc(nomeDe(x)) + "</span></div>")
+    .concat(arquivos.slice(0, 8).map((x) => {
+      const nome = nomeDe(x);
+      return '<div class="arquivo-painel">' + glifo(nome) + "<span>" + esc(nome) + "</span></div>";
+    }));
+  const resto = Math.max(0, para.length - 8) + Math.max(0, arquivos.length - 8);
+  return '<div class="ap-saida"><span class="sv-kicker">O que vai sair · ' +
+    (para.length ? plural(para.length, "destinatário") : plural(arquivos.length, "arquivo")) + "</span>" +
+    '<div class="ap-saida-lista">' + itens.join("") + (resto ? '<span class="nota-barra">e mais ' + resto + "</span>" : "") + "</div></div>";
+}
+
+async function verPedido(id) {
+  const p = aprov.pendentes.find((x) => x.id === id);
+  if (!p) return;
+  const chave = CHAVE_DA_CATEGORIA[p.categoria];
+  const regra = chave && autonomiaAtual()[chave]
+    ? "o assistente pode fazer isso sem pedir"
+    : "você aprova · o assistente não faz isso sozinho";
+  let recusar = false;
+  const espera = dialogo({
+    titulo: p.titulo, contexto: "Aprovações › " + (p.categoria_rotulo || "pedido"),
+    classe: "dialogo-ver ap-dialogo", larga: true, cancelar: "Fechar",
+    confirmar: VERBO_APROVAR[p.categoria] || "Aprovar", sucesso: true,
+    html: (p.resumo ? '<p class="ap-resumo">' + esc(p.resumo) + "</p>" : "") +
+      fichaDoDialogo([
+        ["Pedido por", p.pedido_por || "Assistente"],
+        ["Pedido em", dataHoraCurta(p.criado_em)],
+        p.prazo ? ["Prazo", dataLonga(p.prazo) + (p.vence_hoje ? " · vence hoje" : "")] : null,
+        ["Efeito", p.reversivel ? "dá para desfazer" : "externo · sem desfazer depois"],
+        ["Regra de alçada", regra],
+        ["Se recusar", "encerra o pedido · nada é executado"],
+      ]) + apSaida(p),
+    rodape: '<button type="button" class="perigo com-icone" id="ap-dlg-recusar">' + ic("close", 16) + "Recusar</button>",
+  });
+  const botao = document.getElementById("ap-dlg-recusar");
+  if (botao) botao.onclick = () => { recusar = true; if (dialogoAberto) dialogoAberto.fechar(null); };
+  const r = await espera;
+  if (r && r.ok) decidirPedidos([id], true);
+  else if (recusar) decidirPedidos([id], false);
+}
+
+/* A decisao aberta: a linha do tempo do pedido, so leitura. */
+function verDecidido(id) {
+  const p = aprov.hoje.find((x) => x.id === id);
+  if (!p) return;
+  const decisao = p.estado === "aprovado" ? "aprovado" : (p.estado === "recusado" ? "recusado" : "aprovado, mas não deu");
+  dialogo({
+    titulo: p.titulo, contexto: "Aprovações › Histórico",
+    classe: "dialogo-ver ap-dialogo ap-dialogo-leitura", larga: true, confirmar: "Fechar",
+    html: (p.resumo ? '<p class="ap-resumo">' + esc(p.resumo) + "</p>" : "") +
+      fichaDoDialogo([
+        ["Pedido por", p.pedido_por || "Assistente"],
+        ["Pedido em", dataHoraCurta(p.criado_em)],
+        ["Decisão", decisao + " · " + dataHoraCurta(p.decidido_em)],
+        ["Resultado", p.resultado || (p.estado === "recusado" ? "nada foi executado" : "")],
+      ]),
+  });
 }
 
 /* Ctrl+Enter na fila: aprova o que esta marcado. Sem nada marcado nao faz
@@ -317,9 +424,8 @@ async function decidirPedidos(ids, aprovar) {
     const d = await r.json();
     aprov.pendentes = d.pendentes;
     aprov.hoje = d.hoje;
-    aprov.leitura = d.leitura;
     aprov.marcados = new Set();
-    if (aprov.visao === "fila") desenharAprovacoes();
+    if (document.getElementById("ap-tela")) desenharAprovacoes();
     if (d.falhas.length) {
       avisoCert("Não consegui em " + d.falhas.length + ": " + d.falhas.map((f) => f.motivo).join("; "));
     } else {
@@ -345,197 +451,76 @@ async function decidirPedidos(ids, aprovar) {
   }
 }
 
-/* ----------------------------------------------------------- historico */
-/* O servidor guarda as decisoes de hoje; e o que a tela mostra, dizendo isso. */
-
-async function mostrarHistoricoDeAprovacoes() {
-  abrirTela("Histórico de aprovações", { cheia: true });
-  aprov.visao = "historico";
-  cabecalhoAprovacoes("historico");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
-  if (!(await carregarFila())) return;
-  desenharHistorico();
-  atualizarPostura();
-}
-
-function seloDecisao(p) {
-  if (p.estado === "aprovado") return '<span class="pilula-estado ok"><i></i>Aprovado' + (p.resultado ? " · " + esc(p.resultado) : "") + "</span>";
-  if (p.estado === "recusado") return '<span class="pilula-estado prazo"><i></i>Recusado</span>';
-  return '<span class="pilula-estado atencao"><i></i>Não deu' + (p.resultado ? " · " + esc(p.resultado) : "") + "</span>";
-}
-
-function desenharHistorico() {
-  const lista = aprov.hoje.slice().sort((a, b) => (b.decidido_em || "").localeCompare(a.decidido_em || ""));
-  const aprovados = lista.filter((p) => p.estado === "aprovado").length;
-  const recusados = lista.filter((p) => p.estado === "recusado").length;
-  const falhas = lista.length - aprovados - recusados;
-  $("conversa-meta").textContent = plural(lista.length, "decisão", "decisões") + " hoje · " + aprovados + " aprovadas · " +
-    recusados + " recusadas" + (falhas ? " · " + falhas + " não deram" : "");
-  if (aprov.aberto && !lista.some((p) => p.id === aprov.aberto)) aprov.aberto = null;
-
-  const linhas = lista.length ? lista.map((p) => {
-    const classe = "tabela-linha colunas-historico" + (aprov.aberto === p.id ? " aberta" : "");
-    return '<div class="' + classe + '" data-pedido="' + esc(p.id) + '">' +
-      '<span class="nome-doc"><span class="caixa-tipo">' + ic(ICONE_CATEGORIA[p.categoria] || "verified", 18) + "</span>" +
-      '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small>" + esc(metaDoPedido(p)) + "</small></span></span>" +
-      quemPediu(p.pedido_por) +
-      '<span class="quando-doc">você</span>' +
-      '<span class="espera">' + dataHoraCurta(p.decidido_em) + "</span>" +
-      '<span class="acoes-linha direita">' + seloDecisao(p) + "</span></div>";
-  }).join("")
-    : '<div class="painel-vazio"><h3>Nenhuma decisão hoje</h3><p>O que você aprovar ou recusar aparece aqui, com o resultado.</p></div>';
-
-  $("centro").innerHTML =
-    '<div class="acervo ap-tela"><div class="acervo-principal"><div class="tabela-cartao">' +
-    '<div class="tabela-barra"><span class="visoes"><button class="ativa">Hoje · ' + lista.length + "</button></span>" +
-    '<span class="nota-barra">O histórico completo fica em disco; a tela mostra o de hoje</span></div>' +
-    '<div class="tabela-cabecalho colunas-historico"><span>Pedido</span><span>Pedido por</span><span>Decidido por</span><span>Quando</span><span style="text-align:right">Resultado</span></div>' +
-    '<div class="tabela-corpo">' + linhas + "</div>" +
-    '<div class="tabela-rodape"><span>' + plural(lista.length, "decisão", "decisões") + ' hoje</span><span class="cresce"></span>' +
-    "<span>Toda ação executada é reversível ou registrada</span></div></div></div>" + painelDoHistorico(lista) + "</div>";
-  ligarHistorico();
-}
-
-function painelDoHistorico(lista) {
-  const p = lista.find((x) => x.id === aprov.aberto);
-  if (!p) {
-    return '<aside class="acervo-painel">' + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma decisão aberta</h3>' +
-      "<p>Clique numa linha para ver a linha do tempo do pedido.</p></div></div></aside>";
-  }
-  const hora = (iso) => (iso || "").slice(11, 16);
-  const decisao = p.estado === "aprovado" ? "Aprovado" : (p.estado === "recusado" ? "Recusado" : "Não deu");
-  return '<aside class="acervo-painel">' + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(p.titulo) + '</h3><span class="meta">' + decisao +
-    " por você · " + dataHoraCurta(p.decidido_em) + " · " + esc(p.categoria_rotulo) + "</span></span>" +
-    '<button class="voltar" id="ap-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-    (p.resumo ? '<div class="resumo-painel"><p>' + esc(p.resumo) + "</p></div>" : "") +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Linha do tempo</span></div><div class="linha-tempo">' +
-    '<div><span class="hora">' + esc(hora(p.criado_em)) + "</span><span>" + esc(p.pedido_por || "Assistente") + " pediu: " + esc(p.titulo) + "</span></div>" +
-    '<div><span class="hora">' + esc(hora(p.decidido_em)) + "</span><span>Você " + (p.estado === "recusado" ? "recusou" : "aprovou") + "</span></div>" +
-    (p.resultado ? '<div><span class="hora"></span><span>' + esc(p.resultado) + "</span></div>" : "") + "</div></div>" +
-    '<div class="painel-chaves"><div class="chave-valor"><span>Efeito</span><b class="' + (p.reversivel ? "" : "acc") + '">' +
-    (p.reversivel ? "reversível" : "externo · irreversível") + "</b></div>" +
-    '<div class="chave-valor"><span>Resultado</span><b>' + esc(p.resultado || (p.estado === "recusado" ? "nada foi executado" : "—")) + "</b></div></div>" +
-    "</div></aside>";
-}
-
-function ligarHistorico() {
-  const centro = $("centro");
-  centro.querySelectorAll("[data-pedido]").forEach((l) => {
-    l.onclick = () => { aprov.aberto = aprov.aberto === l.dataset.pedido ? null : l.dataset.pedido; desenharHistorico(); };
-  });
-  const fechar = $("ap-fechar");
-  if (fechar) fechar.onclick = () => { aprov.aberto = null; desenharHistorico(); };
-}
-
 /* ------------------------------------------------------ regras de alcada */
-/* A autonomia do assistente, a mesma de Configuracoes. Ligada, a acao
-   acontece direto; desligada, para na fila. O padrao e sempre o mais
-   cauteloso. */
+/* A autonomia do assistente, a mesma de Configuracoes, num pop-up sobre a
+   fila. Ligada, a acao acontece direto; desligada, para na fila. O padrao e
+   sempre o mais cauteloso. Mexer nas chaves nao grava nada: so o Salvar. */
 
-async function mostrarRegrasDeAlcada() {
-  abrirTela("Regras de alçada", { cheia: true });
-  aprov.visao = "regras";
-  cabecalhoAprovacoes("regras");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
-  try {
-    aprov.regras = await (await fetch("/api/preferencias")).json();
-  } catch (err) {
-    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' + esc(String(err)) + "</p></div></div>";
-    return;
+function apLinhaDeRegra(o, ligada) {
+  const estadoTexto = o.travada ? "indisponível" : (ligada ? "acontece direto" : "para na fila");
+  return '<div class="ap-regra' + (o.travada ? " travada" : "") + '">' +
+    '<span class="caixa-tipo">' + ic(ICONE_REGRA[o.chave] || "verified", 18) + "</span>" +
+    '<span class="duas-linhas"><b>' + esc(o.titulo) + "</b><small>" + esc(o.explica || "") + "</small></span>" +
+    '<span class="ap-regra-estado">' + estadoTexto + "</span>" +
+    (o.travada ? "<span></span>"
+      : '<button type="button" class="interruptor-min' + (ligada ? " on" : "") + '" data-ap-ligar="' + esc(o.chave) +
+        '" role="switch" aria-checked="' + (ligada ? "true" : "false") + '" aria-label="' + esc(o.titulo) + '"><span class="chave"></span></button>') +
+    "</div>";
+}
+
+async function abrirRegrasDeAlcada() {
+  if (!aprov.regras) {
+    try { aprov.regras = await (await fetch("/api/preferencias")).json(); } catch (err) { aprov.regras = null; }
   }
-  desenharRegras();
-  atualizarPostura();
-}
+  if (!aprov.regras) { avisoCert("não consegui abrir as regras de alçada"); return; }
+  const opcoes = aprov.regras.autonomia_opcoes || [];
+  const antes = Object.assign({}, autonomiaAtual());
+  const escolha = Object.assign({}, antes);
+  const lista = () => opcoes.map((o) => apLinhaDeRegra(o, Boolean(escolha[o.chave]))).join("");
 
-function desenharRegras() {
-  const opcoes = (aprov.regras && aprov.regras.autonomia_opcoes) || [];
-  const ligadas = autonomiaAtual();
-  $("conversa-meta").textContent = plural(opcoes.length, "regra") + " · quem aprova o quê";
-  if (aprov.regraAberta && !opcoes.some((o) => o.chave === aprov.regraAberta)) aprov.regraAberta = null;
-
-  const linhas = opcoes.map((o) => {
-    const ligada = Boolean(ligadas[o.chave]);
-    const classe = "tabela-linha colunas-regras" + (aprov.regraAberta === o.chave ? " aberta" : "");
-    const quem = o.travada ? '<span class="pill-papel">indisponível</span>'
-      : (ligada ? '<span class="pill-papel">Assistente sozinho</span>' : '<span class="pill-papel forte">Você</span>');
-    return '<div class="' + classe + '" data-regra="' + esc(o.chave) + '">' +
-      '<span class="nome-doc"><span class="caixa-tipo">' + ic(ICONE_REGRA[o.chave] || "rule", 18) + "</span>" +
-      '<span class="duas-linhas"><b>' + esc(o.titulo) + "</b><small>" + esc(o.explica) + "</small></span></span>" +
-      '<span class="papeis">' + quem + "</span>" +
-      '<span class="quando-doc">—</span>' +
-      '<span class="quando-doc">' + (o.travada ? "não existe" : (ligada ? "acontece direto" : "fica na fila · nunca sai sozinho")) + "</span>" +
-      (o.travada ? "<span></span>"
-        : '<span class="interruptor-min' + (ligada ? " on" : "") + '" data-ligar="' + esc(o.chave) + '" role="switch" aria-checked="' +
-          (ligada ? "true" : "false") + '" title="' + (ligada ? "Desligar" : "Ligar") + '"><span class="chave"></span></span>') +
-      "</div>";
-  }).join("");
-
-  $("centro").innerHTML =
-    '<div class="acervo ap-tela"><div class="acervo-principal"><div class="tabela-cartao">' +
-    '<div class="tabela-barra"><span style="font:600 14px var(--sans)">Quem aprova o quê</span>' +
-    '<span class="nota-barra">Nada com efeito externo acontece sem aprovação</span></div>' +
-    '<div class="tabela-cabecalho colunas-regras"><span>Tipo de pedido</span><span>Quem aprova</span><span>Limite</span><span>Se ninguém decidir</span><span></span></div>' +
-    '<div class="tabela-corpo">' + linhas + "</div>" +
-    '<div class="tabela-rodape"><span>' + plural(opcoes.length, "regra") + '</span><span class="cresce"></span>' +
-    "<span>Mudar uma regra vale na hora, para os próximos pedidos</span></div></div></div>" +
-    painelDaRegra(opcoes, ligadas) + "</div>";
-  ligarRegras();
-}
-
-function painelDaRegra(opcoes, ligadas) {
-  const o = opcoes.find((x) => x.chave === aprov.regraAberta);
-  if (!o) {
-    return '<aside class="acervo-painel">' + '<div class="rolagem"><div class="painel-vazio"><h3>Nenhuma regra aberta</h3>' +
-      "<p>Ligada, a ação acontece direto. Desligada, para na fila e espera o seu sim. O padrão é sempre o mais cauteloso.</p></div></div></aside>";
-  }
-  const ligada = Boolean(ligadas[o.chave]);
-  const naFila = aprov.pendentes.filter((p) => CHAVE_DA_CATEGORIA[p.categoria] === o.chave).length;
-  return '<aside class="acervo-painel">' + '<div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(o.titulo) + '</h3><span class="meta">' + esc(o.explica) + "</span></span>" +
-    '<button class="voltar" id="ap-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
-    (o.travada
-      ? '<div class="painel-bloco"><p>Indisponível de propósito: o programa promete que nenhum documento sai desta máquina.</p></div>'
-      : '<div class="painel-bloco"><div class="interruptor' + (ligada ? " on" : "") + '" data-ligar="' + esc(o.chave) +
-        '" role="switch" aria-checked="' + (ligada ? "true" : "false") + '" tabindex="0"><span>Acontece sem pedir</span><span class="chave"></span></div></div>') +
-    '<div class="painel-chaves"><div class="chave-valor"><span>Hoje</span><b>' + (ligada ? "o assistente faz sozinho" : "para na fila e espera você") + "</b></div>" +
-    '<div class="chave-valor"><span>Padrão</span><b>' + (o.padrao ? "ligado" : "desligado") + "</b></div>" +
-    '<div class="chave-valor"><span>Na fila agora</span><b>' + naFila + "</b></div></div>" +
-    (o.travada ? "" : '<div class="painel-botoes"><button id="regra-padrao"' + (ligada === Boolean(o.padrao) ? " disabled" : "") + ">Restaurar padrão</button></div>") +
-    "</div></aside>";
-}
-
-function ligarRegras() {
-  const centro = $("centro");
-  centro.querySelectorAll("[data-regra]").forEach((l) => {
-    l.onclick = () => { aprov.regraAberta = aprov.regraAberta === l.dataset.regra ? null : l.dataset.regra; desenharRegras(); };
+  const espera = dialogo({
+    titulo: "Regras de alçada", contexto: "Aprovações › quem aprova o quê",
+    classe: "dialogo-ver ap-dialogo-regras", larga: true, confirmar: "Salvar",
+    texto: "Ligada, a ação acontece direto, sem pedir. Desligada, para na fila e espera o seu sim. " +
+      "O padrão é sempre o mais cauteloso.",
+    html: '<div class="ap-regras" id="ap-regras-lista">' + lista() + "</div>",
+    rodape: '<button type="button" id="ap-regras-padrao">Restaurar padrão</button>',
   });
-  centro.querySelectorAll("[data-ligar]").forEach((s) => {
-    s.onclick = (e) => { e.stopPropagation(); gravarRegra(s.dataset.ligar, !s.classList.contains("on")); };
-    s.onkeydown = (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); s.click(); } };
-  });
-  const padrao = $("regra-padrao");
-  if (padrao) padrao.onclick = () => {
-    const o = ((aprov.regras && aprov.regras.autonomia_opcoes) || []).find((x) => x.chave === aprov.regraAberta);
-    if (o) gravarRegra(o.chave, Boolean(o.padrao));
+  const caixa = document.getElementById("ap-regras-lista");
+  const padrao = document.getElementById("ap-regras-padrao");
+  const ligar = () => {
+    if (!caixa) return;
+    caixa.querySelectorAll("[data-ap-ligar]").forEach((b) => {
+      b.onclick = () => {
+        escolha[b.dataset.apLigar] = !escolha[b.dataset.apLigar];
+        caixa.innerHTML = lista();
+        ligar();
+        const mesmo = caixa.querySelector('[data-ap-ligar="' + b.dataset.apLigar + '"]');
+        if (mesmo) mesmo.focus();
+      };
+    });
   };
-  const fechar = $("ap-fechar");
-  if (fechar) fechar.onclick = () => { aprov.regraAberta = null; desenharRegras(); };
-}
+  ligar();
+  if (padrao) padrao.onclick = () => {
+    opcoes.forEach((o) => { if (!o.travada) escolha[o.chave] = Boolean(o.padrao); });
+    caixa.innerHTML = lista();
+    ligar();
+  };
 
-async function gravarRegra(chave, ligar) {
+  const r = await espera;
+  if (!r || !r.ok) return;
+  const mudou = opcoes.some((o) => Boolean(escolha[o.chave]) !== Boolean(antes[o.chave]));
+  if (!mudou) return;
   const pr = aprov.regras.preferencias || aprov.regras;
-  const autonomia = Object.assign({}, pr.autonomia || {});
-  autonomia[chave] = ligar;
+  const autonomia = Object.assign({}, pr.autonomia || {}, escolha);
   try {
-    const r = await fetch("/api/preferencias", {
+    const resp = await fetch("/api/preferencias", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ autonomia: autonomia }),
     });
-    if (!r.ok) throw new Error(await erroDe(r));
+    if (!resp.ok) throw new Error(await erroDe(resp));
     pr.autonomia = autonomia;
-    desenharRegras();
-    avisoCert(ligar ? "ligado: passa a acontecer sem pedir" : "desligado: volta a parar na fila");
+    avisoCert("regras gravadas: valem para os próximos pedidos");
   } catch (err) {
     avisoCert("não consegui gravar: " + err);
   }
@@ -554,4 +539,3 @@ async function contarPendencias() {
 }
 
 setInterval(contarPendencias, 8000);
-

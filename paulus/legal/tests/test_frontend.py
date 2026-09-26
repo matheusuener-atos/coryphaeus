@@ -192,6 +192,8 @@ def test_ids() -> None:
 
     estaticos = set(re.findall(r'\bid="([a-z0-9-]+)"', html))
     criados = set(re.findall(r'\.id = "([a-z0-9-]+)"', html))
+    # O editor de e-mail (js/33) recebe o id como opcao: editorRico({ id: "x" }).
+    criados |= set(re.findall(r'\bid: "([a-z0-9-]+)"', html))
     usados = set(re.findall(r'\$\("([a-z0-9-]+)"\)', html))
 
     orfaos = sorted(usados - estaticos - criados)

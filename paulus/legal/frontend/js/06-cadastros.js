@@ -1,17 +1,26 @@
 /* ---------------------------------------------------------- cadastros */
 /*
    Cadastros (docs/ui/03-telas-desktop.md, A10): Clientes, Equipe e Despesas
-   fixas, cada uma uma tabela com a ficha editavel no painel. As fichas sao
-   as mesmas de sempre (tipo cliente, colaborador, socio e despesa); o que a
-   tela nova faz e ler cada tipo do jeito que ele e usado. O que o desenho
-   pede e ainda nao tem motor - acesso por pasta, papeis e alcadas por pessoa,
-   contatos dentro da ficha, importar e exportar - diz isso na tela.
+   fixas, cada uma uma tabela na medida editorial das outras telas (Servicos,
+   E-mail) - sem coluna ao lado. A ficha abre em pop-up de exibicao (o mesmo
+   do compromisso da Agenda: ver, e Editar leva ao cadastro); novo e editar
+   abrem no pop-up de cadastro (docs/ui/05). O que o desenho pede e ainda nao
+   tem motor - acesso por pasta, papeis e alcadas por pessoa, importar e
+   exportar - diz isso na tela.
+
+   Acima dos clientes, a sugestao de cadastro: quem a leitura do Acervo achou
+   nos contratos e ainda nao tem ficha, uma por vez. Cadastrar abre o
+   cadastro ja preenchido com o que foi lido (conferir, nao digitar);
+   Ignorar tira o nome de vez (data/cadastros_ignorados.json). Sem sugestao,
+   o cartao oferece o levantamento: ler os documentos do Acervo que ainda nao
+   foram lidos.
 */
 
 const cad = {
-  visao: "clientes", fichas: [], contagem: {}, tipos: [], sugestoes: [],
+  visao: "clientes", fichas: [], contagem: {}, tipos: [], sugestoes: [], sugTotal: 0, sugIndice: 0,
+  ignorados: 0, levantamento: { documentos: 0, faltam: 0 }, lendo: null,
   lancamentos: [], tarefas: [], termo: "", ordem: "nome", filtro: "todos",
-  aberta: null, form: null, largo: false, escolhidas: new Set(),
+  aberta: null, form: null, escolhidas: new Set(),
 };
 
 const CAD_JSON = { "Content-Type": "application/json" };
@@ -35,7 +44,9 @@ async function mostrarCadastros(visao) {
   if (visao) cad.visao = visao;
   abrirTela("Cadastros", { cheia: true });
   marcarDestino("cadastros");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
+  if (!document.getElementById("cad-tela")) {
+    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
+  }
   atualizarPostura();
   try {
     const [d, g, l, t] = await Promise.all([
@@ -48,13 +59,12 @@ async function mostrarCadastros(visao) {
     cad.contagem = d.contagem || {};
     cad.tipos = d.tipos || [];
     cad.sugestoes = g.sugestoes || [];
+    cad.sugTotal = g.total || cad.sugestoes.length;
+    cad.ignorados = g.ignorados || 0;
+    cad.levantamento = g.levantamento || { documentos: 0, faltam: 0 };
     cad.lancamentos = l.lancamentos || [];
     cad.tarefas = t.tarefas || [];
-    if (cad.aberta) {
-      cad.aberta = cad.fichas.find((f) => f.id === cad.aberta.id) || null;
-      if (cad.aberta && cad.form && cad.form.id === cad.aberta.id) cad.form = formDaFicha(cad.aberta);
-      if (!cad.aberta) cad.form = null;
-    }
+    if (cad.aberta) cad.aberta = cad.fichas.find((f) => f.id === cad.aberta.id) || null;
   } catch (err) {
     $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
       esc(String(err)) + "</p></div></div>";
@@ -69,8 +79,19 @@ function desenharCadastros() {
   if (cad.visao === "equipe") miolo = corpoDaEquipe();
   else if (cad.visao === "despesas") miolo = corpoDasDespesas();
   else miolo = corpoDosClientes();
-  const classe = "acervo cad-tela" + (cad.largo ? " painel-largo" : "");
-  $("centro").innerHTML = '<div class="' + classe + '" id="cad-tela">' + miolo + painelDosCadastros() + "</div>";
+  const antes = document.querySelector("#cad-tela .sv-principal");
+  const topo = antes && antes.dataset.cadVisao === cad.visao ? antes.scrollTop : 0;
+  $("centro").innerHTML = '<div class="acervo sem-painel cad-tela" id="cad-tela">' +
+    '<div class="acervo-principal sv-principal" data-cad-visao-tela="' + cad.visao + '"><div class="sv-medida">' + miolo + "</div></div></div>";
+  const depois = document.querySelector("#cad-tela .sv-principal");
+  if (depois) {
+    depois.dataset.cadVisao = cad.visao;
+    if (topo) depois.scrollTop = topo;
+  }
+  if (conteudoNovo("cadastros:" + cad.visao) && depois) {
+    entraConteudo(depois.firstElementChild);
+    entraLista(depois, ".tabela-linha");
+  }
   ligarCadastros();
   atualizarPostura();
 }
@@ -135,16 +156,191 @@ function rotuloDoVinculo(v) {
   return achado ? achado[1] : "";
 }
 
+function rotuloDoDocumento(doc) {
+  const n = String(doc || "").replace(/\D/g, "").length;
+  if (n === 14) return "CNPJ";
+  if (n === 11) return "CPF";
+  return "Documento";
+}
+
 function vazioDosCadastros(total) {
   if (cad.termo) return "Nenhuma ficha com “" + cad.termo + "”.";
   if (total) return "Nenhuma ficha com este filtro.";
   if (cad.visao === "equipe") return "Ninguém na equipe ainda. Quem tem vínculo definido entra na folha de pagamento do Financeiro.";
   if (cad.visao === "despesas") return "Nenhuma despesa fixa ainda. Aluguel, contabilidade, sistemas: cadastre para acompanhar o mês no Financeiro.";
-  return "Nenhum cliente ainda. Cadastre pelo botão Novo cliente — ou aceite um dos nomes que o assistente já leu nos contratos.";
+  return "Nenhum cliente ainda. Cadastre pelo botão Novo cliente — ou confira um dos nomes lidos nos contratos, acima.";
 }
 
 function menuDaLinha(id) {
   return '<button class="mais-linha" data-cad-mais="' + id + '" title="Mais">' + ic("more_horiz", 18) + "</button>";
+}
+
+/* ------------------------------------------- a sugestao de cadastro */
+/*
+   Uma sugestao por vez, como um carrossel: o nome lido, onde apareceu e as
+   duas saidas - cadastrar (o pop-up ja preenchido) ou ignorar (nao volta).
+   As setas so passam, sem decidir nada. Durante a busca o cartao sai: quem
+   busca procura uma ficha, nao uma sugestao.
+*/
+
+function cartaoDeSugestao() {
+  if (cad.termo) return "";
+  return '<section class="cad-sug" id="cad-sug" aria-label="Sugestão de cadastro">' + corpoDaSugestao() + "</section>";
+}
+
+function corpoDaSugestao() {
+  if (cad.lendo) return sugestaoLendo();
+  const lista = cad.sugestoes;
+  if (!lista.length) return sugestaoVazia();
+  if (cad.sugIndice >= lista.length) cad.sugIndice = lista.length - 1;
+  if (cad.sugIndice < 0) cad.sugIndice = 0;
+  const x = lista[cad.sugIndice];
+  const n = lista.length;
+  const faltam = cad.levantamento.faltam || 0;
+  const doc = x.documento ? rotuloDoDocumento(x.documento) + " " + x.documento : "sem CPF/CNPJ no documento";
+  const arquivos = (x.arquivos || []).slice(0, 2).map((a) => a.nome);
+  const resto = Math.max(0, (x.aparicoes || 0) - arquivos.length);
+  const prova = arquivos.length
+    ? "Em " + arquivos.join(", ") + (resto ? " e mais " + plural(resto, "documento") : "")
+    : "";
+  const anterior = '<button class="botao-icone" data-cad-sug-anterior="1" title="Anterior" aria-label="Sugestão anterior"' + (n < 2 ? " disabled" : "") + ">" + ic("chevron_left", 18) + "</button>";
+  const proxima = '<button class="botao-icone" data-cad-sug-proxima="1" title="Próxima" aria-label="Próxima sugestão"' + (n < 2 ? " disabled" : "") + ">" + ic("chevron_right", 18) + "</button>";
+  const alem = cad.sugTotal > n ? " · mostrando os " + n + " que mais aparecem" : "";
+  return '<div class="cad-sug-topo"><span class="sv-kicker">Lido nos contratos, ainda sem ficha</span>' +
+    (faltam ? '<button class="sv-ligacao" data-cad-levantar="1" title="Ler os documentos do Acervo que ainda não foram lidos">' + ic("search", 16) +
+      "Ler " + plural(faltam, "documento novo", "documentos novos") + "</button>" : "") +
+    '<span class="cad-sug-nav">' + anterior + '<span class="cad-sug-conta">' + (cad.sugIndice + 1) + " de " + cad.sugTotal + "</span>" + proxima + "</span></div>" +
+    '<div class="cad-sug-corpo"><div class="cad-sug-quem">' +
+    '<h3 class="cad-sug-nome">' + esc(x.nome) + "</h3>" +
+    '<p class="cad-sug-meta">' + esc(doc + " · aparece em " + plural(x.aparicoes || 0, "documento") + alem) + "</p>" +
+    (prova ? '<p class="cad-sug-prova">' + esc(prova) + "</p>" : "") + "</div>" +
+    '<div class="cad-sug-acoes">' +
+    '<button data-cad-sug-ignorar="1" title="Não sugerir mais este nome">Ignorar</button>' +
+    '<button class="primario com-icone" data-cad-sug-cadastrar="1">' + ic("person_add", 16) + "Cadastrar</button></div></div>";
+}
+
+function sugestaoVazia() {
+  const lev = cad.levantamento || {};
+  const docs = lev.documentos || 0;
+  const faltam = lev.faltam || 0;
+  let texto;
+  if (!docs) texto = "O Acervo ainda não tem documentos. Quando tiver, o levantamento lê cada um e traz quem assina e ainda não tem ficha.";
+  else if (faltam) texto = plural(faltam, "documento", "documentos") + " do Acervo ainda não " + (faltam === 1 ? "foi lido" : "foram lidos") +
+    ". O levantamento lê " + (faltam === 1 ? "esse documento" : "esses documentos") + " e traz quem assina e ainda não tem ficha.";
+  else texto = (docs === 1 ? "O documento do Acervo já foi lido" : "Os " + docs + " documentos do Acervo já foram lidos") +
+    " e cada nome achado tem ficha" + (cad.ignorados ? " ou foi ignorado" : "") + ". O levantamento lê o que tiver entrado no Acervo desde então.";
+  return '<div class="cad-sug-vazio"><span class="cad-sug-texto"><b>Nenhum nome novo para cadastrar</b><small>' + esc(texto) + "</small></span>" +
+    '<button class="com-icone" data-cad-levantar="1">' + ic("search", 16) + "Fazer levantamento</button></div>";
+}
+
+function sugestaoLendo() {
+  const l = cad.lendo;
+  const pct = l.total ? Math.round((l.indice / l.total) * 100) : 0;
+  const texto = l.total ? "Lendo " + l.indice + " de " + l.total + (l.nome ? " — " + l.nome : "") : "Conferindo os documentos do Acervo…";
+  return '<div class="cad-sug-vazio"><span class="cad-sug-texto"><b>Fazendo o levantamento</b><small>' + esc(texto) + "</small>" +
+    '<span class="cad-sug-fita"><i style="width:' + pct + '%"></i></span></span>' +
+    '<button data-cad-levantar-parar="1"' + (l.parando ? " disabled" : "") + ">" + (l.parando ? "Parando…" : "Parar") + "</button></div>";
+}
+
+/* Redesenha so o cartao, sem mexer na tabela (a leitura manda andamento a
+   cada documento). Fora da tela de Cadastros, nao faz nada. */
+function redesenharSugestao() {
+  const caixa = document.getElementById("cad-sug");
+  if (!caixa) return;
+  caixa.innerHTML = corpoDaSugestao();
+  ligarCartaoSugestao(caixa);
+}
+
+function ligarCartaoSugestao(raiz) {
+  const clique = (seletor, fn) => raiz.querySelectorAll(seletor).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b); }; });
+  const n = cad.sugestoes.length;
+  clique("[data-cad-sug-anterior]", () => { cad.sugIndice = (cad.sugIndice - 1 + n) % n; redesenharSugestao(); });
+  clique("[data-cad-sug-proxima]", () => { cad.sugIndice = (cad.sugIndice + 1) % n; redesenharSugestao(); });
+  clique("[data-cad-sug-cadastrar]", () => cadastrarSugestao(cad.sugestoes[cad.sugIndice]));
+  clique("[data-cad-sug-ignorar]", () => ignorarSugestao(cad.sugestoes[cad.sugIndice]));
+  clique("[data-cad-levantar]", () => fazerLevantamento());
+  clique("[data-cad-levantar-parar]", async () => {
+    if (!cad.lendo) return;
+    cad.lendo.parando = true;
+    redesenharSugestao();
+    await fetch("/api/organizar/cancelar", { method: "POST" });
+  });
+}
+
+function cadastrarSugestao(x) {
+  if (!x) return;
+  cad.aberta = null;
+  cad.form = Object.assign(formDaFicha({ tipo: "cliente" }), { nome: x.nome, documento: x.documento || "", _sugestao: x });
+  abrirFormCad();
+}
+
+async function ignorarSugestao(x) {
+  if (!x) return;
+  const r = await fetch("/api/cadastros/sugestoes/ignorar", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ nome: x.nome }) });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const i = cad.sugestoes.indexOf(x);
+  if (i >= 0) cad.sugestoes.splice(i, 1);
+  cad.sugTotal = Math.max(0, cad.sugTotal - 1);
+  cad.ignorados += 1;
+  // O indice fica onde estava: a proxima sugestao ocupa o lugar da ignorada.
+  if (cad.sugIndice >= cad.sugestoes.length) cad.sugIndice = 0;
+  redesenharSugestao();
+  avisoCert(x.nome + " não será mais sugerido", {
+    tom: "ok",
+    acao: {
+      rotulo: "Desfazer",
+      fazer: async () => {
+        const d = await fetch("/api/cadastros/sugestoes/desfazer", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ nome: x.nome }) });
+        if (!d.ok) { avisoCert(await erroDe(d), { tom: "erro" }); return; }
+        if (document.getElementById("cad-tela")) mostrarCadastros();
+      },
+    },
+  });
+}
+
+/* O levantamento: le no servidor os documentos do Acervo que ainda nao
+   foram lidos (a mesma leitura do Acervo) e, no fim, as sugestoes vem de
+   novo. O andamento e o numero de documentos prontos, contado. */
+async function fazerLevantamento() {
+  if (cad.lendo) return;
+  cad.lendo = { indice: 0, total: 0, nome: "" };
+  redesenharSugestao();
+  let novos = 0;
+  let fim = null;
+  let erro = "";
+  try {
+    const r = await fetch("/api/cadastros/levantamento", { method: "POST" });
+    if (!r.ok) throw new Error(await erroDe(r));
+    await lerEventos(r, (tipo, d) => {
+      if (tipo === "inicio") { novos = d.novos || 0; cad.lendo.total = novos; redesenharSugestao(); }
+      else if (tipo === "progresso") { Object.assign(cad.lendo, { indice: d.indice, total: d.total, nome: d.nome || "" }); redesenharSugestao(); }
+      else if (tipo === "erro") erro = d.mensagem || "não deu certo";
+      else if (tipo === "fim") fim = d;
+    });
+  } catch (err) {
+    erro = err && err.message ? err.message : String(err);
+  }
+  cad.lendo = null;
+  if (erro) avisoCert("não consegui fazer o levantamento: " + erro, { tom: "erro" });
+  else if (fim) avisoCert(fraseDoLevantamento(novos, fim), { tom: "ok" });
+  cad.sugIndice = 0;
+  if (document.getElementById("cad-tela")) mostrarCadastros();
+}
+
+function fraseDoLevantamento(novos, d) {
+  const achados = d.novas
+    ? plural(d.novas, "nome novo", "nomes novos") + " para conferir"
+    : (d.sugestoes ? "nenhum nome novo além dos que já estavam na fila" : "nenhum nome novo sem ficha");
+  if (d.parado) return "levantamento parado: li " + plural(d.lidos, "documento") + " — " + achados;
+  if (!novos) {
+    if (!d.total) return "o Acervo não tem documentos para ler";
+    return (d.total === 1 ? "o documento do Acervo já tinha sido lido" : "os " + d.total + " documentos do Acervo já tinham sido lidos") + " — " + achados;
+  }
+  // O que nao deu para ler (sem texto, sem acesso) continua contado como
+  // por ler - e dito aqui, para o numero do cartao nao parecer engano.
+  const falhou = Math.max(0, novos - (d.lidos || 0));
+  return "li " + plural(d.lidos, "documento novo", "documentos novos") +
+    (falhou ? " (" + plural(falhou, "não deu para ler", "não deram para ler") + ")" : "") + " — " + achados;
 }
 
 /* ------------------------------------------------------- os clientes */
@@ -164,30 +360,19 @@ function corpoDosClientes() {
     return '<button class="' + classe + '" data-cad-filtro="' + v + '">' + r + " · " + contagem[v] + "</button>";
   };
   const ordens = { nome: "A–Z", aberto: "Em aberto", atraso: "Atraso" };
-  return '<div class="acervo-principal">' +
-    '<div class="tabela-cartao">' +
+  return cartaoDeSugestao() +
+    '<div class="tabela-cartao cad-lista">' +
     '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todos") + chip("pj", "Pessoa jurídica") + chip("pf", "Pessoa física") + chip("atraso", "Com atraso")) +
     '<div class="direita"><button data-cad-ordem="1">' + ic("swap_vert", 16) + esc(ordens[cad.ordem] || "A–Z") + "</button>" +
     '<button class="adiante" data-cad-importar="1">' + ic("upload", 16) + "Importar</button>" +
     '<button class="adiante" data-cad-exportar="1">' + ic("download", 16) + "Exportar</button></div></div>" +
-    avisoDeSugestoes() +
     '<div class="tabela-cabecalho colunas-clientes"><span>Nome e documento</span><span>Contato</span><span>Ligado a</span><span class="fin-num">Em aberto</span><span></span></div>' +
     '<div class="tabela-corpo">' + (lista.length ? lista.map(linhaDeCliente).join("") : '<p class="rel-vazio">' + esc(vazioDosCadastros(todas.length)) + "</p>") + "</div>" +
-    '<div class="tabela-rodape"><span>' + lista.length + " de " + todas.length + "</span></div></div></div>";
-}
-
-function avisoDeSugestoes() {
-  if (!cad.sugestoes.length) return "";
-  const mostrar = cad.sugestoes.slice(0, 4);
-  return '<div class="cad-aviso">' + ic("person_add", 18) +
-    '<span class="cresce">' + esc(plural(cad.sugestoes.length, "nome lido", "nomes lidos")) + " nos contratos, ainda sem ficha — cadastrar é conferir, não digitar</span>" +
-    mostrar.map((x, i) => '<button class="cad-sug" data-cad-sug="' + i + '">' + esc(x.nome) + "<small>" + esc(plural(x.aparicoes, "doc")) + "</small></button>").join("") +
-    (cad.sugestoes.length > mostrar.length ? '<span class="cad-mudo">+ ' + (cad.sugestoes.length - mostrar.length) + "</span>" : "") + "</div>";
+    '<div class="tabela-rodape"><span>' + lista.length + " de " + todas.length + "</span></div></div>";
 }
 
 function linhaDeCliente(f) {
-  const aberta = cad.aberta && cad.aberta.id === f.id;
-  const classe = "tabela-linha colunas-clientes" + (aberta ? " aberta" : "") + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
+  const classe = "tabela-linha colunas-clientes" + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const n = digitosDoDocumento(f).length;
   const tipoDoc = n === 14 ? "CNPJ " : (n ? "CPF " : "");
   const sub = [f.atraso_dias ? "Atrasado " + plural(f.atraso_dias, "dia") : "", f.documento ? tipoDoc + f.documento : "", pessoaFisica(f) ? "pessoa física" : ""]
@@ -218,19 +403,17 @@ function corpoDaEquipe() {
     return '<button class="' + classe + '" data-cad-filtro="' + v + '">' + r + " · " + contagem[v] + "</button>";
   };
   const folha = todas.reduce((s, f) => s + folhaDe(f), 0);
-  return '<div class="acervo-principal"><div class="tabela-cartao">' +
+  return '<div class="tabela-cartao cad-lista">' +
     '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todos") + chip("socio", "Sócios") + chip("colaborador", "Colaboradores")) +
-    '<div class="direita"><button data-cad-regras="1">' + ic("shield_person", 16) + "Papéis e alçadas</button>" +
-    '<button class="primario" data-cad-nova="1">' + ic("person_add", 16) + "Nova pessoa</button></div></div>" +
+    '<div class="direita"><button data-cad-regras="1">' + ic("shield_person", 16) + "Papéis e alçadas</button></div></div>" +
     '<div class="tabela-cabecalho colunas-equipe"><span>Nome e função</span><span>Papel</span><span>Acesso por pasta</span><span class="fin-num">Na folha</span><span></span></div>' +
     '<div class="tabela-corpo">' + (lista.length ? lista.map(linhaDaEquipe).join("") : '<p class="rel-vazio">' + esc(vazioDosCadastros(todas.length)) + "</p>") + "</div>" +
     '<div class="tabela-rodape"><span>' + esc(plural(todas.length, "pessoa")) + " · folha " + esc(emReais(folha)) + "</span>" +
-    '<span class="cad-rodape-nota">Alterar papel ou acesso passa por Aprovações · em breve</span></div></div></div>';
+    '<span class="cad-rodape-nota">Alterar papel ou acesso passa por Aprovações · em breve</span></div></div>';
 }
 
 function linhaDaEquipe(f) {
-  const aberta = cad.aberta && cad.aberta.id === f.id;
-  const classe = "tabela-linha colunas-equipe" + (aberta ? " aberta" : "") + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
+  const classe = "tabela-linha colunas-equipe" + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const socio = f.tipo === "socio";
   const classePapel = "cad-pill" + (socio ? " forte" : "");
   const sub = [f.observacao, rotuloDoVinculo(f.vinculo) === "não entra na folha" ? "" : rotuloDoVinculo(f.vinculo)].filter(Boolean).join(" · ") || (f.documento ? "CPF " + f.documento : "sem função anotada");
@@ -267,20 +450,18 @@ function corpoDasDespesas() {
     return '<button class="' + classe + '" data-cad-filtro="' + v + '">' + r + " · " + contagem[v] + "</button>";
   };
   const total = lista.reduce((s, f) => s + centavosDe(f.honorario), 0);
-  return '<div class="acervo-principal"><div class="tabela-cartao">' +
+  return '<div class="tabela-cartao cad-lista">' +
     '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todas") + chip("dia", "Com dia certo") + chip("semdia", "Sem dia")) +
-    '<div class="direita"><button class="adiante" data-cad-exportar="1">' + ic("download", 16) + "Exportar</button>" +
-    '<button class="primario" data-cad-nova="1">' + ic("add", 16) + "Nova despesa</button></div></div>" +
+    '<div class="direita"><button class="adiante" data-cad-exportar="1">' + ic("download", 16) + "Exportar</button></div></div>" +
     '<div class="tabela-cabecalho colunas-despesas"><span>Despesa</span><span>Fornecedor</span><span>Vence</span><span class="fin-num">Valor</span><span>' +
     esc(maiuscula(mesCurto(mesDeHoje()))) + "</span><span></span></div>" +
     '<div class="tabela-corpo">' + (lista.length ? lista.map(linhaDaDespesa).join("") : '<p class="rel-vazio">' + esc(vazioDosCadastros(todas.length)) + "</p>") + "</div>" +
     '<div class="tabela-rodape"><span>' + lista.length + " de " + todas.length + " · " + esc(emReais(total)) + ' no mês</span>' +
-    '<span class="cad-rodape-nota"><button class="em-ligacao forte" data-cad-financeiro="1">Ver no Financeiro →</button></span></div></div></div>';
+    '<span class="cad-rodape-nota"><button class="em-ligacao forte" data-cad-financeiro="1">Ver no Financeiro →</button></span></div></div>';
 }
 
 function linhaDaDespesa(f) {
-  const aberta = cad.aberta && cad.aberta.id === f.id;
-  const classe = "tabela-linha colunas-despesas" + (aberta ? " aberta" : "") + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
+  const classe = "tabela-linha colunas-despesas" + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const s = situacaoDaDespesa(f);
   const classeStatus = "fin-status " + s.classe;
   const valor = centavosDe(f.honorario);
@@ -298,137 +479,84 @@ function rotuloDoFornecedor(f) {
   return f.documento || f.email || f.telefone || "";
 }
 
-/* ---------------------------------------------------------- o painel */
+/* ------------------------------------------- a ficha, em pop-up de ver */
+/*
+   Clicar numa linha abre a ficha no pop-up de exibicao, como o compromisso
+   da Agenda: os dados, o que esta ligado e as acoes do que se ve; Editar
+   leva ao pop-up de cadastro. A tabela tem cinco colunas estreitas - abrir a
+   ficha dentro da linha empurraria as outras e repetiria o que ja esta nela.
+*/
 
-function painelDosCadastros() {
-  const alca = '<button class="alca-painel" data-cad-alca="1" title="Alargar ou recolher o painel" aria-label="Alargar ou recolher o painel">' +
-    ic(cad.largo ? "chevron_right" : "chevron_left", 18) + "</button>";
-  if (cad.form) return '<aside class="acervo-painel cad-painel">' + alca + '<div class="rolagem">' + painelDaFicha() + "</div></aside>";
-  let h3, p, novo;
-  if (cad.visao === "equipe") { h3 = "Ninguém aberto"; p = "Clique numa pessoa para ver a ficha, o vínculo e o que o papel dela pode."; novo = "Nova pessoa"; }
-  else if (cad.visao === "despesas") { h3 = "Nenhuma despesa aberta"; p = "Clique numa despesa para ver o valor, o dia e o histórico de pagamento."; novo = "Nova despesa"; }
-  else { h3 = "Nenhum cliente aberto"; p = "Clique numa linha para ver a ficha, o que está em aberto e os documentos ligados."; novo = "Novo cliente"; }
-  return '<aside class="acervo-painel cad-painel">' + alca + '<div class="rolagem"><div class="painel-vazio"><h3>' + h3 + "</h3><p>" + p + "</p>" +
-    '<div class="fin-botoes"><button class="primario" data-cad-nova="1">' + ic("add", 16) + novo + "</button></div></div></div></aside>";
+function verFicha(id) {
+  const f = cad.fichas.find((x) => x.id === id);
+  if (!f) return;
+  cad.aberta = f;
+  const p = partesDaFicha(f);
+  const escolha = dialogo({
+    titulo: f.nome, contexto: p.contexto, classe: "dialogo-ver cad-dialogo", larga: true,
+    html: p.corpo, rodape: '<button type="button" class="dialogo-excluir" data-cad-apagar="1">Apagar</button>',
+    cancelar: "Fechar", confirmar: "Editar",
+  });
+  const dlg = document.querySelector(".dialogo.cad-dialogo");
+  if (dlg) ligarFichaVista(dlg, f);
+  escolha.then((r) => { if (r && r.ok) editarFicha(f); });
 }
 
-function formDaFicha(f) {
-  return {
-    id: f.id, tipo: f.tipo, nome: f.nome || "", documento: f.documento || "", telefone: f.telefone || "", email: f.email || "",
-    endereco: f.endereco || "", honorario: f.honorario || "", dia_vencimento: f.dia_vencimento || 0, avisar_dias: f.avisar_dias || 0,
-    observacao: f.observacao || "", vinculo: f.vinculo || "",
-    salario: f.salario_centavos ? semReais(emReais(f.salario_centavos)) : "",
-    encargos: f.encargos_centavos ? semReais(emReais(f.encargos_centavos)) : "",
-  };
-}
-
-function campoDaFicha(chave, rotulo, dica) {
-  const v = cad.form;
-  return '<div class="ag-campo"><label>' + esc(rotulo) + '</label><input type="text" data-cc="' + chave + '" value="' + esc(v[chave] || "") + '"' +
-    (dica ? ' placeholder="' + esc(dica) + '"' : "") + "></div>";
-}
-
-function seletorDeDia() {
-  const v = cad.form;
-  let opcoes = '<option value="0"' + (!Number(v.dia_vencimento) ? " selected" : "") + ">sem dia certo</option>";
-  for (let d = 1; d <= 31; d += 1) opcoes += '<option value="' + d + '"' + (Number(v.dia_vencimento) === d ? " selected" : "") + ">dia " + d + "</option>";
-  return '<div class="ag-campo"><label>Dia de vencimento</label><select data-cc="dia_vencimento">' + opcoes + "</select></div>";
-}
-
-function seletorDeAviso() {
-  const v = cad.form;
-  return '<div class="ag-campo"><label>Avisar antes</label><select data-cc="avisar_dias">' +
-    [[0, "não avisar"], [1, "1 dia antes"], [3, "3 dias antes"], [5, "5 dias antes"], [7, "7 dias antes"]].map(([n, r]) =>
-      '<option value="' + n + '"' + (Number(v.avisar_dias) === n ? " selected" : "") + ">" + r + "</option>").join("") + "</select></div>";
-}
-
-function painelDaFicha() {
-  const v = cad.form;
-  const f = cad.aberta;
-  const nova = !v.id;
-  const equipe = v.tipo === "socio" || v.tipo === "colaborador";
-  const despesa = v.tipo === "despesa";
-
-  let titulo, meta;
-  if (nova) {
-    titulo = despesa ? "Nova despesa" : (equipe ? "Nova pessoa" : "Novo cliente");
-    meta = v._sugestao ? "veio de " + plural(v._sugestao.aparicoes, "documento") + " do Acervo" : "ainda não salva — entra na lista ao salvar";
-  } else if (despesa) {
-    titulo = f.nome;
-    meta = "Despesa fixa mensal" + (f.dia_vencimento ? " · vence dia " + f.dia_vencimento : " · sem dia certo");
-  } else if (equipe) {
-    titulo = f.nome;
-    meta = (f.tipo === "socio" ? "Sócio" : "Colaborador") + " · " + (rotuloDoVinculo(f.vinculo) || "não entra na folha") + (f.observacao ? " · " + f.observacao : "");
-  } else {
-    titulo = f.nome;
-    meta = "Cliente desde " + quandoDaFicha(f.criado_em) + " · " + (pessoaJuridica(f) ? "pessoa jurídica" : (pessoaFisica(f) ? "pessoa física" : "sem documento"));
-  }
-
-  let html = '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(titulo) + '</h3><span class="meta">' + esc(meta) + "</span></span>" +
-    (equipe && !nova ? '<span class="cad-avatar grande">' + esc(iniciaisDoRemetente(f.nome)) + "</span>" : "") +
-    '<button class="botao-icone" data-cad-fechar="1" title="Fechar">' + ic("close", 18) + "</button></div>";
-
-  if (!nova && !equipe && !despesa) {
-    html += '<div class="painel-acoes"><button class="primario" data-cad-perguntar="1">' + ic("forum", 16) + "Perguntar sobre</button>" +
-      '<button data-cad-email="1">' + ic("mail", 16) + "Novo e-mail</button>" +
-      '<button data-cad-agendar="1">' + ic("calendar_month", 16) + "Agendar</button></div>";
-  } else if (!nova && equipe) {
-    html += '<div class="painel-acoes"><button data-cad-email="1">' + ic("mail", 16) + "Novo e-mail</button>" +
-      '<button data-cad-senha="1">' + ic("key", 16) + "Redefinir senha</button></div>";
-  } else if (!nova && despesa) {
+function partesDaFicha(f) {
+  const equipe = f.tipo === "socio" || f.tipo === "colaborador";
+  const botao = (dado, icone, rotulo, extra) => '<button type="button" class="com-icone" ' + dado + '="1"' + (extra || "") + ">" + ic(icone, 16) + esc(rotulo) + "</button>";
+  const docs = (f.documentos || []).length;
+  if (f.tipo === "despesa") {
     const valor = centavosDe(f.honorario);
     const s = situacaoDaDespesa(f);
     const lancada = s.classe !== "nada";
-    html += '<div class="fin-detalhe"><span class="cad-valor-grande">' + esc(emReais(valor)) + "</span>" +
-      '<div class="fin-botoes">' +
-      (lancada
-        ? '<span class="fin-feito">' + ic("check_circle", 16) + "já em " + esc(mesCurto(mesDeHoje())) + " · " + esc(s.texto.toLowerCase()) + "</span>"
-        : '<button class="primario" data-cad-lancar="1"' + (valor ? "" : " disabled") + ">" + ic("payments", 16) + "Lançar em " + esc(mesCurto(mesDeHoje())) + "</button>") +
-      '<button data-cad-financeiro="1">' + ic("bar_chart", 16) + "Ver no Financeiro</button>" +
-      ((f.documentos || []).length ? '<button data-cad-acervo="1">' + ic("description", 16) + "Ver contrato</button>" : "") + "</div>" +
-      '<small class="fin-nota">Lançar cria a conta a pagar no Financeiro; o pagamento de verdade continua no banco.</small></div>';
+    const acoes = (lancada ? "" : botao("data-cad-lancar", "payments", "Lançar em " + mesCurto(mesDeHoje()), valor ? "" : " disabled")) +
+      botao("data-cad-financeiro", "bar_chart", "Ver no Financeiro") +
+      (docs ? botao("data-cad-acervo", "description", "Ver contrato") : "");
+    return {
+      contexto: "Cadastros › Despesa fixa · cadastrada em " + quandoDaFicha(f.criado_em),
+      corpo: '<div class="cad-destaque"><span class="cad-valor-grande">' + esc(valor ? emReais(valor) : "sem valor") + "</span>" +
+        '<span class="cad-destaque-nota">' + esc(lancada ? mesCurto(mesDeHoje()) + " · " + s.texto.toLowerCase() : "nada lançado em " + mesCurto(mesDeHoje())) + "</span></div>" +
+        fichaDoDialogo([
+          ["Vence", f.dia_vencimento ? "dia " + f.dia_vencimento : "sem dia certo"],
+          ["Fornecedor", rotuloDoFornecedor(f)],
+          ["Anotação", f.observacao],
+          ["Aviso", f.avisar_dias ? plural(f.avisar_dias, "dia") + " antes" : "não avisar"],
+        ]) +
+        '<div class="dialogo-acoes">' + acoes + "</div>" +
+        (lancada ? "" : '<p class="cad-nota">Lançar cria a conta a pagar no Financeiro; o pagamento de verdade continua no banco.</p>') +
+        blocoDaDespesa(f),
+    };
   }
-
-  if (v._sugestao) {
-    html += '<p class="ag-explica" style="padding:0 18px 4px">Veio de ' + esc(v._sugestao.arquivos.map((a) => a.nome).join(", ")) + ".</p>";
+  if (equipe) {
+    const folha = folhaDe(f);
+    return {
+      contexto: "Cadastros › Equipe · " + (f.tipo === "socio" ? "sócio" : "colaborador") + " desde " + quandoDaFicha(f.criado_em),
+      corpo: fichaDoDialogo([
+        ["Função", f.observacao],
+        ["CPF", f.documento],
+        ["E-mail", f.email],
+        ["Telefone", f.telefone],
+        ["Na folha", folha ? rotuloDoVinculo(f.vinculo) + " · " + emReais(folha) : "não entra"],
+      ]) +
+        '<div class="dialogo-acoes">' + botao("data-cad-email", "mail", "Novo e-mail") + "</div>" +
+        blocoDoPapel(f),
+    };
   }
-
-  html += '<div class="cad-campos">';
-  if (despesa) {
-    html += campoDaFicha("nome", "Descrição", "aluguel, contabilidade, sistema…") +
-      '<div class="ag-duas">' + campoDaFicha("honorario", "Valor mensal", "R$ 0,00") + seletorDeDia() + "</div>" +
-      campoDaFicha("documento", "CNPJ / CPF do fornecedor") +
-      '<div class="ag-duas">' + campoDaFicha("email", "E-mail do fornecedor") + campoDaFicha("telefone", "Telefone") + "</div>" +
-      campoDaFicha("observacao", "Anotação", "fornecedor, contrato, reajuste…") + seletorDeAviso();
-  } else if (equipe) {
-    const vinculos = CAD_VINCULOS.map(([val, r]) => '<option value="' + val + '"' + (val === (v.vinculo || "") ? " selected" : "") + ">" + r + "</option>").join("");
-    html += campoDaFicha("nome", "Nome completo") +
-      '<div class="ag-duas">' + campoDaFicha("documento", "CPF") + campoDaFicha("observacao", "Função", "advogada · OAB/GO 00000") + "</div>" +
-      '<div class="ag-duas">' + campoDaFicha("email", "E-mail") + campoDaFicha("telefone", "Telefone") + "</div>" +
-      '<div class="ag-duas"><div class="ag-campo"><label>Papel</label><select data-cc="tipo">' +
-      '<option value="socio"' + (v.tipo === "socio" ? " selected" : "") + '>Sócio · edita e aprova tudo</option>' +
-      '<option value="colaborador"' + (v.tipo === "colaborador" ? " selected" : "") + ">Colaborador</option></select></div>" +
-      '<div class="ag-campo"><label>Vínculo</label><select data-cc="vinculo">' + vinculos + "</select></div></div>" +
-      (v.vinculo ? '<div class="ag-duas">' + campoDaFicha("salario", v.vinculo === "estagio" ? "Bolsa" : "Salário ou retirada", "R$ 0,00") + campoDaFicha("encargos", "Encargos e INSS", "R$ 0,00") + "</div>" : "") +
-      campoDaFicha("endereco", "Endereço");
-  } else {
-    html += campoDaFicha("nome", "Razão social ou nome") +
-      '<div class="ag-duas">' + campoDaFicha("documento", "CNPJ / CPF") + campoDaFicha("telefone", "Telefone") + "</div>" +
-      campoDaFicha("email", "E-mail para cobrança") +
-      campoDaFicha("endereco", "Endereço") +
-      '<div class="ag-duas">' + campoDaFicha("honorario", "Honorário padrão", "R$ 0,00") + seletorDeDia() + "</div>" +
-      seletorDeAviso();
-  }
-  html += "</div>";
-
-  if (!nova && !equipe && !despesa) html += blocoLigadoA(f);
-  if (!nova && equipe) html += blocoDoPapel(f);
-  if (!nova && despesa) html += blocoDaDespesa(f);
-
-  html += '<div class="cad-rodape">' +
-    (nova ? "" : '<button class="em-ligacao acc" data-cad-apagar="1">Apagar ficha</button>') +
-    '<button class="primario" data-cad-salvar="1">' + ic("check", 16) + (nova ? "Salvar cadastro" : "Salvar") + "</button></div>";
-  return html;
+  const tipoPessoa = pessoaJuridica(f) ? "pessoa jurídica" : (pessoaFisica(f) ? "pessoa física" : "sem documento");
+  return {
+    contexto: "Cadastros › Cliente desde " + quandoDaFicha(f.criado_em) + " · " + tipoPessoa,
+    corpo: fichaDoDialogo([
+      [rotuloDoDocumento(f.documento), f.documento],
+      ["Telefone", f.telefone],
+      ["E-mail", f.email],
+      ["Endereço", f.endereco],
+      ["Honorário", [f.honorario, f.dia_vencimento ? "vence dia " + f.dia_vencimento : ""].filter(Boolean).join(" · ")],
+    ]) +
+      '<div class="dialogo-acoes">' + botao("data-cad-perguntar", "forum", "Perguntar sobre") + botao("data-cad-email", "mail", "Novo e-mail") +
+      botao("data-cad-agendar", "calendar_month", "Agendar") + "</div>" +
+      blocoLigadoA(f),
+  };
 }
 
 function blocoLigadoA(f) {
@@ -436,9 +564,9 @@ function blocoLigadoA(f) {
   const prazos = prazosDe(f).sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
   const lanc = lancamentosDe(f).filter((l) => l.aberto && l.tipo === "recebimento").sort((a, b) => String(a.vencimento).localeCompare(String(b.vencimento)));
   const linha = (icone, texto, lado) => '<div class="cad-ligacao">' + ic(icone, 18) + "<span>" + texto + "</span>" + (lado || "") + "</div>";
-  return '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Ligado a</span></div><div class="cad-ligacoes">' +
+  return '<div class="cad-bloco"><span class="cad-bloco-titulo">Ligado a</span><div class="cad-ligacoes">' +
     linha("inventory_2", esc(docs ? plural(docs, "documento") + " ligado" + (docs === 1 ? "" : "s") : "nenhum documento ligado"),
-      '<button class="em-ligacao" data-cad-acervo="1">ver no Acervo</button>') +
+      '<button type="button" class="sv-ligacao" data-cad-acervo="1">ver no Acervo</button>') +
     linha("payments", esc(f.aberto_centavos ? f.aberto + " em aberto" : "nada em aberto"),
       "<small>" + esc(f.atraso_dias ? "atrasado " + plural(f.atraso_dias, "dia") : (lanc.length && lanc[0].vencimento ? "vence " + dataCurta(lanc[0].vencimento) : "")) + "</small>") +
     linha("event_upcoming", esc(prazos.length ? plural(prazos.length, "prazo") : "nenhum prazo"),
@@ -448,18 +576,12 @@ function blocoLigadoA(f) {
 
 function blocoDoPapel(f) {
   const regras = CAD_PAPEIS[f.tipo === "socio" ? "socio" : "colaborador"];
-  const folha = folhaDe(f);
-  return '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que este papel pode</span><span class="contagem">em breve</span></div>' +
+  return '<div class="cad-bloco"><span class="cad-bloco-titulo">O que este papel pode <small>em breve</small></span>' +
     '<div class="cad-pode">' + regras.map(([pode, texto]) => {
       const classe = "ic ic-18" + (pode ? "" : " nao");
       return '<div><span class="' + classe + '">' + (pode ? "check_circle" : "close") + "</span><span>" + esc(texto) + "</span></div>";
     }).join("") + "</div>" +
-    "<p>Papéis e alçadas ainda não têm motor: hoje uma pessoa só usa o PAULUS nesta máquina, e ela pode tudo. Isto é o que o papel vai poder quando a equipe existir.</p></div>" +
-    '<div class="painel-chaves">' +
-    '<div class="chave-valor"><span>Cadastrado em</span><b>' + esc(quandoDaFicha(f.criado_em)) + "</b></div>" +
-    '<div class="chave-valor"><span>Na folha</span><b>' + esc(folha ? rotuloDoVinculo(f.vinculo) + " · " + emReais(folha) : "não entra") + "</b></div>" +
-    '<div class="chave-valor"><span>Último acesso</span><b class="mute">em breve</b></div>' +
-    '<div class="chave-valor"><span>Certificado</span><b class="mute">em breve</b></div></div>';
+    '<p class="cad-nota">Papéis e alçadas ainda não têm motor: hoje uma pessoa só usa o PAULUS nesta máquina, e ela pode tudo. Isto é o que o papel vai poder quando a equipe existir.</p></div>';
 }
 
 function blocoDaDespesa(f) {
@@ -467,17 +589,28 @@ function blocoDaDespesa(f) {
   const todos = lancamentosDe(f).sort((a, b) => String(b.vencimento || b.liquidado_em).localeCompare(String(a.vencimento || a.liquidado_em)));
   const pagos = todos.filter((l) => !l.aberto && String(l.liquidado_em).startsWith(ano));
   const soma = pagos.reduce((s, l) => s + l.centavos, 0);
-  const docs = (f.documentos || []).length;
-  return '<div class="painel-chaves">' +
-    '<div class="chave-valor"><span>Documentos ligados</span>' + (docs ? '<button class="em-ligacao forte" data-cad-acervo="1">' + esc(plural(docs, "documento")) + " · ver</button>" : '<b class="mute">nenhum</b>') + "</div>" +
-    '<div class="chave-valor"><span>Pago em ' + esc(ano) + "</span><b>" + esc(pagos.length ? plural(pagos.length, "vez", "vezes") + " · " + emReais(soma) : "nada ainda") + "</b></div>" +
-    '<div class="chave-valor"><span>Cadastrada em</span><b>' + esc(quandoDaFicha(f.criado_em)) + "</b></div></div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Histórico</span><span class="contagem">' + esc(plural(todos.length, "lançamento")) + "</span></div>" +
+  return '<div class="cad-bloco"><span class="cad-bloco-titulo">Histórico <small>' + esc(plural(todos.length, "lançamento") + " · pago em " + ano + ": " +
+    (pagos.length ? plural(pagos.length, "vez", "vezes") + ", " + emReais(soma) : "nada ainda")) + "</small></span>" +
     (todos.length
       ? '<div class="cad-historico">' + todos.slice(0, 5).map((l) =>
         "<span>" + esc(mesCurto(mesDoLancamento(l)) + " · " + (l.aberto ? situacaoCurta(l) : "pago em " + dataBR(l.liquidado_em).slice(0, 5)) + " · " + l.valor +
           (l.atrasado ? "" : (!l.aberto && l.vencimento && l.liquidado_em > l.vencimento ? " · " + plural(diasEntre(l.vencimento, l.liquidado_em), "dia") + " de atraso" : ""))) + "</span>").join("") + "</div>"
-      : "<p>Nenhum lançamento ligado a esta despesa ainda. Lançar em " + esc(mesCurto(mesDeHoje())) + " cria o primeiro.</p>") + "</div>";
+      : '<p class="cad-nota">Nenhum lançamento ligado a esta despesa ainda.</p>') + "</div>";
+}
+
+/* Os botoes do pop-up de ver: quem leva para outra tela fecha o pop-up antes. */
+function ligarFichaVista(dlg, f) {
+  const sair = (fn) => () => { if (dialogoAberto) dialogoAberto.fechar(null); fn(); };
+  const clique = (seletor, fn) => dlg.querySelectorAll(seletor).forEach((b) => { b.onclick = fn; });
+  clique("[data-cad-perguntar]", sair(() => perguntarSobreFicha(f)));
+  clique("[data-cad-email]", sair(() => novoEmailPara(f)));
+  clique("[data-cad-agendar]", sair(() => agendarCom(f)));
+  clique("[data-cad-acervo]", sair(() => verNoAcervo(f.nome)));
+  clique("[data-cad-financeiro]", sair(() => mostrarFinanceiro("lancamentos")));
+  clique("[data-cad-lancar]", sair(() => lancarDespesa(f)));
+  // Apagar pergunta num pop-up proprio, que toma o lugar deste; desistir
+  // traz a ficha de volta.
+  clique("[data-cad-apagar]", async () => { if (!(await apagarFicha(f))) verFicha(f.id); });
 }
 
 function quandoDaFicha(iso) {
@@ -490,13 +623,204 @@ function diasEntre(de, ate) {
   return Math.max(0, Math.round((deIso(String(ate).slice(0, 10)) - deIso(String(de).slice(0, 10))) / 86400000));
 }
 
+/* --------------------------------------- o cadastro, em pop-up (docs/ui/05) */
+/*
+   Novo e Editar: os campos na caixa do sistema, Apagar a esquerda do rodape
+   so ao editar, Cancelar e Salvar a direita. Salvar com erro avisa no rodape
+   e nao fecha - o que foi escrito nao se perde.
+*/
+
+function formDaFicha(f) {
+  return {
+    id: f.id, tipo: f.tipo, nome: f.nome || "", documento: f.documento || "", telefone: f.telefone || "", email: f.email || "",
+    endereco: f.endereco || "", honorario: f.honorario || "", dia_vencimento: f.dia_vencimento || 0, avisar_dias: f.avisar_dias || 0,
+    observacao: f.observacao || "", vinculo: f.vinculo || "",
+    salario: f.salario_centavos ? semReais(emReais(f.salario_centavos)) : "",
+    encargos: f.encargos_centavos ? semReais(emReais(f.encargos_centavos)) : "",
+  };
+}
+
+function campoCad(chave, rotulo, dica) {
+  const v = cad.form;
+  const id = "cad-f-" + chave;
+  return '<div class="dialogo-campo"><label for="' + id + '">' + esc(rotulo) + '</label><div class="dialogo-caixa">' +
+    '<input type="text" id="' + id + '" data-cc="' + chave + '" value="' + esc(v[chave] || "") + '"' +
+    (dica ? ' placeholder="' + esc(dica) + '"' : "") + ' autocomplete="off"></div></div>';
+}
+
+function listaCad(chave, rotulo, opcoes) {
+  const v = cad.form;
+  const id = "cad-f-" + chave;
+  const atual = String(v[chave] === undefined || v[chave] === null ? "" : v[chave]);
+  return '<div class="dialogo-campo"><label for="' + id + '">' + esc(rotulo) + '</label><div class="dialogo-caixa">' +
+    '<select id="' + id + '" data-cc="' + chave + '">' +
+    opcoes.map(([valor, r]) => '<option value="' + esc(String(valor)) + '"' + (String(valor) === atual ? " selected" : "") + ">" + esc(r) + "</option>").join("") +
+    "</select></div></div>";
+}
+
+function duasCad(a, b) { return '<div class="dialogo-duas">' + a + b + "</div>"; }
+
+function seletorDeDia() {
+  const opcoes = [["0", "sem dia certo"]];
+  for (let d = 1; d <= 31; d += 1) opcoes.push([String(d), "dia " + d]);
+  return listaCad("dia_vencimento", "Dia de vencimento", opcoes);
+}
+
+function seletorDeAviso() {
+  return listaCad("avisar_dias", "Avisar antes", [["0", "não avisar"], ["1", "1 dia antes"], ["3", "3 dias antes"], ["5", "5 dias antes"], ["7", "7 dias antes"]]);
+}
+
+function partesDoFormCad(v) {
+  const nova = !v.id;
+  const equipe = v.tipo === "socio" || v.tipo === "colaborador";
+  const despesa = v.tipo === "despesa";
+  let titulo, contexto, corpo = "";
+  if (despesa) {
+    titulo = nova ? "Nova despesa fixa" : "Editar despesa";
+    contexto = "Cadastros › Despesas fixas";
+  } else if (equipe) {
+    titulo = nova ? "Nova pessoa na equipe" : "Editar pessoa";
+    contexto = "Cadastros › Equipe";
+  } else {
+    titulo = nova ? "Novo cliente" : "Editar cliente";
+    contexto = "Cadastros › Clientes";
+  }
+  if (!nova) contexto += " · " + v.nome;
+
+  if (v._sugestao) {
+    const x = v._sugestao;
+    const nomes = (x.arquivos || []).map((a) => a.nome);
+    const total = Math.max(x.aparicoes || 0, nomes.length);
+    const lista = nomes.slice(0, 3).join(", ") + (nomes.length > 3 ? "…" : "");
+    const ligar = nomes.length === 1 ? "a esse documento" : (nomes.length < total ? "a " + nomes.length + " deles" : "a esses documentos");
+    corpo += '<p class="cad-veio">' + ic("description", 16) + "<span>Lido em " + esc(plural(total, "documento")) + " do Acervo" +
+      (nomes.length ? (nomes.length < total ? ", entre eles " : ": ") + esc(lista) : "") +
+      ". Confira o nome e o documento; o resto, se souber." + (nomes.length ? " Ao salvar, a ficha já nasce ligada " + ligar + "." : "") + "</span></p>";
+  }
+
+  if (despesa) {
+    corpo += campoCad("nome", "Descrição", "aluguel, contabilidade, sistema…") +
+      duasCad(campoCad("honorario", "Valor mensal", "R$ 0,00"), seletorDeDia()) +
+      campoCad("documento", "CNPJ / CPF do fornecedor") +
+      duasCad(campoCad("email", "E-mail do fornecedor"), campoCad("telefone", "Telefone")) +
+      campoCad("observacao", "Anotação", "fornecedor, contrato, reajuste…") + seletorDeAviso();
+  } else if (equipe) {
+    corpo += campoCad("nome", "Nome completo") +
+      duasCad(campoCad("documento", "CPF"), campoCad("observacao", "Função", "advogada · OAB/GO 00000")) +
+      duasCad(campoCad("email", "E-mail"), campoCad("telefone", "Telefone")) +
+      duasCad(listaCad("tipo", "Papel", [["socio", "Sócio · edita e aprova tudo"], ["colaborador", "Colaborador"]]),
+        listaCad("vinculo", "Vínculo", CAD_VINCULOS)) +
+      (v.vinculo ? duasCad(campoCad("salario", v.vinculo === "estagio" ? "Bolsa" : "Salário ou retirada", "R$ 0,00"), campoCad("encargos", "Encargos e INSS", "R$ 0,00")) : "") +
+      campoCad("endereco", "Endereço");
+  } else {
+    corpo += campoCad("nome", "Razão social ou nome") +
+      duasCad(campoCad("documento", "CNPJ / CPF"), campoCad("telefone", "Telefone")) +
+      campoCad("email", "E-mail para cobrança") +
+      campoCad("endereco", "Endereço") +
+      duasCad(campoCad("honorario", "Honorário padrão", "R$ 0,00"), seletorDeDia()) +
+      seletorDeAviso();
+  }
+  return {
+    titulo: titulo, contexto: contexto, corpo: corpo, botao: nova ? "Salvar cadastro" : "Salvar",
+    excluir: nova ? "" : '<button type="button" class="dialogo-excluir" data-cad-apagar-form="1">Apagar</button>',
+  };
+}
+
+function abrirFormCad() {
+  const v = cad.form;
+  if (!v) return;
+  const f = partesDoFormCad(v);
+  const escolha = dialogo({
+    titulo: f.titulo, contexto: f.contexto, classe: "dialogo-cadastro cad-dialogo", larga: true,
+    html: '<div class="dialogo-form" id="cad-form-pop">' + f.corpo + "</div>",
+    rodape: f.excluir + '<span class="dialogo-aviso" data-cad-aviso="1"></span>',
+    cancelar: "Cancelar", confirmar: f.botao, aoConfirmar: salvarFicha,
+  });
+  const caixa = document.getElementById("cad-form-pop");
+  if (caixa) {
+    ligarFormCad(caixa.closest(".dialogo"));
+    const nome = caixa.querySelector('[data-cc="nome"]');
+    if (nome && !v._sugestao) nome.focus();
+  }
+  // Fechou sem salvar (Cancelar, Esc, clique fora): o formulario sai junto.
+  escolha.then(() => { if (cad.form === v) cad.form = null; });
+}
+
+/* Papel e vinculo mudam os campos: refaz o miolo no proprio pop-up. */
+function redesenharFormCad() {
+  const caixa = document.getElementById("cad-form-pop");
+  if (!caixa) return abrirFormCad();
+  const dlg = caixa.closest(".dialogo");
+  const f = partesDoFormCad(cad.form);
+  dlg.querySelector("#dialogo-titulo").textContent = f.titulo;
+  caixa.innerHTML = f.corpo;
+  ligarFormCad(dlg);
+}
+
+function ligarFormCad(dlg) {
+  if (!dlg) return;
+  const v = cad.form;
+  dlg.querySelectorAll(".dialogo-caixa select").forEach(melhorarSelect);
+  dlg.querySelectorAll("[data-cc]").forEach((el) => {
+    el.oninput = () => { v[el.dataset.cc] = el.value; };
+    el.onchange = () => {
+      v[el.dataset.cc] = el.value;
+      if (el.dataset.cc === "tipo" || el.dataset.cc === "vinculo") redesenharFormCad();
+    };
+  });
+  const apagar = dlg.querySelector("[data-cad-apagar-form]");
+  if (apagar) apagar.onclick = async () => {
+    const f = cad.fichas.find((x) => x.id === v.id);
+    // A pergunta de apagar toma o lugar do pop-up; desistir o traz de volta.
+    const foi = await apagarFicha(f);
+    if (!foi) { cad.form = v; abrirFormCad(); }
+  };
+}
+
+function avisoDoFormCad(texto) {
+  const aviso = document.querySelector("[data-cad-aviso]");
+  if (aviso) aviso.textContent = texto;
+  else avisoCert(texto);
+}
+
+async function salvarFicha() {
+  const v = cad.form;
+  if (!v) return;
+  if (!String(v.nome || "").trim()) {
+    avisoDoFormCad("o cadastro precisa de um nome");
+    const campo = document.querySelector('#cad-form-pop [data-cc="nome"]');
+    if (campo) campo.focus();
+    return;
+  }
+  const dados = {
+    tipo: v.tipo, nome: v.nome, documento: v.documento, telefone: v.telefone, email: v.email, endereco: v.endereco,
+    honorario: v.honorario, dia_vencimento: Number(v.dia_vencimento) || 0, avisar_dias: Number(v.avisar_dias) || 0,
+    observacao: v.observacao, vinculo: v.vinculo || "",
+    salario_centavos: v.vinculo ? centavosDe(v.salario) : 0, encargos_centavos: v.vinculo ? centavosDe(v.encargos) : 0,
+  };
+  const r = await fetch("/api/cadastros", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }) });
+  if (!r.ok) { avisoDoFormCad(await erroDe(r)); return; }
+  const ficha = await r.json();
+  // Sugestao aceita ja nasce ligada aos documentos de onde veio.
+  if (v._sugestao) {
+    for (const a of v._sugestao.arquivos || []) {
+      await fetch("/api/cadastros/" + ficha.id + "/vincular", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ sha1: a.sha1, nome: a.nome }) });
+    }
+  }
+  cad.form = null;
+  if (dialogoAberto && document.getElementById("cad-form-pop")) dialogoAberto.fechar(null);
+  if (!v.id && !v._sugestao) cad.visao = visaoDoTipo(ficha.tipo);
+  avisoCert(v.id ? "ficha atualizada" : (v._sugestao ? ficha.nome + " cadastrado — ligado aos documentos de onde veio" : "cadastro salvo"), { tom: "ok" });
+  mostrarCadastros();
+}
+
 /* ------------------------------------------------------------ as acoes */
 
 function ligarCadastros() {
   const cada = (seletor, fn) => document.querySelectorAll(seletor).forEach(fn);
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
 
-  clique("[data-cad-visao]", (b) => { cad.visao = b.dataset.cadVisao; cad.filtro = "todos"; cad.aberta = null; cad.form = null; desenharCadastros(); });
+  clique("[data-cad-visao]", (b) => { cad.visao = b.dataset.cadVisao; cad.filtro = "todos"; cad.escolhidas.clear(); desenharCadastros(); });
   const busca = $("cad-busca");
   if (busca) {
     let t;
@@ -508,68 +832,42 @@ function ligarCadastros() {
     menuNaLinha(b, [["nome", "A–Z"], ["aberto", "Maior valor em aberto"], ["atraso", "Maior atraso"]].map(([v, r]) =>
       ({ rotulo: r, acao: () => { cad.ordem = v; mostrarCadastros(); } })));
   });
-  clique("[data-cad-importar]", () => avisoCert("Importar cadastros ainda não existe — os nomes lidos nos contratos já aparecem acima, prontos para conferir"));
+  clique("[data-cad-importar]", () => avisoCert("Importar cadastros ainda não existe — os nomes lidos nos contratos aparecem no cartão acima, prontos para conferir"));
   clique("[data-cad-exportar]", () => avisoCert("Exportar cadastros ainda não existe — a planilha do mês sai pelo Financeiro"));
   clique("[data-cad-regras]", () => { marcarDestino("aprovacoes"); mostrarRegrasDeAlcada(); });
   clique("[data-cad-financeiro]", () => mostrarFinanceiro("lancamentos"));
-  clique("[data-cad-sug]", (b) => {
-    const x = cad.sugestoes[Number(b.dataset.cadSug)];
-    if (!x) return;
-    cad.aberta = null;
-    cad.form = Object.assign(formDaFicha({ tipo: "cliente" }), { nome: x.nome, documento: x.documento || "", _sugestao: x });
-    desenharCadastros();
-  });
-  clique("[data-cad-abrir]", (b) => abrirFicha(Number(b.dataset.cadAbrir)));
+  clique("[data-cad-abrir]", (b) => verFicha(Number(b.dataset.cadAbrir)));
   ligarSelecao(document.querySelector("#cad-tela .tabela-corpo"), {
     linhas: ".tabela-linha[data-sel]", escolhidos: cad.escolhidas, aoMudar: desenharCadastros, apagar: (ids) => apagarFichasEmLote(ids),
   });
   clique("[data-cad-sel-limpar]", () => { cad.escolhidas.clear(); desenharCadastros(); });
   clique("[data-cad-sel-apagar]", () => apagarFichasEmLote([...cad.escolhidas]));
   clique("[data-cad-mais]", (b) => menuDaFicha(b, Number(b.dataset.cadMais)));
-  clique("[data-cad-fechar]", () => { cad.aberta = null; cad.form = null; desenharCadastros(); });
-  clique("[data-cad-alca]", () => { cad.largo = !cad.largo; desenharCadastros(); });
-  clique("[data-cad-perguntar]", () => perguntarSobreFicha(cad.aberta));
-  clique("[data-cad-email]", () => novoEmailPara(cad.aberta));
-  clique("[data-cad-agendar]", () => agendarCom(cad.aberta));
-  clique("[data-cad-senha]", () => avisoCert("senha por pessoa ainda não existe — hoje o PAULUS abre com a sua conta do Windows"));
-  clique("[data-cad-acervo]", () => verNoAcervo(cad.aberta ? cad.aberta.nome : ""));
-  clique("[data-cad-lancar]", () => lancarDespesa(cad.aberta));
-  clique("[data-cad-salvar]", salvarFicha);
-  clique("[data-cad-apagar]", () => apagarFicha(cad.aberta));
-
-  cada("[data-cc]", (el) => {
-    el.oninput = () => { cad.form[el.dataset.cc] = el.value; };
-    el.onchange = () => {
-      cad.form[el.dataset.cc] = el.value;
-      // papel e vinculo mudam o que a ficha mostra; os outros campos so guardam
-      if (el.dataset.cc === "tipo" || el.dataset.cc === "vinculo") desenharCadastros();
-    };
-  });
+  const sug = document.getElementById("cad-sug");
+  if (sug) ligarCartaoSugestao(sug);
 }
 
-function abrirFicha(id) {
-  const f = cad.fichas.find((x) => x.id === id);
+function editarFicha(f) {
   if (!f) return;
   cad.aberta = f;
   cad.form = formDaFicha(f);
-  const visao = visaoDoTipo(f.tipo);
-  if (visao !== cad.visao) { cad.visao = visao; cad.filtro = "todos"; }
-  desenharCadastros();
+  abrirFormCad();
 }
 
 function novaFicha() {
   const tipo = cad.visao === "equipe" ? "colaborador" : (cad.visao === "despesas" ? "despesa" : "cliente");
   cad.aberta = null;
   cad.form = formDaFicha({ tipo: tipo });
-  desenharCadastros();
-  const campo = document.querySelector('[data-cc="nome"]');
-  if (campo) campo.focus();
+  abrirFormCad();
 }
 
 function menuDaFicha(botao, id) {
   const f = cad.fichas.find((x) => x.id === id);
   if (!f) return;
-  const itens = [{ icone: "open_in_new", rotulo: "Abrir a ficha", acao: () => abrirFicha(id) }];
+  const itens = [
+    { icone: "open_in_new", rotulo: "Abrir a ficha", acao: () => verFicha(id) },
+    { icone: "edit", rotulo: "Editar", acao: () => editarFicha(f) },
+  ];
   if (f.tipo === "cliente") {
     itens.push({ icone: "mail", rotulo: "Novo e-mail", acao: () => novoEmailPara(f) });
     itens.push({ icone: "calendar_month", rotulo: "Agendar", acao: () => agendarCom(f) });
@@ -586,32 +884,6 @@ function menuDaFicha(botao, id) {
   menuNaLinha(botao, itens);
 }
 
-async function salvarFicha() {
-  const v = cad.form;
-  if (!v) return;
-  if (!String(v.nome || "").trim()) { avisoCert("o cadastro precisa de um nome"); return; }
-  const dados = {
-    tipo: v.tipo, nome: v.nome, documento: v.documento, telefone: v.telefone, email: v.email, endereco: v.endereco,
-    honorario: v.honorario, dia_vencimento: Number(v.dia_vencimento) || 0, avisar_dias: Number(v.avisar_dias) || 0,
-    observacao: v.observacao, vinculo: v.vinculo || "",
-    salario_centavos: v.vinculo ? centavosDe(v.salario) : 0, encargos_centavos: v.vinculo ? centavosDe(v.encargos) : 0,
-  };
-  const r = await fetch("/api/cadastros", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }) });
-  if (!r.ok) { avisoCert(await erroDe(r)); return; }
-  const ficha = await r.json();
-  // Sugestao aceita ja nasce ligada aos documentos de onde veio.
-  if (v._sugestao) {
-    for (const a of v._sugestao.arquivos) {
-      await fetch("/api/cadastros/" + ficha.id + "/vincular", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ sha1: a.sha1, nome: a.nome }) });
-    }
-  }
-  cad.aberta = { id: ficha.id };
-  cad.form = { id: ficha.id };
-  cad.visao = visaoDoTipo(ficha.tipo);
-  avisoCert(v.id ? "ficha atualizada" : "cadastro salvo");
-  mostrarCadastros();
-}
-
 /* A barra das tres listas: os filtros, ou a selecao quando ha fichas marcadas. */
 function barraCad(chips) {
   if (!cad.escolhidas.size) return '<div class="visoes">' + chips + "</div>";
@@ -626,15 +898,18 @@ function apagarFichasEmLote(ids) {
   });
 }
 
+/* Devolve se apagou: quem pergunta de dentro de um pop-up o reabre se a
+   pessoa desistir. */
 async function apagarFicha(f) {
-  if (!f) return;
-  if (!(await confirmar({ titulo: "Apagar a ficha de " + f.nome + "?", contexto: "Cadastros", texto: "Os lançamentos e documentos continuam onde estão, só perdem a ligação com a ficha. " + LIXEIRA_TEXTO + " Restaurar religa tudo.", confirmar: "Apagar", perigo: true }))) return;
+  if (!f) return false;
+  if (!(await confirmar({ titulo: "Apagar a ficha de " + f.nome + "?", contexto: "Cadastros", texto: "Os lançamentos e documentos continuam onde estão, só perdem a ligação com a ficha. " + LIXEIRA_TEXTO + " Restaurar religa tudo.", confirmar: "Apagar", perigo: true }))) return false;
   const r = await fetch("/api/cadastros/" + f.id, { method: "DELETE" });
-  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  if (!r.ok) { avisoCert(await erroDe(r)); return false; }
   cad.aberta = null;
   cad.form = null;
   mostrarCadastros();
   avisarLixeira(r, () => mostrarCadastros());
+  return true;
 }
 
 function perguntarSobreFicha(f) {
@@ -696,9 +971,6 @@ async function lancarDespesa(f) {
     } }),
   });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
-  avisoCert(f.nome + " lançada em " + mesCurto(mes) + " — está em contas a pagar no Financeiro");
-  cad.aberta = { id: f.id };
-  cad.form = { id: f.id };
+  avisoCert(f.nome + " lançada em " + mesCurto(mes) + " — está em contas a pagar no Financeiro", { tom: "ok" });
   mostrarCadastros();
 }
-

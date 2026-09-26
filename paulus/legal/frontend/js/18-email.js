@@ -70,6 +70,7 @@ function prepararComposicao() {
   mail.cco = base.cco || "";
   mail.assunto = base.assunto || "";
   mail.corpo = base.corpo || "";
+  mail.corpoHtml = base.corpo_html || "";
   if (local && local.anexos && !mail.anexos.length) mail.anexos = local.anexos;
   mail.salvoEm = local ? local.quando : "";
   mail.inicio = null;
@@ -115,7 +116,7 @@ function gravarRascunhoLocal() {
   if (!campo) return;
   const d = {
     para: mail.para.join(", "), cc: ($("nm-cc") || {}).value || "", cco: ($("nm-cco") || {}).value || "",
-    assunto: $("nm-assunto").value, corpo: campo.value, anexos: mail.anexos,
+    assunto: $("nm-assunto").value, corpo: campo.value, corpo_html: campo.html || "", anexos: mail.anexos,
     quando: new Date().toISOString(),
   };
   if (!d.para && !d.assunto && !d.corpo.trim() && !d.anexos.length) { apagarRascunhoLocal(); return; }
@@ -256,8 +257,10 @@ function cartaoDeEscrever() {
     '<div class="em-linha" id="nm-linha-cco"' + (mail.cco ? "" : " hidden") + '><span class="em-rotulo">CCO</span><input class="em-campo-linha" type="text" id="nm-cco" value="' + esc(mail.cco || "") + '" placeholder="opcional"></div>' +
     '<div class="em-linha"><span class="em-rotulo">Assunto</span><input class="em-campo-linha assunto" type="text" id="nm-assunto" value="' + esc(mail.assunto || "") + '" placeholder="Assunto"></div>' +
     '<div class="em-compor-corpo">' + faixaDaSugestao() +
-    '<textarea class="em-texto' + (mail.sugestao ? " sugerido" : "") + '" id="nm-corpo" placeholder="Escreva aqui…">' + esc(mail.corpo || "") + "</textarea>" +
-    (c && c.assinatura ? '<div class="em-assinatura">' + esc(c.assinatura) + "</div>" : "") + "</div>" +
+    // A faixa de edicao (js/33-email-editor.js), a mesma do editor de documentos.
+    editorRico({ id: "nm-corpo", html: mail.corpoHtml, texto: mail.corpo, placeholder: "Escreva aqui…", classe: "em-er" }) +
+    // A assinatura como vai sair: o HTML dela ja foi limpo no servidor.
+    (c && (c.assinatura_html || c.assinatura) ? '<div class="em-assinatura">' + (c.assinatura_html || esc(c.assinatura)) + "</div>" : "") + "</div>" +
     /* Os anexos moram debaixo da carta, no espaco dela - e o "Anexar" abre o
        modal de sempre (Acervo e Meu computador), nunca a coluna ao lado. */
     '<div class="em-anexos-bloco" id="nm-anexos"></div>' +
@@ -551,9 +554,10 @@ function ligarEscrever() {
     const el = $(id);
     if (el) el.oninput = () => { mail[chave] = el.value; mudou(); };
   });
-  const corpo = $("nm-corpo");
+  const corpo = ligarEditorRico("nm-corpo", () => { mail.corpoHtml = corpo.html; });
   corpo.oninput = () => {
     mail.corpo = corpo.value;
+    mail.corpoHtml = corpo.html;
     if (mail.sugestao) manterSugestao(true);
     mudou();
   };
@@ -611,6 +615,8 @@ function ligarSugestao() {
     const corpo = $("nm-corpo");
     corpo.value = s.antes;
     mail.corpo = s.antes;
+    mail.corpoHtml = s.antesHtml || "";
+    if (s.antesHtml) corpo.html = s.antesHtml;
     mail.sugestao = null;
     tirarFaixaDaSugestao();
     mail.conversa.push({ autor: "paulus", texto: "Voltei ao seu texto." });
@@ -712,12 +718,13 @@ async function pedirNoEmail(pedido, rotulo) {
   } else if (r) {
     const d = await r.json();
     if (mail.visao === "novo" && agora) {
-      mail.sugestao = { antes: antes, rotulo: rotulo };
+      mail.sugestao = { antes: antes, antesHtml: agora.html, rotulo: rotulo };
       agora.value = d.sugestao;
       mail.corpo = d.sugestao;
+      mail.corpoHtml = agora.html;
       const velha = $("nm-sugestao");
       if (velha) velha.remove();
-      agora.insertAdjacentHTML("beforebegin", faixaDaSugestao());
+      (agora.closest(".er") || agora).insertAdjacentHTML("beforebegin", faixaDaSugestao());
       agora.classList.add("sugerido");
       ligarSugestao();
       gravarRascunhoLocal();
@@ -738,6 +745,7 @@ function pedidoDoEnvio() {
     cco: $("nm-cco") ? $("nm-cco").value : "",
     assunto: $("nm-assunto").value,
     corpo: $("nm-corpo").value,
+    corpo_html: $("nm-corpo").html || "",
     anexos: mail.anexos.map((a) => a.path),
   };
 }
@@ -819,7 +827,9 @@ async function verPrevia() {
     titulo: "Como vai chegar", contexto: "E-mail › Novo e-mail", classe: "em-previa", larga: true,
     html: fichaDoDialogo([["De", d.de], ["Para", d.para.join(", ")], d.cc.length ? ["CC", d.cc.join(", ")] : null,
       d.cco.length ? ["CCO", d.cco.join(", ")] : null, ["Assunto", d.assunto]]) +
-      '<div class="em-previa-corpo">' + esc(d.corpo) + "</div>" +
+      (d.html
+        ? '<iframe class="em-previa-quadro" sandbox title="Como vai chegar" srcdoc="' + esc(d.html).replace(/"/g, "&quot;") + '"></iframe>'
+        : '<div class="em-previa-corpo">' + esc(d.corpo) + "</div>") +
       (d.anexos.length ? '<div class="em-anexo-fichas">' + d.anexos.map((a) => '<span class="em-anexo-ficha">' + glifo(a.nome) + '<span class="corta">' + esc(a.nome) +
         "</span><small>" + String(a.kb).replace(".", ",") + " KB</small></span>").join("") + "</div>" : "") +
       '<p class="em-previa-resumo">' + esc(d.resumo || "") + "</p>",
@@ -843,6 +853,7 @@ async function enviarEmail() {
   mail.anexos = [];
   mail.sugestao = null;
   mail.corpo = "";
+  mail.corpoHtml = "";
   mail.assunto = "";
   depoisDoEnvio(d, pedido);
 }

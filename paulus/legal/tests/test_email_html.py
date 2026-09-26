@@ -81,9 +81,44 @@ def test_sem_html() -> None:
     checar(texto == "só texto" and html == "" and remotas == 0, "sem HTML, nada muda")
 
 
+def test_envio_formatado() -> None:
+    print("\nE-mail escrito com formatação e assinatura com imagem")
+    import base64
+    import correio_contas
+
+    png = "data:image/png;base64," + base64.b64encode(PNG).decode()
+    conta = correio_contas.Conta(id="c1", email="escritorio@exemplo.com.br", nome="Escritório Exemplo")
+    conta.assinatura_html = correio.limpar_assinatura(
+        f'<p><b>Nome Exemplo</b><br>OAB/UF 00000</p><img src="{png}" width="80"><img src="https://rastreio.test/x.gif">')
+    conta.assinatura = correio.html_para_texto(conta.assinatura_html)
+    checar("rastreio.test" not in conta.assinatura_html, "imagem de fora não entra na assinatura")
+    checar(conta.assinatura.startswith("Nome Exemplo\nOAB/UF 00000"), "a assinatura tem versão em texto", conta.assinatura)
+
+    msg = correio.montar_email(conta, para=["cliente@exemplo.com.br"], assunto="Contrato",
+                               corpo="Segue o contrato.", corpo_html='<p>Segue o <b>contrato</b>.</p><script>x()</script>')
+    tipos = [p.get_content_type() for p in msg.walk()]
+    checar("text/plain" in tipos and "text/html" in tipos, "sai em texto e em HTML", tipos)
+    checar("image/png" in tipos, "a imagem da assinatura vai embutida", tipos)
+    html = msg.get_body(preferencelist=("html",)).get_content()
+    checar("<b>contrato</b>" in html and "<script" not in html, "a formatação vai, o código não")
+    checar("cid:" in html and "data:image" not in html, "a imagem vira cid: (o Gmail não mostra data:)")
+    texto = msg.get_body(preferencelist=("plain",)).get_content()
+    checar("Segue o contrato." in texto and "--\nNome Exemplo" in texto, "o texto puro leva a assinatura", texto)
+    previa = correio.html_da_mensagem(msg)
+    checar("data:image/png;base64," in previa, "a prévia mostra a imagem de volta")
+
+    grande = "data:image/png;base64," + "A" * 400_000
+    try:
+        correio.limpar_assinatura(f'<img src="{grande}">')
+        checar(False, "recusa imagem grande na assinatura")
+    except ValueError:
+        checar(True, "recusa imagem grande na assinatura")
+
+
 if __name__ == "__main__":
     test_limpeza()
     test_sem_html()
+    test_envio_formatado()
     print("\n" + "=" * 55)
     if _falhas:
         print(f"  {len(_falhas)} FALHA(S):")

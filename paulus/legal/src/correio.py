@@ -892,7 +892,98 @@ def excluir_varias(conta, senha: str, uids) -> dict:
 # -------------------------------------------------------------- enviar
 
 
+# ------------------------------------------------ o que se escreve em HTML
+
+# A assinatura pode ter uma imagem pequena (logo, foto). Mais que isto pesa
+# em todo e-mail que sai - e alguns servidores cortam.
+ASSINATURA_MAX_BYTES = 200 * 1024
+
+_RE_IMG_DATA = re.compile(
+    r"""data:image/(png|jpe?g|gif|webp);base64,([A-Za-z0-9+/=\s]+)""", re.I)
+
+
+def limpar_html_escrito(html: str) -> str:
+    """
+    O HTML escrito no PAULUS (texto do e-mail, resposta, assinatura), pronto
+    para sair: sem codigo nem evento (a mesma limpeza da caixa) e sem imagem
+    de fora - uma imagem de endereco externo avisaria alguem quando o
+    destinatario abrisse. Imagem embutida (data:) fica, e vira anexo interno.
+    """
+    limpo, _ = sanitizar_html(html or "")
+    limpo = re.sub(r"""<img\b[^>]*\bsrc\s*=\s*["']?\s*https?:[^>]*>""", "", limpo, flags=re.I)
+    return limpo.strip()
+
+
+def limpar_assinatura(html: str) -> str:
+    limpo = limpar_html_escrito(html)
+    if len(limpo.encode("utf-8")) > ASSINATURA_MAX_BYTES * 4 // 3 + 20_000:
+        raise ValueError("a imagem da assinatura passa de 200 KB - use uma menor")
+    return limpo
+
+
+def html_para_texto(html: str) -> str:
+    """A versao em texto puro do que foi escrito em HTML (a parte text/plain)."""
+    import html as html_mod
+
+    texto = re.sub(r"(?is)<(style|head)\b.*?</\1>", "", html or "")
+    texto = re.sub(r"(?i)<br\s*/?>", "\n", texto)
+    texto = re.sub(r"(?i)<li\b[^>]*>", "- ", texto)
+    texto = re.sub(r"(?i)</(p|div|li|h[1-6]|blockquote|tr)>", "\n", texto)
+    texto = re.sub(r"<[^>]+>", "", texto)
+    texto = html_mod.unescape(texto).replace("\xa0", " ")
+    texto = re.sub(r"[ \t]+\n", "\n", texto)
+    return re.sub(r"\n{3,}", "\n\n", texto).strip()
+
+
+def _texto_para_html(texto: str) -> str:
+    import html as html_mod
+
+    return html_mod.escape(texto or "").replace("\n", "<br>")
+
+
+def _embutir_imagens(documento: str) -> tuple[str, list[tuple[str, str, bytes]]]:
+    """
+    Troca as imagens data: por cid: - o jeito que todo cliente de e-mail mostra
+    (o Gmail nao mostra data: no corpo). Devolve o HTML e as imagens.
+    """
+    import base64
+    from email.utils import make_msgid
+
+    imagens: list[tuple[str, str, bytes]] = []
+
+    def trocar(m):
+        try:
+            dados = base64.b64decode(re.sub(r"\s", "", m.group(2)), validate=False)
+        except ValueError:
+            return m.group(0)
+        cid = make_msgid(domain="paulus.local")[1:-1]
+        sub = m.group(1).lower().replace("jpg", "jpeg")
+        imagens.append((cid, sub, dados))
+        return "cid:" + cid
+
+    return _RE_IMG_DATA.sub(trocar, documento), imagens
+
+
+def html_da_mensagem(msg) -> str:
+    """O HTML que vai sair, com as imagens cid: de volta em data: - para a previa."""
+    import base64
+
+    html_parte, cids = None, {}
+    for parte in msg.walk():
+        if parte.get_content_type() == "text/html" and html_parte is None:
+            html_parte = parte
+        elif parte.get_content_maintype() == "image" and parte.get("Content-ID"):
+            dados = parte.get_payload(decode=True) or b""
+            cids[parte["Content-ID"].strip("<>")] = (
+                f"data:{parte.get_content_type()};base64," + base64.b64encode(dados).decode("ascii"))
+    if html_parte is None:
+        return ""
+    documento = html_parte.get_content()
+    return re.sub(r"cid:([^\"'\s>]+)", lambda m: cids.get(m.group(1), m.group(0)), documento)
+
+
 def montar_email(conta, *, para: list[str], assunto: str, corpo: str,
+                 corpo_html: str = "",
                  cc: list[str] | None = None, cco: list[str] | None = None,
                  anexos: list[Path] | None = None,
                  responder_a: str = "") -> EmailMessage:
@@ -901,6 +992,10 @@ def montar_email(conta, *, para: list[str], assunto: str, corpo: str,
 
     Separada do envio de proposito: assim da para mostrar exatamente o que vai
     sair - "ver como vai chegar" - sem nada ter saido ainda.
+
+    Com texto formatado (`corpo_html`) ou assinatura com formatacao, sai nas
+    duas versoes, como todo cliente de e-mail: texto puro e HTML, com as
+    imagens da assinatura embutidas (cid:).
     """
     msg = EmailMessage()
     msg["From"] = formataddr((conta.nome or "", conta.email))
@@ -913,10 +1008,28 @@ def montar_email(conta, *, para: list[str], assunto: str, corpo: str,
         msg["In-Reply-To"] = responder_a
         msg["References"] = responder_a
 
-    texto = corpo.rstrip()
-    if conta.assinatura.strip():
-        texto += "\n\n--\n" + conta.assinatura.strip()
+    assinatura_html = (getattr(conta, "assinatura_html", "") or "").strip()
+    assinatura_texto = conta.assinatura.strip() or html_para_texto(assinatura_html)
+    texto = (corpo.rstrip() or html_para_texto(corpo_html))
+    if assinatura_texto:
+        texto += "\n\n--\n" + assinatura_texto
     msg.set_content(texto)
+
+    if corpo_html.strip() or assinatura_html:
+        miolo = limpar_html_escrito(corpo_html) if corpo_html.strip() else _texto_para_html(corpo.rstrip())
+        assinatura = (limpar_html_escrito(assinatura_html) if assinatura_html
+                      else _texto_para_html(conta.assinatura.strip()))
+        documento = ('<!doctype html><html><head><meta charset="utf-8"></head>'
+                     '<body style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f1f1f">'
+                     f"<div>{miolo}</div>"
+                     + (f'<div style="margin-top:18px">{assinatura}</div>' if assinatura else "")
+                     + "</body></html>")
+        documento, imagens = _embutir_imagens(documento)
+        msg.add_alternative(documento, subtype="html")
+        if imagens:
+            parte_html = msg.get_payload()[1]
+            for cid, sub, dados in imagens:
+                parte_html.add_related(dados, maintype="image", subtype=sub, cid=f"<{cid}>")
 
     for caminho in (anexos or []):
         alvo = Path(caminho)
@@ -1195,6 +1308,42 @@ def resumir_caixa(cliente, mensagens: list[dict]) -> str:
     return limpo.strip()
 
 
+# ------------------------------------------------ contexto da mensagem aberta
+
+INSTRUCAO_CONTEXTO = """Voce le um e-mail que um advogado brasileiro acabou de
+abrir. Em duas ou tres frases curtas, em portugues do Brasil, diga quem
+escreveu e o que quer, e o que precisa ser feito - e ate quando, se o texto
+disser. Se for aviso automatico (notificacao de sistema, alerta de seguranca,
+propaganda, boletim), diga isso numa frase so e o que ele avisa.
+
+Nao invente nomes, prazos, datas nem valores que nao estejam no e-mail. Nao
+de conselho juridico. Sem listas, sem titulo, sem marcacao."""
+
+CONTEXTO_MAX = 4000
+
+
+def contexto_da_mensagem(cliente, itens: list[dict]) -> str:
+    """
+    O "Contexto IA" da mensagem aberta: duas ou tres frases do modelo.
+
+    Frase com numero que nao esta no e-mail (data, valor, prazo inventado)
+    sai inteira - melhor faltar que errar.
+    """
+    m = itens[0] if itens else {}
+    corpo = str(m.get("corpo", "")).strip()
+    if not corpo:
+        return ""
+    fonte = f"{m.get('assunto', '')}\n{m.get('de', '')}\n{corpo[:CONTEXTO_MAX]}"
+    contexto = (f"De: {m.get('de', '')}\nAssunto: {m.get('assunto', '')}\n\n"
+                f"{corpo[:CONTEXTO_MAX]}")
+    resposta = cliente.ask("Diga o contexto deste e-mail.", contexto, sistema=INSTRUCAO_CONTEXTO)
+    limpo = re.sub(r"^\s*(contexto|resumo)[^\n:]{0,30}:\s*", "", (resposta or "").strip(), flags=re.I)
+    limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
+    frases = re.split(r"(?<=[.!?])\s+", limpo)
+    boas = [f for f in frases if all(n in fonte for n in re.findall(r"\d{2,}", f))]
+    return " ".join(boas).strip()
+
+
 def chave_do_resumo(conta_id: str, mensagens: list[dict]) -> str:
     """
     A chave do cache: a conta e as mensagens que o modelo leria.
@@ -1219,9 +1368,14 @@ class ResumosDaCaixa:
 
     LIMITE = 30
 
-    def __init__(self) -> None:
+    def __init__(self, fazer=None, limite: int = 30) -> None:
         import threading
         from collections import OrderedDict
+
+        # O que o modelo faz com os itens: o resumo da caixa, por padrao, ou o
+        # contexto de uma mensagem (contexto_da_mensagem).
+        self._fazer = fazer or resumir_caixa
+        self.LIMITE = limite
 
         self._trava = threading.Lock()
         self._feitos: OrderedDict[str, dict] = OrderedDict()
@@ -1238,6 +1392,11 @@ class ResumosDaCaixa:
             if self._proximo and self._proximo[0] == chave:
                 return {"estado": "na_fila"}
         return {"estado": "nenhum"}
+
+    def esquecer(self, chave: str) -> None:
+        """O "atualizar resumo": o proximo pedido desta lista roda de novo."""
+        with self._trava:
+            self._feitos.pop(chave, None)
 
     def pedir(self, chave: str, mensagens: list[dict], cliente) -> dict:
         import threading
@@ -1261,7 +1420,7 @@ class ResumosDaCaixa:
         from datetime import datetime as _dt
 
         try:
-            texto = resumir_caixa(cliente, mensagens)
+            texto = self._fazer(cliente, mensagens)
             feito = {"estado": "pronto", "texto": texto, "quando": _dt.now().isoformat(timespec="seconds")}
             if not texto:
                 feito = {"estado": "falhou", "erro": "o modelo devolveu um texto vazio"}

@@ -1,10 +1,16 @@
   /* ----------------------------------------------------- cadastros (A10) */
   /*
     Cadastros (docs/ui/03-telas-desktop.md, A10): Clientes, Equipe e Despesas
-    fixas, cada uma uma tabela com a ficha editavel no painel. Prefixo cad-.
+    fixas, cada uma uma tabela na medida editorial (sv-principal e sv-medida,
+    1080px, 12-servicos.css), sem coluna ao lado. A ficha e o cadastro abrem
+    em pop-up (21-dialogos.css). Prefixo cad-.
   */
-  .cad-tela.acervo { grid-template-columns: minmax(0, 1fr) 380px; }
-  .cad-tela.acervo.painel-largo { grid-template-columns: minmax(0, 1fr) 560px; }
+  .cad-tela .sv-principal { padding: 16px 24px 56px; }
+  .cad-tela .sv-medida { gap: 16px; }
+  .tabela-cartao.cad-lista { flex: none; overflow: visible; box-shadow: 0 8px 24px -16px var(--sh-a12); }
+  .cad-lista .tabela-barra { border-radius: 12px 12px 0 0; }
+  .cad-lista .tabela-corpo { overflow: visible; }
+  .cad-lista .tabela-rodape { border-radius: 0 0 12px 12px; }
   .colunas-clientes { grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.4fr) minmax(0, 1.2fr) 120px 28px; }
   .colunas-equipe { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.6fr) 130px 28px; }
   .colunas-despesas { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) 100px 130px 130px 28px; }
@@ -14,7 +20,6 @@
     width: 32px; height: 32px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center;
     font: 700 11px var(--sans); color: var(--ink2); flex: none;
   }
-  .cad-avatar.grande { width: 40px; height: 40px; font-size: 13px; }
   .cad-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
   .cad-nome .duas-linhas b { font-weight: 600; }
   .cad-nome small.cad-atrasado { color: var(--acc); }
@@ -23,37 +28,65 @@
   .cad-ligado { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .cad-ligado span, .cad-pill { padding: 2px 8px; border-radius: 5px; background: var(--fill); color: var(--ink2); font: 600 11.5px var(--sans); white-space: nowrap; }
   .cad-pill.forte { background: var(--ink); color: var(--bg); }
-  .cad-ligado small, .cad-mudo { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .cad-ligado small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .fin-valor-col.cad-zero { color: var(--ink3); font-weight: 400; }
   .cad-barra .direita { position: relative; }
   .cad-barra button.adiante { opacity: .6; }
-  .cad-aviso {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 16px 4px; padding: 10px 14px;
-    border: 1px solid var(--ink-a1); border-radius: 10px; font-size: 13px; color: var(--ink2);
-  }
-  .cad-aviso .ic { color: var(--acc); flex: none; }
-  .cad-aviso .cresce { min-width: 0; }
-  .cad-sug { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--ink-a15); background: transparent; font: 500 12px var(--sans); color: var(--ink); white-space: nowrap; }
-  .cad-sug small { color: var(--ink3); margin-left: 4px; }
   .cad-rodape-nota { margin-left: auto; }
 
-  /* a ficha, no painel */
-  .cad-painel .rolagem { display: flex; flex-direction: column; }
-  .cad-painel .painel-cabeca .cad-avatar { margin-left: auto; }
-  .cad-campos { padding: 4px 18px 14px; display: grid; gap: 12px; }
-  .cad-campos .ag-duas { gap: 10px; }
-  .cad-valor-grande { font: 400 30px/1 var(--serif); font-variant-numeric: tabular-nums; }
-  .cad-ligacoes { display: grid; gap: 6px; font-size: 13px; }
+  /* A sugestao de cadastro: um cartao, uma sugestao por vez. Titulo na letra
+     do sistema, sem icone de cor - o destaque e o nome. */
+  .cad-sug {
+    display: grid; gap: 12px; padding: 16px 20px 18px;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: 0 8px 24px -16px var(--sh-a12);
+  }
+  .cad-sug-topo { display: flex; align-items: center; gap: 16px; min-width: 0; min-height: 28px; }
+  .cad-sug-topo .sv-kicker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-sug-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; flex: none; }
+  .cad-sug-nav .botao-icone { width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: var(--ink2); }
+  .cad-sug-nav .botao-icone:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .cad-sug-nav .botao-icone:disabled { opacity: .35; }
+  .cad-sug-conta { min-width: 56px; text-align: center; font: 500 12.5px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink3); }
+  .cad-sug-corpo { display: flex; align-items: center; gap: 24px; min-width: 0; }
+  .cad-sug-quem { display: grid; gap: 4px; min-width: 0; flex: 1; }
+  .cad-sug-nome { margin: 0; font: 600 18px/1.3 var(--sans); letter-spacing: -.005em; color: var(--ink); overflow-wrap: anywhere; }
+  .cad-sug-meta { margin: 0; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
+  .cad-sug-prova { margin: 0; font: 400 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-sug-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
+  .cad-sug-acoes button { height: 36px; padding: 0 16px; border-radius: 8px; font: 500 13px var(--sans); }
+  .cad-sug-acoes .primario { font-weight: 600; }
+  /* sem sugestao, ou lendo: uma linha discreta com a acao a direita */
+  .cad-sug-vazio { display: flex; align-items: center; gap: 24px; min-width: 0; }
+  .cad-sug-texto { display: grid; gap: 4px; min-width: 0; flex: 1; }
+  .cad-sug-texto b { font: 600 14px var(--sans); color: var(--ink); }
+  .cad-sug-texto small { font: 400 13px/1.5 var(--sans); color: var(--ink3); overflow-wrap: anywhere; }
+  .cad-sug-vazio > button { flex: none; height: 36px; padding: 0 14px; border-radius: 8px; font: 500 13px var(--sans); }
+  .cad-sug-fita { display: block; height: 4px; margin-top: 6px; max-width: 420px; border-radius: 999px; background: var(--fill); overflow: hidden; }
+  .cad-sug-fita i { display: block; height: 100%; border-radius: inherit; background: var(--ink2); transition: width .3s ease; }
+
+  /* a ficha e o cadastro, em pop-up */
+  .dialogo.cad-dialogo { width: 600px; max-width: calc(100vw - 32px); }
+  .cad-dialogo .dialogo-acoes { margin-top: 2px; }
+  .cad-veio {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--fill);
+    font: 400 13px/1.55 var(--sans); color: var(--ink2);
+  }
+  .dialogo-corpo p.cad-veio { font-size: 13px; line-height: 1.55; }
+  .cad-veio .ic { flex: none; margin-top: 1px; color: var(--ink3); }
+  .cad-destaque { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .cad-valor-grande { font: 600 26px/1.1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .cad-destaque-nota { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .dialogo-corpo p.cad-nota { font: 400 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .cad-bloco { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--ink-a08); }
+  .cad-bloco-titulo { font: 600 13px var(--sans); color: var(--ink); }
+  .cad-bloco-titulo small { margin-left: 6px; font: 500 12px var(--sans); color: var(--ink3); }
+  .cad-ligacoes { display: grid; gap: 8px; font-size: 13.5px; }
   .cad-ligacao { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .cad-ligacao .ic { color: var(--ink3); flex: none; }
-  .cad-ligacao > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-ligacao > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
   .cad-ligacao small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .cad-pode { display: grid; gap: 8px; font-size: 13.5px; }
+  .cad-pode { display: grid; gap: 8px; font-size: 13.5px; color: var(--ink); }
   .cad-pode div { display: flex; gap: 10px; align-items: flex-start; }
-  .cad-pode .ic { color: var(--verde); flex: none; }
+  .cad-pode .ic { color: var(--ink2); flex: none; }
   .cad-pode .ic.nao { color: var(--ink3); }
-  .cad-rodape { margin-top: auto; padding: 12px 18px; border-top: 1px solid var(--ink-a1); display: flex; align-items: center; gap: 10px; }
-  .cad-rodape .em-ligacao.acc { font-size: 13px; }
-  .cad-rodape .primario { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
   .cad-historico { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
-

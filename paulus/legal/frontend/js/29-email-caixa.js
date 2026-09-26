@@ -147,14 +147,19 @@ function exLide() {
 function exAbertura() {
   const c = mail.conta;
   const pasta = EX_PASTAS.find((p) => p.id === mail.pasta) || EX_PASTAS[0];
-  const conta = '<button class="ex-conta" data-ex-conta="1" title="Trocar de conta">' + avatarDaConta(c) + "<span>" + esc(c.email) + "</span>" + ic("expand_more", 16) + "</button>";
-  // So o titulo e a conta; a contagem ja esta no alto da tela e na barra
-  // da lista. Na busca, a frase volta para dizer o que se buscou.
+  const busca = mail.busca ? '<p class="ex-lide">' + esc(exLide()) + ' <button class="sv-ligacao" data-ex-sem-busca="1">limpar a busca</button></p>' : "";
+  // A caixa de entrada abre como a pasta de um servico (10-servicos.js): o
+  // resumo da IA em cima e a ficha em faixa embaixo - mesmo desenho, mesmas
+  // classes. As outras pastas ficam com o titulo e a conta.
+  if (mail.pasta === "entrada" && !mail.busca && mail.caixa && mail.caixa.mensagens.length) {
+    return '<header class="ex-abre sv-abertura" id="ex-resumo">' + exResumoMiolo() + "</header>";
+  }
   return '<header class="ex-abre"><h1 class="ex-titulo">' + esc(pasta.rotulo) + "</h1>" +
-    '<div class="ex-conta-casa">' + conta + "</div>" +
-    (mail.busca ? '<p class="ex-lide">' + esc(exLide()) + ' <button class="sv-ligacao" data-ex-sem-busca="1">limpar a busca</button></p>' : "") +
-    (mail.pasta === "entrada" && mail.caixa && mail.caixa.mensagens.length ? '<section class="ex-resumo" id="ex-resumo">' + exResumoMiolo() + "</section>" : "") +
-    "</header>";
+    '<div class="ex-conta-casa">' + exBotaoConta(c) + "</div>" + busca + "</header>";
+}
+
+function exBotaoConta(c) {
+  return '<button class="ex-conta" data-ex-conta="1" title="Trocar de conta">' + avatarDaConta(c) + "<span>" + esc(c.email) + "</span>" + ic("expand_more", 16) + "</button>";
 }
 
 /* ------------------------------------------------------- o resumo */
@@ -165,52 +170,45 @@ function exAbertura() {
    no servidor - e escreve em segundo plano; a tela nunca espera por ele.
 */
 
-function exFraseDaRegra(g) {
-  const partes = [];
-  partes.push("<li><b>" + g.pedem_resposta + "</b> " + (g.pedem_resposta === 1 ? "pede" : "pedem") + " resposta: não lidas ou com prazo, ainda sem resposta.</li>");
-  if (g.remetentes.length) {
-    partes.push("<li>Quem mais escreveu: " + g.remetentes.map((r) => esc(r.nome) + (r.quantas > 1 ? " (" + r.quantas + ")" : "")).join(", ") + ".</li>");
-  }
-  if (g.prazos.length) {
-    g.prazos.forEach((p) => {
-      partes.push('<li>Prazo no assunto: <button class="ex-resumo-prazo" data-ex-ir="' + esc(p.uid) + '"><b>' + esc(dataCurta(p.prazo)) + "</b> · " +
-        esc(p.assunto) + "</button> <span class=\"ex-resumo-de\">(" + esc(p.de) + ")</span></li>");
-    });
-  } else {
-    partes.push("<li>Nenhum prazo nos assuntos. O texto de cada mensagem eu confiro quando você abre.</li>");
-  }
-  const extra = [];
-  if (g.de_clientes) extra.push(plural(g.de_clientes, "de cliente do cadastro", "de clientes do cadastro"));
-  if (g.com_anexo) extra.push(plural(g.com_anexo, "com anexo", "com anexo"));
-  if (extra.length) partes.push("<li>" + maiuscula(extra.join(" · ")) + ".</li>");
-  return "<ul>" + partes.join("") + "</ul>";
-}
-
-function exFraseDoModelo(m) {
+/* O texto do resumo: o do assistente quando pronto; enquanto isso, o
+   andamento do jeito de Servicos; sem assistente, diz que valem os numeros
+   da ficha, contados por regra. */
+function exTextoDoResumo(m) {
   const e = m ? m.estado : "";
-  if (e === "pronto") {
-    const hora = (m.quando || "").slice(11, 16);
-    return '<p class="ex-resumo-texto">' + esc(m.texto) + "</p>" + (hora ? '<small class="ex-resumo-nota">escrito às ' + esc(hora) + " · confira antes de agir</small>" : "");
-  }
+  if (e === "pronto") return '<p class="sv-resumo-corpo">' + esc(m.texto) + "</p>";
   if (e === "resumindo" || e === "na_fila") {
-    return '<p class="ex-resumo-texto espera">' + coroa(14) + "<span>resumindo… leva cerca de um minuto nesta máquina. Enquanto isso, vale o resumo por regra.</span></p>";
+    return '<p class="sv-ev-pensando">' + coroa(16) + "<span>lendo remetentes e assuntos… leva cerca de um minuto nesta máquina.</span></p>";
   }
-  if (e === "indisponivel") return '<p class="ex-resumo-texto vazio">O assistente local não está respondendo agora, então fica só o resumo por regra.</p>';
+  if (e === "indisponivel") return '<p class="sv-resumo-corpo vazio">O assistente local não está respondendo agora. Os números abaixo são contados por regra, na hora.</p>';
   if (e === "falhou") {
-    return '<p class="ex-resumo-texto vazio">Não consegui resumir: ' + esc(m.erro || "sem resposta") + '. <button class="sv-ligacao" data-ex-resumo-de-novo="1">tentar de novo</button></p>';
+    return '<p class="sv-resumo-corpo vazio">Não consegui resumir: ' + esc(m.erro || "sem resposta") + ". Os números abaixo são contados por regra.</p>";
   }
-  return '<p class="ex-resumo-texto vazio">…</p>';
+  return '<p class="sv-ev-pensando">' + coroa(16) + "<span>lendo remetentes e assuntos…</span></p>";
 }
 
 function exResumoMiolo() {
   const r = cx.resumo && cx.resumoPara === mail.caixa ? cx.resumo : null;
+  const g = r && r.regra;
+  const m = r && r.modelo;
   const n = mail.caixa ? mail.caixa.mensagens.length : 0;
-  return '<div class="ex-resumo-cabeca"><span class="ex-resumo-titulo">Resumo da caixa</span><span class="ex-resumo-onde">das ' +
-    plural(n, "mensagem", "mensagens") + " desta página</span></div>" +
-    '<div class="ex-resumo-blocos"><div class="ex-resumo-bloco"><span class="ex-selo">' + ic("rule", 14) + "Por regra · na hora</span>" +
-    (r && r.regra ? exFraseDaRegra(r.regra) : '<p class="ex-resumo-texto vazio">contando…</p>') + "</div>" +
-    '<div class="ex-resumo-bloco"><span class="ex-selo">' + ic("auto_awesome", 14) + "Assistente local · lê só remetente e assunto</span>" +
-    exFraseDoModelo(r && r.modelo) + "</div></div>";
+  const pronto = m && m.estado === "pronto";
+  const hora = pronto ? (m.quando || "").slice(11, 16) : "";
+  const andando = m && (m.estado === "resumindo" || m.estado === "na_fila");
+  const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
+  const prazo = g && g.prazos.length ? g.prazos[0] : null;
+  const quem = g && g.remetentes.length ? g.remetentes[0] : null;
+  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Resumo da IA</h2>' +
+    '<small class="sv-resumo-quando">' + (hora ? "escrito às " + esc(hora) + " · " : "") + "leu só remetente e assunto de " + plural(n, "mensagem", "mensagens") + "</small>" +
+    '<button type="button" class="sv-ligacao" data-ex-resumo-de-novo="1"' + (andando ? " disabled" : "") + ">" + ic("refresh", 15) + "atualizar resumo</button></div>" +
+    exTextoDoResumo(m) + "</div>" +
+    '<div class="sv-ficha">' +
+    item("Conta", '<div class="ex-conta-casa">' + exBotaoConta(mail.conta) + "</div>") +
+    item("Pedem resposta", "<b>" + (g ? g.pedem_resposta + " de " + n : "…") + "</b>") +
+    item("Prazo mais perto", prazo
+      ? '<button type="button" class="sv-ficha-pasta corta" data-ex-ir="' + esc(prazo.uid) + '" title="' + esc(prazo.assunto) + '">' + esc(dataCurta(prazo.prazo)) + " · " + esc(prazo.assunto) + "</button>"
+      : "<b>" + (g ? "nenhum nos assuntos" : "…") + "</b>") +
+    item("Quem mais escreveu", '<b class="corta">' + (quem ? esc(quem.nome) + (quem.quantas > 1 ? " · " + quem.quantas : "") : g ? "—" : "…") + "</b>") +
+    "</div>";
 }
 
 function exCabecalhosParaResumo() {
@@ -220,14 +218,14 @@ function exCabecalhosParaResumo() {
   }));
 }
 
-async function exPedirResumo() {
+async function exPedirResumo(deNovo) {
   if (mail.pasta !== "entrada" || !mail.caixa || !mail.conta || mail.busca) return;
   const k = mail.caixa;
   cx.resumoPara = k;
   if (!k.mensagens.length) { cx.resumo = null; return; }
   let d;
   try {
-    const r = await exJson("/api/email/caixa/resumo", { conta_id: mail.conta.id, mensagens: exCabecalhosParaResumo() });
+    const r = await exJson("/api/email/caixa/resumo", { conta_id: mail.conta.id, mensagens: exCabecalhosParaResumo(), de_novo: !!deNovo });
     d = r.ok ? await r.json() : { regra: null, modelo: { estado: "falhou", erro: await erroDe(r) } };
   } catch (err) {
     d = { regra: null, modelo: { estado: "falhou", erro: String(err) } };
@@ -267,9 +265,19 @@ function exPintarResumo() {
   exLigarResumo(alvo);
 }
 
+function exMenuDaConta(b, e) {
+  e.stopPropagation();
+  menuNaLinha(b, mail.contas.contas.map((c) => ({
+    atual: !!(mail.conta && c.id === mail.conta.id),
+    rotulo: c.email + (exPrecisaEntrar(c) ? " · entrar de novo" : ""),
+    acao: () => exTrocarConta(c),
+  })).concat(["-", { rotulo: "Gerenciar contas", acao: () => mostrarEmail("contas") }]));
+}
+
 function exLigarResumo(alvo) {
   alvo.querySelectorAll("[data-ex-ir]").forEach((b) => { b.onclick = () => exAbrir(b.dataset.exIr, true); });
-  alvo.querySelectorAll("[data-ex-resumo-de-novo]").forEach((b) => { b.onclick = () => { cx.resumo = null; exPintarResumo(); exPedirResumo(); }; });
+  alvo.querySelectorAll("[data-ex-resumo-de-novo]").forEach((b) => { b.onclick = () => { cx.resumo = null; exPintarResumo(); exPedirResumo(true); }; });
+  alvo.querySelectorAll("[data-ex-conta]").forEach((b) => { b.onclick = (e) => exMenuDaConta(b, e); });
 }
 
 /* --------------------------------------------------------- a lista */
@@ -407,6 +415,8 @@ function exEntendi(m) {
 }
 
 function exModulo(rotulo, miolo, classe, nota) {
+  // Sem rotulo, o modulo ocupa a largura toda (o texto da mensagem).
+  if (!rotulo) return '<section class="ex-mod sem-rotulo' + (classe ? " " + classe : "") + '"><div class="ex-mod-miolo">' + miolo + "</div></section>";
   return '<section class="ex-mod' + (classe ? " " + classe : "") + '"><span class="ex-mod-rotulo">' + rotulo + (nota ? "<small>" + nota + "</small>" : "") + "</span>" +
     '<div class="ex-mod-miolo">' + miolo + "</div></section>";
 }
@@ -414,8 +424,9 @@ function exModulo(rotulo, miolo, classe, nota) {
 function exIcones(m) {
   return '<span class="em-msg-acoes ex-msg-acoes">' +
     (m && m.corpo !== undefined && exLingua(m)
-      ? '<button data-ex-traduzir="1"' + (cx.tradVista === m.uid ? ' class="ativo"' : "") + ' title="Traduzir para o português" aria-label="Traduzir para o português">' + icTraduzir(16) + "</button>" : "") +
-    (m ? '<button data-ex-nao-lida="1" title="Marcar como não lida" aria-label="Marcar como não lida">' + ic("mark_email_unread", 18) + "</button>" +
+      ? '<button data-ex-traduzir="1"' + (cx.tradVista === m.uid ? ' class="ativo"' : "") + ' title="Traduzir para o português" aria-label="Traduzir para o português">' + icTraduzir(15) + "</button>" : "") +
+    (m ? '<button data-ex-imprimir="1" title="Imprimir" aria-label="Imprimir">' + ic("print", 18) + "</button>" +
+      '<button data-ex-nao-lida="1" title="Marcar como não lida" aria-label="Marcar como não lida">' + ic("mark_email_unread", 18) + "</button>" +
       '<button id="mail-arquivar" title="Arquivar" aria-label="Arquivar">' + ic("archive", 18) + "</button>" +
       '<button data-ex-excluir="1" title="Excluir" aria-label="Excluir">' + ic("delete", 18) + "</button>" +
       '<button id="mail-mais-msg" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + '</button><span class="divisa-v"></span>' : "") +
@@ -527,7 +538,9 @@ function exLingua(m) {
 /* O "traduzir" nao existe entre os icones da fonte: vai desenhado. */
 function icTraduzir(tamanho) {
   const t = tamanho || 18;
-  return '<svg class="ic ic-svg" width="' + t + '" height="' + t + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.87 15.07l-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>';
+  // Sem a classe .ic: ela forca 22 px de caixa e o desenho, que ocupa o
+  // quadro todo, ficava maior que os icones da fonte.
+  return '<svg class="ic-svg" width="' + t + '" height="' + t + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.87 15.07l-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>';
 }
 
 async function exTraduzir(m) {
@@ -553,11 +566,70 @@ async function exTraduzir(m) {
   exTrocarCorpo(m);
 }
 
+/* Imprimir a mensagem: uma folha limpa (assunto, de, para, data e o texto,
+   sem a tela em volta) num quadro escondido, e a janela de impressao do
+   navegador. O modal de impressao do PAULUS (28-imprimir.js) trabalha sobre
+   o PDF de um documento - e-mail nao tem PDF. O quadro nao roda script (a
+   CSP e a mesma do quadro de leitura); so a folha e impressa. */
+function exImprimir(m) {
+  const c = mail.conta;
+  const t = (cx.trad || {})[m.uid];
+  const traduzida = !!(t && t.estado === "pronta" && cx.tradVista === m.uid);
+  const html = traduzida ? t.html : m.html;
+  const texto = traduzida ? t.texto : m.corpo;
+  const linha = (r, v) => (v ? "<tr><th>" + r + "</th><td>" + esc(v) + "</td></tr>" : "");
+  const corpo = html
+    ? html.replace(/<\/?(html|body|head)\b[^>]*>/gi, "")
+    : '<div style="white-space:pre-wrap">' + esc(texto || "") + "</div>";
+  const folha = '<!doctype html><html><head><meta charset="utf-8">' +
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:' + (exImagensLiberadas(m.uid) ? " https: http:" : "") + "; style-src 'unsafe-inline'\">" +
+    "<title>" + esc(m.assunto || "Mensagem") + "</title><style>" +
+    "body{margin:0;padding:28px 36px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#111;background:#fff}" +
+    "h1{font:600 18px/1.3 Arial,Helvetica,sans-serif;margin:0 0 12px}" +
+    ".cabeca{border-collapse:collapse;margin:0 0 18px;font-size:12px}.cabeca th{text-align:left;padding:2px 16px 2px 0;color:#555;font-weight:600}" +
+    "hr{border:0;border-top:1px solid #ccc;margin:0 0 18px}img{max-width:100%;height:auto}" +
+    "@page{margin:14mm}</style></head><body>" +
+    "<h1>" + esc(m.assunto || "(sem assunto)") + "</h1>" +
+    '<table class="cabeca">' + linha("De", (m.de_nome ? m.de_nome + " <" + m.de_email + ">" : m.de_email)) +
+    linha("Para", m.para || (c ? c.email : "")) + linha("Cc", m.cc) + linha("Data", exDataInteira(m.quando, m.quando_curto)) +
+    (traduzida ? linha("Obs.", "Tradução feita nesta máquina; na dúvida, vale o original.") : "") + "</table>" +
+    "<hr>" + corpo + "</body></html>";
+  const velho = document.getElementById("ex-folha-impressao");
+  if (velho) velho.remove();
+  const quadro = document.createElement("iframe");
+  quadro.id = "ex-folha-impressao";
+  quadro.className = "ex-folha-impressao";
+  quadro.setAttribute("sandbox", "allow-same-origin allow-modals");
+  quadro.setAttribute("aria-hidden", "true");
+  quadro.onload = () => {
+    try { quadro.contentWindow.focus(); quadro.contentWindow.print(); }
+    catch (err) { avisoCert("não consegui abrir a impressão", { tom: "erro" }); }
+  };
+  quadro.srcdoc = folha;
+  document.body.appendChild(quadro);
+}
+
 /* Troca so o modulo do texto da mensagem aberta (traducao, original,
    formatado), sem redesenhar a lista. */
 function exTrocarCorpo(m) {
   if (!mail.aberta || mail.aberta.uid !== m.uid || typeof cx.trocarCorpo !== "function") return;
   cx.trocarCorpo();
+}
+
+/* O "Contexto IA": o assistente local le a mensagem aberta e diz em duas
+   ou tres frases do que se trata. Leva cerca de um minuto; enquanto isso
+   (ou sem o assistente) fica a frase por regra. */
+function exTextoDoContexto(m) {
+  const k = (cx.contexto || {})[m.uid];
+  const e = k ? k.estado : "";
+  if (e === "pronto" && k.texto) return '<p class="ex-mod-texto">' + esc(k.texto) + "</p>";
+  const regra = '<p class="ex-mod-texto">' + exEntendi(m) + "</p>";
+  if (e === "resumindo" || e === "na_fila" || !e) {
+    return regra + '<p class="sv-ev-pensando">' + coroa(14) + "<span>lendo a mensagem… cerca de um minuto nesta máquina</span></p>";
+  }
+  if (e === "indisponivel") return regra + '<p class="ex-contexto-nota">O assistente local não está respondendo agora; a frase acima é por regra.</p>';
+  return regra + '<p class="ex-contexto-nota">Não consegui o contexto: ' + esc(k.erro || "sem resposta") +
+    '. <button class="sv-ligacao" data-ex-contexto-de-novo="1">tentar de novo</button></p>';
 }
 
 function exModEntendi(m) {
@@ -572,7 +644,64 @@ function exModEntendi(m) {
       '<span class="ex-prazo-acoes"><button class="com-icone" data-em-prazo="agenda">' + ic("event_upcoming", 16) + "Criar na Agenda</button>" +
       '<button class="com-icone" data-em-prazo="tarefa">' + ic("add_task", 16) + "Criar tarefa</button></span></div>"
     : "";
-  return exModulo("O que eu entendi", '<p class="ex-mod-texto">' + exEntendi(m) + "</p>" + blocoCodigo + prazo, "ex-mod-entendi", "por regra, sem o modelo");
+  const k = (cx.contexto || {})[m.uid];
+  const hora = k && k.estado === "pronto" ? (k.quando || "").slice(11, 16) : "";
+  const nota = "assistente local" + (hora ? " · escrito às " + hora : "") + (k && k.estado === "pronto" ? " · confira na mensagem" : "");
+  return exModulo("Contexto IA", exTextoDoContexto(m) + blocoCodigo + prazo, "ex-mod-entendi", nota);
+}
+
+/* Pede o contexto ao abrir a mensagem e acompanha ate ficar pronto. */
+async function exPedirContexto(m, deNovo) {
+  cx.contexto = cx.contexto || {};
+  const ja = cx.contexto[m.uid];
+  if (!deNovo && ja && (ja.estado === "pronto" || ja.estado === "resumindo" || ja.estado === "na_fila" || ja.estado === "indisponivel")) {
+    if (ja.estado !== "pronto" && ja.estado !== "indisponivel") exAcompanharContexto(m);
+    return;
+  }
+  cx.contexto[m.uid] = { estado: "resumindo" };
+  let d = null;
+  try {
+    const r = await exJson("/api/email/contexto", {
+      conta_id: mail.conta ? mail.conta.id : "", uid: m.uid, de: exQuem(m), assunto: m.assunto || "",
+      corpo: m.corpo || "", de_novo: !!deNovo,
+    });
+    d = r.ok ? await r.json() : { modelo: { estado: "falhou", erro: await erroDe(r) } };
+  } catch (err) { d = { modelo: { estado: "falhou", erro: String(err) } }; }
+  cx.contexto[m.uid] = Object.assign({ chave: d.chave }, d.modelo);
+  exPintarContexto(m);
+  exAcompanharContexto(m);
+}
+
+function exAcompanharContexto(m) {
+  const k = (cx.contexto || {})[m.uid];
+  if (!k || !k.chave || (k.estado !== "resumindo" && k.estado !== "na_fila")) return;
+  clearTimeout(cx.relogioContexto);
+  cx.relogioContexto = setTimeout(async () => {
+    if (!mail.aberta || mail.aberta.uid !== m.uid) return;
+    try {
+      const d = await (await fetch("/api/email/contexto?chave=" + encodeURIComponent(k.chave))).json();
+      if (d.modelo && d.modelo.estado !== "nenhum") cx.contexto[m.uid] = Object.assign({ chave: k.chave }, d.modelo);
+    } catch (err) { /* pergunta de novo no proximo giro */ }
+    exPintarContexto(m);
+    exAcompanharContexto(m);
+  }, 4000);
+}
+
+function exPintarContexto(m) {
+  const velho = document.querySelector('#email [data-ex-msg="' + CSS.escape(m.uid) + '"] .ex-mod-entendi');
+  if (!velho) return;
+  const novo = document.createElement("div");
+  novo.innerHTML = exModEntendi(m);
+  const modulo = novo.firstElementChild;
+  velho.replaceWith(modulo);
+  if (typeof emEsmaecer === "function") emEsmaecer(modulo.querySelector(".ex-mod-miolo"));
+  exLigarEntendi(modulo, m);
+}
+
+function exLigarEntendi(raiz, m) {
+  raiz.querySelectorAll("[data-em-prazo]").forEach((b) => { b.onclick = () => criarPrazoDoEmail(m, b.dataset.emPrazo === "agenda"); });
+  raiz.querySelectorAll("[data-ex-copiar-codigo]").forEach((b) => { b.onclick = () => copiarTexto(b.dataset.exCopiarCodigo, "código copiado"); });
+  raiz.querySelectorAll("[data-ex-contexto-de-novo]").forEach((b) => { b.onclick = () => exPedirContexto(m, true); });
 }
 
 function exModAnexos(m) {
@@ -594,32 +723,34 @@ function exModCorpo(m) {
   const vendoTraducao = !!(t && cx.tradVista === m.uid && t.estado !== "erro");
   const original = '<button class="sv-ligacao ex-html-troca" data-ex-original="1">ver o original</button>';
   if (vendoTraducao && t.estado === "andando") {
-    return exModulo("Tradução", '<p class="em-andamento ativo"><span class="indicador"></span>Traduzindo nesta máquina…</p>' +
-      esqueleto("texto") + original, "ex-mod-corpo", "tradutor desta máquina");
+    return exModulo("", '<p class="em-andamento ativo"><span class="indicador"></span>Traduzindo nesta máquina…</p>' +
+      esqueleto("texto") + original, "ex-mod-corpo");
   }
   // A traducao usa o mesmo desenho do original: o HTML traduzido no quadro,
   // ou o texto traduzido, com a troca de volta embaixo.
   const msg = vendoTraducao ? Object.assign({}, m, { html: t.html || "", corpo: t.texto || m.corpo }) : m;
+  // O texto da mensagem ocupa a largura toda, sem rotulo na margem; a
+  // traducao se anuncia numa linha curta em cima.
   const rotulo = vendoTraducao ? "Tradução" : "Mensagem";
-  const nota = vendoTraducao ? "tradutor desta máquina · na dúvida, vale o original" : "";
+  const nota = vendoTraducao ? '<p class="ex-trad-nota">Tradução · tradutor desta máquina · na dúvida, vale o original</p>' : "";
   const soTexto = cx.soTexto === undefined ? emailPrefs().soTexto : cx.soTexto;
   const html = msg.html && !soTexto;
   if (!html) {
     const texto = vendoTraducao
       ? '<div class="ex-corpo ex-traducao">' + msg.corpo.split(/\n{2,}/).map((p) => "<p>" + esc(p) + "</p>").join("") + "</div>"
       : '<div class="ex-corpo">' + corpoComPrazo(msg.corpo, msg.prazo_trecho) + "</div>";
-    return exModulo(rotulo, texto + (vendoTraducao ? original : "") +
-      (msg.html ? '<button class="sv-ligacao ex-html-troca" data-ex-formatado="1">ver com a formatação</button>' : ""), "ex-mod-corpo", nota);
+    return exModulo("", nota + texto + (vendoTraducao ? original : "") +
+      (msg.html ? '<button class="sv-ligacao ex-html-troca" data-ex-formatado="1">ver com a formatação</button>' : ""), "ex-mod-corpo");
   }
   const liberadas = exImagensLiberadas(m.uid);
   const aviso = msg.imagens_remotas && !liberadas
     ? '<div class="ex-html-aviso">' + ic("visibility_off", 15) + "<span>" + plural(msg.imagens_remotas, "imagem de fora bloqueada", "imagens de fora bloqueadas") +
       " — carregar avisa o remetente que você abriu.</span>" + '<button class="sv-ligacao" data-ex-imagens="1">mostrar</button></div>'
     : "";
-  return exModulo(rotulo, aviso + '<div class="ex-html"><iframe class="ex-html-quadro" data-ex-html="' + esc(m.uid) + '" title="' + rotulo + '" ' +
+  return exModulo("", nota + aviso + '<div class="ex-html"><iframe class="ex-html-quadro" data-ex-html="' + esc(m.uid) + '" title="' + rotulo + '" ' +
     'sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe></div>' +
     '<span class="ex-html-trocas">' + (vendoTraducao ? original : "") +
-    '<button class="sv-ligacao ex-html-troca" data-ex-so-texto="1">ver só o texto</button></span>', "ex-mod-corpo", nota);
+    '<button class="sv-ligacao ex-html-troca" data-ex-so-texto="1">ver só o texto</button></span>', "ex-mod-corpo");
 }
 
 /* Imagens de fora: liberadas para esta mensagem, ou para todas em
@@ -835,7 +966,7 @@ function exMensagem(item) {
   if (!m) {
     const falhou = cx.falhou === item.uid;
     return exFolha(exCabecaMsg(item, null) +
-      exModulo("Mensagem", falhou ? '<p class="ex-mod-texto">Não consegui abrir esta mensagem.</p><div class="ex-vazio-acoes"><button data-ex-tentar-msg="1">Tentar de novo</button></div>'
+      exModulo("", falhou ? '<p class="ex-mod-texto">Não consegui abrir esta mensagem.</p><div class="ex-vazio-acoes"><button data-ex-tentar-msg="1">Tentar de novo</button></div>'
         : esqueleto("texto"), "ex-mod-corpo"), item.uid);
   }
   return exFolha(exCabecaMsg(item, m) + exModEntendi(m) + exModAnexos(m) + exModCorpo(m) + exModResposta(m) + exPe(item), item.uid);
@@ -895,8 +1026,9 @@ function exResposta(m) {
     '<input type="text" class="ex-resp-assunto" id="ex-resp-assunto" value="' + esc(r.assunto) + '" aria-label="Assunto">' +
     (preparando
       ? '<p class="ex-resp-preparando">' + coroa(16) + "<span>Escrevendo o rascunho a partir da mensagem… cerca de um minuto nesta máquina.</span></p>"
-      : '<textarea class="ex-resp-texto" id="ex-resp-texto" placeholder="Escreva a resposta…" rows="6">' + esc(r.corpo) + "</textarea>") +
-    (c && c.assinatura ? '<div class="ex-resp-assinatura">' + esc(c.assinatura) + "</div>" : "") +
+      : editorRico({ id: "ex-resp-texto", html: r.corpoHtml, texto: r.corpo, placeholder: "Escreva a resposta…", classe: "ex-er" })) +
+    // A assinatura como vai sair; o HTML dela ja foi limpo no servidor.
+    (c && (c.assinatura_html || c.assinatura) ? '<div class="ex-resp-assinatura">' + (c.assinatura_html || esc(c.assinatura)) + "</div>" : "") +
     (preparando ? "" : '<div class="ex-resp-conferi" id="ex-resp-conferi">' + exConferir(r, m) + "</div>") +
     '<div class="ex-resp-acoes"><button class="sv-ligacao" data-ex-resp-descartar="1">' + ic("delete", 15) + "Descartar</button>" +
     '<button class="sv-ligacao" data-ex-resp-cheia="1">' + ic("fullscreen", 15) + "Tela cheia · anexos</button>" +
@@ -938,7 +1070,7 @@ async function exResponder(comRascunho, todos) {
   } else {
     const d = await r.json();
     mail.rascunho = Object.assign({ uid: m.uid }, d);
-    Object.assign(cx.resp, { corpo: d.rascunho, assunto: d.assunto || cx.resp.assunto, estado: "escrevendo" });
+    Object.assign(cx.resp, { corpo: d.rascunho, corpoHtml: "", assunto: d.assunto || cx.resp.assunto, estado: "escrevendo" });
   }
   cx.respRolar = true;
   if (mail.visao === "caixa") desenharEmail();
@@ -950,7 +1082,6 @@ function exFocarResposta() {
     if (!t) return;
     t.focus();
     t.setSelectionRange(t.value.length, t.value.length);
-    t.style.height = "auto"; t.style.height = Math.max(150, t.scrollHeight) + "px";
   }, 0);
 }
 
@@ -959,7 +1090,7 @@ async function exEnviarResposta() {
   if (!r || !r.corpo.trim()) { avisoCert("escreva a resposta antes de enviar"); exFocarResposta(); return; }
   r.estado = "enviando";
   desenharEmail();
-  const d = await exMandar({ conta_id: mail.conta ? mail.conta.id : "", para: r.para, cc: "", cco: "", assunto: r.assunto, corpo: r.corpo, anexos: [] });
+  const d = await exMandar({ conta_id: mail.conta ? mail.conta.id : "", para: r.para, cc: "", cco: "", assunto: r.assunto, corpo: r.corpo, corpo_html: r.corpoHtml || "", anexos: [] });
   if (cx.resp !== r) return;
   if (!d) { r.estado = "escrevendo"; if (mail.visao === "caixa") desenharEmail(); return; }
   r.estado = "enviado"; r.retorno = d;
@@ -977,13 +1108,13 @@ function exLigarResposta(raiz) {
   if (comR) comR.onclick = () => exResponder(true);
   const r = cx.resp;
   if (!r || !m || r.uid !== m.uid) return;
-  const texto = $("ex-resp-texto");
   let relogio;
+  // A mesma faixa de edicao do Escrever (js/33-email-editor.js).
+  const texto = ligarEditorRico("ex-resp-texto", () => { r.corpoHtml = texto.html; });
   if (texto) {
-    texto.style.height = "auto"; texto.style.height = Math.max(150, texto.scrollHeight) + "px";
     texto.oninput = () => {
       r.corpo = texto.value;
-      texto.style.height = "auto"; texto.style.height = Math.max(150, texto.scrollHeight) + "px";
+      r.corpoHtml = texto.html;
       clearTimeout(relogio);
       relogio = setTimeout(() => { const alvo = $("ex-resp-conferi"); if (alvo) alvo.innerHTML = exConferir(r, m); }, 500);
     };
@@ -991,7 +1122,7 @@ function exLigarResposta(raiz) {
   const assunto = $("ex-resp-assunto");
   if (assunto) assunto.oninput = () => { r.assunto = assunto.value; };
   raiz.querySelectorAll("[data-ex-resp-descartar], [data-ex-resp-fechar]").forEach((b) => { b.onclick = () => { cx.resp = null; desenharEmail(); }; });
-  raiz.querySelectorAll("[data-ex-resp-cheia]").forEach((b) => { b.onclick = () => { const x = cx.resp; cx.resp = null; telaEscrever({ para: x.para, assunto: x.assunto, corpo: x.corpo }); }; });
+  raiz.querySelectorAll("[data-ex-resp-cheia]").forEach((b) => { b.onclick = () => { const x = cx.resp; cx.resp = null; telaEscrever({ para: x.para, assunto: x.assunto, corpo: x.corpo, corpo_html: x.corpoHtml || "" }); }; });
   raiz.querySelectorAll("[data-ex-resp-rascunho]").forEach((b) => { b.onclick = () => exResponder(true); });
   raiz.querySelectorAll("[data-ex-resp-enviar]").forEach((b) => { b.onclick = exEnviarResposta; });
 }
@@ -1254,6 +1385,7 @@ function exLigarMensagem(raiz) {
     if (!(await exArquivar([m.uid]))) { arquivar.disabled = false; return; }
     if (prox) exAbrir(prox.uid, true); else exFechar();
   };
+  raiz.querySelectorAll("[data-ex-imprimir]").forEach((b) => { b.onclick = () => exImprimir(m); });
   raiz.querySelectorAll("[data-ex-excluir]").forEach((b) => {
     b.onclick = async () => {
       const prox = exProxima(m.uid);
@@ -1288,8 +1420,8 @@ function exLigarMensagem(raiz) {
       avisoCert("guardado no Acervo como " + d.guardado);
     };
   });
-  raiz.querySelectorAll("[data-em-prazo]").forEach((b) => { b.onclick = () => criarPrazoDoEmail(m, b.dataset.emPrazo === "agenda"); });
-  raiz.querySelectorAll("[data-ex-copiar-codigo]").forEach((b) => { b.onclick = () => copiarTexto(b.dataset.exCopiarCodigo, "código copiado"); });
+  exLigarEntendi(raiz, m);
+  exPedirContexto(m);
   raiz.querySelectorAll("[data-ex-traduzir]").forEach((b) => {
     b.onclick = () => {
       if (cx.tradVista === m.uid) { cx.tradVista = null; exTrocarCorpo(m); return; }
@@ -1373,14 +1505,7 @@ function ligarCaixa() {
   clique("[data-ex-tentar]", async (b) => { b.disabled = true; await carregarPasta(); desenharEmail(); });
   clique("[data-ex-entrar]", () => exEntrarDeNovo(mail.conta));
   clique("[data-ex-sem-busca]", () => { mail.busca = ""; mostrarEmail("caixa"); });
-  clique("[data-ex-conta]", (b, e) => {
-    e.stopPropagation();
-    menuNaLinha(b, mail.contas.contas.map((c) => ({
-      atual: !!(mail.conta && c.id === mail.conta.id),
-      rotulo: c.email + (exPrecisaEntrar(c) ? " · entrar de novo" : ""),
-      acao: () => exTrocarConta(c),
-    })).concat(["-", { rotulo: "Gerenciar contas", acao: () => mostrarEmail("contas") }]));
-  });
+  clique("[data-ex-conta]", exMenuDaConta);
   const mais = $("mail-mais");
   if (mais) mais.onclick = async () => {
     mais.disabled = true;

@@ -390,17 +390,27 @@ def main() -> int:
             # continua abrindo, na visao que o substituiu.
             pagina.evaluate("() => abrirDestino('financeiro')")
             pagina.wait_for_timeout(1800)
-            numeros = pagina.evaluate("() => document.querySelectorAll('#financeiro .fin-numero').length")
-            checar(numeros == 4, f"a visao geral abre com os quatro numeros (achou {numeros})")
+            numeros = pagina.evaluate("() => document.querySelectorAll('#financeiro .fin-ficha .sv-ficha-item').length")
+            checar(numeros == 5, f"a visao geral abre com os cinco numeros na ficha (achou {numeros})")
             colunas = pagina.evaluate(
                 "() => { const g = document.querySelector('.fin-fluxo-grade');"
                 " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
             )
             checar(colunas == 6, f"o fluxo de caixa tem seis meses (achou {colunas})")
+            # Desde 26/09/2026 a tela e uma coluna so: sem painel ao lado, e os
+            # cadastros abrem em pop-up.
             checar(
-                pagina.evaluate("() => !!document.querySelector('#financeiro .acervo-painel .painel-cabeca')"),
-                "o painel Precisa de voce abre junto",
+                pagina.evaluate("() => !document.querySelector('#financeiro .acervo-painel') && !!document.querySelector('#financeiro .sv-medida')"),
+                "a visao geral e uma coluna so, sem painel ao lado",
             )
+            pagina.evaluate("() => document.querySelector('[data-fin-novo]').click()")
+            pagina.wait_for_timeout(600)
+            checar(
+                pagina.evaluate("() => !!document.querySelector('.veu-dialogo #fin-form-pop')"),
+                "Novo lancamento abre o cadastro num pop-up",
+            )
+            pagina.keyboard.press("Escape")
+            pagina.wait_for_timeout(500)
             pagina.evaluate("() => document.querySelector('[data-fin-visao=lancamentos]').click()")
             pagina.wait_for_timeout(1600)
             colunas = pagina.evaluate(
@@ -655,7 +665,7 @@ def main() -> int:
 
             pagina.evaluate("() => abrirDestino('aprovacoes')")
             pagina.wait_for_timeout(1600)
-            checar(pagina.evaluate("() => typeof aprovarMarcados === 'function' && !!document.getElementById('ap-todos')"),
+            checar(pagina.evaluate("() => typeof aprovarMarcados === 'function' && !!document.getElementById('ap-fila')"),
                    "a fila de Aprovacoes responde ao Ctrl+Enter")
 
             pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('feedback'); }")

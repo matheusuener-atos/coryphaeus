@@ -81,7 +81,9 @@ function rotuloDoValor() {
 function desenharApoiar() {
   cabecalhoApoiar();
   const miolo = apoio.visao === "lista" ? corpoDaLista() : corpoDeContribuir();
-  $("centro").innerHTML = '<div class="acervo sem-painel apoio-tela" id="apoio-tela"><div class="acervo-principal">' + miolo + "</div></div>";
+  // O molde editorial das outras telas: uma coluna de 1080px (12-servicos.css).
+  $("centro").innerHTML = '<div class="acervo sem-painel apoio-tela" id="apoio-tela"><div class="acervo-principal sv-principal"><div class="sv-medida">' +
+    miolo + "</div></div></div>";
   ligarApoiar();
   atualizarPostura();
 }
@@ -93,16 +95,28 @@ function cabecalhoApoiar() {
     const classe = v === apoio.visao ? "ativa" : "";
     return '<button class="' + classe + '" data-apoio-visao="' + v + '">' + r + "</button>";
   };
-  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("contribuir", "Contribuir") + botao("lista", "Quem já apoia") + "</div>" +
-    '<button class="com-icone" data-apoio-codigo="1">' + ic("code", 16) + "Ver o código</button>" +
-    '<button class="com-icone" data-apoio-visao="lista">' + ic("group", 16) + "Quem já apoia</button>";
+  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("contribuir", "Contribuir") + botao("lista", "Quem já apoia") + "</div>";
   $("nav-tela").innerHTML = "";
 }
 
 /* ---------------------------------------------------------- contribuir */
 
+/* A abertura no desenho de Servicos: o titulo na serifa, o texto curto e a
+   faixa com a escolha de agora. O pagamento ainda nao existe - a faixa diz. */
+function aberturaDoApoio() {
+  const nome = nomeNaLista();
+  const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
+  return '<header class="sv-abertura"><div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Ajude o PAULUS a continuar gratuito</h2></div>' +
+    '<p class="sv-resumo-corpo">O PAULUS roda na sua máquina, sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento e mantém o programa livre para todos. Qualquer valor ajuda; a recorrência ajuda mais.</p></div>' +
+    '<div class="sv-ficha">' +
+    item("Valor", "<b>" + esc(rotuloDoValor()) + "</b>") +
+    item("Forma", "<b>" + (apoio.forma === "pix" ? "Pix" : "Cartão") + "</b>") +
+    item("Na lista", '<b class="corta">' + esc(apoio.aparecer ? (nome || "falta o nome") : "anônimo") + "</b>") +
+    item("Situação", "<b>" + (apoio.confirmado ? "guardado em " + esc(apoio.confirmado) : "pagamento ainda não existe") + "</b>") +
+    "</div></header>";
+}
+
 function corpoDeContribuir() {
-  const d = NOVOS_DESTINOS.apoiar || { precisa: [] };
   const valor = (v, rotulo) => {
     const classe = "cfg-valor" + (apoio.valor === v ? " on" : "");
     return '<button class="' + classe + '" data-apoio-valor="' + v + '"><b>' + (v ? "R$ " + v : "Outro") + "</b><small>" + rotulo + "</small></button>";
@@ -118,47 +132,34 @@ function corpoDeContribuir() {
   const nome = nomeNaLista();
   const agora = new Date();
   const desde = MESES_CURTOS[agora.getMonth()] + " " + agora.getFullYear();
-  const pagamento = apoio.forma === "pix"
-    ? '<div class="apoio-pix"><div class="apoio-qr">QR do Pix entra quando o pagamento existir</div>' +
-      '<div class="apoio-pix-texto"><b>Pix ' + (apoio.recorrencia === "mensal" ? "recorrente" : "") + " · " + esc(rotuloDoValor()) + "</b>" +
-      "<p>" + (apoio.recorrencia === "unica"
-        ? "Aponte a câmera do app do banco e pague uma vez. Recibo por e-mail."
-        : "Aponte a câmera do app do banco. A recorrência é aprovada uma vez e renova no mesmo dia; cancele quando quiser.") + "</p>" +
-      '<div class="apoio-codigo"><span>a chave Pix copia-e-cola entra aqui quando o pagamento existir</span><button class="em-ligacao" disabled>copiar código</button></div></div></div>'
-    : '<div class="apoio-pix"><div class="apoio-qr">Cartão em breve</div><div class="apoio-pix-texto"><b>Cartão · ' + esc(rotuloDoValor()) + "</b>" +
-      "<p>O pagamento por cartão vai abrir no navegador, sem guardar o número aqui. Ainda não existe.</p></div></div>";
+
   const contribuicao = '<div class="ag-campo"><label>Valor</label><div class="cfg-valores">' +
     valor(20, "um café por semana") + valor(40, "mais escolhido") + valor(100, "escritório pequeno") + valor(0, "você define") + "</div>" +
     (apoio.valor ? "" : '<div class="apoio-outro"><input type="text" data-apoio-outro="1" value="' + esc(apoio.outro) + '" placeholder="R$ 0,00"><span class="cfg-explica">qualquer valor ajuda</span></div>') + "</div>" +
     '<div class="ag-duas"><div class="ag-campo"><label>Recorrência</label>' + seg("recorrencia", [["mensal", "Mensal"], ["anual", "Anual"], ["unica", "Única"]]) + "</div>" +
     '<div class="ag-campo"><label>Forma de pagamento</label>' + seg("forma", [["pix", "Pix"], ["cartao", "Cartão"]]) + "</div></div>" +
-    pagamento +
-    '<div class="apoio-banco"><div class="apoio-banco-topo">' + ic("payments", 18) + '<span class="duas-linhas"><b>Transferência bancária</b><small>os dados do banco entram com o pagamento · em breve</small></span></div>' +
-    '<div class="cfg-chaves">' + chaveCfg("Banco", "—", "mute") + chaveCfg("Agência e conta", "—", "mute") + chaveCfg("Titular", "—", "mute") + "</div></div>" +
-    '<p class="cfg-explica">Falta: ' + esc((d.precisa || []).join(", ") || "o pagamento") + ". Recibo por e-mail e lançamento automático no Financeiro entram junto.</p>";
+    '<p class="cfg-explica">O pagamento por Pix e por cartão ainda não existe. O que você escolher fica guardado nesta máquina e vale quando ele chegar.</p>';
 
-  const lista = '<p class="cfg-texto">O nome de quem apoia entra na lista de apoiadores da próxima atualização do PAULUS — na tela “Sobre” do programa e no site. Só se você quiser.</p>' +
-    '<div class="ag-campo"><label>Deseja aparecer na lista de apoiadores?</label><div class="apoio-radios">' +
+  const previa = apoio.aparecer
+    ? '<div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>" + esc(nome || "seu nome aqui") + "</b><small>" + esc((apoio.cidade ? apoio.cidade + " · " : "") + "apoiador desde " + desde) + "</small></div>"
+    : '<div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>Apoiador anônimo</b><small>conta no total, não é listado</small></div>";
+  const lista = '<div class="ag-campo"><label>Aparecer na lista de apoiadores</label><div class="apoio-radios">' +
     radio("aparecer", true, "Sim") + radio("aparecer", false, "Não, prefiro anônimo") + "</div></div>" +
     (apoio.aparecer
-      ? '<div class="ag-campo"><label>Como deseja aparecer</label><div class="apoio-radios">' + radio("como", "nome", "Meu nome") + radio("como", "escritorio", "Meu escritório") + "</div></div>" +
+      ? '<div class="ag-campo"><label>Como</label><div class="apoio-radios">' + radio("como", "nome", "Meu nome") + radio("como", "escritorio", "Meu escritório") + "</div></div>" +
         '<div class="ag-duas"><div class="ag-campo"><label>Nome na lista</label><input type="text" data-apoio-campo="nome" value="' + esc(apoio.nome) + '" placeholder="' + esc(nomeSugeridoDoApoio() || "como quer aparecer") + '"></div>' +
-        '<div class="ag-campo"><label>Cidade (opcional)</label><input type="text" data-apoio-campo="cidade" value="' + esc(apoio.cidade) + '" placeholder="Goiânia"></div></div>' +
-        '<div class="apoio-previa"><span class="cfg-explica">Prévia</span><div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>" + esc(nome || "seu nome aqui") + "</b><small>" +
-        esc((apoio.cidade ? apoio.cidade + " · " : "") + "apoiador desde " + desde) + "</small></div></div>"
-      : '<div class="apoio-previa"><span class="cfg-explica">Prévia</span><div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>Apoiador anônimo</b><small>conta no total, não é listado</small></div></div>") +
-    '<span class="cfg-explica">Só o nome escolhido e a cidade aparecem. Valor e forma de pagamento nunca são publicados. Recibo por e-mail; cancele quando quiser.</span>';
+        '<div class="ag-campo"><label>Cidade (opcional)</label><input type="text" data-apoio-campo="cidade" value="' + esc(apoio.cidade) + '" placeholder="Goiânia"></div></div>'
+      : "") +
+    '<div class="apoio-previa"><span class="cfg-explica">Como vai aparecer</span>' + previa + "</div>" +
+    '<p class="cfg-explica">A lista entra na tela “Sobre” e no site a partir da primeira atualização pública. Só o nome e a cidade aparecem; valor e forma de pagamento nunca.</p>';
 
-  const resumo = rotuloDoValor() + " · " + (apoio.forma === "pix" ? "Pix" : "Cartão") + " · " + (apoio.aparecer ? "na lista como " + (nome || "…") : "anônimo") +
-    (apoio.confirmado ? " · escolha guardada em " + apoio.confirmado : "");
-  return '<div class="cfg-chamada"><h3>Ajude o PAULUS a continuar gratuito.</h3>' +
-    "<p>O PAULUS é software livre: roda na sua máquina, sem assinatura nem cobrança por uso. O que mantém o projeto vivo é a contribuição de quem usa — ela paga o desenvolvimento, os modelos locais e o suporte. Qualquer valor ajuda; a recorrência ajuda mais.</p>" +
-    '<p class="cfg-explica">Meta do mês e apoiadores aparecem aqui quando o pagamento existir. Enquanto isso, o que você escolher fica guardado nesta máquina.</p></div>' +
-    '<div class="apoio-grade">' +
-    '<div class="fin-cartao apoio-cartao"><div class="fin-cartao-cabeca"><span>Sua contribuição</span><small>escolha o valor e a forma</small></div><div class="apoio-corpo">' + contribuicao + "</div></div>" +
-    '<div class="fin-cartao apoio-cartao"><div class="fin-cartao-cabeca"><span>Lista de apoiadores</span><small>na próxima atualização</small></div><div class="apoio-corpo">' + lista + "</div>" +
-    '<div class="apoio-rodape"><span>' + esc(resumo) + '</span><button class="primario" data-apoio-confirmar="1">' + ic("favorite", 16) + "Confirmar apoio</button></div></div>" +
-    "</div>";
+  return aberturaDoApoio() +
+    '<div class="cfg-grade larga">' +
+    cartaoCfg("Sua contribuição", metaCfg("valor, recorrência e forma"), contribuicao) +
+    cartaoCfg("Lista de apoiadores", metaCfg(apoio.aparecer ? "com o seu nome" : "anônimo"), lista) +
+    "</div>" +
+    '<div class="apoio-acao"><span class="cfg-explica">' + (apoio.confirmado ? "Escolha guardada nesta máquina em " + esc(apoio.confirmado) + "." : "Nada é cobrado agora.") + "</span>" +
+    '<button class="primario com-icone" data-apoio-confirmar="1">' + ic("favorite", 16) + (apoio.confirmado ? "Guardar de novo" : "Guardar minha escolha") + "</button></div>";
 }
 
 /* ------------------------------------------------------------- a lista */
@@ -169,7 +170,7 @@ function corpoDaLista() {
     return '<button class="' + classe + '" data-apoio-filtro="' + v + '">' + r + "</button>";
   };
   const nome = nomeNaLista();
-  const voce = apoio.aparecer && nome && (apoio.filtro === "todos" || (apoio.filtro === "escritorios") === (apoio.como === "escritorio")) &&
+  const voce = !!apoio.confirmado && apoio.aparecer && nome && (apoio.filtro === "todos" || (apoio.filtro === "escritorios") === (apoio.como === "escritorio")) &&
     (!apoio.termo || nome.toLowerCase().indexOf(apoio.termo.toLowerCase()) >= 0);
   const agora = new Date();
   const desde = MESES_CURTOS[agora.getMonth()] + " " + agora.getFullYear();
@@ -179,10 +180,9 @@ function corpoDaLista() {
   const secao = (titulo, sub, mostraVoce, vazio) =>
     '<div class="apoio-secao"><div class="apoio-secao-cabeca"><span>' + titulo + "</span><small>" + esc(sub) + "</small></div>" +
     (mostraVoce ? linhaVoce : '<p class="apoio-vazio">' + esc(vazio) + "</p>") + "</div>";
-  return '<div class="fin-cartao apoio-cartao">' +
-    '<div class="apoio-lista-topo"><h3>Quem mantém o PAULUS gratuito</h3>' +
-    "<p>A lista nasce com a primeira atualização pública: entra na tela “Sobre” e no site, só com o nome que cada um escolheu, nunca com valores. Até lá, ninguém está listado — quem preferir não aparecer conta no total, mas não é listado.</p></div>" +
-    '<div class="apoio-barra"><label class="busca-tela">' + ic("search", 18) + '<input type="text" data-apoio-termo="1" value="' + esc(apoio.termo) + '" placeholder="Buscar um nome…"></label>' +
+  return '<div class="sv-resumo-topo apoio-lista-topo"><div class="sv-resumo-cabeca"><h2>Quem mantém o PAULUS gratuito</h2></div>' +
+    '<p class="sv-resumo-corpo">A lista nasce com a primeira atualização pública, na tela “Sobre” e no site, só com o nome que cada um escolheu. Até lá, ninguém está listado.</p></div>' +
+    '<div class="cfg-cartao"><div class="apoio-barra"><label class="busca-tela">' + ic("search", 18) + '<input type="text" data-apoio-termo="1" value="' + esc(apoio.termo) + '" placeholder="Buscar um nome…"></label>' +
     '<div class="visoes">' + chip("todos", "Todos") + chip("escritorios", "Escritórios") + chip("pessoas", "Pessoas") + "</div></div>" +
     secao("Fundadores", "quem apoiar desde o início", false, "Ainda ninguém: os fundadores são os primeiros a apoiar quando o pagamento existir.") +
     secao("Mantenedores", "apoio mensal", voce && apoio.recorrencia === "mensal", "Ainda ninguém com apoio mensal.") +
@@ -197,7 +197,6 @@ function ligarApoiar() {
   const cada = (seletor, fn) => document.querySelectorAll(seletor).forEach(fn);
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   clique("[data-apoio-visao]", (b) => { apoio.visao = b.dataset.apoioVisao; desenharApoiar(); });
-  clique("[data-apoio-codigo]", () => avisoCert("o código abre no site do projeto quando a primeira versão for publicada — por enquanto ele está nesta máquina, na pasta do programa"));
   clique("[data-apoio-valor]", (b) => { apoio.valor = Number(b.dataset.apoioValor); guardarApoio(); desenharApoiar(); });
   clique("[data-apoio-escolha]", (b) => { const [chave, v] = b.dataset.apoioEscolha.split(":"); apoio[chave] = v; guardarApoio(); desenharApoiar(); });
   clique("[data-apoio-radio]", (b) => {
@@ -226,7 +225,7 @@ function ligarApoiar() {
     apoio.confirmado = new Date().toLocaleDateString("pt-BR");
     guardarApoio();
     desenharApoiar();
-    avisoCert("escolha guardada nesta máquina — o pagamento por Pix ou cartão ainda não existe; quando existir, a confirmação sai daqui");
+    avisoCert("escolha guardada nesta máquina — nada foi cobrado; o pagamento por Pix ou cartão ainda não existe", { tom: "ok" });
   });
   clique("[data-apoio-filtro]", (b) => { apoio.filtro = b.dataset.apoioFiltro; desenharApoiar(); });
   cada("[data-apoio-termo]", (el) => {

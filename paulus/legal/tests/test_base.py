@@ -170,6 +170,59 @@ def test_sugestoes_de_cadastro() -> None:
         b.fechar()
 
 
+def test_sugestao_ignorada() -> None:
+    """
+    Recusar uma sugestao e para sempre: o nome nao volta amanha, nem com
+    outra caixa. Desfazer traz de volta.
+    """
+    print("\nsugestao de cadastro ignorada")
+    import json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        b = Base(Path(tmp) / "p.db")
+        guardados = Path(tmp) / "ignorados.json"
+        c = Cadastros(b, guardados)
+
+        cache = Path(tmp) / "classificacao.json"
+        cache.write_text(json.dumps({
+            "versao": 3,
+            "itens": {
+                "a": {"nome": "contrato1.pdf", "sha1": "a",
+                      "partes": ["ACME LTDA", "Norte Solucoes"], "documentos": []},
+                "b": {"nome": "contrato2.pdf", "sha1": "b",
+                      "partes": ["ACME LTDA", "Bela Vista"], "documentos": []},
+            },
+        }, ensure_ascii=False), encoding="utf-8")
+
+        checar(len(c.sugestoes(cache)) == 3, "tres sugestoes antes de ignorar")
+        checar(c.ignorar("Norte Solucoes") == 1, "ignorar conta quantos estao ignorados")
+        nomes = [x["nome"] for x in c.sugestoes(cache)]
+        checar("Norte Solucoes" not in nomes and len(nomes) == 2, "o ignorado sai das sugestoes")
+
+        # Amanha: outro objeto, mesmo arquivo - o nome continua fora.
+        outro = Cadastros(b, guardados)
+        checar("Norte Solucoes" not in [x["nome"] for x in outro.sugestoes(cache)], "o ignorado nao volta depois")
+        outro.ignorar("  norte   SOLUCOES ")
+        checar(len(outro.ignorados()) == 1, "ignorar de novo, com outra caixa, nao duplica")
+
+        checar(outro.voltar_a_sugerir("Norte Solucoes"), "desfazer devolve o nome")
+        checar("Norte Solucoes" in [x["nome"] for x in outro.sugestoes(cache)], "e ele volta a ser sugerido")
+        checar(not outro.voltar_a_sugerir("Quem Nunca Foi Ignorado"), "desfazer o que nao foi ignorado nao faz nada")
+
+        checar(len(c.sugestoes(cache, limite=None)) == 3, "sem limite, vem tudo")
+
+        erro = False
+        try:
+            c.ignorar("  ")
+        except ValueError:
+            erro = True
+        checar(erro, "ignorar sem nome e recusado")
+
+        sem_lugar = Cadastros(b)
+        checar(len(sem_lugar.sugestoes(cache)) == 3, "sem arquivo de ignorados, sugere tudo")
+        b.fechar()
+
+
 # -------------------------------------------------------------------- tarefas
 
 
@@ -359,6 +412,7 @@ def main() -> int:
     test_migracoes()
     test_cadastros()
     test_sugestoes_de_cadastro()
+    test_sugestao_ignorada()
     test_tarefas()
     test_sugestoes_de_tarefa()
     test_agenda()

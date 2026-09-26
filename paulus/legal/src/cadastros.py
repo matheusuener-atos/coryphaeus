@@ -57,8 +57,12 @@ def _so_digitos(documento: str) -> str:
 
 
 class Cadastros:
-    def __init__(self, base) -> None:
+    def __init__(self, base, ignorados_path: Path | None = None) -> None:
         self.base = base
+        # Os nomes que a pessoa recusou na sugestao de cadastro. Arquivo e
+        # nao tabela: e uma lista curta de "nao me mostre de novo", sem
+        # ligacao com nada da base.
+        self.ignorados_path = Path(ignorados_path) if ignorados_path else None
 
     # ---------------------------------------------------------------- leitura
 
@@ -187,7 +191,7 @@ class Cadastros:
 
     # ------------------------------------------------------------- sugestoes
 
-    def sugestoes(self, cache_classificacao: Path, limite: int = 40) -> list[dict]:
+    def sugestoes(self, cache_classificacao: Path, limite: int | None = 40) -> list[dict]:
         """
         Quem aparece nos documentos e ainda nao esta cadastrado.
 
@@ -204,6 +208,8 @@ class Cadastros:
             return []
 
         ja = {_chave(f["nome"]) for f in self.base.buscar("SELECT nome FROM cadastros")}
+        # Recusado uma vez, recusado: o nome nao volta amanha.
+        ja |= set(self._ler_ignorados())
         documentos_ja = {
             _so_digitos(f["documento"])
             for f in self.base.buscar("SELECT documento FROM cadastros")
@@ -239,3 +245,47 @@ class Cadastros:
 
         ordenadas = sorted(achados.values(), key=lambda x: (-x["aparicoes"], x["nome"].lower()))
         return ordenadas[:limite]
+
+    # -------------------------------------------------- sugestoes recusadas
+
+    def _ler_ignorados(self) -> dict[str, dict]:
+        if not self.ignorados_path or not self.ignorados_path.exists():
+            return {}
+        try:
+            bruto = json.loads(self.ignorados_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        itens = bruto.get("ignorados") if isinstance(bruto, dict) else None
+        return itens if isinstance(itens, dict) else {}
+
+    def _gravar_ignorados(self, itens: dict[str, dict]) -> None:
+        if not self.ignorados_path:
+            raise ValueError("sem lugar para guardar os nomes ignorados")
+        self.ignorados_path.parent.mkdir(parents=True, exist_ok=True)
+        self.ignorados_path.write_text(
+            json.dumps({"ignorados": itens}, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+
+    def ignorados(self) -> list[dict]:
+        """Os nomes recusados, do mais recente para o mais antigo."""
+        itens = self._ler_ignorados().values()
+        return sorted(itens, key=lambda x: x.get("em", ""), reverse=True)
+
+    def ignorar(self, nome: str) -> int:
+        """Tira o nome das sugestoes de vez. Devolve quantos estao ignorados."""
+        chave = _chave(nome)
+        if not chave:
+            raise ValueError("sem nome para ignorar")
+        itens = self._ler_ignorados()
+        itens[chave] = {"nome": " ".join(str(nome).split()),
+                        "em": datetime.now().isoformat(timespec="seconds")}
+        self._gravar_ignorados(itens)
+        return len(itens)
+
+    def voltar_a_sugerir(self, nome: str) -> bool:
+        """Desfaz o ignorar: o nome volta para as sugestoes."""
+        itens = self._ler_ignorados()
+        if itens.pop(_chave(nome), None) is None:
+            return False
+        self._gravar_ignorados(itens)
+        return True

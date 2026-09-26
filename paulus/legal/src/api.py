@@ -113,6 +113,8 @@ CONTRACTS_DIR = BASE_DIR / "data" / "test_contracts"
 NOME_DA_PASTA_PADRAO = "Documentos do escritório"
 CACHE_PATH = BASE_DIR / "data" / "extractions" / "index.json"
 CLASSIFICACAO_PATH = BASE_DIR / "data" / "extractions" / "classificacao.json"
+# Os nomes que a pessoa recusou na sugestao de cadastro (Cadastros).
+SUGESTOES_IGNORADAS_PATH = BASE_DIR / "data" / "cadastros_ignorados.json"
 DIARIOS_DIR = BASE_DIR / "data" / "diarios"
 TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
 APROVACOES_PATH = BASE_DIR / "data" / "aprovacoes.json"
@@ -192,7 +194,7 @@ class Estado:
         self.prefs = Preferencias(PREFERENCIAS_PATH)
         # Base local: cadastros, tarefas e o que vier depois.
         self.base = Base(BASE_PATH)
-        self.cadastros = Cadastros(self.base)
+        self.cadastros = Cadastros(self.base, SUGESTOES_IGNORADAS_PATH)
         self.tarefas = Tarefas(self.base)
         self.agenda = Agenda(self.base)
         # Certificado digital: o arquivo, o selo e o historico de assinaturas.
@@ -2531,10 +2533,108 @@ def cadastros_listar(tipo: str = "", termo: str = "", ordem: str = "nome") -> di
     }
 
 
+# Quantas sugestoes a tela recebe de uma vez. A conta de verdade vai junto.
+LIMITE_DE_SUGESTOES = 300
+
+
+class NomeSugerido(BaseModel):
+    nome: str
+
+
+def _documentos_por_ler() -> tuple[int, list[str]]:
+    """Quantos documentos o Acervo tem e quais ainda nao foram lidos."""
+    from classify import CacheClassificacao
+
+    lidos = CacheClassificacao(CLASSIFICACAO_PATH).dados
+    documentos = list(estado.searcher.documents)
+    faltam = [
+        d.path for d in documentos
+        if d.sha1 and d.sha1 not in lidos and Path(d.path).exists()
+    ]
+    return len(documentos), faltam
+
+
 @app.get("/api/cadastros/sugestoes")
 def cadastros_sugestoes() -> dict:
-    """Quem ja aparece nos documentos e ainda nao tem ficha."""
-    return {"sugestoes": estado.cadastros.sugestoes(CLASSIFICACAO_PATH)}
+    """Quem ja aparece nos documentos e ainda nao tem ficha (nem foi recusado)."""
+    todas = estado.cadastros.sugestoes(CLASSIFICACAO_PATH, limite=None)
+    total, faltam = _documentos_por_ler()
+    return {
+        "sugestoes": todas[:LIMITE_DE_SUGESTOES],
+        "total": len(todas),
+        "ignorados": len(estado.cadastros.ignorados()),
+        "levantamento": {"documentos": total, "faltam": len(faltam)},
+    }
+
+
+@app.post("/api/cadastros/sugestoes/ignorar")
+def cadastros_sugestao_ignorar(payload: NomeSugerido) -> dict:
+    """O nome recusado sai das sugestoes e nao volta."""
+    try:
+        quantos = estado.cadastros.ignorar(payload.nome)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"nome": payload.nome, "ignorados": quantos}
+
+
+@app.post("/api/cadastros/sugestoes/desfazer")
+def cadastros_sugestao_desfazer(payload: NomeSugerido) -> dict:
+    """Desfaz o ignorar: o nome volta a ser sugerido."""
+    return {"nome": payload.nome, "voltou": estado.cadastros.voltar_a_sugerir(payload.nome)}
+
+
+@app.post("/api/cadastros/levantamento")
+def cadastros_levantamento() -> StreamingResponse:
+    """
+    Fazer levantamento: le os documentos do Acervo que ainda nao foram lidos,
+    para achar quem assina e ainda nao tem ficha.
+
+    E a mesma leitura do Acervo (habilidades/classificar.py), que guarda o
+    resultado por conteudo - o que ja foi lido nao e lido de novo, e o que
+    este levantamento ler serve ao Acervo tambem. Sem documento novo, nao
+    ha o que ler: responde na hora com a conta de sugestoes de agora.
+    """
+    total, faltam = _documentos_por_ler()
+    antes = len(estado.cadastros.sugestoes(CLASSIFICACAO_PATH, limite=None))
+
+    habilidade = None
+    if faltam:
+        habilidade = estado.registro.obter("classificar")
+        if not habilidade or not habilidade.executavel:
+            raise HTTPException(status_code=503, detail="a leitura dos documentos não carregou")
+        falta = [p for p in habilidade.precisa if not _disponibilidade().get(p, False)]
+        if falta:
+            from habilidade_base import ROTULOS_PRECISA
+
+            nomes = ", ".join(ROTULOS_PRECISA.get(p, p) for p in falta)
+            raise HTTPException(status_code=400, detail=f"para ler os documentos, precisa de: {nomes}")
+        estado.cancelar.clear()
+
+    def gerar() -> Iterator[str]:
+        yield _sse("inicio", {"novos": len(faltam), "total": total})
+        lidos, parado = 0, False
+        try:
+            if habilidade:
+                for tipo, dados in habilidade.executar(_contexto(), caminhos=faltam):
+                    if tipo == "progresso":
+                        yield _sse("progresso", dados)
+                    elif tipo == "resultados":
+                        lidos = sum(1 for d in dados.get("documentos", []) if not d.get("erro"))
+                        parado = bool(dados.get("parado"))
+        except Exception as exc:
+            yield _sse("erro", {"mensagem": str(exc)})
+            return
+        depois = len(estado.cadastros.sugestoes(CLASSIFICACAO_PATH, limite=None))
+        yield _sse("fim", {
+            "lidos": lidos, "total": total, "parado": parado, "novos": len(faltam),
+            "sugestoes": depois, "novas": max(0, depois - antes),
+        })
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/cadastros")
@@ -4322,6 +4422,7 @@ class PedidoEnvio(BaseModel):
     cco: str = ""
     assunto: str = ""
     corpo: str = ""
+    corpo_html: str = ""            # o mesmo texto com a formatacao da faixa de edicao
     anexos: list[str] = []          # caminhos de arquivos da biblioteca
     responder_a: str = ""           # Message-ID, quando e resposta
     senha: str = ""
@@ -4749,6 +4850,8 @@ def email_caixa_resumo(payload: dict) -> dict:
     mensagens = _cabecalhos_do_pedido(payload)
     chave = correio.chave_do_resumo(str(payload.get("conta_id", "")), mensagens)
     regra = correio.resumo_por_regra(mensagens)
+    if payload.get("de_novo"):
+        _resumos_da_caixa.esquecer(chave)
     modelo = _resumos_da_caixa.estado(chave)
     if modelo.get("estado") in ("pronto", "resumindo", "na_fila") or not mensagens:
         return {"chave": chave, "regra": regra, "modelo": modelo if mensagens else {"estado": "nenhum"}}
@@ -4756,6 +4859,40 @@ def email_caixa_resumo(payload: dict) -> dict:
     if not disponivel:
         return {"chave": chave, "regra": regra, "modelo": {"estado": "indisponivel", "motivo": motivo}}
     return {"chave": chave, "regra": regra, "modelo": _resumos_da_caixa.pedir(chave, mensagens, estado.client)}
+
+
+_contextos_de_email = correio.ResumosDaCaixa(fazer=correio.contexto_da_mensagem, limite=60)
+
+
+@app.post("/api/email/contexto")
+def email_contexto(payload: dict) -> dict:
+    """
+    O "Contexto IA" da mensagem aberta, pelo modelo desta maquina.
+
+    Recebe o texto que a tela ja tem (a pessoa abriu a mensagem). Roda numa
+    thread, como o resumo da caixa: volta "resumindo" e a tela pergunta de
+    novo em GET. Guardado por conta e UID - abrir de novo nao roda outra vez.
+    """
+    uid = str(payload.get("uid", "")).strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="qual mensagem?")
+    chave = f"{payload.get('conta_id', '')}:{uid}"
+    if payload.get("de_novo"):
+        _contextos_de_email.esquecer(chave)
+    feito = _contextos_de_email.estado(chave)
+    if feito.get("estado") in ("pronto", "resumindo", "na_fila"):
+        return {"chave": chave, "modelo": feito}
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        return {"chave": chave, "modelo": {"estado": "indisponivel", "motivo": motivo}}
+    item = {"de": str(payload.get("de", ""))[:200], "assunto": str(payload.get("assunto", ""))[:300],
+            "corpo": str(payload.get("corpo", ""))}
+    return {"chave": chave, "modelo": _contextos_de_email.pedir(chave, [item], estado.client)}
+
+
+@app.get("/api/email/contexto")
+def email_contexto_estado(chave: str) -> dict:
+    return {"chave": chave, "modelo": _contextos_de_email.estado(chave)}
 
 
 @app.get("/api/email/caixa/resumo")
@@ -4888,6 +5025,7 @@ def _montar_do_pedido(payload: PedidoEnvio):
             para=para,
             assunto=payload.assunto,
             corpo=payload.corpo,
+            corpo_html=payload.corpo_html,
             cc=correio.enderecos(payload.cc),
             anexos=anexos,
             responder_a=payload.responder_a,
@@ -4914,6 +5052,7 @@ def email_previa(payload: PedidoEnvio) -> dict:
         "cco": correio.enderecos(payload.cco),
         "assunto": str(msg.get("Subject", "")) or "(sem assunto)",
         "corpo": corpo.get_content().rstrip() if corpo else "",
+        "html": correio.html_da_mensagem(msg),
         "anexos": [
             {"nome": p.get_filename(), "kb": round(len(p.get_payload(decode=True) or b"") / 1024, 1)}
             for p in msg.iter_attachments()

@@ -24,36 +24,11 @@
   .ex-conta-casa { position: relative; justify-self: start; min-width: 0; max-width: 100%; }
   .ex-conta-casa .menu-conversa { left: 0; right: auto; width: max-content; min-width: 100%; max-width: 340px; }
   .ex-conta .em-avatar { width: 20px; height: 20px; border-radius: 50%; font-size: 9px; }
+  /* a caixa de entrada abre com o resumo da IA de Servicos (12-servicos.css) */
+  .ex-abre.sv-abertura { gap: 22px; padding-top: 6px; }
   .ex-titulo { margin: 0; font: 400 34px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
   .ex-lide { margin: 0; max-width: 880px; font: 400 15px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
 
-  /* o resumo da caixa: regra e assistente lado a lado, cada um com o selo */
-  .ex-resumo {
-    display: grid; gap: 12px; margin-top: 10px; padding: 16px 20px 18px;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: 0 8px 24px -16px var(--sh-a12);
-  }
-  .ex-resumo-cabeca { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .ex-resumo-titulo { font: 600 14px var(--sans); color: var(--ink); }
-  .ex-resumo-onde { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .ex-resumo-blocos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ex-resumo-bloco { display: grid; gap: 10px; align-content: start; min-width: 0; padding-right: 28px; }
-  .ex-resumo-bloco + .ex-resumo-bloco { padding: 0 0 0 28px; border-left: 1px solid var(--hair); }
-  .ex-selo {
-    justify-self: start; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px;
-    background: var(--fill); font: 600 11.5px var(--sans); color: var(--ink2); white-space: nowrap;
-  }
-  .ex-selo .ic { color: var(--ink3); }
-  .ex-resumo-bloco ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font: 400 14px/1.55 var(--sans); color: var(--ink); }
-  .ex-resumo-bloco li::marker { color: var(--ink3); }
-  .ex-resumo-texto { margin: 0; font: 400 14px/1.6 var(--sans); color: var(--ink); text-wrap: pretty; }
-  .ex-resumo-texto.espera { display: flex; align-items: flex-start; gap: 8px; color: var(--ink3); }
-  .ex-resumo-texto.espera .indicador { flex: none; margin-top: 3px; }
-  .ex-resumo-texto.vazio { color: var(--ink3); }
-  .ex-resumo-nota { font: 500 12px var(--sans); color: var(--ink3); }
-  .ex-resumo-prazo { display: inline; padding: 0; border: none; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
-  .ex-resumo-prazo b { color: var(--ink); font-weight: 600; }
-  .ex-resumo-de { color: var(--ink3); }
-  .ex-resumo-prazo:hover:not(:disabled) { background: none; border: none; text-decoration: underline; text-underline-offset: 3px; }
 
   /* a lista: o cartao de tabela do sistema, a barra presa no alto */
   .tabela-cartao.ex-lista { flex: none; overflow: visible; box-shadow: 0 8px 24px -16px var(--sh-a12); }
@@ -107,6 +82,14 @@
   .ex-mod-rotulo { display: grid; gap: 4px; align-content: start; padding-top: 2px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
   .ex-mod-rotulo small { font: 500 11.5px/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink3); }
   .ex-mod-miolo { display: grid; gap: 12px; align-content: start; min-width: 0; }
+  /* o texto da mensagem: sem rotulo na margem, centrado na folha */
+  .ex-mod.sem-rotulo { grid-template-columns: minmax(0, 1fr); }
+  .ex-mod-corpo .ex-mod-miolo { justify-items: center; }
+  .ex-mod-corpo .ex-html, .ex-mod-corpo .ex-html-aviso { width: 100%; box-sizing: border-box; }
+  .ex-mod-corpo .ex-corpo, .ex-mod-corpo .ex-trad-nota { width: 100%; max-width: 72ch; }
+  .ex-mod-corpo .ex-html-trocas, .ex-mod-corpo > .ex-mod-miolo > .ex-html-troca { justify-self: center; }
+  .ex-contexto-nota { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .ex-trad-nota { margin: 0; font: 500 12px var(--sans); color: var(--ink3); text-align: center; }
   .ex-mod-texto { margin: 0; max-width: 72ch; font: 400 14.5px/1.6 var(--sans); color: var(--ink); text-wrap: pretty; }
 
   .ex-mod-cabeca { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px 24px 18px; border-top: none; }
@@ -153,7 +136,9 @@
   .ex-codigo small { font: 500 12px var(--sans); color: var(--ink3); }
   .ex-codigo b { font: 600 20px/1.2 var(--mono, ui-monospace, Consolas, monospace); letter-spacing: .12em; color: var(--ink); }
   .ex-codigo button { display: inline-flex; align-items: center; gap: 6px; }
-  .ic-svg { display: inline-block; flex: none; vertical-align: middle; }
+  .ic-svg { display: block; flex: none; width: 15px; height: 15px; }
+  /* a folha de impressao da mensagem: existe so para o print(), fora da vista */
+  .ex-folha-impressao { position: fixed; width: 0; height: 0; border: 0; opacity: 0; pointer-events: none; }
   /* a traducao: paragrafos (entram em cascata, js/32) e o botao marcado */
   .ex-traducao p { margin: 0 0 1em; white-space: pre-wrap; }
   .ex-traducao p:last-child { margin-bottom: 0; }
@@ -196,11 +181,9 @@
     border-radius: 0; background: none; box-shadow: none; outline: none; font: 600 13.5px var(--sans); color: var(--ink2);
   }
   .ex-tela .ex-resp-assunto:focus { border-bottom-color: var(--ink); color: var(--ink); }
-  .ex-tela .ex-resp-texto {
-    width: 100%; max-width: none; min-height: 150px; box-sizing: border-box; padding: 2px 0; border: none; border-radius: 0; background: none;
-    box-shadow: none; outline: none; resize: none; overflow: hidden; font: 400 15px/1.65 var(--sans); color: var(--ink);
-  }
-  .ex-tela .ex-resp-texto::placeholder { color: var(--ink3); }
+  /* a resposta usa a faixa de edicao do Escrever (11-email.css) */
+  .ex-er .er-texto { min-height: 150px; font-size: 15px; }
+  .ex-resp-assinatura img { max-width: 100%; height: auto; }
   .ex-resp-preparando { display: flex; align-items: center; gap: 8px; min-height: 110px; margin: 0; font: 500 13.5px/1.5 var(--sans); color: var(--ink3); animation: ex-pulsa 1.6s ease-in-out infinite; }
   @keyframes ex-pulsa { 50% { opacity: .55; } }
   .ex-resp-assinatura { padding-top: 10px; border-top: 1px solid var(--hair); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); white-space: pre-line; }
@@ -215,9 +198,6 @@
   .ex-resp.feito p { margin: 0; font: 400 14px/1.55 var(--sans); color: var(--ink2); }
 
   @media (max-width: 1100px) {
-    .ex-resumo-blocos { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-    .ex-resumo-bloco { padding: 0; }
-    .ex-resumo-bloco + .ex-resumo-bloco { padding: 16px 0 0; border-left: none; border-top: 1px solid var(--hair); }
     .ex-mod { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px 18px; }
     .ex-mod-cabeca { padding: 18px 18px 16px; }
     .ex-msg-pe { padding: 12px 18px 14px; }
