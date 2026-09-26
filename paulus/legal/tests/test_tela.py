@@ -150,6 +150,15 @@ def main() -> int:
     servidor = _subir_servidor(porta)
     base = f"http://127.0.0.1:{porta}"
 
+    # A Agenda confere a lista do dia e a ficha de uma tarefa. Sem tarefa
+    # nenhuma na máquina o teste parava ali e não chegava ao resto das telas:
+    # ele traz a sua, com prazo hoje, e a tira no fim, passe ou falhe.
+    import api
+    from datetime import date
+
+    tarefa_do_teste = api.estado.tarefas.salvar(
+        {"titulo": "Teste de tela · tarefa do dia", "prazo": date.today().isoformat()})
+
     try:
         with sync_playwright() as p:
             try:
@@ -499,8 +508,8 @@ def main() -> int:
                     pagina.wait_for_timeout(400)
 
             print("\nos Cadastros: clientes, equipe e despesas fixas")
-            # Tres tabelas com a ficha editavel no painel
-            # (docs/ui/03-telas-desktop.md, A10).
+            # Tres tabelas; desde fd0f1b0 (padrao editorial) sem coluna ao
+            # lado, e a ficha nova abre no pop-up do sistema.
             pagina.evaluate("() => abrirDestino('cadastros')")
             pagina.wait_for_timeout(1800)
             colunas = pagina.evaluate(
@@ -509,15 +518,19 @@ def main() -> int:
             )
             checar(colunas == 5, f"a tabela de clientes tem cinco colunas (achou {colunas})")
             checar(
-                pagina.evaluate("() => !!document.querySelector('#cad-tela .acervo-painel .painel-vazio')"),
-                "o painel abre vazio, esperando uma ficha",
+                pagina.evaluate("() => !document.querySelector('#cad-tela .acervo-painel')"),
+                "a lista ocupa a largura, sem coluna ao lado",
             )
             pagina.evaluate("() => document.querySelector('[data-cad-nova]').click()")
             pagina.wait_for_timeout(500)
             checar(
-                pagina.evaluate("() => !!document.querySelector('#cad-tela .cad-campos [data-cc=nome]')"),
-                "Novo cliente abre a ficha em branco no painel",
+                pagina.evaluate("() => { const d = document.querySelector('.veu-dialogo');"
+                                " return !!d && (d.querySelector('h2') || {}).textContent === 'Novo cliente'"
+                                " && !!d.querySelector('[data-cc=nome]') && !d.querySelector('[data-cc=nome]').value; }"),
+                "Novo cliente abre a ficha em branco num pop-up",
             )
+            pagina.keyboard.press("Escape")
+            pagina.wait_for_timeout(400)
             pagina.evaluate("() => document.querySelector('[data-cad-visao=equipe]').click()")
             pagina.wait_for_timeout(600)
             colunas = pagina.evaluate(
@@ -546,9 +559,13 @@ def main() -> int:
             checar(colunas == 2, f"o menu interno e a secao ficam lado a lado (achou {colunas})")
             secoes = pagina.evaluate("() => document.querySelectorAll('#cfg-tela [data-cfg-secao]').length")
             checar(secoes == 10, f"o menu tem dez secoes, a Lixeira incluida (achou {secoes})")
+            # Desde fd658f7 (padrao editorial) os cartoes vem um embaixo do
+            # outro, numa coluna so: Voce e Escritorio.
             checar(
-                pagina.evaluate("() => document.querySelectorAll('#cfg-tela .cfg-grade > .cfg-cartao').length") == 2,
-                "Meus dados abre em dois cartoes lado a lado",
+                pagina.evaluate("() => { const c = [...document.querySelectorAll('#cfg-tela .cfg-cartao')]"
+                                ".map(e => e.getBoundingClientRect());"
+                                " return c.length === 2 && Math.abs(c[0].left - c[1].left) < 2 && c[1].top > c[0].bottom - 1; }"),
+                "Meus dados abre em dois cartoes, um embaixo do outro",
             )
             # A foto do perfil e a logo do escritorio: escolher um arquivo no
             # computador nao da para automatizar, entao o teste manda a imagem
@@ -668,7 +685,8 @@ def main() -> int:
             checar(pagina.evaluate("() => typeof aprovarMarcados === 'function' && !!document.getElementById('ap-fila')"),
                    "a fila de Aprovacoes responde ao Ctrl+Enter")
 
-            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('feedback'); }")
+            # "Novidades da versao" mora em Apoio e versao desde fd658f7.
+            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('plano'); }")
             pagina.wait_for_timeout(1800)
             pagina.evaluate("() => document.querySelector('[data-cfg-novidades]').click()")
             pagina.wait_for_timeout(1200)
@@ -732,17 +750,21 @@ def main() -> int:
                    "e desligar devolve o movimento")
 
             print("\nAprendizado: ensinar o assistente com as proprias palavras")
-            # O que o escritorio ensina entra em toda pergunta (A13). Guardar,
-            # alterar e apagar acontecem na propria secao, e o rodape diz
-            # quanto daquilo o assistente carrega a cada pergunta.
+            # O que o escritorio ensina entra em toda pergunta (A13). Desde
+            # fd658f7 escrever e alterar acontecem no pop-up do sistema, e a
+            # faixa de numeros diz quanto daquilo vai a cada pergunta.
             pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('aprendizado'); }")
             pagina.wait_for_timeout(1800)
             id_lembrete = None
             try:
+                pagina.evaluate("() => document.querySelector('[data-cfg-ensinar-novo]').click()")
+                pagina.wait_for_timeout(500)
+                checar(pagina.evaluate("() => !!document.querySelector('.veu-dialogo #cfg-ensinar-titulo')"),
+                       "Escrever lembrete abre o pop-up com o formulario")
                 pagina.evaluate("""() => {
                   document.getElementById('cfg-ensinar-titulo').value = 'Teste — prazo de aviso';
                   document.getElementById('cfg-ensinar-texto').value = 'Teste de tela: o aviso de nao renovacao e de 90 dias.';
-                  document.querySelector('[data-cfg-ensinar-guardar]').click();
+                  document.querySelector('.veu-dialogo [data-dialogo="confirmar"]').click();
                 }""")
                 pagina.wait_for_timeout(1500)
                 id_lembrete = pagina.evaluate("() => ((cfg.ctx || {}).contextos || []).map((x) => x.id)[0] || null")
@@ -752,8 +774,8 @@ def main() -> int:
                     "o lembrete aparece na lista com o titulo que foi escrito",
                 )
                 checar(
-                    pagina.evaluate("() => document.querySelector('#cfg-tela .cfg-explica').textContent.includes('caracteres em uso')"),
-                    "e o rodape diz quanto disso vai em cada pergunta",
+                    pagina.evaluate("() => /\\d+ de \\d+ caracteres/.test(document.getElementById('cfg-tela').textContent)"),
+                    "e a faixa de numeros diz quanto disso vai em cada pergunta",
                 )
                 checar(
                     pagina.evaluate("async () => { const d = await (await fetch('/api/contextos')).json(); return d.caracteres > 0; }"),
@@ -794,13 +816,15 @@ def main() -> int:
                 pagina.evaluate("() => document.querySelector('[data-cfg-ensinar-editar]').click()")
                 pagina.wait_for_timeout(600)
                 checar(
-                    pagina.evaluate("() => document.getElementById('cfg-ensinar-titulo').value.startsWith('Teste — prazo') && !!document.querySelector('[data-cfg-ensinar-cancelar]')"),
-                    "Alterar traz o lembrete de volta para o formulario",
+                    pagina.evaluate("() => (document.getElementById('cfg-ensinar-titulo') || {value: ''}).value.startsWith('Teste — prazo')"
+                                    " && !!document.querySelector('.veu-dialogo .dialogo-cancelar')"),
+                    "Alterar abre o lembrete no pop-up",
                 )
-                pagina.evaluate("() => document.querySelector('[data-cfg-ensinar-cancelar]').click()")
-                pagina.wait_for_timeout(400)
-                checar(pagina.evaluate("() => document.getElementById('cfg-ensinar-titulo').value === ''"),
-                       "e Cancelar limpa o formulario sem mexer no que esta guardado")
+                pagina.evaluate("() => document.querySelector('.veu-dialogo .dialogo-cancelar').click()")
+                pagina.wait_for_timeout(500)
+                checar(pagina.evaluate("() => !document.getElementById('cfg-ensinar-titulo')"
+                                       " && !!Array.from(document.querySelectorAll('#cfg-tela .cfg-lembrete b')).find((b) => b.textContent.startsWith('Teste — prazo'))"),
+                       "e Cancelar fecha sem mexer no que esta guardado")
             finally:
                 if id_lembrete is not None:
                     pagina.evaluate(f"""async () => {{
@@ -826,13 +850,14 @@ def main() -> int:
             checar(colunas == 11, f"o ritmo por hora tem onze colunas (achou {colunas})")
             pagina.evaluate("() => document.querySelector('[data-be-visao=semana]').click()")
             pagina.wait_for_timeout(2200)
-            # O grafico da semana virou sete barras deitadas, de ponta a ponta
-            # e fora do cartao: cada dia e uma linha.
+            # O grafico da semana sao sete barras deitadas, uma por dia; desde
+            # 907a158 fica no cartao "Foco na semana", ao lado dos habitos.
             barras = pagina.evaluate("() => document.querySelectorAll('.be-semana .be-barra').length")
             checar(barras == 7, f"a semana tem sete dias, um por barra (achou {barras})")
             checar(
-                pagina.evaluate("() => { const g = document.querySelector('.be-semana'); return !!g && !g.closest('.fin-cartao'); }"),
-                "o grafico da semana fica fora do cartao, na largura da pagina",
+                pagina.evaluate("() => { const g = document.querySelector('.be-semana'); const c = g && g.closest('.fin-cartao');"
+                                " return !!c && c.querySelector('.fin-cartao-cabeca').textContent.startsWith('Foco na semana'); }"),
+                "o grafico da semana fica no cartao Foco na semana",
             )
             checar(
                 pagina.evaluate("() => !!document.querySelector('#be-tela .be-habito') && !!document.querySelector('#be-tela .fin-parecer')"),
@@ -844,20 +869,25 @@ def main() -> int:
             # existe e a tela diz isso, em vez do aviso generico de antes.
             pagina.evaluate("() => abrirDestino('apoiar')")
             pagina.wait_for_timeout(900)
-            colunas = pagina.evaluate(
-                "() => { const g = document.querySelector('#apoio-tela .cfg-valores');"
-                " return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; }"
+            # Desde f814227: duas formas (Pix uma vez, cartao todo mes) e os
+            # valores numa linha so - quatro valores e o Outro.
+            grades = pagina.evaluate(
+                "() => [...document.querySelectorAll('#apoio-tela .cfg-valores')]"
+                ".map(g => getComputedStyle(g).gridTemplateColumns.split(' ').length)"
             )
-            checar(colunas == 4, f"os valores ficam em quatro colunas (achou {colunas})")
+            checar(grades == [2, 5], f"as duas formas lado a lado e os cinco valores numa linha (achou {grades})")
             checar(
                 pagina.evaluate("() => !!document.querySelector('#apoio-tela .apoio-previa')"),
                 "a previa da lista de apoiadores aparece",
             )
             pagina.evaluate("() => document.querySelector('[data-apoio-visao=lista]').click()")
             pagina.wait_for_timeout(600)
+            # O mural publico ainda nao existe, e a tela diz isso em vez de
+            # mostrar uma lista de exemplo.
             checar(
-                pagina.evaluate("() => document.querySelectorAll('#apoio-tela .apoio-secao').length") == 3,
-                "Quem ja apoia abre com as tres secoes",
+                pagina.evaluate("() => { const t = document.getElementById('apoio-tela').innerText;"
+                                " return t.includes('Quem mantém o PAULUS gratuito') && t.includes('mural público nasce'); }"),
+                "Quem ja apoia diz que o mural publico ainda nao existe",
             )
 
             print("\nentrar no escritorio por codigo (A0b)")
@@ -1040,8 +1070,10 @@ def main() -> int:
             pagina.wait_for_selector("#veu-dialogo .dialogo", timeout=5000)
             checar(
                 pagina.evaluate("() => document.querySelector('#veu-dialogo h2').textContent === 'Apagar isto?'"
-                                " && !!document.querySelector('#veu-dialogo .dialogo-pe .primario.perigo')"
-                                " && document.activeElement === document.querySelector('#veu-dialogo .dialogo-pe .primario')"),
+                                # Desde o padrao visual (docs/ui/07) o destrutivo e o .perigo
+                                # do sistema, sem o .primario junto.
+                                " && !!document.querySelector('#veu-dialogo .dialogo-pe .perigo[data-dialogo=confirmar]')"
+                                " && document.activeElement === document.querySelector('#veu-dialogo [data-dialogo=confirmar]')"),
                 "o dialogo de confirmacao abre com o titulo, a acao em vinho e o foco nela",
             )
             pagina.keyboard.press("Escape")
@@ -1194,7 +1226,7 @@ def main() -> int:
               $('teste-proposta').innerHTML = cartaoProposta(d);
             }""")
             checar(
-                pagina.evaluate("() => document.querySelector('#teste-proposta .pv-grau').textContent === 'falta um dado' && document.querySelector('#teste-proposta .explica').textContent.includes('não achei o nome')"),
+                pagina.evaluate("() => document.querySelector('#teste-proposta .etiqueta.atencao').textContent === 'falta um dado' && document.querySelector('#teste-proposta .explica').textContent.includes('não achei o nome')"),
                 "sem nome, o cartao diz o que falta em vez de inventar",
             )
 
@@ -1234,6 +1266,7 @@ def main() -> int:
 
             navegador.close()
     finally:
+        api.estado.tarefas.apagar(tarefa_do_teste)
         servidor.should_exit = True
 
     return _fim()
