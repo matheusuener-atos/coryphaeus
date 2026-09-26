@@ -417,6 +417,8 @@ async function apoioBaixarExtrato() {
   }
   apoio.assinaturasAntigas.forEach((a) => assinaturas.push(a));
   avisoCert("montando o extrato…");
+  // Um Pix de versao antiga (sem numero nem valor) e completado antes.
+  if (await apoioRecuperarPixAntigos()) { guardarApoio(); desenharApoiar(); }
   const d = await apoioPedir("/api/apoio/extrato", {
     nome: nomeNaLista(), email: apoio.email, pix: apoio.historico, assinaturas: assinaturas,
   }, false);

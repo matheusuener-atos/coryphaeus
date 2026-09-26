@@ -78,9 +78,19 @@ async function dentroDoLimite(request, env) {
   return success;
 }
 
+/* Guarda somando ao que ja havia (a impressao do e-mail, gravada na criacao,
+   continua quando o pagamento e confirmado). */
 async function guardar(env, chave, dados) {
   if (!env.APOIOS) return;
-  await env.APOIOS.put(chave, JSON.stringify({ ...dados, quando: new Date().toISOString() }), { expirationTtl: KV_VALIDADE_S });
+  const antes = (await lerGuardado(env, chave)) || {};
+  await env.APOIOS.put(chave, JSON.stringify({ ...antes, ...dados, quando: new Date().toISOString() }), { expirationTtl: KV_VALIDADE_S });
+}
+
+/* A impressao (SHA-256) do e-mail: da para conferir quem pagou sem guardar
+   o e-mail em si. O Mercado Pago nao devolve o e-mail do pagador do Pix. */
+async function impressaoDoEmail(email) {
+  const resumo = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(email || "").trim().toLowerCase()));
+  return [...new Uint8Array(resumo)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function lerGuardado(env, chave) {
@@ -145,6 +155,8 @@ async function criarPix(request, env) {
   if (!r.ok) return json({ erro: "o Mercado Pago recusou criar o Pix", status: r.status }, 502);
   const pagamento = ((r.dados.transactions || {}).payments || [])[0] || {};
   const meio = pagamento.payment_method || {};
+  // Para achar este Pix de novo pelo e-mail (recuperar), sem guardar o e-mail.
+  await guardar(env, "pix:" + r.dados.id, { pago: false, valor, emails: [await impressaoDoEmail(c.email)] });
   return json({
     id: r.dados.id,
     situacao: r.dados.status,
@@ -183,17 +195,16 @@ async function recuperarPix(request, env) {
   const emails = [...new Set((pedido.emails || []).map((e) => String(e || "").trim().toLowerCase()).filter((e) => RE_EMAIL.test(e)))].slice(0, 3);
   const datas = new Set((pedido.datas || []).map((d) => String(d || "").trim()).filter((d) => /^\d{2}\/\d{2}\/\d{4}$/.test(d)).slice(0, 20));
   if (!emails.length || !datas.size || !env.APOIOS) return json({ pix: [] });
+  // O Mercado Pago nao devolve o e-mail do pagador: vale a impressao gravada
+  // quando o Pix foi criado.
+  const impressoes = await Promise.all(emails.map(impressaoDoEmail));
   const achados = [];
   const lista = await env.APOIOS.list({ prefix: "pix:", limit: 1000 });
   for (const chave of lista.keys) {
     const guardado = await lerGuardado(env, chave.name);
     if (!guardado || !guardado.pago || !datas.has(dataBrasilia(guardado.quando))) continue;
-    const id = chave.name.slice(4);
-    const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
-    const email = String(((r.dados || {}).payer || {}).email || "").toLowerCase();
-    if (r.ok && r.dados.status === "processed" && emails.includes(email)) {
-      achados.push({ id, valor: Number(r.dados.total_amount) || Number(guardado.valor) || 0, data: guardado.quando });
-    }
+    if (!(guardado.emails || []).some((e) => impressoes.includes(e))) continue;
+    achados.push({ id: chave.name.slice(4), valor: Number(guardado.valor) || 0, data: guardado.quando });
   }
   return json({ pix: achados });
 }

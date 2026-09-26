@@ -75,14 +75,12 @@ checar(outraChave.status === 403, "a chave de uma assinatura não serve para out
 const valorBaixo = await postar("/api/mp/assinatura/PRE0001/valor", { chave: chaveBoa, valor: 2 });
 checar(valorBaixo.status === 400, "diminuir abaixo do mínimo é recusado");
 
-// Recuperar: so o Pix do e-mail e da data pedidos.
-guardados.set("pix:ORD01ANTIGO", JSON.stringify({ situacao: "processed", pago: true, valor: "5.00", quando: "2026-09-26T07:18:55.610Z" }));
-guardados.set("pix:ORD01OUTRADATA", JSON.stringify({ situacao: "processed", pago: true, valor: "9.00", quando: "2026-09-20T15:00:00.000Z" }));
+// Recuperar: so o Pix com a impressao do e-mail E na data pedida.
+const { createHash } = await import("node:crypto");
+const impressao = (e) => createHash("sha256").update(e.trim().toLowerCase()).digest("hex");
+guardados.set("pix:ORD01ANTIGO", JSON.stringify({ situacao: "processed", pago: true, valor: "5.00", quando: "2026-09-26T07:18:55.610Z", emails: [impressao("apoiador@exemplo.com.br")] }));
+guardados.set("pix:ORD01OUTRADATA", JSON.stringify({ situacao: "processed", pago: true, valor: "9.00", quando: "2026-09-20T15:00:00.000Z", emails: [impressao("apoiador@exemplo.com.br")] }));
 env.APOIOS.list = async ({ prefix }) => ({ keys: [...guardados.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })) });
-const fetchAntes = globalThis.fetch;
-globalThis.fetch = async (url) => (String(url).includes("/v1/orders/")
-  ? new Response(JSON.stringify({ status: "processed", total_amount: "5.00", payer: { email: "apoiador@exemplo.com.br" } }), { status: 200 })
-  : fetchAntes(url));
 chamadasNoLimite = 0;
 const rec = await (await postar("/api/mp/pix/recuperar", { emails: ["Apoiador@Exemplo.com.br"], datas: ["26/09/2026"] })).json();
 checar(rec.pix.some((p) => p.id === "ORD01ANTIGO" && p.valor === 5) && !rec.pix.some((p) => p.id === "ORD01OUTRADATA"), "recupera o Pix do e-mail na data certa, e só dela");
@@ -90,6 +88,16 @@ const semData = await (await postar("/api/mp/pix/recuperar", { emails: ["apoiado
 checar(semData.pix.length === 0, "só com o e-mail, sem a data, não devolve nada");
 const outroEmail = await (await postar("/api/mp/pix/recuperar", { emails: ["outra@pessoa.com"], datas: ["26/09/2026"] })).json();
 checar(outroEmail.pix.length === 0, "e-mail de outra pessoa não vê o Pix");
+
+// Criar o Pix grava a impressao do e-mail (nunca o e-mail).
+const fetchAntes = globalThis.fetch;
+globalThis.fetch = async (url) => (String(url).endsWith("/v1/orders")
+  ? new Response(JSON.stringify({ id: "ORD01NOVO", status: "action_required", transactions: { payments: [{ payment_method: { qr_code: "x" } }] } }), { status: 200 })
+  : fetchAntes(url));
+chamadasNoLimite = 0;
+await pix({ valor: 10, email: "Novo@Exemplo.com.br" });
+const novo = guardados.get("pix:ORD01NOVO") || "";
+checar(novo.includes(impressao("novo@exemplo.com.br")) && !novo.includes("Novo@Exemplo"), "o Pix novo guarda a impressão do e-mail, não o e-mail");
 globalThis.fetch = fetchAntes;
 
 // O limite: a 11a tentativa no minuto e recusada antes de chamar o Mercado Pago.
