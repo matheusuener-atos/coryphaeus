@@ -9,9 +9,18 @@
 //   GET  /api/mp/pix/:id      a situacao do Pix (pago ou nao)
 //   POST /api/mp/assinatura   cria a assinatura no cartao e devolve o link
 //                             da pagina do Mercado Pago onde se poe o cartao
+//   GET  /api/mp/assinatura/:id  se a assinatura ja foi ativada (cartao posto)
 //   POST /api/mp/aviso        o webhook do Mercado Pago (assinatura conferida)
 //
+// O que o webhook confirma fica no KV APOIOS (so situacao, valor e data): o
+// Pix pago depois de fechado o pop-up e a assinatura concluida no navegador
+// aparecem para o programa na proxima consulta. As rotas que criam cobranca
+// passam pelo limite LIMITE (10 por minuto por endereco de internet).
+//
 // Todo o resto e o site estatico.
+
+// Guardado por pouco mais de um ano.
+const KV_VALIDADE_S = 400 * 24 * 60 * 60;
 
 const MP = "https://api.mercadopago.com";
 const VALOR_MINIMO = 5;
@@ -21,15 +30,19 @@ const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const AVISO_VALIDADE_MS = 10 * 60 * 1000;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
+      const criando = request.method === "POST" && (url.pathname === "/api/mp/pix" || url.pathname === "/api/mp/assinatura");
+      if (criando && !(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
       if (url.pathname === "/api/mp/pix" && request.method === "POST") return await criarPix(request, env);
       const pix = url.pathname.match(/^\/api\/mp\/pix\/([A-Za-z0-9_-]{6,64})$/);
       if (pix && request.method === "GET") return await situacaoDoPix(pix[1], env);
       if (url.pathname === "/api/mp/assinatura" && request.method === "POST") return await criarAssinatura(request, env);
-      if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env);
+      const ass = url.pathname.match(/^\/api\/mp\/assinatura\/([A-Za-z0-9_-]{6,64})$/);
+      if (ass && request.method === "GET") return await situacaoDaAssinatura(ass[1], env);
+      if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env, ctx);
       return json({ erro: "rota não existe" }, 404);
     } catch (erro) {
       return json({ erro: "falha no servidor de pagamento" }, 500);
@@ -42,6 +55,28 @@ function json(dados, status = 200) {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
+}
+
+async function dentroDoLimite(request, env) {
+  if (!env.LIMITE) return true;
+  const chave = request.headers.get("cf-connecting-ip") || "sem-ip";
+  const { success } = await env.LIMITE.limit({ key: chave });
+  return success;
+}
+
+async function guardar(env, chave, dados) {
+  if (!env.APOIOS) return;
+  await env.APOIOS.put(chave, JSON.stringify({ ...dados, quando: new Date().toISOString() }), { expirationTtl: KV_VALIDADE_S });
+}
+
+async function lerGuardado(env, chave) {
+  if (!env.APOIOS) return null;
+  const bruto = await env.APOIOS.get(chave);
+  try {
+    return bruto ? JSON.parse(bruto) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function lerPedido(request) {
@@ -108,10 +143,39 @@ async function criarPix(request, env) {
 }
 
 async function situacaoDoPix(id, env) {
+  const guardado = await lerGuardado(env, "pix:" + id);
+  if (guardado && guardado.pago) return json({ id, situacao: guardado.situacao, pago: true, fonte: "aviso" });
   const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
   if (!r.ok) return json({ erro: "não achei esse Pix", status: r.status }, r.status === 404 ? 404 : 502);
   // "processed" e a order paga; "action_required" ainda espera o Pix.
-  return json({ id, situacao: r.dados.status, detalhe: r.dados.status_detail, pago: r.dados.status === "processed" });
+  const pago = r.dados.status === "processed";
+  if (pago) await guardar(env, "pix:" + id, { situacao: r.dados.status, pago: true, valor: r.dados.total_amount });
+  return json({ id, situacao: r.dados.status, detalhe: r.dados.status_detail, pago });
+}
+
+/* "authorized" e a assinatura com cartao posto e ativa; "pending" ainda
+   espera a pessoa terminar na pagina do Mercado Pago. */
+async function situacaoDaAssinatura(id, env) {
+  const guardado = await lerGuardado(env, "assinatura:" + id);
+  if (guardado && guardado.situacao !== "pending") return json({ id, ...guardado, ativa: guardado.situacao === "authorized", fonte: "aviso" });
+  const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "GET");
+  if (!r.ok) return json({ erro: "não achei essa assinatura", status: r.status }, r.status === 404 ? 404 : 502);
+  const situacao = r.dados.status;
+  if (situacao !== "pending") await guardar(env, "assinatura:" + id, { situacao, valor: (r.dados.auto_recurring || {}).transaction_amount });
+  return json({ id, situacao, ativa: situacao === "authorized" });
+}
+
+/* O que o aviso diz, conferido na fonte: o aviso so traz o id - a situacao
+   vem do Mercado Pago, com o token, e so entao e guardada. */
+async function registrarAviso(tipo, id, env) {
+  if (!id) return;
+  if (tipo === "order") {
+    const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
+    if (r.ok && r.dados.status === "processed") await guardar(env, "pix:" + id, { situacao: r.dados.status, pago: true, valor: r.dados.total_amount });
+  } else if (tipo === "subscription_preapproval" || tipo === "preapproval") {
+    const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "GET");
+    if (r.ok) await guardar(env, "assinatura:" + id, { situacao: r.dados.status, valor: (r.dados.auto_recurring || {}).transaction_amount });
+  }
 }
 
 // ----------------------------------------------------------- assinatura
@@ -141,11 +205,10 @@ async function criarAssinatura(request, env) {
 // ---------------------------------------------------------------- aviso
 
 /* O webhook: so aceita aviso com a assinatura do Mercado Pago certa
-   (HMAC-SHA256 do "manifest" com a chave secreta do webhook). Por enquanto
-   o aviso so e conferido e respondido - o programa pergunta a situacao do
-   Pix direto (GET /api/mp/pix/:id). Guardar o historico dos avisos pede um
-   banco (KV/D1), que ainda nao existe aqui. */
-async function receberAviso(request, url, env) {
+   (HMAC-SHA256 do "manifest" com a chave secreta do webhook). Aceito, a
+   situacao e buscada no Mercado Pago e guardada no KV - depois da resposta,
+   para o Mercado Pago nao esperar. */
+async function receberAviso(request, url, env, ctx) {
   const assinatura = request.headers.get("x-signature") || "";
   const requestId = request.headers.get("x-request-id") || "";
   const partes = Object.fromEntries(assinatura.split(",").map((p) => p.trim().split("=")).filter((p) => p.length === 2));
@@ -165,6 +228,10 @@ async function receberAviso(request, url, env) {
 
   const quando = Number(ts) < 1e12 ? Number(ts) * 1000 : Number(ts);
   if (Math.abs(Date.now() - quando) > AVISO_VALIDADE_MS) return json({ erro: "aviso velho" }, 401);
+  const tipo = url.searchParams.get("type") || url.searchParams.get("topic") || "";
+  const trabalho = registrarAviso(tipo, dataId, env).catch(() => null);
+  if (ctx && ctx.waitUntil) ctx.waitUntil(trabalho);
+  else await trabalho;
   return json({ recebido: true });
 }
 

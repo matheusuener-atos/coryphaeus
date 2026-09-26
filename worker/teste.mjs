@@ -3,10 +3,22 @@
 import { createHmac } from "node:crypto";
 import worker from "./index.js";
 
+const guardados = new Map();
+let chamadasNoLimite = 0;
 const env = {
   MP_WEBHOOK_SECRET: "segredo-de-teste",
   MP_ACCESS_TOKEN: "sem-token",
   ASSETS: { fetch: async () => new Response("site", { status: 200 }) },
+  APOIOS: { get: async (k) => guardados.get(k) || null, put: async (k, v) => { guardados.set(k, v); } },
+  LIMITE: { limit: async () => ({ success: ++chamadasNoLimite <= 10 }) },
+};
+
+// O Mercado Pago de mentira: a order paga e a assinatura ativa.
+globalThis.fetch = async (url) => {
+  const u = String(url);
+  if (u.includes("/v1/orders/")) return new Response(JSON.stringify({ status: "processed", total_amount: "40.00" }), { status: 200 });
+  if (u.includes("/preapproval/")) return new Response(JSON.stringify({ status: "authorized", auto_recurring: { transaction_amount: 40 } }), { status: 200 });
+  return new Response("{}", { status: 404 });
 };
 let falhas = 0;
 const checar = (ok, descricao) => { console.log((ok ? "  ok   " : "  FALHA ") + descricao); if (!ok) falhas++; };
@@ -35,6 +47,28 @@ const pix = (corpo) => worker.fetch(new Request("https://paulus.ia.br/api/mp/pix
 checar((await pix({ valor: 1, email: "a@b.com" })).status === 400, "Pix abaixo do mínimo é recusado antes de chamar o Mercado Pago");
 checar((await pix({ valor: 99999, email: "a@b.com" })).status === 400, "Pix acima do máximo é recusado");
 checar((await pix({ valor: 40, email: "nao-e-email" })).status === 400, "Pix sem e-mail válido é recusado");
+
+// O aviso aceito busca a situacao no Mercado Pago e guarda no KV.
+function avisoDe(tipo, id) {
+  const ts = Date.now();
+  const requestId = "req-1";
+  const v1 = createHmac("sha256", env.MP_WEBHOOK_SECRET).update(`id:${id.toLowerCase()};request-id:${requestId};ts:${ts};`).digest("hex");
+  return new Request(`https://paulus.ia.br/api/mp/aviso?data.id=${id}&type=${tipo}`, {
+    method: "POST", headers: { "x-signature": `ts=${ts},v1=${v1}`, "x-request-id": requestId }, body: "{}",
+  });
+}
+await worker.fetch(avisoDe("order", "ORD01PAGO"), env);
+checar(JSON.parse(guardados.get("pix:ORD01PAGO") || "{}").pago === true, "aviso de Pix pago fica guardado no KV");
+await worker.fetch(avisoDe("subscription_preapproval", "PRE0001"), env);
+checar(JSON.parse(guardados.get("assinatura:PRE0001") || "{}").situacao === "authorized", "aviso de assinatura ativa fica guardado");
+const sit = await (await worker.fetch(new Request("https://paulus.ia.br/api/mp/assinatura/PRE0001"), env)).json();
+checar(sit.ativa === true && sit.fonte === "aviso", "a situação da assinatura vem do que o aviso guardou");
+
+// O limite: a 11a tentativa no minuto e recusada antes de chamar o Mercado Pago.
+chamadasNoLimite = 0;
+let ultima = null;
+for (let i = 0; i < 11; i++) ultima = await pix({ valor: 1, email: "a@b.com" });
+checar(ultima.status === 429, "passou do limite de cobranças por minuto, recusa");
 
 const site = await worker.fetch(new Request("https://paulus.ia.br/"), env);
 checar(site.status === 200 && (await site.text()) === "site", "o resto continua sendo o site");

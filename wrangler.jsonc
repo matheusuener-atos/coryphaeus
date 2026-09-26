@@ -18,5 +18,15 @@
     "not_found_handling": "none",
     // O Worker responde /api/* antes de procurar arquivo do site.
     "run_worker_first": ["/api/*"]
-  }
+  },
+  // O que o webhook do Mercado Pago confirmou: Pix pago, assinatura ativa.
+  // So situacao, valor e data - nenhum dado de cartao ou de pessoa.
+  "kv_namespaces": [
+    { "binding": "APOIOS", "id": "c8011a70799b40b0b3215f4a01b2d28c" }
+  ],
+  // As rotas que criam cobranca aceitam poucas chamadas por endereco de
+  // internet: quem tentar encher o painel de cobrancas falsas para no limite.
+  "ratelimits": [
+    { "name": "LIMITE", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+  ]
 }

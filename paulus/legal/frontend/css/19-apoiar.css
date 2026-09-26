@@ -18,6 +18,18 @@
   .apoio-previa-linha b { font-weight: 600; }
   .apoio-previa-linha small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .apoio-acao { display: flex; align-items: center; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+  .apoio-nota { margin: 0; min-height: 36px; display: flex; align-items: center; font: 500 12.5px/1.45 var(--sans); color: var(--ink3); }
+
+  /* o pop-up do Pix: o QR a esquerda, o codigo e a situacao a direita */
+  .apoio-pix { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 16px; width: 100%; min-width: 0; }
+  .apoio-qr { width: 200px; height: 200px; border-radius: 8px; background: var(--papel); image-rendering: pixelated; }
+  .apoio-pix-texto { display: grid; gap: 10px; min-width: 0; width: 100%; text-align: center; }
+  .apoio-pix-texto b { font: 600 15px var(--sans); }
+  .apoio-pix-texto p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .apoio-codigo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub); font: 400 11.5px var(--mono); color: var(--ink3); }
+  .apoio-codigo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .apoio-estado { display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 13px var(--sans); color: var(--ink3); }
+  .apoio-estado.ok { color: var(--okt); }
 
   /* quem ja apoia */
   .apoio-lista-topo { padding-bottom: 4px; }

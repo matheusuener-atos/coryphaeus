@@ -40,6 +40,7 @@ from pydantic import BaseModel
 import requests
 
 import aprovacoes as fila_aprovacoes
+import apoio
 import assinatura
 import traducao
 import certificado
@@ -4922,6 +4923,48 @@ def email_reescrever(payload: dict) -> dict:
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"sugestao": texto, "pedido": pedido}
+
+
+# ------------------------------------------------------ apoiar o projeto
+
+
+@app.post("/api/apoio/pix")
+def apoio_pix(payload: dict) -> dict:
+    """O Pix de apoio: o site (Worker) cria no Mercado Pago e devolve o QR."""
+    try:
+        return apoio.criar_pix(float(payload.get("valor") or 0), str(payload.get("email", "")))
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="valor inválido") from exc
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/apoio/pix/{id_}")
+def apoio_pix_situacao(id_: str) -> dict:
+    try:
+        return apoio.situacao_do_pix(id_)
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/apoio/assinatura/{id_}")
+def apoio_assinatura_situacao(id_: str) -> dict:
+    try:
+        return apoio.situacao_da_assinatura(id_)
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/apoio/assinatura")
+def apoio_assinatura(payload: dict) -> dict:
+    """A assinatura no cartao: devolve o link da pagina do Mercado Pago."""
+    try:
+        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")),
+                                      str(payload.get("frequencia", "mensal")))
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="valor inválido") from exc
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/api/email/traduzir")
