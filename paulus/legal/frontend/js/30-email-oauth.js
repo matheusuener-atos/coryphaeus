@@ -53,9 +53,9 @@ function eoMarca(p) {
   return EO_SIMBOLO[p] || "";
 }
 
-/* O primeiro provedor e o botao principal do passo; os outros, contornados. */
+/* Os botoes de entrar sao todos contornados; `principal` ficou de antes. */
 function eoBotao(p, desligado, principal) {
-  return '<button class="eo-botao' + (principal ? " primario" : "") + '" data-eo-entrar="' + p + '"' + (desligado ? " disabled" : "") + ">" + eoMarca(p) + "<span>Entrar com " + EO_ROTULO[p] + "</span></button>";
+  return '<button class="eo-botao" data-eo-entrar="' + p + '"' + (desligado ? " disabled" : "") + ">" + eoMarca(p) + "<span>Entrar com " + EO_ROTULO[p] + "</span></button>";
 }
 
 function botoesDeLoginOAuth(info) {
@@ -82,8 +82,7 @@ function entrarDeNovoOAuth(conta, aoLigar) {
   if (!raiz || !conta) return;
   const p = conta.autenticacao;
   const pronto = provedoresOAuth().includes(p);
-  const marca = raiz.querySelector(".ec-marca");
-  raiz.innerHTML = (marca ? marca.outerHTML : "") + '<div class="eo-denovo">' +
+  raiz.innerHTML = '<div class="eo-denovo">' +
     '<button class="ec-quem" data-eo-voltar="1" title="Voltar">' + ic("arrow_back", 16) + avatarDaConta({ email: conta.email }) + "<span>" + esc(conta.email) + "</span></button>" +
     "<h2>Entrar de novo</h2>" +
     (conta.precisa_entrar ? '<p class="eo-texto">A autorização do ' + EO_ROTULO[p] + " venceu.</p>" : "") +

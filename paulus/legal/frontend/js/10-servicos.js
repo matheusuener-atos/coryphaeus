@@ -521,7 +521,7 @@ function cartaoDosArquivos(s) {
   }).join("");
   const verMais = sv.aba !== "arquivos" && todos.length > ARQUIVOS_A_VISTA
     ? '<div class="sv-arquivos-pe"><button class="ver-mais" data-sv-arquivos-mais="1">' +
-      (sv.arquivosAbertos ? "Ver menos" + ic("expand_less", 16) : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA) + ic("chevron_right", 16)) + "</button></div>"
+      (sv.arquivosAbertos ? "Ver menos" : "Ver mais · " + (todos.length - ARQUIVOS_A_VISTA) + ic("chevron_right", 16)) + "</button></div>"
     : "";
   // "2 documentos · 7 páginas": a conta que diz o tamanho da pasta. O nome
   // da pasta do disco era ruído de caminho, não informação.

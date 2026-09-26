@@ -148,9 +148,11 @@ function exAbertura() {
   const c = mail.conta;
   const pasta = EX_PASTAS.find((p) => p.id === mail.pasta) || EX_PASTAS[0];
   const conta = '<button class="ex-conta" data-ex-conta="1" title="Trocar de conta">' + avatarDaConta(c) + "<span>" + esc(c.email) + "</span>" + ic("expand_more", 16) + "</button>";
-  return '<header class="ex-abre"><div class="ex-abre-topo"><span class="sv-kicker">E-mail</span>' + conta + "</div>" +
-    '<h1 class="ex-titulo">' + esc(pasta.rotulo) + "</h1>" +
-    '<p class="ex-lide">' + esc(exLide()) + (mail.busca ? ' <button class="sv-ligacao" data-ex-sem-busca="1">limpar a busca</button>' : "") + "</p>" +
+  // So o titulo e a conta; a contagem ja esta no alto da tela e na barra
+  // da lista. Na busca, a frase volta para dizer o que se buscou.
+  return '<header class="ex-abre"><h1 class="ex-titulo">' + esc(pasta.rotulo) + "</h1>" +
+    '<div class="ex-conta-casa">' + conta + "</div>" +
+    (mail.busca ? '<p class="ex-lide">' + esc(exLide()) + ' <button class="sv-ligacao" data-ex-sem-busca="1">limpar a busca</button></p>' : "") +
     (mail.pasta === "entrada" && mail.caixa && mail.caixa.mensagens.length ? '<section class="ex-resumo" id="ex-resumo">' + exResumoMiolo() + "</section>" : "") +
     "</header>";
 }
@@ -275,7 +277,8 @@ function exLigarResumo(alvo) {
 function exAcoesDoLote() {
   return '<button class="com-icone" data-ex-lote="lidas">' + ic("done_all", 16) + "Marcar como lidas</button>" +
     '<button class="com-icone" data-ex-lote="nao-lidas">' + ic("mark_email_unread", 16) + "Como não lidas</button>" +
-    '<button class="com-icone" data-ex-lote="arquivar">' + ic("archive", 16) + "Arquivar</button>";
+    '<button class="com-icone" data-ex-lote="arquivar">' + ic("archive", 16) + "Arquivar</button>" +
+    '<span class="divisa-v"></span><button class="botao-icone perigo" data-ex-lote="excluir" title="Excluir" aria-label="Excluir">' + ic("delete", 18) + "</button>";
 }
 
 function exContagem() {
@@ -290,7 +293,8 @@ function exContagem() {
 function exBarra() {
   const n = cx.escolhidos.size;
   const naEntrada = mail.pasta === "entrada";
-  if (n && naEntrada) return barraDeSelecao(n, true, exAcoesDoLote(), "data-ex-sel-limpar", exItens().length);
+  // A mesma barra da lista de conversas do assistente.
+  if (n && naEntrada) return '<span class="lc-selecao">' + barraDeSelecao(n, true, exAcoesDoLote(), "data-ex-sel-limpar", exItens().length) + "</span>";
   const pedem = mail.caixa ? mail.caixa.mensagens.filter(exPede).length : 0;
   const visoes = naEntrada && !mail.erroCaixa
     ? '<div class="visoes ex-visoes">' + EX_VISOES.map((v) => '<button class="' + (v.id === cx.visao ? "ativa" : "") + '" data-ex-visao="' + v.id + '">' + v.rotulo +
@@ -313,6 +317,7 @@ function exBotoesDoErro() {
 
 function exMarcas(m) {
   const marcas = [];
+  if (m.sinalizada) marcas.push('<span class="ex-marca-ic ex-marca-estrela" title="Com estrela">' + ic("star", 16) + "</span>");
   if (m.prazo && !m.respondido) marcas.push('<span class="em-pilula acc" title="Prazo achado no assunto">' + esc(rotuloDoPrazo(m.prazo)) + "</span>");
   if (m.de_cadastro) marcas.push('<span class="em-pilula" title="' + esc(m.de_cadastro) + '">cliente</span>');
   if (m.tem_anexo) marcas.push('<span class="ex-marca-ic" title="Com anexo">' + ic("attach_file", 16) + "</span>");
@@ -328,7 +333,6 @@ function exLinha(m) {
   const trecho = cx.previas[m.uid];
   const classe = "tabela-linha ex-linha" + (m.lido ? "" : " nova") + (on ? " escolhida" : "") + (aberta ? " aberta" : "");
   return '<div class="' + classe + '" data-ex-uid="' + esc(m.uid) + '" aria-expanded="' + aberta + '">' +
-    '<span class="marcar' + (on ? " on" : "") + '" data-ex-marcar="' + esc(m.uid) + '" role="checkbox" aria-checked="' + on + '" title="Marcar">' + ic("check", 12) + "</span>" +
     '<span class="ex-de"><i class="ex-ponto"></i><span class="corta">' + esc(exQuem(m)) + "</span></span>" +
     '<span class="ex-sobre"><b>' + esc(m.assunto || "(sem assunto)") + "</b>" + (trecho ? '<span class="ex-trecho">' + esc(trecho) + "</span>" : "") + "</span>" +
     '<span class="ex-marcas">' + exMarcas(m) + "</span>" +
@@ -339,7 +343,7 @@ function exLinha(m) {
 
 function exLinhaSimples(attr, aberta, quem, sobre, marcas, quando) {
   return '<div class="tabela-linha ex-linha' + (aberta ? " aberta" : "") + '" ' + attr + ">" +
-    '<span class="marcar"></span><span class="ex-de"><span class="corta">' + esc(quem) + "</span></span>" +
+    '<span class="ex-de"><span class="corta">' + esc(quem) + "</span></span>" +
     '<span class="ex-sobre"><b>' + esc(sobre || "(sem assunto)") + "</b></span>" +
     '<span class="ex-marcas">' + (marcas || "") + '</span><span class="ex-quando">' + esc(quando || "") + "</span><span></span></div>";
 }
@@ -383,8 +387,7 @@ function exRodape() {
 }
 
 function exTabela() {
-  const n = mail.pasta === "entrada" ? cx.escolhidos.size : 0;
-  return '<div class="tabela-cartao ex-lista' + (n ? "" : " sem-selecao") + '"><div class="tabela-barra ex-barra">' + exBarra() + "</div>" +
+  return '<div class="tabela-cartao ex-lista"><div class="tabela-barra ex-barra">' + exBarra() + "</div>" +
     '<div class="tabela-corpo" id="ex-corpo">' + exCorpoDaLista() + "</div>" + exRodape() + "</div>";
 }
 
@@ -410,31 +413,166 @@ function exModulo(rotulo, miolo, classe, nota) {
 
 function exIcones(m) {
   return '<span class="em-msg-acoes ex-msg-acoes">' +
-    (m ? '<button id="mail-responder-ic" title="Responder" aria-label="Responder">' + ic("reply", 18) + "</button>" +
-      '<button id="mail-encaminhar" title="Encaminhar" aria-label="Encaminhar">' + ic("forward", 18) + "</button>" +
-      '<button data-ex-nao-lida="1" title="Marcar como não lida" aria-label="Marcar como não lida">' + ic("mark_email_unread", 18) + "</button>" +
+    (m && m.corpo !== undefined && exLingua(m)
+      ? '<button data-ex-traduzir="1"' + (cx.tradVista === m.uid ? ' class="ativo"' : "") + ' title="Traduzir para o português" aria-label="Traduzir para o português">' + icTraduzir(16) + "</button>" : "") +
+    (m ? '<button data-ex-nao-lida="1" title="Marcar como não lida" aria-label="Marcar como não lida">' + ic("mark_email_unread", 18) + "</button>" +
       '<button id="mail-arquivar" title="Arquivar" aria-label="Arquivar">' + ic("archive", 18) + "</button>" +
+      '<button data-ex-excluir="1" title="Excluir" aria-label="Excluir">' + ic("delete", 18) + "</button>" +
       '<button id="mail-mais-msg" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + '</button><span class="divisa-v"></span>' : "") +
     '<button data-ex-fechar="1" title="Fechar (Esc)" aria-label="Fechar">' + ic("close", 18) + "</button></span>";
 }
 
+/* "há 5 min", "há 3 h" - so para o que chegou ha menos de um dia. */
+function exHa(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d)) return "";
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 0 || min >= 24 * 60) return "";
+  if (min < 1) return "agora";
+  return min < 60 ? "há " + min + " min" : "há " + Math.floor(min / 60) + " h";
+}
+
+/* O cabecalho da mensagem aberta, no desenho do Gmail: assunto com a
+   etiqueta da pasta; o remetente com o avatar, "para mim" que abre os
+   detalhes, a hora com o "ha quanto tempo", a estrela e o responder. */
 function exCabecaMsg(item, m) {
   const c = mail.conta;
-  const quem = esc(item.de_nome || "") + (item.de_nome ? ' <span class="ex-meta-email">&lt;' + esc(item.de_email) + "&gt;</span>" : esc(item.de_email));
-  return '<header class="ex-mod ex-mod-cabeca"><div class="ex-cabeca-linha"><h2 class="ex-assunto">' + esc(item.assunto || "(sem assunto)") + "</h2>" + exIcones(m) + "</div>" +
-    '<dl class="ex-meta"><div><dt>De</dt><dd>' + quem + (item.de_cadastro ? ' <span class="em-pilula">cliente · ' + esc(item.de_cadastro) + "</span>" : "") + "</dd></div>" +
-    "<div><dt>Para</dt><dd>" + esc(c ? c.email : "") + "</dd></div>" +
-    "<div><dt>Recebida</dt><dd>" + esc(exDataInteira(m ? m.quando : item.quando, item.quando_curto)) + "</dd></div></dl></header>";
+  const eu = c ? c.email.toLowerCase() : "";
+  const pasta = (EX_PASTAS.find((p) => p.id === mail.pasta) || EX_PASTAS[0]).rotulo;
+  const nome = item.de_nome || item.de_email;
+  const para = m ? exEnderecos(m.para) : [];
+  const copia = m ? exEnderecos(m.cc) : [];
+  const outros = para.concat(copia).filter((e) => e !== eu).length;
+  const paraQuem = !m || !para.length || para.includes(eu) ? "para mim" : "para " + para[0];
+  const mais = outros && paraQuem === "para mim" ? " e mais " + outros : outros > 1 ? " e mais " + (outros - 1) : "";
+  const quando = m ? m.quando : item.quando;
+  const ha = exHa(quando);
+  const aberto = cx.detalhes === item.uid;
+  const linha = (rotulo, valor) => (valor ? "<div><dt>" + rotulo + "</dt><dd>" + valor + "</dd></div>" : "");
+  const detalhes = aberto
+    ? '<dl class="ex-meta ex-detalhes">' +
+      linha("De", esc(nome) + (item.de_nome ? ' <span class="ex-meta-email">&lt;' + esc(item.de_email) + "&gt;</span>" : "")) +
+      linha("Para", esc(m && m.para ? m.para : (c ? c.email : ""))) +
+      linha("Cc", m && m.cc ? esc(m.cc) : "") +
+      linha("Data", esc(exDataInteira(quando, item.quando_curto))) +
+      linha("Assunto", esc(item.assunto || "(sem assunto)")) +
+      linha("Recebida em", esc(c ? c.email : "")) + "</dl>"
+    : "";
+  return '<header class="ex-mod ex-mod-cabeca"><div class="ex-cabeca-linha"><h2 class="ex-assunto">' + esc(item.assunto || "(sem assunto)") +
+    ' <span class="ex-etiqueta">' + esc(pasta) + "</span></h2>" + exIcones(m) + "</div>" +
+    '<div class="ex-remetente"><span class="ex-avatar" aria-hidden="true">' + esc(iniciaisDoRemetente(nome)) + "</span>" +
+    '<div class="ex-rem-texto"><div class="ex-rem-nome"><b>' + esc(nome) + "</b>" +
+    (item.de_nome ? ' <span class="ex-meta-email">&lt;' + esc(item.de_email) + "&gt;</span>" : "") +
+    (item.de_cadastro ? ' <span class="em-pilula">cliente · ' + esc(item.de_cadastro) + "</span>" : "") + "</div>" +
+    '<button class="ex-para-mim" data-ex-detalhes="' + esc(item.uid) + '" aria-expanded="' + aberto + '">' + esc(paraQuem + mais) +
+    '<i class="ex-seta" aria-hidden="true"></i></button></div>' +
+    '<div class="ex-rem-dir"><span class="ex-rem-quando" title="' + esc(exDataInteira(quando, item.quando_curto)) + '">' +
+    esc(exDataCurta(quando, item.quando_curto)) + (ha ? " (" + ha + ")" : "") + "</span>" +
+    '<button class="ex-estrela' + (item.sinalizada ? " on" : "") + '" data-ex-estrela="' + esc(item.uid) + '" title="' + (item.sinalizada ? "Tirar a estrela" : "Pôr estrela") +
+    '" aria-label="Estrela" aria-pressed="' + !!item.sinalizada + '">' + ic(item.sinalizada ? "star" : "star_outline", 18) + "</button>" +
+    (m ? '<button class="ex-rem-botao" id="ex-responder-rapido" title="Responder" aria-label="Responder">' + ic("reply", 18) + "</button>" : "") +
+    "</div></div>" + detalhes + "</header>";
+}
+
+/* "26 de set., 00:48" - a data do cabecalho, sem o ano quando e deste ano. */
+function exDataCurta(iso, curto) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d)) return curto || "";
+  const esteAno = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleString("pt-BR", Object.assign({ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, esteAno ? {} : { year: "numeric" }));
+}
+
+/* O codigo de verificacao (GitHub, banco, gov.br...): um numero de 4 a 8
+   digitos, ou letras e numeros misturados, perto de "codigo", "code",
+   "verificacao"... Por regra; se a regra nao tiver certeza, nao mostra. */
+const EX_GATILHO_CODIGO = /(c[oó]digo|code|verifica|autentica|authenticat|confirma|one[- ]time|otp\b|\bpin\b|token|senha tempor|passcode|security)/i;
+
+function exCodigo(m) {
+  const texto = ((m.assunto || "") + "\n" + (m.corpo || "")).slice(0, 8000);
+  if (!EX_GATILHO_CODIGO.test(texto)) return "";
+  const candidato = /(?<![\w@./:#-])(\d{3}[ -]\d{3}|\d{4,8}|[A-Z0-9]{6,8})(?![\w@/:-]|\.\d)/g;
+  let achado;
+  while ((achado = candidato.exec(texto))) {
+    const bruto = achado[1];
+    const limpo = bruto.replace(/[ -]/g, "");
+    if (/^[A-Z0-9]+$/.test(limpo) && !(/\d/.test(limpo) && (/^\d+$/.test(limpo) || /[A-Z]/.test(limpo)))) continue;
+    if (/^(19|20)\d\d$/.test(limpo)) continue;
+    const antes = texto.slice(Math.max(0, achado.index - 160), achado.index);
+    const depois = texto.slice(achado.index + bruto.length, achado.index + bruto.length + 60);
+    if (EX_GATILHO_CODIGO.test(antes) || EX_GATILHO_CODIGO.test(depois)) return limpo;
+  }
+  return "";
+}
+
+/* Em que lingua a mensagem esta, por contagem de palavras comuns. So diz
+   quando a diferenca e clara; na duvida, portugues (sem oferecer nada). */
+const EX_PALAVRAS = {
+  pt: ["de", "que", "não", "para", "com", "uma", "você", "está", "por", "os", "das", "dos", "é", "ao", "seu", "sua", "obrigado", "olá", "mais", "como"],
+  en: ["the", "and", "you", "your", "to", "of", "is", "this", "for", "with", "are", "that", "will", "be", "on", "we", "our", "have", "please", "here"],
+  es: ["el", "los", "las", "usted", "con", "una", "es", "su", "está", "gracias", "hola", "para", "por", "del", "que", "nuestro", "aquí", "correo"],
+};
+const EX_LINGUA = { en: "inglês", es: "espanhol" };
+
+function exLingua(m) {
+  const palavras = ((m.assunto || "") + " " + (m.corpo || "")).slice(0, 5000).toLowerCase().match(/[a-zà-úñ]+/g) || [];
+  const conta = {};
+  Object.keys(EX_PALAVRAS).forEach((l) => {
+    const conj = new Set(EX_PALAVRAS[l]);
+    conta[l] = palavras.filter((p) => conj.has(p)).length;
+  });
+  const fora = conta.en >= conta.es ? "en" : "es";
+  return conta[fora] >= 5 && conta[fora] > conta.pt * 2 ? fora : "";
+}
+
+/* O "traduzir" nao existe entre os icones da fonte: vai desenhado. */
+function icTraduzir(tamanho) {
+  const t = tamanho || 18;
+  return '<svg class="ic ic-svg" width="' + t + '" height="' + t + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.87 15.07l-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>';
+}
+
+async function exTraduzir(m) {
+  cx.trad = cx.trad || {};
+  cx.tradVista = m.uid;
+  const t = cx.trad[m.uid];
+  if (t && t.estado !== "erro") { cx.tradAnimar = m.uid; exTrocarCorpo(m); return; }
+  cx.trad[m.uid] = { estado: "andando" };
+  exTrocarCorpo(m);
+  let r;
+  try { r = await exJson("/api/email/traduzir", { texto: m.corpo || "", html: m.html || "" }); } catch (err) { r = null; }
+  if (!r || !r.ok) {
+    const erro = r ? await erroDe(r) : "não consegui falar com o tradutor";
+    cx.trad[m.uid] = { estado: "erro" };
+    if (cx.tradVista === m.uid) cx.tradVista = null;
+    exTrocarCorpo(m);
+    avisoCert("tradução não saiu: " + erro, { tom: "erro" });
+    return;
+  }
+  const d = await r.json();
+  cx.trad[m.uid] = { estado: "pronta", texto: d.texto, html: d.html };
+  cx.tradAnimar = m.uid;
+  exTrocarCorpo(m);
+}
+
+/* Troca so o modulo do texto da mensagem aberta (traducao, original,
+   formatado), sem redesenhar a lista. */
+function exTrocarCorpo(m) {
+  if (!mail.aberta || mail.aberta.uid !== m.uid || typeof cx.trocarCorpo !== "function") return;
+  cx.trocarCorpo();
 }
 
 function exModEntendi(m) {
+  const codigo = exCodigo(m);
+  const blocoCodigo = codigo
+    ? '<div class="ex-codigo"><span class="duas-linhas"><small>Código de verificação</small><b>' + esc(codigo) + "</b></span>" +
+      '<button class="com-icone" data-ex-copiar-codigo="' + esc(codigo) + '">' + ic("content_copy", 16) + "Copiar código</button></div>"
+    : "";
   const prazo = m.prazo
     ? '<div class="ex-prazo"><span class="ex-prazo-data"><b>' + esc(m.prazo.slice(8, 10)) + "</b><small>" + esc(dataCurta(m.prazo).split(" ").pop()) + "</small></span>" +
       '<span class="duas-linhas"><b>Prazo detectado · ' + esc(dataLonga(m.prazo)) + "</b>" + (m.prazo_trecho ? "<small>“" + esc(m.prazo_trecho) + "”</small>" : "") + "</span>" +
       '<span class="ex-prazo-acoes"><button class="com-icone" data-em-prazo="agenda">' + ic("event_upcoming", 16) + "Criar na Agenda</button>" +
       '<button class="com-icone" data-em-prazo="tarefa">' + ic("add_task", 16) + "Criar tarefa</button></span></div>"
     : "";
-  return exModulo("O que eu entendi", '<p class="ex-mod-texto">' + exEntendi(m) + "</p>" + prazo, "ex-mod-entendi", "por regra, sem o modelo");
+  return exModulo("O que eu entendi", '<p class="ex-mod-texto">' + exEntendi(m) + "</p>" + blocoCodigo + prazo, "ex-mod-entendi", "por regra, sem o modelo");
 }
 
 function exModAnexos(m) {
@@ -452,25 +590,121 @@ function exModAnexos(m) {
    seu IP): fica bloqueada ate a pessoa pedir, so para esta mensagem. Sem
    HTML, ou com "ver so o texto", o texto puro de sempre. */
 function exModCorpo(m) {
-  const html = m.html && !cx.soTexto;
-  if (!html) {
-    return exModulo("Mensagem", '<div class="ex-corpo">' + corpoComPrazo(m.corpo, m.prazo_trecho) + "</div>" +
-      (m.html ? '<button class="sv-ligacao ex-html-troca" data-ex-formatado="1">ver com a formatação</button>' : ""), "ex-mod-corpo");
+  const t = (cx.trad || {})[m.uid];
+  const vendoTraducao = !!(t && cx.tradVista === m.uid && t.estado !== "erro");
+  const original = '<button class="sv-ligacao ex-html-troca" data-ex-original="1">ver o original</button>';
+  if (vendoTraducao && t.estado === "andando") {
+    return exModulo("Tradução", '<p class="em-andamento ativo"><span class="indicador"></span>Traduzindo nesta máquina…</p>' +
+      esqueleto("texto") + original, "ex-mod-corpo", "tradutor desta máquina");
   }
-  const liberadas = (cx.imagensLiberadas || new Set()).has(m.uid);
-  const aviso = m.imagens_remotas && !liberadas
-    ? '<div class="ex-html-aviso">' + ic("visibility_off", 15) + "<span>" + plural(m.imagens_remotas, "imagem de fora bloqueada", "imagens de fora bloqueadas") +
+  // A traducao usa o mesmo desenho do original: o HTML traduzido no quadro,
+  // ou o texto traduzido, com a troca de volta embaixo.
+  const msg = vendoTraducao ? Object.assign({}, m, { html: t.html || "", corpo: t.texto || m.corpo }) : m;
+  const rotulo = vendoTraducao ? "Tradução" : "Mensagem";
+  const nota = vendoTraducao ? "tradutor desta máquina · na dúvida, vale o original" : "";
+  const soTexto = cx.soTexto === undefined ? emailPrefs().soTexto : cx.soTexto;
+  const html = msg.html && !soTexto;
+  if (!html) {
+    const texto = vendoTraducao
+      ? '<div class="ex-corpo ex-traducao">' + msg.corpo.split(/\n{2,}/).map((p) => "<p>" + esc(p) + "</p>").join("") + "</div>"
+      : '<div class="ex-corpo">' + corpoComPrazo(msg.corpo, msg.prazo_trecho) + "</div>";
+    return exModulo(rotulo, texto + (vendoTraducao ? original : "") +
+      (msg.html ? '<button class="sv-ligacao ex-html-troca" data-ex-formatado="1">ver com a formatação</button>' : ""), "ex-mod-corpo", nota);
+  }
+  const liberadas = exImagensLiberadas(m.uid);
+  const aviso = msg.imagens_remotas && !liberadas
+    ? '<div class="ex-html-aviso">' + ic("visibility_off", 15) + "<span>" + plural(msg.imagens_remotas, "imagem de fora bloqueada", "imagens de fora bloqueadas") +
       " — carregar avisa o remetente que você abriu.</span>" + '<button class="sv-ligacao" data-ex-imagens="1">mostrar</button></div>'
     : "";
-  return exModulo("Mensagem", aviso + '<div class="ex-html"><iframe class="ex-html-quadro" data-ex-html="' + esc(m.uid) + '" title="Mensagem" ' +
+  return exModulo(rotulo, aviso + '<div class="ex-html"><iframe class="ex-html-quadro" data-ex-html="' + esc(m.uid) + '" title="' + rotulo + '" ' +
     'sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe></div>' +
-    '<button class="sv-ligacao ex-html-troca" data-ex-so-texto="1">ver só o texto</button>', "ex-mod-corpo");
+    '<span class="ex-html-trocas">' + (vendoTraducao ? original : "") +
+    '<button class="sv-ligacao ex-html-troca" data-ex-so-texto="1">ver só o texto</button></span>', "ex-mod-corpo", nota);
 }
+
+/* Imagens de fora: liberadas para esta mensagem, ou para todas em
+   E-mail › Configuracoes. */
+function exImagensLiberadas(uid) {
+  return emailPrefs().imagens || (cx.imagensLiberadas || new Set()).has(uid);
+}
+
+/* Qualquer cor CSS (inclusive o bgcolor="#fff" antigo) em [r, g, b, a]. */
+function exRgb(cor, doc) {
+  try {
+    const el = doc.createElement("i");
+    el.style.color = cor;
+    doc.body.appendChild(el);
+    const v = getComputedStyle(el).color.match(/[\d.]+/g);
+    el.remove();
+    return v ? v.slice(0, 3).map(Number) : null;
+  } catch (err) { return null; }
+}
+
+function exLuz(rgb) { return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255; }
+
+function exCorDeRgb(rgb) { return "rgb(" + rgb.map((c) => Math.round(c)).join(", ") + ")"; }
+
+/* A mesma cor com a claridade virada, mantendo o tom: o branco do papel vai
+   a cerca de #1f1f1f (a folha do PAULUS escuro) e o preto do texto a
+   #e0e0e0. Texto que virou claro nunca fica abaixo de 72% de claridade, para
+   o link azul-escuro nao sumir no fundo. */
+function exEscurecerCor(rgb, texto) {
+  const [r, g, b] = rgb.map((c) => c / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, sat = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h /= 6;
+  }
+  let l2 = 0.12 + (1 - l) * 0.76;
+  if (texto) l2 = Math.max(l2, 0.72);
+  // Fundo escurecido perde quase toda a cor: o azul-clarinho de um aviso
+  // viraria um azul-marinho forte, que pesa mais que o original.
+  else sat *= 0.3;
+  const q = l2 < 0.5 ? l2 * (1 + sat) : l2 + sat - l2 * sat, p = 2 * l2 - q;
+  const canal = (t) => {
+    t = (t + 1) % 1;
+    const v = t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p;
+    return v * 255;
+  };
+  return sat === 0 ? [l2 * 255, l2 * 255, l2 * 255] : [canal(h + 1 / 3), canal(h), canal(h - 1 / 3)];
+}
+
+/* Passa o e-mail de versao so clara para o escuro, elemento a elemento:
+   fundo claro escurece, texto escuro clareia, borda clara escurece. As
+   imagens nao sao tocadas - ficam com as cores de verdade. */
+function exEscurecerEmail(doc) {
+  const numeros = (c) => { const v = (c || "").match(/[\d.]+/g); return v && (v.length < 4 || Number(v[3]) > 0) ? v.slice(0, 3).map(Number) : null; };
+  const trocas = [];
+  const elementos = [doc.body].concat(Array.from(doc.body.querySelectorAll("*")).slice(0, 5000));
+  for (const el of elementos) {
+    if (/^(IMG|VIDEO|PICTURE|SVG|CANVAS)$/i.test(el.tagName)) continue;
+    const e = getComputedStyle(el);
+    const fundo = numeros(e.backgroundColor);
+    if (fundo && exLuz(fundo) > 0.5) trocas.push([el, "background-color", exCorDeRgb(exEscurecerCor(fundo, false))]);
+    const letra = numeros(e.color);
+    if (letra && exLuz(letra) < 0.6) trocas.push([el, "color", exCorDeRgb(exEscurecerCor(letra, true))]);
+    ["top", "right", "bottom", "left"].forEach((lado) => {
+      if (e["border-" + lado + "-style"] === "none") return;
+      const borda = numeros(e.getPropertyValue("border-" + lado + "-color"));
+      if (borda && exLuz(borda) > 0.6) trocas.push([el, "border-" + lado + "-color", exCorDeRgb(exEscurecerCor(borda, false))]);
+    });
+  }
+  trocas.forEach(([el, prop, valor]) => el.style.setProperty(prop, valor, "important"));
+}
+
+/* Trocar o tema redesenha o e-mail aberto no tema novo. */
+new MutationObserver(() => {
+  document.querySelectorAll("iframe.ex-html-quadro").forEach((q) => { if (q._ex) exMontarHtml(q._ex.raiz, q._ex.m); });
+}).observe(document.documentElement, { attributes: true, attributeFilter: ["data-tema"] });
 
 function exMontarHtml(raiz, m) {
   const quadro = raiz.querySelector('[data-ex-html="' + CSS.escape(m.uid) + '"]');
   if (!quadro) return;
-  const liberadas = (cx.imagensLiberadas || new Set()).has(m.uid);
+  const liberadas = exImagensLiberadas(m.uid);
   const img = liberadas ? "data: https: http:" : "data:";
   /* A CSP e a barreira de verdade: nada de script, nada de fora (salvo as
      imagens, se a pessoa liberou), nada de formulario. */
@@ -480,9 +714,14 @@ function exMontarHtml(raiz, m) {
      prefers-color-scheme) segue o tema do PAULUS; o que nao tem fica claro,
      como no Gmail - senao o texto escuro dele cairia num fundo escuro. O
      iframe herda o esquema do color-scheme do proprio elemento. */
-  const temaEscuro = document.documentElement.getAttribute("data-tema") === "escuro" ||
-    (!document.documentElement.getAttribute("data-tema") && matchMedia("(prefers-color-scheme: dark)").matches) ||
-    getComputedStyle(document.documentElement).colorScheme === "dark";
+  quadro._ex = { raiz: raiz, m: m };
+  // Vendo a traducao: o HTML traduzido no lugar do original.
+  const trad = (cx.trad || {})[m.uid];
+  if (trad && trad.estado === "pronta" && cx.tradVista === m.uid && trad.html) m = Object.assign({}, m, { html: trad.html });
+  // A escolha de E-mail › Configuracoes: acompanhar o PAULUS, sempre claro
+  // ou sempre escuro.
+  const escolha = emailPrefs().tema;
+  const temaEscuro = escolha === "escuro" || (escolha === "auto" && document.documentElement.dataset.tema === "escuro");
   const escuro = temaEscuro && /prefers-color-scheme\s*:\s*dark/i.test(m.html);
   quadro.style.colorScheme = escuro ? "dark" : "light";
   const padrao = escuro ? "#1f1f1e" : "#ffffff";
@@ -498,7 +737,8 @@ function exMontarHtml(raiz, m) {
     '<meta name="color-scheme" content="' + (escuro ? "dark" : "light") + '">' +
     '<base target="_blank"><style>html,body{margin:0;padding:0;background:' + padrao + ";color:" + (escuro ? "#ececea" : "#1f1f1f") + ";" +
     "font:15px/1.5 -apple-system,'Segoe UI',Roboto,Arial,sans-serif;word-wrap:break-word;overflow-wrap:anywhere}" +
-    "body{padding:16px 0}img{max-width:100%;height:auto}table{max-width:100%}</style></head><body>" +
+    "body{padding:16px 0}img{max-width:100%;height:auto}table{max-width:100%}" +
+    "</style></head><body>" +
     corpoHtml + "</body></html>";
   const ajustar = () => {
     try {
@@ -530,10 +770,21 @@ function exMontarHtml(raiz, m) {
         const area = r.width * r.height;
         if (area > maior) { maior = area; cor = c; }
       }
+      const caixa = quadro.closest(".ex-html");
+      const rgb = exRgb(cor || padrao, doc);
+      // Tema escuro, e-mail sem versao escura e de fundo claro: as cores dele
+      // passam para o escuro. O de fundo ja escuro fica como veio.
+      if (temaEscuro && !escuro && rgb && exLuz(rgb) > 0.5) {
+        exEscurecerEmail(doc);
+        const fora = exCorDeRgb(exEscurecerCor(rgb, false));
+        doc.documentElement.style.background = fora;
+        doc.body.style.setProperty("background", fora, "important");
+        if (caixa) caixa.style.background = fora;
+        return;
+      }
       if (!cor) return;
       doc.documentElement.style.background = cor;
       doc.body.style.background = cor;
-      const caixa = quadro.closest(".ex-html");
       if (caixa) caixa.style.background = cor;
     } catch (err) { /* sem acesso: fica o fundo padrao */ }
   };
@@ -548,7 +799,12 @@ function exMontarHtml(raiz, m) {
 
 function exModResposta(m) {
   if (exRespAtiva(m)) return exModulo("Resposta", exResposta(m), "ex-mod-resposta");
-  return exModulo("Resposta", '<div class="ex-resp-botoes"><button class="primario com-icone" id="mail-responder">' + ic("reply", 16) + "Responder</button>" +
+  // Como no Gmail: responder, responder a todos (so quando ha mais gente) e
+  // encaminhar, lado a lado; o rascunho do assistente vem depois.
+  const todos = exTodos(m).length > 1;
+  return exModulo("Resposta", '<div class="ex-resp-botoes"><button class="ex-pilula com-icone" id="mail-responder">' + ic("reply", 16) + "Responder</button>" +
+    (todos ? '<button class="ex-pilula com-icone" id="mail-responder-todos">' + ic("reply", 16) + "Responder a todos</button>" : "") +
+    '<button class="ex-pilula com-icone" id="mail-encaminhar-pe">' + ic("forward", 16) + "Encaminhar</button>" +
     (m.pode_rascunhar
       ? '<button class="com-icone" id="mail-responder-rascunho">' + ic("auto_awesome", 16) + "Rascunho pelo assistente</button><small>cerca de um minuto nesta máquina · você revisa antes de sair</small>"
       : "<small>Esta conta não permite rascunho pelo assistente.</small>") + "</div>", "ex-mod-resposta");
@@ -649,12 +905,25 @@ function exResposta(m) {
     ic("schedule_send", 16) + (r.estado === "enviando" ? "Enviando…" : exSaiSozinho() ? "Enviar" : "Enviar para aprovação") + "</button></div></div>";
 }
 
-async function exResponder(comRascunho) {
+/* Os enderecos de um cabecalho "Nome <a@b>, c@d". */
+function exEnderecos(texto) {
+  return (String(texto || "").match(/[^\s<>,;"']+@[^\s<>,;"']+\.[^\s<>,;"']+/g) || []).map((e) => e.toLowerCase());
+}
+
+/* Responder a todos: o remetente e quem estava em Para e Cc, menos a
+   propria conta. */
+function exTodos(m) {
+  const eu = mail.conta ? mail.conta.email.toLowerCase() : "";
+  const todos = [m.de_email].concat(exEnderecos(m.para), exEnderecos(m.cc)).filter((e) => e && e !== eu);
+  return todos.filter((e, i) => todos.indexOf(e) === i);
+}
+
+async function exResponder(comRascunho, todos) {
   const m = mail.aberta;
   if (!m) return;
   const assunto = (m.assunto || "").toLowerCase().startsWith("re:") ? m.assunto : "Re: " + (m.assunto || "");
   const pronto = mail.rascunho && mail.rascunho.uid === m.uid ? mail.rascunho.rascunho : "";
-  cx.resp = { uid: m.uid, para: m.de_email, assunto, corpo: comRascunho ? pronto : "", estado: comRascunho && !pronto ? "preparando" : "escrevendo" };
+  cx.resp = { uid: m.uid, para: todos ? exTodos(m).join(", ") : m.de_email, assunto, corpo: comRascunho ? pronto : "", estado: comRascunho && !pronto ? "preparando" : "escrevendo" };
   cx.respRolar = true;
   desenharEmail();
   if (cx.resp.estado !== "preparando") return;
@@ -701,7 +970,9 @@ async function exEnviarResposta() {
 
 function exLigarResposta(raiz) {
   const m = mail.aberta;
-  ["mail-responder", "mail-responder-ic"].forEach((id) => { const b = $(id); if (b) b.onclick = () => exResponder(false); });
+  ["mail-responder", "ex-responder-rapido"].forEach((id) => { const b = $(id); if (b) b.onclick = () => exResponder(false); });
+  const todos = $("mail-responder-todos");
+  if (todos) todos.onclick = () => exResponder(false, true);
   const comR = $("mail-responder-rascunho");
   if (comR) comR.onclick = () => exResponder(true);
   const r = cx.resp;
@@ -766,6 +1037,17 @@ function exMostrarLinha(uid) {
   const r = rolagem.getBoundingClientRect(), l = linha.getBoundingClientRect();
   if (l.top < r.top + folga || l.top > r.top + rolagem.clientHeight * 0.45) rolagem.scrollTop += l.top - r.top - folga;
 }
+
+/* Quando a barra fica presa no alto, o cartao ja subiu por baixo dela: os
+   cantos arredondados deixariam ver as linhas passando. Presa, ela fica reta. */
+document.addEventListener("scroll", (ev) => {
+  const rolagem = ev.target;
+  if (!rolagem.classList || !rolagem.classList.contains("sv-principal") || !rolagem.closest("#email")) return;
+  const barra = rolagem.querySelector(".ex-barra");
+  const cartao = barra && barra.closest(".ex-lista");
+  if (!cartao) return;
+  barra.classList.toggle("presa", cartao.getBoundingClientRect().top < barra.getBoundingClientRect().top - 0.5);
+}, { capture: true, passive: true });
 
 /* Traz a resposta inteira para a vista: sobe o que passar do fundo, sem
    deixar o topo dela sair por cima. */
@@ -832,9 +1114,64 @@ async function exArquivar(uids) {
   return true;
 }
 
+/* Excluir e mandar para a lixeira do servidor: confirma, porque a
+   mensagem sai da caixa, mas avisa que da para recuperar pelo webmail. */
+async function exExcluir(uids) {
+  const n = uids.length;
+  const ok = await confirmar({
+    titulo: "Excluir " + (n === 1 ? "esta mensagem" : plural(n, "mensagem", "mensagens")) + "?", contexto: "E-mail › Caixa de entrada",
+    texto: (n === 1 ? "Ela vai" : "Elas vão") + " para a lixeira do seu servidor. Dá para recuperar pelo webmail até a lixeira ser esvaziada — o Gmail esvazia sozinho depois de 30 dias.",
+    confirmar: "Excluir", perigo: true,
+  });
+  if (!ok) return false;
+  let r;
+  try {
+    r = await exJson("/api/email/excluir", { conta_id: mail.conta ? mail.conta.id : "", uids: uids });
+  } catch (err) { avisoCert(String(err), { tom: "erro" }); return false; }
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return false; }
+  const d = await r.json();
+  if (d.excluidas === n && mail.caixa) {
+    const k = mail.caixa;
+    const antes = k.mensagens.length;
+    k.mensagens.filter((m) => uids.includes(m.uid) && !m.lido).forEach(() => { k.nao_lidos = Math.max(0, k.nao_lidos - 1); });
+    k.mensagens = k.mensagens.filter((m) => !uids.includes(m.uid));
+    k.mostrando = Math.max(0, k.mostrando - (antes - k.mensagens.length));
+    k.total = Math.max(0, k.total - (antes - k.mensagens.length));
+  } else {
+    await carregarPasta();
+  }
+  if (uids.includes(cx.aberta)) { cx.aberta = null; mail.aberta = null; }
+  uids.forEach((u) => cx.escolhidos.delete(u));
+  avisoCert(d.aviso || (plural(d.excluidas, "mensagem foi para a lixeira", "mensagens foram para a lixeira")), { tom: d.aviso ? "" : "ok" });
+  exPedirResumoDepois();
+  return true;
+}
+
+/* A estrela muda na tela na hora e volta atras se o servidor recusar. */
+async function exEstrela(uid) {
+  const item = (mail.caixa ? mail.caixa.mensagens : []).find((x) => x.uid === uid);
+  if (!item) return;
+  const sim = !item.sinalizada;
+  item.sinalizada = sim;
+  desenharEmail();
+  let r;
+  try {
+    r = await exJson("/api/email/estrela", { conta_id: mail.conta ? mail.conta.id : "", uids: [uid], sim: sim });
+  } catch (err) { r = null; }
+  if (!r || !r.ok) {
+    item.sinalizada = !sim;
+    desenharEmail();
+    avisoCert(r ? await erroDe(r) : "não consegui falar com o servidor", { tom: "erro" });
+  }
+}
+
 async function exLote(acao) {
   const uids = exItens().map((m) => m.uid).filter((u) => cx.escolhidos.has(u));
   if (!uids.length) return;
+  if (acao === "excluir") {
+    if (await exExcluir(uids)) desenharEmail();
+    return;
+  }
   if (acao === "arquivar") {
     const ok = await confirmar({
       titulo: "Arquivar " + plural(uids.length, "mensagem", "mensagens") + "?", contexto: "E-mail › Caixa de entrada",
@@ -881,6 +1218,7 @@ function exMenuDaLinha(botao, m) {
     "-",
     { rotulo: m.lido ? "Marcar como não lida" : "Marcar como lida", acao: async () => { if (await exMarcar([m.uid], !m.lido)) desenharEmail(); } },
     { rotulo: "Arquivar", acao: async () => { if (await exArquivar([m.uid])) { if (cx.aberta === m.uid) { cx.aberta = null; mail.aberta = null; } desenharEmail(); } } },
+    { rotulo: "Excluir", perigo: true, acao: async () => { if (await exExcluir([m.uid])) desenharEmail(); } },
     "-",
     { rotulo: "Copiar o endereço", acao: () => copiarTexto(m.de_email, "endereço copiado") },
   ]);
@@ -900,10 +1238,14 @@ function exLigarMensagem(raiz) {
   raiz.querySelectorAll("[data-ex-tentar-msg]").forEach((b) => { b.onclick = () => exAbrir(cx.aberta, true); });
   if (!m || m.uid !== cx.aberta) return;
   exLigarResposta(raiz);
-  const encaminhar = $("mail-encaminhar");
-  if (encaminhar) encaminhar.onclick = () => telaEscrever({
+  const encaminharMsg = () => telaEscrever({
     assunto: "Fwd: " + (m.assunto || ""),
     corpo: "\n\n---------- Mensagem encaminhada ----------\nDe: " + (m.de_nome || "") + " <" + m.de_email + ">\nAssunto: " + (m.assunto || "") + "\n\n" + (m.corpo || ""),
+  });
+  const encaminhar = $("mail-encaminhar-pe");
+  if (encaminhar) encaminhar.onclick = encaminharMsg;
+  raiz.querySelectorAll("[data-ex-detalhes]").forEach((b) => {
+    b.onclick = () => { cx.detalhes = cx.detalhes === m.uid ? null : m.uid; desenharEmail(); };
   });
   const arquivar = $("mail-arquivar");
   if (arquivar) arquivar.onclick = async () => {
@@ -912,13 +1254,23 @@ function exLigarMensagem(raiz) {
     if (!(await exArquivar([m.uid]))) { arquivar.disabled = false; return; }
     if (prox) exAbrir(prox.uid, true); else exFechar();
   };
+  raiz.querySelectorAll("[data-ex-excluir]").forEach((b) => {
+    b.onclick = async () => {
+      const prox = exProxima(m.uid);
+      if (!(await exExcluir([m.uid]))) return;
+      if (prox) exAbrir(prox.uid, true); else desenharEmail();
+    };
+  });
   raiz.querySelectorAll("[data-ex-nao-lida]").forEach((b) => {
     b.onclick = async () => { if (await exMarcar([m.uid], false)) { avisoCert("marcada como não lida"); exFechar(); } };
   });
   const maisMsg = $("mail-mais-msg");
   if (maisMsg) maisMsg.onclick = (e) => {
     e.stopPropagation();
-    const itens = [{ rotulo: "Copiar o endereço", acao: () => copiarTexto(m.de_email, "endereço copiado") }];
+    const itens = [{ rotulo: "Encaminhar", acao: encaminharMsg }, { rotulo: "Copiar o endereço", acao: () => copiarTexto(m.de_email, "endereço copiado") }];
+    const codigo = exCodigo(m);
+    if (codigo) itens.unshift({ rotulo: "Copiar o código " + codigo, acao: () => copiarTexto(codigo, "código copiado") });
+    if (exLingua(m)) itens.push({ rotulo: "Traduzir para o português", acao: () => exTraduzir(m) });
     if (m.prazo) itens.push({ rotulo: "Virar tarefa", acao: () => criarPrazoDoEmail(m, false) });
     menuNaLinha(maisMsg, itens);
   };
@@ -937,17 +1289,39 @@ function exLigarMensagem(raiz) {
     };
   });
   raiz.querySelectorAll("[data-em-prazo]").forEach((b) => { b.onclick = () => criarPrazoDoEmail(m, b.dataset.emPrazo === "agenda"); });
+  raiz.querySelectorAll("[data-ex-copiar-codigo]").forEach((b) => { b.onclick = () => copiarTexto(b.dataset.exCopiarCodigo, "código copiado"); });
+  raiz.querySelectorAll("[data-ex-traduzir]").forEach((b) => {
+    b.onclick = () => {
+      if (cx.tradVista === m.uid) { cx.tradVista = null; exTrocarCorpo(m); return; }
+      exTraduzir(m);
+    };
+  });
+  // Mensagem em outra lingua: um aviso discreto, uma vez por mensagem.
+  const lingua = exLingua(m);
+  cx.avisouTraducao = cx.avisouTraducao || new Set();
+  if (lingua && !cx.avisouTraducao.has(m.uid)) {
+    cx.avisouTraducao.add(m.uid);
+    avisoCert("Mensagem em " + EX_LINGUA[lingua] + " · tradução disponível", { acao: { rotulo: "Traduzir", fazer: () => exTraduzir(m) } });
+  }
   exMontarHtml(raiz, m);
   const corpoDaMsg = () => {
     const mod = raiz.querySelector(".ex-mod-corpo");
     if (!mod) return;
     const novo = document.createElement("div");
     novo.innerHTML = exModCorpo(m);
-    mod.replaceWith(novo.firstElementChild);
+    const trocado = novo.firstElementChild;
+    mod.replaceWith(trocado);
+    const traducao = trocado.querySelector(".ex-traducao");
+    if (traducao && cx.tradAnimar === m.uid && typeof emCascata === "function") emCascata(traducao.children);
+    else if (typeof emEsmaecer === "function") emEsmaecer(trocado.querySelector(".ex-mod-miolo"));
+    cx.tradAnimar = null;
+    raiz.querySelectorAll("[data-ex-traduzir]").forEach((b) => b.classList.toggle("ativo", cx.tradVista === m.uid));
     exLigarCorpo(raiz, m);
   };
+  cx.trocarCorpo = corpoDaMsg;
   const exLigarCorpo = (r, msg) => {
     exMontarHtml(r, msg);
+    r.querySelectorAll("[data-ex-original]").forEach((b) => { b.onclick = () => { cx.tradVista = null; corpoDaMsg(); }; });
     r.querySelectorAll("[data-ex-imagens]").forEach((b) => {
       b.onclick = () => { cx.imagensLiberadas = cx.imagensLiberadas || new Set(); cx.imagensLiberadas.add(msg.uid); corpoDaMsg(); };
     });
@@ -969,15 +1343,10 @@ function ligarCaixa() {
     ligarSelecao(corpo, {
       linhas: "[data-ex-uid]", chave: (linha) => linha.dataset.exUid, escolhidos: cx.escolhidos,
       aoMudar: () => desenharEmail(),
+      apagar: () => exLote("excluir"),
     });
   }
   clique("[data-ex-uid]", (b) => exAbrir(b.dataset.exUid));
-  clique("[data-ex-marcar]", (b, e) => {
-    e.stopPropagation();
-    const u = b.dataset.exMarcar;
-    if (cx.escolhidos.has(u)) cx.escolhidos.delete(u); else cx.escolhidos.add(u);
-    desenharEmail();
-  });
   clique("[data-ex-sel-limpar]", () => { cx.escolhidos.clear(); desenharEmail(); });
   clique("[data-ex-lote]", (b) => exLote(b.dataset.exLote));
   clique("[data-ex-visao]", (b) => exMudarVisao(b.dataset.exVisao));
@@ -989,6 +1358,7 @@ function ligarCaixa() {
       return { rotulo: p.rotulo + (n ? " · " + n : ""), atual: p.id === mail.pasta, acao: () => exIrPasta(p.id) };
     }));
   });
+  clique("[data-ex-estrela]", (b, e) => { e.stopPropagation(); exEstrela(b.dataset.exEstrela); });
   clique("[data-ex-mais]", (b, e) => {
     e.stopPropagation();
     const m = (mail.caixa ? mail.caixa.mensagens : []).find((x) => x.uid === b.dataset.exMais);
@@ -1035,7 +1405,7 @@ function ligarCaixa() {
 /* --------------------------------------------------------- desenho */
 
 function exSemConta() {
-  return '<div class="ec-palco"><section class="ec-cartao"><div class="ec-marca"><img src="img/paulus-icone.svg" alt=""><span>PAULUS · E-mail</span></div>' +
+  return '<div class="ec-palco"><section class="ec-cartao">' +
     "<h2>Nenhuma conta conectada</h2><p class=\"ec-lide\">Entre com a sua conta para ver a caixa de entrada.</p>" +
     '<div class="ec-botoes"><button class="primario" data-em-visao="contas">Entrar em uma conta</button></div></section>' + ecRegras() + "</div>";
 }

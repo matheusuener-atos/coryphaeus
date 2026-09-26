@@ -1,0 +1,11 @@
+  /* ------------------------------------------------ e-mail: configuracoes */
+  /* E-mail › Configuracoes (js/31-email-ajustes.js): os cartoes de
+     Configuracoes (17-configuracoes.css) numa pagina so, sem painel. */
+  .ej-palco { max-width: 1080px; margin: 0 auto; padding: 24px 0 56px; }
+  .ej-coluna { display: grid; gap: 16px; min-width: 0; }
+  .ej-tela .cfg-temas .cfg-tema > span:last-child { font-size: 12.5px; }
+  .cfg-sub.ej-primeiro { padding-top: 0; border-top: none; }
+  .ej-assinatura { width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical; font: 400 14px/1.55 var(--sans); }
+  @media (max-width: 1000px) {
+    .ej-tela .cfg-grade { grid-template-columns: minmax(0, 1fr); }
+  }

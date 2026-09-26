@@ -130,19 +130,19 @@ function ecCartao() {
             (c.tem_senha ? (c.quando_ok ? "sincronizada " + c.quando_ok : "ainda não sincronizada") : "senha não guardada");
         return '<div class="ec-conta' + (c.ultimo_erro ? " problema" : "") + (c.em_uso ? " padrao" : "") + '"><button class="ec-conta-botao" data-ee-abrir="' + esc(c.id) + '">' +
           avatarDaConta(c, true) + '<span class="ec-conta-texto"><b>' + esc(c.email) + "</b><small>" + esc(linha) + "</small></span></button>" +
-          '<button class="ec-mais" data-ee-mais="' + esc(c.id) + '" title="Mais" aria-label="Mais">' + ic("more_vert", 18) + "</button></div>";
+          '<button class="mais-linha ec-mais" data-ee-mais="' + esc(c.id) + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></div>";
       }).join("") +
       '<button class="ec-conta-botao ec-outra" data-ee-passo="' + ecComeco() + '"><span class="ec-mais-ic">' + ic("add", 20) + '</span><span class="ec-conta-texto"><b>Adicionar conta</b></span></button></div>' +
       (alguma ? '<div class="ec-pe"><button class="sv-ligacao" id="mail-esquecer">Apagar os acessos guardados</button></div>' : "");
   } else if (passo === "entrar") {
     /* O login do provedor na frente; a senha (IMAP/SMTP) fica num link discreto. */
-    corpo = "<h2>Entrar no e-mail</h2>" + botoesDeLoginOAuth() +
+    corpo = "<h2>Entrar</h2>" + botoesDeLoginOAuth() +
       '<div class="ec-pe ec-pe-entrar">' + ecVolta(contas.length ? "lista" : "") +
       '<button class="sv-ligacao" data-ee-passo="email">Outro provedor (IMAP e SMTP)</button></div>';
   } else if (passo === "email") {
     const d = e.deteccaoDe === e.email.trim() ? e.deteccao : null;
     const volta = ecTemOAuth() ? "entrar" : contas.length ? "lista" : "";
-    corpo = "<h2>" + (ecTemOAuth() ? "IMAP e SMTP" : "Entrar no e-mail") + "</h2>" +
+    corpo = "<h2>" + (ecTemOAuth() ? "IMAP e SMTP" : "Entrar") + "</h2>" +
       '<label class="ec-campo"><span class="sv-kicker">E-mail</span><input type="email" id="ee-email" value="' + esc(e.email) + '" placeholder="nome@dominio.com.br" autocomplete="email"></label>' +
       ecCampoSenha(e) +
       (d && d.aviso ? '<div class="ec-aviso"><b>Esta conta não funciona aqui</b><p>' + esc(d.aviso) + "</p></div>" : "") +
@@ -172,7 +172,7 @@ function ecCartao() {
       '<div class="ec-botoes">' + (pode ? '<button data-ee-guardar="nao">Não guardar</button><button class="primario" data-ee-guardar="sim">Guardar</button>'
         : '<button class="primario" data-ee-guardar="nao">Concluir</button>') + "</div>";
   }
-  return '<section class="ec-cartao" data-passo="' + passo + '"><div class="ec-marca"><img src="img/paulus-icone.svg" alt=""><span>PAULUS · E-mail</span></div>' + corpo + "</section>";
+  return '<section class="ec-cartao" data-passo="' + passo + '">' + corpo + "</section>";
 }
 
 /* Depois de redesenhar, o cursor volta ao campo em que estava; sem isso, ao
@@ -341,6 +341,14 @@ function ecLigarContas() {
       if (p === "email") e.prova = null;
       e.passo = p;
       ecRedesenhar();
+    };
+  });
+  // A linha inteira abre a conta; so o "..." faz outra coisa.
+  raiz.querySelectorAll(".ec-conta").forEach((linha) => {
+    linha.onclick = (ev) => {
+      const abrir = linha.querySelector("[data-ee-abrir]");
+      if (!abrir || ev.target.closest(".ec-mais") || abrir.contains(ev.target)) return;
+      abrir.click();
     };
   });
   raiz.querySelectorAll("[data-ee-abrir]").forEach((b) => {

@@ -63,6 +63,7 @@ class Mensagem:
     de_nome: str = ""
     de_email: str = ""
     para: str = ""
+    cc: str = ""                  # quem mais recebeu (o "responder a todos")
     assunto: str = ""
     quando: str = ""              # ISO
     quando_curto: str = ""        # "09:12", "ontem", "3 set"
@@ -80,6 +81,7 @@ class Mensagem:
     # com CSP que nao busca nada de fora ate a pessoa pedir.
     html: str = ""
     imagens_remotas: int = 0      # imagens de fora, bloqueadas por padrao
+    sinalizada: bool = False      # a estrela (\Flagged no IMAP, a mesma do Gmail)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -355,6 +357,7 @@ def montar_mensagem(bruto: bytes, uid: str = "", *, so_cabecalho: bool = False) 
         de_nome=_texto_cabecalho(nome) or endereco.split("@")[0],
         de_email=endereco.lower(),
         para=_texto_cabecalho(msg.get("To", "")),
+        cc=_texto_cabecalho(msg.get("Cc", "")),
         assunto=_texto_cabecalho(msg.get("Subject", "")) or "(sem assunto)",
         quando=quando.isoformat() if quando else "",
         quando_curto=_quando_curto(quando),
@@ -598,7 +601,7 @@ def _cabecalhos(con, uids: list[bytes], clientes: dict) -> list[Mensagem]:
     conjunto = b",".join(uids).decode()
     estado, dados = con.uid(
         "FETCH", conjunto,
-        "(FLAGS BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)])",
+        "(FLAGS BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM TO CC SUBJECT DATE)])",
     )
     if estado != "OK" or not dados:
         return []
@@ -615,6 +618,7 @@ def _cabecalhos(con, uids: list[bytes], clientes: dict) -> list[Mensagem]:
         item = montar_mensagem(bloco[1], uid=uid, so_cabecalho=True)
         item.lido = "\\Seen" in marca
         item.respondido = "\\Answered" in marca
+        item.sinalizada = "\\Flagged" in marca
         # BODYSTRUCTURE diz se ha anexo sem baixar byte de anexo nenhum.
         item.tem_anexo = '"attachment"' in marca.lower()
         item.prazo, item.prazo_trecho = detectar_prazo(item.assunto)
@@ -749,6 +753,30 @@ def marcar_lidas(conta, senha: str, uids, lido: bool = True) -> int:
             pass
 
 
+def sinalizar(conta, senha: str, uids, sim: bool = True) -> int:
+    """
+    Poe (ou tira) a estrela. E a marca \\Flagged do IMAP - a mesma estrela do
+    Gmail e a "sinalizada" do Outlook -, entao aparece igual no webmail.
+    """
+    lista = _uids_validos(uids)
+    if not lista:
+        return 0
+    con = _abrir_imap(conta, senha)
+    try:
+        estado, _ = con.select("INBOX")
+        if estado != "OK":
+            raise ErroCorreio("não consegui abrir a caixa de entrada")
+        estado, _ = con.uid("STORE", ",".join(lista), "+FLAGS" if sim else "-FLAGS", "(\\Flagged)")
+        if estado != "OK":
+            raise ErroCorreio("o servidor não aceitou a estrela")
+        return len(lista)
+    finally:
+        try:
+            con.logout()
+        except Exception:
+            pass
+
+
 def arquivar_varias(conta, senha: str, uids) -> dict:
     """
     Tira varias da caixa de entrada numa conexao so.
@@ -787,6 +815,73 @@ def arquivar_varias(conta, senha: str, uids) -> dict:
         con.uid("STORE", ",".join(movidas), "+FLAGS", "(\\Deleted)")
         con.expunge()
         return {"arquivadas": len(movidas), "so_lidas": len(lista) - len(movidas)}
+    finally:
+        try:
+            con.logout()
+        except Exception:
+            pass
+
+
+_LIXEIRAS = ("[Gmail]/Lixeira", "[Gmail]/Trash", "Trash", "Lixeira", "Deleted Items", "Deleted Messages",
+             "Itens Excluídos", "INBOX.Trash", "INBOX.Lixeira")
+
+
+def _pasta_lixeira(con) -> str:
+    """
+    A lixeira do servidor: a pasta marcada \\Trash (RFC 6154 - o Gmail marca a
+    dele, com o nome na lingua da conta) ou, sem marca, um nome conhecido.
+    """
+    try:
+        estado, linhas = con.list()
+    except Exception:
+        estado, linhas = "NO", []
+    nomes = []
+    for linha in linhas or []:
+        texto = linha.decode("utf-8", "replace") if isinstance(linha, bytes) else str(linha)
+        casou = re.match(r'\((?P<marcas>[^)]*)\)\s+(?:"[^"]*"|NIL)\s+(?P<nome>.+)$', texto.strip())
+        if not casou:
+            continue
+        nome = casou.group("nome").strip().strip('"')
+        if "\\trash" in casou.group("marcas").lower():
+            return nome
+        nomes.append(nome)
+    for candidato in _LIXEIRAS:
+        if candidato in nomes:
+            return candidato
+    return ""
+
+
+def excluir_varias(conta, senha: str, uids) -> dict:
+    """
+    Manda para a lixeira do servidor, numa conexao so.
+
+    Nao apaga de vez: copia para a lixeira e so entao tira da caixa - dali a
+    pessoa recupera pelo webmail ate a lixeira ser esvaziada (o Gmail esvazia
+    sozinho depois de 30 dias). Servidor sem lixeira: nada sai da caixa.
+    """
+    lista = _uids_validos(uids)
+    if not lista:
+        return {"excluidas": 0, "sem_lixeira": False}
+    con = _abrir_imap(conta, senha)
+    try:
+        lixeira = _pasta_lixeira(con)
+        if not lixeira:
+            return {"excluidas": 0, "sem_lixeira": True}
+        estado, _ = con.select("INBOX")
+        if estado != "OK":
+            raise ErroCorreio("não consegui abrir a caixa de entrada")
+        movidas = []
+        for uid in lista:
+            try:
+                estado, _ = con.uid("COPY", uid, f'"{lixeira}"')
+            except Exception:
+                continue
+            if estado == "OK":
+                movidas.append(uid)
+        if movidas:
+            con.uid("STORE", ",".join(movidas), "+FLAGS", "(\\Deleted)")
+            con.expunge()
+        return {"excluidas": len(movidas), "sem_lixeira": False}
     finally:
         try:
             con.logout()

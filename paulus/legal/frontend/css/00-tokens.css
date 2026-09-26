@@ -56,6 +56,8 @@
     /* A cor do botao solido e do trilho: um marrom quase preto, nao o preto.
        Ele e a unica cor "de marca" da interface. */
     --casca: #26251f;
+    /* a barra lateral da mensagem aberta no E-mail: o escuro dos botoes */
+    --barra-aberta: var(--casca);
     --casca-hover: #35332b;
     --casca-ink: #f2f1ec;
     /* Os dois pares de estado: verde para o que deu certo, ambar para o que
@@ -202,6 +204,7 @@
     /* No escuro a casca clareia em vez de escurecer: um botao mais escuro que
        o fundo desapareceria. */
     --casca: #34322c;
+    --barra-aberta: var(--bg);
     --casca-hover: #413e35;
     --casca-ink: #f2f1ec;
     --grn: #16281c;

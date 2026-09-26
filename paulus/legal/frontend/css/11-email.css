@@ -60,16 +60,17 @@
   .em-pilula.ok { background: var(--okbg); color: var(--okt); font-size: 12px; padding: 3px 9px; border-radius: 6px; }
   .em-marca { background: var(--warnbg); color: var(--ink); padding: 0 2px; }
   .em-msg-acoes { display: flex; gap: 2px; flex: none; }
-  .em-msg-acoes button {
+  /* so os botoes da barra: o menu do "..." abre dentro dela e tem os seus */
+  .em-msg-acoes > button {
     width: 30px; height: 30px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink2);
     display: flex; align-items: center; justify-content: center;
   }
-  .em-msg-acoes button:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .em-msg-acoes > button:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .em-conferencias { display: grid; gap: 8px; font-size: 13.5px; }
   .em-conferencia { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
   .em-conferencia .ic { flex: none; margin-top: 1px; }
   .em-conferencia.ok .ic { color: var(--verde); }
-  .em-conferencia.aviso .ic { color: var(--ambar); }
+  .em-conferencia.aviso .ic { color: var(--ink2); }
 
   /* escrever: a carta */
   .em-compor {
@@ -147,17 +148,18 @@
   /* a coluna "Pedir aqui": atalhos, o pedido, o andamento e a conferencia */
   .em-pedir { min-width: 0; }
   .em-painel { display: flex; flex-direction: column; }
-  .em-pedir-corpo { display: grid; gap: 12px; padding: 0 18px 16px; }
-  .em-atalhos { padding: 0; }
+  .em-pedir-corpo { display: grid; gap: 12px; padding: 16px 18px 16px; }
+  .em-pedir .titulo-painel h3 { font: 600 16px/1.3 var(--sans); letter-spacing: 0; }
+  .em-atalhos { padding: 0; border-top: none; }
   .em-atalhos button { display: inline-flex; align-items: center; gap: 5px; }
-  .em-atalhos button .ic { color: var(--acc); }
+  .em-atalhos button .ic { color: var(--ink3); }
   .em-atalhos button:disabled .ic { color: var(--ink3); }
   .em-pedido-linha input[type=text] { min-width: 0; max-width: 100%; }
   .em-andamento { display: flex; align-items: flex-start; gap: 8px; margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   .em-andamento .ic, .em-andamento .indicador { flex: none; margin-top: 2px; }
   .em-andamento.ativo { color: var(--ink); }
   .em-andamento.fora { color: var(--ink2); }
-  .em-andamento.fora > .ic { color: var(--ambar); }
+  .em-andamento.fora > .ic { color: var(--ink3); }
   .em-falas:empty { display: none; }
   .em-falas { padding: 0; }
   .em-fala-erro p { color: var(--acc); }
@@ -191,7 +193,7 @@
   .em-senha input { border: none !important; flex: 1; max-width: 100%; }
   .em-servidores { display: grid; gap: 12px; }
   .em-servidores:not(.manual) input { color: var(--ink3); background: var(--sub); }
-  .em-aviso-caixa { padding: 10px 12px; border: 1px solid var(--accln); border-radius: 8px; background: var(--accbg2); display: grid; gap: 4px; }
+  .em-aviso-caixa { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 4px; }
   .em-aviso-caixa b { font-size: 13px; }
   .em-aviso-caixa p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink2); white-space: pre-wrap; }
   .em-form .ag-form-rodape { flex-wrap: wrap; }

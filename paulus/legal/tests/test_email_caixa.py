@@ -66,8 +66,17 @@ class _IMAP:
         if comando == "COPY":
             if not _IMAP.tem_arquivo or args[0] in _IMAP.recusar_copia:
                 return ("NO", [b"sem pasta"])
-            return ("OK", [b""]) if args[1] == '"Archive"' else ("NO", [b""])
+            return ("OK", [b""]) if args[1] in ('"Archive"', '"[Gmail]/Lixeira"') else ("NO", [b""])
         return ("OK", [b""])
+
+    # A lixeira do Gmail em portugues, marcada \Trash; sem `tem_lixeira`, nenhuma.
+    tem_lixeira = True
+
+    def list(self):
+        pastas = [b'(\\HasNoChildren) "/" "INBOX"', b'(\\HasNoChildren \\All) "/" "[Gmail]/Todos os e-mails"']
+        if _IMAP.tem_lixeira:
+            pastas.append(b'(\\HasNoChildren \\Trash) "/" "[Gmail]/Lixeira"')
+        return ("OK", pastas)
 
     def expunge(self):
         _IMAP.comandos.append(("EXPUNGE",))
@@ -107,6 +116,7 @@ def _com_imap(fazer):
     finally:
         correio.imaplib.IMAP4_SSL = original
         _IMAP.tem_arquivo = True
+        _IMAP.tem_lixeira = True
         _IMAP.recusar_copia = set()
 
 
@@ -156,6 +166,30 @@ def test_arquivar_varias() -> None:
     d = _com_imap(lambda: (setattr(_IMAP, "tem_arquivo", False), correio.arquivar_varias(_conta(), "s", ["11", "12"]))[1])
     checar(d == {"arquivadas": 0, "so_lidas": 2}, f"sem pasta de arquivo, so marca lida ({d})")
     checar(not any(c[0] == "EXPUNGE" for c in _IMAP.comandos), "e nao apaga nada")
+
+
+def test_estrela() -> None:
+    print("\nestrela e a marca Flagged")
+    n = _com_imap(lambda: correio.sinalizar(_conta(), "s", ["7", "8"], True))
+    store = [c for c in _IMAP.comandos if c[0] == "STORE"]
+    checar(n == 2 and store == [("STORE", "7,8", "+FLAGS", "(\\Flagged)")], f"poe a estrela ({store})")
+    _com_imap(lambda: correio.sinalizar(_conta(), "s", ["7"], False))
+    store = [c for c in _IMAP.comandos if c[0] == "STORE"]
+    checar(store == [("STORE", "7", "-FLAGS", "(\\Flagged)")], "tira a estrela")
+
+
+def test_excluir_varias() -> None:
+    print("\nexcluir manda para a lixeira")
+    d = _com_imap(lambda: correio.excluir_varias(_conta(), "s", ["21", "22"]))
+    checar(d == {"excluidas": 2, "sem_lixeira": False}, f"exclui as duas ({d})")
+    copias = [c for c in _IMAP.comandos if c[0] == "COPY"]
+    checar(all(c[2] == '"[Gmail]/Lixeira"' for c in copias) and len(copias) == 2, "acha a lixeira pela marca \\Trash", copias)
+    ordem = [c[0] for c in _IMAP.comandos]
+    checar(ordem.index("EXPUNGE") > max(i for i, c in enumerate(_IMAP.comandos) if c[0] == "COPY"), "so tira da caixa depois de copiar")
+
+    d = _com_imap(lambda: (setattr(_IMAP, "tem_lixeira", False), correio.excluir_varias(_conta(), "s", ["21"]))[1])
+    checar(d == {"excluidas": 0, "sem_lixeira": True}, f"sem lixeira, nao exclui ({d})")
+    checar(not any(c[0] in ("COPY", "STORE", "EXPUNGE") for c in _IMAP.comandos), "e nao mexe em nada")
 
 
 # ------------------------------------------------------------- resumo
@@ -333,6 +367,8 @@ def main() -> int:
     test_uids_validos()
     test_marcar_lidas()
     test_arquivar_varias()
+    test_excluir_varias()
+    test_estrela()
     test_resumo_por_regra()
     test_resumo_do_modelo()
     test_reescrever()

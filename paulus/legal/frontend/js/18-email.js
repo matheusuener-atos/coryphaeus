@@ -157,6 +157,9 @@ function cabecalhoEmail() {
     const atencao = mail.contas.contas.filter((x) => x.ultimo_erro || !x.tem_senha).length;
     titulo.textContent = "Contas de e-mail";
     meta.textContent = plural(n, "conta") + (atencao ? " · " + atencao + (atencao === 1 ? " precisa" : " precisam") + " de atenção" : "");
+  } else if (mail.visao === "ajustes") {
+    titulo.textContent = "Configurações do e-mail";
+    meta.textContent = "como as mensagens abrem e a assinatura de cada conta";
   } else if (mail.visao === "novo") {
     titulo.textContent = mail.assunto ? "Novo e-mail" : "Novo e-mail";
     meta.innerHTML = "Enviando como " + esc(c ? c.email : "nenhuma conta") +
@@ -180,7 +183,7 @@ function cabecalhoEmail() {
      botao de acao sai (a visao Escrever faz o mesmo) e o titulo nao quebra. */
   $("acoes-tela").innerHTML =
     '<label class="busca-tela em-busca">' + ic("search", 18) + '<input type="text" id="mail-busca" placeholder="Buscar e-mails…" value="' + esc(mail.busca) + '"></label>' +
-    '<div class="visoes">' + botao("caixa", "Caixa de entrada") + botao("novo", "Escrever") + botao("contas", "Contas") + "</div>" +
+    '<div class="visoes">' + botao("caixa", "Caixa de entrada") + botao("novo", "Escrever") + botao("contas", "Contas") + botao("ajustes", "Configurações") + "</div>" +
     (mail.visao === "novo"
       ? '<button class="com-icone em-acao-tela" id="em-voltar">' + ic("arrow_back", 16) + "Voltar à caixa</button>"
       : '<button class="primario com-icone em-acao-tela" id="em-escrever">' + ic("edit", 16) + "Escrever</button>");
@@ -460,6 +463,7 @@ function ligarEmail() {
 
   if (mail.visao === "contas") return ligarContas();
   if (mail.visao === "novo") return ligarEscrever();
+  if (mail.visao === "ajustes") return ligarAjustesDoEmail();
   ligarCaixa();
 }
 

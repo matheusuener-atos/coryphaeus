@@ -39,3 +39,8 @@ reportlab>=4.0.0
 # em si nao vem por aqui: e baixado uma vez pela tela de Gravacoes ou por
 # `python src/transcricao.py baixar`, para data/modelos/whisper.
 faster-whisper>=1.2.0
+# Traducao de e-mail nesta maquina (src/traducao.py): os pacotes do Argos
+# Translate rodam no CTranslate2 que o faster-whisper ja traz; o
+# SentencePiece corta as palavras. `python src/traducao.py baixar` poe os
+# pacotes em data/modelos/traducao.
+sentencepiece>=0.2.0

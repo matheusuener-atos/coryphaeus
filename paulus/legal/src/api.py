@@ -41,6 +41,7 @@ import requests
 
 import aprovacoes as fila_aprovacoes
 import assinatura
+import traducao
 import certificado
 import correio
 import correio_contas
@@ -4680,6 +4681,37 @@ def email_arquivar(payload: dict) -> dict:
     }
 
 
+@app.post("/api/email/estrela")
+def email_estrela(payload: dict) -> dict:
+    """Poe ou tira a estrela (\\Flagged) nas mensagens escolhidas."""
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    uids = correio._uids_validos(payload.get("uids") or [])
+    if not uids:
+        raise HTTPException(status_code=400, detail="nenhuma mensagem escolhida")
+    try:
+        feitas = correio.sinalizar(conta, senha, uids, bool(payload.get("sim", True)))
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"feitas": feitas}
+
+
+@app.post("/api/email/excluir")
+def email_excluir(payload: dict) -> dict:
+    """Manda as mensagens escolhidas para a lixeira do servidor (nao apaga de vez)."""
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    uids = correio._uids_validos(payload.get("uids") or [])
+    if not uids:
+        raise HTTPException(status_code=400, detail="nenhuma mensagem escolhida")
+    try:
+        feito = correio.excluir_varias(conta, senha, uids)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    if feito["sem_lixeira"]:
+        raise HTTPException(status_code=409, detail="seu servidor não tem lixeira - não excluí nada, para não apagar de vez")
+    falta = len(uids) - feito["excluidas"]
+    return {**feito, "aviso": f"{falta} não foram para a lixeira - ficaram na caixa" if falta else ""}
+
+
 @app.post("/api/email/marcar")
 def email_marcar(payload: dict) -> dict:
     """Marca como lidas (ou nao lidas) as mensagens escolhidas na lista."""
@@ -4753,6 +4785,29 @@ def email_reescrever(payload: dict) -> dict:
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"sugestao": texto, "pedido": pedido}
+
+
+@app.post("/api/email/traduzir")
+def email_traduzir(payload: dict) -> dict:
+    """
+    A mensagem aberta em portugues, pelo tradutor desta maquina (src/traducao.py):
+    o texto e, quando ha, o HTML com as tags intactas. Menos de um segundo.
+    """
+    texto = str(payload.get("texto", ""))
+    html_email = str(payload.get("html", ""))
+    lingua = traducao.adivinhar_lingua(texto) or str(payload.get("lingua", ""))
+    if lingua not in traducao.PACOTES:
+        raise HTTPException(status_code=400, detail="não reconheci a língua da mensagem")
+    if not traducao.disponivel(lingua):
+        raise HTTPException(status_code=503, detail="o tradutor desta máquina não está instalado (python src/traducao.py baixar)")
+    try:
+        return {
+            "lingua": lingua,
+            "texto": traducao.traduzir_texto(texto, lingua) if texto.strip() else "",
+            "html": traducao.traduzir_html(html_email, lingua) if html_email.strip() else "",
+        }
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/email/anexos/conferir")
