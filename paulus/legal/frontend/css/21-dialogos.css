@@ -340,3 +340,9 @@
   .vc-folha { width: min(100%, 420px); aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: 0 12px 28px -20px var(--papel-sombra); overflow: hidden; }
   .vc-folha img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .vc-acao { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); margin-right: 12px; }
+
+  /* O nosso "escolher pasta": o anexar sem arquivos, e o nome do que vai ser gravado. */
+  .dialogo.dialogo-pasta { width: 640px; height: min(560px, calc(100vh - 48px)); }
+  .ep-nome { display: grid; gap: 6px; margin-top: 10px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .ep-nome input[type=text] { width: 100%; max-width: none; min-width: 0; padding: 9px 12px; border-radius: 10px; }
+  .ep-onde { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink3); }

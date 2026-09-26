@@ -810,6 +810,9 @@ async function abrirCitacao(nome, trecho, pergunta, ondeColocar) {
   visor.escala = 100;
   visor.marcas = d.marcas || [];
   visor.caixa = caixa;
+  // Sem trecho (o "Abrir aqui" do Acervo) nao ha o que procurar: a coluna do
+  // "por que este trecho" diria "nao achei" sem ninguem ter pedido nada.
+  visor.trecho = String(trecho || "").trim();
   desenharVisor();
 }
 
@@ -834,7 +837,9 @@ function desenharVisor() {
 
   visor.caixa.innerHTML = '<div class="visor">' +
     '<div class="visor-topo"><div><b>' + esc(d.nome) + "</b>" +
-    '<div class="rotulo">aberto da sua máquina · ' + tamanho(d.bytes) + "</div></div>" +
+    '<div class="rotulo">' + (d.convertido
+      ? "prévia do texto na folha do PAULUS · a diagramação do Word pode ser outra"
+      : "aberto da sua máquina · " + tamanho(d.bytes)) + "</div></div>" +
     '<div class="visor-acoes">' +
     '<button data-vs="antes" ' + (visor.pagina <= 1 ? "disabled" : "") + ">‹</button>" +
     '<span class="rotulo">pág. ' + visor.pagina + " / " + visor.total + "</span>" +
@@ -848,16 +853,17 @@ function desenharVisor() {
 
     '<div class="visor-miniaturas">' + miniaturasDoVisor() + "</div>" +
 
-    '<div class="visor-corpo"><div class="visor-rolagem">' +
+    '<div class="visor-corpo' + (visor.trecho ? "" : " so-pagina") + '"><div class="visor-rolagem">' +
     '<div class="visor-pagina">' +
     '<img src="/api/biblioteca/pagina?nome=' + encodeURIComponent(d.nome) +
     "&numero=" + visor.pagina + "&largura=" + Math.round(9 * visor.escala) +
     '" alt="página ' + visor.pagina + '">' +
     (visor.pagina === d.pagina ? marcasDoVisor() : "") + "</div></div>" +
 
-    '<aside class="visor-porque"><span class="rotulo">por que este trecho</span>' +
-    porqueDoVisor(d) +
-    '<p class="rotulo visor-selo">lido localmente · nada enviado</p></aside></div></div>';
+    (visor.trecho
+      ? '<aside class="visor-porque"><span class="rotulo">por que este trecho</span>' + porqueDoVisor(d) +
+        '<p class="rotulo visor-selo">lido localmente · nada enviado</p></aside>'
+      : "") + "</div></div>";
 
   ligarVisor();
 }

@@ -1147,15 +1147,27 @@ def biblioteca_citacao(payload: OndeCitou) -> dict:
     alvo = Path(doc.path)
     lugar = citacao.onde_esta(alvo, payload.trecho)
     tamanho = alvo.stat().st_size if alvo.exists() else 0
+    e_pdf = alvo.suffix.lower() == ".pdf"
+
+    # Word e texto tambem tem pagina: o mesmo gerador do editor monta o PDF a
+    # partir do texto lido - e o que o leitor da conversa ja mostra. Sem
+    # trecho para achar, o total ainda precisa vir, senao o visor nao anda.
+    if alvo.exists() and not lugar.get("total"):
+        try:
+            pdf = alvo.read_bytes() if e_pdf else ferramentas.pdf_do_documento(doc)
+            lugar = {**lugar, "total": documento.paginas_de(pdf)}
+        except Exception:  # noqa: BLE001 - sem contar, o visor mostra a primeira
+            pass
 
     return {
         **lugar,
         "nome": doc.name,
         "caminho": str(alvo),
         "bytes": tamanho,
-        # PDF da para desenhar; docx e txt, nao - e a tela precisa saber disso
-        # antes de prometer uma pagina que nao existe.
-        "desenhavel": alvo.suffix.lower() == ".pdf" and alvo.exists(),
+        "desenhavel": alvo.exists(),
+        # Nao e a diagramacao do Word: e o texto do arquivo na folha do
+        # PAULUS. A tela diz isso, em vez de apresentar como o original.
+        "convertido": not e_pdf,
         "porque": citacao.por_que_este_trecho(payload.pergunta, payload.trecho),
     }
 
@@ -4198,6 +4210,10 @@ def assinar_zip_gravar(payload: AssinadosParaSalvar) -> dict:
     caminho = Path(payload.caminho)
     if caminho.suffix.lower() != ".zip":
         caminho = caminho.with_name(caminho.name + ".zip")
+    # A pasta vem do seletor do PAULUS, que nao pergunta "substituir?": um
+    # .zip que ja esta la nao e sobrescrito, o novo ganha "(2)" no nome.
+    if caminho.exists():
+        caminho = acervo._nome_livre(caminho.parent, caminho.name, set())
     try:
         caminho.parent.mkdir(parents=True, exist_ok=True)
         caminho.write_bytes(_zip_dos_assinados(arquivos))

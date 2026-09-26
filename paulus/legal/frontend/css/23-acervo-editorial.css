@@ -144,6 +144,17 @@
   .ae-linha-misto .duas-linhas small.vazio { color: var(--ink3); }
   .ae-linha-misto .analise-doc { width: 130px; }
   .ae-secoes .ae-ficha { margin: 0 16px 10px; }
+  /* A linha aberta e a ficha sao um bloco so: mesmo fundo, a linha com os
+     cantos de cima e a ficha com os de baixo, sem vao entre elas, e ar antes
+     do proximo documento. Separadas, a ficha parecia do documento de baixo. */
+  .ae-tela .tabela-linha.ae-linha.aberta {
+    margin: 8px 16px 0; padding: 10px 20px; border-bottom: none; border-radius: 12px 12px 0 0;
+    background: var(--sub); box-shadow: inset 1px 0 0 var(--hair), inset -1px 0 0 var(--hair), inset 0 1px 0 var(--hair);
+  }
+  .ae-tela .ae-linha.aberta + .ae-ficha {
+    margin: 0 16px 16px; padding-top: 4px; border-radius: 0 0 12px 12px;
+    box-shadow: inset 1px 0 0 var(--hair), inset -1px 0 0 var(--hair), inset 0 -1px 0 var(--hair);
+  }
   .ae-secoes .ae-ficha-lide { display: block; }
 
   @media (max-width: 1100px) {

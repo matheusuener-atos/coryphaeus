@@ -163,6 +163,61 @@ async function baixarArquivo(caminho, rota) {
   window.location.href = (rota || "/api/arquivos/baixar?caminho=") + encodeURIComponent(caminho);
 }
 
+/* O nosso "escolher pasta", no visual do anexar: atalhos, unidades e pastas
+   desta maquina, a pasta atual no rodape. Com `nome`, um campo para o nome do
+   arquivo que vai ser gravado. Devolve { pasta, nome } ou null. */
+const ep = { caminho: "", dados: null };
+
+function escolherPastaNossa(o) {
+  ep.caminho = "";
+  const opcoes = o || {};
+  const escolha = dialogo({
+    titulo: opcoes.titulo || "Escolher a pasta", contexto: opcoes.contexto || "Esta máquina", classe: "dialogo-anexar dialogo-pasta",
+    confirmar: opcoes.confirmar || "Salvar aqui",
+    html: '<div class="anx">' +
+      '<div class="anx-migalhas" id="ep-migalhas"></div>' +
+      '<div class="anx-lista" id="ep-lista"><p class="anx-vazio">abrindo…</p></div>' +
+      (opcoes.nome !== undefined
+        ? '<label class="ep-nome"><span>Nome do arquivo</span><input type="text" id="ep-nome" value="' + esc(opcoes.nome) + '" autocomplete="off" spellcheck="false"></label>'
+        : "") +
+      '<div class="anx-rodape"><span id="ep-onde" class="ep-onde"></span></div></div>',
+    aoConfirmar: () => {
+      if (!ep.caminho) return;
+      const campo = $("ep-nome");
+      const nome = campo ? campo.value.trim() : "";
+      if (campo && !nome) { campo.focus(); return; }
+      dialogoAberto.fechar({ ok: true, pasta: ep.caminho, nome: nome });
+    },
+  });
+  navegarPastaNossa("");
+  return escolha.then((r) => (r && r.ok ? { pasta: r.pasta, nome: r.nome } : null));
+}
+
+async function navegarPastaNossa(caminho) {
+  ep.caminho = caminho;
+  const lista = $("ep-lista");
+  if (!lista) return;
+  try { ep.dados = await (await fetch("/api/pastas?caminho=" + encodeURIComponent(caminho))).json(); }
+  catch (err) { ep.dados = { erro: "não consegui abrir: " + err, atalhos: [], unidades: [], pastas: [], migalhas: [] }; }
+  const d = ep.dados;
+  const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-ep-ir="' + esc(p.caminho) + '">' + ic(icone, 17) +
+    '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" + ic("chevron_right", 16) + "</div>";
+  let html = "";
+  if ((d.atalhos || []).length) html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.map((a) => pasta(a, "folder_special")).join("");
+  if ((d.unidades || []).length) html += '<div class="nav-grupo">Unidades</div>' + d.unidades.map((u) => pasta(u, "desktop_windows")).join("");
+  html += (d.pastas || []).map((p) => pasta(p, "folder")).join("");
+  if (d.erro) html += '<p class="anx-vazio">' + esc(d.erro) + "</p>";
+  else if (!html) html = '<p class="anx-vazio">Nenhuma pasta dentro desta. Dá para salvar aqui mesmo.</p>';
+  lista.innerHTML = html;
+  const migalhas = $("ep-migalhas");
+  migalhas.innerHTML = '<button type="button" data-ep-ir="">Este computador</button>' +
+    (d.migalhas || []).map((m) => '<span class="lc-sep">›</span><button type="button" data-ep-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>").join("");
+  document.querySelectorAll("#veu-dialogo [data-ep-ir]").forEach((b) => { b.onclick = () => navegarPastaNossa(b.dataset.epIr); });
+  $("ep-onde").textContent = caminho ? "Salvar em " + caminho : "Escolha uma pasta";
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  if (botao) botao.disabled = !caminho;
+}
+
 /* Compartilhar e o e-mail do proprio PAULUS, com o arquivo ja anexado. Sem
    conta de e-mail, leva para a Caixa, onde a conta se liga. */
 async function compartilharPorEmail(caminho, nome) {

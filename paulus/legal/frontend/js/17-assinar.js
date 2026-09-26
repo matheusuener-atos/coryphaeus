@@ -1423,39 +1423,27 @@ async function perguntarComoSalvar() {
    .zip passa pelo "Salvar como" do Windows e o um a um pela escolha de
    pasta, e o servidor grava. No navegador, downloads comuns. */
 async function salvarAssinados(modo, arquivos) {
-  const api = (window.pywebview || {}).api || {};
+  /* A pasta sai do seletor do PAULUS e quem grava e o servidor: vale igual
+     na janela do programa e no navegador. Nada e sobrescrito - nome repetido
+     ganha "(2)". */
   const json = { "Content-Type": "application/json" };
+  const hoje = new Date().toISOString().slice(0, 10);
   if (modo === "zip") {
-    if (api.salvar_como) {
-      const caminho = await api.salvar_como("PDFs assinados " + new Date().toISOString().slice(0, 10) + ".zip", ["Arquivo .zip (*.zip)"]);
-      if (!caminho) return;
-      const r = await fetch("/api/assinar/zip", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, caminho: caminho }) });
-      if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
-      const d = await r.json();
-      avisoCert(plural(d.quantos, "PDF", "PDFs") + (d.quantos === 1 ? " salvo em " : " salvos em ") + d.nome, { tom: "ok" });
-      return;
-    }
-    window.location.href = "/api/assinar/zip?" + arquivos.map((a) => "arquivo=" + encodeURIComponent(a)).join("&");
-    return;
-  }
-  if (api.escolher_pasta) {
-    const pasta = await api.escolher_pasta();
-    if (!pasta) return;
-    const r = await fetch("/api/assinar/copiar", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, pasta: pasta }) });
+    const e = await escolherPastaNossa({ titulo: "Onde salvar o .zip", contexto: "Assinatura em lote", nome: "PDFs assinados " + hoje + ".zip" });
+    if (!e) return;
+    const caminho = e.pasta.replace(/[\\/]+$/, "") + "\\" + e.nome;
+    const r = await fetch("/api/assinar/zip", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, caminho: caminho }) });
     if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
     const d = await r.json();
-    avisoCert(plural(d.copiados.length, "PDF", "PDFs") + (d.copiados.length === 1 ? " salvo em " : " salvos em ") + d.pasta, { tom: "ok" });
+    avisoCert(plural(d.quantos, "PDF", "PDFs") + " no " + d.nome + " — " + e.pasta, { tom: "ok" });
     return;
   }
-  // Um link por PDF, espacados: seguidos, o navegador engole os do meio.
-  arquivos.forEach((a, i) => setTimeout(() => {
-    const link = document.createElement("a");
-    link.href = "/api/assinar/baixar?arquivo=" + encodeURIComponent(a);
-    link.download = nomeDe(a);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  }, i * 450));
+  const e = await escolherPastaNossa({ titulo: "Onde salvar os PDFs assinados", contexto: "Assinatura em lote" });
+  if (!e) return;
+  const r = await fetch("/api/assinar/copiar", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, pasta: e.pasta }) });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  avisoCert(plural(d.copiados.length, "PDF", "PDFs") + (d.copiados.length === 1 ? " salvo em " : " salvos em ") + d.pasta, { tom: "ok" });
 }
 
 /* Depois do sim em Aprovacoes a um pedido de lote: volta para o lote (o
