@@ -1,6 +1,8 @@
 # Páginas públicas do PAULUS (para a verificação do Google)
 
-O app **PAVLVS** no Google Cloud (projeto `pavlvs`, Google Auth Platform › Branding) já aponta para estes endereços, que **ainda não existem**. Enquanto não estiverem no ar, o app fica em modo Teste.
+O app **PAVLVS** no Google Cloud (projeto `pavlvs`, Google Auth Platform › Branding) aponta para estes endereços.
+
+**Situação em 26/09/2026:** as três páginas estão no ar (pasta `site/` na raiz do repositório, publicada pelo Cloudflare a cada push) e respondem sem login. Em 26/09 foram conferidas frase por frase contra o código (commit "Site diz só o que o programa faz"): saíram o instalador que não existe, a meta e a lista de apoiadores inventadas e recursos que o programa não tem; a política passou a descrever o servidor do site (só no apoio), o feedback, os downloads de modelos, as imagens de fora nos e-mails e as ações de organizar a caixa. Falta o que só o dono da conta faz: os passos da seção 4.
 
 | O quê | Endereço |
 | --- | --- |

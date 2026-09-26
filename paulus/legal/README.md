@@ -22,6 +22,19 @@ python src/main.py         # ou o chat no terminal
 
 Detalhes em [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
+### Demonstração
+
+Um escritório fictício, com documentos, agenda, tarefas, financeiro e
+serviços, numa pasta separada (`data/demo`) - os dados de verdade não são
+tocados:
+
+```bash
+tools\demo\abrir_demo.bat                          # cria a base na primeira vez e abre
+venv\Scripts\python.exe tools\demo\roteiro.py      # as perguntas da demonstração, medidas
+```
+
+A pasta de dados vem de `PAULUS_DADOS`; sem ela, é `data/`.
+
 ## O que ele faz hoje
 
 - **Organiza o acervo**: varre as pastas que voce escolher, le cada documento,

@@ -77,3 +77,6 @@ data/marca/
 # maquina, e o que ha nela e mais sensivel que os proprios documentos.
 data/conhecimento/
 
+
+# Base de demonstracao (tools/demo/criar_demo.py): gerada, nao versionada
+data/demo/

@@ -112,35 +112,40 @@ from scan import escanear
 from search import ContractSearcher
 
 BASE_DIR = Path(__file__).parent.parent
-CONTRACTS_DIR = BASE_DIR / "data" / "test_contracts"
+# Onde ficam os dados desta instalacao. PAULUS_DADOS troca a pasta inteira -
+# e assim que a base de demonstracao (tools/demo) roda sem encostar nos dados
+# de verdade. Os modelos de voz ficam fora disso: sao do programa, nao do
+# escritorio, e baixar 1,6 GB de novo para uma demonstracao nao faz sentido.
+DADOS_DIR = Path(os.environ.get("PAULUS_DADOS") or (BASE_DIR / "data")).resolve()
+CONTRACTS_DIR = DADOS_DIR / "test_contracts"
 NOME_DA_PASTA_PADRAO = "Documentos do escritório"
-CACHE_PATH = BASE_DIR / "data" / "extractions" / "index.json"
-CLASSIFICACAO_PATH = BASE_DIR / "data" / "extractions" / "classificacao.json"
+CACHE_PATH = DADOS_DIR / "extractions" / "index.json"
+CLASSIFICACAO_PATH = DADOS_DIR / "extractions" / "classificacao.json"
 # Os nomes que a pessoa recusou na sugestao de cadastro (Cadastros).
-SUGESTOES_IGNORADAS_PATH = BASE_DIR / "data" / "cadastros_ignorados.json"
-DIARIOS_DIR = BASE_DIR / "data" / "diarios"
-TRABALHOS_DIR = BASE_DIR / "data" / "trabalhos"
-APROVACOES_PATH = BASE_DIR / "data" / "aprovacoes.json"
-PREFERENCIAS_PATH = BASE_DIR / "data" / "preferencias.json"
-BASE_PATH = BASE_DIR / "data" / "paulus.db"
-CERTIFICADO_DIR = BASE_DIR / "data" / "certificado"
+SUGESTOES_IGNORADAS_PATH = DADOS_DIR / "cadastros_ignorados.json"
+DIARIOS_DIR = DADOS_DIR / "diarios"
+TRABALHOS_DIR = DADOS_DIR / "trabalhos"
+APROVACOES_PATH = DADOS_DIR / "aprovacoes.json"
+PREFERENCIAS_PATH = DADOS_DIR / "preferencias.json"
+BASE_PATH = DADOS_DIR / "paulus.db"
+CERTIFICADO_DIR = DADOS_DIR / "certificado"
 COFRE_PATH = CERTIFICADO_DIR / "cofre.json"
-ASSINATURAS_PATH = BASE_DIR / "data" / "assinaturas.json"
-CONTAS_EMAIL_PATH = BASE_DIR / "data" / "contas_email.json"
-ENVIOS_PATH = BASE_DIR / "data" / "envios.json"
-CLAUSULAS_PATH = BASE_DIR / "data" / "clausulas.json"
-CONEXOES_PATH = BASE_DIR / "data" / "conexoes.json"
-SESSOES_DIR = BASE_DIR / "data" / "sessoes"
-COMPROVANTES_DIR = BASE_DIR / "data" / "comprovantes"
-RECIBOS_DIR = BASE_DIR / "data" / "recibos"
-EXPORTACOES_DIR = BASE_DIR / "data" / "exportacoes"
-GRAVACOES_DIR = BASE_DIR / "data" / "gravacoes"
-MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"
-LIXEIRA_DIR = BASE_DIR / "data" / "lixeira"
-MARCA_DIR = BASE_DIR / "data" / "marca"
-CONHECIMENTO_DIR = BASE_DIR / "data" / "conhecimento"
+ASSINATURAS_PATH = DADOS_DIR / "assinaturas.json"
+CONTAS_EMAIL_PATH = DADOS_DIR / "contas_email.json"
+ENVIOS_PATH = DADOS_DIR / "envios.json"
+CLAUSULAS_PATH = DADOS_DIR / "clausulas.json"
+CONEXOES_PATH = DADOS_DIR / "conexoes.json"
+SESSOES_DIR = DADOS_DIR / "sessoes"
+COMPROVANTES_DIR = DADOS_DIR / "comprovantes"
+RECIBOS_DIR = DADOS_DIR / "recibos"
+EXPORTACOES_DIR = DADOS_DIR / "exportacoes"
+GRAVACOES_DIR = DADOS_DIR / "gravacoes"
+MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"  # compartilhado, ver DADOS_DIR
+LIXEIRA_DIR = DADOS_DIR / "lixeira"
+MARCA_DIR = DADOS_DIR / "marca"
+CONHECIMENTO_DIR = DADOS_DIR / "conhecimento"
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
-RITMO_PATH = BASE_DIR / "data" / "ritmo.json"
+RITMO_PATH = DADOS_DIR / "ritmo.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -4205,8 +4210,8 @@ def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
     return destino
 
 
-CONFORMIDADE_DIR = BASE_DIR / "data" / "conformidade"
-APOIO_DIR = BASE_DIR / "data" / "apoio"
+CONFORMIDADE_DIR = DADOS_DIR / "conformidade"
+APOIO_DIR = DADOS_DIR / "apoio"
 
 
 def _pdf_conhecido(caminho: str) -> Path:
@@ -7142,7 +7147,7 @@ async def financeiro_comprovante(id_: int, arquivo: UploadFile) -> dict:
     if len(dados) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=400, detail="arquivo grande demais")
 
-    pasta = BASE_DIR / "data" / "comprovantes"
+    pasta = DADOS_DIR / "comprovantes"
     pasta.mkdir(parents=True, exist_ok=True)
     destino = pasta / nome
     conta = 2
