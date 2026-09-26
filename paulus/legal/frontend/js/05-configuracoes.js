@@ -1,35 +1,38 @@
 /* ------------------------------------------------------ configuracoes */
 /*
-   Configuracoes (docs/ui/03-telas-desktop.md, A13): menu interno a esquerda
-   e nove secoes. Meus dados, o modelo, os limites da IA, o ritmo, o tema e
-   os codigos de lei sao de verdade e gravam em data/preferencias.json; o
-   que ainda nao tem motor - foto, senha por pessoa, vinculo por codigo,
-   aprendizado por arquivos, feedback enviado, apoio pago, atualizacao
-   automatica - diz isso na tela. Habilidades, Conexoes e Desempenho, que
-   eram telas proprias, viraram secoes daqui.
+   Configuracoes (docs/ui/03-telas-desktop.md, A13), no molde editorial das
+   outras telas: a medida de 1080px (sv-medida), um sumario discreto a
+   esquerda e, a direita, a secao aberta numa coluna de leitura - titulo em
+   serifa, uma linha curta e os cartoes um embaixo do outro.
+
+   Meus dados, o modelo, os limites da IA, o ritmo, o tema, os avisos e os
+   codigos de lei sao de verdade e gravam em data/preferencias.json. O que
+   ainda nao existe nao aparece como botao apagado nem como "em breve": ou
+   some, ou uma linha curta diz que nao existe. Habilidades, Conexoes e
+   Desempenho, que eram telas proprias, viraram secoes daqui.
 */
 
 const cfg = {
   secao: "perfil", prefs: null, status: null, rascunho: null, sujo: false,
   recursos: null, historico: [], relogio: null, medida: "cpu",
   cx: null, contas: null, cert: null, acoes: [], hab: null, grupoHab: "",
-  tema: "claro", apoio: { valor: 40, recorrencia: "mensal", forma: "pix" },
-  feedback: { tipo: "bug", onde: "", titulo: "", texto: "", tecnico: true, contato: true },
+  tema: "claro", feedback: feedbackGuardado(),
 };
 
 const CFG_JSON = { "Content-Type": "application/json" };
 
+/* [id, rotulo no sumario, linha de abertura da secao] */
 const CFG_SECOES = [
-  ["perfil", "person", "Meus dados", "Meus dados · escritório · entrar"],
-  ["assistente", "memory", "Assistente e modelo", "Modelo local, limites da IA, cache e índice"],
-  ["desempenho", "speed", "Desempenho", "Medido na sua máquina · últimos 60 segundos"],
-  ["conexoes", "hub", "Conexões", "Serviços conectados e o que sai desta máquina"],
-  ["vinculos", "lan", "Escritório e vínculos", "Quem faz parte do escritório, pedidos de vinculação e moderação · rede local"],
-  ["aprendizado", "school", "Aprendizado", "Ensinar o PAULUS com PDFs, modelos e regras escritas à mão"],
-  ["aparencia", "palette", "Aparência e atalhos", "Tema, fontes, densidade e atalhos"],
-  ["feedback", "rate_review", "Feedback", "Elogios, sugestões, correções e bugs · com anexos"],
-  ["plano", "favorite", "Plano e apoio", "Software livre · apoio, doação e atualizações"],
-  ["lixeira", "delete", "Lixeira", "O que foi apagado nos últimos 30 dias · restaurar ou apagar de vez"],
+  ["perfil", "Meus dados", "Seus dados e os do escritório. Ficam nesta máquina e entram nos documentos que você pedir."],
+  ["assistente", "Assistente e modelo", "Tudo roda nesta máquina: o modelo de linguagem pelo Ollama e a transcrição pelo Whisper."],
+  ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
+  ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA."],
+  ["vinculos", "Escritório e vínculos", "Hoje o PAULUS roda para uma pessoa, nesta máquina. Vincular outras máquinas ao escritório ainda não existe."],
+  ["aprendizado", "Aprendizado", "O que o escritório ensinou com as próprias palavras, e o que o PAULUS já sabe fazer."],
+  ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
+  ["feedback", "Feedback", "O PAULUS não envia nada sozinho: Copiar monta a mensagem e você manda por e-mail. Nenhum documento do escritório vai junto."],
+  ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
+  ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
 ];
 
 const CFG_ICONE_HAB = {
@@ -55,7 +58,7 @@ async function mostrarConfig(secao) {
   if (cfg.prefs) {
     desenharConfig();
   } else {
-    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">lendo…</p></div></div>';
+    $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal sv-principal"><div class="sv-medida"><p class="nota">lendo…</p></div></div></div>';
     atualizarPostura();
   }
   const versao = (cfg.versao || 0) + 1;
@@ -76,8 +79,8 @@ async function mostrarConfig(secao) {
     if (versao !== cfg.versao) return;
   } catch (err) {
     if (!cfg.prefs) {
-      $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui ler: ' +
-        esc(String(err)) + "</p></div></div>";
+      $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal sv-principal"><div class="sv-medida"><p class="nota">não consegui ler: ' +
+        esc(String(err)) + "</p></div></div></div>";
     }
     return;
   }
@@ -113,9 +116,6 @@ async function carregarSecao() {
     const [hab, ctx] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos")]);
     cfg.hab = hab;
     cfg.ctx = ctx;
-  } else if (cfg.secao === "plano") {
-    const acoes = await pega("/api/relatorios/acoes?limite=60");
-    cfg.acoes = (acoes && acoes.acoes) || [];
   } else if (cfg.secao === "desempenho") {
     cfg.recursos = await pega("/api/recursos");
   } else if (cfg.secao === "assistente") {
@@ -131,11 +131,10 @@ async function carregarSecao() {
 
 function desenharConfig() {
   cabecalhoConfig();
-  const menu = CFG_SECOES.map(([id, icone, rotulo]) => {
+  const menu = CFG_SECOES.map(([id, rotulo]) => {
     const classe = "cfg-item" + (id === cfg.secao ? " ativa" : "");
-    return '<button class="' + classe + '" data-cfg-secao="' + id + '">' + ic(icone, 18) + "<span>" + rotulo + "</span></button>";
+    return '<button class="' + classe + '" data-cfg-secao="' + id + '">' + rotulo + "</button>";
   }).join("");
-  const nome = ((cfg.rascunho || {}).pessoa || {}).nome || "";
   let secao;
   if (cfg.secao === "assistente") secao = secaoAssistente();
   else if (cfg.secao === "desempenho") secao = secaoDesempenho();
@@ -148,11 +147,17 @@ function desenharConfig() {
   else if (cfg.secao === "lixeira") secao = secaoLixeira();
   else secao = secaoPerfil();
 
-  $("centro").innerHTML = '<div class="acervo sem-painel cfg-tela" id="cfg-tela"><div class="cfg-corpo">' +
+  // Redesenhar a mesma secao (um modelo escolhido, um aviso ligado) nao
+  // pode jogar a leitura de volta para o alto.
+  const antes = document.querySelector("#cfg-tela .sv-principal");
+  const topo = antes && antes.dataset.cfgAberta === cfg.secao ? antes.scrollTop : 0;
+  $("centro").innerHTML = '<div class="acervo sem-painel cfg-tela" id="cfg-tela">' +
+    '<div class="acervo-principal sv-principal" data-cfg-aberta="' + cfg.secao + '"><div class="sv-medida"><div class="cfg-corpo">' +
     '<nav class="cfg-menu">' + menu + '<span class="cfg-risco"></span>' +
-    '<button class="cfg-item" data-cfg-manual="1">' + ic("description", 18) + "<span>Manual do sistema</span></button>" +
-    '<button class="cfg-item" data-cfg-sair="1">' + ic("logout", 18) + "<span>Sair" + (nome ? " · " + esc(nome.split(" ")[0]) : "") + "</span></button></nav>" +
-    '<div class="cfg-secao">' + secao + "</div></div></div>";
+    '<button class="cfg-item cfg-item-manual" data-cfg-manual="1">' + ic("description", 16) + "Manual do sistema</button></nav>" +
+    '<div class="cfg-secao">' + secao + "</div></div></div></div></div>";
+  const rolagem = document.querySelector("#cfg-tela .sv-principal");
+  if (rolagem) rolagem.scrollTop = topo;
   ligarConfig();
   atualizarPostura();
   if (cfg.secao === "desempenho") comecarMedicao();
@@ -160,9 +165,8 @@ function desenharConfig() {
 }
 
 function cabecalhoConfig() {
-  const achada = CFG_SECOES.find((s) => s[0] === cfg.secao) || CFG_SECOES[0];
   $("conversa-titulo").textContent = "Configurações";
-  $("conversa-meta").textContent = achada[3];
+  $("conversa-meta").textContent = "Preferências desta máquina";
   $("acoes-tela").innerHTML = '<button data-cfg-descartar="1"' + (cfg.sujo ? "" : " disabled") + ">Descartar</button>" +
     '<button class="primario com-icone" data-cfg-salvar="1"' + (cfg.sujo ? "" : " disabled") + ">" + ic("check", 16) + "Salvar alterações</button>";
   $("nav-tela").innerHTML = "";
@@ -174,6 +178,22 @@ function marcarConfigSuja() {
 }
 
 /* --------------------------------------------------------- pecas */
+
+/* A abertura da secao, como o Resumo de Servicos: titulo em serifa e uma
+   linha curta. `extra` fica a direita do titulo (uma ligacao). */
+function aberturaCfg(extra) {
+  const achada = CFG_SECOES.find((s) => s[0] === cfg.secao) || CFG_SECOES[0];
+  return '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>' + esc(achada[1]) + "</h2>" + (extra || "") + "</div>" +
+    '<p class="sv-resumo-corpo">' + esc(achada[2]) + "</p></header>";
+}
+
+/* A faixa de numeros embaixo da abertura: [rotulo, valor, tom]. */
+function fichaCfg(itens) {
+  return '<div class="sv-ficha cfg-ficha">' + itens.map(([rotulo, valor, tom]) => {
+    const classe = tom || "";
+    return '<div class="sv-ficha-item"><span class="sv-kicker">' + esc(rotulo) + '</span><b class="' + classe + '">' + esc(valor) + "</b></div>";
+  }).join("") + "</div>";
+}
 
 function cartaoCfg(titulo, meta, corpo, extra) {
   const classe = "cfg-cartao" + (extra ? " " + extra : "");
@@ -225,40 +245,32 @@ function secaoPerfil() {
   const p = r.pessoa;
   const e = r.escritorio;
   const foto = marcaDaTela("foto");
-  const meus = '<div class="cfg-foto">' + avatarDoPerfil(p.nome) + "<div>" +
-    '<div class="cfg-botoes"><button data-cfg-marca="foto">' + ic("photo_camera", 16) + (foto.tem ? "Trocar foto" : "Enviar foto") + "</button>" +
-    (foto.tem ? '<button data-cfg-marca-tirar="foto">' + ic("close", 16) + "Remover</button>" : "") + "</div>" +
-    '<span class="cfg-explica">PNG ou JPG · até 4 MB · fica nesta máquina e aparece no seu avatar</span></div></div>' +
+  const voce = '<div class="cfg-foto">' + avatarDoPerfil(p.nome) + '<div class="cfg-botoes">' +
+    '<button data-cfg-marca="foto">' + ic("photo_camera", 16) + (foto.tem ? "Trocar foto" : "Enviar foto") + "</button>" +
+    (foto.tem ? '<button data-cfg-marca-tirar="foto">' + ic("close", 16) + "Remover</button>" : "") +
+    '<span class="cfg-explica">PNG ou JPG, até 4 MB</span></div></div>' +
     '<div class="cfg-campos">' + campoCfg("pessoa.nome", "Nome completo", p.nome) +
     '<div class="ag-duas">' + campoCfg("pessoa.cpf", "CPF", p.cpf, "000.000.000-00") + campoCfg("pessoa.oab", "OAB", p.oab, "GO 00000") + "</div>" +
     '<div class="ag-duas">' + campoCfg("pessoa.telefone", "Telefone", p.telefone, "(62) 90000-0000") + campoCfg("pessoa.email", "E-mail", p.email) + "</div>" +
-    campoCfg("pessoa.endereco", "Endereço profissional", p.endereco) + "</div>" +
-    '<div class="cfg-sub"><b>Documentos e anexos</b>' +
-    '<p class="cfg-explica">Carteira da OAB e comprovantes anexados à sua ficha ficam para a versão com equipe. Por enquanto, os seus documentos moram no Acervo.</p>' +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Anexar documento ao perfil ainda não existe — guarde no Acervo">' + ic("attach_file", 16) + "Anexar documento</button></div></div>" +
-    '<div class="cfg-sub"><b>Nos PDFs</b>' +
-    ligaCfg("timbre_no_pdf", "Papel timbrado nos PDFs", "nome, OAB, endereço e contato no alto de todo PDF gerado aqui", r.timbre_no_pdf) +
+    campoCfg("pessoa.endereco", "Endereço profissional", p.endereco) + "</div>";
+
+  const timbre = '<div class="cfg-sub">' + ligaCfg("timbre_no_pdf", "Papel timbrado nos PDFs", "nome, OAB, endereço e contato no alto de cada PDF gerado aqui", r.timbre_no_pdf) +
     '<p class="cfg-explica" id="cfg-timbre-falta">' + esc(avisoDoTimbre()) + "</p></div>";
 
   const logo = marcaDaTela("logo");
   const escritorio = '<div class="cfg-foto"><span class="cfg-logo' + (logo.tem ? " cfg-logo-propria" : "") + '">' +
-    '<img src="' + (logo.tem ? "/marca/logo.png?v=" + logo.versao : "/img/paulus-logo.svg") + '" alt=""></span><div>' +
-    '<div class="cfg-botoes"><button data-cfg-marca="logo">' + ic("upload", 16) + (logo.tem ? "Trocar logo" : "Enviar logo") + "</button>" +
-    (logo.tem ? '<button data-cfg-marca-tirar="logo">' + ic("close", 16) + "Remover</button>" : "") + "</div>" +
-    '<span class="cfg-explica">' + (logo.tem ? "no alto do papel timbrado · PNG com fundo transparente fica melhor" :
-      "entra no alto do papel timbrado; o selo de assinatura usa o desenho feito em Assinatura") + "</span></div></div>" +
+    '<img src="' + (logo.tem ? "/marca/logo.png?v=" + logo.versao : "/img/paulus-logo.svg") + '" alt=""></span><div class="cfg-botoes">' +
+    '<button data-cfg-marca="logo">' + ic("upload", 16) + (logo.tem ? "Trocar logo" : "Enviar logo") + "</button>" +
+    (logo.tem ? '<button data-cfg-marca-tirar="logo">' + ic("close", 16) + "Remover</button>" : "") +
+    '<span class="cfg-explica">vai no alto do papel timbrado</span></div></div>' +
     '<div class="cfg-campos">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos") +
     '<div class="ag-duas">' + campoCfg("escritorio.cnpj", "CNPJ", e.cnpj, "00.000.000/0001-00") + campoCfg("escritorio.oab", "OAB da sociedade", e.oab, "GO 0000") + "</div>" +
     campoCfg("escritorio.rodape", "Rodapé dos documentos", e.rodape, "OAB/GO 00000 · Goiânia · GO") + "</div>" +
-    '<p class="cfg-explica">O nome do escritório entra nos recibos da folha; o resto fica guardado para o timbre.</p>' +
-    '<div class="cfg-sub"><b>Entrar</b>' +
-    ligaCfg("", "Digital do notebook", "em breve · hoje o PAULUS abre com a sua conta do Windows", false, true) +
-    ligaCfg("", "Pedir senha ao voltar da pausa", "em breve", false, true) +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Senha própria fica para a versão com equipe — hoje o PAULUS abre com a sua conta do Windows">' + ic("key", 16) + "Redefinir senha</button>" +
-    '<button class="adiante" data-cfg-adiante="Perfis por pessoa nesta máquina ficam para a versão com equipe">' + ic("group", 16) + "Perfis desta máquina</button></div></div>";
+    '<p class="cfg-explica">O nome entra nos recibos da folha. CNPJ, OAB e rodapé ficam guardados; nenhum documento os usa ainda.</p>';
 
-  return '<div class="cfg-grade">' + cartaoCfg("Meus dados", metaCfg("usados nos documentos e no selo"), meus) +
-    cartaoCfg("Escritório", metaCfg("timbre, selo e documentos"), escritorio) + "</div>";
+  return aberturaCfg() +
+    cartaoCfg("Você", metaCfg("nos documentos e no selo"), voce + timbre) +
+    cartaoCfg("Escritório", metaCfg("recibos e timbre"), escritorio);
 }
 
 /* Ensinar por arquivo: o programa le, escreve a proposta e enche o formulario.
@@ -290,13 +302,53 @@ async function lerArquivoParaEnsinar(arquivo) {
     return;
   }
   cfg.lendoArquivo = "";
-  if (!r.ok) { desenharConfig(); avisoCert(await erroDe(r), { tom: "erro" }); return; }
-  const d = await r.json();
-  cfg.ensinando = { id: null, titulo: d.titulo, texto: d.texto, gaveta: (cfg.ensinando || {}).gaveta || "" };
   desenharConfig();
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
   avisoCert(d.aviso, { tom: d.pelo_modelo ? "ok" : "erro" });
-  const campo = $("cfg-ensinar-texto");
-  if (campo) { campo.focus(); campo.setSelectionRange(campo.value.length, campo.value.length); }
+  formLembrete({ id: null, titulo: d.titulo, texto: d.texto, gaveta: "" });
+}
+
+/* Escrever ou alterar um lembrete: no pop-up do sistema. O arquivo lido
+   chega aqui ja com a proposta escrita; guardar e sempre um clique. */
+function formLembrete(item) {
+  const e = item || {};
+  const ctx = cfg.ctx || {};
+  const gavetas = ctx.gavetas && ctx.gavetas.length ? ctx.gavetas : ["Regras de redação", "Modelos", "Clientes", "Correções"];
+  const escolhida = e.gaveta || gavetas[0];
+  const campo = (rotulo, controle, id, longo) => '<div class="dialogo-campo"><label for="' + id + '">' + rotulo + "</label>" +
+    '<div class="dialogo-caixa' + (longo ? " texto-longo" : "") + '">' + controle + "</div></div>";
+  dialogo({
+    titulo: e.id ? "Alterar lembrete" : "Novo lembrete", contexto: "Configurações › Aprendizado",
+    classe: "dialogo-cadastro", larga: true,
+    html: '<div class="dialogo-form">' +
+      campo("Título", '<input type="text" id="cfg-ensinar-titulo" maxlength="80" autocomplete="off" value="' + esc(e.titulo || "") + '" placeholder="Prazo padrão de aviso">', "cfg-ensinar-titulo") +
+      campo("O que eu devo saber", '<textarea id="cfg-ensinar-texto" maxlength="600" rows="6" placeholder="Nos contratos do escritório o aviso de não renovação é sempre de…">' + esc(e.texto || "") + "</textarea>", "cfg-ensinar-texto", true) +
+      campo("Guardar em", '<select id="cfg-ensinar-gaveta">' + gavetas.map((g) => "<option" + (g === escolhida ? " selected" : "") + ">" + esc(g) + "</option>").join("") + "</select>", "cfg-ensinar-gaveta") +
+      '<p class="dialogo-dica">Entra em toda pergunta da conversa. As regras de redação também vão junto quando eu escrevo no editor.</p></div>',
+    rodape: '<span class="dialogo-aviso" id="cfg-ensinar-aviso"></span>',
+    cancelar: "Cancelar", confirmar: e.id ? "Guardar a alteração" : "Guardar",
+    aoConfirmar: () => guardarLembreteCfg(e.id || null),
+  });
+  const alvo = $(e.texto ? "cfg-ensinar-texto" : "cfg-ensinar-titulo");
+  if (alvo) { alvo.focus(); alvo.setSelectionRange(alvo.value.length, alvo.value.length); }
+}
+
+async function guardarLembreteCfg(id) {
+  const aviso = $("cfg-ensinar-aviso");
+  const dados = {
+    id: id,
+    titulo: $("cfg-ensinar-titulo").value,
+    texto: $("cfg-ensinar-texto").value,
+    gaveta: $("cfg-ensinar-gaveta").value,
+  };
+  if (!dados.texto.trim()) { if (aviso) aviso.textContent = "escreva o que eu devo saber"; $("cfg-ensinar-texto").focus(); return; }
+  const r = await fetch("/api/contextos", { method: "POST", headers: CFG_JSON, body: JSON.stringify(dados) });
+  if (!r.ok) { if (aviso) aviso.textContent = await erroDe(r); return; }
+  cfg.ctx = await r.json();
+  if (dialogoAberto) dialogoAberto.fechar({ ok: true });
+  avisoCert(id ? "lembrete alterado" : "guardado — já vale na próxima pergunta", { tom: "ok" });
+  if ($("cfg-tela")) desenharConfig();
 }
 
 /* O que mudou no programa. Sai de docs/NOVIDADES.md, que vem junto com o
@@ -316,7 +368,7 @@ async function mostrarNovidades() {
       b.itens.map((x) => "<li>" + negrito(x) + "</li>").join("") + "</ul></div>").join("");
   await dialogo({
     titulo: "Novidades da versão",
-    contexto: "Configurações › Enviar feedback",
+    contexto: "Configurações › Apoio e versão",
     html: html,
     confirmar: "Fechar",
     larga: true,
@@ -334,7 +386,7 @@ async function recarregarLembretes() {
   try {
     cfg.ctx = await (await fetch("/api/contextos")).json();
   } catch (err) { /* sem lista, a secao fica com a que tinha */ }
-  if (cfg.secao === "aprendizado") desenharConfig();
+  if (cfg.secao === "aprendizado" && $("cfg-tela")) desenharConfig();
 }
 
 /* A foto e a logo desta maquina, do jeito que /api/preferencias devolve. */
@@ -379,12 +431,12 @@ async function enviarMarca(tipo, arquivo) {
    o que abre o timbre. A tela diz isso na hora de decidir. */
 function avisoDoTimbre() {
   const r = cfg.rascunho;
-  if (!r.timbre_no_pdf) return "Desligado: minuta interna com timbre parece peça protocolada. Ligue quando os dados acima estiverem completos.";
+  if (!r.timbre_no_pdf) return "Desligado: minuta interna com timbre parece peça protocolada. Ligue quando os seus dados estiverem completos.";
   const p = r.pessoa;
-  if (!String(p.nome || "").trim()) return "Sem o nome completo, o timbre não sai: OAB e endereço sozinhos no alto da folha não são um timbre.";
+  if (!String(p.nome || "").trim()) return "Sem o nome completo o timbre não sai.";
   const campos = ["nome", "cpf", "oab", "telefone", "email", "endereco"];
   const cheios = campos.filter((c) => String(p[c] || "").trim()).length;
-  return cheios + " de " + campos.length + " campos preenchidos entram no alto de cada PDF. O que estiver em branco é omitido — não sai rótulo vazio.";
+  return cheios + " de " + campos.length + " campos preenchidos vão no alto de cada PDF. O que estiver em branco fica de fora.";
 }
 
 /* ------------------------------------------------ assistente e modelo */
@@ -403,11 +455,11 @@ function cartaoDaVozCfg() {
     else if (!m.instalado) acao = '<button data-cfg-voz-baixar="' + m.nome + '">' + ic("download", 16) + "Baixar</button>";
     else if (!emUso) acao = '<button data-cfg-voz-usar="' + m.nome + '">Usar este</button>';
     return '<div class="' + classe + '"><i></i><span class="duas-linhas"><b>' + esc(m.rotulo) + '</b><small class="cfg-voz-nota">' + esc(m.nota) +
-      (m.instalado ? " · baixado" : " · não baixado") + "</small></span><small>" + gb + "</small>" +
-      (emUso && m.instalado ? '<span class="cfg-pill ok">em uso</span>' : (emUso ? '<span class="cfg-pill acc">escolhido · falta baixar</span>' : "")) + acao + "</div>";
+      (m.instalado ? "" : " · não baixado") + "</small></span><small>" + gb + "</small>" +
+      (emUso && m.instalado ? '<span class="cfg-pill">em uso</span>' : (emUso ? '<span class="cfg-pill">escolhido · falta baixar</span>' : "")) + acao + "</div>";
   }).join("");
   return '<div class="cfg-voz"><div class="cfg-modelos">' + lista + "</div>" +
-    '<p class="cfg-explica">Transcreve as gravações nesta máquina, em CPU, com ' + (v.nucleos || 0) + " núcleos — o áudio não sai do computador. " +
+    '<p class="cfg-explica">Em CPU, com ' + plural(v.nucleos || 0, "núcleo") + "; o áudio não sai do computador. " +
     (v.erro ? esc(v.erro) + " " : "") + "Os modelos ficam em " + esc(v.pasta || "") + ".</p></div>";
 }
 
@@ -418,45 +470,48 @@ function secaoAssistente() {
   if (r.modelo && modelos.indexOf(r.modelo) < 0) modelos.unshift(r.modelo);
   const ligado = Boolean(s.ollama);
   const lista = modelos.length
-    ? modelos.map((m) => {
+    ? '<div class="cfg-modelos">' + modelos.map((m) => {
       const emUso = m === r.modelo;
       const classe = "cfg-modelo" + (emUso ? " on" : "");
       const tamanho = emUso && s.tamanho_gb ? String(s.tamanho_gb).replace(".", ",") + " GB" : "";
-      return '<div class="' + classe + '" data-cfg-modelo="' + esc(m) + '"><i></i><span class="duas-linhas"><b>' + esc(m) + "</b><small>" +
-        (emUso ? "responde as perguntas · instalado no Ollama" : "instalado no Ollama") + "</small></span>" +
-        (tamanho ? "<small>" + esc(tamanho) + "</small>" : "") + (emUso ? '<span class="cfg-pill ok">em uso</span>' : "") + "</div>";
-    }).join("")
+      return '<div class="' + classe + '" data-cfg-modelo="' + esc(m) + '"><i></i><span class="duas-linhas"><b>' + esc(m) + "</b></span>" +
+        (tamanho ? "<small>" + esc(tamanho) + "</small>" : "") + (emUso ? '<span class="cfg-pill">em uso</span>' : "") + "</div>";
+    }).join("") + "</div>"
     : '<p class="cfg-texto">Nenhum modelo encontrado no Ollama. Instale um com <code>ollama pull llama3.2:3b</code> e abra esta tela de novo.</p>';
 
-  const assistente = '<div class="cfg-campos"><div class="ag-campo"><label>Modelo em uso</label><select data-cfg-select="modelo">' +
-    (modelos.length ? modelos.map((m) => '<option value="' + esc(m) + '"' + (m === r.modelo ? " selected" : "") + ">" + esc(m) + "</option>").join("")
-      : '<option value="">nenhum modelo encontrado</option>') + "</select></div></div>" +
-    '<div class="cfg-modelos">' + lista + "</div>" +
-    '<p class="cfg-explica">Trocar o modelo vale para a próxima pergunta. Modelo maior responde melhor e demora mais. Baixar outro por aqui fica para depois: por enquanto é <code>ollama pull nome</code> no terminal.</p>' +
-    '<div class="cfg-sub"><b>Modelo de voz</b>' + cartaoDaVozCfg() + "</div>" +
-    '<div class="cfg-sub"><b>Ritmo</b>' +
-    ligaCfg("devagar", "Ir devagar quando eu usar o PC", "espera a máquina desafogar antes de começar cada documento; a leitura demora mais e o computador continua seu", r.devagar) + "</div>" +
-    '<div class="cfg-sub"><b>Onde ficam os documentos</b><div class="cfg-campos"><div class="ag-campo"><label>Pasta do acervo</label><input type="text" readonly value="' + esc(cfg.prefs.pasta_acervo || "") + '"></div></div>' +
-    '<p class="cfg-explica">Trechos por pergunta, temperatura e idioma seguem o padrão do programa; ajustar por aqui fica para depois.</p></div>';
+  const modelo = lista +
+    '<p class="cfg-explica">Vale a partir da próxima pergunta. Modelo maior responde melhor e demora mais. Para instalar outro: <code>ollama pull nome</code>, no terminal.</p>' +
+    '<div class="cfg-sub">' + ligaCfg("devagar", "Ir devagar quando eu usar o PC", "espera a máquina desafogar antes de cada documento; a leitura demora mais e o computador continua seu", r.devagar) + "</div>";
 
   const limites = '<div class="cfg-campos">' + (cfg.prefs.autonomia_opcoes || []).map((a) => {
     const ligada = a.travada ? false : Boolean(r.autonomia[a.chave]);
     return ligaCfg(a.travada ? "" : "autonomia." + a.chave, a.titulo, a.explica, ligada, a.travada);
   }).join("") + "</div>" +
-    '<p class="cfg-explica">Desligado significa que a ação para na fila de Aprovações e espera o seu sim. Ligado significa que ela acontece direto.</p>' +
-    '<div class="cfg-sub"><b>Cache e índice</b><div class="cfg-chaves">' +
+    '<p class="cfg-explica">Desligado, a ação espera o seu sim na fila de Aprovações. Ligado, ela acontece direto.</p>';
+
+  const indice = '<div class="cfg-chaves">' +
+    chaveCfg("Pasta do acervo", cfg.prefs.pasta_acervo || "—") +
     chaveCfg("Documentos indexados", String(s.contratos || 0)) +
     chaveCfg("Trechos no índice", String(s.trechos || 0)) +
-    chaveCfg("Cache de extração", "local · SHA-1") +
-    chaveCfg("Assistente", ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ligado ? "" : "acc") + "</div>" +
+    chaveCfg("Cache de extração", "local · SHA-1") + "</div>" +
     '<div class="cfg-botoes"><button data-cfg-reindexar="1">' + ic("sync", 16) + "Reindexar tudo</button>" +
-    '<button data-cfg-cache="1">' + ic("delete", 16) + "Limpar cache</button></div></div>" +
-    '<div class="cfg-sub"><b>O que já foi lido</b>' + blocoDoQueJaFoiLido() + "</div>" +
-    '<div class="cfg-sub"><b>Códigos de lei</b><div id="cfg-leis"><p class="nota">abrindo os códigos…</p></div></div>';
+    '<button data-cfg-cache="1">' + ic("delete", 16) + "Limpar cache</button></div>";
 
-  return '<div class="cfg-grade">' +
-    cartaoCfg("Assistente e modelo", pontoCfg(ligado ? "Ollama conectado · 127.0.0.1:11434" : "Ollama desligado", ligado ? "ok" : "acc"), assistente) +
-    cartaoCfg("Limites da IA", metaCfg("o que o assistente pode fazer sozinho"), limites) + "</div>";
+  const voz = ((cfg.voz || {}).modelos || []).find((m) => m.nome === (cfg.voz || {}).modelo);
+  const ficha = fichaCfg([
+    ["Modelo", r.modelo || "nenhum"],
+    ["Ollama", ligado ? "conectado" : "desligado", ligado ? "sv-valor-concluido" : "cfg-mudo"],
+    ["Índice", plural(s.contratos || 0, "documento") + " · " + plural(s.trechos || 0, "trecho")],
+    ["Voz", voz ? voz.rotulo : "—"],
+  ]);
+
+  return aberturaCfg() + ficha +
+    cartaoCfg("Modelo de linguagem", pontoCfg(ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ligado ? "ok" : ""), modelo) +
+    cartaoCfg("Limites da IA", metaCfg("o que o assistente faz sem pedir"), limites) +
+    cartaoCfg("Modelo de voz", metaCfg("transcreve as gravações"), cartaoDaVozCfg()) +
+    cartaoCfg("Acervo e índice", metaCfg("o que a busca enxerga"), indice) +
+    cartaoCfg("O que já foi lido", metaCfg("entendido uma vez, consultado sempre"), blocoDoQueJaFoiLido()) +
+    cartaoCfg("Códigos de lei", metaCfg("para citar artigo com o texto certo"), '<div id="cfg-leis"><p class="nota">abrindo os códigos…</p></div>');
 }
 
 /* Os codigos de lei: o que esta no disco e como trazer mais. */
@@ -465,15 +520,16 @@ async function blocoLeis() {
   if (!alvo) return;
   let d;
   try { d = await (await fetch("/api/leis")).json(); } catch (err) { alvo.innerHTML = '<p class="cfg-explica">não consegui abrir os códigos.</p>'; return; }
-  alvo.innerHTML = '<p class="cfg-explica">' + esc(d.porque) + "</p>" +
+  if (!$("cfg-leis")) return;
+  alvo.innerHTML = '<div class="cfg-leis-corpo"><p class="cfg-explica">' + esc(d.porque) + "</p>" +
     '<div class="cfg-linhas">' + (d.codigos || []).map((c) =>
       '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(c.lei) +
       (c.instalado ? " · " + plural(c.artigos, "artigo") + " · " + esc(quandoCurto(c.importado_em)) : " · não instalado") + "</small></span>" +
-      (c.instalado ? '<span class="cfg-pill ok">instalado</span><button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>' : '<span class="cfg-pill mute">falta</span>') +
+      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>' : '<span class="cfg-pill mute">falta</span>') +
       "</div>").join("") + "</div>" +
     '<p class="cfg-explica">' + esc(d.como_baixar) + "</p>" +
     '<div class="cfg-botoes"><button data-cfg-lei-pasta="1">' + ic("folder_open", 16) + "Importar de uma pasta</button>" +
-    '<button data-cfg-lei-arquivo="1">' + ic("upload", 16) + 'Escolher um arquivo</button></div><div id="lei-saida"></div>';
+    '<button data-cfg-lei-arquivo="1">' + ic("upload", 16) + 'Escolher um arquivo</button></div><div id="lei-saida"></div></div>';
 
   alvo.querySelectorAll("[data-cfg-tirar-lei]").forEach((b) => {
     b.onclick = async () => {
@@ -518,6 +574,12 @@ function mostrarResultadoDaImportacao(d) {
 /* --------------------------------------------------------- desempenho */
 
 function secaoDesempenho() {
+  return aberturaCfg() + cartaoDesempenho();
+}
+
+/* O cartao que a medicao troca a cada dois segundos (#cfg-vivo). Disco e
+   rede nao tem leitura: nao aparecem. */
+function cartaoDesempenho() {
   const m = cfg.recursos || {};
   const cpu = m.processador ? m.processador.percentual : null;
   const mem = m.memoria || {};
@@ -528,32 +590,36 @@ function secaoDesempenho() {
     return '<button class="' + classe + '" data-cfg-medida="' + id + '"' + (presa ? " disabled" : "") + ">" + faiscaCfg(chave ? serie(chave) : []) +
       '<span class="duas-linhas"><b>' + esc(rotulo) + "</b><small>" + esc(valor) + "</small></span></button>";
   };
-  const videoTexto = video.disponivel
-    ? (video.percentual === null || video.percentual === undefined ? "medindo…" : video.percentual + "%")
-    : "sem leitura nesta máquina";
+  const pct = (v) => String(v).replace(".", ",") + "%";
+  const videoTexto = video.percentual === null || video.percentual === undefined ? "medindo…" : pct(video.percentual);
+  const gb = (v) => String(v || 0).replace(".", ",");
   const grande = cfg.medida === "mem"
-    ? { valor: (mem.percentual !== undefined ? mem.percentual + "%" : "—"), rotulo: "Memória · " + String(mem.usado_gb || 0).replace(".", ",") + " de " + String(mem.total_gb || 0).replace(".", ",") + " GB", chave: "mem" }
-    : { valor: (cpu !== null && cpu !== undefined ? Math.round(cpu) + "%" : "—"), rotulo: "Processador · " + (navigator.hardwareConcurrency ? plural(navigator.hardwareConcurrency, "núcleo") : "medido pelo psutil"), chave: "cpu" };
+    ? { valor: (mem.percentual !== undefined ? mem.percentual + "%" : "—"), rotulo: "Memória · " + gb(mem.usado_gb) + " de " + gb(mem.total_gb) + " GB", chave: "mem" }
+    : cfg.medida === "video" && video.disponivel
+      ? { valor: videoTexto, rotulo: "Vídeo", chave: "video" }
+      : { valor: (cpu !== null && cpu !== undefined ? Math.round(cpu) + "%" : "—"), rotulo: "Processador · " + (navigator.hardwareConcurrency ? plural(navigator.hardwareConcurrency, "núcleo") : "medido pelo psutil"), chave: "cpu" };
   const pontos = serie(grande.chave);
   const ultimo = pontos.length ? pontos[pontos.length - 1] : null;
+  const st = cfg.status || {};
+  const legenda = { mem: "Memória em uso", video: "Vídeo em uso", cpu: "PAULUS + Ollama + sistema" }[grande.chave];
 
   const corpo = '<div class="cfg-desempenho"><div class="cfg-medidas">' +
-    medida("cpu", "Processador", cpu !== null && cpu !== undefined ? cpu + "%" : "medindo…", "cpu") +
-    medida("mem", "Memória", String(mem.usado_gb || 0).replace(".", ",") + " / " + String(mem.total_gb || 0).replace(".", ",") + " GB", "mem") +
-    medida("video", "Vídeo", videoTexto, video.disponivel ? "video" : "", !video.disponivel) +
-    medida("disco", "Disco", "sem leitura ainda", "", true) +
-    medida("rede", "Rede", "sem saída · leitura em breve", "", true) + "</div>" +
+    medida("cpu", "Processador", cpu !== null && cpu !== undefined ? pct(cpu) : "medindo…", "cpu") +
+    medida("mem", "Memória", gb(mem.usado_gb) + " / " + gb(mem.total_gb) + " GB", "mem") +
+    (video.disponivel ? medida("video", "Vídeo", videoTexto, "video") : "") + "</div>" +
     '<div class="cfg-grafico"><div class="cfg-grafico-topo"><b>' + esc(grande.valor) + "</b><small>" + esc(grande.rotulo) + "</small></div>" +
     '<div class="cfg-area"><div class="cfg-eixo"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0</span></div>' +
-    '<div class="cfg-legenda"><span><i></i>' + (grande.chave === "mem" ? "Memória em uso" : "PAULUS + Ollama + sistema") + "</span></div>" +
+    '<div class="cfg-legenda"><span><i></i>' + legenda + "</span></div>" +
     graficoCfg(pontos) +
     (ultimo !== null ? '<div class="cfg-agora" style="top:' + (100 - Math.min(100, Math.max(0, ultimo))) + '%"><span>' + Math.round(ultimo) + "% · agora</span><i></i></div>" : "") +
     "</div>" +
-    '<div class="cfg-tempos"><span>−60 s</span><span>−45 s</span><span>−30 s</span><span>−15 s</span><span>agora</span></div>' +
-    '<div class="cfg-resumo"><div><small>Modelo em uso</small><b>' + esc((cfg.status || {}).modelo || "—") + ((cfg.status || {}).tamanho_gb ? " · " + String(cfg.status.tamanho_gb).replace(".", ",") + " GB" : "") + "</b></div>" +
-    "<div><small>Índice do Acervo</small><b>" + esc(plural((cfg.status || {}).trechos || 0, "trecho")) + " · " + esc(plural((cfg.status || {}).contratos || 0, "documento")) + "</b></div>" +
-    "<div><small>Como está</small><b>" + esc(m.frase || "medindo…") + "</b></div></div></div></div>";
-  return '<div class="cfg-grade larga">' + cartaoCfg("Desempenho", pontoCfg("ao vivo · últimos 60 s", "ok"), corpo, "cfg-cartao-desempenho") + "</div>";
+    '<div class="cfg-tempos"><span>−60 s</span><span>−45 s</span><span>−30 s</span><span>−15 s</span><span>agora</span></div></div></div>';
+  const resumo = '<div class="cfg-chaves">' +
+    chaveCfg("Modelo em uso", (st.modelo || "—") + (st.tamanho_gb ? " · " + gb(st.tamanho_gb) + " GB" : "")) +
+    chaveCfg("Índice do Acervo", plural(st.trechos || 0, "trecho") + " · " + plural(st.contratos || 0, "documento")) +
+    chaveCfg("Como está", m.frase || "medindo…") + "</div>";
+  return '<div class="cfg-vivo" id="cfg-vivo">' + cartaoCfg("Agora", pontoCfg("ao vivo · últimos 60 s", ""), corpo, "cfg-cartao-desempenho") +
+    cartaoCfg("Nesta máquina", "", resumo) + "</div>";
 }
 
 function faiscaCfg(pontos) {
@@ -582,9 +648,7 @@ function comecarMedicao() {
       if (cfg.historico.length > 30) cfg.historico.shift();
     } catch (err) { return; }
     if (!$("cfg-tela") || cfg.secao !== "desempenho") { pararMedicao(); return; }
-    const alvo = document.querySelector(".cfg-grade.larga");
-    if (alvo) alvo.outerHTML = secaoDesempenho();
-    ligarMedidas();
+    redesenharMedidas();
   };
   ler();
   cfg.relogio = setInterval(ler, 2000);
@@ -595,9 +659,15 @@ function pararMedicao() {
   cfg.relogio = null;
 }
 
+function redesenharMedidas() {
+  const alvo = $("cfg-vivo");
+  if (alvo) alvo.outerHTML = cartaoDesempenho();
+  ligarMedidas();
+}
+
 function ligarMedidas() {
   document.querySelectorAll("[data-cfg-medida]").forEach((b) => {
-    b.onclick = () => { cfg.medida = b.dataset.cfgMedida; const alvo = document.querySelector(".cfg-grade.larga"); if (alvo) alvo.outerHTML = secaoDesempenho(); ligarMedidas(); };
+    b.onclick = () => { cfg.medida = b.dataset.cfgMedida; redesenharMedidas(); };
   });
 }
 
@@ -609,55 +679,33 @@ function secaoConexoes() {
   const contas = ((cfg.contas || {}).contas) || [];
   const atencao = contas.filter((c) => c.ultimo_erro || !c.tem_senha).length;
   const cert = cfg.cert || {};
-  const servico = (icone, nome, sub, estado, acao) =>
-    '<div class="cfg-servico"><span class="cfg-servico-ic">' + ic(icone, 20) + '</span><span class="duas-linhas"><b>' + nome + "</b><small>" + esc(sub) + "</small></span>" + estado + acao + "</div>";
   const ponto = (texto, tom) => { const classe = "fin-meta-ponto" + (tom ? " " + tom : ""); return '<span class="' + classe + '"><i></i>' + esc(texto) + "</span>"; };
-
-  const nomeEscritorio = ((cfg.rascunho || {}).escritorio || {}).nome || "";
-  const rede = '<p class="cfg-texto">Vincular outras máquinas por código, com papéis e alçadas, é a próxima etapa. Hoje o PAULUS roda para uma pessoa, nesta máquina.</p>' +
-    '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>Esta máquina</b><small>' +
-    esc((((cfg.rascunho || {}).pessoa || {}).nome || "você") + " · responsável") + '</small></span><span class="cfg-pill">esta máquina</span></div>' +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Vínculo por código ainda não existe — quando existir, quem instala digita o código na primeira abertura">' + ic("key", 16) + "Gerar código de vínculo</button>" +
-    '<button data-cfg-vinculos="1">' + ic("lan", 16) + "Escritório e vínculos</button></div>";
-
-  const preparar = '<p class="cfg-explica">' + esc(cx.aviso_internet || "Esta é a única tela do PAULUS que vai para a internet.") + "</p>" +
-    '<div class="cfg-campos"><div class="ag-duas"><div class="ag-campo"><label>Contato</label><select id="cx-contato"><option value="">escolher do cadastro…</option></select></div>' +
-    '<div class="ag-campo"><label>Telefone</label><input type="text" id="cx-telefone" placeholder="(62) 99999-8888"></div></div>' +
-    '<div class="ag-campo"><label>Mensagem</label><textarea id="cx-texto" placeholder="escreva a mensagem…"></textarea></div></div>' +
-    '<div class="cfg-botoes"><button id="cx-anexar">' + ic("attach_file", 16) + "Anexar da biblioteca</button>" +
-    '<button class="primario" id="cx-preparar">' + ic("chat", 16) + "Preparar no WhatsApp</button></div>" +
-    '<div id="cx-anexo"></div><div id="cx-saida"></div>' +
-    '<p class="cfg-explica">Eu abro a conversa com o texto já escrito. Apertar enviar é com você — ' + esc(cx.porque_nao || "") + "</p>";
+  const servico = (icone, nome, sub, estado, acao) =>
+    '<div class="cfg-servico"><span class="cfg-servico-ic">' + ic(icone, 18) + '</span><span class="duas-linhas"><b>' + nome + "</b><small>" + esc(sub) + "</small></span>" +
+    estado + '<span class="cfg-botoes">' + acao + "</span></div>";
 
   const lista =
-    servico("chat", "WhatsApp Web", "navegador embutido · sessão salva nesta máquina · envio só com aprovação",
-      ponto(s.existe ? "conectado" : "não conectado", s.existe ? "ok" : ""), '<button data-cfg-cx-abrir="1">Abrir</button>') +
-    servico("mail", "E-mail", contas.length ? plural(contas.length, "conta") + (atencao ? " · " + atencao + " precisa de atenção" : " · em dia") : "nenhuma conta entrou ainda",
-      contas.length ? (atencao ? '<span class="cfg-pill acc">atenção</span>' : ponto("conectado", "ok")) : '<span class="cfg-pill mute">desligado</span>',
+    servico("chat", "WhatsApp Web", "a sessão fica nesta máquina; enviar é com você",
+      ponto(s.existe ? "conectado" : "não conectado", s.existe ? "ok" : ""),
+      '<button data-cfg-cx-preparar="1">Preparar mensagem</button><button data-cfg-cx-abrir="1">Abrir</button>') +
+    servico("mail", "E-mail", contas.length ? plural(contas.length, "conta") + (atencao ? " · " + atencao + " precisa de atenção" : " · em dia") : "nenhuma conta ainda",
+      contas.length ? (atencao ? ponto("atenção", "acc") : ponto("conectado", "ok")) : ponto("sem conta", ""),
       '<button data-cfg-cx-contas="1">Contas</button>') +
-    servico("videocam", "Google Meet", "criar salas a partir da Agenda · em breve", '<span class="cfg-pill mute">em breve</span>', '<button class="adiante" disabled>Conectar</button>') +
-    servico("groups", "Microsoft Teams", "não conectado · em breve", '<span class="cfg-pill mute">em breve</span>', '<button class="adiante" disabled>Conectar</button>') +
-    servico("video_call", "Zoom", "não conectado · em breve", '<span class="cfg-pill mute">em breve</span>', '<button class="adiante" disabled>Conectar</button>') +
-    servico("gavel", "PJe e tribunais", cert.instalado ? "peticionamento em breve · o certificado já está aqui" : "peticionamento em breve · sem certificado instalado",
-      cert.instalado ? ponto("certificado instalado", "ok") : '<span class="cfg-pill mute">sem certificado</span>', '<button data-cfg-cx-cert="1">Ver</button>') +
+    servico("draw", "Certificado digital", cert.instalado ? "usado para assinar PDFs nesta máquina" : "nenhum certificado instalado",
+      cert.instalado ? ponto("instalado", "ok") : ponto("sem certificado", ""), '<button data-cfg-cx-cert="1">Ver</button>') +
     (s.existe
-      ? '<p class="cfg-explica">Sessão do WhatsApp: ' + esc(s.pasta || "") + (s.tamanho_kb ? " · " + s.tamanho_kb + " KB" : "") +
-        ' · <button class="em-ligacao acc" data-cfg-cx-apagar="1">apagar sessão</button></p>'
+      ? '<p class="cfg-explica">Sessão do WhatsApp em ' + esc(s.pasta || "") + (s.tamanho_kb ? " · " + s.tamanho_kb + " KB" : "") +
+        ' · <button class="em-ligacao" data-cfg-cx-apagar="1">apagar sessão</button></p>'
       : "");
 
   const saidas = saidasDaMaquina();
-  const registro = (saidas.length
+  const registro = saidas.length
     ? '<div class="cfg-linhas">' + saidas.map((x) => '<div class="cfg-saida"><span class="fin-data">' + esc(x.quando) + '</span><span class="duas-linhas"><b>' + esc(x.titulo) + "</b><small>" + esc(x.sub) + "</small></span></div>").join("") + "</div>"
-    : '<p class="cfg-texto">Nada saiu desta máquina nas últimas 24 h. Só sai o que você aprovar na fila — e o registro aparece aqui.</p>') +
-    '<div class="cfg-sub">' +
-    ligaCfg("", "Bloquear qualquer saída sem aprovação", "regra do sistema · desligar é ligar uma permissão em Limites da IA", true, true) +
-    ligaCfg("", "Avisar quando um serviço pedir nova sessão", "em breve", false, true) + "</div>";
+    : '<p class="cfg-texto">Nada saiu desta máquina nas últimas 24 horas.</p>';
 
-  return '<div class="cfg-grade"><div class="cfg-secao">' +
-    cartaoCfg("Escritório na rede local", pontoCfg((nomeEscritorio ? nomeEscritorio + " · " : "") + "1 máquina · em breve", "") , rede) +
-    cartaoCfg("Preparar uma mensagem", metaCfg("WhatsApp Web · eu escrevo, você aperta enviar"), preparar) + "</div>" +
-    '<div class="cfg-secao">' + cartaoCfg("Conexões", metaCfg("serviços do escritório · sessão fica nesta máquina"), lista) +
-    cartaoCfg("O que sai desta máquina", metaCfg("registro das últimas 24 h"), registro) + "</div></div>";
+  return aberturaCfg() +
+    cartaoCfg("Serviços", "", lista) +
+    cartaoCfg("O que saiu desta máquina", metaCfg("últimas 24 horas"), registro);
 }
 
 /* O registro sai da fila de Aprovacoes e das conversas preparadas no
@@ -684,8 +732,7 @@ function quandoCurtoCfg(t) {
   return t.toDateString() === hoje.toDateString() ? hora : "ontem " + hora;
 }
 
-async function ligarConexoesCfg() {
-  let anexo = "";
+function ligarConexoesCfg() {
   const abrir = document.querySelector("[data-cfg-cx-abrir]");
   if (abrir) abrir.onclick = async () => {
     const r = await (await fetch("/api/conexoes/abrir", { method: "POST", headers: CFG_JSON, body: "{}" })).json();
@@ -693,6 +740,8 @@ async function ligarConexoesCfg() {
     avisoCert(r.motivo);
     window.open(r.endereco, "_blank");
   };
+  const preparar = document.querySelector("[data-cfg-cx-preparar]");
+  if (preparar) preparar.onclick = () => formMensagemWhatsapp();
   const apagar = document.querySelector("[data-cfg-cx-apagar]");
   if (apagar) apagar.onclick = async () => {
     if (!(await confirmar({ titulo: "Apagar a sessão do WhatsApp?", contexto: "Configurações › Conexões", texto: "A sessão sai desta máquina. Você vai precisar ler o código de novo para conectar.", confirmar: "Apagar", perigo: true }))) return;
@@ -704,11 +753,53 @@ async function ligarConexoesCfg() {
   if (contas) contas.onclick = () => { marcarDestino("caixa"); mostrarEmail("contas"); };
   const cert = document.querySelector("[data-cfg-cx-cert]");
   if (cert) cert.onclick = () => { marcarDestino("assinar"); mostrarCertificado(); };
+}
 
+/* Preparar uma mensagem no WhatsApp Web, no pop-up: eu escrevo e abro a
+   conversa; apertar enviar e com a pessoa. */
+async function formMensagemWhatsapp() {
+  let anexo = "";
+  const campo = (rotulo, controle, id, longo) => '<div class="dialogo-campo"><label for="' + id + '">' + rotulo + "</label>" +
+    '<div class="dialogo-caixa' + (longo ? " texto-longo" : "") + '">' + controle + "</div></div>";
+  dialogo({
+    titulo: "Preparar uma mensagem", contexto: "Configurações › Conexões › WhatsApp Web",
+    classe: "dialogo-cadastro", larga: true,
+    html: '<div class="dialogo-form"><div class="dialogo-duas">' +
+      campo("Contato", '<select id="cx-contato"><option value="">escolher do cadastro…</option></select>', "cx-contato") +
+      campo("Telefone", '<input type="text" id="cx-telefone" autocomplete="off" placeholder="(62) 99999-8888">', "cx-telefone") + "</div>" +
+      campo("Mensagem", '<textarea id="cx-texto" rows="5" placeholder="escreva a mensagem…"></textarea>', "cx-texto", true) +
+      '<div class="cfg-botoes"><button type="button" id="cx-anexar">' + ic("attach_file", 16) + "Anexar da biblioteca</button></div>" +
+      '<div id="cx-anexo"></div>' +
+      '<p class="dialogo-dica">Eu abro a conversa com o texto já escrito; apertar enviar é com você.</p></div>',
+    rodape: '<span class="dialogo-aviso" id="cx-aviso"></span>',
+    cancelar: "Cancelar", confirmar: "Preparar no WhatsApp",
+    aoConfirmar: async () => {
+      const r = await fetch("/api/conexoes/mensagem", {
+        method: "POST", headers: CFG_JSON,
+        body: JSON.stringify({ telefone: $("cx-telefone").value, nome: ($("cx-contato").selectedOptions[0] || {}).textContent || "", texto: $("cx-texto").value, anexo: anexo }),
+      });
+      if (!r.ok) { $("cx-aviso").textContent = await erroDe(r); return; }
+      const d = await r.json();
+      if (dialogoAberto) dialogoAberto.fechar({ ok: true });
+      conversaPronta(d);
+    },
+  });
+  $("cx-anexar").onclick = async () => {
+    const d = await (await fetch("/api/email/anexaveis")).json();
+    const lugar = $("cx-anexo");
+    if (!lugar) return;
+    lugar.innerHTML = '<div class="cfg-linhas">' +
+      (d.arquivos.length
+        ? d.arquivos.slice(0, 20).map((a) => '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(a.nome) + '</b></span><button type="button" data-cx-anexo="' + esc(a.path) + '">Escolher</button></div>').join("")
+        : '<p class="cfg-explica">A biblioteca está vazia.</p>') + "</div>";
+    lugar.querySelectorAll("[data-cx-anexo]").forEach((b) => {
+      b.onclick = () => { anexo = b.dataset.cxAnexo; lugar.innerHTML = '<p class="cfg-explica">anexo: ' + esc(anexo.split(/[\\/]/).pop()) + "</p>"; };
+    });
+  };
   const contato = $("cx-contato");
-  if (!contato) return;
   try {
     const c = await (await fetch("/api/conexoes/contatos")).json();
+    if (!document.contains(contato)) return;
     c.contatos.forEach((x) => {
       const op = document.createElement("option");
       op.value = x.telefone;
@@ -717,33 +808,23 @@ async function ligarConexoesCfg() {
     });
     contato.onchange = () => { $("cx-telefone").value = contato.value; };
   } catch (err) { /* sem cadastro com telefone, o campo fica manual */ }
+}
 
-  $("cx-anexar").onclick = async () => {
-    const d = await (await fetch("/api/email/anexaveis")).json();
-    $("cx-anexo").innerHTML = '<div class="cfg-linhas">' +
-      (d.arquivos.length
-        ? d.arquivos.slice(0, 20).map((a) => '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(a.nome) + '</b></span><button data-cx-anexo="' + esc(a.path) + '">Escolher</button></div>').join("")
-        : '<p class="cfg-explica">A biblioteca está vazia.</p>') + "</div>";
-    document.querySelectorAll("[data-cx-anexo]").forEach((b) => {
-      b.onclick = () => { anexo = b.dataset.cxAnexo; $("cx-anexo").innerHTML = '<p class="cfg-explica">anexo: ' + esc(anexo.split(/[\\/]/).pop()) + "</p>"; };
-    });
-  };
-  $("cx-preparar").onclick = async () => {
-    const r = await fetch("/api/conexoes/mensagem", {
-      method: "POST", headers: CFG_JSON,
-      body: JSON.stringify({ telefone: $("cx-telefone").value, nome: ($("cx-contato").selectedOptions[0] || {}).textContent || "", texto: $("cx-texto").value, anexo: anexo }),
-    });
-    if (!r.ok) { avisoCert(await erroDe(r)); return; }
-    const d = await r.json();
-    $("cx-saida").innerHTML = '<div class="cfg-pronto"><b>Conversa pronta</b><p class="cfg-explica">' + esc(d.aviso) + "</p>" +
-      '<div class="cfg-endereco">' + esc(d.endereco) + "</div>" +
-      (d.anexo ? '<p class="cfg-explica">anexo: ' + esc(d.anexo) + " — em " + esc(d.pasta_do_anexo) + "</p>" : "") +
-      '<div class="cfg-botoes"><button class="primario" id="cx-ir">' + ic("chat", 16) + "Abrir a conversa</button></div></div>";
-    $("cx-ir").onclick = async () => {
+/* A conversa preparada: o endereco, onde esta o anexo (ele vai a mao) e o
+   botao que abre. */
+function conversaPronta(d) {
+  dialogo({
+    titulo: "Conversa pronta", contexto: "Configurações › Conexões › WhatsApp Web",
+    larga: true,
+    html: '<p class="cfg-texto">' + esc(d.aviso) + "</p>" + '<div class="cfg-endereco">' + esc(d.endereco) + "</div>" +
+      (d.anexo ? '<p class="cfg-explica">Anexo: ' + esc(d.anexo) + " — em " + esc(d.pasta_do_anexo) + "</p>" : ""),
+    cancelar: "Fechar", confirmar: "Abrir a conversa",
+    aoConfirmar: async () => {
+      if (dialogoAberto) dialogoAberto.fechar({ ok: true });
       const a = await (await fetch("/api/conexoes/abrir", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ endereco: d.endereco }) })).json();
       if (!a.abriu) window.open(d.endereco, "_blank");
-    };
-  };
+    },
+  });
 }
 
 /* ------------------------------------------------ escritorio e vinculos */
@@ -751,21 +832,11 @@ async function ligarConexoesCfg() {
 function secaoVinculos() {
   const p = (cfg.rascunho || {}).pessoa || {};
   const e = (cfg.rascunho || {}).escritorio || {};
-  const pedidos = '<p class="cfg-texto">Quando outra máquina instalar o PAULUS e pedir para entrar no escritório, o pedido aparece aqui com o código que a pessoa vê na tela dela. Você confere o código, define cargo e alçada e adiciona — ou recusa.</p>' +
-    '<div class="cfg-codigo"><span class="duas-linhas"><b>Nenhum pedido aguardando</b><small>vínculo por código ainda não existe · primeira abertura em outra máquina vai pedir este passo</small></span>' +
-    '<span class="cfg-casas"><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span></span></div>' +
-    '<div class="cfg-lista-ok">' +
-    "<div>" + ic("check_circle", 18) + "<span>Cargo e alçada de aprovação por pessoa</span></div>" +
-    "<div>" + ic("check_circle", 18) + "<span>O que cada uma vê: serviços, pastas do Acervo, Financeiro, Cadastros</span></div>" +
-    "<div>" + ic("check_circle", 18) + "<span>Revisão das permissões em 30 ou 90 dias, com lembrete em Aprovações</span></div></div>" +
-    '<p class="cfg-explica">Tudo isso está desenhado e ainda não construído. As pessoas do escritório já podem ser cadastradas em Cadastros › Equipe.</p>';
-  const vinculados = '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>' + esc(p.nome || "Você") + ' <small>· responsável</small></b><small>esta máquina · online agora</small></span><span class="cfg-pill ok">online</span></div>' +
-    '<div class="cfg-codigo"><span class="duas-linhas"><b>Código de vínculo</b><small>quem instala digita este código na primeira abertura · em breve</small></span>' +
-    '<span class="cfg-casas"><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span></span></div>' +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="Gerar código de vínculo ainda não existe">' + ic("key", 16) + "Gerar código de vínculo</button>" +
-    '<button data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button></div>";
-  return cartaoDoPedidoDestaMaquina() + '<div class="cfg-grade">' + cartaoCfg("Pedidos de vinculação", metaCfg("0 aguardando · em breve"), pedidos) +
-    cartaoCfg("Máquinas e pessoas vinculadas", metaCfg((e.nome ? e.nome + " · " : "") + "1 máquina"), vinculados) + "</div>";
+  const maquina = '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>' + esc(p.nome || "Você") + "</b>" +
+    "<small>responsável · esta máquina" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
+    '<p class="cfg-explica">As pessoas do escritório já podem ser cadastradas em Cadastros › Equipe, para a folha e para os serviços.</p>' +
+    '<div class="cfg-botoes"><button data-cfg-equipe="1">' + ic("groups", 16) + "Abrir Cadastros › Equipe</button></div>";
+  return aberturaCfg() + cartaoDoPedidoDestaMaquina() + cartaoCfg("Nesta máquina", metaCfg("1 máquina"), maquina);
 }
 
 /* O que a camada de inteligencia ja entendeu do acervo, e quanto isso esta
@@ -787,88 +858,72 @@ function blocoDoQueJaFoiLido() {
     evidence: "Provas e anexos", claims: "Alegações", relationships: "Ligações",
   };
   const linhas = Object.keys(ROTULO).filter((k) => secoes[k]).map((k) => {
-    const estados = secoes[k] || {};
-    const prontas = estados.ok || 0;
-    const tom = prontas ? "" : "mute";
-    return chaveCfg(ROTULO[k], prontas + " de " + d.no_acervo, tom);
+    const prontas = (secoes[k] || {}).ok || 0;
+    return chaveCfg(ROTULO[k], prontas + " de " + d.no_acervo, prontas ? "" : "mute");
   }).join("");
 
-  return '<div class="cfg-chaves">' +
-    chaveCfg("Documentos entendidos", d.documentos + " de " + d.no_acervo, d.documentos ? "" : "mute") +
-    (m.perguntas ? chaveCfg("Perguntas sem abrir documento",
-      m.no_metadata + " de " + m.perguntas + " · " + m.porcento + "%") : "") +
-    linhas + "</div>" +
-    ligaCfg("inteligencia", "Responder pelo que já foi lido",
-      "consulta o que foi entendido antes de ler o documento de novo; desligado, tudo volta a ser lido a cada pergunta",
+  return ligaCfg("inteligencia", "Responder pelo que já foi lido",
+      "consulta o que foi entendido antes de ler o documento de novo; desligado, tudo é lido a cada pergunta",
       Boolean((cfg.rascunho || {}).inteligencia)) +
-    '<p class="cfg-explica">Partes e resumo precisam do assistente ligado e são lidos uma vez por documento, ' +
-    'em segundo plano — pelo terminal, com <code>python -m inteligencia.retomar --assistente</code>. ' +
-    'Todo o resto é regra e já roda sozinho na indexação, em milissegundos por documento — ' +
-    'inclusive conferir se o CPF e o CNPJ escritos no documento fecham a conta. ' +
-    'Nada disso sai desta máquina: o que foi entendido fica em ' + esc(d.pasta || "data/conhecimento") + '.</p>';
+    '<div class="cfg-chaves">' +
+    chaveCfg("Documentos entendidos", d.documentos + " de " + d.no_acervo, d.documentos ? "" : "mute") +
+    (m.perguntas ? chaveCfg("Perguntas sem abrir documento", m.no_metadata + " de " + m.perguntas + " · " + m.porcento + "%") : "") + "</div>" +
+    (linhas ? '<div class="cfg-chaves cfg-chaves-duas">' + linhas + "</div>" : "") +
+    '<p class="cfg-explica">O que é regra roda sozinho na indexação. Partes e resumo precisam do assistente e são lidos uma vez por documento, pelo terminal: ' +
+    "<code>python -m inteligencia.retomar --assistente</code>. Fica tudo em " + esc(d.pasta || "data/conhecimento") + ", nesta máquina.</p>";
 }
 
 /* ---------------------------------------------------------- aprendizado */
 
 function secaoAprendizado() {
   const ctx = cfg.ctx || { contextos: [], gavetas: [], caracteres: 0, limite: 2400, de_fora: 0 };
-  const gavetas = ctx.gavetas && ctx.gavetas.length ? ctx.gavetas : ["Regras de redação", "Modelos", "Clientes", "Correções"];
-  const emEdicao = cfg.ensinando || {};
-  const opcoes = gavetas.map((g) => '<option' + (g === (emEdicao.gaveta || gavetas[0]) ? " selected" : "") + ">" + esc(g) + "</option>").join("");
-
-  const guardados = (ctx.contextos || []).map((x) =>
-    '<div class="cfg-servico cfg-lembrete' + (x.entra ? "" : " de-fora") + '"><span class="cfg-servico-ic">' + ic("lightbulb", 18) + "</span>" +
-    '<div class="duas-linhas"><b>' + esc(x.titulo) + "</b><small>" + esc(x.texto) + "</small></div>" +
-    '<small class="cfg-lixo-quando">' + esc(x.gaveta) + (x.entra ? "" : " · fora do limite") + "</small>" +
-    '<button data-cfg-ensinar-editar="' + x.id + '">' + ic("edit", 16) + "Alterar</button>" +
-    '<button data-cfg-ensinar-tirar="' + x.id + '">' + ic("delete", 16) + "Apagar</button></div>").join("");
-
+  const itens = ctx.contextos || [];
   const lendo = cfg.lendoArquivo || "";
-  const ensinar = '<div class="cfg-solta" id="cfg-solta-ensinar"><span>' +
-    (lendo ? "lendo “" + esc(lendo) + "”…" : "Arraste um PDF, DOCX, TXT ou MD aqui") + "</span>" +
-    '<small>eu leio, escrevo o lembrete em poucas linhas e mostro antes de guardar · o arquivo não fica guardado</small>' +
-    '<div class="cfg-botoes"><button class="primario" data-cfg-ensinar-arquivo="1"' + (lendo ? " disabled" : "") + ">" +
-    ic("folder_open", 16) + "Escolher no computador</button></div></div>" +
-    '<div class="cfg-sub"><b>Ensinar com suas palavras</b><div class="cfg-campos">' +
-    '<div class="ag-campo"><label>Título</label><input type="text" id="cfg-ensinar-titulo" data-cfg-ensinar="titulo" maxlength="80" value="' + esc(emEdicao.titulo || "") + '" placeholder="Prazo padrão de aviso"></div>' +
-    '<div class="ag-campo"><label>O que eu devo saber</label><textarea id="cfg-ensinar-texto" data-cfg-ensinar="texto" maxlength="600" placeholder="Nos contratos do escritório o aviso de não renovação é sempre de…">' + esc(emEdicao.texto || "") + "</textarea></div>" +
-    '<div class="ag-duas"><div class="ag-campo"><label>Guardar em</label><select id="cfg-ensinar-gaveta" data-cfg-ensinar="gaveta">' + opcoes + "</select></div>" +
-    '<div class="ag-campo"><label>&nbsp;</label><div class="cfg-botoes"><button class="primario" data-cfg-ensinar-guardar="1">' + ic("check", 16) + (emEdicao.id ? "Guardar a alteração" : "Guardar") + "</button>" +
-    (emEdicao.id ? '<button data-cfg-ensinar-cancelar="1">Cancelar</button>' : "") + "</div></div></div></div>" +
-    (guardados ? '<div class="cfg-linhas">' + guardados + "</div>" : "") +
-    '<p class="cfg-explica">' + (ctx.contextos || []).length +
-    (((ctx.contextos || []).length === 1) ? " lembrete entra" : " lembretes entram") + " em toda pergunta da conversa, junto com os trechos dos documentos · " +
-    ctx.caracteres + " de " + ctx.limite + " caracteres em uso" +
-    (ctx.de_fora ? " · " + plural(ctx.de_fora, "lembrete") + " não cabe no limite e fica de fora" : "") +
-    ". As regras de redação vão junto quando eu escrevo no editor.</p></div>";
+
+  const guardados = itens.map((x) =>
+    '<div class="cfg-lembrete' + (x.entra ? "" : " de-fora") + '"><span class="duas-linhas"><b>' + esc(x.titulo || "Sem título") + "</b><small>" + esc(x.texto) + "</small></span>" +
+    '<small class="cfg-lixo-quando">' + esc(x.gaveta) + (x.entra ? "" : " · fora do limite") + "</small>" +
+    '<button data-cfg-ensinar-editar="' + x.id + '">Alterar</button>' +
+    '<button class="mais-linha" data-cfg-ensinar-tirar="' + x.id + '" title="Apagar">' + ic("delete", 16) + "</button></div>").join("");
+
+  const lembretes = (guardados ? '<div class="cfg-linhas">' + guardados + "</div>" : '<p class="cfg-texto">Nenhum lembrete ainda.</p>') +
+    '<div class="cfg-solta" id="cfg-solta-ensinar"><span class="duas-linhas"><b>' + (lendo ? "lendo “" + esc(lendo) + "”…" : "Arraste um PDF, DOCX, TXT ou MD para cá") + "</b>" +
+    "<small>eu leio e proponho o lembrete; o arquivo não fica guardado</small></span>" +
+    '<span class="cfg-botoes"><button data-cfg-ensinar-arquivo="1"' + (lendo ? " disabled" : "") + ">" + ic("folder_open", 16) + "Escolher arquivo</button>" +
+    '<button class="primario com-icone" data-cfg-ensinar-novo="1">' + ic("add", 16) + "Escrever lembrete</button></span></div>" +
+    '<p class="cfg-explica">Entram em toda pergunta da conversa, junto com os trechos dos documentos' +
+    (ctx.de_fora ? "; " + plural(ctx.de_fora, "lembrete") + " não cabe no limite de " + ctx.limite + " caracteres e fica de fora" : "") + ".</p>";
 
   const d = cfg.hab || { grupos: [], contagem: {} };
-  const grupos = d.grupos || [];
+  // So o que existe: o que ainda nao foi feito nao entra na lista.
+  const grupos = (d.grupos || []).map((g) => ({ grupo: g.grupo, habilidades: g.habilidades.filter((h) => h.estado !== "em_breve") }))
+    .filter((g) => g.habilidades.length);
+  const total = grupos.reduce((n, g) => n + g.habilidades.length, 0);
   const grupo = (v, r) => { const classe = v === cfg.grupoHab ? "ativa" : ""; return '<button class="' + classe + '" data-cfg-grupo="' + esc(v) + '">' + esc(r) + "</button>"; };
   const mostrar = grupos.filter((g) => !cfg.grupoHab || g.grupo === cfg.grupoHab);
   const habs = mostrar.map((g) => g.habilidades.map((h) => {
-    const futura = h.estado === "em_breve";
-    const classe = "cfg-hab" + (futura ? " futura" : (h.utilizavel ? " pronta" : ""));
+    const classe = "cfg-hab" + (h.utilizavel ? " pronta" : "");
     let linha = "";
-    if (futura) linha = "ainda não existe";
-    else if ((h.faltando || []).length) linha = "precisa de: " + h.faltando.join(", ");
+    if ((h.faltando || []).length) linha = "precisa de: " + h.faltando.join(", ");
     else if (h.demora) linha = h.demora;
-    const classeLinha = (h.faltando || []).length && !futura ? "acc" : "";
     return '<div class="' + classe + '">' + ic(CFG_ICONE_HAB[h.id] || "auto_awesome", 18) + '<span class="duas-linhas"><b>' + esc(h.nome) + "</b><small>" + esc(h.resumo) + "</small>" +
-      (linha ? '<small class="' + classeLinha + '">' + esc(linha) + "</small>" : "") + "</span>" +
-      (futura ? '<span class="cfg-pill mute">em breve</span>' : (h.utilizavel ? '<button data-cfg-usar="' + esc(h.acao) + '">Usar</button>' : "<button disabled>Usar</button>")) + "</div>";
+      (linha ? "<small>" + esc(linha) + "</small>" : "") + "</span>" +
+      (h.utilizavel ? '<button data-cfg-usar="' + esc(h.acao) + '">Usar</button>' : "") + "</div>";
   }).join("")).join("");
-  const c = d.contagem || {};
-  const sei = (grupos.length
-    ? '<div class="cfg-grupos">' + grupo("", "Todas · " + (c.total || 0)) + grupos.map((g) => grupo(g.grupo, g.grupo + " · " + g.habilidades.length)).join("") + "</div>" +
+  const sei = grupos.length
+    ? '<div class="visoes cfg-grupos">' + grupo("", "Todas · " + total) + grupos.map((g) => grupo(g.grupo, g.grupo + " · " + g.habilidades.length)).join("") + "</div>" +
       '<div class="cfg-habs">' + habs + "</div>"
-    : '<p class="cfg-texto">Não consegui ler o catálogo de habilidades.</p>') +
-    '<p class="cfg-explica">Cada habilidade é uma coisa que o programa faz por inteiro. As que ainda não existem estão marcadas — prefiro dizer do que prometer.</p>';
+    : '<p class="cfg-texto">Não consegui ler o catálogo de habilidades.</p>';
 
-  const quantos = (ctx.contextos || []).length;
-  return '<div class="cfg-grade">' + cartaoCfg("Aprendizado",
-    metaCfg(quantos ? plural(quantos, "lembrete") + " · arquivos em breve" : "ensinar com suas palavras · arquivos em breve"), ensinar) +
-    cartaoCfg("O que eu sei fazer", metaCfg((c.prontas || 0) + " prontas · " + (c.em_breve || 0) + " em breve"), sei) + "</div>";
+  const ficha = fichaCfg([
+    ["Lembretes", String(itens.length)],
+    ["Em uso", ctx.caracteres + " de " + ctx.limite + " caracteres"],
+    ["Habilidades", String(total)],
+  ]);
+
+  return aberturaCfg() + ficha +
+    cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
+    cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
 }
 
 /* ------------------------------------------------ aparencia e atalhos */
@@ -896,52 +951,54 @@ function secaoAparencia() {
     const classe = "cfg-tema " + id + (id === atual ? " on" : "");
     return '<button class="' + classe + '" data-cfg-tema="' + id + '"><span><img src="/img/paulus-logo.svg" alt=""></span><span>' + rotulo + "</span></button>";
   };
-  const aparencia = '<div class="ag-campo"><label>Tema</label><div class="cfg-temas">' + tema("claro", "Claro") + tema("escuro", "Escuro") + tema("auto", "Seguir o Windows") + "</div>" +
-    '<span class="cfg-explica">No tema escuro a logo é invertida. A escolha fica nesta máquina.</span></div>' +
-    '<div class="cfg-campos"><div class="ag-duas"><div class="ag-campo"><label>Fonte da interface</label><select disabled><option>Manrope · padrão</option></select></div>' +
-    '<div class="ag-campo"><label>Fonte dos documentos</label><select disabled><option>EB Garamond</option></select></div></div>' +
-    '<div class="ag-campo"><label>Densidade</label><div class="cfg-segmento"><button class="ativa" disabled>Confortável</button><button disabled>Compacta</button></div></div></div>' +
-    '<p class="cfg-explica">Fontes e densidade seguem o desenho; trocar por aqui fica para depois.</p>' +
-    '<div class="cfg-sub">' + ligaCfg("", "Menu lateral abre ao passar o mouse", "sempre ligado por enquanto", true, true) +
-    ligaCfg("animacoes_reduzidas", "Animações reduzidas", "sem deslizes nem pulsos — a tela troca direto", Boolean((cfg.rascunho || {}).animacoes_reduzidas)) + "</div>";
+  const aparencia = '<div class="cfg-temas">' + tema("claro", "Claro") + tema("escuro", "Escuro") + tema("auto", "Seguir o Windows") + "</div>" +
+    '<p class="cfg-explica">Vale na hora e fica nesta máquina.</p>' +
+    '<div class="cfg-sub">' + ligaCfg("animacoes_reduzidas", "Animações reduzidas", "sem deslizes nem pulsos; a tela troca direto", Boolean((cfg.rascunho || {}).animacoes_reduzidas)) + "</div>";
 
-  const atalho = (rotulo, teclas, futura) => {
-    const classe = "cfg-atalho" + (futura ? " futura" : "");
-    return '<div class="' + classe + '"><span>' + esc(rotulo) + '</span><span class="cfg-teclas">' + teclas.map((t) => "<span>" + esc(t) + "</span>").join("") + "</span>" +
-      (futura ? '<span class="cfg-pill mute">em breve</span>' : "") + "</div>";
-  };
+  const atalho = (rotulo, teclas) => '<div class="cfg-atalho"><span>' + esc(rotulo) + '</span><span class="cfg-teclas">' +
+    teclas.map((t) => "<span>" + esc(t) + "</span>").join("") + "</span></div>";
   const atalhos = '<div class="cfg-linhas">' +
-    atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Buscar em tudo", ["Ctrl", "K"]) + atalho("Salvar em Documentos e em Configurações", ["Ctrl", "S"]) +
+    atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Buscar em tudo", ["Ctrl", "K"]) + atalho("Salvar (Documentos e Configurações)", ["Ctrl", "S"]) +
     atalho("Ir para Assistente", ["Ctrl", "1"]) + atalho("Ir para Agenda", ["Ctrl", "2"]) + atalho("Ir para Acervo", ["Ctrl", "3"]) +
     atalho("Fechar menus e painéis soltos", ["Esc"]) +
-    atalho("Aprovar marcados (na tela de Aprovações)", ["Ctrl", "Enter"]) +
-    atalho("Começar o ciclo de foco, ou ir para a pausa", ["Ctrl", "Shift", "F"]) +
+    atalho("Aprovar marcados, em Aprovações", ["Ctrl", "Enter"]) +
+    atalho("Começar o ciclo de foco ou ir para a pausa", ["Ctrl", "Shift", "F"]) +
     atalho("Assinar o documento aberto", ["Ctrl", "Shift", "S"]) + "</div>" +
-    '<p class="cfg-explica">Escolher outras teclas fica para depois; estas valem em qualquer tela, menos quando você está escrevendo num campo.</p>';
+    '<p class="cfg-explica">Valem em qualquer tela, menos enquanto você escreve num campo.</p>';
+
   // Os avisos do Windows (src/avisos.py). A mesma chave que o interruptor da
   // tela de Foco muda; aqui ela segue o rascunho, como o resto da tela.
   const av = cfg.avisos || {};
-  const avisosDoWindows = av.disponivel
-    ? '<div class="cfg-sub">' + ligaCfg("avisos_windows", "Avisar no Windows",
-        "a notificação no canto da tela e o botão do PAULUS piscando na barra de tarefas",
-        Boolean((cfg.rascunho || {}).avisos_windows)) + "</div>" +
+  const r = cfg.rascunho || {};
+  const avisos = av.disponivel
+    ? ligaCfg("avisos_windows", "Avisar no Windows", "a notificação no canto da tela e o PAULUS piscando na barra de tarefas", Boolean(r.avisos_windows)) +
       /* Um interruptor por tipo, recuado sob o geral: desligar o geral cala todos. */
-      ((cfg.rascunho || {}).avisos_windows
-        ? '<div class="cfg-sub cfg-avisos-tipos">' + (av.tipos || []).map((t) =>
-            ligaCfg("avisos_tipos." + t.chave, t.rotulo, t.explica, ((cfg.rascunho.avisos_tipos || {})[t.chave]) !== false)).join("") + "</div>"
+      (r.avisos_windows
+        ? '<div class="cfg-avisos-tipos">' + (av.tipos || []).map((t) =>
+            ligaCfg("avisos_tipos." + t.chave, t.rotulo, t.explica, ((r.avisos_tipos || {})[t.chave]) !== false)).join("") + "</div>"
         : "") +
-      '<p class="cfg-explica">Resposta, aprovação e transcrição só avisam quando o PAULUS não está na frente — com ele aberto, a tela já mostra. ' +
-      "Lembretes e o alerta de pausa só avisam no horário de trabalho" + (av.horario ? " (" + esc(av.horario) + ")" : "") +
-      "; o fim do ciclo avisa sempre, porque foi você quem ligou o relógio.</p>" +
-      '<div><button class="com-icone" data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
-    : '<div class="cfg-sub">' + ligaCfg("", "Avisar no Windows", "só existe no Windows", false, true) + "</div>";
-  return '<div class="cfg-grade">' + cartaoCfg("Aparência", metaCfg("tema, fonte e densidade"), aparencia) + cartaoCfg("Atalhos", metaCfg("teclado"), atalhos) +
-    cartaoCfg("Avisos", metaCfg("notificações do Windows"), avisosDoWindows) + "</div>";
+      '<p class="cfg-explica">Resposta, aprovação e transcrição só avisam quando o PAULUS não está na frente. ' +
+      "Lembretes e o alerta de pausa, só no horário de trabalho" + (av.horario ? " (" + esc(av.horario) + ")" : "") + ".</p>" +
+      '<div class="cfg-botoes"><button data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
+    : '<p class="cfg-texto">Os avisos só existem no Windows.</p>';
+
+  return aberturaCfg() +
+    cartaoCfg("Tema", "", aparencia) +
+    cartaoCfg("Avisos", metaCfg("notificações do Windows"), avisos) +
+    cartaoCfg("Atalhos", metaCfg("teclado"), atalhos);
 }
 
 /* ------------------------------------------------------------- feedback */
 
 const CFG_TIPOS_FEEDBACK = [["bug", "bug_report", "Bug"], ["sugestao", "lightbulb", "Sugestão"], ["correcao", "edit_note", "Correção"], ["elogio", "favorite", "Elogio"], ["duvida", "help", "Dúvida"]];
+
+/* O rascunho guardado nesta maquina volta quando a tela abre. */
+function feedbackGuardado() {
+  const padrao = { tipo: "bug", onde: "", titulo: "", texto: "", tecnico: true, contato: true };
+  try {
+    return Object.assign(padrao, JSON.parse(localStorage.getItem("paulus.feedback") || "{}"));
+  } catch (err) { return padrao; }
+}
 
 function secaoFeedback() {
   const f = cfg.feedback;
@@ -952,27 +1009,17 @@ function secaoFeedback() {
     return '<button class="' + classe + '" data-cfg-tipo="' + id + '">' + ic(icone, 18) + "<span>" + rotulo + "</span></button>";
   }).join("");
   const telas = ["Assistente", "Agenda", "Acervo", "Editor de documentos", "E-mail", "Assinatura", "Financeiro", "Cadastros", "Aprovações", "Configurações", "Outra"];
-  const tecnico = "Windows · " + (s.modelo || "modelo local") + (s.tamanho_gb ? " · " + String(s.tamanho_gb).replace(".", ",") + " GB" : "") + " · nenhum documento do escritório vai junto";
-  const enviar = '<div class="cfg-campos"><div class="ag-campo"><label>Sobre o que é</label><div class="cfg-tipos">' + tipos + "</div></div>" +
+  const tecnico = "Windows · " + (s.modelo || "modelo local") + " · documentos no índice";
+  const escrever = '<div class="cfg-campos"><div class="ag-campo"><label>Sobre o que é</label><div class="cfg-tipos">' + tipos + "</div></div>" +
     '<div class="ag-campo"><label>Onde aconteceu</label><select data-cfg-fb="onde"><option value="">escolha a tela…</option>' +
     telas.map((t) => '<option value="' + t + '"' + (t === f.onde ? " selected" : "") + ">" + t + "</option>").join("") + "</select></div>" +
     '<div class="ag-campo"><label>Título</label><input type="text" data-cfg-fb="titulo" value="' + esc(f.titulo) + '" placeholder="em uma linha"></div>' +
-    '<div class="ag-campo"><label>Descreva com detalhes</label><textarea data-cfg-fb="texto" placeholder="o que você fez, o que esperava e o que aconteceu">' + esc(f.texto) + "</textarea></div></div>" +
-    '<div class="cfg-sub"><b>Anexos</b><div class="cfg-solta"><span>Arraste capturas, áudio, PDF ou .log aqui</span><small>até 50 MB · em breve</small></div></div>' +
+    '<div class="ag-campo"><label>Descreva</label><textarea data-cfg-fb="texto" placeholder="o que você fez, o que esperava e o que aconteceu; num bug, a tela e a hora ajudam">' + esc(f.texto) + "</textarea></div></div>" +
     '<div class="cfg-sub">' + ligaCfg("feedback.tecnico", "Incluir informações técnicas", tecnico, f.tecnico) +
     ligaCfg("feedback.contato", "Posso ser contatado sobre este feedback", p.email || "sem e-mail em Meus dados", f.contato) + "</div>" +
-    '<p class="cfg-explica">O envio ainda não existe: o texto fica guardado nesta máquina, e Copiar monta a mensagem para você mandar por e-mail. Quando existir, sai só ao clicar em Enviar e passa por Aprovações como qualquer saída.</p>' +
-    '<div class="cfg-botoes"><button data-cfg-fb-guardar="1">' + ic("save", 16) + "Salvar rascunho</button>" +
-    '<button class="primario" data-cfg-fb-copiar="1">' + ic("content_copy", 16) + "Copiar para enviar</button></div>";
-
-  const envios = '<p class="cfg-texto">Nenhum envio ainda. Quando o envio existir, cada feedback aparece aqui com o número e a resposta.</p>' +
-    '<div class="cfg-sub"><b>Antes de relatar um bug</b><div class="cfg-lista-ok">' +
-    "<div>" + ic("check_circle", 18) + "<span>Diga a tela e a hora: o registro do programa ajuda a achar o que aconteceu</span></div>" +
-    "<div>" + ic("check_circle", 18) + "<span>Anexe uma captura quando existir anexo — ajuda muito</span></div>" +
-    "<div>" + ic("check_circle", 18) + "<span>Nenhum documento do escritório vai junto; só o que você escrever</span></div></div></div>" +
-    '<div class="cfg-botoes"><button data-cfg-novidades="1">' + ic("article", 16) + "Novidades da versão</button></div>";
-  return '<div class="cfg-grade feedback">' + cartaoCfg("Enviar feedback", metaCfg("elogios, sugestões, correções e bugs"), enviar) +
-    cartaoCfg("Seus envios", metaCfg("nenhum ainda"), envios) + "</div>";
+    '<div class="cfg-botoes cfg-botoes-fim"><button data-cfg-fb-guardar="1">' + ic("save", 16) + "Guardar rascunho</button>" +
+    '<button class="primario com-icone" data-cfg-fb-copiar="1">' + ic("content_copy", 16) + "Copiar para enviar</button></div>";
+  return aberturaCfg() + cartaoCfg("Escrever", metaCfg("o rascunho fica nesta máquina"), escrever);
 }
 
 function textoDoFeedback() {
@@ -985,42 +1032,21 @@ function textoDoFeedback() {
     (f.contato ? "\nContato: " + (((cfg.rascunho || {}).pessoa || {}).email || "") : "");
 }
 
-/* --------------------------------------------------------- plano e apoio */
+/* --------------------------------------------------------- apoio e versao */
 
 function secaoPlano() {
-  const d = NOVOS_DESTINOS.apoiar || { resolve: "", precisa: [] };
-  const a = cfg.apoio;
-  const valor = (v, rotulo) => {
-    const classe = "cfg-valor" + (a.valor === v ? " on" : "");
-    return '<button class="' + classe + '" data-cfg-apoio-valor="' + v + '"><b>' + (v ? "R$ " + v : "Outro") + "</b><small>" + rotulo + "</small></button>";
-  };
-  const seg = (chave, opcoes) => '<div class="cfg-segmento">' + opcoes.map(([v, r]) => {
-    const classe = a[chave] === v ? "ativa" : "";
-    return '<button class="' + classe + '" data-cfg-apoio="' + chave + ":" + v + '">' + r + "</button>";
-  }).join("") + "</div>";
-  const chamada = '<div class="cfg-chamada"><h3>Ajude o PAULUS a continuar gratuito.</h3>' +
-    "<p>O PAULUS é software livre: roda na sua máquina, sem assinatura nem cobrança por uso. O que mantém o projeto vivo é a contribuição de quem usa — ela paga o desenvolvimento, os modelos locais e o suporte. Qualquer valor ajuda; a recorrência ajuda mais.</p>" +
-    '<p class="cfg-explica">Meta do mês e apoiadores aparecem aqui quando o pagamento existir. ' + esc(d.resolve || "") + "</p></div>";
-  const contribuicao = '<div class="ag-campo"><label>Valor</label><div class="cfg-valores">' + valor(20, "um café por semana") + valor(40, "mais escolhido") + valor(100, "escritório pequeno") + valor(0, "você define") + "</div></div>" +
-    '<div class="ag-duas"><div class="ag-campo"><label>Recorrência</label>' + seg("recorrencia", [["mensal", "Mensal"], ["anual", "Anual"], ["unica", "Única"]]) + "</div>" +
-    '<div class="ag-campo"><label>Forma de pagamento</label>' + seg("forma", [["pix", "Pix"], ["cartao", "Cartão"]]) + "</div></div>" +
-    '<div class="cfg-botoes"><button class="primario" data-cfg-apoiar="1">' + ic("favorite", 16) + "Apoiar o projeto</button>" +
-    '<span class="cfg-explica">falta: ' + esc((d.precisa || []).join(", ") || "o pagamento") + "</span></div>";
-  const ultima = saidasDaMaquina()[0];
-  const atualizacoes = '<div class="cfg-chaves">' +
+  const apoiar = '<p class="cfg-texto">Sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento, por Pix ou cartão.</p>' +
+    '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-apoiar="contribuir">' + ic("favorite", 16) + "Apoiar o projeto</button>" +
+    '<button data-cfg-apoiar="lista">Quem já apoia</button></div>';
+  const versao = '<div class="cfg-chaves">' +
     chaveCfg("Versão", "em desenvolvimento · sem número ainda", "mute") +
-    chaveCfg("O que mudou", "a lista vem junto com o programa", "") +
-    chaveCfg("Atualização automática", "em breve", "mute") +
-    chaveCfg("Única saída para a internet", "atualizações, quando existirem, e o WhatsApp Web que você abre") +
-    chaveCfg("Última saída registrada", ultima ? ultima.quando + " · " + ultima.titulo : "nenhuma nas últimas 24 h") + "</div>" +
-    '<p class="cfg-texto">Software livre: o código é seu para ler, mudar e distribuir. Nenhum documento do escritório sai desta máquina — nem para atualizar.</p>' +
-    '<div class="cfg-botoes"><button class="adiante" data-cfg-adiante="A licença e o código abertos ficam publicados junto com a primeira versão">' + ic("description", 16) + "Licença</button></div>";
-  return '<div class="cfg-secao">' + chamada + '<div class="cfg-grade apoio">' +
-    cartaoCfg("Sua contribuição", metaCfg("escolha o valor e a forma · em breve"), contribuicao) +
-    cartaoCfg("Atualizações e saída para a internet", metaCfg("o que sai desta máquina"), atualizacoes) + "</div></div>";
+    chaveCfg("Licença", "MIT · código aberto") +
+    chaveCfg("Atualização", "manual · o programa não se atualiza sozinho") + "</div>" +
+    '<div class="cfg-botoes"><button data-cfg-novidades="1">' + ic("article", 16) + "Novidades da versão</button></div>";
+  return aberturaCfg() +
+    cartaoCfg("Apoiar o projeto", "", apoiar) +
+    cartaoCfg("Versão", "", versao);
 }
-
-/* ------------------------------------------------------------ as acoes */
 
 /* ------------------------------------------------------------- lixeira */
 /* O que foi apagado nos ultimos 30 dias, com Restaurar e Apagar de vez.
@@ -1033,22 +1059,21 @@ const CFG_ICONE_LIXO = {
 
 function secaoLixeira() {
   const l = cfg.lixo;
-  if (!l) return cartaoCfg("Lixeira", "", '<p class="cfg-texto">não consegui ler a lixeira.</p>');
+  if (!l) return aberturaCfg() + cartaoCfg("Itens apagados", "", '<p class="cfg-texto">não consegui ler a lixeira.</p>');
   const itens = l.itens || [];
   if (!itens.length) {
-    return cartaoCfg("Lixeira", metaCfg("vazia"), '<div class="cfg-lixo-vazia"><h3>Nada na lixeira</h3>' +
-      "<p>O que você apagar — conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha — fica aqui por " + (l.dias || 30) +
-      " dias, com tudo que precisa para voltar. Depois disso some sozinho.</p></div>");
+    return aberturaCfg() + cartaoCfg("Itens apagados", metaCfg("vazia"),
+      '<p class="cfg-texto">Nada na lixeira. Conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha que você apagar aparece aqui.</p>');
   }
   const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha"><span class="cfg-servico-ic">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
     '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "")) + "</small></div>" +
     '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>" +
     '<button data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +
     '<button class="mais-linha" data-cfg-lixo-tirar="' + e.id + '" title="Apagar de vez">' + ic("close", 16) + "</button></div>").join("");
-  return cartaoCfg("Lixeira", metaCfg(plural(itens.length, "item", "itens") + " · cada um fica " + (l.dias || 30) + " dias"),
+  const esvaziar = '<button class="sv-ligacao" data-cfg-lixo-esvaziar="1">' + ic("delete", 16) + "Esvaziar a lixeira</button>";
+  return aberturaCfg(esvaziar) + cartaoCfg("Itens apagados", metaCfg(plural(itens.length, "item", "itens")),
     '<div class="cfg-linhas">' + linhas + "</div>" +
-    '<div class="cfg-botoes cfg-lixo-pe"><button data-cfg-lixo-esvaziar="1">' + ic("delete", 16) + "Esvaziar a lixeira</button>" +
-    '<span class="cfg-explica">Restaurar devolve a linha, as ligações e os arquivos ao lugar de onde saíram.</span></div>');
+    '<p class="cfg-explica cfg-lixo-pe">Restaurar devolve a linha, as ligações e os arquivos ao lugar de onde saíram.</p>');
 }
 
 function ligarConfig() {
@@ -1081,11 +1106,10 @@ function ligarConfig() {
     cfg.recarregar = true;
     mostrarConfig("lixeira");
   });
-  clique("[data-cfg-sair]", () => avisoCert("sair não existe ainda — hoje o PAULUS abre com a sua conta do Windows, e fechar a janela basta"));
   clique("[data-cfg-salvar]", salvarConfig);
   clique("[data-cfg-descartar]", () => { cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual); cfg.sujo = false; desenharConfig(); });
-  clique("[data-cfg-adiante]", (b) => avisoCert(b.dataset.cfgAdiante));
   clique("[data-cfg-ensinar-arquivo]", () => escolherArquivoParaEnsinar());
+  clique("[data-cfg-ensinar-novo]", () => formLembrete(null));
   const solta = $("cfg-solta-ensinar");
   if (solta) {
     solta.ondragover = (e) => { e.preventDefault(); solta.classList.add("sobre"); };
@@ -1097,38 +1121,14 @@ function ligarConfig() {
       if (arquivo) lerArquivoParaEnsinar(arquivo);
     };
   }
-  clique("[data-cfg-ensinar-guardar]", async (b) => {
-    const dados = {
-      id: (cfg.ensinando || {}).id || null,
-      titulo: $("cfg-ensinar-titulo").value,
-      texto: $("cfg-ensinar-texto").value,
-      gaveta: $("cfg-ensinar-gaveta").value,
-    };
-    b.disabled = true;
-    const r = await fetch("/api/contextos", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados),
-    });
-    b.disabled = false;
-    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
-    cfg.ctx = await r.json();
-    cfg.ensinando = null;
-    avisoCert(dados.id ? "lembrete alterado" : "guardado — já vale na próxima pergunta", { tom: "ok" });
-    desenharConfig();
-  });
   clique("[data-cfg-ensinar-editar]", (b) => {
     const item = ((cfg.ctx || {}).contextos || []).find((x) => x.id === Number(b.dataset.cfgEnsinarEditar));
-    if (!item) return;
-    cfg.ensinando = { id: item.id, titulo: item.titulo, texto: item.texto, gaveta: item.gaveta };
-    desenharConfig();
-    const campo = $("cfg-ensinar-titulo");
-    if (campo) campo.focus();
+    if (item) formLembrete(item);
   });
-  clique("[data-cfg-ensinar-cancelar]", () => { cfg.ensinando = null; desenharConfig(); });
   clique("[data-cfg-ensinar-tirar]", async (b) => {
     const id = Number(b.dataset.cfgEnsinarTirar);
     const r = await fetch("/api/contextos/" + id, { method: "DELETE" });
     if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
-    if ((cfg.ensinando || {}).id === id) cfg.ensinando = null;
     // O aviso le a resposta (e dela que sai o Desfazer); a lista vem depois.
     await avisarLixeira(r, recarregarLembretes);
     await recarregarLembretes();
@@ -1136,7 +1136,7 @@ function ligarConfig() {
   clique("[data-cfg-cache]", async (b) => {
     const resposta = await dialogo({
       titulo: "Limpar o cache?",
-      contexto: "Configurações › Limites da IA",
+      contexto: "Configurações › Acervo e índice",
       texto: "O cache guarda o texto já extraído de cada arquivo, por SHA-1. Apagar não " +
         "tira documento nenhum do Acervo: eles são lidos de novo no próximo Reindexar, " +
         "o que demora mais nessa primeira vez.",
@@ -1174,8 +1174,7 @@ function ligarConfig() {
     desenharConfig();
     carregarUsuario();
   });
-  clique("[data-cfg-vinculos]", () => { cfg.secao = "vinculos"; mostrarConfig(); });
-  clique("[data-cfg-apoiar]", () => { marcarDestino("apoiar"); mostrarApoiar("contribuir"); });
+  clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); mostrarApoiar(b.dataset.cfgApoiar); });
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
   clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));
@@ -1223,7 +1222,6 @@ function ligarConfig() {
     b.disabled = false;
     avisoCert(t.ok ? "mandei um aviso de teste para o canto da tela" : "o Windows não mostrou o aviso de teste");
   });
-  cada("[data-cfg-select]", (el) => { el.onchange = () => { porNoRascunho(el.dataset.cfgSelect, el.value); marcarConfigSuja(); desenharConfig(); }; });
   clique("[data-cfg-modelo]", (b) => { cfg.rascunho.modelo = b.dataset.cfgModelo; marcarConfigSuja(); desenharConfig(); });
   clique("[data-cfg-liga]", (b) => {
     const chave = b.dataset.cfgLiga;
@@ -1250,9 +1248,6 @@ function ligarConfig() {
     avisoCert("rascunho guardado nesta máquina");
   });
   clique("[data-cfg-fb-copiar]", () => copiarTexto(textoDoFeedback(), "feedback copiado — cole num e-mail para quem cuida do PAULUS"));
-
-  clique("[data-cfg-apoio-valor]", (b) => { cfg.apoio.valor = Number(b.dataset.cfgApoioValor); desenharConfig(); });
-  clique("[data-cfg-apoio]", (b) => { const [chave, v] = b.dataset.cfgApoio.split(":"); cfg.apoio[chave] = v; desenharConfig(); });
 }
 
 async function salvarConfig() {
@@ -1272,8 +1267,7 @@ async function salvarConfig() {
   cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual);
   cfg.sujo = false;
   aplicarAnimacoes(cfg.prefs.preferencias.animacoes_reduzidas);
-  avisoCert("salvo em data/preferencias.json, nesta máquina");
+  avisoCert("salvo em data/preferencias.json, nesta máquina", { tom: "ok" });
   carregarStatus();
   if ($("cfg-tela")) desenharConfig();
 }
-

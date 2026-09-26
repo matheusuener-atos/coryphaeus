@@ -45,6 +45,8 @@ data/envios.json
 data/assinaturas.json
 # Certificados de conformidade gerados: nome do assinante e do documento.
 data/conformidade/
+# Extratos de apoio gerados: nome e e-mail de quem apoia.
+data/apoio/
 
 # Etapa 7. A sessao do navegador embutido guarda o token da conta de WhatsApp
 # do escritorio - versionar isso e entregar a conta. Comprovantes e lancamentos
