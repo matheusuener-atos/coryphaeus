@@ -75,6 +75,23 @@ checar(outraChave.status === 403, "a chave de uma assinatura não serve para out
 const valorBaixo = await postar("/api/mp/assinatura/PRE0001/valor", { chave: chaveBoa, valor: 2 });
 checar(valorBaixo.status === 400, "diminuir abaixo do mínimo é recusado");
 
+// Recuperar: so o Pix do e-mail e da data pedidos.
+guardados.set("pix:ORD01ANTIGO", JSON.stringify({ situacao: "processed", pago: true, valor: "5.00", quando: "2026-09-26T07:18:55.610Z" }));
+guardados.set("pix:ORD01OUTRADATA", JSON.stringify({ situacao: "processed", pago: true, valor: "9.00", quando: "2026-09-20T15:00:00.000Z" }));
+env.APOIOS.list = async ({ prefix }) => ({ keys: [...guardados.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })) });
+const fetchAntes = globalThis.fetch;
+globalThis.fetch = async (url) => (String(url).includes("/v1/orders/")
+  ? new Response(JSON.stringify({ status: "processed", total_amount: "5.00", payer: { email: "apoiador@exemplo.com.br" } }), { status: 200 })
+  : fetchAntes(url));
+chamadasNoLimite = 0;
+const rec = await (await postar("/api/mp/pix/recuperar", { emails: ["Apoiador@Exemplo.com.br"], datas: ["26/09/2026"] })).json();
+checar(rec.pix.some((p) => p.id === "ORD01ANTIGO" && p.valor === 5) && !rec.pix.some((p) => p.id === "ORD01OUTRADATA"), "recupera o Pix do e-mail na data certa, e só dela");
+const semData = await (await postar("/api/mp/pix/recuperar", { emails: ["apoiador@exemplo.com.br"], datas: [] })).json();
+checar(semData.pix.length === 0, "só com o e-mail, sem a data, não devolve nada");
+const outroEmail = await (await postar("/api/mp/pix/recuperar", { emails: ["outra@pessoa.com"], datas: ["26/09/2026"] })).json();
+checar(outroEmail.pix.length === 0, "e-mail de outra pessoa não vê o Pix");
+globalThis.fetch = fetchAntes;
+
 // O limite: a 11a tentativa no minuto e recusada antes de chamar o Mercado Pago.
 chamadasNoLimite = 0;
 let ultima = null;

@@ -87,3 +87,8 @@ def pagamentos_da_assinatura(id_: str, chave: str) -> dict:
     if not RE_ID.match(id_ or ""):
         raise ErroDeApoio("identificador de assinatura inválido")
     return _chamar("POST", f"/api/mp/assinatura/{id_}/pagamentos", {"chave": chave})
+
+
+def recuperar_pix(emails: list[str], datas: list[str]) -> dict:
+    """Os Pix pagos de uma versao antiga que nao guardava o numero: pelo e-mail E pelas datas."""
+    return _chamar("POST", "/api/mp/pix/recuperar", {"emails": list(emails)[:3], "datas": list(datas)[:20]})

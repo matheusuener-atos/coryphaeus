@@ -562,8 +562,46 @@ async function apoioInterromperDeVez() {
    no site (que guarda o que o Mercado Pago confirmou pelo aviso). Ativou
    agora, vem o agradecimento; foi cancelada fora daqui, a tela acompanha.
    Sem internet, fica como estava. */
+/* "dd/mm/aaaa" de uma data guardada (ja nesse formato, ou ISO). */
+function dataDoHistorico(d) {
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(d || "")) return d;
+  const t = new Date(d || "");
+  return isNaN(t) ? "" : t.toLocaleDateString("pt-BR");
+}
+
+/* O Pix pago numa versao antiga do programa ficou so com a data, sem numero
+   nem valor. O site acha no Mercado Pago - pelo e-mail E pela data, os dois
+   juntos - e o historico fica completo (e o extrato, certo). */
+async function apoioRecuperarPixAntigos() {
+  const antigos = apoio.historico.filter((h) => !h.id);
+  if (!antigos.length) return false;
+  const emails = [apoio.email];
+  try {
+    const p = await (await fetch("/api/preferencias")).json();
+    emails.push((((p || {}).preferencias || {}).pessoa || {}).email);
+  } catch (err) { /* so o e-mail digitado */ }
+  const datas = [...new Set(antigos.map((h) => dataDoHistorico(h.data)).filter(Boolean))];
+  let d = null;
+  try {
+    const r = await fetch("/api/apoio/pix/recuperar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emails: emails.filter(Boolean), datas: datas }),
+    });
+    d = r.ok ? await r.json() : null;
+  } catch (err) { d = null; }
+  if (!d || !(d.pix || []).length) return false;
+  apoio.historico = apoio.historico.filter((h) => h.id);
+  d.pix.forEach((p) => {
+    if (!apoio.historico.some((h) => h.id === p.id)) apoio.historico.push({ data: p.data, valor: Number(p.valor) || 0, id: p.id });
+  });
+  apoio.historico.sort((a, b) => String(a.data).localeCompare(String(b.data)));
+  const ultimo = apoio.historico[apoio.historico.length - 1];
+  if (ultimo && !apoio.pagoValor) apoio.pagoValor = ultimo.valor;
+  return true;
+}
+
 async function apoioConferirPendentes() {
-  let mudou = false;
+  let mudou = await apoioRecuperarPixAntigos();
   let agradecer = null;
   if (apoio.pixId) {
     try {

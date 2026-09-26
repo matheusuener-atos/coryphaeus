@@ -4940,6 +4940,15 @@ def apoio_pix(payload: dict) -> dict:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@app.post("/api/apoio/pix/recuperar")
+def apoio_pix_recuperar(payload: dict) -> dict:
+    """Os Pix pagos que o historico desta maquina perdeu (versao antiga)."""
+    try:
+        return apoio.recuperar_pix([str(e) for e in payload.get("emails") or []], [str(d) for d in payload.get("datas") or []])
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @app.get("/api/apoio/pix/{id_}")
 def apoio_pix_situacao(id_: str) -> dict:
     try:

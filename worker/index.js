@@ -7,6 +7,7 @@
 //
 //   POST /api/mp/pix          cria o Pix (Orders API) e devolve o QR
 //   GET  /api/mp/pix/:id      a situacao do Pix (pago ou nao)
+//   POST /api/mp/pix/recuperar  os Pix pagos de um e-mail nas datas dadas
 //   POST /api/mp/assinatura   cria a assinatura no cartao e devolve o link
 //                             da pagina do Mercado Pago onde se poe o cartao
 //   GET  /api/mp/assinatura/:id  se a assinatura ja foi ativada (cartao posto)
@@ -40,6 +41,10 @@ export default {
       const criando = request.method === "POST" && (url.pathname === "/api/mp/pix" || url.pathname === "/api/mp/assinatura");
       if (criando && !(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
       if (url.pathname === "/api/mp/pix" && request.method === "POST") return await criarPix(request, env);
+      if (url.pathname === "/api/mp/pix/recuperar" && request.method === "POST") {
+        if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+        return await recuperarPix(request, env);
+      }
       const pix = url.pathname.match(/^\/api\/mp\/pix\/([A-Za-z0-9_-]{6,64})$/);
       if (pix && request.method === "GET") return await situacaoDoPix(pix[1], env);
       if (url.pathname === "/api/mp/assinatura" && request.method === "POST") return await criarAssinatura(request, env);
@@ -160,6 +165,37 @@ async function situacaoDoPix(id, env) {
   const pago = r.dados.status === "processed";
   if (pago) await guardar(env, "pix:" + id, { situacao: r.dados.status, pago: true, valor: r.dados.total_amount });
   return json({ id, situacao: r.dados.status, detalhe: r.dados.status_detail, pago });
+}
+
+/* A data de um instante no horario de Brasilia, "dd/mm/aaaa". */
+function dataBrasilia(iso) {
+  const ms = Date.parse(iso || "");
+  if (!Number.isFinite(ms)) return "";
+  const d = new Date(ms - 3 * 60 * 60 * 1000).toISOString().slice(0, 10).split("-");
+  return `${d[2]}/${d[1]}/${d[0]}`;
+}
+
+/* Os Pix pagos que o programa perdeu (de uma versao que nao guardava o
+   numero): so os do e-mail E das datas que o programa ja conhece - quem so
+   sabe o e-mail de alguem nao descobre as doacoes dele. */
+async function recuperarPix(request, env) {
+  const pedido = (await lerPedido(request)) || {};
+  const emails = [...new Set((pedido.emails || []).map((e) => String(e || "").trim().toLowerCase()).filter((e) => RE_EMAIL.test(e)))].slice(0, 3);
+  const datas = new Set((pedido.datas || []).map((d) => String(d || "").trim()).filter((d) => /^\d{2}\/\d{2}\/\d{4}$/.test(d)).slice(0, 20));
+  if (!emails.length || !datas.size || !env.APOIOS) return json({ pix: [] });
+  const achados = [];
+  const lista = await env.APOIOS.list({ prefix: "pix:", limit: 1000 });
+  for (const chave of lista.keys) {
+    const guardado = await lerGuardado(env, chave.name);
+    if (!guardado || !guardado.pago || !datas.has(dataBrasilia(guardado.quando))) continue;
+    const id = chave.name.slice(4);
+    const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
+    const email = String(((r.dados || {}).payer || {}).email || "").toLowerCase();
+    if (r.ok && r.dados.status === "processed" && emails.includes(email)) {
+      achados.push({ id, valor: Number(r.dados.total_amount) || Number(guardado.valor) || 0, data: guardado.quando });
+    }
+  }
+  return json({ pix: achados });
 }
 
 /* "authorized" e a assinatura com cartao posto e ativa; "pending" ainda

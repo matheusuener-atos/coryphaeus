@@ -1,5 +1,5 @@
 """
-PAULUS - Extrato de apoio.
+PAVLVS - Extrato de apoio.
 
 O comprovante das contribuicoes de quem apoia o projeto: cada pagamento
 (data, forma, referencia, situacao, valor), o total, e a natureza do apoio
@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-NOME = "PAULUS - Extrato de apoio"
+NOME = "PAVLVS - Extrato de apoio"
 SITE = "paulus.ia.br"
 CONTATO = "contato@paulus.ia.br"
 
@@ -76,7 +76,7 @@ def gerar(pasta: Path, *, nome: str, email: str, pix: list[dict], cobrancas: lis
 
     pasta.mkdir(parents=True, exist_ok=True)
     agora = datetime.now()
-    destino = pasta / f"Extrato de apoio PAULUS {agora:%Y-%m-%d %H%M%S}.pdf"
+    destino = pasta / f"PAVLVS - Extrato de apoio {agora:%Y-%m-%d %H%M%S}.pdf"
     linhas = montar_linhas(pix, cobrancas)
     pagas = [l for l in linhas if l["situacao"] == "pago"]
     total = sum(l["valor"] for l in pagas)
@@ -106,9 +106,9 @@ def gerar(pasta: Path, *, nome: str, email: str, pix: list[dict], cobrancas: lis
         canvas.restoreState()
 
     doc = SimpleDocTemplate(str(destino), pagesize=A4, leftMargin=2.2 * cm, rightMargin=2.2 * cm,
-                            topMargin=2 * cm, bottomMargin=2.2 * cm, title=NOME, author="PAULUS")
-    h: list = [Paragraph("PAULUS · SOFTWARE LIVRE", marca), Spacer(1, 6), Paragraph("Extrato de apoio", titulo), Spacer(1, 6),
-               Paragraph("As contribuições voluntárias feitas ao desenvolvimento do PAULUS, com a data, a forma e a situação de cada pagamento.", texto),
+                            topMargin=2 * cm, bottomMargin=2.2 * cm, title=NOME, author="PAVLVS")
+    h: list = [Paragraph("PAVLVS · PAULUS LEGAL · SOFTWARE LIVRE", marca), Spacer(1, 6), Paragraph("PAVLVS — Extrato de apoio", titulo), Spacer(1, 6),
+               Paragraph("As contribuições voluntárias feitas ao desenvolvimento do PAVLVS (PAULUS Legal), com a data, a forma e a situação de cada pagamento.", texto),
                Spacer(1, 14)]
 
     # Quem apoia e o resumo, em faixa.
@@ -157,22 +157,22 @@ def gerar(pasta: Path, *, nome: str, email: str, pix: list[dict], cobrancas: lis
 
     h += [Spacer(1, 20), Paragraph("Natureza do apoio", secao), Spacer(1, 4)]
     notas = [
-        "<b>Contribuição voluntária, sem contrapartida.</b> O apoio mantém o desenvolvimento do PAULUS, software livre que roda "
+        "<b>Contribuição voluntária, sem contrapartida.</b> O apoio mantém o desenvolvimento do PAVLVS (PAULUS Legal), software livre que roda "
         "na máquina de quem usa, sem cobrança por uso. Quem apoia não recebe produto, serviço nem vantagem em troca: tem a natureza "
         "de liberalidade, como a doação definida no art. 538 do Código Civil (Lei nº 10.406/2002) — o contrato em que uma pessoa, "
         "por liberalidade, transfere do seu patrimônio bens ou vantagens para o de outra.",
-        "<b>Não é dedutível do Imposto de Renda.</b> O apoio ao PAULUS não está entre as doações e os incentivos que a legislação "
+        "<b>Não é dedutível do Imposto de Renda.</b> O apoio ao PAVLVS não está entre as doações e os incentivos que a legislação "
         "permite deduzir (como os do art. 12 da Lei nº 9.250/1995). Este extrato não deve ser usado como comprovante de dedução.",
         "<b>Não é recibo fiscal nem nota fiscal.</b> Cada pagamento foi processado pelo Mercado Pago, que envia o comprovante oficial "
         "para o e-mail informado. As cobranças no cartão foram consultadas no Mercado Pago no momento da emissão; os Pix são os "
-        "confirmados nesta instalação do PAULUS.",
-        "<b>Cancelar é livre, a qualquer momento.</b> A assinatura mensal é interrompida pela tela “Apoiar o projeto” do PAULUS, "
+        "confirmados nesta instalação do PAVLVS.",
+        "<b>Cancelar é livre, a qualquer momento.</b> A assinatura mensal é interrompida pela tela “Apoiar o projeto” do PAVLVS, "
         "e nada mais é cobrado depois disso. O nome no mural de apoiadores é opcional; valor e forma de pagamento nunca são publicados.",
         f"Termos de uso: {SITE}/termos-de-uso · Política de privacidade: {SITE}/politica-de-privacidade · Contato: {CONTATO}",
     ]
     for n in notas:
         h += [Paragraph(n, miudo if n.startswith("Termos") else texto), Spacer(1, 6)]
-    h += [Spacer(1, 10), Paragraph("Obrigado por manter o PAULUS livre e gratuito.", ParagraphStyle(
+    h += [Spacer(1, 10), Paragraph("Obrigado por manter o PAVLVS livre e gratuito.", ParagraphStyle(
         "obrigado", parent=titulo, fontSize=14, leading=18))]
 
     doc.build(h, onFirstPage=rodape, onLaterPages=rodape)
