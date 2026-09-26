@@ -30,7 +30,7 @@ const CFG_SECOES = [
   ["vinculos", "Escritório e vínculos", "Hoje o PAULUS roda para uma pessoa, nesta máquina. Vincular outras máquinas ao escritório ainda não existe."],
   ["aprendizado", "Aprendizado", "O que o escritório ensinou com as próprias palavras, e o que o PAULUS já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
-  ["feedback", "Feedback", "O PAULUS não envia nada sozinho: Copiar monta a mensagem e você manda por e-mail. Nenhum documento do escritório vai junto."],
+  ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
   ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
   ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
 ];
@@ -1018,18 +1018,49 @@ function secaoFeedback() {
     '<div class="cfg-sub">' + ligaCfg("feedback.tecnico", "Incluir informações técnicas", tecnico, f.tecnico) +
     ligaCfg("feedback.contato", "Posso ser contatado sobre este feedback", p.email || "sem e-mail em Meus dados", f.contato) + "</div>" +
     '<div class="cfg-botoes cfg-botoes-fim"><button data-cfg-fb-guardar="1">' + ic("save", 16) + "Guardar rascunho</button>" +
-    '<button class="primario com-icone" data-cfg-fb-copiar="1">' + ic("content_copy", 16) + "Copiar para enviar</button></div>";
-  return aberturaCfg() + cartaoCfg("Escrever", metaCfg("o rascunho fica nesta máquina"), escrever);
+    '<button class="com-icone" data-cfg-fb-copiar="1">' + ic("content_copy", 16) + "Copiar</button>" +
+    '<button class="primario com-icone" data-cfg-fb-enviar="1">' + ic("mail", 16) + "Escrever e-mail</button></div>";
+  return aberturaCfg() + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
 }
 
-function textoDoFeedback() {
+/* Todo feedback vai para o endereço do projeto - o mesmo do extrato de apoio
+   (src/extrato_apoio.py) e das páginas públicas. */
+const FEEDBACK_PARA = "contato@paulus.ia.br";
+
+function assuntoDoFeedback() {
+  const f = cfg.feedback;
+  const tipo = (CFG_TIPOS_FEEDBACK.find((t) => t[0] === f.tipo) || [])[2] || "";
+  return "[PAULUS · " + tipo + "] " + (f.titulo || "(sem título)");
+}
+
+function corpoDoFeedback() {
   const f = cfg.feedback;
   const s = cfg.status || {};
-  const tipo = (CFG_TIPOS_FEEDBACK.find((t) => t[0] === f.tipo) || [])[2] || "";
-  return "[PAULUS · " + tipo + "] " + (f.titulo || "(sem título)") + "\n\n" + (f.texto || "") +
+  return (f.texto || "") +
     (f.onde ? "\n\nOnde: " + f.onde : "") +
     (f.tecnico ? "\n\nTécnico: Windows · " + (s.modelo || "modelo local") + " · " + (s.contratos || 0) + " documentos no índice" : "") +
     (f.contato ? "\nContato: " + (((cfg.rascunho || {}).pessoa || {}).email || "") : "");
+}
+
+/* O texto para colar em qualquer e-mail: o destinatário vai escrito no topo,
+   para ninguém mandar para o endereço errado. */
+function textoDoFeedback() {
+  return "Para: " + FEEDBACK_PARA + "\nAssunto: " + assuntoDoFeedback() + "\n\n" + corpoDoFeedback();
+}
+
+/* Com uma conta de e-mail no PAULUS, abre o Escrever já endereçado a
+   FEEDBACK_PARA; o envio passa pela revisão e pela aprovação de sempre. Sem
+   conta, o Escrever cairia em Contas e o texto se perderia: copia com o
+   destinatário no topo e diz para onde mandar. */
+async function enviarFeedback() {
+  let contas = [];
+  try { contas = ((await (await fetch("/api/email/contas")).json()).contas) || []; } catch (err) { contas = []; }
+  try { localStorage.setItem("paulus.feedback", JSON.stringify(cfg.feedback)); } catch (err) { /* sem memoria */ }
+  if (!contas.length) {
+    copiarTexto(textoDoFeedback(), "sem conta de e-mail no PAULUS: copiei o feedback — mande para " + FEEDBACK_PARA);
+    return;
+  }
+  telaEscrever({ para: FEEDBACK_PARA, assunto: assuntoDoFeedback(), corpo: corpoDoFeedback() });
 }
 
 /* --------------------------------------------------------- apoio e versao */
@@ -1247,7 +1278,8 @@ function ligarConfig() {
     try { localStorage.setItem("paulus.feedback", JSON.stringify(cfg.feedback)); } catch (err) { /* sem memoria */ }
     avisoCert("rascunho guardado nesta máquina");
   });
-  clique("[data-cfg-fb-copiar]", () => copiarTexto(textoDoFeedback(), "feedback copiado — cole num e-mail para quem cuida do PAULUS"));
+  clique("[data-cfg-fb-copiar]", () => copiarTexto(textoDoFeedback(), "feedback copiado — mande para " + FEEDBACK_PARA));
+  clique("[data-cfg-fb-enviar]", () => enviarFeedback());
 }
 
 async function salvarConfig() {
