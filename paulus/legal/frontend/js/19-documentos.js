@@ -401,7 +401,7 @@ function mostrarNaoVistas() {
 }
 
 /* Painel recolhido:
-   - ferramenta aberta (Formato, Cláusulas, Conferir prazos...) foi a pessoa
+   - ferramenta aberta (Formato, Cláusulas, Conferir documento...) foi a pessoa
      que pediu - o painel volta, senão o clique não mostraria nada;
    - o que chega na conversa (a resposta, que leva cerca de um minuto) não
      arranca o foco de quem está escrevendo: vira um número no botão, como o
@@ -466,7 +466,7 @@ function barrasDoEditor() {
     '<span class="divisa-v"></span>' +
     '<button class="com-texto" id="ed-numerar">' + ic("format_list_numbered", 16) + "Numerar</button>" +
     '<button class="com-texto" id="ed-refs">' + ic("link", 16) + "Ref. cruzada</button>" +
-    '<button class="com-texto" id="ed-conferir">' + ic("event_upcoming", 16) + "Conferir prazos</button>" +
+    '<button class="com-texto" id="ed-conferir">' + ic("fact_check", 16) + "Conferir documento</button>" +
     '<button class="com-texto" id="ed-qualificar">' + ic("groups", 16) + "Partes</button>" +
     "</div>";
 }
@@ -497,7 +497,7 @@ function painelDoEditor() {
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que eu posso fazer</span></div><div class="docs-acoes-lista">' +
     '<button data-ed-fazer="Revisar a redação deste trecho"><span>Revisar a redação deste trecho</span>' + ic("chevron_right", 16) + "</button>" +
     '<button data-ed-fazer="Padronizar este documento com as cláusulas do escritório"><span>Padronizar com o modelo do escritório</span>' + ic("chevron_right", 16) + "</button>" +
-    '<button data-ed-conferir="1"><span>Conferir prazos e datas do documento</span>' + ic("chevron_right", 16) + "</button>" +
+    '<button data-ed-conferir="1"><span>Conferir lacunas, CPF/CNPJ e valores</span>' + ic("chevron_right", 16) + "</button>" +
     '<button data-ed-timbre="1"><span>Montar o papel timbrado e o rodapé</span>' + ic("chevron_right", 16) + "</button></div></div>" +
     '<div class="docs-chips"><button class="adiante" data-adiante="jurisprudência">Buscar jurisprudência</button>' +
     '<button data-ed-citar="1">Citar artigo</button>' +

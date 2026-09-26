@@ -512,7 +512,17 @@ function ligarDupla() {
   const lado = $("editor-lado");
   $("dp-fechar").onclick = () => fecharEditorNaConversa({ animar: true });
   $("dp-so-editor").onclick = async () => { const id = dupla.doc.id; await fecharEditorNaConversa(); abrirDocumento(id); };
-  $("dp-assinar").onclick = () => { marcarDestino("assinar"); mostrarAssinar(); };
+  // Assina ESTE documento, como o Ctrl+Shift+S do editor: grava o que está na
+  // folha, guarda o PDF no Acervo e abre a Assinatura nele. Antes só abria a
+  // lista, e a pessoa tinha de achar o arquivo de novo.
+  $("dp-assinar").onclick = async () => {
+    const id = dupla.doc.id;
+    await gravarDupla();
+    const alvo = await guardarNaBiblioteca(id);
+    if (!alvo) return;
+    marcarDestino("assinar");
+    mostrarAssinar(alvo);
+  };
   $("dp-citar").onclick = painelCodigosNaDupla;
   $("dp-numerar").onclick = renumerarClausulas;
   $("dp-qualificar").onclick = inserirQualificacao;

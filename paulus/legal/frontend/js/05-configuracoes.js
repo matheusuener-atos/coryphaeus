@@ -958,13 +958,13 @@ function secaoAparencia() {
   const atalho = (rotulo, teclas) => '<div class="cfg-atalho"><span>' + esc(rotulo) + '</span><span class="cfg-teclas">' +
     teclas.map((t) => "<span>" + esc(t) + "</span>").join("") + "</span></div>";
   const atalhos = '<div class="cfg-linhas">' +
-    atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Buscar em tudo", ["Ctrl", "K"]) + atalho("Salvar (Documentos e Configurações)", ["Ctrl", "S"]) +
+    atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Ir para a busca do Acervo ou para o pedido", ["Ctrl", "K"]) + atalho("Salvar alterações, em Configurações", ["Ctrl", "S"]) +
     atalho("Ir para Assistente", ["Ctrl", "1"]) + atalho("Ir para Agenda", ["Ctrl", "2"]) + atalho("Ir para Acervo", ["Ctrl", "3"]) +
     atalho("Fechar menus e painéis soltos", ["Esc"]) +
     atalho("Aprovar marcados, em Aprovações", ["Ctrl", "Enter"]) +
     atalho("Começar o ciclo de foco ou ir para a pausa", ["Ctrl", "Shift", "F"]) +
     atalho("Assinar o documento aberto", ["Ctrl", "Shift", "S"]) + "</div>" +
-    '<p class="cfg-explica">Valem em qualquer tela, menos enquanto você escreve num campo.</p>';
+    '<p class="cfg-explica">Valem em qualquer tela, também com o cursor num campo. O editor de documentos salva sozinho, sem Ctrl+S.</p>';
 
   // Os avisos do Windows (src/avisos.py). A mesma chave que o interruptor da
   // tela de Foco muda; aqui ela segue o rascunho, como o resto da tela.
