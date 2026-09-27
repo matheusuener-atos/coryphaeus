@@ -43,7 +43,7 @@
   <span class="rotulo">PAVLVS — Assistente jurídico de IA local</span>
   <h1>Política de privacidade</h1>
   <p class="lead">Como o PAULUS (PAULUS Legal, nome do app no Google: PAVLVS) acessa, usa, guarda e protege dados — em especial os dados da sua conta Google e do Gmail.</p>
-  <span class="data">Última atualização: 26 de setembro de 2026</span>
+  <span class="data">Última atualização: 27 de setembro de 2026</span>
 </header>
 
 <div class="doc">
@@ -74,6 +74,7 @@
         <li>O PAULUS é um <strong>programa de computador para Windows</strong> que roda na máquina do escritório. O modelo de IA também roda ali, localmente.</li>
         <li><strong>Nenhum servidor do PAULUS recebe as suas mensagens, documentos ou dados de clientes.</strong> O único servidor nosso é o do site, e ele só entra em cena se você apoiar o projeto (veja <a href="#outros-acessos">Outros acessos à internet</a>).</li>
         <li>Se você ligar uma conta Google, o PAULUS acessa o <strong>endereço de e-mail da conta</strong> e as <strong>mensagens do Gmail</strong> para mostrar sua caixa, sugerir prazos na Agenda e enviar as respostas que você aprovar.</li>
+        <li>Se você também conectar a <strong>Agenda do Google</strong> ou o <strong>Google Drive</strong> (cada um só quando você pede), o PAULUS copia seus compromissos para a sua Agenda do Google, cria a sala do Meet deles e envia ao seu Drive os documentos que você aprovar.</li>
         <li>Os dados do Google <strong>não são usados para publicidade, não são vendidos, não são usados para treinar modelos de IA e não são compartilhados com terceiros</strong>.</li>
         <li>Você pode desligar tudo a qualquer momento: remova a conta no PAULUS e revogue o acesso em <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
       </ul>
@@ -97,13 +98,15 @@
     </ul>
 
     <h2 id="dados-google">Dados do Google que o PAULUS acessa</h2>
-    <p>Só quando você escolhe ligar uma conta Google ao módulo E-mail. O Google mostra antes a tela de consentimento do app <strong>PAVLVS</strong>, com o que está sendo pedido.</p>
+    <p>Só quando você escolhe ligar uma conta Google ao módulo E-mail — e, para a Agenda e o Drive, só quando você conecta cada um em Configurações › Conexões. O Google mostra antes a tela de consentimento do app <strong>PAVLVS</strong>, com o que está sendo pedido.</p>
     <div class="rolagem">
       <table class="tabela-doc">
         <thead><tr><th scope="col">Dado</th><th scope="col">Como é pedido</th><th scope="col">Para quê</th></tr></thead>
         <tbody>
           <tr><td>Endereço de e-mail da conta Google</td><td>Informado pelo Google no login</td><td>Identificar qual conta está ligada e de qual caixa as mensagens vêm.</td></tr>
           <tr><td>Mensagens do Gmail (cabeçalhos, conteúdo e anexos)</td><td>Escopo <code>https://mail.google.com/</code></td><td>Mostrar a sua caixa e as mensagens que você abre, enviar as respostas que você aprova e organizar a caixa quando você pede (arquivar, excluir, marcar como lida ou com estrela).</td></tr>
+          <tr><td>Eventos da Agenda do Google (agenda principal)</td><td>Escopo <code>https://www.googleapis.com/auth/calendar.events</code>, só se você conectar a Agenda</td><td>Criar, atualizar e apagar os eventos dos compromissos que você marca no PAULUS (título, data, hora, duração e lugar — a anotação e o cliente não saem do computador), criar a sala do Google Meet deles e ler os seus eventos para mostrá-los na Agenda do programa, só para ver.</td></tr>
+          <tr><td>Arquivos do Google Drive criados pelo PAULUS</td><td>Escopo <code>https://www.googleapis.com/auth/drive.file</code>, só se você conectar o Drive</td><td>Criar a pasta PAULUS no seu Drive e enviar para ela os documentos que você aprovar. Esse escopo só dá acesso ao que o próprio PAULUS criou: o programa não vê os outros arquivos do seu Drive.</td></tr>
         </tbody>
       </table>
     </div>
@@ -117,6 +120,8 @@
       <li><strong>Preparar e enviar respostas que você aprova</strong>: o assistente pode escrever um rascunho, mas o envio passa pela fila de <strong>Aprovações</strong> e só acontece com a sua confirmação.</li>
       <li><strong>Organizar a caixa quando você pede</strong>: arquivar, excluir (a mensagem vai para a lixeira do seu provedor), marcar como lida ou não lida e marcar com estrela.</li>
       <li><strong>Guardar um anexo no Acervo</strong>, quando você escolhe guardar.</li>
+      <li><strong>Levar os seus compromissos para a Agenda do Google</strong>, com a sincronização ligada, e <strong>criar a sala do Meet</strong> de um compromisso online quando você pede; e mostrar os eventos da sua Agenda do Google dentro do programa.</li>
+      <li><strong>Enviar documentos ao seu Google Drive</strong>, na pasta PAULUS: cada envio passa pela fila de <strong>Aprovações</strong> e só acontece com a sua confirmação.</li>
     </ol>
     <p>Esse processamento — inclusive a leitura pela IA para entender a mensagem, detectar prazos e escrever rascunhos, e a tradução de mensagens em inglês ou espanhol — acontece no seu computador, com modelos locais.</p>
 
@@ -136,6 +141,7 @@
     <h2 id="onde-ficam">Onde os dados ficam e como são protegidos</h2>
     <ul>
       <li><strong>As mensagens trafegam só entre o seu computador e o seu provedor de e-mail</strong> (Google, Microsoft ou outro), por conexão cifrada. Elas não passam por nenhum servidor do PAULUS.</li>
+      <li><strong>Agenda e Drive:</strong> os compromissos e os documentos que você manda vão direto do seu computador para a sua conta Google, por conexão cifrada, e ficam na sua Agenda e no seu Drive, sob a gestão do Google. Nada disso passa por servidor do PAULUS.</li>
       <li><strong>Imagens de fora:</strong> um e-mail pode pedir imagens hospedadas nos servidores de quem o enviou. O PAULUS <strong>bloqueia essas imagens por padrão</strong>. Se você mandar mostrar (numa mensagem, ou em E-mail › Configurações), o computador as baixa desses servidores, como qualquer programa de e-mail — e isso pode avisar ao remetente que a mensagem foi aberta.</li>
       <li>O que o programa guarda fica <strong>no próprio computador</strong>, nas pastas do PAULUS.</li>
       <li>A autorização do Google (o <em>refresh token</em>, que permite ao programa continuar conectado) fica <strong>cifrada pela conta do Windows</strong> (DPAPI): só a mesma conta de usuário, naquele computador, consegue decifrá-la.</li>
@@ -144,7 +150,7 @@
     </ul>
 
     <h2 id="compartilhamento">Compartilhamento</h2>
-    <p>Nós não compartilhamos, vendemos ou transferimos os dados do Google, nem os demais dados que você trata no PAULUS, com terceiros. A troca necessária é com o <strong>seu próprio provedor de e-mail</strong>, para ler e enviar as suas mensagens — por exemplo, o Google, quando a conta é do Gmail.</p>
+    <p>Nós não compartilhamos, vendemos ou transferimos os dados do Google, nem os demais dados que você trata no PAULUS, com terceiros. A troca necessária é com o <strong>seu próprio provedor de e-mail</strong>, para ler e enviar as suas mensagens — por exemplo, o Google, quando a conta é do Gmail — e, se você conectar, com a <strong>sua própria Agenda e o seu próprio Drive do Google</strong>, para onde vão os compromissos e os documentos que você escolheu.</p>
     <p>A única exceção fora do e-mail é voluntária: se você <strong>apoiar o projeto</strong>, o e-mail do recibo e o valor vão ao Mercado Pago, que processa o pagamento (veja abaixo). Os dados do Google nunca entram nesse pedido.</p>
     <p>Quando você envia uma mensagem aprovada, ela vai para os destinatários que você escolheu, como em qualquer programa de e-mail.</p>
 
@@ -153,7 +159,8 @@
       <li><strong>Legislação:</strong> o PAULUS acessa o site público <code>planalto.gov.br</code> para baixar o texto de leis. Esse acesso não envia dados pessoais.</li>
       <li><strong>WhatsApp Web:</strong> se você quiser, o programa abre o WhatsApp Web dentro dele. Nesse caso você usa o serviço do WhatsApp diretamente, sujeito aos termos e à política de privacidade do WhatsApp.</li>
       <li><strong>Outros provedores de e-mail</strong> (Microsoft ou outro): valem as mesmas regras desta política — as mensagens trafegam só entre o seu computador e o provedor.</li>
-      <li><strong>Downloads de modelos:</strong> na primeira vez que você usa, o PAULUS baixa o modelo de voz das Gravações (Whisper, do repositório público Hugging Face) e os pacotes de tradução de e-mail (de <code>argos-net.com</code>). É só o download do arquivo; nenhum áudio, texto ou dado seu é enviado. Depois disso, transcrição e tradução funcionam sem internet.</li>
+      <li><strong>Downloads de modelos:</strong> na primeira vez que você usa, o PAULUS baixa o modelo de voz das Gravações (Whisper, do repositório público Hugging Face) e os pacotes de tradução de e-mail (de <code>argos-net.com</code>). Os modelos de linguagem são baixados quando você pede, em Configurações › Modelos: o Ollama os busca no registro público dele (<code>registry.ollama.ai</code>), e a tela consulta esse registro para mostrar o tamanho antes. É só o download dos arquivos; nenhum documento, áudio, texto ou dado seu é enviado. Depois disso, tudo funciona sem internet.</li>
+      <li><strong>Calibração dos modelos (opcional, desligada de fábrica):</strong> se você ligar "Participar da calibração" (nas boas-vindas ou em Configurações › Modelos), o programa envia ao site <code>paulus.ia.br</code> as medidas desta máquina — processador, memória, as duas velocidades medidas e quantas palavras por segundo cada modelo escreve e lê — e baixa as medidas de outras máquinas, para estimar melhor quanto cada modelo demora. Nada do escritório vai: nem documento, nem nome, nem e-mail. A tela mostra exatamente o que vai antes (em "ver o que é enviado"). O site guarda as 5.000 medidas mais recentes, uma por máquina e modelo, e as entrega a quem participa. Desligar para o envio na hora.</li>
       <li><strong>Apoiar o projeto (opcional):</strong> se você escolher apoiar, o programa envia ao site <code>paulus.ia.br</code> o valor e o e-mail para o recibo, e o site repassa o pedido ao Mercado Pago, que gera o Pix ou a página da assinatura. O cartão é digitado só na página do Mercado Pago, nunca no programa. O site guarda por até 400 dias apenas a situação do pagamento, o valor e a data e, no Pix, a impressão digital do e-mail (um hash SHA-256: o endereço não fica guardado, só dá para conferir um endereço que o programa informar) — o que serve para o programa achar um Pix já pago. O Mercado Pago trata os dados do pagamento segundo a política de privacidade dele.</li>
       <li><strong>Feedback (opcional):</strong> em Configurações › Feedback, o PAULUS abre um e-mail endereçado a <code>contato@paulus.ia.br</code> com o que você escreveu e, se você marcar, uma linha técnica (Windows, o nome do modelo e quantos documentos estão no índice) e o seu e-mail de contato. Você revisa antes de sair, e o envio passa pela fila de Aprovações como qualquer e-mail (a não ser que você tenha liberado o envio sem confirmação nas regras de alçada). Sem conta de e-mail no programa, o texto só é copiado para você mandar.</li>
       <li><strong>Links que abrem no navegador:</strong> alguns botões só abrem uma página no seu navegador — por exemplo, a de login do Google, a de download do Ollama e a de nova reunião do Google Meet ou do Microsoft Teams. O que acontece ali segue as regras de cada site.</li>
@@ -162,7 +169,8 @@
     <h2 id="retencao">Retenção e como apagar</h2>
     <ul>
       <li>A autorização do Google fica guardada no computador <strong>enquanto a conta estiver ligada</strong> ao PAULUS.</li>
-      <li><strong>Para desligar:</strong> no PAULUS, abra o módulo E-mail e remova a conta. A autorização guardada é apagada do computador.</li>
+      <li><strong>Para desligar:</strong> no PAULUS, abra o módulo E-mail e remova a conta. A autorização guardada é apagada do computador. Para parar só a Agenda, desligue a sincronização em Configurações › Conexões.</li>
+      <li>Os eventos que o PAULUS criou na sua Agenda do Google e os documentos que você enviou ao seu Drive <strong>continuam lá</strong> depois que você desliga, sob a gestão do Google; apagá-los ou não é escolha sua, no próprio Google.</li>
       <li><strong>Para revogar no Google:</strong> acesse <a href="https://myaccount.google.com/permissions">https://myaccount.google.com/permissions</a>, escolha <strong>PAVLVS</strong> e remova o acesso. A partir daí o programa não consegue mais ler nem enviar mensagens por essa conta.</li>
       <li>Arquivos que você mesmo salvou no computador (por exemplo, anexos baixados ou documentos criados a partir de uma mensagem) continuam nas pastas onde você os salvou até que você os apague.</li>
       <li>As mensagens continuam na sua conta do Gmail, sob a gestão do Google; apagá-las ou não é escolha sua, no próprio Gmail.</li>

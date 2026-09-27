@@ -15,6 +15,9 @@
 //   POST /api/mp/assinatura/:id/interromper  cancela a assinatura } chave dela
 //   POST /api/mp/assinatura/:id/pagamentos   as cobrancas mensais }
 //   POST /api/mp/aviso        o webhook do Mercado Pago (assinatura conferida)
+//   POST /api/calibracao      medidas de maquina e modelo, de quem escolheu
+//                             participar (so numeros; veja receberCalibracao)
+//   GET  /api/calibracao      todas as medidas, para o programa estimar melhor
 //
 // O que o webhook confirma fica no KV APOIOS (so situacao, valor e data): o
 // Pix pago depois de fechado o pop-up e a assinatura concluida no navegador
@@ -57,6 +60,11 @@ export default {
         return mudar[2] === "valor" ? await mudarValor(mudar[1], request, env) : await interromper(mudar[1], request, env);
       }
       if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env, ctx);
+      if (url.pathname === "/api/calibracao" && request.method === "POST") {
+        if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+        return await receberCalibracao(request, env);
+      }
+      if (url.pathname === "/api/calibracao" && request.method === "GET") return await entregarCalibracao(env);
       return json({ erro: "rota não existe" }, 404);
     } catch (erro) {
       return json({ erro: "falha no servidor de pagamento" }, 500);
@@ -359,4 +367,89 @@ function igual(a, b) {
   let diferenca = 0;
   for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diferenca === 0;
+}
+
+// ------------------------------------------------------------ calibracao
+//
+// A estimativa de quanto cada modelo de IA demora numa maquina
+// (paulus/legal/src/maquina.py) melhora com medidas de muitas maquinas. Quem
+// escolhe participar, no programa, manda as medidas da maquina dele e recebe
+// as de todos. So numeros da maquina e do modelo: processador, memoria, as
+// duas velocidades medidas, o modelo e as palavras por segundo dele. Nada do
+// escritorio, nada de pessoa. Cada amostra e conferida campo a campo; o que
+// nao cabe no formato e jogado fora.
+//
+// Tudo numa chave so do KV APOIOS (prefixo "calibracao:"), para nao pedir
+// configuracao nova no Cloudflare. Uma amostra por maquina e modelo: medir de
+// novo troca a antiga. Guarda as 5000 mais recentes.
+
+const CAL_CHAVE = "calibracao:todas";
+const CAL_MAXIMO = 5000;
+const CAL_POR_PEDIDO = 50;
+
+function calNumero(v, min, max) {
+  return typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
+}
+
+function calTexto(v, max, re) {
+  return typeof v === "string" && v.length <= max && (!re || re.test(v));
+}
+
+function limparAmostra(a) {
+  if (!a || typeof a !== "object") return null;
+  const m = a.maquina || {};
+  const ok =
+    calTexto(m.id, 32, /^[0-9a-f]{6,32}$/) && calNumero(m.versao, 1, 99) &&
+    calTexto(m.processador, 120, /^[\x20-\x7EÀ-ſ]*$/) && calNumero(m.nucleos, 1, 512) &&
+    calNumero(m.ram_total_gb, 0.5, 4096) && calNumero(m.banda_gbs, 0.1, 2000) && calNumero(m.gflops, 0.1, 100000) &&
+    calTexto(a.modelo, 120, /^[a-z0-9][a-z0-9._:\/-]*$/i) && calNumero(a.tamanho_gb, 0.01, 500) &&
+    calNumero(a.parametros_b, 0.01, 2000) && calTexto(a.quantizacao || "", 20, /^[A-Za-z0-9_]*$/) &&
+    calNumero(a.escrita_tps, 0.01, 10000) && calNumero(a.leitura_tps || 0, 0, 100000);
+  if (!ok) return null;
+  return {
+    maquina: {
+      id: m.id, versao: m.versao, processador: m.processador, nucleos: m.nucleos, ram_total_gb: m.ram_total_gb,
+      avx2: m.avx2 === true ? true : m.avx2 === false ? false : null, banda_gbs: m.banda_gbs, gflops: m.gflops,
+      na_bateria: m.na_bateria === true ? true : m.na_bateria === false ? false : null,
+    },
+    gpu: a.gpu === true,
+    modelo: a.modelo, tamanho_gb: a.tamanho_gb, parametros_b: a.parametros_b, quantizacao: a.quantizacao || "",
+    escrita_tps: a.escrita_tps, leitura_tps: a.leitura_tps || 0,
+    quando: new Date().toISOString().slice(0, 16).replace("T", " "),
+  };
+}
+
+async function receberCalibracao(request, env) {
+  if (!env.APOIOS) return json({ erro: "armazenamento indisponível" }, 503);
+  const corpo = await lerPedido(request);
+  const lista = Array.isArray(corpo && corpo.amostras) ? corpo.amostras.slice(0, CAL_POR_PEDIDO) : [];
+  const limpas = lista.map(limparAmostra).filter(Boolean);
+  if (!limpas.length) return json({ erro: "nenhuma amostra válida" }, 400);
+  let todas = [];
+  try {
+    todas = JSON.parse((await env.APOIOS.get(CAL_CHAVE)) || "[]");
+  } catch {
+    todas = [];
+  }
+  for (const a of limpas) {
+    const i = todas.findIndex((x) => x.maquina.id === a.maquina.id && x.modelo === a.modelo);
+    if (i >= 0) todas.splice(i, 1);
+    todas.push(a);
+  }
+  todas = todas.slice(-CAL_MAXIMO);
+  await env.APOIOS.put(CAL_CHAVE, JSON.stringify(todas));
+  return json({ recebidas: limpas.length, total: todas.length });
+}
+
+async function entregarCalibracao(env) {
+  const bruto = env.APOIOS ? await env.APOIOS.get(CAL_CHAVE) : null;
+  let amostras = [];
+  try {
+    amostras = bruto ? JSON.parse(bruto) : [];
+  } catch {
+    amostras = [];
+  }
+  return new Response(JSON.stringify({ versao: 1, amostras }), {
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=3600" },
+  });
 }
