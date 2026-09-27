@@ -81,7 +81,7 @@ def test_varredura() -> None:
         (base / "node_modules" / "lixo").mkdir(parents=True)
         (base / "clientes" / "acme" / "contrato.txt").write_text("x", encoding="utf-8")
         (base / "clientes" / "outro.pdf").write_bytes(b"%PDF-1.4 fake")
-        (base / "clientes" / "planilha.xlsx").write_text("nao suportado", encoding="utf-8")
+        (base / "clientes" / "foto.jpg").write_text("nao suportado", encoding="utf-8")
         (base / "node_modules" / "lixo" / "readme.txt").write_text("x", encoding="utf-8")
 
         v = escanear([base])
@@ -89,7 +89,7 @@ def test_varredura() -> None:
 
         checar("contrato.txt" in nomes, "encontra arquivo em subpasta")
         checar("outro.pdf" in nomes, "encontra PDF")
-        checar("planilha.xlsx" not in nomes, "ignora extensao nao suportada")
+        checar("foto.jpg" not in nomes, "ignora extensao nao suportada")
         checar("readme.txt" not in nomes, "pula pasta de sistema (node_modules)")
         checar(all(Path(a.path).exists() for a in v.arquivos), "caminhos apontam para arquivos reais")
 

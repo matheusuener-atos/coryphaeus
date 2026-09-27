@@ -80,3 +80,12 @@ data/conhecimento/
 
 # Base de demonstracao (tools/demo/criar_demo.py): gerada, nao versionada
 data/demo/
+
+# O que o tools/instalador/construir.py monta (Python, dependencias, instalador): grande e refeito a cada versao.
+tools/instalador/_construcao/
+
+# Gerados por maquina: o teste desta maquina, a calibracao baixada do servidor e
+# a escolha da tela Modelo de IA do instalador.
+data/maquina.json
+data/calibracao_servidor.json
+data/escolha_do_instalador*.json

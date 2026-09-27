@@ -137,6 +137,19 @@ class Transcritor:
                 return self._carregado
             if not self.instalado():
                 raise RuntimeError("o modelo de voz " + MODELOS[self.modelo]["rotulo"] + " não está baixado nesta máquina")
+            # Sem memória livre, carregar o modelo não dava erro: derrubava o
+            # programa inteiro (acesso inválido dentro do CTranslate2, medido
+            # com 1,3 GB livres e o modelo do assistente carregado). Melhor
+            # dizer e deixar a gravação esperando do que cair.
+            import psutil
+
+            livre_mb = psutil.virtual_memory().available / (1024 * 1024)
+            precisa_mb = MODELOS[self.modelo]["mb"] * 1.2
+            if livre_mb < precisa_mb:
+                raise RuntimeError(
+                    f"memória livre insuficiente para o modelo de voz agora ({livre_mb / 1024:.1f} GB livres, "
+                    f"precisa de uns {precisa_mb / 1024:.1f} GB). Feche programas pesados ou espere o assistente "
+                    "terminar, e mande transcrever de novo".replace(".", ",", 2))
             from faster_whisper import WhisperModel
 
             self._carregado = WhisperModel(

@@ -73,9 +73,7 @@
   .as-adicionar[hidden], .as-nesta[hidden] { display: none; }
   .as-adicionar small { font: 500 12px var(--sans); color: var(--ink3); }
   .as-nesta { font: 500 12.5px var(--sans); color: var(--ink2); }
-  .colunas-pdfs { grid-template-columns: 20px minmax(0, 1fr) 120px 118px; }
-  .sem-selecao .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 118px; }
-  .sem-selecao .colunas-pdfs > .marcar { display: none; }
+  .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 118px; }
   .colunas-pdfs .acoes-linha { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 
   /* o painel de antes de assinar */

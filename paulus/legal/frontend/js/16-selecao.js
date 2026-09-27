@@ -96,29 +96,119 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-/* A barra de selecao que as listas mostram no lugar dos filtros. `acoes` e
-   o HTML dos botoes da tela; "Selecionar todas" e "Limpar" sao os mesmos em
-   todas. Com `total`, "Selecionar todas" some quando ja estao todas. */
+/* A barra de selecao que as listas mostram no lugar dos filtros: a caixa, a
+   contagem e as acoes da tela. A caixa E o "selecionar todas / limpar": com
+   parte marcada ela mostra o traco e marca todas; com todas marcadas mostra
+   o check e limpa. Esc tambem limpa. `atributoLimpar` ficou por
+   compatibilidade - o Limpar em texto saiu (26/09/2026, pedido do usuario:
+   uma forma so em todas as listas, a do Assistente). Com `total`, a caixa ja
+   nasce no estado certo; sem ele, sincronizarBarraDeSelecao acerta. */
 function barraDeSelecao(quantos, feminino, acoes, atributoLimpar, total) {
   const todas = total !== undefined && quantos >= total;
-  return '<span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" +
+  return '<span class="selecao">' + caixaDaSelecao(todas, feminino) +
     '<span class="selecao-conta">' + plural(quantos, feminino ? "selecionada" : "selecionado") + "</span>" +
-    (todas ? "" : '<button class="limpar" data-selecionar-todos="1">' + (feminino ? "Selecionar todas" : "Selecionar todos") + "</button>") +
-    '<button class="limpar" ' + atributoLimpar + '="1">Limpar</button></span><span class="divisa-v"></span>' + acoes;
+    '</span><span class="divisa-v"></span>' + acoes;
 }
 
-/* "Selecionar todos" e o Ctrl+A em forma de botao: marca todas as linhas da
-   lista que tem a selecao. Por delegacao, porque cada tela redesenha a barra
-   inteira a cada clique. */
+function caixaDaSelecao(todas, feminino) {
+  const dica = todas ? "Limpar a seleção" : (feminino ? "Selecionar todas" : "Selecionar todos");
+  return '<button type="button" class="marcar on' + (todas ? "" : " parte") + '" data-selecao-alternar="1"' +
+    (feminino ? ' data-feminino="1"' : "") + ' role="checkbox" aria-checked="' + (todas ? "true" : "mixed") +
+    '" title="' + dica + '" aria-label="' + dica + '">' + ic(todas ? "check" : "remove", 12) + "</button>";
+}
+
+function linhasDaSelecao(s) {
+  return Array.from(s.raiz.querySelectorAll(s.o.linhas));
+}
+
+function todasEscolhidas(s) {
+  const linhas = linhasDaSelecao(s);
+  return linhas.length > 0 && linhas.every((linha) => s.o.escolhidos.has(s.chave(linha)));
+}
+
+/* A caixa da barra acompanha a lista: cada tela redesenha a barra do seu
+   jeito, e nem toda sabe o total. Depois de cada mudanca na pagina, a caixa
+   confere a lista que esta selecionando e mostra o estado real. */
+function sincronizarBarraDeSelecao() {
+  const s = selecaoAtiva;
+  if (!s || !document.contains(s.raiz)) return;
+  const todas = todasEscolhidas(s);
+  document.querySelectorAll("[data-selecao-alternar]").forEach((b) => {
+    if (b.classList.contains("parte") !== todas) return;
+    b.outerHTML = caixaDaSelecao(todas, Boolean(b.dataset.feminino));
+  });
+}
+
+let quadroDaSincronia = 0;
+new MutationObserver(() => {
+  if (quadroDaSincronia) return;
+  quadroDaSincronia = requestAnimationFrame(() => { quadroDaSincronia = 0; sincronizarBarraDeSelecao(); });
+}).observe(document.documentElement, { childList: true, subtree: true });
+
+/* A caixa da barra - e o antigo "Selecionar todos", que alguma tela ainda
+   pode desenhar. Por delegacao, porque cada tela redesenha a barra inteira
+   a cada clique. */
 document.addEventListener("click", (e) => {
-  const botao = e.target && e.target.closest && e.target.closest("[data-selecionar-todos]");
+  const botao = e.target && e.target.closest && e.target.closest("[data-selecao-alternar], [data-selecionar-todos]");
   if (!botao) return;
   const s = selecaoAtiva;
   if (!s || !document.contains(s.raiz)) return;
   e.preventDefault();
   e.stopPropagation();
-  s.raiz.querySelectorAll(s.o.linhas).forEach((linha) => s.o.escolhidos.add(s.chave(linha)));
+  if (botao.hasAttribute("data-selecao-alternar") && todasEscolhidas(s)) {
+    s.o.escolhidos.clear();
+  } else {
+    linhasDaSelecao(s).forEach((linha) => s.o.escolhidos.add(s.chave(linha)));
+  }
   s.o.aoMudar();
+});
+
+/* ---------------------------------------------------- botao direito */
+/* Botao direito numa linha de lista abre o mesmo menu do "…" da linha, no
+   ponto do clique. Um so lugar para todas as listas: acha a linha, acha o
+   "…" dela, abre o menu como o clique abriria e leva o menu ate o ponteiro.
+   Linha sem "…" fica com o menu do navegador - nao se inventa menu. */
+const LINHAS_COM_MENU = ".tabela-linha, .lc-linha, .ag-linha, .ae-linha, .ae-verbete, .sv-pasta, .ex-linha, .ap-linha, .mod-linha, .mat-linha";
+
+function botaoMaisDa(linha) {
+  return Array.from(linha.querySelectorAll("button")).find((b) =>
+    b.closest(LINHAS_COM_MENU) === linha && Array.from(b.querySelectorAll(".ic, .icon")).some((i) => i.textContent.trim() === "more_horiz"));
+}
+
+function levarMenuAoPonto(menu, x, y) {
+  menu.style.position = "fixed";
+  menu.style.right = "auto";
+  menu.style.bottom = "auto";
+  menu.style.left = x + "px";
+  menu.style.top = y + "px";
+  menu.style.marginTop = "0";
+  // Um ancestral com transform muda a referencia do "fixed": mede o desvio
+  // e desconta.
+  const caixa = menu.getBoundingClientRect();
+  const dx = caixa.left - x;
+  const dy = caixa.top - y;
+  // Perto da borda da janela, o menu abre para o outro lado do ponteiro.
+  let esquerda = x + caixa.width > innerWidth - 8 ? x - caixa.width : x;
+  let topo = y + caixa.height > innerHeight - 8 ? y - caixa.height : y;
+  esquerda = Math.max(8, esquerda);
+  topo = Math.max(8, topo);
+  menu.style.left = (esquerda - dx) + "px";
+  menu.style.top = (topo - dy) + "px";
+}
+
+document.addEventListener("contextmenu", (e) => {
+  const alvo = e.target;
+  if (!alvo || !alvo.closest || alvo.closest("input, textarea, [contenteditable='true'], .menu-conversa")) return;
+  const linha = alvo.closest(LINHAS_COM_MENU);
+  if (!linha) return;
+  const mais = botaoMaisDa(linha);
+  if (!mais) return;
+  e.preventDefault();
+  document.querySelectorAll(".menu-conversa").forEach((m) => m.remove());
+  const antes = new Set(document.querySelectorAll(".menu-conversa"));
+  mais.click();
+  const menu = Array.from(document.querySelectorAll(".menu-conversa:not(.menu-sub)")).find((m) => !antes.has(m));
+  if (menu) levarMenuAoPonto(menu, e.clientX, e.clientY);
 });
 
 /* Apaga varios de uma vez pela lixeira e avisa uma vez so, com um Desfazer

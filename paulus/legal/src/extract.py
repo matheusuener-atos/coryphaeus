@@ -12,7 +12,13 @@ import json
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
-SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
+# .xlsx desde 27/09/2026: a planilha que o editor guarda e a do Financeiro
+# vao para o Acervo, e o Acervo precisa le-las (antes, ficavam na pasta sem
+# aparecer).
+SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md", ".xlsx"}
+# Pagina de PDF com menos texto que isto vai para o OCR: o carimbo de um
+# escaneado ("Digitalizado por...") nao e o documento.
+MIN_TEXTO_DA_PAGINA = 20
 
 
 @dataclass
@@ -24,6 +30,9 @@ class Document:
     text: str
     pages: int = 0
     sha1: str = ""
+    # Quantas paginas vieram de imagem, pelo OCR (src/ocr_windows.py): texto que pode
+    # ter erro de leitura, e a tela avisa.
+    ocr: int = 0
 
     @property
     def chars(self) -> int:
@@ -40,6 +49,7 @@ class Document:
             text=data["text"],
             pages=data.get("pages", 0),
             sha1=data.get("sha1", ""),
+            ocr=data.get("ocr", 0),
         )
 
 
@@ -82,6 +92,18 @@ def _texto_da_pagina(page) -> str:
 
 def extract_pdf(path: Path) -> tuple[str, int]:
     """Extrai texto de um PDF. Retorna (texto, numero_de_paginas)."""
+    texto, paginas, _ = extract_pdf_info(path)
+    return texto, paginas
+
+
+def extract_pdf_info(path: Path) -> tuple[str, int, int]:
+    """
+    Texto, numero de paginas e quantas delas vieram de imagem.
+
+    Pagina sem texto proprio - escaneada - vai para o OCR do Windows
+    (src/ocr_windows.py). Pagina a pagina, e nao o arquivo inteiro: um contrato
+    digitado com a ultima pagina assinada e escaneada tem as duas coisas.
+    """
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
@@ -93,13 +115,55 @@ def extract_pdf(path: Path) -> tuple[str, int]:
         except Exception as exc:  # pragma: no cover - depende do arquivo
             raise RuntimeError(f"PDF protegido por senha: {path.name}") from exc
 
-    partes: list[str] = []
+    textos: dict[int, str] = {}
+    sem_texto: list[int] = []
     for i, page in enumerate(reader.pages, start=1):
-        texto = _texto_da_pagina(page)
-        if texto.strip():
-            partes.append(f"[pagina {i}]\n{texto.strip()}")
+        texto = _texto_da_pagina(page).strip()
+        textos[i] = texto
+        if len(texto) < MIN_TEXTO_DA_PAGINA:
+            sem_texto.append(i)
 
-    return "\n\n".join(partes), len(reader.pages)
+    lidas_por_ocr = 0
+    if sem_texto:
+        import ocr_windows as ocr
+
+        if ocr.situacao()["ok"]:
+            for n, texto in ocr.ler_paginas(path, sem_texto).items():
+                if len(texto) > len(textos[n]):
+                    textos[n] = texto
+                    lidas_por_ocr += 1
+
+    partes = [f"[pagina {i}]\n{t}" for i, t in textos.items() if t]
+    return "\n\n".join(partes), len(reader.pages), lidas_por_ocr
+
+
+def motivo_sem_texto(path: Path) -> str:
+    """
+    Por que um arquivo nao virou texto, dito do jeito certo.
+
+    A tela dizia "PDF escaneado?" para tudo - inclusive para um arquivo de 0
+    bytes, que era um download que nao terminou.
+    """
+    try:
+        tamanho = path.stat().st_size
+    except OSError:
+        return "o arquivo não foi encontrado"
+    if tamanho == 0:
+        return "o arquivo está vazio (0 bytes) — o download ou a cópia não terminou; baixe de novo"
+    try:
+        texto, _ = extract_file(path)
+    except Exception as exc:  # noqa: BLE001 - o motivo e o erro
+        return "não consegui abrir o arquivo: " + str(exc)[:120]
+    if texto.strip():
+        return ""
+    if path.suffix.lower() == ".pdf":
+        import ocr_windows as ocr
+
+        s = ocr.situacao()
+        if not s["ok"]:
+            return "o PDF é só imagem (escaneado) e " + s["motivo"]
+        return "o PDF é só imagem e o leitor de imagem não achou texto nele (página em branco ou foto sem letras)"
+    return "o arquivo não tem texto"
 
 
 def extract_docx(path: Path) -> tuple[str, int]:
@@ -118,6 +182,41 @@ def extract_docx(path: Path) -> tuple[str, int]:
     return "\n".join(partes), 0
 
 
+# Planilha enorme (um extrato de banco com 50 mil linhas) nao vira contexto de
+# pergunta: o comeco basta para achar e classificar.
+MAX_LINHAS_DA_PLANILHA = 20000
+
+
+def extract_xlsx(path: Path) -> tuple[str, int]:
+    """
+    O texto de uma planilha: cada aba com o nome dela, e cada linha com as
+    celulas separadas por " | " - o valor calculado, nao a formula.
+    """
+    from openpyxl import load_workbook
+
+    livro = load_workbook(str(path), read_only=True, data_only=True)
+    partes: list[str] = []
+    linhas_lidas = 0
+    try:
+        for aba in livro.worksheets:
+            linhas: list[str] = []
+            for linha in aba.iter_rows(values_only=True):
+                celulas = [str(v).strip() for v in linha if v is not None and str(v).strip()]
+                if celulas:
+                    linhas.append(" | ".join(celulas))
+                    linhas_lidas += 1
+                if linhas_lidas >= MAX_LINHAS_DA_PLANILHA:
+                    break
+            # A aba entra mesmo vazia: a planilha recem-criada existe, e o
+            # Acervo mostra - sem texto nenhum, o indice a pularia.
+            partes.append(f"[planilha {aba.title}]" + ("\n" + "\n".join(linhas) if linhas else ""))
+            if linhas_lidas >= MAX_LINHAS_DA_PLANILHA:
+                break
+    finally:
+        livro.close()
+    return "\n\n".join(partes), 0
+
+
 def extract_txt(path: Path) -> tuple[str, int]:
     return path.read_text(encoding="utf-8", errors="replace"), 0
 
@@ -131,6 +230,8 @@ def extract_file(path: Path) -> tuple[str, int]:
         return extract_docx(path)
     if suffix in {".txt", ".md"}:
         return extract_txt(path)
+    if suffix == ".xlsx":
+        return extract_xlsx(path)
     raise ValueError(f"Formato nao suportado: {suffix}")
 
 
@@ -163,12 +264,73 @@ def _save_cache(cache_path: Path, docs: list[Document]) -> None:
     cache_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
+def chave_do_caminho(p: str | Path) -> str:
+    """O mesmo arquivo, escrito de jeitos diferentes (maiuscula, barra, atalho), vira a mesma chave."""
+    import os
+
+    try:
+        return os.path.normcase(str(Path(p).resolve()))
+    except OSError:
+        return os.path.normcase(os.path.abspath(str(p)))
+
+
+def listar_arquivos(pastas: list[Path], ignorar: set[str] | frozenset = frozenset()) -> list[Path]:
+    """
+    Os documentos que o Acervo le nas pastas vigiadas.
+
+    Fica de fora: pasta de sistema e de programa (scan.PASTAS_IGNORADAS) e
+    pasta oculta, o arquivo temporario que o Word deixa enquanto o documento
+    esta aberto ("~$contrato.docx", que nao abre) e o que a pessoa tirou do
+    Acervo (`ignorar`, chaves de chave_do_caminho). Pasta dentro de outra da
+    lista nao conta duas vezes.
+    """
+    import os
+
+    from scan import PASTAS_IGNORADAS
+
+    vistos: set[str] = set()
+    saida: list[Path] = []
+    for pasta in pastas:
+        for raiz, subpastas, nomes in os.walk(pasta):
+            subpastas[:] = [d for d in subpastas if d.lower() not in PASTAS_IGNORADAS and not d.startswith(".")]
+            for nome in nomes:
+                if nome.startswith("~$") or Path(nome).suffix.lower() not in SUPPORTED_SUFFIXES:
+                    continue
+                caminho = Path(raiz) / nome
+                chave = chave_do_caminho(caminho)
+                if chave in vistos or chave in ignorar:
+                    continue
+                vistos.add(chave)
+                saida.append(caminho)
+    saida.sort()
+    return saida
+
+
+# O sha1 de cada arquivo, lembrado por caminho, tamanho e data. Reler o acervo
+# lia TODOS os arquivos de ponta a ponta so para saber se mudaram; com a vigia
+# das pastas relendo quando algo muda, isso seria ler gigabytes a cada novo
+# documento. Arquivo que nao mudou de tamanho nem de data nao e lido de novo.
+_SHA1_LEMBRADO: dict[tuple[str, int, int], str] = {}
+
+
+def sha1_lembrado(path: Path) -> str:
+    st = path.stat()
+    chave = (str(path), st.st_size, st.st_mtime_ns)
+    sha = _SHA1_LEMBRADO.get(chave)
+    if sha is None:
+        sha = file_sha1(path)
+        _SHA1_LEMBRADO[chave] = sha
+    return sha
+
+
 def index_all_contracts(
     folder: Path | list[Path],
     cache_path: Path | None = None,
     *,
     force: bool = False,
     verbose: bool = True,
+    ignorar: set[str] | frozenset = frozenset(),
+    progresso=None,
 ) -> list[Document]:
     """
     Extrai todos os contratos de `folder` (recursivamente) - ou de varias
@@ -189,20 +351,15 @@ def index_all_contracts(
     cache = {} if (force or cache_path is None) else _load_cache(Path(cache_path))
     docs: list[Document] = []
 
-    vistos: set[str] = set()
-    arquivos: list[Path] = []
-    for pasta in pastas:
-        for p in pasta.rglob("*"):
-            if not (p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES):
-                continue
-            chave = str(p.resolve()).lower()
-            if chave not in vistos:
-                vistos.add(chave)
-                arquivos.append(p)
-    arquivos.sort()
+    arquivos = listar_arquivos(pastas, ignorar)
 
-    for path in arquivos:
-        sha = file_sha1(path)
+    for indice, path in enumerate(arquivos, start=1):
+        if progresso:
+            progresso(indice, len(arquivos), path.name)
+        try:
+            sha = sha1_lembrado(path)
+        except OSError:
+            continue  # sumiu entre listar e ler
         if sha in cache:
             # Copia, e nao o objeto do cache. Dois arquivos iguais byte a byte
             # - "contrato.pdf" e "contrato (1).pdf" - tem o mesmo sha1 e caem
@@ -217,7 +374,10 @@ def index_all_contracts(
             continue
 
         try:
-            texto, paginas = extract_file(path)
+            if path.suffix.lower() == ".pdf":
+                texto, paginas, lidas_por_ocr = extract_pdf_info(path)
+            else:
+                (texto, paginas), lidas_por_ocr = extract_file(path), 0
         except Exception as exc:
             if verbose:
                 print(f"  ! {path.name}: {exc}")
@@ -225,10 +385,12 @@ def index_all_contracts(
 
         if not texto.strip():
             if verbose:
-                print(f"  ! {path.name}: sem texto extraivel (PDF escaneado? precisa de OCR)")
+                print(f"  ! {path.name}: sem texto ({motivo_sem_texto(path)})")
             continue
 
-        doc = Document(name=path.name, path=str(path), text=texto, pages=paginas, sha1=sha)
+        doc = Document(name=path.name, path=str(path), text=texto, pages=paginas, sha1=sha, ocr=lidas_por_ocr)
+        if verbose and lidas_por_ocr:
+            print(f"  ~ {path.name}: {lidas_por_ocr} pagina(s) lida(s) da imagem (OCR)")
         docs.append(doc)
         if verbose:
             print(f"  + {path.name} ({doc.chars:,} chars)".replace(",", "."))

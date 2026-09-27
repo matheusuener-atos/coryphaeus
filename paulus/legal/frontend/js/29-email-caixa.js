@@ -1071,6 +1071,9 @@ async function exResponder(comRascunho, todos) {
     const d = await r.json();
     mail.rascunho = Object.assign({ uid: m.uid }, d);
     Object.assign(cx.resp, { corpo: d.rascunho, corpoHtml: "", assunto: d.assunto || cx.resp.assunto, estado: "escrevendo" });
+    // A blindagem achou ordem escondida no e-mail, ou tirou do rascunho um
+    // link que não estava nele (src/blindagem.py).
+    if (d.aviso) avisoCert(d.aviso, { tom: "erro" });
   }
   cx.respRolar = true;
   if (mail.visao === "caixa") desenharEmail();

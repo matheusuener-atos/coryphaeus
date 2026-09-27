@@ -14,7 +14,7 @@
 
   /* A fila de aprovacoes (docs/ui/03-telas-desktop.md, A11): fila, historico
      e regras sobre a mesma grade do Acervo. */
-  .colunas-fila { grid-template-columns: 20px minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 170px; }
+  .colunas-fila { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 206px; }
   .colunas-historico { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 1.1fr) 130px 150px; }
   .caixa-tipo { width: 32px; height: 32px; border-radius: 8px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; }
   .caixa-tipo .ic { color: var(--ink2); }

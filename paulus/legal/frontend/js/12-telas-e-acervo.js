@@ -242,8 +242,8 @@ function desenharBiblioteca() {
   if (!d.total) {
     $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' +
       '<div class="tabela-cartao"><div class="painel-vazio"><h3>Nenhum documento ainda</h3>' +
-      "<p>Aponte uma pasta e eu leio o que houver lá dentro. Os documentos ficam em " + esc(bib.pasta) + ".</p>" +
-      '<div class="em-vazio-acao"><button class="primario" id="bib-pasta-vazio">Escolher pasta</button></div></div></div></div></div>';
+      "<p>Inclua uma pasta do computador: eu leio o que houver lá dentro, onde está, e o que entrar nela depois entra aqui sozinho. Nada é movido.</p>" +
+      '<div class="em-vazio-acao"><button class="primario" id="bib-pasta-vazio">Incluir pasta</button></div></div></div></div></div>';
     $("bib-pasta-vazio").onclick = adicionarPastaAoAcervo;
     return;
   }
@@ -262,8 +262,7 @@ function desenharBiblioteca() {
       '<button class="botao-icone" data-lote="mover" title="Mover para pasta" aria-label="Mover para pasta">' + ic("drive_file_move", 18) + "</button>" +
       '<button class="botao-icone" data-lote="fixar" title="Fixar" aria-label="Fixar">' + ic("push_pin", 18) + "</button>" +
       '<button class="botao-icone" data-lote="exportar" title="Exportar" aria-label="Exportar">' + ic("download", 18) + "</button>" +
-      '<span class="divisa-v"></span>' +
-      '<button class="botao-icone perigo" data-lote="apagar" title="Apagar do acervo" aria-label="Apagar do acervo">' + ic("delete", 18) + "</button>"
+      '<span class="divisa-v"></span>' + botoesDeTirar()
     : '<span class="nota-barra">' + (bib.pastaFiltro ? esc(bib.pastaFiltro) : esc((d.filtros || {})[bib.filtro] || "Todos")) + "</span>";
   const ordem = '<span class="direita"><label class="nota-barra" for="bib-ordem">Ordenar por</label>' +
     '<select class="ordem-sel" id="bib-ordem">' +
@@ -407,10 +406,11 @@ function ligarBiblioteca() {
       if (abrindo) abrirEmAltura(document.querySelector(".ae-ficha"));
     };
   });
-  // Segurar o botao numa linha marca, como a caixinha; Delete apaga a selecao.
+  // Segurar o botao numa linha marca, como a caixinha; Delete tira a selecao
+  // do Acervo (o arquivo fica no computador, e o aviso tem Desfazer).
   ligarSelecao(centro, {
     linhas: ".tabela-linha[data-doc]", chave: (linha) => linha.dataset.doc, escolhidos: bib.escolhidos,
-    aoMudar: desenharBiblioteca, apagar: () => acaoEmLote("apagar"),
+    aoMudar: desenharBiblioteca, apagar: () => acaoEmLote("tirar"),
   });
   const limpar = $("lote-limpar");
   if (limpar) limpar.onclick = (e) => { e.stopPropagation(); bib.escolhidos.clear(); desenharBiblioteca(); };
@@ -475,8 +475,10 @@ function menuDoDocumento(botao, caminho) {
     '<button data-i="fixar">' + (doc.fixado ? "Desfixar" : "Fixar") + "</button>" +
     (/\.pdf$/i.test(doc.nome) ? '<button data-i="verificar">Verificar assinatura</button>' : "") +
     '<button data-i="pasta">Abrir a pasta no Windows</button>' +
+    (googleConectado("drive") ? '<button data-i="drive">Enviar ao Google Drive…</button>' : "") +
     '<div class="menu-risco"></div>' +
-    '<button class="perigo" data-i="apagar">Apagar do acervo</button>';
+    /* Excluir do computador e a caixa da confirmacao de tirar (js/36). */
+    '<button data-i="tirar">Tirar do Acervo…</button>';
 
   const caixa = botao.getBoundingClientRect();
   menu.style.position = "fixed";
@@ -508,11 +510,9 @@ function menuDoDocumento(botao, caminho) {
       body: JSON.stringify({ caminho: doc.pasta }),
     });
   };
-  menu.querySelector('[data-i="apagar"]').onclick = () => {
-    fechar();
-    bib.escolhidos = new Set([caminho]);
-    acaoEmLote("apagar");
-  };
+  menu.querySelector('[data-i="tirar"]').onclick = () => { fechar(); tirarDoAcervo([caminho]); };
+  const drive = menu.querySelector('[data-i="drive"]');
+  if (drive) drive.onclick = () => { fechar(); enviarAoDrive([caminho]); };
 }
 
 /* Perguntar sobre um documento e abrir a conversa com ele em foco: a pilula
@@ -556,14 +556,16 @@ async function acaoEmLote(acao) {
   }
 
   if (acao === "analisar") return tomarVista(caminhos);
+  if (acao === "tirar") return tirarDoAcervo(caminhos);
 
   // Apagar e o unico do lote que nao volta: o arquivo sai do disco, sem
   // lixeira. Pergunta antes mesmo de virar pedido na fila.
   if (acao === "apagar" && !(await confirmar({
-    titulo: "Apagar " + plural(caminhos.length, "documento") + "?",
+    titulo: "Apagar " + plural(caminhos.length, "documento") + " do disco?",
     contexto: "Acervo",
-    texto: "O arquivo é apagado do disco e não vai para a lixeira. O pedido vai para Aprovações e nada é apagado antes do seu sim lá.",
-    confirmar: "Apagar", perigo: true,
+    texto: "O arquivo é apagado do computador e não vai para a lixeira. Para só tirar do Acervo, sem apagar, use Tirar do Acervo. " +
+      "O pedido vai para Aprovações e nada é apagado antes do seu sim lá.",
+    confirmar: "Apagar do disco", perigo: true,
   }))) return;
 
   let destino = "";
@@ -631,13 +633,8 @@ async function tomarVista(caminhos, botao) {
   }
 }
 
-/* Incluir pasta e o organizador: e ele que sabe varrer, classificar e trazer
-   para ca. Duplicar essa varredura aqui seria manter dois caminhos para a
-   mesma coisa. */
-function adicionarPastaAoAcervo() {
-  marcarDestino("biblioteca");
-  organizarComecar();
-}
+/* Incluir pasta mora em js/36-acervo-vigiado.js: a pasta passa a ser
+   vigiada onde esta, sem o organizador mover nada. */
 
 /* ------------------------------------------------------------- prazos */
 /*
@@ -966,6 +963,18 @@ function nomeCurto(nome) {
 
 function cartaoEscopo(d) {
   const nomes = d.nomes || [];
+  /* "Qual o valor do contrato?" com vários contratos: a pergunta não disse
+     qual, e o programa pergunta em vez de escolher um sozinho. */
+  if (d.motivo === "ambigua") {
+    const s = d.substantivo || "documento";
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">qual ' + esc(s) + "?</span></div>" +
+      '<p class="explica">A pergunta fala de “o ' + esc(s) + "”, e há " + plural(d.total || nomes.length, s, s + "s") +
+      " no Acervo. Sobre qual você quer saber?</p>" +
+      '<div class="linha-form">' +
+      nomes.map((n, i) => "<button" + (i === 0 ? ' class="primario"' : "") + ' data-escopo-doc="' + esc(n) +
+        '" title="' + esc(n) + '">' + esc(nomeCurto(n)) + "</button>").join("") +
+      '<button data-escopo-tudo="1">Em todos</button></div></div>';
+  }
   return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">onde eu procuro?</span></div>' +
     '<p class="explica">' + (nomes.length
       ? "Você tirou o anexo. Sigo só no documento que esta conversa vinha lendo, ou procuro nos "

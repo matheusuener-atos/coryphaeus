@@ -272,7 +272,10 @@ def test_reescrever() -> None:
     chamada = modelo.chamadas[0]
     checar("tom mais formal" in chamada["pergunta"], "o atalho vira pedido com palavras exatas")
     checar("oi, segue a procuracao" in chamada["contexto"], "o modelo recebe o texto atual")
-    checar(chamada["sistema"] == correio.SISTEMA_EMAIL, "com a instrucao de sistema do e-mail")
+    import blindagem
+
+    checar(chamada["sistema"].startswith(correio.SISTEMA_EMAIL) and blindagem.REGRA in chamada["sistema"],
+           "com a instrucao de sistema do e-mail e a regra da blindagem")
 
     try:
         correio.reescrever_email(modelo, "resumir", "x", "   ")

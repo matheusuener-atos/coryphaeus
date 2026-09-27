@@ -30,7 +30,7 @@ O PAULUS abre um servidor temporário em `127.0.0.1` numa porta livre, abre o na
 4. Vá em **Credenciais › Criar credenciais › ID do cliente OAuth** e escolha o tipo **App para computador** (Desktop app). Não é preciso informar endereço de redirecionamento: para app de computador, o Google aceita `http://127.0.0.1` em qualquer porta.
 5. Copie o **ID do cliente** (termina em `.apps.googleusercontent.com`) e a **chave secreta do cliente** (começa com `GOCSPX-`) para o `oauth_app.json` (`google_client_id` e `google_client_secret`).
 
-A chave secreta de um "App para computador" não é segredo de verdade (o próprio Google diz isso, porque ela vai junto do programa), mas mesmo assim o PAULUS a guarda protegida pela DPAPI e nunca a mostra de volta na tela.
+A chave secreta de um "App para computador" não é segredo de verdade (o próprio Google diz isso, porque ela vai junto do programa): fica em texto no `oauth_app.json`, e a tela nunca a mostra. O que o PAULUS protege com a DPAPI é o refresh token de cada conta (e as senhas).
 
 ### Limites reais do Google
 

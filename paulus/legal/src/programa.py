@@ -237,7 +237,10 @@ CONSULTAS = {
         "forte": ("recebi", "recebemos", "faturei", "faturamos", "faturamento", "paguei", "pagamos",
                   "gastei", "gastamos", "gastos", "contas a pagar", "contas a receber", "a receber",
                   "a pagar", "saldo", "entrou", "entraram", "saiu", "sairam", "financeiro",
-                  "fluxo de caixa", "despesas", "receitas", "inadimplente", "inadimplentes"),
+                  "fluxo de caixa", "despesas", "receitas", "inadimplente", "inadimplentes",
+                  "pagamento atrasado", "pagamentos atrasados", "recebimento atrasado", "recebimentos atrasados",
+                  "honorarios atrasados", "cobranca atrasada", "cobrancas atrasadas", "em atraso", "devendo",
+                  "quem me deve", "quem esta devendo"),
         "fraco": ("honorarios", "despesa", "receita", "pagamento", "pagamentos", "receber", "pagar",
                   "dinheiro", "caixa"),
     },
@@ -246,6 +249,34 @@ CONSULTAS = {
         "descricao": "a fila de Aprovações: pedidos que esperam a decisão da pessoa",
         "forte": ("aprovacao", "aprovacoes", "aprovar", "para eu aprovar", "pra eu aprovar",
                   "esperando minha decisao", "para eu decidir", "pra eu decidir"),
+        "fraco": (),
+    },
+    # "O que tenho para hoje?": compromissos E tarefas do dia, juntos. Medido
+    # no banco de provas (27/09/2026): "o que tenho" era palavra fraca da
+    # agenda sozinha, e a pergunta ia procurar nos contratos.
+    "dia": {
+        "tela": "calendario",
+        "descricao": "o que está marcado e o que vence num dia: compromissos e tarefas",
+        "forte": ("o que tenho para hoje", "o que tenho pra hoje", "o que tenho hoje", "o que tenho para amanha",
+                  "o que tenho pra amanha", "o que tenho amanha", "o que tem para hoje", "o que tem pra hoje",
+                  "como esta meu dia", "como esta o meu dia", "minha agenda de hoje", "minha agenda hoje",
+                  "o que vence hoje", "o que vence amanha", "resumo do dia", "resumo de hoje", "meu dia de hoje",
+                  "o que tenho para fazer hoje", "o que tenho pra fazer hoje", "o que fazer hoje"),
+        "fraco": (),
+    },
+    "servicos": {
+        "tela": "servicos",
+        "descricao": "os serviços (pastas de trabalho) em andamento e em que pé estão",
+        "forte": ("servicos em andamento", "meus servicos", "quais servicos", "servicos abertos", "servicos ativos",
+                  "casos em andamento", "como estao os servicos", "andamento dos servicos", "servicos do escritorio"),
+        "fraco": ("servicos",),
+    },
+    "certificado": {
+        "tela": "certificado",
+        "descricao": "o certificado digital cadastrado: de quem é e até quando vale",
+        "forte": ("meu certificado", "certificado vence", "vence o meu certificado", "vence o certificado",
+                  "validade do certificado", "certificado esta vencido", "certificado venceu", "certificado valido",
+                  "o certificado ainda vale", "certificado digital vence"),
         "fraco": (),
     },
     "cadastros": {
@@ -358,7 +389,31 @@ def _consultar_tarefas(dados, plano: str, hoje: date | None) -> str:
     return "\n".join(linhas)
 
 
+RE_ATRASO = re.compile(r"\b(atrasad\w*|em atraso|devendo|inadimplen\w*|me deve|vencid\w*)\b")
+
+
+def _consultar_atrasados(dados, hoje: date | None) -> str:
+    """Quem está devendo: os recebimentos vencidos e ainda em aberto, com o cliente."""
+    itens = [l for l in dados.financeiro.listar(tipo="recebimento") if l.get("atrasado")]
+    if not itens:
+        return "Nenhum recebimento atrasado no Financeiro."
+    itens.sort(key=lambda l: -int(l.get("dias_atraso") or 0))
+    total = sum(int(l.get("centavos") or 0) for l in itens)
+    import financeiro as fin_mod
+
+    linhas = [f"{len(itens)} recebimento{'s' if len(itens) > 1 else ''} atrasado{'s' if len(itens) > 1 else ''}, "
+              f"{fin_mod.em_reais(total)} no total:"]
+    for l in itens[:10]:
+        quem = l.get("cadastro_nome") or "sem cliente"
+        linhas.append(f"  {quem} — {l['descricao']} · {l['valor']} · {l.get('situacao', '')}")
+    if len(itens) > 10:
+        linhas.append(f"  e mais {len(itens) - 10} no Financeiro.")
+    return "\n".join(linhas)
+
+
 def _consultar_financeiro(dados, plano: str, hoje: date | None) -> str:
+    if RE_ATRASO.search(plano):
+        return _consultar_atrasados(dados, hoje)
     mes = _mes(plano, hoje)
     p = dados.financeiro.painel(mes)
     if not p.get("tem_dado"):
@@ -400,7 +455,71 @@ def _consultar_cadastros(dados, plano: str, hoje: date | None) -> str:
     return f"{total} ficha{'s' if total != 1 else ''} em Cadastros: " + ", ".join(partes) + "."
 
 
+def _consultar_dia(dados, plano: str, hoje: date | None) -> str:
+    """Compromissos e tarefas do dia, numa resposta só."""
+    h = _hoje(hoje)
+    de, ate, dito = periodo(plano, hoje)
+    compromissos = dados.agenda.listar(de, ate)
+    abertas = dados.tarefas.listar("todas")
+    if de == ate == h.isoformat():
+        # Hoje é o "Meu dia" da tela: o que vence hoje, o que já venceu e o
+        # que a pessoa trouxe para o dia.
+        tarefas = dados.tarefas.listar("meu_dia")
+    else:
+        tarefas = [t for t in abertas if t.get("prazo") and de <= t["prazo"] <= ate]
+    if not compromissos and not tarefas:
+        return f"Nada marcado nem vencendo {dito}."
+    linhas = [dito[0].upper() + dito[1:] + ":"]
+    if compromissos:
+        linhas.append("Compromissos")
+        for c in compromissos[:10]:
+            dia = "" if de == ate else _dia_curto(c["data"]) + " "
+            linhas.append(f"  {dia}{c['hora']}–{c['fim']}  {c['titulo']}")
+    if tarefas:
+        linhas.append("Tarefas")
+        for t in tarefas[:10]:
+            linhas.append(f"  {t['titulo']} — {t.get('situacao', '')}")
+    return "\n".join(linhas)
+
+
+def _consultar_servicos(dados, plano: str, hoje: date | None) -> str:
+    itens = dados.servicos.listar("andamento")
+    if not itens:
+        return "Nenhum serviço em andamento."
+    linhas = [f"{len(itens)} serviço{'s' if len(itens) > 1 else ''} em andamento:"]
+    for s in itens[:10]:
+        partes = [s.get("cliente_nome") or "sem cliente", s.get("status_rotulo", "")]
+        etapas = s.get("etapas") or []
+        if etapas:
+            partes.append(f"{s.get('etapas_feitas', 0)} de {len(etapas)} etapas")
+            proxima = next((e for e in etapas if not e.get("feita")), None)
+            if proxima:
+                quando = f" ({_dia_curto(proxima['quando'])})" if proxima.get("quando") else ""
+                partes.append("próxima: " + str(proxima.get("titulo", "")) + quando)
+        linhas.append(f"  {s['nome']} — " + " · ".join(p for p in partes if p))
+    if len(itens) > 10:
+        linhas.append(f"  e mais {len(itens) - 10} em Serviços.")
+    return "\n".join(linhas)
+
+
+def _consultar_certificado(dados, plano: str, hoje: date | None) -> str:
+    cert = dados.cofre.certificado() if getattr(dados.cofre, "instalado", False) else None
+    if not cert:
+        return "Nenhum certificado digital cadastrado. Ele entra em Assinatura › Certificado digital."
+    if getattr(cert, "erro", ""):
+        return "Há um certificado cadastrado, mas " + cert.erro + "."
+    dias = cert.dias_restantes
+    quanto = ""
+    if dias is not None:
+        quanto = f" — venceu há {-dias} dia(s)" if dias < 0 else f" — faltam {dias} dia(s)"
+    return (f"Certificado de {cert.titular or 'titular não identificado'}, emitido por {cert.emissor or '—'}, "
+            f"válido até {cert.valido_ate or '—'}{quanto}.")
+
+
 EXECUTORES = {
+    "dia": _consultar_dia,
+    "servicos": _consultar_servicos,
+    "certificado": _consultar_certificado,
     "agenda": _consultar_agenda,
     "tarefas": _consultar_tarefas,
     "financeiro": _consultar_financeiro,

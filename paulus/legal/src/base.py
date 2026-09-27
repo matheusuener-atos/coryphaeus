@@ -571,6 +571,16 @@ MIGRACOES: list[tuple[str, str]] = [
         DELETE FROM compromissos WHERE tipo IN ('pagamento', 'prazo_interno');
         """,
     ),
+    (
+        "022_compromisso_no_google",
+        """
+        -- O compromisso na Agenda do Google (src/google_servicos.py): o id do
+        -- evento de la, a sala do Meet que ele ganhou e quando foi enviado.
+        ALTER TABLE compromissos ADD COLUMN google_id TEXT DEFAULT '';
+        ALTER TABLE compromissos ADD COLUMN meet TEXT DEFAULT '';
+        ALTER TABLE compromissos ADD COLUMN google_em TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 

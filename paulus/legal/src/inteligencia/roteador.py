@@ -175,7 +175,12 @@ RE_QUALIFICA = re.compile(
 PEDE_LEITURA = re.compile(
     r"\b(alega|argumenta|sustenta|fundamenta|explica|resume|resumo|analis|compar|"
     r"por que|porque|como|discorre|entende|conclui|clausula que|onde diz|"
-    r"contradiz|diverg|interpreta)\b")
+    r"contradiz|diverg|interpreta"
+    # Condicao e consequencia pedem a clausula inteira, nao um campo: "quanto
+    # custa rescindir sem motivo?" respondido pelo valor guardado saiu com os
+    # 10% e sem o aviso de 30 dias (banco de provas, 27/09/2026).
+    r"|rescind\w*|rescis\w*|acontece|sem motivo|consequenc\w*|caso (?:a|o|haja|ocorra|nao)"
+    r"|se (?:a|o|houver|nao|ele|ela|eu|o cliente|a parte))\b")
 
 RE_INTENCOES = [(secao, chave, re.compile(padrao)) for secao, chave, padrao in INTENCOES]
 RE_ENUMERACOES = [(secao, chave, re.compile(padrao)) for secao, chave, padrao in ENUMERACOES]

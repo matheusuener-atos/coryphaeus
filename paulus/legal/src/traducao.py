@@ -22,6 +22,7 @@ from __future__ import annotations
 import html
 import json
 import re
+import os
 import threading
 import time
 import urllib.request
@@ -29,7 +30,10 @@ import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
 
-PASTA = Path(__file__).parent.parent / "data" / "modelos" / "traducao"
+# PAULUS_MODELOS: no programa instalado, os modelos baixados ficam em
+# %LOCALAPPDATA%\PAULUS\modelos (o lancador diz), fora da pasta do codigo -
+# atualizar o programa nao apaga o que ja foi baixado.
+PASTA = Path(os.environ.get("PAULUS_MODELOS") or (Path(__file__).parent.parent / "data" / "modelos")) / "traducao"
 
 # De qual lingua, qual pacote. "pb" e o portugues do Brasil do Argos.
 PACOTES = {

@@ -8,6 +8,8 @@ Cria data/demo/ (ou a pasta que vier no argumento) com:
   pasta do Acervo da demonstração;
 - cadastros, compromissos, tarefas, lançamentos do Financeiro e serviços,
   com datas contadas a partir de HOJE - a demonstração não envelhece;
+- o manual de rotinas do escritório, em PDF, no material de consulta
+  (Configurações › Aprendizado);
 - o nome da advogada e do escritório nas preferências.
 
 Tudo é inventado: nomes, CPFs, CNPJs e valores. Os números de documento
@@ -185,6 +187,75 @@ def escrever_documentos(pasta: Path) -> int:
     return len(DOCUMENTOS)
 
 
+# ------------------------------------------------ material de consulta
+
+# O manual interno do escritório, em PDF de verdade (uma seção por página),
+# para mostrar o PAULUS aprendendo com um arquivo: Configurações ›
+# Aprendizado › Material de consulta. As perguntas do roteiro sobre ele
+# conferem o que foi aprendido, e a página citada.
+MANUAL_NOME = "Manual de rotinas - Moura & Campos.pdf"
+MANUAL = [
+    ("Manual de rotinas do escritório", [
+        f"{ESCRITORIO}. Este manual reúne as rotinas de trabalho da equipe: prazos internos, tabela de "
+        "honorários, atendimento ao cliente e guarda de documentos.",
+        "Vale para advogadas, estagiários e a secretaria. Dúvida sobre uma rotina que não está aqui vai "
+        f"para a Dra. {ADVOGADA}.",
+    ]),
+    ("Prazos internos", [
+        "Toda contestação é protocolada com três dias úteis de antecedência do prazo final. A minuta vai "
+        "para revisão da Dra. Helena até o quinto dia útil antes do prazo.",
+        "Recursos são protocolados com dois dias úteis de antecedência. Prazo que vence em dia sem "
+        "expediente forense é conferido no calendário do tribunal no mesmo dia em que é cadastrado.",
+        "Todo prazo processual entra na Agenda no dia da intimação, com aviso de três dias.",
+    ]),
+    ("Tabela de honorários do escritório", [
+        "Consulta avulsa: R$ 450,00, paga antes do atendimento. Retorno sobre o mesmo assunto em até "
+        "trinta dias não é cobrado.",
+        "Parecer escrito: a partir de R$ 2.200,00, orçado conforme a complexidade.",
+        "Acompanhamento avulso de audiência: R$ 900,00 por audiência.",
+        "Ação trabalhista do lado do empregado: honorários de êxito entre 20% e 30% do proveito "
+        "econômico, além de parcela fixa combinada no contrato.",
+    ]),
+    ("Atendimento ao cliente", [
+        "E-mail de cliente é respondido em até um dia útil, mesmo que a resposta seja só o prazo para a "
+        "resposta completa.",
+        "Cliente novo assina o contrato de honorários antes do primeiro protocolo.",
+        "Documento original entregue pelo cliente é digitalizado e devolvido em até cinco dias úteis.",
+    ]),
+    ("Arquivo e sigilo", [
+        "Pasta de cliente encerrada fica arquivada por cinco anos depois do trânsito em julgado ou do "
+        "fim do contrato. Depois disso, o papel é triturado e o arquivo digital é apagado.",
+        "Nenhum documento de cliente sai do escritório por pen drive ou e-mail pessoal.",
+    ]),
+]
+
+
+def manual_em_pdf() -> bytes:
+    import io
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
+
+    estilos = getSampleStyleSheet()
+    saida = io.BytesIO()
+    partes = []
+    for i, (titulo, paragrafos) in enumerate(MANUAL):
+        if i:
+            partes.append(PageBreak())
+        partes.append(Paragraph(titulo, estilos["Heading1"]))
+        for texto in paragrafos:
+            partes += [Paragraph(texto, estilos["BodyText"]), Spacer(1, 6)]
+    SimpleDocTemplate(saida, pagesize=A4, title=MANUAL_NOME[:-4], author=ESCRITORIO).build(partes)
+    return saida.getvalue()
+
+
+def ensinar_manual(dados: Path) -> dict:
+    import material as material_mod
+
+    return material_mod.Material(dados / "aprendizado").absorver(MANUAL_NOME, manual_em_pdf())
+
+
 # ---------------------------------------------------------------- banco
 
 
@@ -265,12 +336,17 @@ def main() -> int:
     acervo.mkdir(parents=True, exist_ok=True)
     n = escrever_documentos(acervo)
     contas = semear(dados, acervo, date.today())
+    manual = ensinar_manual(dados)
     Preferencias(dados / "preferencias.json").atualizar({
         "pessoa": {"nome": ADVOGADA, "oab": OAB, "email": "helena@mouracampos.exemplo"},
         "escritorio": {"nome": ESCRITORIO},
     })
+    # As datas são contadas a partir de hoje: quem usa a base (o roteiro)
+    # sabe por aqui se ela envelheceu.
+    (dados / "criada-em.txt").write_text(date.today().isoformat(), encoding="utf-8")
     print(f"demonstração criada em {dados}")
     print(f"  {n} documentos no Acervo")
+    print(f"  material de consulta: {manual['nome']} ({manual['paginas']} páginas, {manual['trechos']} trechos)")
     print("  " + ", ".join(f"{v} {k}" for k, v in contas.items()))
     print("abra com tools\\demo\\abrir_demo.bat")
     return 0

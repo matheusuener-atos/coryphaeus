@@ -67,6 +67,19 @@ PADRAO: dict = {
     # Organizar moveu documentos. Sem isso, o que foi organizado sumia da
     # tela Documentos - estava no disco, mas fora do que o indice le.
     "pastas_acervo": [],
+    # Documentos tirados do Acervo sem apagar (o arquivo fica no disco, so nao
+    # e lido). Tem de estar aqui: _fundir descarta chave que o padrao nao
+    # conhece, e o que foi tirado voltaria ao reabrir o programa.
+    "acervo_fora": [],
+    # A conta Google alem do Gmail (src/google_servicos.py): qual conta, se a
+    # Agenda sincroniza e mostra os eventos de la, a pasta PAULUS no Drive, e
+    # o resultado da ultima sincronizacao.
+    "google": {"conta": "", "agenda_sincronizar": False, "agenda_mostrar": False,
+               "drive_pasta": "", "ultimo_sinc": "", "erro": ""},
+    # A calibracao compartilhada (src/calibracao_remota.py): desligada de
+    # fabrica. Ligada, as medidas desta maquina vao ao site do PAULUS e as de
+    # outras maquinas voltam para melhorar a estimativa dos modelos.
+    "calibracao": {"participar": False, "ultimo_envio": "", "ultima_leitura": "", "erro": ""},
     # Avisos do Windows (src/avisos.py): a notificacao do canto da tela e o
     # botao piscando na barra de tarefas, para lembretes e ciclo de foco.
     "avisos_windows": True,
@@ -75,6 +88,8 @@ PADRAO: dict = {
     "avisos_tipos": {"bem_estar": True, "resposta": True, "aprovacao": True,
                      "gravacao": True, "agenda": True},
     "modelo": "",
+    # Que modelo faz cada tarefa (src/modelos.py). Vazio: o modelo padrao.
+    "tarefas_modelo": {"conversa": "", "juiz": "", "email": "", "redacao": "", "resumos": "", "leitura": ""},
     "devagar": False,
     "autonomia": {a["chave"]: a["padrao"] for a in AUTONOMIA},
     "disponibilidade": {

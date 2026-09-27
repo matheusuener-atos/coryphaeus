@@ -61,6 +61,8 @@
   .ag-ponto.ag-pagamento { background: var(--verde); }
   .ag-ponto.ag-documento { background: var(--ambar); }
   .ag-ponto.ag-pedido { background: var(--accln); }
+  /* O evento da Agenda do Google: vazado, porque e de fora e so para ver. */
+  .ag-ponto.ag-google { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink3); }
   .ag-cel-conta { font: 500 11px var(--sans); color: var(--ink3); white-space: nowrap; }
   .ag-cel.ag-fora .ag-cel-conta { color: var(--mute); }
   /* Na legenda do mes, o ponto da grade no lugar do traco. */
@@ -80,6 +82,9 @@
   .ag-marca.ag-documento i, .ag-legenda .ag-documento i { background: var(--ambar); }
   .ag-marca.ag-pagamento i, .ag-legenda .ag-pagamento i { background: var(--verde); }
   .ag-legenda .ag-compromisso i { background: var(--ink); }
+  .ag-marca.ag-google, .ag-marca.ag-google b { color: var(--ink3); }
+  .ag-marca.ag-google i, .ag-legenda .ag-google i { background: transparent; border-left: 2px dotted var(--ink3); width: 0; }
+  .ag-bloco.ag-google { opacity: .82; }
   .ag-legenda .ag-pedido i { width: 0; background: transparent; border-left: 2px dashed var(--acc); }
   .ag-legenda {
     flex: none; display: flex; align-items: center; gap: 14px; padding: 9px 16px; border-top: 1px solid var(--ink-a1);

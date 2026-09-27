@@ -14,8 +14,8 @@ HABILIDADE = Habilidade(
     grupo="Documentos",
     acao="anexar",
     detalhe=(
-        "PDF escaneado, que é imagem e não texto, ainda não dá: o arquivo é "
-        "ignorado com aviso em vez de entrar vazio no acervo."
+        "PDF escaneado é lido pelo leitor de imagem do Windows. O que nem assim vira "
+        "texto - arquivo vazio, quebrado, página em branco - fica de fora com o motivo."
     ),
     demora="alguns segundos por arquivo",
     ordem=30,

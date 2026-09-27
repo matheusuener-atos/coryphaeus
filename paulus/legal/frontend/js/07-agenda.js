@@ -49,7 +49,13 @@ const NOME_DO_TIPO = {
 const LEGENDA_DA_AGENDA = {
   compromisso: "Compromisso", prazo: "Tarefa", pedido: "Pedido pelo link",
   tarefa: "Tarefa feita", documento: "Data em documento", pagamento: "Pagamento",
+  google: "Agenda do Google",
 };
+
+/* Os eventos da Agenda do Google entram na legenda so quando estao na grade. */
+function comGoogle(generos) {
+  return ((ag.grade && ag.grade.contagem) || {}).google ? generos.concat(["google"]) : generos;
+}
 const SALAS = {
   meet: "https://meet.google.com/new",
   teams: "https://teams.microsoft.com/l/meeting/new",
@@ -184,6 +190,8 @@ function cabecalhoAgenda() {
       const classe = v === ag.visao ? "ativa" : "";
       return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
     }).join("") + "</div>" +
+    /* Sincronizar so aparece com a Agenda do Google conectada (js/38-google.js). */
+    (googleConectado("agenda") ? '<button class="com-icone" data-ag-google="1" title="Mandar a Agenda ao Google e reler os eventos de lá">' + ic("sync", 16) + "Sincronizar</button>" : "") +
     '<button class="com-icone" data-ag-novo="compromisso">' + ic("event", 16) + "Adicionar compromisso</button>" +
     '<button class="primario com-icone" data-ag-novo="tarefa">' + ic("task_alt", 16) + "Adicionar tarefa</button>";
   $("acoes-tela").querySelectorAll("[data-visao]").forEach((b) => { b.onclick = () => mostrarAgenda(b.dataset.visao); });
@@ -192,6 +200,13 @@ function cabecalhoAgenda() {
   $("acoes-tela").querySelectorAll("[data-ag-novo]").forEach((b) => {
     b.onclick = () => criarNaAgenda(b.dataset.agNovo);
   });
+  const sinc = $("acoes-tela").querySelector("[data-ag-google]");
+  if (sinc) sinc.onclick = async () => { if (await sincronizarGoogle(sinc)) mostrarAgenda(); };
+  // O estado do Google chega uma vez; com ele, o botao de sincronizar aparece.
+  if (gg.dados === null && !gg.pedindo) {
+    gg.pedindo = true;
+    carregarGoogle().then(() => { gg.pedindo = false; if (googleConectado("agenda")) cabecalhoAgenda(); });
+  }
 }
 
 function tituloDaAgenda() {
@@ -416,7 +431,7 @@ function vistaMes() {
       (itens.length ? '<span class="ag-pontos">' + pontos + "</span>" + '<small class="ag-cel-conta">' + plural(itens.length, "item", "itens") + "</small>" : "") +
       "</div>";
   }
-  html += "</div>" + legendaDaAgenda(["compromisso", "prazo", "tarefa", "documento"],
+  html += "</div>" + legendaDaAgenda(comGoogle(["compromisso", "prazo", "tarefa", "documento"]),
     "Clique no dia para ver · duplo clique marca um compromisso") + "</div>";
   return html;
 }
@@ -493,7 +508,7 @@ function vistaSemanaAgenda() {
   const tituloSemana = seg.getDate() + (seg.getMonth() !== dom.getMonth() ? " " + MESES_NOME[seg.getMonth()].slice(0, 3) : "") +
     " – " + dom.getDate() + " " + MESES_NOME[dom.getMonth()].slice(0, 3) + " " + dom.getFullYear();
   return '<div class="ag-cartao ag-calendario ag-cartao-semana">' + topoDoCalendario(tituloSemana) + cabeca + diaTodo + grade + fora +
-    legendaDaAgenda(["compromisso", "prazo", "tarefa", "documento"], "Clique no dia para ver · clique numa hora vazia para marcar") + "</div>";
+    legendaDaAgenda(comGoogle(["compromisso", "prazo", "tarefa", "documento"]), "Clique no dia para ver · clique numa hora vazia para marcar") + "</div>";
 }
 
 function blocoDaSemana(x, dia) {
@@ -630,15 +645,37 @@ function linhaDaTarefa(t) {
     const classeFeita = "ag-linha ag-feita" + (aberta ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
     return '<div class="' + classeFeita + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
       '<span class="ic ic-18 ag-feita-ic" data-ag-concluir="' + t.id + '" title="Reabrir">check_circle</span>' +
-      '<span class="ag-texto"><b>' + esc(t.titulo) + "</b></span>" + setaDaLinha(aberta) + "</div>" +
+      '<span class="ag-texto"><b>' + esc(t.titulo) + "</b></span>" + maisDaTarefa(t) + setaDaLinha(aberta) + "</div>" +
       (aberta ? fichaDaTarefaNaLinha(t) : "");
   }
   const classe = "ag-linha" + (aberta ? " aberta" : "") + (ag.tar.escolhidas.has(String(t.id)) ? " escolhida" : "");
   return '<div class="' + classe + '" data-ag-tarefa="' + t.id + '" data-sel="' + t.id + '">' +
     '<span class="ag-circulo" data-ag-concluir="' + t.id + '" title="Concluir"></span>' +
     '<span class="ag-texto"><b>' + esc(t.titulo) + "</b><small>" + metaDaTarefa(t) + "</small></span>" +
-    botaoEstrela(t) + setaDaLinha(aberta) + "</div>" +
+    botaoEstrela(t) + maisDaTarefa(t) + setaDaLinha(aberta) + "</div>" +
     (aberta ? fichaDaTarefaNaLinha(t) : "");
+}
+
+function maisDaTarefa(t) {
+  return '<button class="mais-linha" data-ag-mais="' + t.id + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button>";
+}
+
+/* O "…" da tarefa - o mesmo do botão direito na linha: o que a ficha e os
+   botões da linha já fazem, num lugar só. */
+function menuDaTarefa(botao, t) {
+  menuNaLinha(botao, [
+    { rotulo: ag.tar.aberta === t.id ? "Fechar" : "Abrir", icone: "open_in_new",
+      acao: () => { ag.tar.aberta = ag.tar.aberta === t.id ? null : t.id; desenharAgenda(); } },
+    { rotulo: t.concluida ? "Reabrir" : "Concluir", icone: "check_circle", acao: () => concluirTarefa(t.id, !t.concluida) },
+    { rotulo: t.importante ? "Tirar de Importante" : "Marcar como importante", icone: "star", acao: () => marcarImportante(t.id, !t.importante) },
+    { rotulo: t.meu_dia ? "Tirar de Meu dia" : "Pôr em Meu dia", icone: "wb_sunny", acao: async () => {
+      await fetch("/api/tarefas/" + t.id + "/meu-dia", { method: "POST", headers: AG_JSON, body: JSON.stringify({ valor: !t.meu_dia }) });
+      recarregarAgenda();
+    } },
+    { rotulo: "Editar", icone: "edit", acao: () => editarTarefa(t) },
+    "-",
+    { rotulo: "Excluir", icone: "delete", perigo: true, acao: () => apagarTarefa(t.id) },
+  ]);
 }
 
 function setaDaLinha(aberta) {
@@ -769,11 +806,35 @@ function fecharPopupDoDia() {
    o cadastro; excluir fica no cadastro. */
 const AVISOS_ANTES = [[0, "não avisar"], [10, "10 min antes"], [30, "30 min antes"], [60, "1 h antes"], [1440, "um dia antes"]];
 
+/* O evento da Agenda do Google: so para ver - editar e no Google. */
+function verEventoDoGoogle(x, dia) {
+  const escolha = dialogo({
+    titulo: x.titulo, contexto: "Agenda do Google › " + maiuscula(diaCurto(dia)) + (x.hora ? " · " + x.hora : ""),
+    classe: "dialogo-ver", cancelar: "Fechar", confirmar: "Abrir no Google",
+    html: fichaDoDialogo([
+      ["Quando", maiuscula(diaPorExtenso(dia)) + (x.hora ? ", " + x.hora + (x.duracao ? " (" + duracaoEmTexto(x.duracao) + ")" : "") : ", o dia todo")],
+      ["De onde", "Agenda do Google — editar é lá"],
+    ]) + (x.meet ? '<div class="dialogo-acoes"><button type="button" class="com-icone" data-ag-meet="1">' + ic("videocam", 16) + "Entrar na sala do Meet</button></div>" : ""),
+  });
+  const meet = document.querySelector("[data-ag-meet]");
+  if (meet) meet.onclick = () => window.open(x.meet, "_blank");
+  escolha.then((r) => { if (r && r.ok && x.link) window.open(x.link, "_blank"); });
+}
+
 async function verCompromisso(c) {
   const aviso = AVISOS_ANTES.find(([m]) => m === Number(c.avisar_min || 0));
   const horario = c.hora + (c.fim ? " às " + c.fim : "") + (c.duracao ? " (" + duracaoEmTexto(c.duracao) + ")" : "");
+  /* Com a Agenda do Google conectada, a sala do Meet e de verdade: nasce no
+     evento e o link fica no compromisso (e no convite). Sem ela, o botao
+     abre um Meet novo no navegador, como antes. */
+  const meetDeVerdade = googleConectado("agenda");
+  const salaMeet = !meetDeVerdade
+    ? '<button type="button" class="com-icone" data-ag-sala="meet">' + ic("videocam", 16) + "Sala no Meet</button>"
+    : (c.meet
+      ? '<button type="button" class="com-icone" data-ag-meet-abrir="1">' + ic("videocam", 16) + "Entrar na sala do Meet</button>"
+      : '<button type="button" class="com-icone" data-ag-meet-criar="1">' + ic("videocam", 16) + "Criar sala no Meet</button>");
   const salas = c.onde === "online"
-    ? '<button type="button" class="com-icone" data-ag-sala="meet">' + ic("videocam", 16) + "Sala no Meet</button>" +
+    ? salaMeet +
       '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
       '<button type="button" class="com-icone" data-ag-link="1">' + ic("link", 16) + "Convite com link</button>"
     : "";
@@ -785,6 +846,8 @@ async function verCompromisso(c) {
       ["Onde", c.onde_rotulo || "sem local"],
       ["Com quem", c.cadastro_nome || "ninguém do cadastro"],
       ["Aviso", aviso ? aviso[1] : ""],
+      c.meet ? ["Sala", c.meet] : null,
+      c.google_id ? ["Google", "na Agenda do Google"] : null,
       c.anotacao ? ["Anotação", c.anotacao] : null,
     ]) +
       '<div class="dialogo-acoes">' + salas +
@@ -794,7 +857,23 @@ async function verCompromisso(c) {
   if (dlg) {
     dlg.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
     const copiar = dlg.querySelector("[data-ag-copiar]");
-    if (copiar) copiar.onclick = () => copiarTexto(conviteDe(c, ""), "convite copiado");
+    if (copiar) copiar.onclick = () => copiarTexto(conviteDe(c, c.meet || ""), "convite copiado");
+    const abrirMeet = dlg.querySelector("[data-ag-meet-abrir]");
+    if (abrirMeet) abrirMeet.onclick = () => window.open(c.meet, "_blank");
+    const criarMeet = dlg.querySelector("[data-ag-meet-criar]");
+    if (criarMeet) criarMeet.onclick = async () => {
+      criarMeet.disabled = true;
+      criarMeet.textContent = "criando a sala…";
+      const resp = await fetch("/api/agenda/" + c.id + "/meet", { method: "POST" });
+      if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); criarMeet.disabled = false; criarMeet.textContent = "Criar sala no Meet"; return; }
+      const novo = await resp.json();
+      Object.assign(c, novo);
+      avisoCert("sala do Meet criada — o link está no compromisso e no convite", { tom: "ok" });
+      criarMeet.outerHTML = '<button type="button" class="com-icone" data-ag-meet-abrir="1">' + ic("videocam", 16) + "Entrar na sala do Meet</button>";
+      const nova = dlg.querySelector("[data-ag-meet-abrir]");
+      if (nova) nova.onclick = () => window.open(c.meet, "_blank");
+      carregarAgenda().then(() => desenharAgenda && desenharAgenda()).catch(() => {});
+    };
     const link = dlg.querySelector("[data-ag-link]");
     if (link) link.onclick = () => pedirLinkDaSala(c);
   }
@@ -1116,6 +1195,13 @@ function ligarAgenda() {
       if (t) concluirTarefa(t.id, !t.concluida);
     };
   });
+  raiz.querySelectorAll(".acervo-principal [data-ag-mais]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const t = ag.tar.itens.find((x) => x.id === Number(b.dataset.agMais));
+      if (t) menuDaTarefa(b, t);
+    };
+  });
   raiz.querySelectorAll(".acervo-principal [data-ag-estrela]").forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();
@@ -1163,6 +1249,7 @@ function abrirItem(chave) {
     if (c) verCompromisso(c);
     return;
   }
+  if (x.genero === "google") return verEventoDoGoogle(x, r.dia);
   if (x.genero === "documento") {
     bib.termo = x.titulo;
     marcarDestino("biblioteca");

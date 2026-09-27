@@ -203,6 +203,11 @@
      sobre a tinta), e mais grosso: herdando o cinza dos icones ao redor, ele
      sumia dentro da caixa. */
   .marcar.on .ic { display: block; color: var(--bg); font-weight: 700; }
+  /* A caixa da barra de selecao e um botao (marca todas / limpa): sai a
+     receita do botao comum, fica a caixa. Com parte marcada, o traco. */
+  button.marcar { padding: 0; min-height: 0; font: inherit; background: transparent; }
+  button.marcar.on, button.marcar.on:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); }
+  button.marcar:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* O glifo de formato tem UM tamanho (20): nas abas e na pilula de escopo
      ele nao encolhe mais para 18. .doc-marca e o nome antigo da mesma peca:
      ninguem a emite, fica so porque tests/test_frontend.py checa o nome. */
@@ -469,3 +474,12 @@
   /* Segurar o clique numa linha e o gesto de selecionar - e o navegador
      entendia como comecar a marcar texto, e a contagem ficava azul. */
   [data-sel] { -webkit-user-select: none; user-select: none; }
+
+  /* O que fazer com os arquivos: tres escolhas, nenhuma marcada (js/14-organizador.js). */
+  .org-escolha { display: grid; gap: 6px; }
+  .org-opcao { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 12px; text-align: left;
+    border: 1px solid var(--ink-a12); border-radius: 10px; background: none; color: inherit; cursor: pointer; }
+  .org-opcao:hover:not(:disabled) { background: var(--ink-a06); }
+  .org-opcao.on { border-color: var(--ink2); background: var(--ink-a06); }
+  .org-opcao .duas-linhas small { white-space: normal; line-height: 1.4; }
+  .org-opcao:disabled { cursor: default; opacity: .7; }

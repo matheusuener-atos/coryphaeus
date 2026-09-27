@@ -135,6 +135,9 @@ class Conta:
     autenticacao: str = "senha"
     refresh_protegido: str = ""          # refresh token do login, na DPAPI
     precisa_entrar: bool = False         # a autorizacao venceu ou foi revogada
+    # Os escopos que o provedor concedeu, separados por espaco: o e-mail, e -
+    # quando a pessoa conecta - a Agenda e o Drive (src/google_servicos.py).
+    escopos: str = ""
 
     @property
     def por_login(self) -> bool:
@@ -476,6 +479,10 @@ class Contas:
         self._vivas.pop(conta.id, None)
         self._guardar_refresh(conta, refresh)
         self._tokens[conta.id] = (str(tokens["access_token"]), float(tokens.get("expira_em") or 0))
+        # Com a autorizacao incremental, o que volta e a soma: os de antes e
+        # os novos. Sem `scope` na resposta, fica o que se sabia.
+        if tokens.get("scope"):
+            conta.escopos = " ".join(sorted(set(str(tokens["scope"]).split()) | set(conta.escopos.split())))
 
         with self._trava:
             if novo:

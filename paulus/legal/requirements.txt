@@ -44,3 +44,13 @@ faster-whisper>=1.2.0
 # SentencePiece corta as palavras. `python src/traducao.py baixar` poe os
 # pacotes em data/modelos/traducao.
 sentencepiece>=0.2.0
+
+# PDF escaneado - o leitor de imagem (OCR) do proprio Windows, sem modelo para
+# baixar: pt-BR vem com o Windows em portugues (src/ocr.py).
+winrt-runtime>=3.2
+winrt-Windows.Foundation>=3.2
+winrt-Windows.Foundation.Collections>=3.2
+winrt-Windows.Globalization>=3.2
+winrt-Windows.Graphics.Imaging>=3.2
+winrt-Windows.Media.Ocr>=3.2
+winrt-Windows.Storage.Streams>=3.2

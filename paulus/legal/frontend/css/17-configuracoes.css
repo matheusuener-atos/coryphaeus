@@ -220,3 +220,20 @@
   .cfg-novidade ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
   .cfg-novidade li { font: 400 13px/1.55 var(--sans); color: var(--ink2); }
   .cfg-novidade li b { color: var(--ink); font-weight: 600; }
+
+/* Configuracoes > Modelos (js/34-modelos.js): as linhas dos modelos, a
+   barra do download (a .progresso do sistema, em bytes de verdade) e a
+   escolha do modelo de cada tarefa. */
+.mod-linha .mod-marcas { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+/* O que a calibracao envia, no dialogo "ver o que e enviado" (js/34-modelos.js). */
+.cal-json { max-height: 320px; overflow: auto; margin: 8px 0 0; padding: 12px; border-radius: 8px; background: var(--fill);
+  font: 12px/1.5 var(--mono); white-space: pre; }
+/* Nome de arquivo longo (manual_interno_versao_final_2026.pdf) quebra em vez de empurrar o botao. */
+.mat-linha .duas-linhas b { overflow-wrap: anywhere; }
+.mod-tarefa select { width: 260px; flex: none; }
+.mod-baixando { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--ink-a08); }
+.mod-baixando .mod-pct { font-variant-numeric: tabular-nums; }
+.mod-baixando .mod-progresso { flex-basis: 100%; margin: 0; }
+.mod-outro { margin-top: 12px; }
+.mod-outro input { flex: 1; min-width: 0; max-width: 520px; }
+.mod-erro { color: var(--acc); }

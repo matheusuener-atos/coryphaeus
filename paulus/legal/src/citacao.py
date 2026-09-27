@@ -157,6 +157,13 @@ def onde_esta(caminho: Path | str, trecho: str) -> dict:
             marcas = []
             for i in range(texto.count_rects(inicio, quantos)):
                 x0, y0, x1, y1 = texto.get_rect(i)
+                # Texto que o PDF desenha um pouco fora da folha (a coluna
+                # vertical na margem de um extrato de banco) dava marca com y
+                # negativo. Presa na página: a marca mostra o que se vê.
+                x0, x1 = max(0.0, x0), min(largura, x1)
+                y0, y1 = max(0.0, y0), min(altura, y1)
+                if x1 <= x0 or y1 <= y0:
+                    continue
                 # O PDF conta do rodapé para cima; a tela conta do topo para
                 # baixo. Sem virar o eixo, a marca sai espelhada na vertical.
                 marcas.append({

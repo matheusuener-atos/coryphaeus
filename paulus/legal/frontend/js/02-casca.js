@@ -392,7 +392,7 @@ document.addEventListener("keydown", (e) => {
   } else if (tecla === "1" || tecla === "2" || tecla === "3") {
     e.preventDefault();
     abrirDestino({ 1: "conversa", 2: "calendario", 3: "biblioteca" }[tecla]);
-  } else if (e.key === "Enter" && $("ap-todos")) {
+  } else if (e.key === "Enter" && $("ap-fila")) {
     // Aprovar o que esta marcado na fila. So vale com a tela de Aprovacoes
     // aberta: aprovar por atalho a partir de outra tela seria decidir sem ver.
     e.preventDefault();

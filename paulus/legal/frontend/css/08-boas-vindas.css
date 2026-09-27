@@ -45,6 +45,13 @@
     display: grid; gap: 16px; align-content: start; box-shadow: var(--elev-card);
   }
   .bv-cartao-titulo { font: 600 14px var(--sans); }
+  /* Esta maquina e o modelo recomendado (src/maquina.py), no passo da IA. */
+  .bv-maquina-titulo { display: block; margin-top: 18px; }
+  .bv-calibracao { margin-top: 12px; }
+  .bv-maquina-nota { display: flex; gap: 8px; align-items: center; margin: 16px 0 0; font: 500 13px/1.5 var(--sans); color: var(--ink3); }
+  .bv-recomendado { display: grid; gap: 4px; margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--ink-a06); }
+  .bv-recomendado b { display: flex; gap: 6px; align-items: center; font: 600 13.5px var(--sans); }
+  .bv-recomendado > span { font: 400 12.5px/1.5 var(--sans); color: var(--ink2); }
   .bv-instalacao { display: flex; align-items: center; gap: 12px; }
   .bv-instalacao img { width: 44px; height: 44px; border-radius: 8px; filter: var(--logo); }
   .bv-instalacao .duas-linhas b { font-weight: 600; font-size: 14px; }

@@ -15,6 +15,15 @@ from habilidade_base import (
     Ponte,
     evento,
 )
+from material import RE_PAGINA
+
+# O material entra depois dos documentos, com o aviso do que ele e. O aviso vai
+# aqui, e nao no prompt de sistema: pergunta sem material nao muda em nada.
+CABECA_MATERIAL = (
+    "MATERIAL DE CONSULTA DO ESCRITÓRIO — referência que o escritório entregou "
+    "(manual, tabela, doutrina, norma); não é documento de cliente. Ao usar, cite "
+    "o material e a página.\n\n"
+)
 
 HABILIDADE = Habilidade(
     id="perguntar",
@@ -71,17 +80,44 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     ctx.antes_de_cada()
     orcamento = orcamento_de_leitura(ctx)
 
+    # "Quem é o advogado da X?" quando nenhum documento liga advogado a X: a
+    # resposta sai por regra, sem modelo - o 3B juntava a X com a advogada da
+    # outra parte (src/verificacao.py).
+    import verificacao
+
+    lidos = [apenas] if isinstance(apenas, str) and apenas else list(apenas or [])
+    escopo_do_papel = [d for d in ctx.documentos if d.name in set(lidos)] if lidos else ctx.documentos
+    pronta = verificacao.papel_sem_prova(pergunta, escopo_do_papel)
+    if pronta:
+        ctx.registrar("nenhum documento liga advogado a essa parte - respondi sem o modelo")
+        yield evento("vazio", mensagem=pronta)
+        return
+
+    # O material de consulta (src/material.py): manual, tabela, doutrina que
+    # o escritorio entregou para o PAULUS aprender. Os trechos que tem a ver
+    # com a pergunta entram junto com os documentos, com espaco reservado -
+    # sem reserva, o acervo lido por inteiro ocupava a janela toda.
+    material = getattr(ctx, "material", None)
+    do_material = material.consultar(pergunta) if material is not None else []
+    bloco_material = ""
+    if do_material:
+        bloco_material = CABECA_MATERIAL + material.bloco(do_material, orcamento=min(2400, orcamento // 3))
+        orcamento -= len(bloco_material) + 2
+        ctx.registrar("Achou " + _quantos(len(do_material), "trecho") + " no material de consulta")
+    leitura_material = (do_material, bloco_material)
+
     # HOOK 2: o que ja foi lido uma vez responde de novo sem ler outra vez.
     # Nao respondendo - metadata que falta, dado nao conferido, pergunta que
     # pede leitura, ou resposta ambigua -, o caminho e o de sempre, daqui para
-    # baixo, sem que nada mude.
+    # baixo, sem que nada mude. Com material na pergunta, os fatos guardados
+    # nao bastam: eles sao so dos documentos.
     quais_em_foco = [apenas] if isinstance(apenas, str) and apenas else list(apenas or [])
     saber = getattr(ctx, "saber", None)
     if saber is not None:
         escopo = ([d for d in ctx.documentos if d.name in set(quais_em_foco)]
                   if quais_em_foco else ctx.documentos)
         pacote = saber.montar_contexto(pergunta, escopo, em_foco=bool(quais_em_foco))
-        if pacote.responde_sozinho:
+        if pacote.responde_sozinho and not do_material:
             sinal = {"escalou": False}
             yield from _responder_do_que_ja_se_sabe(ctx, pergunta, pacote, sinal)
             if not sinal["escalou"]:
@@ -118,7 +154,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                     pergunta, top_k=max(top, len(so_deles)), per_doc_limit=por_documento)
                 dentro = [h for h in escolhidos if h.doc_name in set(quais)]
                 so_deles = dentro or so_deles[:1]
-            yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais)
+            yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais, material=leitura_material)
             return
         # Nomeou documento que nao esta aberto: dizer isso e melhor do que
         # responder pelo acervo como se nada tivesse sido pedido.
@@ -146,11 +182,14 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                                    per_doc_limit=por_documento)
         ctx.registrar("Procurou em " + _quantos(len(ctx.documentos), "documento"))
 
-    if not hits:
-        yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos.")
+    if not hits and not do_material:
+        yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos"
+                     + (" nem no material de consulta." if material is not None and material.itens else "."))
         return
+    if not hits:
+        ctx.registrar("Nada nos documentos abertos — respondeu pelo material de consulta")
 
-    yield from _responder(ctx, pergunta, hits, orcamento)
+    yield from _responder(ctx, pergunta, hits, orcamento, material=leitura_material)
 
 
 def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: dict):
@@ -228,19 +267,25 @@ SISTEMA_DOS_FATOS = (
 )
 
 
-def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None):
+def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, material=([], "")):
     """
     Monta as fontes, entrega ao assistente e devolve a resposta.
 
     Os dois caminhos - acervo inteiro e documento nomeado - passam por aqui,
     para que a lista de fontes, a conta de caracteres e o aviso de cobertura
     sejam sempre os mesmos.
+
+    `material` e o que veio do material de consulta: os trechos e o bloco ja
+    montado, com nome e pagina de cada um.
     """
+    do_material, bloco_material = material
     consultados = list(dict.fromkeys(h.doc_name for h in hits))
     # Com a leitura estreitada os outros nao ficaram "de fora": a pergunta
     # nomeou um arquivo. Listar oito documentos como nao consultados viraria
-    # um aviso de cobertura assustando quem fez exatamente o que quis.
-    ignorados = ([] if apenas else
+    # um aviso de cobertura assustando quem fez exatamente o que quis. Sem
+    # trecho nenhum do acervo (respondeu pelo material), tambem nao: a busca
+    # passou por eles e nao achou nada.
+    ignorados = ([] if apenas or not hits else
                  [d.name for d in ctx.documentos if d.name not in consultados])
     apenas = list(apenas or [])
     fontes = [
@@ -252,9 +297,22 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None):
         }
         for h in hits
     ]
+    for h in do_material:
+        pagina = ctx.material.pagina(h)
+        fontes.append({
+            "documento": h.doc_name,
+            "trecho": h.chunk.index + 1,
+            "score": round(h.score, 2),
+            "texto": RE_PAGINA.sub("", h.chunk.text).strip(),
+            "material": True,
+            "pagina": pagina,
+            "onde": f"página {pagina}" if pagina else f"trecho {h.chunk.index + 1}",
+        })
+    usados_do_material = list(dict.fromkeys(h.doc_name for h in do_material))
 
     ctx.registrar(_quantos(len(hits), "trecho") + " de " +
-                  _quantos(len(consultados), "documento"))
+                  _quantos(len(consultados), "documento") +
+                  (" e " + _quantos(len(do_material), "trecho") + " do material de consulta" if do_material else ""))
     yield evento(
         "fontes",
         consultados=consultados,
@@ -262,9 +320,12 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None):
         total_contratos=len(ctx.documentos),
         trechos=fontes,
         apenas=apenas,
+        material=usados_do_material,
     )
 
-    contexto = ctx.searcher.format_context(hits, max_chars=orcamento)
+    contexto = ctx.searcher.format_context(hits, max_chars=orcamento) if hits else ""
+    if bloco_material:
+        contexto = (contexto + "\n\n" if contexto else "") + bloco_material
 
     # O que vai acontecer, dito antes de acontecer. Ler o prompt inteiro e o
     # silencio longo: o Ollama nao emite nada ate a primeira palavra, entao a
@@ -284,8 +345,20 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None):
         previsao=previsao,
     )
 
+    escrito = []
     for tipo, dados in _pedacos(ctx, pergunta, contexto):
+        if tipo == "token":
+            escrito.append(dados.get("t", ""))
         yield evento(tipo, **dados)
+
+    # Pergunta de consequencia: a frase do documento que decide, literal,
+    # quando ela traz o que a resposta deixou de fora (src/verificacao.py).
+    import verificacao
+
+    complemento = verificacao.trecho_decisivo(pergunta, "".join(escrito), hits)
+    if complemento:
+        ctx.registrar("acrescentei a frase do documento que decide a pergunta")
+        yield evento("token", t=complemento)
 
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
 

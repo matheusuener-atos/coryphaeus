@@ -466,7 +466,7 @@ function barrasDoEditor() {
     '<span class="divisa-v"></span>' +
     '<button class="com-texto" id="ed-numerar">' + ic("format_list_numbered", 16) + "Numerar</button>" +
     '<button class="com-texto" id="ed-refs">' + ic("link", 16) + "Ref. cruzada</button>" +
-    '<button class="com-texto" id="ed-conferir">' + ic("fact_check", 16) + "Conferir documento</button>" +
+    '<button class="com-texto" id="ed-conferir">' + ic("verified", 16) + "Conferir documento</button>" +
     '<button class="com-texto" id="ed-qualificar">' + ic("groups", 16) + "Partes</button>" +
     "</div>";
 }

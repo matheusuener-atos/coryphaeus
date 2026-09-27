@@ -77,7 +77,10 @@ def test_acha_todo_trecho_que_leu() -> None:
     pasta = CONTRATOS if CONTRATOS.exists() else SAMPLES
     docs, s = _acervo(pasta)
 
-    pdfs = [d for d in docs if d.path.lower().endswith(".pdf")]
+    # PDF escaneado, lido pelo OCR (Document.ocr), nao tem texto dentro do
+    # arquivo para casar: a tela mostra a pagina sem marca e diz que pode ser
+    # escaneado. Cobrar marca ali seria cobrar o impossivel.
+    pdfs = [d for d in docs if d.path.lower().endswith(".pdf") and not getattr(d, "ocr", 0)]
     if not pdfs:
         print("  pulado: nenhum PDF na pasta de exemplos")
         return

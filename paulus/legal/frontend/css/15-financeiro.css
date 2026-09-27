@@ -123,7 +123,7 @@
 
   /* lancamentos */
   .fin-tabela.tabela-cartao { overflow: visible; }
-  .colunas-lancamentos { grid-template-columns: 90px minmax(0, 2fr) minmax(0, 1.1fr) 120px 130px 100px; }
+  .colunas-lancamentos { grid-template-columns: 90px minmax(0, 2fr) minmax(0, 1.1fr) 120px 130px 132px; }
   .fin-barra .direita { position: relative; }
   .fin-barra .visoes button { white-space: nowrap; }
   .fin-data { color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }

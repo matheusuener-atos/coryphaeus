@@ -71,15 +71,19 @@ function pastaCurta(caminho) {
 function barraDoLote() {
   const quantos = bib.escolhidos.size;
   if (!quantos) return "";
-  return '<div class="barra-selecao"><span class="selecao"><span class="marcar on">' + ic("check", 12) + "</span>" +
-    '<span class="selecao-conta">' + plural(quantos, "selecionado") + "</span>" +
-    '<button class="limpar" id="lote-limpar">Limpar</button></span><span class="divisa-v"></span>' +
+  return '<div class="barra-selecao">' + barraDeSelecao(quantos, false,
     '<button class="primario" data-lote="perguntar">' + ic("forum", 16) + "Perguntar sobre estes</button>" +
     '<button class="botao-icone" data-lote="analisar" title="Tomar vista de novo" aria-label="Tomar vista de novo">' + ic("visibility", 18) + "</button>" +
     '<button class="botao-icone" data-lote="mover" title="Mover para pasta" aria-label="Mover para pasta">' + ic("drive_file_move", 18) + "</button>" +
     '<button class="botao-icone" data-lote="fixar" title="Fixar" aria-label="Fixar">' + ic("push_pin", 18) + "</button>" +
     '<button class="botao-icone" data-lote="exportar" title="Exportar" aria-label="Exportar">' + ic("download", 18) + "</button>" +
-    '<span class="divisa-v"></span><button class="botao-icone perigo" data-lote="apagar" title="Apagar do acervo" aria-label="Apagar do acervo">' + ic("delete", 18) + "</button></div>";
+    '<span class="divisa-v"></span>' + botoesDeTirar()) + "</div>";
+}
+
+/* Um botao so: tirar do Acervo. Excluir do computador e a caixa da
+   confirmacao, desmarcada (js/36-acervo-vigiado.js). */
+function botoesDeTirar() {
+  return '<button class="botao-icone" data-lote="tirar" title="Tirar do Acervo (pergunta antes; excluir é opcional)" aria-label="Tirar do Acervo">' + ic("folder_off", 18) + "</button>";
 }
 
 /* A FICHA NA LINHA: o que era o painel da direita, agora embaixo do
@@ -124,12 +128,15 @@ function fichaNaLinha(x) {
    está no selo ao lado, repetir embaixo do nome não informava nada. */
 function fatosDoArquivo(x) {
   const ext = (x.nome.split(".").pop() || "").toUpperCase();
-  return [ext, x.paginas ? plural(x.paginas, "página") : "", tamanho(x.bytes), x.assinado ? "com assinatura digital" : ""].filter(Boolean).join(" · ");
+  return [ext, x.paginas ? plural(x.paginas, "página") : "", tamanho(x.bytes), x.assinado ? "com assinatura digital" : "",
+    x.ocr ? (x.paginas && x.ocr >= x.paginas ? "escaneado, lido da imagem" : plural(x.ocr, "página") + " lida" + (x.ocr === 1 ? "" : "s") + " da imagem") : ""].filter(Boolean).join(" · ");
 }
 
-function marcaDoDoc(x) {
-  const on = bib.escolhidos.has(x.caminho);
-  return '<span class="marcar' + (on ? " on" : "") + '" data-pegar="' + esc(x.caminho) + '" role="checkbox" aria-checked="' + on + '">' + ic("check", 12) + "</span>";
+/* A linha nao tem mais caixinha (26/09/2026): a selecao e a das outras
+   listas - segurar ou Ctrl+clique, a barra vertical na linha escolhida e a
+   caixa da barra de cima para marcar todas ou limpar. */
+function marcaDoDoc() {
+  return "";
 }
 
 function classeDaLinha(x, base) {
@@ -166,19 +173,12 @@ function corpoDoIndice() {
 /* -------------------------------------------------- B: o sumario */
 
 function sumarioDoAcervo() {
-  const pastas = new Map();
-  bib.todos.forEach((x) => { const p = pastas.get(x.pasta) || { pasta: x.pasta, nome: x.pasta_curta || x.pasta, n: 0 }; p.n += 1; pastas.set(x.pasta, p); });
-  const porRaiz = new Map();
-  [...pastas.values()].sort((a, b) => a.nome.localeCompare(b.nome)).forEach((p) => {
-    const [raiz, ...resto] = p.nome.split(" › ");
-    if (!porRaiz.has(raiz)) porRaiz.set(raiz, []);
-    porRaiz.get(raiz).push(Object.assign({}, p, { folha: resto.join(" › ") || raiz }));
-  });
   return '<nav class="ae-sumario"><span class="sv-kicker">Sumário</span>' +
     '<button class="ae-sum-item' + (!bib.pastaFiltro ? " on" : "") + '" data-ac-filtro="todos"><span>Todo o acervo</span><i></i><small>' + bib.todos.length + "</small></button>" +
-    [...porRaiz].map(([raiz, lista]) => '<div class="ae-sum-grupo"><span class="ae-sum-raiz">' + esc(raiz) + "</span>" +
-      lista.map((p) => '<button class="ae-sum-item' + (bib.pastaFiltro === p.pasta ? " on" : "") + '" data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"><span>' +
-        esc(p.folha) + "</span><i></i><small>" + p.n + "</small></button>").join("") + "</div>").join("") +
+    raizesDoAcervo().map((r) => '<div class="ae-sum-grupo">' + cabecaDaRaiz(r, "ae-sum-raiz-linha") +
+      r.pastas.map((p) => '<button class="ae-sum-item' + (bib.pastaFiltro === p.pasta ? " on" : "") + '" data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"><span>' +
+        esc(p.folha || r.nome) + "</span><i></i><small>" + p.n + "</small></button>").join("") + "</div>").join("") +
+    rodapeDasPastas() +
     '<button class="ae-sum-incluir" data-ac-incluir="1">' + ic("add", 15) + "incluir pasta</button></nav>";
 }
 
@@ -224,27 +224,18 @@ function linhaDoMisto(x) {
     (bib.aberto === x.caminho ? fichaNaLinha(x) : "");
 }
 
-/* O sumario em cartao, com o cabecalho e as linhas de fio das secoes de A. */
+/* O sumario em cartao, com o cabecalho e as linhas de fio das secoes de A.
+   Cada pasta vigiada e uma raiz, mesmo vazia, com o "..." dela. */
 function sumarioDoMisto() {
-  const pastas = new Map();
-  bib.todos.forEach((x) => { const p = pastas.get(x.pasta) || { pasta: x.pasta, nome: x.pasta_curta || x.pasta, n: 0, sem: 0 }; p.n += 1;
-    if ((x.analise || {}).estado !== "analisado") p.sem += 1; pastas.set(x.pasta, p); });
-  const porRaiz = new Map();
-  [...pastas.values()].sort((a, b) => a.nome.localeCompare(b.nome)).forEach((p) => {
-    const [raiz, ...resto] = p.nome.split(" › ");
-    if (!porRaiz.has(raiz)) porRaiz.set(raiz, []);
-    porRaiz.get(raiz).push(Object.assign({}, p, { folha: resto.join(" › ") }));
-  });
   const linha = (attr, on, rotulo, n, sem, recuo) => '<button type="button" class="am-pasta' + (on ? " on" : "") + (recuo ? " recuo" : "") + '" ' + attr + ">" +
     '<span class="corta">' + esc(rotulo) + "</span>" + (sem ? '<i title="' + sem + ' a ler"></i>' : "") + "<small>" + n + "</small></button>";
   let html = linha('data-ac-filtro="todos"', !bib.pastaFiltro, "Todo o acervo", bib.todos.length, 0, false);
-  porRaiz.forEach((lista, raiz) => {
-    if (lista.length === 1 && !lista[0].folha) { const p = lista[0]; html += linha('data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"', bib.pastaFiltro === p.pasta, raiz, p.n, p.sem, false); return; }
-    html += '<span class="am-raiz">' + esc(raiz) + "</span>";
-    lista.forEach((p) => { html += linha('data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"', bib.pastaFiltro === p.pasta, p.folha || raiz, p.n, p.sem, true); });
+  raizesDoAcervo().forEach((r) => {
+    html += cabecaDaRaiz(r);
+    r.pastas.forEach((p) => { html += linha('data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"', bib.pastaFiltro === p.pasta, p.folha || r.nome, p.n, p.sem, true); });
   });
   return '<nav class="sv-secao am-sumario"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("folder_open", 16) + "Pastas</span>" +
-    '<button type="button" class="sv-ligacao" data-ac-incluir="1">' + ic("add", 15) + "incluir</button></div>" + html + "</nav>";
+    '<button type="button" class="sv-ligacao" data-ac-incluir="1">' + ic("add", 15) + "incluir</button></div>" + html + rodapeDasPastas() + "</nav>";
 }
 
 function corpoDoMisto() {
@@ -276,6 +267,7 @@ function desenharAcervoEditorial() {
     "</div></div></div>";
   ligarBiblioteca();
   const centro = $("centro");
+  ligarAcervoVigiado(centro);
   centro.querySelectorAll("[data-visao-acervo]").forEach((b) => { b.onclick = () => abrirVisaoDoAcervo(b.dataset.visaoAcervo); });
   if (conteudoNovo("acervo:" + desenho + ":" + bib.filtro + ":" + bib.pastaFiltro + ":" + bib.termo)) {
     entraConteudo(centro.firstElementChild);

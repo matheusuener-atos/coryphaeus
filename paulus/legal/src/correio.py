@@ -1128,6 +1128,11 @@ Regras:
 
 
 def sugerir_resposta(cliente, mensagem: Mensagem, quem_assina: str = "") -> str:
+    """O rascunho, sem o aviso - para quem so quer o texto."""
+    return sugerir_resposta_com_aviso(cliente, mensagem, quem_assina)[0]
+
+
+def sugerir_resposta_com_aviso(cliente, mensagem: Mensagem, quem_assina: str = "") -> tuple[str, str]:
     """
     Escreve um rascunho de resposta, sob demanda.
 
@@ -1138,17 +1143,24 @@ def sugerir_resposta(cliente, mensagem: Mensagem, quem_assina: str = "") -> str:
 
     O que volta e rascunho, nunca envio: quem le decide.
     """
-    contexto = (
-        f"De: {mensagem.de_nome} <{mensagem.de_email}>\n"
-        f"Assunto: {mensagem.assunto}\n\n"
-        f"{mensagem.corpo[:3000]}"
-    )
-    instrucao = INSTRUCAO_RESPOSTA
+    import blindagem
+
+    # Tudo o que veio do remetente - nome, assunto e texto - fica dentro da
+    # cerca: e dele, nao do escritorio (src/blindagem.py).
+    original = (f"De: {mensagem.de_nome} <{mensagem.de_email}>\n"
+                f"Assunto: {mensagem.assunto}\n\n"
+                f"{mensagem.corpo[:3000]}")
+    contexto = "E-mail recebido:\n" + blindagem.cercar(original)
+    instrucao = INSTRUCAO_RESPOSTA + "\n\n" + blindagem.REGRA
     if quem_assina:
         instrucao += f"\n- quem responde e {quem_assina}"
 
     resposta = cliente.ask(instrucao, contexto)
-    return _limpar_rascunho(resposta)
+    texto, fora = blindagem.conferir_saida(_limpar_rascunho(resposta), original, [mensagem.de_email])
+    avisos = [blindagem.aviso(blindagem.suspeitas(original))]
+    if fora:
+        avisos.append("Tirei do rascunho " + ", ".join(fora[:3]) + ": não estava no e-mail recebido.")
+    return texto, " ".join(a for a in avisos if a)
 
 
 def _limpar_rascunho(texto: str) -> str:
@@ -1218,9 +1230,13 @@ def reescrever_email(cliente, pedido: str, assunto: str = "", corpo: str = "") -
         raise ValueError("diga o que mudar no e-mail")
     if pedido in PEDIDOS_PRONTOS and not corpo.strip():
         raise ValueError("escreva o texto do e-mail antes - não há o que reescrever")
-    contexto = (f"Assunto: {assunto.strip() or '(sem assunto)'}\n\n"
-                f"Texto atual do e-mail:\n{corpo.strip()[:4000] or '(vazio)'}")
-    resposta = cliente.ask(f"Pedido: {instrucao}", contexto, sistema=SISTEMA_EMAIL)
+    import blindagem
+
+    # O texto a reescrever pode trazer a mensagem de outra pessoa citada
+    # embaixo: vai cercado, como dado. O pedido e da pessoa, e fica fora.
+    contexto = ("Texto atual do e-mail (so para reescrever):\n" +
+                blindagem.cercar(f"Assunto: {assunto.strip() or '(sem assunto)'}\n\n{corpo.strip()[:4000] or '(vazio)'}"))
+    resposta = cliente.ask(f"Pedido: {instrucao}", contexto, sistema=SISTEMA_EMAIL + "\n\n" + blindagem.REGRA)
     limpo = _limpar_rascunho(resposta)
     if not limpo:
         raise ValueError("o modelo devolveu um texto vazio - tente de novo")
@@ -1302,7 +1318,11 @@ def resumir_caixa(cliente, mensagens: list[dict]) -> str:
                       + (f" | {', '.join(marcas)}" if marcas else ""))
     if not linhas:
         return ""
-    resposta = cliente.ask(INSTRUCAO_RESUMO_CAIXA, "\n".join(linhas), sistema=INSTRUCAO_RESUMO_CAIXA)
+    import blindagem
+
+    # Assunto e remetente sao escritos por quem mandou: cercados.
+    resposta = cliente.ask(INSTRUCAO_RESUMO_CAIXA, blindagem.cercar("\n".join(linhas)),
+                           sistema=INSTRUCAO_RESUMO_CAIXA + "\n\n" + blindagem.REGRA)
     limpo = re.sub(r"^\s*(resumo|em resumo)[^\n:]{0,30}:\s*", "", (resposta or "").strip(), flags=re.I)
     limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
     return limpo.strip()
@@ -1333,15 +1353,22 @@ def contexto_da_mensagem(cliente, itens: list[dict]) -> str:
     corpo = str(m.get("corpo", "")).strip()
     if not corpo:
         return ""
+    import blindagem
+
     fonte = f"{m.get('assunto', '')}\n{m.get('de', '')}\n{corpo[:CONTEXTO_MAX]}"
-    contexto = (f"De: {m.get('de', '')}\nAssunto: {m.get('assunto', '')}\n\n"
-                f"{corpo[:CONTEXTO_MAX]}")
-    resposta = cliente.ask("Diga o contexto deste e-mail.", contexto, sistema=INSTRUCAO_CONTEXTO)
+    contexto = blindagem.cercar(f"De: {m.get('de', '')}\nAssunto: {m.get('assunto', '')}\n\n"
+                                f"{corpo[:CONTEXTO_MAX]}")
+    resposta = cliente.ask("Diga o contexto deste e-mail.", contexto,
+                           sistema=INSTRUCAO_CONTEXTO + "\n\n" + blindagem.REGRA)
+    atencao = blindagem.aviso(blindagem.suspeitas(fonte))
     limpo = re.sub(r"^\s*(contexto|resumo)[^\n:]{0,30}:\s*", "", (resposta or "").strip(), flags=re.I)
     limpo = re.sub(r"\*\*(.+?)\*\*", r"\1", limpo)
     frases = re.split(r"(?<=[.!?])\s+", limpo)
     boas = [f for f in frases if all(n in fonte for n in re.findall(r"\d{2,}", f))]
-    return " ".join(boas).strip()
+    texto = " ".join(boas).strip()
+    # Tentativa de dar ordem ao assistente: quem abre o e-mail precisa saber
+    # antes de ler o resto.
+    return (atencao + "\n\n" + texto).strip() if atencao else texto
 
 
 def chave_do_resumo(conta_id: str, mensagens: list[dict]) -> str:

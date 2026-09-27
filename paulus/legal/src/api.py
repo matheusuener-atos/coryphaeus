@@ -12,6 +12,7 @@ documento sai daqui.
 from __future__ import annotations
 
 import errno
+import hashlib
 import json
 import os
 import re
@@ -61,6 +62,7 @@ import escritorio
 import ferramentas
 import intencao
 import juizo
+import modelos as modelos_mod
 import programa
 import leis
 import redacao
@@ -72,6 +74,12 @@ import gravacoes as gravacoes_mod
 import transcricao as transcricao_mod
 import lixeira as lixeira_mod
 import contextos as contextos_mod
+import material as material_mod
+import maquina as maquina_mod
+import entrada
+import google_servicos
+import calibracao_remota
+from versao import VERSAO
 from inteligencia import portas as inteligencia
 from inteligencia.catalogo import Catalogo
 from inteligencia.guarda import Biblioteca
@@ -91,7 +99,8 @@ from habilidade_base import (
     PRECISA_DOCUMENTOS,
     Contexto,
 )
-from extract import SUPPORTED_SUFFIXES, extract_file, file_sha1, index_all_contracts
+from extract import (SUPPORTED_SUFFIXES, chave_do_caminho, extract_file, file_sha1, index_all_contracts,
+                     listar_arquivos, motivo_sem_texto)
 from jobs import AGUARDANDO, CONCLUIDO, EXECUTANDO, LIMITE_DE_NOME, PAUSADO, Etapa, Trabalhos, titular
 from jobs import agora as jobs_agora
 from llama_client import (
@@ -140,12 +149,32 @@ COMPROVANTES_DIR = DADOS_DIR / "comprovantes"
 RECIBOS_DIR = DADOS_DIR / "recibos"
 EXPORTACOES_DIR = DADOS_DIR / "exportacoes"
 GRAVACOES_DIR = DADOS_DIR / "gravacoes"
-MODELOS_VOZ_DIR = BASE_DIR / "data" / "modelos" / "whisper"  # compartilhado, ver DADOS_DIR
+# Os modelos baixados (voz, traducao): PAULUS_MODELOS no programa instalado
+# (%LOCALAPPDATA%\PAULUS\modelos, que o lancador passa); sem ela, a pasta do
+# codigo, compartilhada entre a base real e a de demonstracao.
+MODELOS_DIR = Path(os.environ.get("PAULUS_MODELOS") or (BASE_DIR / "data" / "modelos")).resolve()
+MODELOS_VOZ_DIR = MODELOS_DIR / "whisper"
+# Os modelos do Ollama que o PAULUS baixou: o desinstalador le esta lista para
+# perguntar se tira tambem os modelos de IA local (e so estes - o que a pessoa
+# baixou por fora do PAULUS fica).
+BAIXADOS_PELO_PAULUS_PATH = MODELOS_DIR / "ollama_baixados.txt"
 LIXEIRA_DIR = DADOS_DIR / "lixeira"
 MARCA_DIR = DADOS_DIR / "marca"
 CONHECIMENTO_DIR = DADOS_DIR / "conhecimento"
+MATERIAL_DIR = DADOS_DIR / "aprendizado"
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
 RITMO_PATH = DADOS_DIR / "ritmo.json"
+MEDIDAS_MODELOS_PATH = DADOS_DIR / "modelos_medidas.json"
+# O teste desta maquina e as amostras de calibracao feitas aqui (src/maquina.py).
+MAQUINA_PATH = DADOS_DIR / "maquina.json"
+# De quanto em quanto tempo a vigia olha as pastas do Acervo.
+VIGIA_SEGUNDOS = 30
+CALIBRACAO_PATH = DADOS_DIR / "calibracao.json"
+# As amostras de outras maquinas, quando se participa da calibracao.
+CALIBRACAO_SERVIDOR_PATH = DADOS_DIR / "calibracao_servidor.json"
+# O modelo escolhido na tela "Modelo de IA" do instalador: a primeira abertura
+# poe como padrao e comeca o download (tools/instalador/paulus.iss.modelo).
+ESCOLHA_DO_INSTALADOR_PATH = DADOS_DIR / "escolha_do_instalador.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -174,6 +203,14 @@ class Estado:
     def __init__(self) -> None:
         self.searcher = ContractSearcher()
         self.pasta = CONTRACTS_DIR
+        # O indice e relido por muita gente (a vigia das pastas, anexar,
+        # organizar): um de cada vez. `lendo` e o andamento para a tela, e a
+        # versao muda a cada releitura - a tela do Acervo sabe por ela que
+        # precisa buscar de novo.
+        self._trava_indice = threading.RLock()
+        self.lendo: dict = {"andando": False}
+        self.retrato = ""
+        self.versao_do_acervo = 0
         self.porta = 8000
         self.client = LlamaClient()
         # Organizador: resultado da ultima varredura/classificacao, por caminho.
@@ -214,6 +251,8 @@ class Estado:
         self.envios = correio.RegistroEnvios(ENVIOS_PATH)
         # O login com Google/Microsoft em andamento (um por vez).
         self.entrada_oauth: correio_oauth.Entrada | None = None
+        # A conta Google alem do Gmail: Agenda, Meet e Drive (src/google_servicos.py).
+        self.google = google_servicos.Google(self._token_google)
         # Documentos de texto e planilhas, com historico de versoes.
         self.documentos = documento.Documentos(self.base)
         self.comentarios = documento.Comentarios(self.base)
@@ -253,6 +292,11 @@ class Estado:
         self.erro_voz = ""
         # O download do modelo do assistente pelo cartao "falta baixar".
         self.puxando: dict | None = None
+        # Os modelos do PAULUS (src/modelos.py): o download pela tela e a lista
+        # do que esta instalado, lembrada por alguns segundos para a delegacao
+        # nao perguntar ao Ollama a cada chamada.
+        self.baixador = modelos_mod.Baixador(lambda: self.client.host)
+        self._presentes: tuple[float, set[str] | None] = (0.0, None)
         # Sessoes de transcricao ao vivo (uma por gravacao em andamento).
         self.ao_vivo: dict[str, transcricao_mod.SessaoAoVivo] = {}
         # A camada de inteligencia de documentos: o que ja foi entendido de
@@ -265,6 +309,9 @@ class Estado:
             ligada=bool(self.prefs.dados.get("inteligencia", True)))
         # O que o escritorio ensinou com as proprias palavras (docs/ui, A13).
         self.contextos = contextos_mod.Contextos(self.base)
+        # O material de consulta: PDFs e textos de referencia, com indice
+        # proprio, separado do Acervo (src/material.py).
+        self.material = material_mod.Material(MATERIAL_DIR)
         # A foto de quem usa e a logo do escritorio (docs/ui, A13).
         self.marca = marca_mod.Marca(MARCA_DIR)
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
@@ -310,28 +357,169 @@ class Estado:
                 self.transcrevendo = None
                 self.fila_voz.task_done()
 
+    def conta_google(self):
+        """A conta Google em uso: a escolhida em Conexoes, ou a primeira que entrou pelo Google."""
+        preferida = str((self.prefs.dados.get("google") or {}).get("conta", "")).lower()
+        contas = [c for c in self.contas.itens if c.autenticacao == "google"]
+        return next((c for c in contas if c.email.lower() == preferida), contas[0] if contas else None)
+
+    def _token_google(self) -> str:
+        conta = self.conta_google()
+        if not conta:
+            raise google_servicos.ErroGoogle("nenhuma conta Google conectada: entre com o Google em E-mail › Contas")
+        try:
+            return self.contas.credencial(conta)
+        except correio_oauth.ErroOAuth as exc:
+            raise google_servicos.ErroGoogle(str(exc), status=401) from exc
+
+    def google_tem(self, servico: str) -> bool:
+        """Se a conta Google ja concedeu a permissao do servico (agenda, drive)."""
+        conta = self.conta_google()
+        return bool(conta and google_servicos.ESCOPOS.get(servico, "-") in conta.escopos.split())
+
+    def prefs_google(self) -> dict:
+        return dict(self.prefs.dados.get("google") or {})
+
     def pastas_do_acervo(self) -> list[Path]:
-        """A pasta do programa e as que o Organizar encheu - o que o Acervo le."""
+        """
+        As pastas que o Acervo vigia: a do programa e as que a pessoa incluiu.
+        Cada uma e lida onde esta - nada e movido nem copiado para dentro do
+        PAULUS.
+        """
         extras = [Path(p) for p in self.prefs.dados.get("pastas_acervo") or []]
         return [Path(self.pasta)] + [p for p in extras if p.is_dir()]
 
     def incluir_no_acervo(self, pasta: str | Path) -> bool:
-        """Passa a ler `pasta` no Acervo. Pasta ja lida (ou dentro de uma) nao entra de novo."""
+        """
+        Passa a vigiar `pasta`. Pasta ja vigiada (ou dentro de uma) nao entra
+        de novo; pasta que CONTEM vigiadas passa a valer no lugar delas.
+        """
         alvo = Path(pasta).resolve()
         for ja in self.pastas_do_acervo():
             ja = ja.resolve()
             if alvo == ja or ja in alvo.parents:
                 return False
-        extras = list(self.prefs.dados.get("pastas_acervo") or [])
-        self.prefs.atualizar({"pastas_acervo": extras + [str(alvo)]})
+        extras = [e for e in (self.prefs.dados.get("pastas_acervo") or []) if alvo not in Path(e).resolve().parents]
+        self.prefs.dados["pastas_acervo"] = extras + [str(alvo)]
+        self.prefs.atualizar({})
         return True
 
+    def tirar_pasta_do_acervo(self, pasta: str | Path) -> bool:
+        """Deixa de vigiar a pasta. Nenhum arquivo e tocado."""
+        alvo = chave_do_caminho(pasta)
+        extras = list(self.prefs.dados.get("pastas_acervo") or [])
+        ficam = [e for e in extras if chave_do_caminho(e) != alvo]
+        if len(ficam) == len(extras):
+            return False
+        self.prefs.dados["pastas_acervo"] = ficam
+        self.prefs.atualizar({})
+        return True
+
+    def fora_do_acervo(self) -> set[str]:
+        """Os documentos que a pessoa tirou do Acervo: continuam no disco, so nao sao lidos."""
+        return {chave_do_caminho(c) for c in self.prefs.dados.get("acervo_fora") or []}
+
+    def tirar_documentos(self, caminhos: list[str]) -> int:
+        atuais = list(self.prefs.dados.get("acervo_fora") or [])
+        chaves = {chave_do_caminho(c) for c in atuais}
+        novos = [str(Path(c)) for c in caminhos if chave_do_caminho(c) not in chaves]
+        if novos:
+            self.prefs.dados["acervo_fora"] = atuais + novos
+            self.prefs.atualizar({})
+        return len(novos)
+
+    def devolver_documentos(self, caminhos: list[str]) -> int:
+        voltam = {chave_do_caminho(c) for c in caminhos}
+        atuais = list(self.prefs.dados.get("acervo_fora") or [])
+        ficam = [c for c in atuais if chave_do_caminho(c) not in voltam]
+        if len(ficam) != len(atuais):
+            self.prefs.dados["acervo_fora"] = ficam
+            self.prefs.atualizar({})
+        return len(atuais) - len(ficam)
+
+    def assinatura_das_pastas(self) -> str:
+        """
+        O retrato das pastas vigiadas: nome, tamanho e data de cada documento.
+        So metadados do Windows - nada e aberto. Mudou o retrato, algo entrou,
+        saiu ou foi alterado.
+        """
+        partes = []
+        for arquivo in listar_arquivos(self.pastas_do_acervo(), self.fora_do_acervo()):
+            try:
+                st = arquivo.stat()
+            except OSError:
+                continue
+            partes.append(f"{arquivo}|{st.st_size}|{st.st_mtime_ns}")
+        return hashlib.sha1("\n".join(partes).encode("utf-8", "replace")).hexdigest()
+
+    def recarregar_em_segundo_plano(self) -> bool:
+        """Relê sem prender quem pediu. Já relendo, não começa outra."""
+        if self.lendo.get("andando"):
+            return False
+        threading.Thread(target=self.recarregar, name="acervo-reler", daemon=True).start()
+        return True
+
+    def _vigiar(self) -> None:
+        """
+        A vigia das pastas: a cada meio minuto, o retrato delas. Mudou, relê.
+        Arquivo que ja foi lido nao e lido de novo (o sha1 e lembrado por
+        tamanho e data, e o texto fica no cache), entao reler custa o que
+        entrou de novo.
+        """
+        while True:
+            time.sleep(VIGIA_SEGUNDOS)
+            try:
+                if self.lendo.get("andando"):
+                    continue
+                retrato = self.assinatura_das_pastas()
+                if retrato != self.retrato:
+                    self.recarregar()
+            except Exception:  # noqa: BLE001 - a vigia nao pode morrer
+                pass
+
+    def modelos_presentes(self, fresco: bool = False) -> set[str] | None:
+        quando, nomes = self._presentes
+        if fresco or time.time() - quando > 30:
+            try:
+                nomes = {m["nome"] for m in modelos_mod.instalados(self.client.host)}
+            except Exception:  # noqa: BLE001 - Ollama fora: "nao sei"
+                nomes = None
+            self._presentes = (time.time(), nomes)
+        return nomes
+
+    def modelo_para(self, tarefa: str) -> str:
+        return modelos_mod.modelo_da_tarefa(tarefa, self.prefs.dados.get("tarefas_modelo") or {},
+                                            self.client.model, self.modelos_presentes())
+
+    def cliente_para(self, tarefa: str) -> LlamaClient:
+        """
+        O cliente do modelo que faz a tarefa. O padrao e o proprio
+        `self.client`; outro modelo ganha um cliente com a mesma janela.
+        """
+        nome = self.modelo_para(tarefa)
+        if nome == self.client.model:
+            return self.client
+        return LlamaClient(model=nome, host=self.client.host, num_ctx=self.client.num_ctx)
+
     def recarregar(self, *, force: bool = False) -> int:
-        docs = index_all_contracts(self.pastas_do_acervo(), CACHE_PATH, force=force, verbose=False)
-        searcher = ContractSearcher()
-        searcher.add_contracts(docs)
-        searcher.build()
-        self.searcher = searcher
+        with self._trava_indice:
+            self.lendo = {"andando": True, "feitos": 0, "total": 0, "nome": ""}
+
+            def andou(feitos: int, total: int, nome: str) -> None:
+                self.lendo.update(feitos=feitos, total=total, nome=nome)
+
+            try:
+                retrato = self.assinatura_das_pastas()
+                docs = index_all_contracts(self.pastas_do_acervo(), CACHE_PATH, force=force, verbose=False,
+                                           ignorar=self.fora_do_acervo(), progresso=andou)
+            finally:
+                self.lendo = {"andando": False}
+            searcher = ContractSearcher()
+            searcher.add_contracts(docs)
+            searcher.build()
+            self.searcher = searcher
+            self.retrato = retrato
+            self.versao_do_acervo += 1
 
         # A janela do modelo acompanha o acervo. Com a janela fixa e pequena, o
         # programa lia um terco dos documentos e respondia "nao encontrei essa
@@ -375,6 +563,8 @@ async def lifespan(app: FastAPI):
     estado.pasta.mkdir(parents=True, exist_ok=True)
     total = estado.recarregar()
     estado.vigia.comecar()
+    threading.Thread(target=estado._vigiar, name="acervo-vigia", daemon=True).start()
+    threading.Thread(target=_cumprir_escolha_do_instalador, name="escolha-do-instalador", daemon=True).start()
     print(f"\n  PAULUS Legal - abra http://localhost:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     yield
@@ -630,7 +820,7 @@ async def contextos_ler_arquivo(arquivo: UploadFile = File(...)) -> dict:
 
     try:
         resposta = await run_in_threadpool(
-            lambda: estado.client.ask(contextos_mod.INSTRUCAO_DO_ARQUIVO,
+            lambda: estado.cliente_para("redacao").ask(contextos_mod.INSTRUCAO_DO_ARQUIVO,
                                       f"Documento “{nome}”:\n{texto[:contextos_mod.LEITURA_MAX]}",
                                       sistema=contextos_mod.INSTRUCAO_DO_ARQUIVO))
     except OllamaError as exc:
@@ -651,6 +841,58 @@ def contextos_apagar(id_: int) -> dict:
         raise HTTPException(status_code=404, detail="esse lembrete nao existe")
     entrada = estado.lixeira.apagar_linha("contexto", id_, item["titulo"], item["gaveta"])
     return {**_foi_para_lixeira(entrada, "contexto", id_), **estado.contextos.para_tela()}
+
+
+# ------------------------------------------------- material de consulta
+
+
+@app.get("/api/material")
+def material_listar() -> dict:
+    return estado.material.para_tela()
+
+
+@app.post("/api/material")
+async def material_enviar(arquivos: list[UploadFile] = File(...)) -> dict:
+    """
+    O escritorio entrega um PDF (ou DOCX, TXT, MD) para o PAULUS aprender.
+
+    Aprender, aqui, e o que src/material.py diz: o texto e lido uma vez,
+    guardado nesta maquina com a pagina de cada trecho, e consultado em cada
+    pergunta da conversa. Um arquivo que nao deu para ler volta com o motivo,
+    sem derrubar os outros do mesmo envio.
+    """
+    entraram, recusados = [], []
+    for arquivo in arquivos:
+        nome = Path(arquivo.filename or "").name or "material"
+        dados = await arquivo.read(material_mod.MAX_BYTES + 1)
+        try:
+            item = await run_in_threadpool(estado.material.absorver, nome, dados)
+        except ValueError as exc:
+            recusados.append({"nome": nome, "motivo": str(exc)})
+            continue
+        entraram.append(item)
+    if not entraram and recusados:
+        raise HTTPException(status_code=400, detail=f"{recusados[0]['nome']}: {recusados[0]['motivo']}")
+    return {"entraram": entraram, "recusados": recusados, **estado.material.para_tela()}
+
+
+@app.delete("/api/material/{id_}")
+def material_remover(id_: str) -> dict:
+    if not estado.material.remover(id_):
+        raise HTTPException(status_code=404, detail="esse material não existe mais")
+    return estado.material.para_tela()
+
+
+@app.post("/api/material/{id_}/abrir")
+def material_abrir(id_: str) -> dict:
+    """Abre o arquivo original no programa padrao do Windows."""
+    alvo = estado.material.caminho(id_)
+    if not alvo:
+        raise HTTPException(status_code=404, detail="o arquivo desse material saiu do lugar")
+    import os
+
+    os.startfile(str(alvo))  # noqa: S606 - abre no programa do proprio Windows
+    return {"aberto": str(alvo)}
 
 
 # ------------------------------------------------- o que ja foi lido
@@ -775,7 +1017,7 @@ def _motor(mensagem: str = "") -> dict:
         "modelo": nome,
         "tamanho": TAMANHOS_MODELO.get(nome, ""),
         "mensagem": mensagem,
-        "puxando": estado.puxando,
+        "puxando": estado.puxando or _puxando_pelo_baixador(),
     }
 
 
@@ -844,6 +1086,7 @@ def ollama_puxar() -> dict:
             if p.wait() == 0:
                 andamento["progresso"] = 100
                 andamento["pronto"] = True
+                _anotar_baixado(andamento["modelo"])
             else:
                 andamento["erro"] = "o download parou: " + (andamento["linha"] or "sem detalhe")
         except Exception as exc:  # noqa: BLE001 - o erro vai para a tela
@@ -857,7 +1100,361 @@ def ollama_puxar() -> dict:
 
 @app.get("/api/ollama/puxar")
 def ollama_puxando() -> dict:
-    return estado.puxando or {"andando": False, "progresso": 0, "pronto": False, "erro": ""}
+    return estado.puxando or _puxando_pelo_baixador() or {"andando": False, "progresso": 0, "pronto": False, "erro": ""}
+
+
+def _puxando_pelo_baixador() -> dict | None:
+    """
+    O download do modelo padrao feito pelo Baixador (Configuracoes › Modelos,
+    ou a escolha do instalador), no formato do cartao do Assistente - sem
+    isso, o cartao dizia "Falta baixar" com o download ja andando.
+    """
+    b = estado.baixador.andamento()
+    if not b.get("andando") or b.get("modelo") != estado.client.model:
+        return None
+    linha = str(b.get("fase", "")) + (f" · {b.get('baixado_gb', 0)} de {b.get('total_gb', 0)} GB" if b.get("total_gb") else "")
+    return {"modelo": b["modelo"], "andando": True, "progresso": b.get("progresso", 0), "pronto": False, "erro": "",
+            "linha": linha.replace(".", ",")}
+
+
+def _anotar_baixado(nome: str) -> None:
+    """Guarda que o PAULUS baixou este modelo no Ollama (para o desinstalador)."""
+    try:
+        ja = set(BAIXADOS_PELO_PAULUS_PATH.read_text(encoding="utf-8").split()) if BAIXADOS_PELO_PAULUS_PATH.exists() else set()
+        if nome and nome not in ja:
+            BAIXADOS_PELO_PAULUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(BAIXADOS_PELO_PAULUS_PATH, "a", encoding="utf-8") as f:
+                f.write(nome + "\n")
+    except OSError:
+        pass
+
+
+def _cumprir_escolha_do_instalador() -> None:
+    """
+    A escolha da tela "Modelo de IA" do instalador, uma vez: o modelo vira o
+    padrao e, se a pessoa pediu, o download comeca - com o Ollama ligado
+    daqui, se ainda nao estiver. O andamento aparece no cartao do Assistente
+    e em Configuracoes › Modelos.
+    """
+    try:
+        escolha = json.loads(ESCOLHA_DO_INSTALADOR_PATH.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return
+    try:
+        ESCOLHA_DO_INSTALADOR_PATH.replace(ESCOLHA_DO_INSTALADOR_PATH.with_suffix(".feita.json"))
+    except OSError:
+        return
+    modelo = str(escolha.get("modelo", "")).strip().lower()
+    if not modelo or not modelos_mod.nome_valido(modelo):
+        return
+    try:
+        preferencias_gravar({"modelo": modelo})
+    except Exception:  # noqa: BLE001 - sem o padrao gravado, a pessoa escolhe em Configuracoes
+        return
+    if not escolha.get("baixar"):
+        return
+    try:
+        ollama_ligar()
+        instalados = {m["nome"] for m in modelos_mod.instalados(estado.client.host)}
+    except Exception:  # noqa: BLE001 - Ollama ausente: o cartao do Assistente diz como seguir
+        return
+    if modelo in instalados:
+        return
+    try:
+        estado.baixador.iniciar(modelo, ao_terminar=lambda n: (_anotar_baixado(n), estado.modelos_presentes(fresco=True)))
+    except (ValueError, RuntimeError):
+        pass
+
+
+# ------------------------------------------------------------ os modelos
+
+def _medidas_dos_modelos() -> dict:
+    try:
+        return json.loads(MEDIDAS_MODELOS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+@app.get("/api/modelos")
+def modelos_listar() -> dict:
+    """
+    O que a tela de modelos mostra: os instalados (com o que cada um faz e a
+    medida nesta maquina), o catalogo com o tamanho lido do registro, as
+    tarefas com o modelo de cada uma e o download em andamento.
+    """
+    try:
+        lista = modelos_mod.instalados(estado.client.host)
+        rodando = True
+    except Exception:  # noqa: BLE001 - Ollama fora e um estado da tela
+        lista, rodando = [], False
+    presentes = {m["nome"] for m in lista}
+    estado._presentes = (time.time(), presentes if rodando else None)
+    delegados = estado.prefs.dados.get("tarefas_modelo") or {}
+    medidas = _medidas_dos_modelos()
+    padrao = estado.client.model
+    for m in lista:
+        m["padrao"] = m["nome"] == padrao
+        m["tarefas"] = [t for t in modelos_mod.IDS_TAREFAS if delegados.get(t) == m["nome"]]
+        m["medida"] = medidas.get(m["nome"])
+    tamanhos = modelos_mod.tamanhos_do_catalogo()
+    catalogo = [{**c, "gb": tamanhos.get(c["nome"]), "instalado": c["nome"] in presentes} for c in modelos_mod.CATALOGO]
+    tarefas = [{"id": t, "rotulo": r, "explica": e, "modelo": delegados.get(t) or "",
+                "em_uso": modelos_mod.modelo_da_tarefa(t, delegados, padrao, presentes if rodando else None)}
+               for t, r, e in modelos_mod.TAREFAS]
+    # A estimativa de cada um nesta maquina e a nota no banco de provas: so
+    # quando a maquina ja foi testada (o teste leva segundos e roda na
+    # primeira abertura, ou pelo botao da tela).
+    recomendacao = _recomendacao(lista if rodando else None, testar=False)
+    if recomendacao:
+        por_nome = {x["nome"]: x for x in recomendacao["modelos"]}
+        for m in lista + catalogo:
+            x = por_nome.get(m["nome"])
+            if x:
+                m["estimativa"] = x["estimativa"]
+                m["qualidade"] = x["qualidade"]
+                m["recomendado"] = x["recomendado"]
+    return {"rodando": rodando, "padrao": padrao, "instalados": lista, "catalogo": catalogo,
+            "tarefas": tarefas, "baixando": estado.baixador.andamento(),
+            "maquina": (recomendacao or {}).get("maquina"), "recomendado": (recomendacao or {}).get("recomendado", ""),
+            "porque": (recomendacao or {}).get("porque", "")}
+
+
+@app.post("/api/modelos/baixar")
+def modelos_baixar(payload: dict) -> dict:
+    nome = str(payload.get("nome", "")).strip().lower()
+    try:
+        return estado.baixador.iniciar(nome, ao_terminar=lambda n: (_anotar_baixado(n), estado.modelos_presentes(fresco=True)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get("/api/modelos/baixar")
+def modelos_baixando() -> dict:
+    return estado.baixador.andamento()
+
+
+@app.post("/api/modelos/cancelar")
+def modelos_cancelar() -> dict:
+    return estado.baixador.cancelar()
+
+
+@app.post("/api/modelos/remover")
+def modelos_remover(payload: dict) -> dict:
+    """Tira o modelo do Ollama. O padrao nao sai; tarefa delegada a ele volta ao padrao."""
+    nome = str(payload.get("nome", "")).strip()
+    if nome == estado.client.model:
+        raise HTTPException(status_code=409, detail="esse é o modelo padrão - escolha outro padrão antes de remover")
+    try:
+        modelos_mod.remover(estado.client.host, nome)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail="não consegui falar com o Ollama") from exc
+    delegados = dict(estado.prefs.dados.get("tarefas_modelo") or {})
+    soltos = [t for t, m in delegados.items() if m == nome]
+    if soltos:
+        estado.prefs.atualizar({"tarefas_modelo": {t: "" for t in soltos}})
+    estado.modelos_presentes(fresco=True)
+    return {"removido": nome, "tarefas_de_volta_ao_padrao": soltos}
+
+
+@app.post("/api/modelos/padrao")
+def modelos_padrao(payload: dict) -> dict:
+    """O modelo padrao: o que faz toda tarefa sem modelo proprio."""
+    nome = str(payload.get("nome", "")).strip()
+    presentes = estado.modelos_presentes(fresco=True)
+    if presentes is not None and nome not in presentes:
+        raise HTTPException(status_code=404, detail="esse modelo não está instalado")
+    return preferencias_gravar({"modelo": nome})
+
+
+@app.post("/api/modelos/tarefa")
+def modelos_tarefa(payload: dict) -> dict:
+    """Delega uma tarefa a um modelo. Vazio devolve a tarefa ao padrao."""
+    tarefa = str(payload.get("tarefa", ""))
+    nome = str(payload.get("modelo", "")).strip()
+    if tarefa not in modelos_mod.IDS_TAREFAS:
+        raise HTTPException(status_code=400, detail="tarefa desconhecida")
+    presentes = estado.modelos_presentes(fresco=True)
+    if nome and presentes is not None and nome not in presentes:
+        raise HTTPException(status_code=404, detail="esse modelo não está instalado")
+    estado.prefs.atualizar({"tarefas_modelo": {tarefa: nome}})
+    return {"tarefa": tarefa, "modelo": nome, "em_uso": estado.modelo_para(tarefa)}
+
+
+@app.post("/api/modelos/medir")
+def modelos_medir(payload: dict) -> dict:
+    """Mede o modelo nesta maquina e guarda (data/modelos_medidas.json)."""
+    nome = str(payload.get("nome", "")).strip()
+    try:
+        medida = modelos_mod.medir(estado.client.host, nome)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail="o Ollama não respondeu: " + str(exc)[:120]) from exc
+    medidas = _medidas_dos_modelos()
+    medidas[nome] = medida
+    MEDIDAS_MODELOS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    MEDIDAS_MODELOS_PATH.write_text(json.dumps(medidas, ensure_ascii=False, indent=1), encoding="utf-8")
+    # A medida vira amostra de calibracao desta maquina: a estimativa dos
+    # outros modelos passa a se corrigir por ela (src/maquina.py).
+    try:
+        info = next((m for m in modelos_mod.instalados(estado.client.host) if m["nome"] == nome), None)
+        if info:
+            nova = maquina_mod.amostra(_maquina(), info, medida)
+            maquina_mod.guardar_amostra(CALIBRACAO_PATH, nova)
+            if _participa_da_calibracao():
+                _calibracao_em_segundo_plano(_enviar_calibracao, [nova])
+    except Exception:  # noqa: BLE001 - a medida ja foi guardada; a amostra e um extra
+        pass
+    return {"nome": nome, "medida": medida}
+
+
+# ----------------------------------------------------- esta maquina
+
+_trava_maquina = threading.Lock()
+
+
+def _maquina(fresco: bool = False, testar: bool = True) -> dict | None:
+    """
+    O teste desta maquina (src/maquina.py), guardado em data/maquina.json.
+    Roda uma vez; de novo so pelo botao, ou quando o teste mudou de versao.
+    A memoria livre e lida na hora: e a unica coisa que muda de minuto a minuto.
+    """
+    with _trava_maquina:
+        dados = None
+        if not fresco:
+            try:
+                dados = json.loads(MAQUINA_PATH.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                dados = None
+            if dados and dados.get("versao") != maquina_mod.VERSAO_DO_TESTE:
+                dados = None
+        if dados is None:
+            if not testar:
+                return None
+            dados = maquina_mod.testar()
+            MAQUINA_PATH.parent.mkdir(parents=True, exist_ok=True)
+            MAQUINA_PATH.write_text(json.dumps(dados, ensure_ascii=False, indent=1), encoding="utf-8")
+    try:
+        import psutil
+
+        dados["ram_livre_gb"] = round(psutil.virtual_memory().available / 1e9, 1)
+    except Exception:  # noqa: BLE001
+        pass
+    return dados
+
+
+def _recomendacao(instalados: list[dict] | None = None, testar: bool = True) -> dict | None:
+    """
+    Cada modelo (os do catalogo e os instalados) com a estimativa nesta
+    maquina e a nota no banco de provas, e o recomendado.
+    """
+    maq = _maquina(testar=testar)
+    if maq is None:
+        return None
+    if instalados is None:
+        try:
+            instalados = modelos_mod.instalados(estado.client.host)
+        except Exception:  # noqa: BLE001 - sem Ollama, estima so o catalogo
+            instalados = []
+    tamanhos = modelos_mod.tamanhos_do_catalogo()
+    modelos, vistos = [], set()
+    for m in instalados:
+        if m.get("gb"):
+            modelos.append({"nome": m["nome"], "gb": m["gb"], "parametros": m.get("parametros", ""),
+                            "quantizacao": m.get("quantizacao", ""), "instalado": True})
+            vistos.add(m["nome"])
+    for c in modelos_mod.CATALOGO:
+        if c["nome"] not in vistos:
+            modelos.append({"nome": c["nome"], "gb": tamanhos.get(c["nome"]) or c["gb_aprox"], "parametros": c["parametros"],
+                            "quantizacao": c["quantizacao"], "instalado": False})
+    amostras = maquina_mod.ler_amostras(maquina_mod.BASE_PATH) + maquina_mod.ler_amostras(CALIBRACAO_PATH)
+    if _participa_da_calibracao():
+        _ler_calibracao_se_velha()
+        de_fora, _ = calibracao_remota.ler_guardadas(CALIBRACAO_SERVIDOR_PATH)
+        amostras += calibracao_remota.plausiveis(de_fora, maquina_mod.calibrar(amostras))
+    calib = maquina_mod.calibrar(amostras)
+    correcao = maquina_mod.correcao_local(maq, calib, amostras)
+    r = maquina_mod.recomendar(modelos, maq, calib, correcao, modelos_mod.QUALIDADE, _medidas_dos_modelos())
+    r["maquina"] = maq
+    r["calibracao"] = {"amostras": calib["amostras"], "maquinas": calib["maquinas"], "medidos_aqui": correcao["medidos"]}
+    return r
+
+
+def _participa_da_calibracao() -> bool:
+    return bool((estado.prefs.dados.get("calibracao") or {}).get("participar"))
+
+
+def _calibracao_em_segundo_plano(funcao, *args) -> None:
+    def trabalhar() -> None:
+        try:
+            funcao(*args)
+            estado.prefs.atualizar({"calibracao": {"erro": ""}})
+        except calibracao_remota.ErroCalibracao as exc:
+            estado.prefs.atualizar({"calibracao": {"erro": str(exc)}})
+
+    threading.Thread(target=trabalhar, name="calibracao", daemon=True).start()
+
+
+def _enviar_calibracao(amostras: list[dict]) -> None:
+    calibracao_remota.enviar(amostras, VERSAO)
+    estado.prefs.atualizar({"calibracao": {"ultimo_envio": time.strftime("%Y-%m-%d %H:%M")}})
+
+
+def _baixar_calibracao() -> None:
+    calibracao_remota.baixar(CALIBRACAO_SERVIDOR_PATH)
+    estado.prefs.atualizar({"calibracao": {"ultima_leitura": time.strftime("%Y-%m-%d %H:%M")}})
+
+
+def _ler_calibracao_se_velha() -> None:
+    """Uma leitura por dia basta: as medidas de outras maquinas mudam devagar."""
+    ultima = str((estado.prefs.dados.get("calibracao") or {}).get("ultima_leitura", ""))
+    if ultima[:10] != time.strftime("%Y-%m-%d"):
+        _calibracao_em_segundo_plano(_baixar_calibracao)
+
+
+def _o_que_vai_para_a_calibracao() -> list[dict]:
+    """Exatamente o que sai desta maquina: as amostras medidas aqui."""
+    maq = _maquina(testar=False)
+    todas = maquina_mod.ler_amostras(CALIBRACAO_PATH)
+    return [a for a in todas if not maq or a["maquina"].get("id") == maq.get("id")]
+
+
+@app.get("/api/calibracao")
+def calibracao_situacao() -> dict:
+    """Se participa, o que vai (o conteudo exato) e quando foi e veio pela ultima vez."""
+    c = estado.prefs.dados.get("calibracao") or {}
+    de_fora, quando = calibracao_remota.ler_guardadas(CALIBRACAO_SERVIDOR_PATH)
+    return {"participar": bool(c.get("participar")), "endereco": calibracao_remota.URL,
+            "o_que_vai": _o_que_vai_para_a_calibracao(), "de_outras_maquinas": len(de_fora),
+            "ultimo_envio": c.get("ultimo_envio", ""), "ultima_leitura": c.get("ultima_leitura", "") or quando,
+            "erro": c.get("erro", "")}
+
+
+@app.post("/api/calibracao")
+def calibracao_escolher(payload: dict) -> dict:
+    """Participar ou nao. Ligar manda as medidas daqui e traz as de outras maquinas."""
+    participar = bool(payload.get("participar"))
+    estado.prefs.atualizar({"calibracao": {"participar": participar}})
+    if participar:
+        def ida_e_volta() -> None:
+            _enviar_calibracao(_o_que_vai_para_a_calibracao())
+            _baixar_calibracao()
+        _calibracao_em_segundo_plano(ida_e_volta)
+    return calibracao_situacao()
+
+
+@app.get("/api/maquina")
+def maquina_ver() -> dict:
+    """O teste desta maquina e o modelo recomendado. Na primeira vez, testa (uns 5 s)."""
+    return _recomendacao()
+
+
+@app.post("/api/maquina/testar")
+def maquina_testar() -> dict:
+    _maquina(fresco=True)
+    return _recomendacao()
 
 
 def _tamanho_do_modelo() -> float | None:
@@ -885,12 +1482,12 @@ def _disponibilidade() -> dict:
     }
 
 
-def _contexto(registrar=None, parar=None) -> Contexto:
-    """O que as habilidades enxergam da aplicacao."""
+def _contexto(registrar=None, parar=None, tarefa: str = "") -> Contexto:
+    """O que as habilidades enxergam da aplicacao. `tarefa` escolhe o modelo (src/modelos.py)."""
     return Contexto(
         parar=parar,
         searcher=estado.searcher,
-        client=estado.client,
+        client=estado.cliente_para(tarefa) if tarefa else estado.client,
         pasta=estado.pasta,
         cache_classificacao=CLASSIFICACAO_PATH,
         diarios=DIARIOS_DIR,
@@ -903,6 +1500,8 @@ def _contexto(registrar=None, parar=None) -> Contexto:
         ensinado=estado.contextos.bloco(),
         # O que ja foi lido uma vez, para nao ler de novo (HOOK 2).
         saber=estado.saber,
+        # O que o escritorio entregou para o PAULUS aprender (src/material.py).
+        material=estado.material,
     )
 
 
@@ -1032,6 +1631,15 @@ def _itens_da_biblioteca() -> list[dict]:
             nomes[pasta] = nome
         return nomes[pasta]
 
+    raiz_da_pasta: dict[Path, str] = {}
+
+    def raiz_de(pasta: Path) -> str:
+        """A pasta vigiada de onde o documento vem: a tela agrupa por ela."""
+        if pasta not in raiz_da_pasta:
+            real = pasta.resolve()
+            raiz_da_pasta[pasta] = next((str(r) for r, _ in raizes if real == r or r in real.parents), "")
+        return raiz_da_pasta[pasta]
+
     itens: list[dict] = []
     for doc in estado.searcher.documents:
         caminho = Path(doc.path)
@@ -1051,10 +1659,17 @@ def _itens_da_biblioteca() -> list[dict]:
             "nome": doc.name,
             "caminho": str(caminho),
             "pasta": str(caminho.parent),
+            "raiz": raiz_de(caminho.parent),
             "pasta_curta": nome_da_pasta(caminho.parent),
             "existe": existe,
             "bytes": tamanho,
             "paginas": doc.pages,
+            # Da pasta do proprio PAULUS: so estes podem ser apagados do disco
+            # por aqui. Os das pastas vigiadas sao da pessoa - saem do Acervo,
+            # nao do computador.
+            "do_programa": Path(estado.pasta).resolve() in caminho.resolve().parents,
+            # Paginas lidas da imagem pelo OCR (src/ocr_windows.py): texto que pode ter erro.
+            "ocr": getattr(doc, "ocr", 0),
             "caracteres": doc.chars,
             "trechos": trechos_por_nome.get(doc.name, 0),
             "modificado_em": modificado,
@@ -1282,12 +1897,12 @@ def biblioteca_analisar(payload: LoteDocumentos) -> StreamingResponse:
 
     def gerar() -> Iterator[str]:
         try:
-            for tipo, dados in habilidade.executar(_contexto(), caminhos=caminhos):
+            for tipo, dados in habilidade.executar(_contexto(tarefa="leitura"), caminhos=caminhos):
                 if tipo == "resultados":
                     for doc in dados.get("documentos", []):
                         if doc.get("sha1"):
                             estado.marcas.marcar_visto(doc["sha1"])
-                    estado.recarregar(force=True)
+                    estado.recarregar()
                 yield _sse(tipo, dados)
         except Exception as exc:
             yield _sse("erro", {"mensagem": str(exc)})
@@ -1357,10 +1972,162 @@ def biblioteca_lote_apagar(payload: LoteDocumentos) -> dict:
         acao="acervo.apagar",
         resumo=acervo.resumo_do_lote("apagar", dentro),
         etiquetas=["não dá para desfazer"],
+        reversivel=False,
         dados={"caminhos": [i["caminho"] for i in dentro],
                "nomes": [i["nome"] for i in dentro]},
     )
     return {"pedido": pedido.to_dict(), "impedidos": fora, **estado.fila.para_tela()}
+
+
+# ------------------------------------------------ pastas vigiadas
+
+
+class CaminhoDePasta(BaseModel):
+    caminho: str
+
+
+def _nome_da_pasta_vigiada(p: Path) -> str:
+    return NOME_DA_PASTA_PADRAO if chave_do_caminho(p) == chave_do_caminho(estado.pasta) else (p.name or str(p))
+
+
+def _motivo_para_nao_vigiar(pasta: Path) -> str:
+    """Por que essa pasta não entra no Acervo - vazio quando entra."""
+    from scan import PASTAS_IGNORADAS
+
+    if not pasta.is_dir():
+        return "essa pasta não existe"
+    alvo = pasta.resolve()
+    if alvo.parent == alvo:
+        return "um disco inteiro é demais para vigiar: escolha a pasta onde ficam os documentos"
+    if alvo == Path.home().resolve():
+        return "a pasta do usuário inteira tem de tudo (programas, fotos, downloads): escolha a pasta dos documentos"
+    if any(parte.lower() in PASTAS_IGNORADAS for parte in alvo.parts[1:]):
+        return "essa é uma pasta de sistema ou de programa, não de documentos"
+    for ja in estado.pastas_do_acervo():
+        ja = ja.resolve()
+        if alvo == ja:
+            return "essa pasta já está no Acervo"
+        if ja in alvo.parents:
+            return f"essa pasta já está no Acervo, dentro de “{_nome_da_pasta_vigiada(ja)}”"
+    return ""
+
+
+def _pastas_vigiadas_para_tela() -> dict:
+    por_pasta: dict[str, int] = {}
+    for d in estado.searcher.documents:
+        caminho = chave_do_caminho(d.path)
+        for pasta in estado.pastas_do_acervo():
+            if caminho.startswith(chave_do_caminho(pasta) + os.sep):
+                por_pasta[chave_do_caminho(pasta)] = por_pasta.get(chave_do_caminho(pasta), 0) + 1
+                break
+    programa = chave_do_caminho(estado.pasta)
+    pastas = [{"caminho": str(p.resolve()), "nome": _nome_da_pasta_vigiada(p), "programa": chave_do_caminho(p) == programa,
+               "documentos": por_pasta.get(chave_do_caminho(p), 0)} for p in estado.pastas_do_acervo()]
+    # Incluida que sumiu do disco (pen drive tirado, pasta renomeada): a tela
+    # mostra, em vez de fazer de conta que nunca existiu.
+    sumidas = [{"caminho": e, "nome": Path(e).name or e, "programa": False, "documentos": 0, "sumiu": True}
+               for e in (estado.prefs.dados.get("pastas_acervo") or []) if not Path(e).is_dir()]
+    return {"pastas": pastas + sumidas, "fora": len(estado.prefs.dados.get("acervo_fora") or []),
+            "lendo": estado.lendo, "versao": estado.versao_do_acervo}
+
+
+@app.get("/api/acervo/pastas")
+def acervo_pastas() -> dict:
+    """As pastas que o Acervo vigia, com quantos documentos cada uma tem."""
+    return _pastas_vigiadas_para_tela()
+
+
+@app.post("/api/acervo/pastas")
+def acervo_incluir_pasta(payload: CaminhoDePasta) -> dict:
+    """
+    Passa a vigiar uma pasta do computador, onde ela está: nada é movido nem
+    copiado. A leitura é em segundo plano; a vigia pega o que entrar depois.
+    """
+    pasta = Path(payload.caminho.strip().strip('"'))
+    motivo = _motivo_para_nao_vigiar(pasta)
+    if motivo:
+        raise HTTPException(status_code=400, detail=motivo)
+    estado.incluir_no_acervo(pasta)
+    arquivos = len(listar_arquivos([pasta.resolve()], estado.fora_do_acervo()))
+    estado.recarregar_em_segundo_plano()
+    return {"incluida": str(pasta.resolve()), "nome": pasta.resolve().name, "arquivos": arquivos,
+            **_pastas_vigiadas_para_tela()}
+
+
+@app.post("/api/acervo/pastas/tirar")
+def acervo_tirar_pasta(payload: CaminhoDePasta) -> dict:
+    """Deixa de vigiar a pasta. Os arquivos ficam onde estão."""
+    if chave_do_caminho(payload.caminho) == chave_do_caminho(estado.pasta):
+        raise HTTPException(status_code=400, detail="a pasta do próprio PAULUS não sai do Acervo")
+    if not estado.tirar_pasta_do_acervo(payload.caminho):
+        raise HTTPException(status_code=404, detail="essa pasta não está no Acervo")
+    estado.recarregar()
+    return _pastas_vigiadas_para_tela()
+
+
+class CaminhosDeDocumentos(BaseModel):
+    caminhos: list[str]
+    # "Também excluir do computador", marcado na confirmação: o arquivo vai
+    # para a Lixeira do Windows (src/lixeira_windows.py), de onde se restaura.
+    excluir: bool = False
+
+
+@app.post("/api/acervo/tirar")
+def acervo_tirar_documentos(payload: CaminhosDeDocumentos) -> dict:
+    """
+    Tira documentos do Acervo sem apagar: o arquivo fica no disco, só deixa de
+    ser lido. Volta pelo "devolver" - ou pelo Desfazer do aviso.
+
+    Com `excluir`, o arquivo também vai para a Lixeira do Windows. O que o
+    Windows não deixar excluir (pasta de rede, arquivo aberto) sai do Acervo
+    do mesmo jeito, e volta com o motivo.
+    """
+    import lixeira_windows
+
+    lidos = {chave_do_caminho(d.path) for d in estado.searcher.documents}
+    caminhos = [c for c in payload.caminhos if chave_do_caminho(c) in lidos]
+    if not caminhos:
+        raise HTTPException(status_code=404, detail="nenhum desses documentos está no Acervo")
+    excluidos: list[str] = []
+    nao_excluidos: list[dict] = []
+    if payload.excluir:
+        for c in caminhos:
+            motivo = lixeira_windows.mandar_para_lixeira(Path(c))
+            if motivo:
+                nao_excluidos.append({"nome": Path(c).name, "motivo": motivo})
+            else:
+                excluidos.append(c)
+    # O que foi para a lixeira nao precisa da lista "fora do Acervo": nao esta
+    # mais na pasta. O resto fica fora, para poder voltar.
+    ficam = [c for c in caminhos if c not in excluidos]
+    tirados = estado.tirar_documentos(ficam) if ficam else 0
+    estado.recarregar()
+    return {"tirados": tirados, "caminhos": ficam, "excluidos": excluidos, "nao_excluidos": nao_excluidos,
+            **_pastas_vigiadas_para_tela()}
+
+
+@app.post("/api/acervo/devolver")
+def acervo_devolver_documentos(payload: CaminhosDeDocumentos) -> dict:
+    devolvidos = estado.devolver_documentos(payload.caminhos)
+    if devolvidos:
+        estado.recarregar()
+    return {"devolvidos": devolvidos, **_pastas_vigiadas_para_tela()}
+
+
+@app.get("/api/acervo/fora")
+def acervo_fora() -> dict:
+    """O que foi tirado do Acervo, para devolver."""
+    itens = []
+    for c in estado.prefs.dados.get("acervo_fora") or []:
+        p = Path(c)
+        itens.append({"caminho": c, "nome": p.name, "pasta": str(p.parent), "existe": p.exists()})
+    return {"itens": itens}
+
+
+@app.get("/api/acervo/versao")
+def acervo_versao() -> dict:
+    """Barato, para a tela perguntar de tempos em tempos se o Acervo mudou."""
+    return {"versao": estado.versao_do_acervo, "lendo": estado.lendo}
 
 
 @app.post("/api/biblioteca/lote/exportar")
@@ -1409,7 +2176,7 @@ def biblioteca_remover(payload: Remocao) -> dict:
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"não consegui remover: {exc}") from exc
 
-    return {"removido": alvo.name, "documentos": estado.recarregar(force=True)}
+    return {"removido": alvo.name, "documentos": estado.recarregar()}
 
 
 @app.post("/api/biblioteca/abrir-pasta")
@@ -1459,9 +2226,23 @@ def buscar_agora(payload: Busca) -> dict:
 
 
 @app.post("/api/upload")
-async def upload(arquivos: list[UploadFile]) -> dict:
+async def upload(arquivos: list[UploadFile], autorizados: str = Form("")) -> dict:
+    """
+    Arquivos que chegam pelo seletor do Windows ou arrastados.
+
+    Acima de 50 MB volta em `pedem_confirmacao`, sem ser gravado; a tela
+    pergunta e manda de novo com o nome em `autorizados` (JSON). Conteúdo que
+    não é do tipo do nome é recusado (src/entrada.py). Nome repetido com
+    conteúdo diferente ganha "(2)" - antes, sobrescrevia o que estava lá.
+    """
+    Path(estado.pasta).mkdir(parents=True, exist_ok=True)
     salvos: list[str] = []
     recusados: list[dict] = []
+    pedem: list[dict] = []
+    try:
+        liberados = set(json.loads(autorizados)) if autorizados else set()
+    except ValueError:
+        liberados = set()
 
     for arquivo in arquivos:
         nome = Path(arquivo.filename or "").name  # descarta qualquer caminho
@@ -1470,21 +2251,82 @@ async def upload(arquivos: list[UploadFile]) -> dict:
         if Path(nome).suffix.lower() not in SUPPORTED_SUFFIXES:
             recusados.append({"nome": nome, "motivo": "formato nao suportado"})
             continue
+        # O tamanho antes de ler: 600 MB nao precisam ir para a memoria para
+        # serem recusados.
+        tamanho = arquivo.size if arquivo.size is not None else None
+        if tamanho is not None:
+            decisao, motivo = entrada.faixa(tamanho, nome in liberados)
+            if decisao == "recusar":
+                recusados.append({"nome": nome, "motivo": motivo})
+                continue
+            if decisao == "perguntar":
+                pedem.append({"nome": nome, "caminho": nome, "mb": entrada.mb(tamanho), "motivo": motivo})
+                continue
 
         conteudo = await arquivo.read()
-        if len(conteudo) > MAX_UPLOAD_BYTES:
-            recusados.append({"nome": nome, "motivo": "arquivo maior que 50 MB"})
+        decisao, motivo = entrada.faixa(len(conteudo), nome in liberados)
+        if decisao == "recusar":
+            recusados.append({"nome": nome, "motivo": motivo})
+            continue
+        if decisao == "perguntar":
+            pedem.append({"nome": nome, "caminho": nome, "mb": entrada.mb(len(conteudo)), "motivo": motivo})
+            continue
+        if not conteudo:
+            recusados.append({"nome": nome, "motivo": "arquivo vazio (0 bytes) — o download ou a cópia não terminou; baixe de novo"})
+            continue
+        errado = entrada.conferir_bytes(nome, conteudo)
+        if errado:
+            recusados.append({"nome": nome, "motivo": errado})
             continue
 
-        (estado.pasta / nome).write_bytes(conteudo)
-        salvos.append(nome)
+        destino = estado.pasta / nome
+        if destino.exists() and destino.read_bytes() != conteudo:
+            destino = _nome_livre_de_arquivo(estado.pasta, nome)
+        destino.write_bytes(conteudo)
+        salvos.append(destino.name)
 
-    total = estado.recarregar()
-    return {"salvos": salvos, "recusados": recusados, "contratos": total}
+    total = estado.recarregar() if salvos else len(estado.searcher.documents)
+    return {"salvos": salvos, "recusados": recusados + _nao_lidos(estado.pasta, salvos),
+            "pedem_confirmacao": pedem, "contratos": total}
+
+
+def _triagem_do_caminho(origem: Path, liberados: set[str]) -> tuple[str, str, dict | None]:
+    """
+    ("entra" | "perguntar" | "recusar", motivo, pedido) para um arquivo que
+    vem pelo caminho: tamanho (src/entrada.py), vazio e tipo pelo conteúdo.
+    """
+    tamanho = origem.stat().st_size
+    decisao, motivo = entrada.faixa(tamanho, chave_do_caminho(origem) in liberados)
+    if decisao == "perguntar":
+        return decisao, motivo, {"nome": origem.name, "caminho": str(origem), "mb": entrada.mb(tamanho), "motivo": motivo}
+    if decisao == "recusar":
+        return decisao, motivo, None
+    if tamanho == 0:
+        return "recusar", "arquivo vazio (0 bytes) — o download ou a cópia não terminou; baixe de novo", None
+    errado = entrada.conferir_caminho(origem)
+    if errado:
+        return "recusar", errado, None
+    return "entra", "", None
+
+
+def _nao_lidos(pasta: Path, nomes: list[str]) -> list[dict]:
+    """
+    O que entrou na pasta e nao virou texto, com o motivo certo (extract.motivo_sem_texto).
+    Fica na pasta; so nao entra no indice.
+    """
+    lidos = {os.path.normcase(str(Path(d.path).resolve())) for d in estado.searcher.documents}
+    saida = []
+    for nome in nomes:
+        alvo = Path(pasta) / nome
+        if os.path.normcase(str(alvo.resolve())) not in lidos:
+            saida.append({"nome": nome, "motivo": motivo_sem_texto(alvo) or "não entrou no índice"})
+    return saida
 
 
 class AnexarCaminhos(BaseModel):
     caminhos: list[str]
+    # Os acima de 50 MB que a pessoa confirmou na tela (src/entrada.py).
+    autorizados: list[str] = []
 
 
 @app.post("/api/anexar/caminhos")
@@ -1498,8 +2340,11 @@ def anexar_caminhos(payload: AnexarCaminhos) -> dict:
     do Windows, sem o arquivo precisar atravessar o navegador. Arquivo que ja
     esta na pasta do acervo nao e copiado sobre ele mesmo.
     """
+    Path(estado.pasta).mkdir(parents=True, exist_ok=True)
     salvos: list[str] = []
     recusados: list[dict] = []
+    pedem: list[dict] = []
+    liberados = {chave_do_caminho(c) for c in payload.autorizados}
     for bruto in payload.caminhos:
         origem = Path(bruto)
         nome = origem.name
@@ -1510,18 +2355,28 @@ def anexar_caminhos(payload: AnexarCaminhos) -> dict:
             recusados.append({"nome": nome, "motivo": "formato nao suportado"})
             continue
         try:
-            if origem.stat().st_size > MAX_UPLOAD_BYTES:
-                recusados.append({"nome": nome, "motivo": "arquivo maior que 50 MB"})
+            decisao, motivo, pedido = _triagem_do_caminho(origem, liberados)
+            if decisao == "perguntar":
+                pedem.append(pedido)
+                continue
+            if decisao == "recusar":
+                recusados.append({"nome": nome, "motivo": motivo})
                 continue
             destino = estado.pasta / nome
             if destino.resolve() != origem.resolve():
-                shutil.copy2(origem, destino)
+                # Nome repetido com outro conteudo ganha "(2)": antes,
+                # sobrescrevia o documento que ja estava no Acervo.
+                if destino.exists() and file_sha1(destino) != file_sha1(origem):
+                    destino = _nome_livre_de_arquivo(estado.pasta, nome)
+                if not destino.exists():
+                    shutil.copy2(origem, destino)
         except OSError as exc:
             recusados.append({"nome": nome, "motivo": f"nao consegui copiar: {exc.strerror or exc}"})
             continue
-        salvos.append(nome)
+        salvos.append(destino.name)
     total = estado.recarregar() if salvos else len(estado.searcher.documents)
-    return {"salvos": salvos, "recusados": recusados, "contratos": total}
+    return {"salvos": salvos, "recusados": recusados + _nao_lidos(estado.pasta, salvos),
+            "pedem_confirmacao": pedem, "contratos": total}
 
 
 # ------------------------------------------------------ trabalhos (conversas)
@@ -1959,6 +2814,19 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         if leitura:
             return _responder_programa(trabalho, leitura, pergunta)
 
+    # "Qual o valor do contrato?" sem dizer qual, e o Acervo tem varios: a
+    # conversa pergunta qual, em vez de o modelo escolher um e responder como
+    # se fosse o unico. So quando nada na conversa diz qual (anexo, foco,
+    # nome na frase). Nao olha `tudo`: a pilula "Acervo" do compositor manda
+    # `tudo` em toda pergunta, e o cartao nunca aparecia pela tela. Quem vem
+    # do cartao (um documento ou "Em todos") vem com `retomar`.
+    if not payload.apenas and not payload.retomar and not explicito and not citado:
+        substantivo = intencao.referencia_generica(pergunta)
+        if substantivo:
+            nomes = intencao.documentos_do_tipo(substantivo, pergunta, estado.searcher.documents)
+            if len(nomes) >= 2:
+                return _perguntar_qual_documento(trabalho, pergunta, substantivo, nomes)
+
     # Tirou o anexo e perguntou sem nomear documento: antes de ler os
     # dezessete, pergunta onde - so no que a conversa vinha lendo, ou no
     # acervo inteiro. Ler tudo leva minutos, e nao foi o que a pessoa disse.
@@ -2027,7 +2895,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         inferencia = False
 
         passos = habilidade.executar(
-            _contexto(registrar, parar=parar.is_set), pergunta=pergunta, top=payload.top,
+            _contexto(registrar, parar=parar.is_set, tarefa="conversa"), pergunta=pergunta, top=payload.top,
             apenas=citado,
         )
         try:
@@ -2309,7 +3177,7 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
             try:
                 ajuda = ferramentas.completar_com_modelo(
                     lido, pergunta,
-                    lambda instrucao, sistema: estado.client.ask_json(instrucao, sistema=sistema))
+                    lambda instrucao, sistema: estado.cliente_para("conversa").ask_json(instrucao, sistema=sistema))
             finally:
                 estado.andamento.pop(trabalho.id, None)
 
@@ -2348,7 +3216,7 @@ def _juiz() -> juizo.Juiz | None:
     motivo: outro `num_ctx` faz o Ollama recarregar o modelo. Vinte segundos
     de paciencia: passou disso, a pergunta segue para os documentos.
     """
-    modelo = estado.client.model
+    modelo = estado.modelo_para("juiz")
     if modelo not in _JUIZES:
         from llama_client import JANELA_MINIMA
 
@@ -2377,6 +3245,37 @@ def _responder_programa(trabalho, leitura, pergunta: str) -> StreamingResponse:
         trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)
         yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _perguntar_qual_documento(trabalho, pergunta: str, substantivo: str, nomes: list[str]) -> StreamingResponse:
+    """
+    O cartao "qual contrato?": a frase disse "o contrato" e ha varios. Os
+    mais ligados a pergunta primeiro (a ordem da busca). E o mesmo cartao do
+    "onde eu procuro?" - escolher refaz a pergunta so naquele documento, ou
+    em todos -, com o texto de quem nao disse qual.
+    """
+    ordem = list(dict.fromkeys(h.doc_name for h in estado.searcher.search(pergunta, top_k=40)))
+    nomes = sorted(nomes, key=lambda n: ordem.index(n) if n in ordem else len(ordem))
+    rotulos = {"procuracao": "procuração", "notificacao": "notificação"}
+    proposta = {
+        "tipo": "escopo", "motivo": "ambigua", "titulo": "", "campos": {}, "porque": "", "falta": "",
+        "pergunta": pergunta, "substantivo": rotulos.get(substantivo, substantivo),
+        "nomes": nomes[:4], "total": len(nomes),
+    }
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", "", proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
         yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
@@ -2534,6 +3433,7 @@ def agenda_grade(de: str = "", ate: str = "", pessoa: int = 0) -> dict:
     tarefas = estado.tarefas.listar("todas") + [t for t in estado.tarefas.listar("concluidas") if t.get("servico_id")]
     grade = estado.agenda.grade(de, ate, tarefas, _documentos_com_data(), pessoa or None)
     grade["compromissos"] = estado.agenda.listar(de, ate)
+    _eventos_do_google_na_grade(grade, de, ate, pessoa)
     grade["tipos"] = [{"valor": k, "rotulo": v} for k, v in TIPOS_AGENDA.items()]
     grade["ondes"] = [{"valor": k, "rotulo": v} for k, v in ONDES.items() if k]
     grade["clientes"] = [{"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar()]
@@ -2559,14 +3459,196 @@ def agenda_salvar(payload: FichaCompromisso) -> dict:
         id_ = estado.agenda.salvar(payload.dados, payload.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # Com a sincronizacao ligada, o compromisso vai para a Agenda do Google
+    # em segundo plano: salvar aqui nao espera a internet.
+    if _sincronizar_agenda_ligada():
+        _no_google_em_segundo_plano(_enviar_compromisso_ao_google, id_)
     return estado.agenda.obter(id_) or {}
+
+
+# ------------------------------------------------------ a Agenda do Google
+
+
+def _sincronizar_agenda_ligada() -> bool:
+    return bool(estado.prefs_google().get("agenda_sincronizar")) and estado.google_tem("agenda")
+
+
+def _no_google_em_segundo_plano(funcao, *args) -> None:
+    """Chama o Google sem prender a tela; o erro fica guardado para Conexoes mostrar."""
+    def trabalhar() -> None:
+        try:
+            funcao(*args)
+            estado.prefs.atualizar({"google": {"erro": ""}})
+        except google_servicos.ErroGoogle as exc:
+            estado.prefs.atualizar({"google": {"erro": str(exc)}})
+        except Exception as exc:  # noqa: BLE001 - o erro vai para a tela, a thread nao morre calada
+            estado.prefs.atualizar({"google": {"erro": "a sincronização com o Google falhou: " + str(exc)[:160]}})
+
+    threading.Thread(target=trabalhar, name="google", daemon=True).start()
+
+
+def _enviar_compromisso_ao_google(id_: int, meet: bool = False) -> dict:
+    c = estado.agenda.obter(id_)
+    if not c:
+        return {}
+    r = estado.google.enviar_compromisso(c, meet=meet)
+    estado.base.escrever(
+        "UPDATE compromissos SET google_id = ?, meet = ?, google_em = datetime('now','localtime') WHERE id = ?",
+        (r["google_id"], r["meet"], id_),
+    )
+    return r
+
+
+def _sincronizar_agenda_toda() -> dict:
+    """Manda ao Google os compromissos de uma semana atras a um ano a frente."""
+    de, ate = google_servicos.hoje_e_depois()
+    enviados, falhas = 0, []
+    for c in estado.agenda.listar(de, ate):
+        try:
+            _enviar_compromisso_ao_google(c["id"])
+            enviados += 1
+        except google_servicos.ErroGoogle as exc:
+            falhas.append({"titulo": c["titulo"], "motivo": str(exc)})
+            if exc.status in (401, 403):
+                break  # sem permissao, os outros falhariam do mesmo jeito
+    from datetime import datetime as _dt
+
+    estado.prefs.atualizar({"google": {"ultimo_sinc": _dt.now().strftime("%Y-%m-%d %H:%M"),
+                                       "erro": falhas[0]["motivo"] if falhas else ""}})
+    return {"enviados": enviados, "falhas": falhas}
+
+
+def _eventos_do_google_na_grade(grade: dict, de: str, ate: str, pessoa: int) -> None:
+    """
+    Os eventos da Agenda do Google entram na grade so para ler (genero
+    "google"): a tela mostra e abre no Google, nao edita.
+    """
+    if pessoa or not estado.prefs_google().get("agenda_mostrar") or not estado.google_tem("agenda"):
+        return
+    try:
+        eventos = estado.google.eventos(de, ate)
+    except google_servicos.ErroGoogle as exc:
+        grade["google_erro"] = str(exc)
+        return
+    for e in eventos:
+        if not e["data"]:
+            continue
+        grade["dias"].setdefault(e["data"], []).append({
+            "genero": "google", "id": e["id"], "titulo": e["titulo"], "hora": e["hora"],
+            "detalhe": "Agenda do Google", "tipo": "google", "duracao": e["duracao"],
+            "link": e["link"], "meet": e["meet"],
+        })
+    for dia in grade["dias"].values():
+        dia.sort(key=lambda x: (x["hora"] == "", x["hora"]))
+    grade["contagem"]["google"] = len(eventos)
+
+
+def _google_para_tela() -> dict:
+    conta = estado.conta_google()
+    g = estado.prefs_google()
+    vigiadas = [chave_do_caminho(p) for p in estado.pastas_do_acervo()]
+
+    def ja_vigiada(caminho: str) -> bool:
+        chave = chave_do_caminho(caminho)
+        return any(chave == v or chave.startswith(v + os.sep) for v in vigiadas)
+
+    return {
+        "configurado": bool(_credenciais_oauth("google").get("client_id")),
+        "conta": conta.email if conta else "",
+        "contas": [c.email for c in estado.contas.itens if c.autenticacao == "google"],
+        "precisa_entrar": bool(conta and conta.precisa_entrar),
+        "servicos": {s: {"rotulo": google_servicos.ROTULOS[s], "conectado": estado.google_tem(s)}
+                     for s in google_servicos.ESCOPOS},
+        "agenda_sincronizar": bool(g.get("agenda_sincronizar")),
+        "agenda_mostrar": bool(g.get("agenda_mostrar")),
+        "ultimo_sinc": g.get("ultimo_sinc", ""),
+        "erro": g.get("erro", ""),
+        "drive_no_computador": [{"caminho": p, "vigiada": ja_vigiada(p)}
+                                for p in google_servicos.pastas_do_drive_no_computador()],
+    }
+
+
+@app.get("/api/google")
+def google_situacao() -> dict:
+    """A conta Google em Conexoes: o que esta conectado, o que sincroniza, o Drive no computador."""
+    return _google_para_tela()
+
+
+@app.post("/api/google/conectar")
+def google_conectar(payload: dict) -> dict:
+    """
+    Pede ao Google mais uma permissao para a mesma conta do e-mail (a Agenda,
+    o Drive). E a autorizacao incremental: o navegador abre, a pessoa marca, e
+    a permissao nova se soma as que ja existem. O andamento e o mesmo do login
+    do e-mail (/api/email/oauth/andamento).
+    """
+    servico = str(payload.get("servico", ""))
+    if servico not in google_servicos.ESCOPOS:
+        raise HTTPException(status_code=400, detail="serviço do Google desconhecido")
+    conta = estado.conta_google()
+    if not conta:
+        raise HTTPException(status_code=400, detail="entre primeiro com a conta Google em E-mail › Contas: "
+                                                    "é a mesma conta que ganha a Agenda e o Drive")
+    escopo = google_servicos.ESCOPOS[servico]
+    email_da_conta = conta.email
+
+    def concluir(provedor: str, tokens: dict, email: str, nome: str) -> dict:
+        if email.lower() != email_da_conta.lower():
+            raise correio_oauth.ErroOAuth(f"o Google entrou com {email}, mas a conta conectada é {email_da_conta}: "
+                                          "entre com a mesma conta")
+        estado.contas.ligar_oauth(provedor, email, nome, tokens)
+        if servico == "agenda":
+            estado.prefs.atualizar({"google": {"conta": email_da_conta, "agenda_sincronizar": True, "agenda_mostrar": True}})
+            _no_google_em_segundo_plano(_sincronizar_agenda_toda)
+        else:
+            estado.prefs.atualizar({"google": {"conta": email_da_conta}})
+        return {"servico": servico, "google": _google_para_tela()}
+
+    anterior = estado.entrada_oauth
+    if anterior and not anterior.terminou:
+        anterior.cancelar()
+    try:
+        entrada_ = correio_oauth.Entrada("google", _credenciais_oauth("google"), concluir, login_hint=email_da_conta,
+                                         escopos="openid email " + escopo, exigir=(escopo,))
+        estado.entrada_oauth = entrada_
+        return entrada_.iniciar()
+    except correio_oauth.ErroOAuth as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui abrir a porta local para o login: {exc}") from exc
+
+
+@app.post("/api/google/preferencias")
+def google_preferencias(payload: dict) -> dict:
+    """Ligar e desligar a sincronizacao e os eventos do Google na Agenda."""
+    novo = {k: bool(payload[k]) for k in ("agenda_sincronizar", "agenda_mostrar") if k in payload}
+    if payload.get("conta"):
+        novo["conta"] = str(payload["conta"])
+    estado.prefs.atualizar({"google": novo})
+    if novo.get("agenda_sincronizar") and estado.google_tem("agenda"):
+        _no_google_em_segundo_plano(_sincronizar_agenda_toda)
+    return _google_para_tela()
+
+
+@app.post("/api/google/sincronizar")
+def google_sincronizar() -> dict:
+    """Manda a Agenda ao Google agora, e relê os eventos de la."""
+    if not estado.google_tem("agenda"):
+        raise HTTPException(status_code=400, detail="conecte a Agenda do Google em Configurações › Conexões")
+    estado.google._cache_eventos.clear()
+    resultado = _sincronizar_agenda_toda()
+    return {**resultado, "google": _google_para_tela()}
 
 
 @app.delete("/api/agenda/{id_}")
 def agenda_apagar(id_: int) -> dict:
-    c = estado.base.um("SELECT titulo, data, hora FROM compromissos WHERE id = ?", (id_,))
+    c = estado.base.um("SELECT titulo, data, hora, google_id FROM compromissos WHERE id = ?", (id_,))
     if not c:
         raise HTTPException(status_code=404, detail="compromisso nao encontrado")
+    # Apagado aqui, apagado no Google - se foi para la. Restaurar da lixeira
+    # manda de novo na proxima sincronizacao (o evento antigo nao existe mais).
+    if c.get("google_id") and estado.google_tem("agenda"):
+        _no_google_em_segundo_plano(estado.google.apagar_compromisso, c["google_id"])
     entrada = estado.lixeira.apagar_linha("compromisso", id_, c["titulo"], "Agenda · " + c["data"] + " " + (c["hora"] or ""))
     return _foi_para_lixeira(entrada, "apagado", id_)
 
@@ -2575,6 +3657,25 @@ def agenda_apagar(id_: int) -> dict:
 def agenda_nota(payload: NotaDia) -> dict:
     estado.agenda.gravar_nota(payload.dia, payload.texto)
     return {"dia": payload.dia, "texto": payload.texto}
+
+
+@app.post("/api/agenda/{id_}/meet")
+def agenda_sala_no_meet(id_: int) -> dict:
+    """
+    A sala do Meet do compromisso, de verdade: o evento na Agenda do Google
+    ganha a sala, e o link fica no compromisso (e no convite).
+    """
+    if not estado.google_tem("agenda"):
+        raise HTTPException(status_code=400, detail="conecte a Agenda do Google em Configurações › Conexões para criar a sala")
+    if not estado.agenda.obter(id_):
+        raise HTTPException(status_code=404, detail="compromisso não encontrado")
+    try:
+        r = _enviar_compromisso_ao_google(id_, meet=True)
+    except google_servicos.ErroGoogle as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    if not r.get("meet"):
+        raise HTTPException(status_code=502, detail="o Google criou o evento, mas não devolveu a sala do Meet")
+    return estado.agenda.obter(id_) or {}
 
 
 @app.get("/api/agenda/livres")
@@ -2691,7 +3792,7 @@ def cadastros_levantamento() -> StreamingResponse:
         lidos, parado = 0, False
         try:
             if habilidade:
-                for tipo, dados in habilidade.executar(_contexto(), caminhos=faltam):
+                for tipo, dados in habilidade.executar(_contexto(tarefa="leitura"), caminhos=faltam):
                     if tipo == "progresso":
                         yield _sse("progresso", dados)
                     elif tipo == "resultados":
@@ -2966,7 +4067,7 @@ def _executar_mover(pedido) -> str:
     )
     resultado = aplicar_plano(plano, DIARIOS_DIR)
     _guardar_organizacao(plano, resultado, pedido.id)
-    estado.recarregar(force=True)
+    estado.recarregar()
     verbo = "copiado(s)" if plano.operacao == "copiar" else "movido(s)"
     if resultado.falhas:
         return f"{resultado.movidos} {verbo}, {len(resultado.falhas)} falha(s)"
@@ -3053,7 +4154,7 @@ def _executar_apagar_do_acervo(pedido) -> str:
         except OSError:
             recusados.append(alvo.name)
 
-    estado.recarregar(force=True)
+    estado.recarregar()
     if recusados:
         return f"{apagados} tirado(s); nao mexi em {len(recusados)}: {', '.join(recusados[:3])}"
     return f"{apagados} documento(s) tirado(s) da biblioteca"
@@ -3087,6 +4188,34 @@ def _executar_exportar(pedido) -> str:
     return f"{copiados} documento(s) copiado(s) para {destino}"
 
 
+def _executar_enviar_ao_drive(pedido) -> str:
+    """Envia ao Google Drive, na pasta PAULUS, o que a pessoa aprovou."""
+    g = estado.prefs_google()
+    try:
+        pasta = estado.google.pasta_no_drive(g.get("drive_pasta", ""))
+    except google_servicos.ErroGoogle as exc:
+        raise RuntimeError(str(exc)) from exc
+    if pasta != g.get("drive_pasta"):
+        estado.prefs.atualizar({"google": {"drive_pasta": pasta}})
+    enviados, falhas, links = 0, [], []
+    for bruto in pedido.dados.get("caminhos", []):
+        origem = Path(bruto)
+        if not origem.is_file():
+            falhas.append(origem.name)
+            continue
+        try:
+            d = estado.google.enviar_ao_drive(origem, pasta)
+            enviados += 1
+            links.append({"nome": d.get("name", origem.name), "link": d.get("webViewLink", "")})
+        except google_servicos.ErroGoogle as exc:
+            falhas.append(f"{origem.name} ({exc})")
+    pedido.dados["enviados"] = links
+    texto = f"{enviados} documento(s) no Google Drive, na pasta {google_servicos.PASTA_NO_DRIVE}"
+    if falhas:
+        texto += "; não foram: " + ", ".join(falhas)
+    return texto
+
+
 EXECUTORES = {
     "organizar.mover": _executar_mover,
     "acervo.apagar": _executar_apagar_do_acervo,
@@ -3094,7 +4223,34 @@ EXECUTORES = {
     "assinatura.assinar": _executar_assinar,
     "assinatura.lote": _executar_assinar_lote,
     "correio.enviar": _executar_enviar,
+    "google.drive.enviar": _executar_enviar_ao_drive,
 }
+
+
+@app.post("/api/google/drive/enviar")
+def google_drive_enviar(payload: CaminhosDeDocumentos) -> dict:
+    """
+    Enviar documentos do Acervo ao Google Drive: sai desta maquina, entao vai
+    para a fila de Aprovacoes e so acontece depois do sim.
+    """
+    if not estado.google_tem("drive"):
+        raise HTTPException(status_code=400, detail="conecte o Google Drive em Configurações › Conexões")
+    lidos = {chave_do_caminho(d.path): d for d in estado.searcher.documents}
+    docs = [lidos[chave_do_caminho(c)] for c in payload.caminhos if chave_do_caminho(c) in lidos]
+    if not docs:
+        raise HTTPException(status_code=404, detail="nenhum desses documentos está no Acervo")
+    conta = estado.conta_google()
+    pedido = estado.fila.pedir(
+        f"Enviar {len(docs)} documento(s) ao Google Drive",
+        "google",
+        acao="google.drive.enviar",
+        resumo=f"Vai para o Google Drive de {conta.email if conta else 'sua conta'}, na pasta "
+               f"{google_servicos.PASTA_NO_DRIVE}: " + ", ".join(d.name for d in docs[:6]) + ("…" if len(docs) > 6 else ""),
+        etiquetas=["sai desta máquina"],
+        dados={"caminhos": [d.path for d in docs], "nomes": [d.name for d in docs]},
+        reversivel=False,
+    )
+    return {"pedido": pedido.to_dict(), **estado.fila.para_tela()}
 
 
 # ------------------------------------------------- folha, notas e boletos
@@ -3172,17 +4328,21 @@ def folha_recibos(payload: MesPedido) -> dict:
 
     # Quem paga e quem esta configurado em Preferencias. Sem isso o recibo
     # sairia dizendo "recebi de este escritorio", que nao serve de recibo.
+    # `dados_do_escritorio`, e nao `escritorio`: com o nome do modulo, a
+    # variavel escondia o modulo na funcao inteira, e gerar recibo dava erro
+    # sempre ("dict has no attribute gerar_recibos").
     pessoa = estado.prefs.dados.get("pessoa", {})
-    escritorio = estado.prefs.dados.get("escritorio", {})
-    quem_paga = str(escritorio.get("nome", "")).strip() or str(pessoa.get("nome", "")).strip()
+    dados_do_escritorio = estado.prefs.dados.get("escritorio", {})
+    quem_paga = str(dados_do_escritorio.get("nome", "")).strip() or str(pessoa.get("nome", "")).strip()
 
-    destino = RECIBOS_DIR / mes
+    destino = _pasta_no_acervo("Financeiro", "Recibos", mes)
     try:
         feitos = escritorio.gerar_recibos(
             da_folha, destino, escritorio.mes_por_extenso(mes), quem_paga)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"nao consegui gerar: {exc}") from exc
 
+    estado.recarregar_em_segundo_plano()
     return {"recibos": feitos, "pasta": str(destino)}
 
 
@@ -3247,8 +4407,7 @@ async def financeiro_comprovante(lancamento_id: int = Form(...),
         raise HTTPException(status_code=400, detail="arquivo maior que 50 MB")
 
     quando = lancamento.get("liquidado_em") or lancamento.get("vencimento") or ""
-    pasta = COMPROVANTES_DIR / (quando[:7] or escritorio.mes_de_hoje())
-    pasta.mkdir(parents=True, exist_ok=True)
+    pasta = _pasta_no_acervo("Financeiro", "Comprovantes", quando[:7] or escritorio.mes_de_hoje())
 
     alvo = pasta / nome
     n = 2
@@ -3260,6 +4419,7 @@ async def financeiro_comprovante(lancamento_id: int = Form(...),
     import hashlib
     sha = hashlib.sha1(conteudo).hexdigest()
     id_ = estado.financeiro.anexar(lancamento_id, nome, str(alvo), sha)
+    estado.recarregar_em_segundo_plano()
     return {"id": id_, "nome": nome, "caminho": str(alvo),
             "comprovantes": estado.financeiro.comprovantes(lancamento_id)}
 
@@ -3282,7 +4442,7 @@ def financeiro_tirar_comprovante(id_: int) -> dict:
 def financeiro_exportar(mes: str = "") -> FileResponse:
     """O mes inteiro numa planilha, para quem faz a contabilidade."""
     mes = mes or escritorio.mes_de_hoje()
-    destino = EXPORTACOES_DIR / f"financeiro-{mes}.xlsx"
+    destino = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
     try:
         escritorio.exportar_mes(
             destino, mes,
@@ -3293,6 +4453,7 @@ def financeiro_exportar(mes: str = "") -> FileResponse:
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"nao consegui exportar: {exc}") from exc
+    estado.recarregar_em_segundo_plano()
     return FileResponse(
         destino,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3366,6 +4527,12 @@ class PedidoPlano(BaseModel):
     incluir_baixa_confianca: bool = True
     apenas: list[str] = []          # caminhos marcados; vazio = todos
     operacao: str = "mover"         # "mover" ou "copiar" (o original fica)
+
+
+class SoClassificar(BaseModel):
+    pastas: list[str] = []          # onde o Organizar procurou
+    ajustes: list[Ajuste] = []
+    apenas: list[str] = []          # caminhos marcados; vazio = todos
 
 
 class PedidoDesfazer(BaseModel):
@@ -3517,7 +4684,7 @@ def organizar_classificar(payload: PedidoLeitura | None = None) -> StreamingResp
 
     def gerar() -> Iterator[str]:
         try:
-            for tipo, dados in habilidade.executar(_contexto(), caminhos=caminhos):
+            for tipo, dados in habilidade.executar(_contexto(tarefa="leitura"), caminhos=caminhos):
                 if tipo == "resultados":
                     # O organizador precisa dos objetos, nao do JSON: os passos
                     # seguintes montam o plano a partir deles.
@@ -3564,6 +4731,49 @@ def _com_ajustes(payload: PedidoPlano) -> list[Classificacao]:
         saida.append(resultado)
 
     return saida
+
+
+@app.post("/api/organizar/so-classificar")
+def organizar_so_classificar(payload: SoClassificar) -> dict:
+    """
+    A terceira escolha do Organizar, ao lado de mover e copiar: nao mexe em
+    arquivo nenhum.
+
+    Guarda a classificacao que a pessoa conferiu - com as correcoes dela, que
+    aqui sao o proprio resultado (no mover, a correcao vale so para o plano) -
+    e passa a vigiar as pastas onde o Organizar procurou, como elas estao. Os
+    documentos ficam sob a guarda do PAULUS sem sair do lugar. Nada vai para
+    Aprovacoes: nenhum arquivo e tocado.
+    """
+    from classify import CacheClassificacao
+
+    if not estado.classificacoes:
+        raise HTTPException(status_code=400, detail="classifique os documentos antes")
+    resultados = _com_ajustes(PedidoPlano(destino="", padrao="", ajustes=payload.ajustes, apenas=payload.apenas))
+    cache = CacheClassificacao(CLASSIFICACAO_PATH)
+    guardados = 0
+    for resultado in resultados:
+        if resultado.erro or not resultado.sha1:
+            continue
+        cache.guardar(resultado)
+        guardados += 1
+    cache.salvar()
+
+    vigiadas, ja_vigiadas, nao_vigiadas = [], [], []
+    for bruto in payload.pastas:
+        pasta = Path(bruto)
+        motivo = _motivo_para_nao_vigiar(pasta)
+        if motivo.startswith("essa pasta já está no Acervo"):
+            ja_vigiadas.append(str(pasta))
+        elif motivo:
+            nao_vigiadas.append({"pasta": str(pasta), "nome": pasta.name or str(pasta), "motivo": motivo})
+        else:
+            estado.incluir_no_acervo(pasta)
+            vigiadas.append(str(pasta.resolve()))
+    estado.classificacoes = {}
+    estado.recarregar_em_segundo_plano()
+    return {"operacao": "classificar", "classificados": guardados, "vigiadas": vigiadas,
+            "ja_vigiadas": ja_vigiadas, "nao_vigiadas": nao_vigiadas}
 
 
 @app.post("/api/organizar/plano")
@@ -3632,7 +4842,7 @@ def organizar_aplicar(payload: PedidoPlano) -> dict:
     _guardar_organizacao(plano, resultado)
     estado.classificacoes = {}
     estado.encontrados = []
-    estado.recarregar(force=True)
+    estado.recarregar()
     return {
         "aguardando_aprovacao": False,
         "destino": plano.destino,
@@ -4141,7 +5351,7 @@ def _assinar_varios(itens: list[dict], senha: str) -> tuple[list[dict], list[dic
         else:
             feitos.append({"origem": origem, **resultado.to_dict()})
     if feitos and any(d.get("guardar_biblioteca", True) for d in itens):
-        estado.recarregar(force=True)
+        estado.recarregar()
     return feitos, falhas
 
 
@@ -4188,7 +5398,7 @@ def _assinar_de_fato(dados: dict, senha: str, recarregar: bool = True) -> "assin
             pass
 
     if recarregar and dados.get("guardar_biblioteca", True):
-        estado.recarregar(force=True)
+        estado.recarregar()
 
     return resultado
 
@@ -4210,8 +5420,23 @@ def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
     return destino
 
 
+# Onde ficavam, ate 27/09/2026, o certificado de conformidade e o extrato de
+# apoio. O que ja esta la continua abrindo; o novo vai para o Acervo
+# (_pasta_no_acervo).
 CONFORMIDADE_DIR = DADOS_DIR / "conformidade"
 APOIO_DIR = DADOS_DIR / "apoio"
+
+
+def _pasta_no_acervo(*partes: str) -> Path:
+    """
+    Onde o PAULUS guarda o documento que ele mesmo gera - recibo, comprovante,
+    planilha do mes, certificado de conformidade, transcricao: numa subpasta
+    da pasta do programa, que o Acervo le. Tudo o que nasce aqui entra no
+    Acervo; antes, ia para pastas internas que o Acervo nao via.
+    """
+    pasta = Path(estado.pasta).joinpath(*partes)
+    pasta.mkdir(parents=True, exist_ok=True)
+    return pasta
 
 
 def _pdf_conhecido(caminho: str) -> Path:
@@ -4306,7 +5531,8 @@ def assinaturas_conformidade(payload: dict) -> dict:
 
     alvo = _pdf_conhecido(str(payload.get("arquivo", "")))
     assinaturas = assinatura.verificar(alvo, str(payload.get("senha", "")))
-    relatorio = conformidade.gerar(alvo, assinaturas, CONFORMIDADE_DIR)
+    relatorio = conformidade.gerar(alvo, assinaturas, _pasta_no_acervo("Assinaturas", "Certificados de conformidade"))
+    estado.recarregar_em_segundo_plano()
     tom, frase = conformidade.veredito(assinaturas)
     return {"caminho": str(relatorio), "nome": relatorio.name, "tom": tom, "veredito": frase,
             "paginas": documento.paginas_de(relatorio.read_bytes())}
@@ -4826,7 +6052,7 @@ def email_guardar_anexo(payload: dict) -> dict:
         conta_repetida += 1
 
     destino.write_bytes(dados)
-    return {"guardado": destino.name, "documentos": estado.recarregar(force=True)}
+    return {"guardado": destino.name, "documentos": estado.recarregar()}
 
 
 @app.post("/api/email/arquivar")
@@ -4935,7 +6161,7 @@ def email_caixa_resumo(payload: dict) -> dict:
     disponivel, motivo = check_ollama(estado.client.model)
     if not disponivel:
         return {"chave": chave, "regra": regra, "modelo": {"estado": "indisponivel", "motivo": motivo}}
-    return {"chave": chave, "regra": regra, "modelo": _resumos_da_caixa.pedir(chave, mensagens, estado.client)}
+    return {"chave": chave, "regra": regra, "modelo": _resumos_da_caixa.pedir(chave, mensagens, estado.cliente_para("email"))}
 
 
 _contextos_de_email = correio.ResumosDaCaixa(fazer=correio.contexto_da_mensagem, limite=60)
@@ -4964,7 +6190,7 @@ def email_contexto(payload: dict) -> dict:
         return {"chave": chave, "modelo": {"estado": "indisponivel", "motivo": motivo}}
     item = {"de": str(payload.get("de", ""))[:200], "assunto": str(payload.get("assunto", ""))[:300],
             "corpo": str(payload.get("corpo", ""))}
-    return {"chave": chave, "modelo": _contextos_de_email.pedir(chave, [item], estado.client)}
+    return {"chave": chave, "modelo": _contextos_de_email.pedir(chave, [item], estado.cliente_para("email"))}
 
 
 @app.get("/api/email/contexto")
@@ -4992,7 +6218,7 @@ def email_reescrever(payload: dict) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        texto = correio.reescrever_email(estado.client, pedido,
+        texto = correio.reescrever_email(estado.cliente_para("redacao"), pedido,
                                          str(payload.get("assunto", "")), str(payload.get("corpo", "")))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -5064,10 +6290,11 @@ def apoio_extrato(payload: dict) -> dict:
         except apoio.ErroDeApoio as exc:
             raise HTTPException(status_code=502, detail=f"não consegui as cobranças do cartão: {exc}") from exc
     try:
-        caminho = extrato_apoio.gerar(APOIO_DIR, nome=str(payload.get("nome", ""))[:80], email=str(payload.get("email", ""))[:120],
+        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=str(payload.get("nome", ""))[:80], email=str(payload.get("email", ""))[:120],
                                       pix=pix, cobrancas=cobrancas, assinatura=assinatura)
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=500, detail=f"não consegui montar o extrato: {exc}") from exc
+    estado.recarregar_em_segundo_plano()
     return {"caminho": str(caminho), "nome": caminho.name}
 
 
@@ -5163,12 +6390,15 @@ def email_rascunho(payload: dict) -> dict:
 
     quem = estado.prefs.dados.get("pessoa", {}).get("nome", "") or conta.nome
     try:
-        texto = correio.sugerir_resposta(estado.client, msg, quem)
+        texto, aviso = correio.sugerir_resposta_com_aviso(estado.cliente_para("email"), msg, quem)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return {
         "rascunho": texto,
+        # Injecao de prompt suspeita, ou link/endereco que o modelo pos e que
+        # nao estava no e-mail (src/blindagem.py). A tela avisa.
+        "aviso": aviso,
         "para": [msg.de_email],
         "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
         "responder_a": "",
@@ -5618,7 +6848,7 @@ def documentos_comentar(id_: int, payload: dict) -> dict:
         "No maximo tres frases."
     )
     try:
-        resposta = estado.client.ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
+        resposta = estado.cliente_para("redacao").ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
                                      sistema=SISTEMA_COMENTARIO)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -5977,7 +7207,7 @@ def documentos_folha_sugerir(id_: int, payload: dict) -> dict:
     linhas = documento._linhas_do_timbre(escritorio) if escritorio else []
     return documento.sugerir_folha(
         pedido, atual, linhas, item.get("titulo", ""),
-        lambda instrucao, sistema, esquema: estado.client.ask_json(
+        lambda instrucao, sistema, esquema: estado.cliente_para("leitura").ask_json(
             instrucao, schema_hint=esquema, sistema=sistema))
 
 
@@ -6012,9 +7242,9 @@ def documentos_conferir(id_: int) -> dict:
 @app.post("/api/documentos/{id_}/biblioteca")
 def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
     """
-    Grava o PDF na biblioteca, para poder assinar e anexar em e-mail.
-
-    Nunca passa por cima de arquivo existente: sai com numero no fim.
+    Grava o documento no Acervo (pasta Editor), para poder assinar e anexar em
+    e-mail. Um arquivo por documento, atualizado no lugar - nunca por cima de
+    arquivo que alguem mudou por fora (_arquivo_do_editor_no_acervo).
     """
     item = _documento_ou_404(id_)
     formato = str((payload or {}).get("formato", "pdf")).lower()
@@ -6039,20 +7269,59 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         sufixo = ".pdf"
 
-    estado.pasta.mkdir(parents=True, exist_ok=True)
-    base = _arquivo(item["titulo"])
-    destino = estado.pasta / f"{base}{sufixo}"
-    conta = 2
-    while destino.exists():
-        destino = estado.pasta / f"{base} ({conta}){sufixo}"
-        conta += 1
-
-    destino.write_bytes(dados)
+    destino = _arquivo_do_editor_no_acervo(id_, item["titulo"], sufixo, dados, protegido=bool(senha))
     return {
         "guardado": destino.name,
         "caminho": str(destino),
-        "documentos": estado.recarregar(force=True) if sufixo != ".xlsx" else estado.recarregar(),
+        "documentos": estado.recarregar(),
     }
+
+
+EDITOR_NO_ACERVO_PATH = DADOS_DIR / "editor_no_acervo.json"
+
+
+def _arquivo_do_editor_no_acervo(id_: int, titulo: str, sufixo: str, dados: bytes, protegido: bool = False) -> Path:
+    """
+    Um arquivo por documento do editor (e por formato) no Acervo, atualizado
+    no lugar.
+
+    Antes, cada "guardar" - e o guardar automatico ao fechar a pre-visualizacao
+    - criava mais uma copia: "Contrato.pdf", "Contrato (2).pdf", "(3)"... O
+    PAULUS lembra qual arquivo e de qual documento, e o sha1 do que escreveu
+    la. So passa por cima quando o arquivo ainda e exatamente o que ele
+    escreveu: mudado por fora (alguem editou, assinou por outro programa),
+    fica, e o novo sai com outro nome. O titulo mudou: o arquivo antigo, se
+    ainda e o que o PAULUS escreveu, da lugar ao de nome novo.
+    """
+    from extract import file_sha1
+
+    try:
+        mapa = json.loads(EDITOR_NO_ACERVO_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        mapa = {}
+    chave = f"{id_}:{sufixo}{':senha' if protegido else ''}"
+    pasta = _pasta_no_acervo("Editor")
+    base = _arquivo(titulo) + (" - com senha" if protegido else "")
+    desejado = pasta / f"{base}{sufixo}"
+    antigo = mapa.get(chave) or {}
+    antigo_caminho = Path(antigo["caminho"]) if antigo.get("caminho") else None
+    nosso = bool(antigo_caminho and antigo_caminho.exists() and file_sha1(antigo_caminho) == antigo.get("sha1"))
+
+    if nosso and antigo_caminho == desejado:
+        destino = desejado
+    else:
+        if nosso and antigo_caminho != desejado:
+            antigo_caminho.unlink()  # o titulo mudou; o arquivo antigo era so nosso
+        destino = desejado
+        conta = 2
+        while destino.exists():
+            destino = pasta / f"{base} ({conta}){sufixo}"
+            conta += 1
+    destino.write_bytes(dados)
+    mapa[chave] = {"caminho": str(destino), "sha1": file_sha1(destino)}
+    EDITOR_NO_ACERVO_PATH.parent.mkdir(parents=True, exist_ok=True)
+    EDITOR_NO_ACERVO_PATH.write_text(json.dumps(mapa, ensure_ascii=False, indent=1), encoding="utf-8")
+    return destino
 
 
 def _arquivo(titulo: str) -> str:
@@ -6238,7 +7507,7 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     try:
         # No editor entram so as regras de redacao: como o escritorio escreve
         # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
-        resposta = estado.client.ask(instrucao, contexto,
+        resposta = estado.cliente_para("redacao").ask(instrucao, contexto,
                                      sistema=SISTEMA_EDITOR,
                                      ensinado=estado.contextos.bloco(["Regras de redação"]),
                                      parar=parar.is_set)
@@ -6887,7 +8156,7 @@ def planilha_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         "Nao explique. Nao invente celula que nao esta na lista."
     )
     try:
-        resposta = estado.client.ask(instrucao + f"\n\nPedido: {payload.pedido}",
+        resposta = estado.cliente_para("redacao").ask(instrucao + f"\n\nPedido: {payload.pedido}",
                                      "Células com valor:\n" + "\n".join(linhas))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -7147,8 +8416,9 @@ async def financeiro_comprovante(id_: int, arquivo: UploadFile) -> dict:
     if len(dados) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=400, detail="arquivo grande demais")
 
-    pasta = DADOS_DIR / "comprovantes"
-    pasta.mkdir(parents=True, exist_ok=True)
+    lancamento = estado.financeiro.obter(id_) or {}
+    quando = lancamento.get("liquidado_em") or lancamento.get("vencimento") or ""
+    pasta = _pasta_no_acervo("Financeiro", "Comprovantes", quando[:7] or escritorio.mes_de_hoje())
     destino = pasta / nome
     conta = 2
     while destino.exists():
@@ -7160,6 +8430,7 @@ async def financeiro_comprovante(id_: int, arquivo: UploadFile) -> dict:
 
     sha1 = hashlib.sha1(dados).hexdigest()
     estado.financeiro.anexar(id_, destino.name, str(destino), sha1)
+    estado.recarregar_em_segundo_plano()
     return estado.financeiro.obter(id_) or {}
 
 
@@ -7240,7 +8511,7 @@ def relatorios_parecer(payload: dict | None = None) -> dict:
         raise HTTPException(status_code=503, detail=motivo)
 
     try:
-        texto = estado.client.ask(relatorios.INSTRUCAO_PARECER, numeros)
+        texto = estado.cliente_para("resumos").ask(relatorios.INSTRUCAO_PARECER, numeros)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -7249,6 +8520,17 @@ def relatorios_parecer(payload: dict | None = None) -> dict:
         "numeros": numeros,
         "aviso": "Escrito sobre os números acima, que foram calculados aqui. Confira antes de usar.",
     }
+
+
+@app.get("/api/relatorios/pdf")
+def relatorios_pdf_link(quando: str = ""):
+    """
+    O mesmo PDF por link. A tela baixava com um <form> POST, que manda
+    "quando=..." como formulario - e a rota JSON respondia com o erro de
+    validacao na tela inteira (achado em 27/09/2026). Link GET e o que o
+    Exportar ja fazia, e o download do Windows abre sozinho.
+    """
+    return relatorios_pdf({"quando": quando})
 
 
 @app.post("/api/relatorios/pdf")
@@ -7529,6 +8811,8 @@ def servicos_apagar(id_: int) -> dict:
 
 class AnexarAoServico(BaseModel):
     caminhos: list[str]
+    # Os acima de 50 MB que a pessoa confirmou na tela (src/entrada.py).
+    autorizados: list[str] = []
 
 
 def _nome_livre_de_arquivo(pasta: Path, nome: str) -> Path:
@@ -7555,6 +8839,8 @@ def servicos_anexar(id_: int, payload: AnexarAoServico) -> dict:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
     destinos: list[Path] = []
     recusados: list[dict] = []
+    pedem: list[dict] = []
+    liberados = {chave_do_caminho(c) for c in payload.autorizados}
     for bruto in payload.caminhos:
         origem = Path(bruto)
         nome = origem.name
@@ -7565,8 +8851,12 @@ def servicos_anexar(id_: int, payload: AnexarAoServico) -> dict:
             recusados.append({"nome": nome, "motivo": "formato não suportado"})
             continue
         try:
-            if origem.stat().st_size > MAX_UPLOAD_BYTES:
-                recusados.append({"nome": nome, "motivo": "arquivo maior que 50 MB"})
+            decisao, motivo, pedido = _triagem_do_caminho(origem, liberados)
+            if decisao == "perguntar":
+                pedem.append(pedido)
+                continue
+            if decisao == "recusar":
+                recusados.append({"nome": nome, "motivo": motivo})
                 continue
             if origem.resolve().is_relative_to(pasta.resolve()):
                 destino = origem
@@ -7587,11 +8877,11 @@ def servicos_anexar(id_: int, payload: AnexarAoServico) -> dict:
     for destino in destinos:
         doc = por_caminho.get(_chave_do_arquivo(destino)[0])
         if not doc:
-            recusados.append({"nome": destino.name, "motivo": "sem texto para ler (PDF escaneado?)"})
+            recusados.append({"nome": destino.name, "motivo": motivo_sem_texto(destino) or "não entrou no índice"})
             continue
         estado.servicos.vincular(id_, doc.sha1, doc.name)
         ligados.append(doc.name)
-    return {"ligados": ligados, "recusados": recusados, "pasta": str(pasta),
+    return {"ligados": ligados, "recusados": recusados, "pedem_confirmacao": pedem, "pasta": str(pasta),
             "arquivos": estado.servicos.arquivos_de(id_)}
 
 
@@ -7735,7 +9025,7 @@ def servicos_resumo(id_: int) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        texto = estado.client.ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
+        texto = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     estado.servicos.guardar_resumo(id_, _limpar_sugestao(texto))
@@ -7762,7 +9052,7 @@ def servicos_conversar(id_: int, payload: dict) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        resposta = estado.client.ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
+        resposta = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
                                      estado.servicos.texto_para_conversa(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -7867,7 +9157,12 @@ async def voz_ao_vivo_audio(sid: str, request: Request) -> dict:
 async def voz_ao_vivo_fim(sid: str) -> dict:
     """A gravacao parou: transcreve o que sobrou e devolve tudo. A sessao fica ate a gravacao ser arquivada."""
     sessao = _sessao_viva(sid)
-    await run_in_threadpool(estado.transcritor.ao_vivo_fim, sessao)
+    # Como no pedaco: o erro vira frase (sem memoria, "mkl_malloc: failed to
+    # allocate memory"), e nao um 500 sem corpo que a tela nao sabe ler.
+    try:
+        await run_in_threadpool(estado.transcritor.ao_vivo_fim, sessao)
+    except Exception as exc:  # noqa: BLE001 - o motivo vai para a tela
+        raise HTTPException(status_code=500, detail=f"a transcrição falhou no fim da gravação: {exc}") from exc
     return {"trechos": sessao.trechos, **sessao.situacao()}
 
 
@@ -8024,7 +9319,7 @@ def gravacoes_resumo(id_: int) -> dict:
 
 def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
     if len(texto) <= tamanho:
-        return _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
+        return _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
     linhas = texto.split("\n")
     blocos, atual = [], ""
     for linha in linhas:
@@ -8035,10 +9330,10 @@ def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
     if atual:
         blocos.append(atual)
     parciais = [
-        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
+        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
         for i, bloco in enumerate(blocos)
     ]
-    return _limpar_sugestao(estado.client.ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
+    return _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
 
 
 def _mover_audio_da_gravacao(id_: int, servico_id: int | None) -> None:
@@ -8176,12 +9471,15 @@ def gravacoes_docx(id_: int):
 
 @app.post("/api/gravacoes/{id_}/exportar")
 def gravacoes_exportar(id_: int) -> dict:
-    """Grava o .docx em data/exportacoes e devolve o caminho: e o que vai anexo no e-mail."""
+    """
+    Grava o .docx da transcricao no Acervo (Gravacoes) e devolve o caminho: e
+    o que vai anexo no e-mail - e fica para ser lido e perguntado depois.
+    """
     titulo, dados = _docx_da_gravacao(id_)
-    EXPORTACOES_DIR.mkdir(parents=True, exist_ok=True)
     nome = _arquivo(titulo) + " - transcricao.docx"
-    caminho = EXPORTACOES_DIR / nome
+    caminho = _pasta_no_acervo("Gravações") / nome
     caminho.write_bytes(dados)
+    estado.recarregar_em_segundo_plano()
     return {"path": str(caminho), "nome": nome, "mb": round(len(dados) / (1024 * 1024), 2)}
 
 

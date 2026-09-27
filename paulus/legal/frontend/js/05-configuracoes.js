@@ -25,10 +25,11 @@ const CFG_JSON = { "Content-Type": "application/json" };
 const CFG_SECOES = [
   ["perfil", "Meus dados", "Seus dados e os do escritório. Ficam nesta máquina e entram nos documentos que você pedir."],
   ["assistente", "Assistente e modelo", "Tudo roda nesta máquina: o modelo de linguagem pelo Ollama e a transcrição pelo Whisper."],
+  ["modelos", "Modelos", "Os modelos de linguagem desta máquina: baixe, troque o padrão, meça cada um e diga qual faz cada tarefa. O motor é o Ollama, aqui mesmo."],
   ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
-  ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA."],
+  ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
   ["vinculos", "Escritório e vínculos", "Hoje o PAULUS roda para uma pessoa, nesta máquina. Vincular outras máquinas ao escritório ainda não existe."],
-  ["aprendizado", "Aprendizado", "O que o escritório ensinou com as próprias palavras, e o que o PAULUS já sabe fazer."],
+  ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
   ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
@@ -112,16 +113,20 @@ async function carregarSecao() {
       pega("/api/conexoes"), pega("/api/email/contas"), pega("/api/certificado"), pega("/api/relatorios/acoes?limite=60"),
     ]);
     cfg.cx = cx; cfg.contas = contas; cfg.cert = cert; cfg.acoes = (acoes && acoes.acoes) || [];
+    await carregarGoogle();
   } else if (cfg.secao === "aprendizado") {
-    const [hab, ctx] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos")]);
+    const [hab, ctx, material] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material")]);
     cfg.hab = hab;
     cfg.ctx = ctx;
+    cfg.material = material;
   } else if (cfg.secao === "desempenho") {
     cfg.recursos = await pega("/api/recursos");
   } else if (cfg.secao === "assistente") {
     const [voz, saber] = await Promise.all([pega("/api/voz"), pega("/api/inteligencia")]);
     cfg.voz = voz;
     cfg.saber = saber;
+  } else if (cfg.secao === "modelos") {
+    await carregarModelos();
   } else if (cfg.secao === "lixeira") {
     cfg.lixo = await pega("/api/lixeira");
   } else if (cfg.secao === "aparencia") {
@@ -137,6 +142,7 @@ function desenharConfig() {
   }).join("");
   let secao;
   if (cfg.secao === "assistente") secao = secaoAssistente();
+  else if (cfg.secao === "modelos") secao = secaoModelos();
   else if (cfg.secao === "desempenho") secao = secaoDesempenho();
   else if (cfg.secao === "conexoes") secao = secaoConexoes();
   else if (cfg.secao === "vinculos") secao = secaoVinculos();
@@ -477,10 +483,10 @@ function secaoAssistente() {
       return '<div class="' + classe + '" data-cfg-modelo="' + esc(m) + '"><i></i><span class="duas-linhas"><b>' + esc(m) + "</b></span>" +
         (tamanho ? "<small>" + esc(tamanho) + "</small>" : "") + (emUso ? '<span class="etiqueta">em uso</span>' : "") + "</div>";
     }).join("") + "</div>"
-    : '<p class="cfg-texto">Nenhum modelo encontrado no Ollama. Instale um com <code>ollama pull llama3.2:3b</code> e abra esta tela de novo.</p>';
+    : '<p class="cfg-texto">Nenhum modelo encontrado no Ollama. Baixe um em <button class="sv-ligacao" data-cfg-secao="modelos">Modelos</button>.</p>';
 
   const modelo = lista +
-    '<p class="cfg-explica">Vale a partir da próxima pergunta. Modelo maior responde melhor e demora mais. Para instalar outro: <code>ollama pull nome</code>, no terminal.</p>' +
+    '<p class="cfg-explica">Vale a partir da próxima pergunta. Modelo maior responde melhor e demora mais. Para baixar outro, medir e dizer qual faz cada tarefa: <button class="sv-ligacao" data-cfg-secao="modelos">Modelos</button>.</p>' +
     '<div class="cfg-sub">' + ligaCfg("devagar", "Ir devagar quando eu usar o PC", "espera a máquina desafogar antes de cada documento; a leitura demora mais e o computador continua seu", r.devagar) + "</div>";
 
   const limites = '<div class="cfg-campos">' + (cfg.prefs.autonomia_opcoes || []).map((a) => {
@@ -705,6 +711,7 @@ function secaoConexoes() {
 
   return aberturaCfg() +
     cartaoCfg("Serviços", "", lista) +
+    cartaoGoogle() +
     cartaoCfg("O que saiu desta máquina", metaCfg("últimas 24 horas"), registro);
 }
 
@@ -733,6 +740,7 @@ function quandoCurtoCfg(t) {
 }
 
 function ligarConexoesCfg() {
+  ligarGoogle($("cfg-tela"));
   const abrir = document.querySelector("[data-cfg-cx-abrir]");
   if (abrir) abrir.onclick = async () => {
     const r = await (await fetch("/api/conexoes/abrir", { method: "POST", headers: CFG_JSON, body: "{}" })).json();
@@ -916,12 +924,14 @@ function secaoAprendizado() {
     : '<p class="cfg-texto">Não consegui ler o catálogo de habilidades.</p>';
 
   const ficha = fichaCfg([
+    ["Material", String(((cfg.material || {}).itens || []).length)],
     ["Lembretes", String(itens.length)],
     ["Em uso", ctx.caracteres + " de " + ctx.limite + " caracteres"],
     ["Habilidades", String(total)],
   ]);
 
   return aberturaCfg() + ficha +
+    cartaoMaterial() +
     cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
 }
@@ -1110,6 +1120,8 @@ function secaoLixeira() {
 function ligarConfig() {
   const cada = (seletor, fn) => document.querySelectorAll(seletor).forEach(fn);
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
+  if (cfg.secao === "modelos") ligarModelos();
+  if (cfg.secao === "aprendizado") ligarMaterial();
 
   clique("[data-cfg-secao]", (b) => { cfg.secao = b.dataset.cfgSecao; mostrarConfig(); });
   clique("[data-cfg-manual]", () => { location.hash = "#boasvindas"; verificarPrimeiraAbertura(); });

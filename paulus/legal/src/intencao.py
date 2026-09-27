@@ -924,6 +924,42 @@ def documento_citado(texto: str, documentos=None) -> str:
     return achados[0] if len(achados) == 1 else ""
 
 
+# "Qual o valor do contrato?" com três contratos no Acervo: o 3B escolhia um
+# e respondia sobre ele como se fosse o único (banco de provas, 27/09/2026).
+# O artigo definido sem dono ("o contrato", "do contrato") e nenhum nome que
+# separe um deles: a conversa pergunta qual, em vez de adivinhar.
+RE_REFERENCIA_GENERICA = re.compile(
+    r"\b(?:o|do|no|ao|pelo|este|esse|deste|desse|neste|nesse|nosso|meu"
+    r"|a|da|na|pela|esta|essa|desta|dessa|nesta|nessa|nossa|minha)\s+"
+    r"(contrato|aditivo|procuracao|acordo|termo|notificacao)\b"
+    r"(?!\s+(?:de|da|do|das|dos|com|entre|n[o.]|numero|social|firmado|assinado)\b)")
+
+PALAVRAS_QUE_NAO_SEPARAM = GENERICAS | {
+    "qual", "quais", "valor", "prazo", "multa", "clausula", "quando", "quanto", "onde", "quem", "prever", "preve",
+    "diz", "fala", "sobre", "este", "esse", "nosso", "meu", "contrato", "aditivo", "procuracao", "acordo",
+    "termo", "notificacao", "renovacao", "vigencia", "rescisao", "pagamento", "data", "partes", "objeto",
+}
+
+
+def referencia_generica(texto: str) -> str:
+    """O substantivo de "o contrato", "do aditivo"... sem dono. Vazio quando a frase diz qual."""
+    achado = RE_REFERENCIA_GENERICA.search(_plano(texto))
+    return achado.group(1) if achado else ""
+
+
+def documentos_do_tipo(substantivo: str, texto: str, documentos=None) -> list[str]:
+    """
+    Os documentos que "o <substantivo>" pode querer dizer: os que têm a
+    palavra no nome. Se a frase trouxer outra palavra que só alguns deles têm
+    ("a Cooperativa pagou o contrato?"), ficam só esses.
+    """
+    candidatos = [d.name for d in documentos or []
+                  if re.search(r"\b" + substantivo, _plano(Path(d.name).stem))]
+    palavras = {p for p in re.findall(r"[a-z0-9]{4,}", _plano(texto)) if p not in PALAVRAS_QUE_NAO_SEPARAM}
+    com_nome = [n for n in candidatos if any(p in _plano(Path(n).stem) for p in palavras)]
+    return com_nome or candidatos
+
+
 def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -> Intencao:
     """
     O que a frase pede.

@@ -336,7 +336,9 @@ def test_formulario_sai_na_ordem_de_leitura() -> None:
         return
 
     docs = index_all_contracts(contratos, verbose=False)
-    forma = next((d for d in docs if "VIAGEM" in d.name.upper()), None)
+    # Pelo numero, e nao pela palavra: desde 25/09/2026 ha comprovantes
+    # bancarios assinados com "VIAGEM" no nome, que vinham antes na ordem.
+    forma = next((d for d in docs if "VIAGEM" in d.name.upper() and "000434" in d.name), None)
     if not forma:
         print("  pulado: o formulário de viagem não está nesta máquina")
         return

@@ -119,14 +119,21 @@ def desafio_s256(verificador: str) -> str:
 
 
 def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str,
-                    desafio: str, *, login_hint: str = "", endpoint: str = "") -> str:
-    """O endereco que o navegador abre."""
+                    desafio: str, *, login_hint: str = "", endpoint: str = "",
+                    escopos: str = "", incremental: bool = False) -> str:
+    """
+    O endereco que o navegador abre.
+
+    `escopos` troca os do e-mail (a Agenda, o Drive - src/google_servicos.py).
+    `incremental` e a autorizacao incremental do Google: a permissao nova se
+    soma as que ja existem, e o refresh token que volta vale para todas.
+    """
     dados = PROVEDORES[provedor]
     parametros = {
         "client_id": client_id,
         "response_type": "code",
         "redirect_uri": redirect_uri,
-        "scope": dados["escopos"],
+        "scope": escopos or dados["escopos"],
         "state": state,
         "code_challenge": desafio,
         "code_challenge_method": "S256",
@@ -134,6 +141,8 @@ def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str
     }
     if login_hint:
         parametros["login_hint"] = login_hint
+    if incremental:
+        parametros["include_granted_scopes"] = "true"
     base = endpoint or dados["autorizar"]
     return base + "?" + urllib.parse.urlencode(parametros, quote_via=urllib.parse.quote)
 
@@ -423,7 +432,7 @@ class Entrada:
 
     def __init__(self, provedor: str, credenciais: dict, ao_concluir, *,
                  login_hint: str = "", abrir=None, prazo: float = PRAZO_LOGIN,
-                 endpoints: dict | None = None) -> None:
+                 endpoints: dict | None = None, escopos: str = "", exigir: tuple[str, ...] = ()) -> None:
         if provedor not in PROVEDORES:
             raise ErroOAuth("provedor desconhecido")
         if not credenciais.get("client_id"):
@@ -437,6 +446,10 @@ class Entrada:
         self.abrir = abrir or webbrowser.open
         self.prazo = prazo
         self.endpoints = endpoints or {}
+        # Pedir mais que o e-mail (a Agenda, o Drive): os escopos a pedir,
+        # somados aos que ja existem, e os que tem de voltar concedidos.
+        self.escopos = escopos
+        self.exigir = tuple(exigir)
         self.id = secrets.token_hex(8)
         self.fase = "preparando"
         self.mensagem = ""
@@ -457,6 +470,7 @@ class Entrada:
         self.url = url_autorizacao(
             self.provedor, self.credenciais["client_id"], self.redirect_uri, state, desafio,
             login_hint=self.login_hint, endpoint=self.endpoints.get("autorizar", ""),
+            escopos=self.escopos, incremental=bool(self.escopos),
         )
         self.fase = "aguardando"
         self._thread = threading.Thread(target=self._rodar, daemon=True)
@@ -475,6 +489,13 @@ class Entrada:
                 self.provedor, self.credenciais, volta["code"], self._verificador,
                 self.redirect_uri, endpoint=self.endpoints.get("token", ""),
             )
+            concedidos = str(tokens.get("scope") or "").split()
+            faltando = [e for e in self.exigir if e not in concedidos]
+            if faltando:
+                raise ErroOAuth(
+                    "o Google entrou, mas não concedeu a permissão pedida - na tela do Google, "
+                    "marque a caixa do serviço (" + ", ".join(e.rsplit("/", 1)[-1] for e in faltando) + ") e tente de novo"
+                )
             if not tokens.get("refresh_token"):
                 raise ErroOAuth(
                     "o login funcionou, mas o provedor não devolveu a autorização duradoura "

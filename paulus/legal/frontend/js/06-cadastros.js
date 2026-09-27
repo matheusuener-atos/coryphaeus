@@ -80,12 +80,12 @@ function desenharCadastros() {
   else if (cad.visao === "despesas") miolo = corpoDasDespesas();
   else miolo = corpoDosClientes();
   const antes = document.querySelector("#cad-tela .sv-principal");
-  const topo = antes && antes.dataset.cadVisao === cad.visao ? antes.scrollTop : 0;
+  const topo = antes && antes.dataset.cadRolagem === cad.visao ? antes.scrollTop : 0;
   $("centro").innerHTML = '<div class="acervo sem-painel cad-tela" id="cad-tela">' +
     '<div class="acervo-principal sv-principal" data-cad-visao-tela="' + cad.visao + '"><div class="sv-medida">' + miolo + "</div></div></div>";
   const depois = document.querySelector("#cad-tela .sv-principal");
   if (depois) {
-    depois.dataset.cadVisao = cad.visao;
+    depois.dataset.cadRolagem = cad.visao;  // nao "cadVisao": esse nome e o dos botoes de visao, e o contêiner inteiro virava um deles
     if (topo) depois.scrollTop = topo;
   }
   if (conteudoNovo("cadastros:" + cad.visao) && depois) {

@@ -116,6 +116,18 @@
   .am-pasta.on { background: var(--fill); color: var(--ink); font-weight: 600; }
   .am-pasta.on small { color: var(--ink); }
   .am-raiz { padding: 6px 10px 4px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  /* Cada pasta vigiada e uma raiz com o "..." dela (js/36-acervo-vigiado.js). */
+  .am-raiz-linha { display: flex; align-items: center; gap: 4px; min-width: 0; margin-top: 6px; }
+  .am-raiz-linha .am-raiz { flex: 1; min-width: 0; padding-right: 0; }
+  .am-raiz-linha .mais-linha { opacity: .55; }
+  .am-raiz-linha:hover .mais-linha, .am-raiz-linha .mais-linha:focus-visible { opacity: 1; }
+  .am-raiz-nota { font: 500 11.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .am-lendo { display: flex; align-items: center; gap: 6px; margin: 10px 10px 0; font: 500 12px var(--sans); color: var(--ink3); }
+  .am-fora { display: flex; align-items: center; gap: 6px; margin: 8px 2px 0; padding: 6px 8px; border: 0; background: none;
+    font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer; border-radius: 6px; text-align: left; }
+  .am-fora:hover { background: var(--ink-a06); }
+  .ae-sum-raiz-linha { margin-top: 10px; }
+  .am-fora-linha button { flex: none; }
   .ae-secoes .ae-verbetes-cabeca { margin-bottom: 2px; }
   .ae-pasta-raiz { margin-right: 6px; font: 500 12px var(--sans); color: var(--ink3); letter-spacing: 0; }
   .ae-linha-misto .duas-linhas { gap: 3px; }

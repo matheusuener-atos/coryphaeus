@@ -22,7 +22,11 @@ function usarHabilidade(acao) {
 const org = {
   raizes: [], tipos: [], docs: [], selecao: new Set(), padroes: [], padrao: "", destino: "",
   fase: 0, plano: null, encontrados: null, escolhidos: new Set(), resultado: null, parado: false,
-  operacao: "mover",   // "mover" tira da pasta de origem; "copiar" deixa o original
+  // O que fazer e PERGUNTADO, sem resposta pronta: "mover" tira da pasta de
+  // origem; "copiar" deixa o original; "classificar" nao mexe em arquivo -
+  // so guarda a classificacao e passa a vigiar as pastas onde estao. Nos tres
+  // casos os documentos ficam sob a guarda do Acervo.
+  operacao: "",
   semPedir: false,
 };
 
@@ -31,7 +35,7 @@ const ETAPAS_ORG = [
   ["Escolher", "Escolher onde procurar"],
   ["Ler", "Ler e classificar"],
   ["Conferir", "Conferir a classificação"],
-  ["Mover", "Mover para a estrutura nova"],
+  ["Concluir", "Mover, copiar ou só classificar"],
 ];
 
 function fitaOrg(feitos, total) {
@@ -103,7 +107,7 @@ function ligarOnde() {
 }
 
 function limparOrg() {
-  org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null;
+  org.fase = 0; org.docs = []; org.selecao = new Set(); org.plano = null; org.resultado = null; org.operacao = "";
   org.parado = false; org.encontrados = null; org.escolhidos = new Set(); org.pedido = null;
 }
 
@@ -600,25 +604,63 @@ function nomeDaPasta(caminho) {
   return (caminho || "").split(/[\\/]/).filter(Boolean).pop() || caminho || "";
 }
 
-/* O painel: onde procuro, a estrutura, o destino e o plano. */
+/* O que fazer com os arquivos: as tres escolhas, nenhuma marcada. */
+const ESCOLHAS_ORG = [
+  ["mover", "drive_file_move", "Mover", "organiza numa pasta nova e tira da pasta de origem"],
+  ["copiar", "content_copy", "Copiar", "organiza cópias numa pasta nova; os originais ficam onde estão"],
+  ["classificar", "visibility", "Só classificar", "não mexe em arquivo nenhum: as pastas passam a ser vigiadas pelo Acervo como estão"],
+];
+
+function escolhaOrg(feito) {
+  return '<div class="org-escolha" role="radiogroup" aria-label="O que fazer com os arquivos">' +
+    ESCOLHAS_ORG.map(([valor, icone, rotulo, explica]) => '<button type="button" role="radio" aria-checked="' + (org.operacao === valor) + '" class="org-opcao' +
+      (org.operacao === valor ? " on" : "") + '" data-org-operacao="' + valor + '"' + (feito ? " disabled" : "") + ">" + ic(icone, 18) +
+      '<span class="duas-linhas"><b>' + rotulo + "</b><small>" + explica + "</small></span></button>").join("") + "</div>";
+}
+
+/* O painel: o que fazer, e - para mover e copiar - a estrutura, o destino e o plano. */
 function painelOrgPlano() {
   const feito = org.fase === 4 && org.resultado;
+  const operacao = feito ? org.resultado.operacao : org.operacao;
   const p = feito ? { total: org.resultado.movidos, pastas: org.resultado.pastas || [], destino: org.resultado.destino, ignorados: [] } : org.plano;
+  const copiar = operacao === "copiar";
+  const classificar = operacao === "classificar";
+  const escolheu = Boolean(operacao);
+  const marcados = org.selecao.size;
+  const meta = feito ? (classificar ? plural(org.resultado.classificados, "documento") + " classificados" : plural(p.total, "arquivo") + (copiar ? " copiados" : " no lugar novo"))
+    : (!escolheu ? "Escolha o que fazer com os arquivos" : classificar ? "Nenhum arquivo sai do lugar"
+      : (p ? plural(p.total, "arquivo") + " em " + plural(p.pastas.length, "pasta") : "O plano aparece depois de ler e conferir"));
+  const cabeca = '<div class="painel-cabeca"><span class="titulo-painel"><h3>O que fazer com os arquivos</h3><span class="meta">' + meta + "</span></span></div>" +
+    '<div class="painel-bloco">' + escolhaOrg(feito) + "</div>";
+  const recomecar = '<button class="sv-ligacao" id="org-recomecar">' + ic("restart_alt", 15) + "Começar de novo</button>";
+
+  if (!escolheu) {
+    return cabeca + (org.fase >= 2 ? '<div class="painel-bloco org-links"><span class="cresce"></span>' + recomecar + "</div>" : "");
+  }
+
+  if (classificar) {
+    const pastas = org.raizes.length;
+    const pronto = org.fase === 2 && marcados;
+    return cabeca +
+      '<div class="painel-bloco"><p>Guardo a classificação que você conferiu — com as suas correções — e passo a vigiar ' +
+      (pastas ? "<b>" + plural(pastas, "pasta") + "</b>" : "as pastas") + " onde procurei, do jeito que " + (pastas === 1 ? "está" : "estão") + ". " +
+      "O que entrar " + (pastas === 1 ? "nela" : "nelas") + " depois entra no Acervo sozinho. Nenhum arquivo é movido, copiado ou apagado, então não passa por Aprovações.</p></div>" +
+      (pronto
+        ? '<div class="painel-bloco org-pronto"><button class="primario com-icone org-largo" id="org-aprovar">' + ic("visibility", 16) +
+          "Classificar e vigiar " + plural(marcados, "documento") + "</button>" +
+          '<div class="org-links"><span class="cresce"></span>' + recomecar + "</div></div>"
+        : (org.fase >= 2 && !feito ? '<div class="painel-bloco org-links"><span class="cresce"></span>' + recomecar + "</div>" : ""));
+  }
+
   const pronto = org.fase === 2 && p && p.total;
-  const copiar = (feito ? org.resultado.operacao : org.operacao) === "copiar";
-  const meta = feito ? plural(p.total, "arquivo") + (copiar ? " copiados" : " no lugar novo")
-    : (p ? plural(p.total, "arquivo") + " em " + plural(p.pastas.length, "pasta") : "O plano aparece depois de ler e conferir");
   // O que fica de fora do plano: o que ja esta no lugar e o que nao tem
   // classificacao.
   const noLugar = p ? p.ignorados.filter((x) => x.motivo === "já está no lugar").length : 0;
   const semClasse = p ? p.ignorados.length - noLugar : 0;
   const fora = [noLugar ? plural(noLugar, "arquivo") + " já no lugar" : "", semClasse ? plural(semClasse, "arquivo") + " sem classificação" : ""]
     .filter(Boolean).join(" e ");
-  return '<div class="painel-cabeca"><span class="titulo-painel"><h3>Como as pastas ficam</h3><span class="meta">' + meta + "</span></span></div>" +
-    '<div class="painel-bloco"><div class="campo-painel"><label for="org-operacao">O que fazer com os arquivos</label><select id="org-operacao"' + (feito ? " disabled" : "") + ">" +
-    '<option value="mover"' + (copiar ? "" : " selected") + ">Mover · tira da pasta de origem</option>" +
-    '<option value="copiar"' + (copiar ? " selected" : "") + ">Copiar · o original fica onde está</option></select></div>" +
-    '<div class="campo-painel"><label for="org-padrao">Estrutura</label><select id="org-padrao"' + (feito ? " disabled" : "") + ">" +
+  return cabeca +
+    '<div class="painel-bloco"><div class="campo-painel"><label for="org-padrao">Estrutura</label><select id="org-padrao"' + (feito ? " disabled" : "") + ">" +
     (org.padroes || []).map((x) => '<option value="' + esc(x.padrao) + '"' + (org.padrao === x.padrao ? " selected" : "") + ">" + esc(x.rotulo) + "</option>").join("") +
     "</select></div>" +
     '<div class="campo-painel"><label for="org-destino">Pasta de destino</label><div class="com-botao">' +
@@ -635,23 +677,21 @@ function painelOrgPlano() {
     (pronto
       ? '<div class="painel-bloco org-pronto"><p>' +
         (org.semPedir ? "Vou " : "Peço para ") + (copiar ? "copiar " : "mover ") + "<b>" + plural(p.total, "arquivo") + "</b> para <b>" + plural(p.pastas.length, "pasta") +
-        "</b> em <b>" + esc(nomeDaPasta(p.destino)) + "</b>. " +
+        "</b> em <b>" + esc(nomeDaPasta(p.destino)) + "</b>, que passa a ser vigiada pelo Acervo. " +
         (copiar ? "Os originais ficam onde estão. " : "") +
         (org.semPedir ? "" : "O pedido vai para Aprovações e nada " + (copiar ? "é copiado" : "se move") + " antes do seu sim. ") +
         "Nada é apagado nem sobrescrito, e dá para desfazer depois.</p>" +
         '<button class="primario com-icone org-largo" id="org-aprovar">' + ic(copiar ? "content_copy" : "drive_file_move", 16) +
         (org.semPedir ? (copiar ? "Copiar agora" : "Mover agora") : "Enviar para aprovação") + "</button>" +
-        '<div class="org-links"><button class="sv-ligacao" id="org-revisar">Revisar o plano</button><span class="cresce"></span>' +
-        '<button class="sv-ligacao" id="org-recomecar">' + ic("restart_alt", 15) + "Começar de novo</button></div></div>"
-      : (org.fase >= 2 && !feito
-        ? '<div class="painel-bloco org-links"><span class="cresce"></span><button class="sv-ligacao" id="org-recomecar">' + ic("restart_alt", 15) + "Começar de novo</button></div>"
-        : ""));
+        '<div class="org-links"><button class="sv-ligacao" id="org-revisar">Revisar o plano</button><span class="cresce"></span>' + recomecar + "</div></div>"
+      : (org.fase >= 2 && !feito ? '<div class="painel-bloco org-links"><span class="cresce"></span>' + recomecar + "</div>" : ""));
 }
 
 function ligarPainelOrg() {
   ligarOnde();
-  const operacao = $("org-operacao");
-  if (operacao) operacao.onchange = (e) => { org.operacao = e.target.value; montarPlano(); };
+  document.querySelectorAll("[data-org-operacao]").forEach((b) => {
+    b.onclick = () => { org.operacao = b.dataset.orgOperacao; org.plano = null; atualizarPainelOrg(); montarPlano(); };
+  });
   const padrao = $("org-padrao");
   if (padrao) padrao.onchange = (e) => { org.padrao = e.target.value; montarPlano(); };
   const destino = $("org-destino");
@@ -694,7 +734,8 @@ let planoTimer = null;
 function montarPlano() {
   clearTimeout(planoTimer);
   planoTimer = setTimeout(async () => {
-    if (org.fase !== 2 || !org.selecao.size) { org.plano = null; atualizarPainelOrg(); return; }
+    // So mover e copiar tem plano de pastas; classificar nao mexe em nada.
+    if (org.fase !== 2 || !org.selecao.size || !["mover", "copiar"].includes(org.operacao)) { org.plano = null; atualizarPainelOrg(); return; }
     try {
       const r = await fetch("/api/organizar/plano", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -714,6 +755,7 @@ function montarPlano() {
    pedir estiver desligada; nesse caso o fim do fluxo volta para ca depois
    do sim, por organizarDesfecho. */
 async function organizarAplicar() {
+  if (org.operacao === "classificar") return organizarSoClassificar();
   org.fase = 3;
   org.trabalhando = true;
   atualizarFita();
@@ -827,6 +869,57 @@ function mostrarMovidos(d) {
     }
   };
   estado.contratos = 0;
+  bib.todos = [];
+  bib.sugestoes = null;
+  carregarStatus();
+}
+
+/* Só classificar: guarda a classificacao conferida e vigia as pastas onde
+   procurei. Nenhum arquivo e tocado, e por isso vai direto, sem fila. */
+async function organizarSoClassificar() {
+  org.fase = 3;
+  org.trabalhando = true;
+  atualizarFita();
+  const cartao = $("org-cartao");
+  cartao.innerHTML = '<div class="cartao-cabeca"><span class="texto-cabeca"><b>Guardando a classificação…</b><small>Nenhum arquivo sai do lugar.</small></span></div>';
+  try {
+    const r = await fetch("/api/organizar/so-classificar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pastas: org.raizes, apenas: corpoPlano().apenas, ajustes: corpoPlano().ajustes }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    mostrarClassificados(await r.json());
+  } catch (err) {
+    cartao.innerHTML = '<div class="cartao-miolo"><div class="aprovacao"><p><strong>Não consegui guardar.</strong> ' + esc(String((err && err.message) || err)) + "</p></div></div>";
+  } finally {
+    org.trabalhando = false;
+    atualizarFita();
+    carregarTrabalhos();
+  }
+}
+
+function mostrarClassificados(d) {
+  org.fase = 4;
+  org.resultado = d;
+  const novas = d.vigiadas.length;
+  const ja = d.ja_vigiadas.length;
+  const recusadas = d.nao_vigiadas || [];
+  desenharOrg(
+    '<div class="cartao-cabeca"><span class="texto-cabeca"><b>' + plural(d.classificados, "documento") + " classificados</b><small>" +
+    (novas ? plural(novas, "pasta") + (novas === 1 ? " passou" : " passaram") + " a ser vigiada" + (novas === 1 ? "" : "s") + " pelo Acervo, onde está" + (novas === 1 ? "" : "ão") + ". " : "") +
+    (ja ? plural(ja, "pasta") + (ja === 1 ? " já era vigiada" : " já eram vigiadas") + ". " : "") +
+    "Nenhum arquivo saiu do lugar.</small></span></div>" +
+    '<div class="cartao-miolo">' +
+    (recusadas.length
+      ? '<div class="aprovacao"><p><strong>Não vigio:</strong> ' + esc(recusadas.map((x) => x.nome + " (" + x.motivo + ")").join("; ")) +
+        ". A classificação desses documentos ficou guardada; para o Acervo ler, inclua uma pasta mais específica.</p></div>"
+      : "") +
+    '<div class="linha-form"><button class="primario com-icone" id="org-ir-acervo">' + ic("library_books", 16) + "Ver no Acervo</button>" +
+    '<button class="com-icone" id="org-outra">' + ic("search", 16) + "Organizar outra pasta</button></div></div>"
+  );
+  $("conversa-meta").textContent = plural(d.classificados, "documento") + " classificados · nada saiu do lugar";
+  $("org-ir-acervo").onclick = () => { bib.todos = []; bib.vigiadas = null; abrirDestino("biblioteca"); };
+  $("org-outra").onclick = () => { limparOrg(); passoOnde(); };
   bib.todos = [];
   bib.sugestoes = null;
   carregarStatus();

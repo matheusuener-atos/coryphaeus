@@ -152,3 +152,15 @@ diálogo (raio 16, título sans 17); botões da janela; bolhas de fala com o
 canto assimétrico da conversa; papel do PDF e do editor (é papel); seleção
 múltipla ao segurar o clique; a faixa de aviso (o desenho previa um toast que
 nunca existiu, e não foi criado).
+
+## Listas: seleção e menu (27/09/2026)
+
+Uma forma só em todas as listas: Assistente, Gravações, Acervo, Assinatura, E-mail, Cadastros, Lançamentos, Tarefas, Serviços, Documentos e Aprovações.
+
+- **Sem caixinha nas linhas.** Segurar a linha, ou Ctrl+clique, marca. Shift+clique marca o intervalo. A linha escolhida ganha a barra vertical à esquerda (`.escolhida`).
+- **A barra de cima** (`barraDeSelecao`, em `js/16-selecao.js`) mostra a caixa, "N selecionadas" e as ações. A caixa é o "marcar todas / limpar": com parte marcada ela mostra o traço e marca todas, e com todas marcadas mostra o check e limpa. Não há "Selecionar todas" nem "Limpar" em texto. Esc limpa, Ctrl+A marca todas e Delete apaga.
+- **Toda linha tem o "…"** (`.mais-linha` com o ícone `more_horiz`), e o menu sai pelo `menuNaLinha`.
+- **Botão direito** numa linha abre o mesmo menu do "…", no ponto do clique. Isso fica no `16-selecao.js`, por delegação. Linha sem "…" fica com o menu do navegador.
+- Caixinhas que são escolha dentro de um formulário continuam caixinhas. É o caso de anexar documentos, das pastas do Organizar e da equipe de um serviço.
+
+O teste é `tests/test_listas.py`, que roda na base de demonstração.

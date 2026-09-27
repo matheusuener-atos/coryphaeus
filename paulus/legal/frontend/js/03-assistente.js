@@ -164,10 +164,10 @@ async function anexarEscolhidos() {
   if (caminhos.length) {
     avisoNaJanela("Lendo " + plural(caminhos.length, "arquivo") + "…", { icone: "sync", girar: true, dura: 0 });
     try {
-      const r = await fetch("/api/anexar/caminhos", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminhos: caminhos }),
-      });
-      const res = await r.json();
+      // Acima de 50 MB, pergunta e manda de novo so o confirmado (js/37).
+      const res = await enviarComConfirmacao(caminhos, async (quais, autorizados) => (await fetch("/api/anexar/caminhos", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminhos: quais, autorizados: autorizados }),
+      })).json(), "salvos");
       lidos = res.salvos || [];
       const feito = anx.daConversa ? (lidos.length === 1 ? " anexado" : " anexados") : (lidos.length === 1 ? " trazido para o Acervo" : " trazidos para o Acervo");
       let texto = lidos.length ? plural(lidos.length, "documento") + feito : "Nenhum arquivo foi trazido.";
@@ -209,15 +209,24 @@ fluxo.addEventListener("drop", (e) => {
   if (lista.length) subirArquivos(lista);
 });
 
-async function subirArquivos(lista) {
+async function subirArquivos(escolhidos) {
+  // Acima de 50 MB pergunta ANTES de subir (js/37-arquivo-grande.js).
+  const envio = await prepararEnvio(escolhidos);
+  const lista = envio.lista;
+  if (!lista.length) {
+    avisoNaJanela("Nenhum arquivo foi aberto. " + envio.fora.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".", { tom: "erro", dura: 12000 });
+    return;
+  }
   const dados = new FormData();
   lista.forEach((a) => dados.append("arquivos", a));
+  dados.append("autorizados", JSON.stringify(envio.autorizados));
 
   avisoNaJanela("Lendo " + plural(lista.length, "arquivo") + "…", { icone: "sync", girar: true, dura: 0 });
 
   try {
     const r = await fetch("/api/upload", { method: "POST", body: dados });
     const res = await r.json();
+    res.recusados = (res.recusados || []).concat(envio.fora);
 
     let texto = res.salvos.length
       ? plural(res.salvos.length, "documento") +
@@ -489,7 +498,7 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
   const seta = '<span class="ic ic-16 arv-seta">expand_more</span>';
   lista.innerHTML = [...porDocumento].map(([documento, indices]) =>
     '<div class="arv-ramo">' +
-    '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + esc(documento) + "</b>" +
+    '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + (fontes[indices[0]].material ? "Material · " : "") + esc(documento) + "</b>" +
     "<small>" + plural(indices.length, "trecho") + "</small></button>" +
     '<div class="arv-filhos" hidden>' + indices.map((i) => {
       const f = fontes[i];
@@ -497,7 +506,8 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
         '<button class="arv-no arv-trecho" aria-expanded="false">' + seta + '<span class="cit">' + (i + 1) + "</span>" +
         '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span></button>" +
         '<div class="arv-filhos arv-folha" hidden><div class="trecho-texto">' + esc(f.texto) + "</div>" +
-        '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button></div></div>';
+        /* Material de consulta nao esta no Acervo: o visor nao o abre. */
+        (f.material ? "" : '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button>') + "</div></div>";
     }).join("") + "</div></div>").join("");
   lista.hidden = true;
   $("lat-trechos-cabeca").setAttribute("aria-expanded", "false");
@@ -1323,7 +1333,7 @@ async function enviar(opcoes) {
           // "abra o financeiro": o pedido era a tela. Abre depois do fim,
           // para a conversa terminar de se gravar antes de sair dela.
           if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
-          if (dados.tipo === "programa" && !dados.por_modelo) assinaSemModelo = true;
+          if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo") assinaSemModelo = true;
           rolar();
         } else if (mt[1] === "vazio") {
           texto.textContent = dados.mensagem;

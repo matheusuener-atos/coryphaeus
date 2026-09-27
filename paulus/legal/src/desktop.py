@@ -22,6 +22,33 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+
+def _registro_do_instalado() -> None:
+    """
+    Aberto pelo PAULUS.exe (pythonw, sem janela de terminal), o que o programa
+    imprime iria para lugar nenhum. Vai para dados/registro/paulus.log - e e
+    esse arquivo que se pede quando alguem conta que algo deu errado.
+    """
+    import os
+
+    if not os.environ.get("PAULUS_INSTALADO") or not os.environ.get("PAULUS_DADOS"):
+        return
+    pasta = Path(os.environ["PAULUS_DADOS"]) / "registro"
+    try:
+        pasta.mkdir(parents=True, exist_ok=True)
+        arquivo = pasta / "paulus.log"
+        # Um arquivo so, que nao cresce para sempre: acima de 5 MB, recomeca.
+        if arquivo.exists() and arquivo.stat().st_size > 5 * 1024 * 1024:
+            arquivo.replace(pasta / "paulus.anterior.log")
+        saida = open(arquivo, "a", encoding="utf-8", buffering=1)
+    except OSError:
+        return
+    sys.stdout = sys.stderr = saida
+    print(f"\n--- aberto em {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
+
+
+_registro_do_instalado()
+
 TITULO = "PAULUS Legal"
 # O "P" do programa (frontend/img/paulus-logo.svg), desenhado de 16 a 256 px.
 ICONE = Path(__file__).parent.parent / "frontend" / "img" / "paulus.ico"

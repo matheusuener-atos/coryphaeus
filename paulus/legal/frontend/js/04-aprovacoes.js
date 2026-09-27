@@ -185,14 +185,16 @@ function apFila(categorias) {
         "Quando o assistente quiser fazer algo com efeito fora do programa — mover arquivos em lote, " +
         "assinar, enviar mensagem — o pedido para aqui e espera o seu sim.</p></div>");
 
-  const todosMarcados = n > 0 && m === n;
-  const classe = "marcar" + (todosMarcados ? " on" : "");
+  // A selecao e a das outras listas (26/09/2026): segurar ou Ctrl+clique
+  // marca, a barra vira a barra de selecao com Recusar/Aprovar do lote, e a
+  // caixa dela marca todos ou limpa.
+  const barra = m
+    ? '<span class="lc-selecao">' + barraDeSelecao(m, false, acoes, "", lista.length) + "</span>"
+    : '<span class="ap-titulo">Esperando você</span>' + (n ? '<span class="ap-conta">' + n + "</span>" + chips : "");
   return '<section class="tabela-cartao ap-cartao" id="ap-fila">' +
-    '<div class="tabela-barra"><span class="ap-titulo">Esperando você</span>' +
-    (n ? '<span class="ap-conta">' + n + "</span>" + chips + acoes : "") + "</div>" +
+    '<div class="tabela-barra">' + barra + "</div>" +
     (n
-      ? '<div class="tabela-cabecalho colunas-fila"><span class="' + classe + '" id="ap-todos" role="checkbox" aria-checked="' +
-        (todosMarcados ? "true" : "false") + '" title="Marcar todos">' + ic("check", 12) + "</span>" +
+      ? '<div class="tabela-cabecalho colunas-fila">' +
         '<span>O que precisa do seu sim</span><span>Pedido por</span><span>Esperando há</span><span class="ap-direita">Ação</span></div>'
       : "") +
     '<div class="tabela-corpo">' + linhas + "</div>" +
@@ -207,15 +209,14 @@ function linhaPedido(p) {
   const marcado = aprov.marcados.has(p.id);
   const classe = "tabela-linha colunas-fila" + (marcado ? " escolhida" : "");
   return '<div class="' + classe + '" data-pedido="' + esc(p.id) + '" title="Ver o pedido">' +
-    '<span class="marcar' + (marcado ? " on" : "") + '" data-marcar="' + esc(p.id) + '" role="checkbox" aria-checked="' +
-    (marcado ? "true" : "false") + '">' + ic("check", 12) + "</span>" +
     '<span class="nome-doc"><span class="caixa-tipo">' + ic(ICONE_CATEGORIA[p.categoria] || "verified", 18) + "</span>" +
     '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small>" +
     (p.vence_hoje ? '<span class="ap-vence">vence hoje</span> · ' : "") + esc(metaDoPedido(p)) + "</small></span></span>" +
     quemPediu(p.pedido_por) +
     '<span class="espera">' + esc(esperandoHa(p.criado_em)) + "</span>" +
     '<span class="acoes-linha direita"><button class="perigo" data-recusar="' + esc(p.id) + '">Recusar</button>' +
-    '<button class="sucesso" data-aprovar="' + esc(p.id) + '">Aprovar</button></span></div>';
+    '<button class="sucesso" data-aprovar="' + esc(p.id) + '">Aprovar</button>' +
+    '<button class="mais-linha" data-ap-mais="' + esc(p.id) + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></span></div>";
 }
 
 /* ----------------------------------------------------------- historico */
@@ -278,20 +279,22 @@ function ligarAprovacoes() {
   centro.querySelectorAll("[data-filtro-ap]").forEach((b) => {
     b.onclick = () => { aprov.filtro = b.dataset.filtroAp; desenharAprovacoes(); };
   });
-  centro.querySelectorAll("[data-marcar]").forEach((c) => {
-    c.onclick = (e) => {
+  ligarSelecao(centro.querySelector("#ap-fila .tabela-corpo"), {
+    linhas: ".tabela-linha[data-pedido]", chave: (linha) => linha.dataset.pedido,
+    escolhidos: aprov.marcados, aoMudar: desenharAprovacoes,
+  });
+  centro.querySelectorAll("[data-ap-mais]").forEach((b) => {
+    b.onclick = (e) => {
       e.stopPropagation();
-      const id = c.dataset.marcar;
-      if (aprov.marcados.has(id)) aprov.marcados.delete(id); else aprov.marcados.add(id);
-      desenharAprovacoes();
+      const id = b.dataset.apMais;
+      menuNaLinha(b, [
+        { rotulo: "Ver o pedido", icone: "open_in_new", acao: () => verPedido(id) },
+        { rotulo: "Aprovar", icone: "done", acao: () => decidirPedidos([id], true) },
+        "-",
+        { rotulo: "Recusar", icone: "close", perigo: true, acao: () => decidirPedidos([id], false) },
+      ]);
     };
   });
-  const todos = $("ap-todos");
-  if (todos) todos.onclick = () => {
-    if (!aprov.pendentes.length) return;
-    aprov.marcados = aprov.marcados.size === aprov.pendentes.length ? new Set() : new Set(aprov.pendentes.map((p) => p.id));
-    desenharAprovacoes();
-  };
   centro.querySelectorAll("[data-pedido]").forEach((l) => {
     l.onclick = () => verPedido(l.dataset.pedido);
   });

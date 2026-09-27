@@ -247,16 +247,75 @@ function passoIA() {
     '<div class="bv-checks">' + [
       "Os seus documentos nunca são enviados para treinar ou consultar modelo algum.",
       "Serviços online são opcionais e só para o que é online por natureza: e-mail e arquivos na nuvem.",
-      "Tudo que sai da máquina — um e-mail, um pagamento — passa por Aprovações antes.",
+      "Tudo que sai da máquina — um e-mail, um documento para o Drive — passa por Aprovações antes. A exceção é o que você mesmo liga para sincronizar, como a Agenda do Google.",
     ].map((t) => '<div class="bv-check ok">' + ic("check_circle", 18) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
     '<div class="bv-cartao"><b class="bv-cartao-titulo">Onde cada coisa fica</b><div class="bv-tabela">' +
     linhas.map(([k, v, local]) => "<div><span>" + k + '</span><span class="bv-onde' + (local ? " ok" : "") + '">' + v + "</span></div>").join("") + "</div>" +
+    blocoDaMaquina() +
     '<div class="campo-painel"><label for="bv-modelo">Modelo escolhido</label><select id="bv-modelo">' +
-    (modelos.length
-      ? modelos.map((m) => '<option value="' + esc(m) + '"' + (m === bv.modelo ? " selected" : "") + ">" + esc(m) + "</option>").join("")
-      : '<option value="">' + esc(bv.modelo || "nenhum modelo no Ollama") + "</option>") + "</select></div>" +
-    '<span class="nota-barra">' + (s.tamanho_gb ? "Este pesa " + String(s.tamanho_gb).replace(".", ",") + " GB. " : "") +
-    "Com placa de vídeo, você pode trocar por um modelo maior em Configurações › Assistente e modelo.</span></div></div>";
+    opcoesDeModelo(modelos) + "</select></div>" +
+    '<span class="nota-barra">' + (s.tamanho_gb ? "O modelo em uso pesa " + String(s.tamanho_gb).replace(".", ",") + " GB. " : "") +
+    "Dá para trocar, medir e baixar outros em Configurações › Modelos.</span></div></div>";
+}
+
+/* O teste desta maquina (src/maquina.py): sem IA, uns cinco segundos, na
+   primeira vez que o passo abre. Dele sai o modelo recomendado, com o porque:
+   a nota no nosso banco de provas e o tempo ESTIMADO aqui. */
+async function conferirMaquinaBv() {
+  if (bv.maquina || bv.conferindo) return;
+  bv.conferindo = true;
+  try {
+    const r = await fetch("/api/maquina");
+    bv.maquina = r.ok ? await r.json() : { erro: true };
+    const c = await fetch("/api/calibracao");
+    if (c.ok) mod.calib = await c.json();
+  } catch (err) {
+    bv.maquina = { erro: true };
+  }
+  bv.conferindo = false;
+  // Sem escolha de quem usa, o recomendado vira o escolhido.
+  if (bv.maquina.recomendado && !bv.escolheuModelo) bv.modelo = bv.maquina.recomendado;
+  if (!$("boas-vindas").hidden && bv.passo === 3) desenharBoasVindas();
+}
+
+function blocoDaMaquina() {
+  const d = bv.maquina;
+  if (!d) {
+    conferirMaquinaBv();
+    return '<p class="bv-maquina-nota">' + ic("speed", 16) + "Conferindo esta máquina para recomendar o modelo… (uns 5 segundos, sem IA)</p>";
+  }
+  if (d.erro) return '<p class="bv-maquina-nota">Não consegui conferir esta máquina agora. Dá para fazer depois em Configurações › Modelos.</p>';
+  const m = d.maquina || {};
+  const gb = (x) => String(x).replace(".", ",") + " GB";
+  const placas = (m.placas_nvidia || []).map((p) => p.nome + " · " + gb(p.memoria_gb)).join("; ");
+  const linhas = [
+    ["Processador", m.processador || "—"],
+    ["Memória", gb(m.ram_total_gb) + " · " + gb(m.ram_livre_gb) + " livres agora"],
+    ["Placa de vídeo", placas || "sem placa NVIDIA: o modelo roda no processador"],
+  ];
+  if (m.na_bateria) linhas.push(["Energia", "na bateria: na tomada o PAULUS responde mais rápido"]);
+  const rec = d.recomendado
+    ? '<div class="bv-recomendado"><b>' + ic("check_circle", 16) + "Recomendado: " + esc(d.recomendado) + "</b><span>" + esc(d.porque) +
+      ". É estimativa: depois de baixar, “Medir” em Configurações › Modelos dá o número de verdade.</span></div>"
+    : '<div class="bv-recomendado"><b>' + ic("info", 16) + "Sem recomendação</b><span>" + esc(d.porque || "") + ".</span></div>";
+  return '<b class="bv-cartao-titulo bv-maquina-titulo">Esta máquina</b><div class="bv-tabela">' +
+    linhas.map(([k, v]) => "<div><span>" + k + "</span><span>" + esc(v) + "</span></div>").join("") + "</div>" + rec +
+    '<div class="bv-calibracao">' + blocoCalibracao(mod.calib, true) + "</div>";
+}
+
+/* Os instalados, e o recomendado mesmo que ainda nao esteja: escolher e o
+   cartao do Assistente baixa na primeira pergunta. */
+function opcoesDeModelo(instalados) {
+  const rec = (bv.maquina && bv.maquina.recomendado) || "";
+  const nomes = instalados.slice();
+  if (rec && !nomes.includes(rec)) nomes.unshift(rec);
+  if (bv.modelo && !nomes.includes(bv.modelo)) nomes.push(bv.modelo);
+  if (!nomes.length) return '<option value="">nenhum modelo no Ollama</option>';
+  return nomes.map((n) => {
+    const marcas = [n === rec ? "recomendado" : "", instalados.includes(n) ? "" : "falta baixar"].filter(Boolean);
+    return '<option value="' + esc(n) + '"' + (n === bv.modelo ? " selected" : "") + ">" + esc(n) +
+      (marcas.length ? " (" + marcas.join(" · ") + ")" : "") + "</option>";
+  }).join("");
 }
 
 function passoConexoes() {
@@ -272,7 +331,7 @@ function passoConexoes() {
     ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
     '<div class="bv-contas">' +
     conta("@", "E-mail do escritório", "IMAP / SMTP · detecto o servidor pelo domínio", '<button class="com-icone" data-bv="email">Configurar ao abrir</button>') +
-    conta("G", "Conta Google", "Gmail · Google Drive", '<span class="etiqueta">em breve</span>') +
+    conta("G", "Conta Google", "Gmail · Agenda e Meet · Drive", '<button class="com-icone" data-bv="google">Configurar ao abrir</button>') +
     conta("M", "Conta Microsoft", "Outlook · OneDrive", '<span class="etiqueta">em breve</span>') +
     '<span class="nota-barra">WhatsApp Web e certificado digital ficam para depois, quando você precisar — em Conexões e em Assinatura.</span></div></div>';
 }
@@ -310,8 +369,9 @@ function ligarBoasVindas() {
     i.oninput = (e) => { bv.vinculo[i.dataset.bvVinculo] = e.target.value; };
     i.onchange = i.oninput;
   });
+  ligarCalibracao(caixa, () => desenharBoasVindas());
   const modelo = $("bv-modelo");
-  if (modelo) modelo.onchange = (e) => { bv.modelo = e.target.value; };
+  if (modelo) modelo.onchange = (e) => { bv.modelo = e.target.value; bv.escolheuModelo = true; };
   const codigo = $("bv-codigo");
   if (codigo) {
     codigo.oninput = () => {
@@ -338,6 +398,15 @@ function ligarBoasVindas() {
 async function acaoBoasVindas(qual) {
   if (qual === "voltar") { bv.passo = Math.max(0, bv.passo - 1); desenharBoasVindas(); return; }
   if (qual === "pular") { bv.passo += 1; desenharBoasVindas(); return; }
+  if (qual === "google") {
+    /* A conta Google comeca pelo e-mail (entrar com Google); a Agenda, o Meet
+       e o Drive se conectam depois, em Configuracoes › Conexoes. */
+    await concluirBoasVindas(true);
+    marcarDestino("caixa");
+    mostrarEmail("contas");
+    avisoCert("Entre com Google aqui; depois, a Agenda e o Drive se conectam em Configurações › Conexões.", { dura: 9000 });
+    return;
+  }
   if (qual === "email") {
     await concluirBoasVindas(true);
     marcarDestino("caixa");

@@ -95,6 +95,7 @@ class Contexto:
         ensinado="",
         saber=None,
         parar=None,
+        material=None,
     ) -> None:
         self.searcher = searcher
         self.client = client
@@ -105,6 +106,9 @@ class Contexto:
         # dizer "responda como sempre se respondeu" - e e o que acontece
         # quando ela esta desligada ou quebrou.
         self.saber = saber
+        # O material de consulta (src/material.py): o que o escritorio deu
+        # para o PAULUS aprender. `None`: nao ha material, nada muda.
+        self.material = material
         # O que esta maquina ja mediu de si mesma: quanto ela le por segundo,
         # quanto escreve. Sem isso, a tela nao promete tempo nenhum.
         self.ritmo = ritmo

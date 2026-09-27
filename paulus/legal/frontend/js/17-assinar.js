@@ -94,8 +94,8 @@ async function abrirAssinado(feito) {
 
 /* ---------------------------------------------------- escolher o PDF */
 
-/* A lista marca como as outras do sistema: a caixinha, ou segurar a linha,
-   ou Ctrl+clique. Com dois ou mais marcados, "Assinar N documentos" abre o
+/* A lista marca como as outras do sistema: segurar a linha, Ctrl+clique, ou
+   a caixa da barra de cima, que marca todos. Com dois ou mais marcados, "Assinar N documentos" abre o
    lote; um marcado so abre o documento como sempre. */
 function listaDePdfs() {
   const marcados = assina.escolhidos;
@@ -104,8 +104,6 @@ function listaDePdfs() {
     const marcado = marcados.has(p.path);
     const classe = "tabela-linha colunas-pdfs" + (marcado ? " escolhida" : "");
     return '<div class="' + classe + '" data-pdf="' + esc(p.path) + '">' +
-      '<span class="marcar' + (marcado ? " on" : "") + '" data-pdf-marcar="' + esc(p.path) + '" role="checkbox" aria-checked="' + marcado +
-      '" title="Marcar para assinar em lote">' + ic("check", 12) + "</span>" +
       '<span class="nome-doc">' + glifo(p.nome) + '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
       (p.paginas ? plural(p.paginas, "página") + " · " : "") + String(p.mb).replace(".", ",") + " MB</small></span></span>" +
       '<span class="quando-doc">PDF do Acervo</span><span class="acoes-linha"><button data-pdf-abrir="' + esc(p.path) + '">Abrir</button>' +
@@ -114,8 +112,8 @@ function listaDePdfs() {
   const n = marcados.size;
   const barra = n
     ? barraDeSelecao(n, false, '<button class="primario com-icone" id="assina-lote">' + ic("draw", 16) + "Assinar " + plural(n, "documento") + "</button>", "data-pdf-sel-limpar", total)
-    : '<span class="selecao">' + plural(total, "PDF", "PDFs") + " no Acervo</span>" +
-      (total > 1 ? '<button class="limpar" id="assina-marcar-todos">Selecionar todos</button>' : "") +
+    : '<span class="selecao">' + (total > 1 ? '<button type="button" class="marcar" id="assina-marcar-todos" role="checkbox" aria-checked="false" title="Selecionar todos" aria-label="Selecionar todos">' + ic("check", 12) + "</button>" : "") +
+      plural(total, "PDF", "PDFs") + " no Acervo</span>" +
       '<span class="nota-barra">clique em um para assinar · segure para marcar vários</span>';
   /* A caixinha so aparece em modo de selecao (depois de segurar uma linha ou
      Ctrl+clique): sem nada marcado, a linha e so o documento. */
@@ -220,13 +218,18 @@ function ligarListaDePdfs() {
   const topo = $("assina-escolher-topo");
   if (topo) topo.onclick = escolher;
   campo.onchange = async () => {
-    const arquivos = Array.from(campo.files);
+    const envio = await prepararEnvio(Array.from(campo.files));
+    const arquivos = envio.lista;
     if (!arquivos.length) return;
     const forma = new FormData();
     arquivos.forEach((a) => forma.append("arquivos", a));
+    forma.append("autorizados", JSON.stringify(envio.autorizados));
     const r = await fetch("/api/upload", { method: "POST", body: forma });
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
-    abrirEscolhidos(arquivos.map((a) => a.name), "o arquivo subiu, mas não achei o PDF na lista");
+    const res = await r.json();
+    const fora = (res.recusados || []).concat(envio.fora);
+    if (fora.length) avisoCert("Não entrou: " + fora.map((x) => x.nome + " (" + x.motivo + ")").join(", "), { tom: "erro" });
+    abrirEscolhidos(res.salvos || [], "o arquivo subiu, mas não achei o PDF na lista");
   };
 }
 

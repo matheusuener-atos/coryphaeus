@@ -1,0 +1,88 @@
+{
+ "amostras": [
+  {
+   "maquina": {
+    "id": "d42ce2e418a5",
+    "versao": 2,
+    "processador": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "nucleos": 12,
+    "ram_total_gb": 16.9,
+    "avx2": true,
+    "banda_gbs": 42.8,
+    "gflops": 279.1,
+    "na_bateria": true
+   },
+   "gpu": false,
+   "modelo": "llama3.2:3b",
+   "tamanho_gb": 2.02,
+   "parametros_b": 3.2,
+   "quantizacao": "Q4_K_M",
+   "escrita_tps": 11.3,
+   "leitura_tps": 59.7,
+   "quando": "2026-09-27 08:46"
+  },
+  {
+   "maquina": {
+    "id": "d42ce2e418a5",
+    "versao": 2,
+    "processador": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "nucleos": 12,
+    "ram_total_gb": 16.9,
+    "avx2": true,
+    "banda_gbs": 42.8,
+    "gflops": 279.1,
+    "na_bateria": true
+   },
+   "gpu": false,
+   "modelo": "llama3.2:3b-instruct-q8_0",
+   "tamanho_gb": 3.42,
+   "parametros_b": 3.2,
+   "quantizacao": "Q8_0",
+   "escrita_tps": 8.9,
+   "leitura_tps": 33.5,
+   "quando": "2026-09-27 08:48"
+  },
+  {
+   "maquina": {
+    "id": "d42ce2e418a5",
+    "versao": 2,
+    "processador": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "nucleos": 12,
+    "ram_total_gb": 16.9,
+    "avx2": true,
+    "banda_gbs": 42.8,
+    "gflops": 279.1,
+    "na_bateria": true
+   },
+   "gpu": false,
+   "modelo": "alibayram/ministral-3b-instruct:latest",
+   "tamanho_gb": 3.52,
+   "parametros_b": 3.3,
+   "quantizacao": "Q8_0",
+   "escrita_tps": 9.3,
+   "leitura_tps": 33.7,
+   "quando": "2026-09-27 08:50"
+  },
+  {
+   "maquina": {
+    "id": "d42ce2e418a5",
+    "versao": 2,
+    "processador": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "nucleos": 12,
+    "ram_total_gb": 16.9,
+    "avx2": true,
+    "banda_gbs": 49.8,
+    "gflops": 265.3,
+    "na_bateria": false
+   },
+   "gpu": false,
+   "modelo": "llama3.2:1b",
+   "tamanho_gb": 1.32,
+   "parametros_b": 1.2,
+   "quantizacao": "Q8_0",
+   "escrita_tps": 26.0,
+   "leitura_tps": 95.7,
+   "quando": "2026-09-27 09:00"
+  }
+ ]
+}

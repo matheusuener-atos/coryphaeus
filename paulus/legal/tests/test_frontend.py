@@ -443,6 +443,34 @@ def test_sem_internet() -> None:
     checar(not sumidos, f"as {len(arquivos)} fontes citadas existem", ", ".join(sumidos[:3]))
 
 
+def test_icones_na_fonte() -> None:
+    """
+    A fonte de ícones é um recorte: nome fora dele aparece como TEXTO na tela
+    ("upload_file" escrito no botão). Confere cada ic("nome") contra as
+    ligaduras da fonte.
+    """
+    print("\ntodo icone usado esta na fonte")
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        print("  (fontTools ausente: pulei)")
+        return
+    fonte = TTFont(str(RAIZ / "frontend" / "fontes" / "MaterialSymbolsOutlined-icones.woff2"))
+    letra = {g: chr(c) for c, g in fonte.getBestCmap().items()}
+    na_fonte = set()
+    for lookup in fonte["GSUB"].table.LookupList.Lookup:
+        for sub in lookup.SubTable:
+            sub = getattr(sub, "ExtSubTable", sub)
+            for primeiro, ligaduras in getattr(sub, "ligatures", {}).items():
+                for lig in ligaduras:
+                    na_fonte.add(letra.get(primeiro, "") + "".join(letra.get(c, "?") for c in lig.Component))
+    usados = set()
+    for js in (RAIZ / "frontend" / "js").glob("*.js"):
+        usados |= set(re.findall(r'\bic\("([a-z_0-9]+)"', js.read_text(encoding="utf-8")))
+    fora = sorted(usados - na_fonte)
+    checar(not fora, f"os {len(usados)} icones usados existem na fonte ({len(na_fonte)} no recorte)", ", ".join(fora))
+
+
 def main() -> int:
     print("=" * 55)
     print("  PAULUS - integridade da interface")
@@ -464,6 +492,7 @@ def main() -> int:
     test_plural_em_portugues()
     test_rota_fixa_antes_da_com_parametro()
     test_sem_internet()
+    test_icones_na_fonte()
 
     print("\n" + "=" * 55)
     if _falhas:

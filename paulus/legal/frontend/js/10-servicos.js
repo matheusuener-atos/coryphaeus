@@ -357,7 +357,7 @@ function secaoDasEtapas(s) {
       '<button type="button" class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 15) + "</button></div>";
   }).join("");
   const conta = total ? s.progresso + "% · " + s.etapas_feitas + " de " + plural(total, "etapa") : "nenhuma etapa";
-  return '<section class="sv-secao sv-status"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("checklist", 16) + 'Status para conclusão</span>' +
+  return '<section class="sv-secao sv-status"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("task_alt", 16) + 'Status para conclusão</span>' +
     '<span class="sv-secao-meta">' + conta + "</span></div>" + linhas +
     '<form class="sv-nova-etapa" data-sv-nova-etapa="1"><span class="sv-nova-marca">' + ic("add", 16) + "</span>" +
     '<input type="text" placeholder="Nova etapa…" data-sv-etapa-titulo="1" autocomplete="off">' +
@@ -1214,9 +1214,11 @@ function adicionarArquivosAoServico() {
       if (!caminhos.length) return;
       avisoNaJanela("Copiando " + plural(caminhos.length, "arquivo") + " para a pasta do serviço…", { icone: "sync", girar: true, dura: 0 });
       try {
-        const r = await fetch("/api/servicos/" + s.id + "/anexar", { method: "POST", headers: SV_JSON, body: JSON.stringify({ caminhos: caminhos }) });
-        if (!r.ok) throw new Error(await erroDe(r));
-        const res = await r.json();
+        const res = await enviarComConfirmacao(caminhos, async (quais, autorizados) => {
+          const r = await fetch("/api/servicos/" + s.id + "/anexar", { method: "POST", headers: SV_JSON, body: JSON.stringify({ caminhos: quais, autorizados: autorizados }) });
+          if (!r.ok) throw new Error(await erroDe(r));
+          return r.json();
+        }, "ligados");
         const n = (res.ligados || []).length;
         let texto = n ? plural(n, "documento") + (n === 1 ? " adicionado à pasta" : " adicionados à pasta") : "Nenhum documento foi adicionado.";
         if ((res.recusados || []).length) texto += " Não consegui: " + res.recusados.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".";

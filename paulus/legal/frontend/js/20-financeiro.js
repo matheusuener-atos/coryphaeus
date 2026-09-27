@@ -472,7 +472,27 @@ function linhaDeLancamento(l) {
     '<span class="fin-cat">' + esc(l.categoria_rotulo) + "</span>" +
     '<span class="' + classeValor + '">' + (l.tipo === "recebimento" ? "+ " : "− ") + esc(semReais(l.valor)) + "</span>" +
     '<span class="' + classeStatus + '"><i></i>' + esc(status.texto) + "</span>" +
-    '<span class="fin-acoes">' + acoes + "</span></div>";
+    '<span class="fin-acoes">' + acoes +
+    '<button class="mais-linha" data-fin-mais="' + l.id + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></span></div>";
+}
+
+/* O "…" do lançamento: o que os botões da linha e o pop-up já fazem, num
+   lugar só - e é o mesmo menu do botão direito na linha. */
+function menuDoLancamento(botao, id) {
+  const l = fin.todos.find((x) => x.id === id);
+  if (!l) return;
+  const itens = [
+    { rotulo: "Abrir", icone: "open_in_new", acao: () => finVerLancamento(id) },
+    { rotulo: "Editar", icone: "edit", acao: () => editarLancamento(id, false) },
+  ];
+  if (l.aberto) {
+    itens.push({ rotulo: l.tipo === "recebimento" ? "Registrar recebimento" : "Registrar pagamento", icone: "done", acao: () => liquidarLancamento(id) });
+    if (l.tipo === "recebimento") itens.push({ rotulo: "Cobrar por e-mail", icone: "mail", acao: () => prepararCobranca(id) });
+  } else {
+    itens.push({ rotulo: "Reabrir", icone: "undo", acao: () => reabrirLancamento(id) });
+  }
+  itens.push("-", { rotulo: "Apagar", icone: "delete", perigo: true, acao: () => apagarLancamentosEmLote([String(id)]) });
+  menuNaLinha(botao, itens);
 }
 
 function statusDoLancamento(l) {
@@ -589,7 +609,7 @@ function finSugestoesSecao() {
   const direita = sugestoes.length
     ? '<button class="sv-ligacao" data-fin-criar-tarefas="1">' + ic("add_task", 15) + "Criar tarefas para hoje</button>"
     : "";
-  return finSecao("fin-sugestoes-secao", ic("checklist", 16) + "Sugestões", sugestoes.length ? "saem de regra, não de opinião" : "", direita,
+  return finSecao("fin-sugestoes-secao", ic("task_alt", 16) + "Sugestões", sugestoes.length ? "saem de regra, não de opinião" : "", direita,
     sugestoes.length
       ? '<div class="fin-sugestoes">' + sugestoes.map((s) => '<div class="fin-sugestao"><i></i><span>' + esc(s.texto) + "</span></div>").join("") + "</div>"
       : '<p class="rel-vazio">Nada a sugerir: nenhuma cobrança atrasada, nenhuma conta vencendo nesta semana e nenhum papel faltando.</p>');
@@ -656,18 +676,10 @@ async function enviarRelatorioPorEmail() {
   telaEscrever({ para: "", assunto: "Relatório financeiro — " + p.mes_rotulo, corpo: corpo });
 }
 
+/* Por link, como o Exportar: o <form> POST de antes mandava o dia como
+   formulario, e a rota espera JSON - a tela virava o erro de validacao. */
 function baixarRelatorio() {
-  const forma = document.createElement("form");
-  forma.method = "POST";
-  forma.action = "/api/relatorios/pdf";
-  const quando = document.createElement("input");
-  quando.type = "hidden";
-  quando.name = "quando";
-  quando.value = quandoDoRelatorio();
-  forma.appendChild(quando);
-  document.body.appendChild(forma);
-  forma.submit();
-  forma.remove();
+  window.location.href = "/api/relatorios/pdf?quando=" + encodeURIComponent(quandoDoRelatorio());
 }
 
 /* ------------------------------------------------------------ as acoes */
@@ -725,6 +737,7 @@ function ligarFinanceiro(raiz) {
       fin.dados.opcoes_categoria.map((c) => ({ rotulo: c.rotulo, acao: () => { fin.categoria = c.valor; desenharFinanceiro(); } }))));
   });
   clique("[data-fin-abrir]", (b) => finVerLancamento(Number(b.dataset.finAbrir)));
+  clique("[data-fin-mais]", (b) => menuDoLancamento(b, Number(b.dataset.finMais)));
   clique("[data-fin-sel-limpar]", () => { fin.escolhidos.clear(); desenharFinanceiro(); });
   clique("[data-fin-sel-apagar]", () => apagarLancamentosEmLote([...fin.escolhidos]));
   clique("[data-fin-cobrar]", (b) => prepararCobranca(Number(b.dataset.finCobrar)));

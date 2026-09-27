@@ -81,6 +81,10 @@
      para o dialogo, o cabecalho do e-mail (.ex-meta) e a tabela das boas-vindas
      (.bv-tabela, que usa span em vez de dt). Cada uma guarda so os extras. */
   .dialogo-ficha, .ex-meta, .bv-tabela { margin: 0; display: grid; }
+  /* Os arquivos acima de 50 MB na pergunta (js/37-arquivo-grande.js). */
+  .grande-lista { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; max-height: 180px; overflow-y: auto; }
+  .grande-lista li { display: flex; gap: 12px; justify-content: space-between; font: 500 13px var(--sans); }
+  .grande-lista small { color: var(--ink3); font-variant-numeric: tabular-nums; flex: none; }
   :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
   :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div:first-child { padding-top: 0; }
   :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div:last-child { border-bottom: none; }

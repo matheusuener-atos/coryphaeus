@@ -173,6 +173,12 @@ POSITIVOS = [
     ("tenho reunião com o autor do processo?", "consulta", "calendario"),
     ("quais tarefas eu tenho para o processo da Maria?", "consulta", "tarefas"),
     ("tem aprovação pendente para o contrato da Cooperativa?", "consulta", "aprovacoes"),
+    # consultas que o banco de provas pediu (27/09/2026)
+    ("o que tenho para hoje?", "consulta", "calendario"),
+    ("tem algum cliente com pagamento atrasado?", "consulta", "financeiro"),
+    ("quem está devendo?", "consulta", "financeiro"),
+    ("quais serviços estão em andamento?", "consulta", "servicos"),
+    ("quando vence o meu certificado digital?", "consulta", "certificado"),
 ]
 
 NEGATIVOS = [
@@ -196,12 +202,16 @@ class _Dados:
         def listar(self, *a, **k):
             return []
 
-    agenda = tarefas = _Lista()
+    agenda = tarefas = servicos = _Lista()
 
     class financeiro:  # noqa: N801
         @staticmethod
         def painel(mes=""):
             return {"tem_dado": False}
+
+        @staticmethod
+        def listar(**k):
+            return []
 
     class fila:  # noqa: N801
         pendentes: list = []
@@ -210,6 +220,9 @@ class _Dados:
         @staticmethod
         def contagem():
             return {}
+
+    class cofre:  # noqa: N801
+        instalado = False
 
 
 class _Espiao:

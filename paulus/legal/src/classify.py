@@ -20,7 +20,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from extract import Document, extract_file, file_sha1
+from extract import Document, extract_file, file_sha1, motivo_sem_texto
 from llama_client import LlamaClient, OllamaError
 
 # --------------------------------------------------------------------------
@@ -507,7 +507,7 @@ def classificar_acervo(
                     arquivo=str(alvo),
                     nome=alvo.name,
                     sha1=sha,
-                    erro="sem texto extraivel (PDF escaneado?)",
+                    erro="sem texto: " + motivo_sem_texto(alvo),
                 )
             )
             if progresso:

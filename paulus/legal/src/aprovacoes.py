@@ -36,6 +36,7 @@ CATEGORIAS = {
     "assinatura": "Assinatura",
     "permissao": "Permissão",
     "financeiro": "Financeiro",
+    "google": "Google",
 }
 
 
