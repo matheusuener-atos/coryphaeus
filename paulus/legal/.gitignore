@@ -92,3 +92,6 @@ data/calibracao_servidor.json
 
 # A janela aberta desta pasta de dados (src/desktop.py): porta e processo.
 data/instancia.json
+
+# A ultima copia do historico publico (Desenvolvimento aberto) e do mural.
+data/publico/

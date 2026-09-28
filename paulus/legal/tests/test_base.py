@@ -95,7 +95,7 @@ def test_cadastros() -> None:
         i = c.salvar({
             "nome": "  Cooperativa Brasileira de Mineradores  ",
             "tipo": "cliente",
-            "documento": "00.000.000/0001-00",
+            "documento": "00.000.000/0001-91",
             "dia_vencimento": "12",
         })
         checar(c.obter(i)["nome"] == "Cooperativa Brasileira de Mineradores", "nome vem limpo de espaco")
@@ -108,7 +108,7 @@ def test_cadastros() -> None:
         checar(len(c.listar(termo="cooperativa")) == 1, "acha por nome")
         checar(len(c.listar(tipo="despesa")) == 1, "filtra por tipo")
 
-        c.salvar({"nome": "Cooperativa Brasileira de Mineradores", "documento": "00.000.000/0001-00",
+        c.salvar({"nome": "Cooperativa Brasileira de Mineradores", "documento": "00.000.000/0001-91",
                   "telefone": "(62) 90000-0000"}, id_=i)
         checar(c.obter(i)["telefone"] == "(62) 90000-0000", "editar nao cria ficha nova")
         checar(c.contagem()["cliente"] == 1, "continua sendo um cliente so")

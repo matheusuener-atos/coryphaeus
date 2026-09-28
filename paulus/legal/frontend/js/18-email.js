@@ -20,6 +20,31 @@ const mail = {
   modelo: null, pedindo: "", sugestao: null,
 };
 
+/* A MARCA DA CONTA QUE ENVIA. O botao "Enviar por e-mail" de qualquer tela
+   leva a marca de quem vai mandar: Gmail para a conta que entrou com o
+   Google (ou de gmail.com), Outlook para a da Microsoft, e o envelope de
+   sempre para outro provedor. A conta que envia e a primeira da lista. A
+   lista e lida uma vez, em segundo plano; ate chegar, vale o envelope. */
+let marcaEmailLendo = false;
+
+function marcaDoEmail(px) {
+  const t = px || 16;
+  const contas = mail.contas && mail.contas.contas;
+  if (!contas) {
+    if (!marcaEmailLendo) {
+      marcaEmailLendo = true;
+      fetch("/api/email/contas").then((r) => r.json()).then((d) => { if (!mail.contas) mail.contas = d; }).catch(() => {});
+    }
+    return ic("mail", t);
+  }
+  const c = contas[0];
+  if (!c) return ic("mail", t);
+  const dominio = String(c.dominio || "").toLowerCase();
+  if (c.autenticacao === "google" || /^(gmail|googlemail)\.com$/.test(dominio)) return marca("gmail", t);
+  if (c.autenticacao === "microsoft" || /^(outlook|hotmail|live|msn)\./.test(dominio)) return marca("outlook", t);
+  return ic("mail", t);
+}
+
 /* ------------------------------------------------------- entradas */
 
 async function mostrarEmail(visao) {
@@ -659,7 +684,9 @@ function atalhoDoEmail(qual) {
   const corpo = $("nm-corpo");
   if (qual === "telefone") {
     fetch("/api/preferencias").then((r) => r.json()).then((d) => {
-      const tel = ((d.preferencias || {}).pessoa || {}).telefone;
+      // Com a mascara, se fecha (js/39-campos.js): o e-mail sai com o
+      // telefone escrito como se le, mesmo que tenha sido gravado corrido.
+      const tel = exibirCampo("telefone", ((d.preferencias || {}).pessoa || {}).telefone);
       if (!tel) { avisoCert("seu telefone não está em Configurações — preencha lá primeiro"); return; }
       corpo.value = corpo.value.replace(/\s+$/, "") + "\n\nTelefone: " + tel;
       corpo.dispatchEvent(new Event("input"));

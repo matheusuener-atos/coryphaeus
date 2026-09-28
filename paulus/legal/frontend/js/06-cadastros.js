@@ -124,7 +124,7 @@ function cabecalhoCadastros() {
   else if (cad.visao === "despesas") novo = ic("add", 16) + "Nova despesa";
   else novo = ic("person_add", 16) + "Novo cliente";
   $("acoes-tela").innerHTML =
-    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="cad-busca" placeholder="Buscar nome, CPF/CNPJ ou e-mail…" value="' + esc(cad.termo) + '"></label>' +
+    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="cad-busca" placeholder="Buscar nome, CPF/CNPJ, telefone ou e-mail…" value="' + esc(cad.termo) + '"></label>' +
     '<div class="visoes">' + botao("clientes", "Clientes") + botao("equipe", "Equipe") + botao("despesas", "Despesas fixas") + "</div>" +
     '<button class="primario com-icone" data-cad-nova="1">' + novo + "</button>";
   $("nav-tela").innerHTML = "";
@@ -144,9 +144,14 @@ function visaoDoTipo(tipo) {
   return "clientes";
 }
 
-function digitosDoDocumento(f) { return String(f.documento || "").replace(/\D/g, ""); }
-function pessoaFisica(f) { const n = digitosDoDocumento(f).length; return n > 0 && n <= 11; }
-function pessoaJuridica(f) { return digitosDoDocumento(f).length === 14; }
+/* O documento sem mascara: numeros e, no CNPJ alfanumerico da Receita,
+   letras (js/39-campos.js). CNPJ com letra e pessoa juridica. */
+function digitosDoDocumento(f) { return limparDocumento(f.documento); }
+function pessoaJuridica(f) { const c = digitosDoDocumento(f); return c.length === 14 || /[A-Z]/.test(c); }
+function pessoaFisica(f) { const n = digitosDoDocumento(f).length; return n > 0 && n <= 11 && !pessoaJuridica(f); }
+/* CPF/CNPJ e telefone como se leem: com a mascara, se fecham. */
+function documentoLegivel(doc) { return exibirCampo("cpf-cnpj", doc); }
+function telefoneLegivel(tel) { return exibirCampo("telefone", tel); }
 function lancamentosDe(f) { return cad.lancamentos.filter((l) => l.cadastro_id === f.id); }
 function prazosDe(f) { return cad.tarefas.filter((t) => t.cadastro_id === f.id && !t.concluida); }
 function folhaDe(f) { return f.vinculo ? (f.salario_centavos || 0) + (f.encargos_centavos || 0) : 0; }
@@ -157,9 +162,9 @@ function rotuloDoVinculo(v) {
 }
 
 function rotuloDoDocumento(doc) {
-  const n = String(doc || "").replace(/\D/g, "").length;
-  if (n === 14) return "CNPJ";
-  if (n === 11) return "CPF";
+  const c = limparDocumento(doc);
+  if (c.length === 14 || (c.length > 11 && /[A-Z]/.test(c))) return "CNPJ";
+  if (c.length === 11 && !/[A-Z]/.test(c)) return "CPF";
   return "Documento";
 }
 
@@ -197,7 +202,7 @@ function corpoDaSugestao() {
   const x = lista[cad.sugIndice];
   const n = lista.length;
   const faltam = cad.levantamento.faltam || 0;
-  const doc = x.documento ? rotuloDoDocumento(x.documento) + " " + x.documento : "sem CPF/CNPJ no documento";
+  const doc = x.documento ? rotuloDoDocumento(x.documento) + " " + documentoLegivel(x.documento) : "sem CPF/CNPJ no documento";
   const arquivos = (x.arquivos || []).slice(0, 2).map((a) => a.nome);
   const resto = Math.max(0, (x.aparicoes || 0) - arquivos.length);
   const prova = arquivos.length
@@ -374,11 +379,11 @@ function corpoDosClientes() {
 function linhaDeCliente(f) {
   const classe = "tabela-linha colunas-clientes" + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const n = digitosDoDocumento(f).length;
-  const tipoDoc = n === 14 ? "CNPJ " : (n ? "CPF " : "");
-  const sub = [f.atraso_dias ? "Atrasado " + plural(f.atraso_dias, "dia") : "", f.documento ? tipoDoc + f.documento : "", pessoaFisica(f) ? "pessoa física" : ""]
+  const tipoDoc = pessoaJuridica(f) ? "CNPJ " : (n ? "CPF " : "");
+  const sub = [f.atraso_dias ? "Atrasado " + plural(f.atraso_dias, "dia") : "", f.documento ? tipoDoc + documentoLegivel(f.documento) : "", pessoaFisica(f) ? "pessoa física" : ""]
     .filter(Boolean).join(" · ") || "sem documento";
   const classeSub = f.atraso_dias ? "cad-atrasado" : "";
-  const contato = [f.telefone, f.email].filter(Boolean).join(" · ") || "—";
+  const contato = [telefoneLegivel(f.telefone), f.email].filter(Boolean).join(" · ") || "—";
   const docs = (f.documentos || []).length;
   const prazos = prazosDe(f).length;
   const ligado = [docs ? plural(docs, "doc") : "", f.aberto_quantos ? plural(f.aberto_quantos, "cobrança") : "", prazos ? plural(prazos, "prazo") : ""].filter(Boolean);
@@ -416,7 +421,7 @@ function linhaDaEquipe(f) {
   const classe = "tabela-linha colunas-equipe" + (cad.escolhidas.has(String(f.id)) ? " escolhida" : "");
   const socio = f.tipo === "socio";
   const classePapel = "etiqueta" + (socio ? " forte" : "");
-  const sub = [f.observacao, rotuloDoVinculo(f.vinculo) === "não entra na folha" ? "" : rotuloDoVinculo(f.vinculo)].filter(Boolean).join(" · ") || (f.documento ? "CPF " + f.documento : "sem função anotada");
+  const sub = [f.observacao, rotuloDoVinculo(f.vinculo) === "não entra na folha" ? "" : rotuloDoVinculo(f.vinculo)].filter(Boolean).join(" · ") || (f.documento ? "CPF " + documentoLegivel(f.documento) : "sem função anotada");
   const folha = folhaDe(f);
   const classeValor = "fin-valor fin-valor-col" + (folha ? "" : " cad-zero");
   return '<div class="' + classe + '" data-cad-abrir="' + f.id + '" data-sel="' + f.id + '">' +
@@ -476,7 +481,7 @@ function linhaDaDespesa(f) {
 }
 
 function rotuloDoFornecedor(f) {
-  return f.documento || f.email || f.telefone || "";
+  return documentoLegivel(f.documento) || f.email || telefoneLegivel(f.telefone) || "";
 }
 
 /* ------------------------------------------- a ficha, em pop-up de ver */
@@ -534,9 +539,9 @@ function partesDaFicha(f) {
       contexto: "Cadastros › Equipe · " + (f.tipo === "socio" ? "sócio" : "colaborador") + " desde " + quandoDaFicha(f.criado_em),
       corpo: fichaDoDialogo([
         ["Função", f.observacao],
-        ["CPF", f.documento],
+        ["CPF", documentoLegivel(f.documento)],
         ["E-mail", f.email],
-        ["Telefone", f.telefone],
+        ["Telefone", telefoneLegivel(f.telefone)],
         ["Na folha", folha ? rotuloDoVinculo(f.vinculo) + " · " + emReais(folha) : "não entra"],
       ]) +
         '<div class="dialogo-acoes">' + botao("data-cad-email", "mail", "Novo e-mail") + "</div>" +
@@ -547,8 +552,8 @@ function partesDaFicha(f) {
   return {
     contexto: "Cadastros › Cliente desde " + quandoDaFicha(f.criado_em) + " · " + tipoPessoa,
     corpo: fichaDoDialogo([
-      [rotuloDoDocumento(f.documento), f.documento],
-      ["Telefone", f.telefone],
+      [rotuloDoDocumento(f.documento), documentoLegivel(f.documento)],
+      ["Telefone", telefoneLegivel(f.telefone)],
       ["E-mail", f.email],
       ["Endereço", f.endereco],
       ["Honorário", [f.honorario, f.dia_vencimento ? "vence dia " + f.dia_vencimento : ""].filter(Boolean).join(" · ")],
@@ -765,6 +770,10 @@ function ligarFormCad(dlg) {
   const v = cad.form;
   dlg.querySelectorAll(".dialogo-caixa select").forEach(melhorarSelect);
   dlg.querySelectorAll("[data-cc]").forEach((el) => {
+    // CPF/CNPJ e telefone ja aparecem com a mascara (campoCad); a ficha
+    // passa a guardar o que o campo mostra, e salvar sem mexer grava
+    // formatado o que veio corrido.
+    if (el.dataset.campo) v[el.dataset.cc] = el.value;
     el.oninput = () => { v[el.dataset.cc] = el.value; };
     el.onchange = () => {
       v[el.dataset.cc] = el.value;

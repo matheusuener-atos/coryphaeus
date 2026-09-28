@@ -33,6 +33,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
+import campos_br
+
 # "1ª CLAUSULA –", "2ª CLÁUSULA -", "6ª CLAUSULA  –": o numero vem antes.
 RE_NUMERO_ANTES = re.compile(
     r"(?P<numero>\d{1,3})(?P<ordinal>[ªaº°]?)(?P<entre>\s+)"
@@ -301,7 +303,9 @@ def qualificar(ficha: dict) -> str:
     errado é outra bem diferente.
     """
     nome = str(ficha.get("nome", "")).strip() or "[NOME]"
-    documento = str(ficha.get("documento", "")).strip()
+    # Com a mascara: a ficha antiga pode ter o numero corrido, e o contrato
+    # sai com o CPF/CNPJ escrito como se escreve.
+    documento = campos_br.exibir_documento(ficha.get("documento", ""))
     endereco = str(ficha.get("endereco", "")).strip()
     email = str(ficha.get("email", "")).strip()
 
@@ -328,7 +332,8 @@ def qualificar(ficha: dict) -> str:
 
 
 def _e_cnpj(documento: str) -> bool:
-    return len(re.sub(r"\D", "", documento or "")) == 14
+    """14 numeros, ou o CNPJ alfanumerico da Receita que fecha."""
+    return campos_br.e_cnpj(documento)
 
 
 def o_que_falta(ficha: dict) -> list[str]:

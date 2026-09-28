@@ -92,10 +92,15 @@ async function mostrarConfig(secao) {
 
 function rascunhoDe(pr, modelo) {
   const e = pr.escritorio || {};
+  // CPF, telefone e CNPJ entram no rascunho como o campo os mostra (com a
+  // mascara, js/39-campos.js): salvar sem mexer grava o que se ve.
+  const pessoa = Object.assign({}, pr.pessoa || {});
+  pessoa.cpf = formatarCpf(pessoa.cpf || "");
+  pessoa.telefone = formatarTelefone(pessoa.telefone || "");
   return {
-    pessoa: Object.assign({}, pr.pessoa || {}),
+    pessoa: pessoa,
     autonomia: Object.assign({}, pr.autonomia || {}),
-    escritorio: { nome: e.nome || "", cnpj: e.cnpj || "", oab: e.oab || "", rodape: e.rodape || "" },
+    escritorio: { nome: e.nome || "", cnpj: formatarCnpj(e.cnpj || ""), oab: e.oab || "", rodape: e.rodape || "" },
     modelo: modelo || pr.modelo || "",
     timbre_no_pdf: Boolean(pr.timbre_no_pdf),
     devagar: Boolean(pr.devagar),
@@ -735,7 +740,10 @@ function saidasDaMaquina() {
   (((cfg.cx || {}).envios) || []).forEach((e) => {
     const t = new Date(String(e.quando || "").replace(" ", "T"));
     if (isNaN(t) || t.getTime() < limite) return;
-    saida.push({ t: t, quando: quandoCurtoCfg(t), titulo: "WhatsApp · " + (e.nome || e.para || "conversa"), sub: "preparado aqui · enviar foi com você" });
+    // O registro guarda o numero como o WhatsApp quer (5562999998888); aqui
+    // ele volta a ser lido como telefone.
+    const numero = e.para ? formatarTelefone("+" + e.para) : "";
+    saida.push({ t: t, quando: quandoCurtoCfg(t), titulo: "WhatsApp · " + (e.nome || numero || "conversa"), sub: "preparado aqui · enviar foi com você" });
   });
   return saida.sort((a, b) => b.t - a.t).slice(0, 12);
 }
@@ -789,9 +797,14 @@ async function formMensagemWhatsapp() {
     rodape: '<span class="dialogo-aviso" id="cx-aviso"></span>',
     cancelar: "Cancelar", confirmar: "Preparar no WhatsApp",
     aoConfirmar: async () => {
+      // O telefone confere antes de sair (js/39-campos.js): numero torto
+      // abriria uma conversa em branco no WhatsApp.
+      const errado = camposInvalidos($("cx-telefone").closest(".dialogo-form"));
+      if (errado) { $("cx-aviso").textContent = "confira o telefone: DDD e número"; errado.focus(); return; }
+      const escolhido = $("cx-contato").selectedOptions[0];
       const r = await fetch("/api/conexoes/mensagem", {
         method: "POST", headers: CFG_JSON,
-        body: JSON.stringify({ telefone: $("cx-telefone").value, nome: ($("cx-contato").selectedOptions[0] || {}).textContent || "", texto: $("cx-texto").value, anexo: anexo }),
+        body: JSON.stringify({ telefone: $("cx-telefone").value, nome: (escolhido && escolhido.dataset.nome) || "", texto: $("cx-texto").value, anexo: anexo }),
       });
       if (!r.ok) { $("cx-aviso").textContent = await erroDe(r); return; }
       const d = await r.json();
@@ -817,11 +830,18 @@ async function formMensagemWhatsapp() {
     if (!document.contains(contato)) return;
     c.contatos.forEach((x) => {
       const op = document.createElement("option");
-      op.value = x.telefone;
-      op.textContent = x.nome + " · " + x.telefone;
+      const numero = exibirCampo("telefone", x.telefone);
+      op.value = numero;
+      op.dataset.nome = x.nome;
+      op.textContent = x.nome + " · " + numero;
       contato.appendChild(op);
     });
-    contato.onchange = () => { $("cx-telefone").value = contato.value; };
+    contato.onchange = () => {
+      const campoTel = $("cx-telefone");
+      campoTel.value = contato.value;
+      // Tira o aviso de um numero anterior, se este fecha.
+      if (campoTel.classList.contains("campo-invalido")) mostrarProblemaDoCampo(campoTel);
+    };
   } catch (err) { /* sem cadastro com telefone, o campo fica manual */ }
 }
 
@@ -1045,7 +1065,7 @@ function secaoFeedback() {
     ligaCfg("feedback.contato", "Posso ser contatado sobre este feedback", p.email || "sem e-mail em Meus dados", f.contato) + "</div>" +
     '<div class="cfg-botoes cfg-botoes-fim"><button data-cfg-fb-guardar="1">' + ic("save", 16) + "Guardar rascunho</button>" +
     '<button class="com-icone" data-cfg-fb-copiar="1">' + ic("content_copy", 16) + "Copiar</button>" +
-    '<button class="primario com-icone" data-cfg-fb-enviar="1">' + ic("mail", 16) + "Escrever e-mail</button></div>";
+    '<button class="primario com-icone" data-cfg-fb-enviar="1">' + marcaDoEmail(16) + "Escrever e-mail</button></div>";
   return aberturaCfg() + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
 }
 

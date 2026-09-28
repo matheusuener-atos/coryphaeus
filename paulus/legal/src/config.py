@@ -18,6 +18,21 @@ import threading
 from copy import deepcopy
 from pathlib import Path
 
+import campos_br
+
+# Os campos de documento e telefone das preferencias, com o tipo de cada um
+# (o mesmo data-campo da tela) e o nome que vai no aviso.
+_CAMPOS_CONFERIDOS = (
+    ("pessoa", "cpf", "cpf"),
+    ("pessoa", "telefone", "telefone"),
+    ("escritorio", "cnpj", "cnpj"),
+)
+_NOME_DO_CAMPO = {
+    ("pessoa", "cpf"): "seu CPF",
+    ("pessoa", "telefone"): "seu telefone",
+    ("escritorio", "cnpj"): "CNPJ do escritório",
+}
+
 # Cada permissao diz o que passa a acontecer sem parar na fila. O padrao e
 # sempre o mais cauteloso: nada com efeito externo sai sozinho.
 AUTONOMIA = [
@@ -167,6 +182,7 @@ class Preferencias:
             return
         if isinstance(bruto, dict):
             self._fundir(self.dados, bruto)
+        self._formatar_gravados()
         # Permissao travada nunca vem do arquivo: alguem editando o JSON na mao
         # nao deve conseguir ligar o que o produto nao oferece.
         for a in AUTONOMIA:
@@ -196,7 +212,38 @@ class Preferencias:
         """Se isto acontece direto ou vai para a fila."""
         return bool(self.dados["autonomia"].get(chave, False))
 
+    def _conferir_campos(self, novo: dict) -> dict:
+        """
+        CPF, telefone e CNPJ entram com a mascara, pela regra da tela
+        (src/campos_br.py). O que nao fecha e recusado com o aviso do campo -
+        a nao ser que seja o mesmo valor que ja estava gravado: um dado antigo
+        torto nao pode travar quem so quis ligar uma chave.
+        """
+        novo = dict(novo)
+        for secao, chave, tipo in _CAMPOS_CONFERIDOS:
+            parte = novo.get(secao)
+            if not isinstance(parte, dict) or chave not in parte:
+                continue
+            valor = str(parte.get(chave) or "")
+            antes = str((self.dados.get(secao) or {}).get(chave) or "")
+            try:
+                formatado = campos_br.formatar(tipo, valor)
+            except ValueError as exc:
+                if campos_br.normalizado(valor) != campos_br.normalizado(antes):
+                    raise ValueError(f"{exc} ({_NOME_DO_CAMPO[(secao, chave)]})") from exc
+                formatado = antes
+            novo[secao] = {**parte, chave: formatado}
+        return novo
+
+    def _formatar_gravados(self) -> None:
+        """O que foi gravado sem mascara passa a te-la, se fecha."""
+        for secao, chave, tipo in _CAMPOS_CONFERIDOS:
+            parte = self.dados.get(secao)
+            if isinstance(parte, dict):
+                parte[chave] = campos_br.exibir(tipo, parte.get(chave))
+
     def atualizar(self, novo: dict) -> dict:
+        novo = self._conferir_campos(novo or {})
         with self._trava:
             self._fundir(self.dados, novo)
             for a in AUTONOMIA:

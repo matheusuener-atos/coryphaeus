@@ -428,8 +428,12 @@ _MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
           "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
 
 
+def nome_do_recibo(nome: str, mes: str) -> str:
+    return f"recibo-{_arquivavel(nome)}-{mes}.pdf"
+
+
 def gerar_recibos(da_folha: dict, destino: Path | str, mes_rotulo: str,
-                  escritorio_nome: str = "") -> list[dict]:
+                  escritorio_nome: str = "", arquivos: dict | None = None) -> list[dict]:
     """
     Um recibo em PDF por pessoa da folha.
 
@@ -440,6 +444,9 @@ def gerar_recibos(da_folha: dict, destino: Path | str, mes_rotulo: str,
     O recibo sai sem assinatura: assinar é da tela de assinar, com o
     certificado, e fingir aqui uma assinatura que não existe seria produzir um
     documento que parece valer e não vale.
+
+    `arquivos` (nome da pessoa -> caminho) é o nome já decidido por quem
+    chama, quando o recibo daquele mês já existia (src/nomes.py).
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
@@ -457,7 +464,7 @@ def gerar_recibos(da_folha: dict, destino: Path | str, mes_rotulo: str,
 
     feitos: list[dict] = []
     for pessoa in da_folha["pessoas"]:
-        arquivo = pasta / f"recibo-{_arquivavel(pessoa['nome'])}-{da_folha['mes']}.pdf"
+        arquivo = (arquivos or {}).get(pessoa["nome"]) or pasta / nome_do_recibo(pessoa["nome"], da_folha["mes"])
         doc = SimpleDocTemplate(
             str(arquivo), pagesize=A4,
             leftMargin=3 * cm, rightMargin=2 * cm, topMargin=3 * cm, bottomMargin=2 * cm,

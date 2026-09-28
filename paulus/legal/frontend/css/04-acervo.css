@@ -63,9 +63,10 @@
     flex: 1; min-width: 0; max-width: 100%; height: 100%; padding: 0; border: none; border-radius: 0;
     background: none; box-shadow: none; outline: none; font: 400 13px var(--sans); color: var(--ink);
   }
-  .visoes { display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 8px; }
+  /* position relative: a pilula que desliza entre as visoes (30-movimento.css) anda por baixo dos botoes. */
+  .visoes { position: relative; display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 8px; }
   .visoes button {
-    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: none; border-radius: 6px; background: transparent; box-shadow: none;
+    position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: none; border-radius: 6px; background: transparent; box-shadow: none;
     font: 500 13px var(--sans); color: var(--ink2);
   }
   .visoes button:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }

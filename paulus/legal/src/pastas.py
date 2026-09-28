@@ -27,7 +27,7 @@ OCULTAS = {
 class Entrada:
     nome: str
     caminho: str
-    tipo: str = "pasta"     # "pasta" | "unidade"
+    tipo: str = "pasta"     # "pasta" | "unidade" | "drive"
     # Se ha subpasta para abrir. A arvore do seletor so mostra a seta onde
     # ha o que abrir; entrar numa pasta sem nada dentro era um beco.
     tem_subpastas: bool = True
@@ -86,7 +86,25 @@ def atalhos() -> list[Entrada]:
             continue
         vistos.add(chave)
         saida.append(Entrada(nome=rotulo, caminho=str(caminho)))
+    # O Google Drive para computador: o Drive inteiro vira uma pasta, sem
+    # permissao nenhuma do Google (o escopo do app so ve o que ele criou).
+    for caminho in pastas_do_drive():
+        if caminho.lower() not in vistos:
+            vistos.add(caminho.lower())
+            saida.append(Entrada(nome="Google Drive", caminho=caminho, tipo="drive"))
     return saida
+
+
+def pastas_do_drive() -> list[str]:
+    """As pastas do Google Drive para computador nesta maquina (pode ser nenhuma).
+    PAULUS_DRIVE troca a busca por uma pasta dada - so para os testes."""
+    if os.environ.get("PAULUS_DRIVE"):
+        return [os.environ["PAULUS_DRIVE"]]
+    try:
+        from google_servicos import pastas_do_drive_no_computador
+        return pastas_do_drive_no_computador()
+    except Exception:  # noqa: BLE001 - sem o Drive, os atalhos de sempre
+        return []
 
 
 def _interessa(nome: str) -> bool:

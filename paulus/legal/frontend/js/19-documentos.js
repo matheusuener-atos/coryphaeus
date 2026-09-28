@@ -611,7 +611,7 @@ async function fecharDocumento(id) {
   if (!aba) return;
   if (id === escr.atual) {
     if ($("ed-folha") && escr.doc) await gravarDocumento();
-    if (escr.visao === "previa" && escr.guardarAoSair && aba.tipo === "texto") await guardarNaBiblioteca(id);
+    if (escr.visao === "previa" && escr.guardarAoSair && aba.tipo === "texto") await guardarNaBiblioteca(id, "", true);
   }
   fecharAba(id);
   mostrarDocumentos();
@@ -1796,7 +1796,7 @@ function painelDaPrevia() {
     '<div class="painel-acoes"><button class="primario" id="pv-pdf">' + ic("picture_as_pdf", 16) + "Baixar PDF</button>" +
     '<button id="pv-docx">' + ic("description", 16) + "Baixar DOCX</button>" +
     '<button id="pv-assinar-2">' + ic("draw", 16) + "Assinar</button>" +
-    '<button id="pv-email">' + ic("mail", 16) + "Enviar por e-mail</button>" +
+    '<button id="pv-email">' + marcaDoEmail(16) + "Enviar por e-mail</button>" +
     '<button class="adiante" data-pv-adiante="WhatsApp">' + ic("chat", 16) + "WhatsApp</button>" +
     '<button id="pv-imprimir">' + ic("print", 16) + "Imprimir</button></div>" +
     '<div class="docs-toggles"><div class="' + classeGuardar + '" data-pv-guardar="1"><span>Guardar no Acervo ao sair</span><i></i></div>' +
@@ -1967,11 +1967,15 @@ async function assinarDocumentoAberto() {
   mostrarAssinar(alvo);
 }
 
-async function guardarNaBiblioteca(id, senha) {
-  const r = await fetch("/api/documentos/" + id + "/biblioteca", {
+/* `automatico` e o guardar ao sair da pre-visualizacao: sem pergunta. O que
+   a pessoa pede pergunta quando ha outro arquivo com o mesmo nome no Acervo. */
+async function guardarNaBiblioteca(id, senha, automatico) {
+  const pedir = (decisoes) => fetch("/api/documentos/" + id + "/biblioteca", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(senha ? { senha: senha } : {}),
+    body: JSON.stringify(Object.assign(senha ? { senha: senha } : {}, automatico ? { automatico: true } : { decisoes: decisoes })),
   });
+  const r = automatico ? await pedir({}) : await comNomesDecididos(pedir);
+  if (!r) return "";
   if (!r.ok) { avisoCert(await erroDe(r)); return ""; }
   const d = await r.json();
   estado.contratos = d.documentos;
@@ -2249,9 +2253,10 @@ function ligarPlanilha() {
   };
 
   $("pl-guardar").onclick = async () => {
-    const r = await fetch("/api/documentos/" + p.id + "/biblioteca", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
-    });
+    const r = await comNomesDecididos((decisoes) => fetch("/api/documentos/" + p.id + "/biblioteca", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decisoes: decisoes }),
+    }));
+    if (!r) return;
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
     const d = await r.json();
     avisoCert("guardada no Acervo como " + d.guardado);

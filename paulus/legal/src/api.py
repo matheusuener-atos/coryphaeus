@@ -57,6 +57,7 @@ import documento
 import financeiro
 import extrato
 import acervo
+import nomes as nomes_mod
 import citacao
 import escritorio
 import ferramentas
@@ -577,6 +578,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
+
+
+@app.exception_handler(nomes_mod.NomeRepetido)
+def _nome_repetido(_request: Request, exc: nomes_mod.NomeRepetido) -> Response:
+    """Arquivo de mesmo nome sem decisao: nada foi gravado, a tela pergunta
+    (Renomear / Substituir) e manda de novo com as decisoes (src/nomes.py)."""
+    corpo = {"detail": "já existe um arquivo com esse nome", "conflitos": exc.conflitos}
+    return Response(json.dumps(corpo, ensure_ascii=False), status_code=409, media_type="application/json")
 
 
 # ------------------------------------------------------------------ modelos
@@ -2424,19 +2433,21 @@ def buscar_agora(payload: Busca) -> dict:
 
 
 @app.post("/api/upload")
-async def upload(arquivos: list[UploadFile], autorizados: str = Form("")) -> dict:
+async def upload(arquivos: list[UploadFile], autorizados: str = Form(""), decisoes: str = Form("")) -> dict:
     """
     Arquivos que chegam pelo seletor do Windows ou arrastados.
 
     Acima de 50 MB volta em `pedem_confirmacao`, sem ser gravado; a tela
     pergunta e manda de novo com o nome em `autorizados` (JSON). Conteúdo que
     não é do tipo do nome é recusado (src/entrada.py). Nome repetido com
-    conteúdo diferente ganha "(2)" - antes, sobrescrevia o que estava lá.
+    conteúdo diferente: a tela pergunta (Renomear / Substituir, src/nomes.py)
+    e nada é gravado antes; conteúdo igual não é conflito.
     """
     Path(estado.pasta).mkdir(parents=True, exist_ok=True)
     salvos: list[str] = []
     recusados: list[dict] = []
     pedem: list[dict] = []
+    a_gravar: list[tuple[str, bytes]] = []
     try:
         liberados = set(json.loads(autorizados)) if autorizados else set()
     except ValueError:
@@ -2477,9 +2488,25 @@ async def upload(arquivos: list[UploadFile], autorizados: str = Form("")) -> dic
             recusados.append({"nome": nome, "motivo": errado})
             continue
 
-        destino = estado.pasta / nome
-        if destino.exists() and destino.read_bytes() != conteudo:
-            destino = _nome_livre_de_arquivo(estado.pasta, nome)
+        a_gravar.append((nome, conteudo))
+
+    # Os nomes, todos antes de gravar o primeiro: com um conflito sem
+    # decisao, nada entra e a tela pergunta.
+    escolhas = nomes_mod.do_pedido(decisoes)
+    pendentes: list[dict] = []
+    ocupados: set[str] = set()
+    destinos = []
+    for nome, conteudo in a_gravar:
+        igual = estado.pasta / nome
+        if igual.exists() and nome not in escolhas and igual.read_bytes() == conteudo:
+            destinos.append((None, nome, conteudo))      # o mesmo arquivo: nada a fazer
+            continue
+        destinos.append((nomes_mod.destino(estado.pasta, nome, escolhas, pendentes, ocupados=ocupados), nome, conteudo))
+    nomes_mod.conferir(pendentes)
+    for destino, nome, conteudo in destinos:
+        if destino is None:
+            salvos.append(nome)
+            continue
         destino.write_bytes(conteudo)
         salvos.append(destino.name)
 
@@ -2525,6 +2552,32 @@ class AnexarCaminhos(BaseModel):
     caminhos: list[str]
     # Os acima de 50 MB que a pessoa confirmou na tela (src/entrada.py).
     autorizados: list[str] = []
+    # Nome repetido: renomear ou substituir, por nome (src/nomes.py).
+    decisoes: dict = {}
+
+
+def _destinos_das_copias(origens: list[Path], pasta: Path, escolhas: dict) -> list[tuple[Path, Path, bool]]:
+    """
+    Para cada arquivo que vai ser copiado para `pasta`: (origem, destino,
+    copiar?). O que ja esta la dentro, ou o mesmo conteudo com o mesmo nome,
+    nao e copiado. Nome repetido com outro conteudo e sem decisao: nada e
+    copiado e NomeRepetido sobe para a tela perguntar (src/nomes.py).
+    """
+    pendentes: list[dict] = []
+    ocupados: set[str] = set()
+    plano: list[tuple[Path, Path | None, bool]] = []
+    for origem in origens:
+        nome = origem.name
+        igual = pasta / nome
+        if origem.resolve().is_relative_to(pasta.resolve()):
+            plano.append((origem, origem, False))
+            continue
+        if igual.exists() and nome not in escolhas and file_sha1(igual) == file_sha1(origem):
+            plano.append((origem, igual, False))
+            continue
+        plano.append((origem, nomes_mod.destino(pasta, nome, escolhas, pendentes, ocupados=ocupados), True))
+    nomes_mod.conferir(pendentes)
+    return plano  # type: ignore[return-value]
 
 
 class PedidoExterno(BaseModel):
@@ -2572,6 +2625,7 @@ def anexar_caminhos(payload: AnexarCaminhos) -> dict:
     recusados: list[dict] = []
     pedem: list[dict] = []
     liberados = {chave_do_caminho(c) for c in payload.autorizados}
+    aceitos: list[Path] = []
     for bruto in payload.caminhos:
         origem = Path(bruto)
         nome = origem.name
@@ -2583,22 +2637,22 @@ def anexar_caminhos(payload: AnexarCaminhos) -> dict:
             continue
         try:
             decisao, motivo, pedido = _triagem_do_caminho(origem, liberados)
-            if decisao == "perguntar":
-                pedem.append(pedido)
-                continue
-            if decisao == "recusar":
-                recusados.append({"nome": nome, "motivo": motivo})
-                continue
-            destino = estado.pasta / nome
-            if destino.resolve() != origem.resolve():
-                # Nome repetido com outro conteudo ganha "(2)": antes,
-                # sobrescrevia o documento que ja estava no Acervo.
-                if destino.exists() and file_sha1(destino) != file_sha1(origem):
-                    destino = _nome_livre_de_arquivo(estado.pasta, nome)
-                if not destino.exists():
-                    shutil.copy2(origem, destino)
         except OSError as exc:
-            recusados.append({"nome": nome, "motivo": f"nao consegui copiar: {exc.strerror or exc}"})
+            recusados.append({"nome": nome, "motivo": f"nao consegui ler: {exc.strerror or exc}"})
+            continue
+        if decisao == "perguntar":
+            pedem.append(pedido)
+        elif decisao == "recusar":
+            recusados.append({"nome": nome, "motivo": motivo})
+        else:
+            aceitos.append(origem)
+    # Nome repetido com outro conteudo: a tela pergunta antes de copiar.
+    for origem, destino, copiar in _destinos_das_copias(aceitos, Path(estado.pasta), nomes_mod.do_pedido({"decisoes": payload.decisoes})):
+        try:
+            if copiar:
+                shutil.copy2(origem, destino)
+        except OSError as exc:
+            recusados.append({"nome": origem.name, "motivo": f"nao consegui copiar: {exc.strerror or exc}"})
             continue
         salvos.append(destino.name)
     total = estado.recarregar() if salvos else len(estado.searcher.documents)
@@ -3628,6 +3682,9 @@ def configurar(payload: Ajuste2) -> dict:
 class FichaCompromisso(BaseModel):
     id: int | None = None
     dados: dict = {}
+    # "Criar sala no Google Meet" ligado no formulario: o evento vai a Agenda
+    # do Google na hora, com a sala, e o link volta no compromisso.
+    meet: bool = False
 
 
 class NotaDia(BaseModel):
@@ -3686,11 +3743,27 @@ def agenda_salvar(payload: FichaCompromisso) -> dict:
         id_ = estado.agenda.salvar(payload.dados, payload.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    c = estado.agenda.obter(id_) or {}
+    # A sala do Meet pedida ao salvar: so para reuniao online que ainda nao
+    # tem sala. Espera o Google (o link entra no convite que a tela monta em
+    # seguida); se nao der, o compromisso fica salvo e o motivo volta em
+    # "meet_erro" - a tela avisa, nao finge que criou.
+    if payload.meet and c.get("onde") == "online" and not c.get("meet"):
+        if not estado.google_tem("agenda"):
+            return {**c, "meet_erro": "conecte a Agenda do Google em Configurações › Conexões para criar a sala"}
+        try:
+            _enviar_compromisso_ao_google(id_, meet=True)
+        except google_servicos.ErroGoogle as exc:
+            return {**c, "meet_erro": str(exc)}
+        c = estado.agenda.obter(id_) or {}
+        if not c.get("meet"):
+            c["meet_erro"] = "o Google criou o evento, mas não devolveu a sala do Meet"
+        return c
     # Com a sincronizacao ligada, o compromisso vai para a Agenda do Google
     # em segundo plano: salvar aqui nao espera a internet.
     if _sincronizar_agenda_ligada():
         _no_google_em_segundo_plano(_enviar_compromisso_ao_google, id_)
-    return estado.agenda.obter(id_) or {}
+    return c
 
 
 # ------------------------------------------------------ a Agenda do Google
@@ -4487,6 +4560,8 @@ def google_drive_enviar(payload: CaminhosDeDocumentos) -> dict:
 
 class MesPedido(BaseModel):
     mes: str = ""
+    # Recibo do mes que ja existe: renomear ou substituir (src/nomes.py).
+    decisoes: dict = {}
 
 
 class FichaPapel(BaseModel):
@@ -4565,9 +4640,17 @@ def folha_recibos(payload: MesPedido) -> dict:
     quem_paga = str(dados_do_escritorio.get("nome", "")).strip() or str(pessoa.get("nome", "")).strip()
 
     destino = _pasta_no_acervo("Financeiro", "Recibos", mes)
+    # Recibo do mes que ja existe (gerar de novo): antes passava por cima
+    # sem avisar; agora a tela pergunta, um por um (src/nomes.py).
+    escolhas = nomes_mod.do_pedido({"decisoes": payload.decisoes})
+    pendentes: list[dict] = []
+    ocupados: set[str] = set()
+    arquivos = {p["nome"]: nomes_mod.destino(destino, escritorio.nome_do_recibo(p["nome"], mes), escolhas, pendentes, ocupados=ocupados)
+                for p in da_folha["pessoas"]}
+    nomes_mod.conferir(pendentes)
     try:
         feitos = escritorio.gerar_recibos(
-            da_folha, destino, escritorio.mes_por_extenso(mes), quem_paga)
+            da_folha, destino, escritorio.mes_por_extenso(mes), quem_paga, arquivos)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"nao consegui gerar: {exc}") from exc
 
@@ -4667,11 +4750,52 @@ def financeiro_tirar_comprovante(id_: int) -> dict:
     return {"tirado": id_}
 
 
+@app.post("/api/financeiro/exportar")
+def financeiro_exportar_gerar(payload: MesPedido) -> dict:
+    """
+    Gera a planilha do mes no Acervo (Financeiro/Planilhas) e devolve o nome;
+    a tela baixa em seguida pelo GET com `arquivo`. A planilha do mes que ja
+    existe nao e trocada sem a pessoa decidir (src/nomes.py).
+    """
+    mes = payload.mes or escritorio.mes_de_hoje()
+    pasta = _pasta_no_acervo("Financeiro", "Planilhas")
+    pendentes: list[dict] = []
+    destino = nomes_mod.destino(pasta, f"financeiro-{mes}.xlsx", nomes_mod.do_pedido({"decisoes": payload.decisoes}), pendentes)
+    nomes_mod.conferir(pendentes)
+    _exportar_mes_em(destino, mes)
+    return {"nome": destino.name, "mes": mes}
+
+
+def _exportar_mes_em(destino: Path, mes: str) -> None:
+    try:
+        escritorio.exportar_mes(
+            destino, mes,
+            extrato=estado.financeiro.extrato(mes),
+            folha=estado.folha.do_mes(mes),
+            notas=estado.papeis.listar("nota", mes),
+            boletos=estado.papeis.listar("boleto"),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"nao consegui exportar: {exc}") from exc
+    estado.recarregar_em_segundo_plano()
+
+
 @app.get("/api/financeiro/exportar")
-def financeiro_exportar(mes: str = "") -> FileResponse:
-    """O mes inteiro numa planilha, para quem faz a contabilidade."""
+def financeiro_exportar(mes: str = "", arquivo: str = "") -> FileResponse:
+    """O mes inteiro numa planilha, para quem faz a contabilidade. Com
+    `arquivo`, entrega a que o POST acabou de gerar (so da pasta Planilhas)."""
     mes = mes or escritorio.mes_de_hoje()
-    destino = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
+    pasta = _pasta_no_acervo("Financeiro", "Planilhas")
+    if arquivo:
+        pronto = pasta / Path(arquivo).name
+        if pronto.suffix.lower() != ".xlsx" or not pronto.is_file():
+            raise HTTPException(status_code=404, detail="planilha não encontrada")
+        return FileResponse(
+            pronto,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers=_anexo(pronto.name),
+        )
+    destino = pasta / f"financeiro-{mes}.xlsx"
     try:
         escritorio.exportar_mes(
             destino, mes,
@@ -4705,7 +4829,11 @@ def preferencias_ler() -> dict:
 
 @app.post("/api/preferencias")
 def preferencias_gravar(payload: dict) -> dict:
-    estado.prefs.atualizar(payload)
+    try:
+        estado.prefs.atualizar(payload)
+    except ValueError as exc:
+        # CPF, telefone ou CNPJ que nao fecha (src/campos_br.py): nada e gravado.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # O que a preferencia muda de verdade, agora: modelo e ritmo.
     modelo = estado.prefs.dados.get("modelo")
@@ -4823,6 +4951,9 @@ def navegar_pastas(caminho: str = "", arquivos: bool = False) -> dict:
              "caminho": str(p), "tipo": "acervo"}
             for p in estado.pastas_do_acervo() if p.is_dir()
         ]
+        # Onde o Google Drive para computador deixa o Drive, para a visao
+        # "Google Drive" dos seletores; vazio = nao instalado.
+        dados["drive"] = pastas.pastas_do_drive()
     return dados
 
 
@@ -5139,6 +5270,8 @@ class PedidoAssinatura(BaseModel):
     senha_pdf: str = ""
     motivo: str = ""
     guardar_biblioteca: bool = True
+    # Nome repetido do "- assinado": renomear ou substituir (src/nomes.py).
+    decisoes: dict = {}
     manter_original: bool = True
     senha_certificado: str = ""
 
@@ -5160,11 +5293,15 @@ class PedidoLote(BaseModel):
     senha_pdf: str = ""
     motivo: str = ""
     guardar_biblioteca: bool = True
+    # Nomes repetidos dos "- assinado" (src/nomes.py).
+    decisoes: dict = {}
     manter_original: bool = True
     senha_certificado: str = ""
 
 
 class AssinadosParaSalvar(BaseModel):
+    # Nome repetido na pasta escolhida (src/nomes.py).
+    decisoes: dict = {}
     arquivos: list[str] = []
     caminho: str = ""               # o .zip, escolhido no "Salvar como"
     pasta: str = ""                 # a pasta, para salvar um a um
@@ -5454,11 +5591,20 @@ def assinar_agora(payload: PedidoAssinatura) -> dict:
     if not alvos:
         raise HTTPException(status_code=400, detail="nenhuma página escolhida")
 
+    # O nome do assinado e decidido agora, antes da fila: se ja existe,
+    # a tela pergunta (Renomear / Substituir) - na hora de assinar, ninguem
+    # mais esta olhando.
+    escolhas = nomes_mod.do_pedido({"decisoes": payload.decisoes})
+    pendentes: list[dict] = []
+    destino = _destino_do_assinado(Path(payload.arquivo), payload.guardar_biblioteca, escolhas, pendentes, set())
+    nomes_mod.conferir(pendentes)
+
     dados = {
-        **payload.model_dump(exclude={"senha_certificado"}),
+        **payload.model_dump(exclude={"senha_certificado", "decisoes"}),
         "paginas_alvo": alvos,
         "titular": cert.titular,
         "icp_brasil": cert.icp_brasil,
+        **_destino_decidido(destino, escolhas),
     }
 
     if not estado.prefs.pode("assinar"):
@@ -5530,6 +5676,16 @@ def assinar_lote(payload: PedidoLote) -> dict:
             continue
         prontos.append({**comum, **item.model_dump(), "paginas_alvo": alvos,
                         "titular": cert.titular, "icp_brasil": cert.icp_brasil})
+    # Os nomes dos assinados, todos antes de assinar ou de ir para a fila.
+    escolhas = nomes_mod.do_pedido({"decisoes": payload.decisoes})
+    pendentes: list[dict] = []
+    ocupados: set[str] = set()
+    for dados_item in prontos:
+        destino = _destino_do_assinado(Path(dados_item["arquivo"]), dados_item.get("guardar_biblioteca", True),
+                                       escolhas, pendentes, ocupados)
+        dados_item.pop("decisoes", None)
+        dados_item.update(_destino_decidido(destino, escolhas))
+    nomes_mod.conferir(pendentes)
     if not prontos:
         raise HTTPException(status_code=400, detail="nenhum documento do lote pode ser assinado: " +
                             "; ".join(f"{r['nome']} ({r['motivo']})" for r in recusados[:3]))
@@ -5588,6 +5744,12 @@ def _assinar_de_fato(dados: dict, senha: str, recarregar: bool = True) -> "assin
     """O trabalho em si, chamado direto ou depois do sim na fila."""
     origem = Path(dados["arquivo"])
     destino = _nome_do_assinado(origem, dados.get("guardar_biblioteca", True))
+    if dados.get("destino"):
+        # O nome decidido no pedido. Se, ate a aprovacao, apareceu um arquivo
+        # com esse nome e ninguem mandou substituir, volta o " (n)" de sempre.
+        decidido = Path(dados["destino"])
+        if not decidido.exists() or dados.get("substituir"):
+            destino = decidido
 
     ponto = None
     if dados.get("x") is not None and dados.get("y") is not None:
@@ -5630,6 +5792,20 @@ def _assinar_de_fato(dados: dict, senha: str, recarregar: bool = True) -> "assin
         estado.recarregar()
 
     return resultado
+
+
+def _destino_do_assinado(origem: Path, na_biblioteca: bool, escolhas: dict, pendentes: list, ocupados: set) -> Path | None:
+    """Onde vai o assinado de `origem`, segundo a pessoa (src/nomes.py). O
+    original nunca e o destino: substituir vale so para o "- assinado"."""
+    pasta = estado.pasta if na_biblioteca else origem.parent
+    return nomes_mod.destino(pasta, f"{origem.stem} - assinado.pdf", escolhas, pendentes, ocupados=ocupados)
+
+
+def _destino_decidido(destino: Path | None, escolhas: dict) -> dict:
+    if destino is None:
+        return {}
+    substituir = any(d.get("acao") == "substituir" and n == destino.name for n, d in escolhas.items())
+    return {"destino": str(destino), "substituir": substituir}
 
 
 def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
@@ -5729,10 +5905,14 @@ def arquivos_salvar(payload: dict) -> dict:
         destino = destino.with_name(destino.name + ".pdf")
     if destino.resolve() == alvo.resolve():
         return {"nome": destino.name, "pasta": str(destino.parent)}
-    # O seletor do PAULUS nao pergunta "substituir?": o que ja esta na pasta
-    # fica, e a copia ganha "(2)" no nome.
-    if destino.exists():
-        destino = acervo._nome_livre(destino.parent, destino.name, set())
+    # Nome repetido na pasta: a mesma copia nao repete; outro arquivo, a tela
+    # pergunta (Renomear / Substituir, src/nomes.py).
+    escolhas = nomes_mod.do_pedido(payload)
+    if destino.exists() and destino.name not in escolhas and file_sha1(destino) == file_sha1(alvo):
+        return {"nome": destino.name, "pasta": str(destino.parent)}
+    pendentes: list[dict] = []
+    destino = nomes_mod.destino(destino.parent, destino.name, escolhas, pendentes)
+    nomes_mod.conferir(pendentes)
     try:
         shutil.copy2(alvo, destino)
     except OSError as exc:
@@ -5759,8 +5939,14 @@ def assinaturas_conformidade(payload: dict) -> dict:
     import conformidade
 
     alvo = _pdf_conhecido(str(payload.get("arquivo", "")))
+    # O certificado do mesmo PDF tem o mesmo nome: antes, o novo passava por
+    # cima do antigo sem avisar. Agora a tela pergunta (src/nomes.py).
+    pasta = _pasta_no_acervo("Assinaturas", "Certificados de conformidade")
+    pendentes: list[dict] = []
+    destino = nomes_mod.destino(pasta, conformidade.nome_do_relatorio(alvo), nomes_mod.do_pedido(payload), pendentes)
+    nomes_mod.conferir(pendentes)
     assinaturas = assinatura.verificar(alvo, str(payload.get("senha", "")))
-    relatorio = conformidade.gerar(alvo, assinaturas, _pasta_no_acervo("Assinaturas", "Certificados de conformidade"))
+    relatorio = conformidade.gerar(alvo, assinaturas, pasta, destino)
     estado.recarregar_em_segundo_plano()
     tom, frase = conformidade.veredito(assinaturas)
     return {"caminho": str(relatorio), "nome": relatorio.name, "tom": tom, "veredito": frase,
@@ -5862,10 +6048,10 @@ def assinar_zip_gravar(payload: AssinadosParaSalvar) -> dict:
     caminho = Path(payload.caminho)
     if caminho.suffix.lower() != ".zip":
         caminho = caminho.with_name(caminho.name + ".zip")
-    # A pasta vem do seletor do PAULUS, que nao pergunta "substituir?": um
-    # .zip que ja esta la nao e sobrescrito, o novo ganha "(2)" no nome.
-    if caminho.exists():
-        caminho = acervo._nome_livre(caminho.parent, caminho.name, set())
+    # Um .zip com esse nome ja esta la: a tela pergunta (src/nomes.py).
+    pendentes: list[dict] = []
+    caminho = nomes_mod.destino(caminho.parent, caminho.name, nomes_mod.do_pedido({"decisoes": payload.decisoes}), pendentes)
+    nomes_mod.conferir(pendentes)
     try:
         caminho.parent.mkdir(parents=True, exist_ok=True)
         caminho.write_bytes(_zip_dos_assinados(arquivos))
@@ -5877,23 +6063,20 @@ def assinar_zip_gravar(payload: AssinadosParaSalvar) -> dict:
 @app.post("/api/assinar/copiar")
 def assinar_copiar(payload: AssinadosParaSalvar) -> dict:
     """
-    Os assinados, um a um, copiados para a pasta escolhida. Nunca passa por
-    cima de um arquivo que ja esta la: o repetido ganha "(2)" no nome.
+    Os assinados, um a um, copiados para a pasta escolhida. Nome repetido
+    com outro conteudo: a tela pergunta, e nada e copiado antes (src/nomes.py).
     """
     arquivos = _assinados_daqui(payload.arquivos)
     pasta = Path(payload.pasta) if payload.pasta else None
     if not pasta or not pasta.is_dir():
         raise HTTPException(status_code=400, detail="escolha uma pasta que exista")
-    copiados, usados = [], set()
-    for alvo in arquivos:
-        destino = pasta / alvo.name
-        if destino.exists() or str(destino).lower() in usados:
-            destino = acervo._nome_livre(pasta, alvo.name, usados)
+    copiados = []
+    for alvo, destino, copiar in _destinos_das_copias(arquivos, pasta, nomes_mod.do_pedido({"decisoes": payload.decisoes})):
         try:
-            shutil.copy2(alvo, destino)
+            if copiar:
+                shutil.copy2(alvo, destino)
         except OSError as exc:
             raise HTTPException(status_code=500, detail=f"não consegui copiar {alvo.name}: {exc}") from exc
-        usados.add(str(destino).lower())
         copiados.append(destino.name)
     return {"pasta": str(pasta), "copiados": copiados}
 
@@ -6264,7 +6447,7 @@ def email_anexo(uid: str, nome: str, conta_id: str = ""):
 
 @app.post("/api/email/anexo/guardar")
 def email_guardar_anexo(payload: dict) -> dict:
-    """Traz o anexo para a biblioteca, sem passar por cima de nada."""
+    """Traz o anexo para a biblioteca. Nome repetido: a tela decide."""
     conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
     uid = str(payload.get("uid", ""))
     nome = str(payload.get("nome", ""))
@@ -6282,11 +6465,15 @@ def email_guardar_anexo(payload: dict) -> dict:
         )
 
     estado.pasta.mkdir(parents=True, exist_ok=True)
-    destino = estado.pasta / limpo
-    conta_repetida = 2
-    while destino.exists():
-        destino = estado.pasta / f"{Path(limpo).stem} ({conta_repetida}){Path(limpo).suffix}"
-        conta_repetida += 1
+    # O mesmo anexo ja guardado nao vira copia; outro com o mesmo nome, a
+    # tela pergunta (Renomear / Substituir, src/nomes.py).
+    igual = estado.pasta / limpo
+    escolhas = nomes_mod.do_pedido(payload)
+    if igual.exists() and limpo not in escolhas and igual.read_bytes() == dados:
+        return {"guardado": limpo, "documentos": len(estado.searcher.documents), "ja_estava": True}
+    pendentes: list[dict] = []
+    destino = nomes_mod.destino(estado.pasta, limpo, escolhas, pendentes)
+    nomes_mod.conferir(pendentes)
 
     destino.write_bytes(dados)
     return {"guardado": destino.name, "documentos": estado.recarregar()}
@@ -7521,7 +7708,10 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
         sufixo = ".pdf"
 
-    destino = _arquivo_do_editor_no_acervo(id_, item["titulo"], sufixo, dados, protegido=bool(senha))
+    # Guardar pedido pela pessoa pergunta quando ha outro arquivo com o nome;
+    # o guardar automatico (ao fechar a pre-visualizacao) nao abre pergunta.
+    escolhas = None if (payload or {}).get("automatico") else nomes_mod.do_pedido(payload or {})
+    destino = _arquivo_do_editor_no_acervo(id_, item["titulo"], sufixo, dados, protegido=bool(senha), escolhas=escolhas)
     return {
         "guardado": destino.name,
         "caminho": str(destino),
@@ -7532,7 +7722,8 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
 EDITOR_NO_ACERVO_PATH = DADOS_DIR / "editor_no_acervo.json"
 
 
-def _arquivo_do_editor_no_acervo(id_: int, titulo: str, sufixo: str, dados: bytes, protegido: bool = False) -> Path:
+def _arquivo_do_editor_no_acervo(id_: int, titulo: str, sufixo: str, dados: bytes, protegido: bool = False,
+                                 escolhas: dict | None = None) -> Path:
     """
     Um arquivo por documento do editor (e por formato) no Acervo, atualizado
     no lugar.
@@ -7544,6 +7735,10 @@ def _arquivo_do_editor_no_acervo(id_: int, titulo: str, sufixo: str, dados: byte
     escreveu: mudado por fora (alguem editou, assinou por outro programa),
     fica, e o novo sai com outro nome. O titulo mudou: o arquivo antigo, se
     ainda e o que o PAULUS escreveu, da lugar ao de nome novo.
+
+    Com `escolhas` (o guardar que a pessoa pediu), o arquivo de outro com o
+    mesmo nome nao vira " (2)" sozinho: a tela pergunta (src/nomes.py). Sem
+    `escolhas` (o guardar automatico), o " (n)" de sempre.
     """
     from extract import file_sha1
 
@@ -7561,6 +7756,14 @@ def _arquivo_do_editor_no_acervo(id_: int, titulo: str, sufixo: str, dados: byte
 
     if nosso and antigo_caminho == desejado:
         destino = desejado
+    elif escolhas is not None:
+        # Decidir o nome antes de apagar qualquer coisa: com conflito sem
+        # decisao, nada muda no disco.
+        pendentes: list[dict] = []
+        destino = nomes_mod.destino(pasta, desejado.name, escolhas, pendentes)
+        nomes_mod.conferir(pendentes)
+        if nosso and antigo_caminho != destino:
+            antigo_caminho.unlink()  # o titulo mudou; o arquivo antigo era so nosso
     else:
         if nosso and antigo_caminho != desejado:
             antigo_caminho.unlink()  # o titulo mudou; o arquivo antigo era so nosso
@@ -8655,8 +8858,9 @@ def financeiro_apagar(id_: int) -> dict:
 
 
 @app.post("/api/financeiro/lancamentos/{id_}/comprovante")
-async def financeiro_comprovante(id_: int, arquivo: UploadFile) -> dict:
-    """Guarda o comprovante na biblioteca e o liga ao lancamento."""
+async def financeiro_comprovante(id_: int, arquivo: UploadFile, decisoes: str = Form("")) -> dict:
+    """Guarda o comprovante na biblioteca e o liga ao lancamento. Nome
+    repetido com outro conteudo: a tela pergunta (src/nomes.py)."""
     if not estado.financeiro.obter(id_):
         raise HTTPException(status_code=404, detail="lançamento não encontrado")
 
@@ -8671,12 +8875,15 @@ async def financeiro_comprovante(id_: int, arquivo: UploadFile) -> dict:
     lancamento = estado.financeiro.obter(id_) or {}
     quando = lancamento.get("liquidado_em") or lancamento.get("vencimento") or ""
     pasta = _pasta_no_acervo("Financeiro", "Comprovantes", quando[:7] or escritorio.mes_de_hoje())
-    destino = pasta / nome
-    conta = 2
-    while destino.exists():
-        destino = pasta / f"{Path(nome).stem} ({conta}){Path(nome).suffix}"
-        conta += 1
-    destino.write_bytes(dados)
+    escolhas = nomes_mod.do_pedido(decisoes)
+    igual = pasta / nome
+    if igual.exists() and nome not in escolhas and igual.read_bytes() == dados:
+        destino = igual                    # o mesmo comprovante: so liga
+    else:
+        pendentes: list[dict] = []
+        destino = nomes_mod.destino(pasta, nome, escolhas, pendentes)
+        nomes_mod.conferir(pendentes)
+        destino.write_bytes(dados)
 
     import hashlib
 
@@ -9065,15 +9272,8 @@ class AnexarAoServico(BaseModel):
     caminhos: list[str]
     # Os acima de 50 MB que a pessoa confirmou na tela (src/entrada.py).
     autorizados: list[str] = []
-
-
-def _nome_livre_de_arquivo(pasta: Path, nome: str) -> Path:
-    alvo = pasta / nome
-    n = 2
-    while alvo.exists():
-        alvo = pasta / f"{Path(nome).stem} ({n}){Path(nome).suffix}"
-        n += 1
-    return alvo
+    # Nome repetido: renomear ou substituir, por nome (src/nomes.py).
+    decisoes: dict = {}
 
 
 @app.post("/api/servicos/{id_}/anexar")
@@ -9093,6 +9293,7 @@ def servicos_anexar(id_: int, payload: AnexarAoServico) -> dict:
     recusados: list[dict] = []
     pedem: list[dict] = []
     liberados = {chave_do_caminho(c) for c in payload.autorizados}
+    aceitos: list[Path] = []
     for bruto in payload.caminhos:
         origem = Path(bruto)
         nome = origem.name
@@ -9104,22 +9305,22 @@ def servicos_anexar(id_: int, payload: AnexarAoServico) -> dict:
             continue
         try:
             decisao, motivo, pedido = _triagem_do_caminho(origem, liberados)
-            if decisao == "perguntar":
-                pedem.append(pedido)
-                continue
-            if decisao == "recusar":
-                recusados.append({"nome": nome, "motivo": motivo})
-                continue
-            if origem.resolve().is_relative_to(pasta.resolve()):
-                destino = origem
-            else:
-                destino = pasta / nome
-                if destino.exists() and file_sha1(destino) != file_sha1(origem):
-                    destino = _nome_livre_de_arquivo(pasta, nome)
-                if not destino.exists():
-                    shutil.copy2(origem, destino)
         except OSError as exc:
-            recusados.append({"nome": nome, "motivo": f"não consegui copiar: {exc.strerror or exc}"})
+            recusados.append({"nome": nome, "motivo": f"não consegui ler: {exc.strerror or exc}"})
+            continue
+        if decisao == "perguntar":
+            pedem.append(pedido)
+        elif decisao == "recusar":
+            recusados.append({"nome": nome, "motivo": motivo})
+        else:
+            aceitos.append(origem)
+    # Nome repetido com outro conteudo: a tela pergunta antes de copiar.
+    for origem, destino, copiar in _destinos_das_copias(aceitos, pasta, nomes_mod.do_pedido({"decisoes": payload.decisoes})):
+        try:
+            if copiar:
+                shutil.copy2(origem, destino)
+        except OSError as exc:
+            recusados.append({"nome": origem.name, "motivo": f"não consegui copiar: {exc.strerror or exc}"})
             continue
         destinos.append(destino)
     if destinos:
@@ -9722,17 +9923,20 @@ def gravacoes_docx(id_: int):
 
 
 @app.post("/api/gravacoes/{id_}/exportar")
-def gravacoes_exportar(id_: int) -> dict:
+def gravacoes_exportar(id_: int, payload: dict | None = None) -> dict:
     """
     Grava o .docx da transcricao no Acervo (Gravacoes) e devolve o caminho: e
-    o que vai anexo no e-mail - e fica para ser lido e perguntado depois.
+    o que vai anexo no e-mail - e fica para ser lido e perguntado depois. A
+    transcricao que ja esta la nao e trocada sem a pessoa decidir (src/nomes.py).
     """
     titulo, dados = _docx_da_gravacao(id_)
-    nome = _arquivo(titulo) + " - transcricao.docx"
-    caminho = _pasta_no_acervo("Gravações") / nome
+    pendentes: list[dict] = []
+    caminho = nomes_mod.destino(_pasta_no_acervo("Gravações"), _arquivo(titulo) + " - transcricao.docx",
+                                nomes_mod.do_pedido(payload or {}), pendentes)
+    nomes_mod.conferir(pendentes)
     caminho.write_bytes(dados)
     estado.recarregar_em_segundo_plano()
-    return {"path": str(caminho), "nome": nome, "mb": round(len(dados) / (1024 * 1024), 2)}
+    return {"path": str(caminho), "nome": caminho.name, "mb": round(len(dados) / (1024 * 1024), 2)}
 
 
 @app.post("/api/gravacoes/{id_}/marcadores")

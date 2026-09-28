@@ -2,7 +2,7 @@
 
 A mesma conta Google que entra no e-mail (veja `email-oauth.md`) ganha, quando a pessoa pede em **Configurações › Conexões › Conta Google**, mais uma permissão. É a autorização incremental do Google (`include_granted_scopes`): a tela do Google abre no navegador, a pessoa marca a caixa do serviço, e a permissão nova se soma às que já existem. Quem só usa o e-mail não vê nada diferente.
 
-O código está em `src/google_servicos.py`, e as rotas em `/api/google*` e `/api/agenda/{id}/meet`.
+O código está em `src/google_servicos.py`, e as rotas em `/api/google*`, `/api/agenda/{id}/meet` e o `meet: true` do `POST /api/agenda` (a sala criada ao salvar).
 
 ## O que cada serviço pede, e por quê
 
@@ -19,6 +19,8 @@ O código está em `src/google_servicos.py`, e as rotas em `/api/google*` e `/ap
 - **Agenda:** só com "Sincronizar os compromissos com o Google" ligado. O título, a data, a hora, a duração e o lugar (online, escritório, telefone) de cada compromisso, de uma semana atrás a um ano à frente. A anotação e o cliente ficam aqui.
   - Salvar um compromisso manda na hora, em segundo plano. Apagar aqui apaga lá.
   - Os eventos que já existiam no Google aparecem na Agenda só para ver, com "Mostrar os eventos do Google na Agenda" ligado. Editar é no Google.
+- **Meet:** a sala nasce do evento. Quando a pessoa pede a sala ("Criar sala no Google Meet" no formulário do compromisso ou no agendar de Serviços, ou "Criar sala no Meet" no compromisso já marcado), o evento daquele compromisso vai à Agenda do Google na hora, com os mesmos campos acima, mesmo com a sincronização desligada. Com a sincronização ligada, a opção já vem marcada nas reuniões online; desligada, vem desmarcada e a tela diz o que vai.
+  - O link da sala fica no compromisso e entra no convite por e-mail.
 - **Drive:** só o documento que a pessoa manda (menu "…" do documento, no Acervo). O pedido vai para a fila de **Aprovações** e nada sai antes do sim.
 
 ## Passos no Google Cloud (quem publica o PAULUS, uma vez)

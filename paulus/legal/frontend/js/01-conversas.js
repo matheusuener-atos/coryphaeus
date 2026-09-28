@@ -19,8 +19,13 @@ async function carregarTrabalhos() {
 /* ------------------------------------------------------- menu de conversa */
 
 function fecharMenu() {
-  const aberto = document.querySelector(".menu-conversa");
-  if (aberto) aberto.remove();
+  // O menu sai andando, como entrou; o que esta saindo ja nao conta como
+  // aberto (outro pode abrir por cima enquanto ele some).
+  const aberto = document.querySelector(".menu-conversa:not(.saindo)");
+  if (!aberto) return;
+  aberto.classList.add("saindo");
+  aberto.style.pointerEvents = "none";
+  sairDoAr(aberto, { duracao: 120, para: "translateY(-4px) scale(.98)" });
 }
 
 document.addEventListener("click", fecharMenu);

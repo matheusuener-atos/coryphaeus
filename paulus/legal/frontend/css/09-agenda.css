@@ -198,6 +198,15 @@
   .ag-toggle.on i, .interruptor-min.on { background: var(--ink); border-color: var(--ink); }
   .ag-toggle.on i::after, .interruptor-min.on::after { left: 16px; background: var(--bg); }
   .ag-explica { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); margin: 0; }
+  /* A sala do Meet ao marcar (formulario do compromisso e Agendar de
+     Servicos): o interruptor com a marca do Meet, ou a linha que diz o que
+     falta e o botao de conectar. Vazio (nao e online), o lugar some da grade. */
+  .ag-meet-lugar { display: grid; }
+  .ag-meet-lugar:empty { display: none; }
+  .ag-meet .duas-linhas small { white-space: normal; line-height: 1.4; }
+  .ag-meet-linha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13.5px; }
+  .ag-meet-linha .duas-linhas { min-width: 200px; }
+  .ag-meet-linha .duas-linhas small { overflow-wrap: anywhere; }
   .ag-form-rodape { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--ink-a1); padding-top: 14px; }
   .ag-form-rodape .primario { margin-left: auto; }
 

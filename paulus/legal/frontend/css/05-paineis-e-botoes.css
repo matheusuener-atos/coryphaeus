@@ -369,3 +369,6 @@
      do vinculo e a frase do que esta errado logo abaixo. */
   input.campo-invalido, input.campo-invalido:focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
   .campo-aviso { display: block; margin-top: 4px; font: 500 12px/1.4 var(--sans); color: var(--acc); }
+
+  /* A marca do servico de fora dentro do botao, no lugar do icone. */
+  .marca-ic { display: inline-block; flex: none; object-fit: contain; vertical-align: -3px; }

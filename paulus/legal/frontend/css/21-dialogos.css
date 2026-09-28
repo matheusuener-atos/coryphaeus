@@ -119,6 +119,10 @@
   .anx-pasta > .ic { color: var(--ink3); }
   .anx-quando, .anx-ja { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .anx-vazio { margin: 0; padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
+  /* A visao Google Drive sem o Drive para computador: o que fazer para ter. */
+  .anx-sem-drive { display: grid; gap: 8px; justify-items: start; padding: 20px 16px; max-width: 460px; font-size: 13px; line-height: 1.55; color: var(--ink2); }
+  .anx-sem-drive p { margin: 0; }
+  .anx-sem-drive b { color: var(--ink); font-weight: 600; }
   .anx-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 22px; font: 500 12.5px var(--sans); color: var(--ink2); }
 
   /* Abrir do Acervo (19-documentos.js): o pop-up do anexar, com a dica do

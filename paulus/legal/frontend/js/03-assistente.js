@@ -3,11 +3,13 @@
 /* ANEXAR abre um pop-up com duas visoes, como a alternancia da lista de
    conversas: ACERVO, o padrao - os documentos que o programa ja tem, com
    busca, para marcar -, e MEU COMPUTADOR - a navegacao por pastas desta
-   maquina, com os arquivos que o programa sabe ler. Do acervo, o marcado
+   maquina, com os arquivos que o programa sabe ler - e GOOGLE DRIVE, a mesma
+   navegacao dentro da pasta do Google Drive para computador (o escopo do app
+   no Google so ve o que ele criou; a pasta ve o Drive inteiro). Do acervo, o marcado
    entra direto em foco; do computador, o servidor copia o arquivo para o
    acervo, le e poe em foco. O seletor do Windows continua a um clique, e
    arrastar arquivos para a conversa continua valendo. */
-const anx = { visao: "acervo", acervo: new Set(), computador: new Map(), caminho: "", termo: "", docs: null, verbo: "Anexar" };
+const anx = { visao: "acervo", acervo: new Set(), computador: new Map(), caminho: "", termo: "", docs: null, verbo: "Anexar", drive: null, caminhoDrive: "" };
 
 /* `opcoes` deixa outra tela usar o mesmo pop-up: título, contexto, o verbo do
    botão e `aoAnexar(nomes)`, o que fazer com os documentos (já no Acervo).
@@ -18,6 +20,9 @@ async function abrirAnexar(opcoes) {
   anx.computador = new Map();
   anx.termo = "";
   anx.docs = null;
+  anx.drive = null;
+  anx.caminhoDrive = "";
+  if (anx.visao === "drive") anx.visao = "acervo";
   anx.verbo = o.verbo || "Anexar";
   // Quem pede os caminhos (a pasta de um serviço) copia os arquivos por
   // conta própria: o seletor do Windows, que sobe para a raiz do Acervo,
@@ -33,7 +38,8 @@ async function abrirAnexar(opcoes) {
     html: '<div class="anx">' +
       '<div class="anx-topo"><span class="visoes lc-visoes">' +
       '<button type="button" data-anx-visao="acervo">Acervo</button>' +
-      '<button type="button" data-anx-visao="computador">Meu computador</button></span>' +
+      '<button type="button" data-anx-visao="computador">Meu computador</button>' +
+      '<button type="button" data-anx-visao="drive">' + marca("google-drive", 14) + "Google Drive</button></span>" +
       '<label class="lc-busca anx-busca">' + ic("search", 18) + '<input type="text" id="anx-busca" placeholder="Buscar…" autocomplete="off"></label></div>' +
       '<div class="anx-migalhas" id="anx-migalhas" hidden></div>' +
       '<div class="anx-lista" id="anx-lista"></div>' +
@@ -86,6 +92,17 @@ async function desenharAnexar() {
       try { anx.docs = (await (await fetch("/api/biblioteca?ordem=modificacao")).json()).documentos || []; }
       catch (err) { anx.docs = []; }
     }
+  } else if (anx.visao === "drive") {
+    // A pasta do Drive: descoberta uma vez, depois navega como o computador.
+    if (anx.drive === null) {
+      try { anx.drive = (await (await fetch("/api/pastas")).json()).drive || []; }
+      catch (err) { anx.drive = []; }
+    }
+    if (!anx.caminhoDrive && anx.drive.length) anx.caminhoDrive = anx.drive[0];
+    if (anx.drive.length) {
+      try { anx.pasta = await (await fetch("/api/pastas?arquivos=1&caminho=" + encodeURIComponent(anx.caminhoDrive))).json(); }
+      catch (err) { anx.pasta = { erro: "não consegui abrir: " + err, pastas: [], arquivos: [], migalhas: [] }; }
+    }
   } else {
     try { anx.pasta = await (await fetch("/api/pastas?arquivos=1&caminho=" + encodeURIComponent(anx.caminho))).json(); }
     catch (err) { anx.pasta = { erro: "não consegui abrir: " + err, atalhos: [], unidades: [], pastas: [], arquivos: [], migalhas: [] }; }
@@ -110,13 +127,27 @@ function desenharListaDoAnexar() {
         '<span class="duas-linhas"><b class="corta">' + esc(d.nome) + '</b><small class="corta">' + esc(d.pasta_curta || "") + "</small></span>" +
         (ja ? '<span class="anx-ja">já anexado</span>' : '<span class="anx-quando">' + esc(d.modificado || "") + "</span>") + "</div>";
     }).join("") || '<p class="anx-vazio">' + (anx.termo ? "Nenhum documento com esse nome no acervo." : "O acervo ainda está vazio — anexe pelo Meu computador.") + "</p>";
+  } else if (anx.visao === "drive" && !(anx.drive || []).length) {
+    $("anx-migalhas").hidden = true;
+    html = '<div class="anx-sem-drive">' + marca("google-drive", 28) +
+      "<p><b>O Google Drive para computador não está nesta máquina.</b></p>" +
+      "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher os arquivos — sem dar ao PAULUS nenhuma permissão a mais na sua conta Google.</p>" +
+      '<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p></div>';
   } else {
     const d = anx.pasta || {};
     const migalhas = $("anx-migalhas");
     migalhas.hidden = false;
-    migalhas.innerHTML = '<button type="button" data-anx-ir="">Este computador</button>' +
-      (d.migalhas || []).map((m) => '<span class="lc-sep">›</span><button type="button" data-anx-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>").join("");
-    const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-anx-ir="' + esc(p.caminho) + '">' + ic(icone, 17) +
+    const noDrive = anx.visao === "drive";
+    const raizDrive = (anx.caminhoDrive && anx.drive || []).find((r) => anx.caminhoDrive.toLowerCase().startsWith(r.toLowerCase())) || "";
+    const trilha = noDrive
+      ? (d.migalhas || []).filter((m) => m.caminho.length > raizDrive.length && m.caminho.toLowerCase().startsWith(raizDrive.toLowerCase()))
+      : (d.migalhas || []);
+    migalhas.innerHTML = (noDrive
+      ? '<button type="button" data-anx-ir="' + esc(raizDrive) + '">' + marca("google-drive", 13) + " Google Drive</button>"
+      : '<button type="button" data-anx-ir="">Este computador</button>') +
+      trilha.map((m) => '<span class="lc-sep">›</span><button type="button" data-anx-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>").join("");
+    const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-anx-ir="' + esc(p.caminho) + '">' +
+      (p.tipo === "drive" ? marca("google-drive", 17) : ic(icone, 17)) +
       '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" +
       (p.caminho && icone !== "folder" ? "" : "") + ic("chevron_right", 16) + "</div>";
     if ((d.atalhos || []).length) html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.filter((a) => casa(a.nome)).map((a) => pasta(a, "folder")).join("");
@@ -132,7 +163,7 @@ function desenharListaDoAnexar() {
     }).join("");
     if (d.erro) html += '<p class="anx-vazio">' + esc(d.erro) + "</p>";
     else if (!html) html = '<p class="anx-vazio">' + (anx.termo ? "Nada com esse nome nesta pasta." : "Nenhum documento que eu saiba ler nesta pasta (PDF, Word, texto).") + "</p>";
-    migalhas.querySelectorAll("[data-anx-ir]").forEach((b) => { b.onclick = () => { anx.caminho = b.dataset.anxIr; anx.termo = ""; $("anx-busca").value = ""; desenharAnexar(); }; });
+    migalhas.querySelectorAll("[data-anx-ir]").forEach((b) => { b.onclick = () => { irNoAnexar(b.dataset.anxIr); }; });
   }
   lista.innerHTML = html;
   lista.querySelectorAll("[data-anx-doc]").forEach((l) => {
@@ -145,7 +176,7 @@ function desenharListaDoAnexar() {
     };
   });
   lista.querySelectorAll(".anx-pasta[data-anx-ir]").forEach((l) => {
-    l.onclick = () => { anx.caminho = l.dataset.anxIr; anx.termo = ""; $("anx-busca").value = ""; desenharAnexar(); };
+    l.onclick = () => { irNoAnexar(l.dataset.anxIr); };
   });
   lista.querySelectorAll("[data-anx-arq]").forEach((l) => {
     l.onclick = () => {
@@ -157,6 +188,15 @@ function desenharListaDoAnexar() {
   contarAnexar();
 }
 
+/* Entrar numa pasta: no computador ou no Drive, cada visao guarda onde estava. */
+function irNoAnexar(caminho) {
+  if (anx.visao === "drive") anx.caminhoDrive = caminho;
+  else anx.caminho = caminho;
+  anx.termo = "";
+  $("anx-busca").value = "";
+  desenharAnexar();
+}
+
 async function anexarEscolhidos() {
   const doAcervo = [...anx.acervo];
   const caminhos = [...anx.computador.keys()];
@@ -165,9 +205,14 @@ async function anexarEscolhidos() {
     avisoNaJanela("Lendo " + plural(caminhos.length, "arquivo") + "…", { icone: "sync", girar: true, dura: 0 });
     try {
       // Acima de 50 MB, pergunta e manda de novo so o confirmado (js/37).
-      const res = await enviarComConfirmacao(caminhos, async (quais, autorizados) => (await fetch("/api/anexar/caminhos", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminhos: quais, autorizados: autorizados }),
-      })).json(), "salvos");
+      // Nome repetido com outro conteudo: pergunta (Renomear / Substituir);
+      // fechar a pergunta nao traz nada.
+      const res = await enviarComConfirmacao(caminhos, async (quais, autorizados) => {
+        const r = await comNomesDecididos((decisoes) => fetch("/api/anexar/caminhos", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminhos: quais, autorizados: autorizados, decisoes: decisoes }),
+        }));
+        return r ? r.json() : { salvos: [], recusados: [], pedem_confirmacao: [] };
+      }, "salvos");
       lidos = res.salvos || [];
       const feito = anx.daConversa ? (lidos.length === 1 ? " anexado" : " anexados") : (lidos.length === 1 ? " trazido para o Acervo" : " trazidos para o Acervo");
       let texto = lidos.length ? plural(lidos.length, "documento") + feito : "Nenhum arquivo foi trazido.";
@@ -231,14 +276,21 @@ async function subirArquivos(escolhidos) {
     avisoNaJanela("Nenhum arquivo foi aberto. " + envio.fora.map((x) => x.nome + " (" + x.motivo + ")").join(", ") + ".", { tom: "erro", dura: 12000 });
     return;
   }
-  const dados = new FormData();
-  lista.forEach((a) => dados.append("arquivos", a));
-  dados.append("autorizados", JSON.stringify(envio.autorizados));
+  // Nome repetido com conteudo diferente: pergunta (comNomesDecididos) e
+  // manda de novo com a decisao; fechar a pergunta nao grava nada.
+  const enviar = (decisoes) => {
+    const dados = new FormData();
+    lista.forEach((a) => dados.append("arquivos", a));
+    dados.append("autorizados", JSON.stringify(envio.autorizados));
+    dados.append("decisoes", JSON.stringify(decisoes));
+    return fetch("/api/upload", { method: "POST", body: dados });
+  };
 
   avisoNaJanela("Lendo " + plural(lista.length, "arquivo") + "…", { icone: "sync", girar: true, dura: 0 });
 
   try {
-    const r = await fetch("/api/upload", { method: "POST", body: dados });
+    const r = await comNomesDecididos(enviar);
+    if (!r) { avisoNaJanela("Nada foi aberto: o arquivo de mesmo nome ficou como estava.", { icone: "info" }); return; }
     const res = await r.json();
     res.recusados = (res.recusados || []).concat(envio.fora);
 

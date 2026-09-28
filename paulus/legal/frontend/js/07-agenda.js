@@ -191,7 +191,7 @@ function cabecalhoAgenda() {
       return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
     }).join("") + "</div>" +
     /* Sincronizar so aparece com a Agenda do Google conectada (js/38-google.js). */
-    (googleConectado("agenda") ? '<button class="com-icone" data-ag-google="1" title="Mandar a Agenda ao Google e reler os eventos de lá">' + ic("sync", 16) + "Sincronizar</button>" : "") +
+    (googleConectado("agenda") ? '<button class="com-icone" data-ag-google="1" title="Mandar a Agenda ao Google e reler os eventos de lá">' + marca("google-agenda", 16) + "Sincronizar</button>" : "") +
     '<button class="com-icone" data-ag-novo="compromisso">' + ic("event", 16) + "Adicionar compromisso</button>" +
     '<button class="primario com-icone" data-ag-novo="tarefa">' + ic("task_alt", 16) + "Adicionar tarefa</button>";
   $("acoes-tela").querySelectorAll("[data-visao]").forEach((b) => { b.onclick = () => mostrarAgenda(b.dataset.visao); });
@@ -203,9 +203,8 @@ function cabecalhoAgenda() {
   const sinc = $("acoes-tela").querySelector("[data-ag-google]");
   if (sinc) sinc.onclick = async () => { if (await sincronizarGoogle(sinc)) mostrarAgenda(); };
   // O estado do Google chega uma vez; com ele, o botao de sincronizar aparece.
-  if (gg.dados === null && !gg.pedindo) {
-    gg.pedindo = true;
-    carregarGoogle().then(() => { gg.pedindo = false; if (googleConectado("agenda")) cabecalhoAgenda(); });
+  if (gg.dados === null && !gg.pedido) {
+    googleCarregado().then(() => { if (googleConectado("agenda")) cabecalhoAgenda(); });
   }
 }
 
@@ -814,30 +813,60 @@ function verEventoDoGoogle(x, dia) {
     html: fichaDoDialogo([
       ["Quando", maiuscula(diaPorExtenso(dia)) + (x.hora ? ", " + x.hora + (x.duracao ? " (" + duracaoEmTexto(x.duracao) + ")" : "") : ", o dia todo")],
       ["De onde", "Agenda do Google — editar é lá"],
-    ]) + (x.meet ? '<div class="dialogo-acoes"><button type="button" class="com-icone" data-ag-meet="1">' + ic("videocam", 16) + "Entrar na sala do Meet</button></div>" : ""),
+    ]) + (x.meet ? '<div class="dialogo-acoes"><button type="button" class="com-icone" data-ag-meet="1">' + marca("google-meet", 16) + "Entrar na sala do Meet</button></div>" : ""),
   });
   const meet = document.querySelector("[data-ag-meet]");
   if (meet) meet.onclick = () => window.open(x.meet, "_blank");
   escolha.then((r) => { if (r && r.ok && x.link) window.open(x.link, "_blank"); });
 }
 
+/* A SALA DO MEET DO COMPROMISSO JA MARCADO. Com sala de verdade (o link que
+   o Google devolveu), o botao entra nela. Online, sem sala e com a Agenda do
+   Google conectada, o botao cria a sala (/api/agenda/{id}/meet). Sem a
+   Agenda, ele so abre um Meet novo no navegador - e o title diz que o link
+   nao fica no compromisso. */
+function botaoDaSalaMeet(c) {
+  if (c.meet) return '<button type="button" class="com-icone" data-ag-meet-abrir="1">' + marca("google-meet", 16) + "Entrar na sala do Meet</button>";
+  if (c.onde !== "online") return "";
+  if (googleConectado("agenda")) {
+    return '<button type="button" class="com-icone" data-ag-meet-criar="1" title="O evento deste compromisso vai à sua Agenda do Google com a sala; o link fica aqui e no convite">' +
+      marca("google-meet", 16) + "Criar sala no Meet</button>";
+  }
+  return '<button type="button" class="com-icone" data-ag-sala="meet" title="Abre um Meet novo no navegador; o link não fica no compromisso. Para a sala ficar aqui, conecte a Agenda do Google em Configurações › Conexões">' +
+    marca("google-meet", 16) + "Sala no Meet</button>";
+}
+
+/* Os botoes das salas (exibicao e linha aberta): entrar, criar, abrir nova. */
+function ligarSalasDoCompromisso(raiz, c, depois) {
+  raiz.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
+  raiz.querySelectorAll("[data-ag-meet-abrir]").forEach((b) => { b.onclick = () => window.open(c.meet, "_blank"); });
+  const criar = raiz.querySelector("[data-ag-meet-criar]");
+  if (!criar) return;
+  criar.onclick = async () => {
+    criar.disabled = true;
+    criar.textContent = "criando a sala…";
+    const resp = await fetch("/api/agenda/" + c.id + "/meet", { method: "POST" });
+    if (!resp.ok) {
+      avisoCert(await erroDe(resp), { tom: "erro" });
+      criar.disabled = false;
+      criar.innerHTML = marca("google-meet", 16) + "Criar sala no Meet";
+      return;
+    }
+    Object.assign(c, await resp.json());
+    avisoCert("sala do Meet criada — o link está no compromisso e no convite", { tom: "ok" });
+    criar.outerHTML = botaoDaSalaMeet(c);
+    ligarSalasDoCompromisso(raiz, c, depois);
+    if (depois) depois();
+  };
+}
+
 async function verCompromisso(c) {
   const aviso = AVISOS_ANTES.find(([m]) => m === Number(c.avisar_min || 0));
   const horario = c.hora + (c.fim ? " às " + c.fim : "") + (c.duracao ? " (" + duracaoEmTexto(c.duracao) + ")" : "");
-  /* Com a Agenda do Google conectada, a sala do Meet e de verdade: nasce no
-     evento e o link fica no compromisso (e no convite). Sem ela, o botao
-     abre um Meet novo no navegador, como antes. */
-  const meetDeVerdade = googleConectado("agenda");
-  const salaMeet = !meetDeVerdade
-    ? '<button type="button" class="com-icone" data-ag-sala="meet">' + ic("videocam", 16) + "Sala no Meet</button>"
-    : (c.meet
-      ? '<button type="button" class="com-icone" data-ag-meet-abrir="1">' + ic("videocam", 16) + "Entrar na sala do Meet</button>"
-      : '<button type="button" class="com-icone" data-ag-meet-criar="1">' + ic("videocam", 16) + "Criar sala no Meet</button>");
-  const salas = c.onde === "online"
-    ? salaMeet +
-      '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
+  const salas = botaoDaSalaMeet(c) + (c.onde === "online"
+    ? '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
       '<button type="button" class="com-icone" data-ag-link="1">' + ic("link", 16) + "Convite com link</button>"
-    : "";
+    : "");
   const escolha = dialogo({
     titulo: c.titulo, contexto: "Agenda › " + maiuscula(diaCurto(c.data)) + " · " + c.hora,
     classe: "dialogo-ver", larga: true, cancelar: "Fechar", confirmar: "Editar",
@@ -855,25 +884,9 @@ async function verCompromisso(c) {
   });
   const dlg = document.querySelector(".dialogo-ver");
   if (dlg) {
-    dlg.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
+    ligarSalasDoCompromisso(dlg, c, () => carregarAgenda().then(() => desenharAgenda()).catch(() => {}));
     const copiar = dlg.querySelector("[data-ag-copiar]");
     if (copiar) copiar.onclick = () => copiarTexto(conviteDe(c, c.meet || ""), "convite copiado");
-    const abrirMeet = dlg.querySelector("[data-ag-meet-abrir]");
-    if (abrirMeet) abrirMeet.onclick = () => window.open(c.meet, "_blank");
-    const criarMeet = dlg.querySelector("[data-ag-meet-criar]");
-    if (criarMeet) criarMeet.onclick = async () => {
-      criarMeet.disabled = true;
-      criarMeet.textContent = "criando a sala…";
-      const resp = await fetch("/api/agenda/" + c.id + "/meet", { method: "POST" });
-      if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); criarMeet.disabled = false; criarMeet.textContent = "Criar sala no Meet"; return; }
-      const novo = await resp.json();
-      Object.assign(c, novo);
-      avisoCert("sala do Meet criada — o link está no compromisso e no convite", { tom: "ok" });
-      criarMeet.outerHTML = '<button type="button" class="com-icone" data-ag-meet-abrir="1">' + ic("videocam", 16) + "Entrar na sala do Meet</button>";
-      const nova = dlg.querySelector("[data-ag-meet-abrir]");
-      if (nova) nova.onclick = () => window.open(c.meet, "_blank");
-      carregarAgenda().then(() => desenharAgenda && desenharAgenda()).catch(() => {});
-    };
     const link = dlg.querySelector("[data-ag-link]");
     if (link) link.onclick = () => pedirLinkDaSala(c);
   }
@@ -934,6 +947,81 @@ function fecharFormNoPopup() {
   if (dialogoAberto && document.getElementById("ag-form-pop")) dialogoAberto.fechar(null);
 }
 
+/* A SALA DO MEET AO MARCAR (formulario do compromisso e Agendar de
+   Servicos). A sala nasce do evento na Agenda do Google
+   (src/google_servicos.py): com a Agenda conectada, "Criar sala no Google
+   Meet" cria a sala ao salvar e o link volta no compromisso (e no convite).
+   Vem ligada so quando a sincronizacao ja manda os compromissos ao Google;
+   com ela desligada, vem desligada e diz que o evento vai assim mesmo. Sem a
+   Agenda, a opcao diz o que falta e oferece conectar - nunca finge que cria.
+   `v.criar_meet` guarda a escolha; `v.meet` e a sala que o compromisso ja tem. */
+function opcaoDoMeet(v) {
+  if (v.onde !== "online") return "";
+  if (v.meet) {
+    return '<div class="dialogo-campo ag-meet"><div class="ag-meet-linha">' + marca("google-meet", 18) +
+      '<span class="duas-linhas"><b>Sala do Google Meet</b><small>' + esc(v.meet) + "</small></span></div></div>";
+  }
+  const d = gg.dados;
+  if (!d) return gg.tentou ? "" : '<div class="dialogo-campo ag-meet"><span class="dialogo-dica">lendo a conta Google…</span></div>';
+  if (!d.configurado) return "";
+  if (googleConectado("agenda")) {
+    if (v.criar_meet === undefined) v.criar_meet = !v.id && Boolean(d.agenda_sincronizar);
+    const sub = d.agenda_sincronizar
+      ? "a sala nasce no evento da sua Agenda do Google; o link fica no compromisso e vai no convite"
+      : "a sincronização com o Google está desligada: ligado aqui, este compromisso vai à sua Agenda do Google (título, data, hora, duração e lugar) para a sala nascer";
+    return '<div class="dialogo-campo ag-meet"><div class="ag-toggle' + (v.criar_meet ? " on" : "") + '" data-ag-criar-meet="1" role="switch" aria-checked="' +
+      Boolean(v.criar_meet) + '" tabindex="0">' + marca("google-meet", 18) +
+      '<span class="duas-linhas"><b>Criar sala no Google Meet</b><small>' + esc(sub) + "</small></span><i></i></div></div>";
+  }
+  const semConta = !d.conta;
+  return '<div class="dialogo-campo ag-meet"><div class="ag-meet-linha">' + marca("google-meet", 18) +
+    '<span class="duas-linhas"><b>Sala no Google Meet</b><small>' +
+    esc(semConta ? "Para o PAULUS criar a sala, entre com a conta Google no e-mail e conecte a Agenda do Google em Configurações › Conexões."
+      : "Para o PAULUS criar a sala ao salvar, conecte a Agenda do Google. Conectada, a sincronização liga: os compromissos vão à sua Agenda do Google (título, data, hora, duração e lugar; a anotação e o cliente ficam aqui).") + "</small></span>" +
+    '<button type="button" class="com-icone" data-ag-conectar-agenda="1">' + marca("google-agenda", 16) +
+    (semConta ? "Abrir Conexões" : "Conectar a Agenda do Google") + "</button></div>" +
+    '<span class="dialogo-dica">Sala de outra plataforma: depois de marcar, use “Convite com link” no compromisso.</span></div>';
+}
+
+function ligarOpcaoDoMeet(raiz, v) {
+  const lugar = raiz.querySelector("[data-ag-meet-lugar]");
+  if (!lugar) return;
+  const refazer = () => { if (document.contains(lugar)) { lugar.innerHTML = opcaoDoMeet(v); ligarOpcaoDoMeet(raiz, v); } };
+  if (v.onde === "online" && gg.dados === null && !gg.tentou) { googleCarregado().then(refazer); return; }
+  const chave = lugar.querySelector("[data-ag-criar-meet]");
+  if (chave) {
+    const trocar = () => {
+      v.criar_meet = !v.criar_meet;
+      chave.classList.toggle("on", v.criar_meet);
+      chave.setAttribute("aria-checked", String(v.criar_meet));
+    };
+    chave.onclick = trocar;
+    chave.onkeydown = (e) => { if (e.key === " ") { e.preventDefault(); trocar(); } };
+  }
+  const conectar = lugar.querySelector("[data-ag-conectar-agenda]");
+  if (conectar) conectar.onclick = () => {
+    if (!gg.dados || !gg.dados.conta) {
+      // Sem a conta Google no e-mail nao da para conectar daqui: o caminho e Conexoes.
+      if (dialogoAberto) dialogoAberto.fechar(null);
+      return mostrarConexoes();
+    }
+    // Conectou: a opcao volta ligada - foi para isso que a pessoa conectou.
+    conectarGoogle("agenda", conectar, (pronto) => { if (pronto && googleConectado("agenda")) v.criar_meet = true; refazer(); });
+  };
+}
+
+/* Pedir a sala junto com o salvar: so reuniao online, sem sala, com a Agenda. */
+function querSalaDoMeet(v) {
+  return v.onde === "online" && !v.meet && Boolean(v.criar_meet) && googleConectado("agenda");
+}
+
+/* Depois de salvar com a sala pedida: diz o que o Google fez, sem fingir. */
+function avisarSalaDoMeet(c, pediu, comConvite) {
+  if (!pediu) return;
+  if (c.meet_erro) avisoCert("Compromisso marcado, mas a sala do Meet não: " + c.meet_erro, { tom: "erro" });
+  else if (c.meet) avisoCert("Sala do Meet criada — o link está no compromisso" + (comConvite ? " e no convite" : ""), { tom: "ok" });
+}
+
 function partesDoFormAgenda(v) {
   if (v.tipo === "tarefa") return partesDoFormTarefa(v);
   const novo = !v.id;
@@ -964,6 +1052,7 @@ function partesDoFormAgenda(v) {
         "</select>", "ag-f-aviso")) +
     campo("Com quem", '<select id="ag-f-cliente" data-c="cadastro_id">' + clientes + "</select>", "ag-f-cliente") +
     '<div class="dialogo-campo"><label>Onde</label><div class="dialogo-chips">' + ondes + "</div></div>" +
+    '<div class="ag-meet-lugar" data-ag-meet-lugar="1">' + opcaoDoMeet(v) + "</div>" +
     '<div class="dialogo-campo"><label>Cabe nestes horários</label><div class="dialogo-chips" data-ag-livres="1"><span class="dialogo-dica">procurando…</span></div></div>' +
     campo("Anotação", '<textarea id="ag-f-anotacao" rows="3" data-c="anotacao" placeholder="Pauta, endereço, o que levar…">' + esc(v.anotacao || "") + "</textarea>", "ag-f-anotacao", true) +
     '<div class="dialogo-campo"><div class="' + classeConvite + '" data-ag-convite="1"><span>Enviar convite por e-mail ao salvar</span><i></i></div>' +
@@ -1038,11 +1127,10 @@ function blocoDaFicha(titulo, contagem, miolo) {
 function fichaDoCompromissoNaLinha(k) {
   const aviso = AVISOS_ANTES.find(([m]) => m === Number(k.avisar_min || 0));
   const horario = k.hora + (k.fim ? " às " + k.fim : "") + (k.duracao ? " (" + duracaoEmTexto(k.duracao) + ")" : "");
-  const salas = k.onde === "online"
-    ? '<button type="button" class="com-icone" data-ag-sala="meet">' + ic("videocam", 16) + "Sala no Meet</button>" +
-      '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
+  const salas = botaoDaSalaMeet(k) + (k.onde === "online"
+    ? '<button type="button" class="com-icone" data-ag-sala="teams">' + ic("videocam", 16) + "Sala no Teams</button>" +
       '<button type="button" class="com-icone" data-ag-link="' + k.id + '">' + ic("link", 16) + "Convite com link</button>"
-    : "";
+    : "");
   return '<div class="ag-linha-ficha" data-ag-ficha-comp="' + k.id + '">' +
     '<div class="ag-ficha-col">' +
     blocoDaFicha("O compromisso", "", fichaDoDialogo([
@@ -1050,6 +1138,7 @@ function fichaDoCompromissoNaLinha(k) {
       ["Onde", k.onde_rotulo || "sem local"],
       ["Com quem", k.cadastro_nome || "ninguém do cadastro"],
       ["Aviso", aviso ? aviso[1] : ""],
+      k.meet ? ["Sala", k.meet] : null,
       k.anotacao ? ["Anotação", k.anotacao] : null,
     ])) + "</div>" +
     '<div class="ag-ficha-col">' +
@@ -1410,8 +1499,11 @@ function ligarFormAgenda(p) {
     b.onclick = () => {
       v.onde = b.dataset.agOnde;
       p.querySelectorAll("[data-ag-onde]").forEach((x) => x.classList.toggle("on", x === b));
+      const lugar = p.querySelector("[data-ag-meet-lugar]");
+      if (lugar) { lugar.innerHTML = opcaoDoMeet(v); ligarOpcaoDoMeet(p, v); }
     };
   });
+  if (v.tipo !== "tarefa") ligarOpcaoDoMeet(p, v);
   p.querySelectorAll("[data-c]").forEach((el) => {
     const guardar = () => {
       v[el.dataset.c] = el.dataset.c === "cadastro_id" ? (Number(el.value) || null) : el.value;
@@ -1496,9 +1588,18 @@ async function salvarFormAgenda() {
       duracao: Number(v.duracao) || 60, onde: v.onde || "", cadastro_id: v.cadastro_id || null,
       anotacao: v.anotacao || "", avisar_min: Number(v.avisar_min) || 0,
     };
-    const r = await fetch("/api/agenda", {
-      method: "POST", headers: AG_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }),
-    });
+    // Com a sala pedida, o salvar espera o Google: o botao trava e o rodape diz.
+    const sala = querSalaDoMeet(v);
+    const botao = aviso.closest(".dialogo") && aviso.closest(".dialogo").querySelector('[data-dialogo="confirmar"]');
+    if (sala) { aviso.textContent = "criando a sala do Meet…"; if (botao) botao.disabled = true; }
+    let r;
+    try {
+      r = await fetch("/api/agenda", {
+        method: "POST", headers: AG_JSON, body: JSON.stringify({ id: v.id || null, dados: dados, meet: sala }),
+      });
+    } finally {
+      if (botao) botao.disabled = false;
+    }
     if (!r.ok) throw new Error(await erroDe(r));
     const c = await r.json();
     const d = deIso(dados.data);
@@ -1510,7 +1611,8 @@ async function salvarFormAgenda() {
     ag.painel = "dia";
     fecharFormNoPopup();
     await mostrarAgenda();
-    if (v.convite) enviarConvite(c.titulo, conviteDe(c, ""));
+    avisarSalaDoMeet(c, sala, v.convite);
+    if (v.convite) enviarConvite(c.titulo, conviteDe(c, c.meet || ""));
   } catch (err) {
     aviso.textContent = "não consegui salvar: " + (err.message || err);
   }
@@ -1590,9 +1692,9 @@ function ligarFichaDaTarefa(p) {
 function ligarFichaDoCompromisso(p) {
   const k = (ag.tar.compromissos || []).find((x) => x.id === ag.tar.aberto);
   if (!k) return;
-  p.querySelectorAll("[data-ag-sala]").forEach((b) => { b.onclick = () => window.open(SALAS[b.dataset.agSala], "_blank"); });
+  ligarSalasDoCompromisso(p, k, () => recarregarAgenda());
   const copiar = p.querySelector("[data-ag-copiar]");
-  if (copiar) copiar.onclick = () => copiarTexto(conviteDe(k, ""), "convite copiado");
+  if (copiar) copiar.onclick = () => copiarTexto(conviteDe(k, k.meet || ""), "convite copiado");
   const link = p.querySelector("[data-ag-link]");
   if (link) link.onclick = () => pedirLinkDaSala(k);
   const editar = p.querySelector("[data-ag-editar-comp]");

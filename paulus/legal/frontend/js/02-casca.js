@@ -276,8 +276,12 @@ new MutationObserver(() => {
   const passou = performance.now() - troca.quando;
   if (passou > 4000) { troca.conteudo = false; return; }
   const centro = $("centro");
-  // O esqueleto de carregando nao conta: a entrada e do conteudo.
+  // O esqueleto de carregando nao conta: a entrada e do conteudo. Nem o
+  // aviso curto de espera ("lendo…", "somando…"): o fade era gasto nele e o
+  // conteudo de verdade chegava seco.
   if (centro.querySelector(".esqueleto")) return;
+  const texto = centro.innerText.trim();
+  if (texto.length < 80 && texto.endsWith("…")) return;
   troca.conteudo = false;
   entraConteudo(centro, { y: 6, duracao: 340 });
 }).observe($("centro"), { childList: true, subtree: true });
@@ -360,6 +364,69 @@ function sairDoAr(el, opcoes) {
   animacao.onfinish = fim;
   animacao.oncancel = fim;
 }
+
+/* A PILULA DAS VISOES DESLIZA. Trocar de visao (Contribuir / Quem ja apoia,
+   Mes / Semana / Tarefas...) redesenha a tela inteira, e a pilula saltava.
+   Agora, no clique, guarda-se onde ela estava; quando a barra (a mesma, ou a
+   redesenhada no mesmo lugar) mostra a nova ativa, uma pilula de passagem
+   anda da antiga ate a nova. Nada muda no que cada tela faz. */
+document.addEventListener("click", (e) => {
+  const botao = e.target.closest && e.target.closest(".visoes > button");
+  if (!botao || botao.classList.contains("ativa") || botao.disabled || !animacoesLigadas()) return;
+  const barra = botao.parentElement;
+  const antes = barra.querySelector(":scope > button.ativa");
+  if (!antes) return;
+  const lugar = barra.getBoundingClientRect();
+  const de = antes.getBoundingClientRect();
+  const inicio = performance.now();
+  const procurar = () => {
+    if (performance.now() - inicio > 900) return;
+    const nova = [...document.querySelectorAll(".visoes")].find((v) => {
+      const r = v.getBoundingClientRect();
+      return Math.abs(r.top - lugar.top) < 3 && Math.abs(r.left - lugar.left) < 3;
+    });
+    const ativa = nova && nova.querySelector(":scope > button.ativa");
+    const para = ativa && ativa.getBoundingClientRect();
+    if (!para || (Math.abs(para.left - de.left) < 1 && Math.abs(para.width - de.width) < 1)) {
+      requestAnimationFrame(procurar);
+      return;
+    }
+    const caixa = nova.getBoundingClientRect();
+    const pilula = document.createElement("span");
+    pilula.className = "pilula-andando";
+    Object.assign(pilula.style, {
+      top: (para.top - caixa.top) + "px", left: (para.left - caixa.left) + "px",
+      width: para.width + "px", height: para.height + "px",
+    });
+    nova.appendChild(pilula);
+    nova.classList.add("deslizando");
+    const anda = pilula.animate(
+      [{ transform: "translateX(" + (de.left - para.left) + "px)", width: de.width + "px" },
+        { transform: "none", width: para.width + "px" }],
+      { duration: 300, easing: CURVA_ENTRA });
+    const fim = () => { pilula.remove(); nova.classList.remove("deslizando"); };
+    anda.onfinish = fim;
+    anda.oncancel = fim;
+  };
+  requestAnimationFrame(procurar);
+}, true);
+
+/* O PAINEL AO LADO CHEGA DESLIZANDO. A ficha que abre a direita (Acervo,
+   Servicos, Financeiro...) vem dentro do desenho da tela e aparecia de uma
+   vez. Quando um painel surge onde nao havia, ele entra da direita; quando a
+   tela se redesenha com o painel ja aberto, fica quieto. */
+(() => {
+  let havia = false;
+  new MutationObserver(() => {
+    const painel = $("centro").querySelector(".acervo-painel");
+    const tem = Boolean(painel) && painel.getBoundingClientRect().width > 0;
+    if (tem && !havia && animacoesLigadas()) {
+      painel.animate([{ opacity: 0, transform: "translateX(18px)" }, { opacity: 1, transform: "none" }],
+        { duration: 340, easing: CURVA_ENTRA });
+    }
+    havia = tem;
+  }).observe($("centro"), { childList: true, subtree: true });
+})();
 
 /* A gaveta ao lado do menu: as telas antigas que ainda nao tem lugar. */
 function fecharGavetas() {

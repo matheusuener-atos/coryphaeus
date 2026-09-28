@@ -235,8 +235,17 @@ def test_lote_na_fila(tmp: Path) -> None:
         checar(all(Path(f["destino"]).exists() for f in desfecho.get("feitos", [])), "os assinados existem, ao lado dos originais")
         checar("2 de 2" in feito.get("resultado", ""), f"o historico conta os assinados ({feito.get('resultado')})")
 
+        # Assinar de novo o mesmo PDF: o "- assinado" ja existe, e o lote
+        # pergunta antes de ir para a fila (src/nomes.py).
+        import nomes as nomes_mod
+        try:
+            api.assinar_lote(api.PedidoLote(itens=[api.ItemDoLote(arquivo=str(a))], guardar_biblioteca=False, senha_certificado=SENHA))
+            checar(False, "assinar de novo pergunta pelo nome repetido")
+        except nomes_mod.NomeRepetido as exc:
+            checar(exc.conflitos[0]["existente"] == f"{Path(a).stem} - assinado.pdf", "assinar de novo pergunta pelo nome repetido")
         # Sem a senha na memoria, o sim falha dizendo por que - e nao assina.
-        r2 = api.assinar_lote(api.PedidoLote(itens=[api.ItemDoLote(arquivo=str(a))], guardar_biblioteca=False, senha_certificado=SENHA))
+        r2 = api.assinar_lote(api.PedidoLote(itens=[api.ItemDoLote(arquivo=str(a))], guardar_biblioteca=False, senha_certificado=SENHA,
+                                             decisoes={f"{Path(a).stem} - assinado.pdf": {"acao": "substituir"}}))
         api.estado.cofre.esquecer_senha()
         d2 = api.aprovacoes_decidir(api.Decisao(ids=[r2["pedido"]["id"]], aprovar=True))
         checar(bool(d2["falhas"]) and "senha" in d2["falhas"][0]["motivo"], f"sem senha na memoria, o sim diz o motivo ({d2['falhas']})")
@@ -315,7 +324,16 @@ def test_copiar_um_a_um(tmp: Path) -> None:
         pasta.mkdir()
         ja = pasta / "acordo - assinado.pdf"
         ja.write_bytes(b"o que ja estava la")
-        r = api.assinar_copiar(api.AssinadosParaSalvar(arquivos=[str(x), str(y)], pasta=str(pasta)))
+        # O nome ja existe na pasta: pergunta antes de copiar (src/nomes.py).
+        import nomes as nomes_mod
+        try:
+            api.assinar_copiar(api.AssinadosParaSalvar(arquivos=[str(x), str(y)], pasta=str(pasta)))
+            checar(False, "nome repetido na pasta: pergunta antes de copiar")
+        except nomes_mod.NomeRepetido as exc:
+            checar(exc.conflitos[0]["sugestao"] == "acordo - assinado (2).pdf" and len(list(pasta.iterdir())) == 1,
+                   "nome repetido na pasta: pergunta antes de copiar, e nada entra")
+        r = api.assinar_copiar(api.AssinadosParaSalvar(arquivos=[str(x), str(y)], pasta=str(pasta),
+                                                        decisoes={"acordo - assinado.pdf": {"acao": "renomear", "nome": "acordo - assinado (2).pdf"}}))
         checar(ja.read_bytes() == b"o que ja estava la", "o arquivo que ja estava na pasta nao foi substituido")
         checar(len(r["copiados"]) == 2 and len(set(r["copiados"])) == 2, f"os dois entraram com nomes diferentes ({r['copiados']})")
         checar(all((pasta / n).exists() for n in r["copiados"]), "e estao na pasta")

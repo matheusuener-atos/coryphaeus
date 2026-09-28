@@ -1417,11 +1417,14 @@ function exLigarMensagem(raiz) {
   raiz.querySelectorAll("[data-guardar]").forEach((b) => {
     b.onclick = async () => {
       b.disabled = true;
-      const r = await exJson("/api/email/anexo/guardar", { uid: m.uid, nome: b.dataset.guardar, conta_id: mail.conta ? mail.conta.id : "" });
+      // Nome repetido no Acervo: pergunta (Renomear / Substituir).
+      const r = await comNomesDecididos((decisoes) => exJson("/api/email/anexo/guardar",
+        { uid: m.uid, nome: b.dataset.guardar, conta_id: mail.conta ? mail.conta.id : "", decisoes: decisoes }));
+      if (!r) { b.disabled = false; return; }
       if (!r.ok) { b.disabled = false; avisoCert(await erroDe(r)); return; }
       const d = await r.json();
       estado.contratos = d.documentos;
-      avisoCert("guardado no Acervo como " + d.guardado);
+      avisoCert(d.ja_estava ? d.guardado + " já estava no Acervo" : "guardado no Acervo como " + d.guardado);
     };
   });
   exLigarEntendi(raiz, m);

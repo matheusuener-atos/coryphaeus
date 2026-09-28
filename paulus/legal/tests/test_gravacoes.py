@@ -188,7 +188,7 @@ def wav_sintetico(destino: Path, segundos: int = 3) -> None:
 
 def test_servicos(c: Cliente, criados: dict) -> None:
     print("\nservicos: a pasta de trabalho")
-    st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Servicos Cliente Ltda", "documento": "12.345.678/0001-90"}})
+    st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Servicos Cliente Ltda", "documento": "12.345.678/0001-95"}})
     checar(st == 200, "cliente de teste criado", (st, cli))
     criados["cadastros"].append(cli["id"])
     st, pes = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "colaborador", "nome": "Teste Advogada", "observacao": "contratos"}})
@@ -502,7 +502,7 @@ def test_planilha_trazer(c: Cliente, criados: dict) -> None:
     formula, para continuar certo se alguem corrigir uma linha.
     """
     print("\nplanilha: trazer o Financeiro e os prazos")
-    st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Planilha Cliente", "documento": "98.765.432/0001-10"}})
+    st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Planilha Cliente", "documento": "98.765.432/0001-98"}})
     criados["cadastros"].append(cli["id"])
     for descricao, valor, pago in (("Teste — honorários de setembro", "1.200,00", ""),
                                    ("Teste — honorários de outubro", "800,50", "2026-09-10")):

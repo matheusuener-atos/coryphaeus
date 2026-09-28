@@ -221,10 +221,14 @@ function ligarListaDePdfs() {
     const envio = await prepararEnvio(Array.from(campo.files));
     const arquivos = envio.lista;
     if (!arquivos.length) return;
-    const forma = new FormData();
-    arquivos.forEach((a) => forma.append("arquivos", a));
-    forma.append("autorizados", JSON.stringify(envio.autorizados));
-    const r = await fetch("/api/upload", { method: "POST", body: forma });
+    const r = await comNomesDecididos((decisoes) => {
+      const forma = new FormData();
+      arquivos.forEach((a) => forma.append("arquivos", a));
+      forma.append("autorizados", JSON.stringify(envio.autorizados));
+      forma.append("decisoes", JSON.stringify(decisoes));
+      return fetch("/api/upload", { method: "POST", body: forma });
+    });
+    if (!r) return;
     if (!r.ok) { avisoCert(await erroDe(r)); return; }
     const res = await r.json();
     const fora = (res.recusados || []).concat(envio.fora);
@@ -330,7 +334,7 @@ function painelAntesDeAssinar() {
   const compartilhar = lote ? "" :
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compartilhar depois</span>' + (podeCompartilhar ? "" : '<span class="contagem">depois de assinar</span>') + "</div>" +
     '<div class="painel-acoes semi"><button class="com-icone" id="as-baixar"' + bloqueio + ">" + ic("download", 16) + "Baixar</button>" +
-    '<button class="com-icone" id="as-email"' + bloqueio + ">" + ic("mail", 16) + "Enviar por e-mail</button>" +
+    '<button class="com-icone" id="as-email"' + bloqueio + ">" + marcaDoEmail(16) + "Enviar por e-mail</button>" +
     '<button class="com-icone adiante" id="as-whats"' + bloqueio + ">" + ic("chat", 16) + "WhatsApp</button>" +
     '<button class="com-icone" id="as-codigo"' + bloqueio + ">" + ic("link", 16) + "Copiar o código de verificação</button></div></div>";
   return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
@@ -823,10 +827,12 @@ async function assinarAgora() {
   const rotulo = botao ? botao.innerHTML : "";
   if (botao) { botao.disabled = true; botao.textContent = "assinando…"; }
   const origem = assina.doc.caminho;
-  const r = await fetch("/api/assinar", {
+  // Ja existe um "- assinado" com esse nome: pergunta (Renomear / Substituir).
+  const r = await comNomesDecididos((decisoes) => fetch("/api/assinar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      decisoes: decisoes,
       arquivo: origem,
       paginas: assina.paginas,
       intervalo: assina.intervalo,
@@ -839,9 +845,10 @@ async function assinarAgora() {
       manter_original: assina.manter,
       senha_certificado: senha,
     }),
-  });
+  }));
   if (botao) { botao.disabled = false; botao.innerHTML = rotulo; }
 
+  if (!r) return;
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   const d = await r.json();
   // No lote, "Assinar so este" marca o documento e segue para o proximo;
@@ -1317,10 +1324,11 @@ async function assinarLote() {
   botoes.forEach((b) => { b.disabled = true; b.textContent = sozinho ? "assinando " + n + "…" : "pedindo…"; });
   let resposta;
   try {
-    resposta = await fetch("/api/assinar/lote", {
+    resposta = await comNomesDecididos((decisoes) => fetch("/api/assinar/lote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        decisoes: decisoes,
         itens: prontos.map((it) => ({
           arquivo: it.caminho, paginas: it.paginas, intervalo: it.intervalo, posicao: it.posicao || "rodape_direita",
           x: it.selo.x, y: it.selo.y, tamanho: it.selo.largura,
@@ -1330,12 +1338,13 @@ async function assinarLote() {
         manter_original: assina.manter,
         senha_certificado: senha,
       }),
-    });
+    }));
   } catch (err) {
     avisoCert("não consegui assinar: " + String(err));
     atualizarLote();
     return;
   }
+  if (!resposta) { atualizarLote(); return; }
   if (!resposta.ok) { avisoCert(await erroDe(resposta)); atualizarLote(); return; }
   const d = await resposta.json();
   marcarResultadoDoLote(d);
@@ -1438,7 +1447,8 @@ async function salvarAssinados(modo, arquivos) {
     const e = await escolherPastaNossa({ titulo: "Onde salvar o .zip", contexto: "Assinatura em lote", nome: "PDFs assinados " + hoje + ".zip" });
     if (!e) return;
     const caminho = e.pasta.replace(/[\\/]+$/, "") + "\\" + e.nome;
-    const r = await fetch("/api/assinar/zip", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, caminho: caminho }) });
+    const r = await comNomesDecididos((decisoes) => fetch("/api/assinar/zip", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, caminho: caminho, decisoes: decisoes }) }));
+    if (!r) return;
     if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
     const d = await r.json();
     avisoCert(plural(d.quantos, "PDF", "PDFs") + " no " + d.nome + " — " + e.pasta, { tom: "ok" });
@@ -1446,7 +1456,9 @@ async function salvarAssinados(modo, arquivos) {
   }
   const e = await escolherPastaNossa({ titulo: "Onde salvar os PDFs assinados", contexto: "Assinatura em lote" });
   if (!e) return;
-  const r = await fetch("/api/assinar/copiar", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, pasta: e.pasta }) });
+  // Na pasta ja ha um PDF com o mesmo nome: pergunta, um por um.
+  const r = await comNomesDecididos((decisoes) => fetch("/api/assinar/copiar", { method: "POST", headers: json, body: JSON.stringify({ arquivos: arquivos, pasta: e.pasta, decisoes: decisoes }) }));
+  if (!r) return;
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
   const d = await r.json();
   avisoCert(plural(d.copiados.length, "PDF", "PDFs") + (d.copiados.length === 1 ? " salvo em " : " salvos em ") + d.pasta, { tom: "ok" });

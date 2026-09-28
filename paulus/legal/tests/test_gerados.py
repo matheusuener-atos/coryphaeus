@@ -69,9 +69,18 @@ def main() -> int:
            "guardar duas vezes atualiza o mesmo arquivo, sem “(2)”", [p.name for p in pasta_editor.glob("*")])
     checar(no_acervo(a["caminho"]), "e ele está no Acervo")
     Path(a["caminho"]).write_bytes(Path(a["caminho"]).read_bytes() + b"\n% mudado por fora")
-    d = c.post(f"/api/documentos/{id_}/biblioteca", json={"formato": "pdf"}).json()
+    # Mudado por fora: o guardar que a pessoa pede pergunta (src/nomes.py) e
+    # nao grava nada antes; com "renomear", sai com outro nome.
+    pergunta = c.post(f"/api/documentos/{id_}/biblioteca", json={"formato": "pdf"})
+    checar(pergunta.status_code == 409 and pergunta.json()["conflitos"][0]["existente"] == Path(a["caminho"]).name,
+           "arquivo mudado por fora: o guardar pedido pergunta antes", pergunta.text[:200])
+    conflito = pergunta.json()["conflitos"][0]
+    d = c.post(f"/api/documentos/{id_}/biblioteca", json={"formato": "pdf", "decisoes": {
+        conflito["nome"]: {"acao": "renomear", "nome": conflito["sugestao"]}}}).json()
     checar(d["caminho"] != a["caminho"] and Path(a["caminho"]).exists(),
-           "arquivo mudado por fora não é sobrescrito: o novo sai com outro nome", d["guardado"])
+           "renomeando, o de fora fica e o novo sai com outro nome", d.get("guardado"))
+    auto = c.post(f"/api/documentos/{id_}/biblioteca", json={"formato": "pdf", "automatico": True}).json()
+    checar(auto.get("caminho") == d["caminho"], "o guardar automatico atualiza o mesmo arquivo, sem perguntar", auto.get("guardado"))
     c.post(f"/api/documentos/{id_}", json={"titulo": "Contrato de honorários - Cooperativa"})
     item = c.get(f"/api/documentos/{id_}").json()
     titulo_novo = (item.get("titulo") or (item.get("documento") or {}).get("titulo") or "")

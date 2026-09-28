@@ -66,8 +66,13 @@ def veredito(assinaturas: list[dict]) -> tuple[str, str]:
                   "o documento não foi alterado depois de assinado.")
 
 
-def gerar(caminho: Path | str, assinaturas: list[dict], pasta: Path) -> Path:
-    """Monta o PDF do relatorio em `pasta` e devolve o caminho."""
+def nome_do_relatorio(alvo: Path) -> str:
+    return f"{NOME} - {Path(alvo).stem}.pdf"
+
+
+def gerar(caminho: Path | str, assinaturas: list[dict], pasta: Path, destino: Path | None = None) -> Path:
+    """Monta o PDF do relatorio em `pasta` e devolve o caminho. `destino`
+    troca o nome de sempre (quem chama ja decidiu o nome repetido)."""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
@@ -156,6 +161,6 @@ def gerar(caminho: Path | str, assinaturas: list[dict], pasta: Path) -> Path:
     doc.build(fluxo, onFirstPage=rodape, onLaterPages=rodape)
 
     pasta.mkdir(parents=True, exist_ok=True)
-    destino = pasta / f"{NOME} - {alvo.stem}.pdf"
+    destino = destino or pasta / nome_do_relatorio(alvo)
     destino.write_bytes(saida.getvalue())
     return destino

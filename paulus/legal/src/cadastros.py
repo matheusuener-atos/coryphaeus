@@ -18,6 +18,7 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 
+import campos_br
 from financeiro import em_reais as _reais
 
 TIPOS = {
@@ -53,7 +54,23 @@ def _chave(nome: str) -> str:
 
 
 def _so_digitos(documento: str) -> str:
-    return re.sub(r"\D", "", documento or "")
+    """O documento sem mascara, para comparar. Com letras: o CNPJ novo."""
+    return campos_br.normalizado(documento)
+
+
+# O documento e o telefone sem a mascara, dentro do SQL: buscar
+# "52998224725" acha "529.982.247-25", e "62999998888" acha "(62) 99999-8888".
+_DOC_SEM_MASCARA = "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(documento, '.', ''), '-', ''), '/', ''), ' ', ''))"
+_TEL_SEM_MASCARA = ("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', ''), ' ', ''), "
+                    "'+', '')")
+
+
+def _com_mascara_se_fecha(tipo: str, valor) -> str:
+    """O valor com a mascara se ele fecha; se nao fecha, exatamente como esta."""
+    v = valor or ""
+    if not v.strip() or campos_br.problema(tipo, v):
+        return v
+    return campos_br.mascara(tipo, v)
 
 
 class Cadastros:
@@ -63,6 +80,24 @@ class Cadastros:
         # nao tabela: e uma lista curta de "nao me mostre de novo", sem
         # ligacao com nada da base.
         self.ignorados_path = Path(ignorados_path) if ignorados_path else None
+        self.formatar_antigos()
+
+    def formatar_antigos(self) -> int:
+        """
+        Poe a mascara no CPF/CNPJ e no telefone das fichas gravadas antes da
+        conferencia. So o que fecha: numero errado fica como esta, para a
+        pessoa ver e corrigir - trocar por outro seria inventar. Roda a cada
+        abertura e nao muda nada da segunda vez. Devolve quantas mudou.
+        """
+        mudou = 0
+        for f in self.base.buscar("SELECT id, documento, telefone FROM cadastros"):
+            documento = _com_mascara_se_fecha("cpf-cnpj", f["documento"])
+            telefone = _com_mascara_se_fecha("telefone", f["telefone"])
+            if documento != (f["documento"] or "") or telefone != (f["telefone"] or ""):
+                self.base.escrever("UPDATE cadastros SET documento = ?, telefone = ? WHERE id = ?",
+                                   (documento, telefone, f["id"]))
+                mudou += 1
+        return mudou
 
     # ---------------------------------------------------------------- leitura
 
@@ -72,9 +107,17 @@ class Cadastros:
             onde.append("tipo = ?")
             parametros.append(tipo)
         if termo:
-            onde.append("(nome LIKE ? OR documento LIKE ? OR email LIKE ?)")
+            condicoes = ["nome LIKE ?", "documento LIKE ?", "email LIKE ?", "telefone LIKE ?"]
             like = f"%{termo}%"
-            parametros += [like, like, like]
+            parametros += [like, like, like, like]
+            # Com numero no termo, busca tambem sem a mascara dos dois lados:
+            # quem digita o CPF corrido acha a ficha que o guarda pontuado.
+            if campos_br.so_digitos(termo):
+                condicoes += [f"{_DOC_SEM_MASCARA} LIKE ?", f"{_DOC_SEM_MASCARA} LIKE ?",
+                              f"{_TEL_SEM_MASCARA} LIKE ?"]
+                parametros += [f"%{campos_br.normalizado(termo)}%", f"%{campos_br.so_digitos(termo)}%",
+                               f"%{campos_br.so_digitos(termo)}%"]
+            onde.append("(" + " OR ".join(condicoes) + ")")
 
         sql = "SELECT * FROM cadastros"
         if onde:
@@ -153,6 +196,11 @@ class Cadastros:
         limpo["vinculo"] = limpo["vinculo"] if limpo["vinculo"] in VINCULOS else ""
         limpo["salario_centavos"] = int(limpo["salario_centavos"] or 0)
         limpo["encargos_centavos"] = int(limpo["encargos_centavos"] or 0)
+        # CPF/CNPJ e telefone entram com a mascara, conferidos pela mesma
+        # regra da tela (src/campos_br.py). Vazio fica vazio; o que nao fecha
+        # volta como erro, com o aviso que o campo mostraria.
+        limpo["documento"] = campos_br.formatar_documento(limpo["documento"])
+        limpo["telefone"] = campos_br.formatar_telefone(limpo["telefone"])
 
         if id_:
             atribui = ", ".join(f"{c} = ?" for c in CAMPOS)
@@ -241,7 +289,7 @@ class Cadastros:
                 # O CPF/CNPJ na mesma posicao da parte costuma ser o dela.
                 if not registro["documento"] and posicao < len(docs):
                     if _so_digitos(docs[posicao]) not in documentos_ja:
-                        registro["documento"] = docs[posicao]
+                        registro["documento"] = campos_br.exibir_documento(docs[posicao])
 
         ordenadas = sorted(achados.values(), key=lambda x: (-x["aparicoes"], x["nome"].lower()))
         return ordenadas[:limite]

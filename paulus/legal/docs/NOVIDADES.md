@@ -3,6 +3,29 @@
 O que mudou no PAULUS, em ordem — o mais novo primeiro. Escrito para quem usa,
 não para quem programa: cada linha diz o que passou a ser possível fazer.
 
+## Setembro de 2026 — o programa pergunta, e se mexe
+
+- **Arquivo de mesmo nome: renomear ou substituir.** Ao guardar um arquivo
+  com o nome de um que já existe — incluir no Acervo, anexar, pasta do
+  serviço, anexo de e-mail, comprovante, PDF assinado, certificado de
+  conformidade, recibos, planilha do mês, transcrição, documento do editor —
+  o PAULUS pergunta, com um nome livre já sugerido. Nada é gravado antes da
+  resposta. Arquivo idêntico ao que já está lá não é perguntado.
+- **Google Drive ao incluir arquivos.** O modal de anexar ganhou a aba
+  Google Drive, e o Drive aparece nos atalhos ao escolher uma pasta. Usa o
+  Google Drive para computador, sem pedir permissão nova à sua conta.
+- **Sala do Google Meet ao marcar.** Com a Agenda do Google conectada, o
+  compromisso online cria a sala ao salvar, e o convite por e-mail já leva o
+  link. Vale também para o Agendar dos Serviços.
+- **CPF, CNPJ e telefone certos em toda parte**, também nos cadastros
+  antigos, na busca (sem pontos acha com pontos), na qualificação das partes
+  e no timbre. O CNPJ com letras vale em tudo.
+- **Movimento.** Botões respondem ao toque, a seleção desliza entre as
+  visões, o painel lateral chega deslizando e os menus saem suaves. Em
+  Aparência, "Animações reduzidas" desliga tudo isso.
+- **As marcas nos botões.** Enviar ao Drive, sala do Meet, sincronizar a
+  Agenda e enviar por e-mail (Gmail ou Outlook) mostram o ícone de quem recebe.
+
 ## Setembro de 2026 — desenvolvimento aberto
 
 - **Desenvolvimento aberto.** Em Apoiar o projeto › Acompanhe o

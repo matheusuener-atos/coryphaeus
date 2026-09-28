@@ -137,14 +137,14 @@ function formatarCampo(tipo, valor) {
 
 /* Reformata sem jogar o cursor para o fim: conta quantos caracteres
    "de verdade" (numeros e letras) havia antes dele e volta para o mesmo
-   ponto no texto novo. */
+   ponto no texto novo. Devolve se mudou alguma coisa. */
 function reformatarNoLugar(el) {
   const tipo = el.dataset.campo;
   const antes = el.value;
   const pos = el.selectionStart == null ? antes.length : el.selectionStart;
   const uteis = antes.slice(0, pos).replace(/[^0-9A-Za-z+]/g, "").length;
   const novo = formatarCampo(tipo, antes);
-  if (novo === antes) return;
+  if (novo === antes) return false;
   el.value = novo;
   let conta = 0;
   let cursor = novo.length;
@@ -153,6 +153,7 @@ function reformatarNoLugar(el) {
     if (/[0-9A-Za-z+]/.test(novo[i])) conta += 1;
   }
   if (document.activeElement === el) { try { el.setSelectionRange(cursor, cursor); } catch (err) { /* campo sem selecao */ } }
+  return true;
 }
 
 /* O aviso fica logo abaixo do campo, no mesmo bloco (label + input). */
@@ -176,15 +177,27 @@ function mostrarProblemaDoCampo(el) {
   return problema;
 }
 
-/* Antes de salvar: mostra o problema de cada campo e devolve o primeiro. */
+/* Antes de salvar: mostra o problema de cada campo e devolve o primeiro.
+   O campo que mudou de mascara avisa a tela com um "input", como se a pessoa
+   tivesse digitado: e assim que o modelo da tela (cad.form, cfg.rascunho)
+   recebe o valor formatado. Nao entra em laco: o "input" daqui reformata de
+   novo, nao muda nada e nao dispara outro. */
 function camposInvalidos(raiz) {
   const r = raiz || document;
   let primeiro = null;
   r.querySelectorAll("[data-campo]").forEach((el) => {
-    reformatarNoLugar(el);
+    if (reformatarNoLugar(el)) el.dispatchEvent(new Event("input", { bubbles: true }));
     if (mostrarProblemaDoCampo(el) && !primeiro) primeiro = el;
   });
   return primeiro;
+}
+
+/* Para mostrar um valor ja gravado: formatado se fecha; se nao, como veio
+   (um valor antigo torto nao deve ser cortado pela mascara na leitura). */
+function exibirCampo(tipo, valor) {
+  const v = String(valor || "").trim();
+  if (!v || problemaDoCampo(tipo, v)) return v;
+  return formatarCampo(tipo, v);
 }
 
 /* Para quem desenha o campo: o modo do teclado e o tamanho maximo. */

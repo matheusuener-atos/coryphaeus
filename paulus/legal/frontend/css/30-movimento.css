@@ -1,0 +1,65 @@
+/* O MOVIMENTO DE TODA INTERACAO (pedido de 28/09/2026: "animacao em todas as
+   interacoes do sistema"). O que ja tinha movimento proprio (dialogo, menu,
+   trilho, faixa, lateral) continua como estava; aqui entra o que faltava:
+   o botao que responde ao toque, a cor que muda sem salto, o campo que acende
+   devagar. `:where` deixa a especificidade em zero - toda regra de tela que
+   ja define a sua transicao continua mandando.
+
+   O toque usa a propriedade `scale`, e nao `transform`: varios botoes ja se
+   posicionam com transform (a alca do painel, as setas), e o transform do
+   :active os tiraria do lugar. `scale` compoe com o que estiver la.
+
+   "Animacoes reduzidas" (html.sem-animacao, 22-responsivo.css, carregado
+   depois) zera tudo isto. */
+
+  :root {
+    --dur-toque: .12s;
+    --dur-rapida: .16s;
+    --dur: .24s;
+    --dur-lenta: .36s;
+    --curva-entra: cubic-bezier(.16, 1, .3, 1);
+    --curva-sai: cubic-bezier(.4, 0, 1, 1);
+    --curva-suave: cubic-bezier(.4, 0, .2, 1);
+  }
+
+  :where(button, [role="button"], .as-radio, .menu-item, .trilho-item, summary) {
+    transition:
+      background-color var(--dur-rapida) var(--curva-suave),
+      border-color var(--dur-rapida) var(--curva-suave),
+      color var(--dur-rapida) var(--curva-suave),
+      box-shadow var(--dur-rapida) var(--curva-suave),
+      opacity var(--dur-rapida) var(--curva-suave),
+      scale var(--dur-toque) var(--curva-entra);
+  }
+  :where(button, [role="button"]):active:not(:disabled) { scale: .97; transition-duration: .06s; }
+  :where(.visoes button, .dialogo-fechar, .botao-icone):active:not(:disabled) { scale: .94; }
+
+  :where(input, select, textarea, .busca-tela, .lc-busca, .dialogo-caixa) {
+    transition:
+      border-color var(--dur-rapida) var(--curva-suave),
+      box-shadow var(--dur-rapida) var(--curva-suave),
+      background-color var(--dur-rapida) var(--curva-suave);
+  }
+
+  /* A marca do radio do desenho (.as-radio i) e a caixa de marcar crescem
+     ao ligar. */
+  :where(.as-radio) i { transition: border-width var(--dur-rapida) var(--curva-entra), background-color var(--dur-rapida); }
+  input[type=checkbox]:checked, input[type=radio]:checked { animation: pv-marcou var(--dur) var(--curva-entra); }
+  @keyframes pv-marcou { from { scale: .8; } to { scale: 1; } }
+
+  /* O segmento de visoes: a pilula desliza da visao anterior ate a nova
+     (02-casca.js, deslizarVisoes). Enquanto desliza, a pilula de verdade
+     fica sem fundo, e a que anda fica por baixo do texto. */
+  .visoes .pilula-andando {
+    position: absolute; z-index: 0; border-radius: 6px; background: var(--surf);
+    box-shadow: 0 1px 2px var(--sh-a12); pointer-events: none;
+  }
+  .visoes.deslizando > button.ativa { background: transparent; box-shadow: none; }
+
+  /* A linha e o cartao que se clicam trocam de fundo sem salto. */
+  :where(.tabela-cartao tbody tr, .sv-pasta, .apoio-cartaz, .ag-evento, .lc-linha) {
+    transition: background-color var(--dur-rapida) var(--curva-suave), box-shadow var(--dur-rapida) var(--curva-suave);
+  }
+
+  /* Com "Animacoes reduzidas", o botao tambem nao afunda. */
+  html.sem-animacao :where(button, [role="button"]):active { scale: none; }

@@ -23,6 +23,10 @@ O que sai desta máquina, e quando:
 - Agenda: só com "Sincronizar com o Google" ligado, e só título, data, hora,
   duração e o lugar (online/escritório/telefone) de cada compromisso - a
   anotação e o cliente ficam aqui.
+- Meet: quando a pessoa pede a sala ("Criar sala no Google Meet" no
+  formulário, ou no compromisso já marcado), o evento daquele compromisso vai
+  à Agenda do Google na hora - os mesmos campos -, mesmo com a sincronização
+  desligada: é a sala que nasce do evento.
 - Drive: só o documento que a pessoa manda, pela fila de Aprovações.
 
 Sem biblioteca do Google: HTTP simples, como o login do e-mail.

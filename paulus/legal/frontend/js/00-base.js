@@ -43,6 +43,15 @@ function ic(nome, px) {
   return '<span class="ic' + (px ? " ic-" + px : "") + '">' + nome + "</span>";
 }
 
+/* O icone da marca de um servico de fora (frontend/img/marcas): o botao que
+   manda algo ao Google Drive, cria sala no Meet, sincroniza a Agenda ou
+   mexe numa conta de e-mail leva a marca de quem recebe. Nomes:
+   google-drive, google-meet, google-agenda, gmail, outlook, microsoft. */
+function marca(nome, px) {
+  const t = px || 16;
+  return '<img class="marca-ic" src="/img/marcas/' + nome + '.svg" alt="" width="' + t + '" height="' + t + '">';
+}
+
 const estado = {
   trabalhoId: null,
   trabalho: null,

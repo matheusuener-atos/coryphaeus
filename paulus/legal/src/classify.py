@@ -20,6 +20,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+import campos_br
 from extract import Document, extract_file, file_sha1, motivo_sem_texto
 from llama_client import LlamaClient, OllamaError
 
@@ -232,7 +233,12 @@ def detectar_valor(texto: str) -> str:
 
 
 def detectar_documentos(texto: str) -> list[str]:
-    return list(dict.fromkeys(RE_CNPJ.findall(texto) + RE_CPF.findall(texto)))
+    # O CNPJ alfanumerico (IN RFB 2.229/2024) so entra se fechar no digito:
+    # a mascara com letras e rara o bastante para um codigo qualquer de
+    # contrato parecer um.
+    alfanumericos = [c for c in campos_br.RE_CNPJ_TEXTO.findall(texto)
+                     if re.search(r"[A-Z]", c) and campos_br.cnpj_valido(c)]
+    return list(dict.fromkeys(RE_CNPJ.findall(texto) + alfanumericos + RE_CPF.findall(texto)))
 
 
 def detectar_partes(texto: str) -> list[str]:

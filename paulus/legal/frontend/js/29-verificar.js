@@ -91,10 +91,13 @@ async function gerarConformidade() {
   const botao = document.querySelector('.dialogo-verificar [data-dialogo="confirmar"]');
   if (botao) { botao.disabled = true; botao.textContent = "Gerando…"; }
   try {
-    const r = await fetch("/api/assinaturas/conformidade", {
+    // Ja existe o certificado deste PDF: pergunta (Renomear / Substituir).
+    // A pergunta fecha o dialogo da verificacao; desistir nao gera nada.
+    const r = await comNomesDecididos((decisoes) => fetch("/api/assinaturas/conformidade", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ arquivo: ver.caminho }),
-    });
+      body: JSON.stringify({ arquivo: ver.caminho, decisoes: decisoes }),
+    }));
+    if (!r) return;
     if (!r.ok) throw new Error(await erroDe(r));
     ver.relatorio = await r.json();
     ver.pagina = 1;
@@ -119,7 +122,7 @@ function mostrarConformidade() {
     confirmar: "Baixar", cancelar: "Fechar",
     aoConfirmar: () => baixarArquivo(rel.caminho),
     rodape: '<button type="button" class="docs-ligacao vc-acao" id="vc-windows">' + ic("open_in_new", 16) + "Abrir no Windows</button>" +
-      '<button type="button" class="docs-ligacao vc-acao" id="vc-email">' + ic("mail", 16) + "Enviar por e-mail</button>",
+      '<button type="button" class="docs-ligacao vc-acao" id="vc-email">' + marcaDoEmail(16) + "Enviar por e-mail</button>",
   });
   const pintar = () => {
     $("vc-img").src = "/api/arquivos/pagina?caminho=" + encodeURIComponent(rel.caminho) + "&numero=" + ver.pagina + "&largura=640";
@@ -149,10 +152,12 @@ async function baixarArquivo(caminho) {
   const nome = String(caminho).split(/[\\/]/).pop();
   const e = await escolherPastaNossa({ titulo: "Onde salvar o PDF", contexto: nome, nome: nome });
   if (!e) return;
-  const r = await fetch("/api/arquivos/salvar", {
+  // Ja ha um arquivo com esse nome na pasta: pergunta (Renomear / Substituir).
+  const r = await comNomesDecididos((decisoes) => fetch("/api/arquivos/salvar", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ caminho: caminho, destino: e.pasta.replace(/[\\/]+$/, "") + "\\" + e.nome }),
-  });
+    body: JSON.stringify({ caminho: caminho, destino: e.pasta.replace(/[\\/]+$/, "") + "\\" + e.nome, decisoes: decisoes }),
+  }));
+  if (!r) return;
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   const d = await r.json();
   avisoCert("salvo em " + d.pasta + " — " + d.nome);
@@ -195,7 +200,9 @@ async function navegarPastaNossa(caminho) {
   try { ep.dados = await (await fetch("/api/pastas?caminho=" + encodeURIComponent(caminho))).json(); }
   catch (err) { ep.dados = { erro: "não consegui abrir: " + err, atalhos: [], unidades: [], pastas: [], migalhas: [] }; }
   const d = ep.dados;
-  const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-ep-ir="' + esc(p.caminho) + '">' + ic(icone, 17) +
+  // O Google Drive para computador vem com a marca, como no anexar.
+  const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-ep-ir="' + esc(p.caminho) + '">' +
+    (p.tipo === "drive" ? marca("google-drive", 17) : ic(icone, 17)) +
     '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" + ic("chevron_right", 16) + "</div>";
   let html = "";
   if ((d.atalhos || []).length) html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.map((a) => pasta(a, "folder_special")).join("");

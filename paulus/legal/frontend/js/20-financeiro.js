@@ -116,7 +116,7 @@ function cabecalhoFinanceiro() {
       '<button class="primario com-icone" data-fin-novo="1">' + ic("add", 16) + "Novo lançamento</button>";
   } else if (fin.visao === "relatorios") {
     acoes = seletorDeMes() + '<button class="com-icone" data-fin-pdf="1">' + ic("picture_as_pdf", 16) + "Baixar PDF</button>" +
-      '<button class="primario com-icone" data-fin-enviar="1">' + ic("mail", 16) + "Enviar por e-mail</button>";
+      '<button class="primario com-icone" data-fin-enviar="1">' + marcaDoEmail(16) + "Enviar por e-mail</button>";
   } else {
     acoes = seletorDeMes() + '<button class="com-icone" data-fin-exportar="1">' + ic("download", 16) + "Exportar</button>" +
       '<button class="primario com-icone" data-fin-novo="1">' + ic("add", 16) + "Novo lançamento</button>";
@@ -718,7 +718,15 @@ function ligarFinanceiro(raiz) {
     });
   }
   clique("[data-fin-novo]", () => novoLancamento());
-  clique("[data-fin-exportar]", () => { window.location.href = "/api/financeiro/exportar?mes=" + encodeURIComponent(fin.mes); });
+  // Gera no Acervo (perguntando se a planilha do mes ja existe) e baixa.
+  clique("[data-fin-exportar]", async () => {
+    const r = await comNomesDecididos((decisoes) => fetch("/api/financeiro/exportar",
+      { method: "POST", headers: FIN_JSON, body: JSON.stringify({ mes: fin.mes || "", decisoes: decisoes }) }));
+    if (!r) return;
+    if (!r.ok) { avisoCert(await erroDe(r)); return; }
+    const d = await r.json();
+    window.location.href = "/api/financeiro/exportar?mes=" + encodeURIComponent(d.mes) + "&arquivo=" + encodeURIComponent(d.nome);
+  });
   clique("[data-fin-importar]", escolherExtrato);
   clique("[data-fin-conc-aplicar]", aplicarConciliacao);
   clique("[data-fin-conc-sair]", () => {
@@ -800,7 +808,7 @@ async function finVerLancamento(id) {
   else if (l.vencimento) situacao = "<small>vence em " + esc(dataBR(l.vencimento)) + "</small>";
 
   const acoes = [];
-  if (l.aberto && receb) acoes.push('<button type="button" class="com-icone" data-fin-cobrar="' + l.id + '">' + ic("mail", 16) + "Cobrar por e-mail</button>");
+  if (l.aberto && receb) acoes.push('<button type="button" class="com-icone" data-fin-cobrar="' + l.id + '">' + marcaDoEmail(16) + "Cobrar por e-mail</button>");
   if (l.aberto) acoes.push('<button type="button" class="com-icone" data-fin-liquidar="' + l.id + '">' + ic("check", 16) + (receb ? "Registrar recebimento" : "Registrar pagamento") + "</button>");
   if (l.aberto && receb) acoes.push('<button type="button" class="com-icone" data-fin-renegociar="' + l.id + '">' + ic("handshake", 16) + "Renegociar</button>");
   if (!l.aberto) acoes.push('<button type="button" class="com-icone" data-fin-reabrir="' + l.id + '">' + ic("undo", 16) + "Reabrir</button>");
@@ -986,9 +994,14 @@ async function reabrirLancamento(id) {
 async function anexarComprovantes(l, arquivos) {
   if (!l) return;
   for (const arquivo of arquivos) {
-    const forma = new FormData();
-    forma.append("arquivo", arquivo);
-    const r = await fetch("/api/financeiro/lancamentos/" + l.id + "/comprovante", { method: "POST", body: forma });
+    // Nome repetido na pasta de comprovantes do mes: pergunta antes.
+    const r = await comNomesDecididos((decisoes) => {
+      const forma = new FormData();
+      forma.append("arquivo", arquivo);
+      forma.append("decisoes", JSON.stringify(decisoes));
+      return fetch("/api/financeiro/lancamentos/" + l.id + "/comprovante", { method: "POST", body: forma });
+    });
+    if (!r) return;
     if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
   }
   avisoCert(plural(arquivos.length, "comprovante ligado", "comprovantes ligados") + " a “" + l.descricao + "”", { tom: "ok" });
@@ -1052,7 +1065,10 @@ async function pedirFolha(acao) {
 
 async function gerarRecibos() {
   avisoCert("gerando os recibos…");
-  const r = await fetch("/api/financeiro/folha/recibos", { method: "POST", headers: FIN_JSON, body: JSON.stringify({ mes: fin.mes || "" }) });
+  // Recibo deste mes que ja existe: pergunta (Renomear / Substituir).
+  const r = await comNomesDecididos((decisoes) => fetch("/api/financeiro/folha/recibos",
+    { method: "POST", headers: FIN_JSON, body: JSON.stringify({ mes: fin.mes || "", decisoes: decisoes }) }));
+  if (!r) { avisoCert("nenhum recibo foi gerado"); return; }
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   const d = await r.json();
   avisoCert(plural(d.recibos.length, "recibo") + " em " + d.pasta);

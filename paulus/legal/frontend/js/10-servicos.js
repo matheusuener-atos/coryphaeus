@@ -913,21 +913,45 @@ function agendarNoServico(botao) {
       if (semana === 0 || semana === 6) avisos.push("Cai num fim de semana.");
       if (s.prazos.some((p) => p.quando === iso)) avisos.push("Já há algo do cliente neste dia.");
       // Agendar é compromisso: prazo da pasta é etapa, no status para conclusão.
+      // Onde e a sala do Meet: as mesmas do formulario da Agenda (js/07-agenda.js).
+      const comp = compromissoEmBranco("compromisso");
+      const ondes = [["online", "Reunião online"], ["escritorio", "No escritório"], ["telefone", "Telefone"], ["", "Sem local"]].map(([o, rot]) =>
+        '<button type="button" class="' + (o === comp.onde ? "on" : "") + '" data-sv-onde="' + o + '">' + rot + "</button>").join("");
       const html = '<div class="dialogo-campo"><label for="sv-a-hora">Hora</label><div class="dialogo-caixa">' + ic("schedule", 18) +
         '<input id="sv-a-hora" type="time" data-dialogo-chave="hora" value="09:00"></div></div>' +
+        '<div class="dialogo-campo"><label>Onde</label><div class="dialogo-chips">' + ondes + "</div></div>" +
+        '<div class="ag-meet-lugar" data-ag-meet-lugar="1">' + opcaoDoMeet(comp) + "</div>" +
         (avisos.length ? '<p class="dialogo-dica">' + esc(avisos.join(" ")) + "</p>" : "");
-      const r = await dialogo({
+      const escolha = dialogo({
         titulo: "Agendar", contexto: maiuscula(dataPorExtenso(iso)), classe: "dialogo-servico",
         campo: { rotulo: "O que é", valor: s.nome, icone: "event", max: 120 },
         depois: html, confirmar: "Agendar",
       });
+      const caixa = document.querySelector("#veu-dialogo .dialogo");
+      if (caixa) {
+        caixa.querySelectorAll("[data-sv-onde]").forEach((b) => {
+          b.onclick = () => {
+            comp.onde = b.dataset.svOnde;
+            caixa.querySelectorAll("[data-sv-onde]").forEach((x) => x.classList.toggle("on", x === b));
+            caixa.querySelector("[data-ag-meet-lugar]").innerHTML = opcaoDoMeet(comp);
+            ligarOpcaoDoMeet(caixa, comp);
+          };
+        });
+        ligarOpcaoDoMeet(caixa, comp);
+      }
+      const r = await escolha;
       if (!r || !r.ok) return;
       const v = r.valores || {};
+      const sala = querSalaDoMeet(comp);
+      if (sala) avisoCert("agendando e criando a sala do Meet…");
       const resposta = await fetch("/api/agenda", { method: "POST", headers: SV_JSON, body: JSON.stringify({
-        id: null, dados: { titulo: r.valor, tipo: "compromisso", data: iso, hora: v.hora || "09:00", cadastro_id: s.cadastro_id || null,
-          servico_id: s.id, responsavel_id: s.equipe.length ? s.equipe[0].id : null } }) });
+        id: null, meet: sala, dados: { titulo: r.valor, tipo: "compromisso", data: iso, hora: v.hora || "09:00", onde: comp.onde,
+          cadastro_id: s.cadastro_id || null, servico_id: s.id, responsavel_id: s.equipe.length ? s.equipe[0].id : null } }) });
       if (!resposta.ok) { avisoCert(await erroDe(resposta)); return; }
-      avisoCert("agendado para " + dataPorExtenso(iso) + (v.hora ? " às " + v.hora : ""), { tom: "ok" });
+      const c = await resposta.json();
+      const quando = "agendado para " + dataPorExtenso(iso) + (v.hora ? " às " + v.hora : "");
+      if (sala && c.meet_erro) avisoCert(quando + ", mas a sala do Meet não: " + c.meet_erro, { tom: "erro" });
+      else avisoCert(quando + (sala && c.meet ? ", com sala no Meet" : ""), { tom: "ok" });
       recarregarServico();
     },
   });
@@ -1215,7 +1239,9 @@ function adicionarArquivosAoServico() {
       avisoNaJanela("Copiando " + plural(caminhos.length, "arquivo") + " para a pasta do serviço…", { icone: "sync", girar: true, dura: 0 });
       try {
         const res = await enviarComConfirmacao(caminhos, async (quais, autorizados) => {
-          const r = await fetch("/api/servicos/" + s.id + "/anexar", { method: "POST", headers: SV_JSON, body: JSON.stringify({ caminhos: quais, autorizados: autorizados }) });
+          // Nome repetido na pasta do servico: pergunta antes de copiar.
+          const r = await comNomesDecididos((decisoes) => fetch("/api/servicos/" + s.id + "/anexar", { method: "POST", headers: SV_JSON, body: JSON.stringify({ caminhos: quais, autorizados: autorizados, decisoes: decisoes }) }));
+          if (!r) return { ligados: [], recusados: [], pedem_confirmacao: [] };
           if (!r.ok) throw new Error(await erroDe(r));
           return r.json();
         }, "ligados");

@@ -12,7 +12,11 @@ Testes da conta Google além do Gmail (src/google_servicos.py e /api/google).
   - pela API: salvar compromisso manda ao Google (com a sincronização ligada),
     a grade mostra os eventos de lá, a sala do Meet fica no compromisso,
     apagar apaga lá, e enviar ao Drive vira pedido na fila - só sai depois
-    do sim.
+    do sim;
+  - a sala do Meet pedida ao salvar: o evento vai com conferenceData, o link
+    volta na hora e entra no convite; já com sala, não cria outra; fora do
+    online, não pede; o Google recusou ou a Agenda não está conectada: o
+    compromisso fica salvo, sem sala, e o motivo volta (sem nada sair).
 
 Sem internet: o Google é trocado por respostas prontas. Dados numa pasta
 temporária (PAULUS_DADOS).
@@ -258,6 +262,8 @@ def test_api() -> None:
     m = c.post(f"/api/agenda/{comp['id']}/meet").json()
     checar(m.get("meet", "").startswith("https://meet.google.com/"), "a sala do Meet fica no compromisso", m.get("meet"))
 
+    test_sala_ao_salvar(c, api, conta, falso)
+
     gid = api.estado.agenda.obter(comp["id"])["google_id"]
     c.delete(f"/api/agenda/{comp['id']}")
     fim = time.time() + 5
@@ -282,6 +288,95 @@ def test_api() -> None:
     api.estado.contas.itens.remove(conta)
     checar(c.post("/api/google/conectar", json={"servico": "agenda"}).status_code == 400,
            "sem conta Google, conectar diz para entrar primeiro no e-mail")
+
+
+def test_sala_ao_salvar(c, api, conta, falso) -> None:
+    """"Criar sala no Google Meet" ligado no formulario: a sala nasce no salvar."""
+    print("\na sala do Meet criada ao salvar")
+    ficha = {"titulo": "Reunião de alinhamento", "data": "2026-10-07", "hora": "15:00", "duracao": 45, "onde": "online",
+             "anotacao": "pauta interna"}
+    antes = len(falso.pedidos)
+    r = c.post("/api/agenda", json={"id": None, "dados": ficha, "meet": True})
+    d = r.json()
+    novos = falso.pedidos[antes:]
+    checar(r.status_code == 200 and d.get("meet", "").startswith("https://meet.google.com/") and not d.get("meet_erro"),
+           "salvar com a sala pedida devolve o link na hora", d)
+    checar(len(novos) == 1 and novos[0]["metodo"] == "POST" and "conferenceData" in (novos[0]["json"] or {})
+           and novos[0]["params"] == {"conferenceDataVersion": 1},
+           "pede ao Google o evento com a sala (conferenceData), uma vez só", [(p["metodo"], p["params"]) for p in novos])
+    salvo = api.estado.agenda.obter(d["id"])
+    checar(salvo["meet"] == d["meet"] and salvo["google_id"], "o link e o evento ficam guardados no compromisso", salvo.get("meet"))
+    checar("pauta interna" not in json.dumps(novos[0]["json"], ensure_ascii=False), "a anotação continua aqui")
+
+    # Editar e salvar de novo com a opcao ligada nao cria outra sala.
+    antes = len(falso.pedidos)
+    d2 = c.post("/api/agenda", json={"id": d["id"], "dados": dict(ficha, hora="16:00"), "meet": True}).json()
+    fim = time.time() + 5
+    while time.time() < fim and len(falso.pedidos) == antes:
+        time.sleep(0.1)
+    checar(d2["meet"] == d["meet"] and not any("conferenceData" in (p["json"] or {}) for p in falso.pedidos[antes:]),
+           "compromisso que já tem sala não ganha outra ao salvar", d2.get("meet"))
+
+    # Sala so para reuniao online.
+    antes = len(falso.pedidos)
+    fora = c.post("/api/agenda", json={"id": None, "dados": dict(ficha, onde="escritorio"), "meet": True}).json()
+    fim = time.time() + 5
+    while time.time() < fim and len(falso.pedidos) == antes:
+        time.sleep(0.1)
+    checar(not fora.get("meet") and not any("conferenceData" in (p["json"] or {}) for p in falso.pedidos[antes:]),
+           "no escritório não pede sala", fora.get("meet"))
+
+    # O convite que a tela monta leva o link (conviteDe, js/07-agenda.js).
+    js = (RAIZ / "frontend" / "js" / "07-agenda.js").read_text(encoding="utf-8")
+    salvar = js[js.index("async function salvarFormAgenda"):js.index("async function apagarCompromisso")]
+    checar("meet: sala" in salvar and 'conviteDe(c, c.meet || "")' in salvar,
+           "o formulário pede a sala e põe o link no convite por e-mail")
+    node = shutil.which("node")
+    if node:
+        pedacos = []
+        for nome in ("MESES_NOME", "DIAS_NOME"):
+            i = js.index("const " + nome)
+            pedacos.append(js[i:js.index(";", i) + 1])
+        for nome in ("deIso", "diaPorExtenso", "duracaoEmTexto", "conviteDe"):
+            i = js.index("function " + nome + "(")
+            pedacos.append(js[i:js.index("\n}\n", i) + 3])
+        roteiro = "\n".join(pedacos) + "\nprocess.stdout.write(conviteDe(" + json.dumps(d, ensure_ascii=False) + ", " + json.dumps(d["meet"]) + "));"
+        import subprocess
+        saida = subprocess.run([node, "-e", roteiro], capture_output=True, text=True, encoding="utf-8")
+        checar(d["meet"] in saida.stdout and "Reunião de alinhamento" in saida.stdout,
+               "o texto do convite traz o link da sala", saida.stdout or saida.stderr)
+    else:
+        print("  --   node não encontrado: o texto do convite não foi conferido")
+
+    # O Google recusou: o compromisso fica salvo e o motivo volta, sem fingir.
+    class Recusa:
+        def request(self, *a, **k):
+            return Resposta(403, {"error": {"code": 403, "message": "insufficient", "status": "PERMISSION_DENIED",
+                                            "errors": [{"reason": "insufficientPermissions"}]}})
+
+    google_de_antes = api.estado.google
+    api.estado.google = gs.Google(lambda: "tok", sessao=Recusa())
+    ruim = c.post("/api/agenda", json={"id": None, "dados": dict(ficha, titulo="Recusado"), "meet": True})
+    api.estado.google = google_de_antes
+    rj = ruim.json()
+    checar(ruim.status_code == 200 and rj.get("id") and not rj.get("meet") and "Conectar" in rj.get("meet_erro", ""),
+           "o Google recusou: salvo, sem sala, e o motivo volta", rj.get("meet_erro"))
+
+    # Sem a Agenda conectada: nada vai ao Google, e a resposta diz o que falta.
+    escopos = conta.escopos
+    conta.escopos = "https://mail.google.com/"
+    try:
+        antes = len(falso.pedidos)
+        sem = c.post("/api/agenda", json={"id": None, "dados": dict(ficha, titulo="Sem Agenda"), "meet": True})
+        sj = sem.json()
+        time.sleep(0.3)
+        checar(sem.status_code == 200 and sj.get("id") and not sj.get("meet") and "conecte a Agenda" in sj.get("meet_erro", ""),
+               "sem a Agenda conectada: salvo, sem sala, e diz para conectar", sj.get("meet_erro"))
+        checar(len(falso.pedidos) == antes, "sem a Agenda conectada, nada sai para o Google")
+        checar(c.get("/api/google").json()["servicos"]["agenda"]["conectado"] is False,
+               "a tela sabe que a Agenda não está conectada (a opção oferece conectar)")
+    finally:
+        conta.escopos = escopos
 
 
 def main() -> int:

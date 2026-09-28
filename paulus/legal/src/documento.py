@@ -28,6 +28,7 @@ from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
+import campos_br
 import leitor_pdf
 
 # A4 com margens de 2,5 cm, como o wireframe pede.
@@ -970,13 +971,14 @@ def _linhas_do_timbre(timbre: dict) -> list[str]:
     if not nome:
         return []
 
+    # CPF e telefone com a mascara, mesmo o que foi gravado corrido.
     segunda = " · ".join(x for x in (
         ("OAB " + str(timbre.get("oab", "")).strip()) if timbre.get("oab") else "",
-        str(timbre.get("cpf", "")).strip(),
+        campos_br.exibir_documento(timbre.get("cpf", "")),
     ) if x)
     terceira = " · ".join(x for x in (
         str(timbre.get("endereco", "")).strip(),
-        str(timbre.get("telefone", "")).strip(),
+        campos_br.exibir_telefone(timbre.get("telefone", "")),
         str(timbre.get("email", "")).strip(),
     ) if x)
 
@@ -1237,45 +1239,43 @@ def paginas_de(pdf: bytes) -> int:
 # Vestigios de modelo que ninguem preencheu. Sair com "R$ ______" num contrato
 # de honorarios e o tipo de erro que se descobre depois de enviado.
 RE_LACUNA = re.compile(r"_{3,}|\.{4,}|\[\s*\]|\{\{[^}]*\}\}|\bXXX+\b|<<[^>]*>>")
-RE_CPF_TXT = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
-RE_CNPJ_TXT = re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b")
+RE_CPF_TXT = campos_br.RE_CPF_TEXTO
+# O CNPJ com a mascara, inclusive o alfanumerico da Receita (12.ABC.345/01DE-35).
+RE_CNPJ_TXT = campos_br.RE_CNPJ_TEXTO
+# Sem a mascara, so com o rotulo na frente ("CPF nº 52998224725", "CNPJ:
+# 12ABC34501DE35"): numero corrido solto pode ser telefone ou protocolo, e
+# acusar digito errado num telefone seria aviso falso.
+RE_DOC_ROTULADO = re.compile(
+    r"\b((?i:CPF|CNPJ))\b(?:/MF)?[^0-9\n]{0,25}?(?<![0-9A-Za-z])([0-9]{11}|[0-9A-Z]{12}[0-9]{2})(?![0-9A-Za-z])")
+# Para cruzar com a ficha basta achar o numero: 11 ou 14 digitos corridos.
+RE_DOC_CORRIDO = re.compile(r"(?<![0-9])(?:[0-9]{14}|[0-9]{11})(?![0-9])")
 # O \s* fora do lookahead volta atras e casa com zero espaco, entao
 # "R$ 12.000,00" era apontado como valor sem numero. O espaco tem que
 # estar DENTRO do lookahead.
 RE_VALOR_VAZIO = re.compile(r"R\$(?!\s*[\d_])", re.IGNORECASE)
 
 
-def _digitos(texto: str) -> list[int]:
-    return [int(c) for c in re.sub(r"\D", "", texto)]
-
-
 def cpf_valido(texto: str) -> bool:
     """Digito verificador do CPF. Objetivo: ou fecha, ou nao fecha."""
-    d = _digitos(texto)
-    if len(d) != 11 or len(set(d)) == 1:
-        return False
-    for corte in (9, 10):
-        soma = sum(d[i] * (corte + 1 - i) for i in range(corte))
-        resto = (soma * 10) % 11 % 10
-        if resto != d[corte]:
-            return False
-    return True
+    return campos_br.cpf_valido(texto)
 
 
 def cnpj_valido(texto: str) -> bool:
-    """Digito verificador do CNPJ."""
-    d = _digitos(texto)
-    if len(d) != 14 or len(set(d)) == 1:
-        return False
-    for pesos in ([5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
-                  [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]):
-        corte = len(pesos)
-        soma = sum(d[i] * pesos[i] for i in range(corte))
-        resto = soma % 11
-        digito = 0 if resto < 2 else 11 - resto
-        if digito != d[corte]:
-            return False
-    return True
+    """Digito verificador do CNPJ, o numerico e o alfanumerico (src/campos_br.py)."""
+    return campos_br.cnpj_valido(texto)
+
+
+def _documentos_rotulados(texto: str) -> list[tuple[str, str]]:
+    """(rotulo, numero) de cada CPF/CNPJ sem mascara que vem depois do rotulo."""
+    return [(m.group(1).upper(), m.group(2)) for m in RE_DOC_ROTULADO.finditer(texto)]
+
+
+def _documentos_no_texto(texto: str) -> set[str]:
+    """Todo CPF/CNPJ do texto, sem mascara, para comparar com a ficha."""
+    achados = set(RE_CPF_TXT.findall(texto)) | set(RE_CNPJ_TXT.findall(texto))
+    achados |= {numero for _, numero in _documentos_rotulados(texto)}
+    achados |= set(RE_DOC_CORRIDO.findall(texto))
+    return {campos_br.normalizado(a) for a in achados}
 
 
 def conferir(blocos: list[Bloco], fichas: list[dict] | None = None) -> list[dict]:
@@ -1330,6 +1330,18 @@ def conferir(blocos: list[Bloco], fichas: list[dict] | None = None) -> list[dict
                     "titulo": "CNPJ não confere",
                     "detalhe": f"{cnpj} não fecha no dígito verificador.",
                 })
+        # Sem a mascara, mas com o rotulo: "CPF nº 52998224725". O tipo sai
+        # do tamanho (11 e CPF, 14 e CNPJ), nao do rotulo, que as vezes vem
+        # trocado no modelo.
+        for _, doc in _documentos_rotulados(texto):
+            cnpj = len(doc) == 14
+            if not (cnpj_valido(doc) if cnpj else cpf_valido(doc)):
+                avisos.append({
+                    "grau": "impede",
+                    "bloco": numero,
+                    "titulo": "CNPJ não confere" if cnpj else "CPF não confere",
+                    "detalhe": f"{doc} não fecha no dígito verificador.",
+                })
 
     avisos += _conferir_fichas(blocos, fichas)
     return avisos
@@ -1347,17 +1359,19 @@ def _conferir_fichas(blocos: list[Bloco], fichas: list[dict]) -> list[dict]:
         return []
 
     texto = para_texto(blocos)
-    achados = set(RE_CPF_TXT.findall(texto)) | set(RE_CNPJ_TXT.findall(texto))
+    # Comparado sem a mascara dos dois lados: a ficha com o numero corrido e
+    # o contrato com ele pontuado (ou o contrario) sao o mesmo documento.
+    achados = _documentos_no_texto(texto)
     avisos = []
 
     for ficha in fichas:
         nome = (ficha.get("nome") or "").strip()
-        doc = (ficha.get("documento") or "").strip()
+        doc = campos_br.exibir_documento(ficha.get("documento") or "")
         if not nome or not doc or len(nome) < 6:
             continue
         if nome.lower() not in texto.lower():
             continue
-        if doc in achados:
+        if campos_br.normalizado(doc) in achados:
             continue
         # Em que paragrafo o nome aparece. Sem isto o aviso vinha com bloco 0 e
         # a tela so podia dizer "em algum lugar do documento" - para conferir,
@@ -1369,7 +1383,7 @@ def _conferir_fichas(blocos: list[Bloco], fichas: list[dict]) -> list[dict]:
             "bloco": onde,
             "titulo": "Documento diferente do cadastro",
             "detalhe": (
-                f"O texto cita {nome}, mas não traz o {('CNPJ' if len(_digitos(doc)) == 14 else 'CPF')} "
+                f"O texto cita {nome}, mas não traz o {('CNPJ' if campos_br.e_cnpj(doc) else 'CPF')} "
                 f"{doc} que está no cadastro."
             ),
         })

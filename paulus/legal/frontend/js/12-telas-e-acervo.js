@@ -475,7 +475,7 @@ function menuDoDocumento(botao, caminho) {
     '<button data-i="fixar">' + (doc.fixado ? "Desfixar" : "Fixar") + "</button>" +
     (/\.pdf$/i.test(doc.nome) ? '<button data-i="verificar">Verificar assinatura</button>' : "") +
     '<button data-i="pasta">Abrir a pasta no Windows</button>' +
-    (googleConectado("drive") ? '<button data-i="drive">Enviar ao Google Drive…</button>' : "") +
+    (googleConectado("drive") ? '<button data-i="drive">' + marca("google-drive", 15) + "Enviar ao Google Drive…</button>" : "") +
     '<div class="menu-risco"></div>' +
     /* Excluir do computador e a caixa da confirmacao de tirar (js/36). */
     '<button data-i="tirar">Tirar do Acervo…</button>';
@@ -1189,8 +1189,9 @@ function ligarBotoesDeDocumento(caixa, d) {
 const FERRAMENTAS_DA_CONVERSA = {
   cadastro: {
     rotulo: "vou cadastrar o cliente", botao: "Cadastrar", padrao: "Cliente",
-    campos: [["nome", "nome completo ou razão social"], ["documento", "CPF ou CNPJ"],
-      ["telefone", "telefone com DDD"], ["email", "e-mail"],
+    // O quarto item marca o campo formatado e conferido (js/39-campos.js).
+    campos: [["nome", "nome completo ou razão social"], ["documento", "CPF ou CNPJ", "text", "cpf-cnpj"],
+      ["telefone", "telefone com DDD", "text", "telefone"], ["email", "e-mail"],
       ["endereco", "endereço"], ["observacao", "anotação (opcional)"]],
   },
   nota: {
@@ -1214,10 +1215,13 @@ function cartaoFerramenta(d) {
     let valor = c[f[0]] || "";
     // O servidor manda o valor em centavos; a pessoa lê e escreve em reais.
     if (f[0] === "valor" && typeof valor === "number") valor = emReais(valor);
+    // CPF/CNPJ e telefone: com a mascara se fecham; se nao, como vieram,
+    // para a pessoa ver o que corrigir.
+    if (f[3]) valor = exibirCampo(f[3], valor);
     let foco = "";
     if (d.falta && !valor && !focou) { foco = " autofocus"; focou = true; }
     return '<input type="' + (f[2] || "text") + '" data-pc="' + f[0] + '" value="' + esc(valor) +
-      '" placeholder="' + esc(f[1]) + '"' + foco + ">";
+      '" placeholder="' + esc(f[1]) + '"' + (f[3] ? atributosDoCampo(f[3]) : "") + foco + ">";
   });
   let linhas = "";
   for (let i = 0; i < entradas.length; i += 2) {
@@ -1294,6 +1298,10 @@ function ligarProposta(caixa, d, ondeResponder) {
 
   if (!fazer) return;
   fazer.onclick = async () => {
+    // CPF/CNPJ e telefone conferem antes de ir (js/39-campos.js); o
+    // servidor confere de novo, pela mesma regra.
+    const errado = camposInvalidos(caixa);
+    if (errado) { errado.focus(); return; }
     const campos = Object.assign({}, d.campos);
     caixa.querySelectorAll("[data-pc]").forEach((el) => {
       campos[el.dataset.pc] = el.dataset.pc === "avisar_min" ? Number(el.value) : el.value;

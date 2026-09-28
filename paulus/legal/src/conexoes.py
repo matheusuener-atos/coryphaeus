@@ -36,6 +36,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
+import campos_br
+
 # O unico endereco que a janela embutida abre.
 WHATSAPP = "https://web.whatsapp.com"
 WHATSAPP_ENVIO = "https://web.whatsapp.com/send"
@@ -60,16 +62,27 @@ def numero_whatsapp(bruto: str, ddi: str = "55") -> str:
     "(62) 99999-8888" vira "5562999998888". Sem isso o endereco de conversa
     abre em branco e a pessoa conclui que o programa esta quebrado, quando o
     problema era um parenteses.
+
+    Numero que nao da conversa volta vazio, em vez de um endereco que abre
+    em branco: o brasileiro tem de fechar pela regra da tela
+    (src/campos_br.py) - DDD e numero, e 0800 nao tem WhatsApp -; o de fora
+    (com + ou 00 na frente) tem de 8 a 15 digitos, o tamanho do padrao E.164.
     """
-    digitos = RE_SO_DIGITOS.sub("", bruto or "")
+    texto = str(bruto or "").strip()
+    digitos = RE_SO_DIGITOS.sub("", texto)
     if not digitos:
         return ""
+    de_fora = texto.startswith("+")
     if digitos.startswith("00"):
-        digitos = digitos[2:]
-    # Numero brasileiro sem DDI: 10 digitos (fixo) ou 11 (celular).
-    if len(digitos) in (10, 11):
-        digitos = ddi + digitos
-    return digitos
+        digitos, de_fora = digitos[2:], True
+    # O de fora primeiro: "+1 919 555 1234" tambem teria cara de celular daqui.
+    if de_fora and not digitos.startswith("55"):
+        return digitos if 8 <= len(digitos) <= 15 else ""
+    nacional = digitos[2:] if len(digitos) > 11 and digitos.startswith("55") else digitos
+    if (len(nacional) in (10, 11) and not nacional.startswith(("0800", "0300"))
+            and campos_br.telefone_valido(nacional)):
+        return ddi + nacional
+    return ""
 
 
 def link_de_conversa(telefone: str, texto: str = "") -> str:

@@ -39,6 +39,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 
+import campos_br
+
 # ---------------------------------------------------------------- catálogo
 
 CATALOGO_FERRAMENTAS: dict[str, dict] = {
@@ -135,51 +137,31 @@ def _digitos(texto) -> str:
     return re.sub(r"\D", "", str(texto or ""))
 
 
-def _cpf_confere(d: str) -> bool:
-    if len(d) != 11 or d == d[0] * 11:
-        return False
-    for tamanho in (9, 10):
-        soma = sum(int(d[i]) * (tamanho + 1 - i) for i in range(tamanho))
-        if (soma * 10 % 11) % 10 != int(d[tamanho]):
-            return False
-    return True
-
-
-def _cnpj_confere(d: str) -> bool:
-    if len(d) != 14 or d == d[0] * 14:
-        return False
-    pesos = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    for tamanho in (12, 13):
-        soma = sum(int(d[i]) * pesos[i + 13 - tamanho] for i in range(tamanho))
-        resto = soma % 11
-        if (0 if resto < 2 else 11 - resto) != int(d[tamanho]):
-            return False
-    return True
-
-
 def cpf_ou_cnpj(texto) -> str:
-    """CPF ou CNPJ formatado. Número que não confere é recusado, não corrigido."""
-    d = _digitos(texto)
-    if len(d) == 11:
-        if not _cpf_confere(d):
-            raise ValueError("o CPF não confere — confira os números")
-        return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
-    if len(d) == 14:
-        if not _cnpj_confere(d):
-            raise ValueError("o CNPJ não confere — confira os números")
-        return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
-    raise ValueError("CPF tem 11 números e CNPJ tem 14")
+    """
+    CPF ou CNPJ formatado. Número que não confere é recusado, não corrigido.
+
+    A conta é a de src/campos_br.py, a mesma da tela: o CNPJ alfanumérico da
+    Receita passa, e o aviso é o que a pessoa já vê no campo.
+    """
+    if not str(texto or "").strip():
+        raise ValueError("CPF tem 11 números e CNPJ tem 14")
+    try:
+        return campos_br.formatar_documento(texto)
+    except ValueError as exc:
+        # No cartao da conversa a frase segue "Entendi o pedido, mas ...".
+        if "incompleto" in str(exc):
+            raise ValueError("CPF tem 11 números e CNPJ tem 14") from exc
+        if campos_br.e_cnpj(texto) or str(exc).startswith("CNPJ"):
+            raise ValueError("o CNPJ não confere — confira os caracteres") from exc
+        raise ValueError("o CPF não confere — confira os números") from exc
 
 
 def telefone(texto) -> str:
-    d = _digitos(texto)
-    if len(d) in (12, 13) and d.startswith("55"):
-        d = d[2:]
-    if len(d) == 11:
-        return f"({d[:2]}) {d[2:7]}-{d[7:]}"
-    if len(d) == 10:
-        return f"({d[:2]}) {d[2:6]}-{d[6:]}"
-    raise ValueError("o telefone precisa do DDD e do número")
+    """Telefone formatado: celular, fixo, 0800 ou de fora (+DDI), como na tela."""
+    if campos_br.problema("telefone", texto) or not str(texto or "").strip():
+        raise ValueError("o telefone precisa do DDD e do número")
+    return campos_br.formatar_telefone(texto)
 
 
 RE_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
@@ -458,6 +440,10 @@ def ancorado(tipo: str, valor, frase: str) -> bool:
         palavras = [p for p in re.findall(r"[a-z0-9]+", _plano(valor)) if len(p) >= 3]
         frase_palavras = set(re.findall(r"[a-z0-9]+", plano))
         return bool(palavras) and all(p in frase_palavras for p in palavras)
+    if tipo == "cpf_cnpj" and re.search(r"[A-Z]", campos_br.normalizado(valor)):
+        # CNPJ alfanumerico: as letras contam tanto quanto os numeros.
+        c = campos_br.normalizado(valor)
+        return c in campos_br.normalizado(frase)
     if tipo in ("cpf_cnpj", "telefone"):
         d = _digitos(valor)
         return bool(d) and (d in _digitos(frase) or d[2:] in _digitos(frase))
@@ -555,7 +541,7 @@ def _cadastrar_cliente(estado, campos: dict) -> dict:
     registro = estado.cadastros.obter(novo)
     resumo = f"Cadastrei “{limpos['nome']}” como cliente"
     if limpos.get("documento"):
-        resumo += f", {'CNPJ' if len(_digitos(limpos['documento'])) == 14 else 'CPF'} {limpos['documento']}"
+        resumo += f", {'CNPJ' if campos_br.e_cnpj(limpos['documento']) else 'CPF'} {limpos['documento']}"
     if ja_havia:
         resumo += " — já havia outra ficha com esse nome em Cadastros"
     return {"id": novo, "registro": registro, "resumo": resumo, "onde": "cadastros"}

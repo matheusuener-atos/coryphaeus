@@ -111,9 +111,14 @@ def test_rotas() -> None:
     checar(r.json()["salvos"] == ["grande pelo navegador.pdf"], "pelo navegador, autorizado: entra", r.json())
 
     primeiro = c.post("/api/upload", files=[("arquivos", ("mesmo nome.pdf", pdf(0, "Primeiro"), "application/pdf"))]).json()
-    segundo = c.post("/api/upload", files=[("arquivos", ("mesmo nome.pdf", pdf(0, "Segundo"), "application/pdf"))]).json()
-    checar(primeiro["salvos"] == ["mesmo nome.pdf"] and segundo["salvos"] and segundo["salvos"][0] != "mesmo nome.pdf",
-           "mesmo nome com outro conteúdo não sobrescreve", segundo["salvos"])
+    antes = (Path(api.estado.pasta) / "mesmo nome.pdf").read_bytes()
+    pergunta = c.post("/api/upload", files=[("arquivos", ("mesmo nome.pdf", pdf(0, "Segundo"), "application/pdf"))])
+    checar(primeiro["salvos"] == ["mesmo nome.pdf"] and pergunta.status_code == 409 and
+           (Path(api.estado.pasta) / "mesmo nome.pdf").read_bytes() == antes,
+           "mesmo nome com outro conteúdo não sobrescreve: pergunta antes", pergunta.text[:160])
+    segundo = c.post("/api/upload", files=[("arquivos", ("mesmo nome.pdf", pdf(0, "Segundo"), "application/pdf"))],
+                     data={"decisoes": json.dumps({"mesmo nome.pdf": {"acao": "renomear", "nome": "mesmo nome (2).pdf"}})}).json()
+    checar(segundo["salvos"] == ["mesmo nome (2).pdf"], "renomeando, o segundo entra com o outro nome", segundo)
 
     sid = api.estado.servicos.salvar({"nome": "Teste de entrada"})
     d = c.post(f"/api/servicos/{sid}/anexar", json={"caminhos": [str(grande)]}).json()

@@ -62,8 +62,12 @@ function dialogo(o) {
       '<button type="button" class="dialogo-fechar" data-dialogo="cancelar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
       '<div class="dialogo-corpo">' + paragrafos + (o.html || "") + miolo + (o.depois || "") + "</div>" +
       '<div class="dialogo-pe">' + (o.rodape || "") + '<span class="cresce"></span>' +
-      '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>" +
-      '<button type="button" class="' + (o.perigo ? "perigo" : (o.sucesso ? "sucesso" : "primario")) + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button></div></div>";
+      (o.semCancelar ? "" : '<button type="button" class="dialogo-cancelar" data-dialogo="cancelar">' + esc(o.cancelar || "Cancelar") + "</button>") +
+      '<button type="button" class="' + (o.perigo ? "perigo" : (o.sucesso ? "sucesso" : "primario")) + '" data-dialogo="confirmar">' + esc(o.confirmar || "Confirmar") + "</button>" +
+      // Uma segunda acao (o.segundo = {rotulo, perigo}): fecha com
+      // {ok, segundo: true, valor}. O X e o Esc continuam cancelando.
+      (o.segundo ? '<button type="button" class="' + (o.segundo.perigo ? "perigo" : "") + '" data-dialogo="segundo">' + esc(o.segundo.rotulo) + "</button>" : "") +
+      "</div></div>";
     document.body.appendChild(veu);
     veu.querySelectorAll(".dialogo-caixa select").forEach(melhorarSelect);
 
@@ -131,6 +135,8 @@ function dialogo(o) {
     veu.onclick = (e) => { if (e.target === veu) fechar(null); };
     veu.querySelectorAll('[data-dialogo="cancelar"]').forEach((b) => { b.onclick = () => fechar(null); });
     botaoOk.onclick = confirmarAgora;
+    const segundo = veu.querySelector('[data-dialogo="segundo"]');
+    if (segundo) segundo.onclick = () => fechar({ ok: true, segundo: true, valor: entrada ? entrada.value.trim() : "" });
     veu.querySelectorAll("[data-dialogo-sugestao]").forEach((b) => {
       b.onclick = () => {
         const alvo = veu.querySelector("#" + b.dataset.dialogoPara) || entrada;
@@ -160,6 +166,49 @@ function fichaDoDialogo(linhas) {
 
 function confirmar(o) {
   return dialogo(o).then((r) => Boolean(r && r.ok));
+}
+
+/* ARQUIVO DE MESMO NOME (src/nomes.py). A rota que grava responde 409 com os
+   conflitos, sem ter gravado nada; aqui se pergunta um por um - Renomear
+   (com o nome ja sugerido) ou Substituir - e o pedido vai de novo com as
+   decisoes. `enviar(decisoes)` faz o pedido e devolve a Response; volta a
+   Response final, ou null se a pessoa fechou sem decidir. */
+async function comNomesDecididos(enviar) {
+  const decisoes = {};
+  for (let volta = 0; volta < 12; volta++) {
+    const r = await enviar(decisoes);
+    if (!r || r.status !== 409) return r;
+    let d = {};
+    try { d = await r.clone().json(); } catch (err) { return r; }
+    if (!Array.isArray(d.conflitos)) return r;
+    for (const c of d.conflitos) {
+      const escolha = await perguntarNomeRepetido(c);
+      if (!escolha) return null;
+      decisoes[c.nome] = escolha;
+    }
+  }
+  return null;
+}
+
+/* O desenho pedido: "Um arquivo de mesmo nome foi detectado", o nome num
+   campo e [Renomear] [Substituir]. Enter renomeia - o lado que nao perde nada. */
+async function perguntarNomeRepetido(c) {
+  const ponto = c.sugestao.lastIndexOf(".");
+  const pedido = dialogo({
+    titulo: "Um arquivo de mesmo nome foi detectado",
+    contexto: c.pasta_curta || "",
+    texto: "“" + c.existente + "” já existe nesta pasta. Renomeie para guardar os dois, ou substitua o que está lá.",
+    campo: { rotulo: "Nome", valor: c.sugestao, max: 200 },
+    confirmar: "Renomear",
+    segundo: { rotulo: "Substituir", perigo: true },
+    semCancelar: true,
+  });
+  // O nome ja vem selecionado sem a extensao, para digitar por cima.
+  setTimeout(() => { const e = document.querySelector("#veu-dialogo .dialogo-caixa input"); if (e && ponto > 0) e.setSelectionRange(0, ponto); }, 0);
+  const r = await pedido;
+  if (!r || !r.ok) return null;
+  if (r.segundo) return { acao: "substituir" };
+  return { acao: "renomear", nome: r.valor || c.sugestao };
 }
 
 function perguntar(o) {

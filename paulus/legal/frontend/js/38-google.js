@@ -11,7 +11,7 @@
    - Drive: só o documento que a pessoa manda, e pela fila de Aprovações.
 */
 
-const gg = { dados: null, relogio: null };
+const gg = { dados: null, relogio: null, pedido: null, tentou: false };
 
 async function carregarGoogle() {
   try {
@@ -20,7 +20,16 @@ async function carregarGoogle() {
   } catch (err) {
     gg.dados = null;
   }
+  gg.tentou = true;
   return gg.dados;
+}
+
+/* O estado do Google uma vez so, para quem precisa dele e chega junto (o
+   cabecalho da Agenda e a opcao do Meet no formulario). */
+function googleCarregado() {
+  if (gg.dados !== null) return Promise.resolve(gg.dados);
+  if (!gg.pedido) gg.pedido = carregarGoogle().finally(() => { gg.pedido = null; });
+  return gg.pedido;
 }
 
 function googleConectado(servico) {
@@ -49,7 +58,8 @@ function cartaoGoogle() {
     linha("mail", "Gmail", d.conta, d.precisa_entrar ? ponto("entrar de novo", "acc") : ponto("conectado", "ok"), '<button data-gg-email="1">Contas</button>') +
     linha("calendar_month", "Agenda e Meet", agenda ? sinc : "compromissos na Agenda do Google, com sala do Meet de verdade",
       agenda ? ponto("conectada", "ok") : ponto("não conectada", ""),
-      agenda ? '<button data-gg-sinc="1">' + ic("sync", 16) + "Sincronizar agora</button>" : '<button class="primario" data-gg-conectar="agenda">Conectar</button>') +
+      agenda ? '<button class="com-icone" data-gg-sinc="1">' + marca("google-agenda", 16) + "Sincronizar agora</button>"
+        : '<button class="primario com-icone" data-gg-conectar="agenda">' + marca("google-agenda", 16) + "Conectar</button>") +
     linha("folder", "Google Drive", drive ? "os documentos que você envia vão para a pasta PAULUS do seu Drive" : "enviar documentos do Acervo para o seu Drive",
       drive ? ponto("conectado", "ok") : ponto("não conectado", ""),
       drive ? "" : '<button class="primario" data-gg-conectar="drive">Conectar</button>');
@@ -77,12 +87,15 @@ function ligaGoogle(chave, rotulo, sub, ligado) {
     '" tabindex="0"><span class="duas-linhas"><b>' + esc(rotulo) + "</b><small>" + esc(sub) + "</small></span><i></i></div>";
 }
 
-async function conectarGoogle(servico, botao) {
+/* `depois(pronto)` e para quem conecta de fora de Conexoes (a opcao do Meet
+   no formulario do compromisso): redesenha o que dependia da Agenda. */
+async function conectarGoogle(servico, botao, depois) {
+  const rotulo = botao ? botao.innerHTML : "";
   if (botao) { botao.disabled = true; botao.textContent = "abrindo o Google…"; }
   const r = await fetch("/api/google/conectar", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servico: servico, tema: document.documentElement.dataset.tema || "" }),
   });
-  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); if (botao) botao.disabled = false; return; }
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); if (botao) { botao.disabled = false; botao.innerHTML = rotulo; } return; }
   avisoCert("Abri a tela do Google no navegador: marque a permissão e volte aqui.", { dura: 8000 });
   clearTimeout(gg.relogio);
   const acompanhar = async () => {
@@ -92,6 +105,7 @@ async function conectarGoogle(servico, botao) {
     if (d.fase === "pronto") avisoCert((servico === "agenda" ? "Agenda do Google conectada — sincronizando" : "Google Drive conectado"), { tom: "ok" });
     else if (d.fase !== "cancelado") avisoCert(maiuscula(d.mensagem || "o Google não terminou"), { tom: "erro" });
     await carregarGoogle();
+    if (depois) depois(d.fase === "pronto");
     if (typeof cfg !== "undefined" && cfg.secao === "conexoes" && $("cfg-tela")) desenharConfig();
   };
   gg.relogio = setTimeout(acompanhar, 1500);

@@ -156,7 +156,7 @@ function cabecalhoGravacoes() {
     meta.textContent = [quandoDaGravacao(g), duracaoLongaGv(g.duracao_s), g.participantes_lista.join(", ")].filter(Boolean).join(" · ") +
       " · " + statusDaGravacao(g);
     $("acoes-tela").innerHTML =
-      '<button class="com-icone" data-gv-compartilhar="1">' + ic("mail", 16) + "Compartilhar resumo</button>" +
+      '<button class="com-icone" data-gv-compartilhar="1">' + marcaDoEmail(16) + "Compartilhar resumo</button>" +
       '<button class="primario com-icone" data-gv-perguntar="1">' + ic("forum", 16) + "Perguntar sobre esta gravação</button>";
     return;
   }
@@ -841,7 +841,10 @@ async function compartilharResumoGv(g) {
       texto: "Ainda não há resumo. O e-mail vai só com a transcrição em anexo; dá para pedir o resumo antes, na aba Resumo.", confirmar: "Compartilhar assim" });
     if (!ok) return;
   }
-  const r = await fetch("/api/gravacoes/" + g.id + "/exportar", { method: "POST" });
+  // A transcricao ja guardada no Acervo: pergunta (Renomear / Substituir).
+  const r = await comNomesDecididos((decisoes) => fetch("/api/gravacoes/" + g.id + "/exportar",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decisoes: decisoes }) }));
+  if (!r) return;
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
   const anexo = await r.json();
   let para = "";
