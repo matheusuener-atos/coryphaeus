@@ -1,11 +1,11 @@
 {
-  "versao": "0.9.6",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.6/PAULUS-0.9.6-instalador.exe",
-  "sha256": "b87a09e0a6f055c8b22fb50e1a22de100d96a206335e53fdbcd5f2a49f9e3d76",
-  "tamanho": 94534155,
+  "versao": "0.9.7",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.7/PAULUS-0.9.7-instalador.exe",
+  "sha256": "596f6bc5401ef678cb90c8df0fd655950b9233685761ef07d7251040053e5328",
+  "tamanho": 94529386,
   "publicada": "2026-09-28",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.6",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.7",
   "novidades": [
-    "Acesso de fora só pelo Google (+ código do celular); e-mail Google e e-mail secundário nas contas e convites"
+    "Tela de entrar no desenho novo (export 'Entrar - acesso de fora') e 'confiar neste navegador por 30 dias'"
   ]
 }

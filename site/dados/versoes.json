@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.7",
+      "date": "2026-09-28",
+      "changes": [
+        "Tela de entrar no desenho novo (export 'Entrar - acesso de fora') e 'confiar neste navegador por 30 dias'"
+      ]
+    },
+    {
       "version": "0.9.6",
       "date": "2026-09-28",
       "changes": [
