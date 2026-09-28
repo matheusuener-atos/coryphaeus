@@ -120,7 +120,11 @@ function cabecalhoApoiar() {
     const classe = v === apoio.visao ? "ativa" : "";
     return '<button class="' + classe + '" data-apoio-visao="' + v + '">' + r + "</button>";
   };
-  $("acoes-tela").innerHTML = '<div class="visoes">' + botao("contribuir", "Contribuir") + botao("lista", "Quem já apoia") + "</div>";
+  // O extrato e o desenvolvimento ficam ao lado das visoes, como as acoes
+  // do cabecalho das outras telas.
+  $("acoes-tela").innerHTML = extratoDoApoio() +
+    '<button class="com-icone" data-apoio-dev="1">' + ic("history", 16) + "Acompanhe o desenvolvimento</button>" +
+    '<div class="visoes">' + botao("contribuir", "Contribuir") + botao("lista", "Quem já apoia") + "</div>";
   $("nav-tela").innerHTML = "";
 }
 
@@ -132,15 +136,14 @@ function aberturaDoApoio() {
     : "";
   return '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Ajude o PAULUS a continuar gratuito</h2></div>' +
     '<p class="sv-resumo-corpo">O PAULUS roda na sua máquina, sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento e mantém o programa livre para todos. Todo valor ajuda; a recorrência ajuda mais.</p>' +
-    pix + extratoDoApoio() +
-    '<div class="cfg-botoes"><button class="com-icone" data-apoio-dev="1">' + ic("history", 16) + "Acompanhe o desenvolvimento</button></div></header>";
+    pix + "</header>";
 }
 
 /* O extrato em PDF, assim que houver algum pagamento ou assinatura. */
 function extratoDoApoio() {
   if (!apoio.historico.length && !apoio.assinaturaId && !apoio.assinaturasAntigas.length) return "";
-  return '<div class="apoio-extrato"><button class="com-icone" data-apoio-extrato="1">' + ic("download", 16) + "Baixar extrato de contribuições</button>" +
-    "<small>cada contribuição, o total e o tratamento fiscal — em PDF</small></div>";
+  return '<button class="com-icone" data-apoio-extrato="1" title="Cada contribuição, o total e o tratamento fiscal, em PDF">' +
+    ic("download", 16) + "Baixar extrato de contribuições</button>";
 }
 
 /* A assinatura, enquanto existir: o valor, desde quando, e o botao de

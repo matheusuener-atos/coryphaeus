@@ -18,9 +18,6 @@
   /* o que ja foi feito, numa linha embaixo da abertura */
   .apoio-situacao { margin: 4px 0 0; display: flex; align-items: center; gap: 8px; font: 500 13.5px/1.5 var(--sans); color: var(--ink2); }
   .apoio-situacao .ic { color: var(--ink3); }
-  .apoio-extrato { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
-  .apoio-extrato button { display: inline-flex; align-items: center; gap: 6px; }
-  .apoio-extrato small { font: 500 12.5px var(--sans); color: var(--ink3); }
   /* o agradecimento depois do pagamento confirmado */
   .apoio-obrigado { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 6px 4px 2px; }
   .apoio-obrigado p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
