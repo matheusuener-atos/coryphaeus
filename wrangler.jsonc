@@ -27,13 +27,11 @@
   // O que o webhook do Mercado Pago confirmou: Pix pago, assinatura ativa.
   // So situacao, valor e data - nenhum dado de cartao ou de pessoa.
   "kv_namespaces": [
-    { "binding": "APOIOS", "id": "c8011a70799b40b0b3215f4a01b2d28c" }
+    { "binding": "APOIOS", "id": "c8011a70799b40b0b3215f4a01b2d28c" },
     // O acesso de fora (worker/tunel.js): os escritorios conectados e os
     // pedidos de conexao em andamento. So o hash do segredo de cada
-    // instalacao fica aqui. Descomente com o id do KV criado no painel
-    // (docs/PROGRESSO-IMPLEMENTACAO.md, R5) - com um id que nao existe, o
-    // deploy do site inteiro falharia no proximo push.
-    // , { "binding": "ESCRITORIOS", "id": "COLE-AQUI-O-ID-DO-KV" }
+    // instalacao fica aqui - nenhum dado do escritorio.
+    { "binding": "ESCRITORIOS", "id": "34ff1c1c0d3e4c7a9bcf34bf3f6fe321" }
   ],
   // As rotas que criam cobranca aceitam poucas chamadas por endereco de
   // internet: quem tentar encher o painel de cobrancas falsas para no limite.
@@ -44,8 +42,12 @@
   // A limpeza diaria do acesso de fora (worker/tunel.js, limparEscritorios):
   // libera os enderecos que nunca conectaram em 7 dias ou estao parados ha
   // mais de 180. Sem TUNEL_ATIVO e sem o KV ESCRITORIOS ela nao faz nada.
-  "triggers": { "crons": ["17 6 * * *"] }
-  // A sitekey do Turnstile e publica (vai na pagina): quando o widget for
-  // criado, ela entra aqui, em "vars": { "TURNSTILE_SITEKEY": "..." }. O
-  // secret do widget e segredo: npx wrangler secret put TURNSTILE_SECRET.
+  "triggers": { "crons": ["17 6 * * *"] },
+  // A sitekey do Turnstile e publica (vai na pagina de /conectar e na tela de
+  // entrar de cada escritorio). O widget "PAULUS" vale para paulus.ia.br e
+  // todos os subdominios. O secret do widget e segredo do Worker
+  // (TURNSTILE_SECRET), cadastrado no painel.
+  // TUNEL_ATIVO "1" liga as rotas do acesso de fora; MAX_ESCRITORIOS e o
+  // teto de escritorios conectados nesta fase. Nenhum dos tres e segredo.
+  "vars": { "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20" }
 }
