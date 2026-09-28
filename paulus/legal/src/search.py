@@ -164,7 +164,7 @@ def chunk_estrutural(doc: Document) -> list[Chunk]:
     import trechos
     from inteligencia.texto import mapa_de_paginas, pagina_de
 
-    versao = trechos.versao_de(doc.sha1, doc.text)
+    versao = trechos.versao_de(doc.sha1, doc.text, doc.name)
     paginas = mapa_de_paginas(doc.text)
     titulo = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", doc.name)
     saida: list[Chunk] = []

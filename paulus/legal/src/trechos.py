@@ -72,14 +72,17 @@ class Fatia:
     regime: str
 
 
-def versao_de(sha1: str, texto: str) -> str:
+def versao_de(sha1: str, texto: str, nome: str = "") -> str:
     """
-    A versao do documento, para o `chunk_id`: o sha1 do arquivo quando ha,
-    senao o do texto. O mesmo arquivo da o mesmo id em qualquer reindexacao;
-    arquivo mudado, id novo - e o trecho antigo nao passa pelo novo.
+    A versao do documento, para o `chunk_id`: o sha1 do arquivo (sem ele, o
+    do texto) junto com o nome. O mesmo arquivo da o mesmo id em qualquer
+    reindexacao; arquivo mudado, id novo - e o trecho antigo nao passa pelo
+    novo. O nome entra porque "contrato.pdf" e "contrato (1).pdf" com o mesmo
+    conteudo sao dois documentos no Acervo, e um id nao pode apontar para os
+    dois.
     """
     base = sha1 or hashlib.sha1((texto or "").encode("utf-8")).hexdigest()
-    return base[:12]
+    return hashlib.sha1(f"{base}\0{nome}".encode("utf-8")).hexdigest()[:12]
 
 
 def chunk_id(versao: str, char_start: int) -> str:

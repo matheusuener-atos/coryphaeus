@@ -108,8 +108,14 @@ def main() -> int:
     print("\nids estáveis")
     um, dois = chunk_estrutural(doc), chunk_estrutural(doc)
     checar([c.chunk_id for c in um] == [c.chunk_id for c in dois], "mesmo documento, mesmos ids")
-    checar(all(c.chunk_id == f"chunk_aaaaaaaaaaaa_{c.char_start:08d}" for c in um), "o id é versão + posição",
+    import trechos
+
+    versao = trechos.versao_de("a" * 40, doc.text, doc.name)
+    checar(all(c.chunk_id == f"chunk_{versao}_{c.char_start:08d}" for c in um), "o id é versão + posição",
            [c.chunk_id for c in um[:2]])
+    copia = Document(name="Contrato ACME (1).pdf", path="x/Contrato ACME (1).pdf", text=doc.text, sha1=doc.sha1)
+    checar(not {c.chunk_id for c in um} & {c.chunk_id for c in chunk_estrutural(copia)},
+           "a cópia com outro nome tem ids próprios")
     s1 = ContractSearcher(estrutural=True)
     s1.add_contracts([doc, doc_lei])
     s2 = ContractSearcher(estrutural=True)
