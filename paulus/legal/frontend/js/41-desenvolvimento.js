@@ -58,7 +58,7 @@ function desenharDesenvolvimento() {
       "Você usa a versão v" + esc(d.versao_instalada || "") + "." + (d.offline ? " Sem internet agora: esta é a última cópia guardada." : "") + "</span>"
     : "";
   $("centro").innerHTML = '<div class="acervo sem-painel dev-tela" id="dev-tela"><div class="acervo-principal sv-principal"><div class="sv-medida">' +
-    '<header class="dev-topo"><span class="rotulo">Desenvolvimento aberto</span><h1>Como o PAVLVS evoluiu, mês a mês</h1>' +
+    '<header class="dev-topo"><h1>Como o PAVLVS evoluiu, mês a mês</h1>' +
     "<p>Escolha um mês para ver as versões publicadas e o apoio que a comunidade deu ao projeto naquele período. Os valores são sempre consolidados; nenhum dado de apoiador aparece aqui.</p></header>" +
     corpo +
     '<section class="dev-sobre"><h3>Sobre estes dados</h3>' +
