@@ -129,10 +129,7 @@ function desenharListaDoAnexar() {
     }).join("") || '<p class="anx-vazio">' + (anx.termo ? "Nenhum documento com esse nome no acervo." : "O acervo ainda está vazio — anexe pelo Meu computador.") + "</p>";
   } else if (anx.visao === "drive" && !(anx.drive || []).length) {
     $("anx-migalhas").hidden = true;
-    html = '<div class="anx-sem-drive">' + marca("google-drive", 28) +
-      "<p><b>O Google Drive para computador não está nesta máquina.</b></p>" +
-      "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher os arquivos — sem dar ao PAULUS nenhuma permissão a mais na sua conta Google.</p>" +
-      '<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p></div>';
+    html = semDriveHtml();
   } else {
     const d = anx.pasta || {};
     const migalhas = $("anx-migalhas");
@@ -186,6 +183,15 @@ function desenharListaDoAnexar() {
     };
   });
   contarAnexar();
+}
+
+/* Sem o Google Drive para computador: o que fazer para o Drive aparecer. O
+   mesmo texto no anexar e no escolher pasta (29-verificar.js). */
+function semDriveHtml() {
+  return '<div class="anx-sem-drive">' + marca("google-drive", 28) +
+    "<p><b>O Google Drive para computador não está nesta máquina.</b></p>" +
+    "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher — sem dar ao PAULUS nenhuma permissão a mais na sua conta Google.</p>" +
+    "<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p></div>";
 }
 
 /* Entrar numa pasta: no computador ou no Drive, cada visao guarda onde estava. */

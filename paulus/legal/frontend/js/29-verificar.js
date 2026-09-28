@@ -205,7 +205,13 @@ async function navegarPastaNossa(caminho) {
     (p.tipo === "drive" ? marca("google-drive", 17) : ic(icone, 17)) +
     '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" + ic("chevron_right", 16) + "</div>";
   let html = "";
-  if ((d.atalhos || []).length) html += '<div class="nav-grupo">Começar por</div>' + d.atalhos.map((a) => pasta(a, "folder_special")).join("");
+  // O Google Drive aparece sempre no comeco: sem o Drive para computador,
+  // a linha diz que falta e, clicada, explica como ter.
+  const semDrive = !caminho && !(d.drive || []).length
+    ? '<div class="anx-linha anx-pasta" data-ep-sem-drive="1">' + marca("google-drive", 17) +
+      '<span class="duas-linhas"><b class="corta">Google Drive</b><small class="corta">não instalado neste computador</small></span>' + ic("chevron_right", 16) + "</div>"
+    : "";
+  if ((d.atalhos || []).length || semDrive) html += '<div class="nav-grupo">Começar por</div>' + (d.atalhos || []).map((a) => pasta(a, "folder_special")).join("") + semDrive;
   if ((d.unidades || []).length) html += '<div class="nav-grupo">Unidades</div>' + d.unidades.map((u) => pasta(u, "desktop_windows")).join("");
   html += (d.pastas || []).map((p) => pasta(p, "folder")).join("");
   if (d.erro) html += '<p class="anx-vazio">' + esc(d.erro) + "</p>";
@@ -215,6 +221,13 @@ async function navegarPastaNossa(caminho) {
   migalhas.innerHTML = '<button type="button" data-ep-ir="">Este computador</button>' +
     (d.migalhas || []).map((m) => '<span class="lc-sep">›</span><button type="button" data-ep-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>").join("");
   document.querySelectorAll("#veu-dialogo [data-ep-ir]").forEach((b) => { b.onclick = () => navegarPastaNossa(b.dataset.epIr); });
+  const linhaSemDrive = lista.querySelector("[data-ep-sem-drive]");
+  if (linhaSemDrive) {
+    linhaSemDrive.onclick = () => {
+      lista.innerHTML = semDriveHtml() + '<div class="anx-sem-drive"><button type="button" data-ep-ir="">' + ic("arrow_back", 14) + "Voltar</button></div>";
+      lista.querySelector("[data-ep-ir]").onclick = () => navegarPastaNossa("");
+    };
+  }
   $("ep-onde").textContent = caminho ? "Salvar em " + caminho : "Escolha uma pasta";
   const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
   if (botao) botao.disabled = !caminho;

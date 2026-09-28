@@ -117,6 +117,8 @@
   .anx-linha b { font-weight: 500; }
   .anx-linha small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .anx-pasta > .ic { color: var(--ink3); }
+  /* A marca (Google Drive) ocupa a mesma caixa do icone das outras pastas. */
+  .anx-linha > .marca-ic { margin: 0 2px 0 3px; }
   .anx-quando, .anx-ja { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .anx-vazio { margin: 0; padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
   /* A visao Google Drive sem o Drive para computador: o que fazer para ter. */
