@@ -297,6 +297,8 @@ def test_http() -> None:
     fora = de_fora()
     checar(fora.get("/api/acesso/eu").status_code == 403, "modulo desligado: 403")
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
+    # entra por senha para testar outra coisa: a regra "so Google" fica de lado
+    api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
     try:
         print("  sem sessao")
         pagina = fora.get("/")
@@ -397,6 +399,7 @@ def test_http() -> None:
         checar(fora.get("/api/acesso/eu").json().get("pessoa") is None, "e quem estava de fora fica sem sessao")
     finally:
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
+        api.estado.prefs.dados["acesso_remoto"]["so_google"] = True
         servico.conferir_turnstile = antes
 
 

@@ -125,6 +125,8 @@ def test_tabela() -> None:
     servico = api.estado.acesso_de_fora
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
+    # entra por senha para testar outra coisa: a regra "so Google" fica de lado
+    api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
     local = TestClient(api.app, headers=api.cabecalho_local())
     try:
         t, c = _contas(api)
@@ -222,6 +224,7 @@ def test_tabela() -> None:
             checar(f.get("/api/email/envios").status_code == 200, f"{quem}: usar o e-mail ja configurado")
     finally:
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
+        api.estado.prefs.dados["acesso_remoto"]["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
 
 
@@ -238,6 +241,8 @@ def test_email_sempre_pela_fila() -> None:
     servico = api.estado.acesso_de_fora
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
+    # entra por senha para testar outra coisa: a regra "so Google" fica de lado
+    api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
     conta = SimpleNamespace(id="c1", email="escritorio@x.com", por_login=False, pode_enviar_sem_confirmar=True,
                             autenticacao="senha")
     antes_montar, antes_cred = api._montar_do_pedido, api.estado.contas.tem_credencial
@@ -261,6 +266,7 @@ def test_email_sempre_pela_fila() -> None:
         api._montar_do_pedido, api.estado.contas.tem_credencial = antes_montar, antes_cred
         api.estado.prefs.dados["autonomia"] = antes_aut
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
+        api.estado.prefs.dados["acesso_remoto"]["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
 
 

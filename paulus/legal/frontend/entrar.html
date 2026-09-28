@@ -265,6 +265,9 @@
       $("por-senha").hidden = true; $("ou").hidden = true; $("continuar-senha").hidden = true;
       $("email").required = false; $("senha").required = false;
       $("ajuda-conta").textContent = "Use a conta Google cadastrada no escritório. Se ela ainda não foi liberada, peça a quem administra o PAVLVS.";
+      // Toda entrada e pelo Google: sem ele configurado, a tela diz o que
+      // falta - e nao oferece senha.
+      if (!d.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS";
     }
   }).catch(() => { $("erro-senha").textContent = "não consegui abrir a tela de entrar; recarregue a página"; });
 

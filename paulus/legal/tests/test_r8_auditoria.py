@@ -83,6 +83,8 @@ def test_de_fora() -> None:
     servico = api.estado.acesso_de_fora
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
+    # entra por senha para testar outra coisa: a regra "so Google" fica de lado
+    api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
     local = TestClient(api.app, headers=api.cabecalho_local())
     try:
         c = servico.contas.criar("Tita", "tita@escritorio.com", "titular", "senha-da-tita-12")
@@ -142,6 +144,7 @@ def test_de_fora() -> None:
         checar(fora.get("/api/acesso/auditoria").status_code in (401, 403), "de fora, a tela de acessos nao abre")
     finally:
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
+        api.estado.prefs.dados["acesso_remoto"]["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
 
 

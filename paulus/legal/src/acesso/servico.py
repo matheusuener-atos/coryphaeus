@@ -97,12 +97,12 @@ class AcessoDeFora:
 
     def so_google(self) -> bool:
         """
-        De fora, so se entra pelo Google (+ codigo do celular) - decisao do
-        dono. Vale quando o login do Google esta pronto (cliente web e
-        endereco conectado); sem ele, a senha continua, para ninguem ficar
-        trancado para fora.
+        De fora, TODA entrada e pelo Google (+ codigo do celular) - decisao do
+        dono, 28/09/2026. Sem o login do Google configurado, ninguem entra de
+        fora: a tela diz o que falta, e nao volta a pedir senha. A chave
+        `acesso_remoto.so_google` existe para os testes do caminho por senha.
         """
-        return bool(self.preferencias().get("so_google", True)) and self.google.disponivel()
+        return bool(self.preferencias().get("so_google", True))
 
     def conferir_turnstile(self, token: str, ip: str = "") -> str:
         """

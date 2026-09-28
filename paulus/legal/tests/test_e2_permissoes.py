@@ -80,6 +80,8 @@ def test_http() -> None:
     servico = api.estado.acesso_de_fora
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
+    # entra por senha para testar outra coisa: a regra "so Google" fica de lado
+    api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
     local = TestClient(api.app, headers=api.cabecalho_local())
     passo = int(time.time() // 30) - 1
 
@@ -142,6 +144,7 @@ def test_http() -> None:
         checar(tita.get("/api/financeiro").status_code == 200, "o titular ve o Financeiro de fora")
     finally:
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
+        api.estado.prefs.dados["acesso_remoto"]["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
 
 

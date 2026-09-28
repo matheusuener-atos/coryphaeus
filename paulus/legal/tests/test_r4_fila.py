@@ -171,6 +171,8 @@ def test_duas_pessoas() -> None:
         servico = api.estado.acesso_de_fora
         servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
+        # entra por senha para testar outra coisa: a regra "so Google" fica de lado
+        api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
         c = servico.contas.criar("Bia", "bia@escritorio.com", "titular", "senha-da-bia-12")
         servico.contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], int(time.time() // 30) - 1))
         fora = requests.Session()

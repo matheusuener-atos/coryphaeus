@@ -263,6 +263,7 @@
     if (d.google) { $("com-google").hidden = false; $("ou").hidden = false; }
     // So o Google: o convite se aceita entrando no Google com a conta convidada.
     if (d.so_google) {
+      if (!d.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem convidou você";
       $("por-senha").hidden = true; $("ou").hidden = true; $("continuar-senha").hidden = true;
       $("senha").required = false; $("repetir").required = false;
       $("email").insertAdjacentText("afterend", " — entre no Google com essa conta.");

@@ -291,7 +291,7 @@ def montar(servico, r) -> None:
             raise HTTPException(status_code=400, detail="escolha a senha (pelo menos 10 caracteres)")
         try:
             criada = servico.contas.criar(dados.nome, dados.email, dados.papel,
-                                          "" if servico.so_google() else dados.senha,
+                                          dados.senha,
                                           email_secundario=dados.email_secundario)
         except ErroConta as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

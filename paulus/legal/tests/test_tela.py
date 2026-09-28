@@ -144,6 +144,7 @@ def test_celular(navegador, base: str) -> None:
         conta = servico.contas.criar("Teste de Tela", email, "titular", "senha-do-celular-12")
         servico.contas.confirmar_totp(conta["conta"]["id"], codigo_totp(conta["segredo"], int(time.time() // 30) - 1))
         prefs["ligado"] = True
+        prefs["so_google"] = False  # o celular entra por senha aqui; a regra "so Google" e de test_e3_google
         servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
         prefs["turnstile_sitekey"] = "chave-de-teste"
         pedido = api.estado.fila.pedir("Teste de tela: enviar e-mail", "email", acao="correio.enviar",
@@ -191,6 +192,7 @@ def test_celular(navegador, base: str) -> None:
         ctx.close()
     finally:
         prefs["ligado"] = False
+        prefs["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
         prefs["turnstile_sitekey"] = antes_chave
         if pedido:

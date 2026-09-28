@@ -118,9 +118,9 @@ PADRAO: dict = {
     # de novo.
     "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
                       "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0",
-                      # De fora, so se entra pelo Google (+ o codigo do celular) - decisao do dono,
-                      # 28/09/2026. Vale quando o login do Google esta configurado; sem ele, a senha
-                      # continua, para ninguem ficar trancado para fora.
+                      # De fora, toda entrada e pelo Google (+ o codigo do celular) - decisao do
+                      # dono, 28/09/2026. Sem o Google configurado, ninguem entra de fora (a tela
+                      # diz o que falta). Desligar existe so para os testes do caminho por senha.
                       "so_google": True},
     "modelo": "",
     # O que chega ao modelo (src/inferencia.py), uma chave por etapa do plano
