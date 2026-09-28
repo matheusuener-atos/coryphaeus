@@ -24,7 +24,7 @@ const tunelCfg = { dados: null, relogio: null };
 /* O estado do bloco de conexao: sobrevive aos redesenhos da tela. */
 const conexaoUI = {
   slug: "", editado: false, disp: null, relogioDisp: null, perguntado: "",
-  conta: { nome: "", email: "", senha: "", repetir: "" }, criada: null, fase: "", erroConta: "", erroCodigo: "",
+  conta: { nome: "", email: "", senha: "", repetir: "", secundario: "" }, criada: null, fase: "", erroConta: "", erroCodigo: "",
   redesenhar: null, onde: "",
 };
 
@@ -127,9 +127,13 @@ function blocoConexao() {
     const campo = (chave, rotulo, tipo, dica) => '<div class="ag-campo"><label for="cx-' + chave + '">' + rotulo + "</label>" +
       '<input type="' + tipo + '" id="cx-' + chave + '" data-cx-conta="' + chave + '" value="' + esc(v[chave] || "") + '"' +
       (dica ? ' placeholder="' + esc(dica) + '"' : "") + (tipo === "password" ? ' autocomplete="new-password"' : "") + "></div>";
+    // So o Google (decisao do escritorio): a conta e o e-mail Google, sem
+    // senha; o e-mail secundario e so de contato.
     conta = '<div class="acesso-form">' + campo("nome", "Nome", "text", "como aparece no registro de acessos") +
-      campo("email", "E-mail", "email", "") + campo("senha", "Senha", "password", "pelo menos 10 caracteres") +
-      campo("repetir", "Repita a senha", "password", "") + "</div>" +
+      (d.so_google
+        ? campo("email", "E-mail Google", "email", "Gmail ou do Google Workspace") + campo("secundario", "E-mail secundário (opcional)", "email", "")
+        : campo("email", "E-mail", "email", "") + campo("senha", "Senha", "password", "pelo menos 10 caracteres") +
+          campo("repetir", "Repita a senha", "password", "")) + "</div>" +
       '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
       '<div class="acesso-pe"><button class="primario com-icone" data-cx-criar-conta="1">' + ic("shield_person", 16) + "Criar a conta e ler o QR</button>" +
       '<p class="cfg-explica">Sem ela, ninguém entra de fora. Senha e código ficam só neste computador.</p></div>';
@@ -260,12 +264,14 @@ function ligarBlocoConexao(raiz) {
     const v = conexaoUI.conta;
     raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { v[i.dataset.cxConta] = i.value; });
     conexaoUI.erroConta = "";
+    const soGoogle = Boolean((tunelCfg.dados || {}).so_google);
     if (!v.nome.trim() || !v.email.trim()) conexaoUI.erroConta = "diga o nome e o e-mail";
-    else if (v.senha !== v.repetir) conexaoUI.erroConta = "as duas senhas não são iguais";
+    else if (!soGoogle && v.senha !== v.repetir) conexaoUI.erroConta = "as duas senhas não são iguais";
     if (!conexaoUI.erroConta) {
       b.disabled = true;
       try {
-        conexaoUI.criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: v.senha, papel: "titular" });
+        conexaoUI.criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: soGoogle ? "" : v.senha,
+          email_secundario: v.secundario || "", papel: "titular" });
         conexaoUI.fase = "autenticador";
         v.senha = ""; v.repetir = "";
       } catch (err) { conexaoUI.erroConta = err.message; }

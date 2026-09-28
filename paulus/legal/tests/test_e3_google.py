@@ -174,6 +174,29 @@ def test_http() -> None:
         checar(r.status_code == 200, "a Dani entra com Google + codigo", r.text[:160])
         conta = next(x for x in servico.contas.listar() if x["email"] == "dani@x.com")
         checar(conta["papel"] == "colaborador", "e e colaborador")
+
+        print("  so o Google (decisao do escritorio)")
+        checar(f.get("/api/acesso/entrar/config").json().get("so_google") is True, "a tela de entrar sabe que e so o Google")
+        r = f.post("/api/acesso/entrar", json={"email": "tita@x.com", "senha": "senha-da-tita-1", "turnstile": "ok"})
+        checar(r.status_code == 403 and "Google" in r.json().get("detail", ""), "e-mail e senha de fora: 403", r.text[:160])
+        c = local.post("/api/acesso/convites", json={"nome": "Edu", "email": "edu@gmail.com",
+                                                     "email_secundario": "edu@escritorio.com"}).json()
+        cod = c["link"].rsplit("/", 1)[1]
+        checar(g.get("/api/acesso/convite/" + cod).json().get("so_google") is True, "o convite sabe que e so o Google")
+        r = g.post(f"/api/acesso/convite/{cod}/aceitar", json={"senha": "senha-longa-123", "turnstile": "ok"})
+        checar(r.status_code == 403, "aceitar o convite com senha: 403", r.status_code)
+        r = local.post("/api/acesso/contas", json={"nome": "Fabi", "email": "fabi@gmail.com", "email_secundario": "fabi@moura.adv.br"})
+        checar(r.status_code == 200 and r.json()["conta"]["email_secundario"] == "fabi@moura.adv.br",
+               "criar conta aqui sem senha, com e-mail secundario", r.text[:160])
+        fid = r.json()["conta"]["id"]
+        r = local.patch(f"/api/acesso/contas/{fid}", json={"email_secundario": "fabi2@moura.adv.br"})
+        checar(r.status_code == 200 and r.json()["conta"]["email_secundario"] == "fabi2@moura.adv.br", "trocar o secundario")
+        r = f.post("/api/acesso/minha-senha", json={"atual": "x", "nova": "y" * 12, "codigo": "000000"},
+                   headers={"X-PAULUS-CSRF": f.get("/api/acesso/eu").json().get("csrf", "")})
+        checar(r.status_code == 403, "trocar a propria senha de fora: 403 (nao ha senha)", r.status_code)
+        prefs["so_google"] = False
+        checar(f.get("/api/acesso/entrar/config").json().get("so_google") is False, "desligando a regra, a senha volta")
+        prefs["so_google"] = True
     finally:
         prefs["ligado"] = False
         prefs["hostname"] = ""

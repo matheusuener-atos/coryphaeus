@@ -60,6 +60,8 @@ class Convites:
         self._trava = threading.RLock()
         with self._db() as c:
             c.executescript(_ESQUEMA)
+            if "email_secundario" not in {l["name"] for l in c.execute("PRAGMA table_info(convites)")}:
+                c.execute("ALTER TABLE convites ADD COLUMN email_secundario TEXT NOT NULL DEFAULT ''")
 
     def _db(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.caminho, timeout=10)
@@ -81,7 +83,7 @@ class Convites:
 
     # ------------------------------------------------------ o titular
 
-    def criar(self, nome: str, email: str, permissoes: dict | None = None) -> tuple[str, dict]:
+    def criar(self, nome: str, email: str, permissoes: dict | None = None, email_secundario: str = "") -> tuple[str, dict]:
         """Devolve (codigo, convite). O codigo so existe agora: vai no link."""
         from acesso.contas import ErroConta
 
@@ -94,6 +96,10 @@ class Convites:
             raise ErroConvite(str(exc)) from exc
         if email in self.contas.emails():
             raise ErroConvite("já existe uma conta com esse e-mail")
+        try:
+            secundario = self.contas._email(email_secundario) if str(email_secundario or "").strip() else ""
+        except ErroConta as exc:
+            raise ErroConvite("e-mail secundário: " + str(exc)) from exc
         # Sem titular, o convidado viraria titular (a primeira conta e sempre
         # titular): primeiro a conta de quem cuida do escritorio.
         if not self.contas.tem_titular_pronto():
@@ -103,8 +109,10 @@ class Convites:
         with self._trava, self._db() as c:
             # Um convite aberto por e-mail: convidar de novo substitui o anterior.
             c.execute("UPDATE convites SET revogado = ? WHERE email = ? AND usado = 0 AND revogado = 0", (agora, email))
-            c.execute("INSERT INTO convites (hash, nome, email, permissoes, criado, expira, ultimos) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                      (_resumo(codigo), nome, email, json.dumps(permissoes or {}), agora, agora + VALIDADE_S, codigo[-4:]))
+            c.execute("INSERT INTO convites (hash, nome, email, permissoes, criado, expira, ultimos, email_secundario)"
+                      " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                      (_resumo(codigo), nome, email, json.dumps(permissoes or {}), agora, agora + VALIDADE_S, codigo[-4:],
+                       secundario))
             l = c.execute("SELECT * FROM convites WHERE hash = ?", (_resumo(codigo),)).fetchone()
         return codigo, self._publico(l, agora)
 
@@ -154,7 +162,8 @@ class Convites:
                     criada = self.contas.refazer_totp(l["conta_id"])
                     conta_id = l["conta_id"]
                 else:
-                    feita = self.contas.criar(l["nome"], l["email"], "colaborador", senha)
+                    feita = self.contas.criar(l["nome"], l["email"], "colaborador", senha,
+                                              email_secundario=l["email_secundario"])
                     conta_id = feita["conta"]["id"]
                     criada = feita
                     permissoes = json.loads(l["permissoes"] or "{}")

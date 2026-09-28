@@ -38,7 +38,8 @@ def montar(servico, conexao, r) -> None:
                 "titular_pronto": bool(conexao.titulares_prontos()),
                 "titulares": [{"nome": c["nome"], "email": c["email"]} for c in conexao.titulares_prontos()],
                 "escritorio": nome, "sugestao": sugerir_endereco(nome) if nome else "",
-                "energia": servico.energia() if hasattr(servico, "energia") else {}}
+                "energia": servico.energia() if hasattr(servico, "energia") else {},
+                "so_google": servico.so_google()}
 
     @r.get("/api/acesso/tunel/sugestao")
     def tunel_sugestao(nome: str, request: Request) -> dict:

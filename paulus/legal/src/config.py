@@ -117,7 +117,11 @@ PADRAO: dict = {
     # foi liberado em paulus.ia.br (falta de uso) - a tela mostra ate conectar
     # de novo.
     "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
-                      "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0"},
+                      "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0",
+                      # De fora, so se entra pelo Google (+ o codigo do celular) - decisao do dono,
+                      # 28/09/2026. Vale quando o login do Google esta configurado; sem ele, a senha
+                      # continua, para ninguem ficar trancado para fora.
+                      "so_google": True},
     "modelo": "",
     # O que chega ao modelo (src/inferencia.py), uma chave por etapa do plano
     # de melhoria da IA - para dar para voltar atras sem mexer em codigo.

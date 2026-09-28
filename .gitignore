@@ -218,3 +218,8 @@ __marimo__/
 
 # cache local do wrangler (dry-run, dev)
 .wrangler/
+
+# As chaves OAuth do PAULUS (Google e Microsoft): o repositorio e publico.
+# O instalador copia o arquivo do disco (tools/instalador/construir.py); o
+# modelo com os campos vazios e o oauth_app.exemplo.json.
+paulus/legal/oauth_app.json

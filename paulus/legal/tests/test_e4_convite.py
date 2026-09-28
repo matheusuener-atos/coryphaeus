@@ -56,7 +56,10 @@ def test_http() -> None:
     servico = api.estado.acesso_de_fora
     prefs = api.estado.prefs.dados["acesso_remoto"]
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
+    # O convite por senha (o caminho sem o Google): o "so Google" do
+    # escritorio e testado em test_e3_google.py.
     prefs["ligado"] = True
+    prefs["so_google"] = False
     local = TestClient(api.app, headers=api.cabecalho_local())
 
     def de_fora() -> TestClient:
@@ -149,6 +152,7 @@ def test_http() -> None:
     finally:
         prefs["ligado"] = False
         prefs["hostname"] = ""
+        prefs["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
 
 

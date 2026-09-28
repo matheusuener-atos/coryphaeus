@@ -94,6 +94,16 @@ class AcessoDeFora:
 
     # ------------------------------------------------------------ tunel
 
+
+    def so_google(self) -> bool:
+        """
+        De fora, so se entra pelo Google (+ codigo do celular) - decisao do
+        dono. Vale quando o login do Google esta pronto (cliente web e
+        endereco conectado); sem ele, a senha continua, para ninguem ficar
+        trancado para fora.
+        """
+        return bool(self.preferencias().get("so_google", True)) and self.google.disponivel()
+
     def conferir_turnstile(self, token: str, ip: str = "") -> str:
         """
         O anti-robo de um login de fora, conferido no Worker (o segredo do

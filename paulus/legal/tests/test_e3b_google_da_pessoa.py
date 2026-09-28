@@ -72,7 +72,9 @@ def test_http() -> None:
     servico = api.estado.acesso_de_fora
     prefs = api.estado.prefs.dados["acesso_remoto"]
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
-    prefs.update(ligado=True, hostname="moura.paulus.ia.br")
+    # Aqui a Bia e o Caio entram por senha (o foco e o Google DELES): o "so
+    # Google" do escritorio e testado em test_e3_google.py.
+    prefs.update(ligado=True, hostname="moura.paulus.ia.br", so_google=False)
     local = TestClient(api.app, headers=api.cabecalho_local())
     respostas = {}
     servico.google.trocar = lambda code, verificador, cred: respostas.get(code, {"error": "invalid_grant"})
@@ -177,7 +179,7 @@ def test_http() -> None:
         checar(para.startswith("/#google-erro=") and api.estado.contas.obter("esc1").dono == 0,
                "conectar um e-mail do escritorio como pessoal: recusado", para)
     finally:
-        prefs.update(ligado=False, hostname="")
+        prefs.update(ligado=False, hostname="", so_google=True)
         servico.__dict__.pop("conferir_turnstile", None)
 
 

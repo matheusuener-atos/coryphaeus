@@ -76,6 +76,7 @@ async function carregarAcesso() {
     acessoCfg.contas = d ? d.contas : null;
     acessoCfg.sessoes = (d && d.sessoes) || [];
     acessoCfg.disponivel = !d || d.disponivel !== false;
+    acessoCfg.soGoogle = Boolean(d && d.so_google);
   } catch (err) {
     acessoCfg.contas = null;
   }
@@ -188,14 +189,16 @@ function cartaoContas() {
     const estado = c.totp_confirmado
       ? '<span class="fin-meta-ponto ok"><i></i>pronta</span>'
       : '<span class="fin-meta-ponto acc"><i></i>falta o autenticador</span>';
-    const sub = c.email + " · " + (c.papel === "titular" ? "titular" : "colaborador") +
+    const sub = c.email + (c.email_secundario ? " · secundário " + c.email_secundario : "") + " · " +
+      (c.papel === "titular" ? "titular" : "colaborador") +
       (c.totp_confirmado ? " · " + plural(c.codigos_restantes, "código", "códigos") + " de recuperação" : "");
     return '<div class="cfg-servico"><span class="caixa-tipo">' + ic(c.papel === "titular" ? "shield_person" : "person", 18) + "</span>" +
       '<span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(sub) + "</small></span>" + estado +
       '<span class="cfg-botoes">' +
       (c.totp_confirmado ? "" : '<button data-acesso-confirmar="' + c.id + '">Confirmar</button>') +
       (c.papel === "titular" ? "" : '<button data-acesso-permissoes="' + c.id + '">Permissões</button>') +
-      '<button data-acesso-senha="' + c.id + '">Senha</button>' +
+      '<button data-acesso-emails="' + c.id + '">E-mails</button>' +
+      (acessoCfg.soGoogle ? "" : '<button data-acesso-senha="' + c.id + '">Senha</button>') +
       '<button data-acesso-autenticador="' + c.id + '">Autenticador</button>' +
       '<button data-acesso-codigos="' + c.id + '">Códigos</button>' +
       '<button class="mais-linha" data-acesso-remover="' + c.id + '" title="Remover a conta" aria-label="Remover a conta">' + ic("close", 16) + "</button>" +
@@ -228,20 +231,25 @@ function cartaoContas() {
 async function acessoConvidar() {
   const r = await dialogo({
     titulo: "Convidar para a equipe", contexto: "Configurações › Acesso de fora",
-    texto: "A pessoa recebe um link, escolhe a senha e liga o Google Authenticator no próprio celular. Entra como colaborador, com as permissões padrão — dá para mudar depois em Permissões.",
+    texto: (acessoCfg.soGoogle
+      ? "A pessoa recebe um link, entra com a conta Google dela e liga o Google Authenticator no próprio celular."
+      : "A pessoa recebe um link, escolhe a senha e liga o Google Authenticator no próprio celular.") +
+      " Entra como colaborador, com as permissões padrão — dá para mudar depois em Permissões.",
     campos: [
       { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos", obrigatorio: true },
-      { chave: "email", rotulo: "E-mail", tipo: "email", placeholder: "com ele a pessoa entra", obrigatorio: true },
+      { chave: "email", rotulo: "E-mail Google", tipo: "email", placeholder: "Gmail ou do Google Workspace — com ele a pessoa entra", obrigatorio: true },
+      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
     ],
     confirmar: "Gerar o convite",
   });
   if (!r || !r.ok) return;
   let feito;
   try {
-    feito = await acessoPost("/api/acesso/convites", { nome: r.valores.nome, email: r.valores.email });
+    feito = await acessoPost("/api/acesso/convites", { nome: r.valores.nome, email: r.valores.email, email_secundario: r.valores.secundario || "" });
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
   const mensagem = "Olá, " + r.valores.nome.split(" ")[0] + "! Este é o seu convite para o PAULUS do escritório. " +
-    "Abra no celular, escolha a sua senha e ligue o Google Authenticator: " + feito.link + " (vale 7 dias, uma vez)";
+    (acessoCfg.soGoogle ? "Abra no celular, entre com a sua conta Google (" + r.valores.email + ") e ligue o Google Authenticator: "
+      : "Abra no celular, escolha a sua senha e ligue o Google Authenticator: ") + feito.link + " (vale 7 dias, uma vez)";
   const escolha = await dialogo({
     titulo: "Convite pronto", contexto: "Convidar " + r.valores.nome,
     texto: "Mande este link para " + r.valores.nome + ". Ele vale 7 dias e uma vez só, e não aparece de novo — se perder, é só convidar outra vez.",
@@ -343,19 +351,23 @@ async function acessoNovaConta() {
     html: lojasAutenticador(),
     campos: [
       { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos" },
-      { chave: "email", rotulo: "E-mail", tipo: "email", placeholder: "com ele a pessoa entra de fora", obrigatorio: true },
+      { chave: "email", rotulo: acessoCfg.soGoogle ? "E-mail Google" : "E-mail", tipo: "email",
+        placeholder: acessoCfg.soGoogle ? "Gmail ou do Google Workspace — com ele a pessoa entra" : "com ele a pessoa entra de fora", obrigatorio: true },
+      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
+    ].concat(acessoCfg.soGoogle ? [] : [
       { chave: "senha", rotulo: "Senha", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true },
       { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true },
-    ],
+    ]),
     marcar: primeira ? null : { rotulo: "Titular (pode aprovar de fora e cuidar das contas)", marcada: false },
     confirmar: "Criar a conta",
   });
   if (!r || !r.ok) return;
   const v = r.valores || {};
-  if (v.senha !== v.repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
+  if (!acessoCfg.soGoogle && v.senha !== v.repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
   let criada;
   try {
-    criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: v.senha, papel: r.marcada || primeira ? "titular" : "colaborador" });
+    criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: v.senha || "",
+      email_secundario: v.secundario || "", papel: r.marcada || primeira ? "titular" : "colaborador" });
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
   const ok = await acessoAutenticador(criada.conta, criada);
   await acessoMostrarCodigos(criada.conta, criada.codigos_recuperacao || []);
@@ -445,6 +457,25 @@ function ligarAcesso() {
       texto: "O link deixa de valer na hora. Dá para convidar de novo depois.", confirmar: "Cancelar o convite", perigo: true }))) return;
     try { await acessoPost("/api/acesso/convites/" + b.dataset.conviteRevogar, undefined, "DELETE"); avisoCert("convite cancelado", { tom: "ok" }); }
     catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    acessoRedesenhar();
+  });
+  clique("[data-acesso-emails]", async (b) => {
+    const c = conta(b.dataset.acessoEmails);
+    if (!c) return;
+    const r = await dialogo({
+      titulo: "E-mails de " + c.nome, contexto: "Configurações › Acesso de fora",
+      texto: "O e-mail Google é o que entra (Gmail ou do Google Workspace). O secundário é só de contato. Trocar o e-mail Google encerra as sessões da pessoa.",
+      campos: [
+        { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: c.email, obrigatorio: true },
+        { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", valor: c.email_secundario || "", obrigatorio: false },
+      ],
+      confirmar: "Salvar",
+    });
+    if (!r || !r.ok) return;
+    try {
+      await acessoPost("/api/acesso/contas/" + c.id, { email: r.valores.email, email_secundario: r.valores.secundario || "" }, "PATCH");
+      avisoCert("e-mails salvos", { tom: "ok" });
+    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     acessoRedesenhar();
   });
   clique("[data-acesso-permissoes]", (b) => {

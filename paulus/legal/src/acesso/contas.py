@@ -240,8 +240,13 @@ class Contas:
             c.executescript(_ESQUEMA)
             # E2 (docs/PLANO-EQUIPE.md): o nivel de cada pessoa em cada modulo.
             # Banco de antes: a coluna chega vazia, e vazio e o padrao.
-            if "permissoes" not in {l["name"] for l in c.execute("PRAGMA table_info(contas)")}:
+            colunas = {l["name"] for l in c.execute("PRAGMA table_info(contas)")}
+            if "permissoes" not in colunas:
                 c.execute("ALTER TABLE contas ADD COLUMN permissoes TEXT NOT NULL DEFAULT '{}'")
+            # O e-mail com que se entra e o do Google; outro, de contato, e o
+            # secundario (so para mostrar - nao entra com ele).
+            if "email_secundario" not in colunas:
+                c.execute("ALTER TABLE contas ADD COLUMN email_secundario TEXT NOT NULL DEFAULT ''")
 
     def _db(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.caminho, timeout=10)
@@ -262,6 +267,7 @@ class Contas:
             "codigos_restantes": len(json.loads(linha["recuperacao"] or "[]")),
             "criada": linha["criada"], "atualizada": linha["atualizada"],
             "permissoes": permissoes.efetivas(linha["papel"], linha["permissoes"]),
+            "email_secundario": linha["email_secundario"],
         }
 
     def listar(self) -> list[dict]:
@@ -288,7 +294,7 @@ class Contas:
             raise ErroConta("e-mail inválido")
         return e
 
-    def criar(self, nome: str, email: str, papel: str, senha: str) -> dict:
+    def criar(self, nome: str, email: str, papel: str, senha: str = "", *, email_secundario: str = "") -> dict:
         """
         Cria a conta e devolve, UMA vez, o que so aparece agora: o endereco
         otpauth://, o QR e os codigos de recuperacao. O primeiro cadastro e
@@ -300,6 +306,10 @@ class Contas:
         if not nome:
             raise ErroConta("diga o nome da pessoa")
         email = self._email(email)
+        secundario = self._email(email_secundario) if str(email_secundario or "").strip() else ""
+        # Conta que so entra pelo Google: a senha e sorteada aqui e ninguem a
+        # sabe - o login por senha nem existe para ela.
+        senha = senha or secrets.token_urlsafe(32)
         conferir_forca(senha)
         with self._trava:
             primeira = not self.listar()
@@ -316,10 +326,10 @@ class Contas:
             try:
                 with self._db() as c:
                     cur = c.execute(
-                        "INSERT INTO contas (nome, email, papel, senha_sal, senha_hash, totp_guardado, recuperacao, criada, atualizada)"
-                        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO contas (nome, email, papel, senha_sal, senha_hash, totp_guardado, recuperacao, criada,"
+                        " atualizada, email_secundario) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (nome, email, papel, sal.hex(), resumo_da_senha(senha, sal), guardado,
-                         json.dumps([_resumo(_limpo(x)) for x in codigos]), agora, agora))
+                         json.dumps([_resumo(_limpo(x)) for x in codigos]), agora, agora, secundario))
                     conta_id = cur.lastrowid
             except sqlite3.IntegrityError as exc:
                 raise ErroConta("já existe uma conta com esse e-mail") from exc
@@ -328,7 +338,7 @@ class Contas:
                 "codigos_recuperacao": codigos}
 
     def editar(self, conta_id: int, *, nome: str | None = None, email: str | None = None,
-               papel: str | None = None) -> dict:
+               papel: str | None = None, email_secundario: str | None = None) -> dict:
         with self._trava:
             atual = self.obter(conta_id)
             if not atual:
@@ -345,6 +355,9 @@ class Contas:
                 with self._db() as c:
                     c.execute("UPDATE contas SET nome = ?, email = ?, papel = ?, atualizada = ? WHERE id = ?",
                               (campos["nome"], campos["email"], campos["papel"], self.relogio(), conta_id))
+                    if email_secundario is not None:
+                        s2 = self._email(email_secundario) if str(email_secundario).strip() else ""
+                        c.execute("UPDATE contas SET email_secundario = ? WHERE id = ?", (s2, conta_id))
             except sqlite3.IntegrityError as exc:
                 raise ErroConta("já existe uma conta com esse e-mail") from exc
             # Mudou papel ou e-mail: quem estava dentro entra de novo, com o

@@ -40,6 +40,7 @@ function quemCriou(nome, conta) {
       acessoDeFora.permissoes = d.permissoes || [];
       acessoDeFora.google = d.google || "";
       acessoDeFora.googleDisponivel = Boolean(d.google_disponivel);
+      acessoDeFora.soGoogle = Boolean(d.so_google);
       acessoDeFora.csrf = d.csrf || "";
       if (!acessoDeFora.local) document.documentElement.classList.add("remoto");
     })
@@ -131,7 +132,7 @@ function quemCriou(nome, conta) {
       '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + " · " + (titular ? "titular" : "colaborador") + "</small></span></div>" +
       '<div class="conta-acoes">' +
       (titular
-        ? linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do celular") +
+        ? (acessoDeFora.soGoogle ? "" : linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do celular")) +
           linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
         : "") +
       // O Google de trabalho da pessoa (E3b): o e-mail, a Agenda e o Drive dela.
@@ -143,7 +144,8 @@ function quemCriou(nome, conta) {
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
       '<p class="conta-nota">' + (titular
         ? "As contas da equipe se criam e se mudam só no computador do escritório."
-        : "Senha e autenticador se trocam com o titular, no computador do escritório.") + "</p>";
+        : (acessoDeFora.soGoogle ? "Você entra com o Google e o código do celular; o autenticador se troca com o titular, no computador do escritório."
+          : "Senha e autenticador se trocam com o titular, no computador do escritório.")) + "</p>";
     let escolha = "";
     const aberto = dialogo({ titulo: "Minha conta", contexto: "Acesso de fora", html: html, confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
     document.querySelectorAll("[data-conta-acao]").forEach((b) => b.addEventListener("click", () => {

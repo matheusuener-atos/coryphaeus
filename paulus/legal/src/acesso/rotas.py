@@ -61,6 +61,7 @@ class NovoConvite(BaseModel):
     nome: str
     email: str
     permissoes: dict = {}
+    email_secundario: str = ""
 
 
 class AceitarConvite(BaseModel):
@@ -82,13 +83,16 @@ class NovaConta(BaseModel):
     nome: str
     email: str
     papel: str = "colaborador"
-    senha: str
+    # Vazia quando so se entra pelo Google: a conta nasce sem senha que alguem saiba.
+    senha: str = ""
+    email_secundario: str = ""
 
 
 class MudarConta(BaseModel):
     nome: str | None = None
     email: str | None = None
     papel: str | None = None
+    email_secundario: str | None = None
 
 
 class NovaSenha(BaseModel):
@@ -148,18 +152,21 @@ def montar(servico, r) -> None:
                 "permissoes": permissoes.para_a_tela(p.get("permissoes") or {}),
                 # O Google de trabalho da pessoa (E3b): e-mail, Agenda e Drive dela.
                 "google": servico.google_da_pessoa(p["conta_id"]) if hasattr(servico, "google_da_pessoa") else "",
-                "google_disponivel": servico.google.disponivel()}
+                "google_disponivel": servico.google.disponivel(), "so_google": servico.so_google()}
 
     @r.get("/api/acesso/entrar/config")
     def entrar_config() -> dict:
         """O que a tela de entrar precisa saber antes do login: a sitekey do Turnstile."""
-        return {"turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", ""), "google": servico.google.disponivel()}
+        return {"turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", ""), "google": servico.google.disponivel(),
+                "so_google": servico.so_google()}
 
     @r.post("/api/acesso/entrar")
     def entrar(dados: Entrada, request: Request) -> dict:
         comeco = time.monotonic()
         remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
         ip = remoto.get("ip", "")
+        if not e_local(request) and servico.so_google():
+            raise HTTPException(status_code=403, detail="neste escritório se entra com o Google")
         if not e_local(request):
             # O anti-robo vem antes da senha: sem ele, nada e tentado nem
             # contado. Sem o Worker para conferir, ninguem entra.
@@ -231,6 +238,8 @@ def montar(servico, r) -> None:
 
     @r.post("/api/acesso/minha-senha")
     def minha_senha(dados: MinhaSenha, request: Request):
+        if servico.so_google():
+            raise HTTPException(status_code=403, detail="neste escritório se entra com o Google: não há senha para trocar")
         p = _codigo_de_novo(request, dados.codigo)
         if not servico.contas.senha_confere(p["conta_id"], dados.atual):
             raise HTTPException(status_code=403, detail="a senha atual não confere")
@@ -262,14 +271,18 @@ def montar(servico, r) -> None:
     @r.get("/api/acesso/contas")
     def contas(request: Request) -> dict:
         so_local(request)
-        return {"contas": servico.contas.listar(), "disponivel": servico.contas.disponivel(),
+        return {"contas": servico.contas.listar(), "disponivel": servico.contas.disponivel(), "so_google": servico.so_google(),
                 "sessoes": servico.contas.sessoes_abertas()}
 
     @r.post("/api/acesso/contas")
     def criar_conta(dados: NovaConta, request: Request) -> dict:
         so_local(request)
+        if not servico.so_google() and not dados.senha:
+            raise HTTPException(status_code=400, detail="escolha a senha (pelo menos 10 caracteres)")
         try:
-            criada = servico.contas.criar(dados.nome, dados.email, dados.papel, dados.senha)
+            criada = servico.contas.criar(dados.nome, dados.email, dados.papel,
+                                          "" if servico.so_google() else dados.senha,
+                                          email_secundario=dados.email_secundario)
         except ErroConta as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.contas_mudaram()
@@ -279,7 +292,8 @@ def montar(servico, r) -> None:
     def mudar_conta(conta_id: int, dados: MudarConta, request: Request) -> dict:
         so_local(request)
         try:
-            conta = servico.contas.editar(conta_id, nome=dados.nome, email=dados.email, papel=dados.papel)
+            conta = servico.contas.editar(conta_id, nome=dados.nome, email=dados.email, papel=dados.papel,
+                                          email_secundario=dados.email_secundario)
         except ErroConta as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.contas_mudaram()
@@ -300,7 +314,7 @@ def montar(servico, r) -> None:
         if not host:
             raise HTTPException(status_code=400, detail="ligue o acesso de fora antes: o convite é um link do endereço do escritório")
         try:
-            codigo, convite = servico.convites.criar(dados.nome, dados.email, dados.permissoes)
+            codigo, convite = servico.convites.criar(dados.nome, dados.email, dados.permissoes, dados.email_secundario)
         except ErroConvite as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.anotar(acao="convite", alvo=f"{convite['nome']} <{convite['email']}>", pessoa="janela local")
@@ -323,10 +337,12 @@ def montar(servico, r) -> None:
             raise HTTPException(status_code=410, detail=str(exc)) from exc
         escritorio = str((servico.prefs.dados.get("escritorio") or {}).get("nome") or "")
         return {**dados, "escritorio": escritorio, "turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", ""),
-                "google": servico.google.disponivel()}
+                "google": servico.google.disponivel(), "so_google": servico.so_google()}
 
     @r.post("/api/acesso/convite/{codigo}/aceitar")
     def convite_aceitar(codigo: str, dados: AceitarConvite, request: Request) -> dict:
+        if servico.so_google():
+            raise HTTPException(status_code=403, detail="este convite se aceita com o Google")
         remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
         ip = remoto.get("ip", "")
         if not e_local(request):
