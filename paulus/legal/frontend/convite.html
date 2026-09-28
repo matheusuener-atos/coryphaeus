@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PAULUS — Convite</title>
+<link rel="icon" href="/img/paulus-logo.png">
+<link rel="stylesheet" href="/fontes.css">
+<link rel="stylesheet" href="/css/00-tokens.css">
+<script>
+  (function () {
+    var tema = "claro";
+    try {
+      var g = localStorage.getItem("paulus.tema");
+      if (g === "claro" || g === "escuro") tema = g;
+      else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
+    } catch (e) { /* sem memoria do navegador */ }
+    document.documentElement.dataset.tema = tema;
+  })();
+</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<!--
+  O convite (docs/PLANO-EQUIPE.md, E4; src/acesso/convites.py). Quem foi
+  convidado abre este link no proprio celular: escolhe a senha, adiciona a
+  conta ao Google Authenticator e confirma com o primeiro codigo. A conta
+  nasce aqui - ninguem precisa ir ate o computador do escritorio.
+
+  No celular nao da para ler um QR que esta na propria tela: o botao principal
+  abre o Google Authenticator com a conta pronta (otpauth://). O QR fica para
+  quem abriu o link num computador.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); }
+  body { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(20px, 4vh, 36px) clamp(18px, 5vw, 64px); gap: 24px; }
+  .ic { font-family: 'Material Symbols Outlined'; font-weight: 300; font-size: 18px; line-height: 1; display: block; width: 18px; height: 18px;
+        overflow: hidden; flex: none; letter-spacing: normal; text-transform: none; white-space: nowrap; font-variation-settings: 'FILL' 0; }
+  .cabeca { display: flex; align-items: center; gap: 16px; }
+  .marca { font: 500 22px/1 var(--serif); letter-spacing: .12em; }
+  .selo { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 400 10.5px 'IBM Plex Mono', var(--mono); letter-spacing: .14em;
+          color: var(--ink2); text-transform: uppercase; white-space: nowrap; }
+  .selo i { width: 7px; height: 7px; border-radius: 50%; background: var(--okt); }
+  .corpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); gap: clamp(28px, 6vw, 88px); align-items: center;
+           max-width: 1120px; width: 100%; margin: 0 auto; }
+  .texto { display: grid; gap: 18px; max-width: 540px; }
+  .rotulo { font: 400 11px 'IBM Plex Mono', var(--mono); letter-spacing: .16em; color: var(--ink3); text-transform: uppercase; }
+  h1 { font: 400 clamp(30px, 3.6vw, 44px)/1.08 var(--serif); letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+  .texto p { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); }
+  .passos { display: grid; gap: 10px; font-size: 13.5px; color: var(--ink2); }
+  .passos div { display: flex; gap: 10px; align-items: center; }
+  .passos b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none;
+              border: 1px solid var(--ink-a1); font: 700 11px var(--sans); color: var(--ink3); }
+  .passos .atual b { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .passos .feito b { background: var(--okbg); border-color: transparent; color: var(--okt); }
+  .passos .atual { color: var(--ink); font-weight: 600; }
+  .cartao { background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 14px; padding: 24px; display: grid; gap: 16px; box-shadow: var(--elev-card); }
+  .cartao h2 { font: 500 20px/1.2 var(--serif); margin: 0; }
+  .sub { margin: -8px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  label { display: block; font-size: 12.5px; color: var(--ink2); margin: 0 0 6px; }
+  input { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: var(--sub); border: 1px solid var(--ink-a12);
+          border-radius: 10px; padding: 11px 14px; min-height: 44px; outline: none; }
+  input:focus { border-color: var(--ink-a35); background: var(--surf); }
+  .codigo { font-family: var(--mono); font-size: 24px; letter-spacing: .3em; text-align: center; }
+  button, .botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 15px; font-weight: 600;
+           min-height: 44px; width: 100%; border: 0; border-radius: 10px; background: var(--ink); color: var(--bg); cursor: pointer; text-decoration: none; }
+  button:hover, .botao:hover { opacity: .9; }
+  button:disabled { opacity: .55; cursor: default; }
+  .secundario { background: var(--sub); color: var(--ink); font-weight: 500; }
+  .robo { min-height: 65px; }
+  .erro { color: var(--acc); font-size: 13.5px; line-height: 1.45; margin: 0; }
+  .erro:empty { display: none; }
+  .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border: 1px solid var(--ink-a1); border-radius: 10px; margin: 0 auto; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .chave { display: block; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
+           font: 500 13px/1.6 var(--mono); letter-spacing: .04em; word-break: break-all; user-select: all; }
+  .codigos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; user-select: all; }
+  .codigos code { padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
+                  font: 500 14px/1.3 var(--mono); letter-spacing: .08em; text-align: center; }
+  .lojas { display: flex; flex-wrap: wrap; gap: 8px; }
+  .lojas a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--ink-a1);
+             background: var(--surf); color: var(--ink); font-size: 12.5px; font-weight: 500; text-decoration: none; }
+  .app { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--sub); font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .app b { color: var(--ink); }
+  .so-celular, .so-computador { display: none; }
+  html.celular .so-celular, html:not(.celular) .so-computador { display: grid; gap: 12px; }
+  .pe { font-size: 12px; line-height: 1.55; color: var(--ink3); max-width: 1120px; width: 100%; margin: 0 auto; }
+  [hidden] { display: none !important; }
+  @media (max-width: 820px) {
+    .corpo { grid-template-columns: minmax(0, 1fr); align-items: start; }
+    .texto p, .passos { display: none; }
+    h1 { font-size: 28px; }
+    .selo { display: none; }
+    .cartao { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<header class="cabeca">
+  <span class="marca">PAVLVS</span>
+  <span class="selo"><i></i><span id="endereco">convite</span></span>
+</header>
+
+<main class="corpo">
+  <div class="texto">
+    <span class="rotulo" id="rotulo">Convite</span>
+    <h1 id="titulo">Você foi convidado para o PAULUS do escritório</h1>
+    <p>O PAULUS roda no computador do escritório; você usa pela internet, com a sua própria conta. Três passos, uma vez só.</p>
+    <div class="passos">
+      <div id="p1" class="atual"><b>1</b>Instalar o Google Authenticator e escolher a senha</div>
+      <div id="p2"><b>2</b>Adicionar a conta ao autenticador</div>
+      <div id="p3"><b>3</b>Confirmar com o código e guardar os de recuperação</div>
+    </div>
+  </div>
+
+  <div>
+    <section id="erro-convite" hidden>
+      <div class="cartao"><h2>Este convite não serve</h2><p class="sub" id="erro-convite-texto"></p>
+        <a class="botao secundario" href="/">Ir para a tela de entrar</a></div>
+    </section>
+
+    <section id="passo-senha" hidden>
+      <form class="cartao" id="form-senha" autocomplete="on">
+        <h2>Olá, <span id="nome"></span></h2>
+        <p class="sub">A sua conta é <b id="email"></b>. Escolha a senha — pelo menos 10 caracteres.</p>
+        <div class="app">
+          <span><b>Antes, instale o Google Authenticator</b> no seu celular (grátis). É dele que vem o código que você digita ao entrar.</span>
+          <span class="lojas" id="lojas">
+            <a id="loja-android" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noopener noreferrer"><span class="ic">download</span>Android · Google Play</a>
+            <a id="loja-iphone" href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank" rel="noopener noreferrer"><span class="ic">download</span>iPhone · App Store</a>
+          </span>
+        </div>
+        <input type="email" id="usuario" autocomplete="username" hidden>
+        <div><label for="senha">Senha</label><input id="senha" type="password" autocomplete="new-password" required minlength="10"></div>
+        <div><label for="repetir">Repita a senha</label><input id="repetir" type="password" autocomplete="new-password" required minlength="10"></div>
+        <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
+        <p class="erro" id="erro-senha" role="alert"></p>
+        <button type="submit">Continuar</button>
+      </form>
+    </section>
+
+    <section id="passo-app" hidden>
+      <form class="cartao" id="form-codigo" autocomplete="off">
+        <h2>Adicione a conta ao autenticador</h2>
+        <div class="so-celular">
+          <a class="botao" id="otpauth" href="#"><span class="ic">open_in_new</span>Adicionar ao Google Authenticator</a>
+          <p class="sub">Abre o app com a conta do PAULUS pronta. Se não abrir, no app toque em <b>+</b> → <b>Inserir chave de configuração</b> e cole esta chave:</p>
+        </div>
+        <div class="so-computador">
+          <div class="qr" id="qr"></div>
+          <p class="sub">No celular, abra o Google Authenticator, toque em <b>+</b> → <b>Ler código QR</b> e aponte para o código acima. Sem câmera, use a chave:</p>
+        </div>
+        <code class="chave" id="chave"></code>
+        <div><label for="codigo">Código de 6 números que aparece no app</label>
+          <input id="codigo" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></div>
+        <p class="erro" id="erro-codigo" role="alert"></p>
+        <button type="submit">Confirmar</button>
+      </form>
+    </section>
+
+    <section id="passo-fim" hidden>
+      <div class="cartao">
+        <h2>Pronto: a sua conta está ativa</h2>
+        <p class="sub">Guarde estes códigos fora do celular (anote ou tire um print e guarde longe dele). Cada um entra uma vez no lugar do código do app — para o dia em que o celular sumir. Eles não aparecem de novo.</p>
+        <div class="codigos" id="codigos"></div>
+        <a class="botao" href="/">Entrar no PAULUS</a>
+      </div>
+    </section>
+  </div>
+</main>
+
+<p class="pe">Este endereço leva ao computador do escritório pelo túnel da Cloudflare. A senha e o autenticador ficam só lá; o convite vale uma vez e por 7 dias.</p>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const codigoDoConvite = decodeURIComponent(location.pathname.split("/").filter(Boolean)[1] || "");
+  const api = "/api/acesso/convite/" + encodeURIComponent(codigoDoConvite);
+  let robo = null;
+  $("endereco").textContent = location.hostname;
+  if (/android|iphone|ipad|ipod/i.test(navigator.userAgent)) document.documentElement.classList.add("celular");
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) $("lojas").prepend($("loja-iphone"));
+
+  function passo(n) {
+    ["p1", "p2", "p3"].forEach((id, i) => { $(id).className = i + 1 < n ? "feito" : (i + 1 === n ? "atual" : ""); });
+  }
+
+  async function enviar(url, corpo) {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    let d = {};
+    try { d = await r.json(); } catch (e) { /* sem corpo */ }
+    if (!r.ok) throw new Error(d.detail || "não deu certo, tente de novo");
+    return d;
+  }
+
+  function mostrarRobo(chave) {
+    if (!chave) return;
+    const tentar = () => {
+      if (!window.turnstile) { setTimeout(tentar, 200); return; }
+      robo = window.turnstile.render("#robo", { sitekey: chave, language: "pt-br",
+        theme: document.documentElement.dataset.tema === "escuro" ? "dark" : "light" });
+    };
+    tentar();
+  }
+
+  fetch(api).then(async (r) => {
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      $("erro-convite-texto").textContent = d.detail || "este convite não existe";
+      $("erro-convite").hidden = false;
+      return;
+    }
+    $("nome").textContent = String(d.nome || "").split(" ")[0];
+    $("email").textContent = d.email;
+    $("usuario").value = d.email;
+    if (d.escritorio) $("titulo").textContent = "Você foi convidado para o PAULUS de " + d.escritorio;
+    $("passo-senha").hidden = false;
+    mostrarRobo(d.turnstile_sitekey);
+  }).catch(() => {
+    $("erro-convite-texto").textContent = "não consegui abrir o convite; recarregue a página";
+    $("erro-convite").hidden = false;
+  });
+
+  $("form-senha").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const b = e.target.querySelector("button[type=submit]");
+    b.disabled = true; $("erro-senha").textContent = "";
+    try {
+      if ($("senha").value !== $("repetir").value) throw new Error("as duas senhas não são iguais");
+      const token = robo !== null && window.turnstile ? window.turnstile.getResponse(robo) : "";
+      const d = await enviar(api + "/aceitar", { senha: $("senha").value, turnstile: token || "" });
+      $("qr").innerHTML = d.qr_svg || "";
+      $("chave").textContent = String(d.segredo || "").replace(/(.{4})/g, "$1 ").trim();
+      $("otpauth").href = d.otpauth || "#";
+      $("senha").value = ""; $("repetir").value = "";
+      $("passo-senha").hidden = true; $("passo-app").hidden = false;
+      passo(2);
+    } catch (err) { $("erro-senha").textContent = err.message; }
+    if (robo !== null && window.turnstile) window.turnstile.reset(robo);
+    b.disabled = false;
+  });
+
+  $("form-codigo").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const b = e.target.querySelector("button[type=submit]");
+    b.disabled = true; $("erro-codigo").textContent = "";
+    try {
+      const d = await enviar(api + "/confirmar", { codigo: $("codigo").value.trim() });
+      $("codigos").innerHTML = (d.codigos_recuperacao || []).map((c) => "<code>" + c.replace(/[<>&]/g, "") + "</code>").join("");
+      $("passo-app").hidden = true; $("passo-fim").hidden = false;
+      passo(4);
+    } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; }
+  });
+  $("codigo").addEventListener("focus", () => passo(3));
+})();
+</script>
+</body>
+</html>

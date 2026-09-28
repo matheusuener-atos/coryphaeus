@@ -24,6 +24,10 @@
    escritorio. O pedido fica nesta maquina, em localStorage.
 */
 
+/* O vinculo por codigo saiu (E4): um pedido que tenha ficado guardado neste
+   navegador nao prende mais a casca em modo limitado. */
+try { localStorage.removeItem("paulus.vinculo"); } catch (err) { /* sem memoria */ }
+
 const bv = {
   passo: 0, caminho: "criar", status: null, prefs: null, pessoa: {}, vinculo: null,
   maquina: null, conferindo: false, diag: 0, relogioDiag: null, catalogo: [],
@@ -220,31 +224,20 @@ function passoBoasVindas() {
 }
 
 function passoEscritorio() {
-  const opcao = (id, icone, titulo, selo, desc) => {
-    const classe = "bv-opcao" + (bv.caminho === id ? " escolhida" : "");
-    return '<div class="' + classe + '" data-caminho="' + id + '" role="radio" tabindex="0" aria-checked="' + (bv.caminho === id) + '"><span class="bv-radio"></span>' +
-      '<span class="duas-linhas"><span class="bv-opcao-titulo">' + ic(icone, 18) + titulo +
-      '<span class="etiqueta ok">' + selo + "</span></span><small>" + desc + "</small></span></div>";
-  };
-  const texto = "<h1>Este computador começa um escritório novo ou entra em um que já existe?</h1>" +
-    "<p>O escritório é o grupo de máquinas que compartilham cadastros, agenda, serviços e aprovações pela rede local. Quem cria o escritório vira o responsável e define as alçadas; os demais entram com um código de vínculo.</p>" +
+  // O PAULUS de equipe (docs/PLANO-EQUIPE.md, E4): este computador e o
+  // servidor do escritorio, e a equipe entra pela internet, por convite. O
+  // "entrar num escritorio existente" (o vinculo por codigo, que nunca teve
+  // servidor) saiu.
+  bv.caminho = "criar";
+  const texto = "<h1>Qual é o nome do escritório?</h1>" +
+    "<p>Este computador passa a ser o PAULUS do escritório: os documentos, o modelo de IA e as contas ficam aqui. Você é o responsável.</p>" +
     infosBv([
-      "As máquinas se encontram pela rede local (mesmo Wi-Fi ou cabo). Nada passa por servidor na internet.",
-      "Cada máquina escolhe e roda o seu próprio modelo de IA; o que se compartilha são os dados do escritório.",
-      "Sozinho? Crie o escritório mesmo assim; dá para convidar gente depois em Configurações › Escritório e vínculos.",
+      "A equipe não instala nada: cada pessoa entra pela internet, com a própria conta.",
+      "Você convida pelo link — pelo WhatsApp, por exemplo — em Configurações › Acesso de fora.",
+      "Para isso, ligue o acesso à distância no próximo passo (dá para ligar depois também).",
     ]);
-  const lado = '<div class="bv-opcoes">' +
-    opcao("criar", "add_business", "Criar um escritório novo", "você será o responsável",
-      "Você passa a ser o responsável: aprova o que sai e define quem faz o quê. Quando a rede local chegar, é você quem gera os códigos de vínculo para as outras máquinas.") +
-    opcao("entrar", "group_add", "Entrar em um escritório existente", "precisa de código",
-      "Peça ao responsável o código de vínculo. Ele aparece no PAULUS dele em Configurações › Escritório e vínculos. A validação pela rede local ainda não existe: até lá, o PAULUS abre com o que é só desta máquina.") +
-    "</div>" +
-    // Quem cria o escritorio da o nome aqui: vai para os recibos e sugere o
-    // endereco do acesso a distancia, no passo seguinte.
-    (bv.caminho === "criar"
-      ? '<div class="bv-cartao">' + campoBv("escritorio", "Nome do escritório", bv.escritorio, "data-bv-escritorio", "", "Moura & Associados Advocacia") +
-        '<span class="bv-cartao-pe">Aparece nos recibos e sugere o endereço do acesso à distância. Dá para mudar em Configurações › Escritório.</span></div>'
-      : "");
+  const lado = '<div class="bv-cartao">' + campoBv("escritorio", "Nome do escritório", bv.escritorio, "data-bv-escritorio", "", "Moura & Associados Advocacia") +
+    '<span class="bv-cartao-pe">Aparece nos recibos, no convite da equipe e sugere o endereço do acesso à distância. Dá para mudar em Configurações › Escritório.</span></div>';
   return [texto, lado];
 }
 

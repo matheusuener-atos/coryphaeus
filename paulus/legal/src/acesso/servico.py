@@ -60,6 +60,11 @@ class AcessoDeFora:
         # O app, para executar a proposta aprovada (o api.py entrega).
         self.app = None
         self.contas = Contas(self.pasta / "contas.db", ao_bloquear=self._bloqueou)
+        # Os convites (E4): o link que o titular manda, e a conta nasce no
+        # celular de quem foi convidado.
+        from acesso.convites import Convites
+
+        self.convites = Convites(self.pasta / "contas.db", self.contas)
         # A conversa com o Worker de paulus.ia.br (conexao.py); o api.py cria.
         # E por ela que o Turnstile de cada login e conferido.
         self.conexao = None

@@ -79,6 +79,10 @@ async function carregarAcesso() {
   } catch (err) {
     acessoCfg.contas = null;
   }
+  try {
+    const r = await fetch("/api/acesso/convites");
+    acessoCfg.convites = r.ok ? (await r.json()).convites : [];
+  } catch (err) { acessoCfg.convites = []; }
   if (typeof carregarTunel === "function") await carregarTunel();
   await carregarAuditoria();
 }
@@ -198,10 +202,55 @@ function cartaoContas() {
       "</span></div>";
   }).join("");
   const vazio = '<p class="cfg-texto">Nenhuma conta ainda. A primeira é a do titular: quem cuida das contas e pode aprovar de fora.</p>';
+  // Os convites em aberto (E4): a conta nasce no celular de quem foi convidado.
+  const quando = (t) => new Date(t * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const convites = (acessoCfg.convites || []).filter((x) => x.estado === "aberto").map((x) =>
+    '<div class="cfg-servico"><span class="caixa-tipo">' + ic("mail", 18) + "</span>" +
+    '<span class="duas-linhas"><b>' + esc(x.nome) + "</b><small>" + esc(x.email) + " · convite enviado · vale até " + esc(quando(x.expira)) + "</small></span>" +
+    '<span class="fin-meta-ponto acc"><i></i>aguardando</span>' +
+    '<span class="cfg-botoes"><button class="mais-linha" data-convite-revogar="' + esc(x.id) + '" title="Cancelar o convite" aria-label="Cancelar o convite">' +
+    ic("close", 16) + "</button></span></div>").join("");
+  const titularPronto = contas.some((c) => c.papel === "titular" && c.totp_confirmado);
   return cartaoCfg("Contas", metaCfg(contas.length ? plural(contas.length, "conta") : "nenhuma"),
-    (contas.length ? '<div class="cfg-linhas">' + linhas + "</div>" : vazio) +
-    '<div class="acesso-pe"><button class="primario com-icone" data-acesso-nova="1">' + ic("person_add", 16) + (contas.length ? "Nova conta" : "Criar a conta do titular") + "</button>" +
-    '<p class="cfg-explica">Contas se criam, mudam e saem só aqui, neste computador. De fora, ninguém mexe nelas.</p></div>');
+    (contas.length ? '<div class="cfg-linhas">' + linhas + convites + "</div>" : vazio) +
+    '<div class="acesso-pe">' +
+    (titularPronto
+      ? '<button class="primario com-icone" data-convite-novo="1">' + ic("send", 16) + "Convidar pela internet</button>" +
+        '<button class="com-icone" data-acesso-nova="1">' + ic("person_add", 16) + "Criar aqui</button>"
+      : '<button class="primario com-icone" data-acesso-nova="1">' + ic("person_add", 16) + (contas.length ? "Nova conta" : "Criar a conta do titular") + "</button>") +
+    '<p class="cfg-explica">' + (titularPronto
+      ? "Convidar manda um link (pelo WhatsApp, por exemplo): a pessoa escolhe a senha e liga o autenticador no próprio celular. As contas só mudam aqui, neste computador."
+      : "Contas se criam, mudam e saem só aqui, neste computador. De fora, ninguém mexe nelas.") + "</p></div>");
+}
+
+/* O convite (E4): nome e e-mail aqui; o link vai para a pessoa, que faz o
+   resto no celular dela. O link so aparece agora - guardado, so o hash. */
+async function acessoConvidar() {
+  const r = await dialogo({
+    titulo: "Convidar para a equipe", contexto: "Configurações › Acesso de fora",
+    texto: "A pessoa recebe um link, escolhe a senha e liga o Google Authenticator no próprio celular. Entra como colaborador, com as permissões padrão — dá para mudar depois em Permissões.",
+    campos: [
+      { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos", obrigatorio: true },
+      { chave: "email", rotulo: "E-mail", tipo: "email", placeholder: "com ele a pessoa entra", obrigatorio: true },
+    ],
+    confirmar: "Gerar o convite",
+  });
+  if (!r || !r.ok) return;
+  let feito;
+  try {
+    feito = await acessoPost("/api/acesso/convites", { nome: r.valores.nome, email: r.valores.email });
+  } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
+  const mensagem = "Olá, " + r.valores.nome.split(" ")[0] + "! Este é o seu convite para o PAULUS do escritório. " +
+    "Abra no celular, escolha a sua senha e ligue o Google Authenticator: " + feito.link + " (vale 7 dias, uma vez)";
+  const escolha = await dialogo({
+    titulo: "Convite pronto", contexto: "Convidar " + r.valores.nome,
+    texto: "Mande este link para " + r.valores.nome + ". Ele vale 7 dias e uma vez só, e não aparece de novo — se perder, é só convidar outra vez.",
+    html: '<code class="acesso-segredo">' + esc(feito.link) + "</code>",
+    confirmar: "Mandar pelo WhatsApp", segundo: { rotulo: "Copiar o link" }, cancelar: "Fechar",
+  });
+  if (escolha && escolha.segundo) copiarTexto(feito.link, "link copiado — cole na conversa com a pessoa");
+  else if (escolha && escolha.ok) window.open("https://wa.me/?text=" + encodeURIComponent(mensagem), "_blank");
+  acessoRedesenhar();
 }
 
 function cartaoSessoes() {
@@ -388,6 +437,14 @@ function ligarAcesso() {
       const d = await acessoPost("/api/acesso/contas/" + c.id + "/recuperacao");
       await acessoMostrarCodigos(c, d.codigos_recuperacao || []);
     } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    acessoRedesenhar();
+  });
+  clique("[data-convite-novo]", () => acessoConvidar());
+  clique("[data-convite-revogar]", async (b) => {
+    if (!(await confirmar({ titulo: "Cancelar o convite?", contexto: "Configurações › Acesso de fora",
+      texto: "O link deixa de valer na hora. Dá para convidar de novo depois.", confirmar: "Cancelar o convite", perigo: true }))) return;
+    try { await acessoPost("/api/acesso/convites/" + b.dataset.conviteRevogar, undefined, "DELETE"); avisoCert("convite cancelado", { tom: "ok" }); }
+    catch (err) { avisoCert(err.message, { tom: "erro" }); }
     acessoRedesenhar();
   });
   clique("[data-acesso-permissoes]", (b) => {

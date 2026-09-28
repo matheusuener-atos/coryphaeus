@@ -22,7 +22,7 @@ Mudança de regra de negócio pedida em 28/09/2026: o PAULUS fica instalado
 | --- | --- | --- |
 | E1 | Quem criou: conversas (e quem perguntou), documentos e gravações | feita (tests/test_e1_quem_criou.py) |
 | E2 | Quem mexe no quê: permissão por pessoa e por módulo (não vê / só vê / propõe / faz) e quem aprova | feita (tests/test_e2_permissoes.py) |
-| E4 | Só no servidor: sai o "entrar num escritório existente" (vínculo por código); entra o convite | a fazer |
+| E4 | Só no servidor: sai o "entrar num escritório existente" (vínculo por código); entra o convite | feita (tests/test_e4_convite.py) |
 | E3 | Convite + login com Google + TOTP; e-mail, Agenda e Drive da conta de quem entrou | a fazer |
 
 ## O que o levantamento de 28/09 achou (o ponto de partida)

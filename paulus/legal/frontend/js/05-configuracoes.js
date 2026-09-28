@@ -29,7 +29,7 @@ const CFG_SECOES = [
   ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
   ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
   ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
-  ["vinculos", "Escritório e vínculos", "Hoje o PAULUS roda para uma pessoa, nesta máquina. Vincular outras máquinas ao escritório ainda não existe."],
+  ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
   ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
@@ -872,10 +872,11 @@ function secaoVinculos() {
   const p = (cfg.rascunho || {}).pessoa || {};
   const e = (cfg.rascunho || {}).escritorio || {};
   const maquina = '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>' + esc(p.nome || "Você") + "</b>" +
-    "<small>responsável · esta máquina" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
-    '<p class="cfg-explica">As pessoas do escritório já podem ser cadastradas em Cadastros › Equipe, para a folha e para os serviços.</p>' +
-    '<div class="cfg-botoes"><button data-cfg-equipe="1">' + ic("groups", 16) + "Abrir Cadastros › Equipe</button></div>";
-  return aberturaCfg() + cartaoDoPedidoDestaMaquina() + cartaoCfg("Nesta máquina", metaCfg("1 máquina"), maquina);
+    "<small>responsável · o servidor do escritório" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
+    '<p class="cfg-explica">A equipe não instala o PAULUS: cada pessoa recebe um convite, escolhe a senha e liga o Google Authenticator no próprio celular, e entra pela internet. O que cada uma vê e faz se escolhe em Permissões.</p>' +
+    '<div class="cfg-botoes"><button class="primario" data-cfg-convidar="1">' + ic("send", 16) + "Convidar a equipe</button>" +
+    '<button data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe (folha e serviços)</button></div>";
+  return aberturaCfg() + cartaoCfg("O escritório", metaCfg("servidor"), maquina);
 }
 
 /* O que a camada de inteligencia ja entendeu do acervo, e quanto isso esta
@@ -1254,6 +1255,7 @@ function ligarConfig() {
     carregarUsuario();
   });
   clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); b.dataset.cfgApoiar === "desenvolvimento" ? mostrarDesenvolvimento() : mostrarApoiar(b.dataset.cfgApoiar); });
+  clique("[data-cfg-convidar]", () => mostrarConfig("acesso"));
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
   clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));

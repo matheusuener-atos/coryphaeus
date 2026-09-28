@@ -47,6 +47,8 @@ ACOES = {
     "senha": "trocou a senha",
     "sessoes": "encerrou as sessões",
     "permissoes": "mudou as permissões",
+    "convite": "convidou",
+    "convite_aceito": "aceitou o convite",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 

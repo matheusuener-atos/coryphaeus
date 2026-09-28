@@ -1072,43 +1072,28 @@ def main() -> int:
                 "aparecer na lista vem desligado",
             )
 
-            print("\nentrar no escritorio por codigo (A0b)")
-            # O caminho "entrar" do assistente de configuracao tem cinco passos
-            # e termina nos dois codigos; concluir abre o PAULUS em modo
-            # limitado ate o responsavel validar. O teste desfaz no fim.
-            pagina.evaluate("() => { localStorage.removeItem('paulus.vinculo'); location.hash = '#boasvindas'; verificarPrimeiraAbertura(); }")
-            # Abrir o passeio le preferencias e status; com o Ollama desligado,
-            # cada leitura espera ate 5 s.
+            print("\no escritorio e um so: a equipe entra por convite (E4)")
+            # O "entrar num escritorio existente" (o vinculo por codigo) saiu:
+            # o passo Escritorio so pede o nome, e um pedido antigo guardado no
+            # navegador nao prende mais a casca.
+            pagina.evaluate("() => localStorage.setItem('paulus.vinculo', JSON.stringify({estado: 'aguardando', meuCodigo: 'ABC123'}))")
+            pagina.reload(wait_until="networkidle")
+            pagina.wait_for_timeout(1500)
+            checar(
+                pagina.evaluate("() => localStorage.getItem('paulus.vinculo') === null && !document.body.classList.contains('vinculo-pendente')"),
+                "um vinculo antigo guardado no navegador e esquecido",
+            )
+            pagina.evaluate("() => { location.hash = '#boasvindas'; verificarPrimeiraAbertura(); }")
             pagina.wait_for_selector("[data-bv=continuar]", timeout=40000)
             pagina.wait_for_timeout(300)
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(300)
-            pagina.evaluate("() => document.querySelector('[data-caminho=entrar]').click()")
-            pagina.wait_for_timeout(300)
-            checar(
-                pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-etapa').length") == 5,
-                "entrar em um escritorio existente deixa cinco passos",
-            )
-            pagina.evaluate("() => { bv.passo = 4; desenharBoasVindas(); }")
             pagina.wait_for_timeout(400)
             checar(
-                pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-casas').length === 2 && bv.vinculo.meuCodigo.length === 6"),
-                "o passo dos codigos mostra as duas caixas e gera o seu codigo",
+                pagina.evaluate("() => !document.querySelector('[data-caminho]') && !!document.querySelector('[data-bv-escritorio]')"),
+                "o passo Escritorio pede so o nome, sem 'entrar num existente'",
             )
-            pagina.evaluate("() => { const el = document.getElementById('bv-codigo'); el.value = 'TESTE1'; el.dispatchEvent(new Event('input')); }")
-            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(2500)
-            checar(
-                pagina.evaluate("() => document.body.classList.contains('vinculo-pendente')"
-                                " && getComputedStyle(document.querySelector('.trilho-item[data-destino=financeiro]')).pointerEvents === 'none'"),
-                "concluir abre em modo limitado, com o Financeiro apagado",
-            )
-            pagina.evaluate("() => { localStorage.removeItem('paulus.vinculo'); aplicarModoLimitado(); carregarAgora(); }")
-            pagina.wait_for_timeout(400)
-            checar(
-                pagina.evaluate("() => !document.body.classList.contains('vinculo-pendente')"),
-                "desfazer o pedido libera a casca",
-            )
+            pagina.evaluate("() => concluirBoasVindas(true)")
+            pagina.wait_for_timeout(600)
 
             print("\nServicos: pastas e visao de trabalho (A15)")
             # A grade de pastas em tres colunas e, dentro da pasta, o desenho

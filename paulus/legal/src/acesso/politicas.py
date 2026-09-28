@@ -73,7 +73,10 @@ _declarar(PUBLICO,
           "GET /", "GET /css/{arquivo}", "GET /js/{arquivo}", "GET /img/{arquivo}", "GET /img/marcas/{arquivo}",
           "GET /fontes.css", "GET /fontes/{arquivo}",
           "GET /api/acesso/eu", "GET /api/acesso/entrar/config", "POST /api/acesso/entrar",
-          "POST /api/acesso/entrar/codigo")
+          "POST /api/acesso/entrar/codigo",
+          # o convite (E4): quem foi convidado ainda nao tem conta
+          "GET /api/acesso/convite/{codigo}", "POST /api/acesso/convite/{codigo}/aceitar",
+          "POST /api/acesso/convite/{codigo}/confirmar")
 
 # Sem sessao, de fora, so isto passa - a tela de entrar e o que ELA carrega
 # (acesso-remoto/v0, R2). O resto da casca espera o login: toda rota /api/*
@@ -82,6 +85,22 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               ("GET", "/img/paulus-logo.png"), ("GET", "/img/paulus-icone.svg"),
               ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
               ("POST", "/api/acesso/entrar/codigo")}
+
+
+def pagina_do_convite(caminho: str) -> bool:
+    """/convite/<codigo>: a pagina que o convidado abre (E4, convites.py)."""
+    resto = caminho[len("/convite/"):] if caminho.startswith("/convite/") else ""
+    return bool(resto) and "/" not in resto
+
+
+def api_do_convite(metodo: str, caminho: str) -> bool:
+    """As tres rotas do convite passam sem sessao: ver, aceitar (senha) e confirmar (o codigo)."""
+    if not caminho.startswith("/api/acesso/convite/"):
+        return False
+    partes = caminho[len("/api/acesso/convite/"):].split("/")
+    if metodo == "GET":
+        return len(partes) == 1 and bool(partes[0])
+    return metodo == "POST" and len(partes) == 2 and bool(partes[0]) and partes[1] in ("aceitar", "confirmar")
 
 
 def estatico_da_entrada(metodo: str, caminho: str) -> bool:
@@ -203,6 +222,7 @@ _declarar(BLOQUEADO,
           "POST /api/acesso/contas/{conta_id}/autenticador/refazer", "POST /api/acesso/contas/{conta_id}/recuperacao",
           "POST /api/acesso/sessoes/encerrar", "GET /api/acesso/permissoes/modulos",
           "PUT /api/acesso/contas/{conta_id}/permissoes",
+          "GET /api/acesso/convites", "POST /api/acesso/convites", "DELETE /api/acesso/convites/{id_}",
           "GET /api/acesso/tunel", "POST /api/acesso/tunel/conectar", "POST /api/acesso/tunel/cancelar",
           "POST /api/acesso/tunel/ligar", "POST /api/acesso/tunel/porta", "GET /api/acesso/tunel/disponivel",
           "GET /api/acesso/tunel/sugestao",

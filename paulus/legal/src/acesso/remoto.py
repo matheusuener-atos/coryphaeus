@@ -38,6 +38,8 @@ SEGUROS = {"GET", "HEAD", "OPTIONS"}
 LIMITE_DA_PROPOSTA = 1024 * 1024
 FRONTEND = Path(__file__).parent.parent.parent / "frontend"
 PAGINA_DE_ENTRADA = FRONTEND / "entrar.html"
+# O convite (E4): a pagina que o convidado abre pelo link do WhatsApp.
+PAGINA_DO_CONVITE = FRONTEND / "convite.html"
 TURNSTILE = "https://challenges.cloudflare.com"
 
 
@@ -48,7 +50,7 @@ def _hashes_dos_scripts() -> list[str]:
     nao precisa de 'unsafe-inline' para script - e script injetado nao roda.
     """
     saida = []
-    for pagina in (FRONTEND / "index.html", PAGINA_DE_ENTRADA):
+    for pagina in (FRONTEND / "index.html", PAGINA_DE_ENTRADA, PAGINA_DO_CONVITE):
         try:
             html = pagina.read_text(encoding="utf-8")
         except OSError:
@@ -146,8 +148,13 @@ class PortaoRemoto:
         sessao = self.contas.sessao(cookies(cab).get(COOKIE_SESSAO))
         estado["paulus_pessoa"] = sessao
 
+        if metodo == "GET" and politicas.pagina_do_convite(caminho_puro):
+            # Com ou sem sessao: o convite e para quem ainda nao tem conta.
+            await self._pagina(send, PAGINA_DO_CONVITE)
+            return
         if not sessao:
-            if (metodo, caminho_puro) in politicas.SEM_SESSAO or politicas.estatico_da_entrada(metodo, caminho_puro):
+            if ((metodo, caminho_puro) in politicas.SEM_SESSAO or politicas.estatico_da_entrada(metodo, caminho_puro)
+                    or politicas.api_do_convite(metodo, caminho_puro)):
                 if caminho_puro == "/":
                     await self._pagina_de_entrada(send)
                     return
@@ -225,6 +232,14 @@ class PortaoRemoto:
                     "detail": "Foi para Aprovações: acontece quando o escritório confirmar."}
         await responder(send, 202, json.dumps(resposta, ensure_ascii=False).encode("utf-8"),
                         "application/json; charset=utf-8")
+
+    @staticmethod
+    async def _pagina(send, arquivo: Path, status: int = 200) -> None:
+        try:
+            corpo = arquivo.read_bytes()
+        except OSError:
+            corpo = b"{}"
+        await responder(send, status, corpo, "text/html; charset=utf-8")
 
     @staticmethod
     async def _pagina_de_entrada(send, status: int = 200) -> None:

@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from acesso.contas import ErroConta, ErroEntrada
 from acesso.remoto import COOKIE_SESSAO
 from acesso import permissoes
+from acesso.convites import ErroConvite
 
 
 class Entrada(BaseModel):
@@ -52,6 +53,21 @@ def _no_tempo(comeco: float) -> None:
 
 class Codigo(BaseModel):
     pendente: str
+    codigo: str
+
+
+class NovoConvite(BaseModel):
+    nome: str
+    email: str
+    permissoes: dict = {}
+
+
+class AceitarConvite(BaseModel):
+    senha: str
+    turnstile: str = ""
+
+
+class ConfirmarConvite(BaseModel):
     codigo: str
 
 
@@ -258,6 +274,72 @@ def montar(servico, r) -> None:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.contas_mudaram()
         return {"conta": conta}
+
+    # ---------------------------------------------------------- convites
+
+    @r.get("/api/acesso/convites")
+    def convites_listar(request: Request) -> dict:
+        so_local(request)
+        return {"convites": servico.convites.listar(), "endereco": servico.preferencias().get("hostname", "")}
+
+    @r.post("/api/acesso/convites")
+    def convites_criar(dados: NovoConvite, request: Request) -> dict:
+        """O link para mandar pelo WhatsApp: so existe com o acesso de fora conectado."""
+        so_local(request)
+        host = servico.preferencias().get("hostname", "")
+        if not host:
+            raise HTTPException(status_code=400, detail="ligue o acesso de fora antes: o convite é um link do endereço do escritório")
+        try:
+            codigo, convite = servico.convites.criar(dados.nome, dados.email, dados.permissoes)
+        except ErroConvite as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        servico.anotar(acao="convite", alvo=f"{convite['nome']} <{convite['email']}>", pessoa="janela local")
+        return {"link": f"https://{host}/convite/{codigo}", "convite": convite}
+
+    @r.delete("/api/acesso/convites/{id_}")
+    def convites_revogar(id_: str, request: Request) -> dict:
+        so_local(request)
+        try:
+            servico.convites.revogar(id_)
+        except ErroConvite as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"ok": True}
+
+    @r.get("/api/acesso/convite/{codigo}")
+    def convite_ver(codigo: str) -> dict:
+        try:
+            dados = servico.convites.ver(codigo)
+        except ErroConvite as exc:
+            raise HTTPException(status_code=410, detail=str(exc)) from exc
+        escritorio = str((servico.prefs.dados.get("escritorio") or {}).get("nome") or "")
+        return {**dados, "escritorio": escritorio, "turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", "")}
+
+    @r.post("/api/acesso/convite/{codigo}/aceitar")
+    def convite_aceitar(codigo: str, dados: AceitarConvite, request: Request) -> dict:
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        ip = remoto.get("ip", "")
+        if not e_local(request):
+            veredito = servico.conferir_turnstile(dados.turnstile, ip)
+            if veredito == "indisponivel":
+                raise HTTPException(status_code=503, detail="não consegui conferir a verificação contra robôs agora; tente de novo em instantes")
+            if veredito != "ok":
+                raise HTTPException(status_code=403, detail="a verificação contra robôs não passou; tente de novo")
+        try:
+            return servico.convites.aceitar(codigo, dados.senha)
+        except ErroConvite as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @r.post("/api/acesso/convite/{codigo}/confirmar")
+    def convite_confirmar(codigo: str, dados: ConfirmarConvite, request: Request) -> dict:
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        try:
+            feito = servico.convites.confirmar(codigo, dados.codigo)
+        except ErroConvite as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        servico.anotar(acao="convite_aceito", alvo=feito["email"], pessoa=feito["nome"], email=feito["email"],
+                       ip=remoto.get("ip", ""))
+        servico.contas_mudaram()
+        return feito
 
     @r.get("/api/acesso/permissoes/modulos")
     def permissoes_modulos(request: Request) -> dict:
