@@ -46,8 +46,10 @@ REGIME_LEI = "A"
 # jeitos que o direito brasileiro escreve secao.
 RE_CABECALHO = re.compile(
     r"^[ \t]*(?:"
-    r"CL[ÁA]USULA\b[^\n]{0,120}"
-    r"|Cl[áa]usula\s+(?:\d+|[A-Za-zçãéêíóôú]+)[ªºa-z]*\b[^\n]{0,120}"
+    # A clausula abre linha mesmo quando o texto dela vem na mesma linha
+    # ("CLAUSULA 3a - DO ATRASO. A multa e de..."): comum em contrato.
+    r"CL[ÁA]USULA\b[^\n]*"
+    r"|Cl[áa]usula\s+(?:\d+|[A-Za-zçãéêíóôú]+)[ªºa-z]*\b[^\n]*"
     r"|D[OA]S?\s+(?:FATOS?|DIREITO|PEDIDOS?|FUNDAMENTOS?|PRELIMINAR(?:ES)?|M[ÉE]RITO|PROVAS?|REQUERIMENTOS?|"
     r"TUTELA[^\n]{0,60}|VALOR DA CAUSA|HONOR[ÁA]RIOS[^\n]{0,40}|OBJETO|PRE[ÇC]O|PRAZO|FORO|"
     r"OBRIGA[ÇC][ÕO]ES[^\n]{0,60}|RESCIS[ÃA]O|DISPOSI[ÇC][ÕO]ES[^\n]{0,60}|PARTES)\b[^\n]{0,80}"
