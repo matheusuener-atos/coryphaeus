@@ -33,6 +33,9 @@ const bv = {
   maquina: null, conferindo: false, diag: 0, relogioDiag: null, catalogo: [],
   modelo: "", escolheuModelo: false, modulos: {}, google: null, oauth: null, imap: false, calib: null,
   escritorio: "", acesso: false,
+  // O Whisper das Gravacoes, escolhido no mesmo passo do modelo de IA e
+  // baixado quando o assistente termina (/api/voz/baixar).
+  voz: null, vozEscolhida: "",
 };
 const ORDEM_CRIAR = ["boasvindas", "google", "escritorio", "acesso", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
@@ -480,7 +483,59 @@ function passoIA() {
     calibracao +
     '<span class="bv-rotulo bv-lista-titulo">' + (rec.length ? "OUTRAS OPÇÕES" : "MODELOS") + "</span>" +
     outros.map((x) => linhaModeloBv(x, limite)).join("") + nenhum;
-  return [texto, maquina + '<div class="bv-modelos">' + lista + "</div>"];
+  return [texto, maquina + '<div class="bv-modelos">' + lista + blocoVozBv(m) + "</div>"];
+}
+
+/* A transcricao das Gravacoes (faster-whisper, src/transcricao.py): o
+   turbo acerta mais em portugues e pede ~2 GB de memoria; o small e leve.
+   Recomendado pela memoria desta maquina; tudo local, depois de baixado. */
+function vozRecomendadaBv(maquina) {
+  const ram = Number((maquina || {}).ram_total_gb || 0);
+  return ram && ram < 12 ? "small" : "turbo";
+}
+
+function blocoVozBv(maquina) {
+  if (bv.voz === null) {
+    bv.voz = { carregando: true };
+    fetch("/api/voz").then((r) => r.json()).then((d) => { bv.voz = d; if (passoBv() === "ia") desenharBoasVindas(); })
+      .catch(() => { bv.voz = { modelos: [] }; });
+    return "";
+  }
+  const modelos = bv.voz.modelos || [];
+  if (!modelos.length) return "";
+  const rec = vozRecomendadaBv(maquina);
+  if (!bv.vozEscolhida) bv.vozEscolhida = (modelos.find((x) => x.instalado) || {}).nome || rec;
+  const linha = (m) => {
+    const escolhido = bv.vozEscolhida === m.nome;
+    const selos = (m.nome === rec ? '<span class="etiqueta ok">recomendado</span>' : "") + (m.instalado ? '<span class="etiqueta">já nesta máquina</span>' : "");
+    return '<button type="button" class="bv-modelo' + (escolhido ? " escolhido" : "") + '" data-bv-voz="' + esc(m.nome) + '">' +
+      '<span class="bv-radio"></span><span class="bv-fabricante">' + ic("mic", 19) + "</span>" +
+      '<span class="duas-linhas"><span class="bv-modelo-nome"><span>' + esc(m.rotulo) + "</span>" + selos + "</span><small>" + esc(m.nota) + "</small></span>" +
+      '<span class="bv-modelo-medida"><span class="bv-tamanho">' + gbBv(m.mb / 1024) + "</span></span></button>";
+  };
+  const nenhum = '<button type="button" class="bv-modelo' + (bv.vozEscolhida === "nenhum" ? " escolhido" : "") + '" data-bv-voz="nenhum">' +
+    '<span class="bv-radio"></span><span class="bv-fabricante">' + ic("schedule", 19) + "</span>" +
+    '<span class="duas-linhas"><span class="bv-modelo-nome"><span>Não baixar agora</span></span><small>baixa na primeira gravação, em Gravações</small></span></button>';
+  return '<span class="bv-rotulo bv-lista-titulo">TRANSCRIÇÃO DAS GRAVAÇÕES (WHISPER)</span>' + modelos.map(linha).join("") + nenhum;
+}
+
+/* O Whisper escolhido vira o das Gravacoes; se ainda nao esta aqui, o
+   download comeca agora, junto com o do modelo de IA. */
+async function usarVozEscolhida() {
+  const nome = bv.vozEscolhida;
+  if (!nome || nome === "nenhum") return;
+  const post = (url, corpo) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  try {
+    let r = await post("/api/voz/modelo", { modelo: nome });
+    if (!r.ok) throw new Error(await erroDe(r));
+    const ja = ((bv.voz && bv.voz.modelos) || []).find((x) => x.nome === nome && x.instalado);
+    if (ja) return;
+    r = await post("/api/voz/baixar", { modelo: nome });
+    if (!r.ok) throw new Error(await erroDe(r));
+    avisoCert("baixando o Whisper para as Gravações — o andamento aparece em Gravações", { dura: 7000 });
+  } catch (err) {
+    avisoCert("não consegui começar o download do Whisper: " + err.message + " · dá para baixar em Gravações");
+  }
 }
 
 /* ------------------------------------------------------------ modulos */
@@ -630,6 +685,9 @@ function ligarBoasVindas() {
       if (!bv.vinculo) bv.vinculo = { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
       desenharBoasVindas();
     });
+  });
+  caixa.querySelectorAll("[data-bv-voz]").forEach((b) => {
+    b.onclick = () => { bv.vozEscolhida = b.dataset.bvVoz; desenharBoasVindas(); };
   });
   caixa.querySelectorAll("[data-bv-modelo]").forEach((b) => {
     b.onclick = () => { bv.modelo = b.dataset.bvModelo; bv.escolheuModelo = true; desenharBoasVindas(); };
@@ -794,6 +852,7 @@ async function acaoBoasVindas(qual) {
       aplicarModulos(bv.modulos);
     }
     await usarModeloEscolhido();
+    await usarVozEscolhida();
     await concluirBoasVindas(true);
     if (bv.caminho === "entrar") avisoCert("pedido guardado nesta máquina — o PAULUS abre em modo limitado até o responsável validar");
     if (bv.imap && bv.caminho === "criar") { marcarDestino("caixa"); mostrarEmail(); }
