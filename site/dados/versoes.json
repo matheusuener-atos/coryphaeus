@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "0.9.5",
+      "date": "2026-09-28",
+      "changes": [
+        "Equipe E3b: o e-mail, a Agenda e o Drive de quem entrou",
+        "Equipe E3a: entrar com o Google + código do celular, no convite e na tela de entrar",
+        "Equipe E4: só no servidor",
+        "Equipe E2: permissão por pessoa e por módulo (não vê, só vê, propõe, faz), com a grade em Configurações",
+        "Equipe E1: cada conversa, documento e gravação diz quem criou",
+        "Acesso de fora: tela de entrar no desenho do sistema, barra de quem está de fora, Minha conta e o Google…"
+      ]
+    },
+    {
       "version": "0.9.4",
       "date": "2026-09-28",
       "changes": [
