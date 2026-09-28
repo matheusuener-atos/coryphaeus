@@ -106,9 +106,18 @@ def ultima_release() -> str:
 
 def novidades_desde(tag: str) -> list[str]:
     rodar(["git", "fetch", "--tags", "--quiet", "origin"])
-    assuntos = rodar(["git", "log", f"v{tag}..HEAD", "--format=%s"]).splitlines()
-    fora = ("Site:", "Versão ", "Merge ")
-    return [a.strip() for a in assuntos if a.strip() and not a.startswith(fora)][:12]
+    # So o que muda o programa de quem usa: commit que so mexe em tools,
+    # docs, testes ou no site nao e novidade para ninguem.
+    programa = ("paulus/legal/src/", "paulus/legal/frontend/")
+    novidades = []
+    for linha in rodar(["git", "log", f"v{tag}..HEAD", "--format=%H%x09%s"]).splitlines():
+        sha, _, assunto = linha.partition("\t")
+        if not assunto.strip() or assunto.startswith(("Site:", "Versão ", "Merge ")):
+            continue
+        arquivos = rodar(["git", "show", "--name-only", "--format=", sha]).split()
+        if any(a.startswith(programa) and not a.endswith("versao.py") for a in arquivos):
+            novidades.append(assunto.strip())
+    return novidades[:12]
 
 
 def trocar_versao(v: str) -> None:

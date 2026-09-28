@@ -6,7 +6,6 @@
   "publicada": "2026-09-28",
   "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.3",
   "novidades": [
-    "Publicar uma versão num comando (tools/publicar.py)",
     "Extrato: nome e e-mail do usuário quando a tela Apoiar está vazia",
     "Extrato de contribuições no desenho novo"
   ]
