@@ -475,7 +475,9 @@ function blocoResposta(m, pergunta, ultima) {
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
   const p = m.proposta || {};
   if (p.tipo === "programa") html += linhaAssinatura(0, 0, pergunta || "", p.por_modelo ? "" : "sem modelo");
-  else if (m.segundos) html += linhaAssinatura(m.segundos, citados, pergunta || "");
+  else if (m.segundos || (m.cobertura && m.cobertura.como)) {
+    html += linhaAssinatura(m.segundos || 0, citados, pergunta || "", "", (m.cobertura || {}).como);
+  }
   html += cartaoGuardado(m, ultima);
   return html + "</div>";
 }
@@ -554,10 +556,26 @@ function blocoFontes(fontes, cobertura) {
 /* `quem` troca o nome do modelo quando a resposta não passou por ele: a
    camada do programa responde do banco e do mapa das telas, e assinar
    "llama3.2:3b" embaixo seria dizer que o modelo escreveu. */
-function linhaAssinatura(segundos, citados, pergunta, quem) {
-  return '<div class="assinatura"><span>' + esc(quem || estado.modelo || "assistente local") + " · " +
-    esc(String(segundos)) + " s" +
-    (citados ? " · " + plural(citados, "arquivo citado", "arquivos citados") : "") + "</span>" +
+/* Como a resposta foi feita, dito em linguagem simples (I9): pelos fatos já
+   conferidos, sem o modelo; lendo os documentos inteiros; ou lendo alguns
+   trechos. Sem essa informação (resposta antiga), a linha de sempre. */
+function fraseDoComo(c, segundos) {
+  if (!c || !c.caminho) return "";
+  const em = ", em " + segundosBR(segundos);
+  if (c.caminho === "nivel0") return (c.molde ? "respondi pelos fatos já conferidos, sem o modelo" : "respondi pelos fatos já conferidos") + em;
+  if (c.caminho === "tudo") return "li " + (c.documentos === 1 ? "o documento inteiro" : plural(c.documentos, "documento") + " por inteiro") + em;
+  if (c.caminho === "busca" || c.caminho === "foco") {
+    return "li " + plural(c.trechos || 0, "trecho") + (c.documentos ? " de " + plural(c.documentos, "documento") : "") + em;
+  }
+  return "";
+}
+
+function linhaAssinatura(segundos, citados, pergunta, quem, como) {
+  const frase = fraseDoComo(como, segundos);
+  return '<div class="assinatura"><span>' + (frase
+    ? esc(frase) + (como && !(como.caminho === "nivel0" && como.molde) ? " · " + esc(quem || estado.modelo || "assistente local") : "")
+    : esc(quem || estado.modelo || "assistente local") + " · " + esc(String(segundos)) + " s" +
+      (citados ? " · " + plural(citados, "arquivo citado", "arquivos citados") : "")) + "</span>" +
     '<button data-copiar="1">' + ic("content_copy", 16) + "<span>Copiar</span></button>" +
     (pergunta ? '<button data-refazer="' + esc(pergunta) + '">' + ic("refresh", 16) + "<span>Refazer</span></button>" : "") +
     "</div>";
@@ -1499,7 +1517,7 @@ async function enviar(opcoes) {
           fecharBastidor();
           plano.remove();
           resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
-            assinaSemModelo ? "sem modelo" : ""));
+            assinaSemModelo ? "sem modelo" : "", dados.como));
           ligarResposta(resposta);
           $("conversa-titulo").textContent = dados.titulo;
           if (abrirAoFim) { const id = abrirAoFim; setTimeout(() => abrirDestino(id), 700); }

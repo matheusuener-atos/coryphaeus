@@ -141,7 +141,13 @@ _declarar(PROPOR,
           "POST /api/tarefas/{id_}/meu-dia", "POST /api/tarefas/{id_}/etapas", "POST /api/etapas/{id_}",
           "POST /api/tarefas/{id_}/vincular", "DELETE /api/vinculos/{id_}", "DELETE /api/tarefas/{id_}",
           # o que a conversa entendeu e a pessoa confirmou: compromisso, tarefa, ficha
-          "POST /api/trabalhos/{id_}/fazer")
+          "POST /api/trabalhos/{id_}/fazer",
+          # corrigir um fato do cartao do documento (I9): grava no metadata
+          "POST /api/ajuda/corrigir")
+
+# --- a ajuda sem pergunta (I9): o cartao do documento e propor os prazos em
+# Aprovacoes - propor nao grava nada na Agenda.
+_declarar(PERMITIDO, "GET /api/ajuda/documento", "POST /api/ajuda/prazos")
 
 # --- aprovar: so o titular (e a rota confere, item por item, o que nao pode
 # ser aprovado de fora e o que pede o codigo do autenticador de novo)

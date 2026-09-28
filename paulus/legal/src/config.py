@@ -141,9 +141,11 @@ PADRAO: dict = {
     # `citacao` (I8): trechos numerados [T1], [T2]..., cada frase marcada com
     # o trecho que a sustenta, e tres conferencias em codigo antes de a
     # resposta ficar (src/citacoes.py).
+    # `ajuda` (I9): o cartao do documento com os fatos conferidos, as
+    # perguntas que respondem na hora e os prazos propostos em Aprovacoes.
     "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True, "molde": True, "memoria": True,
            "trechos_estruturais": True, "lexico_fts": True, "denso": True, "leitura": "tudo",
-           "citacao": False},
+           "citacao": False, "ajuda": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

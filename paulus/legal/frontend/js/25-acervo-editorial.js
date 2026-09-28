@@ -110,6 +110,9 @@ function fichaNaLinha(x) {
     item("Arquivo", ext + " · " + tamanho(x.bytes) + (x.paginas ? " · " + plural(x.paginas, "página") : "")) +
     (x.assinado ? item("Assinatura", "tem assinatura digital") : "") + "</div>" +
     (linhasPrazo ? '<div class="ae-ficha-bloco"><span class="sv-kicker">Datas lidas neste documento</span>' + linhasPrazo + "</div>" : "") +
+    /* O que já está conferido no texto e as perguntas que respondem na hora
+       (I9, js/44-ajuda.js). */
+    blocosDaAjuda(x) +
     '<div class="ae-ficha-acoes">' +
     /* A ação principal é a que falta: sem análise, tomar vista; lido, perguntar. */
     (analisado ? "" : '<button class="primario com-icone" data-ficha="vista">' + ic("visibility", 16) + "Tomar vista</button>") +

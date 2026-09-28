@@ -295,7 +295,10 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
     from inteligencia import roteador as _roteador
 
     com_molde = getattr(ctx, "ia", {}).get("molde", True)
-    pronta = molde.montar(pacote, pergunta) if com_molde else ""
+    # A lista inteira de uma secao (os pedidos, as decisoes) tambem e molde:
+    # "listar exatamente os itens" e o que o modelo fazia, e aqui sai igual,
+    # na hora (I9: as perguntas sugeridas respondem sem esperar).
+    pronta = (molde.montar(pacote, pergunta) or molde.lista(pacote)) if com_molde else ""
     if pronta:
         ctx.registrar("Respondi pelos fatos já conferidos, sem o modelo: " +
                       _quantos(len(pacote.fatos), "fato") + " em " +

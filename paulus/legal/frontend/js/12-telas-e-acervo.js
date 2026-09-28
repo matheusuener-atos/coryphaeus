@@ -430,6 +430,7 @@ function ligarBiblioteca() {
   });
   const conferir = centro.querySelector("[data-ficha-conferir]");
   if (conferir) conferir.onclick = () => { const x = docDoAcervo(bib.aberto); if (x) abrirVerificacao(x.caminho, x.nome); };
+  ligarAjuda(centro);
 }
 
 function acaoDaFicha(qual, botao) {

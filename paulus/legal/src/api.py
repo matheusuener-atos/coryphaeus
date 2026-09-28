@@ -94,6 +94,7 @@ from inteligencia import portas as inteligencia
 import inferencia
 from inteligencia.catalogo import Catalogo
 import denso as denso_mod
+import rotas_ajuda
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -635,11 +636,17 @@ class Estado:
             try:
                 for doc in docs:
                     try:
-                        inteligencia.analisar_documento(
+                        analise = inteligencia.analisar_documento(
                             self.saber.biblioteca, self.catalogo, doc.path,
                             texto=doc.text, paginas=doc.pages, sha1=doc.sha1, titulo=doc.name)
                     except Exception:
                         continue   # um documento torto nao para o acervo
+                    # I9: os prazos conferidos viram proposta em Aprovacoes
+                    # (uma vez por prazo; nada vai para a Agenda sem o sim).
+                    try:
+                        rotas_ajuda.propor_prazos(self, analise.metadata, doc.name)
+                    except Exception:  # noqa: BLE001 - propor e ajuda, nao pode travar a leitura
+                        pass
             finally:
                 self.analisando = False
 
@@ -681,6 +688,8 @@ estado.acesso_de_fora.conexao = ConexaoDoTunel(estado.acesso_de_fora)
 rotas_do_tunel.montar(estado.acesso_de_fora, estado.acesso_de_fora.conexao, app)
 # "Quem acessou" (R8): a tela e o PDF, so na janela local.
 rotas_da_auditoria.montar(estado.acesso_de_fora, app)
+# A ajuda sem pergunta (I9): cartao do documento, correcao, prazos.
+rotas_ajuda.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -3466,7 +3475,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     andamento["caracteres"] = dados.get("caracteres", 0)
                     lido_chars = dados["caracteres"]
                     medir.update(caminho=dados.get("caminho"), fallback=bool(dados.get("fallback")),
-                                 trechos=dados.get("trechos", 0), modelo=dados.get("modelo", estado.client.model))
+                                 trechos=dados.get("trechos", 0), modelo=dados.get("modelo", estado.client.model),
+                                 molde=bool(dados.get("molde")))
                     trabalho.etapas[1].titulo = "Lendo os documentos"
                     trabalho.etapas[1].estado = EXECUTANDO
                     trabalho.etapas[1].detalhe = f"{dados['caracteres']:,}".replace(",", ".") + " caracteres"
@@ -3574,6 +3584,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # Quer ver o documento? A oferta sai por regra dos trechos usados, e
         # fica guardada na propria resposta - e assim que a conversa sabe que
         # ja ofereceu e nao oferece o mesmo arquivo de novo.
+        # Como a resposta foi feita, para a tela dizer em linguagem simples
+        # (I9): "respondi pelos fatos ja conferidos, em 0,1 s", "li 6 trechos
+        # de 2 documentos, em 34 s". Fica com a resposta.
+        cobertura["como"] = {"caminho": medir.get("caminho"), "trechos": medir.get("trechos", 0),
+                             "documentos": len(cobertura.get("consultados") or []),
+                             "molde": bool(medir.get("molde"))}
         oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(
@@ -3587,7 +3603,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         resumo = " ".join("".join(partes).split())
         avisos.avisar("resposta", "Resposta pronta · " + (trabalho.titulo or "Conversa")[:60],
                       resumo[:140] + ("…" if len(resumo) > 140 else ""))
-        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": cobertura.get("como")})
         if oferta:
             yield _sse("oferta", oferta)
 
@@ -4889,6 +4905,8 @@ EXECUTORES = {
     # O que alguem propos pelo acesso de fora (agenda, tarefa, ficha): o sim
     # refaz exatamente o pedido guardado (src/acesso/servico.py).
     "acesso.proposta": lambda pedido: estado.acesso_de_fora.executar_proposta(pedido),
+    # O prazo achado num documento (I9): o sim anota a tarefa na Agenda.
+    "ajuda.prazo": lambda pedido: rotas_ajuda.executar_prazo(estado, pedido),
 }
 
 

@@ -37,6 +37,8 @@ CATEGORIAS = {
     "permissao": "Permissão",
     "financeiro": "Financeiro",
     "google": "Google",
+    # Prazo achado num documento (I9): vira tarefa na Agenda depois do sim.
+    "agenda": "Agenda",
 }
 
 
