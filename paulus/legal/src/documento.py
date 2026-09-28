@@ -1417,7 +1417,7 @@ class Documentos:
 
     def listar(self, tipo: str = "") -> list[dict]:
         sql = (
-            "SELECT d.id, d.titulo, d.tipo, d.cadastro_id, d.criado_em, d.atualizado_em,"
+            "SELECT d.id, d.titulo, d.tipo, d.cadastro_id, d.criado_em, d.atualizado_em, d.criado_por, d.criado_por_conta,"
             " k.nome AS cadastro_nome, LENGTH(d.corpo) AS tamanho,"
             " (SELECT MAX(numero) FROM versoes v WHERE v.documento_id = d.id) AS versao"
             " FROM documentos d LEFT JOIN cadastros k ON k.id = d.cadastro_id"

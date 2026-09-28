@@ -403,11 +403,14 @@ function desenharListaDeConversas() {
     const quando = t.atualizado_em ? dataHoraCurta(t.atualizado_em) : "";
     const classe = "lc-linha" + (lcSel.escolhidos.has(t.id) ? " escolhida" : "");
     const pasta = t.grupo && (termo || lcNav.visao === "conversas") ? '<span class="lc-meta">' + ic("folder", 14) + esc(t.grupo) + "</span>" : "";
+    const cp = t.criado_por || {};
+    const autor = quemCriou(cp.nome, cp.conta_id);
+    const dono = autor ? '<span class="lc-meta">' + ic("person", 14) + esc(autor) + "</span>" : "";
     return '<div class="' + classe + '" data-id="' + esc(t.id) + '" data-sel="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) +
       '" data-grupo="' + esc(t.grupo || "") + '">' +
       ic(t.tipo === "organizacao" ? "drive_file_move" : "forum", 17) +
       '<span class="lc-nome lc-nome-linha"><b>' + esc(t.titulo) + '</b><small class="lc-quando">' +
-      (quando ? '<span class="lc-meta">' + ic("schedule", 14) + esc(quando) + "</span>" : "") + pasta + "</small></span>" +
+      (quando ? '<span class="lc-meta">' + ic("schedule", 14) + esc(quando) + "</span>" : "") + dono + pasta + "</small></span>" +
       '<span class="estado-conversa"><span class="etiqueta ' + (TOM_DO_ESTADO[t.estado] || "") + '">' +
       (ESTADO_DA_CONVERSA[t.estado] || esc(t.estado)) + "</span></span>" +
       '<button class="lc-mais" data-lc-menu="1" title="Mais" aria-label="Mais">' + ic("more_horiz", 17) + "</button></div>";

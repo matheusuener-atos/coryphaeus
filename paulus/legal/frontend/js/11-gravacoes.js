@@ -202,7 +202,9 @@ function corpoDaListaGv() {
     return '<button class="' + classe + '" data-gv-tipo="' + v + '">' + r + "</button>";
   }).join("");
   const linhas = lista.map((g) => {
-    const sub = [quandoDaGravacao(g), g.servico_nome ? "Serviço: " + g.servico_nome : "", !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
+    const autor = quemCriou(g.criado_por, g.criado_por_conta);
+    const sub = [quandoDaGravacao(g), autor ? "por " + autor : "", g.servico_nome ? "Serviço: " + g.servico_nome : "",
+      !g.servico_nome && g.cliente_nome ? g.cliente_nome : ""].filter(Boolean).join(" · ");
     const status = statusDaGravacao(g);
     const aberta = gv.expandida === g.id;
     const classe = "tabela-linha colunas-gravacoes" + (gv.escolhidas.has(String(g.id)) ? " escolhida" : "") + (aberta ? " aberta" : "");

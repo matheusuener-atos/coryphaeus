@@ -399,10 +399,13 @@ function desenharTrabalho() {
   let pergunta = "";
   let fontes = [], perguntaDasFontes = "";
   propostasGuardadas.length = 0;
+  // Quem perguntou so aparece quando mais de uma pessoa perguntou aqui.
+  const quemPerguntou = new Set(t.mensagens.filter((m) => m.autor === "pessoa").map((m) => m.quem || ""));
+  const varias = quemPerguntou.size > 1;
   t.mensagens.forEach((m, i) => {
     if (m.autor === "pessoa") {
       pergunta = m.texto;
-      html += bolhaPessoa(m.texto);
+      html += bolhaPessoa(m.texto, varias ? m.quem : "");
     } else {
       html += blocoResposta(m, pergunta, i === t.mensagens.length - 1);
       if (m.fontes && m.fontes.length) { fontes = m.fontes; perguntaDasFontes = pergunta; }
@@ -444,8 +447,8 @@ function vigiarTrabalhoEmCurso(t) {
   }, 3000);
 }
 
-function bolhaPessoa(texto) {
-  return '<div class="bolha-pessoa">' + esc(texto) + "</div>";
+function bolhaPessoa(texto, quem) {
+  return (quem ? '<div class="bolha-quem">' + esc(quem) + "</div>" : "") + '<div class="bolha-pessoa">' + esc(texto) + "</div>";
 }
 
 /* Os cartões que continuam valendo quando a conversa é reaberta: abrir e

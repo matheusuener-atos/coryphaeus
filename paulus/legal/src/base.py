@@ -581,6 +581,19 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE compromissos ADD COLUMN google_em TEXT DEFAULT '';
         """,
     ),
+    (
+        "023_quem_criou",
+        """
+        -- O PAULUS de equipe (docs/PLANO-EQUIPE.md, E1): os dados sao do
+        -- escritorio, mas cada documento e cada gravacao dizem quem os criou -
+        -- o nome, e a conta do acesso de fora (0 = a janela do servidor).
+        -- Vazio = criado antes desta coluna existir.
+        ALTER TABLE documentos ADD COLUMN criado_por TEXT DEFAULT '';
+        ALTER TABLE documentos ADD COLUMN criado_por_conta INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE gravacoes ADD COLUMN criado_por TEXT DEFAULT '';
+        ALTER TABLE gravacoes ADD COLUMN criado_por_conta INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 

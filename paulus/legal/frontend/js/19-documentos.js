@@ -313,7 +313,8 @@ function listaDeDocumentos() {
     const classeLinha = "tabela-linha colunas-docs" + (escr.escolhidos.has(String(d.id)) ? " escolhida" : "");
     return '<div class="' + classeLinha + '" data-doc-abrir="' + d.id + '" data-sel="' + d.id + '" data-doc-tipo="' + esc(d.tipo) + '">' +
       '<span class="nome-doc"><span class="' + classe + '">' + g[1] + '</span><span class="duas-linhas"><b>' + esc(d.titulo) + "</b>" +
-      "<small>" + (d.tipo === "planilha" ? "planilha" : "documento de texto") + "</small></span></span>" +
+      "<small>" + (d.tipo === "planilha" ? "planilha" : "documento de texto") +
+      (quemCriou(d.criado_por, d.criado_por_conta) ? " · por " + esc(d.criado_por) : "") + "</small></span></span>" +
       '<span class="quando-doc">' + esc(d.cadastro_nome || "—") + "</span>" +
       '<span class="quando-doc">v' + d.versao + "</span>" +
       '<span class="quando-doc">' + esc(quandoCurto(d.atualizado_em)) + "</span>" +

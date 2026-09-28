@@ -19,6 +19,15 @@
 
 const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null };
 
+/* O PAULUS de equipe (docs/PLANO-EQUIPE.md): os dados sao do escritorio, e
+   cada coisa diz quem a criou. Na janela do servidor, o nome so aparece no que
+   veio de uma conta de fora (o resto e de quem esta ali); de fora, aparece em
+   tudo. Devolve "" quando nao ha o que dizer. */
+function quemCriou(nome, conta) {
+  if (!nome) return "";
+  return Number(conta) > 0 || !acessoDeFora.local ? String(nome) : "";
+}
+
 (function () {
   const original = window.fetch.bind(window);
   const SEGUROS = ["GET", "HEAD", "OPTIONS"];

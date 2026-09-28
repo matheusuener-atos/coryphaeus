@@ -58,6 +58,9 @@ class Mensagem:
     # A pessoa apertou parar no meio. O que ficou e o que o modelo ja tinha
     # escrito, e a conversa reaberta tem de dizer que parou ali.
     interrompida: bool = False
+    # Quem perguntou (so nas mensagens da pessoa): no PAULUS de equipe a
+    # conversa e do escritorio, e varias pessoas podem perguntar nela.
+    quem: str = ""
 
 
 @dataclass
@@ -99,6 +102,9 @@ class Trabalho:
     aprovacao: Aprovacao | None = None
     contexto: dict = field(default_factory=dict)   # estado interno do tipo de trabalho
     grupo: str = ""                                # vazio = sem grupo
+    # Quem abriu a conversa: {"conta_id", "nome"} (src/equipe.py). Vazio nas
+    # conversas de antes do PAULUS de equipe.
+    criado_por: dict = field(default_factory=dict)
 
     # ---------------------------------------------------------------- ajudas
 
@@ -154,6 +160,7 @@ class Trabalho:
             "atualizado_em": self.atualizado_em,
             "pendencias": 1 if self.aprovacao else 0,
             "grupo": self.grupo,
+            "criado_por": self.criado_por,
         }
 
 
@@ -240,9 +247,11 @@ class Trabalhos:
 
     # --------------------------------------------------------------- acesso
 
-    def criar(self, titulo: str, tipo: str = "conversa", estado: str = CONCLUIDO) -> Trabalho:
+    def criar(self, titulo: str, tipo: str = "conversa", estado: str = CONCLUIDO,
+              criado_por: dict | None = None) -> Trabalho:
         with self._trava:
-            trabalho = Trabalho(id=uuid.uuid4().hex[:12], titulo=titulo, tipo=tipo, estado=estado)
+            trabalho = Trabalho(id=uuid.uuid4().hex[:12], titulo=titulo, tipo=tipo, estado=estado,
+                                criado_por=dict(criado_por or {}))
             self._itens[trabalho.id] = trabalho
         self.salvar(trabalho)
         return trabalho
@@ -356,6 +365,7 @@ def _de_dict(bruto: dict) -> Trabalho | None:
             aprovacao=Aprovacao(**bruto["aprovacao"]) if bruto.get("aprovacao") else None,
             contexto=bruto.get("contexto", {}),
             grupo=bruto.get("grupo", ""),
+            criado_por=bruto.get("criado_por") or {},
         )
     except (KeyError, TypeError):
         return None

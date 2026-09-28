@@ -85,6 +85,7 @@ from versao import VERSAO
 from acesso.chave import ChaveLocal
 from acesso.porteiro import Porteiro
 from acesso.servico import AcessoDeFora
+import equipe
 from acesso import politicas as politicas_do_acesso
 from acesso import rotas as rotas_do_acesso
 from acesso import rotas_tunel as rotas_do_tunel
@@ -2855,9 +2856,10 @@ def trabalhos_listar() -> dict:
 
 
 @app.post("/api/trabalhos")
-def trabalhos_criar(payload: NovoTrabalho) -> dict:
+def trabalhos_criar(payload: NovoTrabalho, request: Request = None) -> dict:
     titulo = titular(payload.pedido) if payload.pedido.strip() else "Nova conversa"
-    trabalho = estado.trabalhos.criar(titulo, tipo=payload.tipo)
+    trabalho = estado.trabalhos.criar(titulo, tipo=payload.tipo,
+                                      criado_por=equipe.quem(request, estado.prefs.dados))
     return trabalho.to_dict()
 
 
@@ -3233,7 +3235,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         trabalho.mensagens.pop()
         ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
-        trabalho.dizer("pessoa", pergunta)
+        trabalho.dizer("pessoa", pergunta, quem=equipe.quem(request, estado.prefs.dados)["nome"])
 
     # A memoria da conversa (I4, src/memoria.py): "e a multa?" herda o sujeito
     # da pergunta anterior, por regra, e os dois ultimos pares vao junto para
@@ -7423,11 +7425,12 @@ def documentos_listar(tipo: str = "") -> dict:
 
 
 @app.post("/api/documentos")
-def documentos_criar(payload: NovoDocumento) -> dict:
+def documentos_criar(payload: NovoDocumento, request: Request = None) -> dict:
     corpo = payload.corpo
     if not corpo and payload.tipo == "planilha":
         corpo = planilha.para_json([planilha.Aba()])
     id_ = estado.documentos.criar(payload.titulo, payload.tipo, corpo, payload.cadastro_id)
+    equipe.marcar_autor(estado.base, "documentos", id_, equipe.quem(request, estado.prefs.dados))
     return estado.documentos.obter(id_) or {}
 
 
@@ -10073,7 +10076,7 @@ async def gravacoes_guardar(
     titulo: str = Form(""), tipo: str = Form("reuniao"), cadastro_id: str = Form(""),
     servico_id: str = Form(""), participantes: str = Form(""), duracao_s: str = Form("0"),
     origem: str = Form("gravada"), marcadores: str = Form("[]"), transcrever: str = Form("1"),
-    sessao: str = Form(""),
+    sessao: str = Form(""), request: Request = None,
 ) -> dict:
     """O audio entra por aqui, gravado no navegador ou importado de um arquivo."""
     conteudo = await arquivo.read()
@@ -10093,6 +10096,7 @@ async def gravacoes_guardar(
         }, conteudo, arquivo.filename or "")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    equipe.marcar_autor(estado.base, "gravacoes", id_, equipe.quem(request, estado.prefs.dados))
     g = estado.gravacoes.obter(id_) or {}
     if g.get("servico_id"):
         # Gravada ja ligada a um servico: o audio vai para a pasta dele.
