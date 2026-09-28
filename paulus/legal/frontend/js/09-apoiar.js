@@ -9,13 +9,16 @@
              cartao e digitado la, nunca aqui. Enquanto ela existir, a tela
              mostra o botao de interromper - que antes sugere diminuir.
    A categoria no mural vem do que foi PAGO e confirmado, nunca do que esta
-   escolhido no formulario agora. O mural publico ainda nao existe. Abre
+   escolhido no formulario agora. O mural e publico (paulus.ia.br/apoiadores):
+   o nome so vai quando a pessoa liga "publicar", que vem desligado. Abre
    pelo coracao do trilho.
 */
 
 const apoio = {
   visao: "contribuir", valor: 50, outro: "", recorrencia: "mensal", forma: "pix",
-  aparecer: true, como: "escritorio", nome: "", cidade: "",
+  // "publicar" substitui o antigo "aparecer" (que vinha ligado): so publica
+  // quem ligou nesta versao, com o mural de verdade.
+  publicar: false, nome: "", mural: null, muralErro: "",
   email: "", gerando: false, editandoLista: null,
   // O que o Mercado Pago confirmou: a data do ultimo Pix pago (e o valor), a
   // data em que a assinatura ficou ativa (e o valor mensal dela).
@@ -29,7 +32,7 @@ const apoio = {
   lido: false,
 };
 
-const APOIO_GUARDADO = ["valor", "outro", "forma", "aparecer", "como", "nome", "cidade", "email",
+const APOIO_GUARDADO = ["valor", "outro", "forma", "publicar", "nome", "email",
   "pago", "pagoValor", "ativa", "ativaValor", "pixId", "assinaturaId", "assinaturaChave", "assinaturaValor",
   "historico", "assinaturasAntigas"];
 const APOIO_MINIMO = 5;
@@ -129,7 +132,8 @@ function aberturaDoApoio() {
     : "";
   return '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Ajude o PAULUS a continuar gratuito</h2></div>' +
     '<p class="sv-resumo-corpo">O PAULUS roda na sua máquina, sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento e mantém o programa livre para todos. Todo valor ajuda; a recorrência ajuda mais.</p>' +
-    pix + extratoDoApoio() + "</header>";
+    pix + extratoDoApoio() +
+    '<div class="cfg-botoes"><button class="com-icone" data-apoio-dev="1">' + ic("history", 16) + "Acompanhe o desenvolvimento</button></div></header>";
 }
 
 /* O extrato em PDF, assim que houver algum pagamento ou assinatura. */
@@ -189,65 +193,83 @@ function corpoDeContribuir() {
     (apoio.gerando ? "Abrindo…" : apoio.forma === "pix" ? "Gerar o Pix" : "Assinar no cartão") + "</button></div>";
 }
 
-/* Como aparece no mural: so leitura, com "Editar"; editando, os campos e
-   "Pronto". Sem nome ainda (e querendo aparecer), abre editando. */
+/* Como aparece na pagina de apoiadores: so leitura, com "Editar"; editando,
+   a escolha e o nome. So o nome vai ao site, e so com "publicar" ligado. */
 function cartaoDaLista() {
   const nome = nomeNaLista();
-  if (apoio.editandoLista === null) apoio.editandoLista = apoio.aparecer && !nome;
+  if (apoio.editandoLista === null) apoio.editandoLista = false;
   const agora = new Date();
   const desde = MESES_CURTOS[agora.getMonth()] + " " + agora.getFullYear();
-  const previa = apoio.aparecer
-    ? '<div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>" + esc(nome || "Exemplo") + "</b><small>" + esc((apoio.cidade ? apoio.cidade + " · " : "") + "apoiador desde " + desde) + "</small></div>"
-    : '<div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>Apoiador anônimo</b><small>conta no total, não aparece no mural</small></div>";
-  const rodape = '<p class="cfg-explica">O mural entra na tela “Sobre” e no site a partir da primeira atualização pública. Só o nome e a cidade aparecem; valor e forma de pagamento nunca.</p>';
+  const previa = apoio.publicar
+    ? '<div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>" + esc(nome || "Exemplo") + "</b><small>apoia desde " + esc(desde) + "</small></div>"
+    : '<div class="apoio-previa-linha">' + ic("favorite", 18) + "<b>Sem aparecer</b><small>conta no total do mês, sem nome</small></div>";
+  const rodape = '<p class="cfg-explica">Só o nome aparece, em paulus.ia.br/apoiadores, depois que o pagamento confirma. Valor e forma de pagamento nunca. Para tirar o nome depois, escreva para contato@paulus.ia.br.</p>';
 
   if (!apoio.editandoLista) {
     const corpo = '<div class="apoio-previa"><span class="cfg-explica">Como você aparece</span>' + previa + "</div>" +
       '<div class="cfg-botoes"><button class="com-icone" data-apoio-editar-lista="1">' + ic("edit", 16) + "Editar como apareço</button></div>" + rodape;
-    return cartaoCfg("Mural de apoiadores", metaCfg(apoio.aparecer ? "com o seu nome" : "anônimo"), corpo);
+    return cartaoCfg("Página de apoiadores", metaCfg(apoio.publicar ? "com o seu nome" : "sem aparecer"), corpo);
   }
   const radio = (chave, v, rotulo) => {
     const classe = "as-radio" + (String(apoio[chave]) === String(v) ? " on" : "");
     return '<label class="' + classe + '" data-apoio-radio="' + chave + ":" + v + '"><i></i><span>' + rotulo + "</span></label>";
   };
-  const corpo = '<div class="ag-campo"><label>Aparecer no mural de apoiadores</label><div class="apoio-radios">' +
-    radio("aparecer", true, "Sim") + radio("aparecer", false, "Não, prefiro anônimo") + "</div></div>" +
-    (apoio.aparecer
-      ? '<div class="ag-campo"><label>Como</label><div class="apoio-radios">' + radio("como", "nome", "Meu nome") + radio("como", "escritorio", "Meu escritório") + "</div></div>" +
-        '<div class="ag-duas"><div class="ag-campo"><label>Nome no mural</label><input type="text" data-apoio-campo="nome" value="' + esc(apoio.nome) + '" placeholder="Exemplo" maxlength="60"></div>' +
-        '<div class="ag-campo"><label>Cidade (opcional)</label><input type="text" data-apoio-campo="cidade" value="' + esc(apoio.cidade) + '" placeholder="Goiânia" maxlength="40"></div></div>'
+  const corpo = '<div class="ag-campo"><label>Aparecer na página de apoiadores</label><div class="apoio-radios">' +
+    radio("publicar", false, "Não") + radio("publicar", true, "Sim, com o nome abaixo") + "</div></div>" +
+    (apoio.publicar
+      ? '<div class="ag-campo"><label>Nome como deve aparecer (pessoa ou escritório)</label><input type="text" data-apoio-campo="nome" value="' + esc(apoio.nome) + '" placeholder="Exemplo" maxlength="60"></div>'
       : "") +
     '<div class="apoio-previa"><span class="cfg-explica">Como vai aparecer</span>' + previa + "</div>" +
     '<div class="cfg-botoes"><button class="primario com-icone" data-apoio-pronto-lista="1">' + ic("check", 16) + "Pronto</button></div>" + rodape;
-  return cartaoCfg("Mural de apoiadores", metaCfg("editando"), corpo);
+  return cartaoCfg("Página de apoiadores", metaCfg("editando"), corpo);
 }
 
 /* ------------------------------------------------------------- o mural */
 
-/* Um mural so, sem divisoes: cada apoiador e um cartaz com as iniciais, o
-   nome, a cidade e desde quando. Enquanto o mural publico nao existe, so o
-   seu (quando o pagamento foi confirmado) e o convite. */
+/* O mural publico, o mesmo de paulus.ia.br/apoiadores: agrupado pelo ano
+   em que cada um comecou a apoiar, nomes em ordem alfabetica, todos iguais. */
 function corpoDoMural() {
-  const nome = nomeNaLista();
+  if (apoio.mural === null && !apoio.muralErro) carregarMural();
   const categoria = categoriaDoApoio();
-  const voce = !!categoria && apoio.aparecer && nome;
-  const desde = apoio.ativa || apoio.pago || "";
-  const cartaz = voce
-    ? '<article class="apoio-cartaz voce"><span class="apoio-cartaz-iniciais">' + esc(iniciaisDoRemetente(nome)) + "</span>" +
-      '<b class="apoio-cartaz-nome">' + esc(nome) + "</b>" +
-      (apoio.cidade ? '<span class="apoio-cartaz-cidade">' + esc(apoio.cidade) + "</span>" : "") +
-      '<span class="apoio-cartaz-desde">' + (categoria === "mensal" ? "apoia todo mês" : "apoiou com Pix") + (desde ? " · desde " + esc(desde) : "") + "</span>" +
-      '<span class="etiqueta apoio-cartaz-voce">você</span></article>'
+  const situacao = categoria
+    ? '<p class="apoio-situacao">' + ic("favorite", 16) + (apoio.publicar && nomeNaLista()
+      ? "Você apoia e autorizou aparecer como <b>" + esc(nomeNaLista()) + "</b>. Obrigado."
+      : "Você apoia sem aparecer na lista — e conta no total do mês. Obrigado.") + "</p>"
     : "";
-  const convite = '<button class="apoio-cartaz convite" data-apoio-editar-lista="1"><span class="apoio-cartaz-iniciais">' + ic(voce ? "edit" : "favorite", 22) + "</span>" +
-    '<b class="apoio-cartaz-nome">' + (voce ? "Mudar como apareço" : "Seu nome aqui") + "</b>" +
-    '<span class="apoio-cartaz-desde">' + (voce ? "nome, cidade ou anônimo" : "apoie e entre no mural") + "</span></button>";
-  const anonimo = categoria && !apoio.aparecer
-    ? '<p class="apoio-situacao">' + ic("favorite", 16) + "Você apoia sem aparecer no mural — e conta no total. Obrigado.</p>" : "";
+  let lista;
+  if (apoio.muralErro) {
+    lista = '<p class="cfg-explica">Não consegui ler a lista em paulus.ia.br: ' + esc(apoio.muralErro) + ".</p>";
+  } else if (apoio.mural === null) {
+    lista = '<p class="cfg-explica">Lendo a lista…</p>';
+  } else {
+    const por = {};
+    (apoio.mural.apoiadores || []).forEach((a) => {
+      const ano = String(a.since || "").slice(0, 4);
+      if (a.name && ano) (por[ano] = por[ano] || []).push(a.name);
+    });
+    const anos = Object.keys(por).sort();
+    lista = anos.length
+      ? anos.map((ano) => '<section class="apoio-grupo"><h3><span class="rotulo">Apoiam desde</span>' + esc(ano) + "</h3><ul>" +
+          por[ano].sort((x, y) => x.localeCompare(y, "pt-BR")).map((n) => "<li>" + esc(n) + "</li>").join("") + "</ul></section>").join("")
+      : '<p class="cfg-explica">Ainda não há nomes publicados. Quem apoia e autoriza aparece aqui.</p>';
+    if (apoio.mural.offline) lista += '<p class="cfg-explica">Sem internet agora: esta é a última cópia guardada.</p>';
+  }
   return '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Quem mantém o PAULUS gratuito</h2></div>' +
-    '<p class="sv-resumo-corpo">Cada nome aqui ajuda a pagar o desenvolvimento de um programa que roda de graça na máquina de qualquer escritório. O mural público nasce na primeira atualização, na tela “Sobre” e no site.</p>' +
-    anonimo + "</header>" +
-    '<div class="apoio-mural">' + cartaz + convite + "</div>";
+    '<p class="sv-resumo-corpo">Esta é a lista pública de paulus.ia.br/apoiadores: só o nome de quem autorizou, sem valores. A inclusão é opcional.</p>' +
+    situacao + '<div class="cfg-botoes"><button class="com-icone" data-apoio-editar-lista="1">' + ic("edit", 16) + "Editar como apareço</button></div></header>" +
+    '<div class="apoio-lista">' + lista + "</div>";
+}
+
+async function carregarMural() {
+  try {
+    const r = await fetch("/api/publico/apoiadores");
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "o site não respondeu");
+    apoio.mural = d;
+  } catch (err) {
+    apoio.muralErro = err.message;
+  }
+  if (apoio.visao === "lista" && $("apoio-tela")) desenharApoiar();
 }
 
 /* ------------------------------------------------------------ as acoes */
@@ -281,16 +303,17 @@ function ligarApoiar() {
   clique("[data-apoio-pagar]", () => (apoio.forma === "pix" ? apoioPagarPix() : apoioAssinar()));
   clique("[data-apoio-interromper]", () => apoioInterromper());
   clique("[data-apoio-extrato]", () => apoioBaixarExtrato());
+  clique("[data-apoio-dev]", () => mostrarDesenvolvimento());
   clique("[data-apoio-editar-lista]", () => { apoio.visao = "contribuir"; apoio.editandoLista = true; desenharApoiar(); });
   clique("[data-apoio-pronto-lista]", () => {
-    if (apoio.aparecer && !nomeNaLista()) { avisoCert("diga o nome para o mural, ou escolha ficar anônimo"); return; }
+    if (apoio.publicar && !nomeNaLista()) { avisoCert("diga o nome que deve aparecer, ou escolha não aparecer"); return; }
     apoio.editandoLista = false;
     guardarApoio();
     desenharApoiar();
   });
   clique("[data-apoio-radio]", (b) => {
     const [chave, v] = b.dataset.apoioRadio.split(":");
-    apoio[chave] = chave === "aparecer" ? v === "true" : v;
+    apoio[chave] = chave === "publicar" ? v === "true" : v;
     guardarApoio();
     desenharApoiar();
   });
@@ -310,10 +333,7 @@ function ligarApoiar() {
       apoio[el.dataset.apoioCampo] = el.value;
       guardarApoio();
       const previa = document.querySelector(".apoio-previa-linha b");
-      if (previa && apoio.aparecer) previa.textContent = nomeNaLista() || "Exemplo";
-      const sub = document.querySelector(".apoio-previa-linha small");
-      const agora = new Date();
-      if (sub && apoio.aparecer) sub.textContent = (apoio.cidade ? apoio.cidade + " · " : "") + "apoiador desde " + MESES_CURTOS[agora.getMonth()] + " " + agora.getFullYear();
+      if (previa && apoio.publicar) previa.textContent = nomeNaLista() || "Exemplo";
     };
   });
 }
@@ -327,13 +347,13 @@ function apoioConferirAntes() {
   if (valor > APOIO_MAXIMO) { avisoCert("para apoiar com mais de R$ 50.000,00, fale com a gente pelo site"); return null; }
   const email = (apoio.email || "").trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { avisoCert("diga o e-mail para o recibo"); return null; }
-  if (apoio.aparecer && !nomeNaLista()) {
+  if (apoio.publicar && !nomeNaLista()) {
     apoio.editandoLista = true;
     desenharApoiar();
-    avisoCert("diga como quer aparecer no mural, ou escolha ficar anônimo");
+    avisoCert("diga o nome que deve aparecer, ou escolha não aparecer");
     return null;
   }
-  return { valor: valor, email: email };
+  return { valor: valor, email: email, mural: apoio.publicar ? nomeNaLista() : "" };
 }
 
 async function apoioPedir(caminho, corpo, redesenhar) {
@@ -432,18 +452,18 @@ async function apoioAgradecer(tipo, valor) {
   const oque = tipo === "pix"
     ? "Seu Pix de " + emReais(Math.round(valor * 100)) + " chegou."
     : "Sua assinatura de " + emReais(Math.round(valor * 100)) + " por mês está ativa.";
-  const lista = apoio.aparecer && nome
-    ? "<p>Seu nome — <b>" + esc(nome) + "</b> — entra no mural de apoiadores na próxima atualização do PAULUS.</p>"
-    : "<p>Você apoia sem aparecer no mural, e conta no total de apoiadores.</p>";
+  const lista = apoio.publicar && nome
+    ? "<p>Seu nome — <b>" + esc(nome) + "</b> — entra na página de apoiadores, em paulus.ia.br/apoiadores.</p>"
+    : "<p>Você apoia sem aparecer na lista, e conta no total do mês.</p>";
   const ver = await confirmar({
     titulo: "Obrigado!", contexto: "Apoiar o projeto",
     html: '<div class="apoio-obrigado"><span class="apoio-obrigado-coracao">' + ic("favorite", 28) + "</span>" +
       "<p><b>" + esc(oque) + "</b></p>" +
       "<p>É com apoio assim que o PAULUS continua livre e gratuito, e roda na máquina de cada escritório sem cobrar por uso. De verdade: muito obrigado.</p>" +
       lista + "<p class=\"cfg-explica\">O recibo chega por e-mail, pelo Mercado Pago.</p></div>",
-    cancelar: "Fechar", confirmar: "Ver o mural", sucesso: true,
+    cancelar: "Fechar", confirmar: "Ver quem apoia", sucesso: true,
   });
-  if (ver) { apoio.visao = "lista"; desenharApoiar(); }
+  if (ver) { apoio.visao = "lista"; apoio.mural = null; apoio.muralErro = ""; desenharApoiar(); }
 }
 
 /* O cartao: a assinatura mensal e criada no Mercado Pago e a pagina dele
@@ -524,8 +544,8 @@ async function apoioDiminuir(novo, atual) {
     html: '<div class="apoio-obrigado"><span class="apoio-obrigado-coracao">' + ic("favorite", 28) + "</span>" +
       "<p><b>Seu apoio agora é de " + emReais(Math.round(novo * 100)) + " por mês.</b></p>" +
       "<p>Ficar, mesmo com menos, faz toda a diferença. O próximo mês já vem com o valor novo, pelo Mercado Pago.</p></div>",
-    cancelar: "Fechar", confirmar: "Ver o mural", sucesso: true,
-  }).then((ver) => { if (ver) { apoio.visao = "lista"; desenharApoiar(); } });
+    cancelar: "Fechar", confirmar: "Ver quem apoia", sucesso: true,
+  }).then((ver) => { if (ver) { apoio.visao = "lista"; apoio.mural = null; apoio.muralErro = ""; desenharApoiar(); } });
 }
 
 async function apoioInterromperDeVez() {

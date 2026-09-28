@@ -923,12 +923,17 @@ def main() -> int:
             )
             pagina.evaluate("() => document.querySelector('[data-apoio-visao=lista]').click()")
             pagina.wait_for_timeout(600)
-            # O mural publico ainda nao existe, e a tela diz isso em vez de
-            # mostrar uma lista de exemplo.
+            # A lista e a publica de paulus.ia.br/apoiadores, nunca uma de
+            # exemplo; a tela diz de onde vem, com ou sem internet.
             checar(
                 pagina.evaluate("() => { const t = document.getElementById('apoio-tela').innerText;"
-                                " return t.includes('Quem mantém o PAULUS gratuito') && t.includes('mural público nasce'); }"),
-                "Quem ja apoia diz que o mural publico ainda nao existe",
+                                " return t.includes('Quem mantém o PAULUS gratuito') && t.includes('paulus.ia.br/apoiadores')"
+                                " && !!document.querySelector('#apoio-tela .apoio-lista'); }"),
+                "Quem ja apoia mostra a lista publica do site",
+            )
+            checar(
+                pagina.evaluate("() => apoio.publicar === false"),
+                "aparecer na lista vem desligado",
             )
 
             print("\nentrar no escritorio por codigo (A0b)")

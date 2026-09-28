@@ -2411,10 +2411,11 @@
    ],
    "faz": [
     "Pix uma vez (QR e copia e cola, valem 30 minutos) ou cartão todo mês pelo Mercado Pago.",
-    "Baixa o extrato de contribuições em PDF depois do primeiro pagamento."
+    "Baixa o extrato de contribuições em PDF depois do primeiro pagamento.",
+    "Mostra a lista pública de apoiadores (paulus.ia.br/apoiadores); o nome só entra com a pessoa autorizando.",
+    "Acompanhe o desenvolvimento abre as versões e o apoio consolidado de cada mês."
    ],
    "nao_faz": [
-    "O mural público de apoiadores ainda não existe.",
     "O cartão nunca é digitado no programa, só na página do Mercado Pago.",
     "O Pix não é recorrente: mensal só no cartão."
    ],

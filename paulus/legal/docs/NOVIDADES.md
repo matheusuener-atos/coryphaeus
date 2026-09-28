@@ -3,6 +3,19 @@
 O que mudou no PAULUS, em ordem — o mais novo primeiro. Escrito para quem usa,
 não para quem programa: cada linha diz o que passou a ser possível fazer.
 
+## Setembro de 2026 — desenvolvimento aberto
+
+- **Desenvolvimento aberto.** Em Apoiar o projeto › Acompanhe o
+  desenvolvimento (e em Configurações › Apoio e versão), cada mês mostra as
+  versões publicadas e o apoio recebido, sempre em total — nunca um valor de
+  alguém. A mesma linha do tempo está em paulus.ia.br/desenvolvimento.
+- **A lista de apoiadores é pública**, em paulus.ia.br/apoiadores e em
+  Apoiar › Quem já apoia. Só entra quem liga "Aparecer na página de
+  apoiadores" e escreve o nome; a escolha vem desligada, também para quem
+  já apoiava.
+- **Apoiar pelo site.** paulus.ia.br/apoiar aceita Pix e cartão, uma vez
+  ou todo mês, pelo Mercado Pago.
+
 ## Setembro de 2026 — o PAULUS se atualiza
 
 - **Versão nova sem procurar.** Uma vez por dia, o PAULUS confere se há

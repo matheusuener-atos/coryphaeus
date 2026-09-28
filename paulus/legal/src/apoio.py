@@ -12,6 +12,12 @@ repositorio). Aqui so se repassa o pedido ao Worker e a resposta a tela:
                                        a pessoa poe o cartao (mensal)
     mudar_valor(id, chave, valor)      diminuir o valor da assinatura
     interromper(id, chave)             cancelar a assinatura
+    publico(qual, pasta)               o historico (desenvolvimento) ou o mural
+                                       (apoiadores) publicos, com a ultima
+                                       copia guardada para ficar sem internet
+
+`mural` e o nome que a pessoa autorizou publicar na pagina de apoiadores;
+vazio, ela nao aparece. O nome so vai ao mural quando o pagamento confirma.
 
 O endereco do site pode ser trocado por PAULUS_SITE (para testar num Worker
 local, por exemplo).
@@ -47,8 +53,8 @@ def _chamar(metodo: str, caminho: str, corpo: dict | None = None) -> dict:
     return dados
 
 
-def criar_pix(valor: float, email: str) -> dict:
-    return _chamar("POST", "/api/mp/pix", {"valor": valor, "email": email})
+def criar_pix(valor: float, email: str, mural: str = "") -> dict:
+    return _chamar("POST", "/api/mp/pix", {"valor": valor, "email": email, "mural": mural[:60]})
 
 
 def situacao_do_pix(id_: str) -> dict:
@@ -63,9 +69,36 @@ def situacao_da_assinatura(id_: str) -> dict:
     return _chamar("GET", f"/api/mp/assinatura/{id_}")
 
 
-def criar_assinatura(valor: float, email: str) -> dict:
+def criar_assinatura(valor: float, email: str, mural: str = "") -> dict:
     """A assinatura mensal no cartao. Volta com o link e a `chave` dela."""
-    return _chamar("POST", "/api/mp/assinatura", {"valor": valor, "email": email})
+    return _chamar("POST", "/api/mp/assinatura", {"valor": valor, "email": email, "mural": mural[:60]})
+
+
+def publico(qual: str, pasta) -> dict:
+    """
+    O que o site publica: "desenvolvimento" (versoes e apoio consolidado, mes
+    a mes) ou "apoiadores" (o mural). So leitura - nada daqui vai junto. A
+    resposta boa fica guardada em `pasta`; sem internet, volta a guardada,
+    com `offline: True`. Sem nenhuma das duas, ErroDeApoio.
+    """
+    import json
+    from pathlib import Path
+
+    if qual not in ("desenvolvimento", "apoiadores"):
+        raise ErroDeApoio("isso o site não publica")
+    copia = Path(pasta) / f"{qual}.json"
+    try:
+        dados = _chamar("GET", f"/api/public/{qual}")
+        copia.parent.mkdir(parents=True, exist_ok=True)
+        copia.write_text(json.dumps(dados, ensure_ascii=False), encoding="utf-8")
+        return {**dados, "offline": False}
+    except ErroDeApoio:
+        if copia.exists():
+            try:
+                return {**json.loads(copia.read_text(encoding="utf-8")), "offline": True}
+            except ValueError:
+                pass
+        raise
 
 
 def mudar_valor(id_: str, chave: str, valor: float) -> dict:

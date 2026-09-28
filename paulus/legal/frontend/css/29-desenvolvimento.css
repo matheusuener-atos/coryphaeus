@@ -1,0 +1,67 @@
+/* A20 - Desenvolvimento aberto (docs/ui/desenvolvimento). Na coluna de
+   1080 px das outras telas; barra de periodo em estilo de tabela. */
+  .dev-tela .sv-medida { gap: 28px; }
+  .dev-topo { display: grid; gap: 6px; max-width: 640px; }
+  .dev-topo h1 { margin: 0; font: 400 32px/1.1 var(--serif); letter-spacing: 0; color: var(--ink); }
+  .dev-topo p { margin: 0; color: var(--ink2); font-size: 14px; line-height: 1.6; text-wrap: pretty; }
+  .dev-vazio { margin: 0; color: var(--ink2); font-size: 14px; }
+
+  .dev-periodo { display: grid; gap: 6px; }
+  .dev-barra { display: flex; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--bg); overflow: hidden; }
+  .dev-ano { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 6px; border-right: 1px solid var(--ink-a1); }
+  .dev-ano > span { font: 600 13px var(--mono); min-width: 38px; text-align: center; color: var(--ink); }
+  .dev-ano button {
+    width: 26px; height: 38px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+    color: var(--ink); display: flex; align-items: center; justify-content: center;
+  }
+  .dev-ano button:disabled { opacity: .3; }
+  .dev-ano button:hover:not(:disabled) { background: transparent; border: 0; }
+  .dev-meses { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(12, minmax(40px, 1fr)); overflow-x: auto; }
+  .dev-mes {
+    position: relative; height: 38px; padding: 0; border: 0; border-left: 1px solid var(--ink-a1); border-radius: 0;
+    background: transparent; box-shadow: none; font: 500 13px var(--sans); color: var(--ink);
+  }
+  .dev-mes:first-child { border-left: 0; }
+  .dev-mes:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a1); }
+  .dev-mes:disabled { color: color-mix(in oklab, var(--ink3) 55%, transparent); cursor: default; }
+  .dev-mes.sel, .dev-mes.sel:hover { background: var(--ink); color: var(--surf); font-weight: 700; }
+  .dev-mes i { position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--ink); }
+  .dev-mes.sel i { background: var(--surf); }
+  .dev-legenda { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 16px; font-size: 11px; line-height: 1.3; color: var(--ink3); }
+  .dev-legenda span { display: flex; align-items: center; gap: 8px; }
+  .dev-legenda i { width: 4px; height: 4px; margin: 0 3px; border-radius: 50%; background: var(--ink); flex: none; }
+  .dev-legenda b { font-weight: 500; opacity: .5; }
+
+  .dev-selecionado { display: grid; gap: 22px; max-width: 760px; }
+  .dev-titulo { display: grid; gap: 8px; }
+  .dev-titulo h2 { margin: 0; font: 400 30px/1.1 var(--serif); color: var(--ink); }
+  .dev-titulo p { margin: 0; font-size: 15px; line-height: 1.65; color: var(--ink2); text-wrap: pretty; }
+  .dev-apoio { display: grid; gap: 6px; padding: 14px 16px; border-radius: 12px; background: var(--fill); }
+  .dev-apoio-grade { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 18px; font-size: 13.5px; }
+  .dev-apoio-grade span { color: var(--ink2); }
+  .dev-apoio-grade b { font-weight: 600; color: var(--ink); }
+  .dev-apoio small { font-size: 12px; color: var(--ink3); }
+  .dev-versoes { display: grid; gap: 14px; }
+  .dev-versoes > p { margin: 0; font-size: 14px; color: var(--ink2); }
+  .dev-versao { display: grid; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a08); }
+  .dev-versao-cabeca { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .dev-versao-cabeca b { font: 600 15px var(--mono); color: var(--ink); }
+  .dev-versao-cabeca span { font-size: 12.5px; color: var(--ink3); }
+  .dev-versao-cabeca .dev-selo { padding: 1px 7px; border-radius: 5px; background: var(--okbg); color: var(--okt); font-size: 11px; font-weight: 600; }
+  .dev-versao ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 14px; color: var(--ink2); }
+  .dev-versao li.com-previa { position: relative; cursor: zoom-in; }
+  .dev-versao li.com-previa > span:first-child { text-decoration: underline dotted; text-underline-offset: 3px; }
+  .dev-versao li.com-previa > .ic { display: inline-block; margin-left: 6px; vertical-align: -2px; color: var(--ink3); }
+  .dev-previa {
+    display: none; position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: 300px; padding: 6px;
+    border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); box-shadow: var(--elev-float);
+    gap: 6px; pointer-events: none;
+  }
+  .dev-previa > span { display: block; aspect-ratio: 16 / 10; border-radius: 8px; background-color: var(--fill); background-size: cover; background-position: top left; }
+  .dev-previa small { font-size: 11.5px; color: var(--ink3); padding: 0 4px 2px; }
+  .dev-versao li.com-previa:hover .dev-previa, .dev-versao li.com-previa:focus .dev-previa { display: grid; }
+
+  .dev-sobre { padding-top: 8px; display: grid; gap: 6px; font-size: 12.5px; line-height: 1.6; color: var(--ink3); max-width: 760px; }
+  .dev-sobre h3 { margin: 0; font: 600 13px var(--sans); color: var(--ink); }
+  .dev-sobre p { margin: 0; }
+  .dev-atualizado { color: var(--ink3); }

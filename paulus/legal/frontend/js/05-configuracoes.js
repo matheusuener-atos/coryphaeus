@@ -1094,7 +1094,7 @@ async function enviarFeedback() {
 function secaoPlano() {
   const apoiar = '<p class="cfg-texto">Sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento, por Pix ou cartão.</p>' +
     '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-apoiar="contribuir">' + ic("favorite", 16) + "Apoiar o projeto</button>" +
-    '<button data-cfg-apoiar="lista">Quem já apoia</button></div>';
+    '<button data-cfg-apoiar="lista">Quem já apoia</button><button data-cfg-apoiar="desenvolvimento">Desenvolvimento aberto</button></div>';
   return aberturaCfg() +
     cartaoCfg("Apoiar o projeto", "", apoiar) +
     cartaoCfg("Versão e atualização", "", blocoAtualizacao());
@@ -1228,7 +1228,7 @@ function ligarConfig() {
     desenharConfig();
     carregarUsuario();
   });
-  clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); mostrarApoiar(b.dataset.cfgApoiar); });
+  clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); b.dataset.cfgApoiar === "desenvolvimento" ? mostrarDesenvolvimento() : mostrarApoiar(b.dataset.cfgApoiar); });
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
   clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));

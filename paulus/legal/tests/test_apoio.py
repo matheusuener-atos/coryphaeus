@@ -53,7 +53,10 @@ def main() -> int:
         checar(d["qr_code_base64"] == "iVBOR", "o Pix volta com o QR")
         metodo, url, corpo = chamadas[-1]
         checar(url == apoio.SITE + "/api/mp/pix" and url.startswith("https://paulus.ia.br"), "pede ao site, não ao Mercado Pago", url)
-        checar(set(corpo) == {"valor", "email"}, "manda só valor e e-mail - nenhuma chave", str(corpo))
+        checar(set(corpo) == {"valor", "email", "mural"} and corpo["mural"] == "",
+               "manda só valor, e-mail e o nome do mural (vazio sem autorização) - nenhuma chave", str(corpo))
+        apoio.criar_pix(40, "apoiador@exemplo.com.br", "Ana Exemplo")
+        checar(chamadas[-1][2]["mural"] == "Ana Exemplo", "com autorização, o nome vai para o mural")
         checar(apoio.situacao_do_pix("ORD01TESTE")["pago"] is True, "consulta se o Pix foi pago")
         try:
             apoio.situacao_do_pix("../../etc")
@@ -74,6 +77,38 @@ def main() -> int:
         checar(chamadas[-1][1].endswith("/api/mp/assinatura/PRE0001/interromper"), "interromper chama o site")
     finally:
         apoio.requests.request = original
+
+    print("\nO que o site publica")
+    import tempfile as _tmp
+
+    with _tmp.TemporaryDirectory() as pasta:
+        publicado = {"atualizadoEm": "2026-09-28", "meses": [{"month": "2026-09", "releases": []}]}
+        apoio.requests.request = lambda metodo, url, json=None, timeout=None: (
+            chamadas.append((metodo, url, json)) or _Resposta(200, publicado))
+        try:
+            d = apoio.publico("desenvolvimento", pasta)
+            checar(chamadas[-1][:2] == ("GET", apoio.SITE + "/api/public/desenvolvimento") and chamadas[-1][2] is None,
+                   "lê o histórico público sem mandar nada", str(chamadas[-1]))
+            checar(d["meses"] == publicado["meses"] and d["offline"] is False, "e devolve o que o site publica")
+
+            def sem_rede(*a, **k):
+                raise apoio.requests.ConnectionError("sem rede")
+
+            apoio.requests.request = sem_rede
+            d = apoio.publico("desenvolvimento", pasta)
+            checar(d["offline"] is True and d["meses"] == publicado["meses"], "sem internet, volta a última cópia guardada")
+            try:
+                apoio.publico("apoiadores", pasta)
+                checar(False, "sem internet e sem cópia, diz que não deu")
+            except apoio.ErroDeApoio:
+                checar(True, "sem internet e sem cópia, diz que não deu")
+            try:
+                apoio.publico("../segredo", pasta)
+                checar(False, "só lê o que o site publica")
+            except apoio.ErroDeApoio:
+                checar(True, "só lê o que o site publica")
+        finally:
+            apoio.requests.request = original
 
     print("\nExtrato de contribuições")
     import tempfile

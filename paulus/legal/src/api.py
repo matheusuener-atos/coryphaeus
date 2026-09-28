@@ -6471,7 +6471,7 @@ def email_reescrever(payload: dict) -> dict:
 def apoio_pix(payload: dict) -> dict:
     """O Pix de apoio: o site (Worker) cria no Mercado Pago e devolve o QR."""
     try:
-        return apoio.criar_pix(float(payload.get("valor") or 0), str(payload.get("email", "")))
+        return apoio.criar_pix(float(payload.get("valor") or 0), str(payload.get("email", "")), str(payload.get("mural") or ""))
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=400, detail="valor inválido") from exc
     except apoio.ErroDeApoio as exc:
@@ -6501,6 +6501,21 @@ def apoio_assinatura_situacao(id_: str) -> dict:
         return apoio.situacao_da_assinatura(id_)
     except apoio.ErroDeApoio as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/publico/{qual}")
+def publico_do_site(qual: str) -> dict:
+    """
+    O historico (desenvolvimento) e o mural (apoiadores) que o site publica,
+    para a tela Desenvolvimento aberto e o "Quem ja apoia". So leitura; a
+    ultima copia fica em dados/publico para quando nao houver internet. A
+    versao instalada vai junto, para a tela marcar "e a sua versao".
+    """
+    try:
+        dados = apoio.publico(qual, DADOS_DIR / "publico")
+    except apoio.ErroDeApoio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {**dados, "versao_instalada": VERSAO}
 
 
 @app.post("/api/apoio/extrato")
@@ -6557,7 +6572,7 @@ def apoio_assinatura_interromper(id_: str, payload: dict) -> dict:
 def apoio_assinatura(payload: dict) -> dict:
     """A assinatura no cartao: devolve o link da pagina do Mercado Pago."""
     try:
-        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")))
+        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")), str(payload.get("mural") or ""))
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=400, detail="valor inválido") from exc
     except apoio.ErroDeApoio as exc:
