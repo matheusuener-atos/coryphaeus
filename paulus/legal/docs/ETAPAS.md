@@ -1547,3 +1547,33 @@ depois (dentro da variação; a demonstração cabe inteira nas duas janelas).
 Entrada mediana de 2.366 tokens, nenhum corte. A mesma pergunta duas vezes
 deu a mesma resposta, palavra por palavra.
 
+## I2 — Medição com documentos reais ⏸ ESPERA O CONJUNTO REAL
+
+O 41/41 do banco de provas é medido nos documentos fictícios da
+demonstração, os mesmos usados para ajustar o prompt: é teto, não medida.
+`tools/medir.py` roda um conjunto de perguntas com resposta conhecida e
+imprime acerto, latência p50/p95, tokens de entrada e, para a busca,
+Recall@20, Recall@6 e MRR@6 — mais "no contexto": das frases esperadas,
+quantas estavam no que foi de fato mandado ao modelo.
+
+O formato é o do `P(...)` do roteiro, mais `trechos_esperados` (frases
+literais curtas que têm de estar no contexto — frase, e não id de trecho,
+porque os ids mudam até a I5), `documentos` e `continua` (a pergunta vai na
+mesma conversa da anterior). O conjunto real mora em
+`data/medicao/conjunto-real.jsonl`, fora do git; `docs/medicao.md` explica
+como anotar. O exemplo, sobre a demonstração, está em
+`tools/demo/conjunto-demo.jsonl`: 27 perguntas dos seis tipos, 9 de
+continuação ("e a multa por atraso no pagamento?", "e o foro?").
+
+**Linha de base na demonstração** (llama3.2:3b, depois da I1): 25/27 · p50
+6,6 s · p95 39,3 s · entrada p50 2.362 tokens · Recall@20 0,96 · Recall@6 0,96
+· MRR@6 0,86 · 0,90 das frases no contexto. Continuação 8/9 — alto porque a
+demonstração cabe inteira na leitura e o modelo acha o assunto sozinho; a
+busca, sozinha, não acha "e qual índice reajusta ele?" (Recall 0). Erros: a
+ausência da multa do aluguel (a mesma do roteiro) e "e a garantia?" (o
+modelo disse "3 aluguéis" sem a palavra caução).
+
+**Falta:** o conjunto real, de 30 a 50 perguntas sobre 10 a 20 documentos do
+escritório. Até ele chegar, as etapas seguintes medem na demonstração — o que
+é limitação, e está anotado no PROGRESSO.
+

@@ -42,7 +42,7 @@ etapa que não estiver `feita`.
 | R9 | Celular, energia, iniciar com o Windows | feita | branch `r9-celular` | 4 telas em 390 px pelo caminho de fora (sem rolagem lateral, 44 px de toque); 9/9 respostas em streaming com os cabeçalhos; energia e Run testados |
 | R10 | Política, documentação, roteiro do teste real | textos feitos; ⏸ teste no 4G | branch `r10-politica` (docs) e `r10-politica-site` (site, fora do main) | política e termos com a seção nova; manual com solução de problemas; roteiro de 9 passos abaixo |
 | I1 | Ajustes de inferência | feita | branch `i1-inferencia` | roteiro `--tudo` 40/41 antes e depois (a mesma de ausência falha nas duas); p50 documentos 8,5 s → 8,9 s; entrada p50 2.366 tokens; 0 cortes; mesma pergunta 2× = mesma resposta |
-| I2 | Medição com documentos reais | pendente | | |
+| I2 | Medição com documentos reais | ferramenta feita; ⏸ conjunto real | branch `i2-medicao` | demo (27 perguntas, 9 de continuação): 25/27 · p50 6,6 s · p95 39,3 s · entrada p50 2.362 · R@20 0,96 · R@6 0,96 · MRR@6 0,86 · no contexto 0,90 |
 | I3 | Nível 0 por molde | pendente | | |
 | I4 | Memória da conversa | pendente | | |
 | I5 | Chunking estrutural | pendente | | |
@@ -104,10 +104,22 @@ etapa que não estiver `feita`.
 - **I1** A linha de base do roteiro nesta rodada foi 40/41, e não 41/41: a pergunta de ausência da multa do aluguel falhou com as opções antigas também. A régua é "não cair" em relação a 40/41.
 - **I1** `perguntas.jsonl` guarda também a resposta pelo programa (`caminho: programa`) e a recusa por regra (`regra`); a pergunta parada no meio não entra (como no ritmo: leitura cortada não é medida).
 - **I1** Um dicionário vazio no `PADRAO` passou a ser mapa livre em `_fundir` (senão `janela_por_modelo` perdia as chaves ao reabrir).
+- **I2** Sem resposta à ⏸ PAUSA I2 (o usuário estava dormindo), segui como o contrato manda para "segue com a demo": o conjunto da demonstração com as perguntas de continuação. **Limitação:** todos os números das etapas I3–I9 abaixo são da demonstração (8 documentos, 9 trechos, cabe inteira na leitura) — a busca quase não é exercitada, e o Recall é teto.
+- **I2** `tools/medir.py` não mudou nada do programa (só ferramenta, conjunto e documentação): não rodei o roteiro nem a suíte inteira de novo nesta etapa; `tests/test_i2_medir.py` confere as contas e que toda frase esperada existe na demo.
+- **I2** "No contexto" mede nas fontes que a conversa mostrou; resposta sem fontes (a recusa por regra, 0 s) conta zero — por isso 0,90 e não 0,96.
 
 ## Pendente do usuário
 
 (o que depende de painel, conta, teste no celular ou decisão de produto)
+
+### ⏸ I2 — o conjunto real de perguntas
+
+De 30 a 50 perguntas sobre 10 a 20 documentos do escritório, em
+`data/medicao/conjunto-real.jsonl` (na pasta de dados; fora do git). Como
+anotar, com exemplo: `docs/medicao.md` e `tools/demo/conjunto-demo.jsonl`.
+Depois: `tools\medir.py --real --so-busca` (confere as frases, segundos) e
+`tools\medir.py --real` (com o Ollama). Os números das etapas I3–I9 foram
+medidos na demonstração até lá.
 
 ### ⏸ R5 — o que fazer no painel da Cloudflare (só o dono da conta)
 
