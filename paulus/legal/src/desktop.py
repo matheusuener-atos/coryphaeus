@@ -339,14 +339,16 @@ def _cabecalho_local() -> dict:
     return {"X-PAULUS-Chave": chave} if chave else {}
 
 
-def _endereco_da_janela(porta: int, chave: str, pedido: str) -> str:
+def _endereco_da_janela(porta: int, chave: str, pedido: str, configurar_acesso: bool = False) -> str:
     """
     A janela abre pelo /entrar-local, que troca a chave pelo cookie da sessao
     local e segue para a pagina levando o #fragmento - o "#perguntar=..." do
-    botao direito do Explorer.
+    botao direito do Explorer, ou o "#acesso" do instalador
+    (--configurar-acesso), que abre Configuracoes › Acesso de fora.
     """
-    return (f"http://127.0.0.1:{porta}/entrar-local?chave={urllib.parse.quote(chave)}"
-            + ("#perguntar=" + urllib.parse.quote(pedido) if pedido else ""))
+    fragmento = ("#perguntar=" + urllib.parse.quote(pedido) if pedido
+                 else ("#acesso" if configurar_acesso else ""))
+    return f"http://127.0.0.1:{porta}/entrar-local?chave={urllib.parse.quote(chave)}" + fragmento
 
 
 def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
@@ -460,7 +462,7 @@ def main() -> int:
     # move a janela.
     _JANELA = webview.create_window(
         TITULO,
-        _endereco_da_janela(porta, api.estado.acesso.chave, pedido),
+        _endereco_da_janela(porta, api.estado.acesso.chave, pedido, "--configurar-acesso" in sys.argv[1:]),
         js_api=Ponte(),
         width=1280,
         height=860,

@@ -1368,3 +1368,42 @@ aparece nos argumentos nem no log, aparece no ambiente, e o processo levanta
 de novo. JWT válido passa; vencido, de outra aplicação, de outro time,
 assinado com outra chave e sem chaves alcançáveis, não. A versão foi lida do
 `cloudflared` 2026.9.3 de verdade, assinado pela Cloudflare.
+
+## R7 — O instalador traz o cloudflared, e o assistente conecta ✓ FEITA
+
+**No instalador**, uma caixa nova: "Acesso de fora pelo celular (baixa
+52,8 MB de github.com)", marcada em instalação nova quando a máquina não tem
+`cloudflared`; numa atualização, só quando ele falta e o acesso de fora está
+em uso. O download é de **versão fixa** (2026.9.3, constante no código) e o
+arquivo só é usado depois de duas conferências: a assinatura Authenticode
+válida para o Windows (`WinVerifyTrust`) **e** o assinante "Cloudflare,
+Inc.". Uma sem a outra não serve — a primeira sozinha aceitaria qualquer
+programa assinado por qualquer empresa. Falhou: o arquivo é apagado, a
+instalação segue sem o túnel e a tela final diz por quê. Vai para
+`%LOCALAPPDATA%\Programs\PAULUS-cloudflared`, sem administrador; desinstalar
+encerra o processo e apaga a pasta. A tela final oferece "Configurar o
+acesso de fora agora", que abre o PAULUS com `--configurar-acesso`.
+
+**No app**, Configurações › Acesso de fora ganhou o assistente
+(`src/acesso/conexao.py`, `js/43-acesso-tunel.js`), em três estados:
+conectar (nome do escritório e e-mail do titular, que tem de ser uma conta
+de titular com o autenticador confirmado); esperando (o código `XXXX-XXXX`
+grande enquanto o titular confirma no navegador, a tela conferindo a cada
+3 s); e conectado (o endereço copiável, o estado do túnel, quem pode passar
+pela Cloudflare, Desligar e Remover). A lista do Access acompanha as contas:
+criar conta acrescenta o e-mail, remover tira. Desligar para o túnel e
+guarda o endereço; Remover apaga lá e aqui.
+
+**Medido:** o fluxo inteiro contra um Worker de mentira (pendente, pendente,
+pronto) até o túnel de mentira conectado; token e segredo fora do arquivo em
+texto puro; lista de e-mails em cada mudança de conta; desligar, religar,
+remover. O instalador compila com o `csc.exe` do .NET Framework 4 e a
+conferência de assinatura aceita o `cloudflared` real e recusa o Python
+(assinado, mas pela Python Software Foundation), o Edge (Microsoft) e um
+arquivo qualquer. A tela nova do instalador foi fotografada numa montagem de
+teste (o programa novo com o pacote da 0.9.3), sem instalar.
+
+**O que a verificação achou:** desligar e religar em seguida achava a porta
+fixa "ocupada" — pelo próprio ouvinte, ainda fechando. Fechar passou a
+esperar o ouvinte soltar a porta. E os botões com ícone empilhavam ícone e
+texto sem a classe `com-icone` do resto do app.

@@ -37,7 +37,7 @@ etapa que não estiver `feita`.
 | R4 | Fila do modelo | feita | branch `r4-fila-do-modelo` | 2 pessoas: nunca 2 respostas juntas, sem palavra trocada, ordem de chegada; 3ª da mesma pessoa 429; parar A e B termina |
 | R5 | Provisionamento no Worker | código feito; ⏸ painel | branch `r5-worker-tunel` | `worker/teste-tunel.mjs`: 40 checagens (fluxo, JWT, desfazer, limites) |
 | R6 | Túnel dentro do PAULUS | feita | branch `r6-tunel` | 29 checagens; token fora da linha de comando e do log; reinício; JWT (5 casos de recusa); porta ocupada; versão lida do cloudflared 2026.9.3 real |
-| R7 | Instalador + assistente de conexão | pendente | | |
+| R7 | Instalador + assistente de conexão | feita | branch `r7-assistente` | 28 checagens; fluxo com Worker de mentira; assinatura: cloudflared real aceito, Python/Edge/falso recusados; tela do instalador fotografada |
 | R8 | Auditoria "quem acessou" | pendente | | |
 | R9 | Celular, energia, iniciar com o Windows | pendente | | |
 | R10 | Política, documentação, roteiro do teste real | pendente | | |
@@ -86,6 +86,12 @@ etapa que não estiver `feita`.
 - **R6** **Desvio do contrato, de propósito:** a porta fixa não é a porta da janela. É um segundo ouvinte uvicorn (mesmo app, `lifespan="off"`, também só em 127.0.0.1) aberto quando o acesso está ligado. Motivos: a conexão feita pelo assistente vale na hora, sem reiniciar o PAULUS para ele passar a escutar na porta nova; e a janela local nunca depende da porta fixa (o contrato já pedia que a janela abrisse "em outra porta como hoje" quando a fixa estivesse ocupada). Com a porta fixa ocupada, o túnel não liga.
 - **R6** Versão mínima do `cloudflared`: 2025.4.0 (preferência `acesso_remoto.cloudflared_minimo`), a partir da qual o túnel gerenciado remotamente aceita o token por `TUNNEL_TOKEN`/`TUNNEL_TOKEN_FILE`.
 - **R6** O conferidor do JWT só existe com `aud` e `team_domain` gravados (vêm do Worker na conexão). Sem eles, nenhuma requisição de fora passa — mesmo com o módulo ligado.
+- **R7** Versão fixa do `cloudflared` no instalador: `VERSAO_CLOUDFLARED = "2026.9.3"` em `Instalador.cs` (quem publica atualiza a mão). A conferência de assinatura pode ser rodada sozinha: `PAULUS-instalador.exe /conferir-assinatura=<arquivo>` → código 0 se é da Cloudflare, 3 se não.
+- **R7** A revogação do certificado não é consultada (`WTD_REVOKE_NONE`): pede rede e trava instalação offline; a cadeia até a raiz confiável continua conferida pelo Windows.
+- **R7** O e-mail do titular no assistente é escolhido entre as contas de titular com autenticador confirmado — sem ela, o assistente leva até Contas em vez de conectar.
+- **R7** A lista de e-mails do Access é a de todas as contas do PAULUS (até 10), sincronizada a cada criar/mudar/remover conta. Falha de rede na sincronização vira aviso na tela, não erro.
+- **R7** Remover também encerra todas as sessões de fora.
+- **R7** `--configurar-acesso` vira `#acesso` no endereço da janela, e a tela abre em Configurações › Acesso de fora.
 - **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada; a checagem "segurar numa conversa marca" falha por tempo às vezes.
 
 ## Pendente do usuário
@@ -109,11 +115,12 @@ O código do Worker já está no repositório e **não liga nada** até o passo 
 6. **A aplicação do Access de `/conectar`.** Zero Trust → Access → Applications → Add an application → **Self-hosted**:
    - Application domain: `paulus.ia.br`, path `conectar`
    - Session duration: 15 min (basta para confirmar)
-   - Policy: nome "Qualquer e-mail confirmado", Action **Allow**, Include → **Emails ending in** → `@` *(ou "Everyone")* — quem pode é decidido pelo Worker, que exige que o e-mail seja o do titular do pedido.
+   - Policy: nome "Qualquer e-mail confirmado", Action **Allow**, Include → **Everyone** — quem pode conectar é decidido pelo Worker, que exige que o e-mail confirmado seja o do titular do pedido.
    - Login method: One-time PIN.
    - Depois de salvar, abra a aplicação e copie o **Application Audience (AUD) Tag**.
 7. **Os segredos do Worker**, na pasta do repositório:
-   ```
+
+   ```text
    npx wrangler secret put CF_API_TOKEN          (o token do passo 1)
    npx wrangler secret put CF_ACCOUNT_ID         (passo 2)
    npx wrangler secret put CF_ZONE_ID            (passo 2)
@@ -122,6 +129,7 @@ O código do Worker já está no repositório e **não liga nada** até o passo 
    npx wrangler secret put MAX_ESCRITORIOS       (sugestão: 5 — ver o limite de 50 usuários acima)
    npx wrangler secret put TUNEL_ATIVO           (1 — é o que liga as rotas)
    ```
+
 8. **Push** do `main` (publica o Worker com o KV). Conferir: `https://paulus.ia.br/api/tunel/estado` com POST `{}` deve responder `{"estado":"expirado"}` (antes do passo 7, 404).
 9. No painel, conferir que **nenhuma rota do Worker pega `*.paulus.ia.br`** (Workers & Pages → paulus → Settings → Domains & Routes: só `paulus.ia.br` e, se houver, `www`).
 

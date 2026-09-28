@@ -136,7 +136,8 @@ class AcessoDeFora:
         # ja aconteceu no servidor da janela, e nao pode rodar duas vezes.
         servidor = uvicorn.Server(uvicorn.Config(self.app, host="127.0.0.1", port=porta,
                                                  log_level="warning", lifespan="off"))
-        threading.Thread(target=servidor.run, name="porta-de-fora", daemon=True).start()
+        self._fio_servidor = threading.Thread(target=servidor.run, name="porta-de-fora", daemon=True)
+        self._fio_servidor.start()
         fim = time.time() + 5
         while time.time() < fim and not servidor.started:
             time.sleep(0.05)
@@ -149,8 +150,13 @@ class AcessoDeFora:
         return True
 
     def fechar_porta_de_fora(self) -> None:
+        """Fecha o ouvinte e espera ele soltar a porta: religar logo em seguida
+        acharia a porta ainda presa e diria "porta ocupada"."""
         if self._servidor is not None:
             self._servidor.should_exit = True
+            fio = getattr(self, "_fio_servidor", None)
+            if fio is not None and fio is not threading.current_thread():
+                fio.join(timeout=8)
             self._servidor = None
 
     def iniciar(self) -> None:

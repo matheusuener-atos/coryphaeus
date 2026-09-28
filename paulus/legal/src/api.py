@@ -87,6 +87,8 @@ from acesso.porteiro import Porteiro
 from acesso.servico import AcessoDeFora
 from acesso import politicas as politicas_do_acesso
 from acesso import rotas as rotas_do_acesso
+from acesso import rotas_tunel as rotas_do_tunel
+from acesso.conexao import ConexaoDoTunel
 from inteligencia import portas as inteligencia
 from inteligencia.catalogo import Catalogo
 from inteligencia.guarda import Biblioteca
@@ -606,6 +608,10 @@ app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.p
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
 estado.acesso_de_fora.portao.rotas = app.router
 estado.acesso_de_fora.app = app
+# O assistente de conexao (R7): pedir o endereco ao Worker de paulus.ia.br,
+# esperar o titular confirmar, e depois manter a lista de e-mails.
+estado.acesso_de_fora.conexao = ConexaoDoTunel(estado.acesso_de_fora)
+rotas_do_tunel.montar(estado.acesso_de_fora, estado.acesso_de_fora.conexao, app)
 # Garantia a mais: o processo do tunel nunca sobrevive ao programa, nem
 # quando o fechamento nao passa pelo fim do servidor.
 import atexit  # noqa: E402

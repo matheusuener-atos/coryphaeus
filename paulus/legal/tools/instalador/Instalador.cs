@@ -64,6 +64,16 @@ static class Programa
         Args = args;
         Silencioso = Tem("/silencioso") || Tem("/verysilent");
         try { ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; } catch (Exception) { }
+        // A conferencia da assinatura, sozinha (tests/test_r7_assistente.py e
+        // quem publica): 0 se o arquivo e da Cloudflare, 3 se nao e.
+        string conferir = Valor("/conferir-assinatura");
+        if (conferir != null)
+        {
+            string motivo;
+            bool ok = Assinatura.DaCloudflare(conferir, out motivo);
+            Registro.Linha("conferir assinatura de " + conferir + ": " + (ok ? "Cloudflare" : motivo));
+            return ok ? 0 : 3;
+        }
 
         string eu = Application.ExecutablePath;
         bool desinstalar = Tem("/desinstalar") || Path.GetFileName(eu).StartsWith("Desinstalar", StringComparison.OrdinalIgnoreCase);
@@ -117,6 +127,88 @@ static class Programa
         Fontes.Liberar();
         if (desinstalar) Motor.ApagarEstaCopiaDepois();
         return 0;
+    }
+}
+
+// ---------------------------------------------------------------- assinatura
+
+// A conferencia do cloudflared baixado, antes de ele ser usado: a assinatura
+// Authenticode tem de ser valida para o Windows (WinVerifyTrust) E o assinante
+// tem de ser a Cloudflare. So a primeira parte aceitaria qualquer programa
+// assinado por qualquer empresa; so a segunda leria um nome que qualquer um
+// escreve num certificado falso.
+static class Assinatura
+{
+    [DllImport("wintrust.dll", ExactSpelling = true, CharSet = CharSet.Unicode)]
+    static extern int WinVerifyTrust(IntPtr hwnd, [MarshalAs(UnmanagedType.LPStruct)] Guid acao, IntPtr dados);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct ArquivoConfiavel   // WINTRUST_FILE_INFO
+    {
+        public uint cbStruct;
+        [MarshalAs(UnmanagedType.LPWStr)] public string pcwszFilePath;
+        public IntPtr hFile;
+        public IntPtr pgKnownSubject;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct DadosDeConfianca   // WINTRUST_DATA
+    {
+        public uint cbStruct;
+        public IntPtr pPolicyCallbackData, pSIPClientData;
+        public uint dwUIChoice, fdwRevocationChecks, dwUnionChoice;
+        public IntPtr pFile;
+        public uint dwStateAction;
+        public IntPtr hWVTStateData, pwszURLReference;
+        public uint dwProvFlags, dwUIContext;
+        public IntPtr pSignatureSettings;
+    }
+
+    // WINTRUST_ACTION_GENERIC_VERIFY_V2: a politica de assinatura de codigo do Windows.
+    static readonly Guid VERIFICAR = new Guid("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+
+    public static bool DaCloudflare(string arquivo, out string motivo)
+    {
+        motivo = "";
+        if (!File.Exists(arquivo)) { motivo = "o arquivo não existe"; return false; }
+        var info = new ArquivoConfiavel();
+        info.cbStruct = (uint)Marshal.SizeOf(typeof(ArquivoConfiavel));
+        info.pcwszFilePath = arquivo;
+        IntPtr pInfo = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(ArquivoConfiavel)));
+        IntPtr pDados = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(DadosDeConfianca)));
+        try
+        {
+            Marshal.StructureToPtr(info, pInfo, false);
+            var d = new DadosDeConfianca();
+            d.cbStruct = (uint)Marshal.SizeOf(typeof(DadosDeConfianca));
+            d.dwUIChoice = 2;          // WTD_UI_NONE
+            d.fdwRevocationChecks = 0; // WTD_REVOKE_NONE: a revogacao pede rede, e a cadeia ja e conferida
+            d.dwUnionChoice = 1;       // WTD_CHOICE_FILE
+            d.pFile = pInfo;
+            d.dwProvFlags = 0x10;      // WTD_REVOCATION_CHECK_NONE
+            Marshal.StructureToPtr(d, pDados, false);
+            int r = WinVerifyTrust(new IntPtr(-1), VERIFICAR, pDados);
+            if (r != 0) { motivo = "assinatura digital inválida ou ausente (0x" + r.ToString("X8") + ")"; return false; }
+        }
+        finally
+        {
+            Marshal.DestroyStructure(pInfo, typeof(ArquivoConfiavel));
+            Marshal.FreeHGlobal(pInfo);
+            Marshal.FreeHGlobal(pDados);
+        }
+        try
+        {
+            var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(arquivo);
+            string assinante = cert.Subject ?? "";
+            if (assinante.IndexOf("O=\"Cloudflare, Inc.\"", StringComparison.Ordinal) < 0 &&
+                assinante.IndexOf("CN=\"Cloudflare, Inc.\"", StringComparison.Ordinal) < 0)
+            {
+                motivo = "assinado por outro: " + assinante;
+                return false;
+            }
+        }
+        catch (Exception e) { motivo = "assinante ilegível: " + e.Message; return false; }
+        return true;
     }
 }
 
@@ -209,7 +301,7 @@ static class Pacote
 class Opcoes
 {
     public string Pasta;
-    public bool AtalhoMesa = true, MenuIniciar = true, Explorer = false, Ollama = true;
+    public bool AtalhoMesa = true, MenuIniciar = true, Explorer = false, Ollama = true, Tunel = false;
 }
 
 class Andamento
@@ -245,6 +337,12 @@ static class Motor
     public static readonly string[] TIPOS = { ".pdf", ".docx", ".txt", ".md", ".xlsx" };
     const string URL_OLLAMA = "https://ollama.com/download/OllamaSetup.exe";
     const string URL_WEBVIEW2 = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+    // O cloudflared do acesso de fora (docs/acesso-de-fora.md): versao FIXA,
+    // trocada a mao por quem publica - nada de "a mais nova" baixada no
+    // escuro. E o arquivo so e usado depois de conferida a assinatura da
+    // Cloudflare (Assinatura.DaCloudflare).
+    public const string VERSAO_CLOUDFLARED = "2026.9.3";
+    const string URL_CLOUDFLARED = "https://github.com/cloudflare/cloudflared/releases/download/" + VERSAO_CLOUDFLARED + "/cloudflared-windows-amd64.exe";
 
     public static string LocalAppData { get { return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); } }
     // PAULUS_CASA troca a pasta dos dados e modelos (so para testes: o
@@ -259,6 +357,9 @@ static class Motor
     }
     public static string PastaPadrao { get { return Path.Combine(LocalAppData, "Programs", "PAULUS"); } }
     public static string OllamaExe { get { return Path.Combine(LocalAppData, "Programs", "Ollama", "ollama.exe"); } }
+    // Sem administrador, como o resto; o PAULUS procura aqui primeiro (src/acesso/tunel.py).
+    public static string PastaCloudflared { get { return Path.Combine(LocalAppData, "Programs", "PAULUS-cloudflared"); } }
+    public static string CloudflaredExe { get { return Path.Combine(PastaCloudflared, "cloudflared.exe"); } }
 
     /* A entrada no Windows de cada pasta: a pasta padrao usa "PAULUS"; outra
        pasta (um teste, um segundo PAULUS) ganha a sua, "PAULUS-<8 letras>".
@@ -418,6 +519,9 @@ static class Motor
         o.MenuIniciar = AtalhoDaPasta(AtalhoDoIniciar, o.Pasta) || !File.Exists(AtalhoDoIniciar);
         o.Explorer = MenuDoExplorerLigado(o.Pasta);
         o.Ollama = false;
+        // O cloudflared so vem numa atualizacao se o acesso de fora esta em
+        // uso e ele falta: quem nunca ligou nao precisa dele.
+        o.Tunel = !CloudflaredPresente() && AcessoDeForaEmUso();
     }
 
     static void ApagarAtalhoDaPasta(string lnk, string pasta)
@@ -436,6 +540,59 @@ static class Motor
             catch (Exception) { }
         }
         return false;
+    }
+
+    public static bool CloudflaredPresente()
+    {
+        if (File.Exists(CloudflaredExe)) return true;
+        string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if (File.Exists(Path.Combine(pf, "cloudflared", "cloudflared.exe"))) return true;
+        foreach (string p in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(';'))
+        {
+            try { if (p.Trim() != "" && File.Exists(Path.Combine(p.Trim(), "cloudflared.exe"))) return true; }
+            catch (Exception) { }
+        }
+        return false;
+    }
+
+    /* O acesso de fora ligado nesta maquina: as preferencias do PAULUS dizem. */
+    public static bool AcessoDeForaEmUso()
+    {
+        try
+        {
+            string p = Path.Combine(Casa, "dados", "preferencias.json");
+            if (!File.Exists(p)) return false;
+            return Regex.IsMatch(File.ReadAllText(p), "\"acesso_remoto\"\\s*:\\s*\\{[^}]*\"ligado\"\\s*:\\s*true");
+        }
+        catch (Exception) { return false; }
+    }
+
+    /* O tamanho do cloudflared, para a tela dizer quanto vem. */
+    public static long TamanhoDoCloudflared()
+    {
+        try
+        {
+            var req = (HttpWebRequest)WebRequest.Create(URL_CLOUDFLARED);
+            req.Method = "HEAD";
+            req.Timeout = 6000;
+            req.UserAgent = "PAULUS-instalador";
+            using (var r = (HttpWebResponse)req.GetResponse()) return r.ContentLength;
+        }
+        catch (Exception) { return 0; }
+    }
+
+    /* O cloudflared do PAULUS rodando (o tunel ligado) prende a pasta: sai. */
+    static void FecharCloudflared()
+    {
+        foreach (Process p in Process.GetProcessesByName("cloudflared"))
+        {
+            try
+            {
+                if (p.MainModule.FileName.StartsWith(PastaCloudflared + "\\", StringComparison.OrdinalIgnoreCase))
+                { p.Kill(); p.WaitForExit(5000); }
+            }
+            catch (Exception) { }
+        }
     }
 
     static string AcharOllama()
@@ -587,9 +744,11 @@ static class Motor
             throw new IOException("o instalador está incompleto (baixe de novo)");
         bool baixarOllama = o.Ollama && !OllamaPresente();
         bool baixarWebView = !WebView2Presente();
-        double fimExtrair = baixarOllama ? 40 : (baixarWebView ? 70 : 85);
+        bool baixarTunel = o.Tunel && !CloudflaredPresente();
+        double fimExtrair = baixarOllama ? 40 : (baixarWebView ? 70 : (baixarTunel ? 80 : 85));
 
-        Registro.Linha("instalando em " + pasta + (baixarOllama ? " (com Ollama)" : "") + (baixarWebView ? " (com WebView2)" : ""));
+        Registro.Linha("instalando em " + pasta + (baixarOllama ? " (com Ollama)" : "") + (baixarWebView ? " (com WebView2)" : "") +
+                       (baixarTunel ? " (com cloudflared)" : ""));
         a.Relatar(0, "Preparando…");
         Fechar(pasta);
         Directory.CreateDirectory(pasta);
@@ -676,6 +835,31 @@ static class Motor
             catch (CanceladoException) { a.Aviso += "A janela do programa (WebView2) não foi instalada: cancelado. "; }
             catch (Exception e) { a.Aviso += "A janela do programa (WebView2) não foi instalada: " + e.Message + " "; }
             p0 += 6;
+        }
+        if (baixarTunel)
+        {
+            try
+            {
+                string cf = Path.Combine(temp, "cloudflared.exe");
+                Baixar(URL_CLOUDFLARED, cf, a, p0, p0 + 3, "Baixando o acesso de fora (cloudflared)…");
+                a.Relatar(p0 + 3, "Conferindo a assinatura da Cloudflare…");
+                // Nunca executar binario que nao passou pela conferencia: sem a
+                // assinatura da Cloudflare, o arquivo sai e a instalacao segue.
+                string motivo;
+                if (!Assinatura.DaCloudflare(cf, out motivo))
+                {
+                    Apagar(cf);
+                    Registro.Linha("cloudflared recusado e apagado: " + motivo);
+                    throw new Exception("o arquivo baixado não tem a assinatura da Cloudflare e foi apagado (" + motivo + ").");
+                }
+                FecharCloudflared();
+                Directory.CreateDirectory(PastaCloudflared);
+                File.Copy(cf, CloudflaredExe, true);
+                Registro.Linha("cloudflared " + VERSAO_CLOUDFLARED + " conferido e instalado em " + PastaCloudflared);
+            }
+            catch (CanceladoException) { a.Aviso += "O acesso de fora (cloudflared) não foi instalado: cancelado. "; }
+            catch (Exception e) { a.Aviso += "O acesso de fora (cloudflared) não foi instalado: " + e.Message + " "; }
+            p0 += 4;
         }
         if (baixarOllama)
         {
@@ -945,6 +1129,14 @@ static class Motor
         }
         TentarApagarVazia(pasta);
         ReligarOllama();
+        // O cloudflared que o PAULUS instalou sai com ele: o tunel e do PAULUS,
+        // e um cloudflared rodando sem o PAULUS seria a porta de fora sem dono.
+        if (Directory.Exists(PastaCloudflared))
+        {
+            a.Relatar(85, "Removendo o acesso de fora (cloudflared)…");
+            FecharCloudflared();
+            Apagar(PastaCloudflared);
+        }
         a.Relatar(90, "Removendo atalhos e registros…");
         ApagarAtalhoDaPasta(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "PAULUS.lnk"), pasta);
         ApagarAtalhoDaPasta(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "PAULUS.lnk"), pasta);
@@ -993,6 +1185,7 @@ static class Motor
             o.MenuIniciar = !Programa.Tem("/sem-iniciar");
             o.Explorer = Programa.Tem("/com-explorer") || MenuDoExplorerLigado(o.Pasta);
             o.Ollama = !Programa.Tem("/sem-ollama");
+            o.Tunel = !Programa.Tem("/sem-acesso-de-fora") && !CloudflaredPresente();
         }
         var a = new Andamento();
         string erro = PodeEscrever(o.Pasta);
@@ -1187,7 +1380,9 @@ class Janela : Form
     Instalado instalado;
     bool temOllama = true;
     long tamanhoOllama;
-    bool abrirNoFim = true, apagarModelos, apagarDados, modoAtualizar;
+    bool temCloudflared = true;
+    long tamanhoCloudflared;
+    bool abrirNoFim = true, apagarModelos, apagarDados, modoAtualizar, configurarAcesso = true;
     double progresso;
     string acao = "", erro = "", aviso = "";
     Andamento andamento;
@@ -1222,6 +1417,10 @@ class Janela : Form
         {
             temOllama = Motor.OllamaPresente();
             o.Ollama = !temOllama;
+            // Acesso de fora: marcado em instalacao nova quando nao ha cloudflared;
+            // na atualizacao, so se ele falta e o acesso de fora esta em uso.
+            temCloudflared = Motor.CloudflaredPresente();
+            o.Tunel = !temCloudflared && (instalado == null || Motor.AcessoDeForaEmUso());
             if (instalado != null) { o.Pasta = instalado.Pasta; o.Explorer = Motor.MenuDoExplorerLigado(instalado.Pasta); tela = Tela.JaInstalado; }
             else { o.Pasta = Programa.Valor("/pasta") ?? Motor.PastaPadrao; tela = Tela.BoasVindas; }
             // Aberto pelo proprio PAULUS (Configuracoes › Versao): atualiza sem
@@ -1236,6 +1435,8 @@ class Janela : Form
             }
             if (!temOllama)
                 ThreadPool.QueueUserWorkItem(delegate { tamanhoOllama = Motor.TamanhoDoOllama(); try { BeginInvoke((Action)Invalidate); } catch (Exception) { } });
+            if (!temCloudflared)
+                ThreadPool.QueueUserWorkItem(delegate { tamanhoCloudflared = Motor.TamanhoDoCloudflared(); try { BeginInvoke((Action)Invalidate); } catch (Exception) { } });
         }
     }
 
@@ -1611,14 +1812,19 @@ class Janela : Form
             }
         }
         y += F(33) + F(10);
+        // O espaco em disco soma o cloudflared quando ele vem junto.
+        long emDisco = Pacote.TamanhoInstalado() + (o.Tunel && !temCloudflared ? Math.Max(tamanhoCloudflared, 60L << 20) : 0);
         using (Font f = Fontes.Texto(F(12), 400))
-            y = Paragrafo(g, "Pelo menos " + MB(Pacote.TamanhoInstalado()) + " livres em disco.", f, t.Tinta3, x, y, largura, F(18)) + F(14);
+            y = Paragrafo(g, "Pelo menos " + MB(emDisco) + " livres em disco.", f, t.Tinta3, x, y, largura, F(18)) + F(14);
         y = Caixa(g, "Criar um atalho na área de trabalho", o.AtalhoMesa, x, y, largura, "mesa", delegate { o.AtalhoMesa = !o.AtalhoMesa; Invalidate(); }) + F(10);
         y = Caixa(g, "Adicionar ao menu Iniciar", o.MenuIniciar, x, y, largura, "iniciar", delegate { o.MenuIniciar = !o.MenuIniciar; Invalidate(); }) + F(10);
         y = Caixa(g, "“Perguntar ao PAULUS” no botão direito do Explorer", o.Explorer, x, y, largura, "explorer", delegate { o.Explorer = !o.Explorer; Invalidate(); }) + F(10);
         if (!temOllama)
-            Caixa(g, "Instalar o motor de IA local (Ollama · baixa " + (tamanhoOllama > 0 ? MB(tamanhoOllama) : "mais de 1 GB") + " de ollama.com)",
-                  o.Ollama, x, y, largura, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); });
+            y = Caixa(g, "Instalar o motor de IA local (Ollama · baixa " + (tamanhoOllama > 0 ? MB(tamanhoOllama) : "mais de 1 GB") + " de ollama.com)",
+                      o.Ollama, x, y, largura, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); }) + F(10);
+        if (!temCloudflared)
+            Caixa(g, "Acesso de fora pelo celular (baixa " + (tamanhoCloudflared > 0 ? MB(tamanhoCloudflared) : "uns 55 MB") + " de github.com)",
+                  o.Tunel, x, y, largura, "tunel", delegate { o.Tunel = !o.Tunel; Invalidate(); });
         Rodape(g, x, rodape, true, delegate { tela = instalado != null ? Tela.JaInstalado : Tela.BoasVindas; Invalidate(); },
                true, atualizacao ? "Atualizar" : "Instalar", PedirParaInstalar);
     }
@@ -1652,7 +1858,12 @@ class Janela : Form
         y = Titulo(g, "O PAULUS está instalado.", x, y, largura);
         y = Texto(g, "Ao abrir, o assistente de configuração faz um teste rápido desta máquina, recomenda o modelo de IA e ajuda a criar ou entrar no seu escritório.", x, y, largura, t.Tinta2);
         if (aviso != "") y = Texto(g, aviso.Trim() + " A tela inicial do PAULUS mostra como seguir.", x, y, largura, t.Tinta);
-        Caixa(g, "Abrir o PAULUS agora", abrirNoFim, x, y + F(2), largura, "abrir", delegate { abrirNoFim = !abrirNoFim; Invalidate(); });
+        y = Caixa(g, "Abrir o PAULUS agora", abrirNoFim, x, y + F(2), largura, "abrir", delegate { abrirNoFim = !abrirNoFim; Invalidate(); }) + F(10);
+        // O cloudflared veio nesta instalacao: o passo seguinte e conectar,
+        // em Configuracoes › Acesso de fora - o PAULUS abre direto nele.
+        if (o.Tunel && Motor.CloudflaredPresente() && !modoAtualizar)
+            Caixa(g, "Configurar o acesso de fora agora", abrirNoFim && configurarAcesso, x, y, largura, "configurar-acesso",
+                  delegate { configurarAcesso = !configurarAcesso; if (configurarAcesso) abrirNoFim = true; Invalidate(); });
         Rodape(g, x, rodape, false, null, false, "Concluir", Concluir);
     }
 
@@ -1856,7 +2067,12 @@ class Janela : Form
     {
         if (abrirNoFim)
         {
-            try { Process.Start(new ProcessStartInfo(Path.Combine(o.Pasta, "PAULUS.exe")) { WorkingDirectory = o.Pasta, UseShellExecute = true }); }
+            bool acesso = configurarAcesso && o.Tunel && Motor.CloudflaredPresente() && !modoAtualizar;
+            try
+            {
+                Process.Start(new ProcessStartInfo(Path.Combine(o.Pasta, "PAULUS.exe"), acesso ? "--configurar-acesso" : "")
+                { WorkingDirectory = o.Pasta, UseShellExecute = true });
+            }
             catch (Exception e) { Registro.Linha("nao abri o PAULUS: " + e.Message); }
         }
         Close();

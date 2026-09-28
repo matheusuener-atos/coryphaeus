@@ -25,10 +25,17 @@
   .acesso-codigos code { padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
     font: 500 14px/1.3 var(--mono); letter-spacing: .08em; text-align: center; color: var(--ink); }
 
-  .acesso-endereco { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .acesso-endereco { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
   .acesso-endereco code { font: 500 14px/1.4 var(--mono); color: var(--ink); padding: 8px 12px; border: 1px solid var(--ink-a1);
     border-radius: 8px; background: var(--sub); user-select: all; }
-  .acesso-codigo-usuario { font: 600 26px/1.2 var(--mono); letter-spacing: .18em; color: var(--ink); }
+  .acesso-codigo-usuario { font: 600 26px/1.2 var(--mono); letter-spacing: .18em; color: var(--ink); margin: 14px 0 6px; }
+
+  /* O assistente de conexao (js/43-acesso-tunel.js). */
+  .acesso-passos { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+  .acesso-faltas { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.5; color: var(--acc); }
+  .acesso-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px 16px; }
+  .acesso-form .ag-campo { margin: 0; }
+  .acesso-quem { margin-top: 12px; }
 
   @media (max-width: 560px) {
     .acesso-qr-bloco { grid-template-columns: minmax(0, 1fr); justify-items: center; }
