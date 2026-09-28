@@ -100,6 +100,7 @@ from base import Base
 from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
 import tarefas as tarefas_mod
+from fila_modelo import FilaCheia, FilaDoModelo
 from tarefas import Tarefas
 from habilidade_base import (
     PRECISA_ASSISTENTE,
@@ -281,6 +282,10 @@ class Estado:
         # O que esta maquina ja mediu de si: quanto le e quanto escreve por
         # segundo. E daqui que sai o "leituras assim levaram ~70 s aqui".
         self.ritmo = ritmo_mod.Ritmo(RITMO_PATH)
+        # A fila do modelo (src/fila_modelo.py): uma pergunta por vez, na
+        # ordem de chegada, com a previsao tirada do ritmo medido aqui.
+        self.fila_modelo = FilaDoModelo(
+            segundos_por_resposta=lambda: self.ritmo.segundos_por_resposta(self.client.model))
         # Financeiro, bem-estar e conexoes; relatorios so le o que os outros gravaram.
         self.financeiro = financeiro.Financeiro(self.base)
         # A folha, as notas e os boletos: o escritorio por dentro.
@@ -2952,6 +2957,8 @@ def acontecendo_agora() -> dict:
                     "previsao_s": a["previsao_s"],
                     "palavras": a["palavras"],
                     "documentos": a["documentos"],
+                    # Na fila do modelo: quantas perguntas estao na frente.
+                    "posicao": a.get("posicao", 0),
                 }
             executando.append(item)
 
@@ -3037,8 +3044,14 @@ def trabalhos_parar(id_: str) -> dict:
     return {"parando": False, "estado": trabalho.estado}
 
 
+def _dono_da_vez(request: Request | None) -> str:
+    """De quem e a pergunta, para a fila do modelo: a janela local, ou a conta de fora."""
+    p = rotas_do_acesso.pessoa(request)
+    return f"conta:{p['conta_id']}" if p else "local"
+
+
 @app.post("/api/trabalhos/{id_}/perguntar")
-def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
+def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) -> StreamingResponse:
     """
     Pergunta dentro de um trabalho.
 
@@ -3050,6 +3063,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         raise HTTPException(status_code=404, detail="trabalho nao encontrado")
     if not payload.pergunta.strip():
         raise HTTPException(status_code=400, detail="pergunta vazia")
+    # A 3a pergunta da mesma pessoa, com duas na fila do modelo, e recusada
+    # ANTES de entrar no historico: nada fica pela metade na conversa.
+    dono = _dono_da_vez(request)
+    if not estado.fila_modelo.cabe(dono):
+        raise HTTPException(status_code=429, detail="você já tem 2 perguntas na fila do modelo; "
+                                                    "espere uma terminar para mandar outra")
 
     habilidade = estado.registro.obter("perguntar")
     if not habilidade or not habilidade.executavel:
@@ -3170,12 +3189,18 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         try:
             yield from _gerar()
         finally:
+            # A vez no modelo volta para a fila em qualquer saida: fim,
+            # parar, erro ou a pagina que fechou no meio.
+            if na_fila["vez"] is not None:
+                estado.fila_modelo.sair(na_fila["vez"])
             estado.andamento.pop(id_, None)
             if estado.respondendo.get(id_) is parar:
                 del estado.respondendo[id_]
             if trabalho.estado == EXECUTANDO:
                 pausar_o_que_executava()
                 estado.trabalhos.salvar(trabalho)
+
+    na_fila: dict = {"vez": None}
 
     def _gerar() -> Iterator[str]:
         import time
@@ -3191,6 +3216,38 @@ def trabalhos_perguntar(id_: str, payload: Pergunta) -> StreamingResponse:
         def fase(nome: str) -> None:
             andamento["fase"] = nome
             andamento["desde"] = time.time()
+
+        # A vez no modelo (src/fila_modelo.py). A vez e pega aqui, dentro da
+        # resposta, e nao na rota: se a pagina fechar antes de a resposta
+        # comecar, nenhum lugar fica preso na fila. Sem ninguem na frente,
+        # passa direto e nada aparece; com alguem, a tela ve a posicao.
+        try:
+            na_fila["vez"] = estado.fila_modelo.entrar(dono, rotulo=trabalho.titulo)
+        except FilaCheia as exc:
+            trabalho.estado = PAUSADO
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": str(exc)})
+            return
+        ultima_posicao = -1
+        while not estado.fila_modelo.esperar(na_fila["vez"], timeout=0.5):
+            if parar.is_set():
+                break
+            posicao = estado.fila_modelo.posicao(na_fila["vez"])
+            if posicao != ultima_posicao:
+                ultima_posicao = posicao
+                previsao_fila = estado.fila_modelo.previsao(na_fila["vez"])
+                fase("fila")
+                andamento.update(posicao=posicao, previsao_s=previsao_fila)
+                yield _sse("fila", {"posicao": posicao, "previsao_s": previsao_fila})
+        if parar.is_set():
+            pausar_o_que_executava()
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo,
+                                  "escreveu": False})
+            return
+        if ultima_posicao >= 0:
+            fase("procurando")
+            andamento["previsao_s"] = 0
         medida: dict = {}
         lido_chars = 0
         # O nivel com que a camada respondeu, quando ela respondeu. Nulo quer
@@ -9571,7 +9628,7 @@ def servicos_resumo(id_: int) -> dict:
 
 
 @app.post("/api/servicos/{id_}/conversar")
-def servicos_conversar(id_: int, payload: dict) -> dict:
+def servicos_conversar(id_: int, payload: dict, request: Request = None) -> dict:
     """
     Conversar sobre a pasta, da caixa de pedido dela.
 
@@ -9579,6 +9636,9 @@ def servicos_conversar(id_: int, payload: dict) -> dict:
     para a conversa continuar -, responde, e a pergunta com a resposta entram
     no historico da pasta. Como o resumo, nao le os arquivos: isso e a
     conversa do Assistente, que tem o Acervo.
+
+    Entra na mesma fila do modelo que a conversa do Assistente: e o mesmo
+    modelo, e a vez e uma so.
     """
     pergunta = " ".join(str(payload.get("pergunta", "")).split())
     if not pergunta:
@@ -9590,10 +9650,18 @@ def servicos_conversar(id_: int, payload: dict) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
+        vez = estado.fila_modelo.entrar(_dono_da_vez(request), rotulo=s.get("titulo", "") if isinstance(s, dict) else "")
+    except FilaCheia as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    try:
+        if not estado.fila_modelo.esperar(vez, timeout=600):
+            raise HTTPException(status_code=503, detail="o modelo ficou ocupado demais; tente de novo")
         resposta = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
                                      estado.servicos.texto_para_conversa(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    finally:
+        estado.fila_modelo.sair(vez)
     estado.servicos.conversar(id_, pergunta, _limpar_sugestao(resposta), _quem_sou())
     return estado.servicos.obter(id_) or {}
 

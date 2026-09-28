@@ -104,6 +104,15 @@ class Ritmo:
                  if x.get("escrevendo") and x.get("palavras")]
         return median(taxas) if taxas else 0.0
 
+    def segundos_por_resposta(self, modelo: str) -> float:
+        """
+        Quanto uma resposta inteira (ler + escrever) leva aqui, pela mediana.
+        E o que a fila do modelo usa para dizer "voce e o 2o, ~40 s". Zero se
+        ainda nao ha medida - e a fila entao so diz a posicao.
+        """
+        tempos = [x.get("lendo", 0) + x.get("escrevendo", 0) for x in self._de(modelo) if x.get("lendo")]
+        return float(median(tempos)) if tempos else 0.0
+
     def previsao_de_leitura(self, modelo: str, caracteres: int) -> dict:
         """
         Quanto deve levar para ler este tanto — e de onde saiu esse palpite.

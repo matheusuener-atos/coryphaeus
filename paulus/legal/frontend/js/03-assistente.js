@@ -1313,7 +1313,8 @@ async function enviar(opcoes) {
       body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos) }, envio)),
       signal: estado.controle.signal,
     });
-    if (!r.ok) throw new Error("não consegui responder");
+    // A fila do modelo cheia (429) diz por que; o resto, o de sempre.
+    if (!r.ok) throw new Error(r.status === 429 ? await erroDe(r) : "não consegui responder");
 
     const leitor = r.body.getReader();
     const dec = new TextDecoder();
@@ -1353,6 +1354,13 @@ async function enviar(opcoes) {
           resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
           citados = new Set(dados.trechos.map((f) => f.documento)).size;
           desenharTrechos(dados.trechos, pedido, resposta.querySelector(".visor-caixa"));
+        } else if (mt[1] === "fila") {
+          /* O modelo desta máquina responde uma pergunta por vez, e alguém
+             chegou antes (src/fila_modelo.py). A linha viva diz a posição;
+             quando a vez chega, a fase seguinte a substitui. */
+          const texto = textoDaFila(dados);
+          if (bastidor.fase !== "fila") faseBastidor("fila", texto);
+          else if (bastidor.vivaEl) bastidor.vivaEl.textContent = texto;
         } else if (mt[1] === "lendo") {
           anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
             dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
@@ -1920,16 +1928,23 @@ function andamentoDoCartao(t) {
   if (!a) return '<div class="rodape">' + esc(t.etapa || "trabalhando") + "</div>";
   const docs = a.documentos ? plural(a.documentos, "documento") : "os documentos";
   const vivo = ' data-andamento="1" data-fase="' + a.fase + '" data-fase-s="' + a.fase_s + '" data-previsao="' + (a.previsao_s || 0) +
-    '" data-palavras="' + (a.palavras || 0) + '" data-docs="' + esc(docs) + '" data-recebido="' + Date.now() + '"';
+    '" data-palavras="' + (a.palavras || 0) + '" data-docs="' + esc(docs) + '" data-posicao="' + (a.posicao || 0) + '" data-recebido="' + Date.now() + '"';
   if ((a.fase === "lendo" || a.fase === "documento") && a.previsao_s) {
     const pct = Math.min(95, (a.fase_s / a.previsao_s) * 100);
     return '<div class="barra-fina"' + vivo + '><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
-      '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs) + "</div>";
+      '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs, a.posicao) + "</div>";
   }
-  return '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs) + "</div>";
+  return '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs, a.posicao) + "</div>";
 }
 
-function textoDoAndamento(fase, s, previsao, palavras, docs) {
+/* "Na fila: você é o 2º, ~40 s". A previsão só aparece quando esta máquina
+   já mediu respostas (src/ritmo.py); sem medida, só a posição. */
+function textoDaFila(d) {
+  return "na fila do modelo: você é o " + (d.posicao || 1) + "º" + (d.previsao_s ? ", ~" + segundosCurtos(d.previsao_s) : "");
+}
+
+function textoDoAndamento(fase, s, previsao, palavras, docs, posicao) {
+  if (fase === "fila") return "Na fila do modelo · " + (posicao || 1) + "º" + (previsao ? " · ~" + segundosCurtos(previsao) : "");
   if (fase === "entendendo") return "Entendendo o pedido · " + segundosCurtos(s);
   if (fase === "documento") {
     return "Escrevendo no documento · " + segundosCurtos(s) + (previsao ? " de ~" + segundosCurtos(previsao) : "");
@@ -1950,7 +1965,7 @@ setInterval(() => {
     const previsao = Number(el.dataset.previsao);
     const barra = el.querySelector("i");
     if (barra && previsao) barra.style.width = Math.min(95, (s / previsao) * 100).toFixed(1) + "%";
-    if (!barra) el.textContent = textoDoAndamento(el.dataset.fase, s, previsao, Number(el.dataset.palavras), el.dataset.docs || "os documentos");
+    if (!barra) el.textContent = textoDoAndamento(el.dataset.fase, s, previsao, Number(el.dataset.palavras), el.dataset.docs || "os documentos", Number(el.dataset.posicao));
   });
 }, 500);
 

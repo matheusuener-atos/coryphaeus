@@ -1274,3 +1274,66 @@ da senha do e-mail" eram iguais para a tela, que mandaria para o login quem só
 esqueceu a senha do e-mail. O do porteiro passou a vir com
 `X-PAULUS-Sessao: acabou`. E a opacidade dos itens bloqueados não pegava no
 trilho: a animação de entrada vence a declaração; vai no ícone e no rótulo.
+
+## R4 — A fila do modelo ✓ FEITA
+
+O modelo desta máquina responde uma pergunta por vez. Com uma pessoa só,
+ninguém percebia. Com o escritório perguntando daqui e o advogado do celular,
+as duas respostas disputariam o mesmo processador — as duas mais lentas, e
+sem ninguém saber por quê.
+
+`src/fila_modelo.py`: uma fila única, na ordem de chegada, com no máximo
+**duas perguntas por pessoa** (a que está sendo respondida conta). Quem
+espera vê a posição e a previsão — "na fila do modelo: você é o 2º, ~40 s" —,
+e a previsão sai da mediana do que esta máquina já levou para responder
+(`ritmo.segundos_por_resposta`). Sem medida, só a posição. Com uma pessoa
+só, a fila é invisível: ninguém espera, nada aparece.
+
+Parar tira da fila, ou interrompe só a própria resposta. O trabalho de
+segundo plano chama `ceder()` entre um item e outro e espera enquanto houver
+pergunta. A conversa sobre um Serviço entra na mesma fila: é o mesmo modelo.
+
+A vez é pega **dentro** da resposta em andamento, e não na rota: se a
+página fechar antes de a resposta começar, nenhum lugar fica preso na fila.
+A terceira pergunta é recusada antes de entrar no histórico da conversa.
+
+**Medido** com um modelo de mentira que escreve a própria pergunta em cada
+palavra e dorme entre elas: duas pessoas ao mesmo tempo, nunca mais de uma
+resposta andando, nenhuma palavra trocada, ordem de chegada respeitada, e
+quem esperou viu "1º na fila"; a terceira da mesma pessoa, 429 com a frase;
+parar A no meio e B termina inteira.
+
+**O que a verificação achou:** o servidor relê a pasta ao subir e troca o
+índice — o documento posto direto no índice sumia antes da primeira
+pergunta. O teste passou a pôr o arquivo na pasta do Acervo.
+
+## R5 — O Worker cria o caminho de cada escritório ⏸ ESPERA O PAINEL
+
+O advogado não pode precisar de conta Cloudflare. O Worker de
+`paulus.ia.br` (`worker/tunel.js`) cria tudo na conta do Atos, sob demanda,
+com o fluxo de autorização de dispositivo: o PAULUS pede, recebe um código
+curto (`XXXX-XXXX`), o titular abre `paulus.ia.br/conectar`, confirma o
+e-mail pelo Cloudflare Access e aperta Confirmar. O Worker então cria o
+túnel gerenciado remotamente, o ingress para `127.0.0.1:<porta>` (o resto
+404), o CNAME com proxy, a política e a aplicação do Access (sessão de 12 h,
+só o e-mail do titular), e entrega o token do túnel ao PAULUS **uma vez**.
+
+Falha em qualquer passo desfaz os anteriores: escritório pela metade na
+conta do Atos é lixo que ninguém vê. O KV guarda só o hash do segredo de
+cada instalação. O Worker confere o JWT do Access com a chave pelo `kid`,
+`aud` e `iss`, e nunca atende `<escritório>.paulus.ia.br` — esse tráfego vai
+direto ao túnel; se uma rota curinga apontar para ele por engano, 404.
+
+Tudo atrás de `TUNEL_ATIVO` e do KV `ESCRITORIOS`: sem os dois, as rotas não
+existem, e o código pode ir ao ar no deploy de cada push sem ligar nada.
+
+**Medido** (`worker/teste-tunel.mjs`, API da Cloudflare e Access de mentira,
+JWT assinado de verdade com chave gerada no teste): fluxo completo; entrega
+uma vez só; JWT de outro e-mail, de outra chave, de outra aplicação e
+vencido, recusados; falha na criação da aplicação desfaz túnel, DNS e
+política; segredo errado 401; limite de escritórios; `TUNEL_ATIVO` ausente,
+404.
+
+**Falta** o que só o dono da conta faz no painel: token de API, KV, a
+aplicação do Access de `/conectar`, os segredos e ligar `TUNEL_ATIVO`. A
+lista passo a passo está em `docs/PROGRESSO-IMPLEMENTACAO.md`.
