@@ -46,7 +46,7 @@ etapa que não estiver `feita`.
 | I3 | Nível 0 por molde | feita | branch `i3-molde` | 5 factuais sem modelo, mediana 5 ms, sem fila; dígito trocado rejeitado; roteiro 40/41; demo 25/27, p50 6,2 s, p95 17,2 s |
 | I4 | Memória da conversa | feita | branch `i4-memoria` | 9/9 continuações herdam o sujeito, 18/18 outras intactas; histórico ≤ 600 tokens; demo 26/27 (continuação 9/9, era 8/9); roteiro 40/41 |
 | I5 | Chunking estrutural | feita | branch `i5-trechos` | ids estáveis (mesmo doc e reindexação); toda página; nenhuma seção cortada; roteiro 40/41 (mediana 8,8 s); demo 26/27, p50 9,2 s, R@6 0,95; suíte 71 ok |
-| I6 | FTS5 com normalização jurídica | pendente | | |
+| I6 | FTS5 com normalização jurídica | feita | branch `i6-fts` | 4 exemplos iguais nos dois lados; mesma ordem; incremental; linha de base só-léxico R@20 0,96 · R@6 0,95 · MRR@6 0,87; roteiro 40/41; demo 26/27, p50 7,9 s; suíte 71 ok |
 | I7 | Denso + RRF + reranker, virada do "ler tudo" | pendente | | |
 | I8 | Contrato de resposta `[Tn]` | pendente | | |
 | I9 | A IA ajuda sem ser perguntada | pendente | | |
@@ -119,6 +119,7 @@ etapa que não estiver `feita`.
   - B, cláusula longa em janelas: `[chunk_… p.2-3] Contrato ACME > CLÁUSULA 7ª - DA OBRIGAÇÃO NÚMERO 7 / no mês 57, com a assinatura do responsável. Item 58 da cláusula sétima…` — a janela continua dentro da cláusula 7 e atravessa a quebra de página.
   - B, cláusulas curtas juntas: `[chunk_… p.1-1] Contrato ACME > CLÁUSULA 2ª … + CLÁUSULA 3ª …` — duas inteiras, nenhuma cortada.
   - A, artigo com parágrafo e incisos: `[chunk_… ] Lei 99999 > Art. 3º / Art. 3º O teste número 3… § 1º O parágrafo do artigo 3… I - inciso primeiro…`.
+- **I6** O FTS5 só é usado com trechos estruturais (precisa do `chunk_id`); com `ia.trechos_estruturais` desligada, volta o rank_bm25. A consulta vai em OU (cada termo entre aspas): em E, uma palavra a mais na pergunta zerava o resultado.
 
 ## Pendente do usuário
 

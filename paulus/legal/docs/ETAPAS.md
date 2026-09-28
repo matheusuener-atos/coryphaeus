@@ -1677,3 +1677,30 @@ A multa é…" na mesma linha — o cabeçalho só era reconhecido em linha curt
 Agora a linha que começa por CLÁUSULA abre seção, qualquer que seja o
 tamanho dela.
 
+## I6 — Índice léxico em FTS5, com uma normalização jurídica só ✓ FEITA
+
+O BM25 de antes (rank_bm25) morava na memória e era refeito do zero a cada
+abertura, com o acervo inteiro tokenizado de novo. Agora (`src/lexico.py`)
+o índice fica em disco, em SQLite FTS5 (`data/indice/lexico.db`,
+`unicode61 remove_diacritics 2` sobre o `text_embed`), incremental por
+versão: arquivo que não mudou não é reindexado, e o que saiu do Acervo sai do
+índice.
+
+**Uma única normalização para indexar e para consultar** — se o texto vira
+"art 300" e a pergunta "art. 300", nada casa e ninguém vê o erro. Ela
+reaproveita `normalize` e `radical` de `search.py` e acrescenta o que é da
+escrita jurídica: `art. 300 → art 300`, `§1º → par 1`, `13.105/2015 → 13105
+2015`, `S. 331 TST → sumula 331 tst` (e "Súmula 331 do TST", "parágrafo
+único", "2ª"). Números de um dígito ficam — o "5" de "art. 5" é o que se
+procura. O filtro por documento vale antes de ordenar; empate desempata pelo
+id (mesma consulta, mesma ordem); o complemento por presença de termos
+continua quando falta resultado. Substitui o rank_bm25 atrás de
+`ia.lexico_fts` (o material de consulta segue no BM25 de antes).
+
+**Medido:** os quatro exemplos normalizam igual dos dois lados; "S. 331
+TST", "súmula 331 do TST" e "parágrafo 1 do artigo 300" acham o trecho certo;
+abrir de novo não reindexa nada. **Linha de base só-léxico** na
+demonstração: Recall@20 0,96, Recall@6 0,95, MRR@6 0,87. Roteiro `--tudo`
+40/41 (igual), mediana 7,6 s; demo 26/27, p50 7,9 s. Suíte: 71 passam; o
+test_tela caiu uma vez com o segfault intermitente de antes (código 139).
+
