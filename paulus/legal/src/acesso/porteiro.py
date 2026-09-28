@@ -10,6 +10,8 @@ o cancelamento se perdia no meio do embrulho. Aqui a resposta passa direto.
 
 from __future__ import annotations
 
+import contextvars
+
 import json
 from http.cookies import SimpleCookie
 
@@ -67,6 +69,13 @@ async def recusar(scope, send, status: int = 403, mensagem: str = "", extra: lis
         await responder(send, status, PAGINA_RECUSADA.encode("utf-8"), "text/html; charset=utf-8")
 
 
+# Quem fez o pedido que esta sendo atendido agora: a sessao de fora, ou None
+# na janela local. As rotas que nao recebem o `request` (as do e-mail, que
+# escolhem a conta) leem daqui - src/equipe.py, E3b. O porteiro poe o valor a
+# cada pedido, antes de tudo, para nada vazar de um pedido para o outro.
+PESSOA_DA_VEZ: contextvars.ContextVar = contextvars.ContextVar("paulus_pessoa_da_vez", default=None)
+
+
 class Porteiro:
     """
     Local passa como sempre passou. Remoto passa por `remoto`, que decide -
@@ -87,6 +96,7 @@ class Porteiro:
         if scope.get("type") == "http" and scope.get("path") == "/entrar-local":
             await self._entrar_local(scope, send)
             return
+        PESSOA_DA_VEZ.set(None)
         cab = cabecalhos(scope)
         local = self.chave.e_local(cab.get(CABECALHO), cookies(cab).get(COOKIE))
         scope.setdefault("state", {})["paulus_local"] = local

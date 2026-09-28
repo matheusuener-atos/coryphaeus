@@ -24,7 +24,7 @@ Mudança de regra de negócio pedida em 28/09/2026: o PAULUS fica instalado
 | E2 | Quem mexe no quê: permissão por pessoa e por módulo (não vê / só vê / propõe / faz) e quem aprova | feita (tests/test_e2_permissoes.py) |
 | E4 | Só no servidor: sai o "entrar num escritório existente" (vínculo por código); entra o convite | feita (tests/test_e4_convite.py) |
 | E3a | Entrar com o Google + código do celular, no convite e na tela de entrar | feita (tests/test_e3_google.py, worker/teste-tunel.mjs); ⏸ cliente web no Google Cloud |
-| E3b | E-mail, Agenda e Drive da conta de quem entrou | a fazer |
+| E3b | E-mail, Agenda e Drive da conta de quem entrou ("Conectar o meu Google" em Minha conta) | feita (tests/test_e3b_google_da_pessoa.py); ⏸ os mesmos passos do Google Cloud |
 
 ## ⏸ E3a — o que o dono faz no Google Cloud (uma vez)
 

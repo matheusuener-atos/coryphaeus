@@ -96,7 +96,10 @@ class Google:
     def __init__(self, token_de, sessao=None) -> None:
         self.token_de = token_de
         self.sessao = sessao or requests.Session()
-        self._cache_eventos: dict[tuple[str, str], tuple[float, list[dict]]] = {}
+        self._cache_eventos: dict[tuple, tuple[float, list[dict]]] = {}
+        # De quem e a agenda lida agora (E3b: de fora, cada pessoa ve a dela):
+        # entra na chave do cache, para um nao ver o do outro.
+        self.quem = lambda: ""
 
     def _chamar(self, servico: str, metodo: str, url: str, **kw) -> dict:
         kw.setdefault("timeout", TEMPO_REDE)
@@ -184,7 +187,7 @@ class Google:
         PAULUS criou (esses já estão na Agenda). Só para ler: a tela mostra,
         não edita.
         """
-        chave = (de, ate)
+        chave = (self.quem(), de, ate)
         guardado = self._cache_eventos.get(chave)
         if guardado and time.time() - guardado[0] < validade:
             return guardado[1]

@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 
 from acesso import permissoes, politicas
-from acesso.porteiro import cookies, recusar, responder
+from acesso.porteiro import PESSOA_DA_VEZ, cookies, recusar, responder
 
 COOKIE_SESSAO = "paulus_sessao"
 CABECALHO_CSRF = "x-paulus-csrf"
@@ -147,6 +147,7 @@ class PortaoRemoto:
         politica = politicas.de(metodo, getattr(rota, "path", None))
         sessao = self.contas.sessao(cookies(cab).get(COOKIE_SESSAO))
         estado["paulus_pessoa"] = sessao
+        PESSOA_DA_VEZ.set(sessao)
 
         if metodo == "GET" and politicas.pagina_do_convite(caminho_puro):
             # Com ou sem sessao: o convite e para quem ainda nao tem conta.

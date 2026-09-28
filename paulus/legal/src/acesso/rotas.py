@@ -145,7 +145,10 @@ def montar(servico, r) -> None:
                 "pessoa": {"nome": p["nome"], "email": p["email"], "papel": p["papel"]},
                 # O menu esconde o que a pessoa nao ve e abre o que o nivel
                 # libera (E2); quem decide de verdade e o portao.
-                "permissoes": permissoes.para_a_tela(p.get("permissoes") or {})}
+                "permissoes": permissoes.para_a_tela(p.get("permissoes") or {}),
+                # O Google de trabalho da pessoa (E3b): e-mail, Agenda e Drive dela.
+                "google": servico.google_da_pessoa(p["conta_id"]) if hasattr(servico, "google_da_pessoa") else "",
+                "google_disponivel": servico.google.disponivel()}
 
     @r.get("/api/acesso/entrar/config")
     def entrar_config() -> dict:
@@ -364,14 +367,22 @@ def montar(servico, r) -> None:
     @r.post("/api/acesso/google/iniciar")
     def google_iniciar(dados: IrAoGoogle, request: Request):
         """O endereco do Google, e o cookie que amarra a volta a este navegador."""
-        _anti_robo(request, dados.turnstile)
+        conta_id = 0
+        if dados.finalidade == "servicos":
+            # Conectar o proprio Google (E3b): so quem ja entrou, de fora.
+            p = pessoa(request)
+            if not p:
+                raise HTTPException(status_code=403, detail="entre com a sua conta antes de conectar o Google")
+            conta_id = p["conta_id"]
+        else:
+            _anti_robo(request, dados.turnstile)
         if dados.finalidade == "convite":
             try:
                 servico.convites.ver(dados.convite)
             except ErroConvite as exc:
                 raise HTTPException(status_code=410, detail=str(exc)) from exc
         try:
-            url, nonce = servico.google.iniciar(dados.finalidade, dados.convite)
+            url, nonce = servico.google.iniciar(dados.finalidade, dados.convite, conta_id)
         except ErroGoogle as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         resp = JSONResponse({"url": url})
@@ -402,6 +413,16 @@ def montar(servico, r) -> None:
             quem = servico.google.retorno(code, state, request.cookies.get(COOKIE_GOOGLE, ""))
         except ErroGoogle as exc:
             return voltar("/#erro=" + quote(str(exc)))
+        if quem["finalidade"] == "servicos":
+            ligar = getattr(servico, "ligar_google", None)
+            if ligar is None or not quem["tokens"].get("refresh_token"):
+                return voltar("/#google-erro=" + quote("o Google não deu a autorização duradoura; tente de novo"))
+            try:
+                ligar(quem["conta_id"], quem["email"], quem["nome"], quem["tokens"])
+            except ValueError as exc:
+                return voltar("/#google-erro=" + quote(str(exc)))
+            servico.anotar(acao="google", alvo=quem["email"], ip=ip)
+            return voltar("/#google=" + quote(quem["email"]))
         if quem["finalidade"] == "convite":
             try:
                 token = servico.convites.aceitar_google(quem["convite"], quem["email"])

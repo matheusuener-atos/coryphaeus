@@ -281,6 +281,8 @@ class Estado:
         self.entrada_oauth: correio_oauth.Entrada | None = None
         # A conta Google alem do Gmail: Agenda, Meet e Drive (src/google_servicos.py).
         self.google = google_servicos.Google(self._token_google)
+        # A agenda lida e a de quem pede (E3b): o cache e por conta.
+        self.google.quem = lambda: (lambda c: c.email if c else "")(self.conta_google())
         # Documentos de texto e planilhas, com historico de versoes.
         self.documentos = documento.Documentos(self.base)
         self.comentarios = documento.Comentarios(self.base)
@@ -397,9 +399,19 @@ class Estado:
                 self.fila_voz.task_done()
 
     def conta_google(self):
-        """A conta Google em uso: a escolhida em Conexoes, ou a primeira que entrou pelo Google."""
+        """
+        A conta Google em uso. De fora, a da propria pessoa, quando ela
+        conectou a dela (E3b); senao - e na janela do servidor - a escolhida
+        em Conexoes ou a primeira do escritorio que entrou pelo Google.
+        """
+        pessoa = equipe.pessoa_da_vez()
+        if pessoa is not None:
+            propria = next((c for c in self.contas.itens if c.autenticacao == "google"
+                            and int(c.dono or 0) == int(pessoa["conta_id"])), None)
+            if propria:
+                return propria
         preferida = str((self.prefs.dados.get("google") or {}).get("conta", "")).lower()
-        contas = [c for c in self.contas.itens if c.autenticacao == "google"]
+        contas = [c for c in self.contas.itens if c.autenticacao == "google" and not int(c.dono or 0)]
         return next((c for c in contas if c.email.lower() == preferida), contas[0] if contas else None)
 
     def _token_google(self) -> str:
@@ -686,6 +698,26 @@ estado.acesso_de_fora.app = app
 # O assistente de conexao (R7): pedir o endereco ao Worker de paulus.ia.br,
 # esperar o titular confirmar, e depois manter a lista de e-mails.
 estado.acesso_de_fora.conexao = ConexaoDoTunel(estado.acesso_de_fora)
+
+
+def _ligar_google_da_pessoa(conta_id: int, email: str, nome: str, dados: dict):
+    """
+    O Google de uma pessoa da equipe, autorizado de fora (E3b): vira uma conta
+    de e-mail dela (dono = a conta do acesso), entrando pelo cliente web - e a
+    Agenda e o Drive dela vem na mesma autorizacao.
+    """
+    tokens = {"access_token": dados.get("access_token", ""), "refresh_token": dados.get("refresh_token", ""),
+              "expira_em": time.time() + float(dados.get("expires_in") or 3600), "scope": dados.get("scope", "")}
+    return estado.contas.ligar_oauth("google", email, nome, tokens, dono=int(conta_id), cliente="google_web")
+
+
+def _google_da_pessoa(conta_id: int) -> str:
+    c = next((c for c in estado.contas.itens if c.autenticacao == "google" and int(c.dono or 0) == int(conta_id)), None)
+    return c.email if c else ""
+
+
+estado.acesso_de_fora.ligar_google = _ligar_google_da_pessoa
+estado.acesso_de_fora.google_da_pessoa = _google_da_pessoa
 rotas_do_tunel.montar(estado.acesso_de_fora, estado.acesso_de_fora.conexao, app)
 # "Quem acessou" (R8): a tela e o PDF, so na janela local.
 rotas_da_auditoria.montar(estado.acesso_de_fora, app)
@@ -4868,14 +4900,35 @@ def _executar_exportar(pedido) -> str:
     return f"{copiados} documento(s) copiado(s) para {destino}"
 
 
+def _google_da_conta(email: str):
+    """Os servicos do Google de UMA conta, pelo e-mail (o Drive de quem pediu, E3b)."""
+    conta = estado.contas.por_email(email) if email else None
+    if conta is None or conta.autenticacao != "google":
+        return estado.google
+
+    def token() -> str:
+        try:
+            return estado.contas.credencial(conta)
+        except correio_oauth.ErroOAuth as exc:
+            raise google_servicos.ErroGoogle(str(exc), status=401) from exc
+
+    return google_servicos.Google(token)
+
+
 def _executar_enviar_ao_drive(pedido) -> str:
     """Envia ao Google Drive, na pasta PAULUS, o que a pessoa aprovou."""
     g = estado.prefs_google()
+    # O Drive de quem pediu: a conta Google guardada no pedido (E3b). A pasta
+    # lembrada nas preferencias e a do Drive do escritorio.
+    email = str(pedido.dados.get("conta_google") or "")
+    conta = estado.contas.por_email(email) if email else None
+    do_escritorio = conta is None or not int(conta.dono or 0)
+    servico = estado.google if do_escritorio else _google_da_conta(email)
     try:
-        pasta = estado.google.pasta_no_drive(g.get("drive_pasta", ""))
+        pasta = servico.pasta_no_drive(g.get("drive_pasta", "") if do_escritorio else "")
     except google_servicos.ErroGoogle as exc:
         raise RuntimeError(str(exc)) from exc
-    if pasta != g.get("drive_pasta"):
+    if do_escritorio and pasta != g.get("drive_pasta"):
         estado.prefs.atualizar({"google": {"drive_pasta": pasta}})
     enviados, falhas, links = 0, [], []
     for bruto in pedido.dados.get("caminhos", []):
@@ -4884,7 +4937,7 @@ def _executar_enviar_ao_drive(pedido) -> str:
             falhas.append(origem.name)
             continue
         try:
-            d = estado.google.enviar_ao_drive(origem, pasta)
+            d = servico.enviar_ao_drive(origem, pasta)
             enviados += 1
             links.append({"nome": d.get("name", origem.name), "link": d.get("webViewLink", "")})
         except google_servicos.ErroGoogle as exc:
@@ -4932,7 +4985,8 @@ def google_drive_enviar(payload: CaminhosDeDocumentos) -> dict:
         resumo=f"Vai para o Google Drive de {conta.email if conta else 'sua conta'}, na pasta "
                f"{google_servicos.PASTA_NO_DRIVE}: " + ", ".join(d.name for d in docs[:6]) + ("…" if len(docs) > 6 else ""),
         etiquetas=["sai desta máquina"],
-        dados={"caminhos": [d.path for d in docs], "nomes": [d.name for d in docs]},
+        dados={"caminhos": [d.path for d in docs], "nomes": [d.name for d in docs],
+               "conta_google": conta.email if conta else ""},
         reversivel=False,
     )
     return {"pedido": pedido.to_dict(), **estado.fila.para_tela()}
@@ -6540,11 +6594,22 @@ def _credencial_ou_http(conta) -> str:
     return senha
 
 
-def _conta_e_senha(id_: str = "") -> tuple:
-    """A conta pedida (ou a em uso) com a senha (ou o token) disponivel."""
-    conta = estado.contas.obter(id_) if id_ else estado.contas.em_uso
+def _conta_da_vez(id_: str = ""):
+    """
+    A conta pedida (ou a padrao de quem pediu). De fora, so a da propria
+    pessoa ou as do escritorio (E3b): a caixa de outra pessoa nao abre.
+    """
+    conta = estado.contas.obter(id_) if id_ else equipe.conta_email_padrao(estado.contas)
     if not conta:
         raise HTTPException(status_code=400, detail="nenhuma conta de e-mail conectada")
+    if not equipe.conta_email_visivel(conta):
+        raise HTTPException(status_code=403, detail="esta conta de e-mail é de outra pessoa")
+    return conta
+
+
+def _conta_e_senha(id_: str = "") -> tuple:
+    """A conta pedida (ou a em uso) com a senha (ou o token) disponivel."""
+    conta = _conta_da_vez(id_)
     return conta, _credencial_ou_http(conta)
 
 
@@ -6579,6 +6644,15 @@ def email_contas() -> dict:
 
 def _contas_para_tela() -> dict:
     dados = estado.contas.para_tela()
+    # De fora, so as contas que a pessoa ve (a dela e as do escritorio), e a
+    # dela abre primeiro (E3b).
+    if equipe.pessoa_da_vez() is not None:
+        visiveis = {c.id for c in estado.contas.itens if equipe.conta_email_visivel(c)}
+        dados["contas"] = [c for c in dados["contas"] if c["id"] in visiveis]
+        padrao = equipe.conta_email_padrao(estado.contas)
+        dados["em_uso"] = padrao.id if padrao else ""
+        for c in dados["contas"]:
+            c["em_uso"] = c["id"] == dados["em_uso"]
     oauth = _info_oauth()
     dados["oauth"] = oauth
     if oauth["microsoft"]["configurado"]:
@@ -7229,9 +7303,7 @@ def email_rascunho(payload: dict) -> dict:
 
 
 def _montar_do_pedido(payload: PedidoEnvio):
-    conta = estado.contas.obter(payload.conta_id) if payload.conta_id else estado.contas.em_uso
-    if not conta:
-        raise HTTPException(status_code=400, detail="nenhuma conta de e-mail conectada")
+    conta = _conta_da_vez(payload.conta_id)
 
     para = correio.enderecos(payload.para)
     if not para:
@@ -7318,6 +7390,9 @@ def email_enviar(payload: PedidoEnvio, request: Request = None) -> dict:
         raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
 
     anexos = [Path(a).name for a in payload.anexos]
+    # O pedido guarda a conta escolhida agora: aprovado depois, na janela do
+    # servidor, sai pela mesma conta - e nao pela "em uso" de la (E3b).
+    payload.conta_id = conta.id
     livre = estado.prefs.pode("enviar_mensagem") and conta.pode_enviar_sem_confirmar and not de_fora
 
     if not livre:

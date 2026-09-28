@@ -49,6 +49,7 @@ ACOES = {
     "permissoes": "mudou as permissões",
     "convite": "convidou",
     "convite_aceito": "aceitou o convite",
+    "google": "conectou o próprio Google",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 

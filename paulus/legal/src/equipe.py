@@ -31,3 +31,36 @@ def marcar_autor(base, tabela: str, id_: int, autor: dict) -> None:
         raise ValueError("tabela sem autor: " + tabela)
     base.escrever(f"UPDATE {tabela} SET criado_por = ?, criado_por_conta = ? WHERE id = ?",
                   (str(autor.get("nome") or ""), int(autor.get("conta_id") or 0), int(id_)))
+
+
+# ------------------------------------------- e-mail e Google por pessoa (E3b)
+
+def pessoa_da_vez() -> dict | None:
+    """A sessao de fora que fez o pedido atendido agora; None na janela do servidor."""
+    from acesso.porteiro import PESSOA_DA_VEZ
+
+    return PESSOA_DA_VEZ.get()
+
+
+def conta_email_visivel(conta) -> bool:
+    """
+    De fora, cada pessoa ve a conta de e-mail dela (dono = a conta do acesso)
+    e as do escritorio (dono 0). A janela do servidor ve todas.
+    """
+    p = pessoa_da_vez()
+    if conta is None or p is None:
+        return conta is not None
+    return int(getattr(conta, "dono", 0) or 0) in (0, int(p["conta_id"]))
+
+
+def conta_email_padrao(contas):
+    """A conta que a tela abre: de fora, a da propria pessoa, se ela tem; senao, a em uso."""
+    p = pessoa_da_vez()
+    if p is not None:
+        propria = next((c for c in contas.itens if int(c.dono or 0) == int(p["conta_id"])), None)
+        if propria:
+            return propria
+    atual = contas.em_uso
+    if atual is not None and conta_email_visivel(atual):
+        return atual
+    return next((c for c in contas.itens if conta_email_visivel(c)), None)

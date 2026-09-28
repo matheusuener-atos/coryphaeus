@@ -38,6 +38,8 @@ function quemCriou(nome, conta) {
       acessoDeFora.local = d.local !== false;
       acessoDeFora.pessoa = d.pessoa || null;
       acessoDeFora.permissoes = d.permissoes || [];
+      acessoDeFora.google = d.google || "";
+      acessoDeFora.googleDisponivel = Boolean(d.google_disponivel);
       acessoDeFora.csrf = d.csrf || "";
       if (!acessoDeFora.local) document.documentElement.classList.add("remoto");
     })
@@ -132,6 +134,12 @@ function quemCriou(nome, conta) {
         ? linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do celular") +
           linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
         : "") +
+      // O Google de trabalho da pessoa (E3b): o e-mail, a Agenda e o Drive dela.
+      (acessoDeFora.googleDisponivel
+        ? linha("google", "mail", acessoDeFora.google ? "Meu Google: " + esc(acessoDeFora.google) : "Conectar o meu Google",
+          acessoDeFora.google ? "o seu e-mail, a sua Agenda e o seu Drive estão aqui · conectar de novo"
+            : "para ver o seu e-mail, a sua Agenda e o seu Drive aqui no PAULUS")
+        : "") +
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
       '<p class="conta-nota">' + (titular
         ? "As contas da equipe se criam e se mudam só no computador do escritório."
@@ -144,6 +152,14 @@ function quemCriou(nome, conta) {
     }));
     await aberto;
     if (escolha === "sair") { sair(); return; }
+    if (escolha === "google") {
+      const r = await window.fetch("/api/acesso/google/iniciar", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finalidade: "servicos" }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.url) location.assign(d.url);
+      else avisoCert(d.detail || "não consegui ir ao Google agora", { tom: "erro" });
+      return;
+    }
     if (!escolha) return;
     const codigo = { chave: "codigo", rotulo: "Código do autenticador", placeholder: "000000", max: 8, obrigatorio: true,
       dica: "os 6 números do Google Authenticator, ou um código de recuperação" };
@@ -184,5 +200,17 @@ function quemCriou(nome, conta) {
   acessoDeFora.pronto.then(() => {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", barraDeQuemEstaDeFora);
     else barraDeQuemEstaDeFora();
+    // A volta de "Conectar o meu Google" (E3b): o resultado vem depois do #.
+    const volta = new URLSearchParams(location.hash.slice(1));
+    if (volta.get("google") || volta.get("google-erro")) {
+      history.replaceState(null, "", location.pathname);
+      const avisar = () => {
+        if (typeof avisoCert !== "function") return;
+        if (volta.get("google")) avisoCert("Google conectado: " + volta.get("google") + " — o seu e-mail, a sua Agenda e o seu Drive", { tom: "ok", dura: 7000 });
+        else avisoCert(volta.get("google-erro"), { tom: "erro" });
+      };
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => setTimeout(avisar, 800));
+      else setTimeout(avisar, 800);
+    }
   });
 })();

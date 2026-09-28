@@ -138,6 +138,12 @@ class Conta:
     # Os escopos que o provedor concedeu, separados por espaco: o e-mail, e -
     # quando a pessoa conecta - a Agenda e o Drive (src/google_servicos.py).
     escopos: str = ""
+    # O PAULUS de equipe (E3b): de quem e a conta - a conta do acesso de fora
+    # que a conectou (0 = do escritorio) - e por qual cliente OAuth ela
+    # entrou ("google_web" quando foi pelo login de fora; vazio = o de sempre).
+    # O refresh token so renova com o mesmo cliente que o emitiu.
+    dono: int = 0
+    cliente: str = ""
 
     @property
     def por_login(self) -> bool:
@@ -446,7 +452,8 @@ class Contas:
 
     # ------------------------------------------------------ login OAuth
 
-    def ligar_oauth(self, provedor: str, email: str, nome: str, tokens: dict) -> Conta:
+    def ligar_oauth(self, provedor: str, email: str, nome: str, tokens: dict, *,
+                    dono: int | None = None, cliente: str | None = None) -> Conta:
         """
         Guarda a conta que acabou de entrar pelo login do provedor.
 
@@ -464,9 +471,15 @@ class Contas:
             raise ValueError("o login não devolveu a autorização duradoura")
 
         conta = self.por_email(email)
+        if conta is not None and dono is not None and int(conta.dono or 0) != int(dono):
+            raise ValueError("esse e-mail já é uma conta do escritório ou de outra pessoa")
         novo = conta is None
         if novo:
             conta = Conta(id=uuid.uuid4().hex[:12], email=email)
+        if dono is not None:
+            conta.dono = int(dono)
+        if cliente is not None:
+            conta.cliente = cliente
         conta.nome = conta.nome or nome
         for campo, valor in SERVIDORES_OAUTH[provedor].items():
             setattr(conta, campo, valor)
@@ -535,7 +548,7 @@ class Contas:
                     f"é preciso entrar de novo com {correio_oauth.rotulo(conta.autenticacao)} em {conta.email}",
                     precisa_entrar=True,
                 )
-            credenciais = self.credenciais_oauth(conta.autenticacao) or {}
+            credenciais = self.credenciais_oauth(conta.cliente or conta.autenticacao) or {}
             if not credenciais.get("client_id"):
                 raise correio_oauth.ErroOAuth(
                     f"esta versão do PAULUS não traz o login do {correio_oauth.rotulo(conta.autenticacao)}"

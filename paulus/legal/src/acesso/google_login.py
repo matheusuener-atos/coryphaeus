@@ -41,6 +41,10 @@ AUTORIZAR = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN = "https://oauth2.googleapis.com/token"
 RETORNO = "https://paulus.ia.br/oauth/google"
 ESCOPOS = "openid email profile"
+# O Google de trabalho de uma pessoa da equipe (E3b): o e-mail, a Agenda e o
+# Drive dela, numa autorizacao so, com o refresh token (offline).
+ESCOPOS_SERVICOS = ("openid email profile https://mail.google.com/ https://www.googleapis.com/auth/calendar.events "
+                    "https://www.googleapis.com/auth/drive.file")
 VALIDADE_S = 600
 COOKIE = "paulus_google"
 
@@ -91,9 +95,9 @@ class LoginGoogle:
         c = self.credenciais()
         return bool(c.get("client_id") and c.get("client_secret") and self.servico.preferencias().get("hostname"))
 
-    def iniciar(self, finalidade: str, convite: str = "") -> tuple[str, str]:
+    def iniciar(self, finalidade: str, convite: str = "", conta_id: int = 0) -> tuple[str, str]:
         """(endereco do Google, valor do cookie que amarra o retorno a este navegador)."""
-        if finalidade not in ("entrar", "convite"):
+        if finalidade not in ("entrar", "convite", "servicos"):
             raise ErroGoogle("finalidade desconhecida")
         c = self.credenciais()
         host = self.servico.preferencias().get("hostname", "")
@@ -110,12 +114,16 @@ class LoginGoogle:
             for k in [k for k, v in self._pedidos.items() if v["expira"] < agora]:
                 self._pedidos.pop(k, None)
             self._pedidos[aleatorio] = {"verificador": verificador, "finalidade": finalidade, "convite": convite,
+                                        "conta_id": int(conta_id or 0),
                                         "nonce": hashlib.sha256(nonce.encode()).hexdigest(), "expira": agora + VALIDADE_S}
         parametros = {
             "client_id": c["client_id"], "redirect_uri": RETORNO, "response_type": "code", "scope": ESCOPOS,
             "state": f"{slug}~{aleatorio}", "code_challenge": _b64(hashlib.sha256(verificador.encode()).digest()),
             "code_challenge_method": "S256", "prompt": "select_account",
         }
+        if finalidade == "servicos":
+            parametros.update(scope=ESCOPOS_SERVICOS, access_type="offline", prompt="consent select_account",
+                              include_granted_scopes="true")
         return AUTORIZAR + "?" + urllib.parse.urlencode(parametros), nonce
 
     def retorno(self, code: str, state: str, nonce: str) -> dict:
@@ -141,4 +149,5 @@ class LoginGoogle:
         if not info.get("email") or not info.get("email_verified"):
             raise ErroGoogle("a conta do Google não tem e-mail confirmado")
         return {"email": str(info["email"]).lower(), "nome": str(info.get("name") or ""),
-                "finalidade": pedido["finalidade"], "convite": pedido["convite"]}
+                "finalidade": pedido["finalidade"], "convite": pedido["convite"],
+                "conta_id": pedido.get("conta_id", 0), "tokens": dados}
