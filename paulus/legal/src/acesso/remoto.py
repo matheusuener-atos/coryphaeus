@@ -27,6 +27,8 @@ COOKIE_SESSAO = "paulus_sessao"
 CABECALHO_CSRF = "x-paulus-csrf"
 CABECALHO_JWT = "cf-access-jwt-assertion"
 SEGUROS = {"GET", "HEAD", "OPTIONS"}
+# Uma proposta de agenda, tarefa ou ficha e um formulario: 1 MB sobra.
+LIMITE_DA_PROPOSTA = 1024 * 1024
 PAGINA_DE_ENTRADA = Path(__file__).parent.parent.parent / "frontend" / "entrar.html"
 
 
@@ -46,6 +48,9 @@ class PortaoRemoto:
         # recebe a pilha de dentro (o tratamento de excecoes), que nao conhece
         # as rotas; o api.py entrega o roteador aqui depois de criar o app.
         self.rotas = None
+        # (sessao, metodo, caminho, corpo, tipo) -> dict do pedido na fila.
+        # Quem monta e o AcessoDeFora, que conhece a fila.
+        self.propor = None
 
     def _anotar(self, **evento) -> None:
         if self.registrar:
@@ -90,7 +95,11 @@ class PortaoRemoto:
             return
 
         if not sessao:
-            await recusar(scope, send, 401, "entre de novo: a sessão acabou")
+            # O cabecalho diz a tela que foi a SESSAO que acabou - e nao uma
+            # rota respondendo 401 por outro motivo (senha de e-mail que
+            # falta, por exemplo) -, e so entao ela volta para a tela de entrar.
+            await recusar(scope, send, 401, "entre de novo: a sessão acabou",
+                          [(b"x-paulus-sessao", b"acabou")])
             return
         if metodo not in SEGUROS and not self.contas.csrf_confere(sessao, cab.get(CABECALHO_CSRF)):
             await recusar(scope, send, 403, "pedido sem o token da sessão")
@@ -103,7 +112,47 @@ class PortaoRemoto:
         if politica == politicas.TITULAR and sessao["papel"] != "titular":
             await recusar(scope, send, 403, "só o titular pode fazer isso")
             return
+        caminho = scope.get("path", "") + (("?" + scope["query_string"].decode("latin-1"))
+                                           if scope.get("query_string") else "")
+        if politica == politicas.PROPOR and metodo not in SEGUROS:
+            await self._propor(scope, receive, send, cab, sessao, metodo, caminho, email_access, ip)
+            return
+        if politica == politicas.DOWNLOAD:
+            # Um arquivo por pedido - a rota so entrega um -, e cada um fica
+            # registrado: e o documento saindo do escritorio.
+            self._anotar(acao="download", alvo=caminho, pessoa=sessao["nome"], email=email_access, ip=ip)
         await app(scope, receive, send)
+
+    async def _propor(self, scope, receive, send, cab, sessao, metodo, caminho, email_access, ip) -> None:
+        """
+        Agenda, tarefas e cadastros, de fora: o pedido nao grava nada. Vira um
+        item na fila de Aprovacoes com o pedido inteiro guardado, e o sim de
+        quem pode (a janela local, ou o titular de fora) executa exatamente
+        aquilo. A tela recebe 202 e diz que foi para a fila.
+        """
+        corpo = b""
+        while True:
+            msg = await receive()
+            corpo += msg.get("body", b"")
+            if len(corpo) > LIMITE_DA_PROPOSTA:
+                await recusar(scope, send, 413, "proposta grande demais")
+                return
+            if not msg.get("more_body"):
+                break
+        if self.propor is None:
+            await recusar(scope, send, 403, politicas.MENSAGEM_BLOQUEADA)
+            return
+        try:
+            pedido = self.propor(sessao, metodo, caminho, corpo.decode("utf-8", "replace"),
+                                 cab.get("content-type", "application/json"))
+        except Exception as exc:  # noqa: BLE001 - a proposta que nao monta nao pode virar 500 mudo
+            await recusar(scope, send, 400, f"não consegui montar a proposta: {exc}")
+            return
+        self._anotar(acao="proposta", alvo=f"{metodo} {caminho}", pessoa=sessao["nome"], email=email_access, ip=ip)
+        resposta = {"proposto": True, "pedido": pedido,
+                    "detail": "Foi para Aprovações: acontece quando o escritório confirmar."}
+        await responder(send, 202, json.dumps(resposta, ensure_ascii=False).encode("utf-8"),
+                        "application/json; charset=utf-8")
 
     @staticmethod
     async def _pagina_de_entrada(send) -> None:

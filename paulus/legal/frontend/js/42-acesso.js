@@ -11,6 +11,52 @@
 
 const acessoCfg = { contas: null, sessoes: [], disponivel: true };
 
+/* ------------------------------------------- a pagina aberta de fora */
+/*
+   R3: o que e bloqueado para quem esta de fora (src/acesso/politicas.py)
+   nao aparece como botao que da erro. Os destinos inteiros que so existem no
+   computador do escritorio ficam no menu, apagados, e abrem uma tela que diz
+   por que; o resto das telas recebe 403 do servidor com a mesma frase, que
+   aparece na barra de avisos (js/00-acesso.js).
+*/
+const DESTINOS_SO_NO_ESCRITORIO = new Set([
+  "config", "assinar", "certificado", "financeiro", "relatorios", "foco", "conexoes", "organizar",
+  "habilidades", "maquina", "apoiar",
+]);
+const FRASE_SO_NO_ESCRITORIO = "Disponível só no computador do escritório";
+
+function soNoEscritorio(id) {
+  return !acessoDeFora.local && DESTINOS_SO_NO_ESCRITORIO.has(id);
+}
+
+function telaSoNoEscritorio(d) {
+  abrirTela(d.nome);
+  $("centro").innerHTML =
+    '<div class="catalogo"><div class="adiante-tela">' +
+    '<span class="rotulo">' + esc(FRASE_SO_NO_ESCRITORIO) + "</span>" +
+    "<h2>" + esc(d.nome) + "</h2>" +
+    "<p>Pelo acesso de fora dá para conversar, ler os documentos, redigir e propor na agenda. " +
+    esc(d.nome) + " mexe no que só o computador do escritório deve mexer — certificado, arquivos, dinheiro, configurações — e fica lá.</p>" +
+    '<div class="linha-form"><button class="primario" data-volta="1">Voltar para a conversa</button></div>' +
+    "</div></div>";
+  $("centro").querySelector("[data-volta]").onclick = () => { $("nova").click(); marcarDestino("conversa"); };
+  atualizarPostura();
+}
+
+/* Os itens do menu que so valem no escritorio ficam apagados, com a frase. */
+function marcarMenuDeFora() {
+  if (acessoDeFora.local) return;
+  document.querySelectorAll("[data-destino]").forEach((b) => {
+    if (!DESTINOS_SO_NO_ESCRITORIO.has(b.dataset.destino)) return;
+    b.classList.add("so-no-escritorio-item");
+    b.title = FRASE_SO_NO_ESCRITORIO;
+  });
+}
+acessoDeFora.pronto.then(() => {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", marcarMenuDeFora);
+  else marcarMenuDeFora();
+});
+
 async function carregarAcesso() {
   try {
     const r = await fetch("/api/acesso/contas");

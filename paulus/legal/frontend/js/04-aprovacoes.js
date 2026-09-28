@@ -415,15 +415,30 @@ async function decidirPedidos(ids, aprovar) {
     titulo = um ? "Recusar " + nome(um) + "?" : "Recusar " + ids.length + " pedidos?";
     texto = "Nada é feito: " + (um ? "o pedido sai" : "os pedidos saem") + " da fila e " + (um ? "fica registrado" : "ficam registrados") + " no Histórico.";
   }
-  if (!(await confirmar({ titulo: titulo, contexto: "Aprovações", texto: texto, confirmar: aprovar ? "Aprovar" : "Recusar", perigo: !aprovar, sucesso: aprovar }))) return;
+  // De fora (acesso-remoto/v0): o que sai desta maquina pede o codigo do
+  // autenticador no lugar do "tem certeza?" - e ele vale pelo sim.
+  const deFora = typeof acessoDeFora !== "undefined" && !acessoDeFora.local;
+  const pedeCodigo = deFora && aprovar && quais.some((p) => p.sai_daqui);
+  let codigo = "";
+  if (pedeCodigo) {
+    const r = await dialogo({
+      titulo: titulo, contexto: "Aprovações · de fora",
+      texto: texto + "\nIsto sai do escritório: confirme com o código do aplicativo autenticador.",
+      campo: { rotulo: "Código do autenticador", placeholder: "000000", max: 9 },
+      confirmar: "Aprovar", sucesso: true,
+    });
+    if (!r || !r.ok) return;
+    codigo = r.valor;
+  } else if (!(await confirmar({ titulo: titulo, contexto: "Aprovações", texto: texto, confirmar: aprovar ? "Aprovar" : "Recusar", perigo: !aprovar, sucesso: aprovar }))) return;
 
   atualizarSelo(true);
   try {
     const r = await fetch("/api/aprovacoes/decidir", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: ids, aprovar: aprovar }),
+      body: JSON.stringify({ ids: ids, aprovar: aprovar, codigo: codigo }),
     });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); atualizarSelo(false); return; }
     const d = await r.json();
     aprov.pendentes = d.pendentes;
     aprov.hoje = d.hoje;

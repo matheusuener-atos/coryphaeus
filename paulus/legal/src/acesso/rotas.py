@@ -52,12 +52,21 @@ class SoCodigo(BaseModel):
     codigo: str
 
 
-def e_local(request: Request) -> bool:
+def e_local(request: Request | None) -> bool:
+    """
+    Se o pedido veio da janela local. Sem `request` - a rota chamada de dentro
+    do proprio programa, como fazem os executores da fila e os testes - e local:
+    de fora, todo pedido passa pelo porteiro, que sempre marca o escopo.
+    """
+    if request is None:
+        return True
     return bool(request.scope.get("state", {}).get("paulus_local"))
 
 
-def pessoa(request: Request) -> dict | None:
+def pessoa(request: Request | None) -> dict | None:
     """Quem esta de fora, com sessao; None na janela local."""
+    if request is None:
+        return None
     return request.scope.get("state", {}).get("paulus_pessoa")
 
 

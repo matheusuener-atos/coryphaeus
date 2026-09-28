@@ -54,7 +54,7 @@ async def responder(send, status: int, corpo: bytes, tipo: str, extra: list | No
     await send({"type": "http.response.body", "body": corpo})
 
 
-async def recusar(scope, send, status: int = 403, mensagem: str = "") -> None:
+async def recusar(scope, send, status: int = 403, mensagem: str = "", extra: list | None = None) -> None:
     """403 em HTML para quem abre uma pagina, em JSON para quem chama a API."""
     caminho = scope.get("path", "")
     if scope.get("type") == "websocket":
@@ -62,7 +62,7 @@ async def recusar(scope, send, status: int = 403, mensagem: str = "") -> None:
         return
     if caminho.startswith("/api/"):
         corpo = json.dumps({"detail": mensagem or "acesso recusado"}, ensure_ascii=False).encode("utf-8")
-        await responder(send, status, corpo, "application/json; charset=utf-8")
+        await responder(send, status, corpo, "application/json; charset=utf-8", extra)
     else:
         await responder(send, status, PAGINA_RECUSADA.encode("utf-8"), "text/html; charset=utf-8")
 

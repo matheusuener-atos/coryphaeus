@@ -52,8 +52,18 @@ const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null };
       }
     }
     const resposta = await original(entrada, o);
-    if (resposta.status === 401 && daqui && !acessoDeFora.local) {
+    if (!daqui || acessoDeFora.local) return resposta;
+    if (resposta.status === 401 && resposta.headers.get("X-PAULUS-Sessao") === "acabou") {
       location.replace("/");
+    } else if (resposta.status === 202 || resposta.status === 403) {
+      // Proposta que foi para a fila, ou o que so se faz no escritorio: a
+      // frase vem do servidor e aparece na barra de avisos, venha de que tela
+      // vier.
+      resposta.clone().json().then((d) => {
+        if (d && d.detail && typeof avisoCert === "function" && (d.proposto || resposta.status === 403)) {
+          avisoCert(d.detail, { tom: d.proposto ? "ok" : "" });
+        }
+      }).catch(() => {});
     }
     return resposta;
   };

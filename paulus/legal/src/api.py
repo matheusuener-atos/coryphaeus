@@ -85,6 +85,7 @@ from versao import VERSAO
 from acesso.chave import ChaveLocal
 from acesso.porteiro import Porteiro
 from acesso.servico import AcessoDeFora
+from acesso import politicas as politicas_do_acesso
 from acesso import rotas as rotas_do_acesso
 from inteligencia import portas as inteligencia
 from inteligencia.catalogo import Catalogo
@@ -252,7 +253,7 @@ class Estado:
         self.prefs = Preferencias(PREFERENCIAS_PATH)
         # O acesso de fora (src/acesso/): contas, sessoes e o portao de quem
         # chega pelo tunel. Desligado de fabrica.
-        self.acesso_de_fora = AcessoDeFora(DADOS_DIR, self.prefs, self.acesso)
+        self.acesso_de_fora = AcessoDeFora(DADOS_DIR, self.prefs, self.acesso, fila=self.fila)
         # Base local: cadastros, tarefas e o que vier depois.
         self.base = Base(BASE_PATH)
         self.cadastros = Cadastros(self.base, SUGESTOES_IGNORADAS_PATH)
@@ -594,6 +595,7 @@ app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao)
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
 estado.acesso_de_fora.portao.rotas = app.router
+estado.acesso_de_fora.app = app
 
 
 def cabecalho_local() -> dict:
@@ -4321,26 +4323,78 @@ def tarefas_apagar(id_: int) -> dict:
 class Decisao(BaseModel):
     ids: list[str] = []
     aprovar: bool = True
+    # De fora, aprovar o que sai desta maquina pede o codigo do autenticador
+    # de novo (src/acesso/politicas.py, ACOES_QUE_SAEM).
+    codigo: str = ""
+
+
+def _fila_para_tela() -> dict:
+    """
+    A fila, com o que a tela de fora precisa saber de cada pedido: se sai
+    desta maquina (pede o codigo do autenticador) e se so se aprova no
+    computador do escritorio.
+    """
+    tela = estado.fila.para_tela()
+    for grupo in ("pendentes", "hoje"):
+        for p in tela.get(grupo, []):
+            p["sai_daqui"] = p.get("acao") in politicas_do_acesso.ACOES_QUE_SAEM or bool((p.get("dados") or {}).get("sai_daqui"))
+            p["so_no_escritorio"] = p.get("acao") in politicas_do_acesso.ACOES_SO_NO_ESCRITORIO
+    return tela
 
 
 @app.get("/api/aprovacoes")
 def aprovacoes_listar() -> dict:
-    return estado.fila.para_tela()
+    return _fila_para_tela()
+
+
+def _pode_aprovar_de_fora(pedido, pessoa: dict, codigo: str, conferido: dict) -> str:
+    """
+    Vazio se quem esta de fora pode aprovar este pedido; senao, o motivo.
+
+    O que e so do escritorio (mover, apagar, exportar em lote, assinar) nao
+    se aprova de fora nem pelo titular. O que sai desta maquina pede o codigo
+    do autenticador - conferido uma vez por decisao, porque o codigo vale uma
+    vez so.
+    """
+    if pedido.acao in politicas_do_acesso.ACOES_SO_NO_ESCRITORIO:
+        return politicas_do_acesso.MENSAGEM_BLOQUEADA
+    sai = pedido.acao in politicas_do_acesso.ACOES_QUE_SAEM or bool((pedido.dados or {}).get("sai_daqui"))
+    if not sai:
+        return ""
+    if "ok" not in conferido:
+        conferido["ok"] = bool(codigo) and estado.acesso_de_fora.contas.confirmar_de_novo(pessoa, codigo)
+    return "" if conferido["ok"] else "aprovar de fora o que sai do escritório pede o código do autenticador"
 
 
 @app.post("/api/aprovacoes/decidir")
-def aprovacoes_decidir(payload: Decisao) -> dict:
+def aprovacoes_decidir(payload: Decisao, request: Request = None) -> dict:
     """
     Aprova ou recusa. Aprovar executa a acao; recusar so encerra o pedido.
 
     A execucao nao mora na fila: cada acao e feita por quem sabe faze-la, e o
     resultado volta para o pedido. Assim a fila nao precisa entender de mover
     arquivo, assinar ou enviar.
+
+    De fora (so o titular chega aqui, pela politica da rota), cada pedido e
+    conferido antes de ser decidido: ver `_pode_aprovar_de_fora`.
     """
     feitos, falhas = [], []
+    pessoa = rotas_do_acesso.pessoa(request)
+    conferido: dict = {}
 
     for id_ in payload.ids:
+        if pessoa is not None and payload.aprovar:
+            antes = estado.fila.obter(id_)
+            motivo = _pode_aprovar_de_fora(antes, pessoa, payload.codigo, conferido) if antes else ""
+            if motivo:
+                falhas.append({"id": id_, "motivo": motivo})
+                continue
         pedido = estado.fila.decidir(id_, payload.aprovar)
+        if pedido and pessoa is not None:
+            remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+            estado.acesso_de_fora.anotar(acao="aprovacao" if payload.aprovar else "recusa", alvo=pedido.titulo,
+                                         pessoa=pessoa["nome"], email=remoto.get("email_access", ""),
+                                         ip=remoto.get("ip", ""))
         if not pedido:
             falhas.append({"id": id_, "motivo": "pedido nao esta mais na fila"})
             continue
@@ -4373,7 +4427,7 @@ def aprovacoes_decidir(payload: Decisao) -> dict:
             estado.fila.registrar_resultado(id_, f"nao consegui: {exc}", falhou=True)
             falhas.append({"id": id_, "motivo": str(exc)})
 
-    return {"feitos": feitos, "falhas": falhas, **estado.fila.para_tela()}
+    return {"feitos": feitos, "falhas": falhas, **_fila_para_tela()}
 
 
 def _executar_mover(pedido) -> str:
@@ -4547,6 +4601,9 @@ EXECUTORES = {
     "assinatura.lote": _executar_assinar_lote,
     "correio.enviar": _executar_enviar,
     "google.drive.enviar": _executar_enviar_ao_drive,
+    # O que alguem propos pelo acesso de fora (agenda, tarefa, ficha): o sim
+    # refaz exatamente o pedido guardado (src/acesso/servico.py).
+    "acesso.proposta": lambda pedido: estado.acesso_de_fora.executar_proposta(pedido),
 }
 
 
@@ -6931,14 +6988,21 @@ def email_previa(payload: PedidoEnvio) -> dict:
 
 
 @app.post("/api/email/enviar")
-def email_enviar(payload: PedidoEnvio) -> dict:
+def email_enviar(payload: PedidoEnvio, request: Request = None) -> dict:
     """
     Envia, ou poe o pedido na fila.
 
     E-mail que sai nao volta. Sem a permissao "enviar sem confirmar" - que vem
     desligada, no programa e na conta -, isto nao manda nada: monta o pedido e
     devolve para a fila de aprovacao.
+
+    De fora, vai SEMPRE para a fila, com a permissao ligada ou nao, e senha de
+    e-mail nao se entrega: credencial so se configura no computador do
+    escritorio (acesso-remoto/v0, §5).
     """
+    de_fora = not rotas_do_acesso.e_local(request)
+    if de_fora and payload.senha:
+        raise HTTPException(status_code=403, detail=politicas_do_acesso.MENSAGEM_BLOQUEADA)
     conta, msg, para = _montar_do_pedido(payload)
 
     if payload.senha and not conta.por_login:
@@ -6952,7 +7016,7 @@ def email_enviar(payload: PedidoEnvio) -> dict:
         raise HTTPException(status_code=401, detail=f"preciso da senha de {conta.email}")
 
     anexos = [Path(a).name for a in payload.anexos]
-    livre = estado.prefs.pode("enviar_mensagem") and conta.pode_enviar_sem_confirmar
+    livre = estado.prefs.pode("enviar_mensagem") and conta.pode_enviar_sem_confirmar and not de_fora
 
     if not livre:
         pedido = estado.fila.pedir(

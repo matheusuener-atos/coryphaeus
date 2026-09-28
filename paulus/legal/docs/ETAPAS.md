@@ -1225,3 +1225,52 @@ incluído (`include_router`) embrulhado, e as rotas dele somem de
 rotas do acesso passaram a ser registradas direto no app, como as outras.
 Quatro ícones da seção não existiam no recorte da fonte e apareciam como
 letras; trocados.
+
+## R3 — O que se faz de fora, rota por rota ✓ FEITA
+
+Ler, perguntar e redigir: sim. O que é irreversível, ou mexe na própria
+segurança: só no computador do escritório. A tabela é **código**
+(`src/acesso/politicas.py`): um registro central com as 376 rotas, cada uma
+com a sua política, e **rota sem política é bloqueada** — rota nova nasce
+fechada, e o portão falha até alguém decidir o que ela é.
+
+Registro central, e não decorador espalhado: a tabela inteira cabe numa
+leitura, e é o tipo de coisa que se revisa inteira.
+
+- **permitido** — conversar, perguntar, buscar, ver documento e trecho
+  citado, o editor e a planilha, usar o e-mail e o Google já configurados;
+- **propor** — agenda, tarefas e cadastros: ver é livre, e o que grava vira
+  pedido na fila de Aprovações com o pedido inteiro guardado. O sim de quem
+  pode (a janela local, ou o titular de fora) refaz exatamente aquilo. A tela
+  de fora recebe 202 e diz "Foi para Aprovações";
+- **titular** — aprovar. E a rota confere item por item: o que é só do
+  escritório (mover, apagar, exportar em lote, assinar) não se aprova de fora
+  nem pelo titular — aprovar ali seria fazer por tabela o que a tabela proíbe;
+  o que sai desta máquina (e-mail, Drive, sala do Meet) pede o código do
+  autenticador de novo;
+- **download** — um documento por pedido, e cada um registrado;
+- **bloqueado** — o resto, incluindo a documentação automática do FastAPI
+  (`/openapi.json` é o mapa inteiro da API).
+
+E-mail de fora vai **sempre** para a fila, mesmo com "enviar sem confirmar"
+ligado, e senha de e-mail não se entrega de fora.
+
+Na tela, os destinos que só existem no escritório (Configurações, Assinatura,
+Financeiro, Relatórios, Foco, Conexões, Organizar, Apoiar) ficam apagados no
+menu e abrem uma tela que diz "Disponível só no computador do escritório". O
+403 de qualquer outra tela traz a mesma frase, que aparece na barra de avisos
+sem cada tela precisar saber disso.
+
+**Não se encaixou com clareza** numa linha da tabela, e ficou bloqueado para
+revisão: Financeiro, Relatórios, Foco e bem-estar, gravar em Serviços e
+Gravações, enviar arquivo, trazer arquivo para o editor, guardar anexo de
+e-mail no Acervo, Apoiar. A lista está em `docs/PROGRESSO-IMPLEMENTACAO.md`.
+
+**Medido:** as 376 rotas com política (114 permitidas, 19 de propor, 9 de download, 1 de titular, 10 públicas, 223 bloqueadas); cada linha da tabela testada de fora
+com colaborador e com titular.
+
+**O que a verificação achou:** o 401 de "sessão acabou" e o 401 de "preciso
+da senha do e-mail" eram iguais para a tela, que mandaria para o login quem só
+esqueceu a senha do e-mail. O do porteiro passou a vir com
+`X-PAULUS-Sessao: acabou`. E a opacidade dos itens bloqueados não pegava no
+trilho: a animação de entrada vence a declaração; vai no ícone e no rótulo.

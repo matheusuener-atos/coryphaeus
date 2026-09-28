@@ -88,6 +88,9 @@ function marcarDestino(id) {
 function abrirDestino(id) {
   const d = DESTINOS.find((x) => x.id === id) || NOVOS_DESTINOS[id];
   if (!d) return;
+  // De fora (acesso-remoto/v0), o que so vale no computador do escritorio
+  // abre uma tela que diz isso, em vez de uma tela cheia de erros.
+  if (typeof soNoEscritorio === "function" && soNoEscritorio(id)) return telaSoNoEscritorio(d);
   if (vinculoPendente() && DESTINOS_PRESOS.has(id)) {
     avisoCert(d.nome + " depende do escritório — fica liberado quando o responsável validar o seu vínculo");
     return;
