@@ -1577,3 +1577,39 @@ modelo disse "3 aluguéis" sem a palavra caução).
 escritório. Até ele chegar, as etapas seguintes medem na demonstração — o que
 é limitação, e está anotado no PROGRESSO.
 
+## I3 — Nível 0 por molde, sem modelo ✓ FEITA
+
+O nível 0 era texto livre do modelo sobre fatos já conferidos. Os fatos
+estavam certos; a frase, não necessariamente: um modelo de 3 bilhões de
+parâmetros copia um CNJ trocando um dígito com a mesma cara de certeza com
+que copia certo. Para as perguntas de um dado só a resposta **é** o fato, e
+agora sai montada por molde (`src/inteligencia/molde.py`), com a página —
+"O valor da causa é R$ 15.000,00 (p. 2)." —, sem chamar o modelo e sem
+entrar na fila (R4): número do processo, valor, tribunal, partes, data de
+assinatura e leis citadas. Documento sem página (DOCX, TXT) cita o nome do
+arquivo no lugar da página.
+
+As travas do molde: dois valores num documento para "qual o valor?" não
+viram um escolhido (escolher seria sortear); "qual o valor da multa?" num
+documento em que a regra só achou o aluguel não responde com o aluguel;
+"qual a vara?" e "qual o foro?" não recebem o tribunal; "quem é o réu?"
+lista só o réu.
+
+Onde o modelo continua no nível 0 (prazos, vários valores, listas, o
+resumo), a **conferência mecânica**: todo número, data, CNJ, CPF, CNPJ e
+valor em R$ da resposta tem de estar nos fatos (ou na pergunta). 18.500 e
+18.500,00 são o mesmo número; 10/03/2024 e "10 de março de 2024" a mesma
+data. Um dígito trocado descarta a resposta: a lista pronta a substitui
+quando a pergunta era de lista, e senão a pergunta escala para a leitura.
+
+**Medido:** portão com 5 perguntas factuais sobre uma petição, zero
+chamadas ao modelo, mediana de 5 ms, com a fila ocupada por outra pessoa
+(nenhuma esperou). Roteiro `--tudo` 40/41 (igual); mediana das perguntas
+sobre documentos 8,9 → 7,2 s. Medição da demo: 25/27, p50 6,6 → 6,2 s, p95
+39,3 → 17,2 s.
+
+**O que a verificação achou:** o CNJ do teste tinha dígito verificador
+inválido — a regra de extração recusou (com razão), a pergunta caiu na
+fila ocupada e o teste travou em vez de falhar. O teste agora pergunta
+antes se a resposta sai sem o modelo.
+

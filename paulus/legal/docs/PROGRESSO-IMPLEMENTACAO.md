@@ -43,7 +43,7 @@ etapa que não estiver `feita`.
 | R10 | Política, documentação, roteiro do teste real | textos feitos; ⏸ teste no 4G | branch `r10-politica` (docs) e `r10-politica-site` (site, fora do main) | política e termos com a seção nova; manual com solução de problemas; roteiro de 9 passos abaixo |
 | I1 | Ajustes de inferência | feita | branch `i1-inferencia` | roteiro `--tudo` 40/41 antes e depois (a mesma de ausência falha nas duas); p50 documentos 8,5 s → 8,9 s; entrada p50 2.366 tokens; 0 cortes; mesma pergunta 2× = mesma resposta |
 | I2 | Medição com documentos reais | ferramenta feita; ⏸ conjunto real | branch `i2-medicao` | demo (27 perguntas, 9 de continuação): 25/27 · p50 6,6 s · p95 39,3 s · entrada p50 2.362 · R@20 0,96 · R@6 0,96 · MRR@6 0,86 · no contexto 0,90 |
-| I3 | Nível 0 por molde | pendente | | |
+| I3 | Nível 0 por molde | feita | branch `i3-molde` | 5 factuais sem modelo, mediana 5 ms, sem fila; dígito trocado rejeitado; roteiro 40/41; demo 25/27, p50 6,2 s, p95 17,2 s |
 | I4 | Memória da conversa | pendente | | |
 | I5 | Chunking estrutural | pendente | | |
 | I6 | FTS5 com normalização jurídica | pendente | | |
@@ -107,6 +107,9 @@ etapa que não estiver `feita`.
 - **I2** Sem resposta à ⏸ PAUSA I2 (o usuário estava dormindo), segui como o contrato manda para "segue com a demo": o conjunto da demonstração com as perguntas de continuação. **Limitação:** todos os números das etapas I3–I9 abaixo são da demonstração (8 documentos, 9 trechos, cabe inteira na leitura) — a busca quase não é exercitada, e o Recall é teto.
 - **I2** `tools/medir.py` não mudou nada do programa (só ferramenta, conjunto e documentação): não rodei o roteiro nem a suíte inteira de novo nesta etapa; `tests/test_i2_medir.py` confere as contas e que toda frase esperada existe na demo.
 - **I2** "No contexto" mede nas fontes que a conversa mostrou; resposta sem fontes (a recusa por regra, 0 s) conta zero — por isso 0,90 e não 0,96.
+- **I3** Molde só para o que o contrato lista (processo, valor, tribunal, partes, assinatura, leis). CPF/CNPJ e prazos seguem pelo modelo com a conferência mecânica. Tribunal: o molde responde só "qual o tribunal/juízo?"; vara, comarca e foro (o foro de eleição de um contrato) vão ao modelo.
+- **I3** `ia.molde` desliga as duas coisas (molde e conferência). A pergunta que sai sem modelo não entra na fila: a conversa pergunta à habilidade (`sem_modelo`) antes de pegar a vez.
+- **I3** A suíte teve o `test_tela` falhando uma vez em "segurar numa conversa marca" (intermitente, já visto antes da I3); rodado de novo isolado.
 
 ## Pendente do usuário
 
