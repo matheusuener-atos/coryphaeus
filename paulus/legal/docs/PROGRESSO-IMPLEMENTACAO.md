@@ -45,7 +45,7 @@ etapa que não estiver `feita`.
 | I2 | Medição com documentos reais | ferramenta feita; ⏸ conjunto real | branch `i2-medicao` | demo (27 perguntas, 9 de continuação): 25/27 · p50 6,6 s · p95 39,3 s · entrada p50 2.362 · R@20 0,96 · R@6 0,96 · MRR@6 0,86 · no contexto 0,90 |
 | I3 | Nível 0 por molde | feita | branch `i3-molde` | 5 factuais sem modelo, mediana 5 ms, sem fila; dígito trocado rejeitado; roteiro 40/41; demo 25/27, p50 6,2 s, p95 17,2 s |
 | I4 | Memória da conversa | feita | branch `i4-memoria` | 9/9 continuações herdam o sujeito, 18/18 outras intactas; histórico ≤ 600 tokens; demo 26/27 (continuação 9/9, era 8/9); roteiro 40/41 |
-| I5 | Chunking estrutural | pendente | | |
+| I5 | Chunking estrutural | feita | branch `i5-trechos` | ids estáveis (mesmo doc e reindexação); toda página; nenhuma seção cortada; roteiro 40/41 (mediana 8,8 s); demo 26/27, p50 9,2 s, R@6 0,95; suíte 71 ok |
 | I6 | FTS5 com normalização jurídica | pendente | | |
 | I7 | Denso + RRF + reranker, virada do "ler tudo" | pendente | | |
 | I8 | Contrato de resposta `[Tn]` | pendente | | |
@@ -112,6 +112,13 @@ etapa que não estiver `feita`.
 - **I3** A suíte teve o `test_tela` falhando uma vez em "segurar numa conversa marca" (intermitente, já visto antes da I3); rodado de novo isolado.
 - **I4** A reescrita é por regra, nunca pelo modelo (custaria uma leitura a mais por pergunta). Quando a regra não reconhece a continuação, a pergunta segue como foi escrita — o histórico ainda vai junto.
 - **I4** O nível 0 (fatos) não leva histórico: ele responde de fatos, e a conversa de antes só aumentaria o prompt.
+- **I5** A versão do `chunk_id` é o sha1 do arquivo + o nome, e não o `version_id` da biblioteca (um ULID sorteado no registro): com o ULID, reindexar do zero mudaria todos os ids. Cópias iguais com nomes diferentes ganham ids próprios.
+- **I5** Documento sem página (DOCX, TXT) fica com página vazia — o mesmo que o mapa de layout diz; inventar "p. 1" num .txt seria prometer uma página que ninguém acha. "Todo trecho tem página" vale para os documentos paginados.
+- **I5** O material de consulta continua fatiado por página (src/material.py): é por página que ele cita, e ele está 5/5 no roteiro. O regime A vale para lei que estiver no Acervo.
+- **I5** Três trechos inspecionados (dos 20 de cada regime impressos por `tests/test_i5_trechos.py --mostrar`):
+  - B, cláusula longa em janelas: `[chunk_… p.2-3] Contrato ACME > CLÁUSULA 7ª - DA OBRIGAÇÃO NÚMERO 7 / no mês 57, com a assinatura do responsável. Item 58 da cláusula sétima…` — a janela continua dentro da cláusula 7 e atravessa a quebra de página.
+  - B, cláusulas curtas juntas: `[chunk_… p.1-1] Contrato ACME > CLÁUSULA 2ª … + CLÁUSULA 3ª …` — duas inteiras, nenhuma cortada.
+  - A, artigo com parágrafo e incisos: `[chunk_… ] Lei 99999 > Art. 3º / Art. 3º O teste número 3… § 1º O parágrafo do artigo 3… I - inciso primeiro…`.
 
 ## Pendente do usuário
 

@@ -1641,3 +1641,39 @@ são continuação não mudam. Demonstração: 26/27 (era 25/27) — **continua�
 `--tudo` 40/41 (igual). O tempo dessa rodada (p50 16,8 s) não vale: ela
 rodou junto com a medição do reranker da I7, que ocupou a CPU por minutos.
 
+## I5 — Trechos pela estrutura do documento ✓ FEITA
+
+A busca quebrava o texto em blocos de 1.200 caracteres, cortando onde o
+tamanho mandava: a cláusula começava num trecho e terminava no outro, com a
+multa num pedaço e a condição dela no outro. Agora (`src/trechos.py`) a
+unidade é a do autor do documento:
+
+- **regime B — peças e contratos:** quebra no cabeçalho (CLÁUSULA, DOS
+  FATOS, DO DIREITO, DOS PEDIDOS, DISPOSITIVO, VOTO, EMENTA, numeração romana
+  e decimal). Seção acima de ~1000 tokens vira janelas de ~700 com 96 de
+  sobreposição, sem sair dela; seção abaixo de 80 tokens se junta à vizinha
+  — o grupo para de crescer quando passa do mínimo (crescer até o teto
+  juntava seis cláusulas curtas num trecho só);
+- **regime A — leis:** um artigo por trecho, com os parágrafos e incisos
+  dele. Artigos não se juntam.
+
+Cada trecho tem `chunk_id` (versão + posição; a versão combina o sha1 do
+arquivo com o nome, porque "contrato.pdf" e "contrato (1).pdf" iguais são
+dois documentos), `char_start`/`char_end`, páginas pelo mapa de layout,
+regime e `text_embed` com o caminho na frente ("Contrato ACME > CLÁUSULA
+9ª"), que é o que a busca indexa. A API do buscador (`search`, `tudo`,
+`dos_documentos`, `format_context`) não mudou; a remontagem de trechos
+vizinhos usa a posição, sem adivinhar a sobreposição pelo texto. Chave
+`ia.trechos_estruturais`.
+
+**Medido:** mesmo documento e reindexação do zero em outra ordem dão os
+mesmos ids; todo trecho de documento paginado tem página; nenhum trecho
+corta seção; o texto de cada trecho é a faixa exata do extraído. Roteiro
+`--tudo` 40/41 (igual), mediana 8,8 s. Demonstração 26/27, p50 9,2 s,
+Recall@6 0,95, MRR@6 0,87 (15 trechos, eram 9). Suíte: 71 passam.
+
+**Depois:** a verificação da I8 achou contrato com "CLÁUSULA 3ª - DO ATRASO.
+A multa é…" na mesma linha — o cabeçalho só era reconhecido em linha curta.
+Agora a linha que começa por CLÁUSULA abre seção, qualquer que seja o
+tamanho dela.
+
