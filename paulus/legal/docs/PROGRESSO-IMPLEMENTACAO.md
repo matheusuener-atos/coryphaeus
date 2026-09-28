@@ -36,7 +36,7 @@ etapa que não estiver `feita`.
 | R2 | Contas, senha, TOTP, sessões | feita; refeita sem Access | branch `r2-contas` + `r-ajustes-sem-access` | Turnstile antes da senha (não conta tentativa); IP fechado 1 h no 20º erro em 10 min; mesma frase e mesmo tempo (≥ 0,45 s) para conta inexistente e senha errada; cabeçalhos de segurança em toda resposta de fora; sem sessão, toda `/api/*` 401; trocar a própria senha e encerrar sessões pedem o código de novo |
 | R3 | Permissões por rota | feita | branch `r3-permissoes` | 376 rotas declaradas (114 permitido, 19 propor, 9 download, 1 titular, 10 público, 223 bloqueado); tabela testada com colaborador e titular |
 | R4 | Fila do modelo | feita | branch `r4-fila-do-modelo` | 2 pessoas: nunca 2 respostas juntas, sem palavra trocada, ordem de chegada; 3ª da mesma pessoa 429; parar A e B termina |
-| R5 | Provisionamento no Worker | código feito sem Access; ⏸ painel | branch `r5-worker-tunel` + `r-ajustes-sem-access` | `worker/teste-tunel.mjs`: nome escolhido (regra, reservados, reserva 15 min, sugestão), fluxo com Turnstile, nenhuma chamada a `/access/`, segredo por Bearer, Turnstile do login por hostname, desfazer em cada passo, limites, remover → 410, limpeza diária |
+| R5 | Provisionamento no Worker | feita; painel feito em 28/09 (token Tunnel+DNS, Turnstile, KV, segredos), no ar | branch `r5-worker-tunel` + `r-ajustes-sem-access` | `worker/teste-tunel.mjs`: nome escolhido (regra, reservados, reserva 15 min, sugestão), fluxo com Turnstile, nenhuma chamada a `/access/`, segredo por Bearer, Turnstile do login por hostname, desfazer em cada passo, limites, remover → 410, limpeza diária |
 | R6 | Túnel dentro do PAULUS | feita; refeita sem Access | branch `r6-tunel` + `r-ajustes-sem-access` | token fora da linha de comando e do log; reinício; Turnstile pelo Worker (ok / recusado / vazio / Worker fora = ninguém entra); endereço liberado → desliga, apaga, avisa; porta ocupada; versão lida do cloudflared 2026.9.3 real |
 | R7 | Instalador + passo "Acesso à distância" | feita; refeita sem Access | branch `r7-assistente` + `r-ajustes-sem-access` | sugestão de endereço (8 nomes); indisponível com motivo e sugestão; interruptor desligado = nenhuma chamada ao Worker; fluxo nome → conta TOTP → iniciar → pendente → concluído → túnel; expirado mantém o nome; remover libera o nome; instalador traz o cloudflared sempre que falta; assinatura: real aceito, Python/falso recusados; `test_tela`: passo novo depois do nome do escritório |
 | R8 | Auditoria "quem acessou" | feita | branch `r8-auditoria` | 9 ações de fora registradas; edição à mão acusada na linha certa; poda de 1 ano com âncora; PDF |
@@ -221,7 +221,7 @@ ficar ≥ 0,80 e a latência cair, ligar.
 número do trecho em cada frase (clicável), "sem fonte" onde não há trecho, e
 o cartão de sem fundamento quando nada se sustenta. Diga se quer de fábrica.
 
-### ⏸ R5 — o que fazer no painel da Cloudflare (só o dono da conta)
+### ✓ R5 — o painel da Cloudflare (feito em 28/09/2026; `/api/tunel/disponivel` respondendo)
 
 O código do Worker já está no repositório e **não liga nada** até o passo 6.
 Nada de Zero Trust nem de Access.
