@@ -4,7 +4,7 @@
      reaproveita sv- (abertura, ficha, secao) de 12-servicos.css. */
   /* Na largura das outras telas: rente ao cabecalho, sem a medida de leitura. */
   .ae-tela .sv-principal { padding: 16px 0 56px; }
-  .ae-tela .sv-medida { max-width: none; gap: 18px; }
+  .ae-tela .sv-medida { gap: 18px; }
   .ae-acc { color: var(--acc) !important; }
 
   /* A barra dos filtros: chips (.chip, em 04-acervo.css), o ordenar a direita. */

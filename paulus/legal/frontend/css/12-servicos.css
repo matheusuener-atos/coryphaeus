@@ -64,6 +64,14 @@
   .sv-principal { overflow-y: auto; padding: 8px 24px 56px; }
   .sv-medida { width: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .sv-medida > * { flex: none; }
+  /* A MESMA COLUNA EM TODA TELA: a do Financeiro (.sv-medida acima), 1080 px
+     (--fio) no meio da pagina, com o cabecalho na largura da pagina (1280).
+     As telas que nao usam .sv-medida tem a coluna aplicada ao que fica dentro
+     da area que rola - assim a barra de rolagem continua na borda, como no
+     Financeiro. Editor e Assinar (lista + painel ao lado) cabem inteiros
+     nos mesmos 1080. */
+  :is(#agenda, #sv-tela, #gv-tela, #be-tela) > .acervo-principal > * { width: 100%; max-width: var(--fio); margin-left: auto; margin-right: auto; }
+  #docs > *, #assinatura { width: 100%; max-width: var(--fio); margin-left: auto; margin-right: auto; }
   .sv-kicker { font: 600 11px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
   .sv-dica { margin: 10px 0 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   /* A ligacao e a do sistema (05-paineis-e-botoes.css); aqui so o layout. */

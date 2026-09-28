@@ -283,8 +283,45 @@ def main() -> int:
               const e = document.getElementById('compositor');
               return !!e && !e.hidden && e.getBoundingClientRect().height > 0;
             }"""
+            # A coluna de toda tela e a do Financeiro: 1080 px (--fio), centrada
+            # na pagina de 1280. So o cabecalho usa os 1280. Com painel ao lado
+            # (Organizar, um documento aberto), coluna e painel somam a pagina.
+            fora_da_coluna = """() => {
+              const c = document.getElementById('centro');
+              const fio = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fio'));
+              const painel = c.querySelector('.acervo-painel');
+              if (painel && painel.getBoundingClientRect().width > 0) return [];
+              const largos = [];
+              c.querySelectorAll('*').forEach((e) => {
+                const b = e.getBoundingClientRect();
+                if (b.height < 120 || b.width <= fio + 2) return;
+                const cs = getComputedStyle(e);
+                if (cs.display === 'none' || cs.visibility === 'hidden') return;
+                // so o mais fundo: quem embrulha outro bloco largo nao conta
+                const largoDentro = [...e.children].some((f) => {
+                  const r = f.getBoundingClientRect();
+                  return r.width > fio + 2 && r.height >= 120;
+                });
+                if (largoDentro) return;
+                // a moldura da pagina tem 1280 e centra a coluna: vale ate
+                // onde os filhos chegam, nao a largura dela
+                let esq = Infinity, dir = -Infinity;
+                for (const f of e.children) {
+                  const r = f.getBoundingClientRect();
+                  if (r.width === 0 || getComputedStyle(f).position === 'fixed') continue;
+                  esq = Math.min(esq, r.left); dir = Math.max(dir, r.right);
+                }
+                const ocupado = dir > esq ? dir - esq : b.width;
+                if (ocupado > fio + 2) largos.push(String(e.className || e.tagName).slice(0, 40) + ' ' + Math.round(ocupado));
+              });
+              return largos;
+            }"""
             destinos = pagina.evaluate("() => DESTINOS.map(d => ({id: d.id, nome: d.nome}))")
+            # Servicos, Gravacoes e Apoiar sao so da casca, sem par no servidor.
+            do_servidor = {d["id"] for d in destinos}
+            destinos += [{"id": i, "nome": i} for i in casca["destinos"] if i not in do_servidor]
             com_compositor = []
+            largas = []
             for d in destinos:
                 erros.clear()
                 pagina.evaluate("(id) => abrirDestino(id)", d["id"])
@@ -300,6 +337,10 @@ def main() -> int:
                 )
                 if d["id"] != "conversa" and pagina.evaluate(ver_compositor):
                     com_compositor.append(d["nome"])
+                fora = pagina.evaluate(fora_da_coluna)
+                if fora:
+                    largas.append(f"{d['nome']} ({fora[0]})")
+            checar(not largas, "toda tela sem painel cabe na coluna do Financeiro", "; ".join(largas))
 
             print("\no campo de pergunta")
             # O compositor e da conversa. Nas outras vinte telas ele so ocupava
