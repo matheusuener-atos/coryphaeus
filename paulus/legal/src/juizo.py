@@ -134,11 +134,18 @@ class Juiz:
     """
 
     def __init__(self, model: str = "", host: str = "", *, timeout: int = 90,
-                 num_ctx: int = 4096, post: Callable | None = None) -> None:
+                 num_ctx: int = 4096, keep_alive: str = "", sem_pensar: bool = False,
+                 post: Callable | None = None) -> None:
         self.model = model or os.getenv("PAULUS_MODEL", "llama3.2:3b")
         self.host = host or _host()
         self.timeout = timeout
+        # A mesma janela e o mesmo keep_alive da conversa (src/inferencia.py):
+        # o juiz roda no modelo que responde, e janela diferente recarrega.
         self.num_ctx = num_ctx
+        self.keep_alive = keep_alive
+        # `think: false` so para modelo que declara a capacidade de pensar -
+        # num juiz de um token, pensar antes gastaria o token inteiro.
+        self.sem_pensar = sem_pensar
         self._post = post or requests.post
         self._memoria: OrderedDict[str, dict[str, float] | None] = OrderedDict()
         # O que o último julgamento custou, para a tela e para a medição.
@@ -166,6 +173,13 @@ class Juiz:
                 {"role": "user", "content": usuario},
             ],
         }
+        if self.keep_alive:
+            payload["keep_alive"] = self.keep_alive
+        if self.sem_pensar:
+            import inferencia
+
+            if inferencia.pensa(self.host, self.model):
+                payload["think"] = False
         import time
 
         comeco = time.time()

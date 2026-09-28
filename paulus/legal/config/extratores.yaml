@@ -38,6 +38,24 @@ modelos:
     temperature: 0
     seed: 42
     num_ctx: 8192
+  # A conversa (src/inferencia.py). Aqui ficam so as OPCOES: o nome do
+  # modelo vem da delegacao por tarefa (Configuracoes > Modelos), e o `id`
+  # abaixo so documenta o de fabrica. A janela e fixa - mudar `num_ctx` faz
+  # o Ollama recarregar o modelo - e 16384 ainda le o acervo inteiro quando
+  # ele cabe; uma janela por modelo vai em `ia.janela_por_modelo` nas
+  # preferencias. `num_predict` e o teto de resposta por tarefa: conversa,
+  # JSON das ferramentas e o juiz de uma letra.
+  conversa:
+    id: llama3.2:3b
+    runtime: ollama
+    temperature: 0
+    seed: 42
+    num_ctx: 16384
+    keep_alive: 30m
+    num_predict:
+      conversa: 700
+      json: 800
+      juiz: 1
 
 extratores:
   # -------------------------------------------------------------- nivel 0

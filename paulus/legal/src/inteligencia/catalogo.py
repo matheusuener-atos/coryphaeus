@@ -38,6 +38,10 @@ class Modelo:
     temperature: float = 0.0
     seed: int = 42
     num_ctx: int = 8192
+    # So o perfil `conversa` usa os dois (src/inferencia.py): quanto tempo o
+    # modelo fica carregado e o teto de resposta por tarefa.
+    keep_alive: str = ""
+    num_predict: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "runtime": self.runtime, "temperature": self.temperature,
@@ -93,7 +97,9 @@ class Catalogo:
                 id=str(dados.get("id", "")), runtime=str(dados.get("runtime", "ollama")),
                 temperature=float(dados.get("temperature", 0) or 0),
                 seed=int(dados.get("seed", 42) or 42),
-                num_ctx=int(dados.get("num_ctx", 8192) or 8192))
+                num_ctx=int(dados.get("num_ctx", 8192) or 8192),
+                keep_alive=str(dados.get("keep_alive", "") or ""),
+                num_predict={str(k): int(v) for k, v in (dados.get("num_predict") or {}).items() if v})
 
         for identificador, dados in (bruto.get("extratores") or {}).items():
             catalogo.extratores[identificador] = Extrator(

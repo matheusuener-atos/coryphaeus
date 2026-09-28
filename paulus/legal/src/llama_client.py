@@ -8,10 +8,14 @@ da maquina.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Callable
+from dataclasses import replace
 
 import requests
+
+import inferencia
 
 
 def _host_do_ollama(bruto: str) -> str:
@@ -31,31 +35,15 @@ def _host_do_ollama(bruto: str) -> str:
 DEFAULT_HOST = _host_do_ollama(os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434"))
 DEFAULT_MODEL = os.getenv("PAULUS_MODEL", "llama3.2:3b")
 
-# A janela do modelo não pode ser menor que o acervo que ele precisa ler.
-# Medido nesta máquina: com 6.000 caracteres o modelo respondeu "não encontrei
-# os nomes" sobre quatro procurações; com os 21.382 do acervo inteiro, acertou
-# os quatro. O preço foi 56 s virarem 95 s — resposta rápida e errada sobre um
-# contrato não vale nada.
-JANELA_MINIMA = 8192
+# A janela ja cresceu com o acervo (de 8192 a 32768): com 6.000 caracteres o
+# modelo respondia "nao encontrei os nomes" sobre quatro procuracoes que o
+# acervo inteiro, 21.382 caracteres, respondia. Mas cada mudanca de janela
+# faz o Ollama recarregar o modelo - um documento novo custava uma recarga
+# na pergunta seguinte. Desde a I1 a janela e fixa por modelo
+# (src/inferencia.py), 16384 de fabrica: o acervo que cabe ainda vai
+# inteiro, e o que nao cabe passa pela busca.
 
-# Teto para a memória não estourar: a janela é alocada quando o modelo carrega,
-# e o computador do escritório também roda o resto do trabalho.
-JANELA_MAXIMA = 32768
-
-
-def janela_para(caracteres: int, reserva_tokens: int = 1200) -> int:
-    """
-    A janela que um acervo deste tamanho pede, arredondada para cima.
-
-    Potência de dois porque é o que estes runtimes alocam bem. Acervo grande
-    demais não estica a janela até o infinito: passa do teto, e aí quem
-    escolhe o que ler é a busca.
-    """
-    precisa = caracteres // 3 + reserva_tokens
-    janela = JANELA_MINIMA
-    while janela < precisa and janela < JANELA_MAXIMA:
-        janela *= 2
-    return min(janela, JANELA_MAXIMA)
+_log = logging.getLogger("paulus.modelo")
 
 # A instrucao anterior tinha sete regras numeradas, e a de numero 3 entregava
 # ao modelo uma frase de fuga pronta: "se a resposta nao estiver nos trechos,
@@ -125,22 +113,80 @@ class OllamaError(RuntimeError):
 
 
 class LlamaClient:
+    # Quem chama a conversa pergunta isto antes de mandar `tarefa`: o cliente
+    # de mentira dos testes nao conhece o argumento, e nao precisa conhecer.
+    aceita_tarefa = True
+
     def __init__(
         self,
         model: str = DEFAULT_MODEL,
         host: str = DEFAULT_HOST,
         *,
-        temperature: float = 0.1,
-        num_ctx: int = 8192,
+        opcoes: inferencia.Opcoes | None = None,
+        temperature: float | None = None,
+        num_ctx: int | None = None,
         timeout: int = 300,
     ) -> None:
         self.model = model
         self.host = _host_do_ollama(host)
-        self.temperature = temperature
-        self.num_ctx = num_ctx
+        # As opcoes vem do catalogo (src/inferencia.py); `temperature` e
+        # `num_ctx` soltos ficam para quem usa o cliente fora do programa
+        # (src/main.py, os testes).
+        self.opcoes = replace(opcoes) if opcoes else inferencia.Opcoes()
+        if temperature is not None:
+            self.opcoes.temperature = temperature
+        if num_ctx is not None:
+            self.opcoes.num_ctx = num_ctx
         self.timeout = timeout
+        # Os numeros da ultima chamada: tokens lidos e escritos, e se o
+        # prompt encostou no fim da janela.
+        self.ultima: dict = {}
+
+    @property
+    def num_ctx(self) -> int:
+        return self.opcoes.num_ctx
+
+    @num_ctx.setter
+    def num_ctx(self, valor: int) -> None:
+        self.opcoes.num_ctx = int(valor)
+
+    @property
+    def temperature(self) -> float:
+        return self.opcoes.temperature
 
     # ---------------------------------------------------------------- chat
+
+    def _payload(self, messages: list[dict], *, fmt: str | None, stream: bool, tarefa: str) -> dict:
+        payload: dict = {
+            "model": self.model,
+            "messages": messages,
+            "stream": stream,
+            "options": self.opcoes.options(tarefa),
+        }
+        if self.opcoes.keep_alive:
+            payload["keep_alive"] = self.opcoes.keep_alive
+        # O modo de pensar gasta a janela e o tempo antes da primeira
+        # palavra - e so existe em alguns modelos. So para esses vai a flag.
+        if self.opcoes.desligar_pensar and inferencia.pensa(self.host, self.model):
+            payload["think"] = False
+        if fmt:
+            payload["format"] = fmt
+        return payload
+
+    def _anotar(self, dado: dict, on_fase: Callable[[str, dict], None] | None = None) -> dict:
+        """Guarda os numeros do fim e avisa quando o texto nao coube."""
+        lidos = int(dado.get("prompt_eval_count", 0) or 0)
+        cortou = inferencia.truncou(lidos, self.num_ctx)
+        self.ultima = {"prompt_eval_count": lidos, "eval_count": int(dado.get("eval_count", 0) or 0),
+                       "num_ctx": self.num_ctx, "truncou": cortou}
+        if cortou:
+            # O Ollama corta calado: descarta o comeco do prompt e responde
+            # com o resto. Registrado aqui e dito na tela - uma resposta sobre
+            # metade do documento nao pode passar por resposta sobre ele todo.
+            _log.warning("o prompt encostou no fim da janela: %s de %s tokens (%s)", lidos, self.num_ctx, self.model)
+            if on_fase:
+                on_fase("truncou", {"tokens_lidos": lidos, "num_ctx": self.num_ctx})
+        return self.ultima
 
     def _chat(
         self,
@@ -151,15 +197,9 @@ class LlamaClient:
         on_token: Callable[[str], None] | None = None,
         on_fase: Callable[[str, dict], None] | None = None,
         parar: Callable[[], bool] | None = None,
+        tarefa: str = "",
     ) -> str:
-        payload: dict = {
-            "model": self.model,
-            "messages": messages,
-            "stream": stream,
-            "options": {"temperature": self.temperature, "num_ctx": self.num_ctx},
-        }
-        if fmt:
-            payload["format"] = fmt
+        payload = self._payload(messages, fmt=fmt, stream=stream, tarefa=tarefa)
 
         # O relogio comeca aqui, antes do POST. Com stream=True o requests so
         # retorna quando o Ollama manda o primeiro pedaco - e o Ollama so manda
@@ -193,7 +233,9 @@ class LlamaClient:
             raise OllamaError(f"Ollama retornou erro: {detalhe or exc}") from exc
 
         if not stream:
-            return resp.json().get("message", {}).get("content", "").strip()
+            dado = resp.json()
+            self._anotar(dado, on_fase)
+            return dado.get("message", {}).get("content", "").strip()
 
         # As duas fases tem nomes e tempos diferentes, e quem olha a tela
         # precisa saber em qual esta. LER o prompt inteiro e o silencio longo -
@@ -227,6 +269,7 @@ class LlamaClient:
                 if on_token:
                     on_token(token)
             if dado.get("done"):
+                numeros = self._anotar(dado, on_fase)
                 if on_fase:
                     fim = time.time()
                     # Os tempos vem do proprio Ollama, em nanossegundos. O
@@ -246,6 +289,8 @@ class LlamaClient:
                         "do_cache": bool(lendo and espera and lendo < espera / 3),
                         "tokens_lidos": dado.get("prompt_eval_count", 0),
                         "tokens_escritos": dado.get("eval_count", 0),
+                        "num_ctx": self.num_ctx,
+                        "truncou": numeros["truncou"],
                     })
                 break
         return "".join(partes).strip()
@@ -263,9 +308,14 @@ class LlamaClient:
         on_token: Callable[[str], None] | None = None,
         on_fase: Callable[[str, dict], None] | None = None,
         parar: Callable[[], bool] | None = None,
+        tarefa: str = "",
     ) -> str:
         """
         Pergunta com contexto de contratos.
+
+        `tarefa` escolhe o teto de resposta (src/inferencia.py): "conversa"
+        para a pergunta sobre documentos. Sem tarefa, sem teto - o editor e
+        os resumos escrevem o quanto o texto pedir.
 
         `sistema` troca a instrucao de sistema para quem nao esta perguntando
         sobre o acervo. Sem isso, o editor pedia "devolva APENAS o texto" numa
@@ -289,6 +339,8 @@ class LlamaClient:
         # `parar` so vai quando existe: quem troca o `_chat` num teste nao
         # precisa conhecer o argumento.
         extra = {"parar": parar} if parar else {}
+        if tarefa:
+            extra["tarefa"] = tarefa
         return self._chat(messages, stream=stream, on_token=on_token, on_fase=on_fase, **extra)
 
     def ask_json(self, instruction: str, context: str = "", schema_hint: str = "",
@@ -310,7 +362,7 @@ class LlamaClient:
             {"role": "system", "content": sistema or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        bruto = self._chat(messages, fmt="json")
+        bruto = self._chat(messages, fmt="json", tarefa="json")
         try:
             return json.loads(bruto)
         except json.JSONDecodeError:

@@ -90,7 +90,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     pronta = verificacao.papel_sem_prova(pergunta, escopo_do_papel)
     if pronta:
         ctx.registrar("nenhum documento liga advogado a essa parte - respondi sem o modelo")
-        yield evento("vazio", mensagem=pronta)
+        yield evento("vazio", mensagem=pronta, caminho="regra")
         return
 
     # O material de consulta (src/material.py): manual, tabela, doutrina que
@@ -112,6 +112,9 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     # baixo, sem que nada mude. Com material na pergunta, os fatos guardados
     # nao bastam: eles sao so dos documentos.
     quais_em_foco = [apenas] if isinstance(apenas, str) and apenas else list(apenas or [])
+    # O nivel 0 tentou e desistiu: a medicao (src/medicao.py) separa essas
+    # perguntas, que pagaram duas vezes.
+    fallback = False
     saber = getattr(ctx, "saber", None)
     if saber is not None:
         escopo = ([d for d in ctx.documentos if d.name in set(quais_em_foco)]
@@ -122,6 +125,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
             yield from _responder_do_que_ja_se_sabe(ctx, pergunta, pacote, sinal)
             if not sinal["escalou"]:
                 return
+            fallback = True
             ctx.registrar("os fatos guardados não bastaram — refiz pelo caminho de sempre")
         elif pacote.estreita:
             # Niveis 3 e 4: a camada nao tem a resposta, mas sabe em quais
@@ -154,7 +158,8 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                     pergunta, top_k=max(top, len(so_deles)), per_doc_limit=por_documento)
                 dentro = [h for h in escolhidos if h.doc_name in set(quais)]
                 so_deles = dentro or so_deles[:1]
-            yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais, material=leitura_material)
+            yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais, material=leitura_material,
+                                  caminho="foco", fallback=fallback)
             return
         # Nomeou documento que nao esta aberto: dizer isso e melhor do que
         # responder pelo acervo como se nada tivesse sido pedido.
@@ -162,6 +167,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
             "vazio",
             mensagem="“" + "”, “".join(quais) + "” não está entre os documentos "
                      "abertos, então não tenho o que ler.",
+            caminho="foco",
         )
         return
 
@@ -169,7 +175,9 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     # documentos e vinte e quatro mil caracteres dava, e o programa escolhia
     # mesmo assim: lia três de seis e respondia "não encontrei essa
     # informação" sobre um documento que nunca abriu.
+    caminho = "busca"
     if ctx.searcher.cabe_inteiro(orcamento):
+        caminho = "tudo"
         hits = ctx.searcher.tudo()
         ctx.registrar("Leu " + _quantos(len(ctx.documentos), "documento") + " por inteiro")
     else:
@@ -184,12 +192,14 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
 
     if not hits and not do_material:
         yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos"
-                     + (" nem no material de consulta." if material is not None and material.itens else "."))
+                     + (" nem no material de consulta." if material is not None and material.itens else "."),
+                     caminho=caminho)
         return
     if not hits:
         ctx.registrar("Nada nos documentos abertos — respondeu pelo material de consulta")
 
-    yield from _responder(ctx, pergunta, hits, orcamento, material=leitura_material)
+    yield from _responder(ctx, pergunta, hits, orcamento, material=leitura_material,
+                          caminho=caminho, fallback=fallback)
 
 
 def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: dict):
@@ -219,7 +229,7 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
 
     try:
         resposta = (ctx.client.ask(prompt, "", sistema=SISTEMA_DOS_FATOS,
-                                   ensinado=getattr(ctx, "ensinado", "")) or "").strip()
+                                   ensinado=getattr(ctx, "ensinado", ""), **_da_conversa(ctx)) or "").strip()
     except Exception:
         # Modelo fora do ar no meio do caminho rapido: o caminho de sempre
         # tambem precisa dele, mas quem decide isso e o fluxo de fora.
@@ -247,7 +257,16 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
                  documentos=len(pacote.documentos),
                  janela=getattr(ctx.client, "num_ctx", 0),
                  modelo=getattr(ctx.client, "model", ""),
-                 previsao={"sabe": False}, nivel=pacote.nivel)
+                 previsao={"sabe": False}, nivel=pacote.nivel,
+                 caminho="nivel0", fallback=False)
+    # Sem stream, os numeros do modelo ficam no cliente. Vao so para a
+    # medicao (src/medicao.py), e nao para a tela como "medida": sem stream
+    # nao ha tempo de leitura e de escrita separados para mostrar.
+    ultima = getattr(ctx.client, "ultima", None) or {}
+    if ultima:
+        yield evento("contagem", tokens_lidos=ultima.get("prompt_eval_count", 0),
+                     tokens_escritos=ultima.get("eval_count", 0), num_ctx=ultima.get("num_ctx", 0),
+                     truncou=bool(ultima.get("truncou")))
     yield evento("token", t=resposta)
     yield evento("fim", fontes=fontes, consultados=pacote.documentos, ignorados=[],
                  nivel=pacote.nivel)
@@ -267,7 +286,8 @@ SISTEMA_DOS_FATOS = (
 )
 
 
-def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, material=([], "")):
+def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, material=([], ""),
+               caminho: str = "busca", fallback: bool = False):
     """
     Monta as fontes, entrega ao assistente e devolve a resposta.
 
@@ -343,12 +363,16 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         janela=getattr(ctx.client, "num_ctx", 0),
         modelo=getattr(ctx.client, "model", ""),
         previsao=previsao,
+        caminho=caminho,
+        fallback=fallback,
     )
 
     escrito = []
     for tipo, dados in _pedacos(ctx, pergunta, contexto):
         if tipo == "token":
             escrito.append(dados.get("t", ""))
+        elif tipo == "truncou":
+            ctx.registrar("o texto não coube inteiro na janela do modelo: o começo ficou de fora desta leitura")
         yield evento(tipo, **dados)
 
     # Pergunta de consequencia: a frase do documento que decide, literal,
@@ -361,6 +385,14 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         yield evento("token", t=complemento)
 
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
+
+
+def _da_conversa(ctx: Contexto) -> dict:
+    """
+    O teto de resposta da conversa (src/inferencia.py). So vai para o cliente
+    que conhece o argumento: o de mentira dos testes nao precisa conhecer.
+    """
+    return {"tarefa": "conversa"} if getattr(ctx.client, "aceita_tarefa", False) else {}
 
 
 def _quantos(n: int, palavra: str) -> str:
@@ -385,6 +417,7 @@ def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
             on_token=lambda t: empurrar(("token", {"t": t})),
             on_fase=lambda fase, dados: empurrar((fase, dados)),
             parar=parar,
+            **_da_conversa(ctx),
         )
 
     for item in Ponte(trabalho, parar=parar):

@@ -41,7 +41,7 @@ etapa que não estiver `feita`.
 | R8 | Auditoria "quem acessou" | feita | branch `r8-auditoria` | 9 ações de fora registradas; edição à mão acusada na linha certa; poda de 1 ano com âncora; PDF |
 | R9 | Celular, energia, iniciar com o Windows | feita | branch `r9-celular` | 4 telas em 390 px pelo caminho de fora (sem rolagem lateral, 44 px de toque); 9/9 respostas em streaming com os cabeçalhos; energia e Run testados |
 | R10 | Política, documentação, roteiro do teste real | textos feitos; ⏸ teste no 4G | branch `r10-politica` (docs) e `r10-politica-site` (site, fora do main) | política e termos com a seção nova; manual com solução de problemas; roteiro de 9 passos abaixo |
-| I1 | Ajustes de inferência | pendente | | |
+| I1 | Ajustes de inferência | feita | branch `i1-inferencia` | roteiro `--tudo` 40/41 antes e depois (a mesma de ausência falha nas duas); p50 documentos 8,5 s → 8,9 s; entrada p50 2.366 tokens; 0 cortes; mesma pergunta 2× = mesma resposta |
 | I2 | Medição com documentos reais | pendente | | |
 | I3 | Nível 0 por molde | pendente | | |
 | I4 | Memória da conversa | pendente | | |
@@ -99,6 +99,11 @@ etapa que não estiver `feita`.
 - **R9** O aviso de 403 ("Disponível só no computador do escritório") só aparece para pedidos que alteram algo; leituras de fundo que dão 403 ficam caladas.
 - **R9** "Abrir o PAULUS com o Windows" só existe no programa instalado (o `PAULUS.exe` fica duas pastas acima de `app/src`); no código-fonte a opção aparece travada, com a frase.
 - **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada. A checagem "segurar numa conversa marca" é intermitente: medida em 3 rodadas seguidas na árvore desta rodada, falhou 1 e passou 2 (a lista de conversas abre animada em 460 ms e pode se redesenhar enquanto o teste segura a linha). `test_gravacoes.py` falha quando a máquina tem menos de ~1,9 GB livres para o modelo de voz — é a causa da falha da linha de base.
+- **I1** A janela fixa de fábrica é 16384 (perfil `conversa` em `config/extratores.yaml`), como pede o contrato; `janela_para` saiu. A chave `ia.opcoes_fixas` desligada volta à temperatura 0,1 sem semente/teto/keep_alive — mas não traz de volta a janela que crescia com o acervo (ela era a causa das recargas).
+- **I1** O teto de 700 tokens vale só para a pergunta sobre documentos (a habilidade `perguntar` manda `tarefa="conversa"`); editor, resumos e e-mail escrevem sem teto. JSON (ferramentas, folha) tem 800.
+- **I1** A linha de base do roteiro nesta rodada foi 40/41, e não 41/41: a pergunta de ausência da multa do aluguel falhou com as opções antigas também. A régua é "não cair" em relação a 40/41.
+- **I1** `perguntas.jsonl` guarda também a resposta pelo programa (`caminho: programa`) e a recusa por regra (`regra`); a pergunta parada no meio não entra (como no ritmo: leitura cortada não é medida).
+- **I1** Um dicionário vazio no `PADRAO` passou a ser mapa livre em `_fundir` (senão `janela_por_modelo` perdia as chaves ao reabrir).
 
 ## Pendente do usuário
 

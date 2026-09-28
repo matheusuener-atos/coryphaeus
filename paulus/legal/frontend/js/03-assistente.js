@@ -468,6 +468,7 @@ function blocoResposta(m, pergunta, ultima) {
     html += avisoCobertura(m.cobertura);
   }
   if (m.interrompida) html += etiquetaDeParada();
+  if (m.cobertura && m.cobertura.truncou) html += etiquetaDeCorte();
   if (m.inferencia) html += etiquetaDeLeitura();
   html += '<div class="texto">' + esc(m.texto) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
@@ -486,6 +487,14 @@ function blocoResposta(m, pergunta, ultima) {
    escrito ate ali, e quem le precisa saber que nao e a resposta inteira. */
 function etiquetaDeParada() {
   return '<div class="etiqueta">' + ic("pause", 14) + "resposta parada no meio</div>";
+}
+
+/* O texto mandado ao modelo passou da janela dele, e o Ollama descartou o
+   começo calado (src/inferencia.py). Quem lê precisa saber que a resposta
+   não fala pelo texto inteiro. */
+function etiquetaDeCorte() {
+  return '<div class="etiqueta atencao">' + ic("info", 14) +
+    "o texto não coube inteiro nesta leitura: o começo ficou de fora</div>";
 }
 
 function etiquetaDeLeitura() {
@@ -1380,6 +1389,10 @@ async function enviar(opcoes) {
           bastidor.escreveDesde = Date.now();
           bastidor.palavras = 0;
           faseBastidor("escrevendo", "escrevendo…");
+        } else if (mt[1] === "truncou") {
+          anotarBastidor("o texto passou da janela de " + milhar(dados.num_ctx) +
+            " tokens; o modelo leu só o final dele");
+          if (!resposta.querySelector(".etiqueta.atencao")) resposta.insertAdjacentHTML("afterbegin", etiquetaDeCorte());
         } else if (mt[1] === "medida") {
           fecharBastidor();
           // Dois tempos diferentes e de proposito: o que a pessoa esperou e o

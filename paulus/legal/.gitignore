@@ -99,3 +99,7 @@ data/publico/
 # O acesso de fora: contas, sessoes e o registro de quem acessou.
 data/acesso/
 data/logs/
+
+# A medicao da conversa (src/medicao.py, tools/medir.py): numeros locais, e o
+# conjunto real tem perguntas e frases de documentos de cliente.
+data/medicao/

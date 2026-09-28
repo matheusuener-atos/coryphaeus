@@ -91,7 +91,9 @@ from acesso import rotas_tunel as rotas_do_tunel
 from acesso import rotas_auditoria as rotas_da_auditoria
 from acesso.conexao import ConexaoDoTunel
 from inteligencia import portas as inteligencia
+import inferencia
 from inteligencia.catalogo import Catalogo
+from medicao import Medicao
 from inteligencia.guarda import Biblioteca
 import marca as marca_mod
 import pastas
@@ -119,7 +121,6 @@ from llama_client import (
     LlamaClient,
     OllamaError,
     check_ollama,
-    janela_para,
 )
 from organize import (
     PADROES_SUGERIDOS,
@@ -328,6 +329,13 @@ class Estado:
         # cada documento, para nao entender de novo a cada pergunta. Com a
         # chave desligada ela devolve fallback na hora e nada muda.
         self.catalogo = Catalogo.carregar()
+        # As opcoes do modelo vem do catalogo (perfil `conversa`), e por isso
+        # o cliente e refeito aqui, depois de le-lo (src/inferencia.py).
+        self.client = self.novo_cliente(self.client.model)
+        # Uma linha por pergunta, local (src/medicao.py).
+        self.medicao = Medicao(DADOS_DIR / "medicao",
+                               ligada=lambda: bool((self.prefs.dados.get("ia") or {}).get("medir", True)),
+                               digest=lambda modelo: self.client.digest(modelo))
         self.analisando = False
         self.saber = inteligencia.Saber(
             Biblioteca(CONHECIMENTO_DIR, self.base), self.catalogo,
@@ -516,15 +524,22 @@ class Estado:
         return modelos_mod.modelo_da_tarefa(tarefa, self.prefs.dados.get("tarefas_modelo") or {},
                                             self.client.model, self.modelos_presentes())
 
+    def novo_cliente(self, modelo: str) -> LlamaClient:
+        """Um cliente para `modelo`, com as opcoes do catalogo e das preferencias."""
+        host = getattr(getattr(self, "client", None), "host", None) or DEFAULT_HOST
+        return LlamaClient(model=modelo, host=host,
+                           opcoes=inferencia.opcoes(self.catalogo, self.prefs.dados, modelo))
+
     def cliente_para(self, tarefa: str) -> LlamaClient:
         """
         O cliente do modelo que faz a tarefa. O padrao e o proprio
-        `self.client`; outro modelo ganha um cliente com a mesma janela.
+        `self.client`; outro modelo ganha um cliente com as opcoes dele - a
+        janela e por modelo (src/inferencia.py).
         """
         nome = self.modelo_para(tarefa)
         if nome == self.client.model:
             return self.client
-        return LlamaClient(model=nome, host=self.client.host, num_ctx=self.client.num_ctx)
+        return self.novo_cliente(nome)
 
     def recarregar(self, *, force: bool = False) -> int:
         with self._trava_indice:
@@ -546,12 +561,9 @@ class Estado:
             self.retrato = retrato
             self.versao_do_acervo += 1
 
-        # A janela do modelo acompanha o acervo. Com a janela fixa e pequena, o
-        # programa lia um terco dos documentos e respondia "nao encontrei essa
-        # informacao" sobre os outros dois tercos - resposta errada com cara de
-        # certa, que e o pior tipo.
-        if self.client is not None:
-            self.client.num_ctx = janela_para(searcher.caracteres())
+        # A janela NAO acompanha mais o acervo (I1): cada mudanca dela fazia o
+        # Ollama recarregar o modelo na pergunta seguinte. Ela e fixa por
+        # modelo (src/inferencia.py); o que nao cabe nela passa pela busca.
 
         # HOOK 1: o que entrou vai ser entendido uma vez, em segundo plano.
         # Nao bloqueia a indexacao e nao altera arquivo nenhum; se falhar, o
@@ -3308,6 +3320,20 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # dizer o caminho de sempre.
         nivel: int | None = None
         inferencia = False
+        # O que vai para a linha da medicao (src/medicao.py): o caminho que a
+        # pergunta tomou e os numeros que o modelo devolveu.
+        medir: dict = {"caminho": None, "fallback": False, "truncou": False, "trechos": 0}
+
+        def medir_agora() -> None:
+            numeros = medida or medir.get("contagem") or {}
+            estado.medicao.pergunta(
+                modelo=estado.client.model, num_ctx=numeros.get("num_ctx") or getattr(estado.client, "num_ctx", 0),
+                prompt_eval_count=numeros.get("tokens_lidos"), eval_count=numeros.get("tokens_escritos"),
+                lendo_s=medida.get("esperou_segundos") if medida else None,
+                escrevendo_s=medida.get("escrevendo_segundos") if medida else None,
+                total_s=round(time.time() - inicio, 1), caminho=medir["caminho"], nivel=nivel,
+                trechos=medir["trechos"], caracteres=lido_chars,
+                truncou=medir["truncou"] or bool(numeros.get("truncou")), fallback=medir["fallback"])
 
         passos = habilidade.executar(
             _contexto(registrar, parar=parar.is_set, tarefa="conversa"), pergunta=pergunta, top=payload.top,
@@ -3342,6 +3368,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     andamento["previsao_s"] = previsao.get("segundos", 0) if previsao.get("sabe") else 0
                     andamento["caracteres"] = dados.get("caracteres", 0)
                     lido_chars = dados["caracteres"]
+                    medir.update(caminho=dados.get("caminho"), fallback=bool(dados.get("fallback")),
+                                 trechos=dados.get("trechos", 0))
                     trabalho.etapas[1].titulo = "Lendo os documentos"
                     trabalho.etapas[1].estado = EXECUTANDO
                     trabalho.etapas[1].detalhe = f"{dados['caracteres']:,}".replace(",", ".") + " caracteres"
@@ -3358,6 +3386,15 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 elif tipo == "medida":
                     medida = dados
                     yield _sse("medida", dados)
+                elif tipo == "contagem":
+                    medir["contagem"] = dados
+                elif tipo == "truncou":
+                    # O prompt nao coube na janela: o Ollama cortou o comeco
+                    # calado (src/inferencia.py). A tela diz, e a resposta
+                    # guarda o aviso.
+                    medir["truncou"] = True
+                    cobertura["truncou"] = True
+                    yield _sse("truncou", dados)
                 elif tipo == "token":
                     partes.append(dados["t"])
                     # Contar a cada dez pedacos basta para o cartao, e nao
@@ -3371,6 +3408,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     trabalho.estado = CONCLUIDO
                     trabalho.dizer("paulus", dados["mensagem"])
                     estado.trabalhos.salvar(trabalho)
+                    medir["caminho"] = dados.get("caminho") or medir["caminho"]
+                    medir_agora()
                     yield _sse("vazio", dados)
                     return
                 elif tipo == "fim":
@@ -3415,6 +3454,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 palavras=len("".join(partes).split()),
                 segundos_escrevendo=medida.get("escrevendo_segundos", 0),
             )
+
+        medir_agora()
 
         for etapa in trabalho.etapas:
             if etapa.estado == EXECUTANDO:
@@ -3621,7 +3662,7 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
     )
 
 
-_JUIZES: dict[str, juizo.Juiz] = {}
+_JUIZES: dict[tuple, juizo.Juiz] = {}
 
 
 def _juiz() -> juizo.Juiz | None:
@@ -3632,12 +3673,13 @@ def _juiz() -> juizo.Juiz | None:
     de paciencia: passou disso, a pergunta segue para os documentos.
     """
     modelo = estado.modelo_para("juiz")
-    if modelo not in _JUIZES:
-        from llama_client import JANELA_MINIMA
-
-        _JUIZES[modelo] = juizo.Juiz(model=modelo, host=estado.client.host, timeout=20,
-                                     num_ctx=JANELA_MINIMA)
-    return _JUIZES[modelo]
+    opcoes = estado.client.opcoes if modelo == estado.client.model else estado.novo_cliente(modelo).opcoes
+    chave = (modelo, opcoes.num_ctx, opcoes.keep_alive)
+    if chave not in _JUIZES:
+        _JUIZES[chave] = juizo.Juiz(model=modelo, host=estado.client.host, timeout=20,
+                                    num_ctx=opcoes.num_ctx, keep_alive=opcoes.keep_alive,
+                                    sem_pensar=opcoes.desligar_pensar)
+    return _JUIZES[chave]
 
 
 def _responder_programa(trabalho, leitura, pergunta: str) -> StreamingResponse:
@@ -3659,6 +3701,12 @@ def _responder_programa(trabalho, leitura, pergunta: str) -> StreamingResponse:
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)
+        # Pelo juiz, o modelo gastou um token; pela regra, nenhum.
+        julgado = (_juiz().ultima_medida if leitura.por_modelo else {}) or {}
+        estado.medicao.pergunta(modelo=estado.client.model if leitura.por_modelo else "",
+                                prompt_eval_count=julgado.get("tokens_lidos"),
+                                eval_count=1 if leitura.por_modelo else 0,
+                                total_s=julgado.get("segundos", 0.0), caminho="programa")
         yield _sse("token", {"t": texto})
         yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
@@ -5026,13 +5074,10 @@ def preferencias_gravar(payload: dict) -> dict:
 
     # O que a preferencia muda de verdade, agora: modelo e ritmo.
     modelo = estado.prefs.dados.get("modelo")
-    if modelo and modelo != estado.client.model:
-        # A janela vem junto. Sem esta linha, trocar de modelo devolvia o
-        # cliente ao padrao de 8.192 e o programa voltava a ler um quarto do
-        # acervo - calado, e so na proxima pergunta.
-        estado.client = LlamaClient(
-            model=modelo, num_ctx=janela_para(estado.searcher.caracteres())
-        )
+    # As opcoes vem junto: a janela e por modelo, e `ia` pode ter mudado
+    # agora (src/inferencia.py).
+    if (modelo and modelo != estado.client.model) or "ia" in payload:
+        estado.client = estado.novo_cliente(modelo or estado.client.model)
     estado.devagar = bool(estado.prefs.dados.get("devagar"))
     estado.saber.ligada = bool(estado.prefs.dados.get("inteligencia", True))
     voz = (estado.prefs.dados.get("voz") or {}).get("modelo")
@@ -10429,7 +10474,7 @@ def main() -> None:
 
     estado.pasta = args.contracts
     estado.porta = args.port
-    estado.client = LlamaClient(model=args.model)
+    estado.client = estado.novo_cliente(args.model)
 
     # Sem a janela, quem abre e o navegador: o endereco leva a chave desta
     # execucao, como o Jupyter faz, e so vale uma vez (src/acesso/chave.py).

@@ -115,6 +115,14 @@ PADRAO: dict = {
     "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "aud": "", "team_domain": "",
                       "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0"},
     "modelo": "",
+    # O que chega ao modelo (src/inferencia.py), uma chave por etapa do plano
+    # de melhoria da IA - para dar para voltar atras sem mexer em codigo.
+    # `opcoes_fixas` (I1): temperatura 0, semente 42, keep_alive e teto de
+    # resposta vindos do catalogo; desligada, volta a temperatura 0,1 de antes.
+    # `janela_por_modelo`: {"modelo": num_ctx}; vazio, a do catalogo (16384).
+    # `medir` (I1): uma linha por pergunta em data/medicao/perguntas.jsonl,
+    # so numeros, nunca o texto - e o arquivo nao sai da maquina.
+    "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.
@@ -208,6 +216,11 @@ class Preferencias:
             if chave not in base:
                 continue
             if isinstance(base[chave], dict) and isinstance(valor, dict):
+                if not base[chave]:
+                    # Dicionario vazio no padrao e mapa de nomes livres (a
+                    # janela por modelo, por exemplo): as chaves sao dados.
+                    base[chave] = dict(valor)
+                    continue
                 Preferencias._fundir(base[chave], valor)
             else:
                 base[chave] = valor

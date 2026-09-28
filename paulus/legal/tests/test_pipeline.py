@@ -251,7 +251,7 @@ def test_le_o_acervo_inteiro_quando_cabe() -> None:
     com 6.000 caracteres achou 0 dos 4 outorgados; com o acervo inteiro, os 4.
     """
     print("\nler tudo quando tudo cabe")
-    from llama_client import janela_para
+    from inferencia import JANELA_PADRAO
 
     docs = index_all_contracts(SAMPLES, verbose=False)
     searcher = ContractSearcher()
@@ -261,14 +261,11 @@ def test_le_o_acervo_inteiro_quando_cabe() -> None:
     total = searcher.caracteres()
     checar(total > 0, f"o acervo de exemplo tem texto ({total} chars)")
 
-    # A janela acompanha o acervo: fixa e pequena, ela cortava o que o modelo
-    # via sem ninguem saber.
-    checar(janela_para(total) >= 8192, "a janela nunca fica abaixo do minimo")
-    checar(janela_para(500_000) == 32768, "e nao passa do teto, por causa da memoria")
-    checar(janela_para(120_000) > janela_para(5_000), "acervo maior pede janela maior")
-
-    folgado = (janela_para(total) - 1200) * 3
-    checar(searcher.cabe_inteiro(folgado), "este acervo cabe inteiro na janela dele")
+    # A janela e fixa por modelo desde a I1 (src/inferencia.py): crescer com
+    # o acervo recarregava o modelo a cada documento novo. A de fabrica ainda
+    # cabe o acervo de exemplo inteiro.
+    folgado = (JANELA_PADRAO - 1200) * 3
+    checar(searcher.cabe_inteiro(folgado), "este acervo cabe inteiro na janela de fabrica")
 
     todos = searcher.tudo()
     checar(len(todos) == len(searcher.chunks), "ler tudo devolve todos os trechos")

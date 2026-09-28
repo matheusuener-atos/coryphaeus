@@ -1500,3 +1500,50 @@ não autorizado — cada problema com a frase que a tela mostra e onde olhar
 
 **Falta:** o teste real, do celular em 4G, em nove passos
 (`PROGRESSO-IMPLEMENTACAO.md`). Depende do painel da Cloudflare (R5).
+
+# Melhoria da IA
+
+O plano 2 do contrato: a conversa sobre documentos mais rápida, mais estável
+e medida em documentos reais. Cada etapa atrás de uma chave no bloco `ia` das
+preferências, e cada uma roda o banco de provas (`tools/demo/roteiro.py
+--tudo`) com o Ollama antes de entrar: o resultado não pode cair.
+
+## I1 — O que chega ao modelo ✓ FEITA
+
+Os parâmetros não chegavam ao modelo. `config/extratores.yaml` dizia
+temperatura 0 e semente 42, e a conversa mandava 0,1 e semente nenhuma: a
+mesma pergunta, duas vezes, podia dar duas respostas — e não havia como saber
+se uma troca de prompt melhorou ou só sorteou outra resposta. A janela
+(`num_ctx`) crescia com o acervo, e cada mudança dela faz o Ollama recarregar
+o modelo: um documento novo custava uma recarga na pergunta seguinte.
+
+**Agora** (`src/inferencia.py`): as opções vêm do perfil `conversa` do
+catálogo — temperatura 0, semente 42, `keep_alive` de 30 minutos (o padrão do
+Ollama são 5, e a pergunta seguinte de quem lê um contrato quase sempre vem
+depois disso) e teto de resposta por tarefa: conversa 700 tokens, JSON 800,
+juiz 1. O editor e os resumos não têm teto. O **nome** do modelo continua na
+delegação por tarefa; trocar de modelo segue sendo configuração. A janela é
+fixa por modelo — 16384 de fábrica, `ia.janela_por_modelo` para outra — e o
+juiz usa a mesma da conversa (janela diferente recarregava o modelo entre o
+juiz e a resposta). `think: false` só vai para modelo que declara a
+capacidade `thinking` no `/api/show`.
+
+**Guarda de truncamento:** o Ollama corta calado quando o prompt passa da
+janela. Chegando a 64 tokens do fim, o cliente registra e emite o evento
+`truncou`; a tela põe na resposta "o texto não coube inteiro nesta leitura: o
+começo ficou de fora", e o aviso fica guardado com a conversa.
+
+**Medição** (`src/medicao.py`): uma linha por pergunta em
+`data/medicao/perguntas.jsonl` — modelo, digest, janela, tokens lidos e
+escritos, tempos, caminho (`tudo`, `busca`, `foco`, `nivel0`, `programa`,
+`regra`), nível, trechos, caracteres, `truncou` e `fallback`. Só números,
+nunca o texto da pergunta; o arquivo não sai da máquina.
+
+**Medido** (demonstração, llama3.2:3b): roteiro `--tudo` 40/41 antes e 40/41
+depois — a mesma pergunta de ausência falha nos dois ("qual a multa por
+atraso no aluguel da Clínica?": o modelo responde com a multa de rescisão de
+3 aluguéis). Tempo mediano das perguntas sobre documentos 8,5 s antes, 8,9 s
+depois (dentro da variação; a demonstração cabe inteira nas duas janelas).
+Entrada mediana de 2.366 tokens, nenhum corte. A mesma pergunta duas vezes
+deu a mesma resposta, palavra por palavra.
+
