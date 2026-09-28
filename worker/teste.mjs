@@ -187,6 +187,12 @@ checar(apoDados.apoiadores.every((a) => Object.keys(a).join() === "name,since") 
 const site = await worker.fetch(new Request("https://paulus.ia.br/"), env);
 checar(site.status === 200 && (await site.text()) === "site", "o resto continua sendo o site");
 checar((await worker.fetch(new Request("https://paulus.ia.br/api/nada"), env)).status === 404, "rota desconhecida dá 404");
+checar((await worker.fetch(new Request("https://paulus.ia.br/api/tunel/iniciar", { method: "POST", body: "{}" }), env)).status === 404,
+  "sem TUNEL_ATIVO, o acesso de fora não existe no ar");
+
+// O acesso de fora tem o proprio teste, com a API da Cloudflare de mentira.
+console.log("\n--- acesso de fora (worker/tunel.js)");
+falhas += (await import("./teste-tunel.mjs")).default;
 
 console.log(falhas ? `\n  ${falhas} FALHA(S)` : "\n  todos os testes passaram");
 process.exit(falhas ? 1 : 0);

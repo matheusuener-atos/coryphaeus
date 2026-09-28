@@ -34,6 +34,11 @@
 // Pago, forma ou valor individual sai delas.
 //
 // Todo o resto e o site estatico.
+//
+// O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
+// caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
+
+import { atenderTunel, ehRotaDoTunel } from "./tunel.js";
 
 // Guardado por pouco mais de um ano.
 const KV_VALIDADE_S = 400 * 24 * 60 * 60;
@@ -48,6 +53,19 @@ const AVISO_VALIDADE_MS = 10 * 60 * 1000;
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // O Worker nunca atende <escritorio>.paulus.ia.br: esse trafego e do tunel
+    // de cada escritorio, direto da Cloudflare ao computador dele. Se uma rota
+    // curinga um dia apontar para ca por engano, nada passa por aqui.
+    if (url.hostname.endsWith(".paulus.ia.br") && url.hostname !== "www.paulus.ia.br") {
+      return new Response("não encontrado", { status: 404 });
+    }
+    if (ehRotaDoTunel(url)) {
+      try {
+        return await atenderTunel(request, env, url, { dentroDoLimite });
+      } catch (erro) {
+        return json({ erro: "falha no servidor do acesso de fora" }, 500);
+      }
+    }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
       if (url.pathname === "/api/public/desenvolvimento" && request.method === "GET") return await publicoEmCache(request, ctx, () => desenvolvimento(request, env));

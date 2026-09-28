@@ -16,13 +16,24 @@
     // /politica-de-privacidade abre site/politica-de-privacidade/index.html
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none",
-    // O Worker responde /api/* antes de procurar arquivo do site.
-    "run_worker_first": ["/api/*"]
+    // O Worker responde /api/* antes de procurar arquivo do site, e tambem
+    // /conectar, a pagina em que o titular confirma o acesso de fora.
+    "run_worker_first": ["/api/*", "/conectar"]
   },
+  // Sem rota nenhuma aqui de proposito: o Worker atende so paulus.ia.br. Os
+  // <escritorio>.paulus.ia.br do acesso de fora sao dos tuneis de cada
+  // escritorio, e o Worker nunca faz proxy deles (worker/index.js recusa).
+  //
   // O que o webhook do Mercado Pago confirmou: Pix pago, assinatura ativa.
   // So situacao, valor e data - nenhum dado de cartao ou de pessoa.
   "kv_namespaces": [
     { "binding": "APOIOS", "id": "c8011a70799b40b0b3215f4a01b2d28c" }
+    // O acesso de fora (worker/tunel.js): os escritorios conectados e os
+    // pedidos de conexao em andamento. So o hash do segredo de cada
+    // instalacao fica aqui. Descomente com o id do KV criado no painel
+    // (docs/PROGRESSO-IMPLEMENTACAO.md, R5) - com um id que nao existe, o
+    // deploy do site inteiro falharia no proximo push.
+    // , { "binding": "ESCRITORIOS", "id": "COLE-AQUI-O-ID-DO-KV" }
   ],
   // As rotas que criam cobranca aceitam poucas chamadas por endereco de
   // internet: quem tentar encher o painel de cobrancas falsas para no limite.
