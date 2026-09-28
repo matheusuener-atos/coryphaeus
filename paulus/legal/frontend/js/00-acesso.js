@@ -17,7 +17,7 @@
    sair: sem ela nao se sabe se o token precisa ir.
 */
 
-const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null };
+const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null, permissoes: [] };
 
 /* O PAULUS de equipe (docs/PLANO-EQUIPE.md): os dados sao do escritorio, e
    cada coisa diz quem a criou. Na janela do servidor, o nome so aparece no que
@@ -37,6 +37,7 @@ function quemCriou(nome, conta) {
     .then((d) => {
       acessoDeFora.local = d.local !== false;
       acessoDeFora.pessoa = d.pessoa || null;
+      acessoDeFora.permissoes = d.permissoes || [];
       acessoDeFora.csrf = d.csrf || "";
       if (!acessoDeFora.local) document.documentElement.classList.add("remoto");
     })

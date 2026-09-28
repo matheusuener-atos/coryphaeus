@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from acesso.contas import ErroConta, ErroEntrada
 from acesso.remoto import COOKIE_SESSAO
+from acesso import permissoes
 
 
 class Entrada(BaseModel):
@@ -118,7 +119,10 @@ def montar(servico, r) -> None:
         if not p:
             return {"local": False, "pessoa": None}
         return {"local": False, "csrf": p["csrf"],
-                "pessoa": {"nome": p["nome"], "email": p["email"], "papel": p["papel"]}}
+                "pessoa": {"nome": p["nome"], "email": p["email"], "papel": p["papel"]},
+                # O menu esconde o que a pessoa nao ve e abre o que o nivel
+                # libera (E2); quem decide de verdade e o portao.
+                "permissoes": permissoes.para_a_tela(p.get("permissoes") or {})}
 
     @r.get("/api/acesso/entrar/config")
     def entrar_config() -> dict:
@@ -253,6 +257,22 @@ def montar(servico, r) -> None:
         except ErroConta as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.contas_mudaram()
+        return {"conta": conta}
+
+    @r.get("/api/acesso/permissoes/modulos")
+    def permissoes_modulos(request: Request) -> dict:
+        """A grade de Configuracoes: os modulos e os niveis de cada um."""
+        so_local(request)
+        return {"modulos": permissoes.para_a_tela(permissoes.padrao())}
+
+    @r.put("/api/acesso/contas/{conta_id}/permissoes")
+    def mudar_permissoes(conta_id: int, dados: dict, request: Request) -> dict:
+        so_local(request)
+        try:
+            conta = servico.contas.mudar_permissoes(conta_id, dados.get("niveis") or {})
+        except ErroConta as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        servico.anotar(acao="permissoes", alvo=conta["nome"], pessoa="janela local")
         return {"conta": conta}
 
     @r.delete("/api/acesso/contas/{conta_id}")

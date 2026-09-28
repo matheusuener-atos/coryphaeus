@@ -8,7 +8,8 @@ Portao da R3 - o que cada rota permite a quem esta de fora
   - cada linha da tabela do contrato (acesso-remoto/v0, §5) e testada com
     sessao remota de colaborador e de titular:
       conversar e ver documento .............. permitido
-      agenda, tarefas, cadastros ............. ver; propor vira pedido na fila
+      agenda, tarefas, cadastros ............. ver; o colaborador propoe (vira
+                                                pedido na fila); o titular faz (E2)
       editor ................................. redigir e salvar rascunho
       aprovar ................................ so titular; o que sai daqui
                                                 pede o codigo de novo; o que
@@ -138,18 +139,24 @@ def test_tabela() -> None:
             checar(f.get("/api/biblioteca").status_code == 200, f"{quem}: ver o acervo")
             checar(f.get("/api/status").status_code == 200, f"{quem}: o estado do programa")
 
-        # agenda, tarefas, cadastros: ver e propor
+        # agenda, tarefas, cadastros: o colaborador ve e propoe (o padrao);
+        # o titular faz direto (E2, docs/PLANO-EQUIPE.md: o titular tem o
+        # maior nivel de cada modulo - propor para ele mesmo aprovar nao
+        # fazia sentido)
         antes = len(api.estado.tarefas.listar("todas"))
         pedidos_antes = len(api.estado.fila.pendentes)
         for quem, f in ambos:
             checar(f.get("/api/agenda").status_code == 200 and f.get("/api/tarefas").status_code == 200,
                    f"{quem}: ver agenda e tarefas")
-            r = f.post("/api/tarefas", json={"id": None, "dados": {"titulo": "Tarefa proposta por " + quem}})
-            checar(r.status_code == 202 and r.json().get("proposto"), f"{quem}: criar tarefa vira proposta (202)", r.text[:200])
-        checar(len(api.estado.fila.pendentes) == pedidos_antes + 2, "as duas propostas estao na fila de Aprovacoes")
+        r = colab.post("/api/tarefas", json={"id": None, "dados": {"titulo": "Tarefa proposta por colaborador"}})
+        checar(r.status_code == 202 and r.json().get("proposto"), "colaborador: criar tarefa vira proposta (202)", r.text[:200])
+        checar(len(api.estado.fila.pendentes) == pedidos_antes + 1, "a proposta esta na fila de Aprovacoes")
         checar(len(api.estado.tarefas.listar("todas")) == antes, "e nenhuma tarefa foi gravada direto")
+        r = titular.post("/api/tarefas", json={"id": None, "dados": {"titulo": "Tarefa gravada pelo titular"}})
+        checar(r.status_code == 200 and not r.json().get("proposto"), "titular: criar tarefa grava direto", r.text[:200])
+        checar(len(api.estado.tarefas.listar("todas")) == antes + 1, "e a tarefa do titular existe")
         proposta = [p for p in api.estado.fila.pendentes if p.acao == "acesso.proposta"][-1]
-        checar("Caio" in proposta.pedido_por or "Tereza" in proposta.pedido_por, "o pedido diz quem propos", proposta.pedido_por)
+        checar("Caio" in proposta.pedido_por, "o pedido diz quem propos", proposta.pedido_por)
 
         # editor
         for quem, f in ambos:

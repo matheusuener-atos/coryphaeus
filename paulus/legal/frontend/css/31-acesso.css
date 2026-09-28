@@ -100,6 +100,18 @@
     border-radius: 8px; background: none; color: var(--ink3); cursor: pointer; }
   .acesso-sair:hover { background: var(--fill); color: var(--ink); }
 
+  /* Permissoes de uma pessoa (E2): um nivel por modulo, em botoes lado a lado. */
+  .perm-grade { display: grid; gap: 4px; margin-top: 6px; }
+  .perm-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 0;
+    border-bottom: 1px solid var(--ink-a1); font-size: 13.5px; }
+  .perm-linha:last-child { border-bottom: 0; }
+  .perm-niveis { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--sub); gap: 2px; }
+  .perm-niveis button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--ink2);
+    font: 500 12.5px var(--sans); cursor: pointer; white-space: nowrap; }
+  .perm-niveis button:hover { color: var(--ink); }
+  .perm-niveis button.escolhido { background: var(--surf); color: var(--ink); box-shadow: 0 0 0 1px var(--ink-a1); }
+  @media (max-width: 560px) { .perm-linha { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+
   /* Minha conta (de fora): quem e, e o que a pessoa pode fazer com a conta. */
   .conta-dialogo .conta-cabeca { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
   .conta-dialogo .conta-cabeca b { font-size: 15px; }

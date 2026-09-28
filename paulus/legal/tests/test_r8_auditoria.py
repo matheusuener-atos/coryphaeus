@@ -102,8 +102,16 @@ def test_de_fora() -> None:
         fora.get(f"/api/documentos/{doc['id']}")
         fora.get(f"/api/documentos/{doc['id']}")
         fora.get(f"/api/documentos/{doc['id']}/docx")
-        # proposta, aprovacao, recusa por ser so do escritorio
-        prop = fora.post("/api/tarefas", json={"id": None, "dados": {"titulo": "Tarefa de fora"}}, headers=h).json()
+        # proposta (de um colaborador: o titular grava direto, E2), aprovacao
+        # pelo titular, recusa por ser so do escritorio
+        k = servico.contas.criar("Caio", "caio@escritorio.com", "colaborador", "senha-do-caio-12")
+        servico.contas.confirmar_totp(k["conta"]["id"], codigo_totp(k["segredo"], int(time.time() // 30) - 1))
+        caio = TestClient(api.app, base_url="https://x.paulus.ia.br", headers={"Cf-Connecting-IP": "200.9.8.8"})
+        pk = caio.post("/api/acesso/entrar", json={"email": "caio@escritorio.com", "senha": "senha-do-caio-12",
+                                                  "turnstile": "ok"}).json()["pendente"]
+        rk = caio.post("/api/acesso/entrar/codigo", json={"pendente": pk, "codigo": codigo_totp(k["segredo"], int(time.time() // 30))})
+        prop = caio.post("/api/tarefas", json={"id": None, "dados": {"titulo": "Tarefa de fora"}},
+                         headers={"X-PAULUS-CSRF": rk.json()["csrf"]}).json()
         fora.post("/api/aprovacoes/decidir", json={"ids": [prop["pedido"]["id"]], "aprovar": True}, headers=h)
         fora.post("/api/biblioteca/lote/apagar", json={"caminhos": []}, headers=h)
         # saida

@@ -28,7 +28,7 @@ import json
 import re
 from pathlib import Path
 
-from acesso import politicas
+from acesso import permissoes, politicas
 from acesso.porteiro import cookies, recusar, responder
 
 COOKIE_SESSAO = "paulus_sessao"
@@ -166,13 +166,17 @@ class PortaoRemoto:
         if politica == politicas.PUBLICO:
             await app(scope, receive, send)
             return
+        # Quem mexe no que (E2): o nivel desta pessoa no modulo da rota, por
+        # cima da tabela - pode fechar (nao ve, so ve), transformar proposta
+        # em gravar direto (faz), ou abrir o que so faltava decidir.
+        politica, motivo_do_nivel = permissoes.politica_efetiva(sessao, metodo, getattr(rota, "path", None), politica)
         if metodo not in SEGUROS and not self.contas.csrf_confere(sessao, cab.get(CABECALHO_CSRF)):
             await recusar(scope, send, 403, "pedido sem o token da sessão")
             return
         if politica == politicas.BLOQUEADO:
             self._anotar(acao="recusado", alvo=f"{metodo} {caminho_puro}", pessoa=sessao["nome"],
                          email=sessao["email"], ip=ip)
-            await recusar(scope, send, 403, politicas.MENSAGEM_BLOQUEADA)
+            await recusar(scope, send, 403, motivo_do_nivel or politicas.MENSAGEM_BLOQUEADA)
             return
         if politica == politicas.TITULAR and sessao["papel"] != "titular":
             await recusar(scope, send, 403, "só o titular pode fazer isso")

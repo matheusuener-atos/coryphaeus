@@ -38,6 +38,8 @@ import threading
 import time
 from pathlib import Path
 
+from acesso import permissoes
+
 PAPEIS = ("titular", "colaborador")
 MIN_SENHA = 10
 SCRYPT = {"n": 2 ** 14, "r": 8, "p": 1, "dklen": 32}
@@ -236,6 +238,10 @@ class Contas:
         self._pendentes: dict[str, tuple[int, float, str, str]] = {}
         with self._db() as c:
             c.executescript(_ESQUEMA)
+            # E2 (docs/PLANO-EQUIPE.md): o nivel de cada pessoa em cada modulo.
+            # Banco de antes: a coluna chega vazia, e vazio e o padrao.
+            if "permissoes" not in {l["name"] for l in c.execute("PRAGMA table_info(contas)")}:
+                c.execute("ALTER TABLE contas ADD COLUMN permissoes TEXT NOT NULL DEFAULT '{}'")
 
     def _db(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.caminho, timeout=10)
@@ -255,6 +261,7 @@ class Contas:
             "totp_confirmado": bool(linha["totp_confirmado"]),
             "codigos_restantes": len(json.loads(linha["recuperacao"] or "[]")),
             "criada": linha["criada"], "atualizada": linha["atualizada"],
+            "permissoes": permissoes.efetivas(linha["papel"], linha["permissoes"]),
         }
 
     def listar(self) -> list[dict]:
@@ -344,6 +351,23 @@ class Contas:
             # que vale agora.
             if campos["papel"] != atual["papel"] or campos["email"] != atual["email"]:
                 self.encerrar_sessoes(conta_id)
+        return self.obter(conta_id)
+
+    def mudar_permissoes(self, conta_id: int, niveis: dict) -> dict:
+        """
+        O nivel da pessoa em cada modulo (E2). So o que o modulo oferece e
+        guardado; o titular tem sempre tudo e nao muda aqui. Quem esta dentro
+        passa a valer com o novo na proxima requisicao (a sessao le da conta).
+        """
+        atual = self.obter(conta_id)
+        if not atual:
+            raise ErroConta("conta não encontrada")
+        if atual["papel"] == "titular":
+            raise ErroConta("o titular pode tudo; para limitar, mude o papel para colaborador")
+        limpas = permissoes.limpar(niveis)
+        with self._db() as c:
+            c.execute("UPDATE contas SET permissoes = ?, atualizada = ? WHERE id = ?",
+                      (json.dumps(limpas), self.relogio(), conta_id))
         return self.obter(conta_id)
 
     def _titulares(self) -> int:
@@ -607,7 +631,7 @@ class Contas:
         h = _resumo(str(token))
         agora = self.relogio()
         with self._db() as c:
-            l = c.execute("SELECT s.*, c.nome, c.email, c.papel FROM sessoes s JOIN contas c ON c.id = s.conta_id"
+            l = c.execute("SELECT s.*, c.nome, c.email, c.papel, c.permissoes FROM sessoes s JOIN contas c ON c.id = s.conta_id"
                           " WHERE s.hash = ?", (h,)).fetchone()
             if not l:
                 return None
@@ -618,7 +642,8 @@ class Contas:
                 c.execute("UPDATE sessoes SET ultimo_uso = ? WHERE hash = ?", (agora, h))
         return {"conta_id": l["conta_id"], "nome": l["nome"], "email": l["email"], "papel": l["papel"],
                 "csrf": l["csrf"], "criada": l["criada"], "totp_em": l["totp_em"],
-                "email_access": l["email_access"], "hash": h}
+                "email_access": l["email_access"], "hash": h,
+                "permissoes": permissoes.efetivas(l["papel"], l["permissoes"])}
 
     @staticmethod
     def csrf_confere(sessao: dict, enviado: str | None) -> bool:

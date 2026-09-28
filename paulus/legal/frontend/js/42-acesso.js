@@ -25,8 +25,18 @@ const DESTINOS_SO_NO_ESCRITORIO = new Set([
 ]);
 const FRASE_SO_NO_ESCRITORIO = "Disponível só no computador do escritório";
 
+/* O nivel da pessoa no modulo do destino (E2, src/acesso/permissoes.py):
+   "nao" some do menu; o Financeiro e os Relatorios, fechados de fabrica,
+   abrem quando o titular libera. Sem modulo, null. */
+function nivelDoDestino(id) {
+  const m = (acessoDeFora.permissoes || []).find((x) => (x.destinos || []).includes(id));
+  return m ? m.nivel : null;
+}
+
 function soNoEscritorio(id) {
-  return !acessoDeFora.local && DESTINOS_SO_NO_ESCRITORIO.has(id);
+  if (acessoDeFora.local || !DESTINOS_SO_NO_ESCRITORIO.has(id)) return false;
+  const nivel = nivelDoDestino(id);
+  return !nivel || nivel === "nao";
 }
 
 function telaSoNoEscritorio(d) {
@@ -47,7 +57,9 @@ function telaSoNoEscritorio(d) {
 function marcarMenuDeFora() {
   if (acessoDeFora.local) return;
   document.querySelectorAll("[data-destino]").forEach((b) => {
-    if (!DESTINOS_SO_NO_ESCRITORIO.has(b.dataset.destino)) return;
+    // O que a pessoa nao ve sai do menu (o titular escolhe, por pessoa).
+    if (nivelDoDestino(b.dataset.destino) === "nao") { b.hidden = true; return; }
+    if (!soNoEscritorio(b.dataset.destino)) return;
     b.classList.add("so-no-escritorio-item");
     b.title = FRASE_SO_NO_ESCRITORIO;
   });
@@ -178,6 +190,7 @@ function cartaoContas() {
       '<span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(sub) + "</small></span>" + estado +
       '<span class="cfg-botoes">' +
       (c.totp_confirmado ? "" : '<button data-acesso-confirmar="' + c.id + '">Confirmar</button>') +
+      (c.papel === "titular" ? "" : '<button data-acesso-permissoes="' + c.id + '">Permissões</button>') +
       '<button data-acesso-senha="' + c.id + '">Senha</button>' +
       '<button data-acesso-autenticador="' + c.id + '">Autenticador</button>' +
       '<button data-acesso-codigos="' + c.id + '">Códigos</button>' +
@@ -301,6 +314,47 @@ async function acessoNovaConta() {
   acessoRedesenhar();
 }
 
+/* Quem mexe no que (E2): um nivel por modulo, para esta pessoa. Os dados
+   continuam do escritorio; o nivel diz o que ela ve e o que ela grava. */
+async function acessoPermissoes(c) {
+  let modulos = [];
+  try {
+    modulos = (await (await fetch("/api/acesso/permissoes/modulos")).json()).modulos || [];
+  } catch (err) { avisoCert("não consegui ler os módulos", { tom: "erro" }); return; }
+  const escolha = Object.assign({}, c.permissoes || {});
+  const linhas = modulos.map((m) => {
+    const atual = escolha[m.id] || m.nivel;
+    return '<div class="perm-linha"><b>' + esc(m.rotulo) + '</b><span class="perm-niveis" role="radiogroup" aria-label="' + esc(m.rotulo) + '">' +
+      m.niveis.map((n) => '<button type="button" class="' + (n.id === atual ? "escolhido" : "") + '" data-perm-modulo="' + m.id +
+        '" data-perm-nivel="' + n.id + '" role="radio" aria-checked="' + (n.id === atual) + '">' + esc(n.rotulo) + "</button>").join("") +
+      "</span></div>";
+  }).join("");
+  const pedido = dialogo({
+    titulo: "Permissões de " + c.nome, contexto: "Configurações › Acesso de fora", classe: "perm-dialogo", larga: true,
+    texto: "O que " + c.nome + " vê e faz pelo acesso de fora. Os dados são do escritório; aqui se escolhe o que cada pessoa alcança.\n" +
+      "“Propõe” manda o pedido para Aprovações; “faz” grava direto. Configurações, contas, certificado e apagar arquivos ficam sempre só no computador do escritório.",
+    html: '<div class="perm-grade">' + linhas + "</div>",
+    confirmar: "Salvar permissões",
+    aoConfirmar: async () => {
+      try {
+        await acessoPost("/api/acesso/contas/" + c.id + "/permissoes", { niveis: escolha }, "PUT");
+        if (dialogoAberto) dialogoAberto.fechar({ ok: true });
+        avisoCert("permissões de " + c.nome + " salvas — valem já no próximo clique dela", { tom: "ok" });
+        acessoRedesenhar();
+      } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    },
+  });
+  document.querySelectorAll("[data-perm-nivel]").forEach((b) => b.addEventListener("click", () => {
+    escolha[b.dataset.permModulo] = b.dataset.permNivel;
+    document.querySelectorAll('[data-perm-modulo="' + b.dataset.permModulo + '"]').forEach((x) => {
+      const sim = x === b;
+      x.classList.toggle("escolhido", sim);
+      x.setAttribute("aria-checked", String(sim));
+    });
+  }));
+  await pedido;
+}
+
 function ligarAcesso() {
   const clique = (seletor, fn) => document.querySelectorAll(seletor).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b); }; });
   const conta = (id) => (acessoCfg.contas || []).find((c) => c.id === Number(id));
@@ -335,6 +389,10 @@ function ligarAcesso() {
       await acessoMostrarCodigos(c, d.codigos_recuperacao || []);
     } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     acessoRedesenhar();
+  });
+  clique("[data-acesso-permissoes]", (b) => {
+    const c = conta(b.dataset.acessoPermissoes);
+    if (c) acessoPermissoes(c);
   });
   clique("[data-acesso-senha]", async (b) => {
     const c = conta(b.dataset.acessoSenha);

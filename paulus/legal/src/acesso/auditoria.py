@@ -43,6 +43,10 @@ ACOES = {
     "ligado": "ligou o acesso de fora",
     "desligado": "desligou o acesso de fora",
     "removido": "removeu o acesso de fora",
+    "liberado": "endereço liberado por falta de uso",
+    "senha": "trocou a senha",
+    "sessoes": "encerrou as sessões",
+    "permissoes": "mudou as permissões",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 
