@@ -309,9 +309,13 @@ class LlamaClient:
         on_fase: Callable[[str, dict], None] | None = None,
         parar: Callable[[], bool] | None = None,
         tarefa: str = "",
+        historico: list[dict] | None = None,
     ) -> str:
         """
         Pergunta com contexto de contratos.
+
+        `historico` sao os pares anteriores da conversa, como mensagens do
+        chat (src/memoria.py): vao entre a instrucao e a pergunta de agora.
 
         `tarefa` escolhe o teto de resposta (src/inferencia.py): "conversa"
         para a pergunta sobre documentos. Sem tarefa, sem teto - o editor e
@@ -332,10 +336,9 @@ class LlamaClient:
         instrucao = sistema or SYSTEM_PROMPT
         if ensinado.strip():
             instrucao += "\n\n" + ensinado.strip()
-        messages = [
-            {"role": "system", "content": instrucao},
-            {"role": "user", "content": conteudo},
-        ]
+        messages = [{"role": "system", "content": instrucao}]
+        messages += [m for m in (historico or []) if m.get("role") in ("user", "assistant")]
+        messages.append({"role": "user", "content": conteudo})
         # `parar` so vai quando existe: quem troca o `_chat` num teste nao
         # precisa conhecer o argumento.
         extra = {"parar": parar} if parar else {}

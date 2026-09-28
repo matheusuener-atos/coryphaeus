@@ -455,12 +455,20 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
 
 
-def _da_conversa(ctx: Contexto) -> dict:
+def _da_conversa(ctx: Contexto, historico: bool = False) -> dict:
     """
-    O teto de resposta da conversa (src/inferencia.py). So vai para o cliente
-    que conhece o argumento: o de mentira dos testes nao precisa conhecer.
+    O teto de resposta da conversa (src/inferencia.py) e, na resposta que le
+    documentos, os pares anteriores (src/memoria.py). So vai para o cliente
+    que conhece os argumentos: o de mentira dos testes nao precisa conhecer.
+    O nivel 0 nao leva historico: ele responde de fatos, e a conversa de
+    antes so aumentaria o prompt.
     """
-    return {"tarefa": "conversa"} if getattr(ctx.client, "aceita_tarefa", False) else {}
+    if not getattr(ctx.client, "aceita_tarefa", False):
+        return {}
+    extra: dict = {"tarefa": "conversa"}
+    if historico and getattr(ctx, "historico", None):
+        extra["historico"] = ctx.historico
+    return extra
 
 
 def _quantos(n: int, palavra: str) -> str:
@@ -485,7 +493,7 @@ def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
             on_token=lambda t: empurrar(("token", {"t": t})),
             on_fase=lambda fase, dados: empurrar((fase, dados)),
             parar=parar,
-            **_da_conversa(ctx),
+            **_da_conversa(ctx, historico=True),
         )
 
     for item in Ponte(trabalho, parar=parar):

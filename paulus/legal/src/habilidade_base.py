@@ -114,6 +114,9 @@ class Contexto:
         # Sem elas, vale o de fabrica: cada etapa nasce ligada depois do
         # portao, e a chave existe para voltar atras.
         self.ia = dict(ia or {})
+        # Os pares anteriores da conversa (src/memoria.py), quando a pergunta
+        # vem de uma conversa e a memoria esta ligada. Vazio: pergunta solta.
+        self.historico: list[dict] = []
         # O que esta maquina ja mediu de si mesma: quanto ela le por segundo,
         # quanto escreve. Sem isso, a tela nao promete tempo nenhum.
         self.ritmo = ritmo

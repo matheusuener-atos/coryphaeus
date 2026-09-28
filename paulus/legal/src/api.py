@@ -94,6 +94,7 @@ from inteligencia import portas as inteligencia
 import inferencia
 from inteligencia.catalogo import Catalogo
 from medicao import Medicao
+import memoria as memoria_mod
 from inteligencia.guarda import Biblioteca
 import marca as marca_mod
 import pastas
@@ -3156,6 +3157,17 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
         trabalho.dizer("pessoa", pergunta)
 
+    # A memoria da conversa (I4, src/memoria.py): "e a multa?" herda o sujeito
+    # da pergunta anterior, por regra, e os dois ultimos pares vao junto para
+    # o modelo. A conversa guarda o que a pessoa escreveu; daqui para baixo,
+    # busca e modelo leem a pergunta inteira.
+    historico: list[dict] = []
+    continuou = False
+    if (estado.prefs.dados.get("ia") or {}).get("memoria", True):
+        pergunta, historico, continuou = memoria_mod.preparar(trabalho.mensagens, trabalho.contexto, pergunta)
+        if continuou:
+            trabalho.registrar("Entendi como continuação da anterior: “" + pergunta + "”")
+
     # Antes de sair procurando: o que a pessoa pediu? A conversa tinha um
     # caminho so, e "anote uma reuniao no calendario" virava busca pela
     # palavra "reuniao" dentro dos contratos - resposta certa para a pergunta
@@ -3168,6 +3180,14 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # falando de contrato de compra e venda.
     foco_antes = _em_foco(trabalho)
     citado, explicito = _escopo_da_pergunta(trabalho, pergunta, payload)
+    # A continuacao herda tambem os documentos a que a resposta anterior se
+    # restringiu: "e o foro?" e sobre o mesmo contrato.
+    if continuou and not citado:
+        abertos = {d.name for d in estado.searcher.documents}
+        herdado = [n for n in memoria_mod.escopo_anterior(trabalho.mensagens) if n in abertos]
+        if herdado:
+            citado = herdado
+            trabalho.contexto["documento_em_foco"] = herdado
 
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
                         cadastros=[f["nome"] for f in estado.cadastros.listar()])
@@ -3341,10 +3361,9 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 trechos=medir["trechos"], caracteres=lido_chars,
                 truncou=medir["truncou"] or bool(numeros.get("truncou")), fallback=medir["fallback"])
 
-        passos = habilidade.executar(
-            _contexto(registrar, parar=parar.is_set, tarefa="conversa"), pergunta=pergunta, top=payload.top,
-            apenas=citado,
-        )
+        ctx = _contexto(registrar, parar=parar.is_set, tarefa="conversa")
+        ctx.historico = historico
+        passos = habilidade.executar(ctx, pergunta=pergunta, top=payload.top, apenas=citado)
         try:
             for tipo, dados in passos:
                 if parar.is_set():
