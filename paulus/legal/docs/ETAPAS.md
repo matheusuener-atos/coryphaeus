@@ -1746,3 +1746,104 @@ inteira. Roteiro `--tudo` 40/41 (igual), mediana 7,2 s; demo 26/27, p50
 deduplicação tirava o resto. Com vetores de palavras (hash), o orçamento é
 exercitado de verdade: 6 trechos, 2.128 tokens, no máximo 3 por documento.
 
+## I8 — Contrato de resposta `[Tn]` ✓ FEITA (chave desligada)
+
+Cada frase da resposta aponta para o trecho que a sustenta, e três
+conferências em código rodam antes de a resposta ficar na conversa
+(`src/citacoes.py`):
+
+1. frase que afirma e não tem marca ganha o rótulo **"sem fonte"**;
+2. marca de trecho que não existe (`[T9]` com seis trechos) refaz a resposta
+   uma vez, com metade dos trechos;
+3. lei, artigo, súmula ou número de processo citado que não está em nenhum
+   trecho **sai da resposta** e fica registrado — os achadores são os da
+   camada de inteligência (`regras_leis`, `regras_processo`), e a marca que
+   estava colada à citação fica.
+
+Na tela, `[Tn]` vira um botão com o número do trecho que abre o trecho na
+página do documento (o "ver no documento" de sempre); "sem fonte" vira
+rótulo. Sem nenhuma frase sustentada, a resposta vem com o cartão "sem
+fundamento nos trechos": **Ler o documento inteiro** ou **Procurar em todo o
+Acervo**. `papel_sem_prova` e `trecho_decisivo` continuam: o primeiro
+responde por regra antes do modelo, o segundo acrescenta a frase literal do
+documento depois da conferência.
+
+**Três tentativas, medidas.** Pedir as marcas ao modelo derrubou o banco de
+provas nas duas primeiras — trechos numerados soltos (38/41) e agrupados por
+documento (38/41): a instrução a mais deixou o llama3.2:3b seco ("Não
+achou.") e fez ele misturar documentos (a multa de 2% do transporte virou a
+multa do aluguel). A terceira, a que ficou: **o modelo lê o contexto e a
+instrução de sempre, e as marcas são postas em código** — cada frase ganha o
+trecho que tem todos os números dela e mais palavras em comum
+(`ia.citacao = "codigo"`; `"modelo"` continua existindo para um modelo maior).
+
+**Medido com `"codigo"`, sozinho na máquina:** roteiro `--tudo` 40/41
+(igual à I7); demonstração 26/27; **0 "não encontrei" indevido** (igual à
+I7); **0 citação inventada**; 5 frases marcadas "sem fonte" em 27 respostas.
+O roteiro passou a conferir o texto conferido (evento `revisao`), que é o
+que fica na conversa.
+
+**Por que desligada de fábrica:** o portão passa, mas o rótulo "sem fonte" e
+o cartão de sem fundamento mudam o que a pessoa vê em toda resposta — é
+decisão de produto, e está no PROGRESSO para o dono.
+
+**O que a verificação achou:** a divisão em frases quebrava em "art. 412"
+(o ponto da abreviatura); o conectivo da citação removida ficava pendurado
+("nos termos do."); e rodar dois roteiros ao mesmo tempo no Ollama muda as
+respostas — os números acima são de rodadas sozinhas.
+
+## I9 — A IA ajuda sem ser perguntada ✓ FEITA
+
+Tudo a partir do metadata que já existe, sem modelo (`src/ajuda.py`):
+
+1. **O cartão do documento**, na ficha do Acervo: tipo, partes, valores,
+   número do processo, datas e pedidos — **só fatos conferidos** —, cada um
+   com a página. O lápis corrige: a correção fica gravada como `manual` no
+   metadata e vira uma pergunta nova em `data/medicao/conjunto-real.jsonl`.
+   Data se corrige como dd/mm/aaaa.
+2. **Perguntas que respondem na hora**, pelo tipo do documento — só as que o
+   molde responde (a lista de pedidos passou a sair por molde também).
+   Clicar pergunta.
+3. **Prazos e vencimentos** conferidos viram pedido em Aprovações ao fim da
+   análise do documento ("Vencimento de … em 10/12/2099 — anotar?"), uma vez
+   por prazo. O sim anota uma tarefa com o prazo na Agenda; nada é gravado
+   sozinho.
+4. **A resposta diz como foi feita**: "respondi pelos fatos já conferidos,
+   sem o modelo, em menos de 0,1 s", "li 2 documentos por inteiro, em 8 s",
+   "li 6 trechos de 2 documentos, em 34 s".
+
+**Medido:** o cartão não mostra um valor não conferido posto no metadata; a
+correção grava `manual` e a linha no conjunto; as 4 perguntas sugeridas da
+petição de teste responderam sem nenhuma chamada ao modelo; o prazo virou
+pedido em Aprovações, sem tarefa gravada, e não duplica. Roteiro `--tudo`
+40/41, demo 26/27. Suíte: 75 passam.
+
+**O que a verificação achou:** o campo de correção não tinha teto de largura
+(`test_frontend`); e a ficha que aparece no Acervo é a da linha
+(`25-acervo-editorial.js`), não o painel lateral antigo — o cartão foi para
+ela, no estilo dela.
+
+## Plano 2 — antes e depois
+
+Medido na demonstração (8 documentos, llama3.2:3b, CPU), cada rodada sozinha
+na máquina. **O conjunto real ainda não existe** (⏸ I2): estes números são
+teto, não medida.
+
+| | Antes (I1/I2) | Depois (I9) |
+| --- | --- | --- |
+| Roteiro `--tudo` | 40/41 | 40/41 |
+| Conjunto da demonstração | 25/27 | 26/27 |
+| Continuação ("e a multa?") | 8/9 | 9/9 |
+| Pergunta de um dado só (nível 0) | modelo, segundos | molde, ~5 ms, sem fila |
+| "Não encontrei" indevido | 0 | 0 |
+| Citação inventada | não medido | 0 (e tirada se houver) |
+| Entrada p50 / p95 (tokens) | 2.362 / 2.371 | 2.368 / 2.522 (o histórico da I4) |
+| Latência p50 / p95 | 6,6 s / 39,3 s | 9,1 s / 51,5 s |
+| Contexto com a leitura por trechos | — | 718 tokens (virada desligada) |
+
+A latência da demonstração varia de 6,2 a 9,2 s de p50 entre rodadas do
+mesmo código (I3 a I7) — a diferença acima está dentro dessa variação, e a
+demonstração cabe inteira na leitura, então a busca e a virada quase não
+entram. O ganho de tempo que o plano mira (ler 700 tokens em vez de 32 mil
+num acervo grande) só aparece com documentos reais e a virada ligada.
+

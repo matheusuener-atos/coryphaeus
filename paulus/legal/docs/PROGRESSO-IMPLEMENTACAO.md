@@ -48,8 +48,8 @@ etapa que não estiver `feita`.
 | I5 | Chunking estrutural | feita | branch `i5-trechos` | ids estáveis (mesmo doc e reindexação); toda página; nenhuma seção cortada; roteiro 40/41 (mediana 8,8 s); demo 26/27, p50 9,2 s, R@6 0,95; suíte 71 ok |
 | I6 | FTS5 com normalização jurídica | feita | branch `i6-fts` | 4 exemplos iguais nos dois lados; mesma ordem; incremental; linha de base só-léxico R@20 0,96 · R@6 0,95 · MRR@6 0,87; roteiro 40/41; demo 26/27, p50 7,9 s; suíte 71 ok |
 | I7 | Denso + RRF + reranker, virada do "ler tudo" | feita; virada ⏸ desligada | branch `i7-hibrida` | demo: R@20 léxico 1,00 · denso 1,00 · híbrido 1,00 (satura); R@6 0,99; MRR@6 0,93; contexto p50 718 tokens; reranker 34 s/20 pares (não entra); roteiro 40/41; demo 26/27, p50 7,8 s; suíte 73 ok |
-| I8 | Contrato de resposta `[Tn]` | pendente | | |
-| I9 | A IA ajuda sem ser perguntada | pendente | | |
+| I8 | Contrato de resposta `[Tn]` | feita; chave ⏸ desligada | branch `i8-citacao` | 3 tentativas: modelo marcando 38/41 (2×); marcas em código 40/41; demo 26/27; 0 "não encontrei" indevido; 0 citação inventada; 5 "sem fonte"/27 |
+| I9 | A IA ajuda sem ser perguntada | feita | branch `i9-ajuda` | cartão só com conferidos; correção manual + linha no conjunto; sugestões sem modelo; prazo → Aprovações; roteiro 40/41; demo 26/27; suíte 75 ok |
 
 ## Decisões tomadas
 
@@ -125,6 +125,10 @@ etapa que não estiver `feita`.
 - **I7** O backfill é um fio próprio (`denso.Backfill`), e não o `jobs.py`: aqui o `jobs.py` é o das conversas, não um executor de tarefas. Ele cede a vez à fila do modelo antes de cada lote.
 - **I7** A virada ficou **desligada** mesmo com R@6 ≥ 0,80 na demo: a demonstração cabe inteira em ~4000 tokens e não passa pela virada; o contrato pede Recall@6 no conjunto, e o conjunto real ainda não existe. Ligar é uma linha (`ia.leitura = "trechos"`), depois de medir no conjunto real.
 - **I7** O `bge-m3` foi baixado no Ollama desta máquina para medir (1,2 GB). No programa instalado ele só chega pelo botão da tela.
+- **I8** O portão passa com `ia.citacao = "codigo"` (marcas postas em código); com `"modelo"` (o modelo marca) o banco de provas cai de 40/41 para 38/41 com o 3B. De fábrica a chave está desligada: o rótulo "sem fonte" e o cartão de sem fundamento mudam toda resposta — decisão do dono.
+- **I8** Medições de acerto só valem sozinhas na máquina: dois roteiros ao mesmo tempo no Ollama mudaram respostas (a "garantia" falhou em todas as rodadas paralelas e passou nas sozinhas).
+- **I9** A lista de pedidos (e as outras coleções) do nível 0 passou a sair por molde, sem modelo: é o que o modelo já fazia ("listar exatamente os itens"), e as perguntas sugeridas precisam responder na hora.
+- **I9** O prazo do documento vira **tarefa** com prazo (e não compromisso) ao ser aprovado: vencimento não tem hora nem lugar ([[compromisso-e-tarefa]]).
 
 ## Pendente do usuário
 
@@ -145,6 +149,13 @@ Pronta e atrás de `ia.leitura = "trechos"` (janela cai para 8192). Não
 liguei: a demonstração não exercita a virada. Com o conjunto real anotado
 (I2), rodar `tools\medir.py --real` com o `bge-m3` baixado: se o Recall@6
 ficar ≥ 0,80 e a latência cair, ligar.
+
+### ⏸ I8 — ligar as marcas de fonte `[Tn]`?
+
+`ia.citacao = "codigo"` passou no portão (40/41, 0 citação inventada, 0
+"não encontrei" indevido). Ligado, toda resposta sobre documentos mostra o
+número do trecho em cada frase (clicável), "sem fonte" onde não há trecho, e
+o cartão de sem fundamento quando nada se sustenta. Diga se quer de fábrica.
 
 ### ⏸ R5 — o que fazer no painel da Cloudflare (só o dono da conta)
 
