@@ -1,0 +1,14 @@
+{
+  "versao": "0.9.2",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.2/PAULUS-0.9.2-instalador.exe",
+  "sha256": "d11d95a12eaf17e85d9b8497e920752f3ea60bbd18d9d4ad446fba54941ffda0",
+  "tamanho": 94123339,
+  "publicada": "2026-09-28",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.2",
+  "novidades": [
+    "O PAULUS confere uma vez por dia se há versão nova e instala com um clique, ou sozinho ao fechar.",
+    "CPF, CNPJ e telefone se formatam enquanto você digita, e número errado é avisado antes de salvar.",
+    "A volta do login do Google mostra a conta e o que foi autorizado.",
+    "Todas as telas na mesma largura; a barra do editor jurídico não esconde mais botões."
+  ]
+}
