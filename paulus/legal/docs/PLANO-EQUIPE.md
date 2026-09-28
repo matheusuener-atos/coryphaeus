@@ -23,7 +23,28 @@ Mudança de regra de negócio pedida em 28/09/2026: o PAULUS fica instalado
 | E1 | Quem criou: conversas (e quem perguntou), documentos e gravações | feita (tests/test_e1_quem_criou.py) |
 | E2 | Quem mexe no quê: permissão por pessoa e por módulo (não vê / só vê / propõe / faz) e quem aprova | feita (tests/test_e2_permissoes.py) |
 | E4 | Só no servidor: sai o "entrar num escritório existente" (vínculo por código); entra o convite | feita (tests/test_e4_convite.py) |
-| E3 | Convite + login com Google + TOTP; e-mail, Agenda e Drive da conta de quem entrou | a fazer |
+| E3a | Entrar com o Google + código do celular, no convite e na tela de entrar | feita (tests/test_e3_google.py, worker/teste-tunel.mjs); ⏸ cliente web no Google Cloud |
+| E3b | E-mail, Agenda e Drive da conta de quem entrou | a fazer |
+
+## ⏸ E3a — o que o dono faz no Google Cloud (uma vez)
+
+O código está pronto e **não aparece** enquanto as chaves não existirem (o
+botão "Entrar com Google" some sozinho).
+
+1. console.cloud.google.com → o projeto do PAULUS → **APIs e serviços ›
+   Credenciais › Criar credenciais › ID do cliente OAuth**.
+2. Tipo: **Aplicativo da Web**. Nome: `PAULUS — equipe (acesso de fora)`.
+3. **URIs de redirecionamento autorizados:** `https://paulus.ia.br/oauth/google`
+   (só esse; os escritórios recebem pelo Worker).
+4. Copie o **ID do cliente** e a **chave secreta** para o `oauth_app.json`,
+   nos campos `google_web_client_id` e `google_web_client_secret`.
+5. **Tela de consentimento OAuth › Usuários de teste:** enquanto o app estiver
+   em "Teste", só entra quem estiver nesta lista (até 100). Acrescente o
+   e-mail de cada pessoa convidada.
+
+O login pede só `openid email profile` — sem verificação do Google. O e-mail,
+a Agenda e o Drive de cada pessoa (E3b) pedem escopos que exigem a verificação
+(e, para o Gmail, a avaliação CASA acima de 100 usuários).
 
 ## O que o levantamento de 28/09 achou (o ponto de partida)
 

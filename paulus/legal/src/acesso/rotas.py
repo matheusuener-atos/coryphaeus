@@ -16,13 +16,14 @@ from __future__ import annotations
 import time
 
 from fastapi import HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from acesso.contas import ErroConta, ErroEntrada
 from acesso.remoto import COOKIE_SESSAO
 from acesso import permissoes
 from acesso.convites import ErroConvite
+from acesso.google_login import COOKIE as COOKIE_GOOGLE, ErroGoogle
 
 
 class Entrada(BaseModel):
@@ -69,6 +70,12 @@ class AceitarConvite(BaseModel):
 
 class ConfirmarConvite(BaseModel):
     codigo: str
+
+
+class IrAoGoogle(BaseModel):
+    finalidade: str = "entrar"
+    convite: str = ""
+    turnstile: str = ""
 
 
 class NovaConta(BaseModel):
@@ -143,7 +150,7 @@ def montar(servico, r) -> None:
     @r.get("/api/acesso/entrar/config")
     def entrar_config() -> dict:
         """O que a tela de entrar precisa saber antes do login: a sitekey do Turnstile."""
-        return {"turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", "")}
+        return {"turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", ""), "google": servico.google.disponivel()}
 
     @r.post("/api/acesso/entrar")
     def entrar(dados: Entrada, request: Request) -> dict:
@@ -312,7 +319,8 @@ def montar(servico, r) -> None:
         except ErroConvite as exc:
             raise HTTPException(status_code=410, detail=str(exc)) from exc
         escritorio = str((servico.prefs.dados.get("escritorio") or {}).get("nome") or "")
-        return {**dados, "escritorio": escritorio, "turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", "")}
+        return {**dados, "escritorio": escritorio, "turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", ""),
+                "google": servico.google.disponivel()}
 
     @r.post("/api/acesso/convite/{codigo}/aceitar")
     def convite_aceitar(codigo: str, dados: AceitarConvite, request: Request) -> dict:
@@ -340,6 +348,79 @@ def montar(servico, r) -> None:
                        ip=remoto.get("ip", ""))
         servico.contas_mudaram()
         return feito
+
+    # ------------------------------------------- entrar com o Google (E3a)
+
+    def _anti_robo(request: Request, token: str) -> None:
+        if e_local(request):
+            return
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        veredito = servico.conferir_turnstile(token, remoto.get("ip", ""))
+        if veredito == "indisponivel":
+            raise HTTPException(status_code=503, detail="não consegui conferir a verificação contra robôs agora; tente de novo em instantes")
+        if veredito != "ok":
+            raise HTTPException(status_code=403, detail="a verificação contra robôs não passou; tente de novo")
+
+    @r.post("/api/acesso/google/iniciar")
+    def google_iniciar(dados: IrAoGoogle, request: Request):
+        """O endereco do Google, e o cookie que amarra a volta a este navegador."""
+        _anti_robo(request, dados.turnstile)
+        if dados.finalidade == "convite":
+            try:
+                servico.convites.ver(dados.convite)
+            except ErroConvite as exc:
+                raise HTTPException(status_code=410, detail=str(exc)) from exc
+        try:
+            url, nonce = servico.google.iniciar(dados.finalidade, dados.convite)
+        except ErroGoogle as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        resp = JSONResponse({"url": url})
+        resp.set_cookie(COOKIE_GOOGLE, nonce, max_age=600, httponly=True, secure=True, samesite="lax",
+                        path="/api/acesso/google")
+        return resp
+
+    @r.get("/api/acesso/google/retorno")
+    def google_retorno(request: Request, code: str = "", state: str = "", error: str = ""):
+        """
+        A volta do Google (repassada pelo Worker de paulus.ia.br). Entrar: vai
+        para o codigo do celular. Convite: volta a pagina do convite com o QR.
+        O que a pagina precisa vai depois do # - nao sai do navegador.
+        """
+        from urllib.parse import quote
+
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        ip = remoto.get("ip", "")
+
+        def voltar(destino: str) -> RedirectResponse:
+            resp = RedirectResponse(destino, status_code=303)
+            resp.delete_cookie(COOKIE_GOOGLE, path="/api/acesso/google")
+            return resp
+
+        if error or not code:
+            return voltar("/#erro=" + quote("o login pelo Google foi cancelado"))
+        try:
+            quem = servico.google.retorno(code, state, request.cookies.get(COOKIE_GOOGLE, ""))
+        except ErroGoogle as exc:
+            return voltar("/#erro=" + quote(str(exc)))
+        if quem["finalidade"] == "convite":
+            try:
+                token = servico.convites.aceitar_google(quem["convite"], quem["email"])
+            except ErroConvite as exc:
+                return voltar("/convite/" + quote(quem["convite"]) + "#erro=" + quote(str(exc)))
+            return voltar("/convite/" + quote(quem["convite"]) + "#g=" + quote(token))
+        try:
+            pendente = servico.contas.entrar_com_google(quem["email"], ip=ip)
+        except ErroEntrada as exc:
+            servico.anotar(acao="login_falho", alvo="Google", ip=ip, pessoa=quem["email"])
+            return voltar("/#erro=" + quote(str(exc)))
+        return voltar("/#g=" + quote(pendente))
+
+    @r.get("/api/acesso/convite/{codigo}/google")
+    def convite_do_google(codigo: str, t: str = "") -> dict:
+        try:
+            return servico.convites.do_google(codigo, t)
+        except ErroConvite as exc:
+            raise HTTPException(status_code=410, detail=str(exc)) from exc
 
     @r.get("/api/acesso/permissoes/modulos")
     def permissoes_modulos(request: Request) -> dict:

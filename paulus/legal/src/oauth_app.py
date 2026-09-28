@@ -36,6 +36,10 @@ _CAMPOS = {
     "google_client_id": "PAULUS_GOOGLE_CLIENT_ID",
     "google_client_secret": "PAULUS_GOOGLE_CLIENT_SECRET",
     "microsoft_client_id": "PAULUS_MICROSOFT_CLIENT_ID",
+    # O login da equipe pelo Google, de fora (acesso/google_login.py): um
+    # cliente "Aplicativo da Web", com o retorno em paulus.ia.br/oauth/google.
+    "google_web_client_id": "PAULUS_GOOGLE_WEB_CLIENT_ID",
+    "google_web_client_secret": "PAULUS_GOOGLE_WEB_CLIENT_SECRET",
 }
 
 
@@ -57,6 +61,8 @@ def credenciais(provedor: str) -> dict:
         return {"client_id": _valor("google_client_id"), "client_secret": _valor("google_client_secret")}
     if provedor == "microsoft":
         return {"client_id": _valor("microsoft_client_id")}
+    if provedor == "google_web":
+        return {"client_id": _valor("google_web_client_id"), "client_secret": _valor("google_web_client_secret")}
     return {}
 
 

@@ -59,7 +59,7 @@ export const RESERVADOS = new Set(["www", "api", "conectar", "admin", "suporte",
 // --------------------------------------------------------------- entrada
 
 export function ehRotaDoTunel(url) {
-  return url.pathname === "/conectar" || url.pathname.startsWith("/api/tunel/");
+  return url.pathname === "/conectar" || url.pathname.startsWith("/api/tunel/") || url.pathname === "/oauth/google";
 }
 
 export async function atenderTunel(request, env, url, { dentroDoLimite, agora = () => Date.now() } = {}) {
@@ -75,6 +75,7 @@ export async function atenderTunel(request, env, url, { dentroDoLimite, agora = 
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
     return iniciar(request, env, agora);
   }
+  if (p === "/oauth/google" && m === "GET") return retornoDoGoogle(env, url);
   if (p === "/conectar" && m === "GET") return paginaConectar(env, url);
   if (p === "/conectar" && m === "POST") return confirmar(request, env, agora);
   if (p === "/api/tunel/estado" && m === "POST") return estadoDoPedido(request, env);
@@ -86,6 +87,28 @@ export async function atenderTunel(request, env, url, { dentroDoLimite, agora = 
 }
 
 // ------------------------------------------------------------- utilidades
+
+// Entrar com o Google, na equipe de um escritorio (PAULUS, E3a): o Google
+// so aceita enderecos de retorno cadastrados um a um, e cada escritorio tem o
+// seu <slug>.paulus.ia.br. O retorno cadastrado e este; o `state` que o PAULUS
+// mandou comeca pelo slug, e daqui a volta segue para o escritorio - com o
+// mesmo codigo e o mesmo state, sem guardar nada. O codigo sozinho nao vale:
+// a troca pede o verificador PKCE e o segredo, que ficam no PAULUS.
+async function retornoDoGoogle(env, url) {
+  const state = url.searchParams.get("state") || "";
+  const slug = state.split("~")[0];
+  if (!slug || motivoDoFormato(slug) || !(await env.ESCRITORIOS.get("escritorio:" + slug))) {
+    return texto("este login não é de um escritório conectado ao PAULUS", 400);
+  }
+  const destino = new URL("https://" + slug + "." + DOMINIO + "/api/acesso/google/retorno");
+  for (const chave of ["code", "state", "error"]) {
+    const v = url.searchParams.get(chave);
+    if (v) destino.searchParams.set(chave, v);
+  }
+  return new Response(null, {
+    status: 302, headers: { location: destino.toString(), "cache-control": "no-store", "referrer-policy": "no-referrer" },
+  });
+}
 
 function json(dados, status = 200) {
   return new Response(JSON.stringify(dados), {

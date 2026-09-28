@@ -65,6 +65,11 @@ class AcessoDeFora:
         from acesso.convites import Convites
 
         self.convites = Convites(self.pasta / "contas.db", self.contas)
+        # Entrar com o Google (E3a): o Google prova o e-mail; o codigo do
+        # celular continua pedido depois.
+        from acesso.google_login import LoginGoogle
+
+        self.google = LoginGoogle(self)
         # A conversa com o Worker de paulus.ia.br (conexao.py); o api.py cria.
         # E por ela que o Turnstile de cada login e conferido.
         self.conexao = None

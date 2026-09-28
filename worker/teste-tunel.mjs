@@ -276,6 +276,21 @@ console.log("\no Worker não atende *.paulus.ia.br");
   checar(r.status === 404, "subdomínio de escritório: 404 no Worker (o tráfego é do túnel)", r.status);
 }
 
+console.log("\na volta do Google (entrar com o Google, E3a)");
+{
+  const chamar = (q) => worker.fetch(new Request("https://paulus.ia.br/oauth/google?" + q), env, { waitUntil() {} });
+  const r = await chamar("code=4%2Fabc&state=segundo-escritorio~xyz");
+  const para = r.headers.get("location") || "";
+  checar(r.status === 302 && para.startsWith("https://segundo-escritorio.paulus.ia.br/api/acesso/google/retorno?")
+    && para.includes("code=4%2Fabc") && para.includes("state=segundo-escritorio%7Exyz"),
+  "repassa código e state ao escritório do state", para);
+  checar(r.headers.get("referrer-policy") === "no-referrer", "sem referer no repasse");
+  checar((await chamar("code=x&state=nao-existe~xyz")).status === 400, "escritório que não existe: 400");
+  checar((await chamar("code=x&state=..%2Fevil.com~xyz")).status === 400, "slug fora da regra: 400");
+  const e = await chamar("error=access_denied&state=segundo-escritorio~xyz");
+  checar(e.status === 302 && (e.headers.get("location") || "").includes("error=access_denied"), "cancelado no Google: repassa o erro");
+}
+
 console.log(falhas ? `\n  ${falhas} FALHA(S) no túnel` : "\n  túnel: todos os testes passaram");
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, "/")}` || process.argv[1].endsWith("teste-tunel.mjs")) process.exit(falhas ? 1 : 0);
 export default falhas;

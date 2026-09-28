@@ -76,7 +76,9 @@ _declarar(PUBLICO,
           "POST /api/acesso/entrar/codigo",
           # o convite (E4): quem foi convidado ainda nao tem conta
           "GET /api/acesso/convite/{codigo}", "POST /api/acesso/convite/{codigo}/aceitar",
-          "POST /api/acesso/convite/{codigo}/confirmar")
+          "POST /api/acesso/convite/{codigo}/confirmar", "GET /api/acesso/convite/{codigo}/google",
+          # entrar com o Google (E3a)
+          "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno")
 
 # Sem sessao, de fora, so isto passa - a tela de entrar e o que ELA carrega
 # (acesso-remoto/v0, R2). O resto da casca espera o login: toda rota /api/*
@@ -84,7 +86,9 @@ _declarar(PUBLICO,
 SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"),
               ("GET", "/img/paulus-logo.png"), ("GET", "/img/paulus-icone.svg"),
               ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
-              ("POST", "/api/acesso/entrar/codigo")}
+              ("POST", "/api/acesso/entrar/codigo"),
+              # entrar com o Google (E3a): ir ao Google e voltar dele
+              ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno")}
 
 
 def pagina_do_convite(caminho: str) -> bool:
@@ -99,7 +103,7 @@ def api_do_convite(metodo: str, caminho: str) -> bool:
         return False
     partes = caminho[len("/api/acesso/convite/"):].split("/")
     if metodo == "GET":
-        return len(partes) == 1 and bool(partes[0])
+        return bool(partes[0]) and (len(partes) == 1 or (len(partes) == 2 and partes[1] == "google"))
     return metodo == "POST" and len(partes) == 2 and bool(partes[0]) and partes[1] in ("aceitar", "confirmar")
 
 

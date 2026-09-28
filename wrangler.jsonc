@@ -18,7 +18,7 @@
     "not_found_handling": "none",
     // O Worker responde /api/* antes de procurar arquivo do site, e tambem
     // /conectar, a pagina em que o titular confirma o acesso de fora.
-    "run_worker_first": ["/api/*", "/conectar"]
+    "run_worker_first": ["/api/*", "/conectar", "/oauth/*"]
   },
   // Sem rota nenhuma aqui de proposito: o Worker atende so paulus.ia.br. Os
   // <escritorio>.paulus.ia.br do acesso de fora sao dos tuneis de cada

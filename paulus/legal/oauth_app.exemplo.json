@@ -1,5 +1,7 @@
 {
   "google_client_id": "",
   "google_client_secret": "",
-  "microsoft_client_id": ""
+  "microsoft_client_id": "",
+  "google_web_client_id": "",
+  "google_web_client_secret": ""
 }

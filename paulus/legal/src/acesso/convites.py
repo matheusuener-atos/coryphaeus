@@ -167,6 +167,33 @@ class Convites:
         return {"qr_svg": criada["qr_svg"], "segredo": criada["segredo"], "otpauth": criada["otpauth"],
                 "email": l["email"], "nome": l["nome"]}
 
+    def aceitar_google(self, codigo: str, email: str) -> str:
+        """
+        O convite aceito pelo Google (E3a): o Google provou o e-mail - que tem
+        de ser o do convite; o link repassado a outra pessoa nao serve. A
+        conta nasce sem senha que alguem saiba (entra-se pelo Google), e o QR
+        fica guardado 10 minutos sob um token de uso unico, que a pagina do
+        convite busca ao voltar.
+        """
+        l = self._valido(codigo)
+        if str(email or "").strip().lower() != l["email"]:
+            raise ErroConvite(f"este convite é para {l['email']}; entre no Google com essa conta")
+        dados = self.aceitar(codigo, secrets.token_urlsafe(32))
+        token = secrets.token_urlsafe(24)
+        with self._trava:
+            agora = self.relogio()
+            self._do_google = {k: v for k, v in getattr(self, "_do_google", {}).items() if v[0] > agora}
+            self._do_google[_resumo(token)] = (agora + 600, codigo, dados)
+        return token
+
+    def do_google(self, codigo: str, token: str) -> dict:
+        """O QR do convite aceito pelo Google - uma vez."""
+        with self._trava:
+            item = getattr(self, "_do_google", {}).pop(_resumo(token), None)
+        if not item or item[0] < self.relogio() or item[1] != codigo:
+            raise ErroConvite("a volta do Google venceu; abra o convite de novo")
+        return item[2]
+
     def confirmar(self, codigo: str, codigo_totp: str) -> dict:
         """O primeiro codigo do celular: a conta fica pronta, e o convite deixa de valer."""
         with self._trava:

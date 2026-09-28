@@ -565,6 +565,31 @@ class Contas:
             self._pendentes[_resumo(pendente)] = (linha["id"], self.relogio() + PENDENTE_S, email, "")
         return pendente
 
+    def entrar_com_google(self, email: str, *, ip: str = "") -> str:
+        """
+        A primeira metade do login quando quem garante o e-mail e o Google
+        (E3, acesso/google_login.py): no lugar da senha. A segunda metade e a
+        mesma - o codigo do autenticador. O Google ja provou o e-mail; aqui so
+        se confere que ha conta dele, pronta, e que nem ela nem o endereco
+        estao bloqueados.
+        """
+        self._porta_do_ip(ip)
+        email = self._email(email)
+        ate = self._bloqueado_ate(email)
+        if ate > self.relogio():
+            raise ErroEntrada("conta bloqueada por tentativas erradas; tente de novo mais tarde", ate)
+        linha = self._conta_por_email(email)
+        if not linha:
+            self._errou_ip(ip)
+            raise ErroEntrada("esta conta do Google não tem acesso ao PAULUS deste escritório; peça um convite ao titular")
+        if not linha["totp_confirmado"]:
+            raise ErroEntrada("esta conta ainda não confirmou o autenticador; abra o convite de novo")
+        pendente = secrets.token_urlsafe(24)
+        with self._trava:
+            self._limpar_pendentes()
+            self._pendentes[_resumo(pendente)] = (linha["id"], self.relogio() + PENDENTE_S, email, "")
+        return pendente
+
     def _limpar_pendentes(self) -> None:
         agora = self.relogio()
         for k in [k for k, v in self._pendentes.items() if v[1] < agora]:
