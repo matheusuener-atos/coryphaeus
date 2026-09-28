@@ -100,6 +100,8 @@ async function mostrarBoasVindas() {
   const p = prefs.pessoa || {};
   bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "", endereco: p.endereco || "" };
   bv.modulos = Object.assign({}, prefs.modulos || {});
+  const a = prefs.atualizacoes || {};
+  bv.atualizacoes = { verificar: a.verificar !== false, avisar_antes: a.avisar_antes !== false };
   MODULOS_BV.forEach(([id]) => { if (bv.modulos[id] === undefined) bv.modulos[id] = true; });
   bv.passo = 0;
   const pendente = lerVinculo();
@@ -132,7 +134,10 @@ function desenharBoasVindas() {
   }).join("");
   const selo = bv.caminho === "entrar" && bv.passo > 1 ? "REDE LOCAL · NADA NA INTERNET" : "NADA SAIU DESTA MÁQUINA";
   const cabeca = '<div class="bv-cabeca"><span class="bv-marca">PAVLVS</span><div class="bv-etapas">' + etapas + "</div>" +
-    '<span class="bv-selo"><i class="ponto-verde"></i>' + selo + "</span></div>";
+    '<span class="bv-selo"><i class="ponto-verde"></i>' + selo + "</span>" +
+    // O tema fica no canto de cima, so o icone.
+    '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +
+    ic(document.documentElement.dataset.tema === "escuro" ? "light_mode" : "dark_mode", 18) + "</button></div>";
 
   const telas = {
     boasvindas: passoBoasVindas, escritorio: passoEscritorio, dados: bv.caminho === "entrar" ? passoDadosVinculo : passoDados,
@@ -160,9 +165,7 @@ function desenharBoasVindas() {
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar">' + botao + "</button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
-    (bv.entrarAberto ? janelaEntrarBv() : "") +
-    '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +
-    ic(document.documentElement.dataset.tema === "escuro" ? "light_mode" : "dark_mode", 18) + "</button>";
+    (bv.entrarAberto ? janelaEntrarBv() : "");
   caixa.scrollTop = 0;
   ligarBoasVindas();
 }
@@ -228,9 +231,13 @@ function passoEscritorio() {
   return [texto, lado];
 }
 
+/* `modo` e o teclado (inputmode) ou, para CPF e telefone, o tipo do campo
+   formatado (js/39-campos.js), que ja traz o teclado certo. */
 function campoBv(chave, rotulo, valor, atributo, modo, dica) {
+  const formatado = modo === "cpf" || modo === "telefone";
   return '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
-    '" ' + atributo + '="' + chave + '" value="' + esc(valor || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") +
+    '" ' + atributo + '="' + chave + '" value="' + esc(formatado ? formatarCampo(modo, valor || "") : (valor || "")) + '"' +
+    (formatado ? atributosDoCampo(modo) : (modo ? ' inputmode="' + modo + '"' : "")) +
     (dica ? ' placeholder="' + esc(dica) + '"' : "") + "></div>";
 }
 
@@ -245,7 +252,7 @@ function passoDados() {
     "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p>";
   const lado = '<div class="bv-cartao">' + fotoBv("Iniciais") +
     '<div class="bv-grade">' + campoBv("nome", "Nome completo", p.nome, "data-bv-pessoa") + campoBv("oab", "OAB", p.oab, "data-bv-pessoa", "", "GO 00000") +
-    campoBv("cpf", "CPF", p.cpf, "data-bv-pessoa", "numeric", "000.000.000-00") + campoBv("telefone", "Telefone", p.telefone, "data-bv-pessoa", "tel") +
+    campoBv("cpf", "CPF", p.cpf, "data-bv-pessoa", "cpf", "000.000.000-00") + campoBv("telefone", "Telefone", p.telefone, "data-bv-pessoa", "telefone", "(62) 99999-8888") +
     campoBv("email", "E-mail", p.email, "data-bv-pessoa", "email") + campoBv("endereco", "Endereço", p.endereco, "data-bv-pessoa") + "</div></div>";
   return [texto, lado];
 }
@@ -379,7 +386,7 @@ function passoIA() {
     '<span class="duas-linhas"><span class="bv-modelo-nome"><span>Não baixar agora</span></span><small>escolho depois, em Configurações › Modelos</small></span></button>';
   const cal = bv.calib || {};
   const calibracao = '<div class="bv-calibracao"><span class="duas-linhas"><b>Participar da calibração</b>' +
-    "<small>manda as medidas desta máquina ao site do PAULUS e recebe as de outras; nada do escritório · " +
+    "<small>mede o modelo desta máquina uma vez (cerca de um minuto), manda as medidas ao site do PAULUS e recebe as de outras; nada do escritório · " +
     '<button type="button" class="em-ligacao" data-cal-ver="1">ver o que é enviado</button></small></span>' +
     '<span class="interruptor-min' + (cal.participar ? " on" : "") + '" data-cal-participar="1" role="switch" tabindex="0" aria-checked="' + Boolean(cal.participar) + '" aria-label="Participar da calibração"></span></div>';
   const lista = (rec.length ? '<span class="bv-rotulo bv-lista-titulo">RECOMENDADO PARA ESTA MÁQUINA</span>' + rec.map((x) => linhaModeloBv(x, limite)).join("") : "") +
@@ -455,11 +462,18 @@ function janelaEntrarBv() {
 }
 
 function passoAtualizacoes() {
+  const a = bv.atualizacoes || { verificar: true, avisar_antes: true };
   const texto = "<h1>Como o PAULUS deve se atualizar?</h1>" +
-    "<p>Nesta versão, atualizar é rodar o instalador novo: o programa não verifica nada na internet sozinho. Quando a verificação automática chegar, ela vai baixar só o instalador, e você poderá desligá-la.</p>";
-  const lado = '<div class="bv-cartao"><div class="bv-checks">' +
-    '<div class="bv-check falta">' + ic("radio_button_unchecked", 18) + "<span>Verificar atualizações uma vez por dia · em breve</span></div>" +
-    '<div class="bv-check falta">' + ic("radio_button_unchecked", 18) + "<span>Avisar antes de instalar · em breve</span></div></div>" +
+    "<p>Uma vez por dia, o PAULUS lê em paulus.ia.br se há versão nova — só essa leitura; nada seu vai junto. A versão nova vem do instalador oficial, conferido antes de abrir, e os dados do escritório ficam como estão.</p>";
+  const linha = (id, titulo, desc, ligado, bloqueado) =>
+    '<div class="bv-modulo' + (bloqueado ? " fixo" : "") + '"' + (bloqueado ? "" : ' data-bv-atu="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + ">" +
+    '<span class="duas-linhas"><b>' + titulo + "</b><small>" + desc + "</small></span>" +
+    '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
+  const lado = '<div class="bv-cartao"><div class="bv-grupos">' +
+    linha("verificar", "Verificar atualizações uma vez por dia", "desligado, o PAULUS não procura versão nova; dá para verificar em Configurações › Apoio e versão", a.verificar) +
+    linha("avisar_antes", "Avisar antes de instalar", a.avisar_antes
+      ? "a faixa do topo avisa; você instala quando quiser"
+      : "a versão nova baixa sozinha e se instala quando você fechar o PAULUS", a.avisar_antes, !a.verificar) + "</div>" +
     '<div class="bv-apoio"><b>Você também pode apoiar o projeto</b><p>O PAULUS é gratuito e mantido por quem usa. Sem pressa: dá para fazer isso depois, em Apoiar, no menu.</p></div></div>';
   return [texto, lado];
 }
@@ -532,6 +546,9 @@ function ligarBoasVindas() {
   });
   caixa.querySelectorAll("[data-bv-modelo]").forEach((b) => {
     b.onclick = () => { bv.modelo = b.dataset.bvModelo; bv.escolheuModelo = true; desenharBoasVindas(); };
+  });
+  caixa.querySelectorAll("[data-bv-atu]").forEach((m) => {
+    teclaAtiva(m, () => { const id = m.dataset.bvAtu; bv.atualizacoes[id] = !bv.atualizacoes[id]; desenharBoasVindas(); });
   });
   caixa.querySelectorAll("[data-bv-modulo]").forEach((m) => {
     teclaAtiva(m, () => { const id = m.dataset.bvModulo; bv.modulos[id] = !bv.modulos[id]; desenharBoasVindas(); });
@@ -617,8 +634,14 @@ async function acaoBoasVindas(qual) {
   }
   const passo = passoBv();
   const ultimo = bv.passo === ordemBv().length - 1;
-  // Continuar grava o que o passo tem, e so o que tem.
-  if (passo === "dados") await gravarBoasVindas({ pessoa: bv.pessoa });
+  // Continuar grava o que o passo tem, e so o que tem. CPF ou telefone que
+  // nao fecha para aqui, com o aviso no campo (Pular por agora segue).
+  if (passo === "dados") {
+    const errado = camposInvalidos($("boas-vindas"));
+    if (errado) { errado.focus(); avisoCert("confira o campo marcado — ou deixe em branco e preencha depois"); return; }
+    $("boas-vindas").querySelectorAll("[data-bv-pessoa]").forEach((i) => { bv.pessoa[i.dataset.bvPessoa] = i.value; });
+    await gravarBoasVindas({ pessoa: bv.pessoa });
+  }
   if (ultimo) {
     if (bv.caminho === "entrar") {
       if ((bv.vinculo.codigoResponsavel || "").length !== 6) { avisoCert("digite os 6 caracteres do código do responsável"); $("bv-codigo").focus(); return; }
@@ -628,7 +651,7 @@ async function acaoBoasVindas(qual) {
       });
       aplicarModoLimitado();
     } else {
-      await gravarBoasVindas({ modulos: bv.modulos });
+      await gravarBoasVindas({ modulos: bv.modulos, atualizacoes: bv.atualizacoes });
       aplicarModulos(bv.modulos);
     }
     await usarModeloEscolhido();

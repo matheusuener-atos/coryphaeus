@@ -150,23 +150,14 @@ def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str
 # --------------------------------------------------- o servidor de volta
 
 
-PAGINA_OK = """<!doctype html><meta charset="utf-8"><title>PAULUS</title>
-<body style="font:16px system-ui,sans-serif;margin:15vh auto;max-width:34em;padding:0 1em">
-<h2 style="font-weight:600">Pode fechar esta aba e voltar ao PAULUS.</h2>
-<p>O login foi recebido. O PAULUS termina a conexão com a sua conta de e-mail.</p>
-</body>"""
+# A pagina da volta (os tres estados: sucesso, negado, expirado) mora em
+# src/pagina_retorno.py, no desenho de docs/ui/login-google.
+import pagina_retorno  # noqa: E402
 
-PAGINA_NEGADO = """<!doctype html><meta charset="utf-8"><title>PAULUS</title>
-<body style="font:16px system-ui,sans-serif;margin:15vh auto;max-width:34em;padding:0 1em">
-<h2 style="font-weight:600">O login não foi concluído.</h2>
-<p>Pode fechar esta aba. No PAULUS, dá para tentar de novo.</p>
-</body>"""
-
-PAGINA_ESTRANHA = """<!doctype html><meta charset="utf-8"><title>PAULUS</title>
-<body style="font:16px system-ui,sans-serif;margin:15vh auto;max-width:34em;padding:0 1em">
-<h2 style="font-weight:600">Este endereço não veio do login que o PAULUS abriu.</h2>
-<p>Nada foi feito. Se você está entrando numa conta, use a aba que o PAULUS abriu.</p>
-</body>"""
+# Depois que o login termina (ou e cancelado), a porta fica aberta mais este
+# tempo, respondendo "este login expirou": fechar na hora deixava o navegador
+# que voltava atrasado numa pagina de "conexao recusada".
+FICAR_ABERTO_DEPOIS = 120
 
 
 class _Servidor(HTTPServer):
@@ -189,8 +180,15 @@ class Loopback:
     que nao veio do PAULUS e nao muda nada.
     """
 
-    def __init__(self, state: str) -> None:
+    def __init__(self, state: str, provedor: str = "Google", tema: str = "escuro") -> None:
         self.state = state
+        self.provedor = provedor
+        self.tema = tema
+        # O andamento da conexao (para a pagina mostrar o e-mail e o fim) e o
+        # "Voltar ao PAULUS" (traz a janela para frente): quem cria diz.
+        self.situacao = None
+        self.ao_voltar = None
+        self.encerrado = False
         self.resultado: dict | None = None
         self.recusados = 0
         self._chegou = threading.Event()
@@ -229,26 +227,56 @@ class Loopback:
                 self.end_headers()
                 self.wfile.write(corpo)
 
+            def _json(self, codigo: int, dados: dict) -> None:
+                corpo = json.dumps(dados, ensure_ascii=False).encode("utf-8")
+                self.send_response(codigo)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(corpo)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(corpo)
+
+            def _pagina(self, codigo: int, estado: str, **extra) -> None:
+                self._responder(codigo, pagina_retorno.pagina(estado, provedor=dono.provedor, tema=dono.tema,
+                                                              porta=dono.porta, **extra))
+
             def do_GET(self) -> None:  # noqa: N802 - nome do http.server
-                consulta = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                partes = urllib.parse.urlsplit(self.path)
+                consulta = urllib.parse.parse_qs(partes.query)
                 pega = lambda k: (consulta.get(k) or [""])[0]  # noqa: E731
                 state, code, erro = pega("state"), pega("code"), pega("error")
+                certo = bool(state) and secrets.compare_digest(state, dono.state)
 
-                if not state and not code and not erro:
-                    self._responder(404, PAGINA_ESTRANHA)   # favicon e afins
+                # A pagina pergunta o andamento e pede para trazer o PAULUS
+                # para frente - so com o state deste login.
+                if partes.path == "/estado":
+                    situacao = dono.situacao() if (certo and dono.situacao) else {}
+                    self._json(200 if certo else 403, situacao if certo else {"fase": "desconhecido"})
                     return
-                if dono._chegou.is_set() or not secrets.compare_digest(state, dono.state):
+                if partes.path == "/voltar":
+                    if certo and dono.ao_voltar:
+                        try:
+                            dono.ao_voltar()
+                        except Exception:
+                            pass
+                    self.send_response(204)
+                    self.end_headers()
+                    return
+                if not state and not code and not erro:
+                    self._pagina(404, "expirado")            # favicon e afins
+                    return
+                if dono.encerrado or dono._chegou.is_set() or not certo:
                     dono.recusados += 1
-                    self._responder(400, PAGINA_ESTRANHA)
+                    self._pagina(400, "expirado")
                     return
                 if erro:
                     dono.resultado = {"erro": erro, "descricao": pega("error_description")}
-                    self._responder(200, PAGINA_NEGADO)
+                    self._pagina(200, "negado", detalhe="error=" + erro)
                 elif code:
                     dono.resultado = {"code": code}
-                    self._responder(200, PAGINA_OK)
+                    self._pagina(200, "sucesso", escopos=pega("scope"), state=state)
                 else:
-                    self._responder(400, PAGINA_ESTRANHA)
+                    self._pagina(400, "expirado")
                     return
                 dono._chegou.set()
 
@@ -273,6 +301,13 @@ class Loopback:
             detalhe = resultado.get("descricao") or resultado["erro"]
             raise ErroOAuth(f"a página de login devolveu um erro: {detalhe}")
         return resultado
+
+    def encerrar(self, depois: float = FICAR_ABERTO_DEPOIS) -> None:
+        """O login acabou: a porta responde "expirou" por mais um tempo e fecha."""
+        self.encerrado = True
+        t = threading.Timer(depois, self.fechar)
+        t.daemon = True
+        t.start()
 
     def fechar(self) -> None:
         for srv in self._servidores:
@@ -432,7 +467,8 @@ class Entrada:
 
     def __init__(self, provedor: str, credenciais: dict, ao_concluir, *,
                  login_hint: str = "", abrir=None, prazo: float = PRAZO_LOGIN,
-                 endpoints: dict | None = None, escopos: str = "", exigir: tuple[str, ...] = ()) -> None:
+                 endpoints: dict | None = None, escopos: str = "", exigir: tuple[str, ...] = (),
+                 tema: str = "escuro", ao_voltar=None) -> None:
         if provedor not in PROVEDORES:
             raise ErroOAuth("provedor desconhecido")
         if not credenciais.get("client_id"):
@@ -450,6 +486,9 @@ class Entrada:
         # somados aos que ja existem, e os que tem de voltar concedidos.
         self.escopos = escopos
         self.exigir = tuple(exigir)
+        self.tema = tema
+        self.ao_voltar = ao_voltar
+        self.email = ""
         self.id = secrets.token_hex(8)
         self.fase = "preparando"
         self.mensagem = ""
@@ -463,7 +502,9 @@ class Entrada:
     def iniciar(self) -> dict:
         state = secrets.token_urlsafe(24)
         self._verificador, desafio = gerar_pkce()
-        self._loopback = Loopback(state)
+        self._loopback = Loopback(state, provedor=rotulo(self.provedor), tema=self.tema)
+        self._loopback.situacao = lambda: {"fase": self.fase, "email": self.email, "mensagem": self.mensagem}
+        self._loopback.ao_voltar = self.ao_voltar
         porta = self._loopback.iniciar()
         host = PROVEDORES[self.provedor]["host_redirect"]
         self.redirect_uri = f"http://{host}:{porta}/" if host == "127.0.0.1" else f"http://{host}:{porta}"
@@ -502,6 +543,7 @@ class Entrada:
                     "(refresh token) - sem ela a conta cairia em uma hora. Tente entrar de novo."
                 )
             email, nome = quem_entrou(tokens)
+            self.email = email or ""
             if not email:
                 raise ErroOAuth("o login funcionou, mas não consegui saber qual é o endereço de e-mail")
             if self._cancelado.is_set():
@@ -517,7 +559,7 @@ class Entrada:
             self.mensagem = f"o login falhou: {exc}"
         finally:
             if self._loopback:
-                self._loopback.fechar()
+                self._loopback.encerrar()
 
     def cancelar(self) -> None:
         self._cancelado.set()

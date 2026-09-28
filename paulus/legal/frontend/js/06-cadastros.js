@@ -640,12 +640,15 @@ function formDaFicha(f) {
   };
 }
 
-function campoCad(chave, rotulo, dica) {
+/* `tipo` marca o campo formatado (js/39-campos.js): "cpf", "cpf-cnpj" ou
+   "telefone". O valor ja aparece formatado, mesmo o que veio sem mascara. */
+function campoCad(chave, rotulo, dica, tipo) {
   const v = cad.form;
   const id = "cad-f-" + chave;
+  const valor = tipo ? formatarCampo(tipo, v[chave] || "") : (v[chave] || "");
   return '<div class="dialogo-campo"><label for="' + id + '">' + esc(rotulo) + '</label><div class="dialogo-caixa">' +
-    '<input type="text" id="' + id + '" data-cc="' + chave + '" value="' + esc(v[chave] || "") + '"' +
-    (dica ? ' placeholder="' + esc(dica) + '"' : "") + ' autocomplete="off"></div></div>';
+    '<input type="text" id="' + id + '" data-cc="' + chave + '" value="' + esc(valor) + '"' +
+    (dica ? ' placeholder="' + esc(dica) + '"' : "") + (tipo ? atributosDoCampo(tipo) : ' autocomplete="off"') + "></div></div>";
 }
 
 function listaCad(chave, rotulo, opcoes) {
@@ -701,20 +704,20 @@ function partesDoFormCad(v) {
   if (despesa) {
     corpo += campoCad("nome", "Descrição", "aluguel, contabilidade, sistema…") +
       duasCad(campoCad("honorario", "Valor mensal", "R$ 0,00"), seletorDeDia()) +
-      campoCad("documento", "CNPJ / CPF do fornecedor") +
-      duasCad(campoCad("email", "E-mail do fornecedor"), campoCad("telefone", "Telefone")) +
+      campoCad("documento", "CNPJ / CPF do fornecedor", "", "cpf-cnpj") +
+      duasCad(campoCad("email", "E-mail do fornecedor"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
       campoCad("observacao", "Anotação", "fornecedor, contrato, reajuste…") + seletorDeAviso();
   } else if (equipe) {
     corpo += campoCad("nome", "Nome completo") +
-      duasCad(campoCad("documento", "CPF"), campoCad("observacao", "Função", "advogada · OAB/GO 00000")) +
-      duasCad(campoCad("email", "E-mail"), campoCad("telefone", "Telefone")) +
+      duasCad(campoCad("documento", "CPF", "000.000.000-00", "cpf"), campoCad("observacao", "Função", "advogada · OAB/GO 00000")) +
+      duasCad(campoCad("email", "E-mail"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
       duasCad(listaCad("tipo", "Papel", [["socio", "Sócio · edita e aprova tudo"], ["colaborador", "Colaborador"]]),
         listaCad("vinculo", "Vínculo", CAD_VINCULOS)) +
       (v.vinculo ? duasCad(campoCad("salario", v.vinculo === "estagio" ? "Bolsa" : "Salário ou retirada", "R$ 0,00"), campoCad("encargos", "Encargos e INSS", "R$ 0,00")) : "") +
       campoCad("endereco", "Endereço");
   } else {
     corpo += campoCad("nome", "Razão social ou nome") +
-      duasCad(campoCad("documento", "CNPJ / CPF"), campoCad("telefone", "Telefone")) +
+      duasCad(campoCad("documento", "CNPJ / CPF", "", "cpf-cnpj"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
       campoCad("email", "E-mail para cobrança") +
       campoCad("endereco", "Endereço") +
       duasCad(campoCad("honorario", "Honorário padrão", "R$ 0,00"), seletorDeDia()) +
@@ -790,6 +793,12 @@ async function salvarFicha() {
     avisoDoFormCad("o cadastro precisa de um nome");
     const campo = document.querySelector('#cad-form-pop [data-cc="nome"]');
     if (campo) campo.focus();
+    return;
+  }
+  const errado = $("cad-form-pop") ? camposInvalidos($("cad-form-pop")) : null;
+  if (errado) {
+    avisoDoFormCad("confira o campo marcado — ou deixe em branco");
+    errado.focus();
     return;
   }
   const dados = {

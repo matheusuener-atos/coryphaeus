@@ -248,6 +248,55 @@ def test_loopback() -> None:
         volta.fechar()
 
 
+def _pegar(url: str) -> tuple[int, str]:
+    try:
+        with urllib.request.urlopen(url, timeout=5) as r:
+            return r.status, r.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8")
+
+
+def test_pagina_de_volta() -> None:
+    print("\na pagina de volta do login (docs/ui/login-google)")
+    volta = correio_oauth.Loopback("s1", provedor="Google", tema="claro")
+    volta.situacao = lambda: {"fase": "pronto", "email": "pessoa@exemplo.com", "mensagem": ""}
+    chamadas = []
+    volta.ao_voltar = lambda: chamadas.append("voltar")
+    porta = volta.iniciar()
+    base = f"http://127.0.0.1:{porta}/"
+    try:
+        escopo = urllib.parse.quote("email https://mail.google.com/ https://www.googleapis.com/auth/drive.file openid")
+        codigo, pagina = _pegar(base + f"?state=s1&code=c&scope={escopo}")
+        checar(codigo == 200 and "Pode fechar esta aba e voltar ao PAULUS." in pagina and "PAVLVS" in pagina,
+               "sucesso: o titulo e a marca")
+        checar("Gmail" in pagina and "Drive" in pagina and "Agenda e Meet" not in pagina,
+               "mostra so as permissoes que o Google concedeu (o scope da volta)")
+        checar('data-tema="claro"' in pagina, "abre no tema do app")
+        externos = [x for x in ("https://fonts", "unpkg.com", "googleapis.com/css", "<link") if x in pagina]
+        checar(not externos, "nada vem da internet: fontes e icones vao na pagina", externos)
+        codigo, corpo = _pegar(base + "estado?state=s1")
+        checar(codigo == 200 and '"pessoa@exemplo.com"' in corpo, "o andamento traz o e-mail, com o state certo")
+        checar(_pegar(base + "estado?state=outro")[0] == 403, "com outro state, nada")
+        _pegar(base + "voltar?state=s1")
+        _pegar(base + "voltar?state=outro")
+        checar(chamadas == ["voltar"], "Voltar ao PAULUS traz a janela, so com o state certo", chamadas)
+        volta.encerrar(depois=30)
+        codigo, pagina = _pegar(base + "?state=s1&code=outro")
+        checar(codigo == 400 and "Este login expirou." in pagina,
+               "terminado o login, a porta ainda responde: expirou (e nao conexao recusada)")
+    finally:
+        volta.fechar()
+
+    volta = correio_oauth.Loopback("s2")
+    porta = volta.iniciar()
+    try:
+        codigo, pagina = _pegar(f"http://127.0.0.1:{porta}/?state=s2&error=access_denied")
+        checar(codigo == 200 and "A conexão não foi autorizada." in pagina and "error=access_denied" in pagina,
+               "negado: o titulo e o detalhe")
+    finally:
+        volta.fechar()
+
+
 # ------------------------------------------------------------ os tokens
 
 
@@ -643,6 +692,7 @@ def main() -> int:
         test_pkce()
         test_url_autorizacao()
         test_loopback()
+        test_pagina_de_volta()
         test_troca_e_renovacao(token)
         test_xoauth2()
         test_imap_smtp_com_xoauth2()

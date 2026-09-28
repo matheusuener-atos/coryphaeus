@@ -3,6 +3,25 @@
 O que mudou no PAULUS, em ordem — o mais novo primeiro. Escrito para quem usa,
 não para quem programa: cada linha diz o que passou a ser possível fazer.
 
+## Setembro de 2026 — o PAULUS se atualiza
+
+- **Versão nova sem procurar.** Uma vez por dia, o PAULUS confere se há
+  versão nova. Com "Avisar antes de instalar", a faixa do topo avisa, e em
+  Configurações › Apoio e versão você baixa e instala com um clique: o
+  instalador fecha o PAULUS, troca o programa e abre a versão nova. Os dados
+  ficam. Sem o aviso, baixa sozinho e instala quando você fechar o programa.
+- **CPF, CNPJ e telefone se formatam enquanto você digita**, no assistente,
+  em Configurações e nos Cadastros. Número que não fecha (dígito verificador
+  errado, telefone incompleto) é avisado no campo antes de salvar. O CNPJ
+  com letras, que a Receita começou a emitir, também vale.
+- **A volta do login do Google tem cara de PAULUS.** Depois de autorizar, a
+  aba mostra a conta, o que foi autorizado e quando a conexão terminou. O
+  botão Voltar ao PAULUS traz a janela para frente. Login cancelado ou vencido
+  mostra "Este login expirou", em vez de uma página de erro do navegador.
+- **A calibração mede sozinha.** Com "Participar da calibração" ligado, o
+  modelo que termina de baixar é medido uma vez, e a medida vai para o site
+  do PAULUS, para as recomendações de modelo acertarem mais.
+
 ## Setembro de 2026 — instalar e começar
 
 - **Instalador novo.** Quatro telas: boas-vindas, onde instalar, a instalação

@@ -416,6 +416,7 @@ def main() -> int:
     except OSError:
         pass
     api.estado.ao_pedido_externo = _pedido_externo
+    api.estado.ao_fechar = lambda: _JANELA.destroy() if _JANELA is not None else None
 
     global _JANELA
     _identidade_no_windows()
@@ -454,6 +455,12 @@ def main() -> int:
                   icon=str(ICONE) if ICONE.exists() else None)
 
     servidor.should_exit = True
+    try:
+        # Sem "avisar antes": a versao nova ja baixada se instala agora.
+        if api.instalar_atualizacao_ao_fechar():
+            print("  atualizacao: o instalador vai trocar o programa")
+    except Exception as exc:  # noqa: BLE001 - fica para a proxima vez que fechar
+        print(f"  atualizacao ao fechar falhou: {exc}")
     try:
         if json.loads(_instancia_path().read_text(encoding="utf-8")).get("pid") == os.getpid():
             _instancia_path().unlink()

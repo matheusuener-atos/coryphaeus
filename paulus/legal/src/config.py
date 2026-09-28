@@ -88,6 +88,10 @@ PADRAO: dict = {
     "avisos_tipos": {"bem_estar": True, "resposta": True, "aprovacao": True,
                      "gravacao": True, "agenda": True},
     "modelo": "",
+    # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
+    # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
+    # antes de instalar; sem ele, baixa sozinho e instala ao fechar.
+    "atualizacoes": {"verificar": True, "avisar_antes": True, "ultima_consulta": "", "erro": ""},
     # Os modulos do menu (assistente de configuracao, passo Modulos, e
     # Configuracoes › Modulos). Desligado some do menu desta maquina; o
     # Assistente, Apoiar e Configuracoes ficam sempre.

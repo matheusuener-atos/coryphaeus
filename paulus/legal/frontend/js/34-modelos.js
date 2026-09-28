@@ -30,8 +30,8 @@ function blocoCalibracao(c, curto) {
   const outras = ligado && c.de_outras_maquinas ? " · " + plural(c.de_outras_maquinas, "medida") + " de outras máquinas" : "";
   return '<div class="ag-toggle' + (ligado ? " on" : "") + '" data-cal-participar="1" role="switch" tabindex="0" aria-checked="' + ligado + '">' +
     '<span class="duas-linhas"><b>Participar da calibração</b><small>' +
-    (curto ? "manda as medidas desta máquina ao site do PAULUS e recebe as de outras; nada do escritório"
-      : "manda ao site do PAULUS as medidas desta máquina — processador, memória, as duas velocidades e as palavras por segundo de cada modelo — e recebe as de outras máquinas. Nada do escritório, nada de pessoa") +
+    (curto ? "mede o modelo desta máquina uma vez (cerca de um minuto), manda as medidas ao site do PAULUS e recebe as de outras; nada do escritório"
+      : "mede sozinho, uma vez, cada modelo que você baixar e manda ao site do PAULUS as medidas desta máquina — processador, memória, as duas velocidades e as palavras por segundo de cada modelo — e recebe as de outras máquinas. Nada do escritório, nada de pessoa") +
     esc(quando + outras) + "</small></span><i></i></div>" +
     '<p class="cfg-explica"><button type="button" class="em-ligacao" data-cal-ver="1">ver o que é enviado</button>' +
     (c.erro ? " · " + esc(c.erro) : "") + "</p>";

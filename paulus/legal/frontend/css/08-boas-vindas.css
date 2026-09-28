@@ -78,7 +78,7 @@
   .bv-foto { display: flex; align-items: center; gap: 14px; }
   .bv-iniciais { width: 52px; height: 52px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center; font: 600 16px var(--sans); color: var(--ink2); flex: none; }
   .bv-foto .duas-linhas small { white-space: normal; }
-  .bv-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .bv-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
   .bv-grade input, .bv-grade select { background: var(--bg); }
 
   /* Esta maquina e a lista de modelos, no estilo da biblioteca do Ollama. */
@@ -163,12 +163,13 @@
     font: 600 14px var(--sans); white-space: nowrap; background: var(--casca); color: var(--casca-ink);
   }
   .bv-continuar:hover:not(:disabled) { background: var(--casca-hover); color: var(--casca-ink); border: 0; }
+  /* O tema: no fim da linha de cima, so o icone - sem fundo, sem fio. */
   .bv-tema {
-    position: fixed; right: 16px; bottom: 16px; z-index: 53; width: 34px; height: 34px; padding: 0;
-    border-radius: 50%; border: 1px solid var(--ink-a1); background: var(--surf); color: var(--ink);
+    flex: none; width: 28px; height: 28px; padding: 0; margin-right: -4px;
+    border: 0; border-radius: 6px; background: none; color: var(--ink2);
     display: flex; align-items: center; justify-content: center;
   }
-  .bv-tema:hover:not(:disabled) { background: var(--fill); border-color: var(--ink); color: var(--ink); }
+  .bv-tema:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
   @media (max-width: 1000px) {
     .boas-vindas { overflow: auto; }
     .bv-tela { height: auto; min-height: 100%; }

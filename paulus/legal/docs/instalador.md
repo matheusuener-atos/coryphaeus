@@ -54,6 +54,19 @@ O Inno Setup não é mais usado.
 - **Dados:** os dados ficam em `%LOCALAPPDATA%\PAULUS\dados` e os modelos em `%LOCALAPPDATA%\PAULUS\modelos`. **Atualizar troca o programa e não toca nos dados.**
 - **Registro:** o que o instalador faz vai para `%TEMP%\PAULUS-instalador.log`, e o que o programa imprime vai para `dados\registro\paulus.log`.
 
+## Atualizar
+
+- **O anúncio:** `site/atualizacao.json`, publicado com o site em `https://paulus.ia.br/atualizacao.json`. Traz versão, link do instalador na release do GitHub, SHA-256, tamanho, data e novidades. **A cada release, este arquivo muda junto** com o link do site.
+- **O app** (`src/atualizacao.py`, `/api/atualizacao`, `frontend/js/40-atualizacao.js`):
+  - uma vez por dia, 30 s depois de abrir, lê o anúncio, se "Verificar atualizações" estiver ligado (vem ligado);
+  - o anúncio só vale com instalador do GitHub do projeto ou de paulus.ia.br, por HTTPS, e com SHA-256;
+  - com "Avisar antes de instalar" (ligado de fábrica): a faixa do topo avisa, e Configurações › Apoio e versão baixa, confere o SHA-256 e, em **Instalar agora**, abre o instalador em `/atualizar` e fecha o PAULUS;
+  - sem o aviso: baixa sozinho e, ao fechar o PAULUS, instala em silêncio.
+- **O instalador em `/atualizar`:** vai direto para a instalação, mantém atalhos e menu do Explorer, não mexe no Ollama e reabre o PAULUS no fim.
+- **Rodando do código-fonte**, o app mostra a versão nova, mas não instala: atualizar é `git pull`.
+- **Cada pasta tem a sua entrada no Windows:** a padrão é `PAULUS`; qualquer outra, `PAULUS-<8 letras>`. Com um nome só, instalar em outra pasta (um teste) sobrescrevia a entrada da instalação de verdade.
+- **Testado de ponta a ponta** (27/09): um servidor local fez o papel do site; o PAULUS instalado numa pasta temporária achou a versão nova, baixou, conferiu, fechou, foi atualizado e voltou sozinho. Para repetir, use `PAULUS_ATUALIZACAO_URL` e `PAULUS_ATUALIZACAO_TESTE=1`, que aceita `http://127.0.0.1`.
+
 ## Desinstalar
 
 Pelo Windows (Configurações › Aplicativos), pelo `Desinstalar.exe` ou pelo instalador, na tela "já instalado". Duas caixas, as duas desmarcadas:

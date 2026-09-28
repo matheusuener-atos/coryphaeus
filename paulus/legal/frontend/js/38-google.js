@@ -80,7 +80,7 @@ function ligaGoogle(chave, rotulo, sub, ligado) {
 async function conectarGoogle(servico, botao) {
   if (botao) { botao.disabled = true; botao.textContent = "abrindo o Google…"; }
   const r = await fetch("/api/google/conectar", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servico: servico }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servico: servico, tema: document.documentElement.dataset.tema || "" }),
   });
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); if (botao) botao.disabled = false; return; }
   avisoCert("Abri a tela do Google no navegador: marque a permissão e volte aqui.", { dura: 8000 });

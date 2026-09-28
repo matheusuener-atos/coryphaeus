@@ -260,6 +260,20 @@ static class Motor
     public static string PastaPadrao { get { return Path.Combine(LocalAppData, "Programs", "PAULUS"); } }
     public static string OllamaExe { get { return Path.Combine(LocalAppData, "Programs", "Ollama", "ollama.exe"); } }
 
+    /* A entrada no Windows de cada pasta: a pasta padrao usa "PAULUS"; outra
+       pasta (um teste, um segundo PAULUS) ganha a sua, "PAULUS-<8 letras>".
+       Com um nome so, instalar em outra pasta sobrescrevia a entrada da
+       instalacao de verdade, e desinstalar essa outra a apagava. */
+    public static string ChaveDe(string pasta)
+    {
+        if (MesmaPasta(pasta, PastaPadrao)) return CHAVE;
+        using (var sha = System.Security.Cryptography.SHA1.Create())
+        {
+            byte[] h = sha.ComputeHash(Encoding.UTF8.GetBytes(Normal(pasta).ToLowerInvariant()));
+            return CHAVE + "-" + BitConverter.ToString(h, 0, 4).Replace("-", "").ToLowerInvariant();
+        }
+    }
+
     public static Instalado LerInstalado()
     {
         foreach (string chave in new[] { CHAVE, CHAVE_INNO })
@@ -388,6 +402,24 @@ static class Motor
     }
 
     /* So apaga o atalho se ele e desta instalacao: o de outra pasta fica. */
+    public static bool AtalhoDaPasta(string lnk, string pasta)
+    {
+        return Dentro(AlvoDoAtalho(lnk), pasta);
+    }
+
+    public static string AtalhoDaMesa { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "PAULUS.lnk"); } }
+    public static string AtalhoDoIniciar { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "PAULUS.lnk"); } }
+
+    /* Atualizar mantem o que a pessoa escolheu da outra vez: os atalhos que
+       existem para esta pasta, o menu do Explorer, e nada de Ollama novo. */
+    public static void OpcoesDeQuemAtualiza(Opcoes o)
+    {
+        o.AtalhoMesa = AtalhoDaPasta(AtalhoDaMesa, o.Pasta);
+        o.MenuIniciar = AtalhoDaPasta(AtalhoDoIniciar, o.Pasta) || !File.Exists(AtalhoDoIniciar);
+        o.Explorer = MenuDoExplorerLigado(o.Pasta);
+        o.Ollama = false;
+    }
+
     static void ApagarAtalhoDaPasta(string lnk, string pasta)
     {
         if (Dentro(AlvoDoAtalho(lnk), pasta)) Apagar(lnk);
@@ -621,7 +653,7 @@ static class Motor
             {
                 try { Mover(g[1], g[0]); } catch (Exception) { }
             }
-            if (guardados.Count == 0) { ApagarChaveDaPasta(CHAVE, pasta); TentarApagarVazia(pasta); }
+            if (guardados.Count == 0) { ApagarChaveDaPasta(ChaveDe(pasta), pasta); TentarApagarVazia(pasta); }
             ApagarTemp(temp);
             ReligarOllama();
             throw;
@@ -737,7 +769,7 @@ static class Motor
 
     static void RegistrarDesinstalador(string pasta, long instalado)
     {
-        using (RegistryKey k = Registry.CurrentUser.CreateSubKey(CHAVE))
+        using (RegistryKey k = Registry.CurrentUser.CreateSubKey(ChaveDe(pasta)))
         {
             string des = Path.Combine(pasta, "Desinstalar.exe");
             k.SetValue("DisplayName", "PAULUS");
@@ -917,6 +949,8 @@ static class Motor
         ApagarAtalhoDaPasta(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "PAULUS.lnk"), pasta);
         ApagarAtalhoDaPasta(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "PAULUS.lnk"), pasta);
         TirarMenuDoExplorer(pasta);
+        ApagarChaveDaPasta(ChaveDe(pasta), pasta);
+        // A entrada antiga, de antes de cada pasta ter a sua: sai se era desta.
         ApagarChaveDaPasta(CHAVE, pasta);
         LimparInno(pasta);
         TentarApagarVazia(Casa);
@@ -944,10 +978,22 @@ static class Motor
         var o = new Opcoes();
         Instalado ja = LerInstalado();
         o.Pasta = Programa.Valor("/pasta") ?? (ja != null ? ja.Pasta : PastaPadrao);
-        o.AtalhoMesa = !Programa.Tem("/sem-atalho");
-        o.MenuIniciar = !Programa.Tem("/sem-iniciar");
-        o.Explorer = Programa.Tem("/com-explorer") || MenuDoExplorerLigado(o.Pasta);
-        o.Ollama = !Programa.Tem("/sem-ollama");
+        bool atualizando = ParecePaulus(o.Pasta);
+        if (atualizando)
+        {
+            // A atualizacao sozinha (ao fechar o PAULUS): mantem o que havia.
+            OpcoesDeQuemAtualiza(o);
+            if (Programa.Tem("/sem-atalho")) o.AtalhoMesa = false;
+            if (Programa.Tem("/sem-iniciar")) o.MenuIniciar = false;
+            if (Programa.Tem("/com-explorer")) o.Explorer = true;
+        }
+        else
+        {
+            o.AtalhoMesa = !Programa.Tem("/sem-atalho");
+            o.MenuIniciar = !Programa.Tem("/sem-iniciar");
+            o.Explorer = Programa.Tem("/com-explorer") || MenuDoExplorerLigado(o.Pasta);
+            o.Ollama = !Programa.Tem("/sem-ollama");
+        }
         var a = new Andamento();
         string erro = PodeEscrever(o.Pasta);
         if (erro != null) { Registro.Linha(erro); return 2; }
@@ -1141,7 +1187,7 @@ class Janela : Form
     Instalado instalado;
     bool temOllama = true;
     long tamanhoOllama;
-    bool abrirNoFim = true, apagarModelos, apagarDados;
+    bool abrirNoFim = true, apagarModelos, apagarDados, modoAtualizar;
     double progresso;
     string acao = "", erro = "", aviso = "";
     Andamento andamento;
@@ -1178,6 +1224,16 @@ class Janela : Form
             o.Ollama = !temOllama;
             if (instalado != null) { o.Pasta = instalado.Pasta; o.Explorer = Motor.MenuDoExplorerLigado(instalado.Pasta); tela = Tela.JaInstalado; }
             else { o.Pasta = Programa.Valor("/pasta") ?? Motor.PastaPadrao; tela = Tela.BoasVindas; }
+            // Aberto pelo proprio PAULUS (Configuracoes › Versao): atualiza sem
+            // perguntar nada, com o andamento, e abre a versao nova no fim.
+            if (Programa.Tem("/atualizar") && (instalado != null || Programa.Valor("/pasta") != null))
+            {
+                modoAtualizar = true;
+                o.Pasta = Programa.Valor("/pasta") ?? instalado.Pasta;
+                Motor.OpcoesDeQuemAtualiza(o);
+                abrirNoFim = true;
+                Shown += delegate { ComecarInstalacao(); };
+            }
             if (!temOllama)
                 ThreadPool.QueueUserWorkItem(delegate { tamanhoOllama = Motor.TamanhoDoOllama(); try { BeginInvoke((Action)Invalidate); } catch (Exception) { } });
         }
@@ -1736,7 +1792,19 @@ class Janela : Form
             try
             {
                 Motor.Instalar(o, andamento);
-                BeginInvoke((Action)delegate { aviso = andamento.Aviso; tela = Tela.Pronto; Invalidate(); });
+                BeginInvoke((Action)delegate
+                {
+                    aviso = andamento.Aviso;
+                    tela = Tela.Pronto;
+                    Invalidate();
+                    // No modo atualizar, a versao nova abre sozinha.
+                    if (modoAtualizar && aviso == "")
+                    {
+                        var relogio = new System.Windows.Forms.Timer { Interval = 1500 };
+                        relogio.Tick += delegate { relogio.Stop(); Concluir(); };
+                        relogio.Start();
+                    }
+                });
             }
             catch (CanceladoException)
             {

@@ -136,7 +136,7 @@ async function eoComecar(p, raiz, aoLigar, dica) {
   let r;
   try {
     r = await fetch("/api/email/oauth/entrar", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provedor: p, email: dica || "" }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provedor: p, email: dica || "", tema: document.documentElement.dataset.tema || "" }),
     });
   } catch (err) {
     return eoRestaurar(raiz, aoLigar, String(err));

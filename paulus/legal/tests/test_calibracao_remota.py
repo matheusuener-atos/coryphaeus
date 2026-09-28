@@ -120,6 +120,8 @@ def test_api() -> None:
         return 1
 
     api.calibracao_remota.baixar = baixar_de_mentira
+    medir_de_verdade = api._medir_para_calibracao
+    api._medir_para_calibracao = lambda *a, **k: False   # sem Ollama de verdade aqui
     try:
         d = c.get("/api/calibracao").json()
         checar(d["participar"] is False, "desligada de fábrica")
@@ -144,6 +146,32 @@ def test_api() -> None:
         checar(c.get("/api/calibracao").json()["participar"] is False and len(enviados) == antes, "desligar para de mandar")
     finally:
         api.calibracao_remota.enviar, api.calibracao_remota.baixar = original
+        api._medir_para_calibracao = medir_de_verdade
+
+
+def test_medida_automatica() -> None:
+    print("\na avaliação desta máquina vai sozinha")
+    import api
+
+    medidos = []
+    originais = (api._participa_da_calibracao, api._medidas_dos_modelos, api._medir_e_guardar)
+    participa = {"sim": True}
+    ja_medidos = {}
+    api._participa_da_calibracao = lambda: participa["sim"]
+    api._medidas_dos_modelos = lambda: dict(ja_medidos)
+    api._medir_e_guardar = lambda nome: (medidos.append(nome), ja_medidos.__setitem__(nome, {}))
+    try:
+        checar(api._medir_para_calibracao("qwen2.5:3b", espera=0.2), "modelo que terminou de baixar é agendado para medir")
+        checar(not api._medir_para_calibracao("qwen2.5:3b", espera=0.2), "o mesmo modelo não é agendado duas vezes")
+        fim = time.time() + 5
+        while time.time() < fim and not medidos:
+            time.sleep(0.05)
+        checar(medidos == ["qwen2.5:3b"], "é medido (e a medida vai ao servidor pelo caminho de sempre)", medidos)
+        checar(not api._medir_para_calibracao("qwen2.5:3b", espera=0), "já medido não mede de novo")
+        participa["sim"] = False
+        checar(not api._medir_para_calibracao("gemma2:2b", espera=0), "calibração desligada: não mede nem manda")
+    finally:
+        api._participa_da_calibracao, api._medidas_dos_modelos, api._medir_e_guardar = originais
 
 
 def main() -> int:
@@ -154,6 +182,7 @@ def main() -> int:
         test_modulo()
         test_plausiveis()
         test_api()
+        test_medida_automatica()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "=" * 55)

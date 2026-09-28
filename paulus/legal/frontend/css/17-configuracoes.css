@@ -237,3 +237,10 @@
 .mod-outro { margin-top: 12px; }
 .mod-outro input { flex: 1; min-width: 0; max-width: 520px; }
 .mod-erro { color: var(--acc); }
+
+  /* A versao nova (js/40-atualizacao.js): o numero, as novidades e o botao. */
+  .atu-nova { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--sub); }
+  .atu-nova b { font: 600 14px var(--sans); }
+  .atu-nova small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .atu-novidades { margin: 0; padding-left: 18px; display: grid; gap: 4px; font: 400 13px/1.5 var(--sans); color: var(--ink2); }
+  .cfg-explica.acc { color: var(--acc); }

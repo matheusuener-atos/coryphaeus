@@ -104,6 +104,7 @@ function rascunhoDe(pr, modelo) {
     avisos_windows: pr.avisos_windows !== false,
     avisos_tipos: Object.assign({}, pr.avisos_tipos || {}),
     modulos: Object.assign({}, pr.modulos || {}),
+    atualizacoes: Object.assign({}, pr.atualizacoes || {}),
   };
 }
 
@@ -133,6 +134,8 @@ async function carregarSecao() {
     cfg.lixo = await pega("/api/lixeira");
   } else if (cfg.secao === "aparencia") {
     cfg.avisos = await pega("/api/avisos");
+  } else if (cfg.secao === "plano") {
+    await carregarAtualizacao();
   }
 }
 
@@ -170,6 +173,7 @@ function desenharConfig() {
   ligarConfig();
   atualizarPostura();
   if (cfg.secao === "desempenho") comecarMedicao();
+  if (cfg.secao === "plano") ligarAtualizacao($("cfg-tela"));
   if (cfg.secao === "assistente") blocoLeis();
 }
 
@@ -259,8 +263,8 @@ function secaoPerfil() {
     (foto.tem ? '<button data-cfg-marca-tirar="foto">' + ic("close", 16) + "Remover</button>" : "") +
     '<span class="cfg-explica">PNG ou JPG, até 4 MB</span></div></div>' +
     '<div class="cfg-campos">' + campoCfg("pessoa.nome", "Nome completo", p.nome) +
-    '<div class="ag-duas">' + campoCfg("pessoa.cpf", "CPF", p.cpf, "000.000.000-00") + campoCfg("pessoa.oab", "OAB", p.oab, "GO 00000") + "</div>" +
-    '<div class="ag-duas">' + campoCfg("pessoa.telefone", "Telefone", p.telefone, "(62) 90000-0000") + campoCfg("pessoa.email", "E-mail", p.email) + "</div>" +
+    '<div class="ag-duas">' + campoCfg("pessoa.cpf", "CPF", formatarCpf(p.cpf || ""), "000.000.000-00", atributosDoCampo("cpf")) + campoCfg("pessoa.oab", "OAB", p.oab, "GO 00000") + "</div>" +
+    '<div class="ag-duas">' + campoCfg("pessoa.telefone", "Telefone", formatarTelefone(p.telefone || ""), "(62) 90000-0000", atributosDoCampo("telefone")) + campoCfg("pessoa.email", "E-mail", p.email) + "</div>" +
     campoCfg("pessoa.endereco", "Endereço profissional", p.endereco) + "</div>";
 
   const timbre = '<div class="cfg-sub">' + ligaCfg("timbre_no_pdf", "Papel timbrado nos PDFs", "nome, OAB, endereço e contato no alto de cada PDF gerado aqui", r.timbre_no_pdf) +
@@ -273,7 +277,7 @@ function secaoPerfil() {
     (logo.tem ? '<button data-cfg-marca-tirar="logo">' + ic("close", 16) + "Remover</button>" : "") +
     '<span class="cfg-explica">vai no alto do papel timbrado</span></div></div>' +
     '<div class="cfg-campos">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos") +
-    '<div class="ag-duas">' + campoCfg("escritorio.cnpj", "CNPJ", e.cnpj, "00.000.000/0001-00") + campoCfg("escritorio.oab", "OAB da sociedade", e.oab, "GO 0000") + "</div>" +
+    '<div class="ag-duas">' + campoCfg("escritorio.cnpj", "CNPJ", formatarCnpj(e.cnpj || ""), "00.000.000/0001-00", atributosDoCampo("cnpj")) + campoCfg("escritorio.oab", "OAB da sociedade", e.oab, "GO 0000") + "</div>" +
     campoCfg("escritorio.rodape", "Rodapé dos documentos", e.rodape, "OAB/GO 00000 · Goiânia · GO") + "</div>" +
     '<p class="cfg-explica">O nome entra nos recibos da folha. CNPJ, OAB e rodapé ficam guardados; nenhum documento os usa ainda.</p>';
 
@@ -777,7 +781,7 @@ async function formMensagemWhatsapp() {
     classe: "dialogo-cadastro", larga: true,
     html: '<div class="dialogo-form"><div class="dialogo-duas">' +
       campo("Contato", '<select id="cx-contato"><option value="">escolher do cadastro…</option></select>', "cx-contato") +
-      campo("Telefone", '<input type="text" id="cx-telefone" autocomplete="off" placeholder="(62) 99999-8888">', "cx-telefone") + "</div>" +
+      campo("Telefone", '<input type="text" id="cx-telefone" placeholder="(62) 99999-8888"' + atributosDoCampo("telefone") + '>', "cx-telefone") + "</div>" +
       campo("Mensagem", '<textarea id="cx-texto" rows="5" placeholder="escreva a mensagem…"></textarea>', "cx-texto", true) +
       '<div class="cfg-botoes"><button type="button" id="cx-anexar">' + ic("attach_file", 16) + "Anexar da biblioteca</button></div>" +
       '<div id="cx-anexo"></div>' +
@@ -1091,14 +1095,9 @@ function secaoPlano() {
   const apoiar = '<p class="cfg-texto">Sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento, por Pix ou cartão.</p>' +
     '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-apoiar="contribuir">' + ic("favorite", 16) + "Apoiar o projeto</button>" +
     '<button data-cfg-apoiar="lista">Quem já apoia</button></div>';
-  const versao = '<div class="cfg-chaves">' +
-    chaveCfg("Versão", "em desenvolvimento · sem número ainda", "mute") +
-    chaveCfg("Licença", "MIT · código aberto") +
-    chaveCfg("Atualização", "manual · o programa não se atualiza sozinho") + "</div>" +
-    '<div class="cfg-botoes"><button data-cfg-novidades="1">' + ic("article", 16) + "Novidades da versão</button></div>";
   return aberturaCfg() +
     cartaoCfg("Apoiar o projeto", "", apoiar) +
-    cartaoCfg("Versão", "", versao);
+    cartaoCfg("Versão e atualização", "", blocoAtualizacao());
 }
 
 /* ------------------------------------------------------------- lixeira */
@@ -1309,6 +1308,8 @@ function ligarConfig() {
 async function salvarConfig() {
   const r = cfg.rascunho;
   if (!r) return;
+  const errado = $("cfg-tela") ? camposInvalidos($("cfg-tela")) : null;
+  if (errado) { errado.focus(); avisoCert("confira o campo marcado antes de salvar"); return; }
   const resposta = await fetch("/api/preferencias", {
     method: "POST", headers: CFG_JSON,
     body: JSON.stringify({
@@ -1316,6 +1317,7 @@ async function salvarConfig() {
       modelo: r.modelo, timbre_no_pdf: r.timbre_no_pdf, devagar: r.devagar,
       animacoes_reduzidas: r.animacoes_reduzidas, inteligencia: r.inteligencia,
       avisos_windows: r.avisos_windows, avisos_tipos: r.avisos_tipos, modulos: r.modulos,
+      atualizacoes: { verificar: (r.atualizacoes || {}).verificar !== false, avisar_antes: (r.atualizacoes || {}).avisar_antes !== false },
     }),
   });
   if (!resposta.ok) { avisoCert("não consegui salvar: " + (await erroDe(resposta))); return; }

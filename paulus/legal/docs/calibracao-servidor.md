@@ -26,8 +26,9 @@ O `id` é um resumo (SHA-1 cortado) de processador, núcleos e memória. Serve p
 
 ## Quando
 
-- Ligar o interruptor manda as amostras já medidas nesta máquina e baixa as de todos.
-- Depois, cada **Medir** manda a amostra nova.
+- Ligar o interruptor manda as amostras já medidas nesta máquina e baixa as de todos. Se o modelo padrão já está instalado e nunca foi medido, ele é medido uma vez, sozinho, uns 20 segundos depois, e a amostra vai.
+- Um modelo que termina de baixar com o interruptor ligado também é medido sozinho, uma vez. É o caso de quem liga a chave no assistente de configuração: o modelo escolhido lá baixa, é medido e a amostra vai. Sem isso, só quem clicava em **Medir** mandava algo.
+- Cada **Medir** manda a amostra nova.
 - As de todos são relidas uma vez por dia, quando a tela de modelos ou a recomendação é aberta.
 - Desligado, nada sai e nada é lido.
 

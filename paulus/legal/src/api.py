@@ -78,6 +78,7 @@ import material as material_mod
 import maquina as maquina_mod
 import entrada
 import google_servicos
+import atualizacao as atualizacao_mod
 import calibracao_remota
 from versao import VERSAO
 from inteligencia import portas as inteligencia
@@ -213,6 +214,9 @@ class Estado:
         # e entregar um arquivo vindo do Explorer ("Perguntar ao PAULUS").
         # Sem janela (o programa no navegador), fica None.
         self.ao_pedido_externo = None
+        # E como fechar a janela: a atualizacao passa a vez ao instalador e
+        # fecha o PAULUS, para ele trocar os arquivos (src/desktop.py).
+        self.ao_fechar = None
         self.client = LlamaClient()
         # Organizador: resultado da ultima varredura/classificacao, por caminho.
         self.encontrados: list[dict] = []
@@ -565,6 +569,7 @@ async def lifespan(app: FastAPI):
     total = estado.recarregar()
     estado.vigia.comecar()
     threading.Thread(target=estado._vigiar, name="acervo-vigia", daemon=True).start()
+    threading.Thread(target=_verificar_atualizacao_se_velha, name="atualizacao", daemon=True).start()
     print(f"\n  PAULUS Legal - abra http://localhost:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     yield
@@ -1104,6 +1109,7 @@ def ollama_puxar() -> dict:
                 andamento["progresso"] = 100
                 andamento["pronto"] = True
                 _anotar_baixado(andamento["modelo"])
+                _medir_para_calibracao(andamento["modelo"])
             else:
                 andamento["erro"] = "o download parou: " + (andamento["linha"] or "sem detalhe")
         except Exception as exc:  # noqa: BLE001 - o erro vai para a tela
@@ -1167,9 +1173,131 @@ def _usar_e_baixar(modelo: str, baixar: bool) -> None:
     if modelo in instalados:
         return
     try:
-        estado.baixador.iniciar(modelo, ao_terminar=lambda n: (_anotar_baixado(n), estado.modelos_presentes(fresco=True)))
+        estado.baixador.iniciar(modelo, ao_terminar=_terminou_de_baixar)
     except (ValueError, RuntimeError):
         pass
+
+
+# ------------------------------------------------------------- atualizacao
+
+ATUALIZACAO_DIR = DADOS_DIR / "atualizacao"
+ANUNCIO_PATH = ATUALIZACAO_DIR / "anuncio.json"
+_baixador_atualizacao = atualizacao_mod.Baixador(ATUALIZACAO_DIR)
+
+
+def _prefs_atualizacao() -> dict:
+    return estado.prefs.dados.get("atualizacoes") or {}
+
+
+def _anuncio() -> dict | None:
+    try:
+        a = json.loads(ANUNCIO_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    # A versao pode ter mudado desde a consulta (atualizou): "nova" e de agora.
+    a["nova"] = atualizacao_mod.mais_nova(a.get("versao", ""), VERSAO)
+    return a
+
+
+def _consultar_atualizacao() -> dict:
+    """Le o anuncio do site, guarda, e - sem aviso antes - ja baixa."""
+    try:
+        anuncio = atualizacao_mod.consultar(VERSAO)
+    except Exception as exc:  # noqa: BLE001 - sem internet, fica o anuncio de antes
+        estado.prefs.atualizar({"atualizacoes": {"erro": "não consegui ver se há versão nova: " + str(exc)[:160],
+                                                 "ultima_consulta": time.strftime("%Y-%m-%d %H:%M")}})
+        return atualizacao_situacao()
+    ATUALIZACAO_DIR.mkdir(parents=True, exist_ok=True)
+    ANUNCIO_PATH.write_text(json.dumps(anuncio, ensure_ascii=False, indent=1), encoding="utf-8")
+    estado.prefs.atualizar({"atualizacoes": {"erro": "", "ultima_consulta": anuncio["consultado_em"]}})
+    if anuncio["nova"] and atualizacao_mod.instalado() and not _prefs_atualizacao().get("avisar_antes", True):
+        try:
+            _baixador_atualizacao.iniciar(anuncio)
+        except RuntimeError:
+            pass
+    return atualizacao_situacao()
+
+
+def _verificar_atualizacao_se_velha(espera: float = 30.0) -> None:
+    """Uma vez por dia, se a pessoa deixou ligado. Espera o programa abrir antes."""
+    time.sleep(espera)
+    p = _prefs_atualizacao()
+    if not p.get("verificar", True):
+        return
+    ultima = p.get("ultima_consulta", "")
+    try:
+        velha = not ultima or time.time() - time.mktime(time.strptime(ultima, "%Y-%m-%d %H:%M")) > atualizacao_mod.UM_DIA
+    except ValueError:
+        velha = True
+    if velha:
+        _consultar_atualizacao()
+
+
+@app.get("/api/atualizacao")
+def atualizacao_situacao() -> dict:
+    p = _prefs_atualizacao()
+    anuncio = _anuncio()
+    pronto = bool(anuncio and anuncio.get("nova") and _baixador_atualizacao.pronto_para(anuncio))
+    return {"atual": VERSAO, "instalado": atualizacao_mod.instalado(), "verificar": bool(p.get("verificar", True)),
+            "avisar_antes": bool(p.get("avisar_antes", True)), "ultima_consulta": p.get("ultima_consulta", ""),
+            "erro": p.get("erro", ""), "anuncio": anuncio, "baixando": _baixador_atualizacao.andamento(),
+            "pronto": pronto, "endereco": atualizacao_mod.URL}
+
+
+@app.post("/api/atualizacao/verificar")
+def atualizacao_verificar() -> dict:
+    return _consultar_atualizacao()
+
+
+@app.post("/api/atualizacao/baixar")
+def atualizacao_baixar() -> dict:
+    anuncio = _anuncio()
+    if not anuncio or not anuncio.get("nova"):
+        raise HTTPException(status_code=409, detail="não há versão nova para baixar")
+    try:
+        _baixador_atualizacao.iniciar(anuncio)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return atualizacao_situacao()
+
+
+@app.post("/api/atualizacao/cancelar")
+def atualizacao_cancelar() -> dict:
+    _baixador_atualizacao.cancelar()
+    return atualizacao_situacao()
+
+
+@app.post("/api/atualizacao/instalar")
+def atualizacao_instalar() -> dict:
+    """
+    Abre o instalador conferido no modo atualizar e fecha o PAULUS: o
+    instalador troca os arquivos e abre a versao nova no fim.
+    """
+    if not atualizacao_mod.instalado():
+        raise HTTPException(status_code=409, detail="rodando do código-fonte: para atualizar, use git pull")
+    anuncio = _anuncio()
+    arquivo = _baixador_atualizacao.pronto_para(anuncio) if anuncio and anuncio.get("nova") else None
+    if not arquivo:
+        raise HTTPException(status_code=409, detail="a atualização ainda não foi baixada e conferida")
+    atualizacao_mod.abrir_instalador(arquivo, atualizacao_mod.pasta_do_programa(BASE_DIR), calado=False)
+    if estado.ao_fechar:
+        threading.Timer(1.5, estado.ao_fechar).start()
+    return {"instalando": anuncio["versao"]}
+
+
+def instalar_atualizacao_ao_fechar() -> bool:
+    """
+    Chamado pelo desktop.py quando a janela fecha: sem "avisar antes", a
+    versao nova ja baixada e conferida se instala agora, sem janela.
+    """
+    if not atualizacao_mod.instalado() or _prefs_atualizacao().get("avisar_antes", True):
+        return False
+    anuncio = _anuncio()
+    arquivo = _baixador_atualizacao.pronto_para(anuncio) if anuncio and anuncio.get("nova") else None
+    if not arquivo:
+        return False
+    atualizacao_mod.abrir_instalador(arquivo, atualizacao_mod.pasta_do_programa(BASE_DIR), calado=True)
+    return True
 
 
 @app.post("/api/modelos/usar")
@@ -1243,7 +1371,7 @@ def modelos_listar() -> dict:
 def modelos_baixar(payload: dict) -> dict:
     nome = str(payload.get("nome", "")).strip().lower()
     try:
-        return estado.baixador.iniciar(nome, ao_terminar=lambda n: (_anotar_baixado(n), estado.modelos_presentes(fresco=True)))
+        return estado.baixador.iniciar(nome, ao_terminar=_terminou_de_baixar)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -1309,9 +1437,52 @@ def modelos_medir(payload: dict) -> dict:
     """Mede o modelo nesta maquina e guarda (data/modelos_medidas.json)."""
     nome = str(payload.get("nome", "")).strip()
     try:
-        medida = modelos_mod.medir(estado.client.host, nome)
+        return _medir_e_guardar(nome)
     except requests.RequestException as exc:
         raise HTTPException(status_code=503, detail="o Ollama não respondeu: " + str(exc)[:120]) from exc
+
+
+def _terminou_de_baixar(nome: str) -> None:
+    """Um modelo terminou de baixar: fica anotado (desinstalador) e, com a calibracao ligada, e medido."""
+    _anotar_baixado(nome)
+    estado.modelos_presentes(fresco=True)
+    _medir_para_calibracao(nome)
+
+
+_medindo_para_calibracao: set[str] = set()
+
+
+def _medir_para_calibracao(nome: str, espera: float = 20.0) -> bool:
+    """
+    A avaliacao desta maquina para o servidor do PAULUS (a calibracao, com
+    a chave ligada): o modelo que acabou de baixar - ou o padrao, ao ligar
+    a chave - e medido uma vez, sozinho, e a amostra vai para o servidor.
+    Sem isto, a amostra so saia de quem clicava em Medir, e quem so ligava
+    a chave no assistente nao mandava nada. Espera uns segundos antes, para
+    nao disputar com o que a pessoa estiver fazendo logo depois do download.
+    Devolve se a medida foi agendada.
+    """
+    if not nome or not _participa_da_calibracao() or nome in _medidas_dos_modelos() or nome in _medindo_para_calibracao:
+        return False
+    _medindo_para_calibracao.add(nome)
+
+    def trabalho() -> None:
+        try:
+            time.sleep(espera)
+            if _participa_da_calibracao() and nome not in _medidas_dos_modelos():
+                _medir_e_guardar(nome)
+                print(f"  calibracao: {nome} medido e enviado")
+        except Exception as exc:  # noqa: BLE001 - sem a medida, a calibracao so fica sem esta amostra
+            print(f"  calibracao: nao consegui medir {nome}: {exc}")
+        finally:
+            _medindo_para_calibracao.discard(nome)
+
+    threading.Thread(target=trabalho, name="medir-para-calibracao", daemon=True).start()
+    return True
+
+
+def _medir_e_guardar(nome: str) -> dict:
+    medida = modelos_mod.medir(estado.client.host, nome)
     medidas = _medidas_dos_modelos()
     medidas[nome] = medida
     MEDIDAS_MODELOS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -1462,6 +1633,13 @@ def calibracao_escolher(payload: dict) -> dict:
             _enviar_calibracao(_o_que_vai_para_a_calibracao())
             _baixar_calibracao()
         _calibracao_em_segundo_plano(ida_e_volta)
+        # O modelo padrao, se ja esta aqui e nunca foi medido: sem medida,
+        # nao ha o que mandar. (Se ainda vai baixar, mede quando terminar.)
+        try:
+            if estado.client.model in {m["nome"] for m in modelos_mod.instalados(estado.client.host)}:
+                _medir_para_calibracao(estado.client.model)
+        except Exception:  # noqa: BLE001 - Ollama fora: mede quando o modelo baixar
+            pass
     return calibracao_situacao()
 
 
@@ -3658,7 +3836,9 @@ def google_conectar(payload: dict) -> dict:
         anterior.cancelar()
     try:
         entrada_ = correio_oauth.Entrada("google", _credenciais_oauth("google"), concluir, login_hint=email_da_conta,
-                                         escopos="openid email " + escopo, exigir=(escopo,))
+                                         escopos="openid email " + escopo, exigir=(escopo,),
+                                         tema="claro" if payload.get("tema") == "claro" else "escuro",
+                                         ao_voltar=_trazer_o_paulus)
         estado.entrada_oauth = entrada_
         return entrada_.iniciar()
     except correio_oauth.ErroOAuth as exc:
@@ -5945,6 +6125,13 @@ def email_esquecer_senhas() -> dict:
 class PedidoEntrada(BaseModel):
     provedor: str = ""
     email: str = ""          # login_hint, opcional
+    tema: str = ""           # o tema do app, para a pagina de volta (claro/escuro)
+
+
+def _trazer_o_paulus() -> None:
+    """O "Voltar ao PAULUS" da pagina de volta do login: a janela vem para frente."""
+    if estado.ao_pedido_externo:
+        estado.ao_pedido_externo("mostrar", "")
 
 
 @app.get("/api/email/oauth")
@@ -5980,6 +6167,7 @@ def email_oauth_entrar(payload: PedidoEntrada) -> dict:
         entrada = correio_oauth.Entrada(
             provedor, _credenciais_oauth(provedor), _concluir_entrada,
             login_hint=payload.email.strip() if "@" in payload.email else "",
+            tema="claro" if payload.tema == "claro" else "escuro", ao_voltar=_trazer_o_paulus,
         )
         estado.entrada_oauth = entrada
         return entrada.iniciar()

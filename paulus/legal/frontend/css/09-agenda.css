@@ -176,7 +176,7 @@
   .ag-form { padding: 4px 18px 16px; display: grid; gap: 14px; }
   .ag-campo { display: grid; gap: 6px; }
   .ag-campo input, .ag-campo select, .ag-campo textarea, .ag-campo .escolha-botao { width: 100%; max-width: none; min-width: 0; }
-  .ag-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ag-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
   .ag-chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .ag-chips .ag-vazio-chip { font-size: 12.5px; color: var(--ink3); align-self: center; }
   /* O interruptor do sistema (docs/ui/02): a linha .ag-toggle - texto a
