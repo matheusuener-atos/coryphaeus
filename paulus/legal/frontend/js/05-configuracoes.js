@@ -140,6 +140,8 @@ async function carregarSecao() {
     cfg.lixo = await pega("/api/lixeira");
   } else if (cfg.secao === "acesso") {
     await carregarAcesso();
+  } else if (cfg.secao === "vinculos") {
+    if (typeof lerVinculoGoogle === "function") await lerVinculoGoogle();
   } else if (cfg.secao === "aparencia") {
     cfg.avisos = await pega("/api/avisos");
   } else if (cfg.secao === "plano") {
@@ -876,7 +878,8 @@ function secaoVinculos() {
     '<p class="cfg-explica">A equipe não instala o PAULUS: cada pessoa recebe um convite, escolhe a senha e liga o Google Authenticator no próprio celular, e entra pela internet. O que cada uma vê e faz se escolhe em Permissões.</p>' +
     '<div class="cfg-botoes"><button class="primario" data-cfg-convidar="1">' + ic("send", 16) + "Convidar a equipe</button>" +
     '<button data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe (folha e serviços)</button></div>";
-  return aberturaCfg() + cartaoCfg("O escritório", metaCfg("servidor"), maquina);
+  return aberturaCfg() + (typeof cartaoDoVinculo === "function" ? cartaoDoVinculo() : "") +
+    cartaoCfg("O escritório", metaCfg("servidor"), maquina);
 }
 
 /* O que a camada de inteligencia ja entendeu do acervo, e quanto isso esta
@@ -1159,6 +1162,7 @@ function ligarConfig() {
   if (cfg.secao === "modelos") ligarModelos();
   if (cfg.secao === "aprendizado") ligarMaterial();
   if (cfg.secao === "acesso") ligarAcesso();
+  if (cfg.secao === "vinculos" && typeof ligarVinculoCfg === "function") ligarVinculoCfg();
 
   clique("[data-cfg-secao]", (b) => { cfg.secao = b.dataset.cfgSecao; mostrarConfig(); });
   clique("[data-cfg-manual]", () => { location.hash = "#boasvindas"; verificarPrimeiraAbertura(); });

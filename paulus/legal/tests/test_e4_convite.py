@@ -54,6 +54,8 @@ def test_http() -> None:
     from acesso.contas import codigo_totp
 
     servico = api.estado.acesso_de_fora
+    # o PAULUS do servidor vinculado (E5), aberto: convidar e ligar o acesso pedem o vinculo
+    api.estado.prefs.dados["vinculo"] = {"email": "dono@x.com", "nome": "Dono", "em": "", "manter_aberto": True}
     prefs = api.estado.prefs.dados["acesso_remoto"]
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     # O convite por senha (o caminho sem o Google): o "so Google" do

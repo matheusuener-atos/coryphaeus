@@ -361,10 +361,21 @@ def main() -> int:
                 "#boasvindas abre o passeio de boas-vindas",
             )
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(600)
+            # O PAULUS do servidor vinculado a conta Google (E5): o passo vem
+            # logo depois das boas-vindas, e da para pular.
+            checar(
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "2Conta Google"
+                and pagina.evaluate("() => !!document.querySelector('[data-bv-google]') || !!document.querySelector('[data-bv-manter]')")
+                and pagina.evaluate("() => !!document.querySelector('[data-bv=pular]')"),
+                "Comecar leva ao passo Conta Google, com o botao do Google e 'Pular por agora'",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
+            )
+            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(400)
             checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "2Escritório",
-                "Comecar leva ao passo Escritorio",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "3Escritório",
+                "depois da Conta Google, o passo Escritorio",
             )
             checar(
                 pagina.evaluate("() => !!document.getElementById('bv-escritorio')"),
@@ -375,7 +386,7 @@ def main() -> int:
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(700)
             checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "3Acesso à distância",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "4Acesso à distância",
                 "logo depois do nome do escritorio vem 'Acesso a distancia'",
                 pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
             )
@@ -1088,6 +1099,9 @@ def main() -> int:
             pagina.evaluate("() => { location.hash = '#boasvindas'; verificarPrimeiraAbertura(); }")
             pagina.wait_for_selector("[data-bv=continuar]", timeout=40000)
             pagina.wait_for_timeout(300)
+            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(400)
+            # boas-vindas -> Conta Google (E5) -> Escritorio
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(400)
             checar(

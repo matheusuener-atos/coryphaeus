@@ -384,7 +384,7 @@ def _conferir_escopo_do_email(provedor: str, tokens: dict) -> None:
 
 
 def trocar_codigo(provedor: str, credenciais: dict, code: str, verificador: str,
-                  redirect_uri: str, *, endpoint: str = "") -> dict:
+                  redirect_uri: str, *, endpoint: str = "", conferir_email: bool = True) -> dict:
     """O `code` do navegador vira access token e refresh token."""
     dados = PROVEDORES[provedor]
     campos = {
@@ -401,7 +401,8 @@ def trocar_codigo(provedor: str, credenciais: dict, code: str, verificador: str,
     tokens = _postar(endpoint or dados["token"], campos)
     if not tokens.get("access_token"):
         raise ErroOAuth("o servidor de login não devolveu o acesso")
-    _conferir_escopo_do_email(provedor, tokens)
+    if conferir_email:
+        _conferir_escopo_do_email(provedor, tokens)
     return _com_validade(tokens)
 
 
@@ -468,7 +469,7 @@ class Entrada:
     def __init__(self, provedor: str, credenciais: dict, ao_concluir, *,
                  login_hint: str = "", abrir=None, prazo: float = PRAZO_LOGIN,
                  endpoints: dict | None = None, escopos: str = "", exigir: tuple[str, ...] = (),
-                 tema: str = "escuro", ao_voltar=None) -> None:
+                 tema: str = "escuro", ao_voltar=None, so_identidade: bool = False) -> None:
         if provedor not in PROVEDORES:
             raise ErroOAuth("provedor desconhecido")
         if not credenciais.get("client_id"):
@@ -488,6 +489,9 @@ class Entrada:
         self.exigir = tuple(exigir)
         self.tema = tema
         self.ao_voltar = ao_voltar
+        # So saber QUEM e (o vinculo do PAULUS a conta Google, src/vinculo.py):
+        # sem o e-mail, sem a autorizacao duradoura.
+        self.so_identidade = so_identidade
         self.email = ""
         self.id = secrets.token_hex(8)
         self.fase = "preparando"
@@ -529,6 +533,7 @@ class Entrada:
             tokens = trocar_codigo(
                 self.provedor, self.credenciais, volta["code"], self._verificador,
                 self.redirect_uri, endpoint=self.endpoints.get("token", ""),
+                conferir_email=not self.so_identidade,
             )
             concedidos = str(tokens.get("scope") or "").split()
             faltando = [e for e in self.exigir if e not in concedidos]
@@ -537,7 +542,7 @@ class Entrada:
                     "o Google entrou, mas não concedeu a permissão pedida - na tela do Google, "
                     "marque a caixa do serviço (" + ", ".join(e.rsplit("/", 1)[-1] for e in faltando) + ") e tente de novo"
                 )
-            if not tokens.get("refresh_token"):
+            if not tokens.get("refresh_token") and not self.so_identidade:
                 raise ErroOAuth(
                     "o login funcionou, mas o provedor não devolveu a autorização duradoura "
                     "(refresh token) - sem ela a conta cairia em uma hora. Tente entrar de novo."

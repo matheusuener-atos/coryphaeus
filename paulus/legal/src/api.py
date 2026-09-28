@@ -691,7 +691,15 @@ app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
 # O porteiro vem antes de tudo: separa a janela local (chave ou cookie da
 # sessao local) de quem chega de fora. Quem chega de fora passa pelo portao
 # do acesso remoto - desligado, ninguem passa.
-app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao)
+# O PAULUS vinculado a conta Google (E5, src/vinculo.py): travado, a janela
+# do servidor so alcanca a tela de destravar.
+import vinculo as vinculo_mod  # noqa: E402
+
+estado.vinculo = vinculo_mod.Vinculo(estado.prefs, estado.acesso_de_fora.contas, lambda: _credenciais_oauth("google"))
+estado.acesso_de_fora.vinculo = estado.vinculo
+vinculo_mod.montar(app, estado.vinculo)
+app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
+                   travado=lambda: estado.vinculo.travado())
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
 estado.acesso_de_fora.portao.rotas = app.router
 estado.acesso_de_fora.app = app

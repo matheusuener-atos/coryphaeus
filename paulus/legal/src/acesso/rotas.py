@@ -320,6 +320,9 @@ def montar(servico, r) -> None:
     def convites_criar(dados: NovoConvite, request: Request) -> dict:
         """O link para mandar pelo WhatsApp: so existe com o acesso de fora conectado."""
         so_local(request)
+        vinculo = getattr(servico, "vinculo", None)
+        if vinculo is not None and not vinculo.vinculado():
+            raise HTTPException(status_code=400, detail="vincule este PAULUS à sua conta Google antes de convidar a equipe")
         host = servico.preferencias().get("hostname", "")
         if not host:
             raise HTTPException(status_code=400, detail="ligue o acesso de fora antes: o convite é um link do endereço do escritório")

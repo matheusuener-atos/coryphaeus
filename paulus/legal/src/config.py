@@ -190,6 +190,9 @@ PADRAO: dict = {
     # num notebook que engasga, desliga aqui. Fica guardado nas preferencias
     # (e nao so no navegador) porque e escolha da pessoa, nao da maquina.
     "animacoes_reduzidas": False,
+    # O PAULUS do servidor vinculado a conta Google de quem o administra
+    # (src/vinculo.py, E5). Vinculado, abre travado - salvo manter_aberto.
+    "vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False},
     "pessoa": {
         "nome": "",
         "cpf": "",

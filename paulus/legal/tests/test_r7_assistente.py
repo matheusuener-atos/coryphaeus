@@ -174,6 +174,8 @@ def test_assistente() -> None:
 
     worker = WorkerFalso()
     servico, conexao, abertos = _preparar(api, worker)
+    # o PAULUS do servidor vinculado (E5), aberto: convidar e ligar o acesso pedem o vinculo
+    api.estado.prefs.dados["vinculo"] = {"email": "dono@x.com", "nome": "Dono", "em": "", "manter_aberto": True}
     local = TestClient(api.app, headers=api.cabecalho_local())
     api.estado.prefs.atualizar({"escritorio": {"nome": "Moura & Associados Advocacia"}})
 

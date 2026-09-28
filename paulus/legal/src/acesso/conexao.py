@@ -171,6 +171,9 @@ class ConexaoDoTunel:
         slug = str(slug or "").strip().lower()
         if not self.servico.contas.disponivel():
             raise ErroConexao("este computador não tem como guardar os segredos do acesso de fora com proteção")
+        vinculo = getattr(self.servico, "vinculo", None)
+        if vinculo is not None and not vinculo.vinculado():
+            raise ErroConexao("vincule este PAULUS à sua conta Google antes (Configurações › Escritório e equipe)")
         if not self.titulares_prontos():
             raise ErroConexao("primeiro crie a conta do titular e confirme o autenticador")
         if len(nome) < 2:

@@ -34,12 +34,12 @@ const bv = {
   modelo: "", escolheuModelo: false, modulos: {}, google: null, oauth: null, imap: false, calib: null,
   escritorio: "", acesso: false,
 };
-const ORDEM_CRIAR = ["boasvindas", "escritorio", "acesso", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
+const ORDEM_CRIAR = ["boasvindas", "google", "escritorio", "acesso", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
 const NOMES_BV = {
   boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA",
   modulos: "Módulos", conexoes: "Conexões", atualizacoes: "Atualizações", codigos: "Códigos",
-  acesso: "Acesso à distância",
+  acesso: "Acesso à distância", google: "Conta Google",
 };
 const CARGOS_VINCULO = ["Advogado(a)", "Sócio(a)", "Financeiro", "Secretaria", "Estagiário(a)", "Outro"];
 const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendamento", "tarefas", "biblioteca", "organizar", "caixa", "financeiro", "relatorios", "cadastros", "aprovacoes"]);
@@ -156,7 +156,7 @@ function desenharBoasVindas() {
   const telas = {
     boasvindas: passoBoasVindas, escritorio: passoEscritorio, dados: bv.caminho === "entrar" ? passoDadosVinculo : passoDados,
     ia: passoIA, modulos: passoModulos, conexoes: passoConexoes, atualizacoes: passoAtualizacoes, codigos: passoCodigos,
-    acesso: passoAcesso,
+    acesso: passoAcesso, google: passoGoogle,
   };
   const [texto, lado] = telas[passo]();
   const rotulo = bv.passo === 0 ? "BEM-VINDO" : "PASSO " + bv.passo + " — " + NOMES_BV[passo].toUpperCase();
@@ -176,7 +176,7 @@ function desenharBoasVindas() {
       ? '<span class="bv-versao">PAULUS' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
       : '<button class="bv-ligacao" data-bv="voltar">← Voltar</button>') +
     '<span class="cresce"></span>' +
-    (["dados", "modulos", "conexoes", "acesso"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    (["dados", "modulos", "conexoes", "acesso", "google"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar">' + botao + "</button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
@@ -238,6 +238,42 @@ function passoEscritorio() {
     ]);
   const lado = '<div class="bv-cartao">' + campoBv("escritorio", "Nome do escritório", bv.escritorio, "data-bv-escritorio", "", "Moura & Associados Advocacia") +
     '<span class="bv-cartao-pe">Aparece nos recibos, no convite da equipe e sugere o endereço do acesso à distância. Dá para mudar em Configurações › Escritório.</span></div>';
+  return [texto, lado];
+}
+
+/* ----------------------------------------------------- conta Google */
+
+/* O PAULUS do servidor vinculado a conta Google de quem o administra
+   (src/vinculo.py, E5). Da para pular e vincular depois, em Configuracoes;
+   vinculado, ele abre travado e pede o Google a cada abertura - salvo
+   "manter aberto neste computador". */
+function passoGoogle() {
+  const e = (typeof vinc !== "undefined" && vinc.estado) || null;
+  if (!e && typeof lerVinculoGoogle === "function") lerVinculoGoogle().then(() => { if (passoBv() === "google") desenharBoasVindas(); });
+  const texto = "<h1>Vincule este PAULUS à sua conta Google.</h1>" +
+    "<p>Este computador passa a ser o PAULUS do escritório, e a conta Google é a sua chave: ele abre travado e pede o Google a cada abertura. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
+    infosBv([
+      "O Google só confirma quem é você: nenhum documento vai para ele.",
+      "Dá para manter aberto neste computador — e travar de novo quando quiser, em Configurações.",
+      "O vínculo é exigido para ligar o acesso de fora e convidar a equipe. Dá para pular e vincular depois.",
+    ]);
+  const esperando = e && ["aguardando", "trocando", "testando"].includes(e.fase);
+  let lado;
+  if (e && e.vinculado) {
+    lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() + '<span class="duas-linhas"><b>Vinculado</b><small>' + esc(e.email) +
+      '</small></span><span class="etiqueta ok">pronto</span></div>' +
+      '<div class="bv-modulo" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
+      '<span class="duas-linhas"><b>Manter aberto neste computador</b><small>' +
+      (e.manter_aberto ? "abre sem pedir o Google neste computador" : "abre travado e pede o Google a cada abertura") + "</small></span>" +
+      '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div></div>';
+  } else {
+    lado = '<div class="bv-cartao"><span class="bv-rotulo">CONTA GOOGLE</span>' +
+      '<button type="button" class="trava-google" data-bv-google="1"' + (esperando || (e && !e.google) ? " disabled" : "") + ">" +
+      (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</button>" +
+      (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
+      (e && !e.google ? '<p class="cfg-explica">Esta versão do PAULUS não traz o login do Google.</p>' : "") +
+      '<span class="bv-cartao-pe">O navegador abre na página do Google. Depois de entrar, volte para cá.</span></div>';
+  }
   return [texto, lado];
 }
 
@@ -612,6 +648,20 @@ function ligarBoasVindas() {
         if (el) el.textContent = iniciaisDe(e.target.value);
       }
     };
+  });
+  caixa.querySelectorAll("[data-bv-google]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        await entrarNoGoogleDoVinculo("vincular", () => { if (passoBv() === "google") desenharBoasVindas(); });
+      } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    };
+  });
+  caixa.querySelectorAll("[data-bv-manter]").forEach((m) => {
+    teclaAtiva(m, async () => {
+      try { await postVinculo("/api/vinculo/manter-aberto", { ligado: !(vinc.estado || {}).manter_aberto }); }
+      catch (err) { avisoCert(err.message, { tom: "erro" }); }
+      desenharBoasVindas();
+    });
   });
   caixa.querySelectorAll("[data-bv-escritorio]").forEach((i) => {
     i.oninput = () => { bv.escritorio = i.value; };

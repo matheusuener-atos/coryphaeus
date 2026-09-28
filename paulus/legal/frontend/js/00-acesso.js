@@ -65,6 +65,11 @@ function quemCriou(nome, conta) {
       }
     }
     const resposta = await original(entrada, o);
+    // O PAULUS do servidor travado (src/vinculo.py): o servidor recusa com
+    // 423, e a tela de destravar aparece, venha o pedido de onde vier.
+    if (daqui && resposta.status === 423 && resposta.headers.get("X-PAULUS-Travado") && typeof mostrarTrava === "function") {
+      mostrarTrava();
+    }
     if (!daqui || acessoDeFora.local) return resposta;
     if (resposta.status === 401 && resposta.headers.get("X-PAULUS-Sessao") === "acabou") {
       location.replace("/");

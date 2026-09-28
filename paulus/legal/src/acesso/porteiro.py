@@ -82,9 +82,12 @@ class Porteiro:
     na R1, ninguem de fora entra: `remoto` e None e a resposta e 403.
     """
 
-    def __init__(self, app, chave: ChaveLocal, remoto=None) -> None:
+    def __init__(self, app, chave: ChaveLocal, remoto=None, travado=None) -> None:
         self.app = app
         self.chave = chave
+        # () -> bool: o PAULUS vinculado a conta Google e travado (src/vinculo.py).
+        # Travado, a janela local so alcanca a tela de destravar.
+        self.travado = travado
         # async (scope, receive, send, cab) -> bool: True se ja respondeu ou
         # deixou passar. Fica de fora da R1; as etapas seguintes ligam.
         self.remoto = remoto
@@ -101,6 +104,13 @@ class Porteiro:
         local = self.chave.e_local(cab.get(CABECALHO), cookies(cab).get(COOKIE))
         scope.setdefault("state", {})["paulus_local"] = local
         if local:
+            if self.travado is not None and self.travado():
+                from vinculo import passa_travado
+
+                if not passa_travado(scope.get("method", "GET"), scope.get("path", "")):
+                    await recusar(scope, send, 423, "o PAULUS está travado: entre com a conta Google",
+                                  [(b"x-paulus-travado", b"1")])
+                    return
             await self.app(scope, receive, send)
             return
         if self.remoto is not None:
