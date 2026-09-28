@@ -19,7 +19,7 @@
   .aj-editar:hover { color: var(--ink); }
   .aj-editando { flex-wrap: wrap; }
   .aj-editando .linha-form { flex: 1 1 100%; }
-  .aj-editando input { flex: 1; min-width: 0; }
+  .aj-editando input { flex: 1; min-width: 0; max-width: 420px; }
 
   .aj-sugestoes { display: grid; gap: 6px; }
   .aj-sugestao { justify-content: flex-start; gap: 8px; text-align: left; white-space: normal; }
