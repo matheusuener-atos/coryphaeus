@@ -107,7 +107,8 @@ function blocoConexao() {
   if (conexaoUI.fase === "autenticador" && conexaoUI.criada) {
     const c = conexaoUI.criada;
     conta = '<div class="acesso-qr-bloco"><div class="acesso-qr">' + (c.qr_svg || "") + "</div>" +
-      '<div class="acesso-qr-texto"><p>No celular, abra o aplicativo autenticador (Google Authenticator, Microsoft Authenticator, 2FAS…), toque em adicionar e leia o código ao lado.</p>' +
+      '<div class="acesso-qr-texto"><p>No celular, abra o <b>Google Authenticator</b>, toque em <b>+</b> e em <b>Ler código QR</b>, e aponte para o código ao lado.</p>' +
+      lojasAutenticador() +
       '<p class="cfg-explica">Sem câmera? Digite a chave:</p><code class="acesso-segredo">' + esc((c.segredo || "").replace(/(.{4})/g, "$1 ").trim()) + "</code></div></div>" +
       '<div class="acesso-form"><div class="ag-campo"><label for="cx-codigo">Código de 6 números que aparece no aplicativo</label>' +
       '<input type="text" id="cx-codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></div></div>' +

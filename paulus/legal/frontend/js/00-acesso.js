@@ -70,50 +70,75 @@ const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null };
     return resposta;
   };
 
-  /* De fora nao ha os botoes da janela do programa: no lugar deles, quem
-     esta usando e o Sair. */
+  function iniciais(nome) {
+    const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
+    return ((partes[0] || "?")[0] + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
+  }
+
+  async function sair() {
+    try { await window.fetch("/api/acesso/sair", { method: "POST" }); } catch (e) { /* sai do mesmo jeito */ }
+    location.replace("/");
+  }
+
+  /* De fora nao ha os botoes da janela do programa: no lugar deles, quem esta
+     usando - as iniciais, o nome e o papel, num botao que abre a conta - e o
+     Sair, so o icone. */
   function barraDeQuemEstaDeFora() {
     if (acessoDeFora.local || !acessoDeFora.pessoa) return;
     const barra = document.getElementById("barra-titulo");
     if (!barra || document.getElementById("acesso-remoto-barra")) return;
+    const p = acessoDeFora.pessoa;
     const el = document.createElement("span");
     el.className = "acesso-remoto-barra";
     el.id = "acesso-remoto-barra";
-    const nome = document.createElement("span");
-    nome.textContent = "De fora como " + acessoDeFora.pessoa.nome;
-    const sair = document.createElement("button");
-    sair.type = "button";
-    sair.textContent = "Sair";
-    sair.onclick = async () => {
-      sair.disabled = true;
-      try { await window.fetch("/api/acesso/sair", { method: "POST" }); } catch (e) { /* sai do mesmo jeito */ }
-      location.replace("/");
-    };
-    el.append(nome);
-    if (acessoDeFora.pessoa.papel === "titular") {
-      const conta = document.createElement("button");
-      conta.type = "button";
-      conta.textContent = "Minha conta";
-      conta.addEventListener("click", minhaContaDeFora);
-      el.append(conta);
-    }
-    el.append(sair);
+    el.innerHTML =
+      '<span class="acesso-de-fora-selo" title="Você está usando o PAULUS do escritório pela internet">' + ic("lan", 14) + "de fora</span>" +
+      '<button type="button" class="acesso-conta-botao" data-minha-conta="1" title="Minha conta">' +
+      '<span class="acesso-iniciais">' + esc(iniciais(p.nome)) + "</span>" +
+      '<span class="acesso-conta-nome">' + esc(p.nome) + "</span>" +
+      '<span class="acesso-conta-papel">' + (p.papel === "titular" ? "titular" : "colaborador") + "</span>" +
+      ic("expand_more", 16) + "</button>" +
+      '<button type="button" class="acesso-sair" data-sair="1" title="Sair" aria-label="Sair">' + ic("logout", 16) + "</button>";
+    el.querySelector("[data-minha-conta]").addEventListener("click", minhaContaDeFora);
+    el.querySelector("[data-sair]").addEventListener("click", (e) => { e.currentTarget.disabled = true; sair(); });
     barra.appendChild(el);
   }
 
-  /* O titular de fora troca a propria senha e derruba as sessoes - e as duas
-     coisas pedem o codigo do autenticador de novo, mesmo com a sessao valida:
-     sessao roubada nao faz nenhuma delas. */
+  /* A conta de quem esta de fora. O titular troca a propria senha e derruba
+     as sessoes - e as duas coisas pedem o codigo do autenticador de novo,
+     mesmo com a sessao valida: sessao roubada nao faz nenhuma delas. */
   async function minhaContaDeFora() {
-    const escolha = await dialogo({
-      titulo: "Minha conta", contexto: acessoDeFora.pessoa.nome + " · " + acessoDeFora.pessoa.email,
-      texto: "As duas ações pedem o código do autenticador de novo. Contas da equipe só se mexem no computador do escritório.",
-      confirmar: "Trocar minha senha", segundo: { rotulo: "Encerrar todas as sessões", perigo: true }, cancelar: "Fechar",
-    });
-    if (!escolha || !escolha.ok) return;
-    const codigo = { chave: "codigo", rotulo: "Código do autenticador", placeholder: "000000", max: 8, obrigatorio: true };
+    const p = acessoDeFora.pessoa;
+    const titular = p.papel === "titular";
+    const linha = (acao, icone, titulo, sub, tom) =>
+      '<button type="button" class="conta-acao' + (tom ? " " + tom : "") + '" data-conta-acao="' + acao + '">' +
+      '<span class="caixa-tipo">' + ic(icone, 18) + '</span><span class="duas-linhas"><b>' + titulo + "</b><small>" + sub + "</small></span>" +
+      ic("chevron_right", 18) + "</button>";
+    const html =
+      '<div class="conta-cabeca"><span class="acesso-iniciais grande">' + esc(iniciais(p.nome)) + "</span>" +
+      '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + " · " + (titular ? "titular" : "colaborador") + "</small></span></div>" +
+      '<div class="conta-acoes">' +
+      (titular
+        ? linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do celular") +
+          linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
+        : "") +
+      linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
+      '<p class="conta-nota">' + (titular
+        ? "As contas da equipe se criam e se mudam só no computador do escritório."
+        : "Senha e autenticador se trocam com o titular, no computador do escritório.") + "</p>";
+    let escolha = "";
+    const aberto = dialogo({ titulo: "Minha conta", contexto: "Acesso de fora", html: html, confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
+    document.querySelectorAll("[data-conta-acao]").forEach((b) => b.addEventListener("click", () => {
+      escolha = b.dataset.contaAcao;
+      if (dialogoAberto) dialogoAberto.fechar(null);
+    }));
+    await aberto;
+    if (escolha === "sair") { sair(); return; }
+    if (!escolha) return;
+    const codigo = { chave: "codigo", rotulo: "Código do autenticador", placeholder: "000000", max: 8, obrigatorio: true,
+      dica: "os 6 números do Google Authenticator, ou um código de recuperação" };
     let url, corpo;
-    if (escolha.segundo) {
+    if (escolha === "sessoes") {
       const r = await dialogo({
         titulo: "Encerrar todas as sessões?", contexto: "Minha conta",
         texto: "Todo mundo que está de fora sai agora — você também. Para entrar de novo: senha e código.",

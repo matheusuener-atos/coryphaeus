@@ -213,13 +213,27 @@ async function acessoPost(url, corpo, metodo) {
 
 function acessoRedesenhar() { mostrarConfig("acesso"); }
 
+/* O Google Authenticator e o recomendado (gratis, Android e iPhone); outro
+   autenticador TOTP tambem serve. Os links abrem a loja no navegador. */
+const LOJAS_AUTENTICADOR = [
+  ["Android · Google Play", "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"],
+  ["iPhone · App Store", "https://apps.apple.com/app/google-authenticator/id388497605"],
+];
+
+function lojasAutenticador() {
+  return '<div class="acesso-lojas"><span>Ainda não tem? Baixe o Google Authenticator, grátis:</span>' +
+    LOJAS_AUTENTICADOR.map(([rotulo, url]) => '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + ic("download", 16) + esc(rotulo) + "</a>").join("") +
+    "</div>";
+}
+
 /* O cadastro no autenticador: QR, o segredo por extenso e o primeiro codigo.
    O dialogo so fecha com o codigo certo - conta sem autenticador confirmado
    nao entra de fora. */
 function acessoAutenticador(conta, dados) {
   return new Promise((resolve) => {
     const html = '<div class="acesso-qr-bloco"><div class="acesso-qr">' + (dados.qr_svg || "") + "</div>" +
-      '<div class="acesso-qr-texto"><p>No celular, abra o aplicativo autenticador (Google Authenticator, Microsoft Authenticator, 2FAS…), toque em adicionar e leia o código ao lado.</p>' +
+      '<div class="acesso-qr-texto"><p>No celular, abra o <b>Google Authenticator</b>, toque em <b>+</b> e em <b>Ler código QR</b>, e aponte para o código ao lado.</p>' +
+      lojasAutenticador() +
       '<p class="cfg-explica">Sem câmera? Digite a chave:</p><code class="acesso-segredo">' + esc((dados.segredo || "").replace(/(.{4})/g, "$1 ").trim()) + "</code></div></div>";
     const pedido = dialogo({
       titulo: "Cadastrar no autenticador",
@@ -262,7 +276,9 @@ async function acessoNovaConta() {
   const r = await dialogo({
     titulo: primeira ? "Conta do titular" : "Nova conta",
     contexto: "Configurações › Acesso de fora",
-    texto: primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora." : "",
+    texto: (primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora.\n" : "") +
+      "Antes de criar, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele.",
+    html: lojasAutenticador(),
     campos: [
       { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos" },
       { chave: "email", rotulo: "E-mail", tipo: "email", placeholder: "com ele a pessoa entra de fora", obrigatorio: true },
