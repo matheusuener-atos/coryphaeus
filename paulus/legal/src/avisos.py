@@ -153,6 +153,10 @@ TIPOS: dict[str, dict] = {
                  "explica": "quando uma gravação termina de ser transcrita e você está em outra janela"},
     "agenda": {"rotulo": "Compromisso chegando", "padrao": True, "so_fora": False,
                "explica": "antes de um compromisso da agenda: no aviso escolhido nele, ou 15 min"},
+    # Alguem errou a senha de uma conta 5 vezes pelo acesso de fora. Sai mesmo
+    # com a janela na frente: quem esta no escritorio precisa saber na hora.
+    "acesso": {"rotulo": "Acesso de fora", "padrao": True, "so_fora": False,
+               "explica": "quando uma conta do acesso de fora é bloqueada por tentativas erradas"},
 }
 ANTECEDENCIA_DA_AGENDA = timedelta(minutes=15)
 

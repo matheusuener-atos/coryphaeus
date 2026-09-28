@@ -1,0 +1,48 @@
+  /* ---------------------------------------------------- acesso de fora */
+  /*
+    Configuracoes › Acesso de fora (js/42-acesso.js) e o que muda na pagina
+    quando ela e aberta de fora, pelo tunel (html.remoto, js/00-acesso.js).
+    So tokens: nenhuma cor literal.
+  */
+
+  .acesso-itens { display: grid; gap: 12px; }
+  .acesso-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .acesso-item p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .acesso-pe { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 14px; }
+  .acesso-pe .cfg-explica { margin: 0; flex: 1 1 260px; }
+
+  /* O cadastro no autenticador: o QR sempre em fundo branco (celular nenhum
+     le QR claro sobre escuro), a chave em Fira Code, de quatro em quatro. */
+  .acesso-qr-bloco { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 18px; align-items: center; margin: 4px 0 14px; }
+  .acesso-qr { width: 216px; height: 216px; padding: 10px; background: var(--qr-fundo); border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .acesso-qr svg { width: 100%; height: 100%; display: block; }
+  .acesso-qr-texto p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .acesso-segredo { display: block; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
+    font: 500 13px/1.6 var(--mono); letter-spacing: .04em; color: var(--ink); word-break: break-all; user-select: all; }
+  .acesso-erro { min-height: 1.4em; margin: 6px 0 0; font-size: 13px; color: var(--acc); }
+
+  .acesso-codigos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 6px 0 4px; user-select: all; }
+  .acesso-codigos code { padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
+    font: 500 14px/1.3 var(--mono); letter-spacing: .08em; text-align: center; color: var(--ink); }
+
+  .acesso-endereco { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .acesso-endereco code { font: 500 14px/1.4 var(--mono); color: var(--ink); padding: 8px 12px; border: 1px solid var(--ink-a1);
+    border-radius: 8px; background: var(--sub); user-select: all; }
+  .acesso-codigo-usuario { font: 600 26px/1.2 var(--mono); letter-spacing: .18em; color: var(--ink); }
+
+  @media (max-width: 560px) {
+    .acesso-qr-bloco { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+    .acesso-codigos { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ------------------------------------------- a pagina aberta de fora */
+  /* A barra de quem esta de fora: nome e Sair, no lugar dos botoes da janela
+     (que so existem no programa). */
+  .acesso-remoto-barra { display: none; }
+  html.remoto .acesso-remoto-barra { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-size: 12.5px; color: var(--ink2); }
+  html.remoto .acesso-remoto-barra button { min-height: 32px; }
+
+  /* O que so vale no computador do escritorio some de fora; o que faz sentido
+     ver mas nao usar fica, desabilitado, com a frase dizendo por que. */
+  html.remoto [data-so-local] { display: none !important; }
+  .so-no-escritorio { font-size: 12.5px; color: var(--ink3); }

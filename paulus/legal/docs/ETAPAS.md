@@ -1173,3 +1173,55 @@ origem forjado continuam de fora.
 (`test_tela`, `test_listas`) e um que sobe o servidor (`test_habilidades`)
 falavam com o PAULUS como qualquer programa — exatamente a brecha. Passaram a
 entrar pela chave, como a janela.
+
+## R2 — Contas, senha, código do autenticador ✓ FEITA
+
+Quem entra de fora entra com uma conta do escritório: e-mail, senha e o código
+do aplicativo autenticador do celular (`src/acesso/contas.py`). Tudo com a
+biblioteca padrão — nenhuma dependência nova:
+
+- **senha** em `hashlib.scrypt` (n=2¹⁴, r=8, p=1), sal por conta, mínimo de 10
+  caracteres. Lento de propósito: cada tentativa custa memória e tempo para
+  quem roubou o arquivo, e é imperceptível para quem digita a própria;
+- **TOTP** (RFC 6238) com `hmac`: 30 s, 6 dígitos, uma janela de folga para
+  cada lado. O mesmo código não vale duas vezes — quem viu por cima do ombro
+  chega tarde. O segredo fica protegido pela DPAPI; fora do Windows o módulo
+  diz que está indisponível em vez de guardar mal;
+- **QR** desenhado pelo reportlab, que o programa já usa para o PDF;
+- **10 códigos de recuperação** de uso único, dos quais só o hash fica.
+
+A sessão remota é um cookie aleatório (`HttpOnly; Secure; SameSite=Strict`)
+de que o servidor guarda só o sha256. Morre com 30 min sem uso e com 12 h de
+idade, e leva um token anti-CSRF que todo pedido que altera algo apresenta —
+posto por `js/00-acesso.js`, que embrulha o `fetch` da página: tela nova já
+nasce protegida, sem ninguém lembrar.
+
+Cinco erros bloqueiam por 15 min, e cada bloqueio dobra o seguinte. O erro
+conta por e-mail digitado, exista a conta ou não, e o scrypt roda igual sem
+conta: nem o bloqueio nem o tempo de resposta dizem se um e-mail tem conta.
+Cada bloqueio vira aviso do Windows na máquina do escritório.
+
+Contas se criam, mudam e saem só pela janela local — as rotas conferem isso
+por dentro, além do registro de permissões: uma sessão roubada não cria
+conta nem troca senha. A primeira conta é sempre do titular, e o último
+titular não sai. Trocar a senha derruba as sessões da conta.
+
+O e-mail que passou pelo Cloudflare Access tem de ser o da conta: Access
+dizendo uma pessoa e cookie dizendo outra não vale nenhum dos dois.
+
+**Telas:** Configurações › Acesso de fora (contas, cadastro no autenticador
+com QR e chave, códigos de recuperação, sessões abertas) e a tela de entrar
+de quem está de fora (`frontend/entrar.html`), em duas etapas, no desenho do
+A0: coluna de 520 px, título em Garamond, botão da casca. Conferidas num
+navegador de verdade, em 1440 e em 390 px.
+
+**Medido:** vetor da RFC 6238 confere; código de 60 s atrás recusado, de 30 s
+aceito; 6ª tentativa bloqueada, bloqueio seguinte de 30 min; sessão viva com
+uso a cada 29 min e morta com 31 min parada ou 12 h de idade.
+
+**O que a verificação achou:** o FastAPI desta versão guarda o roteador
+incluído (`include_router`) embrulhado, e as rotas dele somem de
+`app.routes` — o porteiro não achava a rota de entrar e respondia 401. As
+rotas do acesso passaram a ser registradas direto no app, como as outras.
+Quatro ícones da seção não existiam no recorte da fonte e apareciam como
+letras; trocados.

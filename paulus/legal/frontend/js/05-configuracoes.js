@@ -28,6 +28,7 @@ const CFG_SECOES = [
   ["modelos", "Modelos", "Os modelos de linguagem desta máquina: baixe, troque o padrão, meça cada um e diga qual faz cada tarefa. O motor é o Ollama, aqui mesmo."],
   ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
   ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
+  ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
   ["vinculos", "Escritório e vínculos", "Hoje o PAULUS roda para uma pessoa, nesta máquina. Vincular outras máquinas ao escritório ainda não existe."],
   ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
@@ -137,6 +138,8 @@ async function carregarSecao() {
     await carregarModelos();
   } else if (cfg.secao === "lixeira") {
     cfg.lixo = await pega("/api/lixeira");
+  } else if (cfg.secao === "acesso") {
+    await carregarAcesso();
   } else if (cfg.secao === "aparencia") {
     cfg.avisos = await pega("/api/avisos");
   } else if (cfg.secao === "plano") {
@@ -162,6 +165,7 @@ function desenharConfig() {
   else if (cfg.secao === "feedback") secao = secaoFeedback();
   else if (cfg.secao === "plano") secao = secaoPlano();
   else if (cfg.secao === "lixeira") secao = secaoLixeira();
+  else if (cfg.secao === "acesso") secao = secaoAcesso();
   else secao = secaoPerfil();
 
   // Redesenhar a mesma secao (um modelo escolhido, um aviso ligado) nao
@@ -1153,6 +1157,7 @@ function ligarConfig() {
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   if (cfg.secao === "modelos") ligarModelos();
   if (cfg.secao === "aprendizado") ligarMaterial();
+  if (cfg.secao === "acesso") ligarAcesso();
 
   clique("[data-cfg-secao]", (b) => { cfg.secao = b.dataset.cfgSecao; mostrarConfig(); });
   clique("[data-cfg-manual]", () => { location.hash = "#boasvindas"; verificarPrimeiraAbertura(); });

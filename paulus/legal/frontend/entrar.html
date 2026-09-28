@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PAULUS — Entrar</title>
+<link rel="icon" href="/img/paulus-logo.png">
+<link rel="stylesheet" href="/fontes.css">
+<link rel="stylesheet" href="/css/00-tokens.css">
+<!--
+  A tela de entrar de quem esta de fora (acesso-remoto/v0, R2). So aparece
+  depois do Cloudflare Access: quem chega aqui ja provou o e-mail. Falta a
+  conta do PAULUS - senha e o codigo do aplicativo autenticador.
+
+  Pagina propria, e nao uma tela do app: sem sessao, nenhuma rota do app
+  responde, e carregar o programa inteiro so para pedir senha seria mostrar a
+  casca de algo que ainda nao pode ser usado.
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); }
+  body { display: grid; place-items: center; min-height: 100vh; padding: 24px 16px; }
+  main { width: 100%; max-width: 520px; }
+  .marca { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; color: var(--ink2); font-size: 13px; }
+  .marca img { width: 30px; height: 30px; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 32px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .linha { color: var(--ink2); font-size: 14.5px; line-height: 1.55; margin: 0 0 24px; }
+  .cartao { background: var(--surf); border: 1px solid var(--ink-a08); border-radius: 14px; padding: 22px; box-shadow: var(--elev-card); }
+  label { display: block; font-size: 12.5px; color: var(--ink2); margin: 0 0 6px; }
+  input { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: var(--sub); border: 1px solid var(--ink-a12);
+          border-radius: 10px; padding: 12px 14px; min-height: 44px; outline: none; }
+  input:focus { border-color: var(--ink-a35); background: var(--surf); }
+  .campo { margin-bottom: 16px; }
+  .codigo { font-family: 'Fira Code', ui-monospace, monospace; font-size: 24px; letter-spacing: .3em; text-align: center; }
+  button { font: inherit; font-size: 15px; font-weight: 600; min-height: 44px; width: 100%; border: 0; border-radius: 10px;
+           background: var(--casca); color: var(--casca-ink); cursor: pointer; }
+  button:hover { background: var(--casca-hover); }
+  button:disabled { opacity: .55; cursor: default; }
+  .secundario { background: transparent; color: var(--ink2); font-weight: 500; margin-top: 8px; }
+  .secundario:hover { background: var(--fill); }
+  .erro { color: var(--acc); font-size: 13.5px; line-height: 1.45; min-height: 1.45em; margin: 4px 0 12px; }
+  .pe { color: var(--ink3); font-size: 12.5px; line-height: 1.55; margin-top: 22px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="marca"><img src="/img/paulus-icone.svg" alt=""> PAULUS Legal · acesso de fora</div>
+
+  <section id="entrar-senha">
+    <h1>Entrar no PAULUS do escritório</h1>
+    <p class="linha">O programa continua no computador do escritório. Daqui você usa a mesma tela, com a sua conta.</p>
+    <form class="cartao" id="form-senha" autocomplete="on">
+      <div class="campo"><label for="email">E-mail</label>
+        <input id="email" type="email" autocomplete="username" required></div>
+      <div class="campo"><label for="senha">Senha</label>
+        <input id="senha" type="password" autocomplete="current-password" required minlength="10"></div>
+      <p class="erro" id="erro-senha" role="alert"></p>
+      <button type="submit">Continuar</button>
+    </form>
+  </section>
+
+  <section id="entrar-codigo" hidden>
+    <h1>Código do autenticador</h1>
+    <p class="linha">Abra o aplicativo autenticador do celular e digite os 6 números do PAULUS. Sem o celular, use um dos códigos de recuperação.</p>
+    <form class="cartao" id="form-codigo" autocomplete="off">
+      <div class="campo"><label for="codigo">Código</label>
+        <input id="codigo" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="9" required></div>
+      <p class="erro" id="erro-codigo" role="alert"></p>
+      <button type="submit">Entrar</button>
+      <button type="button" class="secundario" id="voltar">Voltar para a senha</button>
+    </form>
+  </section>
+
+  <p class="pe">Este endereço leva ao computador do escritório pelo túnel da Cloudflare. Os documentos e o modelo de IA ficam lá; tudo o que se faz por aqui fica registrado no PAULUS do escritório.</p>
+</main>
+<script>
+(function () {
+  "use strict";
+  let pendente = "";
+  const $ = (id) => document.getElementById(id);
+
+  async function enviar(url, corpo) {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    let dados = {};
+    try { dados = await r.json(); } catch (e) { /* resposta sem corpo */ }
+    if (!r.ok) throw new Error(dados.detail || "não deu certo, tente de novo");
+    return dados;
+  }
+
+  // Quem ja tem sessao e chegou aqui pelo retorno do Cloudflare Access (o
+  // cookie SameSite=Strict nao vai na navegacao que vem de outro site) segue
+  // direto para o programa.
+  fetch("/api/acesso/eu").then((r) => r.json()).then((d) => { if (d && d.pessoa) location.replace("/"); }).catch(() => {});
+
+  $("form-senha").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const b = e.submitter || e.target.querySelector("button");
+    b.disabled = true; $("erro-senha").textContent = "";
+    try {
+      const d = await enviar("/api/acesso/entrar", { email: $("email").value.trim(), senha: $("senha").value });
+      pendente = d.pendente;
+      $("senha").value = "";
+      $("entrar-senha").hidden = true; $("entrar-codigo").hidden = false; $("codigo").focus();
+    } catch (err) { $("erro-senha").textContent = err.message; }
+    b.disabled = false;
+  });
+
+  $("form-codigo").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const b = e.target.querySelector("button[type=submit]");
+    b.disabled = true; $("erro-codigo").textContent = "";
+    try {
+      await enviar("/api/acesso/entrar/codigo", { pendente, codigo: $("codigo").value });
+      location.replace("/");
+    } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; }
+  });
+
+  $("voltar").addEventListener("click", () => {
+    pendente = ""; $("codigo").value = ""; $("erro-codigo").textContent = "";
+    $("entrar-codigo").hidden = true; $("entrar-senha").hidden = false; $("senha").focus();
+  });
+})();
+</script>
+</body>
+</html>

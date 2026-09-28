@@ -101,7 +101,15 @@ PADRAO: dict = {
     # Quais avisos, um a um (avisos.TIPOS). Cada chave precisa estar aqui:
     # _fundir so grava o que o padrao ja conhece.
     "avisos_tipos": {"bem_estar": True, "resposta": True, "aprovacao": True,
-                     "gravacao": True, "agenda": True},
+                     "gravacao": True, "agenda": True, "acesso": True},
+    # O acesso de fora (src/acesso/, acesso-remoto/v0): desligado de fabrica.
+    # Ligado, o PAULUS atende pelo tunel da Cloudflare quem passar pelo
+    # Cloudflare Access e entrar com conta, senha e codigo do autenticador.
+    # O endereco, a porta fixa e o que o Access precisa para conferir o JWT
+    # ficam aqui; o token do tunel e o segredo da instalacao, nao - esses sao
+    # segredos e moram protegidos pela DPAPI (src/acesso/tunel.py).
+    "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "aud": "", "team_domain": "",
+                      "abrir_com_windows": False},
     "modelo": "",
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar

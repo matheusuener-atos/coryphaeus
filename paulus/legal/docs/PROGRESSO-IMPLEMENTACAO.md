@@ -32,7 +32,7 @@ etapa que não estiver `feita`.
 | Id | Etapa | Estado | Commit | Portão / medidas |
 |---|---|---|---|---|
 | R1 | Chave da janela local | feita | branch `r1-chave-da-janela` | 363 rotas de `app.routes`, todas 403 sem chave; 23 checagens |
-| R2 | Contas, senha, TOTP, sessões | pendente | | |
+| R2 | Contas, senha, TOTP, sessões | feita | branch `r2-contas` | 36 checagens; RFC 6238 confere; bloqueio 15→30 min; sessão 30 min/12 h; login remoto conferido em navegador (390 px) |
 | R3 | Permissões por rota | pendente | | |
 | R4 | Fila do modelo | pendente | | |
 | R5 | Provisionamento no Worker | pendente | | |
@@ -59,6 +59,13 @@ etapa que não estiver `feita`.
 - **R1** O endereço com a chave vale uma vez por execução; o cabeçalho `X-PAULUS-Chave` vale sempre (clientes sem janela). Endereço vaza em histórico; cabeçalho não.
 - **R1** O retorno OAuth (Google/Microsoft) não precisou de exceção: cai no servidor temporário de `correio_oauth.py`.
 - **R1** Rota inexistente também dá 403 para quem é de fora (e não 404): nada se descobre por tentativa.
+- **R2** O QR sai do reportlab (`reportlab.graphics.barcode.qr`), que já é dependência: nenhuma dependência nova.
+- **R2** O e-mail do JWT do Access tem de ser o e-mail da conta do PAULUS, no login e em cada pedido. A lista do Access é montada a partir das contas (R7), então os dois coincidem por construção; se divergirem, nenhum vale.
+- **R2** O código do autenticador vale uma vez só (o último passo usado fica gravado), inclusive dentro da janela de folga.
+- **R2** O bloqueio conta por e-mail digitado, com ou sem conta, e o scrypt roda igual quando a conta não existe: sem oráculo de "este e-mail tem conta".
+- **R2** Sessões ficam no SQLite (`data/acesso/contas.db`), só o hash: reiniciar o PAULUS não derruba quem está de fora.
+- **R2** Rotas do acesso registradas direto no `app` (não `include_router`): esta versão do FastAPI embrulha o roteador incluído e as rotas somem de `app.routes`.
+- **R2** Cookie `SameSite=Strict` não vai na navegação que volta do login do Cloudflare Access (outro site). A tela de entrar pergunta `/api/acesso/eu` e segue para o app se a sessão existir.
 - **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada; a checagem "segurar numa conversa marca" falha por tempo às vezes.
 
 ## Pendente do usuário

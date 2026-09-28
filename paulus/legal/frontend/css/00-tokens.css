@@ -123,6 +123,9 @@
     --papel-acc: oklch(42% 0.13 25);
     --papel-accbg: oklch(95% 0.02 25);
     --papel-accbg2: oklch(97.5% 0.01 25);
+    /* O fundo do QR do autenticador (Acesso de fora): branco nos dois temas,
+       porque celular nenhum le QR claro sobre escuro. */
+    --qr-fundo: #ffffff;
     --papel-ink2: #5c5c59;
     --papel-ink3: #8a8a86;
 

@@ -95,3 +95,6 @@ data/instancia.json
 
 # A ultima copia do historico publico (Desenvolvimento aberto) e do mural.
 data/publico/
+
+# O acesso de fora: contas, sessoes e o registro de quem acessou.
+data/acesso/

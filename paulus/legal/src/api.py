@@ -84,6 +84,8 @@ import calibracao_remota
 from versao import VERSAO
 from acesso.chave import ChaveLocal
 from acesso.porteiro import Porteiro
+from acesso.servico import AcessoDeFora
+from acesso import rotas as rotas_do_acesso
 from inteligencia import portas as inteligencia
 from inteligencia.catalogo import Catalogo
 from inteligencia.guarda import Biblioteca
@@ -248,6 +250,9 @@ class Estado:
         # Fila do que espera decisao humana, e as preferencias da casa.
         self.fila = fila_aprovacoes.Fila(APROVACOES_PATH)
         self.prefs = Preferencias(PREFERENCIAS_PATH)
+        # O acesso de fora (src/acesso/): contas, sessoes e o portao de quem
+        # chega pelo tunel. Desligado de fabrica.
+        self.acesso_de_fora = AcessoDeFora(DADOS_DIR, self.prefs, self.acesso)
         # Base local: cadastros, tarefas e o que vier depois.
         self.base = Base(BASE_PATH)
         self.cadastros = Cadastros(self.base, SUGESTOES_IGNORADAS_PATH)
@@ -584,8 +589,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
 # O porteiro vem antes de tudo: separa a janela local (chave ou cookie da
-# sessao local) de quem chega de fora, e barra quem chega de fora.
-app.add_middleware(Porteiro, chave=estado.acesso)
+# sessao local) de quem chega de fora. Quem chega de fora passa pelo portao
+# do acesso remoto - desligado, ninguem passa.
+app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao)
+rotas_do_acesso.montar(estado.acesso_de_fora, app)
+estado.acesso_de_fora.portao.rotas = app.router
 
 
 def cabecalho_local() -> dict:
