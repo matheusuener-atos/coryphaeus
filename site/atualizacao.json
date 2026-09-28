@@ -1,11 +1,13 @@
 {
-  "versao": "0.9.7",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.7/PAULUS-0.9.7-instalador.exe",
-  "sha256": "596f6bc5401ef678cb90c8df0fd655950b9233685761ef07d7251040053e5328",
-  "tamanho": 94529386,
+  "versao": "0.9.8",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.8/PAULUS-0.9.8-instalador.exe",
+  "sha256": "7bcc9a214c9e739d4603994ec79a075a6006d8c8f67244a61ebdab9abebfa36b",
+  "tamanho": 94533680,
   "publicada": "2026-09-28",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.7",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.8",
   "novidades": [
-    "Tela de entrar no desenho novo (export 'Entrar - acesso de fora') e 'confiar neste navegador por 30 dias'"
+    "Assistente: o Whisper das Gravações escolhido junto com o modelo de IA",
+    "Equipe E5: o PAULUS do servidor vinculado à conta Google, travado a cada abertura",
+    "Toda entrada de fora é pelo Google (+ código do celular), sem volta para a senha"
   ]
 }

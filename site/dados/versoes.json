@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "0.9.8",
+      "date": "2026-09-28",
+      "changes": [
+        "Assistente: o Whisper das Gravações escolhido junto com o modelo de IA",
+        "Equipe E5: o PAULUS do servidor vinculado à conta Google, travado a cada abertura",
+        "Toda entrada de fora é pelo Google (+ código do celular), sem volta para a senha"
+      ]
+    },
+    {
       "version": "0.9.7",
       "date": "2026-09-28",
       "changes": [
