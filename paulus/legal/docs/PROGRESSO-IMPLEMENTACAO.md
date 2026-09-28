@@ -44,7 +44,7 @@ etapa que não estiver `feita`.
 | I1 | Ajustes de inferência | feita | branch `i1-inferencia` | roteiro `--tudo` 40/41 antes e depois (a mesma de ausência falha nas duas); p50 documentos 8,5 s → 8,9 s; entrada p50 2.366 tokens; 0 cortes; mesma pergunta 2× = mesma resposta |
 | I2 | Medição com documentos reais | ferramenta feita; ⏸ conjunto real | branch `i2-medicao` | demo (27 perguntas, 9 de continuação): 25/27 · p50 6,6 s · p95 39,3 s · entrada p50 2.362 · R@20 0,96 · R@6 0,96 · MRR@6 0,86 · no contexto 0,90 |
 | I3 | Nível 0 por molde | feita | branch `i3-molde` | 5 factuais sem modelo, mediana 5 ms, sem fila; dígito trocado rejeitado; roteiro 40/41; demo 25/27, p50 6,2 s, p95 17,2 s |
-| I4 | Memória da conversa | pendente | | |
+| I4 | Memória da conversa | feita | branch `i4-memoria` | 9/9 continuações herdam o sujeito, 18/18 outras intactas; histórico ≤ 600 tokens; demo 26/27 (continuação 9/9, era 8/9); roteiro 40/41 |
 | I5 | Chunking estrutural | pendente | | |
 | I6 | FTS5 com normalização jurídica | pendente | | |
 | I7 | Denso + RRF + reranker, virada do "ler tudo" | pendente | | |
@@ -110,6 +110,8 @@ etapa que não estiver `feita`.
 - **I3** Molde só para o que o contrato lista (processo, valor, tribunal, partes, assinatura, leis). CPF/CNPJ e prazos seguem pelo modelo com a conferência mecânica. Tribunal: o molde responde só "qual o tribunal/juízo?"; vara, comarca e foro (o foro de eleição de um contrato) vão ao modelo.
 - **I3** `ia.molde` desliga as duas coisas (molde e conferência). A pergunta que sai sem modelo não entra na fila: a conversa pergunta à habilidade (`sem_modelo`) antes de pegar a vez.
 - **I3** A suíte teve o `test_tela` falhando uma vez em "segurar numa conversa marca" (intermitente, já visto antes da I3); rodado de novo isolado.
+- **I4** A reescrita é por regra, nunca pelo modelo (custaria uma leitura a mais por pergunta). Quando a regra não reconhece a continuação, a pergunta segue como foi escrita — o histórico ainda vai junto.
+- **I4** O nível 0 (fatos) não leva histórico: ele responde de fatos, e a conversa de antes só aumentaria o prompt.
 
 ## Pendente do usuário
 

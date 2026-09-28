@@ -1613,3 +1613,31 @@ inválido — a regra de extração recusou (com razão), a pergunta caiu na
 fila ocupada e o teste travou em vez de falhar. O teste agora pergunta
 antes se a resposta sai sem o modelo.
 
+## I4 — Memória da conversa ✓ FEITA
+
+Cada pergunta ia ao modelo sozinha. "E a multa?", depois de "qual o prazo do
+contrato ACME?", chegava como "e a multa?": a busca procurava "multa" no
+acervo inteiro e o modelo escolhia um contrato qualquer.
+
+Agora (`src/memoria.py`), por regra e antes da busca: a pergunta que começa
+com "e o", "e a", "e no", "e quanto"…, ou que diz "ele", "dela", "nesse" sem
+nome próprio, **herda o sujeito da anterior** — "e a multa?" vira "qual a
+multa do contrato ACME?"; "e qual índice reajusta ele?" vira "qual índice
+reajusta o aluguel da Clínica Bem Viver?". Numa sequência de continuações o
+assunto herdado passa adiante como estava, sem ser tirado de novo da
+pergunta já reescrita (o que dava "o locador da locação do aluguel…"). A
+continuação herda também os documentos a que a resposta anterior se
+restringiu. A conversa guarda o que a pessoa escreveu; a busca e o modelo
+leem a pergunta inteira, e o registro da conversa diz como ela foi entendida.
+
+Os **dois últimos pares** pergunta/resposta vão como mensagens anteriores,
+até ~600 tokens: as perguntas inteiras, as respostas cortadas em fim de
+frase, sem resumo por modelo. Resposta parada no meio não entra. Chave
+`ia.memoria`.
+
+**Medido:** as 9 continuações do conjunto herdam o sujeito, e as 18 que não
+são continuação não mudam. Demonstração: 26/27 (era 25/27) — **continuação
+9/9** (era 8/9: "e a garantia?" agora responde com a caução). Roteiro
+`--tudo` 40/41 (igual). O tempo dessa rodada (p50 16,8 s) não vale: ela
+rodou junto com a medição do reranker da I7, que ocupou a CPU por minutos.
+
