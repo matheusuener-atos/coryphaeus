@@ -97,6 +97,7 @@ class Contexto:
         parar=None,
         material=None,
         ia=None,
+        recuperar=None,
     ) -> None:
         self.searcher = searcher
         self.client = client
@@ -117,6 +118,9 @@ class Contexto:
         # Os pares anteriores da conversa (src/memoria.py), quando a pergunta
         # vem de uma conversa e a memoria esta ligada. Vazio: pergunta solta.
         self.historico: list[dict] = []
+        # A busca hibrida (I7): (pergunta, documentos) -> trechos, ja dentro
+        # do orcamento. None: so o buscador de sempre.
+        self.recuperar = recuperar
         # O que esta maquina ja mediu de si mesma: quanto ela le por segundo,
         # quanto escreve. Sem isso, a tela nao promete tempo nenhum.
         self.ritmo = ritmo

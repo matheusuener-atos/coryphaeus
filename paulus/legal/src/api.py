@@ -93,6 +93,8 @@ from acesso.conexao import ConexaoDoTunel
 from inteligencia import portas as inteligencia
 import inferencia
 from inteligencia.catalogo import Catalogo
+import denso as denso_mod
+import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
 import memoria as memoria_mod
@@ -526,6 +528,34 @@ class Estado:
         return modelos_mod.modelo_da_tarefa(tarefa, self.prefs.dados.get("tarefas_modelo") or {},
                                             self.client.model, self.modelos_presentes())
 
+    def busca_por_sentido(self, esperar: bool = False):
+        """
+        (indice, vetorizador) da busca por sentido (I7, src/denso.py), com o
+        backfill do que falta ja andando - ou (None, None) sem o modelo de
+        vetores instalado ou com `ia.denso` desligada. O modelo so chega pelo
+        download que a pessoa pede em Configuracoes > Modelos.
+        """
+        if not (self.prefs.dados.get("ia") or {}).get("denso", True):
+            return None, None
+        presentes = self.modelos_presentes() or set()
+        if not any(n.split(":")[0] == denso_mod.MODELO for n in presentes):
+            return None, None
+        if getattr(self, "_denso", None) is None:
+            self._denso = denso_mod.IndiceDenso(DADOS_DIR / "indice" / "densos.db")
+            self._vetorizador = denso_mod.Vetorizador(self.client.host)
+            self.backfill = denso_mod.Backfill(self._denso, self._vetorizador,
+                                               ceder=lambda: self.fila_modelo.ceder(limite_s=600))
+        self.backfill.iniciar(self.searcher.chunks)
+        if esperar:
+            self.backfill.esperar()
+        return self._denso, self._vetorizador
+
+    def recuperar(self, pergunta: str, documentos=None) -> list:
+        """Os trechos para o modelo pela busca hibrida (src/recuperacao.py)."""
+        denso, vetorizador = self.busca_por_sentido()
+        return recuperacao_mod.recuperar(self.searcher, pergunta, denso=denso, vetorizador=vetorizador,
+                                         documentos=documentos)
+
     def indice_lexico(self):
         """O FTS5 do Acervo (src/lexico.py), aberto uma vez; sem ele, o BM25 de antes."""
         if getattr(self, "_lexico", None) is None:
@@ -577,6 +607,13 @@ class Estado:
             self.searcher = searcher
             self.retrato = retrato
             self.versao_do_acervo += 1
+
+        # I7: os vetores do que entrou ou mudou, em segundo plano, cedendo a
+        # vez para as perguntas - so com o modelo de vetores instalado.
+        try:
+            self.busca_por_sentido()
+        except Exception:  # noqa: BLE001 - sem vetores, a busca lexica serve
+            pass
 
         # A janela NAO acompanha mais o acervo (I1): cada mudanca dela fazia o
         # Ollama recarregar o modelo na pergunta seguinte. Ela e fixa por
@@ -1481,7 +1518,18 @@ def modelos_listar() -> dict:
                 m["estimativa"] = x["estimativa"]
                 m["qualidade"] = x["qualidade"]
                 m["recomendado"] = x["recomendado"]
-    return {"rodando": rodando, "padrao": padrao, "instalados": lista, "catalogo": catalogo,
+    # A busca por sentido (I7): o modelo de vetores e o andamento dos vetores
+    # do Acervo. Fica fora da lista de modelos de conversa - ele nao responde
+    # pergunta, e nao pode ser escolhido para uma tarefa.
+    busca = {"modelo": denso_mod.MODELO, "gb": denso_mod.GB_APROX,
+             "instalado": any(m["nome"].split(":")[0] == denso_mod.MODELO for m in lista),
+             "ligada": bool((estado.prefs.dados.get("ia") or {}).get("denso", True)),
+             "trechos": sum(1 for c in estado.searcher.chunks if c.chunk_id)}
+    if busca["instalado"] and getattr(estado, "_denso", None) is not None:
+        busca["vetores"] = estado._denso.quantos()
+        busca["andamento"] = dict(estado.backfill.estado)
+    lista = [m for m in lista if m["nome"].split(":")[0] != denso_mod.MODELO]
+    return {"rodando": rodando, "padrao": padrao, "instalados": lista, "catalogo": catalogo, "busca": busca,
             "tarefas": tarefas, "baixando": estado.baixador.andamento(),
             "maquina": (recomendacao or {}).get("maquina"), "recomendado": (recomendacao or {}).get("recomendado", ""),
             "porque": (recomendacao or {}).get("porque", "")}
@@ -1822,6 +1870,8 @@ def _contexto(registrar=None, parar=None, tarefa: str = "") -> Contexto:
         material=estado.material,
         # As chaves do plano de melhoria da IA (config `ia`).
         ia=estado.prefs.dados.get("ia") or {},
+        # A busca hibrida, para a leitura por trechos (I7).
+        recuperar=estado.recuperar,
     )
 
 

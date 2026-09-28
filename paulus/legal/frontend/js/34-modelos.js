@@ -178,8 +178,38 @@ function secaoModelos() {
       '<p class="cfg-explica">Medir faz uma resposta curta e fixa e mostra quantas palavras por segundo saem nesta máquina. É esse número que ajuda a decidir, mais que o tamanho.</p>') +
     cartaoCfg("Quem faz cada tarefa", metaCfg("vale na hora"), '<div class="cfg-linhas">' + tarefas + "</div>" +
       '<p class="cfg-explica">Um modelo leve nos julgamentos rápidos deixa a conversa mais ágil; um maior nas perguntas sobre documentos lê melhor e demora mais. Meça antes de escolher.</p>') +
+    cartaoBusca(d, b) +
     cartaoCfg("Baixar", metaCfg("do registro público do Ollama"), andamento + '<div class="cfg-linhas">' + catalogo + "</div>" + outro +
       '<p class="cfg-explica">O download é do Ollama, direto do registro dele, e fica nesta máquina. Cancelar guarda o que já veio: baixar de novo continua de onde parou.</p>');
+}
+
+/* A busca por sentido (I7, src/denso.py): um modelo pequeno que transforma
+   cada trecho do Acervo num vetor, para achar o assunto mesmo sem a palavra.
+   Não responde pergunta — por isso fica fora da lista de modelos. O download
+   só acontece pelo botão, com o tamanho dito antes. */
+function cartaoBusca(d, b) {
+  const s = d.busca;
+  if (!s) return "";
+  let estado;
+  if (!s.instalado) {
+    estado = '<div class="cfg-servico"><span class="caixa-tipo">' + ic("download", 18) + "</span>" +
+      '<span class="duas-linhas cresce"><b>' + esc(s.modelo) + " · " + esc(gbBR(s.gb)) + "</b>" +
+      "<small>Ainda não está nesta máquina. Sem ele, a busca continua pelas palavras.</small></span>" +
+      '<button data-mod-baixar="' + esc(s.modelo) + '"' + (b.andando ? " disabled" : "") + ">Baixar</button></div>";
+  } else {
+    const a = s.andamento || {};
+    const feitos = s.vetores != null ? s.vetores : 0;
+    const sub = a.andando
+      ? "preparando o Acervo: " + milhar(a.feitos || 0) + " de " + milhar(a.total || 0) + " trechos (pausa quando alguém pergunta)"
+      : (a.erro ? "parou: " + a.erro : milhar(feitos) + " de " + milhar(s.trechos) + " trechos com vetor");
+    estado = '<div class="cfg-servico"><span class="caixa-tipo">' + ic("insights", 18) + "</span>" +
+      '<span class="duas-linhas cresce"><b>' + esc(s.modelo) + (s.ligada ? "" : " · desligada") + "</b><small>" +
+      esc(sub) + "</small></span></div>";
+  }
+  return cartaoCfg("Busca por sentido", metaCfg("opcional · roda nesta máquina"),
+    '<div class="cfg-linhas">' + estado + "</div>" +
+    '<p class="cfg-explica">Acha o trecho pelo assunto, mesmo quando a pergunta usa outras palavras — "quanto custa sair antes?" encontra a cláusula de rescisão. ' +
+    "Os vetores são feitos aqui, em segundo plano, e nenhum texto sai da máquina.</p>");
 }
 
 function acompanharDownload() {

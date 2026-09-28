@@ -7,6 +7,8 @@ faz a pessoa ler "nao ha clausula de penalidade" onde o certo e "nao procurei
 nesse documento".
 """
 
+import re
+
 from habilidade_base import (
     PRECISA_ASSISTENTE,
     PRECISA_DOCUMENTOS,
@@ -48,6 +50,25 @@ CHARS_POR_TOKEN = 3
 # O que não é documento e ocupa a janela do mesmo jeito: a instrução, a
 # pergunta e a resposta que ainda vai ser escrita.
 TOKENS_RESERVADOS = 1200
+
+# A virada da I7 (`ia.leitura = "trechos"`): ler o escopo inteiro so quando
+# ele cabe em ~4000 tokens, ou quando a pergunta pede.
+LER_TUDO_ATE = 4000 * CHARS_POR_TOKEN
+RE_LER_INTEIRO = re.compile(r"\b(leia|ler|le|lendo|analise|analisar|revise|revisar)\b.{0,30}"
+                            r"\b(inteir[oa]|todo|toda|completo|completa|integral)\b"
+                            r"|\b(documento|contrato|arquivo|processo) (inteiro|todo|completo)\b")
+
+
+def _por_trechos(ctx: Contexto, pergunta: str, tamanho: int) -> bool:
+    """A leitura vai pelos trechos da busca hibrida, e nao pelo escopo inteiro?"""
+    if getattr(ctx, "ia", {}).get("leitura", "tudo") != "trechos" or not getattr(ctx, "recuperar", None):
+        return False
+    if tamanho <= LER_TUDO_ATE:
+        return False
+    import unicodedata
+
+    plano = "".join(c for c in unicodedata.normalize("NFD", pergunta.lower()) if unicodedata.category(c) != "Mn")
+    return not RE_LER_INTEIRO.search(plano)
 
 
 def orcamento_de_leitura(ctx: Contexto) -> int:
@@ -152,6 +173,14 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
             # Cabendo, vai inteiro. Nao cabendo - alguem poe oito arquivos em
             # foco - vale escolher trecho DENTRO deles, e nunca sair deles.
             texto = sum(len(h.chunk.text) for h in so_deles)
+            if _por_trechos(ctx, pergunta, texto):
+                escolhidos = ctx.recuperar(pergunta, quais)
+                if escolhidos:
+                    ctx.registrar("Li " + _quantos(len(escolhidos), "trecho") + " escolhidos pela busca, "
+                                  "e não os documentos inteiros")
+                    yield from _responder(ctx, pergunta, escolhidos, orcamento, apenas=quais,
+                                          material=leitura_material, caminho="foco", fallback=fallback)
+                    return
             if texto > orcamento:
                 por_documento = max(2, ctx.searcher.quantos_cabem(orcamento) // len(quais))
                 escolhidos = ctx.searcher.search(
@@ -176,7 +205,11 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     # mesmo assim: lia três de seis e respondia "não encontrei essa
     # informação" sobre um documento que nunca abriu.
     caminho = "busca"
-    if ctx.searcher.cabe_inteiro(orcamento):
+    if _por_trechos(ctx, pergunta, ctx.searcher.caracteres()):
+        hits = ctx.recuperar(pergunta, None)
+        ctx.registrar("Procurou em " + _quantos(len(ctx.documentos), "documento") +
+                      " e leu os " + _quantos(len(hits), "trecho") + " que mais respondem")
+    elif ctx.searcher.cabe_inteiro(orcamento):
         caminho = "tudo"
         hits = ctx.searcher.tudo()
         ctx.registrar("Leu " + _quantos(len(ctx.documentos), "documento") + " por inteiro")

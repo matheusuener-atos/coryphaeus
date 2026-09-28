@@ -131,18 +131,42 @@ def rr_em(textos: list[str], esperados: list[str], k: int) -> float:
     return 0.0
 
 
-def medir_busca(searcher, p: dict) -> dict:
-    """A busca sozinha: o ranking que ela daria para a pergunta, sem o modelo."""
+def medir_busca(searcher, p: dict, consulta: str = "", denso=None, vetorizador=None) -> dict:
+    """
+    A busca sozinha: o ranking que ela daria para a pergunta, sem o modelo.
+
+    `consulta` e a pergunta como a conversa a manda para a busca (a
+    continuacao ja reescrita, I4). Com o indice denso (I7), mede cada lista
+    sozinha - lexica e densa - e a hibrida: Recall@20 na fusao RRF, e
+    Recall@6/MRR@6/tokens no que o orcamento deixa ir para o modelo.
+    """
     if not p.get("trechos_esperados"):
         return {}
-    hits = searcher.search(p["pergunta"], top_k=20, per_doc_limit=20)
-    if p.get("documentos"):
-        so = set(p["documentos"])
-        hits = [h for h in hits if h.doc_name in so]
+    consulta = consulta or p["pergunta"]
+    esperados = p["trechos_esperados"]
+    docs = p.get("documentos") or None
+    hits = searcher.search(consulta, top_k=20, per_doc_limit=20, documentos=docs)
     textos = [h.chunk.text for h in hits]
-    return {"recall20": recall_em(textos, p["trechos_esperados"], 20),
-            "recall6": recall_em(textos, p["trechos_esperados"], 6),
-            "rr6": rr_em(textos, p["trechos_esperados"], 6)}
+    saida = {"recall20": recall_em(textos, esperados, 20), "recall6": recall_em(textos, esperados, 6),
+             "rr6": rr_em(textos, esperados, 6)}
+    if denso is None or vetorizador is None or not any(c.chunk_id for c in searcher.chunks):
+        return saida
+    import recuperacao
+
+    por_id = {c.chunk_id: c.text for c in searcher.chunks}
+    lexico, densa = recuperacao.listas(searcher, consulta, denso=denso, vetorizador=vetorizador, documentos=docs)
+    fundidos = [cid for cid, _ in recuperacao.rrf([lexico, densa])][:recuperacao.FUNDIDOS_TOP]
+    finais = recuperacao.recuperar(searcher, consulta, denso=denso, vetorizador=vetorizador, documentos=docs)
+    texto_de = lambda ids: [por_id[c] for c in ids if c in por_id]  # noqa: E731
+    saida.update(
+        lexico20=recall_em(texto_de(lexico), esperados, 20),
+        denso20=recall_em(texto_de(densa), esperados, 20),
+        recall20=recall_em(texto_de(fundidos), esperados, 20),
+        recall6=recall_em([h.chunk.text for h in finais], esperados, 6),
+        rr6=rr_em([h.chunk.text for h in finais], esperados, 6),
+        tokens_contexto=sum(len(h.chunk.text) for h in finais) // 3,
+    )
+    return saida
 
 
 # -------------------------------------------------------------- a conversa
@@ -244,15 +268,32 @@ def main() -> int:
             break
         time.sleep(1)
     print(f"Acervo: {len(api.estado.searcher.documents)} documentos · "
-          f"{len(api.estado.searcher.chunks)} trechos · modelo {api.estado.client.model}\n")
+          f"{len(api.estado.searcher.chunks)} trechos · modelo {api.estado.client.model}")
+
+    # A busca por sentido (I7), quando o modelo de vetores esta instalado: os
+    # vetores que faltam sao feitos agora, antes de medir.
+    denso, vetorizador = api.estado.busca_por_sentido(esperar=True)
+    if denso is not None:
+        print(f"Vetores: {denso.quantos()} de {len(api.estado.searcher.chunks)} trechos ({denso.espaco})")
+    print()
+
+    import memoria
 
     resultados: list[dict] = []
     criados: list[str] = []
     trabalho = ""
+    assunto = None
+    anterior = ""
     try:
         for p in perguntas:
+            # A busca recebe o que a conversa mandaria: a continuacao ja
+            # reescrita com o sujeito da anterior (I4).
+            consulta = memoria.reescrever(p["pergunta"], anterior, assunto) if p.get("continua") else p["pergunta"]
+            if consulta == p["pergunta"]:
+                assunto = memoria.assunto_de(p["pergunta"]) or assunto
+            anterior = consulta
             r: dict = {"pergunta": p["pergunta"], "tipo": p.get("tipo", ""), "caminho": p["caminho"],
-                       **medir_busca(api.estado.searcher, p)}
+                       **medir_busca(api.estado.searcher, p, consulta, denso, vetorizador)}
             if not so_busca:
                 if not (p.get("continua") and trabalho):
                     trabalho = json.loads(pedir(base, "POST", "/api/trabalhos", {"pedido": p["pergunta"]}))["id"]
@@ -283,6 +324,13 @@ def main() -> int:
             mrr6=round(sum(r["rr6"] for r in com_busca) / len(com_busca), 3))
         print(f"busca     : Recall@20 {resumo['recall20']:.2f} · Recall@6 {resumo['recall6']:.2f} · "
               f"MRR@6 {resumo['mrr6']:.2f}  ({len(com_busca)} perguntas com trechos esperados)")
+        if all("denso20" in r for r in com_busca):
+            resumo.update(
+                lexico20=round(sum(r["lexico20"] for r in com_busca) / len(com_busca), 3),
+                denso20=round(sum(r["denso20"] for r in com_busca) / len(com_busca), 3),
+                tokens_contexto_p50=percentil([r["tokens_contexto"] for r in com_busca], 50))
+            print(f"            só léxico R@20 {resumo['lexico20']:.2f} · só denso R@20 {resumo['denso20']:.2f} · "
+                  f"híbrido R@20 {resumo['recall20']:.2f} · contexto p50 {resumo['tokens_contexto_p50']:.0f} tokens")
     if not so_busca:
         certos = sum(1 for r in resultados if r["certo"])
         tempos = [r["segundos"] for r in resultados]

@@ -132,8 +132,14 @@ PADRAO: dict = {
     # artigo (src/trechos.py), e nao em blocos de 1.200 caracteres.
     # `lexico_fts` (I6): a busca lexica em SQLite FTS5, em disco e
     # incremental, com a normalizacao juridica (src/lexico.py).
+    # `denso` (I7): com o modelo de vetores (bge-m3) baixado, o Acervo ganha
+    # vetores em segundo plano e a busca vira hibrida (lexica + sentido, RRF).
+    # `leitura` (I7): "tudo" le o acervo inteiro quando ele cabe na janela;
+    # "trechos" le so os 6 melhores trechos (ate 3000 tokens), salvo escopo
+    # pequeno ou pedido de ler inteiro. De fabrica "tudo": a virada so vale
+    # depois de medida no conjunto real (docs/PROGRESSO-IMPLEMENTACAO.md).
     "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True, "molde": True, "memoria": True,
-           "trechos_estruturais": True, "lexico_fts": True},
+           "trechos_estruturais": True, "lexico_fts": True, "denso": True, "leitura": "tudo"},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

@@ -39,6 +39,7 @@ NUM_PREDICT = {"conversa": 700, "json": 800, "juiz": 1}
 KEEP_ALIVE = "30m"
 
 JANELA_PADRAO = 16384
+JANELA_TRECHOS = 8192
 
 # O Ollama nao avisa quando corta: com o prompt maior que a janela, ele
 # descarta o comeco e responde com o resto. Chegar a menos de 64 tokens do
@@ -84,6 +85,11 @@ def opcoes(catalogo=None, prefs: dict | None = None, modelo: str = "") -> Opcoes
     perfil = getattr(catalogo, "modelos", {}).get("conversa") if catalogo is not None else None
     janela = int((ia.get("janela_por_modelo") or {}).get(modelo) or 0) or \
         int(getattr(perfil, "num_ctx", 0) or 0) or JANELA_PADRAO
+    # Depois da virada (I7), o que vai ao modelo sao ate 3000 tokens de
+    # trechos, ou um escopo que cabe em ~4000: a janela cai para 8192, salvo
+    # janela escolhida para o modelo.
+    if ia.get("leitura") == "trechos" and not (ia.get("janela_por_modelo") or {}).get(modelo):
+        janela = min(janela, JANELA_TRECHOS)
     if not ia.get("opcoes_fixas", True):
         return replace(LEGADO, num_ctx=janela, num_predict={})
     teto = dict(NUM_PREDICT)
