@@ -1479,3 +1479,24 @@ de tarefas.
 **O que a verificação achou:** o celular não quebrava a largura — o que
 quebrava era o espaço: com o trilho de 64 px ao lado, Aprovações ficava com
 o texto do pedido sobreposto e o Aprovar cortado.
+
+## R10 — Política, manual e o roteiro do teste real ⏸ ESPERA O TESTE NO 4G
+
+**Política e termos** (`site/politica-de-privacidade/`, seção "Acesso de
+fora", e `site/termos-de-uso/`, cláusula 6, com a numeração das seguintes
+refeita): desligado de fábrica; documentos e modelo continuam no computador;
+o tráfego passa pela Cloudflare, descriptografado no caminho, num subdomínio
+da conta do Atos; o Atos não roteia, não inspeciona e não registra esse
+conteúdo; todo acesso fica registrado no computador do escritório; só o
+escritório liga e desliga. O `cloudflared` entrou na lista do que o programa
+baixa. **Não publicado:** as duas páginas ficam na branch
+`r10-politica-site`, fora do `main` — um push no `main` publicaria o site
+antes de existir a versão que faz o que o texto diz.
+
+**Manual** (`docs/acesso-de-fora.md`): como funciona, como conectar, como
+desligar e remover, e o que fazer com porta ocupada, túnel caído e e-mail
+não autorizado — cada problema com a frase que a tela mostra e onde olhar
+(`logs/tunel.log`).
+
+**Falta:** o teste real, do celular em 4G, em nove passos
+(`PROGRESSO-IMPLEMENTACAO.md`). Depende do painel da Cloudflare (R5).

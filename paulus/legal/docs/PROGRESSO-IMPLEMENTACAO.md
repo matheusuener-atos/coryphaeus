@@ -40,7 +40,7 @@ etapa que não estiver `feita`.
 | R7 | Instalador + assistente de conexão | feita | branch `r7-assistente` | 28 checagens; fluxo com Worker de mentira; assinatura: cloudflared real aceito, Python/Edge/falso recusados; tela do instalador fotografada |
 | R8 | Auditoria "quem acessou" | feita | branch `r8-auditoria` | 9 ações de fora registradas; edição à mão acusada na linha certa; poda de 1 ano com âncora; PDF |
 | R9 | Celular, energia, iniciar com o Windows | feita | branch `r9-celular` | 4 telas em 390 px pelo caminho de fora (sem rolagem lateral, 44 px de toque); 9/9 respostas em streaming com os cabeçalhos; energia e Run testados |
-| R10 | Política, documentação, roteiro do teste real | pendente | | |
+| R10 | Política, documentação, roteiro do teste real | textos feitos; ⏸ teste no 4G | branch `r10-politica` (docs) e `r10-politica-site` (site, fora do main) | política e termos com a seção nova; manual com solução de problemas; roteiro de 9 passos abaixo |
 | I1 | Ajustes de inferência | pendente | | |
 | I2 | Medição com documentos reais | pendente | | |
 | I3 | Nível 0 por molde | pendente | | |
