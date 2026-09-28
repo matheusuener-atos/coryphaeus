@@ -547,3 +547,13 @@
      assistente") e a da resposta parada no meio sao a .etiqueta comum
      (04-acervo.css), emitidas em js/03-assistente.js; o icone de 14 cabe
      nela pelo gap da propria etiqueta. */
+
+  /* As marcas de trecho da resposta (I8): o número do trecho, pequeno, na
+     linha do texto; clicar abre o trecho na página do documento. */
+  .resposta .texto .cit-tn { display: inline-flex; align-items: center; justify-content: center; min-width: 18px;
+    height: 18px; padding: 0 5px; margin: 0 1px; border: 1px solid var(--ink-a1); border-radius: 9px;
+    background: var(--sub); color: var(--ink2); font: 600 11px/1 var(--mono); vertical-align: 2px; cursor: pointer; }
+  .resposta .texto .cit-tn:hover { color: var(--ink); border-color: var(--ink-a2, var(--ink-a1)); }
+  .resposta .texto .sem-fonte { display: inline-block; padding: 1px 7px; border-radius: 9px; background: var(--warnbg);
+    color: var(--warnt); font-size: 11.5px; line-height: 1.5; vertical-align: 1px; white-space: nowrap; }
+

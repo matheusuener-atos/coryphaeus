@@ -470,7 +470,7 @@ function blocoResposta(m, pergunta, ultima) {
   if (m.interrompida) html += etiquetaDeParada();
   if (m.cobertura && m.cobertura.truncou) html += etiquetaDeCorte();
   if (m.inferencia) html += etiquetaDeLeitura();
-  html += '<div class="texto">' + esc(m.texto) + "</div>";
+  html += '<div class="texto">' + textoComCitacoes(m.texto, m.fontes, pergunta) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
   const p = m.proposta || {};
@@ -485,6 +485,38 @@ function blocoResposta(m, pergunta, ultima) {
    frase que parece citacao e nao e vale menos que nada. */
 /* A resposta que a pessoa parou no meio: o texto e o que o modelo tinha
    escrito ate ali, e quem le precisa saber que nao e a resposta inteira. */
+/* A resposta com as marcas [T1], [T2]... (I8, src/citacoes.py): cada marca
+   vira um botão com o número do trecho, que abre o trecho na página do
+   documento — o mesmo "ver no documento" do painel. "[sem fonte]" vira o
+   rótulo da frase que não aponta para trecho nenhum. Sem marcas, o texto de
+   sempre. */
+const CITACOES = [];
+
+function textoComCitacoes(texto, fontes, pergunta) {
+  const bruto = String(texto || "");
+  if (!/\[T\d{1,3}\]|\[sem fonte\]/.test(bruto)) return esc(bruto);
+  const k = CITACOES.push({ fontes: fontes || [], pergunta: pergunta || "" }) - 1;
+  return esc(bruto)
+    .replace(/\[T(\d{1,3})\]/g, (_, n) => {
+      const f = (fontes || [])[Number(n) - 1];
+      const dica = f ? f.documento + (f.pagina ? ", p. " + f.pagina : "") : "trecho " + n;
+      return '<button class="cit-tn" data-cit-resp="' + k + '" data-tn="' + n + '" title="' + esc(dica) + '">' + n + "</button>";
+    })
+    .replace(/\s?\[sem fonte\]/g, ' <span class="sem-fonte" title="Esta frase não aponta para nenhum trecho lido">sem fonte</span>');
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest(".cit-tn");
+  if (!b) return;
+  const reg = CITACOES[Number(b.dataset.citResp)];
+  const f = reg && reg.fontes[Number(b.dataset.tn) - 1];
+  if (!f || f.material) return;
+  const caixa = b.closest(".resposta") && b.closest(".resposta").querySelector(".visor-caixa");
+  if (!caixa) return;
+  abrirCitacao(f.documento, f.texto, reg.pergunta, caixa);
+  caixa.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+
 function etiquetaDeParada() {
   return '<div class="etiqueta">' + ic("pause", 14) + "resposta parada no meio</div>";
 }
@@ -1319,7 +1351,8 @@ async function enviar(opcoes) {
       headers: { "Content-Type": "application/json" },
       // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
       // a pergunta com a escolha feita ali.
-      body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos) }, envio)),
+      body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos),
+        inteiro: Boolean(o.inteiro) }, envio)),
       signal: estado.controle.signal,
     });
     // A fila do modelo cheia (429) diz por que; o resto, o de sempre.
@@ -1328,6 +1361,9 @@ async function enviar(opcoes) {
     const leitor = r.body.getReader();
     const dec = new TextDecoder();
     let buffer = "", primeiro = true, abrirAoFim = "", assinaSemModelo = false;
+    // I8: depois da conferência, o texto mostrado é o conferido, com as
+    // marcas virando botões; o que chegar depois (a frase decisiva) soma nele.
+    let fontesAtuais = [], revisado = false, bruto = "";
 
     while (true) {
       const passo = await leitor.read();
@@ -1362,6 +1398,7 @@ async function enviar(opcoes) {
           }
           resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
           citados = new Set(dados.trechos.map((f) => f.documento)).size;
+          fontesAtuais = dados.trechos || [];
           desenharTrechos(dados.trechos, pedido, resposta.querySelector(".visor-caixa"));
         } else if (mt[1] === "fila") {
           /* O modelo desta máquina responde uma pergunta por vez, e alguém
@@ -1409,6 +1446,18 @@ async function enviar(opcoes) {
         } else if (mt[1] === "etapas") {
           plano.innerHTML = cartaoPlano(dados.etapas, 2);
           desenharProgresso(dados.etapas);
+        } else if (mt[1] === "revisao") {
+          revisado = true;
+          bruto = dados.texto || "";
+          texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
+          if (dados.removidas && dados.removidas.length) {
+            anotarBastidor("tirei da resposta o que não está nos trechos lidos: " + dados.removidas.join("; "));
+          }
+        } else if (mt[1] === "refazendo") {
+          anotarBastidor("a resposta citou um trecho que não existe — refazendo com menos trechos");
+        } else if (mt[1] === "token" && revisado) {
+          bruto += dados.t;
+          texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
         } else if (mt[1] === "token") {
           if (primeiro) { texto.textContent = ""; primeiro = false; }
           texto.textContent += dados.t;

@@ -415,6 +415,10 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
             "trecho": h.chunk.index + 1,
             "score": round(h.score, 2),
             "texto": h.chunk.text,
+            # O trecho estrutural sabe a pagina (I5): a tela diz "pagina 3" em
+            # vez de "trecho 3", e a marca [Tn] leva a ela.
+            **({"pagina": h.chunk.pagina_inicio, "onde": f"página {h.chunk.pagina_inicio}"}
+               if getattr(h.chunk, "pagina_inicio", None) else {}),
         }
         for h in hits
     ]
@@ -444,7 +448,17 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         material=usados_do_material,
     )
 
-    contexto = ctx.searcher.format_context(hits, max_chars=orcamento) if hits else ""
+    # I8: os trechos numerados [T1], [T2]... e a instrucao de marcar cada
+    # frase com o trecho de onde saiu (src/citacoes.py). Chave `ia.citacao`.
+    com_marcas = bool(getattr(ctx, "ia", {}).get("citacao", False) and hits)
+    regra = ""
+    if com_marcas:
+        import citacoes
+
+        contexto, _ = citacoes.numerar(hits, max_chars=orcamento)
+        regra = citacoes.REGRA
+    else:
+        contexto = ctx.searcher.format_context(hits, max_chars=orcamento) if hits else ""
     if bloco_material:
         contexto = (contexto + "\n\n" if contexto else "") + bloco_material
 
@@ -469,12 +483,17 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     )
 
     escrito = []
-    for tipo, dados in _pedacos(ctx, pergunta, contexto):
+    for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra):
         if tipo == "token":
             escrito.append(dados.get("t", ""))
         elif tipo == "truncou":
             ctx.registrar("o texto não coube inteiro na janela do modelo: o começo ficou de fora desta leitura")
         yield evento(tipo, **dados)
+
+    sem_fundamento = False
+    if com_marcas and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
+        texto, sem_fundamento = yield from _conferir_marcas(ctx, pergunta, hits, orcamento, "".join(escrito), regra)
+        escrito = [texto]
 
     # Pergunta de consequencia: a frase do documento que decide, literal,
     # quando ela traz o que a resposta deixou de fora (src/verificacao.py).
@@ -485,7 +504,50 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         ctx.registrar("acrescentei a frase do documento que decide a pergunta")
         yield evento("token", t=complemento)
 
+    if sem_fundamento:
+        yield evento("sem_fundamento", documentos=consultados)
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
+
+
+def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, resposta: str, regra: str):
+    """
+    As tres conferencias da I8 (src/citacoes.py) sobre a resposta ja escrita.
+    Devolve (texto conferido, sem fundamento) e emite `revisao` - a tela troca
+    o que mostrou pelo texto conferido.
+    """
+    import citacoes
+
+    rev = citacoes.revisar(resposta, [h.chunk.text for h in hits])
+    if rev.refazer and len(hits) > 1:
+        # Regra 2: marca de trecho que nao existe. O modelo pequeno se perde
+        # em contexto longo - refaz uma vez, com a metade dos trechos. A
+        # numeracao dos que ficam e a mesma: as fontes da tela continuam
+        # valendo.
+        ctx.registrar("a resposta citou " + ", ".join(f"[T{m}]" for m in rev.marcas_invalidas[:3]) +
+                      ", que não existe — refiz com menos trechos")
+        yield evento("refazendo", motivo="marca de trecho que não existe")
+        menos = hits[:max(1, len(hits) // 2)]
+        contexto, _ = citacoes.numerar(menos, max_chars=orcamento)
+        try:
+            novo = ctx.client.ask(pergunta, contexto, ensinado=_com_regra(ctx, regra),
+                                  **_da_conversa(ctx, historico=True)) or ""
+        except Exception:  # noqa: BLE001 - sem a segunda leitura, fica a primeira conferida
+            novo = ""
+        if novo.strip():
+            rev = citacoes.revisar(novo, [h.chunk.text for h in menos])
+    if rev.removidas:
+        ctx.registrar("tirei da resposta o que não está nos trechos lidos: " + "; ".join(rev.removidas[:3]))
+    if rev.sem_fonte:
+        ctx.registrar(_quantos(rev.sem_fonte, "frase") + " sem trecho que a sustente — marcadas “sem fonte”")
+    yield evento("revisao", texto=rev.texto, sem_fonte=rev.sem_fonte, removidas=rev.removidas,
+                 marcas=rev.marcas_validas)
+    return rev.texto, rev.sem_fundamento
+
+
+def _com_regra(ctx: Contexto, regra: str) -> str:
+    """O que o escritorio ensinou, mais a regra das marcas - as duas vao no fim da instrucao."""
+    ensinado = getattr(ctx, "ensinado", "") or ""
+    return (ensinado + "\n\n" + regra).strip() if regra else ensinado
 
 
 def _da_conversa(ctx: Contexto, historico: bool = False) -> dict:
@@ -508,7 +570,7 @@ def _quantos(n: int, palavra: str) -> str:
     return f"{n} {palavra if n == 1 else palavra + 's'}"
 
 
-def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
+def _pedacos(ctx: Contexto, pergunta: str, contexto: str, regra: str = ""):
     """
     O cliente entrega por callback; aqui vira iterador de eventos.
 
@@ -522,7 +584,7 @@ def _pedacos(ctx: Contexto, pergunta: str, contexto: str):
 
     def trabalho(empurrar):
         return ctx.client.ask(
-            pergunta, contexto, stream=True, ensinado=getattr(ctx, "ensinado", ""),
+            pergunta, contexto, stream=True, ensinado=_com_regra(ctx, regra),
             on_token=lambda t: empurrar(("token", {"t": t})),
             on_fase=lambda fase, dados: empurrar((fase, dados)),
             parar=parar,

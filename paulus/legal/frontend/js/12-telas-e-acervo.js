@@ -965,6 +965,17 @@ function cartaoEscopo(d) {
   const nomes = d.nomes || [];
   /* "Qual o valor do contrato?" com vários contratos: a pergunta não disse
      qual, e o programa pergunta em vez de escolher um sozinho. */
+  /* A resposta não se sustentou nos trechos lidos (I8): nenhuma frase
+     apontou para trecho nenhum. Em vez de uma resposta que não se confere,
+     os dois caminhos que ainda podem responder. */
+  if (d.motivo === "sem_fundamento") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">sem fundamento nos trechos</span></div>' +
+      '<p class="explica">Nos trechos que li não há o que sustente uma resposta. Posso ler ' +
+      (nomes.length === 1 ? "“" + esc(nomeCurto(nomes[0])) + "” inteiro" : "os documentos inteiros") +
+      " ou procurar em todo o Acervo.</p>" +
+      '<div class="linha-form"><button class="primario" data-escopo-inteiro="1">Ler o documento inteiro</button>' +
+      '<button data-escopo-tudo="1">Procurar em todo o Acervo</button></div></div>';
+  }
   if (d.motivo === "ambigua") {
     const s = d.substantivo || "documento";
     return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">qual ' + esc(s) + "?</span></div>" +
@@ -1035,6 +1046,13 @@ function ligarEscopo(caixa, d) {
     estado.modoEscopo = "acervo";
     desenharEscopo();
     escolher("Procurando em todo o Acervo.", { tudo: true });
+  };
+  const inteiro = caixa.querySelector("[data-escopo-inteiro]");
+  if (inteiro) inteiro.onclick = () => {
+    const nomes = d.nomes || [];
+    if (nomes.length) definirFoco(nomes);
+    escolher("Lendo " + (nomes.length === 1 ? "“" + nomes[0] + "”" : "os documentos") + " por inteiro.",
+      nomes.length ? { apenas: nomes, inteiro: true } : { inteiro: true, tudo: true });
   };
   const anexar = caixa.querySelector("[data-escopo-anexar]");
   if (anexar) anexar.onclick = () => abrirAnexar();

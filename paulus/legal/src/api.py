@@ -762,6 +762,9 @@ class Pergunta(BaseModel):
     # pessoa disse que a pergunta era sobre os documentos, e a camada nao
     # decide de novo.
     documentos: bool = False
+    # O botao "ler o documento inteiro" do cartao de resposta sem fundamento
+    # (I8): esta pergunta le o escopo inteiro, mesmo com a leitura por trechos.
+    inteiro: bool = False
 
 
 class Busca(BaseModel):
@@ -3429,6 +3432,9 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
 
         ctx = _contexto(registrar, parar=parar.is_set, tarefa="conversa")
         ctx.historico = historico
+        if payload.inteiro:
+            ctx.ia["leitura"] = "tudo"
+        sem_fundamento: dict = {}
         passos = habilidade.executar(ctx, pergunta=pergunta, top=payload.top, apenas=citado)
         try:
             for tipo, dados in passos:
@@ -3479,6 +3485,19 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     yield _sse("medida", dados)
                 elif tipo == "contagem":
                     medir["contagem"] = dados
+                elif tipo == "revisao":
+                    # O texto conferido (I8) toma o lugar do que foi escrito:
+                    # e ele que fica na conversa.
+                    partes[:] = [dados.get("texto", "")]
+                    yield _sse("revisao", dados)
+                elif tipo == "refazendo":
+                    yield _sse("refazendo", dados)
+                elif tipo == "sem_fundamento":
+                    sem_fundamento = {
+                        "tipo": "escopo", "motivo": "sem_fundamento", "pergunta": pergunta,
+                        "nomes": list(dados.get("documentos") or [])[:4],
+                        "total": len(estado.searcher.documents),
+                    }
                 elif tipo == "truncou":
                     # O prompt nao coube na janela: o Ollama cortou o comeco
                     # calado (src/inferencia.py). A tela diz, e a resposta
@@ -3555,7 +3574,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # Quer ver o documento? A oferta sai por regra dos trechos usados, e
         # fica guardada na propria resposta - e assim que a conversa sabe que
         # ja ofereceu e nao oferece o mesmo arquivo de novo.
-        oferta = ferramentas.oferta_de_exibir(
+        oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(
             "paulus", "".join(partes).strip(),
