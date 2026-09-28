@@ -179,6 +179,7 @@ _declarar(BLOQUEADO,
           "GET /api/acesso/tunel", "POST /api/acesso/tunel/conectar", "POST /api/acesso/tunel/cancelar",
           "POST /api/acesso/tunel/ligar", "POST /api/acesso/tunel/porta", "POST /api/acesso/tunel/sincronizar",
           "POST /api/acesso/tunel/remover", "GET /api/acesso/auditoria", "GET /api/acesso/auditoria/pdf",
+          "POST /api/acesso/energia/abrir-com-windows",
           # mover, organizar, apagar, exportar em lote, lixeira
           "POST /api/biblioteca/lote/mover", "POST /api/biblioteca/lote/apagar", "POST /api/biblioteca/lote/exportar",
           "POST /api/biblioteca/remover", "POST /api/acervo/pastas", "POST /api/acervo/pastas/tirar",

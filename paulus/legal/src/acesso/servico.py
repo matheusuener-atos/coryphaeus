@@ -13,6 +13,7 @@ from pathlib import Path
 from acesso import politicas
 from acesso.auditoria import Auditoria
 from acesso.contas import Contas
+from acesso.energia import Acordado
 from acesso.jwt_access import ConferidorAccess
 from acesso.remoto import PortaoRemoto
 from acesso.tunel import VERSAO_MINIMA, Cofre, Tunel, achar_cloudflared, versao_basta, versao_de
@@ -79,6 +80,8 @@ class AcessoDeFora:
         self.porta_ocupada = False
         self._servidor = None
         self._cloudflared: tuple[str, str] | None = None
+        # O pedido ao Windows para nao suspender, enquanto o acesso esta ligado.
+        self.acordado = Acordado()
 
     # ------------------------------------------------------------ tunel
 
@@ -171,11 +174,42 @@ class AcessoDeFora:
         self.configurar_conferidor()
         if self.ligado() and self.cofre.tem() and self.abrir_porta_de_fora():
             self.tunel.ligar()
+            # Com gente podendo entrar de fora, o computador nao dorme sozinho (R9).
+            self.segurar_acordado(True)
 
     def parar(self) -> None:
         """Ao fechar: o processo do tunel nunca sobrevive ao PAULUS."""
         self.tunel.desligar()
         self.fechar_porta_de_fora()
+        self.segurar_acordado(False)
+
+    # ------------------------------------------------------------ energia
+
+    def segurar_acordado(self, ligar: bool) -> None:
+        if ligar:
+            self.acordado.ligar()
+        else:
+            self.acordado.desligar()
+
+    def energia(self) -> dict:
+        """
+        O que a tela diz sobre a maquina ficar de pe: se o PAULUS esta
+        segurando o Windows acordado, o que o plano de energia faria sem isso,
+        e o "abrir com o Windows".
+        """
+        from acesso import energia as e
+
+        suspende = e.minutos_ate_suspender()
+        tomada, bateria = suspende.get("tomada_min", 0), suspende.get("bateria_min", 0)
+        if self.acordado.ligado:
+            situacao, tom = "o Windows não suspende por inatividade enquanto o acesso de fora estiver ligado", "ok"
+        elif tomada:
+            situacao, tom = f"sem o acesso ligado, o Windows suspende depois de {tomada} min parado", "acc"
+        else:
+            situacao, tom = "o plano de energia não suspende o computador na tomada", ""
+        return {"acordado": self.acordado.ligado, "situacao": situacao, "tom": tom,
+                "suspende_tomada_min": tomada, "suspende_bateria_min": bateria,
+                "abrir_com_windows": e.abre_com_windows(), "pode_abrir_com_windows": e.exe_do_programa() is not None}
 
     def situacao(self) -> dict:
         p = self.preferencias()

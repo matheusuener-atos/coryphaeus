@@ -15,6 +15,42 @@
     .fluxo { padding: 16px 20px 8px; }
   }
 
+  /* ------------------------------------------------ celular (390 px) */
+  /* O acesso de fora (R9) traz o PAULUS para a tela do celular, e ela segue
+     as regras de docs/ui/04-telas-mobile.md: o trilho vira a barra de baixo,
+     o cabecalho quebra linha, tabela vira lista e o alvo de toque tem 44 px.
+     So abaixo de 600 px - a janela do programa nunca chega a isso (o minimo
+     dela e 900). */
+  @media (max-width: 600px) {
+    :root { --margem-lado: 16px; --margem-topo: 16px; }
+    .corpo { flex-direction: column; }
+    .conversa-col { order: 1; flex: 1; min-height: 0; }
+    .trilho {
+      order: 2; width: 100%; flex-direction: row; justify-content: flex-start; gap: 2px;
+      padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+      overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+      box-shadow: inset 0 1px 0 var(--ink-a08);
+    }
+    .trilho::-webkit-scrollbar { display: none; }
+    .trilho-logo, .trilho-risco, .trilho-vazio { display: none; }
+    .trilho-item { width: 44px; height: 44px; }
+    .trilho-item .conta { top: 4px; right: 4px; }
+    /* O menu que abre ao passar o mouse nao existe no toque. */
+    .menu-flutuante { display: none; }
+    .barra-titulo { padding: 0 12px; }
+    .conversa-topo { flex-wrap: wrap; row-gap: 10px; }
+    .conversa-acoes { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
+    .acoes-tela { flex-wrap: wrap; }
+    .conversa-acoes button, .tabela-linha button, .dialogo-pe button, .acesso-pe button { min-height: 44px; }
+    /* Tabela vira lista: sem cabecalho de coluna, e o que eram colunas
+       corre na linha, uma embaixo da outra quando nao cabe. */
+    .tabela-cabecalho { display: none; }
+    .tabela-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+    .tabela-linha > * { min-width: 0; max-width: 100%; }
+    .tabela-barra { flex-wrap: wrap; white-space: normal; }
+    .tabela-rodape { flex-wrap: wrap; }
+  }
+
   /* ------------------------------------------ animacoes reduzidas (A13) */
 
   /* Quem pede tela parada tem tela parada: a classe entra no <html> ainda no

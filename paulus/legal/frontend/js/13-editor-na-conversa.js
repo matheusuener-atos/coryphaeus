@@ -836,7 +836,7 @@ function desenharVisor() {
     visor.caixa.innerHTML = '<div class="visor"><div class="visor-topo">' +
       '<div><b>' + esc(d.nome) + "</b>" +
       '<div class="rotulo">aberto da sua máquina · ' + tamanho(d.bytes) + "</div></div>" +
-      '<div class="visor-acoes"><button data-vs="fora">Abrir fora</button>' +
+      '<div class="visor-acoes"><button data-vs="fora" data-so-local="1">Abrir fora</button>' +
       '<button data-vs="fechar">Fechar</button></div></div>' +
       '<p class="explica">Só PDF tem página para desenhar aqui. Este é ' +
       esc((d.nome.split(".").pop() || "").toUpperCase()) +
@@ -858,7 +858,7 @@ function desenharVisor() {
     '<button data-vs="menos">−</button><span class="rotulo">' + visor.escala + "%</span>" +
     '<button data-vs="mais">+</button>' +
     '<span class="divisa-v"></span>' +
-    '<button data-vs="fora">Abrir fora</button>' +
+    '<button data-vs="fora" data-so-local="1">Abrir fora</button>' +
     '<button data-vs="fechar">Fechar</button></div></div>' +
 
     '<div class="visor-miniaturas">' + miniaturasDoVisor() + "</div>" +

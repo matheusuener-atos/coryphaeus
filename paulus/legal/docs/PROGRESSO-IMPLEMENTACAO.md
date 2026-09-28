@@ -39,7 +39,7 @@ etapa que não estiver `feita`.
 | R6 | Túnel dentro do PAULUS | feita | branch `r6-tunel` | 29 checagens; token fora da linha de comando e do log; reinício; JWT (5 casos de recusa); porta ocupada; versão lida do cloudflared 2026.9.3 real |
 | R7 | Instalador + assistente de conexão | feita | branch `r7-assistente` | 28 checagens; fluxo com Worker de mentira; assinatura: cloudflared real aceito, Python/Edge/falso recusados; tela do instalador fotografada |
 | R8 | Auditoria "quem acessou" | feita | branch `r8-auditoria` | 9 ações de fora registradas; edição à mão acusada na linha certa; poda de 1 ano com âncora; PDF |
-| R9 | Celular, energia, iniciar com o Windows | pendente | | |
+| R9 | Celular, energia, iniciar com o Windows | feita | branch `r9-celular` | 4 telas em 390 px pelo caminho de fora (sem rolagem lateral, 44 px de toque); 9/9 respostas em streaming com os cabeçalhos; energia e Run testados |
 | R10 | Política, documentação, roteiro do teste real | pendente | | |
 | I1 | Ajustes de inferência | pendente | | |
 | I2 | Medição com documentos reais | pendente | | |
@@ -95,6 +95,9 @@ etapa que não estiver `feita`.
 - **R8** "Documento aberto" = ver o documento do editor, a página de um arquivo do Acervo e o trecho citado (`ROTAS_DE_VER_DOCUMENTO` em `politicas.py`); a mesma pessoa no mesmo documento vira uma linha a cada 10 min.
 - **R8** O alvo é gravado pelo nome (documento, planilha, gravação, conversa, arquivo), resolvido na hora de anotar; o que não se traduz fica com o endereço.
 - **R8** Retenção: a poda roda ao abrir o programa; o hash da última linha podada fica em `acessos.ancora`.
+- **R9** Celular: as regras entram abaixo de 600 px (a janela do programa tem mínimo de 900). O trilho vira barra inferior rolável, sem o menu flutuante (que abre ao passar o mouse). Não refiz as telas uma a uma para o desenho M1–M16 de `docs/ui/04-telas-mobile.md`: as quatro telas do contrato ficaram usáveis; as outras seguem as regras gerais (tabela vira lista, cabeçalho quebra).
+- **R9** O aviso de 403 ("Disponível só no computador do escritório") só aparece para pedidos que alteram algo; leituras de fundo que dão 403 ficam caladas.
+- **R9** "Abrir o PAULUS com o Windows" só existe no programa instalado (o `PAULUS.exe` fica duas pastas acima de `app/src`); no código-fonte a opção aparece travada, com a frase.
 - **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada. A checagem "segurar numa conversa marca" é intermitente: medida em 3 rodadas seguidas na árvore desta rodada, falhou 1 e passou 2 (a lista de conversas abre animada em 460 ms e pode se redesenhar enquanto o teste segura a linha). `test_gravacoes.py` falha quando a máquina tem menos de ~1,9 GB livres para o modelo de voz — é a causa da falha da linha de base.
 
 ## Pendente do usuário
@@ -135,6 +138,22 @@ O código do Worker já está no repositório e **não liga nada** até o passo 
 
 8. **Push** do `main` (publica o Worker com o KV). Conferir: `https://paulus.ia.br/api/tunel/estado` com POST `{}` deve responder `{"estado":"expirado"}` (antes do passo 7, 404).
 9. No painel, conferir que **nenhuma rota do Worker pega `*.paulus.ia.br`** (Workers & Pages → paulus → Settings → Domains & Routes: só `paulus.ia.br` e, se houver, `www`).
+
+### ⏸ R10 — o teste real, do celular em 4G (depois da pausa da R5)
+
+Pré-requisitos: os passos da R5 feitos (painel, KV, segredos, `TUNEL_ATIVO`, push); o PAULUS desta versão instalado no computador do escritório **marcando "Acesso de fora pelo celular"** (ou com o `cloudflared` no PATH, como já está nesta máquina); o celular **fora do Wi-Fi do escritório**, no 4G.
+
+1. **Conectar pelo assistente.** No computador: Configurações › Acesso de fora › Contas › *Criar a conta do titular* (leia o QR com o autenticador, guarde os códigos de recuperação). Depois, em Conectar: confira o nome e o e-mail, *Conectar*. No navegador que abrir, entre com o e-mail do titular (chega um código), confira o código `XXXX-XXXX` e *Confirmar*. **Esperado:** em até ~10 s o PAULUS mostra `https://<escritório>.paulus.ia.br` e "conectado".
+2. **Abrir o endereço** no celular (4G). **Esperado:** a página da Cloudflare pedindo o e-mail.
+3. **Passar pelo Access:** o e-mail do titular e o código que chega. **Esperado:** a tela "Entrar no PAULUS do escritório".
+4. **Login + TOTP:** senha, depois o código do autenticador. **Esperado:** a tela inicial, com "De fora como <nome>" e *Sair* no alto e a barra de destinos embaixo.
+5. **Perguntar sobre um documento** (anexe pelo "/" ou pergunte citando o nome). **Esperado:** "lendo…" e depois a resposta **aparecendo palavra a palavra**, não de uma vez. Se vier de uma vez só no fim, anote: é buffer no caminho.
+6. **Tentar assinar:** abra Assinatura no menu. **Esperado:** a tela "Disponível só no computador do escritório". Tente também apagar um documento do Acervo: o aviso com a mesma frase.
+7. **Baixar um documento** (Documentos › abra um › PDF ou DOCX). **Esperado:** o arquivo baixa. No computador: Configurações › Acesso de fora › Quem acessou — a linha "baixou “<nome>” (PDF)" com o seu e-mail, a hora e o IP do celular; e "registro íntegro".
+8. **Desligar** no computador (Acesso de fora › Endereço › *Desligar*). **Esperado:** no celular, a próxima ação falha e, recarregando, a Cloudflare mostra erro de túnel (o endereço para de responder).
+9. **Remover** (Acesso de fora › *Remover o acesso de fora*). **Esperado:** "acesso de fora removido"; recarregando no celular, o endereço não existe mais; no painel da Cloudflare, o túnel, o DNS e a aplicação do Access sumiram.
+
+Para cada passo que não sair como o esperado: o número do passo, o que apareceu (print do celular ajuda) e as últimas linhas de `%LOCALAPPDATA%\PAULUS\dados\logs\tunel.log` do computador. Cada correção volta com teste.
 
 ### R3 — rotas bloqueadas de fora por não se encaixarem com clareza na tabela
 

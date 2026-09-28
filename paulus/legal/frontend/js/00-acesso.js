@@ -55,10 +55,12 @@ const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null };
     if (!daqui || acessoDeFora.local) return resposta;
     if (resposta.status === 401 && resposta.headers.get("X-PAULUS-Sessao") === "acabou") {
       location.replace("/");
-    } else if (resposta.status === 202 || resposta.status === 403) {
+    } else if (resposta.status === 202 || (resposta.status === 403 && !SEGUROS.includes(metodo))) {
       // Proposta que foi para a fila, ou o que so se faz no escritorio: a
       // frase vem do servidor e aparece na barra de avisos, venha de que tela
-      // vier.
+      // vier. So para o que a pessoa pediu (gravar, mandar, apagar): a
+      // leitura que uma tela faz sozinha ao abrir, e que e do escritorio,
+      // nao merece aviso nenhum.
       resposta.clone().json().then((d) => {
         if (d && d.detail && typeof avisoCert === "function" && (d.proposto || resposta.status === 403)) {
           avisoCert(d.detail, { tom: d.proposto ? "ok" : "" });

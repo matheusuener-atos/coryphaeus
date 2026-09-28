@@ -115,6 +115,90 @@ def _subir_servidor(porta: int):
     raise RuntimeError("o servidor nao subiu")
 
 
+def test_celular(navegador, base: str) -> None:
+    """
+    As quatro telas do acesso de fora num celular de 390 px (R9): a tela de
+    entrar, a conversa, o documento aberto com o trecho citado e Aprovacoes.
+    O Cloudflare Access e simulado (o JWT e conferido de verdade em
+    tests/test_r6_tunel.py); o resto e o caminho real de quem chega de fora.
+
+    Usavel quer dizer: nada passa da largura da tela (sem rolagem de lado), o
+    que se aperta tem 44 px, e a barra de destinos fica embaixo.
+    """
+    print("\ncelular (390 px), pelo acesso de fora")
+    import segredos
+
+    if not segredos.disponivel():
+        print("  pulado: sem DPAPI, o acesso de fora nao existe nesta maquina")
+        return
+    import api
+    from acesso.contas import codigo_totp
+
+    servico = api.estado.acesso_de_fora
+    prefs = api.estado.prefs.dados["acesso_remoto"]
+    antes_jwt = servico.verificar_jwt
+    email = "celular-tela@escritorio.com"
+    conta = None
+    pedido = None
+    try:
+        conta = servico.contas.criar("Teste de Tela", email, "titular", "senha-do-celular-12")
+        servico.contas.confirmar_totp(conta["conta"]["id"], codigo_totp(conta["segredo"], int(time.time() // 30) - 1))
+        prefs["ligado"] = True
+        servico.verificar_jwt = lambda t: {"email": t[3:]} if t and t.startswith("ok:") else None
+        pedido = api.estado.fila.pedir("Teste de tela: enviar e-mail", "email", acao="correio.enviar",
+                                       resumo="Pedido criado pelo teste de tela")
+        ctx = navegador.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
+                                    extra_http_headers={"Cf-Access-Jwt-Assertion": "ok:" + email})
+        pag = ctx.new_page()
+        pag.add_init_script("try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}")
+        largura = "() => document.documentElement.scrollWidth"
+
+        pag.goto(base + "/", wait_until="networkidle")
+        checar(pag.evaluate(largura) <= 390 and pag.locator("#email").is_visible(), "a tela de entrar cabe em 390 px",
+               pag.evaluate(largura))
+        pag.fill("#email", email)
+        pag.fill("#senha", "senha-do-celular-12")
+        pag.click("#form-senha button[type=submit]")
+        pag.wait_for_selector("#codigo", state="visible", timeout=10000)
+        pag.fill("#codigo", codigo_totp(conta["segredo"], int(time.time() // 30)))
+        pag.click("#form-codigo button[type=submit]")
+        pag.wait_for_load_state("networkidle")
+        pag.wait_for_timeout(2500)
+        checar(pag.evaluate("() => document.documentElement.classList.contains('remoto')"), "entrou de fora")
+        checar(pag.evaluate(largura) <= 390, "a conversa cabe em 390 px", pag.evaluate(largura))
+        trilho = pag.evaluate("() => { const r = document.getElementById('trilho').getBoundingClientRect(); return {topo: r.top, altura: r.height}; }")
+        checar(trilho["topo"] > 700, "a barra de destinos fica embaixo", trilho)
+        alvos = pag.evaluate("() => [...document.querySelectorAll('.trilho-item')].filter(b => b.offsetParent).map(b => b.getBoundingClientRect().height)")
+        checar(alvos and min(alvos) >= 44, "cada destino tem 44 px de toque", alvos[:3])
+
+        nome = api.estado.searcher.documents[0].name if api.estado.searcher.documents else ""
+        if nome:
+            pag.evaluate("(n) => { const c = document.createElement('div'); c.className = 'visor-caixa'; $('centro').appendChild(c); abrirCitacao(n, '', '', c); }", nome)
+            pag.wait_for_timeout(2500)
+            checar(pag.evaluate(largura) <= 390 and pag.locator(".visor").count() > 0, "o documento com o trecho cabe em 390 px",
+                   pag.evaluate(largura))
+            checar(not pag.locator('[data-vs="fora"]').first.is_visible(), "de fora, 'Abrir fora' nao aparece")
+        pag.evaluate("() => abrirDestino('aprovacoes')")
+        pag.wait_for_timeout(1800)
+        checar(pag.evaluate(largura) <= 390, "Aprovacoes cabe em 390 px", pag.evaluate(largura))
+        botoes = pag.evaluate("() => [...document.querySelectorAll('#centro .tabela-linha button')].filter(b => b.offsetParent).map(b => { const r = b.getBoundingClientRect(); return [r.right, r.height]; })")
+        checar(botoes and all(d <= 390 and h >= 44 for d, h in botoes), "Aprovar e Recusar inteiros na tela, com 44 px", botoes[:3])
+        ctx.close()
+    finally:
+        prefs["ligado"] = False
+        servico.verificar_jwt = antes_jwt
+        if pedido:
+            api.estado.fila.esquecer(pedido.id)
+        if conta:
+            # A conta do teste sai sempre - mesmo sendo a unica de titular,
+            # que pela tela nao sairia: este teste roda tambem nos dados de
+            # verdade (sem PAULUS_DADOS), e conta de teste nao pode sobrar la.
+            servico.contas.encerrar_sessoes(conta["conta"]["id"])
+            with servico.contas._db() as c:
+                c.execute("DELETE FROM contas WHERE id = ?", (conta["conta"]["id"],))
+                c.execute("DELETE FROM tentativas WHERE email = ?", (email,))
+
+
 def _fim() -> int:
     """
     O resumo.
@@ -1313,6 +1397,7 @@ def main() -> int:
                 "async (id) => { const r = await (await fetch('/api/documentos/' + id, {method: 'DELETE'})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {method: 'DELETE'}); }", id_planilha
             )
 
+            test_celular(navegador, base)
             navegador.close()
     finally:
         api.estado.tarefas.apagar(tarefa_do_teste)

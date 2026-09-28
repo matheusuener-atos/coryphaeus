@@ -68,6 +68,18 @@ def montar(servico, conexao, r) -> None:
         conexao.sincronizar_emails()
         return {"ok": not conexao.erro, "erro": conexao.erro}
 
+    @r.post("/api/acesso/energia/abrir-com-windows")
+    def energia_abrir_com_windows(dados: Ligar, request: Request) -> dict:
+        """Abrir o PAULUS com o Windows, minimizado (R9): so o programa instalado tem o PAULUS.exe."""
+        from acesso import energia
+
+        so_local(request)
+        if dados.ligado and not energia.exe_do_programa():
+            raise HTTPException(status_code=400, detail="disponível no PAULUS instalado (o PAULUS.exe não foi encontrado)")
+        energia.abrir_com_windows(dados.ligado)
+        servico.prefs.atualizar({"acesso_remoto": {"abrir_com_windows": bool(dados.ligado)}})
+        return {"energia": servico.energia()}
+
     @r.post("/api/acesso/tunel/remover")
     def tunel_remover(request: Request) -> dict:
         so_local(request)

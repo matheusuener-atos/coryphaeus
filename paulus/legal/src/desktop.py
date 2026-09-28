@@ -351,6 +351,15 @@ def _endereco_da_janela(porta: int, chave: str, pedido: str, configurar_acesso: 
     return f"http://127.0.0.1:{porta}/entrar-local?chave={urllib.parse.quote(chave)}" + fragmento
 
 
+def _opcoes_da_janela(argv: list[str]) -> dict:
+    """
+    `--minimizado`: o que a chave Run do Windows manda quando a pessoa ligou
+    "Abrir o PAULUS com o Windows" (acesso de fora, R9) - o programa sobe, o
+    tunel liga, e a janela espera na barra de tarefas.
+    """
+    return {"minimized": True} if "--minimizado" in argv else {}
+
+
 def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
     """Passa o pedido para a janela aberta e deixa ela vir para frente."""
     if sys.platform == "win32":
@@ -469,6 +478,7 @@ def main() -> int:
         min_size=(900, 620),
         frameless=True,
         easy_drag=False,
+        **_opcoes_da_janela(sys.argv[1:]),
     )
     _JANELA.events.shown += _preparar_janela_nativa
 

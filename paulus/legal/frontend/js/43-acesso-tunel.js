@@ -184,6 +184,35 @@ function ligarTunel() {
   acompanharTunel();
 }
 
+/* R9: a maquina de pe. O PAULUS segura o Windows acordado enquanto o acesso
+   de fora esta ligado; o "abrir com o Windows" (minimizado) e escolha da
+   pessoa, desligado de fabrica, e so existe no programa instalado. */
+function blocoEnergia(e) {
+  if (!e || e.pode_abrir_com_windows === undefined) return "";
+  const sub = e.pode_abrir_com_windows
+    ? "Ao ligar o computador, o PAULUS abre minimizado e o acesso de fora volta sozinho."
+    : "Disponível no PAULUS instalado.";
+  return '<div class="acesso-energia">' +
+    ligaCfg("", "Abrir o PAULUS com o Windows", sub, e.abrir_com_windows, !e.pode_abrir_com_windows)
+      .replace('class="ag-toggle', 'data-energia-abrir="1" class="ag-toggle') +
+    (e.suspende_bateria_min ? '<p class="cfg-explica">Na bateria, o plano de energia suspende depois de ' +
+      e.suspende_bateria_min + " min parado; fechar a tampa ou mandar suspender também desliga o acesso.</p>" : "") +
+    "</div>";
+}
+
+function ligarEnergia() {
+  document.querySelectorAll("[data-energia-abrir]").forEach((b) => {
+    b.onclick = async () => {
+      if (b.classList.contains("presa")) return;
+      try {
+        await acessoPost("/api/acesso/energia/abrir-com-windows", { ligado: !b.classList.contains("on") });
+      } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+      await carregarTunel();
+      desenharConfig();
+    };
+  });
+}
+
 /* --configurar-acesso (o instalador) chega como #acesso: abre direto aqui. */
 function abrirAcessoPeloEndereco() {
   if (location.hash !== "#acesso" || !acessoDeFora.local) return;

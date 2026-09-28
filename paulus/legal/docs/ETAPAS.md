@@ -1439,3 +1439,43 @@ pelo reportlab que o programa já usa, com o estado da corrente impresso.
 **Medido:** as nove ações da tabela feitas de fora, cada uma com a sua
 linha; a terceira linha editada à mão acusada na linha 3; a poda de um ano
 com a corrente conferível pela âncora; o PDF sai; de fora, a tela não abre.
+
+## R9 — Celular, energia e abrir com o Windows ✓ FEITA
+
+**No celular** (`css/22-responsivo.css`, abaixo de 600 px — a janela do
+programa nunca chega lá): o trilho vira a barra de destinos embaixo, rolável,
+com 44 px de toque; o cabeçalho da tela quebra linha; tabela vira lista (sem
+cabeçalho de coluna, o que eram colunas corre na linha) — as regras de
+`docs/ui/04-telas-mobile.md`. A tela de entrar, a conversa, o documento com o
+trecho citado e Aprovações conferidos num Edge de 390 px pelo caminho de
+fora de verdade (`test_tela.py`): nada passa da largura, Aprovar e Recusar
+inteiros e tocáveis. "Abrir fora" (abre o arquivo num programa do Windows)
+some de fora.
+
+O aviso "Disponível só no computador do escritório" passou a aparecer só
+para o que a pessoa pediu (gravar, mandar, apagar). Antes, a leitura que a
+tela faz sozinha ao abrir, e que é do escritório, disparava o aviso sem
+ninguém ter apertado nada.
+
+**Streaming:** as nove respostas em streaming do `api.py` já saíam com
+`text/event-stream`, `Cache-Control: no-cache` e `X-Accel-Buffering: no` —
+conferido agora por leitura do código (toda chamada de `StreamingResponse`)
+e na resposta de verdade da conversa. É o que faz a resposta chegar ao
+celular palavra a palavra pelo túnel, e não de uma vez no fim.
+
+**Energia** (`src/acesso/energia.py`): com o acesso de fora ligado, o
+PAULUS pede ao Windows para não suspender por inatividade
+(`SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)`), de uma
+thread própria que fica viva enquanto segura — o pedido vale só enquanto a
+thread que o fez existe. A tela diz o que o plano de energia faria sem isso
+(`powercfg`, na língua do Windows) e avisa que tampa fechada ou "suspender"
+continuam suspendendo.
+
+**Abrir o PAULUS com o Windows**, minimizado: uma linha na chave `Run` do
+usuário, sem administrador, desligada de fábrica, só no programa instalado
+(no código-fonte não há `PAULUS.exe`). `--minimizado` abre a janela na barra
+de tarefas.
+
+**O que a verificação achou:** o celular não quebrava a largura — o que
+quebrava era o espaço: com o trilho de 64 px ao lado, Aprovações ficava com
+o texto do pedido sobreposto e o Aprovar cortado.
