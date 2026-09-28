@@ -241,6 +241,13 @@ def main() -> int:
             segundos = time.time() - comeco
             texto = "".join(d.get("t", "") for tipo, d in eventos if tipo == "token") + \
                 "".join(d.get("mensagem", "") for tipo, d in eventos if tipo == "vazio")
+            # Com as marcas da I8, o que fica na conversa e o texto conferido
+            # (evento `revisao`), mais o que chegou depois dele.
+            revisao = [i for i, (tipo, _) in enumerate(eventos) if tipo == "revisao"]
+            if revisao:
+                i = revisao[0]
+                texto = eventos[i][1].get("texto", "") + "".join(
+                    d.get("t", "") for tipo, d in eventos[i:] if tipo == "token")
             proposta = next((d for tipo, d in eventos if tipo == "proposta"), {})
             veio = ("programa" if proposta.get("tipo") == "programa"
                     else "pergunta" if proposta.get("tipo") == "escopo" else "documentos")

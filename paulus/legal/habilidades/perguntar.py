@@ -451,11 +451,15 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         material=usados_do_material,
     )
 
-    # I8: os trechos numerados [T1], [T2]... e a instrucao de marcar cada
-    # frase com o trecho de onde saiu (src/citacoes.py). Chave `ia.citacao`.
-    com_marcas = bool(getattr(ctx, "ia", {}).get("citacao", False) and hits)
+    # I8: as marcas [T1], [T2]... de cada frase (src/citacoes.py). Chave
+    # `ia.citacao`: "codigo" poe as marcas depois, em codigo, e o modelo
+    # le o de sempre; "modelo" (ou True) numera os trechos e pede as marcas
+    # ao modelo - que, medido, derruba o banco de provas com o 3B.
+    modo = getattr(ctx, "ia", {}).get("citacao", False)
+    modo = "modelo" if modo is True else (modo or "")
+    com_marcas = bool(modo and hits)
     regra = ""
-    if com_marcas:
+    if com_marcas and modo == "modelo":
         import citacoes
 
         contexto, _ = citacoes.numerar(hits, max_chars=orcamento)
@@ -495,7 +499,12 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
 
     sem_fundamento = False
     if com_marcas and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
-        texto, sem_fundamento = yield from _conferir_marcas(ctx, pergunta, hits, orcamento, "".join(escrito), regra)
+        resposta = "".join(escrito)
+        if modo != "modelo":
+            import citacoes
+
+            resposta = citacoes.atribuir(resposta, [h.chunk.text for h in hits])
+        texto, sem_fundamento = yield from _conferir_marcas(ctx, pergunta, hits, orcamento, resposta, regra)
         escrito = [texto]
 
     # Pergunta de consequencia: a frase do documento que decide, literal,

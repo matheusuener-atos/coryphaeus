@@ -31,7 +31,8 @@ SEM_FONTE = "[sem fonte]"
 REGRA = (
     "Os trechos abaixo vem numerados: [T1], [T2] e assim por diante. Termine cada frase "
     "da resposta com a marca do trecho de onde ela saiu, por exemplo: \"A multa e de 2% [T3].\" "
-    "Use so as marcas que aparecem nos trechos."
+    "Use so as marcas que aparecem nos trechos. Cada trecho pertence ao documento cujo nome esta "
+    "acima dele: nao use o trecho de um documento para responder sobre outro."
 )
 
 # Frases que nao afirmam nada sobre o documento: nao pedem marca.
@@ -48,18 +49,64 @@ def numerar(hits, max_chars: int = 0) -> tuple[str, dict[int, object]]:
     `format_context` de sempre -, e nenhum some calado.
     """
     AVISO = " […]"
+    # Agrupados por documento, com o nome do arquivo em cima, como no
+    # contexto de sempre: soltos, o modelo de 3B misturava documentos -
+    # medido no roteiro, a multa de 2% do contrato de transporte saiu como a
+    # multa do aluguel da Clinica. A numeracao continua a da ordem dos
+    # trechos, que e a das fontes na tela.
     blocos = []
     for i, hit in enumerate(hits, start=1):
         chunk = getattr(hit, "chunk", hit)
         pagina = getattr(chunk, "pagina_inicio", None)
-        onde = f"{chunk.doc_name}, p. {pagina}" if pagina else chunk.doc_name
-        blocos.append((f"[T{i}] ({onde})", chunk.text))
-    total = sum(len(c) + len(t) + 2 for c, t in blocos)
+        blocos.append((chunk.doc_name, f"[T{i}]" + (f" (p. {pagina})" if pagina else ""), chunk.text))
+    total = sum(len(c) + len(t) + 2 for _, c, t in blocos)
     if max_chars and total > max_chars and blocos:
-        fatia = max(120, (max_chars - sum(len(c) + 2 for c, _ in blocos)) // len(blocos))
-        blocos = [(c, t if len(t) <= fatia else t[:max(0, fatia - len(AVISO))] + AVISO) for c, t in blocos]
+        fatia = max(120, (max_chars - sum(len(c) + len(d) + 10 for d, c, _ in blocos)) // len(blocos))
+        blocos = [(d, c, t if len(t) <= fatia else t[:max(0, fatia - len(AVISO))] + AVISO) for d, c, t in blocos]
+    por_documento: dict[str, list[str]] = {}
+    for documento, cabeca, texto in blocos:
+        por_documento.setdefault(documento, []).append(f"{cabeca}\n{texto}")
     mapa = {i: hit for i, hit in enumerate(hits, start=1)}
-    return "\n\n".join(f"{c}\n{t}" for c, t in blocos), mapa
+    return "\n\n".join(f"--- {d} ---\n" + "\n\n".join(partes) for d, partes in por_documento.items()), mapa
+
+
+def atribuir(resposta: str, trechos: list[str]) -> str:
+    """
+    As marcas [Tn] postas em codigo, frase a frase, sem pedir nada ao modelo.
+
+    Medido no roteiro (28/09/2026): pedir as marcas ao llama3.2:3b derrubou o
+    banco de provas de 40/41 para 38/41 - a instrucao a mais deixou as
+    respostas secas ("Nao achou.") e fez o modelo misturar documentos. Aqui
+    o modelo responde como sempre respondeu, e cada frase ganha a marca do
+    trecho que a sustenta: o que tem TODOS os numeros dela e mais palavras
+    em comum. Frase sem trecho assim fica sem marca - e a conferencia a
+    rotula "sem fonte".
+    """
+    from inteligencia import molde
+    from lexico import normalizar
+
+    base = [(set(normalizar(t).split()), molde.numeros_de(t)) for t in trechos]
+    saida = []
+    for frase in _frases(resposta):
+        corpo = frase.strip()
+        if not corpo or RE_MARCA.search(corpo) or len(corpo.split()) < 3:
+            saida.append(frase)
+            continue
+        palavras = {p for p in normalizar(corpo).split() if not p.isdigit() and len(p) > 2}
+        numeros = molde.numeros_de(corpo)
+        melhor, pontos = 0, 0
+        for i, (termos, nums) in enumerate(base, start=1):
+            if numeros and not numeros <= nums:
+                continue
+            comuns = len(palavras & termos) + 2 * len(numeros)
+            if comuns > pontos:
+                melhor, pontos = i, comuns
+        if melhor and pontos >= 3:
+            fim = len(frase.rstrip())
+            corte = fim - 1 if fim and frase[fim - 1] in ".!?" else fim
+            frase = frase[:corte].rstrip() + f" [T{melhor}]" + frase[corte:]
+        saida.append(frase)
+    return "".join(saida)
 
 
 def _frases(texto: str) -> list[str]:

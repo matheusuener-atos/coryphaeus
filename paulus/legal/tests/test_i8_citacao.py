@@ -63,11 +63,16 @@ def test_conferencias() -> None:
     checar("0801234-05" not in r.texto and r.removidas, "3: número de processo com dígito trocado sai", r.texto)
     r = citacoes.revisar("A multa segue o art. 406 do Código Civil [T1].", TRECHOS)
     checar(not r.removidas, "3: artigo que está no trecho fica")
+    a = citacoes.atribuir("A multa é de 2% sobre o valor devido. O foro eleito é o de Santarém.", TRECHOS)
+    checar(a == "A multa é de 2% sobre o valor devido [T1]. O foro eleito é o de Santarém [T2].",
+           "marcas em código: cada frase ganha o trecho que a sustenta", a)
+    a = citacoes.atribuir("A multa é de 5% sobre o valor devido.", TRECHOS)
+    checar("[T" not in a, "número que não está em trecho nenhum não ganha marca", a)
     r = citacoes.revisar("Não encontrei essa informação nos documentos.", TRECHOS)
     checar(r.sem_fundamento, "nenhuma frase com marca: sem fundamento")
     contexto, mapa = citacoes.numerar(["x"] and [type("H", (), {"chunk": type("C", (), {
         "doc_name": "Contrato.pdf", "text": TRECHOS[0], "pagina_inicio": 3})()})()])
-    checar(contexto.startswith("[T1] (Contrato.pdf, p. 3)\nCLÁUSULA 3ª") and list(mapa) == [1],
+    checar(contexto.startswith("--- Contrato.pdf ---\n[T1] (p. 3)\nCLÁUSULA 3ª") and list(mapa) == [1],
            "o trecho numerado leva o arquivo e a página", contexto[:40])
 
 
