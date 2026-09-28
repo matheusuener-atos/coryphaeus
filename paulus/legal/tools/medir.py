@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import unicodedata
@@ -221,10 +222,27 @@ def perguntar(base: str, trabalho: str, p: dict) -> dict:
     no_contexto = recall_em([" ".join(f.get("texto", "") for f in fontes)], p.get("trechos_esperados") or [], 1)
     if veio != p["caminho"]:
         motivo = f"foi para {veio}" + (f"; {motivo}" if motivo else "")
+    # I8: a resposta conferida toma o lugar da escrita; as citacoes que a
+    # conferencia tirou sao as que o modelo inventou.
+    revisao = next((d for t, d in eventos if t == "revisao"), None)
+    if revisao is not None:
+        depois = [i for i, (t, _) in enumerate(eventos) if t == "revisao"][0]
+        texto = revisao.get("texto", "") + "".join(d.get("t", "") for t, d in eventos[depois:] if t == "token")
+        certo, motivo2 = conferir(p, texto + " " + json.dumps(proposta, ensure_ascii=False))
+        motivo = motivo if veio != p["caminho"] else motivo2
+    # "Nao encontrei" onde a resposta existe: a desistencia cedo que a
+    # llama_client.py mediu. So conta fora das perguntas de ausencia.
+    desistiu = bool(RE_DESISTIU.search(_plano(texto))) and p.get("tipo") != "ausencia"
     return {"certo": bool(certo and veio == p["caminho"] and not erro), "motivo": motivo or erro,
             "segundos": round(segundos, 1), "tokens_lidos": medida.get("tokens_lidos"),
             "truncou": any(t == "truncou" for t, _ in eventos), "no_contexto": no_contexto,
-            "veio": veio, "resposta": texto[:600]}
+            "veio": veio, "resposta": texto[:600], "desistiu": desistiu,
+            "inventadas": list((revisao or {}).get("removidas") or []),
+            "sem_fonte": int((revisao or {}).get("sem_fonte") or 0)}
+
+
+RE_DESISTIU = re.compile(r"\bnao (?:encontrei|localizei|achei|consta|ha informac|ha mencao|menciona|traz|informa)"
+                         r"|nenhum documento|nao (?:esta|estao) (?:escrit|mencionad|nos document)")
 
 
 # ----------------------------------------------------------------- o todo
@@ -339,7 +357,12 @@ def main() -> int:
         resumo.update(certas=certos, p50_s=percentil(tempos, 50), p95_s=percentil(tempos, 95),
                       tokens_p50=percentil(tokens, 50), tokens_p95=percentil(tokens, 95),
                       no_contexto=round(sum(contexto) / len(contexto), 3) if contexto else None,
-                      truncou=sum(1 for r in resultados if r.get("truncou")))
+                      truncou=sum(1 for r in resultados if r.get("truncou")),
+                      desistiu=sum(1 for r in resultados if r.get("desistiu")),
+                      inventadas=sum(len(r.get("inventadas") or []) for r in resultados),
+                      sem_fonte=sum(r.get("sem_fonte") or 0 for r in resultados))
+        print(f"desistiu  : {resumo['desistiu']} “não encontrei” onde a resposta existe · "
+              f"{resumo['inventadas']} citações inventadas tiradas · {resumo['sem_fonte']} frases sem fonte")
         print(f"acerto    : {certos}/{len(resultados)}")
         print(f"latência  : p50 {resumo['p50_s']:.1f} s · p95 {resumo['p95_s']:.1f} s")
         if tokens:
