@@ -65,7 +65,7 @@ def main() -> int:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     programa = Path(api.estado.pasta)
     escrever(programa / "da casa.txt", "Documento da pasta do PAULUS: procuração da Cooperativa.")
     # Fora do AppData/Local/Temp: pasta dentro de AppData e "de sistema" para o

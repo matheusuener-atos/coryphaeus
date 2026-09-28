@@ -113,7 +113,7 @@ def test_api() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     original = api.atualizacao_mod.consultar
     api.atualizacao_mod.consultar = lambda atual, **k: original(atual, pegar=lambda u: _Resp(ANUNCIO))
     try:

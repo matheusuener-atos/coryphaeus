@@ -71,7 +71,7 @@ with sync_playwright() as pw:
     nav = pw.chromium.launch(); pag = nav.new_page(viewport={"width": 1440, "height": 900})
     pag.add_init_script("try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}")
     erros = []; pag.on("pageerror", lambda e: erros.append(str(e)))
-    pag.goto(base, wait_until="networkidle"); pag.wait_for_timeout(2000)
+    pag.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="networkidle"); pag.wait_for_timeout(2000)
     exercitar(pag, "Assistente", "() => { voltarAoAssistente(); setTimeout(() => alternarListaDeConversas(true), 300); }", "#lista-conversas .lc-linha[data-sel]")
     exercitar(pag, "Cadastros", "() => abrirDestino('cadastros')", "#cad-tela .tabela-linha[data-sel]")
     exercitar(pag, "Lançamentos", "() => mostrarFinanceiro('lancamentos')", "#financeiro .tabela-linha[data-sel]")

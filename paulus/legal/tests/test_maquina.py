@@ -167,7 +167,7 @@ def test_api() -> None:
     api.modelos_mod.instalados = lambda host: [{"nome": "llama3.2:3b", "gb": 2.02, "parametros": "3.2B", "quantizacao": "Q4_K_M"}]
     api.modelos_mod.tamanhos_do_catalogo = lambda: {}
     try:
-        c = TestClient(api.app)
+        c = TestClient(api.app, headers=api.cabecalho_local())
         d = c.get("/api/maquina").json()
         checar(d["recomendado"] == "llama3.2:3b" and d["maquina"]["processador"] == "teste", "recomenda pela máquina", d.get("recomendado"))
         nomes = [x["nome"] for x in d["modelos"]]

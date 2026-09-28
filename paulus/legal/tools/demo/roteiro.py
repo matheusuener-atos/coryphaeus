@@ -159,9 +159,16 @@ def conferir(p: dict, alvo: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _local() -> dict:
+    """O servidor sobe neste mesmo processo: o roteiro e cliente local, com a chave da janela."""
+    import api
+
+    return api.cabecalho_local()
+
+
 def conversar(base: str, caminho: str, dados: dict, limite: int = 420) -> list[tuple[str, dict]]:
     req = urllib.request.Request(base + caminho, data=json.dumps(dados).encode(), method="POST",
-                                 headers={"Content-Type": "application/json"})
+                                 headers={**_local(), "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=limite) as r:
         texto = r.read().decode("utf-8")
     eventos = []
@@ -180,7 +187,7 @@ def conversar(base: str, caminho: str, dados: dict, limite: int = 420) -> list[t
 def pedir(base: str, metodo: str, caminho: str, dados: dict | None = None) -> dict:
     req = urllib.request.Request(base + caminho, method=metodo,
                                  data=json.dumps(dados).encode() if dados is not None else None,
-                                 headers={"Content-Type": "application/json"})
+                                 headers={**_local(), "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode("utf-8") or "{}")
 

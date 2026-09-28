@@ -84,7 +84,7 @@ def test_rotas() -> None:
     import api
 
     entrada.LIMITE, entrada.TETO = 1 * entrada.MB, 3 * entrada.MB
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     origem = TMP / "origem"
     origem.mkdir()
     grande = origem / "escaneado grande.pdf"

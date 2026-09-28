@@ -45,7 +45,7 @@ def main() -> int:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     Path(api.estado.pasta).mkdir(parents=True, exist_ok=True)
     api.estado.recarregar()
     programa = Path(api.estado.pasta)

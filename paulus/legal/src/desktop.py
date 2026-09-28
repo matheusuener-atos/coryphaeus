@@ -308,11 +308,45 @@ def _porta_da_instancia_aberta() -> int:
         return 0
     if not porta:
         return 0
+    pedido = urllib.request.Request(f"http://127.0.0.1:{porta}/api/status", headers=_cabecalho_local())
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{porta}/api/status", timeout=3) as r:
+        with urllib.request.urlopen(pedido, timeout=3) as r:
             return porta if "versao" in json.loads(r.read().decode("utf-8")) else 0
     except (OSError, ValueError):
         return 0
+
+
+def _conteudo_da_instancia(porta: int, chave: str) -> str:
+    """
+    O que vai no arquivo de instancia: a porta, o processo e a chave da janela
+    desta execucao (src/acesso/chave.py). O arquivo fica na pasta de dados da
+    conta do Windows que roda o PAULUS, e e so dali que um cliente local sem
+    janela tira a chave.
+    """
+    return json.dumps({"porta": porta, "pid": os.getpid(), "chave": chave})
+
+
+def _chave_da_instancia() -> str:
+    try:
+        return str(json.loads(_instancia_path().read_text(encoding="utf-8")).get("chave") or "")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ""
+
+
+def _cabecalho_local() -> dict:
+    """A segunda instancia fala com a primeira como cliente local: com a chave."""
+    chave = _chave_da_instancia()
+    return {"X-PAULUS-Chave": chave} if chave else {}
+
+
+def _endereco_da_janela(porta: int, chave: str, pedido: str) -> str:
+    """
+    A janela abre pelo /entrar-local, que troca a chave pelo cookie da sessao
+    local e segue para a pagina levando o #fragmento - o "#perguntar=..." do
+    botao direito do Explorer.
+    """
+    return (f"http://127.0.0.1:{porta}/entrar-local?chave={urllib.parse.quote(chave)}"
+            + ("#perguntar=" + urllib.parse.quote(pedido) if pedido else ""))
 
 
 def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
@@ -329,7 +363,7 @@ def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
     rota, corpo = ("perguntar", {"caminho": caminho}) if caminho else ("mostrar", {})
     pedido = urllib.request.Request(
         f"http://127.0.0.1:{porta}/api/externo/{rota}", data=json.dumps(corpo).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method="POST",
+        headers={"Content-Type": "application/json", **_cabecalho_local()}, method="POST",
     )
     try:
         with urllib.request.urlopen(pedido, timeout=10) as r:
@@ -412,7 +446,7 @@ def main() -> int:
         return 1
     try:
         _instancia_path().parent.mkdir(parents=True, exist_ok=True)
-        _instancia_path().write_text(json.dumps({"porta": porta, "pid": os.getpid()}), encoding="utf-8")
+        _instancia_path().write_text(_conteudo_da_instancia(porta, api.estado.acesso.chave), encoding="utf-8")
     except OSError:
         pass
     api.estado.ao_pedido_externo = _pedido_externo
@@ -426,7 +460,7 @@ def main() -> int:
     # move a janela.
     _JANELA = webview.create_window(
         TITULO,
-        f"http://127.0.0.1:{porta}/" + ("#perguntar=" + urllib.parse.quote(pedido) if pedido else ""),
+        _endereco_da_janela(porta, api.estado.acesso.chave, pedido),
         js_api=Ponte(),
         width=1280,
         height=860,

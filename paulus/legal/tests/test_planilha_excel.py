@@ -180,7 +180,7 @@ def test_rotas() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     r = c.post("/api/documentos", json={"titulo": "Teste de planilha estrutura", "tipo": "planilha"})
     checar(r.status_code == 200, "planilha de teste criada")
     id_ = r.json()["id"]

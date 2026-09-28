@@ -181,10 +181,13 @@ def main() -> int:
                 lambda m: erros.append(m.text) if m.type == "error" else None,
             )
 
-            pagina.goto(base, wait_until="networkidle")
+            # Como a janela do programa: entra uma vez pelo /entrar-local, que
+            # troca a chave desta execucao pelo cookie da sessao local (R1).
+            pagina.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="networkidle")
             pagina.wait_for_timeout(2500)
 
             print("\nabertura")
+            checar(pagina.url.rstrip("/") == base, "o /entrar-local segue para a pagina", pagina.url)
             checar(not erros, f"nenhum erro de JavaScript ao abrir", "; ".join(erros[:3]))
             checar(
                 pagina.evaluate("() => !!document.querySelector('link[rel=icon]')"),

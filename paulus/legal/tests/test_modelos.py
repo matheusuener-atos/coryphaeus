@@ -139,7 +139,7 @@ def test_api() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     padrao = api.estado.client.model
     original = api.modelos_mod.instalados
     api.modelos_mod.instalados = lambda host: [{"nome": padrao, "gb": 2.0}, {"nome": "leve:1b", "gb": 1.3}]
@@ -192,7 +192,7 @@ def test_usar_e_baixar() -> None:
         checar(iniciados == ["qwen2.5:3b"] and gravados[-1] == {"modelo": "gemma2:2b"}, "sem baixar: só vira o padrão")
         from fastapi.testclient import TestClient
 
-        c = TestClient(api.app)
+        c = TestClient(api.app, headers=api.cabecalho_local())
         checar(c.post("/api/modelos/usar", json={"nome": "rm -rf /", "baixar": True}).status_code == 400,
                "nome de modelo inválido é recusado")
     finally:

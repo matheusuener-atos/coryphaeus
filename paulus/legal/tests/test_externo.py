@@ -37,7 +37,7 @@ def test_rotas() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     recebidos = []
     antes = api.estado.ao_pedido_externo
     api.estado.ao_pedido_externo = lambda tipo, caminho: recebidos.append((tipo, caminho))

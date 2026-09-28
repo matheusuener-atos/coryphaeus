@@ -273,7 +273,7 @@ def test_zip(tmp: Path) -> None:
     with Ambiente(tmp) as amb:
         api = amb.api
         x, y = _dois_assinados_com_o_mesmo_nome(tmp, api.estado.assinaturas)
-        cliente = TestClient(api.app)
+        cliente = TestClient(api.app, headers=api.cabecalho_local())
 
         r = cliente.get("/api/assinar/zip", params=[("arquivo", str(x)), ("arquivo", str(y))])
         checar(r.status_code == 200, f"a rota entrega o .zip ({r.status_code})")

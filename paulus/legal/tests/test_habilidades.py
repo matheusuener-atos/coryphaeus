@@ -305,12 +305,17 @@ def test_parar_resposta() -> None:
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
     base = f"http://127.0.0.1:{porta}"
+    import api
+
+    # Cliente local: a chave da janela vai em todo pedido (R1).
+    sessao = requests.Session()
+    sessao.headers.update(api.cabecalho_local())
     criado = None
     try:
-        criado = requests.post(base + "/api/trabalhos", json={"pedido": "teste do parar"}).json()
+        criado = sessao.post(base + "/api/trabalhos", json={"pedido": "teste do parar"}).json()
         eventos: list[str] = []
         comeco = time.time()
-        with requests.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
+        with sessao.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
                            json={"pergunta": "qual o prazo do contrato?"}, stream=True) as r:
             pediu = False
             for linha in r.iter_lines(decode_unicode=True):
@@ -318,12 +323,12 @@ def test_parar_resposta() -> None:
                     eventos.append(linha[7:])
                     if linha == "event: token" and eventos.count("token") == 5 and not pediu:
                         pediu = True
-                        threading.Thread(target=lambda: requests.post(f"{base}/api/trabalhos/{criado['id']}/parar")).start()
+                        threading.Thread(target=lambda: sessao.post(f"{base}/api/trabalhos/{criado['id']}/parar")).start()
         demorou = time.time() - comeco
         print("         eventos: " + ", ".join(dict.fromkeys(eventos)))
         checar("parado" in eventos and "fim" not in eventos, "a resposta termina com 'parado', e nao com 'fim'")
         checar(demorou < 4, f"e para logo (escreveria 8 s; parou em {demorou:.1f} s)")
-        depois = requests.get(f"{base}/api/trabalhos/{criado['id']}").json()
+        depois = sessao.get(f"{base}/api/trabalhos/{criado['id']}").json()
         ultima = depois["mensagens"][-1]
         checar(depois["estado"] == "pausado", "a conversa volta como parada")
         checar(ultima["autor"] == "paulus" and ultima["interrompida"] and ultima["texto"].startswith("palavra0"),
@@ -332,21 +337,21 @@ def test_parar_resposta() -> None:
 
         # Retomar: a mesma pergunta de novo nao se repete no historico, e a
         # resposta que tinha parado no meio da lugar a nova.
-        with requests.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
+        with sessao.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
                            json={"pergunta": "qual o prazo do contrato?", "retomar": True}, stream=True) as r:
             pediu = False
             for linha in r.iter_lines(decode_unicode=True):
                 if linha == "event: token" and not pediu:
                     pediu = True
-                    threading.Thread(target=lambda: requests.post(f"{base}/api/trabalhos/{criado['id']}/parar")).start()
-        retomada = requests.get(f"{base}/api/trabalhos/{criado['id']}").json()["mensagens"]
+                    threading.Thread(target=lambda: sessao.post(f"{base}/api/trabalhos/{criado['id']}/parar")).start()
+        retomada = sessao.get(f"{base}/api/trabalhos/{criado['id']}").json()["mensagens"]
         checar([m["autor"] for m in retomada] == ["pessoa", "paulus"],
                "retomar nao repete a pergunta e troca a resposta parada pela nova")
 
         # Conversa presa em "trabalhando" de uma sessao que ja acabou.
         preso = api.estado.trabalhos.obter(criado["id"])
         preso.estado = "executando"
-        r = requests.post(f"{base}/api/trabalhos/{criado['id']}/parar").json()
+        r = sessao.post(f"{base}/api/trabalhos/{criado['id']}/parar").json()
         checar(r["parando"] is False and r["estado"] == "pausado",
                "sem resposta andando, parar destrava a conversa presa")
     finally:

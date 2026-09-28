@@ -145,7 +145,7 @@ def test_api() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     sid = api.estado.servicos.salvar({"nome": "Teste de OCR"})
     vazio, bom = TMP / "download-que-falhou.pdf", TMP / "procuracao escaneada.pdf"
     vazio.write_bytes(b"")

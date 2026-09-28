@@ -80,7 +80,7 @@ def test_rotas() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     (pasta / "parecer.txt").write_text("versao antiga", encoding="utf-8")

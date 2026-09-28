@@ -108,7 +108,7 @@ def test_api() -> None:
 
     import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     enviados, baixados = [], []
     original = (cr.enviar, cr.baixar)
     api.calibracao_remota.enviar = lambda amostras, versao="", **k: (enviados.append(list(amostras)), {"recebidas": len(amostras)})[1]

@@ -1121,3 +1121,55 @@ O que sobrou da comparação, tela a tela.
 - Assinar: compartilhar depois de assinar, prévia, repetir o selo
 - Certificado: testar assinatura, arrastar o arquivo
 - Configurações: foto e documentos do titular
+
+---
+
+# Acesso de fora (`acesso-remoto/v0`)
+
+O computador do escritório continua sendo o PAULUS; o advogado ganha um
+caminho seguro até ele, de casa ou do celular, pelo túnel da Cloudflare em
+`<escritório>.paulus.ia.br`. Documentos, metadata e modelo nunca saem da
+máquina. Tudo atrás da preferência `acesso_remoto`, desligada de fábrica. O
+andamento etapa a etapa está em `docs/PROGRESSO-IMPLEMENTACAO.md`.
+
+## R1 — A chave da janela ✓ FEITA
+
+O servidor sempre escutou só em `127.0.0.1`, e isso parecia bastar. Não
+basta: **qualquer programa do computador** chamava `127.0.0.1:<porta>` sem
+controle nenhum, e o agente do túnel também vai conectar de `127.0.0.1`. O
+endereço de origem não separa quem está na frente da máquina de quem chega
+pela internet, e cabeçalho (`Cf-Connecting-IP`, `X-Forwarded-For`) qualquer
+processo local forja.
+
+Quem separa agora é uma chave, nova a cada início do servidor
+(`src/acesso/chave.py`):
+
+- a janela abre `/entrar-local?chave=…` uma vez, e a chave vira um cookie de
+  sessão local — `HttpOnly`, `SameSite=Strict`, de valor diferente da chave.
+  O endereço não vale uma segunda vez: endereço fica em histórico e em log;
+- quem não tem janela — a segunda instância que entrega o "Perguntar ao
+  PAULUS" do Explorer, o roteiro da demonstração, os testes — lê a chave do
+  `instancia.json` e manda `X-PAULUS-Chave`;
+- `python src/api.py` imprime o endereço com a chave, como o Jupyter.
+
+O resto recebe 403: HTML explicando para quem abriu no navegador, JSON para
+quem chamou a API. O `#perguntar=…` do Explorer atravessa a entrada porque
+quem segue para `/` é o navegador (`location.replace('/' + location.hash)`):
+o fragmento nunca chega ao servidor.
+
+O porteiro (`src/acesso/porteiro.py`) é ASGI puro, e não o middleware de alto
+nível do Starlette: aquele embrulha o corpo da resposta, e a conversa sai em
+streaming por minutos.
+
+O retorno do login do Google e da Microsoft não precisou de exceção: ele cai
+no servidor temporário do próprio `correio_oauth.py`, não neste.
+
+**Medido:** o portão percorre `app.routes` — 363 rotas, nenhuma escrita à mão
+— e todas respondem 403 sem a chave; rota que nem existe também (403, não
+404: nada se descobre de fora). Chave errada, cookie inventado e cabeçalho de
+origem forjado continuam de fora.
+
+**O que a verificação achou:** dois testes que abrem o navegador de verdade
+(`test_tela`, `test_listas`) e um que sobe o servidor (`test_habilidades`)
+falavam com o PAULUS como qualquer programa — exatamente a brecha. Passaram a
+entrar pela chave, como a janela.

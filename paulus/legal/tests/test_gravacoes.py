@@ -85,6 +85,13 @@ def _subir_servidor(porta: int):
     raise RuntimeError("o servidor nao subiu")
 
 
+def _local() -> dict:
+    """O servidor roda neste mesmo processo: o cliente e local, com a chave da janela (R1)."""
+    import api
+
+    return api.cabecalho_local()
+
+
 class Cliente:
     def __init__(self, porta: int) -> None:
         self.base = f"http://127.0.0.1:{porta}"
@@ -92,7 +99,7 @@ class Cliente:
     def pedir(self, metodo: str, caminho: str, dados=None, bruto: bytes | None = None, tempo: int = 600):
         corpo = bruto if bruto is not None else (json.dumps(dados).encode() if dados is not None else None)
         tipo = "application/octet-stream" if bruto is not None else "application/json"
-        req = urllib.request.Request(self.base + caminho, data=corpo, method=metodo, headers={"Content-Type": tipo})
+        req = urllib.request.Request(self.base + caminho, data=corpo, method=metodo, headers={**_local(), "Content-Type": tipo})
         try:
             with urllib.request.urlopen(req, timeout=tempo) as r:
                 return r.status, json.loads(r.read() or b"{}")
@@ -102,7 +109,7 @@ class Cliente:
     def conversar(self, caminho: str, dados: dict) -> list[tuple[str, dict]]:
         """Os eventos (tipo, dados) de uma resposta em Server-Sent Events."""
         req = urllib.request.Request(self.base + caminho, data=json.dumps(dados).encode(), method="POST",
-                                     headers={"Content-Type": "application/json"})
+                                     headers={**_local(), "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=120) as r:
             texto = r.read().decode("utf-8")
         eventos = []
@@ -125,7 +132,7 @@ class Cliente:
         corpo += (f"--{limite}\r\nContent-Disposition: form-data; name=\"arquivo\"; filename=\"{nome}\"\r\n"
                   f"Content-Type: audio/wav\r\n\r\n").encode() + conteudo + f"\r\n--{limite}--\r\n".encode()
         req = urllib.request.Request(self.base + "/api/gravacoes", data=corpo, method="POST",
-                                     headers={"Content-Type": f"multipart/form-data; boundary={limite}"})
+                                     headers={**_local(), "Content-Type": f"multipart/form-data; boundary={limite}"})
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
                 return r.status, json.loads(r.read())
@@ -133,7 +140,7 @@ class Cliente:
             return e.code, json.loads(e.read() or b"{}")
 
     def baixar(self, caminho: str) -> tuple[int, str, bytes]:
-        with urllib.request.urlopen(self.base + caminho, timeout=60) as r:
+        with urllib.request.urlopen(urllib.request.Request(self.base + caminho, headers=_local()), timeout=60) as r:
             return r.status, r.headers.get("content-type", ""), r.read()
 
 

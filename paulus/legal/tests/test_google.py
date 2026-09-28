@@ -232,7 +232,7 @@ def test_api() -> None:
     import api
     from correio_contas import Conta
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, headers=api.cabecalho_local())
     conta = Conta(id="g1", email="adv@gmail.com", autenticacao="google",
                   escopos="https://mail.google.com/ " + gs.ESCOPOS["agenda"] + " " + gs.ESCOPOS["drive"])
     api.estado.contas.itens.append(conta)

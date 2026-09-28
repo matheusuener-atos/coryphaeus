@@ -82,6 +82,8 @@ import google_servicos
 import atualizacao as atualizacao_mod
 import calibracao_remota
 from versao import VERSAO
+from acesso.chave import ChaveLocal
+from acesso.porteiro import Porteiro
 from inteligencia import portas as inteligencia
 from inteligencia.catalogo import Catalogo
 from inteligencia.guarda import Biblioteca
@@ -211,6 +213,9 @@ class Estado:
         self.retrato = ""
         self.versao_do_acervo = 0
         self.porta = 8000
+        # A chave da janela desta execucao (src/acesso/chave.py): sem ela,
+        # a requisicao e de fora e o porteiro barra.
+        self.acesso = ChaveLocal()
         # Quem abre a janela (src/desktop.py) diz como trazer ela para frente
         # e entregar um arquivo vindo do Explorer ("Perguntar ao PAULUS").
         # Sem janela (o programa no navegador), fica None.
@@ -571,13 +576,21 @@ async def lifespan(app: FastAPI):
     estado.vigia.comecar()
     threading.Thread(target=estado._vigiar, name="acervo-vigia", daemon=True).start()
     threading.Thread(target=_verificar_atualizacao_se_velha, name="atualizacao", daemon=True).start()
-    print(f"\n  PAULUS Legal - abra http://localhost:{estado.porta}")
+    print(f"\n  PAULUS Legal - servidor em 127.0.0.1:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     yield
     estado.vigia.parar()
 
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
+# O porteiro vem antes de tudo: separa a janela local (chave ou cookie da
+# sessao local) de quem chega de fora, e barra quem chega de fora.
+app.add_middleware(Porteiro, chave=estado.acesso)
+
+
+def cabecalho_local() -> dict:
+    """O cabecalho de quem fala com este servidor de dentro do mesmo processo (roteiro, testes)."""
+    return estado.acesso.cabecalho()
 
 
 @app.exception_handler(nomes_mod.NomeRepetido)
@@ -10224,6 +10237,9 @@ def main() -> None:
     estado.porta = args.port
     estado.client = LlamaClient(model=args.model)
 
+    # Sem a janela, quem abre e o navegador: o endereco leva a chave desta
+    # execucao, como o Jupyter faz, e so vale uma vez (src/acesso/chave.py).
+    print(f"\n  Abra no navegador: http://127.0.0.1:{args.port}/entrar-local?chave={estado.acesso.chave}")
     # host fixo em 127.0.0.1: o servidor nao deve ficar exposto na rede local,
     # os documentos sao de cliente.
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

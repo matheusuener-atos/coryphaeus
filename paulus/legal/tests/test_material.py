@@ -202,7 +202,7 @@ def test_api() -> None:
     pasta = Path(tempfile.mkdtemp(prefix="paulus-material-api-"))
     api.estado.material = material_mod.Material(pasta)
     try:
-        c = TestClient(api.app)
+        c = TestClient(api.app, headers=api.cabecalho_local())
         r = c.post("/api/material", files=[("arquivos", ("Manual.pdf", pdf_de(PAGINAS), "application/pdf")),
                                            ("arquivos", ("foto.jpg", b"\xff\xd8", "image/jpeg"))])
         d = r.json()
