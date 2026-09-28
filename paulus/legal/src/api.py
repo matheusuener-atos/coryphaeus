@@ -6506,29 +6506,25 @@ def apoio_assinatura_situacao(id_: str) -> dict:
 @app.post("/api/apoio/extrato")
 def apoio_extrato(payload: dict) -> dict:
     """
-    O "PAULUS - Extrato de apoio" em PDF: os Pix confirmados nesta maquina
-    (a tela manda) e as cobrancas do cartao, consultadas no Mercado Pago
-    agora. Gravado em data/apoio, para baixar pela janela de sempre.
+    O "PAVLVS - Extrato de contribuicoes" em PDF: os Pix confirmados nesta
+    maquina (a tela manda) e as cobrancas do cartao, consultadas no Mercado
+    Pago agora. Gravado no Acervo, para baixar pela janela de sempre.
     """
     import extrato_apoio
 
     pix = [p for p in (payload.get("pix") or []) if isinstance(p, dict)][:500]
     cobrancas: list = []
-    assinatura = None
     # A assinatura de agora e as ja interrompidas: as cobrancas de todas.
-    for i, ass in enumerate([a for a in (payload.get("assinaturas") or []) if isinstance(a, dict)][:20]):
+    for ass in [a for a in (payload.get("assinaturas") or []) if isinstance(a, dict)][:20]:
         if not (ass.get("id") and ass.get("chave")):
             continue
         try:
             cobrancas += apoio.pagamentos_da_assinatura(str(ass["id"]), str(ass["chave"])).get("pagamentos", [])
-            if i == 0 and ass.get("atual"):
-                situacao = apoio.situacao_da_assinatura(str(ass["id"]))
-                assinatura = {"situacao": situacao.get("situacao", ""), "valor": ass.get("valor")}
         except apoio.ErroDeApoio as exc:
             raise HTTPException(status_code=502, detail=f"não consegui as cobranças do cartão: {exc}") from exc
     try:
-        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=str(payload.get("nome", ""))[:80], email=str(payload.get("email", ""))[:120],
-                                      pix=pix, cobrancas=cobrancas, assinatura=assinatura)
+        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=str(payload.get("nome", ""))[:80],
+                                      email=str(payload.get("email", ""))[:120], pix=pix, cobrancas=cobrancas)
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=500, detail=f"não consegui montar o extrato: {exc}") from exc
     estado.recarregar_em_segundo_plano()

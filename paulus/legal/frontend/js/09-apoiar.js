@@ -135,8 +135,8 @@ function aberturaDoApoio() {
 /* O extrato em PDF, assim que houver algum pagamento ou assinatura. */
 function extratoDoApoio() {
   if (!apoio.historico.length && !apoio.assinaturaId && !apoio.assinaturasAntigas.length) return "";
-  return '<div class="apoio-extrato"><button class="com-icone" data-apoio-extrato="1">' + ic("download", 16) + "Baixar extrato de apoio</button>" +
-    "<small>cada pagamento, a natureza do apoio e o que a lei diz — em PDF</small></div>";
+  return '<div class="apoio-extrato"><button class="com-icone" data-apoio-extrato="1">' + ic("download", 16) + "Baixar extrato de contribuições</button>" +
+    "<small>cada contribuição, o total e o tratamento fiscal — em PDF</small></div>";
 }
 
 /* A assinatura, enquanto existir: o valor, desde quando, e o botao de

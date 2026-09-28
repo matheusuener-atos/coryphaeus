@@ -75,7 +75,7 @@ def main() -> int:
     finally:
         apoio.requests.request = original
 
-    print("\nExtrato de apoio")
+    print("\nExtrato de contribuições")
     import tempfile
 
     import extrato_apoio
@@ -84,21 +84,34 @@ def main() -> int:
         [{"data": "2026-09-26T10:00:00", "valor": 5, "id": "ORD01X"}],
         [{"data": "2026-08-27T00:00:00.000-04:00", "valor": 50, "id": "7001", "situacao": "approved"},
          {"data": "2026-09-27T00:00:00.000-04:00", "valor": 50, "id": "7002", "situacao": "scheduled"}])
-    checar([l["forma"] for l in linhas] == ["Cartão · mensal", "Pix", "Cartão · mensal"], "do mais antigo ao mais novo, Pix e cartão juntos")
-    checar([l["situacao"] for l in linhas] == ["pago", "pago", "agendado"], "situação em português", str(linhas))
+    checar([l["forma"] for l in linhas] == ["Cartão de crédito", "Pix", "Cartão de crédito"], "da mais antiga à mais nova, Pix e cartão juntos")
+    checar([l["tipo"] for l in linhas] == ["Recorrente", "Avulsa", "Recorrente"], "Pix é avulsa; cobrança do cartão, recorrente")
+    checar([l["situacao"] for l in linhas] == ["Confirmada", "Confirmada", "Agendada"], "situação em português", str(linhas))
+    soma = extrato_apoio.resumo(linhas)
+    checar(soma == {"total": 55.0, "periodo": "27/08/2026 a 26/09/2026", "contagem": "2 confirmadas"},
+           "o resumo conta só as confirmadas, com o período delas", str(soma))
+    checar(extrato_apoio.resumo([])["contagem"] == "nenhuma confirmada", "sem contribuição, o resumo diz nenhuma")
     with tempfile.TemporaryDirectory() as pasta:
         pdf = extrato_apoio.gerar(Path(pasta), nome="Escritório Exemplo", email="apoiador@exemplo.com.br",
                                   pix=[{"data": "2026-09-26T10:00:00", "valor": 5, "id": "ORD01X"}],
                                   cobrancas=[{"data": "2026-08-27", "valor": 50, "id": "7001", "situacao": "approved"},
                                              {"data": "2026-09-27", "valor": 50, "id": "7002", "situacao": "scheduled"}])
         import pypdfium2 as pdfium
-        documento = pdfium.PdfDocument(pdf.read_bytes())
-        texto = documento[0].get_textpage().get_text_range()
+        bruto = pdf.read_bytes()
+        documento = pdfium.PdfDocument(bruto)
+        texto = "\n".join(documento[i].get_textpage().get_text_range() for i in range(len(documento)))
+        texto = " ".join(texto.split())  # a linha que quebra no PDF volta inteira
         documento.close()
-    checar("R$ 55,00" in texto, "o total soma só o que foi pago (5 + 50)", texto[:200])
-    checar("art. 538" in texto and "10.406/2002" in texto, "cita a doação do Código Civil")
-    checar("9.250/1995" in texto and "Não é dedutível" in texto, "diz que não é dedutível do IR, com a lei")
-    checar("Não é recibo fiscal" in texto, "diz que não é recibo fiscal")
+    checar("Extrato de contribuições" in texto and "R$ 55,00" in texto,
+           "título do desenho e o total só do que foi confirmado (5 + 50)", texto[:200])
+    checar("TOTAL CONTRIBUÍDO" in texto and "PERÍODO" in texto and "2 confirmadas" in texto, "o quadro tem total, período e contagem")
+    checar("Agendada" in texto and "Avulsa" in texto and "Recorrente" in texto, "cada linha tem tipo e situação")
+    checar("voluntárias e sem contrapartida" in texto, "diz que a contribuição é voluntária, sem contrapartida")
+    checar("não gera ao apoiador direito à dedução do Imposto de Renda" in texto, "diz que não dá dedução do IR")
+    checar("Não é nota fiscal nem documento fiscal" in texto, "diz que não é nota fiscal")
+    checar("emitido em" in texto and "paulus.ia.br" in texto, "o rodapé traz a emissão e o site")
+    embutidas = [n for n in ("PAULUSGaramond", "PAULUSManrope", "PAULUSMono") if n.encode() in bruto]
+    checar(len(embutidas) == 3, "Garamond, Manrope e a mono do desenho vão embutidas", str(embutidas))
 
     print("\n" + "=" * 55)
     if _falhas:

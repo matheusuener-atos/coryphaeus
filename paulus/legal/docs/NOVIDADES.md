@@ -18,6 +18,10 @@ não para quem programa: cada linha diz o que passou a ser possível fazer.
   aba mostra a conta, o que foi autorizado e quando a conexão terminou. O
   botão Voltar ao PAULUS traz a janela para frente. Login cancelado ou vencido
   mostra "Este login expirou", em vez de uma página de erro do navegador.
+- **Extrato de contribuições novo.** Em Apoiar o projeto, o PDF mostra cada
+  contribuição com data, tipo (avulsa no Pix, recorrente no cartão), forma,
+  referência do Mercado Pago e situação. No alto ficam o total, o período e
+  quantas foram confirmadas. Só as confirmadas entram no total.
 - **A calibração mede sozinha.** Com "Participar da calibração" ligado, o
   modelo que termina de baixar é medido uma vez, e a medida vai para o site
   do PAULUS, para as recomendações de modelo acertarem mais.

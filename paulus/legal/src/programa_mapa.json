@@ -2411,7 +2411,7 @@
    ],
    "faz": [
     "Pix uma vez (QR e copia e cola, valem 30 minutos) ou cartão todo mês pelo Mercado Pago.",
-    "Baixa o extrato de apoio em PDF depois do primeiro pagamento."
+    "Baixa o extrato de contribuições em PDF depois do primeiro pagamento."
    ],
    "nao_faz": [
     "O mural público de apoiadores ainda não existe.",
@@ -2468,12 +2468,13 @@
      "pergunta": "Como baixo o extrato do meu apoio?",
      "palavras": [
       "extrato de apoio",
+      "extrato de contribuições",
       "recibo do apoio",
       "comprovante do apoio"
      ],
      "passos": [
       "Abra Apoiar o projeto no menu.",
-      "Clique em Baixar extrato de apoio (aparece depois do primeiro pagamento).",
+      "Clique em Baixar extrato de contribuições (aparece depois do primeiro pagamento).",
       "Escolha onde salvar o PDF."
      ],
      "evidencia": "frontend/js/09-apoiar.js:138"
