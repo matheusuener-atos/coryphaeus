@@ -276,7 +276,11 @@ def enviar() -> dict:
 
     passo("site e anúncio de versão")
     atualizar_site(v, url, sha, e["tamanho"], e["novidades"])
-    commit_e_push([SITE / "index.html", SITE / "atualizacao.json"], f"Site: PAULUS {v}")
+    # A versao nova entra no historico da pagina Desenvolvimento aberto.
+    sys.path.insert(0, str(APP / "tools"))
+    import desenvolvimento
+    desenvolvimento.gerar()
+    commit_e_push([SITE / "index.html", SITE / "atualizacao.json", SITE / "dados" / "versoes.json"], f"Site: PAULUS {v}")
     ESTADO.unlink(missing_ok=True)
 
     def no_ar() -> bool:

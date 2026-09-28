@@ -29,16 +29,12 @@
 <div class="aviso">Em piloto com os primeiros escritórios · software livre, gratuito.<a href="#download">Baixar para Windows →</a></div>
 
 <header class="topo">
-  <a class="marca" href="./" aria-label="PAVLVS — página inicial">
-    <img src="assets/paulus-logo.svg" alt="" width="30" height="30">
-    <span>PAVLVS</span>
-  </a>
+  <a class="marca" href="./" aria-label="PAVLVS — página inicial"><span>PAVLVS</span></a>
   <nav class="nav" id="nav-principal" aria-label="Principal">
-    <a href="#plataforma">Plataforma</a>
-    <a href="#modulos">Módulos</a>
-    <a href="#privacidade">Privacidade</a>
-    <a href="#roadmap">Roadmap</a>
-    <a href="#apoiar">Apoiar</a>
+    <a href="./" aria-current="page">Plataforma</a>
+    <a href="desenvolvimento/">Desenvolvimento</a>
+    <a href="apoiadores/">Apoiadores</a>
+    <a href="apoiar/">Apoiar</a>
   </nav>
   <div class="acoes">
     <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">dark_mode</span></button>
@@ -173,7 +169,7 @@
       <span class="rotulo">05 — Privacidade</span>
       <h2 id="t-privacidade" style="max-width:18ch">Seus documentos ficam onde estão.</h2>
       <!-- Ajuste em relacao a referencia: ela dizia "Nao existe chamada a API externa no produto. A unica saida para a internet e a verificacao de atualizacoes". Isso contradiz o acesso ao e-mail (Google/Microsoft), a consulta ao planalto.gov.br e a politica de privacidade; o Google compara a pagina inicial com a politica. -->
-      <p class="lead">Extração, índice e modelo rodam via Ollama na máquina do escritório. Seus documentos e mensagens não passam por nenhum servidor nosso. O programa só vai à internet para o que você usa: o seu e-mail, direto com o seu provedor; o texto das leis, no site do Planalto; o download dos modelos que você escolher (linguagem, voz e tradução); a checagem de versão nova, uma vez por dia (dá para desligar); e, se você apoiar o projeto, o pagamento pelo Mercado Pago, através deste site.</p>
+      <p class="lead">Extração, índice e modelo rodam via Ollama na máquina do escritório. Seus documentos e mensagens não passam por nenhum servidor nosso. O programa só vai à internet para o que você usa: o seu e-mail, direto com o seu provedor; o texto das leis, no site do Planalto; o download dos modelos que você escolher (linguagem, voz e tradução); a checagem de versão nova, uma vez por dia (dá para desligar); o histórico público do projeto, quando você abre Desenvolvimento aberto; e, se você apoiar o projeto, o pagamento pelo Mercado Pago, através deste site.</p>
       <p class="lead links-texto">Detalhes na <a href="politica-de-privacidade/">Política de privacidade</a>.</p>
     </div>
     <dl class="fatos">
@@ -258,8 +254,12 @@
     <div class="pilha">
       <span class="rotulo">09 — Apoiar o projeto</span>
       <h2 id="t-apoiar" style="max-width:20ch">Gratuito para todos. Mantido por quem usa.</h2>
-      <p class="lead">O PAULUS não tem assinatura nem cobrança por uso. Quem quiser ajudar a pagar o desenvolvimento apoia pelo próprio programa, em Apoiar o projeto: Pix de uma vez ou cartão todo mês, pelo Mercado Pago.</p>
-      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--ink3);max-width:52ch">O cartão é digitado só na página do Mercado Pago, nunca no programa. Quem apoia pode aparecer no mural de apoiadores, que nasce na primeira atualização pública — com o nome que escolher, de pessoa ou de escritório, ou anônimo. Valores nunca são publicados.</p>
+      <p class="lead">O PAULUS não tem assinatura nem cobrança por uso. Quem quiser ajudar a pagar o desenvolvimento apoia pelo próprio programa, em Apoiar o projeto, ou por <a href="apoiar/">esta página</a>: Pix ou cartão, uma vez ou todo mês no cartão, pelo Mercado Pago.</p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--ink3);max-width:52ch">O cartão é digitado só na página do Mercado Pago, nunca no programa. Quem apoia pode aparecer na página de apoiadores, se autorizar — só com o nome que escolher, de pessoa ou de escritório. Valores nunca são publicados um a um: o que se publica é o total de cada mês.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 28px;font-size:14px;font-weight:600">
+        <a href="desenvolvimento/" style="color:var(--ink);text-decoration:none">Acompanhe o desenvolvimento →</a>
+        <a href="apoiadores/" style="color:var(--ink);text-decoration:none">Conheça nossos apoiadores →</a>
+      </div>
     </div>
     <div class="janela" aria-label="Ilustração: formulário de contribuição">
       <div style="padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
@@ -285,19 +285,13 @@
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;font-size:13.5px">
-          <span style="flex:1">Aparecer no mural de apoiadores</span>
-          <span aria-hidden="true" style="width:34px;height:20px;border-radius:10px;background:var(--btn);position:relative;flex:none"><i style="position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;background:var(--btnt)"></i></span>
+          <span style="flex:1">Aparecer na página de apoiadores</span>
+          <span aria-hidden="true" style="width:34px;height:20px;border-radius:10px;background:var(--fill);position:relative;flex:none"><i style="position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)"></i></span>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="apoiadores" style="margin-top:clamp(48px,6vw,88px);display:grid;gap:18px">
-    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
-      <h3 style="font-size:26px">Quem já apoia</h3>
-    </div>
-    <p style="margin:0;font-size:14px;line-height:1.6;color:var(--ink2);max-width:60ch">O mural nasce na primeira atualização pública do PAULUS. Até lá, nenhum nome é publicado aqui.</p>
-  </div>
 </section>
 
 <!-- Chamada final -->
@@ -315,15 +309,17 @@
 </main>
 
 <footer class="rodape">
-  <a class="marca" href="./" aria-label="PAVLVS — página inicial"><img src="assets/paulus-logo.svg" alt="" width="22" height="22"><span>PAVLVS</span></a>
+  <a class="marca" href="./" aria-label="PAVLVS — página inicial"><span>PAVLVS</span></a>
   <nav aria-label="Rodapé">
     <a href="#plataforma">Plataforma</a>
+    <a href="desenvolvimento/">Desenvolvimento</a>
+    <a href="apoiadores/">Apoiadores</a>
     <a href="#modulos">Módulos</a>
     <a href="#privacidade">Privacidade</a>
     <a href="#conta-google">Conta Google</a>
     <a href="#roadmap">Roadmap</a>
     <a href="#download">Como começar</a>
-    <a href="#apoiar">Apoiar</a>
+    <a href="apoiar/">Apoiar</a>
     <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
     <a class="forte" href="politica-de-privacidade/">Política de privacidade</a>
     <a class="forte" href="termos-de-uso/">Termos de uso</a>

@@ -94,6 +94,9 @@ a { color: inherit; }
   color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
 }
 .btn-icone:hover { border-color: var(--ink); }
+/* O botao de tema, em toda pagina, sem moldura. */
+.btn-icone[data-alternar-tema] { border: 0; background: transparent; color: var(--ink2); }
+.btn-icone[data-alternar-tema]:hover { color: var(--ink); }
 .so-celular { display: none; }
 
 @media (max-width: 860px) {

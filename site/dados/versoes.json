@@ -1,0 +1,46 @@
+{
+  "releases": [
+    {
+      "version": "0.9.3",
+      "date": "2026-09-28",
+      "curado": true,
+      "changes": [
+        "Extrato de contribuições no desenho novo, com tipo e situação de cada contribuição",
+        "O extrato usa o nome e o e-mail de Meus dados quando a tela Apoiar está vazia"
+      ]
+    },
+    {
+      "version": "0.9.2",
+      "date": "2026-09-28",
+      "curado": true,
+      "changes": [
+        "Atualização automática: o PAULUS avisa da versão nova e instala com um clique",
+        "CPF, CNPJ e telefone se formatam enquanto você digita, com aviso de número errado",
+        "Página de volta do login do Google com a conta e o que foi autorizado",
+        "A calibração mede o modelo sozinha, para quem escolheu participar",
+        "Todas as telas com a mesma largura de leitura"
+      ]
+    },
+    {
+      "version": "0.9.1",
+      "date": "2026-09-27",
+      "curado": true,
+      "changes": [
+        "Instalador novo em quatro telas, com o andamento da instalação",
+        "Atalhos e “Perguntar ao PAULUS” no botão direito do Explorer",
+        "Assistente de configuração na primeira abertura: escritório, seus dados, modelo de IA e conta Google",
+        "Desinstalar pergunta se tira os modelos de IA e os dados do escritório"
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "date": "2026-09-27",
+      "curado": true,
+      "changes": [
+        "Primeiro instalador para Windows",
+        "Teste do computador que sugere o modelo de IA que cabe nele",
+        "Instala o Ollama, o motor da IA local, quando falta"
+      ]
+    }
+  ]
+}
