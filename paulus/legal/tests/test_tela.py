@@ -268,7 +268,7 @@ def main() -> int:
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(400)
             checar(
-                pagina.evaluate("() => (document.querySelector('.bv-passo.atual') || {}).textContent") == "2Escritório",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "2Escritório",
                 "Comecar leva ao passo Escritorio",
             )
             pagina.evaluate("() => concluirBoasVindas(true)")
@@ -558,7 +558,7 @@ def main() -> int:
             )
             checar(colunas == 2, f"o menu interno e a secao ficam lado a lado (achou {colunas})")
             secoes = pagina.evaluate("() => document.querySelectorAll('#cfg-tela [data-cfg-secao]').length")
-            checar(secoes == 11, f"o menu tem onze secoes, Modelos e a Lixeira incluidas (achou {secoes})")
+            checar(secoes == 12, f"o menu tem doze secoes, Modelos, Modulos e a Lixeira incluidas (achou {secoes})")
             # Desde fd658f7 (padrao editorial) os cartoes vem um embaixo do
             # outro, numa coluna so: Voce e Escritorio.
             checar(
@@ -891,8 +891,8 @@ def main() -> int:
             )
 
             print("\nentrar no escritorio por codigo (A0b)")
-            # O ramo "existente" das boas-vindas encurta o passeio para quatro
-            # passos e termina nos dois codigos; concluir abre o PAULUS em modo
+            # O caminho "entrar" do assistente de configuracao tem cinco passos
+            # e termina nos dois codigos; concluir abre o PAULUS em modo
             # limitado ate o responsavel validar. O teste desfaz no fim.
             pagina.evaluate("() => { localStorage.removeItem('paulus.vinculo'); location.hash = '#boasvindas'; verificarPrimeiraAbertura(); }")
             # Abrir o passeio le preferencias e status; com o Ollama desligado,
@@ -901,13 +901,13 @@ def main() -> int:
             pagina.wait_for_timeout(300)
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(300)
-            pagina.evaluate("() => document.querySelector('[data-escritorio=existente]').click()")
+            pagina.evaluate("() => document.querySelector('[data-caminho=entrar]').click()")
             pagina.wait_for_timeout(300)
             checar(
-                pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-passo').length") == 4,
-                "entrar em um escritorio existente deixa quatro passos",
+                pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-etapa').length") == 5,
+                "entrar em um escritorio existente deixa cinco passos",
             )
-            pagina.evaluate("() => { bv.passo = 3; desenharBoasVindas(); }")
+            pagina.evaluate("() => { bv.passo = 4; desenharBoasVindas(); }")
             pagina.wait_for_timeout(400)
             checar(
                 pagina.evaluate("() => document.querySelectorAll('#boas-vindas .bv-casas').length === 2 && bv.vinculo.meuCodigo.length === 6"),

@@ -13,9 +13,9 @@ O que sai, em tools\\instalador\\_construcao\\:
   - app\\     o código: src, frontend, habilidades, config, oauth_app.json;
   - PAULUS.exe o lançador (Lancador.cs, compilado com o csc.exe que já vem no
     Windows).
-- PAULUS-<versão>-instalador.exe - com o Inno Setup 6 instalado (grátis:
-  winget install JRSoftware.InnoSetup). Sem ele, a pasta PAULUS\\ fica pronta
-  e o script diz o que falta.
+- PAULUS-<versão>-instalador.exe - o instalador (Instalador.cs, compilado com o
+  mesmo csc.exe), com o programa em .7z e o 7zr.exe (7-Zip, LGPL) emendados no
+  fim. O mesmo programa, sem o que foi emendado, vira o Desinstalar.exe.
 
 Custo: zero. Nada é assinado digitalmente - o Windows mostra "editor
 desconhecido" na primeira vez (SmartScreen). Assinar pede certificado de
@@ -25,6 +25,7 @@ código, que é pago.
 from __future__ import annotations
 
 import shutil
+import struct
 import subprocess
 import sys
 import urllib.request
@@ -48,6 +49,13 @@ DOCS_DO_APP = ["NOVIDADES.md"]
 # embutível traz só vcruntime140; o resto vem daqui, "app-local".
 DLLS_DO_CPP = ["msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "vcruntime140.dll", "vcruntime140_1.dll", "concrt140.dll"]
 IGNORAR = shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache")
+CSC = Path("C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe")
+# O 7-Zip de linha de comando, oficial (LGPL): comprime aqui e extrai na
+# maquina de quem instala. O .7z sai uns 40% menor que um .zip.
+URL_7ZR = "https://www.7-zip.org/a/7zr.exe"
+# O rodape do instalador (Instalador.cs, classe Pacote): cinco inteiros de 8
+# bytes - stub, 7zr.exe, .7z, tamanho instalado - e a marca.
+MARCA = b"PAULUS02"
 
 
 def passo(texto: str) -> None:
@@ -124,13 +132,16 @@ def codigo() -> None:
         shutil.copy2(RAIZ / "docs" / nome, app / "docs" / nome)
 
 
+def csc() -> Path:
+    if not CSC.exists():
+        raise SystemExit("não achei o csc.exe do .NET Framework 4 - ele vem com o Windows 10 e 11")
+    return CSC
+
+
 def lancador() -> None:
     passo("Lançador (PAULUS.exe)")
-    csc = Path("C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe")
-    if not csc.exists():
-        raise SystemExit("não achei o csc.exe do .NET Framework 4 - ele vem com o Windows 10 e 11")
     icone = RAIZ / "frontend" / "img" / "paulus.ico"
-    subprocess.run([str(csc), "/nologo", "/target:winexe", "/optimize+", f"/win32icon:{icone}",
+    subprocess.run([str(csc()), "/nologo", "/target:winexe", "/optimize+", f"/win32icon:{icone}",
                     "/reference:System.Windows.Forms.dll", f"/out:{PRONTO / 'PAULUS.exe'}", str(AQUI / "Lancador.cs")],
                    check=True)
 
@@ -149,30 +160,37 @@ def conferir() -> None:
         raise SystemExit("o Python embutível não abriu as dependências - veja o erro acima")
 
 
-def inno_setup() -> Path | None:
-    candidatos = [Path("C:/Program Files (x86)/Inno Setup 6/ISCC.exe"), Path("C:/Program Files/Inno Setup 6/ISCC.exe"),
-                  Path.home() / "AppData/Local/Programs/Inno Setup 6/ISCC.exe"]
-    achado = shutil.which("ISCC") or shutil.which("iscc")
-    if achado:
-        return Path(achado)
-    return next((c for c in candidatos if c.exists()), None)
-
-
 def instalador() -> None:
-    passo("Instalador (Inno Setup)")
-    modelo = (AQUI / "paulus.iss.modelo").read_text(encoding="utf-8")
-    script = (modelo.replace("{{VERSAO}}", VERSAO).replace("{{ORIGEM}}", str(PRONTO)).replace("{{SAIDA}}", str(CONSTRUCAO))
-              .replace("{{ARTE}}", str(AQUI / "arte")))
-    iss = CONSTRUCAO / "paulus.iss"
-    iss.write_text(script, encoding="utf-8-sig")
-    iscc = inno_setup()
-    if not iscc:
-        print("   O Inno Setup 6 não está instalado. A pasta pronta está em", PRONTO)
-        print("   Para gerar o instalador: winget install JRSoftware.InnoSetup  e rode este script de novo.")
-        return
-    subprocess.run([str(iscc), "/Q", str(iss)], check=True)
+    passo("Instalador")
+    z7 = baixar(URL_7ZR, CACHE / "7zr.exe")
+    pacote = CACHE / "paulus.7z"
+    pacote.unlink(missing_ok=True)
+    print("   comprimindo o programa (7-Zip, uns minutos)…", flush=True)
+    subprocess.run([str(z7), "a", "-t7z", "-mx=9", "-mmt=on", "-bso0", "-bsp0", str(pacote), "*"], cwd=PRONTO, check=True)
+    instalado = sum(f.stat().st_size for f in PRONTO.rglob("*") if f.is_file())
+
+    versao_cs = CACHE / "Versao.cs"
+    versao_cs.write_text(f'static class Versao {{ public const string Numero = "{VERSAO}"; }}\n', encoding="utf-8")
+    base = CACHE / "instalador-base.exe"
+    fontes = sorted((AQUI / "fontes").glob("*.ttf"))
+    if not fontes:
+        raise SystemExit("faltam as fontes do instalador: rode tools/instalador/fontes/gerar.py")
+    icone = RAIZ / "frontend" / "img" / "paulus.ico"
+    subprocess.run([str(csc()), "/nologo", "/target:winexe", "/platform:x64", "/optimize+", f"/win32icon:{icone}",
+                    f"/win32manifest:{AQUI / 'Instalador.manifest'}",
+                    "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll",
+                    *[f"/resource:{f},{f.name}" for f in fontes],
+                    f"/out:{base}", str(AQUI / "Instalador.cs"), str(versao_cs)], check=True)
+
     saida = CONSTRUCAO / f"PAULUS-{VERSAO}-instalador.exe"
-    print(f"   {saida} ({saida.stat().st_size / 1e6:.0f} MB)")
+    partes = [base.read_bytes(), z7.read_bytes()]
+    with open(saida, "wb") as f:
+        for parte in partes:
+            f.write(parte)
+        with open(pacote, "rb") as p7:
+            shutil.copyfileobj(p7, f)
+        f.write(struct.pack("<qqqq", len(partes[0]), len(partes[1]), pacote.stat().st_size, instalado) + MARCA)
+    print(f"   {saida} ({saida.stat().st_size / 1e6:.0f} MB; instalado, {instalado / 1e6:.0f} MB)")
 
 
 def main() -> int:

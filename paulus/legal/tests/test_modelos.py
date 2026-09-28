@@ -161,8 +161,8 @@ def test_api() -> None:
         api.estado._presentes = (0.0, None)
 
 
-def test_escolha_do_instalador() -> None:
-    print("\na escolha da tela Modelo de IA do instalador")
+def test_usar_e_baixar() -> None:
+    print("\no modelo escolhido no assistente de configuracao")
     import api
 
     padrao_antes = api.estado.client.model
@@ -182,25 +182,21 @@ def test_escolha_do_instalador() -> None:
     anotados = api.BAIXADOS_PELO_PAULUS_PATH
     anotados_antes = anotados.read_text(encoding="utf-8") if anotados.exists() else None
     try:
-        api.ESCOLHA_DO_INSTALADOR_PATH.parent.mkdir(parents=True, exist_ok=True)
-        api.ESCOLHA_DO_INSTALADOR_PATH.write_text('{"modelo": "qwen2.5:3b", "baixar": true}', encoding="utf-8-sig")
-        api._cumprir_escolha_do_instalador()
+        api._usar_e_baixar("qwen2.5:3b", True)
         checar(gravados == [{"modelo": "qwen2.5:3b"}] and iniciados == ["qwen2.5:3b"],
-               "a escolha vira o padrão e o download começa", (gravados, iniciados))
+               "o escolhido vira o padrão e o download começa", (gravados, iniciados))
         checar("qwen2.5:3b" in anotados.read_text(encoding="utf-8").split(), "o modelo baixado fica anotado para o desinstalador")
-        api._cumprir_escolha_do_instalador()
-        checar(iniciados == ["qwen2.5:3b"], "só uma vez: a escolha cumprida não se repete")
-        api.ESCOLHA_DO_INSTALADOR_PATH.write_text('{"modelo": "llama3.2:3b", "baixar": true}', encoding="utf-8-sig")
-        api._cumprir_escolha_do_instalador()
+        api._usar_e_baixar("llama3.2:3b", True)
         checar(iniciados == ["qwen2.5:3b"], "modelo que já está instalado não é baixado de novo")
-        api.ESCOLHA_DO_INSTALADOR_PATH.write_text('{"modelo": "rm -rf /", "baixar": true}', encoding="utf-8-sig")
-        api._cumprir_escolha_do_instalador()
-        checar(len(gravados) == 2, "nome de modelo inválido é ignorado")
+        api._usar_e_baixar("gemma2:2b", False)
+        checar(iniciados == ["qwen2.5:3b"] and gravados[-1] == {"modelo": "gemma2:2b"}, "sem baixar: só vira o padrão")
+        from fastapi.testclient import TestClient
+
+        c = TestClient(api.app)
+        checar(c.post("/api/modelos/usar", json={"nome": "rm -rf /", "baixar": True}).status_code == 400,
+               "nome de modelo inválido é recusado")
     finally:
         api.ollama_ligar, api.modelos_mod.instalados, api.estado.baixador.iniciar, api.preferencias_gravar = originais
-        for sufixo in ("", ".feita"):
-            alvo = api.ESCOLHA_DO_INSTALADOR_PATH.with_suffix(sufixo + ".json") if sufixo else api.ESCOLHA_DO_INSTALADOR_PATH
-            alvo.unlink(missing_ok=True)
         if anotados_antes is None:
             anotados.unlink(missing_ok=True)
         else:
@@ -216,7 +212,7 @@ def main() -> int:
     test_nome()
     test_download()
     test_api()
-    test_escolha_do_instalador()
+    test_usar_e_baixar()
     print("\n" + "=" * 55)
     if _falhas:
         print(f"  {len(_falhas)} FALHA(S):")

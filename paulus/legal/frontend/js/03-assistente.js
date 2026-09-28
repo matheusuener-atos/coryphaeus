@@ -187,6 +187,20 @@ async function anexarEscolhidos() {
   return doAcervo.concat(lidos);
 }
 
+/* "Perguntar ao PAULUS", do botao direito no Explorer (src/desktop.py): o
+   arquivo entra numa conversa nova, anexado, como pelo "Meu computador". */
+async function perguntarSobreArquivo(caminho) {
+  if (!caminho) return;
+  marcarDestino("conversa");
+  $("nova").click();
+  anx.acervo = new Set();
+  anx.computador = new Map([[caminho, true]]);
+  anx.daConversa = true;
+  const nomes = await anexarEscolhidos();
+  if (nomes.length) definirEscopo(nomes);
+  $("pedido").focus();
+}
+
 $("anexar").onclick = () => abrirAnexar();
 $("arquivos").onchange = (e) => {
   const lista = Array.from(e.target.files);

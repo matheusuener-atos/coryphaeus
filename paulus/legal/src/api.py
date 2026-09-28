@@ -172,9 +172,6 @@ VIGIA_SEGUNDOS = 30
 CALIBRACAO_PATH = DADOS_DIR / "calibracao.json"
 # As amostras de outras maquinas, quando se participa da calibracao.
 CALIBRACAO_SERVIDOR_PATH = DADOS_DIR / "calibracao_servidor.json"
-# O modelo escolhido na tela "Modelo de IA" do instalador: a primeira abertura
-# poe como padrao e comeca o download (tools/instalador/paulus.iss.modelo).
-ESCOLHA_DO_INSTALADOR_PATH = DADOS_DIR / "escolha_do_instalador.json"
 HABILIDADES_DIR = BASE_DIR / "habilidades"
 FRONTEND_DIR = BASE_DIR / "frontend"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -212,6 +209,10 @@ class Estado:
         self.retrato = ""
         self.versao_do_acervo = 0
         self.porta = 8000
+        # Quem abre a janela (src/desktop.py) diz como trazer ela para frente
+        # e entregar um arquivo vindo do Explorer ("Perguntar ao PAULUS").
+        # Sem janela (o programa no navegador), fica None.
+        self.ao_pedido_externo = None
         self.client = LlamaClient()
         # Organizador: resultado da ultima varredura/classificacao, por caminho.
         self.encontrados: list[dict] = []
@@ -564,7 +565,6 @@ async def lifespan(app: FastAPI):
     total = estado.recarregar()
     estado.vigia.comecar()
     threading.Thread(target=estado._vigiar, name="acervo-vigia", daemon=True).start()
-    threading.Thread(target=_cumprir_escolha_do_instalador, name="escolha-do-instalador", daemon=True).start()
     print(f"\n  PAULUS Legal - abra http://localhost:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     yield
@@ -661,6 +661,16 @@ def imagem(arquivo: str) -> FileResponse:
     if alvo.parent != (FRONTEND_DIR / "img").resolve() or not alvo.exists():
         raise HTTPException(status_code=404, detail="imagem nao encontrada")
     return FileResponse(alvo)
+
+
+@app.get("/img/marcas/{arquivo}")
+def imagem_de_marca(arquivo: str) -> FileResponse:
+    """Os logos dos fabricantes de modelo (assistente de configuracao), so .svg."""
+    pasta = (FRONTEND_DIR / "img" / "marcas").resolve()
+    alvo = (pasta / Path(arquivo).name).resolve()
+    if alvo.parent != pasta or alvo.suffix != ".svg" or not alvo.exists():
+        raise HTTPException(status_code=404, detail="imagem nao encontrada")
+    return FileResponse(alvo, media_type="image/svg+xml")
 
 
 # ------------------------------------------------------------------- cache
@@ -981,6 +991,10 @@ def status() -> dict:
         "pasta": str(estado.pasta),
         "contratos": len(estado.searcher.documents),
         "trechos": len(estado.searcher.chunks),
+        "versao": VERSAO,
+        # A pasta do programa: instalado, a de Programs (o app fica em
+        # <pasta>/app); rodando do codigo, a do repositorio.
+        "programa": str(BASE_DIR.parent if os.environ.get("PAULUS_INSTALADO") else BASE_DIR),
     }
 
 
@@ -1037,8 +1051,11 @@ def ollama_ligar() -> dict:
         except Exception:  # noqa: BLE001 - e isso que estamos tratando
             try:
                 flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+                # Na pasta do proprio Ollama: ele segue rodando depois que o
+                # PAULUS fecha, e com a pasta de trabalho herdada prendia a
+                # pasta do programa - o instalador nao conseguia atualizar.
                 subprocess.Popen([exe, "serve"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL, creationflags=flags)
+                                 stderr=subprocess.DEVNULL, creationflags=flags, cwd=str(Path(exe).parent))
             except OSError as exc:
                 raise HTTPException(status_code=503, detail="não consegui abrir o Ollama: " + str(exc)) from exc
             limite = time.time() + 20
@@ -1129,29 +1146,18 @@ def _anotar_baixado(nome: str) -> None:
         pass
 
 
-def _cumprir_escolha_do_instalador() -> None:
+def _usar_e_baixar(modelo: str, baixar: bool) -> None:
     """
-    A escolha da tela "Modelo de IA" do instalador, uma vez: o modelo vira o
-    padrao e, se a pessoa pediu, o download comeca - com o Ollama ligado
-    daqui, se ainda nao estiver. O andamento aparece no cartao do Assistente
-    e em Configuracoes › Modelos.
+    O modelo escolhido no assistente de configuracao (passo Modelo de IA):
+    vira o padrao e, se a pessoa pediu e ele ainda nao esta aqui, o download
+    comeca - com o Ollama ligado daqui, se estiver desligado. O andamento
+    aparece no cartao do Assistente e em Configuracoes › Modelos.
     """
-    try:
-        escolha = json.loads(ESCOLHA_DO_INSTALADOR_PATH.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        return
-    try:
-        ESCOLHA_DO_INSTALADOR_PATH.replace(ESCOLHA_DO_INSTALADOR_PATH.with_suffix(".feita.json"))
-    except OSError:
-        return
-    modelo = str(escolha.get("modelo", "")).strip().lower()
-    if not modelo or not modelos_mod.nome_valido(modelo):
-        return
     try:
         preferencias_gravar({"modelo": modelo})
     except Exception:  # noqa: BLE001 - sem o padrao gravado, a pessoa escolhe em Configuracoes
         return
-    if not escolha.get("baixar"):
+    if not baixar:
         return
     try:
         ollama_ligar()
@@ -1164,6 +1170,20 @@ def _cumprir_escolha_do_instalador() -> None:
         estado.baixador.iniciar(modelo, ao_terminar=lambda n: (_anotar_baixado(n), estado.modelos_presentes(fresco=True)))
     except (ValueError, RuntimeError):
         pass
+
+
+@app.post("/api/modelos/usar")
+def modelos_usar(payload: dict) -> dict:
+    """
+    Usa este modelo como padrao e, com `baixar`, baixa se faltar. Responde na
+    hora: ligar o Ollama e comecar o download acontecem por tras.
+    """
+    nome = str(payload.get("nome", "")).strip().lower()
+    if not modelos_mod.nome_valido(nome):
+        raise HTTPException(status_code=400, detail="nome de modelo inválido")
+    threading.Thread(target=_usar_e_baixar, args=(nome, bool(payload.get("baixar"))),
+                     name="usar-modelo", daemon=True).start()
+    return {"modelo": nome, "baixar": bool(payload.get("baixar"))}
 
 
 # ------------------------------------------------------------ os modelos
@@ -2327,6 +2347,35 @@ class AnexarCaminhos(BaseModel):
     caminhos: list[str]
     # Os acima de 50 MB que a pessoa confirmou na tela (src/entrada.py).
     autorizados: list[str] = []
+
+
+class PedidoExterno(BaseModel):
+    caminho: str = ""
+
+
+@app.post("/api/externo/perguntar")
+def externo_perguntar(payload: PedidoExterno) -> dict:
+    """
+    "Perguntar ao PAULUS", do botao direito no Explorer, com o programa ja
+    aberto: o PAULUS.exe novo entrega o arquivo aqui e sai. A janela vem para
+    frente com o arquivo anexado numa conversa nova.
+    """
+    caminho = Path(payload.caminho)
+    if not caminho.is_file():
+        raise HTTPException(status_code=404, detail="arquivo nao encontrado")
+    if caminho.suffix.lower() not in SUPPORTED_SUFFIXES:
+        raise HTTPException(status_code=400, detail="formato nao suportado")
+    if estado.ao_pedido_externo:
+        estado.ao_pedido_externo("perguntar", str(caminho.resolve()))
+    return {"entregue": bool(estado.ao_pedido_externo)}
+
+
+@app.post("/api/externo/mostrar")
+def externo_mostrar() -> dict:
+    """Abrir o PAULUS com ele ja aberto traz a janela que existe para frente."""
+    if estado.ao_pedido_externo:
+        estado.ao_pedido_externo("mostrar", "")
+    return {"entregue": bool(estado.ao_pedido_externo)}
 
 
 @app.post("/api/anexar/caminhos")

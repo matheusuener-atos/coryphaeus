@@ -524,6 +524,7 @@ async function carregarUsuario() {
     const d = await (await fetch("/api/preferencias")).json();
     const p = d.preferencias || d;
     aplicarAnimacoes(p.animacoes_reduzidas);
+    aplicarModulos(p.modulos);
   } catch (err) { /* sem preferencias, fica o padrao */ }
 }
 

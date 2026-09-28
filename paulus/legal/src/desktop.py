@@ -14,10 +14,14 @@ caminho digitado a mao.
 
 from __future__ import annotations
 
+import json
+import os
 import socket
 import sys
 import threading
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -272,7 +276,114 @@ def _identidade_no_windows() -> None:
         pass
 
 
+# --------------------------------------------------------- uma janela so
+
+def _pasta_de_dados() -> Path:
+    """A mesma regra do api.py, sem importar ele (que demora): decide se ja ha um PAULUS aberto."""
+    return Path(os.environ.get("PAULUS_DADOS") or (Path(__file__).parent.parent / "data")).resolve()
+
+
+def _instancia_path() -> Path:
+    return _pasta_de_dados() / "instancia.json"
+
+
+def _arquivo_pedido(argv: list[str]) -> str:
+    """`--perguntar <arquivo>`: o que o botao direito do Explorer manda."""
+    if "--perguntar" in argv:
+        i = argv.index("--perguntar")
+        if i + 1 < len(argv):
+            return str(Path(argv[i + 1]).resolve())
+    return ""
+
+
+def _porta_da_instancia_aberta() -> int:
+    """
+    A porta do PAULUS ja aberto nesta pasta de dados, ou 0. Confere de verdade
+    (o arquivo pode ter sobrado de uma queda): a porta tem de responder como
+    PAULUS.
+    """
+    try:
+        porta = int(json.loads(_instancia_path().read_text(encoding="utf-8")).get("porta", 0))
+    except (OSError, ValueError, TypeError):
+        return 0
+    if not porta:
+        return 0
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{porta}/api/status", timeout=3) as r:
+            return porta if "versao" in json.loads(r.read().decode("utf-8")) else 0
+    except (OSError, ValueError):
+        return 0
+
+
+def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
+    """Passa o pedido para a janela aberta e deixa ela vir para frente."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            # Quem foi aberto pelo clique pode vir para frente; a outra janela
+            # so pode se este processo deixar (ASFW_ANY).
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)
+        except Exception:  # noqa: BLE001 - sem isso a janela so pisca na barra
+            pass
+    rota, corpo = ("perguntar", {"caminho": caminho}) if caminho else ("mostrar", {})
+    pedido = urllib.request.Request(
+        f"http://127.0.0.1:{porta}/api/externo/{rota}", data=json.dumps(corpo).encode("utf-8"),
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(pedido, timeout=10) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
+def _trazer_para_frente() -> None:
+    if not _HWND or sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        u = ctypes.windll.user32
+        if u.IsIconic(_HWND):
+            u.ShowWindow(_HWND, 9)  # SW_RESTORE
+        u.SetForegroundWindow(_HWND)
+    except Exception:  # noqa: BLE001 - a janela fica onde estava
+        pass
+
+
+def _pedido_externo(tipo: str, caminho: str) -> None:
+    """Chamado pelo api.py (/api/externo/...), fora da thread da janela."""
+    if _JANELA is None:
+        return
+    _trazer_para_frente()
+    if tipo == "perguntar":
+        _JANELA.evaluate_js("perguntarSobreArquivo(" + json.dumps(caminho) + ")")
+
+
+def _sair_da_pasta_do_programa() -> None:
+    """
+    Instalado, o programa trabalha na pasta de dados, e nao na do programa.
+    Tudo o que ele abre (o Ollama, o Word com um documento) herda a pasta de
+    trabalho, e um processo "dentro" de uma pasta impede o Windows de mover
+    ou apagar essa pasta: o instalador nao conseguia atualizar o PAULUS.
+    """
+    if not os.environ.get("PAULUS_INSTALADO"):
+        return
+    try:
+        _pasta_de_dados().mkdir(parents=True, exist_ok=True)
+        os.chdir(_pasta_de_dados())
+    except OSError:
+        pass
+
+
 def main() -> int:
+    _sair_da_pasta_do_programa()
+    pedido = _arquivo_pedido(sys.argv[1:])
+    aberta = _porta_da_instancia_aberta()
+    if aberta and _entregar_para_a_aberta(aberta, pedido):
+        return 0
+
     try:
         import webview
     except ImportError:
@@ -299,6 +410,12 @@ def main() -> int:
     if not _esperar_servidor(porta):
         print(f"O servidor local nao subiu na porta {porta}.")
         return 1
+    try:
+        _instancia_path().parent.mkdir(parents=True, exist_ok=True)
+        _instancia_path().write_text(json.dumps({"porta": porta, "pid": os.getpid()}), encoding="utf-8")
+    except OSError:
+        pass
+    api.estado.ao_pedido_externo = _pedido_externo
 
     global _JANELA
     _identidade_no_windows()
@@ -308,7 +425,7 @@ def main() -> int:
     # move a janela.
     _JANELA = webview.create_window(
         TITULO,
-        f"http://127.0.0.1:{porta}",
+        f"http://127.0.0.1:{porta}/" + ("#perguntar=" + urllib.parse.quote(pedido) if pedido else ""),
         js_api=Ponte(),
         width=1280,
         height=860,
@@ -337,6 +454,11 @@ def main() -> int:
                   icon=str(ICONE) if ICONE.exists() else None)
 
     servidor.should_exit = True
+    try:
+        if json.loads(_instancia_path().read_text(encoding="utf-8")).get("pid") == os.getpid():
+            _instancia_path().unlink()
+    except (OSError, ValueError):
+        pass
     return 0
 
 

@@ -98,6 +98,11 @@
     --warnbg: oklch(96% 0.05 85);
     --logo: none;
     --amostra-escura: #171716;
+    /* A logo oficial e sempre escura, nos dois temas (assistente de
+       configuracao), e o texto claro sobre o veu escuro da janela Entrar. */
+    --logo-fundo: #1c1c1a;
+    --logo-tinta: #f2f1ec;
+    --veu-tinta: #d8d6ce;
     --be-p: 0%;
 
     /* Iguais nos dois temas: pontos cheios e glifos de formato de arquivo. */

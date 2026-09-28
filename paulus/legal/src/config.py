@@ -88,6 +88,12 @@ PADRAO: dict = {
     "avisos_tipos": {"bem_estar": True, "resposta": True, "aprovacao": True,
                      "gravacao": True, "agenda": True},
     "modelo": "",
+    # Os modulos do menu (assistente de configuracao, passo Modulos, e
+    # Configuracoes › Modulos). Desligado some do menu desta maquina; o
+    # Assistente, Apoiar e Configuracoes ficam sempre.
+    "modulos": {"servicos": True, "gravacoes": True, "agenda": True, "acervo": True, "documentos": True,
+                "assinatura": True, "email": True, "financeiro": True, "cadastros": True, "aprovacoes": True,
+                "foco": True},
     # Que modelo faz cada tarefa (src/modelos.py). Vazio: o modelo padrao.
     "tarefas_modelo": {"conversa": "", "juiz": "", "email": "", "redacao": "", "resumos": "", "leitura": ""},
     "devagar": False,

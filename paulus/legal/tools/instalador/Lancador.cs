@@ -33,10 +33,17 @@ static class Lancador
         }
 
         string casa = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PAULUS");
-        var info = new ProcessStartInfo(pythonw, "\"" + script + "\"")
+        // O que veio junto (o "--perguntar <arquivo>" do botão direito no
+        // Explorer) segue para o programa, cada um entre aspas.
+        string argumentos = "\"" + script + "\"";
+        foreach (string a in args)
+            argumentos += " \"" + a.Replace("\"", "\\\"") + "\"";
+        var info = new ProcessStartInfo(pythonw, argumentos)
         {
             UseShellExecute = false,
-            WorkingDirectory = Path.Combine(raiz, "app"),
+            // Fora da pasta do programa: o que o PAULUS abre herda esta pasta, e
+            // um processo "dentro" dela impede o instalador de atualizar.
+            WorkingDirectory = casa,
         };
         // Quem já definiu (a base de demonstração, um teste) manda.
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PAULUS_DADOS")))
@@ -49,6 +56,7 @@ static class Lancador
 
         try
         {
+            Directory.CreateDirectory(casa);
             Directory.CreateDirectory(info.EnvironmentVariables["PAULUS_DADOS"]);
             Directory.CreateDirectory(info.EnvironmentVariables["PAULUS_MODELOS"]);
             Process.Start(info);

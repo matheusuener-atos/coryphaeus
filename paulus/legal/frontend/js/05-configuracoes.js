@@ -31,6 +31,7 @@ const CFG_SECOES = [
   ["vinculos", "Escritório e vínculos", "Hoje o PAULUS roda para uma pessoa, nesta máquina. Vincular outras máquinas ao escritório ainda não existe."],
   ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
+  ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
   ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
   ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
@@ -102,6 +103,7 @@ function rascunhoDe(pr, modelo) {
     inteligencia: pr.inteligencia !== false,
     avisos_windows: pr.avisos_windows !== false,
     avisos_tipos: Object.assign({}, pr.avisos_tipos || {}),
+    modulos: Object.assign({}, pr.modulos || {}),
   };
 }
 
@@ -148,6 +150,7 @@ function desenharConfig() {
   else if (cfg.secao === "vinculos") secao = secaoVinculos();
   else if (cfg.secao === "aprendizado") secao = secaoAprendizado();
   else if (cfg.secao === "aparencia") secao = secaoAparencia();
+  else if (cfg.secao === "menu") secao = secaoModulos();
   else if (cfg.secao === "feedback") secao = secaoFeedback();
   else if (cfg.secao === "plano") secao = secaoPlano();
   else if (cfg.secao === "lixeira") secao = secaoLixeira();
@@ -955,6 +958,15 @@ function escolherTema(escolha) {
   cfg.tema = escolha;
 }
 
+/* Os modulos do menu (MODULOS_BV, 23-boas-vindas.js): os mesmos do passo
+   Modulos do assistente de configuracao. */
+function secaoModulos() {
+  const m = (cfg.rascunho || {}).modulos || {};
+  const linhas = MODULOS_BV.map(([id, , nome, desc]) => ligaCfg("modulos." + id, nome, desc, m[id] !== false)).join("");
+  return aberturaCfg() + cartaoCfg("No menu", metaCfg("o Assistente, Apoiar e Configurações ficam sempre"),
+    '<div class="cfg-sub">' + linhas + "</div>");
+}
+
 function secaoAparencia() {
   const atual = temaEscolhido();
   const tema = (id, rotulo) => {
@@ -1303,7 +1315,7 @@ async function salvarConfig() {
       pessoa: r.pessoa, autonomia: r.autonomia, escritorio: r.escritorio,
       modelo: r.modelo, timbre_no_pdf: r.timbre_no_pdf, devagar: r.devagar,
       animacoes_reduzidas: r.animacoes_reduzidas, inteligencia: r.inteligencia,
-      avisos_windows: r.avisos_windows, avisos_tipos: r.avisos_tipos,
+      avisos_windows: r.avisos_windows, avisos_tipos: r.avisos_tipos, modulos: r.modulos,
     }),
   });
   if (!resposta.ok) { avisoCert("não consegui salvar: " + (await erroDe(resposta))); return; }
@@ -1311,6 +1323,7 @@ async function salvarConfig() {
   cfg.rascunho = rascunhoDe(cfg.prefs.preferencias, cfg.prefs.modelo_atual);
   cfg.sujo = false;
   aplicarAnimacoes(cfg.prefs.preferencias.animacoes_reduzidas);
+  aplicarModulos(cfg.prefs.preferencias.modulos);
   avisoCert("salvo em data/preferencias.json, nesta máquina", { tom: "ok" });
   carregarStatus();
   if ($("cfg-tela")) desenharConfig();

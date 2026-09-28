@@ -3,6 +3,24 @@
 O que mudou no PAULUS, em ordem — o mais novo primeiro. Escrito para quem usa,
 não para quem programa: cada linha diz o que passou a ser possível fazer.
 
+## Setembro de 2026 — instalar e começar
+
+- **Instalador novo.** Quatro telas: boas-vindas, onde instalar, a instalação
+  com o andamento e o fim. Se o Ollama, o motor da IA local, não estiver no
+  computador, ele é baixado junto. Abrir o instalador com o PAULUS já
+  instalado oferece atualizar ou desinstalar.
+- **Desinstalar pergunta** se tira também os modelos de IA local e se apaga os
+  dados do escritório. As duas respostas vêm desmarcadas.
+- **Assistente de configuração** na primeira abertura: o escritório, seus
+  dados, o modelo de IA desta máquina (o teste recomenda um, e você escolhe
+  outro se quiser), os módulos e a conta Google. O modelo escolhido começa a
+  baixar quando o assistente termina.
+- **Módulos que você não usa saem do menu.** Em Configurações › Módulos, cada
+  módulo tem a sua chave. Desligar não apaga nada.
+- **Perguntar ao PAULUS pelo Explorer.** Marcado na instalação, o botão
+  direito num PDF, Word, TXT, MD ou Excel mostra "Perguntar ao PAULUS". O
+  arquivo abre anexado numa conversa nova, também com o programa já aberto.
+
 ## Setembro de 2026 — conferir com o banco
 
 - **Importar o extrato do banco.** Em Financeiro › Lançamentos, o botão

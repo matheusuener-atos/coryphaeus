@@ -1,27 +1,74 @@
 /* ---------------------------------------------------------- boas-vindas */
 /*
-   A primeira abertura (docs/ui/03-telas-desktop.md, A0a e A0b): seis passos
-   em tela cheia para quem cria um escritorio, quatro para quem entra em um
-   que ja existe, todos pulaveis e revisiveis depois em Configuracoes. Abre
-   sozinha enquanto ninguem preencheu o nome, e por #boasvindas para quem
-   quiser rever.
+   O assistente de configuracao, na primeira abertura (docs/ui/instalacao,
+   substitui A0a e A0b): tela cheia, dois caminhos. Quem cria o escritorio
+   passa por sete passos; quem entra em um que ja existe, por cinco. Abre
+   sozinho enquanto ninguem preencheu o nome, e por #boasvindas para quem
+   quiser rever. Tudo pode ser mudado depois em Configuracoes.
 
-   Entrar por codigo (A0b): a pessoa digita o codigo do responsavel e recebe
-   o dela. A rede local que valida o vinculo ainda nao existe; o que existe e
+   O modelo de IA e escolhido aqui (o instalador so copia os arquivos e
+   instala o Ollama): o teste da maquina recomenda, a pessoa escolhe, e o
+   download comeca quando o assistente termina (/api/modelos/usar).
+
+   Entrar por codigo: a pessoa digita o codigo do responsavel e recebe o
+   dela. A rede local que valida o vinculo ainda nao existe; o que existe e
    o modo limitado (docs/ui/01-shell.md): o PAULUS abre, o que e desta
    maquina funciona, e o que depende do escritorio fica apagado ate o
    responsavel validar - ou ate a pessoa cancelar o pedido e criar o proprio
    escritorio. O pedido fica nesta maquina, em localStorage.
 */
 
-const bv = { passo: 0, status: null, prefs: null, pessoa: {}, modelo: "", escritorio: "novo", vinculo: null };
-const PASSOS_BV = ["Boas-vindas", "Escritório", "Seus dados", "Como a IA funciona", "Conexões", "Atualizações"];
-const PASSOS_VINCULO = ["Boas-vindas", "Escritório", "Seus dados", "Códigos"];
+const bv = {
+  passo: 0, caminho: "criar", status: null, prefs: null, pessoa: {}, vinculo: null,
+  maquina: null, conferindo: false, diag: 0, relogioDiag: null, catalogo: [],
+  modelo: "", escolheuModelo: false, modulos: {}, google: null, oauth: null, imap: false, calib: null,
+};
+const ORDEM_CRIAR = ["boasvindas", "escritorio", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
+const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
+const NOMES_BV = {
+  boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA",
+  modulos: "Módulos", conexoes: "Conexões", atualizacoes: "Atualizações", codigos: "Códigos",
+};
 const CARGOS_VINCULO = ["Advogado(a)", "Sócio(a)", "Financeiro", "Secretaria", "Estagiário(a)", "Outro"];
 const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendamento", "tarefas", "biblioteca", "organizar", "caixa", "financeiro", "relatorios", "cadastros", "aprovacoes"]);
 
-function passosAtuais() {
-  return bv.escritorio === "existente" ? PASSOS_VINCULO : PASSOS_BV;
+/* Os modulos do menu que podem ser desligados (preferencia `modulos`), com o
+   destino de cada um na casca. O Assistente, Apoiar e Configuracoes ficam
+   sempre. */
+const MODULOS_BV = [
+  ["servicos", "work", "Serviços", "Processos, prazos e a trilha de cada caso", ["servicos"]],
+  ["gravacoes", "mic", "Gravações", "Audiências e reuniões com transcrição", ["gravacoes"]],
+  ["agenda", "calendar_month", "Agenda", "Compromissos, prazos e lembretes", ["calendario"]],
+  ["acervo", "inventory_2", "Acervo", "Os arquivos do escritório, lidos pela IA", ["biblioteca"]],
+  ["documentos", "description", "Documentos", "Peças, contratos e modelos no editor", ["editor"]],
+  ["assinatura", "draw", "Assinatura", "Assinatura digital com certificado ICP-Brasil", ["assinar"]],
+  ["email", "mail", "E-mail", "A caixa de entrada ligada aos serviços", ["caixa"]],
+  ["financeiro", "payments", "Financeiro", "Honorários, custas e recebimentos", ["financeiro"]],
+  ["cadastros", "contacts", "Cadastros", "Clientes, partes e contatos", ["cadastros"]],
+  ["aprovacoes", "verified", "Aprovações", "O que sai do escritório passa aqui antes", ["aprovacoes"]],
+  ["foco", "self_improvement", "Foco e bem-estar", "Pausas e blocos de concentração", ["foco"]],
+];
+
+/* O fabricante de cada modelo, pelo nome, com o logo que vai no programa
+   (frontend/img/marcas, de @lobehub/icons-static-svg 1.95.1, licenca MIT). */
+function fabricanteDoModelo(nome) {
+  const n = String(nome || "").toLowerCase();
+  if (n.startsWith("hf.co/")) return ["Hugging Face", "huggingface-color"];
+  if (/(^|\/)(llama|codellama)/.test(n)) return ["Meta", "meta-color"];
+  if (/(^|\/)qwen/.test(n)) return ["Alibaba", "qwen-color"];
+  if (/(^|\/)gemma/.test(n)) return ["Google", "gemma-color"];
+  if (/(^|\/)(mistral|ministral|mixtral)/.test(n)) return ["Mistral", "mistral-color"];
+  if (/(^|\/)phi/.test(n)) return ["Microsoft", "microsoft-color"];
+  if (/(^|\/)deepseek/.test(n)) return ["DeepSeek", "deepseek-color"];
+  return ["", ""];
+}
+
+function ordemBv() {
+  return bv.caminho === "entrar" ? ORDEM_ENTRAR : ORDEM_CRIAR;
+}
+
+function passoBv() {
+  return ordemBv()[bv.passo] || "boasvindas";
 }
 
 function primeiraAberturaPendente() {
@@ -49,15 +96,18 @@ async function mostrarBoasVindas() {
     try { bv.prefs = await (await fetch("/api/preferencias")).json(); } catch (err) { bv.prefs = { preferencias: {}, modelos: [] }; }
   }
   try { bv.status = await (await fetch("/api/status")).json(); } catch (err) { bv.status = null; }
-  const p = ((bv.prefs.preferencias || {}).pessoa) || {};
+  const prefs = bv.prefs.preferencias || {};
+  const p = prefs.pessoa || {};
   bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "", endereco: p.endereco || "" };
-  bv.modelo = bv.prefs.modelo_atual || (bv.status && bv.status.modelo) || "";
+  bv.modulos = Object.assign({}, prefs.modulos || {});
+  MODULOS_BV.forEach(([id]) => { if (bv.modulos[id] === undefined) bv.modulos[id] = true; });
   bv.passo = 0;
   const pendente = lerVinculo();
-  bv.escritorio = pendente ? "existente" : "novo";
+  bv.caminho = pendente ? "entrar" : "criar";
   bv.vinculo = pendente ? Object.assign({}, pendente) : { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
   $("boas-vindas").hidden = false;
   desenharBoasVindas();
+  conferirContasBv();
 }
 
 function iniciaisDe(nome) {
@@ -65,150 +115,376 @@ function iniciaisDe(nome) {
   return n ? n.split(/\s+/).map((x) => x[0] || "").filter(Boolean).slice(0, 2).join("").toUpperCase() : "?";
 }
 
+/* A logo oficial e sempre escura, nos dois temas (docs/ui/instalacao). */
+function logoBv() {
+  return '<span class="bv-logo" aria-hidden="true">P</span>';
+}
+
 function desenharBoasVindas() {
   const caixa = $("boas-vindas");
-  const lista = passosAtuais();
-  const passos = lista.map((t, i) => {
-    const feito = i < bv.passo;
-    const classe = "bv-passo" + (feito ? " feito" : "") + (i === bv.passo ? " atual" : "");
-    return (i ? '<i class="bv-traco"></i>' : "") +
-      '<span class="' + classe + '"><span class="bv-num">' + (feito ? ic("check", 12) : String(i + 1)) + "</span>" + t + "</span>";
+  const ordem = ordemBv();
+  const passo = passoBv();
+  const etapas = ordem.map((p, i) => {
+    const classe = "bv-etapa" + (i < bv.passo ? " feita" : "") + (i === bv.passo ? " atual" : "");
+    const marca = i < bv.passo ? ic("check", 13) : String(i + 1);
+    return (i ? '<i class="bv-traco"></i>' : "") + '<span class="' + classe + '" title="' + NOMES_BV[p] + '"><span class="bv-num">' + marca + "</span>" +
+      (i === bv.passo ? NOMES_BV[p] : "") + "</span>";
   }).join("");
-  const selo = bv.escritorio === "existente" && bv.passo >= 2 ? "REDE LOCAL · NADA NA INTERNET" : "NADA SAIU DESTA MÁQUINA";
-  const cabeca = '<div class="bv-cabeca"><span class="bv-marca"><img src="/img/paulus-logo.svg" alt=""><span>PAVLVS</span></span>' +
-    '<div class="bv-passos">' + passos + '</div><span class="bv-selo"><i class="ponto-verde pulsa"></i>' + selo + "</span></div>";
+  const selo = bv.caminho === "entrar" && bv.passo > 1 ? "REDE LOCAL · NADA NA INTERNET" : "NADA SAIU DESTA MÁQUINA";
+  const cabeca = '<div class="bv-cabeca"><span class="bv-marca">PAVLVS</span><div class="bv-etapas">' + etapas + "</div>" +
+    '<span class="bv-selo"><i class="ponto-verde"></i>' + selo + "</span></div>";
 
-  const telas = bv.escritorio === "existente"
-    ? [passoBoasVindas, passoEscritorio, passoDadosVinculo, passoCodigos]
-    : [passoBoasVindas, passoEscritorio, passoDados, passoIA, passoConexoes, passoAtualizacoes];
-  const corpo = telas[bv.passo]();
-  const ultimo = bv.passo === lista.length - 1;
-  let botaoFinal;
-  if (bv.passo === 0) botaoFinal = "Começar";
-  else if (!ultimo) botaoFinal = "Continuar";
-  else if (bv.escritorio === "existente") botaoFinal = ic("arrow_forward", 18) + "Abrir o PAULUS e aguardar";
-  else botaoFinal = ic("arrow_forward", 18) + "Abrir o PAULUS";
+  const telas = {
+    boasvindas: passoBoasVindas, escritorio: passoEscritorio, dados: bv.caminho === "entrar" ? passoDadosVinculo : passoDados,
+    ia: passoIA, modulos: passoModulos, conexoes: passoConexoes, atualizacoes: passoAtualizacoes, codigos: passoCodigos,
+  };
+  const [texto, lado] = telas[passo]();
+  const rotulo = bv.passo === 0 ? "BEM-VINDO" : "PASSO " + bv.passo + " — " + NOMES_BV[passo].toUpperCase();
+  const corpo = '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">' + rotulo + "</span>" + texto + "</div>" +
+    '<div class="bv-lado">' + lado + "</div></div>";
+
+  const ultimo = bv.passo === ordem.length - 1;
+  let botao;
+  if (bv.passo === 0) botao = "Começar";
+  else if (ultimo) botao = bv.caminho === "entrar" ? "Abrir o PAULUS e aguardar" : "Abrir o PAULUS";
+  else if (passo === "ia") botao = bv.modelo && bv.modelo !== "nenhum" ? "Usar " + esc(bv.modelo) : "Continuar sem modelo";
+  else botao = "Continuar";
+  const esperando = passo === "ia" && !bv.maquina;
+  const versao = (bv.status && bv.status.versao) || "";
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0
-      ? '<span class="nota-barra">PAULUS Legal · versão em desenvolvimento · Windows</span>'
+      ? '<span class="bv-versao">PAULUS' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
       : '<button class="bv-ligacao" data-bv="voltar">← Voltar</button>') +
     '<span class="cresce"></span>' +
-    (bv.passo >= 2 && !ultimo ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
-    '<button class="primario bv-continuar" data-bv="continuar">' + botaoFinal + "</button></div>";
+    (["dados", "modulos", "conexoes"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    (esperando ? "" : '<button class="bv-continuar" data-bv="continuar">' + botao + "</button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
+    (bv.entrarAberto ? janelaEntrarBv() : "") +
     '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +
     ic(document.documentElement.dataset.tema === "escuro" ? "light_mode" : "dark_mode", 18) + "</button>";
   caixa.scrollTop = 0;
   ligarBoasVindas();
 }
 
+function infosBv(itens, icone, tom) {
+  return '<div class="bv-infos">' + itens.map((t) => '<div class="' + (tom || "") + '">' + ic(icone || "info", 16) + "<span>" + t + "</span></div>").join("") + "</div>";
+}
+
+/* ------------------------------------------------------------ os passos */
+
 function passoBoasVindas() {
   const s = bv.status || {};
-  const item = (ok, texto, parcial) => {
-    const classe = "bv-check" + (ok ? " ok" : "");
-    return '<div class="' + classe + '">' + ic(ok ? "check_circle" : (parcial ? "radio_button_partial" : "radio_button_unchecked"), 18) +
-      "<span>" + texto + "</span></div>";
+  const motor = s.motor || {};
+  const item = (estado, texto) => {
+    const icone = { ok: "check_circle", parcial: "radio_button_partial", falta: "radio_button_unchecked" }[estado];
+    return '<div class="bv-check ' + estado + '">' + ic(icone, 18) + "<span>" + texto + "</span></div>";
   };
-  const modeloTxt = s.modelo
-    ? "Modelo " + esc(s.modelo) + (s.tamanho_gb ? " · " + String(s.tamanho_gb).replace(".", ",") + " GB" : " · ainda não baixado")
-    : "Modelo: nenhum encontrado no Ollama";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">BEM-VINDO</span>' +
-    "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
-    "<p>Seis passos rápidos: o escritório, seus dados, como a IA funciona, o que conectar e como atualizar. Tudo pode ser mudado depois em Configurações.</p>" +
-    '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre · gratuito</span><span class="etiqueta">IA 100% local</span><span class="etiqueta">Cerca de 3 minutos</span></div></div>' +
-    '<div class="bv-cartao"><div class="bv-instalacao"><img src="/img/paulus-logo.svg" alt=""><span class="duas-linhas"><b>' +
-    (s.ollama ? "Instalação concluída" : "Quase lá") + "</b><small>PAULUS Legal · " + esc(s.pasta || "") + "</small></span>" +
-    '<span class="etiqueta ' + (s.ollama ? "ok" : "prazo") + '">' + (s.ollama ? "pronto" : "falta o Ollama") + "</span></div>" +
-    '<div class="bv-checks">' +
-    item(Boolean(s.ollama), s.ollama ? "Ollama instalado e rodando em 127.0.0.1" : "Ollama não respondeu — abra o Ollama e clique em Começar de novo") +
-    item(Boolean(s.modelo && s.tamanho_gb), modeloTxt, Boolean(s.modelo)) +
-    item(Boolean(s.contratos), s.contratos ? "Pasta de documentos: " + plural(s.contratos, "documento") + " abertos" : "Pasta de documentos: ainda não apontada", true) +
-    item(false, "Certificado digital: opcional, para assinar") + "</div>" +
-    '<span class="nota-barra">Sem cadastro em servidor, sem conta obrigatória. O que você preencher fica nesta máquina.</span></div></div>';
+  let ollama;
+  if (motor.rodando) ollama = item("ok", "Ollama instalado e rodando em 127.0.0.1");
+  else if (motor.instalado) ollama = item("parcial", "Ollama instalado, desligado · o PAULUS liga quando precisar");
+  else ollama = item("falta", "Ollama não encontrado · instale pelo site ollama.com; a tela inicial mostra como");
+  let modelo;
+  if (bv.modelo && bv.modelo !== "nenhum") {
+    modelo = item("parcial", "Modelo de IA: " + esc(bv.modelo) + (modeloJaAqui(bv.modelo) ? " · já nesta máquina" : " · baixa ao abrir"));
+  } else {
+    modelo = item("parcial", "Modelo de IA: escolhido no passo 3");
+  }
+  const docs = s.contratos
+    ? item("ok", "Pasta de documentos: " + plural(s.contratos, "documento") + " no Acervo")
+    : item("falta", "Pasta de documentos: ainda não apontada");
+  const pasta = s.programa || s.pasta || "";
+  const texto = "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
+    "<p>Poucos passos: o escritório, seus dados, o modelo de IA desta máquina e o que conectar. Tudo pode ser mudado depois em Configurações.</p>" +
+    '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre · gratuito</span><span class="etiqueta">IA 100% local</span><span class="etiqueta">Cerca de 3 minutos</span></div>';
+  const lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() +
+    '<span class="duas-linhas"><b>Instalação concluída</b><small title="' + esc(pasta) + '">PAULUS' + (s.versao ? " " + esc(s.versao) : "") + " · " + esc(pasta) + "</small></span>" +
+    '<span class="etiqueta ok">pronto</span></div>' +
+    '<div class="bv-checks">' + ollama + modelo + docs + item("falta", "Certificado digital: opcional, para assinar") + "</div>" +
+    '<span class="bv-cartao-pe">Sem cadastro em servidor, sem conta obrigatória. O que você preencher fica nesta máquina.</span></div>';
+  return [texto, lado];
 }
 
 function passoEscritorio() {
-  const opcao = (id, icone, titulo, pill, texto) => {
-    const classe = "bv-opcao" + (bv.escritorio === id ? " escolhida" : "");
-    return '<div class="' + classe + '" data-escritorio="' + id + '"><span class="bv-radio"></span>' +
+  const opcao = (id, icone, titulo, selo, desc) => {
+    const classe = "bv-opcao" + (bv.caminho === id ? " escolhida" : "");
+    return '<div class="' + classe + '" data-caminho="' + id + '" role="radio" tabindex="0" aria-checked="' + (bv.caminho === id) + '"><span class="bv-radio"></span>' +
       '<span class="duas-linhas"><span class="bv-opcao-titulo">' + ic(icone, 18) + titulo +
-      '<span class="etiqueta ok">' + pill + "</span></span><small>" + texto + "</small></span></div>";
+      '<span class="etiqueta ok">' + selo + "</span></span><small>" + desc + "</small></span></div>";
   };
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 1 — ESCRITÓRIO</span>' +
-    "<h1>Este computador começa um escritório novo ou entra em um que já existe?</h1>" +
+  const texto = "<h1>Este computador começa um escritório novo ou entra em um que já existe?</h1>" +
     "<p>O escritório é o grupo de máquinas que compartilham cadastros, agenda, serviços e aprovações pela rede local. Quem cria o escritório vira o responsável e define as alçadas; os demais entram com um código de vínculo.</p>" +
-    '<div class="bv-infos">' + [
+    infosBv([
       "As máquinas se encontram pela rede local (mesmo Wi-Fi ou cabo). Nada passa por servidor na internet.",
-      "Cada máquina mantém sua própria IA local; o que se compartilha são os dados do escritório.",
-      "Sozinho? Crie o escritório mesmo assim — dá para convidar gente depois em Configurações › Escritório e vínculos.",
-    ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
-    '<div class="bv-opcoes">' +
-    opcao("novo", "add_business", "Criar um escritório novo", "você será o responsável",
+      "Cada máquina escolhe e roda o seu próprio modelo de IA; o que se compartilha são os dados do escritório.",
+      "Sozinho? Crie o escritório mesmo assim; dá para convidar gente depois em Configurações › Escritório e vínculos.",
+    ]);
+  const lado = '<div class="bv-opcoes">' +
+    opcao("criar", "add_business", "Criar um escritório novo", "você será o responsável",
       "Você passa a ser o responsável: aprova o que sai e define quem faz o quê. Quando a rede local chegar, é você quem gera os códigos de vínculo para as outras máquinas.") +
-    opcao("existente", "group_add", "Entrar em um escritório existente", "precisa de código",
-      "Peça ao responsável o código de vínculo. Ele aparece no PAULUS dele em Configurações › Escritório e vínculos. A validação pela rede local ainda não existe: até lá, o PAULUS abre em modo limitado, com o que é só desta máquina.") +
-    "</div></div>";
+    opcao("entrar", "group_add", "Entrar em um escritório existente", "precisa de código",
+      "Peça ao responsável o código de vínculo. Ele aparece no PAULUS dele em Configurações › Escritório e vínculos. A validação pela rede local ainda não existe: até lá, o PAULUS abre com o que é só desta máquina.") +
+    "</div>";
+  return [texto, lado];
+}
+
+function campoBv(chave, rotulo, valor, atributo, modo, dica) {
+  return '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
+    '" ' + atributo + '="' + chave + '" value="' + esc(valor || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") +
+    (dica ? ' placeholder="' + esc(dica) + '"' : "") + "></div>";
+}
+
+function fotoBv(titulo) {
+  return '<div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
+    '<span class="duas-linhas"><b>' + titulo + "</b><small>saem do nome; a foto fica para Configurações › Meus dados</small></span></div>";
 }
 
 function passoDados() {
-  const campo = (chave, rotulo, modo) =>
-    '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
-    '" data-bv-pessoa="' + chave + '" value="' + esc(bv.pessoa[chave] || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") + "></div>";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 2 — SEUS DADOS</span>' +
-    "<h1>Quem vai usar o PAULUS?</h1>" +
-    "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p></div>" +
-    '<div class="bv-cartao"><div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
-    '<span class="duas-linhas"><b>Iniciais</b><small>saem do nome; a foto fica para Configurações › Meus dados</small></span></div>' +
-    '<div class="bv-grade">' + campo("nome", "Nome completo") + campo("oab", "OAB") + campo("cpf", "CPF", "numeric") +
-    campo("telefone", "Telefone", "tel") + campo("email", "E-mail", "email") + campo("endereco", "Endereço") + "</div></div></div>";
+  const p = bv.pessoa;
+  const texto = "<h1>Quem vai usar o PAULUS?</h1>" +
+    "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p>";
+  const lado = '<div class="bv-cartao">' + fotoBv("Iniciais") +
+    '<div class="bv-grade">' + campoBv("nome", "Nome completo", p.nome, "data-bv-pessoa") + campoBv("oab", "OAB", p.oab, "data-bv-pessoa", "", "GO 00000") +
+    campoBv("cpf", "CPF", p.cpf, "data-bv-pessoa", "numeric", "000.000.000-00") + campoBv("telefone", "Telefone", p.telefone, "data-bv-pessoa", "tel") +
+    campoBv("email", "E-mail", p.email, "data-bv-pessoa", "email") + campoBv("endereco", "Endereço", p.endereco, "data-bv-pessoa") + "</div></div>";
+  return [texto, lado];
 }
 
 /* Os dados de quem entra por codigo: vao para o responsavel junto com o
    pedido. O escritorio vem do vinculo e nao se digita aqui. */
 function passoDadosVinculo() {
   const v = bv.vinculo;
-  const campo = (chave, rotulo, valor, atributo, modo) =>
-    '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
-    '" ' + atributo + '="' + chave + '" value="' + esc(valor || "") + '"' + (modo ? ' inputmode="' + modo + '"' : "") + "></div>";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 2 — SEUS DADOS</span>' +
-    "<h1>Quem é você no escritório?</h1>" +
-    "<p>Esses dados vão para o responsável junto com o seu pedido de acesso. Ele confirma o cargo e define o que você pode aprovar sozinho.</p></div>" +
-    '<div class="bv-cartao"><div class="bv-foto"><span class="bv-iniciais" id="bv-iniciais">' + esc(iniciaisDe(bv.pessoa.nome)) + "</span>" +
-    '<span class="duas-linhas"><b>Foto ou iniciais</b><small>as iniciais saem do nome; a foto fica para Configurações › Meus dados</small></span></div>' +
-    '<div class="bv-grade">' + campo("nome", "Nome completo", bv.pessoa.nome, "data-bv-pessoa") +
-    campo("apelido", "Como quer ser chamado(a)", v.apelido, "data-bv-vinculo") +
-    campo("oab", "OAB", bv.pessoa.oab, "data-bv-pessoa") +
+  const texto = "<h1>Quem é você no escritório?</h1>" +
+    "<p>Esses dados vão para o responsável junto com o seu pedido de acesso. Ele confirma o cargo e define o que você pode aprovar sozinho.</p>";
+  const lado = '<div class="bv-cartao">' + fotoBv("Iniciais") +
+    '<div class="bv-grade">' + campoBv("nome", "Nome completo", bv.pessoa.nome, "data-bv-pessoa") +
+    campoBv("apelido", "Como quer ser chamado(a)", v.apelido, "data-bv-vinculo") +
+    campoBv("oab", "OAB", bv.pessoa.oab, "data-bv-pessoa", "", "GO 00000") +
     '<div class="campo-painel"><label for="bv-cargo">Cargo sugerido</label><select id="bv-cargo" data-bv-vinculo="cargo"><option value="">escolha…</option>' +
     CARGOS_VINCULO.map((c) => '<option value="' + c + '"' + (c === v.cargo ? " selected" : "") + ">" + c + "</option>").join("") + "</select></div>" +
-    campo("email", "E-mail", bv.pessoa.email, "data-bv-pessoa", "email") +
+    campoBv("email", "E-mail", bv.pessoa.email, "data-bv-pessoa", "email") +
     '<div class="campo-painel"><label>Escritório</label><span class="bv-campo-fixo">' + ic("lan", 16) + "vem do vínculo · aparece quando o responsável validar</span></div></div>" +
-    '<span class="nota-barra">“Escritório” vem do vínculo e não pode ser alterado aqui.</span></div></div>';
+    '<span class="bv-cartao-pe">“Escritório” vem do vínculo e não pode ser alterado aqui.</span></div>';
+  return [texto, lado];
+}
+
+/* ------------------------------------------------------- o modelo de IA */
+
+/* O teste desta maquina (src/maquina.py): sem IA, uns cinco segundos, na
+   primeira vez que o passo abre. A barra anda enquanto ele roda; dele sai o
+   recomendado, com a nota no nosso banco de provas e o tempo ESTIMADO aqui. */
+async function conferirMaquinaBv() {
+  if (bv.maquina || bv.conferindo) return;
+  bv.conferindo = true;
+  bv.diag = 4;
+  bv.relogioDiag = setInterval(() => {
+    bv.diag = Math.min(92, bv.diag + 3);
+    const barra = document.querySelector("#bv-diag i");
+    if (barra) barra.style.width = bv.diag + "%";
+  }, 150);
+  let d = null;
+  try {
+    const r = await fetch("/api/maquina");
+    d = r.ok ? await r.json() : null;
+  } catch (err) { d = null; }
+  if (!d || !d.modelos) {
+    try {
+      const m = await (await fetch("/api/modelos")).json();
+      bv.catalogo = (m.catalogo || []).map((c) => ({ nome: c.nome, gb: c.gb || c.gb_aprox, instalado: c.instalado, estimativa: null, qualidade: null }));
+    } catch (err) { bv.catalogo = []; }
+  }
+  try {
+    const c = await fetch("/api/calibracao");
+    if (c.ok) bv.calib = await c.json();
+  } catch (err) { /* sem a chave da calibracao, a linha fica como estava */ }
+  clearInterval(bv.relogioDiag);
+  bv.conferindo = false;
+  bv.diag = 100;
+  bv.maquina = d || { erro: true };
+  // Sem escolha de quem usa, o recomendado vira o escolhido.
+  if (!bv.escolheuModelo) bv.modelo = (d && d.recomendado) || "";
+  if (!$("boas-vindas").hidden && passoBv() === "ia") desenharBoasVindas();
+}
+
+function modeloJaAqui(nome) {
+  const lista = (bv.maquina && bv.maquina.modelos) || bv.catalogo || [];
+  const achado = lista.find((m) => m.nome === nome);
+  return Boolean(achado && achado.instalado);
+}
+
+function gbBv(x) {
+  return x === null || x === undefined ? "" : Number(x).toFixed(1).replace(".", ",") + " GB";
+}
+
+function linhaModeloBv(m, limite) {
+  const [autor, logo] = fabricanteDoModelo(m.nome);
+  const e = m.estimativa || null;
+  const q = m.qualidade || null;
+  const naoCabe = Boolean(e && e.cabe === false);
+  const lento = Boolean(e && e.cabe && e.primeira_s && limite && e.primeira_s > limite);
+  const selos = [];
+  if (m.recomendado) selos.push('<span class="etiqueta ok">recomendado</span>');
+  if (lento) selos.push('<span class="etiqueta atencao">mais lento aqui</span>');
+  if (naoCabe) selos.push('<span class="etiqueta atencao">não cabe na memória</span>');
+  if (m.instalado) selos.push('<span class="etiqueta">já nesta máquina</span>');
+  const nota = q ? "acertou " + q.certas + " de " + q.total + " no nosso teste" : "ainda sem nota no nosso teste";
+  const desc = (autor ? autor + " · " : "") + nota;
+  const tempo = naoCabe ? "" : (e && e.primeira_s ? "1ª pergunta ~" + e.primeira_s + " s" : "");
+  const classe = "bv-modelo" + (bv.modelo === m.nome ? " escolhido" : "") + (naoCabe ? " bloqueado" : "");
+  return '<button type="button" class="' + classe + '" data-bv-modelo="' + esc(m.nome) + '"' + (naoCabe ? " disabled" : "") + ">" +
+    '<span class="bv-radio"></span>' +
+    '<span class="bv-fabricante"' + (autor ? ' title="' + esc(autor) + '"' : "") + ">" +
+    (logo ? '<img src="/img/marcas/' + logo + '.svg" alt="">' : ic("memory", 19)) + "</span>" +
+    '<span class="duas-linhas"><span class="bv-modelo-nome"><span>' + esc(m.nome) + "</span>" + selos.join("") + "</span><small>" + esc(desc) + "</small></span>" +
+    '<span class="bv-modelo-medida"><span class="bv-tamanho">' + gbBv(m.gb) + "</span>" + (tempo ? "<small>" + tempo + "</small>" : "") + "</span></button>";
+}
+
+function passoIA() {
+  const texto = "<h1>A inteligência artificial roda aqui, nesta máquina. Ponto.</h1>" +
+    "<p>Conferimos o processador, a memória e a placa de vídeo para recomendar o modelo que responde bem aqui. O modelo, o índice dos seus documentos e as senhas ficam no seu computador.</p>" +
+    infosBv([
+      "Os seus documentos nunca são enviados para treinar ou consultar modelo algum.",
+      "Você pode desligar o Wi-Fi e tudo continua funcionando.",
+      "Os tempos são estimativas; depois de baixar, “Medir” em Configurações › Modelos dá o número de verdade.",
+    ], "check_circle", "ok");
+  const d = bv.maquina;
+  if (!d) conferirMaquinaBv();
+  const m = (d && d.maquina) || {};
+  const pronto = Boolean(d && !d.erro);
+  const gb = (x) => String(x).replace(".", ",") + " GB";
+  const placas = (m.placas_nvidia || []).map((p) => p.nome + " · " + gb(p.memoria_gb)).join("; ");
+  const linhas = [
+    ["Processador", pronto ? m.processador || "—" : "…"],
+    ["Memória", pronto ? gb(m.ram_total_gb) + " · " + gb(m.ram_livre_gb) + " livres agora" : "…"],
+    ["Placa de vídeo", pronto ? placas || "sem placa NVIDIA: o modelo roda no processador" : "…"],
+  ];
+  if (pronto && m.na_bateria) linhas.push(["Energia", "na bateria: na tomada o PAULUS responde mais rápido"]);
+  let maquina = '<div class="bv-cartao bv-maquina"><span class="bv-rotulo">ESTA MÁQUINA</span><div class="bv-tabela">' +
+    linhas.map(([k, v]) => "<div><span>" + k + "</span><span>" + esc(v) + "</span></div>").join("") + "</div>";
+  if (!d) {
+    maquina += '<div class="bv-diag"><span><i class="pulso"></i>Conferindo esta máquina para recomendar o modelo… (uns 5 segundos, sem IA)</span>' +
+      '<div class="barra-fina" id="bv-diag"><i style="width:' + bv.diag + '%"></i></div></div>';
+  } else if (d.erro) {
+    maquina += '<p class="bv-cartao-pe">Não consegui conferir esta máquina agora. Escolha abaixo, ou deixe para Configurações › Modelos.</p>';
+  }
+  maquina += "</div>";
+  if (!d) return [texto, maquina];
+
+  const todos = (d.modelos || bv.catalogo || []).slice();
+  const rec = todos.filter((x) => x.recomendado);
+  const outros = todos.filter((x) => !x.recomendado);
+  const limite = d.limite_s || 0;
+  const nenhum = '<button type="button" class="bv-modelo' + (bv.modelo === "nenhum" || !bv.modelo ? " escolhido" : "") + '" data-bv-modelo="nenhum">' +
+    '<span class="bv-radio"></span><span class="bv-fabricante">' + ic("schedule", 19) + "</span>" +
+    '<span class="duas-linhas"><span class="bv-modelo-nome"><span>Não baixar agora</span></span><small>escolho depois, em Configurações › Modelos</small></span></button>';
+  const cal = bv.calib || {};
+  const calibracao = '<div class="bv-calibracao"><span class="duas-linhas"><b>Participar da calibração</b>' +
+    "<small>manda as medidas desta máquina ao site do PAULUS e recebe as de outras; nada do escritório · " +
+    '<button type="button" class="em-ligacao" data-cal-ver="1">ver o que é enviado</button></small></span>' +
+    '<span class="interruptor-min' + (cal.participar ? " on" : "") + '" data-cal-participar="1" role="switch" tabindex="0" aria-checked="' + Boolean(cal.participar) + '" aria-label="Participar da calibração"></span></div>';
+  const lista = (rec.length ? '<span class="bv-rotulo bv-lista-titulo">RECOMENDADO PARA ESTA MÁQUINA</span>' + rec.map((x) => linhaModeloBv(x, limite)).join("") : "") +
+    calibracao +
+    '<span class="bv-rotulo bv-lista-titulo">' + (rec.length ? "OUTRAS OPÇÕES" : "MODELOS") + "</span>" +
+    outros.map((x) => linhaModeloBv(x, limite)).join("") + nenhum;
+  return [texto, maquina + '<div class="bv-modelos">' + lista + "</div>"];
+}
+
+/* ------------------------------------------------------------ modulos */
+
+function passoModulos() {
+  const ligados = 1 + MODULOS_BV.filter(([id]) => bv.modulos[id]).length;
+  const texto = "<h1>O que o escritório vai usar?</h1>" +
+    "<p>O Assistente é fixo. Os demais módulos podem ser ligados ou desligados depois em Configurações › Módulos, sem reinstalar. O que você desligar some do menu desta máquina.</p>" +
+    '<div class="bv-contagem"><span>Módulos ligados</span><span>' + ligados + " de " + (MODULOS_BV.length + 1) + "</span></div>";
+  const linha = (id, icone, nome, desc, fixo) => {
+    const ligado = fixo || bv.modulos[id];
+    return '<div class="bv-modulo' + (fixo ? " fixo" : "") + '"' + (fixo ? "" : ' data-bv-modulo="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + ">" +
+      '<span class="bv-modulo-ic">' + ic(icone, 19) + "</span>" +
+      '<span class="duas-linhas"><b>' + nome + "</b><small>" + desc + "</small></span>" +
+      (fixo ? '<span class="bv-fixo">fixo</span>' : '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span>') + "</div>";
+  };
+  const lado = '<div class="bv-grupos"><span class="bv-rotulo bv-lista-titulo">NÚCLEO</span>' +
+    linha("assistente", "forum", "Assistente", "Conversa, pesquisa no acervo e rascunhos", true) +
+    '<span class="bv-rotulo bv-lista-titulo">ESCRITÓRIO</span>' +
+    MODULOS_BV.map(([id, icone, nome, desc]) => linha(id, icone, nome, desc, false)).join("") + "</div>";
+  return [texto, lado];
+}
+
+/* ------------------------------------------------------------ conexoes */
+
+/* A conta Google comeca pelo e-mail (o login do Gmail, src/correio_oauth.py);
+   a Agenda, o Meet e o Drive pedem a propria autorizacao depois, em
+   Configuracoes › Conexoes. */
+async function conferirContasBv() {
+  try {
+    bv.oauth = await (await fetch("/api/email/oauth")).json();
+  } catch (err) { bv.oauth = null; }
+  try {
+    const d = await (await fetch("/api/email/contas")).json();
+    const g = (d.contas || []).find((c) => c.autenticacao === "google");
+    bv.google = g ? g.email : null;
+  } catch (err) { /* sem contas, fica como estava */ }
+}
+
+function passoConexoes() {
+  const texto = "<h1>O que você quer conectar? Tudo opcional.</h1>" +
+    "<p>O e-mail do escritório pode ser lido e respondido daqui, com envio passando por Aprovações. A IA continua local: o PAULUS lê aqui e não devolve nada sem o seu sim.</p>" +
+    infosBv([
+      "A autorização do e-mail fica nesta máquina, cifrada pela sua conta do Windows.",
+      "Dá para desconectar a qualquer hora em E-mail › Contas.",
+    ]);
+  const ligado = Boolean(bv.google);
+  const desc = ligado
+    ? "Conectada · " + esc(bv.google) + " · a Agenda e o Drive se conectam em Configurações › Conexões"
+    : (bv.imap ? "Outro provedor: o PAULUS abre em E-mail › Contas ao terminar" : "Gmail · Agenda e Meet · Drive");
+  const lado = '<div class="bv-conta' + (ligado ? " on" : "") + '" data-bv="google" role="switch" tabindex="0" aria-checked="' + ligado + '">' +
+    '<span class="bv-fabricante">' + eoMarca("google") + "</span>" +
+    '<span class="duas-linhas"><b>Conta Google</b><small>' + desc + "</small></span>" +
+    '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
+  return [texto, lado];
+}
+
+function janelaEntrarBv() {
+  const botoes = botoesDeLoginOAuth(bv.oauth);
+  return '<div class="bv-veu" data-bv="fechar-entrar"><div class="bv-entrar-coluna" data-bv-parar="1">' +
+    '<div class="bv-entrar" id="bv-entrar"><h2>Entrar</h2>' +
+    (botoes || '<p class="bv-cartao-pe">Esta versão do PAULUS não traz o login do Google. Use outro provedor.</p>') +
+    '<button type="button" class="bv-ligacao" data-bv="imap">Outro provedor (IMAP e SMTP)</button></div>' +
+    '<div class="bv-entrar-notas"><span>Leio só o que você abre</span><span>Prazos viram sugestão na Agenda</span></div>' +
+    '<span class="bv-entrar-notas">Nada sai sem passar por Aprovações</span></div></div>';
+}
+
+function passoAtualizacoes() {
+  const texto = "<h1>Como o PAULUS deve se atualizar?</h1>" +
+    "<p>Nesta versão, atualizar é rodar o instalador novo: o programa não verifica nada na internet sozinho. Quando a verificação automática chegar, ela vai baixar só o instalador, e você poderá desligá-la.</p>";
+  const lado = '<div class="bv-cartao"><div class="bv-checks">' +
+    '<div class="bv-check falta">' + ic("radio_button_unchecked", 18) + "<span>Verificar atualizações uma vez por dia · em breve</span></div>" +
+    '<div class="bv-check falta">' + ic("radio_button_unchecked", 18) + "<span>Avisar antes de instalar · em breve</span></div></div>" +
+    '<div class="bv-apoio"><b>Você também pode apoiar o projeto</b><p>O PAULUS é gratuito e mantido por quem usa. Sem pressa: dá para fazer isso depois, em Apoiar, no menu.</p></div></div>';
+  return [texto, lado];
 }
 
 function passoCodigos() {
   const v = bv.vinculo;
   if (!v.meuCodigo) v.meuCodigo = gerarCodigoDeVinculo();
   const casas = (codigo, digitando) => {
-    const texto = String(codigo || "").toUpperCase();
+    const t = String(codigo || "").toUpperCase();
     const classe = "bv-casas" + (digitando ? "" : " pronto");
     return '<div class="' + classe + '"' + (digitando ? ' data-bv-focar="1"' : "") + ">" + [0, 1, 2, 3, 4, 5].map((i) => {
-      const c = texto[i] || "";
-      const classeCasa = c ? "" : (digitando && i === texto.length ? "vazia cursor" : "vazia");
+      const c = t[i] || "";
+      const classeCasa = c ? "" : (digitando && i === t.length ? "vazia cursor" : "vazia");
       return '<span class="' + classeCasa + '">' + esc(c || "·") + "</span>";
     }).join("") + "</div>";
   };
   const nome = bv.pessoa.nome || "você";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 3 — CÓDIGOS</span>' +
-    "<h1>Dois códigos: um que você recebe, um que você passa.</h1>" +
-    "<p>O primeiro é o código do responsável: ele gera no PAULUS dele e vincula esta máquina ao escritório. O segundo é gerado aqui e identifica você: o responsável digita em Configurações › Escritório e vínculos para adicionar você ao escritório, com cargo e alçada.</p>" +
-    '<div class="bv-infos">' + [
-      "O responsável encontra o código dele em Configurações › Escritório e vínculos. Vale por 15 minutos.",
-      "Enquanto ele não adiciona você, o PAULUS abre normalmente e funciona com o que é só desta máquina; o que depende do escritório fica bloqueado.",
-      "A conferência pela rede local ainda não existe nesta versão: o código fica guardado nesta máquina até ela chegar. Você pode cancelar o pedido e criar o seu escritório a qualquer momento.",
-    ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
-    '<div class="bv-opcoes">' +
-    '<div class="bv-cartao bv-codigo-cartao"><div class="bv-codigo-cabeca"><span class="bv-num-passo">1</span><span>Código do responsável</span><small>' +
+  const texto = "<h1>Dois códigos: um que você recebe, um que você passa.</h1>" +
+    "<p>O primeiro é o código do responsável: ele gera no PAULUS dele e vincula esta máquina ao escritório. O segundo é gerado aqui e identifica você; o responsável digita em Configurações › Escritório e vínculos.</p>" +
+    infosBv([
+      "O código do responsável vale por 15 minutos.",
+      "Enquanto ele não adiciona você, o PAULUS abre com o que é só desta máquina; o que depende do escritório fica bloqueado.",
+      "A conferência pela rede local ainda não existe nesta versão: o pedido fica guardado nesta máquina até ela chegar. Dá para cancelar e criar o seu escritório a qualquer momento.",
+    ]);
+  const lado = '<div class="bv-cartao bv-codigo-cartao"><div class="bv-codigo-cabeca"><span class="bv-num-passo">1</span><span>Código do responsável</span><small>' +
     (v.codigoResponsavel && v.codigoResponsavel.length === 6 ? "6 de 6" : "6 caracteres") + "</small></div>" +
     casas(v.codigoResponsavel, true) +
     '<input type="text" id="bv-codigo" class="bv-oculto" maxlength="6" autocomplete="off" spellcheck="false" value="' + esc(v.codigoResponsavel || "") + '">' +
@@ -217,8 +493,8 @@ function passoCodigos() {
     casas(v.meuCodigo, false) +
     '<span class="bv-codigo-nota">Gerado para ' + esc(nome) + " · esta máquina · válido até o responsável validar</span>" +
     '<div class="bv-codigo-acoes"><button class="com-icone" data-bv="copiar">' + ic("content_copy", 16) + "Copiar</button>" +
-    '<button class="com-icone" data-bv="whatsapp">' + ic("chat", 16) + "WhatsApp</button></div></div>" +
-    "</div></div>";
+    '<button class="com-icone" data-bv="whatsapp">' + ic("chat", 16) + "WhatsApp</button></div></div>";
+  return [texto, lado];
 }
 
 /* Sem O, 0, I e 1: um codigo ditado por telefone nao pode depender de
@@ -231,130 +507,34 @@ function gerarCodigoDeVinculo() {
   return Array.from(sorteio).map((n) => alfabeto[n % alfabeto.length]).join("");
 }
 
-function passoIA() {
-  const modelos = (bv.prefs && bv.prefs.modelos) || [];
-  const s = bv.status || {};
-  const linhas = [
-    ["Modelo de IA", "nesta máquina · Ollama", true],
-    ["Seus documentos e índice", "nesta máquina", true],
-    ["Senhas e certificado", "cofre desta máquina", true],
-    ["E-mail", "seu servidor (IMAP/SMTP) · opcional", false],
-    ["Atualizações", "pelo instalador · nada sai sozinho", false],
-  ];
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 3 — COMO A IA FUNCIONA</span>' +
-    "<h1>A inteligência artificial roda aqui, nesta máquina. Ponto.</h1>" +
-    "<p>O modelo, o índice dos seus documentos e as senhas ficam no seu computador. Não existe chamada a nenhum serviço de IA na internet. Você pode desligar o Wi-Fi e tudo continua funcionando.</p>" +
-    '<div class="bv-checks">' + [
-      "Os seus documentos nunca são enviados para treinar ou consultar modelo algum.",
-      "Serviços online são opcionais e só para o que é online por natureza: e-mail e arquivos na nuvem.",
-      "Tudo que sai da máquina — um e-mail, um documento para o Drive — passa por Aprovações antes. A exceção é o que você mesmo liga para sincronizar, como a Agenda do Google.",
-    ].map((t) => '<div class="bv-check ok">' + ic("check_circle", 18) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
-    '<div class="bv-cartao"><b class="bv-cartao-titulo">Onde cada coisa fica</b><div class="bv-tabela">' +
-    linhas.map(([k, v, local]) => "<div><span>" + k + '</span><span class="bv-onde' + (local ? " ok" : "") + '">' + v + "</span></div>").join("") + "</div>" +
-    blocoDaMaquina() +
-    '<div class="campo-painel"><label for="bv-modelo">Modelo escolhido</label><select id="bv-modelo">' +
-    opcoesDeModelo(modelos) + "</select></div>" +
-    '<span class="nota-barra">' + (s.tamanho_gb ? "O modelo em uso pesa " + String(s.tamanho_gb).replace(".", ",") + " GB. " : "") +
-    "Dá para trocar, medir e baixar outros em Configurações › Modelos.</span></div></div>";
-}
-
-/* O teste desta maquina (src/maquina.py): sem IA, uns cinco segundos, na
-   primeira vez que o passo abre. Dele sai o modelo recomendado, com o porque:
-   a nota no nosso banco de provas e o tempo ESTIMADO aqui. */
-async function conferirMaquinaBv() {
-  if (bv.maquina || bv.conferindo) return;
-  bv.conferindo = true;
-  try {
-    const r = await fetch("/api/maquina");
-    bv.maquina = r.ok ? await r.json() : { erro: true };
-    const c = await fetch("/api/calibracao");
-    if (c.ok) mod.calib = await c.json();
-  } catch (err) {
-    bv.maquina = { erro: true };
-  }
-  bv.conferindo = false;
-  // Sem escolha de quem usa, o recomendado vira o escolhido.
-  if (bv.maquina.recomendado && !bv.escolheuModelo) bv.modelo = bv.maquina.recomendado;
-  if (!$("boas-vindas").hidden && bv.passo === 3) desenharBoasVindas();
-}
-
-function blocoDaMaquina() {
-  const d = bv.maquina;
-  if (!d) {
-    conferirMaquinaBv();
-    return '<p class="bv-maquina-nota">' + ic("speed", 16) + "Conferindo esta máquina para recomendar o modelo… (uns 5 segundos, sem IA)</p>";
-  }
-  if (d.erro) return '<p class="bv-maquina-nota">Não consegui conferir esta máquina agora. Dá para fazer depois em Configurações › Modelos.</p>';
-  const m = d.maquina || {};
-  const gb = (x) => String(x).replace(".", ",") + " GB";
-  const placas = (m.placas_nvidia || []).map((p) => p.nome + " · " + gb(p.memoria_gb)).join("; ");
-  const linhas = [
-    ["Processador", m.processador || "—"],
-    ["Memória", gb(m.ram_total_gb) + " · " + gb(m.ram_livre_gb) + " livres agora"],
-    ["Placa de vídeo", placas || "sem placa NVIDIA: o modelo roda no processador"],
-  ];
-  if (m.na_bateria) linhas.push(["Energia", "na bateria: na tomada o PAULUS responde mais rápido"]);
-  const rec = d.recomendado
-    ? '<div class="bv-recomendado"><b>' + ic("check_circle", 16) + "Recomendado: " + esc(d.recomendado) + "</b><span>" + esc(d.porque) +
-      ". É estimativa: depois de baixar, “Medir” em Configurações › Modelos dá o número de verdade.</span></div>"
-    : '<div class="bv-recomendado"><b>' + ic("info", 16) + "Sem recomendação</b><span>" + esc(d.porque || "") + ".</span></div>";
-  return '<b class="bv-cartao-titulo bv-maquina-titulo">Esta máquina</b><div class="bv-tabela">' +
-    linhas.map(([k, v]) => "<div><span>" + k + "</span><span>" + esc(v) + "</span></div>").join("") + "</div>" + rec +
-    '<div class="bv-calibracao">' + blocoCalibracao(mod.calib, true) + "</div>";
-}
-
-/* Os instalados, e o recomendado mesmo que ainda nao esteja: escolher e o
-   cartao do Assistente baixa na primeira pergunta. */
-function opcoesDeModelo(instalados) {
-  const rec = (bv.maquina && bv.maquina.recomendado) || "";
-  const nomes = instalados.slice();
-  if (rec && !nomes.includes(rec)) nomes.unshift(rec);
-  if (bv.modelo && !nomes.includes(bv.modelo)) nomes.push(bv.modelo);
-  if (!nomes.length) return '<option value="">nenhum modelo no Ollama</option>';
-  return nomes.map((n) => {
-    const marcas = [n === rec ? "recomendado" : "", instalados.includes(n) ? "" : "falta baixar"].filter(Boolean);
-    return '<option value="' + esc(n) + '"' + (n === bv.modelo ? " selected" : "") + ">" + esc(n) +
-      (marcas.length ? " (" + marcas.join(" · ") + ")" : "") + "</option>";
-  }).join("");
-}
-
-function passoConexoes() {
-  const conta = (letra, titulo, sub, acao) =>
-    '<div class="bv-conta"><span class="bv-conta-letra">' + letra + '</span><span class="duas-linhas"><b>' + titulo + "</b><small>" + sub + "</small></span>" + acao + "</div>";
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 4 — CONEXÕES</span>' +
-    "<h1>O que você quer conectar? Tudo opcional.</h1>" +
-    "<p>O e-mail do escritório pode ser lido e respondido daqui, com envio passando por Aprovações. A IA continua local: o PAULUS lê aqui e não devolve nada sem o seu sim.</p>" +
-    '<div class="bv-infos">' + [
-      "A senha do e-mail fica nesta máquina, no cofre do programa.",
-      "Leio só o que você abre; nada é apagado no servidor.",
-      "Dá para desconectar a qualquer hora em E-mail › Contas.",
-    ].map((t) => "<div>" + ic("info", 16) + "<span>" + t + "</span></div>").join("") + "</div></div>" +
-    '<div class="bv-contas">' +
-    conta("@", "E-mail do escritório", "IMAP / SMTP · detecto o servidor pelo domínio", '<button class="com-icone" data-bv="email">Configurar ao abrir</button>') +
-    conta("G", "Conta Google", "Gmail · Agenda e Meet · Drive", '<button class="com-icone" data-bv="google">Configurar ao abrir</button>') +
-    conta("M", "Conta Microsoft", "Outlook · OneDrive", '<span class="etiqueta">em breve</span>') +
-    '<span class="nota-barra">WhatsApp Web e certificado digital ficam para depois, quando você precisar — em Conexões e em Assinatura.</span></div></div>';
-}
-
-function passoAtualizacoes() {
-  return '<div class="bv-corpo"><div class="bv-texto"><span class="rotulo">PASSO 5 — ATUALIZAÇÕES</span>' +
-    "<h1>Como o PAULUS deve se atualizar?</h1>" +
-    "<p>Nesta versão, atualizar é rodar o instalador novo: o programa não verifica nada na internet sozinho. Quando a verificação automática chegar, ela vai baixar só o instalador — nenhum dado seu vai junto — e você poderá desligá-la.</p></div>" +
-    '<div class="bv-cartao"><div class="bv-checks">' +
-    '<div class="bv-check">' + ic("radio_button_unchecked", 18) + "<span>Verificar atualizações uma vez por dia — em breve</span></div>" +
-    '<div class="bv-check">' + ic("radio_button_unchecked", 18) + "<span>Avisar antes de instalar — em breve</span></div></div>" +
-    '<div class="bv-apoio"><b>Você também pode apoiar o projeto</b><p>O PAULUS é gratuito e mantido por quem usa. Sem pressa: dá para fazer isso depois, em Apoiar, no menu.</p></div></div></div>';
-}
+/* ----------------------------------------------------------- os cliques */
 
 function ligarBoasVindas() {
   const caixa = $("boas-vindas");
-  caixa.querySelectorAll("[data-bv]").forEach((b) => { b.onclick = () => acaoBoasVindas(b.dataset.bv); });
-  caixa.querySelectorAll("[data-escritorio]").forEach((o) => {
-    o.onclick = () => {
-      bv.escritorio = o.dataset.escritorio;
+  caixa.querySelectorAll("[data-bv]").forEach((b) => {
+    /* O fundo da janela Entrar so fecha com clique NELE. Perguntar se o alvo
+       esta dentro da janela nao serve: o botao do Google se troca pelo
+       "aguardando o navegador" no proprio clique, e o alvo, ja fora da
+       pagina, parecia um clique fora - fechava a janela e cancelava o login
+       (a volta do Google caia numa porta fechada). */
+    b.onclick = (e) => { if (b.dataset.bv === "fechar-entrar" && e.target !== b) return; acaoBoasVindas(b.dataset.bv); };
+  });
+  const teclaAtiva = (el, fazer) => {
+    el.onclick = fazer;
+    el.onkeydown = (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); fazer(); } };
+  };
+  caixa.querySelectorAll("[data-caminho]").forEach((o) => {
+    teclaAtiva(o, () => {
+      bv.caminho = o.dataset.caminho;
       if (!bv.vinculo) bv.vinculo = { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
       desenharBoasVindas();
-    };
+    });
+  });
+  caixa.querySelectorAll("[data-bv-modelo]").forEach((b) => {
+    b.onclick = () => { bv.modelo = b.dataset.bvModelo; bv.escolheuModelo = true; desenharBoasVindas(); };
+  });
+  caixa.querySelectorAll("[data-bv-modulo]").forEach((m) => {
+    teclaAtiva(m, () => { const id = m.dataset.bvModulo; bv.modulos[id] = !bv.modulos[id]; desenharBoasVindas(); });
   });
   caixa.querySelectorAll("[data-bv-pessoa]").forEach((i) => {
     i.oninput = (e) => {
@@ -369,9 +549,19 @@ function ligarBoasVindas() {
     i.oninput = (e) => { bv.vinculo[i.dataset.bvVinculo] = e.target.value; };
     i.onchange = i.oninput;
   });
-  ligarCalibracao(caixa, () => desenharBoasVindas());
-  const modelo = $("bv-modelo");
-  if (modelo) modelo.onchange = (e) => { bv.modelo = e.target.value; bv.escolheuModelo = true; };
+  ligarCalibracao(caixa, async () => {
+    try { bv.calib = await (await fetch("/api/calibracao")).json(); } catch (err) { /* fica o que havia */ }
+  });
+  const entrar = $("bv-entrar");
+  if (entrar) {
+    ligarLoginOAuth(entrar, (conta) => {
+      bv.google = (conta && conta.email) || "conta Google";
+      bv.imap = false;
+      bv.entrarAberto = false;
+      avisoCert("conta Google conectada ao e-mail", { tom: "ok" });
+      desenharBoasVindas();
+    });
+  }
   const codigo = $("bv-codigo");
   if (codigo) {
     codigo.oninput = () => {
@@ -399,18 +589,24 @@ async function acaoBoasVindas(qual) {
   if (qual === "voltar") { bv.passo = Math.max(0, bv.passo - 1); desenharBoasVindas(); return; }
   if (qual === "pular") { bv.passo += 1; desenharBoasVindas(); return; }
   if (qual === "google") {
-    /* A conta Google comeca pelo e-mail (entrar com Google); a Agenda, o Meet
-       e o Drive se conectam depois, em Configuracoes › Conexoes. */
-    await concluirBoasVindas(true);
-    marcarDestino("caixa");
-    mostrarEmail("contas");
-    avisoCert("Entre com Google aqui; depois, a Agenda e o Drive se conectam em Configurações › Conexões.", { dura: 9000 });
+    if (bv.google) { avisoCert("para desconectar, use E-mail › Contas depois de abrir o PAULUS"); return; }
+    bv.entrarAberto = true;
+    desenharBoasVindas();
     return;
   }
-  if (qual === "email") {
-    await concluirBoasVindas(true);
-    marcarDestino("caixa");
-    mostrarEmail();
+  if (qual === "fechar-entrar") {
+    eoParar();
+    fetch("/api/email/oauth/cancelar", { method: "POST" }).catch(() => {});
+    bv.entrarAberto = false;
+    desenharBoasVindas();
+    return;
+  }
+  if (qual === "imap") {
+    eoParar();
+    fetch("/api/email/oauth/cancelar", { method: "POST" }).catch(() => {});
+    bv.entrarAberto = false;
+    bv.imap = true;
+    desenharBoasVindas();
     return;
   }
   if (qual === "copiar") { copiarTexto(bv.vinculo.meuCodigo, "código copiado — passe ao responsável"); return; }
@@ -419,25 +615,46 @@ async function acaoBoasVindas(qual) {
       "mensagem copiada — cole na conversa com o responsável no WhatsApp");
     return;
   }
-  const ultimo = bv.passo === passosAtuais().length - 1;
+  const passo = passoBv();
+  const ultimo = bv.passo === ordemBv().length - 1;
   // Continuar grava o que o passo tem, e so o que tem.
-  if (bv.passo === 2) await gravarBoasVindas({ pessoa: bv.pessoa });
-  if (bv.escritorio !== "existente" && bv.passo === 3 && bv.modelo) await gravarBoasVindas({ modelo: bv.modelo });
+  if (passo === "dados") await gravarBoasVindas({ pessoa: bv.pessoa });
   if (ultimo) {
-    if (bv.escritorio === "existente") {
+    if (bv.caminho === "entrar") {
       if ((bv.vinculo.codigoResponsavel || "").length !== 6) { avisoCert("digite os 6 caracteres do código do responsável"); $("bv-codigo").focus(); return; }
       guardarVinculo({
         meuCodigo: bv.vinculo.meuCodigo, codigoResponsavel: bv.vinculo.codigoResponsavel, apelido: bv.vinculo.apelido || "",
         cargo: bv.vinculo.cargo || "", nome: bv.pessoa.nome || "", pedido_em: new Date().toISOString(), estado: "aguardando",
       });
       aplicarModoLimitado();
+    } else {
+      await gravarBoasVindas({ modulos: bv.modulos });
+      aplicarModulos(bv.modulos);
     }
+    await usarModeloEscolhido();
     await concluirBoasVindas(true);
-    if (bv.escritorio === "existente") avisoCert("pedido guardado nesta máquina — o PAULUS abre em modo limitado até o responsável validar");
+    if (bv.caminho === "entrar") avisoCert("pedido guardado nesta máquina — o PAULUS abre em modo limitado até o responsável validar");
+    if (bv.imap && bv.caminho === "criar") { marcarDestino("caixa"); mostrarEmail(); }
     return;
   }
   bv.passo += 1;
   desenharBoasVindas();
+}
+
+/* O modelo escolhido no passo 3 vira o padrao; se ainda nao esta aqui, o
+   download comeca agora, com a barra no cartao do inicio. */
+async function usarModeloEscolhido() {
+  if (!bv.modelo || bv.modelo === "nenhum") return;
+  try {
+    const r = await fetch("/api/modelos/usar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: bv.modelo, baixar: true }),
+    });
+    if (!r.ok) throw new Error(await erroDe(r));
+    if (!modeloJaAqui(bv.modelo)) avisoCert("baixando o " + bv.modelo + " — o andamento aparece no início", { dura: 7000 });
+  } catch (err) {
+    avisoCert("não consegui começar o download do modelo: " + err + " · dá para baixar em Configurações › Modelos");
+  }
 }
 
 async function gravarBoasVindas(dados) {
@@ -460,6 +677,18 @@ async function concluirBoasVindas(fechar) {
   carregarUsuario();
   carregarStatus();
   $("nova").click();
+}
+
+/* --------------------------------------------------- os modulos no menu */
+
+/* Desligado some do menu (os dois: o trilho e o seletor). Chamado ao abrir,
+   ao terminar o assistente e ao salvar Configuracoes. */
+function aplicarModulos(modulos) {
+  const m = modulos || {};
+  MODULOS_BV.forEach(([id, , , , destinos]) => {
+    const desligado = m[id] === false;
+    destinos.forEach((d) => document.querySelectorAll('[data-destino="' + d + '"]').forEach((b) => { b.hidden = desligado; }));
+  });
 }
 
 /* ------------------------------------------------- o vinculo pendente */
@@ -551,4 +780,3 @@ function cartaoDoPedidoDestaMaquina() {
     '<button class="em-ligacao acc" data-cfg-vinculo-cancelar="1">Cancelar o pedido e criar meu escritório</button></div>';
   return cartaoCfg("Pedido desta máquina", pontoCfg("aguardando o responsável", "acc"), corpo);
 }
-

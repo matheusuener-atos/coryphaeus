@@ -30,6 +30,8 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+# O manifesto do instalador (sem ele o Windows pede administrador e borra a tela).
+!tools/instalador/Instalador.manifest
 .env
 
 # Certificado digital: .pfx e chave privada. Nunca entra no repositorio -
@@ -84,8 +86,9 @@ data/demo/
 # O que o tools/instalador/construir.py monta (Python, dependencias, instalador): grande e refeito a cada versao.
 tools/instalador/_construcao/
 
-# Gerados por maquina: o teste desta maquina, a calibracao baixada do servidor e
-# a escolha da tela Modelo de IA do instalador.
+# Gerados por maquina: o teste desta maquina e a calibracao baixada do servidor.
 data/maquina.json
 data/calibracao_servidor.json
-data/escolha_do_instalador*.json
+
+# A janela aberta desta pasta de dados (src/desktop.py): porta e processo.
+data/instancia.json
