@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "0.9.4",
+      "date": "2026-09-28",
+      "changes": [
+        "Acesso de fora sem Cloudflare Access (contrato revisado)",
+        "I9: o campo de corrigir fato do cartão tem teto de largura (test_frontend)",
+        "I8: marcas [Tn] postas em código (\"codigo\"), e os trechos numerados agrupados por documento",
+        "I9: a IA ajuda sem ser perguntada - cartão do documento, sugestões, prazos e o \"como\"",
+        "I8: contrato de resposta [Tn] - trechos numerados e três conferências em código",
+        "I5: CLÁUSULA no começo da linha abre seção mesmo com o texto na mesma linha",
+        "I7: busca híbrida (FTS5 + bge-m3 por RRF) e a virada do \"ler tudo\" atrás de chave",
+        "I6: índice léxico em SQLite FTS5, com uma normalização jurídica só",
+        "I5: a versão do trecho leva o nome - cópias com o mesmo conteúdo têm ids próprios",
+        "I5: trechos pela estrutura - cláusula, seção e artigo, com id estável e página",
+        "I4: memória da conversa - os 2 últimos pares e a continuação reescrita por regra",
+        "I3: nível 0 por molde, sem modelo e sem fila"
+      ]
+    },
+    {
       "version": "0.9.3",
       "date": "2026-09-28",
       "curado": true,

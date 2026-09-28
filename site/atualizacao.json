@@ -1,12 +1,22 @@
 {
-  "versao": "0.9.3",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.3/PAULUS-0.9.3-instalador.exe",
-  "sha256": "3c28ba5ef728cb52dff17396cafb08a69a0286da8a5a1cc175033be5db340cee",
-  "tamanho": 94404394,
+  "versao": "0.9.4",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.4/PAULUS-0.9.4-instalador.exe",
+  "sha256": "90f374be2c31de0fc069222debf3c199686349b46eefca1cdbc690e9bdbd9184",
+  "tamanho": 94498972,
   "publicada": "2026-09-28",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.3",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.4",
   "novidades": [
-    "Extrato: nome e e-mail do usuário quando a tela Apoiar está vazia",
-    "Extrato de contribuições no desenho novo"
+    "Acesso de fora sem Cloudflare Access (contrato revisado)",
+    "I9: o campo de corrigir fato do cartão tem teto de largura (test_frontend)",
+    "I8: marcas [Tn] postas em código (\"codigo\"), e os trechos numerados agrupados por documento",
+    "I9: a IA ajuda sem ser perguntada - cartão do documento, sugestões, prazos e o \"como\"",
+    "I8: contrato de resposta [Tn] - trechos numerados e três conferências em código",
+    "I5: CLÁUSULA no começo da linha abre seção mesmo com o texto na mesma linha",
+    "I7: busca híbrida (FTS5 + bge-m3 por RRF) e a virada do \"ler tudo\" atrás de chave",
+    "I6: índice léxico em SQLite FTS5, com uma normalização jurídica só",
+    "I5: a versão do trecho leva o nome - cópias com o mesmo conteúdo têm ids próprios",
+    "I5: trechos pela estrutura - cláusula, seção e artigo, com id estável e página",
+    "I4: memória da conversa - os 2 últimos pares e a continuação reescrita por regra",
+    "I3: nível 0 por molde, sem modelo e sem fila; conferência mecânica dos números"
   ]
 }
