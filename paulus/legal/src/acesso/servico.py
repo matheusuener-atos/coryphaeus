@@ -5,15 +5,16 @@ objeto so, que o api.py cria uma vez e o porteiro consulta a cada pedido.
 
 from __future__ import annotations
 
+import json
+import threading
 import time
 from pathlib import Path
 
-from acesso.contas import Contas
-from acesso.remoto import PortaoRemoto
-
-import json
-
 from acesso import politicas
+from acesso.contas import Contas
+from acesso.jwt_access import ConferidorAccess
+from acesso.remoto import PortaoRemoto
+from acesso.tunel import VERSAO_MINIMA, Cofre, Tunel, achar_cloudflared, versao_basta, versao_de
 
 # O que a proposta vira no titulo do pedido, pela rota. O resto sai como
 # "uma alteracao em <rota>" - sem inventar descricao para o que nao se sabe.
@@ -68,6 +69,115 @@ class AcessoDeFora:
         self.ao_mudar_contas = []
         self.portao = PortaoRemoto(self.contas, self.ligado, self._conferir_jwt, registrar=self.anotar)
         self.portao.propor = self.propor
+        # O tunel (R6): os segredos protegidos, o processo do cloudflared e
+        # o ouvinte da porta fixa, so do tunel.
+        self.cofre = Cofre(self.pasta / "tunel.json")
+        self.tunel = Tunel(self._comando_cloudflared, self.cofre.token, self.dados_dir / "logs" / "tunel.log")
+        self.porta_ocupada = False
+        self._servidor = None
+        self._cloudflared: tuple[str, str] | None = None
+
+    # ------------------------------------------------------------ tunel
+
+    def configurar_conferidor(self, buscar=None) -> None:
+        """
+        O JWT do Access passa a ser conferido aqui com o `aud` e o time que o
+        Worker entregou na conexao. Sem os dois (nunca conectado), nenhum
+        conferidor - e ninguem de fora passa.
+        """
+        p = self.preferencias()
+        if p.get("aud") and p.get("team_domain"):
+            self.verificar_jwt = ConferidorAccess(p["team_domain"], p["aud"], **({"buscar": buscar} if buscar else {}))
+        else:
+            self.verificar_jwt = None
+
+    def cloudflared(self) -> dict:
+        """Onde esta o cloudflared, que versao, e se ela basta."""
+        exe = achar_cloudflared()
+        if not exe:
+            return {"caminho": "", "versao": "", "basta": False}
+        if not self._cloudflared or self._cloudflared[0] != str(exe):
+            self._cloudflared = (str(exe), versao_de(exe))
+        minima = str(self.preferencias().get("cloudflared_minimo") or VERSAO_MINIMA)
+        versao = self._cloudflared[1]
+        return {"caminho": str(exe), "versao": versao, "minima": minima, "basta": versao_basta(versao, minima)}
+
+    def _comando_cloudflared(self) -> list[str] | None:
+        info = self.cloudflared()
+        if not info["basta"]:
+            return None
+        return [info["caminho"], "tunnel", "--no-autoupdate", "run"]
+
+    def abrir_porta_de_fora(self) -> bool:
+        """
+        O ouvinte do tunel: o mesmo app, na porta fixa, em 127.0.0.1. A janela
+        local continua na porta dela - a porta fixa e so o que o tunel da
+        Cloudflare procura. Ocupada por outro programa, nao abre: o que viesse
+        de fora cairia naquele programa.
+        """
+        import socket
+
+        porta = int(self.preferencias().get("porta") or 0)
+        if not porta or self.app is None:
+            return False
+        if self._servidor is not None and getattr(self._servidor, "started", False) \
+                and self._servidor.config.port == porta:
+            return True
+        self.fechar_porta_de_fora()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", porta))
+            except OSError:
+                self.porta_ocupada = True
+                return False
+        import uvicorn
+
+        # lifespan desligado: o arranque do programa (reler o acervo, a vigia)
+        # ja aconteceu no servidor da janela, e nao pode rodar duas vezes.
+        servidor = uvicorn.Server(uvicorn.Config(self.app, host="127.0.0.1", port=porta,
+                                                 log_level="warning", lifespan="off"))
+        threading.Thread(target=servidor.run, name="porta-de-fora", daemon=True).start()
+        fim = time.time() + 5
+        while time.time() < fim and not servidor.started:
+            time.sleep(0.05)
+        if not servidor.started:
+            servidor.should_exit = True
+            self.porta_ocupada = True
+            return False
+        self._servidor = servidor
+        self.porta_ocupada = False
+        return True
+
+    def fechar_porta_de_fora(self) -> None:
+        if self._servidor is not None:
+            self._servidor.should_exit = True
+            self._servidor = None
+
+    def iniciar(self) -> None:
+        """Ao abrir o programa: com o acesso ligado e conectado, o tunel sobe sozinho."""
+        self.configurar_conferidor()
+        if self.ligado() and self.cofre.tem() and self.abrir_porta_de_fora():
+            self.tunel.ligar()
+
+    def parar(self) -> None:
+        """Ao fechar: o processo do tunel nunca sobrevive ao PAULUS."""
+        self.tunel.desligar()
+        self.fechar_porta_de_fora()
+
+    def situacao(self) -> dict:
+        p = self.preferencias()
+        if self.porta_ocupada:
+            estado = "porta_ocupada"
+        elif not self.ligado():
+            estado = "desligado"
+        elif not self.cofre.tem():
+            estado = "nao_conectado"
+        else:
+            estado = self.tunel.estado
+        return {"estado": estado, "ligado": self.ligado(), "hostname": p.get("hostname", ""),
+                "porta": int(p.get("porta") or 0), "porta_ocupada": self.porta_ocupada,
+                "cloudflared": self.cloudflared(), "conectado_ao_worker": self.cofre.tem(),
+                "ultimo_erro": self.tunel.ultimo_erro, "disponivel": self.contas.disponivel()}
 
     # ----------------------------------------------------------- propor
 

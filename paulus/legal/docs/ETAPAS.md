@@ -1337,3 +1337,34 @@ política; segredo errado 401; limite de escritórios; `TUNEL_ATIVO` ausente,
 **Falta** o que só o dono da conta faz no painel: token de API, KV, a
 aplicação do Access de `/conectar`, os segredos e ligar `TUNEL_ATIVO`. A
 lista passo a passo está em `docs/PROGRESSO-IMPLEMENTACAO.md`.
+
+## R6 — O túnel dentro do PAULUS ✓ FEITA
+
+O `cloudflared` roda como processo filho (`src/acesso/tunel.py`): acha o
+executável (a pasta do instalador, o PATH, Program Files), confere a versão
+mínima, e sobe `cloudflared tunnel --no-autoupdate run` com o token **no
+ambiente** — linha de comando de processo qualquer programa da máquina lê.
+O log (`data/logs/tunel.log`) passa por um filtro que tira o token de toda
+linha. Caiu, levanta de novo com espera crescente (2 s, 4 s… até 1 min).
+Fechar o PAULUS ou desligar o módulo encerra o processo — com `atexit` de
+garantia: túnel órfão seria a porta de fora aberta sem o PAULUS saber.
+
+**A porta fixa virou um segundo ouvinte**, e não a porta da janela: o mesmo
+app, em `127.0.0.1:<porta fixa>`, só para o túnel. A janela continua abrindo
+como sempre, a conexão vale na hora (sem reiniciar o programa), e a porta
+fixa ocupada por outro programa só deixa o acesso de fora "porta ocupada" —
+e o túnel **não liga**: o que viesse de fora cairia naquele programa.
+
+**O JWT do Access é conferido aqui de novo** (`src/acesso/jwt_access.py`),
+defesa em profundidade: RS256 com a chave do time escolhida pelo `kid`
+(`cryptography`, que já era dependência), `aud` do escritório, `iss` do
+time, validade. As chaves ficam guardadas por uma hora; sem chave
+alcançável, nega. Token e segredo da instalação ficam protegidos pela DPAPI;
+fora do Windows o módulo é indisponível.
+
+**Medido:** com um `cloudflared` de mentira que registra argumentos e
+ambiente, escreve o token no próprio log e cai na primeira vez: o token não
+aparece nos argumentos nem no log, aparece no ambiente, e o processo levanta
+de novo. JWT válido passa; vencido, de outra aplicação, de outro time,
+assinado com outra chave e sem chaves alcançáveis, não. A versão foi lida do
+`cloudflared` 2026.9.3 de verdade, assinado pela Cloudflare.

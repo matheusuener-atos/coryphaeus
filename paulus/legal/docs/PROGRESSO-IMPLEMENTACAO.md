@@ -36,7 +36,7 @@ etapa que não estiver `feita`.
 | R3 | Permissões por rota | feita | branch `r3-permissoes` | 376 rotas declaradas (114 permitido, 19 propor, 9 download, 1 titular, 10 público, 223 bloqueado); tabela testada com colaborador e titular |
 | R4 | Fila do modelo | feita | branch `r4-fila-do-modelo` | 2 pessoas: nunca 2 respostas juntas, sem palavra trocada, ordem de chegada; 3ª da mesma pessoa 429; parar A e B termina |
 | R5 | Provisionamento no Worker | código feito; ⏸ painel | branch `r5-worker-tunel` | `worker/teste-tunel.mjs`: 40 checagens (fluxo, JWT, desfazer, limites) |
-| R6 | Túnel dentro do PAULUS | pendente | | |
+| R6 | Túnel dentro do PAULUS | feita | branch `r6-tunel` | 29 checagens; token fora da linha de comando e do log; reinício; JWT (5 casos de recusa); porta ocupada; versão lida do cloudflared 2026.9.3 real |
 | R7 | Instalador + assistente de conexão | pendente | | |
 | R8 | Auditoria "quem acessou" | pendente | | |
 | R9 | Celular, energia, iniciar com o Windows | pendente | | |
@@ -83,6 +83,9 @@ etapa que não estiver `feita`.
 - **R5** Segredo a mais além dos do contrato: `ACCESS_AUD_CONECTAR` (o AUD da aplicação do Access que protege `/conectar`), sem o qual o Worker não confere o JWT daquela página.
 - **R5** O KV `ESCRITORIOS` ficou **comentado** no `wrangler.jsonc`: declarar com id que não existe quebraria o deploy do site no próximo push. `/conectar` entrou no `run_worker_first`.
 - **R5** O pedido "pronto" guarda no KV o token do túnel e o segredo até o PAULUS buscar (no máximo 15 min, TTL do KV); depois da entrega é apagado.
+- **R6** **Desvio do contrato, de propósito:** a porta fixa não é a porta da janela. É um segundo ouvinte uvicorn (mesmo app, `lifespan="off"`, também só em 127.0.0.1) aberto quando o acesso está ligado. Motivos: a conexão feita pelo assistente vale na hora, sem reiniciar o PAULUS para ele passar a escutar na porta nova; e a janela local nunca depende da porta fixa (o contrato já pedia que a janela abrisse "em outra porta como hoje" quando a fixa estivesse ocupada). Com a porta fixa ocupada, o túnel não liga.
+- **R6** Versão mínima do `cloudflared`: 2025.4.0 (preferência `acesso_remoto.cloudflared_minimo`), a partir da qual o túnel gerenciado remotamente aceita o token por `TUNNEL_TOKEN`/`TUNNEL_TOKEN_FILE`.
+- **R6** O conferidor do JWT só existe com `aud` e `team_domain` gravados (vêm do Worker na conexão). Sem eles, nenhuma requisição de fora passa — mesmo com o módulo ligado.
 - **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada; a checagem "segurar numa conversa marca" falha por tempo às vezes.
 
 ## Pendente do usuário

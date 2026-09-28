@@ -589,8 +589,13 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=_verificar_atualizacao_se_velha, name="atualizacao", daemon=True).start()
     print(f"\n  PAULUS Legal - servidor em 127.0.0.1:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
+    # O acesso de fora ligado e conectado: o tunel sobe junto com o programa
+    # (src/acesso/servico.py). Em segundo plano - ler a versao do cloudflared
+    # e abrir a porta do tunel nao pode atrasar a janela.
+    threading.Thread(target=estado.acesso_de_fora.iniciar, name="acesso-de-fora", daemon=True).start()
     yield
     estado.vigia.parar()
+    estado.acesso_de_fora.parar()
 
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
@@ -601,6 +606,11 @@ app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.p
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
 estado.acesso_de_fora.portao.rotas = app.router
 estado.acesso_de_fora.app = app
+# Garantia a mais: o processo do tunel nunca sobrevive ao programa, nem
+# quando o fechamento nao passa pelo fim do servidor.
+import atexit  # noqa: E402
+
+atexit.register(estado.acesso_de_fora.parar)
 
 
 def cabecalho_local() -> dict:

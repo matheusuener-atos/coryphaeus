@@ -108,8 +108,12 @@ PADRAO: dict = {
     # O endereco, a porta fixa e o que o Access precisa para conferir o JWT
     # ficam aqui; o token do tunel e o segredo da instalacao, nao - esses sao
     # segredos e moram protegidos pela DPAPI (src/acesso/tunel.py).
+    # `instalacao_id` e aleatorio, criado na primeira conexao: e o que o Worker
+    # usa para nao deixar a mesma instalacao conectar duas vezes.
+    # `cloudflared_minimo`: versao abaixo desta nao roda (a que le o token do
+    # ambiente com seguranca).
     "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "aud": "", "team_domain": "",
-                      "abrir_com_windows": False},
+                      "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0"},
     "modelo": "",
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
