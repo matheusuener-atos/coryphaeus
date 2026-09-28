@@ -4,6 +4,7 @@
 > - **Fontes:** o PDF não carrega Google Fonts. `tools/fontes_pdf.py` converte as fontes do app (`frontend/fontes`) em TrueType estático, com o recorte latino e o estendido juntos, para `src/fontes_pdf`. O IBM Plex Mono vira "PAULUS Mono", porque "Plex" é nome reservado na licença (OFL em `src/fontes_pdf`). Se as fontes faltarem, o extrato sai com Helvetica, Times e Courier em vez de falhar.
 > - **Tipo:** Pix é **Avulsa**; cada cobrança do apoio mensal no cartão é **Recorrente**. O programa não tem Pix recorrente nem cartão avulso.
 > - **Situação:** "Confirmada" leva o selo verde do desenho. As outras (Pendente, Em análise, Agendada, Nova tentativa, Recusada, Cancelada, Devolvida, Estornada) aparecem com selo cinza e ficam fora do total, do período e da contagem.
+> - **Apoiador e e-mail do recibo** são sempre os do usuário: os da tela Apoiar e, se estiverem vazios, os de Configurações › Meus dados. O nome e o e-mail do mockup eram só exemplo.
 > - **Emitido em**, no quadro, traz também a hora; o rótulo do topo e o rodapé trazem só a data.
 > - **Referência:** os 10 últimos caracteres do identificador do Mercado Pago.
 > - **Quebra de página:** o cabeçalho da tabela se repete; linha, quadro, "Tratamento fiscal / Sobre este documento" e o agradecimento não se partem. Se as duas colunas não cabem no fim da página, vão inteiras para a próxima.

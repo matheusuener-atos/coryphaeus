@@ -6522,9 +6522,13 @@ def apoio_extrato(payload: dict) -> dict:
             cobrancas += apoio.pagamentos_da_assinatura(str(ass["id"]), str(ass["chave"])).get("pagamentos", [])
         except apoio.ErroDeApoio as exc:
             raise HTTPException(status_code=502, detail=f"não consegui as cobranças do cartão: {exc}") from exc
+    # Sem nome ou e-mail na tela Apoiar, valem os de Configuracoes > Meus dados.
+    pessoa = estado.prefs.dados.get("pessoa") or {}
+    nome = str(payload.get("nome") or "").strip() or str(pessoa.get("nome") or "").strip()
+    email = str(payload.get("email") or "").strip() or str(pessoa.get("email") or "").strip()
     try:
-        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=str(payload.get("nome", ""))[:80],
-                                      email=str(payload.get("email", ""))[:120], pix=pix, cobrancas=cobrancas)
+        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=nome[:80], email=email[:120],
+                                      pix=pix, cobrancas=cobrancas)
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=500, detail=f"não consegui montar o extrato: {exc}") from exc
     estado.recarregar_em_segundo_plano()
