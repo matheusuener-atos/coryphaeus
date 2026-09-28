@@ -1407,3 +1407,35 @@ teste (o programa novo com o pacote da 0.9.3), sem instalar.
 fixa "ocupada" — pelo próprio ouvinte, ainda fechando. Fechar passou a
 esperar o ouvinte soltar a porta. E os botões com ícone empilhavam ícone e
 texto sem a classe `com-icone` do resto do app.
+
+## R8 — Quem acessou ✓ FEITA
+
+Tudo o que acontece pelo acesso de fora vira uma linha em
+`data/acesso/acessos.jsonl` (`src/acesso/auditoria.py`): entrada e saída,
+login que falhou, bloqueio, documento aberto, download, proposta, aprovação,
+pedido recusado por ser só do escritório, e as mudanças do próprio módulo
+(conectar, ligar, desligar, remover). Cada linha tem pessoa, e-mail que
+passou pela Cloudflare, data e hora, o IP que a Cloudflare informou (só
+para referência), o que aconteceu e sobre o quê — pelo **nome** ("“Minuta”
+(DOCX)"), e não pelo endereço da API, que ninguém que lê um registro de
+controle entenderia.
+
+O arquivo só cresce, e cada linha guarda o sha256 da anterior somado ao
+próprio conteúdo: editar uma linha antiga quebra a corrente dali em diante,
+e a tela diz em qual linha. Não impede ninguém de apagar o arquivo — quem
+tem a máquina tem o arquivo —, mas torna visível a edição escondida, que é o
+que um registro de controle precisa mostrar. Guardado por um ano; o que sai
+pela idade deixa o hash da última linha numa âncora, e a conferência começa
+dela.
+
+Folhear as páginas do mesmo documento vira uma linha a cada 10 minutos, e
+não uma por página.
+
+**Tela:** Configurações › Acesso de fora › Quem acessou, só na janela local
+— com filtro por pessoa, tipo e período, o estado da corrente ("registro
+íntegro · N linhas" ou "alterado à mão na linha N") e a exportação em PDF,
+pelo reportlab que o programa já usa, com o estado da corrente impresso.
+
+**Medido:** as nove ações da tabela feitas de fora, cada uma com a sua
+linha; a terceira linha editada à mão acusada na linha 3; a poda de um ano
+com a corrente conferível pela âncora; o PDF sai; de fora, a tela não abre.

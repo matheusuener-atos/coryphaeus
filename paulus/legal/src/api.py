@@ -88,6 +88,7 @@ from acesso.servico import AcessoDeFora
 from acesso import politicas as politicas_do_acesso
 from acesso import rotas as rotas_do_acesso
 from acesso import rotas_tunel as rotas_do_tunel
+from acesso import rotas_auditoria as rotas_da_auditoria
 from acesso.conexao import ConexaoDoTunel
 from inteligencia import portas as inteligencia
 from inteligencia.catalogo import Catalogo
@@ -612,6 +613,43 @@ estado.acesso_de_fora.app = app
 # esperar o titular confirmar, e depois manter a lista de e-mails.
 estado.acesso_de_fora.conexao = ConexaoDoTunel(estado.acesso_de_fora)
 rotas_do_tunel.montar(estado.acesso_de_fora, estado.acesso_de_fora.conexao, app)
+# "Quem acessou" (R8): a tela e o PDF, so na janela local.
+rotas_da_auditoria.montar(estado.acesso_de_fora, app)
+
+
+def _descrever_para_auditoria(caminho: str) -> str:
+    """
+    O que o endereco da API significa, para quem le "quem acessou": o nome do
+    documento, da planilha, da gravacao, da conversa ou do arquivo, e o
+    formato. Sem traducao, fica o endereco - melhor que nada.
+    """
+    from urllib.parse import parse_qs, urlsplit
+
+    partes = urlsplit(caminho)
+    rota, consulta = partes.path, parse_qs(partes.query)
+    try:
+        m = re.match(r"^/api/(documentos|planilha|gravacoes|trabalhos)/(\w+)(?:/(\w+)(?:\.(\w+))?)?", rota)
+        if m:
+            tipo, id_, parte, extensao = m.groups()
+            if tipo in ("documentos", "planilha"):
+                item = estado.documentos.obter(int(id_)) or {}
+                nome = item.get("titulo") or f"documento {id_}"
+            elif tipo == "gravacoes":
+                nome = (estado.gravacoes.obter(int(id_)) or {}).get("titulo") or f"gravação {id_}"
+            else:
+                t = estado.trabalhos.obter(id_)
+                nome = ("conversa " + t.titulo) if t else f"conversa {id_}"
+            formato = (consulta.get("formato") or [""])[0] or extensao or (parte if parte in ("pdf", "docx", "audio") else "")
+            return f"“{nome}”" + (f" ({formato.upper()})" if formato else "")
+        for chave in ("caminho", "nome", "arquivo"):
+            if consulta.get(chave):
+                return f"“{Path(consulta[chave][0]).name}”"
+    except Exception:  # noqa: BLE001 - a auditoria nunca deixa de anotar por causa do nome
+        pass
+    return caminho
+
+
+estado.acesso_de_fora.descrever = _descrever_para_auditoria
 # Garantia a mais: o processo do tunel nunca sobrevive ao programa, nem
 # quando o fechamento nao passa pelo fim do servidor.
 import atexit  # noqa: E402

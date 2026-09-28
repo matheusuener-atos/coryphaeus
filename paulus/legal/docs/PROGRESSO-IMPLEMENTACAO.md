@@ -38,7 +38,7 @@ etapa que não estiver `feita`.
 | R5 | Provisionamento no Worker | código feito; ⏸ painel | branch `r5-worker-tunel` | `worker/teste-tunel.mjs`: 40 checagens (fluxo, JWT, desfazer, limites) |
 | R6 | Túnel dentro do PAULUS | feita | branch `r6-tunel` | 29 checagens; token fora da linha de comando e do log; reinício; JWT (5 casos de recusa); porta ocupada; versão lida do cloudflared 2026.9.3 real |
 | R7 | Instalador + assistente de conexão | feita | branch `r7-assistente` | 28 checagens; fluxo com Worker de mentira; assinatura: cloudflared real aceito, Python/Edge/falso recusados; tela do instalador fotografada |
-| R8 | Auditoria "quem acessou" | pendente | | |
+| R8 | Auditoria "quem acessou" | feita | branch `r8-auditoria` | 9 ações de fora registradas; edição à mão acusada na linha certa; poda de 1 ano com âncora; PDF |
 | R9 | Celular, energia, iniciar com o Windows | pendente | | |
 | R10 | Política, documentação, roteiro do teste real | pendente | | |
 | I1 | Ajustes de inferência | pendente | | |
@@ -92,7 +92,10 @@ etapa que não estiver `feita`.
 - **R7** A lista de e-mails do Access é a de todas as contas do PAULUS (até 10), sincronizada a cada criar/mudar/remover conta. Falha de rede na sincronização vira aviso na tela, não erro.
 - **R7** Remover também encerra todas as sessões de fora.
 - **R7** `--configurar-acesso` vira `#acesso` no endereço da janela, e a tela abre em Configurações › Acesso de fora.
-- **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada; a checagem "segurar numa conversa marca" falha por tempo às vezes.
+- **R8** "Documento aberto" = ver o documento do editor, a página de um arquivo do Acervo e o trecho citado (`ROTAS_DE_VER_DOCUMENTO` em `politicas.py`); a mesma pessoa no mesmo documento vira uma linha a cada 10 min.
+- **R8** O alvo é gravado pelo nome (documento, planilha, gravação, conversa, arquivo), resolvido na hora de anotar; o que não se traduz fica com o endereço.
+- **R8** Retenção: a poda roda ao abrir o programa; o hash da última linha podada fica em `acessos.ancora`.
+- **Suíte** O worktree precisa dos exemplos de `data/test_contracts` (não versionados), copiados do repositório principal. `test_tela.py` sai às vezes com segfault (código 139) — acontece também no repositório principal, sem as mudanças desta rodada. A checagem "segurar numa conversa marca" é intermitente: medida em 3 rodadas seguidas na árvore desta rodada, falhou 1 e passou 2 (a lista de conversas abre animada em 460 ms e pode se redesenhar enquanto o teste segura a linha). `test_gravacoes.py` falha quando a máquina tem menos de ~1,9 GB livres para o modelo de voz — é a causa da falha da linha de base.
 
 ## Pendente do usuário
 

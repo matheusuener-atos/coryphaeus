@@ -47,6 +47,12 @@ ACOES_SO_NO_ESCRITORIO = {"organizar.mover", "acervo.apagar", "acervo.exportar",
 # roubada nao manda e-mail nem documento para fora.
 ACOES_QUE_SAEM = {"correio.enviar", "google.drive.enviar"}
 
+# O que conta como "abriu um documento" em quem acessou (R8): ver o documento
+# do editor, a pagina de um arquivo do Acervo e o trecho citado.
+ROTAS_DE_VER_DOCUMENTO = {("GET", "/api/documentos/{id_}"), ("GET", "/api/documentos/{id_}/pagina"),
+                          ("GET", "/api/biblioteca/pagina"), ("GET", "/api/arquivos/pagina"),
+                          ("POST", "/api/biblioteca/citacao")}
+
 # (metodo, caminho da rota como esta no app) -> politica. Rota que nao esta
 # aqui e BLOQUEADO.
 REGISTRO: dict[tuple[str, str], str] = {}
@@ -172,7 +178,7 @@ _declarar(BLOQUEADO,
           "POST /api/acesso/sessoes/encerrar",
           "GET /api/acesso/tunel", "POST /api/acesso/tunel/conectar", "POST /api/acesso/tunel/cancelar",
           "POST /api/acesso/tunel/ligar", "POST /api/acesso/tunel/porta", "POST /api/acesso/tunel/sincronizar",
-          "POST /api/acesso/tunel/remover",
+          "POST /api/acesso/tunel/remover", "GET /api/acesso/auditoria", "GET /api/acesso/auditoria/pdf",
           # mover, organizar, apagar, exportar em lote, lixeira
           "POST /api/biblioteca/lote/mover", "POST /api/biblioteca/lote/apagar", "POST /api/biblioteca/lote/exportar",
           "POST /api/biblioteca/remover", "POST /api/acervo/pastas", "POST /api/acervo/pastas/tirar",

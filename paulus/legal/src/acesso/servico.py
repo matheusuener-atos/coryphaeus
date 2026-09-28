@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from acesso import politicas
+from acesso.auditoria import Auditoria
 from acesso.contas import Contas
 from acesso.jwt_access import ConferidorAccess
 from acesso.remoto import PortaoRemoto
@@ -62,10 +63,12 @@ class AcessoDeFora:
         # O conferidor do JWT do Cloudflare Access (jwt_access.py). Sem ele -
         # tunel nunca conectado -, ninguem de fora passa.
         self.verificar_jwt = None
-        # Os ultimos eventos, para a tela; o registro que vale e o da
-        # auditoria (R8), quando existir.
+        # Os ultimos eventos, em memoria; o registro que vale e o da
+        # auditoria (R8): so cresce, com hash encadeado, guardado um ano.
         self.eventos: list[dict] = []
-        self.auditoria = None
+        self.auditoria = Auditoria(self.pasta / "acessos.jsonl")
+        # caminho da API -> nome legivel (o api.py entrega; sem ele, fica o caminho).
+        self.descrever = None
         self.ao_mudar_contas = []
         self.portao = PortaoRemoto(self.contas, self.ligado, self._conferir_jwt, registrar=self.anotar)
         self.portao.propor = self.propor
@@ -161,6 +164,10 @@ class AcessoDeFora:
 
     def iniciar(self) -> None:
         """Ao abrir o programa: com o acesso ligado e conectado, o tunel sobe sozinho."""
+        try:
+            self.auditoria.podar()
+        except OSError:
+            pass
         self.configurar_conferidor()
         if self.ligado() and self.cofre.tem() and self.abrir_porta_de_fora():
             self.tunel.ligar()
@@ -263,6 +270,14 @@ class AcessoDeFora:
 
     def anotar(self, **evento) -> None:
         evento.setdefault("quando", time.strftime("%Y-%m-%dT%H:%M:%S"))
+        # O endereco da API vira o nome do que foi aberto ou baixado: quem le
+        # "quem acessou" quer saber o documento, nao a rota.
+        alvo = str(evento.get("alvo") or "")
+        if self.descrever and alvo.startswith("/api/"):
+            try:
+                evento["alvo"] = self.descrever(alvo)
+            except Exception:  # noqa: BLE001
+                pass
         self.eventos = (self.eventos + [evento])[-200:]
         if self.auditoria is not None:
             try:

@@ -37,6 +37,10 @@
   .acesso-form .ag-campo { margin: 0; }
   .acesso-quem { margin-top: 12px; }
 
+  /* Quem acessou (R8): o filtro em grade que dobra no celular. */
+  .acesso-filtro { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px 14px; }
+  .acesso-filtro .ag-campo { margin: 0; }
+
   @media (max-width: 560px) {
     .acesso-qr-bloco { grid-template-columns: minmax(0, 1fr); justify-items: center; }
     .acesso-codigos { grid-template-columns: minmax(0, 1fr); }

@@ -121,6 +121,10 @@ class PortaoRemoto:
             # Um arquivo por pedido - a rota so entrega um -, e cada um fica
             # registrado: e o documento saindo do escritorio.
             self._anotar(acao="download", alvo=caminho, pessoa=sessao["nome"], email=email_access, ip=ip)
+        elif (metodo, getattr(rota, "path", "")) in politicas.ROTAS_DE_VER_DOCUMENTO:
+            # Documento aberto de fora tambem fica em "quem acessou" (R8); a
+            # auditoria junta as paginas do mesmo documento numa linha so.
+            self._anotar(acao="documento", alvo=caminho, pessoa=sessao["nome"], email=email_access, ip=ip)
         await app(scope, receive, send)
 
     async def _propor(self, scope, receive, send, cab, sessao, metodo, caminho, email_access, ip) -> None:

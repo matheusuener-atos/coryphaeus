@@ -68,6 +68,69 @@ async function carregarAcesso() {
     acessoCfg.contas = null;
   }
   if (typeof carregarTunel === "function") await carregarTunel();
+  await carregarAuditoria();
+}
+
+/* ------------------------------------------------------ quem acessou */
+/*
+   R8: o registro de tudo o que aconteceu pelo acesso de fora, com o filtro e
+   o PDF. A corrente de hashes diz se alguem editou o arquivo a mao - e a tela
+   diz em que linha.
+*/
+acessoCfg.filtro = { pessoa: "", acao: "", de: "", ate: "" };
+acessoCfg.auditoria = null;
+
+function consultaDaAuditoria() {
+  const f = acessoCfg.filtro;
+  return Object.keys(f).filter((k) => f[k]).map((k) => k + "=" + encodeURIComponent(f[k])).join("&");
+}
+
+async function carregarAuditoria() {
+  try {
+    const r = await fetch("/api/acesso/auditoria?limite=200&" + consultaDaAuditoria());
+    acessoCfg.auditoria = r.ok ? await r.json() : null;
+  } catch (err) {
+    acessoCfg.auditoria = null;
+  }
+}
+
+function cartaoAuditoria() {
+  const a = acessoCfg.auditoria;
+  if (!a) return "";
+  const f = acessoCfg.filtro;
+  const integro = a.integro
+    ? pontoCfg("registro íntegro · " + plural(a.linhas_no_arquivo, "linha"), "ok")
+    : pontoCfg("alterado à mão na linha " + a.quebra_na_linha, "acc");
+  const opcoes = '<option value="">Tudo</option>' + Object.keys(a.acoes || {}).map((k) =>
+    '<option value="' + esc(k) + '"' + (f.acao === k ? " selected" : "") + ">" + esc(a.acoes[k]) + "</option>").join("");
+  const filtro = '<div class="acesso-filtro">' +
+    '<div class="ag-campo"><label>Pessoa ou e-mail</label><input type="text" id="aud-pessoa" value="' + esc(f.pessoa) + '"></div>' +
+    '<div class="ag-campo"><label>O que aconteceu</label><select id="aud-acao">' + opcoes + "</select></div>" +
+    '<div class="ag-campo"><label>De</label><input type="date" id="aud-de" value="' + esc(f.de) + '"></div>' +
+    '<div class="ag-campo"><label>Até</label><input type="date" id="aud-ate" value="' + esc(f.ate) + '"></div></div>';
+  const quando = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); };
+  const linhas = (a.linhas || []).map((l) => '<div class="cfg-saida"><span class="fin-data">' + esc(quando(l.quando)) + "</span>" +
+    '<span class="duas-linhas"><b>' + esc((l.pessoa || l.email || "—") + " · " + l.acao_rotulo) + "</b><small>" +
+    esc([l.alvo, l.email, l.ip ? "IP " + l.ip : ""].filter(Boolean).join(" · ")) + "</small></span></div>").join("");
+  const corpo = filtro +
+    '<div class="acesso-pe"><button class="com-icone" data-aud-filtrar="1">' + ic("filter_list", 16) + "Filtrar</button>" +
+    '<button class="com-icone" data-aud-pdf="1">' + ic("picture_as_pdf", 16) + "Exportar PDF</button>" +
+    '<p class="cfg-explica">' + (a.total > (a.linhas || []).length ? "Mostrando as " + a.linhas.length + " mais recentes de " + a.total + "; o PDF leva todas. " : "") +
+    "Guardado neste computador por um ano. O IP é o que a Cloudflare informou.</p></div>" +
+    ((a.linhas || []).length ? '<div class="cfg-linhas">' + linhas + "</div>" : '<p class="cfg-texto">Nada registrado' + (consultaDaAuditoria() ? " com este filtro." : " ainda.") + "</p>");
+  return cartaoCfg("Quem acessou", integro, corpo);
+}
+
+function ligarAuditoria() {
+  const clique = (seletor, fn) => document.querySelectorAll(seletor).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b); }; });
+  const lerFiltro = () => {
+    acessoCfg.filtro = {
+      pessoa: ($("aud-pessoa") || {}).value || "", acao: ($("aud-acao") || {}).value || "",
+      de: ($("aud-de") || {}).value || "", ate: ($("aud-ate") || {}).value || "",
+    };
+  };
+  clique("[data-aud-filtrar]", async () => { lerFiltro(); await carregarAuditoria(); desenharConfig(); });
+  clique("[data-aud-pdf]", () => { lerFiltro(); location.href = "/api/acesso/auditoria/pdf?" + consultaDaAuditoria(); });
 }
 
 function secaoAcesso() {
@@ -80,7 +143,7 @@ function secaoAcesso() {
     ["Sessões abertas", String(acessoCfg.sessoes.length)],
   ]);
   const tunel = typeof cartaoTunel === "function" ? cartaoTunel() : "";
-  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSessoes();
+  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSessoes() + cartaoAuditoria();
 }
 
 /* O que a pessoa precisa saber antes de ligar, dito sem enfeite. E a mesma
@@ -294,4 +357,5 @@ function ligarAcesso() {
     acessoRedesenhar();
   });
   if (typeof ligarTunel === "function") ligarTunel();
+  ligarAuditoria();
 }
