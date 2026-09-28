@@ -19,11 +19,14 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
-from acesso.contas import ErroConta, ErroEntrada
+from acesso.contas import CONFIAR_S, ErroConta, ErroEntrada
 from acesso.remoto import COOKIE_SESSAO
 from acesso import permissoes
 from acesso.convites import ErroConvite
 from acesso.google_login import COOKIE as COOKIE_GOOGLE, ErroGoogle
+
+# O navegador confiado por 30 dias (contas.confiar).
+COOKIE_CONFIA = "paulus_confia"
 
 
 class Entrada(BaseModel):
@@ -55,6 +58,8 @@ def _no_tempo(comeco: float) -> None:
 class Codigo(BaseModel):
     pendente: str
     codigo: str
+    # "Confiar neste navegador por 30 dias" (so de fora).
+    confiar: bool = False
 
 
 class NovoConvite(BaseModel):
@@ -203,6 +208,11 @@ def montar(servico, r) -> None:
         # nenhum script da pagina le o cookie. Strict: nenhum outro site
         # consegue fazer o navegador manda-lo.
         resp.set_cookie(COOKIE_SESSAO, s["sessao"], httponly=True, secure=True, samesite="strict", path="/")
+        if dados.confiar and not e_local(request):
+            # So o caminho do login le este cookie; o navegador nao o manda a
+            # mais nada.
+            resp.set_cookie(COOKIE_CONFIA, servico.contas.confiar(s["conta"]["id"]), max_age=CONFIAR_S,
+                            httponly=True, secure=True, samesite="lax", path="/api/acesso")
         return resp
 
     @r.post("/api/acesso/sair")
@@ -445,12 +455,23 @@ def montar(servico, r) -> None:
             except ErroConvite as exc:
                 return voltar("/convite/" + quote(quem["convite"]) + "#erro=" + quote(str(exc)))
             return voltar("/convite/" + quote(quem["convite"]) + "#g=" + quote(token))
+        # Navegador confiado (30 dias) para esta conta: entra sem o codigo.
+        try:
+            confiado = servico.contas.entrar_confiado(request.cookies.get(COOKIE_CONFIA, ""), quem["email"], ip=ip)
+        except (ErroEntrada, ErroConta):
+            confiado = None
+        if confiado:
+            servico.anotar(acao="entrada", alvo="navegador confiado", pessoa=confiado["conta"]["nome"],
+                           email=confiado["conta"]["email"], ip=ip)
+            resp = voltar("/#entrou")
+            resp.set_cookie(COOKIE_SESSAO, confiado["sessao"], httponly=True, secure=True, samesite="strict", path="/")
+            return resp
         try:
             pendente = servico.contas.entrar_com_google(quem["email"], ip=ip)
         except ErroEntrada as exc:
             servico.anotar(acao="login_falho", alvo="Google", ip=ip, pessoa=quem["email"])
             return voltar("/#erro=" + quote(str(exc)))
-        return voltar("/#g=" + quote(pendente))
+        return voltar("/#g=" + quote(pendente) + "&e=" + quote(quem["email"]))
 
     @r.get("/api/acesso/convite/{codigo}/google")
     def convite_do_google(codigo: str, t: str = "") -> dict:

@@ -91,6 +91,9 @@ def test_http() -> None:
         q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(url).query))
         return r, q
 
+    def pend(para: str) -> str:
+        return urllib.parse.parse_qs(para.split("#", 1)[1])["g"][0]
+
     def voltar(f, code, state):
         r = f.get("/api/acesso/google/retorno", params={"code": code, "state": state})
         return r, urllib.parse.unquote(r.headers.get("location", ""))
@@ -140,7 +143,7 @@ def test_http() -> None:
         r, para = voltar(f, "c5", q["state"])
         checar(r.status_code == 303 and para.startswith("/#g="), "a volta leva ao codigo do celular (depois do #)", para)
         checar(trocas[-1][1] and trocas[-1][2] == "segredo-web", "a troca usa o verificador PKCE e o segredo, aqui")
-        pendente = para.split("#g=", 1)[1]
+        pendente = pend(para)
         r = f.post("/api/acesso/entrar/codigo", json={"pendente": pendente,
                                                       "codigo": codigo_totp(t["segredo"], int(time.time() // 30))})
         checar(r.status_code == 200 and r.json().get("csrf"), "com o codigo: sessao", r.text[:160])
@@ -169,9 +172,39 @@ def test_http() -> None:
         _, q = ir(g, finalidade="entrar")
         respostas["d3"] = {"id_token": _jwt(email="dani@x.com")}
         _, para = voltar(g, "d3", q["state"])
-        r = g.post("/api/acesso/entrar/codigo", json={"pendente": para.split("#g=", 1)[1],
+        r = g.post("/api/acesso/entrar/codigo", json={"pendente": pend(para),
                                                       "codigo": codigo_totp(segredo, int(time.time() // 30) + 1)})
         checar(r.status_code == 200, "a Dani entra com Google + codigo", r.text[:160])
+
+        print("  confiar neste navegador por 30 dias")
+        _, q = ir(g, finalidade="entrar")
+        respostas["d4"] = {"id_token": _jwt(email="dani@x.com")}
+        _, para = voltar(g, "d4", q["state"])
+        checar("&e=dani@x.com" in para, "a volta leva o e-mail para a tela do codigo", para)
+        r = g.post("/api/acesso/entrar/codigo", json={"pendente": pend(para),
+                                                      # o do celular ja foi gasto nesta janela: um de recuperacao
+                                                      "codigo": servico.contas.novos_codigos(
+                                                          next(x for x in servico.contas.listar() if x["email"] == "dani@x.com")["id"])[0],
+                                                      "confiar": True})
+        cookie = r.headers.get("set-cookie", "")
+        checar(r.status_code == 200 and "paulus_confia=" in cookie and "Path=/api/acesso" in cookie and "HttpOnly" in cookie,
+               "com 'confiar', o navegador ganha o cookie (so do login, HttpOnly)", cookie[:200])
+        _, q = ir(g, finalidade="entrar")
+        respostas["d5"] = {"id_token": _jwt(email="dani@x.com")}
+        r, para = voltar(g, "d5", q["state"])
+        checar(para == "/#entrou" and "paulus_sessao=" in r.headers.get("set-cookie", ""),
+               "o proximo login pelo Google entra direto, sem o codigo", para)
+        estranho = de_fora()
+        _, q = ir(estranho, finalidade="entrar")
+        respostas["d6"] = {"id_token": _jwt(email="dani@x.com")}
+        _, para = voltar(estranho, "d6", q["state"])
+        checar(para.startswith("/#g="), "outro navegador (sem o cookie) ainda pede o codigo", para)
+        dani = next(x for x in servico.contas.listar() if x["email"] == "dani@x.com")
+        servico.contas.encerrar_sessoes(dani["id"])
+        _, q = ir(g, finalidade="entrar")
+        respostas["d7"] = {"id_token": _jwt(email="dani@x.com")}
+        _, para = voltar(g, "d7", q["state"])
+        checar(para.startswith("/#g="), "encerrar as sessoes esquece o navegador confiado", para)
         conta = next(x for x in servico.contas.listar() if x["email"] == "dani@x.com")
         checar(conta["papel"] == "colaborador", "e e colaborador")
 

@@ -55,6 +55,8 @@ CODIGOS_DE_RECUPERACAO = 10
 
 SESSAO_OCIOSA_S = 30 * 60
 SESSAO_TOTAL_S = 12 * 60 * 60
+# "Confiar neste navegador": 30 dias sem o codigo do celular, so por este navegador.
+CONFIAR_S = 30 * 24 * 3600
 # Entre a senha certa e o codigo do autenticador: cinco minutos.
 PENDENTE_S = 5 * 60
 
@@ -205,6 +207,12 @@ CREATE TABLE IF NOT EXISTS tentativas (
     erros INTEGER NOT NULL DEFAULT 0,
     bloqueios INTEGER NOT NULL DEFAULT 0,
     bloqueado_ate REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS confiados (
+    hash TEXT PRIMARY KEY,
+    conta_id INTEGER NOT NULL,
+    criado REAL NOT NULL,
+    expira REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tentativas_ip (
     ip TEXT PRIMARY KEY,
@@ -396,6 +404,7 @@ class Contas:
             self.encerrar_sessoes(conta_id)
             with self._db() as c:
                 c.execute("DELETE FROM contas WHERE id = ?", (conta_id,))
+                c.execute("DELETE FROM confiados WHERE conta_id = ?", (conta_id,))
 
     def senha_confere(self, conta_id: int, senha: str) -> bool:
         linha = self._linha(conta_id)
@@ -649,13 +658,47 @@ class Contas:
         self._acertou(email)
         with self._db() as c:
             c.execute("UPDATE tentativas SET bloqueios = 0 WHERE email = ?", (email,))
+        return self._abrir_sessao(linha, ip, totp_agora=True)
+
+    def _abrir_sessao(self, linha, ip: str, *, totp_agora: bool) -> dict:
         sessao, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(24)
         agora = self.relogio()
         with self._db() as c:
             c.execute("INSERT INTO sessoes (hash, conta_id, csrf, criada, ultimo_uso, totp_em, email_access, ip)"
                       " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                      (_resumo(sessao), conta_id, csrf, agora, agora, agora, "", ip))
+                      (_resumo(sessao), linha["id"], csrf, agora, agora, agora if totp_agora else 0, "", ip))
         return {"sessao": sessao, "csrf": csrf, "conta": self._publica(linha)}
+
+    # ------------------------------------------------ navegador confiado
+
+    def confiar(self, conta_id: int) -> str:
+        """
+        "Confiar neste navegador por 30 dias": depois do codigo certo, este
+        navegador guarda um token (so o hash fica aqui). Nos 30 dias seguintes,
+        o Google basta para entrar por ele - o codigo do celular nao e pedido.
+        As acoes sensiveis do titular continuam pedindo o codigo de novo.
+        """
+        token = secrets.token_urlsafe(32)
+        agora = self.relogio()
+        with self._db() as c:
+            c.execute("DELETE FROM confiados WHERE expira < ?", (agora,))
+            c.execute("INSERT INTO confiados (hash, conta_id, criado, expira) VALUES (?, ?, ?, ?)",
+                      (_resumo(token), int(conta_id), agora, agora + CONFIAR_S))
+        return token
+
+    def entrar_confiado(self, token: str, email: str, *, ip: str = "") -> dict | None:
+        """A sessao direto, sem o codigo, se este navegador e confiado PARA ESTA conta; senao None."""
+        if not token:
+            return None
+        self._porta_do_ip(ip)
+        linha = self._conta_por_email(self._email(email))
+        if not linha or not linha["totp_confirmado"] or self._bloqueado_ate(linha["email"]) > self.relogio():
+            return None
+        with self._db() as c:
+            l = c.execute("SELECT * FROM confiados WHERE hash = ?", (_resumo(str(token)),)).fetchone()
+        if not l or l["conta_id"] != linha["id"] or l["expira"] < self.relogio():
+            return None
+        return self._abrir_sessao(linha, ip, totp_agora=False)
 
     # ---------------------------------------------------------- sessao
 
@@ -693,10 +736,15 @@ class Contas:
                 c.execute("DELETE FROM sessoes WHERE hash = ?", (_resumo(str(token)),))
 
     def encerrar_sessoes(self, conta_id: int | None = None) -> int:
-        """Todas as sessoes (ou as de uma conta). Devolve quantas caíram."""
+        """
+        Todas as sessoes (ou as de uma conta). Devolve quantas caíram. Os
+        navegadores confiados saem junto: encerrar e para ninguem ficar dentro.
+        """
         with self._db() as c:
             if conta_id is None:
+                c.execute("DELETE FROM confiados")
                 return c.execute("DELETE FROM sessoes").rowcount
+            c.execute("DELETE FROM confiados WHERE conta_id = ?", (conta_id,))
             return c.execute("DELETE FROM sessoes WHERE conta_id = ?", (conta_id,)).rowcount
 
     def sessoes_abertas(self) -> list[dict]:
