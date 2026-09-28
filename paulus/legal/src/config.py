@@ -122,7 +122,11 @@ PADRAO: dict = {
     # `janela_por_modelo`: {"modelo": num_ctx}; vazio, a do catalogo (16384).
     # `medir` (I1): uma linha por pergunta em data/medicao/perguntas.jsonl,
     # so numeros, nunca o texto - e o arquivo nao sai da maquina.
-    "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True},
+    # `molde` (I3): pergunta de um dado so (processo, valor, tribunal, partes,
+    # assinatura, leis) respondida pelos fatos conferidos, sem modelo e sem
+    # fila; onde o modelo continua, numero que nao esta nos fatos derruba a
+    # resposta.
+    "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True, "molde": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

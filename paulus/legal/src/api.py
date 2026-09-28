@@ -1803,6 +1803,8 @@ def _contexto(registrar=None, parar=None, tarefa: str = "") -> Contexto:
         saber=estado.saber,
         # O que o escritorio entregou para o PAULUS aprender (src/material.py).
         material=estado.material,
+        # As chaves do plano de melhoria da IA (config `ia`).
+        ia=estado.prefs.dados.get("ia") or {},
     )
 
 
@@ -3287,15 +3289,19 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # resposta, e nao na rota: se a pagina fechar antes de a resposta
         # comecar, nenhum lugar fica preso na fila. Sem ninguem na frente,
         # passa direto e nada aparece; com alguem, a tela ve a posicao.
-        try:
-            na_fila["vez"] = estado.fila_modelo.entrar(dono, rotulo=trabalho.titulo)
-        except FilaCheia as exc:
-            trabalho.estado = PAUSADO
-            estado.trabalhos.salvar(trabalho)
-            yield _sse("erro", {"mensagem": str(exc)})
-            return
+        # A resposta por molde (I3) nao usa o modelo e sai em milissegundos:
+        # esperar a vez de outra pessoa por ela seria esperar por nada.
+        sem_fila = _sem_modelo(habilidade, pergunta, citado)
+        if not sem_fila:
+            try:
+                na_fila["vez"] = estado.fila_modelo.entrar(dono, rotulo=trabalho.titulo)
+            except FilaCheia as exc:
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+                yield _sse("erro", {"mensagem": str(exc)})
+                return
         ultima_posicao = -1
-        while not estado.fila_modelo.esperar(na_fila["vez"], timeout=0.5):
+        while not sem_fila and not estado.fila_modelo.esperar(na_fila["vez"], timeout=0.5):
             if parar.is_set():
                 break
             posicao = estado.fila_modelo.posicao(na_fila["vez"])
@@ -3327,7 +3333,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         def medir_agora() -> None:
             numeros = medida or medir.get("contagem") or {}
             estado.medicao.pergunta(
-                modelo=estado.client.model, num_ctx=numeros.get("num_ctx") or getattr(estado.client, "num_ctx", 0),
+                modelo=medir.get("modelo", estado.client.model), num_ctx=numeros.get("num_ctx") or getattr(estado.client, "num_ctx", 0),
                 prompt_eval_count=numeros.get("tokens_lidos"), eval_count=numeros.get("tokens_escritos"),
                 lendo_s=medida.get("esperou_segundos") if medida else None,
                 escrevendo_s=medida.get("escrevendo_segundos") if medida else None,
@@ -3369,7 +3375,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     andamento["caracteres"] = dados.get("caracteres", 0)
                     lido_chars = dados["caracteres"]
                     medir.update(caminho=dados.get("caminho"), fallback=bool(dados.get("fallback")),
-                                 trechos=dados.get("trechos", 0))
+                                 trechos=dados.get("trechos", 0), modelo=dados.get("modelo", estado.client.model))
                     trabalho.etapas[1].titulo = "Lendo os documentos"
                     trabalho.etapas[1].estado = EXECUTANDO
                     trabalho.etapas[1].detalhe = f"{dados['caracteres']:,}".replace(",", ".") + " caracteres"
@@ -3486,6 +3492,22 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _sem_modelo(habilidade, pergunta: str, citado) -> bool:
+    """
+    A pergunta sai sem o modelo (molde ou regra)? Quem sabe e a habilidade
+    (habilidades/perguntar.py, `sem_modelo`); na duvida, a fila de sempre.
+    """
+    import inspect
+
+    decidir = getattr(inspect.getmodule(habilidade.executar), "sem_modelo", None)
+    if decidir is None:
+        return False
+    try:
+        return bool(decidir(_contexto(), pergunta, apenas=citado))
+    except Exception:  # noqa: BLE001 - errar aqui so custa esperar a vez
+        return False
 
 
 def _documentos_ja_oferecidos(trabalho) -> set[str]:

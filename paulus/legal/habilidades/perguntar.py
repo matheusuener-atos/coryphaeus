@@ -202,14 +202,50 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                           caminho=caminho, fallback=fallback)
 
 
+def sem_modelo(ctx: Contexto, pergunta: str = "", apenas=None) -> bool:
+    """
+    Esta pergunta vai ser respondida sem o modelo?
+
+    Quem pergunta e a conversa, ANTES de entrar na fila do modelo (R4): a
+    resposta por molde sai em milissegundos, e esperar a vez de outra pessoa
+    por ela seria esperar por nada. As mesmas decisoes de `executar`, na
+    mesma ordem - sem anotar medida nenhuma, que a de verdade vem depois.
+    """
+    pergunta = (pergunta or "").strip()
+    if not pergunta:
+        return True
+    import verificacao
+
+    lidos = [apenas] if isinstance(apenas, str) and apenas else list(apenas or [])
+    escopo = [d for d in ctx.documentos if d.name in set(lidos)] if lidos else ctx.documentos
+    if verificacao.papel_sem_prova(pergunta, escopo):
+        return True
+    material = getattr(ctx, "material", None)
+    if material is not None and material.consultar(pergunta):
+        return False
+    saber = getattr(ctx, "saber", None)
+    if saber is None or not getattr(saber, "ligada", False) or not getattr(ctx, "ia", {}).get("molde", True):
+        return False
+    from inteligencia import molde, roteador as _roteador
+
+    try:
+        metas, nomes = saber.metadados_de(escopo)
+        pacote = _roteador.resolver(pergunta, metas, nomes=nomes, em_foco=bool(lidos))
+    except Exception:  # noqa: BLE001 - na duvida, a fila de sempre
+        return False
+    return pacote.responde_sozinho and bool(molde.montar(pacote, pergunta))
+
+
 def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: dict):
     """
     A resposta de nivel 0: fatos conferidos, sem abrir o documento.
 
-    O prompt sai com poucas linhas e termina mandando o modelo dizer ESCALAR
-    se os fatos nao bastarem. Dito isso, nada e emitido como resposta e a
-    pergunta refaz o caminho de sempre - quem perguntou nao percebe, e o
-    programa nao responde pior do que responderia antes.
+    Pergunta de um dado so sai por molde, sem modelo (src/inteligencia/
+    molde.py). O resto vai ao modelo com poucas linhas, terminando em "diga
+    ESCALAR se os fatos nao bastarem"; dito isso - ou escrito um numero que
+    nao esta nos fatos -, nada e emitido e a pergunta refaz o caminho de
+    sempre. Quem perguntou nao percebe, e o programa nao responde pior do
+    que responderia antes.
     """
     fontes = [
         {
@@ -222,6 +258,18 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
         }
         for i, f in enumerate(pacote.fatos, start=1)
     ]
+    from inteligencia import molde
+    from inteligencia import roteador as _roteador
+
+    com_molde = getattr(ctx, "ia", {}).get("molde", True)
+    pronta = molde.montar(pacote, pergunta) if com_molde else ""
+    if pronta:
+        ctx.registrar("Respondi pelos fatos já conferidos, sem o modelo: " +
+                      _quantos(len(pacote.fatos), "fato") + " em " +
+                      _quantos(len(pacote.documentos), "documento"))
+        yield from _entregar_nivel0(ctx, pacote, fontes, pronta, caracteres=0, molde_usado=True)
+        return
+
     prompt = pacote.prompt(pergunta)
     ctx.registrar("Respondi pelo que já tinha lido: " +
                   _quantos(len(pacote.fatos), "fato") + " conferido em " +
@@ -236,12 +284,32 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
         sinal["escalou"] = True
         return
 
-    from inteligencia import roteador as _roteador
-
     if not resposta or _roteador.pediu_escalar(resposta):
         sinal["escalou"] = True
         return
 
+    # A conferencia mecanica (I3): todo numero, data, CNJ, CPF, CNPJ e valor
+    # da resposta tem de estar nos fatos. Um digito trocado derruba a
+    # resposta: a lista pronta a substitui quando a pergunta era de lista;
+    # sem ela, escala.
+    faltam = molde.conferir(resposta, pacote.fatos, pergunta) if com_molde else []
+    if faltam:
+        substituta = molde.lista(pacote)
+        ctx.registrar("a resposta do modelo trazia " + ", ".join(faltam[:3]) +
+                      ", que não está nos fatos conferidos — " +
+                      ("respondi com a lista deles" if substituta else "descartei e fui ler o documento"))
+        if not substituta:
+            sinal["escalou"] = True
+            return
+        resposta = substituta
+
+    yield from _entregar_nivel0(ctx, pacote, fontes, resposta, caracteres=len(prompt),
+                                molde_usado=bool(faltam))
+
+
+def _entregar_nivel0(ctx: Contexto, pacote, fontes: list, resposta: str, *, caracteres: int,
+                     molde_usado: bool):
+    """Os eventos de uma resposta de nivel 0 - pelo modelo ou pelo molde."""
     yield evento(
         "fontes",
         consultados=pacote.documentos,
@@ -253,16 +321,16 @@ def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: di
         inferencia=pacote.inferencia,
         porque=pacote.porque,
     )
-    yield evento("lendo", caracteres=len(prompt), trechos=len(fontes),
+    yield evento("lendo", caracteres=caracteres, trechos=len(fontes),
                  documentos=len(pacote.documentos),
                  janela=getattr(ctx.client, "num_ctx", 0),
-                 modelo=getattr(ctx.client, "model", ""),
+                 modelo="" if molde_usado and not caracteres else getattr(ctx.client, "model", ""),
                  previsao={"sabe": False}, nivel=pacote.nivel,
-                 caminho="nivel0", fallback=False)
+                 caminho="nivel0", fallback=False, molde=molde_usado)
     # Sem stream, os numeros do modelo ficam no cliente. Vao so para a
     # medicao (src/medicao.py), e nao para a tela como "medida": sem stream
     # nao ha tempo de leitura e de escrita separados para mostrar.
-    ultima = getattr(ctx.client, "ultima", None) or {}
+    ultima = (getattr(ctx.client, "ultima", None) or {}) if caracteres else {}
     if ultima:
         yield evento("contagem", tokens_lidos=ultima.get("prompt_eval_count", 0),
                      tokens_escritos=ultima.get("eval_count", 0), num_ctx=ultima.get("num_ctx", 0),

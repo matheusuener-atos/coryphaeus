@@ -1370,6 +1370,10 @@ async function enviar(opcoes) {
           const texto = textoDaFila(dados);
           if (bastidor.fase !== "fila") faseBastidor("fila", texto);
           else if (bastidor.vivaEl) bastidor.vivaEl.textContent = texto;
+        } else if (mt[1] === "lendo" && dados.molde && !dados.caracteres) {
+          /* Nível 0 por molde (src/inteligencia/molde.py): a resposta é o
+             próprio fato conferido, montado sem o modelo. */
+          anotarBastidor("respondi pelos fatos já conferidos, sem o modelo");
         } else if (mt[1] === "lendo") {
           anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
             dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");

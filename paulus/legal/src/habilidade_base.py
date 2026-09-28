@@ -96,6 +96,7 @@ class Contexto:
         saber=None,
         parar=None,
         material=None,
+        ia=None,
     ) -> None:
         self.searcher = searcher
         self.client = client
@@ -109,6 +110,10 @@ class Contexto:
         # O material de consulta (src/material.py): o que o escritorio deu
         # para o PAULUS aprender. `None`: nao ha material, nada muda.
         self.material = material
+        # As chaves do plano de melhoria da IA (preferencias, bloco `ia`).
+        # Sem elas, vale o de fabrica: cada etapa nasce ligada depois do
+        # portao, e a chave existe para voltar atras.
+        self.ia = dict(ia or {})
         # O que esta maquina ja mediu de si mesma: quanto ela le por segundo,
         # quanto escreve. Sem isso, a tela nao promete tempo nenhum.
         self.ritmo = ritmo
