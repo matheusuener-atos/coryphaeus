@@ -93,6 +93,7 @@ from acesso.conexao import ConexaoDoTunel
 from inteligencia import portas as inteligencia
 import inferencia
 from inteligencia.catalogo import Catalogo
+from lexico import IndiceLexico
 from medicao import Medicao
 import memoria as memoria_mod
 from inteligencia.guarda import Biblioteca
@@ -525,6 +526,15 @@ class Estado:
         return modelos_mod.modelo_da_tarefa(tarefa, self.prefs.dados.get("tarefas_modelo") or {},
                                             self.client.model, self.modelos_presentes())
 
+    def indice_lexico(self):
+        """O FTS5 do Acervo (src/lexico.py), aberto uma vez; sem ele, o BM25 de antes."""
+        if getattr(self, "_lexico", None) is None:
+            try:
+                self._lexico = IndiceLexico(DADOS_DIR / "indice" / "lexico.db")
+            except Exception:  # noqa: BLE001 - sem o indice em disco, a busca de antes serve
+                return None
+        return self._lexico
+
     def novo_cliente(self, modelo: str) -> LlamaClient:
         """Um cliente para `modelo`, com as opcoes do catalogo e das preferencias."""
         host = getattr(getattr(self, "client", None), "host", None) or DEFAULT_HOST
@@ -556,9 +566,12 @@ class Estado:
             finally:
                 self.lendo = {"andando": False}
             # I5: trechos pela estrutura (clausula, secao, artigo), com id
-            # estavel e pagina - chave `ia.trechos_estruturais`.
+            # estavel e pagina - chave `ia.trechos_estruturais`. I6: o indice
+            # lexico em disco (FTS5), incremental - chave `ia.lexico_fts`.
+            ia = self.prefs.dados.get("ia") or {}
             searcher = ContractSearcher(
-                estrutural=bool((self.prefs.dados.get("ia") or {}).get("trechos_estruturais", True)))
+                estrutural=bool(ia.get("trechos_estruturais", True)),
+                lexico=self.indice_lexico() if ia.get("lexico_fts", True) else None)
             searcher.add_contracts(docs)
             searcher.build()
             self.searcher = searcher

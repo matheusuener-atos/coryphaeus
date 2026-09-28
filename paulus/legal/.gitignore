@@ -103,3 +103,6 @@ data/logs/
 # A medicao da conversa (src/medicao.py, tools/medir.py): numeros locais, e o
 # conjunto real tem perguntas e frases de documentos de cliente.
 data/medicao/
+
+# O indice lexico do Acervo (src/lexico.py, FTS5): refeito a partir dos documentos.
+data/indice/

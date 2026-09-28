@@ -185,7 +185,7 @@ def chunk_estrutural(doc: Document) -> list[Chunk]:
 class ContractSearcher:
     """Indice BM25 sobre os trechos de todos os contratos carregados."""
 
-    def __init__(self, *, estrutural: bool = False) -> None:
+    def __init__(self, *, estrutural: bool = False, lexico=None) -> None:
         self.chunks: list[Chunk] = []
         self.documents: list[Document] = []
         self._bm25 = None
@@ -193,6 +193,11 @@ class ContractSearcher:
         # I5: trechos pela estrutura (clausula, secao, artigo) em vez de
         # blocos de 1.200 caracteres. Chave `ia.trechos_estruturais`.
         self.estrutural = estrutural
+        # I6: o indice lexico em SQLite FTS5 (src/lexico.py), no lugar do
+        # rank_bm25 - so com trechos estruturais, que tem id estavel. Chave
+        # `ia.lexico_fts`.
+        self.lexico = lexico
+        self._pronto = False
 
     def add_contracts(self, docs: list[Document]) -> None:
         self.documents.extend(docs)
@@ -200,6 +205,7 @@ class ContractSearcher:
         for doc in docs:
             self.chunks.extend(fatiar(doc))
         self._bm25 = None  # invalida o indice
+        self._pronto = False
 
     def build(self) -> None:
         try:
@@ -211,13 +217,23 @@ class ContractSearcher:
 
         if not self.chunks:
             self._bm25 = None
+            self._pronto = False
             return
 
         # O texto com o caminho na frente, quando o trecho tem: "Contrato ACME >
         # CLAUSULA 9a" faz a busca achar a clausula pelo nome do documento.
         corpus = [tokenize(c.text_embed or c.text) for c in self.chunks]
         self._termos = [set(t) for t in corpus]
+        self._por_id = {c.chunk_id: i for i, c in enumerate(self.chunks) if c.chunk_id}
+        if self._usa_lexico():
+            self.lexico.sincronizar(self.chunks)
+            self._pronto = True
+            return
         self._bm25 = BM25Okapi(corpus)
+        self._pronto = True
+
+    def _usa_lexico(self) -> bool:
+        return self.lexico is not None and bool(self.chunks) and all(c.chunk_id for c in self.chunks)
 
     def caracteres(self) -> int:
         """Quanto texto o acervo inteiro tem."""
@@ -274,23 +290,34 @@ class ContractSearcher:
         medio = max(1, self.caracteres() // len(self.chunks))
         return max(4, min(len(self.chunks), orcamento // medio))
 
-    def search(self, query: str, top_k: int = 5, per_doc_limit: int = 2) -> list[Hit]:
+    def search(self, query: str, top_k: int = 5, per_doc_limit: int = 2, documentos=None) -> list[Hit]:
         """
         Retorna os melhores trechos para a pergunta.
 
         `per_doc_limit` evita que um unico contrato ocupe todos os slots de
         contexto - com 10 contratos, o usuario quase sempre quer comparar.
+        `documentos` restringe a busca a estes arquivos ANTES de ordenar.
         """
-        if self._bm25 is None:
+        if not self._pronto:
             self.build()
-        if self._bm25 is None:
+        if not self._pronto:
             return []
 
         tokens = tokenize(query)
         if not tokens:
             return []
 
-        scores = self._bm25.get_scores(tokens)
+        so = set(n for n in (documentos or []) if n)
+        if self._usa_lexico():
+            scores = [0.0] * len(self.chunks)
+            for cid, escore in self.lexico.buscar(query, max(50, top_k * 4), list(so)):
+                i = self._por_id.get(cid)
+                if i is not None:
+                    scores[i] = escore
+        else:
+            scores = list(self._bm25.get_scores(tokens))
+            if so:
+                scores = [s if self.chunks[i].doc_name in so else 0.0 for i, s in enumerate(scores)]
         hits: list[Hit] = []
         por_doc: dict[str, int] = {}
         usados: set[int] = set()
@@ -316,7 +343,10 @@ class ContractSearcher:
         # busca devolve um ou nenhum resultado - mesmo com o termo no texto.
         # Quando falta trecho, completamos por contagem de termos presentes.
         if len(hits) < top_k:
-            colher(self._scores_por_presenca(tokens))
+            presenca = self._scores_por_presenca(tokens)
+            if so:
+                presenca = [s if self.chunks[i].doc_name in so else 0.0 for i, s in enumerate(presenca)]
+            colher(presenca)
 
         return hits
 

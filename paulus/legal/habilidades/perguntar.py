@@ -155,7 +155,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
             if texto > orcamento:
                 por_documento = max(2, ctx.searcher.quantos_cabem(orcamento) // len(quais))
                 escolhidos = ctx.searcher.search(
-                    pergunta, top_k=max(top, len(so_deles)), per_doc_limit=por_documento)
+                    pergunta, top_k=max(top, len(so_deles)), per_doc_limit=por_documento, documentos=quais)
                 dentro = [h for h in escolhidos if h.doc_name in set(quais)]
                 so_deles = dentro or so_deles[:1]
             yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais, material=leitura_material,

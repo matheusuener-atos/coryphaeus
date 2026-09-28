@@ -130,8 +130,10 @@ PADRAO: dict = {
     # e "e a multa?" herda o sujeito da pergunta anterior, por regra.
     # `trechos_estruturais` (I5): o Acervo e fatiado por clausula, secao e
     # artigo (src/trechos.py), e nao em blocos de 1.200 caracteres.
+    # `lexico_fts` (I6): a busca lexica em SQLite FTS5, em disco e
+    # incremental, com a normalizacao juridica (src/lexico.py).
     "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True, "molde": True, "memoria": True,
-           "trechos_estruturais": True},
+           "trechos_estruturais": True, "lexico_fts": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.
