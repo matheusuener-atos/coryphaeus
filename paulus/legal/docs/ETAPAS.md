@@ -1704,3 +1704,45 @@ demonstração: Recall@20 0,96, Recall@6 0,95, MRR@6 0,87. Roteiro `--tudo`
 40/41 (igual), mediana 7,6 s; demo 26/27, p50 7,9 s. Suíte: 71 passam; o
 test_tela caiu uma vez com o segfault intermitente de antes (código 139).
 
+## I7 — Busca híbrida, e a virada do "ler tudo" pronta atrás de chave ✓ FEITA (virada desligada)
+
+**Busca por sentido** (`src/denso.py`): vetores do `bge-m3` pelo próprio
+Ollama (`/api/embed`), normalizados L2, com o espaço gravado em cada vetor
+(`bge-m3|1024|l2|v1`); a consulta nunca compara espaços diferentes, e trocar
+o modelo de vetores pede vetorizar de novo. Os vetores ficam em SQLite como
+BLOB, com o cosseno em numpy: a extensão `sqlite-vec` não está no ambiente
+do programa, e numpy já vem. Os vetores são feitos em segundo plano,
+cedendo a vez à fila do modelo (R4) antes de cada lote de 16. O modelo só
+chega pelo botão novo em Configurações › Modelos ("Busca por sentido", com
+o tamanho — 1,2 GB — antes de baixar).
+
+**Fusão** (`src/recuperacao.py`): RRF k=60 sobre as duas listas (léxico 50 +
+denso 50 → 20), trecho que não ficou entre os 20 primeiros de nenhuma delas
+não entra para "completar", e o orçamento: 6 trechos, 3000 tokens, 3 por
+documento, sem quase-duplicado (cosseno ≥ 0,92).
+
+**Reranker:** `bge-reranker-v2-m3` int8 em CPU, com onnxruntime (já no
+ambiente, pelo faster-whisper), medido por `tools/medir_reranker.py`:
+**34 s para 20 pares** (10.240 tokens). A régua era 3 s — **não entrou**;
+fica só a RRF.
+
+**A virada** (`ia.leitura = "trechos"`): lê os trechos da busca híbrida em
+vez do escopo inteiro, salvo escopo que cabe em ~4000 tokens ou pergunta
+que pede ("leia o contrato inteiro"); a janela cai para 8192. Está pronta e
+testada, e **desligada de fábrica** (ver PROGRESSO): a demonstração cabe
+inteira em 4000 tokens, então nenhuma pergunta do banco de provas passa pela
+virada, e ligar a leitura por trechos com base só nela seria ligar sem
+medir.
+
+**Medido na demonstração** (15 trechos, 15 vetores): só léxico R@20 1,00 ·
+só denso 1,00 · híbrido 1,00 (satura — a régua "híbrido > o melhor dos
+dois" não discrimina aqui); Recall@6 0,99; MRR@6 0,93; contexto p50 **718
+tokens** no que a busca híbrida mandaria ao modelo, contra ~2.368 da leitura
+inteira. Roteiro `--tudo` 40/41 (igual), mediana 7,2 s; demo 26/27, p50
+7,8 s. Suíte: 73 passam.
+
+**O que a verificação achou:** o teste do orçamento passava com um trecho só
+— os vetores de mentira deixavam todos os trechos quase iguais, e a
+deduplicação tirava o resto. Com vetores de palavras (hash), o orçamento é
+exercitado de verdade: 6 trechos, 2.128 tokens, no máximo 3 por documento.
+

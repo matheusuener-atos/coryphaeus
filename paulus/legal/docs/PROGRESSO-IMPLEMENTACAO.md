@@ -47,7 +47,7 @@ etapa que não estiver `feita`.
 | I4 | Memória da conversa | feita | branch `i4-memoria` | 9/9 continuações herdam o sujeito, 18/18 outras intactas; histórico ≤ 600 tokens; demo 26/27 (continuação 9/9, era 8/9); roteiro 40/41 |
 | I5 | Chunking estrutural | feita | branch `i5-trechos` | ids estáveis (mesmo doc e reindexação); toda página; nenhuma seção cortada; roteiro 40/41 (mediana 8,8 s); demo 26/27, p50 9,2 s, R@6 0,95; suíte 71 ok |
 | I6 | FTS5 com normalização jurídica | feita | branch `i6-fts` | 4 exemplos iguais nos dois lados; mesma ordem; incremental; linha de base só-léxico R@20 0,96 · R@6 0,95 · MRR@6 0,87; roteiro 40/41; demo 26/27, p50 7,9 s; suíte 71 ok |
-| I7 | Denso + RRF + reranker, virada do "ler tudo" | pendente | | |
+| I7 | Denso + RRF + reranker, virada do "ler tudo" | feita; virada ⏸ desligada | branch `i7-hibrida` | demo: R@20 léxico 1,00 · denso 1,00 · híbrido 1,00 (satura); R@6 0,99; MRR@6 0,93; contexto p50 718 tokens; reranker 34 s/20 pares (não entra); roteiro 40/41; demo 26/27, p50 7,8 s; suíte 73 ok |
 | I8 | Contrato de resposta `[Tn]` | pendente | | |
 | I9 | A IA ajuda sem ser perguntada | pendente | | |
 
@@ -120,6 +120,11 @@ etapa que não estiver `feita`.
   - B, cláusulas curtas juntas: `[chunk_… p.1-1] Contrato ACME > CLÁUSULA 2ª … + CLÁUSULA 3ª …` — duas inteiras, nenhuma cortada.
   - A, artigo com parágrafo e incisos: `[chunk_… ] Lei 99999 > Art. 3º / Art. 3º O teste número 3… § 1º O parágrafo do artigo 3… I - inciso primeiro…`.
 - **I6** O FTS5 só é usado com trechos estruturais (precisa do `chunk_id`); com `ia.trechos_estruturais` desligada, volta o rank_bm25. A consulta vai em OU (cada termo entre aspas): em E, uma palavra a mais na pergunta zerava o resultado.
+- **I7** Reranker fora do v0: 34 s para 20 pares em CPU (régua 3 s). Fica só a RRF.
+- **I7** Vetores em BLOB + numpy, e não `sqlite-vec`: a extensão não está instalada no ambiente, e instalar seria dependência nova sem necessidade para o tamanho de um acervo de escritório.
+- **I7** O backfill é um fio próprio (`denso.Backfill`), e não o `jobs.py`: aqui o `jobs.py` é o das conversas, não um executor de tarefas. Ele cede a vez à fila do modelo antes de cada lote.
+- **I7** A virada ficou **desligada** mesmo com R@6 ≥ 0,80 na demo: a demonstração cabe inteira em ~4000 tokens e não passa pela virada; o contrato pede Recall@6 no conjunto, e o conjunto real ainda não existe. Ligar é uma linha (`ia.leitura = "trechos"`), depois de medir no conjunto real.
+- **I7** O `bge-m3` foi baixado no Ollama desta máquina para medir (1,2 GB). No programa instalado ele só chega pelo botão da tela.
 
 ## Pendente do usuário
 
@@ -133,6 +138,13 @@ anotar, com exemplo: `docs/medicao.md` e `tools/demo/conjunto-demo.jsonl`.
 Depois: `tools\medir.py --real --so-busca` (confere as frases, segundos) e
 `tools\medir.py --real` (com o Ollama). Os números das etapas I3–I9 foram
 medidos na demonstração até lá.
+
+### ⏸ I7 — ligar a leitura por trechos?
+
+Pronta e atrás de `ia.leitura = "trechos"` (janela cai para 8192). Não
+liguei: a demonstração não exercita a virada. Com o conjunto real anotado
+(I2), rodar `tools\medir.py --real` com o `bge-m3` baixado: se o Recall@6
+ficar ≥ 0,80 e a latência cair, ligar.
 
 ### ⏸ R5 — o que fazer no painel da Cloudflare (só o dono da conta)
 
