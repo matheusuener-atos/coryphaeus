@@ -555,7 +555,10 @@ class Estado:
                                            ignorar=self.fora_do_acervo(), progresso=andou)
             finally:
                 self.lendo = {"andando": False}
-            searcher = ContractSearcher()
+            # I5: trechos pela estrutura (clausula, secao, artigo), com id
+            # estavel e pagina - chave `ia.trechos_estruturais`.
+            searcher = ContractSearcher(
+                estrutural=bool((self.prefs.dados.get("ia") or {}).get("trechos_estruturais", True)))
             searcher.add_contracts(docs)
             searcher.build()
             self.searcher = searcher

@@ -71,6 +71,21 @@ class Chunk:
     doc_path: str
     index: int
     text: str
+    # Os trechos estruturais (I5, src/trechos.py) sabem onde estao: o id
+    # estavel, a faixa no texto extraido, as paginas, o regime e o texto com
+    # o caminho na frente, que e o que a busca indexa. Os de tamanho fixo
+    # deixam vazio.
+    chunk_id: str = ""
+    char_start: int = 0
+    char_end: int = 0
+    pagina_inicio: int | None = None
+    pagina_fim: int | None = None
+    regime: str = ""
+    text_embed: str = ""
+
+    @property
+    def text_raw(self) -> str:
+        return self.text
 
 
 @dataclass
@@ -141,19 +156,49 @@ def chunk_document(doc: Document, size: int = CHUNK_SIZE, overlap: int = CHUNK_O
     return chunks
 
 
+def chunk_estrutural(doc: Document) -> list[Chunk]:
+    """
+    Os trechos pela estrutura do documento (src/trechos.py): clausula, secao
+    ou artigo, com id estavel e pagina.
+    """
+    import trechos
+    from inteligencia.texto import mapa_de_paginas, pagina_de
+
+    versao = trechos.versao_de(doc.sha1, doc.text)
+    paginas = mapa_de_paginas(doc.text)
+    titulo = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", doc.name)
+    saida: list[Chunk] = []
+    for i, fatia in enumerate(trechos.fatiar(doc.text, titulo)):
+        bruto = doc.text[fatia.char_start:fatia.char_end]
+        saida.append(Chunk(
+            doc.name, doc.path, i, bruto,
+            chunk_id=trechos.chunk_id(versao, fatia.char_start),
+            char_start=fatia.char_start, char_end=fatia.char_end,
+            pagina_inicio=pagina_de(paginas, fatia.char_start),
+            pagina_fim=pagina_de(paginas, max(fatia.char_start, fatia.char_end - 1)),
+            regime=fatia.regime,
+            text_embed=(fatia.caminho + "\n" if fatia.caminho else "") + bruto,
+        ))
+    return saida
+
+
 class ContractSearcher:
     """Indice BM25 sobre os trechos de todos os contratos carregados."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, estrutural: bool = False) -> None:
         self.chunks: list[Chunk] = []
         self.documents: list[Document] = []
         self._bm25 = None
         self._termos: list[set[str]] = []
+        # I5: trechos pela estrutura (clausula, secao, artigo) em vez de
+        # blocos de 1.200 caracteres. Chave `ia.trechos_estruturais`.
+        self.estrutural = estrutural
 
     def add_contracts(self, docs: list[Document]) -> None:
         self.documents.extend(docs)
+        fatiar = chunk_estrutural if self.estrutural else chunk_document
         for doc in docs:
-            self.chunks.extend(chunk_document(doc))
+            self.chunks.extend(fatiar(doc))
         self._bm25 = None  # invalida o indice
 
     def build(self) -> None:
@@ -168,7 +213,9 @@ class ContractSearcher:
             self._bm25 = None
             return
 
-        corpus = [tokenize(c.text) for c in self.chunks]
+        # O texto com o caminho na frente, quando o trecho tem: "Contrato ACME >
+        # CLAUSULA 9a" faz a busca achar a clausula pelo nome do documento.
+        corpus = [tokenize(c.text_embed or c.text) for c in self.chunks]
         self._termos = [set(t) for t in corpus]
         self._bm25 = BM25Okapi(corpus)
 
@@ -347,6 +394,12 @@ def merge_chunks(chunks: list[Chunk]) -> str:
     for anterior, atual in zip(chunks, chunks[1:]):
         if atual.index != anterior.index + 1:
             texto += "\n\n[...]\n\n" + atual.text
+            continue
+        if atual.char_end and anterior.char_end:
+            # Trecho estrutural: a sobreposicao se sabe pela posicao no texto,
+            # sem adivinhar pelo conteudo.
+            corte = max(0, anterior.char_end - atual.char_start)
+            texto += "\n" + atual.text[corte:].lstrip()
             continue
         # trechos vizinhos compartilham ate CHUNK_OVERLAP caracteres
         corte = 0
