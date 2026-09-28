@@ -136,7 +136,7 @@ def test_celular(navegador, base: str) -> None:
 
     servico = api.estado.acesso_de_fora
     prefs = api.estado.prefs.dados["acesso_remoto"]
-    antes_jwt = servico.verificar_jwt
+    antes_chave = prefs.get("turnstile_sitekey", "")
     email = "celular-tela@escritorio.com"
     conta = None
     pedido = None
@@ -144,11 +144,16 @@ def test_celular(navegador, base: str) -> None:
         conta = servico.contas.criar("Teste de Tela", email, "titular", "senha-do-celular-12")
         servico.contas.confirmar_totp(conta["conta"]["id"], codigo_totp(conta["segredo"], int(time.time() // 30) - 1))
         prefs["ligado"] = True
-        servico.verificar_jwt = lambda t: {"email": t[3:]} if t and t.startswith("ok:") else None
+        servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
+        prefs["turnstile_sitekey"] = "chave-de-teste"
         pedido = api.estado.fila.pedir("Teste de tela: enviar e-mail", "email", acao="correio.enviar",
                                        resumo="Pedido criado pelo teste de tela")
-        ctx = navegador.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
-                                    extra_http_headers={"Cf-Access-Jwt-Assertion": "ok:" + email})
+        ctx = navegador.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        # O Turnstile de mentira: o widget da Cloudflare nao carrega no teste,
+        # e o token que ele daria e o que o servidor simulado aceita.
+        ctx.route("https://challenges.cloudflare.com/**", lambda rota: rota.fulfill(
+            content_type="application/javascript",
+            body="window.turnstile = {render: () => 1, getResponse: () => 'ok', reset: () => {}};"))
         pag = ctx.new_page()
         pag.add_init_script("try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}")
         largura = "() => document.documentElement.scrollWidth"
@@ -186,7 +191,8 @@ def test_celular(navegador, base: str) -> None:
         ctx.close()
     finally:
         prefs["ligado"] = False
-        servico.verificar_jwt = antes_jwt
+        servico.__dict__.pop("conferir_turnstile", None)
+        prefs["turnstile_sitekey"] = antes_chave
         if pedido:
             api.estado.fila.esquecer(pedido.id)
         if conta:
@@ -358,6 +364,49 @@ def main() -> int:
                 pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "2Escritório",
                 "Comecar leva ao passo Escritorio",
             )
+            checar(
+                pagina.evaluate("() => !!document.getElementById('bv-escritorio')"),
+                "quem cria o escritorio da o nome no passo Escritorio",
+            )
+            # Continuar sem mexer no nome: o teste roda tambem nos dados de
+            # verdade, e o nome que estiver la fica como esta.
+            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(700)
+            checar(
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "3Acesso à distância",
+                "logo depois do nome do escritorio vem 'Acesso a distancia'",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
+            )
+            checar(
+                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked') === 'false'"
+                                " && !document.getElementById('cx-slug')"),
+                "desligado de fabrica, sem nada para preencher",
+            )
+            # Ligado, com o Worker de mentira: so a disponibilidade.
+            from types import SimpleNamespace
+
+            conexao = api.estado.acesso_de_fora.conexao
+            provisao_antes = conexao.provisao
+            conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst: {"disponivel": True, "motivo": "", "sugestao": ""})
+            try:
+                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                pagina.wait_for_selector("#cx-slug", timeout=5000)
+                pagina.fill("#cx-slug", "escritorio-da-tela")
+                pagina.wait_for_timeout(1200)
+                checar(
+                    pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
+                    and "disponível" in pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
+                    "ligado: o endereco, conferido enquanto digita, com o final em destaque",
+                    pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
+                )
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
+                    "as tres etapas: endereco, conta do titular, confirmar no navegador",
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                pagina.wait_for_timeout(300)
+            finally:
+                conexao.provisao = provisao_antes
             pagina.evaluate("() => concluirBoasVindas(true)")
             pagina.wait_for_timeout(600)
             checar(

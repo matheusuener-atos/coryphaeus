@@ -9,8 +9,9 @@ fora** - rota nova nasce fechada ate alguem abri-la de proposito.
 
 As politicas:
 
-    publico    so passa pelo Cloudflare Access; nao precisa de sessao do
-               PAULUS (a tela de login e o que ela carrega)
+    publico    os arquivos da casca (paginas, scripts, folhas, imagens) e o
+               login. Sem sessao, desses so passa o que a TELA DE ENTRAR
+               carrega (SEM_SESSAO, abaixo); com sessao, tudo
     permitido  qualquer pessoa com sessao
     propor     ver e livre; o que grava vira pedido na fila de Aprovacoes, e
                so acontece depois do sim de quem pode (acesso-remoto/v0, §5:
@@ -67,11 +68,30 @@ def _declarar(politica: str, *rotas: str) -> None:
         REGISTRO[(metodo, caminho)] = politica
 
 
-# --- a tela de login e o que ela carrega (so atras do Access)
+# --- a casca do programa e o login
 _declarar(PUBLICO,
           "GET /", "GET /css/{arquivo}", "GET /js/{arquivo}", "GET /img/{arquivo}", "GET /img/marcas/{arquivo}",
           "GET /fontes.css", "GET /fontes/{arquivo}",
-          "GET /api/acesso/eu", "POST /api/acesso/entrar", "POST /api/acesso/entrar/codigo")
+          "GET /api/acesso/eu", "GET /api/acesso/entrar/config", "POST /api/acesso/entrar",
+          "POST /api/acesso/entrar/codigo")
+
+# Sem sessao, de fora, so isto passa - a tela de entrar e o que ELA carrega
+# (acesso-remoto/v0, R2). O resto da casca espera o login: toda rota /api/*
+# responde 401, e toda outra pagina e a tela de entrar.
+SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"),
+              ("GET", "/img/paulus-logo.png"), ("GET", "/img/paulus-icone.svg"),
+              ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
+              ("POST", "/api/acesso/entrar/codigo")}
+
+
+def estatico_da_entrada(metodo: str, caminho: str) -> bool:
+    """As fontes da tela de entrar (um arquivo por familia e peso)."""
+    return metodo == "GET" and caminho.startswith("/fontes/") and "/" not in caminho[len("/fontes/"):]
+
+
+# --- trocar a propria senha e encerrar as proprias sessoes, de fora: so o
+# titular, e a rota pede o codigo do autenticador de novo (R2)
+_declarar(TITULAR, "POST /api/acesso/minha-senha", "POST /api/acesso/minhas-sessoes/encerrar")
 
 # --- conversar, perguntar, buscar; ver documento e o trecho citado
 _declarar(PERMITIDO,
@@ -183,7 +203,8 @@ _declarar(BLOQUEADO,
           "POST /api/acesso/contas/{conta_id}/autenticador/refazer", "POST /api/acesso/contas/{conta_id}/recuperacao",
           "POST /api/acesso/sessoes/encerrar",
           "GET /api/acesso/tunel", "POST /api/acesso/tunel/conectar", "POST /api/acesso/tunel/cancelar",
-          "POST /api/acesso/tunel/ligar", "POST /api/acesso/tunel/porta", "POST /api/acesso/tunel/sincronizar",
+          "POST /api/acesso/tunel/ligar", "POST /api/acesso/tunel/porta", "GET /api/acesso/tunel/disponivel",
+          "GET /api/acesso/tunel/sugestao",
           "POST /api/acesso/tunel/remover", "GET /api/acesso/auditoria", "GET /api/acesso/auditoria/pdf",
           "POST /api/acesso/energia/abrir-com-windows",
           # mover, organizar, apagar, exportar em lote, lixeira

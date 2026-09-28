@@ -59,6 +59,13 @@ PENDENTE_S = 5 * 60
 ERROS_ATE_BLOQUEAR = 5
 BLOQUEIO_S = 15 * 60
 
+# Alem da conta, o endereco de internet de onde vem o erro: a tela de entrar
+# fica exposta a internet, e quem tenta muitas contas diferentes nunca chega
+# ao 5o erro de nenhuma. 20 falhas em 10 minutos fecham a porta por 1 hora.
+IP_FALHAS_ATE_BLOQUEAR = 20
+IP_JANELA_S = 10 * 60
+IP_BLOQUEIO_S = 60 * 60
+
 
 class ErroConta(ValueError):
     """Pedido que nao da para cumprir; a mensagem vai para a tela."""
@@ -195,6 +202,11 @@ CREATE TABLE IF NOT EXISTS tentativas (
     email TEXT PRIMARY KEY,
     erros INTEGER NOT NULL DEFAULT 0,
     bloqueios INTEGER NOT NULL DEFAULT 0,
+    bloqueado_ate REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS tentativas_ip (
+    ip TEXT PRIMARY KEY,
+    falhas TEXT NOT NULL DEFAULT '[]',
     bloqueado_ate REAL NOT NULL DEFAULT 0
 );
 """
@@ -348,6 +360,13 @@ class Contas:
             with self._db() as c:
                 c.execute("DELETE FROM contas WHERE id = ?", (conta_id,))
 
+    def senha_confere(self, conta_id: int, senha: str) -> bool:
+        linha = self._linha(conta_id)
+        if not linha:
+            return False
+        return hmac.compare_digest(resumo_da_senha(str(senha or ""), bytes.fromhex(linha["senha_sal"])),
+                                   linha["senha_hash"])
+
     def trocar_senha(self, conta_id: int, nova: str) -> int:
         """Troca a senha e derruba todas as sessoes da conta. Devolve quantas caíram."""
         conferir_forca(nova)
@@ -436,6 +455,41 @@ class Contas:
                 pass
         return ate
 
+    def ip_bloqueado_ate(self, ip: str) -> float:
+        if not ip:
+            return 0.0
+        with self._db() as c:
+            l = c.execute("SELECT bloqueado_ate FROM tentativas_ip WHERE ip = ?", (ip,)).fetchone()
+        return float(l["bloqueado_ate"]) if l else 0.0
+
+    def _errou_ip(self, ip: str) -> float:
+        """Conta a falha deste endereco; na 20a em 10 minutos, fecha por 1 hora."""
+        if not ip:
+            return 0.0
+        agora = self.relogio()
+        with self._trava, self._db() as c:
+            l = c.execute("SELECT * FROM tentativas_ip WHERE ip = ?", (ip,)).fetchone()
+            falhas = [t for t in json.loads(l["falhas"]) if agora - t <= IP_JANELA_S] if l else []
+            falhas.append(agora)
+            ate = 0.0
+            if len(falhas) >= IP_FALHAS_ATE_BLOQUEAR:
+                ate, falhas = agora + IP_BLOQUEIO_S, []
+            c.execute("INSERT INTO tentativas_ip (ip, falhas, bloqueado_ate) VALUES (?, ?, ?)"
+                      " ON CONFLICT(ip) DO UPDATE SET falhas = excluded.falhas,"
+                      " bloqueado_ate = CASE WHEN excluded.bloqueado_ate > 0 THEN excluded.bloqueado_ate"
+                      " ELSE tentativas_ip.bloqueado_ate END", (ip, json.dumps(falhas), ate))
+        if ate and self.ao_bloquear:
+            try:
+                self.ao_bloquear("", "o endereço " + ip, ate)
+            except Exception:  # noqa: BLE001 - o aviso nao pode destravar a porta
+                pass
+        return ate
+
+    def _porta_do_ip(self, ip: str) -> None:
+        ate = self.ip_bloqueado_ate(ip)
+        if ate > self.relogio():
+            raise ErroEntrada("muitas tentativas erradas deste endereço; tente de novo mais tarde", ate)
+
     def _acertou(self, email: str) -> None:
         with self._db() as c:
             c.execute("DELETE FROM tentativas WHERE email = ?", (email,))
@@ -444,8 +498,11 @@ class Contas:
         with self._db() as c:
             return c.execute("SELECT * FROM contas WHERE email = ?", (email,)).fetchone()
 
-    def _recusar(self, email: str, mensagem: str) -> None:
+    def _recusar(self, email: str, mensagem: str, ip: str = "") -> None:
+        ate_ip = self._errou_ip(ip)
         ate = self._errou(email)
+        if ate_ip:
+            raise ErroEntrada("muitas tentativas erradas deste endereço; tente de novo mais tarde", ate_ip)
         if ate:
             raise ErroEntrada("muitas tentativas erradas: a conta ficou bloqueada por "
                               f"{round((ate - self.relogio()) / 60)} min", ate)
@@ -453,25 +510,29 @@ class Contas:
 
     # ----------------------------------------------------------- entrar
 
-    def entrar_com_senha(self, email: str, senha: str) -> str:
+    def entrar_com_senha(self, email: str, senha: str, *, ip: str = "") -> str:
         """
         Primeira metade do login. Devolve um token de pendencia (5 min) que
         so vale para mandar o codigo do autenticador.
+
+        "Conta que nao existe" e "senha errada" dao a mesma resposta, no mesmo
+        tempo - o scrypt roda do mesmo jeito -, e contam para o bloqueio igual:
+        a tela de entrar nao pode servir para descobrir quem tem conta.
         """
+        self._porta_do_ip(ip)
         try:
             email = self._email(email)
         except ErroConta as exc:
+            self._errou_ip(ip)
             raise ErroEntrada("e-mail ou senha errados") from exc
         ate = self._bloqueado_ate(email)
         if ate > self.relogio():
             raise ErroEntrada("conta bloqueada por tentativas erradas; tente de novo mais tarde", ate)
         linha = self._conta_por_email(email)
-        # Sem conta, o scrypt roda do mesmo jeito: o tempo de resposta nao
-        # pode dizer que o e-mail nao existe.
         sal = bytes.fromhex(linha["senha_sal"]) if linha else b"\0" * 16
         certo = resumo_da_senha(str(senha or ""), sal)
         if not linha or not hmac.compare_digest(certo, linha["senha_hash"]):
-            self._recusar(email, "e-mail ou senha errados")
+            self._recusar(email, "e-mail ou senha errados", ip)
         if not linha["totp_confirmado"]:
             raise ErroEntrada("esta conta ainda não confirmou o autenticador no computador do escritório")
         pendente = secrets.token_urlsafe(24)
@@ -506,8 +567,9 @@ class Contas:
             c.execute("UPDATE contas SET recuperacao = ? WHERE id = ?", (json.dumps(restantes), linha["id"]))
         return True
 
-    def entrar_com_codigo(self, pendente: str, codigo: str, *, email_access: str = "", ip: str = "") -> dict:
+    def entrar_com_codigo(self, pendente: str, codigo: str, *, ip: str = "") -> dict:
         """Segunda metade: o codigo certo abre a sessao. Devolve cookie, csrf e a conta."""
+        self._porta_do_ip(ip)
         with self._trava:
             self._limpar_pendentes()
             dado = self._pendentes.get(_resumo(str(pendente or "")))
@@ -519,7 +581,7 @@ class Contas:
             raise ErroEntrada("conta bloqueada por tentativas erradas; tente de novo mais tarde", ate)
         linha = self._linha(conta_id)
         if not linha or not self._conferir_codigo(linha, codigo):
-            self._recusar(email, "código errado")
+            self._recusar(email, "código errado", ip)
         with self._trava:
             self._pendentes.pop(_resumo(str(pendente)), None)
         self._acertou(email)
@@ -530,7 +592,7 @@ class Contas:
         with self._db() as c:
             c.execute("INSERT INTO sessoes (hash, conta_id, csrf, criada, ultimo_uso, totp_em, email_access, ip)"
                       " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                      (_resumo(sessao), conta_id, csrf, agora, agora, agora, email_access, ip))
+                      (_resumo(sessao), conta_id, csrf, agora, agora, agora, "", ip))
         return {"sessao": sessao, "csrf": csrf, "conta": self._publica(linha)}
 
     # ---------------------------------------------------------- sessao
@@ -577,7 +639,7 @@ class Contas:
     def sessoes_abertas(self) -> list[dict]:
         agora = self.relogio()
         with self._db() as c:
-            linhas = c.execute("SELECT s.conta_id, s.criada, s.ultimo_uso, s.email_access, c.nome FROM sessoes s"
+            linhas = c.execute("SELECT s.conta_id, s.criada, s.ultimo_uso, s.ip, c.nome, c.email FROM sessoes s"
                                " JOIN contas c ON c.id = s.conta_id ORDER BY s.ultimo_uso DESC").fetchall()
         return [dict(l) for l in linhas
                 if agora - l["ultimo_uso"] <= SESSAO_OCIOSA_S and agora - l["criada"] <= SESSAO_TOTAL_S]

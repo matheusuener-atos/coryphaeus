@@ -14,7 +14,6 @@ from acesso import politicas
 from acesso.auditoria import Auditoria
 from acesso.contas import Contas
 from acesso.energia import Acordado
-from acesso.jwt_access import ConferidorAccess
 from acesso.remoto import PortaoRemoto
 from acesso.tunel import VERSAO_MINIMA, Cofre, Tunel, achar_cloudflared, versao_basta, versao_de
 
@@ -61,9 +60,9 @@ class AcessoDeFora:
         # O app, para executar a proposta aprovada (o api.py entrega).
         self.app = None
         self.contas = Contas(self.pasta / "contas.db", ao_bloquear=self._bloqueou)
-        # O conferidor do JWT do Cloudflare Access (jwt_access.py). Sem ele -
-        # tunel nunca conectado -, ninguem de fora passa.
-        self.verificar_jwt = None
+        # A conversa com o Worker de paulus.ia.br (conexao.py); o api.py cria.
+        # E por ela que o Turnstile de cada login e conferido.
+        self.conexao = None
         # Os ultimos eventos, em memoria; o registro que vale e o da
         # auditoria (R8): so cresce, com hash encadeado, guardado um ano.
         self.eventos: list[dict] = []
@@ -71,7 +70,7 @@ class AcessoDeFora:
         # caminho da API -> nome legivel (o api.py entrega; sem ele, fica o caminho).
         self.descrever = None
         self.ao_mudar_contas = []
-        self.portao = PortaoRemoto(self.contas, self.ligado, self._conferir_jwt, registrar=self.anotar)
+        self.portao = PortaoRemoto(self.contas, self.ligado, registrar=self.anotar)
         self.portao.propor = self.propor
         # O tunel (R6): os segredos protegidos, o processo do cloudflared e
         # o ouvinte da porta fixa, so do tunel.
@@ -85,17 +84,48 @@ class AcessoDeFora:
 
     # ------------------------------------------------------------ tunel
 
-    def configurar_conferidor(self, buscar=None) -> None:
+    def conferir_turnstile(self, token: str, ip: str = "") -> str:
         """
-        O JWT do Access passa a ser conferido aqui com o `aud` e o time que o
-        Worker entregou na conexao. Sem os dois (nunca conectado), nenhum
-        conferidor - e ninguem de fora passa.
+        O anti-robo de um login de fora, conferido no Worker (o segredo do
+        Turnstile nunca vem para ca). "ok", "recusado" ou "indisponivel" -
+        e indisponivel NUNCA libera: sem o Worker, ninguem entra.
         """
-        p = self.preferencias()
-        if p.get("aud") and p.get("team_domain"):
-            self.verificar_jwt = ConferidorAccess(p["team_domain"], p["aud"], **({"buscar": buscar} if buscar else {}))
+        from acesso.provisao import ErroProvisao, ErroRemovido
+
+        segredo = self.cofre.segredo() if self.cofre.tem() else ""
+        if not segredo or self.conexao is None or not str(token or "").strip():
+            return "indisponivel" if not segredo or self.conexao is None else "recusado"
+        try:
+            ok = self.conexao.provisao.turnstile(segredo, str(token), ip)
+        except ErroRemovido as exc:
+            self.endereco_liberado(exc.motivo)
+            return "indisponivel"
+        except ErroProvisao:
+            return "indisponivel"
+        return "ok" if ok else "recusado"
+
+    def endereco_liberado(self, motivo: str = "") -> None:
+        """
+        O Worker diz que o endereco deste PAULUS nao existe mais: desliga o
+        tunel, apaga o que foi guardado e deixa o aviso na janela local.
+        """
+        hostname = self.preferencias().get("hostname", "")
+        self.parar()
+        self.cofre.apagar()
+        if "dias" in (motivo or ""):
+            texto = "o endereço foi liberado por falta de uso; conecte de novo"
         else:
-            self.verificar_jwt = None
+            texto = "o endereço não existe mais em paulus.ia.br; conecte de novo"
+        self.prefs.atualizar({"acesso_remoto": {"ligado": False, "hostname": "", "turnstile_sitekey": "",
+                                                "porta": 0, "liberado": texto}})
+        self.contas.encerrar_sessoes()
+        self.anotar(acao="liberado", alvo=hostname + (f" ({motivo})" if motivo else ""), pessoa="paulus.ia.br")
+        try:
+            import avisos
+
+            avisos.avisar("acesso", "Acesso de fora desligado", texto[:1].upper() + texto[1:] + ".")
+        except Exception:  # noqa: BLE001 - sem aviso do Windows, a tela mostra
+            pass
 
     def cloudflared(self) -> dict:
         """Onde esta o cloudflared, que versao, e se ela basta."""
@@ -171,7 +201,10 @@ class AcessoDeFora:
             self.auditoria.podar()
         except OSError:
             pass
-        self.configurar_conferidor()
+        # O endereco ainda existe em paulus.ia.br? Liberado por falta de uso,
+        # desliga e avisa em vez de ficar tentando.
+        if self.cofre.tem() and self.conexao is not None:
+            self.conexao.verificar_endereco()
         if self.ligado() and self.cofre.tem() and self.abrir_porta_de_fora():
             self.tunel.ligar()
             # Com gente podendo entrar de fora, o computador nao dorme sozinho (R9).
@@ -221,7 +254,10 @@ class AcessoDeFora:
             estado = "nao_conectado"
         else:
             estado = self.tunel.estado
+        if not self.cofre.tem() and p.get("liberado"):
+            estado = "liberado"
         return {"estado": estado, "ligado": self.ligado(), "hostname": p.get("hostname", ""),
+                "liberado": p.get("liberado", ""),
                 "porta": int(p.get("porta") or 0), "porta_ocupada": self.porta_ocupada,
                 "cloudflared": self.cloudflared(), "conectado_ao_worker": self.cofre.tem(),
                 "ultimo_erro": self.tunel.ultimo_erro, "disponivel": self.contas.disponivel()}
@@ -297,9 +333,6 @@ class AcessoDeFora:
     def ligado(self) -> bool:
         return bool(self.preferencias().get("ligado"))
 
-    def _conferir_jwt(self, token: str):
-        return self.verificar_jwt(token) if self.verificar_jwt else None
-
     # ------------------------------------------------------------ eventos
 
     def anotar(self, **evento) -> None:
@@ -323,16 +356,19 @@ class AcessoDeFora:
         minutos = max(1, round((ate - time.time()) / 60))
         quem = nome or email
         self.anotar(acao="bloqueio", alvo=f"{minutos} min", pessoa=quem, email=email)
+        if email:
+            texto = f"Alguém errou a senha de {quem} 5 vezes. A conta ficou bloqueada por {minutos} min."
+        else:
+            texto = f"Muitas tentativas erradas vindas de {quem}: a entrada por ele ficou fechada por {minutos} min."
         try:
             import avisos
 
-            avisos.avisar("acesso", "Acesso de fora bloqueado",
-                          f"Alguém errou a senha de {quem} 5 vezes. A conta ficou bloqueada por {minutos} min.")
+            avisos.avisar("acesso", "Acesso de fora bloqueado", texto)
         except Exception:  # noqa: BLE001 - sem aviso do Windows, o evento fica na tela
             pass
 
     def contas_mudaram(self) -> None:
-        """Criou, mudou ou tirou conta: quem depende da lista (o Access, na R7) fica sabendo."""
+        """Criou, mudou ou tirou conta: quem depende da lista fica sabendo."""
         for f in list(self.ao_mudar_contas):
             try:
                 f()

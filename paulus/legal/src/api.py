@@ -4694,7 +4694,7 @@ def aprovacoes_decidir(payload: Decisao, request: Request = None) -> dict:
         if pedido and pessoa is not None:
             remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
             estado.acesso_de_fora.anotar(acao="aprovacao" if payload.aprovar else "recusa", alvo=pedido.titulo,
-                                         pessoa=pessoa["nome"], email=remoto.get("email_access", ""),
+                                         pessoa=pessoa["nome"], email=pessoa["email"],
                                          ip=remoto.get("ip", ""))
         if not pedido:
             falhas.append({"id": id_, "motivo": "pedido nao esta mais na fila"})

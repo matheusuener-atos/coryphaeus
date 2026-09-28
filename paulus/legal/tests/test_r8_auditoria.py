@@ -81,19 +81,19 @@ def test_de_fora() -> None:
     from acesso.contas import codigo_totp
 
     servico = api.estado.acesso_de_fora
-    servico.verificar_jwt = lambda t: {"email": t[3:]} if t and t.startswith("ok:") else None
+    servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
     local = TestClient(api.app, headers=api.cabecalho_local())
     try:
         c = servico.contas.criar("Tita", "tita@escritorio.com", "titular", "senha-da-tita-12")
         servico.contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], int(time.time() // 30) - 1))
         fora = TestClient(api.app, base_url="https://x.paulus.ia.br",
-                          headers={"Cf-Access-Jwt-Assertion": "ok:tita@escritorio.com", "Cf-Connecting-IP": "200.9.8.7"})
+                          headers={"Cf-Connecting-IP": "200.9.8.7"})
 
         # login que falhou
-        fora.post("/api/acesso/entrar", json={"email": "tita@escritorio.com", "senha": "errada-errada"})
+        fora.post("/api/acesso/entrar", json={"email": "tita@escritorio.com", "senha": "errada-errada", "turnstile": "ok"})
         # entrada
-        pend = fora.post("/api/acesso/entrar", json={"email": "tita@escritorio.com", "senha": "senha-da-tita-12"}).json()["pendente"]
+        pend = fora.post("/api/acesso/entrar", json={"email": "tita@escritorio.com", "senha": "senha-da-tita-12", "turnstile": "ok"}).json()["pendente"]
         r = fora.post("/api/acesso/entrar/codigo", json={"pendente": pend, "codigo": codigo_totp(c["segredo"], int(time.time() // 30))})
         csrf = r.json()["csrf"]
         h = {"X-PAULUS-CSRF": csrf}
@@ -110,7 +110,7 @@ def test_de_fora() -> None:
         fora.post("/api/acesso/sair", headers=h)
         # bloqueio: cinco erros seguidos
         for _ in range(5):
-            fora.post("/api/acesso/entrar", json={"email": "tita@escritorio.com", "senha": "errada-errada"})
+            fora.post("/api/acesso/entrar", json={"email": "tita@escritorio.com", "senha": "errada-errada", "turnstile": "ok"})
 
         linhas = servico.auditoria.linhas()
         acoes = [l["acao"] for l in linhas]
@@ -119,7 +119,7 @@ def test_de_fora() -> None:
         checar(acoes.count("documento") == 1, "abrir o mesmo documento de novo em seguida nao repete a linha", acoes.count("documento"))
         entrada = next(l for l in linhas if l["acao"] == "entrada")
         checar(entrada["pessoa"] == "Tita" and entrada["email"] == "tita@escritorio.com" and entrada["ip"] == "200.9.8.7"
-               and entrada["quando"][:4].isdigit(), "a linha tem pessoa, e-mail do Access, IP e hora", entrada)
+               and entrada["quando"][:4].isdigit(), "a linha tem pessoa, e-mail da conta, IP e hora", entrada)
         baixou = next(l for l in linhas if l["acao"] == "download")
         checar(baixou["alvo"] == "“Minuta” (DOCX)", "o download diz o que saiu, pelo nome", baixou["alvo"])
         checar(servico.auditoria.verificar()["integro"], "a corrente esta intacta")
@@ -134,7 +134,7 @@ def test_de_fora() -> None:
         checar(fora.get("/api/acesso/auditoria").status_code in (401, 403), "de fora, a tela de acessos nao abre")
     finally:
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
-        servico.verificar_jwt = None
+        servico.__dict__.pop("conferir_turnstile", None)
 
 
 def main() -> int:

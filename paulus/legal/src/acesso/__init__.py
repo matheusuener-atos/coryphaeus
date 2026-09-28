@@ -19,7 +19,6 @@ Os modulos:
     politicas.py  o que cada rota permite a quem esta de fora (R3)
     fila.py       a fila unica do modelo local (R4)
     tunel.py      o cloudflared como processo filho e a porta fixa (R6)
-    jwt_access.py a conferencia do JWT do Cloudflare Access (R6)
     provisao.py   a conversa com o Worker de paulus.ia.br (R7)
     auditoria.py  "quem acessou", com hash encadeado (R8)
     energia.py    nao deixar o Windows suspender; abrir com o Windows (R9)

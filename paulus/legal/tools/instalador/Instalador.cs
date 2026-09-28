@@ -519,9 +519,10 @@ static class Motor
         o.MenuIniciar = AtalhoDaPasta(AtalhoDoIniciar, o.Pasta) || !File.Exists(AtalhoDoIniciar);
         o.Explorer = MenuDoExplorerLigado(o.Pasta);
         o.Ollama = false;
-        // O cloudflared so vem numa atualizacao se o acesso de fora esta em
-        // uso e ele falta: quem nunca ligou nao precisa dele.
-        o.Tunel = !CloudflaredPresente() && AcessoDeForaEmUso();
+        // O cloudflared vem sempre que falta, como o Ollama: instalar o
+        // programa nao liga nada - o acesso a distancia fica desligado ate o
+        // titular ligar no assistente de configuracao.
+        o.Tunel = !CloudflaredPresente();
     }
 
     static void ApagarAtalhoDaPasta(string lnk, string pasta)
@@ -1185,6 +1186,8 @@ static class Motor
             o.MenuIniciar = !Programa.Tem("/sem-iniciar");
             o.Explorer = Programa.Tem("/com-explorer") || MenuDoExplorerLigado(o.Pasta);
             o.Ollama = !Programa.Tem("/sem-ollama");
+            // /sem-acesso-de-fora so existe para os testes silenciosos, que
+            // nao baixam da internet; a tela nao tem essa escolha.
             o.Tunel = !Programa.Tem("/sem-acesso-de-fora") && !CloudflaredPresente();
         }
         var a = new Andamento();
@@ -1382,7 +1385,7 @@ class Janela : Form
     long tamanhoOllama;
     bool temCloudflared = true;
     long tamanhoCloudflared;
-    bool abrirNoFim = true, apagarModelos, apagarDados, modoAtualizar, configurarAcesso = true;
+    bool abrirNoFim = true, apagarModelos, apagarDados, modoAtualizar;
     double progresso;
     string acao = "", erro = "", aviso = "";
     Andamento andamento;
@@ -1417,10 +1420,10 @@ class Janela : Form
         {
             temOllama = Motor.OllamaPresente();
             o.Ollama = !temOllama;
-            // Acesso de fora: marcado em instalacao nova quando nao ha cloudflared;
-            // na atualizacao, so se ele falta e o acesso de fora esta em uso.
+            // O cloudflared vem sempre que falta (instalacao e atualizacao),
+            // sem caixa de marcar: instalar nao liga o acesso a distancia.
             temCloudflared = Motor.CloudflaredPresente();
-            o.Tunel = !temCloudflared && (instalado == null || Motor.AcessoDeForaEmUso());
+            o.Tunel = !temCloudflared;
             if (instalado != null) { o.Pasta = instalado.Pasta; o.Explorer = Motor.MenuDoExplorerLigado(instalado.Pasta); tela = Tela.JaInstalado; }
             else { o.Pasta = Programa.Valor("/pasta") ?? Motor.PastaPadrao; tela = Tela.BoasVindas; }
             // Aberto pelo proprio PAULUS (Configuracoes › Versao): atualiza sem
@@ -1822,9 +1825,12 @@ class Janela : Form
         if (!temOllama)
             y = Caixa(g, "Instalar o motor de IA local (Ollama · baixa " + (tamanhoOllama > 0 ? MB(tamanhoOllama) : "mais de 1 GB") + " de ollama.com)",
                       o.Ollama, x, y, largura, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); }) + F(10);
+        // O cloudflared nao e escolha: vem junto, e a tela diz quanto e de onde.
         if (!temCloudflared)
-            Caixa(g, "Acesso de fora pelo celular (baixa " + (tamanhoCloudflared > 0 ? MB(tamanhoCloudflared) : "uns 55 MB") + " de github.com)",
-                  o.Tunel, x, y, largura, "tunel", delegate { o.Tunel = !o.Tunel; Invalidate(); });
+            using (Font f = Fontes.Texto(F(12), 400))
+                Paragrafo(g, "Vem junto: o cloudflared, programa da Cloudflare para o acesso à distância (baixa " +
+                          (tamanhoCloudflared > 0 ? MB(tamanhoCloudflared) : "uns 55 MB") + " de github.com). Fica desligado até você ligar no PAULUS.",
+                          f, t.Tinta3, x, y, largura, F(18));
         Rodape(g, x, rodape, true, delegate { tela = instalado != null ? Tela.JaInstalado : Tela.BoasVindas; Invalidate(); },
                true, atualizacao ? "Atualizar" : "Instalar", PedirParaInstalar);
     }
@@ -1858,12 +1864,9 @@ class Janela : Form
         y = Titulo(g, "O PAULUS está instalado.", x, y, largura);
         y = Texto(g, "Ao abrir, o assistente de configuração faz um teste rápido desta máquina, recomenda o modelo de IA e ajuda a criar ou entrar no seu escritório.", x, y, largura, t.Tinta2);
         if (aviso != "") y = Texto(g, aviso.Trim() + " A tela inicial do PAULUS mostra como seguir.", x, y, largura, t.Tinta);
-        y = Caixa(g, "Abrir o PAULUS agora", abrirNoFim, x, y + F(2), largura, "abrir", delegate { abrirNoFim = !abrirNoFim; Invalidate(); }) + F(10);
-        // O cloudflared veio nesta instalacao: o passo seguinte e conectar,
-        // em Configuracoes › Acesso de fora - o PAULUS abre direto nele.
-        if (o.Tunel && Motor.CloudflaredPresente() && !modoAtualizar)
-            Caixa(g, "Configurar o acesso de fora agora", abrirNoFim && configurarAcesso, x, y, largura, "configurar-acesso",
-                  delegate { configurarAcesso = !configurarAcesso; if (configurarAcesso) abrirNoFim = true; Invalidate(); });
+        // O acesso a distancia e um passo do assistente de configuracao, no
+        // app: o instalador nao pergunta nada sobre ele.
+        Caixa(g, "Abrir o PAULUS agora", abrirNoFim, x, y + F(2), largura, "abrir", delegate { abrirNoFim = !abrirNoFim; Invalidate(); });
         Rodape(g, x, rodape, false, null, false, "Concluir", Concluir);
     }
 
@@ -2067,10 +2070,9 @@ class Janela : Form
     {
         if (abrirNoFim)
         {
-            bool acesso = configurarAcesso && o.Tunel && Motor.CloudflaredPresente() && !modoAtualizar;
             try
             {
-                Process.Start(new ProcessStartInfo(Path.Combine(o.Pasta, "PAULUS.exe"), acesso ? "--configurar-acesso" : "")
+                Process.Start(new ProcessStartInfo(Path.Combine(o.Pasta, "PAULUS.exe"), "")
                 { WorkingDirectory = o.Pasta, UseShellExecute = true });
             }
             catch (Exception e) { Registro.Linha("nao abri o PAULUS: " + e.Message); }

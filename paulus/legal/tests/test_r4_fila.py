@@ -169,13 +169,12 @@ def test_duas_pessoas() -> None:
     fora = None
     if segredos.disponivel():
         servico = api.estado.acesso_de_fora
-        servico.verificar_jwt = lambda t: {"email": t[3:]} if t and t.startswith("ok:") else None
+        servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
         c = servico.contas.criar("Bia", "bia@escritorio.com", "titular", "senha-da-bia-12")
         servico.contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], int(time.time() // 30) - 1))
         fora = requests.Session()
-        fora.headers.update({"Cf-Access-Jwt-Assertion": "ok:bia@escritorio.com"})
-        pend = fora.post(base + "/api/acesso/entrar", json={"email": "bia@escritorio.com", "senha": "senha-da-bia-12"}).json()["pendente"]
+        pend = fora.post(base + "/api/acesso/entrar", json={"email": "bia@escritorio.com", "senha": "senha-da-bia-12", "turnstile": "ok"}).json()["pendente"]
         r = fora.post(base + "/api/acesso/entrar/codigo",
                       json={"pendente": pend, "codigo": codigo_totp(c["segredo"], int(time.time() // 30))})
         fora.headers.update({"Cookie": "paulus_sessao=" + r.cookies.get("paulus_sessao"), "X-PAULUS-CSRF": r.json()["csrf"]})

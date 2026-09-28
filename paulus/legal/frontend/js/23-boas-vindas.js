@@ -2,13 +2,19 @@
 /*
    O assistente de configuracao, na primeira abertura (docs/ui/instalacao,
    substitui A0a e A0b): tela cheia, dois caminhos. Quem cria o escritorio
-   passa por sete passos; quem entra em um que ja existe, por cinco. Abre
+   passa por oito passos; quem entra em um que ja existe, por cinco. Abre
    sozinho enquanto ninguem preencheu o nome, e por #boasvindas para quem
    quiser rever. Tudo pode ser mudado depois em Configuracoes.
 
    O modelo de IA e escolhido aqui (o instalador so copia os arquivos e
    instala o Ollama): o teste da maquina recomenda, a pessoa escolhe, e o
    download comeca quando o assistente termina (/api/modelos/usar).
+
+   Acesso a distancia (R7): logo depois do nome do escritorio, um
+   interruptor, desligado de fabrica. Ligado, o mesmo bloco de
+   Configuracoes › Acesso de fora (js/43-acesso-tunel.js): o endereco, a
+   conta do titular com o autenticador e a confirmacao no navegador.
+   Desligado ou pulado, nada e criado e nada vai ao Worker.
 
    Entrar por codigo: a pessoa digita o codigo do responsavel e recebe o
    dela. A rede local que valida o vinculo ainda nao existe; o que existe e
@@ -22,12 +28,14 @@ const bv = {
   passo: 0, caminho: "criar", status: null, prefs: null, pessoa: {}, vinculo: null,
   maquina: null, conferindo: false, diag: 0, relogioDiag: null, catalogo: [],
   modelo: "", escolheuModelo: false, modulos: {}, google: null, oauth: null, imap: false, calib: null,
+  escritorio: "", acesso: false,
 };
-const ORDEM_CRIAR = ["boasvindas", "escritorio", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
+const ORDEM_CRIAR = ["boasvindas", "escritorio", "acesso", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
 const NOMES_BV = {
   boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA",
   modulos: "Módulos", conexoes: "Conexões", atualizacoes: "Atualizações", codigos: "Códigos",
+  acesso: "Acesso à distância",
 };
 const CARGOS_VINCULO = ["Advogado(a)", "Sócio(a)", "Financeiro", "Secretaria", "Estagiário(a)", "Outro"];
 const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendamento", "tarefas", "biblioteca", "organizar", "caixa", "financeiro", "relatorios", "cadastros", "aprovacoes"]);
@@ -100,6 +108,8 @@ async function mostrarBoasVindas() {
   const p = prefs.pessoa || {};
   bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "", endereco: p.endereco || "" };
   bv.modulos = Object.assign({}, prefs.modulos || {});
+  bv.escritorio = (prefs.escritorio || {}).nome || "";
+  bv.acesso = Boolean((prefs.acesso_remoto || {}).hostname);
   const a = prefs.atualizacoes || {};
   bv.atualizacoes = { verificar: a.verificar !== false, avisar_antes: a.avisar_antes !== false };
   MODULOS_BV.forEach(([id]) => { if (bv.modulos[id] === undefined) bv.modulos[id] = true; });
@@ -142,6 +152,7 @@ function desenharBoasVindas() {
   const telas = {
     boasvindas: passoBoasVindas, escritorio: passoEscritorio, dados: bv.caminho === "entrar" ? passoDadosVinculo : passoDados,
     ia: passoIA, modulos: passoModulos, conexoes: passoConexoes, atualizacoes: passoAtualizacoes, codigos: passoCodigos,
+    acesso: passoAcesso,
   };
   const [texto, lado] = telas[passo]();
   const rotulo = bv.passo === 0 ? "BEM-VINDO" : "PASSO " + bv.passo + " — " + NOMES_BV[passo].toUpperCase();
@@ -161,7 +172,7 @@ function desenharBoasVindas() {
       ? '<span class="bv-versao">PAULUS' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
       : '<button class="bv-ligacao" data-bv="voltar">← Voltar</button>') +
     '<span class="cresce"></span>' +
-    (["dados", "modulos", "conexoes"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    (["dados", "modulos", "conexoes", "acesso"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar">' + botao + "</button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
@@ -191,14 +202,14 @@ function passoBoasVindas() {
   if (bv.modelo && bv.modelo !== "nenhum") {
     modelo = item("parcial", "Modelo de IA: " + esc(bv.modelo) + (modeloJaAqui(bv.modelo) ? " · já nesta máquina" : " · baixa ao abrir"));
   } else {
-    modelo = item("parcial", "Modelo de IA: escolhido no passo 3");
+    modelo = item("parcial", "Modelo de IA: escolhido no passo " + ordemBv().indexOf("ia"));
   }
   const docs = s.contratos
     ? item("ok", "Pasta de documentos: " + plural(s.contratos, "documento") + " no Acervo")
     : item("falta", "Pasta de documentos: ainda não apontada");
   const pasta = s.programa || s.pasta || "";
   const texto = "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
-    "<p>Poucos passos: o escritório, seus dados, o modelo de IA desta máquina e o que conectar. Tudo pode ser mudado depois em Configurações.</p>" +
+    "<p>Poucos passos: o escritório, o acesso à distância, seus dados, o modelo de IA desta máquina e o que conectar. Tudo pode ser mudado depois em Configurações.</p>" +
     '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre · gratuito</span><span class="etiqueta">IA 100% local</span><span class="etiqueta">Cerca de 3 minutos</span></div>';
   const lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() +
     '<span class="duas-linhas"><b>Instalação concluída</b><small title="' + esc(pasta) + '">PAULUS' + (s.versao ? " " + esc(s.versao) : "") + " · " + esc(pasta) + "</small></span>" +
@@ -227,8 +238,55 @@ function passoEscritorio() {
       "Você passa a ser o responsável: aprova o que sai e define quem faz o quê. Quando a rede local chegar, é você quem gera os códigos de vínculo para as outras máquinas.") +
     opcao("entrar", "group_add", "Entrar em um escritório existente", "precisa de código",
       "Peça ao responsável o código de vínculo. Ele aparece no PAULUS dele em Configurações › Escritório e vínculos. A validação pela rede local ainda não existe: até lá, o PAULUS abre com o que é só desta máquina.") +
-    "</div>";
+    "</div>" +
+    // Quem cria o escritorio da o nome aqui: vai para os recibos e sugere o
+    // endereco do acesso a distancia, no passo seguinte.
+    (bv.caminho === "criar"
+      ? '<div class="bv-cartao">' + campoBv("escritorio", "Nome do escritório", bv.escritorio, "data-bv-escritorio", "", "Moura & Associados Advocacia") +
+        '<span class="bv-cartao-pe">Aparece nos recibos e sugere o endereço do acesso à distância. Dá para mudar em Configurações › Escritório.</span></div>'
+      : "");
   return [texto, lado];
+}
+
+/* ------------------------------------------------- acesso a distancia */
+
+function passoAcesso() {
+  const texto = "<h1>Quer acessar o PAULUS à distância — de casa, do celular, do fórum?</h1>" +
+    "<p>Desligado, o PAULUS só abre neste computador. Dá para ligar depois em Configurações › Acesso de fora.</p>" +
+    (bv.acesso
+      ? infosBv([
+        "Este computador precisa ficar ligado, com o PAULUS aberto: é ele que atende.",
+        "Documentos e modelo de IA não saem daqui. Só a tela trafega, pela Cloudflare, que a vê descriptografada no caminho.",
+        "A conta da Cloudflare é do Atos, que não inspeciona nem registra esse conteúdo.",
+        "Cada pessoa entra com a própria conta: verificação contra robôs, senha e o código do celular.",
+      ])
+      : "");
+  const chave = '<div class="bv-modulo" data-bv-acesso="1" role="switch" tabindex="0" aria-checked="' + bv.acesso + '">' +
+    '<span class="bv-modulo-ic">' + ic("lan", 19) + "</span>" +
+    '<span class="duas-linhas"><b>Acesso à distância</b><small>' +
+    (bv.acesso ? "ligado · o endereço abaixo leva a este computador" : "desligado · só neste computador") + "</small></span>" +
+    '<span class="interruptor-min' + (bv.acesso ? " on" : "") + '"></span></div>';
+  if (!bv.acesso) return [texto, '<div class="bv-cartao">' + chave + "</div>"];
+  if (!tunelCfg.dados) {
+    carregarTunel().then(() => { if (passoBv() === "acesso") desenharBoasVindas(); });
+    return [texto, '<div class="bv-cartao">' + chave + '<p class="cfg-explica">Conferindo este computador…</p></div>'];
+  }
+  const s = tunelCfg.dados.situacao || {};
+  const pedido = (tunelCfg.dados.conexao || {}).pedido;
+  if (s.conectado_ao_worker && !(pedido && pedido.estado === "concluido")) {
+    // Ja conectado (o passeio revisto por #boasvindas): so o endereco.
+    const e = "https://" + (s.hostname || "");
+    return [texto, '<div class="bv-acesso"><div class="bv-cartao">' + chave + "</div>" +
+      '<div class="bv-cartao"><div class="acesso-endereco"><code>' + esc(e) + "</code>" +
+      '<button class="com-icone" data-tunel-copiar="' + esc(e) + '">' + ic("content_copy", 16) + "Copiar</button></div>" +
+      '<span class="bv-cartao-pe">Desligar, remover e as contas da equipe ficam em Configurações › Acesso de fora.</span></div></div>'];
+  }
+  conexaoUI.onde = "bv";
+  conexaoUI.redesenhar = desenharBoasVindas;
+  const v = conexaoUI.conta;
+  if (!v.nome && bv.pessoa.nome) v.nome = bv.pessoa.nome;
+  if (!v.email && bv.pessoa.email) v.email = bv.pessoa.email;
+  return [texto, '<div class="bv-acesso"><div class="bv-cartao">' + chave + "</div>" + '<div class="bv-cartao">' + blocoConexao() + "</div></div>"];
 }
 
 /* `modo` e o teclado (inputmode) ou, para CPF e telefone, o tipo do campo
@@ -562,6 +620,29 @@ function ligarBoasVindas() {
       }
     };
   });
+  caixa.querySelectorAll("[data-bv-escritorio]").forEach((i) => {
+    i.oninput = () => { bv.escritorio = i.value; };
+  });
+  caixa.querySelectorAll("[data-bv-acesso]").forEach((m) => {
+    teclaAtiva(m, async () => {
+      if (bv.acesso && tunelCfg.dados && (tunelCfg.dados.situacao || {}).conectado_ao_worker) {
+        avisoCert("já conectado: para desligar ou remover, use Configurações › Acesso de fora");
+        return;
+      }
+      bv.acesso = !bv.acesso;
+      if (!bv.acesso) {
+        const pedido = ((tunelCfg.dados || {}).conexao || {}).pedido;
+        if (pedido && pedido.estado === "esperando") await acessoPost("/api/acesso/tunel/cancelar").catch(() => {});
+        clearTimeout(conexaoUI.relogioDisp);
+      }
+      desenharBoasVindas();
+    });
+  });
+  if (passoBv() === "acesso" && bv.acesso && tunelCfg.dados) {
+    ligarBlocoConexao(caixa);
+    const pedido = ((tunelCfg.dados || {}).conexao || {}).pedido;
+    if (pedido && pedido.estado === "esperando") acompanharTunel();
+  }
   caixa.querySelectorAll("[data-bv-vinculo]").forEach((i) => {
     i.oninput = (e) => { bv.vinculo[i.dataset.bvVinculo] = e.target.value; };
     i.onchange = i.oninput;
@@ -641,6 +722,21 @@ async function acaoBoasVindas(qual) {
     if (errado) { errado.focus(); avisoCert("confira o campo marcado — ou deixe em branco e preencha depois"); return; }
     $("boas-vindas").querySelectorAll("[data-bv-pessoa]").forEach((i) => { bv.pessoa[i.dataset.bvPessoa] = i.value; });
     await gravarBoasVindas({ pessoa: bv.pessoa });
+  }
+  if (passo === "escritorio" && bv.caminho === "criar") {
+    const campo = $("boas-vindas").querySelector("[data-bv-escritorio]");
+    if (campo) bv.escritorio = campo.value;
+    if (bv.escritorio.trim()) {
+      await gravarBoasVindas({ escritorio: { nome: bv.escritorio.trim() } });
+      // O endereco sugerido acompanha o nome, enquanto ninguem mexeu nele.
+      await carregarTunel();
+    }
+  }
+  if (passo === "acesso" && bv.acesso) {
+    const d = tunelCfg.dados || {};
+    const pedido = (d.conexao || {}).pedido;
+    if (pedido && pedido.estado === "esperando") avisoCert("a confirmação continua no navegador; o endereço aparece em Configurações › Acesso de fora quando terminar", { dura: 7000 });
+    else if (!(d.situacao || {}).conectado_ao_worker) avisoCert("o acesso à distância ficou desligado; dá para ligar em Configurações › Acesso de fora");
   }
   if (ultimo) {
     if (bv.caminho === "entrar") {

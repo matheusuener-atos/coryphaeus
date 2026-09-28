@@ -7,10 +7,11 @@
 <link rel="icon" href="/img/paulus-logo.png">
 <link rel="stylesheet" href="/fontes.css">
 <link rel="stylesheet" href="/css/00-tokens.css">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <!--
-  A tela de entrar de quem esta de fora (acesso-remoto/v0, R2). So aparece
-  depois do Cloudflare Access: quem chega aqui ja provou o e-mail. Falta a
-  conta do PAULUS - senha e o codigo do aplicativo autenticador.
+  A tela de entrar de quem esta de fora (acesso-remoto/v0, R2): a verificacao
+  contra robos (Turnstile), o e-mail e a senha, e depois o codigo do
+  aplicativo autenticador. Vale igual para o titular e para a equipe.
 
   Pagina propria, e nao uma tela do app: sem sessao, nenhuma rota do app
   responde, e carregar o programa inteiro so para pedir senha seria mostrar a
@@ -40,6 +41,7 @@
   .secundario:hover { background: var(--fill); }
   .erro { color: var(--acc); font-size: 13.5px; line-height: 1.45; min-height: 1.45em; margin: 4px 0 12px; }
   .pe { color: var(--ink3); font-size: 12.5px; line-height: 1.55; margin-top: 22px; }
+  .robo { min-height: 65px; margin: 4px 0 14px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -55,6 +57,7 @@
         <input id="email" type="email" autocomplete="username" required></div>
       <div class="campo"><label for="senha">Senha</label>
         <input id="senha" type="password" autocomplete="current-password" required minlength="10"></div>
+      <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
       <p class="erro" id="erro-senha" role="alert"></p>
       <button type="submit">Continuar</button>
     </form>
@@ -72,13 +75,27 @@
     </form>
   </section>
 
-  <p class="pe">Este endereço leva ao computador do escritório pelo túnel da Cloudflare. Os documentos e o modelo de IA ficam lá; tudo o que se faz por aqui fica registrado no PAULUS do escritório.</p>
+  <p class="pe">Este endereço leva ao computador do escritório pelo túnel da Cloudflare. Os documentos e o modelo de IA ficam lá; tudo o que se faz por aqui fica registrado no PAULUS do escritório. Cada pessoa entra com a própria conta e o código do celular.</p>
 </main>
 <script>
 (function () {
   "use strict";
   let pendente = "";
+  let robo = null;
   const $ = (id) => document.getElementById(id);
+
+  // O widget do Turnstile, com a chave publica que o escritorio recebeu ao
+  // conectar. O token dele vai junto com a senha e e conferido antes dela.
+  function mostrarRobo(chave) {
+    if (!chave) { $("erro-senha").textContent = "o acesso de fora deste escritório não terminou de ser configurado"; return; }
+    const tentar = () => {
+      if (!window.turnstile) { setTimeout(tentar, 200); return; }
+      robo = window.turnstile.render("#robo", { sitekey: chave, language: "pt-br", theme: "light" });
+    };
+    tentar();
+  }
+  fetch("/api/acesso/entrar/config").then((r) => r.json()).then((d) => mostrarRobo(d.turnstile_sitekey))
+    .catch(() => { $("erro-senha").textContent = "não consegui abrir a tela de entrar; recarregue a página"; });
 
   async function enviar(url, corpo) {
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
@@ -88,21 +105,21 @@
     return dados;
   }
 
-  // Quem ja tem sessao e chegou aqui pelo retorno do Cloudflare Access (o
-  // cookie SameSite=Strict nao vai na navegacao que vem de outro site) segue
-  // direto para o programa.
-  fetch("/api/acesso/eu").then((r) => r.json()).then((d) => { if (d && d.pessoa) location.replace("/"); }).catch(() => {});
 
   $("form-senha").addEventListener("submit", async (e) => {
     e.preventDefault();
     const b = e.submitter || e.target.querySelector("button");
     b.disabled = true; $("erro-senha").textContent = "";
     try {
-      const d = await enviar("/api/acesso/entrar", { email: $("email").value.trim(), senha: $("senha").value });
+      const token = robo !== null && window.turnstile ? window.turnstile.getResponse(robo) : "";
+      if (!token) throw new Error("confirme a verificação contra robôs acima");
+      const d = await enviar("/api/acesso/entrar", { email: $("email").value.trim(), senha: $("senha").value, turnstile: token });
       pendente = d.pendente;
       $("senha").value = "";
       $("entrar-senha").hidden = true; $("entrar-codigo").hidden = false; $("codigo").focus();
     } catch (err) { $("erro-senha").textContent = err.message; }
+    // Cada token do Turnstile vale uma vez: a proxima tentativa pede outro.
+    if (robo !== null && window.turnstile) window.turnstile.reset(robo);
     b.disabled = false;
   });
 

@@ -1503,7 +1503,7 @@ async function enviar(opcoes) {
           texto.textContent = dados.mensagem;
         } else if (mt[1] === "erro") {
           plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
-            esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" onclick="location.reload()">Tentar de novo</button></div></div>';
+            esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" data-recarregar="1">Tentar de novo</button></div></div>';
         } else if (mt[1] === "parado") {
           // A pessoa parou: o que ja saiu fica, com a marca de que parou ali.
           fecharBastidor();

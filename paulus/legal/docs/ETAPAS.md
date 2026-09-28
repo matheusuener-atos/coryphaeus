@@ -1498,8 +1498,42 @@ desligar e remover, e o que fazer com porta ocupada, túnel caído e e-mail
 não autorizado — cada problema com a frase que a tela mostra e onde olhar
 (`logs/tunel.log`).
 
-**Falta:** o teste real, do celular em 4G, em nove passos
+**Falta:** o teste real, do celular em 4G, em dez passos
 (`PROGRESSO-IMPLEMENTACAO.md`). Depende do painel da Cloudflare (R5).
+
+## Ajuste R — sem Cloudflare Access ✓ FEITO
+
+O contrato revisado tirou o Cloudflare Access de todas as contas (decisão de
+produto). O Access guardava a porta antes do PAULUS; agora quem guarda é o
+próprio PAULUS, e cada escritório não gasta mais vaga do Zero Trust da conta
+do Atos.
+
+**Entrar de fora** é igual para titular e colaborador: a verificação contra
+robôs (Turnstile), e-mail e senha, e o código do autenticador. O Turnstile é
+conferido antes da senha, pelo Worker de paulus.ia.br, com o segredo da
+instalação; se o Worker não responde, ninguém entra. Vinte erros do mesmo
+endereço de internet em 10 minutos fecham o endereço por uma hora. Conta que
+não existe e senha errada dão a mesma frase, no mesmo tempo. Sem sessão, de
+fora só se vê a tela de entrar; toda resposta leva os cabeçalhos de
+segurança (CSP com os hashes dos scripts, sem moldura, sem referer). De
+fora, o titular troca a própria senha e encerra as sessões com o código de
+novo.
+
+**Ligar** virou o passo "Acesso à distância" do assistente de configuração,
+logo depois do nome do escritório, e o mesmo bloco em Configurações ›
+Acesso de fora: o endereço sugerido do nome (`Moura & Associados Advocacia`
+→ `moura-associados`), conferido enquanto se digita; a conta do titular com
+o autenticador; a confirmação no navegador com o código. O Worker reserva o
+nome por 15 minutos, cria túnel e DNS (o token de API só tem Tunnel e DNS) e
+limpa por dia o que nunca conectou em 7 dias ou parou há mais de 180 — o
+PAULUS percebe e diz "o endereço foi liberado por falta de uso; conecte de
+novo". O instalador traz o `cloudflared` sempre que falta, sem perguntar.
+
+**Portões:** `test_r2` (Turnstile, IP, mesma resposta, 401 sem sessão,
+cabeçalhos, ações sensíveis), `test_r6` (Turnstile pelo Worker, endereço
+liberado), `test_r7_assistente` (sugestão, indisponível, fluxo inteiro,
+expirado, interruptor desligado sem Worker, remover), `test_tela` (o passo
+novo depois do nome), `worker/teste-tunel.mjs`.
 
 # Melhoria da IA
 

@@ -103,16 +103,20 @@ PADRAO: dict = {
     "avisos_tipos": {"bem_estar": True, "resposta": True, "aprovacao": True,
                      "gravacao": True, "agenda": True, "acesso": True},
     # O acesso de fora (src/acesso/, acesso-remoto/v0): desligado de fabrica.
-    # Ligado, o PAULUS atende pelo tunel da Cloudflare quem passar pelo
-    # Cloudflare Access e entrar com conta, senha e codigo do autenticador.
-    # O endereco, a porta fixa e o que o Access precisa para conferir o JWT
-    # ficam aqui; o token do tunel e o segredo da instalacao, nao - esses sao
+    # Ligado, o PAULUS atende pelo tunel da Cloudflare quem passar pela
+    # verificacao anti-robo (Turnstile) e entrar com conta, senha e codigo do
+    # autenticador - sem Cloudflare Access. O endereco e a porta fixa ficam
+    # aqui; o token do tunel e o segredo da instalacao, nao - esses sao
     # segredos e moram protegidos pela DPAPI (src/acesso/tunel.py).
     # `instalacao_id` e aleatorio, criado na primeira conexao: e o que o Worker
     # usa para nao deixar a mesma instalacao conectar duas vezes.
     # `cloudflared_minimo`: versao abaixo desta nao roda (a que le o token do
     # ambiente com seguranca).
-    "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "aud": "", "team_domain": "",
+    # `turnstile_sitekey`: a chave publica do anti-robo da tela de entrar, que
+    # o Worker entrega na conexao. `liberado`: a frase de quando o endereco
+    # foi liberado em paulus.ia.br (falta de uso) - a tela mostra ate conectar
+    # de novo.
+    "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
                       "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0"},
     "modelo": "",
     # O que chega ao modelo (src/inferencia.py), uma chave por etapa do plano

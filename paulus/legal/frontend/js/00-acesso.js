@@ -89,8 +89,62 @@ const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null };
       try { await window.fetch("/api/acesso/sair", { method: "POST" }); } catch (e) { /* sai do mesmo jeito */ }
       location.replace("/");
     };
-    el.append(nome, sair);
+    el.append(nome);
+    if (acessoDeFora.pessoa.papel === "titular") {
+      const conta = document.createElement("button");
+      conta.type = "button";
+      conta.textContent = "Minha conta";
+      conta.addEventListener("click", minhaContaDeFora);
+      el.append(conta);
+    }
+    el.append(sair);
     barra.appendChild(el);
+  }
+
+  /* O titular de fora troca a propria senha e derruba as sessoes - e as duas
+     coisas pedem o codigo do autenticador de novo, mesmo com a sessao valida:
+     sessao roubada nao faz nenhuma delas. */
+  async function minhaContaDeFora() {
+    const escolha = await dialogo({
+      titulo: "Minha conta", contexto: acessoDeFora.pessoa.nome + " · " + acessoDeFora.pessoa.email,
+      texto: "As duas ações pedem o código do autenticador de novo. Contas da equipe só se mexem no computador do escritório.",
+      confirmar: "Trocar minha senha", segundo: { rotulo: "Encerrar todas as sessões", perigo: true }, cancelar: "Fechar",
+    });
+    if (!escolha || !escolha.ok) return;
+    const codigo = { chave: "codigo", rotulo: "Código do autenticador", placeholder: "000000", max: 8, obrigatorio: true };
+    let url, corpo;
+    if (escolha.segundo) {
+      const r = await dialogo({
+        titulo: "Encerrar todas as sessões?", contexto: "Minha conta",
+        texto: "Todo mundo que está de fora sai agora — você também. Para entrar de novo: senha e código.",
+        campos: [codigo], confirmar: "Encerrar", perigo: true,
+      });
+      if (!r || !r.ok) return;
+      url = "/api/acesso/minhas-sessoes/encerrar";
+      corpo = { codigo: r.valores.codigo };
+    } else {
+      const r = await dialogo({
+        titulo: "Trocar minha senha", contexto: "Minha conta",
+        texto: "Trocar a senha encerra as suas sessões; você entra de novo com a senha nova.",
+        campos: [{ chave: "atual", rotulo: "Senha atual", tipo: "password" },
+          { chave: "nova", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true },
+          { chave: "repetir", rotulo: "Repita a senha nova", tipo: "password", obrigatorio: true }, codigo],
+        confirmar: "Trocar a senha",
+      });
+      if (!r || !r.ok) return;
+      if (r.valores.nova !== r.valores.repetir) { avisoCert("as duas senhas novas não são iguais", { tom: "erro" }); return; }
+      url = "/api/acesso/minha-senha";
+      corpo = { atual: r.valores.atual, nova: r.valores.nova, codigo: r.valores.codigo };
+    }
+    const resp = await window.fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    if (!resp.ok) {
+      let msg = "não deu certo";
+      try { msg = (await resp.json()).detail || msg; } catch (e) { /* fica a frase */ }
+      // O 403 ja aparece pela barra de avisos (o fetch embrulhado, acima).
+      if (resp.status !== 403) avisoCert(msg, { tom: "erro" });
+      return;
+    }
+    location.replace("/");
   }
   acessoDeFora.pronto.then(() => {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", barraDeQuemEstaDeFora);

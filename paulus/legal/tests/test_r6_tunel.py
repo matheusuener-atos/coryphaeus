@@ -1,25 +1,29 @@
 """
-Portao da R6 - o tunel dentro do PAULUS (src/acesso/tunel.py e jwt_access.py).
+Portao da R6 - o tunel dentro do PAULUS (src/acesso/tunel.py e servico.py).
 
   - com um `cloudflared` de mentira (um script que registra argumentos e
     ambiente, escreve o token no proprio log e diz que conectou): o token NAO
     aparece nos argumentos nem no log do PAULUS, e aparece no ambiente;
   - caiu, levanta de novo; desligar encerra o processo;
   - a versao minima e conferida; o executavel do instalador vem primeiro;
-  - o JWT do Access: valido passa; vencido, de outra aplicacao (aud), de
-    outro time (iss) e assinado com outra chave, nao; sem as chaves
-    alcancaveis, nega;
+  - o Turnstile do login, conferido no Worker com o segredo da instalacao
+    (sem Cloudflare Access, decisao de 28/09/2026): aprovado passa;
+    recusado, token vazio, Worker fora do ar e PAULUS sem segredo, nao -
+    indisponivel nunca libera;
+  - o Worker diz que o endereco foi liberado (por falta de uso): o PAULUS
+    desliga, apaga o que guardou, derruba as sessoes e avisa "conecte de
+    novo"; na abertura, a mesma pergunta;
   - porta fixa ocupada: o acesso de fora fica "porta ocupada" e o tunel nao
     liga; a janela local nao depende dela (a porta fixa e um segundo
     ouvinte, so do tunel);
-  - com o acesso ligado, o porteiro usa o conferidor de verdade.
+  - com o acesso ligado, quem chega de fora sem sessao so ve a tela de
+    entrar.
 
     PYTHONIOENCODING=utf-8 venv/Scripts/python.exe tests/test_r6_tunel.py
 """
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import shutil
@@ -118,48 +122,105 @@ def test_onde_esta() -> None:
             os.environ["LOCALAPPDATA"] = antes
 
 
-def _chaves():
-    from cryptography.hazmat.primitives.asymmetric import rsa
+class CofreFalso:
+    """O cofre do tunel sem DPAPI: o teste nao mexe no que a maquina guardou."""
 
-    return rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    def __init__(self, token: str = "", segredo: str = "") -> None:
+        self._t, self._s = token, segredo
 
+    def guardar(self, token: str, segredo: str) -> None:
+        self._t, self._s = token, segredo
 
-def _jwk(privada, kid: str) -> dict:
-    n = privada.public_key().public_numbers()
-    b = lambda i: base64.urlsafe_b64encode(i.to_bytes((i.bit_length() + 7) // 8, "big")).rstrip(b"=").decode()
-    return {"kty": "RSA", "kid": kid, "alg": "RS256", "n": b(n.n), "e": b(n.e)}
+    def token(self) -> str:
+        return self._t
 
+    def segredo(self) -> str:
+        return self._s
 
-def _jwt(privada, kid: str, **claims) -> str:
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives.asymmetric import padding
+    def tem(self) -> bool:
+        return bool(self._t)
 
-    b = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
-    corpo = {"aud": ["aud-do-escritorio"], "iss": "https://atos.cloudflareaccess.com", "email": "ana@x.com",
-             "exp": time.time() + 600, **claims}
-    entrada = b({"alg": "RS256", "kid": kid, "typ": "JWT"}) + "." + b(corpo)
-    assinatura = privada.sign(entrada.encode(), padding.PKCS1v15(), hashes.SHA256())
-    return entrada + "." + base64.urlsafe_b64encode(assinatura).rstrip(b"=").decode()
+    def apagar(self) -> None:
+        self._t = self._s = ""
 
 
-def test_jwt() -> None:
-    print("\no JWT do Cloudflare Access")
-    from acesso.jwt_access import ConferidorAccess
+class ProvisaoFalsa:
+    """O Worker de mentira: so as rotas que a R6 usa."""
 
-    chave, outra = _chaves(), _chaves()
-    buscas = []
-    certs = {"keys": [_jwk(chave, "k1")]}
-    c = ConferidorAccess("atos.cloudflareaccess.com", "aud-do-escritorio", buscar=lambda d: buscas.append(d) or certs)
-    checar((c(_jwt(chave, "k1")) or {}).get("email") == "ana@x.com", "valido passa")
-    checar(c(_jwt(chave, "k1", exp=time.time() - 5)) is None, "vencido: nao")
-    checar(c(_jwt(chave, "k1", aud=["outra-app"])) is None, "aud de outra aplicacao: nao")
-    checar(c(_jwt(chave, "k1", iss="https://outro.cloudflareaccess.com")) is None, "iss de outro time: nao")
-    checar(c(_jwt(outra, "k1")) is None, "assinado com outra chave: nao")
-    checar(c("isto.nao.e") is None and c("") is None, "lixo e vazio: nao")
-    checar(len(buscas) == 1, "as chaves ficam guardadas (uma busca so)", len(buscas))
-    sem_rede = ConferidorAccess("atos.cloudflareaccess.com", "aud-do-escritorio",
-                                buscar=lambda d: (_ for _ in ()).throw(OSError("sem internet")))
-    checar(sem_rede(_jwt(chave, "k1")) is None, "sem as chaves alcancaveis: nega")
+    def __init__(self) -> None:
+        self.chamadas = []
+        self.removido = ""
+
+    def turnstile(self, segredo: str, token: str, ip: str = "") -> bool:
+        from acesso.provisao import ErroProvisao, ErroRemovido
+
+        self.chamadas.append(("turnstile", segredo, token, ip))
+        if self.removido:
+            raise ErroRemovido(self.removido)
+        if token == "fora":
+            raise ErroProvisao("não consegui falar com paulus.ia.br")
+        return token == "ok"
+
+    def situacao(self, segredo: str) -> dict:
+        from acesso.provisao import ErroRemovido
+
+        self.chamadas.append(("situacao", segredo))
+        if self.removido:
+            raise ErroRemovido(self.removido)
+        return {"endereco": "x.paulus.ia.br", "tunel": "healthy"}
+
+
+def test_turnstile() -> None:
+    print("\no Turnstile do login, conferido no Worker")
+    import api
+    from acesso.conexao import ConexaoDoTunel
+
+    servico = api.estado.acesso_de_fora
+    prefs = api.estado.prefs.dados["acesso_remoto"]
+    antes = (servico.cofre, servico.conexao, dict(prefs))
+    falsa = ProvisaoFalsa()
+    try:
+        servico.cofre = CofreFalso()
+        ConexaoDoTunel(servico, provisao=falsa, abrir_navegador=lambda url: None)
+        checar(servico.conferir_turnstile("ok", "200.1.1.1") == "indisponivel" and not falsa.chamadas,
+               "sem o segredo da instalacao (nao conectado): indisponivel, sem perguntar")
+        servico.cofre.guardar("token-do-tunel", "segredo-da-instalacao")
+        checar(servico.conferir_turnstile("ok", "200.1.1.1") == "ok", "aprovado no Worker: ok")
+        checar(falsa.chamadas[-1] == ("turnstile", "segredo-da-instalacao", "ok", "200.1.1.1"),
+               "vai o segredo da instalacao, o token e o IP da Cloudflare", falsa.chamadas[-1])
+        checar(servico.conferir_turnstile("robo", "") == "recusado", "recusado no Worker: recusado")
+        n = len(falsa.chamadas)
+        checar(servico.conferir_turnstile("  ", "") == "recusado" and len(falsa.chamadas) == n,
+               "token vazio: recusado, sem ir ao Worker")
+        checar(servico.conferir_turnstile("fora", "") == "indisponivel", "Worker fora do ar: indisponivel (ninguem entra)")
+
+        print("\no endereco liberado por falta de uso")
+        prefs.update(ligado=True, hostname="moura-associados.paulus.ia.br", turnstile_sitekey="0x4AAA", porta=47123, liberado="")
+        falsa.removido = "parado há mais de 180 dias"
+        checar(servico.conferir_turnstile("ok", "") == "indisponivel", "no login: indisponivel")
+        checar(not servico.cofre.tem() and not prefs["ligado"] and prefs["hostname"] == "" and prefs["turnstile_sitekey"] == "",
+               "desligou e apagou o token, o segredo, o endereco e a sitekey", dict(prefs))
+        checar(prefs["liberado"] == "o endereço foi liberado por falta de uso; conecte de novo", "e deixou o aviso",
+               prefs["liberado"])
+        sit = servico.situacao()
+        checar(sit["estado"] == "liberado" and sit["liberado"], "a situacao diz 'liberado' para a tela", sit["estado"])
+        checar(any(e.get("acao") == "liberado" for e in servico.eventos[-5:]), "e ficou no registro de acessos")
+
+        # Na abertura, o PAULUS pergunta: o mesmo desfecho.
+        servico.cofre.guardar("token-do-tunel", "segredo-da-instalacao")
+        prefs.update(ligado=True, hostname="moura-associados.paulus.ia.br", liberado="")
+        servico.conexao.verificar_endereco()
+        checar(not servico.cofre.tem() and prefs["liberado"], "na abertura, o mesmo: desliga, apaga e avisa")
+        falsa.removido = ""
+        servico.cofre.guardar("token-do-tunel", "segredo-da-instalacao")
+        prefs.update(liberado="")
+        servico.conexao.verificar_endereco()
+        checar(servico.cofre.tem(), "endereco vivo: nada muda")
+    finally:
+        servico.parar()
+        servico.cofre, servico.conexao = antes[0], antes[1]
+        prefs.clear()
+        prefs.update(antes[2])
 
 
 def test_porta_ocupada() -> None:
@@ -201,7 +262,7 @@ def test_porta_ocupada() -> None:
 
 
 def test_porteiro() -> None:
-    print("\no porteiro com o conferidor de verdade")
+    print("\no porteiro, sem Cloudflare Access")
     import segredos
 
     if not segredos.disponivel():
@@ -210,26 +271,22 @@ def test_porteiro() -> None:
     from fastapi.testclient import TestClient
 
     import api
-    from acesso.jwt_access import ConferidorAccess
 
-    chave = _chaves()
     servico = api.estado.acesso_de_fora
     prefs = api.estado.prefs.dados["acesso_remoto"]
-    prefs.update(ligado=True, aud="aud-do-escritorio", team_domain="atos.cloudflareaccess.com")
-    servico.configurar_conferidor(buscar=lambda d: {"keys": [_jwk(chave, "k1")]})
+    prefs.update(ligado=True)
     try:
-        checar(isinstance(servico.verificar_jwt, ConferidorAccess), "ligado e conectado, o conferidor e montado")
-        de_fora = TestClient(api.app, base_url="https://x.paulus.ia.br")
-        r = de_fora.get("/", headers={"Cf-Access-Jwt-Assertion": _jwt(chave, "k1")})
-        checar(r.status_code == 200 and "entrar-senha" in r.text, "JWT valido: chega a tela de entrar")
-        r = de_fora.get("/", headers={"Cf-Access-Jwt-Assertion": _jwt(chave, "k1", aud=["outra"])})
-        checar(r.status_code == 403, "JWT de outra aplicacao: 403 antes do login")
-        checar(de_fora.get("/").status_code == 403, "sem JWT: 403")
+        de_fora = TestClient(api.app, base_url="https://x.paulus.ia.br", headers={"Cf-Connecting-IP": "200.1.2.3"})
+        r = de_fora.get("/")
+        checar(r.status_code == 200 and "entrar-senha" in r.text and "challenges.cloudflare.com" in r.text,
+               "sem sessao, chega a tela de entrar, com o Turnstile")
+        checar(de_fora.get("/api/status").status_code == 401, "e a API responde 401")
+        checar(not hasattr(servico, "verificar_jwt"), "nao ha mais conferidor do Access")
         s = servico.situacao()
-        checar(set(s) >= {"estado", "cloudflared", "porta", "porta_ocupada", "hostname"}, "a situacao do tunel para a tela", s)
+        checar(set(s) >= {"estado", "cloudflared", "porta", "porta_ocupada", "hostname", "liberado"},
+               "a situacao do tunel para a tela", s)
     finally:
-        prefs.update(ligado=False, aud="", team_domain="")
-        servico.verificar_jwt = None
+        prefs.update(ligado=False)
 
 
 def main() -> int:
@@ -239,7 +296,7 @@ def main() -> int:
     try:
         test_processo()
         test_onde_esta()
-        test_jwt()
+        test_turnstile()
         test_porta_ocupada()
         test_porteiro()
     finally:

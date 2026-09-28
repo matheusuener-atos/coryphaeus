@@ -1,10 +1,11 @@
 // Teste do acesso de fora no Worker (worker/tunel.js), sem rede:
 //   node worker/teste-tunel.mjs      (o teste.mjs tambem chama este)
 //
-// A API da Cloudflare e o Cloudflare Access sao de mentira: o fetch global
-// responde como a API responderia, e o JWT e assinado aqui, com uma chave RSA
-// gerada no proprio teste - o Worker confere a assinatura de verdade.
+// A API da Cloudflare e o Turnstile sao de mentira: o fetch global responde
+// como eles responderiam. O token de Turnstile "ok:<hostname>" passa como
+// resolvido naquele hostname; qualquer outro, nao.
 import worker from "./index.js";
+import { limparEscritorios } from "./tunel.js";
 
 let falhas = 0;
 const checar = (ok, descricao, detalhe) => {
@@ -24,23 +25,9 @@ function kv() {
   };
 }
 
-// ------------------------------------------------------ o Access de mentira
-const TIME = "atos.cloudflareaccess.com";
-const AUD = "aud-da-pagina-conectar";
-const par = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
-const outroPar = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
-const jwk = { ...(await crypto.subtle.exportKey("jwk", par.publicKey)), kid: "chave-1", alg: "RS256", use: "sig" };
-const b64 = (bytes) => Buffer.from(bytes).toString("base64url");
-async function jwt(email, { aud = AUD, iss = "https://" + TIME, exp = Date.now() / 1000 + 600, chave = par.privateKey, kid = "chave-1" } = {}) {
-  const cab = b64(new TextEncoder().encode(JSON.stringify({ alg: "RS256", kid, typ: "JWT" })));
-  const corpo = b64(new TextEncoder().encode(JSON.stringify({ aud: [aud], email, iss, exp, iat: Date.now() / 1000, type: "app" })));
-  const assinatura = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", chave, new TextEncoder().encode(cab + "." + corpo));
-  return cab + "." + corpo + "." + b64(new Uint8Array(assinatura));
-}
-
-// ------------------------------------------------ a API da Cloudflare de mentira
+// ------------------------------------ a Cloudflare e o Turnstile de mentira
 const chamadas = [];
-const conta = { tuneis: new Map(), dns: new Map(), politicas: new Map(), apps: new Map() };
+const conta = { tuneis: new Map(), dns: new Map() };
 let falharEm = "";
 let seq = 0;
 const ok = (result) => new Response(JSON.stringify({ success: true, errors: [], messages: [], result }), { status: 200 });
@@ -49,33 +36,38 @@ const erro = (msg) => new Response(JSON.stringify({ success: false, errors: [{ m
 globalThis.fetch = async (url, opcoes = {}) => {
   const u = String(url);
   const metodo = (opcoes.method || "GET").toUpperCase();
-  const corpo = opcoes.body ? JSON.parse(opcoes.body) : null;
-  if (u === "https://" + TIME + "/cdn-cgi/access/certs") return new Response(JSON.stringify({ keys: [jwk] }), { status: 200 });
+  if (u === "https://challenges.cloudflare.com/turnstile/v0/siteverify") {
+    const corpo = new URLSearchParams(String(opcoes.body));
+    const token = corpo.get("response") || "";
+    chamadas.push("SITEVERIFY " + token);
+    if (corpo.get("secret") !== "segredo-turnstile") return new Response(JSON.stringify({ success: false, "error-codes": ["invalid-input-secret"] }));
+    if (token.startsWith("ok:")) return new Response(JSON.stringify({ success: true, hostname: token.slice(3) }));
+    return new Response(JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }));
+  }
   if (!u.startsWith("https://api.cloudflare.com/client/v4/")) return new Response("{}", { status: 404 });
   const caminho = u.replace("https://api.cloudflare.com/client/v4", "");
+  const corpo = opcoes.body ? JSON.parse(opcoes.body) : null;
   chamadas.push(metodo + " " + caminho);
   if (falharEm && (metodo + " " + caminho).includes(falharEm)) return erro("falha simulada em " + falharEm);
   let m;
   if (metodo === "POST" && /\/cfd_tunnel$/.test(caminho)) { const id = "tun-" + (++seq); conta.tuneis.set(id, { ...corpo, status: "inactive" }); return ok({ id, name: corpo.name }); }
   if (metodo === "PUT" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)\/configurations$/))) { conta.tuneis.get(m[1]).config = corpo.config; return ok({}); }
   if (metodo === "GET" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)\/token$/))) return ok("token-do-" + m[1]);
-  if (metodo === "GET" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)$/))) return ok({ id: m[1], status: conta.tuneis.get(m[1]).status });
+  if (metodo === "GET" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)$/))) {
+    const t = conta.tuneis.get(m[1]);
+    return t ? ok({ id: m[1], status: t.status, conns_inactive_at: t.conns_inactive_at || null }) : erro("túnel não existe");
+  }
   if (metodo === "DELETE" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)\/connections$/))) return ok({});
   if (metodo === "DELETE" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)$/))) { conta.tuneis.delete(m[1]); return ok({}); }
   if (metodo === "POST" && /\/dns_records$/.test(caminho)) { const id = "dns-" + (++seq); conta.dns.set(id, corpo); return ok({ id }); }
   if (metodo === "DELETE" && (m = caminho.match(/\/dns_records\/([^/]+)$/))) { conta.dns.delete(m[1]); return ok({}); }
-  if (metodo === "POST" && /\/access\/policies$/.test(caminho)) { const id = "pol-" + (++seq); conta.politicas.set(id, corpo); return ok({ id }); }
-  if (metodo === "PUT" && (m = caminho.match(/\/access\/policies\/([^/]+)$/))) { conta.politicas.set(m[1], corpo); return ok({ id: m[1] }); }
-  if (metodo === "DELETE" && (m = caminho.match(/\/access\/policies\/([^/]+)$/))) { conta.politicas.delete(m[1]); return ok({}); }
-  if (metodo === "POST" && /\/access\/apps$/.test(caminho)) { const id = "app-" + (++seq); conta.apps.set(id, corpo); return ok({ id, aud: "aud-" + id }); }
-  if (metodo === "DELETE" && (m = caminho.match(/\/access\/apps\/([^/]+)$/))) { conta.apps.delete(m[1]); return ok({}); }
   return erro("rota da API não simulada: " + metodo + " " + caminho);
 };
 
 function ambiente(extra = {}) {
   return {
     TUNEL_ATIVO: "1", ESCRITORIOS: kv(), CF_API_TOKEN: "t", CF_ACCOUNT_ID: "conta1", CF_ZONE_ID: "zona1",
-    ACCESS_TEAM_DOMAIN: TIME, ACCESS_AUD_CONECTAR: AUD, MAX_ESCRITORIOS: "2",
+    TURNSTILE_SECRET: "segredo-turnstile", TURNSTILE_SITEKEY: "chave-publica-do-widget", MAX_ESCRITORIOS: "3",
     ASSETS: { fetch: async () => new Response("site", { status: 200 }) },
     ...extra,
   };
@@ -86,120 +78,201 @@ const pedir = (env, caminho, { metodo = "GET", corpo, cab = {} } = {}) =>
     method: metodo, headers: cab, body: corpo === undefined ? undefined : (typeof corpo === "string" ? corpo : JSON.stringify(corpo)),
   }), env, { waitUntil() {} });
 
-async function iniciar(env, email = "titular@escritorio.com", instalacao = "inst-00000001", nome = "Escritório Silva & Souza") {
-  const r = await pedir(env, "/api/tunel/iniciar", { metodo: "POST", corpo: { instalacao_id: instalacao, email_titular: email, nome_escritorio: nome, porta: 47123 } });
+async function lerResposta(r) {
   const t = await r.text();
-  let dados;
-  try { dados = JSON.parse(t); } catch (e) { dados = { texto: t }; }
-  return { status: r.status, dados };
+  try { return JSON.parse(t); } catch (e) { return { texto: t }; }
 }
 
-async function confirmarComo(env, email, codigo) {
-  const cab = { "cf-access-jwt-assertion": await jwt(email), "content-type": "application/x-www-form-urlencoded" };
-  return pedir(env, "/conectar", { metodo: "POST", corpo: "c=" + codigo, cab });
+async function disponivel(env, nome, instalacao = "") {
+  return lerResposta(await pedir(env, "/api/tunel/disponivel?nome=" + encodeURIComponent(nome) + (instalacao ? "&instalacao=" + instalacao : "")));
 }
+
+async function iniciar(env, slug, instalacao = "inst-00000001", nome = "Moura & Associados Advocacia") {
+  const r = await pedir(env, "/api/tunel/iniciar", { metodo: "POST", corpo: { instalacao_id: instalacao, nome_escritorio: nome, slug, porta: 47123 } });
+  return { status: r.status, dados: await lerResposta(r) };
+}
+
+function confirmar(env, codigo, token) {
+  const corpo = "c=" + codigo + (token === undefined ? "" : "&cf-turnstile-response=" + encodeURIComponent(token));
+  return pedir(env, "/conectar", { metodo: "POST", corpo, cab: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "200.1.2.3" } });
+}
+
+async function conectar(env, slug, instalacao, nome) {
+  const i = await iniciar(env, slug, instalacao, nome);
+  await confirmar(env, i.dados.codigo_usuario, "ok:paulus.ia.br");
+  return (await pedir(env, "/api/tunel/estado", { metodo: "POST", corpo: { codigo_dispositivo: i.dados.codigo_dispositivo } })).json();
+}
+
+const bearer = (s) => ({ authorization: "Bearer " + s, "content-type": "application/json" });
 
 console.log("\nsem TUNEL_ATIVO, nada existe");
 {
   const env = ambiente({ TUNEL_ATIVO: undefined });
-  checar((await iniciar(env)).status === 404, "iniciar: 404");
+  checar((await pedir(env, "/api/tunel/disponivel?nome=moura")).status === 404, "disponivel: 404");
+  checar((await iniciar(env, "moura")).status === 404, "iniciar: 404");
   checar((await pedir(env, "/conectar?c=ABCD-EFGH")).status === 404, "conectar: 404");
   checar((await pedir(ambiente({ ESCRITORIOS: undefined }), "/api/tunel/estado", { metodo: "POST", corpo: {} })).status === 404, "sem o KV: 404");
+  const limpeza = await limparEscritorios(env);
+  checar(limpeza.removidos.length === 0 && chamadas.length === 0, "e a limpeza não faz nada");
+}
+
+console.log("\no nome");
+const env = ambiente();
+{
+  const www = await disponivel(env, "www");
+  checar(www.disponivel === false && www.motivo.includes("reservado") && www.sugestao === "www-2", "reservado: recusado, com sugestão", www);
+  const atos = await disponivel(env, "atos");
+  checar(atos.disponivel === false && atos.motivo.includes("reservado"), "“atos” é reservado");
+  const torto = await disponivel(env, "Moura_Advogados");
+  checar(torto.disponivel === false && torto.motivo.includes("minúsculas") && torto.sugestao === "moura-advogados", "formato inválido: diz o porquê e sugere", torto);
+  const curto = await disponivel(env, "ab");
+  checar(curto.disponivel === false && curto.motivo.includes("3"), "menos de 3 letras: recusado", curto);
+  const hifen = await disponivel(env, "-moura");
+  checar(hifen.disponivel === false && hifen.motivo.includes("hífen"), "hífen no começo: recusado", hifen);
+  const livre = await disponivel(env, "moura-associados");
+  checar(livre.disponivel === true && !livre.sugestao, "nome livre: disponível", livre);
 }
 
 console.log("\no fluxo completo");
-const env = ambiente();
-const inicio = await iniciar(env);
+const inicio = await iniciar(env, "moura-associados");
 checar(inicio.status === 200 && /^[0-9a-f]{64}$/.test(inicio.dados.codigo_dispositivo) && /^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(inicio.dados.codigo_usuario),
   "iniciar devolve o código secreto e o código curto", inicio.dados);
 checar(inicio.dados.url === "https://paulus.ia.br/conectar?c=" + inicio.dados.codigo_usuario, "e o endereço de conectar");
+const reservado = await disponivel(env, "moura-associados", "inst-00000009");
+checar(reservado.disponivel === false && reservado.sugestao === "moura-associados-2", "reservado por 15 min para quem iniciou; outra instalação vê em uso", reservado);
+const minha = await disponivel(env, "moura-associados", "inst-00000001");
+checar(minha.disponivel === true, "a própria instalação continua vendo o nome livre", minha);
 const perguntar = async () => (await pedir(env, "/api/tunel/estado", { metodo: "POST", corpo: { codigo_dispositivo: inicio.dados.codigo_dispositivo } })).json();
 checar((await perguntar()).estado === "pendente", "antes da confirmação: pendente");
-checar((await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario)).status === 403, "conectar sem o JWT do Access: recusado");
-const outroEmail = await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario, { cab: { "cf-access-jwt-assertion": await jwt("intruso@x.com") } });
-checar(outroEmail.status === 403 && (await outroEmail.text()).includes("outro e-mail"), "JWT de outro e-mail: recusado");
-const forjado = await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario, { cab: { "cf-access-jwt-assertion": await jwt("titular@escritorio.com", { chave: outroPar.privateKey }) } });
-checar(forjado.status === 403, "JWT assinado com outra chave: recusado");
-const audErrado = await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario, { cab: { "cf-access-jwt-assertion": await jwt("titular@escritorio.com", { aud: "outra-app" }) } });
-checar(audErrado.status === 403, "JWT de outra aplicação (aud): recusado");
-const vencido = await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario, { cab: { "cf-access-jwt-assertion": await jwt("titular@escritorio.com", { exp: Date.now() / 1000 - 5 }) } });
-checar(vencido.status === 403, "JWT vencido: recusado");
-const pagina = await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario, { cab: { "cf-access-jwt-assertion": await jwt("titular@escritorio.com") } });
+const pagina = await pedir(env, "/conectar?c=" + inicio.dados.codigo_usuario);
 const html = await pagina.text();
-checar(pagina.status === 200 && /escritorio-silva-souza-[0-9a-f]{4}\.paulus\.ia\.br/.test(html) && html.includes("Confirmar"),
-  "o titular vê “Conectar o PAULUS do escritório … a <slug>.paulus.ia.br?”", html.slice(0, 200));
-const conf = await confirmarComo(env, "titular@escritorio.com", inicio.dados.codigo_usuario);
-checar(conf.status === 200, "confirmar provisiona", await conf.clone().text().then((t) => t.slice(0, 300)));
-checar(conta.tuneis.size === 1 && conta.dns.size === 1 && conta.apps.size === 1 && conta.politicas.size === 1, "túnel, DNS, app e política criados", {
-  tuneis: conta.tuneis.size, dns: conta.dns.size, apps: conta.apps.size, pol: conta.politicas.size });
+checar(pagina.status === 200 && html.includes("moura-associados.paulus.ia.br") && html.includes(inicio.dados.codigo_usuario)
+  && html.includes('data-sitekey="chave-publica-do-widget"') && html.includes("challenges.cloudflare.com/turnstile"),
+  "a página mostra o endereço, o código e o widget do Turnstile", html.slice(0, 200));
+checar(!/cloudflareaccess|access/i.test(pagina.headers.get("content-security-policy") || "") && pagina.headers.get("x-frame-options") === "DENY",
+  "sem Access, e com cabeçalhos de segurança");
+const antes = { t: conta.tuneis.size, d: conta.dns.size };
+const semTurnstile = await confirmar(env, inicio.dados.codigo_usuario);
+checar(semTurnstile.status === 403 && conta.tuneis.size === antes.t && conta.dns.size === antes.d, "confirmar sem Turnstile: recusado, nada criado");
+const tokenRuim = await confirmar(env, inicio.dados.codigo_usuario, "robo");
+checar(tokenRuim.status === 403 && conta.tuneis.size === antes.t, "Turnstile inválido: recusado, nada criado");
+const outroHost = await confirmar(env, inicio.dados.codigo_usuario, "ok:outro-site.com");
+checar(outroHost.status === 403 && conta.tuneis.size === antes.t, "Turnstile resolvido em outro site: recusado");
+const conf = await confirmar(env, inicio.dados.codigo_usuario, "ok:paulus.ia.br");
+checar(conf.status === 200, "confirmar com Turnstile válido provisiona", await conf.clone().text().then((t) => t.slice(0, 300)));
+checar(conta.tuneis.size === 1 && conta.dns.size === 1, "túnel e DNS criados", { tuneis: conta.tuneis.size, dns: conta.dns.size });
+checar(!chamadas.some((c) => /\/access\//.test(c)), "nenhuma chamada ao Cloudflare Access", chamadas.filter((c) => /access/.test(c)));
 const tunel = [...conta.tuneis.values()][0];
-checar(tunel.config_src === "cloudflare" && tunel.config.ingress[0].service === "http://127.0.0.1:47123" && tunel.config.ingress[1].service === "http_status:404",
+checar(tunel.config_src === "cloudflare" && tunel.config.ingress[0].hostname === "moura-associados.paulus.ia.br"
+  && tunel.config.ingress[0].service === "http://127.0.0.1:47123" && tunel.config.ingress[1].service === "http_status:404",
   "túnel gerenciado remotamente, ingress para 127.0.0.1 e o resto 404", tunel);
 const dns = [...conta.dns.values()][0];
-checar(dns.type === "CNAME" && dns.proxied === true && /\.cfargotunnel\.com$/.test(dns.content), "CNAME com proxy para o túnel", dns);
-const app = [...conta.apps.values()][0];
-checar(app.type === "self_hosted" && app.session_duration === "12h", "Access self_hosted com sessão de 12 h", app);
-const pol = [...conta.politicas.values()][0];
-checar(JSON.stringify(pol.include) === JSON.stringify([{ email: { email: "titular@escritorio.com" } }]), "a política inclui só o titular", pol);
+checar(dns.type === "CNAME" && dns.name === "moura-associados.paulus.ia.br" && dns.proxied === true && /\.cfargotunnel\.com$/.test(dns.content),
+  "CNAME com proxy para o túnel", dns);
 const entrega = await perguntar();
-checar(entrega.estado === "pronto" && entrega.tunnel_token.startsWith("token-do-tun-") && /^[0-9a-f]{64}$/.test(entrega.segredo_instalacao) && entrega.team_domain === TIME,
-  "estado entrega hostname, token, aud, time e segredo", entrega);
+checar(entrega.estado === "pronto" && entrega.endereco === "https://moura-associados.paulus.ia.br" && entrega.tunnel_token.startsWith("token-do-tun-")
+  && entrega.turnstile_sitekey === "chave-publica-do-widget" && /^[0-9a-f]{64}$/.test(entrega.segredo_instalacao),
+  "estado entrega endereço, token, sitekey e segredo", entrega);
+checar(!("turnstile_secret" in entrega) && !JSON.stringify(entrega).includes("segredo-turnstile"), "o secret do Turnstile nunca vai para o PAULUS");
 checar((await perguntar()).estado === "expirado", "a segunda leitura não entrega de novo");
-const registro = JSON.parse(env.ESCRITORIOS.m.get("escritorio:" + entrega.hostname.split(".")[0]));
-checar(registro.hash_segredo && !JSON.stringify(registro).includes(entrega.segredo_instalacao) && !JSON.stringify([...env.ESCRITORIOS.m.values()]).includes(entrega.tunnel_token),
-  "o KV guarda só o hash do segredo, e o token não fica guardado");
+const registro = JSON.parse(env.ESCRITORIOS.m.get("escritorio:moura-associados"));
+checar(registro.hash_segredo && registro.tunnel_id && registro.dns_id && registro.instalacao_id === "inst-00000001" && registro.porta === 47123
+  && registro.criado_em && "ultima_conexao" in registro, "o KV guarda túnel, DNS, instalação, porta, criação e última conexão", registro);
+checar(!JSON.stringify([...env.ESCRITORIOS.m.values()]).includes(entrega.segredo_instalacao) && !JSON.stringify([...env.ESCRITORIOS.m.values()]).includes(entrega.tunnel_token),
+  "só o hash do segredo fica guardado, e o token não fica");
+checar(!env.ESCRITORIOS.m.has("reserva:moura-associados"), "a reserva do nome acaba quando o endereço nasce");
+const tomado = await disponivel(env, "moura-associados", "inst-00000009");
+checar(tomado.disponivel === false && tomado.sugestao === "moura-associados-2", "o nome conectado fica tomado, com sugestão", tomado);
 
 console.log("\ncom o segredo da instalação");
-const bearer = (s) => ({ authorization: "Bearer " + s, "content-type": "application/json" });
 checar((await pedir(env, "/api/tunel/situacao", { cab: bearer("0".repeat(64)) })).status === 401, "segredo errado: 401");
 checar((await pedir(env, "/api/tunel/situacao")).status === 401, "sem segredo: 401");
 const sit = await (await pedir(env, "/api/tunel/situacao", { cab: bearer(entrega.segredo_instalacao) })).json();
-checar(sit.hostname === entrega.hostname && sit.conectado === false, "situação: túnel ainda não conectado", sit);
-const em = await (await pedir(env, "/api/tunel/emails", { metodo: "POST", corpo: { emails: ["colab@escritorio.com"] }, cab: bearer(entrega.segredo_instalacao) })).json();
-checar(em.ok && em.emails[0] === "titular@escritorio.com" && em.emails.includes("colab@escritorio.com"), "e-mails: o titular sempre fica na lista", em);
-checar([...conta.politicas.values()][0].include.length === 2, "a política do Access foi atualizada");
-const muitos = await pedir(env, "/api/tunel/emails", { metodo: "POST", corpo: { emails: Array.from({ length: 11 }, (_, i) => `p${i}@x.com`) }, cab: bearer(entrega.segredo_instalacao) });
-checar(muitos.status === 400, "mais de 10 e-mails: recusado");
+checar(sit.hostname === "moura-associados.paulus.ia.br" && sit.conectado === false, "situação: túnel ainda não conectado", sit);
+const tsOk = await (await pedir(env, "/api/tunel/turnstile", { metodo: "POST", corpo: { token: "ok:moura-associados.paulus.ia.br", ip: "200.1.2.3" }, cab: bearer(entrega.segredo_instalacao) })).json();
+checar(tsOk.ok === true && Object.keys(tsOk).join() === "ok", "Turnstile do próprio endereço: ok (e só ok)", tsOk);
+const tsOutro = await (await pedir(env, "/api/tunel/turnstile", { metodo: "POST", corpo: { token: "ok:outro-escritorio.paulus.ia.br" }, cab: bearer(entrega.segredo_instalacao) })).json();
+checar(tsOutro.ok === false, "Turnstile resolvido no endereço de outro escritório: ok false", tsOutro);
+const tsRuim = await (await pedir(env, "/api/tunel/turnstile", { metodo: "POST", corpo: { token: "robo" }, cab: bearer(entrega.segredo_instalacao) })).json();
+checar(tsRuim.ok === false, "Turnstile inválido: ok false");
+checar(JSON.parse(env.ESCRITORIOS.m.get("escritorio:moura-associados")).ultima_conexao, "cada chamada atualiza a última conexão");
 const porta = await (await pedir(env, "/api/tunel/porta", { metodo: "POST", corpo: { porta: 47200 }, cab: bearer(entrega.segredo_instalacao) })).json();
 checar(porta.ok && [...conta.tuneis.values()][0].config.ingress[0].service === "http://127.0.0.1:47200", "trocar a porta atualiza o ingress");
 
 console.log("\nlimites");
-checar((await iniciar(env)).status === 409, "o mesmo e-mail de titular não conecta dois escritórios");
-checar((await iniciar(env, "outro@escritorio.com", "inst-00000001")).status === 409, "a mesma instalação não conecta duas vezes");
-checar((await iniciar(env, "a@x.com", "inst-00000009", "www")).status === 400, "nome reservado: recusado");
-const segundo = await iniciar(env, "segundo@x.com", "inst-00000002", "Segundo Escritório");
-await confirmarComo(env, "segundo@x.com", segundo.dados.codigo_usuario);
-const terceiro = await iniciar(env, "terceiro@x.com", "inst-00000003", "Terceiro");
-checar(terceiro.status === 503 && terceiro.dados.erro.includes("limite"), "MAX_ESCRITORIOS respeitado, com frase clara", terceiro.dados);
+checar((await iniciar(env, "outro-nome")).status === 409, "a mesma instalação não conecta dois escritórios");
+await conectar(env, "segundo-escritorio", "inst-00000002", "Segundo");
+await conectar(env, "terceiro-escritorio", "inst-00000003", "Terceiro");
+const quarto = await iniciar(env, "quarto-escritorio", "inst-00000004", "Quarto");
+checar(quarto.status === 503 && quarto.dados.erro.includes("limite"), "MAX_ESCRITORIOS respeitado, com frase clara", quarto.dados);
+const nomeTomado = await iniciar(env, "segundo-escritorio", "inst-00000005", "Quinto");
+checar(nomeTomado.status === 409 && nomeTomado.dados.sugestao === "segundo-escritorio-2", "iniciar com nome tomado: 409 com sugestão", nomeTomado.dados);
 
 console.log("\nfalha no meio desfaz o que foi feito");
 {
   const env2 = ambiente({ MAX_ESCRITORIOS: "10" });
-  const antes = { t: conta.tuneis.size, d: conta.dns.size, p: conta.politicas.size, a: conta.apps.size };
-  const i = await iniciar(env2, "falha@x.com", "inst-00000004", "Escritório Que Falha");
-  await pedir(env2, "/conectar?c=" + i.dados.codigo_usuario, { cab: { "cf-access-jwt-assertion": await jwt("falha@x.com") } });
-  falharEm = "POST /accounts/conta1/access/apps";
-  const r = await confirmarComo(env2, "falha@x.com", i.dados.codigo_usuario);
+  const antes2 = { t: conta.tuneis.size, d: conta.dns.size };
+  const i = await iniciar(env2, "escritorio-que-falha", "inst-00000006", "Que Falha");
+  falharEm = "GET /accounts/conta1/cfd_tunnel/";
+  const r = await confirmar(env2, i.dados.codigo_usuario, "ok:paulus.ia.br");
   falharEm = "";
-  checar(r.status === 502, "a falha no passo 5 (app do Access) chega como erro", r.status);
-  checar(conta.tuneis.size === antes.t && conta.dns.size === antes.d && conta.politicas.size === antes.p && conta.apps.size === antes.a,
-    "túnel, DNS e política criados antes foram desfeitos", { antes, depois: { t: conta.tuneis.size, d: conta.dns.size, p: conta.politicas.size, a: conta.apps.size } });
+  checar(r.status === 502, "a falha no passo do token chega como erro", r.status);
+  checar(conta.tuneis.size === antes2.t && conta.dns.size === antes2.d, "túnel e DNS criados antes foram desfeitos",
+    { antes: antes2, depois: { t: conta.tuneis.size, d: conta.dns.size } });
   checar(![...env2.ESCRITORIOS.m.keys()].some((k) => k.startsWith("escritorio:")), "nada ficou registrado no KV");
+  falharEm = "POST /zones/zona1/dns_records";
+  const r3 = await confirmar(env2, i.dados.codigo_usuario, "ok:paulus.ia.br");
+  falharEm = "";
+  checar(r3.status === 502 && conta.tuneis.size === antes2.t, "a falha no passo 3 (DNS) desfaz os passos 1 e 2");
 }
 
 console.log("\nremover");
 {
-  const antes = conta.tuneis.size;
+  const antesT = conta.tuneis.size;
   const r = await (await pedir(env, "/api/tunel/remover", { metodo: "POST", cab: bearer(entrega.segredo_instalacao) })).json();
-  checar(r.ok && conta.tuneis.size === antes - 1, "remover apaga o túnel", r);
-  checar(![...env.ESCRITORIOS.m.keys()].some((k) => k === "escritorio:" + entrega.hostname.split(".")[0]), "e o registro");
-  checar((await pedir(env, "/api/tunel/situacao", { cab: bearer(entrega.segredo_instalacao) })).status === 401, "o segredo deixa de valer");
-  checar((await iniciar(env)).status === 200, "e o titular pode conectar de novo");
+  checar(r.ok && conta.tuneis.size === antesT - 1, "remover apaga o túnel", r);
+  checar(!env.ESCRITORIOS.m.has("escritorio:moura-associados"), "e o registro");
+  const depois = await pedir(env, "/api/tunel/situacao", { cab: bearer(entrega.segredo_instalacao) });
+  const corpo = await depois.json();
+  checar(depois.status === 410 && corpo.removido === true, "o segredo passa a dizer “endereço removido” (410)", corpo);
+  checar((await disponivel(env, "moura-associados")).disponivel === true, "e o nome volta a ficar disponível");
+}
+
+console.log("\na limpeza diária");
+{
+  const env3 = ambiente({ MAX_ESCRITORIOS: "10" });
+  const agora = Date.now();
+  const dia = 24 * 3600 * 1000;
+  const nunca = await conectar(env3, "nunca-conectou", "inst-00000011", "Nunca");
+  const parado = await conectar(env3, "parado-muito", "inst-00000012", "Parado");
+  await conectar(env3, "recente", "inst-00000013", "Recente");
+  const vivo = await conectar(env3, "conectado-agora", "inst-00000014", "Vivo");
+  const mexer = (slug, f) => { const r = JSON.parse(env3.ESCRITORIOS.m.get("escritorio:" + slug)); f(r); env3.ESCRITORIOS.m.set("escritorio:" + slug, JSON.stringify(r)); return r; };
+  mexer("nunca-conectou", (r) => { r.criado_em = new Date(agora - 8 * dia).toISOString(); r.ultima_conexao = null; });
+  const rp = mexer("parado-muito", (r) => { r.criado_em = new Date(agora - 400 * dia).toISOString(); r.ultima_conexao = new Date(agora - 181 * dia).toISOString(); });
+  mexer("recente", (r) => { r.criado_em = new Date(agora - 3 * dia).toISOString(); r.ultima_conexao = null; });
+  const rv = mexer("conectado-agora", (r) => { r.criado_em = new Date(agora - 300 * dia).toISOString(); r.ultima_conexao = new Date(agora - 200 * dia).toISOString(); });
+  conta.tuneis.get(rv.tunnel_id).status = "healthy";
+  conta.tuneis.get(rp.tunnel_id).conns_inactive_at = new Date(agora - 190 * dia).toISOString();
+  const feito = await limparEscritorios(env3, () => agora);
+  const removidos = feito.removidos.map((x) => x.slug).sort();
+  checar(JSON.stringify(removidos) === JSON.stringify(["nunca-conectou", "parado-muito"]), "remove o que nunca conectou em 7 dias e o parado há mais de 180", feito);
+  checar(env3.ESCRITORIOS.m.has("escritorio:recente") && env3.ESCRITORIOS.m.has("escritorio:conectado-agora"), "preserva o recente e o conectado agora");
+  const avisado = await pedir(env3, "/api/tunel/situacao", { cab: bearer(nunca.segredo_instalacao) });
+  const motivo = await avisado.json();
+  checar(avisado.status === 410 && motivo.motivo.includes("7 dias"), "o PAULUS do endereço liberado fica sabendo o motivo", motivo);
+  checar((await disponivel(env3, "parado-muito")).disponivel === true, "o nome liberado volta a ficar disponível");
+  checar(Boolean(JSON.parse(env3.ESCRITORIOS.m.get("escritorio:conectado-agora")).ultima_conexao), "o conectado agora tem a última conexão atualizada");
+  const semApi = ambiente();
+  semApi.ESCRITORIOS.m.set("escritorio:sem-api", JSON.stringify({ slug: "sem-api", tunnel_id: "tun-que-nao-existe", criado_em: new Date(agora - 30 * dia).toISOString(), ultima_conexao: null }));
+  const f2 = await limparEscritorios(semApi, () => agora);
+  checar(f2.removidos.length === 0 && semApi.ESCRITORIOS.m.has("escritorio:sem-api"), "sem resposta da API, nada é removido nesse dia");
+  checar(Boolean(vivo), "(o quarto escritório conectou para o teste)");
 }
 
 console.log("\no Worker não atende *.paulus.ia.br");
 {
-  const r = await worker.fetch(new Request("https://escritorio-x-1a2b.paulus.ia.br/qualquer"), env, { waitUntil() {} });
+  const r = await worker.fetch(new Request("https://moura-associados.paulus.ia.br/qualquer"), env, { waitUntil() {} });
   checar(r.status === 404, "subdomínio de escritório: 404 no Worker (o tráfego é do túnel)", r.status);
 }
 

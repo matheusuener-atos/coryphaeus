@@ -37,7 +37,15 @@
   ],
   // As rotas que criam cobranca aceitam poucas chamadas por endereco de
   // internet: quem tentar encher o painel de cobrancas falsas para no limite.
+  // O mesmo limite vale para conferir nome e iniciar o acesso de fora.
   "ratelimits": [
     { "name": "LIMITE", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
-  ]
+  ],
+  // A limpeza diaria do acesso de fora (worker/tunel.js, limparEscritorios):
+  // libera os enderecos que nunca conectaram em 7 dias ou estao parados ha
+  // mais de 180. Sem TUNEL_ATIVO e sem o KV ESCRITORIOS ela nao faz nada.
+  "triggers": { "crons": ["17 6 * * *"] }
+  // A sitekey do Turnstile e publica (vai na pagina): quando o widget for
+  // criado, ela entra aqui, em "vars": { "TURNSTILE_SITEKEY": "..." }. O
+  // secret do widget e segredo: npx wrangler secret put TURNSTILE_SECRET.
 }

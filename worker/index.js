@@ -38,7 +38,7 @@
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
 
-import { atenderTunel, ehRotaDoTunel } from "./tunel.js";
+import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
 
 // Guardado por pouco mais de um ano.
 const KV_VALIDADE_S = 400 * 24 * 60 * 60;
@@ -99,6 +99,13 @@ export default {
     } catch (erro) {
       return json({ erro: "falha no servidor de pagamento" }, 500);
     }
+  },
+
+  // O Cron Trigger diario (wrangler.jsonc): libera os enderecos do acesso de
+  // fora que nunca conectaram em 7 dias ou estao parados ha mais de 180.
+  // Sem TUNEL_ATIVO e sem o KV, nao faz nada.
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(limparEscritorios(env));
   },
 };
 

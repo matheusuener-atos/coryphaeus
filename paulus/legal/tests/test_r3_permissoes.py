@@ -81,8 +81,8 @@ class Fora:
         from acesso.contas import codigo_totp
 
         self.c = TestClient(api.app, base_url="https://escritorio.paulus.ia.br",
-                            headers={"Cf-Access-Jwt-Assertion": "ok:" + email, "Cf-Connecting-IP": "200.1.2.3"})
-        pend = self.c.post("/api/acesso/entrar", json={"email": email, "senha": senha}).json()["pendente"]
+                            headers={"Cf-Connecting-IP": "200.1.2.3"})
+        pend = self.c.post("/api/acesso/entrar", json={"email": email, "senha": senha, "turnstile": "ok"}).json()["pendente"]
         r = self.c.post("/api/acesso/entrar/codigo",
                         json={"pendente": pend, "codigo": codigo_totp(segredo, int(time.time() // 30))})
         self.csrf = r.json()["csrf"]
@@ -122,7 +122,7 @@ def test_tabela() -> None:
     import api
 
     servico = api.estado.acesso_de_fora
-    servico.verificar_jwt = lambda t: {"email": t[3:]} if t and t.startswith("ok:") else None
+    servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
     local = TestClient(api.app, headers=api.cabecalho_local())
     try:
@@ -215,7 +215,7 @@ def test_tabela() -> None:
             checar(f.get("/api/email/envios").status_code == 200, f"{quem}: usar o e-mail ja configurado")
     finally:
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
-        servico.verificar_jwt = None
+        servico.__dict__.pop("conferir_turnstile", None)
 
 
 def test_email_sempre_pela_fila() -> None:
@@ -229,7 +229,7 @@ def test_email_sempre_pela_fila() -> None:
     from types import SimpleNamespace
 
     servico = api.estado.acesso_de_fora
-    servico.verificar_jwt = lambda t: {"email": t[3:]} if t and t.startswith("ok:") else None
+    servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
     conta = SimpleNamespace(id="c1", email="escritorio@x.com", por_login=False, pode_enviar_sem_confirmar=True,
                             autenticacao="senha")
@@ -254,7 +254,7 @@ def test_email_sempre_pela_fila() -> None:
         api._montar_do_pedido, api.estado.contas.tem_credencial = antes_montar, antes_cred
         api.estado.prefs.dados["autonomia"] = antes_aut
         api.estado.prefs.dados["acesso_remoto"]["ligado"] = False
-        servico.verificar_jwt = None
+        servico.__dict__.pop("conferir_turnstile", None)
 
 
 def main() -> int:

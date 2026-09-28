@@ -153,7 +153,7 @@ function cartaoComoFunciona() {
     ["desktop_windows", "O computador do escritório precisa estar ligado e com o PAULUS aberto. Desligado, o endereço para de responder."],
     ["key", "Os documentos, o índice e o modelo de IA não saem deste computador. O que passa pela internet é a tela e o que se digita nela."],
     ["lan", "O caminho é o túnel da Cloudflare, num endereço paulus.ia.br da conta do Atos. A conexão é criptografada, mas a Cloudflare a abre no meio do caminho para entregá-la; o Atos não roteia, não inspeciona e não registra esse conteúdo."],
-    ["verified", "Para entrar: o e-mail confirmado pela Cloudflare, depois a conta do PAULUS com senha e o código do autenticador do celular."],
+    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e usa a própria conta do PAULUS: e-mail, senha e o código do autenticador do celular. Vale igual para o titular e para a equipe."],
     ["history", "Todo acesso de fora fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
   ];
   return cartaoCfg("Como funciona", "",
@@ -196,7 +196,7 @@ function cartaoSessoes() {
   if (!s.length) return cartaoCfg("Sessões abertas de fora", metaCfg("nenhuma"), '<p class="cfg-texto">Ninguém está usando o PAULUS de fora agora.</p>');
   const quando = (t) => new Date(t * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const linhas = s.map((x) => '<div class="cfg-saida"><span class="fin-data">' + esc(quando(x.ultimo_uso)) + '</span><span class="duas-linhas"><b>' + esc(x.nome) +
-    "</b><small>" + esc((x.email_access || "") + " · entrou " + quando(x.criada)) + "</small></span></div>").join("");
+    "</b><small>" + esc([x.email, x.ip].filter(Boolean).join(" · ") + " · entrou " + quando(x.criada)) + "</small></span></div>").join("");
   return cartaoCfg("Sessões abertas de fora", metaCfg(plural(s.length, "sessão", "sessões")),
     '<div class="cfg-linhas">' + linhas + "</div>" +
     '<div class="acesso-pe"><button class="perigo" data-acesso-encerrar="1">Encerrar todas as sessões</button>' +
@@ -265,7 +265,7 @@ async function acessoNovaConta() {
     texto: primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora." : "",
     campos: [
       { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos" },
-      { chave: "email", rotulo: "E-mail", tipo: "email", placeholder: "o mesmo que vai passar pela Cloudflare", obrigatorio: true },
+      { chave: "email", rotulo: "E-mail", tipo: "email", placeholder: "com ele a pessoa entra de fora", obrigatorio: true },
       { chave: "senha", rotulo: "Senha", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true },
       { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true },
     ],

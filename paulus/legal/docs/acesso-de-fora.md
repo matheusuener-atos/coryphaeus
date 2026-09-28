@@ -4,8 +4,9 @@ Usar o PAULUS de casa, do fórum ou do celular, com o programa rodando no
 computador do escritório. Nada muda de lugar: os documentos, o índice e o
 modelo de IA continuam lá. O que ganha um caminho seguro até eles é a tela.
 
-Vem **desligado**. Só o escritório liga, e só no próprio computador, em
-Configurações › Acesso de fora.
+Vem **desligado**. Só o escritório liga, e só no próprio computador: no
+assistente de configuração (passo "Acesso à distância", logo depois do nome
+do escritório) ou, depois, em Configurações › Acesso de fora.
 
 ---
 
@@ -18,23 +19,28 @@ Configurações › Acesso de fora.
      └─ cloudflared (túnel de saída, nenhuma porta aberta no roteador)
             ▼
  Cloudflare: https://<escritório>.paulus.ia.br
-   └─ Cloudflare Access: código no e-mail autorizado
             ▼
- navegador de quem está de fora → conta do PAULUS: senha + código do autenticador
+ navegador de quem está de fora → tela de entrar do PAULUS:
+   verificação contra robôs → e-mail + senha → código do autenticador
 ```
 
-Quatro portas, uma depois da outra:
+Três portas, uma depois da outra, iguais para o titular e para a equipe:
 
 1. **O túnel.** O `cloudflared` abre uma conexão de *saída* do computador do
    escritório até a Cloudflare. Nada escuta na rede; o roteador não muda.
-2. **O Cloudflare Access.** Antes de chegar ao PAULUS, a pessoa confirma um
-   e-mail da lista do escritório (a Cloudflare manda um código). A lista é a
-   das contas do PAULUS, até 10.
-3. **O PAULUS confere de novo** o que o Access disse (a assinatura do
-   crachá dele) — se um dia a regra da Cloudflare falhar, o computador diz não.
-4. **A conta do PAULUS**, com senha e o código do aplicativo autenticador do
-   celular. Cinco erros bloqueiam a conta por 15 minutos, e o computador do
-   escritório recebe um aviso.
+2. **A verificação contra robôs** (Cloudflare Turnstile), na tela de entrar.
+   Ela é conferida antes da senha: robô nem chega a tentar. O token dela só
+   passa pelo site do PAULUS (paulus.ia.br) para ser conferido — nada do
+   escritório vai junto.
+3. **A conta do PAULUS**, com e-mail, senha e o código do aplicativo
+   autenticador do celular. Cinco erros bloqueiam a conta por 15 minutos (e o
+   bloqueio dobra a cada reincidência); vinte erros vindos do mesmo endereço
+   de internet em 10 minutos fecham esse endereço por 1 hora. O computador
+   do escritório recebe um aviso a cada bloqueio.
+
+Sem sessão, quem chega ao endereço só vê a tela de entrar. A sessão dura até
+30 minutos sem uso e no máximo 12 horas. De fora, o titular troca a própria
+senha e encerra as sessões pedindo o código do autenticador de novo.
 
 ### O que dá e o que não dá para fazer de fora
 
@@ -65,47 +71,64 @@ arquivo à mão, a tela diz em que linha.
 
 ---
 
-## Conectar
+## Ligar
 
-Precisa de:
+O `cloudflared` (o programa da Cloudflare que abre o túnel) vem com o
+instalador do PAULUS sempre que falta na máquina. Instalá-lo não liga nada.
 
-- o `cloudflared` no computador — o instalador do PAULUS traz, marcando
-  "Acesso de fora pelo celular";
-- uma **conta de titular** com o autenticador confirmado (Configurações ›
-  Acesso de fora › Contas › Criar a conta do titular). O cadastro mostra um
-  QR para o aplicativo autenticador (Google Authenticator, Microsoft
-  Authenticator, 2FAS…) e 10 códigos de recuperação — guarde-os fora do
-  celular.
+No assistente de configuração, ou em Configurações › Acesso de fora:
 
-Então, em Configurações › Acesso de fora › Conectar:
+1. **Ligue o interruptor** "Acesso à distância".
+2. **Escolha o endereço.** O PAULUS sugere a partir do nome do escritório
+   (`Moura & Associados Advocacia` → `moura-associados`). Dá para mudar:
+   letras minúsculas sem acento, números e hífen, de 3 a 24. Enquanto você
+   digita, o PAULUS confere se está livre; se não estiver, diz por quê e
+   sugere outro. O endereço final aparece embaixo — é por ele que você e a
+   sua equipe entram.
+3. **Crie a sua conta de titular**: nome, e-mail e senha (pelo menos 10
+   caracteres). Leia o QR com o aplicativo autenticador do celular (Google
+   Authenticator, Microsoft Authenticator, 2FAS…), digite o código que ele
+   mostra e guarde os 10 códigos de recuperação fora do celular.
+4. **Conecte.** O PAULUS abre o navegador em `paulus.ia.br/conectar` e
+   mostra um código (`XXXX-XXXX`). Confira se o navegador mostra o mesmo
+   código, passe pela verificação contra robôs e clique em **Confirmar**.
+5. Em poucos segundos o PAULUS mostra o endereço
+   `https://<nome>.paulus.ia.br`, com o botão de copiar, e liga o túnel.
+   Sugestão: ligue "Abrir o PAULUS com o Windows" — ao ligar o computador, o
+   PAULUS abre minimizado e o acesso volta sozinho.
 
-1. Confira o nome do escritório (vira o endereço) e o e-mail do titular, e
-   aperte **Conectar**.
-2. O navegador abre em `paulus.ia.br/conectar`. Entre com o e-mail do
-   titular: a Cloudflare manda um código para ele.
-3. Confira que o código da página é o mesmo que aparece no PAULUS e aperte
-   **Confirmar**.
-4. Em poucos segundos o PAULUS mostra o endereço
-   `https://<escritório>.paulus.ia.br` e liga o túnel.
-
-As outras pessoas: crie uma conta para cada uma (colaborador ou titular). O
-e-mail entra sozinho na lista da Cloudflare.
+O endereço fica reservado por 15 minutos enquanto você confirma. Se o código
+vencer, **Tentar de novo** usa o mesmo nome.
 
 Para o celular funcionar a qualquer hora, o computador do escritório precisa
 estar ligado e com o PAULUS aberto. Com o acesso ligado, o PAULUS pede ao
-Windows para não suspender por inatividade; e dá para ligar "Abrir o PAULUS
-com o Windows" (abre minimizado).
+Windows para não suspender por inatividade.
+
+## Contas da equipe
+
+Em Configurações › Acesso de fora › Contas › **Nova conta**, no computador do
+escritório (de fora, ninguém mexe em contas). Cada pessoa tem a própria
+conta: nome, e-mail, senha e o autenticador do celular dela. Marque
+"Titular" só para quem pode aprovar de fora e cuidar das contas; o resto é
+colaborador.
+
+Na mesma tela: trocar a senha de alguém (encerra as sessões dela), cadastrar
+o autenticador de novo (celular novo ou perdido), gerar códigos de
+recuperação novos e remover a conta.
 
 ## Desligar e remover
 
 - **Desligar** para o túnel na hora e guarda o endereço. Ligar de novo usa o
   mesmo endereço.
-- **Remover** apaga o endereço, o túnel e a regra do Access na conta do Atos,
-  e o que ficou guardado no computador; encerra quem estiver de fora. Para
-  voltar, é conectar de novo (com outro endereço).
+- **Remover** apaga o endereço e o túnel na conta do Atos e o que ficou
+  guardado no computador; encerra quem estiver de fora. O nome fica livre:
+  para voltar, é ligar de novo.
 - **Encerrar todas as sessões** tira todo mundo que está de fora, sem
   desligar nada.
-- Trocar a senha de uma conta encerra as sessões dela.
+
+Endereço que nunca se conectou em 7 dias, ou que ficou parado por mais de
+180 dias, é liberado sozinho pelo site. O PAULUS percebe na próxima vez que
+abrir, desliga o acesso e avisa.
 
 ---
 
@@ -114,30 +137,43 @@ com o Windows" (abre minimizado).
 **"Indisponível: porta ocupada".** Outro programa está usando a porta que o
 túnel procura neste computador. Enquanto isso ninguém entra de fora (a
 janela daqui funciona normalmente). Aperte **Usar outra porta**: o PAULUS
-escolhe uma livre e avisa a Cloudflare.
+escolhe uma livre e avisa o site.
 
-**"Desconectado — tentando de novo".** O túnel caiu (internet oscilando,
-computador acordando). O PAULUS tenta de novo sozinho, com espera crescente
-até 1 minuto. Se não voltar: confira a internet do escritório; o registro do
-túnel fica em `dados\logs\tunel.log` (sem o token).
+**"Desconectado — tentando de novo" (túnel caído).** A internet oscilou ou o
+computador acordou agora. O PAULUS tenta de novo sozinho, com espera
+crescente até 1 minuto. Se não voltar: confira a internet do escritório; o
+registro do túnel fica em `dados\logs\tunel.log` (sem o token).
 
-**A página do celular diz "acesso não autorizado" ou pede o e-mail de novo.**
-O e-mail usado não está na lista. A lista é a das contas do PAULUS: crie a
-conta com esse e-mail no computador do escritório. A conta do PAULUS tem de
-ser do mesmo e-mail que passou pela Cloudflare.
+**"Muitas tentativas erradas: a conta ficou bloqueada".** Espere 15 minutos
+(o bloqueio dobra a cada reincidência). No escritório, o aviso do Windows diz
+de quem foi. Se a senha foi esquecida, troque-a no computador do escritório.
 
-**"Conta bloqueada por tentativas erradas".** Espere 15 minutos (o bloqueio
-dobra a cada reincidência). No escritório, o aviso do Windows diz de quem
-foi. Se a senha foi esquecida, troque-a no computador do escritório.
+**"Muitas tentativas erradas deste endereço".** Vinte erros vieram da mesma
+rede em 10 minutos (às vezes, a rede compartilhada de um fórum ou hotel):
+ela fica fechada por 1 hora. Tente de outra rede — o 4G do celular, por
+exemplo — ou espere.
+
+**"A verificação contra robôs não passou".** Recarregue a página e faça a
+verificação de novo; cada verificação vale uma vez. Se aparecer "não consegui
+conferir a verificação agora", o site do PAULUS está fora do ar por um
+instante: ninguém entra até ele voltar.
+
+**"O código venceu antes da confirmação".** O código de conectar vale 15
+minutos. Aperte **Tentar de novo**: o nome escolhido continua o mesmo.
+
+**"O endereço foi liberado por falta de uso; conecte de novo".** O endereço
+ficou sem uso tempo demais e foi devolvido. Ligue o acesso de novo (dá para
+pedir o mesmo nome, se ainda estiver livre); as contas da equipe continuam.
 
 **Perdi o celular do autenticador.** Entre com um dos códigos de recuperação
 (cada um vale uma vez). No escritório, em Contas › Autenticador, cadastre o
 celular novo — o antigo deixa de valer.
 
-**"Falta o cloudflared".** Reinstale o PAULUS marcando "Acesso de fora pelo
-celular". O instalador baixa a versão fixa do GitHub da Cloudflare e só usa
-o arquivo se a assinatura digital for da Cloudflare.
+**"Falta o cloudflared".** Reinstale o PAULUS: o instalador baixa a versão
+fixa do GitHub da Cloudflare e só usa o arquivo se a assinatura digital for
+da Cloudflare. Se a conferência falhar, o instalador segue sem ele e avisa na
+tela final.
 
-**"O acesso de fora chegou ao limite de escritórios desta fase".** O serviço
-gratuito da Cloudflare tem um número de usuários por conta, dividido entre
-todos os escritórios. Escreva para contato@paulus.ia.br.
+**"O acesso de fora chegou ao limite de escritórios desta fase".** O número
+de escritórios conectados é limitado nesta fase. Escreva para
+contato@paulus.ia.br.

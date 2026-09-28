@@ -13,6 +13,8 @@ Duas familias, e a diferenca entre elas e o ponto:
 
 from __future__ import annotations
 
+import time
+
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -24,6 +26,27 @@ from acesso.remoto import COOKIE_SESSAO
 class Entrada(BaseModel):
     email: str
     senha: str
+    # O token do Turnstile da tela de entrar (anti-robo), conferido ANTES da
+    # senha: sem ele, a tentativa nem chega a contar.
+    turnstile: str = ""
+
+
+class MinhaSenha(BaseModel):
+    atual: str
+    nova: str
+    codigo: str
+
+
+# O login responde sempre no mesmo tempo, com senha certa ou errada, com
+# conta ou sem: o relogio nao pode dizer quem tem conta. O scrypt ja iguala o
+# grosso; este piso tira o que sobra de diferenca (medido: ~0,1 s).
+TEMPO_DO_LOGIN_S = 0.45
+
+
+def _no_tempo(comeco: float) -> None:
+    falta = TEMPO_DO_LOGIN_S - (time.monotonic() - comeco)
+    if falta > 0:
+        time.sleep(falta)
 
 
 class Codigo(BaseModel):
@@ -97,35 +120,46 @@ def montar(servico, r) -> None:
         return {"local": False, "csrf": p["csrf"],
                 "pessoa": {"nome": p["nome"], "email": p["email"], "papel": p["papel"]}}
 
+    @r.get("/api/acesso/entrar/config")
+    def entrar_config() -> dict:
+        """O que a tela de entrar precisa saber antes do login: a sitekey do Turnstile."""
+        return {"turnstile_sitekey": servico.preferencias().get("turnstile_sitekey", "")}
+
     @r.post("/api/acesso/entrar")
     def entrar(dados: Entrada, request: Request) -> dict:
+        comeco = time.monotonic()
         remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
-        email_access = remoto.get("email_access", "")
-        if email_access and email_access != dados.email.strip().lower():
-            servico.anotar(acao="login_falho", alvo="e-mail do Access diferente", email=email_access,
-                           ip=remoto.get("ip", ""), pessoa=dados.email)
-            raise HTTPException(status_code=403, detail="entre com a conta do mesmo e-mail que passou pelo Cloudflare")
+        ip = remoto.get("ip", "")
+        if not e_local(request):
+            # O anti-robo vem antes da senha: sem ele, nada e tentado nem
+            # contado. Sem o Worker para conferir, ninguem entra.
+            veredito = servico.conferir_turnstile(dados.turnstile, ip)
+            if veredito != "ok":
+                servico.anotar(acao="login_falho", alvo="verificação anti-robô", ip=ip, pessoa=dados.email)
+                _no_tempo(comeco)
+                if veredito == "indisponivel":
+                    raise HTTPException(status_code=503, detail="não consegui conferir a verificação contra robôs "
+                                                                "agora; tente de novo em instantes")
+                raise HTTPException(status_code=403, detail="a verificação contra robôs não passou; tente de novo")
         try:
-            pendente = servico.contas.entrar_com_senha(dados.email, dados.senha)
+            pendente = servico.contas.entrar_com_senha(dados.email, dados.senha, ip=ip)
         except ErroEntrada as exc:
-            servico.anotar(acao="login_falho", alvo="senha", email=email_access, ip=remoto.get("ip", ""),
-                           pessoa=dados.email)
+            servico.anotar(acao="login_falho", alvo="senha", ip=ip, pessoa=dados.email)
+            _no_tempo(comeco)
             raise HTTPException(status_code=429 if exc.ate else 401, detail=str(exc)) from exc
+        _no_tempo(comeco)
         return {"pendente": pendente}
 
     @r.post("/api/acesso/entrar/codigo")
     def entrar_codigo(dados: Codigo, request: Request):
         remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        ip = remoto.get("ip", "")
         try:
-            s = servico.contas.entrar_com_codigo(dados.pendente, dados.codigo,
-                                                 email_access=remoto.get("email_access", ""),
-                                                 ip=remoto.get("ip", ""))
+            s = servico.contas.entrar_com_codigo(dados.pendente, dados.codigo, ip=ip)
         except ErroEntrada as exc:
-            servico.anotar(acao="login_falho", alvo="código", email=remoto.get("email_access", ""),
-                           ip=remoto.get("ip", ""))
+            servico.anotar(acao="login_falho", alvo="código", ip=ip)
             raise HTTPException(status_code=429 if exc.ate else 401, detail=str(exc)) from exc
-        servico.anotar(acao="entrada", alvo="", pessoa=s["conta"]["nome"], email=remoto.get("email_access", ""),
-                       ip=remoto.get("ip", ""))
+        servico.anotar(acao="entrada", alvo="", pessoa=s["conta"]["nome"], email=s["conta"]["email"], ip=ip)
         resp = JSONResponse({"ok": True, "csrf": s["csrf"],
                              "pessoa": {k: s["conta"][k] for k in ("nome", "email", "papel")}})
         # Secure: de fora, a pagina chega pelo https da Cloudflare. HttpOnly:
@@ -143,9 +177,53 @@ def montar(servico, r) -> None:
         servico.contas.sair(token)
         if p:
             remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
-            servico.anotar(acao="saida", alvo="", pessoa=p["nome"], email=remoto.get("email_access", ""),
-                           ip=remoto.get("ip", ""))
+            servico.anotar(acao="saida", alvo="", pessoa=p["nome"], email=p["email"], ip=remoto.get("ip", ""))
         resp = JSONResponse({"ok": True})
+        resp.delete_cookie(COOKIE_SESSAO, path="/")
+        return resp
+
+    # ------------------------- de fora, do titular, com o codigo de novo
+
+    def _codigo_de_novo(request: Request, codigo: str) -> dict:
+        """
+        As acoes sensiveis do titular de fora pedem o codigo do autenticador
+        AGORA, mesmo com sessao valida: sessao roubada nao troca senha nem
+        derruba o escritorio inteiro.
+        """
+        p = pessoa(request)
+        if not p:
+            raise HTTPException(status_code=403, detail="só pelo acesso de fora, com a sua conta")
+        if p["papel"] != "titular":
+            raise HTTPException(status_code=403, detail="só o titular pode fazer isso")
+        if not servico.contas.confirmar_de_novo(p, codigo):
+            raise HTTPException(status_code=403, detail="o código do autenticador não confere")
+        return p
+
+    @r.post("/api/acesso/minha-senha")
+    def minha_senha(dados: MinhaSenha, request: Request):
+        p = _codigo_de_novo(request, dados.codigo)
+        if not servico.contas.senha_confere(p["conta_id"], dados.atual):
+            raise HTTPException(status_code=403, detail="a senha atual não confere")
+        try:
+            servico.contas.trocar_senha(p["conta_id"], dados.nova)
+        except ErroConta as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        servico.anotar(acao="senha", alvo="trocou a própria senha", pessoa=p["nome"], email=p["email"],
+                       ip=remoto.get("ip", ""))
+        # Trocar a senha derruba todas as sessoes da conta - inclusive esta.
+        resp = JSONResponse({"ok": True, "detail": "senha trocada: entre de novo"})
+        resp.delete_cookie(COOKIE_SESSAO, path="/")
+        return resp
+
+    @r.post("/api/acesso/minhas-sessoes/encerrar")
+    def minhas_sessoes_encerrar(dados: SoCodigo, request: Request):
+        p = _codigo_de_novo(request, dados.codigo)
+        caidas = servico.contas.encerrar_sessoes()
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        servico.anotar(acao="sessoes", alvo=f"encerrou {caidas} sessões", pessoa=p["nome"], email=p["email"],
+                       ip=remoto.get("ip", ""))
+        resp = JSONResponse({"ok": True, "encerradas": caidas})
         resp.delete_cookie(COOKIE_SESSAO, path="/")
         return resp
 
