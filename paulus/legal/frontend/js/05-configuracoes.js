@@ -30,6 +30,7 @@ const CFG_SECOES = [
   ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
   ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
   ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
+  ["backup", "Backup", "Tudo do escritório mora neste computador. O backup é um arquivo cifrado com uma senha sua, numa pasta que você escolhe, todo dia."],
   ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
@@ -143,6 +144,8 @@ async function carregarSecao() {
   } else if (cfg.secao === "vinculos") {
     if (typeof lerVinculoGoogle === "function") await lerVinculoGoogle();
     if (typeof carregarAcessoDaEquipe === "function") await carregarAcessoDaEquipe();
+  } else if (cfg.secao === "backup") {
+    cfg.backup = await pega("/api/backup");
   } else if (cfg.secao === "aparencia") {
     cfg.avisos = await pega("/api/avisos");
     cfg.explorer = await pega("/api/explorer");
@@ -165,6 +168,7 @@ function desenharConfig() {
   else if (cfg.secao === "vinculos") secao = secaoVinculos();
   else if (cfg.secao === "aprendizado") secao = secaoAprendizado();
   else if (cfg.secao === "aparencia") secao = secaoAparencia();
+  else if (cfg.secao === "backup") secao = secaoBackup();
   else if (cfg.secao === "menu") secao = secaoModulos();
   else if (cfg.secao === "feedback") secao = secaoFeedback();
   else if (cfg.secao === "plano") secao = secaoPlano();
@@ -1280,6 +1284,7 @@ function ligarConfig() {
   });
   clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); b.dataset.cfgApoiar === "desenvolvimento" ? mostrarDesenvolvimento() : mostrarApoiar(b.dataset.cfgApoiar); });
   if (cfg.secao === "vinculos" && typeof ligarEquipeCfg === "function") ligarEquipeCfg();
+  if (cfg.secao === "backup" && typeof ligarBackupCfg === "function") ligarBackupCfg();
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
   clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));

@@ -239,6 +239,9 @@ _declarar(BLOQUEADO,
           "POST /api/acesso/energia/abrir-com-windows",
           # o menu do botao direito no Explorer deste computador
           "GET /api/explorer", "POST /api/explorer",
+          # backup e restauracao (src/backup.py): so na janela do servidor
+          "GET /api/backup", "POST /api/backup/configurar", "POST /api/backup/agora", "POST /api/backup/listar",
+          "POST /api/backup/restaurar", "POST /api/backup/restaurar/cancelar", "POST /api/backup/reabrir",
           # mover, organizar, apagar, exportar em lote, lixeira
           "POST /api/biblioteca/lote/mover", "POST /api/biblioteca/lote/apagar", "POST /api/biblioteca/lote/exportar",
           "POST /api/biblioteca/remover", "POST /api/acervo/pastas", "POST /api/acervo/pastas/tirar",

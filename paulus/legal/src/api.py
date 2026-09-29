@@ -679,6 +679,7 @@ async def lifespan(app: FastAPI):
     estado.vigia.comecar()
     threading.Thread(target=estado._vigiar, name="acervo-vigia", daemon=True).start()
     threading.Thread(target=_verificar_atualizacao_se_velha, name="atualizacao", daemon=True).start()
+    threading.Thread(target=_backup_automatico, name="backup", daemon=True).start()
     print(f"\n  PAULUS Legal - servidor em 127.0.0.1:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     # O acesso de fora ligado e conectado: o tunel sobe junto com o programa
@@ -9619,6 +9620,206 @@ def bemestar_ver() -> dict:
     if dados["sugeridos_criados"]:
         dados["lembretes"] = estado.bem_estar.lembretes()
     return dados
+
+
+# ------------------------------------------------------------------ backup
+# Backup e restauracao (src/backup.py, docs/PLANO-PRODUTO.md P1). So na janela
+# do servidor: de fora, as rotas nao existem (acesso/politicas.py).
+
+import backup as backup_mod  # noqa: E402
+
+_BACKUP = {"fazendo": False, "feitos": 0, "total": 0, "erro": ""}
+_TRAVA_BACKUP = threading.Lock()
+BACKUP_A_CADA_S = 24 * 3600
+
+
+def _prefs_backup() -> dict:
+    return dict(estado.prefs.dados.get("backup") or {})
+
+
+def _senha_do_backup() -> str:
+    import segredos
+
+    guardada = _prefs_backup().get("senha") or ""
+    if not guardada:
+        return ""
+    try:
+        return segredos.revelar(guardada)
+    except Exception:  # noqa: BLE001 - guardada por outro usuario do Windows
+        return ""
+
+
+def _fazer_backup() -> dict:
+    """Um backup agora (o automatico e o botao). Devolve o resultado ou levanta ErroBackup."""
+    p = _prefs_backup()
+    if not p.get("pasta"):
+        raise backup_mod.ErroBackup("escolha a pasta do backup")
+    senha = _senha_do_backup()
+    if not senha:
+        raise backup_mod.ErroBackup("defina a senha do backup")
+    if not _TRAVA_BACKUP.acquire(blocking=False):
+        raise backup_mod.ErroBackup("já há um backup em andamento")
+    try:
+        _BACKUP.update(fazendo=True, feitos=0, total=0, erro="")
+
+        def andamento(feitos, total):
+            _BACKUP.update(feitos=feitos, total=total)
+
+        try:
+            feito = backup_mod.fazer(DADOS_DIR, Path(p["pasta"]), senha, versao=VERSAO,
+                                     manter=int(p.get("manter") or 10), andamento=andamento)
+        except backup_mod.ErroBackup as exc:
+            _BACKUP["erro"] = str(exc)
+            estado.prefs.atualizar({"backup": {"ultimo_erro": str(exc)}})
+            raise
+        estado.prefs.atualizar({"backup": {"ultimo": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                           "ultimo_arquivo": feito["arquivo"], "ultimo_erro": ""}})
+        return feito
+    finally:
+        _BACKUP["fazendo"] = False
+        _TRAVA_BACKUP.release()
+
+
+def _backup_automatico() -> None:
+    """Uma vez por dia, com a pasta e a senha definidas: confere a cada meia hora."""
+    time.sleep(120)  # deixa o programa abrir primeiro
+    while True:
+        try:
+            p = _prefs_backup()
+            if p.get("automatico", True) and p.get("pasta") and p.get("senha"):
+                ultimo = p.get("ultimo") or ""
+                try:
+                    passou = time.time() - time.mktime(time.strptime(ultimo, "%Y-%m-%dT%H:%M:%S")) if ultimo else None
+                except ValueError:
+                    passou = None
+                if passou is None or passou >= BACKUP_A_CADA_S:
+                    _fazer_backup()
+        except Exception:  # noqa: BLE001 - o erro fica em ultimo_erro, e tenta na proxima volta
+            pass
+        time.sleep(1800)
+
+
+def _backup_para_tela() -> dict:
+    p = _prefs_backup()
+    return {"pasta": p.get("pasta", ""), "automatico": bool(p.get("automatico", True)), "manter": int(p.get("manter") or 10),
+            "tem_senha": bool(p.get("senha")), "ultimo": p.get("ultimo", ""), "ultimo_arquivo": p.get("ultimo_arquivo", ""),
+            "ultimo_erro": p.get("ultimo_erro", ""), "andamento": dict(_BACKUP),
+            "backups": backup_mod.listar(Path(p["pasta"]))[:20] if p.get("pasta") else [],
+            "restauracao_pronta": (backup_mod.pasta_de_restaurar(DADOS_DIR) / ".restaurar-pronto").is_file(),
+            "senha_minima": backup_mod.SENHA_MINIMA}
+
+
+class ConfigBackup(BaseModel):
+    pasta: str | None = None
+    senha: str | None = None
+    automatico: bool | None = None
+    manter: int | None = None
+
+
+class PastaDeBackups(BaseModel):
+    pasta: str
+
+
+class RestaurarBackup(BaseModel):
+    arquivo: str
+    senha: str
+
+
+@app.get("/api/backup")
+def backup_ver() -> dict:
+    return _backup_para_tela()
+
+
+@app.post("/api/backup/configurar")
+def backup_configurar(dados: ConfigBackup) -> dict:
+    import segredos
+
+    novo: dict = {}
+    if dados.pasta is not None:
+        pasta = Path(dados.pasta.strip().strip('"'))
+        if not pasta.is_absolute():
+            raise HTTPException(status_code=400, detail="escolha uma pasta deste computador (caminho completo)")
+        if pasta.resolve() == DADOS_DIR or DADOS_DIR in pasta.resolve().parents:
+            raise HTTPException(status_code=400, detail="a pasta do backup não pode ficar dentro da pasta de dados do PAULUS")
+        novo["pasta"] = str(pasta)
+    if dados.senha is not None:
+        if len(dados.senha) < backup_mod.SENHA_MINIMA:
+            raise HTTPException(status_code=400, detail=f"a senha do backup precisa de pelo menos {backup_mod.SENHA_MINIMA} caracteres")
+        if not segredos.disponivel():
+            raise HTTPException(status_code=400, detail="este computador não tem como guardar a senha com proteção")
+        novo["senha"] = segredos.proteger(dados.senha)
+    if dados.automatico is not None:
+        novo["automatico"] = bool(dados.automatico)
+    if dados.manter is not None:
+        novo["manter"] = max(1, min(60, int(dados.manter)))
+    if novo:
+        estado.prefs.atualizar({"backup": novo})
+    return _backup_para_tela()
+
+
+@app.post("/api/backup/agora")
+def backup_agora() -> dict:
+    """Comeca um backup em segundo plano; a tela acompanha pelo GET."""
+    p = _prefs_backup()
+    if not p.get("pasta") or not p.get("senha"):
+        raise HTTPException(status_code=400, detail="escolha a pasta e defina a senha do backup antes")
+    if _BACKUP["fazendo"]:
+        raise HTTPException(status_code=409, detail="já há um backup em andamento")
+    _BACKUP.update(fazendo=True, feitos=0, total=0, erro="")
+
+    def rodar() -> None:
+        try:
+            _fazer_backup()
+        except Exception as exc:  # noqa: BLE001 - a tela mostra
+            _BACKUP.update(fazendo=False, erro=str(exc))
+
+    threading.Thread(target=rodar, name="backup-agora", daemon=True).start()
+    return _backup_para_tela()
+
+
+@app.post("/api/backup/listar")
+def backup_listar(dados: PastaDeBackups) -> dict:
+    """Os backups de uma pasta qualquer (restaurar num computador novo)."""
+    return {"backups": backup_mod.listar(Path(dados.pasta.strip().strip('"')))[:50]}
+
+
+@app.post("/api/backup/restaurar")
+def backup_restaurar(dados: RestaurarBackup) -> dict:
+    """Prepara a restauracao: a troca acontece quando o PAULUS abre de novo."""
+    arquivo = Path(dados.arquivo)
+    if arquivo.suffix != backup_mod.EXTENSAO:
+        raise HTTPException(status_code=400, detail="escolha um arquivo de backup do PAULUS (.paulusbak)")
+    try:
+        manifesto = backup_mod.preparar_restauracao(arquivo, dados.senha, DADOS_DIR)
+    except backup_mod.ErroBackup as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"manifesto": manifesto, **_backup_para_tela()}
+
+
+@app.post("/api/backup/restaurar/cancelar")
+def backup_restaurar_cancelar() -> dict:
+    shutil.rmtree(backup_mod.pasta_de_restaurar(DADOS_DIR), ignore_errors=True)
+    return _backup_para_tela()
+
+
+@app.post("/api/backup/reabrir")
+def backup_reabrir() -> dict:
+    """Fecha e abre o PAULUS de novo, para a restauracao entrar (so no instalado)."""
+    from acesso import energia
+
+    exe = energia.exe_do_programa()
+    if not exe:
+        raise HTTPException(status_code=400, detail="feche e abra o PAULUS para terminar de restaurar")
+    import subprocess
+
+    def reabrir() -> None:
+        time.sleep(1.5)
+        subprocess.Popen([str(exe)], close_fds=True, creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
+        if estado.ao_fechar:
+            estado.ao_fechar()
+
+    threading.Thread(target=reabrir, name="reabrir", daemon=True).start()
+    return {"ok": True}
 
 
 class LigarMenu(BaseModel):

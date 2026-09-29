@@ -116,6 +116,10 @@ PADRAO: dict = {
     # o Worker entrega na conexao. `liberado`: a frase de quando o endereco
     # foi liberado em paulus.ia.br (falta de uso) - a tela mostra ate conectar
     # de novo.
+    # Backup (src/backup.py): a pasta, o automatico diario, quantos manter, e
+    # a senha - guardada pela protecao de dados do Windows, nunca em texto.
+    "backup": {"pasta": "", "automatico": True, "manter": 10, "senha": "", "ultimo": "", "ultimo_arquivo": "",
+               "ultimo_erro": ""},
     "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
                       "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0",
                       # De fora, toda entrada e pelo Google (+ o codigo do celular) - decisao do

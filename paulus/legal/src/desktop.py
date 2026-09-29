@@ -462,6 +462,15 @@ def _sair_da_pasta_do_programa() -> None:
 
 def main() -> int:
     _sair_da_pasta_do_programa()
+    # Uma restauracao de backup pronta (src/backup.py) entra antes de qualquer
+    # coisa ler a pasta de dados - e so se nenhum PAULUS estiver aberto nela.
+    if not _porta_da_instancia_aberta():
+        try:
+            import backup
+
+            backup.aplicar_restauracao_pendente(_pasta_de_dados())
+        except Exception as exc:  # noqa: BLE001 - abre com os dados de agora
+            print(f"  restauracao nao aplicada: {exc}")
     pedido = _arquivo_pedido(sys.argv[1:])
     aberta = _porta_da_instancia_aberta()
     if aberta and _entregar_para_a_aberta(aberta, pedido):

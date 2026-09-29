@@ -20,7 +20,7 @@ sem internet, o escritório ficava de fora do próprio computador.
 - Cada código vale uma vez; 5 erros seguidos param as tentativas por 10 min.
 - Só na janela do servidor. Teste: `tests/test_e6_sem_internet.py`.
 
-## P1 — Backup e restauração · a fazer
+## P1 — Backup e restauração · feito
 
 Tudo mora num computador só. Um disco perdido é o escritório perdido.
 
@@ -34,6 +34,12 @@ Tudo mora num computador só. Um disco perdido é o escritório perdido.
   conferir.
 - Segredos protegidos pela proteção de dados do Windows não viajam entre
   computadores: restaurar pede entrar de novo nas contas (e-mail, Google).
+- Feito: `src/backup.py` (AES-GCM em blocos, chave por scrypt, fim marcado;
+  SQLite copiado pela API de backup), Configurações › Backup
+  (`js/47-backup.js`), automático diário, restaurar prepara em
+  `dados.restaurar` e a troca entra ao abrir (`desktop.py`), com os dados de
+  antes guardados em `dados.antes-<data>`. Teste: `tests/test_backup.py`.
+- Falta: oferecer "tenho um backup" já no primeiro passo do assistente.
 
 ## P2 — Saúde do PAULUS e diagnóstico · a fazer
 

@@ -148,3 +148,6 @@
      entrada, e a animacao vence a opacidade declarada. */
   html.remoto .so-no-escritorio-item .ic, html.remoto .so-no-escritorio-item .rotulo-botao { opacity: .42; }
   .so-no-escritorio { font-size: 12.5px; color: var(--ink3); }
+
+  /* Configurações › Backup (js/47-backup.js): uma linha por backup, com o Restaurar ao lado. */
+  .bkp-linha { align-items: center; gap: 12px; }

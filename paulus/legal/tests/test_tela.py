@@ -757,7 +757,7 @@ def main() -> int:
             )
             checar(colunas == 2, f"o menu interno e a secao ficam lado a lado (achou {colunas})")
             secoes = pagina.evaluate("() => document.querySelectorAll('#cfg-tela [data-cfg-secao]').length")
-            checar(secoes == 13, f"o menu tem treze secoes, Modelos, Modulos, Acesso de fora e a Lixeira incluidas (achou {secoes})")
+            checar(secoes == 14, f"o menu tem catorze secoes, Modelos, Modulos, Acesso de fora, Backup e a Lixeira incluidas (achou {secoes})")
             # Desde fd658f7 (padrao editorial) os cartoes vem um embaixo do
             # outro, numa coluna so: Voce e Escritorio.
             checar(
