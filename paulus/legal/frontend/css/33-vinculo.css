@@ -18,6 +18,10 @@
   .trava-texto h1 { margin: 0; font: 400 clamp(40px, 5.6vw, 64px)/1 var(--serif); letter-spacing: -.02em; text-wrap: balance; }
   .trava-texto p { margin: 0; font-size: clamp(16px, 1.7vw, 18px); line-height: 1.6; color: var(--ink2); max-width: 460px; }
   .trava-nota { font: italic 400 19px var(--serif); color: var(--ink3); }
+  /* O acesso de fora continua com a janela do servidor travada. */
+  .trava-fora { display: flex; align-items: flex-start; gap: 10px; margin: 0; max-width: 460px; font-size: 14px; line-height: 1.55; color: var(--ink2); }
+  .trava-fora .ic { color: var(--verde); margin-top: 3px; }
+  .trava-fora b { color: var(--ink); font-weight: 600; }
   .trava-painel { flex: 1 1 340px; min-width: 0; max-width: 420px; border-left: 1px solid var(--ink-a1); padding-left: clamp(24px, 3vw, 40px); }
   .trava-form { display: grid; gap: 20px; margin: 0; }
   .trava-etiqueta { font: 400 11px var(--mono); letter-spacing: .14em; color: var(--ink3); }

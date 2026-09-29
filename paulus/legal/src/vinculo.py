@@ -12,6 +12,13 @@ A trava e do servidor, e nao so da tela: travado, o porteiro (acesso/
 porteiro.py) recusa com 423 tudo o que nao e a propria tela de destravar -
 uma chamada direta a API, com a chave da janela, tambem para ali.
 
+SAIR (29/09/2026): quem esta no computador do servidor sai da conta, e o
+PAULUS trava na hora - mesmo com "manter aberto" ligado, e continua travado
+se o programa for fechado e aberto de novo, ate alguem entrar com o Google.
+A trava e so da janela do servidor: o acesso de fora nao passa por ela (o
+porteiro so a aplica a quem tem a chave da janela), e a equipe continua
+entrando pelo endereco enquanto o programa estiver aberto.
+
 O login e o de aplicativo instalado (correio_oauth, com loopback em
 127.0.0.1), so com `openid email profile`: serve para saber QUEM e, nao para
 ler e-mail. Nada do vinculo sai desta maquina alem do login no Google - e do
@@ -76,6 +83,8 @@ class Vinculo:
         self._id_token = ""
         self._id_token_exp = 0.0
         self.ao_confirmar = None
+        # () -> {"ligado": bool, "endereco": str}: o api.py liga.
+        self.situacao_de_fora = None
 
     # ------------------------------------------------------------ estado
 
@@ -87,7 +96,10 @@ class Vinculo:
 
     def travado(self) -> bool:
         d = self.dados()
-        return bool(d.get("email")) and not d.get("manter_aberto") and not self.destravado
+        if not d.get("email") or self.destravado:
+            return False
+        # Saiu da conta: trava mesmo com "manter aberto".
+        return bool(d.get("saiu")) or not d.get("manter_aberto")
 
     def estado(self) -> dict:
         d = self.dados()
@@ -100,6 +112,9 @@ class Vinculo:
             "url": e.get("url", ""), "finalidade": self.finalidade,
             "precisa_codigo": bool(self._conta_do_codigo),
             "google_recente": bool(self.id_token_valido()),
+            "saiu": bool(d.get("saiu")),
+            # O acesso de fora, para a tela da trava dizer que ele continua.
+            "acesso_de_fora": self.situacao_de_fora() if self.situacao_de_fora else {},
         }
 
     def id_token_valido(self, margem: float = 120) -> str:
@@ -180,8 +195,13 @@ class Vinculo:
             # celular vem depois do Google, como de fora.
             self._conta_do_codigo = conta["id"]
         else:
-            self.destravado = True
+            self._abrir()
         return {"email": email, "nome": nome}
+
+    def _abrir(self) -> None:
+        self.destravado = True
+        if self.dados().get("saiu"):
+            self.prefs.atualizar({"vinculo": {"saiu": False}})
 
     def _guardar_id_token(self, tokens: dict) -> None:
         token = str((tokens or {}).get("id_token") or "")
@@ -207,7 +227,7 @@ class Vinculo:
         if not self.contas.confirmar_de_novo({"conta_id": self._conta_do_codigo, "hash": ""}, codigo):
             raise ErroVinculo("o código não confere; digite o que aparece agora no celular")
         self._conta_do_codigo = 0
-        self.destravado = True
+        self._abrir()
 
     def cancelar(self) -> None:
         if self.entrada:
@@ -216,8 +236,13 @@ class Vinculo:
     # ------------------------------------------------------------ depois
 
     def travar(self) -> None:
+        """Sair: trava a janela do servidor ate alguem entrar com o Google."""
+        if not self.vinculado():
+            raise ErroVinculo("para sair, vincule antes este PAULUS a uma conta Google (Configurações › Escritório e equipe)")
         self.destravado = False
         self._conta_do_codigo = 0
+        self._id_token, self._id_token_exp = "", 0.0
+        self.prefs.atualizar({"vinculo": {"saiu": True}})
 
     def manter_aberto(self, ligado: bool) -> None:
         if self.travado():
@@ -227,7 +252,7 @@ class Vinculo:
     def desvincular(self) -> None:
         if self.travado():
             raise ErroVinculo("destrave antes")
-        self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False}})
+        self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False}})
         self.destravado = False
         self._id_token, self._id_token_exp = "", 0.0
 
@@ -298,7 +323,10 @@ def montar(app, vinculo: Vinculo) -> None:
     @app.post("/api/vinculo/travar")
     def vinculo_travar(request: Request) -> dict:
         so_local(request)
-        vinculo.travar()
+        try:
+            vinculo.travar()
+        except ErroVinculo as exc:
+            falhar(exc)
         return vinculo.estado()
 
     @app.post("/api/vinculo/manter-aberto")

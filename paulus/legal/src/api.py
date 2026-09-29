@@ -700,6 +700,8 @@ estado.acesso_de_fora.vinculo = estado.vinculo
 estado.vinculo.ligar_servicos = lambda tokens, email, nome: estado.contas.ligar_oauth("google", email, nome, tokens)
 # Cada login da conta vinculada diz ao Worker de que conta e o endereco do
 # acesso de fora (quando conectado): e o que deixa retomar depois de reinstalar.
+# A tela da trava diz se o acesso de fora continua (ele nao passa pela trava).
+estado.vinculo.situacao_de_fora = lambda: {k: estado.acesso_de_fora.situacao().get(k) for k in ("ligado", "estado", "hostname")}
 estado.vinculo.ao_confirmar = lambda token: estado.acesso_de_fora.conexao.informar_dono(token) \
     if getattr(estado.acesso_de_fora, "conexao", None) else None
 vinculo_mod.montar(app, estado.vinculo)

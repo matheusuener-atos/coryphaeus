@@ -164,6 +164,39 @@ def test_http() -> None:
     novo = vinculo_mod.Vinculo(api.estado.prefs, api.estado.acesso_de_fora.contas, lambda: {"client_id": "x"})
     checar(not novo.travado(), "com 'manter aberto': abre sem pedir o Google")
 
+    print("  sair, no servidor")
+    r = local.post("/api/vinculo/travar")
+    checar(r.status_code == 200 and r.json()["travado"] and r.json()["saiu"], "sair trava mesmo com 'manter aberto'", r.text[:200])
+    checar(local.get("/api/documentos").status_code == 423, "e a janela do servidor para")
+    novo = vinculo_mod.Vinculo(api.estado.prefs, api.estado.acesso_de_fora.contas, lambda: {"client_id": "x"})
+    checar(novo.travado(), "fechou e abriu o programa: continua travado (saiu fica gravado)")
+    checar("acesso_de_fora" in r.json(), "a tela da trava sabe do acesso de fora")
+    import segredos
+
+    if segredos.disponivel():
+        # Com a janela do servidor fora da conta, quem entra de fora continua.
+        servico = api.estado.acesso_de_fora
+        servico.conferir_turnstile = lambda token, ip="": "ok"
+        prefs["acesso_remoto"].update(ligado=True, so_google=False)
+        try:
+            fora = TestClient(api.app, base_url="https://x.paulus.ia.br", headers={"Cf-Connecting-IP": "200.2.2.2"})
+            pend = fora.post("/api/acesso/entrar", json={"email": "dona@gmail.com", "senha": "senha-da-dona-12",
+                                                         "turnstile": "ok"}).json().get("pendente")
+            rc = fora.post("/api/acesso/entrar/codigo", json={"pendente": pend, "codigo": codigo_totp(t["segredo"], int(time.time() // 30) + 1)})
+            fora.headers["X-PAULUS-CSRF"] = rc.json().get("csrf", "")
+            checar(rc.status_code == 200 and fora.get("/api/documentos").status_code == 200,
+                   "de fora, com a janela do servidor travada: entra e usa normalmente", rc.text[:160])
+        finally:
+            prefs["acesso_remoto"].update(ligado=False, so_google=True)
+    EntradaFalsa.email = "dona@gmail.com"
+    local.post("/api/vinculo/entrar", json={"finalidade": "destravar"})
+    # os codigos do celular desta janela de tempo ja foram usados: vai um de recuperacao
+    r = local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][0]})
+    checar(r.status_code == 200 and not r.json()["travado"] and not r.json()["saiu"], "entrar de novo abre e limpa o 'saiu'",
+           r.text[:160])
+    novo = vinculo_mod.Vinculo(api.estado.prefs, api.estado.acesso_de_fora.contas, lambda: {"client_id": "x"})
+    checar(not novo.travado(), "e o 'manter aberto' volta a valer")
+
     print("  de fora")
     import segredos
 

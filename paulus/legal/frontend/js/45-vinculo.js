@@ -81,13 +81,22 @@ function desenharTrava() {
       (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") +
       '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
       '<label class="trava-manter"><input type="checkbox" id="trava-manter">Manter aberto neste computador</label>' +
-      '<p class="trava-ajuda">Vinculado a <b>' + esc(e.email) + "</b>. Entre com essa conta. Com “manter aberto”, o PAVLVS deixa de pedir o Google ao abrir neste computador (dá para travar de novo em Configurações).</p></div>";
+      '<p class="trava-ajuda">Vinculado a <b>' + esc(e.email) + "</b>. Entre com essa conta. Com “manter aberto”, o PAVLVS deixa de pedir o Google ao abrir neste computador (e “Sair”, na barra, trava de novo).</p></div>";
+  const fora = e.acesso_de_fora || {};
+  const foraNoAr = fora.ligado && fora.hostname;
+  const sobreFora = foraNoAr
+    ? '<p class="trava-fora">' + ic("lan", 16) + "<span>O acesso de fora continua funcionando: a equipe entra por <b>" + esc(fora.hostname) +
+      "</b> enquanto o PAVLVS estiver aberto neste computador. Não feche o programa.</span></p>"
+    : "";
+  const saiu = e.saiu && !e.precisa_codigo;
   telaDaTrava().innerHTML =
     '<header class="trava-topo"><span class="trava-marca">PAVLVS</span><span class="trava-selo">' + ic("desktop_windows", 15) + "servidor do escritório</span></header>" +
-    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo"><i></i>' + (e.precisa_codigo ? "PASSO 2 DE 2" : "ESCRITÓRIO TRAVADO") + "</span>" +
+    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo"><i></i>' + (e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "VOCÊ SAIU" : "ESCRITÓRIO TRAVADO") + "</span>" +
     "<h1>" + (e.precisa_codigo ? "Confirme que é você" : "Entre para abrir o escritório") + "</h1>" +
     "<p>" + (e.precisa_codigo ? "Digite o código de 6 dígitos que aparece no app autenticador do seu celular."
+      : saiu ? "Ninguém mexe no PAVLVS por este computador até entrar de novo com a conta Google dele."
       : "Este PAVLVS é vinculado à conta Google de quem o administra. Os documentos e as contas ficam aqui; o Google só confirma que é você.") + "</p>" +
+    sobreFora +
     '<span class="trava-nota">' + (e.precisa_codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos vai para o Google.") + "</span></section>" +
     '<section class="trava-painel">' + direita + "</section></main>";
   ligarTrava();
@@ -138,8 +147,42 @@ async function mostrarTrava() {
 acessoDeFora.pronto.then(async () => {
   if (!acessoDeFora.local) return;
   const e = await lerVinculoGoogle();
+  mostrarBotaoSair();
   if (e && e.travado) desenharTrava();
 });
+
+/* ------------------------------------------------ sair (no servidor) */
+/*
+   "Sair", na barra da janela do servidor: trava o PAULUS na hora - mesmo com
+   "manter aberto" - para ninguem mexer no computador do escritorio. Quem
+   entra de fora nao passa pela trava: com o programa aberto, a equipe
+   continua entrando pelo endereco. De fora, o "Sair" e o da propria conta
+   (js/00-acesso.js).
+*/
+function mostrarBotaoSair() {
+  const ver = Boolean(acessoDeFora.local);
+  ["sair-servidor", "sair-servidor-menu"].forEach((id) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.hidden = !ver;
+    b.onclick = (ev) => { ev.stopPropagation(); sairDoServidor(); };
+  });
+}
+
+async function sairDoServidor() {
+  const e = (await lerVinculoGoogle()) || {};
+  if (!e.vinculado) {
+    const ir = await confirmar({ titulo: "Sair da conta", contexto: "servidor do escritório",
+      texto: "Para sair, este PAULUS precisa estar vinculado a uma conta Google: é com ela que se entra de novo. Vincule em Configurações › Escritório e equipe.",
+      confirmar: "Vincular agora" });
+    if (ir) mostrarConfig("vinculos");
+    return;
+  }
+  try {
+    await postVinculo("/api/vinculo/travar");
+  } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
+  desenharTrava();
+}
 
 /* ----------------------------------------- o cartao de Configuracoes */
 
@@ -164,9 +207,9 @@ function cartaoDoVinculo() {
       ? "o PAULUS abre sem pedir o Google neste computador"
       : "o PAULUS abre travado e pede o Google a cada abertura", e.manter_aberto, false)
       .replace('class="ag-toggle', 'data-vinc-manter="1" class="ag-toggle') + "</div>" +
-    '<div class="acesso-pe"><button class="com-icone" data-vinc-travar="1">' + ic("logout", 16) + "Travar agora</button>" +
+    '<div class="acesso-pe"><button class="com-icone" data-vinc-travar="1">' + ic("logout", 16) + "Sair</button>" +
     '<button class="perigo" data-vinc-desvincular="1">Desvincular</button>' +
-    '<p class="cfg-explica">Desvincular não apaga nada: o PAULUS só deixa de pedir o Google ao abrir.</p></div>');
+    '<p class="cfg-explica">Sair trava este computador até alguém entrar com o Google (o acesso de fora continua). Desvincular não apaga nada: o PAULUS só deixa de pedir o Google ao abrir.</p></div>');
 }
 
 function ligarVinculoCfg() {
@@ -180,10 +223,7 @@ function ligarVinculoCfg() {
     try { await postVinculo("/api/vinculo/manter-aberto", { ligado: !b.classList.contains("on") }); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     redesenhar();
   });
-  clique("[data-vinc-travar]", async () => {
-    await postVinculo("/api/vinculo/travar").catch(() => {});
-    desenharTrava();
-  });
+  clique("[data-vinc-travar]", () => sairDoServidor());
   clique("[data-vinc-desvincular]", async () => {
     if (!(await confirmar({ titulo: "Desvincular a conta Google?", contexto: "Configurações › Escritório e equipe",
       texto: "O PAULUS deixa de pedir o Google ao abrir. Para ligar o acesso de fora e convidar a equipe, vai ser preciso vincular de novo.",
