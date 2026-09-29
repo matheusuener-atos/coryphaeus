@@ -69,40 +69,53 @@ function desenharTrava() {
     }
     return;
   }
+  // O desenho "Voce saiu - servidor" (docs/ui, export tela login servidor):
+  // a conta deste servidor, manter aberto e o Google na mesma linha; embaixo,
+  // o que continua funcionando enquanto a janela esta travada.
   const esperando = e.fase === "aguardando" || e.fase === "trocando" || e.fase === "testando";
-  const direita = e.precisa_codigo
-    ? '<form class="trava-form" id="trava-codigo"><div class="trava-quem"><span>' + esc(e.email) + "</span></div>" +
+  const fora = e.acesso_de_fora || {};
+  const foraNoAr = Boolean(fora.ligado && fora.hostname);
+  const saiu = e.saiu && !e.precisa_codigo;
+  const conta = '<div class="trava-conta"><span class="trava-etiqueta">CONTA DESTE SERVIDOR</span><span class="trava-email">' + esc(e.email) + "</span></div>";
+  const entrar = e.precisa_codigo
+    ? '<form class="trava-form" id="trava-codigo">' + conta +
       '<label class="trava-campo"><span class="trava-etiqueta">CÓDIGO DO CELULAR</span>' +
       '<input id="trava-codigo-campo" inputmode="numeric" autocomplete="one-time-code" maxlength="9" placeholder="000000"></label>' +
       '<p class="trava-erro" id="trava-erro"></p><button type="submit" class="trava-principal">Abrir o PAVLVS</button></form>'
-    : '<div class="trava-form"><span class="trava-etiqueta">CONTA GOOGLE DESTE PAVLVS</span>' +
+    : '<div class="trava-form">' + conta +
+      '<div class="trava-acoes"><label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") +
+      "><span>Manter aberto neste computador</span></label>" +
       '<button type="button" class="trava-google" id="trava-google"' + (esperando ? " disabled" : "") + ">" + G_DO_GOOGLE +
-      (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</button>" +
-      (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") +
-      '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
-      '<label class="trava-manter"><input type="checkbox" id="trava-manter">Manter aberto neste computador</label>' +
-      '<p class="trava-ajuda">Vinculado a <b>' + esc(e.email) + "</b>. Entre com essa conta. Com “manter aberto”, o PAVLVS deixa de pedir o Google ao abrir neste computador (e “Sair”, na barra, trava de novo).</p></div>";
-  const fora = e.acesso_de_fora || {};
-  const foraNoAr = fora.ligado && fora.hostname;
-  const sobreFora = foraNoAr
-    ? '<p class="trava-fora">' + ic("lan", 16) + "<span>O acesso de fora continua funcionando: a equipe entra por <b>" + esc(fora.hostname) +
-      "</b> enquanto o PAVLVS estiver aberto neste computador. Não feche o programa.</span></p>"
-    : "";
-  const saiu = e.saiu && !e.precisa_codigo;
+      (esperando ? "Esperando o Google…" : "Entrar com Google") + "</button>" +
+      (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") + "</div>" +
+      '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p></div>";
+  const enquanto = '<div class="trava-linhas"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
+    '<div class="trava-linha"><span>Acesso de fora</span><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
+    (foraNoAr ? "funcionando" : "desligado") + "</span></div>" +
+    (foraNoAr ? '<div class="trava-linha"><span>Endereço</span><span class="trava-mono">' + esc(fora.hostname) + "</span></div>" : "") + "</div>";
+  const escuro = document.documentElement.dataset.tema === "escuro";
   telaDaTrava().innerHTML =
-    '<header class="trava-topo"><span class="trava-marca">PAVLVS</span><span class="trava-selo">' + ic("desktop_windows", 15) + "servidor do escritório</span></header>" +
-    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo"><i></i>' + (e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "VOCÊ SAIU" : "ESCRITÓRIO TRAVADO") + "</span>" +
+    '<header class="trava-topo"><span class="trava-marca">PAVLVS</span><div class="trava-topo-dir"><span class="trava-selo">' +
+    ic("desktop_windows", 16) + "servidor</span>" +
+    '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 18) + "</button></div></header>" +
+    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo"><i></i>' +
+    (e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "SESSÃO ENCERRADA" : "ESCRITÓRIO TRAVADO") + "</span>" +
     "<h1>" + (e.precisa_codigo ? "Confirme que é você" : "Entre para abrir o escritório") + "</h1>" +
     "<p>" + (e.precisa_codigo ? "Digite o código de 6 dígitos que aparece no app autenticador do seu celular."
-      : saiu ? "Ninguém mexe no PAVLVS por este computador até entrar de novo com a conta Google dele."
-      : "Este PAVLVS é vinculado à conta Google de quem o administra. Os documentos e as contas ficam aqui; o Google só confirma que é você.") + "</p>" +
-    sobreFora +
-    '<span class="trava-nota">' + (e.precisa_codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos vai para o Google.") + "</span></section>" +
-    '<section class="trava-painel">' + direita + "</section></main>";
+      : "O PAVLVS está travado neste computador. Para usar de novo, entre com a conta vinculada a este servidor.") + "</p>" +
+    '<span class="trava-nota">' + (e.precisa_codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos sai deste computador.") + "</span></section>" +
+    '<section class="trava-painel">' + entrar + enquanto + "</section></main>" +
+    '<footer class="trava-pe">' +
+    (foraNoAr ? '<p class="forte">A equipe continua entrando por esse endereço enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</p>' : "") +
+    "<p>Esta tela é servida pelo próprio PAVLVS, neste computador. Os documentos e o modelo de IA ficam aqui; o Google só confirma quem está entrando.</p></footer>";
   ligarTrava();
 }
 
 function ligarTrava() {
+  const t = document.getElementById("trava-tema");
+  if (t) t.onclick = () => { alternarTema(); desenharTrava(); };
+  const m = document.getElementById("trava-manter");
+  if (m) m.onchange = () => { vinc.manterAoEntrar = m.checked; };
   const b = document.getElementById("trava-google");
   if (b) b.onclick = async () => {
     const manter = document.getElementById("trava-manter");
