@@ -9754,9 +9754,17 @@ class FichaServico(BaseModel):
     dados: dict = {}
 
 
+def _acesso_da_equipe() -> dict[int, str]:
+    fora = estado.acesso_de_fora
+    return servicos_acesso.acesso_da_equipe(estado.base, fora.contas, fora.convites)
+
+
 @app.get("/api/servicos")
 def servicos_listar(filtro: str = "", termo: str = "") -> dict:
     return {
+        # Quem da equipe pode estar num servico: so quem entra no PAULUS
+        # (conta ou convite em aberto), com o estado de cada um.
+        "acesso_da_equipe": {str(k): v for k, v in _acesso_da_equipe().items()},
         "servicos": estado.servicos.listar(filtro, termo),
         "contagem": estado.servicos.contagem(),
         "status": [{"valor": k, "rotulo": v} for k, v in servicos_mod.STATUS.items()],
@@ -9830,6 +9838,22 @@ def servicos_salvar(payload: FichaServico) -> dict:
             dados["equipe"] = sorted(servicos_acesso.cadastros_da_pessoa(
                 estado.base, servicos_acesso.emails_da_pessoa(sessao, estado.acesso_de_fora.contas)))
         payload = FichaServico(id=payload.id, dados=dados)
+    # A Equipe de um servico e de quem entra no PAULUS: a pessoa que so esta
+    # em Cadastros (sem conta nem convite) nao entra - convide antes. Quem ja
+    # estava fica, para salvar o resto do servico nao falhar por causa dela.
+    if "equipe" in payload.dados:
+        atual = set()
+        if payload.id:
+            linha = estado.base.um("SELECT equipe FROM servicos WHERE id = ?", (payload.id,)) or {}
+            atual = servicos_acesso.participantes(linha.get("equipe"))
+        pedidos = [int(x) for x in (payload.dados.get("equipe") or []) if str(x).isdigit()]
+        com_acesso = _acesso_da_equipe()
+        sem = [i for i in pedidos if i not in atual and i not in com_acesso]
+        if sem:
+            nomes = [l["nome"] for l in estado.base.buscar(
+                f"SELECT nome FROM cadastros WHERE id IN ({','.join('?' for _ in sem)})", tuple(sem))]
+            raise HTTPException(status_code=400, detail=(", ".join(nomes) or "essa pessoa") +
+                                " não tem acesso ao PAULUS: convide em Cadastros › Equipe antes de pôr na equipe do serviço")
     antes = estado.servicos.pasta_de(payload.id, criar=False) if payload.id else None
     try:
         id_ = estado.servicos.salvar(payload.dados, payload.id)

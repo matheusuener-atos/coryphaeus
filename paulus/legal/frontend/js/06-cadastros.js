@@ -878,6 +878,13 @@ function editarFicha(f) {
 }
 
 function novaFicha() {
+  // A equipe do escritorio e quem entra no PAULUS: pessoa nova na equipe
+  // entra pelo convite (js/46-equipe.js), que cria a ficha junto.
+  if (cad.visao === "equipe" && typeof convidarPessoa === "function" &&
+      (typeof acessoDeFora === "undefined" || acessoDeFora.local)) {
+    convidarPessoa(null, () => mostrarCadastros());
+    return;
+  }
   const tipo = cad.visao === "equipe" ? "colaborador" : (cad.visao === "despesas" ? "despesa" : "cliente");
   cad.aberta = null;
   cad.form = formDaFicha({ tipo: tipo });

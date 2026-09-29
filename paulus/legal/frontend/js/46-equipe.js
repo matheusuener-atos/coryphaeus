@@ -57,9 +57,12 @@ function etiquetaDeAcesso(email) {
 
 /* ------------------------------------------------------- o convite */
 
-/* O convite de uma pessoa (da equipe ou nova): a mesma caixa nas tres telas.
-   `ficha` e a pessoa de Cadastros; sem ela, a pessoa nova entra em Cadastros
-   › Equipe junto com o convite. Devolve true quando o convite saiu. */
+/* O convite de uma pessoa (da equipe ou nova): a mesma caixa nas quatro
+   telas (Cadastros, Escritorio e equipe, Acesso de fora, a Equipe de um
+   servico). A equipe do escritorio e quem entra no PAULUS: pessoa nova so
+   entra em Cadastros › Equipe pelo convite, com o vinculo e a funcao.
+   `ficha` e a pessoa que ja esta em Cadastros. Devolve a ficha (com o id)
+   quando o convite saiu; senao, false. */
 async function convidarPessoa(ficha, depois) {
   const r = await dialogo({
     titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao PAULUS",
@@ -73,6 +76,10 @@ async function convidarPessoa(ficha, depois) {
       { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: ficha ? (ficha.email || "") : "", placeholder: "com ele a pessoa entra", obrigatorio: true },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
     ],
+    depois: ficha ? "" : '<div class="dialogo-duas"><div class="dialogo-campo"><label for="eqp-tipo">Vínculo</label><div class="dialogo-caixa">' +
+      '<select id="eqp-tipo" data-dialogo-chave="tipo"><option value="colaborador">Colaborador</option><option value="socio">Sócio</option></select></div></div>' +
+      '<div class="dialogo-campo"><label for="eqp-funcao">Função (opcional)</label><div class="dialogo-caixa">' +
+      '<input id="eqp-funcao" data-dialogo-chave="funcao" placeholder="Advogada, estagiário, perito…" autocomplete="off"></div></div></div>',
     confirmar: "Gerar o convite",
   });
   if (!r || !r.ok) return false;
@@ -83,17 +90,19 @@ async function convidarPessoa(ficha, depois) {
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return false; }
   // A pessoa nova entra na equipe (Cadastros), e a ficha que ja existia fica
   // com o e-mail Google do convite - e por ele que o acesso se liga a ela.
+  let resultado = ficha || null;
   try {
     if (!ficha) {
-      await acessoPost("/api/cadastros", { id: null, dados: { tipo: "colaborador", nome: v.nome, email: v.email } });
+      resultado = await acessoPost("/api/cadastros", { id: null, dados: {
+        tipo: v.tipo === "socio" ? "socio" : "colaborador", nome: v.nome, email: v.email, observacao: v.funcao || "" } });
     } else if ((ficha.email || "").toLowerCase() !== v.email.trim().toLowerCase()) {
-      await acessoPost("/api/cadastros", { id: ficha.id, dados: Object.assign({}, ficha, { email: v.email }) });
+      resultado = await acessoPost("/api/cadastros", { id: ficha.id, dados: Object.assign({}, ficha, { email: v.email }) });
     }
   } catch (err) { /* o convite saiu; a ficha fica para depois */ }
   await mostrarConviteCriado(v.nome, v.email, feito.link);
   await carregarAcessoDaEquipe();
   if (depois) depois();
-  return true;
+  return resultado || true;
 }
 
 async function mostrarConviteCriado(nome, email, link) {

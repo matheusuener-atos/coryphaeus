@@ -35,6 +35,7 @@ async function mostrarServicos(visao) {
     sv.contagem = d.contagem || {};
     sv.status = d.status || [];
     sv.clientes = d.clientes || [];
+    sv.acessoEquipe = d.acesso_da_equipe || {};
     if (b) sv.acervo = b.documentos || [];
     if (sv.visao === "trabalho") {
       if (s) sv.aberto = s;
@@ -777,29 +778,46 @@ setInterval(() => {
 async function dialogoDaEquipe() {
   const s = sv.aberto;
   if (!s) return;
-  const pessoas = sv.clientes.filter((c) => c.tipo === "colaborador" || c.tipo === "socio");
+  // So quem entra no PAULUS (conta ou convite em aberto) pode estar na
+  // equipe de um servico: e quem vai ver o servico de fora.
+  const daEquipe = sv.clientes.filter((c) => c.tipo === "colaborador" || c.tipo === "socio");
+  const acesso = sv.acessoEquipe || {};
   const equipe = s.equipe.map((p) => p.id);
+  const pessoas = daEquipe.filter((p) => acesso[p.id] || equipe.includes(p.id));
+  const semAcesso = daEquipe.filter((p) => !acesso[p.id] && !equipe.includes(p.id));
+  const podeConvidar = typeof convidarPessoa === "function" && (typeof acessoDeFora === "undefined" || acessoDeFora.local);
   const linha = (p) => {
     const classe = "sv-d-pessoa" + (equipe.includes(p.id) ? " on" : "");
     return '<button type="button" class="' + classe + '" data-sv-d-pessoa="' + p.id + '"><span class="marcar' + (equipe.includes(p.id) ? " on" : "") + '">' + ic("check", 12) + "</span>" +
       '<span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + '</span><span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
-      esc(p.observacao || (p.tipo === "socio" ? "sócio" : "colaborador")) + "</small></span></button>";
+      esc(p.observacao || (p.tipo === "socio" ? "sócio" : "colaborador")) +
+      (acesso[p.id] === "convidado" ? " · convite enviado" : (acesso[p.id] === "pendente" ? " · falta o autenticador" : (!acesso[p.id] ? " · sem acesso" : ""))) +
+      "</small></span></button>";
   };
   const lista = pessoas.length
     ? '<div class="sv-d-pessoas">' + pessoas.map(linha).join("") + "</div>"
-    : '<p class="dialogo-dica">Ninguém da equipe em Cadastros ainda — cadastre abaixo.</p>';
+    : '<p class="dialogo-dica">Ninguém da equipe entra no PAULUS ainda.' + (podeConvidar ? " Convide abaixo." : "") + "</p>";
   const html = '<div class="dialogo-campo"><label>Quem cuida deste serviço</label>' + lista +
     '<input type="hidden" id="sv-d-ids" data-dialogo-chave="equipe" value="' + equipe.join(",") + '"></div>' +
-    '<div class="sv-d-nova"><span class="rotulo">Cadastrar nova pessoa</span>' +
-    '<div class="dialogo-duas"><div class="dialogo-campo"><label for="sv-d-nome">Nome</label><div class="dialogo-caixa">' + ic("person_add", 18) +
-    '<input id="sv-d-nome" data-dialogo-chave="novo_nome" placeholder="Nome completo" autocomplete="off"></div></div>' +
-    '<div class="dialogo-campo"><label for="sv-d-tipo">Vínculo</label><div class="dialogo-caixa"><select id="sv-d-tipo" data-dialogo-chave="novo_tipo">' +
-    '<option value="colaborador">Colaborador</option><option value="socio">Sócio</option></select></div></div></div>' +
-    '<div class="dialogo-campo"><label for="sv-d-funcao">Função</label><div class="dialogo-caixa">' +
-    '<input id="sv-d-funcao" data-dialogo-chave="novo_funcao" placeholder="Advogada, estagiário, perito…" autocomplete="off"></div></div>' +
-    '<p class="dialogo-dica">Quem for cadastrado aqui entra em Cadastros e já na equipe.</p></div>';
+    '<p class="dialogo-dica">A equipe de um serviço é de quem entra no PAULUS: cada pessoa aqui vê este serviço de fora, com a própria conta.' +
+    (semAcesso.length ? " " + plural(semAcesso.length, "pessoa", "pessoas") + " de Cadastros › Equipe " + (semAcesso.length === 1 ? "ainda não tem" : "ainda não têm") +
+      " acesso: " + esc(semAcesso.map((p) => p.nome).join(", ")) + "." : "") + "</p>" +
+    (podeConvidar ? '<div class="cfg-botoes"><button type="button" class="com-icone" id="sv-d-convidar">' + ic("person_add", 16) + "Convidar alguém novo</button></div>" : "");
 
+  let convidado = null;
   setTimeout(() => {
+    const conv = document.getElementById("sv-d-convidar");
+    if (conv) conv.onclick = async () => {
+      // O convite cria a pessoa em Cadastros e ela ja entra na equipe.
+      if (dialogoAberto) dialogoAberto.fechar(null);
+      const ficha = await convidarPessoa(null);
+      if (ficha && ficha.id) {
+        sv.clientes.push({ id: ficha.id, nome: ficha.nome, tipo: ficha.tipo, observacao: ficha.observacao || "" });
+        sv.acessoEquipe = Object.assign({}, sv.acessoEquipe, { [ficha.id]: "convidado" });
+        convidado = ficha.id;
+        mudarEquipeDoServico(s.equipe.map((p) => p.id).concat([ficha.id]));
+      }
+    };
     const ids = document.getElementById("sv-d-ids");
     document.querySelectorAll("[data-sv-d-pessoa]").forEach((b) => {
       b.onclick = () => {
@@ -818,17 +836,9 @@ async function dialogoDaEquipe() {
     titulo: "Equipe do serviço", contexto: "Serviços › " + s.nome, classe: "dialogo-servico", larga: true,
     depois: html, confirmar: "Guardar equipe",
   });
-  if (!r || !r.ok) return;
+  if (!r || !r.ok || convidado) return;
   const v = r.valores || {};
   const ids = v.equipe ? v.equipe.split(",").map(Number) : [];
-  if (v.novo_nome) {
-    const criado = await fetch("/api/cadastros", { method: "POST", headers: SV_JSON, body: JSON.stringify({
-      id: null, dados: { nome: v.novo_nome, tipo: v.novo_tipo || "colaborador", observacao: v.novo_funcao || "" } }) });
-    if (!criado.ok) { avisoCert(await erroDe(criado)); return; }
-    const ficha = await criado.json();
-    sv.clientes.push({ id: ficha.id, nome: ficha.nome, tipo: ficha.tipo, observacao: ficha.observacao || "" });
-    ids.push(ficha.id);
-  }
   mudarEquipeDoServico(ids);
 }
 

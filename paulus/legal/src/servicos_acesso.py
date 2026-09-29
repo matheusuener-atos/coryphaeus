@@ -60,6 +60,34 @@ def cadastros_da_pessoa(base, emails: set[str]) -> set[int]:
     return {int(l["id"]) for l in linhas if str(l.get("email") or "").strip().lower() in emails}
 
 
+def acesso_da_equipe(base, contas, convites) -> dict[int, str]:
+    """
+    A equipe do escritorio e quem entra no PAULUS (pedido do dono, 29/09): para
+    cada ficha de Cadastros › Equipe, o estado do acesso - "titular", "ativo",
+    "pendente" (falta o autenticador) ou "convidado" (convite em aberto). Quem
+    nao aparece aqui nao tem acesso e nao entra na Equipe de um servico.
+    """
+    por_email: dict[str, str] = {}
+    try:
+        for c in contas.listar():
+            estado = "titular" if c.get("papel") == "titular" else ("ativo" if c.get("totp_confirmado") else "pendente")
+            for e in (c.get("email"), c.get("email_secundario")):
+                if e:
+                    por_email[str(e).strip().lower()] = estado
+    except Exception:  # noqa: BLE001 - sem o banco das contas, ninguem tem acesso
+        pass
+    try:
+        for x in convites.listar():
+            e = str(x.get("email") or "").strip().lower()
+            if e and x.get("estado") == "aberto" and e not in por_email:
+                por_email[e] = "convidado"
+    except Exception:  # noqa: BLE001
+        pass
+    linhas = base.buscar("SELECT id, email FROM cadastros WHERE tipo IN ('colaborador', 'socio')")
+    return {int(l["id"]): por_email[e] for l in linhas
+            if (e := str(l.get("email") or "").strip().lower()) in por_email}
+
+
 def participantes(equipe_json) -> set[int]:
     return {int(x) for x in _json(equipe_json, []) if str(x).lstrip("-").isdigit()}
 

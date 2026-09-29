@@ -198,10 +198,24 @@ def test_servicos(c: Cliente, criados: dict) -> None:
     st, cli = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "cliente", "nome": "Teste Servicos Cliente Ltda", "documento": "12.345.678/0001-95"}})
     checar(st == 200, "cliente de teste criado", (st, cli))
     criados["cadastros"].append(cli["id"])
-    st, pes = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "colaborador", "nome": "Teste Advogada", "observacao": "contratos"}})
+    st, pes = c.pedir("POST", "/api/cadastros", {"id": None, "dados": {"tipo": "colaborador", "nome": "Teste Advogada", "observacao": "contratos",
+                                                                    "email": "advogada@teste.com"}})
     criados["cadastros"].append(pes["id"])
+    # A equipe de um servico e de quem entra no PAULUS: a advogada ganha uma
+    # conta so para entrar na equipe. Este teste roda sobre os dados de
+    # desenvolvimento (data/), entao a conta sai logo depois - quem ja esta
+    # na equipe continua (a regra so barra quem entra novo).
+    import api
 
-    st, s = c.pedir("POST", "/api/servicos", {"id": None, "dados": {"nome": "Teste — Renovação", "cadastro_id": cli["id"], "descricao": "Aviso e aditivo.", "equipe": [pes["id"]]}})
+    contas = api.estado.acesso_de_fora.contas
+    conta = contas.criar("Teste Advogada", "advogada@teste.com", "colaborador", "senha-da-advogada-12")
+    try:
+        st, s = c.pedir("POST", "/api/servicos", {"id": None, "dados": {"nome": "Teste — Renovação", "cadastro_id": cli["id"], "descricao": "Aviso e aditivo.", "equipe": [pes["id"]]}})
+    finally:
+        # A primeira conta do escritorio vira titular, e o unico titular nao se
+        # remove pela regra: sai direto do banco, que e so de teste aqui.
+        with contas._db() as banco:
+            banco.execute("DELETE FROM contas WHERE id = ?", (conta["conta"]["id"],))
     checar(st == 200 and s["cliente_nome"].startswith("Teste Servicos"), "servico aberto com cliente", (st, s))
     sid = s["id"]
     criados["servicos"].append(sid)

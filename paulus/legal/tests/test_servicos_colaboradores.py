@@ -77,6 +77,11 @@ def test_http() -> None:
         return local.post("/api/cadastros", json={"id": None, "dados": {"tipo": tipo, "nome": nome, "email": email}}).json()["id"]
 
     try:
+        # A equipe de um servico e de quem entra no PAULUS: primeiro as contas
+        # (a primeira do escritorio e a do titular), depois as equipes.
+        f_tita = entrar("Mateus", "mateus@x.com", "titular")
+        f_sara = entrar("Sara", "sara@x.com", "colaborador")
+        f_joao = entrar("Joao", "joao@x.com", "colaborador")
         mateus = cad("Mateus", "mateus@x.com", "socio")
         sara = cad("Sara", "Sara@X.com")          # o e-mail da ficha casa sem olhar maiusculas
         joao = cad("João", "joao@x.com")
@@ -100,10 +105,19 @@ def test_http() -> None:
         gb = api.estado.base.escrever("INSERT INTO gravacoes (titulo, servico_id, criado_em) VALUES (?, ?, ?)",
                                       ("Gravação do B", b, agora))
 
-        # a primeira conta do escritorio e a do titular
-        f_tita = entrar("Mateus", "mateus@x.com", "titular")
-        f_sara = entrar("Sara", "sara@x.com", "colaborador")
-        f_joao = entrar("Joao", "joao@x.com", "colaborador")
+
+        print("  a equipe e de quem entra no PAULUS")
+        rui = cad("Rui", "rui@x.com")
+        r = local.post("/api/servicos", json={"id": a, "dados": {"nome": "Serviço A", "equipe": [mateus, sara, rui]}})
+        checar(r.status_code == 400 and "Rui" in r.json().get("detail", "") and "convide" in r.json().get("detail", ""),
+               "quem so esta em Cadastros (sem conta) nao entra na equipe", r.text[:200])
+        acesso = local.get("/api/servicos").json()["acesso_da_equipe"]
+        checar(acesso.get(str(sara)) == "ativo" and acesso.get(str(mateus)) == "titular" and str(rui) not in acesso,
+               "a tela sabe quem da equipe entra no PAULUS", acesso)
+        servico.convites.criar("Rui", "rui@x.com")
+        r = local.post("/api/servicos", json={"id": a, "dados": {"nome": "Serviço A", "equipe": [mateus, sara, rui]}})
+        checar(r.status_code == 200 and rui in [p["id"] for p in r.json()["equipe"]], "com o convite enviado, entra", r.text[:200])
+        local.post("/api/servicos", json={"id": a, "dados": {"nome": "Serviço A", "equipe": [mateus, sara]}})
 
         print("  a lista")
         nomes = lambda cli: sorted(s["nome"] for s in cli.get("/api/servicos").json()["servicos"])  # noqa: E731
