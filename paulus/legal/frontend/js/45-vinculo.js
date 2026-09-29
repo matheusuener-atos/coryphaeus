@@ -31,9 +31,9 @@ async function postVinculo(url, corpo) {
 
 /* Vai ao Google (o navegador abre) e acompanha ate voltar. `aoMudar` e quem
    redesenha (a trava, o passo do assistente, o cartao de Configuracoes). */
-async function entrarNoGoogleDoVinculo(finalidade, aoMudar) {
+async function entrarNoGoogleDoVinculo(finalidade, aoMudar, servicos) {
   vinc.aoMudar = aoMudar;
-  await postVinculo("/api/vinculo/entrar", { finalidade });
+  await postVinculo("/api/vinculo/entrar", { finalidade, servicos: Boolean(servicos) });
   aoMudar && aoMudar();
   clearInterval(vinc.relogio);
   vinc.relogio = setInterval(async () => {

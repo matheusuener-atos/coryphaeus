@@ -697,6 +697,7 @@ import vinculo as vinculo_mod  # noqa: E402
 
 estado.vinculo = vinculo_mod.Vinculo(estado.prefs, estado.acesso_de_fora.contas, lambda: _credenciais_oauth("google"))
 estado.acesso_de_fora.vinculo = estado.vinculo
+estado.vinculo.ligar_servicos = lambda tokens, email, nome: estado.contas.ligar_oauth("google", email, nome, tokens)
 vinculo_mod.montar(app, estado.vinculo)
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
                    travado=lambda: estado.vinculo.travado())

@@ -36,6 +36,8 @@ const bv = {
   // O Whisper das Gravacoes, escolhido no mesmo passo do modelo de IA e
   // baixado quando o assistente termina (/api/voz/baixar).
   voz: null, vozEscolhida: "",
+  // Vincular e ja conectar o Gmail, a Agenda e o Drive, num login so.
+  vincComServicos: true,
 };
 const ORDEM_CRIAR = ["boasvindas", "google", "dados", "escritorio", "acesso", "ia", "modulos", "conexoes", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
@@ -257,7 +259,9 @@ function passoGoogle() {
   const texto = "<h1>Vincule este PAULUS à sua conta Google.</h1>" +
     "<p>Este computador passa a ser o PAULUS do escritório, e a conta Google é a sua chave: ele abre travado e pede o Google a cada abertura. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
     infosBv([
-      "O Google só confirma quem é você: nenhum documento vai para ele.",
+      bv.vincComServicos
+        ? "Com o Gmail, a Agenda e o Drive: o PAULUS lê e escreve neles quando você pede, e o que sai passa por Aprovações. Os documentos do Acervo não vão para o Google."
+        : "O Google só confirma quem é você: nenhum documento vai para ele.",
       "Dá para manter aberto neste computador — e travar de novo quando quiser, em Configurações.",
       "O vínculo é exigido para ligar o acesso de fora e convidar a equipe. Dá para pular e vincular depois.",
     ]);
@@ -272,6 +276,9 @@ function passoGoogle() {
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div></div>';
   } else {
     lado = '<div class="bv-cartao"><span class="bv-rotulo">CONTA GOOGLE</span>' +
+      '<div class="bv-modulo" data-bv-servicos="1" role="switch" tabindex="0" aria-checked="' + Boolean(bv.vincComServicos) + '">' +
+      '<span class="duas-linhas"><b>Conectar também o Gmail, a Agenda e o Drive</b><small>desta mesma conta, no mesmo login · dá para desligar depois em E-mail › Contas</small></span>' +
+      '<span class="interruptor-min' + (bv.vincComServicos ? " on" : "") + '"></span></div>' +
       '<button type="button" class="trava-google" data-bv-google="1"' + (esperando || (e && !e.google) ? " disabled" : "") + ">" +
       (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</button>" +
       (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
@@ -603,7 +610,12 @@ function passoConexoes() {
   const ligado = Boolean(bv.google);
   const desc = ligado
     ? "Conectada · " + esc(bv.google) + " · a Agenda e o Drive se conectam em Configurações › Conexões"
-    : (bv.imap ? "Outro provedor: o PAULUS abre em E-mail › Contas ao terminar" : "Gmail · Agenda e Meet · Drive");
+    : (bv.imap ? "Outro provedor: o PAULUS abre em E-mail › Contas ao terminar"
+      // Vinculado so com a identidade: o Google pede as permissoes do Gmail,
+      // da Agenda e do Drive uma vez - por isso este login e outro.
+      : ((typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado)
+        ? "Vinculado a " + esc(vinc.estado.email) + " · falta autorizar o Gmail, a Agenda e o Drive dela (o Google pede essas permissões uma vez)"
+        : "Gmail · Agenda e Meet · Drive"));
   const lado = '<div class="bv-conta' + (ligado ? " on" : "") + '" data-bv="google" role="switch" tabindex="0" aria-checked="' + ligado + '">' +
     '<span class="bv-fabricante">' + eoMarca("google") + "</span>" +
     '<span class="duas-linhas"><b>Conta Google</b><small>' + desc + "</small></span>" +
@@ -728,16 +740,21 @@ function ligarBoasVindas() {
   caixa.querySelectorAll("[data-bv-google]").forEach((b) => {
     b.onclick = async () => {
       try {
-        await entrarNoGoogleDoVinculo("vincular", () => {
+        await entrarNoGoogleDoVinculo("vincular", async () => {
           const e = vinc.estado || {};
           if (e.vinculado) {
             bv.pessoa.email = e.email;
             if (!bv.pessoa.nome && e.nome) bv.pessoa.nome = e.nome;
+            // Com os servicos, a conta de e-mail ja existe: Conexoes aparece conectado.
+            if (bv.vincComServicos) await conferirContasBv();
           }
           if (passoBv() === "google") desenharBoasVindas();
-        });
+        }, bv.vincComServicos);
       } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     };
+  });
+  caixa.querySelectorAll("[data-bv-servicos]").forEach((m) => {
+    teclaAtiva(m, () => { bv.vincComServicos = !bv.vincComServicos; desenharBoasVindas(); });
   });
   caixa.querySelectorAll("[data-bv-manter]").forEach((m) => {
     teclaAtiva(m, async () => {

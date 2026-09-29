@@ -115,6 +115,20 @@ def test_http() -> None:
     checar(prefs["pessoa"].get("email") == "dona@gmail.com" and prefs["pessoa"].get("email_secundario") == "contato@escritorio.com",
            "o e-mail de Meus dados vira o do Google, e o antigo vai para o secundario", prefs["pessoa"])
 
+    print("  vincular e ja conectar o Gmail, a Agenda e o Drive, num login so")
+    ligados = []
+    antes_ligar = v.ligar_servicos
+    v.ligar_servicos = lambda tokens, email, nome: ligados.append(email)
+    try:
+        local.post("/api/vinculo/desvincular")
+        r = local.post("/api/vinculo/entrar", json={"finalidade": "vincular", "servicos": True})
+        esc = EntradaFalsa.kwargs.get("escopos", "")
+        checar(r.status_code == 200 and "https://mail.google.com/" in esc and "calendar.events" in esc and "drive.file" in esc
+               and not EntradaFalsa.kwargs.get("so_identidade"), "o mesmo login pede o Gmail, a Agenda e o Drive", esc)
+        checar(ligados == ["dona@gmail.com"] and r.json()["vinculado"], "e a conta de e-mail do escritorio nasce junto", ligados)
+    finally:
+        v.ligar_servicos = antes_ligar
+
     print("  travado")
     local.post("/api/vinculo/travar")
     r = local.get("/api/documentos")

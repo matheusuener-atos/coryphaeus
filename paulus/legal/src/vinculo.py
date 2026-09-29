@@ -29,6 +29,10 @@ from pydantic import BaseModel
 import correio_oauth
 
 ESCOPOS_IDENTIDADE = "openid email profile"
+# Vincular e ja conectar o Gmail, a Agenda e o Drive da mesma conta, num login
+# so (o Google pede as permissoes todas numa tela de consentimento).
+ESCOPOS_COM_SERVICOS = ("openid email profile https://mail.google.com/ https://www.googleapis.com/auth/calendar.events "
+                        "https://www.googleapis.com/auth/drive.file")
 
 
 class ErroVinculo(RuntimeError):
@@ -48,6 +52,10 @@ class Vinculo:
         self.finalidade = ""
         self.erro = ""
         self._conta_do_codigo = 0
+        # (tokens, email, nome) -> conta de e-mail do escritorio: o api.py liga,
+        # para o "vincular com os servicos" ja conectar o Gmail, a Agenda e o Drive.
+        self.ligar_servicos = None
+        self._com_servicos = False
 
     # ------------------------------------------------------------ estado
 
@@ -75,8 +83,12 @@ class Vinculo:
 
     # ------------------------------------------------------------ o login
 
-    def iniciar(self, finalidade: str) -> dict:
-        """Abre o navegador no login do Google: para vincular, ou para destravar."""
+    def iniciar(self, finalidade: str, servicos: bool = False) -> dict:
+        """
+        Abre o navegador no login do Google: para vincular, ou para destravar.
+        `servicos` (so ao vincular): o mesmo login ja conecta o Gmail, a Agenda
+        e o Drive dessa conta - sem um segundo login no passo Conexoes.
+        """
         if finalidade not in ("vincular", "destravar"):
             raise ErroVinculo("finalidade desconhecida")
         if finalidade == "vincular" and self.vinculado() and self.travado():
@@ -90,16 +102,23 @@ class Vinculo:
             self.erro = ""
             self._conta_do_codigo = 0
             self.finalidade = finalidade
+            self._com_servicos = bool(servicos and finalidade == "vincular" and self.ligar_servicos)
             try:
                 self.entrada = correio_oauth.Entrada(
-                    "google", credenciais, self._voltou, abrir=self.abrir, escopos=ESCOPOS_IDENTIDADE,
-                    so_identidade=True, login_hint=self.dados().get("email", "") if finalidade == "destravar" else "")
+                    "google", credenciais, self._voltou, abrir=self.abrir,
+                    escopos=ESCOPOS_COM_SERVICOS if self._com_servicos else ESCOPOS_IDENTIDADE,
+                    so_identidade=not self._com_servicos,
+                    login_hint=self.dados().get("email", "") if finalidade == "destravar" else "")
             except correio_oauth.ErroOAuth as exc:
                 raise ErroVinculo(str(exc)) from exc
         return self.entrada.iniciar()
 
     def _voltou(self, provedor: str, tokens: dict, email: str, nome: str) -> dict:
         email = str(email or "").strip().lower()
+        if self.finalidade == "vincular" and self._com_servicos:
+            # A mesma conta vira a conta de e-mail do escritorio, com a Agenda e
+            # o Drive (os escopos voltam juntos no token).
+            self.ligar_servicos(tokens, email, nome)
         if self.finalidade == "vincular":
             self.prefs.atualizar({"vinculo": {"email": email, "nome": nome,
                                               "em": time.strftime("%Y-%m-%dT%H:%M:%S")}})
@@ -182,6 +201,7 @@ def passa_travado(metodo: str, caminho: str) -> bool:
 
 class Pedido(BaseModel):
     finalidade: str = "destravar"
+    servicos: bool = False
 
 
 class Codigo(BaseModel):
@@ -208,7 +228,7 @@ def montar(app, vinculo: Vinculo) -> None:
     def vinculo_entrar(dados: Pedido, request: Request) -> dict:
         so_local(request)
         try:
-            vinculo.iniciar(dados.finalidade)
+            vinculo.iniciar(dados.finalidade, dados.servicos)
         except ErroVinculo as exc:
             falhar(exc)
         return vinculo.estado()
