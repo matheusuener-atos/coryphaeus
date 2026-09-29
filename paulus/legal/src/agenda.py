@@ -14,6 +14,8 @@ proprio dia, e a mesma resposta serve para agendar, sugerir e recusar horario.
 
 from __future__ import annotations
 
+import servicos_acesso
+
 from datetime import date, datetime, time, timedelta
 
 # Compromisso e o que se agenda - reuniao, videoconferencia, audiencia -, com
@@ -76,6 +78,8 @@ class Agenda:
             "WHERE c.data >= ? AND c.data <= ? ORDER BY c.data, c.hora",
             (de, ate),
         )
+        # Compromisso de servico fechado para a pessoa da vez nao aparece.
+        itens = [i for i in itens if servicos_acesso.visivel(i.get("servico_id"))]
         for i in itens:
             i["tipo_rotulo"] = TIPOS.get(i["tipo"], i["tipo"])
             i["onde_rotulo"] = ONDES.get(i["onde"], i["onde"])

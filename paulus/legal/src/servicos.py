@@ -24,6 +24,8 @@ Duas ligacoes com o resto do programa:
 
 from __future__ import annotations
 
+import servicos_acesso
+
 import json
 import re
 from datetime import date, datetime, timedelta
@@ -186,13 +188,18 @@ class Servicos:
             parametros += [like, like, like]
         sql += " ORDER BY (s.status = 'concluido'), s.atualizado_em DESC"
         itens = self.base.buscar(sql, tuple(parametros))
+        # De fora, so os servicos de que a pessoa participa (src/servicos_acesso.py).
+        itens = [s for s in itens if servicos_acesso.visivel(s["id"])]
         for s in itens:
             self._enfeitar(s)
         return itens
 
     def contagem(self) -> dict:
-        linhas = self.base.buscar("SELECT status, COUNT(*) AS n FROM servicos GROUP BY status")
-        por = {l["status"]: int(l["n"]) for l in linhas}
+        linhas = self.base.buscar("SELECT id, status FROM servicos")
+        por: dict[str, int] = {}
+        for l in linhas:
+            if servicos_acesso.visivel(l["id"]):
+                por[l["status"]] = por.get(l["status"], 0) + 1
         return {
             "andamento": por.get("andamento", 0) + por.get("revisao", 0),
             "aguardando": por.get("aguardando", 0),

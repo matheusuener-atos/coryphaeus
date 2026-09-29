@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from extract import Document
@@ -182,12 +183,21 @@ def chunk_estrutural(doc: Document) -> list[Chunk]:
     return saida
 
 
+# O que a pessoa da vez pode ver do Acervo (Servicos por colaborador,
+# src/servicos_acesso.py): um predicado sobre o caminho do arquivo, posto por
+# requisicao. Sem ele (a janela do servidor, o titular, as tarefas de fundo),
+# o Acervo inteiro.
+FILTRO: ContextVar = ContextVar("paulus_filtro_do_acervo", default=None)
+
+
 class ContractSearcher:
     """Indice BM25 sobre os trechos de todos os contratos carregados."""
 
-    def __init__(self, *, estrutural: bool = False, lexico=None) -> None:
-        self.chunks: list[Chunk] = []
-        self.documents: list[Document] = []
+    def __init__(self, *, estrutural: bool = False, lexico=None, filtravel: bool = False) -> None:
+        self._trechos: list[Chunk] = []
+        self._documentos: list[Document] = []
+        # So o Acervo e filtrado por pessoa; o material de consulta nao.
+        self.filtravel = filtravel
         self._bm25 = None
         self._termos: list[set[str]] = []
         # I5: trechos pela estrutura (clausula, secao, artigo) em vez de
@@ -199,11 +209,34 @@ class ContractSearcher:
         self.lexico = lexico
         self._pronto = False
 
+    # O que se le de fora passa pelo filtro da pessoa da vez; o indice por
+    # dentro (build, pontuacao) usa sempre a lista inteira.
+    def _filtro(self):
+        return FILTRO.get() if self.filtravel else None
+
+    @property
+    def documents(self) -> list[Document]:
+        f = self._filtro()
+        return self._documentos if f is None else [d for d in self._documentos if f(d.path)]
+
+    @documents.setter
+    def documents(self, valor: list[Document]) -> None:
+        self._documentos = valor
+
+    @property
+    def chunks(self) -> list[Chunk]:
+        f = self._filtro()
+        return self._trechos if f is None else [c for c in self._trechos if f(c.doc_path)]
+
+    @chunks.setter
+    def chunks(self, valor: list[Chunk]) -> None:
+        self._trechos = valor
+
     def add_contracts(self, docs: list[Document]) -> None:
-        self.documents.extend(docs)
+        self._documentos.extend(docs)
         fatiar = chunk_estrutural if self.estrutural else chunk_document
         for doc in docs:
-            self.chunks.extend(fatiar(doc))
+            self._trechos.extend(fatiar(doc))
         self._bm25 = None  # invalida o indice
         self._pronto = False
 
@@ -215,25 +248,25 @@ class ContractSearcher:
                 "rank-bm25 nao instalado. Rode: pip install -r requirements.txt"
             ) from exc
 
-        if not self.chunks:
+        if not self._trechos:
             self._bm25 = None
             self._pronto = False
             return
 
         # O texto com o caminho na frente, quando o trecho tem: "Contrato ACME >
         # CLAUSULA 9a" faz a busca achar a clausula pelo nome do documento.
-        corpus = [tokenize(c.text_embed or c.text) for c in self.chunks]
+        corpus = [tokenize(c.text_embed or c.text) for c in self._trechos]
         self._termos = [set(t) for t in corpus]
-        self._por_id = {c.chunk_id: i for i, c in enumerate(self.chunks) if c.chunk_id}
+        self._por_id = {c.chunk_id: i for i, c in enumerate(self._trechos) if c.chunk_id}
         if self._usa_lexico():
-            self.lexico.sincronizar(self.chunks)
+            self.lexico.sincronizar(self._trechos)
             self._pronto = True
             return
         self._bm25 = BM25Okapi(corpus)
         self._pronto = True
 
     def _usa_lexico(self) -> bool:
-        return self.lexico is not None and bool(self.chunks) and all(c.chunk_id for c in self.chunks)
+        return self.lexico is not None and bool(self._trechos) and all(c.chunk_id for c in self._trechos)
 
     def caracteres(self) -> int:
         """Quanto texto o acervo inteiro tem."""
@@ -309,7 +342,7 @@ class ContractSearcher:
 
         so = set(n for n in (documentos or []) if n)
         if self._usa_lexico():
-            scores = [0.0] * len(self.chunks)
+            scores = [0.0] * len(self._trechos)
             for cid, escore in self.lexico.buscar(query, max(50, top_k * 4), list(so)):
                 i = self._por_id.get(cid)
                 if i is not None:
@@ -317,7 +350,10 @@ class ContractSearcher:
         else:
             scores = list(self._bm25.get_scores(tokens))
             if so:
-                scores = [s if self.chunks[i].doc_name in so else 0.0 for i, s in enumerate(scores)]
+                scores = [s if self._trechos[i].doc_name in so else 0.0 for i, s in enumerate(scores)]
+        filtro = self._filtro()
+        if filtro is not None:
+            scores = [s if filtro(self._trechos[i].doc_path) else 0.0 for i, s in enumerate(scores)]
         hits: list[Hit] = []
         por_doc: dict[str, int] = {}
         usados: set[int] = set()
@@ -329,7 +365,7 @@ class ContractSearcher:
                     return
                 if pontuacoes[i] <= 0 or i in usados:
                     continue
-                chunk = self.chunks[i]
+                chunk = self._trechos[i]
                 if por_doc.get(chunk.doc_name, 0) >= per_doc_limit:
                     continue
                 por_doc[chunk.doc_name] = por_doc.get(chunk.doc_name, 0) + 1
@@ -345,7 +381,9 @@ class ContractSearcher:
         if len(hits) < top_k:
             presenca = self._scores_por_presenca(tokens)
             if so:
-                presenca = [s if self.chunks[i].doc_name in so else 0.0 for i, s in enumerate(presenca)]
+                presenca = [s if self._trechos[i].doc_name in so else 0.0 for i, s in enumerate(presenca)]
+            if filtro is not None:
+                presenca = [s if filtro(self._trechos[i].doc_path) else 0.0 for i, s in enumerate(presenca)]
             colher(presenca)
 
         return hits

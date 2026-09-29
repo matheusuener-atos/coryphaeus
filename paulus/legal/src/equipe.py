@@ -3,7 +3,9 @@ O PAULUS de equipe (docs/PLANO-EQUIPE.md): o programa roda no servidor do
 escritorio e cada colaborador entra pela internet com a propria conta.
 
 Os dados continuam do escritorio - todos veem tudo, por decisao do dono -,
-mas cada coisa diz quem a criou: a conversa (e, dentro dela, quem perguntou),
+com uma excecao: Servicos (29/09/2026), em que de fora cada pessoa so ve os
+servicos de cuja Equipe participa, e o que e deles (src/servicos_acesso.py).
+Cada coisa diz quem a criou: a conversa (e, dentro dela, quem perguntou),
 o documento, a gravacao. Quem esta de fora e a conta da sessao; quem esta na
 janela do servidor e a pessoa de "Meus dados".
 """

@@ -10,6 +10,8 @@ decidir o que fazer agora, que e a unica pergunta que essa tela responde.
 
 from __future__ import annotations
 
+import servicos_acesso
+
 from datetime import date, timedelta
 
 CAMPOS = ("titulo", "lista", "importante", "prazo", "hora", "cadastro_id", "anotacao",
@@ -97,6 +99,8 @@ class Tarefas:
         sql += " ORDER BY (prazo = '') ASC, prazo ASC, (hora = '') ASC, hora ASC, importante DESC, id DESC"
 
         tarefas = self.base.buscar(sql, tuple(parametros))
+        # Etapa de servico fechado para a pessoa da vez nao aparece (src/servicos_acesso.py).
+        tarefas = [t for t in tarefas if servicos_acesso.visivel(t.get("servico_id"))]
         for t in tarefas:
             t["etapas"] = self.etapas_de(t["id"])
             t["situacao"] = self._situacao(t)

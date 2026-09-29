@@ -306,15 +306,24 @@ function papelDaPessoa(p, i) {
   return i === 0 ? "responsável" + (funcao ? " · " + funcao : "") : funcao;
 }
 
+/* Quem define a Equipe - os colaboradores que veem o serviço de fora - é o
+   titular (ou a janela do servidor). De fora, o colaborador vê a Equipe, sem mudar. */
+function podeMudarEquipe() {
+  if (typeof acessoDeFora === "undefined" || acessoDeFora.local) return true;
+  return Boolean(acessoDeFora.pessoa && acessoDeFora.pessoa.papel === "titular");
+}
+
 function secaoDaEquipe(s) {
+  const pode = podeMudarEquipe();
   const redatores = s.equipe.map((p, i) =>
     '<button type="button" class="sv-redator" data-sv-redator="' + p.id + '">' +
     '<span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + "</span>" +
     '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(papelDaPessoa(p, i)) + "</small></span></button>").join("");
   return '<section class="sv-secao sv-equipe"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("group", 16) + 'Equipe</span>' +
-    '<button type="button" class="sv-ligacao" data-sv-pessoa="1">' + ic("person_add", 15) + "Adicionar pessoa</button></div>" +
+    (pode ? '<button type="button" class="sv-ligacao" data-sv-pessoa="1">' + ic("person_add", 15) + "Adicionar pessoa</button>" : "") + "</div>" +
     (redatores ? '<div class="sv-redatores">' + redatores + "</div>" : '<p class="sv-dica">Ninguém na equipe ainda. A primeira pessoa é a responsável.</p>') +
-    "</section>";
+    '<p class="sv-dica">Quem está na equipe vê este serviço de fora; quem não está, não vê — nem a pasta dele no Acervo.' +
+    (pode ? "" : " Quem muda a equipe é o titular.") + "</p></section>";
 }
 
 /* ------------------------------------------ o status para conclusão */
@@ -857,7 +866,7 @@ function menuDoResponsavel(botao, atual, aoEscolher) {
   const itens = equipe.map((p) => ({ rotulo: p.nome, atual: p.id === atual, acao: () => aoEscolher(p) }));
   if (equipe.length) itens.push("-");
   if (atual) itens.push({ rotulo: "Ninguém", acao: () => aoEscolher(null) });
-  itens.push({ rotulo: equipe.length ? "Outra pessoa…" : "Montar a equipe…", acao: () => dialogoDaEquipe() });
+  if (podeMudarEquipe()) itens.push({ rotulo: equipe.length ? "Outra pessoa…" : "Montar a equipe…", acao: () => dialogoDaEquipe() });
   menuNaLinha(botao, itens);
 }
 
@@ -1124,6 +1133,7 @@ function ligarServicos() {
 
 /* Uma pessoa da assinatura: passar a responsável, ou sair da equipe. */
 function menuDoRedator(botao, id) {
+  if (!podeMudarEquipe()) return;
   const ids = sv.aberto.equipe.map((p) => p.id);
   const itens = [];
   if (ids[0] !== id) itens.push({ rotulo: "Tornar responsável", acao: () => mudarEquipeDoServico([id].concat(ids.filter((x) => x !== id))) });

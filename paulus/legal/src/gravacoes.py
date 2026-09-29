@@ -11,6 +11,8 @@ fingir uma transcricao.
 
 from __future__ import annotations
 
+import servicos_acesso
+
 import json
 import re
 import shutil
@@ -95,6 +97,8 @@ class Gravacoes:
             parametros += [like] * 7
         sql += " ORDER BY g.criado_em DESC"
         itens = self.base.buscar(sql, tuple(parametros))
+        # Gravacao de servico fechado para a pessoa da vez nao aparece.
+        itens = [g for g in itens if servicos_acesso.visivel(g.get("servico_id"))]
         for g in itens:
             self._enfeitar(g, completo)
         return itens

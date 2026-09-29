@@ -137,6 +137,8 @@ from organize import (
 )
 from scan import escanear
 from search import ContractSearcher
+import search as search_mod
+import servicos_acesso
 
 BASE_DIR = Path(__file__).parent.parent
 # Onde ficam os dados desta instalacao. PAULUS_DADOS troca a pasta inteira -
@@ -216,7 +218,7 @@ class Estado:
     """Indice em memoria, compartilhado entre as requisicoes."""
 
     def __init__(self) -> None:
-        self.searcher = ContractSearcher()
+        self.searcher = ContractSearcher(filtravel=True)
         self.pasta = CONTRACTS_DIR
         # O indice e relido por muita gente (a vigia das pastas, anexar,
         # organizar): um de cada vez. `lendo` e o andamento para a tela, e a
@@ -614,6 +616,7 @@ class Estado:
             # lexico em disco (FTS5), incremental - chave `ia.lexico_fts`.
             ia = self.prefs.dados.get("ia") or {}
             searcher = ContractSearcher(
+                filtravel=True,
                 estrutural=bool(ia.get("trechos_estruturais", True)),
                 lexico=self.indice_lexico() if ia.get("lexico_fts", True) else None)
             searcher.add_contracts(docs)
@@ -705,6 +708,61 @@ estado.vinculo.situacao_de_fora = lambda: {k: estado.acesso_de_fora.situacao().g
 estado.vinculo.ao_confirmar = lambda token: estado.acesso_de_fora.conexao.informar_dono(token) \
     if getattr(estado.acesso_de_fora, "conexao", None) else None
 vinculo_mod.montar(app, estado.vinculo)
+
+
+class PortaDosServicos:
+    """
+    Servicos por colaborador (src/servicos_acesso.py). Por dentro do porteiro,
+    que ja sabe quem e a pessoa da vez: para quem entra de fora e nao e
+    titular, calcula os servicos que ela nao ve e (1) responde 404 a quem pede
+    um deles pelo endereco - servico, gravacao, tarefa ou compromisso dele -, e
+    (2) poe o filtro da requisicao: as listagens (servicos, tarefas, agenda,
+    gravacoes) e o Acervo (a pasta de cada servico fechado, tambem na busca e
+    no assistente) so devolvem o resto.
+    """
+
+    ITENS = (
+        (re.compile(r"^/api/servicos/(\d+)(?:/|$)"), None),
+        (re.compile(r"^/api/gravacoes/(\d+)(?:/|$)"), "SELECT servico_id FROM gravacoes WHERE id = ?"),
+        (re.compile(r"^/api/tarefas/(\d+)(?:/|$)"), "SELECT servico_id FROM tarefas WHERE id = ?"),
+        (re.compile(r"^/api/agenda/(\d+)(?:/|$)"), "SELECT servico_id FROM compromissos WHERE id = ?"),
+    )
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        sessao = equipe.pessoa_da_vez() if scope.get("type") == "http" else None
+        if not servicos_acesso.restrita(sessao):
+            await self.app(scope, receive, send)
+            return
+        fechados = servicos_acesso.ocultos(estado.base, estado.acesso_de_fora.contas, sessao)
+        caminho = scope.get("path", "")
+        for padrao, sql in self.ITENS:
+            m = padrao.match(caminho)
+            if not m:
+                continue
+            alvo = int(m.group(1))
+            if sql:
+                linha = estado.base.um(sql, (alvo,))
+                alvo = int((linha or {}).get("servico_id") or 0)
+            if alvo and alvo in fechados:
+                corpo = json.dumps({"detail": "não encontrado"}).encode("utf-8")
+                await send({"type": "http.response.start", "status": 404,
+                            "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(corpo)).encode())]})
+                await send({"type": "http.response.body", "body": corpo})
+                return
+        pastas = [p for p in (estado.servicos.pasta_de(i, criar=False) for i in fechados) if p]
+        f = search_mod.FILTRO.set(servicos_acesso.predicado_de_pastas(pastas))
+        o = servicos_acesso.OCULTOS.set(frozenset(fechados))
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            search_mod.FILTRO.reset(f)
+            servicos_acesso.OCULTOS.reset(o)
+
+
+app.add_middleware(PortaDosServicos)
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
                    travado=lambda: estado.vinculo.travado())
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
@@ -4128,6 +4186,10 @@ def agenda_dia(dia: str) -> dict:
 
 @app.post("/api/agenda")
 def agenda_salvar(payload: FichaCompromisso) -> dict:
+    if payload.id and servicos_acesso.OCULTOS.get():
+        c = estado.base.um("SELECT servico_id FROM compromissos WHERE id = ?", (payload.id,)) or {}
+        if not servicos_acesso.visivel(c.get("servico_id")):
+            raise HTTPException(status_code=404, detail="compromisso não encontrado")
     try:
         id_ = estado.agenda.salvar(payload.dados, payload.id)
     except ValueError as exc:
@@ -4592,6 +4654,10 @@ def tarefas_sugestoes() -> dict:
 
 @app.post("/api/tarefas")
 def tarefas_salvar(payload: FichaTarefa) -> dict:
+    if payload.id and servicos_acesso.OCULTOS.get():
+        t = estado.base.um("SELECT servico_id FROM tarefas WHERE id = ?", (payload.id,)) or {}
+        if not servicos_acesso.visivel(t.get("servico_id")):
+            raise HTTPException(status_code=404, detail="tarefa não encontrada")
     try:
         id_ = estado.tarefas.salvar(payload.dados, payload.id)
     except ValueError as exc:
@@ -9749,6 +9815,21 @@ def _sincronizar_pasta_do_servico(id_: int) -> Path | None:
 
 @app.post("/api/servicos")
 def servicos_salvar(payload: FichaServico) -> dict:
+    sessao = equipe.pessoa_da_vez()
+    if servicos_acesso.restrita(sessao):
+        if payload.id and not servicos_acesso.visivel(payload.id):
+            raise HTTPException(status_code=404, detail="serviço não encontrado")
+        # Quem define a Equipe (os colaboradores) e o titular. De fora, o
+        # colaborador mantem a que ja existe; o servico que ele cria nasce
+        # com ele na Equipe - senao sumiria da tela dele ao salvar.
+        dados = dict(payload.dados)
+        if payload.id:
+            atual = estado.base.um("SELECT equipe FROM servicos WHERE id = ?", (payload.id,)) or {}
+            dados["equipe"] = json.loads(atual.get("equipe") or "[]")
+        else:
+            dados["equipe"] = sorted(servicos_acesso.cadastros_da_pessoa(
+                estado.base, servicos_acesso.emails_da_pessoa(sessao, estado.acesso_de_fora.contas)))
+        payload = FichaServico(id=payload.id, dados=dados)
     antes = estado.servicos.pasta_de(payload.id, criar=False) if payload.id else None
     try:
         id_ = estado.servicos.salvar(payload.dados, payload.id)
