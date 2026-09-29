@@ -71,7 +71,7 @@ def _declarar(politica: str, *rotas: str) -> None:
 # --- a casca do programa e o login
 _declarar(PUBLICO,
           "GET /", "GET /css/{arquivo}", "GET /js/{arquivo}", "GET /img/{arquivo}", "GET /img/marcas/{arquivo}",
-          "GET /fontes.css", "GET /fontes/{arquivo}",
+          "GET /fontes.css", "GET /fontes/{arquivo}", "GET /favicon.ico",
           "GET /api/acesso/eu", "GET /api/acesso/entrar/config", "POST /api/acesso/entrar",
           "POST /api/acesso/entrar/codigo",
           # o convite (E4): quem foi convidado ainda nao tem conta
@@ -84,7 +84,7 @@ _declarar(PUBLICO,
 # (acesso-remoto/v0, R2). O resto da casca espera o login: toda rota /api/*
 # responde 401, e toda outra pagina e a tela de entrar.
 SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"),
-              ("GET", "/img/paulus-logo.png"), ("GET", "/img/paulus-icone.svg"),
+              ("GET", "/img/paulus-logo.png"), ("GET", "/img/paulus-icone.svg"), ("GET", "/favicon.ico"),
               ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
               ("POST", "/api/acesso/entrar/codigo"),
               # entrar com o Google (E3a): ir ao Google e voltar dele

@@ -471,7 +471,7 @@ function linhas(pares) {
 
 async function pagina(titulo, { rotulo, tom = "neutro", h1, texto = "", nota = "", painel = "", topo = DOMINIO }, status = 200, comTurnstile = false) {
   const html = `<!doctype html><html lang="pt-BR" data-tema="escuro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PAULUS — ${esc(titulo)}</title><link rel="icon" href="/favicon.ico">
+<title>PAULUS — ${esc(titulo)}</title><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" href="/assets/favicon-32.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Manrope:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap">
 <script>${SCRIPT_PAGINA}</script>
 ${comTurnstile ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=paulusRobo" async defer></script>' : ""}<style>

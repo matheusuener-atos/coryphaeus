@@ -870,6 +870,13 @@ def js_da_pagina(arquivo: str) -> FileResponse:
     return _arquivo_do_frontend("js", arquivo, "text/javascript")
 
 
+@app.get("/favicon.ico")
+def favicon() -> FileResponse:
+    # O navegador pede /favicon.ico por conta propria (a aba, o historico, a
+    # tela de entrar de fora): o mesmo "P" do programa, e nao a tela de entrar.
+    return FileResponse(FRONTEND_DIR / "img" / "paulus.ico", media_type="image/x-icon")
+
+
 @app.get("/fontes.css")
 def fontes_css() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "fontes.css", media_type="text/css")

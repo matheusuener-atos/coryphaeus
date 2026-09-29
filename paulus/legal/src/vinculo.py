@@ -239,7 +239,7 @@ ESTATICOS = ("/css/", "/js/", "/img/", "/fontes/", "/marca/")
 
 
 def passa_travado(metodo: str, caminho: str) -> bool:
-    if caminho == "/" or caminho == "/fontes.css" or caminho.startswith(ESTATICOS):
+    if caminho == "/" or caminho in ("/fontes.css", "/favicon.ico") or caminho.startswith(ESTATICOS):
         return metodo in ("GET", "HEAD")
     if caminho in ("/api/status", "/api/preferencias", "/api/acesso/eu"):
         return metodo in ("GET", "HEAD")

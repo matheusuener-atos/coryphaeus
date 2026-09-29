@@ -42,6 +42,7 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 PRAZO_LOGIN = 300          # segundos esperando a pessoa entrar no navegador
 TEMPO_REDE = 20            # segundos por chamada ao servidor de token
@@ -262,8 +263,22 @@ class Loopback:
                     self.send_response(204)
                     self.end_headers()
                     return
+                if partes.path == "/favicon.ico":
+                    # O "P" do programa na aba desta pagina.
+                    icone = Path(__file__).resolve().parent.parent / "frontend" / "img" / "paulus.ico"
+                    try:
+                        corpo = icone.read_bytes()
+                    except OSError:
+                        corpo = b""
+                    self.send_response(200 if corpo else 404)
+                    self.send_header("Content-Type", "image/x-icon")
+                    self.send_header("Content-Length", str(len(corpo)))
+                    self.send_header("Cache-Control", "max-age=86400")
+                    self.end_headers()
+                    self.wfile.write(corpo)
+                    return
                 if not state and not code and not erro:
-                    self._pagina(404, "expirado")            # favicon e afins
+                    self._pagina(404, "expirado")            # afins
                     return
                 if dono.encerrado or dono._chegou.is_set() or not certo:
                     dono.recusados += 1
