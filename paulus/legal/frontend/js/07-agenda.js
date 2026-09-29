@@ -323,8 +323,10 @@ function celulasDoMes() {
 
 async function carregarAgenda() {
   if (ag.visao === "tarefas") {
-    const d = await (await fetch("/api/tarefas?filtro=" + ag.tar.filtro +
+    const pubs = ag.tar.filtro === "publicacoes" && !ag.tar.lista;
+    const d = await (await fetch("/api/tarefas?filtro=" + (pubs ? "meu_dia" : ag.tar.filtro) +
       "&lista=" + encodeURIComponent(ag.tar.lista))).json();
+    if (typeof carregarPublicacoes === "function" && typeof pubLocal === "function" && pubLocal()) await carregarPublicacoes();
     Object.assign(ag.tar, { itens: d.tarefas, compromissos: d.compromissos || [], contagens: d.contagens, listas: d.listas,
                             clientes: d.clientes, repeticoes: d.repeticoes || [] });
     if (ag.tar.aberta && !ag.tar.itens.some((t) => t.id === ag.tar.aberta)) ag.tar.aberta = null;
@@ -534,6 +536,12 @@ function vistaTarefas() {
     return '<button class="' + classe + '" data-ag-filtro="' + f.id + '"><span class="ag-nome">' + f.rotulo + "</span>" +
       (f.id === "concluidas" ? "" : contaDaLista((c[f.id] || 0) + (somaComps[f.id] || 0), f.id === "importante")) + "</button>";
   });
+  // Publicacoes do DJEN (js/48-publicacoes.js): so na janela do servidor.
+  if (typeof pubLocal === "function" && pubLocal()) {
+    const novas = ((typeof pub !== "undefined" && pub.dados) || {}).novas || 0;
+    filtros.push('<button class="ag-lista-item' + (!ag.tar.lista && ag.tar.filtro === "publicacoes" ? " ativa" : "") +
+      '" data-ag-filtro="publicacoes"><span class="ag-nome">Publicações</span>' + contaDaLista(novas, true) + "</button>");
+  }
   /* "Atribuidas a mim" pede equipe, que so existe quando Cadastros tiver. */
   filtros.splice(3, 0, '<button class="ag-lista-item adiante" data-ag-adiante="1" title="Quando houver equipe em Cadastros">' +
     '<span class="ag-nome">Atribuídas a mim</span></button>');
@@ -573,7 +581,9 @@ function vistaTarefas() {
     '<div class="tabela-barra"><b>Tarefas e compromissos</b><span class="nota-barra">' +
     esc(ag.tar.lista || (f ? f.rotulo : "Tarefas")) + " · " +
     (ag.tar.filtro === "concluidas" ? plural(feitas.length, "concluída") : plural(nAbertas, "item", "itens")) + "</span>" +
-    '<span class="direita"><button data-ag-sugestoes="1" title="Datas que o assistente leu nos contratos abertos">' +
+    '<span class="direita"><button data-ag-calcular-prazo="1" title="Prazo processual em dias úteis, com feriados e recesso">' +
+    ic("schedule", 16) + "Calcular prazo</button>" +
+    '<button data-ag-sugestoes="1" title="Datas que o assistente leu nos contratos abertos">' +
     ic("auto_awesome", 16) + "Prazos lidos nos documentos</button></span></div>" +
     (ag.tar.escolhidas.size
       ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
@@ -582,6 +592,9 @@ function vistaTarefas() {
       : "") +
     '<div class="tabela-corpo">' + corpo + "</div></div>";
 
+  if (ag.tar.filtro === "publicacoes" && !ag.tar.lista && typeof vistaPublicacoes === "function") {
+    return '<div class="ag-tarefas">' + esquerda + vistaPublicacoes() + "</div>";
+  }
   return '<div class="ag-tarefas">' + esquerda + direita + "</div>";
 }
 
@@ -1217,6 +1230,8 @@ function ligarAgenda() {
   raiz.querySelectorAll("[data-ag-filtro]").forEach((b) => {
     b.onclick = () => { ag.tar.filtro = b.dataset.agFiltro; ag.tar.lista = ""; ag.tar.aberta = null; mostrarAgenda(); };
   });
+  if (typeof ligarPublicacoes === "function") ligarPublicacoes(raiz);
+  raiz.querySelectorAll("[data-ag-calcular-prazo]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); calcularPrazo(); }; });
   raiz.querySelectorAll("[data-ag-lista]").forEach((b) => {
     b.onclick = () => {
       ag.tar.lista = ag.tar.lista === b.dataset.agLista ? "" : b.dataset.agLista;

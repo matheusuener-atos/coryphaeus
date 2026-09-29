@@ -56,7 +56,7 @@ Tudo mora num computador só. Um disco perdido é o escritório perdido.
   500 com frase. Falha ao abrir mostra uma janela do Windows e fica em
   `logs/erro-ao-abrir.log`. Teste: `tests/test_saude.py`.
 
-## P3 — Prazos processuais e publicações · a fazer
+## P3 — Prazos processuais e publicações · feito (primeira versão)
 
 O que faz advogado trocar de ferramenta.
 
@@ -66,6 +66,14 @@ O que faz advogado trocar de ferramenta.
 - Publicações: consulta ao Diário de Justiça Eletrônico Nacional (DJEN, API
   pública do CNJ) pela OAB de cada advogado; cada intimação nova vira item
   para revisar, com o prazo sugerido.
+- Feito: `src/prazos.py` (dias úteis, art. 219/224/220, Lei 11.419 art. 4º,
+  feriados nacionais e móveis, feriados do escritório) e `src/publicacoes.py`
+  (API pública do DJEN, uma vez por dia, só número e UF da OAB saem). Em
+  Tarefas: o filtro "Publicações" (novas/lidas, "Criar prazo" com a conta na
+  anotação, OABs da equipe, feriados) e "Calcular prazo" na barra. Teste:
+  `tests/test_prazos_publicacoes.py`.
+- Falta: publicações e prazos de fora (hoje só na janela do servidor); ligar
+  a publicação ao serviço do processo; feriados por tribunal prontos.
 
 ## P4 — Horas e honorários por serviço · a fazer
 

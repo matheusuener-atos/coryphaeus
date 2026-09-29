@@ -239,6 +239,10 @@ _declarar(BLOQUEADO,
           "POST /api/acesso/energia/abrir-com-windows",
           # o menu do botao direito no Explorer deste computador
           "GET /api/explorer", "POST /api/explorer",
+          # prazos e publicacoes do DJEN (src/prazos.py, src/publicacoes.py): por ora, so no servidor
+          "POST /api/prazos/calcular", "GET /api/prazos/feriados", "POST /api/prazos/feriados",
+          "GET /api/publicacoes", "POST /api/publicacoes/configurar", "POST /api/publicacoes/consultar",
+          "POST /api/publicacoes/{id_}/lida", "POST /api/publicacoes/{id_}/prazo",
           # a saude do PAULUS e o diagnostico (src/saude.py)
           "GET /api/saude", "GET /api/saude/diagnostico",
           # backup e restauracao (src/backup.py): so na janela do servidor

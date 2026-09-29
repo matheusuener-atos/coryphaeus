@@ -316,6 +316,10 @@ class Estado:
             "aprovacao", "Aprovação pendente", f"{p.titulo} — espera a sua confirmação em Aprovações.")
         # Servicos: as pastas de trabalho (docs/ui, A15).
         self.servicos = servicos_mod.Servicos(self.base, _quem_sou, lambda: self.pasta)
+        # As publicacoes do DJEN pelas OABs acompanhadas (src/publicacoes.py).
+        import publicacoes as _pub
+
+        self.publicacoes = _pub.Publicacoes(self.base)
         # Gravacoes de audio, guardadas nesta maquina (docs/ui, A16).
         self.gravacoes = gravacoes_mod.Gravacoes(self.base, GRAVACOES_DIR)
         # Transcricao: o modelo de voz desta maquina e uma fila de fundo, um
@@ -680,6 +684,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=estado._vigiar, name="acervo-vigia", daemon=True).start()
     threading.Thread(target=_verificar_atualizacao_se_velha, name="atualizacao", daemon=True).start()
     threading.Thread(target=_backup_automatico, name="backup", daemon=True).start()
+    threading.Thread(target=_publicacoes_automatico, name="publicacoes", daemon=True).start()
     print(f"\n  PAULUS Legal - servidor em 127.0.0.1:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     # O acesso de fora ligado e conectado: o tunel sobe junto com o programa
@@ -9835,6 +9840,189 @@ def backup_reabrir() -> dict:
 
     threading.Thread(target=reabrir, name="reabrir", daemon=True).start()
     return {"ok": True}
+
+
+# ------------------------------------------------- prazos e publicacoes
+# Prazos em dias uteis (src/prazos.py) e as publicacoes do DJEN pelas OABs
+# acompanhadas (src/publicacoes.py) - docs/PLANO-PRODUTO.md, P3.
+
+import prazos as prazos_mod  # noqa: E402
+import publicacoes as publicacoes_mod  # noqa: E402
+
+_TRAVA_PUBLICACOES = threading.Lock()
+
+
+def _feriados_do_escritorio() -> dict:
+    return prazos_mod.extras_das_preferencias((estado.prefs.dados.get("prazos") or {}).get("feriados"))
+
+
+def _oabs_acompanhadas() -> list[dict]:
+    """A OAB de Meus dados e as que o escritorio acrescentou, sem repetir."""
+    p = estado.prefs.dados
+    lista = []
+    for texto in [(p.get("pessoa") or {}).get("oab", "")] + [str(x) for x in (p.get("publicacoes") or {}).get("oabs") or []]:
+        o = publicacoes_mod.ler_oab(texto)
+        if o and o not in lista:
+            lista.append(o)
+    return lista
+
+
+def _consultar_publicacoes() -> dict:
+    from datetime import date as _date
+
+    if not _TRAVA_PUBLICACOES.acquire(blocking=False):
+        raise publicacoes_mod.ErroPublicacoes("já há uma consulta em andamento")
+    try:
+        oabs = _oabs_acompanhadas()
+        if not oabs:
+            raise publicacoes_mod.ErroPublicacoes("diga a sua OAB em Meus dados (ou acrescente as da equipe) antes")
+        pp = estado.prefs.dados.get("publicacoes") or {}
+        de, ate = publicacoes_mod.periodo_para_consultar(pp.get("ultima", ""))
+        novas = 0
+        try:
+            for o in oabs:
+                itens = [publicacoes_mod.normalizar(i, o) for i in publicacoes_mod.consultar(o, de, ate)]
+                novas += estado.publicacoes.guardar(itens)
+        except publicacoes_mod.ErroPublicacoes as exc:
+            estado.prefs.atualizar({"publicacoes": {"ultimo_erro": str(exc)}})
+            raise
+        estado.prefs.atualizar({"publicacoes": {"ultima": _date.today().isoformat(), "ultimo_erro": ""}})
+        return {"novas": novas, "de": de.isoformat(), "ate": ate.isoformat(), "oabs": len(oabs)}
+    finally:
+        _TRAVA_PUBLICACOES.release()
+
+
+def _publicacoes_automatico() -> None:
+    """Uma vez por dia, com a consulta ligada: confere a cada hora."""
+    from datetime import date as _date
+
+    time.sleep(180)
+    while True:
+        try:
+            pp = estado.prefs.dados.get("publicacoes") or {}
+            if pp.get("ligado") and pp.get("ultima", "") != _date.today().isoformat():
+                _consultar_publicacoes()
+        except Exception:  # noqa: BLE001 - o erro fica em ultimo_erro
+            pass
+        time.sleep(3600)
+
+
+class CalculoDePrazo(BaseModel):
+    data: str
+    dias: int
+    origem: str = "intimacao"
+    uteis: bool = True
+
+
+class FeriadosDoEscritorio(BaseModel):
+    feriados: list[dict]
+
+
+class ConfigPublicacoes(BaseModel):
+    ligado: bool | None = None
+    oabs: list[str] | None = None
+
+
+class PrazoDaPublicacao(BaseModel):
+    dias: int = 15
+    uteis: bool = True
+    titulo: str = ""
+
+
+@app.post("/api/prazos/calcular")
+def prazos_calcular(dados: CalculoDePrazo) -> dict:
+    from datetime import date as _date
+
+    try:
+        return prazos_mod.calcular(_date.fromisoformat(dados.data), int(dados.dias), origem=dados.origem,
+                                   uteis=dados.uteis, extras=_feriados_do_escritorio())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc) if "prazo" in str(exc) else "data inválida") from exc
+
+
+@app.get("/api/prazos/feriados")
+def prazos_feriados() -> dict:
+    return {"feriados": (estado.prefs.dados.get("prazos") or {}).get("feriados") or []}
+
+
+@app.post("/api/prazos/feriados")
+def prazos_feriados_salvar(dados: FeriadosDoEscritorio) -> dict:
+    from datetime import date as _date
+
+    limpos = []
+    for f in dados.feriados[:300]:
+        try:
+            limpos.append({"data": _date.fromisoformat(str(f.get("data"))).isoformat(), "nome": str(f.get("nome") or "")[:80]})
+        except ValueError:
+            continue
+    estado.prefs.atualizar({"prazos": {"feriados": sorted(limpos, key=lambda x: x["data"])}})
+    return prazos_feriados()
+
+
+def _publicacoes_para_tela(filtro: str = "novas") -> dict:
+    pp = estado.prefs.dados.get("publicacoes") or {}
+    return {"publicacoes": estado.publicacoes.listar(filtro), "novas": estado.publicacoes.contar_novas(),
+            "ligado": bool(pp.get("ligado")), "oabs": [f"{o['uf']} {o['numero']}" for o in _oabs_acompanhadas()],
+            "oabs_extras": pp.get("oabs") or [], "ultima": pp.get("ultima", ""), "ultimo_erro": pp.get("ultimo_erro", "")}
+
+
+@app.get("/api/publicacoes")
+def publicacoes_ver(filtro: str = "novas") -> dict:
+    return _publicacoes_para_tela(filtro)
+
+
+@app.post("/api/publicacoes/configurar")
+def publicacoes_configurar(dados: ConfigPublicacoes) -> dict:
+    novo: dict = {}
+    if dados.ligado is not None:
+        novo["ligado"] = bool(dados.ligado)
+    if dados.oabs is not None:
+        ruins = [o for o in dados.oabs if o.strip() and not publicacoes_mod.ler_oab(o)]
+        if ruins:
+            raise HTTPException(status_code=400, detail="OAB que não entendi: " + ", ".join(ruins) + " (escreva como GO 12345)")
+        novo["oabs"] = [o.strip().upper() for o in dados.oabs if o.strip()][:30]
+    if novo:
+        estado.prefs.atualizar({"publicacoes": novo})
+    return _publicacoes_para_tela()
+
+
+@app.post("/api/publicacoes/consultar")
+def publicacoes_consultar() -> dict:
+    try:
+        feito = _consultar_publicacoes()
+    except publicacoes_mod.ErroPublicacoes as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {**_publicacoes_para_tela(), "encontradas": feito["novas"], "periodo": {"de": feito["de"], "ate": feito["ate"]}}
+
+
+@app.post("/api/publicacoes/{id_}/lida")
+def publicacoes_lida(id_: int, lida: bool = True) -> dict:
+    if not estado.publicacoes.obter(id_):
+        raise HTTPException(status_code=404, detail="publicação não encontrada")
+    estado.publicacoes.marcar(id_, lida)
+    return _publicacoes_para_tela()
+
+
+@app.post("/api/publicacoes/{id_}/prazo")
+def publicacoes_prazo(id_: int, dados: PrazoDaPublicacao) -> dict:
+    """O prazo sugerido pela data de disponibilizacao vira tarefa; a publicacao fica lida."""
+    from datetime import date as _date
+
+    pub = estado.publicacoes.obter(id_)
+    if not pub:
+        raise HTTPException(status_code=404, detail="publicação não encontrada")
+    try:
+        conta = prazos_mod.calcular(_date.fromisoformat(pub["data"]), int(dados.dias), origem="disponibilizacao",
+                                    uteis=dados.uteis, extras=_feriados_do_escritorio())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    titulo = dados.titulo.strip() or f"Prazo: {pub['tipo'] or 'intimação'} · {pub['processo']}"
+    anotacao = (f"{pub['tribunal']} · {pub['orgao']}\nProcesso {pub['processo']}\n"
+                f"Disponibilizado no DJEN em {pub['data']}\n\n" + "\n".join(conta["passos"]))
+    tid = estado.tarefas.salvar({"titulo": titulo[:200], "prazo": conta["vencimento"], "importante": True,
+                                 "lista": "Prazos", "anotacao": anotacao})
+    estado.publicacoes.marcar(id_, tarefa_id=tid)
+    return {"tarefa_id": tid, "conta": conta, **_publicacoes_para_tela()}
 
 
 # ------------------------------------------------------------------ saude

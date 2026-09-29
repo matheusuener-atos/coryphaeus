@@ -594,6 +594,31 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE gravacoes ADD COLUMN criado_por_conta INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        "024_publicacoes",
+        """
+        -- As comunicacoes do Diario de Justica Eletronico Nacional para as
+        -- OABs acompanhadas (src/publicacoes.py): cada uma uma vez (id do
+        -- DJEN), lida ou nao, e a tarefa de prazo que saiu dela.
+        CREATE TABLE publicacoes (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_externo  TEXT NOT NULL UNIQUE,
+            data        TEXT NOT NULL DEFAULT '',
+            tribunal    TEXT DEFAULT '',
+            tipo        TEXT DEFAULT '',
+            orgao       TEXT DEFAULT '',
+            classe      TEXT DEFAULT '',
+            processo    TEXT DEFAULT '',
+            texto       TEXT DEFAULT '',
+            link        TEXT DEFAULT '',
+            oab         TEXT DEFAULT '',
+            lida        INTEGER NOT NULL DEFAULT 0,
+            tarefa_id   INTEGER,
+            criada_em   TEXT NOT NULL
+        );
+        CREATE INDEX idx_publicacoes_lida ON publicacoes(lida, data);
+        """,
+    ),
 ]
 
 

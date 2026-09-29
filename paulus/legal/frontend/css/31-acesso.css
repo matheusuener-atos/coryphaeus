@@ -157,3 +157,23 @@
   .saude-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 10px 0; border-bottom: 1px solid var(--ink-a1); }
   .saude-valor { font-weight: 500; text-align: right; }
   .saude-dica { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); line-height: 1.5; }
+
+  /* Tarefas › Publicacoes (js/48-publicacoes.js): o DJEN, uma comunicacao por linha. */
+  .pub-aviso { margin: 10px 16px 0; }
+  .pub-opcoes { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; padding: 10px 16px;
+    border-bottom: 1px solid var(--ink-a1); }
+  .pub-opcoes .ag-toggle { flex: 0 1 320px; }
+  .pub-abas { display: flex; gap: 4px; }
+  .pub-abas button { border: 0; background: none; padding: 6px 10px; border-radius: 8px; color: var(--ink2); font: inherit; font-size: 13px; cursor: pointer; }
+  .pub-abas button.ativa { background: var(--fill2); color: var(--ink); }
+  .pub-item { border-bottom: 1px solid var(--ink-a1); }
+  .pub-item.lida .pub-cabeca b { font-weight: 500; color: var(--ink2); }
+  .pub-cabeca { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: 0; background: none; color: var(--ink);
+    text-align: left; font: inherit; cursor: pointer; }
+  .pub-cabeca:hover { background: var(--fill); }
+  .pub-cabeca .duas-linhas { flex: 1; min-width: 0; }
+  .pub-corpo { padding: 0 16px 14px; }
+  .pub-texto { margin: 0 0 12px; max-height: 320px; overflow: auto; font-size: 13.5px; line-height: 1.6; color: var(--ink2); white-space: normal; }
+  .pub-feriados { width: 100%; box-sizing: border-box; font: 13px var(--mono); padding: 10px; border: 1px solid var(--ink-a25); border-radius: 8px;
+    background: var(--bg); color: var(--ink); resize: vertical; }
+  .pub-seta-aberta { transform: rotate(180deg); }

@@ -116,6 +116,11 @@ PADRAO: dict = {
     # o Worker entrega na conexao. `liberado`: a frase de quando o endereco
     # foi liberado em paulus.ia.br (falta de uso) - a tela mostra ate conectar
     # de novo.
+    # Prazos e publicacoes (src/prazos.py, src/publicacoes.py): os feriados e
+    # suspensoes que o escritorio cadastrou, as OABs acompanhadas no DJEN
+    # (alem da de Meus dados) e a consulta diaria.
+    "prazos": {"feriados": []},
+    "publicacoes": {"ligado": False, "oabs": [], "ultima": "", "ultimo_erro": ""},
     # Backup (src/backup.py): a pasta, o automatico diario, quantos manter, e
     # a senha - guardada pela protecao de dados do Windows, nunca em texto.
     "backup": {"pasta": "", "automatico": True, "manter": 10, "senha": "", "ultimo": "", "ultimo_arquivo": "",
