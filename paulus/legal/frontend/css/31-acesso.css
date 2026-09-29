@@ -151,3 +151,9 @@
 
   /* Configurações › Backup (js/47-backup.js): uma linha por backup, com o Restaurar ao lado. */
   .bkp-linha { align-items: center; gap: 12px; }
+
+  /* Configurações › Desempenho › Saúde do PAULUS: cada item, o valor e o que fazer. */
+  .saude-lista { display: grid; gap: 2px; }
+  .saude-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 10px 0; border-bottom: 1px solid var(--ink-a1); }
+  .saude-valor { font-weight: 500; text-align: right; }
+  .saude-dica { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); line-height: 1.5; }

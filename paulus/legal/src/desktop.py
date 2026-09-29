@@ -512,6 +512,7 @@ def main() -> int:
 
     if not _esperar_servidor(porta):
         print(f"O servidor local nao subiu na porta {porta}.")
+        _avisar_falha_ao_abrir(f"o servidor local não subiu na porta {porta} (outro programa usando a porta, ou falta de memória)")
         return 1
     try:
         _instancia_path().parent.mkdir(parents=True, exist_ok=True)
@@ -573,5 +574,33 @@ def main() -> int:
     return 0
 
 
+def _avisar_falha_ao_abrir(texto: str) -> None:
+    """Sem console (pythonw), um erro ao abrir sumia calado: aqui ele aparece e fica anotado."""
+    try:
+        logs = _pasta_de_dados() / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        with open(logs / "erro-ao-abrir.log", "a", encoding="utf-8") as f:
+            f.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n" + texto + "\n\n")
+    except OSError:
+        pass
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(
+                None, "O PAULUS não conseguiu abrir.\n\n" + texto.strip().splitlines()[-1][:300] +
+                "\n\nO detalhe ficou em " + str(_pasta_de_dados() / "logs" / "erro-ao-abrir.log") +
+                ". Tente abrir de novo; se continuar, mande esse arquivo ao suporte.", "PAULUS", 0x10)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        codigo = main()
+    except Exception:  # noqa: BLE001 - qualquer erro ao abrir vira aviso visivel
+        import traceback
+
+        _avisar_falha_ao_abrir(traceback.format_exc())
+        codigo = 1
+    sys.exit(codigo)

@@ -130,6 +130,7 @@ async function carregarSecao() {
     cfg.ctx = ctx;
     cfg.material = material;
   } else if (cfg.secao === "desempenho") {
+    cfg.saude = await pega("/api/saude");
     cfg.recursos = await pega("/api/recursos");
   } else if (cfg.secao === "assistente") {
     const [voz, saber] = await Promise.all([pega("/api/voz"), pega("/api/inteligencia")]);
@@ -611,7 +612,22 @@ function mostrarResultadoDaImportacao(d) {
 /* --------------------------------------------------------- desempenho */
 
 function secaoDesempenho() {
-  return aberturaCfg() + cartaoDesempenho();
+  return aberturaCfg() + cartaoSaude() + cartaoDesempenho();
+}
+
+/* A saude do PAULUS (src/saude.py): o que pode estar atrapalhando agora, com
+   o que fazer, e o diagnostico para o suporte - sem dado de cliente. */
+function cartaoSaude() {
+  const s = cfg.saude;
+  if (!s || !s.itens) return "";
+  const tom = { ok: "ok", aviso: "acc", erro: "acc", neutro: "" };
+  const linhas = s.itens.map((i) =>
+    '<div class="saude-item"><span class="fin-meta-ponto ' + (tom[i.estado] || "") + '"><i></i>' + esc(i.rotulo) + "</span>" +
+    '<b class="saude-valor">' + esc(i.valor) + "</b>" + (i.dica ? '<small class="saude-dica">' + esc(i.dica) + "</small>" : "") + "</div>").join("");
+  const meta = s.geral === "ok" ? pontoCfg("tudo certo", "ok") : pontoCfg(s.geral === "erro" ? "precisa de atenção" : "com avisos", "acc");
+  return cartaoCfg("Saúde do PAULUS", meta, '<div class="saude-lista">' + linhas + "</div>" +
+    '<div class="cfg-botoes"><button class="com-icone" data-cfg-diagnostico="1">' + ic("download", 16) + "Gerar diagnóstico</button></div>" +
+    '<p class="cfg-explica">O diagnóstico é um arquivo de texto com a versão, o estado acima e os erros recentes — sem documentos, nomes de clientes nem conversas. Mande ao suporte se algo parar de funcionar.</p>');
 }
 
 /* O cartao que a medicao troca a cada dois segundos (#cfg-vivo). Disco e
@@ -1335,6 +1351,14 @@ function ligarConfig() {
       avisoCert(ligar ? "“Perguntar ao PAULUS” está no botão direito do Explorer" : "tirei o PAULUS do botão direito do Explorer", { tom: "ok" });
     } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     desenharConfig();
+  });
+  clique("[data-cfg-diagnostico]", () => {
+    const a = document.createElement("a");
+    a.href = "/api/saude/diagnostico";
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   });
   clique("[data-cfg-aviso-teste]", async (b) => {
     b.disabled = true;

@@ -239,6 +239,8 @@ _declarar(BLOQUEADO,
           "POST /api/acesso/energia/abrir-com-windows",
           # o menu do botao direito no Explorer deste computador
           "GET /api/explorer", "POST /api/explorer",
+          # a saude do PAULUS e o diagnostico (src/saude.py)
+          "GET /api/saude", "GET /api/saude/diagnostico",
           # backup e restauracao (src/backup.py): so na janela do servidor
           "GET /api/backup", "POST /api/backup/configurar", "POST /api/backup/agora", "POST /api/backup/listar",
           "POST /api/backup/restaurar", "POST /api/backup/restaurar/cancelar", "POST /api/backup/reabrir",

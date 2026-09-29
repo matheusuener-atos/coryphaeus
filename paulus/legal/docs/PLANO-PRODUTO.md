@@ -41,13 +41,20 @@ Tudo mora num computador só. Um disco perdido é o escritório perdido.
   antes guardados em `dados.antes-<data>`. Teste: `tests/test_backup.py`.
 - Falta: oferecer "tenho um backup" já no primeiro passo do assistente.
 
-## P2 — Saúde do PAULUS e diagnóstico · a fazer
+## P2 — Saúde do PAULUS e diagnóstico · feito
 
 - Tela "Saúde" em Configurações: memória livre, modelo carregado, túnel,
   último backup, versão, espaço em disco — com o que fazer em cada alerta.
 - "Gerar diagnóstico": um arquivo com versões, erros recentes e estado, sem
   documento nem dado de cliente, para o escritório mandar ao suporte.
 - Erro visível em vez de tela branca: a janela mostra o que falhou.
+- Feito: `src/saude.py` e o cartão "Saúde do PAULUS" em Configurações ›
+  Desempenho (memória, disco, modelo, backup, acesso de fora, entrar sem
+  internet, versão, erros de 24 h, cada um com o que fazer); "Gerar
+  diagnóstico" baixa um .txt sem dado de cliente (erros com o molde da rota,
+  o tipo e arquivo:linha, nunca a mensagem). Erro inesperado numa rota vira
+  500 com frase. Falha ao abrir mostra uma janela do Windows e fica em
+  `logs/erro-ao-abrir.log`. Teste: `tests/test_saude.py`.
 
 ## P3 — Prazos processuais e publicações · a fazer
 

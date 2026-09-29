@@ -35,7 +35,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 import requests
@@ -851,6 +851,21 @@ atexit.register(estado.acesso_de_fora.parar)
 def cabecalho_local() -> dict:
     """O cabecalho de quem fala com este servidor de dentro do mesmo processo (roteiro, testes)."""
     return estado.acesso.cabecalho()
+
+
+@app.exception_handler(Exception)
+async def _erro_inesperado(request: Request, exc: Exception):
+    """
+    O erro que escapou de uma rota: fica anotado para a Saude e o diagnostico
+    (src/saude.py - sem a mensagem, que pode trazer nome de cliente) e a tela
+    recebe uma frase, em vez de uma resposta vazia.
+    """
+    import saude
+
+    rota = getattr(request.scope.get("route"), "path", "") or request.url.path.split("?")[0]
+    saude.anotar_erro(f"{request.method} {rota}", exc)
+    return JSONResponse(status_code=500, content={
+        "detail": "algo deu errado no PAULUS ao fazer isso. Se continuar, gere o diagnóstico em Configurações › Desempenho"})
 
 
 @app.exception_handler(nomes_mod.NomeRepetido)
@@ -9820,6 +9835,49 @@ def backup_reabrir() -> dict:
 
     threading.Thread(target=reabrir, name="reabrir", daemon=True).start()
     return {"ok": True}
+
+
+# ------------------------------------------------------------------ saude
+# A saude do PAULUS e o diagnostico para o suporte (src/saude.py, P2). So na
+# janela do servidor.
+
+def _itens_de_saude() -> list[dict]:
+    import saude
+
+    try:
+        acesso = estado.acesso_de_fora.situacao()
+    except Exception:  # noqa: BLE001
+        acesso = {}
+    vinculo = getattr(estado, "vinculo", None)
+    return saude.verificar(
+        dados=DADOS_DIR, modelo_ok=check_ollama(estado.client.model), backup=_prefs_backup(), acesso=acesso,
+        sem_internet=vinculo.sem_internet() if vinculo is not None and vinculo.vinculado() else None,
+        anuncio=_anuncio(), versao=VERSAO)
+
+
+@app.get("/api/saude")
+def saude_ver() -> dict:
+    itens = _itens_de_saude()
+    pior = "erro" if any(i["estado"] == "erro" for i in itens) else ("aviso" if any(i["estado"] == "aviso" for i in itens) else "ok")
+    return {"itens": itens, "geral": pior}
+
+
+@app.get("/api/saude/diagnostico")
+def saude_diagnostico() -> Response:
+    """O arquivo que o escritorio manda ao suporte: estado e erros, sem dado de cliente."""
+    import saude
+
+    p = estado.prefs.dados
+    extras = {
+        "Acesso de fora": "ligado" if (p.get("acesso_remoto") or {}).get("ligado") else "desligado",
+        "Backup automático": "ligado" if (p.get("backup") or {}).get("automatico", True) else "desligado",
+        "Documentos no Acervo": len(estado.searcher.documents),
+        "Instalado": "sim" if os.environ.get("PAULUS_INSTALADO") else "não (código-fonte)",
+    }
+    texto = saude.diagnostico(_itens_de_saude(), versao=VERSAO, extras=extras)
+    nome = "PAULUS-diagnostico-" + time.strftime("%Y%m%d-%H%M") + ".txt"
+    return Response(texto.encode("utf-8"), media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{nome}"'})
 
 
 class LigarMenu(BaseModel):
