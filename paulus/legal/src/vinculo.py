@@ -232,6 +232,8 @@ class Vinculo:
     def cancelar(self) -> None:
         if self.entrada:
             self.entrada.cancelar()
+        # "Trocar", no passo do codigo: volta ao Google.
+        self._conta_do_codigo = 0
 
     # ------------------------------------------------------------ depois
 

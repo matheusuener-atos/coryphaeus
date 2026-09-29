@@ -30,12 +30,34 @@ FONTES = Path(__file__).resolve().parent.parent / "frontend" / "fontes"
 # O que cada permissao quer dizer, na lingua de quem usa. So aparecem as que
 # o provedor concedeu de fato (o `scope` da volta).
 PERMISSOES = [
-    ("mail.google.com", "email", "Gmail", "ler e enviar, com Aprovações"),
-    ("calendar.events", "agenda", "Agenda e Meet", "ler e criar eventos"),
-    ("drive.file", "pasta", "Drive", "só os arquivos que o PAVLVS envia"),
+    ("mail.google.com", "gmail", "Gmail", "ler e enviar, com Aprovações"),
+    ("calendar.events", "gagenda", "Agenda", "ler e criar eventos"),
+    ("calendar.events", "gmeet", "Meet", "criar reuniões nos eventos"),
+    ("drive.file", "gdrive", "Drive", "só os arquivos que o PAVLVS envia"),
     ("IMAP.AccessAsUser.All", "email", "E-mail do Outlook", "ler as mensagens"),
     ("SMTP.Send", "email", "Envio pelo Outlook", "enviar, passando por Aprovações"),
 ]
+
+MARCAS = {
+    "gmail": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M2 6.5V18a1.5 1.5 0 0 0 1.5 1.5H6.5V11l-4.5-4.5Z"/>'
+             '<path fill="#34A853" d="M17.5 19.5h3A1.5 1.5 0 0 0 22 18V6.5L17.5 11Z"/>'
+             '<path fill="#FBBC04" d="M17.5 5.5V11L22 6.5V5.3c0-1.3-1.5-2-2.5-1.3Z"/>'
+             '<path fill="#EA4335" d="M6.5 11V5.5L12 9.6l5.5-4.1V11L12 15.1Z"/>'
+             '<path fill="#C5221F" d="M2 5.3v1.2L6.5 11V5.5L4.5 4C3.5 3.3 2 4 2 5.3Z"/></svg>',
+    "gagenda": '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5" fill="#fff" stroke="#4285F4" stroke-width="2"/>'
+               '<path fill="#4285F4" d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5V8H3Z"/>'
+               '<text x="12" y="18" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="#1967D2">31</text></svg>',
+    "gmeet": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#00832D" d="M14 12l2.6 2.3 3.4 2.2V7.5l-3.4 2.2Z"/>'
+             '<path fill="#0066DA" d="M3 15.5v3A1.5 1.5 0 0 0 4.5 20h3v-4.5Z"/><path fill="#E94235" d="M7.5 4 3 8.5h4.5Z"/>'
+             '<path fill="#2684FC" d="M3 8.5h4.5v7H3Z"/><path fill="#00AC47" d="M15.5 16.3 14 12v5.5a1.5 1.5 0 0 1-1.5 1.5H7.5v-4.5h6.5Z"/>'
+             '<path fill="#FFBA00" d="M12.5 4h-5v4.5H14V5.5A1.5 1.5 0 0 0 12.5 4Z"/><path fill="#00832D" d="M7.5 8.5H14V12l-6.5 3.5Z"/></svg>',
+    "gdrive": '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#0066DA" d="m3.5 17.3.9 1.6c.2.3.5.6.8.7L8.3 14H2.1c0 .4.1.7.3 1Z"/>'
+              '<path fill="#00AC47" d="M12 8.2 8.9 2.8c-.3.2-.6.4-.8.7L2.4 13c-.2.3-.3.7-.3 1h6.2Z"/>'
+              '<path fill="#EA4335" d="M18.8 19.6c.3-.2.6-.4.8-.7l.4-.6 1.7-3c.2-.3.3-.7.3-1h-6.2l1.3 2.6Z"/>'
+              '<path fill="#00832D" d="M12 8.2 15.1 2.8c-.3-.2-.7-.3-1-.3H9.9c-.4 0-.7.1-1 .3Z"/>'
+              '<path fill="#2684FC" d="M15.7 14H8.3l-3.1 5.6c.3.2.7.3 1 .3h11.6c.4 0 .7-.1 1-.3Z"/>'
+              '<path fill="#FFBA00" d="m18.8 8.6-2.9-5c-.2-.3-.5-.6-.8-.8L12 8.2l3.7 5.8h6.2c0-.4-.1-.7-.3-1Z"/></svg>',
+}
 
 ICONES = {
     "email": '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M4 7l8 6 8-6"/></svg>',
@@ -80,9 +102,8 @@ def _permissoes(escopos: str) -> list[tuple[str, str, str]]:
 # rotulo, tom, titulo, texto, nota, dica
 TEXTOS = {
     "sucesso": ("CONECTADO", "ok", "Conta %%PROVEDOR%% conectada.",
-                "O login foi recebido. Em alguns segundos, e-mails, agenda e arquivos autorizados começam a aparecer no escritório. "
-                "O andamento fica em Configurações › Conexões.",
-                "Já pode fechar esta aba.", "ou feche esta aba"),
+                "Em alguns segundos, e-mails, agenda e arquivos autorizados começam a aparecer no escritório.",
+                "Nada dos seus documentos sai deste computador.", "ou feche esta aba"),
     # So quem e (o vinculo do PAVLVS, destravar): nenhuma permissao pedida.
     "entrou": ("LOGIN RECEBIDO", "ok", "Login recebido.",
                "O PAVLVS confere a sua conta em alguns segundos e segue de onde você estava.",
@@ -107,14 +128,14 @@ def pagina(estado: str, *, provedor: str = "Google", escopos: str = "", detalhe:
     marca = MICROSOFT if provedor.lower().startswith("micro") else GOOGLE
     painel = ""
     if estado == "sucesso":
-        painel = ('<div class="bloco"><span class="etiqueta">CONTA</span>'
+        painel = ('<div class="bloco conta-bloco"><span class="etiqueta">CONTA</span>'
                   f'<div class="conta"><span class="marca">{marca}</span><span class="email" id="email">conferindo a conta…</span>'
-                  '<span class="selo" id="selo">recebido</span></div>'
+                  '<span class="selo" id="selo"><i></i><span id="selo-texto">recebido</span></span></div>'
                   '<p class="falha" id="falha" hidden></p></div>')
         if perms:
             painel += ('<div class="linhas"><span class="etiqueta">O QUE VOCÊ AUTORIZOU</span>' + "".join(
-                f'<div class="linha"><span>{esc(nome)}</span><span class="d">{esc(desc)}</span></div>' for _i, nome, desc in perms)
-                + "</div>")
+                f'<div class="linha"><span class="servico">{MARCAS.get(icone, "")}{esc(nome)}</span><span class="d">{esc(desc)}</span></div>'
+                for icone, nome, desc in perms) + "</div>")
     elif detalhe:
         painel = f'<div class="bloco"><span class="etiqueta">DETALHE</span><span class="detalhe">{esc(detalhe)}</span></div>'
     tema = "claro" if tema == "claro" else "escuro"
@@ -127,6 +148,7 @@ def pagina(estado: str, *, provedor: str = "Google", escopos: str = "", detalhe:
             .replace("%%TEXTO%%", esc(texto))
             .replace("%%NOTA%%", esc(nota))
             .replace("%%PAINEL%%", painel)
+            .replace("%%PE%%", '<p class="forte">O andamento fica em Configurações › Conexões.</p>' if perms else "")
             .replace("%%DICA%%", esc(dica))
             .replace("%%PORTA%%", str(porta) if porta else "")
             .replace("%%PROVEDOR%%", esc(provedor))
@@ -165,26 +187,31 @@ gap:48px clamp(48px,8vw,112px);align-items:start}
 h1{margin:0;font:400 clamp(44px,6vw,68px)/1 'EB Garamond',Georgia,serif;letter-spacing:-.02em;text-wrap:balance}
 .texto p{margin:0;font-size:clamp(17px,1.8vw,19px);line-height:1.6;color:var(--ink2);text-wrap:pretty;max-width:460px}
 .nota{font:italic 400 19px 'EB Garamond',Georgia,serif;color:var(--ink3)}
-.painel{flex:1 1 360px;min-width:0;max-width:520px;border-left:1px solid var(--line);padding-left:clamp(24px,3vw,40px);display:grid;gap:22px}
+.painel{flex:1 1 360px;min-width:0;max-width:520px;border-left:1px solid var(--line);padding-left:clamp(24px,3vw,40px);display:grid;gap:48px}
 .bloco{display:grid;gap:8px}
 .etiqueta{font:400 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.14em;color:var(--ink3)}
-.conta{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.conta-bloco{padding-bottom:20px;border-bottom:1px solid var(--line)}
+.conta{display:flex;align-items:center;gap:12px}
 .marca{display:flex;flex:none}.marca svg{width:18px;height:18px}
 .email{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
-.selo{font-size:12px;color:var(--ink3);white-space:nowrap}.selo.ok{color:var(--ok)}.selo.erro{color:var(--erro)}
+.selo{display:flex;align-items:center;gap:6px;flex:none;font-size:12.5px;color:var(--ink3);white-space:nowrap}
+.selo i{display:block;width:6px;height:6px;border-radius:50%;background:currentColor}
+.selo.ok{color:var(--ok)}.selo.erro{color:var(--erro)}
 .falha{margin:0;font-size:13.5px;color:var(--erro)}
-.linhas{display:grid;gap:2px}.linhas .etiqueta{padding-bottom:6px}
-.linha{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
+.linhas{display:grid;gap:2px}.linhas .etiqueta{padding-bottom:10px}
+.linha{display:grid;grid-template-columns:160px minmax(0,1fr);gap:12px;padding:16px 0;border-bottom:1px solid var(--line);font-size:14px}
+.servico{display:inline-flex;align-items:center;gap:8px}.servico svg{width:16px;height:16px;flex:none}
 .linha .d{color:var(--ink2)}
 .detalhe{font:13.5px 'Fira Code',ui-monospace,monospace;color:var(--ink2);word-break:break-all;padding-bottom:14px;border-bottom:1px solid var(--line)}
-.acoes{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-top:4px}
+.acoes{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .voltar{height:36px;padding:0 16px;border-radius:999px;border:0;background:var(--btn);color:var(--btnt);font:600 13.5px 'Manrope',system-ui,sans-serif;
 cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .voltar:hover{opacity:.88}.voltar:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .voltar svg{width:16px;height:16px;fill:currentColor}
 .dica{font-size:12.5px;color:var(--ink3)}
-footer{border-top:1px solid var(--line);padding:24px clamp(20px,5vw,88px)}
-footer p{margin:0;max-width:720px;font-size:13px;line-height:1.65;color:var(--ink3);text-wrap:pretty}
+footer{border-top:1px solid var(--line);padding:24px clamp(20px,5vw,88px);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 48px}
+footer p{margin:0;max-width:520px;font-size:13px;line-height:1.65;color:var(--ink3);text-wrap:pretty}
+footer p.forte{color:var(--ink2)}
 @media (max-width:760px){.painel{border-left:0;padding-left:0;max-width:none}main{padding-top:40px}}
 </style>
 </head>
@@ -200,10 +227,10 @@ footer p{margin:0;max-width:720px;font-size:13px;line-height:1.65;color:var(--in
 </section>
 <section class="painel">
 %%PAINEL%%
-<div class="acoes"><button type="button" class="voltar" id="voltar">Voltar ao PAVLVS<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.2 13H4v-2h12.2l-5.6-5.6L12 4l8 8-8 8-1.4-1.4 5.6-5.6Z"/></svg></button><span class="dica">%%DICA%%</span></div>
+<div class="acoes"><button type="button" class="voltar" id="voltar">Voltar ao PAVLVS</button><span class="dica">%%DICA%%</span></div>
 </section>
 </main>
-<footer><p>Esta página é servida pelo próprio PAVLVS, neste computador. O %%PROVEDOR%% não recebe nada dos seus documentos.</p></footer>
+<footer>%%PE%%<p>Esta página é servida pelo próprio PAVLVS, neste computador.</p></footer>
 <script>
 (function () {
   var dados = %%DADOS%%;
@@ -226,11 +253,11 @@ footer p{margin:0;max-width:720px;font-size:13px;line-height:1.65;color:var(--in
   function perguntar() {
     tentativas += 1;
     fetch("/estado?state=" + encodeURIComponent(dados.state)).then(function (r) { return r.json(); }).then(function (d) {
-      var selo = document.getElementById("selo"), email = document.getElementById("email");
+      var selo = document.getElementById("selo"), texto = document.getElementById("selo-texto"), email = document.getElementById("email");
       if (d.email) email.textContent = d.email;
-      if (d.fase === "pronto") { selo.textContent = "conectado"; selo.className = "selo ok"; return; }
+      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; return; }
       if (d.fase === "erro" || d.fase === "cancelado") {
-        selo.textContent = "não conectado"; selo.className = "selo erro";
+        texto.textContent = "não conectado"; selo.className = "selo erro";
         var f = document.getElementById("falha"); f.hidden = false;
         f.textContent = "O PAULUS não terminou: " + (d.mensagem || "o login não foi concluído") + ". Volte ao PAULUS e tente de novo.";
         if (!d.email) email.textContent = "conta não confirmada";

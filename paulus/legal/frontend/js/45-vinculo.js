@@ -77,11 +77,19 @@ function desenharTrava() {
   const foraNoAr = Boolean(fora.ligado && fora.hostname);
   const saiu = e.saiu && !e.precisa_codigo;
   const conta = '<div class="trava-conta"><span class="trava-etiqueta">CONTA DESTE SERVIDOR</span><span class="trava-email">' + esc(e.email) + "</span></div>";
+  // O passo do codigo: o desenho "Confirmar codigo - servidor".
+  const recuperacao = Boolean(vinc.porRecuperacao);
   const entrar = e.precisa_codigo
-    ? '<form class="trava-form" id="trava-codigo">' + conta +
-      '<label class="trava-campo"><span class="trava-etiqueta">CÓDIGO DO CELULAR</span>' +
-      '<input id="trava-codigo-campo" inputmode="numeric" autocomplete="one-time-code" maxlength="9" placeholder="000000"></label>' +
-      '<p class="trava-erro" id="trava-erro"></p><button type="submit" class="trava-principal">Abrir o PAVLVS</button></form>'
+    ? '<form class="trava-form trava-form-codigo" id="trava-codigo">' +
+      '<div class="trava-conta"><span class="trava-etiqueta">CONTA</span><span class="trava-conta-linha">' + G_DO_GOOGLE +
+      '<span class="trava-email">' + esc(e.email) + '</span><button type="button" class="trava-link" id="trava-trocar">Trocar</button></span></div>' +
+      '<label class="trava-campo"><span class="trava-etiqueta">' + (recuperacao ? "CÓDIGO DE RECUPERAÇÃO" : "CÓDIGO DO CELULAR") + "</span>" +
+      '<input id="trava-codigo-campo"' + (recuperacao ? ' class="recuperacao" autocomplete="off" maxlength="9" placeholder="xxxx-xxxx"'
+        : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"') + "></label>" +
+      '<p class="trava-erro" id="trava-erro"></p>' +
+      '<div class="trava-acoes"><button type="submit" class="trava-principal">Abrir o PAVLVS</button>' +
+      '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o código do celular" : "Usar um código de recuperação") +
+      "</button></div></form>"
     : '<div class="trava-form">' + conta +
       '<div class="trava-acoes"><label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") +
       "><span>Manter aberto neste computador</span></label>" +
@@ -89,7 +97,7 @@ function desenharTrava() {
       (esperando ? "Esperando o Google…" : "Entrar com Google") + "</button>" +
       (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") + "</div>" +
       '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p></div>";
-  const enquanto = '<div class="trava-linhas"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
+  const enquanto = e.precisa_codigo ? "" : '<div class="trava-linhas"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
     '<div class="trava-linha"><span>Acesso de fora</span><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
     (foraNoAr ? "funcionando" : "desligado") + "</span></div>" +
     (foraNoAr ? '<div class="trava-linha"><span>Endereço</span><span class="trava-mono">' + esc(fora.hostname) + "</span></div>" : "") + "</div>";
@@ -98,7 +106,7 @@ function desenharTrava() {
     '<header class="trava-topo"><span class="trava-marca">PAVLVS</span><div class="trava-topo-dir"><span class="trava-selo">' +
     ic("desktop_windows", 16) + "servidor</span>" +
     '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 18) + "</button></div></header>" +
-    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo"><i></i>' +
+    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo' + (e.precisa_codigo ? " neutro" : "") + '"><i></i>' +
     (e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "SESSÃO ENCERRADA" : "ESCRITÓRIO TRAVADO") + "</span>" +
     "<h1>" + (e.precisa_codigo ? "Confirme que é você" : "Entre para abrir o escritório") + "</h1>" +
     "<p>" + (e.precisa_codigo ? "Digite o código de 6 dígitos que aparece no app autenticador do seu celular."
@@ -106,8 +114,11 @@ function desenharTrava() {
     '<span class="trava-nota">' + (e.precisa_codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos sai deste computador.") + "</span></section>" +
     '<section class="trava-painel">' + entrar + enquanto + "</section></main>" +
     '<footer class="trava-pe">' +
-    (foraNoAr ? '<p class="forte">A equipe continua entrando por esse endereço enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</p>' : "") +
-    "<p>Esta tela é servida pelo próprio PAVLVS, neste computador. Os documentos e o modelo de IA ficam aqui; o Google só confirma quem está entrando.</p></footer>";
+    (foraNoAr ? '<p class="forte">A equipe continua entrando por ' + (e.precisa_codigo ? esc(fora.hostname) : "esse endereço") +
+      " enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</p>" : "") +
+    (e.precisa_codigo ? "<p>Nada dos seus documentos sai deste computador.</p>"
+      : "<p>Esta tela é servida pelo próprio PAVLVS, neste computador. Os documentos e o modelo de IA ficam aqui; o Google só confirma quem está entrando.</p>") +
+    "</footer>";
   ligarTrava();
 }
 
@@ -123,6 +134,14 @@ function ligarTrava() {
     try { await entrarNoGoogleDoVinculo("destravar", aoMudarNaTrava); }
     catch (err) { const p = document.getElementById("trava-erro"); if (p) p.textContent = err.message; }
   };
+  const tr = document.getElementById("trava-trocar");
+  if (tr) tr.onclick = async () => {
+    vinc.porRecuperacao = false;
+    await postVinculo("/api/vinculo/cancelar").catch(() => {});
+    desenharTrava();
+  };
+  const rec = document.getElementById("trava-recuperacao");
+  if (rec) rec.onclick = () => { vinc.porRecuperacao = !vinc.porRecuperacao; desenharTrava(); };
   const c = document.getElementById("trava-cancelar");
   if (c) c.onclick = async () => { await postVinculo("/api/vinculo/cancelar").catch(() => {}); desenharTrava(); };
   const f = document.getElementById("trava-codigo");

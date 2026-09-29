@@ -19,6 +19,7 @@
   .trava-texto { flex: 1 1 380px; min-width: 0; display: grid; gap: 20px; }
   .trava-rotulo { display: flex; align-items: center; gap: 8px; font: 400 11px var(--mono); letter-spacing: .16em; color: var(--acc); }
   .trava-rotulo i { display: block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .trava-rotulo.neutro { color: var(--ink3); }
   .trava-texto h1 { margin: 0; font: 400 clamp(44px, 6vw, 68px)/1 var(--serif); letter-spacing: -.02em; text-wrap: balance; }
   .trava-texto p { margin: 0; font-size: clamp(17px, 1.8vw, 19px); line-height: 1.6; color: var(--ink2); max-width: 480px; text-wrap: pretty; }
   .trava-nota { font: italic 400 19px var(--serif); color: var(--ink3); }
@@ -48,12 +49,17 @@
   .trava-estado i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); flex: none; }
   .trava-estado.ok i { background: var(--verde); }
   .trava-mono { font: 400 13px var(--mono); word-break: break-all; }
-  .trava-campo { display: grid; gap: 4px; }
-  .trava-campo input { height: 64px; max-width: 100%; padding: 0; border: 0; border-bottom: 1px solid var(--ink-a25); background: transparent;
-    color: var(--ink); font: 400 32px var(--mono); letter-spacing: .4em; outline: none; border-radius: 0; }
+  .trava-form-codigo { gap: 28px; }
+  .trava-conta-linha { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .trava-conta-linha svg { flex: none; }
+  .trava-conta-linha .trava-email { flex: 1; }
+  .trava-campo { display: grid; gap: 12px; }
+  .trava-campo input { width: 100%; max-width: 320px; height: 64px; box-sizing: border-box; padding: 0; border: 0; border-bottom: 1px solid var(--ink-a25);
+    background: transparent; color: var(--ink); font: 500 34px var(--mono); letter-spacing: .42em; outline: none; border-radius: 0; }
+  .trava-campo input.recuperacao { font-size: 26px; letter-spacing: .18em; }
   .trava-campo input:focus { border-bottom-color: var(--ink); }
-  .trava-principal { justify-self: start; height: 36px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--ink); color: var(--bg);
-    font: 600 13.5px var(--sans); cursor: pointer; }
+  .trava-principal { justify-self: start; height: 40px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--ink); color: var(--bg);
+    font: 600 14px var(--sans); cursor: pointer; }
   .trava-principal:hover { opacity: .88; }
   .trava-pe { flex: none; border-top: 1px solid var(--ink-a1); padding: 24px clamp(20px, 5vw, 88px); display: flex; flex-wrap: wrap;
     justify-content: space-between; gap: 12px 48px; }
