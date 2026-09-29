@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.10",
+      "date": "2026-09-28",
+      "changes": [
+        "Um login só: vincular à conta Google já conecta o Gmail, a Agenda e o Drive dela"
+      ]
+    },
+    {
       "version": "0.9.9",
       "date": "2026-09-28",
       "changes": [

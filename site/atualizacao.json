@@ -1,12 +1,11 @@
 {
-  "versao": "0.9.9",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.9/PAULUS-0.9.9-instalador.exe",
-  "sha256": "a4e50bf444014b911d5e4ee1b0b984a69f06e5810d50f57bc9c459278c83da21",
-  "tamanho": 94542787,
+  "versao": "0.9.10",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.10/PAULUS-0.9.10-instalador.exe",
+  "sha256": "74685ec5764fba75db4eaa504ead05cbd45170f12d1bf581379c1af97dbc2038",
+  "tamanho": 94541327,
   "publicada": "2026-09-28",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.9",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.10",
   "novidades": [
-    "Cadastro unificado: a conta Google vinculada preenche Seus dados e a conta de titular",
-    "Conta de titular com o e-mail Google vinculado, sem pedir de novo; botões das lojas inteiros"
+    "Um login só: vincular à conta Google já conecta o Gmail, a Agenda e o Drive dela"
   ]
 }
