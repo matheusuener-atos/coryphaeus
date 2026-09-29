@@ -1,13 +1,12 @@
 {
-  "versao": "0.9.8",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.8/PAULUS-0.9.8-instalador.exe",
-  "sha256": "7bcc9a214c9e739d4603994ec79a075a6006d8c8f67244a61ebdab9abebfa36b",
-  "tamanho": 94533680,
+  "versao": "0.9.9",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.9/PAULUS-0.9.9-instalador.exe",
+  "sha256": "a4e50bf444014b911d5e4ee1b0b984a69f06e5810d50f57bc9c459278c83da21",
+  "tamanho": 94542787,
   "publicada": "2026-09-28",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.8",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.9",
   "novidades": [
-    "Assistente: o Whisper das Gravações escolhido junto com o modelo de IA",
-    "Equipe E5: o PAULUS do servidor vinculado à conta Google, travado a cada abertura",
-    "Toda entrada de fora é pelo Google (+ código do celular), sem volta para a senha"
+    "Cadastro unificado: a conta Google vinculada preenche Seus dados e a conta de titular",
+    "Conta de titular com o e-mail Google vinculado, sem pedir de novo; botões das lojas inteiros"
   ]
 }
