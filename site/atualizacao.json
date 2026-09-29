@@ -1,11 +1,11 @@
 {
-  "versao": "0.9.10",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.10/PAULUS-0.9.10-instalador.exe",
-  "sha256": "74685ec5764fba75db4eaa504ead05cbd45170f12d1bf581379c1af97dbc2038",
-  "tamanho": 94541327,
-  "publicada": "2026-09-28",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.10",
+  "versao": "0.9.11",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.11/PAULUS-0.9.11-instalador.exe",
+  "sha256": "4df4c3d65aa0a1578e5400215241ce00a5dc97bd1a4d6a1671f121a5394364df",
+  "tamanho": 94540873,
+  "publicada": "2026-09-29",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.11",
   "novidades": [
-    "Um login só: vincular à conta Google já conecta o Gmail, a Agenda e o Drive dela"
+    "Equipe num cadastro só, endereço do acesso de fora preso à conta Google, e as páginas no desenho novo"
   ]
 }

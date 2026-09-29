@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.11",
+      "date": "2026-09-29",
+      "changes": [
+        "Equipe num cadastro só, endereço do acesso de fora preso à conta Google, e as páginas no desenho novo"
+      ]
+    },
+    {
       "version": "0.9.10",
       "date": "2026-09-28",
       "changes": [
