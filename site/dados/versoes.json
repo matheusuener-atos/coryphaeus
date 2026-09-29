@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "0.9.14",
+      "date": "2026-09-29",
+      "changes": [
+        "Equipe e colaboradores numa coisa só: só entra na equipe quem entra no PAULUS",
+        "Serviços por colaborador: de fora, cada pessoa só vê os serviços de que participa"
+      ]
+    },
+    {
       "version": "0.9.13",
       "date": "2026-09-29",
       "changes": [
