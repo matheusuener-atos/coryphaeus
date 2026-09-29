@@ -1217,12 +1217,24 @@ async function comecarGravacao() {
     desenharGravacoes();
     return;
   }
+  // De fora, gravar pede o nivel "faz" em Gravacoes (acesso/permissoes.py):
+  // sem ele, o servidor recusaria o audio - melhor dizer antes de abrir o microfone.
+  if (typeof acessoDeFora !== "undefined" && !acessoDeFora.local) {
+    const g = (acessoDeFora.permissoes || []).find((m) => m.id === "gravacoes");
+    if (g && g.nivel !== "faz") {
+      v.erro = "Para gravar de fora, o titular precisa liberar Gravações para você (Configurações › Acesso de fora › Permissões).";
+      desenharGravacoes();
+      return;
+    }
+  }
   let fluxo;
   try {
     fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
     v.erro = err && err.name === "NotAllowedError"
-      ? "O microfone foi negado. Libere o microfone para o PAULUS nas permissões da janela e tente de novo."
+      ? (typeof acessoDeFora !== "undefined" && !acessoDeFora.local
+        ? "O navegador não liberou o microfone. Clique no cadeado ao lado do endereço, permita o microfone para este site e tente de novo."
+        : "O microfone foi negado. Libere o microfone para o PAULUS nas permissões da janela e tente de novo.")
       : (err && err.name === "NotFoundError" ? "Nenhum microfone encontrado nesta máquina." : "Não consegui abrir o microfone: " + (err && err.message ? err.message : err));
     desenharGravacoes();
     return;

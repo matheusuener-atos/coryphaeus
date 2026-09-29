@@ -311,6 +311,8 @@ def test_http() -> None:
         checar(h.get("x-frame-options") == "DENY" and h.get("referrer-policy") == "no-referrer"
                and h.get("x-content-type-options") == "nosniff" and "camera=()" in h.get("permissions-policy", ""),
                "X-Frame-Options, Referrer-Policy, nosniff e Permissions-Policy", dict(h))
+        checar("microphone=(self)" in h.get("permissions-policy", "") and "microphone=()" not in h.get("permissions-policy", ""),
+               "o microfone so para o proprio endereco (Gravacoes de fora): o navegador pergunta", h.get("permissions-policy"))
         for caminho in ("/api/status", "/api/acesso/contas", "/api/documentos", "/api/preferencias"):
             r = fora.get(caminho)
             checar(r.status_code == 401 and r.headers.get("x-paulus-sessao") == "acabou",

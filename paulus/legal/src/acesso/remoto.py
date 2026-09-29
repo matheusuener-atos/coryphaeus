@@ -77,7 +77,9 @@ def politica_de_conteudo() -> str:
             "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
-PERMISSOES = ("accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), "
+# O microfone so para o proprio endereco do escritorio (self): Gravacoes grava
+# de fora, e o navegador pergunta antes. Tudo o mais continua proibido.
+PERMISSOES = ("accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(self), "
               "payment=(), usb=(), interest-cohort=(), browsing-topics=()")
 
 
