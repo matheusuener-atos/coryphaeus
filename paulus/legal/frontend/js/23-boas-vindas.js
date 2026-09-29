@@ -183,7 +183,7 @@ function desenharBoasVindas() {
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0
       ? '<span class="bv-versao">PAULUS' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
-      : '<button class="bv-ligacao" data-bv="voltar">← Voltar</button>') +
+      : '<button class="bv-ligacao" data-bv="voltar">Voltar</button>') +
     '<span class="cresce"></span>' +
     (["dados", "modulos", "conexoes", "acesso", "google"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar">' + botao + "</button>") + "</div>";
