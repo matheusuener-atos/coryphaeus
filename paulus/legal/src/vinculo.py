@@ -14,11 +14,17 @@ uma chamada direta a API, com a chave da janela, tambem para ali.
 
 O login e o de aplicativo instalado (correio_oauth, com loopback em
 127.0.0.1), so com `openid email profile`: serve para saber QUEM e, nao para
-ler e-mail. Nada do vinculo sai desta maquina alem do login no Google.
+ler e-mail. Nada do vinculo sai desta maquina alem do login no Google - e do
+id_token (assinado pelo Google, vale 1 hora), que vai ao Worker de
+paulus.ia.br so para provar de que conta e o endereco do acesso de fora: e
+assim que a mesma conta retoma o endereco depois de reinstalar. Ele fica so
+na memoria.
 """
 
 from __future__ import annotations
 
+import base64
+import json
 import threading
 import time
 import webbrowser
@@ -27,6 +33,15 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
 import correio_oauth
+
+
+def _exp_do_id_token(token: str) -> float:
+    try:
+        meio = token.split(".")[1]
+        return float(json.loads(base64.urlsafe_b64decode(meio + "=" * (-len(meio) % 4))).get("exp") or 0)
+    except (IndexError, ValueError, TypeError):
+        return 0.0
+
 
 ESCOPOS_IDENTIDADE = "openid email profile"
 # Vincular e ja conectar o Gmail, a Agenda e o Drive da mesma conta, num login
@@ -56,6 +71,11 @@ class Vinculo:
         # para o "vincular com os servicos" ja conectar o Gmail, a Agenda e o Drive.
         self.ligar_servicos = None
         self._com_servicos = False
+        # O id_token do ultimo login desta conta (so em memoria) e quem quer
+        # saber dele: o acesso de fora diz ao Worker de que conta e o endereco.
+        self._id_token = ""
+        self._id_token_exp = 0.0
+        self.ao_confirmar = None
 
     # ------------------------------------------------------------ estado
 
@@ -79,7 +99,14 @@ class Vinculo:
             "fase": e.get("fase", ""), "mensagem": self.erro or e.get("mensagem", ""),
             "url": e.get("url", ""), "finalidade": self.finalidade,
             "precisa_codigo": bool(self._conta_do_codigo),
+            "google_recente": bool(self.id_token_valido()),
         }
+
+    def id_token_valido(self, margem: float = 120) -> str:
+        """O id_token da conta vinculada, se ainda vale por `margem` segundos; senao ""."""
+        if self._id_token and self._id_token_exp - self.relogio() > margem and self.vinculado():
+            return self._id_token
+        return ""
 
     # ------------------------------------------------------------ o login
 
@@ -89,10 +116,14 @@ class Vinculo:
         `servicos` (so ao vincular): o mesmo login ja conecta o Gmail, a Agenda
         e o Drive dessa conta - sem um segundo login no passo Conexoes.
         """
-        if finalidade not in ("vincular", "destravar"):
+        # "confirmar": entrar com a mesma conta so para ter um id_token novo
+        # (o acesso de fora pede, para o Worker saber de quem e o endereco).
+        if finalidade not in ("vincular", "destravar", "confirmar"):
             raise ErroVinculo("finalidade desconhecida")
         if finalidade == "vincular" and self.vinculado() and self.travado():
             raise ErroVinculo("destrave antes de trocar a conta vinculada")
+        if finalidade == "confirmar" and (not self.vinculado() or self.travado()):
+            raise ErroVinculo("este PAULUS não está vinculado a uma conta Google")
         if finalidade == "destravar" and not self.vinculado():
             raise ErroVinculo("este PAULUS não está vinculado a uma conta Google")
         credenciais = self.credenciais()
@@ -108,7 +139,7 @@ class Vinculo:
                     "google", credenciais, self._voltou, abrir=self.abrir,
                     escopos=ESCOPOS_COM_SERVICOS if self._com_servicos else ESCOPOS_IDENTIDADE,
                     so_identidade=not self._com_servicos,
-                    login_hint=self.dados().get("email", "") if finalidade == "destravar" else "")
+                    login_hint=self.dados().get("email", "") if finalidade in ("destravar", "confirmar") else "")
             except correio_oauth.ErroOAuth as exc:
                 raise ErroVinculo(str(exc)) from exc
         return self.entrada.iniciar()
@@ -135,10 +166,14 @@ class Vinculo:
                 novos["email_secundario"] = antigo
             self.prefs.atualizar({"pessoa": novos})
             self.destravado = True
+            self._guardar_id_token(tokens)
             return {"email": email, "nome": nome}
         esperado = str(self.dados().get("email") or "").lower()
         if email != esperado:
             raise correio_oauth.ErroOAuth(f"esta não é a conta Google deste PAULUS ({esperado}); entre com ela")
+        self._guardar_id_token(tokens)
+        if self.finalidade == "confirmar":
+            return {"email": email, "nome": nome}
         conta = self._conta_de_titular(email)
         if conta:
             # A conta de titular dessa pessoa tem o autenticador: o codigo do
@@ -147,6 +182,17 @@ class Vinculo:
         else:
             self.destravado = True
         return {"email": email, "nome": nome}
+
+    def _guardar_id_token(self, tokens: dict) -> None:
+        token = str((tokens or {}).get("id_token") or "")
+        if not token:
+            return
+        self._id_token, self._id_token_exp = token, _exp_do_id_token(token)
+        if self.ao_confirmar:
+            try:
+                self.ao_confirmar(token)
+            except Exception:  # noqa: BLE001 - avisar o Worker nao pode derrubar o login
+                pass
 
     def _conta_de_titular(self, email: str) -> dict | None:
         try:
@@ -183,6 +229,7 @@ class Vinculo:
             raise ErroVinculo("destrave antes")
         self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False}})
         self.destravado = False
+        self._id_token, self._id_token_exp = "", 0.0
 
 
 # O que passa com o PAULUS travado: a propria pagina (a tela de destravar e

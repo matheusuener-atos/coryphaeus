@@ -267,7 +267,7 @@ def test_pagina_de_volta() -> None:
     try:
         escopo = urllib.parse.quote("email https://mail.google.com/ https://www.googleapis.com/auth/drive.file openid")
         codigo, pagina = _pegar(base + f"?state=s1&code=c&scope={escopo}")
-        checar(codigo == 200 and "Pode fechar esta aba e voltar ao PAULUS." in pagina and "PAVLVS" in pagina,
+        checar(codigo == 200 and "Conta Google conectada." in pagina and "PAVLVS" in pagina,
                "sucesso: o titulo e a marca")
         checar("Gmail" in pagina and "Drive" in pagina and "Agenda e Meet" not in pagina,
                "mostra so as permissoes que o Google concedeu (o scope da volta)")

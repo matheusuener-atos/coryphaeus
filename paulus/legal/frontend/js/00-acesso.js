@@ -98,9 +98,9 @@ function quemCriou(nome, conta) {
     location.replace("/");
   }
 
-  /* De fora nao ha os botoes da janela do programa: no lugar deles, quem esta
-     usando - as iniciais, o nome e o papel, num botao que abre a conta - e o
-     Sair, so o icone. */
+  /* De fora nao ha os botoes da janela do programa: no lugar deles, o selo
+     EXTERNO e quem esta usando - o avatar de iniciais do programa, o nome e o
+     papel, num botao que abre a conta (o Sair mora la dentro). */
   function barraDeQuemEstaDeFora() {
     if (acessoDeFora.local || !acessoDeFora.pessoa) return;
     const barra = document.getElementById("barra-titulo");
@@ -110,15 +110,13 @@ function quemCriou(nome, conta) {
     el.className = "acesso-remoto-barra";
     el.id = "acesso-remoto-barra";
     el.innerHTML =
-      '<span class="acesso-de-fora-selo" title="Você está usando o PAULUS do escritório pela internet">' + ic("lan", 14) + "de fora</span>" +
+      '<span class="acesso-de-fora-selo" title="Você está usando o PAULUS do escritório pela internet">' + ic("lan", 14) + "externo</span>" +
       '<button type="button" class="acesso-conta-botao" data-minha-conta="1" title="Minha conta">' +
-      '<span class="acesso-iniciais">' + esc(iniciais(p.nome)) + "</span>" +
+      '<span class="cad-avatar">' + esc(iniciais(p.nome)) + "</span>" +
       '<span class="acesso-conta-nome">' + esc(p.nome) + "</span>" +
       '<span class="acesso-conta-papel">' + (p.papel === "titular" ? "titular" : "colaborador") + "</span>" +
-      ic("expand_more", 16) + "</button>" +
-      '<button type="button" class="acesso-sair" data-sair="1" title="Sair" aria-label="Sair">' + ic("logout", 16) + "</button>";
+      ic("expand_more", 16) + "</button>";
     el.querySelector("[data-minha-conta]").addEventListener("click", minhaContaDeFora);
-    el.querySelector("[data-sair]").addEventListener("click", (e) => { e.currentTarget.disabled = true; sair(); });
     barra.appendChild(el);
   }
 
@@ -133,7 +131,7 @@ function quemCriou(nome, conta) {
       '<span class="caixa-tipo">' + ic(icone, 18) + '</span><span class="duas-linhas"><b>' + titulo + "</b><small>" + sub + "</small></span>" +
       ic("chevron_right", 18) + "</button>";
     const html =
-      '<div class="conta-cabeca"><span class="acesso-iniciais grande">' + esc(iniciais(p.nome)) + "</span>" +
+      '<div class="conta-cabeca"><span class="cad-avatar">' + esc(iniciais(p.nome)) + "</span>" +
       '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + " · " + (titular ? "titular" : "colaborador") + "</small></span></div>" +
       '<div class="conta-acoes">' +
       (titular

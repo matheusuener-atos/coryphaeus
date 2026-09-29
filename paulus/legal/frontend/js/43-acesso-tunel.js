@@ -36,9 +36,12 @@ async function carregarTunel() {
     tunelCfg.dados = null;
   }
   const d = tunelCfg.dados;
-  // Enquanto a pessoa nao mexe no endereco, ele acompanha o nome do escritorio.
-  if (d && !conexaoUI.editado && d.sugestao && d.sugestao !== conexaoUI.slug) {
-    conexaoUI.slug = d.sugestao;
+  // O endereco que ja e desta conta Google (de antes de reinstalar) vem
+  // primeiro; senao, enquanto a pessoa nao mexe, ele acompanha o nome do
+  // escritorio.
+  const proposto = d && ((d.meus || [])[0] || {}).slug || (d && d.sugestao);
+  if (d && !conexaoUI.editado && proposto && proposto !== conexaoUI.slug) {
+    conexaoUI.slug = proposto;
     conexaoUI.disp = null;
     conexaoUI.perguntado = "";
   }
@@ -79,9 +82,11 @@ function textoDisponibilidade() {
   const x = conexaoUI.disp;
   if (!conexaoUI.slug) return ["", ""];
   if (!x || conexaoUI.perguntado !== conexaoUI.slug) return ["conferindo…", ""];
+  if (x.disponivel === true && x.retomar) return [ic("check_circle", 16) + "é seu — da sua conta Google; conectar o traz para este PAULUS", "ok"];
   if (x.disponivel === true) return [ic("check_circle", 16) + "disponível", "ok"];
   if (x.disponivel === null) return [ic("error", 16) + esc(x.motivo || "não consegui conferir agora"), "nao"];
   return [ic("close", 16) + esc(x.motivo || "indisponível") +
+    (x.confirmar_google ? ' · <button type="button" class="em-ligacao" data-cx-meu="1">é meu: entrar com o Google</button>' : "") +
     (x.sugestao ? ' · <button type="button" class="em-ligacao" data-cx-sugestao="' + esc(x.sugestao) + '">usar ' + esc(x.sugestao) + "</button>" : ""), "nao"];
 }
 
@@ -100,7 +105,7 @@ function blocoConexao() {
     ' autocapitalize="off" aria-label="Nome do endereço"' + (esperando ? " disabled" : "") + '><span class="acesso-dominio">.paulus.ia.br</span></div>' +
     '<p class="acesso-disp" data-tom="' + tom + '" id="cx-disp" role="status">' + (esperando ? "" : disp) + "</p>" +
     '<div class="acesso-final"><code id="cx-final">' + esc((slug || "…") + ".paulus.ia.br") + "</code>" +
-    "<small>você e a sua equipe entram por aqui</small></div>", false);
+    "<small>você e a sua equipe entram por aqui</small></div>" + blocoMeus(d, esperando), false);
 
   // 2. A conta do titular, com o autenticador.
   let conta;
@@ -173,7 +178,8 @@ function blocoConexao() {
   const erro = (d.conexao || {}).erro;
   let confirmar;
   if (esperando) {
-    confirmar = '<p class="cfg-texto">Abri <b>paulus.ia.br/conectar</b> no navegador. Confira se o navegador mostra este mesmo código e clique em Confirmar.</p>' +
+    confirmar = '<p class="cfg-texto">Abri <b>paulus.ia.br/conectar</b> no navegador. Confira se o navegador mostra este mesmo código e clique em Confirmar.' +
+      (pedido.retomar ? " O endereço é da sua conta Google: confirmando, ele passa para este PAULUS e o de antes deixa de atender." : "") + "</p>" +
       '<div class="acesso-codigo-usuario" aria-label="código">' + esc(pedido.codigo_usuario) + "</div>" +
       '<p class="cfg-explica">Vale até ' + esc(new Date(pedido.expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })) +
       ". Esta tela confere sozinha a cada 3 segundos.</p>" +
@@ -196,11 +202,46 @@ function blocoConexao() {
     const pronto = slugOk() && contaPronta && !faltas.length;
     confirmar = (faltas.length ? '<ul class="acesso-faltas">' + faltas.map((f) => "<li>" + esc(f) + "</li>").join("") + "</ul>" : "") +
       (erro ? '<p class="acesso-erro">' + esc(erro) + "</p>" : "") +
-      '<div class="acesso-pe"><button class="primario com-icone" data-cx-conectar="1"' + (pronto ? "" : " disabled") + ">" + ic("link", 16) + "Conectar</button>" +
-      '<p class="cfg-explica">O PAULUS abre o navegador em paulus.ia.br/conectar. Nada é criado antes de você confirmar lá.</p></div>';
+      '<div class="acesso-pe"><button class="primario com-icone" data-cx-conectar="1"' + (pronto ? "" : " disabled") + ">" + ic("link", 16) +
+      (conexaoUI.disp && conexaoUI.disp.retomar ? "Retomar o endereço" : "Conectar") + "</button>" +
+      '<p class="cfg-explica">O PAULUS abre o navegador em paulus.ia.br/conectar. Nada é criado antes de você confirmar lá.' +
+      (d.google_recente ? "" : " Antes, o Google confirma a sua conta: o endereço fica dela, e você o retoma se reinstalar.") + "</p></div>";
   }
   return '<div class="acesso-etapas">' + endereco + etapaConta +
     etapaConexao(3, "Confirmar no navegador", confirmar, pedido && pedido.estado === "concluido") + "</div>";
+}
+
+/* Os enderecos que ja sao desta conta Google (reinstalou, trocou de
+   computador): conectar um deles o traz para este PAULUS. */
+function blocoMeus(d, esperando) {
+  const meus = (d.meus || []).filter((m) => m.slug !== conexaoUI.slug);
+  if (esperando || !meus.length) return "";
+  return '<p class="cfg-explica">Da sua conta Google: ' + meus.map((m) =>
+    '<button type="button" class="em-ligacao" data-cx-sugestao="' + esc(m.slug) + '">' + esc(m.slug) + ".paulus.ia.br</button>").join(" · ") + "</p>";
+}
+
+/* Entrar de novo com a conta vinculada (o navegador abre) so para provar ao
+   Worker de quem e o endereco; volta e segue com `depois`. */
+async function confirmarComGoogle(depois) {
+  let feito = false;
+  try {
+    await entrarNoGoogleDoVinculo("confirmar", async () => {
+      const e = vinc.estado || {};
+      if (feito || e.finalidade !== "confirmar") return;
+      if (e.fase === "pronto") {
+        feito = true;
+        await carregarTunel();
+        conexaoUI.disp = null;
+        conexaoUI.perguntado = "";
+        if (depois) await depois();
+        else conexaoUI.redesenhar && conexaoUI.redesenhar();
+      } else if (e.fase === "erro" || e.fase === "cancelado") {
+        feito = true;
+        avisoCert(e.mensagem || "não deu para entrar com o Google", { tom: "erro" });
+      }
+    });
+    avisoCert("Entre com o Google no navegador que abriu (" + ((tunelCfg.dados || {}).vinculo || {}).email + ").");
+  } catch (err) { avisoCert(err.message, { tom: "erro" }); }
 }
 
 /* A disponibilidade, 400 ms depois da ultima tecla. So o texto e o botao
@@ -232,6 +273,8 @@ function atualizarSlugNaTela() {
     disp.dataset.tom = tom;
     const b = disp.querySelector("[data-cx-sugestao]");
     if (b) b.onclick = () => usarSlug(b.dataset.cxSugestao);
+    const meu = disp.querySelector("[data-cx-meu]");
+    if (meu) meu.onclick = () => confirmarComGoogle(() => { conexaoUI.redesenhar && conexaoUI.redesenhar(); });
   }
   const d = tunelCfg.dados || {};
   const faltas = (d.situacao || {}).cloudflared && !d.situacao.cloudflared.basta;
@@ -254,9 +297,14 @@ async function conectarTunel(deNovo) {
   const pedido = (d.conexao || {}).pedido;
   const slug = deNovo && pedido ? pedido.slug : conexaoUI.slug;
   const nome = deNovo && pedido ? pedido.nome : (d.escritorio || (typeof bv !== "undefined" && bv.escritorio) || "");
+  // O endereco nasce da conta Google: sem login recente, entrar antes.
+  if (!d.google_recente) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
   try {
     await acessoPost("/api/acesso/tunel/conectar", { nome: nome || slug, slug: slug });
-  } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+  } catch (err) {
+    if (/confirme com o Google/.test(err.message)) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
+    avisoCert(err.message, { tom: "erro" });
+  }
   await carregarTunel();
   conexaoUI.redesenhar && conexaoUI.redesenhar();
   acompanharTunel();
@@ -280,6 +328,7 @@ function ligarBlocoConexao(raiz) {
     if (conexaoUI.slug && conexaoUI.perguntado !== conexaoUI.slug && !slug.disabled) conferirSlug();
   }
   clique("[data-cx-sugestao]", (b) => usarSlug(b.dataset.cxSugestao));
+  clique("[data-cx-meu]", () => confirmarComGoogle(() => { redesenhar(); }));
   raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { i.oninput = () => { conexaoUI.conta[i.dataset.cxConta] = i.value; }; });
   clique("[data-cx-criar-conta]", async (b) => {
     const v = conexaoUI.conta;

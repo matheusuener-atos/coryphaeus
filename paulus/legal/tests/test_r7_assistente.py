@@ -83,15 +83,27 @@ class WorkerFalso:
         self.expira = False
         self.removido = False
 
-    def disponivel(self, nome, instalacao_id):
+    def disponivel(self, nome, instalacao_id, id_token=""):
         self.chamadas.append("disponivel")
-        if nome in self.tomados:
-            return {"disponivel": False, "motivo": "esse endereço já está em uso", "sugestao": nome + "-2"}
+        self.ultimo_token = id_token
+        if nome == "meu-antigo" and id_token:
+            return {"disponivel": True, "retomar": True, "motivo": "", "sugestao": ""}
+        if nome in self.tomados or nome == "meu-antigo":
+            return {"disponivel": False, "motivo": "esse endereço já está em uso", "sugestao": nome + "-2", "em_uso": True}
         return {"disponivel": True, "motivo": "", "sugestao": ""}
 
-    def iniciar(self, instalacao_id, nome_escritorio, slug, porta):
+    def meus(self, id_token):
+        self.chamadas.append("meus")
+        return {"email": "dono@x.com", "enderecos": [{"slug": "meu-antigo", "nome": "Moura", "ultima_conexao": None}]}
+
+    def dono(self, segredo, id_token):
+        self.chamadas.append("dono")
+        return {"ok": True}
+
+    def iniciar(self, instalacao_id, nome_escritorio, slug, porta, id_token=""):
         self.chamadas.append("iniciar")
-        self.iniciado = {"instalacao_id": instalacao_id, "nome": nome_escritorio, "slug": slug, "porta": porta}
+        self.iniciado = {"instalacao_id": instalacao_id, "nome": nome_escritorio, "slug": slug, "porta": porta,
+                         "id_token": id_token}
         self.consultas = 0
         return {"codigo_dispositivo": "d" * 64, "codigo_usuario": "ABCD-EFGH",
                 "url": "https://paulus.ia.br/conectar?c=ABCD-EFGH", "expira_em": "2026-09-28T12:00:00Z"}
@@ -216,6 +228,31 @@ def test_assistente() -> None:
                    json={"codigo": codigo_totp(criada["segredo"], int(time.time() // 30))})
     checar(r.status_code == 200 and local.get("/api/acesso/tunel").json()["titular_pronto"], "confere um codigo: pronta")
 
+    print("  a conta Google prova de quem e o endereco")
+    r = local.post("/api/acesso/tunel/conectar", json={"nome": "Moura & Associados Advocacia", "slug": "moura-associados"})
+    checar(r.status_code == 428 and "Google" in r.json().get("detail", ""), "sem login recente no Google: 428, entrar antes",
+           r.text[:160])
+    checar("iniciar" not in worker.chamadas, "e nao pede nada ao Worker")
+    r = local.get("/api/acesso/tunel/disponivel", params={"nome": "meu-antigo"}).json()
+    checar(r["disponivel"] is False and r.get("confirmar_google") is True, "em uso, sem Google: a tela oferece “é meu”", r)
+    import base64 as _b64
+    import json as _json
+    meio = _b64.urlsafe_b64encode(_json.dumps({"exp": time.time() + 3600}).encode()).decode().rstrip("=")
+    token = "cab." + meio + ".ass"
+    avisados = []
+    conexao.informar_dono = avisados.append
+    api.estado.vinculo._guardar_id_token({"id_token": token})
+    checar(avisados == [token], "o login do Google avisa a conexao (para dizer ao Worker de quem e)")
+    del conexao.informar_dono
+    d = local.get("/api/acesso/tunel").json()
+    checar(d["google_recente"] is True and d["meus"][0]["slug"] == "meu-antigo", "com o Google: os enderecos desta conta", d.get("meus"))
+    r = local.get("/api/acesso/tunel/disponivel", params={"nome": "meu-antigo"}).json()
+    checar(r["disponivel"] is True and r.get("retomar") is True and worker.ultimo_token == token,
+           "o endereco da propria conta: retomar (o id_token vai ao Worker)", r)
+    api.estado.vinculo._id_token_exp = time.time() + 60
+    checar(not local.get("/api/acesso/tunel").json()["google_recente"], "id_token perto de vencer nao vale")
+    api.estado.vinculo._id_token_exp = time.time() + 3600
+
     print("  codigo expirado")
     worker.expira = True
     r = local.post("/api/acesso/tunel/conectar", json={"nome": "Moura & Associados Advocacia", "slug": "moura-associados"})
@@ -240,6 +277,7 @@ def test_assistente() -> None:
     checar(47000 <= worker.iniciado["porta"] <= 47999, "a porta fixa entre 47000 e 47999", worker.iniciado["porta"])
     checar(worker.iniciado["nome"] == "Moura & Associados Advocacia" and worker.iniciado["instalacao_id"],
            "vai o nome do escritorio e a instalacao", worker.iniciado)
+    checar(worker.iniciado["id_token"] == token, "e o id_token da conta vinculada")
     checar(esperar(lambda: (conexao.andamento()["pedido"] or {}).get("estado") == "concluido", 10),
            "pendente, pendente, pronto: concluido", conexao.andamento())
     prefs = api.estado.prefs.dados["acesso_remoto"]

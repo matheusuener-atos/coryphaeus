@@ -33,9 +33,24 @@ let seq = 0;
 const ok = (result) => new Response(JSON.stringify({ success: true, errors: [], messages: [], result }), { status: 200 });
 const erro = (msg) => new Response(JSON.stringify({ success: false, errors: [{ message: msg }], result: null }), { status: 400 });
 
+// O Google de mentira: um par de chaves RSA deste teste assina os id_tokens,
+// e a chave publica sai em /oauth2/v3/certs, como a do Google.
+const parGoogle = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
+const jwkGoogle = { ...(await crypto.subtle.exportKey("jwk", parGoogle.publicKey)), kid: "chave-1", use: "sig", alg: "RS256" };
+const CLIENTE = "cliente-desktop.apps.googleusercontent.com";
+const b64 = (x) => Buffer.from(typeof x === "string" ? x : JSON.stringify(x)).toString("base64url");
+async function idToken(campos = {}, { chave = parGoogle.privateKey, kid = "chave-1" } = {}) {
+  const info = { iss: "https://accounts.google.com", aud: CLIENTE, sub: "111", email: "Dono@Gmail.com", email_verified: true,
+    exp: Math.floor(Date.now() / 1000) + 3600, ...campos };
+  const corpo = b64({ alg: "RS256", kid, typ: "JWT" }) + "." + b64(info);
+  const ass = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", chave, new TextEncoder().encode(corpo));
+  return corpo + "." + Buffer.from(ass).toString("base64url");
+}
+
 globalThis.fetch = async (url, opcoes = {}) => {
   const u = String(url);
   const metodo = (opcoes.method || "GET").toUpperCase();
+  if (u === "https://www.googleapis.com/oauth2/v3/certs") return new Response(JSON.stringify({ keys: [jwkGoogle] }));
   if (u === "https://challenges.cloudflare.com/turnstile/v0/siteverify") {
     const corpo = new URLSearchParams(String(opcoes.body));
     const token = corpo.get("response") || "";
@@ -289,6 +304,78 @@ console.log("\na volta do Google (entrar com o Google, E3a)");
   checar((await chamar("code=x&state=..%2Fevil.com~xyz")).status === 400, "slug fora da regra: 400");
   const e = await chamar("error=access_denied&state=segundo-escritorio~xyz");
   checar(e.status === 302 && (e.headers.get("location") || "").includes("error=access_denied"), "cancelado no Google: repassa o erro");
+}
+
+console.log("\no endereço é da conta Google (retomar depois de reinstalar)");
+{
+  const envD = ambiente({ GOOGLE_CLIENT_IDS: "outro-cliente, " + CLIENTE, MAX_ESCRITORIOS: "20" });
+  const token = await idToken();
+  const iniciarCom = async (slug, instalacao, id_token) => {
+    const r = await pedir(envD, "/api/tunel/iniciar", { metodo: "POST", corpo: { instalacao_id: instalacao, nome_escritorio: "Uener Advocacia", slug, porta: 47123, id_token } });
+    return { status: r.status, dados: await lerResposta(r) };
+  };
+  const conectarCom = async (slug, instalacao, id_token) => {
+    const i = await iniciarCom(slug, instalacao, id_token);
+    const pag = await (await pedir(envD, "/conectar?c=" + i.dados.codigo_usuario)).text();
+    await confirmar(envD, i.dados.codigo_usuario, "ok:paulus.ia.br");
+    const e = await (await pedir(envD, "/api/tunel/estado", { metodo: "POST", corpo: { codigo_dispositivo: i.dados.codigo_dispositivo } })).json();
+    return { i, pag, e };
+  };
+  const a = await conectarCom("uener", "inst-aaaaaaaa", token);
+  const reg = JSON.parse(envD.ESCRITORIOS.m.get("escritorio:uener"));
+  checar(a.e.estado === "pronto" && reg.dono && reg.dono.sub === "111" && reg.dono.email === "dono@gmail.com",
+    "conectar com o id_token grava o dono (sub e e-mail)", reg.dono);
+  checar(!a.pag.includes("Retomar"), "a primeira vez não é “retomar”");
+
+  const semToken = await disponivel(envD, "uener", "inst-bbbbbbbb");
+  checar(semToken.disponivel === false && semToken.em_uso === true, "sem o Google: em uso", semToken);
+  const comToken = await lerResposta(await pedir(envD, "/api/tunel/disponivel?nome=uener&instalacao=inst-bbbbbbbb", { cab: { "x-paulus-google": token } }));
+  checar(comToken.disponivel === true && comToken.retomar === true, "com o Google da mesma conta: dá para retomar", comToken);
+  const outro = await lerResposta(await pedir(envD, "/api/tunel/disponivel?nome=uener&instalacao=inst-bbbbbbbb", { cab: { "x-paulus-google": await idToken({ sub: "222" }) } }));
+  checar(outro.disponivel === false, "outra conta Google: em uso", outro);
+
+  const lista = async (t) => { const r = await pedir(envD, "/api/tunel/meus", { metodo: "POST", corpo: { id_token: t } }); return { status: r.status, d: await lerResposta(r) }; };
+  const m1 = await lista(token);
+  checar(m1.status === 200 && m1.d.enderecos.length === 1 && m1.d.enderecos[0].slug === "uener", "/meus lista o endereço da conta", m1);
+  checar((await lista(await idToken({ sub: "222" }))).d.enderecos.length === 0, "/meus de outra conta: vazio");
+  const falsos = {
+    "vencido": await idToken({ exp: Math.floor(Date.now() / 1000) - 10 }),
+    "de outro cliente": await idToken({ aud: "cliente-de-outro-app" }),
+    "de outro emissor": await idToken({ iss: "https://evil.example" }),
+    "e-mail não verificado": await idToken({ email_verified: false }),
+    "assinatura trocada": token.slice(0, token.lastIndexOf(".") + 1) + (await idToken({ sub: "999" })).split(".")[2],
+    "sem assinatura": token.split(".").slice(0, 2).join(".") + ".",
+  };
+  for (const [nome, t] of Object.entries(falsos)) checar((await lista(t)).status === 401, "id_token " + nome + ": recusado (401)");
+  const chaveFalsa = (await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign"])).privateKey;
+  checar((await lista(await idToken({}, { chave: chaveFalsa }))).status === 401, "id_token assinado por outra chave: recusado");
+
+  const intruso = await iniciarCom("uener", "inst-cccccccc", await idToken({ sub: "222" }));
+  checar(intruso.status === 409, "outra conta não inicia no endereço de ninguém", intruso);
+  checar((await iniciarCom("uener", "inst-cccccccc", falsos["vencido"])).status === 401, "iniciar com id_token vencido: 401, com a frase");
+
+  const tuneis = conta.tuneis.size;
+  const b = await conectarCom("uener", "inst-bbbbbbbb", token);
+  checar(b.i.dados.retomar === true && b.pag.includes("Retomar o endereço") && b.pag.includes("dono@gmail.com"),
+    "a página diz que é retomar, e de que conta", b.pag.slice(0, 120));
+  const reg2 = JSON.parse(envD.ESCRITORIOS.m.get("escritorio:uener"));
+  checar(b.e.estado === "pronto" && reg2.instalacao_id === "inst-bbbbbbbb" && reg2.dono.sub === "111" && conta.tuneis.size === tuneis,
+    "retomado: o endereço é da instalação nova; o túnel antigo saiu", { reg2, tuneis, agora: conta.tuneis.size });
+  const velho = await pedir(envD, "/api/tunel/situacao", { cab: bearer(a.e.segredo_instalacao) });
+  const vd = await lerResposta(velho);
+  checar(velho.status === 410 && vd.removido === true && String(vd.motivo).includes("retomado"), "o PAULUS antigo ouve “removido: retomado”", vd);
+  checar((await lista(token)).d.enderecos.length === 1, "o índice da conta continua com um endereço só");
+
+  // Um escritorio conectado antes desta versao (sem dono) ganha o dono.
+  const c = await conectarCom("antigo", "inst-dddddddd", undefined);
+  checar(!JSON.parse(envD.ESCRITORIOS.m.get("escritorio:antigo")).dono, "sem id_token: nasce sem dono (PAULUS antigo)");
+  const r = await pedir(envD, "/api/tunel/dono", { metodo: "POST", corpo: JSON.stringify({ id_token: token }), cab: bearer(c.e.segredo_instalacao) });
+  checar(r.status === 200 && JSON.parse(envD.ESCRITORIOS.m.get("escritorio:antigo")).dono.sub === "111", "/dono, com o segredo: grava o dono");
+  checar((await lista(token)).d.enderecos.map((x) => x.slug).sort().join() === "antigo,uener", "e ele aparece em /meus");
+  const semSegredo = await pedir(envD, "/api/tunel/dono", { metodo: "POST", corpo: JSON.stringify({ id_token: token }), cab: { "content-type": "application/json" } });
+  checar(semSegredo.status === 401, "/dono sem o segredo da instalação: 401");
+  await pedir(envD, "/api/tunel/remover", { metodo: "POST", corpo: "{}", cab: bearer(c.e.segredo_instalacao) });
+  checar((await lista(token)).d.enderecos.map((x) => x.slug).join() === "uener", "removido: sai do índice da conta");
 }
 
 console.log(falhas ? `\n  ${falhas} FALHA(S) no túnel` : "\n  túnel: todos os testes passaram");

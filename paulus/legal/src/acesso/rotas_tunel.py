@@ -40,6 +40,10 @@ def montar(servico, conexao, r) -> None:
                 "escritorio": nome, "sugestao": sugerir_endereco(nome) if nome else "",
                 "energia": servico.energia() if hasattr(servico, "energia") else {},
                 "so_google": servico.so_google(),
+                # Os enderecos desta conta Google (retomar depois de reinstalar)
+                # e se ha um login recente no Google para provar a conta.
+                "meus": conexao.meus(),
+                "google_recente": bool(conexao._id_token()),
                 # A conta Google vinculada a este PAULUS (E5): e o e-mail da conta
                 # de titular - a tela nao pede de novo.
                 "vinculo": {"email": (getattr(servico, "vinculo", None).dados().get("email", "") if getattr(servico, "vinculo", None) else ""),
@@ -63,6 +67,8 @@ def montar(servico, conexao, r) -> None:
         try:
             return conexao.iniciar(dados.nome, dados.slug)
         except ErroConexao as exc:
+            if "confirme com o Google" in str(exc):
+                raise HTTPException(status_code=428, detail=str(exc)) from exc
             falhar(exc)
 
     @r.post("/api/acesso/tunel/cancelar")

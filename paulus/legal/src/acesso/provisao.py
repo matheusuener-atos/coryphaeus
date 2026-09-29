@@ -8,7 +8,8 @@ para o endereco, a porta, um identificador aleatorio da instalacao e - no
 login - o token do Turnstile e o endereco de internet de quem tenta entrar;
 volta o endereco, o token do tunel (uma vez so), a sitekey do Turnstile e o
 segredo da instalacao, que so existe para este PAULUS falar de novo com o
-Worker.
+Worker. E o id_token do Google da conta vinculada: o endereco e dessa conta,
+e ela o retoma depois de reinstalar.
 """
 
 from __future__ import annotations
@@ -38,10 +39,12 @@ class Provisao:
         self.http = sessao or requests.Session()
         self.timeout = timeout
 
-    def _pedir(self, metodo: str, caminho: str, corpo=None, segredo: str = "", params=None) -> dict:
+    def _pedir(self, metodo: str, caminho: str, corpo=None, segredo: str = "", params=None, id_token: str = "") -> dict:
         cab = {"Content-Type": "application/json", "User-Agent": "PAULUS-acesso-de-fora"}
         if segredo:
             cab["Authorization"] = "Bearer " + segredo
+        if id_token:
+            cab["X-PAULUS-Google"] = id_token
         try:
             r = self.http.request(metodo, self.base + caminho, json=corpo, params=params, headers=cab,
                                   timeout=self.timeout)
@@ -61,12 +64,22 @@ class Provisao:
             raise erro
         return dados
 
-    def disponivel(self, nome: str, instalacao_id: str = "") -> dict:
-        return self._pedir("GET", "/api/tunel/disponivel", params={"nome": nome, "instalacao": instalacao_id})
+    def disponivel(self, nome: str, instalacao_id: str = "", id_token: str = "") -> dict:
+        return self._pedir("GET", "/api/tunel/disponivel", params={"nome": nome, "instalacao": instalacao_id}, id_token=id_token)
 
-    def iniciar(self, instalacao_id: str, nome_escritorio: str, slug: str, porta: int) -> dict:
-        return self._pedir("POST", "/api/tunel/iniciar", {
-            "instalacao_id": instalacao_id, "nome_escritorio": nome_escritorio, "slug": slug, "porta": porta})
+    def iniciar(self, instalacao_id: str, nome_escritorio: str, slug: str, porta: int, id_token: str = "") -> dict:
+        corpo = {"instalacao_id": instalacao_id, "nome_escritorio": nome_escritorio, "slug": slug, "porta": porta}
+        if id_token:
+            corpo["id_token"] = id_token
+        return self._pedir("POST", "/api/tunel/iniciar", corpo)
+
+    def meus(self, id_token: str) -> dict:
+        """Os enderecos desta conta Google (o id_token prova a conta)."""
+        return self._pedir("POST", "/api/tunel/meus", {"id_token": id_token})
+
+    def dono(self, segredo: str, id_token: str) -> dict:
+        """Diz ao Worker de que conta Google e o endereco deste PAULUS."""
+        return self._pedir("POST", "/api/tunel/dono", {"id_token": id_token}, segredo)
 
     def estado(self, codigo_dispositivo: str) -> dict:
         return self._pedir("POST", "/api/tunel/estado", {"codigo_dispositivo": codigo_dispositivo})

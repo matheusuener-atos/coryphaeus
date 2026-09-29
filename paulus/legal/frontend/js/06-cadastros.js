@@ -64,6 +64,8 @@ async function mostrarCadastros(visao) {
     cad.levantamento = g.levantamento || { documentos: 0, faltam: 0 };
     cad.lancamentos = l.lancamentos || [];
     cad.tarefas = t.tarefas || [];
+    // O acesso ao PAULUS de cada pessoa da equipe (js/46-equipe.js).
+    if (typeof carregarAcessoDaEquipe === "function") await carregarAcessoDaEquipe();
     if (cad.aberta) cad.aberta = cad.fichas.find((f) => f.id === cad.aberta.id) || null;
   } catch (err) {
     $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">não consegui abrir: ' +
@@ -105,8 +107,10 @@ function cabecalhoCadastros() {
   const equipe = (c.colaborador || 0) + (c.socio || 0);
   if (cad.visao === "equipe") {
     titulo.textContent = "Equipe";
+    const comAcesso = typeof acessoDoEmail === "function"
+      ? cad.fichas.filter((f) => ["colaborador", "socio"].includes(f.tipo) && ["titular", "ativo"].includes(acessoDoEmail(f.email).estado)).length : 0;
     meta.textContent = plural(c.socio || 0, "sócio") + " · " + plural(c.colaborador || 0, "colaborador", "colaboradores") +
-      " · máquinas na rede e pedidos de acesso em breve";
+      " · " + comAcesso + " com acesso ao PAULUS";
   } else if (cad.visao === "despesas") {
     const total = fichasDaVisao().reduce((s, f) => s + centavosDe(f.honorario), 0);
     titulo.textContent = "Despesas fixas";
@@ -411,10 +415,10 @@ function corpoDaEquipe() {
   return '<div class="tabela-cartao cad-lista">' +
     '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todos") + chip("socio", "Sócios") + chip("colaborador", "Colaboradores")) +
     '<div class="direita"><button data-cad-regras="1">' + ic("shield_person", 16) + "Papéis e alçadas</button></div></div>" +
-    '<div class="tabela-cabecalho colunas-equipe"><span>Nome e função</span><span>Papel</span><span>Acesso por pasta</span><span class="fin-num">Na folha</span><span></span></div>' +
+    '<div class="tabela-cabecalho colunas-equipe"><span>Nome e função</span><span>Papel</span><span>Acesso ao PAULUS</span><span class="fin-num">Na folha</span><span></span></div>' +
     '<div class="tabela-corpo">' + (lista.length ? lista.map(linhaDaEquipe).join("") : '<p class="rel-vazio">' + esc(vazioDosCadastros(todas.length)) + "</p>") + "</div>" +
     '<div class="tabela-rodape"><span>' + esc(plural(todas.length, "pessoa")) + " · folha " + esc(emReais(folha)) + "</span>" +
-    '<span class="cad-rodape-nota">Alterar papel ou acesso passa por Aprovações · em breve</span></div></div>';
+    '<span class="cad-rodape-nota">O acesso ao PAULUS de cada pessoa: convite e permissões na ficha</span></div></div>';
 }
 
 function linhaDaEquipe(f) {
@@ -427,7 +431,7 @@ function linhaDaEquipe(f) {
   return '<div class="' + classe + '" data-cad-abrir="' + f.id + '" data-sel="' + f.id + '">' +
     '<span class="cad-nome"><span class="cad-avatar">' + esc(iniciaisDoRemetente(f.nome)) + '</span><span class="duas-linhas"><b>' + esc(f.nome) + "</b><small>" + esc(sub) + "</small></span></span>" +
     '<span><span class="' + classePapel + '">' + (socio ? "Sócio" : "Colaborador") + "</span></span>" +
-    '<span class="cad-ligado"><small title="Acesso por pasta ainda não existe: hoje o PAULUS é de uma pessoa só, nesta máquina">em breve</small></span>' +
+    '<span class="cad-ligado">' + (typeof etiquetaDeAcesso === "function" ? etiquetaDeAcesso(f.email) : "") + "</span>" +
     '<span class="' + classeValor + '">' + esc(folha ? semReais(emReais(folha)) : "—") + "</span>" +
     menuDaLinha(f.id) + "</div>";
 }
@@ -545,7 +549,7 @@ function partesDaFicha(f) {
         ["Na folha", folha ? rotuloDoVinculo(f.vinculo) + " · " + emReais(folha) : "não entra"],
       ]) +
         '<div class="dialogo-acoes">' + botao("data-cad-email", "mail", "Novo e-mail") + "</div>" +
-        blocoDoPapel(f),
+        (typeof blocoAcessoDaPessoa === "function" ? blocoAcessoDaPessoa(f) : "") + blocoDoPapel(f),
     };
   }
   const tipoPessoa = pessoaJuridica(f) ? "pessoa jurídica" : (pessoaFisica(f) ? "pessoa física" : "sem documento");
@@ -581,12 +585,12 @@ function blocoLigadoA(f) {
 
 function blocoDoPapel(f) {
   const regras = CAD_PAPEIS[f.tipo === "socio" ? "socio" : "colaborador"];
-  return '<div class="cad-bloco"><span class="cad-bloco-titulo">O que este papel pode <small>em breve</small></span>' +
+  return '<div class="cad-bloco"><span class="cad-bloco-titulo">O que este papel pode <small>o padrão</small></span>' +
     '<div class="cad-pode">' + regras.map(([pode, texto]) => {
       const classe = "ic ic-18" + (pode ? "" : " nao");
       return '<div><span class="' + classe + '">' + (pode ? "check_circle" : "close") + "</span><span>" + esc(texto) + "</span></div>";
     }).join("") + "</div>" +
-    '<p class="cad-nota">Papéis e alçadas ainda não têm motor: hoje uma pessoa só usa o PAULUS nesta máquina, e ela pode tudo. Isto é o que o papel vai poder quando a equipe existir.</p></div>';
+    '<p class="cad-nota">O que cada pessoa vê e faz de verdade se escolhe em Permissões, no acesso ao PAULUS acima.</p></div>';
 }
 
 function blocoDaDespesa(f) {
@@ -611,6 +615,7 @@ function ligarFichaVista(dlg, f) {
   clique("[data-cad-email]", sair(() => novoEmailPara(f)));
   clique("[data-cad-agendar]", sair(() => agendarCom(f)));
   clique("[data-cad-acervo]", sair(() => verNoAcervo(f.nome)));
+  if (typeof ligarAcessoDaPessoa === "function") ligarAcessoDaPessoa(dlg, f, () => mostrarCadastros());
   clique("[data-cad-financeiro]", sair(() => mostrarFinanceiro("lancamentos")));
   clique("[data-cad-lancar]", sair(() => lancarDespesa(f)));
   // Apagar pergunta num pop-up proprio, que toma o lugar deste; desistir

@@ -409,7 +409,7 @@ def main() -> int:
 
             conexao = api.estado.acesso_de_fora.conexao
             provisao_antes = conexao.provisao
-            conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst: {"disponivel": True, "motivo": "", "sugestao": ""})
+            conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst, token="": {"disponivel": True, "motivo": "", "sugestao": ""})
             try:
                 pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
                 pagina.wait_for_selector("#cx-slug", timeout=5000)

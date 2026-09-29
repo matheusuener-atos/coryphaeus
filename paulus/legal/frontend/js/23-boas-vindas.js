@@ -81,7 +81,10 @@ function fabricanteDoModelo(nome) {
 }
 
 function ordemBv() {
-  return bv.caminho === "entrar" ? ORDEM_ENTRAR : ORDEM_CRIAR;
+  const ordem = bv.caminho === "entrar" ? ORDEM_ENTRAR : ORDEM_CRIAR;
+  // A conta Google ja conectada no vinculo (com o Gmail, a Agenda e o Drive):
+  // o passo Conexoes nao tem mais o que pedir.
+  return bv.googleNoVinculo ? ordem.filter((p) => p !== "conexoes") : ordem;
 }
 
 function passoBv() {
@@ -129,7 +132,7 @@ async function mostrarBoasVindas() {
   bv.vinculo = pendente ? Object.assign({}, pendente) : { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
   $("boas-vindas").hidden = false;
   desenharBoasVindas();
-  conferirContasBv();
+  (typeof lerVinculoGoogle === "function" ? lerVinculoGoogle() : Promise.resolve()).then(conferirContasBv);
 }
 
 function iniciaisDe(nome) {
@@ -598,6 +601,9 @@ async function conferirContasBv() {
     const g = (d.contas || []).find((c) => c.autenticacao === "google");
     bv.google = g ? g.email : null;
   } catch (err) { /* sem contas, fica como estava */ }
+  // O assistente reaberto num PAULUS ja vinculado e conectado: sem Conexoes.
+  const e = (typeof vinc !== "undefined" && vinc.estado) || null;
+  if (bv.passo === 0 && e && e.vinculado && bv.google && bv.google.toLowerCase() === String(e.email).toLowerCase()) bv.googleNoVinculo = true;
 }
 
 function passoConexoes() {
@@ -746,7 +752,10 @@ function ligarBoasVindas() {
             bv.pessoa.email = e.email;
             if (!bv.pessoa.nome && e.nome) bv.pessoa.nome = e.nome;
             // Com os servicos, a conta de e-mail ja existe: Conexoes aparece conectado.
-            if (bv.vincComServicos) await conferirContasBv();
+            if (bv.vincComServicos) {
+              await conferirContasBv();
+              bv.googleNoVinculo = Boolean(bv.google);
+            }
           }
           if (passoBv() === "google") desenharBoasVindas();
         }, bv.vincComServicos);

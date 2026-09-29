@@ -698,6 +698,10 @@ import vinculo as vinculo_mod  # noqa: E402
 estado.vinculo = vinculo_mod.Vinculo(estado.prefs, estado.acesso_de_fora.contas, lambda: _credenciais_oauth("google"))
 estado.acesso_de_fora.vinculo = estado.vinculo
 estado.vinculo.ligar_servicos = lambda tokens, email, nome: estado.contas.ligar_oauth("google", email, nome, tokens)
+# Cada login da conta vinculada diz ao Worker de que conta e o endereco do
+# acesso de fora (quando conectado): e o que deixa retomar depois de reinstalar.
+estado.vinculo.ao_confirmar = lambda token: estado.acesso_de_fora.conexao.informar_dono(token) \
+    if getattr(estado.acesso_de_fora, "conexao", None) else None
 vinculo_mod.montar(app, estado.vinculo)
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
                    travado=lambda: estado.vinculo.travado())
@@ -721,7 +725,16 @@ def _ligar_google_da_pessoa(conta_id: int, email: str, nome: str, dados: dict):
 
 
 def _google_da_pessoa(conta_id: int) -> str:
+    """
+    O Google de trabalho da pessoa: o que ela conectou de fora (dono = a conta)
+    ou, se nao, a conta de e-mail do escritorio com o mesmo endereco com que
+    ela entra - o titular que vinculou o PAULUS ja conectou o proprio Gmail.
+    """
     c = next((c for c in estado.contas.itens if c.autenticacao == "google" and int(c.dono or 0) == int(conta_id)), None)
+    if c is None:
+        conta = estado.acesso_de_fora.contas.obter(int(conta_id)) or {}
+        email = str(conta.get("email") or "").lower()
+        c = next((x for x in estado.contas.itens if x.autenticacao == "google" and x.email.lower() == email), None) if email else None
     return c.email if c else ""
 
 

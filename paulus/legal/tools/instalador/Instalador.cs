@@ -1342,13 +1342,13 @@ class Tema
         var t = new Tema();
         if (claro)
         {
-            t.Bg = H("#ffffff"); t.Lateral = H("#f3f3f3"); t.Tinta = H("#161616"); t.Tinta2 = H("#5c5c5c"); t.Tinta3 = H("#8c8c8c");
+            t.Bg = H("#ffffff"); t.Lateral = H("#ffffff"); t.Tinta = H("#161616"); t.Tinta2 = H("#5c5c5c"); t.Tinta3 = H("#8c8c8c");
             t.Fio = Color.FromArgb(26, 0, 0, 0); t.Preenche = H("#ededed"); t.Campo = H("#ffffff");
             t.Botao = H("#161616"); t.BotaoTexto = H("#ffffff"); t.Botao2 = H("#ffffff"); t.Barra = H("#161616");
         }
         else
         {
-            t.Bg = H("#141414"); t.Lateral = H("#1c1c1c"); t.Tinta = H("#f2f2f2"); t.Tinta2 = H("#a3a3a3"); t.Tinta3 = H("#737373");
+            t.Bg = H("#141414"); t.Lateral = H("#141414"); t.Tinta = H("#f2f2f2"); t.Tinta2 = H("#a3a3a3"); t.Tinta3 = H("#737373");
             t.Fio = Color.FromArgb(26, 255, 255, 255); t.Preenche = H("#262626"); t.Campo = H("#1c1c1c");
             t.Botao = H("#f2f2f2"); t.BotaoTexto = H("#141414"); t.Botao2 = H("#262626"); t.Barra = H("#f2f2f2");
         }
@@ -1621,7 +1621,8 @@ class Janela : Form
         float W = ClientSize.Width, H = ClientSize.Height;
         g.Clear(t.Bg);
 
-        // A lateral: PAVLVS e as etapas.
+        // A lateral: PAVLVS e as etapas, no mesmo fundo do conteudo, so com o fio
+        // separando (uma cor so na janela).
         float lat = F(188);
         using (var b = new SolidBrush(t.Lateral)) g.FillRectangle(b, 0, 0, lat, H);
         using (var p = new Pen(t.Fio, 1)) g.DrawLine(p, lat - .5f, 0, lat - .5f, H);

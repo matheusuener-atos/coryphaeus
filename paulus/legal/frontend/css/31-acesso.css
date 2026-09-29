@@ -19,8 +19,14 @@
   .acesso-qr-texto p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .acesso-segredo { display: block; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
     font: 500 13px/1.6 var(--mono); letter-spacing: .04em; color: var(--ink); word-break: break-all; user-select: all; }
-  .acesso-lojas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 12.5px; color: var(--ink2); }
-  .acesso-lojas > span { flex-basis: 100%; }
+  /* O Google Authenticator recomendado: a marca, o nome e as duas lojas. */
+  .acesso-lojas { display: grid; gap: 10px; margin: 0 0 12px; padding: 12px; border: 1px solid var(--ink-a1); border-radius: 12px;
+    background: var(--sub); font-size: 12.5px; color: var(--ink2); }
+  .acesso-app { display: flex; align-items: center; gap: 12px; }
+  .acesso-app b { color: var(--ink); font-size: 13.5px; }
+  .acesso-app-icone { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 10px; background: var(--qr-fundo);
+    border: 1px solid var(--ink-a1); }
+  .acesso-lojas-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
   /* O e-mail fixo (a conta Google vinculada, E5): nao se digita. */
   .acesso-fixo { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-height: 40px; padding: 8px 12px;
     border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub); font-size: 14px; color: var(--ink); }
@@ -88,22 +94,18 @@
   .acesso-remoto-barra { display: none; }
   /* A hora continua a direita (margin-left: auto no #relogio); a barra vem
      logo depois dela. Sem a hora (numa conversa aberta), a barra se empurra. */
-  html.remoto .acesso-remoto-barra { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; }
+  html.remoto .acesso-remoto-barra { display: inline-flex; align-items: center; gap: 12px; margin-left: 18px; }
   html.remoto .conversa-col:not(.vazia) .acesso-remoto-barra { margin-left: auto; }
-  .acesso-de-fora-selo { display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; height: 22px; border-radius: 999px;
+  .acesso-de-fora-selo { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 24px; border-radius: 999px;
     font: 500 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--okt); background: var(--sub); }
-  .acesso-conta-botao { display: inline-flex; align-items: center; gap: 8px; height: 26px; min-height: 26px; padding: 0 6px 0 3px;
+  .acesso-conta-botao { display: inline-flex; align-items: center; gap: 9px; height: 30px; min-height: 30px; padding: 0 10px 0 3px;
     border: 1px solid var(--ink-a1); border-radius: 999px; background: var(--surf); color: var(--ink); font: 500 12px var(--sans); cursor: pointer; }
   .acesso-conta-botao:hover { background: var(--fill); }
   .acesso-conta-botao .ic { color: var(--ink3); }
+  .acesso-conta-botao .cad-avatar { width: 24px; height: 24px; font-size: 9.5px; }
+  .conta-cabeca .cad-avatar { width: 40px; height: 40px; font-size: 14px; }
   .acesso-conta-nome { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .acesso-conta-papel { color: var(--ink3); font-weight: 400; }
-  .acesso-iniciais { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; flex: none;
-    background: var(--ink); color: var(--bg); font: 600 9.5px/1 var(--sans); letter-spacing: .02em; }
-  .acesso-iniciais.grande { width: 40px; height: 40px; font-size: 15px; }
-  .acesso-sair { display: inline-grid; place-items: center; width: 26px; height: 26px; min-height: 26px; padding: 0; border: 0;
-    border-radius: 8px; background: none; color: var(--ink3); cursor: pointer; }
-  .acesso-sair:hover { background: var(--fill); color: var(--ink); }
 
   /* Permissoes de uma pessoa (E2): um nivel por modulo, em botoes lado a lado. */
   .perm-grade { display: grid; gap: 4px; margin-top: 6px; }
@@ -116,6 +118,13 @@
   .perm-niveis button:hover { color: var(--ink); }
   .perm-niveis button.escolhido { background: var(--surf); color: var(--ink); box-shadow: 0 0 0 1px var(--ink-a1); }
   @media (max-width: 560px) { .perm-linha { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+
+  /* Quem convidar (js/46-equipe.js): a equipe sem acesso, e alguem novo. */
+  .eqp-escolha { display: grid; gap: 4px; margin-top: 4px; }
+  .eqp-pessoa { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%;
+    padding: 9px 10px; border: 0; border-radius: 10px; background: none; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+  .eqp-pessoa:hover { background: var(--fill); }
+  .eqp-pessoa > .ic { color: var(--ink3); }
 
   /* Minha conta (de fora): quem e, e o que a pessoa pode fazer com a conta. */
   .conta-dialogo .conta-cabeca { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }

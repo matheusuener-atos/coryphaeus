@@ -140,6 +140,43 @@ class ConexaoDoTunel:
     def titulares_prontos(self) -> list[dict]:
         return [c for c in self.servico.contas.listar() if c["papel"] == "titular" and c["totp_confirmado"]]
 
+    def _id_token(self) -> str:
+        vinculo = getattr(self.servico, "vinculo", None)
+        return vinculo.id_token_valido() if vinculo is not None else ""
+
+    def meus(self) -> list[dict]:
+        """
+        Os enderecos da conta Google vinculada (de outra instalacao, ou de antes
+        de reinstalar), para a tela oferecer "retomar". Sem um login recente no
+        Google, ou ja conectado, nada - e nada vai ao Worker.
+        """
+        token = self._id_token()
+        if not token or self.servico.cofre.tem():
+            return []
+        if getattr(self, "_meus", None) and self._meus[0] == token:
+            return self._meus[1]
+        try:
+            lista = self.provisao.meus(token).get("enderecos") or []
+        except ErroProvisao:
+            return []
+        self._meus = (token, lista)
+        return lista
+
+    def informar_dono(self, token: str) -> None:
+        """Conectado, diz ao Worker de que conta Google e o endereco (em segundo plano)."""
+        if not token or not self.servico.cofre.tem():
+            return
+
+        def enviar() -> None:
+            try:
+                segredo = self.servico.cofre.segredo()
+                if segredo:
+                    self.provisao.dono(segredo, token)
+            except Exception:  # noqa: BLE001 - sem internet agora: vai no proximo login
+                pass
+
+        threading.Thread(target=enviar, name="acesso-dono", daemon=True).start()
+
     def _instalacao(self) -> str:
         instalacao = self._prefs().get("instalacao_id") or ""
         if not instalacao:
@@ -159,10 +196,16 @@ class ConexaoDoTunel:
         if motivo:
             alternativa = sugerir_endereco(slug)
             return {"disponivel": False, "motivo": motivo, "sugestao": alternativa if alternativa != slug else ""}
+        token = self._id_token()
         try:
-            return self.provisao.disponivel(slug, self._instalacao())
+            r = self.provisao.disponivel(slug, self._instalacao(), token)
         except ErroProvisao as exc:
             return {"disponivel": None, "motivo": str(exc), "sugestao": ""}
+        # Em uso, e sem login recente no Google: pode ser o endereco desta
+        # propria conta - a tela oferece "é meu" (entrar com o Google e ver).
+        if r.get("em_uso") and not token and getattr(self.servico, "vinculo", None) is not None:
+            r["confirmar_google"] = True
+        return r
 
     # ----------------------------------------------------------- conectar
 
@@ -185,15 +228,21 @@ class ConexaoDoTunel:
             raise ErroConexao("falta o cloudflared neste computador: reinstale o PAULUS (o instalador traz)")
         if self.servico.cofre.tem():
             raise ErroConexao("este PAULUS já está conectado; para trocar, remova antes")
+        # O endereco nasce da conta Google vinculada: o id_token do ultimo
+        # login prova isso ao Worker (e e o que deixa retomar depois).
+        token = self._id_token()
+        if vinculo is not None and not token:
+            raise ErroConexao("confirme com o Google antes de conectar")
         instalacao = self._instalacao()
         porta = porta_livre_na_faixa()
         try:
-            r = self.provisao.iniciar(instalacao, nome, slug, porta)
+            r = self.provisao.iniciar(instalacao, nome, slug, porta, token)
         except ErroProvisao as exc:
             raise ErroConexao(str(exc)) from exc
         with self._trava:
             self._pedido = {"codigo_usuario": r["codigo_usuario"], "url": r["url"], "expira_em": r["expira_em"],
                             "porta": porta, "estado": "esperando", "nome": nome, "slug": slug,
+                            "retomar": bool(r.get("retomar")),
                             "endereco": f"{slug}.paulus.ia.br"}
             self._segredo_do_pedido = r["codigo_dispositivo"]
             self.erro = ""

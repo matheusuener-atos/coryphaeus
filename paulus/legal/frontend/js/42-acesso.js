@@ -227,39 +227,10 @@ function cartaoContas() {
       : "Contas se criam, mudam e saem só aqui, neste computador. De fora, ninguém mexe nelas.") + "</p></div>");
 }
 
-/* O convite (E4): nome e e-mail aqui; o link vai para a pessoa, que faz o
-   resto no celular dela. O link so aparece agora - guardado, so o hash. */
+/* O convite (E4): um cadastro so para a equipe (js/46-equipe.js) - escolhe
+   alguem de Cadastros › Equipe, ou uma pessoa nova, que entra la tambem. */
 async function acessoConvidar() {
-  const r = await dialogo({
-    titulo: "Convidar para a equipe", contexto: "Configurações › Acesso de fora",
-    texto: (acessoCfg.soGoogle
-      ? "A pessoa recebe um link, entra com a conta Google dela e liga o Google Authenticator no próprio celular."
-      : "A pessoa recebe um link, escolhe a senha e liga o Google Authenticator no próprio celular.") +
-      " Entra como colaborador, com as permissões padrão — dá para mudar depois em Permissões.",
-    campos: [
-      { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos", obrigatorio: true },
-      { chave: "email", rotulo: "E-mail Google", tipo: "email", placeholder: "Gmail ou do Google Workspace — com ele a pessoa entra", obrigatorio: true },
-      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
-    ],
-    confirmar: "Gerar o convite",
-  });
-  if (!r || !r.ok) return;
-  let feito;
-  try {
-    feito = await acessoPost("/api/acesso/convites", { nome: r.valores.nome, email: r.valores.email, email_secundario: r.valores.secundario || "" });
-  } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
-  const mensagem = "Olá, " + r.valores.nome.split(" ")[0] + "! Este é o seu convite para o PAULUS do escritório. " +
-    (acessoCfg.soGoogle ? "Abra no celular, entre com a sua conta Google (" + r.valores.email + ") e ligue o Google Authenticator: "
-      : "Abra no celular, escolha a sua senha e ligue o Google Authenticator: ") + feito.link + " (vale 7 dias, uma vez)";
-  const escolha = await dialogo({
-    titulo: "Convite pronto", contexto: "Convidar " + r.valores.nome,
-    texto: "Mande este link para " + r.valores.nome + ". Ele vale 7 dias e uma vez só, e não aparece de novo — se perder, é só convidar outra vez.",
-    html: '<code class="acesso-segredo">' + esc(feito.link) + "</code>",
-    confirmar: "Mandar pelo WhatsApp", segundo: { rotulo: "Copiar o link" }, cancelar: "Fechar",
-  });
-  if (escolha && escolha.segundo) copiarTexto(feito.link, "link copiado — cole na conversa com a pessoa");
-  else if (escolha && escolha.ok) window.open("https://wa.me/?text=" + encodeURIComponent(mensagem), "_blank");
-  acessoRedesenhar();
+  await convidarDaEquipe(acessoRedesenhar);
 }
 
 function cartaoSessoes() {
@@ -291,10 +262,14 @@ const LOJAS_AUTENTICADOR = [
   ["iPhone · App Store", "https://apps.apple.com/app/google-authenticator/id388497605"],
 ];
 
+const LOGO_AUTENTICADOR = '<svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true"><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(0 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(60 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#FBBC04" transform="rotate(120 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#EA4335" transform="rotate(180 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(240 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(300 24 24)"/><circle cx="24" cy="24" r="5" fill="#5F6368"/></svg>';
+
 function lojasAutenticador() {
-  return '<div class="acesso-lojas"><span>Ainda não tem? Baixe o Google Authenticator, grátis:</span>' +
+  return '<div class="acesso-lojas"><div class="acesso-app"><span class="acesso-app-icone">' + LOGO_AUTENTICADOR + "</span>" +
+    '<span class="duas-linhas"><b>Google Authenticator</b><small>grátis · gera o código de 6 números do PAULUS</small></span></div>' +
+    '<div class="acesso-lojas-botoes">' +
     LOJAS_AUTENTICADOR.map(([rotulo, url]) => '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + ic("download", 16) + esc(rotulo) + "</a>").join("") +
-    "</div>";
+    "</div></div>";
 }
 
 /* O cadastro no autenticador: QR, o segredo por extenso e o primeiro codigo.
