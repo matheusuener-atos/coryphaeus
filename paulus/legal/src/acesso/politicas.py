@@ -235,6 +235,8 @@ _declarar(BLOQUEADO,
           "GET /api/acesso/tunel/sugestao",
           "POST /api/acesso/tunel/remover", "GET /api/acesso/auditoria", "GET /api/acesso/auditoria/pdf",
           "POST /api/acesso/energia/abrir-com-windows",
+          # o menu do botao direito no Explorer deste computador
+          "GET /api/explorer", "POST /api/explorer",
           # mover, organizar, apagar, exportar em lote, lixeira
           "POST /api/biblioteca/lote/mover", "POST /api/biblioteca/lote/apagar", "POST /api/biblioteca/lote/exportar",
           "POST /api/biblioteca/remover", "POST /api/acervo/pastas", "POST /api/acervo/pastas/tirar",

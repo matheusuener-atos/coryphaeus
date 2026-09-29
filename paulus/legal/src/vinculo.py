@@ -270,6 +270,11 @@ def passa_travado(metodo: str, caminho: str) -> bool:
         return metodo in ("GET", "HEAD")
     if caminho in ("/api/status", "/api/preferencias", "/api/acesso/eu"):
         return metodo in ("GET", "HEAD")
+    # O "Perguntar ao PAULUS" do Explorer com a janela travada: o pedido so
+    # traz a janela para frente; o arquivo espera ate alguem entrar (a tela
+    # guarda, js/24-inicio.js). Recusar aqui fazia o clique abrir um segundo PAULUS.
+    if caminho in ("/api/externo/perguntar", "/api/externo/mostrar"):
+        return metodo == "POST"
     return any(caminho == p or caminho.startswith(p + "/") for p in LIVRES_TRAVADO)
 
 

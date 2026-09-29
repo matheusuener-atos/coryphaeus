@@ -31,7 +31,7 @@ const CFG_SECOES = [
   ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
   ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
   ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
-  ["aparencia", "Aparência e avisos", "Tema, avisos do Windows e atalhos do teclado."],
+  ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
   ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
@@ -145,6 +145,7 @@ async function carregarSecao() {
     if (typeof carregarAcessoDaEquipe === "function") await carregarAcessoDaEquipe();
   } else if (cfg.secao === "aparencia") {
     cfg.avisos = await pega("/api/avisos");
+    cfg.explorer = await pega("/api/explorer");
   } else if (cfg.secao === "plano") {
     await carregarAtualizacao();
   }
@@ -1042,9 +1043,22 @@ function secaoAparencia() {
       '<div class="cfg-botoes"><button data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
     : '<p class="cfg-texto">Os avisos só existem no Windows.</p>';
 
+  // "Perguntar ao PAULUS" no botao direito do Explorer (src/menu_explorer.py):
+  // o mesmo que a caixa do instalador liga. Vale na hora, sem Salvar.
+  const ex = cfg.explorer || {};
+  const explorer = ex.disponivel
+    ? ligaCfg("", "“Perguntar ao PAULUS” no botão direito", ex.ligado
+        ? "clique com o botão direito num PDF, Word, Excel, texto ou Markdown e escolha Perguntar ao PAULUS"
+        : "o arquivo abre numa conversa nova, anexado; nada sai deste computador", Boolean(ex.ligado))
+        .replace('class="ag-toggle', 'data-cfg-explorer="1" class="ag-toggle') +
+      (ex.de_outro ? '<p class="cfg-explica">O menu hoje aponta para outra instalação do PAULUS; ligar aqui passa a abrir esta.</p>' : "") +
+      '<p class="cfg-explica">No Windows 11, o item fica em “Mostrar mais opções” (ou Shift + botão direito).</p>'
+    : '<p class="cfg-texto">' + esc(ex.motivo || "Disponível no PAULUS instalado.") + "</p>";
+
   return aberturaCfg() +
     cartaoCfg("Tema", "", aparencia) +
     cartaoCfg("Avisos", metaCfg("notificações do Windows"), avisos) +
+    cartaoCfg("No Windows Explorer", ex.disponivel ? pontoCfg(ex.ligado ? "ligado" : "desligado", ex.ligado ? "ok" : "") : metaCfg("indisponível"), explorer) +
     cartaoCfg("Atalhos", metaCfg("teclado"), atalhos);
 }
 
@@ -1306,6 +1320,16 @@ function ligarConfig() {
       const aviso = $("cfg-timbre-falta");
       if (aviso) aviso.textContent = avisoDoTimbre();
     };
+  });
+  clique("[data-cfg-explorer]", async (b) => {
+    const ligar = !b.classList.contains("on");
+    try {
+      const r = await fetch("/api/explorer", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ ligado: ligar }) });
+      if (!r.ok) throw new Error(await erroDe(r));
+      cfg.explorer = await r.json();
+      avisoCert(ligar ? "“Perguntar ao PAULUS” está no botão direito do Explorer" : "tirei o PAULUS do botão direito do Explorer", { tom: "ok" });
+    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    desenharConfig();
   });
   clique("[data-cfg-aviso-teste]", async (b) => {
     b.disabled = true;

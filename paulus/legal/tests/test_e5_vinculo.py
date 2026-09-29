@@ -168,6 +168,12 @@ def test_http() -> None:
     r = local.post("/api/vinculo/travar")
     checar(r.status_code == 200 and r.json()["travado"] and r.json()["saiu"], "sair trava mesmo com 'manter aberto'", r.text[:200])
     checar(local.get("/api/documentos").status_code == 423, "e a janela do servidor para")
+    arq = Path(os.environ["PAULUS_DADOS"]) / "pergunta.txt"
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    arq.write_text("contrato de teste", encoding="utf-8")
+    rx = local.post("/api/externo/perguntar", json={"caminho": str(arq)})
+    checar(rx.status_code == 200, "travado, o 'Perguntar ao PAULUS' do Explorer chega a janela (e nao abre um segundo PAULUS)",
+           rx.status_code)
     novo = vinculo_mod.Vinculo(api.estado.prefs, api.estado.acesso_de_fora.contas, lambda: {"client_id": "x"})
     checar(novo.travado(), "fechou e abriu o programa: continua travado (saiu fica gravado)")
     checar("acesso_de_fora" in r.json(), "a tela da trava sabe do acesso de fora")

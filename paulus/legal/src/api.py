@@ -9552,6 +9552,34 @@ def bemestar_ver() -> dict:
     return dados
 
 
+class LigarMenu(BaseModel):
+    ligado: bool
+
+
+@app.get("/api/explorer")
+def explorer_ver() -> dict:
+    """"Perguntar ao PAULUS" no botao direito do Explorer (src/menu_explorer.py)."""
+    import menu_explorer
+    from acesso import energia
+
+    return menu_explorer.estado(energia.exe_do_programa())
+
+
+@app.post("/api/explorer")
+def explorer_ligar(dados: LigarMenu) -> dict:
+    import menu_explorer
+    from acesso import energia
+
+    exe = energia.exe_do_programa()
+    if dados.ligado:
+        if sys.platform != "win32" or not exe:
+            raise HTTPException(status_code=400, detail="disponível no PAULUS instalado (o PAULUS.exe não foi encontrado)")
+        menu_explorer.ligar(exe)
+    elif sys.platform == "win32":
+        menu_explorer.desligar()
+    return menu_explorer.estado(exe)
+
+
 @app.get("/api/avisos")
 def avisos_ver() -> dict:
     """Se da para avisar no Windows, se a pessoa quer e em que horario."""

@@ -242,6 +242,12 @@ async function anexarEscolhidos() {
    arquivo entra numa conversa nova, anexado, como pelo "Meu computador". */
 async function perguntarSobreArquivo(caminho) {
   if (!caminho) return;
+  // Travado (a conta Google deste servidor, js/45-vinculo.js): o arquivo
+  // espera ate alguem entrar - a pagina recarrega ao destravar e o retoma.
+  if (document.getElementById("trava")) {
+    try { sessionStorage.setItem("paulus.perguntar", caminho); } catch (err) { /* sem memoria: o clique se perde */ }
+    return;
+  }
   marcarDestino("conversa");
   $("nova").click();
   anx.acervo = new Set();
