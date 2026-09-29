@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "0.9.13",
+      "date": "2026-09-29",
+      "changes": [
+        "\"Perguntar ao PAULUS\" no Explorer: ligar e desligar pelo programa",
+        "Microfone de fora: o navegador pede a permissão",
+        "Assistente: \"Voltar\" sem a seta",
+        "Retorno do login Google e código do celular no servidor, nos desenhos novos",
+        "Tela de entrar de fora no desenho do export \"tela login tunel\"",
+        "Tela da trava do servidor no desenho \"Você saiu - servidor\""
+      ]
+    },
+    {
       "version": "0.9.12",
       "date": "2026-09-29",
       "changes": [

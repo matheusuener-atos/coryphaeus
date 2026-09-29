@@ -1,12 +1,16 @@
 {
-  "versao": "0.9.12",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.12/PAULUS-0.9.12-instalador.exe",
-  "sha256": "d3241f3c2a32348efd02487031384a53a7aa33822f3c5011d2f354b1436b26f3",
-  "tamanho": 94153220,
+  "versao": "0.9.13",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.13/PAULUS-0.9.13-instalador.exe",
+  "sha256": "f0ea7905cd467496fe510f97a851c457ac3a7640bef2b07f54d21ea188607eb9",
+  "tamanho": 94165418,
   "publicada": "2026-09-29",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.12",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.13",
   "novidades": [
-    "Sair da conta na janela do servidor, com o acesso de fora funcionando",
-    "O \"P\" do PAULUS na aba das páginas de fora"
+    "\"Perguntar ao PAULUS\" no Explorer: ligar e desligar pelo programa",
+    "Microfone de fora: o navegador pede a permissão",
+    "Assistente: \"Voltar\" sem a seta",
+    "Retorno do login Google e código do celular no servidor, nos desenhos novos",
+    "Tela de entrar de fora no desenho do export \"tela login tunel\"",
+    "Tela da trava do servidor no desenho \"Você saiu - servidor\""
   ]
 }
