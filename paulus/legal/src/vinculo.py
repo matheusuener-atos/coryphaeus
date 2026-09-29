@@ -12,6 +12,13 @@ A trava e do servidor, e nao so da tela: travado, o porteiro (acesso/
 porteiro.py) recusa com 423 tudo o que nao e a propria tela de destravar -
 uma chamada direta a API, com a chave da janela, tambem para ali.
 
+SEM INTERNET (29/09/2026): entrar no servidor nao pode depender do Google.
+O codigo do celular (Google Authenticator, que funciona sem internet) abre o
+PAULUS travado: o da conta de titular do mesmo e-mail do vinculo, quando ela
+existe; senao, um codigo proprio do servidor, ligado uma vez em Configuracoes
+(o segredo guardado pela protecao de dados do Windows, com codigos de
+recuperacao). Cinco erros seguidos param as tentativas por dez minutos.
+
 SAIR (29/09/2026): quem esta no computador do servidor sai da conta, e o
 PAULUS trava na hora - mesmo com "manter aberto" ligado, e continua travado
 se o programa for fechado e aberto de novo, ate alguem entrar com o Google.
@@ -31,6 +38,7 @@ na memoria.
 from __future__ import annotations
 
 import base64
+import hmac
 import json
 import threading
 import time
@@ -49,6 +57,12 @@ def _exp_do_id_token(token: str) -> float:
     except (IndexError, ValueError, TypeError):
         return 0.0
 
+
+# Entrar sem internet: erros seguidos antes de parar, e por quanto tempo.
+OFFLINE_MAX_ERROS = 5
+OFFLINE_JANELA_S = 600
+# As preferencias se mesclam campo a campo: desligar zera cada um.
+OFFLINE_VAZIO = {"segredo": "", "ultimo_passo": 0, "recuperacao": []}
 
 ESCOPOS_IDENTIDADE = "openid email profile"
 # Vincular e ja conectar o Gmail, a Agenda e o Drive da mesma conta, num login
@@ -85,6 +99,10 @@ class Vinculo:
         self.ao_confirmar = None
         # () -> {"ligado": bool, "endereco": str}: o api.py liga.
         self.situacao_de_fora = None
+        # Entrar sem internet: o segredo novo esperando o primeiro codigo, e
+        # os erros recentes (instantes), para parar a tentativa em serie.
+        self._offline_novo = ""
+        self._erros_offline: list[float] = []
 
     # ------------------------------------------------------------ estado
 
@@ -113,6 +131,7 @@ class Vinculo:
             "precisa_codigo": bool(self._conta_do_codigo),
             "google_recente": bool(self.id_token_valido()),
             "saiu": bool(d.get("saiu")),
+            "sem_internet": self.sem_internet(),
             # O acesso de fora, para a tela da trava dizer que ele continua.
             "acesso_de_fora": self.situacao_de_fora() if self.situacao_de_fora else {},
         }
@@ -203,6 +222,106 @@ class Vinculo:
         if self.dados().get("saiu"):
             self.prefs.atualizar({"vinculo": {"saiu": False}})
 
+    # ------------------------------------------------------ sem internet
+
+    def sem_internet(self) -> dict:
+        """Como se entra sem internet: pela conta de titular, pelo codigo do servidor, ou ainda nao da."""
+        email = str(self.dados().get("email") or "").lower()
+        if email and self._conta_de_titular(email):
+            return {"pronto": True, "por": "titular"}
+        if (self.dados().get("offline") or {}).get("segredo"):
+            return {"pronto": True, "por": "servidor",
+                    "recuperacao_restantes": len((self.dados().get("offline") or {}).get("recuperacao") or [])}
+        return {"pronto": False, "por": ""}
+
+    def _parado_ate(self) -> float:
+        agora = self.relogio()
+        self._erros_offline = [t for t in self._erros_offline if agora - t < OFFLINE_JANELA_S]
+        if len(self._erros_offline) >= OFFLINE_MAX_ERROS:
+            return self._erros_offline[0] + OFFLINE_JANELA_S
+        return 0.0
+
+    def entrar_sem_internet(self, codigo: str) -> None:
+        """O codigo do celular (ou de recuperacao) abre o PAULUS travado, sem o Google."""
+        if not self.travado():
+            return
+        ate = self._parado_ate()
+        if ate:
+            minutos = max(1, int((ate - self.relogio()) // 60) + 1)
+            raise ErroVinculo(f"muitos códigos errados seguidos; tente de novo em {minutos} min")
+        email = str(self.dados().get("email") or "").lower()
+        conta = self._conta_de_titular(email) if email else None
+        if conta:
+            ok = self.contas.confirmar_de_novo({"conta_id": conta["id"], "hash": ""}, codigo)
+        else:
+            ok = self._conferir_codigo_do_servidor(codigo)
+        if not ok:
+            self._erros_offline.append(self.relogio())
+            if not self.sem_internet()["pronto"]:
+                raise ErroVinculo("entrar sem internet ainda não foi ligado neste servidor (Configurações › Escritório e equipe)")
+            raise ErroVinculo("o código não confere; digite o que aparece agora no celular")
+        self._erros_offline = []
+        self._conta_do_codigo = 0
+        self._abrir()
+
+    def _conferir_codigo_do_servidor(self, codigo: str) -> bool:
+        import segredos
+        from acesso.contas import _limpo, _resumo, passo_que_confere
+
+        off = dict(self.dados().get("offline") or {})
+        if not off.get("segredo"):
+            return False
+        limpo = _limpo(codigo)
+        if limpo.isdigit():
+            try:
+                segredo = segredos.revelar(off["segredo"])
+            except Exception:  # noqa: BLE001 - segredo de outro usuario do Windows
+                return False
+            passo = passo_que_confere(segredo, limpo, self.relogio())
+            if passo is None or passo <= int(off.get("ultimo_passo") or 0):
+                return False
+            self.prefs.atualizar({"vinculo": {"offline": {**off, "ultimo_passo": passo}}})
+            return True
+        restantes = list(off.get("recuperacao") or [])
+        alvo = _resumo(limpo)
+        achou = next((r for r in restantes if hmac.compare_digest(r, alvo)), None)
+        if not achou:
+            return False
+        restantes.remove(achou)
+        self.prefs.atualizar({"vinculo": {"offline": {**off, "recuperacao": restantes}}})
+        return True
+
+    def ligar_sem_internet(self) -> dict:
+        """O QR do codigo proprio do servidor (quando nao ha conta de titular com o vinculo)."""
+        from acesso.contas import novo_segredo, qr_svg, uri_otpauth
+
+        if not self.vinculado() or self.travado():
+            raise ErroVinculo("vincule e destrave antes")
+        self._offline_novo = novo_segredo()
+        uri = uri_otpauth(self._offline_novo, str(self.dados().get("email") or "servidor"))
+        return {"segredo": self._offline_novo, "qr_svg": qr_svg(uri), "uri": uri}
+
+    def confirmar_sem_internet(self, codigo: str) -> dict:
+        import segredos
+        from acesso.contas import _limpo, _resumo, novos_codigos_de_recuperacao, passo_que_confere
+
+        if not self._offline_novo:
+            raise ErroVinculo("comece de novo: gere o QR")
+        passo = passo_que_confere(self._offline_novo, codigo, self.relogio())
+        if passo is None:
+            raise ErroVinculo("o código não confere; digite o que aparece agora no celular")
+        codigos = novos_codigos_de_recuperacao()
+        self.prefs.atualizar({"vinculo": {"offline": {
+            "segredo": segredos.proteger(self._offline_novo), "ultimo_passo": passo,
+            "recuperacao": [_resumo(_limpo(c)) for c in codigos]}}})
+        self._offline_novo = ""
+        return {"codigos_recuperacao": codigos}
+
+    def desligar_sem_internet(self) -> None:
+        if self.travado():
+            raise ErroVinculo("destrave antes")
+        self.prefs.atualizar({"vinculo": {"offline": dict(OFFLINE_VAZIO)}})
+
     def _guardar_id_token(self, tokens: dict) -> None:
         token = str((tokens or {}).get("id_token") or "")
         if not token:
@@ -254,7 +373,8 @@ class Vinculo:
     def desvincular(self) -> None:
         if self.travado():
             raise ErroVinculo("destrave antes")
-        self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False}})
+        self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
+                                          "offline": dict(OFFLINE_VAZIO)}})
         self.destravado = False
         self._id_token, self._id_token_exp = "", 0.0
 
@@ -276,6 +396,10 @@ def passa_travado(metodo: str, caminho: str) -> bool:
     if caminho in ("/api/externo/perguntar", "/api/externo/mostrar"):
         return metodo == "POST"
     return any(caminho == p or caminho.startswith(p + "/") for p in LIVRES_TRAVADO)
+
+
+class CodigoSemInternet(BaseModel):
+    codigo: str = ""
 
 
 class Pedido(BaseModel):
@@ -323,6 +447,40 @@ def montar(app, vinculo: Vinculo) -> None:
         so_local(request)
         try:
             vinculo.codigo(dados.codigo)
+        except ErroVinculo as exc:
+            falhar(exc)
+        return vinculo.estado()
+
+    @app.post("/api/vinculo/sem-internet")
+    def vinculo_sem_internet(dados: CodigoSemInternet, request: Request) -> dict:
+        so_local(request)
+        try:
+            vinculo.entrar_sem_internet(dados.codigo)
+        except ErroVinculo as exc:
+            falhar(exc)
+        return vinculo.estado()
+
+    @app.post("/api/vinculo/sem-internet/ligar")
+    def vinculo_sem_internet_ligar(request: Request) -> dict:
+        so_local(request)
+        try:
+            return vinculo.ligar_sem_internet()
+        except ErroVinculo as exc:
+            falhar(exc)
+
+    @app.post("/api/vinculo/sem-internet/confirmar")
+    def vinculo_sem_internet_confirmar(dados: CodigoSemInternet, request: Request) -> dict:
+        so_local(request)
+        try:
+            return {**vinculo.confirmar_sem_internet(dados.codigo), "estado": vinculo.estado()}
+        except ErroVinculo as exc:
+            falhar(exc)
+
+    @app.post("/api/vinculo/sem-internet/desligar")
+    def vinculo_sem_internet_desligar(request: Request) -> dict:
+        so_local(request)
+        try:
+            vinculo.desligar_sem_internet()
         except ErroVinculo as exc:
             falhar(exc)
         return vinculo.estado()

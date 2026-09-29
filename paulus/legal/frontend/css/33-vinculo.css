@@ -39,8 +39,10 @@
   .trava-google:disabled { opacity: .6; cursor: default; }
   .trava-link { border: 0; background: none; color: var(--ink2); font: 400 13px var(--sans); cursor: pointer; padding: 0; }
   .trava-link:hover { color: var(--ink); text-decoration: underline; }
+  .trava-form > .trava-link { justify-self: start; }
   .trava-erro { margin: 0; font-size: 13.5px; color: var(--acc); }
   .trava-erro:empty { display: none; }
+  .trava-ajuda { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.6; color: var(--ink3); }
   .trava-linhas { display: grid; gap: 2px; }
   .trava-linhas .trava-etiqueta { padding-bottom: 10px; }
   .trava-linha { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--ink-a1); font-size: 14px; }

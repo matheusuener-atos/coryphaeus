@@ -192,7 +192,9 @@ PADRAO: dict = {
     "animacoes_reduzidas": False,
     # O PAULUS do servidor vinculado a conta Google de quem o administra
     # (src/vinculo.py, E5). Vinculado, abre travado - salvo manter_aberto.
-    "vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False},
+    "vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
+                # entrar sem internet com o codigo proprio do servidor (src/vinculo.py)
+                "offline": {"segredo": "", "ultimo_passo": 0, "recuperacao": []}},
     "pessoa": {
         "nome": "",
         "cpf": "",

@@ -77,12 +77,17 @@ function desenharTrava() {
   const foraNoAr = Boolean(fora.ligado && fora.hostname);
   const saiu = e.saiu && !e.precisa_codigo;
   const conta = '<div class="trava-conta"><span class="trava-etiqueta">CONTA DESTE SERVIDOR</span><span class="trava-email">' + esc(e.email) + "</span></div>";
-  // O passo do codigo: o desenho "Confirmar codigo - servidor".
+  // O passo do codigo: o desenho "Confirmar codigo - servidor". Sem
+  // internet, o mesmo passo abre o PAVLVS sozinho, sem o Google (src/vinculo.py).
   const recuperacao = Boolean(vinc.porRecuperacao);
-  const entrar = e.precisa_codigo
+  const semNet = Boolean(vinc.semInternet) && !e.precisa_codigo;
+  const codigo = e.precisa_codigo || semNet;
+  const pronto = Boolean((e.sem_internet || {}).pronto);
+  const entrar = codigo
     ? '<form class="trava-form trava-form-codigo" id="trava-codigo">' +
-      '<div class="trava-conta"><span class="trava-etiqueta">CONTA</span><span class="trava-conta-linha">' + G_DO_GOOGLE +
-      '<span class="trava-email">' + esc(e.email) + '</span><button type="button" class="trava-link" id="trava-trocar">Trocar</button></span></div>' +
+      '<div class="trava-conta"><span class="trava-etiqueta">CONTA</span><span class="trava-conta-linha">' + (semNet ? "" : G_DO_GOOGLE) +
+      '<span class="trava-email">' + esc(e.email) + '</span><button type="button" class="trava-link" id="trava-trocar">' +
+      (semNet ? "Entrar com o Google" : "Trocar") + "</button></span></div>" +
       '<label class="trava-campo"><span class="trava-etiqueta">' + (recuperacao ? "CÓDIGO DE RECUPERAÇÃO" : "CÓDIGO DO CELULAR") + "</span>" +
       '<input id="trava-codigo-campo"' + (recuperacao ? ' class="recuperacao" autocomplete="off" maxlength="9" placeholder="xxxx-xxxx"'
         : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"') + "></label>" +
@@ -96,8 +101,12 @@ function desenharTrava() {
       '<button type="button" class="trava-google" id="trava-google"' + (esperando ? " disabled" : "") + ">" + G_DO_GOOGLE +
       (esperando ? "Esperando o Google…" : "Entrar com Google") + "</button>" +
       (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") + "</div>" +
-      '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p></div>";
-  const enquanto = e.precisa_codigo ? "" : '<div class="trava-linhas"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
+      '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
+      (pronto
+        ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>'
+        : '<p class="trava-ajuda">Sem internet, o Google não responde. Ligue “Entrar sem internet” em Configurações › Escritório e equipe enquanto estiver online.</p>') +
+      "</div>";
+  const enquanto = codigo ? "" : '<div class="trava-linhas"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
     '<div class="trava-linha"><span>Acesso de fora</span><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
     (foraNoAr ? "funcionando" : "desligado") + "</span></div>" +
     (foraNoAr ? '<div class="trava-linha"><span>Endereço</span><span class="trava-mono">' + esc(fora.hostname) + "</span></div>" : "") + "</div>";
@@ -106,17 +115,18 @@ function desenharTrava() {
     '<header class="trava-topo"><span class="trava-marca">PAVLVS</span><div class="trava-topo-dir"><span class="trava-selo">' +
     ic("desktop_windows", 16) + "servidor</span>" +
     '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 18) + "</button></div></header>" +
-    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo' + (e.precisa_codigo ? " neutro" : "") + '"><i></i>' +
-    (e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "SESSÃO ENCERRADA" : "ESCRITÓRIO TRAVADO") + "</span>" +
-    "<h1>" + (e.precisa_codigo ? "Confirme que é você" : "Entre para abrir o escritório") + "</h1>" +
-    "<p>" + (e.precisa_codigo ? "Digite o código de 6 dígitos que aparece no app autenticador do seu celular."
+    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo' + (codigo ? " neutro" : "") + '"><i></i>' +
+    (semNet ? "SEM INTERNET" : e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "SESSÃO ENCERRADA" : "ESCRITÓRIO TRAVADO") + "</span>" +
+    "<h1>" + (semNet ? "Entre com o código do celular" : e.precisa_codigo ? "Confirme que é você" : "Entre para abrir o escritório") + "</h1>" +
+    "<p>" + (semNet ? "Sem internet, o código do Google Authenticator abre o PAVLVS neste computador — o app funciona sem conexão."
+      : e.precisa_codigo ? "Digite o código de 6 dígitos que aparece no app autenticador do seu celular."
       : "O PAVLVS está travado neste computador. Para usar de novo, entre com a conta vinculada a este servidor.") + "</p>" +
-    '<span class="trava-nota">' + (e.precisa_codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos sai deste computador.") + "</span></section>" +
+    '<span class="trava-nota">' + (codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos sai deste computador.") + "</span></section>" +
     '<section class="trava-painel">' + entrar + enquanto + "</section></main>" +
     '<footer class="trava-pe">' +
-    (foraNoAr ? '<p class="forte">A equipe continua entrando por ' + (e.precisa_codigo ? esc(fora.hostname) : "esse endereço") +
+    (foraNoAr ? '<p class="forte">A equipe continua entrando por ' + (codigo ? esc(fora.hostname) : "esse endereço") +
       " enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</p>" : "") +
-    (e.precisa_codigo ? "<p>Nada dos seus documentos sai deste computador.</p>"
+    (codigo ? "<p>Nada dos seus documentos sai deste computador.</p>"
       : "<p>Esta tela é servida pelo próprio PAVLVS, neste computador. Os documentos e o modelo de IA ficam aqui; o Google só confirma quem está entrando.</p>") +
     "</footer>";
   ligarTrava();
@@ -137,9 +147,12 @@ function ligarTrava() {
   const tr = document.getElementById("trava-trocar");
   if (tr) tr.onclick = async () => {
     vinc.porRecuperacao = false;
+    if (vinc.semInternet) { vinc.semInternet = false; desenharTrava(); return; }
     await postVinculo("/api/vinculo/cancelar").catch(() => {});
     desenharTrava();
   };
+  const sn = document.getElementById("trava-sem-internet");
+  if (sn) sn.onclick = () => { vinc.semInternet = true; vinc.porRecuperacao = false; desenharTrava(); };
   const rec = document.getElementById("trava-recuperacao");
   if (rec) rec.onclick = () => { vinc.porRecuperacao = !vinc.porRecuperacao; desenharTrava(); };
   const c = document.getElementById("trava-cancelar");
@@ -151,7 +164,9 @@ function ligarTrava() {
     f.onsubmit = async (ev) => {
       ev.preventDefault();
       try {
-        await postVinculo("/api/vinculo/codigo", { codigo: campo.value.trim() });
+        const semNet = vinc.semInternet && !(vinc.estado || {}).precisa_codigo;
+        await postVinculo(semNet ? "/api/vinculo/sem-internet" : "/api/vinculo/codigo", { codigo: campo.value.trim() });
+        vinc.semInternet = false;
         await aoDestravar();
       } catch (err) { document.getElementById("trava-erro").textContent = err.message; campo.select(); }
     };
@@ -239,9 +254,39 @@ function cartaoDoVinculo() {
       ? "o PAULUS abre sem pedir o Google neste computador"
       : "o PAULUS abre travado e pede o Google a cada abertura", e.manter_aberto, false)
       .replace('class="ag-toggle', 'data-vinc-manter="1" class="ag-toggle') + "</div>" +
+    blocoSemInternet(e) +
     '<div class="acesso-pe"><button class="com-icone" data-vinc-travar="1">' + ic("logout", 16) + "Sair</button>" +
     '<button class="perigo" data-vinc-desvincular="1">Desvincular</button>' +
     '<p class="cfg-explica">Sair trava este computador até alguém entrar com o Google (o acesso de fora continua). Desvincular não apaga nada: o PAULUS só deixa de pedir o Google ao abrir.</p></div>');
+}
+
+/* Entrar sem internet (src/vinculo.py): o login do servidor nao depende do
+   Google. Com a conta de titular do mesmo e-mail, o codigo dela ja vale; sem
+   ela, o servidor ganha um codigo proprio, ligado aqui com o QR. */
+function blocoSemInternet(e) {
+  const si = e.sem_internet || {};
+  const miolo = vinc.semNetNovo
+    ? '<div class="acesso-qr-bloco"><div class="acesso-qr">' + (vinc.semNetNovo.qr_svg || "") + "</div>" +
+      '<div class="acesso-qr-texto"><p>No celular, abra o <b>Google Authenticator</b>, toque em <b>+</b> e em <b>Ler código QR</b>.</p>' +
+      '<p class="cfg-explica">Sem câmera? Digite a chave:</p><code class="acesso-segredo">' +
+      esc((vinc.semNetNovo.segredo || "").replace(/(.{4})/g, "$1 ").trim()) + "</code></div></div>" +
+      '<div class="acesso-form"><div class="ag-campo"><label for="vinc-sn-codigo">Código de 6 números que aparece no aplicativo</label>' +
+      '<input type="text" id="vinc-sn-codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></div></div>' +
+      '<div class="acesso-pe"><button class="primario" data-vinc-sn-confirmar="1">Confirmar o código</button>' +
+      '<button data-vinc-sn-cancelar="1">Cancelar</button></div>'
+    : vinc.semNetCodigos
+      ? '<p class="cfg-texto">Guarde estes códigos fora do celular: cada um abre o PAVLVS uma vez, sem internet, se o celular sumir. Eles não aparecem de novo.</p>' +
+        '<div class="acesso-codigos">' + vinc.semNetCodigos.map((x) => "<code>" + esc(x) + "</code>").join("") + "</div>" +
+        '<div class="acesso-pe"><button class="primario" data-vinc-sn-guardei="1">Guardei os códigos</button></div>'
+      : si.por === "titular"
+        ? '<p class="cfg-explica">' + ic("check_circle", 14) + " Pronto: sem internet, o código do celular da sua conta de titular abre este PAVLVS.</p>"
+        : si.por === "servidor"
+          ? '<p class="cfg-explica">' + ic("check_circle", 14) + " Pronto: sem internet, o código do celular deste servidor abre o PAVLVS" +
+            (si.recuperacao_restantes != null ? " · " + si.recuperacao_restantes + " códigos de recuperação" : "") + ".</p>" +
+            '<div class="cfg-botoes"><button data-vinc-sn-desligar="1">Desligar</button></div>'
+          : '<p class="cfg-explica">Sem internet, o Google não responde e o PAVLVS travado não abre. Ligue o código do celular: o Google Authenticator funciona sem conexão.</p>' +
+            '<div class="cfg-botoes"><button class="com-icone" data-vinc-sn-ligar="1">' + ic("shield_person", 16) + "Ligar entrar sem internet</button></div>";
+  return '<div class="acesso-energia"><b>Entrar sem internet</b>' + miolo + "</div>";
 }
 
 function ligarVinculoCfg() {
@@ -256,6 +301,34 @@ function ligarVinculoCfg() {
     redesenhar();
   });
   clique("[data-vinc-travar]", () => sairDoServidor());
+  clique("[data-vinc-sn-ligar]", async () => {
+    try {
+      const r = await fetch("/api/vinculo/sem-internet/ligar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || "não deu certo");
+      vinc.semNetNovo = d;
+    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    redesenhar();
+  });
+  clique("[data-vinc-sn-cancelar]", () => { vinc.semNetNovo = null; redesenhar(); });
+  clique("[data-vinc-sn-confirmar]", async () => {
+    const campo = document.getElementById("vinc-sn-codigo");
+    try {
+      const r = await fetch("/api/vinculo/sem-internet/confirmar", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: campo ? campo.value.trim() : "" }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || "não deu certo");
+      vinc.semNetNovo = null;
+      vinc.semNetCodigos = d.codigos_recuperacao || [];
+      vinc.estado = d.estado || vinc.estado;
+    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    redesenhar();
+  });
+  clique("[data-vinc-sn-guardei]", () => { vinc.semNetCodigos = null; redesenhar(); });
+  clique("[data-vinc-sn-desligar]", async () => {
+    try { await postVinculo("/api/vinculo/sem-internet/desligar"); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    redesenhar();
+  });
   clique("[data-vinc-desvincular]", async () => {
     if (!(await confirmar({ titulo: "Desvincular a conta Google?", contexto: "Configurações › Escritório e equipe",
       texto: "O PAULUS deixa de pedir o Google ao abrir. Para ligar o acesso de fora e convidar a equipe, vai ser preciso vincular de novo.",
