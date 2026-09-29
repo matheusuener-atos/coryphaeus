@@ -282,6 +282,8 @@ def montar(servico, r) -> None:
     def contas(request: Request) -> dict:
         so_local(request)
         return {"contas": servico.contas.listar(), "disponivel": servico.contas.disponivel(), "so_google": servico.so_google(),
+                "vinculo": {"email": (getattr(servico, "vinculo", None).dados().get("email", "") if getattr(servico, "vinculo", None) else ""),
+                            "nome": (getattr(servico, "vinculo", None).dados().get("nome", "") if getattr(servico, "vinculo", None) else "")},
                 "sessoes": servico.contas.sessoes_abertas()}
 
     @r.post("/api/acesso/contas")

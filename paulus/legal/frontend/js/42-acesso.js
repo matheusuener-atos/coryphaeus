@@ -77,6 +77,7 @@ async function carregarAcesso() {
     acessoCfg.sessoes = (d && d.sessoes) || [];
     acessoCfg.disponivel = !d || d.disponivel !== false;
     acessoCfg.soGoogle = Boolean(d && d.so_google);
+    acessoCfg.vinculo = (d && d.vinculo) || {};
   } catch (err) {
     acessoCfg.contas = null;
   }
@@ -170,7 +171,7 @@ function cartaoComoFunciona() {
     ["desktop_windows", "O computador do escritório precisa estar ligado e com o PAULUS aberto. Desligado, o endereço para de responder."],
     ["key", "Os documentos, o índice e o modelo de IA não saem deste computador. O que passa pela internet é a tela e o que se digita nela."],
     ["lan", "O caminho é o túnel da Cloudflare, num endereço paulus.ia.br da conta do Atos. A conexão é criptografada, mas a Cloudflare a abre no meio do caminho para entregá-la; o Atos não roteia, não inspeciona e não registra esse conteúdo."],
-    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e usa a própria conta do PAULUS: e-mail, senha e o código do autenticador do celular. Vale igual para o titular e para a equipe."],
+    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta Google e o código do autenticador do celular. Vale igual para o titular e para a equipe."],
     ["history", "Todo acesso de fora fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
   ];
   return cartaoCfg("Como funciona", "",
@@ -350,8 +351,10 @@ async function acessoNovaConta() {
       "Antes de criar, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele.",
     html: lojasAutenticador(),
     campos: [
-      { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos" },
+      { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos",
+        valor: primeira ? ((acessoCfg.vinculo || {}).nome || "") : "" },
       { chave: "email", rotulo: acessoCfg.soGoogle ? "E-mail Google" : "E-mail", tipo: "email",
+        valor: primeira ? ((acessoCfg.vinculo || {}).email || "") : "",
         placeholder: acessoCfg.soGoogle ? "Gmail ou do Google Workspace — com ele a pessoa entra" : "com ele a pessoa entra de fora", obrigatorio: true },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
     ].concat(acessoCfg.soGoogle ? [] : [

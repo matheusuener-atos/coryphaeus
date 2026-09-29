@@ -121,9 +121,16 @@ function blocoConexao() {
   } else if (titulares.length) {
     const t = titulares[0];
     conta = '<p class="cfg-texto">' + esc(t.nome) + " · " + esc(t.email) + ' · <span class="fin-meta-ponto ok"><i></i>pronta</span></p>' +
-      '<p class="cfg-explica">Entra com a senha e o código do autenticador. As contas da equipe se criam em Configurações › Acesso de fora.</p>';
+      '<p class="cfg-explica">Entra com o Google e o código do autenticador. As contas da equipe se criam em Configurações › Acesso de fora.</p>';
   } else {
     const v = conexaoUI.conta;
+    // Vinculado a conta Google (E5): o e-mail dela e o da conta de titular,
+    // fixo; o nome vem do Google. Sobra so o secundario.
+    const vinculo = d.vinculo || {};
+    if (vinculo.email) {
+      v.email = vinculo.email;
+      if (!v.nome && vinculo.nome) v.nome = vinculo.nome;
+    }
     const campo = (chave, rotulo, tipo, dica) => '<div class="ag-campo"><label for="cx-' + chave + '">' + rotulo + "</label>" +
       '<input type="' + tipo + '" id="cx-' + chave + '" data-cx-conta="' + chave + '" value="' + esc(v[chave] || "") + '"' +
       (dica ? ' placeholder="' + esc(dica) + '"' : "") + (tipo === "password" ? ' autocomplete="new-password"' : "") + "></div>";
@@ -131,12 +138,16 @@ function blocoConexao() {
     // senha; o e-mail secundario e so de contato.
     conta = '<div class="acesso-form">' + campo("nome", "Nome", "text", "como aparece no registro de acessos") +
       (d.so_google
-        ? campo("email", "E-mail Google", "email", "Gmail ou do Google Workspace") + campo("secundario", "E-mail secundário (opcional)", "email", "")
+        ? (vinculo.email
+          ? '<div class="ag-campo"><label>E-mail Google</label><div class="acesso-fixo">' + ic("check_circle", 16) + "<span>" + esc(vinculo.email) +
+            "</span><small>a conta vinculada a este PAULUS</small></div></div>"
+          : campo("email", "E-mail Google", "email", "Gmail ou do Google Workspace")) + campo("secundario", "E-mail secundário (opcional)", "email", "")
         : campo("email", "E-mail", "email", "") + campo("senha", "Senha", "password", "pelo menos 10 caracteres") +
           campo("repetir", "Repita a senha", "password", "")) + "</div>" +
       '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
       '<div class="acesso-pe"><button class="primario com-icone" data-cx-criar-conta="1">' + ic("shield_person", 16) + "Criar a conta e ler o QR</button>" +
-      '<p class="cfg-explica">Sem ela, ninguém entra de fora. Senha e código ficam só neste computador.</p></div>';
+      '<p class="cfg-explica">' + (d.so_google ? "Sem ela, ninguém entra de fora. Você entra com o Google e o código do celular; o código fica só neste computador."
+        : "Sem ela, ninguém entra de fora. Senha e código ficam só neste computador.") + "</p></div>";
   }
   const contaPronta = titulares.length > 0 && conexaoUI.fase !== "codigos";
   const etapaConta = etapaConexao(2, "Sua conta de titular", conta, contaPronta);
@@ -328,7 +339,7 @@ function cartaoTunelConectado(s, d) {
     (s.porta_ocupada ? '<p class="acesso-erro">Outro programa está usando a porta ' + esc(String(s.porta)) +
       ". Enquanto isso, ninguém entra de fora — a janela daqui não é afetada.</p>" : "") +
     '<p class="cfg-texto acesso-quem">Entram de fora: ' +
-    (prontas.length ? esc(prontas.join(", ")) : "ninguém ainda") + " — cada um com a senha e o código do autenticador. A lista acompanha as contas abaixo.</p>" +
+    (prontas.length ? esc(prontas.join(", ")) : "ninguém ainda") + " — cada um com o Google e o código do autenticador. A lista acompanha as contas abaixo.</p>" +
     (typeof blocoEnergia === "function" ? blocoEnergia(energia) : "") +
     '<div class="acesso-pe">' +
     (s.porta_ocupada ? '<button class="primario" data-tunel-porta="1">Usar outra porta</button>' : "") +

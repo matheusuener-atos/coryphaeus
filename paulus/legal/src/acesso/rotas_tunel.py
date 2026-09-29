@@ -39,7 +39,11 @@ def montar(servico, conexao, r) -> None:
                 "titulares": [{"nome": c["nome"], "email": c["email"]} for c in conexao.titulares_prontos()],
                 "escritorio": nome, "sugestao": sugerir_endereco(nome) if nome else "",
                 "energia": servico.energia() if hasattr(servico, "energia") else {},
-                "so_google": servico.so_google()}
+                "so_google": servico.so_google(),
+                # A conta Google vinculada a este PAULUS (E5): e o e-mail da conta
+                # de titular - a tela nao pede de novo.
+                "vinculo": {"email": (getattr(servico, "vinculo", None).dados().get("email", "") if getattr(servico, "vinculo", None) else ""),
+                            "nome": (getattr(servico, "vinculo", None).dados().get("nome", "") if getattr(servico, "vinculo", None) else "")}}
 
     @r.get("/api/acesso/tunel/sugestao")
     def tunel_sugestao(nome: str, request: Request) -> dict:

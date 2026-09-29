@@ -290,7 +290,7 @@ function passoAcesso() {
         "Este computador precisa ficar ligado, com o PAULUS aberto: é ele que atende.",
         "Documentos e modelo de IA não saem daqui. Só a tela trafega, pela Cloudflare, que a vê descriptografada no caminho.",
         "A conta da Cloudflare é do Atos, que não inspeciona nem registra esse conteúdo.",
-        "Cada pessoa entra com a própria conta: verificação contra robôs, senha e o código do celular.",
+        "Cada pessoa entra com a própria conta Google e o código do celular, depois da verificação contra robôs.",
       ])
       : "");
   const chave = '<div class="bv-modulo" data-bv-acesso="1" role="switch" tabindex="0" aria-checked="' + bv.acesso + '">' +
