@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "0.9.12",
+      "date": "2026-09-29",
+      "changes": [
+        "Sair da conta na janela do servidor, com o acesso de fora funcionando",
+        "O \"P\" do PAULUS na aba das páginas de fora"
+      ]
+    },
+    {
       "version": "0.9.11",
       "date": "2026-09-29",
       "changes": [

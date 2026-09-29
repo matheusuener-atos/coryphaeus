@@ -1,11 +1,12 @@
 {
-  "versao": "0.9.11",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.11/PAULUS-0.9.11-instalador.exe",
-  "sha256": "4df4c3d65aa0a1578e5400215241ce00a5dc97bd1a4d6a1671f121a5394364df",
-  "tamanho": 94540873,
+  "versao": "0.9.12",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.12/PAULUS-0.9.12-instalador.exe",
+  "sha256": "d3241f3c2a32348efd02487031384a53a7aa33822f3c5011d2f354b1436b26f3",
+  "tamanho": 94153220,
   "publicada": "2026-09-29",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.11",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.12",
   "novidades": [
-    "Equipe num cadastro só, endereço do acesso de fora preso à conta Google, e as páginas no desenho novo"
+    "Sair da conta na janela do servidor, com o acesso de fora funcionando",
+    "O \"P\" do PAULUS na aba das páginas de fora"
   ]
 }
