@@ -108,6 +108,12 @@ def test_http() -> None:
            "o login pede so a identidade (nada de e-mail)", EntradaFalsa.kwargs)
     checar(prefs["pessoa"].get("nome") == "Dona do Escritório" and prefs["pessoa"].get("email") == "dona@gmail.com",
            "Meus dados vazios ganham o nome e o e-mail", prefs["pessoa"])
+    # o e-mail que havia vira o secundario ao vincular de novo com outra conta
+    local.post("/api/vinculo/desvincular")
+    prefs["pessoa"].update(email="contato@escritorio.com", email_secundario="")
+    local.post("/api/vinculo/entrar", json={"finalidade": "vincular"})
+    checar(prefs["pessoa"].get("email") == "dona@gmail.com" and prefs["pessoa"].get("email_secundario") == "contato@escritorio.com",
+           "o e-mail de Meus dados vira o do Google, e o antigo vai para o secundario", prefs["pessoa"])
 
     print("  travado")
     local.post("/api/vinculo/travar")

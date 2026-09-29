@@ -17,7 +17,7 @@
   .bv-codigo-nota { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   .bv-codigo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
   .bv-codigo-acoes button { display: inline-flex; align-items: center; gap: 6px; }
-  .bv-campo-fixo { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); font: 400 14px var(--sans); color: var(--ink3); }
+  .bv-campo-fixo { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); font: 400 14px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; }
   .bv-grade .bv-cheia { grid-column: 1 / -1; }
 
   /* modo limitado: a casca inteira, com o que depende da rede apagado */
@@ -28,3 +28,5 @@
   .cartao-agora.espera .acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .cartao-agora.espera .pode { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
 
+  /* O e-mail Google fixo em Seus dados (E5): endereco longo corta com reticencias. */
+  .bv-campo-fixo span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

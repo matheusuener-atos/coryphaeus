@@ -106,9 +106,15 @@ class Vinculo:
             # Quem vincula ja e o dono: o nome e o e-mail entram em Meus dados
             # quando estao vazios.
             pessoa = dict(self.prefs.dados.get("pessoa") or {})
-            novos = {k: v for k, v in (("nome", nome), ("email", email)) if v and not pessoa.get(k)}
-            if novos:
-                self.prefs.atualizar({"pessoa": novos})
+            novos = {"email": email}
+            if nome and not pessoa.get("nome"):
+                novos["nome"] = nome
+            # O e-mail de Meus dados passa a ser o do Google; o que havia, se
+            # outro, vira o secundario (quando este esta vazio) - nada se perde.
+            antigo = str(pessoa.get("email") or "").strip().lower()
+            if antigo and antigo != email and not pessoa.get("email_secundario"):
+                novos["email_secundario"] = antigo
+            self.prefs.atualizar({"pessoa": novos})
             self.destravado = True
             return {"email": email, "nome": nome}
         esperado = str(self.dados().get("email") or "").lower()

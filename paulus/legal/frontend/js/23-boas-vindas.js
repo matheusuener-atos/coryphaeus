@@ -37,7 +37,7 @@ const bv = {
   // baixado quando o assistente termina (/api/voz/baixar).
   voz: null, vozEscolhida: "",
 };
-const ORDEM_CRIAR = ["boasvindas", "google", "escritorio", "acesso", "dados", "ia", "modulos", "conexoes", "atualizacoes"];
+const ORDEM_CRIAR = ["boasvindas", "google", "dados", "escritorio", "acesso", "ia", "modulos", "conexoes", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
 const NOMES_BV = {
   boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA",
@@ -113,7 +113,8 @@ async function mostrarBoasVindas() {
   try { bv.status = await (await fetch("/api/status")).json(); } catch (err) { bv.status = null; }
   const prefs = bv.prefs.preferencias || {};
   const p = prefs.pessoa || {};
-  bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "", endereco: p.endereco || "" };
+  bv.pessoa = { nome: p.nome || "", cpf: p.cpf || "", oab: p.oab || "", telefone: p.telefone || "", email: p.email || "",
+    email_secundario: p.email_secundario || "", endereco: p.endereco || "" };
   bv.modulos = Object.assign({}, prefs.modulos || {});
   bv.escritorio = (prefs.escritorio || {}).nome || "";
   bv.acesso = Boolean((prefs.acesso_remoto || {}).hostname);
@@ -316,8 +317,12 @@ function passoAcesso() {
   conexaoUI.onde = "bv";
   conexaoUI.redesenhar = desenharBoasVindas;
   const v = conexaoUI.conta;
+  // A conta de titular sai de Seus dados: nome, e-mail (o do Google, com o
+  // vinculo) e o secundario - o bloco so mostra, nao pede de novo.
+  conexaoUI.daPessoa = { nome: bv.pessoa.nome || "", email: bv.pessoa.email || "", secundario: bv.pessoa.email_secundario || "" };
   if (!v.nome && bv.pessoa.nome) v.nome = bv.pessoa.nome;
   if (!v.email && bv.pessoa.email) v.email = bv.pessoa.email;
+  if (!v.secundario && bv.pessoa.email_secundario) v.secundario = bv.pessoa.email_secundario;
   return [texto, '<div class="bv-acesso"><div class="bv-cartao">' + chave + "</div>" + '<div class="bv-cartao">' + blocoConexao() + "</div></div>"];
 }
 
@@ -338,12 +343,25 @@ function fotoBv(titulo) {
 
 function passoDados() {
   const p = bv.pessoa;
+  // Vinculado a conta Google (E5): o nome vem dela (da para mudar) e o e-mail
+  // e o do Google, fixo - so o secundario se digita. E daqui que a conta de
+  // titular do acesso a distancia tira o nome e os e-mails, sem pedir de novo.
+  const g = (typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado) ? vinc.estado : null;
+  if (g) {
+    p.email = g.email;
+    if (!p.nome && g.nome) p.nome = g.nome;
+  }
   const texto = "<h1>Quem vai usar o PAULUS?</h1>" +
-    "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p>";
+    "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p>" +
+    (g ? infosBv(["O nome e o e-mail vieram da sua conta Google; o e-mail é o com que você entra. Outro e-mail de contato vai em “secundário”."], "check_circle", "ok") : "");
+  const email = g
+    ? '<div class="campo-painel"><label>E-mail Google</label><span class="bv-campo-fixo" title="' + esc(g.email) + '">' + ic("check_circle", 16) + "<span>" + esc(g.email) + "</span></span></div>" +
+      campoBv("email_secundario", "E-mail secundário (opcional)", p.email_secundario, "data-bv-pessoa", "email")
+    : campoBv("email", "E-mail", p.email, "data-bv-pessoa", "email");
   const lado = '<div class="bv-cartao">' + fotoBv("Iniciais") +
     '<div class="bv-grade">' + campoBv("nome", "Nome completo", p.nome, "data-bv-pessoa") + campoBv("oab", "OAB", p.oab, "data-bv-pessoa", "", "GO 00000") +
     campoBv("cpf", "CPF", p.cpf, "data-bv-pessoa", "cpf", "000.000.000-00") + campoBv("telefone", "Telefone", p.telefone, "data-bv-pessoa", "telefone", "(62) 99999-8888") +
-    campoBv("email", "E-mail", p.email, "data-bv-pessoa", "email") + campoBv("endereco", "Endereço", p.endereco, "data-bv-pessoa") + "</div></div>";
+    email + campoBv("endereco", "Endereço", p.endereco, "data-bv-pessoa") + "</div></div>";
   return [texto, lado];
 }
 
@@ -710,7 +728,14 @@ function ligarBoasVindas() {
   caixa.querySelectorAll("[data-bv-google]").forEach((b) => {
     b.onclick = async () => {
       try {
-        await entrarNoGoogleDoVinculo("vincular", () => { if (passoBv() === "google") desenharBoasVindas(); });
+        await entrarNoGoogleDoVinculo("vincular", () => {
+          const e = vinc.estado || {};
+          if (e.vinculado) {
+            bv.pessoa.email = e.email;
+            if (!bv.pessoa.nome && e.nome) bv.pessoa.nome = e.nome;
+          }
+          if (passoBv() === "google") desenharBoasVindas();
+        });
       } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     };
   });

@@ -199,6 +199,9 @@ PADRAO: dict = {
         "oab": "",
         "telefone": "",
         "email": "",
+        # Com o PAULUS vinculado a conta Google (E5), `email` e o do Google; o
+        # de contato, se outro, fica aqui.
+        "email_secundario": "",
         "endereco": "",
         "usar_na_qualificacao": True,
     },

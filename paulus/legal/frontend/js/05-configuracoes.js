@@ -268,6 +268,7 @@ function secaoPerfil() {
   const r = cfg.rascunho;
   const p = r.pessoa;
   const e = r.escritorio;
+  const vinculoGoogle = (((cfg.prefs || {}).preferencias || {}).vinculo) || {};
   const foto = marcaDaTela("foto");
   const voce = '<div class="cfg-foto">' + avatarDoPerfil(p.nome) + '<div class="cfg-botoes">' +
     '<button data-cfg-marca="foto">' + ic("photo_camera", 16) + (foto.tem ? "Trocar foto" : "Enviar foto") + "</button>" +
@@ -275,7 +276,13 @@ function secaoPerfil() {
     '<span class="cfg-explica">PNG ou JPG, até 4 MB</span></div></div>' +
     '<div class="cfg-campos">' + campoCfg("pessoa.nome", "Nome completo", p.nome) +
     '<div class="ag-duas">' + campoCfg("pessoa.cpf", "CPF", formatarCpf(p.cpf || ""), "000.000.000-00", atributosDoCampo("cpf")) + campoCfg("pessoa.oab", "OAB", p.oab, "GO 00000") + "</div>" +
-    '<div class="ag-duas">' + campoCfg("pessoa.telefone", "Telefone", formatarTelefone(p.telefone || ""), "(62) 90000-0000", atributosDoCampo("telefone")) + campoCfg("pessoa.email", "E-mail", p.email) + "</div>" +
+    '<div class="ag-duas">' + campoCfg("pessoa.telefone", "Telefone", formatarTelefone(p.telefone || ""), "(62) 90000-0000", atributosDoCampo("telefone")) +
+    // Vinculado a conta Google (E5): o e-mail e o do Google, so para ler; o de
+    // contato vai no secundario.
+    (vinculoGoogle.email
+      ? campoCfg("pessoa.email", "E-mail Google (a conta vinculada)", vinculoGoogle.email, "", ' readonly title="muda em Escritório e equipe › Conta Google"') + "</div>" +
+        campoCfg("pessoa.email_secundario", "E-mail secundário (opcional)", p.email_secundario, "outro e-mail de contato")
+      : campoCfg("pessoa.email", "E-mail", p.email) + "</div>") +
     campoCfg("pessoa.endereco", "Endereço profissional", p.endereco) + "</div>";
 
   const timbre = '<div class="cfg-sub">' + ligaCfg("timbre_no_pdf", "Papel timbrado nos PDFs", "nome, OAB, endereço e contato no alto de cada PDF gerado aqui", r.timbre_no_pdf) +

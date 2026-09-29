@@ -136,7 +136,17 @@ function blocoConexao() {
       (dica ? ' placeholder="' + esc(dica) + '"' : "") + (tipo === "password" ? ' autocomplete="new-password"' : "") + "></div>";
     // So o Google (decisao do escritorio): a conta e o e-mail Google, sem
     // senha; o e-mail secundario e so de contato.
-    conta = '<div class="acesso-form">' + campo("nome", "Nome", "text", "como aparece no registro de acessos") +
+    // No assistente, com o vinculo, tudo vem de Seus dados: so o resumo.
+    const daPessoa = conexaoUI.onde === "bv" && vinculo.email ? (conexaoUI.daPessoa || {}) : null;
+    if (daPessoa && daPessoa.nome) {
+      v.nome = daPessoa.nome; v.email = vinculo.email; v.secundario = daPessoa.secundario || "";
+      conta = '<div class="cfg-linhas">' + chaveCfg("Nome", v.nome) + chaveCfg("E-mail Google", vinculo.email) +
+        (v.secundario ? chaveCfg("E-mail secundário", v.secundario) : "") + "</div>" +
+        '<p class="cfg-explica">Vêm de Seus dados; dá para mudar lá.</p>' +
+        '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
+        '<div class="acesso-pe"><button class="primario com-icone" data-cx-criar-conta="1">' + ic("shield_person", 16) + "Criar a conta e ler o QR</button>" +
+        '<p class="cfg-explica">Sem ela, ninguém entra de fora. Você entra com o Google e o código do celular; o código fica só neste computador.</p></div>';
+    } else conta = '<div class="acesso-form">' + campo("nome", "Nome", "text", "como aparece no registro de acessos") +
       (d.so_google
         ? (vinculo.email
           ? '<div class="ag-campo"><label>E-mail Google</label><div class="acesso-fixo">' + ic("check_circle", 16) + "<span>" + esc(vinculo.email) +

@@ -373,9 +373,18 @@ def main() -> int:
             )
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(400)
+            # Seus dados vem logo depois da Conta Google (o nome e o e-mail
+            # saem dela); "Pular" para nao gravar nada nos dados de verdade.
             checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "3Escritório",
-                "depois da Conta Google, o passo Escritorio",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "3Seus dados",
+                "depois da Conta Google, Seus dados",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
+            )
+            pagina.evaluate("() => document.querySelector('[data-bv=pular]').click()")
+            pagina.wait_for_timeout(400)
+            checar(
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "4Escritório",
+                "depois de Seus dados, o passo Escritorio",
             )
             checar(
                 pagina.evaluate("() => !!document.getElementById('bv-escritorio')"),
@@ -386,7 +395,7 @@ def main() -> int:
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(700)
             checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "4Acesso à distância",
+                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "5Acesso à distância",
                 "logo depois do nome do escritorio vem 'Acesso a distancia'",
                 pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
             )
@@ -1101,8 +1110,10 @@ def main() -> int:
             pagina.wait_for_timeout(300)
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
             pagina.wait_for_timeout(400)
-            # boas-vindas -> Conta Google (E5) -> Escritorio
+            # boas-vindas -> Conta Google (E5) -> Seus dados -> Escritorio
             pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+            pagina.wait_for_timeout(400)
+            pagina.evaluate("() => document.querySelector('[data-bv=pular]').click()")
             pagina.wait_for_timeout(400)
             checar(
                 pagina.evaluate("() => !document.querySelector('[data-caminho]') && !!document.querySelector('[data-bv-escritorio]')"),
