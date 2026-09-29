@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.15",
+      "date": "2026-09-29",
+      "changes": [
+        "\"Perguntar ao PAULUS\": nunca uma segunda janela em branco"
+      ]
+    },
+    {
       "version": "0.9.14",
       "date": "2026-09-29",
       "changes": [
