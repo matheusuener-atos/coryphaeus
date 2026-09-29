@@ -81,6 +81,40 @@ def test_desktop() -> None:
         checar(desktop._porta_da_instancia_aberta() == 0, "sem instancia.json, nenhum PAULUS aberto")
         Path(pasta, "instancia.json").write_text(json.dumps({"porta": 1, "pid": 1}), encoding="utf-8")
         checar(desktop._porta_da_instancia_aberta() == 0, "instancia.json que sobrou de uma queda nao engana")
+
+        # O PAULUS aberto e ocupado: nao responde a tempo, mas o processo dele
+        # esta vivo. O clique insiste e NUNCA abre uma segunda janela (que, com a
+        # mesma pasta de sessao do WebView2, abria em branco).
+        if sys.platform == "win32":
+            checar(desktop._processo_vivo(os.getpid()), "o processo deste Python conta como PAULUS vivo")
+            checar(not desktop._processo_vivo(1) and not desktop._processo_vivo(0), "pid que nao existe (ou nao e Python) nao conta")
+            Path(pasta, "instancia.json").write_text(json.dumps({"porta": 47999, "pid": os.getpid()}), encoding="utf-8")
+            tentativas = []
+            antes_entregar, antes_dormir, antes_argv = desktop._entregar_para_a_aberta, desktop.time.sleep, sys.argv
+            desktop._entregar_para_a_aberta = lambda porta, caminho, timeout=10: tentativas.append((porta, timeout)) or False
+            desktop.time.sleep = lambda s: None
+            sys.argv = ["desktop.py", "--perguntar", arquivo]
+            try:
+                import builtins
+
+                importar = builtins.__import__
+
+                def sem_janela(nome, *a, **k):
+                    if nome == "webview":
+                        raise AssertionError("abriu uma segunda janela")
+                    return importar(nome, *a, **k)
+
+                builtins.__import__ = sem_janela
+                try:
+                    volta = desktop.main()
+                finally:
+                    builtins.__import__ = importar
+            except AssertionError as exc:
+                volta = str(exc)
+            finally:
+                desktop._entregar_para_a_aberta, desktop.time.sleep, sys.argv = antes_entregar, antes_dormir, antes_argv
+            checar(volta == 0 and len(tentativas) == 3 and all(t == (47999, 30) for t in tentativas),
+                   "PAULUS vivo e ocupado: tenta de novo, com mais paciencia, e nao abre outra janela", (volta, tentativas))
     finally:
         if antes is None:
             os.environ.pop("PAULUS_DADOS", None)

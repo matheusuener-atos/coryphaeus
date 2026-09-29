@@ -316,6 +316,42 @@ def _porta_da_instancia_aberta() -> int:
         return 0
 
 
+def _processo_vivo(pid: int) -> bool:
+    """O processo existe e e um Python (o PAULUS roda no pythonw): um pid reaproveitado nao conta."""
+    if not pid or sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, int(pid))  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            codigo = wintypes.DWORD()
+            if not k.GetExitCodeProcess(h, ctypes.byref(codigo)) or codigo.value != 259:  # STILL_ACTIVE
+                return False
+            nome = ctypes.create_unicode_buffer(1024)
+            tamanho = wintypes.DWORD(1024)
+            if not k.QueryFullProcessImageNameW(h, 0, nome, ctypes.byref(tamanho)):
+                return False
+            return "python" in Path(nome.value).name.lower()
+        finally:
+            k.CloseHandle(h)
+    except Exception:  # noqa: BLE001 - sem saber, vale a resposta pela porta
+        return False
+
+
+def _instancia_registrada() -> tuple[int, int]:
+    """(porta, pid) do arquivo de instancia; (0, 0) sem arquivo."""
+    try:
+        d = json.loads(_instancia_path().read_text(encoding="utf-8"))
+        return int(d.get("porta") or 0), int(d.get("pid") or 0)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 0, 0
+
+
 def _conteudo_da_instancia(porta: int, chave: str) -> str:
     """
     O que vai no arquivo de instancia: a porta, o processo e a chave da janela
@@ -360,7 +396,7 @@ def _opcoes_da_janela(argv: list[str]) -> dict:
     return {"minimized": True} if "--minimizado" in argv else {}
 
 
-def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
+def _entregar_para_a_aberta(porta: int, caminho: str, timeout: float = 10) -> bool:
     """Passa o pedido para a janela aberta e deixa ela vir para frente."""
     if sys.platform == "win32":
         try:
@@ -377,7 +413,7 @@ def _entregar_para_a_aberta(porta: int, caminho: str) -> bool:
         headers={"Content-Type": "application/json", **_cabecalho_local()}, method="POST",
     )
     try:
-        with urllib.request.urlopen(pedido, timeout=10) as r:
+        with urllib.request.urlopen(pedido, timeout=timeout) as r:
             return r.status == 200
     except OSError:
         return False
@@ -403,7 +439,9 @@ def _pedido_externo(tipo: str, caminho: str) -> None:
         return
     _trazer_para_frente()
     if tipo == "perguntar":
-        _JANELA.evaluate_js("perguntarSobreArquivo(" + json.dumps(caminho) + ")")
+        # Sem esperar: anexar le o arquivo (pode levar segundos) e quem
+        # entregou nao pode ficar preso nisso - senao desiste e abre outra janela.
+        _JANELA.evaluate_js("setTimeout(function () { perguntarSobreArquivo(" + json.dumps(caminho) + "); }, 0); true")
 
 
 def _sair_da_pasta_do_programa() -> None:
@@ -427,6 +465,17 @@ def main() -> int:
     pedido = _arquivo_pedido(sys.argv[1:])
     aberta = _porta_da_instancia_aberta()
     if aberta and _entregar_para_a_aberta(aberta, pedido):
+        return 0
+    # O PAULUS aberto e ocupado (maquina com pouca memoria, lendo o Acervo)
+    # demora a responder - e uma segunda janela, com a mesma pasta de sessao
+    # do WebView2, abre em branco. Com o processo registrado vivo, insiste na
+    # entrega e nunca abre outra janela.
+    porta_reg, pid_reg = _instancia_registrada()
+    if porta_reg and _processo_vivo(pid_reg):
+        for _ in range(3):
+            if _entregar_para_a_aberta(porta_reg, pedido, timeout=30):
+                return 0
+            time.sleep(1)
         return 0
 
     try:

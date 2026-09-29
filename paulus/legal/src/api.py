@@ -2894,7 +2894,10 @@ def externo_perguntar(payload: PedidoExterno) -> dict:
     if caminho.suffix.lower() not in SUPPORTED_SUFFIXES:
         raise HTTPException(status_code=400, detail="formato nao suportado")
     if estado.ao_pedido_externo:
-        estado.ao_pedido_externo("perguntar", str(caminho.resolve()))
+        # Em segundo plano: quem entregou (o PAULUS.exe do clique) recebe a
+        # resposta na hora, sem esperar a janela.
+        threading.Thread(target=estado.ao_pedido_externo, args=("perguntar", str(caminho.resolve())),
+                         name="pedido-externo", daemon=True).start()
     return {"entregue": bool(estado.ao_pedido_externo)}
 
 
@@ -2902,7 +2905,7 @@ def externo_perguntar(payload: PedidoExterno) -> dict:
 def externo_mostrar() -> dict:
     """Abrir o PAULUS com ele ja aberto traz a janela que existe para frente."""
     if estado.ao_pedido_externo:
-        estado.ao_pedido_externo("mostrar", "")
+        threading.Thread(target=estado.ao_pedido_externo, args=("mostrar", ""), name="pedido-externo", daemon=True).start()
     return {"entregue": bool(estado.ao_pedido_externo)}
 
 
