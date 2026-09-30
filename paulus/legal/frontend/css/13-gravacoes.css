@@ -150,6 +150,8 @@
   .gv-ouvindo .ponto { background: var(--mute2); }
   .gv-ouvindo.viva .ponto { background: var(--acc); }
   .gv-vivo-aviso { padding: 12px 16px; }
+  /* "clicando aqui": um botão com cara de link, dentro da frase */
+  .gv-link { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
   .gv-trecho .em-ligacao.forte.fixo { cursor: default; }
   /* As pendencias do resumo, para virarem tarefas ou irem para a Agenda. */
   .gv-pendencias { display: grid; gap: 10px; padding: 6px 16px 16px; }

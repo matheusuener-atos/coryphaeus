@@ -12,6 +12,7 @@ fingir uma transcricao.
 from __future__ import annotations
 
 import servicos_acesso
+import transcricao
 
 import json
 import re
@@ -132,6 +133,8 @@ class Gravacoes:
         g["trechos_quantos"] = len(trechos)
         g["palavras"] = sum(len(t.get("texto", "").split()) for t in trechos)
         g["transcricao_rotulo"] = ESTADOS_TRANSCRICAO.get(g.get("transcricao_estado", ""), "")
+        # Faltou memória para o modelo de voz: a tela oferece o mais leve.
+        g["transcricao_sem_memoria"] = transcricao.falta_de_memoria(g.get("transcricao_erro", ""))
         if completo:
             g["trechos"] = trechos
 

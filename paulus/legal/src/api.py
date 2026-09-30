@@ -11093,6 +11093,9 @@ async def voz_ao_vivo_audio(sid: str, request: Request) -> dict:
         return {"trechos": [], **sessao.situacao()}
     try:
         novos = await run_in_threadpool(estado.transcritor.ao_vivo_receber, sessao, pcm[: len(pcm) - len(pcm) % 2])
+    except transcricao_mod.SemMemoria as exc:
+        # A frase inteira: a tela a reconhece e oferece o modelo mais leve.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - o erro vai para a tela, a sessao continua
         raise HTTPException(status_code=500, detail="a transcrição falhou neste pedaço: " + str(exc)[:200]) from exc
     return {"trechos": novos, **sessao.situacao()}
@@ -11106,6 +11109,8 @@ async def voz_ao_vivo_fim(sid: str) -> dict:
     # allocate memory"), e nao um 500 sem corpo que a tela nao sabe ler.
     try:
         await run_in_threadpool(estado.transcritor.ao_vivo_fim, sessao)
+    except transcricao_mod.SemMemoria as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - o motivo vai para a tela
         raise HTTPException(status_code=500, detail=f"a transcrição falhou no fim da gravação: {exc}") from exc
     return {"trechos": sessao.trechos, **sessao.situacao()}

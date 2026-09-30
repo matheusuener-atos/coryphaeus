@@ -35,6 +35,42 @@ PADRAO = "turbo"
 ARQUIVOS_DO_MODELO = ("model.bin", "config.json")
 TAXA = 16000
 
+# O começo da frase de falta de memória: é por ele que a gravação que falhou
+# (o erro fica guardado como texto) é reconhecida, e a tela oferece o mais leve.
+SEM_MEMORIA = "memória livre insuficiente para o modelo de voz"
+# O que o CTranslate2 e o MKL dizem quando a memória acaba no meio - antes de
+# a conferência de carregar() existir, isso derrubava o programa.
+RE_FALTOU_MEMORIA = ("failed to allocate", "bad_alloc", "out of memory", "mkl_malloc")
+
+
+def mais_leve_que(nome: str) -> str:
+    """O modelo menor que `nome`, o maior deles (o que acerta mais); '' se `nome` já é o menor."""
+    menores = [n for n, m in MODELOS.items() if m["mb"] < MODELOS.get(nome, {"mb": 0})["mb"]]
+    return max(menores, key=lambda n: MODELOS[n]["mb"]) if menores else ""
+
+
+def falta_de_memoria(erro: str) -> bool:
+    return str(erro or "").startswith(SEM_MEMORIA)
+
+
+class SemMemoria(RuntimeError):
+    """O modelo de voz não cabe na memória livre agora. `mais_leve` é o que dá para sugerir ('' se nada)."""
+
+    def __init__(self, modelo: str, livre_mb: float, precisa_mb: float, mais_leve: str = "") -> None:
+        self.modelo, self.livre_mb, self.precisa_mb, self.mais_leve = modelo, livre_mb, precisa_mb, mais_leve
+        gb = lambda mb: f"{mb / 1024:.1f}".replace(".", ",")  # noqa: E731
+        frase = f"{SEM_MEMORIA} agora ({gb(livre_mb)} GB livres, precisa de uns {gb(precisa_mb)} GB). "
+        if mais_leve:
+            frase += (f"Troque para o {MODELOS[mais_leve]['rotulo']}, mais leve ({gb(MODELOS[mais_leve]['mb'])} GB), "
+                      "ou feche programas pesados e mande transcrever de novo")
+        else:
+            frase += "Feche programas pesados ou espere o assistente terminar, e mande transcrever de novo"
+        super().__init__(frase)
+
+
+def _e_falta_de_memoria(exc: BaseException) -> bool:
+    return isinstance(exc, MemoryError) or any(p in str(exc).lower() for p in RE_FALTOU_MEMORIA)
+
 
 class SessaoAoVivo:
     """O audio de uma gravacao em andamento, chegando aos pedacos."""
@@ -100,6 +136,9 @@ class Transcritor:
                 {"nome": n, "rotulo": m["rotulo"], "mb": m["mb"], "nota": m["nota"], "instalado": self.instalado(n)}
                 for n, m in MODELOS.items()
             ],
+            # O que a tela oferece quando falta memória ("troque para o mais leve").
+            "mais_leve": ({"nome": leve, "rotulo": MODELOS[leve]["rotulo"], "mb": MODELOS[leve]["mb"],
+                           "instalado": self.instalado(leve)} if (leve := mais_leve_que(self.modelo)) else None),
         }
 
     def escolher(self, nome: str) -> None:
@@ -146,18 +185,30 @@ class Transcritor:
             livre_mb = psutil.virtual_memory().available / (1024 * 1024)
             precisa_mb = MODELOS[self.modelo]["mb"] * 1.2
             if livre_mb < precisa_mb:
-                raise RuntimeError(
-                    f"memória livre insuficiente para o modelo de voz agora ({livre_mb / 1024:.1f} GB livres, "
-                    f"precisa de uns {precisa_mb / 1024:.1f} GB). Feche programas pesados ou espere o assistente "
-                    "terminar, e mande transcrever de novo".replace(".", ",", 2))
+                raise SemMemoria(self.modelo, livre_mb, precisa_mb, mais_leve_que(self.modelo))
             from faster_whisper import WhisperModel
 
-            self._carregado = WhisperModel(
-                str(self.pasta_de(self.modelo)), device="cpu", compute_type="int8",
-                cpu_threads=self.nucleos, local_files_only=True,
-            )
+            try:
+                self._carregado = WhisperModel(
+                    str(self.pasta_de(self.modelo)), device="cpu", compute_type="int8",
+                    cpu_threads=self.nucleos, local_files_only=True,
+                )
+            except Exception as exc:  # noqa: BLE001 - so a falta de memoria muda de nome
+                self._falhou_por_memoria(exc, descarregar=False)   # a trava ja esta conosco
+                raise
             self._nome_carregado = self.modelo
             return self._carregado
+
+    def _falhou_por_memoria(self, exc: BaseException, descarregar: bool = True) -> None:
+        """O erro do modelo foi a memória acabando no meio: vira SemMemoria, com a sugestão do mais leve."""
+        if isinstance(exc, SemMemoria) or not _e_falta_de_memoria(exc):
+            return
+        import psutil
+
+        if descarregar:
+            self.descarregar()
+        raise SemMemoria(self.modelo, psutil.virtual_memory().available / (1024 * 1024),
+                         MODELOS[self.modelo]["mb"] * 1.2, mais_leve_que(self.modelo)) from exc
 
     def descarregar(self) -> None:
         with self._trava:
@@ -171,6 +222,13 @@ class Transcritor:
         `progresso(fracao)` e chamado a cada trecho, para a tela mostrar o
         andamento; a fracao e o fim do trecho sobre a duracao do audio.
         """
+        try:
+            return self._transcrever(caminho, idioma, progresso)
+        except Exception as exc:  # noqa: BLE001 - so a falta de memoria muda de nome
+            self._falhou_por_memoria(exc)
+            raise
+
+    def _transcrever(self, caminho: Path, idioma: str, progresso) -> dict:
         modelo = self.carregar()
         comeco = time.time()
         segmentos, info = modelo.transcribe(
@@ -206,6 +264,13 @@ class Transcritor:
 
     def transcrever_pedaco(self, audio, prompt: str = "") -> list[dict]:
         """Um pedaco curto (segundos) que ja esta em float32 a 16 kHz."""
+        try:
+            return self._transcrever_pedaco(audio, prompt)
+        except Exception as exc:  # noqa: BLE001 - so a falta de memoria muda de nome
+            self._falhou_por_memoria(exc)
+            raise
+
+    def _transcrever_pedaco(self, audio, prompt: str) -> list[dict]:
         modelo = self.carregar()
         duracao = len(audio) / TAXA
         segmentos, _info = modelo.transcribe(

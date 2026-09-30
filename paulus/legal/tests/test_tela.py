@@ -1240,6 +1240,18 @@ def main() -> int:
                     pagina.evaluate("() => !!gv.voz && !!document.querySelector('#gv-conteudo [data-gv-transcrever], #gv-conteudo [data-gv-baixar-voz], #gv-conteudo #gv-progresso, #gv-conteudo .gv-trecho')"),
                     "a aba Transcricao sabe se o modelo de voz esta nesta maquina",
                 )
+                # Faltou memoria para o modelo de voz: a frase oferece o mais
+                # leve "clicando aqui" (sem clicar: este teste roda tambem nos
+                # dados de verdade, e o clique troca o modelo).
+                pagina.evaluate("() => { gv.aberta.transcricao_estado = 'erro'; gv.aberta.transcricao_sem_memoria = true;"
+                                " gv.aberta.transcricao_erro = 'memória livre insuficiente para o modelo de voz agora (0,9 GB livres, precisa de uns 1,9 GB). Troque para o Whisper small, mais leve (0,5 GB), ou feche programas pesados e mande transcrever de novo';"
+                                " gv.voz = Object.assign({}, gv.voz, { mais_leve: { nome: 'small', rotulo: 'Whisper small', mb: 480, instalado: true } }); gv.aba = 'transcricao'; redesenharConteudoGv(); }")
+                pagina.wait_for_timeout(300)
+                checar(
+                    pagina.evaluate("() => { const b = document.querySelector('#gv-conteudo [data-gv-mais-leve]'); const t = document.querySelector('#gv-conteudo .gv-adiante').textContent;"
+                                    " return !!b && b.textContent === 'clicando aqui' && t.includes('Whisper small') && (t.match(/Whisper small/g) || []).length === 1; }"),
+                    "sem memoria para o modelo de voz, a tela sugere o mais leve 'clicando aqui', uma vez so",
+                )
                 # Com a transcricao pronta a aba oferece corrigir nomes, exportar
                 # .docx e compartilhar; as pendencias do resumo viram tarefas.
                 pagina.evaluate("() => { gv.aberta.transcricao_estado = 'pronta'; gv.aberta.trechos = [{ inicio: 0, fim: 2, texto: 'Bom dia, Priscilla.' }]; gv.aberta.palavras = 3; gv.aba = 'transcricao'; redesenharConteudoGv(); }")

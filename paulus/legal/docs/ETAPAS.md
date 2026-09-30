@@ -2145,3 +2145,22 @@ Biblioteca e do umbrelOS ligam e desligam em Configurações.
 **Medido:** sem token, token errado e revogado → 401; outro endereço e túnel →
 403; ferramenta fora da lista → negada; o catálogo não tem nada do Acervo, da
 biblioteca ou de cadastro; as rotas de conexão bloqueadas de fora.
+
+## Modelo de voz pesado: a tela sugere o mais leve ✓ FEITA (30/09/2026)
+
+Pedido do dono: quando o modelo de transcrição for pesado demais e der erro
+por isso, sugerir a troca por um mais leve, "clicando aqui".
+
+- `src/transcricao.py`: a falta de memória virou `SemMemoria`, com o modelo
+  mais leve que dá para sugerir (`mais_leve_que`). Vale para a conferência de
+  antes de carregar e para o erro que o CTranslate2 dá no meio
+  (`MemoryError`, "failed to allocate", `bad_alloc`), que antes chegava como
+  erro qualquer. `situacao()` diz qual é o mais leve e se já está baixado.
+- A gravação que falhou por memória leva `transcricao_sem_memoria`; o ao vivo
+  devolve a frase inteira (503), para a tela reconhecê-la.
+- Na tela (Gravações › Transcrição e no ao vivo): o motivo e "troque para o
+  Whisper small, mais leve (0,5 GB; erra um pouco mais em nomes e números),
+  clicando aqui". Baixado: troca e transcreve de novo. Não baixado: baixa uma
+  vez e recomeça sozinha. Ao vivo: troca e volta a ouvir.
+- Portão: `tests/test_voz_mais_leve.py` (memória e faster-whisper simulados)
+  e um caso novo em `tests/test_tela.py`.

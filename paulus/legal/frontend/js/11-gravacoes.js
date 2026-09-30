@@ -744,8 +744,11 @@ function cartaoDaTranscricao(g) {
       '<small class="nota" id="gv-progresso-texto">' + esc(textoDoProgressoGv(g)) + "</small>") + "</div>";
   }
   if (g.transcricao_estado === "erro") {
+    // Faltou memória para o modelo de voz: o motivo, e a troca pelo mais leve num clique.
+    const leve = g.transcricao_sem_memoria && v.mais_leve;
+    const erro = g.transcricao_erro || "erro desconhecido";
     return '<div class="gv-miolo">' + cabeca("não deu certo") + corpo("A transcrição falhou", "error",
-      esc(g.transcricao_erro || "erro desconhecido"),
+      (leve ? esc(maiusculaGv(erro.slice(0, erro.indexOf(")") + 1))) + "." + sugestaoDeVozMaisLeve(v) : esc(erro)),
       '<div class="fin-botoes"><button class="primario com-icone" data-gv-transcrever="1">' + ic("refresh", 16) + "Tentar de novo</button></div>") + "</div>";
   }
   if (v.disponivel) {
@@ -992,7 +995,14 @@ function vigiarVoz() {
           }
         }
       }
-      if (baixava && !voz.baixando) { avisoCert(voz.disponivel ? "modelo de voz baixado — já dá para transcrever" : (voz.erro || "o download parou")); redesenharConteudoGv(); }
+      if (baixava && !voz.baixando) {
+        avisoCert(voz.disponivel ? "modelo de voz baixado — já dá para transcrever" : (voz.erro || "o download parou"));
+        redesenharConteudoGv();
+        // Veio do "clicando aqui" de uma transcrição que faltou memória: ela recomeça sozinha.
+        const refazer = gv.transcreverAoBaixar;
+        gv.transcreverAoBaixar = null;
+        if (voz.disponivel && refazer && gv.aberta && gv.aberta.id === refazer && gv.aberta.transcricao_estado === "erro") transcreverGravacao();
+      }
       else if (voz.baixando) { const t = $("gv-baixando-texto"); if (t) t.textContent = textoDoDownloadGv(voz); }
     } catch (err) { /* sem servidor neste tique: tenta no proximo */ }
     vigiarVoz();
@@ -1007,6 +1017,51 @@ async function transcreverGravacao() {
   cabecalhoGravacoes();
   redesenharConteudoGv();
   vigiarVoz();
+}
+
+function maiusculaGv(s) {
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+/* A frase "troque para o mais leve clicando aqui", para quando o modelo de voz
+   escolhido não cabe na memória livre. */
+function sugestaoDeVozMaisLeve(v) {
+  const m = v.mais_leve;
+  const gb = String(Math.round(m.mb / 100) / 10).replace(".", ",");
+  return "<br>Para transcrever agora, troque para o <b>" + esc(m.rotulo) + "</b>, mais leve (" + gb + " GB; erra um pouco mais em nomes e números), " +
+    '<button type="button" class="gv-link" data-gv-mais-leve="1">clicando aqui</button>' +
+    (v.baixando ? '.<br><small class="nota" id="gv-baixando-texto">' + esc(textoDoDownloadGv(v)) + "</small>"
+      : m.instalado ? "." : ". Ele é baixado uma vez, com internet, e a transcrição recomeça sozinha.") +
+    " Dá para voltar ao outro em Configurações › Assistente e modelo › Modelo de voz.";
+}
+
+async function trocarParaVozMaisLeve() {
+  const m = (gv.voz || {}).mais_leve;
+  if (!m) return;
+  const vivo = gv.vivo && gv.vivo.semMemoria && gv.vivo.estado === "gravando";
+  if (!m.instalado) {
+    // Baixa e, quando terminar, transcreve de novo a gravação aberta (vigiarVoz).
+    gv.transcreverAoBaixar = !vivo && gv.aberta ? gv.aberta.id : null;
+    await baixarModeloDeVoz(m.nome);
+    return;
+  }
+  const r = await fetch("/api/voz/modelo", { method: "POST", headers: GV_JSON, body: JSON.stringify({ modelo: m.nome }) });
+  if (!r.ok) { avisoCert(await erroDe(r)); return; }
+  gv.voz = await r.json();
+  if (vivo) {
+    // O ao vivo carrega o modelo do momento a cada pedaço: volta a ouvir já com o mais leve.
+    const v = gv.vivo;
+    v.avisoVivo = "";
+    v.semMemoria = false;
+    clearInterval(v.relogioEnvio);
+    v.relogioEnvio = setInterval(enviarPedacoAoVivo, 2000);
+    avisoCert("trocado para o " + m.rotulo + " — a transcrição ao vivo continua");
+    desenharTrechosAoVivo();
+    return;
+  }
+  avisoCert("trocado para o " + m.rotulo + " — transcrevendo de novo");
+  if (gv.aberta && gv.aberta.transcricao_estado === "erro") await transcreverGravacao();
+  else redesenharConteudoGv();
 }
 
 async function baixarModeloDeVoz(nome) {
@@ -1183,6 +1238,7 @@ function ligarGravacoes() {
   clique("[data-gv-perguntar]", () => perguntarSobreGravacao(gv.aberta));
   // transcricao e resumo
   clique("[data-gv-transcrever]", () => transcreverGravacao());
+  clique("[data-gv-mais-leve]", () => trocarParaVozMaisLeve());
   clique("[data-gv-baixar-voz]", (b) => baixarModeloDeVoz(b.dataset.gvBaixarVoz));
   clique("[data-gv-resumo]", () => pedirResumoDaGravacao());
   clique("[data-gv-copiar-transcricao]", () => copiarTexto(gv.aberta.trechos.map((t) => "[" + duracaoGv(t.inicio) + "] " + t.texto).join("\n"), "transcrição copiada"));
@@ -1369,7 +1425,15 @@ function linhaAoVivo(t) {
 
 function rodapeAoVivo() {
   const v = gv.vivo;
-  if (v.avisoVivo) return '<p class="nota gv-vivo-aviso">' + esc(v.avisoVivo) + "</p>";
+  if (v.avisoVivo) {
+    const voz = gv.voz || {};
+    if (v.semMemoria && voz.mais_leve) {
+      const motivo = v.avisoVivo.slice(0, v.avisoVivo.indexOf(")") + 1);
+      return '<p class="nota gv-vivo-aviso">' + esc(motivo) + "." + (voz.mais_leve.instalado ? sugestaoDeVozMaisLeve(voz)
+        : sugestaoDeVozMaisLeve(voz) + " A gravação continua; a transcrição sai ao arquivar.") + "</p>";
+    }
+    return '<p class="nota gv-vivo-aviso">' + esc(v.avisoVivo) + "</p>";
+  }
   const viva = v.estado === "gravando" && v.sessao;
   const classe = "gv-ouvindo" + (viva ? " viva" : "");
   let texto;
@@ -1408,6 +1472,7 @@ function desenharTrechosAoVivo() {
   if (!alvo) return;
   const v = gv.vivo;
   alvo.innerHTML = v.transcricao.map(linhaAoVivo).join("") + rodapeAoVivo();
+  alvo.querySelectorAll("[data-gv-mais-leve]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); trocarParaVozMaisLeve(); }; });
   const meta = document.querySelector("#gv-tela .gv-transcricao .fin-cartao-cabeca small");
   if (meta) meta.textContent = "literal · " + ((gv.voz || {}).rotulo || "") + " · " + plural(v.transcricao.length, "trecho");
   if (v.rolar) alvo.scrollTop = alvo.scrollHeight;
@@ -1491,7 +1556,9 @@ async function enviarPedacoAoVivo() {
   try {
     const r = await fetch("/api/voz/ao-vivo/" + v.sessao + "/audio", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: pcm });
     if (!r.ok) {
-      v.avisoVivo = "a transcrição ao vivo parou: " + (await erroDe(r)) + " — a gravação continua e a transcrição sai ao arquivar";
+      const motivo = await erroDe(r);
+      v.semMemoria = motivo.startsWith("memória livre insuficiente");
+      v.avisoVivo = "a transcrição ao vivo parou: " + motivo + " — a gravação continua e a transcrição sai ao arquivar";
       clearInterval(v.relogioEnvio);
       desenharTrechosAoVivo();
       return;
