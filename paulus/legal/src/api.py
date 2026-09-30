@@ -905,7 +905,7 @@ app.add_middleware(PortaDosServicos)
 estado.mcp = mcp_leis.ServidorMCP(
     leis=estado.leis, conexoes=mcp_leis.Conexoes(DADOS_DIR),
     ligado=lambda: bool((estado.prefs.dados.get("umbrel") or {}).get("mcp")),
-    registrar=estado.acesso_de_fora.auditoria.registrar, versao=VERSAO)
+    registrar=estado.acesso_de_fora.auditoria.registrar, versao=VERSAO, estado=estado)
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
                    travado=lambda: estado.vinculo.travado(), mcp=lambda: estado.mcp)
 rotas_do_acesso.montar(estado.acesso_de_fora, app)

@@ -90,15 +90,18 @@ function cartaoUmbrel() {
   const ligado = Boolean((cfg.chaves.umbrel || {}).mcp);
   const conexoes = (m.conexoes || []).map((c) =>
     '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(c.ferramentas.join(", ")) +
+    (typeof escopoDaConexao === "function" && escopoDaConexao(c) ? " · lê " + esc(escopoDaConexao(c)) : "") +
     " · criada em " + esc(c.criada_em) + (c.ultimo_uso ? " · usada em " + esc(c.ultimo_uso) + " (" + plural(c.chamadas || 0, "chamada") + ")" : " · ainda não usada") +
     '</small></span><button data-mcp-revogar="' + esc(c.id) + '">Revogar</button></div>').join("");
   return cartaoCfg("Fotografar e assistentes de fora", metaCfg("desligados de fábrica"),
     '<div class="cfg-sub">' +
     interruptor("umbrel", "captura", "Fotografar documento", "no celular, pelo acesso de fora, a câmera vira um PDF no Acervo; de fora, passa antes por Aprovações") +
-    interruptor("umbrel", "mcp", "Leis para assistentes de fora (MCP)", "o Claude ou outro assistente deste computador pede ao PAULUS o texto oficial de um artigo") + "</div>" +
+    interruptor("umbrel", "mcp", "Assistentes de fora (MCP)", "o Claude ou outro assistente deste computador pede ao PAULUS o texto oficial de um artigo, súmulas e temas do STJ - e, se você liberar numa conexão, documentos do escritório") + "</div>" +
     (ligado
-      ? '<p class="cfg-explica"><b>O que sai:</b> só texto de lei do Planalto, que é público, para o assistente que você conectar - e dali para a empresa dele. ' +
-        "<b>O que não sai:</b> documentos, biblioteca, cadastros, prazos. Só atende este computador (nunca pelo acesso de fora), e cada chamada fica no registro de acessos.</p>" +
+      ? '<p class="cfg-explica"><b>O que sai:</b> o que cada conexão tem liberado, para o assistente conectado - e dali para a empresa dele. ' +
+        "As ferramentas públicas (leis do Planalto, súmulas e temas do STJ) não levam nada do escritório. As do escritório (documentos, busca nos trechos, " +
+        "cartão, posição da casa) só leem, só no escopo que você escolher, e nunca os casos marcados “só no escritório”. " +
+        "<b>Nunca sai:</b> cadastros, financeiro, e-mail, agenda. Só atende este computador (nunca pelo acesso de fora), e cada chamada fica no registro de acessos.</p>" +
         '<p class="cfg-explica">Endereço: <code>' + esc(m.endereco || "") + "</code></p>" +
         (conexoes ? '<div class="cfg-linhas">' + conexoes + "</div>" : '<p class="nota">Nenhuma conexão ainda.</p>') +
         '<div class="cfg-botoes"><button data-mcp-criar="1">' + ic("add", 16) + "Nova conexão</button></div>"
@@ -117,6 +120,8 @@ async function carregarChaves() {
 }
 
 async function criarConexaoMcp() {
+  // L7: a escolha das ferramentas e do escopo (js/69-mcp.js).
+  if (typeof novaConexaoMcp === "function") return novaConexaoMcp();
   const nome = await perguntar({ titulo: "Nova conexão MCP", contexto: "Configurações › Conexões",
     texto: "O nome é para você reconhecer depois (Claude Desktop, Claude Code, outro). A conexão recebe as três ferramentas das leis; revogar corta na hora.",
     campo: { rotulo: "Nome", placeholder: "Claude Desktop", icone: "link" }, confirmar: "Criar" });

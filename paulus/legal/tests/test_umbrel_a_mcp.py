@@ -91,7 +91,7 @@ def main() -> int:
 
         print("\no protocolo")
         r = rpc("initialize", {"protocolVersion": mcp_leis.PROTOCOLO}, token=token)
-        checar(r.status_code == 200 and r.json()["result"]["serverInfo"]["name"] == "paulus-leis", "initialize", r.text[:200])
+        checar(r.status_code == 200 and r.json()["result"]["serverInfo"]["name"] == "paulus", "initialize", r.text[:200])
         r = local.post("/mcp", headers={"Authorization": f"Bearer {token}"},
                        content=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}))
         checar(r.status_code == 202, "notificação: 202 sem corpo", r.status_code)

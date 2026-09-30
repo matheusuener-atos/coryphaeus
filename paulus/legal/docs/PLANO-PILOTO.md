@@ -19,7 +19,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | feito | `tests/test_l4_tarefas.py` |
 | L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | feito | `tests/test_l5_fundamentacao.py` |
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | feito | `tests/test_l6_perfis.py` |
-| L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | pendente | `tests/test_l7_mcp.py` |
+| L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | feito | `tests/test_l7_mcp.py` |
 | L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | pendente | `tests/test_l8_captura.py` |
 | L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | pendente | `tests/test_l9_materiais.py` |
 | L10 | Lei com vigência: histórico de cada artigo e o texto vigente numa data (pelo ano da lei) | pendente | `tests/test_l10_vigencia.py` |
@@ -225,3 +225,30 @@ Modelos (a medida já diz se o modelo rodou na placa).
 
 **Medido:** `tests/test_l6_perfis.py` 18 ok (máquinas de mentira por faixa,
 a rota, e o cartão no Edge).
+
+## L7 — o servidor MCP além das leis (30/09/2026)
+
+O `/mcp` (src/mcp_leis.py, ideia A do umbrelOS) só dava as leis. Agora,
+conexão por conexão, na janela do escritório:
+
+- **Públicas** (como a lei): `sumulas_stj` e `temas_stj` (L5), além das três
+  das leis.
+- **Do escritório, só leitura**: `acervo_documentos`, `acervo_procurar` (até
+  6 trechos, com a página), `acervo_cartao` (os fatos conferidos, com página
+  e trecho) e `posicao_da_casa`. Só com um **escopo** — o Acervo inteiro,
+  pastas do Acervo ou Serviços — e com o **"entendi que sai"** marcado: o
+  trecho vai para o assistente conectado e dali para a empresa dele. A
+  criação recusa sem os dois. **Caso "só no escritório" nunca sai**, nem com
+  o Acervo inteiro liberado.
+- As travas de antes continuam: desligado de fábrica, só deste computador
+  (nunca pelo túnel), token por conexão guardado só pelo resumo, cada chamada
+  na auditoria; a criação anota o que é do escritório e o escopo.
+- O servidor se apresenta como `paulus` (era `paulus-leis`), e o cartão de
+  Configurações › Conexões deixou de dizer "só texto de lei": diz o que cada
+  conexão pode ter e o que nunca sai (cadastros, financeiro, e-mail, agenda).
+
+**Não feito:** ferramenta que escreve (de propósito: o plano diz só
+leitura); escopo por cliente (pelos Serviços dele dá).
+
+**Medido:** `tests/test_l7_mcp.py` 16 ok; `tests/test_umbrel_a_mcp.py`
+continua passando (com o nome novo).

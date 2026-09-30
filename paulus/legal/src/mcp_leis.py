@@ -24,6 +24,17 @@ As travas:
   resumo SHA-256 (como senha: quem abrir o arquivo não tem o token);
 - **cada conexão tem a sua lista de ferramentas**; fora dela, negado;
 - **toda chamada vai para a auditoria** (a mesma de "quem acessou").
+
+**Além das leis (L7, docs/PLANO-PILOTO.md), conexão por conexão:**
+
+- as súmulas e os temas repetitivos do STJ (públicos, como a lei);
+- **o que é do escritório** - a lista de documentos, a busca nos trechos, o
+  cartão do documento (os fatos conferidos) e a posição da casa - só com um
+  **escopo** escolhido na janela do escritório (o Acervo inteiro, algumas
+  pastas ou alguns Serviços) e com o "entendi que sai" marcado: o trecho vai
+  para o assistente conectado e dali para a empresa dele. Sempre **só
+  leitura**: nenhuma ferramenta muda nada no PAULUS. Caso marcado "só no
+  escritório" (src/aparelho.py) nunca sai, nem com o Acervo inteiro liberado.
 """
 
 from __future__ import annotations
@@ -68,6 +79,62 @@ FERRAMENTAS = {
 }
 
 
+# As que não são públicas: só com escopo e o "entendi que sai" (L7).
+FERRAMENTAS_DO_ESCRITORIO = {
+    "sumulas_stj": {
+        "publica": True,
+        "description": "Procura nas súmulas do STJ guardadas neste PAULUS (texto oficial) por palavras ou pelo número.",
+        "inputSchema": {"type": "object", "properties": {
+            "termo": {"type": "string", "description": "palavras que o enunciado tem"},
+            "numero": {"type": "string", "description": "opcional: o número da súmula"}}, "additionalProperties": False},
+    },
+    "temas_stj": {
+        "publica": True,
+        "description": "Procura nos temas repetitivos e IAC do STJ (Portal de Dados Abertos do STJ): a questão, a tese firmada "
+                       "e a situação. Por palavras ou pelo número do tema.",
+        "inputSchema": {"type": "object", "properties": {
+            "termo": {"type": "string"}, "numero": {"type": "string"}}, "additionalProperties": False},
+    },
+    "acervo_documentos": {
+        "publica": False,
+        "description": "Lista os documentos do escritório que esta conexão pode ler (só os do escopo liberado).",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    "acervo_procurar": {
+        "publica": False,
+        "description": "Procura nos documentos do escritório liberados para esta conexão e devolve até 6 trechos, com o "
+                       "documento e a página. Só leitura.",
+        "inputSchema": {"type": "object", "properties": {"termo": {"type": "string"}}, "required": ["termo"],
+                        "additionalProperties": False},
+    },
+    "acervo_cartao": {
+        "publica": False,
+        "description": "Os fatos conferidos de um documento liberado (tipo, número do processo, partes, valores, datas), "
+                       "cada um com a página e o trecho de onde saiu.",
+        "inputSchema": {"type": "object", "properties": {"documento": {"type": "string", "description": "o nome do arquivo"}},
+                        "required": ["documento"], "additionalProperties": False},
+    },
+    "posicao_da_casa": {
+        "publica": False,
+        "description": "O que o escritório entende de um artigo de lei (a posição da casa), quando escrita.",
+        "inputSchema": {"type": "object", "properties": {"codigo": {"type": "string"}, "numero": {"type": "string"}},
+                        "required": ["codigo", "numero"], "additionalProperties": False},
+    },
+}
+TODAS = {**FERRAMENTAS, **FERRAMENTAS_DO_ESCRITORIO}
+
+
+def publica(nome: str) -> bool:
+    return nome in FERRAMENTAS or bool(FERRAMENTAS_DO_ESCRITORIO.get(nome, {}).get("publica"))
+
+
+def limpar_escopo(bruto) -> dict:
+    b = bruto if isinstance(bruto, dict) else {}
+    return {"tudo": bool(b.get("tudo")),
+            "pastas": [str(p).strip().strip("\\/") for p in (b.get("pastas") or []) if str(p).strip()][:30],
+            "servicos": [int(s) for s in (b.get("servicos") or []) if str(s).isdigit()][:30]}
+
+
 def _resumo(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -92,14 +159,21 @@ class Conexoes:
     def listar(self) -> list[dict]:
         return [{k: v for k, v in c.items() if k != "resumo"} for c in self._ler()]
 
-    def criar(self, nome: str, ferramentas: list[str]) -> tuple[dict, str]:
+    def criar(self, nome: str, ferramentas: list[str], escopo=None, entendi: bool = False) -> tuple[dict, str]:
         """(a conexão, o token) - o token só existe nesta volta."""
-        pedidas = [f for f in ferramentas or [] if f in FERRAMENTAS]
+        pedidas = [f for f in ferramentas or [] if f in TODAS]
         if not pedidas:
             raise ValueError("escolha pelo menos uma ferramenta")
+        escopo = limpar_escopo(escopo)
+        privadas = [f for f in pedidas if not publica(f)]
+        if privadas and not (escopo["tudo"] or escopo["pastas"] or escopo["servicos"]):
+            raise ValueError("as ferramentas do escritório precisam de um escopo: o Acervo inteiro, pastas ou Serviços")
+        if privadas and not entendi:
+            raise ValueError("marque que entendeu: os trechos vão para o assistente conectado e para a empresa dele")
         nome = " ".join(str(nome or "").split())[:60] or "Assistente"
         token = "paulus_mcp_" + secrets.token_urlsafe(32)
         conexao = {"id": uuid.uuid4().hex[:10], "nome": nome, "ferramentas": pedidas, "resumo": _resumo(token),
+                   "escopo": escopo if privadas else {"tudo": False, "pastas": [], "servicos": []},
                    "criada_em": datetime.now().strftime("%Y-%m-%d %H:%M"), "ultimo_uso": "", "chamadas": 0}
         with self._trava:
             itens = self._ler()
@@ -179,9 +253,101 @@ def chamar(leis, nome: str, argumentos: dict) -> tuple[str, bool]:
     return f"Ferramenta desconhecida: {nome}", True
 
 
+# ------------------------------------------------------------ o que é do escritório (L7)
+
+def _pastas_do_escopo(estado, escopo: dict) -> list[Path] | None:
+    """None = o Acervo inteiro; senão, as pastas liberadas (as do Acervo e as dos Serviços)."""
+    if escopo.get("tudo"):
+        return None
+    saida = []
+    for p in escopo.get("pastas") or []:
+        c = Path(p)
+        saida.append((c if c.is_absolute() else Path(estado.pasta) / c).resolve())
+    for s in escopo.get("servicos") or []:
+        pasta = estado.servicos.pasta_de(int(s), criar=False)
+        if pasta:
+            saida.append(Path(pasta).resolve())
+    return saida
+
+
+def liberado(estado, conexao: dict, caminho: str) -> bool:
+    """Este arquivo está no escopo da conexão, e fora dos casos só no escritório?"""
+    import aparelho
+
+    try:
+        alvo = Path(caminho).resolve()
+    except OSError:
+        return False
+    if aparelho.so_no_escritorio().toca(estado, [str(alvo)]):
+        return False
+    pastas = _pastas_do_escopo(estado, conexao.get("escopo") or {})
+    if pastas is None:
+        return True
+    return any(alvo == p or alvo.is_relative_to(p) for p in pastas)
+
+
+def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tuple[str, bool]:
+    if nome == "sumulas_stj":
+        from biblioteca.rotas import procurar_sumulas
+
+        achadas = procurar_sumulas(estado.material, termo=str(argumentos.get("termo") or ""),
+                                   numero=str(argumentos.get("numero") or ""), limite=8)
+        if not achadas:
+            return "Nenhuma súmula do STJ com isso nas guardadas neste PAULUS.", False
+        return "\n\n".join(f"{s['titulo']}\n{s['texto']}" for s in achadas), False
+    if nome == "temas_stj":
+        achados = estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=6)
+        if not achados:
+            return "Nenhum tema do STJ com isso (Portal de Dados Abertos do STJ).", False
+        return "\n\n".join(f"{t['rotulo']} — {t['situacao']} ({t['orgao']})\nQuestão: {t['questao']}"
+                            + (f"\nTese firmada: {t['tese']}" if t['tese'] else "\nAinda sem tese firmada.") for t in achados), False
+    if nome == "posicao_da_casa":
+        p = estado.posicoes.obter(str(argumentos.get("codigo", "")).lower(), str(argumentos.get("numero", "")))
+        return (p["texto"] if p else "O escritório não escreveu a posição dele sobre esse artigo."), False
+    docs = [d for d in estado.searcher.documents if liberado(estado, conexao, d.path)]
+    if nome == "acervo_documentos":
+        if not docs:
+            return "Nenhum documento liberado para esta conexão.", False
+        return "\n".join(f"{d.name} ({d.pages} p.)" if d.pages else d.name for d in docs[:300]), False
+    if nome == "acervo_procurar":
+        termo = str(argumentos.get("termo") or "").strip()
+        if not termo:
+            return "Diga o que procurar.", True
+        caminhos = {d.path for d in docs}
+        achados = [h for h in estado.searcher.search(termo, top_k=40) if getattr(h.chunk, "doc_path", "") in caminhos][:6]
+        if not achados:
+            return "Nada achado com esse termo nos documentos liberados.", False
+        saida = []
+        for h in achados:
+            pagina = getattr(h.chunk, "pagina", None) or (getattr(h.chunk, "paginas", None) or [None])[0]
+            saida.append(f"{h.chunk.doc_name}" + (f", p. {pagina}" if pagina else "") + ":\n" + " ".join(h.chunk.text.split())[:700])
+        return "\n\n".join(saida), False
+    if nome == "acervo_cartao":
+        import ajuda
+
+        doc = next((d for d in docs if d.name == str(argumentos.get("documento") or "")), None)
+        if doc is None:
+            return "Esse documento não está entre os liberados para esta conexão.", True
+        metas, _ = estado.saber.metadados_de([doc])
+        if not metas:
+            return "Esse documento ainda não foi lido pelo PAULUS: não há fatos conferidos.", False
+        cartao = ajuda.cartao(metas[0], doc.name) or {}
+        itens = cartao.get("itens") or []
+        if not itens:
+            return f"{doc.name}: nenhum fato conferido ainda.", False
+        linhas = [f"{doc.name} — os fatos conferidos na leitura, com a página e o trecho:"]
+        for i in itens[:60]:
+            linhas.append(f"- {i.get('rotulo', '')}: {i.get('valor', '')}" + (f" (p. {i['pagina']})" if i.get("pagina") else "")
+                          + (f" — “{i['quote'][:160]}”" if i.get("quote") else ""))
+        return "\n".join(linhas), False
+    return f"Ferramenta desconhecida: {nome}", True
+
+
 class NovaConexao(BaseModel):
     nome: str = ""
     ferramentas: list[str] = []
+    escopo: dict = {}
+    entendi: bool = False
 
 
 def montar(estado, app) -> None:
@@ -194,7 +360,7 @@ def montar(estado, app) -> None:
     @app.get("/api/mcp")
     def mcp_estado() -> dict:
         return {"ligado": _ligado(), "endereco": f"http://127.0.0.1:{getattr(estado, 'porta', 8000)}/mcp",
-                "ferramentas": [{"id": n, "descricao": f["description"]} for n, f in FERRAMENTAS.items()],
+                "ferramentas": [{"id": n, "descricao": f["description"], "publica": publica(n)} for n, f in TODAS.items()],
                 "conexoes": estado.mcp.conexoes.listar()}
 
     @app.post("/api/mcp/conexoes")
@@ -203,10 +369,13 @@ def montar(estado, app) -> None:
         if not _ligado():
             raise HTTPException(status_code=409, detail="o servidor MCP está desligado em Configurações")
         try:
-            conexao, token = estado.mcp.conexoes.criar(payload.nome, payload.ferramentas)
+            conexao, token = estado.mcp.conexoes.criar(payload.nome, payload.ferramentas, payload.escopo, payload.entendi)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        estado.mcp._anotar(acao="mcp-conexao", alvo=f"criada: {conexao['nome']}", pessoa="janela do escritório")
+        privadas = [f for f in conexao["ferramentas"] if not publica(f)]
+        estado.mcp._anotar(acao="mcp-conexao", alvo=f"criada: {conexao['nome']}" +
+                           (f" · do escritório: {', '.join(privadas)} · escopo {json.dumps(conexao['escopo'], ensure_ascii=False)}" if privadas else ""),
+                           pessoa="janela do escritório")
         return {"conexao": conexao, "token": token, **mcp_estado()}
 
     @app.delete("/api/mcp/conexoes/{id_}")
@@ -220,8 +389,10 @@ def montar(estado, app) -> None:
 class ServidorMCP:
     """O /mcp: JSON-RPC 2.0 por HTTP (o transporte "streamable HTTP", só com respostas JSON)."""
 
-    def __init__(self, *, leis, conexoes: Conexoes, ligado, registrar=None, versao: str = "") -> None:
+    def __init__(self, *, leis, conexoes: Conexoes, ligado, registrar=None, versao: str = "", estado=None) -> None:
         self.leis = leis
+        # L7: o que é do escritório (o Acervo, a posição da casa) - só com escopo.
+        self.estado = estado
         self.conexoes = conexoes
         self.ligado = ligado
         self.registrar = registrar
@@ -249,20 +420,30 @@ class ServidorMCP:
 
         if metodo == "initialize":
             return ok({"protocolVersion": PROTOCOLO, "capabilities": {"tools": {"listChanged": False}},
-                       "serverInfo": {"name": "paulus-leis", "version": self.versao or "0"},
-                       "instructions": "Leis brasileiras guardadas no PAULUS do escritório, do texto compilado do "
-                                       "Planalto. Cite o artigo pelo texto devolvido; o revogado vem marcado."})
+                       "serverInfo": {"name": "paulus", "version": self.versao or "0"},
+                       "instructions": "O PAULUS do escritório, só leitura: leis do texto compilado do Planalto (o "
+                                       "revogado vem marcado), súmulas e temas do STJ e, se liberado para esta conexão, "
+                                       "documentos do escritório. Cite pelo texto devolvido; não invente o que não veio."})
         if metodo == "ping":
             return ok({})
         if metodo == "tools/list":
-            return ok({"tools": [{"name": n, **FERRAMENTAS[n]} for n in conexao["ferramentas"] if n in FERRAMENTAS]})
+            return ok({"tools": [{"name": n, **{k: v for k, v in TODAS[n].items() if k != "publica"}}
+                                 for n in conexao["ferramentas"] if n in TODAS]})
         if metodo == "tools/call":
             params = msg.get("params") or {}
             nome = params.get("name", "")
             if nome not in conexao["ferramentas"]:
                 self._anotar(acao="mcp-negado", alvo=nome, pessoa=conexao["nome"], ip="127.0.0.1")
                 return erro(-32602, f"a ferramenta '{nome}' não está liberada para esta conexão")
-            texto, falhou = chamar(self.leis, nome, params.get("arguments") or {})
+            if nome in FERRAMENTAS:
+                texto, falhou = chamar(self.leis, nome, params.get("arguments") or {})
+            elif self.estado is None:
+                texto, falhou = "Esta ferramenta não está disponível aqui.", True
+            else:
+                try:
+                    texto, falhou = chamar_escritorio(self.estado, conexao, nome, params.get("arguments") or {})
+                except Exception as exc:  # noqa: BLE001 - a falha vira resposta, e o servidor segue
+                    texto, falhou = f"Não consegui: {exc}", True
             self._anotar(acao="mcp", alvo=f"{nome} {json.dumps(params.get('arguments') or {}, ensure_ascii=False)[:120]}",
                          pessoa=conexao["nome"], ip="127.0.0.1")
             self.conexoes.anotar_uso(conexao["id"])

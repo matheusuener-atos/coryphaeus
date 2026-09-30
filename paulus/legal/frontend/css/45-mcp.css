@@ -1,0 +1,9 @@
+  /* ------------------------------------------ MCP além das leis (L7) */
+  /* O diálogo da conexão nova (js/69-mcp.js). */
+
+  .mcp-sub { margin: 14px 0 6px; font: 600 13px var(--sans); color: var(--ink); }
+  .mcp-opcao { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .mcp-opcao input { margin-top: 3px; flex: none; }
+  .mcp-opcao small { color: var(--ink3); font-size: 12px; line-height: 1.4; }
+  .mcp-entendi { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--fill); }
+  #mcp-pastas { width: 100%; max-width: 100%; }
