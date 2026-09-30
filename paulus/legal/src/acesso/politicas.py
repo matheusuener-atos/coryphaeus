@@ -390,6 +390,9 @@ _declarar(BLOQUEADO, "POST /api/processos", "POST /api/processos/descobrir", "PU
 # visao do cliente cruzam todos os clientes do escritorio: janela do escritorio.
 _declarar(BLOQUEADO, "PUT /api/servicos/{id_}/partes", "GET /api/servicos/{id_}/conflitos", "POST /api/clientes/conflitos",
           "GET /api/clientes/{cadastro_id}/visao")
+# --- N3: a parte contraria sugerida pelos documentos do Servico, e a dispensa -
+# como a conferencia de conflito, da janela do escritorio.
+_declarar(BLOQUEADO, "GET /api/servicos/{id_}/partes/sugeridas", "POST /api/servicos/{id_}/partes/dispensar")
 # --- L4: tarefas de varios passos (src/passos.py): criam documento, pedem em
 # Aprovacoes e desfazem - por ora, so na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/passos/tipos", "GET /api/passos", "POST /api/passos", "GET /api/passos/{id_}",
