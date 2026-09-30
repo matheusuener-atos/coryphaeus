@@ -394,6 +394,11 @@ _declarar(BLOQUEADO, "PUT /api/servicos/{id_}/partes", "GET /api/servicos/{id_}/
 # Aprovacoes e desfazem - por ora, so na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/passos/tipos", "GET /api/passos", "POST /api/passos", "GET /api/passos/{id_}",
           "POST /api/passos/{id_}/parar", "POST /api/passos/{id_}/desfazer")
+# --- L5: a Biblioteca ajudando a escrever (src/fundamentacao.py). Ler vale de fora,
+# como as leis; escrever a posicao da casa e baixar do STJ sao do escritorio.
+_declarar(PERMITIDO, "POST /api/biblioteca/fundamentacao", "GET /api/biblioteca/temas", "GET /api/leis/posicao",
+          "GET /api/leis/posicoes")
+_declarar(BLOQUEADO, "POST /api/biblioteca/temas/atualizar", "PUT /api/leis/posicao")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")

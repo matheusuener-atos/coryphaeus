@@ -17,7 +17,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L2 | Acompanhamento de processos pelo DataJud: movimentação nova vira aviso; prazo sugerido com a conta, pela Aprovação | feito | `tests/test_l2_processos.py` |
 | L3 | Visão por cliente e muralha ética: a mesma entidade com nomes diferentes, parte contrária, "tudo sobre o cliente", aviso de conflito | feito | `tests/test_l3_clientes.py` |
 | L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | feito | `tests/test_l4_tarefas.py` |
-| L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | pendente | `tests/test_l5_fundamentacao.py` |
+| L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | feito | `tests/test_l5_fundamentacao.py` |
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | pendente | `tests/test_l6_perfis.py` |
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | pendente | `tests/test_l7_mcp.py` |
 | L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | pendente | `tests/test_l8_captura.py` |
@@ -164,3 +164,34 @@ tarefa é pedida pela tela); cláusula no estilo "1. DO OBJETO", sem a
 palavra "cláusula", não é reconhecida (a mesma regra do editor).
 
 **Medido:** `tests/test_l4_tarefas.py` 20 ok.
+
+## L5 — a Biblioteca ajudando a escrever (30/09/2026)
+
+- **Temas repetitivos e IAC do STJ, oficiais**: o `Temas.csv` do [Portal de
+  Dados Abertos do STJ](https://dadosabertos.web.stj.jus.br/dataset/precedentes-qualificados)
+  (licença CC-BY), baixado em 30/09/2026 e posto no instalador
+  (`config/acervo-inicial/temas-stj.jsonl.gz`, 269 KB, montado por
+  `tools/temas_stj.py`): 1.330 linhas, 1.301 temas (o STJ repete o número dos
+  revisados; fica a última), 1.181 com tese firmada. Saem cancelados,
+  controvérsias, vinculados a outro tema e sem processo. Entram na primeira
+  abertura (tabela `temas`, migração 030). **"Atualizar pelo STJ"** (rota)
+  baixa do portal só quando pedido; arquivo com menos de 100 temas não troca
+  nada. Cada tema fica ligado, por regra, aos artigos que a tese e a questão
+  citam ("art. 206 do CC" → `cc:206`; CPC/73 e CC/1916 ficam de fora): 240
+  temas ligados.
+- **A posição da casa** por artigo (tabela `posicoes`): escrita pelo titular,
+  na janela do escritório, embaixo de cada artigo achado em "Citar artigo",
+  junto dos temas do STJ que citam o artigo.
+- **Fundamentar** (novo botão no painel do editor): para o trecho escolhido
+  (ou o parágrafo do cursor), os artigos citados nele (primeiro), os achados
+  pelos pares de palavras do trecho ("multa moratória", "cláusula penal") e
+  pelas palavras soltas, em rodízio para cada ideia ter lugar; as súmulas do
+  STJ; os temas; a posição da casa junto do artigo. Cada item diz o porquê e
+  insere o texto oficial. Sem modelo.
+
+**Não feito:** súmulas do STF e repercussão geral (o STF barra programa; ver
+B1); os temas não entram na resposta da conversa sozinhos — só pela
+fundamentação do editor e pelo artigo.
+
+**Medido:** `tests/test_l5_fundamentacao.py` 23 ok (no trecho de teste, o
+Tema 970/STJ — cláusula penal moratória — é sugerido).

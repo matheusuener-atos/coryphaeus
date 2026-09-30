@@ -1,0 +1,15 @@
+  /* ------------------------------------------ a Biblioteca ajudando a escrever (L5) */
+  /* O diálogo "Fundamentação sugerida" e a posição da casa embaixo do artigo
+     (js/67-fundamentacao.js). */
+
+  .fun-bloco { display: grid; gap: 8px; margin-top: 12px; }
+  .fun-bloco h4 { margin: 0; font: 600 13px var(--sans); color: var(--ink); }
+  .fun-item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .fun-cab { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .fun-cab small { color: var(--ink3); font-size: 12px; }
+  .fun-texto { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .fun-casa { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); padding-left: 10px; border-left: 2px solid var(--acc); }
+  .fun-nota { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink3); }
+  .fun-botoes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fun-botoes button { height: 30px; padding: 0 10px; font-size: 12.5px; }
+  #fun-pos { width: 100%; max-width: 100%; min-height: 110px; }

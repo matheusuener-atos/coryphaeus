@@ -65,5 +65,17 @@
       "canceladas_fora": 29,
       "fonte": "https://scon.stj.jus.br/docs_internet/VerbetesSTJ.pdf"
     }
+  },
+  "temas": {
+    "stj": {
+      "arquivo": "temas-stj.jsonl.gz",
+      "nome": "Temas repetitivos e IAC do STJ",
+      "temas": 1330,
+      "com_tese": 1181,
+      "fonte": "https://dadosabertos.web.stj.jus.br/dataset/precedentes-qualificados",
+      "licenca": "CC-BY",
+      "baixado_em": "2026-09-30",
+      "fora": "cancelados, vinculados a outro tema e sem processo"
+    }
   }
 }

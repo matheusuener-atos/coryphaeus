@@ -536,6 +536,8 @@ function painelDoEditor() {
     '<button data-ed-timbre="1"><span>Montar o papel timbrado e o rodapé</span>' + ic("chevron_right", 16) + "</button></div></div>" +
     '<div class="docs-chips"><button class="adiante" data-adiante="jurisprudência">Buscar jurisprudência</button>' +
     '<button data-ed-citar="1">Citar artigo</button>' +
+    // L5: a fundamentação sugerida pela Biblioteca (js/67-fundamentacao.js).
+    '<button data-ed-fundamentar="1">Fundamentar</button>' +
     '<button data-ed-fazer="Reescrever este trecho com mais clareza">Reescrever trecho</button>' +
     '<button data-ed-fazer="Deixar mais formal">Deixar mais formal</button></div>' +
     '<div class="docs-pedido"><div class="docs-pedido-linha"><input type="text" id="ed-pedido" placeholder="Peça uma alteração ou uma pesquisa…">' +

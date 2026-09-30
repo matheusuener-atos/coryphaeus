@@ -133,6 +133,7 @@ import aprendizado as aprendizado_mod
 import processos as processos_mod
 import clientes as clientes_mod
 import passos as passos_mod
+import fundamentacao as fundamentacao_mod
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -986,6 +987,8 @@ processos_mod.montar(estado, app)
 clientes_mod.montar(estado, app)
 # L4: tarefas de varios passos, com ponto de restauracao (src/passos.py).
 passos_mod.montar(estado, app, DADOS_DIR)
+# L5: fundamentacao sugerida, temas do STJ e posicao da casa (src/fundamentacao.py).
+fundamentacao_mod.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

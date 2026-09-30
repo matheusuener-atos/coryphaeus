@@ -753,6 +753,38 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE servicos ADD COLUMN partes TEXT NOT NULL DEFAULT '[]';
         """,
     ),
+    (
+        "030_temas_posicoes",
+        """
+        -- A Biblioteca ajudando a escrever (src/fundamentacao.py, L5). temas:
+        -- os temas repetitivos e IAC do STJ (Portal de Dados Abertos, CC-BY);
+        -- artigos: ["cc:206", ...] que a tese e a questao citam. posicoes: o
+        -- que o escritorio entende de um artigo, escrito pelo titular.
+        CREATE TABLE IF NOT EXISTS temas (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo       TEXT NOT NULL,
+            numero     TEXT NOT NULL,
+            situacao   TEXT DEFAULT '',
+            questao    TEXT DEFAULT '',
+            tese       TEXT DEFAULT '',
+            orgao      TEXT DEFAULT '',
+            julgado_em TEXT DEFAULT '',
+            assuntos   TEXT DEFAULT '',
+            legislacao TEXT DEFAULT '',
+            artigos    TEXT DEFAULT '[]',
+            fonte      TEXT DEFAULT ''
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_temas_numero ON temas(tipo, numero);
+        CREATE TABLE IF NOT EXISTS posicoes (
+            codigo        TEXT NOT NULL,
+            numero        TEXT NOT NULL,
+            texto         TEXT NOT NULL,
+            autor         TEXT DEFAULT '',
+            atualizado_em TEXT NOT NULL,
+            PRIMARY KEY (codigo, numero)
+        );
+        """,
+    ),
 ]
 
 

@@ -100,7 +100,8 @@ async function procurarLei() {
     '<div class="linha-form">' +
     '<button data-citar="' + i + '">Inserir a citação</button>' +
     '<button data-transcrever="' + i + '">Inserir com o texto</button></div>' +
-    '<div class="lei-biblioteca" data-lei-bib="' + i + '" hidden></div></div>').join("") + "</div>";
+    '<div class="lei-biblioteca" data-lei-bib="' + i + '" hidden></div>' +
+    '<div class="lei-biblioteca" data-lei-pos="' + i + '" hidden></div></div>').join("") + "</div>";
 
   alvo.querySelectorAll("[data-citar]").forEach((b) => {
     b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.citar)], false);
@@ -110,6 +111,8 @@ async function procurarLei() {
   });
   /* Os primeiros artigos ganham o que a biblioteca do escritório diz deles. */
   d.achados.slice(0, 5).forEach((a, i) => naBibliotecaDoEscritorio(a, alvo.querySelector('[data-lei-bib="' + i + '"]')));
+  // L5: a posição da casa e os temas do STJ sobre o artigo (js/67-fundamentacao.js).
+  if (typeof posicaoDaCasa === "function") d.achados.slice(0, 5).forEach((a, i) => posicaoDaCasa(a, alvo.querySelector('[data-lei-pos="' + i + '"]')));
   revelarAbaixo();
 }
 
