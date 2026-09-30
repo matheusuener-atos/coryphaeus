@@ -97,7 +97,11 @@ function cartaoMaquina(d) {
       '<div class="cfg-botoes">' + conferir + "</div>");
   }
   const gb = (x) => String(x).replace(".", ",") + " GB";
-  const placas = (m.placas_nvidia || []).map((p) => p.nome + " · " + gb(p.memoria_gb)).join("; ");
+  /* Todas as placas, de qualquer fabricante; a NVIDIA com a memória do nvidia-smi (a do Windows é aproximada). */
+  const nvidia = (m.placas_nvidia || []).map((p) => p.nome + " · " + gb(p.memoria_gb));
+  const outras = (m.placas || []).filter((p) => p.fabricante !== "NVIDIA" || !nvidia.length)
+    .map((p) => p.nome + (p.integrada ? " (integrada)" : ""));
+  const placas = nvidia.concat(outras).join("; ");
   const num = (x) => String(x).replace(".", ",");
   const ficha = fichaCfg([
     ["Memória", gb(m.ram_total_gb)],
@@ -105,7 +109,7 @@ function cartaoMaquina(d) {
     ["A memória lê", num(m.banda_gbs) + " GB/s"],
     ["Contas", Math.round(m.gflops) + " bi/s"],
   ]);
-  const quem = [m.processador, placas ? "placa " + placas : "sem placa NVIDIA",
+  const quem = [m.processador, placas ? "placa " + placas : "sem placa de vídeo",
     m.na_bateria ? "na bateria" : (m.na_bateria === false ? "na tomada" : "")].filter(Boolean).join(" · ");
   return cartaoCfg("Esta máquina", metaCfg("conferida em " + dataCurtaMat(m.quando)),
     '<p class="cfg-explica">' + esc(quem) + "</p>" + ficha + (d.recomendado ? '<p class="cfg-explica"><b>Recomendado: ' + esc(d.recomendado) + "</b> — " + esc(d.porque) + ".</p>" : (d.porque ? '<p class="cfg-explica">' + esc(d.porque) + ".</p>" : "")) +
@@ -136,7 +140,9 @@ function secaoModelos() {
   const instalados = (d.instalados || []).map((m) => {
     const md = m.medida;
     const medida = md ? " · " + String(md.tokens_por_segundo).replace(".", ",") + " palavras/s, carrega em " +
-      String(md.carregar_s).replace(".", ",") + " s (medido em " + esc(md.quando.slice(8, 10) + "/" + md.quando.slice(5, 7)) + ")" : "";
+      String(md.carregar_s).replace(".", ",") + " s (medido em " + esc(md.quando.slice(8, 10) + "/" + md.quando.slice(5, 7)) + ")" +
+      /* Onde o Ollama pôs o modelo, pela medida (ideia F): a placa só conta se ele usa. */
+      (md.na_placa === undefined ? "" : md.na_placa >= 0.5 ? " · na placa de vídeo" : md.na_placa > 0 ? " · em parte na placa" : " · no processador") : "";
     const estimativa = textoDaEstimativa(m);
     const sub = [m.parametros, m.quantizacao, gbBR(m.gb)].filter(Boolean).join(" · ") + medida;
     const marcas = (m.recomendado ? '<span class="etiqueta">recomendado</span>' : "") + (m.padrao ? '<span class="etiqueta">padrão</span>' : "") +
@@ -284,7 +290,9 @@ async function medirModelo(nome) {
   desenharConfig();
   const r = await modPost("/api/modelos/medir", { nome: nome });
   mod.medindo = "";
-  if (r) avisoCert(nome + ": " + String(r.medida.tokens_por_segundo).replace(".", ",") + " palavras por segundo nesta máquina", { tom: "ok" });
+  if (r) avisoCert(nome + ": " + String(r.medida.tokens_por_segundo).replace(".", ",") + " palavras por segundo nesta máquina" +
+    (r.medida.na_placa === undefined ? "" : r.medida.na_placa >= 0.5 ? ", rodando na placa de vídeo" :
+      ", rodando no processador" + ((((mod.dados || {}).maquina || {}).placas || []).length ? " (o Ollama não usa a placa desta máquina)" : "")), { tom: "ok" });
   await carregarModelos();
   desenharConfig();
 }

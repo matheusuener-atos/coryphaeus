@@ -161,6 +161,93 @@ def _placas_nvidia() -> list[dict]:
     return placas
 
 
+FABRICANTES = (("nvidia", "NVIDIA"), ("amd", "AMD"), ("advanced micro", "AMD"), ("radeon", "AMD"), ("ati ", "AMD"),
+               ("intel", "Intel"), ("qualcomm", "Qualcomm"), ("adreno", "Qualcomm"))
+# Adaptador que não é placa: a tela da área de trabalho remota, o driver
+# genérico do Windows, o de captura.
+NAO_E_PLACA = ("microsoft basic", "remote display", "remote desktop", "hyper-v", "virtual", "parsec", "citrix",
+               "displaylink", "spacedesk", "idd")
+
+
+def _fabricante(nome: str, compat: str) -> str:
+    texto = f"{nome} {compat}".lower() + " "
+    return next((f for chave, f in FABRICANTES if chave in texto), "outra")
+
+
+def _integrada(nome: str, fabricante: str) -> bool:
+    """A placa que divide a memória com o processador (Intel UHD/Iris/Arc integrada, AMD Radeon Graphics)."""
+    n = nome.lower()
+    if fabricante == "Intel":
+        return not re.search(r"\barc\b.*\b[ab]\d{3}\b", n)   # Arc A380/A770/B580 são placas próprias
+    if fabricante == "AMD":
+        return not re.search(r"\b(rx|pro w|firepro|instinct)\b", n)
+    return fabricante == "Qualcomm"
+
+
+def ler_placas_do_windows(bruto: str) -> list[dict]:
+    """As placas de vídeo, a partir do JSON do Win32_VideoController (separado para dar para testar)."""
+    try:
+        dados = json.loads(bruto or "[]")
+    except ValueError:
+        return []
+    if isinstance(dados, dict):
+        dados = [dados]
+    placas = []
+    for d in dados or []:
+        nome = str(d.get("Name") or "").strip()
+        if not nome or any(x in nome.lower() for x in NAO_E_PLACA):
+            continue
+        fabricante = _fabricante(nome, str(d.get("AdapterCompatibility") or ""))
+        ram = d.get("AdapterRAM")
+        placas.append({
+            "nome": nome, "fabricante": fabricante, "integrada": _integrada(nome, fabricante),
+            # O AdapterRAM é um inteiro de 32 bits: acima de 4 GB o Windows
+            # informa 4 GB (ou nada). Serve de ordem de grandeza, não de conta.
+            "memoria_gb": round(float(ram) / 1024 ** 3, 1) if isinstance(ram, (int, float)) and ram > 0 else None,
+        })
+    return placas
+
+
+def _placas_windows() -> list[dict]:
+    """Todas as placas de vídeo pelo Windows (NVIDIA, AMD, Intel), sem depender do driver de cada fabricante."""
+    import os
+
+    if os.name != "nt":
+        return []
+    try:
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        saida = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM | "
+             "ConvertTo-Json -Compress"],
+            capture_output=True, text=True, timeout=10, creationflags=flags).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return ler_placas_do_windows(saida)
+
+
+def na_placa(host: str, nome: str, pegar=None) -> float | None:
+    """
+    A fração do modelo que o Ollama pôs na memória da placa (`size_vram` /
+    `size` do /api/ps), com o modelo carregado: é a medida que decide se a placa
+    é usada - placa detectada que o Ollama não usa não conta. None: não deu
+    para saber.
+    """
+    import requests
+
+    try:
+        resp = (pegar or requests.get)(f"{host}/api/ps", timeout=5)
+        resp.raise_for_status()
+        modelos = resp.json().get("models") or []
+    except Exception:  # noqa: BLE001 - sem o Ollama agora, fica sem saber
+        return None
+    for m in modelos:
+        if m.get("name") == nome or m.get("model") == nome or m.get("name", "").split(":")[0] == nome.split(":")[0]:
+            total = m.get("size") or 0
+            return round(float(m.get("size_vram") or 0) / total, 2) if total else None
+    return None
+
+
 def _na_bateria() -> bool | None:
     import psutil
 
@@ -188,6 +275,9 @@ def testar() -> dict:
         "ram_livre_gb": round(memoria.available / 1e9, 1),
         **_instrucoes(),
         "placas_nvidia": _placas_nvidia(),
+        # Todas as placas, de qualquer fabricante (ideia F do umbrelOS,
+        # docs/DECISAO-UMBREL.md). Se o Ollama usa alguma, diz a medida.
+        "placas": _placas_windows(),
         # Notebook na bateria: o Windows segura o processador, e o modelo fica
         # mais lento do que na tomada. O teste mede o estado da hora.
         "na_bateria": _na_bateria(),
@@ -235,7 +325,10 @@ def amostra(maquina: dict, modelo: dict, medida: dict) -> dict:
     return {
         "maquina": {k: maquina.get(k) for k in ("id", "versao", "processador", "nucleos", "ram_total_gb",
                                                  "avx2", "banda_gbs", "gflops", "na_bateria")},
-        "gpu": bool(maquina.get("placas_nvidia")),
+        # Com a medida dizendo onde o Ollama pôs o modelo (`na_placa`, a fração
+        # que foi para a memória da placa), é ela que vale - uma Intel ou AMD
+        # integrada conta como placa só quando o Ollama a usa de verdade.
+        "gpu": (medida.get("na_placa", 0) >= 0.5) if "na_placa" in medida else bool(maquina.get("placas_nvidia")),
         "modelo": modelo["nome"],
         "tamanho_gb": modelo["gb"],
         "parametros_b": parametros_b(modelo.get("parametros")),
