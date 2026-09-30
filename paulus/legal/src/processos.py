@@ -14,10 +14,13 @@ Acompanhamento de processos pelo DataJud (docs/PLANO-PILOTO.md, L2).
   processo só guarda o que já havia - senão o escritório ganharia cem avisos
   de coisa antiga.
 - **Prazo sugerido**: movimentação de intimação, citação ou publicação vira
-  um pedido em Aprovações com a conta do prazo à vista (src/prazos.py, 15
-  dias úteis a partir da data do movimento). É sugestão: a data do DataJud é
-  a do registro do movimento, e a contagem certa depende da ciência - a
-  anotação da tarefa diz isso. O sim cria a tarefa na lista "Prazos".
+  um pedido em Aprovações com a conta do prazo à vista (src/prazos.py). O
+  prazo é o do ato que a intimação comunica (src/tipo_de_ato.py, N1): a
+  sentença, o acórdão, a decisão ou o despacho que veio antes, no ramo do
+  processo; sem reconhecer o ato, 15 dias úteis, e a tela diz. É sugestão: a
+  data do DataJud é a do registro do movimento, e a contagem certa depende
+  da ciência - a anotação da tarefa diz isso. O sim cria a tarefa na lista
+  "Prazos", com a opção que a pessoa escolheu.
 """
 
 from __future__ import annotations
@@ -32,9 +35,6 @@ from pathlib import Path
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
-RE_PRAZO = re.compile(r"intima|cita[cç][aã]o|publica[cç][aã]o|disponibiliza|expedi[cç][aã]o de (documento|intima|mandado|carta)",
-                      re.IGNORECASE)
-RE_DISPONIBILIZA = re.compile(r"publica|disponibiliza", re.IGNORECASE)
 DIAS_SUGERIDOS = 15
 # Entre uma consulta e a próxima, na volta diária: o DataJud é público e lento.
 PAUSA_ENTRE_CONSULTAS_S = 3
@@ -49,20 +49,68 @@ def _chave(grau: str, m: dict) -> str:
     return hashlib.sha1("|".join((grau, m.get("quando", ""), m.get("nome", ""), m.get("complemento", ""))).encode()).hexdigest()[:20]
 
 
-def sugerir_prazo(mov: dict, extras=None) -> dict | None:
-    """O prazo sugerido para uma movimentação (ou None), com a conta inteira."""
-    import prazos
+def sugerir_prazo(mov: dict, extras=None, anteriores: list[dict] | None = None, processo: dict | None = None) -> dict | None:
+    """
+    O prazo sugerido para uma movimentação (ou None), com a conta inteira.
 
-    texto = f"{mov.get('nome', '')} {mov.get('complemento', '')}"
-    if not RE_PRAZO.search(texto):
+    `anteriores`: as movimentações do mesmo grau antes desta, da mais nova
+    para a mais antiga - é nelas que o ato comunicado aparece.
+    """
+    import tipo_de_ato
+
+    if not tipo_de_ato.gatilho(mov):
         return None
     try:
         dia = date.fromisoformat(str(mov.get("quando", ""))[:10])
     except ValueError:
         return None
-    origem = "disponibilizacao" if RE_DISPONIBILIZA.search(texto) else "intimacao"
-    conta = prazos.calcular(dia, DIAS_SUGERIDOS, origem=origem, uteis=True, extras=extras)
-    return {"dias": DIAS_SUGERIDOS, "origem": origem, "vencimento": conta["vencimento"], "passos": conta["passos"]}
+    texto = f"{mov.get('nome', '')} {mov.get('complemento', '')}"
+    origem = "disponibilizacao" if re.search(r"publica|disponibiliza", texto, re.IGNORECASE) else "intimacao"
+    p = processo or {}
+    s = tipo_de_ato.do_movimento(mov, anteriores or [], classe=mov.get("classe") or p.get("classe") or "",
+                                 orgao=mov.get("orgao") or p.get("orgao") or "", tribunal=p.get("tribunal") or "",
+                                 grau=mov.get("grau") or "", numero=p.get("numero") or "")
+    return com_conta(s, dia, origem, extras)
+
+
+def com_conta(s: dict, dia: date, origem: str, extras=None) -> dict:
+    """A sugestão de src/tipo_de_ato.py com o vencimento de cada opção."""
+    import prazos
+
+    base = {"ato": s["ato"], "base": s["base"], "porque": s["porque"], "certeza": s["certeza"], "ramo": s["ramo"],
+            "tipo": s["tipo"], "lembrete": s["lembrete"], "origem": origem, "sem_prazo": s.get("sem_prazo") or ""}
+    if base["sem_prazo"]:
+        return dict(base, dias=0, uteis=True, vencimento="", passos=[s["sem_prazo"]], alternativas=[], opcoes=[])
+    recesso = s["ramo"] != "penal"
+    conta = prazos.calcular(dia, s["dias"], origem=origem, uteis=s["uteis"], extras=extras, recesso=recesso)
+    alternativas = []
+    for a in s.get("alternativas") or []:
+        c = prazos.calcular(dia, a["dias"], origem=origem, uteis=a["uteis"], extras=extras, recesso=recesso)
+        alternativas.append(dict(a, vencimento=c["vencimento"], passos=c["passos"]))
+    principal = {"ato": s["ato"], "dias": s["dias"], "uteis": s["uteis"], "base": s["base"],
+                 "vencimento": conta["vencimento"], "passos": conta["passos"]}
+    return dict(base, dias=s["dias"], uteis=s["uteis"], vencimento=conta["vencimento"], passos=conta["passos"],
+                alternativas=alternativas, opcoes=[principal] + alternativas)
+
+
+def rotulo_prazo(o: dict) -> str:
+    return f"{o['ato']} ({o['dias']} dias {'úteis' if o['uteis'] else 'corridos'})"
+
+
+def _dia_br(v: str) -> str:
+    return f"{v[8:10]}/{v[5:7]}/{v[:4]}" if v else ""
+
+
+def resumo_do_prazo(s: dict) -> str:
+    """O texto do pedido em Aprovações: o ato, o porquê, a conta e as outras opções."""
+    linhas = [f"{rotulo_prazo(s)} — {s['base']}.", f"Por quê: {s['porque']}."]
+    if s["certeza"] == "generico":
+        linhas.append("Não reconheci o ato: confira na intimação qual é o prazo.")
+    linhas += s["passos"]
+    for a in s.get("alternativas") or []:
+        linhas.append(f"Também pode ser: {rotulo_prazo(a)}, vence em {_dia_br(a['vencimento'])} — {a['base']}.")
+    linhas.append(s["lembrete"])
+    return "\n".join(linhas)
 
 
 class Processos:
@@ -129,6 +177,12 @@ class Processos:
 
     def marcar_vistos(self, id_: int) -> int:
         return self.base.escrever("UPDATE movimentos SET visto = 1 WHERE processo_id = ? AND visto = 0", (int(id_),))
+
+    def anteriores(self, id_: int, grau: str, quando: str, menos: int | None = None, limite: int = 25) -> list[dict]:
+        """As movimentações do mesmo grau até `quando`, da mais nova para a mais antiga (sem a própria)."""
+        return self.base.buscar(
+            "SELECT * FROM movimentos WHERE processo_id = ? AND grau = ? AND quando <= ? AND id != ?"
+            " ORDER BY quando DESC, id DESC LIMIT ?", (int(id_), grau, quando, int(menos or 0), int(limite)))
 
     def nao_vistos(self) -> list[dict]:
         return self.base.buscar(
@@ -201,7 +255,7 @@ class Processos:
                         (int(id_), chave, grau, m.get("quando", ""), m.get("nome", ""), m.get("complemento", ""),
                          1 if primeira else 0, _agora()))
                     if not primeira:
-                        novos.append(dict(m, id=mid, grau=grau))
+                        novos.append(dict(m, id=mid, grau=grau, classe=g.get("classe", ""), orgao=g.get("orgao", "")))
             g0 = graus[0] if graus else {}
             self.base.escrever(
                 "UPDATE processos SET ultima_consulta = ?, ultimo_erro = '', classe = ?, orgao = ?, achado = ? WHERE id = ?",
@@ -242,16 +296,19 @@ def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S) -> dic
             erros += 1
         for m in r.get("novos") or []:
             novos += 1
-            s = sugerir_prazo(m, extras)
-            if s and getattr(estado, "fila", None) is not None:
+            ant = estado.processos.anteriores(p["id"], m.get("grau", ""), m.get("quando", ""), menos=m.get("id"))
+            s = sugerir_prazo(m, extras, ant, p)
+            if s and not s["sem_prazo"] and getattr(estado, "fila", None) is not None:
                 estado.fila.pedir(
-                    f"Prazo? {m.get('nome') or 'movimentação'} · processo {p['numero_fmt']}", "agenda",
+                    f"Prazo? {rotulo_prazo(s)} · processo {p['numero_fmt']}", "agenda",
                     acao="processos.prazo", pedido_por="Acompanhamento de processos",
-                    resumo="\n".join(s["passos"]), etiquetas=["DataJud", p["tribunal"]], prazo=s["vencimento"],
+                    resumo=resumo_do_prazo(s), etiquetas=["DataJud", p["tribunal"]], prazo=s["vencimento"],
                     dados={"processo_id": p["id"], "numero": p["numero_fmt"], "movimento": m.get("nome", ""),
                            "complemento": m.get("complemento", ""), "quando": m.get("quando", ""),
                            "vencimento": s["vencimento"], "passos": s["passos"], "dias": s["dias"],
-                           "servico": p.get("servico_nome") or ""})
+                           "ato": s["ato"], "base": s["base"], "porque": s["porque"], "certeza": s["certeza"],
+                           "opcoes": [dict(o, rotulo=rotulo_prazo(o) + " · vence em " + _dia_br(o["vencimento"])) for o in s["opcoes"]],
+                           "lembrete": s["lembrete"], "servico": p.get("servico_nome") or ""})
                 propostos += 1
         if pausa:
             time.sleep(pausa)
@@ -259,17 +316,34 @@ def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S) -> dic
     return {"consultados": feitos, "novos": novos, "erros": erros, "prazos_propostos": propostos}
 
 
+def escolhida(dados: dict) -> dict | None:
+    """A opção de prazo que a pessoa escolheu em Aprovações (a primeira, se não escolheu)."""
+    opcoes = dados.get("opcoes") or []
+    if not opcoes:
+        return None
+    try:
+        return opcoes[int(dados.get("escolha") or 0)]
+    except (ValueError, IndexError, TypeError):
+        return opcoes[0]
+
+
 def executar_prazo(estado, pedido) -> str:
-    """O sim em Aprovações: a tarefa do prazo na lista "Prazos", com a conta na anotação."""
+    """O sim em Aprovações: a tarefa do prazo na lista "Prazos", com a conta na anotação (e a opção escolhida)."""
     d = pedido.dados
+    o = escolhida(d)
+    ato = (o or {}).get("ato") or d.get("ato") or d["movimento"]
+    vencimento = (o or {}).get("vencimento") or d["vencimento"]
+    passos = (o or {}).get("passos") or d.get("passos") or []
     anotacao = (f"Processo {d['numero']}" + (f" · {d['servico']}" if d.get("servico") else "") +
                 f"\nMovimentação no DataJud em {d['quando']}: {d['movimento']}" +
                 (f" ({d['complemento']})" if d.get("complemento") else "") +
-                "\n\nConta sugerida (confira a data da ciência na intimação):\n" + "\n".join(d.get("passos") or []))
-    estado.tarefas.salvar({"titulo": f"Prazo: {d['movimento']} · {d['numero']}"[:200], "prazo": d["vencimento"],
+                (f"\n\n{ato} — {o['base']}" if o else "") +
+                (f"\nPor quê: {d['porque']}" if d.get("porque") else "") +
+                "\n\nConta sugerida (confira a data da ciência na intimação):\n" + "\n".join(passos) +
+                (f"\n\n{d['lembrete']}" if d.get("lembrete") else ""))
+    estado.tarefas.salvar({"titulo": f"Prazo: {ato} · {d['numero']}"[:200], "prazo": vencimento,
                            "importante": True, "lista": "Prazos", "anotacao": anotacao})
-    v = d["vencimento"]
-    return f"prazo anotado em Tarefas › Prazos para {v[8:10]}/{v[5:7]}/{v[:4]}"
+    return f"prazo anotado em Tarefas › Prazos para {_dia_br(vencimento)}" + (f" ({ato})" if o else "")
 
 
 def vigiar(estado) -> None:

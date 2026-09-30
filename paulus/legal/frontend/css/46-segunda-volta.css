@@ -1,0 +1,13 @@
+  /* --------------------------------- segunda volta (N1-N16, PLANO-PILOTO) */
+
+  /* N1: o pedido com opções em Aprovações (qual prazo anotar). */
+  .ap-opcoes { margin: 14px 0 0; padding: 0; border: none; display: grid; gap: 6px; }
+  .ap-opcoes legend { padding: 0; margin: 0 0 6px; font: 600 13px var(--sans); color: var(--ink); }
+  .ap-opcao { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--ink-a1);
+    border-radius: 8px; cursor: pointer; font-size: 13.5px; color: var(--ink2); }
+  .ap-opcao input { margin-top: 3px; flex: none; }
+  .ap-opcao small { color: var(--ink3); font-size: 12px; line-height: 1.4; }
+  .ap-opcao:has(input:checked) { border-color: var(--acc); background: var(--fill); }
+  .pub-sugestao { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--fill); font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+  .pub-sugestao b { color: var(--ink); }
+  .ap-resumo { white-space: pre-line; }

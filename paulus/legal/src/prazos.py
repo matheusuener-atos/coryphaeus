@@ -72,12 +72,12 @@ def motivo_sem_expediente(d: date, extras: dict[date, str] | None = None) -> str
     return ""
 
 
-def util(d: date, extras: dict[date, str] | None = None) -> bool:
-    return not motivo_sem_expediente(d, extras) and not em_recesso(d)
+def util(d: date, extras: dict[date, str] | None = None, recesso: bool = True) -> bool:
+    return not motivo_sem_expediente(d, extras) and not (recesso and em_recesso(d))
 
 
-def proximo_util(d: date, extras: dict[date, str] | None = None) -> date:
-    while not util(d, extras):
+def proximo_util(d: date, extras: dict[date, str] | None = None, recesso: bool = True) -> date:
+    while not util(d, extras, recesso):
         d += timedelta(days=1)
     return d
 
@@ -87,25 +87,26 @@ def _dia(d: date) -> str:
 
 
 def calcular(data: date, dias: int, *, origem: str = "intimacao", uteis: bool = True,
-             extras: dict[date, str] | None = None) -> dict:
+             extras: dict[date, str] | None = None, recesso: bool = True) -> dict:
     """
     O vencimento de um prazo de `dias` a partir de `data`.
 
     `origem`: "disponibilizacao" (a data em que o Diario eletronico pos no ar)
     ou "intimacao" (a data da ciencia: publicacao, intimacao pessoal, juntada
     do mandado). Devolve {vencimento, publicacao, inicio, passos} - os passos
-    em portugues, para o advogado conferir.
+    em portugues, para o advogado conferir. `recesso=False` no processo penal:
+    o art. 220 do CPC nao suspende o prazo (CPP, art. 798).
     """
     if dias < 1 or dias > 3650:
         raise ValueError("o prazo precisa ter de 1 a 3650 dias")
     passos: list[str] = []
     publicacao = data
     if origem == "disponibilizacao":
-        publicacao = proximo_util(data + timedelta(days=1), extras)
+        publicacao = proximo_util(data + timedelta(days=1), extras, recesso)
         passos.append(f"Disponibilizado em {_dia(data)}; publicado no primeiro dia útil seguinte, {_dia(publicacao)} (Lei 11.419, art. 4º, § 3º).")
     else:
         passos.append(f"Intimação em {_dia(data)}: o dia do começo não conta (CPC, art. 224).")
-    inicio = proximo_util(publicacao + timedelta(days=1), extras)
+    inicio = proximo_util(publicacao + timedelta(days=1), extras, recesso)
     pulados = []
     d = publicacao + timedelta(days=1)
     while d < inicio:
@@ -117,7 +118,7 @@ def calcular(data: date, dias: int, *, origem: str = "intimacao", uteis: bool = 
         sem: list[str] = []
         while contados < dias:
             d += timedelta(days=1)
-            if util(d, extras):
+            if util(d, extras, recesso):
                 contados += 1
             else:
                 sem.append(_dia(d) + " (" + (motivo_sem_expediente(d, extras) or "recesso forense, CPC art. 220") + ")")
@@ -125,8 +126,8 @@ def calcular(data: date, dias: int, *, origem: str = "intimacao", uteis: bool = 
         passos.append(f"{dias} dias úteis (CPC, art. 219)" + (f"; não contam: {', '.join(sem[:12])}" + (" e outros" if len(sem) > 12 else "") if sem else "") + ".")
     else:
         bruto = inicio + timedelta(days=dias - 1)
-        vencimento = proximo_util(bruto, extras)
-        passos.append(f"{dias} dias corridos: {_dia(bruto)}" +
+        vencimento = proximo_util(bruto, extras, recesso)
+        passos.append(f"{dias} dias corridos" + ("" if recesso else " (sem a suspensão do art. 220 do CPC)") + f": {_dia(bruto)}" +
                       (f", que cai em dia sem expediente — passa para {_dia(vencimento)} (CPC, art. 224, § 1º)" if vencimento != bruto else "") + ".")
     passos.append(f"Vence em {_dia(vencimento)}.")
     return {"vencimento": vencimento.isoformat(), "publicacao": publicacao.isoformat(), "inicio": inicio.isoformat(), "passos": passos}

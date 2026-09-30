@@ -6,7 +6,8 @@
    Acompanhar pelo DataJud vem desligado: ligado, uma vez por dia o PAULUS
    manda só o número de cada processo acompanhado à API pública do CNJ.
    Movimentação nova vira aviso; intimação, citação ou publicação vira um
-   pedido em Aprovações com a conta do prazo - sugestão, nunca tarefa sozinha.
+   pedido em Aprovações com a conta do prazo pelo tipo de ato (N1) - sugestão,
+   nunca tarefa sozinha.
 */
 
 const proc = { dados: null, servicos: [] };
@@ -36,7 +37,8 @@ function htmlDosProcessos(d, servicoId) {
     : '<p class="cfg-explica">' + (servicoId ? "Nenhum processo neste Serviço." : "Nenhum processo ainda.") +
       (local ? " “Achar nos documentos” traz os números que a leitura já validou; eles entram sem acompanhar." : "") + "</p>") +
     '<p class="cfg-explica">Movimentação nova aparece nos avisos. Intimação, citação ou publicação vira um pedido em Aprovações com a conta do prazo ' +
-    "(15 dias úteis a partir da data do movimento) — é sugestão: confira a data da ciência.</p>";
+    "pelo ato que ela comunica — a sentença, o acórdão, a decisão ou o despacho de antes, no ramo do processo; sem reconhecer o ato, 15 dias úteis. " +
+    "É sugestão: confira o ato e a data da ciência.</p>";
 }
 
 async function carregarProcessos(alvo, servicoId) {

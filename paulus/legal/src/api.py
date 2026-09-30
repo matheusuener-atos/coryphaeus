@@ -5327,6 +5327,9 @@ class Decisao(BaseModel):
     # De fora, aprovar o que sai desta maquina pede o codigo do autenticador
     # de novo (src/acesso/politicas.py, ACOES_QUE_SAEM).
     codigo: str = ""
+    # Pedido com opções (N1: qual prazo - a apelação ou os embargos): o
+    # índice da escolhida, por pedido. Sem escolha, vale a primeira.
+    escolhas: dict[str, int] = {}
 
 
 def _fila_para_tela() -> dict:
@@ -5404,6 +5407,10 @@ def aprovacoes_decidir(payload: Decisao, request: Request = None) -> dict:
             feitos.append({"id": id_, "estado": pedido.estado})
             continue
 
+        if id_ in payload.escolhas and (pedido.dados or {}).get("opcoes"):
+            n = len(pedido.dados["opcoes"])
+            pedido.dados["escolha"] = min(max(int(payload.escolhas[id_]), 0), n - 1)
+            estado.fila.salvar()
         executor = EXECUTORES.get(pedido.acao)
         if not executor:
             estado.fila.registrar_resultado(id_, "aprovado, sem nada a executar")
@@ -10504,6 +10511,11 @@ class PrazoDaPublicacao(BaseModel):
     dias: int = 15
     uteis: bool = True
     titulo: str = ""
+    # No penal, o recesso do art. 220 do CPC não suspende (N1).
+    recesso: bool = True
+    # O ato e a base da sugestão escolhida, para a anotação da tarefa.
+    ato: str = ""
+    base: str = ""
 
 
 @app.post("/api/prazos/calcular")
@@ -10536,9 +10548,29 @@ def prazos_feriados_salvar(dados: FeriadosDoEscritorio) -> dict:
     return prazos_feriados()
 
 
+def _sugestao_da_publicacao(pub: dict) -> dict | None:
+    """O prazo pelo tipo de ato, lido no texto da publicação (N1)."""
+    import tipo_de_ato
+    from datetime import date as _date
+
+    try:
+        dia = _date.fromisoformat(str(pub.get("data") or "")[:10])
+    except ValueError:
+        return None
+    s = tipo_de_ato.do_texto(pub.get("texto") or "", tipo=pub.get("tipo") or "", classe=pub.get("classe") or "",
+                             orgao=pub.get("orgao") or "", tribunal=pub.get("tribunal") or "", numero=pub.get("processo") or "")
+    return processos_mod.com_conta(s, dia, "disponibilizacao", _feriados_do_escritorio())
+
+
 def _publicacoes_para_tela(filtro: str = "novas") -> dict:
     pp = estado.prefs.dados.get("publicacoes") or {}
-    return {"publicacoes": estado.publicacoes.listar(filtro), "novas": estado.publicacoes.contar_novas(),
+    lista = estado.publicacoes.listar(filtro)
+    for pub in lista:
+        try:
+            pub["sugestao"] = _sugestao_da_publicacao(pub)
+        except Exception:  # noqa: BLE001 - sem sugestão, a caixa abre com 15 dias
+            pub["sugestao"] = None
+    return {"publicacoes": lista, "novas": estado.publicacoes.contar_novas(),
             "ligado": bool(pp.get("ligado")), "oabs": [f"{o['uf']} {o['numero']}" for o in _oabs_acompanhadas()],
             "oabs_extras": pp.get("oabs") or [], "ultima": pp.get("ultima", ""), "ultimo_erro": pp.get("ultimo_erro", "")}
 
@@ -10590,12 +10622,13 @@ def publicacoes_prazo(id_: int, dados: PrazoDaPublicacao) -> dict:
         raise HTTPException(status_code=404, detail="publicação não encontrada")
     try:
         conta = prazos_mod.calcular(_date.fromisoformat(pub["data"]), int(dados.dias), origem="disponibilizacao",
-                                    uteis=dados.uteis, extras=_feriados_do_escritorio())
+                                    uteis=dados.uteis, extras=_feriados_do_escritorio(), recesso=dados.recesso)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    titulo = dados.titulo.strip() or f"Prazo: {pub['tipo'] or 'intimação'} · {pub['processo']}"
+    titulo = dados.titulo.strip() or f"Prazo: {dados.ato or pub['tipo'] or 'intimação'} · {pub['processo']}"
     anotacao = (f"{pub['tribunal']} · {pub['orgao']}\nProcesso {pub['processo']}\n"
-                f"Disponibilizado no DJEN em {pub['data']}\n\n" + "\n".join(conta["passos"]))
+                f"Disponibilizado no DJEN em {pub['data']}\n\n" +
+                (f"{dados.ato} — {dados.base}\n\n" if dados.ato and dados.base else "") + "\n".join(conta["passos"]))
     tid = estado.tarefas.salvar({"titulo": titulo[:200], "prazo": conta["vencimento"], "importante": True,
                                  "lista": "Prazos", "anotacao": anotacao})
     estado.publicacoes.marcar(id_, tarefa_id=tid)

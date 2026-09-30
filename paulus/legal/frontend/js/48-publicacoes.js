@@ -87,20 +87,32 @@ function ligarPublicacoes(raiz) {
   clique("[data-pub-prazo]", async (b) => {
     const p = ((pub.dados || {}).publicacoes || []).find((x) => String(x.id) === b.dataset.pubPrazo);
     if (!p) return;
+    // N1: a sugestão pelo tipo de ato, lida no texto; a pessoa troca à vontade.
+    const s = p.sugestao && !p.sugestao.sem_prazo && p.sugestao.dias ? p.sugestao : null;
+    const semPrazo = p.sugestao && p.sugestao.sem_prazo ? p.sugestao.sem_prazo : "";
+    const alternativas = s && s.alternativas && s.alternativas.length
+      ? "<br>Também pode ser: " + s.alternativas.map((a) => esc(a.ato + " (" + a.dias + " dias " + (a.uteis ? "úteis" : "corridos") + ")")).join("; ") + "." : "";
+    const sugestao = s
+      ? '<p class="pub-sugestao"><b>' + esc(s.ato) + " — " + s.dias + " dias " + (s.uteis ? "úteis" : "corridos") + "</b> · " + esc(s.base) + ".<br>" +
+        "Por quê: " + esc(s.porque) + "." + (s.certeza === "generico" ? " Confira o ato na intimação." : "") + alternativas + "</p>"
+      : (semPrazo ? '<p class="pub-sugestao">' + esc(semPrazo) + "</p>" : "");
     const r = await dialogo({
       titulo: "Criar o prazo", contexto: (p.processo || "") + " · " + (p.tribunal || ""),
       texto: "Disponibilizado no DJEN em " + dataBr(p.data) + ". O PAULUS conta a partir da publicação (o primeiro dia útil seguinte) e cria a tarefa na lista Prazos, com a conta na anotação para você conferir.",
+      html: sugestao,
       campos: [
-        { chave: "dias", rotulo: "Prazo (dias)", valor: "15", obrigatorio: true },
-        { chave: "titulo", rotulo: "Título da tarefa", valor: "Prazo: " + (p.tipo || "intimação") + " · " + (p.processo || ""), obrigatorio: false },
+        { chave: "dias", rotulo: "Prazo (dias)", valor: String(s ? s.dias : 15), obrigatorio: true },
+        { chave: "titulo", rotulo: "Título da tarefa", valor: "Prazo: " + (s ? s.ato : (p.tipo || "intimação")) + " · " + (p.processo || ""), obrigatorio: false },
       ],
       depois: '<div class="dialogo-campo"><label for="pub-uteis">Contagem</label><div class="dialogo-caixa"><select id="pub-uteis" data-dialogo-chave="uteis">' +
-        '<option value="1">Dias úteis (CPC, art. 219)</option><option value="0">Dias corridos</option></select></div></div>',
+        '<option value="1"' + (s && !s.uteis ? "" : " selected") + '>Dias úteis (CPC, art. 219)</option><option value="0"' + (s && !s.uteis ? " selected" : "") + ">Dias corridos</option></select></div></div>",
       confirmar: "Criar o prazo",
     });
     if (!r || !r.ok) return;
+    const mesmo = s && Number(r.valores.dias) === s.dias;
     try {
-      const d = await pubPost("/api/publicacoes/" + p.id + "/prazo", { dias: Number(r.valores.dias) || 15, uteis: r.valores.uteis !== "0", titulo: r.valores.titulo || "" });
+      const d = await pubPost("/api/publicacoes/" + p.id + "/prazo", { dias: Number(r.valores.dias) || 15, uteis: r.valores.uteis !== "0", titulo: r.valores.titulo || "",
+        recesso: !(s && s.ramo === "penal"), ato: mesmo ? s.ato : "", base: mesmo ? s.base : "" });
       avisoCert("prazo criado: vence em " + dataBr(d.conta.vencimento), { tom: "ok" });
       await carregarPublicacoes();
     } catch (err) { avisoCert(err.message, { tom: "erro" }); }

@@ -333,3 +333,71 @@ vigência: é o histórico pelas notas, com esses dois limites à vista.
 **Medido:** `tests/test_l10_vigencia.py` 20 ok (texto montado e os códigos
 de verdade: CDC 39, CC 1.368-C, CC 421, CC 206, CPC 1.015; MCP; o diálogo no
 Edge).
+
+# Segunda volta — as faltas e o que tinha ficado de fora (30/09/2026)
+
+Pedido: "Vamos implantar tudo, inclusive o que ficou de fora de propósito,
+como eu decidi". Entram as faltas de cada etapa (as linhas "Não feito"
+acima) e os quatro itens que a primeira volta deixou de fora de propósito:
+jurisprudência em massa, agente com autonomia sem confirmação, nuvem e
+ferramenta do MCP que escreve. As regras da casa continuam: o que sai da
+máquina vem desligado de fábrica e é dito na tela; o texto só promete o que
+o código garante.
+
+| Etapa | O quê | De onde | Estado | Teste |
+| --- | --- | --- | --- | --- |
+| N1 | O prazo pelo tipo de ato (sentença, acórdão, decisão, despacho, citação; cível, juizado, trabalho, penal; o prazo que o juiz fixou) | L2 | feito | `tests/test_n1_tipo_de_ato.py` |
+| N2 | A publicação do DJEN ligada ao processo acompanhado: um aviso, um pedido de prazo | L2 | — | `tests/test_n2_djen_processo.py` |
+| N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | — | `tests/test_n3_parte_contraria.py` |
+| N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | — | `tests/test_n4_conflitos.py` |
+| N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | — | `tests/test_n5_clausulas.py` |
+| N6 | A conversa chama as tarefas de vários passos | L4 | — | `tests/test_n6_conversa_tarefas.py` |
+| N7 | Súmulas e temas na resposta da conversa | L5 | — | `tests/test_n7_temas_na_conversa.py` |
+| N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
+| N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | — | `tests/test_n9_mcp_escreve.py` |
+| N10 | Captura: corte das bordas e perspectiva endireitada | L8 | — | `tests/test_n10_corte.py` |
+| N11 | A posição na fila da resposta que volta do aparelho | D4 | — | `tests/test_n11_fila_aparelho.py` |
+| N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | — | `tests/test_n12_vigencia.py` |
+| N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | — | `tests/test_n13_jurisprudencia.py` |
+| N14 | Agente com autonomia sem confirmação | fora | — | `tests/test_n14_autonomia.py` |
+| N15 | Nuvem com a chave do escritório | fora | — | `tests/test_n15_nuvem.py` |
+| N16 | Os três testes que dependiam desta máquina | testes | — | os próprios |
+
+## N1 — o prazo pelo tipo de ato (30/09/2026)
+
+- **O ato** (`src/tipo_de_ato.py`), por regra, sem modelo: no DataJud, a
+  movimentação anterior do mesmo grau (Procedência, Improcedência, Extinção →
+  sentença; Provimento e Não-Provimento no grau recursal → acórdão; Decisão,
+  Concessão, Tutela → decisão; Mero expediente, Ato ordinatório → despacho;
+  as juntadas de contestação, de recurso e de embargos); no DJEN, o texto
+  inteiro ("julgo procedente", "ACÓRDÃO", "DEFIRO", "cite-se", "manifeste-se").
+- **O ramo**: trabalho (tribunal TRT/TST ou o segmento 5 do número CNJ),
+  penal (classe), juizado (classe, órgão ou grau JE/TR), cível no resto; e o
+  cumprimento de sentença e a execução pela classe.
+- **A tabela**: apelação 15 úteis; recurso inominado 10; recurso ordinário e
+  de revista 8; apelação penal 5 corridos; REsp/RE 15; agravo de instrumento
+  15 (com o aviso do rol do art. 1.015); agravo interno 15; embargos de
+  declaração 5 (2 no penal); contestação 15; resposta à acusação 10; réplica
+  e contrarrazões; pagamento voluntário e impugnação (arts. 523 e 525);
+  manifestação 5 (art. 218, § 3º). Citação no juizado e no trabalho: sem
+  prazo contado daqui (a defesa é na audiência), e o pedido não é criado.
+- **O prazo que o juiz fixou** ("no prazo de 10 (dez) dias", "48 horas")
+  vale num despacho ou numa decisão; numa sentença ou num acórdão fica como
+  lembrete ("costuma ser o de cumprir, não o de recorrer").
+- **No penal**, a conta é em dias corridos e o recesso do art. 220 do CPC
+  não suspende (`prazos.calcular(recesso=False)`).
+- **Em Aprovações**, o pedido diz o ato, a base, o porquê, a conta e as
+  outras opções com o vencimento de cada uma, e o lembrete do prazo em dobro;
+  a caixa do pedido deixa **escolher a opção** (a primeira vem marcada), e o
+  sim anota a tarefa dela. No DJEN, "Criar prazo" vem com a sugestão e o
+  porquê, e a pessoa troca à vontade.
+
+**Não feito:** o PAULUS não sabe de que lado o escritório está (Fazenda,
+MP e Defensoria em dobro: é lembrete), nem se a decisão está no rol do
+agravo (é aviso); o prazo das leis especiais fora da tabela (mandado de
+segurança, eleitoral, falência) cai nos 15 dias genéricos, dito.
+
+**Medido:** `tests/test_n1_tipo_de_ato.py` 36 ok (as regras, a conta sem
+recesso, o pedido com três opções escolhido pela tela no Edge, a sugestão
+no "Criar prazo"); `test_l2_processos` e `test_prazos_publicacoes`
+continuam passando.

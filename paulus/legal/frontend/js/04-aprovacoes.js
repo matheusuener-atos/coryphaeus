@@ -359,14 +359,29 @@ async function verPedido(id) {
         ["Efeito", p.reversivel ? "dá para desfazer" : "externo · sem desfazer depois"],
         ["Regra de alçada", regra],
         ["Se recusar", "encerra o pedido · nada é executado"],
-      ]) + apSaida(p),
+      ]) + apSaida(p) + apOpcoes(p),
     rodape: '<button type="button" class="perigo com-icone" id="ap-dlg-recusar">' + ic("close", 16) + "Recusar</button>",
   });
   const botao = document.getElementById("ap-dlg-recusar");
   if (botao) botao.onclick = () => { recusar = true; if (dialogoAberto) dialogoAberto.fechar(null); };
+  // A opção escolhida é lida antes de a caixa fechar (o dialogo tira o HTML).
+  let escolha = 0;
+  document.querySelectorAll("[data-ap-opcao]").forEach((el) => { el.onchange = () => { if (el.checked) escolha = Number(el.value); }; });
   const r = await espera;
-  if (r && r.ok) decidirPedidos([id], true);
+  const escolhas = {};
+  if ((p.dados || {}).opcoes && p.dados.opcoes.length > 1) escolhas[id] = escolha;
+  if (r && r.ok) decidirPedidos([id], true, escolhas);
   else if (recusar) decidirPedidos([id], false);
+}
+
+/* O pedido com opções (N1: qual prazo): uma escolha, a primeira marcada. */
+function apOpcoes(p) {
+  const opcoes = (p.dados || {}).opcoes || [];
+  if (opcoes.length < 2) return "";
+  return '<fieldset class="ap-opcoes"><legend>Qual prazo anotar</legend>' + opcoes.map((o, i) =>
+    '<label class="ap-opcao"><input type="radio" name="ap-opcao" value="' + i + '" data-ap-opcao="' + i + '"' + (i === 0 ? " checked" : "") + ">" +
+    '<span class="duas-linhas"><b>' + esc(o.rotulo || o.ato || ("opção " + (i + 1))) + "</b>" + (o.base ? "<small>" + esc(o.base) + "</small>" : "") + "</span></label>").join("") +
+    "</fieldset>";
 }
 
 /* A decisao aberta: a linha do tempo do pedido, so leitura. */
@@ -395,7 +410,7 @@ function aprovarMarcados() {
   decidirPedidos(ids, true);
 }
 
-async function decidirPedidos(ids, aprovar) {
+async function decidirPedidos(ids, aprovar, escolhas) {
   if (!ids.length) return;
   const quais = ids.map((id) => aprov.pendentes.find((p) => p.id === id)).filter(Boolean);
   const semVolta = quais.filter((p) => !p.reversivel);
@@ -436,7 +451,7 @@ async function decidirPedidos(ids, aprovar) {
     const r = await fetch("/api/aprovacoes/decidir", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: ids, aprovar: aprovar, codigo: codigo }),
+      body: JSON.stringify({ ids: ids, aprovar: aprovar, codigo: codigo, escolhas: escolhas || {} }),
     });
     if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); atualizarSelo(false); return; }
     const d = await r.json();
