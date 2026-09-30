@@ -259,8 +259,25 @@ def test_tela(base: str, api, conversa: str) -> None:
         linhas = pag.evaluate("() => [...document.querySelectorAll('[data-agt-linha]')].map(l => l.textContent)")
         checar(any("Revisor de contratos" in x and "desativado" in x and "exemplo do PAULUS" in x for x in linhas)
                and any("Triagem de consumidor" in x for x in linhas), "a lista mostra os exemplos: desativados, versão, origem", linhas)
-        checar(any("sem avaliação" in x and "usado 0×" in x for x in linhas), "e a medida de cada um (A4)")
+        checar(all("usado 0×" in x for x in linhas), "e a medida de cada um no cartão (A4): usado N×")
+        # A22: a equipe em cartões, o nível, os pontos de teste e os passos
+        checar(pag.inner_text(".agt-equipe .est-titulo h1") == "Monte a sua equipe", "A22: o título do mock")
+        nivel = pag.inner_text(".agt-equipe .est-nivel")
+        checar("Sem equipe" in nivel and pag.inner_text(".agt-equipe .est-anel") == "0",
+               "nenhum agente pronto (os exemplos vêm desativados): “Sem equipe”", nivel)
+        pontos = pag.evaluate("() => [...document.querySelectorAll('[data-agt-linha]')].map(c => c.querySelectorAll('.agt-pontos i.nao').length)")
+        checar(pontos and all(n == 3 for n in pontos), "um ponto por teste, vazio enquanto não rodou", pontos)
+        checar(pag.is_visible(".agt-cartao-novo[data-agt-novo]"), "o último cartão é “Chamar mais um”")
+        passos = pag.evaluate("() => [...document.querySelectorAll('.agt-equipe .est-passo b')].map(b => b.textContent)")
+        checar(any(x.startswith("Teste e ative ") for x in passos) and len(passos) <= 4, "os passos saem dos dados: “Teste e ative”", passos)
+        checar("@" in pag.inner_text(".agt-equipe .agt-chamar"), "e o cartão “Chamar pelo nome”")
+        pag.click('[data-agt-linha="exemplo-revisor-de-contratos"]')
+        pag.wait_for_selector(".agt-faixa", timeout=5000)
+        faixa = pag.inner_text(".agt-faixa")
+        checar("Entra quando alguém pede algo como" in faixa and "sem avaliação" in faixa and pag.query_selector(".agt-faixa [data-agt-abrir]"),
+               "clicar no cartão abre a faixa: exemplos, ferramentas, “sem avaliação” (A4), Testar e Editar", faixa[:200])
         pag.screenshot(path=str(CAPTURAS / "a3-lista.png"))
+        pag.click("[data-agt-fechar]")
 
         # criar pelo formulario
         pag.click("[data-agt-novo]")
@@ -368,7 +385,9 @@ def test_tela(base: str, api, conversa: str) -> None:
         largura = cel.evaluate("() => document.documentElement.scrollWidth")
         checar(largura <= 392, "cabe em 390 px, sem rolar para o lado", largura)
         cel.screenshot(path=str(CAPTURAS / "a3-celular.png"))
-        cel.click('[data-agt-abrir="exemplo-revisor-de-contratos"]')
+        cel.click('[data-agt-linha="exemplo-revisor-de-contratos"]')
+        cel.wait_for_selector(".agt-faixa [data-agt-abrir]", timeout=5000)
+        cel.click('.agt-faixa [data-agt-abrir="exemplo-revisor-de-contratos"]')
         cel.wait_for_selector("[data-agt-testar]")
         checar(not cel.query_selector("[data-agt-editar]") and not cel.query_selector("[data-agt-ativar]"),
                "o agente abre com Testar, sem Editar nem Ativar")

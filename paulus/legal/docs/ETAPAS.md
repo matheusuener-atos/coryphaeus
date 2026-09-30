@@ -2411,3 +2411,10 @@ validade de 10 min; recusa caminho que não é de trechos, caso só no
 escritório, trecho fora do filtro e acima do orçamento. Até a D3, a
 conferência reprova tudo e o escritório reescreve. **Medido:**
 `tests/test_d1_pacote.py` 30 ok.
+
+## Biblioteca e Agentes pelos mocks A21 e A22 ✓ FEITA (30/09/2026)
+
+A Estante da Biblioteca e a equipe de Agentes no desenho dos mocks: nível,
+cartões ou estantes, faixa do item escolhido e próximos passos tirados dos
+dados. Detalhes em docs/PROGRESSO-BIBLIOTECA.md (B2) e
+docs/PROGRESSO-CONVERSA.md (A22).

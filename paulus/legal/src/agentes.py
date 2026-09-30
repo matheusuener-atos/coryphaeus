@@ -63,8 +63,11 @@ FORMATOS_SAIDA = ("texto", "lista", "tabela", "modelo_de_documento")
 ACERVO_MODOS = ("acervo", "documento_em_foco")
 
 # A ordem e a do §2.6: e a ordem em que a tela e o relatorio listam.
-CAMPOS = ("nome", "descricao", "quando_usar", "capacidades", "ferramentas", "fontes", "saida", "modelo",
+CAMPOS = ("nome", "descricao", "icone", "quando_usar", "capacidades", "ferramentas", "fontes", "saida", "modelo",
           "testes", "versao")
+# `icone` (A22, opcional): o nome de um icone da fonte de icones do programa,
+# para o cartao do agente. Sem ele, o de sempre.
+RE_ICONE = re.compile(r"[a-z][a-z0-9_]{1,39}")
 CAMPOS_QUANDO_USAR = ("exemplos", "palavras")
 CAMPOS_FONTES = ("acervo", "biblioteca", "leis")
 CAMPOS_SAIDA = ("formato", "modelo")
@@ -203,6 +206,7 @@ class Agente:
     arquivo: str = ""
     nome: str = ""
     descricao: str = ""
+    icone: str = ""
     quando_usar: dict = field(default_factory=lambda: {"exemplos": [], "palavras": []})
     capacidades: list[str] = field(default_factory=list)
     ferramentas: list[str] = field(default_factory=list)
@@ -245,7 +249,7 @@ class Agente:
     def ficha(self) -> dict:
         """O que a tela (A3) e a conversa (A2) usam. O markdown inteiro vem em `ler`."""
         return {
-            "slug": self.slug, "nome": self.nome or self.slug, "descricao": self.descricao,
+            "slug": self.slug, "nome": self.nome or self.slug, "descricao": self.descricao, "icone": self.icone,
             "quando_usar": self.quando_usar, "capacidades": self.capacidades, "ferramentas": self.ferramentas,
             "fontes": self.fontes, "saida": self.saida, "modelo": self.modelo, "testes": self.testes,
             "versao": self.versao, "instrucoes": self.instrucoes,
@@ -370,6 +374,12 @@ class Agentes:
         elif len(descricao) > MAX_DESCRICAO:
             erros.append(f"a descrição passa de {MAX_DESCRICAO} caracteres")
 
+        icone = ""
+        if dados.get("icone") is not None:
+            icone = str(dados.get("icone") or "").strip()
+            if icone and not RE_ICONE.fullmatch(icone):
+                erros.append(f"o ícone '{icone}' precisa ser o nome de um ícone, em minúsculas (ex.: gavel)")
+                icone = ""
         qu = _sub(dados.get("quando_usar"), "quando_usar", CAMPOS_QUANDO_USAR, erros)
         quando_usar = {"exemplos": _textos(qu.get("exemplos"), "quando_usar.exemplos", erros),
                        "palavras": _textos(qu.get("palavras"), "quando_usar.palavras", erros)}
@@ -469,7 +479,7 @@ class Agentes:
             avisos.append("sem testes: o Testar não tem o que rodar")
         if not quando_usar["exemplos"] and not quando_usar["palavras"]:
             avisos.append("sem exemplos nem palavras: só será usado quando a pessoa o escolher pelo nome")
-        return ({"nome": nome, "descricao": descricao, "quando_usar": quando_usar, "capacidades": capacidades,
+        return ({"nome": nome, "descricao": descricao, "icone": icone, "quando_usar": quando_usar, "capacidades": capacidades,
                  "ferramentas": ferramentas, "fontes": fontes, "saida": saida, "modelo": perfil,
                  "testes": testes, "versao": versao, "instrucoes": corpo}, avisos)
 

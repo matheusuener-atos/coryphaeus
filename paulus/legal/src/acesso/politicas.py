@@ -407,7 +407,7 @@ _declarar(PERMITIDO, "GET /api/central-avisos/hoje", "GET /api/central-avisos",
 # o titular, como as rotas de gravar da A1. A medida (A4) vem na lista, que ja
 # e permitida.
 _declarar(TITULAR, "POST /api/agentes/formulario", "POST /api/agentes/validar",
-          "GET /api/agentes/da-conversa/{trabalho_id}")
+          "GET /api/agentes/da-conversa/{trabalho_id}", "GET /api/agentes/sugestao/conversa")
 
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:

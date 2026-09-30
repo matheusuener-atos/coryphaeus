@@ -242,7 +242,9 @@ def tela_da_revisao(base: str, api, slug: str) -> None:
         pag.evaluate("() => mostrarAgentes()")
         pag.wait_for_selector(f'[data-agt-linha="{slug}"] [data-agt-revisao]')
         checar(True, "a lista mostra \"precisa de revisão\"")
-        pag.click(f'[data-agt-abrir="{slug}"]')
+        # A22: o cartão abre a faixa; Editar (ou o duplo clique) leva ao agente.
+        pag.click(f'[data-agt-linha="{slug}"]')
+        pag.click(f'.agt-faixa [data-agt-abrir="{slug}"]')
         pag.wait_for_selector("[data-agt-aviso-revisao]")
         aviso = pag.inner_text("[data-agt-aviso-revisao]")
         checar("faltou IGP-M" in aviso and "não é escolhido sozinho" in aviso, "a ficha diz o que faltou e o que fazer", aviso)

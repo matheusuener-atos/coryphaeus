@@ -162,6 +162,8 @@ def cabecalho_do_formulario(campos: dict) -> dict:
     cab = {
         "nome": str(c.get("nome") or "").strip(),
         "descricao": str(c.get("descricao") or "").strip(),
+        # O formulario nao mostra o icone (A22); editar por ele nao o apaga.
+        **({"icone": str(c["icone"]).strip()} if str(c.get("icone") or "").strip() else {}),
         "quando_usar": {"exemplos": _linhas(c.get("exemplos")), "palavras": _virgulas(c.get("palavras"))},
         "capacidades": _virgulas(c.get("capacidades")) or ["perguntar"],
         "ferramentas": _virgulas(c.get("ferramentas")),
@@ -270,6 +272,30 @@ def rascunho_da_conversa(trabalho) -> dict:
 
 # ------------------------------------------------------------------ rotas
 
+def conversa_sugerida(estado, minimo: int = 4, olhar: int = 40) -> dict | None:
+    """
+    A22 ("Uma conversa sua dá um bom agente"): a conversa recente com pelo
+    menos `minimo` perguntas cujo rascunho sai com 3 exemplos e 2 palavras
+    que se repetem - perguntas parecidas. Conversa com o nome de um agente
+    que já existe fica de fora. Nenhuma: None, e o passo sai da tela.
+    """
+    try:
+        nomes = {_plano(a.nome) for a in estado.agentes.listar()}
+    except Exception:  # noqa: BLE001 - sem a lista, nenhuma fica de fora por nome
+        nomes = set()
+    itens = sorted(getattr(estado.trabalhos, "_itens", {}).values(), key=lambda t: t.atualizado_em, reverse=True)
+    for trabalho in itens[:olhar]:
+        if getattr(trabalho, "tipo", "conversa") != "conversa" or _plano(trabalho.titulo) in nomes:
+            continue
+        perguntas = _perguntas(trabalho)
+        if len(perguntas) < minimo:
+            continue
+        campos = rascunho_da_conversa(trabalho)
+        if len(campos.get("exemplos") or []) >= 3 and len(campos.get("palavras") or []) >= 2:
+            return {"id": trabalho.id, "titulo": trabalho.titulo, "perguntas": len(perguntas)}
+    return None
+
+
 def montar(estado, app) -> None:
     """Depois de rotas_agentes.montar: usa o `estado.agentes` que ela cria."""
     try:
@@ -294,6 +320,11 @@ def montar(estado, app) -> None:
         if not isinstance(md, str):
             raise HTTPException(status_code=400, detail="mande o conteúdo do AGENTE.md em 'markdown'")
         return conferir(estado.agentes, md)
+
+    @app.get("/api/agentes/sugestao/conversa")
+    def agentes_conversa_sugerida() -> dict:
+        """A conversa que daria um bom agente (A22), ou null. So aponta: nada e gravado."""
+        return {"conversa": conversa_sugerida(estado)}
 
     @app.get("/api/agentes/da-conversa/{trabalho_id}")
     def agentes_da_conversa(trabalho_id: str) -> dict:

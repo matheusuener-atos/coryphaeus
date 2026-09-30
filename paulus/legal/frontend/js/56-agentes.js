@@ -31,6 +31,9 @@ const agt = {
   // a edicao
   editando: "", form: null, markdown: "", modo: "formulario", formMudou: false, validacao: null,
   daConversa: null, validarTimer: null, versaoBase: 0,
+  // A22: o cartão escolhido, os passos feitos enquanto a tela está aberta, o
+  // nível de antes e a conversa que daria um agente (o servidor aponta).
+  sel: "", feitos: {}, pendente: null, nivel: -1, conversaSugerida: null,
 };
 
 const FRASE_AGENTES_SO_NO_ESCRITORIO = "Criar, editar e ligar agentes fica no computador do escritório.";
@@ -53,7 +56,10 @@ async function mostrarAgentes(abrir) {
   marcarDestino("agentes");
   $("conversa-meta").textContent = "Especialistas escritos pelo escritório";
   cascaAgentes('<p class="nota">lendo…</p>');
+  agt.feitos = {};
+  agt.pendente = null;
   await carregarAgentes();
+  agt.nivel = nivelDosAgentes(agt.lista || []).idx;
   if (abrir && abrir.conversa) return agenteDaConversa(abrir.conversa);
   if (abrir && abrir.slug) return abrirAgente(abrir.slug);
   agt.vista = "lista";
@@ -71,6 +77,13 @@ async function carregarAgentes() {
     agt.pasta = d ? d.pasta : "";
   } catch (err) {
     agt.lista = [];
+  }
+  agt.conversaSugerida = null;
+  if (!agentesSoLeitura() && agt.ligado) {
+    try {
+      const r = await fetch("/api/agentes/sugestao/conversa");
+      if (r.ok) agt.conversaSugerida = (await r.json()).conversa || null;
+    } catch (err) { /* sem sugestão, o passo sai da lista */ }
   }
 }
 
@@ -126,54 +139,269 @@ function dataCurtaAgt(iso) {
 }
 
 /* ------------------------------------------------------------ a lista */
+/*
+   A22 ("Agentes - referencia"): a equipe em cartões de 3 colunas, a pílula de
+   nível pelos agentes prontos (ativos, sem problema, sem revisão pendente e
+   com todos os testes da versão atual passando), a faixa de resumo do cartão
+   escolhido e os próximos passos - no máximo 4, dos dados: quem errou um
+   teste, quem tem teste sem rodar, o importado sem ler, e uma conversa que
+   daria um agente (só quando o servidor aponta uma). A tela de um agente e
+   a edição continuam as de antes: Editar, ou o duplo clique, levam a ela.
+*/
+
+const NIVEIS_AGENTES = [[0, "Sem equipe"], [1, "Primeiro especialista"], [3, "Equipe formada"], [5, "Banca completa"]];
+// O ícone do AGENTE.md (campo `icone`) só vale se a fonte de ícones do
+// programa o tiver: nome fora do recorte apareceria como texto no cartão.
+const ICONES_AGENTE = new Set(["school", "gavel", "menu_book", "description", "verified", "task_alt", "schedule",
+  "history", "edit_note", "forum", "mail", "payments", "calendar_month", "contacts", "work", "search", "list", "table",
+  "auto_stories", "check_circle", "info", "star", "draw", "inventory_2", "self_improvement", "mic"]);
+
+function resultadosDosTestes(a) {
+  const t = (a.medida || {}).testes;
+  const rodou = Boolean(t && t.da_versao_atual);
+  const falhas = new Set(((t && t.falhas) || []).map((f) => f.pergunta));
+  return (a.testes || []).map((x) => (!rodou ? "nao" : falhas.has(x.pergunta) ? "erro" : "ok"));
+}
+
+function prontoParaEquipe(a) {
+  const t = (a.medida || {}).testes;
+  return Boolean(a.ativo && !a.problema && !a.precisa_revisao && !a.precisa_aprovar && (a.testes || []).length &&
+    t && t.da_versao_atual && t.passaram === t.total);
+}
+
+function nivelDosAgentes(lista) {
+  const prontos = lista.filter(prontoParaEquipe).length;
+  let idx = 0;
+  NIVEIS_AGENTES.forEach((nv, i) => { if (prontos >= nv[0]) idx = i; });
+  const prox = NIVEIS_AGENTES[idx + 1];
+  const falta = prox ? prox[0] - prontos : 0;
+  return { idx: idx, nome: NIVEIS_AGENTES[idx][1], feitos: prontos, graus: Math.round(Math.min(1, prontos / 5) * 360),
+    curto: prox ? "faltam " + falta + " para o próximo" : "completa",
+    longo: prox ? "Mais " + falta + (falta === 1 ? " agente ativo" : " agentes ativos") + " e acertando todos os testes para " + prox[1]
+      : "Equipe completa" };
+}
+
+function etiquetaDoCartao(a) {
+  if (a.problema) return ["com problema", "erro"];
+  if (a.precisa_aprovar) return ["falta aprovar", "atencao"];
+  if (a.precisa_revisao) return ["precisa de revisão", "atencao"];
+  if (a.ativo) return ["ativo", "ok"];
+  return ["desativado", ""];
+}
+
+function cartaoDoAgente(a) {
+  const res = resultadosDosTestes(a);
+  const t = (a.medida || {}).testes;
+  const rodou = res.some((x) => x !== "nao");
+  const txt = !res.length ? "sem testes" : rodou ? res.filter((x) => x === "ok").length + "/" + res.length
+    : (t ? "testado na versão " + t.versao : "não testado");
+  const [chip, tom] = etiquetaDoCartao(a);
+  const classeChip = "agt-chip " + tom;
+  const icone = a.problema ? "error" : (ICONES_AGENTE.has(a.icone) ? a.icone : "school");
+  const classe = "agt-cartao" + (agt.sel === a.slug ? " escolhido" : "") + (a.ativo || a.precisa_aprovar ? "" : " apagado");
+  return '<button type="button" class="' + classe + '" data-agt-linha="' + esc(a.slug) + '">' +
+    '<span class="agt-cartao-topo"><span class="agt-cartao-marca">' + ic(icone, 21) + "</span>" +
+    '<span class="agt-cartao-nome"><b>' + esc(a.nome || a.slug) + "</b><small>" + esc(ORIGEM_AGENTE[a.origem] || a.origem) + "</small></span></span>" +
+    '<span class="agt-cartao-desc">' + esc(a.problema || a.descricao || "") + "</span>" +
+    '<span class="agt-cartao-meio"><span class="agt-pontos">' + res.map((classe) => '<i class="' + classe + '"></i>').join("") +
+    "<small>" + esc(txt) + "</small></span>" +
+    '<span class="' + classeChip + '"' + (chip === "precisa de revisão" ? ' data-agt-revisao="1"' : "") + ">" + esc(chip) + "</span></span>" +
+    '<span class="agt-cartao-pe"><span>usado ' + ((a.medida || {}).usado || 0) + "×</span><span>versão " + esc(a.versao) + "</span></span></button>";
+}
+
+function faixaDoAgente(lista) {
+  const a = lista.find((x) => x.slug === agt.sel);
+  if (!a) return "";
+  const qu = a.quando_usar || {};
+  const exemplos = (qu.exemplos || []).slice(0, 4);
+  const ferr = (a.ferramentas || []).length ? a.ferramentas.join(", ") : "nenhuma (só lê e responde)";
+  const extra = [(qu.palavras || []).length ? "Palavras: " + qu.palavras.join(", ") : "", "Ferramentas: " + ferr,
+    "respostas: sem avaliação"].filter(Boolean).join(" · ");
+  const rodando = agt.rodando === a.slug;
+  return '<div class="agt-faixa"><div class="agt-faixa-texto"><small>Entra quando alguém pede algo como</small>' +
+    (exemplos.length ? '<span class="agt-exemplos">' + exemplos.map((x) => "<span>“" + esc(x) + "”</span>").join("") + "</span>"
+      : '<span class="nota">Sem exemplos: só entra quando alguém o chama pelo nome.</span>') +
+    "<small>" + esc(extra) + "</small></div>" +
+    '<span class="agt-faixa-botoes">' +
+    ((a.testes || []).length && agt.ligado ? '<button type="button" class="com-icone" data-agt-testar="' + esc(a.slug) + '"' + (rodando ? " disabled" : "") + ">" +
+      ic("task_alt", 17) + (rodando ? "Testando…" : "Testar") + "</button>" : "") +
+    '<button type="button" class="com-icone" data-agt-abrir="' + esc(a.slug) + '">' + ic(agentesSoLeitura() ? "description" : "edit", 17) +
+    (agentesSoLeitura() ? "Ver" : "Editar") + "</button>" +
+    '<button type="button" class="mais-linha" data-agt-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></span></div>";
+}
+
+function passosDosAgentes(lista) {
+  const passos = [];
+  const so = agentesSoLeitura() || !agt.ligado;
+  const errou = lista.find((a) => a.precisa_revisao && !a.problema);
+  if (errou) {
+    const falha = ((((errou.medida || {}).testes || {}).falhas) || [])[0] || {};
+    const faltou = (falha.faltou || []).length ? "Faltou “" + falha.faltou.join("”, “") + "” na resposta. " : "";
+    passos.push({ chave: "revisar:" + errou.slug, icone: "info", titulo: (errou.nome || errou.slug) + " errou um teste",
+      texto: faltou + "Até revisar, não escolho esse agente sozinho.", ganho: "volta a ser sugerido", acao: "Revisar",
+      fazer: () => abrirAgente(errou.slug), pronto: (l) => !(l.find((x) => x.slug === errou.slug) || {}).precisa_revisao,
+      frase: (errou.nome || errou.slug) + " passou a ser sugerido de novo" });
+  }
+  const semRodar = lista.find((a) => (a.testes || []).length && !a.problema && !a.precisa_aprovar &&
+    !(((a.medida || {}).testes || {}).da_versao_atual));
+  if (semRodar && agt.ligado) {
+    passos.push({ chave: "testar:" + semRodar.slug, icone: "task_alt", titulo: "Teste e ative " + (semRodar.nome || semRodar.slug),
+      texto: "A versão " + semRodar.versao + " tem " + plural(semRodar.testes.length, "teste") + " que ainda não rodaram. Nada é executado no teste.",
+      ganho: "+1 na equipe", acao: "Testar", fazer: () => testarEAtivar(semRodar.slug),
+      pronto: (l) => prontoParaEquipe(l.find((x) => x.slug === semRodar.slug) || {}),
+      frase: (semRodar.nome || semRodar.slug) + " entrou para a equipe" });
+  }
+  const importado = lista.find((a) => a.precisa_aprovar);
+  if (importado && !so) {
+    passos.push({ chave: "ler:" + importado.slug, icone: "verified", titulo: "Leia o agente importado",
+      texto: (importado.nome || importado.slug) + " veio de fora. Fica como dado até você ler o conteúdo inteiro.",
+      ganho: "+1 na equipe", acao: "Ler", fazer: () => lerImportado(importado.slug),
+      pronto: (l) => !(l.find((x) => x.slug === importado.slug) || {}).precisa_aprovar,
+      frase: (importado.nome || importado.slug) + " ativo: a conversa já pode usá-lo" });
+  }
+  const c = agt.conversaSugerida;
+  if (c && !so) {
+    passos.push({ chave: "conversa:" + c.id, icone: "forum", titulo: "Uma conversa sua dá um bom agente",
+      texto: "“" + c.titulo + "” teve " + c.perguntas + " perguntas parecidas. Eu monto o rascunho para você revisar.",
+      ganho: "novo especialista", acao: "Sugerir", fazer: () => agenteDaConversa(c.id), pronto: () => true,
+      frase: "Rascunho pronto: revise e crie o agente" });
+  }
+  return passos;
+}
+
+function cartaoDoPassoAgt(p, feito) {
+  return '<div class="est-passo' + (feito ? " feito" : "") + '">' +
+    '<span class="est-passo-marca">' + ic(feito ? "check" : p.icone, 19) + "</span>" +
+    '<div class="est-passo-texto"><b>' + esc(p.titulo) + "</b><small>" + esc(p.texto) + "</small>" +
+    '<div class="est-passo-pe"><span class="est-ganho">' + esc(p.ganho) + "</span>" +
+    (feito ? '<span class="est-passo-feito">Feito</span>'
+      : '<button type="button" data-agt-passo="' + esc(p.chave) + '">' + esc(p.acao) + "</button>") + "</div></div></div>";
+}
 
 function desenharListaDeAgentes() {
   const lista = agt.lista || [];
   const so = agentesSoLeitura();
   $("conversa-titulo").textContent = "Agentes";
   $("nav-tela").innerHTML = "";
-  $("acoes-tela").innerHTML = so || !agt.ligado ? "" :
-    '<button class="com-icone" data-agt-importar="1">' + ic("upload", 16) + "Importar</button>" +
-    '<button class="com-icone" data-agt-da-conversa="1">' + ic("forum", 16) + "A partir de uma conversa</button>" +
-    '<button class="primario com-icone" data-agt-novo="1">' + ic("add", 16) + "Novo agente</button>";
-  const c = agt.contagem || {};
-  const desligados = lista.filter((a) => !a.ativo && !a.problema).length;
-  const topo = '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Agentes do escritório</h2></div>' +
-    '<p class="sv-resumo-corpo">Especialistas que o escritório escreve em linguagem simples. Um agente usa as capacidades e as ferramentas do PAULUS ' +
-    "dentro dos limites que declara: não amplia a permissão de ninguém, e cada ferramenta continua pedindo confirmação.</p></header>";
-  const ficha = '<div class="sv-ficha cfg-ficha">' + [
-    ["Agentes", String(lista.length)], ["Em uso", String(c.em_uso || 0)], ["Desativados", String(desligados)],
-    ["Com problema", String(c.com_problema || 0)], ["Precisam de revisão", String(c.precisa_revisao || 0)],
-  ].map(([r, v]) => '<div class="sv-ficha-item"><span class="sv-kicker">' + esc(r) + "</span><b>" + esc(v) + "</b></div>").join("") + "</div>";
+  $("acoes-tela").innerHTML = "";
+  const nivel = nivelDosAgentes(lista);
+  const podeCriar = !so && agt.ligado;
+  const feitos = Object.values(agt.feitos || {});
+  const chaves = new Set(feitos.map((p) => p.chave));
+  const passos = feitos.map((p) => ({ p: p, feito: true }))
+    .concat(passosDosAgentes(lista).filter((p) => !chaves.has(p.chave)).map((p) => ({ p: p, feito: false }))).slice(0, 4);
   const avisos = [];
-  if (!agt.ligado) avisos.push('<div class="agt-aviso">' + ic("pause", 18) + "<span>Os agentes estão desligados nesta máquina (chave <b>conversa.agentes</b>): dá para ver a lista, mas não criar, testar nem usar.</span></div>");
+  if (!agt.ligado) avisos.push('<div class="agt-aviso">' + ic("pause", 18) + "<span>Os agentes estão desligados nesta máquina (chave <b>conversa.agentes</b>): dá para ver a equipe, mas não criar, testar nem usar.</span></div>");
   if (so) avisos.push('<div class="agt-aviso" data-agt-so-leitura="1">' + ic("lan", 18) + "<span>" + esc(FRASE_AGENTES_SO_NO_ESCRITORIO) + " Daqui dá para ver cada agente e rodar os testes dele.</span></div>");
-  const linhas = lista.length ? lista.map((a) =>
-    '<div class="cfg-servico agt-linha" data-agt-linha="' + esc(a.slug) + '">' +
-      '<span class="caixa-tipo">' + ic(a.problema ? "error" : "school", 18) + "</span>" +
-      '<span class="duas-linhas"><b>' + esc(a.nome || a.slug) + "</b><small>" + esc(a.problema || a.descricao || "") + "</small>" +
-      '<small class="agt-medida-linha">' + esc(linhaDaMedida(a)) + "</small>" + etiquetasDoAgente(a) + "</span>" +
-      '<span class="cfg-botoes"><button data-agt-abrir="' + esc(a.slug) + '">Abrir</button></span></div>').join("")
-    : '<p class="cfg-texto">Nenhum agente ainda. Crie um pelo formulário, ou a partir de uma conversa que deu certo.</p>';
-  cascaAgentes(topo + ficha + avisos.join("") +
-    cartaoCfg("Agentes", metaCfg(plural(lista.length, "agente")), linhas) +
-    (so ? "" : '<p class="cfg-explica">Os arquivos ficam em ' + esc(agt.pasta || "data/agentes") + ", um AGENTE.md por pasta. Nada sai desta máquina.</p>"));
-  ligarListaDeAgentes();
+  const html =
+    '<div class="est agt-equipe">' +
+    '<header class="est-cabeca"><div class="est-titulo"><h1>Monte a sua equipe</h1>' +
+    "<p>Cada agente é um especialista que você ensina uma vez, com o jeito do escritório. Ele entra na conversa quando o pedido combina com ele.</p></div>" +
+    '<div class="est-acoes"><div class="est-nivel" title="' + esc(nivel.longo) + '">' +
+    '<span class="est-anel" style="--graus:' + nivel.graus + 'deg"><b>' + nivel.feitos + "</b></span>" +
+    "<span><b>" + esc(nivel.nome) + "</b><small>" + esc(nivel.curto) + "</small></span></div>" +
+    (podeCriar
+      ? '<button type="button" class="com-icone est-pacote" data-agt-importar="1" title="Um AGENTE.md de fora">' + ic("upload", 16) + "Importar</button>" +
+        '<button type="button" class="com-icone est-pacote" data-agt-da-conversa="1">' + ic("forum", 18) + "De uma conversa</button>" +
+        '<button type="button" class="primario com-icone" data-agt-novo="1">' + ic("add", 18) + "Novo agente</button>"
+      : "") + "</div></header>" +
+    avisos.join("") +
+    '<div class="est-corpo">' +
+    '<section class="est-estantes"><div class="est-estantes-cabeca"><span>Sua equipe</span>' +
+    '<span class="est-legenda agt-legenda"><span><i class="ok"></i>teste passou</span><span><i class="erro"></i>errou</span>' +
+    '<span><i class="nao"></i>ainda não rodou</span></span></div>' +
+    '<div class="agt-cartoes">' + lista.map(cartaoDoAgente).join("") +
+    (podeCriar ? '<button type="button" class="agt-cartao-novo" data-agt-novo="1">' + ic("add", 24) + "<span>Chamar mais um</span></button>" : "") +
+    (!lista.length && !podeCriar ? '<p class="nota">Nenhum agente ainda.</p>' : "") + "</div>" +
+    faixaDoAgente(lista) + "</section>" +
+    '<aside class="est-lado">' +
+    (passos.length ? '<section class="est-passos"><div class="est-lado-cabeca"><span>Próximos passos</span><small>' +
+      passos.filter((x) => x.feito).length + " de " + passos.length + "</small></div>" +
+      passos.map((x) => cartaoDoPassoAgt(x.p, x.feito)).join("") + "</section>" : "") +
+    '<section class="est-artigos"><span class="est-lado-cabeca"><span>Chamar pelo nome</span></span>' +
+    "<small class=\"agt-chamar\">Na conversa, escreva <b>@" + esc(((lista.find((a) => a.ativo) || lista[0] || {}).nome || "Revisor").split(" ")[0]) +
+    "</b> ou escolha no seletor acima do campo. Sem chamar, eu sugiro o agente quando o pedido combina, e você pode dizer “não usar”.</small></section>" +
+    (so ? "" : '<p class="cfg-explica">Os arquivos ficam em ' + esc(agt.pasta || "data/agentes") + ", um AGENTE.md por pasta. Nada sai desta máquina.</p>") +
+    "</aside></div></div>";
+  cascaAgentes(html);
+  ligarListaDeAgentes(passos);
 }
 
-function ligarListaDeAgentes() {
+function ligarListaDeAgentes(passos) {
   const raiz = $("centro");
-  raiz.querySelectorAll("[data-agt-abrir]").forEach((b) => { b.onclick = () => abrirAgente(b.dataset.agtAbrir); });
-  raiz.querySelectorAll("[data-agt-linha]").forEach((l) => {
-    l.ondblclick = () => abrirAgente(l.dataset.agtLinha);
+  raiz.querySelectorAll("[data-agt-linha]").forEach((b) => {
+    b.onclick = () => { agt.sel = agt.sel === b.dataset.agtLinha ? "" : b.dataset.agtLinha; desenharListaDeAgentes(); };
+    b.ondblclick = () => abrirAgente(b.dataset.agtLinha);
   });
-  const acoes = $("acoes-tela");
-  const novo = acoes.querySelector("[data-agt-novo]");
-  if (novo) novo.onclick = () => novoAgente();
-  const conv = acoes.querySelector("[data-agt-da-conversa]");
+  raiz.querySelectorAll("[data-agt-abrir]").forEach((b) => { b.onclick = () => abrirAgente(b.dataset.agtAbrir); });
+  raiz.querySelectorAll("[data-agt-testar]").forEach((b) => { b.onclick = () => testarAgente(b.dataset.agtTestar); });
+  const fechar = raiz.querySelector("[data-agt-fechar]");
+  if (fechar) fechar.onclick = () => { agt.sel = ""; desenharListaDeAgentes(); };
+  raiz.querySelectorAll("[data-agt-novo]").forEach((b) => { b.onclick = () => novoAgente(); });
+  const conv = raiz.querySelector("[data-agt-da-conversa]");
   if (conv) conv.onclick = () => escolherConversaParaAgente();
-  const imp = acoes.querySelector("[data-agt-importar]");
+  const imp = raiz.querySelector("[data-agt-importar]");
   if (imp) imp.onclick = () => importarAgente();
+  raiz.querySelectorAll("[data-agt-passo]").forEach((b) => {
+    b.onclick = async () => {
+      const p = (passos || []).map((x) => x.p).find((x) => x.chave === b.dataset.agtPasso);
+      if (!p) return;
+      agt.pendente = p;
+      await p.fazer();
+      if (p.chave.startsWith("conversa:")) concluirPasso(p);
+    };
+  });
+}
+
+/* O passo termina quando os dados dizem que terminou: relê a equipe. */
+function concluirPasso(p) {
+  if (!agt.feitos) agt.feitos = {};
+  agt.feitos[p.chave] = p;
+  agt.pendente = null;
+  if (p.frase) avisoCert(p.frase, { tom: "ok" });
+}
+
+async function conferirPassoPendente() {
+  const p = agt.pendente;
+  if (!p) return;
+  if (p.pronto(agt.lista || [])) {
+    const antes = agt.nivel;
+    concluirPasso(p);
+    const nivel = nivelDosAgentes(agt.lista || []);
+    if (antes >= 0 && nivel.idx > antes) setTimeout(() => avisoCert("A equipe subiu: agora é " + nivel.nome, { tom: "ok" }), 2600);
+  }
+}
+
+/* "Teste e ative": roda os testes; passaram todos e o agente está
+   desligado, pergunta antes de ativar - ativar é decisão de quem usa. */
+async function testarEAtivar(slug) {
+  await testarAgente(slug);
+  await carregarAgentes();
+  const a = (agt.lista || []).find((x) => x.slug === slug);
+  const t = a && (a.medida || {}).testes;
+  if (a && !a.ativo && t && t.da_versao_atual && t.passaram === t.total && !a.problema && !a.precisa_aprovar) {
+    const ok = await confirmar({ titulo: "Ativar “" + (a.nome || slug) + "”?", contexto: "Agentes",
+      texto: "Os " + plural(t.total, "teste") + " passaram. Ativo, ele entra na conversa quando o pedido combina com ele.",
+      confirmar: "Ativar" });
+    if (ok) {
+      const r = await fetch("/api/agentes/" + encodeURIComponent(slug) + "/ativar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!r.ok) avisoCert(await erroDe(r), { tom: "erro" });
+      await carregarAgentes();
+    }
+  }
+  await conferirPassoPendente();
+  agt.vista = "lista";
+  desenharAgentes();
+}
+
+/* "Leia o agente importado": o diálogo de leitura de sempre (ativarAgente). */
+async function lerImportado(slug) {
+  try {
+    const r = await fetch("/api/agentes/" + encodeURIComponent(slug));
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    agt.aberto = await r.json();
+  } catch (err) { return; }
+  await ativarAgente(agt.aberto.ficha || agt.aberto);
 }
 
 /* ------------------------------------------------------------ um agente */
@@ -194,7 +422,7 @@ async function abrirAgente(slug) {
 function voltarParaAgentes() {
   agt.vista = "lista";
   agt.aberto = null;
-  carregarAgentes().then(desenharAgentes);
+  carregarAgentes().then(async () => { await conferirPassoPendente(); desenharAgentes(); });
 }
 
 function desenharAgente() {
@@ -351,7 +579,7 @@ async function testarAgente(slug) {
     agt.rodando = "";
     // A medida mudou (A4): relê o agente, e a lista na volta.
     if (agt.vista === "agente" && agt.aberto && agt.aberto.ficha.slug === slug) await abrirAgente(slug);
-    else desenharAgentes();
+    else { await carregarAgentes(); await conferirPassoPendente(); desenharAgentes(); }
   }
 }
 
@@ -420,7 +648,7 @@ function camposDaFicha(f) {
   const acervo = fontes.acervo && typeof fontes.acervo === "object" ? "pastas" : (fontes.acervo || f.acervo || "acervo");
   const lista = (v) => (Array.isArray(v) ? v : String(v || "").split("\n")).filter(Boolean);
   return {
-    nome: f.nome || "", descricao: f.descricao || "",
+    nome: f.nome || "", descricao: f.descricao || "", icone: f.icone || "",
     exemplos: lista(qu.exemplos || f.exemplos).join("\n"), palavras: lista(qu.palavras || f.palavras).join(", "),
     acervo: acervo, pastas: lista(acervo === "pastas" ? (fontes.acervo.pastas || f.pastas) : f.pastas).join("\n"),
     biblioteca: fontes.biblioteca || [], leis: fontes.leis || [],

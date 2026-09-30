@@ -618,3 +618,35 @@ mantém título, texto e painel; voltar à A mostra a resposta inteira;
 recarregar no meio mostra a resposta do começo, e ela termina ao vivo; nenhum
 erro de JavaScript. Roteiro `--tudo` com a execução ligada: **41/41**
 (controle 40/41).
+
+## A22 — a tela de Agentes pelo mock (30/09/2026)
+
+Pedido do dono: o visual de Agentes pelo mock "Agentes - referencia" (A22),
+no mesmo desenho da Estante da Biblioteca. A lista virou **cartões em 3
+colunas** (ícone em fundo neutro, origem, descrição em 2 linhas, um ponto por
+teste - passou, errou, ainda não rodou -, a etiqueta, usado N× e a versão), com
+o cartão tracejado "Chamar mais um"; a ficha de 5 números saiu e entrou a
+**pílula de nível** pelos agentes prontos (ativos, sem problema, sem revisão e
+com todos os testes da versão atual passando): Sem equipe · Primeiro
+especialista · Equipe formada · Banca completa. O cartão abre a **faixa de
+resumo** (exemplos, palavras, ferramentas, Testar e Editar); o duplo clique
+leva à tela do agente, que ficou como era. **Próximos passos** (no máximo 4,
+dos dados): quem errou um teste (com o que faltou), "Teste e ative" (roda os
+testes e, passando todos, pergunta antes de ativar - ativar continua sendo
+decisão de quem usa), o importado sem ler (o diálogo de leitura de sempre) e
+a conversa que daria um agente.
+
+- Campo novo, opcional, no AGENTE.md: `icone` (nome de ícone em minúsculas);
+  o cartão só o usa se a fonte do programa o tiver, senão `school`. Editar
+  pelo formulário não o apaga.
+- Rota nova `GET /api/agentes/sugestao/conversa` (só na janela do escritório):
+  a conversa recente com 4 ou mais perguntas cujo rascunho sai com 3 exemplos
+  e 2 palavras repetidas. Nenhuma: o passo sai da lista. (O caminho tem dois
+  segmentos porque `GET /api/agentes/{slug}` vem antes e engoliria um só.)
+- "sem avaliação" (A4) foi para a faixa do cartão; "Importar" continua, como
+  botão de contorno no cabeçalho.
+- Na coluna editorial de 1.080 px (regra do produto), como a Estante.
+
+Medido: `test_a3_tela` (Edge, com as conferências do A22), `test_a4_medir`,
+`test_a1_agentes`, `test_r3_permissoes`, `test_tela` e `test_frontend` passam.
+

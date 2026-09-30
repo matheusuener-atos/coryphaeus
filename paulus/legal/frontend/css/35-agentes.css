@@ -68,3 +68,65 @@
     .agt-linha .cfg-botoes button, .agt-tela .cfg-botoes button { min-height: 44px; }
     .agt-medida > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   }
+
+  /* --------------------------------------------------- a equipe (A22) */
+  /* A lista em cartões (js/56-agentes.js, desenharListaDeAgentes), com as
+     peças da estante da Biblioteca (36-biblioteca.css: .est-cabeca,
+     .est-nivel, .est-estantes, .est-passo). O vermelho do mock é o vinho de
+     erro do produto (--acc/--accbg2). */
+  .agt-equipe .agt-aviso { margin-top: -10px; }
+  .agt-legenda i { width: 8px; height: 8px; border-radius: 50%; }
+  .agt-legenda i.ok { background: var(--okt); }
+  .agt-legenda i.erro { background: var(--acc); }
+  .agt-legenda i.nao { background: transparent; border: 1px solid var(--ink-a2); }
+  .agt-cartoes { padding: 20px 22px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: min-content; gap: 14px; }
+  .agt-cartao { text-align: left; font: inherit; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 12px; padding: 16px;
+    border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf); box-shadow: none; min-width: 0;
+    transition: transform .2s cubic-bezier(.2, .7, .3, 1); }
+  .agt-cartao:hover:not(:disabled) { transform: translateY(-3px); background: var(--surf); border-color: var(--ink-a1); color: var(--ink); }
+  .agt-cartao.escolhido { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .agt-cartao.apagado { opacity: .78; }
+  .agt-cartao-topo { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; }
+  .agt-cartao-marca { width: 40px; height: 40px; border-radius: 11px; flex: none; background: var(--fill2); color: var(--ink); display: flex; align-items: center; justify-content: center; }
+  .agt-cartao-nome { flex: 1; min-width: 0; display: grid; }
+  .agt-cartao-nome b { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agt-cartao-nome small { font-size: 11.5px; color: var(--ink3); }
+  .agt-cartao-desc { font-size: 12.5px; color: var(--ink2); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; min-height: 36px; }
+  .agt-cartao-meio { display: flex; align-items: center; justify-content: space-between; gap: 8px 10px; width: 100%; flex-wrap: wrap; }
+  .agt-pontos { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  .agt-pontos i { display: block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .agt-pontos i.ok { background: var(--okt); }
+  .agt-pontos i.erro { background: var(--acc); }
+  .agt-pontos i.nao { border: 1px solid var(--ink-a2); }
+  .agt-pontos small { font-family: var(--mono); font-size: 11px; color: var(--ink3); margin-left: 4px; white-space: nowrap; }
+  .agt-chip { height: 22px; padding: 0 9px; border-radius: 999px; display: flex; align-items: center; font-size: 11px; font-weight: 600; white-space: nowrap;
+    background: var(--fill2); color: var(--ink2); }
+  .agt-chip.ok { background: var(--okbg); color: var(--okt); }
+  .agt-chip.atencao { background: var(--warnbg); color: var(--warnt); }
+  .agt-chip.erro { background: var(--accbg2); color: var(--acc); }
+  .agt-cartao-pe { display: flex; align-items: center; gap: 14px; padding-top: 10px; border-top: 1px solid var(--ink-a1); width: 100%; font-size: 11.5px; color: var(--ink3); }
+  .agt-cartao-novo { font: inherit; cursor: pointer; min-height: 188px; border-radius: 12px; border: 1px dashed var(--ink-a2); background: transparent; color: var(--ink3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-shadow: none; }
+  .agt-cartao-novo:hover:not(:disabled) { color: var(--ink); border-color: var(--ink2); background: transparent; }
+  .agt-cartao-novo span:last-child { font-size: 13px; font-weight: 600; }
+  .agt-faixa { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 24px; padding: 16px 22px; border-top: 1px solid var(--ink-a1); background: var(--fill);
+    animation: est-surge .28s cubic-bezier(.2, .7, .3, 1) both; }
+  .agt-faixa-texto { display: grid; gap: 8px; min-width: 0; }
+  .agt-faixa-texto > small { font-size: 12px; color: var(--ink3); }
+  .agt-exemplos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .agt-exemplos span { min-height: 28px; padding: 3px 12px; border-radius: 999px; background: var(--surf); border: 1px solid var(--ink-a1); display: flex; align-items: center; font-size: 12.5px; }
+  .agt-faixa-botoes { display: flex; align-items: flex-start; gap: 8px; }
+  .agt-faixa-botoes button { height: 32px; border-radius: 999px; font-size: 12.5px; }
+  .agt-chamar b { font-family: var(--mono); font-weight: 600; font-size: 12px; color: var(--ink); }
+  .agt-equipe .est-artigos > small { font-size: 12.5px; color: var(--ink2); }
+
+  @media (max-width: 1100px) {
+    .agt-cartoes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    .agt-cartoes { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+    .agt-faixa { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
+    .agt-faixa-botoes button { min-height: 44px; height: 44px; }
+    .agt-cartao-novo { min-height: 96px; }
+  }
