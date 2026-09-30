@@ -350,8 +350,13 @@ _declarar(BLOQUEADO,
           "GET /api/material/{id_}/arquivo", "GET /api/biblioteca-juridica/mapa",
           "GET /api/material/{id_}/leitura", "POST /api/biblioteca-juridica/ler",
           # o pacote .paulus-material: so na janela do servidor, e nada vai pela rede
-          "POST /api/material/{id_}/autoria", "GET /api/material/{id_}/pacote", "POST /api/material/pacote")
-_declarar(PERMITIDO, "GET /api/leis/anotacoes")
+          "POST /api/material/{id_}/autoria", "GET /api/material/{id_}/pacote", "POST /api/material/pacote",
+          # o acervo que vem com o PAULUS: pôr de novo o que foi apagado
+          "GET /api/biblioteca/acervo-inicial", "POST /api/biblioteca/acervo-inicial")
+# Consultar vale de fora, como as leis: a súmula guardada, o processo no
+# DataJud (só o número vai ao CNJ) e os endereços de busca dos tribunais.
+_declarar(PERMITIDO, "GET /api/leis/anotacoes", "GET /api/biblioteca/sumulas", "POST /api/biblioteca/datajud",
+          "GET /api/biblioteca/fontes")
 
 # --- o documento fotografado pelo celular (ideia E do umbrelOS): de fora, a
 # rota nao grava no Acervo - guarda a foto a parte e pede em Aprovacoes

@@ -248,3 +248,53 @@ conservador). Nenhuma pergunta é olhada sozinha.
 
 A curadoria, a moderação, as contas de autor e a publicação online são da
 frente futura. Aqui entra só o pacote local.
+
+## B1 — a tela Biblioteca, o acervo que vem com o PAULUS e os tribunais (30/09/2026)
+
+Pedido do dono: uma tela para as funções de aprendizado ("biblioteca de
+contexto"), material jurídico nativo (Constituição, códigos, doutrina) e ver
+o que dá para ligar ao Jusbrasil e aos tribunais.
+
+- **A tela** (`frontend/js/57-biblioteca.js`, trilho e menu logo abaixo do
+  Acervo, id de destino `contexto` porque `biblioteca` já é o Acervo no
+  registro): três abas. *Obras e lembretes* é a seção que morava em
+  Configurações › Biblioteca, desenhada aqui (`mostrarConfig("aprendizado")`
+  e `desenharConfig()` com essa seção abrem esta tela; o item continua no
+  menu de Configurações e leva para cá). *Leis e súmulas* e *Tribunais e
+  fontes* são novas.
+- **O acervo inicial** (`config/acervo-inicial/`, 1,6 MB comprimido, montado
+  por `tools/acervo_inicial.py` a partir das fontes oficiais): os 11 códigos
+  de `leis.CODIGOS` no compilado do Planalto — entraram o **CPP** e o **CTB**
+  — e **644 súmulas vigentes do STJ** do PDF oficial (29 canceladas ou
+  revogadas ficam fora; a alterada vem na redação nova). Na abertura
+  (`src/biblioteca/nativo.py`, thread no lifespan), o que ainda não entrou
+  nesta máquina entra, uma vez: ~10 s. O registro em
+  `<dados>/leis/acervo-inicial.json` impede que o que a pessoa apagou volte;
+  o botão "Pôr de volta" devolve. Servidor de teste (`PAULUS_SEM_AVISOS`) e
+  `PAULUS_ACERVO_INICIAL=0` não instalam.
+- **Não veio:** súmulas do STF e do TST (os sites recusam leitura por
+  programa: 403 e desafio anti-robô) e **doutrina** (tem direito autoral; a
+  Lei 9.610, art. 8º, IV, só tira lei e decisão judicial). A tela diz as
+  duas coisas e o caminho: entregar o PDF em Obras.
+- **DataJud** (`src/biblioteca/tribunais.py`): o processo pelo número único,
+  com o dígito verificador conferido (módulo 97) e o índice do tribunal
+  achado pelo J.TR (TJs, TRFs, TRTs, TST, TREs, TSE, TJMs, STM, STJ; o STF
+  não está no DataJud). Só o número vai à API pública do CNJ, com a chave
+  pública da wiki do DataJud (`PAULUS_DATAJUD_CHAVE` troca). Medido: 24 s
+  numa consulta ao TJSP, e uma segunda que voltou erro depois de 60 s — a
+  tela avisa que demora e que o DataJud atrasa dias e não traz o teor.
+- **Jusbrasil, STF, STJ, TST e LexML**: sem API aberta (o Jusbrasil proíbe
+  leitura automática; LexML e STF barram robô). Só se monta o endereço da
+  busca, que abre no navegador.
+- **Rotas:** `GET/POST /api/biblioteca/acervo-inicial` (janela do
+  escritório), `GET /api/biblioteca/sumulas`, `POST /api/biblioteca/datajud`,
+  `GET /api/biblioteca/fontes` (valem de fora, como as leis).
+- **Testes:** `tests/test_b1_acervo_inicial.py` (acervo, súmulas, número
+  CNJ, DataJud simulado, rotas) e `tests/test_b1_tela.py` (Edge: as abas,
+  artigo, súmula, pôr de volta, DataJud simulado, buscas de fora, 390 px).
+  `test_frontend` passou a conferir também os ícones do `index.html` — o
+  `local_library` do trilho não estava no recorte da fonte e aparecia como
+  "L".
+- **Efeito na conversa:** as súmulas entram como material oficial e passam
+  a ser consultadas em toda pergunta, com a camada SÚMULA. As áreas da ficha
+  são as da competência do STJ (sem trabalho e sem constitucional).

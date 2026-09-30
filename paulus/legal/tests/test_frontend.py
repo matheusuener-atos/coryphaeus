@@ -467,6 +467,9 @@ def test_icones_na_fonte() -> None:
     usados = set()
     for js in (RAIZ / "frontend" / "js").glob("*.js"):
         usados |= set(re.findall(r'\bic\("([a-z_0-9]+)"', js.read_text(encoding="utf-8")))
+    # e os do trilho e do menu, escritos direto no index.html
+    usados |= set(re.findall(r'<span class="ic[^"]*"[^>]*>([a-z_0-9]+)</span>',
+                             (RAIZ / "frontend" / "index.html").read_text(encoding="utf-8")))
     fora = sorted(usados - na_fonte)
     checar(not fora, f"os {len(usados)} icones usados existem na fonte ({len(na_fonte)} no recorte)", ", ".join(fora))
 

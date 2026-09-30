@@ -2300,7 +2300,9 @@
     "ensinar com pdf"
    ],
    "faz": [
-    "Fica em Configurações › Biblioteca.",
+    "Fica na Biblioteca, no menu; Configurações › Biblioteca abre a mesma tela.",
+    "A Constituição, os códigos (CC, CPC, CP, CPP, CLT, CDC, CTN, CTB, ECA e Lei do Inquilinato) e as súmulas do STJ vêm com o PAULUS, no texto oficial, e são consultados sem internet.",
+    "Consulta um processo pelo número único no DataJud, a base pública do CNJ: só o número sai da máquina.",
     "Material de consulta: guarda PDFs, DOCX, TXT e MD nesta máquina e, em cada pergunta da conversa, consulta os trechos que têm a ver, citando o material e a página.",
     "Guarda lembretes que entram em toda pergunta da conversa; as regras de redação também entram quando o assistente escreve no editor.",
     "Lê um PDF, DOCX, TXT ou MD e propõe um lembrete; guardar continua sendo um clique seu.",
@@ -2308,6 +2310,8 @@
    ],
    "nao_faz": [
     "Não treina o modelo: o material é consultado a cada pergunta, e o que for removido deixa de ser consultado na hora.",
+    "Não traz doutrina: livro tem direito autoral, e entra só o que o escritório entregar.",
+    "Não lê o Jusbrasil nem a jurisprudência do STF, do STJ e do TST por programa: a busca abre no navegador.",
     "O arquivo lido para propor um lembrete não é guardado: só o lembrete que você confirmar."
    ],
    "tarefas": [

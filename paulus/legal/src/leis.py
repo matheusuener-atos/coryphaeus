@@ -87,6 +87,20 @@ CODIGOS = {
         "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8245compilado.htm",
         "pistas": ("8245", "inquilinato", "inquilinato-"),
     },
+    # Os que a camada de citacoes ja reconhecia ("art. 312 do CPP") e nao
+    # tinham o texto guardado. Enderecos conferidos no Planalto em 30/09/2026.
+    "cpp": {
+        "nome": "Código de Processo Penal",
+        "lei": "Decreto-Lei nº 3.689, de 3 de outubro de 1941",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
+        "pistas": ("3689", "processo penal", "cpp-"),
+    },
+    "ctb": {
+        "nome": "Código de Trânsito Brasileiro",
+        "lei": "Lei nº 9.503, de 23 de setembro de 1997",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9503compilado.htm",
+        "pistas": ("9503", "transito brasileiro", "ctb-"),
+    },
 }
 
 # O identificador de cada codigo na camada de inteligencia
@@ -95,7 +109,7 @@ CODIGOS = {
 INSTRUMENTO = {
     "cc": "lei_10406_2002", "cpc": "lei_13105_2015", "cp": "decreto_lei_2848_1940", "clt": "decreto_lei_5452_1943",
     "cdc": "lei_8078_1990", "cf": "constituicao_1988", "ctn": "lei_5172_1966", "eca": "lei_8069_1990",
-    "inquilinato": "lei_8245_1991",
+    "inquilinato": "lei_8245_1991", "cpp": "decreto_lei_3689_1941", "ctb": "lei_9503_1997",
 }
 CODIGO_DO_INSTRUMENTO = {v: k for k, v in INSTRUMENTO.items()}
 
@@ -114,6 +128,8 @@ TITULOS = {
     "ctn": r"lei n\S{0,2}\s*5\.?172",
     "eca": r"lei n\S{0,2}\s*8\.?069",
     "inquilinato": r"lei n\S{0,2}\s*8\.?245",
+    "cpp": r"decreto-lei n\S{0,2}\s*3\.?689",
+    "ctb": r"lei n\S{0,2}\s*9\.?503",
 }
 
 # Os artigos do ADCT recomecam do 1o dentro do texto da Constituicao. Ficam no
@@ -246,7 +262,7 @@ class Artigo:
 
 
 SIGLAS = {"cc": "CC", "cpc": "CPC", "cp": "CP", "clt": "CLT", "cdc": "CDC", "cf": "CF", "ctn": "CTN", "eca": "ECA",
-          "inquilinato": "Lei 8.245/1991"}
+          "inquilinato": "Lei 8.245/1991", "cpp": "CPP", "ctb": "CTB"}
 
 
 def citar(codigo: str, numero: str) -> str:

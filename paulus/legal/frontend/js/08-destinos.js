@@ -32,6 +32,14 @@ const NOVOS_DESTINOS = {
     resolve: "Os especialistas que o escritório escreve para a conversa, com os testes e a medida de cada um.",
     precisa: [],
   },
+  // B1: a Biblioteca (js/57-biblioteca.js) - obras e lembretes, as leis e
+  // as súmulas que vêm com o PAULUS, e os tribunais. O id "biblioteca" já é
+  // do Acervo no registro de destinos.
+  contexto: {
+    id: "contexto", nome: "Biblioteca", pronta: true, abre: "contexto",
+    resolve: "O que o PAULUS consulta para responder: obras, lembretes, a Constituição, os códigos, as súmulas e os tribunais.",
+    precisa: [],
+  },
   apoiar: {
     id: "apoiar", nome: "Apoiar o projeto", pronta: false, abre: "apoiar",
     resolve: "Contribuir com o software livre que faz o PAULUS existir.",
@@ -108,6 +116,7 @@ function abrirDestino(id) {
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "apoiar") return mostrarApoiar("contribuir");
   if (d.abre === "agentes") return mostrarAgentes();
+  if (d.abre === "contexto") return mostrarBibliotecaContexto();
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return voltarAoAssistente();
   if (d.abre === "biblioteca") return mostrarBiblioteca();

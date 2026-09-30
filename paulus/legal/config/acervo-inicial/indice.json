@@ -1,0 +1,69 @@
+{
+  "montado_em": "2026-09-30",
+  "codigos": {
+    "cc": {
+      "arquivo": "l10406compilada.htm.gz",
+      "artigos": 2083,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm"
+    },
+    "cpc": {
+      "arquivo": "l13105.htm.gz",
+      "artigos": 1074,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm"
+    },
+    "cp": {
+      "arquivo": "del2848compilado.htm.gz",
+      "artigos": 432,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"
+    },
+    "clt": {
+      "arquivo": "del5452compilado.htm.gz",
+      "artigos": 1012,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm"
+    },
+    "cdc": {
+      "arquivo": "l8078compilado.htm.gz",
+      "artigos": 130,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm"
+    },
+    "cf": {
+      "arquivo": "constituicaocompilado.htm.gz",
+      "artigos": 424,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicaocompilado.htm"
+    },
+    "ctn": {
+      "arquivo": "l5172compilado.htm.gz",
+      "artigos": 231,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm"
+    },
+    "eca": {
+      "arquivo": "l8069compilado.htm.gz",
+      "artigos": 329,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm"
+    },
+    "inquilinato": {
+      "arquivo": "l8245compilado.htm.gz",
+      "artigos": 91,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8245compilado.htm"
+    },
+    "cpp": {
+      "arquivo": "del3689compilado.htm.gz",
+      "artigos": 846,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm"
+    },
+    "ctb": {
+      "arquivo": "l9503compilado.htm.gz",
+      "artigos": 391,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9503compilado.htm"
+    }
+  },
+  "sumulas": {
+    "stj": {
+      "arquivo": "sumulas-stj.txt.gz",
+      "nome": "Súmulas do STJ",
+      "enunciados": 644,
+      "canceladas_fora": 29,
+      "fonte": "https://scon.stj.jus.br/docs_internet/VerbetesSTJ.pdf"
+    }
+  }
+}

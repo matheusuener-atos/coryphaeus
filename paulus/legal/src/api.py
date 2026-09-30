@@ -790,6 +790,9 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=_backup_automatico, name="backup", daemon=True).start()
     threading.Thread(target=_publicacoes_automatico, name="publicacoes", daemon=True).start()
     threading.Thread(target=_drive_online_automatico, name="drive-online", daemon=True).start()
+    # A Constituição, os códigos e as súmulas que vêm no instalador (src/biblioteca/nativo.py).
+    threading.Thread(target=rotas_biblioteca.instalar_na_abertura, args=(estado, DADOS_DIR),
+                     name="acervo-inicial", daemon=True).start()
     print(f"\n  PAULUS Legal - servidor em 127.0.0.1:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     # O acesso de fora ligado e conectado: o tunel sobe junto com o programa

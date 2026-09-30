@@ -51,6 +51,8 @@ function mostrarMaquina() { return mostrarConfig("desempenho"); }
 function mostrarConexoes() { return mostrarConfig("conexoes"); }
 
 async function mostrarConfig(secao) {
+  // A seção Biblioteca mora na tela Biblioteca do menu (js/57-biblioteca.js).
+  if ((secao || cfg.secao) === "aprendizado") return mostrarBibliotecaContexto("obras");
   const externo = Boolean(secao);
   if (secao) cfg.secao = secao;
   pararMedicao();
@@ -161,6 +163,7 @@ async function carregarSecao() {
 }
 
 function desenharConfig() {
+  if (cfg.secao === "aprendizado" && typeof bibAberta === "function" && bibAberta()) return desenharBib();
   cabecalhoConfig();
   const menu = CFG_SECOES.map(([id, rotulo]) => {
     const classe = "cfg-item" + (id === cfg.secao ? " ativa" : "");

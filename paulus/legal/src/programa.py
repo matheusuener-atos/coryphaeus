@@ -87,7 +87,8 @@ TELAS_C4 = {
 NOMES_C4 = {"habilidades": "Biblioteca"}
 RESOLVE_C4 = {
     "habilidades": "O que o PAULUS consulta para responder: livros, manuais e leis, com a fonte de cada um, e o "
-                   "que o escritório ensinou com as próprias palavras. Fica em Configurações › Biblioteca.",
+                   "que o escritório ensinou com as próprias palavras, a Constituição, os códigos e as súmulas do STJ que vêm "
+                   "com o PAULUS, e o processo pelo número no DataJud. Fica na Biblioteca, no menu.",
 }
 
 NAO_E_TELA = ("busca e apreensao", "mandado de busca", "busca pessoal", "busca domiciliar", "busca de bens")

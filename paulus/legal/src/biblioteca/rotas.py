@@ -226,3 +226,107 @@ def montar(estado, app, dados_dir: Path) -> None:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {**r, "codigos": estado.leis.instalados(), "contagem": estado.leis.contagem()}
+
+    # ------------------------------------ o acervo que vem com o PAULUS
+
+    @app.get("/api/biblioteca/acervo-inicial")
+    def acervo_inicial() -> dict:
+        from biblioteca import nativo
+
+        return nativo.situacao(estado.leis, estado.material, pasta_leis)
+
+    @app.post("/api/biblioteca/acervo-inicial")
+    def acervo_inicial_por() -> dict:
+        """Põe de novo o que falta do acervo, também o que foi apagado (o botão da tela)."""
+        from biblioteca import nativo
+
+        feito = nativo.instalar(estado.leis, estado.material, pasta_leis, forcar=True)
+        return {"entraram": feito, **nativo.situacao(estado.leis, estado.material, pasta_leis)}
+
+    @app.get("/api/biblioteca/sumulas")
+    def sumulas_procurar(termo: str = "", numero: str = "") -> dict:
+        """Os enunciados das súmulas guardadas (material de tipo súmulas), por número ou por palavras."""
+        return {"achados": procurar_sumulas(estado.material, termo, numero)}
+
+    # ------------------------------------------- os tribunais e as fontes de fora
+
+    @app.post("/api/biblioteca/datajud")
+    def datajud(payload: Processo) -> dict:
+        """Só o número do processo sai desta máquina, para a API pública do CNJ."""
+        import requests
+
+        from biblioteca import tribunais
+
+        try:
+            return tribunais.consultar_datajud(payload.numero)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        except (ConnectionError, requests.RequestException) as exc:
+            detalhe = str(exc) if isinstance(exc, ConnectionError) and not isinstance(exc, requests.RequestException) \
+                else "o DataJud não respondeu agora (ele costuma demorar); tente de novo em alguns minutos"
+            raise HTTPException(status_code=502, detail=detalhe) from exc
+
+    @app.get("/api/biblioteca/fontes")
+    def fontes(termo: str = "") -> dict:
+        from biblioteca import tribunais
+
+        return {"links": tribunais.links(termo)}
+
+
+class Processo(BaseModel):
+    numero: str
+
+
+def _plano(texto: str) -> str:
+    import unicodedata
+
+    normal = unicodedata.normalize("NFD", texto or "")
+    return "".join(c for c in normal if unicodedata.category(c) != "Mn").lower()
+
+
+def procurar_sumulas(material, termo: str = "", numero: str = "", limite: int = 30) -> list[dict]:
+    from biblioteca import sumulas
+
+    palavras = [p for p in re.findall(r"\w+", _plano(termo)) if len(p) > 2]
+    numero = re.sub(r"\D", "", numero or "")
+    if not palavras and not numero:
+        return []
+    achados = []
+    for item in material.listar():
+        if (item.get("ficha") or {}).get("tipo") != "sumulas":
+            continue
+        texto = material.texto_de(item["id"])
+        marcas = list(sumulas.RE_ENUNCIADO.finditer(texto))
+        for i, m in enumerate(marcas):
+            if numero and m.group(1) != numero:
+                continue
+            fim = marcas[i + 1].start() if i + 1 < len(marcas) else len(texto)
+            quebra = texto.find("\n", m.start(), fim)
+            # "Súmula 297 do STJ" na primeira linha e o enunciado depois; sem
+            # quebra, o enunciado vem logo após o número.
+            linha, corpo = ((texto[m.start():quebra], texto[quebra:fim]) if quebra >= 0
+                            else (texto[m.start():m.end()], texto[m.end():fim]))
+            if palavras and not all(p in _plano(corpo) for p in palavras):
+                continue
+            achados.append({"material_id": item["id"], "obra": (item.get("ficha") or {}).get("titulo") or item["nome"],
+                            "numero": m.group(1), "titulo": " ".join(linha.split()),
+                            "texto": " ".join(corpo.split())})
+            if len(achados) >= limite:
+                return achados
+    return achados
+
+
+def instalar_na_abertura(estado, dados_dir: Path) -> None:
+    """O acervo que vem com o PAULUS, na abertura (src/biblioteca/nativo.py); chamado numa thread pelo api.py."""
+    from biblioteca import nativo
+
+    try:
+        feito = nativo.instalar(estado.leis, estado.material, Path(dados_dir) / "leis")
+    except Exception as exc:  # noqa: BLE001 - a abertura não pode cair por isto
+        print(f"[acervo inicial] não consegui pôr: {exc}")
+        return
+    if feito["codigos"] or feito["sumulas"] or feito["erros"]:
+        print(f"[acervo inicial] entraram {len(feito['codigos'])} código(s) e {len(feito['sumulas'])} lista(s) de "
+              f"súmulas" + (f"; erros: {feito['erros']}" if feito["erros"] else ""))

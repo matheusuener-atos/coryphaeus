@@ -1,0 +1,38 @@
+  /* ------------------------------------------------------ biblioteca (B1) */
+  /* A tela Biblioteca (js/57-biblioteca.js) usa as pecas de Configuracoes -
+     a coluna editorial, os cartoes (.cfg-cartao), as linhas (.cfg-lei) e o
+     artigo do editor (.artigo). Aqui so o que e dela: o formulario em linha,
+     o aviso do que falta e os movimentos do processo. */
+
+  .bib-abas { align-self: center; }
+  .bib-linha-form { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .bib-campo { display: grid; gap: 6px; min-width: 0; flex: 1 1 200px; }
+  .bib-campo.bib-curto { flex: 0 0 96px; }
+  .bib-campo.cresce { flex: 1 1 260px; }
+  .bib-campo > span { font: 500 12px var(--sans); color: var(--ink3); }
+  .bib-campo input, .bib-campo select { width: 100%; max-width: none; min-width: 0; }
+  .bib-linha-form > button { flex: none; }
+
+  .bib-falta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--warnbg); color: var(--warnt); }
+  .bib-falta .duas-linhas { flex: 1; min-width: 0; }
+  .bib-falta b { color: var(--warnt); }
+
+  .bib-achados { display: grid; gap: 10px; }
+  .bib-achados .artigo { margin: 0; }
+  .bib-link { padding: 2px 6px; min-height: 0; font-size: 13px; }
+  .bib-erro { color: var(--acc); }
+
+  .bib-processo { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); }
+  .bib-movimentos { display: grid; gap: 0; border-top: 1px solid var(--ink-a08); }
+  .bib-movimento { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; color: var(--ink); }
+  .bib-movimento small { color: var(--ink3); font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 600px) {
+    .bib-aba-resto { display: none; }
+    .bib-linha-form > button { width: 100%; min-height: 44px; }
+    .bib-campo.bib-curto { flex: 1 1 96px; }
+    .bib-movimento { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .bib-falta { flex-wrap: wrap; }
+    .bib-falta button { width: 100%; min-height: 44px; }
+  }
+  .bib-tela .cfg-secao { gap: 16px; }
