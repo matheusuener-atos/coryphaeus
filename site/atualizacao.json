@@ -1,19 +1,16 @@
 {
-  "versao": "0.9.17",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.17/PAULUS-0.9.17-instalador.exe",
-  "sha256": "59ceeb099fa5636f7cd80db0e133c09878e75b8a35f2b96d1341232b76c21dff",
-  "tamanho": 94726030,
+  "versao": "0.9.18",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.18/PAULUS-0.9.18-instalador.exe",
+  "sha256": "1fcf622b7098d78c0718d2fcb034cc38b48e4d7a585f24f0862c5f1f28e3d2f3",
+  "tamanho": 94782008,
   "publicada": "2026-09-30",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.17",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.18",
   "novidades": [
-    "Atalho do Google Drive: barra de pastas do Acervo, seletores de pasta, anexar, Organizar e busca",
-    "Janela: nasce escondida e aparece já maximizada (sem piscar)",
-    "Janela: maximiza depois de a página carregar (no shown, a janela ficava branca)",
-    "Janela: maximiza depois de saber a área de trabalho (a página encaixa)",
-    "Google Drive pela internet no Acervo (drive.readonly)",
-    "Escolher pasta sem o Drive: Voltar sem a seta",
-    "Níveis de segurança por conta: reforçada, padrão e simples (só o Google)",
-    "Janela: botões também no assistente e na trava, abre maximizada e escura; busca com fade",
-    "Busca de tudo (Ctrl+K): telas, ações e os dados do escritório numa caixa só"
+    "Biblioteca ligada de fábrica: a resposta separa lei e doutrina, avisa a obra desatualizada e a área sem material",
+    "Documento fotografado pelo celular e servidor MCP das leis para outros assistentes (os dois desligados de fábrica)",
+    "Teste da máquina reconhece placas de vídeo AMD e Intel, e a medida diz se o Ollama usa a placa",
+    "Biblioteca: a resposta separa lei, súmula e doutrina, avisa quando a obra é anterior à redação do artigo e diz o que está fora do que a biblioteca cobre",
+    "Código anotado: cada artigo mostra o que as obras da biblioteca do escritório dizem dele, com a página",
+    "Biblioteca do escritório: obras de doutrina entram na busca, com ficha catalográfica, e mais cinco códigos do Planalto (CDC, CF, CTN, ECA e Inquilinato)"
   ]
 }

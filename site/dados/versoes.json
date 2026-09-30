@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "0.9.18",
+      "date": "2026-09-30",
+      "changes": [
+        "Biblioteca ligada de fábrica: a resposta separa lei e doutrina, avisa a obra desatualizada e a área sem…",
+        "Documento fotografado pelo celular e servidor MCP das leis para outros assistentes (os dois desligados de…",
+        "Teste da máquina reconhece placas de vídeo AMD e Intel, e a medida diz se o Ollama usa a placa",
+        "Biblioteca: a resposta separa lei, súmula e doutrina, avisa quando a obra é anterior à redação do artigo e…",
+        "Código anotado: cada artigo mostra o que as obras da biblioteca do escritório dizem dele, com a página",
+        "Biblioteca do escritório: obras de doutrina entram na busca, com ficha catalográfica, e mais cinco códigos…"
+      ]
+    },
+    {
       "version": "0.9.17",
       "date": "2026-09-30",
       "changes": [
