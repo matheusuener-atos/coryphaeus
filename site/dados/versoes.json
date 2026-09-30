@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.19",
+      "date": "2026-09-30",
+      "changes": [
+        "Transcrição sem memória para o modelo de voz: a tela sugere o mais leve, clicando aqui"
+      ]
+    },
+    {
       "version": "0.9.18",
       "date": "2026-09-30",
       "changes": [

@@ -1,16 +1,11 @@
 {
-  "versao": "0.9.18",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.18/PAULUS-0.9.18-instalador.exe",
-  "sha256": "1fcf622b7098d78c0718d2fcb034cc38b48e4d7a585f24f0862c5f1f28e3d2f3",
-  "tamanho": 94782008,
+  "versao": "0.9.19",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.19/PAULUS-0.9.19-instalador.exe",
+  "sha256": "683562741671ab5195c2e0b5bde20ec50919d628e1a9308e5beb378c6136ea91",
+  "tamanho": 94782779,
   "publicada": "2026-09-30",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.18",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.19",
   "novidades": [
-    "Biblioteca ligada de fábrica: a resposta separa lei e doutrina, avisa a obra desatualizada e a área sem material",
-    "Documento fotografado pelo celular e servidor MCP das leis para outros assistentes (os dois desligados de fábrica)",
-    "Teste da máquina reconhece placas de vídeo AMD e Intel, e a medida diz se o Ollama usa a placa",
-    "Biblioteca: a resposta separa lei, súmula e doutrina, avisa quando a obra é anterior à redação do artigo e diz o que está fora do que a biblioteca cobre",
-    "Código anotado: cada artigo mostra o que as obras da biblioteca do escritório dizem dele, com a página",
-    "Biblioteca do escritório: obras de doutrina entram na busca, com ficha catalográfica, e mais cinco códigos do Planalto (CDC, CF, CTN, ECA e Inquilinato)"
+    "Transcrição sem memória para o modelo de voz: a tela sugere o mais leve, clicando aqui"
   ]
 }
