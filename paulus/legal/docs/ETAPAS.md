@@ -2401,3 +2401,13 @@ prioridade — só entre as próprias, ou na frente dos outros com o nível dado
 pelo titular, até 3 por hora, na auditoria, sem interromper quem está sendo
 atendido. **Medido:** `tests/test_f1_fila.py` 49 ok. Detalhes e decisões em
 `docs/PROGRESSO-APARELHO.md`.
+
+## D1 — O pacote e a porta ✓ FEITA (30/09/2026; chave desligada de fábrica)
+
+O pacote de escrita é montado no servidor no ponto em que o escritório
+chamaria o modelo — depois do filtro e da busca, com as mesmas mensagens,
+sem os lembretes. Sai uma vez, para a mesma sessão, com assinatura e
+validade de 10 min; recusa caminho que não é de trechos, caso só no
+escritório, trecho fora do filtro e acima do orçamento. Até a D3, a
+conferência reprova tudo e o escritório reescreve. **Medido:**
+`tests/test_d1_pacote.py` 30 ok.

@@ -127,6 +127,7 @@ from base import Base
 from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
 import tarefas as tarefas_mod
+import aparelho as aparelho_mod
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -943,6 +944,8 @@ rotas_biblioteca.montar(estado, app, DADOS_DIR)
 # F1: a fila do modelo a vista e a pergunta que espera na conversa (src/fila_de_todos.py).
 fila_modelo.instalar(estado.fila_modelo, lambda: fila_de_todos.ligada(estado))
 fila_de_todos.montar(estado, app, lambda request: _dono_da_vez(request), lambda **campos: Pergunta(**campos))
+# D1: o pacote de escrita e a porta do aparelho (src/aparelho.py).
+aparelho_mod.montar(estado, app, DADOS_DIR)
 captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
@@ -1070,6 +1073,8 @@ class Pergunta(BaseModel):
     inteiro: bool = False
     # F1: Ctrl+Enter - com prioridade na fila do modelo (src/fila_de_todos.py).
     prioridade: bool = False
+    # D1: escrever a resposta no aparelho de quem pergunta (src/aparelho.py).
+    aparelho: bool = False
 
 
 class Busca(BaseModel):
@@ -3550,6 +3555,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         raise HTTPException(status_code=429, detail="você já tem duas perguntas esperando a vez do modelo; "
                                                     "espere uma terminar para mandar outra")
     fila_de_todos.anotar_prioridade(estado, request, prioridade["tipo"])
+    # D1: escrever no aparelho - so se o servidor deixa (src/aparelho.py).
+    escrita_no_aparelho, motivo_do_escritorio = None, ""
+    if payload.aparelho:
+        pode, motivo_do_escritorio = aparelho_mod.pode_escrever(estado, request)
+        if pode:
+            escrita_no_aparelho = aparelho_mod.Escrita(estado, request, id_)
 
     habilidade = estado.registro.obter("perguntar")
     if not habilidade or not habilidade.executavel:
@@ -3859,6 +3870,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             ctx.agente_instrucoes = agente_mod.instrucoes(agente)
         # C6: a cerca em todo texto de terceiros (habilidades/perguntar.py).
         ctx.cerca = rotas_execucoes.ligada(estado, "cerca")
+        if escrita_no_aparelho is not None:
+            ctx.escrita_no_aparelho = escrita_no_aparelho
         if payload.inteiro:
             ctx.ia["leitura"] = "tudo"
         sem_fundamento: dict = {}
@@ -3955,6 +3968,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     medir_agora()
                     yield _sse("vazio", dados)
                     return
+                elif tipo in ("aparelho", "aparelho_fim"):
+                    # D1: o id e a assinatura do pacote (o conteudo sai pela
+                    # rota, para a mesma sessao), e onde a resposta foi escrita.
+                    yield _sse(tipo, dados)
                 elif tipo == "fim":
                     pass  # o fechamento e daqui: o modulo nao sabe de trabalho
         except Exception as exc:
@@ -4024,6 +4041,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                              "agente_slug": agente.slug if agente is not None else "",
                              "agente_versao": agente.versao if agente is not None else 0,
                              "agente_como": agente_como}
+        # D1: onde a resposta foi escrita e por que, quando a pessoa pediu o aparelho.
+        if payload.aparelho:
+            cobertura["como"]["escrita"] = (escrita_no_aparelho.resumo() if escrita_no_aparelho is not None
+                                            else {"onde": "escritorio", "motivo": motivo_do_escritorio,
+                                                  "conferida": False, "pacote": False})
         oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(

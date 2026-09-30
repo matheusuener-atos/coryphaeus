@@ -112,6 +112,28 @@ class OllamaError(RuntimeError):
     pass
 
 
+def montar_mensagens(question: str, context: str = "", *, sistema: str = "", ensinado: str = "",
+                     historico: list[dict] | None = None) -> list[dict]:
+    """
+    As mensagens do chat de uma pergunta: a instrucao, os pares anteriores e a
+    pergunta com o contexto. Fora do `ask` porque o pacote da escrita no
+    aparelho (src/aparelho.py) leva as mesmas mensagens que o escritorio
+    mandaria ao modelo.
+    """
+    molde = USER_TEMPLATE if not sistema else MOLDE_SIMPLES
+    conteudo = molde.format(context=context, question=question) if context else question
+    # `ensinado` e o que o escritorio escreveu em Configuracoes > Aprendizado.
+    # Entra no fim da instrucao de sistema, e nao na mensagem do usuario:
+    # e regra permanente da casa, nao parte do que foi perguntado agora.
+    instrucao = sistema or SYSTEM_PROMPT
+    if ensinado.strip():
+        instrucao += "\n\n" + ensinado.strip()
+    messages = [{"role": "system", "content": instrucao}]
+    messages += [m for m in (historico or []) if m.get("role") in ("user", "assistant")]
+    messages.append({"role": "user", "content": conteudo})
+    return messages
+
+
 class LlamaClient:
     # Quem chama a conversa pergunta isto antes de mandar `tarefa`: o cliente
     # de mentira dos testes nao conhece o argumento, e nao precisa conhecer.
@@ -351,17 +373,7 @@ class LlamaClient:
         as duas: a sugestao vinha com "Arquivo: contrato.txt" na frente, e o
         nome do arquivo era inventado.
         """
-        molde = USER_TEMPLATE if not sistema else MOLDE_SIMPLES
-        conteudo = molde.format(context=context, question=question) if context else question
-        # `ensinado` e o que o escritorio escreveu em Configuracoes > Aprendizado.
-        # Entra no fim da instrucao de sistema, e nao na mensagem do usuario:
-        # e regra permanente da casa, nao parte do que foi perguntado agora.
-        instrucao = sistema or SYSTEM_PROMPT
-        if ensinado.strip():
-            instrucao += "\n\n" + ensinado.strip()
-        messages = [{"role": "system", "content": instrucao}]
-        messages += [m for m in (historico or []) if m.get("role") in ("user", "assistant")]
-        messages.append({"role": "user", "content": conteudo})
+        messages = montar_mensagens(question, context, sistema=sistema, ensinado=ensinado, historico=historico)
         # `parar` so vai quando existe: quem troca o `_chat` num teste nao
         # precisa conhecer o argumento.
         extra = {"parar": parar} if parar else {}

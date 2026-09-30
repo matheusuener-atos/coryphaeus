@@ -51,6 +51,7 @@ ACOES = {
     "convite_aceito": "aceitou o convite",
     "google": "conectou o próprio Google",
     "prioridade": "passou na frente na fila do modelo",
+    "aparelho": "escrita no aparelho",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 

@@ -189,7 +189,8 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                     ctx.registrar("Li " + _quantos(len(escolhidos), "trecho") + " escolhidos pela busca, "
                                   "e não os documentos inteiros")
                     yield from _responder(ctx, pergunta, escolhidos, orcamento, apenas=quais,
-                                          material=leitura_material, caminho="foco", fallback=fallback)
+                                          material=leitura_material, caminho="foco", fallback=fallback,
+                                          por_trechos=True)
                     return
             if texto > orcamento:
                 por_documento = max(2, ctx.searcher.quantos_cabem(orcamento) // len(quais))
@@ -215,8 +216,10 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     # mesmo assim: lia três de seis e respondia "não encontrei essa
     # informação" sobre um documento que nunca abriu.
     caminho = "busca"
+    por_trechos = False
     if _por_trechos(ctx, pergunta, ctx.searcher.caracteres()):
         hits = ctx.recuperar(pergunta, None)
+        por_trechos = True
         ctx.registrar("Procurou em " + _quantos(len(ctx.documentos), "documento") +
                       " e leu os " + _quantos(len(hits), "trecho") + " que mais respondem")
     elif ctx.searcher.cabe_inteiro(orcamento):
@@ -244,7 +247,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
         ctx.registrar("Nada nos documentos abertos — respondeu pelo material de consulta")
 
     yield from _responder(ctx, pergunta, hits, orcamento, material=leitura_material,
-                          caminho=caminho, fallback=fallback)
+                          caminho=caminho, fallback=fallback, por_trechos=por_trechos)
 
 
 def sem_modelo(ctx: Contexto, pergunta: str = "", apenas=None) -> bool:
@@ -433,7 +436,7 @@ SISTEMA_DOS_FATOS = (
 
 
 def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, material=([], "", None),
-               caminho: str = "busca", fallback: bool = False):
+               caminho: str = "busca", fallback: bool = False, por_trechos: bool = False):
     """
     Monta as fontes, entrega ao assistente e devolve a resposta.
 
@@ -572,13 +575,23 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         fallback=fallback,
     )
 
+    # D1 (src/aparelho.py): a pergunta pediu para escrever no aparelho. O
+    # pacote e montado aqui, DEPOIS do filtro e da busca, com as mesmas
+    # mensagens que iriam ao modelo - menos os lembretes do escritorio. O
+    # texto que volta passa pelas mesmas conferencias daqui para baixo, e
+    # antes pela do aparelho (`conferir`); reprovado, o escritorio escreve.
+    do_aparelho = yield from _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho, por_trechos)
     escrito = []
-    for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra):
-        if tipo == "token":
-            escrito.append(dados.get("t", ""))
-        elif tipo == "truncou":
-            ctx.registrar("o texto não coube inteiro na janela do modelo: o começo ficou de fora desta leitura")
-        yield evento(tipo, **dados)
+    if do_aparelho is not None:
+        escrito.append(do_aparelho)
+        yield evento("token", t=do_aparelho)
+    elif not (getattr(ctx, "parar", None) and ctx.parar()):
+        for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra):
+            if tipo == "token":
+                escrito.append(dados.get("t", ""))
+            elif tipo == "truncou":
+                ctx.registrar("o texto não coube inteiro na janela do modelo: o começo ficou de fora desta leitura")
+            yield evento(tipo, **dados)
 
     sem_fundamento = False
     if com_marcas and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
@@ -692,6 +705,47 @@ def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, respost
     yield evento("revisao", texto=rev.texto, sem_fonte=rev.sem_fonte, removidas=rev.removidas,
                  marcas=rev.marcas_validas)
     return rev.texto, rev.sem_fundamento
+
+
+def _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho, por_trechos):
+    """O texto do aparelho, se ele escreveu e passou na conferencia; senao None (o escritorio escreve)."""
+    escrita = getattr(ctx, "escrita_no_aparelho", None)
+    if escrita is None:
+        return None
+    import llama_client
+
+    agente = getattr(ctx, "agente_instrucoes", "") or ""
+    # Sem os lembretes do escritorio: de fora, ninguem os ve (src/aparelho.py).
+    sem_lembretes = (regra + ("\n\n" + agente if agente else "")).strip()
+    mensagens = llama_client.montar_mensagens(pergunta, contexto, ensinado=sem_lembretes,
+                                              historico=_da_conversa(ctx, historico=True).get("historico"))
+    opcoes = getattr(ctx.client, "opcoes", None)
+    parametros = opcoes.options("conversa") if opcoes is not None and hasattr(opcoes, "options") else {}
+    pedido = escrita.preparar(pergunta=pergunta, mensagens=mensagens, fontes=fontes, hits=hits, caminho=caminho,
+                              por_trechos=por_trechos, parametros=parametros)
+    if pedido is None:
+        ctx.registrar("Escrevi no escritório: " + escrita.motivo)
+        return None
+    ctx.registrar("Mandei os trechos para o seu aparelho escrever")
+    yield evento("aparelho", **pedido)
+    volta = escrita.esperar(parar=getattr(ctx, "parar", None))
+    texto = (volta.get("texto") or "").strip()
+    if volta.get("estado") == "parado":
+        return None
+    if volta.get("estado") == "devolvido" and texto:
+        ok, motivo = escrita.conferir(texto, fontes)
+        if ok:
+            escrita.conferida = True
+            yield evento("aparelho_fim", onde="aparelho", motivo="")
+            return texto
+        escrita.voltou_ao_escritorio("conferência reprovou")
+        ctx.registrar("O texto do aparelho não passou na conferência (" + motivo + "): escrevi aqui")
+    else:
+        escrita.voltou_ao_escritorio("o aparelho não terminou" if volta.get("estado") in ("abandonado", "vencido")
+                                     else "o escritório desligou a escrita no aparelho")
+        ctx.registrar("O aparelho não terminou: escrevi aqui")
+    yield evento("aparelho_fim", onde="escritorio", motivo=escrita.motivo)
+    return None
 
 
 def _com_regra(ctx: Contexto, regra: str) -> str:

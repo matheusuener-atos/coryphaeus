@@ -365,6 +365,11 @@ _declarar(PERMITIDO, "GET /api/trabalhos/{id_}/pendentes", "PUT /api/trabalhos/{
           "DELETE /api/trabalhos/{id_}/pendentes/{pid}")
 _declarar(BLOQUEADO, "GET /api/fila")
 
+# --- D1: o pacote de escrita (src/aparelho.py). As rotas conferem a sessao e a
+# assinatura; o conteudo so sai para a sessao que pediu, uma vez.
+_declarar(PERMITIDO, "GET /api/aparelho/estado", "GET /api/aparelho/pacote/{pid}",
+          "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar")
+
 # --- o documento fotografado pelo celular (ideia E do umbrelOS): de fora, a
 # rota nao grava no Acervo - guarda a foto a parte e pede em Aprovacoes
 # (src/captura.py). Na janela do escritorio, entra direto.

@@ -93,6 +93,10 @@ MODULOS: list[dict] = [
     # (src/fila_de_todos.py). Sem rota: e so o nivel que a fila le.
     {"id": "prioridade", "rotulo": "Passar na frente na fila (Ctrl+Enter)", "niveis": (NAO, FAZ), "padrao": NAO,
      "prefixos": (), "destinos": (), "rotulo_faz": "passa na frente", "rotulo_nao": "só entre as próprias"},
+    # D1: a resposta escrita no aparelho de quem pergunta (src/aparelho.py).
+    # So o titular da; o colaborador nao liga para si (a grade e da janela local).
+    {"id": "aparelho", "rotulo": "Escrever a resposta no próprio aparelho", "niveis": (NAO, FAZ), "padrao": NAO,
+     "prefixos": (), "destinos": (), "rotulo_faz": "pode", "rotulo_nao": "no escritório"},
 ]
 POR_ID = {m["id"]: m for m in MODULOS}
 

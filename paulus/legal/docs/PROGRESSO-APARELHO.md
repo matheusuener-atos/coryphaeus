@@ -8,7 +8,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | --- | --- | --- | --- | --- |
 | D0 | Levantamento e medida da fila remota | feita — ⏸ PAUSA: esperando a decisão do dono | ver git log (d0) | tabela e números abaixo |
 | F1 | Fila dentro da conversa, fila única, Ctrl+Enter | feita; chave `aparelho.fila` desligada de fábrica — ⏸ o dono decide se seguimos | ver git log (f1) | `tests/test_f1_fila.py` 49 ok (ordem, pendente, 429, Ctrl+Enter com e sem liberação, auditoria, e-mail na mesma fila, Edge) |
-| D1 | O pacote e a porta | pendente (o furo do filtro foi corrigido antes, ver abaixo) | | |
+| D1 | O pacote e a porta | feita; chave `aparelho.ligado` desligada de fábrica | ver git log (d1) | `tests/test_d1_pacote.py` 30 ok |
 | D2 | O motor no navegador | pendente | | |
 | D3 | Conferência no escritório e retomada | pendente | | |
 | D4 | O switch e a tela | pendente | | |
@@ -153,6 +153,52 @@ mostrada; a Helena com duas não manda a terceira nem pelo e-mail. **Roteiro** (
 - A conversa do `enviar()` em outra conversa enquanto uma responde continua
   como era (o botão "esperando" até a execução chegar).
 - O "Esperar na fila" antigo (só na memória) continua com a chave desligada.
+
+## D1 — o pacote e a porta (30/09/2026)
+
+**Como ficou** (`src/aparelho.py`, gancho em `habilidades/perguntar.py`)
+- A pergunta pede o aparelho (`Pergunta.aparelho`). O servidor decide
+  (`pode_escrever`): `aparelho.ligado`, sessão de fora, o nível novo
+  "Escrever a resposta no próprio aparelho" da conta (grade de permissões,
+  só na janela local — o colaborador não liga para si) e a conta vê o
+  Acervo. Não pode: escrita no escritório, com o motivo na resposta
+  (`cobertura.como.escrita`).
+- **O pacote é montado no ponto exato em que o escritório chamaria o
+  modelo** (`_responder`), depois do escopo, do filtro de Serviços e da
+  busca: as mesmas mensagens (`llama_client.montar_mensagens`, que o `ask`
+  passou a usar), **sem os lembretes do escritório** (de fora ninguém os
+  vê), com os parâmetros de escrita da conversa.
+- Recusa no servidor, e a resposta segue no escritório: caminho que não é o
+  de trechos (Acervo inteiro, documento em foco lido inteiro, fatos já
+  lidos, ações da conversa); trecho de caso "só no escritório" (pasta ou
+  Serviço, `<dados>/aparelho/so-no-escritorio.json`; a tela é da D5);
+  trecho fora do filtro da pessoa (defesa em profundidade — a busca já
+  filtrou); trechos acima de 9.000 caracteres (o orçamento da busca).
+- Passou: **a vez do modelo volta para a fila** (quem escreve é o
+  aparelho) e a execução espera. O evento da execução — que fica no disco —
+  leva só o id, a assinatura (HMAC com segredo do processo, ligada à sessão)
+  e a validade (10 min). O conteúdo sai por `GET /api/aparelho/pacote/{id}`,
+  uma vez, para a mesma sessão; devolver e abandonar conferem sessão,
+  assinatura, validade e uso único.
+- **O texto que volta não é gravado sem conferência.** Até a D3, a
+  conferência reprova tudo: o escritório reescreve e a resposta diz
+  "conferência reprovou". Abandonou ou venceu: o escritório escreve ("o
+  aparelho não terminou").
+- Auditoria (`aparelho`): entrega (quantos trechos, de quais documentos),
+  devolução e abandono, com a pessoa e "navegador" + 6 caracteres do hash
+  do navegador (sem identificador invasivo).
+
+**Achado para a D5:** de fábrica, a conversa lê pelo caminho "tudo"
+(`ia.leitura = "tudo"`: o Acervo inteiro quando cabe). O aparelho só recebe
+pacote no caminho de trechos (`ia.leitura = "trechos"`, I7). Com o de
+fábrica, quase toda pergunta seria escrita no escritório ("a pergunta pede
+o Acervo inteiro"). Ligar a escrita no aparelho precisa ligar a leitura por
+trechos junto — decisão do dono, porque muda como o escritório também lê.
+
+**Medido:** `tests/test_d1_pacote.py` 30 ok (sem liberação, desligado,
+janela local, pacote só com trechos e sem lembrete nem Serviço alheio,
+outra sessão, assinatura errada, uso único, vencido, abandonado, caso só no
+escritório, auditoria).
 
 ## Fora do foco
 
