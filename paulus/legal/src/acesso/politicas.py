@@ -168,7 +168,7 @@ _declarar(PERMITIDO,
           # Google: enviar ao Drive ja e pedido na fila
           "POST /api/google/drive/enviar",
           # servicos: ver e conversar sobre eles
-          "GET /api/servicos", "GET /api/servicos/{id_}", "POST /api/servicos/{id_}/resumo",
+          "GET /api/servicos", "GET /api/servicos/{id_}", "GET /api/servicos/{id_}/horas", "POST /api/servicos/{id_}/resumo",
           "POST /api/servicos/{id_}/conversar",
           # gravacoes: ver
           "GET /api/gravacoes", "GET /api/gravacoes/{id_}", "GET /api/gravacoes/{id_}/audio/nome")
@@ -301,6 +301,11 @@ _declarar(BLOQUEADO,
           "POST /api/bemestar/lembretes/restaurar", "POST /api/bemestar/lembretes/{id_}/feito",
           "DELETE /api/bemestar/lembretes/{id_}",
           "POST /api/servicos", "DELETE /api/servicos/{id_}", "POST /api/servicos/{id_}/anexar",
+          # horas (src/horas.py): registrar e o cronometro abrem com "faz" em Servicos;
+          # o valor da hora e cobrar ficam na janela do servidor
+          "POST /api/servicos/{id_}/horas", "DELETE /api/servicos/{id_}/horas/{hid}",
+          "POST /api/servicos/{id_}/horas/cronometro", "POST /api/servicos/{id_}/horas/valor",
+          "POST /api/servicos/{id_}/horas/cobrar",
           "POST /api/servicos/{id_}/status", "POST /api/servicos/{id_}/etapas",
           "POST /api/servicos/{id_}/etapas/{indice}/editar", "POST /api/servicos/{id_}/etapas/{indice}",
           "DELETE /api/servicos/{id_}/etapas/{indice}", "POST /api/servicos/{id_}/anotacoes",

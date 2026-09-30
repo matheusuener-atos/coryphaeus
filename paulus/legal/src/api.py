@@ -316,6 +316,10 @@ class Estado:
             "aprovacao", "Aprovação pendente", f"{p.titulo} — espera a sua confirmação em Aprovações.")
         # Servicos: as pastas de trabalho (docs/ui, A15).
         self.servicos = servicos_mod.Servicos(self.base, _quem_sou, lambda: self.pasta)
+        # As horas por servico e o cronometro de cada pessoa (src/horas.py).
+        import horas as _horas
+
+        self.horas = _horas.Horas(self.base)
         # As publicacoes do DJEN pelas OABs acompanhadas (src/publicacoes.py).
         import publicacoes as _pub
 
@@ -10023,6 +10027,129 @@ def publicacoes_prazo(id_: int, dados: PrazoDaPublicacao) -> dict:
                                  "lista": "Prazos", "anotacao": anotacao})
     estado.publicacoes.marcar(id_, tarefa_id=tid)
     return {"tarefa_id": tid, "conta": conta, **_publicacoes_para_tela()}
+
+
+# ------------------------------------------------------------------ horas
+# Horas por servico e a cobranca delas (src/horas.py, P4). As rotas moram em
+# /api/servicos/{id}: valem as permissoes do modulo Servicos e a regra dos
+# colaboradores (servico fechado para a pessoa: 404). Cobrar mexe no
+# Financeiro: so na janela do servidor.
+
+import horas as horas_mod  # noqa: E402
+
+
+class RegistroDeHoras(BaseModel):
+    duracao: str = ""
+    dia: str = ""
+    descricao: str = ""
+
+
+class Cronometro(BaseModel):
+    acao: str
+    descricao: str = ""
+
+
+class ValorDaHora(BaseModel):
+    valor: str
+
+
+class CobrarHoras(BaseModel):
+    vencimento: str = ""
+
+
+def _servico_ou_404(id_: int) -> dict:
+    s = estado.base.um("SELECT id, nome, cadastro_id, valor_hora FROM servicos WHERE id = ?", (id_,))
+    if not s:
+        raise HTTPException(status_code=404, detail="serviço não encontrado")
+    return s
+
+
+def _horas_para_tela(id_: int, request: Request | None) -> dict:
+    s = _servico_ou_404(id_)
+    q = equipe.quem(request, estado.prefs.dados)
+    h = estado.horas.do_servico(id_)
+    c = estado.horas.cronometro(q["conta_id"])
+    return {**h, "valor_hora": int(s.get("valor_hora") or 0),
+            "a_cobrar_centavos": round(h["a_cobrar_min"] * int(s.get("valor_hora") or 0) / 60),
+            "cronometro": ({**c, "neste": int(c["servico_id"]) == id_} if c else None),
+            "minha_conta": q["conta_id"]}
+
+
+@app.get("/api/servicos/{id_}/horas")
+def horas_ver(id_: int, request: Request) -> dict:
+    return _horas_para_tela(id_, request)
+
+
+@app.post("/api/servicos/{id_}/horas")
+def horas_registrar(id_: int, dados: RegistroDeHoras, request: Request) -> dict:
+    _servico_ou_404(id_)
+    q = equipe.quem(request, estado.prefs.dados)
+    try:
+        estado.horas.registrar(id_, minutos=horas_mod.ler_duracao(dados.duracao), dia=dados.dia[:10],
+                               descricao=dados.descricao, quem=q["nome"], conta=q["conta_id"])
+    except horas_mod.ErroHoras as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _horas_para_tela(id_, request)
+
+
+@app.delete("/api/servicos/{id_}/horas/{hid}")
+def horas_apagar(id_: int, hid: int, request: Request) -> dict:
+    q = equipe.quem(request, estado.prefs.dados)
+    # De fora, cada pessoa so apaga o proprio registro; na janela do servidor, qualquer um.
+    so_meu = q["conta_id"] if equipe.pessoa_da_vez() is not None else None
+    if not estado.horas.apagar(hid, so_meu):
+        raise HTTPException(status_code=400, detail="esse registro não pode ser apagado (já cobrado, ou de outra pessoa)")
+    return _horas_para_tela(id_, request)
+
+
+@app.post("/api/servicos/{id_}/horas/cronometro")
+def horas_cronometro(id_: int, dados: Cronometro, request: Request) -> dict:
+    _servico_ou_404(id_)
+    q = equipe.quem(request, estado.prefs.dados)
+    if dados.acao == "comecar":
+        estado.horas.comecar(id_, quem=q["nome"], conta=q["conta_id"], descricao=dados.descricao)
+    elif dados.acao == "parar":
+        estado.horas.parar(q["conta_id"], dados.descricao)
+    else:
+        raise HTTPException(status_code=400, detail="ação desconhecida")
+    return _horas_para_tela(id_, request)
+
+
+@app.post("/api/servicos/{id_}/horas/valor")
+def horas_valor(id_: int, dados: ValorDaHora, request: Request) -> dict:
+    import financeiro as financeiro_mod
+
+    _servico_ou_404(id_)
+    try:
+        centavos = abs(financeiro_mod.para_centavos(dados.valor))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="valor inválido") from exc
+    estado.base.escrever("UPDATE servicos SET valor_hora = ? WHERE id = ?", (centavos, id_))
+    return _horas_para_tela(id_, request)
+
+
+@app.post("/api/servicos/{id_}/horas/cobrar")
+def horas_cobrar(id_: int, dados: CobrarHoras, request: Request) -> dict:
+    """As horas ainda nao cobradas viram um recebimento de honorarios no Financeiro."""
+    s = _servico_ou_404(id_)
+    h = estado.horas.do_servico(id_)
+    valor = int(s.get("valor_hora") or 0)
+    if not h["a_cobrar_min"]:
+        raise HTTPException(status_code=400, detail="não há horas a cobrar neste serviço")
+    if not valor:
+        raise HTTPException(status_code=400, detail="defina o valor da hora deste serviço antes")
+    centavos = round(h["a_cobrar_min"] * valor / 60)
+    detalhe = "\n".join(f"{p['quem']}: {horas_mod.texto_da_duracao(p['minutos'])}" for p in
+                        horas_mod.Horas._por_pessoa([r for r in h["registros"] if not r.get("lancamento_id")]))
+    try:
+        lid = estado.financeiro.salvar({
+            "tipo": "recebimento", "categoria": "honorarios", "centavos": centavos, "cadastro_id": s.get("cadastro_id"),
+            "descricao": f"Honorários por hora · {s['nome']} ({horas_mod.texto_da_duracao(h['a_cobrar_min'])})",
+            "vencimento": dados.vencimento[:10], "observacao": "Horas do serviço:\n" + detalhe})
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    estado.horas.marcar_cobradas(id_, lid)
+    return {"lancamento_id": lid, **_horas_para_tela(id_, request)}
 
 
 # ------------------------------------------------------------------ saude

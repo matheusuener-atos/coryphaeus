@@ -75,10 +75,16 @@ O que faz advogado trocar de ferramenta.
 - Falta: publicações e prazos de fora (hoje só na janela do servidor); ligar
   a publicação ao serviço do processo; feriados por tribunal prontos.
 
-## P4 — Horas e honorários por serviço · a fazer
+## P4 — Horas e honorários por serviço · feito
 
 - Registrar tempo por serviço (manual ou cronômetro), por pessoa da equipe.
 - Relatório de horas do serviço e lançamento de cobrança no Financeiro.
+- Feito: `src/horas.py` e a seção "Horas" do serviço (`js/49-horas.js`):
+  cronômetro (um por pessoa), registrar a mão, quem fez quanto, valor da hora
+  e "Cobrar no Financeiro" (recebimento de honorários do cliente; as horas
+  passam a cobradas). De fora, quem tem "faz" em Serviços registra as
+  próprias horas nos serviços de que participa; cobrar é só no servidor.
+  Teste: `tests/test_horas.py`.
 
 ## P5 — Roteiro de demonstração · a fazer
 

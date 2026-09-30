@@ -29,6 +29,8 @@ async function mostrarServicos(visao) {
     if (sv.visao === "trabalho") {
       pedidos.push(fetch("/api/servicos/" + sv.aberto.id).then((r) => (r.ok ? r.json() : null)));
       pedidos.push(sv.acervo ? Promise.resolve(null) : fetch("/api/biblioteca").then((r) => r.json()));
+      // As horas vao por ultimo: a lista acima e desestruturada em [d, s, b].
+      if (typeof carregarHorasDoServico === "function") pedidos.push(carregarHorasDoServico(sv.aberto.id).then(() => null));
     }
     const [d, s, b] = await Promise.all(pedidos);
     sv.lista = d.servicos || [];
@@ -257,6 +259,7 @@ function corpoDoTrabalho() {
   else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
   else {
     miolo = aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
+      (typeof secaoDasHoras === "function" ? secaoDasHoras(s) : "") +
       '<div class="sv-duas">' + secaoDosPrazos(s) + secaoDasAnotacoes(s) + "</div>";
   }
   const classe = "sv-medida sv-aba-" + sv.aba;
@@ -1071,6 +1074,7 @@ async function renomearServico(s, novo) {
 /* ------------------------------------------------------------ ligar */
 
 function ligarServicos() {
+  if (typeof ligarHoras === "function" && sv.visao === "trabalho") ligarHoras($("centro"));
   const clique = (sel, fn) => document.querySelectorAll(sel).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   const busca = $("sv-busca");
   if (busca) {

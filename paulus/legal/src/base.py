@@ -619,6 +619,35 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX idx_publicacoes_lida ON publicacoes(lida, data);
         """,
     ),
+    (
+        "025_horas",
+        """
+        -- Horas por servico (src/horas.py): quem, quando, quanto e o que fez;
+        -- cobradas quando viram lancamento no Financeiro. O cronometro que
+        -- corre, um por pessoa (conta 0 = a janela do servidor). O valor da
+        -- hora de cada servico, em centavos.
+        CREATE TABLE horas (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            servico_id     INTEGER NOT NULL,
+            dia            TEXT NOT NULL,
+            minutos        INTEGER NOT NULL,
+            descricao      TEXT DEFAULT '',
+            quem           TEXT DEFAULT '',
+            conta          INTEGER NOT NULL DEFAULT 0,
+            lancamento_id  INTEGER,
+            criado_em      TEXT NOT NULL
+        );
+        CREATE INDEX idx_horas_servico ON horas(servico_id, dia);
+        CREATE TABLE cronometros (
+            conta       INTEGER PRIMARY KEY,
+            servico_id  INTEGER NOT NULL,
+            inicio      REAL NOT NULL,
+            quem        TEXT DEFAULT '',
+            descricao   TEXT DEFAULT ''
+        );
+        ALTER TABLE servicos ADD COLUMN valor_hora INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 
