@@ -224,7 +224,7 @@ async function navegarPastaNossa(caminho) {
   const linhaSemDrive = lista.querySelector("[data-ep-sem-drive]");
   if (linhaSemDrive) {
     linhaSemDrive.onclick = () => {
-      lista.innerHTML = semDriveHtml() + '<div class="anx-sem-drive"><button type="button" data-ep-ir="">' + ic("arrow_back", 14) + "Voltar</button></div>";
+      lista.innerHTML = semDriveHtml() + '<div class="anx-sem-drive"><button type="button" data-ep-ir="">Voltar</button></div>';
       lista.querySelector("[data-ep-ir]").onclick = () => navegarPastaNossa("");
     };
   }
