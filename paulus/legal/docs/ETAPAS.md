@@ -1975,3 +1975,28 @@ lugar da lista do Acervo (que já usa esse nome) — virou
 fora (`src/acesso/politicas.py`); "ficha catalográfica" no meio de uma frase
 era lida como o começo da ficha; o registro da bibliotecária ("CRB-9/1234")
 tinha barra antes da barra do autor.
+
+## M3 — A ponte doutrina ↔ lei: o Código anotado ✓ FEITA
+
+- `src/biblioteca/anotacoes.py`: na indexação, cada citação com instrumento
+  ("art. 18 do CDC") achada num trecho do material vira anotação do artigo,
+  em `<material>/biblioteca.db` — com a página e a frase, conferida por
+  `alinhar.py` no pedaço do arquivo de onde o trecho saiu. Sem instrumento
+  não liga ("como visto no art. 18"). Tirar o material tira as anotações.
+- Na tela da lei (painel "Citar a lei"), cada artigo mostra **"Na biblioteca
+  do escritório"**: obra, autor, edição, ano, página, um trecho de até 300
+  caracteres e "abrir na página" (o PDF do escritório no visor, na página).
+  Artigo sem obra: "nenhuma obra da biblioteca cita este artigo".
+- Na pergunta que cita o artigo com o instrumento, os trechos anotados são a
+  terceira lista da RRF.
+- Chave `biblioteca.anotacoes`, ligada de fábrica depois do portão.
+
+**Medido:** as 26 anotações das duas obras da demonstração, conferidas à mão
+contra o PDF: página certa em 26, **zero** ligação a código errado. Perguntas
+por dispositivo: **Recall@6 1,0** (antes 0,83). Ruído 0,0. Roteiro 40/41 (=
+controle).
+
+**O que a verificação achou:** a frase do título "4.1 O art. 18 do CDC" casava
+primeiro no sumário, e a página saía a 3 (agora confere dentro do trecho); no
+PDF a citação quebra de linha ("art. 421 do Código⏎Civil") e perdia o
+instrumento — a quebra simples vira espaço, do mesmo tamanho.

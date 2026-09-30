@@ -8,7 +8,7 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
 | M0 | Levantamento + conjunto da biblioteca | feita | ver git log (m0) | base: R@6 0,581 · MRR@6 0,543 · ruído 0,375 · sinônimo 1/7 · acerto 32/44 · roteiro 41/41 |
 | M1 | Material no pipeline híbrido (regime C) | feita | ver git log (m1) | R@6 0,839 · ruído 0,375 · sinônimo 4/7 · τ 0,625 · roteiro 40/41 (= controle) |
 | M2 | Triagem, ficha e as leis que faltam | feita | ver git log (m2) | ruído 0,0 · 5 fichas, 0 campo errado · CDC em PDF = Planalto · 50 artigos sorteados conferem |
-| M3 | Ponte doutrina ↔ lei (Código anotado) | pendente | — | — |
+| M3 | Ponte doutrina ↔ lei (Código anotado) | feita | ver git log (m3) | 26 anotações conferidas à mão: 26 páginas certas, 0 código errado · dispositivo R@6 1,0 · roteiro 40/41 |
 | M4 | Resposta em camadas | pendente | — | — |
 | M5 | Leitura em segundo plano (glossário e teses) | pendente | — | — |
 | M6 | Aviso de obra anterior à redação | pendente | — | — |
@@ -154,6 +154,25 @@ Um trecho do material entra na pergunta quando:
 inteiro, fica o τ que dá o **maior Recall@6 − ruído**, entre os que têm
 ruído menor ou igual ao da linha de base. Empate: o τ maior (o mais
 conservador). Nenhuma pergunta é olhada sozinha.
+
+## M3 — o que foi medido e decidido
+
+- **Adaptação:** não há "tela da lei" própria; a seção "Na biblioteca do
+  escritório" entra no cartão de cada artigo do painel "Citar a lei" (os 5
+  primeiros resultados) e, na M7, na tela Biblioteca.
+- **Adaptação:** "30 anotações sorteadas de uma obra real" virou "todas as 26
+  anotações das duas obras fictícias", conferidas por quem escreveu o código
+  (gabarito em `tests/test_m3_anotacoes.py`). Com obras reais, conferir de
+  novo.
+- "abrir na página": o PDF do escritório abre num diálogo com o visor de PDF
+  do programa (`/api/material/{id}/arquivo#page=N`).
+- `regras_leis` passou a ler "art. 1.228" como 1.228 (antes, art. 1 sem
+  código): sem isso, doutrina de Código Civil perdia as anotações dos artigos
+  de quatro dígitos.
+- **Limitação conhecida da regra de cobertura** (de antes, mantida): pergunta
+  curta de documento de cliente pode casar com um trecho de obra por duas
+  palavras ("comprador" ~ "compra" pelo radical de 6 letras, e "contrato").
+  No conjunto o ruído medido é 0; não foi ajustada olhando uma pergunta só.
 
 ## Fora do foco
 

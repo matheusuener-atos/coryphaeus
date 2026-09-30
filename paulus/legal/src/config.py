@@ -177,7 +177,10 @@ PADRAO: dict = {
     # ruido a mais; M2: a triagem e a ficha, 0 campo errado).
     # `anotacoes` (M3): cada artigo que uma obra cita, com o instrumento, vira
     # anotacao do artigo - na tela da lei e na pergunta que cita o artigo.
-    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": False},
+    # `camadas` (M4): a resposta em blocos rotulados (LEI, SUMULAS, DOUTRINA,
+    # COMUNIDADE, REGRA DA CASA, DOCUMENTOS), marca [Tn] com a origem, e a
+    # frase de doutrina dita como lei atribuida ao autor.
+    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

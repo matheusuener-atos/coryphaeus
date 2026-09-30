@@ -374,6 +374,8 @@ class Estado:
             MATERIAL_DIR, hibrida=lambda: bool(self.prefs.dados.get("biblioteca", {}).get("hibrida")),
             vetorizador=self.vetorizador_do_material, ceder=lambda: self.fila_modelo.ceder(limite_s=600),
             chaves=lambda: self.prefs.dados.get("biblioteca") or {})
+        # As leis em casa, para a camada LEI da resposta (src/biblioteca/camadas.py).
+        self.material.leis = self.leis
         # A foto de quem usa e a logo do escritorio (docs/ui, A13).
         self.marca = marca_mod.Marca(MARCA_DIR)
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
