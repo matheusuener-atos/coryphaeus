@@ -405,6 +405,8 @@ _declarar(BLOQUEADO, "GET /api/maquina/perfil", "POST /api/maquina/perfil/vulkan
 _declarar(PERMITIDO, "POST /api/captura/conferir")
 # --- L9: materiais entre advogados (src/comunidade.py): le o site e prepara o envio - so no escritorio.
 _declarar(BLOQUEADO, "GET /api/comunidade/materiais", "POST /api/comunidade/materiais/{slug}/trazer", "POST /api/comunidade/preparar")
+# --- L10: a vigencia de um artigo (src/vigencia.py): leitura, como as leis.
+_declarar(PERMITIDO, "GET /api/leis/vigencia")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")

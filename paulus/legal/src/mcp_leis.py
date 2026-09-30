@@ -95,6 +95,16 @@ FERRAMENTAS_DO_ESCRITORIO = {
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string"}, "numero": {"type": "string"}}, "additionalProperties": False},
     },
+    "vigencia_do_artigo": {
+        "publica": True,
+        "description": "Como estava um artigo de lei numa data: cada dispositivo (caput, parágrafos, incisos) vigente, "
+                       "revogado, ainda não incluído ou com redação anterior, e o histórico das mudanças, pelas notas do "
+                       "compilado do Planalto. Não traz o texto da redação anterior.",
+        "inputSchema": {"type": "object", "properties": {
+            "codigo": {"type": "string"}, "numero": {"type": "string"},
+            "data": {"type": "string", "description": "AAAA-MM-DD; sem ela, hoje"}},
+            "required": ["codigo", "numero"], "additionalProperties": False},
+    },
     "acervo_documentos": {
         "publica": False,
         "description": "Lista os documentos do escritório que esta conexão pode ler (só os do escopo liberado).",
@@ -301,6 +311,23 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
             return "Nenhum tema do STJ com isso (Portal de Dados Abertos do STJ).", False
         return "\n\n".join(f"{t['rotulo']} — {t['situacao']} ({t['orgao']})\nQuestão: {t['questao']}"
                             + (f"\nTese firmada: {t['tese']}" if t['tese'] else "\nAinda sem tese firmada.") for t in achados), False
+    if nome == "vigencia_do_artigo":
+        import vigencia
+        from datetime import date as _date
+
+        a = estado.leis.artigo(str(argumentos.get("codigo", "")).lower(), str(argumentos.get("numero", "")))
+        if not a:
+            return "Artigo não encontrado nos códigos guardados neste PAULUS.", True
+        quando = str(argumentos.get("data") or _date.today().isoformat())[:10]
+        try:
+            _date.fromisoformat(quando)
+        except ValueError:
+            return "A data vai como AAAA-MM-DD.", True
+        r = vigencia.do_artigo(a, quando)
+        linhas = [f"{r['citacao']} em {quando}: {r['resumo']}"]
+        linhas += [f"- {d['rotulo']}: {d['na_data']['frase']}" for d in r["dispositivos"] if d["notas"] or d["diferente"]]
+        linhas.append(r["limites"])
+        return "\n".join(linhas), False
     if nome == "posicao_da_casa":
         p = estado.posicoes.obter(str(argumentos.get("codigo", "")).lower(), str(argumentos.get("numero", "")))
         return (p["texto"] if p else "O escritório não escreveu a posição dele sobre esse artigo."), False

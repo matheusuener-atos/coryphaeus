@@ -99,12 +99,17 @@ async function procurarLei() {
     (a.texto.length > 620 ? "…" : "") + "</p>" +
     '<div class="linha-form">' +
     '<button data-citar="' + i + '">Inserir a citação</button>' +
-    '<button data-transcrever="' + i + '">Inserir com o texto</button></div>' +
+    '<button data-transcrever="' + i + '">Inserir com o texto</button>' +
+    // L10: como estava numa data (js/71-vigencia.js).
+    (typeof vigenciaDoArtigo === "function" ? '<button data-vigencia="' + i + '">' + ic("history", 16) + "Vigência</button>" : "") + "</div>" +
     '<div class="lei-biblioteca" data-lei-bib="' + i + '" hidden></div>' +
     '<div class="lei-biblioteca" data-lei-pos="' + i + '" hidden></div></div>').join("") + "</div>";
 
   alvo.querySelectorAll("[data-citar]").forEach((b) => {
     b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.citar)], false);
+  });
+  alvo.querySelectorAll("[data-vigencia]").forEach((b) => {
+    b.onclick = () => vigenciaDoArtigo(lei.achados[Number(b.dataset.vigencia)]);
   });
   alvo.querySelectorAll("[data-transcrever]").forEach((b) => {
     b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.transcrever)], true);

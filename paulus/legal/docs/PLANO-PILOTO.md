@@ -22,7 +22,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | feito | `tests/test_l7_mcp.py` |
 | L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | feito | `tests/test_l8_captura.py` |
 | L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | feito | `tests/test_l9_materiais.py` |
-| L10 | Lei com vigência: histórico de cada artigo e o texto vigente numa data (pelo ano da lei) | pendente | `tests/test_l10_vigencia.py` |
+| L10 | Lei com vigência: histórico de cada artigo e o texto vigente numa data (pelo ano da lei) | feito | `tests/test_l10_vigencia.py` |
 
 O que cada etapa fez, decidiu e mediu fica numa seção abaixo, na ordem.
 
@@ -307,3 +307,29 @@ Sem servidor novo e sem custo: o site do PAULUS publica uma lista curada
 
 **Medido:** `tests/test_l9_materiais.py` 21 ok (com o site de mentira no
 programa, e a página de verdade servida localmente no Edge).
+
+## L10 — lei com vigência (30/09/2026)
+
+- **O histórico de cada artigo, dispositivo por dispositivo**
+  (`src/vigencia.py`): o texto guardado (uma linha só) é separado em caput,
+  parágrafos, incisos e alíneas (o "§ 1º" de uma referência no meio da frase
+  não vira parágrafo), e cada um ganha as notas do Planalto — redação dada,
+  incluído, revogado, renumerado, vide, vetado — com a lei e a data (o dia,
+  quando a nota traz; senão, o ano).
+- **A situação numa data**: antes de o código vigorar (tabela do início da
+  vigência de cada código), ainda não existia, revogado, vetado, redação
+  anterior e vigente; e **incerto** quando a lei só tem o ano e a data cai
+  nesse ano. O resumo compara com hoje ("estava como hoje" ou quais
+  dispositivos estavam diferentes).
+- **Onde aparece**: o botão **Vigência** em cada artigo achado (Citar artigo),
+  com a data escolhida e "o que mudou, na ordem"; a ferramenta pública
+  `vigencia_do_artigo` no MCP (L7); a rota `GET /api/leis/vigencia`.
+
+**O que não dá, e a tela diz:** o texto da redação anterior (o compilado do
+Planalto quase nunca o guarda — o CDC não traz nenhum), e a vacatio legis
+das leis que mudaram (a data que vale é a da lei). Não é o motor completo de
+vigência: é o histórico pelas notas, com esses dois limites à vista.
+
+**Medido:** `tests/test_l10_vigencia.py` 20 ok (texto montado e os códigos
+de verdade: CDC 39, CC 1.368-C, CC 421, CC 206, CPC 1.015; MCP; o diálogo no
+Edge).
