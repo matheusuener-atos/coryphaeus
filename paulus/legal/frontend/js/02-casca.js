@@ -1,8 +1,8 @@
 /* ------------------------------------------------------------- casca */
 /*
    O menu abre ao passar o mouse no trilho e fecha ao sair dele - por cima do
-   conteudo, sem empurrar nada. Esc fecha. Ctrl+K leva ao campo de pedido de
-   qualquer tela; Ctrl+N abre uma conversa nova.
+   conteudo, sem empurrar nada. Esc fecha. Ctrl+K abre a busca de tudo
+   (js/50-busca.js); Ctrl+N abre uma conversa nova.
 */
 
 /* ------------------------------------------------------------- a janela */
@@ -446,8 +446,7 @@ document.addEventListener("keydown", (e) => {
   const tecla = e.key.toLowerCase();
   if (tecla === "k") {
     e.preventDefault();
-    const busca = $("bib-termo");
-    if (busca) { busca.focus(); busca.select(); return; }
+    if (typeof abrirBusca === "function") { if (bsc.aberta) fecharBusca(); else abrirBusca(); return; }
     if ($("compositor").hidden) $("nova").click();
     $("pedido").focus();
   } else if (tecla === "n") {

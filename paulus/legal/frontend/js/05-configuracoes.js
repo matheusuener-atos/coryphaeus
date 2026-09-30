@@ -1039,7 +1039,7 @@ function secaoAparencia() {
   const atalho = (rotulo, teclas) => '<div class="cfg-atalho"><span>' + esc(rotulo) + '</span><span class="cfg-teclas">' +
     teclas.map((t) => "<span>" + esc(t) + "</span>").join("") + "</span></div>";
   const atalhos = '<div class="cfg-linhas">' +
-    atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Ir para a busca do Acervo ou para o pedido", ["Ctrl", "K"]) + atalho("Salvar alterações, em Configurações", ["Ctrl", "S"]) +
+    atalho("Nova conversa", ["Ctrl", "N"]) + atalho("Buscar em tudo: telas, ações, clientes, serviços, documentos", ["Ctrl", "K"]) + atalho("Salvar alterações, em Configurações", ["Ctrl", "S"]) +
     atalho("Ir para Assistente", ["Ctrl", "1"]) + atalho("Ir para Agenda", ["Ctrl", "2"]) + atalho("Ir para Acervo", ["Ctrl", "3"]) +
     atalho("Fechar menus e painéis soltos", ["Esc"]) +
     atalho("Aprovar marcados, em Aprovações", ["Ctrl", "Enter"]) +

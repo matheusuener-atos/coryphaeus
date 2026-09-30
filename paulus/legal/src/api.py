@@ -10152,6 +10152,97 @@ def horas_cobrar(id_: int, dados: CobrarHoras, request: Request) -> dict:
     return {"lancamento_id": lid, **_horas_para_tela(id_, request)}
 
 
+# ------------------------------------------------------------ busca geral
+# A busca de tudo (Ctrl+K, js/50-busca.js): as telas e acoes a tela ja sabe;
+# aqui, os dados do escritorio que casam com o termo. De fora, cada fonte so
+# entra se a pessoa ve o modulo (acesso/permissoes.py), e servicos, tarefas,
+# agenda, gravacoes e Acervo ja vem filtrados pela regra dos colaboradores.
+
+def _sem_acento(texto: str) -> str:
+    import unicodedata
+
+    return "".join(c for c in unicodedata.normalize("NFD", str(texto or "").lower()) if unicodedata.category(c) != "Mn")
+
+
+def _modulos_visiveis() -> set[str] | None:
+    """Os modulos que a pessoa de fora ve; None = a janela do servidor (todos)."""
+    from acesso import permissoes
+
+    sessao = equipe.pessoa_da_vez()
+    if sessao is None:
+        return None
+    niveis = sessao.get("permissoes") or permissoes.efetivas(sessao.get("papel", ""), {})
+    return {m["id"] for m in permissoes.MODULOS if niveis.get(m["id"], m["padrao"]) != permissoes.NAO}
+
+
+@app.get("/api/busca")
+def busca_geral(q: str = "") -> dict:
+    termo = " ".join(str(q or "").split())[:80]
+    if len(termo) < 2:
+        return {"itens": []}
+    palavras = _sem_acento(termo).split()
+    casa = lambda *textos: all(p in _sem_acento(" ".join(str(t or "") for t in textos)) for p in palavras)  # noqa: E731
+    ve = _modulos_visiveis()
+    pode = lambda m: ve is None or m in ve  # noqa: E731
+    like = f"%{termo}%"
+    itens: list[dict] = []
+    ROTULO_CAD = {"cliente": "Cliente", "colaborador": "Equipe", "socio": "Equipe · sócio", "despesa": "Despesa fixa"}
+
+    if pode("cadastros"):
+        for f in estado.cadastros.listar():
+            if casa(f.get("nome"), f.get("documento"), f.get("email"), f.get("telefone"), f.get("observacao")):
+                itens.append({"tipo": "cadastro", "id": f["id"], "titulo": f["nome"], "cadastro_tipo": f.get("tipo", ""),
+                              "caminho": "Cadastros › " + ROTULO_CAD.get(f.get("tipo", ""), "Cadastro"),
+                              "detalhe": " · ".join(x for x in (f.get("documento"), f.get("email")) if x)})
+                if sum(1 for i in itens if i["tipo"] == "cadastro") >= 6:
+                    break
+    if pode("servicos"):
+        for s in estado.servicos.listar():
+            if casa(s.get("nome"), s.get("cliente_nome"), s.get("descricao")):
+                itens.append({"tipo": "servico", "id": s["id"], "titulo": s["nome"], "caminho": "Serviços",
+                              "detalhe": " · ".join(x for x in (s.get("cliente_nome"), s.get("status_rotulo")) if x)})
+                if sum(1 for i in itens if i["tipo"] == "servico") >= 6:
+                    break
+    if pode("acervo"):
+        n = 0
+        for d in estado.searcher.documents:
+            if casa(d.name):
+                pasta = Path(d.path).parent.name
+                itens.append({"tipo": "documento", "id": d.name, "titulo": d.name, "caminho": "Acervo", "detalhe": pasta})
+                n += 1
+                if n >= 6:
+                    break
+    if pode("tarefas"):
+        linhas = estado.base.buscar("SELECT id, titulo, prazo, concluida, servico_id, lista FROM tarefas WHERE titulo LIKE ? "
+                                    "ORDER BY concluida, prazo LIMIT 20", (like,))
+        n = 0
+        for t in linhas:
+            if servicos_acesso.visivel(t.get("servico_id")) and casa(t["titulo"]):
+                itens.append({"tipo": "tarefa", "id": t["id"], "titulo": t["titulo"], "caminho": "Agenda › To-do",
+                              "prazo": t.get("prazo") or "", "concluida": bool(t.get("concluida")),
+                              "detalhe": " · ".join(x for x in (t.get("lista"), ("prazo " + t["prazo"]) if t.get("prazo") else "",
+                                                                 "concluída" if t.get("concluida") else "") if x)})
+                n += 1
+                if n >= 6:
+                    break
+    if pode("gravacoes"):
+        for g in estado.gravacoes.listar(termo=termo)[:6]:
+            itens.append({"tipo": "gravacao", "id": g["id"], "titulo": g.get("titulo") or "Gravação", "caminho": "Gravações",
+                          "detalhe": " · ".join(x for x in (g.get("cliente_nome"), g.get("servico_nome")) if x)})
+    if pode("financeiro"):
+        for l in estado.base.buscar("SELECT id, descricao, vencimento, tipo FROM lancamentos WHERE descricao LIKE ? "
+                                    "ORDER BY vencimento DESC LIMIT 6", (like,)):
+            itens.append({"tipo": "lancamento", "id": l["id"], "titulo": l["descricao"], "caminho": "Financeiro",
+                          "detalhe": ("recebimento" if l.get("tipo") == "recebimento" else "despesa") +
+                          (" · vence " + l["vencimento"] if l.get("vencimento") else "")})
+    if ve is None:
+        for p in estado.base.buscar("SELECT id, processo, tipo, tribunal, orgao, data FROM publicacoes WHERE processo LIKE ? "
+                                    "OR orgao LIKE ? OR texto LIKE ? ORDER BY data DESC LIMIT 6", (like, like, like)):
+            itens.append({"tipo": "publicacao", "id": p["id"], "titulo": (p.get("tipo") or "Publicação") + " · " + (p.get("processo") or ""),
+                          "caminho": "Agenda › To-do › Publicações", "detalhe": " · ".join(x for x in (p.get("tribunal"), p.get("orgao")) if x)})
+    return {"itens": itens}
+
+
 # ------------------------------------------------------------------ saude
 # A saude do PAULUS e o diagnostico para o suporte (src/saude.py, P2). So na
 # janela do servidor.

@@ -343,13 +343,16 @@ def main() -> int:
                 ", ".join(faltando),
             )
 
-            # Aceite da fase 0 do desenho: Ctrl+K leva ao campo de pedido.
+            # Ctrl+K abre a busca de tudo (js/50-busca.js), com o campo focado; Esc fecha.
             pagina.keyboard.press("Control+K")
             pagina.wait_for_timeout(200)
             checar(
-                pagina.evaluate("() => document.activeElement && document.activeElement.id") == "pedido",
-                "Ctrl+K foca a caixa de pedido",
+                pagina.evaluate("() => document.activeElement && document.activeElement.id") == "bsc-campo",
+                "Ctrl+K abre a busca de tudo, com o campo focado",
             )
+            pagina.keyboard.press("Escape")
+            pagina.wait_for_timeout(150)
+            checar(pagina.evaluate("() => !document.getElementById('bsc-veu')"), "Esc fecha a busca")
 
             print("\nprimeira abertura")
             # Com uma query nova: so trocar o hash nao recarrega a pagina, e o

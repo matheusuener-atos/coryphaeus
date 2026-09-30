@@ -167,6 +167,8 @@ _declarar(PERMITIDO,
           "POST /api/email/enviar", "GET /api/email/envios", "GET /api/email/anexaveis",
           # Google: enviar ao Drive ja e pedido na fila
           "POST /api/google/drive/enviar",
+          # a busca geral (Ctrl+K): filtra pelos modulos que a pessoa ve
+          "GET /api/busca",
           # servicos: ver e conversar sobre eles
           "GET /api/servicos", "GET /api/servicos/{id_}", "GET /api/servicos/{id_}/horas", "POST /api/servicos/{id_}/resumo",
           "POST /api/servicos/{id_}/conversar",
