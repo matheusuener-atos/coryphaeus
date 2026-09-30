@@ -4049,6 +4049,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             cobertura["como"]["escrita"] = (escrita_no_aparelho.resumo() if escrita_no_aparelho is not None
                                             else {"onde": "escritorio", "motivo": motivo_do_escritorio,
                                                   "conferida": False, "pacote": False})
+            # D3: na resposta retomada, a parte do escritorio e o que veio depois do parcial.
+            pedacos = cobertura["como"]["escrita"].get("partes") or []
+            if len(pedacos) == 2 and pedacos[1]["onde"] == "escritorio":
+                pedacos[1]["caracteres"] = max(0, len("".join(partes).strip()) - pedacos[0]["caracteres"])
         oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(

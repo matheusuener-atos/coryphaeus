@@ -580,13 +580,19 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     # mensagens que iriam ao modelo - menos os lembretes do escritorio. O
     # texto que volta passa pelas mesmas conferencias daqui para baixo, e
     # antes pela do aparelho (`conferir`); reprovado, o escritorio escreve.
-    do_aparelho = yield from _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho, por_trechos)
+    do_aparelho, parcial = yield from _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho,
+                                                            por_trechos)
     escrito = []
     if do_aparelho is not None:
         escrito.append(do_aparelho)
         yield evento("token", t=do_aparelho)
     elif not (getattr(ctx, "parar", None) and ctx.parar()):
-        for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra):
+        # D3: o aparelho parou no meio e o que escreveu passou na conferência:
+        # o escritório continua dali, e nao do zero.
+        if parcial:
+            escrito.append(parcial)
+            yield evento("token", t=parcial)
+        for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra, continuar=parcial):
             if tipo == "token":
                 escrito.append(dados.get("t", ""))
             elif tipo == "truncou":
@@ -708,10 +714,13 @@ def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, respost
 
 
 def _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho, por_trechos):
-    """O texto do aparelho, se ele escreveu e passou na conferencia; senao None (o escritorio escreve)."""
+    """
+    (o texto do aparelho, conferido, ou None; o parcial conferido de onde o
+    escritorio continua, ou ""). None e "": o escritorio escreve do zero.
+    """
     escrita = getattr(ctx, "escrita_no_aparelho", None)
     if escrita is None:
-        return None
+        return None, ""
     import llama_client
 
     agente = getattr(ctx, "agente_instrucoes", "") or ""
@@ -725,27 +734,39 @@ def _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho,
                               por_trechos=por_trechos, parametros=parametros)
     if pedido is None:
         ctx.registrar("Escrevi no escritório: " + escrita.motivo)
-        return None
+        return None, ""
     ctx.registrar("Mandei os trechos para o seu aparelho escrever")
     yield evento("aparelho", **pedido)
     volta = escrita.esperar(parar=getattr(ctx, "parar", None))
     texto = (volta.get("texto") or "").strip()
     if volta.get("estado") == "parado":
-        return None
+        return None, ""
     if volta.get("estado") == "devolvido" and texto:
-        ok, motivo = escrita.conferir(texto, fontes)
-        if ok:
+        ok, conferido, motivo = escrita.conferir(texto, fontes)
+        if ok and conferido:
             escrita.conferida = True
+            escrita.partes = [{"onde": "aparelho", "caracteres": len(conferido)}]
             yield evento("aparelho_fim", onde="aparelho", motivo="")
-            return texto
+            return conferido, ""
         escrita.voltou_ao_escritorio("conferência reprovou")
         ctx.registrar("O texto do aparelho não passou na conferência (" + motivo + "): escrevi aqui")
+        yield evento("aparelho_fim", onde="escritorio", motivo=escrita.motivo)
+        return None, ""
+    escrita.voltou_ao_escritorio("o aparelho não terminou" if volta.get("estado") in ("abandonado", "vencido", "sem_sinal")
+                                 else "o escritório desligou a escrita no aparelho")
+    # O que o aparelho já tinha escrito passa pela mesma conferência; passou,
+    # o escritório continua dali.
+    parcial = (volta.get("parcial") or "").strip()
+    if parcial:
+        ok, conferido, _ = escrita.conferir(parcial, fontes)
+        parcial = conferido if ok and conferido == parcial else ""
+    if parcial:
+        escrita.partes = [{"onde": "aparelho", "caracteres": len(parcial)}, {"onde": "escritorio", "caracteres": 0}]
+        ctx.registrar("O aparelho parou no meio: continuei aqui a partir do que ele escreveu")
     else:
-        escrita.voltou_ao_escritorio("o aparelho não terminou" if volta.get("estado") in ("abandonado", "vencido")
-                                     else "o escritório desligou a escrita no aparelho")
         ctx.registrar("O aparelho não terminou: escrevi aqui")
-    yield evento("aparelho_fim", onde="escritorio", motivo=escrita.motivo)
-    return None
+    yield evento("aparelho_fim", onde="escritorio", motivo=escrita.motivo, continuou=bool(parcial))
+    return None, parcial
 
 
 def _com_regra(ctx: Contexto, regra: str) -> str:
@@ -780,7 +801,7 @@ def _quantos(n: int, palavra: str) -> str:
     return f"{n} {palavra if n == 1 else palavra + 's'}"
 
 
-def _pedacos(ctx: Contexto, pergunta: str, contexto: str, regra: str = ""):
+def _pedacos(ctx: Contexto, pergunta: str, contexto: str, regra: str = "", continuar: str = ""):
     """
     O cliente entrega por callback; aqui vira iterador de eventos.
 
@@ -799,6 +820,8 @@ def _pedacos(ctx: Contexto, pergunta: str, contexto: str, regra: str = ""):
             on_fase=lambda fase, dados: empurrar((fase, dados)),
             parar=parar,
             **_da_conversa(ctx, historico=True),
+            # D3: o que o aparelho ja escreveu, e o modelo continua dali.
+            **({"continuar": continuar} if continuar else {}),
         )
 
     for item in Ponte(trabalho, parar=parar):

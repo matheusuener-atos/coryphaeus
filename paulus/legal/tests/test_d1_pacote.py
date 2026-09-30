@@ -281,14 +281,15 @@ def test_api() -> None:
                "o conteúdo sai uma vez só")
         checar(rui.post(f"/api/aparelho/pacote/{pid}/devolver", json={"assinatura": ass, "texto": "x"}).status_code == 403,
                "devolver de outra sessão: recusa")
-        r = helena.post(f"/api/aparelho/pacote/{pid}/devolver", json={"assinatura": ass, "texto": "A multa é de 10%."})
+        # Um número que não está nos trechos: a conferência (D3) reprova.
+        r = helena.post(f"/api/aparelho/pacote/{pid}/devolver", json={"assinatura": ass, "texto": "A multa é de 99%."})
         checar(r.status_code == 200, "a Helena devolve o texto")
         checar(helena.post(f"/api/aparelho/pacote/{pid}/devolver", json={"assinatura": ass, "texto": "de novo"}).status_code == 409,
                "devolver de novo: recusa (já usado)")
         m = fim(c, helena)
         esc = m["cobertura"]["como"]["escrita"]
         checar(esc["onde"] == "escritorio" and esc["motivo"] == "conferência reprovou" and "Escrita no escritório" in m["texto"],
-               "até a D3, a conferência reprova: o escritório reescreveu, e a resposta diz por quê", esc)
+               "número fora dos trechos: a conferência reprova, o escritório reescreve, e a resposta diz por quê", esc)
         checar(len(ollama.chamadas) == n0 + 1 and ollama.chamadas[-1].dados.get("messages"),
                "o escritório chamou o modelo uma vez, depois de o aparelho devolver")
 

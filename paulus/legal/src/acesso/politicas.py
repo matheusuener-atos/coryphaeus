@@ -372,7 +372,8 @@ _declarar(BLOQUEADO, "GET /api/fila")
 _declarar(PERMITIDO, "GET /motor/wllama-3.6.1/{arquivo}", "GET /motor/trabalhador.js", "GET /api/aparelho/modelo",
           "GET /api/aparelho/modelo/{sha}/parte/{n}", "POST /api/aparelho/capacidade")
 _declarar(PERMITIDO, "GET /api/aparelho/estado", "GET /api/aparelho/pacote/{pid}",
-          "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar")
+          "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar",
+          "POST /api/aparelho/pacote/{pid}/pedaco")
 
 # --- o documento fotografado pelo celular (ideia E do umbrelOS): de fora, a
 # rota nao grava no Acervo - guarda a foto a parte e pede em Aprovacoes

@@ -355,9 +355,14 @@ class LlamaClient:
         parar: Callable[[], bool] | None = None,
         tarefa: str = "",
         historico: list[dict] | None = None,
+        continuar: str = "",
     ) -> str:
         """
         Pergunta com contexto de contratos.
+
+        `continuar` (D3, pensar no aparelho): o comeco da resposta que o
+        aparelho ja escreveu; vai como a ultima mensagem do assistente, e o
+        modelo continua dali - devolve so a continuacao.
 
         `historico` sao os pares anteriores da conversa, como mensagens do
         chat (src/memoria.py): vao entre a instrucao e a pergunta de agora.
@@ -374,6 +379,8 @@ class LlamaClient:
         nome do arquivo era inventado.
         """
         messages = montar_mensagens(question, context, sistema=sistema, ensinado=ensinado, historico=historico)
+        if continuar:
+            messages.append({"role": "assistant", "content": continuar})
         # `parar` so vai quando existe: quem troca o `_chat` num teste nao
         # precisa conhecer o argumento.
         extra = {"parar": parar} if parar else {}

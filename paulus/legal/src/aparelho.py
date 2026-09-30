@@ -26,9 +26,13 @@ Como a pergunta anda:
    a execução espera o texto por até `VALIDADE_S`. O evento da execução - que
    fica no disco - leva só o id e a assinatura do pacote; o conteúdo sai pela
    rota, para a mesma sessão que pediu, uma vez.
-5. O texto que volta é tratado como não confiável: `conferir` decide. Até a
-   D3 existir, ela reprova tudo - e a resposta é refeita no escritório. Nada
-   do aparelho é gravado sem passar pela conferência.
+5. O texto que volta é tratado como não confiável: `conferir`
+   (src/aparelho_conferencia.py, D3) decide. Reprovou: o escritório reescreve.
+6. Retomada (D3): o aparelho manda o texto parcial enquanto escreve
+   (`/pedaco`). Abandonou, venceu ou ficou `SILENCIO_S` sem sinal: o
+   escritório continua a partir do parcial - se ele passar na mesma
+   conferência -, ou escreve do zero. A resposta diz onde cada parte foi
+   escrita.
 """
 
 from __future__ import annotations
@@ -46,6 +50,9 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
 VALIDADE_S = 600
+# Sem sinal do aparelho (nem pedir o pacote, nem mandar pedaço) por este tempo:
+# a aba fechou ou o aparelho ficou sem rede - o escritório termina.
+SILENCIO_S = 45
 # O orçamento da busca por trechos (src/recuperacao.py): 3.000 tokens, a 3
 # caracteres por token. O pacote nunca passa disso.
 ORCAMENTO_CARACTERES = 3000 * 3
@@ -174,6 +181,9 @@ class Escrita:
         self.onde = "escritorio"
         self.motivo = ""
         self.conferida = False
+        self.pergunta = ""
+        # Onde cada parte da resposta foi escrita (D3): [{"onde", "caracteres"}].
+        self.partes: list[dict] = []
 
     # ------------------------------------------------------------ montar
     def preparar(self, *, pergunta: str, mensagens: list[dict], fontes: list[dict], hits, caminho: str,
@@ -203,6 +213,7 @@ class Escrita:
             self.motivo = "trechos demais para mandar ao aparelho"
             return None
         agora = time.time()
+        self.pergunta = pergunta
         self.pid = uuid.uuid4().hex
         expira = agora + VALIDADE_S
         with _trava:
@@ -212,7 +223,7 @@ class Escrita:
                 "conteudo": {"pergunta": pergunta, "mensagens": mensagens, "trechos": trechos,
                              "parametros": parametros, "expira_s": VALIDADE_S},
                 "documentos": list(dict.fromkeys(t["documento"] for t in trechos)),
-                "chegou": threading.Event(), "texto": "", "parcial": "",
+                "chegou": threading.Event(), "texto": "", "parcial": "", "sinal": agora,
             }
         # A vez do modelo volta para a fila: quem escreve agora é o aparelho.
         import fila_modelo
@@ -235,6 +246,9 @@ class Escrita:
             if time.time() > reg["expira"] or not ligado(self.estado):
                 self._encerrar("vencido" if ligado(self.estado) else "desligado")
                 return {"estado": reg["estado"], "parcial": reg.get("parcial", "")}
+            if time.time() - reg.get("sinal", 0) > SILENCIO_S:
+                self._encerrar("sem_sinal")
+                return {"estado": "sem_sinal", "parcial": reg.get("parcial", "")}
         return {"estado": reg["estado"], "texto": reg.get("texto", ""), "parcial": reg.get("parcial", "")}
 
     def _encerrar(self, como: str) -> None:
@@ -244,13 +258,19 @@ class Escrita:
                 reg["estado"] = como
 
     # ---------------------------------------------------------- conferir
-    def conferir(self, texto: str, fontes: list[dict]) -> tuple[bool, str]:
+    def conferir(self, texto: str, fontes: list[dict]) -> tuple[bool, str, str]:
         """
-        O texto do aparelho é não confiável. D1: a conferência do escritório
-        para ele ainda não existe (é a D3) - reprova tudo, e a resposta é
-        refeita no escritório.
+        O texto do aparelho é não confiável (D3, src/aparelho_conferencia.py):
+        (passou, o texto conferido, o motivo quando reprovou).
         """
-        return False, "a conferência do texto do aparelho ainda não existe"
+        import aparelho_conferencia
+
+        r = aparelho_conferencia.conferir(texto, [f.get("texto", "") for f in fontes], self.pergunta)
+        if r["removidas"]:
+            auditar(self.estado, self.pessoa, "a conferência tirou do texto do aparelho: " + "; ".join(r["removidas"][:5]))
+        if not r["ok"]:
+            auditar(self.estado, self.pessoa, "texto do aparelho reprovado na conferência: " + "; ".join(r["motivos"]))
+        return r["ok"], r["texto"], "; ".join(r["motivos"])
 
     def voltou_ao_escritorio(self, motivo: str) -> None:
         self.onde = "escritorio"
@@ -258,7 +278,8 @@ class Escrita:
 
     def resumo(self) -> dict:
         """O que fica na resposta: onde foi escrita e por quê (D4 mostra)."""
-        return {"onde": self.onde, "motivo": self.motivo, "conferida": self.conferida, "pacote": bool(self.pid)}
+        return {"onde": self.onde, "motivo": self.motivo, "conferida": self.conferida, "pacote": bool(self.pid),
+                "partes": self.partes}
 
 
 # ------------------------------------------------------------- a porta
@@ -271,6 +292,11 @@ class Devolver(BaseModel):
 class Abandonar(BaseModel):
     assinatura: str
     parcial: str = ""
+
+
+class Pedaco(BaseModel):
+    assinatura: str
+    texto: str = ""
 
 
 def _pacote_da_sessao(pid: str, assinatura: str, request) -> dict:
@@ -307,6 +333,7 @@ def montar(estado, app, dados_dir) -> None:
             if reg["estado"] != "pronto":
                 raise HTTPException(status_code=409, detail="esse pacote já foi entregue")
             reg["estado"] = "entregue"
+            reg["sinal"] = time.time()
         auditar(estado, reg["pessoa"], f"recebeu {len(reg['conteudo']['trechos'])} trecho(s) de "
                                        f"{', '.join(reg['documentos']) or 'nenhum documento'} para escrever "
                                        f"({reg['aparelho']})")
@@ -322,6 +349,17 @@ def montar(estado, app, dados_dir) -> None:
             reg["texto"] = str(payload.texto or "")[:20000]
             reg["chegou"].set()
         auditar(estado, reg["pessoa"], f"devolveu o texto ({len(reg['texto'])} caracteres, {reg['aparelho']})")
+        return {"recebido": True}
+
+    @app.post("/api/aparelho/pacote/{pid}/pedaco")
+    def aparelho_pedaco(pid: str, payload: Pedaco, request: Request = None) -> dict:
+        """O texto que o aparelho já escreveu (o inteiro até aqui): é dele que o escritório continua, se precisar."""
+        reg = _pacote_da_sessao(pid, payload.assinatura, request)
+        with _trava:
+            if reg["estado"] != "entregue":
+                raise HTTPException(status_code=409, detail="esse pacote já foi usado")
+            reg["parcial"] = str(payload.texto or "")[:20000]
+            reg["sinal"] = time.time()
         return {"recebido": True}
 
     @app.post("/api/aparelho/pacote/{pid}/abandonar")

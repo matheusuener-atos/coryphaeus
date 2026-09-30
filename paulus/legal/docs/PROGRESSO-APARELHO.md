@@ -10,7 +10,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | F1 | Fila dentro da conversa, fila única, Ctrl+Enter | feita; chave `aparelho.fila` desligada de fábrica — ⏸ o dono decide se seguimos | ver git log (f1) | `tests/test_f1_fila.py` 49 ok (ordem, pendente, 429, Ctrl+Enter com e sem liberação, auditoria, e-mail na mesma fila, Edge) |
 | D1 | O pacote e a porta | feita; chave `aparelho.ligado` desligada de fábrica | ver git log (d1) | `tests/test_d1_pacote.py` 30 ok |
 | D2 | O motor no navegador | feita (com a D2b: o 3B em partes) | ver git log (d2, d2b) | `tests/test_d2_motor.py` 30 ok; o 3B de verdade no Edge: carrega em 23 s, 4,3 tokens/s, resposta certa |
-| D3 | Conferência no escritório e retomada | pendente | | |
+| D3 | Conferência no escritório e retomada | feita | ver git log (d3) | `tests/test_d3_conferencia.py` 9 ok |
 | D4 | O switch e a tela | pendente | | |
 | D5 | O que o titular controla | pendente | | |
 | D6 | Política, manual e teste real | pendente | | |
@@ -285,6 +285,37 @@ de exemplo em 4,4 s. No perfil anônimo do Edge de teste não carrega (ele não
 guarda Blob grande em disco nem dá cota ao Cache Storage): o teste real da D6
 tem de ser num navegador normal. `tests/test_d2_motor.py` 30 ok, com o
 gguf-split de verdade dividindo o 3B desta máquina em 4 s.
+
+## D3 — conferência e retomada (30/09/2026)
+
+**A conferência** (`src/aparelho_conferencia.py`), com as funções que já
+conferem as respostas do escritório - nenhuma cópia: marca para trecho que
+não foi mandado reprova (`citacoes.revisar`); lei, súmula, artigo ou CNJ fora
+dos trechos sai do texto (`citacoes.revisar`, regra 3); número (valor, data,
+percentual, prazo, CPF, CNPJ, CNJ) que não está nos trechos nem na pergunta
+reprova (`molde.numeros_de`; a numeração de lista e as marcas [Tn] não
+contam); link e e-mail estranhos saem (`blindagem.tirar_estranhos`). Depois
+dela, o texto passa pelo mesmo caminho do escritório (`_responder`). O que
+reprovou e o que saiu vão para a auditoria.
+
+**Decisão:** as conferências de marca e de número são mais estritas que as
+que o escritório aplica ao próprio texto de fábrica (`ia.citacao` e a cerca
+vêm desligadas; números só no nível 0). Ligá-las para o texto do escritório
+mudaria respostas medidas no roteiro; ficou só para o texto do aparelho.
+
+**A retomada.** O aparelho manda o texto parcial enquanto escreve
+(`POST /api/aparelho/pacote/{id}/pedaco`). Abandonou, venceu ou ficou 45 s
+sem sinal (`SILENCIO_S`): o parcial passa pela mesma conferência; passou, o
+escritório continua dali - vai ao modelo como o começo da resposta do
+assistente (o Ollama continua: medido com `"1, 2, 3, 4,"` → `" 5, 6, 7, 8, 9,
+10."`, `LlamaClient.ask(continuar=...)`); não passou, escreve do zero. A
+resposta guarda onde cada parte foi escrita (`como.escrita.partes`).
+
+**Medido:** `tests/test_d3_conferencia.py` 9 ok (número inventado e marca
+inexistente refeitos; lei inventada tirada e o resto fica do aparelho;
+aprovado igual ao mandado; sumiu no meio: parcial + continuação, com as
+partes; parcial com número inventado: do zero; auditoria). A D1 passou a
+devolver um número inventado para conferir a reprovação.
 
 ## Fora do foco
 

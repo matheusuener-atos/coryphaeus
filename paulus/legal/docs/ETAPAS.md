@@ -2435,3 +2435,11 @@ O gguf-split do llama.cpp b11292 (hashes fixos, em src/bin) divide o modelo
 em partes de 512 MB, conferidas pelo hash nos dois lados. O 3B de verdade
 carrega no Edge (23 s) e escreve a 4,3 tokens/s. **Medido:**
 `tests/test_d2_motor.py` 30 ok.
+
+## D3 — Conferência no escritório e retomada ✓ FEITA (30/09/2026)
+
+O texto do aparelho passa pelas conferências do escritório (marcas, lei fora
+dos trechos, números, links) antes de gravar; reprovado, o escritório
+reescreve. Se o aparelho some, o escritório continua do parcial conferido,
+e a resposta diz onde cada parte foi escrita. **Medido:**
+`tests/test_d3_conferencia.py` 9 ok.
