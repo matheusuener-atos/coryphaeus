@@ -1,18 +1,36 @@
 {
   "releases": [
     {
+      "version": "0.9.21",
+      "date": "2026-09-30",
+      "changes": [
+        "L10: a vigência de cada artigo, dispositivo por dispositivo, pelas notas do Planalto, com os limites ditos",
+        "Acerto da L9 e da L2: a barra de abas da Biblioteca rola no celular, e os testes de tela conhecem as abas…",
+        "L9: materiais entre advogados - a página no site, Da comunidade na Biblioteca e o envio com conferência de…",
+        "L8: captura pelo celular - foto tremida e escura avisadas na prévia, destino no Serviço e o que a leitura…",
+        "L7: o MCP além das leis - súmulas e temas do STJ, e o Acervo só leitura com escopo por conexão e o entendi…",
+        "L6: perfil da máquina por faixa de hardware (NVIDIA, AMD por ROCm ou Vulkan, Intel Arc, integrada,…",
+        "L5: fundamentação sugerida no editor, temas repetitivos oficiais do STJ no instalador e a posição da casa…",
+        "L4: tarefas de vários passos (contratos vencendo, revisar contra o padrão da casa) com ponto de restauração",
+        "L3: a mesma entidade com nomes diferentes, parte contrária, aviso de conflito com a muralha ética e tudo…",
+        "L2: acompanhamento de processos pelo DataJud - movimentação nova vira aviso e o prazo sugerido espera em…",
+        "L1: 👍/👎 em cada resposta, o caderno de falhas e a correção que vira caso de teste",
+        "D2c: o aparelho escolhe o modelo sozinho (o configurado, o do escritório ou o maior que cabe no…"
+      ]
+    },
+    {
       "version": "0.9.20",
       "date": "2026-09-30",
       "changes": [
         "A resposta da conversa não se perde ao fechar ou recarregar a janela, e uma conversa não mexe mais na outra",
-        "Enquanto pensa, a conversa diz o que faz numa linha só; o “ver detalhes” fica guardado com a resposta",
+        "Enquanto pensa, a conversa diz o que faz numa linha só",
         "O painel da conversa descreve a resposta escolhida, e rascunho, escopo e rolagem ficam com cada conversa",
-        "A tela inicial cumprimenta de acordo com a hora, o dia, o calendário e o que está pendente, sem repetir a f…",
+        "A tela inicial cumprimenta de acordo com a hora, o dia, o calendário e o que está pendente, sem repetir a…",
         "Tela inicial: os avisos do dia num carrossel, com a Central de avisos e o histórico do que foi visto",
-        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde CPF…",
+        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde…",
         "Os agentes do escritório entram na conversa: por @nome ou pelo pedido, com as instruções abaixo das regras…",
         "Tela de agentes: criar pelo formulário ou a partir de uma conversa, testar, ver versões e medir cada agente",
-        "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a ve…",
+        "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a…",
         "Configurações › Assistente e modelo liga e desliga cada função nova da conversa",
         "A cerca da blindagem do e-mail pode valer também para os documentos lidos na conversa (desligada de fábrica)"
       ]
