@@ -22,6 +22,11 @@
      So abaixo de 600 px - a janela do programa nunca chega a isso (o minimo
      dela e 900). */
   @media (max-width: 600px) {
+    /* C3: no celular o painel vem fechado e abre como folha de baixo. */
+    .painel-novo .conversa-corpo.com-lateral .lateral {
+      position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 72vh; margin: 0;
+      border-radius: 16px 16px 0 0; overflow-y: auto; z-index: 40; box-shadow: var(--elev-float);
+    }
     :root { --margem-lado: 16px; --margem-topo: 16px; }
     .corpo { flex-direction: column; }
     .conversa-col { order: 1; flex: 1; min-height: 0; }

@@ -72,3 +72,14 @@ const estado = {
   saindo: false,
 };
 
+/* As chaves da conversa (docs/PROGRESSO-CONVERSA.md), lidas pela casca em
+   /api/preferencias. Aqui, e nao no arquivo de cada etapa, porque o codigo
+   que roda na abertura (antes dos arquivos seguintes) ja as consulta. */
+function painelNovo() {
+  return Boolean((window.PAULUS_CONVERSA || {}).painel);
+}
+
+function diagnostico() {
+  return Boolean((window.PAULUS_CONVERSA || {}).diagnostico);
+}
+

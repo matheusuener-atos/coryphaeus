@@ -414,7 +414,7 @@ function desenharTrabalho() {
       pergunta = m.texto;
       html += bolhaPessoa(m.texto, varias ? m.quem : "");
     } else {
-      html += blocoResposta(m, pergunta, i === t.mensagens.length - 1);
+      html += blocoResposta(m, pergunta, i === t.mensagens.length - 1, i);
       if (m.fontes && m.fontes.length) { fontes = m.fontes; perguntaDasFontes = pergunta; }
     }
   });
@@ -431,7 +431,9 @@ function desenharTrabalho() {
   const botaoRetomar = $("centro").querySelector("[data-retomar]");
   if (botaoRetomar) botaoRetomar.onclick = retomarTrabalho;
   desenharProgresso(t.etapas || []);
-  desenharTrechos(fontes, perguntaDasFontes, null);
+  // C3: o painel descreve uma resposta (a ultima com fontes, ou a clicada).
+  if (painelNovo()) selecionarResposta(respostaPadrao(t));
+  else desenharTrechos(fontes, perguntaDasFontes, null);
   desenharAtividade(t.atividade);
   atualizarPostura();
   rolar();
@@ -483,8 +485,8 @@ function cartaoGuardado(m, ultima) {
     cartaoProposta(p) + "</div>";
 }
 
-function blocoResposta(m, pergunta, ultima) {
-  let html = '<div class="resposta">';
+function blocoResposta(m, pergunta, ultima, indice) {
+  let html = '<div class="resposta"' + (indice !== undefined ? ' data-msg="' + indice + '"' : "") + ">";
   if (m.cobertura && ((m.cobertura.ignorados && m.cobertura.ignorados.length) || m.cobertura.ignorados_n)) {
     html += avisoCobertura(m.cobertura);
   }
@@ -623,6 +625,9 @@ function linhaDeEstadoInicial() {
 }
 
 function mudarLinhaDeEstado(resposta, texto) {
+  // C3: a barra acima do campo repete o que esta acontecendo, com o Parar.
+  if (texto) estado.linhaViva = texto;
+  if (painelNovo()) desenharBarra();
   const el = resposta && resposta.querySelector(".linha-estado");
   if (!el) return;
   if (!texto) { el.remove(); return; }
@@ -648,6 +653,11 @@ function detalhesGuardados(linhas) {
    conta, que abre o painel, e a caixa onde o visor do PDF se desenha. */
 function blocoFontes(fontes, cobertura) {
   const quantos = cobertura && cobertura.consultados ? cobertura.consultados.length : 1;
+  // C3: a conta de trechos fica na assinatura; aqui, so o botao.
+  if (painelNovo()) {
+    return '<div class="fontes"><button data-ver-trechos="1">' + ic("format_quote", 16) + "ver fontes</button></div>" +
+      '<div class="visor-caixa"></div>';
+  }
   return '<div class="fontes"><button data-ver-trechos="1">' + ic("format_quote", 16) +
     plural(fontes.length, "trecho") + " de " + plural(quantos, "documento") + " — ver no painel</button></div>" +
     '<div class="visor-caixa"></div>';
@@ -699,6 +709,9 @@ function ligarResposta(caixa) {
   });
   caixa.querySelectorAll("[data-ver-trechos]").forEach((b) => {
     b.onclick = () => {
+      // C3: "ver fontes" numa resposta mostra as fontes DAQUELA resposta.
+      const r = b.closest(".resposta");
+      if (painelNovo() && r && r.dataset.msg !== undefined) { selecionarResposta(Number(r.dataset.msg), true); return; }
       try { localStorage.setItem("paulus.lateral", "1"); } catch (err) { /* sem memoria */ }
       mostrarLateral(true);
       alternarRamo($("lat-trechos-cabeca"), true);
@@ -710,10 +723,12 @@ function ligarResposta(caixa) {
 /* Os trechos citados, no painel da direita, numerados. Clicar num trecho
    marca-o; "ver no documento" abre a pagina do PDF na conversa, com o trecho
    destacado - e o visor de sempre, so mudou de onde e chamado. */
-function desenharTrechos(fontes, pergunta, ondeVisor) {
+function desenharTrechos(fontes, pergunta, ondeVisor, numeros) {
   const bloco = $("lat-trechos");
   const lista = $("lat-trechos-lista");
   if (!fontes || !fontes.length) { bloco.hidden = true; lista.innerHTML = ""; return; }
+  // `numeros`: o [Tn] de cada fonte, quando o painel mostra so as citadas (C3).
+  const numero = (i) => (numeros && numeros[i]) || i + 1;
 
   bloco.hidden = false;
   $("lat-trechos-conta").textContent = fontes.length;
@@ -736,7 +751,7 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
     '<div class="arv-filhos" hidden>' + indices.map((i) => {
       const f = fontes[i];
       return '<div class="arv-ramo">' +
-        '<button class="arv-no arv-trecho" aria-expanded="false">' + seta + '<span class="cit">' + (i + 1) + "</span>" +
+        '<button class="arv-no arv-trecho" aria-expanded="false">' + seta + '<span class="cit">' + numero(i) + "</span>" +
         '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span></button>" +
         '<div class="arv-filhos arv-folha" hidden><div class="trecho-texto">' + esc(f.texto) + "</div>" +
         /* Material de consulta nao esta no Acervo: o visor nao o abre. */
@@ -798,7 +813,8 @@ $("lat-trechos-cabeca").onclick = () => alternarRamo($("lat-trechos-cabeca"));
 /* O progresso do plano, no painel: a lista de etapas do sistema (.lat-etapa). */
 function desenharProgresso(etapas) {
   const bloco = $("lat-progresso");
-  if (!etapas || !etapas.length) { bloco.hidden = true; return; }
+  // C3: o progresso mora na linha de estado, e nao no painel.
+  if (painelNovo() || !etapas || !etapas.length) { bloco.hidden = true; return; }
   bloco.hidden = false;
   const feitas = etapas.filter((e) => e.estado === "concluido").length;
   // C2: o painel conta como o cartao ("etapa k de n"), com a conta do servidor.
@@ -884,6 +900,8 @@ function ligarAprovacaoNaConversa(caixa) {
 }
 
 function desenharAtividade(itens) {
+  // C3: a barra acima do campo diz o que vai acontecer com a proxima pergunta.
+  if (painelNovo()) { desenharBarra(); return; }
   const caixa = $("registro");
   if (!itens || !itens.length) {
     caixa.hidden = true;
@@ -1384,7 +1402,12 @@ async function pararResposta() {
    conversa parada - sem nova bolha, sem mexer no que esta escrito no campo. */
 async function enviar(opcoes) {
   const o = opcoes && opcoes.texto ? opcoes : {};
-  if (estado.ocupado) return;
+  if (estado.ocupado) {
+    // C3: diz por que nao foi, e oferece esperar a vez.
+    const texto = (o.texto || $("pedido").value).trim();
+    if (painelNovo() && texto) avisarOcupado(texto);
+    return;
+  }
   // Enviar com ditado aberto ou pendente: primeiro o texto ditado entra no campo.
   if (!o.retomar && ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
   const pedido = (o.texto || $("pedido").value).trim();
@@ -1421,8 +1444,11 @@ async function enviar(opcoes) {
   if (!o.retomar) {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
+    if (painelNovo()) gravarNaConversa(estado.trabalhoId, { rascunho: "", anexos: [] });
   }
   atualizarSelo(true);
+  estado.linhaViva = "";
+  if (painelNovo()) desenharBarra();
 
   const centro = $("centro");
   if (!o.retomar) centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
@@ -1511,8 +1537,13 @@ async function enviar(opcoes) {
         .then((r) => r.json())
         // O botao espera o estado de verdade: o Retomar marca a conversa como
         // "executando" na tela, e sem isto ele ficava em "parar" depois do fim.
-        .then((t) => { estado.trabalho = t; desenharAtividade(t.atividade); desenharProgresso(t.etapas || []); atualizarBotaoEnviar(); });
+        .then((t) => {
+          estado.trabalho = t; desenharAtividade(t.atividade); desenharProgresso(t.etapas || []); atualizarBotaoEnviar();
+          // C3: a resposta que acabou de chegar passa a ser a do painel.
+          if (painelNovo() && estado.trabalhoId === t.id) { marcarRespostasGuardadas(t); selecionarResposta(respostaPadrao(t)); }
+        });
     }
+    if (painelNovo()) { estado.linhaViva = ""; desenharBarra(); setTimeout(soltarEspera, 0); }
     rolar();
     $("pedido").focus();
     if (reinscrever && estado.trabalho) vigiarTrabalhoEmCurso(estado.trabalho);
@@ -1782,8 +1813,13 @@ async function acompanharExecucao(t, execucao) {
     carregarTrabalhos();
     if (estado.trabalhoId === minha) {
       fetch("/api/trabalhos/" + minha).then((r) => r.json())
-        .then((novo) => { if (estado.trabalhoId !== minha) return; estado.trabalho = novo; desenharAtividade(novo.atividade); desenharProgresso(novo.etapas || []); atualizarBotaoEnviar(); });
+        .then((novo) => {
+          if (estado.trabalhoId !== minha) return;
+          estado.trabalho = novo; desenharAtividade(novo.atividade); desenharProgresso(novo.etapas || []); atualizarBotaoEnviar();
+          if (painelNovo()) { marcarRespostasGuardadas(novo); selecionarResposta(respostaPadrao(novo)); }
+        });
     }
+    if (painelNovo()) { estado.linhaViva = ""; desenharBarra(); setTimeout(soltarEspera, 0); }
     if (reinscrever && estado.trabalho) vigiarTrabalhoEmCurso(estado.trabalho);
   }
 }
@@ -1861,6 +1897,8 @@ function alternarModoDoEscopo() {
   const ordem = (estado.foco || []).length ? MODOS_DO_ESCOPO : ["acervo", "perguntar"];
   estado.modoEscopo = ordem[(ordem.indexOf(modoDoEscopo()) + 1) % ordem.length];
   desenharEscopo();
+  // C3: o modo e da conversa, e fica no servidor.
+  guardarModoNoServidor();
 }
 
 /* O que a pergunta leva, dos anexos e do modo. */
@@ -1892,6 +1930,7 @@ function desenharEscopo() {
   const caixa = $("escopo");
   if (!caixa) return;
   atualizarPropriedades();
+  if (painelNovo() && !estado.ocupado) desenharBarra();
   caixa.hidden = false;
 
   if (!estado.escopo.length) {
@@ -2047,6 +2086,7 @@ async function carregarStatus() {
     estado.contratos = s.contratos;
     estado.modelo = s.modelo || "";
     estado.trechos = s.trechos || 0;
+    estado.motor = s.motor && s.motor.host ? "Ollama · " + s.motor.host + (s.motor.rodando ? "" : " (desligado)") : "";
     estado.pasta = s.pasta || "";
     /* O subtitulo e de quem esta na tela. O status chega de tempos em tempos e
        escrevia por cima de qualquer tela aberta: a Agenda dizia "17 documentos
@@ -2164,6 +2204,11 @@ async function carregarModelo() {
 
 /* O painel Propriedades: modelo, motor, o que esta em foco e o indice. */
 function atualizarPropriedades() {
+  // C3: motor, trechos indexados e pasta sao dado tecnico - so no modo de
+  // diagnostico, e o motor vem de /api/status (nao do texto fixo do HTML).
+  const props = $("lat-propriedades");
+  if (props) props.hidden = painelNovo() && !diagnostico();
+  if (estado.motor) $("prop-motor").textContent = estado.motor;
   $("prop-modelo-nome").textContent = estado.modelo || "—";
   let pasta = "—";
   const foco = estado.escopo.length ? estado.escopo : (modoDoEscopo() === "foco" ? estado.foco : []);

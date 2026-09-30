@@ -128,6 +128,8 @@ _declarar(PERMITIDO,
           "POST /api/trabalhos/{id_}/parar", "POST /api/trabalhos/{id_}/perguntar",
           # C1: a inscricao na resposta que roda sem a janela (src/execucoes.py).
           "GET /api/execucoes/{id_}/eventos", "GET /api/trabalhos/{id_}/execucao",
+          # C3: o escopo de cada conversa e a busca no texto delas (src/rotas_conversa.py).
+          "POST /api/trabalhos/{id_}/escopo", "GET /api/conversas/buscar",
           "POST /api/buscar-agora",
           # o acervo: ver, buscar, o trecho citado, a pagina
           "GET /api/documentos-abertos", "GET /api/biblioteca", "POST /api/biblioteca/citacao",

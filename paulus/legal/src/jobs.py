@@ -130,10 +130,13 @@ class Trabalho:
                 return i
         return len(self.etapas)
 
-    def registrar(self, texto: str, *, limite: int = 40) -> None:
+    def registrar(self, texto: str, *, limite: int = 40, mexer_na_ordem: bool = True) -> None:
+        # `mexer_na_ordem=False` (C3, conversa.painel): uma linha de registro
+        # nao e novidade da conversa, e nao pode subi-la na lista.
         self.atividade.insert(0, Atividade(texto))
         del self.atividade[limite:]
-        self.atualizado_em = agora()
+        if mexer_na_ordem:
+            self.atualizado_em = agora()
 
     def dizer(self, autor: str, texto: str, **extras) -> Mensagem:
         msg = Mensagem(autor=autor, texto=texto, **extras)

@@ -204,8 +204,21 @@
         <section class="lateral-bloco" id="lat-trechos" hidden>
           <!-- Arvore: fechada, e so esta linha. Abre em documentos, cada
                documento em trechos, cada trecho no texto dele. -->
-          <button class="lateral-cabeca arv-raiz" id="lat-trechos-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">expand_more</span><span class="ic ic-16">format_quote</span>Trechos citados</span><span class="contagem" id="lat-trechos-conta"></span></button>
+          <button class="lateral-cabeca arv-raiz" id="lat-trechos-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">expand_more</span><span class="ic ic-16">format_quote</span><span id="lat-trechos-titulo">Trechos citados</span></span><span class="contagem" id="lat-trechos-conta"></span></button>
           <div class="lat-lista" id="lat-trechos-lista" hidden></div>
+        </section>
+        <!-- C3: o resto de "Sobre esta resposta" (js/54-sobre-a-resposta.js). -->
+        <section class="lateral-bloco" id="lat-lidas" hidden>
+          <button class="lateral-cabeca arv-raiz" id="lat-lidas-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">expand_more</span><span class="ic ic-16">visibility</span>Também lidas</span><span class="contagem" id="lat-lidas-conta"></span></button>
+          <div class="lat-lista" id="lat-lidas-lista" hidden></div>
+        </section>
+        <section class="lateral-bloco" id="lat-como" hidden>
+          <div class="lateral-cabeca"><span><span class="ic ic-16">info</span>Como respondi</span></div>
+          <div class="propriedades" id="lat-como-lista"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-onde" hidden>
+          <div class="lateral-cabeca"><span><span class="ic ic-16">folder</span>Onde procurei</span></div>
+          <p class="lat-onde-texto" id="lat-onde-texto"></p>
         </section>
         <section class="lateral-bloco" id="lat-propriedades">
           <div class="lateral-cabeca"><span><span class="ic ic-16">tune</span>Propriedades</span></div>
@@ -346,5 +359,6 @@
 <script src="/js/50-busca.js"></script>
 <script src="/js/51-captura.js"></script>
 <script src="/js/52-chaves.js"></script>
+<script src="/js/54-sobre-a-resposta.js"></script>
 </body>
 </html>

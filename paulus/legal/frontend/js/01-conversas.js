@@ -91,7 +91,7 @@ function abrirMenu(linha) {
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return false;
-  if (id !== estado.trabalhoId) fecharEditorNaConversa();
+  if (id !== estado.trabalhoId) { fecharEditorNaConversa(); if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId); }
   largarInscricao(id);
   transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;
@@ -103,7 +103,10 @@ async function abrirTrabalho(id) {
   estado.modoEscopo = "";
   definirEscopo([]);
   definirFoco(Array.isArray(foco) ? foco : [foco]);
+  // C3: o rascunho, os anexos, o modo de escopo e a rolagem desta conversa.
+  const guardado = typeof restaurarDaConversa === "function" ? restaurarDaConversa(estado.trabalho) : null;
   desenharTrabalho();
+  if (guardado) restaurarRolagem(guardado);
   carregarTrabalhos();
   return true;
 }
@@ -143,6 +146,8 @@ $("compositor").addEventListener("scroll", () => {
 $("nova").onclick = () => {
   fecharEditorNaConversa();
   largarInscricao("");
+  if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId);
+  if (painelNovo()) $("pedido").value = "";
   lembrancaDoAssistente.trabalhoId = null;
   transicaoDeTela("inicio");
   estado.trabalhoId = null;
@@ -372,7 +377,16 @@ function desenharListaDeConversas() {
   const totalDeGrupos = grupos.size - (semGrupo.length ? 1 : 0);
   let lista;
   let pastas = [];
-  if (termo) lista = todas.filter((t) => (t.titulo || "").toLowerCase().includes(termo));
+  // C3: a busca procura tambem no texto das mensagens (o servidor diz quais).
+  if (termo && painelNovo() && estado.buscaTermo !== termo) {
+    estado.buscaTermo = termo;
+    fetch("/api/conversas/buscar?termo=" + encodeURIComponent(termo)).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d || estado.buscaTermo !== termo) return;
+      estado.buscaIds = new Set((d.conversas || []).map((c) => c.id));
+      desenharListaDeConversas();
+    }).catch(() => {});
+  }
+  if (termo) lista = todas.filter((t) => (t.titulo || "").toLowerCase().includes(termo) || (painelNovo() && estado.buscaTermo === termo && (estado.buscaIds || new Set()).has(t.id)));
   else if (lcNav.visao === "conversas") lista = todas;
   else if (lcNav.grupo) lista = grupos.get(lcNav.grupo);
   else {

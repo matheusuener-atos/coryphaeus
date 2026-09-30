@@ -2209,3 +2209,22 @@ e o Edge pelo Playwright) passa inteiro; roteiro `--tudo` 41/41.
 
 **Medido:** `tests/test_c2_pensando.py` passa inteiro (modelo simulado e o
 Edge).
+
+## C3 — Sobre esta resposta, a barra do escopo e o que é de cada conversa ✓ FEITA
+
+- O painel descreve uma resposta — a última, ou a clicada em "ver fontes":
+  fontes citadas (as marcas [Tn]), também lidas (recolhidas), como respondi e
+  onde procurei, tirados do que a resposta guardou. O Progresso sai do
+  painel; motor e índice só no modo de diagnóstico, com o motor de verdade.
+- A barra acima do campo diz onde a próxima pergunta procura; com resposta
+  andando, o que ela faz e o Parar. Uma linha de registro não sobe mais a
+  conversa na lista.
+- Rascunho, anexos, rolagem e modo de escopo ficam com cada conversa; a
+  segunda pergunta com outra respondendo diz por quê e oferece esperar a vez.
+- Celular: o painel começa fechado e abre como folha de baixo. A busca de
+  conversas acha pelo texto das mensagens.
+- Chave `conversa.painel`, ligada de fábrica; `conversa.diagnostico`,
+  desligada.
+
+**Medido:** `tests/test_c3_painel.py` passa inteiro (modelo simulado e o
+Edge, 1440 e 390 px).

@@ -9,7 +9,7 @@ que não estiver `feita`.
 | C0 | Levantamento, tabela e conversas de referência | feita | ver git log (c0) | tabela abaixo |
 | C1 | Execução desacoplada da janela | feita | ver git log (c1) | desconectar no meio não perde nada; `desde=n` exato; parcial ao fechar o programa; A não vaza na B; roteiro 41/41 |
 | C2 | A tela enquanto pensa | feita | ver git log (c2) | etapas do servidor desde o 1º evento; 0 nome na resposta salva; cartão = painel; 0 texto informativo em vermelho; Tentar de novo |
-| C3 | Painel "Sobre esta resposta", barra de escopo, estado por conversa | pendente | — | — |
+| C3 | Painel "Sobre esta resposta", barra de escopo, estado por conversa | feita | ver git log (c3) | ver fontes = daquela resposta; ≤ 1 contagem por resposta; rascunho e escopo por conversa; 390 px fechado; sem Progresso no fim |
 | C4 | Roteamento: programa e cadastros | pendente | — | — |
 | T1 | A saudação que não se repete | pendente | — | — |
 | T2 | Carrossel de avisos, Central de avisos e histórico | pendente | — | — |
@@ -148,6 +148,42 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## C3 — o que foi medido e decidido
+
+- O painel descreve **uma** resposta (`frontend/js/54-sobre-a-resposta.js`):
+  a última com fontes, ou a clicada em "ver fontes". "Fontes citadas" são as
+  marcas [Tn] do texto, com a numeração da resposta; sem marcas, o título é
+  "Trechos lidos". O que foi lido e não citado vai para "Também lidas",
+  recolhido. "Como respondi" e "Onde procurei" saem do que a resposta guardou
+  (`cobertura.como` ganhou modelo, escopo, continuação e truncou); resposta
+  antiga, sem esses campos, mostra só o que houver.
+- O Progresso sai do painel (mora na linha de estado da C2). Motor, trechos
+  indexados e pasta só com `conversa.diagnostico` (desligada); o motor vem do
+  `/api/status` (`motor.host`), e não do "127.0.0.1" fixo do HTML.
+- A barra acima do campo diz o que vai acontecer com a próxima pergunta ("A
+  próxima pergunta procura em todo o Acervo · 29 documentos"); com uma
+  resposta andando nesta conversa, o que ela faz e o Parar. A lista de
+  atividade sai dela; o registro continua em "ver detalhes".
+- `Trabalho.registrar(mexer_na_ordem=False)`: uma linha de registro não sobe
+  a conversa na lista.
+- Por conversa: rascunho, anexos pendentes e rolagem no `localStorage`
+  (`paulus.conversa.<id>`); o modo de escopo no servidor
+  (`POST /api/trabalhos/{id}/escopo`, em `contexto.modo_escopo`).
+- A segunda pergunta com outra respondendo diz "A conversa “X” ainda está
+  respondendo" e oferece "Esperar na fila": ela vai sozinha quando a primeira
+  termina. (Com a execução da C1, a pergunta numa outra conversa já vai, e a
+  fila do modelo mostra a posição.)
+- No celular (< 600 px) o painel começa fechado e abre como folha de baixo.
+- A busca de conversas procura também no texto das mensagens
+  (`GET /api/conversas/buscar`, sem acento).
+- **Adaptação:** as chaves da conversa (`painelNovo()`, `diagnostico()`)
+  ficaram em `00-base.js`: o código que roda na abertura, antes dos arquivos
+  de cada etapa, já as consulta.
+- Chave `conversa.painel`, **ligada de fábrica** depois do portão.
+
+**Medido:** `tests/test_c3_painel.py` passa inteiro (modelo simulado e o
+Edge, em 1440 e em 390 px).
 
 ## C2 — o que foi medido e decidido
 

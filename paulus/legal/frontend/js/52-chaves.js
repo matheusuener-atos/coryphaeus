@@ -30,6 +30,7 @@ async function ligarChave(bloco, chave, ligada) {
   if (bloco === "conversa") {
     window.PAULUS_CONVERSA = d.conversa;
     document.documentElement.classList.toggle("pensando", Boolean(d.conversa.pensando));
+    document.documentElement.classList.toggle("painel-novo", Boolean(d.conversa.painel));
   }
   return d;
 }

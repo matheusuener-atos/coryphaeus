@@ -93,7 +93,7 @@ def test_api_e_tela() -> None:
     habilidade = api.estado.registro.obter("perguntar")
     antes_exec, antes_prefs = habilidade.executar, dict(api.estado.prefs.dados.get("conversa") or {})
     habilidade.executar = executar_simulado
-    api.estado.prefs.dados["conversa"] = {**antes_prefs, "execucao": True, "pensando": True}
+    api.estado.prefs.dados["conversa"] = {**antes_prefs, "execucao": True, "pensando": True, "painel": False}
     porta = _porta_livre()
     _subir_servidor(porta)
     base = f"http://127.0.0.1:{porta}"

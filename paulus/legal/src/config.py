@@ -206,7 +206,11 @@ PADRAO: dict = {
     # `pensando` (C2): uma linha de estado no lugar da resposta, o "ver
     # detalhes" guardado com ela, vermelho so para erro e a lista de
     # documentos sem trecho resumida numa contagem.
-    "conversa": {"execucao": True, "pensando": True},
+    # `painel` (C3): o painel descreve UMA resposta (a ultima ou a clicada), a
+    # barra acima do campo diz onde a proxima pergunta procura, e rascunho,
+    # escopo, anexos e rolagem ficam por conversa. `diagnostico`: motor,
+    # trechos indexados e pasta no painel (desligado: e dado tecnico).
+    "conversa": {"execucao": True, "pensando": True, "painel": True, "diagnostico": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

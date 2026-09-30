@@ -102,6 +102,7 @@ import mcp_leis
 import rotas_chaves
 import execucoes as execucoes_mod
 import rotas_execucoes
+import rotas_conversa
 import detalhes as detalhes_mod
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
@@ -906,6 +907,7 @@ captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
 rotas_execucoes.montar(estado, app)
+rotas_conversa.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -1453,6 +1455,9 @@ def _motor(mensagem: str = "") -> dict:
         "tamanho": TAMANHOS_MODELO.get(nome, ""),
         "mensagem": mensagem,
         "puxando": estado.puxando or _puxando_pelo_baixador(),
+        # C3: o endereco de verdade, para o modo de diagnostico do painel (o
+        # HTML dizia "127.0.0.1" fixo, errado com outro OLLAMA_HOST).
+        "host": str(getattr(estado.client, "host", "")).replace("http://", "").replace("https://", ""),
     }
 
 
@@ -3495,7 +3500,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     if (estado.prefs.dados.get("ia") or {}).get("memoria", True):
         pergunta, historico, continuou = memoria_mod.preparar(trabalho.mensagens, trabalho.contexto, pergunta)
         if continuou:
-            trabalho.registrar("Entendi como continuação da anterior: “" + pergunta + "”")
+            trabalho.registrar("Entendi como continuação da anterior: “" + pergunta + "”",
+                               mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
 
     # Antes de sair procurando: o que a pessoa pediu? A conversa tinha um
     # caminho so, e "anote uma reuniao no calendario" virava busca pela
@@ -3583,7 +3589,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     estado.trabalhos.salvar(trabalho)
 
     def registrar(texto: str) -> None:
-        trabalho.registrar(texto)
+        trabalho.registrar(texto, mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
 
     parar = threading.Event()
     estado.respondendo[id_] = parar
@@ -3844,7 +3850,13 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # de 2 documentos, em 34 s". Fica com a resposta.
         cobertura["como"] = {"caminho": medir.get("caminho"), "trechos": medir.get("trechos", 0),
                              "documentos": len(cobertura.get("consultados") or []),
-                             "molde": bool(medir.get("molde"))}
+                             "molde": bool(medir.get("molde")),
+                             # C3: o que o painel "Sobre esta resposta" mostra
+                             # desta resposta, e nao do estado de agora.
+                             "modelo": medir.get("modelo") or "", "continuacao": bool(continuou),
+                             "escopo": {"apenas": list(citado or []), "tudo": bool(payload.tudo),
+                                        "sem_anexo": bool(payload.sem_anexo)},
+                             "truncou": bool(medir.get("truncou"))}
         oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(

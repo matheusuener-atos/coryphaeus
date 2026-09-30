@@ -476,6 +476,8 @@ $("voltar").onclick = () => $("nova").click();
 
 /* O painel da direita: guarda-se a escolha, como o desenho pede. */
 function lateralPreferida() {
+  // C3: no celular o painel vem fechado e abre como folha de baixo, pelo botao.
+  if ((window.PAULUS_CONVERSA || {}).painel && window.matchMedia && window.matchMedia("(max-width: 600px)").matches) return false;
   try { return localStorage.getItem("paulus.lateral") !== "0"; } catch (err) { return true; }
 }
 
@@ -596,6 +598,7 @@ async function carregarUsuario() {
     /* As chaves da conversa (docs/PROGRESSO-CONVERSA.md). */
     window.PAULUS_CONVERSA = p.conversa || {};
     document.documentElement.classList.toggle("pensando", Boolean(window.PAULUS_CONVERSA.pensando));
+    document.documentElement.classList.toggle("painel-novo", Boolean(window.PAULUS_CONVERSA.painel));
   } catch (err) { /* sem preferencias, fica o padrao */ }
 }
 
