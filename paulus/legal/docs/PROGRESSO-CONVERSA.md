@@ -20,6 +20,36 @@ que não estiver `feita`.
 | A3 | Tela de agentes | feita | 83999ab | 50 ok no portão; exemplos com o 3B: Triagem 3/3, Revisor 2/3 (depois ajustado, sem medir de novo) |
 | A4 | Medir os agentes | feita | 83999ab | 28 ok: teste que falha tira da escolha automática, com o aviso; a escolha manual continua |
 
+## Antes e depois
+
+| Medida | Antes (30/09, manhã) | Depois |
+| --- | --- | --- |
+| Fechar ou recarregar a janela no meio da resposta | a resposta parava e o texto se perdia | a resposta termina e fica inteira na conversa (C1) |
+| Voltar a uma conversa que ainda responde | cartão "Trabalhando" parado, sem texto | o texto que já saiu e a resposta ao vivo (C1) |
+| Programa fechado no meio | "Parado", texto perdido | o texto parcial, marcado como interrompido (C1) |
+| A resposta de uma conversa mexendo em outra | título, foco e painel trocados | nada (C1, conferido no Edge) |
+| Contagem de trechos por resposta | em até cinco lugares | no máximo um, além do painel (C3) |
+| "Sem trecho sobre isso em: …" | a lista inteira na resposta salva | a contagem; a lista recolhida, só ao vivo (C2) |
+| "Qual o CPF do cliente Matheus?" | lia ~21 documentos, ~165 s | por molde, 27 ms no máximo (C4) |
+| Títulos distintos da saudação | 5 | 130 títulos e 82 subtítulos; 30 aberturas sem repetir entre as 20 últimas (T1) |
+| Avisos do dia | espalhados, sem "visto" nem histórico | um carrossel, a Central de avisos e o histórico por pessoa (T2) |
+| Sugestão do painel de Documentos com outro documento aberto | entrava no documento aberto | só no documento que a pediu (C5) |
+| Agentes do escritório | não existiam | AGENTE.md validado e versionado, na conversa por regra, com tela e medida (A1–A4) |
+| Banco de provas (`roteiro.py --tudo`) | 40/41 a 41/41 (controle) | **41/41** na linha integrada; com a cerca da C6 ligada, 40/41 (por isso ela vem desligada) |
+
+## Fora do foco
+
+- A tela "Agentes" já existe (A3), mas ainda não entrou no mapa das telas da
+  C4 (`programa_mapa.json`): "como crio um agente?" ainda não responde pela tela.
+- `escritorio.fundacao` (T1) não tem campo em Configurações.
+- A pergunta "qual a garantia da locação da Clínica?" é frágil com o 3B: a
+  resposta certa ("3 aluguéis") às vezes vem sem a palavra "caução" (caiu com
+  a cerca ligada e no teste do agente Revisor).
+- C5: nove superfícies de IA, o texto chegando aos poucos nelas e a fila do
+  modelo para quem não passa pela execução ficaram para depois.
+- `tests/test_inteligencia_regressao.py` já falhava na `main` antes deste
+  trabalho (e continua).
+
 ## Como este trabalho está sendo feito (30/09/2026)
 
 - O dono pediu, às 05h de 30/09: "implemente agora esse .md referente ao chat
