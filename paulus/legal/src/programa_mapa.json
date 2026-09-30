@@ -1,5 +1,5 @@
 {
- "_sobre": "Mapa do programa para a conversa responder 'como faço X' sem modelo. Montado em 26/09/2026 lendo o código de cada tela; cada tarefa aponta o arquivo:linha onde o rótulo foi conferido. tests/test_programa.py confere que os rótulos citados nos passos existem no frontend. Tela nova ou botão renomeado: atualize aqui.",
+ "_sobre": "Mapa do programa para a conversa responder 'como faço X' sem modelo. Montado em 26/09/2026 lendo o código de cada tela; cada tarefa aponta o arquivo:linha onde o rótulo foi conferido. tests/test_programa.py confere que os rótulos citados nos passos existem no frontend. Tela nova ou botão renomeado: atualize aqui. C4 (30/09/2026): tela ou pergunta com \"c4\": true, e os apelidos_c4 / apelidos_fora_c4, só valem com a chave conversa.roteamento; termo de palavras que começa com \"=\" só casa escrito assim, junto.",
  "telas": [
   {
    "destino": "conversa",
@@ -244,6 +244,41 @@
       "Na Agenda, clique em Sincronizar, no topo (aparece com a Agenda do Google conectada)."
      ],
      "evidencia": "frontend/js/07-agenda.js:194"
+    },
+    {
+     "pergunta": "Como calculo um prazo processual?",
+     "palavras": [
+      "calcular prazo",
+      "calculo um prazo",
+      "calculo o prazo",
+      "prazo processual",
+      "contar prazo",
+      "conto o prazo",
+      "prazo em dias uteis"
+     ],
+     "passos": [
+      "Abra Agenda e clique em To-do, no topo.",
+      "Clique em Calcular prazo (ou aperte Ctrl+K e escolha Calcular prazo).",
+      "Informe a data (da disponibilização ou da intimação), os dias e a contagem, e clique em Calcular.",
+      "Confira a conta e, se quiser, clique em Criar a tarefa: ela entra na lista Prazos."
+     ],
+     "evidencia": "frontend/js/07-agenda.js:585",
+     "c4": true
+    },
+    {
+     "pergunta": "Como vejo a semana na Agenda?",
+     "palavras": [
+      "=ver a semana",
+      "=vejo a semana",
+      "visao semana",
+      "semana na agenda",
+      "agenda da semana"
+     ],
+     "passos": [
+      "Abra Agenda e clique em Semana, no topo (ou em Mês, para o mês inteiro, e em To-do, para as tarefas)."
+     ],
+     "evidencia": "frontend/js/07-agenda.js:189",
+     "c4": true
     }
    ]
   },
@@ -439,6 +474,24 @@
       "Clique em Salvar."
      ],
      "evidencia": "frontend/js/07-agenda.js:1000"
+    },
+    {
+     "pergunta": "Como vejo só as tarefas de uma lista, como Prazos?",
+     "palavras": [
+      "lista de prazos",
+      "lista prazos",
+      "=minhas listas",
+      "=ver uma lista",
+      "=vejo uma lista",
+      "tarefas de uma lista"
+     ],
+     "passos": [
+      "Abra Agenda e clique em To-do, no topo.",
+      "Em Minhas listas, clique no nome da lista. A lista Prazos recebe os prazos criados pela calculadora e pelas publicações.",
+      "Para outra lista, clique em Nova lista: ela passa a existir com a primeira tarefa."
+     ],
+     "evidencia": "frontend/js/07-agenda.js:558",
+     "c4": true
     }
    ]
   },
@@ -673,6 +726,9 @@
      ],
      "evidencia": "frontend/js/12-telas-e-acervo.js:478"
     }
+   ],
+   "apelidos_fora_c4": [
+    "biblioteca"
    ]
   },
   {
@@ -1767,6 +1823,40 @@
       "Clique em Salvar (Restaurar padrão volta ao mais cauteloso)."
      ],
      "evidencia": "frontend/js/04-aprovacoes.js:483"
+    },
+    {
+     "pergunta": "Onde vejo o que já aprovei ou recusei?",
+     "palavras": [
+      "ja aprovei",
+      "=o que aprovei",
+      "ja recusei",
+      "=o que recusei",
+      "historico de aprovacoes",
+      "decisoes de hoje"
+     ],
+     "passos": [
+      "Abra Aprovações no menu à esquerda.",
+      "Logo abaixo de Esperando você fica o Histórico: as decisões de hoje, com o resultado."
+     ],
+     "evidencia": "frontend/js/04-aprovacoes.js:260",
+     "c4": true
+    },
+    {
+     "pergunta": "Por que um pedido foi parar em Aprovações?",
+     "palavras": [
+      "por que foi para aprovacoes",
+      "foi parar em aprovacoes",
+      "por que pede aprovacao",
+      "precisa de aprovacao",
+      "o que vai para aprovacoes"
+     ],
+     "passos": [
+      "Tudo o que tem efeito fora do programa (enviar e-mail, assinar, mover, exportar ou apagar arquivos) espera o seu sim em Aprovações.",
+      "Clique no pedido para ver o que vai sair e se dá para desfazer.",
+      "Em Regras de alçada você escolhe o que o assistente pode fazer sem pedir."
+     ],
+     "evidencia": "frontend/js/04-aprovacoes.js:193",
+     "c4": true
     }
    ]
   },
@@ -1957,7 +2047,7 @@
     "preferências"
    ],
    "faz": [
-    "Seções: Meus dados, Assistente e modelo, Desempenho, Conexões, Escritório e vínculos, Aprendizado, Aparência e avisos, Feedback, Apoio e versão e Lixeira.",
+    "Seções: Meus dados, Assistente e modelo, Modelos, Desempenho, Conexões, Acesso de fora, Escritório e equipe, Backup, Biblioteca, Aparência e avisos, Módulos, Feedback, Apoio e versão e Lixeira.",
     "Assistente e modelo: escolhe o modelo do Ollama, liga “Ir devagar quando eu usar o PC”, define os Limites da IA e reindexa o Acervo.",
     "Na Lixeira os itens apagados ficam por 30 dias e podem ser restaurados.",
     "As mudanças só valem depois de Salvar alterações (ou Ctrl+S).",
@@ -2210,7 +2300,7 @@
     "ensinar com pdf"
    ],
    "faz": [
-    "Fica em Configurações › Aprendizado.",
+    "Fica em Configurações › Biblioteca.",
     "Material de consulta: guarda PDFs, DOCX, TXT e MD nesta máquina e, em cada pergunta da conversa, consulta os trechos que têm a ver, citando o material e a página.",
     "Guarda lembretes que entram em toda pergunta da conversa; as regras de redação também entram quando o assistente escreve no editor.",
     "Lê um PDF, DOCX, TXT ou MD e propõe um lembrete; guardar continua sendo um clique seu.",
@@ -2234,7 +2324,7 @@
       "aprender com arquivo"
      ],
      "passos": [
-      "Abra Configurações e clique em Aprendizado.",
+      "Abra Configurações e clique em Biblioteca.",
       "No cartão Material de consulta, clique em Escolher arquivos, ou arraste os PDFs para o quadro.",
       "Pergunte na conversa: os trechos do material que têm a ver entram na resposta, com o nome e a página."
      ],
@@ -2251,7 +2341,7 @@
       "lembrete para o assistente"
      ],
      "passos": [
-      "Abra Configurações e clique em Aprendizado.",
+      "Abra Configurações e clique em Biblioteca.",
       "No cartão Lembretes, clique em Escrever lembrete.",
       "Preencha Título e “O que eu devo saber” e escolha onde guardar.",
       "Clique em Guardar. O lembrete já vale na próxima pergunta."
@@ -2266,12 +2356,94 @@
       "lembrete de arquivo"
      ],
      "passos": [
-      "Abra Configurações e clique em Aprendizado.",
+      "Abra Configurações e clique em Biblioteca.",
       "Arraste um PDF, DOCX, TXT ou MD para a área indicada, ou clique em Escolher arquivo.",
       "Confira a proposta de lembrete e clique em Guardar."
      ],
      "evidencia": "frontend/js/05-configuracoes.js:890"
+    },
+    {
+     "pergunta": "Como coloco um livro ou manual na Biblioteca?",
+     "palavras": [
+      "colocar livro",
+      "coloco um livro",
+      "livro de doutrina",
+      "doutrina na biblioteca",
+      "manual na biblioteca",
+      "colocar na biblioteca",
+      "adicionar livro",
+      "livro na biblioteca",
+      "obra de doutrina"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Biblioteca.",
+      "No cartão Material de consulta, clique em Escolher arquivos, ou arraste os arquivos (PDF, DOCX, TXT ou MD) para o quadro.",
+      "Quando aparecer a etiqueta “conferir a ficha”, confira título, autor, edição e ano.",
+      "Nas perguntas da conversa, os trechos que têm a ver entram na resposta, com a obra e a página."
+     ],
+     "evidencia": "frontend/js/35-material.js:44",
+     "c4": true
+    },
+    {
+     "pergunta": "Como confiro a ficha de um livro da Biblioteca (autor, edição, ano)?",
+     "palavras": [
+      "conferir a ficha",
+      "confiro a ficha",
+      "ficha do livro",
+      "ficha da obra",
+      "edicao do livro",
+      "autor do livro"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Biblioteca.",
+      "No cartão Material de consulta, clique no … da linha e escolha Conferir a ficha.",
+      "Corrija o que precisar e clique em Guardar a ficha: o que você escreve vale sobre o que o PAULUS leu."
+     ],
+     "evidencia": "frontend/js/35-material.js:279",
+     "c4": true
+    },
+    {
+     "pergunta": "Como importo um pacote de material de outro PAULUS?",
+     "palavras": [
+      "importar pacote",
+      "importo um pacote",
+      "pacote de material",
+      "=paulus-material",
+      "material de outro"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Biblioteca.",
+      "No cartão Material de consulta, clique em Importar pacote e escolha o arquivo .paulus-material.",
+      "Ele entra como material da comunidade, marcado como não revisado por este escritório."
+     ],
+     "evidencia": "frontend/js/35-material.js:42",
+     "c4": true
+    },
+    {
+     "pergunta": "Como vejo de que áreas a Biblioteca tem material?",
+     "palavras": [
+      "areas da biblioteca",
+      "=que areas",
+      "material de cada area",
+      "cobertura da biblioteca",
+      "=o que o paulus sabe"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Biblioteca.",
+      "O cartão O que eu sei (aparece com a Biblioteca ligada) mostra as áreas, com os códigos de lei instalados e as obras de cada uma.",
+      "Pergunta de uma área que não está ali é respondida pelos documentos, com o aviso de que falta material."
+     ],
+     "evidencia": "frontend/js/35-material.js:96",
+     "c4": true
     }
+   ],
+   "apelidos_c4": [
+    "biblioteca",
+    "biblioteca do escritorio",
+    "biblioteca do escritório",
+    "livros",
+    "doutrina",
+    "obras de doutrina"
    ]
   },
   {
@@ -2479,6 +2651,470 @@
       "Escolha onde salvar o PDF."
      ],
      "evidencia": "frontend/js/09-apoiar.js:138"
+    }
+   ]
+  },
+  {
+   "destino": "publicacoes",
+   "c4": true,
+   "apelidos": [
+    "publicacoes",
+    "publicações",
+    "publicacoes do djen",
+    "publicações do djen",
+    "publicacoes do dje",
+    "publicações do dje",
+    "dje",
+    "djen",
+    "diario oficial",
+    "diário oficial",
+    "diario da justica",
+    "diário da justiça",
+    "diario de justica",
+    "diário de justiça",
+    "busca no dje",
+    "busca no djen",
+    "consulta ao dje",
+    "consulta ao djen"
+   ],
+   "faz": [
+    "Fica em Agenda › To-do, no filtro Publicações (só no computador do escritório).",
+    "Consulta o Diário de Justiça Eletrônico Nacional (DJEN) pelas OABs acompanhadas: a de Meus dados e as que você acrescentar em OABs.",
+    "Com Consultar todo dia ligado, consulta uma vez por dia, com o PAULUS aberto; Consultar agora consulta na hora.",
+    "Cada comunicação nova aparece em Novas, com o tipo, o processo, o tribunal e a data de disponibilização.",
+    "Criar prazo conta os dias a partir da publicação e cria a tarefa na lista Prazos, com a conta na anotação para você conferir.",
+    "Só o número e a UF da OAB saem deste computador, na consulta ao CNJ."
+   ],
+   "nao_faz": [
+    "De fora do escritório (Acesso de fora), o filtro Publicações não aparece.",
+    "Criar prazo não protocola nada: só cria a tarefa."
+   ],
+   "tarefas": [
+    {
+     "pergunta": "Como vejo as publicações do DJEN?",
+     "palavras": [
+      "=ver publicacoes",
+      "=ver as publicacoes",
+      "=vejo as publicacoes",
+      "publicacoes do djen",
+      "publicacoes do dje",
+      "=intimacoes do dje",
+      "=intimacoes do djen",
+      "=intimacoes do diario",
+      "intimacoes publicadas",
+      "diario oficial",
+      "intimacoes do dje",
+      "busca no dje"
+     ],
+     "passos": [
+      "Abra Agenda e clique em To-do, no topo.",
+      "Na coluna da esquerda, clique em Publicações: as novas ficam em Novas; Lidas e Todas mostram o resto.",
+      "Clique numa publicação para ler o texto; Marcar como lida a tira de Novas.",
+      "Ou aperte Ctrl+K e escolha Publicações do DJEN."
+     ],
+     "evidencia": "frontend/js/07-agenda.js:543",
+     "c4": true
+    },
+    {
+     "pergunta": "Como consulto o DJEN agora, sem esperar o dia seguinte?",
+     "palavras": [
+      "=consultar agora",
+      "=consulto agora",
+      "consulto o djen",
+      "consultar o djen",
+      "buscar publicacoes",
+      "atualizar publicacoes",
+      "consultar todo dia"
+     ],
+     "passos": [
+      "Em Agenda › To-do › Publicações, clique em Consultar agora.",
+      "Para consultar sozinho uma vez por dia, com o PAULUS aberto, ligue Consultar todo dia."
+     ],
+     "evidencia": "frontend/js/48-publicacoes.js:33",
+     "c4": true
+    },
+    {
+     "pergunta": "Como acompanho as publicações de outra OAB da equipe?",
+     "palavras": [
+      "outra oab",
+      "oab da equipe",
+      "oabs acompanhadas",
+      "acompanhar oab",
+      "acrescentar oab",
+      "mais de uma oab"
+     ],
+     "passos": [
+      "A sua OAB vem de Configurações › Meus dados.",
+      "Em Agenda › To-do › Publicações, clique em OABs.",
+      "Escreva as outras, uma por linha ou separadas por vírgula (ex.: GO 12345), e clique em Guardar. Só o número e a UF saem deste computador."
+     ],
+     "evidencia": "frontend/js/48-publicacoes.js:31",
+     "c4": true
+    },
+    {
+     "pergunta": "Como crio o prazo de uma publicação?",
+     "palavras": [
+      "criar prazo",
+      "crio o prazo",
+      "prazo da publicacao",
+      "prazo da intimacao",
+      "prazo de uma publicacao"
+     ],
+     "passos": [
+      "Em Agenda › To-do › Publicações, clique na publicação para abrir.",
+      "Clique em Criar prazo, confira os dias e a contagem (dias úteis ou corridos) e clique em Criar o prazo.",
+      "A tarefa entra na lista Prazos, com a conta na anotação."
+     ],
+     "evidencia": "frontend/js/48-publicacoes.js:48",
+     "c4": true
+    },
+    {
+     "pergunta": "Como cadastro os feriados do município para os prazos?",
+     "palavras": [
+      "feriados",
+      "feriado municipal",
+      "feriados do municipio",
+      "feriado do municipio",
+      "suspensao de prazo",
+      "feriados do escritorio"
+     ],
+     "passos": [
+      "Em Agenda › To-do › Publicações, clique em Feriados (ou aperte Ctrl+K e escolha Feriados do escritório).",
+      "Escreva um por linha, com a data primeiro (ex.: 24/10/2026 Aniversário de Goiânia), e clique em Guardar.",
+      "Os nacionais, o Carnaval, a Sexta-feira Santa, Corpus Christi e o recesso de 20/12 a 20/01 o PAULUS já conta."
+     ],
+     "evidencia": "frontend/js/48-publicacoes.js:134",
+     "c4": true
+    }
+   ]
+  },
+  {
+   "destino": "busca",
+   "c4": true,
+   "apelidos": [
+    "busca",
+    "buscar em tudo",
+    "busca de tudo",
+    "busca em tudo",
+    "busca geral",
+    "pesquisa geral",
+    "ctrl+k",
+    "ctrl k",
+    "ctrl-k",
+    "control k"
+   ],
+   "faz": [
+    "Abre com Ctrl+K de qualquer tela, ou pela lupa do menu (Buscar em tudo).",
+    "Ir para: as telas do menu e as seções de Configurações.",
+    "Ações: Nova conversa, Calcular prazo, Publicações do DJEN, Feriados do escritório, Fazer backup e outras (algumas só no computador do escritório).",
+    "No escritório: clientes e equipe, serviços, documentos do Acervo (pelo nome), tarefas, gravações, lançamentos e publicações que casam com o que você escreveu.",
+    "Sem acento conta igual; as setas escolhem, Enter abre e Esc fecha."
+   ],
+   "nao_faz": [
+    "Não procura dentro do texto dos documentos: o Acervo entra pelo nome. Para achar uma palavra dentro deles, use Buscar na conversa ou a busca do Acervo.",
+    "De fora do escritório, mostra só o que a sua conta pode ver."
+   ],
+   "tarefas": [
+    {
+     "pergunta": "Como abro a busca de tudo?",
+     "palavras": [
+      "abrir a busca",
+      "abro a busca",
+      "busca de tudo",
+      "buscar em tudo",
+      "atalho da busca",
+      "ctrl k"
+     ],
+     "passos": [
+      "Aperte Ctrl+K de qualquer tela, ou use a lupa do menu à esquerda (Buscar em tudo).",
+      "Escreva o que procura: sem acento conta igual.",
+      "Escolha com as setas e aperte Enter para abrir; Esc fecha."
+     ],
+     "evidencia": "frontend/js/02-casca.js:449",
+     "c4": true
+    },
+    {
+     "pergunta": "Como acho um cliente ou um serviço de qualquer tela?",
+     "palavras": [
+      "cliente de qualquer tela",
+      "servico de qualquer tela",
+      "=acho um cliente",
+      "=procuro um cliente",
+      "=busco um cliente",
+      "=achar um cliente",
+      "=procurar um cliente",
+      "=buscar um cliente",
+      "de qualquer lugar"
+     ],
+     "passos": [
+      "Aperte Ctrl+K e escreva parte do nome, do CPF/CNPJ, do e-mail ou do telefone.",
+      "Em No escritório aparecem os clientes, a equipe, os serviços, as tarefas e os lançamentos que casam.",
+      "Enter abre a ficha, o serviço ou a tarefa."
+     ],
+     "evidencia": "frontend/js/50-busca.js:151",
+     "c4": true
+    },
+    {
+     "pergunta": "Como vou direto para uma seção das Configurações?",
+     "palavras": [
+      "secao das configuracoes",
+      "ir direto",
+      "vou direto",
+      "ir para uma secao",
+      "=atalho para uma tela"
+     ],
+     "passos": [
+      "Aperte Ctrl+K e escreva o nome da tela ou da seção (por exemplo, Backup ou Modelos).",
+      "Em Ir para, escolha e aperte Enter."
+     ],
+     "evidencia": "frontend/js/50-busca.js:76",
+     "c4": true
+    },
+    {
+     "pergunta": "Que ações dá para fazer pela busca?",
+     "palavras": [
+      "acoes da busca",
+      "acoes rapidas",
+      "fazer pela busca",
+      "atalhos da busca"
+     ],
+     "passos": [
+      "Aperte Ctrl+K sem escrever nada: aparecem as Ações rápidas.",
+      "Entre elas: Nova conversa, Calcular prazo, Publicações do DJEN, Feriados do escritório, Fazer backup e Alternar tema claro/escuro.",
+      "Escreva para achar as outras e aperte Enter para fazer."
+     ],
+     "evidencia": "frontend/js/50-busca.js:27",
+     "c4": true
+    }
+   ]
+  },
+  {
+   "destino": "leis",
+   "c4": true,
+   "apelidos": [
+    "codigos de lei",
+    "códigos de lei",
+    "codigos de leis",
+    "códigos de leis",
+    "citar a lei",
+    "citar lei",
+    "codigos instalados",
+    "códigos instalados",
+    "leis instaladas"
+   ],
+   "faz": [
+    "Ficam em Configurações › Assistente e modelo, no cartão Códigos de lei: Baixar do Planalto, Importar de uma pasta, Escolher um arquivo e Remover.",
+    "No Editor de documentos, a barra Códigos (CC, CPC, CP, CLT) e Inserir citação procuram pelo número do artigo ou por palavra.",
+    "O texto do artigo aparece antes de inserir, para você conferir; artigo revogado pede confirmação.",
+    "Com obras na Biblioteca, cada artigo mostra o que elas dizem dele, com a página."
+   ],
+   "nao_faz": [
+    "Jurisprudência e Súmulas, na barra do editor, ainda não funcionam.",
+    "Só o que está instalado conta: código não instalado não é citado."
+   ],
+   "tarefas": [
+    {
+     "pergunta": "Como cito um artigo de lei no documento?",
+     "palavras": [
+      "citar artigo",
+      "cito um artigo",
+      "citar lei",
+      "citar a lei",
+      "inserir citacao",
+      "artigo de lei",
+      "citacao de lei"
+     ],
+     "passos": [
+      "Abra o documento no Editor de documentos.",
+      "Na barra Códigos, clique em Inserir citação (ou num dos códigos: CC, CPC, CP, CLT).",
+      "Procure pelo número do artigo ou por palavra e clique em Procurar.",
+      "Confira o texto e clique em Inserir a citação, ou em Inserir com o texto."
+     ],
+     "evidencia": "frontend/js/19-documentos.js:463",
+     "c4": true
+    },
+    {
+     "pergunta": "Como instalo um código de lei, como o Código Civil?",
+     "palavras": [
+      "instalar codigo",
+      "instalo o codigo",
+      "instalar os codigos",
+      "baixar codigo",
+      "baixar do planalto",
+      "instalar lei",
+      "baixar lei",
+      "instalar o codigo",
+      "instalar a clt",
+      "instalar o cpc",
+      "instalar o cdc",
+      "instalar o ctn",
+      "instalar a constituicao",
+      "baixar a clt",
+      "baixar o cpc"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Assistente e modelo.",
+      "No cartão Códigos de lei, clique em Baixar do Planalto ao lado do código.",
+      "Só a página da lei é pedida ao Planalto; nada desta máquina vai junto."
+     ],
+     "evidencia": "frontend/js/05-configuracoes.js:571",
+     "c4": true
+    },
+    {
+     "pergunta": "Como importo uma lei que salvei do site do Planalto?",
+     "palavras": [
+      "importar lei",
+      "importo uma lei",
+      "importar codigo",
+      "arquivo do planalto",
+      "salvei do planalto",
+      "importar de uma pasta"
+     ],
+     "passos": [
+      "Salve a página da lei compilada no site do Planalto (HTML).",
+      "Em Configurações › Assistente e modelo, no cartão Códigos de lei, clique em Importar de uma pasta ou em Escolher um arquivo."
+     ],
+     "evidencia": "frontend/js/05-configuracoes.js:574",
+     "c4": true
+    },
+    {
+     "pergunta": "Como removo um código de lei instalado?",
+     "palavras": [
+      "remover codigo",
+      "removo um codigo",
+      "apagar codigo",
+      "tirar codigo",
+      "desinstalar lei"
+     ],
+     "passos": [
+      "Em Configurações › Assistente e modelo, no cartão Códigos de lei, clique em Remover ao lado do código e confirme.",
+      "A citação daquele código fica indisponível até você baixar ou importar de novo."
+     ],
+     "evidencia": "frontend/js/05-configuracoes.js:570",
+     "c4": true
+    }
+   ]
+  },
+  {
+   "destino": "acesso",
+   "c4": true,
+   "apelidos": [
+    "acesso de fora",
+    "acesso remoto",
+    "acesso a distancia",
+    "acesso à distância",
+    "acesso externo",
+    "tunel",
+    "túnel"
+   ],
+   "faz": [
+    "Fica em Configurações › Acesso de fora. Desligado de fábrica: só o computador do escritório liga.",
+    "Ligar o acesso de fora tem três etapas: o Endereço (nome.paulus.ia.br), a Sua conta de titular com o autenticador do celular, e Confirmar no navegador.",
+    "Contas: cada pessoa entra com a própria conta; Permissões diz o que cada uma vê.",
+    "Quem acessou registra neste computador quem entrou, quando, o que abriu e o que baixou; Sessões abertas de fora encerra quem está dentro.",
+    "Os documentos, o índice e o modelo de IA não saem deste computador: o que passa pela internet é a tela e o que se digita nela."
+   ],
+   "nao_faz": [
+    "Com o computador do escritório desligado ou o PAULUS fechado, o endereço para de responder.",
+    "De fora, algumas telas e ações só existem no computador do escritório."
+   ],
+   "tarefas": [
+    {
+     "pergunta": "Como uso o PAULUS de casa ou do celular?",
+     "palavras": [
+      "=paulus de casa",
+      "=programa de casa",
+      "=de casa ou do celular",
+      "=acessar de casa",
+      "=acesso de casa",
+      "=entrar de casa",
+      "=trabalhar de casa",
+      "=paulus no celular",
+      "=paulus pelo celular",
+      "=paulus do celular",
+      "=programa no celular",
+      "ligar o acesso",
+      "=acessar de fora",
+      "=acessar o paulus de fora",
+      "=acesso o paulus de fora",
+      "=usar de fora",
+      "=uso o paulus de fora",
+      "=usar o paulus de fora"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Acesso de fora.",
+      "No cartão Ligar o acesso de fora, confira o Endereço (nome.paulus.ia.br).",
+      "Em Sua conta de titular, clique em Criar a conta e ler o QR e leia o código com o Google Authenticator.",
+      "Clique em Conectar e confirme no navegador, que abre em paulus.ia.br/conectar."
+     ],
+     "evidencia": "frontend/js/43-acesso-tunel.js:67",
+     "c4": true
+    },
+    {
+     "pergunta": "Como vejo quem acessou o PAULUS de fora?",
+     "palavras": [
+      "quem acessou",
+      "registro de acessos",
+      "quem entrou",
+      "historico de acesso",
+      "=acessos de fora"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Acesso de fora.",
+      "O cartão Quem acessou mostra quem entrou, quando e o que abriu; Filtrar escolhe o que ver e Exportar PDF guarda a lista inteira."
+     ],
+     "evidencia": "frontend/js/42-acesso.js:136",
+     "c4": true
+    },
+    {
+     "pergunta": "Como desligo o acesso de fora?",
+     "palavras": [
+      "desligar o acesso",
+      "desligo o acesso",
+      "remover o acesso",
+      "parar o acesso",
+      "tirar do ar"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Acesso de fora.",
+      "No cartão Endereço, clique em Desligar: o túnel para e o endereço fica guardado.",
+      "Para apagar o endereço em paulus.ia.br, clique em Remover o acesso de fora."
+     ],
+     "evidencia": "frontend/js/43-acesso-tunel.js:407",
+     "c4": true
+    },
+    {
+     "pergunta": "Como encerro as sessões de quem está acessando de fora?",
+     "palavras": [
+      "encerrar sessoes",
+      "encerrar as sessoes",
+      "encerro as sessoes",
+      "sessoes abertas",
+      "derrubar quem"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Acesso de fora.",
+      "No cartão Sessões abertas de fora, clique em Encerrar todas as sessões e confirme."
+     ],
+     "evidencia": "frontend/js/42-acesso.js:311",
+     "c4": true
+    },
+    {
+     "pergunta": "Como dou acesso de fora a alguém da equipe?",
+     "palavras": [
+      "acesso para a equipe",
+      "acesso a alguem",
+      "convidar para o acesso",
+      "conta de fora",
+      "nova conta de acesso"
+     ],
+     "passos": [
+      "Abra Configurações e clique em Acesso de fora.",
+      "No cartão Contas, clique em Convidar pela internet (aparece com a sua conta de titular pronta) ou em Criar aqui.",
+      "Na linha da conta, clique em Permissões e escolha o que a pessoa vê."
+     ],
+     "evidencia": "frontend/js/42-acesso.js:289",
+     "c4": true
     }
    ]
   }

@@ -477,7 +477,8 @@ const propostasGuardadas = [];
 
 function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
-  if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || (p.tipo === "escopo" && ultima))) return "";
+  if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || (p.tipo === "escopo" && ultima) ||
+        (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
   propostasGuardadas.push(p);
   return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +
     cartaoProposta(p) + "</div>";
@@ -496,6 +497,7 @@ function blocoResposta(m, pergunta, ultima) {
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
   const p = m.proposta || {};
   if (p.tipo === "programa") html += linhaAssinatura(0, 0, pergunta || "", p.por_modelo ? "" : "sem modelo");
+  else if (p.tipo === "consulta_cadastro") html += linhaAssinatura(0, 0, pergunta || "", "sem modelo");
   else if (m.segundos || (m.cobertura && m.cobertura.como)) {
     html += linhaAssinatura(m.segundos || 0, citados, pergunta || "", "", (m.cobertura || {}).como);
   }
@@ -1606,7 +1608,8 @@ async function lerResposta(r, v) {
         // "abra o financeiro": o pedido era a tela. Abre depois do fim,
         // para a conversa terminar de se gravar antes de sair dela.
         if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
-        if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo") assinaSemModelo = true;
+        if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
+            dados.tipo === "consulta_cadastro") assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "vazio") {
         texto.textContent = dados.mensagem;
@@ -1633,7 +1636,7 @@ async function lerResposta(r, v) {
           assinaSemModelo ? "sem modelo" : "", dados.como));
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
-        if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirDestino(id), 700); }
+        if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirTelaDaConversa(id), 700); }
       }
     }
   }

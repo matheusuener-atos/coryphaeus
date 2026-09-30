@@ -123,6 +123,25 @@ function abrirDestino(id) {
   if (d.abre === "organizar") return organizarComecar();
 }
 
+/* O que a conversa explica e nao e destino do menu (src/programa.py,
+   TELAS_C4): o botao "Abrir" do cartao leva a onde cada um mora. De fora,
+   Publicacoes, Codigos de lei e Acesso de fora ficam no computador do
+   escritorio; a busca vale dos dois lados. */
+const TELAS_DA_CONVERSA = {
+  publicacoes: { nome: "Publicações", local: true, abrir: () => abrirPublicacoesBsc() },
+  busca: { nome: "Buscar em tudo", local: false, abrir: () => abrirBusca() },
+  leis: { nome: "Códigos de lei", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("assistente"); } },
+  acesso: { nome: "Acesso de fora", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("acesso"); } },
+};
+
+function abrirTelaDaConversa(id) {
+  const t = TELAS_DA_CONVERSA[id];
+  if (!t) return abrirDestino(id);
+  const deFora = typeof acessoDeFora !== "undefined" && !acessoDeFora.local;
+  if (t.local && deFora && typeof telaSoNoEscritorio === "function") return telaSoNoEscritorio({ nome: t.nome });
+  return t.abrir();
+}
+
 /* Vazio nunca e branco: o mesmo cabecalho, uma frase dizendo o que falta e
    uma acao que resolve. Aqui a acao que resolve e voltar ao que funciona. */
 function telaAdiante(d) {

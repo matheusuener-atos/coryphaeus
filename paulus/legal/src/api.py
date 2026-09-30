@@ -65,6 +65,7 @@ import intencao
 import juizo
 import modelos as modelos_mod
 import programa
+import consulta_cadastro
 import leis
 import redacao
 import ritmo as ritmo_mod
@@ -3459,7 +3460,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # Retomar troca a resposta parada - e tambem o cartao "onde eu procuro?",
     # que a pessoa respondeu escolhendo onde.
     if (payload.retomar and ultima and ultima.autor == "paulus"
-            and (ultima.interrompida or (ultima.proposta or {}).get("tipo") in ("escopo", "programa"))):
+            and (ultima.interrompida
+                 or (ultima.proposta or {}).get("tipo") in ("escopo", "programa", "consulta_cadastro"))):
         trabalho.mensagens.pop()
         ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
@@ -3519,8 +3521,29 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 tipo="exibir", titulo=alvo[0], campos={"nome": alvo[0], "nomes": alvo[:4]},
                 porque="você pediu para abrir os documentos anexados",
             )
+    # C4 (chave conversa.roteamento): "como funciona o acesso de fora?" e
+    # "o que você faz" caem os dois em intencao.SOBRE; com uma tela citada, a
+    # resposta e a explicacao dela, e nao a lista de tudo o que o programa faz.
+    roteamento = consulta_cadastro.ligado(estado.prefs.dados)
+    if roteamento and lido.tipo == "sobre":
+        leitura = programa.ler(pergunta, dados=estado, juiz=None, ampliado=True)
+        if leitura and leitura.tipo == "como":
+            return _responder_programa(trabalho, leitura, pergunta)
+
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir"):
         return _responder_sem_documentos(trabalho, lido, pergunta)
+
+    # C4: "qual o CPF do cliente Matheus?" responde da ficha, por molde, sem
+    # modelo e sem entrar na fila dele (src/consulta_cadastro.py). Antes lia
+    # 21 documentos (~165 s). Com documento anexado, a pergunta e sobre ele -
+    # a consulta nem olha. Com um documento cujo NOME a frase escreve
+    # ("Matheus Uener 1.docx" e "qual o CPF do Matheus Uener?"), vale a ficha
+    # quando ela existe; sem ficha, segue para aquele documento, e nao para a
+    # oferta - ler um documento nomeado nao e ler o acervo.
+    if roteamento and lido.tipo == "documentos" and not payload.documentos and not payload.apenas:
+        consulta = _consultar_cadastro(pergunta)
+        if consulta and (not explicito or (consulta.fonte in ("cadastros", "meus_dados") and consulta.modo != "nada")):
+            return _responder_consulta_cadastro(trabalho, consulta, pergunta)
 
     # O que o programa sabe de si: a agenda, as tarefas, o Financeiro, a
     # fila, e como se faz cada coisa em cada tela. Antes, "quanto recebi este
@@ -3529,7 +3552,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # montou (programa.py, juizo.py). Com documento anexado, a pergunta e
     # sobre ele - a camada nem olha.
     if lido.tipo == "documentos" and not payload.documentos and not payload.apenas and not explicito:
-        leitura = programa.ler(pergunta, dados=estado, juiz=_juiz(), em_foco=citado)
+        leitura = programa.ler(pergunta, dados=estado, juiz=_juiz(), em_foco=citado, ampliado=roteamento)
         if leitura:
             return _responder_programa(trabalho, leitura, pergunta)
 
@@ -4085,6 +4108,47 @@ def _responder_programa(trabalho, leitura, pergunta: str) -> StreamingResponse:
                                 eval_count=1 if leitura.por_modelo else 0,
                                 total_s=julgado.get("segundos", 0.0), caminho="programa")
         yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _consultar_cadastro(pergunta: str):
+    """
+    A consulta de cadastro (C4) com o que a pessoa pode ver: de fora, sem o
+    modulo Cadastros nao ha fichas, e sem o Acervo nao ha fatos dos documentos.
+    """
+    ve = _modulos_visiveis()
+    fichas, prefs, fatos = [], {}, None
+    if ve is None or "cadastros" in ve:
+        fichas = estado.cadastros.base.buscar(
+            "SELECT id, tipo, nome, documento, telefone, email, endereco FROM cadastros")
+        prefs = estado.prefs.dados
+    if ve is None or "acervo" in ve:
+        def fatos(nome: str, campo: str) -> list[dict]:
+            return consulta_cadastro.fatos_dos_documentos(estado.base, estado.saber.biblioteca, nome, campo)
+    return consulta_cadastro.ler(pergunta, cadastros=fichas, preferencias=prefs, fatos=fatos)
+
+
+def _responder_consulta_cadastro(trabalho, resposta, pergunta: str) -> StreamingResponse:
+    """A resposta por molde da consulta de cadastro, com o cartao (abrir a ficha, escolher, ler os documentos)."""
+    import time
+
+    comeco = time.time()
+    proposta = consulta_cadastro.proposta(resposta, pergunta)
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Responder", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", resposta.texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        estado.medicao.pergunta(modelo="", eval_count=0, total_s=round(time.time() - comeco, 3), caminho="cadastro")
+        yield _sse("token", {"t": resposta.texto})
         yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
