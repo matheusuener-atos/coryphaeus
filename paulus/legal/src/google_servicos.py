@@ -12,11 +12,16 @@ Os escopos, e por que estes:
 - Agenda e Meet: `calendar.events` (sensível, sem a avaliação paga). O Meet
   não tem escopo próprio aqui: a sala nasce do evento da Agenda
   (conferenceData), com o link de verdade.
-- Drive: `drive.file` (não sensível). O PAULUS só enxerga o que ele mesmo
-  pôs no Drive - a pasta PAULUS e o que foi enviado para ela. Ler o Drive
-  inteiro pede escopo restrito, com avaliação de segurança paga (CASA). Para o
-  Acervo ler o Drive, o caminho sem custo é o Google Drive para computador:
-  ele vira uma pasta do Windows ("G:\\Meu Drive"), e o Acervo vigia pastas.
+- Drive, para enviar: `drive.file` (não sensível). Só enxerga o que o
+  PAULUS pôs no Drive - a pasta PAULUS e o que foi enviado para ela.
+- Drive, para ler (29/09/2026): `drive.readonly` - o Drive inteiro, só
+  leitura, pedido à parte. É escopo restrito: para o público, o Google exige a
+  verificação do app e a avaliação de segurança (CASA); até lá, só as contas
+  de teste do projeto conseguem autorizar. O Acervo não lê o Drive pela rede
+  a cada pergunta: as pastas escolhidas viram uma cópia no Acervo
+  (src/drive_online.py), conferida de tempos em tempos. O outro caminho, sem
+  permissão nenhuma, continua valendo: o Google Drive para computador vira
+  uma pasta do Windows ("G:\\Meu Drive"), e o Acervo vigia pastas.
 
 O que sai desta máquina, e quando:
 
@@ -27,7 +32,8 @@ O que sai desta máquina, e quando:
   formulário, ou no compromisso já marcado), o evento daquele compromisso vai
   à Agenda do Google na hora - os mesmos campos -, mesmo com a sincronização
   desligada: é a sala que nasce do evento.
-- Drive: só o documento que a pessoa manda, pela fila de Aprovações.
+- Drive: só o documento que a pessoa manda, pela fila de Aprovações. Ler
+  o Drive não manda nada: só baixa.
 
 Sem biblioteca do Google: HTTP simples, como o login do e-mail.
 """
@@ -46,8 +52,18 @@ import requests
 ESCOPOS = {
     "agenda": "https://www.googleapis.com/auth/calendar.events",
     "drive": "https://www.googleapis.com/auth/drive.file",
+    "drive_leitura": "https://www.googleapis.com/auth/drive.readonly",
 }
-ROTULOS = {"agenda": "Agenda e Meet do Google", "drive": "Google Drive"}
+ROTULOS = {"agenda": "Agenda e Meet do Google", "drive": "Google Drive", "drive_leitura": "Google Drive (leitura)"}
+PASTA = "application/vnd.google-apps.folder"
+# Os arquivos do proprio Google nao tem bytes: saem convertidos no formato
+# que o Acervo le (src/extract.py SUPPORTED_SUFFIXES).
+EXPORTAR = {
+    "application/vnd.google-apps.document": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"),
+    "application/vnd.google-apps.spreadsheet": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"),
+    "application/vnd.google-apps.presentation": ("application/pdf", ".pdf"),
+}
+CAMPOS_DO_ARQUIVO = "id,name,mimeType,size,modifiedTime,md5Checksum,version"
 API_AGENDA = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 API_DRIVE = "https://www.googleapis.com/drive/v3/files"
 API_DRIVE_ENVIO = "https://www.googleapis.com/upload/drive/v3/files"
@@ -270,6 +286,72 @@ class Google:
         if r.status_code >= 400:
             raise _frase_do_erro(r, "drive")
         return r.json()
+
+    # ------------------------------------------------- ler o Drive (leitura)
+
+    def drive_listar(self, pasta_id: str) -> list[dict]:
+        """
+        O que ha numa pasta do Drive (drive.readonly). `pasta_id` "root" e o
+        Meu Drive; "compartilhados", o que outras pessoas compartilharam; o id
+        de um drive compartilhado, a raiz dele.
+        """
+        if pasta_id == "compartilhados":
+            q = "sharedWithMe and trashed = false"
+        else:
+            q = f"'{pasta_id or 'root'}' in parents and trashed = false"
+        itens: list[dict] = []
+        pagina = ""
+        while True:
+            params = {"q": q, "fields": f"nextPageToken,files({CAMPOS_DO_ARQUIVO})", "pageSize": 1000,
+                      "orderBy": "folder,name_natural", "supportsAllDrives": "true",
+                      "includeItemsFromAllDrives": "true", "corpora": "allDrives"}
+            if pagina:
+                params["pageToken"] = pagina
+            d = self._chamar("drive_leitura", "GET", API_DRIVE, params=params)
+            itens += d.get("files") or []
+            pagina = d.get("nextPageToken") or ""
+            if not pagina or len(itens) >= 20000:
+                return itens
+
+    def drive_compartilhados(self) -> list[dict]:
+        """Os drives compartilhados (Google Workspace) que a conta enxerga."""
+        d = self._chamar("drive_leitura", "GET", "https://www.googleapis.com/drive/v3/drives",
+                         params={"pageSize": 100, "fields": "drives(id,name)"})
+        return d.get("drives") or []
+
+    def drive_baixar(self, arquivo: dict, destino: Path) -> None:
+        """
+        Baixa um arquivo do Drive para `destino` (por um .parcial, trocado so
+        no fim: o Acervo nunca le arquivo pela metade). Os do Google saem
+        convertidos (EXPORTAR).
+        """
+        destino = Path(destino)
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        exportar = EXPORTAR.get(arquivo.get("mimeType", ""))
+        if exportar:
+            url, params = f"{API_DRIVE}/{arquivo['id']}/export", {"mimeType": exportar[0]}
+        else:
+            url, params = f"{API_DRIVE}/{arquivo['id']}", {"alt": "media", "supportsAllDrives": "true"}
+        parcial = destino.with_name(destino.name + ".parcial")
+        try:
+            r = self.sessao.get(url, params=params, headers={"Authorization": "Bearer " + self.token_de()},
+                                timeout=TEMPO_REDE, stream=True)
+        except requests.RequestException as exc:
+            raise ErroGoogle("não consegui falar com o Google agora: " + str(exc)[:120]) from exc
+        if r.status_code >= 400:
+            raise _frase_do_erro(r, "drive_leitura")
+        try:
+            with open(parcial, "wb") as f:
+                for pedaco in r.iter_content(1024 * 256):
+                    if pedaco:
+                        f.write(pedaco)
+            parcial.replace(destino)
+        except requests.RequestException as exc:
+            parcial.unlink(missing_ok=True)
+            raise ErroGoogle("o download do Drive caiu no meio: " + str(exc)[:120]) from exc
+        finally:
+            if parcial.exists():
+                parcial.unlink(missing_ok=True)
 
 
 # ------------------------------------------------ o Drive no computador

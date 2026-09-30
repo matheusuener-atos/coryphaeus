@@ -91,6 +91,8 @@ PADRAO: dict = {
     # o resultado da ultima sincronizacao.
     "google": {"conta": "", "agenda_sincronizar": False, "agenda_mostrar": False,
                "drive_pasta": "", "ultimo_sinc": "", "erro": ""},
+    # As pastas do Google Drive copiadas para o Acervo (src/drive_online.py).
+    "drive_online": {"pastas": []},
     # A calibracao compartilhada (src/calibracao_remota.py): desligada de
     # fabrica. Ligada, as medidas desta maquina vao ao site do PAULUS e as de
     # outras maquinas voltam para melhorar a estimativa dos modelos.

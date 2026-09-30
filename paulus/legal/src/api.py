@@ -283,6 +283,11 @@ class Estado:
         self.entrada_oauth: correio_oauth.Entrada | None = None
         # A conta Google alem do Gmail: Agenda, Meet e Drive (src/google_servicos.py).
         self.google = google_servicos.Google(self._token_google)
+        # O Drive pela internet: as pastas escolhidas viram copia no Acervo.
+        import drive_online
+
+        self.drive_online = drive_online.EspelhoDoDrive(self.google, lambda: self.pasta, self.prefs,
+                                                        ao_mudar=lambda: self.recarregar_em_segundo_plano())
         # A agenda lida e a de quem pede (E3b): o cache e por conta.
         self.google.quem = lambda: (lambda c: c.email if c else "")(self.conta_google())
         # Documentos de texto e planilhas, com historico de versoes.
@@ -689,6 +694,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=_verificar_atualizacao_se_velha, name="atualizacao", daemon=True).start()
     threading.Thread(target=_backup_automatico, name="backup", daemon=True).start()
     threading.Thread(target=_publicacoes_automatico, name="publicacoes", daemon=True).start()
+    threading.Thread(target=_drive_online_automatico, name="drive-online", daemon=True).start()
     print(f"\n  PAULUS Legal - servidor em 127.0.0.1:{estado.porta}")
     print(f"  {total} contrato(s) carregado(s) de {estado.pasta}\n")
     # O acesso de fora ligado e conectado: o tunel sobe junto com o programa
@@ -4344,6 +4350,7 @@ def _google_para_tela() -> dict:
         "erro": g.get("erro", ""),
         "drive_no_computador": [{"caminho": p, "vigiada": ja_vigiada(p)}
                                 for p in google_servicos.pastas_do_drive_no_computador()],
+        "drive_online": estado.drive_online.para_tela(),
     }
 
 
@@ -4397,6 +4404,106 @@ def google_conectar(payload: dict) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"não consegui abrir a porta local para o login: {exc}") from exc
+
+
+# ------------------------------------------- o Drive pela internet (leitura)
+
+
+class PastaDoDrive(BaseModel):
+    id: str
+    nome: str = ""
+
+
+class TirarPastaDoDrive(BaseModel):
+    id: str
+    apagar_copia: bool = False
+
+
+def _drive_leitura_ou_erro() -> None:
+    if not estado.conta_google():
+        raise HTTPException(status_code=400, detail="entre primeiro com a conta Google em E-mail › Contas")
+
+
+@app.get("/api/google/drive/navegar")
+def google_drive_navegar(pasta: str = "") -> dict:
+    """
+    As pastas do Drive, para escolher no "Incluir pasta" do Acervo. Sem a
+    leitura autorizada, diz que falta (`autorizar`), com a conta que vai
+    autorizar.
+    """
+    conta = estado.conta_google()
+    if not conta or not estado.google_tem("drive_leitura"):
+        return {"autorizar": True, "conta": conta.email if conta else "", "itens": []}
+    try:
+        if not pasta:
+            itens = [{"id": "root", "nome": "Meu Drive", "pasta": True, "tipo": "raiz"},
+                     {"id": "compartilhados", "nome": "Compartilhados comigo", "pasta": True, "tipo": "compartilhados",
+                      "so_navegar": True}]
+            itens += [{"id": d["id"], "nome": d.get("name", ""), "pasta": True, "tipo": "drive"}
+                      for d in estado.google.drive_compartilhados()]
+        else:
+            import drive_online
+
+            itens = [{"id": x["id"], "nome": x.get("name", ""), "pasta": x.get("mimeType") == google_servicos.PASTA,
+                      "le": bool(drive_online.sufixo_do(x))}
+                     for x in estado.google.drive_listar(pasta)]
+    except google_servicos.ErroGoogle as exc:
+        if exc.autorizar:
+            return {"autorizar": True, "conta": conta.email, "itens": []}
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"autorizar": False, "conta": conta.email, "itens": itens}
+
+
+@app.get("/api/google/drive/copias")
+def google_drive_copias() -> dict:
+    return estado.drive_online.para_tela()
+
+
+@app.post("/api/google/drive/copias")
+def google_drive_copiar(payload: PastaDoDrive) -> dict:
+    """Uma pasta do Drive passa a ter copia no Acervo; a primeira descida comeca ja."""
+    _drive_leitura_ou_erro()
+    if not estado.google_tem("drive_leitura"):
+        raise HTTPException(status_code=403, detail="autorize primeiro a leitura do Google Drive")
+    if payload.id == "compartilhados":
+        raise HTTPException(status_code=400, detail="escolha uma das pastas de “Compartilhados comigo”")
+    try:
+        nova = estado.drive_online.incluir(payload.id, payload.nome)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    threading.Thread(target=estado.drive_online.sincronizar, args=(nova["id"],), name="drive-online-agora", daemon=True).start()
+    return {"pasta": nova, **estado.drive_online.para_tela()}
+
+
+@app.post("/api/google/drive/copias/sincronizar")
+def google_drive_sincronizar() -> dict:
+    _drive_leitura_ou_erro()
+    threading.Thread(target=estado.drive_online.sincronizar, name="drive-online-agora", daemon=True).start()
+    return estado.drive_online.para_tela()
+
+
+@app.post("/api/google/drive/copias/tirar")
+def google_drive_tirar(payload: TirarPastaDoDrive) -> dict:
+    """Para de acompanhar a pasta. A copia fica no Acervo, a nao ser que se peca para apagar."""
+    try:
+        saiu = estado.drive_online.tirar(payload.id, payload.apagar_copia)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"saiu": saiu, **estado.drive_online.para_tela()}
+
+
+def _drive_online_automatico() -> None:
+    """A cada SINC_MINUTOS, com a leitura autorizada e alguma pasta escolhida."""
+    import drive_online
+
+    time.sleep(90)
+    while True:
+        try:
+            if estado.drive_online.pastas() and estado.google_tem("drive_leitura"):
+                estado.drive_online.sincronizar()
+        except Exception:  # noqa: BLE001 - o erro fica na pasta; a vigia nao morre
+            pass
+        time.sleep(drive_online.SINC_MINUTOS * 60)
 
 
 @app.post("/api/google/preferencias")

@@ -24,7 +24,8 @@ async function carregarVigiadas() {
 
 async function adicionarPastaAoAcervo() {
   marcarDestino("biblioteca");
-  const escolha = await escolherPastaNossa({ titulo: "Incluir pasta no Acervo", contexto: "Acervo", confirmar: "Vigiar esta pasta" });
+  const escolha = await escolherPastaNossa({ titulo: "Incluir pasta no Acervo", contexto: "Acervo", confirmar: "Vigiar esta pasta", driveOnline: true });
+  if (escolha && escolha.drive) { await copiarDoDrive(escolha.drive); return; }
   if (!escolha || !escolha.pasta) return;
   const r = await fetch("/api/acervo/pastas", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caminho: escolha.pasta }),
@@ -36,6 +37,20 @@ async function adicionarPastaAoAcervo() {
     " para ler, sem sair do lugar. O que entrar nela depois entra aqui sozinho.", { tom: "ok" });
   bib.todos = [];
   if (typeof buscarAcervo === "function") buscarAcervo();
+  vigiarTelaDoAcervo();
+}
+
+/* Uma pasta do Google Drive pela internet: vira copia no Acervo
+   (src/drive_online.py), e a vigia le a copia como qualquer pasta. */
+async function copiarDoDrive(pasta) {
+  const r = await fetch("/api/google/drive/copias", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: pasta.id, nome: pasta.nome }),
+  });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  avisoCert("“" + pasta.nome + "” do Google Drive está descendo para o Acervo, em Google Drive › " + d.pasta.local +
+    ". A cópia acompanha o Drive a cada " + d.sinc_minutos + " minutos.", { tom: "ok", dura: 9000 });
+  if (typeof gg !== "undefined") gg.dados = null;
   vigiarTelaDoAcervo();
 }
 

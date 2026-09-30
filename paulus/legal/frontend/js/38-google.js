@@ -9,6 +9,8 @@
    - Agenda: com "Sincronizar" ligado, título, data, hora, duração e lugar de
      cada compromisso (a anotação e o cliente ficam aqui);
    - Drive: só o documento que a pessoa manda, e pela fila de Aprovações.
+     Ler o Drive (a permissão à parte, só leitura) só baixa: as pastas
+     escolhidas viram cópia no Acervo (src/drive_online.py).
 */
 
 const gg = { dados: null, relogio: null, pedido: null, tentou: false };
@@ -60,9 +62,10 @@ function cartaoGoogle() {
       agenda ? ponto("conectada", "ok") : ponto("não conectada", ""),
       agenda ? '<button class="com-icone" data-gg-sinc="1">' + marca("google-agenda", 16) + "Sincronizar agora</button>"
         : '<button class="primario com-icone" data-gg-conectar="agenda">' + marca("google-agenda", 16) + "Conectar</button>") +
-    linha("folder", "Google Drive", drive ? "os documentos que você envia vão para a pasta PAULUS do seu Drive" : "enviar documentos do Acervo para o seu Drive",
+    linha("folder", "Enviar ao Google Drive", drive ? "os documentos que você envia vão para a pasta PAULUS do seu Drive" : "enviar documentos do Acervo para o seu Drive",
       drive ? ponto("conectado", "ok") : ponto("não conectado", ""),
-      drive ? "" : '<button class="primario" data-gg-conectar="drive">Conectar</button>');
+      drive ? "" : '<button class="primario" data-gg-conectar="drive">Conectar</button>') +
+    linhaDriveNoAcervo(linha, ponto);
 
   if (agenda) {
     html += '<div class="cfg-sub">' +
@@ -74,10 +77,34 @@ function cartaoGoogle() {
     ? "Google Drive neste computador: " + locais.map((p) => esc(p.caminho) + (p.vigiada ? " (o Acervo já vigia)"
         : ' <button class="em-ligacao" data-gg-vigiar="' + esc(p.caminho) + '">vigiar no Acervo</button>')).join(" · ") +
       ". Assim o Acervo lê o seu Drive inteiro sem pedir permissão nenhuma ao Google."
-    : "Para o Acervo ler o seu Drive inteiro, instale o Google Drive para computador: ele vira uma pasta do Windows, e aí é só vigiar a pasta no Acervo.") + "</p>";
+    : "Outro caminho, sem dar permissão ao PAULUS: o Google Drive para computador vira uma pasta do Windows, e aí é só vigiar a pasta no Acervo.") + "</p>";
   if (d.erro) html += '<p class="cfg-explica mod-erro">' + esc(maiuscula(d.erro)) + ".</p>";
   html += '<p class="cfg-explica">O PAULUS só usa o que você conecta aqui. Para tirar as permissões do Google de vez, use myaccount.google.com/permissions.</p>';
   return cartaoCfg("Conta Google", metaCfg(d.conta), html);
+}
+
+/* Ler o Drive pela internet: a permissao so de leitura e as pastas que
+   viraram copia no Acervo, cada uma com a hora da ultima conferida. */
+function linhaDriveNoAcervo(linha, ponto) {
+  const leitura = googleConectado("drive_leitura");
+  const copias = ((gg.dados || {}).drive_online || {}).pastas || [];
+  let html = linha("folder_special", "Google Drive no Acervo",
+    leitura ? (copias.length ? plural(copias.length, "pasta") + " do Drive com cópia no Acervo, conferidas a cada 15 minutos" : "escolha as pastas em Acervo › Incluir pasta › Google Drive")
+      : "ler pastas do seu Drive pela internet e ter uma cópia delas no Acervo",
+    leitura ? ponto("autorizado", "ok") : ponto("não autorizado", ""),
+    leitura ? (copias.length ? '<button data-gg-drive-sinc="1">Conferir agora</button>' : "") + '<button data-gg-drive-incluir="1">Escolher pasta</button>'
+      : '<button class="primario" data-gg-conectar="drive_leitura">Autorizar leitura</button>');
+  if (copias.length) {
+    const quando = (t) => (t ? "conferida " + t.slice(8, 10) + "/" + t.slice(5, 7) + " às " + t.slice(11, 16) : "ainda descendo");
+    html += '<div class="cfg-sub">' + copias.map((p) => '<div class="cfg-servico"><span class="caixa-tipo">' + marca("google-drive", 16) + "</span>" +
+      '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
+      esc(p.sincronizando ? "descendo agora · " + plural(p.baixados_agora, "arquivo") : plural(p.arquivos || 0, "documento") + " · " + quando(p.ultimo) +
+        (p.ignorados ? " · " + p.ignorados + " que o Acervo não lê ficaram no Drive" : "")) + "</small>" +
+      (p.erro ? '<small class="mod-erro">' + esc(maiuscula(p.erro)) + "</small>" : "") + "</span>" +
+      '<span class="cfg-botoes"><button class="mais-linha" data-gg-drive-tirar="' + esc(p.id) + '" title="Parar de acompanhar" aria-label="Parar de acompanhar">' +
+      ic("close", 16) + "</button></span></div>").join("") + "</div>";
+  }
+  return html;
 }
 
 /* O mesmo interruptor das outras preferencias (ligaCfg), mas vale na hora:
@@ -138,6 +165,36 @@ function ligarGoogle(raiz) {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [c.dataset.ggPref]: ligar }),
       });
       if (resp.ok) gg.dados = await resp.json();
+      desenharConfig();
+    };
+  });
+  r.querySelectorAll("[data-gg-drive-incluir]").forEach((b) => { b.onclick = () => adicionarPastaAoAcervo(); });
+  r.querySelectorAll("[data-gg-drive-sinc]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      const resp = await fetch("/api/google/drive/copias/sincronizar", { method: "POST" });
+      if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); b.disabled = false; return; }
+      avisoCert("conferindo o Drive — o que mudou lá desce para o Acervo", { tom: "ok" });
+      setTimeout(async () => { await carregarGoogle(); if (typeof cfg !== "undefined" && cfg.secao === "conexoes") desenharConfig(); }, 3000);
+    };
+  });
+  r.querySelectorAll("[data-gg-drive-tirar]").forEach((b) => {
+    b.onclick = async () => {
+      const p = (((gg.dados || {}).drive_online || {}).pastas || []).find((x) => x.id === b.dataset.ggDriveTirar);
+      if (!p) return;
+      const e = await dialogo({
+        titulo: "Parar de acompanhar “" + p.nome + "”?", contexto: "Conexões › Google Drive",
+        texto: "A pasta continua no seu Drive. A cópia no Acervo deixa de ser atualizada; se preferir, ela sai também.",
+        marcar: { rotulo: "Apagar também a cópia do Acervo", marcada: false },
+        confirmar: "Parar de acompanhar",
+      });
+      if (!e || !e.ok) return;
+      const resp = await fetch("/api/google/drive/copias/tirar", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: p.id, apagar_copia: Boolean(e.marcada) }),
+      });
+      if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); return; }
+      avisoCert(e.marcada ? "“" + p.nome + "” saiu do Acervo" : "“" + p.nome + "” não é mais acompanhada; a cópia ficou no Acervo", { tom: "ok" });
+      await carregarGoogle();
       desenharConfig();
     };
   });

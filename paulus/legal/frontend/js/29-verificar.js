@@ -166,11 +166,16 @@ async function baixarArquivo(caminho) {
 /* O nosso "escolher pasta", no visual do anexar: atalhos, unidades e pastas
    desta maquina, a pasta atual no rodape. Com `nome`, um campo para o nome do
    arquivo que vai ser gravado. Devolve { pasta, nome } ou null. */
-const ep = { caminho: "", dados: null };
+const ep = { caminho: "", dados: null, drive: null, driveOnline: false, rotulo: "" };
 
 function escolherPastaNossa(o) {
   ep.caminho = "";
   const opcoes = o || {};
+  // `driveOnline`: o Google Drive pela internet entra na lista (o "Incluir
+  // pasta" do Acervo) - escolher uma pasta dele devolve { drive: {id, nome} }.
+  ep.drive = null;
+  ep.driveOnline = Boolean(opcoes.driveOnline);
+  ep.rotulo = opcoes.confirmar || "Salvar aqui";
   const escolha = dialogo({
     titulo: opcoes.titulo || "Escolher a pasta", contexto: opcoes.contexto || "Esta máquina", classe: "dialogo-anexar dialogo-pasta",
     confirmar: opcoes.confirmar || "Salvar aqui",
@@ -182,6 +187,7 @@ function escolherPastaNossa(o) {
         : "") +
       '<div class="anx-rodape"><span id="ep-onde" class="ep-onde"></span></div></div>',
     aoConfirmar: () => {
+      if (ep.drive) { dialogoAberto.fechar({ ok: true, drive: ep.drive }); return; }
       if (!ep.caminho) return;
       const campo = $("ep-nome");
       const nome = campo ? campo.value.trim() : "";
@@ -190,11 +196,13 @@ function escolherPastaNossa(o) {
     },
   });
   navegarPastaNossa("");
-  return escolha.then((r) => (r && r.ok ? { pasta: r.pasta, nome: r.nome } : null));
+  return escolha.then((r) => (r && r.ok ? { pasta: r.pasta, nome: r.nome, drive: r.drive || null } : null));
 }
 
 async function navegarPastaNossa(caminho) {
   ep.caminho = caminho;
+  ep.drive = null;
+  rotuloDoConfirmarEp(ep.rotulo);
   const lista = $("ep-lista");
   if (!lista) return;
   try { ep.dados = await (await fetch("/api/pastas?caminho=" + encodeURIComponent(caminho))).json(); }
@@ -207,7 +215,12 @@ async function navegarPastaNossa(caminho) {
   let html = "";
   // O Google Drive aparece sempre no comeco: sem o Drive para computador,
   // a linha diz que falta e, clicada, explica como ter.
-  const semDrive = !caminho && !(d.drive || []).length
+  // No "Incluir pasta", o Drive pela internet vem sempre, com ou sem o Drive
+  // para computador.
+  const semDrive = !caminho && ep.driveOnline
+    ? '<div class="anx-linha anx-pasta" data-ep-drive-online="1">' + marca("google-drive", 17) +
+      '<span class="duas-linhas"><b class="corta">Google Drive</b><small class="corta">pela internet — vira uma cópia no Acervo</small></span>' + ic("chevron_right", 16) + "</div>"
+    : !caminho && !(d.drive || []).length
     ? '<div class="anx-linha anx-pasta" data-ep-sem-drive="1">' + marca("google-drive", 17) +
       '<span class="duas-linhas"><b class="corta">Google Drive</b><small class="corta">não instalado neste computador</small></span>' + ic("chevron_right", 16) + "</div>"
     : "";
@@ -228,9 +241,90 @@ async function navegarPastaNossa(caminho) {
       lista.querySelector("[data-ep-ir]").onclick = () => navegarPastaNossa("");
     };
   }
+  const online = lista.querySelector("[data-ep-drive-online]");
+  if (online) online.onclick = () => navegarDriveOnline([]);
   $("ep-onde").textContent = caminho ? "Salvar em " + caminho : "Escolha uma pasta";
   const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
   if (botao) botao.disabled = !caminho;
+}
+
+function rotuloDoConfirmarEp(texto) {
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  if (botao && texto) botao.textContent = texto;
+}
+
+/* O Google Drive pela internet (src/drive_online.py): `pilha` e o caminho
+   aberto, [{id, nome, so_navegar}]. Sem a leitura autorizada, explica e
+   leva a autorizar; com ela, as pastas - a aberta e a que vira copia. */
+async function navegarDriveOnline(pilha) {
+  const lista = $("ep-lista");
+  if (!lista) return;
+  const atual = pilha[pilha.length - 1] || null;
+  ep.caminho = "";
+  ep.drive = atual && !atual.so_navegar ? { id: atual.id, nome: atual.nome } : null;
+  lista.innerHTML = '<p class="anx-vazio">abrindo o Drive…</p>';
+  const migalhas = $("ep-migalhas");
+  migalhas.innerHTML = '<button type="button" data-ep-ir="">Este computador</button><span class="lc-sep">›</span>' +
+    '<button type="button" data-ep-drive-nivel="0">Google Drive</button>' +
+    pilha.map((p, i) => '<span class="lc-sep">›</span><button type="button" data-ep-drive-nivel="' + (i + 1) + '">' + esc(p.nome) + "</button>").join("");
+  migalhas.querySelector("[data-ep-ir]").onclick = () => navegarPastaNossa("");
+  migalhas.querySelectorAll("[data-ep-drive-nivel]").forEach((b) => {
+    b.onclick = () => navegarDriveOnline(pilha.slice(0, Number(b.dataset.epDriveNivel)));
+  });
+  const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
+  const pronto = (onde) => {
+    $("ep-onde").textContent = onde;
+    rotuloDoConfirmarEp(ep.drive ? "Copiar para o Acervo" : ep.rotulo);
+    if (botao) botao.disabled = !ep.drive;
+  };
+  let d;
+  try {
+    const r = await fetch("/api/google/drive/navegar?pasta=" + encodeURIComponent(atual ? atual.id : ""));
+    if (!r.ok) throw new Error(await erroDe(r));
+    d = await r.json();
+  } catch (err) {
+    lista.innerHTML = '<p class="anx-vazio">' + esc(maiuscula(String(err.message || err))) + "</p>";
+    ep.drive = null;
+    pronto("O Drive não abriu");
+    return;
+  }
+  if (d.autorizar) {
+    ep.drive = null;
+    lista.innerHTML = '<div class="anx-sem-drive">' + marca("google-drive", 28) +
+      "<p><b>Ler o seu Google Drive pela internet</b></p>" +
+      (d.conta
+        ? "<p>O PAULUS pede ao Google permissão só de leitura na conta <b>" + esc(d.conta) + "</b>. As pastas que você escolher descem como cópia para o Acervo, neste computador, e a cópia acompanha o Drive a cada 15 minutos.</p>" +
+          "<p>Nada vai do PAULUS para o seu Drive. Para tirar a permissão depois: myaccount.google.com/permissions.</p>"
+        : "<p>Entre primeiro com a conta Google em E-mail › Contas: é ela que autoriza a leitura do Drive.</p>") +
+      '<div class="cfg-botoes">' + (d.conta ? '<button type="button" class="primario" data-ep-autorizar="1">Autorizar no Google</button>' : "") +
+      '<button type="button" data-ep-ir="">Voltar</button></div></div>';
+    lista.querySelector("[data-ep-ir]").onclick = () => navegarPastaNossa("");
+    const autorizar = lista.querySelector("[data-ep-autorizar]");
+    if (autorizar) {
+      autorizar.onclick = () => conectarGoogle("drive_leitura", autorizar, (ok) => {
+        if (ok && $("ep-lista")) navegarDriveOnline(pilha);
+      });
+    }
+    pronto("Falta autorizar a leitura do Drive");
+    return;
+  }
+  const pastas = (d.itens || []).filter((x) => x.pasta);
+  const lidos = (d.itens || []).filter((x) => !x.pasta && x.le).length;
+  const icone = { raiz: "folder_special", compartilhados: "group", drive: "group" };
+  let html = pastas.map((p, i) => '<div class="anx-linha anx-pasta" data-ep-drive-abrir="' + i + '">' + ic(icone[p.tipo] || "folder", 17) +
+    '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" + ic("chevron_right", 16) + "</div>").join("");
+  if (atual) {
+    html += '<p class="anx-vazio">' + (lidos ? plural(lidos, "documento") + " que o Acervo lê, direto nesta pasta" : "Nenhum documento que o Acervo lê direto nesta pasta") +
+      (pastas.length ? " (e o que houver nas subpastas)." : ".") + "</p>";
+  } else if (!html) {
+    html = '<p class="anx-vazio">O Drive não mostrou nenhuma pasta.</p>';
+  }
+  lista.innerHTML = html;
+  lista.querySelectorAll("[data-ep-drive-abrir]").forEach((l) => {
+    const p = pastas[Number(l.dataset.epDriveAbrir)];
+    l.onclick = () => navegarDriveOnline(pilha.concat([{ id: p.id, nome: p.nome, so_navegar: Boolean(p.so_navegar) }]));
+  });
+  pronto(ep.drive ? "Copiar para o Acervo: " + ep.drive.nome + " (com as subpastas)" : "Escolha uma pasta do Drive");
 }
 
 /* Compartilhar e o e-mail do proprio PAULUS, com o arquivo ja anexado. Sem
