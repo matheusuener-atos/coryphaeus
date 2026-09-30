@@ -253,3 +253,14 @@
   border: 1px solid var(--ink-a12); background: var(--surf); font-size: 12.5px; cursor: pointer; }
 .chip-marcar input { margin: 0; accent-color: var(--acc); }
 .chip-marcar:has(input:checked) { background: var(--fill); border-color: var(--ink-a3); }
+/* O que o PAULUS sabe (Biblioteca, M7): uma linha por area, com as leis e as
+   obras dela. */
+.bib-areas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.bib-area { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a08); }
+.bib-area > b { min-width: 150px; font-weight: 600; }
+.bib-area-itens { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Glossario e teses (Biblioteca, M5, js/35-material.js). */
+.bib-titulo { font-size: 13px; margin: 14px 0 6px; }
+.bib-lista { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.bib-lista small { color: var(--ink3); margin-left: 6px; }
+.bib-quote { display: block; color: var(--ink2); font-size: 12px; line-height: 1.5; margin-top: 2px; }

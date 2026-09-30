@@ -9,11 +9,22 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
 | M1 | Material no pipeline híbrido (regime C) | feita | ver git log (m1) | R@6 0,839 · ruído 0,375 · sinônimo 4/7 · τ 0,625 · roteiro 40/41 (= controle) |
 | M2 | Triagem, ficha e as leis que faltam | feita | ver git log (m2) | ruído 0,0 · 5 fichas, 0 campo errado · CDC em PDF = Planalto · 50 artigos sorteados conferem |
 | M3 | Ponte doutrina ↔ lei (Código anotado) | feita | ver git log (m3) | 26 anotações conferidas à mão: 26 páginas certas, 0 código errado · dispositivo R@6 1,0 · roteiro 40/41 |
-| M4 | Resposta em camadas | pendente | — | — |
-| M5 | Leitura em segundo plano (glossário e teses) | pendente | — | — |
-| M6 | Aviso de obra anterior à redação | pendente | — | — |
-| M7 | O que o PAULUS sabe (tela e fora da cobertura) | pendente | — | — |
-| Pacote | `.paulus-material` local (Compartilhamento futuro) | pendente | — | — |
+| M4 | Resposta em camadas | código e teste feitos; medição com o modelo em andamento | — | — |
+| M5 | Leitura em segundo plano (glossário e teses) | código e teste feitos; conferência com o 3B pendente | — | — |
+| M6 | Aviso de obra anterior à redação | feita | — | 30 artigos: alterado_em certo em 30 |
+| M7 | O que o PAULUS sabe (tela e fora da cobertura) | feita | — | 5/5 fora com aviso; 0 aviso nas outras 39 (regra) |
+| Pacote | `.paulus-material` local (Compartilhamento futuro) | feito | — | ida e volta: mesmos chunk_id e anotações |
+
+## Na sequência
+
+Pedido do dono em 30/09/2026: logo depois da Biblioteca, o briefing
+`docs/prompt-ideias-umbrel-v0.md` — levantamento, a tabela em
+`docs/DECISAO-UMBREL.md` com até três ideias para fazer agora, e a
+implementação. O dono pediu depois para seguir **direto, como na
+Biblioteca** ("irei dormir, quando acordar quero o resultado pronto"): as
+pausas do briefing não param. Em troca, a regra de quem implementa: nada que
+faça conteúdo do escritório sair da máquina ou abra porta de rede nova vem
+ligado de fábrica - fica atrás de chave desligada, ou para depois, com o motivo.
 
 ## Como este trabalho está sendo feito (30/09/2026)
 

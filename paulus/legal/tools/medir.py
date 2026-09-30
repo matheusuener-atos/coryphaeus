@@ -241,7 +241,29 @@ def perguntar(base: str, trabalho: str, p: dict) -> dict:
             "sem_fonte": int((revisao or {}).get("sem_fonte") or 0),
             # A Biblioteca (--conjunto biblioteca): se o material entrou nas
             # fontes, e a resposta inteira, para conferir os avisos.
-            "trouxe_material": any(f.get("material") for f in fontes), "resposta_inteira": texto}
+            "trouxe_material": any(f.get("material") for f in fontes), "resposta_inteira": texto,
+            "doutrina_como_lei": doutrina_como_lei(texto, fontes),
+            "doutrina_atribuida": int((revisao or {}).get("doutrina_atribuida") or 0)}
+
+
+def doutrina_como_lei(texto: str, fontes: list[dict]) -> int:
+    """
+    Frases que dizem "a lei diz" apontando só para trecho de doutrina, sem o
+    autor na frente (M4: tem de ser zero).
+    """
+    try:
+        from biblioteca.camadas import RE_ATRIBUI_A_LEI
+        from citacoes import RE_MARCA, _frases
+    except ImportError:
+        return 0
+    n = 0
+    for frase in _frases(texto):
+        marcas = [int(m) for m in RE_MARCA.findall(frase)]
+        origens = {(fontes[m - 1] if 0 < m <= len(fontes) else {}).get("origem") for m in marcas}
+        if (marcas and RE_ATRIBUI_A_LEI.search(frase) and origens <= {"doutrina", "comunidade"}
+                and not re.match(r"\s*segundo\s", frase, re.I) and "posição doutrinária" not in frase):
+            n += 1
+    return n
 
 
 RE_DESISTIU = re.compile(r"\bnao (?:encontrei|localizei|achei|consta|ha informac|ha mencao|menciona|traz|informa)"
@@ -260,12 +282,17 @@ def textos_da_biblioteca(estado, pergunta: str) -> list[str]:
     Recall@6 da biblioteca mede. Com a Biblioteca montada (src/biblioteca),
     ela mesma diz; antes dela, o material de consulta.
     """
-    bib = getattr(estado, "biblioteca", None)
-    if bib is not None and hasattr(bib, "textos_para_medir"):
-        return bib.textos_para_medir(pergunta)
     from material import RE_PAGINA
 
-    return [RE_PAGINA.sub("", h.chunk.text) for h in estado.material.consultar(pergunta, top=6)]
+    material = estado.material
+    hits = material.consultar(pergunta, top=6)
+    if getattr(material, "chave", None) and material.chave("camadas"):
+        # M4: o que vai ao modelo são as camadas - a LEI (o artigo citado)
+        # antes da doutrina e da regra da casa.
+        from biblioteca import camadas
+
+        return camadas.montar(material, getattr(material, "leis", None), pergunta, hits).textos()
+    return [RE_PAGINA.sub("", h.chunk.text) for h in hits]
 
 
 def main_biblioteca() -> int:
@@ -454,6 +481,8 @@ def resumir_biblioteca(resultados: list[dict], perguntas: list[dict]) -> dict:
         # e documento de cliente não contam.
         resumo["desistiu"] = sum(1 for r in resultados if r.get("desistiu") and r["tipo"] not in ("fora",))
         resumo["inventadas"] = sum(len(r.get("inventadas") or []) for r in resultados)
+        resumo["doutrina_como_lei"] = sum(r.get("doutrina_como_lei") or 0 for r in resultados)
+        resumo["doutrina_atribuida"] = sum(r.get("doutrina_atribuida") or 0 for r in resultados)
         # Os avisos: "fora da cobertura" (M7) e "obra anterior à redação" (M6).
         por_pergunta = {q["pergunta"]: q for q in perguntas}
         fora_q = [r for r in resultados if por_pergunta[r["pergunta"]].get("cobertura") == "fora"]

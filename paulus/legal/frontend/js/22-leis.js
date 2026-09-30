@@ -131,6 +131,7 @@ async function naBibliotecaDoEscritorio(a, caixa) {
     ? lista.map((n, j) => '<div class="lei-bib-item"><div class="lei-bib-onde"><b>' + esc(n.obra) + "</b>" +
         '<small>' + esc([n.autor, [n.edicao ? n.edicao + " ed." : "", n.ano].filter(Boolean).join(", "), n.pagina ? "p. " + n.pagina : ""].filter(Boolean).join(" · ")) + "</small>" +
         (n.aviso ? '<span class="etiqueta atencao">' + esc(n.aviso) + "</span>" : "") + "</div>" +
+        (n.teses && n.teses.length ? n.teses.map((x) => '<p class="lei-bib-tese"><b>Tese do autor:</b> ' + esc(x) + "</p>").join("") : "") +
         '<p class="lei-bib-trecho">“' + esc(n.trecho) + "”</p>" +
         (n.pdf && n.pagina ? '<button data-lei-bib-abrir="' + j + '">' + ic("menu_book", 16) + "abrir na página</button>" : "") + "</div>").join("")
     : '<p class="nota">' + esc(d.mensagem) + "</p>");

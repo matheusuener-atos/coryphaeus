@@ -121,11 +121,21 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     material = getattr(ctx, "material", None)
     do_material = material.consultar(pergunta) if material is not None else []
     bloco_material = ""
-    if do_material:
+    # A Biblioteca, M4 (src/biblioteca/camadas.py): com `biblioteca.camadas`,
+    # o que ela traz vai em blocos rotulados - LEI, SUMULAS, DOUTRINA,
+    # COMUNIDADE, REGRA DA CASA - antes dos documentos, e a camada LEI traz o
+    # texto do artigo que a pergunta ou os trechos citam.
+    camadas = _camadas(material, pergunta, do_material, orcamento)
+    if camadas is not None:
+        bloco_material = camadas.texto
+        orcamento -= len(bloco_material) + 2
+        ctx.registrar("A biblioteca trouxe " + _quantos(len(camadas.trechos), "trecho") + " (" +
+                      ", ".join(dict.fromkeys(t.origem for t in camadas.trechos)) + ")")
+    elif do_material:
         bloco_material = CABECA_MATERIAL + material.bloco(do_material, orcamento=min(2400, orcamento // 3))
         orcamento -= len(bloco_material) + 2
         ctx.registrar("Achou " + _quantos(len(do_material), "trecho") + " no material de consulta")
-    leitura_material = (do_material, bloco_material)
+    leitura_material = (do_material, bloco_material, camadas)
 
     # HOOK 2: o que ja foi lido uma vez responde de novo sem ler outra vez.
     # Nao respondendo - metadata que falta, dado nao conferido, pergunta que
@@ -141,7 +151,7 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
         escopo = ([d for d in ctx.documentos if d.name in set(quais_em_foco)]
                   if quais_em_foco else ctx.documentos)
         pacote = saber.montar_contexto(pergunta, escopo, em_foco=bool(quais_em_foco))
-        if pacote.responde_sozinho and not do_material:
+        if pacote.responde_sozinho and not do_material and camadas is None:
             sinal = {"escalou": False}
             yield from _responder_do_que_ja_se_sabe(ctx, pergunta, pacote, sinal)
             if not sinal["escalou"]:
@@ -223,9 +233,11 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                                    per_doc_limit=por_documento)
         ctx.registrar("Procurou em " + _quantos(len(ctx.documentos), "documento"))
 
-    if not hits and not do_material:
+    if not hits and not do_material and camadas is None:
+        fora = _fora_da_cobertura(ctx, pergunta, do_material, camadas)
         yield evento("vazio", mensagem="Não achei nada sobre isso nos documentos abertos"
-                     + (" nem no material de consulta." if material is not None and material.itens else "."),
+                     + (" nem no material de consulta." if material is not None and material.itens else ".")
+                     + ("\n\n" + fora if fora else ""),
                      caminho=caminho)
         return
     if not hits:
@@ -256,6 +268,9 @@ def sem_modelo(ctx: Contexto, pergunta: str = "", apenas=None) -> bool:
     material = getattr(ctx, "material", None)
     if material is not None and material.consultar(pergunta):
         return False
+    # A camada LEI (M4): a pergunta cita um artigo que esta guardado - vai ao modelo, com o texto dele.
+    if material is not None and _camadas(material, pergunta, [], 20000) is not None:
+        return False
     saber = getattr(ctx, "saber", None)
     if saber is None or not getattr(saber, "ligada", False) or not getattr(ctx, "ia", {}).get("molde", True):
         return False
@@ -267,6 +282,33 @@ def sem_modelo(ctx: Contexto, pergunta: str = "", apenas=None) -> bool:
     except Exception:  # noqa: BLE001 - na duvida, a fila de sempre
         return False
     return pacote.responde_sozinho and bool(molde.montar(pacote, pergunta))
+
+
+def _fora_da_cobertura(ctx: Contexto, pergunta: str, do_material, camadas) -> str:
+    """A linha "Não tenho material de <área> na biblioteca..." (M7), ou "" - chave `biblioteca.mapa`."""
+    material = getattr(ctx, "material", None)
+    if material is None or not getattr(material, "chave", None) or not material.chave("mapa"):
+        return ""
+    if do_material or camadas is not None:
+        return ""  # a biblioteca trouxe algo: a resposta usou a biblioteca
+    from biblioteca import mapa
+
+    area = mapa.fora_da_cobertura(pergunta, material, getattr(material, "leis", None))
+    if area:
+        ctx.registrar(f"a pergunta é de {area}, e a biblioteca não tem nada dessa área")
+    return mapa.linha_de_aviso(area) if area else ""
+
+
+def _camadas(material, pergunta: str, do_material: list, orcamento: int):
+    """As camadas da Biblioteca (M4), ou None: chave desligada, ou nada a mostrar."""
+    chave = getattr(material, "chave", None)
+    if material is None or chave is None or not chave("camadas"):
+        return None
+    from biblioteca import camadas as camadas_mod
+
+    feitas = camadas_mod.montar(material, getattr(material, "leis", None), pergunta, do_material,
+                                total=min(camadas_mod.TOTAL, max(1200, orcamento // 3)))
+    return None if feitas.vazia else feitas
 
 
 def _responder_do_que_ja_se_sabe(ctx: Contexto, pergunta: str, pacote, sinal: dict):
@@ -390,7 +432,7 @@ SISTEMA_DOS_FATOS = (
 )
 
 
-def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, material=([], ""),
+def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, material=([], "", None),
                caminho: str = "busca", fallback: bool = False):
     """
     Monta as fontes, entrega ao assistente e devolve a resposta.
@@ -402,7 +444,7 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     `material` e o que veio do material de consulta: os trechos e o bloco ja
     montado, com nome e pagina de cada um.
     """
-    do_material, bloco_material = material
+    do_material, bloco_material, camadas = (tuple(material) + (None,))[:3]
     consultados = list(dict.fromkeys(h.doc_name for h in hits))
     # Com a leitura estreitada os outros nao ficaram "de fora": a pergunta
     # nomeou um arquivo. Listar oito documentos como nao consultados viraria
@@ -425,7 +467,7 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         }
         for h in hits
     ]
-    for h in do_material:
+    for h in ([] if camadas is not None else do_material):
         pagina = ctx.material.pagina(h)
         lugar = ctx.material.onde(h) if hasattr(ctx.material, "onde") else ""
         fontes.append({
@@ -438,6 +480,14 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
             "onde": lugar or (f"página {pagina}" if pagina else f"trecho {h.chunk.index + 1}"),
         })
     usados_do_material = list(dict.fromkeys(h.doc_name for h in do_material))
+    if camadas is not None:
+        # M4: as fontes na ordem das camadas, e os documentos depois - e a
+        # ordem da numeracao [Tn] que a resposta vai ter.
+        for f in fontes:
+            f["origem"] = "documento"
+        fontes = [dict(t.fonte) for t in camadas.trechos] + fontes
+        usados_do_material = list(dict.fromkeys(t.fonte["documento"] for t in camadas.trechos
+                                                if not t.fonte.get("lei")))
 
     ctx.registrar(_quantos(len(hits), "trecho") + " de " +
                   _quantos(len(consultados), "documento") +
@@ -458,7 +508,9 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     # ao modelo - que, medido, derruba o banco de provas com o 3B.
     modo = getattr(ctx, "ia", {}).get("citacao", False)
     modo = "modelo" if modo is True else (modo or "")
-    com_marcas = bool(modo and hits)
+    # Com as camadas, as marcas sao sempre postas em codigo, sobre a lista
+    # inteira (biblioteca + documentos): pedir ao modelo seria instrucao nova.
+    com_marcas = bool(modo and hits) and camadas is None
     regra = ""
     if com_marcas and modo == "modelo":
         import citacoes
@@ -467,7 +519,15 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         regra = citacoes.REGRA
     else:
         contexto = ctx.searcher.format_context(hits, max_chars=orcamento) if hits else ""
-    if bloco_material:
+    if camadas is not None:
+        # M4: os documentos primeiro, e as camadas da biblioteca depois deles,
+        # na ordem LEI, SUMULAS, DOUTRINA, COMUNIDADE, REGRA DA CASA. O
+        # contrato pedia os documentos por ultimo; medido (30/09/2026): com a
+        # biblioteca na frente, o comeco do contexto muda a cada pergunta, o
+        # Ollama nao reaproveita os ~20 mil caracteres do Acervo ja lidos, e a
+        # resposta ia de 10 s para 55 s na mesma pergunta do manual.
+        contexto = (("DOCUMENTOS — os documentos do Acervo\n\n" + contexto + "\n\n") if contexto else "") + bloco_material
+    elif bloco_material:
         contexto = (contexto + "\n\n" if contexto else "") + bloco_material
 
     # O que vai acontecer, dito antes de acontecer. Ler o prompt inteiro e o
@@ -507,6 +567,10 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
             resposta = citacoes.atribuir(resposta, [h.chunk.text for h in hits])
         texto, sem_fundamento = yield from _conferir_marcas(ctx, pergunta, hits, orcamento, resposta, regra)
         escrito = [texto]
+    elif camadas is not None and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
+        texto = _conferir_camadas(ctx, "".join(escrito), camadas, hits, modo)
+        yield evento("revisao", **texto)
+        escrito = [texto["texto"]]
 
     # Pergunta de consequencia: a frase do documento que decide, literal,
     # quando ela traz o que a resposta deixou de fora (src/verificacao.py).
@@ -517,9 +581,49 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         ctx.registrar("acrescentei a frase do documento que decide a pergunta")
         yield evento("token", t=complemento)
 
+    # M7: a pergunta é de uma área de que a biblioteca não tem nada - a
+    # resposta segue, e diz isso no fim. Nunca bloqueia.
+    fora = _fora_da_cobertura(ctx, pergunta, do_material, camadas)
+    if fora:
+        yield evento("token", t="\n\n" + fora)
+
     if sem_fundamento:
         yield evento("sem_fundamento", documentos=consultados)
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
+
+
+def _conferir_camadas(ctx: Contexto, resposta: str, camadas, hits, modo: str) -> dict:
+    """
+    A resposta com as camadas (M4), conferida em codigo: a marca [Tn] de cada
+    frase, na ordem das fontes (biblioteca, depois documentos); a citacao de
+    lei que nao esta em trecho nenhum sai; e a frase que diz "a lei diz"
+    sustentada so por doutrina ganha o autor na frente. O rotulo "sem fonte"
+    so aparece com `ia.citacao` ligada, como sempre.
+    """
+    import citacoes
+    from biblioteca import camadas as camadas_mod
+
+    trechos = list(camadas.trechos) + [camadas_mod.trecho_de_documento(h) for h in hits]
+    textos = [t.texto for t in trechos]
+    marcada = citacoes.atribuir(resposta, textos)
+    rev = citacoes.revisar(marcada, textos)
+    texto = rev.texto if modo else rev.texto.replace(" " + citacoes.SEM_FONTE, "")
+    texto, corrigidas = camadas_mod.conferir_doutrina(texto, trechos)
+    # M6: a obra anterior à redação atual do artigo que ela comenta - só avisa.
+    material = getattr(ctx, "material", None)
+    if material is not None and material.chave("defasagem"):
+        from biblioteca import defasagem
+
+        avisos = defasagem.para_a_resposta(texto, trechos, getattr(material, "leis", None))
+        if avisos:
+            texto = texto.rstrip() + "\n\n" + avisos
+            ctx.registrar("a obra citada é anterior à redação atual do artigo: avisei")
+    if rev.removidas:
+        ctx.registrar("tirei da resposta o que não está nos trechos lidos: " + "; ".join(rev.removidas[:3]))
+    if corrigidas:
+        ctx.registrar(_quantos(corrigidas, "frase") + " de doutrina dita como lei: atribuí ao autor")
+    return {"texto": texto, "sem_fonte": rev.sem_fonte if modo else 0, "removidas": rev.removidas,
+            "marcas": rev.marcas_validas, "doutrina_atribuida": corrigidas}
 
 
 def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, resposta: str, regra: str):

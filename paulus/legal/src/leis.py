@@ -181,6 +181,27 @@ RE_ALTERADO = re.compile(
     re.IGNORECASE,
 )
 
+# As notas que mudam a redacao do artigo, em qualquer parte dele (caput,
+# paragrafo, inciso): "(Redacao dada pela Lei n 12.741, de 2012)",
+# "(Incluido pela Lei n 14.181, de 2021)", "(Revogado pela Lei n 13.146, de
+# 2015)". Conferido nos textos do Planalto em 30/09/2026 (CDC, CC, CPC): sao
+# essas, e o ano e o ultimo da nota ("de 21.3.1995" tambem).
+RE_NOTA_DE_REDACAO = re.compile(
+    r"\((?:Reda[çc][ãa]o dada|Inclu[íi]d[oa]s?|Revogad[oa]s?|Acrescid[oa]s?|Renumerad[oa][^()]{0,40}?)"
+    r"\s+pel[oa]s?\s+([^()]{0,160}?)\)", re.IGNORECASE)
+RE_ANO = re.compile(r"\b(1[89]\d\d|20\d\d)\b")
+
+
+def ano_da_alteracao(texto: str) -> int:
+    """
+    O ano mais recente em que o artigo (ou um paragrafo, inciso ou alinea
+    dele) teve a redacao mudada; 0 quando o texto nao traz nota nenhuma. E o
+    que a Biblioteca compara com o ano da obra (M6) - nao e o motor de
+    vigencia: nao diz qual era a redacao numa data passada.
+    """
+    anos = [int(a) for m in RE_NOTA_DE_REDACAO.finditer(texto or "") for a in RE_ANO.findall(m.group(1))]
+    return max(anos) if anos else 0
+
 # A hierarquia, do maior para o menor. Um cabeçalho fecha todos os que estão
 # abaixo dele: quando começa o LIVRO V do CPC, a SEÇÃO do livro anterior acabou.
 # Sem isso o art. 294 aparecia em "SEÇÃO II · CAPÍTULO IV", que é de outro lugar
@@ -715,6 +736,9 @@ class Leis:
         dados["codigo_nome"] = CODIGOS.get(dados["codigo"], {}).get("nome", dados["codigo"])
         dados["citacao"] = citar(dados["codigo"], dados["numero"])
         dados["resumo"] = _resumir(dados.get("texto", ""))
+        # M6 da Biblioteca: tirado do texto guardado, e nao de uma coluna -
+        # vale tambem para o codigo importado antes de existir a regra.
+        dados["alterado_em"] = ano_da_alteracao(dados.get("texto", ""))
         return dados
 
     def contagem(self) -> dict:

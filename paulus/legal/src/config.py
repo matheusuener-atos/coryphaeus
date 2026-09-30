@@ -180,7 +180,16 @@ PADRAO: dict = {
     # `camadas` (M4): a resposta em blocos rotulados (LEI, SUMULAS, DOUTRINA,
     # COMUNIDADE, REGRA DA CASA, DOCUMENTOS), marca [Tn] com a origem, e a
     # frase de doutrina dita como lei atribuida ao autor.
-    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": False},
+    # `defasagem` (M6): obra anterior a redacao atual do artigo que comenta
+    # ganha o aviso, na resposta e na tela da lei (so avisa, nao esconde).
+    # `mapa` (M7): a tela "O que o PAULUS sabe" por area, e a linha "Nao tenho
+    # material de <area> na biblioteca" quando a pergunta e de area sem nada.
+    # `pacote`: exportar e importar um material como .paulus-material, so
+    # local (o compartilhamento entre escritorios e frente futura).
+    # `leitura` (M5): o modelo da tarefa `leitura` le cada obra em segundo
+    # plano e guarda conceitos e posicoes - so o que a frase do livro confirma.
+    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": False, "defasagem": False,
+                   "mapa": False, "leitura": False, "pacote": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

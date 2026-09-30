@@ -376,6 +376,8 @@ class Estado:
             chaves=lambda: self.prefs.dados.get("biblioteca") or {})
         # As leis em casa, para a camada LEI da resposta (src/biblioteca/camadas.py).
         self.material.leis = self.leis
+        # O modelo que le as obras (M5): o da tarefa `leitura` (src/modelos.py).
+        self.material.cliente_leitura = lambda: self.cliente_para("leitura")
         # A foto de quem usa e a logo do escritorio (docs/ui, A13).
         self.marca = marca_mod.Marca(MARCA_DIR)
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.

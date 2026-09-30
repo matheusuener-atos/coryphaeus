@@ -335,8 +335,12 @@ _declarar(BLOQUEADO,
 # as leis.
 _declarar(BLOQUEADO,
           "GET /api/biblioteca-juridica", "PUT /api/material/{id_}/ficha", "POST /api/leis/baixar",
-          "GET /api/material/{id_}/arquivo")
+          "GET /api/material/{id_}/arquivo", "GET /api/biblioteca-juridica/mapa",
+          "GET /api/material/{id_}/leitura", "POST /api/biblioteca-juridica/ler",
+          # o pacote .paulus-material: so na janela do servidor, e nada vai pela rede
+          "POST /api/material/{id_}/autoria", "GET /api/material/{id_}/pacote", "POST /api/material/pacote")
 _declarar(PERMITIDO, "GET /api/leis/anotacoes")
+
 
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:

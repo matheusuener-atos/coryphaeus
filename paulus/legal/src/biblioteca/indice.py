@@ -123,7 +123,10 @@ def trechos_do_material(item: dict, texto: str, regime: str = "") -> list[Chunk]
     titulo = (item.get("ficha") or {}).get("titulo") or re.sub(r"\.[A-Za-z0-9]{2,4}$", "", item["nome"])
     fonte, fatias = fatias_do_material(texto, regime, titulo)
     marca = "|".join(f"{f.char_start}-{f.char_end}" for f in fatias)
-    versao = hashlib.sha1(f"{item.get('sha1', '')}\0{item['id']}\0{regime}\0{marca}".encode("utf-8")).hexdigest()[:12]
+    # O material que veio de pacote (src/biblioteca/pacote.py) usa o id de onde
+    # veio: la e aqui, os mesmos trechos tem os mesmos ids.
+    origem = item.get("id_de_origem") or item["id"]
+    versao = hashlib.sha1(f"{item.get('sha1', '')}\0{origem}\0{regime}\0{marca}".encode("utf-8")).hexdigest()[:12]
     paginas = mapa_de_paginas(texto)
     saida: list[Chunk] = []
     for i, f in enumerate(fatias):

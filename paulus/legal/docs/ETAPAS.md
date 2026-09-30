@@ -2000,3 +2000,59 @@ controle).
 primeiro no sumário, e a página saía a 3 (agora confere dentro do trecho); no
 PDF a citação quebra de linha ("art. 421 do Código⏎Civil") e perdia o
 instrumento — a quebra simples vira espaço, do mesmo tamanho.
+
+## M6 — Aviso de obra anterior à redação atual ✓ FEITA
+
+- `leis.ano_da_alteracao`: o ano mais recente das notas "(Redação dada
+  pela…)", "(Incluído pela…)", "(Revogado pela…)" do artigo inteiro (caput,
+  parágrafos, incisos). Calculado do texto guardado: vale também para o
+  código importado antes, sem reimportar. "(Vide…)" não conta.
+- `src/biblioteca/defasagem.py`: obra com ano menor que a alteração do
+  artigo que ela comenta → "Obra de 2015; este artigo teve a redação alterada
+  em 2021. Confira se o comentário ainda vale." Sem ano na ficha: "Ano da
+  obra desconhecido; confira a redação." Na resposta em camadas (no fim, para
+  os trechos de doutrina que a resposta cita) e na tela da lei. Não esconde e
+  não decide: só avisa.
+- Chave `biblioteca.defasagem`.
+
+**Medido:** 20 artigos com alteração conhecida e 10 sem, no CDC e no CC do
+Planalto: `alterado_em` certo nos 30 (gabarito conferido lendo as notas de
+cada um). Obra anterior → aviso; posterior ou artigo sem alteração → nenhum.
+
+## M7 — O que o PAULUS sabe ✓ FEITA
+
+- `src/biblioteca/mapa.py`: a área da pergunta por regra — o artigo citado
+  com o código decide; senão, o vocabulário curto de cada área, escrito à mão
+  em `config/areas-biblioteca.json` (só termos de direito: "aluguel",
+  "contrato", "locador" não entram, senão toda pergunta sobre o contrato de um
+  cliente ganharia o aviso). Empate ou nada: sem área e sem aviso.
+- Fora da cobertura (área sem obra nem lei): a resposta segue e ganha, no
+  fim, "Não tenho material de <área> na biblioteca; esta resposta usa só os
+  documentos.", com o botão "acrescentar material". Nunca bloqueia. Se a
+  biblioteca trouxe algo para a pergunta (o manual, por exemplo), não avisa.
+- Configurações › Aprendizado virou **Biblioteca**, com o cartão "O que eu
+  sei": as áreas com as obras e as leis, e por código quantos artigos as obras
+  comentam e os mais comentados.
+- Chave `biblioteca.mapa`.
+
+**Medido:** as 5 perguntas fora da cobertura do conjunto com a área certa e o
+aviso; zero aviso nas 39 outras.
+
+## Pacote `.paulus-material` (Compartilhamento futuro) ✓ FEITO (só local)
+
+- `src/biblioteca/pacote.py`: exportar e importar um material num arquivo
+  (manifesto, ficha, texto com as páginas, anotações — sem vetores e sem o
+  original). Nada vai pela rede.
+- Só o autor exporta: artigo, modelo de peça ou manual, depois de marcar
+  "sou o autor deste material e posso compartilhá-lo" e escolher a licença.
+  Doutrina de editora nunca, nem com a marca.
+- O importado entra com `origem: comunidade`, na camada COMUNIDADE da
+  resposta ("compartilhado por <autor>, não revisado por este escritório"),
+  cercado como texto de terceiro (`blindagem.cercar`); nunca vira lembrete;
+  "ignore as instruções anteriores" fica anotado como suspeita.
+- Chave `biblioteca.pacote`. O blog (contas de autor, curadoria, moderação,
+  publicação online) é a frente futura.
+
+**Medido:** ida e volta entre duas bibliotecas com os mesmos `chunk_id` e as
+mesmas anotações; pacote com arquivo a mais, de doutrina ou de outro formato é
+recusado.

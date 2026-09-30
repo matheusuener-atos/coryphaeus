@@ -31,7 +31,7 @@ const CFG_SECOES = [
   ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
   ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
   ["backup", "Backup", "Tudo do escritório mora neste computador. O backup é um arquivo cifrado com uma senha sua, numa pasta que você escolhe, todo dia."],
-  ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
+  ["aprendizado", "Biblioteca", "O que o PAULUS consulta para responder: livros, manuais e leis, com a fonte de cada um; o que o escritório ensinou com as próprias palavras; e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
@@ -125,7 +125,9 @@ async function carregarSecao() {
     cfg.cx = cx; cfg.contas = contas; cfg.cert = cert; cfg.acoes = (acoes && acoes.acoes) || [];
     await carregarGoogle();
   } else if (cfg.secao === "aprendizado") {
-    const [hab, ctx, material] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material")]);
+    const [hab, ctx, material, mapa] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material"),
+      pega("/api/biblioteca-juridica/mapa")]);
+    cfg.mapa = mapa;
     cfg.hab = hab;
     cfg.ctx = ctx;
     cfg.material = material;
@@ -1007,6 +1009,7 @@ function secaoAprendizado() {
   ]);
 
   return aberturaCfg() + ficha +
+    cartaoMapa() +
     cartaoMaterial() +
     cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);

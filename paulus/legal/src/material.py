@@ -107,6 +107,9 @@ class Material:
         # funcao que devolve o dicionario delas, lido na hora.
         self._chaves = chaves if callable(chaves) else (lambda: dict(chaves or {}))
         self._anotacoes = None
+        # M5: quem da o cliente do modelo da tarefa `leitura` (o api.py poe).
+        self.cliente_leitura = None
+        self._leitura = None
         self.indice = None
         self._indice_versao = -1
         self._versao = 0
@@ -214,17 +217,33 @@ class Material:
         os trechos que o comentam viram uma terceira lista da RRF. A fusao
         continua por posicao, sem peso manual.
         """
-        if not self.chave("anotacoes"):
+        if not self.chave("anotacoes") and not self.chave("leitura"):
             return []
         from biblioteca.anotacoes import ordem_do_artigo
         from inteligencia.extratores import regras_leis
 
         ids: list[str] = []
-        for achado in regras_leis.achar(pergunta):
+        for achado in regras_leis.achar(pergunta) if self.chave("anotacoes") else []:
             d = achado["dados"]
             if d.get("kind") == "article" and d.get("instrument_id"):
                 ids += self.anotacoes.chunks_do_dispositivo(d["instrument_id"], ordem_do_artigo(d.get("article", "")))
-        return [list(dict.fromkeys(ids))] if ids else []
+        listas = [list(dict.fromkeys(ids))] if ids else []
+        # M5: o termo que a obra define esta na pergunta -> o trecho que o define.
+        if self.chave("leitura"):
+            termos = self.leitura.chunks_do_termo(pergunta)
+            if termos:
+                listas.append(termos)
+        return listas
+
+    @property
+    def leitura(self):
+        """A leitura das obras pelo modelo (M5, src/biblioteca/leitura.py)."""
+        if self._leitura is None:
+            from biblioteca.leitura import Leitura
+
+            self._leitura = Leitura(self, cliente=lambda: self.cliente_leitura() if self.cliente_leitura else None,
+                                    ceder=self._ceder)
+        return self._leitura
 
     def fechar(self) -> None:
         if self._anotacoes is not None:
@@ -241,7 +260,8 @@ class Material:
             return {"hibrida": False, "trechos": len(self.buscador.chunks)}
         indice = self._montar_hibrido()
         indice.sentido(esperar=esperar)
-        return {"hibrida": True, **indice.estado()}
+        leitura = self.leitura.iniciar() if self.chave("leitura") else {}
+        return {"hibrida": True, **indice.estado(), "leitura": leitura}
 
     # ------------------------------------------------------------ público
 
@@ -311,14 +331,47 @@ class Material:
             if not item:
                 return False
             self.itens.remove(item)
-            Path(item["arquivo"]).unlink(missing_ok=True)
+            if item.get("arquivo"):  # o que veio de pacote nao tem arquivo original
+                Path(item["arquivo"]).unlink(missing_ok=True)
             (self.textos / f"{id_}.txt").unlink(missing_ok=True)
             # As anotacoes dele (M3) saem junto, mesmo com a chave desligada agora.
             if self._anotacoes is not None or (self.pasta / "biblioteca.db").exists():
                 self.anotacoes.remover_material(id_)
+            self.leitura.remover(id_)
             self._salvar()
             self._montar()
         return True
+
+    def absorver_texto(self, nome: str, texto: str, ficha: dict, *, id_de_origem: str = "", sha1: str = "") -> dict:
+        """
+        Um material que chega como texto, sem o arquivo original: o pacote
+        .paulus-material (src/biblioteca/pacote.py). O mesmo texto nao entra
+        duas vezes; `id_de_origem` e `sha1` sao os do PAULUS de onde veio - e
+        o que faz os trechos terem os mesmos ids la e aqui.
+        """
+        texto = texto or ""
+        if not RE_PAGINA.sub("", texto).strip():
+            raise ValueError("o pacote não tem texto")
+        chave = hashlib.sha1(texto.encode("utf-8")).hexdigest()
+        ja = next((x for x in self.itens if x.get("sha1_texto") == chave), None)
+        if ja:
+            return {**ja, "ja_existia": True}
+        id_ = f"{datetime.now():%Y%m%d%H%M%S}-{chave[:8]}"
+        self.textos.mkdir(parents=True, exist_ok=True)
+        (self.textos / f"{id_}.txt").write_text(texto, encoding="utf-8")
+        nomes = {x["nome"] for x in self.itens}
+        base, n = nome, 2
+        while nome in nomes:
+            nome = f"{base} ({n})"
+            n += 1
+        item = {"id": id_, "nome": nome, "arquivo": "", "sha1": sha1 or chave, "sha1_texto": chave,
+                "id_de_origem": id_de_origem or id_, "paginas": len(RE_PAGINA.findall(texto)),
+                "caracteres": len(RE_PAGINA.sub("", texto).strip()), "criado_em": _agora(), "ficha": ficha}
+        with self._trava:
+            self.itens.append(item)
+            self._salvar()
+            self._montar()
+        return next(x for x in self.itens if x["id"] == id_)
 
     def texto_de(self, id_: str) -> str:
         try:
@@ -351,7 +404,7 @@ class Material:
 
     def caminho(self, id_: str) -> Path | None:
         item = next((x for x in self.itens if x["id"] == id_), None)
-        return Path(item["arquivo"]) if item and Path(item["arquivo"]).exists() else None
+        return Path(item["arquivo"]) if item and item.get("arquivo") and Path(item["arquivo"]).exists() else None
 
     def consultar(self, pergunta: str, top: int = 4) -> list[Hit]:
         """

@@ -339,6 +339,8 @@ def test_api(pasta: Path) -> None:
 
     original_m, original_l, prefs = api.estado.material, api.estado.leis, dict(api.estado.prefs.dados.get("biblioteca") or {})
     base = Base(pasta / "api.db")
+    # A lei entregue vai para <dados>/leis: aqui, a pasta do teste, e nao a de verdade.
+    dados_de_verdade, api.DADOS_DIR = api.DADOS_DIR, pasta
     api.estado.material = material_mod.Material(pasta / "material")
     api.estado.leis = leis_mod.Leis(base)
     api.estado.prefs.dados["biblioteca"] = {**prefs, "triagem": True}
@@ -361,6 +363,7 @@ def test_api(pasta: Path) -> None:
         checar(c.get("/api/leis").json()["contagem"]["codigos"] == 1, "a tela de leis mostra o CDC instalado")
     finally:
         api.estado.material, api.estado.leis = original_m, original_l
+        api.DADOS_DIR = dados_de_verdade
         api.estado.prefs.dados["biblioteca"] = prefs
         base.con.close()
 
