@@ -157,10 +157,65 @@ function desenharBarra() {
   caixa.classList.toggle("andando", andando);
   agora.innerHTML = andando
     ? esc(estado.linhaViva || "Trabalhando…") + ' <button class="barra-parar" data-barra-parar="1">' + ic("stop", 14) + "Parar</button>"
-    : esc(textoDoProximo());
+    : esc(textoDoProximo()) + barraDoAgente();
   const parar = agora.querySelector("[data-barra-parar]");
   if (parar) parar.onclick = (e) => { e.stopPropagation(); pararResposta(); };
+  const sel = agora.querySelector("[data-barra-agente]");
+  if (sel) {
+    sel.onclick = (e) => e.stopPropagation();
+    sel.onchange = () => { estado.agenteDecisao = sel.value || "nenhum"; desenharBarra(); $("pedido").focus(); };
+  }
 }
+
+/* ------------------------------------------ o agente da proxima pergunta (A2) */
+
+/* O agente que a proxima pergunta vai usar: o que a pessoa escolheu, ou o
+   que a regra sugeriu (GET /api/agentes/sugerir), mostrado ANTES de enviar,
+   com um seletor para trocar ou nao usar. */
+function agenteDaVez() {
+  const ativos = estado.agentesAtivos || [];
+  if (estado.agenteDecisao === "nenhum") return null;
+  if (estado.agenteDecisao) return ativos.find((a) => a.slug === estado.agenteDecisao) || null;
+  return estado.agenteSugerido || null;
+}
+
+function barraDoAgente() {
+  const ativos = estado.agentesAtivos || [];
+  if (!ativos.length) return "";
+  const vez = agenteDaVez();
+  const opcoes = ['<option value="nenhum"' + (vez ? "" : " selected") + ">sem agente</option>"].concat(
+    ativos.map((a) => '<option value="' + esc(a.slug) + '"' + (vez && vez.slug === a.slug ? " selected" : "") + ">" + esc(a.nome) + "</option>"));
+  return ' · <span class="barra-agente">' + (vez ? (estado.agenteDecisao ? "Usando: " : "Usando (pelo pedido): ") : "Agente: ") +
+    '<select data-barra-agente="1" aria-label="Agente da próxima pergunta">' + opcoes.join("") + "</select></span>";
+}
+
+function agenteDoEnvio() {
+  if (!painelNovo()) return {};
+  const decisao = estado.agenteDecisao, sugerido = estado.agenteSugerido;
+  estado.agenteDecisao = "";
+  estado.agenteSugerido = null;
+  if (decisao === "nenhum") return { sem_agente: true };
+  if (decisao) return { agente: decisao };
+  if (sugerido) return { agente: sugerido.slug };
+  return {};
+}
+
+let sugestaoTimer = null;
+$("pedido").addEventListener("input", () => {
+  if (!painelNovo() || !estado.trabalhoId && !$("pedido").value) return;
+  clearTimeout(sugestaoTimer);
+  sugestaoTimer = setTimeout(async () => {
+    const texto = $("pedido").value.trim();
+    try {
+      const d = await (await fetch("/api/agentes/sugerir?texto=" + encodeURIComponent(texto))).json();
+      if (!d || !d.ligado) { estado.agentesAtivos = []; estado.agenteSugerido = null; desenharBarra(); return; }
+      estado.agentesAtivos = d.ativos || [];
+      estado.agenteSugerido = d.agente || null;
+      if (!texto) estado.agenteDecisao = "";
+      desenharBarra();
+    } catch (err) { /* sem sugestao: a pergunta vai como sempre */ }
+  }, 350);
+});
 
 /* ------------------------------------------ o que e de cada conversa */
 

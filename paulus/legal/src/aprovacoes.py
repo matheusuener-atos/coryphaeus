@@ -41,6 +41,8 @@ CATEGORIAS = {
     "agenda": "Agenda",
     # Documento fotografado pelo celular, de fora: entra no Acervo depois do sim.
     "acervo": "Acervo",
+    # A ferramenta que um agente do escritorio pediu na conversa (A2).
+    "conversa": "Conversa",
 }
 
 

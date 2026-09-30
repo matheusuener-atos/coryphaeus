@@ -381,7 +381,9 @@ def test_api() -> None:
         corpo = r.json() if r.status_code == 200 else {}
         checar(r.status_code == 200 and corpo.get("passaram") == 1 and corpo.get("total") == 1,
                "testar roda os testes do agente pelo caminho de perguntar", r.text[:300])
-        checar("não entra na conversa" in corpo.get("aviso", ""), "e diz que roda sem as instruções dele", corpo.get("aviso"))
+        # A2: o teste passou a rodar com as instruções do agente; ferramenta nenhuma.
+        checar("com as instruções do agente" in corpo.get("aviso", "") and "nenhuma ferramenta" in corpo.get("aviso", ""),
+               "e diz que roda com as instruções dele, sem ferramenta", corpo.get("aviso"))
         checar(local.get("/api/agentes/nao-existe").status_code == 404, "agente que não existe: 404")
 
         test_de_fora(api)

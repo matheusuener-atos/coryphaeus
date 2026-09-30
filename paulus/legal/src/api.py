@@ -104,6 +104,7 @@ import execucoes as execucoes_mod
 import rotas_execucoes
 import rotas_conversa
 import saudacao as saudacao_mod
+import agente_na_conversa as agente_mod
 import detalhes as detalhes_mod
 import rotas_agentes
 import recuperacao as recuperacao_mod
@@ -911,6 +912,7 @@ rotas_chaves.montar(estado, app)
 rotas_execucoes.montar(estado, app)
 rotas_conversa.montar(estado, app)
 saudacao_mod.montar(estado, app, rotas_do_acesso.pessoa)
+agente_mod.montar(estado, app)
 # Os agentes do escritorio (A1): os arquivos e as rotas; nenhum entra na conversa ainda.
 rotas_agentes.montar(estado, app, DADOS_DIR / "agentes", contexto=lambda tarefa: _contexto(tarefa=tarefa))
 
@@ -989,6 +991,9 @@ def _nome_repetido(_request: Request, exc: nomes_mod.NomeRepetido) -> Response:
 class Pergunta(BaseModel):
     pergunta: str
     top: int = 6
+    # A2: o agente que a pessoa escolheu na barra (slug), ou "nao usar".
+    agente: str = ""
+    sem_agente: bool = False
     # Os documentos que a tela diz estarem em foco - as pilulas do compositor,
     # postas pelo "/", por anexar, ou por ter perguntado sobre eles. Vem da
     # tela porque e o que a pessoa esta VENDO; adivinhar pelo texto quando a
@@ -3483,6 +3488,20 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         raise HTTPException(status_code=503, detail="a habilidade de perguntar nao carregou")
 
     pergunta = payload.pergunta.strip()
+    # A2: o agente desta pergunta (src/agente_na_conversa.py), por regra - o
+    # que a pessoa escolheu, "@Nome", exemplos e palavras; o juiz so desempata.
+    agente = None
+    agente_como = ""
+    if rotas_execucoes.ligada(estado, "agentes") and getattr(estado, "agentes", None) is not None:
+        try:
+            ativos = estado.agentes.ativos()
+        except Exception:  # noqa: BLE001 - agente com problema nao para a conversa
+            ativos = []
+        if ativos:
+            escolha = agente_mod.escolher(pergunta, ativos, pedido=payload.agente, sem_agente=payload.sem_agente,
+                                          juiz=None if (payload.agente or payload.sem_agente) else _juiz())
+            pergunta = escolha.pergunta or pergunta
+            agente, agente_como = escolha.agente, escolha.como
     if trabalho.titulo == "Nova conversa" and not trabalho.mensagens:
         trabalho.titulo = titular(pergunta)
 
@@ -3520,6 +3539,18 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # falando de contrato de compra e venda.
     foco_antes = _em_foco(trabalho)
     citado, explicito = _escopo_da_pergunta(trabalho, pergunta, payload)
+    # A2: `fontes` do agente so restringe o que a busca le - nunca abre o que
+    # a pessoa nao teria.
+    if agente is not None:
+        # O documento em foco e o anexo desta pergunta, ou o que a conversa ja
+        # vinha lendo; so sem nenhum dos dois, o que a frase nomeia.
+        em_foco = list(payload.apenas or []) or list(foco_antes or []) or list(citado or [])
+        restrito = agente_mod.restringir(agente, em_foco, estado.searcher.documents)
+        if restrito is not None:
+            if not restrito:
+                return _so_dizer(trabalho, agente_mod.sem_documento(agente))
+            citado = [n for n in (citado or []) if n in restrito] or restrito
+            explicito = [n for n in explicito if n in restrito]
     # A continuacao herda tambem os documentos a que a resposta anterior se
     # restringiu: "e o foro?" e sobre o mesmo contrato.
     if continuou and not citado:
@@ -3552,7 +3583,14 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 porque="você pediu para abrir os documentos anexados",
             )
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir"):
-        return _responder_sem_documentos(trabalho, lido, pergunta)
+        # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
+        # o que ele pediu sem ter e recusado e fica registrado.
+        if agente is not None and lido.tipo != "sobre":
+            ferramenta = agente_mod.ferramenta_da_acao(lido.tipo)
+            if not agente_mod.pode_usar(agente, ferramenta):
+                agente_mod.registrar_recusa(estado, trabalho, agente, ferramenta, pergunta)
+                return _so_dizer(trabalho, agente_mod.frase_da_recusa(agente, ferramenta))
+        return _responder_sem_documentos(trabalho, lido, pergunta, agente=agente)
 
     # O que o programa sabe de si: a agenda, as tarefas, o Financeiro, a
     # fila, e como se faz cada coisa em cada tela. Antes, "quanto recebi este
@@ -3705,8 +3743,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 trechos=medir["trechos"], caracteres=lido_chars,
                 truncou=medir["truncou"] or bool(numeros.get("truncou")), fallback=medir["fallback"])
 
-        ctx = _contexto(registrar, parar=parar.is_set, tarefa="conversa")
+        ctx = _contexto(registrar, parar=parar.is_set, tarefa=(agente.modelo if agente is not None and agente.modelo else "conversa"))
         ctx.historico = historico
+        # A2: o corpo do agente, cercado e rotulado, no fim da instrucao de
+        # sistema - abaixo das regras do produto (habilidades/perguntar.py).
+        if agente is not None:
+            ctx.agente_instrucoes = agente_mod.instrucoes(agente)
         if payload.inteiro:
             ctx.ia["leitura"] = "tudo"
         sem_fundamento: dict = {}
@@ -3861,7 +3903,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                              "modelo": medir.get("modelo") or "", "continuacao": bool(continuou),
                              "escopo": {"apenas": list(citado or []), "tudo": bool(payload.tudo),
                                         "sem_anexo": bool(payload.sem_anexo)},
-                             "truncou": bool(medir.get("truncou"))}
+                             "truncou": bool(medir.get("truncou")),
+                             # A2: o agente que respondeu, e a versao dele.
+                             "agente": (agente.nome or agente.slug) if agente is not None else "",
+                             "agente_slug": agente.slug if agente is not None else "",
+                             "agente_versao": agente.versao if agente is not None else 0,
+                             "agente_como": agente_como}
         oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(
@@ -3928,6 +3975,8 @@ def _documentos_ja_oferecidos(trabalho) -> set[str]:
 class PropostaConfirmada(BaseModel):
     tipo: str = ""
     campos: dict = {}
+    # A2: o pedido na fila de Aprovacoes que acompanha a proposta de um agente.
+    pedido_id: str = ""
 
 
 @app.post("/api/trabalhos/{id_}/fazer")
@@ -3946,6 +3995,12 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
 
     campos = dict(payload.campos or {})
     pendente = False
+    # A2: a proposta de um agente que ja foi decidida em Aprovacoes nao grava
+    # de novo pelo cartao.
+    if payload.pedido_id:
+        pedido = next((p for p in estado.fila.pendentes if p.id == payload.pedido_id), None)
+        if pedido is None:
+            raise HTTPException(status_code=409, detail="este pedido já foi decidido em Aprovações")
     try:
         if payload.tipo == "abrir":
             nome = str(campos.get("nome", ""))
@@ -4008,10 +4063,27 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
     trabalho.dizer("paulus", resumo + ".", feito={"tipo": payload.tipo, "id": novo, "onde": onde,
                                                   "pendente": pendente, "nome": str(campos.get("nome", ""))})
     estado.trabalhos.salvar(trabalho)
+    if payload.pedido_id:
+        estado.fila.decidir(payload.pedido_id, True)
+        estado.fila.registrar_resultado(payload.pedido_id, resumo + " (confirmado no cartão da conversa)")
     return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito, "pendente": pendente}
 
 
-def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingResponse:
+def _so_dizer(trabalho, texto: str) -> StreamingResponse:
+    """Uma resposta de uma frase, sem modelo, gravada na conversa."""
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Responder", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> StreamingResponse:
     """
     O que nao precisa ler documento nenhum.
 
@@ -4067,6 +4139,17 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str) -> StreamingRespons
             "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
             "ajuda_do_modelo": ajuda,
         }
+        # A2: a ferramenta pedida por um agente passa tambem pela fila de
+        # Aprovacoes. O cartao e o item da fila sao o mesmo pedido: confirmar
+        # num fecha o outro, e o historico da fila e o registro.
+        if agente is not None and ferramenta:
+            pedido = estado.fila.pedir(
+                (agente.nome or agente.slug) + ": " + (lido.titulo or lido.tipo), "conversa",
+                resumo=lido.porque or pergunta, acao="conversa.proposta", pedido_por=(agente.nome or agente.slug),
+                dados={"trabalho_id": trabalho.id, "tipo": lido.tipo, "campos": lido.campos,
+                       "agente": agente.slug, "versao": agente.versao})
+            proposta["pedido_id"] = pedido.id
+            proposta["agente"] = {"slug": agente.slug, "nome": agente.nome or agente.slug, "versao": agente.versao}
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", "", proposta=proposta)
@@ -5316,6 +5399,8 @@ EXECUTORES = {
     "ajuda.prazo": lambda pedido: rotas_ajuda.executar_prazo(estado, pedido),
     # O documento fotografado de fora (ideia E do umbrelOS): o sim o poe no Acervo.
     "captura.entrar": lambda pedido: captura_mod.executar(estado, pedido),
+    # A2: a ferramenta de um agente, aprovada na fila em vez de no cartão.
+    "conversa.proposta": lambda pedido: agente_mod.executar_da_fila(estado, pedido),
 }
 
 

@@ -37,8 +37,8 @@ from fila_modelo import FilaCheia
 from habilidade_base import COM_PROBLEMA
 
 DESLIGADOS = "os agentes estão desligados (conversa.agentes)"
-AVISO_DO_TESTE = ("o agente ainda não entra na conversa: o teste roda a pergunta sem as instruções dele, "
-                  "pelo caminho de perguntar de sempre, e nenhuma ferramenta é executada")
+AVISO_DO_TESTE = ("o teste roda cada pergunta pela conversa, com as instruções do agente e o perfil de modelo "
+                  "dele; nenhuma ferramenta é executada")
 
 
 def ligada(estado) -> bool:
@@ -199,7 +199,13 @@ def montar(estado, app, pasta: Path | str, contexto: Callable[[str], object]) ->
             try:
                 if not estado.fila_modelo.esperar(vez, timeout=600):
                     raise RuntimeError("o modelo ficou ocupado demais; tente de novo")
-                return texto_da_resposta(habilidade.executar(contexto(agente.modelo), pergunta=pergunta))
+                # A2: o teste roda com as instrucoes do agente (e o escopo dele
+                # vale na conversa); ferramenta nenhuma e executada aqui.
+                import agente_na_conversa
+
+                ctx = contexto(agente.modelo)
+                ctx.agente_instrucoes = agente_na_conversa.instrucoes(agente)
+                return texto_da_resposta(habilidade.executar(ctx, pergunta=pergunta))
             finally:
                 estado.fila_modelo.sair(vez)
 

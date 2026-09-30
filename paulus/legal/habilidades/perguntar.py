@@ -664,9 +664,15 @@ def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, respost
 
 
 def _com_regra(ctx: Contexto, regra: str) -> str:
-    """O que o escritorio ensinou, mais a regra das marcas - as duas vao no fim da instrucao."""
+    """
+    O que o escritorio ensinou, mais a regra das marcas - as duas vao no fim da
+    instrucao. As instrucoes de um agente (A2) vem por ultimo: abaixo das
+    regras do produto e do que o escritorio ensinou.
+    """
     ensinado = getattr(ctx, "ensinado", "") or ""
-    return (ensinado + "\n\n" + regra).strip() if regra else ensinado
+    base = (ensinado + "\n\n" + regra).strip() if regra else ensinado
+    agente = getattr(ctx, "agente_instrucoes", "") or ""
+    return (base + "\n\n" + agente).strip() if agente else base
 
 
 def _da_conversa(ctx: Contexto, historico: bool = False) -> dict:

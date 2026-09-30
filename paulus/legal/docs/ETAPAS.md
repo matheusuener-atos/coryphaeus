@@ -2266,3 +2266,19 @@ Edge); dez exemplos no PROGRESSO-CONVERSA.
 
 **Medido:** `tests/test_a1_agentes.py` 67/67; `tests/test_r3_permissoes.py`
 58/58, 477 pares com política.
+
+## A2 — O agente do escritório na conversa ✓ FEITA
+
+- Escolha por regra (`src/agente_na_conversa.py`): barra ou "@Nome" → exemplos
+  e palavras → juiz só entre candidatos → sem candidato, como antes. A
+  sugestão aparece na barra antes de enviar (`GET /api/agentes/sugerir`), com
+  um seletor para trocar ou não usar.
+- As instruções do agente entram no fim da instrução de sistema, abaixo das
+  regras do produto, cercadas e rotuladas; `fontes` só restringe o que a busca
+  lê; o perfil de modelo é o do agente.
+- Ferramenta não declarada: recusada e registrada. Declarada: o cartão da
+  conversa e o pedido na fila de Aprovações são o mesmo — confirmar num fecha
+  o outro.
+- A resposta guarda agente, versão e como foi escolhido (assinatura e painel).
+
+**Medido:** `tests/test_a2_agente_na_conversa.py` passa inteiro.

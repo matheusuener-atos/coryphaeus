@@ -271,7 +271,7 @@ def contexto_do_escritorio(estado, agora: datetime, pessoa: dict | None, ultima_
     except Exception:  # noqa: BLE001 - sem tarefas, sem prazos: a frase so fica mais geral
         pass
     try:
-        pendencias += len(estado.fila.pendentes())
+        pendencias += len(estado.fila.pendentes)
     except Exception:  # noqa: BLE001
         pass
     pela_metade = []

@@ -1346,7 +1346,8 @@ function ligarProposta(caixa, d, ondeResponder) {
     fazer.disabled = true;
     const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo: d.tipo, campos: campos }),
+      // A2: a proposta de um agente leva o pedido da fila de Aprovacoes junto.
+      body: JSON.stringify({ tipo: d.tipo, campos: campos, pedido_id: d.pedido_id || "" }),
     });
     if (!r.ok) {
       fazer.disabled = false;

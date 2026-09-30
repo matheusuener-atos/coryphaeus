@@ -684,6 +684,8 @@ function fraseDoComo(c, segundos) {
 
 function linhaAssinatura(segundos, citados, pergunta, quem, como) {
   const frase = fraseDoComo(como, segundos);
+  // A2: o agente que respondeu, e a versao dele, na assinatura.
+  if (como && como.agente) quem = (quem || estado.modelo || "assistente local") + " · " + como.agente + (como.agente_versao ? " v" + como.agente_versao : "");
   return '<div class="assinatura"><span>' + (frase
     ? esc(frase) + (como && !(como.caminho === "nivel0" && como.molde) ? " · " + esc(quem || estado.modelo || "assistente local") : "")
     : esc(quem || estado.modelo || "assistente local") + " · " + esc(String(segundos)) + " s" +
@@ -1503,7 +1505,7 @@ async function enviar(opcoes) {
       // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
       // a pergunta com a escolha feita ali.
       body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos),
-        inteiro: Boolean(o.inteiro) }, envio)),
+        inteiro: Boolean(o.inteiro) }, envio, typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {})),
       signal: estado.controle.signal,
     });
     // A fila do modelo cheia (429) diz por que; o resto, o de sempre.

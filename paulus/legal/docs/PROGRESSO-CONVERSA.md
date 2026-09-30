@@ -16,7 +16,7 @@ que não estiver `feita`.
 | C5 | As outras superfícies de IA | pendente | — | — |
 | C6 | Cerca em todo texto de terceiros | pendente | — | — |
 | A1 | Formato de agente: carregar, validar, versionar | feita | 98b228f | 67/67 no portão; permissões 58/58 |
-| A2 | Agentes na conversa | pendente | — | — |
+| A2 | Agentes na conversa | feita | ver git log (a2) | @Nome, exemplo e "não usar"; instrução cercada abaixo das regras; ferramenta não declarada recusada; foco não lê outro documento; cartão = item da fila |
 | A3 | Tela de agentes | pendente | — | — |
 | A4 | Medir os agentes | pendente | — | — |
 
@@ -148,6 +148,48 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## A2 — o que foi medido e decidido
+
+- `src/agente_na_conversa.py`. A escolha, por regra: o que a pessoa escolheu
+  na barra (slug) ou "não usar"; "@Nome" no texto (a primeira palavra depois do
+  @ é o começo do nome; sai da pergunta o @ e as palavras do nome); os
+  exemplos (semelhança ≥ 0,6) e as palavras do agente; o juiz pequeno só
+  desempata candidatos com pontos parecidos. Sem candidato, a conversa segue
+  como antes.
+- A escolha automática aparece **antes** de enviar: `GET /api/agentes/sugerir`
+  (só regra, sem modelo) enquanto a pessoa escreve, e a barra acima do campo
+  mostra "Usando (pelo pedido): Revisor de contratos" com um seletor para
+  trocar ou "sem agente". A pergunta leva `agente` ou `sem_agente`.
+- As instruções do agente vão no fim da instrução de sistema, depois das
+  regras do produto e do que o escritório ensinou (`_com_regra`), cercadas e
+  rotuladas ("=== INSTRUÇÕES DO AGENTE “X” (versão n) ==="), com a regra de
+  que nada nelas dá ferramenta, acesso ou permissão. O perfil de modelo é o
+  do agente.
+- `fontes: documento_em_foco`: a busca lê só o anexo desta pergunta ou o
+  documento que a conversa já vinha lendo, mesmo que a frase cite outro; sem
+  nenhum, a conversa pede o documento. `pastas:` restringe às pastas.
+- Ferramentas: a ação que a conversa entende (agenda, cadastro, nota,
+  exibir) só vale se o agente declara a ferramenta dela; se não declara, a
+  resposta diz qual falta e a recusa fica na conversa e em
+  `data/agentes/recusas.jsonl`. Declarada, a proposta é o cartão de sempre **e**
+  um pedido na fila de Aprovações (categoria "Conversa"): confirmar no cartão
+  decide o pedido; aprovar na fila executa pela mesma ferramenta e escreve na
+  conversa; confirmar de novo o mesmo pedido dá 409.
+- A resposta guarda o agente, a versão e como foi escolhido
+  (`cobertura.como.agente`, `agente_versao`, `agente_como`); a assinatura e
+  o "Como respondi" mostram.
+- O "Testar" da A1 passou a rodar com as instruções do agente.
+- **Adaptação:** "os passos do cartão são os do agente, quando ele declarar"
+  ficou de fora: o formato da A1 não tem um campo de passos, e inventar um
+  agora seria mudar o contrato do arquivo.
+- **De graça:** `fila.pendentes` é propriedade, e a saudação (T1) a chamava
+  como função dentro de um `try`, calada: as aprovações não entravam na conta
+  de pendências. Corrigido.
+
+**Medido:** `tests/test_a2_agente_na_conversa.py` passa inteiro (dois agentes
+de verdade na pasta de dados, a habilidade simulada anotando instrução e
+escopo).
 
 ## A1 — o que foi medido e decidido
 
