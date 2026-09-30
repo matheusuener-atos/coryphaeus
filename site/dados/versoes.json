@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "0.9.20",
+      "date": "2026-09-30",
+      "changes": [
+        "Corrige o que a suíte inteira achou ao juntar as frentes",
+        "Tela de agentes e a medida deles juntadas",
+        "Saudação: a data com fuso que a tela manda não derruba mais a rota",
+        "Tela de agentes: criar pelo formulário ou a partir de uma conversa, testar, ver versões e medir cada agente",
+        "Configurações › Assistente e modelo liga e desliga cada função nova da conversa",
+        "A cerca da blindagem do e-mail vale também para os documentos, o material e a biblioteca lidos na conversa",
+        "Roteamento juntado: a chave conversa.roteamento e o registro nos documentos",
+        "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a…",
+        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde…",
+        "Avisos do dia juntados: a chave conversa.avisos e o registro nos documentos",
+        "Os agentes do escritório entram na conversa: por @nome ou pelo pedido, com as instruções abaixo das regras…",
+        "Tela inicial: os avisos do dia num carrossel, com a Central de avisos e o histórico do que foi visto"
+      ]
+    },
+    {
       "version": "0.9.19",
       "date": "2026-09-30",
       "changes": [

@@ -1,11 +1,22 @@
 {
-  "versao": "0.9.19",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.19/PAULUS-0.9.19-instalador.exe",
-  "sha256": "683562741671ab5195c2e0b5bde20ec50919d628e1a9308e5beb378c6136ea91",
-  "tamanho": 94782779,
+  "versao": "0.9.20",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.20/PAULUS-0.9.20-instalador.exe",
+  "sha256": "1f7a470c9f9f4b5e5df79a5812a42f11ea0dd6df4350f6560d7a5a70bff0d9e1",
+  "tamanho": 94854414,
   "publicada": "2026-09-30",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.19",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.20",
   "novidades": [
-    "Transcrição sem memória para o modelo de voz: a tela sugere o mais leve, clicando aqui"
+    "Corrige o que a suíte inteira achou ao juntar as frentes",
+    "Tela de agentes e a medida deles juntadas; o registro nos documentos",
+    "Saudação: a data com fuso que a tela manda não derruba mais a rota",
+    "Tela de agentes: criar pelo formulário ou a partir de uma conversa, testar, ver versões e medir cada agente",
+    "Configurações › Assistente e modelo liga e desliga cada função nova da conversa",
+    "A cerca da blindagem do e-mail vale também para os documentos, o material e a biblioteca lidos na conversa",
+    "Roteamento juntado: a chave conversa.roteamento e o registro nos documentos",
+    "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a vez na fila, com Parar",
+    "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde CPF, telefone e e-mail pela ficha de Cadastros",
+    "Avisos do dia juntados: a chave conversa.avisos e o registro nos documentos",
+    "Os agentes do escritório entram na conversa: por @nome ou pelo pedido, com as instruções abaixo das regras do produto",
+    "Tela inicial: os avisos do dia num carrossel, com a Central de avisos e o histórico do que foi visto"
   ]
 }
