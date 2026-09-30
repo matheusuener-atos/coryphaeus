@@ -29,6 +29,14 @@ esperadas, quantas estavam no que foi de fato mandado ao modelo.
     venv\\Scripts\\python.exe tools\\medir.py                   (demonstração)
     venv\\Scripts\\python.exe tools\\medir.py --real            (conjunto real)
     venv\\Scripts\\python.exe tools\\medir.py --so-busca        (sem o modelo)
+    venv\\Scripts\\python.exe tools\\medir.py --agentes         (e os testes de cada agente ativo)
+    venv\\Scripts\\python.exe tools\\medir.py --so-agentes      (só os agentes)
+    venv\\Scripts\\python.exe tools\\medir.py --so-agentes --agente <slug>   (este, ligado ou não)
+
+Os testes de agente (A4) rodam pela rota de testar da tela
+(`POST /api/agentes/<slug>/testar`): o resultado fica como o último do agente,
+e o agente cuja versão atual falhou passa a "precisa de revisão" - sai da
+escolha automática da conversa até alguém revisar.
 
 Grava o resultado em <dados>/medicao/medir-<conjunto>-<data e hora>.json. Nada
 sai da máquina.
@@ -498,11 +506,69 @@ def resumir_biblioteca(resultados: list[dict], perguntas: list[dict]) -> dict:
 
 # ----------------------------------------------------------------- o todo
 
+# --------------------------------------------------------------- os agentes
+
+def slugs_pedidos() -> list[str]:
+    """Os `--agente <slug>` da linha de comando, na ordem."""
+    return [sys.argv[i + 1] for i, a in enumerate(sys.argv[:-1]) if a == "--agente"]
+
+
+def medir_agentes(base: str, slugs: list[str] | None = None) -> list[dict]:
+    """
+    Os `testes` de cada agente ativo (ou dos `slugs` pedidos, ligados ou nao)
+    pela rota de testar - a mesma do botao Testar. A rota grava o resultado
+    como o ultimo do agente (src/agentes_medida.py).
+    """
+    lista = json.loads(pedir(base, "GET", "/api/agentes")).get("agentes") or []
+    por_slug = {a["slug"]: a for a in lista}
+    alvos = [por_slug[s] for s in slugs if s in por_slug] if slugs else [a for a in lista if a.get("em_uso")]
+    for s in slugs or []:
+        if s not in por_slug:
+            print(f"agente {s}: não existe nesta pasta de dados")
+    if not alvos:
+        print("agentes : nenhum agente ativo com testes" if not slugs else "agentes : nenhum dos pedidos")
+        return []
+    saida = []
+    for a in alvos:
+        if a.get("problema"):
+            print(f"agente {a['nome']}: com problema, não testado ({a['problema'][:120]})")
+            saida.append({"slug": a["slug"], "nome": a["nome"], "erro": a["problema"]})
+            continue
+        if not a.get("testes"):
+            print(f"agente {a['nome']}: sem testes")
+            continue
+        comeco = time.time()
+        try:
+            r = json.loads(pedir(base, "POST", f"/api/agentes/{a['slug']}/testar?origem=medir", {}, limite=3600))
+        except Exception as exc:  # noqa: BLE001 - a medicao segue
+            print(f"agente {a['nome']}: o teste não rodou ({exc})")
+            saida.append({"slug": a["slug"], "nome": a["nome"], "erro": str(exc)})
+            continue
+        print(f"agente {a['nome']} (versão {r.get('versao')}): {r.get('passaram')}/{r.get('total')} "
+              f"em {time.time() - comeco:.0f} s" + (" · PRECISA DE REVISÃO" if r.get("precisa_revisao") else ""))
+        for t in r.get("resultados") or []:
+            marca = "ok " if t.get("passou") else "ERR"
+            print(f"   {marca} {t.get('segundos', 0):6.1f}s  {t.get('pergunta')}")
+            if not t.get("passou"):
+                motivo = t.get("erro") or ("faltou: " + ", ".join(t.get("faltou") or []))
+                print(f"          {motivo} · {str(t.get('resposta') or '')[:200]!r}")
+        saida.append({"slug": a["slug"], "nome": a["nome"], "versao": r.get("versao"), "total": r.get("total"),
+                      "passaram": r.get("passaram"), "precisa_revisao": r.get("precisa_revisao"),
+                      "resultados": [{k: t.get(k) for k in ("pergunta", "passou", "faltou", "erro", "segundos", "resposta")}
+                                     for t in r.get("resultados") or []]})
+    return saida
+
+
 def main() -> int:
     if "--conjunto" in sys.argv and sys.argv[sys.argv.index("--conjunto") + 1:][:1] == ["biblioteca"]:
         return main_biblioteca()
     real = "--real" in sys.argv
     so_busca = "--so-busca" in sys.argv
+    so_agentes = "--so-agentes" in sys.argv
+    com_agentes = so_agentes or "--agentes" in sys.argv
+    if so_busca and com_agentes:
+        print("--so-busca não roda o modelo: os testes dos agentes precisam dele")
+        return 2
     if real:
         dados = Path(os.environ.get("PAULUS_DADOS") or (RAIZ / "data"))
         conjunto = dados / "medicao" / "conjunto-real.jsonl"
@@ -521,8 +587,9 @@ def main() -> int:
     sys.path.insert(0, str(RAIZ / "src"))
     sys.path.insert(0, str(RAIZ / "tests"))
 
-    perguntas = ler_conjunto(conjunto)
-    print(f"Conjunto: {conjunto.name} · {len(perguntas)} perguntas")
+    perguntas = [] if so_agentes else ler_conjunto(conjunto)
+    if not so_agentes:
+        print(f"Conjunto: {conjunto.name} · {len(perguntas)} perguntas")
 
     import api
 
@@ -540,6 +607,16 @@ def main() -> int:
         time.sleep(1)
     print(f"Acervo: {len(api.estado.searcher.documents)} documentos · "
           f"{len(api.estado.searcher.chunks)} trechos · modelo {api.estado.client.model}")
+
+    if so_agentes:
+        agentes_medidos = medir_agentes(base, slugs_pedidos())
+        saida = dados / "medicao" / f"medir-agentes-{datetime.now():%Y%m%d-%H%M}.json"
+        saida.parent.mkdir(parents=True, exist_ok=True)
+        saida.write_text(json.dumps({"quando": datetime.now().isoformat(timespec="seconds"),
+                                     "modelo": api.estado.client.model, "agentes": agentes_medidos},
+                                    ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"\nresultado em {saida}")
+        return 0
 
     # A busca por sentido (I7), quando o modelo de vetores esta instalado: os
     # vetores que faltam sao feitos agora, antes de medir.
@@ -632,10 +709,18 @@ def main() -> int:
         resumo["por_tipo"] = {t: f"{sum(v)}/{len(v)}" for t, v in sorted(por_tipo.items())}
         print("por tipo  : " + " · ".join(f"{t} {v}" for t, v in resumo["por_tipo"].items()))
 
+    # A4: os testes de cada agente ativo, junto do conjunto.
+    agentes_medidos = []
+    if com_agentes:
+        print()
+        agentes_medidos = medir_agentes(base, slugs_pedidos())
+        resumo["agentes"] = {a["slug"]: f"{a.get('passaram', 0)}/{a.get('total', 0)}" for a in agentes_medidos
+                             if "total" in a}
+
     saida = dados / "medicao" / f"medir-{'real' if real else 'demo'}-{datetime.now():%Y%m%d-%H%M}.json"
     saida.parent.mkdir(parents=True, exist_ok=True)
-    saida.write_text(json.dumps({"resumo": resumo, "perguntas": resultados}, ensure_ascii=False, indent=1),
-                     encoding="utf-8")
+    saida.write_text(json.dumps({"resumo": resumo, "perguntas": resultados, "agentes": agentes_medidos},
+                                ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"\nresultado em {saida}")
     return 0
 

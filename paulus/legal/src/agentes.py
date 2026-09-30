@@ -226,6 +226,12 @@ class Agente:
     # Preenchidos pela validacao.
     problema: str = ""
     avisos: list[str] = field(default_factory=list)
+    # A4 (src/agentes_medida.py): o ultimo teste, as contas de uso e se os
+    # testes desta versao falharam - quem precisa de revisao nao e escolhido
+    # sozinho na conversa.
+    medida: dict = field(default_factory=dict)
+    precisa_revisao: bool = False
+    revisao_motivo: str = ""
 
     @property
     def precisa_aprovar(self) -> bool:
@@ -250,6 +256,7 @@ class Agente:
             "aprovado_por": self.aprovado_por, "importado_em": self.importado_em,
             "ignorados_na_importacao": self.ignorados_na_importacao,
             "versoes": self.versoes, "arquivo": self.arquivo, "atualizado_em": self.atualizado_em,
+            "precisa_revisao": self.precisa_revisao, "revisao_motivo": self.revisao_motivo, "medida": self.medida,
         }
 
 
@@ -277,8 +284,11 @@ class Agentes:
         perfis: Callable[[], Iterable[str]] | Iterable[str] | None = None,
         areas: Iterable[str] | None = None,
         leis: Iterable[str] | dict | None = None,
+        medidas=None,
     ) -> None:
         self.pasta = Path(pasta)
+        # A4: agentes_medida.Medidas, ou None (sem medida: ninguem precisa de revisao).
+        self.medidas = medidas
         self._capacidades = capacidades
         self._ferramentas = ferramentas
         self._perfis = perfis
@@ -503,7 +513,23 @@ class Agentes:
             return []
         return sorted(int(p.stem) for p in dir_.glob("*.md") if p.stem.isdigit())
 
-    def _carregar(self, pasta: Path) -> Agente:
+    def _medir(self, agente: Agente, todas: dict | None) -> Agente:
+        """A4: a medida guardada deste agente e, se os testes da versao atual falharam, o aviso."""
+        if self.medidas is None:
+            return agente
+        import agentes_medida
+
+        m = (todas if todas is not None else self.medidas.todas()).get(agente.slug) or {}
+        agente.medida = agentes_medida.resumo(agente.versao, m)
+        if not agente.problema and agentes_medida.precisa_revisao(agente.versao, m):
+            agente.precisa_revisao = True
+            agente.revisao_motivo = agentes_medida.motivo_da_revisao(m)
+        return agente
+
+    def _carregar(self, pasta: Path, todas: dict | None = None) -> Agente:
+        return self._medir(self._carregar_arquivo(pasta), todas)
+
+    def _carregar_arquivo(self, pasta: Path) -> Agente:
         estado, aviso_estado = self._estado(pasta)
         agente = Agente(slug=pasta.name, arquivo=str(pasta / ARQUIVO), versoes=self._versoes_de(pasta))
         agente.ativo = bool(estado.get("ativo")) and not aviso_estado
@@ -547,11 +573,13 @@ class Agentes:
         if not self.pasta.is_dir():
             return []
         agentes = []
+        # As medidas uma vez so, para a lista inteira.
+        todas = self.medidas.todas() if self.medidas is not None else None
         for p in sorted(self.pasta.iterdir()):
             if not p.is_dir() or p.name.startswith((".", "_")):
                 continue
             if RE_SLUG.fullmatch(p.name):
-                agentes.append(self._carregar(p))
+                agentes.append(self._carregar(p, todas))
             else:
                 # Pasta criada a mao com espaco ou ponto no nome: aparece, com
                 # o motivo, em vez de sumir da lista.

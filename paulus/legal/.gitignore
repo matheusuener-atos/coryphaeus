@@ -83,6 +83,11 @@ data/marca/
 # maquina, e o que ha nela e mais sensivel que os proprios documentos.
 data/conhecimento/
 
+# Os agentes do escritorio (src/agentes.py): instrucoes escritas pelo
+# escritorio, a medida de uso e as recusas. Os exemplos do produto moram em
+# config/agentes/, que vai no git.
+data/agentes/
+
 
 # Base de demonstracao (tools/demo/criar_demo.py): gerada, nao versionada
 data/demo/

@@ -43,6 +43,9 @@ function abrirMenu(linha) {
     '<button data-a="renomear">Renomear</button>' +
     '<button data-a="grupo">Mover para grupo<span class="seta">›</span></button>' +
     '<button data-a="duplicar">Duplicar</button>' +
+    // A3: um agente a partir desta conversa (js/56-agentes.js) - so sugere;
+    // nada e salvo sem a pessoa confirmar no formulario.
+    (typeof agentesNaConversa === "function" && agentesNaConversa() ? '<button data-a="agente">Criar agente desta conversa</button>' : "") +
     '<div class="menu-risco"></div>' +
     '<button data-a="apagar" class="perigo">Apagar</button>';
 
@@ -77,6 +80,9 @@ function abrirMenu(linha) {
     await carregarTrabalhos();
     abrirTrabalho(copia.id);
   };
+
+  const criarAgente = menu.querySelector('[data-a="agente"]');
+  if (criarAgente) criarAgente.onclick = () => { fecharMenu(); mostrarAgentes({ conversa: id }); };
 
   menu.querySelector('[data-a="apagar"]').onclick = async () => {
     fecharMenu();
