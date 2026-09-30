@@ -1,0 +1,98 @@
+# PROGRESSO — Pensar no aparelho (acesso de fora)
+
+Retomada do plano `docs/prompt-pensar-no-aparelho-v0.md` (D0…D6 e F1). Uma
+conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
+`feita`.
+
+| Etapa | O quê | Estado | Commit | Portão (medido) |
+| --- | --- | --- | --- | --- |
+| D0 | Levantamento e medida da fila remota | feita — ⏸ PAUSA: esperando a decisão do dono | ver git log (d0) | tabela e números abaixo |
+| F1 | Fila dentro da conversa, fila única, Ctrl+Enter | pendente | | |
+| D1 | O pacote e a porta | pendente — bloqueada pelo furo do filtro (abaixo) | | |
+| D2 | O motor no navegador | pendente | | |
+| D3 | Conferência no escritório e retomada | pendente | | |
+| D4 | O switch e a tela | pendente | | |
+| D5 | O que o titular controla | pendente | | |
+| D6 | Política, manual e teste real | pendente | | |
+
+## D0 — o prompt supõe × o código tem hoje (30/09/2026)
+
+### A fila
+
+| O prompt supõe | O código tem hoje |
+| --- | --- |
+| Fila única, ordem de chegada, 2 por pessoa, posição e previsão pelo `ritmo.py` | Confere. `src/fila_modelo.py`: uma lista global, `MAX_POR_PESSOA = 2` (a que está sendo respondida conta), previsão = mediana de (lendo + escrevendo) das 25 últimas leituras. O dono é `"local"` ou `"conta:<id>"`: **todo mundo na janela do escritório divide o mesmo `"local"`**. A fila vive só na memória. |
+| 3ª pergunta da mesma pessoa: 429 antes de salvar | Confere na conversa (`cabe()` antes de gravar, `api.py` ~3516) e em Serviços. Na tela, o 429 vira "Não consegui responder: Error: <detalhe>" dentro da resposta, sem aviso próprio. |
+| Só a conversa e Serviços entram | Entram: conversa, Serviços › conversar, o teste de agente e, pela C5 (`ia_em_fundo`), o parecer e o resumo de gravação — **só na janela local** (`/api/ia/{tipo}` é BLOQUEADO de fora). **Fora da fila:** editor (comentar, folha, assistente), planilha, os resumos e rascunhos de e-mail (a caixa tem uma fila própria de 1+1), reescrever e-mail (a tela ainda chama a rota antiga), resumo de Serviço, parecer e resumo de gravação pelas rotas antigas (de fora é por elas, e o resumo de gravação abre para quem tem "faz"), a classificação (espera CPU livre, não a fila), o juiz do agente e o do programa, as ações da conversa sem documento. |
+| Trabalho de segundo plano cede com `ceder()` | Confere: índice do material, leitura das obras (M5) e vetores do Acervo. |
+| Sem prioridade | Confere: nenhum campo de prioridade em lugar nenhum. |
+| Perguntas de molde (nível 0) não entram | Confere (`_sem_modelo()`). Dentro da vez, o modelo pode ser chamado mais de uma vez (nível 0 sem stream e a repetição de `_conferir_marcas`). |
+
+### A conversa na tela
+
+| O prompt supõe | O código tem hoje |
+| --- | --- |
+| Com resposta andando, `enviar()` sai calado | **Em parte já mudou (C3).** Com `conversa.painel` ligado (de fábrica), aparece o aviso "A conversa “…” ainda está respondendo." com **Esperar na fila**, que guarda a pergunta **só na memória da página** e a manda quando a outra termina. Ela se perde, sem aviso, se a pessoa trocar de conversa ou recarregar; cabe uma só (a segunda sobrescreve); não aparece na conversa. Com a chave desligada ou o campo vazio, sai calado. |
+| Em outra conversa o botão fica "esperando" | Confere. E se o `execucao_id` já chegou, trocar de conversa larga a inscrição e libera o envio na outra; a fila do servidor dá a posição pelos eventos `fila`. |
+| Ctrl+Enter não faz nada especial | Confere: o campo trata `Enter` sem Shift como enviar (`03-assistente.js` ~2058, não ~1790); Ctrl+Enter cai no mesmo caminho. O Ctrl global só age em Aprovações. |
+| Pergunta pendente guardada no servidor | Não existe. A pergunta vai direto para `trabalho.mensagens`; `NA_FILA` existe em `jobs.py` mas a conversa não usa. |
+| Posição à vista | Eventos `fila {posicao, previsao_s}` viram "na fila do modelo: você é o Nº, ~X s" na linha de estado (com `conversa.pensando`) e nos cartões de Acontecendo agora. Não diz **quem** está na frente. |
+
+### A pergunta, as conferências e o painel
+
+| O prompt supõe | O código tem hoje |
+| --- | --- |
+| Trechos escolhidos, orçamento ~3.000 tokens | Confere no caminho "trechos" (`recuperacao.py`: até 6 trechos, 3.000 tokens, 3 por documento). Mas há outros caminhos: "tudo" (o Acervo inteiro quando cabe), documento nomeado e o nível 0 de fatos — **o pacote do aparelho só pode sair do caminho de trechos**. |
+| 2 últimos pares, cortados | Confere: `memoria.historico`, 2 pares, 600 tokens. |
+| Conferências: números, marcas, lei fora dos trechos, cerca | Existem, mas **espalhadas e quase todas desligadas de fábrica**: `citacoes.revisar` (marca e lei/súmula/CNJ fora dos trechos) só com `ia.citacao` (desligada) ou com camadas da Biblioteca; números/datas/CPF só no nível 0 (`molde.conferir`); a cerca (`blindagem.tirar_estranhos`) com `conversa.cerca` (desligada). **Não há uma função única** que confira um texto pronto: D3 precisa escrevê-la, e a resposta do escritório tem de passar por ela também ("a mesma função"). |
+| Painel da resposta | Existe (C3): Caminho, Tempo, Modelo, Agente… Nenhum campo diz **onde** a resposta foi escrita. |
+| Execução desacoplada | Existe (C1): thread por resposta, eventos em `data/execucoes/<id>.jsonl`. As rotas de inscrição não conferem o dono (id aleatório de 16 hex). |
+
+### Acesso de fora e segurança
+
+| O prompt supõe | O código tem hoje |
+| --- | --- |
+| Filtro de permissões (papel, muralha ética, escopo) antes de montar o pacote | Não há muralha ética nem papel por documento ("todos veem tudo", `equipe.py`). O único filtro por pessoa é o de **Serviços por equipe** (`servicos_acesso` + `search.FILTRO`), posto pelo `PortaDosServicos` em ContextVar. **Furo achado (abaixo).** |
+| CSP da página remota | Existe (`acesso/remoto.py`): `connect-src 'self'`, `worker-src 'self' blob:`, script só do próprio PAULUS e do Turnstile (Cloudflare) nas páginas de entrada. |
+| Nada da conversa guardado no navegador | **Não confere hoje:** o rascunho da pergunta fica em `localStorage` (`paulus.conversa.<id>`) e nunca é apagado, nem ao apagar a conversa; o rascunho de e-mail (com o resumo de gravação feito pela IA) e a sugestão da IA para um documento também. Nenhum Worker, Service Worker, Cache Storage nem IndexedDB. O portão da D2 ("nenhum armazenamento contém texto da pergunta") precisa que o rascunho saia do `localStorage` ao menos de fora. |
+| Auditoria | Existe: `data/acesso/acessos.jsonl`, encadeada por hash. **Perguntas ao modelo não são auditadas.** Nenhuma execução diz se foi de fora ou local (o dono só na memória). |
+| Chaves num bloco `aparelho` | `config.PADRAO` descarta chave que não conhece: o bloco precisa de todas as chaves. `/api/chaves` só mexe em booleanos dos blocos listados em `rotas_chaves.BLOCOS`. |
+
+### Furo achado: o filtro de Serviços não chega à thread da resposta
+
+O `search.FILTRO` e o `PESSOA_DA_VEZ` são `ContextVar`. A resposta da
+conversa roda numa `threading.Thread` nova (`execucoes.py` ~180), e a C5 idem.
+No Python 3.14.3 do venv (`sys.flags.thread_inherit_context = 0`), a thread
+nova começa com o contexto vazio — **provado**: `FILTRO` com valor fora,
+`None` dentro da thread. A busca da resposta roda dentro do gerador, na
+thread. Então um colaborador de fora, restrito por equipe em Serviços,
+provavelmente tem a resposta procurada no Acervo inteiro. O teste de Serviços
+põe o filtro à mão e não passa pela thread. **Falta a prova de ponta a ponta**
+(uma pergunta de colaborador restrito que cite um trecho de fora da equipe).
+A correção é pequena (levar o contexto para a thread com
+`contextvars.copy_context().run`), mas é de outra frente: registrado aqui e
+levado ao dono na pausa, porque a D1 ("o pacote é montado depois do filtro")
+depende disso.
+
+## D0 — a medida
+
+- **Uso real do acesso de fora nesta máquina: zero.** `data/acesso/contas.db`
+  tem 0 contas e 0 sessões; as 209 linhas da auditoria são todas do teste de
+  tela ("Teste de Tela", 28 a 30/09). Não há pergunta de fora para medir.
+- As 75 execuções em `data/execucoes/` são de hoje, dos testes (modelo
+  simulado, ~2 s): nenhuma passou pela fila. Não servem de medida.
+- **O custo de cada lugar na fila** vem do `data/ritmo.json` (25 respostas
+  reais do llama3.2:3b nesta máquina, em CPU): **mediana 34 s por resposta**
+  (8,8 s lendo + 12,2 s escrevendo), **p90 102 s**, máximo 468 s. Com 3
+  pessoas na frente, a espera típica seria ~1,5 a 5 min.
+- **Faltava instrumento:** a execução não grava o tempo de fila à parte
+  (`total_s` inclui a espera) nem se foi de fora. Para medir de verdade é
+  preciso gravar `fila_s` e a origem em cada execução.
+
+## Fora do foco
+
+- O rascunho de e-mail e a sugestão da IA ficam no `localStorage` (ver acima).
+- As rotas de inscrição de execução não conferem o dono.
+- `test_a2_agente_na_conversa` falha com o Acervo real desta máquina (três
+  PDFs com nomes quase iguais): o documento citado toma o lugar do foco. Já
+  falhava sem as mudanças de hoje.

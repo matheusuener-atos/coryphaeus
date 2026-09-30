@@ -2374,3 +2374,11 @@ diz "3 de 12"; setas, teclado e arrasto trocam o aviso; marcar como visto ou
 concluir põe o próximo no lugar; "Ver todos" foi para o cabeçalho. Vale
 também no celular. **Medido:** `tests/test_t2_avisos.py`, `test_tela` e
 `test_frontend` passam.
+
+## D0 — Pensar no aparelho: levantamento ⏸ PAUSA (30/09/2026)
+
+Tabela "o prompt supõe × o código tem" em `docs/PROGRESSO-APARELHO.md`.
+Uso real do acesso de fora nesta máquina: zero (0 contas; a auditoria é só
+do teste de tela). Cada lugar na fila custa a mediana de 34 s (p90 102 s) com
+o llama3.2:3b. Achado: o filtro de Serviços (ContextVar) não chega à thread
+da resposta; bloqueia a D1.
