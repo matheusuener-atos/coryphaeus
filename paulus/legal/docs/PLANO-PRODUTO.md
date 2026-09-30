@@ -86,10 +86,14 @@ O que faz advogado trocar de ferramenta.
   próprias horas nos serviços de que participa; cobrar é só no servidor.
   Teste: `tests/test_horas.py`.
 
-## P5 — Roteiro de demonstração · a fazer
+## P5 — Roteiro de demonstração · feito
 
 - Roteiro de 5 minutos sobre o escritório fictício (`tools/demo`), com o
   texto de cada passo, para gravar e vender sem o dono presente.
+- Feito: `docs/ROTEIRO-DEMONSTRACAO.md` (11 cenas, o que clicar e o que
+  dizer, com as respostas conhecidas do `tools/demo/roteiro.py`); a base da
+  demonstração ganhou horas no serviço da Cooperativa e três publicações do
+  DJEN inventadas.
 
 ## Do dono
 

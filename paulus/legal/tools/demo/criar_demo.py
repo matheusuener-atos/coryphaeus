@@ -316,7 +316,37 @@ def semear(dados: Path, pasta_acervo: Path, hoje: date) -> dict:
                       "descricao": "Ação contra o antigo empregador; audiência de conciliação marcada."})
     serv.etapa_adicionar(s2, "Audiência de conciliação", dia(2))
 
-    return {"cadastros": 5, "compromissos": 4, "tarefas": 4, "lancamentos": 5, "servicos": 2}
+    # As horas do serviço da Cooperativa, com o valor da hora (src/horas.py):
+    # a demonstração mostra o cronômetro e "Cobrar no Financeiro".
+    import horas as horas_mod
+
+    hrs = horas_mod.Horas(b)
+    hrs.registrar(s1, minutos=150, dia=dia(-5), descricao="Minuta do aditivo (rota Altamira)", quem=ADVOGADA)
+    hrs.registrar(s1, minutos=45, dia=dia(-3), descricao="Reunião com a diretoria da Cooperativa", quem=ADVOGADA)
+    hrs.registrar(s1, minutos=90, dia=dia(-2), descricao="Pesquisa de jurisprudência", quem="Lívia Santos")
+    b.escrever("UPDATE servicos SET valor_hora = ? WHERE id = ?", (35000, s1))
+
+    # Publicações do DJEN inventadas, para a OAB da advogada (src/publicacoes.py):
+    # o filtro Publicações em Tarefas e o "Criar prazo".
+    import publicacoes as publicacoes_mod
+
+    oab = publicacoes_mod.ler_oab(OAB) or {"numero": "12345", "uf": "PA"}
+    fict = [
+        {"id": 900001, "data_disponibilizacao": dia(-1), "siglaTribunal": "TRT8", "tipoComunicacao": "Intimação",
+         "nomeOrgao": "2ª Vara do Trabalho de Santarém", "numeroprocessocommascara": "0000812-44.2026.5.08.0122",
+         "texto": "<p>Fica o reclamante intimado, por sua advogada, para, no prazo de 8 (oito) dias, manifestar-se sobre a "
+                  "contestação e os documentos juntados pela reclamada.</p>"},
+        {"id": 900002, "data_disponibilizacao": dia(-3), "siglaTribunal": "TJPA", "tipoComunicacao": "Intimação",
+         "nomeOrgao": "1ª Vara Cível e Empresarial de Santarém", "numeroprocessocommascara": "0801234-56.2026.8.14.0051",
+         "texto": "<p>Intimem-se as partes para, em 15 (quinze) dias, especificarem as provas que pretendem produzir.</p>"},
+        {"id": 900003, "data_disponibilizacao": dia(-6), "siglaTribunal": "TJPA", "tipoComunicacao": "Edital",
+         "nomeOrgao": "Vara de Família de Santarém", "numeroprocessocommascara": "0805555-11.2025.8.14.0051",
+         "texto": "<p>Edital de citação, com prazo de 20 (vinte) dias.</p>"},
+    ]
+    publicacoes_mod.Publicacoes(b).guardar([publicacoes_mod.normalizar(i, oab) for i in fict])
+
+    return {"cadastros": 5, "compromissos": 4, "tarefas": 4, "lancamentos": 5, "servicos": 2, "registros de horas": 3,
+            "publicações": 3}
 
 
 def main() -> int:
