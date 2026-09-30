@@ -134,6 +134,10 @@ _declarar(PERMITIDO,
           "GET /api/saudacao",
           # A2: qual agente a proxima pergunta usaria (so regra, sem modelo).
           "GET /api/agentes/sugerir",
+          # C5: as outras chamadas de IA como execucao (src/ia_em_fundo.py).
+          # Cada tipo chama a rota de antes, com a politica dela conferida aqui:
+          # parecer do Financeiro e e-mail so no escritorio (ver abaixo).
+          "POST /api/execucoes/{id_}/parar",
           "POST /api/buscar-agora",
           # o acervo: ver, buscar, o trecho citado, a pagina
           "GET /api/documentos-abertos", "GET /api/biblioteca", "POST /api/biblioteca/citacao",
@@ -400,3 +404,9 @@ def rota_de(app, scope):
         if casou == Match.FULL:
             return rota
     return None
+
+# --- C5: as chamadas de IA em segundo plano (src/ia_em_fundo.py). Cada tipo
+# chama uma rota com politica propria (o parecer do Financeiro, o e-mail): para
+# nao abrir de fora o que era do escritorio, a rota nova e so da janela local, e
+# de fora a tela usa a rota de antes.
+_declarar(BLOQUEADO, "POST /api/ia/{tipo}")

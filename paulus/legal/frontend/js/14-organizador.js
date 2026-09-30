@@ -440,22 +440,11 @@ async function organizarClassificar(apenas) {
     });
     if (!r.ok) throw new Error((await r.json()).detail);
 
-    const leitor = r.body.getReader();
-    const dec = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const passo = await leitor.read();
-      if (passo.done) break;
-      buffer += dec.decode(passo.value, { stream: true });
-      const partes = buffer.split("\n\n");
-      buffer = partes.pop();
-
-      for (const parte of partes) {
-        const mt = parte.match(/^event: (.+)$/m);
-        const md = parte.match(/^data: (.*)$/m);
-        if (!mt || !md) continue;
-        const d = JSON.parse(md[1]);
+    // C5: o leitor unico de SSE (eventosSSE, 16-dialogos.js).
+    for await (const ev of eventosSSE(r)) {
+      {
+        const mt = [0, ev.tipo];
+        const d = ev.dados;
 
         if (mt[1] === "progresso") {
           atualizarFita(d.indice, d.total);

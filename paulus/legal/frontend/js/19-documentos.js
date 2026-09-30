@@ -194,9 +194,43 @@ function desenharDocumentos() {
     '<div class="' + classe + '" id="docs-corpo"><div class="acervo-principal">' + principal + "</div>" +
     (cheia ? "" : painel) + "</div></div>";
   ligarDocumentos(aba);
+  // C5: a sugestao pedida com este documento fechado aparece agora.
+  if (aba && aba.tipo === "texto" && escr.visao !== "previa") aplicarSugestaoPendente();
 }
 
 function desenharEditor() { desenharDocumentos(); }
+
+/* C5: a sugestao que chegou com outro documento aberto espera o dela (nesta
+   janela), e aparece marcada no fim quando ele abre - a selecao de antes ja
+   nao existe, entao ela entra como acrescimo, com o mesmo Manter/Descartar. */
+function chaveDaSugestao(docId) {
+  return "paulus.sugestao." + docId;
+}
+
+function guardarSugestaoPendente(docId, s) {
+  try { localStorage.setItem(chaveDaSugestao(docId), JSON.stringify(s)); } catch (err) { /* sem memoria: fica so a mensagem */ }
+}
+
+function aplicarSugestaoPendente() {
+  if (!escr.doc || escr.pendente || !$("ed-folha")) return;
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(chaveDaSugestao(escr.doc.id)) || "null"); } catch (err) { s = null; }
+  if (!s || !s.sugestao) return;
+  try { localStorage.removeItem(chaveDaSugestao(escr.doc.id)); } catch (err) { /* segue */ }
+  aplicarNoEditor(Object.assign({}, s, { sobre: false }));
+  conversaAtual().push({ autor: "paulus", html: esc("Esta sugestão foi pedida quando você estava em outro documento: está marcada no fim do texto — mantenha ou descarte.") });
+  redesenharFalas("ed-fala");
+}
+
+/* A folha de um documento que nao esta aberto: o servidor grava no dele. */
+async function salvarFolhaEm(docId, folha) {
+  const d = await (await fetch("/api/documentos/" + docId)).json();
+  const r = await fetch("/api/documentos/" + docId + "/formato", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ formato: Object.assign({}, d.formato, { folha: folha }), corpo: d.corpo }),
+  });
+  if (!r.ok) avisoCert(await erroDe(r));
+}
 
 function cabecalhoDocumentos(aba) {
   const titulo = $("conversa-titulo");
@@ -1404,14 +1438,19 @@ async function pedirNaFolha(pedido) {
   conversa.push({ autor: "pessoa", texto: pedido });
   redesenharFalas("ed-fala");
   const antes = folhaAtual();
+  const docId = escr.doc.id, docTitulo = escr.doc.titulo;
   try {
-    const r = await fetch("/api/documentos/" + escr.doc.id + "/folha/sugerir", {
+    const r = await fetch("/api/documentos/" + docId + "/folha/sugerir", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pedido: pedido, folha: antes }),
     });
     if (!r.ok) throw new Error(await erroDe(r));
     const s = await r.json();
-    await salvarFolha(s.folha, true);
+    // C5: outra aba aberta quando a resposta chegou - a folha vai para o
+    // documento que a pediu, pelo servidor, e nao para o aberto.
+    const aqui = escr.doc && escr.doc.id === docId;
+    if (aqui) await salvarFolha(s.folha, true);
+    else await salvarFolhaEm(docId, s.folha);
     const f = s.folha;
     const partes = [];
     if (f.cabecalho === "proprio" && f.linhas.length) partes.push("cabeçalho com " + plural(f.linhas.length, "linha"));
@@ -1420,10 +1459,11 @@ async function pedirNaFolha(pedido) {
     if (f.rodape === "proprio") partes.push("rodapé “" + f.rodape_texto + "”");
     conversa.push({
       autor: "paulus",
-      html: esc("Montei a folha: " + partes.join(", ") + "." + (s.nota ? " (" + s.nota + ")" : "") + " Confira nas páginas ao lado."),
+      html: esc("Montei a folha" + (aqui ? "" : " de “" + docTitulo + "”") + ": " + partes.join(", ") + "." + (s.nota ? " (" + s.nota + ")" : "") +
+        (aqui ? " Confira nas páginas ao lado." : " Ela já está nele; confira quando abrir.")),
       acoes: [
         { icone: "check", rotulo: "Manter", primario: true, acao: (b) => { b.closest(".docs-resposta-acoes").innerHTML = '<span class="nota">mantido</span>'; } },
-        { icone: "undo", rotulo: "Desfazer", acao: () => salvarFolha(antes, true) },
+        { icone: "undo", rotulo: "Desfazer", acao: () => (escr.doc && escr.doc.id === docId ? salvarFolha(antes, true) : salvarFolhaEm(docId, antes)) },
       ],
     });
   } catch (err) {
@@ -1514,14 +1554,22 @@ async function pedirNoEditor(pedido) {
   const folha = $("ed-folha");
   escr.antes = folha.innerHTML;
   const trecho = trechoSelecionado();
+  // C5: o documento que pediu. A resposta chega um minuto depois, e a pessoa
+  // pode ter trocado de aba: a sugestao so entra neste.
+  const docId = escr.doc.id, docTitulo = escr.doc.titulo;
 
   try {
-    const r = await fetch("/api/documentos/" + escr.doc.id + "/assistente", {
+    const r = await fetch("/api/documentos/" + docId + "/assistente", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pedido: pedido, trecho: trecho }),
     });
     if (!r.ok) throw new Error(await erroDe(r));
     const s = await r.json();
+    if (!escr.doc || escr.doc.id !== docId || !$("ed-folha")) {
+      guardarSugestaoPendente(docId, s);
+      conversa.push({ autor: "paulus", html: esc("A sugestão é de “" + docTitulo + "”, que não está aberto agora: ela ficou esperando lá e aparece marcada quando você abrir o documento.") });
+      return;
+    }
     const antes = escr.antes;
     aplicarNoEditor(s);
     conversa.push({
@@ -2658,17 +2706,25 @@ async function pedirFormula(pedido) {
   if (!pedido || escr.ocupada) return;
   const conversa = conversaAtual();
   const celula = escr.celula;
+  // C5: a planilha que pediu; a formula nao cai na que estiver aberta depois.
+  const plId = escr.pl.id, plTitulo = escr.pl.titulo;
   escr.ocupada = true;
   conversa.push({ autor: "pessoa", texto: pedido });
   redesenharFalas("pl-fala");
 
   try {
-    const r = await fetch("/api/planilha/" + escr.pl.id + "/assistente", {
+    const r = await fetch("/api/planilha/" + plId + "/assistente", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pedido: pedido, selecao: celula }),
     });
     if (!r.ok) throw new Error(await erroDe(r));
     const d = await r.json();
+    const aqui = () => escr.pl && escr.pl.id === plId;
+    if (!aqui()) {
+      conversa.push({ autor: "paulus", html: "A fórmula <code>" + esc(d.formula) + "</code> é para " + esc(celula) + " de “" + esc(plTitulo) +
+        "”, que não está aberta agora. Abra a planilha e peça de novo, ou escreva a fórmula na célula." });
+      return;
+    }
 
     const entrada = $("pl-entrada");
     const antes = entrada ? entrada.value : "";
@@ -2683,7 +2739,10 @@ async function pedirFormula(pedido) {
         (d.erro ? "Ela não fechou: " : "Resultado agora: ") + esc(d.resultado || "—") + "." +
         (d.aviso ? " " + esc(d.aviso) : ""),
       acoes: [
-        { icone: "check", rotulo: "Manter", primario: true, acao: () => { escr.celula = celula; gravarCelula(d.formula); } },
+        { icone: "check", rotulo: "Manter", primario: true, acao: () => {
+          if (!aqui()) { avisoCert("abra “" + plTitulo + "” para manter a fórmula"); return; }
+          escr.celula = celula; gravarCelula(d.formula);
+        } },
         { icone: "undo", rotulo: "Desfazer", acao: () => {
           const e = $("pl-entrada"); if (e) e.value = antes;
           escr.notaFormula = ""; const n = $("pl-nota"); if (n) n.textContent = "";

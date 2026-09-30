@@ -69,6 +69,8 @@ async function abrirGravacao(id) {
   gv.aberta = { id: id };
   gv.aba = "transcricao";
   await mostrarGravacoes("gravacao");
+  // C5: o resumo pedido antes de sair (ou de recarregar) continua daqui.
+  if (typeof superficiesNovas === "function" && superficiesNovas() && iaGuardada("resumo_gravacao." + id)) pedirResumoDaGravacao(true);
 }
 
 function desenharGravacoes() {
@@ -1075,11 +1077,25 @@ async function baixarModeloDeVoz(nome) {
   vigiarVoz();
 }
 
-async function pedirResumoDaGravacao() {
+async function pedirResumoDaGravacao(retomar) {
   if (gv.resumindo) return;
   gv.resumindo = true;
   redesenharConteudoGv();
   redesenharPainelGv();
+  // C5: o resumo como execucao, na fila do modelo; voltar a gravacao retoma.
+  if (typeof superficiesNovas === "function" && superficiesNovas()) {
+    const id = gv.aberta.id, chave = "resumo_gravacao." + id;
+    try {
+      const g = retomar ? await acompanharIA(chave) : await chamarIA("resumo_gravacao", { id: id }, chave);
+      if (g && gv.aberta && gv.aberta.id === id) { gv.aberta = g; cabecalhoGravacoes(); }
+      guardarIA(chave, null);
+    } catch (err) {
+      if (err.message !== "parado") avisoCert("sem resumo agora: " + (err.message || err));
+    }
+    gv.resumindo = false;
+    if ($("gv-tela")) { redesenharConteudoGv(); redesenharPainelGv(); }
+    return;
+  }
   const r = await fetch("/api/gravacoes/" + gv.aberta.id + "/resumo", { method: "POST" });
   gv.resumindo = false;
   if (!r.ok) {

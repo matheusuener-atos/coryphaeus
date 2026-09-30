@@ -218,7 +218,10 @@ PADRAO: dict = {
                  "agentes": True,
                  # `avisos` (T2): o carrossel dos avisos do dia na tela inicial, a
                  # Central de avisos e o historico do visto (src/central_avisos.py).
-                 "avisos": True},
+                 "avisos": True,
+                 # `superficies` (C5): o parecer, o resumo da gravacao e o
+                 # reescrever do e-mail rodam como execucao, na fila do modelo.
+                 "superficies": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

@@ -13,6 +13,8 @@ from __future__ import annotations
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
+from execucoes import sse
+
 CABECALHOS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
@@ -42,7 +44,13 @@ def montar(estado, app) -> None:
     def execucao_eventos(id_: str, desde: int = 0) -> StreamingResponse:
         execucao = estado.execucoes.obter(id_)
         if execucao is None:
-            raise HTTPException(status_code=404, detail="execução não encontrada (o programa foi reaberto depois dela?)")
+            # C5: a execucao de antes de reabrir o programa: o registro dela
+            # esta no disco, e o resultado volta dali.
+            arquivo = estado.execucoes.pasta / f"{id_}.jsonl"
+            if not (id_.isalnum() and arquivo.exists()):
+                raise HTTPException(status_code=404, detail="execução não encontrada")
+            eventos = [ev for ev in estado.execucoes.ler_registro(arquivo) if int(ev.get("seq", 0)) > int(desde)]
+            return resposta_sse(iter([sse(ev) for ev in eventos]))
         return resposta_sse(estado.execucoes.inscrever(execucao, desde))
 
     @app.get("/api/trabalhos/{id_}/execucao")

@@ -278,25 +278,34 @@ async function erroDe(resposta) {
 /* Ler uma resposta que chega em pedaços.
    O servidor manda andamento em eventos porque as leituras longas levam
    minutos; sem isto a tela ficaria parada e pareceria travada. */
-async function lerEventos(resposta, aoEvento) {
+/* C5: o unico leitor de Server-Sent Events do programa. Cada evento sai como
+   {tipo, dados}; sair do laco no meio (break) fecha a leitura - e, com a
+   execucao da C1, fechar a leitura nao para nada no servidor. */
+async function* eventosSSE(resposta) {
   const leitor = resposta.body.getReader();
   const dec = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const passo = await leitor.read();
-    if (passo.done) break;
-    buffer += dec.decode(passo.value, { stream: true });
-    const partes = buffer.split("\n\n");
-    buffer = partes.pop();
-
-    for (const parte of partes) {
-      const mt = parte.match(/^event: (.+)$/m);
-      const md = parte.match(/^data: (.*)$/m);
-      if (!mt || !md) continue;
-      aoEvento(mt[1], JSON.parse(md[1]));
+  let buffer = "", acabou = false;
+  try {
+    while (true) {
+      const passo = await leitor.read();
+      if (passo.done) { acabou = true; break; }
+      buffer += dec.decode(passo.value, { stream: true });
+      const partes = buffer.split("\n\n");
+      buffer = partes.pop();
+      for (const parte of partes) {
+        const mt = parte.match(/^event: (.+)$/m);
+        const md = parte.match(/^data: (.*)$/m);
+        if (!mt || !md) continue;
+        yield { tipo: mt[1], dados: JSON.parse(md[1]) };
+      }
     }
+  } finally {
+    if (!acabou) { try { await leitor.cancel(); } catch (err) { /* ja fechada */ } }
   }
+}
+
+async function lerEventos(resposta, aoEvento) {
+  for await (const ev of eventosSSE(resposta)) aoEvento(ev.tipo, ev.dados);
 }
 
 function dataBR(iso) {

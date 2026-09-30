@@ -2299,3 +2299,21 @@ Edge); dez exemplos no PROGRESSO-CONVERSA.
 - Chave `conversa.avisos`, ligada de fábrica.
 
 **Medido:** `tests/test_t2_avisos.py` 83 ok.
+
+## C5 — As outras superfícies de IA ✓ FEITA EM PARTE
+
+- O bug do documento errado: a sugestão do painel de Documentos (e a folha
+  timbrada e a fórmula da planilha) só entra no documento que a pediu; com
+  outro aberto, espera o de origem e aparece nele quando ele abre.
+- Um leitor de SSE só (`eventosSSE`), usado pela conversa, pelo organizador e
+  pelo `lerEventos`.
+- `src/ia_em_fundo.py`: o parecer do Financeiro, o resumo da gravação e o
+  reescrever do e-mail como execução, na fila do modelo (com a posição),
+  com Parar e com o resultado que volta ao sair, recarregar ou reabrir. Um
+  componente de tela para "IA trabalhando".
+- Ficou para depois: as outras nove superfícies, o texto chegando aos poucos
+  nelas, e a fila do modelo para quem não passa pela execução.
+- Chave `conversa.superficies`, ligada de fábrica.
+
+**Medido:** `tests/test_c5_superficies.py` passa inteiro (modelo simulado e o
+Edge).

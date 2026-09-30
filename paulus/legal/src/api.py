@@ -105,6 +105,7 @@ import rotas_execucoes
 import rotas_conversa
 import saudacao as saudacao_mod
 import agente_na_conversa as agente_mod
+import ia_em_fundo
 import detalhes as detalhes_mod
 import rotas_agentes
 import rotas_avisos
@@ -914,6 +915,16 @@ rotas_execucoes.montar(estado, app)
 rotas_conversa.montar(estado, app)
 saudacao_mod.montar(estado, app, rotas_do_acesso.pessoa)
 agente_mod.montar(estado, app)
+# C5: o parecer, o resumo da gravacao e o reescrever do e-mail como execucao,
+# com a vez na fila do modelo (src/ia_em_fundo.py). As funcoes sao as rotas de
+# antes: o resultado e o mesmo JSON.
+ia_em_fundo.montar(estado, app, {
+    "parecer": ("Parecer do Financeiro", lambda d: "parecer:" + str(d.get("quando", "")),
+                lambda d: relatorios_parecer(d)),
+    "resumo_gravacao": ("Resumo da gravação", lambda d: "gravacao:" + str(d.get("id", "")),
+                        lambda d: gravacoes_resumo(int(d.get("id") or 0))),
+    "reescrever_email": ("Reescrever o e-mail", lambda d: "email:rascunho", lambda d: email_reescrever(d)),
+}, lambda request: _dono_da_vez(request))
 # Os agentes do escritorio (A1): os arquivos e as rotas (a A2 os poe na conversa).
 rotas_agentes.montar(estado, app, DADOS_DIR / "agentes", contexto=lambda tarefa: _contexto(tarefa=tarefa))
 # A Central de avisos (T2): o carrossel da tela inicial e o historico do visto.

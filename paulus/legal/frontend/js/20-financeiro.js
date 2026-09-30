@@ -70,6 +70,11 @@ async function carregarFinanceiro() {
 }
 
 function desenharFinanceiro() {
+  // C5: o parecer pedido antes (outra tela, recarga, programa reaberto) volta.
+  if (!fin.parecer && !fin.pedindo && typeof superficiesNovas === "function" && superficiesNovas() &&
+      iaGuardada("parecer." + quandoDoRelatorio())) {
+    setTimeout(() => pedirParecer(true), 0);
+  }
   cabecalhoFinanceiro();
   const antes = document.querySelector("#financeiro .sv-principal");
   const chave = fin.visao + ":" + fin.mes;
@@ -369,6 +374,10 @@ function finParecerSecao(destaque) {
 function parecerHtml(destaque) {
   const classe = "fin-parecer" + (destaque ? " solto" : "");
   if (fin.pedindo) {
+    // C5: com a chamada em segundo plano, a linha de estado com o Parar.
+    if (typeof superficiesNovas === "function" && superficiesNovas()) {
+      return '<div class="' + classe + '">' + blocoIA("parecer." + quandoDoRelatorio(), fin.parecerEstado) + "</div>";
+    }
     return '<div class="' + classe + '"><p>Escrevendo sobre os números do mês — cerca de um minuto nesta máquina.</p></div>';
   }
   if (!fin.parecer) {
@@ -385,11 +394,25 @@ function parecerHtml(destaque) {
     (fin.numerosAbertos ? '<div class="fin-numeros-crus">' + esc(fin.parecer.numeros) + "</div>" : "") + "</div>";
 }
 
-async function pedirParecer() {
+async function pedirParecer(retomar) {
   if (fin.pedindo) return;
   fin.pedindo = true;
   fin.parecerErro = "";
+  fin.parecerEstado = "";
   desenharFinanceiro();
+  // C5: uma execucao no servidor, na fila do modelo; sair e voltar (ou
+  // recarregar) retoma pelo id guardado para este mes.
+  if (typeof superficiesNovas === "function" && superficiesNovas()) {
+    const quando = quandoDoRelatorio(), chave = "parecer." + quando;
+    try {
+      fin.parecer = retomar ? await acompanharIA(chave) : await chamarIA("parecer", { quando: quando }, chave);
+    } catch (err) {
+      fin.parecerErro = err.message === "parado" ? "" : String(err.message || err);
+    }
+    fin.pedindo = false;
+    if ($("financeiro")) desenharFinanceiro();
+    return;
+  }
   const r = await fetch("/api/relatorios/parecer", { method: "POST", headers: FIN_JSON, body: JSON.stringify({ quando: quandoDoRelatorio() }) });
   fin.pedindo = false;
   if (!r.ok) fin.parecerErro = await erroDe(r);

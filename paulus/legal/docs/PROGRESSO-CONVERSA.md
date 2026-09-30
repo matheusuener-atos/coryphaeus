@@ -13,7 +13,7 @@ que não estiver `feita`.
 | C4 | Roteamento: programa e cadastros | pendente | — | — |
 | T1 | A saudação que não se repete | feita | ver git log (t1) | 130 títulos e 82 subtítulos; 30 aberturas sem repetir entre as 20 últimas; prazo hoje vence o dia; feriados e recesso; 0 buraco sem nome; 0,2 ms |
 | T2 | Carrossel de avisos, Central de avisos e histórico | feita | f5a425e | 83 ok no portão: ordem, sem duplicado, visto por pessoa e de onde, volta no dia, 390 px, sem cor de erro |
-| C5 | As outras superfícies de IA | pendente | — | — |
+| C5 | As outras superfícies de IA | feita, em parte | ver git log (c5) | documento errado corrigido; 1 leitor de SSE; parecer e resumo de gravação na fila, com posição, parar e resultado que volta; as outras 9 superfícies ficaram para depois |
 | C6 | Cerca em todo texto de terceiros | pendente | — | — |
 | A1 | Formato de agente: carregar, validar, versionar | feita | 98b228f | 67/67 no portão; permissões 58/58 |
 | A2 | Agentes na conversa | feita | ver git log (a2) | @Nome, exemplo e "não usar"; instrução cercada abaixo das regras; ferramenta não declarada recusada; foco não lê outro documento; cartão = item da fila |
@@ -148,6 +148,49 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## C5 — o que foi medido e decidido
+
+- **O bug do documento errado** (primeiro, como pedia o contrato): o painel de
+  Documentos guarda o documento que fez o pedido. Se a resposta chega com
+  outro aberto, ela não toca nele: fica esperando o de origem (nesta janela)
+  e aparece marcada no fim dele quando ele abre, com Manter e Descartar. A
+  folha timbrada vai para o documento de origem pelo servidor, aberto ou não.
+  A fórmula da planilha nunca cai em outra planilha (e o Manter confere).
+- **Um leitor de SSE só:** `eventosSSE` (`16-dialogos.js`), um gerador
+  assíncrono; o `lerEventos`, o organizador e a conversa passaram a usá-lo, e
+  o `break` fecha a leitura.
+- **As chamadas de IA como execução** (`src/ia_em_fundo.py`,
+  `POST /api/ia/{tipo}`): o parecer do Financeiro, o resumo da gravação e o
+  reescrever do e-mail rodam como execução do mesmo registro da C1, com a vez
+  na fila do modelo (a posição aparece: "Na fila do modelo: você é o 2º"),
+  Parar (`POST /api/execucoes/{id}/parar`) e o resultado guardado no registro.
+  A inscrição lê do disco a execução de antes de reabrir o programa, então
+  sair da tela, recarregar ou reabrir e voltar mostra o resultado. Um
+  componente só na tela (`frontend/js/56-ia-em-fundo.js`: `blocoIA`,
+  `chamarIA`, `acompanharIA`). Ligados na tela: o parecer e o resumo da
+  gravação. A rota nova é só da janela do escritório; de fora, as telas usam
+  a rota de antes.
+- **Ficou para depois, e por quê:** as outras nove superfícies (painel de
+  Documentos, folha e planilha como execução; comentar; resumo e perguntar de
+  Serviços; reescrever e rascunho de e-mail na tela; resumo da caixa;
+  organizador e levantamento) continuam como antes — o componente e a rota
+  genérica estão prontos para elas, uma por uma, cada uma com o próprio
+  "sair e voltar". O texto chegando aos poucos (streaming) no parecer e nos
+  resumos também ficou de fora: as funções de hoje pedem ao modelo a
+  resposta inteira. **A fila do modelo continua furada** para as superfícies
+  não convertidas: pôr a fila dentro do cliente do modelo pediria levar a
+  marca de "já tenho a vez" para as threads que a conversa abre, e um erro ali
+  trava o programa; não foi feito sem poder medir.
+- Chave `conversa.superficies`, **ligada de fábrica** depois do portão.
+
+**Medido:** `tests/test_c5_superficies.py` — um só `getReader()` na tela; com
+a conversa respondendo, o parecer entra na fila, diz a posição e depois
+devolve o JSON de antes; tirada da memória (reabrir), a execução devolve o
+resultado do disco; parar funciona; com a chave desligada, 409. No Edge:
+pedir a sugestão no A e trocar para o B deixa o B intacto (na tela e no
+servidor), e o A, ao abrir, mostra a sugestão marcada; o parecer guardado
+aparece ao voltar ao Financeiro.
 
 ## T2 — o que foi medido e decidido
 

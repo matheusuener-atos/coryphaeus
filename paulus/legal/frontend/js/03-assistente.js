@@ -1564,25 +1564,17 @@ async function lerResposta(r, v) {
   let citados = 0, saiu = false, execId = "";
   // C2: a linha de estado, no lugar em que a resposta vai aparecer.
   const linha = (txt) => mudarLinhaDeEstado(resposta, txt);
-  const leitor = r.body.getReader();
-  const dec = new TextDecoder();
-  let buffer = "", primeiro = true, abrirAoFim = "", assinaSemModelo = false;
+  let primeiro = true, abrirAoFim = "", assinaSemModelo = false;
   // I8: depois da conferência, o texto mostrado é o conferido, com as
   // marcas virando botões; o que chegar depois (a frase decisiva) soma nele.
   let fontesAtuais = [], revisado = false, bruto = "";
 
-  while (!saiu) {
-    const passo = await leitor.read();
-    if (passo.done) break;
-    buffer += dec.decode(passo.value, { stream: true });
-    const partes = buffer.split("\n\n");
-    buffer = partes.pop();
-
-    for (const parte of partes) {
-      const mt = parte.match(/^event: (.+)$/m);
-      const md = parte.match(/^data: (.*)$/m);
-      if (!mt || !md) continue;
-      const dados = JSON.parse(md[1]);
+  // C5: o leitor unico de SSE (eventosSSE, 16-dialogos.js); o break de "saiu"
+  // fecha a leitura.
+  for await (const ev of eventosSSE(r)) {
+    {
+      const mt = [0, ev.tipo];
+      const dados = ev.dados;
       // C1: evento de outra conversa nao mexe nesta. Com a execucao, a
       // pessoa saiu da conversa: larga a inscricao (a resposta continua
       // no servidor, e a tela se reinscreve ao voltar). Sem ela, a leitura
@@ -1753,10 +1745,7 @@ async function lerResposta(r, v) {
       }
     }
   }
-  if (saiu) {
-    try { await leitor.cancel(); } catch (err) { /* ja fechada */ }
-    return "saiu";
-  }
+  if (saiu) return "saiu";
   return "fim";
 }
 
