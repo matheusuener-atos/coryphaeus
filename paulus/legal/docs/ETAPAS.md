@@ -2443,3 +2443,13 @@ dos trechos, números, links) antes de gravar; reprovado, o escritório
 reescreve. Se o aparelho some, o escritório continua do parcial conferido,
 e a resposta diz onde cada parte foi escrita. **Medido:**
 `tests/test_d3_conferencia.py` 9 ok.
+
+## D4 — O switch e a tela ✓ FEITA (30/09/2026)
+
+Seletor Escritório · Este aparelho · Automático na caixa da pergunta (só de
+fora, conta liberada, teste de capacidade passado), janela de sugestão
+quando a fila do escritório passa do limite, aviso da primeira vez,
+Automático pela fila e pela medida do aparelho, "onde foi escrita" em cada
+resposta e Minha conta › Este aparelho (teste, modelo guardado, apagar). A
+pergunta do aparelho vai por trechos só nela e não entra na fila do
+escritório. **Medido:** `tests/test_d4_switch.py` 40 ok.

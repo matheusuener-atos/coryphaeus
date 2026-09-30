@@ -203,7 +203,7 @@ def test_navegador(api, sha: str) -> None:
         r = pag.evaluate("async () => { motorAparelho.falso = true; return await testarCapacidadeDoAparelho(); }")
         checar(r.get("tokens_por_segundo") == 42 and r.get("carregou_s") is not None, "o teste de capacidade carrega e mede", r)
         corpo = json.loads(capacidades[-1]) if capacidades else {}
-        checar(set(corpo) <= {"webgpu", "memoria_gb", "tokens_por_segundo", "carregou_s"}
+        checar(set(corpo) <= {"webgpu", "memoria_gb", "tokens_por_segundo", "leitura_tps", "carregou_s"}
                and all(isinstance(v, (int, float, bool)) or v is None for v in corpo.values()),
                "a capacidade manda ao servidor só números", corpo)
 

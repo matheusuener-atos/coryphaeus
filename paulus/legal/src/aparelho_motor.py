@@ -204,6 +204,8 @@ class Capacidade(BaseModel):
     webgpu: bool = False
     memoria_gb: float | None = None
     tokens_por_segundo: float | None = None
+    # D4: a velocidade de ler a pergunta (tokens por segundo), para o Automático.
+    leitura_tps: float | None = None
     carregou_s: float | None = None
 
 

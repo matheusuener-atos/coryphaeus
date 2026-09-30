@@ -1,0 +1,44 @@
+  /* ------------------------------------------ pensar no aparelho (D4) */
+  /* O seletor na caixa da pergunta, a janela de sugestão em cima dela e o
+     cartão "Este aparelho" de Minha conta (js/61-aparelho-tela.js). */
+
+  .pilula-aparelho { padding: 0 6px 0 10px; gap: 4px; }
+  .conversa-col:not(.vazia) .pilula-aparelho { order: 3; }
+  .pilula-aparelho[hidden] { display: none; }
+  /* O select vira o botão de escolha do programa (js/16-dialogos.js): aqui,
+     sem a moldura de campo - é uma pílula, como Anexar. */
+  .pilula-aparelho select, .pilula-aparelho .escolha-botao {
+    height: auto; width: auto; min-width: 0; max-width: none; flex: none; padding: 2px 0; border: none; border-radius: 0;
+    background: transparent; box-shadow: none; font: 500 12.5px var(--sans); color: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 2px;
+  }
+  .pilula-aparelho .escolha-botao:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 4px; }
+
+  /* A janela de sugestão: um balão logo acima da caixa da pergunta, sem
+     cobrir a caixa nem travar a tela. */
+  .aparelho-sugestao { position: absolute; left: 0; right: 0; bottom: calc(100% + 10px); z-index: 6;
+    display: grid; gap: 10px; padding: 12px 14px; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--ink-a15); box-shadow: var(--elev-card); }
+  .aparelho-sugestao p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink2); }
+  .aparelho-sugestao p b { color: var(--ink); font-weight: 600; }
+  .aparelho-sugestao-botoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .aparelho-sugestao-botoes button, .aparelho-config-botoes button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+
+  .aparelho-aviso p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--ink2); }
+  .aparelho-aviso p:last-child { margin-bottom: 0; }
+  .aparelho-aviso b { color: var(--ink); }
+
+  .aparelho-config { display: grid; gap: 8px; }
+  .aparelho-linha { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr); gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; }
+  .aparelho-linha span { color: var(--ink3); }
+  .aparelho-linha b { font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+  .aparelho-config-botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .aparelho-nota, .aparelho-andamento { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink3); }
+  .aparelho-andamento { color: var(--ink2); }
+
+  @media (max-width: 600px) {
+    .aparelho-sugestao-botoes button, .aparelho-config-botoes button { min-height: 44px; }
+    .aparelho-linha { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .pilula-aparelho select { max-width: 104px; }
+  }

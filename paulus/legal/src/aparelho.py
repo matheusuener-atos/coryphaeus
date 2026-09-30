@@ -47,7 +47,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 VALIDADE_S = 600
 # Sem sinal do aparelho (nem pedir o pacote, nem mandar pedaço) por este tempo:
@@ -279,7 +279,100 @@ class Escrita:
     def resumo(self) -> dict:
         """O que fica na resposta: onde foi escrita e por quê (D4 mostra)."""
         return {"onde": self.onde, "motivo": self.motivo, "conferida": self.conferida, "pacote": bool(self.pid),
-                "partes": self.partes}
+                "partes": self.partes, "modelo": nome_do_modelo(self.estado) if self.pid else ""}
+
+
+# ------------------------------------------------ a sugestão e o Automático (D4)
+
+# Como a pessoa decidiu no seletor, quando a resposta é do escritório: o que a
+# resposta diz (Pergunta.escolha).
+ESCOLHAS = {
+    "escritorio": "você escolheu o escritório",
+    "fila": "você escolheu esperar na fila",
+    "automatico": "no automático, o escritório estava mais rápido",
+    "caso": "a conversa está num caso marcado só no escritório",
+    "inteiro": "a pergunta pede o documento inteiro",
+}
+# A janela de sugestão aparece com a espera estimada acima disto, ou com
+# tantas perguntas na frente (§3).
+LIMITE_ESPERA_S = 30
+LIMITE_NA_FRENTE = 2
+# Uma resposta típica por trechos, para comparar o aparelho com o escritório:
+# ~1.500 tokens de pergunta (instruções + 6 trechos) e ~250 de resposta.
+TOKENS_DA_PERGUNTA = 1500
+TOKENS_DA_RESPOSTA = 250
+# Sem medida do escritório ainda (nenhuma leitura no ritmo), uma resposta aqui
+# leva ~60 s (medido no 3B em CPU).
+RESPOSTA_DO_ESCRITORIO_S = 60
+# Só para o "~" do download da primeira vez: um palpite de rede, dito como tal.
+BAIXAR_BYTES_POR_S = 8 * 1024 * 1024
+
+
+def nome_do_modelo(estado) -> str:
+    import aparelho_motor
+
+    return str((estado.prefs.dados.get("aparelho") or {}).get("modelo") or aparelho_motor.MODELO_PADRAO)
+
+
+def espera_no_escritorio(estado) -> dict:
+    """A fila do escritório agora, para quem chegasse: quantos na frente, a espera e uma resposta."""
+    fila = estado.fila_modelo
+    na_frente, espera = fila.espera_de_quem_chega()
+    por_resposta = round(float(fila.segundos_por_resposta() or 0))
+    return {"na_frente": na_frente, "espera_s": espera, "resposta_s": por_resposta or RESPOSTA_DO_ESCRITORIO_S,
+            "sabe": bool(por_resposta)}
+
+
+def acima_do_limite(escritorio: dict) -> bool:
+    return escritorio["espera_s"] > LIMITE_ESPERA_S or escritorio["na_frente"] >= LIMITE_NA_FRENTE
+
+
+def tempo_no_aparelho(capacidade: dict, *, carregado: bool, baixado: bool, bytes_do_modelo: int) -> int | None:
+    """
+    Segundos estimados para o aparelho escrever uma resposta típica, pela
+    medida DELE (o teste de capacidade). None sem medida.
+    """
+    tps = float(capacidade.get("tokens_por_segundo") or 0)
+    if tps <= 0:
+        return None
+    # Ler a pergunta costuma ser bem mais rápido que escrever; sem a medida
+    # da leitura, 5 vezes a da escrita.
+    leitura = float(capacidade.get("leitura_tps") or 0) or tps * 5
+    t = TOKENS_DA_RESPOSTA / tps + TOKENS_DA_PERGUNTA / leitura
+    if not carregado:
+        t += float(capacidade.get("carregou_s") or 30)
+    if not baixado:
+        t += bytes_do_modelo / BAIXAR_BYTES_POR_S
+    return max(1, round(t))
+
+
+def decidir(escritorio: dict, aparelho_s: int | None) -> str:
+    """O Automático: o aparelho só quando ele é mais rápido que a fila e o escritório, agora."""
+    if aparelho_s is None:
+        return "escritorio"
+    return "aparelho" if aparelho_s < escritorio["espera_s"] + escritorio["resposta_s"] else "escritorio"
+
+
+def escopo_so_no_escritorio(estado, apenas: list[str]) -> bool:
+    """Os documentos em foco da pergunta tocam um caso "só no escritório"? (a busca livre só se sabe depois)."""
+    if not apenas:
+        return False
+    nomes = set(apenas)
+    caminhos = [str(d.path) for d in estado.searcher.documents if d.name in nomes]
+    return so_no_escritorio().toca(estado, caminhos)
+
+
+class Sugestao(BaseModel):
+    """O que a tela sabe antes de mandar: o escopo e a medida deste aparelho (só números)."""
+
+    model_config = ConfigDict(extra="forbid")
+    apenas: list[str] = []
+    inteiro: bool = False
+    tokens_por_segundo: float | None = None
+    leitura_tps: float | None = None
+    carregou_s: float | None = None
+    carregado: bool = False
+    baixado: bool = False
 
 
 # ------------------------------------------------------------- a porta
@@ -324,7 +417,40 @@ def montar(estado, app, dados_dir) -> None:
     @app.get("/api/aparelho/estado")
     def aparelho_estado(request: Request = None) -> dict:
         pode, motivo = pode_escrever(estado, request)
-        return {"ligado": ligado(estado), "pode": pode, "motivo": motivo, "validade_s": VALIDADE_S}
+        import aparelho_motor
+
+        m = aparelho_motor.modelo_do_aparelho(nome_do_modelo(estado)) if pode else {}
+        return {"ligado": ligado(estado), "pode": pode, "motivo": motivo, "validade_s": VALIDADE_S,
+                "modelo": m.get("nome", ""), "bytes": int(m.get("bytes") or 0)}
+
+    @app.post("/api/aparelho/sugestao")
+    def aparelho_sugestao(payload: Sugestao, request: Request = None) -> dict:
+        """
+        Antes de a pergunta entrar na fila (D4): a fila do escritório agora, se
+        a pergunta pode ir ao aparelho, a janela de sugestão e a escolha do
+        Automático. Não guarda nada.
+        """
+        import aparelho_motor
+
+        pode, motivo = pode_escrever(estado, request)
+        escritorio = espera_no_escritorio(estado)
+        so_aqui = escopo_so_no_escritorio(estado, payload.apenas)
+        vai = pode and not so_aqui and not payload.inteiro
+        m = aparelho_motor.modelo_do_aparelho(nome_do_modelo(estado)) if pode else {}
+        aparelho_s = tempo_no_aparelho(payload.model_dump(), carregado=payload.carregado, baixado=payload.baixado,
+                                       bytes_do_modelo=int(m.get("bytes") or 0)) if vai else None
+        return {
+            "pode": pode, "motivo": motivo,
+            "vai_ao_aparelho": vai,
+            "motivo_do_escritorio": ("a conversa está num caso marcado só no escritório" if so_aqui else
+                                     "a pergunta pede o documento inteiro" if payload.inteiro and pode else motivo),
+            "escritorio": escritorio,
+            "acima_do_limite": acima_do_limite(escritorio),
+            "sugerir": vai and acima_do_limite(escritorio),
+            "aparelho_s": aparelho_s, "baixado": payload.baixado,
+            "automatico": decidir(escritorio, aparelho_s) if vai else "escritorio",
+            "modelo": {"nome": m.get("nome", ""), "bytes": int(m.get("bytes") or 0)} if pode else {},
+        }
 
     @app.get("/api/aparelho/pacote/{pid}")
     def aparelho_pacote(pid: str, assinatura: str = "", request: Request = None) -> dict:

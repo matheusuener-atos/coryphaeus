@@ -182,6 +182,21 @@ class FilaDoModelo:
         andado = (time.time() - primeiro.comecou) if primeiro and primeiro.comecou else 0.0
         return max(1, round(n * por_resposta - min(andado, por_resposta)))
 
+    def espera_de_quem_chega(self) -> tuple[int, int]:
+        """
+        (quantos ficariam na frente, segundos de espera) de uma pergunta que
+        entrasse agora, sem prioridade - a janela de sugestao da D4 pergunta
+        antes de entrar. Segundos 0 se nao se sabe o ritmo.
+        """
+        por_resposta = float(self.segundos_por_resposta() or 0)
+        with self._cond:
+            n = len(self._fila)
+            primeiro = self._fila[0] if self._fila else None
+        if not por_resposta or not n:
+            return n, 0
+        andado = (time.time() - primeiro.comecou) if primeiro and primeiro.comecou else 0.0
+        return n, max(1, round(n * por_resposta - min(andado, por_resposta)))
+
     def esperar(self, vez: Vez, timeout: float | None = None) -> bool:
         """
         Bloqueia ate ser a vez de `vez`, ou ate `timeout`. Devolve se e a vez.

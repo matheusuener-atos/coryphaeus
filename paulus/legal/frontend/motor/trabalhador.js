@@ -26,6 +26,8 @@ let motor = null;
 let falso = false;
 let carregado = "";
 let parar = null;
+// Só os testes: a velocidade que o motor falso diz ter.
+let motorFalsoTps = 42;
 
 function hex(buf) {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -66,6 +68,7 @@ async function pesos(url, sha, avisar) {
 
 async function carregar(m, avisar) {
   falso = Boolean(m.falso);
+  if (typeof m.falsoTps === "number") motorFalsoTps = m.falsoTps;
   const inicio = Date.now();
   const blobs = [];
   for (const [i, parte] of (m.partes || []).entries()) {
@@ -119,19 +122,33 @@ async function escrever(m, avisar) {
   }
 }
 
-/* A velocidade num texto de exemplo, sem nada do escritório. */
+/* A velocidade num texto de exemplo, sem nada do escritório: quanto o
+   aparelho lê (até a primeira palavra) e quanto escreve (depois dela). */
+const EXEMPLO = "O contrato de locação é o acordo pelo qual uma pessoa cede a outra o uso de um imóvel " +
+  "por tempo determinado ou não, mediante pagamento de aluguel. As partes combinam o valor, o prazo, " +
+  "a forma de reajuste, as garantias e quem paga as despesas do imóvel. ";
+
 async function medir() {
   if (!motor) throw new Error("o modelo não está carregado");
-  if (motor.falso) return { tokens_por_segundo: 42 };
+  if (motor.falso) return { tokens_por_segundo: motorFalsoTps, leitura_tps: motorFalsoTps * 10 };
+  const pergunta = EXEMPLO.repeat(8) + "\nResuma o texto acima em duas frases.";
+  let lidos = 0;
+  try { lidos = (await motor.tokenize(pergunta)).length; } catch (err) { lidos = Math.round(pergunta.length / 4); }
   const inicio = performance.now();
-  let n = 0;
+  let primeira = 0, n = 0;
   await motor.createChatCompletion({
-    messages: [{ role: "user", content: "Escreva duas frases sobre o que é um contrato de locação." }],
+    messages: [{ role: "user", content: pergunta }],
     stream: true, max_tokens: 48, temperature: 0,
-    onData: (chunk) => { if ((((chunk.choices || [])[0] || {}).delta || {}).content) n += 1; },
+    onData: (chunk) => {
+      if ((((chunk.choices || [])[0] || {}).delta || {}).content) { if (!primeira) primeira = performance.now(); n += 1; }
+    },
   });
-  const s = (performance.now() - inicio) / 1000;
-  return { tokens_por_segundo: s > 0 ? Math.round((n / s) * 10) / 10 : 0 };
+  const fim = performance.now();
+  const lendo = ((primeira || fim) - inicio) / 1000, escrevendo = (fim - (primeira || fim)) / 1000;
+  return {
+    tokens_por_segundo: escrevendo > 0 && n > 1 ? Math.round(((n - 1) / escrevendo) * 10) / 10 : 0,
+    leitura_tps: lendo > 0 ? Math.round((lidos / lendo) * 10) / 10 : 0,
+  };
 }
 
 async function apagar() {

@@ -144,6 +144,10 @@ function quemCriou(nome, conta) {
           acessoDeFora.google ? "o seu e-mail, a sua Agenda e o seu Drive estão aqui · conectar de novo"
             : "para ver o seu e-mail, a sua Agenda e o seu Drive aqui no PAULUS")
         : "") +
+      // D4: escrever as respostas neste aparelho (js/61-aparelho-tela.js).
+      (typeof aparelhoTela !== "undefined" && aparelhoTela.estado && (aparelhoTela.estado.pode || aparelhoTela.estado.ligado)
+        ? linha("aparelho", "desktop_windows", "Este aparelho", "escrever as respostas aqui: o teste, o modelo guardado, apagar")
+        : "") +
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
       '<p class="conta-nota">' + (titular
         ? "As contas da equipe se criam e se mudam só no computador do escritório."
@@ -157,6 +161,7 @@ function quemCriou(nome, conta) {
     }));
     await aberto;
     if (escolha === "sair") { sair(); return; }
+    if (escolha === "aparelho") { configuracoesDoAparelho(); return; }
     if (escolha === "google") {
       const r = await window.fetch("/api/acesso/google/iniciar", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ finalidade: "servicos" }) });

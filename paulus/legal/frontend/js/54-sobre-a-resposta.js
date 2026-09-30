@@ -98,6 +98,8 @@ function desenharSobre(m, pergunta, visor) {
   if (c.continuacao) linhas.push(["Pergunta", "entendida como continuação da anterior"]);
   if (m.interrompida) linhas.push(["Situação", "parada no meio"]);
   if (c.agente) linhas.push(["Agente", c.agente + (c.agente_versao ? " · versão " + c.agente_versao : "")]);
+  // D4: onde foi escrita e por quê (js/61-aparelho-tela.js).
+  if (c.escrita && typeof fraseDaEscrita === "function") linhas.push(["Escrita", fraseDaEscrita(c.escrita)]);
   const blocoComo = $("lat-como");
   if (blocoComo) {
     blocoComo.hidden = !linhas.length;

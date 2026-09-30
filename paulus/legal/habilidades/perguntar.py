@@ -60,11 +60,21 @@ RE_LER_INTEIRO = re.compile(r"\b(leia|ler|le|lendo|analise|analisar|revise|revis
 
 
 def _por_trechos(ctx: Contexto, pergunta: str, tamanho: int) -> bool:
-    """A leitura vai pelos trechos da busca hibrida, e nao pelo escopo inteiro?"""
-    if getattr(ctx, "ia", {}).get("leitura", "tudo") != "trechos" or not getattr(ctx, "recuperar", None):
+    """
+    A leitura vai pelos trechos da busca hibrida, e nao pelo escopo inteiro?
+
+    D4: a pergunta que pediu o aparelho vai por trechos, qualquer que seja
+    `ia.leitura` e o tamanho do escopo - o aparelho nunca recebe documento
+    inteiro (src/aparelho.py). So nela: as outras leem como o escritorio le.
+    O pedido de ler inteiro continua valendo, e a resposta fica no escritorio.
+    """
+    if not getattr(ctx, "recuperar", None):
         return False
-    if tamanho <= LER_TUDO_ATE:
-        return False
+    if getattr(ctx, "escrita_no_aparelho", None) is None:
+        if getattr(ctx, "ia", {}).get("leitura", "tudo") != "trechos":
+            return False
+        if tamanho <= LER_TUDO_ATE:
+            return False
     import unicodedata
 
     plano = "".join(c for c in unicodedata.normalize("NFD", pergunta.lower()) if unicodedata.category(c) != "Mn")

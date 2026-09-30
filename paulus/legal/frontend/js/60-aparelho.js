@@ -9,7 +9,7 @@
    memória, tokens por segundo num texto de exemplo).
 */
 
-const motorAparelho = { trabalhador: null, pedidos: {}, contador: 0, carregado: "", falso: false };
+const motorAparelho = { trabalhador: null, pedidos: {}, contador: 0, carregado: "", falso: false, falsoTps: 42 };
 
 function trabalhadorDoAparelho() {
   if (!motorAparelho.trabalhador) {
@@ -56,7 +56,7 @@ async function carregarModeloNoAparelho(andamento) {
   const m = await r.json();
   if (!m.disponivel) throw new Error(m.motivo);
   const cap = await capacidadeDoAparelho();
-  const feito = await pedirAoMotor("carregar", { partes: m.partes, sha256: m.sha256, falso: motorAparelho.falso, webgpu: cap.webgpu }, andamento);
+  const feito = await pedirAoMotor("carregar", { partes: m.partes, sha256: m.sha256, falso: motorAparelho.falso, falsoTps: motorAparelho.falsoTps, webgpu: cap.webgpu }, andamento);
   motorAparelho.carregado = m.sha256;
   return Object.assign({ modelo: m.nome, bytes: m.bytes }, feito);
 }
@@ -71,7 +71,8 @@ async function testarCapacidadeDoAparelho(andamento) {
     carregou = c.segundos;
     medida = await pedirAoMotor("medir", {});
   }
-  const numeros = { webgpu: cap.webgpu, memoria_gb: cap.memoria_gb, tokens_por_segundo: medida.tokens_por_segundo || null, carregou_s: carregou };
+  const numeros = { webgpu: cap.webgpu, memoria_gb: cap.memoria_gb, tokens_por_segundo: medida.tokens_por_segundo || null,
+    leitura_tps: medida.leitura_tps || null, carregou_s: carregou };
   await fetch("/api/aparelho/capacidade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(numeros) });
   return Object.assign({ passa: cap.passa, motivo: cap.motivo }, numeros);
 }

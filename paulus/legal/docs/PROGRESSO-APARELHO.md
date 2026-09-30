@@ -11,7 +11,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | D1 | O pacote e a porta | feita; chave `aparelho.ligado` desligada de fábrica | ver git log (d1) | `tests/test_d1_pacote.py` 30 ok |
 | D2 | O motor no navegador | feita (com a D2b: o 3B em partes) | ver git log (d2, d2b) | `tests/test_d2_motor.py` 30 ok; o 3B de verdade no Edge: carrega em 23 s, 4,3 tokens/s, resposta certa |
 | D3 | Conferência no escritório e retomada | feita | ver git log (d3) | `tests/test_d3_conferencia.py` 9 ok |
-| D4 | O switch e a tela | pendente | | |
+| D4 | O switch e a tela | feita | ver git log (d4) | `tests/test_d4_switch.py` 40 ok |
 | D5 | O que o titular controla | pendente | | |
 | D6 | Política, manual e teste real | pendente | | |
 
@@ -316,6 +316,92 @@ inexistente refeitos; lei inventada tirada e o resto fica do aparelho;
 aprovado igual ao mandado; sumiu no meio: parcial + continuação, com as
 partes; parcial com número inventado: do zero; auditoria). A D1 passou a
 devolver um número inventado para conferir a reprovação.
+
+## D4 — o switch e a tela (30/09/2026)
+
+**O seletor** (`js/61-aparelho-tela.js`): Escritório · Este aparelho ·
+Automático, uma pílula na caixa da pergunta, ao lado do microfone. Aparece
+só de fora, para a conta que o titular liberou (`/api/aparelho/estado`), e só
+neste aparelho depois de passar no teste de capacidade (WebGPU, memória e
+pelo menos 3 palavras por segundo). Fica guardado neste navegador, em
+`localStorage["paulus.aparelho"]`: só a escolha, os números do teste, o
+"entendi" e a data do "não sugerir hoje". Nada da conversa.
+
+**Antes de mandar** (`ondeEscrever`, chamado por `enviar` antes do POST):
+`POST /api/aparelho/sugestao` recebe só o escopo (os documentos em foco) e os
+números do teste, e devolve a fila do escritório de agora
+(`FilaDoModelo.espera_de_quem_chega`), se a pergunta pode ir ao aparelho, se
+a janela deve aparecer e o que o Automático escolhe. Não guarda nada.
+
+- **A janela de sugestão**: um balão acima da caixa da pergunta, não trava a
+  tela, com os três botões do §3. Aparece com a espera estimada acima de 30 s
+  ou 2 ou mais na frente, só com o recurso liberado, o teste passado e a
+  conversa fora de caso "só no escritório". "Não sugerir de novo hoje" vale
+  até a meia-noite. Com Ctrl+Enter, aparece do mesmo jeito.
+- **O Automático** (`aparelho.decidir`): o aparelho só quando a estimativa
+  dele é menor que a espera na fila mais uma resposta do escritório, agora.
+  A estimativa do aparelho usa a medida DELE: ~250 tokens de resposta pela
+  velocidade de escrita, ~1.500 de pergunta pela de leitura (o teste agora
+  mede as duas), mais carregar o modelo se não estiver carregado, mais o
+  download se não estiver guardado (a 8 MB/s: um palpite de rede, dito com
+  "~"). Sem ritmo medido no escritório, uma resposta conta 60 s.
+- **Primeira vez em "Este aparelho"**: o aviso do §2.6 (o que vai, o que
+  fica — só o modelo, com o tamanho —, que o escritório confere, e o que não
+  dá para garantir), com "Entendi".
+
+**A pergunta que vai ao aparelho não entra na fila do escritório.** A busca
+não usa a vez do modelo; quem escreve é o aparelho. Se a resposta voltar
+para o escritório (reprovada, abandonada), a chamada ao modelo entra na fila
+sozinha (`vez_para_o_modelo`). Medido: com 3 na fila segurando a vez, o
+pacote sai na hora e a pessoa nunca aparece na fila.
+
+**Decisão (sua, para rever):** de fábrica a conversa lê o escopo inteiro
+quando cabe (`ia.leitura = "tudo"`, o achado da D1), e aí o aparelho nunca
+receberia pacote. Fiz a pergunta que pede o aparelho ir **por trechos só
+nela** (`_por_trechos` em habilidades/perguntar.py), qualquer que seja
+`ia.leitura` e o tamanho do escopo; as outras perguntas leem como sempre. O
+pedido de ler o documento inteiro continua indo ao escritório. A resposta
+diz "li N trechos", como qualquer resposta por trechos.
+
+**O caminho no aparelho**: o evento `aparelho` da resposta dispara
+`escreverPacoteNoAparelho` — pega o pacote (uma vez, desta sessão), escreve
+mostrando o texto enquanto sai, manda o parcial a cada 1,5 s, devolve.
+Erro: abandona com o parcial. Aba fechando: `pagehide` abandona com
+`keepalive` (sem ele, o escritório termina depois de 45 s sem sinal). O
+evento `aparelho_fim` diz onde ficou; se o escritório assumiu, o aparelho
+para.
+
+**Em cada resposta**: no painel "Sobre esta resposta", a linha "Escrita" —
+"escrita neste aparelho · modelo · conferida no escritório", "começou neste
+aparelho e o escritório terminou · motivo" ou "escrita no escritório ·
+motivo" (você escolheu o escritório, você escolheu esperar na fila, no
+automático o escritório estava mais rápido, caso só no escritório, pede o
+documento inteiro, conferência reprovou, o aparelho não terminou). Na
+assinatura, "neste aparelho" e o modelo do aparelho. Vista na janela do
+escritório, a frase diz "no aparelho de quem perguntou".
+
+**Minha conta › Este aparelho**: o teste de capacidade (fazer de novo), o
+tamanho do modelo guardado aqui e "Apagar o modelo deste aparelho" (apaga
+os pesos e o teste; o seletor some até o próximo teste). Sem WebGPU, o
+motivo, com a nota de que a maioria dos celulares ainda não tem.
+
+**O que ficou de fora:** enquanto uma resposta que voltou do aparelho
+espera a vez no escritório, a tela não mostra a posição na fila (a pergunta
+entra na fila na chamada ao modelo, e não pela conversa). A checagem "só no
+escritório" antes de mandar vê só os documentos em foco; na busca livre, o
+caso marcado só aparece nos trechos, e aí o servidor recusa o pacote (D1) e
+a resposta diz o motivo — a janela de sugestão pode ter aparecido antes.
+
+**Medido:** `tests/test_d4_switch.py` 40 ok (a conta do Automático e do
+limite; pela API: sem liberação, abaixo e acima do limite, caso só no
+escritório, pergunta ao aparelho sem passar pela fila cheia, a escolha dita
+na resposta; no Edge como conta de fora, com o motor falso: sem liberação
+sem seletor, teste que passa e que não passa, Automático com fila vazia e
+cheia, janela com os três botões, "não sugerir hoje" até o dia seguinte,
+nenhuma janela no caso só no escritório, "Usar este aparelho" com o aviso da
+primeira vez, resposta escrita aqui com o modelo do escritório sem ser
+chamado, painel e assinatura, nada da conversa no navegador, apagar o
+modelo, largura de celular).
 
 ## Fora do foco
 

@@ -371,7 +371,7 @@ _declarar(BLOQUEADO, "GET /api/fila")
 # para quem pode escrever no aparelho - a rota confere) e a capacidade (so numeros).
 _declarar(PERMITIDO, "GET /motor/wllama-3.6.1/{arquivo}", "GET /motor/trabalhador.js", "GET /api/aparelho/modelo",
           "GET /api/aparelho/modelo/{sha}/parte/{n}", "POST /api/aparelho/capacidade")
-_declarar(PERMITIDO, "GET /api/aparelho/estado", "GET /api/aparelho/pacote/{pid}",
+_declarar(PERMITIDO, "GET /api/aparelho/estado", "POST /api/aparelho/sugestao", "GET /api/aparelho/pacote/{pid}",
           "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar",
           "POST /api/aparelho/pacote/{pid}/pedaco")
 

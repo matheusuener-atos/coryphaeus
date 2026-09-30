@@ -1078,6 +1078,9 @@ class Pergunta(BaseModel):
     prioridade: bool = False
     # D1: escrever a resposta no aparelho de quem pergunta (src/aparelho.py).
     aparelho: bool = False
+    # D4: como a pessoa decidiu no seletor, quando a resposta e do escritorio
+    # ("escritorio", "fila", "automatico") - so para a resposta dizer por que.
+    escolha: str = ""
 
 
 class Busca(BaseModel):
@@ -3806,7 +3809,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if herdada is not None:
             # A pergunta que esperava na conversa: a vez ja e dela (F1).
             na_fila["vez"] = herdada
-        elif not sem_fila:
+        elif not sem_fila and escrita_no_aparelho is None:
+            # D4: a pergunta que vai ao aparelho nao entra na fila do
+            # escritorio - a busca nao usa a vez, e quem escreve e o aparelho.
+            # Se a resposta voltar para o escritorio, a chamada ao modelo
+            # entra na fila sozinha (fila_modelo.vez_para_o_modelo).
             try:
                 na_fila["vez"] = estado.fila_modelo.entrar(dono, rotulo=trabalho.titulo, origem="conversa",
                                                            prioridade=prioridade["tipo"])
@@ -4045,10 +4052,18 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                              "agente_versao": agente.versao if agente is not None else 0,
                              "agente_como": agente_como}
         # D1: onde a resposta foi escrita e por que, quando a pessoa pediu o aparelho.
-        if payload.aparelho:
+        # D4: com o seletor na tela, a escolha da pessoa tambem fica dita.
+        if payload.aparelho or payload.escolha in aparelho_mod.ESCOLHAS:
             cobertura["como"]["escrita"] = (escrita_no_aparelho.resumo() if escrita_no_aparelho is not None
-                                            else {"onde": "escritorio", "motivo": motivo_do_escritorio,
+                                            else {"onde": "escritorio",
+                                                  "motivo": (motivo_do_escritorio if payload.aparelho
+                                                             else aparelho_mod.ESCOLHAS[payload.escolha]),
                                                   "conferida": False, "pacote": False})
+            # Escrita inteira no aparelho: o modelo da resposta e o do aparelho.
+            if cobertura["como"]["escrita"].get("onde") == "aparelho" and cobertura["como"]["escrita"].get("modelo"):
+                cobertura["como"]["modelo"] = cobertura["como"]["escrita"]["modelo"]
+            if payload.escolha == "automatico" and escrita_no_aparelho is not None:
+                cobertura["como"]["escrita"]["automatico"] = True
             # D3: na resposta retomada, a parte do escritorio e o que veio depois do parcial.
             pedacos = cobertura["como"]["escrita"].get("partes") or []
             if len(pedacos) == 2 and pedacos[1]["onde"] == "escritorio":

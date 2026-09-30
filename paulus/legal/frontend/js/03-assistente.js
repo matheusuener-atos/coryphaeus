@@ -687,7 +687,14 @@ function fraseDoComo(c, segundos) {
 }
 
 function linhaAssinatura(segundos, citados, pergunta, quem, como) {
-  const frase = fraseDoComo(como, segundos);
+  let frase = fraseDoComo(como, segundos);
+  // D4: onde a resposta foi escrita - no painel por inteiro; aqui, sem o
+  // painel, a frase toda, e com ele só a marca do aparelho.
+  const escrita = como && como.escrita && typeof fraseDaEscrita === "function" ? fraseDaEscrita(como.escrita) : "";
+  if (escrita && como.escrita.onde === "aparelho" && como.escrita.modelo) quem = como.escrita.modelo;
+  if (frase && escrita && (!painelNovo() || como.escrita.onde === "aparelho")) {
+    frase += " · " + (painelNovo() ? (acessoDeFora.local ? "no aparelho de quem perguntou" : "neste aparelho") : escrita);
+  }
   // A2: o agente que respondeu, e a versao dele, na assinatura.
   if (como && como.agente) quem = (quem || estado.modelo || "assistente local") + " · " + como.agente + (como.agente_versao ? " v" + como.agente_versao : "");
   return '<div class="assinatura"><span>' + (frase
@@ -1509,6 +1516,9 @@ async function enviar(opcoes) {
   }
 
   try {
+    // D4 (js/61-aparelho-tela.js): onde a resposta é escrita - o seletor, o
+    // Automático ou a janela de sugestão, antes de a pergunta entrar na fila.
+    const onde = typeof ondeEscrever === "function" ? await ondeEscrever(o, envio, estado.controle.signal) : {};
     const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1516,7 +1526,7 @@ async function enviar(opcoes) {
       // a pergunta com a escolha feita ali.
       body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos),
         inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade) }, envio,
-        typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {})),
+        typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {}, onde)),
       signal: estado.controle.signal,
     });
     // F1: a conversa já respondia (outra aba, outra pessoa) e a pergunta
@@ -1638,6 +1648,13 @@ async function lerResposta(r, v) {
         if (bastidor.fase !== "fila") faseBastidor("fila", texto);
         else if (bastidor.vivaEl) bastidor.vivaEl.textContent = texto;
         if (pensando()) linha(texto.charAt(0).toUpperCase() + texto.slice(1));
+      } else if (mt[1] === "aparelho") {
+        // D4: o escritório mandou os trechos; este aparelho escreve (js/61-aparelho-tela.js).
+        if (typeof escreverPacoteNoAparelho === "function") {
+          escreverPacoteNoAparelho(dados, { texto: texto, linha: linha, anotar: anotarBastidor });
+        }
+      } else if (mt[1] === "aparelho_fim") {
+        if (typeof fimDoAparelho === "function") fimDoAparelho(dados, { texto: texto, linha: linha, anotar: anotarBastidor });
       } else if (mt[1] === "lendo" && dados.molde && !dados.caracteres) {
         /* Nível 0 por molde (src/inteligencia/molde.py): a resposta é o
            próprio fato conferido, montado sem o modelo. */
@@ -1740,6 +1757,7 @@ async function lerResposta(r, v) {
         if (botao && pensando()) botao.onclick = () => { plano.remove(); tentarDeNovo(pedido, minha); };
       } else if (mt[1] === "parado") {
         // A pessoa parou: o que ja saiu fica, com a marca de que parou ali.
+        if (typeof pararEscritaNoAparelho === "function") pararEscritaNoAparelho();
         linha("");
         fecharBastidor();
         plano.remove();
