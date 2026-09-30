@@ -319,7 +319,11 @@ def test_navegador(api, m: Montagem) -> None:
         erros = []
         pag.on("pageerror", lambda e: erros.append(str(e)))
         pag.goto(base + "/", wait_until="load")
-        pag.wait_for_function("() => typeof aparelhoTela === 'object' && aparelhoTela.estado !== null", timeout=20000)
+        try:
+            pag.wait_for_function("() => typeof aparelhoTela === 'object' && aparelhoTela.estado !== null", timeout=20000)
+        except Exception:
+            print("  a página não carregou o estado do aparelho:", erros[:3], pag.url, pag.inner_text("body")[:300])
+            raise
         return ctx, pag, erros
 
     with sync_playwright() as p:
