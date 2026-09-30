@@ -18,7 +18,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L3 | Visão por cliente e muralha ética: a mesma entidade com nomes diferentes, parte contrária, "tudo sobre o cliente", aviso de conflito | feito | `tests/test_l3_clientes.py` |
 | L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | feito | `tests/test_l4_tarefas.py` |
 | L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | feito | `tests/test_l5_fundamentacao.py` |
-| L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | pendente | `tests/test_l6_perfis.py` |
+| L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | feito | `tests/test_l6_perfis.py` |
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | pendente | `tests/test_l7_mcp.py` |
 | L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | pendente | `tests/test_l8_captura.py` |
 | L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | pendente | `tests/test_l9_materiais.py` |
@@ -195,3 +195,33 @@ fundamentação do editor e pelo artigo.
 
 **Medido:** `tests/test_l5_fundamentacao.py` 23 ok (no trecho de teste, o
 Tema 970/STJ — cláusula penal moratória — é sugerido).
+
+## L6 — modelo por máquina (30/09/2026)
+
+- **O perfil** (`src/perfis.py`), a partir do teste da máquina que já existia
+  (memória, placas pelo nvidia-smi e pelo Windows, fabricante, integrada):
+  - **NVIDIA** (CUDA, sozinho): de 10 GB, o 3B em 8 bits e, como
+    alternativa, um 7-8B — **sem nota no roteiro desta casa: meça antes**; de
+    6 GB, o 3B em 8 bits inteiro na placa; de 3,5 GB, o 3B de fábrica; abaixo,
+    divide com o processador;
+  - **AMD**: ROCm nas Radeon da lista do Ollama no Windows (RX 7600–7900,
+    RX 6800–6950, Vega, PRO W6800/W7x00); nas outras, **Vulkan**;
+  - **Intel Arc**: Vulkan; **placa integrada**: o processador, e dito;
+  - **só processador**: abaixo de 8 GB, o 1B (acerta 22 de 41 — dito); de
+    8 GB, o 3B de fábrica (41 de 41).
+  A memória que o Windows dá das placas AMD e Intel para em 4 GB: o perfil
+  avisa que é ordem de grandeza.
+- **Configurações › Modelos › Perfil desta máquina**: a faixa, a placa, por
+  onde o Ollama roda, a sugestão e o porquê. **Nada é trocado sozinho**: o
+  perfil sugere, a pessoa mede em "Nesta máquina" e troca.
+- **Usar a placa pelo Vulkan** (quando o perfil é Vulkan): grava
+  `OLLAMA_VULKAN=1` na conta do Windows (HKCU\Environment) e diz para
+  reabrir o Ollama; desligar apaga a variável. Só na janela do escritório.
+
+**Não medido:** nenhuma placa AMD, Intel ou NVIDIA de verdade — esta
+máquina é só processador (o perfil dela: "Só o processador · llama3.2:3b").
+O efeito do Vulkan fica para quem tiver a placa: medir antes e depois em
+Modelos (a medida já diz se o modelo rodou na placa).
+
+**Medido:** `tests/test_l6_perfis.py` 18 ok (máquinas de mentira por faixa,
+a rota, e o cartão no Edge).

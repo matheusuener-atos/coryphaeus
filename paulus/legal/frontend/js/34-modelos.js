@@ -13,9 +13,12 @@ const mod = { dados: null, relogio: null, medindo: "" };
 
 async function carregarModelos() {
   try {
-    const [r, c] = await Promise.all([fetch("/api/modelos"), fetch("/api/calibracao")]);
+    const [r, c, p] = await Promise.all([fetch("/api/modelos"), fetch("/api/calibracao"),
+      fetch("/api/maquina/perfil").catch(() => null)]);
     mod.dados = r.ok ? await r.json() : null;
     mod.calib = c.ok ? await c.json() : null;
+    // L6: o perfil desta máquina (js/68-perfis.js).
+    mod.perfil = p && p.ok ? await p.json() : null;
   } catch (err) {
     mod.dados = null;
   }
@@ -179,6 +182,7 @@ function secaoModelos() {
     '<button data-mod-baixar-outro="1"' + (b.andando ? " disabled" : "") + ">Baixar</button></div>";
 
   return aberturaCfg() + ficha + cartaoMaquina(d) +
+    (typeof cartaoPerfilDaMaquina === "function" ? cartaoPerfilDaMaquina(mod.perfil) : "") +
     cartaoCfg("Nesta máquina", metaCfg("o padrão faz toda tarefa sem modelo próprio"),
       '<div class="cfg-linhas">' + instalados + "</div>" +
       '<p class="cfg-explica">Medir faz uma resposta curta e fixa e mostra quantas palavras por segundo saem nesta máquina. É esse número que ajuda a decidir, mais que o tamanho.</p>') +
@@ -311,6 +315,7 @@ function ligarModelos() {
   const raiz = $("cfg-tela");
   if (!raiz) return;
   ligarCalibracao(raiz, () => desenharConfig());
+  if (typeof ligarPerfilDaMaquina === "function") ligarPerfilDaMaquina(raiz);
   const testar = raiz.querySelector("[data-mod-testar]");
   if (testar) testar.onclick = () => testarMaquina();
   raiz.querySelectorAll("[data-mod-baixar]").forEach((b) => { b.onclick = () => baixarModelo(b.dataset.modBaixar); });

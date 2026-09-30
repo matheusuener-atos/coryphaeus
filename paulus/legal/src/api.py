@@ -134,6 +134,7 @@ import processos as processos_mod
 import clientes as clientes_mod
 import passos as passos_mod
 import fundamentacao as fundamentacao_mod
+import perfis as perfis_mod
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -2176,6 +2177,10 @@ def maquina_ver() -> dict:
 def maquina_testar() -> dict:
     _maquina(fresco=True)
     return _recomendacao()
+
+
+# L6: o perfil desta maquina pela faixa de hardware (src/perfis.py).
+perfis_mod.montar(app, lambda: _maquina(testar=False))
 
 
 def _tamanho_do_modelo() -> float | None:

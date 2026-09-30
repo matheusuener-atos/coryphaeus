@@ -399,6 +399,8 @@ _declarar(BLOQUEADO, "GET /api/passos/tipos", "GET /api/passos", "POST /api/pass
 _declarar(PERMITIDO, "POST /api/biblioteca/fundamentacao", "GET /api/biblioteca/temas", "GET /api/leis/posicao",
           "GET /api/leis/posicoes")
 _declarar(BLOQUEADO, "POST /api/biblioteca/temas/atualizar", "PUT /api/leis/posicao")
+# --- L6: o perfil desta maquina (src/perfis.py); ligar o Vulkan mexe no Windows daqui.
+_declarar(BLOQUEADO, "GET /api/maquina/perfil", "POST /api/maquina/perfil/vulkan")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")
