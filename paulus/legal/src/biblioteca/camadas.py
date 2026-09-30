@@ -46,17 +46,21 @@ import re
 from dataclasses import dataclass, field
 
 # A ordem e o rótulo de cada camada. "material" é o material sem ficha (de
-# antes da triagem): vai com o rótulo de sempre, sem dizer o que não se sabe.
+# antes da triagem): vai com o cabeçalho e a etiqueta de antes das camadas, letra
+# por letra (CABECA_MATERIAL de habilidades/perguntar.py e Material.bloco).
+# Medido em 30/09: com um rótulo mais curto, o 3B deixou de achar os 20% do
+# contrato ao lado da tabela do manual ("está dentro da tabela?"), 3 em 3.
 ORDEM = ("lei", "sumula", "doutrina", "comunidade", "casa", "material")
 ROTULO = {"lei": "LEI", "sumula": "SÚMULAS", "doutrina": "DOUTRINA", "comunidade": "COMUNIDADE",
-          "casa": "REGRA DA CASA", "material": "MATERIAL DE CONSULTA", "documento": "DOCUMENTOS"}
+          "casa": "REGRA DA CASA", "material": "MATERIAL DE CONSULTA DO ESCRITÓRIO", "documento": "DOCUMENTOS"}
 EXPLICA = {
     "lei": "o texto oficial do artigo, guardado nesta máquina",
     "sumula": "enunciados de súmula",
     "doutrina": "o que autores sustentam; não é texto de lei",
     "comunidade": "material compartilhado por outros advogados, não revisado por este escritório",
     "casa": "as regras internas deste escritório",
-    "material": "referência que o escritório entregou; não é documento de cliente",
+    "material": ("referência que o escritório entregou (manual, tabela, doutrina, norma); não é documento de "
+                 "cliente. Ao usar, cite o material e a página."),
     "documento": "os documentos do Acervo",
 }
 # O rótulo curto da marca [Tn] na tela.
@@ -108,6 +112,11 @@ class Camadas:
     @property
     def vazia(self) -> bool:
         return not self.trechos
+
+    @property
+    def so_material(self) -> bool:
+        """Só material sem ficha: o contexto fica como era antes das camadas."""
+        return all(t.origem == "material" for t in self.trechos)
 
     def textos(self) -> list[str]:
         return [t.texto for t in self.trechos]
@@ -211,6 +220,8 @@ def montar(material, leis, pergunta: str, hits: list, total: int = TOTAL) -> Cam
         elif origem == "comunidade":
             cabeca = cabeca_da_obra(ficha, item["nome"], lugar) + (
                 f" — compartilhado por {ficha['autor']}" if ficha.get("autor") else "")
+        elif origem == "material":
+            cabeca = f"Material: {item['nome']}" + (f", {lugar}" if lugar else "")
         else:
             cabeca = cabeca_da_obra(ficha, item["nome"], lugar)
         fonte = {"documento": item["nome"], "trecho": h.chunk.index + 1, "score": round(h.score, 2), "texto": texto,

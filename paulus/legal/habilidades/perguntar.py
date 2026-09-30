@@ -526,7 +526,9 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         # biblioteca na frente, o comeco do contexto muda a cada pergunta, o
         # Ollama nao reaproveita os ~20 mil caracteres do Acervo ja lidos, e a
         # resposta ia de 10 s para 55 s na mesma pergunta do manual.
-        contexto = (("DOCUMENTOS — os documentos do Acervo\n\n" + contexto + "\n\n") if contexto else "") + bloco_material
+        # Só material sem ficha: o contexto de antes das camadas, sem o título.
+        titulo = "" if camadas.so_material else "DOCUMENTOS — os documentos do Acervo\n\n"
+        contexto = ((titulo + contexto + "\n\n") if contexto else "") + bloco_material
     elif bloco_material:
         contexto = (contexto + "\n\n" if contexto else "") + bloco_material
 

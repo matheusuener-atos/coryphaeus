@@ -9,11 +9,53 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
 | M1 | Material no pipeline híbrido (regime C) | feita | ver git log (m1) | R@6 0,839 · ruído 0,375 · sinônimo 4/7 · τ 0,625 · roteiro 40/41 (= controle) |
 | M2 | Triagem, ficha e as leis que faltam | feita | ver git log (m2) | ruído 0,0 · 5 fichas, 0 campo errado · CDC em PDF = Planalto · 50 artigos sorteados conferem |
 | M3 | Ponte doutrina ↔ lei (Código anotado) | feita | ver git log (m3) | 26 anotações conferidas à mão: 26 páginas certas, 0 código errado · dispositivo R@6 1,0 · roteiro 40/41 |
-| M4 | Resposta em camadas | código e teste feitos; medição com o modelo em andamento | — | — |
-| M5 | Leitura em segundo plano (glossário e teses) | código e teste feitos; conferência com o 3B pendente | — | — |
-| M6 | Aviso de obra anterior à redação | feita | — | 30 artigos: alterado_em certo em 30 |
-| M7 | O que o PAULUS sabe (tela e fora da cobertura) | feita | — | 5/5 fora com aviso; 0 aviso nas outras 39 (regra) |
-| Pacote | `.paulus-material` local (Compartilhamento futuro) | feito | — | ida e volta: mesmos chunk_id e anotações |
+| M4 | Resposta em camadas | feita | 08dc6e4 | R@6 0,903 (lei 1,0) · ruído 0,0 · 0 citação inventada · 0 doutrina como lei (6 atribuídas) · roteiro 40/41 (depois da correção do rótulo, ver abaixo) |
+| M5 | Leitura em segundo plano (glossário e teses) | feita; chave desligada de fábrica | 08dc6e4 | 3B: teses 28/30, conceitos 23/52, 62% no total (< 80%) · 0 frase fora do livro |
+| M6 | Aviso de obra anterior à redação | feita | 08dc6e4 | 30 artigos: alterado_em certo em 30 |
+| M7 | O que o PAULUS sabe (tela e fora da cobertura) | feita | 08dc6e4 | 5/5 fora com aviso; 0 aviso nas outras 39 (regra) |
+| Pacote | `.paulus-material` local (Compartilhamento futuro) | feito | 08dc6e4 | ida e volta: mesmos chunk_id e anotações |
+
+## Antes e depois (as 44 perguntas, llama3.2:3b, nesta máquina)
+
+Depois: os padrões de fábrica (híbrida, triagem, anotações, camadas,
+defasagem, mapa e pacote ligados; leitura desligada), 30/09 04:09.
+
+| Medida | Antes (M0) | Depois |
+| --- | --- | --- |
+| Recall@6 | 0,581 | **0,903** |
+| MRR@6 | 0,543 | 0,718 |
+| Ruído (material onde não devia) | 0,375 | **0,0** |
+| Sinônimos achados | 1/7 | 4/7 |
+| Acerto da resposta | 32/44 | 36/44 |
+| "Não encontrei" indevido | 6 | 2 |
+| Citação inventada | 0 | 0 |
+| Doutrina dita como lei | — | 0 (6 atribuídas ao autor) |
+| Aviso "fora do que a biblioteca cobre" | — | 5/5, 0 indevido |
+| Aviso de obra anterior à redação | — | 3/3 (+1 fora do gabarito, correto: a Lei 14.181/2021 incluiu incisos no art. 4º do CDC) |
+| Latência p50 / p95 | 15,6 s / 46,1 s | 14,3 s / 37,7 s |
+| Roteiro `--tudo` | 41/41 | 40/41 (= controle: a árvore principal, sem nada disto, também dá 40/41 hoje) |
+
+**A regressão que a medição final achou (e foi corrigida):** com as camadas
+ligadas, o roteiro deu 39/41. "O percentual de êxito do contrato do João
+Batista está dentro da tabela do escritório?" errou 3 vezes em 3 ("o
+contrato não traz o percentual"), com o contrato e a tabela no contexto. A
+única diferença para antes era o rótulo do manual: o bloco "MATERIAL DE
+CONSULTA" das camadas era mais curto que o de antes ("…Ao usar, cite o
+material e a página.") e a etiqueta de cada trecho tinha mudado. Agora o
+material sem ficha vai ao modelo letra por letra como antes das camadas, sem
+o título "DOCUMENTOS —" (novo teste em `tests/test_m4_camadas.py`). A
+pergunta voltou a acertar, e o roteiro a 40/41.
+
+O que continua errado (8 de 44):
+- **5 sinônimos.** Em 3 a busca não acha a obra e traz a cláusula de um
+  contrato do cliente (loja ou fábrica; perder um direito por não usar;
+  agir contra o que fez antes). Em 1 o roteador pede "qual contrato?"
+  (imprevisto que deixa o contrato caro). Em 1 a obra vem, mas o 3B não usa
+  a palavra do livro (inadimplemento mínimo).
+- **2 por dispositivo** (art. 26, § 3º, do CDC; art. 422 do CC): o trecho
+  certo está entre os 6, e o 3B responde que não achou.
+- **1 do manual** que o roteador manda para a Agenda por causa de
+  "audiência" (ver "Fora do foco").
 
 ## Na sequência
 

@@ -188,8 +188,12 @@ PADRAO: dict = {
     # local (o compartilhamento entre escritorios e frente futura).
     # `leitura` (M5): o modelo da tarefa `leitura` le cada obra em segundo
     # plano e guarda conceitos e posicoes - so o que a frase do livro confirma.
-    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": False, "defasagem": False,
-                   "mapa": False, "leitura": False, "pacote": False},
+    # De fabrica (30/09/2026): ligadas as que passaram no portao; `leitura`
+    # desligada - com o llama3.2:3b, 62% dos conceitos e teses certos (teses
+    # 93%, conceitos 44%), abaixo dos 80% do portao. Liga quem tiver modelo
+    # maior para a tarefa de leitura.
+    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": True, "defasagem": True,
+                   "mapa": True, "leitura": False, "pacote": True},
     # As ideias do umbrelOS (docs/DECISAO-UMBREL.md). `captura` (E): fotografar
     # um documento pelo celular; de fora, a foto vai para Aprovacoes antes do
     # Acervo. `mcp` (A): o servidor MCP das leis, so em 127.0.0.1, com token

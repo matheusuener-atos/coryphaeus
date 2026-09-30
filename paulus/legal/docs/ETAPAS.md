@@ -2001,6 +2001,54 @@ primeiro no sumário, e a página saía a 3 (agora confere dentro do trecho); no
 PDF a citação quebra de linha ("art. 421 do Código⏎Civil") e perdia o
 instrumento — a quebra simples vira espaço, do mesmo tamanho.
 
+## M4 — A resposta em camadas ✓ FEITA
+
+- `src/biblioteca/camadas.py`: o que a busca trouxe da biblioteca vai ao
+  modelo em blocos com rótulo e teto próprio, nesta ordem: LEI (texto do
+  Planalto, até 2 artigos, o caput sempre inteiro e só os incisos citados),
+  SÚMULA, DOUTRINA ("o que autores sustentam; não é texto de lei"),
+  COMUNIDADE (cercada como dado, pela blindagem), MODELOS DA CASA e MATERIAL.
+  Orçamento total da biblioteca: o de hoje, 2400 caracteres.
+- Depois da resposta, por regra (`conferir_doutrina`): frase que atribui a
+  doutrina à lei ("o CDC diz que…" com texto de obra) é reescrita para
+  "Segundo <autor>," ou marcada "(posição doutrinária)"; a marca [Tn] só
+  fica na frase que o trecho sustenta (`citacoes.revisar`).
+- As fontes da resposta mostram a camada ("Lei", "Doutrina", "Modelo da
+  casa").
+- **A ordem do contexto importa para a velocidade:** com a biblioteca antes
+  dos documentos, o Ollama perde o prefixo guardado e a pergunta do manual
+  foi de 10 s para 55 s. Os documentos vão primeiro e a biblioteca depois.
+- Chave `biblioteca.camadas`, ligada de fábrica depois do portão.
+
+**Medido (44 perguntas):** Recall@6 0,903 (lei pura 1,0; antes 0,17 com o
+CDC só como material), ruído 0,0, acerto 36/44, 2 "não encontrei"
+indevidos, **0 citação inventada, 0 doutrina apresentada como lei** (6
+atribuídas ao autor). Roteiro 40/41 (= controle) depois de uma correção
+achada na medição final: o material sem ficha tem de ir ao modelo com o
+rótulo de antes, letra por letra. Com um rótulo mais curto, o 3B deixou de
+achar os 20% do contrato ao lado da tabela do manual (3 vezes em 3).
+
+## M5 — Leitura da obra em segundo plano ✓ FEITA (chave desligada de fábrica)
+
+- `src/biblioteca/leitura.py`: um fio em segundo plano, no molde do
+  `Backfill`, cedendo a vez à fila do modelo, trecho por trecho (o trecho do
+  regime C nunca atravessa capítulo) e retomável; o modelo da tarefa
+  `leitura` devolve conceitos e posições por JSON Schema (`format` do
+  Ollama). Toda `quote` passa pelo `alinhar.py`; a que não casa some. Os
+  artigos da tese saem da frase conferida, por regra. Guardado com extrator,
+  modelo, digest e versão do prompt; trocar o modelo marca `stale`.
+- Na tela: glossário e teses no menu de cada obra; na tela da lei, a tese do
+  autor sobre o artigo em destaque; na busca, o termo definido aponta para o
+  trecho que o define.
+- Adaptação: `jobs.py` são os trabalhos da conversa, não uma fila de fundo.
+
+**Medido com o llama3.2:3b** (os 20 trechos das duas obras, 519 s, 0 frase
+fora do livro): teses 28/30 certas (93%), conceitos 23/52 (44% — item de
+lista tomado por conceito, um termo inventado), **62% no total**, abaixo dos
+80% do portão: a chave `biblioteca.leitura` fica desligada de fábrica. Com
+ela ligada, os sinônimos ficam em 4/7 (não cai nem sobe) e a lei pura cai de
+1,0 para 0,83 de Recall@6.
+
 ## M6 — Aviso de obra anterior à redação atual ✓ FEITA
 
 - `leis.ano_da_alteracao`: o ano mais recente das notas "(Redação dada
@@ -2056,3 +2104,44 @@ aviso; zero aviso nas 39 outras.
 **Medido:** ida e volta entre duas bibliotecas com os mesmos `chunk_id` e as
 mesmas anotações; pacote com arquivo a mais, de doutrina ou de outro formato é
 recusado.
+
+---
+
+# Ideias do umbrelOS 2.0 (docs/DECISAO-UMBREL.md)
+
+Briefing `docs/prompt-ideias-umbrel-v0.md`. Das seis ideias, três para fazer
+agora: F, E e A (só leis). B, C e D ficam para depois, com o motivo na tabela.
+
+## F — Placas de vídeo de qualquer fabricante ✓ FEITA
+
+`maquina.testar()` lê todas as placas pelo Windows (Win32_VideoController):
+Intel, AMD e NVIDIA, integrada ou não; o "Medir" guarda quanto do modelo o
+Ollama pôs na placa (`/api/ps`, `size_vram`), e a calibração só conta a placa
+quando a medida confirma. **Medido nesta máquina:** Intel Iris Xe integrada, e
+o Ollama põe 0% do 3B nela — o caso que a ideia existe para mostrar.
+
+## E — Documento fotografado pelo celular ✓ FEITA (chave `umbrel.captura`, desligada)
+
+"Fotografar" no Acervo: câmera do celular (ou seletor de imagens), prévia com
+girar e tirar, e as fotos viram um PDF que passa pelo OCR de sempre. Na
+janela do escritório entra direto; **de fora vira pedido em Aprovações**
+("Entrar no Acervo"), porque o envio de arquivo de fora continua bloqueado.
+**Medido:** 98,8% das palavras certas numa foto de página gerada aqui (giro de
+2°, ruído, JPEG de celular). Falta medir com fotos de verdade.
+
+**O que a verificação achou:** a rota com anotações adiadas não achava o
+`UploadFile` importado dentro da função; a "proposta" de fora guarda o corpo
+inteiro e tem limite pequeno — por isso a captura faz a própria quarentena.
+
+## A — MCP só das leis ✓ FEITA (chave `umbrel.mcp`, desligada)
+
+`/mcp` (JSON-RPC 2.0, sem dependência nova) com `leis_instaladas`,
+`citar_artigo` e `procurar_na_lei`: só texto de lei, que é público. Só deste
+computador e nunca pelo túnel (o túnel também chega pelo 127.0.0.1: os
+cabeçalhos da Cloudflare decidem); token por conexão, criado e revogado na
+janela, guardado só o resumo SHA-256; cada chamada na auditoria. As chaves da
+Biblioteca e do umbrelOS ligam e desligam em Configurações.
+
+**Medido:** sem token, token errado e revogado → 401; outro endereço e túnel →
+403; ferramenta fora da lista → negada; o catálogo não tem nada do Acervo, da
+biblioteca ou de cadastro; as rotas de conexão bloqueadas de fora.

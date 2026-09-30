@@ -222,6 +222,13 @@ def main() -> int:
         roteiro = BASICO
     if "--programa" in sys.argv:
         roteiro = [p for p in roteiro if p["caminho"] == "programa"]
+    # --so "trecho da pergunta" --vezes 3: repete só as que interessam (para
+    # separar erro de verdade de variação do modelo).
+    if "--so" in sys.argv:
+        trecho = sys.argv[sys.argv.index("--so") + 1].lower()
+        roteiro = [p for p in BASICO + DIFICIL + MATERIAL if trecho in p["pergunta"].lower()]
+    if "--vezes" in sys.argv:
+        roteiro = roteiro * int(sys.argv[sys.argv.index("--vezes") + 1])
 
     from test_gravacoes import _porta_livre, _subir_servidor
 

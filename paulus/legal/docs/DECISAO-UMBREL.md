@@ -64,4 +64,18 @@ escritório sair da máquina: a A só devolve texto de lei.
 
 ## Andamento
 
-(em andamento — ver abaixo, por ideia)
+| Ideia | Estado | Branch / commit | Portão |
+|---|---|---|---|
+| F | feita | `umbrel-f-gpu` (f3a9b67) | `tests/test_umbrel_f_gpu.py` passa; nesta máquina Intel Iris Xe integrada, Ollama usa 0% |
+| E | feita, desligada de fábrica | `umbrel-e-a` (8d61785) | `tests/test_umbrel_e_captura.py` passa; OCR 98,8% das palavras (foto gerada) |
+| A | feita, desligada de fábrica | `umbrel-e-a` (8d61785) | `tests/test_umbrel_a_mcp.py` passa |
+
+- E, A e os interruptores das chaves dividem `api.py`, `politicas.py`,
+  `config.py` e `index.html`, e foram num commit só (a regra "uma ideia por
+  branch" ficou em duas branches: F sozinha; E e A juntas).
+- **Ficou para depois, e por quê:** B (antes de dar escrita a agentes pela A);
+  C (porta de rede nova: decisão para o dono acordado); D (a base existe em
+  Serviços; falta decidir quem fica acima da muralha).
+- **Limitações:** o OCR foi medido com fotos geradas, não com fotos reais do
+  fórum; o MCP não foi testado com um cliente de verdade (Claude Desktop), só
+  com o protocolo pelo teste.

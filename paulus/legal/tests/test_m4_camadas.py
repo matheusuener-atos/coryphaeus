@@ -216,11 +216,30 @@ def test_comunidade(pasta: Path) -> None:
     m.fechar()
 
 
+def test_material_sem_ficha(pasta: Path) -> None:
+    print("\nmaterial sem ficha: o contexto de antes das camadas, letra por letra")
+    import perguntar
+
+    m = material_mod.Material(pasta, hibrida=True, vetorizador=lambda: None, chaves={"camadas": True})
+    m.absorver("Manual de rotinas.txt", ("Tabela de honorários do escritório\nAção trabalhista do lado do "
+                                         "empregado: honorários de êxito entre 20% e 30% do proveito econômico, "
+                                         "além de parcela fixa combinada no contrato.\n").encode())
+    pergunta = "o percentual de êxito está dentro da tabela de honorários do escritório?"
+    hits = m.consultar(pergunta, top=6)
+    c = camadas_mod.montar(m, None, pergunta, hits)
+    checar(c.trechos and c.so_material, "só material sem ficha", [t.origem for t in c.trechos])
+    # Medido em 30/09: com um rótulo mais curto aqui, o 3B deixou de achar os
+    # 20% do contrato ao lado da tabela, 3 vezes em 3.
+    checar(c.texto == perguntar.CABECA_MATERIAL + m.bloco(hits, orcamento=len(c.texto)),
+           "o cabeçalho e as etiquetas de antes das camadas", c.texto[:160])
+    m.fechar()
+
+
 def main() -> int:
     print("=" * 55)
     print("  M4 — a resposta em camadas")
     print("=" * 55)
-    pastas = [Path(tempfile.mkdtemp(prefix=f"paulus-m4-{i}-")) for i in range(3)]
+    pastas = [Path(tempfile.mkdtemp(prefix=f"paulus-m4-{i}-")) for i in range(4)]
     base = None
     try:
         base, L, m = _biblioteca(pastas[0])
@@ -229,6 +248,7 @@ def main() -> int:
         test_doutrina_como_lei()
         test_conversa(m, L)
         test_comunidade(pastas[2])
+        test_material_sem_ficha(pastas[3])
         m.fechar()
     finally:
         if base is not None:
