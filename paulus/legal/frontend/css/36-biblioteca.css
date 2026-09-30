@@ -29,6 +29,8 @@
 
   @media (max-width: 600px) {
     .bib-aba-resto { display: none; }
+    /* L9: com a quarta aba, a barra rola nela mesma, sem alargar a tela. */
+    .bib-abas { min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
     .bib-linha-form > button { width: 100%; min-height: 44px; }
     .bib-campo.bib-curto { flex: 1 1 96px; }
     .bib-movimento { grid-template-columns: minmax(0, 1fr); gap: 2px; }

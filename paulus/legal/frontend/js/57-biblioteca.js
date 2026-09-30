@@ -24,7 +24,7 @@ const bibc = {
 /* No celular, só a primeira palavra de cada aba cabe (36-biblioteca.css). */
 const ABAS_BIB = [["obras", "Estante", ""], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"],
   // L9: materiais entre advogados (js/70-comunidade.js), só na janela do escritório.
-  ["comunidade", "Da comunidade", ""]];
+  ["comunidade", "Comunidade", ""]];
 
 function abasDaBib() {
   const local = typeof acessoDeFora === "undefined" || acessoDeFora.local;

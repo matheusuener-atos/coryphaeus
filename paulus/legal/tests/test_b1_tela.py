@@ -93,8 +93,9 @@ def test_tela(base: str, api) -> None:
         pag.wait_for_timeout(600)
         titulo = pag.evaluate("() => document.getElementById('conversa-titulo').textContent")
         abas = pag.evaluate("() => [...document.querySelectorAll('[data-bib-aba]')].map(b => b.textContent)")
-        checar(titulo == "Biblioteca" and abas == ["Estante", "Leis e súmulas", "Tribunais e fontes"],
-               "a tela Biblioteca abre na Estante, com as três abas", (titulo, abas))
+        # L9: a quarta aba, "Comunidade" (materiais entre advogados), na janela do escritório.
+        checar(titulo == "Biblioteca" and abas == ["Estante", "Leis e súmulas", "Tribunais e fontes", "Comunidade"],
+               "a tela Biblioteca abre na Estante, com as quatro abas", (titulo, abas))
         checar(pag.inner_text(".est-titulo h1") == "Sua estante está crescendo", "o título do mock")
         nivel = pag.inner_text(".est-nivel")
         checar("Estante de bolso" in nivel and "faltam 2 para o próximo" in nivel and pag.inner_text(".est-anel") == "1",
