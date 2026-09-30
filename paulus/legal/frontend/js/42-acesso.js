@@ -87,6 +87,7 @@ async function carregarAcesso() {
     acessoCfg.convites = r.ok ? (await r.json()).convites : [];
   } catch (err) { acessoCfg.convites = []; }
   if (typeof carregarTunel === "function") await carregarTunel();
+  if (typeof carregarAparelhoTitular === "function") await carregarAparelhoTitular();
   await carregarAuditoria();
 }
 
@@ -162,7 +163,9 @@ function secaoAcesso() {
     ["Sessões abertas", String(acessoCfg.sessoes.length)],
   ]);
   const tunel = typeof cartaoTunel === "function" ? cartaoTunel() : "";
-  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSegurancaPadrao() + cartaoSessoes() + cartaoAuditoria();
+  // D5: escrever no aparelho - o que o titular controla (js/62-aparelho-titular.js).
+  const aparelho = typeof cartaoAparelhoTitular === "function" ? cartaoAparelhoTitular() : "";
+  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSegurancaPadrao() + cartaoSessoes() + aparelho + cartaoAuditoria();
 }
 
 /* Os niveis de seguranca (acesso/contas.py NIVEIS): o escritorio escolhe,
@@ -472,6 +475,7 @@ async function acessoPermissoes(c) {
 }
 
 function ligarAcesso() {
+  if (typeof ligarAparelhoTitular === "function") ligarAparelhoTitular();
   const clique = (seletor, fn) => document.querySelectorAll(seletor).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b); }; });
   const conta = (id) => (acessoCfg.contas || []).find((c) => c.id === Number(id));
   clique("[data-acesso-nova]", () => acessoNovaConta());

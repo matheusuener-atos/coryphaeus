@@ -2453,3 +2453,12 @@ Automático pela fila e pela medida do aparelho, "onde foi escrita" em cada
 resposta e Minha conta › Este aparelho (teste, modelo guardado, apagar). A
 pergunta do aparelho vai por trechos só nela e não entra na fila do
 escritório. **Medido:** `tests/test_d4_switch.py` 40 ok.
+
+## D5 — O que o titular controla ✓ FEITA (30/09/2026)
+
+Cartão "Escrever no aparelho" em Acesso de fora, só na janela do
+escritório: ligar para o escritório, quem está liberado por conta, "só no
+escritório" por cliente, Serviço ou pasta (conferido ao gravar e respeitado
+no pacote) e o relatório por pessoa. Desligar, para o escritório ou para a
+conta, faz a resposta em andamento terminar aqui na hora. **Medido:**
+`tests/test_d5_titular.py` 29 ok.

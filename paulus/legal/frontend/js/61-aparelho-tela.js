@@ -240,7 +240,13 @@ async function escreverPacoteNoAparelho(ev, v) {
       if (a.fase === "escrevendo") {
         vivo.parcial = a.texto || "";
         if (v && v.texto && aparelhoTela.escrevendo === vivo) v.texto.textContent = vivo.parcial;
-        if (Date.now() - ultimo > 1500) { ultimo = Date.now(); mandarAoPacote(ev, "pedaco", { texto: vivo.parcial }); }
+        if (Date.now() - ultimo > 1500) {
+          ultimo = Date.now();
+          // D5: o titular desligou (410) - o escritório já assumiu, e o aparelho para.
+          mandarAoPacote(ev, "pedaco", { texto: vivo.parcial }).then((resp) => {
+            if (resp && (resp.status === 410 || resp.status === 403) && aparelhoTela.escrevendo === vivo) pararEscritaNoAparelho();
+          });
+        }
       } else if (a.fase === "baixando" && v && v.linha) v.linha("Baixando o modelo para este aparelho" + (a.partes ? " · parte " + a.parte + " de " + a.partes : "") + "…");
       else if ((a.fase === "carregando" || a.fase === "conferindo") && v && v.linha) v.linha("Preparando o modelo neste aparelho…");
     });

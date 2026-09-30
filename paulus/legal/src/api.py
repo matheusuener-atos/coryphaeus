@@ -4064,6 +4064,9 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 cobertura["como"]["modelo"] = cobertura["como"]["escrita"]["modelo"]
             if payload.escolha == "automatico" and escrita_no_aparelho is not None:
                 cobertura["como"]["escrita"]["automatico"] = True
+            # D5: a linha do fim na auditoria (o relatorio do titular sai dela).
+            if escrita_no_aparelho is not None:
+                escrita_no_aparelho.fechar()
             # D3: na resposta retomada, a parte do escritorio e o que veio depois do parcial.
             pedacos = cobertura["como"]["escrita"].get("partes") or []
             if len(pedacos) == 2 and pedacos[1]["onde"] == "escritorio":

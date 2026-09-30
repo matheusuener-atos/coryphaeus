@@ -763,7 +763,7 @@ def _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho,
         yield evento("aparelho_fim", onde="escritorio", motivo=escrita.motivo)
         return None, ""
     escrita.voltou_ao_escritorio("o aparelho não terminou" if volta.get("estado") in ("abandonado", "vencido", "sem_sinal")
-                                 else "o escritório desligou a escrita no aparelho")
+                                 else volta.get("motivo") or "o escritório desligou a escrita no aparelho")
     # O que o aparelho já tinha escrito passa pela mesma conferência; passou,
     # o escritório continua dali.
     parcial = (volta.get("parcial") or "").strip()

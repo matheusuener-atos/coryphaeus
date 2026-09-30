@@ -42,3 +42,24 @@
     .aparelho-linha { grid-template-columns: minmax(0, 1fr); gap: 2px; }
     .pilula-aparelho select { max-width: 104px; }
   }
+
+  /* O cartão do titular em Acesso de fora (js/62-aparelho-titular.js, D5). */
+  .apt { display: grid; gap: 12px; }
+  .apt-linha, .apt-marca { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .apt-sub { margin: 8px 0 0; font: 600 13px var(--sans); color: var(--ink); }
+  .apt-marcas { display: grid; border-top: 1px solid var(--ink-a08); }
+  .apt-marca { padding: 8px 0; border-bottom: 1px solid var(--ink-a08); }
+  .apt-marca button, .apt-linha button { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .apt-nova { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .apt-nova select, .apt-nova input, .apt-nova .escolha-botao { flex: 1; min-width: 0; max-width: var(--campo); }
+  .apt-relatorio { display: grid; border-top: 1px solid var(--ink-a08); font-size: 13.5px; }
+  .apt-rel-cab, .apt-rel-linha { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(64px, auto)); gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid var(--ink-a08); align-items: baseline; }
+  .apt-rel-cab { color: var(--ink3); font-size: 12px; }
+  .apt-rel-linha b { font-weight: 500; text-align: right; }
+  .apt-rel-cab span:not(:first-child) { text-align: right; }
+
+  @media (max-width: 600px) {
+    .apt-linha { flex-wrap: wrap; }
+    .apt-rel-cab, .apt-rel-linha { grid-template-columns: minmax(0, 1fr) repeat(3, 48px); gap: 6px; }
+  }

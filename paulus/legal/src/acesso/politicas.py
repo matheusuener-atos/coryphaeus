@@ -374,6 +374,9 @@ _declarar(PERMITIDO, "GET /motor/wllama-3.6.1/{arquivo}", "GET /motor/trabalhado
 _declarar(PERMITIDO, "GET /api/aparelho/estado", "POST /api/aparelho/sugestao", "GET /api/aparelho/pacote/{pid}",
           "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar",
           "POST /api/aparelho/pacote/{pid}/pedaco")
+# --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
+_declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
+          "GET /api/aparelho/relatorio")
 
 # --- o documento fotografado pelo celular (ideia E do umbrelOS): de fora, a
 # rota nao grava no Acervo - guarda a foto a parte e pede em Aprovacoes

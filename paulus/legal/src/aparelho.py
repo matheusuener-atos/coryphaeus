@@ -90,14 +90,38 @@ def pode_escrever(estado, request) -> tuple[bool, str]:
     return True, ""
 
 
+def ainda_pode(estado, pessoa: dict | None) -> tuple[bool, str]:
+    """
+    Com a escrita em andamento: o recurso continua ligado, e o titular não
+    tirou a liberação desta conta? O nível é lido de novo da conta (D5), e
+    não da sessão de quando a pergunta saiu.
+    """
+    if not ligado(estado):
+        return False, "o escritório desligou a escrita no aparelho"
+    conta_id = (pessoa or {}).get("conta_id")
+    if conta_id is None:
+        return True, ""
+    try:
+        conta = estado.acesso_de_fora.contas.obter(int(conta_id))
+    except Exception:  # noqa: BLE001 - sem ler a conta, não arrisca
+        conta = None
+    if not conta or (conta.get("permissoes") or {}).get("aparelho") != "faz":
+        return False, "o titular desligou a escrita no aparelho para a sua conta"
+    return True, ""
+
+
 # ------------------------------------------------------- só no escritório
 
 class SoNoEscritorio:
     """
-    Os casos cujo conteúdo nunca vai para aparelho: pastas do Acervo e
-    Serviços (a pasta de trabalho de cada um). Um arquivo por máquina,
-    <dados>/aparelho/so-no-escritorio.json; quem marca é o titular (D5).
+    Os casos cujo conteúdo nunca vai para aparelho: pastas do Acervo,
+    Serviços (a pasta de trabalho de cada um) e clientes (as pastas de todos
+    os Serviços do cliente, inclusive os abertos depois de marcar). Um
+    arquivo por máquina, <dados>/aparelho/so-no-escritorio.json; quem marca
+    é o titular, na janela do escritório (D5).
     """
+
+    TIPOS = ("cliente", "servico", "pasta")
 
     def __init__(self, pasta: Path) -> None:
         self.arquivo = Path(pasta) / "so-no-escritorio.json"
@@ -120,11 +144,33 @@ class SoNoEscritorio:
                     p = Path(m["valor"])
                     saida.append((p if p.is_absolute() else Path(estado.pasta) / p).resolve())
                 elif m.get("tipo") == "servico":
-                    pasta = estado.servicos.pasta_de(int(m["valor"]))
+                    pasta = estado.servicos.pasta_de(int(m["valor"]), criar=False)
                     if pasta:
                         saida.append(Path(pasta).resolve())
+                elif m.get("tipo") == "cliente":
+                    for s in estado.servicos.base.buscar("SELECT id FROM servicos WHERE cadastro_id = ?", (int(m["valor"]),)):
+                        pasta = estado.servicos.pasta_de(int(s["id"]), criar=False)
+                        if pasta:
+                            saida.append(Path(pasta).resolve())
             except (KeyError, ValueError, TypeError, OSError):
                 continue
+        return saida
+
+    def para_a_tela(self, estado) -> list[dict]:
+        """As marcas com o nome de cada uma, para a janela do escritório."""
+        saida = []
+        for m in self.marcas():
+            rotulo = str(m.get("valor", ""))
+            try:
+                if m.get("tipo") == "servico":
+                    l = estado.servicos.base.um("SELECT nome FROM servicos WHERE id = ?", (int(m["valor"]),))
+                    rotulo = l["nome"] if l else "Serviço apagado"
+                elif m.get("tipo") == "cliente":
+                    l = estado.servicos.base.um("SELECT nome FROM cadastros WHERE id = ?", (int(m["valor"]),))
+                    rotulo = l["nome"] if l else "Cliente apagado"
+            except (ValueError, TypeError):
+                pass
+            saida.append({"tipo": m.get("tipo"), "valor": m.get("valor"), "rotulo": rotulo})
         return saida
 
     def toca(self, estado, caminhos: list[str]) -> bool:
@@ -243,13 +289,18 @@ class Escrita:
             if parar is not None and parar():
                 self._encerrar("parado")
                 return {"estado": "parado"}
-            if time.time() > reg["expira"] or not ligado(self.estado):
-                self._encerrar("vencido" if ligado(self.estado) else "desligado")
+            pode, motivo = ainda_pode(self.estado, self.pessoa)
+            if not pode:
+                self._encerrar("desligado")
+                return {"estado": "desligado", "parcial": reg.get("parcial", ""), "motivo": motivo}
+            if time.time() > reg["expira"]:
+                self._encerrar("vencido")
                 return {"estado": reg["estado"], "parcial": reg.get("parcial", "")}
             if time.time() - reg.get("sinal", 0) > SILENCIO_S:
                 self._encerrar("sem_sinal")
                 return {"estado": "sem_sinal", "parcial": reg.get("parcial", "")}
-        return {"estado": reg["estado"], "texto": reg.get("texto", ""), "parcial": reg.get("parcial", "")}
+        return {"estado": reg["estado"], "texto": reg.get("texto", ""), "parcial": reg.get("parcial", ""),
+                "motivo": reg.get("motivo", "")}
 
     def _encerrar(self, como: str) -> None:
         with _trava:
@@ -280,6 +331,47 @@ class Escrita:
         """O que fica na resposta: onde foi escrita e por quê (D4 mostra)."""
         return {"onde": self.onde, "motivo": self.motivo, "conferida": self.conferida, "pacote": bool(self.pid),
                 "partes": self.partes, "modelo": nome_do_modelo(self.estado) if self.pid else ""}
+
+
+    def fechar(self) -> None:
+        """
+        A linha do fim na auditoria (D5): onde a resposta ficou. É dela que
+        sai o relatório do titular - quantas no aparelho, quantas refeitas.
+        """
+        if not self.pid:
+            return
+        if self.onde == "aparelho":
+            alvo = FIM_NO_APARELHO
+        elif self.motivo == "conferência reprovou":
+            alvo = FIM_REFEITA + ": " + self.motivo
+        else:
+            alvo = FIM_NO_ESCRITORIO + ": " + (self.motivo or "?")
+        auditar(self.estado, self.pessoa, alvo + f" ({self.aparelho})")
+
+
+FIM_NO_APARELHO = "resposta escrita no aparelho"
+FIM_REFEITA = "resposta refeita no escritório"
+FIM_NO_ESCRITORIO = "o escritório terminou a resposta"
+
+
+def relatorio(estado) -> dict:
+    """Por pessoa: respostas escritas no aparelho, refeitas pela conferência e terminadas no escritório."""
+    pessoas: dict[str, dict] = {}
+    for l in estado.acesso_de_fora.auditoria.linhas():
+        if l.get("acao") != "aparelho":
+            continue
+        alvo = str(l.get("alvo") or "")
+        chave = "no_aparelho" if alvo.startswith(FIM_NO_APARELHO) else (
+            "refeitas" if alvo.startswith(FIM_REFEITA) else ("no_escritorio" if alvo.startswith(FIM_NO_ESCRITORIO) else ""))
+        if not chave:
+            continue
+        p = pessoas.setdefault(l.get("email") or l.get("pessoa") or "?",
+                               {"pessoa": l.get("pessoa") or "?", "email": l.get("email") or "",
+                                "no_aparelho": 0, "refeitas": 0, "no_escritorio": 0, "ultima": ""})
+        p[chave] += 1
+        p["ultima"] = max(p["ultima"], str(l.get("quando") or ""))
+    lista = sorted(pessoas.values(), key=lambda p: (-p["no_aparelho"], p["pessoa"]))
+    return {"pessoas": lista, "total": {k: sum(p[k] for p in lista) for k in ("no_aparelho", "refeitas", "no_escritorio")}}
 
 
 # ------------------------------------------------ a sugestão e o Automático (D4)
@@ -377,6 +469,16 @@ class Sugestao(BaseModel):
 
 # ------------------------------------------------------------- a porta
 
+class Marca(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tipo: str
+    valor: str | int
+
+
+class Marcas(BaseModel):
+    marcas: list[Marca] = []
+
+
 class Devolver(BaseModel):
     assinatura: str
     texto: str = ""
@@ -392,7 +494,7 @@ class Pedaco(BaseModel):
     texto: str = ""
 
 
-def _pacote_da_sessao(pid: str, assinatura: str, request) -> dict:
+def _pacote_da_sessao(estado, pid: str, assinatura: str, request) -> dict:
     """O pacote, se a assinatura e a sessão batem e ele vale. Senão, 403 ou 410 - sem dizer qual parte falhou."""
     pessoa = _pessoa(request) or {}
     reg = _PACOTES.get(pid)
@@ -408,6 +510,15 @@ def _pacote_da_sessao(pid: str, assinatura: str, request) -> dict:
                 reg["estado"] = "vencido"
                 reg["chegou"].set()
         raise HTTPException(status_code=410, detail="esse pacote venceu")
+    # D5: desligado (no escritório ou para a conta), nenhum pacote vale mais.
+    pode, motivo = ainda_pode(estado, pessoa)
+    if not pode:
+        with _trava:
+            if reg["estado"] in ("pronto", "entregue"):
+                reg["estado"] = "desligado"
+                reg["motivo"] = motivo
+                reg["chegou"].set()
+        raise HTTPException(status_code=410, detail=motivo)
     return reg
 
 
@@ -422,6 +533,58 @@ def montar(estado, app, dados_dir) -> None:
         m = aparelho_motor.modelo_do_aparelho(nome_do_modelo(estado)) if pode else {}
         return {"ligado": ligado(estado), "pode": pode, "motivo": motivo, "validade_s": VALIDADE_S,
                 "modelo": m.get("nome", ""), "bytes": int(m.get("bytes") or 0)}
+
+    # ---------------------------------------------- o titular (D5), só aqui
+    def _so_local(request) -> None:
+        from acesso import rotas as rotas_do_acesso
+
+        rotas_do_acesso.so_local(request)
+
+    @app.get("/api/aparelho/so-no-escritorio")
+    def aparelho_so_no_escritorio(request: Request = None) -> dict:
+        _so_local(request)
+        servicos = [{"id": s["id"], "nome": s["nome"], "cliente": s.get("cliente_nome") or ""}
+                    for s in estado.servicos.listar()]
+        clientes = [{"id": c["id"], "nome": c["nome"]} for c in estado.cadastros.listar(tipo="cliente")]
+        return {"marcas": so_no_escritorio().para_a_tela(estado), "servicos": servicos, "clientes": clientes}
+
+    @app.put("/api/aparelho/so-no-escritorio")
+    def aparelho_marcar(payload: Marcas, request: Request = None) -> dict:
+        _so_local(request)
+        limpas: list[dict] = []
+        for m in payload.marcas:
+            if m.tipo not in SoNoEscritorio.TIPOS:
+                raise HTTPException(status_code=400, detail="tipo de marca desconhecido")
+            if m.tipo == "pasta":
+                p = Path(str(m.valor))
+                p = p if p.is_absolute() else Path(estado.pasta) / p
+                if not p.is_dir():
+                    raise HTTPException(status_code=400, detail=f"a pasta {m.valor} não existe")
+                valor = str(m.valor)
+            else:
+                try:
+                    valor = int(m.valor)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail="marca sem o número do Serviço ou do cliente") from None
+                tabela = "servicos" if m.tipo == "servico" else "cadastros"
+                if not estado.servicos.base.um(f"SELECT id FROM {tabela} WHERE id = ?", (valor,)):
+                    raise HTTPException(status_code=400, detail=("esse Serviço" if m.tipo == "servico" else "esse cliente") + " não existe")
+            if not any(x["tipo"] == m.tipo and str(x["valor"]) == str(valor) for x in limpas):
+                limpas.append({"tipo": m.tipo, "valor": valor})
+        antes = {(x.get("tipo"), str(x.get("valor"))) for x in so_no_escritorio().marcas()}
+        so_no_escritorio().guardar(limpas)
+        depois = so_no_escritorio().para_a_tela(estado)
+        for m in depois:
+            if (m["tipo"], str(m["valor"])) not in antes:
+                auditar(estado, {"nome": "janela local"}, f"marcou só no escritório: {m['rotulo']}")
+        for tipo, valor in sorted(antes - {(x["tipo"], str(x["valor"])) for x in limpas}):
+            auditar(estado, {"nome": "janela local"}, f"tirou a marca só no escritório: {tipo} {valor}")
+        return {"marcas": depois}
+
+    @app.get("/api/aparelho/relatorio")
+    def aparelho_relatorio(request: Request = None) -> dict:
+        _so_local(request)
+        return relatorio(estado)
 
     @app.post("/api/aparelho/sugestao")
     def aparelho_sugestao(payload: Sugestao, request: Request = None) -> dict:
@@ -454,7 +617,7 @@ def montar(estado, app, dados_dir) -> None:
 
     @app.get("/api/aparelho/pacote/{pid}")
     def aparelho_pacote(pid: str, assinatura: str = "", request: Request = None) -> dict:
-        reg = _pacote_da_sessao(pid, assinatura, request)
+        reg = _pacote_da_sessao(estado, pid, assinatura, request)
         with _trava:
             if reg["estado"] != "pronto":
                 raise HTTPException(status_code=409, detail="esse pacote já foi entregue")
@@ -467,7 +630,7 @@ def montar(estado, app, dados_dir) -> None:
 
     @app.post("/api/aparelho/pacote/{pid}/devolver")
     def aparelho_devolver(pid: str, payload: Devolver, request: Request = None) -> dict:
-        reg = _pacote_da_sessao(pid, payload.assinatura, request)
+        reg = _pacote_da_sessao(estado, pid, payload.assinatura, request)
         with _trava:
             if reg["estado"] != "entregue":
                 raise HTTPException(status_code=409, detail="esse pacote já foi usado")
@@ -480,7 +643,7 @@ def montar(estado, app, dados_dir) -> None:
     @app.post("/api/aparelho/pacote/{pid}/pedaco")
     def aparelho_pedaco(pid: str, payload: Pedaco, request: Request = None) -> dict:
         """O texto que o aparelho já escreveu (o inteiro até aqui): é dele que o escritório continua, se precisar."""
-        reg = _pacote_da_sessao(pid, payload.assinatura, request)
+        reg = _pacote_da_sessao(estado, pid, payload.assinatura, request)
         with _trava:
             if reg["estado"] != "entregue":
                 raise HTTPException(status_code=409, detail="esse pacote já foi usado")
@@ -490,7 +653,7 @@ def montar(estado, app, dados_dir) -> None:
 
     @app.post("/api/aparelho/pacote/{pid}/abandonar")
     def aparelho_abandonar(pid: str, payload: Abandonar, request: Request = None) -> dict:
-        reg = _pacote_da_sessao(pid, payload.assinatura, request)
+        reg = _pacote_da_sessao(estado, pid, payload.assinatura, request)
         with _trava:
             if reg["estado"] not in ("pronto", "entregue"):
                 raise HTTPException(status_code=409, detail="esse pacote já foi usado")

@@ -12,7 +12,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | D2 | O motor no navegador | feita (com a D2b: o 3B em partes) | ver git log (d2, d2b) | `tests/test_d2_motor.py` 30 ok; o 3B de verdade no Edge: carrega em 23 s, 4,3 tokens/s, resposta certa |
 | D3 | Conferência no escritório e retomada | feita | ver git log (d3) | `tests/test_d3_conferencia.py` 9 ok |
 | D4 | O switch e a tela | feita | ver git log (d4) | `tests/test_d4_switch.py` 40 ok |
-| D5 | O que o titular controla | pendente | | |
+| D5 | O que o titular controla | feita | ver git log (d5) | `tests/test_d5_titular.py` 29 ok |
 | D6 | Política, manual e teste real | pendente | | |
 
 ## D0 — o prompt supõe × o código tem hoje (30/09/2026)
@@ -402,6 +402,49 @@ nenhuma janela no caso só no escritório, "Usar este aparelho" com o aviso da
 primeira vez, resposta escrita aqui com o modelo do escritório sem ser
 chamado, painel e assinatura, nada da conversa no navegador, apagar o
 modelo, largura de celular).
+
+## D5 — o que o titular controla (30/09/2026)
+
+Tudo só na janela do escritório: as rotas novas são BLOQUEADO de fora e
+conferem `so_local` de novo; a chave e a permissão por conta já eram. Nem o
+colaborador liga para si, nem o titular pelo acesso de fora.
+
+**Configurações › Acesso de fora › "Escrever no aparelho"**
+(`js/62-aparelho-titular.js`):
+- **para o escritório**: ligar e desligar (a chave `aparelho.ligado`);
+- **por conta**: a liberação continua em Contas › Permissões ("Escrever a
+  resposta no próprio aparelho", já aparecia sozinha na grade desde a D1); o
+  cartão lista quem está liberado;
+- **só no escritório**: marcar cliente, Serviço ou pasta do Acervo; a marca
+  é conferida ao gravar (o Serviço, o cliente e a pasta existem) e marcar e
+  tirar vão para a auditoria. Cliente marcado vale para as pastas de todos
+  os Serviços dele (`cadastro_id`), inclusive os abertos depois. A regra
+  continua na montagem do pacote, no servidor (`Escrita.preparar`);
+- **relatório**: por pessoa, quantas respostas foram escritas no aparelho,
+  quantas foram refeitas pela conferência e quantas o escritório terminou.
+  Sai da auditoria: cada resposta com pacote ganha uma linha de fim
+  (`Escrita.fechar`), e a lista inteira continua em "Quem acessou".
+
+**Desligar vale na hora** (`ainda_pode`): enquanto o aparelho escreve, a
+cada meio segundo o escritório confere a chave e o nível da conta, lido de
+novo da conta (e não da sessão de quando a pergunta saiu). Desligou: a
+resposta termina no escritório — do parcial conferido, se houver — com o
+motivo ("o escritório desligou a escrita no aparelho" ou "o titular desligou
+a escrita no aparelho para a sua conta"), e toda rota do pacote responde
+410. O aparelho para no próximo pedaço recusado.
+
+**A decisão de `ia.leitura`** (o achado da D1) ficou resolvida na D4 sem
+mudar como o escritório lê: só a pergunta que pede o aparelho vai por
+trechos. O cartão diz isso ao titular.
+
+**Medido:** `tests/test_d5_titular.py` 29 ok (colaborador e titular de fora
+recusados na permissão, na chave, nas marcas e no relatório; marca inválida
+recusada; cliente e Serviço marcados mandam a pergunta ao escritório com o
+motivo; desligar para o escritório e tirar a liberação da conta no meio de
+uma resposta: termina aqui, com o motivo, e o pacote não vale mais;
+relatório 1 no aparelho, 1 refeita, 2 terminadas aqui; auditoria das
+marcas; no Edge, o cartão com estado, liberadas e relatório, marcar e tirar
+uma pasta, desligar pela tela).
 
 ## Fora do foco
 
