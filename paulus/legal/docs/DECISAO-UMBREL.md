@@ -66,9 +66,9 @@ escritório sair da máquina: a A só devolve texto de lei.
 
 | Ideia | Estado | Branch / commit | Portão |
 |---|---|---|---|
-| F | feita | `umbrel-f-gpu` (f3a9b67) | `tests/test_umbrel_f_gpu.py` passa; nesta máquina Intel Iris Xe integrada, Ollama usa 0% |
-| E | feita, desligada de fábrica | `umbrel-e-a` (8d61785) | `tests/test_umbrel_e_captura.py` passa; OCR 98,8% das palavras (foto gerada) |
-| A | feita, desligada de fábrica | `umbrel-e-a` (8d61785) | `tests/test_umbrel_a_mcp.py` passa |
+| F | feita | dee0e78 | `tests/test_umbrel_f_gpu.py` passa; nesta máquina Intel Iris Xe integrada, Ollama usa 0% |
+| E | feita, desligada de fábrica | ac676bc | `tests/test_umbrel_e_captura.py` passa; OCR 98,8% das palavras (foto gerada) |
+| A | feita, desligada de fábrica | ac676bc | `tests/test_umbrel_a_mcp.py` passa |
 
 - E, A e os interruptores das chaves dividem `api.py`, `politicas.py`,
   `config.py` e `index.html`, e foram num commit só (a regra "uma ideia por

@@ -9,11 +9,11 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
 | M1 | Material no pipeline híbrido (regime C) | feita | ver git log (m1) | R@6 0,839 · ruído 0,375 · sinônimo 4/7 · τ 0,625 · roteiro 40/41 (= controle) |
 | M2 | Triagem, ficha e as leis que faltam | feita | ver git log (m2) | ruído 0,0 · 5 fichas, 0 campo errado · CDC em PDF = Planalto · 50 artigos sorteados conferem |
 | M3 | Ponte doutrina ↔ lei (Código anotado) | feita | ver git log (m3) | 26 anotações conferidas à mão: 26 páginas certas, 0 código errado · dispositivo R@6 1,0 · roteiro 40/41 |
-| M4 | Resposta em camadas | feita | 08dc6e4 | R@6 0,903 (lei 1,0) · ruído 0,0 · 0 citação inventada · 0 doutrina como lei (6 atribuídas) · roteiro 40/41 (depois da correção do rótulo, ver abaixo) |
-| M5 | Leitura em segundo plano (glossário e teses) | feita; chave desligada de fábrica | 08dc6e4 | 3B: teses 28/30, conceitos 23/52, 62% no total (< 80%) · 0 frase fora do livro |
-| M6 | Aviso de obra anterior à redação | feita | 08dc6e4 | 30 artigos: alterado_em certo em 30 |
-| M7 | O que o PAULUS sabe (tela e fora da cobertura) | feita | 08dc6e4 | 5/5 fora com aviso; 0 aviso nas outras 39 (regra) |
-| Pacote | `.paulus-material` local (Compartilhamento futuro) | feito | 08dc6e4 | ida e volta: mesmos chunk_id e anotações |
+| M4 | Resposta em camadas | feita | ce4841d | R@6 0,903 (lei 1,0) · ruído 0,0 · 0 citação inventada · 0 doutrina como lei (6 atribuídas) · roteiro 40/41 (depois da correção do rótulo, ver abaixo) |
+| M5 | Leitura em segundo plano (glossário e teses) | feita; chave desligada de fábrica | ce4841d | 3B: teses 28/30, conceitos 23/52, 62% no total (< 80%) · 0 frase fora do livro |
+| M6 | Aviso de obra anterior à redação | feita | ce4841d | 30 artigos: alterado_em certo em 30 |
+| M7 | O que o PAULUS sabe (tela e fora da cobertura) | feita | ce4841d | 5/5 fora com aviso; 0 aviso nas outras 39 (regra) |
+| Pacote | `.paulus-material` local (Compartilhamento futuro) | feito | ce4841d | ida e volta: mesmos chunk_id e anotações |
 
 ## Antes e depois (as 44 perguntas, llama3.2:3b, nesta máquina)
 
