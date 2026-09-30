@@ -75,8 +75,11 @@ def test_cobertura(pasta: Path) -> None:
     checar({"consumidor", "civil"} <= areas, "a tela mostra as áreas que a biblioteca tem", areas)
     por_codigo = {c["codigo"]: c["anotados"] for c in painel["codigos"]}
     tabela = {k: v["artigos"] for k, v in m.anotacoes.contagem().items()}
-    checar(por_codigo.get("cdc") == tabela.get("cdc") and por_codigo.get("cdc"),
-           "a contagem de artigos anotados por código bate com a tabela da M3", (por_codigo, tabela))
+    if (RAIZ / "data" / "leis" / "l8078compilado.htm").exists():
+        checar(por_codigo.get("cdc") == tabela.get("cdc") and por_codigo.get("cdc"),
+               "a contagem de artigos anotados por código bate com a tabela da M3", (por_codigo, tabela))
+    else:
+        print("  ...  sem o CDC do Planalto em data/leis: a contagem por código não foi conferida")
     return base, L, m
 
 
