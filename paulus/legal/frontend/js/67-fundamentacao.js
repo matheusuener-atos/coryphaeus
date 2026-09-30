@@ -116,3 +116,28 @@ async function posicaoDaCasa(a, caixa) {
     posicaoDaCasa(a, caixa);
   };
 }
+
+/* ------------------------------------------ na resposta da conversa (N7) */
+/* Embaixo da resposta: os temas do STJ ligados aos artigos que a conversa
+   citou, as súmulas e os temas citados pelo número, e a posição da casa. Por
+   regra (src/fundamentacao.py, `relacionados`) - não muda a resposta, e diz
+   de onde veio. Fechado de início: é para quem quer conferir. */
+function blocoRelacionados(r) {
+  if (!r) return "";
+  const n = (r.temas || []).length + (r.sumulas || []).length + (r.posicoes || []).length;
+  if (!n) return "";
+  const temas = (r.temas || []).map((t) => '<li class="rel-item"><b>' + esc(t.rotulo) + "</b>" + (t.situacao ? " <small>" + esc(t.situacao) + "</small>" : "") +
+    '<p class="rel-texto">' + esc(t.tese || t.questao || "") + "</p><small class=\"rel-porque\">" + esc(t.porque) + "</small></li>").join("");
+  const sumulas = (r.sumulas || []).map((x) => '<li class="rel-item"><b>' + esc(x.titulo || ("Súmula " + x.numero)) + "</b>" +
+    '<p class="rel-texto">' + esc(x.texto) + "</p><small class=\"rel-porque\">" + esc(x.porque) + "</small></li>").join("");
+  const posicoes = (r.posicoes || []).map((x) => '<li class="rel-item"><b>Posição da casa · ' + esc(x.artigo) + "</b>" +
+    '<p class="rel-texto">' + esc(x.texto) + "</p>" + (x.autor ? '<small class="rel-porque">por ' + esc(x.autor) + "</small>" : "") + "</li>").join("");
+  const partes = [];
+  if ((r.temas || []).length) partes.push(plural(r.temas.length, "tema", "temas"));
+  if ((r.sumulas || []).length) partes.push(plural(r.sumulas.length, "súmula", "súmulas"));
+  if ((r.posicoes || []).length) partes.push("posição da casa");
+  return '<details class="rel-bloco"><summary>' + ic("library_books", 16) + " Na Biblioteca: " + esc(partes.join(", ")) +
+    ((r.artigos || []).length ? " · " + esc(r.artigos.slice(0, 3).join(", ")) : "") + "</summary>" +
+    '<ul class="rel-lista">' + posicoes + temas + sumulas + "</ul>" +
+    '<p class="rel-aviso">' + esc(r.aviso || "") + "</p></details>";
+}

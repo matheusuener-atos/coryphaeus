@@ -498,6 +498,8 @@ function blocoResposta(m, pergunta, ultima, indice) {
   if (m.inferencia) html += etiquetaDeLeitura();
   html += '<div class="texto">' + textoComCitacoes(m.texto, m.fontes, pergunta) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
+  // N7: os temas e as súmulas ligados aos artigos citados - antes da assinatura, como ao vivo.
+  if (m.cobertura && m.cobertura.relacionados && typeof blocoRelacionados === "function") html += blocoRelacionados(m.cobertura.relacionados);
   const citados = m.fontes && m.fontes.length ? new Set(m.fontes.map((f) => f.documento)).size : 0;
   const p = m.proposta || {};
   if (p.tipo === "programa") html += linhaAssinatura(0, 0, pergunta || "", p.por_modelo ? "" : "sem modelo");
@@ -1747,6 +1749,13 @@ async function lerResposta(r, v) {
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
             dados.tipo === "consulta_cadastro") assinaSemModelo = true;
         rolar();
+      } else if (mt[1] === "relacionados") {
+        // N7: chega depois do fim - os temas e as súmulas ligados aos artigos citados.
+        if (typeof blocoRelacionados === "function") {
+          const assinatura = resposta.querySelector(".assinatura");
+          const html = blocoRelacionados(dados);
+          if (assinatura) assinatura.insertAdjacentHTML("beforebegin", html); else resposta.insertAdjacentHTML("beforeend", html);
+        }
       } else if (mt[1] === "vazio") {
         linha("");
         texto.textContent = dados.mensagem;

@@ -229,7 +229,10 @@ PADRAO: dict = {
                  "roteamento": True,
                  # `cerca` (C6): trechos de documento, material e biblioteca vao ao
                  # modelo cercados, como o e-mail (src/blindagem.py).
-                 "cerca": False},
+                 "cerca": False,
+                 # `relacionados` (N7): embaixo da resposta, os temas e sumulas
+                 # ligados aos artigos citados e a posicao da casa - por regra.
+                 "relacionados": True},
     # Pensar no aparelho (docs/PROGRESSO-APARELHO.md). `fila` (F1): toda
     # chamada ao modelo entra na fila unica, com a origem; a pergunta mandada
     # com outra andando fica na conversa e vai sozinha; Ctrl+Enter pede

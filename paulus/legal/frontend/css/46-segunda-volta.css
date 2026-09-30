@@ -43,3 +43,15 @@
   .pas-conv-opcao { display: flex; gap: 8px; align-items: center; margin: 6px 0; font-size: 13px; color: var(--ink2); cursor: pointer; }
   .proposta input[data-pc="dias"] { max-width: 90px; }
   .pas-na-conversa { border: none; padding: 0; background: transparent; }
+
+  /* N7: os temas e as súmulas ligados aos artigos citados, embaixo da resposta. */
+  .rel-bloco { margin: 10px 0 4px; border: 1px solid var(--ink-a1); border-radius: 10px; padding: 0 12px; background: var(--surf); }
+  .rel-bloco summary { cursor: pointer; padding: 9px 0; display: flex; align-items: center; gap: 6px; font: 500 13px var(--sans); color: var(--ink2); list-style: none; }
+  .rel-bloco summary::-webkit-details-marker { display: none; }
+  .rel-bloco[open] summary { color: var(--ink); }
+  .rel-lista { margin: 0; padding: 0 0 4px; list-style: none; display: grid; gap: 10px; }
+  .rel-item { font-size: 13.5px; line-height: 1.45; color: var(--ink2); }
+  .rel-item b { color: var(--ink); font-weight: 600; }
+  .rel-texto { margin: 2px 0; }
+  .rel-porque, .rel-item small { color: var(--ink3); font-size: 12px; }
+  .rel-aviso { margin: 0 0 10px; color: var(--ink3); font-size: 12px; line-height: 1.4; }

@@ -352,7 +352,7 @@ o código garante.
 | N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | feito | `tests/test_n4_conflitos.py` |
 | N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | feito | `tests/test_n5_clausulas.py` |
 | N6 | A conversa chama as tarefas de vários passos | L4 | feito | `tests/test_n6_conversa_tarefas.py` |
-| N7 | Súmulas e temas na resposta da conversa | L5 | — | `tests/test_n7_temas_na_conversa.py` |
+| N7 | Súmulas e temas na resposta da conversa | L5 | feito | `tests/test_n7_temas_na_conversa.py` |
 | N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
 | N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | — | `tests/test_n9_mcp_escreve.py` |
 | N10 | Captura: corte das bordas e perspectiva endireitada | L8 | — | `tests/test_n10_corte.py` |
@@ -540,3 +540,29 @@ receitas pela conversa até o relatório, a recusa do contrato que não está
 no Acervo, de fora, e no Edge: o cartão, o período corrigido, os passos e o
 relatório); `test_ferramentas`, `test_intencao`, `test_c4_roteamento`,
 `test_a1_agentes` e `test_l4_tarefas` continuam passando.
+
+## N7 — temas e súmulas na resposta da conversa (30/09/2026)
+
+- **Por regra** (`fundamentacao.relacionados`, sem modelo): depois de cada
+  resposta, os artigos que a pergunta e a resposta citam ("art. 206, § 3º, do
+  CC") e os que vieram como fonte de lei; para cada um, os temas do STJ
+  ligados a ele (até 3), a posição da casa; e o tema e a súmula do STJ citados
+  pelo número ("Tema 970", "Súmula 297 do STJ"). A súmula do STF e a
+  vinculante ficam para a N8 (não viram STJ).
+- **Embaixo da resposta**, fechado: "Na Biblioteca: 4 temas, 1 súmula,
+  posição da casa · art. 206 do CC"; aberto, cada item com o porquê ("a tese
+  cita o art. 206 do CC", "a conversa cita o Tema 970") e o aviso: "ligados por
+  regra … não pelo modelo. Confira se se aplicam ao caso." A resposta não
+  muda; o bloco é guardado com ela (`cobertura.relacionados`) e volta ao
+  reabrir.
+- **A chave** `conversa.relacionados`, ligada de fábrica (nada sai do
+  computador), em Configurações › Conversa.
+
+**Não feito:** a ligação é pelo artigo citado — tema relevante que não
+cita o artigo não aparece, e tema que cita o artigo mas trata de outra
+situação aparece (é para isso o "confira").
+
+**Medido:** `tests/test_n7_temas_na_conversa.py` 16 ok (a regra, a
+conversa com o modelo simulado, a chave, e o bloco no Edge em 1280 e 390
+px); `test_l5_fundamentacao`, `test_c1_execucao`, `test_c2_pensando` e
+`test_c3_painel` continuam passando.

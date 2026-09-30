@@ -291,6 +291,79 @@ def sugerir(estado, trecho: str) -> dict:
     return {"palavras": chaves, "artigos": saida_artigos, "sumulas": sumulas[:4], "temas": lista_temas}
 
 
+# ------------------------------------------------------------ na resposta da conversa (N7)
+
+RE_TEMA_CITADO = re.compile(r"\btemas?\s+(?:repetitivos?\s+)?(?:n[º°o.]*\s*)?(\d{1,4})\b", re.IGNORECASE)
+RE_SUMULA_CITADA = re.compile(r"\bs[úu]mulas?\s+(vinculantes?\s+)?(?:n[º°o.]*\s*)?(\d{1,3})(?:\s*/\s*|\s+d[oa]\s+|\s+)?(stj|stf)?",
+                              re.IGNORECASE)
+SIGLA = {"cc": "CC", "cpc": "CPC", "cdc": "CDC", "ctn": "CTN", "clt": "CLT", "cf": "CF", "cp": "CP", "cpp": "CPP",
+         "eca": "ECA", "inquilinato": "Lei 8.245/1991", "ctb": "CTB"}
+AVISO_RELACIONADOS = ("Ligados por regra aos artigos, temas e súmulas que a pergunta e a resposta citam — não pelo modelo. "
+                      "Confira se se aplicam ao caso.")
+
+
+def relacionados(estado, pergunta: str, resposta: str, fontes=None) -> dict | None:
+    """
+    O que a Biblioteca tem sobre os artigos que a conversa citou: os temas do
+    STJ ligados a eles, as súmulas e os temas citados pelo número, e a posição
+    da casa. Não muda a resposta: vai embaixo dela, dito de onde veio.
+    """
+    texto = f"{pergunta or ''}\n{resposta or ''}"
+    artigos = artigos_citados(texto)
+    for f in fontes or []:
+        if isinstance(f, dict) and f.get("origem") == "lei" and f.get("codigo") and f.get("numero"):
+            chave = f"{f['codigo']}:{str(f['numero']).replace('.', '')}"
+            if chave not in artigos:
+                artigos.append(chave)
+    artigos = artigos[:8]
+    temas = getattr(estado, "temas", None)
+    saida_temas, vistos = [], set()
+    if temas is not None:
+        for m in RE_TEMA_CITADO.finditer(texto):
+            for t in temas.procurar(numero=m.group(1))[:1]:
+                if t["numero"] not in vistos:
+                    vistos.add(t["numero"])
+                    saida_temas.append(_tema_curto(t, f"a conversa cita o {t['rotulo']}"))
+        for chave in artigos:
+            codigo, numero = chave.split(":")
+            for t in temas.do_artigo(codigo, numero)[:3]:
+                if t["numero"] not in vistos:
+                    vistos.add(t["numero"])
+                    saida_temas.append(_tema_curto(t, f"a tese cita o art. {numero} do {SIGLA.get(codigo, codigo.upper())}"))
+    saida_sumulas = []
+    material = getattr(estado, "material", None)
+    if material is not None:
+        from biblioteca.rotas import procurar_sumulas
+
+        for m in RE_SUMULA_CITADA.finditer(texto):
+            # A vinculante é do STF; sem tribunal escrito, a do STJ (a que o PAULUS tem por inteiro).
+            numero = m.group(2)
+            tribunal = (m.group(3) or ("stf" if m.group(1) else "stj")).lower()
+            if tribunal != "stj" or any(x["numero"] == numero for x in saida_sumulas):
+                continue
+            for x in procurar_sumulas(material, numero=numero, limite=1):
+                saida_sumulas.append({"numero": x["numero"], "titulo": x["titulo"], "texto": x["texto"][:600],
+                                      "porque": f"a conversa cita a Súmula {x['numero']}/STJ"})
+    saida_posicoes = []
+    posicoes = getattr(estado, "posicoes", None)
+    if posicoes is not None:
+        for chave in artigos:
+            codigo, numero = chave.split(":")
+            pos = posicoes.obter(codigo, numero)
+            if pos:
+                saida_posicoes.append({"artigo": f"art. {numero} do {SIGLA.get(codigo, codigo.upper())}", "texto": pos["texto"][:600],
+                                       "autor": pos.get("autor") or ""})
+    if not (saida_temas or saida_sumulas or saida_posicoes):
+        return None
+    return {"artigos": [f"art. {c.split(':')[1]} do {SIGLA.get(c.split(':')[0], c.split(':')[0].upper())}" for c in artigos],
+            "temas": saida_temas[:6], "sumulas": saida_sumulas[:4], "posicoes": saida_posicoes[:4], "aviso": AVISO_RELACIONADOS}
+
+
+def _tema_curto(t: dict, porque: str) -> dict:
+    return {"rotulo": t["rotulo"], "numero": t["numero"], "tese": (t.get("tese") or "")[:700], "questao": (t.get("questao") or "")[:400],
+            "situacao": t.get("situacao") or "", "orgao": t.get("orgao") or "", "porque": porque}
+
+
 # ------------------------------------------------------------------ rotas
 
 class Trecho(BaseModel):

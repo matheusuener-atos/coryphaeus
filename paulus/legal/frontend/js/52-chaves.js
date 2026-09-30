@@ -51,6 +51,7 @@ const CHAVES_CONVERSA = [
   ["saudacao", "Saudação da tela inicial", "a frase muda com a hora, o dia, o calendário e o que está pendente"],
   ["avisos", "Avisos do dia", "prazos, compromissos, contas e pendências num carrossel, com o histórico do que foi visto"],
   ["superficies", "Parecer e resumo na fila", "o parecer do Financeiro e o resumo da gravação esperam a vez do modelo e voltam ao sair e voltar"],
+  ["relacionados", "Temas e súmulas embaixo da resposta", "os temas do STJ dos artigos citados, as súmulas citadas e a posição da casa, por regra, fechados embaixo"],
   ["cerca", "Cerca nos documentos lidos", "o texto dos documentos vai ao modelo como dado, nunca como ordem, como já era no e-mail"],
   ["agentes", "Agentes do escritório", "especialistas escritos pelo escritório, usados quando o pedido pede"],
   ["diagnostico", "Modo de diagnóstico", "motor, trechos indexados e pasta no painel da conversa"],

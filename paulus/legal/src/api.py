@@ -4105,6 +4105,18 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 pedacos[1]["caracteres"] = max(0, len("".join(partes).strip()) - pedacos[0]["caracteres"])
         oferta = sem_fundamento or ferramentas.oferta_de_exibir(
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
+        # N7: os temas e as súmulas ligados aos artigos que a conversa citou, e a
+        # posição da casa - por regra, embaixo da resposta, sem mudar o texto.
+        relacionados = None
+        if (estado.prefs.dados.get("conversa") or {}).get("relacionados", True):
+            try:
+                import fundamentacao as _fund
+
+                relacionados = _fund.relacionados(estado, pergunta, "".join(partes), fontes)
+            except Exception:  # noqa: BLE001 - sem o bloco, a resposta vale igual
+                relacionados = None
+        if relacionados:
+            cobertura["relacionados"] = relacionados
         trabalho.dizer(
             "paulus", "".join(partes).strip(),
             fontes=fontes, cobertura=_como_pensou(id_, cobertura), segundos=segundos,
@@ -4117,6 +4129,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         avisos.avisar("resposta", "Resposta pronta · " + (trabalho.titulo or "Conversa")[:60],
                       resumo[:140] + ("…" if len(resumo) > 140 else ""))
         yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": cobertura.get("como")})
+        if relacionados:
+            yield _sse("relacionados", relacionados)
         if oferta:
             yield _sse("oferta", oferta)
 
