@@ -2418,3 +2418,13 @@ A Estante da Biblioteca e a equipe de Agentes no desenho dos mocks: nível,
 cartões ou estantes, faixa do item escolhido e próximos passos tirados dos
 dados. Detalhes em docs/PROGRESSO-BIBLIOTECA.md (B2) e
 docs/PROGRESSO-CONVERSA.md (A22).
+
+## D2 — O motor no navegador ✓ FEITA, ⏸ PAUSA do modelo (30/09/2026)
+
+A wllama 3.6.1 (MIT) servida pelo PAULUS com hash fixo; os pesos do Ollama do
+escritório, com hash conferido dos dois lados; um Web Worker que não guarda
+nada além dos pesos; teste de capacidade só com números; CSP com
+'wasm-unsafe-eval'. **Medido:** `tests/test_d2_motor.py` 25 ok; o 1B de verdade
+no Edge: carrega em 16–22 s e escreve a ~8 tokens/s. O 1B acerta 12/29 do
+roteiro de documentos (o 3B, 29/29) e o 3B passa do limite de 2 GB da wllama:
+pausa para o dono escolher.

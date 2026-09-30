@@ -67,7 +67,10 @@ def politica_de_conteudo() -> str:
     inline, so os conferidos por hash. Imagem de fora nao carrega - inclusive a
     de e-mail, que de fora vira privacidade: pixel de rastreio nao abre.
     """
-    scripts = " ".join(["'self'", *_hashes_dos_scripts(), TURNSTILE])
+    # 'wasm-unsafe-eval' (D2, docs/PROGRESSO-APARELHO.md): o motor que escreve
+    # no aparelho e WebAssembly (a wllama, servida daqui). Deixa compilar
+    # WebAssembly - nao deixa eval de JavaScript, nem abre origem nova.
+    scripts = " ".join(["'self'", "'wasm-unsafe-eval'", *_hashes_dos_scripts(), TURNSTILE])
     return ("default-src 'self'; "
             f"script-src {scripts}; "
             "style-src 'self' 'unsafe-inline'; "

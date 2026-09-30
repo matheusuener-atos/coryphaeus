@@ -9,7 +9,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | D0 | Levantamento e medida da fila remota | feita — ⏸ PAUSA: esperando a decisão do dono | ver git log (d0) | tabela e números abaixo |
 | F1 | Fila dentro da conversa, fila única, Ctrl+Enter | feita; chave `aparelho.fila` desligada de fábrica — ⏸ o dono decide se seguimos | ver git log (f1) | `tests/test_f1_fila.py` 49 ok (ordem, pendente, 429, Ctrl+Enter com e sem liberação, auditoria, e-mail na mesma fila, Edge) |
 | D1 | O pacote e a porta | feita; chave `aparelho.ligado` desligada de fábrica | ver git log (d1) | `tests/test_d1_pacote.py` 30 ok |
-| D2 | O motor no navegador | pendente | | |
+| D2 | O motor no navegador | feita — ⏸ PAUSA: o modelo (o 1B carrega mas acerta pouco; o 3B não carrega sem dividir o arquivo) | ver git log (d2) | `tests/test_d2_motor.py` 25 ok; motor real no Edge: 1B carrega em 16–22 s, 8 tokens/s |
 | D3 | Conferência no escritório e retomada | pendente | | |
 | D4 | O switch e a tela | pendente | | |
 | D5 | O que o titular controla | pendente | | |
@@ -199,6 +199,63 @@ trechos junto — decisão do dono, porque muda como o escritório também lê.
 janela local, pacote só com trechos e sem lembrete nem Serviço alheio,
 outra sessão, assinatura errada, uso único, vencido, abandonado, caso só no
 escritório, auditoria).
+
+## D2 — o motor no navegador (30/09/2026)
+
+**A biblioteca.** Avaliadas: **wllama 3.6.1** (llama.cpp em WebAssembly, MIT,
+sem dependências, GGUF - o formato do Ollama -, WebGPU desde a 3.1, roda num
+worker próprio), **web-llm 0.2.85** (Apache-2.0, WebGPU, mas o código do
+modelo é um wasm por modelo que vem do GitHub e os pesos no formato MLC) e
+**transformers.js 4.3** (Apache-2.0, depende do onnxruntime-web, 144 MB).
+Escolhida a wllama, aprovada pelo dono. Vai em `frontend/vendor/wllama-3.6.1/`
+(index.js, wllama.wasm, LICENCE - 8,8 MB), servida por `/motor/...` só se o
+SHA-256 bate com o fixo em `src/aparelho_motor.py`. Sem build e sem CDN: as
+URLs de fora que a biblioteca conhece (jsDelivr, Hugging Face) são de funções
+que o PAULUS não chama, e a CSP barraria.
+
+**Os pesos** saem do Ollama deste escritório: o blob do Ollama tem o SHA-256
+no nome; o servidor confere o conteúdo antes de entregar e o aparelho confere
+de novo antes de usar (hash errado: apaga e recusa). Decisão (o dono não
+escolheu; o prompt manda o mais seguro na dúvida): servidos pelo PAULUS, e não
+de uma origem pública - a CSP continua com `connect-src 'self'`. Custo: o
+upload do escritório, uma vez por aparelho.
+
+**O trabalhador** (`frontend/motor/trabalhador.js`): Web Worker dedicado; a
+pergunta, os trechos e a resposta só nas variáveis da escrita, soltas no fim.
+Os pesos no Cache Storage "paulus-modelo", sob `/api/aparelho/modelo/<sha256>`;
+sem espaço (a cota do navegador), usa sem guardar e baixa de novo na próxima.
+
+**A capacidade** (`js/60-aparelho.js`): WebGPU, memória, e a velocidade num
+texto de exemplo sem nada do escritório; ao servidor vão só esses números
+(`POST /api/aparelho/capacidade` recusa qualquer outro campo).
+
+**CSP de fora:** `'wasm-unsafe-eval'` em script-src (compilar WebAssembly; não
+libera eval de JavaScript nem origem nova).
+
+**Medido:**
+- `tests/test_d2_motor.py` 25 ok - com o motor falso (o mesmo trabalhador, sem
+  a biblioteca): nenhum armazenamento guarda pergunta, trecho ou resposta; o
+  único cache é o dos pesos, sob o hash; nada em IndexedDB, OPFS nem Service
+  Worker; peso adulterado apagado e recusado; nenhuma requisição para fora; a
+  capacidade só com números.
+- **Motor de verdade**, no Edge desta máquina (WebGPU, 16 GB): o llama3.2:1b
+  (Q8_0, 1,32 GB) carrega em 16–22 s, escreve a 7,9–8,7 tokens/s, e responde a
+  uma pergunta curta em 2,5–3,1 s.
+- **A qualidade do 1B** (`roteiro.py --tudo --modelo llama3.2:1b`): programa
+  11/11, **documentos 12/29** (o 3B: 29/29) - "Não achou…" em perguntas que o
+  trecho responde. Com a conferência da D3, a maior parte voltaria ao
+  escritório.
+- **O 3B não carrega no navegador:** o arquivo (Q4_K_M, 2,02 GB) passa do
+  limite de ~2 GB por arquivo da wllama ("File read failed: NotReadableError";
+  soltar a cópia em memória não resolveu). Carregar o 3B exige dividir o GGUF
+  no formato de partes do llama.cpp (gguf-split) - ferramenta nova.
+
+**⏸ PAUSA D2 — o modelo.** O padrão (`aparelho.modelo`) ficou o llama3.2:1b,
+que carrega. Decisão do dono: (a) seguir com o 1B, sabendo que acerta 12 de 29
+e que a conferência mandará muita coisa de volta; (b) trazer o gguf-split do
+llama.cpp (ferramenta nova, versão fixa) para dividir o 3B em partes de 512 MB
+e servir as partes; (c) medir outro modelo pequeno (ex.: Qwen 2.5 1.5B) no
+roteiro antes.
 
 ## Fora do foco
 

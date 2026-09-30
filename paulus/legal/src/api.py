@@ -128,6 +128,7 @@ from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
 import tarefas as tarefas_mod
 import aparelho as aparelho_mod
+import aparelho_motor
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -946,6 +947,8 @@ fila_modelo.instalar(estado.fila_modelo, lambda: fila_de_todos.ligada(estado))
 fila_de_todos.montar(estado, app, lambda request: _dono_da_vez(request), lambda **campos: Pergunta(**campos))
 # D1: o pacote de escrita e a porta do aparelho (src/aparelho.py).
 aparelho_mod.montar(estado, app, DADOS_DIR)
+# D2: o motor que escreve no aparelho - a biblioteca, os pesos e a capacidade (src/aparelho_motor.py).
+aparelho_motor.montar(estado, app, DADOS_DIR)
 captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
