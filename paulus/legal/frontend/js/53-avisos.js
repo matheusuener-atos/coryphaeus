@@ -213,6 +213,7 @@ async function abrirAviso(a) {
   if (d.tela === "financeiro") return abrirDestino("financeiro");
   if (d.tela === "publicacao") return abrirPublicacoesBsc(d.id);
   if (d.tela === "processo") { await mostrarProcessos(); return abrirProcesso(d.id); }
+  if (d.tela === "conflito" && typeof abrirConflito === "function") return abrirConflito(d.id);
   if (d.tela === "documento") return verNoAcervo(d.nome);
   if (d.tela === "aprovacoes") return abrirDestino("aprovacoes");
   if (d.tela === "conversa") return abrirTrabalho(d.id);

@@ -8,17 +8,24 @@
 
 const cli = { visao: null };
 
-function listaDeConflitos(lista) {
+function listaDeConflitos(lista, comBotao) {
+  // N4: cada conflito é uma pendência (id, estado); o resolvido vem com a resolução.
   return '<div class="cli-conflitos">' + lista.map((c) =>
-    '<div class="cli-conflito' + (c.tipo === "muralha" ? " muralha" : "") + '">' + ic(c.tipo === "muralha" ? "groups" : "flag", 16) +
-    "<span>" + esc(c.texto) + (c.parte ? ' <small>· por “' + esc(c.parte) + "”</small>" : "") + "</span></div>").join("") + "</div>";
+    '<div class="cli-conflito' + (c.tipo === "muralha" ? " muralha" : "") + (c.estado === "resolvido" ? " resolvido" : "") + '">' +
+    ic(c.estado === "resolvido" ? "check" : (c.tipo === "muralha" ? "groups" : "flag"), 16) +
+    "<span>" + esc(c.texto) + (c.parte ? ' <small>· por “' + esc(c.parte) + "”</small>" : "") +
+    (c.estado === "resolvido" ? ' <small>· resolvido: ' + esc(c.resolucao_rotulo || "") + (c.resolvido_por ? " (" + esc(c.resolvido_por) + ")" : "") + "</small>" : "") + "</span>" +
+    (comBotao && c.id ? '<button type="button" class="cli-resolver" data-cfl-abrir="' + c.id + '">' + (c.estado === "resolvido" ? "Ver" : "Resolver") + "</button>" : "") +
+    "</div>").join("") + "</div>";
 }
 
 async function avisarConflitos(lista, contexto) {
-  if (!lista || !lista.length) return;
+  lista = (lista || []).filter((c) => c.estado !== "resolvido");
+  if (!lista.length) return;
   await dialogo({ titulo: "Possível conflito de interesse", contexto: contexto,
     html: '<p class="cfg-explica">A mesma pessoa ou empresa aparece do outro lado. O PAULUS reconhece o nome sem acento, sem a forma jurídica ' +
-      "(Ltda., S/A, ME…) e, com os dois documentos, pelo CPF ou pela raiz do CNPJ. Confira antes de seguir.</p>" + listaDeConflitos(lista),
+      "(Ltda., S/A, ME…) e, com os dois documentos, pelo CPF ou pela raiz do CNPJ. Confira antes de seguir. " +
+      "O conflito fica aberto nos avisos até alguém dizer como resolveu.</p>" + listaDeConflitos(lista),
     confirmar: "Entendi", semCancelar: true });
 }
 
@@ -93,7 +100,10 @@ async function carregarConflitosDoServico(s) {
   if (!alvo || !acessoDeFora.local) return;
   try {
     const d = await (await fetch("/api/servicos/" + s.id + "/conflitos")).json();
-    alvo.innerHTML = (d.conflitos || []).length ? '<p class="cli-alerta">' + ic("flag", 16) + " Possível conflito de interesse</p>" + listaDeConflitos(d.conflitos) : "";
+    const lista = d.conflitos || [];
+    const abertos = lista.filter((c) => c.estado !== "resolvido");
+    alvo.innerHTML = lista.length ? (abertos.length ? '<p class="cli-alerta">' + ic("flag", 16) + " Possível conflito de interesse</p>" : "") +
+      listaDeConflitos(lista, true) : "";
   } catch (err) { alvo.innerHTML = ""; }
 }
 
@@ -147,9 +157,13 @@ function linhaDoCliente(texto, sub, atributos) {
 
 function htmlDaVisao(v) {
   const dataBR = (iso) => (iso ? String(iso).slice(0, 10).split("-").reverse().join("/") : "");
-  const conflitos = (v.conflitos || []).length
+  const abertos = (v.conflitos || []).filter((c) => c.estado !== "resolvido");
+  const conflitos = (abertos.length
     ? '<section class="sv-secao cli-bloco cli-atencao"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("flag", 16) +
-      "Possível conflito de interesse</span></div>" + listaDeConflitos(v.conflitos) + "</section>" : "";
+      "Possível conflito de interesse</span></div>" + listaDeConflitos(abertos, true) + "</section>" : "") +
+    ((v.conflitos_resolvidos || []).length
+      ? '<section class="sv-secao cli-bloco"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("check", 16) +
+        "Conflitos resolvidos</span></div>" + listaDeConflitos(v.conflitos_resolvidos, true) + "</section>" : "");
   return conflitos + '<div class="sv-duas">' +
     blocoDoCliente("Serviços", "work", v.servicos.map((s) => linhaDoCliente(s.nome, s.status, ' data-cli-servico="' + s.id + '"')).join(""), "Nenhum Serviço deste cliente.") +
     blocoDoCliente("Processos", "gavel", v.processos.map((p) => linhaDoCliente(p.numero_fmt, [p.classe, p.servico_nome, p.novas ? p.novas + " novas" : ""].filter(Boolean).join(" · "),

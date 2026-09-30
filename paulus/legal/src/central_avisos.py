@@ -43,13 +43,15 @@ TIPOS: dict[str, dict] = {
     "publicacao": {"rotulo": "Publicação", "icone": "article", "ordem": 6, "horizonte": 0},
     "processo": {"rotulo": "Processo", "icone": "gavel", "ordem": 6, "horizonte": 0},
     "pendencia": {"rotulo": "Pendência", "icone": "rate_review", "ordem": 7, "horizonte": 0},
+    # N4: o conflito de interesse aberto, até alguém dizer como resolveu.
+    "conflito": {"rotulo": "Conflito", "icone": "flag", "ordem": 7, "horizonte": 0},
     "rotina": {"rotulo": "Rotina", "icone": "self_improvement", "ordem": 8, "horizonte": 0},
 }
 # Os periodos da aba Todos: ate quantos dias a frente (o atrasado entra sempre).
 PERIODOS = {"hoje": 0, "semana": 7, "mes": 30}
 GRUPOS = ("atrasado", "hoje", "amanha", "semana", "depois")
 # Tipos sem data de vencimento: nao ganham destaque de "vence hoje".
-SEM_VENCIMENTO = {"publicacao", "processo", "pendencia", "rotina"}
+SEM_VENCIMENTO = {"publicacao", "processo", "pendencia", "rotina", "conflito"}
 # A lista de Tarefas em que o prazo tirado de uma publicacao do DJEN cai
 # (api.py, publicacoes_prazo): e o prazo processual.
 LISTA_DOS_PRAZOS = "Prazos"
@@ -187,7 +189,7 @@ class Central:
         avisos: list[dict] = []
         for nome, fonte in (("tarefas", self._das_tarefas), ("agenda", self._da_agenda),
                             ("financeiro", self._do_financeiro), ("publicacoes", self._das_publicacoes),
-                            ("processos", self._dos_processos),
+                            ("processos", self._dos_processos), ("conflitos", self._dos_conflitos),
                             ("documentos", self._dos_documentos), ("aprovacoes", self._das_aprovacoes),
                             ("conversas", self._das_conversas), ("rotinas", self._das_rotinas)):
             try:
@@ -359,6 +361,21 @@ class Central:
                 acoes=[{"id": "vistas", "rotulo": "Marcar como vistas", "metodo": "POST",
                         "rota": f"/api/processos/{p['id']}/vistos", "pergunta": f"Marcar como vistas as novidades do processo {p['numero_fmt']}?",
                         "explica": "O aviso sai; as movimentações continuam guardadas no processo, e as publicações do DJEN dele ficam lidas."}]))
+        return avisos
+
+    def _dos_conflitos(self, avisos, hoje, agora, ate, pessoa, politica):
+        """Os conflitos de interesse abertos (N4): um aviso para cada, até alguém resolver."""
+        if not politica("GET", "/api/conflitos"):
+            return avisos
+        try:
+            abertos = self.base.buscar("SELECT id, texto, parte, visto_em, criado_em FROM conflitos WHERE estado = 'aberto' ORDER BY criado_em")
+        except Exception:  # noqa: BLE001 - base antiga, sem a tabela
+            return avisos
+        for c in abertos:
+            avisos.append(self._aviso(
+                "conflito", f"conflito:{c['id']}", "Possível conflito de interesse: " + c["texto"], 0, hoje.isoformat(),
+                quando="aberto desde " + _br(str(c["criado_em"])[:10]), origem="Conflito de interesse",
+                detalhe=(f"por “{c['parte']}”" if c.get("parte") else ""), destino={"tela": "conflito", "id": c["id"]}))
         return avisos
 
     def _dos_documentos(self, avisos, hoje, agora, ate, pessoa, politica):

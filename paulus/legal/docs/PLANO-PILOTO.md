@@ -349,7 +349,7 @@ o código garante.
 | N1 | O prazo pelo tipo de ato (sentença, acórdão, decisão, despacho, citação; cível, juizado, trabalho, penal; o prazo que o juiz fixou) | L2 | feito | `tests/test_n1_tipo_de_ato.py` |
 | N2 | A publicação do DJEN ligada ao processo acompanhado: um aviso, um pedido de prazo | L2 | feito | `tests/test_n2_djen_processo.py` |
 | N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | feito | `tests/test_n3_parte_contraria.py` |
-| N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | — | `tests/test_n4_conflitos.py` |
+| N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | feito | `tests/test_n4_conflitos.py` |
 | N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | — | `tests/test_n5_clausulas.py` |
 | N6 | A conversa chama as tarefas de vários passos | L4 | — | `tests/test_n6_conversa_tarefas.py` |
 | N7 | Súmulas e temas na resposta da conversa | L5 | — | `tests/test_n7_temas_na_conversa.py` |
@@ -461,3 +461,37 @@ inteligência entram quando forem).
 fiador dos dois lados, outra grafia, documento ligado e da pasta, de outro
 Serviço, sem lado, dispensa, e a seção no Edge em 1280 e 390 px);
 `test_l3_clientes` continua passando.
+
+## N4 — o conflito como pendência (30/09/2026)
+
+- **Guardado** (tabela `conflitos`, migração 033): cada conflito achado — ao
+  anotar a parte contrária, ao abrir o Serviço, ao gravar a ficha do cliente,
+  na visão do cliente — fica guardado uma vez. A mesma situação vista dos dois
+  lados (a Alfa é cliente e é parte contrária no Serviço da Maria) é uma
+  pendência só.
+- **Resolver** diz como: não é a mesma pessoa; os clientes autorizaram por
+  escrito; muralha aplicada (a pessoa saiu de uma das equipes); o escritório
+  recusou ou deixou um dos casos; outro motivo (com a frase, obrigatória). Fica
+  quem resolveu (o nome de Meus dados, ou a pessoa de fora) e quando, com a
+  anotação. Reabrir volta, anotado.
+- **Onde aparece**: um aviso por conflito aberto na Central (tipo
+  "Conflito", abre a caixa de resolver); a seção Partes do Serviço, com
+  "Resolver"/"Ver"; a visão do cliente, com os abertos no alto e os resolvidos
+  embaixo; Cadastros › **Conflitos**, que confere todos os Serviços em
+  andamento na hora e lista abertos e resolvidos.
+- **O que muda sozinho, dito**: a conferência geral fecha o conflito que
+  deixou de existir (a parte saiu, a pessoa saiu da equipe), com "PAULUS"
+  como quem resolveu; se ele volta, reabre ("voltou a aparecer"). Muralha dada
+  por aplicada com a pessoa ainda nas duas equipes reabre ("a pessoa continua
+  nas duas equipes").
+- As rotas são da janela do escritório (a conferência cruza todos os
+  clientes).
+
+**Não feito:** a conferência geral roda quando alguém abre a lista, não
+sozinha todo dia.
+
+**Medido:** `tests/test_n4_conflitos.py` 21 ok (guardar sem duplicar, os dois
+lados, a Central, resolver e reabrir, a muralha que reabre, o que some e
+volta, e no Edge: Cadastros › Conflitos, resolver pela caixa, o aviso, 390
+px); `test_l3_clientes`, `test_n3_parte_contraria`, `test_t2_avisos` e
+`test_tela` continuam passando.

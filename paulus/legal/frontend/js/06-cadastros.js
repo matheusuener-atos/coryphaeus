@@ -130,6 +130,9 @@ function cabecalhoCadastros() {
   $("acoes-tela").innerHTML =
     '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="cad-busca" placeholder="Buscar nome, CPF/CNPJ, telefone ou e-mail…" value="' + esc(cad.termo) + '"></label>' +
     '<div class="visoes">' + botao("clientes", "Clientes") + botao("equipe", "Equipe") + botao("despesas", "Despesas fixas") + "</div>" +
+    // N4: os conflitos de interesse, abertos e resolvidos (js/72-conflitos.js) - janela do escritório.
+    (cad.visao === "clientes" && typeof acessoDeFora !== "undefined" && acessoDeFora.local
+      ? '<button class="com-icone cad-conflitos" data-cfl-lista="1" title="Conflitos de interesse">' + ic("flag", 16) + "<span>Conflitos</span></button>" : "") +
     '<button class="primario com-icone" data-cad-nova="1">' + novo + "</button>";
   $("nav-tela").innerHTML = "";
 }

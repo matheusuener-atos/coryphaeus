@@ -23,6 +23,13 @@ A mesma base para as duas coisas: reconhecer que "Empresa X Ltda.",
 - **Conflito de interesse** (`conflitos`): o cliente que é parte contrária em
   outro Serviço, e a parte contrária que é cliente do escritório. Avisa, não
   bloqueia: quem decide é o advogado.
+- **Guardado como pendência** (N4, tabela `conflitos`): cada conflito achado
+  fica aberto até alguém dizer como resolveu (não é a mesma pessoa; os
+  clientes autorizaram por escrito; muralha aplicada; o escritório recusou um
+  dos casos; outro motivo, escrito), com quem e quando. Aparece na Central de
+  avisos, no Serviço e na visão do cliente. O que deixa de existir (a parte
+  saiu do Serviço) fecha sozinho, e diz. A muralha dada por aplicada, com a
+  pessoa ainda nas duas equipes, reabre.
 - **Muralha ética**: a separação por equipe já existe (quem não está na
   equipe não vê o Serviço de fora). O conflito diz, além disso, quem está na
   equipe dos dois lados - é essa pessoa que a muralha precisa separar.
@@ -156,6 +163,157 @@ def conflitos(base, nome: str, documento: str = "", *, papel: str = "cliente", s
                               "texto": ("" if grau == "igual" else "parece ser: ") + f"“{p['nome']}” é parte contrária no Serviço “{s['nome']}”"
                                        + (f" (cliente {s['cliente']})" if s.get("cliente") else "")})
     return saida
+
+
+# ------------------------------------------------------------ a pendência (N4)
+
+RESOLUCOES = {
+    "nao_e": "Não é a mesma pessoa ou empresa",
+    "autorizado": "Os clientes autorizaram, por escrito",
+    "muralha": "Muralha aplicada: a pessoa saiu de uma das equipes",
+    "recusado": "O escritório recusou ou deixou um dos casos",
+    "outro": "Outro motivo",
+    "sumiu": "Deixou de existir (a parte ou a equipe mudou)",
+}
+
+
+def _agora() -> str:
+    from datetime import datetime
+
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def chave_do_conflito(c: dict, contexto_servico=None, contexto_cadastro=None) -> str:
+    """A mesma situação dá a mesma chave, venha da ficha, do Serviço ou da conferência geral."""
+    tipo = c.get("tipo", "")
+    s_ctx = int(contexto_servico) if contexto_servico else 0
+    outro = int(c.get("servico_id") or 0)
+    cad = int(c.get("cadastro_id") or contexto_cadastro or 0)
+    pessoa = int(c.get("pessoa_id") or 0)
+    parte = chave(c.get("parte") or "")
+    if tipo == "muralha":
+        a, b = sorted((s_ctx, outro))
+        return f"muralha|{a}|{b}|{pessoa}"
+    # O cliente `cad` como parte contrária num Serviço é uma situação só, vista
+    # da ficha dele ("contraria": o Serviço é `outro`) ou do Serviço ("cliente":
+    # o Serviço é o do contexto).
+    if tipo == "contraria":
+        return f"lados|{cad}|{outro}"
+    if tipo == "cliente":
+        return f"lados|{cad}|{s_ctx}"
+    return f"{tipo}|{s_ctx}|{cad}|{parte}"
+
+
+def registrar(base, achados: list[dict], *, servico_id=None, cadastro_id=None) -> list[dict]:
+    """Guarda cada conflito achado (uma vez) e devolve os achados com o id e o estado da pendência."""
+    agora = _agora()
+    saida = []
+    for c in achados:
+        k = chave_do_conflito(c, servico_id, cadastro_id)
+        ja = base.um("SELECT * FROM conflitos WHERE chave = ?", (k,))
+        if ja is None:
+            outro = c.get("servico_id")
+            texto = c.get("texto", "")
+            if servico_id and "deste Serviço" in texto:
+                # Guardado, o texto sai do Serviço: "deste" vira o nome dele.
+                nome_ctx = (base.um("SELECT nome FROM servicos WHERE id = ?", (int(servico_id),)) or {}).get("nome") or "deste Serviço"
+                texto = texto.replace("deste Serviço", f"“{nome_ctx}”")
+            # servico_id: o Serviço onde a conferência aconteceu; outro_servico_id: o do outro lado.
+            cid = base.escrever(
+                "INSERT INTO conflitos (chave, tipo, texto, parte, grau, servico_id, outro_servico_id, cadastro_id, pessoa_id,"
+                " criado_em, visto_em) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (k, c.get("tipo", ""), texto, c.get("parte", ""), c.get("grau", ""),
+                 int(servico_id) if servico_id else None, int(outro) if outro else None,
+                 int(c.get("cadastro_id") or cadastro_id or 0) or None, int(c.get("pessoa_id") or 0) or None, agora, agora))
+            ja = base.um("SELECT * FROM conflitos WHERE id = ?", (cid,))
+        else:
+            if ja["estado"] == "resolvido" and (ja["resolucao"] == "sumiu" or (ja["tipo"] == "muralha" and ja["resolucao"] == "muralha")):
+                # Voltou a existir, ou a pessoa continua nas duas equipes: reabre, dito.
+                motivo = ("voltou a aparecer" if ja["resolucao"] == "sumiu" else "a pessoa continua nas duas equipes")
+                base.escrever("UPDATE conflitos SET estado = 'aberto', nota = ?, visto_em = ? WHERE id = ?",
+                              ((ja.get("nota") or "") + f"\nReaberto em {agora[:10]}: {motivo}.", agora, ja["id"]))
+            else:
+                base.escrever("UPDATE conflitos SET visto_em = ? WHERE id = ?", (agora, ja["id"]))
+            ja = base.um("SELECT * FROM conflitos WHERE id = ?", (ja["id"],))
+        saida.append(dict(c, id=ja["id"], estado=ja["estado"], resolucao=ja["resolucao"], resolucao_rotulo=RESOLUCOES.get(ja["resolucao"], ""),
+                          resolvido_por=ja["resolvido_por"], resolvido_em=ja["resolvido_em"], nota=ja["nota"]))
+    return saida
+
+
+def do_servico(base, id_: int) -> list[dict]:
+    """Todos os conflitos de um Serviço (o cliente dele do outro lado, e as partes contrárias dele)."""
+    s = base.um("SELECT s.id, s.partes, s.cadastro_id, c.nome, c.documento FROM servicos s LEFT JOIN cadastros c ON c.id = s.cadastro_id"
+                " WHERE s.id = ?", (int(id_),))
+    if not s:
+        return []
+    achados = [dict(x, parte=s["nome"]) for x in conflitos(base, s.get("nome") or "", s.get("documento") or "", papel="cliente",
+                                                          servico_id=id_, cadastro_id=s.get("cadastro_id"))] if s.get("nome") else []
+    for x in achados:
+        x.setdefault("cadastro_id", s.get("cadastro_id"))
+    for p in _json(s["partes"], []):
+        if p.get("papel") == "contraria":
+            achados += [dict(x, parte=p["nome"]) for x in conflitos(base, p["nome"], p.get("documento", ""), papel="contraria", servico_id=id_)]
+    return achados
+
+
+def conferir_todos(base) -> dict:
+    """
+    A conferência geral: todos os Serviços em andamento. O conflito aberto
+    que não aparece mais fecha sozinho ("deixou de existir").
+    """
+    achadas: set[int] = set()
+    for s in base.buscar("SELECT id FROM servicos WHERE status != 'concluido'"):
+        for c in registrar(base, do_servico(base, s["id"]), servico_id=s["id"]):
+            achadas.add(int(c["id"]))
+    fechados = 0
+    agora = _agora()
+    for c in base.buscar("SELECT id FROM conflitos WHERE estado = 'aberto'"):
+        if int(c["id"]) not in achadas:
+            base.escrever("UPDATE conflitos SET estado = 'resolvido', resolucao = 'sumiu', resolvido_por = 'PAULUS', resolvido_em = ?"
+                          " WHERE id = ?", (agora, c["id"]))
+            fechados += 1
+    return {"abertos": base.contar("conflitos", "estado = 'aberto'"), "fechados_sozinhos": fechados}
+
+
+def listar_conflitos(base, *, estado: str = "", cadastro_id=None, servico_id=None) -> list[dict]:
+    onde, args = [], []
+    if estado:
+        onde.append("f.estado = ?")
+        args.append(estado)
+    if cadastro_id:
+        onde.append("(f.cadastro_id = ? OR f.servico_id IN (SELECT id FROM servicos WHERE cadastro_id = ?)"
+                    " OR f.outro_servico_id IN (SELECT id FROM servicos WHERE cadastro_id = ?))")
+        args += [int(cadastro_id)] * 3
+    if servico_id:
+        onde.append("(f.servico_id = ? OR f.outro_servico_id = ?)")
+        args += [int(servico_id)] * 2
+    sql = ("SELECT f.*, s.nome AS servico_nome, o.nome AS outro_servico_nome, c.nome AS cliente_nome FROM conflitos f"
+           " LEFT JOIN servicos s ON s.id = f.servico_id LEFT JOIN servicos o ON o.id = f.outro_servico_id"
+           " LEFT JOIN cadastros c ON c.id = f.cadastro_id" + (" WHERE " + " AND ".join(onde) if onde else "") +
+           " ORDER BY CASE f.estado WHEN 'aberto' THEN 0 ELSE 1 END, f.visto_em DESC LIMIT 300")
+    return [dict(l, resolucao_rotulo=RESOLUCOES.get(l["resolucao"] or "", "")) for l in base.buscar(sql, tuple(args))]
+
+
+def resolver(base, id_: int, resolucao: str, nota: str, quem: str) -> dict:
+    if resolucao not in RESOLUCOES or resolucao == "sumiu":
+        raise ValueError("escolha como o conflito foi resolvido")
+    nota = " ".join(str(nota or "").split())[:1000]
+    if resolucao == "outro" and len(nota) < 5:
+        raise ValueError("diga, em uma frase, como foi resolvido")
+    if not base.um("SELECT id FROM conflitos WHERE id = ?", (int(id_),)):
+        raise LookupError("conflito não encontrado")
+    base.escrever("UPDATE conflitos SET estado = 'resolvido', resolucao = ?, nota = ?, resolvido_por = ?, resolvido_em = ? WHERE id = ?",
+                  (resolucao, nota, quem, _agora(), int(id_)))
+    return next(c for c in listar_conflitos(base) if c["id"] == int(id_))
+
+
+def reabrir(base, id_: int, quem: str) -> dict:
+    l = base.um("SELECT nota FROM conflitos WHERE id = ?", (int(id_),))
+    if not l:
+        raise LookupError("conflito não encontrado")
+    base.escrever("UPDATE conflitos SET estado = 'aberto', nota = ?, resolucao = '', resolvido_por = '', resolvido_em = '' WHERE id = ?",
+                  ((l.get("nota") or "") + f"\nReaberto por {quem} em {_agora()[:10]}.", int(id_)))
+    return next(c for c in listar_conflitos(base) if c["id"] == int(id_))
 
 
 # ------------------------------------------------------------ sugerida pelos documentos (N3)
@@ -343,8 +501,10 @@ def visao(estado, cadastro_id: int) -> dict:
         "documentos": sorted(documentos.values(), key=lambda d: d["nome"].lower())[:80],
         "partes_contrarias": contrarias,
         "outros_nomes": [{"nome": n, "grau": g} for n, g in sorted(outros_nomes.items())][:20],
-        "conflitos": conflitos(base, c["nome"], c.get("documento") or "", papel="cliente", cadastro_id=c["id"])
-                     if c.get("tipo") == "cliente" else [],
+        "conflitos": registrar(base, [dict(x, parte=c["nome"]) for x in conflitos(base, c["nome"], c.get("documento") or "",
+                                                                                   papel="cliente", cadastro_id=c["id"])],
+                               cadastro_id=c["id"]) if c.get("tipo") == "cliente" else [],
+        "conflitos_resolvidos": listar_conflitos(base, estado="resolvido", cadastro_id=c["id"]) if c.get("tipo") == "cliente" else [],
     }
 
 
@@ -356,6 +516,24 @@ class Partes(BaseModel):
 
 class Dispensar(BaseModel):
     nome: str
+
+
+class Resolucao(BaseModel):
+    resolucao: str
+    nota: str = ""
+
+
+def _quem(request) -> str:
+    """Quem resolveu: a pessoa de fora pelo nome; na janela do escritório, o nome de Meus dados."""
+    try:
+        from acesso import rotas as rotas_do_acesso
+
+        p = rotas_do_acesso.pessoa(request) if request is not None else None
+        if p:
+            return p.get("nome") or p.get("email") or "de fora"
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
 
 
 class Consulta(BaseModel):
@@ -380,7 +558,7 @@ def montar(estado, app) -> None:
             if p["papel"] == "contraria":
                 for x in conflitos(estado.base, p["nome"], p["documento"], papel="contraria", servico_id=id_):
                     achados.append(dict(x, parte=p["nome"]))
-        return {"partes": partes, "conflitos": achados}
+        return {"partes": partes, "conflitos": registrar(estado.base, achados, servico_id=id_)}
 
     @app.get("/api/servicos/{id_}/partes/sugeridas")
     def servicos_partes_sugeridas(id_: int) -> dict:
@@ -408,22 +586,52 @@ def montar(estado, app) -> None:
     @app.get("/api/servicos/{id_}/conflitos")
     def servicos_conflitos(id_: int) -> dict:
         """Os conflitos deste Serviço: o cliente dele do outro lado em outro Serviço, e as partes contrárias dele que são clientes."""
-        s = estado.base.um("SELECT s.id, s.partes, c.nome, c.documento FROM servicos s LEFT JOIN cadastros c ON c.id = s.cadastro_id"
-                           " WHERE s.id = ?", (id_,))
-        if not s:
+        if not estado.base.um("SELECT id FROM servicos WHERE id = ?", (id_,)):
             raise HTTPException(status_code=404, detail="serviço não encontrado")
-        achados = [dict(x, parte=s["nome"]) for x in conflitos(estado.base, s.get("nome") or "", s.get("documento") or "",
-                                                              papel="cliente", servico_id=id_)] if s.get("nome") else []
-        for p in _json(s["partes"], []):
-            if p.get("papel") == "contraria":
-                achados += [dict(x, parte=p["nome"]) for x in conflitos(estado.base, p["nome"], p.get("documento", ""),
-                                                                      papel="contraria", servico_id=id_)]
-        return {"conflitos": achados}
+        # N4: cada conflito achado fica guardado como pendência; os já resolvidos vêm com a resolução.
+        return {"conflitos": registrar(estado.base, do_servico(estado.base, id_), servico_id=id_)}
 
     @app.post("/api/clientes/conflitos")
     def clientes_conflitos(payload: Consulta) -> dict:
-        return {"conflitos": conflitos(estado.base, payload.nome, payload.documento, papel=payload.papel,
-                                       servico_id=payload.servico_id, cadastro_id=payload.cadastro_id)}
+        achados = conflitos(estado.base, payload.nome, payload.documento, papel=payload.papel,
+                            servico_id=payload.servico_id, cadastro_id=payload.cadastro_id)
+        if payload.cadastro_id or payload.servico_id:
+            achados = registrar(estado.base, [dict(x, parte=x.get("parte") or payload.nome) for x in achados],
+                                servico_id=payload.servico_id, cadastro_id=payload.cadastro_id)
+        return {"conflitos": achados}
+
+    @app.get("/api/conflitos")
+    def conflitos_listar(situacao: str = "", cadastro_id: int | None = None, servico_id: int | None = None, conferir: bool = False) -> dict:
+        """As pendências de conflito (N4); `conferir` refaz a conferência de todos os Serviços antes."""
+        feito = conferir_todos(estado.base) if conferir else None
+        return {"conflitos": listar_conflitos(estado.base, estado=situacao, cadastro_id=cadastro_id, servico_id=servico_id),
+                "abertos": estado.base.contar("conflitos", "estado = 'aberto'"), "conferido": feito,
+                "resolucoes": [{"valor": k, "rotulo": v} for k, v in RESOLUCOES.items() if k != "sumiu"]}
+
+    @app.get("/api/conflitos/{id_}")
+    def conflitos_um(id_: int) -> dict:
+        c = next((x for x in listar_conflitos(estado.base) if x["id"] == id_), None)
+        if not c:
+            raise HTTPException(status_code=404, detail="conflito não encontrado")
+        return {"conflito": c, "resolucoes": [{"valor": k, "rotulo": v} for k, v in RESOLUCOES.items() if k != "sumiu"]}
+
+    @app.post("/api/conflitos/{id_}/resolver")
+    def conflitos_resolver(id_: int, payload: Resolucao, request: Request = None) -> dict:
+        quem = _quem(request) or ((estado.prefs.dados.get("pessoa") or {}).get("nome") or "o escritório")
+        try:
+            return {"conflito": resolver(estado.base, id_, payload.resolucao, payload.nota, quem)}
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    @app.post("/api/conflitos/{id_}/reabrir")
+    def conflitos_reabrir(id_: int, request: Request = None) -> dict:
+        quem = _quem(request) or ((estado.prefs.dados.get("pessoa") or {}).get("nome") or "o escritório")
+        try:
+            return {"conflito": reabrir(estado.base, id_, quem)}
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
 
     @app.get("/api/clientes/{cadastro_id}/visao")
     def clientes_visao(cadastro_id: int) -> dict:

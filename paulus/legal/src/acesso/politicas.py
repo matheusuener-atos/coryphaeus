@@ -393,6 +393,9 @@ _declarar(BLOQUEADO, "PUT /api/servicos/{id_}/partes", "GET /api/servicos/{id_}/
 # --- N3: a parte contraria sugerida pelos documentos do Servico, e a dispensa -
 # como a conferencia de conflito, da janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/servicos/{id_}/partes/sugeridas", "POST /api/servicos/{id_}/partes/dispensar")
+# --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
+_declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
+          "POST /api/conflitos/{id_}/reabrir")
 # --- L4: tarefas de varios passos (src/passos.py): criam documento, pedem em
 # Aprovacoes e desfazem - por ora, so na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/passos/tipos", "GET /api/passos", "POST /api/passos", "GET /api/passos/{id_}",

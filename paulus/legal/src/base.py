@@ -804,6 +804,35 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE servicos ADD COLUMN partes_dispensadas TEXT NOT NULL DEFAULT '[]';
         """,
     ),
+    (
+        "033_conflitos",
+        """
+        -- O conflito de interesse guardado como pendencia (src/clientes.py, N4):
+        -- cada um uma vez (a chave junta o tipo, os Servicos, o cliente, a
+        -- pessoa e o nome), aberto ate alguem dizer como resolveu - e quem, e
+        -- quando. O que deixa de existir (a parte saiu) fecha sozinho, dito.
+        CREATE TABLE IF NOT EXISTS conflitos (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            chave            TEXT NOT NULL UNIQUE,
+            tipo             TEXT NOT NULL,
+            texto            TEXT NOT NULL,
+            parte            TEXT DEFAULT '',
+            grau             TEXT DEFAULT '',
+            servico_id       INTEGER,
+            outro_servico_id INTEGER,
+            cadastro_id      INTEGER,
+            pessoa_id        INTEGER,
+            estado           TEXT NOT NULL DEFAULT 'aberto',
+            resolucao        TEXT DEFAULT '',
+            nota             TEXT DEFAULT '',
+            resolvido_por    TEXT DEFAULT '',
+            resolvido_em     TEXT DEFAULT '',
+            criado_em        TEXT NOT NULL,
+            visto_em         TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_conflitos_estado ON conflitos(estado);
+        """,
+    ),
 ]
 
 
