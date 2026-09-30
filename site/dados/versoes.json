@@ -1,6 +1,21 @@
 {
   "releases": [
     {
+      "version": "0.9.17",
+      "date": "2026-09-30",
+      "changes": [
+        "Atalho do Google Drive: barra de pastas do Acervo, seletores de pasta, anexar, Organizar e busca",
+        "Janela: nasce escondida e aparece já maximizada (sem piscar)",
+        "Janela: maximiza depois de a página carregar (no shown, a janela ficava branca)",
+        "Janela: maximiza depois de saber a área de trabalho (a página encaixa)",
+        "Google Drive pela internet no Acervo (drive.readonly)",
+        "Escolher pasta sem o Drive: Voltar sem a seta",
+        "Níveis de segurança por conta: reforçada, padrão e simples (só o Google)",
+        "Janela: botões também no assistente e na trava, abre maximizada e escura",
+        "Busca de tudo (Ctrl+K): telas, ações e os dados do escritório numa caixa só"
+      ]
+    },
+    {
       "version": "0.9.16",
       "date": "2026-09-29",
       "changes": [

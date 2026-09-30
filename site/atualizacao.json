@@ -1,15 +1,19 @@
 {
-  "versao": "0.9.16",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.16/PAULUS-0.9.16-instalador.exe",
-  "sha256": "084339a6ad2ec42e338f7db1574af3e46aaaa38bb19230ff19e156dc1109276a",
-  "tamanho": 94703796,
-  "publicada": "2026-09-29",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.16",
+  "versao": "0.9.17",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.17/PAULUS-0.9.17-instalador.exe",
+  "sha256": "59ceeb099fa5636f7cd80db0e133c09878e75b8a35f2b96d1341232b76c21dff",
+  "tamanho": 94726030,
+  "publicada": "2026-09-30",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.17",
   "novidades": [
-    "Horas por serviço: cronômetro, registro e cobrança no Financeiro",
-    "Prazos em dias úteis e publicações do DJEN: a intimação vira tarefa com a data certa",
-    "Saúde do PAULUS e diagnóstico: o que atrapalha agora, e um arquivo para o suporte",
-    "Backup e restauração: um arquivo cifrado por dia, e restaurar em outro computador",
-    "Entrar no servidor sem internet: o código do celular abre o PAULUS travado"
+    "Atalho do Google Drive: barra de pastas do Acervo, seletores de pasta, anexar, Organizar e busca",
+    "Janela: nasce escondida e aparece já maximizada (sem piscar)",
+    "Janela: maximiza depois de a página carregar (no shown, a janela ficava branca)",
+    "Janela: maximiza depois de saber a área de trabalho (a página encaixa)",
+    "Google Drive pela internet no Acervo (drive.readonly)",
+    "Escolher pasta sem o Drive: Voltar sem a seta",
+    "Níveis de segurança por conta: reforçada, padrão e simples (só o Google)",
+    "Janela: botões também no assistente e na trava, abre maximizada e escura; busca com fade",
+    "Busca de tudo (Ctrl+K): telas, ações e os dados do escritório numa caixa só"
   ]
 }
