@@ -354,8 +354,11 @@ def test_api() -> None:
         checar(r.status_code == 400 and "apagar_arquivos" in r.json().get("detail", ""),
                "criar com ferramenta desconhecida: 400 com o motivo", r.text[:200])
         lista = local.get("/api/agentes").json()
-        checar(lista.get("ligado") is True and [a["slug"] for a in lista["agentes"]] == ["revisor-de-contratos"],
-               "a lista traz o agente", lista)
+        # Os exemplos que vêm com o produto (A3, origem "produto") também
+        # estão na lista, desligados; o do escritório é o que foi criado aqui.
+        checar(lista.get("ligado") is True
+               and [a["slug"] for a in lista["agentes"] if a["origem"] != "produto"] == ["revisor-de-contratos"],
+               "a lista traz o agente", [a["slug"] for a in lista.get("agentes", [])])
         checar(lista.get("catalogos", {}).get("ferramentas") and "perguntar" in lista["catalogos"]["capacidades"],
                "e os catálogos vivos, para a tela", lista.get("catalogos"))
         lido = local.get("/api/agentes/revisor-de-contratos").json()

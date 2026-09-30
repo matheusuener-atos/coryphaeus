@@ -1,0 +1,70 @@
+  /* ------------------------------------------------------ agentes (A3/A4) */
+  /* A tela Agentes (js/56-agentes.js) usa as pecas de Configuracoes - a
+     coluna editorial (.sv-medida), os cartoes (.cfg-cartao), as linhas
+     (.cfg-servico), as etiquetas e o seletor de visoes. Aqui so o que e dela:
+     os avisos por significado, a grade da ficha, o markdown e os testes. */
+
+  .agt-migalha { align-self: flex-start; display: inline-flex; align-items: center; gap: 2px; margin: 0 0 -6px -4px; }
+  .agt-etiquetas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .agt-linha { align-items: flex-start; }
+  .agt-linha .duas-linhas { gap: 2px; }
+  .agt-linha .duas-linhas small { white-space: normal; }
+  .agt-medida-linha { color: var(--ink2) !important; font-variant-numeric: tabular-nums; }
+
+  /* Aviso por significado (docs/ui/07): informativo em --fill, atencao em
+     ambar, erro em vinho, pronto em verde. */
+  .agt-aviso { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--fill); font-size: 13.5px; color: var(--ink2); }
+  .agt-aviso > .ic { flex: none; color: var(--ink3); margin-top: 1px; }
+  .agt-aviso b { font-weight: 600; color: var(--ink); }
+  .agt-aviso.atencao { background: var(--warnbg); color: var(--warnt); }
+  .agt-aviso.atencao > .ic, .agt-aviso.atencao b { color: var(--warnt); }
+  .agt-aviso.erro { background: var(--accbg2); border: 1px solid var(--accln); color: var(--ink); }
+  .agt-aviso.erro > .ic { color: var(--acc); }
+  .agt-aviso.ok { background: var(--okbg); color: var(--okt); }
+  .agt-aviso.ok > .ic { color: var(--okt); }
+
+  .agt-grade { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .agt-coluna { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .agt-par { display: grid; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--ink-a08); }
+  .agt-par:first-child { padding-top: 0; }
+  .agt-par ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink); }
+  .agt-par .cfg-texto { margin: 0; }
+  .agt-pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 400 13.5px/1.55 var(--sans); color: var(--ink); }
+  .agt-medida > div { grid-template-columns: 150px minmax(0, 1fr); }
+
+  .agt-teste { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--ink-a08); }
+  .agt-teste:last-of-type { border-bottom: none; }
+  .agt-teste-cabeca { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+  .agt-teste-cabeca b { font: 500 13.5px var(--sans); color: var(--ink); }
+  .agt-teste small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .agt-motivo { margin: 0; font: 500 12.5px var(--sans); color: var(--acc); }
+  .agt-resposta summary { cursor: pointer; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .agt-resposta .agt-pre { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--fill); font-size: 13px; }
+  .agt-rodando { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* A edicao. */
+  .agt-modos { margin-left: auto; }
+  .agt-form { display: flex; flex-direction: column; gap: 16px; }
+  .agt-ferramentas { display: grid; gap: 2px; }
+  .agt-ferramenta { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--ink-a08); cursor: pointer; }
+  .agt-ferramenta:last-child { border-bottom: none; }
+  .agt-ferramenta input { margin-top: 3px; accent-color: var(--ink); width: 16px; height: 16px; flex: none; }
+  .agt-ferramenta .duas-linhas small { white-space: normal; }
+  .agt-teste-form { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--ink-a08); }
+  .agt-teste-form > button { justify-self: start; }
+  textarea.agt-instrucoes { min-height: 220px; }
+  textarea.agt-md, .agt-md-leitura { width: 100%; min-height: 460px; font: 400 12.5px/1.55 var(--mono); white-space: pre; tab-size: 2; }
+  .agt-md-leitura { min-height: 0; max-height: 60vh; overflow: auto; margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--fill); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .agt-validacao { position: sticky; bottom: 0; padding: 8px 0; background: var(--bg); }
+
+  @media (max-width: 900px) {
+    .agt-grade { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .agt-tela .sv-principal { padding: 8px 16px 40px; }
+    .agt-tela .ag-duas { grid-template-columns: minmax(0, 1fr); }
+    .agt-linha { flex-wrap: wrap; }
+    .agt-linha .cfg-botoes { width: 100%; justify-content: flex-start; }
+    .agt-linha .cfg-botoes button, .agt-tela .cfg-botoes button { min-height: 44px; }
+    .agt-medida > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  }

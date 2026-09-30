@@ -383,6 +383,15 @@ _declarar(PERMITIDO, "GET /api/central-avisos/hoje", "GET /api/central-avisos",
           "POST /api/central-avisos/visto",
           "POST /api/central-avisos/desmarcar", "GET /api/central-avisos/historico")
 
+# --- A3/A4: a tela de agentes (src/agentes_tela.py). As tres rotas so
+# conferem e devolvem - o AGENTE.md que o formulario gravaria, a validacao do
+# markdown escrito a mao e o rascunho a partir de uma conversa -, mas sao o
+# comeco de criar e editar, que ficam no computador do escritorio: de fora, so
+# o titular, como as rotas de gravar da A1. A medida (A4) vem na lista, que ja
+# e permitida.
+_declarar(TITULAR, "POST /api/agentes/formulario", "POST /api/agentes/validar",
+          "GET /api/agentes/da-conversa/{trabalho_id}")
+
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:
     """A politica remota de uma rota; sem declaracao, bloqueada."""

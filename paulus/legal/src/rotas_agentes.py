@@ -31,6 +31,7 @@ from pathlib import Path
 from fastapi import HTTPException, Request
 
 import agentes as agentes_mod
+import agentes_medida
 import ferramentas as ferramentas_mod
 from acesso import rotas as rotas_do_acesso
 from fila_modelo import FilaCheia
@@ -98,6 +99,8 @@ def montar(estado, app, pasta: Path | str, contexto: Callable[[str], object]) ->
         # As listas vivas: a habilidade recarregada vale na proxima leitura.
         capacidades=lambda: [h.id for h in estado.registro.habilidades if h.estado != COM_PROBLEMA],
         ferramentas=lambda: ferramentas_mod.CATALOGO_FERRAMENTAS,
+        # A4: o ultimo teste e as contas de uso, ao lado das pastas.
+        medidas=agentes_medida.Medidas(pasta),
     )
 
     def quem(request: Request | None) -> str:
@@ -115,7 +118,8 @@ def montar(estado, app, pasta: Path | str, contexto: Callable[[str], object]) ->
             "ligado": ligada(estado),
             "agentes": [a.ficha() for a in lista],
             "contagem": {"total": len(lista), "em_uso": sum(1 for a in lista if a.em_uso),
-                         "com_problema": sum(1 for a in lista if a.problema)},
+                         "com_problema": sum(1 for a in lista if a.problema),
+                         "precisa_revisao": sum(1 for a in lista if a.precisa_revisao)},
             "catalogos": estado.agentes.catalogos(),
             "pasta": str(estado.agentes.pasta),
         }
@@ -213,4 +217,10 @@ def montar(estado, app, pasta: Path | str, contexto: Callable[[str], object]) ->
             resultado = estado.agentes.testar(slug, rodar)
         except agentes_mod.ErroDeAgente as exc:
             raise _http(exc) from exc
-        return {**resultado, "aviso": AVISO_DO_TESTE, "perfil": estado.agentes.obter(slug).modelo}
+        # A4: o resultado fica como o ultimo do agente. Falhou na versao atual,
+        # ele precisa de revisao e sai da escolha automatica; passou, volta.
+        origem = "medir" if (request is not None and request.query_params.get("origem") == "medir") else "tela"
+        estado.agentes.medidas.registrar_teste(slug, resultado, origem=origem)
+        depois = estado.agentes.obter(slug)
+        return {**resultado, "aviso": AVISO_DO_TESTE, "perfil": depois.modelo,
+                "precisa_revisao": depois.precisa_revisao, "revisao_motivo": depois.revisao_motivo}

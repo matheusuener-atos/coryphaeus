@@ -25,6 +25,13 @@ const NOVOS_DESTINOS = {
     resolve: "Gravar reuniões e atendimentos, transcrever por falante e resumir, tudo nesta máquina.",
     precisa: ["transcrição local de áudio por falante", "resumo e contexto ao vivo a partir dela"],
   },
+  // A3: os agentes do escritorio (js/56-agentes.js). Tela de verdade, fora
+  // do menu do manual do sistema (src/destinos.py), como Servicos.
+  agentes: {
+    id: "agentes", nome: "Agentes", pronta: true, abre: "agentes",
+    resolve: "Os especialistas que o escritório escreve para a conversa, com os testes e a medida de cada um.",
+    precisa: [],
+  },
   apoiar: {
     id: "apoiar", nome: "Apoiar o projeto", pronta: false, abre: "apoiar",
     resolve: "Contribuir com o software livre que faz o PAULUS existir.",
@@ -100,6 +107,7 @@ function abrirDestino(id) {
   if (d.abre === "servicos") return mostrarServicos("pastas");
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "apoiar") return mostrarApoiar("contribuir");
+  if (d.abre === "agentes") return mostrarAgentes();
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return voltarAoAssistente();
   if (d.abre === "biblioteca") return mostrarBiblioteca();

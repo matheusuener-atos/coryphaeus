@@ -109,6 +109,8 @@ import agente_na_conversa as agente_mod
 import ia_em_fundo
 import detalhes as detalhes_mod
 import rotas_agentes
+import agentes_medida
+import agentes_tela
 import rotas_avisos
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
@@ -940,6 +942,8 @@ ia_em_fundo.montar(estado, app, {
 }, lambda request: _dono_da_vez(request))
 # Os agentes do escritorio (A1): os arquivos e as rotas (a A2 os poe na conversa).
 rotas_agentes.montar(estado, app, DADOS_DIR / "agentes", contexto=lambda tarefa: _contexto(tarefa=tarefa))
+# A tela de agentes (A3): os exemplos do produto, o formulario e o rascunho da conversa.
+agentes_tela.montar(estado, app)
 # A Central de avisos (T2): o carrossel da tela inicial e o historico do visto.
 rotas_avisos.montar(estado, app, lambda: _documentos_com_data())
 
@@ -3525,10 +3529,15 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         except Exception:  # noqa: BLE001 - agente com problema nao para a conversa
             ativos = []
         if ativos:
+            # A4: "sem agente" quando a regra sugeria um conta no "nao usar" dele.
+            if payload.sem_agente:
+                agentes_medida.anotar_nao_usar(estado, pergunta, ativos)
             escolha = agente_mod.escolher(pergunta, ativos, pedido=payload.agente, sem_agente=payload.sem_agente,
                                           juiz=None if (payload.agente or payload.sem_agente) else _juiz())
             pergunta = escolha.pergunta or pergunta
             agente, agente_como = escolha.agente, escolha.como
+            # A4: a pergunta sai com o agente - conta como uso dele.
+            agentes_medida.usou(estado, agente)
     if trabalho.titulo == "Nova conversa" and not trabalho.mensagens:
         trabalho.titulo = titular(pergunta)
 

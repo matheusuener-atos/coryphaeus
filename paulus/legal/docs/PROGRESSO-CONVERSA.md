@@ -17,8 +17,8 @@ que não estiver `feita`.
 | C6 | Cerca em todo texto de terceiros | feita; chave desligada de fábrica | ver git log (c6) | injeção detectada e registrada; com o 3B, a injeção não muda a resposta; roteiro 40/41 com a cerca × 41/41 sem |
 | A1 | Formato de agente: carregar, validar, versionar | feita | 98b228f | 67/67 no portão; permissões 58/58 |
 | A2 | Agentes na conversa | feita | ver git log (a2) | @Nome, exemplo e "não usar"; instrução cercada abaixo das regras; ferramenta não declarada recusada; foco não lê outro documento; cartão = item da fila |
-| A3 | Tela de agentes | pendente | — | — |
-| A4 | Medir os agentes | pendente | — | — |
+| A3 | Tela de agentes | feita | 83999ab | 50 ok no portão; exemplos com o 3B: Triagem 3/3, Revisor 2/3 (depois ajustado, sem medir de novo) |
+| A4 | Medir os agentes | feita | 83999ab | 28 ok: teste que falha tira da escolha automática, com o aviso; a escolha manual continua |
 
 ## Como este trabalho está sendo feito (30/09/2026)
 
@@ -195,7 +195,7 @@ modelo de verdade, 15 dias.
   Parar (`POST /api/execucoes/{id}/parar`) e o resultado guardado no registro.
   A inscrição lê do disco a execução de antes de reabrir o programa, então
   sair da tela, recarregar ou reabrir e voltar mostra o resultado. Um
-  componente só na tela (`frontend/js/56-ia-em-fundo.js`: `blocoIA`,
+  componente só na tela (`frontend/js/57-ia-em-fundo.js`: `blocoIA`,
   `chamarIA`, `acompanharIA`). Ligados na tela: o parecer e o resumo da
   gravação. A rota nova é só da janela do escritório; de fora, as telas usam
   a rota de antes.
@@ -254,6 +254,50 @@ visto ontem volta como "vence hoje", duas contas separadas e o titular vendo
 as duas, "remoto" pelo acesso de fora, o Vigia com o mesmo id; no Edge: ordem,
 nenhuma cor de erro, setas, End e arrasto, a Central com as três abas, lista
 em 390 px com círculo de 44 px, carrossel sumindo sem avisos).
+
+## A3 e A4 — o que foi medido e decidido
+
+Feitas por um agente num worktree à parte (`C:\coryphaeus-a3`), com o contrato
+inteiro, e juntadas aqui. **A pausa da A3** (mostrar as telas e os agentes de
+exemplo) virou capturas, guardadas fora do repositório, e esta descrição.
+
+- **Tela própria "Agentes"** no trilho, depois de Aprovações
+  (`frontend/js/56-agentes.js`), e não uma seção de Configurações:
+  Configurações não abre de fora, e o contrato quer a lista e o teste no
+  celular. A lista (ativo, versão, origem, com problema, precisa de revisão);
+  o formulário que grava o AGENTE.md, com as ferramentas do catálogo e a nota
+  de que cada uma pede confirmação; a visão do markdown com a validação da A1
+  em português antes de salvar (o Salvar trava enquanto há erro); Versões.
+  Editar pelo formulário reescreve o cabeçalho (perde comentários do YAML) — a
+  tela avisa; pelo markdown, eles ficam.
+- **"Criar agente desta conversa"** (menu da conversa e botão da tela), por
+  regra (`src/agentes_tela.py`): as perguntas viram exemplos, as palavras mais
+  repetidas viram palavras, o título vira o nome; nada é salvo sem "Criar
+  agente". Testes não são sugeridos (o `deve_conter` não dá para adivinhar).
+- **Os dois exemplos do produto** em `config/agentes/` ("Revisor de contratos"
+  e "Triagem de consumidor", 3 testes cada, sobre o escritório da
+  demonstração), copiados uma vez para `data/agentes`, desativados, origem
+  "produto"; um marcador impede de sobrescrever o que o escritório editou ou de
+  trazer de volta o que foi apagado.
+- **Medido com o llama3.2:3b** (uma vez, na demonstração, `tools/medir.py
+  --so-agentes`): Triagem 3/3; Revisor 2/3 — o da garantia falhou porque a
+  resposta disse "3 (três) aluguéis" sem a palavra "caução" (a mesma
+  pergunta que a cerca derrubou no roteiro). O `deve_conter` passou a ser "3"
+  e "aluguéis", que estão na cláusula; **não foi medido de novo**.
+- **A4** (`src/agentes_medida.py`, em `data/agentes/<slug>/medida.json`): o
+  último resultado dos testes, as vezes usado e as vezes "não usar" (só quando
+  a regra sugeria o agente e a pessoa escolheu sem). **O programa não avalia
+  respostas:** a tela diz "sem avaliação", e o campo fica vazio, não zero.
+  Falhou nos testes da versão atual: "precisa de revisão", e a escolha
+  automática o pula (a barra diz por quê); pelo seletor ou "@Nome" continua.
+  `tools/medir.py --agentes`, `--so-agentes`, `--agente <slug>`.
+- De fora (celular), a lista e o Testar funcionam; criar, editar, ligar e
+  importar ficam no computador do escritório.
+- De graça: o teste da A3 achou um erro da T1 — a data em UTC que a tela
+  manda ("…Z") derrubava a rota da saudação. Corrigido.
+
+**Medido:** `tests/test_a3_tela.py` 50 ok (Edge, 1440 e 390 px);
+`tests/test_a4_medir.py` 28 ok.
 
 ## A2 — o que foi medido e decidido
 

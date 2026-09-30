@@ -46,6 +46,8 @@ function acoesBsc() {
     { titulo: "Trazer pasta do Google Drive", caminho: "Acervo › Incluir pasta", marca: "google-drive", local: true,
       descricao: "uma cópia no Acervo, conferida a cada 15 minutos", sinonimos: "drive google nuvem pasta sincronizar copiar",
       fazer: () => adicionarPastaAoAcervo({ drive: true }) },
+    { titulo: "Novo agente do escritório", caminho: "Agentes", icone: "school", local: true,
+      sinonimos: "agente especialista skill revisor triagem instrucoes", fazer: () => mostrarAgentes().then(() => novoAgente()) },
     { titulo: "Alternar tema claro/escuro", caminho: "Aparência", icone: "dark_mode", sinonimos: "tema escuro claro", fazer: () => alternarTema() },
     { titulo: "Sair", caminho: "Servidor", icone: "logout", local: true, sinonimos: "travar bloquear sair conta", fazer: () => sairDoServidor() },
   ];

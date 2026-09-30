@@ -183,10 +183,16 @@ function barraDoAgente() {
   const ativos = estado.agentesAtivos || [];
   if (!ativos.length) return "";
   const vez = agenteDaVez();
+  // A4: quem precisa de revisao continua no seletor (a escolha pelo nome vale),
+  // marcado; e, quando a regra o apontaria, a barra diz por que nao o usou.
   const opcoes = ['<option value="nenhum"' + (vez ? "" : " selected") + ">sem agente</option>"].concat(
-    ativos.map((a) => '<option value="' + esc(a.slug) + '"' + (vez && vez.slug === a.slug ? " selected" : "") + ">" + esc(a.nome) + "</option>"));
+    ativos.map((a) => '<option value="' + esc(a.slug) + '"' + (vez && vez.slug === a.slug ? " selected" : "") + ">" + esc(a.nome) +
+      (a.precisa_revisao ? " (precisa de revisão)" : "") + "</option>"));
+  const revisao = !vez && !estado.agenteDecisao && (estado.agentesEmRevisao || []).length
+    ? ' <span class="barra-revisao" data-barra-revisao="1">· “' + esc(estado.agentesEmRevisao[0].nome) + "” precisa de revisão: não escolhi sozinho</span>"
+    : "";
   return ' · <span class="barra-agente">' + (vez ? (estado.agenteDecisao ? "Usando: " : "Usando (pelo pedido): ") : "Agente: ") +
-    '<select data-barra-agente="1" aria-label="Agente da próxima pergunta">' + opcoes.join("") + "</select></span>";
+    '<select data-barra-agente="1" aria-label="Agente da próxima pergunta">' + opcoes.join("") + "</select>" + revisao + "</span>";
 }
 
 function agenteDoEnvio() {
@@ -211,6 +217,7 @@ $("pedido").addEventListener("input", () => {
       if (!d || !d.ligado) { estado.agentesAtivos = []; estado.agenteSugerido = null; desenharBarra(); return; }
       estado.agentesAtivos = d.ativos || [];
       estado.agenteSugerido = d.agente || null;
+      estado.agentesEmRevisao = d.em_revisao || [];
       if (!texto) estado.agenteDecisao = "";
       desenharBarra();
     } catch (err) { /* sem sugestao: a pergunta vai como sempre */ }

@@ -2344,3 +2344,25 @@ do banco de provas no mesmo caminho.
   llama3.2:3b (15 dias). No roteiro, com a cerca, 40/41 e mediana de 17,0 s,
   contra 41/41 e 13,1 s sem ela: como a cerca não pode derrubar o acerto, a
   chave fica desligada de fábrica.
+
+## A3 — Tela de agentes ✓ FEITA
+
+- Tela "Agentes" no trilho: a lista, o formulário que grava o AGENTE.md, a
+  visão do markdown com a validação em português antes de salvar, e as
+  versões. "Criar agente desta conversa" monta o rascunho por regra e não
+  salva sem confirmação. "Testar" mostra passou ou falhou, com o que faltou.
+- Dois exemplos do produto, desativados: Revisor de contratos e Triagem de
+  consumidor, 3 testes cada. De fora, a lista e o teste funcionam.
+
+**Medido:** `tests/test_a3_tela.py` 50 ok. Com o llama3.2:3b: Triagem 3/3,
+Revisor 2/3 (o teste da garantia foi ajustado para o que a cláusula diz, sem
+medir de novo).
+
+## A4 — Medir os agentes ✓ FEITA
+
+- Por agente: o último resultado dos testes, as vezes usado e as vezes "não
+  usar" (o programa não avalia respostas: "sem avaliação"). Teste falhando na
+  versão atual: "precisa de revisão", fora da escolha automática; a escolha
+  manual continua. `tools/medir.py --agentes`.
+
+**Medido:** `tests/test_a4_medir.py` 28 ok.

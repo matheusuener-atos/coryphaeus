@@ -56,11 +56,15 @@ class Escolha:
     como: str = ""                    # "pedido" | "arroba" | "exemplo" | "palavras" | "juiz" | ""
     pergunta: str = ""                # a pergunta sem o "@Nome"
     candidatos: list[str] = field(default_factory=list)
+    # A4: os que a regra apontaria, mas precisam de revisao (os testes da
+    # versao atual falharam) - nao sao escolhidos sozinhos; a barra diz isso.
+    em_revisao: list = field(default_factory=list)
 
     def para_tela(self) -> dict:
         a = self.agente
         return {"agente": ({"slug": a.slug, "nome": a.nome or a.slug, "versao": a.versao} if a else None),
-                "como": self.como, "candidatos": self.candidatos}
+                "como": self.como, "candidatos": self.candidatos,
+                "em_revisao": [{"slug": x.slug, "nome": x.nome or x.slug} for x in self.em_revisao]}
 
 
 def do_arroba(pergunta: str, agentes: list) -> tuple[object | None, str]:
@@ -123,14 +127,18 @@ def escolher(pergunta: str, agentes: list, *, pedido: str = "", sem_agente: bool
     a, limpa = do_arroba(pergunta, agentes)
     if a is not None:
         return Escolha(a, "arroba", limpa)
-    notas = sorted(((pontos(pergunta, x), x) for x in agentes), key=lambda t: t[0][0], reverse=True)
+    # A4: a escolha automatica pula quem precisa de revisao. Pelo nome (barra
+    # ou "@Nome", acima) ele continua valendo: a pessoa sabe o que escolheu.
+    em_revisao = [x for x in agentes if getattr(x, "precisa_revisao", False) and pontos(pergunta, x)[0] > 0]
+    notas = sorted(((pontos(pergunta, x), x) for x in agentes if not getattr(x, "precisa_revisao", False)),
+                   key=lambda t: t[0][0], reverse=True)
     notas = [(n, x) for n, x in notas if n[0] > 0]
     if not notas:
-        return Escolha(None, "", pergunta)
+        return Escolha(None, "", pergunta, em_revisao=em_revisao)
     candidatos = [x.slug for _, x in notas]
     (n0, como0), a0 = notas[0]
     if len(notas) == 1 or n0 - notas[1][0][0] >= 0.3:
-        return Escolha(a0, como0, pergunta, candidatos)
+        return Escolha(a0, como0, pergunta, candidatos, em_revisao)
     # Empate entre candidatos: o juiz escolhe, so entre eles.
     if juiz is not None:
         try:
@@ -139,10 +147,10 @@ def escolher(pergunta: str, agentes: list, *, pedido: str = "", sem_agente: bool
                               entrada=pergunta, trocar_ordem=True)
             if r is not None and r.valor:
                 a = next(x for _, x in notas if x.slug == r.valor)
-                return Escolha(a, "juiz", pergunta, candidatos)
+                return Escolha(a, "juiz", pergunta, candidatos, em_revisao)
         except Exception:  # noqa: BLE001 - sem juiz, vale o de mais pontos
             pass
-    return Escolha(a0, como0, pergunta, candidatos)
+    return Escolha(a0, como0, pergunta, candidatos, em_revisao)
 
 
 def instrucoes(agente) -> str:
@@ -256,5 +264,6 @@ def montar(estado, app) -> None:
             ativos = []
         escolha = escolher(texto, ativos) if texto.strip() else Escolha(None)
         return {"ligado": True, **escolha.para_tela(),
-                "ativos": [{"slug": a.slug, "nome": a.nome or a.slug, "versao": a.versao, "descricao": a.descricao}
+                "ativos": [{"slug": a.slug, "nome": a.nome or a.slug, "versao": a.versao, "descricao": a.descricao,
+                            "precisa_revisao": bool(getattr(a, "precisa_revisao", False))}
                            for a in ativos]}
