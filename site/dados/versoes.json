@@ -4,18 +4,17 @@
       "version": "0.9.20",
       "date": "2026-09-30",
       "changes": [
-        "Corrige o que a suíte inteira achou ao juntar as frentes",
-        "Tela de agentes e a medida deles juntadas",
-        "Saudação: a data com fuso que a tela manda não derruba mais a rota",
-        "Tela de agentes: criar pelo formulário ou a partir de uma conversa, testar, ver versões e medir cada agente",
-        "Configurações › Assistente e modelo liga e desliga cada função nova da conversa",
-        "A cerca da blindagem do e-mail vale também para os documentos, o material e a biblioteca lidos na conversa",
-        "Roteamento juntado: a chave conversa.roteamento e o registro nos documentos",
-        "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a…",
-        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde…",
-        "Avisos do dia juntados: a chave conversa.avisos e o registro nos documentos",
+        "A resposta da conversa não se perde ao fechar ou recarregar a janela, e uma conversa não mexe mais na outra",
+        "Enquanto pensa, a conversa diz o que faz numa linha só; o “ver detalhes” fica guardado com a resposta",
+        "O painel da conversa descreve a resposta escolhida, e rascunho, escopo e rolagem ficam com cada conversa",
+        "A tela inicial cumprimenta de acordo com a hora, o dia, o calendário e o que está pendente, sem repetir a f…",
+        "Tela inicial: os avisos do dia num carrossel, com a Central de avisos e o histórico do que foi visto",
+        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde CPF…",
         "Os agentes do escritório entram na conversa: por @nome ou pelo pedido, com as instruções abaixo das regras…",
-        "Tela inicial: os avisos do dia num carrossel, com a Central de avisos e o histórico do que foi visto"
+        "Tela de agentes: criar pelo formulário ou a partir de uma conversa, testar, ver versões e medir cada agente",
+        "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a ve…",
+        "Configurações › Assistente e modelo liga e desliga cada função nova da conversa",
+        "A cerca da blindagem do e-mail pode valer também para os documentos lidos na conversa (desligada de fábrica)"
       ]
     },
     {
