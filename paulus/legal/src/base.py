@@ -648,6 +648,31 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE servicos ADD COLUMN valor_hora INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        "026_avisos_vistos",
+        """
+        -- A Central de avisos (src/central_avisos.py, T2): quem marcou qual
+        -- aviso como visto, quando e de onde ('local' = o computador do
+        -- escritorio; 'remoto' = o acesso de fora), com a copia do que o
+        -- aviso dizia naquele momento - o historico conta o que a pessoa
+        -- leu. pessoa: 'local' ou 'conta:<id>'. Desmarcar apaga a linha.
+        -- Tabela nova: base antiga so ganha a tabela, nada muda nas outras.
+        CREATE TABLE IF NOT EXISTS avisos_vistos (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            aviso_id    TEXT NOT NULL,
+            pessoa      TEXT NOT NULL,
+            pessoa_nome TEXT DEFAULT '',
+            visto_em    TEXT NOT NULL,
+            de_onde     TEXT NOT NULL DEFAULT 'local',
+            tipo        TEXT DEFAULT '',
+            titulo      TEXT DEFAULT '',
+            quando      TEXT DEFAULT '',
+            origem      TEXT DEFAULT ''
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_avisos_vistos_pessoa ON avisos_vistos(aviso_id, pessoa);
+        CREATE INDEX IF NOT EXISTS idx_avisos_vistos_em ON avisos_vistos(visto_em);
+        """,
+    ),
 ]
 
 

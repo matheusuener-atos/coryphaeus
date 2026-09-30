@@ -68,6 +68,7 @@
 <link rel="stylesheet" href="/css/31-acesso.css">
 <link rel="stylesheet" href="/css/32-ajuda.css">
 <link rel="stylesheet" href="/css/33-vinculo.css">
+<link rel="stylesheet" href="/css/34-avisos.css">
 <link rel="stylesheet" href="/css/22-responsivo.css">
 </head>
 <body>
@@ -268,6 +269,18 @@
               <div class="agora-cartoes" id="agora-cartoes"></div>
             </div>
 
+            <!-- Avisos do dia (T2, frontend/js/53-avisos.js): o carrossel logo abaixo
+                 de "Acontecendo agora", no mesmo cartao. Sem avisos, nao aparece. -->
+            <div class="agora av-dia" id="av-dia" hidden>
+              <div class="agora-cabeca"><span class="sv-kicker">Avisos</span><span class="av-conta" id="av-conta"></span>
+                <span class="av-setas" id="av-setas" hidden>
+                  <button type="button" class="botao-icone" id="av-ant" title="Anteriores" aria-label="Avisos anteriores"><span class="ic ic-18">chevron_left</span></button>
+                  <button type="button" class="botao-icone" id="av-prox" title="Próximos" aria-label="Próximos avisos"><span class="ic ic-18">chevron_right</span></button>
+                </span>
+              </div>
+              <div class="av-trilho" id="av-trilho" role="list" tabindex="0" aria-label="Avisos do dia — as setas do teclado andam de cartão em cartão"></div>
+            </div>
+
             <div class="recentes" id="recentes" hidden></div>
             <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
           </div>
@@ -346,5 +359,6 @@
 <script src="/js/50-busca.js"></script>
 <script src="/js/51-captura.js"></script>
 <script src="/js/52-chaves.js"></script>
+<script src="/js/53-avisos.js"></script>
 </body>
 </html>

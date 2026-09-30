@@ -102,6 +102,7 @@ import mcp_leis
 import rotas_chaves
 import execucoes as execucoes_mod
 import rotas_execucoes
+import rotas_avisos
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -885,6 +886,8 @@ captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
 rotas_execucoes.montar(estado, app)
+# A Central de avisos (T2): o carrossel da tela inicial e o historico do visto.
+rotas_avisos.montar(estado, app, lambda: _documentos_com_data())
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
