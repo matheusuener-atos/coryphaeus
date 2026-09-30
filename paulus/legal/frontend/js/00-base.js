@@ -83,3 +83,9 @@ function diagnostico() {
   return Boolean((window.PAULUS_CONVERSA || {}).diagnostico);
 }
 
+/* F1: a fila do modelo à vista e a pergunta que espera na conversa (chave
+   aparelho.fila, js/58-fila.js). Aqui porque o envio da conversa a consulta. */
+function filaLigada() {
+  return Boolean((window.PAULUS_APARELHO || {}).fila);
+}
+

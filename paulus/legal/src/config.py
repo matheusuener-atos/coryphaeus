@@ -230,6 +230,12 @@ PADRAO: dict = {
                  # `cerca` (C6): trechos de documento, material e biblioteca vao ao
                  # modelo cercados, como o e-mail (src/blindagem.py).
                  "cerca": False},
+    # Pensar no aparelho (docs/PROGRESSO-APARELHO.md). `fila` (F1): toda
+    # chamada ao modelo entra na fila unica, com a origem; a pergunta mandada
+    # com outra andando fica na conversa e vai sozinha; Ctrl+Enter pede
+    # prioridade. `prioridade_por_hora`: quantas vezes por hora quem tem o
+    # nivel do titular passa na frente de outras pessoas.
+    "aparelho": {"fila": False, "prioridade_por_hora": 3},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

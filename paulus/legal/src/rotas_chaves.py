@@ -16,7 +16,12 @@ import config
 
 # Os blocos que esta rota mexe, e só as chaves que o PADRAO conhece. `tau` e
 # afins não entram: número se ajusta medindo, não pela tela.
-BLOCOS = ("biblioteca", "umbrel", "conversa")
+BLOCOS = ("biblioteca", "umbrel", "conversa", "aparelho")
+
+
+def _booleanas(bloco: str) -> list[str]:
+    """Só as chaves de ligar e desligar: número (`prioridade_por_hora`) não é da tela."""
+    return [k for k, v in config.PADRAO[bloco].items() if isinstance(v, bool)]
 
 
 class Chave(BaseModel):
@@ -28,11 +33,11 @@ class Chave(BaseModel):
 def montar(estado, app) -> None:
     @app.get("/api/chaves")
     def chaves_listar() -> dict:
-        return {b: {k: bool((estado.prefs.dados.get(b) or {}).get(k)) for k in config.PADRAO[b]} for b in BLOCOS}
+        return {b: {k: bool((estado.prefs.dados.get(b) or {}).get(k)) for k in _booleanas(b)} for b in BLOCOS}
 
     @app.post("/api/chaves")
     def chaves_mudar(payload: Chave) -> dict:
-        if payload.bloco not in BLOCOS or payload.chave not in config.PADRAO[payload.bloco]:
+        if payload.bloco not in BLOCOS or payload.chave not in _booleanas(payload.bloco):
             raise HTTPException(status_code=400, detail="essa chave não existe")
         estado.prefs.atualizar({payload.bloco: {payload.chave: bool(payload.ligada)}})
         return chaves_listar()

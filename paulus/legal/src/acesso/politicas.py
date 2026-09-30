@@ -358,6 +358,13 @@ _declarar(BLOQUEADO,
 _declarar(PERMITIDO, "GET /api/leis/anotacoes", "GET /api/biblioteca/sumulas", "POST /api/biblioteca/datajud",
           "GET /api/biblioteca/fontes")
 
+# --- F1: a pergunta que espera na conversa (src/fila_de_todos.py). Ver,
+# editar e cancelar a propria vale de fora; a rota confere o dono. A fila
+# inteira (nomes e origens de todo mundo) so na janela do escritorio.
+_declarar(PERMITIDO, "GET /api/trabalhos/{id_}/pendentes", "PUT /api/trabalhos/{id_}/pendentes/{pid}",
+          "DELETE /api/trabalhos/{id_}/pendentes/{pid}")
+_declarar(BLOQUEADO, "GET /api/fila")
+
 # --- o documento fotografado pelo celular (ideia E do umbrelOS): de fora, a
 # rota nao grava no Acervo - guarda a foto a parte e pede em Aprovacoes
 # (src/captura.py). Na janela do escritorio, entra direto.

@@ -597,6 +597,8 @@ async function carregarUsuario() {
     window.PAULUS_UMBREL = p.umbrel || {};
     /* As chaves da conversa (docs/PROGRESSO-CONVERSA.md). */
     window.PAULUS_CONVERSA = p.conversa || {};
+    /* F1: a fila do modelo à vista (docs/PROGRESSO-APARELHO.md). */
+    window.PAULUS_APARELHO = p.aparelho || {};
     document.documentElement.classList.toggle("pensando", Boolean(window.PAULUS_CONVERSA.pensando));
     document.documentElement.classList.toggle("painel-novo", Boolean(window.PAULUS_CONVERSA.painel));
   } catch (err) { /* sem preferencias, fica o padrao */ }

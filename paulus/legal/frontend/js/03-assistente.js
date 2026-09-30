@@ -438,6 +438,8 @@ function desenharTrabalho() {
   atualizarPostura();
   rolar();
   vigiarTrabalhoEmCurso(t);
+  // F1: as perguntas desta conversa que esperam a vez (js/58-fila.js).
+  if (typeof desenharPendentes === "function") desenharPendentes();
 }
 
 /* Trabalho em curso que não é desta página (continuou enquanto a pessoa
@@ -1364,6 +1366,7 @@ function modoDoEnviar(modo) {
   botao.title = parar ? "Parar a resposta" : (modo === "esperando" ? "Uma resposta está sendo escrita — interrompa pelo cartão em Acontecendo agora" : "Enviar");
   botao.setAttribute("aria-label", botao.title);
   botao.innerHTML = parar ? ic("stop", 18) : ENVIAR_ORIGINAL;
+  if (typeof atualizarDicaPrioridade === "function") atualizarDicaPrioridade();
 }
 
 function atualizarBotaoEnviar() {
@@ -1405,7 +1408,12 @@ async function pararResposta() {
 /* `opcoes.retomar` com `opcoes.texto`: refaz a ultima pergunta de uma
    conversa parada - sem nova bolha, sem mexer no que esta escrito no campo. */
 async function enviar(opcoes) {
-  const o = opcoes && opcoes.texto ? opcoes : {};
+  const o = opcoes && (opcoes.texto || opcoes.prioridade) ? opcoes : {};
+  // F1 (js/58-fila.js): com a fila ligada, a pergunta mandada com esta
+  // conversa respondendo fica nela, na fila, e vai sozinha na vez.
+  if (estado.ocupado && filaLigada() && estado.trabalhoId && estado.trabalhoId === estado.respondendoId) {
+    return enfileirarNaConversa(o);
+  }
   if (estado.ocupado) {
     // C3: diz por que nao foi, e oferece esperar a vez.
     const texto = (o.texto || $("pedido").value).trim();
@@ -1507,9 +1515,17 @@ async function enviar(opcoes) {
       // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
       // a pergunta com a escolha feita ali.
       body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos),
-        inteiro: Boolean(o.inteiro) }, envio, typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {})),
+        inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade) }, envio,
+        typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {})),
       signal: estado.controle.signal,
     });
+    // F1: a conversa já respondia (outra aba, outra pessoa) e a pergunta
+    // ficou na fila dela (202); ou a pessoa já tem duas esperando (429) e a
+    // pergunta volta para o campo, sem nada guardado.
+    if (filaLigada() && (r.status === 202 || r.status === 429)) {
+      await desfazerEnvioNaFila(r, pedido, [plano, bastidores, resposta]);
+      return;
+    }
     // A fila do modelo cheia (429) diz por que; o resto, o de sempre.
     if (!r.ok) throw new Error(r.status === 429 ? await erroDe(r) : "não consegui responder");
 
@@ -2055,7 +2071,12 @@ $("pedido").addEventListener("keydown", (e) => {
     }
   }
   if (estado.modoBusca && e.key === "Escape") { e.preventDefault(); modoDeBusca(false); return; }
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (estado.modoBusca) $("buscar").click(); else enviar(); }
+  // F1: Ctrl+Enter manda com prioridade na fila do modelo (js/58-fila.js).
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (estado.modoBusca) $("buscar").click();
+    else enviar(filaLigada() && (e.ctrlKey || e.metaKey) ? { prioridade: true } : undefined);
+  }
 });
 $("pedido").addEventListener("input", (e) => {
   e.target.style.height = "auto";
@@ -2310,7 +2331,11 @@ function andamentoDoCartao(t) {
 /* "Na fila: você é o 2º, ~40 s". A previsão só aparece quando esta máquina
    já mediu respostas (src/ritmo.py); sem medida, só a posição. */
 function textoDaFila(d) {
-  return "na fila do modelo: você é o " + (d.posicao || 1) + "º" + (d.previsao_s ? ", ~" + segundosCurtos(d.previsao_s) : "");
+  // F1: quem está na frente, pelo primeiro nome e a tela - nunca o texto.
+  const frente = (d.na_frente || []).map((x) => x.nome + " · " + x.origem);
+  return "na fila do modelo: você é o " + (d.posicao || 1) + "º" + (d.previsao_s ? ", ~" + segundosCurtos(d.previsao_s) : "") +
+    (frente.length ? " · na frente: " + frente.join(", ") : "") + (d.motivo ? " (" + d.motivo + ")" : "") +
+    (d.aviso ? " · " + d.aviso : "");
 }
 
 function textoDoAndamento(fase, s, previsao, palavras, docs, posicao) {

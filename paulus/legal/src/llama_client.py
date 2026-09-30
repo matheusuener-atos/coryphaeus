@@ -199,6 +199,29 @@ class LlamaClient:
         parar: Callable[[], bool] | None = None,
         tarefa: str = "",
     ) -> str:
+        # F1: toda chamada ao modelo espera a vez na fila unica, de qualquer
+        # tela (src/fila_modelo.py). Com a chave desligada, ou com a vez ja na
+        # mao (a conversa), passa direto, como antes.
+        import fila_modelo
+
+        try:
+            with fila_modelo.vez_para_o_modelo(parar=parar):
+                return self._chat_na_vez(messages, fmt=fmt, stream=stream, on_token=on_token, on_fase=on_fase,
+                                         parar=parar, tarefa=tarefa)
+        except fila_modelo.Parado:
+            return ""
+
+    def _chat_na_vez(
+        self,
+        messages: list[dict],
+        *,
+        fmt: str | None = None,
+        stream: bool = False,
+        on_token: Callable[[str], None] | None = None,
+        on_fase: Callable[[str, dict], None] | None = None,
+        parar: Callable[[], bool] | None = None,
+        tarefa: str = "",
+    ) -> str:
         payload = self._payload(messages, fmt=fmt, stream=stream, tarefa=tarefa)
 
         # O relogio comeca aqui, antes do POST. Com stream=True o requests so

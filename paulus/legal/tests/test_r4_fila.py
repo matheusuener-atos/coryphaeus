@@ -99,7 +99,7 @@ def test_fila_sozinha() -> None:
         f.entrar("ana")
         checar(False, "a 3a da mesma pessoa e recusada")
     except FilaCheia as exc:
-        checar("2 perguntas" in str(exc), "a 3a da mesma pessoa e recusada, dizendo por que", str(exc))
+        checar("duas perguntas" in str(exc), "a 3a da mesma pessoa e recusada, dizendo por que", str(exc))
     checar(f.esperar(a, timeout=0.1) and not f.esperar(b, timeout=0.1), "a primeira que chegou e a da vez")
     checar(f.posicao(b) == 1 and f.posicao(a2) == 2, "posicao: 1 e 2", (f.posicao(b), f.posicao(a2)))
     checar(18 <= f.previsao(b) <= 20 and 38 <= f.previsao(a2) <= 40, "previsao pelo ritmo medido",
@@ -224,7 +224,7 @@ def test_duas_pessoas() -> None:
     t2.start()
     time.sleep(0.3)
     perguntar(local, c3, "TRES", r3)
-    checar(r3.get("status") == 429 and "2 perguntas" in r3.get("texto", ""), "recusada com frase clara (429)",
+    checar(r3.get("status") == 429 and "duas perguntas" in r3.get("texto", ""), "recusada com frase clara (429)",
            (r3.get("status"), r3.get("texto", "")[:120]))
     t1.join(60)
     t2.join(60)

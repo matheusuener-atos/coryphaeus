@@ -1,0 +1,24 @@
+  /* ------------------------------------------------------------ fila (F1) */
+  /* A pergunta que espera na conversa (js/58-fila.js): a bolha da pessoa,
+     esmaecida, com a linha da fila embaixo e os botões dela. */
+
+  .fila-na-conversa { display: grid; gap: 12px; margin-top: 8px; }
+  .fila-pendente { display: grid; gap: 6px; justify-items: end; }
+  .bolha-pessoa.na-fila { opacity: .72; border-style: dashed; }
+  .fila-pendente-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .fila-pendente-linha small { color: var(--ink3); font-size: 12.5px; }
+  .fila-pendente-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .fila-pendente-botoes button { min-height: 30px; padding: 4px 10px; font-size: 12.5px; }
+  .fila-pendente.de-outro { justify-items: end; }
+  .fila-pendente.de-outro small { color: var(--ink3); font-size: 12.5px; }
+  .dica-prioridade { display: block; margin: 6px 4px 0; color: var(--ink3); font-size: 12px; text-align: right; }
+  .fila-lista { display: grid; gap: 0; border-top: 1px solid var(--ink-a08); }
+  .fila-linha { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; align-items: baseline; }
+  .fila-linha small { color: var(--ink3); }
+
+  @media (max-width: 600px) {
+    .fila-pendente-botoes button { min-height: 44px; }
+    .fila-linha { grid-template-columns: 72px minmax(0, 1fr); }
+    .fila-linha small { grid-column: 2; }
+  }

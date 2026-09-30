@@ -7,7 +7,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | Etapa | O quê | Estado | Commit | Portão (medido) |
 | --- | --- | --- | --- | --- |
 | D0 | Levantamento e medida da fila remota | feita — ⏸ PAUSA: esperando a decisão do dono | ver git log (d0) | tabela e números abaixo |
-| F1 | Fila dentro da conversa, fila única, Ctrl+Enter | pendente | | |
+| F1 | Fila dentro da conversa, fila única, Ctrl+Enter | feita; chave `aparelho.fila` desligada de fábrica — ⏸ o dono decide se seguimos | ver git log (f1) | `tests/test_f1_fila.py` 49 ok (ordem, pendente, 429, Ctrl+Enter com e sem liberação, auditoria, e-mail na mesma fila, Edge) |
 | D1 | O pacote e a porta | pendente (o furo do filtro foi corrigido antes, ver abaixo) | | |
 | D2 | O motor no navegador | pendente | | |
 | D3 | Conferência no escritório e retomada | pendente | | |
@@ -97,6 +97,62 @@ a Sara, chega para o João (equipe do B) e para a janela do escritório.
 - **Faltava instrumento:** a execução não grava o tempo de fila à parte
   (`total_s` inclui a espera) nem se foi de fora. Para medir de verdade é
   preciso gravar `fila_s` e a origem em cada execução.
+
+## F1 — a fila à vista (30/09/2026)
+
+Pedido do dono: fazer a fila primeiro, explicar, e ele decide se o plano
+segue. Tudo atrás de `aparelho.fila` (desligada de fábrica, como o prompt
+manda); Configurações › Assistente e modelo › "A fila do modelo" liga.
+
+**Como ficou**
+- **Uma fila para todas as telas.** A chamada ao modelo entra na fila no
+  próprio cliente (`llama_client._chat` → `fila_modelo.vez_para_o_modelo`),
+  e não em cada rota: conversa, editor, planilha, e-mail, resumos, parecer,
+  medida de modelo. A origem vem da rota (middleware `QuemPedeAoModelo`,
+  por dentro do porteiro) e o nome é o primeiro nome da conta (de fora) ou
+  o de Meus dados (a janela do escritório; "Escritório" sem nome). Thread
+  sem requisição é "segundo plano" e fica atrás de toda pergunta. Quem já
+  tem a vez (a conversa, que a pega antes de ler) não entra de novo: a marca
+  é a ContextVar `VEZ`, que chega às threads da resposta desde a correção do
+  filtro de Serviços. O limite de duas por pessoa vale em todas as telas: a
+  terceira recebe 429 "você já tem duas perguntas esperando" (handler único).
+- **O juiz de uma letra não espera a vez.** Com a fila ocupada, ele não é
+  chamado e a regra decide — o mesmo que já acontecia quando ele passava dos
+  20 s, sem esperar os 20 s.
+- **A pergunta que espera na conversa** fica no servidor
+  (`contexto["pendentes"]` do trabalho, fora do `to_dict`: o texto só sai
+  pela rota dela, e só para quem escreveu), com um lugar de verdade na fila.
+  Na vez, vai sozinha pela execução desacoplada (C1), no contexto de quem a
+  mandou (filtro de Serviços, pessoa e origem vão juntos). Editar e cancelar
+  valem de fora, com o dono conferido. **Decisão:** se o programa reinicia
+  com uma na fila, ela vira "não foi enviada" com Enviar agora / Descartar —
+  mandar sozinha depois de reiniciar seria mandar sem o contexto de quem
+  pediu (sem o filtro dele).
+- **Ctrl+Enter.** "Própria": a nova troca de lugar só com as perguntas da
+  mesma pessoa (os lugares dos outros não mudam) e passa na frente do
+  segundo plano. "Geral": passa na frente de todos que esperam, nunca de
+  quem já começou; quem foi passado vê "pergunta prioritária de <nome>". A
+  liberação é um nível novo na grade de permissões (Acesso de fora ›
+  Contas: "Passar na frente na fila (Ctrl+Enter)", só entre as próprias ×
+  passa na frente), com `aparelho.prioridade_por_hora` (3). **Decisão:** a
+  janela do escritório conta como o titular (liberada, com o mesmo limite).
+  Toda prioridade vai para o registro de acessos (ação `prioridade`).
+- **A tela.** A bolha "na fila · 1º · ~40 s · na frente: Helena · conversa",
+  com Editar e Cancelar; a linha de estado diz quem está na frente e o
+  motivo; a dica "Ctrl+Enter envia com prioridade" só com fila; a janela do
+  escritório tem "Ver a fila" (nome, tela e há quanto tempo — nunca o texto).
+
+**Medido:** `tests/test_f1_fila.py` 49 ok — com o cliente do modelo de
+verdade e a rede trocada por um Ollama de mentira que o teste segura e
+solta: a ordem real em que o modelo atendeu (escritório, Helena com
+prioridade, Helena, Rui, Rui, e-mail do escritório) bate com a fila
+mostrada; a Helena com duas não manda a terceira nem pelo e-mail. **Roteiro** (`tools/demo/roteiro.py --tudo`, llama3.2:3b, com a chave ligada no demo só para a medida, e já com a Constituição, os códigos e as súmulas da Biblioteca no demo): **41/41** (programa 11/11, documentos 29/29, mediana 12,7 s). Suíte: 116/120 — test_r4_fila ajustado à frase nova do 429 e passa; ficam as três de antes (a2 pelo Acervo real, gravacoes por falta de memória, inteligencia_regressao).
+
+**Fica para depois / não feito**
+- A bolha da pendente atualiza por consulta a cada 2 s, não por evento.
+- A conversa do `enviar()` em outra conversa enquanto uma responde continua
+  como era (o botão "esperando" até a execução chegar).
+- O "Esperar na fila" antigo (só na memória) continua com a chave desligada.
 
 ## Fora do foco
 

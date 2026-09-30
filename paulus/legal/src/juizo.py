@@ -159,6 +159,15 @@ class Juiz:
             self._memoria.move_to_end(chave)
             self.ultima_medida = {"do_cache": True, "segundos": 0.0}
             return self._memoria[chave]
+        # F1: com alguem na fila do modelo, o juiz nao espera a vez - esperar
+        # atras de uma resposta de 34 s por uma letra so atrasaria a pergunta,
+        # e sem juiz a regra decide, como quando ele passa dos 20 s.
+        import fila_modelo
+
+        fila = fila_modelo.instalada()
+        if fila is not None and fila.ocupada_por_outro():
+            self.ultima_medida = {"fila_ocupada": True, "segundos": 0.0}
+            return None
 
         payload = {
             "model": self.model,

@@ -556,6 +556,7 @@ function secaoAssistente() {
     cartaoCfg("Limites da IA", metaCfg("o que o assistente faz sem pedir"), limites) +
     cartaoCfg("Modelo de voz", metaCfg("transcreve as gravações"), cartaoDaVozCfg()) +
     (typeof cartaoChavesConversa === "function" ? cartaoChavesConversa() : "") +
+    (typeof cartaoChavesAparelho === "function" ? cartaoChavesAparelho() : "") +
     cartaoCfg("Acervo e índice", metaCfg("o que a busca enxerga"), indice) +
     cartaoCfg("O que já foi lido", metaCfg("entendido uma vez, consultado sempre"), blocoDoQueJaFoiLido()) +
     cartaoCfg("Códigos de lei", metaCfg("para citar artigo com o texto certo"), '<div id="cfg-leis"><p class="nota">abrindo os códigos…</p></div>');

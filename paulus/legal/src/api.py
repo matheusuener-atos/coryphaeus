@@ -127,6 +127,8 @@ from base import Base
 from cadastros import Cadastros, TIPOS as TIPOS_CADASTRO
 from config import Preferencias
 import tarefas as tarefas_mod
+import fila_de_todos
+import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
 from tarefas import Tarefas
 from habilidade_base import (
@@ -805,6 +807,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
+
+
+@app.exception_handler(FilaCheia)
+async def _fila_cheia(request, exc):
+    """F1: qualquer tela que chamou o modelo com duas perguntas da pessoa esperando."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=429, content={"detail": str(exc)})
 # O porteiro vem antes de tudo: separa a janela local (chave ou cookie da
 # sessao local) de quem chega de fora. Quem chega de fora passa pelo portao
 # do acesso remoto - desligado, ninguem passa.
@@ -876,6 +886,10 @@ class PortaDosServicos:
             servicos_acesso.OCULTOS.reset(o)
 
 
+# F1: quem pede ao modelo (dono, primeiro nome, a tela). Por dentro do
+# porteiro, que e quem diz se o pedido e de fora.
+app.add_middleware(fila_de_todos.QuemPedeAoModelo,
+                   nome_local=lambda: ((estado.prefs.dados.get("pessoa") or {}).get("nome") or ""))
 app.add_middleware(PortaDosServicos)
 # O servidor MCP das leis (ideia A do umbrelOS, src/mcp_leis.py): o /mcp tem
 # token e travas proprios, e o porteiro o entrega antes da chave da janela.
@@ -926,6 +940,9 @@ rotas_da_auditoria.montar(estado.acesso_de_fora, app)
 # A ajuda sem pergunta (I9): cartao do documento, correcao, prazos.
 rotas_ajuda.montar(estado, app, DADOS_DIR)
 rotas_biblioteca.montar(estado, app, DADOS_DIR)
+# F1: a fila do modelo a vista e a pergunta que espera na conversa (src/fila_de_todos.py).
+fila_modelo.instalar(estado.fila_modelo, lambda: fila_de_todos.ligada(estado))
+fila_de_todos.montar(estado, app, lambda request: _dono_da_vez(request), lambda **campos: Pergunta(**campos))
 captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
@@ -1051,6 +1068,8 @@ class Pergunta(BaseModel):
     # O botao "ler o documento inteiro" do cartao de resposta sem fundamento
     # (I8): esta pergunta le o escopo inteiro, mesmo com a leitura por trechos.
     inteiro: bool = False
+    # F1: Ctrl+Enter - com prioridade na fila do modelo (src/fila_de_todos.py).
+    prioridade: bool = False
 
 
 class Busca(BaseModel):
@@ -3513,9 +3532,24 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # A 3a pergunta da mesma pessoa, com duas na fila do modelo, e recusada
     # ANTES de entrar no historico: nada fica pela metade na conversa.
     dono = _dono_da_vez(request)
-    if not estado.fila_modelo.cabe(dono):
-        raise HTTPException(status_code=429, detail="você já tem 2 perguntas na fila do modelo; "
+    # F1 (src/fila_de_todos.py): a pergunta que vem da fila da conversa ja tem
+    # a vez (fila_modelo.VEZ) e nao entra de novo. As outras podem pedir
+    # prioridade (Ctrl+Enter); com esta conversa ja respondendo, a pergunta
+    # fica guardada nela, com lugar na fila, e vai sozinha na vez.
+    herdada = fila_modelo.VEZ.get()
+    herdada = herdada if herdada is not None and not herdada.saiu else None
+    prioridade = ({"tipo": "", "aviso": ""} if herdada is not None
+                  else fila_de_todos.decidir_prioridade(estado, request, dono, payload.prioridade))
+    # A que espera vai sozinha pela execucao desacoplada (C1): sem ela, ninguem a rodaria.
+    if (herdada is None and fila_de_todos.ligada(estado) and rotas_execucoes.ligada(estado, "execucao")
+            and estado.respondendo.get(id_) and not payload.retomar):
+        resposta = fila_de_todos.guardar(estado, trabalho, payload, request, dono, prioridade, trabalhos_perguntar)
+        fila_de_todos.anotar_prioridade(estado, request, prioridade["tipo"])
+        return resposta
+    if herdada is None and not estado.fila_modelo.cabe(dono):
+        raise HTTPException(status_code=429, detail="você já tem duas perguntas esperando a vez do modelo; "
                                                     "espere uma terminar para mandar outra")
+    fila_de_todos.anotar_prioridade(estado, request, prioridade["tipo"])
 
     habilidade = estado.registro.obter("perguntar")
     if not habilidade or not habilidade.executavel:
@@ -3755,25 +3789,38 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # A resposta por molde (I3) nao usa o modelo e sai em milissegundos:
         # esperar a vez de outra pessoa por ela seria esperar por nada.
         sem_fila = _sem_modelo(habilidade, pergunta, citado)
-        if not sem_fila:
+        if herdada is not None:
+            # A pergunta que esperava na conversa: a vez ja e dela (F1).
+            na_fila["vez"] = herdada
+        elif not sem_fila:
             try:
-                na_fila["vez"] = estado.fila_modelo.entrar(dono, rotulo=trabalho.titulo)
+                na_fila["vez"] = estado.fila_modelo.entrar(dono, rotulo=trabalho.titulo, origem="conversa",
+                                                           prioridade=prioridade["tipo"])
             except FilaCheia as exc:
                 trabalho.estado = PAUSADO
                 estado.trabalhos.salvar(trabalho)
                 yield _sse("erro", {"mensagem": str(exc)})
                 return
         ultima_posicao = -1
-        while not sem_fila and not estado.fila_modelo.esperar(na_fila["vez"], timeout=0.5):
+        ultimo_evento: tuple = ()
+        while na_fila["vez"] is not None and not estado.fila_modelo.esperar(na_fila["vez"], timeout=0.5):
             if parar.is_set():
                 break
-            posicao = estado.fila_modelo.posicao(na_fila["vez"])
-            if posicao != ultima_posicao:
-                ultima_posicao = posicao
-                previsao_fila = estado.fila_modelo.previsao(na_fila["vez"])
+            # F1: a posicao, a previsao e quem esta na frente (primeiro nome e
+            # origem, nunca o texto); muda quando alguem passa na frente.
+            dados_fila = estado.fila_modelo.para_evento(na_fila["vez"])
+            chave_evento = (dados_fila["posicao"], len(dados_fila["na_frente"]), dados_fila.get("motivo", ""))
+            if chave_evento != ultimo_evento:
+                ultimo_evento = chave_evento
+                ultima_posicao = dados_fila["posicao"]
                 fase("fila")
-                andamento.update(posicao=posicao, previsao_s=previsao_fila)
-                yield _sse("fila", {"posicao": posicao, "previsao_s": previsao_fila})
+                andamento.update(posicao=ultima_posicao, previsao_s=dados_fila["previsao_s"])
+                if not fila_de_todos.ligada(estado):
+                    dados_fila = {"posicao": dados_fila["posicao"], "previsao_s": dados_fila["previsao_s"]}
+                elif prioridade.get("aviso"):
+                    # Ctrl+Enter sem a liberacao do titular (ou alem do limite): a razao, numa linha.
+                    dados_fila["aviso"] = prioridade["aviso"]
+                yield _sse("fila", dados_fila)
         if parar.is_set():
             pausar_o_que_executava()
             estado.trabalhos.salvar(trabalho)

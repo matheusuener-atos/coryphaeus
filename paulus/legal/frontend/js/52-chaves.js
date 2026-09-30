@@ -27,6 +27,7 @@ async function ligarChave(bloco, chave, ligada) {
   const d = await r.json();
   cfg.chaves = d;
   if (bloco === "umbrel") window.PAULUS_UMBREL = d.umbrel;
+  if (bloco === "aparelho") window.PAULUS_APARELHO = d.aparelho;
   if (bloco === "conversa") {
     window.PAULUS_CONVERSA = d.conversa;
     document.documentElement.classList.toggle("pensando", Boolean(d.conversa.pensando));
@@ -60,6 +61,20 @@ function cartaoChavesConversa() {
   return cartaoCfg("Como a conversa trabalha", metaCfg("liga e desliga na hora"),
     '<div class="cfg-sub">' + CHAVES_CONVERSA.filter(([k]) => k in cfg.chaves.conversa).map(([k, t, s]) => interruptor("conversa", k, t, s)).join("") + "</div>" +
     '<p class="cfg-explica">Tudo roda nesta máquina. Recarregue a janela depois de mudar uma chave da tela (linha de estado, painel, saudação).</p>');
+}
+
+/* F1: a fila do modelo à vista (docs/PROGRESSO-APARELHO.md). */
+function cartaoChavesAparelho() {
+  if (!cfg.chaves || !cfg.chaves.aparelho) return "";
+  return cartaoCfg("A fila do modelo", metaCfg("desligada de fábrica"),
+    '<div class="cfg-sub">' +
+    interruptor("aparelho", "fila", "Fila à vista e Ctrl+Enter",
+      "todas as telas esperam a vez na mesma fila; a pergunta mandada com outra andando fica na conversa e vai sozinha; Ctrl+Enter pede prioridade") +
+    "</div>" +
+    '<p class="cfg-explica">Quem espera vê a posição, a previsão e quem está na frente, pelo primeiro nome e a tela — nunca o texto. ' +
+    "Passar na frente de outras pessoas é um nível que você dá a cada conta em Acesso de fora › Contas, até 3 vezes por hora; " +
+    "toda prioridade fica no registro de acessos.</p>" +
+    (cfg.chaves.aparelho.fila ? '<div class="cfg-botoes"><button data-ver-fila="1">' + ic("list", 16) + "Ver a fila agora</button></div>" : ""));
 }
 
 function cartaoChavesBiblioteca() {

@@ -146,6 +146,9 @@ class Trabalho:
 
     def to_dict(self) -> dict:
         dados = asdict(self)
+        # F1: as perguntas na fila desta conversa saem pela rota delas
+        # (src/fila_de_todos.py), e o texto so para quem as escreveu.
+        (dados.get("contexto") or {}).pop("pendentes", None)
         dados["progresso"] = self.progresso
         dados["etapa_atual"] = self.etapa_atual
         dados["aberto"] = self.aberto

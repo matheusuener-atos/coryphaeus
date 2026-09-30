@@ -164,12 +164,17 @@ def medir(host: str, nome: str, timeout: int = 300) -> dict:
     A marca no começo muda a cada medida: o Ollama guarda o começo do último
     texto lido, e medir de novo leria em meio segundo o que não foi lido.
     """
-    comeco = time.time()
+    import fila_modelo
+
     prompt = f"[medida {time.time_ns()}]\n{TEXTO_DA_MEDIDA}\n\n{PROMPT_DA_MEDIDA}"
-    r = requests.post(f"{host}/api/generate", timeout=timeout, json={
-        "model": nome, "prompt": prompt, "stream": False,
-        "options": {"temperature": 0, "num_predict": 60, "num_ctx": 4096},
-    })
+    # F1: a medida espera a vez como qualquer chamada - e sai mais certa, sem
+    # outra resposta dividindo o processador.
+    with fila_modelo.vez_para_o_modelo():
+        comeco = time.time()
+        r = requests.post(f"{host}/api/generate", timeout=timeout, json={
+            "model": nome, "prompt": prompt, "stream": False,
+            "options": {"temperature": 0, "num_predict": 60, "num_ctx": 4096},
+        })
     r.raise_for_status()
     d = r.json()
     escreveu = (d.get("eval_duration") or 0) / 1e9

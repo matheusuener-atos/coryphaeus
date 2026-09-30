@@ -50,10 +50,11 @@ def rodar(estado, tipo: str, dono: str, rotulo: str, objeto: str, funcao):
                 if parar.is_set():
                     yield "parado", {}
                     return
-                posicao = estado.fila_modelo.posicao(vez)
-                if posicao != ultima:
-                    ultima = posicao
-                    yield "fila", {"posicao": posicao, "previsao_s": estado.fila_modelo.previsao(vez)}
+                dados = estado.fila_modelo.para_evento(vez)
+                chave = (dados["posicao"], len(dados["na_frente"]), dados.get("motivo", ""))
+                if chave != ultima:
+                    ultima = chave
+                    yield "fila", dados
             if parar.is_set():
                 yield "parado", {}
                 return

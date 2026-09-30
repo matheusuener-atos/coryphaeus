@@ -89,6 +89,10 @@ MODULOS: list[dict] = [
                       "POST /api/financeiro/papeis/{id_}/pago", "POST /api/relatorios/pdf")},
     {"id": "aprovacoes", "rotulo": "Aprovações", "niveis": (NAO, VER, FAZ), "padrao": VER,
      "prefixos": ("/api/aprovacoes",), "destinos": ("aprovacoes",), "rotulo_faz": "aprova"},
+    # F1: Ctrl+Enter passa na frente de outras pessoas na fila do modelo
+    # (src/fila_de_todos.py). Sem rota: e so o nivel que a fila le.
+    {"id": "prioridade", "rotulo": "Passar na frente na fila (Ctrl+Enter)", "niveis": (NAO, FAZ), "padrao": NAO,
+     "prefixos": (), "destinos": (), "rotulo_faz": "passa na frente", "rotulo_nao": "só entre as próprias"},
 ]
 POR_ID = {m["id"]: m for m in MODULOS}
 
@@ -162,6 +166,7 @@ def politica_efetiva(sessao: dict, metodo: str, caminho_da_rota: str | None, pol
 def para_a_tela(niveis: dict[str, str]) -> list[dict]:
     """Os modulos com os niveis que oferecem e o escolhido - a grade de Configuracoes."""
     return [{"id": m["id"], "rotulo": m["rotulo"], "nivel": niveis.get(m["id"], m["padrao"]),
-             "niveis": [{"id": n, "rotulo": m.get("rotulo_faz", ROTULOS[n]) if n == FAZ else ROTULOS[n]}
+             "niveis": [{"id": n, "rotulo": m.get("rotulo_faz", ROTULOS[n]) if n == FAZ
+                         else (m.get("rotulo_nao", ROTULOS[n]) if n == NAO else ROTULOS[n])}
                         for n in m["niveis"]],
              "destinos": list(m["destinos"])} for m in MODULOS]

@@ -2390,3 +2390,14 @@ não chegava à thread da resposta, e um colaborador de fora recebia trecho de
 Serviço que não é dele. A execução e o fluxo das habilidades agora levam o
 contexto de quem pediu. **Medido:** `tests/test_seg_filtro_na_thread.py` 5 ok
 (antes: 2 falhas, o parecer do B no contexto e nas fontes da Sara).
+
+## F1 — A fila do modelo à vista ✓ FEITA (30/09/2026; chave desligada de fábrica)
+
+Uma fila para todas as telas, pelo cliente do modelo, com a origem e o
+primeiro nome; a pergunta mandada com a conversa respondendo fica guardada
+nela e vai sozinha na vez (editar, cancelar, sobrevive a recarregar); a
+terceira da pessoa recebe a razão, em qualquer tela; Ctrl+Enter com
+prioridade — só entre as próprias, ou na frente dos outros com o nível dado
+pelo titular, até 3 por hora, na auditoria, sem interromper quem está sendo
+atendido. **Medido:** `tests/test_f1_fila.py` 49 ok. Detalhes e decisões em
+`docs/PROGRESSO-APARELHO.md`.
