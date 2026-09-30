@@ -5620,7 +5620,33 @@ def navegar_pastas(caminho: str = "", arquivos: bool = False) -> dict:
         # Onde o Google Drive para computador deixa o Drive, para a visao
         # "Google Drive" dos seletores; vazio = nao instalado.
         dados["drive"] = pastas.pastas_do_drive()
+        # As copias do Drive pela internet (src/drive_online.py) entram como
+        # mais um atalho "Google Drive" - em todo seletor de pastas.
+        copias = _atalho_das_copias_do_drive(bool(dados["drive"]))
+        if copias:
+            dados["atalhos"] = list(dados.get("atalhos") or []) + [copias]
+            dados["drive"] = list(dados["drive"]) + [copias["caminho"]]
+    # Dentro da copia: o que se salva ali fica so neste computador (a copia
+    # desce do Drive; nada sobe). A tela diz isso no rodape.
+    dados["copia_do_drive"] = bool(caminho) and _dentro_da_copia_do_drive(caminho)
     return dados
+
+
+def _atalho_das_copias_do_drive(tem_o_drive_no_computador: bool) -> dict | None:
+    raiz = estado.drive_online.raiz()
+    if not estado.drive_online.pastas() or not raiz.is_dir():
+        return None
+    return {"nome": "Google Drive (cópia)" if tem_o_drive_no_computador else "Google Drive", "caminho": str(raiz),
+            "tipo": "drive", "copia": True, "tem_subpastas": True}
+
+
+def _dentro_da_copia_do_drive(caminho: str) -> bool:
+    try:
+        raiz = estado.drive_online.raiz().resolve()
+        alvo = Path(caminho).resolve()
+    except (OSError, ValueError):
+        return False
+    return alvo == raiz or raiz in alvo.parents
 
 
 @app.post("/api/organizar/cancelar")

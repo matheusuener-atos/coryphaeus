@@ -212,3 +212,9 @@
   .bsc-pe { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--ink-a1); font-size: 12px; color: var(--ink3); }
   .bsc-pe kbd { margin-right: 3px; }
   .bsc-esc { flex: none; }
+
+  /* O bloco "Google Drive" da barra de pastas do Acervo (js/36 blocoDoDrive). */
+  .ac-drive-cabeca { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; padding: 0 10px; font: 600 11px/1.4 var(--sans);
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+  .ac-drive-cabeca > span { flex: 1; min-width: 0; }
+  .ac-drive-cabeca .sv-ligacao { text-transform: none; letter-spacing: 0; }

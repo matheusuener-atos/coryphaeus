@@ -195,7 +195,8 @@ function escolherPastaNossa(o) {
       dialogoAberto.fechar({ ok: true, pasta: ep.caminho, nome: nome });
     },
   });
-  navegarPastaNossa("");
+  if (opcoes.comecarNoDrive && ep.driveOnline) navegarDriveOnline([]);
+  else navegarPastaNossa("");
   return escolha.then((r) => (r && r.ok ? { pasta: r.pasta, nome: r.nome, drive: r.drive || null } : null));
 }
 
@@ -211,7 +212,8 @@ async function navegarPastaNossa(caminho) {
   // O Google Drive para computador vem com a marca, como no anexar.
   const pasta = (p, icone) => '<div class="anx-linha anx-pasta" data-ep-ir="' + esc(p.caminho) + '">' +
     (p.tipo === "drive" ? marca("google-drive", 17) : ic(icone, 17)) +
-    '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b></span>" + ic("chevron_right", 16) + "</div>";
+    '<span class="duas-linhas"><b class="corta">' + esc(p.nome) + "</b>" +
+    (p.copia ? '<small class="corta">as pastas do Drive copiadas para o Acervo</small>' : "") + "</span>" + ic("chevron_right", 16) + "</div>";
   let html = "";
   // O Google Drive aparece sempre no comeco: sem o Drive para computador,
   // a linha diz que falta e, clicada, explica como ter.
@@ -243,7 +245,11 @@ async function navegarPastaNossa(caminho) {
   }
   const online = lista.querySelector("[data-ep-drive-online]");
   if (online) online.onclick = () => navegarDriveOnline([]);
-  $("ep-onde").textContent = caminho ? "Salvar em " + caminho : "Escolha uma pasta";
+  // Na copia do Drive, salvar funciona - mas fica so aqui: a copia desce do
+  // Drive e nada sobe para ele.
+  $("ep-onde").textContent = !caminho ? "Escolha uma pasta"
+    : d.copia_do_drive && !ep.driveOnline ? "Salvar em " + caminho + " — é a cópia do Drive: o arquivo fica neste computador e não sobe para o Drive"
+    : "Salvar em " + caminho;
   const botao = document.querySelector('#veu-dialogo [data-dialogo="confirmar"]');
   if (botao) botao.disabled = !caminho;
 }

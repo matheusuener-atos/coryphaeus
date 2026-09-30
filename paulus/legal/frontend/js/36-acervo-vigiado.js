@@ -19,12 +19,57 @@ async function carregarVigiadas() {
     const r = await fetch("/api/acervo/pastas");
     if (r.ok) bib.vigiadas = await r.json();
   } catch (err) { /* fica o que havia */ }
+  await carregarCopiasDoDrive();
   return bib.vigiadas;
 }
 
-async function adicionarPastaAoAcervo() {
+/* As pastas do Google Drive copiadas para o Acervo (src/drive_online.py):
+   o atalho "Google Drive" da barra de pastas e da busca. */
+async function carregarCopiasDoDrive() {
+  try {
+    const r = await fetch("/api/google/drive/copias");
+    if (r.ok) bib.driveCopias = (await r.json()).pastas || [];
+  } catch (err) { /* fica o que havia */ }
+  return bib.driveCopias || [];
+}
+
+/* Ver no Acervo uma pasta do Drive, com as subpastas dela. */
+function verCopiaDoDrive(caminho) {
   marcarDestino("biblioteca");
-  const escolha = await escolherPastaNossa({ titulo: "Incluir pasta no Acervo", contexto: "Acervo", confirmar: "Vigiar esta pasta", driveOnline: true });
+  bib.pastaFiltro = caminho;
+  bib.pastaComSub = true;
+  bib.filtro = "todos";
+  if (document.querySelector("#centro .ae-tela")) buscarAcervo();
+  else mostrarBiblioteca();
+}
+
+function naCopiaDoDrive(x, raiz) {
+  const p = String(x.pasta || "");
+  return p === raiz || p.startsWith(raiz + "\\") || p.startsWith(raiz + "/");
+}
+
+/* O bloco "Google Drive" da barra de pastas: cada pasta copiada (com as
+   subpastas), e trazer outra. `linha(attr, on, rotulo, n)` e o desenho da
+   linha de quem chama. */
+function blocoDoDrive(linha) {
+  const copias = bib.driveCopias || [];
+  // De fora, trazer pasta do Drive e ver as copias sao do computador do escritorio.
+  if (typeof acessoDeFora !== "undefined" && !acessoDeFora.local) return "";
+  const cabeca = '<div class="ac-drive-cabeca">' + marca("google-drive", 14) + "<span>Google Drive</span>" +
+    '<button type="button" class="sv-ligacao" data-ac-drive-trazer="1">' + ic("add", 15) + "trazer</button></div>";
+  if (!copias.length) return cabeca;
+  return cabeca + copias.map((c) => {
+    const n = (bib.todos || []).filter((x) => naCopiaDoDrive(x, c.caminho)).length;
+    return linha('data-ac-drive="' + esc(c.caminho) + '" title="' + esc(c.nome + " — cópia do Google Drive, com as subpastas") + '"',
+      bib.pastaComSub && bib.pastaFiltro === c.caminho, c.nome, n);
+  }).join("");
+}
+
+async function adicionarPastaAoAcervo(o) {
+  marcarDestino("biblioteca");
+  const noDrive = Boolean(o && o.drive);
+  const escolha = await escolherPastaNossa({ titulo: noDrive ? "Trazer pasta do Google Drive" : "Incluir pasta no Acervo", contexto: "Acervo",
+    confirmar: "Vigiar esta pasta", driveOnline: true, comecarNoDrive: noDrive });
   if (escolha && escolha.drive) { await copiarDoDrive(escolha.drive); return; }
   if (!escolha || !escolha.pasta) return;
   const r = await fetch("/api/acervo/pastas", {

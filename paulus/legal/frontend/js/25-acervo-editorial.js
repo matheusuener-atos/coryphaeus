@@ -173,11 +173,19 @@ function corpoDoIndice() {
   }).join("");
 }
 
+/* O nome da pasta filtrada; a copia do Drive diz de onde veio. */
+function tituloDaPastaFiltrada() {
+  const c = bib.pastaComSub && (bib.driveCopias || []).find((x) => x.caminho === bib.pastaFiltro);
+  return c ? "Google Drive › " + c.nome : pastaCurta(bib.pastaFiltro);
+}
+
 /* -------------------------------------------------- B: o sumario */
 
 function sumarioDoAcervo() {
   return '<nav class="ae-sumario"><span class="sv-kicker">Sumário</span>' +
     '<button class="ae-sum-item' + (!bib.pastaFiltro ? " on" : "") + '" data-ac-filtro="todos"><span>Todo o acervo</span><i></i><small>' + bib.todos.length + "</small></button>" +
+    '<div class="ae-sum-grupo">' + blocoDoDrive((attr, on, rotulo, n) => '<button class="ae-sum-item' + (on ? " on" : "") + '" ' + attr + "><span>" +
+      esc(rotulo) + "</span><i></i><small>" + n + "</small></button>") + "</div>" +
     raizesDoAcervo().map((r) => '<div class="ae-sum-grupo">' + cabecaDaRaiz(r, "ae-sum-raiz-linha") +
       r.pastas.map((p) => '<button class="ae-sum-item' + (bib.pastaFiltro === p.pasta ? " on" : "") + '" data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"><span>' +
         esc(p.folha || r.nome) + "</span><i></i><small>" + p.n + "</small></button>").join("") + "</div>").join("") +
@@ -202,7 +210,7 @@ function verbete(x) {
 }
 
 function corpoDoSumario() {
-  const titulo = bib.pastaFiltro ? pastaCurta(bib.pastaFiltro) : ({ fixados: "Fixados", "sem-analise": "Sem análise", recentes: "Recentes" }[bib.filtro] || "Todo o acervo");
+  const titulo = bib.pastaFiltro ? tituloDaPastaFiltrada() : ({ fixados: "Fixados", "sem-analise": "Sem análise", recentes: "Recentes" }[bib.filtro] || "Todo o acervo");
   const lista = bib.documentos.length ? bib.documentos.map(verbete).join("")
     : '<div class="sv-vazio"><h3>' + (bib.termo ? "Nada com “" + esc(bib.termo) + "”" : "Nada aqui") + "</h3><p>" +
       (bib.termo ? "Procurei no nome, na pasta e no texto dos documentos." : "Nenhum documento nesta pasta ou filtro.") + "</p></div>";
@@ -233,6 +241,7 @@ function sumarioDoMisto() {
   const linha = (attr, on, rotulo, n, sem, recuo) => '<button type="button" class="am-pasta' + (on ? " on" : "") + (recuo ? " recuo" : "") + '" ' + attr + ">" +
     '<span class="corta">' + esc(rotulo) + "</span>" + (sem ? '<i title="' + sem + ' a ler"></i>' : "") + "<small>" + n + "</small></button>";
   let html = linha('data-ac-filtro="todos"', !bib.pastaFiltro, "Todo o acervo", bib.todos.length, 0, false);
+  html += blocoDoDrive((attr, on, rotulo, n) => linha(attr, on, rotulo, n, 0, true));
   raizesDoAcervo().forEach((r) => {
     html += cabecaDaRaiz(r);
     r.pastas.forEach((p) => { html += linha('data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"', bib.pastaFiltro === p.pasta, p.folha || r.nome, p.n, p.sem, true); });
@@ -244,7 +253,7 @@ function sumarioDoMisto() {
 function corpoDoMisto() {
   const grupos = new Map();
   bib.documentos.forEach((x) => { const k = x.pasta_curta || x.pasta; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(x); });
-  const titulo = bib.pastaFiltro ? pastaCurta(bib.pastaFiltro) : ({ fixados: "Fixados", "sem-analise": "Sem análise", recentes: "Recentes" }[bib.filtro] || "Todo o acervo");
+  const titulo = bib.pastaFiltro ? tituloDaPastaFiltrada() : ({ fixados: "Fixados", "sem-analise": "Sem análise", recentes: "Recentes" }[bib.filtro] || "Todo o acervo");
   const secoes = grupos.size ? [...grupos].map(([pasta, docs]) => {
     const sem = docs.filter((x) => (x.analise || {}).estado !== "analisado").length;
     const [raiz, ...resto] = pasta.split(" › ");

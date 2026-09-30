@@ -191,7 +191,8 @@ function semDriveHtml() {
   return '<div class="anx-sem-drive">' + marca("google-drive", 28) +
     "<p><b>O Google Drive para computador não está nesta máquina.</b></p>" +
     "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher — sem dar ao PAULUS nenhuma permissão a mais na sua conta Google.</p>" +
-    "<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p></div>";
+    "<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p>" +
+    "<p>Ou traga pastas do Drive pela internet, sem instalar nada: <b>Acervo › Incluir pasta › Google Drive</b>. Elas viram uma cópia no Acervo e aparecem aqui.</p></div>";
 }
 
 /* Entrar numa pasta: no computador ou no Drive, cada visao guarda onde estava. */

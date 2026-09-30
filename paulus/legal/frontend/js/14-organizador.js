@@ -189,19 +189,19 @@ function noDaArvore(e, nivel) {
   const k = chaveDe(e.caminho);
   const pode = e.tem_subpastas !== false;
   const aberto = pode && arv.abertos.has(k);
-  const marca = marcaDaPasta(e.caminho);
+  const marcaP = marcaDaPasta(e.caminho);
   const icone = e.tipo === "unidade" ? "desktop_windows" : (e.tipo === "acervo" ? "inventory_2" : (aberto ? "folder_open" : "folder"));
-  const marcada = marca === "on" || marca === "herdada";
+  const marcada = marcaP === "on" || marcaP === "herdada";
   let html = '<div class="nav-item arv-no' + (marcada ? " marcada" : "") + '" data-no="' + esc(e.caminho) + '" data-pode="' + (pode ? 1 : 0) +
     '" style="--nivel:' + nivel + '">' +
     (pode
       ? '<button class="arv-seta" aria-expanded="' + aberto + '" aria-label="' + (aberto ? "Fechar" : "Abrir") + " a pasta\">" +
         ic("expand_more", 16) + "</button>"
       : '<span class="arv-seta"></span>') +
-    '<span class="marcar' + (marca ? " on " + marca : "") + '" data-marcar-pasta="1" role="checkbox" aria-checked="' +
-    (marca === "parcial" ? "mixed" : String(marcada)) + '"' + (marca === "herdada" ? ' title="Já entra pela pasta de cima"' : "") + ">" +
-    ic(marca === "parcial" ? "remove" : "check", 12) + "</span>" +
-    ic(icone, 16) + '<span class="corta">' + esc(e.nome) + "</span>" +
+    '<span class="marcar' + (marcaP ? " on " + marcaP : "") + '" data-marcar-pasta="1" role="checkbox" aria-checked="' +
+    (marcaP === "parcial" ? "mixed" : String(marcada)) + '"' + (marcaP === "herdada" ? ' title="Já entra pela pasta de cima"' : "") + ">" +
+    ic(marcaP === "parcial" ? "remove" : "check", 12) + "</span>" +
+    (e.tipo === "drive" ? marca("google-drive", 16) : ic(icone, 16)) + '<span class="corta">' + esc(e.nome) + "</span>" +
     (e.cam ? '<span class="cam">' + esc(e.cam) + "</span>" : "") + "</div>";
   if (aberto) {
     const f = arv.filhos.get(k);

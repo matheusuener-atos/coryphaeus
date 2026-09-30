@@ -51,6 +51,8 @@ function abrirTela(nome, opcoes) {
 */
 
 const bib = {
+  // O atalho "Google Drive": as copias do Drive (js/36) e o filtro que inclui as subpastas.
+  driveCopias: [], pastaComSub: false,
   documentos: [], todos: [], termo: "", filtro: "todos", ordem: "modificacao",
   escolhidos: new Set(), limite: 60, contas: null, pasta: "", pastaFiltro: "",
   aberto: null, visao: "documentos", largo: false, sugestoes: null,
@@ -160,7 +162,10 @@ async function buscarAcervo() {
     return;
   }
 
-  bib.documentos = bib.pastaFiltro ? d.documentos.filter((x) => x.pasta === bib.pastaFiltro) : d.documentos;
+  // A pasta do Drive (atalho "Google Drive") vem com as subpastas; as outras, so ela.
+  bib.documentos = !bib.pastaFiltro ? d.documentos
+    : bib.pastaComSub ? d.documentos.filter((x) => naCopiaDoDrive(x, bib.pastaFiltro))
+    : d.documentos.filter((x) => x.pasta === bib.pastaFiltro);
   bib.contas = d;
   bib.pasta = d.pasta;
 
@@ -379,10 +384,18 @@ function ligarBiblioteca() {
   if (mais) mais.onclick = () => { bib.limite += 60; buscarAcervo(); };
 
   centro.querySelectorAll("[data-ac-filtro]").forEach((b) => {
-    b.onclick = () => { bib.filtro = b.dataset.acFiltro; bib.pastaFiltro = ""; bib.limite = 60; buscarAcervo(); };
+    b.onclick = () => { bib.filtro = b.dataset.acFiltro; bib.pastaFiltro = ""; bib.pastaComSub = false; bib.limite = 60; buscarAcervo(); };
   });
+  centro.querySelectorAll("[data-ac-drive]").forEach((b) => {
+    b.onclick = () => {
+      if (bib.pastaComSub && bib.pastaFiltro === b.dataset.acDrive) { bib.pastaFiltro = ""; bib.pastaComSub = false; buscarAcervo(); return; }
+      verCopiaDoDrive(b.dataset.acDrive);
+    };
+  });
+  centro.querySelectorAll("[data-ac-drive-trazer]").forEach((b) => { b.onclick = () => adicionarPastaAoAcervo({ drive: true }); });
   centro.querySelectorAll("[data-ac-pasta]").forEach((b) => {
     b.onclick = () => {
+      bib.pastaComSub = false;
       bib.pastaFiltro = bib.pastaFiltro === b.dataset.acPasta ? "" : b.dataset.acPasta;
       bib.filtro = "todos";
       buscarAcervo();

@@ -235,6 +235,13 @@ def test_rotas() -> None:
             break
         time.sleep(0.1)
     checar((api.estado.pasta / "Google Drive" / "Clientes" / "contrato.pdf").is_file(), "e a primeira descida comeca ja")
+    topo = local.get("/api/pastas").json()
+    atalho = next((a for a in topo["atalhos"] if a.get("copia")), None)
+    checar(atalho and atalho["tipo"] == "drive" and atalho["caminho"] in topo["drive"],
+           "o atalho “Google Drive” das copias entra em todo seletor de pastas", topo.get("atalhos"))
+    dentro = local.get("/api/pastas", params={"caminho": atalho["caminho"] + "\\Clientes"}).json() if atalho else {}
+    checar(dentro.get("copia_do_drive") is True and local.get("/api/pastas", params={"caminho": str(TMP)}).json().get("copia_do_drive") is False,
+           "o seletor sabe quando esta dentro da copia (salvar ali nao sobe ao Drive)")
     g = local.get("/api/google").json()
     checar(g["drive_online"]["pastas"][0]["arquivos"] == 1, "Conexoes mostra as copias", g.get("drive_online"))
     checar(local.post("/api/google/drive/copias", json={"id": "compartilhados", "nome": "x"}).status_code == 400,

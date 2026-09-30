@@ -43,9 +43,17 @@ function acoesBsc() {
       sinonimos: "convite colaborador acesso", fazer: () => (typeof convidarDaEquipe === "function" ? convidarDaEquipe() : abrirDestino("cadastros")) },
     { titulo: "Perguntar ao PAULUS no Explorer", caminho: "Configurações › Aparência e avisos", icone: "folder_open", local: true,
       sinonimos: "botao direito windows explorer menu", fazer: () => mostrarConfig("aparencia") },
+    { titulo: "Trazer pasta do Google Drive", caminho: "Acervo › Incluir pasta", marca: "google-drive", local: true,
+      descricao: "uma cópia no Acervo, conferida a cada 15 minutos", sinonimos: "drive google nuvem pasta sincronizar copiar",
+      fazer: () => adicionarPastaAoAcervo({ drive: true }) },
     { titulo: "Alternar tema claro/escuro", caminho: "Aparência", icone: "dark_mode", sinonimos: "tema escuro claro", fazer: () => alternarTema() },
     { titulo: "Sair", caminho: "Servidor", icone: "logout", local: true, sinonimos: "travar bloquear sair conta", fazer: () => sairDoServidor() },
   ];
+  // Cada pasta do Drive copiada para o Acervo: um atalho para ela.
+  (typeof bib !== "undefined" ? bib.driveCopias || [] : []).forEach((c) => {
+    a.push({ titulo: c.nome, caminho: "Acervo › Google Drive", marca: "google-drive", descricao: plural(c.arquivos || 0, "documento") + ", com as subpastas",
+      sinonimos: "drive google nuvem pasta", fazer: () => verCopiaDoDrive(c.caminho) });
+  });
   return a.filter((x) => !x.local || localBsc()).map((x) => Object.assign({ grupo: "Ações" }, x));
 }
 
@@ -96,6 +104,7 @@ function abrirBusca() {
   bsc.aberta = true;
   bsc.sel = 0;
   bsc.dados = [];
+  if (typeof carregarCopiasDoDrive === "function" && localBsc()) carregarCopiasDoDrive();
   const veu = document.createElement("div");
   veu.className = "bsc-veu";
   veu.id = "bsc-veu";
@@ -164,7 +173,7 @@ function desenharBusca(soSelecao) {
   let grupo = "";
   lista.innerHTML = bsc.itens.map((x, i) => {
     const cabeca = x.grupo !== grupo ? '<div class="bsc-grupo">' + esc((grupo = x.grupo) === "Ações" && !palavras.length ? "Ações rápidas" : x.grupo) + "</div>" : "";
-    return cabeca + '<button type="button" class="bsc-item' + (i === bsc.sel ? " sel" : "") + '" data-bsc="' + i + '">' + ic(x.icone || "arrow_forward", 18) +
+    return cabeca + '<button type="button" class="bsc-item' + (i === bsc.sel ? " sel" : "") + '" data-bsc="' + i + '">' + (x.marca ? marca(x.marca, 18) : ic(x.icone || "arrow_forward", 18)) +
       '<span class="bsc-texto"><b>' + (x.caminho ? esc(x.caminho) + " › " : "") + esc(x.titulo) + "</b>" +
       (x.descricao ? '<span class="bsc-desc"> — ' + esc(x.descricao) + "</span>" : "") + "</span>" +
       (i === bsc.sel ? ic("arrow_forward", 16) : "") + "</button>";
