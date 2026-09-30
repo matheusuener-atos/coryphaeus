@@ -2282,3 +2282,20 @@ Edge); dez exemplos no PROGRESSO-CONVERSA.
 - A resposta guarda agente, versão e como foi escolhido (assinatura e painel).
 
 **Medido:** `tests/test_a2_agente_na_conversa.py` passa inteiro.
+
+## T2 — Carrossel de avisos, Central de avisos e histórico ✓ FEITA
+
+- `src/central_avisos.py` junta os avisos do dia (prazo, compromisso, data de
+  documento, a pagar e a receber, publicação do DJEN, tarefa, aprovação,
+  conversa pela metade, lembrete do Vigia) sem mudar a regra de nenhuma fonte,
+  com id estável pela origem e pela data, sem duplicado, na ordem atrasado →
+  hoje → amanhã → esta semana.
+- Tabela `avisos_vistos` (migração 026): visto por pessoa, com hora, de onde e
+  a cópia do que o aviso dizia. Visto não conclui nada; prazo visto volta no
+  dia do vencimento.
+- Carrossel na tela inicial (arrasto, setas, teclado, o círculo das tarefas;
+  lista no celular) e a Central de avisos com Hoje, Todos e Histórico. O Vigia
+  usa os mesmos ids.
+- Chave `conversa.avisos`, ligada de fábrica.
+
+**Medido:** `tests/test_t2_avisos.py` 83 ok.

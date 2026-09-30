@@ -12,7 +12,7 @@ que não estiver `feita`.
 | C3 | Painel "Sobre esta resposta", barra de escopo, estado por conversa | feita | ver git log (c3) | ver fontes = daquela resposta; ≤ 1 contagem por resposta; rascunho e escopo por conversa; 390 px fechado; sem Progresso no fim |
 | C4 | Roteamento: programa e cadastros | pendente | — | — |
 | T1 | A saudação que não se repete | feita | ver git log (t1) | 130 títulos e 82 subtítulos; 30 aberturas sem repetir entre as 20 últimas; prazo hoje vence o dia; feriados e recesso; 0 buraco sem nome; 0,2 ms |
-| T2 | Carrossel de avisos, Central de avisos e histórico | pendente | — | — |
+| T2 | Carrossel de avisos, Central de avisos e histórico | feita | f5a425e | 83 ok no portão: ordem, sem duplicado, visto por pessoa e de onde, volta no dia, 390 px, sem cor de erro |
 | C5 | As outras superfícies de IA | pendente | — | — |
 | C6 | Cerca em todo texto de terceiros | pendente | — | — |
 | A1 | Formato de agente: carregar, validar, versionar | feita | 98b228f | 67/67 no portão; permissões 58/58 |
@@ -148,6 +148,41 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## T2 — o que foi medido e decidido
+
+Feita por um agente num worktree à parte (`C:\coryphaeus-t2`), com o contrato
+inteiro, e juntada aqui.
+
+- `src/central_avisos.py` junta prazo processual (lista "Prazos" ou tarefa
+  tirada do DJEN), compromisso (hoje e amanhã), data de documento do Acervo, a
+  pagar e a receber (até 7 dias ou atrasado), publicação nova do DJEN, tarefa
+  do dia ou atrasada, aprovação esperando, conversa pela metade e lembrete do
+  Vigia vencido, sem mudar a regra de nenhuma fonte.
+- Ids pela origem e pela data (`prazo:<id>:<data>`, com `:antes` antes do dia:
+  o "em 3 dias" visto não esconde o "vence hoje"). Atrasado e "no dia" têm o
+  mesmo id: o atrasado visto não volta todo dia. O mesmo prazo na Agenda e em
+  Tarefas é um aviso só.
+- Tabela `avisos_vistos` (migração 026): pessoa (`local`/`conta:<id>`), hora,
+  de onde, cópia do título e do "quando". O titular vê os vistos de todos no
+  histórico e só desmarca os próprios.
+- Rotas em `/api/central-avisos/…` (`/api/avisos` já era dos avisos do
+  Windows), PERMITIDO de fora; o que cada pessoa recebe segue a política da
+  rota de origem, e a ação direta do colaborador vira proposta em Aprovações.
+- Ações diretas ("Concluir tarefa", "Marcar como pago/recebido") sempre
+  perguntam antes, com o diálogo do sistema — as telas de origem não pedem.
+- O Vigia usa os mesmos ids e não notifica o que já foi visto na janela local.
+  **Ficou de fora:** clicar na notificação do Windows marcar a Central.
+- **Ficou de fora:** "documento que não deu para ler" — o Acervo não guarda
+  registro disso.
+- Chave `conversa.avisos`, **ligada de fábrica**.
+
+**Medido:** `tests/test_t2_avisos.py` 83 ok (os nove tipos na ordem, o prazo
+duplicado uma vez só, marcar e desmarcar com pessoa e hora, o "vence amanhã"
+visto ontem volta como "vence hoje", duas contas separadas e o titular vendo
+as duas, "remoto" pelo acesso de fora, o Vigia com o mesmo id; no Edge: ordem,
+nenhuma cor de erro, setas, End e arrasto, a Central com as três abas, lista
+em 390 px com círculo de 44 px, carrossel sumindo sem avisos).
 
 ## A2 — o que foi medido e decidido
 

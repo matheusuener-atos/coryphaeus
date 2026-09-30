@@ -33,6 +33,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from central_avisos import id_compromisso_do_dia, id_rotina
+
 # O identificador dos avisos, separado do da janela (Coryphaeus.PaulusLegal,
 # em desktop.py). O Windows guarda nome e icone de cada identificador na
 # primeira notificacao e nao rele quando o registro muda: o primeiro icone,
@@ -262,10 +264,25 @@ class Vigia:
         self.avisados: dict[int, datetime] = {}
         self.ciclo_avisado: tuple | None = None
         self.alerta_em: datetime | None = None
+        # A Central de avisos (src/central_avisos.py, T2) pendura aqui quem
+        # sabe se a janela local ja marcou um aviso como visto: a notificacao
+        # e o cartao sao o mesmo aviso, com o mesmo id, e o visto nao volta
+        # como notificacao. Sem a central (ou com a chave desligada), None.
+        self.visto = None
+        # Os ids da central de cada aviso mandado nesta volta (os testes leem).
+        self.ids_avisados: list[str] = []
         self._parar = threading.Event()
 
     def ligado(self) -> bool:
         return bool(self.prefs.dados.get("avisos_windows", True)) and disponivel()
+
+    def _ja_visto(self, aviso_id: str) -> bool:
+        if not self.visto:
+            return False
+        try:
+            return bool(self.visto(aviso_id))
+        except Exception:  # noqa: BLE001 - sem saber, avisa: perder um aviso e pior que repetir
+            return False
 
     def comecar(self) -> None:
         # PAULUS_SEM_AVISOS=1: um segundo servidor (teste, porta extra) nao
@@ -289,6 +306,7 @@ class Vigia:
         """Uma volta. Devolve os titulos avisados - os testes leem isso."""
         agora = agora or datetime.now()
         feitos: list[str] = []
+        self.ids_avisados = []
         no_horario = _no_horario(self.prefs.dados.get("disponibilidade"), agora)
 
         if self.agenda is not None and tipo_ligado(self.prefs.dados, "agenda"):
@@ -315,14 +333,24 @@ class Vigia:
                 if not l.get("ligado") or l.get("cumprido"):
                     continue
                 marcos = [self.desde, self.avisados.get(l["id"])]
+                feito_em = None
                 if l.get("ultima_vez"):
                     try:
-                        marcos.append(datetime.fromisoformat(l["ultima_vez"]))
+                        feito_em = datetime.fromisoformat(l["ultima_vez"])
+                        marcos.append(feito_em)
                     except ValueError:
                         pass
                 ultimo = max(m for m in marcos if m)
-                if agora - ultimo >= timedelta(minutes=int(l.get("cada_min") or 60)):
+                intervalo = timedelta(minutes=int(l.get("cada_min") or 60))
+                if agora - ultimo >= intervalo:
+                    # O id e o da vez que venceu (feito + intervalo), o mesmo
+                    # do cartao: visto, o Vigia para de insistir ate a pessoa
+                    # fazer de novo - e ai vence outra vez, com outro id.
+                    aviso_id = id_rotina(l["id"], (feito_em or ultimo) + intervalo)
+                    if self._ja_visto(aviso_id):
+                        continue
                     self.avisados[l["id"]] = agora
+                    self.ids_avisados.append(aviso_id)
                     texto = f"a cada {int(l['cada_min'])} min" + (f" · {l['meta_texto']}" if l.get("meta_dia") else "")
                     notificar(l["titulo"], texto)
                     feitos.append(l["titulo"])
@@ -350,10 +378,14 @@ class Vigia:
             except ValueError:
                 continue
             antes = timedelta(minutes=int(c.get("avisar_min") or 0)) or ANTECEDENCIA_DA_AGENDA
-            chave = (c.get("id"), hoje, hora)
+            aviso_id = id_compromisso_do_dia(c.get("id"), hoje)
+            chave = (aviso_id, hora)
             if chave in self.compromissos_avisados or not (agora <= comeca <= agora + antes):
                 continue
+            if self._ja_visto(aviso_id):
+                continue
             self.compromissos_avisados.add(chave)
+            self.ids_avisados.append(aviso_id)
             minutos = round((comeca - agora).total_seconds() / 60)
             onde = c.get("onde_rotulo") or ""
             texto = f"às {hora}" + (f", em {minutos} min" if minutos else ", agora") + (f" · {onde}" if onde else "")

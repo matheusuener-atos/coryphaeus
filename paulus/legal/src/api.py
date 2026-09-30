@@ -107,6 +107,7 @@ import saudacao as saudacao_mod
 import agente_na_conversa as agente_mod
 import detalhes as detalhes_mod
 import rotas_agentes
+import rotas_avisos
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -913,8 +914,10 @@ rotas_execucoes.montar(estado, app)
 rotas_conversa.montar(estado, app)
 saudacao_mod.montar(estado, app, rotas_do_acesso.pessoa)
 agente_mod.montar(estado, app)
-# Os agentes do escritorio (A1): os arquivos e as rotas; nenhum entra na conversa ainda.
+# Os agentes do escritorio (A1): os arquivos e as rotas (a A2 os poe na conversa).
 rotas_agentes.montar(estado, app, DADOS_DIR / "agentes", contexto=lambda tarefa: _contexto(tarefa=tarefa))
+# A Central de avisos (T2): o carrossel da tela inicial e o historico do visto.
+rotas_avisos.montar(estado, app, lambda: _documentos_com_data())
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

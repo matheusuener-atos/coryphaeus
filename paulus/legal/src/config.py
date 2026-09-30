@@ -215,7 +215,10 @@ PADRAO: dict = {
     "conversa": {"execucao": True, "pensando": True, "painel": True, "diagnostico": False, "saudacao": True,
                  # `agentes` (A1): o AGENTE.md de cada especialista do escritorio,
                  # validado e versionado (src/agentes.py). Escrever e do titular.
-                 "agentes": True},
+                 "agentes": True,
+                 # `avisos` (T2): o carrossel dos avisos do dia na tela inicial, a
+                 # Central de avisos e o historico do visto (src/central_avisos.py).
+                 "avisos": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

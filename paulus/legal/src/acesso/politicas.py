@@ -370,6 +370,15 @@ _declarar(PERMITIDO, "GET /api/agentes", "GET /api/agentes/{slug}", "GET /api/ag
 _declarar(TITULAR, "POST /api/agentes", "PUT /api/agentes/{slug}", "POST /api/agentes/{slug}/ativar",
           "POST /api/agentes/{slug}/desativar", "POST /api/agentes/importar")
 
+# --- T2: a Central de avisos (src/rotas_avisos.py). Ver e marcar como visto
+# e de cada pessoa e nao mexe em nada do escritorio: permitido de fora. O que
+# cada um recebe segue a rota de origem (quem nao ve o Financeiro nao recebe
+# aviso de conta), e a acao direta chama a rota da tela de origem, com a
+# politica dela.
+_declarar(PERMITIDO, "GET /api/central-avisos/hoje", "GET /api/central-avisos",
+          "POST /api/central-avisos/visto",
+          "POST /api/central-avisos/desmarcar", "GET /api/central-avisos/historico")
+
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:
     """A politica remota de uma rota; sem declaracao, bloqueada."""
