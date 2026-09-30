@@ -43,9 +43,13 @@ function vistaPublicacoes() {
     return '<div class="pub-item' + (p.lida ? " lida" : "") + '">' +
       '<button class="pub-cabeca" data-pub-abrir="' + p.id + '"><span class="duas-linhas"><b>' + esc(p.tipo || "Comunicação") + " · " + esc(p.processo || "sem número") + "</b>" +
       "<small>" + esc([p.tribunal, p.orgao, "disponibilizado em " + dataBr(p.data)].filter(Boolean).join(" · ")) + "</small></span>" +
-      (p.tarefa_id ? '<span class="etiqueta ok">prazo criado</span>' : "") + (aberta ? ic("expand_more", 18).replace('class="ic', 'class="ic pub-seta-aberta') : ic("expand_more", 18)) + "</button>" +
+      (p.tarefa_id ? '<span class="etiqueta ok">prazo criado</span>' : (p.pedido_id ? '<span class="etiqueta">prazo em Aprovações</span>' : "")) + (aberta ? ic("expand_more", 18).replace('class="ic', 'class="ic pub-seta-aberta') : ic("expand_more", 18)) + "</button>" +
       (aberta ? '<div class="pub-corpo"><p class="pub-texto">' + esc(p.texto || "").replace(/\n/g, "<br>") + "</p>" +
-        '<div class="cfg-botoes">' + (p.tarefa_id ? "" : '<button class="primario com-icone" data-pub-prazo="' + p.id + '">' + ic("event", 16) + "Criar prazo</button>") +
+        (p.processo_id ? '<p class="cfg-explica">Processo cadastrado em Serviços › Processos: esta publicação entra no aviso dele' +
+          (p.pedido_id && !p.tarefa_id ? ", e o prazo já espera em Aprovações." : ".") + "</p>" : "") +
+        '<div class="cfg-botoes">' + (p.tarefa_id || p.pedido_id ? "" : '<button class="primario com-icone" data-pub-prazo="' + p.id + '">' + ic("event", 16) + "Criar prazo</button>") +
+        (p.processo_id ? '<button data-pub-processo="' + p.processo_id + '">' + ic("gavel", 16) + "Abrir o processo</button>"
+          : (p.processo ? '<button data-pub-acompanhar="' + p.id + '">' + ic("add", 16) + "Acompanhar este processo</button>" : "")) +
         '<button data-pub-lida="' + p.id + '" data-pub-valor="' + (p.lida ? "0" : "1") + '">' + (p.lida ? "Marcar como nova" : "Marcar como lida") + "</button></div></div>" : "") +
       "</div>";
   }).join("") : '<div class="ag-vazio"><h4>' + (pub.filtro === "novas" ? "Nenhuma publicação nova" : "Nada aqui") + "</h4><p>" +
@@ -114,6 +118,17 @@ function ligarPublicacoes(raiz) {
       const d = await pubPost("/api/publicacoes/" + p.id + "/prazo", { dias: Number(r.valores.dias) || 15, uteis: r.valores.uteis !== "0", titulo: r.valores.titulo || "",
         recesso: !(s && s.ramo === "penal"), ato: mesmo ? s.ato : "", base: mesmo ? s.base : "" });
       avisoCert("prazo criado: vence em " + dataBr(d.conta.vencimento), { tom: "ok" });
+      await carregarPublicacoes();
+    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    redesenhar();
+  });
+  clique("[data-pub-processo]", (b) => { if (typeof abrirProcesso === "function") abrirProcesso(Number(b.dataset.pubProcesso), () => carregarPublicacoes().then(redesenhar)); });
+  clique("[data-pub-acompanhar]", async (b) => {
+    const p = ((pub.dados || {}).publicacoes || []).find((x) => String(x.id) === b.dataset.pubAcompanhar);
+    if (!p) return;
+    try {
+      await pubPost("/api/processos", { numero: p.processo });
+      avisoCert("Processo " + p.processo + " cadastrado e acompanhado: as publicações dele entram no aviso do processo.", { tom: "ok" });
       await carregarPublicacoes();
     } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     redesenhar();

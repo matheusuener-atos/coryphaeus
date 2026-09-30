@@ -21,6 +21,12 @@ Acompanhamento de processos pelo DataJud (docs/PLANO-PILOTO.md, L2).
   data do DataJud é a do registro do movimento, e a contagem certa depende
   da ciência - a anotação da tarefa diz isso. O sim cria a tarefa na lista
   "Prazos", com a opção que a pessoa escolheu.
+- **O DJEN junto** (N2): a publicação do Diário com o número de um processo
+  cadastrado fica ligada a ele. Um aviso por processo (as movimentações e as
+  publicações dele juntas) e um pedido de prazo por intimação: a publicação
+  é a intimação oficial, então o pedido sai dela (pela disponibilização e
+  pelo texto inteiro); a movimentação do DataJud da mesma intimação, dias
+  depois, não pede de novo.
 """
 
 from __future__ import annotations
@@ -36,6 +42,11 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
 DIAS_SUGERIDOS = 15
+# A publicação no DJEN e o registro dela no DataJud: até 5 dias antes (o
+# tribunal registra depois) e 1 depois.
+JANELA_ANTES, JANELA_DEPOIS = 5, 1
+# Publicação antiga de um processo recém-cadastrado não vira pedido.
+PUBLICACAO_RECENTE_DIAS = 30
 # Entre uma consulta e a próxima, na volta diária: o DataJud é público e lento.
 PAUSA_ENTRE_CONSULTAS_S = 3
 _trava = threading.Lock()
@@ -175,22 +186,36 @@ class Processos:
         return [dict(l, visto=bool(l["visto"])) for l in self.base.buscar(
             "SELECT * FROM movimentos WHERE processo_id = ? ORDER BY quando DESC, id DESC LIMIT ?", (int(id_), int(limite)))]
 
-    def marcar_vistos(self, id_: int) -> int:
-        return self.base.escrever("UPDATE movimentos SET visto = 1 WHERE processo_id = ? AND visto = 0", (int(id_),))
-
     def anteriores(self, id_: int, grau: str, quando: str, menos: int | None = None, limite: int = 25) -> list[dict]:
         """As movimentações do mesmo grau até `quando`, da mais nova para a mais antiga (sem a própria)."""
         return self.base.buscar(
             "SELECT * FROM movimentos WHERE processo_id = ? AND grau = ? AND quando <= ? AND id != ?"
             " ORDER BY quando DESC, id DESC LIMIT ?", (int(id_), grau, quando, int(menos or 0), int(limite)))
 
+    def marcar_vistos(self, id_: int) -> int:
+        """As movimentações novas ficam vistas, e as publicações do DJEN ligadas, lidas (N2)."""
+        n = self.base.escrever("UPDATE movimentos SET visto = 1 WHERE processo_id = ? AND visto = 0", (int(id_),))
+        return n + self.base.escrever("UPDATE publicacoes SET lida = 1 WHERE processo_id = ? AND lida = 0", (int(id_),))
+
     def nao_vistos(self) -> list[dict]:
+        """Os processos com movimentação nova ou publicação do DJEN não lida: um aviso para cada."""
         return self.base.buscar(
-            "SELECT p.id, p.numero_fmt, p.tribunal, p.servico_id, s.nome AS servico_nome, COUNT(m.id) AS novas,"
-            " MAX(m.quando) AS ultimo, (SELECT nome FROM movimentos x WHERE x.processo_id = p.id AND x.visto = 0"
-            " ORDER BY x.quando DESC LIMIT 1) AS ultimo_nome"
-            " FROM processos p JOIN movimentos m ON m.processo_id = p.id AND m.visto = 0"
-            " LEFT JOIN servicos s ON s.id = p.servico_id GROUP BY p.id")
+            "SELECT p.id, p.numero_fmt, p.tribunal, p.servico_id, s.nome AS servico_nome,"
+            " (SELECT COUNT(*) FROM movimentos m WHERE m.processo_id = p.id AND m.visto = 0) AS novas,"
+            " (SELECT COUNT(*) FROM publicacoes u WHERE u.processo_id = p.id AND u.lida = 0) AS publicacoes,"
+            " MAX(COALESCE((SELECT MAX(quando) FROM movimentos m WHERE m.processo_id = p.id AND m.visto = 0), ''),"
+            "     COALESCE((SELECT MAX(data) FROM publicacoes u WHERE u.processo_id = p.id AND u.lida = 0), '')) AS ultimo,"
+            " (SELECT nome FROM movimentos x WHERE x.processo_id = p.id AND x.visto = 0 ORDER BY x.quando DESC LIMIT 1) AS ultimo_nome,"
+            " (SELECT tipo FROM publicacoes y WHERE y.processo_id = p.id AND y.lida = 0 ORDER BY y.data DESC LIMIT 1) AS ultima_publicacao"
+            " FROM processos p LEFT JOIN servicos s ON s.id = p.servico_id"
+            " WHERE EXISTS (SELECT 1 FROM movimentos m WHERE m.processo_id = p.id AND m.visto = 0)"
+            "    OR EXISTS (SELECT 1 FROM publicacoes u WHERE u.processo_id = p.id AND u.lida = 0)")
+
+    def publicacoes(self, id_: int, limite: int = 30) -> list[dict]:
+        """As publicações do DJEN ligadas ao processo (N2), da mais nova para a mais antiga."""
+        return [dict(l, lida=bool(l["lida"])) for l in self.base.buscar(
+            "SELECT id, data, tipo, orgao, texto, lida, tarefa_id, pedido_id FROM publicacoes WHERE processo_id = ?"
+            " ORDER BY data DESC, id DESC LIMIT ?", (int(id_), int(limite)))]
 
     # ------------------------------------------------------------ achar
     def _servico_da_pasta(self, caminho: str):
@@ -264,6 +289,104 @@ class Processos:
         return {"novos": novos, "primeira": primeira, "graus": len(graus)}
 
 
+# ------------------------------------------------------------ o DJEN junto (N2)
+
+def _pedido_perto(estado, processo_id: int, dia: str):
+    """O pedido de prazo ainda pendente do mesmo processo, para a mesma intimação (a janela de dias)."""
+    try:
+        d0 = date.fromisoformat(dia[:10])
+    except ValueError:
+        return None
+    for pedido in getattr(estado.fila, "pendentes", []):
+        if pedido.acao != "processos.prazo" or pedido.dados.get("processo_id") != processo_id:
+            continue
+        try:
+            d1 = date.fromisoformat(str(pedido.dados.get("quando") or "")[:10])
+        except ValueError:
+            continue
+        if abs((d1 - d0).days) <= JANELA_ANTES:
+            return pedido
+    return None
+
+
+def publicacao_perto(base, processo_id: int, quando: str) -> dict | None:
+    """A publicação do DJEN do mesmo processo para a movimentação de `quando` (a mesma intimação)."""
+    try:
+        d = date.fromisoformat(str(quando)[:10])
+    except ValueError:
+        return None
+    de = date.fromordinal(d.toordinal() - JANELA_ANTES).isoformat()
+    ate = date.fromordinal(d.toordinal() + JANELA_DEPOIS).isoformat()
+    return base.um("SELECT * FROM publicacoes WHERE processo_id = ? AND data BETWEEN ? AND ? ORDER BY data DESC LIMIT 1",
+                   (int(processo_id), de, ate))
+
+
+def pedir_prazo_da_publicacao(estado, pub: dict, p: dict, extras=None):
+    """O pedido de prazo a partir da publicação do DJEN (pela disponibilização e pelo texto)."""
+    import tipo_de_ato
+
+    try:
+        dia = date.fromisoformat(str(pub.get("data") or "")[:10])
+    except ValueError:
+        return None
+    s = tipo_de_ato.do_texto(pub.get("texto") or "", tipo=pub.get("tipo") or "", classe=pub.get("classe") or p.get("classe") or "",
+                             orgao=pub.get("orgao") or p.get("orgao") or "", tribunal=pub.get("tribunal") or p.get("tribunal") or "",
+                             numero=p.get("numero") or "")
+    s = com_conta(s, dia, "disponibilizacao", extras)
+    if s["sem_prazo"] or getattr(estado, "fila", None) is None:
+        return None
+    pedido = estado.fila.pedir(
+        f"Prazo? {rotulo_prazo(s)} · processo {p['numero_fmt']}", "agenda",
+        acao="processos.prazo", pedido_por="Publicações do DJEN",
+        resumo=resumo_do_prazo(s), etiquetas=["DJEN", pub.get("tribunal") or p.get("tribunal") or ""], prazo=s["vencimento"],
+        dados={"processo_id": p["id"], "numero": p["numero_fmt"], "movimento": pub.get("tipo") or "Publicação",
+               "complemento": pub.get("orgao") or "", "quando": pub.get("data") or "", "fonte": "DJEN",
+               "publicacao_id": pub["id"], "vencimento": s["vencimento"], "passos": s["passos"], "dias": s["dias"],
+               "ato": s["ato"], "base": s["base"], "porque": s["porque"], "certeza": s["certeza"],
+               "opcoes": [dict(o, rotulo=rotulo_prazo(o) + " · vence em " + _dia_br(o["vencimento"])) for o in s["opcoes"]],
+               "lembrete": s["lembrete"], "servico": p.get("servico_nome") or ""})
+    estado.base.escrever("UPDATE publicacoes SET pedido_id = ? WHERE id = ?", (pedido.id, pub["id"]))
+    return pedido
+
+
+def ligar_publicacoes(estado, extras=None) -> dict:
+    """
+    Liga cada publicação do DJEN ao processo cadastrado com o mesmo número.
+    Nas de processo acompanhado, recentes e sem prazo ainda: junta ao pedido
+    que já espera a mesma intimação, ou pede o prazo a partir dela.
+    """
+    base = estado.base
+    procs = {l["numero"]: l for l in base.buscar("SELECT id, numero FROM processos")}
+    ligadas, pedidos, juntas = 0, 0, 0
+    for pub in base.buscar("SELECT id, processo FROM publicacoes WHERE processo_id IS NULL AND processo != ''"):
+        alvo = procs.get(re.sub(r"\D", "", str(pub["processo"] or "")))
+        if alvo:
+            base.escrever("UPDATE publicacoes SET processo_id = ? WHERE id = ?", (alvo["id"], pub["id"]))
+            ligadas += 1
+    limite = date.fromordinal(date.today().toordinal() - PUBLICACAO_RECENTE_DIAS).isoformat()
+    for pub in base.buscar("SELECT * FROM publicacoes WHERE processo_id IS NOT NULL AND lida = 0 AND tarefa_id IS NULL"
+                           " AND pedido_id = '' AND data >= ?", (limite,)):
+        p = estado.processos.obter(pub["processo_id"])
+        if not p or not p["acompanhar"]:
+            continue
+        ja = _pedido_perto(estado, p["id"], pub["data"])
+        if ja is not None:
+            base.escrever("UPDATE publicacoes SET pedido_id = ? WHERE id = ?", (ja.id, pub["id"]))
+            juntas += 1
+        elif pedir_prazo_da_publicacao(estado, pub, p, extras) is not None:
+            pedidos += 1
+    return {"ligadas": ligadas, "pedidos": pedidos, "juntas": juntas}
+
+
+def _extras(estado):
+    try:
+        import prazos
+
+        return prazos.extras_das_preferencias((estado.prefs.dados.get("prazos") or {}).get("feriados"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ------------------------------------------------------------ a volta diária
 
 def ligado(estado) -> bool:
@@ -279,14 +402,9 @@ def _consultar(numero: str) -> dict:
 def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S) -> dict:
     """Uma volta: consulta cada processo acompanhado, guarda o novo e propõe os prazos."""
     consultar = consultar or _consultar
-    feitos, novos, erros, propostos = 0, 0, 0, 0
-    extras = None
-    try:
-        import prazos
-
-        extras = prazos.extras_das_preferencias((estado.prefs.dados.get("prazos") or {}).get("feriados"))
-    except Exception:  # noqa: BLE001
-        extras = None
+    feitos, novos, erros, propostos, pelo_djen = 0, 0, 0, 0, 0
+    extras = _extras(estado)
+    ligar_publicacoes(estado, extras)
     for p in estado.processos.listar():
         if not p["acompanhar"]:
             continue
@@ -298,6 +416,16 @@ def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S) -> dic
             novos += 1
             ant = estado.processos.anteriores(p["id"], m.get("grau", ""), m.get("quando", ""), menos=m.get("id"))
             s = sugerir_prazo(m, extras, ant, p)
+            if s and not s["sem_prazo"]:
+                # A mesma intimação já veio pelo DJEN (N2): o pedido é o dela.
+                pub = publicacao_perto(estado.base, p["id"], m.get("quando", ""))
+                if pub is not None:
+                    pelo_djen += 1
+                    if not pub.get("tarefa_id") and not pub.get("pedido_id") and pedir_prazo_da_publicacao(estado, pub, p, extras):
+                        propostos += 1
+                    continue
+                if _pedido_perto(estado, p["id"], m.get("quando", "")) is not None:
+                    continue
             if s and not s["sem_prazo"] and getattr(estado, "fila", None) is not None:
                 estado.fila.pedir(
                     f"Prazo? {rotulo_prazo(s)} · processo {p['numero_fmt']}", "agenda",
@@ -313,7 +441,7 @@ def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S) -> dic
         if pausa:
             time.sleep(pausa)
     estado.prefs.dados.setdefault("processos", {})["ultima"] = date.today().isoformat()
-    return {"consultados": feitos, "novos": novos, "erros": erros, "prazos_propostos": propostos}
+    return {"consultados": feitos, "novos": novos, "erros": erros, "prazos_propostos": propostos, "pelo_djen": pelo_djen}
 
 
 def escolhida(dados: dict) -> dict | None:
@@ -334,15 +462,19 @@ def executar_prazo(estado, pedido) -> str:
     ato = (o or {}).get("ato") or d.get("ato") or d["movimento"]
     vencimento = (o or {}).get("vencimento") or d["vencimento"]
     passos = (o or {}).get("passos") or d.get("passos") or []
-    anotacao = (f"Processo {d['numero']}" + (f" · {d['servico']}" if d.get("servico") else "") +
-                f"\nMovimentação no DataJud em {d['quando']}: {d['movimento']}" +
+    origem = (f"\nPublicado no DJEN em {_dia_br(d['quando'])}: {d['movimento']}" if d.get("fonte") == "DJEN"
+              else f"\nMovimentação no DataJud em {d['quando']}: {d['movimento']}")
+    anotacao = (f"Processo {d['numero']}" + (f" · {d['servico']}" if d.get("servico") else "") + origem +
                 (f" ({d['complemento']})" if d.get("complemento") else "") +
                 (f"\n\n{ato} — {o['base']}" if o else "") +
                 (f"\nPor quê: {d['porque']}" if d.get("porque") else "") +
                 "\n\nConta sugerida (confira a data da ciência na intimação):\n" + "\n".join(passos) +
                 (f"\n\n{d['lembrete']}" if d.get("lembrete") else ""))
-    estado.tarefas.salvar({"titulo": f"Prazo: {ato} · {d['numero']}"[:200], "prazo": vencimento,
-                           "importante": True, "lista": "Prazos", "anotacao": anotacao})
+    tid = estado.tarefas.salvar({"titulo": f"Prazo: {ato} · {d['numero']}"[:200], "prazo": vencimento,
+                                 "importante": True, "lista": "Prazos", "anotacao": anotacao})
+    # A publicação da mesma intimação fica com a tarefa (e lida): um prazo só.
+    estado.base.escrever("UPDATE publicacoes SET tarefa_id = ?, lida = 1 WHERE pedido_id = ? OR id = ?",
+                         (tid, pedido.id, int(d.get("publicacao_id") or 0)))
     return f"prazo anotado em Tarefas › Prazos para {_dia_br(vencimento)}" + (f" ({ato})" if o else "")
 
 
@@ -405,18 +537,22 @@ def montar(estado, app) -> None:
     @app.get("/api/processos/{id_}")
     def processos_um(id_: int, request: Request = None) -> dict:
         p = _um(id_, request)
-        return {"processo": p, "movimentos": estado.processos.movimentos(id_)}
+        return {"processo": p, "movimentos": estado.processos.movimentos(id_), "publicacoes": estado.processos.publicacoes(id_)}
 
     @app.post("/api/processos")
     def processos_novo(payload: NovoProcesso) -> dict:
         try:
-            return estado.processos.adicionar(payload.numero, servico_id=payload.servico_id)
+            p = estado.processos.adicionar(payload.numero, servico_id=payload.servico_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
+        ligar_publicacoes(estado, _extras(estado))
+        return estado.processos.obter(p["id"])
 
     @app.post("/api/processos/descobrir")
     def processos_descobrir() -> dict:
-        return estado.processos.descobrir()
+        d = estado.processos.descobrir()
+        ligar_publicacoes(estado, _extras(estado))
+        return d
 
     @app.put("/api/processos/{id_}")
     def processos_mudar(id_: int, payload: MudarProcesso) -> dict:

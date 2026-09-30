@@ -785,6 +785,17 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "031_publicacao_do_processo",
+        """
+        -- A publicacao do DJEN ligada ao processo acompanhado (src/processos.py,
+        -- N2): um aviso por processo e um pedido de prazo por intimacao, com o
+        -- id do pedido que saiu dela (ou a que ele se juntou).
+        ALTER TABLE publicacoes ADD COLUMN processo_id INTEGER;
+        ALTER TABLE publicacoes ADD COLUMN pedido_id TEXT NOT NULL DEFAULT '';
+        CREATE INDEX IF NOT EXISTS idx_publicacoes_processo ON publicacoes(processo_id);
+        """,
+    ),
 ]
 
 

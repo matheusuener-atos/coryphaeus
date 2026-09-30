@@ -123,6 +123,12 @@ async function abrirProcesso(id, depois) {
     '<div class="pr-mov' + (m.visto ? "" : " nova") + '"><span class="pr-mov-quando">' + esc(quandoCurto(m.quando)) + "</span>" +
     '<span class="duas-linhas"><b>' + esc(m.nome) + (m.visto ? "" : ' <span class="pr-novas">nova</span>') + "</b>" +
     (m.complemento ? "<small>" + esc(m.complemento) + "</small>" : "") + "</span></div>").join("");
+  // N2: as publicações do DJEN deste processo, com o que houve com o prazo de cada uma.
+  const pubs = (d.publicacoes || []).map((u) =>
+    '<div class="pr-mov' + (u.lida ? "" : " nova") + '"><span class="pr-mov-quando">' + esc(dataBr(u.data)) + "</span>" +
+    '<span class="duas-linhas"><b>' + esc(u.tipo || "Publicação") + " no DJEN" + (u.lida ? "" : ' <span class="pr-novas">nova</span>') + "</b>" +
+    "<small>" + esc([u.orgao, u.tarefa_id ? "prazo anotado em Tarefas › Prazos" : (u.pedido_id ? "o prazo espera em Aprovações" : "")].filter(Boolean).join(" · ")) + "</small>" +
+    '<small class="pr-pub-texto">' + esc(String(u.texto || "").slice(0, 280)) + (String(u.texto || "").length > 280 ? "…" : "") + "</small></span></div>").join("");
   const local = acessoDeFora.local;
   let servicos = "";
   if (local) {
@@ -135,8 +141,10 @@ async function abrirProcesso(id, depois) {
     (local ? '<div class="ag-toggle' + (p.acompanhar ? " on" : "") + '" data-pr-acompanhar="1"><span class="duas-linhas"><b>Acompanhar este processo</b>' +
       "<small>entra na volta diária do DataJud</small></span><i></i></div>" : "") +
     '<div class="pr-botoes">' + (local ? '<button data-pr-consultar="1">' + ic("sync", 16) + "Consultar agora</button>" : "") +
-    (p.novas ? '<button data-pr-vistos="1">' + ic("check", 16) + "Marcar como vistas</button>" : "") +
+    (p.novas || (d.publicacoes || []).some((u) => !u.lida) ? '<button data-pr-vistos="1">' + ic("check", 16) + "Marcar como vistas</button>" : "") +
     (local ? '<button class="perigo" data-pr-apagar="1">' + ic("delete", 16) + "Tirar da lista</button>" : "") + "</div>" +
+    (pubs ? '<h4 class="pr-sub">Publicações no DJEN</h4><div class="pr-movs pr-pubs">' + pubs + "</div>" : "") +
+    (pubs ? '<h4 class="pr-sub">Movimentações no DataJud</h4>' : "") +
     '<div class="pr-movs">' + (movs || '<p class="cfg-explica">Nenhuma movimentação guardada ainda.</p>') + "</div></div>";
   const aberto = dialogo({ titulo: "Processo " + p.numero_fmt, contexto: "Processos", html: html, confirmar: "Fechar", semCancelar: true, classe: "pr-dialogo" });
   const acao = async (url, metodo, corpo, frase) => {

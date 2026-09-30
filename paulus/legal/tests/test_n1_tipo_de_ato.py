@@ -191,7 +191,7 @@ def main() -> int:
 
         base.escrever("INSERT INTO publicacoes (id_externo, data, tribunal, tipo, orgao, classe, processo, texto, link, oab, criada_em)"
                       " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                      ("x2", "2026-09-22", "TJSP", "Intimação", "1ª Vara Cível", "Procedimento Comum Cível", n1,
+                      ("x2", "2026-09-22", "TJSP", "Intimação", "1ª Vara Cível", "Procedimento Comum Cível", numero_cnj(9876),
                        "DECISÃO. DEFIRO a tutela de urgência requerida.", "", "SP 1", "2026-09-22T10:00:00"))
         falso.movs[dig] += [{"quando": "2026-09-25 10:00", "nome": "Decisão", "complemento": "Concessão"},
                             {"quando": "2026-09-28 10:00", "nome": "Publicação", "complemento": "DJEN"}]

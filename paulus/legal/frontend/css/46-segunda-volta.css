@@ -11,3 +11,7 @@
   .pub-sugestao { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--fill); font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
   .pub-sugestao b { color: var(--ink); }
   .ap-resumo { white-space: pre-line; }
+
+  /* N2: as publicações do DJEN no detalhe do processo. */
+  .pr-sub { margin: 14px 0 4px; font: 600 13px var(--sans); color: var(--ink); }
+  .pr-pubs .pr-pub-texto { display: block; white-space: normal; overflow: visible; text-overflow: clip; margin-top: 2px; color: var(--ink3); font-size: 12px; line-height: 1.4; }

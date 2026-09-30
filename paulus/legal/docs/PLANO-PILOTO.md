@@ -347,7 +347,7 @@ o código garante.
 | Etapa | O quê | De onde | Estado | Teste |
 | --- | --- | --- | --- | --- |
 | N1 | O prazo pelo tipo de ato (sentença, acórdão, decisão, despacho, citação; cível, juizado, trabalho, penal; o prazo que o juiz fixou) | L2 | feito | `tests/test_n1_tipo_de_ato.py` |
-| N2 | A publicação do DJEN ligada ao processo acompanhado: um aviso, um pedido de prazo | L2 | — | `tests/test_n2_djen_processo.py` |
+| N2 | A publicação do DJEN ligada ao processo acompanhado: um aviso, um pedido de prazo | L2 | feito | `tests/test_n2_djen_processo.py` |
 | N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | — | `tests/test_n3_parte_contraria.py` |
 | N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | — | `tests/test_n4_conflitos.py` |
 | N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | — | `tests/test_n5_clausulas.py` |
@@ -401,3 +401,33 @@ segurança, eleitoral, falência) cai nos 15 dias genéricos, dito.
 recesso, o pedido com três opções escolhido pela tela no Edge, a sugestão
 no "Criar prazo"); `test_l2_processos` e `test_prazos_publicacoes`
 continuam passando.
+
+## N2 — o DJEN junto do processo (30/09/2026)
+
+- **A ligação** (`processos.ligar_publicacoes`, migração 031): a publicação
+  do DJEN com o número de um processo cadastrado fica ligada a ele — depois
+  de cada consulta ao DJEN, ao cadastrar um processo, ao "achar nos
+  documentos" e no começo da volta do DataJud.
+- **Um pedido por intimação**: a publicação é a intimação oficial, então o
+  pedido de prazo do processo acompanhado sai dela (pela disponibilização e
+  pelo texto inteiro, com a N1). A movimentação do DataJud da mesma intimação
+  (até 5 dias depois da publicação) não pede de novo; e a publicação que
+  chega depois de um pedido do DataJud se junta a ele. O sim anota a tarefa,
+  e a publicação fica com ela, lida. Publicação com mais de 30 dias, de um
+  processo recém-cadastrado, liga mas não vira pedido.
+- **Um aviso por processo** na Central: "2 movimentações novas e 1
+  publicação no DJEN", com a origem "DataJud + DJEN"; a publicação ligada
+  não vira aviso à parte. "Marcar como vistas" deixa as publicações do
+  processo lidas (e diz isso).
+- **As telas**: o detalhe do processo ganha "Publicações no DJEN" (e o que
+  houve com o prazo de cada uma); a publicação diz que está ligada e abre o
+  processo, ou oferece "Acompanhar este processo".
+
+**Não feito:** duas intimações diferentes do mesmo processo em menos de
+5 dias viram um pedido só quando uma vem de cada fonte — é a janela que
+junta a publicação ao registro dela no DataJud.
+
+**Medido:** `tests/test_n2_djen_processo.py` 17 ok (o DJEN primeiro, o
+DataJud primeiro, processo não cadastrado, publicação antiga, e as telas no
+Edge); `test_l2_processos`, `test_prazos_publicacoes`, `test_t2_avisos` e
+`test_n1_tipo_de_ato` continuam passando.

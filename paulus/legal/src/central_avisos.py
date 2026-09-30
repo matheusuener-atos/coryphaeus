@@ -318,6 +318,9 @@ class Central:
         if self.publicacoes is None or not politica("GET", "/api/publicacoes"):
             return avisos
         for p in self.publicacoes.listar("novas"):
+            # A de um processo cadastrado entra no aviso do processo (N2).
+            if p.get("processo_id") and self.processos is not None:
+                continue
             data = str(p.get("data") or "")[:10] or hoje.isoformat()
             processo = p.get("processo") or ""
             titulo = (p.get("tipo") or "Comunicação") + (f" — processo {processo}" if processo else "")
@@ -338,16 +341,24 @@ class Central:
             if servicos_acesso.OCULTOS.get() and not (p.get("servico_id") and servicos_acesso.visivel(int(p["servico_id"]))):
                 continue
             n = int(p.get("novas") or 0)
-            titulo = (p.get("ultimo_nome") or "Movimentação") + f" — processo {p['numero_fmt']}"
+            npub = int(p.get("publicacoes") or 0)
+            titulo = (p.get("ultima_publicacao") if npub and not n else p.get("ultimo_nome")) or "Movimentação"
+            titulo += f" — processo {p['numero_fmt']}"
             quando = str(p.get("ultimo") or "")[:10]
+            partes = []
+            if n:
+                partes.append("1 movimentação nova" if n == 1 else f"{n} movimentações novas")
+            if npub:
+                partes.append("1 publicação no DJEN" if npub == 1 else f"{npub} publicações no DJEN")
+            fontes = " + ".join(x for x, tem in (("DataJud", n), ("DJEN", npub)) if tem)
             avisos.append(self._aviso(
                 "processo", f"processo:{p['id']}:{p.get('ultimo') or ''}", titulo, 0, hoje.isoformat(),
-                quando=("1 movimentação nova" if n == 1 else f"{n} movimentações novas") + (f" · {_br(quando)}" if quando else ""),
-                origem="DataJud · " + (p.get("tribunal") or ""), detalhe=p.get("servico_nome") or "",
+                quando=" e ".join(partes) + (f" · {_br(quando)}" if quando else ""),
+                origem=fontes + " · " + (p.get("tribunal") or ""), detalhe=p.get("servico_nome") or "",
                 destino={"tela": "processo", "id": p["id"]},
                 acoes=[{"id": "vistas", "rotulo": "Marcar como vistas", "metodo": "POST",
-                        "rota": f"/api/processos/{p['id']}/vistos", "pergunta": f"Marcar como vistas as movimentações do processo {p['numero_fmt']}?",
-                        "explica": "O aviso sai; as movimentações continuam guardadas no processo."}]))
+                        "rota": f"/api/processos/{p['id']}/vistos", "pergunta": f"Marcar como vistas as novidades do processo {p['numero_fmt']}?",
+                        "explica": "O aviso sai; as movimentações continuam guardadas no processo, e as publicações do DJEN dele ficam lidas."}]))
         return avisos
 
     def _dos_documentos(self, avisos, hoje, agora, ate, pessoa, politica):

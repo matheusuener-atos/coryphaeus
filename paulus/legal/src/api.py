@@ -10471,7 +10471,12 @@ def _consultar_publicacoes() -> dict:
             estado.prefs.atualizar({"publicacoes": {"ultimo_erro": str(exc)}})
             raise
         estado.prefs.atualizar({"publicacoes": {"ultima": _date.today().isoformat(), "ultimo_erro": ""}})
-        return {"novas": novas, "de": de.isoformat(), "ate": ate.isoformat(), "oabs": len(oabs)}
+        # N2: a publicação de um processo cadastrado liga a ele (e pede o prazo, se acompanhado).
+        try:
+            ligadas = processos_mod.ligar_publicacoes(estado, _feriados_do_escritorio())
+        except Exception:  # noqa: BLE001 - a consulta vale mesmo sem ligar
+            ligadas = {}
+        return {"novas": novas, "de": de.isoformat(), "ate": ate.isoformat(), "oabs": len(oabs), "ligadas": ligadas}
     finally:
         _TRAVA_PUBLICACOES.release()
 
