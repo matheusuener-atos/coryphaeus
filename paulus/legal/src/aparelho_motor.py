@@ -126,7 +126,90 @@ def modelo_do_aparelho(nome: str, pasta: Path | None = None) -> dict:
     arquivo = pasta / "blobs" / f"sha256-{sha}"
     if not arquivo.exists():
         return {"nome": nome, "erro": "o arquivo do modelo sumiu da pasta do Ollama"}
-    return {"nome": nome, "sha256": sha, "bytes": arquivo.stat().st_size, "arquivo": arquivo}
+    return {"nome": nome, "sha256": sha, "bytes": arquivo.stat().st_size, "arquivo": arquivo,
+            "familia": _familia(dados, pasta)}
+
+
+def _familia(manifesto_: dict, pasta: Path) -> str:
+    """A família do modelo, do config do Ollama ("llama", "qwen2", "nomic-bert"...). "" se não se sabe."""
+    digest = str((manifesto_.get("config") or {}).get("digest") or "")
+    if not digest.startswith("sha256:"):
+        return ""
+    try:
+        cfg = json.loads((pasta / "blobs" / ("sha256-" + digest.split(":", 1)[1])).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return str(cfg.get("model_family") or "")
+
+
+# ------------------------------------------------------ qual modelo (D2c)
+
+# A wllama roda em WebAssembly de 32 bits: pesos, contexto e o resto cabem em
+# 4 GB de memória. Com mais de 3 GB de pesos, o navegador não carrega - um 7B
+# (~4,5 GB) fica sempre no escritório.
+LIMITE_BYTES = 3 * 1024 ** 3
+# Modelos que só fazem vetores (a busca densa), e não escrevem texto.
+FAMILIAS_DE_VETOR = ("bert", "nomic-bert", "xlm-roberta")
+
+
+def modelos_do_ollama(pasta: Path | None = None) -> list[str]:
+    """Os nomes de todos os modelos baixados no Ollama deste computador, pelos manifestos."""
+    base = (pasta or pasta_do_ollama()) / "manifests"
+    nomes = []
+    for man in base.glob("*/*/*/*"):
+        if not man.is_file():
+            continue
+        registro, espaco, modelo, etiqueta = man.relative_to(base).parts
+        if registro == "registry.ollama.ai":
+            nomes.append(f"{modelo}:{etiqueta}" if espaco == "library" else f"{espaco}/{modelo}:{etiqueta}")
+        else:
+            nomes.append(f"{registro}/{espaco}/{modelo}:{etiqueta}")
+    return sorted(nomes)
+
+
+def _serve(m: dict) -> bool:
+    return not m.get("erro") and 0 < m["bytes"] <= LIMITE_BYTES and m.get("familia", "") not in FAMILIAS_DE_VETOR \
+        and "embed" not in m["nome"].lower()
+
+
+def escolher_modelo(preferido: str = "", do_escritorio: str = "", pasta: Path | None = None) -> dict:
+    """
+    O modelo que o aparelho usa, com o porquê em "escolha". Na ordem:
+    1. o configurado para o aparelho (`aparelho.modelo`; de fábrica, o
+       llama3.2:3b, o medido - 29/29 no roteiro de documentos), se está aqui
+       e cabe no navegador;
+    2. o que o escritório usa na conversa, se cabe (a mesma resposta dos dois
+       lados);
+    3. o maior modelo de texto baixado que cabe.
+    Nada cabe: {"erro"}, com o que fazer. O modelo tem de ser de uma família
+    que a wllama (llama.cpp) roda; se não for, o teste de capacidade do
+    aparelho falha e diz o erro - o seletor não aparece.
+    """
+    tentados = []
+    for nome, porque in ((preferido, "o configurado para o aparelho"), (do_escritorio, "o mesmo do escritório"),
+                         (MODELO_PADRAO, "o de fábrica")):
+        if not nome or nome in tentados:
+            continue
+        tentados.append(nome)
+        m = modelo_do_aparelho(nome, pasta)
+        if _serve(m):
+            return dict(m, escolha=porque)
+    outros = [m for m in (modelo_do_aparelho(n, pasta) for n in modelos_do_ollama(pasta) if n not in tentados) if _serve(m)]
+    if outros:
+        m = max(outros, key=lambda x: (x["bytes"], x["nome"]))
+        return dict(m, escolha="o maior deste computador que cabe no navegador")
+    return {"nome": preferido or MODELO_PADRAO,
+            "erro": "nenhum modelo deste computador cabe no navegador (até 3 GB); baixe o llama3.2:3b em Configurações › Modelos"}
+
+
+def modelo_escolhido(estado) -> dict:
+    """escolher_modelo com as preferências e o modelo da conversa deste escritório."""
+    preferido = str((estado.prefs.dados.get("aparelho") or {}).get("modelo") or "")
+    try:
+        do_escritorio = estado.modelo_para("conversa") if hasattr(estado, "modelo_para") else estado.client.model
+    except Exception:  # noqa: BLE001 - sem o modelo do escritório, os outros critérios
+        do_escritorio = ""
+    return escolher_modelo(preferido, str(do_escritorio or ""))
 
 
 # ------------------------------------------------------------ as partes
@@ -232,9 +315,6 @@ def montar(estado, app, dados_dir: Path) -> None:
         if not pode:
             raise HTTPException(status_code=403, detail=motivo)
 
-    def _nome_do_modelo() -> str:
-        return str((estado.prefs.dados.get("aparelho") or {}).get("modelo") or MODELO_PADRAO)
-
     @app.get("/motor/" + MOTOR["pasta"] + "/{arquivo}")
     def motor_arquivo(arquivo: str) -> FileResponse:
         """Só os arquivos da lista, e só se o hash bate: um arquivo trocado no disco não chega à página."""
@@ -254,20 +334,21 @@ def montar(estado, app, dados_dir: Path) -> None:
     def aparelho_modelo(request: Request = None) -> dict:
         """O modelo do aparelho, em partes (a primeira vez divide: alguns segundos)."""
         _pode_baixar(request)
-        m = modelo_do_aparelho(_nome_do_modelo())
+        m = modelo_escolhido(estado)
         if m.get("erro"):
             return {"disponivel": False, "nome": m["nome"], "motivo": m["erro"], "motor": MOTOR["versao"]}
         d = partes_do_modelo(m, dados_dir)
         if d.get("erro"):
             return {"disponivel": False, "nome": m["nome"], "motivo": d["erro"], "motor": MOTOR["versao"]}
         return {"disponivel": True, "nome": m["nome"], "sha256": m["sha256"], "bytes": m["bytes"], "motor": MOTOR["versao"],
+                "escolha": m.get("escolha", ""),
                 "partes": [{"url": f"/api/aparelho/modelo/{m['sha256']}/parte/{i}", "sha256": x["sha256"], "bytes": x["bytes"]}
                            for i, x in enumerate(d["partes"], 1)]}
 
     @app.get("/api/aparelho/modelo/{sha}/parte/{n}")
     def aparelho_modelo_parte(sha: str, n: int, request: Request = None) -> FileResponse:
         _pode_baixar(request)
-        m = modelo_do_aparelho(_nome_do_modelo())
+        m = modelo_escolhido(estado)
         if m.get("erro") or m.get("sha256") != sha:
             raise HTTPException(status_code=404, detail="esse modelo não é o do aparelho")
         d = partes_do_modelo(m, dados_dir)

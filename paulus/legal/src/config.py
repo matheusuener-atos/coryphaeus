@@ -238,6 +238,8 @@ PADRAO: dict = {
     # `ligado` (D1): a resposta pode ser escrita no aparelho de quem pergunta
     # de fora, com o nivel "aparelho" da conta (src/aparelho.py).
     # `modelo` (D2): o modelo que o aparelho baixa do Ollama deste escritorio.
+    # "modelo": o preferido para o aparelho; sem ele aqui (ou grande demais para
+    # o navegador), o do escritório ou o maior que cabe (src/aparelho_motor.py).
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar

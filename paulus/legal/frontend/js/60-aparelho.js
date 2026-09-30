@@ -35,16 +35,20 @@ function pedirAoMotor(tipo, dados, andamento) {
   });
 }
 
-/* O que o aparelho tem, antes de baixar qualquer coisa. */
-async function capacidadeDoAparelho() {
+/* O que o aparelho tem, antes de baixar qualquer coisa. `bytes`: o tamanho do
+   modelo escolhido pelo escritório (sem ele, o do 3B). */
+async function capacidadeDoAparelho(bytes) {
   let webgpu = false;
   try {
     const adaptador = navigator.gpu ? await navigator.gpu.requestAdapter() : null;
     webgpu = Boolean(adaptador);
   } catch (err) { webgpu = false; }
   const memoria = typeof navigator.deviceMemory === "number" ? navigator.deviceMemory : null;
-  // O modelo tem ~1,3 GB: com menos de 4 GB de memória no aparelho, não vale.
-  const passa = webgpu && (memoria === null || memoria >= 4);
+  // A memória pedida cresce com o modelo: o dobro dos pesos, pelo menos 4 GB
+  // (o navegador não diz mais que 8).
+  const gb = (bytes || 2.1 * 1024 ** 3) / 1024 ** 3;
+  const precisa = Math.min(8, Math.max(4, Math.ceil(gb * 2)));
+  const passa = webgpu && (memoria === null || memoria >= precisa);
   const motivo = !webgpu ? "este navegador não tem WebGPU (o Edge e o Chrome de computador têm)"
     : (!passa ? "o aparelho tem pouca memória para o modelo" : "");
   return { webgpu: webgpu, memoria_gb: memoria, passa: passa, motivo: motivo };
@@ -55,16 +59,19 @@ async function carregarModeloNoAparelho(andamento) {
   if (!r.ok) throw new Error(await erroDe(r));
   const m = await r.json();
   if (!m.disponivel) throw new Error(m.motivo);
-  const cap = await capacidadeDoAparelho();
+  const cap = await capacidadeDoAparelho(m.bytes);
   const feito = await pedirAoMotor("carregar", { partes: m.partes, sha256: m.sha256, falso: motorAparelho.falso, falsoTps: motorAparelho.falsoTps, webgpu: cap.webgpu }, andamento);
   motorAparelho.carregado = m.sha256;
+  motorAparelho.modelo = m.nome;
   return Object.assign({ modelo: m.nome, bytes: m.bytes }, feito);
 }
 
 /* O teste de capacidade inteiro: carrega, mede num texto de exemplo e manda
    ao servidor só os números. */
 async function testarCapacidadeDoAparelho(andamento) {
-  const cap = await capacidadeDoAparelho();
+  let bytes = 0;
+  try { const e = await (await fetch("/api/aparelho/estado")).json(); bytes = e.bytes || 0; } catch (err) { /* sem o tamanho, o do 3B */ }
+  const cap = await capacidadeDoAparelho(bytes);
   let medida = {}, carregou = null;
   if (cap.passa || motorAparelho.falso) {
     const c = await carregarModeloNoAparelho(andamento);

@@ -403,7 +403,7 @@ BAIXAR_BYTES_POR_S = 8 * 1024 * 1024
 def nome_do_modelo(estado) -> str:
     import aparelho_motor
 
-    return str((estado.prefs.dados.get("aparelho") or {}).get("modelo") or aparelho_motor.MODELO_PADRAO)
+    return str(aparelho_motor.modelo_escolhido(estado).get("nome") or "")
 
 
 def espera_no_escritorio(estado) -> dict:
@@ -530,7 +530,7 @@ def montar(estado, app, dados_dir) -> None:
         pode, motivo = pode_escrever(estado, request)
         import aparelho_motor
 
-        m = aparelho_motor.modelo_do_aparelho(nome_do_modelo(estado)) if pode else {}
+        m = aparelho_motor.modelo_escolhido(estado) if pode else {}
         return {"ligado": ligado(estado), "pode": pode, "motivo": motivo, "validade_s": VALIDADE_S,
                 "modelo": m.get("nome", ""), "bytes": int(m.get("bytes") or 0)}
 
@@ -599,7 +599,7 @@ def montar(estado, app, dados_dir) -> None:
         escritorio = espera_no_escritorio(estado)
         so_aqui = escopo_so_no_escritorio(estado, payload.apenas)
         vai = pode and not so_aqui and not payload.inteiro
-        m = aparelho_motor.modelo_do_aparelho(nome_do_modelo(estado)) if pode else {}
+        m = aparelho_motor.modelo_escolhido(estado) if pode else {}
         aparelho_s = tempo_no_aparelho(payload.model_dump(), carregado=payload.carregado, baixado=payload.baixado,
                                        bytes_do_modelo=int(m.get("bytes") or 0)) if vai else None
         return {

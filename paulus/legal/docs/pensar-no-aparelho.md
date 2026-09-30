@@ -27,7 +27,7 @@ Precisa do [acesso de fora](acesso-de-fora.md) ligado.
   conversa, as instruções e os **trechos** que respondem a ela — nunca o
   documento inteiro, até cerca de 9.000 caracteres, e só de documentos que
   aquela conta já veria pelo acesso de fora.
-- **Uma vez**: o modelo de IA (hoje o Llama 3.2 3B, cerca de 2 GB) e o
+- **Uma vez**: o modelo de IA (de fábrica o Llama 3.2 3B, cerca de 2 GB) e o
   programa que o roda no navegador. Os dois saem do computador do
   escritório e são conferidos pelo SHA-256; nada vem de outro site.
 - **O que fica no aparelho**: só o modelo, no armazenamento do navegador, e
@@ -54,10 +54,15 @@ Tudo em **Configurações › Acesso de fora**, no computador do escritório.
    resposta no próprio aparelho: pode**. Conta por conta; o colaborador não
    consegue ligar para si, nem o titular pelo acesso de fora. A conta do
    titular pode sempre que o escritório liga.
-3. O modelo do aparelho é o `llama3.2:3b` do Ollama deste computador. Ele
-   precisa estar baixado aqui (Configurações › Modelos). Na primeira vez que
-   alguém pede, o PAULUS divide o arquivo em partes de 512 MB (leva alguns
-   segundos) e guarda em `<dados>/aparelho/partes/`.
+3. O modelo do aparelho sai do Ollama deste computador, e não precisa ser
+   o mesmo do escritório. O PAULUS escolhe sozinho, nesta ordem: o
+   `llama3.2:3b` (o medido: acertou 29 de 29 perguntas de documentos), o
+   modelo que o escritório usa na conversa, ou o maior modelo de texto
+   baixado aqui — sempre com até 3 GB, o que cabe num navegador (um 7B não
+   cabe). Modelos de vetores (embed) nunca vão. Para o melhor resultado,
+   deixe o `llama3.2:3b` baixado (Configurações › Modelos). Na primeira vez
+   que alguém pede, o PAULUS divide o arquivo em partes de 512 MB (leva
+   alguns segundos) e guarda em `<dados>/aparelho/partes/`.
 
 **Desligar** vale na hora: no mesmo cartão, **Desligar** (para todos) ou,
 na Permissão da conta, **no escritório** (só para ela). A resposta que
@@ -129,7 +134,8 @@ Limpar os dados do site no navegador também apaga.
 | "o aparelho não terminou" | A aba fechou, o aparelho ficou 45 s sem rede, ou passaram 10 min | O escritório terminou do que já tinha chegado, ou do zero |
 | "a pergunta pede o documento inteiro" | Ler inteiro é sempre no escritório | — |
 | "a resposta usa um caso marcado só no escritório" | O titular marcou o cliente, o Serviço ou a pasta | — |
-| "o modelo llama3.2:3b não está baixado neste computador" | O Ollama do escritório não tem o modelo | No escritório, Configurações › Modelos |
+| "nenhum modelo deste computador cabe no navegador" | O Ollama do escritório só tem modelos acima de 3 GB (ou só de vetores) | No escritório, Configurações › Modelos: baixe o `llama3.2:3b` |
+| O teste falha ao carregar o modelo | O modelo escolhido é de uma família que o motor do navegador não roda | Baixe o `llama3.2:3b` no escritório: ele vem primeiro na escolha |
 
 **Conferir que nada ficou no navegador**: F12 › **Aplicativo** (Application)
 › **Armazenamento**. Em *Cache Storage*, só `paulus-modelo`, com as partes

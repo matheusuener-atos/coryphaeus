@@ -513,6 +513,36 @@ entregas, devoluções e o fim de cada uma).
 Me mande o que deu diferente do esperado em cada passo, com o texto da
 tela; cada correção vem com teste.
 
+## D2c — qual modelo o aparelho usa (30/09/2026, depois da D6)
+
+O dono perguntou se só funciona com o escritório usando o `llama3.2:3b`.
+Funcionava só com ele baixado no Ollama (o nome estava fixo em
+`aparelho.modelo`); sem ele, o teste de capacidade falhava com "não está
+baixado". Agora `aparelho_motor.escolher_modelo`:
+
+1. o configurado para o aparelho (`aparelho.modelo`, de fábrica o
+   `llama3.2:3b`, o medido), se está no Ollama e cabe no navegador;
+2. o modelo da conversa do escritório (`modelo_para("conversa")`), se cabe:
+   a mesma resposta dos dois lados;
+3. o maior modelo de texto baixado que cabe.
+
+"Cabe" = até 3 GB de pesos (`LIMITE_BYTES`): a wllama roda em WebAssembly
+de 32 bits, com 4 GB de memória para pesos, contexto e o resto; um 7B
+(~4,5 GB) fica sempre no escritório. Modelos de vetores (família bert,
+nomic-bert, xlm-roberta, ou "embed" no nome) nunca vão. A lista sai dos
+manifestos do Ollama (`modelos_do_ollama`, com os nomes como o Ollama dá,
+inclusive hf.co/...). Nada serve: o erro diz para baixar o `llama3.2:3b`.
+A memória pedida ao aparelho cresce com o modelo (o dobro dos pesos, no
+mínimo 4 GB). O que não dá para saber sem carregar: se a família do modelo
+roda na wllama 3.6.1 — se não rodar, o teste de capacidade falha com o erro
+e o seletor não aparece. **Não medido no aparelho:** só o 1B e o 3B do
+Llama foram carregados de verdade (D2/D2b); outro modelo fica para o teste
+real do dono.
+
+**Medido:** `tests/test_d2c_modelo.py` 10 ok (com um Ollama de mentira:
+qwen 7B do escritório grande demais, gemma 1B, qwen 3B, dois de vetores).
+Nesta máquina a escolha continua o `llama3.2:3b`.
+
 ## Fora do foco
 
 - O rascunho de e-mail e a sugestão da IA ficam no `localStorage` (ver acima).
