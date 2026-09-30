@@ -563,7 +563,8 @@ async function blocoLeis() {
     '<div class="cfg-linhas">' + (d.codigos || []).map((c) =>
       '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(c.lei) +
       (c.instalado ? " · " + plural(c.artigos, "artigo") + " · " + esc(quandoCurto(c.importado_em)) : " · não instalado") + "</small></span>" +
-      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>' : '<span class="etiqueta">falta</span>') +
+      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>'
+        : '<button data-cfg-baixar-lei="' + esc(c.codigo) + '" title="' + esc(c.fonte) + '">' + ic("download", 16) + "Baixar do Planalto</button>") +
       "</div>").join("") + "</div>" +
     '<p class="cfg-explica">' + esc(d.como_baixar) + "</p>" +
     '<div class="cfg-botoes"><button data-cfg-lei-pasta="1">' + ic("folder_open", 16) + "Importar de uma pasta</button>" +
@@ -573,6 +574,19 @@ async function blocoLeis() {
     b.onclick = async () => {
       if (!(await confirmar({ titulo: "Remover este código?", contexto: "Configurações › Códigos de lei", texto: "A citação volta a ficar indisponível até você importar de novo.", confirmar: "Remover", perigo: true }))) return;
       await fetch("/api/leis/" + b.dataset.cfgTirarLei, { method: "DELETE" });
+      blocoLeis();
+    };
+  });
+  /* O texto compilado oficial, direto do endereço do Planalto: só a página
+     da lei é pedida, nada desta máquina vai junto. */
+  alvo.querySelectorAll("[data-cfg-baixar-lei]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      b.textContent = "baixando…";
+      const r = await fetch("/api/leis/baixar", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ codigo: b.dataset.cfgBaixarLei }) });
+      if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); blocoLeis(); return; }
+      const d2 = await r.json();
+      avisoCert(d2.nome + ": " + plural(d2.artigos, "artigo") + " guardados" + (d2.revogados ? ", " + plural(d2.revogados, "revogado") : ""), { tom: "ok" });
       blocoLeis();
     };
   });

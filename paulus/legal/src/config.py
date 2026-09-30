@@ -165,6 +165,19 @@ PADRAO: dict = {
     "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True, "molde": True, "memoria": True,
            "trechos_estruturais": True, "lexico_fts": True, "denso": True, "leitura": "tudo",
            "citacao": False, "ajuda": True},
+    # A Biblioteca do escritorio (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md).
+    # Cada etapa nasce desligada e so liga de fabrica depois do portao dela;
+    # a chave continua existindo para voltar atras.
+    # `hibrida` (M1): o material de consulta na busca hibrida do Acervo
+    # (trechos pela estrutura, FTS5 e vetores), em indices proprios.
+    # `triagem` (M2): o que entra como material passa pela triagem - lei
+    # conhecida vai para as leis em casa; o resto ganha a ficha (tipo,
+    # autor, obra, edicao, ano, areas) para conferir.
+    # Ligadas de fabrica depois do portao (M1: Recall@6 0,84 contra 0,58, sem
+    # ruido a mais; M2: a triagem e a ficha, 0 campo errado).
+    # `anotacoes` (M3): cada artigo que uma obra cita, com o instrumento, vira
+    # anotacao do artigo - na tela da lei e na pergunta que cita o artigo.
+    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

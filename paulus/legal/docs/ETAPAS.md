@@ -1881,3 +1881,97 @@ demonstração cabe inteira na leitura, então a busca e a virada quase não
 entram. O ganho de tempo que o plano mira (ler 700 tokens em vez de 32 mil
 num acervo grande) só aparece com documentos reais e a virada ligada.
 
+
+---
+
+# A Biblioteca do escritório (M0–M7)
+
+O plano está em `docs/PROGRESSO-BIBLIOTECA.md`: o material de consulta, as
+leis em casa e os lembretes viram uma biblioteca jurídica com fonte. O
+PAULUS não "treina" com os livros: lê uma vez, organiza e cita obra, autor e
+página.
+
+## M0 — Levantamento e o conjunto da Biblioteca ✓ FEITA
+
+**Levantamento** do que o plano supunha contra o código de 30/09/2026 (tabela
+no PROGRESSO). Duas adaptações: `jobs.py` são os trabalhos da conversa, não
+uma fila de fundo (a leitura da M5 vira um fio como o `Backfill`); e não há
+"tela da lei" própria (a seção da M3 entra no painel "Citar a lei" e na tela
+Biblioteca).
+
+**Conjunto:** `tools/demo/biblioteca_demo.py` monta `data/demo-biblioteca` (o
+escritório fictício, o manual, o CDC do Planalto em PDF e **duas obras de
+doutrina fictícias**, marcadas como fictícias) e escreve 44 perguntas em
+`data/medicao/conjunto-biblioteca.jsonl`, de sete tipos: sinônimo,
+dispositivo, lei pura, manual, sem material, fora da cobertura e temporal.
+`tools/medir.py --conjunto biblioteca` mede Recall@6, MRR@6, ruído, acerto por
+tipo e os avisos. O dono pediu para seguir com a demonstração: é a limitação
+desta medição.
+
+**Linha de base** (BM25 + cobertura, o material de antes): Recall@6 0,58, MRR@6
+0,54, ruído 0,375, sinônimo 1/7, acerto 32/44, 6 "não encontrei" indevidos, 0
+citação inventada, p50 15,6 s. Roteiro `--tudo` 41/41.
+
+## M1 — O material no pipeline híbrido ✓ FEITA
+
+- `src/biblioteca/indice.py`: o material usa `IndiceLexico` e `IndiceDenso`
+  em `<material>/indice/`, separados do Acervo; vetores pelo `Backfill`,
+  cedendo a vez; sem o bge-m3, só o léxico, sem erro.
+- **Regime C** em `src/trechos.py` (`fatiar_obra`): Parte, Título, Capítulo,
+  seção decimal e título em caixa alta; sumário, folha de rosto, cabeçalho e
+  rodapé repetidos não viram trecho (trocados por espaços, as posições ficam);
+  nenhum trecho atravessa capítulo; a janela prefere terminar na virada de
+  página. Manual e tabela: regime B dentro de cada página. Lei: regime A.
+- A entrada do trecho: top-20 da RRF + (cobertura de palavras **ou** cosseno ≥
+  τ) + 0,35 do melhor + a regra dos nomes. **τ = 0,625**, escolhido pela regra
+  escrita antes de medir (maior Recall@6 − ruído, ruído ≤ o da base).
+- Chave `biblioteca.hibrida`, ligada de fábrica depois do portão.
+
+**Medido:** Recall@6 **0,839** (base 0,581), ruído 0,375 (igual à base),
+sinônimo 4/7 (base 1/7), MRR@6 0,707. Roteiro `--tudo` 40/41 — a que falha
+("qual a multa por atraso no aluguel da Clínica?") falha igual, com a mesma
+resposta, na árvore principal sem nenhuma mudança da Biblioteca e com o
+bge-m3 fora da memória: o 3B mudou a resposta dela entre a madrugada e a
+manhã.
+
+**O que a verificação achou:** a regra dos nomes tratava "Código Civil" e
+"CDC" como nome de parte, e a pergunta por dispositivo não achava a obra
+(corrigido: `NAO_SAO_NOMES`); o título do capítulo que quebra em duas linhas
+virava capítulo novo; a folha de rosto em caixa alta virava trecho; o trecho
+que termina na virada de página dizia "páginas 5–6" sem texto na 6.
+
+## M2 — Triagem, ficha e as leis que faltam ✓ FEITA
+
+- **Cinco códigos novos** em `leis.CODIGOS`: CDC, Constituição (com o ADCT à
+  parte: "CF, ADCT, art. 2º"), CTN, ECA e Lei do Inquilinato, com os endereços
+  do Planalto conferidos em 30/09. "Baixar do Planalto" em Configurações ›
+  Códigos de lei (só um GET no endereço oficial).
+- **O leitor de leis perdia artigos**: a quebra de linha do código-fonte do
+  Planalto partia "Art." e "10." em linhas diferentes, e o artigo ia parar
+  dentro do anterior. Medido: o Código Penal ganhou 44 artigos (o 147-A,
+  perseguição, inclusive), a CLT 28, o CC 1 (853-A), a Lei do Inquilinato 2.
+  O nome do Título, na linha de baixo, também saiu do fim do artigo anterior.
+- **Triagem por regra** (`src/biblioteca/triagem.py`): lei conhecida vai para
+  as leis em casa, artigo por artigo (e não é guardada de novo se já está);
+  lei não catalogada fica como material de lei, com aviso; súmulas, um trecho
+  por enunciado; doutrina, manual, tabela, modelo de peça.
+- **Ficha** (`src/biblioteca/ficha.py`): tipo, título, autor, edição, ano,
+  editora, ISBN (com dígito conferido), áreas (das leis mais citadas),
+  `origem` e `licenca`. Pela ficha catalográfica; campo não achado fica vazio;
+  o que a pessoa edita vale sobre a regra.
+- Chave `biblioteca.triagem`, ligada de fábrica depois do portão.
+
+**Medido:** 5 fichas realistas com armadilhas (histórico de edições,
+reimpressão, ISBN com dígito trocado, edição sem número): 30 campos, 0
+errados. O CDC em PDF dá os mesmos 130 artigos do HTML do Planalto, com o
+mesmo texto. 10 artigos sorteados de cada código novo conferem com o
+Planalto. Na busca: **ruído 0,0** (base 0,375), fora da cobertura 0/5 com
+material; o Recall@6 da lei pura cai para 0,17 até a M4 pôr o texto do
+artigo na camada LEI.
+
+**O que a verificação achou:** a rota nova `GET /api/biblioteca` tomava o
+lugar da lista do Acervo (que já usa esse nome) — virou
+`/api/biblioteca-juridica`; toda rota nova precisa de política de acesso de
+fora (`src/acesso/politicas.py`); "ficha catalográfica" no meio de uma frase
+era lida como o começo da ficha; o registro da bibliotecária ("CRB-9/1234")
+tinha barra antes da barra do autor.

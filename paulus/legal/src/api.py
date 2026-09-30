@@ -96,6 +96,7 @@ import inferencia
 from inteligencia.catalogo import Catalogo
 import denso as denso_mod
 import rotas_ajuda
+from biblioteca import rotas as rotas_biblioteca
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -366,8 +367,13 @@ class Estado:
         # O que o escritorio ensinou com as proprias palavras (docs/ui, A13).
         self.contextos = contextos_mod.Contextos(self.base)
         # O material de consulta: PDFs e textos de referencia, com indice
-        # proprio, separado do Acervo (src/material.py).
-        self.material = material_mod.Material(MATERIAL_DIR)
+        # proprio, separado do Acervo (src/material.py). Com a chave
+        # `biblioteca.hibrida`, a busca dele e a hibrida (src/biblioteca).
+        self._vetorizador_material = None
+        self.material = material_mod.Material(
+            MATERIAL_DIR, hibrida=lambda: bool(self.prefs.dados.get("biblioteca", {}).get("hibrida")),
+            vetorizador=self.vetorizador_do_material, ceder=lambda: self.fila_modelo.ceder(limite_s=600),
+            chaves=lambda: self.prefs.dados.get("biblioteca") or {})
         # A foto de quem usa e a logo do escritorio (docs/ui, A13).
         self.marca = marca_mod.Marca(MARCA_DIR)
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
@@ -578,6 +584,25 @@ class Estado:
         if esperar:
             self.backfill.esperar()
         return self._denso, self._vetorizador
+
+    def vetorizador_do_material(self):
+        """
+        O bge-m3 para o material de consulta (src/biblioteca/indice.py), com as
+        mesmas condicoes do Acervo: `ia.denso` ligada e o modelo baixado. Sem
+        ele, o material fica so com a busca lexica.
+        """
+        if not (self.prefs.dados.get("ia") or {}).get("denso", True):
+            return None
+        presentes = self.modelos_presentes() or set()
+        if not any(n.split(":")[0] == denso_mod.MODELO for n in presentes):
+            return None
+        if self._vetorizador_material is None:
+            self._vetorizador_material = denso_mod.Vetorizador(self.client.host)
+        return self._vetorizador_material
+
+    def preparar_biblioteca(self, esperar: bool = False) -> dict:
+        """O indice do material montado e os vetores andando (tools/medir.py espera)."""
+        return self.material.preparar(esperar=esperar)
 
     def recuperar(self, pergunta: str, documentos=None) -> list:
         """Os trechos para o modelo pela busca hibrida (src/recuperacao.py)."""
@@ -821,6 +846,7 @@ rotas_do_tunel.montar(estado.acesso_de_fora, estado.acesso_de_fora.conexao, app)
 rotas_da_auditoria.montar(estado.acesso_de_fora, app)
 # A ajuda sem pergunta (I9): cartao do documento, correcao, prazos.
 rotas_ajuda.montar(estado, app, DADOS_DIR)
+rotas_biblioteca.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -1198,19 +1224,28 @@ async def material_enviar(arquivos: list[UploadFile] = File(...)) -> dict:
     pergunta da conversa. Um arquivo que nao deu para ler volta com o motivo,
     sem derrubar os outros do mesmo envio.
     """
-    entraram, recusados = [], []
+    # Com `biblioteca.triagem`, cada arquivo passa pela triagem da Biblioteca
+    # (src/biblioteca/triagem.py): o CDC em PDF vai para as leis em casa, e o
+    # resto ganha a ficha para conferir.
+    entraram, recusados, leis_guardadas, avisos = [], [], [], []
     for arquivo in arquivos:
         nome = Path(arquivo.filename or "").name or "material"
         dados = await arquivo.read(material_mod.MAX_BYTES + 1)
         try:
-            item = await run_in_threadpool(estado.material.absorver, nome, dados)
+            feito = await run_in_threadpool(rotas_biblioteca.receber, estado, DADOS_DIR, nome, dados)
         except ValueError as exc:
             recusados.append({"nome": nome, "motivo": str(exc)})
             continue
-        entraram.append(item)
-    if not entraram and recusados:
+        if feito.get("mensagem"):
+            avisos.append({"nome": nome, "mensagem": feito["mensagem"]})
+        if feito["destino"] == "lei":
+            leis_guardadas.append({"nome": nome, **feito.get("lei", {})})
+        else:
+            entraram.append({**feito["item"], "triagem": feito.get("triagem") or {}})
+    if not entraram and not leis_guardadas and recusados:
         raise HTTPException(status_code=400, detail=f"{recusados[0]['nome']}: {recusados[0]['motivo']}")
-    return {"entraram": entraram, "recusados": recusados, **estado.material.para_tela()}
+    return {"entraram": entraram, "recusados": recusados, "leis": leis_guardadas, "avisos": avisos,
+            **estado.material.para_tela()}
 
 
 @app.delete("/api/material/{id_}")
@@ -11564,9 +11599,10 @@ def leis_listar() -> dict:
             "artigo plausível e errado dentro de um contrato."
         ),
         "como_baixar": (
-            "Abra a página do código no Planalto, salve como “Página da Web, completa” "
-            "e escolha o arquivo aqui. É o texto compilado oficial, com as alterações "
-            "já incorporadas."
+            "“Baixar do Planalto” traz o texto compilado oficial, com as alterações já "
+            "incorporadas: só a página da lei é pedida, nada desta máquina vai junto. Sem "
+            "internet, abra a página do código no Planalto em outro computador, salve como "
+            "“Página da Web, completa” e escolha o arquivo aqui."
         ),
     }
 

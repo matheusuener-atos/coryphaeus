@@ -427,6 +427,7 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     ]
     for h in do_material:
         pagina = ctx.material.pagina(h)
+        lugar = ctx.material.onde(h) if hasattr(ctx.material, "onde") else ""
         fontes.append({
             "documento": h.doc_name,
             "trecho": h.chunk.index + 1,
@@ -434,7 +435,7 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
             "texto": RE_PAGINA.sub("", h.chunk.text).strip(),
             "material": True,
             "pagina": pagina,
-            "onde": f"página {pagina}" if pagina else f"trecho {h.chunk.index + 1}",
+            "onde": lugar or (f"página {pagina}" if pagina else f"trecho {h.chunk.index + 1}"),
         })
     usados_do_material = list(dict.fromkeys(h.doc_name for h in do_material))
 

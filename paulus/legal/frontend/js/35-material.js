@@ -24,10 +24,14 @@ function cartaoMaterial() {
   const d = cfg.material || { itens: [], trechos: 0 };
   const itens = d.itens || [];
   const linhas = itens.map((m) => {
-    const sub = [m.paginas ? plural(m.paginas, "página") : "sem páginas", plural(m.trechos || 0, "trecho"),
-      "entrou em " + dataCurtaMat(m.criado_em)].join(" · ");
+    const f = m.ficha || null;
+    const sub = [f ? resumoDaFicha(f) : "", m.paginas ? plural(m.paginas, "página") : "sem páginas", plural(m.trechos || 0, "trecho"),
+      "entrou em " + dataCurtaMat(m.criado_em)].filter(Boolean).join(" · ");
+    const conferir = f && !f.confirmada ? '<span class="etiqueta atencao">conferir a ficha</span>' : "";
+    const aviso = f && f.aviso ? '<span class="etiqueta">' + esc(f.aviso) + "</span>" : "";
     return '<div class="cfg-servico mat-linha"><span class="caixa-tipo">' + ic("menu_book", 18) + "</span>" +
-      '<span class="duas-linhas cresce"><b>' + esc(m.nome) + "</b><small>" + esc(sub) + "</small></span>" +
+      '<span class="duas-linhas cresce"><b>' + esc(f && f.titulo ? f.titulo : m.nome) + "</b><small>" + esc(sub) + "</small></span>" +
+      conferir + aviso +
       '<button class="mais-linha" data-mat-mais="' + esc(m.id) + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
   const enviando = mat.enviando.length;
@@ -72,9 +76,77 @@ async function enviarMaterial(arquivos) {
   const partes = [];
   if (novos.length) partes.push(novos.length === 1 ? "“" + novos[0].nome + "” entrou no material" : plural(novos.length, "arquivo") + " entraram no material");
   if (repetidos.length) partes.push(repetidos.length === 1 ? "“" + repetidos[0].nome + "” já estava" : plural(repetidos.length, "arquivo") + " já estavam");
+  /* A triagem da Biblioteca: o CDC em PDF foi para as leis em casa, e diz. */
+  (d.avisos || []).forEach((x) => partes.push(x.mensagem));
   (d.recusados || []).forEach((x) => partes.push("“" + x.nome + "”: " + x.motivo));
   avisoCert(partes.join(" · "), { tom: (d.recusados || []).length ? "erro" : "ok" });
   desenharConfig();
+  /* A ficha que a regra achou, para conferir ao entrar: o que a pessoa
+     escreve vale sobre o que a regra achou. */
+  const conferir = novos.find((x) => x.ficha && !x.ficha.confirmada);
+  if (conferir) dialogoDaFicha(conferir);
+}
+
+/* ------------------------------------------------ a ficha (Biblioteca, M2) */
+
+const ROTULO_TIPO_MAT = { doutrina: "Doutrina", manual: "Manual interno", tabela: "Tabela", sumulas: "Súmulas",
+  lei: "Lei", artigo: "Artigo", modelo_de_peca: "Modelo de peça", outro: "Outro" };
+
+function resumoDaFicha(f) {
+  const autor = f.autor ? f.autor : "";
+  const quando = [f.edicao ? f.edicao + " ed." : "", f.ano || ""].filter(Boolean).join(", ");
+  return [ROTULO_TIPO_MAT[f.tipo] || "", autor, quando, (f.areas || []).join(", ")].filter(Boolean).join(" · ");
+}
+
+async function listasDaBiblioteca() {
+  if (cfg.biblioteca) return cfg.biblioteca;
+  try {
+    const r = await fetch("/api/biblioteca-juridica");
+    if (r.ok) cfg.biblioteca = await r.json();
+  } catch (err) { /* sem a lista, o dialogo usa a de fabrica */ }
+  return cfg.biblioteca || { tipos: Object.keys(ROTULO_TIPO_MAT).map((t) => ({ id: t, rotulo: ROTULO_TIPO_MAT[t] })), areas: [] };
+}
+
+async function dialogoDaFicha(item) {
+  const b = await listasDaBiblioteca();
+  const f = item.ficha || {};
+  const tipo = '<div class="dialogo-campo"><label for="ficha-tipo">O que é</label><div class="dialogo-caixa">' +
+    '<select id="ficha-tipo">' + b.tipos.map((t) => '<option value="' + esc(t.id) + '"' + (t.id === f.tipo ? " selected" : "") + ">" + esc(t.rotulo) + "</option>").join("") +
+    "</select></div></div>";
+  const areas = '<div class="dialogo-campo"><label>Áreas</label><div class="chips ficha-areas">' +
+    b.areas.map((a) => '<label class="chip-marcar"><input type="checkbox" data-ficha-area="' + esc(a) + '"' +
+      ((f.areas || []).includes(a) ? " checked" : "") + "><span>" + esc(a) + "</span></label>").join("") + "</div></div>";
+  const vazios = ["titulo", "autor", "edicao", "ano", "editora", "isbn"].filter((c) => !f[c]).length;
+  const texto = vazios
+    ? "Li a ficha pelas primeiras páginas. O que não achei ficou em branco: não chuto campo de ficha. O que você escrever aqui vale sobre o que eu li."
+    : "Li a ficha pelas primeiras páginas. Confira: o que você escrever aqui vale sobre o que eu li.";
+  const campo = (chave, rotulo, extra) => Object.assign({ chave: chave, rotulo: rotulo, valor: f[chave] || "", obrigatorio: false }, extra || {});
+  const erro = '<p class="dialogo-dica" id="ficha-erro" hidden></p>';
+  await dialogo({
+    titulo: "A ficha de “" + item.nome + "”", contexto: "Configurações › Aprendizado › Material de consulta", larga: true,
+    texto: texto, html: tipo,
+    campos: [campo("titulo", "Título"), campo("autor", "Autor"), campo("edicao", "Edição", { placeholder: "2ª" }),
+      campo("ano", "Ano", { placeholder: "2015", max: 4 }), campo("editora", "Editora"), campo("isbn", "ISBN")],
+    depois: areas + erro, confirmar: "Guardar a ficha",
+    aoConfirmar: async () => {
+      const veu = $("veu-dialogo");
+      if (!veu) return;
+      const corpo = { tipo: veu.querySelector("#ficha-tipo").value, areas: [] };
+      veu.querySelectorAll("[data-dialogo-chave]").forEach((el) => { corpo[el.dataset.dialogoChave] = el.value.trim(); });
+      veu.querySelectorAll("[data-ficha-area]").forEach((el) => { if (el.checked) corpo.areas.push(el.dataset.fichaArea); });
+      const r = await fetch("/api/material/" + encodeURIComponent(item.id) + "/ficha", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+      if (!r.ok) {
+        const aviso = veu.querySelector("#ficha-erro");
+        aviso.textContent = await erroDe(r);
+        aviso.hidden = false;
+        return;
+      }
+      cfg.material = await r.json();
+      if (dialogoAberto) dialogoAberto.fechar(null);
+      avisoCert("ficha guardada", { tom: "ok" });
+      desenharConfig();
+    },
+  });
 }
 
 function escolherMaterial() {
@@ -90,6 +162,7 @@ function menuDoMaterial(onde, id) {
   const m = ((cfg.material || {}).itens || []).find((x) => x.id === id);
   if (!m) return;
   const itens = [
+    { rotulo: "Conferir a ficha", icone: "badge", acao: () => dialogoDaFicha(m) },
     { rotulo: "Abrir o arquivo", icone: "open_in_new", acao: async () => {
       const r = await fetch("/api/material/" + encodeURIComponent(id) + "/abrir", { method: "POST" });
       if (!r.ok) avisoCert(await erroDe(r), { tom: "erro" });

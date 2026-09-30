@@ -55,7 +55,73 @@ CODIGOS = {
         "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
         "pistas": ("5452", "consolidacao das leis", "clt-"),
     },
+    # Os da Biblioteca (docs/PROGRESSO-BIBLIOTECA.md, M2). O endereco de cada
+    # um foi conferido no Planalto em 30/09/2026.
+    "cdc": {
+        "nome": "Código de Defesa do Consumidor",
+        "lei": "Lei nº 8.078, de 11 de setembro de 1990",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+        "pistas": ("8078", "defesa do consumidor", "cdc-"),
+    },
+    "cf": {
+        "nome": "Constituição Federal",
+        "lei": "Constituição da República Federativa do Brasil de 1988",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicaocompilado.htm",
+        "pistas": ("constituicaocompilado", "constituicao federal", "cf-"),
+    },
+    "ctn": {
+        "nome": "Código Tributário Nacional",
+        "lei": "Lei nº 5.172, de 25 de outubro de 1966",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm",
+        "pistas": ("5172", "tributario nacional", "ctn-"),
+    },
+    "eca": {
+        "nome": "Estatuto da Criança e do Adolescente",
+        "lei": "Lei nº 8.069, de 13 de julho de 1990",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm",
+        "pistas": ("8069", "crianca e do adolescente", "eca-"),
+    },
+    "inquilinato": {
+        "nome": "Lei do Inquilinato",
+        "lei": "Lei nº 8.245, de 18 de outubro de 1991",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8245compilado.htm",
+        "pistas": ("8245", "inquilinato", "inquilinato-"),
+    },
 }
+
+# O identificador de cada codigo na camada de inteligencia
+# (src/inteligencia/extratores/regras_leis.py): e por ele que uma citacao
+# achada num livro ("art. 18 do CDC") chega ao artigo guardado aqui.
+INSTRUMENTO = {
+    "cc": "lei_10406_2002", "cpc": "lei_13105_2015", "cp": "decreto_lei_2848_1940", "clt": "decreto_lei_5452_1943",
+    "cdc": "lei_8078_1990", "cf": "constituicao_1988", "ctn": "lei_5172_1966", "eca": "lei_8069_1990",
+    "inquilinato": "lei_8245_1991",
+}
+CODIGO_DO_INSTRUMENTO = {v: k for k, v in INSTRUMENTO.items()}
+
+# Como cada lei se apresenta no alto do proprio texto: "LEI Nº 8.078, DE 11
+# DE SETEMBRO DE 1990". Reconhecer pelo numero, e pelo que aparece PRIMEIRO,
+# porque o CDC cita a Constituicao no art. 1o e a Lei do Inquilinato cita o
+# Codigo Civil - quem procura "codigo civil" no comeco do texto erra de lei.
+# ("nº" tem o "º", que para a expressão regular é letra: daí o \S{0,2}.)
+TITULOS = {
+    "cc": r"lei n\S{0,2}\s*10\.?406",
+    "cpc": r"lei n\S{0,2}\s*13\.?105",
+    "cp": r"decreto-lei n\S{0,2}\s*2\.?848",
+    "clt": r"decreto-lei n\S{0,2}\s*5\.?452",
+    "cdc": r"lei n\S{0,2}\s*8\.?078",
+    "cf": r"constituicao da republica federativa do brasil",
+    "ctn": r"lei n\S{0,2}\s*5\.?172",
+    "eca": r"lei n\S{0,2}\s*8\.?069",
+    "inquilinato": r"lei n\S{0,2}\s*8\.?245",
+}
+
+# Os artigos do ADCT recomecam do 1o dentro do texto da Constituicao. Ficam no
+# mesmo codigo, com a ordem depois de todos os artigos do corpo e o numero
+# "ADCT 1º": sem isso, o ADCT inteiro era lido como citacao e ia parar dentro
+# do art. 250.
+ADCT_BASE = 10 ** 11
+RE_ADCT = re.compile(r"^ATO DAS DISPOSI[ÇC][ÕO]ES CONSTITUCIONAIS TRANSIT[ÓO]RIAS\.?$")
 
 # Cabeçalhos que dão o lugar do artigo dentro do código.
 #
@@ -80,7 +146,10 @@ RE_ESTRUTURA = re.compile(
     r"(?:[IVXLCDM]{1,8}(?:-[A-Z])?"
     r"|[ÚU]NIC[OA]|[ÚU]nic[oa]"
     r"|PRELIMINAR|Preliminar|GERAL|Geral|ESPECIAL|Especial"
-    r"|COMPLEMENTAR|Complementar)"
+    r"|COMPLEMENTAR|Complementar"
+    # O CTN numera por extenso: "LIVRO PRIMEIRO", "LIVRO SEGUNDO".
+    r"|PRIMEIR[OA]|Primeir[oa]|SEGUND[OA]|Segund[oa]|TERCEIR[OA]|Terceir[oa]|QUART[OA]|Quart[oa]"
+    r"|QUINT[OA]|Quint[oa]|SEXT[OA]|Sext[oa])"
     r"(?![A-Za-zÀ-ÿ])\s*(?:[A-ZÀ-Ý][^\n]{0,78})?$"
 )
 
@@ -155,9 +224,15 @@ class Artigo:
         }
 
 
+SIGLAS = {"cc": "CC", "cpc": "CPC", "cp": "CP", "clt": "CLT", "cdc": "CDC", "cf": "CF", "ctn": "CTN", "eca": "ECA",
+          "inquilinato": "Lei 8.245/1991"}
+
+
 def citar(codigo: str, numero: str) -> str:
     """A forma como um advogado escreve a citação no texto."""
-    sigla = {"cc": "CC", "cpc": "CPC", "cp": "CP", "clt": "CLT"}.get(codigo, codigo.upper())
+    sigla = SIGLAS.get(codigo, codigo.upper())
+    if str(numero).startswith("ADCT "):
+        return f"{sigla}, ADCT, art. {numero[5:]}"
     return f"{sigla}, art. {numero}"
 
 
@@ -181,6 +256,12 @@ def _texto_do_html(bruto: bytes) -> str:
         texto = bruto.decode("cp1252", errors="replace")
 
     texto = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", texto, flags=re.S | re.I)
+    # A quebra de linha do codigo-fonte e espaco, como no navegador. O
+    # Planalto quebra o paragrafo no meio ("Art." numa linha, "10." na
+    # outra): lida como linha, o artigo nao comecava, e o texto dele ia
+    # parar no artigo anterior. Medido em 30/09/2026: o Codigo Penal perdia
+    # 44 artigos (o 147-A inclusive), a CLT 28, o CTN mais da metade.
+    texto = re.sub(r"[\r\n]+", " ", texto)
     texto = RE_BLOCO.sub("\n", texto)
     texto = RE_TAG.sub("", texto)
     texto = _html.unescape(texto)
@@ -231,15 +312,46 @@ def ler_codigo(caminho: Path | str, codigo: str) -> tuple[list[Artigo], dict]:
     citação, e o texto dela pertence ao artigo que está citando.
     """
     alvo = Path(caminho)
-    linhas = _texto_do_html(alvo.read_bytes()).split("\n")
+    return ler_linhas(_texto_do_html(alvo.read_bytes()).split("\n"), codigo)
 
+
+# Uma linha de dispositivo: paragrafo, inciso, alinea. Nunca e nome de
+# Titulo ou Capitulo, mesmo curta.
+RE_DISPOSITIVO = re.compile(r"^(?:§|Par[áa]grafo|[IVXLCDM]{1,7}\s*[-–—]|[a-z]\)|\(Revogad|\(Vetad|\(Inclu)")
+
+
+def ler_linhas(linhas: list[str], codigo: str) -> tuple[list[Artigo], dict]:
+    """
+    O mesmo `ler_codigo`, sobre linhas de texto: as do HTML do Planalto ou as
+    de um PDF da lei (a triagem da Biblioteca, src/biblioteca/triagem.py).
+
+    Três coisas a mais do que o Código Civil precisava:
+
+    - **o nome do Titulo** ("DAS PESSOAS NATURAIS", na linha de baixo do
+      "TÍTULO I") não é texto do artigo anterior. Antes ele ia parar no fim
+      do último artigo do capítulo que acabou;
+    - **o ADCT da Constituição** recomeça do art. 1º: vira "ADCT 1º", com a
+      ordem depois do corpo (ver ADCT_BASE);
+    - **só a CLT tem decreto com artigos antes do primeiro Titulo.** O CTN
+      tem o art. 1º numa "Disposição preliminar", antes do Livro Primeiro:
+      jogar fora tudo o que vinha antes do primeiro cabeçalho perdia o art.
+      1º do CTN.
+    """
     artigos: list[Artigo] = []
+    # Os artigos antes do primeiro cabeçalho ficam em suspenso: se a
+    # numeração recomeça depois dele (a CLT volta ao art. 1º), eram do
+    # decreto que aprova o código, e saem; se continua (o CTN vai ao art. 2º),
+    # eram do código.
+    pendentes: list[Artigo] | None = None
+    maior_pendente = 0
     atual: Artigo | None = None
     corpo: list[str] = []
     estrutura: list[str] = []
     no_preambulo = True
     maior = 0
-    fora = {"preambulo": 0, "citados": 0}
+    base_ordem = 0          # ADCT_BASE depois do "ATO DAS DISPOSIÇÕES..."
+    apos_cabecalho = False  # a linha seguinte a um cabeçalho pode ser o nome dele
+    fora = {"preambulo": 0, "citados": 0, "adct": 0}
 
     def fechar() -> None:
         if atual is None:
@@ -272,31 +384,51 @@ def ler_codigo(caminho: Path | str, codigo: str) -> tuple[list[Artigo], dict]:
             artigos.append(atual)
 
     for linha in linhas:
-        if not linha:
+        linha = (linha or "").strip()
+        if not linha or re.fullmatch(r"\[pagina \d+\]", linha):
+            continue
+
+        if codigo == "cf" and not no_preambulo and not base_ordem and RE_ADCT.match(linha):
+            # Acabou o corpo da Constituicao: o ADCT recomeca a numeracao.
+            fechar()
+            atual, corpo = None, []
+            base_ordem, maior = ADCT_BASE, 0
+            estrutura = ["ADCT"]
+            apos_cabecalho = True
             continue
 
         if RE_ESTRUTURA.match(linha) and len(linha) < 96:
             if no_preambulo:
-                # Começou o código: o que veio antes era do decreto que o aprova.
+                # Começou o código. O que veio antes fica em suspenso (ver
+                # `pendentes`), e o contador volta a zero: sem isso, os dois
+                # primeiros artigos da CLT seriam lidos como citação do
+                # decreto que ficou para trás.
                 fechar()
-                fora["preambulo"] = len(artigos)
+                pendentes, maior_pendente = artigos, maior
                 artigos = []
                 atual, corpo = None, []
-                # O contador volta a zero junto: o corpo recomeca no art. 1o, e
-                # sem zerar aqui os dois primeiros artigos da CLT seriam lidos
-                # como citacao do decreto que ficou para tras.
                 maior = 0
                 no_preambulo = False
             nivel = _nivel(linha)
             estrutura = [x for x in estrutura if _nivel(x) < nivel]
             estrutura.append(linha)
-            estrutura = estrutura[-4:]
+            estrutura = estrutura[-4:] if estrutura[0] != "ADCT" else (["ADCT"] + estrutura[1:])[-5:]
+            apos_cabecalho = True
             continue
 
         achado = RE_ARTIGO.match(linha)
         if achado:
+            apos_cabecalho = False
             cadeia = achado.group(3) or ""
-            ordem = _ordem(achado.group(1), cadeia)
+            ordem = base_ordem + _ordem(achado.group(1), cadeia)
+
+            if pendentes is not None:
+                if pendentes and ordem <= maior_pendente:
+                    fora["preambulo"] = len(pendentes)   # a numeração recomeçou
+                else:
+                    artigos = pendentes + artigos
+                    maior = max(maior, maior_pendente)
+                pendentes = None
 
             if not no_preambulo and ordem <= maior:
                 # Artigo de outra lei, citado aqui dentro: o texto é do artigo
@@ -311,6 +443,9 @@ def ler_codigo(caminho: Path | str, codigo: str) -> tuple[list[Artigo], dict]:
             numero = achado.group(1) + (achado.group(2) or "").replace("o", "º").replace("°", "º")
             if partes:
                 numero += "-" + "-".join(p.upper() for p in partes)
+            if base_ordem:
+                numero = "ADCT " + numero
+                fora["adct"] += 1
 
             atual = Artigo(codigo=codigo, numero=numero, ordem=ordem,
                            contexto=" · ".join(estrutura))
@@ -318,10 +453,17 @@ def ler_codigo(caminho: Path | str, codigo: str) -> tuple[list[Artigo], dict]:
             maior = max(maior, ordem)
             continue
 
+        # O nome do cabeçalho, na linha de baixo dele: curto, sem cara de
+        # dispositivo. Não é texto do artigo que ficou para trás.
+        if apos_cabecalho and len(linha) < 160 and not RE_DISPOSITIVO.match(linha):
+            continue
+        apos_cabecalho = False
         if atual is not None:
             corpo.append(linha)
 
     fechar()
+    if pendentes:
+        artigos = pendentes + artigos
     if no_preambulo:
         # Texto sem cabeçalho de estrutura nenhum: tudo o que há são artigos.
         fora["preambulo"] = 0
@@ -342,9 +484,26 @@ def reconhecer(caminho: Path | str) -> str:
             return chave
 
     try:
-        inicio = _sem_acento(_texto_do_html(alvo.read_bytes())[:6000])
+        return reconhecer_texto(_texto_do_html(alvo.read_bytes()))
     except OSError:
         return ""
+
+
+def reconhecer_texto(texto: str) -> str:
+    """
+    De qual código é este texto - pelo título que a lei tem no alto
+    ("LEI Nº 8.078, DE 11 DE SETEMBRO DE 1990"), o que aparecer primeiro.
+    Serve para o HTML do Planalto e para o PDF que alguém entregou como
+    material. Sem título reconhecido, as pistas de antes.
+    """
+    inicio = _sem_acento(texto[:6000])
+    achados = []
+    for chave, padrao in TITULOS.items():
+        m = re.search(padrao, inicio)
+        if m:
+            achados.append((m.start(), chave))
+    if achados:
+        return min(achados)[1]
     for chave, dados in CODIGOS.items():
         if any(p in inicio for p in dados["pistas"]):
             return chave
@@ -380,6 +539,21 @@ class Leis:
             )
 
         artigos, fora = ler_codigo(alvo, codigo)
+        return self._gravar(codigo, artigos, fora, str(alvo), CODIGOS[codigo]["fonte"])
+
+    def importar_texto(self, texto: str, codigo: str, arquivo: str = "") -> dict:
+        """
+        A lei vinda de um PDF ou TXT, e não do HTML do Planalto: alguém entregou
+        o CDC como material (src/biblioteca/triagem.py). O texto passa pelo
+        mesmo leitor, artigo por artigo; a fonte guardada diz que veio de um
+        arquivo, e não do Planalto.
+        """
+        if codigo not in CODIGOS:
+            raise ValueError("não reconheci de qual código é este texto")
+        artigos, fora = ler_linhas((texto or "").split("\n"), codigo)
+        return self._gravar(codigo, artigos, fora, arquivo, "arquivo entregue: " + Path(arquivo or "").name)
+
+    def _gravar(self, codigo: str, artigos: list[Artigo], fora: dict, arquivo: str, fonte: str) -> dict:
         if len(artigos) < 20:
             raise ValueError(
                 f"só achei {len(artigos)} artigo(s) neste arquivo. Ele parece não ser o "
@@ -402,7 +576,7 @@ class Leis:
             "ON CONFLICT(codigo) DO UPDATE SET nome = excluded.nome, lei = excluded.lei, "
             "fonte = excluded.fonte, arquivo = excluded.arquivo, artigos = excluded.artigos, "
             "importado_em = excluded.importado_em",
-            (codigo, dados["nome"], dados["lei"], dados["fonte"], str(alvo), len(artigos)),
+            (codigo, dados["nome"], dados["lei"], fonte, arquivo, len(artigos)),
         )
         self._reindexar(codigo)
 
@@ -461,12 +635,18 @@ class Leis:
         a forma exata faria a busca falhar no uso normal.
         """
         limpo = str(numero or "").strip().replace("°", "º")
+        # "ADCT 2", "ADCT, art. 2º": o ADCT tem a numeracao dele (ADCT_BASE).
+        base_ordem = 0
+        if re.match(r"(?i)adct\b", limpo):
+            base_ordem = ADCT_BASE
+            limpo = re.sub(r"(?i)^adct[\s,]*(?:art\.?\s*)?", "", limpo)
         # A cadeia inteira de sufixos, nao so o ultimo degrau: procurar
         # "359-M-A" pegando so o "-A" cairia no artigo 359-A, que e outro.
         cadeia = "".join(re.findall(r"[" + HIFENS + r"][A-Za-z]{1,2}", limpo))
         alvo = _ordem(limpo, cadeia)
         if not alvo:
             return None
+        alvo += base_ordem
 
         linha = self.base.um(
             "SELECT * FROM artigos WHERE codigo = ? AND ordem = ?", (codigo, alvo)

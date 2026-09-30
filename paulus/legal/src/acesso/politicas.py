@@ -329,6 +329,15 @@ _declarar(BLOQUEADO,
           "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
           "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura")
 
+# --- a Biblioteca (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md): montar a
+# biblioteca e a configuracao dela ficam na janela do servidor, como o
+# material de consulta. Consultar o que ela sabe sobre um artigo e ver, como
+# as leis.
+_declarar(BLOQUEADO,
+          "GET /api/biblioteca-juridica", "PUT /api/material/{id_}/ficha", "POST /api/leis/baixar",
+          "GET /api/material/{id_}/arquivo")
+_declarar(PERMITIDO, "GET /api/leis/anotacoes")
+
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:
     """A politica remota de uma rota; sem declaracao, bloqueada."""

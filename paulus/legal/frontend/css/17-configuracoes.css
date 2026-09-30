@@ -246,3 +246,10 @@
   .atu-nova small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .atu-novidades { margin: 0; padding-left: 18px; display: grid; gap: 4px; font: 400 13px/1.5 var(--sans); color: var(--ink2); }
   .cfg-explica.acc { color: var(--acc); }
+/* A Biblioteca (js/35-material.js): as areas da ficha, cada uma um chip que
+   se marca - o proprio chip e o rotulo da caixa de marcar. */
+.ficha-areas { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-marcar { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--ink-a12); background: var(--surf); font-size: 12.5px; cursor: pointer; }
+.chip-marcar input { margin: 0; accent-color: var(--acc); }
+.chip-marcar:has(input:checked) { background: var(--fill); border-color: var(--ink-a3); }
