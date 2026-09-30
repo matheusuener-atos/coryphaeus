@@ -3,11 +3,11 @@
    A Biblioteca: o que o PAULUS consulta para responder, numa tela só do menu.
    Três abas:
 
-   - Obras e lembretes: a seção que morava em Configurações › Biblioteca (o
-     material de consulta com a ficha, o mapa "O que eu sei", as chaves, os
-     lembretes e as habilidades). É a mesma seção, desenhada aqui:
-     mostrarConfig("aprendizado") e desenharConfig() com essa seção abrem
-     esta tela (05-configuracoes.js);
+   - Estante (js/59-estante.js, A21): as estantes por área, o nível, os
+     próximos passos e os artigos comentados - no lugar dos cartões "O que eu
+     sei" e "Material de consulta", que saíram de Configurações › Biblioteca
+     (lá ficam as chaves, os lembretes e as habilidades). Só na janela do
+     escritório: de fora, o mapa e o material não abrem;
    - Leis e súmulas: a Constituição, os códigos e as súmulas do STJ que vêm
      com o PAULUS (src/biblioteca/nativo.py), e a consulta por artigo, por
      palavra e por súmula;
@@ -22,7 +22,12 @@ const bibc = {
 };
 
 /* No celular, só a primeira palavra de cada aba cabe (36-biblioteca.css). */
-const ABAS_BIB = [["obras", "Obras", " e lembretes"], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"]];
+const ABAS_BIB = [["obras", "Estante", ""], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"]];
+
+function abasDaBib() {
+  const local = typeof acessoDeFora === "undefined" || acessoDeFora.local;
+  return ABAS_BIB.filter(([v]) => local || v !== "obras");
+}
 
 function bibAberta() {
   return $("conversa-titulo").textContent === "Biblioteca" && Boolean($("bib-tela"));
@@ -30,6 +35,11 @@ function bibAberta() {
 
 async function mostrarBibliotecaContexto(aba) {
   if (aba) bibc.aba = aba;
+  if (!abasDaBib().some(([v]) => v === bibc.aba)) bibc.aba = abasDaBib()[0][0];
+  // Os passos feitos valem enquanto a estante está aberta.
+  est.feitos = {};
+  est.pendente = null;
+  est.nivel = -1;
   if (typeof pararMedicao === "function") pararMedicao();
   abrirTela("Biblioteca", { cheia: true });
   marcarDestino("contexto");
@@ -41,7 +51,7 @@ async function mostrarBibliotecaContexto(aba) {
 
 function cabecalhoBib() {
   $("conversa-meta").textContent = "O que eu consulto para responder · fica nesta máquina";
-  $("nav-tela").innerHTML = '<div class="visoes bib-abas">' + ABAS_BIB.map(([v, r, resto]) =>
+  $("nav-tela").innerHTML = '<div class="visoes bib-abas">' + abasDaBib().map(([v, r, resto]) =>
     '<button class="' + (v === bibc.aba ? "ativa" : "") + '" data-bib-aba="' + v + '"><span>' + r + '<span class="bib-aba-resto">' + resto + "</span></span></button>").join("") + "</div>";
   $("acoes-tela").innerHTML = "";
   document.querySelectorAll("[data-bib-aba]").forEach((b) => {
@@ -65,8 +75,8 @@ function cascaBib(html) {
 async function carregarAbaBib() {
   const pega = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (bibc.aba === "obras") {
-    cfg.secao = "aprendizado";
-    await carregarSecao();
+    await carregarEstante();
+    if (est.mapa && est.mapa.ligada && est.nivel < 0) est.nivel = nivelDaEstante(areasDaEstante()).idx;
   } else if (bibc.aba === "leis") {
     const [nativo, leis] = await Promise.all([pega("/api/biblioteca/acervo-inicial"), pega("/api/leis")]);
     bibc.nativo = nativo;
@@ -77,8 +87,7 @@ async function carregarAbaBib() {
 function desenharBib() {
   if (!$("bib-tela") && $("conversa-titulo").textContent !== "Biblioteca") return;
   if (bibc.aba === "obras") {
-    cascaBib(secaoAprendizado());
-    ligarConfig();
+    desenharEstante();
     return;
   }
   if (bibc.aba === "leis") {
@@ -88,6 +97,13 @@ function desenharBib() {
   }
   cascaBib(abaTribunaisBib());
   ligarTribunaisBib();
+}
+
+/* O material mudou (entregar, conferir a ficha, remover - js/35-material.js
+   chama desenharConfig): a estante lê de novo; as outras abas redesenham. */
+function aoMudarNaBiblioteca() {
+  if (bibc.aba === "obras") return recarregarEstante();
+  return desenharBib();
 }
 
 function aberturaBib(titulo, texto) {
@@ -140,12 +156,12 @@ function abaLeisBib() {
   const sumulas = cartaoCfg("Súmulas", metaCfg(plural(enunciados, "enunciado")),
     '<div class="cfg-linhas">' + linhasSumulas + "</div>" +
     '<p class="cfg-explica">As do STJ vêm do PDF oficial do tribunal, sem as canceladas e as revogadas, um trecho por enunciado: a conversa cita a súmula certa, e não metade de duas. ' +
-    "As do STF e do TST não vieram: os sites deles recusam a leitura por programa. Salve a lista em PDF ou TXT e entregue em Obras e lembretes — eu guardo um trecho por enunciado também.</p>");
+    "As do STF e do TST não vieram: os sites deles recusam a leitura por programa. Salve a lista em PDF ou TXT e entregue na Estante — eu guardo um trecho por enunciado também.</p>");
 
   const doutrina = cartaoCfg("Doutrina", metaCfg("o livro é do escritório"),
     '<p class="cfg-explica">Lei e decisão judicial não têm direito autoral (Lei 9.610/98, art. 8º, IV), por isso vêm com o PAULUS. Livro de doutrina tem autor e editora: não dá para vir no instalador. ' +
-    "Entregue os livros e artigos que o escritório tem em Obras e lembretes: a ficha diz autor, edição e ano, e a resposta cita a página.</p>" +
-    '<div class="cfg-botoes"><button class="com-icone" data-bib-ir-obras="1">' + ic("menu_book", 16) + "Ir para Obras e lembretes</button></div>");
+    "Entregue os livros e artigos que o escritório tem na Estante: a ficha diz autor, edição e ano, e a resposta cita a página.</p>" +
+    '<div class="cfg-botoes"><button class="com-icone" data-bib-ir-obras="1">' + ic("menu_book", 16) + "Ir para a Estante</button></div>");
 
   return aberturaBib("Leis e súmulas", "A Constituição, os códigos e as súmulas do STJ vêm com o PAULUS, no texto oficial. " +
       "Tudo fica nesta máquina e é consultado sem internet.") +
@@ -303,7 +319,7 @@ function abaTribunaisBib() {
     '<button class="com-icone" data-bib-montar="1">' + ic("search", 16) + "Montar as buscas</button></div>" +
     (links ? '<div class="cfg-linhas">' + links + "</div>" : "") +
     '<p class="cfg-explica">Jusbrasil, STF, STJ, TST e LexML não têm API aberta para programa: os termos de uso do Jusbrasil proíbem a leitura automática, e o LexML e o STF barram robô. ' +
-    "Por isso a busca abre no navegador, com o que você escreveu. O acórdão que servir, salve em PDF e entregue em Obras e lembretes: aí eu passo a consultar e citar.</p>");
+    "Por isso a busca abre no navegador, com o que você escreveu. O acórdão que servir, salve em PDF e entregue na Estante: aí eu passo a consultar e citar.</p>");
 
   return aberturaBib("Tribunais e fontes", "O processo pelo número no DataJud, do CNJ, e as buscas de jurisprudência e legislação dos sites oficiais e do Jusbrasil.") +
     processo + fora;

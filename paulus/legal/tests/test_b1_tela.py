@@ -4,8 +4,11 @@ B1 - a tela Biblioteca (frontend/js/57-biblioteca.js), no Edge pelo Playwright.
 Com dados de mentira (uma pasta temporária) e o acervo que vem com o PAULUS
 posto nela:
 
-  - o trilho e o menu têm a Biblioteca; Configurações › Biblioteca abre a
-    mesma tela, na aba Obras e lembretes, com o material e os lembretes;
+  - o trilho e o menu têm a Biblioteca; a aba Estante (A21) tem o nível, as
+    estantes por área (a obra do escritório conta, a lei e as súmulas não),
+    a faixa da ficha e os próximos passos - conferir a ficha de verdade vira
+    ✓; Configurações › Biblioteca fica com as chaves e os lembretes, e abre
+    a Biblioteca;
   - Leis e súmulas: os códigos do acervo, o art. 5º da Constituição pelo
     número, a busca por palavra e a Súmula 297 do STJ; o que foi apagado
     aparece como "fora", e "Pôr de volta" devolve;
@@ -33,6 +36,7 @@ sys.path.insert(0, str(RAIZ / "tests"))
 
 CAPTURAS = Path(os.environ.get("PAULUS_CAPTURAS") or (TMP / "capturas"))
 _falhas: list[str] = []
+OBRA: dict = {}
 
 
 def checar(cond, nome: str, detalhe=None) -> None:
@@ -83,30 +87,62 @@ def test_tela(base: str, api) -> None:
         pag.wait_for_timeout(1000)
         checar(pag.evaluate("() => !!document.querySelector('#menu [data-destino=\"contexto\"]')"), "o menu tem a Biblioteca")
 
-        # pelo trilho: Obras e lembretes
+        # pelo trilho: a Estante
         pag.click('.trilho [data-destino="contexto"]')
-        pag.wait_for_selector("#bib-tela .cfg-cartao", timeout=15000)
+        pag.wait_for_selector("#bib-tela .est-linha", timeout=15000)
         pag.wait_for_timeout(600)
         titulo = pag.evaluate("() => document.getElementById('conversa-titulo').textContent")
         abas = pag.evaluate("() => [...document.querySelectorAll('[data-bib-aba]')].map(b => b.textContent)")
-        checar(titulo == "Biblioteca" and abas == ["Obras e lembretes", "Leis e súmulas", "Tribunais e fontes"],
-               "a tela Biblioteca abre com as três abas", (titulo, abas))
-        cartoes = pag.evaluate("() => [...document.querySelectorAll('#bib-tela .cfg-cartao-cabeca > span:first-child')].map(s => s.textContent)")
-        checar("Material de consulta" in cartoes and "Lembretes" in cartoes and "O que eu sei fazer" in cartoes,
-               "Obras e lembretes tem o material, os lembretes e as habilidades", cartoes)
-        materiais = pag.inner_text("#bib-tela")
-        checar("Súmulas do STJ" in materiais, "e as súmulas do STJ já estão no material")
-        pag.screenshot(path=str(CAPTURAS / "b1-obras.png"))
+        checar(titulo == "Biblioteca" and abas == ["Estante", "Leis e súmulas", "Tribunais e fontes"],
+               "a tela Biblioteca abre na Estante, com as três abas", (titulo, abas))
+        checar(pag.inner_text(".est-titulo h1") == "Sua estante está crescendo", "o título do mock")
+        nivel = pag.inner_text(".est-nivel")
+        checar("Estante de bolso" in nivel and "faltam 2 para o próximo" in nivel and pag.inner_text(".est-anel") == "1",
+               "o nível conta só as áreas com obra do escritório (1): a lei e as súmulas não contam", nivel)
+        linhas = pag.evaluate("() => [...document.querySelectorAll('.est-linha')].map(l => ({area: l.querySelector('.est-area b').textContent,"
+                              " chip: l.querySelector('.est-chip').textContent, itens: [...l.querySelectorAll('.est-item')].map(i => i.lastElementChild.textContent)}))")
+        checar(linhas and linhas[0]["area"] == "Consumidor" and linhas[0]["chip"].endswith("com obra")
+               and "Vícios do produto e do serviço" in linhas[0]["itens"] and "CDC" in linhas[0]["itens"],
+               "a área com obra vem primeiro, com a lei, a obra e “com obra”", linhas[:1])
+        civil = next((x for x in linhas if x["area"] == "Civil"), {})
+        checar(civil.get("chip", "").endswith("só a lei") and "CC" in civil.get("itens", []) and "Súmulas STJ" in civil.get("itens", []),
+               "área sem obra: a lei e as súmulas em casa, e “só a lei”", civil)
+        checar(pag.evaluate("() => document.querySelectorAll('.est-item-mais').length") >= 5,
+               "cada área sem obra tem o espaço tracejado para entregar")
+        pag.click(".est-item[title='Vícios do produto e do serviço']")
+        pag.wait_for_selector(".est-faixa", timeout=5000)
+        faixa = pag.inner_text(".est-faixa")
+        checar("Vícios do produto e do serviço" in faixa and "ficha a conferir" in faixa and pag.query_selector(".est-faixa [data-est-mais]"),
+               "clicar na obra abre a faixa da ficha, com o menu da obra", faixa)
+        passos = pag.evaluate("() => [...document.querySelectorAll('.est-passo b')].map(b => b.textContent)")
+        checar(len(passos) <= 4 and passos[0] == "Confira a ficha de “Vícios do produto e do serviço”"
+               and any(p.startswith("Dê um livro à estante") for p in passos) and "Deixe eu ler as obras com calma" in passos,
+               "os próximos passos saem dos dados, na ordem do mock", passos)
+        pag.screenshot(path=str(CAPTURAS / "b1-estante.png"))
+        pag.click(".est-passo [data-est-passo^='ficha:']")
+        pag.wait_for_selector("#veu-dialogo #ficha-tipo", state="attached", timeout=10000)
+        pag.click("#veu-dialogo [data-dialogo='confirmar']")
+        pag.wait_for_selector(".est-passo.feito", timeout=15000)
+        checar("Ficha conferida" in pag.evaluate("() => (document.getElementById('faixa-janela') || {}).textContent || ''")
+               and pag.inner_text(".est-passo.feito b").startswith("Confira a ficha"),
+               "conferir a ficha de verdade: o passo vira ✓ e o aviso diz o que mudou")
+        checar(api.estado.material.item(OBRA["id"])["ficha"]["confirmada"], "e a ficha ficou confirmada no servidor")
+        pag.screenshot(path=str(CAPTURAS / "b1-estante-feito.png"))
 
-        # Configurações › Biblioteca abre a mesma tela
+        # Configurações › Biblioteca: as chaves e os lembretes, e o caminho para a estante
         pag.evaluate("() => mostrarConfig('perfil')")
         pag.wait_for_selector("[data-cfg-secao='aprendizado']", timeout=10000)
         pag.click("[data-cfg-secao='aprendizado']")
-        pag.wait_for_selector("#bib-tela .cfg-cartao", timeout=15000)
-        checar(pag.evaluate("() => document.getElementById('conversa-titulo').textContent === 'Biblioteca' && cfg.secao === 'aprendizado'"),
-               "Configurações › Biblioteca abre a tela Biblioteca")
+        pag.wait_for_selector("#cfg-tela [data-cfg-estante]", timeout=15000)
+        cartoes = pag.evaluate("() => [...document.querySelectorAll('#cfg-tela .cfg-cartao-cabeca > span:first-child')].map(s => s.textContent)")
+        checar(pag.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Configurações"
+               and "Lembretes" in cartoes and "Como a biblioteca trabalha" in cartoes
+               and "Material de consulta" not in cartoes and "O que eu sei" not in cartoes,
+               "Configurações › Biblioteca fica com as chaves e os lembretes; o material e o mapa saíram", cartoes)
+        pag.click("[data-cfg-estante]")
+        pag.wait_for_selector("#bib-tela .est-linha", timeout=15000)
         checar(pag.evaluate("() => document.querySelector('.trilho [data-destino=\"contexto\"]').classList.contains('ativo')"),
-               "e o trilho acende a Biblioteca")
+               "“Abrir a Biblioteca” leva à estante, e o trilho acende a Biblioteca")
 
         # Leis e súmulas
         pag.click("[data-bib-aba='leis']")
@@ -170,7 +206,7 @@ def test_tela(base: str, api) -> None:
         pag.wait_for_timeout(400)
         for aba in ("tribunais", "leis", "obras"):
             pag.evaluate(f"() => mostrarBibliotecaContexto('{aba}')")
-            pag.wait_for_selector("#bib-tela .cfg-cartao", timeout=15000)
+            pag.wait_for_selector("#bib-tela .cfg-cartao, #bib-tela .est", timeout=15000)
             pag.wait_for_timeout(400)
             largura = pag.evaluate("() => document.documentElement.scrollWidth")
             checar(largura <= 392, f"em 390 px, {aba} sem rolagem horizontal", largura)
@@ -192,6 +228,14 @@ def main() -> int:
 
     feito = nativo.instalar(api.estado.leis, api.estado.material, Path(os.environ["PAULUS_DADOS"]) / "leis", forcar=True)
     checar(len(feito["codigos"]) >= 11 and feito["sumulas"] == ["stj"], "o acervo entra na pasta do teste", feito)
+    # Uma obra do escritório, de consumidor, com a ficha ainda por conferir.
+    from biblioteca import ficha as ficha_mod
+
+    OBRA.update(api.estado.material.absorver_texto(
+        "Vícios do produto.txt",
+        "VÍCIOS DO PRODUTO E DO SERVIÇO\n\nCapítulo 1. O art. 18 do CDC trata do vício do produto. " * 20,
+        {**ficha_mod.vazia("doutrina"), "titulo": "Vícios do produto e do serviço", "autor": "Heitor Brandão",
+         "ano": "2015", "areas": ["consumidor"], "confirmada": False}))
     original = tribunais.consultar_datajud
     tribunais.consultar_datajud = datajud_simulado
     porta = _porta_livre()

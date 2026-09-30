@@ -51,8 +51,6 @@ function mostrarMaquina() { return mostrarConfig("desempenho"); }
 function mostrarConexoes() { return mostrarConfig("conexoes"); }
 
 async function mostrarConfig(secao) {
-  // A seção Biblioteca mora na tela Biblioteca do menu (js/57-biblioteca.js).
-  if ((secao || cfg.secao) === "aprendizado") return mostrarBibliotecaContexto("obras");
   const externo = Boolean(secao);
   if (secao) cfg.secao = secao;
   pararMedicao();
@@ -163,7 +161,8 @@ async function carregarSecao() {
 }
 
 function desenharConfig() {
-  if (cfg.secao === "aprendizado" && typeof bibAberta === "function" && bibAberta()) return desenharBib();
+  // Com a Biblioteca aberta, o material mudou por ela (js/57-biblioteca.js).
+  if (cfg.secao === "aprendizado" && typeof bibAberta === "function" && bibAberta()) return aoMudarNaBiblioteca();
   cabecalhoConfig();
   const menu = CFG_SECOES.map(([id, rotulo]) => {
     const classe = "cfg-item" + (id === cfg.secao ? " ativa" : "");
@@ -1017,9 +1016,14 @@ function secaoAprendizado() {
     ["Habilidades", String(total)],
   ]);
 
+  // A estante (o que eu sei, por área) e o material de consulta moram na
+  // tela Biblioteca (js/59-estante.js); aqui ficam as chaves, os lembretes e
+  // as habilidades.
+  const estante = cartaoCfg("A estante", metaCfg("na tela Biblioteca"),
+    '<p class="cfg-explica">Os livros, manuais e tabelas que eu consulto, por área, com a ficha de cada um, ficam na Biblioteca, no menu.</p>' +
+    '<div class="cfg-botoes"><button class="com-icone" data-cfg-estante="1">' + ic("menu_book", 16) + "Abrir a Biblioteca</button></div>");
   return aberturaCfg() + ficha +
-    cartaoMapa() +
-    cartaoMaterial() +
+    estante +
     cartaoChavesBiblioteca() +
     cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
@@ -1234,6 +1238,7 @@ function ligarConfig() {
 
   clique("[data-cfg-secao]", (b) => { cfg.secao = b.dataset.cfgSecao; mostrarConfig(); });
   clique("[data-cfg-manual]", () => { location.hash = "#boasvindas"; verificarPrimeiraAbertura(); });
+  clique("[data-cfg-estante]", () => mostrarBibliotecaContexto("obras"));
   clique("[data-cfg-lixo-restaurar]", async (b) => {
     b.disabled = true;
     await restaurarDaLixeira(Number(b.dataset.cfgLixoRestaurar), null);

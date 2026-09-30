@@ -237,7 +237,7 @@ async function dialogoDaFicha(item) {
   const campo = (chave, rotulo, extra) => Object.assign({ chave: chave, rotulo: rotulo, valor: f[chave] || "", obrigatorio: false }, extra || {});
   const erro = '<p class="dialogo-dica" id="ficha-erro" hidden></p>';
   await dialogo({
-    titulo: "A ficha de “" + item.nome + "”", contexto: "Configurações › Aprendizado › Material de consulta", larga: true,
+    titulo: "A ficha de “" + item.nome + "”", contexto: "Biblioteca › Estante", larga: true,
     texto: texto, html: tipo,
     campos: [campo("titulo", "Título"), campo("autor", "Autor"), campo("edicao", "Edição", { placeholder: "2ª" }),
       campo("ano", "Ano", { placeholder: "2015", max: 4 }), campo("editora", "Editora"), campo("isbn", "ISBN")],
@@ -289,7 +289,7 @@ function menuDoMaterial(onde, id) {
     "-",
     { rotulo: "Remover", icone: "delete", perigo: true, acao: async () => {
       const ok = await confirmar({
-        titulo: "Remover “" + m.nome + "”?", contexto: "Configurações › Aprendizado",
+        titulo: "Remover “" + m.nome + "”?", contexto: "Biblioteca › Estante",
         texto: "Deixo de consultar este material na hora, e o arquivo guardado aqui é apagado. Não passa pela lixeira: para usar de novo, é enviar outra vez.",
         confirmar: "Remover", perigo: true,
       });

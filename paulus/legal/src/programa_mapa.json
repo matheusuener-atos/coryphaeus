@@ -2300,7 +2300,7 @@
     "ensinar com pdf"
    ],
    "faz": [
-    "Fica na Biblioteca, no menu; Configurações › Biblioteca abre a mesma tela.",
+    "A estante (livros, manuais e tabelas por área) fica na Biblioteca, no menu; Configurações › Biblioteca tem as chaves e os lembretes.",
     "A Constituição, os códigos (CC, CPC, CP, CPP, CLT, CDC, CTN, CTB, ECA e Lei do Inquilinato) e as súmulas do STJ vêm com o PAULUS, no texto oficial, e são consultados sem internet.",
     "Consulta um processo pelo número único no DataJud, a base pública do CNJ: só o número sai da máquina.",
     "Material de consulta: guarda PDFs, DOCX, TXT e MD nesta máquina e, em cada pergunta da conversa, consulta os trechos que têm a ver, citando o material e a página.",
@@ -2328,11 +2328,11 @@
       "aprender com arquivo"
      ],
      "passos": [
-      "Abra Configurações e clique em Biblioteca.",
-      "No cartão Material de consulta, clique em Escolher arquivos, ou arraste os PDFs para o quadro.",
+      "Abra a Biblioteca, no menu.",
+      "Na Estante, clique em Entregar um livro, ou arraste os PDFs para a tela.",
       "Pergunte na conversa: os trechos do material que têm a ver entram na resposta, com o nome e a página."
      ],
-     "evidencia": "frontend/js/35-material.js:38"
+     "evidencia": "frontend/js/59-estante.js:271"
     },
     {
      "pergunta": "Como ensino uma regra do escritório ao assistente?",
@@ -2380,12 +2380,12 @@
       "obra de doutrina"
      ],
      "passos": [
-      "Abra Configurações e clique em Biblioteca.",
-      "No cartão Material de consulta, clique em Escolher arquivos, ou arraste os arquivos (PDF, DOCX, TXT ou MD) para o quadro.",
-      "Quando aparecer a etiqueta “conferir a ficha”, confira título, autor, edição e ano.",
+      "Abra a Biblioteca, no menu.",
+      "Na Estante, clique em Entregar um livro, ou arraste os arquivos (PDF, DOCX, TXT ou MD) para a tela.",
+      "Nos Próximos passos aparece “Confira a ficha”: confira título, autor, edição e ano.",
       "Nas perguntas da conversa, os trechos que têm a ver entram na resposta, com a obra e a página."
      ],
-     "evidencia": "frontend/js/35-material.js:44",
+     "evidencia": "frontend/js/59-estante.js:271",
      "c4": true
     },
     {
@@ -2399,11 +2399,11 @@
       "autor do livro"
      ],
      "passos": [
-      "Abra Configurações e clique em Biblioteca.",
-      "No cartão Material de consulta, clique no … da linha e escolha Conferir a ficha.",
+      "Abra a Biblioteca, no menu.",
+      "Na Estante, clique na obra e, na faixa que abre embaixo, no … escolha Conferir a ficha.",
       "Corrija o que precisar e clique em Guardar a ficha: o que você escreve vale sobre o que o PAULUS leu."
      ],
-     "evidencia": "frontend/js/35-material.js:279",
+     "evidencia": "frontend/js/59-estante.js:304",
      "c4": true
     },
     {
@@ -2416,11 +2416,11 @@
       "material de outro"
      ],
      "passos": [
-      "Abra Configurações e clique em Biblioteca.",
-      "No cartão Material de consulta, clique em Importar pacote e escolha o arquivo .paulus-material.",
+      "Abra a Biblioteca, no menu.",
+      "Na Estante, clique em Importar pacote (aparece com a chave do pacote ligada) e escolha o arquivo .paulus-material.",
       "Ele entra como material da comunidade, marcado como não revisado por este escritório."
      ],
-     "evidencia": "frontend/js/35-material.js:42",
+     "evidencia": "frontend/js/59-estante.js:269",
      "c4": true
     },
     {
@@ -2433,11 +2433,11 @@
       "=o que o paulus sabe"
      ],
      "passos": [
-      "Abra Configurações e clique em Biblioteca.",
-      "O cartão O que eu sei (aparece com a Biblioteca ligada) mostra as áreas, com os códigos de lei instalados e as obras de cada uma.",
+      "Abra a Biblioteca, no menu.",
+      "A Estante mostra as áreas, com os códigos de lei e as súmulas em casa e as obras do escritório de cada uma.",
       "Pergunta de uma área que não está ali é respondida pelos documentos, com o aviso de que falta material."
      ],
-     "evidencia": "frontend/js/35-material.js:96",
+     "evidencia": "frontend/js/59-estante.js:102",
      "c4": true
     }
    ],

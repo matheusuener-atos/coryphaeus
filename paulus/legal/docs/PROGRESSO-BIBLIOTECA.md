@@ -298,3 +298,35 @@ o que dá para ligar ao Jusbrasil e aos tribunais.
 - **Efeito na conversa:** as súmulas entram como material oficial e passam
   a ser consultadas em toda pergunta, com a camada SÚMULA. As áreas da ficha
   são as da competência do STJ (sem trabalho e sem constitucional).
+
+## B2 — a Estante, pelo mock A21 (30/09/2026)
+
+Pedido do dono: o visual da Biblioteca pelo mock "Biblioteca - referencia"
+(A21). A primeira aba virou **Estante** (`frontend/js/59-estante.js`): o
+nível pelas áreas com obra do escritório, as estantes por área (lei em casa,
+súmulas e obras em pílula, a área sem obra com o espaço tracejado, a etiqueta
+de estado), a faixa da ficha no pé, os próximos passos (no máximo 4, dos
+dados, na ordem do LEIAME) e os artigos que as obras comentam. Os cartões "O
+que eu sei" e "Material de consulta" saíram de Configurações › Biblioteca,
+que ficou com as chaves, os lembretes e as habilidades e um botão para a
+estante.
+
+Decisões:
+- **As súmulas do STJ e as leis não contam para o nível**: não são livro de
+  ninguém. Aparecem nas estantes em pílula neutra ("Súmulas STJ").
+- **A coluna editorial do produto (1.080 px)** vale para a estante como para
+  toda tela sem painel (regra do test_tela); o mock tem 1.376 px. A coluna da
+  direita ficou com 340 px, e as ações do cabeçalho descem quando não cabem.
+- O ícone `local_library` do mock não está no recorte da fonte: o trilho
+  segue com `menu_book`. `checklist`, `table_chart`, `fact_check`, `update` e
+  `priority_high` também não: `list`, `table`, `verified`, `history` e `info`.
+- "Importar pacote" (que morava no cartão de material) virou botão
+  secundário no cabeçalho, com a chave `biblioteca.pacote`.
+- "Ver artigo" (obra mais velha que a lei) abre a aba Leis e súmulas; o
+  artigo exato não sai do aviso da ficha.
+
+Medido: `tests/test_b1_tela.py` (Edge) passa com a estante: nível, ordem das
+áreas, faixa, passos, conferir a ficha de verdade vira ✓ com o aviso, 390 px
+sem rolagem; `test_tela`, `test_programa` (o mapa das telas da conversa
+aponta a estante) e `test_frontend` passam.
+
