@@ -209,7 +209,7 @@ def _preparar_janela_nativa() -> None:
     `shown`, de dentro da thread da interface. Ler isso de outra thread e o
     que travava a janela.
     """
-    global _HWND
+    global _HWND, _MAXIMIZADA
     try:
         nativa = _JANELA.native
         _HWND = int(nativa.Handle.ToInt64())
@@ -231,6 +231,16 @@ def _preparar_janela_nativa() -> None:
         # Sem isso a janela maximiza por cima da barra de tarefas; nao e
         # motivo para nao abrir.
         pass
+    # Agora, com o limite dito, maximiza - pelo mesmo caminho do botao da
+    # janela, para o botao saber que ela esta maximizada.
+    if "--minimizado" not in sys.argv[1:]:
+        try:
+            from System.Windows.Forms import FormWindowState
+
+            nativa.WindowState = FormWindowState.Maximized
+            _MAXIMIZADA = True
+        except Exception:  # noqa: BLE001 - fica no tamanho normal
+            pass
 
 
 def _porta_livre(preferida: int = 8000) -> int:
@@ -393,8 +403,12 @@ def _opcoes_da_janela(argv: list[str]) -> dict:
     "Abrir o PAULUS com o Windows" (acesso de fora, R9) - o programa sobe, o
     tunel liga, e a janela espera na barra de tarefas.
     """
-    # Sem pedido de minimizado, o PAULUS abre maximizado (pedido do dono, 29/09/2026).
-    return {"minimized": True} if "--minimizado" in argv else {"maximized": True}
+    # Sem pedido de minimizado, o PAULUS abre maximizado (pedido do dono,
+    # 29/09/2026) - mas nao aqui: criada ja maximizada, a janela sem moldura
+    # estica antes de saber a area de trabalho, e a pagina fica no tamanho
+    # antigo, fora do encaixe. Quem maximiza e _preparar_janela_nativa,
+    # depois do limite (MaximizedBounds).
+    return {"minimized": True} if "--minimizado" in argv else {}
 
 
 def _entregar_para_a_aberta(porta: int, caminho: str, timeout: float = 10) -> bool:
