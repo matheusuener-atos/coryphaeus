@@ -889,6 +889,7 @@ function cartaoProposta(d) {
   if (d.tipo === "exibir") return cartaoOferta(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
+  if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
 
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
@@ -1033,10 +1034,66 @@ function cartaoPrograma(d) {
     '<button data-prog="documentos">Procurar nos documentos</button></div></div>';
 }
 
+/* A CONSULTA DE CADASTRO (src/consulta_cadastro.py): "qual o CPF do cliente
+   Matheus?" respondido da ficha, por molde. O cartão diz de onde saiu e leva
+   até lá; com mais de uma ficha, pergunta de quem; sem nada, oferece ler os
+   documentos — e só lê com o clique. */
+function cartaoConsultaCadastro(d) {
+  const c = d.campos || {};
+  const ficha = c.ficha_id ? '<button data-cc="ficha">Abrir a ficha</button>' : "";
+  if (d.modo === "escolher") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">de quem?</span></div>' +
+      '<p class="explica">Escolha e eu respondo ' + (c.fonte === "documentos" ? "pelo que já foi lido dos documentos" : "pela ficha de Cadastros") + ".</p>" +
+      '<div class="linha-form">' + (d.opcoes || []).map((o, i) =>
+        "<button" + (i === 0 ? ' class="primario"' : "") + ' data-cc-opcao="' + i + '">' + esc(o.nome) + "</button>").join("") +
+      "</div></div>";
+  }
+  if (d.modo === "nada") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">não encontrei</span><b>' + esc(c.nome || "") + "</b></div>" +
+      '<p class="explica">Posso procurar lendo os documentos. Leva mais tempo, e só começo com o seu clique.</p>' +
+      '<div class="linha-form"><button class="primario" data-cc="documentos">Procurar lendo os documentos</button>' + ficha + "</div></div>";
+  }
+  const origem = c.fonte === "documentos"
+    ? "Tirei do que já foi lido de “" + (c.documento || "") + "”" + (c.pagina ? ", página " + c.pagina : "") + ", com o trecho conferido"
+    : c.fonte === "meus_dados" ? "Tirei de Configurações › Meus dados, sem ler documentos" : "Respondi pela ficha de Cadastros, sem ler documentos";
+  const abrir = c.fonte === "documentos" && c.documento ? '<button class="primario" data-cc="acervo">Ver no Acervo</button>'
+    : c.fonte === "meus_dados" ? '<button class="primario" data-cc="meus">Abrir Meus dados</button>'
+      : ficha.replace("<button", '<button class="primario"');
+  return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">' +
+    esc(c.fonte === "documentos" ? "dos documentos" : c.fonte === "meus_dados" ? "de Meus dados" : "do cadastro") + "</span>" +
+    "<b>" + esc(c.nome || "") + "</b></div>" +
+    '<p class="explica">' + esc(origem) + ".</p>" +
+    '<div class="linha-form">' + abrir + (c.fonte === "documentos" ? "" : '<button data-cc="documentos">Procurar nos documentos</button>') +
+    "</div></div>";
+}
+
+function ligarConsultaCadastro(caixa, d) {
+  const c = d.campos || {};
+  const clique = (sel, fn) => caixa.querySelectorAll(sel).forEach((b) => { b.onclick = () => fn(b); });
+  clique('[data-cc="ficha"]', async () => {
+    const visao = c.ficha_tipo === "cliente" ? "clientes" : c.ficha_tipo === "despesa" ? "despesas" : "equipe";
+    marcarDestino("cadastros");
+    await mostrarCadastros(visao);
+    if (typeof verFicha === "function") verFicha(Number(c.ficha_id));
+  });
+  clique('[data-cc="meus"]', () => { marcarDestino("config"); mostrarConfig("perfil"); });
+  clique('[data-cc="acervo"]', () => verNoAcervo(c.documento));
+  clique('[data-cc="documentos"]', () => {
+    caixa.innerHTML = '<p class="explica">Procurando nos documentos.</p>';
+    enviar({ texto: d.pergunta, retomar: true, documentos: true });
+  });
+  clique("[data-cc-opcao]", (b) => {
+    const o = (d.opcoes || [])[Number(b.dataset.ccOpcao)];
+    if (!o) return;
+    caixa.innerHTML = '<p class="explica">' + esc(o.nome) + ".</p>";
+    enviar({ texto: o.pergunta, retomar: true });
+  });
+}
+
 function ligarPrograma(caixa, d) {
   const c = d.campos || {};
   const ir = caixa.querySelector('[data-prog="ir"]');
-  if (ir) ir.onclick = () => abrirDestino(c.destino);
+  if (ir) ir.onclick = () => abrirTelaDaConversa(c.destino);
   const docs = caixa.querySelector('[data-prog="documentos"]');
   if (docs) docs.onclick = () => {
     caixa.innerHTML = '<p class="explica">Procurando nos documentos.</p>';
@@ -1319,6 +1376,7 @@ function camposProposta(d, faltando) {
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
+  if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
   ligarBotoesDeDocumento(caixa, d);

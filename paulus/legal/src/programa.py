@@ -58,6 +58,46 @@ TELAS_EXTRAS = {
     "apoiar": "Apoiar o projeto",
 }
 
+# C4 (chave `conversa.roteamento`): lugares do programa que não são destino do
+# menu, mas que a pessoa chama pelo nome. Medido em 30/09/2026: "Pra que serve
+# a busca no DJE?" caía na busca de documentos porque nenhum nome de tela
+# casava. Cada um abre pelo frontend (abrirTelaDaConversa, js/08-destinos.js):
+#   publicacoes - Agenda › To-do, filtro Publicações (js/48-publicacoes.js)
+#   busca       - a caixa do Ctrl+K (js/50-busca.js + GET /api/busca)
+#   leis        - Configurações › Assistente e modelo › Códigos de lei
+#   acesso      - Configurações › Acesso de fora (js/42-acesso.js)
+# A tela "Agentes" ainda não existe: entra quando existir, não antes.
+TELAS_C4 = {
+    "publicacoes": ("Publicações",
+                    "As comunicações do Diário de Justiça Eletrônico Nacional (DJEN) para as OABs do escritório, "
+                    "com o prazo virando tarefa. Fica em Agenda › To-do."),
+    "busca": ("Buscar em tudo",
+              "Uma caixa, aberta com Ctrl+K, que procura em tudo: telas, ações e os dados do escritório."),
+    "leis": ("Códigos de lei",
+             "Os códigos instalados nesta máquina, do texto compilado do Planalto, para citar o artigo com o "
+             "texto certo. Ficam em Configurações › Assistente e modelo."),
+    "acesso": ("Acesso de fora",
+               "Usar o PAULUS de casa ou do celular por um endereço paulus.ia.br, com o computador do escritório "
+               "ligado. Fica em Configurações › Acesso de fora."),
+}
+
+# Com a chave, o nome que a tela tem hoje: a seção de Configurações que o
+# destino "habilidades" abre se chama Biblioteca desde a Biblioteca do
+# escritório (M0-M7); "Aprendizado" não aparece mais em lugar nenhum da tela.
+NOMES_C4 = {"habilidades": "Biblioteca"}
+RESOLVE_C4 = {
+    "habilidades": "O que o PAULUS consulta para responder: livros, manuais e leis, com a fonte de cada um, e o "
+                   "que o escritório ensinou com as próprias palavras. Fica em Configurações › Biblioteca.",
+}
+
+NAO_E_TELA = ("busca e apreensao", "mandado de busca", "busca pessoal", "busca domiciliar", "busca de bens")
+
+# A tela que mora dentro de outra: com as duas na frase ("as Publicações da
+# Agenda"), vale a de dentro - é a mais específica.
+DENTRO_DE = {"publicacoes": "calendario", "tarefas": "calendario", "agendamento": "calendario",
+             "leis": "config", "acesso": "config", "habilidades": "config", "desempenho": "config",
+             "conexoes": "config", "certificado": "assinar", "relatorios": "financeiro", "organizar": "biblioteca"}
+
 
 def _plano(texto: str) -> str:
     normal = unicodedata.normalize("NFD", texto or "")
@@ -79,16 +119,23 @@ NOMES_NO_MENU = {
 }
 
 
-def nome_da_tela(id_: str) -> str:
+def nome_da_tela(id_: str, ampliado: bool = False) -> str:
+    if ampliado and id_ in NOMES_C4:
+        return NOMES_C4[id_]
+    if ampliado and id_ in TELAS_C4:
+        return TELAS_C4[id_][0]
     if id_ in NOMES_NO_MENU:
         return NOMES_NO_MENU[id_]
     d = destinos.obter(id_)
     return d.nome if d else TELAS_EXTRAS.get(id_, id_)
 
 
-def telas_conhecidas() -> list[str]:
-    """Na ordem do menu: com dois nomes iguais ("Agenda"), vence o primeiro."""
-    return [d.id for d in destinos.DESTINOS] + list(TELAS_EXTRAS)
+def telas_conhecidas(ampliado: bool = True) -> list[str]:
+    """
+    Na ordem do menu: com dois nomes iguais ("Agenda"), vence o primeiro.
+    Sem `ampliado` (a chave `conversa.roteamento` desligada), só as de antes.
+    """
+    return [d.id for d in destinos.DESTINOS] + list(TELAS_EXTRAS) + (list(TELAS_C4) if ampliado else [])
 
 
 # ----------------------------------------------------------------- sinais
@@ -189,6 +236,14 @@ RE_ONDE = re.compile(_ABERTURA + r"(?:onde|aonde|em que lugar|em que tela|qual t
 RE_O_QUE_E = re.compile(
     _ABERTURA + r"(?:o que e|o que sao|o que faz|para que serve|pra que serve|para que servem|"
     r"pra que servem|qual a funcao)\b"
+)
+
+# Com a chave, "como funciona o acesso de fora?" também pede a explicação da
+# tela. Sem tela citada a frase continua indo para o "o que eu faço" de
+# intencao.SOBRE, como antes.
+RE_O_QUE_E_C4 = re.compile(
+    _ABERTURA + r"(?:o que e|o que sao|o que faz|o que fazem|para que serve|pra que serve|para que servem|"
+    r"pra que servem|qual a funcao|qual a utilidade|como funciona|como funcionam|serve para que|serve pra que)\b"
 )
 
 
@@ -538,6 +593,7 @@ class TarefaDoMapa:
     palavras: list[str]
     passos: list[str]
     evidencia: str = ""
+    c4: bool = False           # só com a chave conversa.roteamento
 
 
 @dataclass
@@ -547,13 +603,21 @@ class TelaDoMapa:
     faz: list[str] = field(default_factory=list)
     nao_faz: list[str] = field(default_factory=list)
     tarefas: list[TarefaDoMapa] = field(default_factory=list)
+    c4: bool = False           # a tela inteira só existe no mapa com a chave
+    apelidos_c4: list[str] = field(default_factory=list)       # entram com a chave
+    apelidos_fora_c4: list[str] = field(default_factory=list)  # saem com a chave
 
 
 _MAPA: dict[str, TelaDoMapa] | None = None
+_MAPAS: dict[bool, dict[str, TelaDoMapa]] = {}
 
 
 def mapa(caminho: Path | None = None) -> dict[str, TelaDoMapa]:
-    """O mapa das telas, lido uma vez. Sem o arquivo, o mapa é vazio e o "como" não responde."""
+    """
+    O mapa das telas inteiro, lido uma vez - com o que só vale com a chave
+    `conversa.roteamento` marcado (`c4`). Quem responde usa `mapa_para`.
+    Sem o arquivo, o mapa é vazio e o "como" não responde.
+    """
     global _MAPA
     if _MAPA is not None and caminho is None:
         return _MAPA
@@ -567,13 +631,38 @@ def mapa(caminho: Path | None = None) -> dict[str, TelaDoMapa]:
                 nao_faz=t.get("nao_faz", []),
                 tarefas=[TarefaDoMapa(destino=t["destino"], pergunta=x["pergunta"],
                                       palavras=x.get("palavras", []), passos=x.get("passos", []),
-                                      evidencia=x.get("evidencia", ""))
+                                      evidencia=x.get("evidencia", ""), c4=bool(x.get("c4")))
                          for x in t.get("tarefas", [])],
+                c4=bool(t.get("c4")), apelidos_c4=t.get("apelidos_c4", []),
+                apelidos_fora_c4=t.get("apelidos_fora_c4", []),
             )
             telas[tela.destino] = tela
     if caminho is None:
         _MAPA = telas
     return telas
+
+
+def mapa_para(ampliado: bool) -> dict[str, TelaDoMapa]:
+    """
+    O mapa que responde. Sem a chave, exatamente o de antes da C4: sem as
+    telas, as perguntas e os apelidos que ela trouxe. Com a chave, tudo, e o
+    Acervo deixa de atender por "biblioteca" (a Biblioteca agora é outra).
+    """
+    if ampliado in _MAPAS and _MAPAS[ampliado] and _MAPA is not None:
+        return _MAPAS[ampliado]
+    saida: dict[str, TelaDoMapa] = {}
+    for id_, tela in mapa().items():
+        if tela.c4 and not ampliado:
+            continue
+        apelidos = list(tela.apelidos)
+        if ampliado:
+            apelidos = [a for a in apelidos if a not in tela.apelidos_fora_c4] + list(tela.apelidos_c4)
+        saida[id_] = TelaDoMapa(
+            destino=tela.destino, apelidos=apelidos, faz=tela.faz, nao_faz=tela.nao_faz,
+            tarefas=[t for t in tela.tarefas if ampliado or not t.c4], c4=tela.c4,
+        )
+    _MAPAS[ampliado] = saida
+    return saida
 
 
 SUFIXOS = ("amentos", "imentos", "amento", "imento", "atura", "acoes", "icoes", "acao", "icao",
@@ -609,6 +698,17 @@ def _pontos(frase_raizes: set[str], plano: str, termos: list[str]) -> float:
     pontos = 0.0
     usadas: set[str] = set()
     for termo in sorted(termos, key=lambda x: -len(x.split())):
+        if termo.startswith("="):
+            # Termo que só vale escrito assim, junto (C4): "=paulus de casa"
+            # não casa com "como uso a casa como garantia?", que tem as
+            # mesmas raízes em outra ordem.
+            exato = _plano(termo[1:]).strip()
+            if exato and re.search(r"(?<![a-z0-9])" + re.escape(exato) + r"(?![a-z0-9])", plano):
+                raizes = [_raiz(p) for p in _palavras(exato) if p not in VAZIAS]
+                if not all(r in usadas for r in raizes):
+                    pontos += 1.5
+                    usadas.update(raizes)
+            continue
         raizes = [_raiz(p) for p in _palavras(_plano(termo).replace("-", "")) if p not in VAZIAS]
         if not raizes:
             continue
@@ -652,10 +752,12 @@ def _candidatos_como(plano: str, telas: dict[str, TelaDoMapa]) -> list[tuple[flo
     return achados
 
 
-def _tela_citada(plano: str, telas: dict[str, TelaDoMapa]) -> str:
+def _tela_citada(plano: str, telas: dict[str, TelaDoMapa], ampliado: bool = False) -> str:
     """A tela cujo nome ou apelido a frase escreve - só quando é uma."""
+    if ampliado:
+        return _tela_citada_c4(plano, telas)
     achadas: dict[str, None] = {}
-    for id_ in telas_conhecidas():
+    for id_ in telas_conhecidas(False):
         nomes = [nome_da_tela(id_)] + (telas[id_].apelidos if id_ in telas else [])
         for n in nomes:
             n = _plano(n)
@@ -666,16 +768,55 @@ def _tela_citada(plano: str, telas: dict[str, TelaDoMapa]) -> str:
     return next(iter(achadas)) if len(unicas) == 1 else ""
 
 
+def _tela_citada_c4(plano: str, telas: dict[str, TelaDoMapa]) -> str:
+    """
+    Com a chave, duas regras a mais para quando a frase escreve mais de uma:
+
+    - o nome de dentro de outro não conta: em "a busca no DJE", "busca" é
+      parte de "busca no DJE" (Publicações), e não a caixa do Ctrl+K;
+    - tela dentro de tela vale a de dentro: "as Publicações da Agenda" é
+      Publicações.
+    """
+    achados: list[tuple[str, int, int]] = []
+    # Termo jurídico que contém um nome de tela não é a tela: "busca e
+    # apreensão" cobre o "busca" de dentro, e o que sobra não cita nada.
+    for termo in NAO_E_TELA:
+        for m in re.finditer(r"(?<![a-z0-9])" + re.escape(termo) + r"(?![a-z0-9])", plano):
+            achados.append(("", m.start(), m.end()))
+    for id_ in telas_conhecidas(True):
+        nomes = [nome_da_tela(id_, True)] + (telas[id_].apelidos if id_ in telas else [])
+        for n in nomes:
+            n = _plano(n)
+            if not n:
+                continue
+            for m in re.finditer(r"(?<![a-z0-9])" + re.escape(n) + r"(?![a-z0-9])", plano):
+                achados.append((id_, m.start(), m.end()))
+    inteiros = [a for a in achados
+                if not any(b[0] != a[0] and b[1] <= a[1] and a[2] <= b[2] and (b[2] - b[1]) > (a[2] - a[1])
+                           for b in achados)]
+    ids = list(dict.fromkeys(a[0] for a in inteiros if a[0]))
+    # "Agenda" é o nome de duas visões; conta como uma tela só.
+    unicas = list(dict.fromkeys(NOMES_NO_MENU.get(a, a) if a in ("calendario", "agendamento") else a for a in ids))
+    if len(unicas) > 1:
+        de_dentro = [a for a in ids if DENTRO_DE.get(a) in ids]
+        if len(de_dentro) == 1:
+            return de_dentro[0]
+        return ""
+    return ids[0] if ids else ""
+
+
 def texto_do_como(tarefa: TarefaDoMapa) -> str:
     linhas = [tarefa.pergunta.rstrip("?") + ":"]
     linhas += [f"  {i}. {p}" for i, p in enumerate(tarefa.passos, 1)]
     return "\n".join(linhas)
 
 
-def texto_da_tela(id_: str, telas: dict[str, TelaDoMapa]) -> str:
+def texto_da_tela(id_: str, telas: dict[str, TelaDoMapa], ampliado: bool = False) -> str:
     d = destinos.obter(id_)
-    nome = nome_da_tela(id_)
-    linhas = [f"{nome}: {d.resolve}" if d else nome + "."]
+    nome = nome_da_tela(id_, ampliado)
+    resolve = (RESOLVE_C4.get(id_) or (TELAS_C4.get(id_) or ("", ""))[1]) if ampliado else ""
+    resolve = resolve or (d.resolve if d else "")
+    linhas = [f"{nome}: {resolve}" if resolve else nome + "."]
     tela = telas.get(id_)
     if tela and tela.faz:
         linhas += ["", "O que dá para fazer lá:"] + [f"  · {f}" for f in tela.faz[:6]]
@@ -696,10 +837,11 @@ class Leitura:
     por_modelo: bool = False
     julgamento: dict = field(default_factory=dict)
     chave: str = ""            # id da consulta ou pergunta da tarefa
+    ampliado: bool = False     # respondida com a chave conversa.roteamento
 
     @property
     def nome_tela(self) -> str:
-        return nome_da_tela(self.destino)
+        return nome_da_tela(self.destino, self.ampliado)
 
     def to_dict(self) -> dict:
         dados = asdict(self)
@@ -720,7 +862,7 @@ class Candidato:
     verbo: bool = False        # "como" cujo verbo é a ação da tarefa
 
 
-def _ler_ir(plano: str, telas) -> Candidato | None:
+def _ler_ir(plano: str, telas, ampliado: bool = False) -> Candidato | None:
     """'abra o financeiro': verbo de ir, e o resto da frase é o nome de uma tela."""
     palavras = _palavras(plano)
     if not palavras or palavras[0] not in VERBOS_IR:
@@ -729,10 +871,11 @@ def _ler_ir(plano: str, telas) -> Candidato | None:
     if not resto or len(resto) > 4:
         return None
     alvo = " ".join(resto)
-    for id_ in telas_conhecidas():
-        nomes = {_plano(nome_da_tela(id_))} | {_plano(a) for a in (telas[id_].apelidos if id_ in telas else [])}
+    for id_ in telas_conhecidas(ampliado):
+        apelidos = telas[id_].apelidos if id_ in telas else []
+        nomes = {_plano(nome_da_tela(id_, ampliado))} | {_plano(a) for a in apelidos}
         if alvo in nomes or " ".join(_palavras(alvo)) in {" ".join(_palavras(n)) for n in nomes}:
-            return Candidato("ir", id_, id_, f"abrir a tela {nome_da_tela(id_)}", forte=True)
+            return Candidato("ir", id_, id_, f"abrir a tela {nome_da_tela(id_, ampliado)}", forte=True)
     return None
 
 
@@ -756,14 +899,15 @@ def _ler_consultas(plano: str) -> list[Candidato]:
     return achados
 
 
-def candidatos(frase: str, telas: dict[str, TelaDoMapa] | None = None) -> tuple[list[Candidato], dict]:
+def candidatos(frase: str, telas: dict[str, TelaDoMapa] | None = None,
+               ampliado: bool = False) -> tuple[list[Candidato], dict]:
     """
     Tudo o que a regra enxerga na frase, e os sinais que ela usou.
 
     Não decide nada: devolve os candidatos com a força de cada um. Quem
-    decide é `ler`.
+    decide é `ler`. `ampliado` é a chave `conversa.roteamento` (C4).
     """
-    telas = mapa() if telas is None else telas
+    telas = mapa_para(ampliado) if telas is None else telas
     plano = _plano(frase).strip()
     sinais = {
         "ancora": ancora_de_documento(plano),
@@ -771,18 +915,19 @@ def candidatos(frase: str, telas: dict[str, TelaDoMapa] | None = None) -> tuple[
         "pergunta": _pergunta_ou_lista(plano),
         "como_fazer": bool(RE_COMO_FAZER.search(plano) or RE_ORDEM_DE_AJUSTE.search(plano)),
         "onde": bool(RE_ONDE.search(plano)),
-        "o_que_e": bool(RE_O_QUE_E.search(plano)),
-        "tela": _tela_citada(plano, telas),
+        "o_que_e": bool((RE_O_QUE_E_C4 if ampliado else RE_O_QUE_E).search(plano)),
+        "tela": _tela_citada(plano, telas, ampliado),
+        "ampliado": ampliado,
     }
     lista: list[Candidato] = []
 
-    ir = _ler_ir(plano, telas)
+    ir = _ler_ir(plano, telas, ampliado)
     if ir:
         lista.append(ir)
 
     if sinais["o_que_e"] and sinais["tela"]:
         tela = sinais["tela"]
-        lista.append(Candidato("como", tela, "", f"explicar para que serve a tela {nome_da_tela(tela)}",
+        lista.append(Candidato("como", tela, "", f"explicar para que serve a tela {nome_da_tela(tela, ampliado)}",
                                forte=True, pontos=1.0))
 
     if sinais["como_fazer"] or sinais["onde"]:
@@ -792,7 +937,7 @@ def candidatos(frase: str, telas: dict[str, TelaDoMapa] | None = None) -> tuple[
                                    pontos=pts, tarefa=tarefa, verbo=verbo))
         tela = sinais["tela"]
         if tela and not any(c.tipo == "como" for c in lista):
-            lista.append(Candidato("como", tela, "", f"explicar para que serve a tela {nome_da_tela(tela)}",
+            lista.append(Candidato("como", tela, "", f"explicar para que serve a tela {nome_da_tela(tela, ampliado)}",
                                    pontos=1.0))
 
     if sinais["pergunta"] and not ir:
@@ -823,7 +968,13 @@ def _por_regra(lista: list[Candidato], sinais: dict) -> Candidato | None:
     if tela:
         return tela[0]
 
-    como = sorted((c for c in lista if c.tipo == "como"), key=lambda c: -c.pontos)
+    # Com a chave (C4), no empate de pontos vem primeiro a tarefa cujo verbo é
+    # o da frase: em "como desligo o acesso de fora?", as três tarefas do
+    # Acesso de fora somavam 2,0 e a regra desistia; "desligar" desempata.
+    if sinais.get("ampliado"):
+        como = sorted((c for c in lista if c.tipo == "como"), key=lambda c: (-c.pontos, not c.verbo))
+    else:
+        como = sorted((c for c in lista if c.tipo == "como"), key=lambda c: -c.pontos)
 
     def clara() -> Candidato | None:
         if not como:
@@ -860,12 +1011,12 @@ def _por_regra(lista: list[Candidato], sinais: dict) -> Candidato | None:
     return None
 
 
-def _responder(c: Candidato, dados, plano: str, hoje: date | None, telas) -> Leitura | None:
+def _responder(c: Candidato, dados, plano: str, hoje: date | None, telas, ampliado: bool = False) -> Leitura | None:
     if c.tipo == "ir":
-        return Leitura("ir", c.destino, chave=c.chave)
+        return Leitura("ir", c.destino, chave=c.chave, ampliado=ampliado)
     if c.tipo == "como":
-        texto = texto_do_como(c.tarefa) if c.tarefa else texto_da_tela(c.destino, telas)
-        return Leitura("como", c.destino, texto=texto, chave=c.chave)
+        texto = texto_do_como(c.tarefa) if c.tarefa else texto_da_tela(c.destino, telas, ampliado)
+        return Leitura("como", c.destino, texto=texto, chave=c.chave, ampliado=ampliado)
     if c.tipo == "consulta":
         if dados is None:
             return None
@@ -932,26 +1083,28 @@ def julgar(frase: str, lista: list[Candidato], juiz, em_foco: list[str] | None =
 
 
 def ler(frase: str, *, dados=None, juiz=None, hoje: date | None = None, em_foco: list[str] | None = None,
-        telas: dict[str, TelaDoMapa] | None = None) -> Leitura | None:
+        telas: dict[str, TelaDoMapa] | None = None, ampliado: bool = False) -> Leitura | None:
     """
     O que a frase pede ao programa - ou None, e ela segue para os documentos.
 
     `dados` é quem guarda agenda, tarefas, financeiro, fila e cadastros (o
     Estado da API). `juiz` é um `juizo.Juiz`; sem ele, só a regra decide.
+    `ampliado` é a chave `conversa.roteamento` (C4): as telas e as perguntas
+    que ela trouxe. Desligada, tudo como antes.
     """
-    telas = mapa() if telas is None else telas
+    telas = mapa_para(ampliado) if telas is None else telas
     plano = _plano(frase).strip()
     if not plano:
         return None
-    lista, sinais = candidatos(frase, telas)
+    lista, sinais = candidatos(frase, telas, ampliado)
     if not lista:
         return None
 
     decidido = _por_regra(lista, sinais)
     if decidido:
-        leitura = _responder(decidido, dados, plano, hoje, telas)
+        leitura = _responder(decidido, dados, plano, hoje, telas, ampliado)
         if leitura:
-            leitura.porque = _porque_da_regra(decidido, sinais)
+            leitura.porque = _porque_da_regra(decidido, sinais, ampliado)
         return leitura
 
     if juiz is None:
@@ -968,7 +1121,7 @@ def ler(frase: str, *, dados=None, juiz=None, hoje: date | None = None, em_foco:
     p = escolha.probabilidades.get("programa", 0.0)
     if p < LIMIAR:
         return None
-    leitura = _responder(alvo, dados, plano, hoje, telas)
+    leitura = _responder(alvo, dados, plano, hoje, telas, ampliado)
     if leitura:
         leitura.por_modelo = True
         leitura.julgamento = {**escolha.to_dict(), "p": round(p, 3)}
@@ -977,9 +1130,9 @@ def ler(frase: str, *, dados=None, juiz=None, hoje: date | None = None, em_foco:
 
 
 
-def _porque_da_regra(c: Candidato, sinais: dict) -> str:
+def _porque_da_regra(c: Candidato, sinais: dict, ampliado: bool = False) -> str:
     if c.tipo == "ir":
-        return f"você pediu para abrir {nome_da_tela(c.destino)}"
+        return f"você pediu para abrir {nome_da_tela(c.destino, ampliado)}"
     if c.tipo == "como":
         return "pergunta de como usar o programa"
     return f"pergunta sobre {c.descricao}"
