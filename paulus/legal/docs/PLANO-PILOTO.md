@@ -20,7 +20,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | feito | `tests/test_l5_fundamentacao.py` |
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | feito | `tests/test_l6_perfis.py` |
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | feito | `tests/test_l7_mcp.py` |
-| L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | pendente | `tests/test_l8_captura.py` |
+| L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | feito | `tests/test_l8_captura.py` |
 | L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | pendente | `tests/test_l9_materiais.py` |
 | L10 | Lei com vigência: histórico de cada artigo e o texto vigente numa data (pelo ano da lei) | pendente | `tests/test_l10_vigencia.py` |
 
@@ -252,3 +252,30 @@ leitura); escopo por cliente (pelos Serviços dele dá).
 
 **Medido:** `tests/test_l7_mcp.py` 16 ok; `tests/test_umbrel_a_mcp.py`
 continua passando (com o nome novo).
+
+## L8 — captura pelo celular (30/09/2026)
+
+A captura já existia (ideia E do umbrelOS: fotos viram PDF, OCR do Windows,
+de fora passa por Aprovações). O que a L8 acrescentou (`src/captura.py`,
+`js/51-captura.js`):
+
+- **Foto tremida e foto escura avisadas na prévia**, antes de guardar
+  (`POST /api/captura/conferir`, que não grava nada): a nitidez é a
+  variância do laplaciano depois de uma mediana (que tira o ruído do sensor
+  do celular, que passaria por nitidez), e a luz é a média. Medido numa A4
+  de texto: nítida > 2.000, com ou sem ruído; desfocada com raio 4 ou mais
+  < 200; limite 350. A prévia diz "tremida ou fora de foco — fotografe de
+  novo" só na página que precisa.
+- **Guardar em um Serviço**: o documento vai direto para a pasta do Serviço
+  escolhido (na janela do escritório) ou, de fora, o pedido em Aprovações
+  leva o Serviço e o sim põe lá. De fora, só um Serviço que a pessoa vê.
+- **A entrada diz o que a leitura achou**: quantas páginas vieram pelo OCR e
+  quantos caracteres, ou por que não leu; o resultado da Aprovação diz o
+  mesmo.
+
+**Não feito:** corte automático das bordas e endireitar a perspectiva (a
+foto vai como veio); o limite de nitidez foi calibrado com página gerada,
+não com fotos de celular de verdade — fica para o teste real.
+
+**Medido:** `tests/test_l8_captura.py` 14 ok (com OCR de verdade: 2 páginas
+lidas); `tests/test_umbrel_e_captura.py` continua passando.

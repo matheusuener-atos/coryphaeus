@@ -401,6 +401,8 @@ _declarar(PERMITIDO, "POST /api/biblioteca/fundamentacao", "GET /api/biblioteca/
 _declarar(BLOQUEADO, "POST /api/biblioteca/temas/atualizar", "PUT /api/leis/posicao")
 # --- L6: o perfil desta maquina (src/perfis.py); ligar o Vulkan mexe no Windows daqui.
 _declarar(BLOQUEADO, "GET /api/maquina/perfil", "POST /api/maquina/perfil/vulkan")
+# --- L8: conferir a nitidez das fotos antes de guardar (nada fica gravado), como a captura.
+_declarar(PERMITIDO, "POST /api/captura/conferir")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")

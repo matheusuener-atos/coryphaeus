@@ -11,7 +11,34 @@
    aconteceu.
 */
 
-const cap = { fotos: [] };
+const cap = { fotos: [], servicos: null };
+
+/* L8: a nitidez e a luz de cada foto nova, antes de guardar (src/captura.py). */
+async function conferirFotos() {
+  const novas = cap.fotos.filter((f) => !f.q && !f.conferindo);
+  if (!novas.length) return;
+  novas.forEach((f) => { f.conferindo = true; });
+  const corpo = new FormData();
+  novas.forEach((f, i) => corpo.append("fotos", f.arquivo, f.arquivo.name || "pagina-" + (i + 1) + ".jpg"));
+  try {
+    const r = await fetch("/api/captura/conferir", { method: "POST", body: corpo });
+    const d = r.ok ? await r.json() : { fotos: [] };
+    novas.forEach((f, i) => { f.q = d.fotos[i] || {}; f.conferindo = false; });
+  } catch (err) { novas.forEach((f) => { f.conferindo = false; f.q = {}; }); }
+}
+
+function avisoDaFoto(f) {
+  const q = f.q || {};
+  if (q.borrada) return '<p class="cap-alerta">tremida ou fora de foco — fotografe de novo</p>';
+  if (q.escura) return '<p class="cap-alerta">escura — mais luz ajuda a leitura</p>';
+  return "";
+}
+
+async function servicosParaCaptura() {
+  if (cap.servicos) return cap.servicos;
+  try { cap.servicos = ((await (await fetch("/api/servicos?filtro=andamento")).json()).servicos) || []; } catch (err) { cap.servicos = []; }
+  return cap.servicos;
+}
 
 function botaoFotografar() {
   return (window.PAULUS_UMBREL || {}).captura
@@ -37,7 +64,7 @@ function previaDasFotos() {
     '<figure class="cap-foto"><img src="' + f.url + '" alt="página ' + (i + 1) + '" style="transform: rotate(' + f.giro + 'deg)">' +
     "<figcaption>página " + (i + 1) +
     '<span><button type="button" data-cap-girar="' + i + '" title="Girar">' + ic("refresh", 16) + "</button>" +
-    '<button type="button" data-cap-tirar="' + i + '" title="Tirar esta página">' + ic("delete", 16) + "</button></span></figcaption></figure>").join("") +
+    '<button type="button" data-cap-tirar="' + i + '" title="Tirar esta página">' + ic("delete", 16) + "</button></span></figcaption>" + avisoDaFoto(f) + "</figure>").join("") +
     '<button type="button" class="cap-mais" data-cap-mais="1">' + ic("add", 18) + "mais uma página</button></div>";
 }
 
@@ -54,6 +81,8 @@ async function fotografarDocumento() {
   const redesenhar = () => {
     const caixa = document.querySelector("#veu-dialogo .cap-previa");
     if (caixa) { caixa.innerHTML = previaDasFotos(); ligar(); }
+    // As fotos novas são conferidas; quando a conta volta, a prévia mostra o aviso.
+    if (cap.fotos.some((f) => !f.q)) conferirFotos().then(() => { const c = document.querySelector("#veu-dialogo .cap-previa"); if (c) { c.innerHTML = previaDasFotos(); ligar(); } });
   };
   const ligar = () => {
     const veu = $("veu-dialogo");
@@ -63,11 +92,16 @@ async function fotografarDocumento() {
     veu.querySelectorAll("[data-cap-mais]").forEach((b) => { b.onclick = () => escolherFotos(redesenhar); });
   };
   const aviso = '<p class="dialogo-dica" id="cap-erro" hidden></p>';
+  const servicos = await servicosParaCaptura();
+  const destino = servicos.length
+    ? '<div class="ag-campo"><label for="cap-servico">Guardar em</label><select id="cap-servico"><option value="">o Acervo</option>' +
+      servicos.map((s) => '<option value="' + s.id + '">o Serviço “' + esc(s.nome) + "”</option>").join("") + "</select></div>"
+    : "";
   const r = dialogo({
     titulo: "Fotografar documento", contexto: "Acervo", larga: true,
     texto: "Confira cada página: gire a que estiver deitada e tire a que saiu tremida. As fotos viram um PDF, e o texto é lido da imagem (pode ter erro de leitura).",
     campo: { chave: "titulo", rotulo: "Nome do documento", placeholder: "Intimação da audiência", obrigatorio: false },
-    depois: '<div class="cap-previa">' + previaDasFotos() + "</div>" + aviso,
+    depois: destino + '<div class="cap-previa">' + previaDasFotos() + "</div>" + aviso,
     confirmar: "Guardar no Acervo",
     aoConfirmar: async () => {
       if (!cap.fotos.length) return;
@@ -76,6 +110,7 @@ async function fotografarDocumento() {
       cap.fotos.forEach((f, i) => corpo.append("fotos", f.arquivo, f.arquivo.name || "pagina-" + (i + 1) + ".jpg"));
       corpo.append("giros", JSON.stringify(cap.fotos.map((f) => f.giro)));
       corpo.append("titulo", (veu.querySelector("#dialogo-campo") || {}).value || "");
+      corpo.append("servico_id", (veu.querySelector("#cap-servico") || {}).value || "");
       const botao = veu.querySelector('[data-dialogo="confirmar"]');
       botao.disabled = true;
       botao.textContent = "guardando…";
@@ -91,13 +126,17 @@ async function fotografarDocumento() {
       const d = await resp.json();
       limparFotos();
       if (dialogoAberto) dialogoAberto.fechar(null);
+      const l = d.leitura || {};
+      const leu = l.lido ? "li " + milhar(l.caracteres) + " caracteres" + (l.ocr_paginas ? " (" + plural(l.ocr_paginas, "página") + " pela leitura da imagem)" : "")
+        : "não li texto: " + (l.motivo || "confira as fotos");
       avisoCert(d.destino === "aprovacoes"
-        ? "“" + d.nome + "” foi para Aprovações: entra no Acervo quando o escritório confirmar"
-        : "“" + d.nome + "” entrou no Acervo (" + plural(d.paginas, "página") + "); o texto está sendo lido", { tom: "ok" });
+        ? "“" + d.nome + "” foi para Aprovações: entra " + (d.servico_id ? "no Serviço" : "no Acervo") + " quando o escritório confirmar"
+        : "“" + d.nome + "” entrou " + (d.servico_id ? "no Serviço" : "no Acervo") + " (" + plural(d.paginas, "página") + "); " + leu, { tom: l.lido || d.destino === "aprovacoes" ? "ok" : "" });
       if (d.destino === "acervo" && typeof mostrarBiblioteca === "function" && bib.visao === "documentos") mostrarBiblioteca();
     },
   });
   ligar();
+  redesenhar();
   const fim = await r;
   if (fim === null) limparFotos();
 }

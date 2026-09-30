@@ -7,3 +7,6 @@
   .mcp-opcao small { color: var(--ink3); font-size: 12px; line-height: 1.4; }
   .mcp-entendi { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--fill); }
   #mcp-pastas { width: 100%; max-width: 100%; }
+
+  /* L8: o aviso da foto tremida ou escura na prévia da captura (js/51-captura.js). */
+  .cap-foto .cap-alerta { display: block; margin: 4px 0 0; font-size: 11.5px; line-height: 1.3; color: var(--ink); font-weight: 600; }
