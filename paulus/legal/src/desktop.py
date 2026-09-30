@@ -209,7 +209,7 @@ def _preparar_janela_nativa() -> None:
     `shown`, de dentro da thread da interface. Ler isso de outra thread e o
     que travava a janela.
     """
-    global _HWND, _MAXIMIZADA
+    global _HWND
     try:
         nativa = _JANELA.native
         _HWND = int(nativa.Handle.ToInt64())
@@ -231,16 +231,35 @@ def _preparar_janela_nativa() -> None:
         # Sem isso a janela maximiza por cima da barra de tarefas; nao e
         # motivo para nao abrir.
         pass
-    # Agora, com o limite dito, maximiza - pelo mesmo caminho do botao da
-    # janela, para o botao saber que ela esta maximizada.
-    if "--minimizado" not in sys.argv[1:]:
-        try:
-            from System.Windows.Forms import FormWindowState
 
-            nativa.WindowState = FormWindowState.Maximized
+
+_JA_MAXIMIZOU = False
+
+
+def _maximizar_ao_abrir() -> None:
+    """
+    Abre maximizado (pedido do dono, 29/09/2026) - so depois da pagina
+    carregada, e por uma thread, pelo mesmo `maximize()` do botao da janela.
+
+    Nao antes: criada ja maximizada, a janela sem moldura estica antes de
+    saber a area de trabalho (MaximizedBounds, no `shown`), e a pagina fica
+    no tamanho antigo, fora do encaixe. E nao no `shown`: mudar o estado da
+    janela ali, com o WebView2 ainda nascendo, deixava a janela branca.
+    """
+    global _JA_MAXIMIZOU
+    if _JA_MAXIMIZOU or "--minimizado" in sys.argv[1:] or _JANELA is None:
+        return
+    _JA_MAXIMIZOU = True
+
+    def maximizar() -> None:
+        global _MAXIMIZADA
+        try:
+            _JANELA.maximize()
             _MAXIMIZADA = True
         except Exception:  # noqa: BLE001 - fica no tamanho normal
             pass
+
+    threading.Thread(target=maximizar, name="maximizar", daemon=True).start()
 
 
 def _porta_livre(preferida: int = 8000) -> int:
@@ -555,6 +574,7 @@ def main() -> int:
         **_opcoes_da_janela(sys.argv[1:]),
     )
     _JANELA.events.shown += _preparar_janela_nativa
+    _JANELA.events.loaded += _maximizar_ao_abrir
 
     # Arrastar a janela e do proprio pywebview: a pagina marca com a classe
     # `pywebview-drag-region` o que pode ser agarrado. `DIRECT_TARGET_ONLY`
