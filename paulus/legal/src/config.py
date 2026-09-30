@@ -200,6 +200,10 @@ PADRAO: dict = {
     # por conexao - desligado de fabrica: o que ele devolve vai para o modelo
     # de outra empresa (so texto de lei, que e publico).
     "umbrel": {"captura": False, "mcp": False},
+    # A conversa e os agentes (docs/PROGRESSO-CONVERSA.md). `execucao` (C1): a
+    # resposta roda numa thread de trabalho, com registro de eventos em disco,
+    # e a janela so se inscreve - fechar ou recarregar nao perde a resposta.
+    "conversa": {"execucao": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

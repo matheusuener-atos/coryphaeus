@@ -439,16 +439,27 @@ function desenharTrabalho() {
 }
 
 /* Trabalho em curso que não é desta página (continuou enquanto a pessoa
-   estava fora): a conversa se redesenha sozinha quando ele termina. */
+   estava fora): com a execução (C1), a tela se reinscreve nela e mostra o
+   texto que já saiu, ao vivo; sem ela, a conversa se redesenha sozinha
+   quando ele termina. */
 let vigiaDoTrabalho = null;
 function vigiarTrabalhoEmCurso(t) {
   clearTimeout(vigiaDoTrabalho);
   if (t.estado !== "executando" || estado.ocupado || dupla.ocupada) return;
+  fetch("/api/trabalhos/" + t.id + "/execucao").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    const e = d && d.execucao;
+    if (e && e.estado === "rodando" && estado.trabalhoId === t.id && !estado.ocupado) acompanharExecucao(t, e);
+    else vigiarPorConsulta(t);
+  }).catch(() => vigiarPorConsulta(t));
+}
+
+function vigiarPorConsulta(t) {
+  clearTimeout(vigiaDoTrabalho);
   vigiaDoTrabalho = setTimeout(async () => {
     if (estado.trabalhoId !== t.id) return;
     const novo = await fetch("/api/trabalhos/" + t.id).then((r) => (r.ok ? r.json() : null));
     if (!novo || estado.trabalhoId !== t.id) return;
-    if (novo.estado === "executando") { vigiarTrabalhoEmCurso(novo); return; }
+    if (novo.estado === "executando") { vigiarPorConsulta(novo); return; }
     estado.trabalho = novo;
     desenharTrabalho();
   }, 3000);
@@ -1367,6 +1378,7 @@ async function enviar(opcoes) {
   atualizarPostura();
   animarInicioParaConversa(caixaNoInicio);
 
+  const minha = estado.trabalhoId;
   const plano = document.createElement("div");
   // "Entender o pedido" vem primeiro porque e o que acontece primeiro: nem
   // toda mensagem e pergunta sobre documento.
@@ -1387,7 +1399,6 @@ async function enviar(opcoes) {
   const texto = resposta.querySelector(".texto");
   rolar();
 
-  let citados = 0;
   const inicio = Date.now();
   const relogio = setInterval(() => {
     const c = $("cronometro");
@@ -1417,160 +1428,11 @@ async function enviar(opcoes) {
     // A fila do modelo cheia (429) diz por que; o resto, o de sempre.
     if (!r.ok) throw new Error(r.status === 429 ? await erroDe(r) : "não consegui responder");
 
-    const leitor = r.body.getReader();
-    const dec = new TextDecoder();
-    let buffer = "", primeiro = true, abrirAoFim = "", assinaSemModelo = false;
-    // I8: depois da conferência, o texto mostrado é o conferido, com as
-    // marcas virando botões; o que chegar depois (a frase decisiva) soma nele.
-    let fontesAtuais = [], revisado = false, bruto = "";
-
-    while (true) {
-      const passo = await leitor.read();
-      if (passo.done) break;
-      buffer += dec.decode(passo.value, { stream: true });
-      const partes = buffer.split("\n\n");
-      buffer = partes.pop();
-
-      for (const parte of partes) {
-        const mt = parte.match(/^event: (.+)$/m);
-        const md = parte.match(/^data: (.*)$/m);
-        if (!mt || !md) continue;
-        const dados = JSON.parse(md[1]);
-
-        if (mt[1] === "fontes") {
-          /* Quando a pergunta nomeia um arquivo, a leitura para nele — e o
-             bastidor diz isso, porque "li 1 de 9" sem explicação parece falha
-             de cobertura quando é obediência ao que foi pedido. */
-          if ((dados.apenas || []).length) definirFoco(dados.apenas);
-          anotarBastidor(dados.apenas.length
-            ? (dados.apenas.length === 1
-                ? "a pergunta é sobre “" + dados.apenas[0] + "” · li só ele, "
-                : "a pergunta é sobre " + plural(dados.apenas.length, "documento") +
-                  " · li só eles, ") + plural(dados.trechos.length, "trecho")
-            : "procurei nos " + plural(dados.total_contratos, "documento") +
-              " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
-              " de " + plural(dados.consultados.length, "documento"));
-          if (dados.ignorados.length) {
-            anotarBastidor(plural(dados.ignorados.length, "documento") +
-              " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
-            resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
-          }
-          resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
-          citados = new Set(dados.trechos.map((f) => f.documento)).size;
-          fontesAtuais = dados.trechos || [];
-          desenharTrechos(dados.trechos, pedido, resposta.querySelector(".visor-caixa"));
-        } else if (mt[1] === "fila") {
-          /* O modelo desta máquina responde uma pergunta por vez, e alguém
-             chegou antes (src/fila_modelo.py). A linha viva diz a posição;
-             quando a vez chega, a fase seguinte a substitui. */
-          const texto = textoDaFila(dados);
-          if (bastidor.fase !== "fila") faseBastidor("fila", texto);
-          else if (bastidor.vivaEl) bastidor.vivaEl.textContent = texto;
-        } else if (mt[1] === "lendo" && dados.molde && !dados.caracteres) {
-          /* Nível 0 por molde (src/inteligencia/molde.py): a resposta é o
-             próprio fato conferido, montado sem o modelo. */
-          anotarBastidor("respondi pelos fatos já conferidos, sem o modelo");
-        } else if (mt[1] === "lendo") {
-          anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
-            dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
-          bastidor.previsao = dados.previsao;
-          if (dados.previsao && dados.previsao.sabe) {
-            anotarBastidor("aqui, leituras deste tamanho levaram ~" +
-              dados.previsao.segundos + " s (mediana de " +
-              plural(dados.previsao.medicoes, "leitura") + ")");
-          } else {
-            anotarBastidor("ainda não medi leituras deste modelo nesta máquina — " +
-              "esta vai virar a primeira medida");
-          }
-          faseBastidor("lendo", "lendo…");
-        } else if (mt[1] === "escrevendo") {
-          anotarBastidor("primeira palavra saiu · esperei " +
-            segundosBR(dados.lendo_segundos) + " até aqui");
-          bastidor.escreveDesde = Date.now();
-          bastidor.palavras = 0;
-          faseBastidor("escrevendo", "escrevendo…");
-        } else if (mt[1] === "truncou") {
-          anotarBastidor("o texto passou da janela de " + milhar(dados.num_ctx) +
-            " tokens; o modelo leu só o final dele");
-          if (!resposta.querySelector(".etiqueta.atencao")) resposta.insertAdjacentHTML("afterbegin", etiquetaDeCorte());
-        } else if (mt[1] === "medida") {
-          fecharBastidor();
-          // Dois tempos diferentes e de proposito: o que a pessoa esperou e o
-          // que o modelo gastou calculando. A diferenca e o modelo carregando.
-          anotarBastidor("pronto · o modelo gastou " + segundosBR(dados.lendo_segundos) +
-            " lendo " + milhar(dados.tokens_lidos) + " tokens" +
-            (dados.do_cache ? " (boa parte ja estava em cache)" : "") +
-            " e " + segundosBR(dados.escrevendo_segundos) + " escrevendo " +
-            milhar(dados.tokens_escritos), "feito");
-        } else if (mt[1] === "etapas") {
-          plano.innerHTML = cartaoPlano(dados.etapas, 2);
-          desenharProgresso(dados.etapas);
-        } else if (mt[1] === "revisao") {
-          revisado = true;
-          bruto = dados.texto || "";
-          texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
-          if (dados.removidas && dados.removidas.length) {
-            anotarBastidor("tirei da resposta o que não está nos trechos lidos: " + dados.removidas.join("; "));
-          }
-        } else if (mt[1] === "refazendo") {
-          anotarBastidor("a resposta citou um trecho que não existe — refazendo com menos trechos");
-        } else if (mt[1] === "token" && revisado) {
-          bruto += dados.t;
-          texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
-        } else if (mt[1] === "token") {
-          if (primeiro) { texto.textContent = ""; primeiro = false; }
-          texto.textContent += dados.t;
-          // Palavras escritas ate agora: e o numero que a janelinha mostra
-          // subindo enquanto o modelo escreve. Contado, nao estimado.
-          bastidor.palavras = texto.textContent.trim().split(/\s+/).filter(Boolean).length;
-          if (pertoDoFim()) rolar(); else atualizarIrAoFim();
-        } else if (mt[1] === "proposta" || mt[1] === "oferta") {
-          // "oferta" chega depois do fim: quer ver o documento de onde saiu
-          // a resposta? O cartão fica embaixo da resposta.
-          // Pedido de ação: nada de procurar nos documentos. O cartão mostra
-          // o que eu entendi, e quem grava é a pessoa.
-          plano.remove();
-          const caixa = document.createElement("div");
-          caixa.className = "proposta-caixa";
-          caixa.innerHTML = cartaoProposta(dados);
-          resposta.appendChild(caixa);
-          ligarProposta(caixa, dados);
-          // "abra o financeiro": o pedido era a tela. Abre depois do fim,
-          // para a conversa terminar de se gravar antes de sair dela.
-          if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
-          if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo") assinaSemModelo = true;
-          rolar();
-        } else if (mt[1] === "vazio") {
-          texto.textContent = dados.mensagem;
-        } else if (mt[1] === "erro") {
-          plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
-            esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" data-recarregar="1">Tentar de novo</button></div></div>';
-        } else if (mt[1] === "parado") {
-          // A pessoa parou: o que ja saiu fica, com a marca de que parou ali.
-          fecharBastidor();
-          plano.remove();
-          if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
-          resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
-          resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido));
-          ligarResposta(resposta);
-          $("conversa-titulo").textContent = dados.titulo;
-        } else if (mt[1] === "fim") {
-          fecharBastidor();
-          plano.remove();
-          /* O aviso de fora da cobertura (M7) chega como texto: no fim, ganha o botão. */
-          if (!revisado && /Não tenho material de .{2,40} na biblioteca/.test(texto.textContent)) {
-            texto.innerHTML = comAvisoDeArea(esc(texto.textContent));
-          }
-          resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
-            assinaSemModelo ? "sem modelo" : "", dados.como));
-          ligarResposta(resposta);
-          $("conversa-titulo").textContent = dados.titulo;
-          if (abrirAoFim) { const id = abrirAoFim; setTimeout(() => abrirDestino(id), 700); }
-        }
-      }
-    }
+    await lerResposta(r, { plano: plano, resposta: resposta, texto: texto, pedido: pedido, minha: minha });
   } catch (err) {
-    if (err && err.name === "AbortError") {
+    if (err && err.name === "AbortError" && estado.saindo) {
+      // Saiu da conversa (C1): a resposta segue no servidor.
+    } else if (err && err.name === "AbortError") {
       plano.remove();
       if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
       resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
@@ -1578,7 +1440,10 @@ async function enviar(opcoes) {
       texto.textContent = "Não consegui responder: " + err;
     }
   } finally {
-    fecharBastidor();
+    const reinscrever = estado.saindo && estado.trabalhoId === minha;
+    estado.saindo = false;
+    estado.execucaoId = "";
+    if (estado.trabalhoId === minha) fecharBastidor();
     clearInterval(relogio);
     estado.ocupado = false;
     estado.respondendoId = null;
@@ -1595,7 +1460,259 @@ async function enviar(opcoes) {
     }
     rolar();
     $("pedido").focus();
+    if (reinscrever && estado.trabalho) vigiarTrabalhoEmCurso(estado.trabalho);
   }
+}
+
+/* A leitura dos eventos de uma resposta, ao perguntar e ao voltar para uma
+   conversa que ainda responde (C1). `v` tem o que a resposta desenha: o
+   cartao do plano, a resposta, o texto, a pergunta e a conversa de que ela e.
+   Tudo o que mexe fora da resposta (titulo, foco, painel) so vale enquanto
+   essa conversa esta aberta. Devolve "saiu" quando a pessoa foi para outra. */
+async function lerResposta(r, v) {
+  const { plano, resposta, texto, minha } = v;
+  const pedido = v.pedido;
+  const aqui = () => estado.trabalhoId === minha;
+  let citados = 0, saiu = false, execId = "";
+  const leitor = r.body.getReader();
+  const dec = new TextDecoder();
+  let buffer = "", primeiro = true, abrirAoFim = "", assinaSemModelo = false;
+  // I8: depois da conferência, o texto mostrado é o conferido, com as
+  // marcas virando botões; o que chegar depois (a frase decisiva) soma nele.
+  let fontesAtuais = [], revisado = false, bruto = "";
+
+  while (!saiu) {
+    const passo = await leitor.read();
+    if (passo.done) break;
+    buffer += dec.decode(passo.value, { stream: true });
+    const partes = buffer.split("\n\n");
+    buffer = partes.pop();
+
+    for (const parte of partes) {
+      const mt = parte.match(/^event: (.+)$/m);
+      const md = parte.match(/^data: (.*)$/m);
+      if (!mt || !md) continue;
+      const dados = JSON.parse(md[1]);
+      // C1: evento de outra conversa nao mexe nesta. Com a execucao, a
+      // pessoa saiu da conversa: larga a inscricao (a resposta continua
+      // no servidor, e a tela se reinscreve ao voltar). Sem ela, a leitura
+      // segue calada - fechar a conexao pararia a resposta.
+      if (dados.execucao_id) { execId = dados.execucao_id; if (aqui()) estado.execucaoId = execId; }
+      if (!aqui() || (dados.conversa_id && dados.conversa_id !== estado.trabalhoId)) {
+        if (execId) { saiu = true; break; }
+        continue;
+      }
+
+      if (mt[1] === "fontes") {
+        /* Quando a pergunta nomeia um arquivo, a leitura para nele — e o
+           bastidor diz isso, porque "li 1 de 9" sem explicação parece falha
+           de cobertura quando é obediência ao que foi pedido. */
+        if ((dados.apenas || []).length && aqui()) definirFoco(dados.apenas);
+        anotarBastidor(dados.apenas.length
+          ? (dados.apenas.length === 1
+              ? "a pergunta é sobre “" + dados.apenas[0] + "” · li só ele, "
+              : "a pergunta é sobre " + plural(dados.apenas.length, "documento") +
+                " · li só eles, ") + plural(dados.trechos.length, "trecho")
+          : "procurei nos " + plural(dados.total_contratos, "documento") +
+            " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
+            " de " + plural(dados.consultados.length, "documento"));
+        if (dados.ignorados.length) {
+          anotarBastidor(plural(dados.ignorados.length, "documento") +
+            " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
+          resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
+        }
+        resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
+        citados = new Set(dados.trechos.map((f) => f.documento)).size;
+        fontesAtuais = dados.trechos || [];
+        if (aqui()) desenharTrechos(dados.trechos, pedido, resposta.querySelector(".visor-caixa"));
+      } else if (mt[1] === "execucao") {
+        // O id da execucao (C1): ja guardado acima.
+      } else if (mt[1] === "fila") {
+        /* O modelo desta máquina responde uma pergunta por vez, e alguém
+           chegou antes (src/fila_modelo.py). A linha viva diz a posição;
+           quando a vez chega, a fase seguinte a substitui. */
+        const texto = textoDaFila(dados);
+        if (bastidor.fase !== "fila") faseBastidor("fila", texto);
+        else if (bastidor.vivaEl) bastidor.vivaEl.textContent = texto;
+      } else if (mt[1] === "lendo" && dados.molde && !dados.caracteres) {
+        /* Nível 0 por molde (src/inteligencia/molde.py): a resposta é o
+           próprio fato conferido, montado sem o modelo. */
+        anotarBastidor("respondi pelos fatos já conferidos, sem o modelo");
+      } else if (mt[1] === "lendo") {
+        anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
+          dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
+        bastidor.previsao = dados.previsao;
+        if (dados.previsao && dados.previsao.sabe) {
+          anotarBastidor("aqui, leituras deste tamanho levaram ~" +
+            dados.previsao.segundos + " s (mediana de " +
+            plural(dados.previsao.medicoes, "leitura") + ")");
+        } else {
+          anotarBastidor("ainda não medi leituras deste modelo nesta máquina — " +
+            "esta vai virar a primeira medida");
+        }
+        faseBastidor("lendo", "lendo…");
+      } else if (mt[1] === "escrevendo") {
+        anotarBastidor("primeira palavra saiu · esperei " +
+          segundosBR(dados.lendo_segundos) + " até aqui");
+        bastidor.escreveDesde = Date.now();
+        bastidor.palavras = 0;
+        faseBastidor("escrevendo", "escrevendo…");
+      } else if (mt[1] === "truncou") {
+        anotarBastidor("o texto passou da janela de " + milhar(dados.num_ctx) +
+          " tokens; o modelo leu só o final dele");
+        if (!resposta.querySelector(".etiqueta.atencao")) resposta.insertAdjacentHTML("afterbegin", etiquetaDeCorte());
+      } else if (mt[1] === "medida") {
+        fecharBastidor();
+        // Dois tempos diferentes e de proposito: o que a pessoa esperou e o
+        // que o modelo gastou calculando. A diferenca e o modelo carregando.
+        anotarBastidor("pronto · o modelo gastou " + segundosBR(dados.lendo_segundos) +
+          " lendo " + milhar(dados.tokens_lidos) + " tokens" +
+          (dados.do_cache ? " (boa parte ja estava em cache)" : "") +
+          " e " + segundosBR(dados.escrevendo_segundos) + " escrevendo " +
+          milhar(dados.tokens_escritos), "feito");
+      } else if (mt[1] === "etapas") {
+        plano.innerHTML = cartaoPlano(dados.etapas, 2);
+        if (aqui()) desenharProgresso(dados.etapas);
+      } else if (mt[1] === "revisao") {
+        revisado = true;
+        bruto = dados.texto || "";
+        texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
+        if (dados.removidas && dados.removidas.length) {
+          anotarBastidor("tirei da resposta o que não está nos trechos lidos: " + dados.removidas.join("; "));
+        }
+      } else if (mt[1] === "refazendo") {
+        anotarBastidor("a resposta citou um trecho que não existe — refazendo com menos trechos");
+      } else if (mt[1] === "token" && revisado) {
+        bruto += dados.t;
+        texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
+      } else if (mt[1] === "token") {
+        if (primeiro) { texto.textContent = ""; primeiro = false; }
+        texto.textContent += dados.t;
+        // Palavras escritas ate agora: e o numero que a janelinha mostra
+        // subindo enquanto o modelo escreve. Contado, nao estimado.
+        bastidor.palavras = texto.textContent.trim().split(/\s+/).filter(Boolean).length;
+        if (aqui()) { if (pertoDoFim()) rolar(); else atualizarIrAoFim(); }
+      } else if (mt[1] === "proposta" || mt[1] === "oferta") {
+        // "oferta" chega depois do fim: quer ver o documento de onde saiu
+        // a resposta? O cartão fica embaixo da resposta.
+        // Pedido de ação: nada de procurar nos documentos. O cartão mostra
+        // o que eu entendi, e quem grava é a pessoa.
+        plano.remove();
+        const caixa = document.createElement("div");
+        caixa.className = "proposta-caixa";
+        caixa.innerHTML = cartaoProposta(dados);
+        resposta.appendChild(caixa);
+        ligarProposta(caixa, dados);
+        // "abra o financeiro": o pedido era a tela. Abre depois do fim,
+        // para a conversa terminar de se gravar antes de sair dela.
+        if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
+        if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo") assinaSemModelo = true;
+        rolar();
+      } else if (mt[1] === "vazio") {
+        texto.textContent = dados.mensagem;
+      } else if (mt[1] === "erro") {
+        plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
+          esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" data-recarregar="1">Tentar de novo</button></div></div>';
+      } else if (mt[1] === "parado") {
+        // A pessoa parou: o que ja saiu fica, com a marca de que parou ali.
+        fecharBastidor();
+        plano.remove();
+        if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
+        resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
+        resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido));
+        ligarResposta(resposta);
+        if (aqui()) $("conversa-titulo").textContent = dados.titulo;
+      } else if (mt[1] === "fim") {
+        fecharBastidor();
+        plano.remove();
+        /* O aviso de fora da cobertura (M7) chega como texto: no fim, ganha o botão. */
+        if (!revisado && /Não tenho material de .{2,40} na biblioteca/.test(texto.textContent)) {
+          texto.innerHTML = comAvisoDeArea(esc(texto.textContent));
+        }
+        resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
+          assinaSemModelo ? "sem modelo" : "", dados.como));
+        ligarResposta(resposta);
+        if (aqui()) $("conversa-titulo").textContent = dados.titulo;
+        if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirDestino(id), 700); }
+      }
+    }
+  }
+  if (saiu) {
+    try { await leitor.cancel(); } catch (err) { /* ja fechada */ }
+    return "saiu";
+  }
+  return "fim";
+}
+
+/* Voltou para uma conversa que ainda responde (C1): a resposta é redesenhada
+   do começo do registro da execução - etapas, o que estou fazendo e o texto
+   que já saiu - e continua ao vivo. */
+async function acompanharExecucao(t, execucao) {
+  if (estado.ocupado) return;
+  const minha = t.id;
+  const pessoa = (t.mensagens || []).filter((m) => m.autor === "pessoa").pop();
+  const pedido = pessoa ? pessoa.texto : "";
+  estado.ocupado = true;
+  estado.respondendoId = minha;
+  estado.controle = new AbortController();
+  modoDoEnviar("parar");
+  atualizarSelo(true);
+  const centro = $("centro");
+  // O cartão parado que desenharTrabalho pôs no fim dá lugar ao vivo.
+  const parado = centro.lastElementChild;
+  if (parado && parado.querySelector && parado.querySelector("[data-retomar]") === null && parado.classList.contains("cartao")) parado.remove();
+  const plano = document.createElement("div");
+  plano.innerHTML = cartaoPlano(t.etapas || [], t.etapa_atual, true);
+  centro.appendChild(plano);
+  const bastidores = document.createElement("div");
+  centro.appendChild(bastidores);
+  abrirBastidor(bastidores);
+  const desde = Date.parse(execucao.criada || "") || Date.now();
+  bastidor.desde = desde;
+  const resposta = document.createElement("div");
+  resposta.className = "resposta";
+  resposta.innerHTML = '<div class="texto"></div>';
+  centro.appendChild(resposta);
+  const texto = resposta.querySelector(".texto");
+  const relogio = setInterval(() => {
+    const c = $("cronometro");
+    if (c && estado.trabalhoId === minha) c.textContent = Math.round((Date.now() - desde) / 1000) + " s";
+  }, 1000);
+  rolar();
+  try {
+    const r = await fetch("/api/execucoes/" + execucao.id + "/eventos?desde=0", { signal: estado.controle.signal });
+    if (!r.ok) throw new Error(await erroDe(r));
+    await lerResposta(r, { plano: plano, resposta: resposta, texto: texto, pedido: pedido, minha: minha });
+  } catch (err) {
+    if (!(err && err.name === "AbortError")) texto.textContent = "Não consegui acompanhar a resposta: " + (err.message || err);
+  } finally {
+    const reinscrever = estado.saindo && estado.trabalhoId === minha;
+    estado.saindo = false;
+    estado.execucaoId = "";
+    if (estado.trabalhoId === minha) fecharBastidor();
+    clearInterval(relogio);
+    estado.ocupado = false;
+    estado.respondendoId = null;
+    estado.controle = null;
+    atualizarBotaoEnviar();
+    atualizarSelo(false);
+    carregarTrabalhos();
+    if (estado.trabalhoId === minha) {
+      fetch("/api/trabalhos/" + minha).then((r) => r.json())
+        .then((novo) => { if (estado.trabalhoId !== minha) return; estado.trabalho = novo; desenharAtividade(novo.atividade); desenharProgresso(novo.etapas || []); atualizarBotaoEnviar(); });
+    }
+    if (reinscrever && estado.trabalho) vigiarTrabalhoEmCurso(estado.trabalho);
+  }
+}
+
+/* Trocar de conversa com uma resposta sendo lida (C1): com a execução, a
+   leitura larga - a resposta continua no servidor, e voltar se reinscreve.
+   Sem ela, nada: fechar a leitura pararia a resposta. */
+function largarInscricao(paraId) {
+  if (!estado.ocupado || !estado.execucaoId || !estado.controle) return;
+  // A mesma conversa, redesenhada: larga e se reinscreve logo depois.
+  estado.saindo = true;
+  estado.controle.abort();
 }
 
 /* ------------------------------------------- o documento de que se fala

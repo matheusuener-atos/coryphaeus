@@ -100,6 +100,8 @@ from biblioteca import rotas as rotas_biblioteca
 import captura as captura_mod
 import mcp_leis
 import rotas_chaves
+import execucoes as execucoes_mod
+import rotas_execucoes
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -218,6 +220,15 @@ def _credenciais_oauth(provedor: str) -> dict:
     return oauth_app.credenciais(provedor)
 
 
+def _pausar_trabalho(trabalho) -> None:
+    """A conversa que ficou no meio volta a "parada", com a etapa em curso parada."""
+    for etapa in trabalho.etapas:
+        if etapa.estado == EXECUTANDO:
+            etapa.estado = PAUSADO
+    if trabalho.estado == EXECUTANDO:
+        trabalho.estado = PAUSADO
+
+
 class Estado:
     """Indice em memoria, compartilhado entre as requisicoes."""
 
@@ -252,6 +263,16 @@ class Estado:
         self.ultima_organizacao: dict | None = None
         # Conversas persistidas e o interruptor "ir devagar".
         self.trabalhos = Trabalhos(TRABALHOS_DIR)
+        # As respostas que rodam sem depender da janela (C1, src/execucoes.py):
+        # o registro de cada uma fica em data/execucoes. Ao abrir, a resposta
+        # que o programa fechado deixou pela metade entra na conversa como
+        # texto parcial, marcado como interrompido.
+        self.execucoes = execucoes_mod.Execucoes(DADOS_DIR / "execucoes")
+        try:
+            self.execucoes.recuperar_interrompidas(self.trabalhos, _pausar_trabalho)
+            self.execucoes.compactar()
+        except Exception:  # noqa: BLE001 - o registro velho nao impede o programa de abrir
+            pass
         self.devagar = False
         # Levantado quando a pessoa pede para parar a leitura em andamento.
         self.cancelar = threading.Event()
@@ -863,6 +884,7 @@ rotas_biblioteca.montar(estado, app, DADOS_DIR)
 captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
+rotas_execucoes.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -3815,6 +3837,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if oferta:
             yield _sse("oferta", oferta)
 
+    # C1: com `conversa.execucao`, a resposta roda numa thread de trabalho e
+    # esta conexao e so uma inscricao nela (src/execucoes.py) - fechar a
+    # janela nao para nada, e a tela se reinscreve ao voltar.
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
     return StreamingResponse(
         gerar(),
         media_type="text/event-stream",

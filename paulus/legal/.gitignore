@@ -11,6 +11,8 @@ data/diarios/
 
 # Conversas gravadas: citam trechos dos contratos
 data/trabalhos/
+# O registro de cada resposta (C1, src/execucoes.py): conteudo das conversas.
+data/execucoes/
 
 # Fila de aprovacoes e preferencias: caminhos e dados pessoais
 data/aprovacoes.json

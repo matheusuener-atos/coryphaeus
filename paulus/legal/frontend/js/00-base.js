@@ -66,5 +66,9 @@ const estado = {
   modelo: "",
   trechos: 0,
   pasta: "",
+  // C1 (src/execucoes.py): a execucao cuja resposta esta pagina le, e o
+  // "largou de proposito" (trocou de conversa; a resposta segue no servidor).
+  execucaoId: "",
+  saindo: false,
 };
 

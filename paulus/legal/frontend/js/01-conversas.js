@@ -92,6 +92,7 @@ async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return false;
   if (id !== estado.trabalhoId) fecharEditorNaConversa();
+  largarInscricao(id);
   transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;
   estado.trabalho = await r.json();
@@ -141,6 +142,7 @@ $("compositor").addEventListener("scroll", () => {
 
 $("nova").onclick = () => {
   fecharEditorNaConversa();
+  largarInscricao("");
   lembrancaDoAssistente.trabalhoId = null;
   transicaoDeTela("inicio");
   estado.trabalhoId = null;

@@ -126,6 +126,8 @@ _declarar(PERMITIDO,
           "POST /api/trabalhos/{id_}/renomear", "POST /api/trabalhos/{id_}/grupo", "POST /api/grupos/renomear",
           "POST /api/trabalhos/{id_}/duplicar", "GET /api/agora", "DELETE /api/trabalhos/{id_}",
           "POST /api/trabalhos/{id_}/parar", "POST /api/trabalhos/{id_}/perguntar",
+          # C1: a inscricao na resposta que roda sem a janela (src/execucoes.py).
+          "GET /api/execucoes/{id_}/eventos", "GET /api/trabalhos/{id_}/execucao",
           "POST /api/buscar-agora",
           # o acervo: ver, buscar, o trecho citado, a pagina
           "GET /api/documentos-abertos", "GET /api/biblioteca", "POST /api/biblioteca/citacao",

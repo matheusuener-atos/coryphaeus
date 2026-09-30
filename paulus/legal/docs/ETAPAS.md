@@ -2164,3 +2164,33 @@ por isso, sugerir a troca por um mais leve, "clicando aqui".
   vez e recomeça sozinha. Ao vivo: troca e volta a ouvir.
 - Portão: `tests/test_voz_mais_leve.py` (memória e faster-whisper simulados)
   e um caso novo em `tests/test_tela.py`.
+
+## C0 — Levantamento da Conversa e dos Agentes ✓ FEITA
+
+Prompt `docs/prompt-conversa-agentes-v0.md` (30/09/2026). A tabela "o prompt
+supõe × o código tem hoje" está em `docs/PROGRESSO-CONVERSA.md`: tudo do §1
+confere, com ressalvas (o rascunho não se perde, vaza para a outra conversa;
+o vermelho da cobertura é só no bastidor; de fora, as ferramentas do chat já
+passam pela fila; a cerca já existe na COMUNIDADE da Biblioteca; não há data
+de aniversário do escritório nem coluna de OAB nos cadastros). Achado a mais:
+fechar a janela deixava a thread do Ollama órfã com a vez na fila já
+liberada. Ordem: a do prompt. A pausa da C0 não parou o trabalho (pedido do
+dono: seguir direto e publicar).
+
+## C1 — A resposta roda sem depender da janela ✓ FEITA
+
+- `src/execucoes.py` + `src/rotas_execucoes.py`: a resposta da conversa roda
+  numa thread de trabalho e cada evento vai, na hora, para um registro só
+  acrescentado (`data/execucoes/<id>.jsonl`). A rota da pergunta vira uma
+  inscrição nesse registro; `GET /api/execucoes/{id}/eventos?desde=n`
+  reinscreve. Fechar ou recarregar a janela não para nada.
+- Ao abrir o programa, a resposta que ficou pela metade entra na conversa como
+  texto parcial, marcado como interrompido.
+- Na tela, a leitura saiu de `enviar()` para `lerResposta()`, e todo efeito
+  fora da resposta só vale com a conversa dela aberta: acabou o vazamento de
+  título, foco e painel. Voltar para a conversa (ou recarregar) se reinscreve
+  e redesenha o que já saiu.
+- Chave `conversa.execucao`, ligada de fábrica.
+
+**Medido:** `tests/test_c1_execucao.py` (modelo simulado que escreve devagar,
+e o Edge pelo Playwright) passa inteiro; roteiro `--tudo` 41/41.
