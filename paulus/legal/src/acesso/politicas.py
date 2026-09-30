@@ -130,6 +130,8 @@ _declarar(PERMITIDO,
           "GET /api/execucoes/{id_}/eventos", "GET /api/trabalhos/{id_}/execucao",
           # C3: o escopo de cada conversa e a busca no texto delas (src/rotas_conversa.py).
           "POST /api/trabalhos/{id_}/escopo", "GET /api/conversas/buscar",
+          # T1: a saudacao da tela inicial (src/saudacao.py).
+          "GET /api/saudacao",
           "POST /api/buscar-agora",
           # o acervo: ver, buscar, o trecho citado, a pagina
           "GET /api/documentos-abertos", "GET /api/biblioteca", "POST /api/biblioteca/citacao",

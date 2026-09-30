@@ -103,6 +103,7 @@ import rotas_chaves
 import execucoes as execucoes_mod
 import rotas_execucoes
 import rotas_conversa
+import saudacao as saudacao_mod
 import detalhes as detalhes_mod
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
@@ -908,6 +909,7 @@ mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
 rotas_execucoes.montar(estado, app)
 rotas_conversa.montar(estado, app)
+saudacao_mod.montar(estado, app, rotas_do_acesso.pessoa)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

@@ -164,3 +164,7 @@
   .estado-conversa { flex: 0 1 132px; min-width: 0; display: flex; align-items: center; overflow: hidden; }
   .lista-conversas .menu-conversa { top: calc(100% - 8px); }
 
+
+  /* T1: o titulo da conversa citado na saudacao abre a conversa. */
+  .chamada-link { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-decoration: underline;
+                  text-decoration-thickness: 1px; text-underline-offset: 4px; cursor: pointer; }

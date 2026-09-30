@@ -2274,6 +2274,8 @@ function atualizarSaudacao() {
   $("sub-chamada").dataset.base = sub;
   $("sub-chamada").textContent = sub;
   $("relogio").textContent = c.hora;
+  // T1: com conversa.saudacao, a frase do banco troca esta assim que chega.
+  if (typeof pedirSaudacao === "function") pedirSaudacao();
 }
 
 setInterval(() => { $("relogio").textContent = contexto().hora; }, 30000);

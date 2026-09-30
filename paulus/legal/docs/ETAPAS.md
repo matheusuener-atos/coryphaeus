@@ -2228,3 +2228,18 @@ Edge).
 
 **Medido:** `tests/test_c3_painel.py` passa inteiro (modelo simulado e o
 Edge, 1440 e 390 px).
+
+## T1 — A saudação que não se repete ✓ FEITA
+
+- `config/saudacoes.json`: 130 títulos e 82 subtítulos, com as frases de
+  antes, cada uma com as condições em que vale (momento, dia, calendário,
+  chegada, situação). `src/saudacao.py` escolhe por regra, sem modelo: a
+  situação forte fica sozinha, as outras camadas cedem a vez quando as frases
+  delas estão entre as 20 últimas mostradas; sorteio entre as que sobram.
+- Feriados nacionais e recesso pela tabela de `src/prazos.py`; nome de quem
+  entrou (a conta de fora ou o titular); "de volta" cita a última conversa,
+  com o atalho para abri-la; `escritorio.fundacao` para o aniversário.
+- Chave `conversa.saudacao`, ligada de fábrica.
+
+**Medido:** `tests/test_t1_saudacao.py` passa inteiro (relógio simulado e o
+Edge); dez exemplos no PROGRESSO-CONVERSA.

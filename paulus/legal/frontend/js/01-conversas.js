@@ -97,6 +97,7 @@ async function abrirTrabalho(id) {
   $("compositor").hidden = false;
   estado.trabalho = await r.json();
   estado.trabalhoId = id;
+  if (typeof lembrarConversaAberta === "function") lembrarConversaAberta(id);
   // A pílula mostra onde a próxima pergunta procura: o documento em foco
   // desta conversa, quando há. Anexo de outra conversa não vem junto.
   const foco = (estado.trabalho.contexto || {}).documento_em_foco || [];

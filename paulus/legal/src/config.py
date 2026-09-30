@@ -210,7 +210,9 @@ PADRAO: dict = {
     # barra acima do campo diz onde a proxima pergunta procura, e rascunho,
     # escopo, anexos e rolagem ficam por conversa. `diagnostico`: motor,
     # trechos indexados e pasta no painel (desligado: e dado tecnico).
-    "conversa": {"execucao": True, "pensando": True, "painel": True, "diagnostico": False},
+    # `saudacao` (T1): a frase da tela inicial sai do banco config/saudacoes.json
+    # (momento, dia, calendario, chegada e situacao), sem modelo e sem repetir.
+    "conversa": {"execucao": True, "pensando": True, "painel": True, "diagnostico": False, "saudacao": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.
@@ -271,6 +273,8 @@ PADRAO: dict = {
         "cnpj": "",
         "oab": "",
         "rodape": "",
+        # A data de fundacao (AAAA-MM-DD): no aniversario, a saudacao lembra (T1).
+        "fundacao": "",
     },
     # O modelo de voz (Whisper) que transcreve as gravacoes nesta maquina:
     # "turbo" acerta mais, "small" e mais leve. Ver src/transcricao.py.

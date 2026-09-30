@@ -11,7 +11,7 @@ que não estiver `feita`.
 | C2 | A tela enquanto pensa | feita | ver git log (c2) | etapas do servidor desde o 1º evento; 0 nome na resposta salva; cartão = painel; 0 texto informativo em vermelho; Tentar de novo |
 | C3 | Painel "Sobre esta resposta", barra de escopo, estado por conversa | feita | ver git log (c3) | ver fontes = daquela resposta; ≤ 1 contagem por resposta; rascunho e escopo por conversa; 390 px fechado; sem Progresso no fim |
 | C4 | Roteamento: programa e cadastros | pendente | — | — |
-| T1 | A saudação que não se repete | pendente | — | — |
+| T1 | A saudação que não se repete | feita | ver git log (t1) | 130 títulos e 82 subtítulos; 30 aberturas sem repetir entre as 20 últimas; prazo hoje vence o dia; feriados e recesso; 0 buraco sem nome; 0,2 ms |
 | T2 | Carrossel de avisos, Central de avisos e histórico | pendente | — | — |
 | C5 | As outras superfícies de IA | pendente | — | — |
 | C6 | Cerca em todo texto de terceiros | pendente | — | — |
@@ -148,6 +148,66 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## T1 — o que foi medido e decidido
+
+- O banco (`config/saudacoes.json`): 130 títulos e 82 subtítulos escritos
+  aqui, com as cinco frases de antes dentro dele. Condições: momento (oito
+  faixas), dia, calendário, chegada e situação; marcas `{nome}`, `{conversa}`,
+  `{feriado}`, `{prazo}`, `{n_prazos}`, `{pendencias}` — frase com marca só vale
+  quando a marca tem valor (sem nome, nenhuma frase com nome).
+- A escolha (`src/saudacao.py`), no servidor e sem modelo: a situação forte
+  (prazo hoje, vários prazos, acervo vazio, muita pendência) fica sozinha e
+  nunca cede; as outras camadas, da mais específica para a mais geral —
+  situação, chegada, calendário, madrugada/noite alta, dia, "tudo em dia",
+  momento, geral —, cedendo a vez quando todas as frases de uma camada estão
+  entre as 20 últimas mostradas. **Ajuste medido pelos exemplos:** "tudo em
+  dia" ficou abaixo do calendário (senão o Natal dizia "Tudo em dia por
+  aqui") e madrugada acima do dia (às 3 h de uma terça saía "a semana está na
+  metade").
+- Feriados e recesso: `src/prazos.py` (a tabela dos prazos, com Carnaval,
+  Sexta-feira Santa e Corpus Christi pela Páscoa, e o recesso de 20/12 a
+  20/01). Prazo de hoje = tarefa aberta da lista "Prazos" com prazo hoje.
+  Pendências = tarefas atrasadas + aprovações esperando.
+- A tela (`frontend/js/55-saudacao.js`) manda as 40 últimas frases vistas
+  (títulos e subtítulos), a abertura anterior e a última conversa aberta; a
+  frase de antes aparece na hora e é trocada quando a resposta chega. "De
+  volta. Seguimos com “X”?" tem o título da conversa como atalho para abri-la.
+- `escritorio.fundacao` (AAAA-MM-DD) entrou nas preferências para o
+  aniversário do escritório. **Falta:** um campo para ela em Configurações;
+  hoje só por `POST /api/preferencias`.
+- Chave `conversa.saudacao`, **ligada de fábrica** depois do portão.
+
+**Dez exemplos** (um de cada tipo de condição, do teste):
+
+- madrugada: “Silêncio lá fora. Bom momento para adiantar.” / “Uma pergunta
+  de cada vez, sem pressa.”
+- manhã de segunda: “Boa segunda, Helena. A semana começa aqui.” / “Pergunte
+  que compromissos a agenda tem esta semana.”
+- fim de tarde de sexta: “Boa sexta, Helena. Algo para encerrar?” / “Pergunte
+  que tarefas ficaram abertas nesta semana.”
+- domingo, 11/10 (véspera de Nossa Senhora Aparecida): “Véspera de feriado.
+  Deixamos tudo pronto?” / “Na conta de um prazo, o feriado não entra como dia
+  útil.”
+- fim de mês: “O mês está chegando ao fim. Tudo encaminhado?” / “Pergunte
+  quanto está para receber este mês.”
+- 25/12: “Natal e você por aqui? Eu ajudo.”
+- recesso (12/01): “Recesso forense, Helena. O que fica para depois do dia
+  20?” / “Pergunte o que vence logo depois do recesso.”
+- volta rápida: “Helena, de volta. Continuamos com “Contrato ACME”?” / “A
+  conversa continua de onde parou.”
+- prazo hoje: “Helena, tem prazo vencendo hoje. Começamos por ele?” / “Abra o
+  cartão do prazo, ou pergunte sobre o processo dele.”
+- acervo vazio, sem nome: “Primeiro passo: me mostre os documentos do
+  escritório.” / “O que eu ler fica neste computador. Comece pela pasta do
+  escritório.”
+
+**Medido:** `tests/test_t1_saudacao.py` — 30 aberturas seguidas sem repetir
+entre as 20 últimas; prazo hoje fala do prazo nos sete dias da semana e no
+Natal; 25/12, Sexta-feira Santa, Carnaval e 10/01 escolhem frases dessas
+condições; 672 aberturas sem nome e nenhum buraco; nenhum título acima de 90
+caracteres com as marcas no tamanho máximo; 0,2 ms por escolha, sem modelo; na
+tela, três aberturas, três frases.
 
 ## C3 — o que foi medido e decidido
 
