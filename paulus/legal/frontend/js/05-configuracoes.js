@@ -1005,7 +1005,7 @@ function temaEscolhido() {
     const t = localStorage.getItem("paulus.tema");
     if (t === "claro" || t === "escuro" || t === "auto") return t;
   } catch (err) { /* sem memoria */ }
-  return document.documentElement.dataset.tema || "claro";
+  return document.documentElement.dataset.tema || "escuro";
 }
 
 function escolherTema(escolha) {

@@ -393,7 +393,8 @@ def _opcoes_da_janela(argv: list[str]) -> dict:
     "Abrir o PAULUS com o Windows" (acesso de fora, R9) - o programa sobe, o
     tunel liga, e a janela espera na barra de tarefas.
     """
-    return {"minimized": True} if "--minimizado" in argv else {}
+    # Sem pedido de minimizado, o PAULUS abre maximizado (pedido do dono, 29/09/2026).
+    return {"minimized": True} if "--minimizado" in argv else {"maximized": True}
 
 
 def _entregar_para_a_aberta(porta: int, caminho: str, timeout: float = 10) -> bool:

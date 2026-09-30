@@ -11,10 +11,10 @@
      abertura, que aconteceria se isso rodasse com o resto do script no fim
      do body. */
   (function () {
-    /* O claro e o padrao do desenho (docs/ui/00-fundamentos.md); o escuro e
-       o mesmo conjunto de nomes com outros valores. A escolha da pessoa
-       continua valendo e vence sempre. */
-    var tema = "claro";
+    /* O escuro e o padrao (pedido do dono, 29/09/2026); o claro e o mesmo
+       conjunto de nomes com outros valores (docs/ui/00-fundamentos.md). A
+       escolha da pessoa continua valendo e vence sempre. */
+    var tema = "escuro";
     try {
       var guardado = localStorage.getItem("paulus.tema");
       if (guardado === "claro" || guardado === "escuro") tema = guardado;

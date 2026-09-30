@@ -154,8 +154,8 @@ async function calcularPrazo() {
       { chave: "data", rotulo: "Data (disponibilização ou intimação)", valor: hoje.toLocaleDateString("pt-BR"), obrigatorio: true },
       { chave: "dias", rotulo: "Prazo (dias)", valor: "15", obrigatorio: true },
     ],
-    depois: '<div class="dialogo-duas"><div class="dialogo-campo"><label for="cp-origem">A data é da</label><div class="dialogo-caixa"><select id="cp-origem" data-dialogo-chave="origem">' +
-      '<option value="disponibilizacao">Disponibilização no DJE</option><option value="intimacao">Intimação (ciência)</option></select></div></div>' +
+    depois: '<div class="dialogo-duas"><div class="dialogo-campo"><label for="cp-origem">A data é da (no DJE)</label><div class="dialogo-caixa"><select id="cp-origem" data-dialogo-chave="origem">' +
+      '<option value="disponibilizacao">Disponibilização</option><option value="intimacao">Intimação (ciência)</option></select></div></div>' +
       '<div class="dialogo-campo"><label for="cp-uteis">Contagem</label><div class="dialogo-caixa"><select id="cp-uteis" data-dialogo-chave="uteis">' +
       '<option value="1">Dias úteis</option><option value="0">Dias corridos</option></select></div></div></div>',
     confirmar: "Calcular",

@@ -68,3 +68,6 @@
   .trava-pe p { margin: 0; max-width: 520px; font-size: 13px; line-height: 1.65; color: var(--ink3); text-wrap: pretty; }
   .trava-pe p.forte { color: var(--ink2); }
   @media (max-width: 760px) { .trava-painel { border-left: 0; padding-left: 0; max-width: none; } }
+
+  /* Dentro do programa, os tres botoes da janela ficam no canto: o cabecalho da trava abre espaco para eles. */
+  html.com-janela .trava-topo { padding-right: max(clamp(20px, 5vw, 88px), 150px); }

@@ -49,6 +49,22 @@ function acoesBsc() {
   return a.filter((x) => !x.local || localBsc()).map((x) => Object.assign({ grupo: "Ações" }, x));
 }
 
+/* O icone de cada tela: o do trilho, quando ela esta la; senao, um desta
+   lista - todos existem na fonte (o nome fora dela aparece como letras). */
+const ICONE_DA_TELA_BSC = {
+  conversa: "forum", servicos: "work", gravacoes: "mic", calendario: "calendar_month", foco: "self_improvement",
+  biblioteca: "inventory_2", editor: "description", assinar: "draw", caixa: "mail", financeiro: "payments",
+  cadastros: "contacts", aprovacoes: "verified", config: "settings", apoiar: "favorite", planilha: "grid_view",
+  organizar: "drive_file_move", tarefas: "task_alt", agendamento: "schedule", certificado: "workspace_premium",
+  relatorios: "bar_chart", habilidades: "auto_awesome", conexoes: "hub", desempenho: "speed", aprendizado: "lightbulb",
+  documentos: "description", email: "mail", ajuda: "help", leis: "menu_book", manual: "menu_book",
+};
+
+function iconeDaTelaBsc(id) {
+  const noTrilho = document.querySelector('.trilho [data-destino="' + id + '"] .ic');
+  return (noTrilho && noTrilho.textContent.trim()) || ICONE_DA_TELA_BSC[id] || "arrow_forward";
+}
+
 function telasBsc() {
   const itens = [];
   const vistos = new Set();
@@ -56,7 +72,7 @@ function telasBsc() {
     .forEach((d) => {
       if (!d || !d.id || vistos.has(d.id) || d.pronta === false) return;
       vistos.add(d.id);
-      itens.push({ grupo: "Ir para", titulo: d.nome, caminho: "", descricao: d.resolve || "", icone: d.icone || "arrow_forward",
+      itens.push({ grupo: "Ir para", titulo: d.nome, caminho: "", descricao: d.resolve || "", icone: iconeDaTelaBsc(d.id),
         fazer: () => abrirDestino(d.id) });
     });
   (typeof CFG_SECOES !== "undefined" ? CFG_SECOES : []).forEach(([id, rotulo, texto]) => {
@@ -88,6 +104,7 @@ function abrirBusca() {
     '<kbd class="bsc-esc">Esc</kbd></div><div class="bsc-lista" id="bsc-lista"></div>' +
     '<div class="bsc-pe"><span><kbd>↑</kbd><kbd>↓</kbd> para navegar</span><span><kbd>↵</kbd> para abrir</span></div></div>';
   document.body.appendChild(veu);
+  requestAnimationFrame(() => veu.classList.add("aberta"));
   veu.addEventListener("mousedown", (e) => { if (e.target === veu) fecharBusca(); });
   const campo = document.getElementById("bsc-campo");
   campo.addEventListener("input", () => { bsc.sel = 0; desenharBusca(); pedirDadosBsc(campo.value); });
@@ -105,7 +122,10 @@ function fecharBusca() {
   bsc.aberta = false;
   clearTimeout(bsc.relogio);
   const v = document.getElementById("bsc-veu");
-  if (v) v.remove();
+  if (!v) return;
+  v.id = "";
+  v.classList.remove("aberta");
+  setTimeout(() => v.remove(), 160);
 }
 
 function pedirDadosBsc(texto) {

@@ -177,3 +177,6 @@
     .bv-lado { height: auto; overflow: visible; }
     .bv-etapas { justify-content: flex-start; }
   }
+
+  /* Dentro do programa, os tres botoes da janela ficam no canto: o cabecalho do assistente abre espaco para eles. */
+  html.com-janela .bv-cabeca { padding-right: 130px; }

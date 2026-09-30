@@ -156,7 +156,7 @@ function desenharBoasVindas() {
       (i === bv.passo ? NOMES_BV[p] : "") + "</span>";
   }).join("");
   const selo = bv.caminho === "entrar" && bv.passo > 1 ? "REDE LOCAL · NADA NA INTERNET" : "NADA SAIU DESTA MÁQUINA";
-  const cabeca = '<div class="bv-cabeca"><span class="bv-marca">PAVLVS</span><div class="bv-etapas">' + etapas + "</div>" +
+  const cabeca = '<div class="bv-cabeca pywebview-drag-region"><span class="bv-marca">PAVLVS</span><div class="bv-etapas">' + etapas + "</div>" +
     '<span class="bv-selo"><i class="ponto-verde"></i>' + selo + "</span>" +
     // O tema fica no canto de cima, so o icone.
     '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +

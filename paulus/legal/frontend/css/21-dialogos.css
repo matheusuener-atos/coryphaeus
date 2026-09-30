@@ -52,7 +52,10 @@
   .dialogo-caixa textarea { line-height: 1.5; }
   .dialogo-caixa select, .dialogo-caixa .escolha-botao { height: 100%; cursor: pointer; }
   .dialogo-caixa.texto-longo { height: auto; align-items: flex-start; padding-block: 10px; }
-  .dialogo-duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+  .dialogo-duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  /* Texto longo numa lista ("Disponibilização no DJE") nao empurra a caixa para cima da vizinha. */
+  .dialogo-duas > *, .dialogo-duas .dialogo-caixa { min-width: 0; }
+  .dialogo-duas .escolha-botao { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dialogo-servico .dialogo-corpo { gap: 16px; }
   .dialogo-corpo p.dialogo-dica { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .dialogo-caixa input::selection { background: var(--ink-a25); color: var(--ink); }

@@ -188,7 +188,11 @@
 
   /* A busca de tudo (js/50-busca.js): a caixa por cima de tudo, como a da Cloudflare. */
   .bsc-veu { position: fixed; inset: 0; z-index: 120; background: rgba(0, 0, 0, .35); display: flex; justify-content: center;
-    align-items: flex-start; padding: 12vh 16px 16px; }
+    align-items: flex-start; padding: 12vh 16px 16px; opacity: 0; transition: opacity .16s ease; }
+  .bsc-veu .bsc-caixa { transform: translateY(-6px) scale(.985); transition: transform .16s ease; }
+  .bsc-veu.aberta { opacity: 1; }
+  .bsc-veu.aberta .bsc-caixa { transform: none; }
+  html.sem-animacao .bsc-veu, html.sem-animacao .bsc-veu .bsc-caixa { transition: none; }
   .bsc-caixa { width: 100%; max-width: 680px; max-height: 70vh; display: flex; flex-direction: column; background: var(--bg);
     color: var(--ink); border: 1px solid var(--ink-a25); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); overflow: hidden; }
   .bsc-topo { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--ink-a1); color: var(--ink3); }

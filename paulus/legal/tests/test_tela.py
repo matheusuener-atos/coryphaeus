@@ -286,8 +286,8 @@ def main() -> int:
                 "a pagina declara um icone - sem isso todo carregamento pede /favicon.ico e leva 404",
             )
             checar(
-                pagina.evaluate("() => document.documentElement.dataset.tema") == "claro",
-                "abre no tema claro, que e o padrao do desenho",
+                pagina.evaluate("() => document.documentElement.dataset.tema") == "escuro",
+                "abre no tema escuro, o padrao (pedido do dono, 29/09/2026)",
             )
 
             # A casca do desenho (docs/ui/01-shell.md): trilho de 64 px que

@@ -11,7 +11,10 @@
   /* A moldura do Windows saiu. O que ficou no lugar dela: tres botoes no
      canto, oito bordas invisiveis para redimensionar e uma faixa de arraste
      no alto, que e o cabecalho da propria tela. */
-  .botoes-janela { position: absolute; top: 0; right: 0; display: flex; z-index: 20; }
+  /* Por cima de tudo - o assistente de configuracao (z 50), a trava do
+     servidor (95) e a busca (120) cobrem a tela, e a janela continua sendo
+     minimizada, maximizada e fechada por aqui. */
+  .botoes-janela { position: fixed; top: 0; right: 0; display: flex; z-index: 140; }
   .botao-janela {
     width: 46px; height: 32px; padding: 0; flex: none;
     border: none; border-radius: 0; background: none; color: var(--ink2);
@@ -22,7 +25,7 @@
   .botao-janela.fechar:hover:not(:disabled) { background: var(--fechar); color: var(--fechar-ink); border: none; }
   /* Seis pixels em cada lado, oito nos cantos: e o que o Windows usa, e o
      bastante para pegar sem atrapalhar o que esta embaixo. */
-  .bordas-janela > i { position: fixed; z-index: 60; display: block; }
+  .bordas-janela > i { position: fixed; z-index: 141; display: block; }
   .bordas-janela > i[data-borda="top"] { top: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
   .bordas-janela > i[data-borda="bottom"] { bottom: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
   .bordas-janela > i[data-borda="left"] { left: 0; top: 8px; bottom: 8px; width: 6px; cursor: ew-resize; }

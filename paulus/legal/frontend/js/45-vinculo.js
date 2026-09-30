@@ -112,7 +112,7 @@ function desenharTrava() {
     (foraNoAr ? '<div class="trava-linha"><span>Endereço</span><span class="trava-mono">' + esc(fora.hostname) + "</span></div>" : "") + "</div>";
   const escuro = document.documentElement.dataset.tema === "escuro";
   telaDaTrava().innerHTML =
-    '<header class="trava-topo"><span class="trava-marca">PAVLVS</span><div class="trava-topo-dir"><span class="trava-selo">' +
+    '<header class="trava-topo pywebview-drag-region"><span class="trava-marca">PAVLVS</span><div class="trava-topo-dir"><span class="trava-selo">' +
     ic("desktop_windows", 16) + "servidor</span>" +
     '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 18) + "</button></div></header>" +
     '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo' + (codigo ? " neutro" : "") + '"><i></i>' +
