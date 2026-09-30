@@ -102,6 +102,7 @@ import mcp_leis
 import rotas_chaves
 import execucoes as execucoes_mod
 import rotas_execucoes
+import detalhes as detalhes_mod
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -218,6 +219,26 @@ def _credenciais_oauth(provedor: str) -> dict:
     import oauth_app
 
     return oauth_app.credenciais(provedor)
+
+
+def _como_pensou(conversa_id: str, cobertura: dict) -> dict:
+    """
+    C2 (`conversa.pensando`): a resposta guardada leva a contagem dos
+    documentos sem trecho, e nao a lista (que chegava a 56 nomes), e as linhas
+    do "ver detalhes", tiradas do registro da execucao (src/detalhes.py).
+    """
+    if not rotas_execucoes.ligada(estado, "pensando"):
+        return cobertura
+    cobertura = dict(cobertura)
+    sem = cobertura.get("ignorados") or []
+    if sem:
+        cobertura["ignorados_n"] = len(sem)
+        cobertura["ignorados"] = []
+    execucao = estado.execucoes.da_conversa(conversa_id)
+    if execucao is not None and not execucao.terminou:
+        cobertura["detalhes"] = detalhes_mod.linhas(execucao.desde(0))
+        cobertura["execucao_id"] = execucao.id
+    return cobertura
 
 
 def _pausar_trabalho(trabalho) -> None:
@@ -3613,6 +3634,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             andamento["fase"] = nome
             andamento["desde"] = time.time()
 
+        # C2: as etapas, com os nomes do servidor, desde o primeiro instante -
+        # a tela nao inventa as dela.
+        yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+
         # A vez no modelo (src/fila_modelo.py). A vez e pega aqui, dentro da
         # resposta, e nao na rota: se a pagina fechar antes de a resposta
         # comecar, nenhum lugar fica preso na fila. Sem ninguem na frente,
@@ -3784,7 +3809,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             if escrito:
                 trabalho.dizer(
                     "paulus", escrito,
-                    fontes=fontes, cobertura=cobertura, segundos=segundos,
+                    fontes=fontes, cobertura=_como_pensou(id_, cobertura), segundos=segundos,
                     nivel=nivel, inferencia=inferencia, interrompida=True,
                 )
             estado.trabalhos.salvar(trabalho)
@@ -3824,7 +3849,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             fontes, estado.searcher.documents, _documentos_ja_oferecidos(trabalho))
         trabalho.dizer(
             "paulus", "".join(partes).strip(),
-            fontes=fontes, cobertura=cobertura, segundos=segundos,
+            fontes=fontes, cobertura=_como_pensou(id_, cobertura), segundos=segundos,
             nivel=nivel, inferencia=inferencia, proposta=oferta or {},
         )
         estado.trabalhos.salvar(trabalho)

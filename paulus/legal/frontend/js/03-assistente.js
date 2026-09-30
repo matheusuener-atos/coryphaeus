@@ -485,7 +485,7 @@ function cartaoGuardado(m, ultima) {
 
 function blocoResposta(m, pergunta, ultima) {
   let html = '<div class="resposta">';
-  if (m.cobertura && m.cobertura.ignorados && m.cobertura.ignorados.length) {
+  if (m.cobertura && ((m.cobertura.ignorados && m.cobertura.ignorados.length) || m.cobertura.ignorados_n)) {
     html += avisoCobertura(m.cobertura);
   }
   if (m.interrompida) html += etiquetaDeParada();
@@ -500,6 +500,7 @@ function blocoResposta(m, pergunta, ultima) {
     html += linhaAssinatura(m.segundos || 0, citados, pergunta || "", "", (m.cobertura || {}).como);
   }
   html += cartaoGuardado(m, ultima);
+  if (m.cobertura && m.cobertura.detalhes) html += detalhesGuardados(m.cobertura.detalhes);
   return html + "</div>";
 }
 
@@ -589,9 +590,58 @@ function etiquetaDeLeitura() {
 }
 
 function avisoCobertura(c) {
+  if (pensando() || c.ignorados_n) {
+    // C2: a contagem; a lista, quando veio (ao vivo), fica recolhida. A
+    // resposta guardada so tem a contagem.
+    const n = c.ignorados_n || (c.ignorados || []).length;
+    const lista = (c.ignorados || []).length
+      ? ' <details class="cobertura-lista"><summary>ver lista</summary>' + esc(c.ignorados.join(", ")) + "</details>" : "";
+    return '<div class="aviso-cobertura"><strong>Li ' + c.consultados.length + " de " + c.total_contratos +
+      " documentos.</strong> " + plural(n, "documento") + " sem nada sobre isso — a resposta não fala por eles." + lista + "</div>";
+  }
   return '<div class="aviso-cobertura"><strong>Li ' + c.consultados.length + " de " +
     c.total_contratos + " documentos.</strong> Sem trecho sobre isso em: " +
     esc(c.ignorados.join(", ")) + ". A resposta não fala por esses.</div>";
+}
+
+/* C2 (`conversa.pensando`). */
+function pensando() {
+  return Boolean((window.PAULUS_CONVERSA || {}).pensando);
+}
+
+/* A etapa em que a resposta esta: a que executa, ou a ultima concluida. A
+   mesma conta no cartao e no painel. */
+function etapaAtual(etapas) {
+  const lista = etapas || [];
+  const i = lista.findIndex((e) => e.estado === "executando");
+  if (i >= 0) return i + 1;
+  return lista.filter((e) => e.estado === "concluido").length || (lista.length ? 1 : 0);
+}
+
+function linhaDeEstadoInicial() {
+  return pensando() ? '<div class="linha-estado"><i class="ponto pulsa"></i><span>Um instante…</span></div>' : "";
+}
+
+function mudarLinhaDeEstado(resposta, texto) {
+  const el = resposta && resposta.querySelector(".linha-estado");
+  if (!el) return;
+  if (!texto) { el.remove(); return; }
+  el.querySelector("span").textContent = texto;
+}
+
+/* O "Tentar de novo" do cartao de erro: a mesma pergunta, na mesma conversa. */
+function tentarDeNovo(pedido, conversaId) {
+  if (estado.ocupado || estado.trabalhoId !== conversaId || !pedido) return;
+  enviar({ texto: pedido, retomar: true });
+}
+
+/* O "ver detalhes" de uma resposta guardada: as linhas do registro da
+   execucao, guardadas com ela (src/detalhes.py). */
+function detalhesGuardados(linhas) {
+  if (!linhas || !linhas.length) return "";
+  return '<details class="detalhes-resposta"><summary>ver detalhes</summary><div class="bastidor-linhas">' +
+    linhas.map((l) => '<div class="bastidor-linha ' + esc(l.classe || "") + '"><span class="bastidor-quando">' +
+      String(l.s).replace(".", ",") + " s</span><span>" + esc(l.texto) + "</span></div>").join("") + "</div></details>";
 }
 
 /* No desenho os trechos moram no painel da direita. Na resposta fica so a
@@ -751,7 +801,8 @@ function desenharProgresso(etapas) {
   if (!etapas || !etapas.length) { bloco.hidden = true; return; }
   bloco.hidden = false;
   const feitas = etapas.filter((e) => e.estado === "concluido").length;
-  $("lat-progresso-conta").textContent = feitas + " de " + etapas.length;
+  // C2: o painel conta como o cartao ("etapa k de n"), com a conta do servidor.
+  $("lat-progresso-conta").textContent = (pensando() ? etapaAtual(etapas) : feitas) + " de " + etapas.length;
   const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error", pausado: "pause" };
   const classe = { concluido: "feita", executando: "andando", na_fila: "fila", falhou: "falhou", pausado: "fila" };
   $("lat-etapas").innerHTML = etapas.map((e) =>
@@ -1380,21 +1431,25 @@ async function enviar(opcoes) {
 
   const minha = estado.trabalhoId;
   const plano = document.createElement("div");
-  // "Entender o pedido" vem primeiro porque e o que acontece primeiro: nem
-  // toda mensagem e pergunta sobre documento.
-  plano.innerHTML = cartaoPlano(
-    [{ titulo: "Entender o pedido", estado: "executando", feitos: 0, total: 0, detalhe: "" },
-     { titulo: "Procurar e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
+  // C2: as etapas vem do servidor, no primeiro evento; a tela nao inventa as
+  // dela. Sem a chave, o cartao de antes ("Entender o pedido" primeiro,
+  // porque nem toda mensagem e pergunta sobre documento).
+  if (!pensando()) {
+    plano.innerHTML = cartaoPlano(
+      [{ titulo: "Entender o pedido", estado: "executando", feitos: 0, total: 0, detalhe: "" },
+       { titulo: "Procurar e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
+  }
   centro.appendChild(plano);
 
   // A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
+  // C2: recolhida, como "ver detalhes"; quem espera le a linha de estado.
   const bastidores = document.createElement("div");
   centro.appendChild(bastidores);
-  abrirBastidor(bastidores);
+  abrirBastidor(bastidores, { recolhido: pensando() });
 
   const resposta = document.createElement("div");
   resposta.className = "resposta";
-  resposta.innerHTML = '<div class="texto"></div>';
+  resposta.innerHTML = linhaDeEstadoInicial() + '<div class="texto"></div>';
   centro.appendChild(resposta);
   const texto = resposta.querySelector(".texto");
   rolar();
@@ -1474,6 +1529,8 @@ async function lerResposta(r, v) {
   const pedido = v.pedido;
   const aqui = () => estado.trabalhoId === minha;
   let citados = 0, saiu = false, execId = "";
+  // C2: a linha de estado, no lugar em que a resposta vai aparecer.
+  const linha = (txt) => mudarLinhaDeEstado(resposta, txt);
   const leitor = r.body.getReader();
   const dec = new TextDecoder();
   let buffer = "", primeiro = true, abrirAoFim = "", assinaSemModelo = false;
@@ -1508,6 +1565,7 @@ async function lerResposta(r, v) {
            bastidor diz isso, porque "li 1 de 9" sem explicação parece falha
            de cobertura quando é obediência ao que foi pedido. */
         if ((dados.apenas || []).length && aqui()) definirFoco(dados.apenas);
+        if (pensando()) linha("Lendo " + plural((dados.consultados || []).length || 1, "documento") + "…");
         anotarBastidor(dados.apenas.length
           ? (dados.apenas.length === 1
               ? "a pergunta é sobre “" + dados.apenas[0] + "” · li só ele, "
@@ -1517,8 +1575,10 @@ async function lerResposta(r, v) {
             " abertos · vou usar " + plural(dados.trechos.length, "trecho") +
             " de " + plural(dados.consultados.length, "documento"));
         if (dados.ignorados.length) {
-          anotarBastidor(plural(dados.ignorados.length, "documento") +
-            " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
+          // C2: a contagem, nunca a lista inteira; a lista fica recolhida
+          // no aviso ("ver lista").
+          anotarBastidor(pensando() ? plural(dados.ignorados.length, "documento") + " sem nada sobre isso"
+            : plural(dados.ignorados.length, "documento") + " sem trecho sobre isso: " + dados.ignorados.join(", "), "atencao");
           resposta.insertAdjacentHTML("afterbegin", avisoCobertura(dados));
         }
         resposta.insertAdjacentHTML("beforeend", blocoFontes(dados.trechos, dados));
@@ -1534,10 +1594,12 @@ async function lerResposta(r, v) {
         const texto = textoDaFila(dados);
         if (bastidor.fase !== "fila") faseBastidor("fila", texto);
         else if (bastidor.vivaEl) bastidor.vivaEl.textContent = texto;
+        if (pensando()) linha(texto.charAt(0).toUpperCase() + texto.slice(1));
       } else if (mt[1] === "lendo" && dados.molde && !dados.caracteres) {
         /* Nível 0 por molde (src/inteligencia/molde.py): a resposta é o
            próprio fato conferido, montado sem o modelo. */
         anotarBastidor("respondi pelos fatos já conferidos, sem o modelo");
+        if (pensando()) linha("Respondendo pelos fatos já conferidos…");
       } else if (mt[1] === "lendo") {
         anotarBastidor("mandei " + milhar(dados.caracteres) + " caracteres para o " +
           dados.modelo + ", janela de " + milhar(dados.janela) + " tokens");
@@ -1551,12 +1613,18 @@ async function lerResposta(r, v) {
             "esta vai virar a primeira medida");
         }
         faseBastidor("lendo", "lendo…");
+        if (pensando()) {
+          // A estimativa vem do ritmo medido nesta maquina, e so acima de 10 s.
+          const p = dados.previsao || {};
+          linha("Lendo " + plural(dados.documentos || 1, "documento") + (p.sabe && p.segundos > 10 ? " · ~" + segundosCurtos(p.segundos) : "") + "…");
+        }
       } else if (mt[1] === "escrevendo") {
         anotarBastidor("primeira palavra saiu · esperei " +
           segundosBR(dados.lendo_segundos) + " até aqui");
         bastidor.escreveDesde = Date.now();
         bastidor.palavras = 0;
         faseBastidor("escrevendo", "escrevendo…");
+        if (pensando()) linha("Escrevendo…");
       } else if (mt[1] === "truncou") {
         anotarBastidor("o texto passou da janela de " + milhar(dados.num_ctx) +
           " tokens; o modelo leu só o final dele");
@@ -1571,8 +1639,15 @@ async function lerResposta(r, v) {
           " e " + segundosBR(dados.escrevendo_segundos) + " escrevendo " +
           milhar(dados.tokens_escritos), "feito");
       } else if (mt[1] === "etapas") {
-        plano.innerHTML = cartaoPlano(dados.etapas, 2);
+        // C2: uma conta so, a do servidor, no cartao e no painel.
+        plano.innerHTML = cartaoPlano(dados.etapas, pensando() ? etapaAtual(dados.etapas) : 2);
         if (aqui()) desenharProgresso(dados.etapas);
+        if (pensando()) {
+          const andando = dados.etapas.find((e) => e.estado === "executando");
+          if (andando && /^Procurar/.test(andando.titulo)) {
+            linha("Procurando " + (estado.contratos ? "em " + plural(estado.contratos, "documento") : "nos documentos") + "…");
+          }
+        }
       } else if (mt[1] === "revisao") {
         revisado = true;
         bruto = dados.texto || "";
@@ -1586,7 +1661,7 @@ async function lerResposta(r, v) {
         bruto += dados.t;
         texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
       } else if (mt[1] === "token") {
-        if (primeiro) { texto.textContent = ""; primeiro = false; }
+        if (primeiro) { texto.textContent = ""; primeiro = false; linha(""); }
         texto.textContent += dados.t;
         // Palavras escritas ate agora: e o numero que a janelinha mostra
         // subindo enquanto o modelo escreve. Contado, nao estimado.
@@ -1598,6 +1673,7 @@ async function lerResposta(r, v) {
         // Pedido de ação: nada de procurar nos documentos. O cartão mostra
         // o que eu entendi, e quem grava é a pessoa.
         plano.remove();
+        linha("");
         const caixa = document.createElement("div");
         caixa.className = "proposta-caixa";
         caixa.innerHTML = cartaoProposta(dados);
@@ -1609,12 +1685,18 @@ async function lerResposta(r, v) {
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo") assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "vazio") {
+        linha("");
         texto.textContent = dados.mensagem;
       } else if (mt[1] === "erro") {
+        linha("");
         plano.innerHTML = '<div class="aprovacao"><p><strong>Não consegui terminar.</strong> ' +
           esc(dados.mensagem) + '</p><div class="acoes"><button class="primario" data-recarregar="1">Tentar de novo</button></div></div>';
+        // C2: o "Tentar de novo" faz a pergunta de novo (antes, sem acao).
+        const botao = plano.querySelector("[data-recarregar]");
+        if (botao && pensando()) botao.onclick = () => { plano.remove(); tentarDeNovo(pedido, minha); };
       } else if (mt[1] === "parado") {
         // A pessoa parou: o que ja saiu fica, com a marca de que parou ali.
+        linha("");
         fecharBastidor();
         plano.remove();
         if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
@@ -1623,6 +1705,7 @@ async function lerResposta(r, v) {
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
       } else if (mt[1] === "fim") {
+        linha("");
         fecharBastidor();
         plano.remove();
         /* O aviso de fora da cobertura (M7) chega como texto: no fim, ganha o botão. */
@@ -1662,16 +1745,16 @@ async function acompanharExecucao(t, execucao) {
   const parado = centro.lastElementChild;
   if (parado && parado.querySelector && parado.querySelector("[data-retomar]") === null && parado.classList.contains("cartao")) parado.remove();
   const plano = document.createElement("div");
-  plano.innerHTML = cartaoPlano(t.etapas || [], t.etapa_atual, true);
+  plano.innerHTML = cartaoPlano(t.etapas || [], pensando() ? etapaAtual(t.etapas || []) : t.etapa_atual, true);
   centro.appendChild(plano);
   const bastidores = document.createElement("div");
   centro.appendChild(bastidores);
-  abrirBastidor(bastidores);
+  abrirBastidor(bastidores, { recolhido: pensando() });
   const desde = Date.parse(execucao.criada || "") || Date.now();
   bastidor.desde = desde;
   const resposta = document.createElement("div");
   resposta.className = "resposta";
-  resposta.innerHTML = '<div class="texto"></div>';
+  resposta.innerHTML = linhaDeEstadoInicial() + '<div class="texto"></div>';
   centro.appendChild(resposta);
   const texto = resposta.querySelector(".texto");
   const relogio = setInterval(() => {

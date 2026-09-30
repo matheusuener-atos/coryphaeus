@@ -489,6 +489,22 @@
   .bastidor-linha.viva { color: var(--ink); }
   .bastidor-linha.atencao { color: var(--acc); }
   .bastidor-linha.feito { color: var(--okt); }
+  /* C2 (.pensando na raiz, chave conversa.pensando): vermelho so para erro.
+     "Documento sem trecho" e informacao - fica na cor das outras linhas. */
+  .pensando .bastidor-linha.atencao { color: var(--ink2); }
+  .bastidor-linha.erro { color: var(--acc); }
+  /* A linha de estado, no lugar em que a resposta vai aparecer. */
+  .linha-estado { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13.5px; color: var(--ink2); }
+  .linha-estado .ponto { flex: 0 0 auto; }
+  /* A lista dos documentos sem trecho, recolhida dentro do aviso. */
+  .cobertura-lista { display: inline; }
+  .cobertura-lista summary { display: inline; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .cobertura-lista[open] { display: block; margin-top: 6px; }
+  /* O "ver detalhes" de uma resposta guardada: as linhas do registro. */
+  .detalhes-resposta { margin-top: 8px; font-size: 12.5px; color: var(--ink3); }
+  .detalhes-resposta summary { cursor: pointer; width: max-content; }
+  .detalhes-resposta summary:hover { color: var(--ink2); }
+  .detalhes-resposta .bastidor-linhas { border-top: 0; padding: 4px 0 0; }
   .bastidor-linha > span:last-child { flex: 1; min-width: 0; }
   .bastidor-barra { height: 4px; border-radius: 2px; background: var(--fill2); margin-top: 5px; overflow: hidden; }
   .bastidor-barra > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .3s ease; }

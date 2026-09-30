@@ -16,7 +16,7 @@ import config
 
 # Os blocos que esta rota mexe, e só as chaves que o PADRAO conhece. `tau` e
 # afins não entram: número se ajusta medindo, não pela tela.
-BLOCOS = ("biblioteca", "umbrel")
+BLOCOS = ("biblioteca", "umbrel", "conversa")
 
 
 class Chave(BaseModel):

@@ -27,6 +27,10 @@ async function ligarChave(bloco, chave, ligada) {
   const d = await r.json();
   cfg.chaves = d;
   if (bloco === "umbrel") window.PAULUS_UMBREL = d.umbrel;
+  if (bloco === "conversa") {
+    window.PAULUS_CONVERSA = d.conversa;
+    document.documentElement.classList.toggle("pensando", Boolean(d.conversa.pensando));
+  }
   return d;
 }
 

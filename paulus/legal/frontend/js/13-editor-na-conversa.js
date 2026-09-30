@@ -16,7 +16,10 @@ const bastidor = { desde: 0, timer: null, fase: "", palavras: 0,
                    caixa: null, linhasEl: null, relogioEl: null, vivaEl: null,
                    previsao: null, escreveDesde: 0 };
 
-function abrirBastidor(caixa) {
+/* `opcoes.recolhido` (C2): a janelinha nasce fechada, como "ver detalhes" -
+   quem esta esperando le a linha de estado; quem quer o bastidor abre. */
+function abrirBastidor(caixa, opcoes) {
+  const o = opcoes || {};
   fecharBastidor();
   bastidor.desde = Date.now();
   bastidor.fase = "";
@@ -24,8 +27,8 @@ function abrirBastidor(caixa) {
   bastidor.previsao = null;
   bastidor.vivaEl = null;
 
-  caixa.innerHTML = '<div class="bastidor"><div class="bastidor-topo">' + coroa(18) +
-    '<span class="bastidor-titulo">o que estou fazendo</span><span class="num"></span>' +
+  caixa.innerHTML = '<div class="bastidor' + (o.recolhido ? " fechado" : "") + '"><div class="bastidor-topo">' + coroa(18) +
+    '<span class="bastidor-titulo">' + (o.recolhido ? "ver detalhes" : "o que estou fazendo") + '</span><span class="num"></span>' +
     ic("expand_more", 18) + '</div><div class="bastidor-linhas"></div></div>';
 
   bastidor.caixa = caixa.querySelector(".bastidor");
@@ -114,12 +117,14 @@ function fecharBastidor() {
   /* Terminou: a janelinha recolhe numa linha so, com o visto no lugar do
      anel. Clicar reabre. */
   const caixa = bastidor.caixa;
-  if (caixa && caixa.isConnected && !caixa.classList.contains("fechado")) {
+  if (caixa && caixa.isConnected) {
     caixa.classList.add("fechado");
+    // O visto no lugar do anel vale também para a janelinha que já nasceu
+    // recolhida (C2, "ver detalhes").
     const anel = caixa.querySelector(".indicador");
     if (anel) anel.outerHTML = '<span class="ic ic-18 marcador-feito">check_circle</span>';
     const titulo = caixa.querySelector(".bastidor-titulo");
-    if (titulo) titulo.textContent = "o que fiz";
+    if (titulo && titulo.textContent !== "ver detalhes") titulo.textContent = "o que fiz";
   }
 }
 

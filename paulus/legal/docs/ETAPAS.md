@@ -2194,3 +2194,18 @@ dono: seguir direto e publicar).
 
 **Medido:** `tests/test_c1_execucao.py` (modelo simulado que escreve devagar,
 e o Edge pelo Playwright) passa inteiro; roteiro `--tudo` 41/41.
+
+## C2 — A tela enquanto pensa ✓ FEITA
+
+- Uma linha de estado no lugar da resposta ("Procurando em 29 documentos…",
+  "Lendo 1 documento · ~42 s…", "Escrevendo…"); o "o que estou fazendo" vira
+  "ver detalhes", recolhido, e fica guardado com a resposta (`src/detalhes.py`
+  lê o registro da execução).
+- Documento sem trecho vira contagem ("12 documentos sem nada sobre isso ·
+  ver lista"); a resposta guardada só tem a contagem.
+- As etapas vêm do servidor desde o primeiro evento; cartão e painel com a
+  mesma conta. Vermelho só para erro. "Tentar de novo" funciona.
+- Chave `conversa.pensando`, ligada de fábrica.
+
+**Medido:** `tests/test_c2_pensando.py` passa inteiro (modelo simulado e o
+Edge).

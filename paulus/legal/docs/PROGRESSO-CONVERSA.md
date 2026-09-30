@@ -8,7 +8,7 @@ que não estiver `feita`.
 | --- | --- | --- | --- | --- |
 | C0 | Levantamento, tabela e conversas de referência | feita | ver git log (c0) | tabela abaixo |
 | C1 | Execução desacoplada da janela | feita | ver git log (c1) | desconectar no meio não perde nada; `desde=n` exato; parcial ao fechar o programa; A não vaza na B; roteiro 41/41 |
-| C2 | A tela enquanto pensa | pendente | — | — |
+| C2 | A tela enquanto pensa | feita | ver git log (c2) | etapas do servidor desde o 1º evento; 0 nome na resposta salva; cartão = painel; 0 texto informativo em vermelho; Tentar de novo |
 | C3 | Painel "Sobre esta resposta", barra de escopo, estado por conversa | pendente | — | — |
 | C4 | Roteamento: programa e cadastros | pendente | — | — |
 | T1 | A saudação que não se repete | pendente | — | — |
@@ -148,6 +148,36 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## C2 — o que foi medido e decidido
+
+- A linha de estado fica dentro da resposta, até a primeira palavra: "Um
+  instante…" → "Procurando em 29 documentos…" → "Lendo 1 documento · ~42 s…"
+  → "Escrevendo…". A estimativa só aparece acima de 10 s e vem do ritmo
+  medido nesta máquina.
+- O "o que estou fazendo" nasce recolhido, com o nome "ver detalhes". Na
+  resposta guardada, as linhas saem do registro da execução
+  (`src/detalhes.py`), e não do navegador: `cobertura.detalhes`, com o
+  `execucao_id`.
+- A resposta guardada leva `ignorados_n` e a lista vazia; ao vivo, a lista
+  fica recolhida em "ver lista". A linha do bastidor diz só a contagem.
+- As etapas: o servidor manda `etapas` logo depois do id, com os nomes dele, e
+  a tela não desenha as suas. Cartão e painel usam a mesma conta
+  (`etapaAtual`: a que executa, ou a última concluída).
+- Vermelho só para erro: `.pensando .bastidor-linha.atencao` usa `--ink2`, e só
+  a linha de erro do "ver detalhes" (`.erro`) usa `--acc`. O aviso de
+  cobertura já era escuro (`--destaque`), e não vermelho.
+- "Tentar de novo" refaz a pergunta na mesma conversa.
+- Chave `conversa.pensando` (a casca a lê em `/api/preferencias` e marca a
+  raiz com `.pensando`), **ligada de fábrica** depois do portão.
+
+**Medido:** `tests/test_c2_pensando.py` — as etapas do servidor chegam logo
+depois do id; a resposta salva não tem nenhum dos 12 nomes (só a contagem) e
+tem o "ver detalhes"; na tela, a linha de estado com a estimativa, cartão e
+painel com a mesma conta em 14 amostras, nenhum texto informativo na cor de
+erro, a lista recolhida, a resposta reaberta só com a contagem, e o "Tentar de
+novo" fazendo a pergunta de novo; com a chave desligada, a resposta salva
+como antes.
 
 ## C1 — o que foi medido e decidido
 

@@ -203,7 +203,10 @@ PADRAO: dict = {
     # A conversa e os agentes (docs/PROGRESSO-CONVERSA.md). `execucao` (C1): a
     # resposta roda numa thread de trabalho, com registro de eventos em disco,
     # e a janela so se inscreve - fechar ou recarregar nao perde a resposta.
-    "conversa": {"execucao": True},
+    # `pensando` (C2): uma linha de estado no lugar da resposta, o "ver
+    # detalhes" guardado com ela, vermelho so para erro e a lista de
+    # documentos sem trecho resumida numa contagem.
+    "conversa": {"execucao": True, "pensando": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

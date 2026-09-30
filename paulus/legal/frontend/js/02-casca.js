@@ -593,6 +593,9 @@ async function carregarUsuario() {
     aplicarModulos(p.modulos);
     /* As ideias do umbrelOS ligadas nesta máquina (Fotografar documento). */
     window.PAULUS_UMBREL = p.umbrel || {};
+    /* As chaves da conversa (docs/PROGRESSO-CONVERSA.md). */
+    window.PAULUS_CONVERSA = p.conversa || {};
+    document.documentElement.classList.toggle("pensando", Boolean(window.PAULUS_CONVERSA.pensando));
   } catch (err) { /* sem preferencias, fica o padrao */ }
 }
 
