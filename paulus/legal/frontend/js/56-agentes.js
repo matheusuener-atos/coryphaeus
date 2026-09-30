@@ -120,7 +120,7 @@ function migalhaDeAgentes(atributo, rotulo) {
   return '<button class="sv-ligacao agt-migalha" ' + atributo + '="1">' + ic("chevron_left", 16) + esc(rotulo) + "</button>";
 }
 
-function dataCurta(iso) {
+function dataCurtaAgt(iso) {
   const s = String(iso || "");
   return s.length >= 16 ? s.slice(8, 10) + "/" + s.slice(5, 7) + " às " + s.slice(11, 16) : "";
 }
@@ -252,8 +252,8 @@ function blocoDaMedida(a) {
   const t = m.testes;
   const linhas = [];
   linhas.push(["Acerto nos testes", t ? t.passaram + " de " + t.total + " · versão " + t.versao + (t.da_versao_atual ? "" : " (a atual é " + a.versao + ")") +
-    (t.em ? " · " + dataCurta(t.em) : "") + (t.origem === "medir" ? " · pela medição" : "") : ((a.testes || []).length ? "ainda não testado" : "sem testes")]);
-  linhas.push(["Vezes usado", String(m.usado || 0) + (m.usado_em ? " · a última em " + dataCurta(m.usado_em) : "")]);
+    (t.em ? " · " + dataCurtaAgt(t.em) : "") + (t.origem === "medir" ? " · pela medição" : "") : ((a.testes || []).length ? "ainda não testado" : "sem testes")]);
+  linhas.push(["Vezes usado", String(m.usado || 0) + (m.usado_em ? " · a última em " + dataCurtaAgt(m.usado_em) : "")]);
   linhas.push(["Vezes “não usar”", String(m.nao_usar || 0) + " — a regra sugeria o agente e a pessoa escolheu sem agente"]);
   linhas.push(["Respostas avaliadas como ruins", "sem avaliação — o programa ainda não avalia respostas"]);
   return cartaoCfg("Medida", "", '<div class="propriedades agt-medida">' + linhas.map(([k, v]) =>
@@ -288,7 +288,7 @@ function blocoDeTestes(a) {
 function blocoDeVersoes(a, d) {
   const anteriores = (a.versoes || []).slice().reverse();
   const corpo = '<div class="cfg-servico"><span class="duas-linhas"><b>Versão ' + esc(a.versao) + " · atual</b><small>" +
-    esc(a.atualizado_em ? "gravada em " + dataCurta(a.atualizado_em) : "") + "</small></span>" +
+    esc(a.atualizado_em ? "gravada em " + dataCurtaAgt(a.atualizado_em) : "") + "</small></span>" +
     '<span class="cfg-botoes"><button data-agt-ver-md="1">Ver o markdown</button></span></div>' +
     (anteriores.length ? anteriores.map((n) => '<div class="cfg-servico"><span class="duas-linhas"><b>Versão ' + esc(n) + "</b><small>anterior</small></span>" +
       '<span class="cfg-botoes"><button data-agt-versao="' + esc(n) + '">Ler</button></span></div>').join("")

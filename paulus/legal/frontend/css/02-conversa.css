@@ -614,3 +614,6 @@
 
   /* C5: "IA trabalhando" nas outras telas: a linha de estado com o Parar. */
   .ia-trabalhando { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; color: var(--ink2); }
+  .ia-trabalhando .ia-estado { flex: 1; min-width: 0; }
+  /* A4: o agente que precisa de revisao nao e escolhido sozinho - a barra diz. */
+  .barra-agente .barra-revisao, .barra-revisao { color: var(--ink2); }

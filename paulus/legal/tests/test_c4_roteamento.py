@@ -71,6 +71,8 @@ def _cnpj(doze: str) -> str:
     return f"{t[:2]}.{t[2:5]}.{t[5:8]}/{t[8:12]}-{t[12:]}"
 
 
+# Nomes que nao existem nos Cadastros de verdade: o teste roda tambem nos
+# dados do escritorio, e um "Matheus" de la tornava a consulta ambigua.
 CPF_MATHEUS = _cpf("529982247")
 CPF_ANDRADE = _cpf("111444777")
 CPF_LIVIA = _cpf("123456789")
@@ -78,9 +80,9 @@ CNPJ_CLINICA = _cnpj("112223330001")
 CNPJ_COOP = _cnpj("183904570001")
 
 FICHAS = [
-    {"tipo": "cliente", "nome": "Matheus Uener Silva", "documento": CPF_MATHEUS, "telefone": "(62) 99999-8888",
+    {"tipo": "cliente", "nome": "Teodoro Quintanilha Braga", "documento": CPF_MATHEUS, "telefone": "(62) 99999-8888",
      "email": "matheus@exemplo.com.br", "endereco": "Rua 10, 200, Setor Oeste, Goiânia/GO"},
-    {"tipo": "cliente", "nome": "Matheus Andrade", "documento": CPF_ANDRADE},
+    {"tipo": "cliente", "nome": "Teodoro Andrade", "documento": CPF_ANDRADE},
     {"tipo": "cliente", "nome": "Clínica Bem Viver Ltda.", "documento": CNPJ_CLINICA, "telefone": "(62) 3222-1100",
      "email": "contato@bemviver.exemplo", "endereco": "Av. T-63, 1500, sala 402, Goiânia/GO"},
     {"tipo": "cliente", "nome": "Cooperativa Agrícola Vale Verde", "documento": CNPJ_COOP},
@@ -183,17 +185,17 @@ def _fichas_com_id() -> list[dict]:
 
 
 CONSULTAS = [
-    ("qual o CPF de Matheus Uener Silva?", CPF_MATHEUS, "Cadastros"),
-    ("Qual o CPF do cliente Matheus Andrade", CPF_ANDRADE, "Cadastros"),
+    ("qual o CPF de Teodoro Quintanilha Braga?", CPF_MATHEUS, "Cadastros"),
+    ("Qual o CPF do cliente Teodoro Andrade", CPF_ANDRADE, "Cadastros"),
     ("qual o telefone da Clínica Bem Viver?", "(62) 3222-1100", "Cadastros"),
     ("qual é o e-mail da clinica bem viver?", "contato@bemviver.exemplo", "Cadastros"),
     ("qual o endereço da Clínica Bem Viver?", "Av. T-63, 1500", "Cadastros"),
     ("me passa o CNPJ da Cooperativa Agrícola Vale Verde", CNPJ_COOP, "Cadastros"),
-    ("qual o telefone do Matheus Uener?", "(62) 99999-8888", "Cadastros"),
+    ("qual o telefone do Teodoro Quintanilha?", "(62) 99999-8888", "Cadastros"),
     ("qual o email da Lívia?", "livia@escritorio.exemplo", "Cadastros"),
     ("qual o CPF da Clínica Bem Viver?", CNPJ_CLINICA, "Cadastros"),
     ("qual a OAB da Dra. Helena Moura Campos?", "GO 12.345", "Meus dados"),
-    ("qual o número de telefone de contato do Matheus Uener Silva?", "(62) 99999-8888", "Cadastros"),
+    ("qual o número de telefone de contato do Teodoro Quintanilha Braga?", "(62) 99999-8888", "Cadastros"),
 ]
 
 
@@ -208,14 +210,14 @@ def test_consulta_modulo() -> None:
             errados.append((frase, r and (r.modo, r.texto)))
     checar(not errados, f"as {len(CONSULTAS)} consultas respondem pelo molde, com a fonte", errados)
 
-    r = consulta_cadastro.ler("qual o CPF de Matheus Uener Silva?", cadastros=fichas, preferencias=prefs)
-    checar(r and r.texto == f"O CPF de Matheus Uener Silva é {CPF_MATHEUS} (Cadastros).", "a frase do molde", r and r.texto)
+    r = consulta_cadastro.ler("qual o CPF de Teodoro Quintanilha Braga?", cadastros=fichas, preferencias=prefs)
+    checar(r and r.texto == f"O CPF de Teodoro Quintanilha Braga é {CPF_MATHEUS} (Cadastros).", "a frase do molde", r and r.texto)
     r = consulta_cadastro.ler("qual o CPF da Clínica Bem Viver?", cadastros=fichas, preferencias=prefs)
     checar(r and "CNPJ" in r.texto and "não um CPF" in r.texto, "CPF pedido, CNPJ cadastrado: diz o que há", r and r.texto)
 
-    r = consulta_cadastro.ler("qual o CPF do Matheus?", cadastros=fichas, preferencias=prefs)
+    r = consulta_cadastro.ler("qual o CPF do Teodoro?", cadastros=fichas, preferencias=prefs)
     nomes = sorted(o["nome"] for o in (r.opcoes if r else []))
-    checar(r and r.modo == "escolher" and nomes == ["Matheus Andrade", "Matheus Uener Silva"],
+    checar(r and r.modo == "escolher" and nomes == ["Teodoro Andrade", "Teodoro Quintanilha Braga"],
            "nome ambíguo: a lista para escolher", r and (r.modo, nomes))
     checar(r and all(o["pergunta"].startswith("qual o CPF de ") for o in r.opcoes),
            "cada opção refaz a pergunta com o nome inteiro", r and r.opcoes)
@@ -228,8 +230,8 @@ def test_consulta_modulo() -> None:
                f"“{frase}”: não encontrei, com a oferta de ler os documentos", r and (r.modo, r.texto))
     checar(chamado == [] or all(c[1] for c in chamado), "os fatos são consultados pelo campo, nunca o acervo")
 
-    r = consulta_cadastro.ler("qual o CPF de Matheus Uener Silva?", cadastros=fichas, preferencias=prefs)
-    p = consulta_cadastro.proposta(r, "qual o CPF de Matheus Uener Silva?")
+    r = consulta_cadastro.ler("qual o CPF de Teodoro Quintanilha Braga?", cadastros=fichas, preferencias=prefs)
+    p = consulta_cadastro.proposta(r, "qual o CPF de Teodoro Quintanilha Braga?")
     checar(p["tipo"] == "consulta_cadastro" and p["modo"] == "achado" and p["campos"]["ficha_id"] == 1,
            "o cartão leva à ficha", p)
 
@@ -239,7 +241,7 @@ def test_consulta_modulo() -> None:
         "qual o CPF do réu no processo?",
         "qual o CNPJ da contratada no contrato?",
         "responda o e-mail da Clínica Bem Viver",
-        "traduza o e-mail do Matheus",
+        "traduza o e-mail do Teodoro",
         "qual o endereço do imóvel?",
         "como conecto meu e-mail?",
         "qual o valor do contrato da Cooperativa?",
@@ -329,7 +331,7 @@ def test_api() -> None:
             p = next((d for tipo, d in eventos if tipo == "proposta"), {})
             return texto, p, ms, t["id"]
 
-        perguntar("qual o CPF de Matheus Uener Silva?")  # aquece (a primeira carrega o que for preguiçoso)
+        perguntar("qual o CPF de Teodoro Quintanilha Braga?")  # aquece (a primeira carrega o que for preguiçoso)
         tempos, errados = [], []
         for frase, valor, fonte in CONSULTAS[:10]:
             texto, p, ms, _ = perguntar(frase)
@@ -341,7 +343,7 @@ def test_api() -> None:
         checar(not chamadas, "nenhuma chamou o modelo", chamadas)
         checar(not buscas, "nenhuma procurou nos documentos", len(buscas))
 
-        texto, p, ms, _ = perguntar("qual o CPF do Matheus?")
+        texto, p, ms, _ = perguntar("qual o CPF do Teodoro?")
         checar(p.get("modo") == "escolher" and len(p.get("opcoes") or []) == 2, "ambíguo: o cartão com a lista", p)
         texto, p, ms, id_ = perguntar("qual o CPF do cliente Fulano Beltrano?")
         checar(p.get("modo") == "nada" and p.get("oferta") and not buscas and not chamadas,
@@ -372,7 +374,7 @@ def test_api() -> None:
 
         print("\npela API: a chave desligada")
         api.estado.prefs.dados["conversa"] = {**conversa_antes, "roteamento": False}
-        texto, p, ms, _ = perguntar("qual o CPF do cliente Matheus Andrade?", sem_anexo=True)
+        texto, p, ms, _ = perguntar("qual o CPF do cliente Teodoro Andrade?", sem_anexo=True)
         checar(p.get("tipo") == "escopo", "a consulta segue o caminho de antes (os documentos)", p.get("tipo"))
         texto, p, ms, _ = perguntar("Pra que serve a busca no DJE?", sem_anexo=True)
         checar(p.get("tipo") == "escopo", "a pergunta do DJE também", p.get("tipo"))

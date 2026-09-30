@@ -344,9 +344,11 @@ function desenharCentral() {
   const c = avs.central;
   const hoje = avs.avisos || [];
   const abas = [["hoje", "Hoje", hoje.length], ["todos", "Todos", null], ["historico", "Histórico", null]];
-  let html = '<div class="visoes av-abas" role="tablist">' + abas.map(([id, rotulo, n]) =>
-    '<button type="button" role="tab" data-av-aba="' + id + '" class="' + (c.aba === id ? "ativa" : "") + '" aria-selected="' + (c.aba === id) + '">' +
-    esc(rotulo) + (n ? " <small>" + n + "</small>" : "") + "</button>").join("") + "</div>";
+  let html = '<div class="visoes av-abas" role="tablist">' + abas.map(([aba, rotulo, n]) => {
+    const ativa = c.aba === aba;
+    return '<button type="button" role="tab" data-av-aba="' + aba + '" class="' + (ativa ? "ativa" : "") + '" aria-selected="' + ativa + '">' +
+      esc(rotulo) + (n ? " <small>" + n + "</small>" : "") + "</button>";
+  }).join("") + "</div>";
 
   if (c.aba === "hoje") {
     html += '<p class="av-nota">O que ainda não foi visto por você: atrasado, hoje, amanhã e esta semana. Visto não conclui nada.</p>';
@@ -364,7 +366,7 @@ function desenharCentral() {
     html += filtrosDaCentral(tipos, [["hoje", "Hoje"], ["semana", "7 dias"], ["mes", "30 dias"], ["tudo", "Tudo"]], c.hperiodo, "hperiodo");
     const itens = filtrarHistorico(h.itens || []);
     html += '<p class="av-nota">' + (h.titular ? "Os vistos de todos da equipe. Cada pessoa desmarca os próprios." : "Os avisos que você marcou como visto, com o que diziam naquele momento.") + "</p>";
-    html += itens.length ? '<div class="av-lista">' + itens.map(linhaDoHistorico).join("") + "</div>"
+    html += itens.length ? '<div class="av-lista">' + itens.map(linhaDoHistoricoDeAvisos).join("") + "</div>"
       : '<p class="av-vazio">Nada marcado como visto ' + (c.hperiodo === "tudo" ? "ainda" : "no período") + ".</p>";
   }
   if (avs.faltou && avs.faltou.length) html += '<p class="av-nota">Não consegui ler agora: ' + esc(avs.faltou.join(", ")) + ".</p>";
@@ -403,8 +405,10 @@ function filtrosDaCentral(tipos, periodos, periodoAtual, chave) {
     '<button type="button" data-av-tipo="" class="' + (c.tipo ? "" : "on") + '">Todos os tipos</button>' +
     tipos.map((t) => '<button type="button" data-av-tipo="' + esc(t.id) + '" class="' + (c.tipo === t.id ? "on" : "") + '">' + esc(t.rotulo) + "</button>").join("") +
     "</div>" +
-    '<div class="visoes av-periodos" aria-label="Período">' + periodos.map(([id, rotulo]) =>
-      '<button type="button" data-av-chave="' + chave + '" data-av-periodo="' + id + '" class="' + (periodoAtual === id ? "ativa" : "") + '">' + esc(rotulo) + "</button>").join("") +
+    '<div class="visoes av-periodos" aria-label="Período">' + periodos.map(([periodo, rotulo]) => {
+      const classe = periodoAtual === periodo ? "ativa" : "";
+      return '<button type="button" data-av-chave="' + chave + '" data-av-periodo="' + periodo + '" class="' + classe + '">' + esc(rotulo) + "</button>";
+    }).join("") +
     "</div></div>";
 }
 
@@ -428,7 +432,7 @@ function linhaDeAviso(a) {
     '<span class="av-linha-acoes">' + acoes + '<button type="button" class="fantasma" data-av-abrir="' + esc(a.id) + '">Abrir</button></span></div>';
 }
 
-function linhaDoHistorico(l) {
+function linhaDoHistoricoDeAvisos(l) {
   const onde = l.de_onde === "remoto" ? "pelo acesso de fora" : "no computador do escritório";
   return '<div class="av-linha av-visto" data-av-hist="' + esc(l.aviso_id) + '">' +
     '<span class="av-linha-ic">' + ic(l.icone || "history", 18) + "</span>" +
