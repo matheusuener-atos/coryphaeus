@@ -20,6 +20,7 @@ Chave: `conversa.execucao`.
 
 from __future__ import annotations
 
+import contextvars
 import json
 import threading
 import time
@@ -177,7 +178,13 @@ class Execucoes:
                     except Exception:  # noqa: BLE001
                         pass
 
-        t = threading.Thread(target=trabalhar, name=f"execucao-{execucao.id}", daemon=True)
+        # O filtro de Serviços por equipe (search.FILTRO) e a pessoa da vez são
+        # ContextVar da requisição. No Python 3.14 comum a thread nova nasce com
+        # o contexto vazio (sys.flags.thread_inherit_context = 0), e a busca da
+        # resposta via o Acervo inteiro: um colaborador de fora recebia o
+        # parecer de um Serviço que não é dele (tests/test_seg_filtro_na_thread.py).
+        contexto = contextvars.copy_context()
+        t = threading.Thread(target=contexto.run, args=(trabalhar,), name=f"execucao-{execucao.id}", daemon=True)
         t.start()
         return t
 

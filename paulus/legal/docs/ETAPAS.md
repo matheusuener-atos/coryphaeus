@@ -2382,3 +2382,11 @@ Uso real do acesso de fora nesta máquina: zero (0 contas; a auditoria é só
 do teste de tela). Cada lugar na fila custa a mediana de 34 s (p90 102 s) com
 o llama3.2:3b. Achado: o filtro de Serviços (ContextVar) não chega à thread
 da resposta; bloqueia a D1.
+
+## Filtro de Serviços dentro da resposta ✓ FEITA (30/09/2026)
+
+Achado na D0 do plano do aparelho: o filtro de Serviços por equipe (ContextVar)
+não chegava à thread da resposta, e um colaborador de fora recebia trecho de
+Serviço que não é dele. A execução e o fluxo das habilidades agora levam o
+contexto de quem pediu. **Medido:** `tests/test_seg_filtro_na_thread.py` 5 ok
+(antes: 2 falhas, o parecer do B no contexto e nas fontes da Sara).

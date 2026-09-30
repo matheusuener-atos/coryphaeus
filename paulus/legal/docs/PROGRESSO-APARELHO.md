@@ -8,7 +8,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | --- | --- | --- | --- | --- |
 | D0 | Levantamento e medida da fila remota | feita — ⏸ PAUSA: esperando a decisão do dono | ver git log (d0) | tabela e números abaixo |
 | F1 | Fila dentro da conversa, fila única, Ctrl+Enter | pendente | | |
-| D1 | O pacote e a porta | pendente — bloqueada pelo furo do filtro (abaixo) | | |
+| D1 | O pacote e a porta | pendente (o furo do filtro foi corrigido antes, ver abaixo) | | |
 | D2 | O motor no navegador | pendente | | |
 | D3 | Conferência no escritório e retomada | pendente | | |
 | D4 | O switch e a tela | pendente | | |
@@ -74,6 +74,15 @@ A correção é pequena (levar o contexto para a thread com
 levado ao dono na pausa, porque a D1 ("o pacote é montado depois do filtro")
 depende disso.
 
+**Corrigido em 30/09, a pedido do dono, antes de seguir o plano.** Prova de
+ponta a ponta (`tests/test_seg_filtro_na_thread.py`, modelo simulado, busca
+de verdade): antes, a Sara (equipe do A) perguntou "o que diz o parecer sobre
+a fusão Zebralux?" pela conversa de fora e o parecer sigiloso do B chegou ao
+modelo e às fontes da resposta. A thread da execução (`execucoes.py`) e a do
+fluxo das habilidades (`habilidade_base.py`) agora rodam dentro de
+`contextvars.copy_context()` de quem pediu. Depois: o parecer não chega para
+a Sara, chega para o João (equipe do B) e para a janela do escritório.
+
 ## D0 — a medida
 
 - **Uso real do acesso de fora nesta máquina: zero.** `data/acesso/contas.db`
@@ -96,3 +105,11 @@ depende disso.
 - `test_a2_agente_na_conversa` falha com o Acervo real desta máquina (três
   PDFs com nomes quase iguais): o documento citado toma o lugar do foco. Já
   falhava sem as mudanças de hoje.
+- Arquivar uma gravação ao vivo sem memória livre para o Whisper dá 500
+  (`transcricao.SemMemoria` sobe de `ao_vivo_fim` em `gravacoes_guardar`), em
+  vez da mensagem "troque para o small". O `test_gravacoes` usa os dados de
+  verdade e deixava "Teste — ao vivo" para trás nesse caso: agora acha pelo
+  título e apaga.
+- `test_listas` clicava fora da janela quando a lista do Assistente descia
+  (saudação, avisos e "Acontecendo agora" acima dela, conforme a hora): agora
+  rola a linha até a vista antes do botão direito.

@@ -60,6 +60,10 @@ def exercitar(pag, nome, abrir, linhas):
            f"{nome}: a caixa marca todas", e)
     pag.click("[data-selecao-alternar]"); pag.wait_for_timeout(400)
     checar(pag.locator(linhas + ".escolhida").count() == 0 and pag.evaluate(ESTADO_BARRA) is None, f"{nome}: clicar de novo limpa")
+    # A lista do Assistente fica embaixo da saudação, dos avisos e de
+    # "Acontecendo agora": conforme a hora, a linha cai abaixo da janela, e o
+    # clique fora da tela não abre menu nenhum.
+    rows.nth(1).scroll_into_view_if_needed(); pag.wait_for_timeout(300)
     caixa = rows.nth(1).bounding_box()
     x, y = caixa["x"] + caixa["width"] * 0.4, caixa["y"] + caixa["height"] / 2
     pag.mouse.click(x, y, button="right"); pag.wait_for_timeout(400)

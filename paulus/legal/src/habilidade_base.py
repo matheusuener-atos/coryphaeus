@@ -200,7 +200,11 @@ class Ponte:
             finally:
                 self._fila.put(self._fim)
 
-        threading.Thread(target=rodar, daemon=True).start()
+        # O contexto de quem pediu vai junto (filtro de Serviços, pessoa da
+        # vez): a thread nova nasce com o contexto vazio no Python 3.14 comum.
+        import contextvars
+
+        threading.Thread(target=contextvars.copy_context().run, args=(rodar,), daemon=True).start()
 
     def __iter__(self) -> Iterator[Any]:
         import queue

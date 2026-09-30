@@ -505,6 +505,14 @@ def test_ao_vivo(c: Cliente, criados: dict, pcm: bytes, audio: bytes, segundos: 
     checar(st == 200 and len(todos) >= chegados and "aditivo" in texto, f"ao fechar, {len(todos)} trechos em portugues", texto[:200])
     checar(all(todos[i]["inicio"] <= todos[i + 1]["inicio"] for i in range(len(todos) - 1)), "minutos em ordem")
     st, g = c.enviar_audio({"titulo": "Teste — ao vivo", "tipo": "reuniao", "duracao_s": str(segundos), "origem": "gravada", "marcadores": "[]", "transcrever": "1", "sessao": sid}, "gravacao.wav", audio)
+    if "id" not in g:
+        # A gravação fica salva antes de a transcrição falhar (sem memória
+        # livre, por exemplo), e o erro não traz o id: acha pelo título, para
+        # a limpeza não deixar "Teste — ao vivo" nos dados de verdade.
+        checar(False, "arquivar a gravacao ao vivo", (st, g))
+        _, lista = c.pedir("GET", "/api/gravacoes?termo=Teste%20%E2%80%94%20ao%20vivo")
+        criados["gravacoes"] += [x["id"] for x in (lista or {}).get("gravacoes", [])]
+        return
     criados["gravacoes"].append(g["id"])
     checar(g["transcricao_estado"] == "pronta" and g["trechos_quantos"] == len(todos) and "ao vivo" in g["transcricao_modelo"], "arquivar com a sessao deixa a gravacao transcrita, sem passar pela fila", g)
     st, x = c.pedir("POST", f"/api/voz/ao-vivo/{sid}/fim")
