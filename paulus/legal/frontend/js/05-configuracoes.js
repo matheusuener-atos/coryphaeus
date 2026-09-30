@@ -124,7 +124,9 @@ async function carregarSecao() {
     ]);
     cfg.cx = cx; cfg.contas = contas; cfg.cert = cert; cfg.acoes = (acoes && acoes.acoes) || [];
     await carregarGoogle();
+    await carregarChaves();
   } else if (cfg.secao === "aprendizado") {
+    await carregarChaves();
     const [hab, ctx, material, mapa] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material"),
       pega("/api/biblioteca-juridica/mapa")]);
     cfg.mapa = mapa;
@@ -775,6 +777,7 @@ function secaoConexoes() {
   return aberturaCfg() +
     cartaoCfg("Serviços", "", lista) +
     cartaoGoogle() +
+    cartaoUmbrel() +
     cartaoCfg("O que saiu desta máquina", metaCfg("últimas 24 horas"), registro);
 }
 
@@ -1011,6 +1014,7 @@ function secaoAprendizado() {
   return aberturaCfg() + ficha +
     cartaoMapa() +
     cartaoMaterial() +
+    cartaoChavesBiblioteca() +
     cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
 }
@@ -1218,6 +1222,7 @@ function ligarConfig() {
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   if (cfg.secao === "modelos") ligarModelos();
   if (cfg.secao === "aprendizado") ligarMaterial();
+  if (cfg.secao === "aprendizado" || cfg.secao === "conexoes") ligarChaves();
   if (cfg.secao === "acesso") ligarAcesso();
   if (cfg.secao === "vinculos" && typeof ligarVinculoCfg === "function") ligarVinculoCfg();
 

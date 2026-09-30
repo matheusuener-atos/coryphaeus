@@ -341,6 +341,17 @@ _declarar(BLOQUEADO,
           "POST /api/material/{id_}/autoria", "GET /api/material/{id_}/pacote", "POST /api/material/pacote")
 _declarar(PERMITIDO, "GET /api/leis/anotacoes")
 
+# --- o documento fotografado pelo celular (ideia E do umbrelOS): de fora, a
+# rota nao grava no Acervo - guarda a foto a parte e pede em Aprovacoes
+# (src/captura.py). Na janela do escritorio, entra direto.
+_declarar(PERMITIDO, "POST /api/captura")
+
+# --- o servidor MCP das leis (ideia A do umbrelOS): as conexoes so se criam e
+# revogam na janela do escritorio. O /mcp em si nem chega aqui: o porteiro o
+# entrega ao src/mcp_leis.py, que recusa o que vem pelo tunel.
+_declarar(BLOQUEADO, "GET /api/mcp", "POST /api/mcp/conexoes", "DELETE /api/mcp/conexoes/{id_}",
+          # ligar e desligar as chaves da Biblioteca e do umbrelOS (src/rotas_chaves.py)
+          "GET /api/chaves", "POST /api/chaves")
 
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:

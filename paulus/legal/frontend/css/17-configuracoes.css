@@ -264,3 +264,4 @@
 .bib-lista { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
 .bib-lista small { color: var(--ink3); margin-left: 6px; }
 .bib-quote { display: block; color: var(--ink2); font-size: 12px; line-height: 1.5; margin-top: 2px; }
+.mcp-token { word-break: break-all; user-select: all; }

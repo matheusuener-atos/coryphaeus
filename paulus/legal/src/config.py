@@ -190,6 +190,12 @@ PADRAO: dict = {
     # plano e guarda conceitos e posicoes - so o que a frase do livro confirma.
     "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": False, "defasagem": False,
                    "mapa": False, "leitura": False, "pacote": False},
+    # As ideias do umbrelOS (docs/DECISAO-UMBREL.md). `captura` (E): fotografar
+    # um documento pelo celular; de fora, a foto vai para Aprovacoes antes do
+    # Acervo. `mcp` (A): o servidor MCP das leis, so em 127.0.0.1, com token
+    # por conexao - desligado de fabrica: o que ele devolve vai para o modelo
+    # de outra empresa (so texto de lei, que e publico).
+    "umbrel": {"captura": False, "mcp": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

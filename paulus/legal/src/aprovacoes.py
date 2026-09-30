@@ -39,6 +39,8 @@ CATEGORIAS = {
     "google": "Google",
     # Prazo achado num documento (I9): vira tarefa na Agenda depois do sim.
     "agenda": "Agenda",
+    # Documento fotografado pelo celular, de fora: entra no Acervo depois do sim.
+    "acervo": "Acervo",
 }
 
 

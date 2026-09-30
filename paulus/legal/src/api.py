@@ -97,6 +97,9 @@ from inteligencia.catalogo import Catalogo
 import denso as denso_mod
 import rotas_ajuda
 from biblioteca import rotas as rotas_biblioteca
+import captura as captura_mod
+import mcp_leis
+import rotas_chaves
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -808,8 +811,14 @@ class PortaDosServicos:
 
 
 app.add_middleware(PortaDosServicos)
+# O servidor MCP das leis (ideia A do umbrelOS, src/mcp_leis.py): o /mcp tem
+# token e travas proprios, e o porteiro o entrega antes da chave da janela.
+estado.mcp = mcp_leis.ServidorMCP(
+    leis=estado.leis, conexoes=mcp_leis.Conexoes(DADOS_DIR),
+    ligado=lambda: bool((estado.prefs.dados.get("umbrel") or {}).get("mcp")),
+    registrar=estado.acesso_de_fora.auditoria.registrar, versao=VERSAO)
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
-                   travado=lambda: estado.vinculo.travado())
+                   travado=lambda: estado.vinculo.travado(), mcp=lambda: estado.mcp)
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
 estado.acesso_de_fora.portao.rotas = app.router
 estado.acesso_de_fora.app = app
@@ -851,6 +860,9 @@ rotas_da_auditoria.montar(estado.acesso_de_fora, app)
 # A ajuda sem pergunta (I9): cartao do documento, correcao, prazos.
 rotas_ajuda.montar(estado, app, DADOS_DIR)
 rotas_biblioteca.montar(estado, app, DADOS_DIR)
+captura_mod.montar(estado, app, DADOS_DIR)
+mcp_leis.montar(estado, app)
+rotas_chaves.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -5233,6 +5245,8 @@ EXECUTORES = {
     "acesso.proposta": lambda pedido: estado.acesso_de_fora.executar_proposta(pedido),
     # O prazo achado num documento (I9): o sim anota a tarefa na Agenda.
     "ajuda.prazo": lambda pedido: rotas_ajuda.executar_prazo(estado, pedido),
+    # O documento fotografado de fora (ideia E do umbrelOS): o sim o poe no Acervo.
+    "captura.entrar": lambda pedido: captura_mod.executar(estado, pedido),
 }
 
 
