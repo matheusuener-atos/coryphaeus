@@ -285,6 +285,21 @@ as duas, "remoto" pelo acesso de fora, o Vigia com o mesmo id; no Edge: ordem,
 nenhuma cor de erro, setas, End e arrasto, a Central com as três abas, lista
 em 390 px com círculo de 44 px, carrossel sumindo sem avisos).
 
+## Depois da publicação: os avisos num cartão só (30/09, pedido do dono)
+
+- "Quanto aos avisos, gostaria que fosse um card único navegável": o
+  carrossel de cartões lado a lado virou **um cartão só**, sem rolagem lateral,
+  também no celular (antes, lá, era uma lista vertical). O cabeçalho diz "3 de
+  12"; as setas, o teclado (← → Home End) e o arrasto para o lado trocam o
+  aviso, com um passo curto de animação (nenhum, com as animações reduzidas).
+  Marcar como visto ou concluir tira o aviso, e o próximo entra no lugar. A
+  recarga de 30 s mantém o mesmo cartão. "Ver todos" virou um botão do
+  cabeçalho (antes era o último cartão).
+- **Medido:** `tests/test_t2_avisos.py` passa inteiro, com a parte de tela
+  reescrita (um cartão, sem rolagem, a ordem percorrida pela seta, teclado,
+  arrasto, o próximo no lugar do visto, 390 px com setas e círculo de 44 px);
+  `test_tela` e `test_frontend` passam.
+
 ## A3 e A4 — o que foi medido e decidido
 
 Feitas por um agente num worktree à parte (`C:\coryphaeus-a3`), com o contrato

@@ -290,11 +290,13 @@
             <div class="agora av-dia" id="av-dia" hidden>
               <div class="agora-cabeca"><span class="sv-kicker">Avisos</span><span class="av-conta" id="av-conta"></span>
                 <span class="av-setas" id="av-setas" hidden>
-                  <button type="button" class="botao-icone" id="av-ant" title="Anteriores" aria-label="Avisos anteriores"><span class="ic ic-18">chevron_left</span></button>
-                  <button type="button" class="botao-icone" id="av-prox" title="Próximos" aria-label="Próximos avisos"><span class="ic ic-18">chevron_right</span></button>
+                  <button type="button" class="botao-icone" id="av-ant" title="Anterior" aria-label="Aviso anterior"><span class="ic ic-18">chevron_left</span></button>
+                  <button type="button" class="botao-icone" id="av-prox" title="Próximo" aria-label="Próximo aviso"><span class="ic ic-18">chevron_right</span></button>
                 </span>
+                <button type="button" class="av-ver-todos-cab" id="av-ver-todos" title="Central de avisos, com o histórico do que já foi visto">Ver todos</button>
               </div>
-              <div class="av-trilho" id="av-trilho" role="list" tabindex="0" aria-label="Avisos do dia — as setas do teclado andam de cartão em cartão"></div>
+              <!-- Um cartao so: as setas, o teclado ou o arrasto trocam o aviso. -->
+              <div class="av-trilho" id="av-trilho" role="group" tabindex="0" aria-live="polite" aria-label="Aviso do dia — as setas do teclado trocam de aviso"></div>
             </div>
 
             <div class="recentes" id="recentes" hidden></div>

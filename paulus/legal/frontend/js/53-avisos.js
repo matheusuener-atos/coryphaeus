@@ -21,6 +21,10 @@
 
 const avs = {
   ligado: false, avisos: [], carregadoEm: 0, pedindo: false, faltou: [],
+  // Um cartao so (pedido do dono, 30/09): o aviso da vez e onde ele esta.
+  // Guardar o id faz a recarga de 30 s manter o mesmo cartao; quando ele sai
+  // (visto, concluido), fica a posicao - e o proximo entra no lugar dele.
+  atual: "", pos: 0,
   central: { aba: "hoje", tipo: "", periodo: "semana", hperiodo: "tudo", dados: null, historico: null },
 };
 const AV_RECARGA_MS = 30000;
@@ -76,28 +80,46 @@ function rotuloDaAcao(x) {
   return x.propoe ? "Propor: " + x.rotulo.charAt(0).toLowerCase() + x.rotulo.slice(1) : x.rotulo;
 }
 
-function desenharAvisos() {
+function desenharAvisos(sentido) {
   const caixa = $("av-dia");
   const trilho = $("av-trilho");
   if (!caixa || !trilho) return;
   const lista = avs.avisos || [];
-  // Vazio: sem avisos (ou com a chave desligada) o carrossel nao aparece.
+  // Vazio: sem avisos (ou com a chave desligada) os avisos nao aparecem.
   if (!avs.ligado || !lista.length || !avNaInicio()) {
     caixa.hidden = true;
     trilho.innerHTML = "";
+    delete trilho.dataset.assinatura;
     return;
   }
   caixa.hidden = false;
-  const assinatura = lista.map((a) => a.id + "|" + a.quando + "|" + (a.acoes || []).length).join(";");
-  $("av-conta").textContent = lista.length === 1 ? "1 para ver" : lista.length + " para ver";
-  if (trilho.dataset.assinatura === assinatura) { atualizarSetas(); return; }
-  trilho.dataset.assinatura = assinatura;
-  trilho.innerHTML = lista.map(cartaoDeAviso).join("") +
-    '<button type="button" class="cartao-agora av-ver-todos" data-av-central="todos" role="listitem">' +
-    '<span class="av-ver-ic">' + ic("notifications", 20) + "</span>" +
-    "<span><b>Ver todos</b><small>Central de avisos, com o histórico do que já foi visto</small></span></button>";
-  ligarCartoes(trilho);
+  const achado = avs.atual ? lista.findIndex((a) => a.id === avs.atual) : -1;
+  avs.pos = achado >= 0 ? achado : Math.min(Math.max(0, avs.pos), lista.length - 1);
+  const a = lista[avs.pos];
+  avs.atual = a.id;
+  $("av-conta").textContent = lista.length === 1 ? "1 para ver" : (avs.pos + 1) + " de " + lista.length;
   atualizarSetas();
+  const assinatura = a.id + "|" + a.quando + "|" + (a.acoes || []).length + "|" + lista.length;
+  if (trilho.dataset.assinatura === assinatura) return;
+  trilho.dataset.assinatura = assinatura;
+  trilho.innerHTML = cartaoDeAviso(a);
+  ligarCartoes(trilho);
+  // A troca e um passo curto para o lado; com as animacoes reduzidas, nada.
+  const cartao = trilho.firstElementChild;
+  if (sentido && cartao && animacoesLigadas()) cartao.classList.add(sentido > 0 ? "av-vem-da-direita" : "av-vem-da-esquerda");
+}
+
+/* Anda de cartao em cartao: -1 volta, 1 avanca; "inicio"/"fim" vao as pontas. */
+function irParaAviso(passo) {
+  const lista = avs.avisos || [];
+  if (!lista.length) return;
+  const antes = avs.pos;
+  if (passo === "inicio") avs.pos = 0;
+  else if (passo === "fim") avs.pos = lista.length - 1;
+  else avs.pos = Math.min(lista.length - 1, Math.max(0, avs.pos + passo));
+  if (avs.pos === antes) return;
+  avs.atual = lista[avs.pos].id;
+  desenharAvisos(avs.pos > antes ? 1 : -1);
 }
 
 function avisoPorId(id, lista) {
@@ -144,7 +166,9 @@ async function marcarAvisoVisto(id, botao) {
   const depois = () => {
     avs.avisos = d.avisos || [];
     avs.carregadoEm = Date.now();
-    desenharAvisos();
+    // O visto sai; na mesma posicao entra o proximo (ou o anterior, no fim).
+    if (avs.atual === id) avs.atual = "";
+    desenharAvisos(1);
     if (centralAberta()) recarregarCentral();
   };
   // Marcado, o cartao sai com uma animacao curta - e, com as animacoes
@@ -224,54 +248,49 @@ async function fazerAcaoDoAviso(a, i) {
     }
   }
   await carregarAvisosDoDia(true);
+  // Concluido, o aviso sai da lista: o proximo fica no lugar (desenharAvisos
+  // mantem a posicao quando o id da vez some).
   if (voltar) abrirCentralDeAvisos(voltar);
 }
 
-/* ----------------------------------------------------- rolar o trilho */
+/* ------------------------------------------------- andar entre os avisos */
 
 function atualizarSetas() {
-  const t = $("av-trilho");
-  if (!t) return;
-  const cabe = t.scrollWidth <= t.clientWidth + 2;
-  $("av-setas").hidden = cabe;
-  $("av-ant").disabled = t.scrollLeft <= 2;
-  $("av-prox").disabled = t.scrollLeft + t.clientWidth >= t.scrollWidth - 2;
-}
-
-function passoDoTrilho(t) {
-  const c = t.querySelector(".cartao-agora");
-  return c ? c.getBoundingClientRect().width + 14 : 260;
-}
-
-function rolarTrilho(sentido) {
-  const t = $("av-trilho");
-  t.scrollBy({ left: sentido * passoDoTrilho(t), behavior: animacoesLigadas() ? "smooth" : "auto" });
+  const n = (avs.avisos || []).length;
+  const setas = $("av-setas");
+  if (!setas) return;
+  setas.hidden = n <= 1;
+  $("av-ant").disabled = avs.pos <= 0;
+  $("av-prox").disabled = avs.pos >= n - 1;
 }
 
 function ligarTrilho() {
   const t = $("av-trilho");
   if (!t || t.dataset.ligado) return;
   t.dataset.ligado = "1";
-  $("av-ant").onclick = () => rolarTrilho(-1);
-  $("av-prox").onclick = () => rolarTrilho(1);
-  t.addEventListener("scroll", atualizarSetas, { passive: true });
-  window.addEventListener("resize", atualizarSetas);
+  $("av-ant").onclick = () => irParaAviso(-1);
+  $("av-prox").onclick = () => irParaAviso(1);
+  const todos = $("av-ver-todos");
+  if (todos) todos.onclick = () => abrirCentralDeAvisos("todos");
 
-  // Arrastar com o mouse rola; no toque, a rolagem do proprio navegador ja
-  // faz isso. Um arrasto nao vira clique no botao em que comecou.
+  // Arrastar para o lado (mouse ou dedo) troca o cartao; o cartao nao rola.
+  // Um arrasto nao vira clique no botao em que comecou.
   let arrasto = null;
   t.addEventListener("pointerdown", (e) => {
-    if (e.pointerType !== "mouse" || e.button !== 0) return;
-    arrasto = { x: e.clientX, inicio: t.scrollLeft, moveu: false };
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    arrasto = { x: e.clientX, y: e.clientY, moveu: false };
   });
   window.addEventListener("pointermove", (e) => {
     if (!arrasto) return;
-    const dx = e.clientX - arrasto.x;
-    if (!arrasto.moveu && Math.abs(dx) > 5) { arrasto.moveu = true; t.classList.add("arrastando"); }
-    if (arrasto.moveu) t.scrollLeft = arrasto.inicio - dx;
+    if (!arrasto.moveu && Math.abs(e.clientX - arrasto.x) > 8 && Math.abs(e.clientX - arrasto.x) > Math.abs(e.clientY - arrasto.y)) {
+      arrasto.moveu = true;
+      t.classList.add("arrastando");
+    }
   });
-  window.addEventListener("pointerup", () => {
+  window.addEventListener("pointerup", (e) => {
     if (arrasto && arrasto.moveu) {
+      const dx = e.clientX - arrasto.x;
+      if (Math.abs(dx) > 40) irParaAviso(dx < 0 ? 1 : -1);
       t.dataset.arrastou = "1";
       setTimeout(() => { delete t.dataset.arrastou; }, 0);
     }
@@ -282,20 +301,12 @@ function ligarTrilho() {
     if (t.dataset.arrastou) { e.preventDefault(); e.stopPropagation(); }
   }, true);
 
-  // Teclado: setas andam de cartao em cartao, Home e End vao as pontas.
+  // Teclado: as setas trocam o cartao; Home e End vao ao primeiro e ao ultimo.
   t.addEventListener("keydown", (e) => {
-    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key)) return;
-    const cartoes = Array.from(t.querySelectorAll(":scope > .cartao-agora"));
-    if (!cartoes.length) return;
-    const atual = cartoes.indexOf(document.activeElement.closest ? document.activeElement.closest(".cartao-agora") : null);
-    let i = atual < 0 ? 0 : atual;
-    if (e.key === "ArrowRight") i = Math.min(cartoes.length - 1, atual + 1);
-    if (e.key === "ArrowLeft") i = Math.max(0, atual - 1);
-    if (e.key === "Home") i = 0;
-    if (e.key === "End") i = cartoes.length - 1;
+    const passo = { ArrowRight: 1, ArrowLeft: -1, Home: "inicio", End: "fim" }[e.key];
+    if (passo === undefined) return;
     e.preventDefault();
-    cartoes[i].focus({ preventScroll: true });
-    cartoes[i].scrollIntoView({ inline: "nearest", block: "nearest", behavior: animacoesLigadas() ? "smooth" : "auto" });
+    irParaAviso(passo);
   });
 }
 

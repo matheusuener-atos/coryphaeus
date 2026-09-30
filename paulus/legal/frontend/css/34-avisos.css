@@ -1,24 +1,32 @@
   /* ---------------------------------------------------- avisos do dia */
   /*
-    O carrossel da tela inicial (js/53-avisos.js, T2): o mesmo cartao de
-    "Acontecendo agora" (.cartao-agora, 03-compositor-e-agora.css), numa
-    fileira que rola na horizontal. Atrasado ou de hoje tem o destaque
-    discreto do sistema (--destaque-linha/--destaque-fundo, docs/ui/07); a
-    cor de erro (--acc) fica so para erro. No celular, lista vertical.
+    Os avisos da tela inicial (js/53-avisos.js, T2): o mesmo cartao de
+    "Acontecendo agora" (.cartao-agora, 03-compositor-e-agora.css), um de cada
+    vez, trocado pelas setas, pelo teclado ou arrastando. Atrasado ou de hoje
+    tem o destaque discreto do sistema (--destaque-linha/--destaque-fundo,
+    docs/ui/07); a cor de erro (--acc) fica so para erro.
   */
   .av-dia { min-width: 0; }
   .av-dia .agora-cabeca { min-height: 32px; }
   .av-conta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
   .av-setas { margin-left: auto; display: inline-flex; gap: 2px; }
 
-  .av-trilho {
-    display: grid; grid-auto-flow: column; grid-auto-columns: 264px; gap: 14px;
-    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
-    padding: 2px 2px 10px; margin: -2px -2px 0; scrollbar-width: thin; outline: none;
-  }
+  /* Um cartao so (30/09): sem rolagem lateral; setas, teclado e arrasto
+     trocam o aviso. O arrasto no toque nao rola a pagina de lado. */
+  .av-trilho { display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; padding: 2px; margin: -2px; outline: none;
+    touch-action: pan-y; }
   .av-trilho:focus-visible { box-shadow: 0 0 0 2px var(--ink-a2); border-radius: 12px; }
-  .av-trilho.arrastando { cursor: grabbing; scroll-snap-type: none; user-select: none; }
-  .av-trilho > .cartao-agora { scroll-snap-align: start; }
+  .av-trilho.arrastando { cursor: grabbing; user-select: none; }
+  .av-ver-todos-cab { height: 28px; padding: 0 10px; margin-left: 6px; border: 1px solid var(--ink-a1); border-radius: 999px;
+    background: var(--surf); color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer; }
+  .av-ver-todos-cab:hover { color: var(--ink); background: var(--fill); }
+  .av-setas:not([hidden]) + .av-ver-todos-cab { margin-left: 6px; }
+  .av-setas[hidden] + .av-ver-todos-cab { margin-left: auto; }
+  /* A troca: um passo curto para o lado (so com as animacoes ligadas). */
+  .av-cartao.av-vem-da-direita { animation: av-vem-d .2s cubic-bezier(0,0,.2,1); }
+  .av-cartao.av-vem-da-esquerda { animation: av-vem-e .2s cubic-bezier(0,0,.2,1); }
+  @keyframes av-vem-d { from { opacity: 0; transform: translateX(18px); } }
+  @keyframes av-vem-e { from { opacity: 0; transform: translateX(-18px); } }
 
   .av-cartao { gap: 10px; outline: none; align-content: stretch; grid-template-rows: auto auto auto auto 1fr; }
   .av-cartao:focus-visible { border-color: var(--ink); }
@@ -50,14 +58,6 @@
   .av-cartao.av-saindo { animation: av-sai .24s cubic-bezier(.4,0,1,1) forwards; pointer-events: none; }
   @keyframes av-sai { to { opacity: 0; transform: translateY(-6px) scale(.97); } }
 
-  .av-ver-todos { display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; color: var(--ink);
-    font: inherit; background: var(--surf); border-style: dashed; }
-  .av-ver-todos:hover:not(:disabled) { border-color: var(--ink); background: var(--surf); }
-  .av-ver-todos b { display: block; font: 600 14px var(--sans); }
-  .av-ver-todos small { display: block; font: 500 12.5px/1.45 var(--sans); color: var(--ink3); margin-top: 2px; }
-  .av-ver-ic { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px;
-    background: var(--fill); color: var(--ink2); flex: none; }
-
   /* ------------------------------------------------ a Central de avisos */
   .dialogo.av-central { width: 760px; }
   .av-central .dialogo-corpo { gap: 12px; }
@@ -85,9 +85,8 @@
   /* No celular (e na janela estreita): o carrossel vira lista, e o circulo
      de marcar tem o tamanho do dedo. */
   @media (max-width: 599px) {
-    .av-trilho { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: minmax(0, 1fr); overflow: visible;
-      scroll-snap-type: none; padding: 0; margin: 0; }
-    .av-setas { display: none !important; }
+    /* No celular tambem e um cartao so, com as setas do tamanho do dedo. */
+    .av-setas .botao-icone { width: 44px; height: 44px; }
     .av-marca { width: 44px; height: 44px; margin: -10px 0 -10px -10px; }
     .av-marca .ag-circulo { width: 24px; height: 24px; }
     .av-titulo { min-height: 0; }

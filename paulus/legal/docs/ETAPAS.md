@@ -2366,3 +2366,11 @@ medir de novo).
   manual continua. `tools/medir.py --agentes`.
 
 **Medido:** `tests/test_a4_medir.py` 28 ok.
+
+## Avisos do dia num cartão só ✓ FEITA (30/09/2026)
+
+Pedido do dono: um cartão único navegável, sem rolagem lateral. O cabeçalho
+diz "3 de 12"; setas, teclado e arrasto trocam o aviso; marcar como visto ou
+concluir põe o próximo no lugar; "Ver todos" foi para o cabeçalho. Vale
+também no celular. **Medido:** `tests/test_t2_avisos.py`, `test_tela` e
+`test_frontend` passam.
