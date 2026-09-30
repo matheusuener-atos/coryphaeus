@@ -21,7 +21,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | feito | `tests/test_l6_perfis.py` |
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | feito | `tests/test_l7_mcp.py` |
 | L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | feito | `tests/test_l8_captura.py` |
-| L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | pendente | `tests/test_l9_materiais.py` |
+| L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | feito | `tests/test_l9_materiais.py` |
 | L10 | Lei com vigência: histórico de cada artigo e o texto vigente numa data (pelo ano da lei) | pendente | `tests/test_l10_vigencia.py` |
 
 O que cada etapa fez, decidiu e mediu fica numa seção abaixo, na ordem.
@@ -279,3 +279,31 @@ não com fotos de celular de verdade — fica para o teste real.
 
 **Medido:** `tests/test_l8_captura.py` 14 ok (com OCR de verdade: 2 páginas
 lidas); `tests/test_umbrel_e_captura.py` continua passando.
+
+## L9 — materiais entre advogados (30/09/2026)
+
+Sem servidor novo e sem custo: o site do PAULUS publica uma lista curada
+(`site/dados/materiais.json`) e os arquivos (`site/materiais/<slug>.md`).
+
+- **A página** `paulus.ia.br/materiais/` (no menu do site): título, autor
+  (e OAB, se ele quiser), área, data, resumo, licença e "Ler o material".
+  Vazia, diz que ainda não há material. Moderada: o dono lê e publica
+  (`docs/materiais.md`, com o hash de cada arquivo).
+- **Biblioteca › Da comunidade** (janela do escritório): "Ver os materiais"
+  lê a lista **só quando a pessoa pede** — vai só o pedido do arquivo
+  público. "Trazer para a Biblioteca" confere o SHA-256 publicado na lista
+  (diferente, não entra; endereço fora de `/materiais/`, também não) e o
+  material entra com a origem **comunidade**, o autor e a licença.
+- **Publicar um material seu**: o PAULUS **confere os dados pessoais antes**
+  — número de processo, CNPJ, CPF (só o válido), e-mail, telefone e o nome
+  de cada cliente do escritório (reconhecido com outro jeito de escrever,
+  pela L3) — e diz que nome de pessoa que não é cliente a regra não acha.
+  Com o "tirei os dados (ou tenho autorização) e autorizo CC BY 4.0", monta
+  o e-mail para contato@paulus.ia.br pela conta da pessoa, que revisa antes
+  (a mesma saída do feedback); sem conta, copia.
+
+**Não publicado:** a página, a lista vazia e o menu vão com o próximo
+`publicar`.
+
+**Medido:** `tests/test_l9_materiais.py` 21 ok (com o site de mentira no
+programa, e a página de verdade servida localmente no Edge).

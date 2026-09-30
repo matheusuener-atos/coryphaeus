@@ -134,6 +134,7 @@ import processos as processos_mod
 import clientes as clientes_mod
 import passos as passos_mod
 import fundamentacao as fundamentacao_mod
+import comunidade as comunidade_mod
 import perfis as perfis_mod
 import fila_de_todos
 import fila_modelo
@@ -990,6 +991,8 @@ clientes_mod.montar(estado, app)
 passos_mod.montar(estado, app, DADOS_DIR)
 # L5: fundamentacao sugerida, temas do STJ e posicao da casa (src/fundamentacao.py).
 fundamentacao_mod.montar(estado, app)
+# L9: materiais entre advogados, pelo site (src/comunidade.py).
+comunidade_mod.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

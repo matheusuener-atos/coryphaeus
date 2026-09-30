@@ -22,11 +22,13 @@ const bibc = {
 };
 
 /* No celular, só a primeira palavra de cada aba cabe (36-biblioteca.css). */
-const ABAS_BIB = [["obras", "Estante", ""], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"]];
+const ABAS_BIB = [["obras", "Estante", ""], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"],
+  // L9: materiais entre advogados (js/70-comunidade.js), só na janela do escritório.
+  ["comunidade", "Da comunidade", ""]];
 
 function abasDaBib() {
   const local = typeof acessoDeFora === "undefined" || acessoDeFora.local;
-  return ABAS_BIB.filter(([v]) => local || v !== "obras");
+  return ABAS_BIB.filter(([v]) => (local || (v !== "obras" && v !== "comunidade")) && (v !== "comunidade" || typeof abaComunidadeBib === "function"));
 }
 
 function bibAberta() {
@@ -93,6 +95,11 @@ function desenharBib() {
   if (bibc.aba === "leis") {
     cascaBib(abaLeisBib());
     ligarLeisBib();
+    return;
+  }
+  if (bibc.aba === "comunidade") {
+    cascaBib(abaComunidadeBib());
+    ligarComunidadeBib();
     return;
   }
   cascaBib(abaTribunaisBib());

@@ -155,3 +155,10 @@
   .dv-mes-corpo { flex-basis: 100%; }
   .ap-grupo h2, .pg-sobre h2 { flex-basis: 100%; }
 }
+
+/* Materiais entre advogados (materiais/index.html, assets/materiais.js). */
+.mt-lista { border-top: 1px solid var(--line); padding: clamp(32px, 5vw, 56px) 0; display: grid; gap: 28px; }
+.mt-item h2 { margin: 0 0 6px; font-size: clamp(20px, 2.4vw, 26px); }
+.mt-item p { margin: 6px 0 0; max-width: 70ch; color: var(--ink2); }
+.mt-meta { font-size: 14px; color: var(--ink3) !important; }
+.mt-pe { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }

@@ -403,6 +403,8 @@ _declarar(BLOQUEADO, "POST /api/biblioteca/temas/atualizar", "PUT /api/leis/posi
 _declarar(BLOQUEADO, "GET /api/maquina/perfil", "POST /api/maquina/perfil/vulkan")
 # --- L8: conferir a nitidez das fotos antes de guardar (nada fica gravado), como a captura.
 _declarar(PERMITIDO, "POST /api/captura/conferir")
+# --- L9: materiais entre advogados (src/comunidade.py): le o site e prepara o envio - so no escritorio.
+_declarar(BLOQUEADO, "GET /api/comunidade/materiais", "POST /api/comunidade/materiais/{slug}/trazer", "POST /api/comunidade/preparar")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")

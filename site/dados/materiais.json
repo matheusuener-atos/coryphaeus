@@ -1,0 +1,5 @@
+{
+  "sobre": "Materiais entre advogados, publicados depois de lidos pelo PAULUS (docs/materiais.md). Cada item: slug, titulo, autor, oab (opcional), areas, tipo, resumo, publicado_em, licenca, arquivo (/materiais/<slug>.md) e sha256 do arquivo.",
+  "atualizado_em": "",
+  "materiais": []
+}

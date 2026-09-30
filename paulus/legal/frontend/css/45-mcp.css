@@ -10,3 +10,17 @@
 
   /* L8: o aviso da foto tremida ou escura na prévia da captura (js/51-captura.js). */
   .cap-foto .cap-alerta { display: block; margin: 4px 0 0; font-size: 11.5px; line-height: 1.3; color: var(--ink); font-weight: 600; }
+
+  /* L9: a aba "Da comunidade" na Biblioteca (js/70-comunidade.js). */
+  .com-lista { display: grid; gap: 10px; }
+  .com-material { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); }
+  .com-cab { display: grid; gap: 2px; }
+  .com-cab small, .com-licenca { color: var(--ink3); font-size: 12px; }
+  .com-resumo { margin: 0; font-size: 13.5px; color: var(--ink2); line-height: 1.45; }
+  .com-pe { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .com-pe button { display: inline-flex; align-items: center; gap: 6px; }
+  .com-achados { padding: 10px 12px; border: 1px solid var(--destaque-linha, var(--ink-a1)); border-radius: 8px; background: var(--destaque-fundo, var(--fill)); }
+  .com-achados p, .com-achados ul { margin: 0; font-size: 13px; }
+  .com-achados ul { padding-left: 18px; margin-top: 6px; }
+  .com-conferi { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink2); margin: 8px 0; }
+  #com-texto { width: 100%; max-width: 100%; min-height: 140px; }
