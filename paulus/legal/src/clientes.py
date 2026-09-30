@@ -12,6 +12,14 @@ A mesma base para as duas coisas: reconhecer que "Empresa X Ltda.",
   mesma"; quase igual (as palavras quase todas em comum) é "parece ser" -
   e a tela diz qual das duas.
 - **A parte contrária** de cada Serviço (`servicos.partes`, migração 029).
+- **Sugerida pelos documentos** (`sugerir_partes`, N3): nos documentos do
+  Serviço (a pasta dele e os ligados a ele), a leitura já achou as partes e o
+  papel de cada uma (autor e réu, locador e locatário, contratante e
+  contratado...). Onde o cliente do Serviço aparece, a parte do papel oposto
+  é a sugestão de parte contrária (e o fiador do outro lado, interessado),
+  com o documento e o porquê, e o CPF ou CNPJ escrito perto do nome. Onde o
+  cliente não aparece, não dá para saber o lado: a tela diz em quantos. A
+  pessoa confirma; o que ela dispensa não volta.
 - **Conflito de interesse** (`conflitos`): o cliente que é parte contrária em
   outro Serviço, e a parte contrária que é cliente do escritório. Avisa, não
   bloqueia: quem decide é o advogado.
@@ -150,6 +158,138 @@ def conflitos(base, nome: str, documento: str = "", *, papel: str = "cliente", s
     return saida
 
 
+# ------------------------------------------------------------ sugerida pelos documentos (N3)
+
+# O papel do outro lado, pelo papel que a leitura deu ao cliente.
+OPOSTO = {"plaintiff": "defendant", "defendant": "plaintiff", "contracting_party": "contractor",
+          "contractor": "contracting_party", "lessor": "lessee", "lessee": "lessor", "seller": "buyer",
+          "buyer": "seller", "grantor": "grantee", "grantee": "grantor", "assignor": "assignee",
+          "assignee": "assignor", "creditor": "debtor", "debtor": "creditor"}
+# O fiador fica do lado de quem ele garante (o locatário, o devedor).
+GARANTIDO = {"lessee", "debtor", "buyer", "contracting_party"}
+NAO_E_PARTE = {"lawyer", "witness"}
+PAPEL_BR = {"plaintiff": "autor", "defendant": "réu", "contracting_party": "contratante", "contractor": "contratado",
+            "lessor": "locador", "lessee": "locatário", "seller": "vendedor", "buyer": "comprador",
+            "grantor": "outorgante", "grantee": "outorgado", "assignor": "cedente", "assignee": "cessionário",
+            "creditor": "credor", "debtor": "devedor", "guarantor": "fiador"}
+_RE_DOC = re.compile(r"\b(\d{2}\.?\d{3}\.?\d{3}\s*/\s*\d{4}\s*-?\s*\d{2}|\d{3}\.?\d{3}\.?\d{3}\s*-?\s*\d{2})\b")
+
+
+def _plano(texto: str) -> str:
+    """Sem acento e em minúscula, com o mesmo tamanho (a posição vale no original)."""
+    return "".join((_sem_acento(c) or c)[:1] for c in str(texto or "")).lower()
+
+
+def documento_perto(texto: str, nome: str, alcance: int = 260) -> str:
+    """O CPF ou o CNPJ válido escrito logo depois do nome (a qualificação da parte)."""
+    import campos_br
+
+    t = _plano(texto)
+    alvo = _plano(" ".join(str(nome or "").split()))
+    if len(alvo) < 3:
+        return ""
+    i = t.find(alvo)
+    if i < 0:
+        return ""
+    trecho = str(texto)[i + len(alvo): i + len(alvo) + alcance]
+    for m in _RE_DOC.finditer(trecho):
+        bruto = re.sub(r"\s", "", m.group(1))
+        if campos_br.cnpj_valido(bruto):
+            return campos_br.mascara_cnpj(bruto)
+        if campos_br.cpf_valido(bruto):
+            return campos_br.mascara_cpf(bruto)
+    return ""
+
+
+def _normal(caminho: str) -> str:
+    import os
+
+    return os.path.normcase(os.path.normpath(str(caminho or "")))
+
+
+def documentos_do_servico(estado, servico_id: int) -> list:
+    """Os documentos lidos do Serviço: os da pasta dele e os ligados a ele."""
+    from pathlib import Path
+
+    pasta = estado.servicos.pasta_de(int(servico_id), criar=False) if getattr(estado, "servicos", None) else None
+    raiz = Path(pasta).resolve() if pasta else None
+    ligados = {v["sha1"] for v in estado.base.buscar("SELECT sha1 FROM vinculos WHERE tipo = 'servico' AND alvo_id = ?", (int(servico_id),))}
+    saida = []
+    for d in getattr(estado.searcher, "documents", []) or []:
+        try:
+            dentro = raiz is not None and Path(d.path).resolve().is_relative_to(raiz)
+        except (OSError, ValueError, TypeError):
+            dentro = False
+        if dentro or getattr(d, "sha1", "") in ligados:
+            saida.append(d)
+    return saida
+
+
+def sugerir_partes(estado, servico_id: int) -> dict:
+    """As partes do outro lado, pelos papéis que a leitura achou nos documentos do Serviço."""
+    base = estado.base
+    s = base.um("SELECT s.id, s.partes, s.partes_dispensadas, c.nome AS cliente, c.documento AS cliente_doc FROM servicos s"
+                " LEFT JOIN cadastros c ON c.id = s.cadastro_id WHERE s.id = ?", (int(servico_id),))
+    if not s:
+        raise LookupError("serviço não encontrado")
+    if not s.get("cliente"):
+        return {"sugeridas": [], "sem_lado": [], "lidos": 0,
+                "motivo": "o Serviço não tem cliente: sem ele, não dá para saber de que lado está cada parte"}
+    # As já anotadas e as dispensadas não voltam, nem com outro jeito de escrever.
+    ja = [(p.get("nome", ""), p.get("documento", "")) for p in _json(s.get("partes"), [])]
+    ja += [(k, "") for k in _json(s.get("partes_dispensadas"), [])]
+    escritorio = ((estado.prefs.dados.get("escritorio") or {}).get("nome") or "") if getattr(estado, "prefs", None) else ""
+    metas = {_normal(l["caminho"]): l for l in base.buscar("SELECT id, caminho, titulo, versao_atual FROM meta_documentos")}
+    sugeridas: dict[str, dict] = {}
+    sem_lado: list[str] = []
+    lidos = 0
+    for d in documentos_do_servico(estado, servico_id):
+        m = metas.get(_normal(d.path))
+        if not m or not m.get("versao_atual"):
+            continue
+        fatos = base.buscar("SELECT chave, mostrar FROM meta_fatos WHERE versao_id = ? AND secao = 'parties' AND verificado = 1",
+                            (m["versao_atual"],))
+        if not fatos:
+            continue
+        lidos += 1
+        titulo = m.get("titulo") or d.name
+        do_cliente = [f["chave"] for f in fatos if mesma(s["cliente"], s.get("cliente_doc") or "", f["mostrar"], "")]
+        if not do_cliente:
+            sem_lado.append(titulo)
+            continue
+        opostos = {OPOSTO[p] for p in do_cliente if p in OPOSTO}
+        for f in fatos:
+            nome = " ".join(str(f["mostrar"] or "").split())
+            k = chave(nome)
+            if not k or f["chave"] in NAO_E_PARTE or mesma(s["cliente"], "", nome, "") or any(mesma(n, dd, nome, "") for n, dd in ja):
+                continue
+            if escritorio and mesma(escritorio, "", nome, ""):
+                continue
+            if f["chave"] in opostos:
+                papel = "contraria"
+            elif f["chave"] == "guarantor" and opostos & GARANTIDO:
+                papel = "interessado"
+            else:
+                continue
+            pc = do_cliente[0]
+            porque = (f"em “{titulo}”, {s['cliente']} aparece como {PAPEL_BR.get(pc, pc)} e {nome}, como "
+                      f"{PAPEL_BR.get(f['chave'], f['chave'])}")
+            doc = documento_perto(getattr(d, "text", "") or "", nome)
+            # A mesma entidade com outro nome (ou o mesmo CNPJ) junta numa sugestão só.
+            item = next((x for x in sugeridas.values() if mesma(x["nome"], x["documento"], nome, doc)), None)
+            if item is None:
+                item = sugeridas.setdefault(k, {"nome": nome, "documento": "", "papel": papel, "documentos": [], "porque": porque,
+                                                "chave": k, "outros_nomes": []})
+            elif nome != item["nome"] and nome not in item["outros_nomes"]:
+                item["outros_nomes"].append(nome)
+            if titulo not in item["documentos"]:
+                item["documentos"].append(titulo)
+            if not item["documento"]:
+                item["documento"] = doc
+    lista = sorted(sugeridas.values(), key=lambda x: (x["papel"] != "contraria", -len(x["documentos"]), x["nome"].lower()))
+    return {"sugeridas": lista, "sem_lado": sem_lado, "lidos": lidos, "motivo": ""}
+
+
 # ------------------------------------------------------------ tudo sobre o cliente
 
 def _partes_nos_documentos(base) -> list[dict]:
@@ -214,6 +354,10 @@ class Partes(BaseModel):
     partes: list[dict] = []
 
 
+class Dispensar(BaseModel):
+    nome: str
+
+
 class Consulta(BaseModel):
     nome: str = ""
     documento: str = ""
@@ -237,6 +381,29 @@ def montar(estado, app) -> None:
                 for x in conflitos(estado.base, p["nome"], p["documento"], papel="contraria", servico_id=id_):
                     achados.append(dict(x, parte=p["nome"]))
         return {"partes": partes, "conflitos": achados}
+
+    @app.get("/api/servicos/{id_}/partes/sugeridas")
+    def servicos_partes_sugeridas(id_: int) -> dict:
+        """N3: a parte contrária sugerida pelos documentos do Serviço (a pessoa confirma)."""
+        if not servicos_acesso.visivel(id_):
+            raise HTTPException(status_code=404, detail="serviço não encontrado")
+        try:
+            return sugerir_partes(estado, id_)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+
+    @app.post("/api/servicos/{id_}/partes/dispensar")
+    def servicos_partes_dispensar(id_: int, payload: Dispensar) -> dict:
+        """"Não é parte": a sugestão deste nome não volta neste Serviço."""
+        s = estado.base.um("SELECT partes_dispensadas FROM servicos WHERE id = ?", (id_,))
+        if not s or not servicos_acesso.visivel(id_):
+            raise HTTPException(status_code=404, detail="serviço não encontrado")
+        lista = _json(s.get("partes_dispensadas"), [])
+        k = chave(payload.nome)
+        if k and k not in lista:
+            lista.append(k)
+        estado.base.escrever("UPDATE servicos SET partes_dispensadas = ? WHERE id = ?", (json.dumps(lista[-200:], ensure_ascii=False), id_))
+        return {"dispensadas": len(lista)}
 
     @app.get("/api/servicos/{id_}/conflitos")
     def servicos_conflitos(id_: int) -> dict:

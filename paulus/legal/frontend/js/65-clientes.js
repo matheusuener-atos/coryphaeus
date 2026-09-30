@@ -42,12 +42,53 @@ function secaoDasPartes(s) {
     "</div>").join("");
   return '<section class="sv-secao cli-partes"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("gavel", 16) + "Partes</span>" +
     (acessoDeFora.local ? '<button type="button" class="sv-ligacao" data-cli-parte="1">' + ic("add", 15) + "parte contrária</button>" : "") + "</div>" +
-    partes + '<div id="cli-conflitos-sv"></div>' +
+    partes + '<div id="cli-conflitos-sv"></div><div id="cli-sugeridas-sv"></div>' +
     '<p class="sv-dica">' + (partes ? "" : "Nenhuma parte contrária anotada. ") +
     "A parte contrária é conferida contra os clientes do escritório: a mesma empresa com outro nome também é reconhecida.</p></section>";
 }
 
+/* N3: a parte do outro lado, pelos papéis que a leitura achou nos documentos do Serviço. */
+async function carregarPartesSugeridas(s) {
+  const alvo = $("cli-sugeridas-sv");
+  if (!alvo || !acessoDeFora.local) return;
+  let d;
+  try { d = await (await fetch("/api/servicos/" + s.id + "/partes/sugeridas")).json(); } catch (err) { alvo.innerHTML = ""; return; }
+  const lista = d.sugeridas || [];
+  const semLado = (d.sem_lado || []).length;
+  if (!lista.length) {
+    alvo.innerHTML = semLado ? '<p class="sv-dica">Em ' + plural(semLado, "documento", "documentos") + " do Serviço o cliente não aparece entre as partes: " +
+      "não dá para saber de que lado está cada uma.</p>" : "";
+    return;
+  }
+  alvo.innerHTML = '<div class="cli-sugeridas"><p class="cli-sug-titulo">' + ic("auto_awesome", 15) + " Sugeridas pelos documentos</p>" +
+    lista.map((p, i) => '<div class="sv-prazo-linha cli-sugerida"><span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" +
+      esc((p.papel === "interessado" ? "interessado (fiador)" : "parte contrária") + (p.documento ? " · " + p.documento : "") + " · " + p.porque +
+      (p.documentos.length > 1 ? " (e em mais " + (p.documentos.length - 1) + ")" : "")) + "</small></span>" +
+      '<span class="cli-sug-botoes"><button type="button" class="primario" data-cli-aceitar="' + i + '">Anotar</button>' +
+      '<button type="button" data-cli-dispensar="' + i + '">Não é</button></span></div>').join("") +
+    (semLado ? '<p class="sv-dica">E em ' + plural(semLado, "documento", "documentos") + " o cliente não aparece: não dá para saber o lado.</p>" : "") + "</div>";
+  alvo.querySelectorAll("[data-cli-aceitar]").forEach((b) => {
+    b.onclick = async () => {
+      const p = lista[Number(b.dataset.cliAceitar)];
+      const r = await guardarPartes(s, (s.partes || []).concat([{ nome: p.nome, documento: p.documento || "", papel: p.papel }]));
+      if (!r) return;
+      await avisarConflitos((r.conflitos || []).filter((c) => c.parte === p.nome), "Serviços › " + s.nome);
+      recarregarServico();
+    };
+  });
+  alvo.querySelectorAll("[data-cli-dispensar]").forEach((b) => {
+    b.onclick = async () => {
+      const p = lista[Number(b.dataset.cliDispensar)];
+      const r = await fetch("/api/servicos/" + s.id + "/partes/dispensar", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: p.nome }) });
+      if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+      carregarPartesSugeridas(s);
+    };
+  });
+}
+
 async function carregarConflitosDoServico(s) {
+  carregarPartesSugeridas(s);
   const alvo = $("cli-conflitos-sv");
   if (!alvo || !acessoDeFora.local) return;
   try {

@@ -348,7 +348,7 @@ o código garante.
 | --- | --- | --- | --- | --- |
 | N1 | O prazo pelo tipo de ato (sentença, acórdão, decisão, despacho, citação; cível, juizado, trabalho, penal; o prazo que o juiz fixou) | L2 | feito | `tests/test_n1_tipo_de_ato.py` |
 | N2 | A publicação do DJEN ligada ao processo acompanhado: um aviso, um pedido de prazo | L2 | feito | `tests/test_n2_djen_processo.py` |
-| N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | — | `tests/test_n3_parte_contraria.py` |
+| N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | feito | `tests/test_n3_parte_contraria.py` |
 | N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | — | `tests/test_n4_conflitos.py` |
 | N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | — | `tests/test_n5_clausulas.py` |
 | N6 | A conversa chama as tarefas de vários passos | L4 | — | `tests/test_n6_conversa_tarefas.py` |
@@ -431,3 +431,33 @@ junta a publicação ao registro dela no DataJud.
 DataJud primeiro, processo não cadastrado, publicação antiga, e as telas no
 Edge); `test_l2_processos`, `test_prazos_publicacoes`, `test_t2_avisos` e
 `test_n1_tipo_de_ato` continuam passando.
+
+## N3 — a parte contrária pelos documentos (30/09/2026)
+
+- **Onde procura** (`clientes.sugerir_partes`): nos documentos lidos do
+  Serviço — os da pasta dele no Acervo e os ligados a ele — as partes que a
+  leitura já achou e conferiu, com o papel de cada uma.
+- **O lado**: onde o cliente do Serviço aparece entre as partes (pela regra
+  da L3: sem acento, sem a forma jurídica), a parte do papel oposto é a
+  sugestão — réu para autor, locador para locatário, contratado para
+  contratante, comprador para vendedor, e os demais pares. O fiador do outro
+  lado entra como interessado; o do cliente, o advogado e a testemunha não.
+- **O que vem junto**: o documento e o porquê ("em “contrato.pdf”, a
+  Construtora Alfa aparece como locatário e a Imobiliária Beta, como
+  locador"), o CPF ou CNPJ válido escrito logo depois do nome (a
+  qualificação), e os outros nomes da mesma entidade, que juntam numa
+  sugestão só.
+- **Onde o cliente não aparece**, não dá para saber o lado: a seção diz em
+  quantos documentos. Serviço sem cliente diz por quê.
+- **A pessoa confirma**: "Anotar" põe a parte (e confere o conflito, como
+  antes); "Não é" guarda a dispensa no Serviço (migração 032), e a sugestão
+  não volta, nem escrita de outro jeito.
+
+**Não feito:** o PAULUS não tira sozinho a parte de documento cuja
+leitura não achou partes (os que ainda não foram lidos pela camada de
+inteligência entram quando forem).
+
+**Medido:** `tests/test_n3_parte_contraria.py` 15 ok (papéis opostos,
+fiador dos dois lados, outra grafia, documento ligado e da pasta, de outro
+Serviço, sem lado, dispensa, e a seção no Edge em 1280 e 390 px);
+`test_l3_clientes` continua passando.

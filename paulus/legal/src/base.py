@@ -796,6 +796,14 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_publicacoes_processo ON publicacoes(processo_id);
         """,
     ),
+    (
+        "032_partes_dispensadas",
+        """
+        -- A parte sugerida pelos documentos que a pessoa disse que nao e
+        -- (src/clientes.py, N3): a chave do nome, para a sugestao nao voltar.
+        ALTER TABLE servicos ADD COLUMN partes_dispensadas TEXT NOT NULL DEFAULT '[]';
+        """,
+    ),
 ]
 
 
