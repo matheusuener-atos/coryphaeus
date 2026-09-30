@@ -140,6 +140,7 @@ async function carregarSecao() {
     const [voz, saber] = await Promise.all([pega("/api/voz"), pega("/api/inteligencia")]);
     cfg.voz = voz;
     cfg.saber = saber;
+    await carregarChaves();
   } else if (cfg.secao === "modelos") {
     await carregarModelos();
   } else if (cfg.secao === "lixeira") {
@@ -551,6 +552,7 @@ function secaoAssistente() {
     cartaoCfg("Modelo de linguagem", pontoCfg(ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ligado ? "ok" : ""), modelo) +
     cartaoCfg("Limites da IA", metaCfg("o que o assistente faz sem pedir"), limites) +
     cartaoCfg("Modelo de voz", metaCfg("transcreve as gravações"), cartaoDaVozCfg()) +
+    (typeof cartaoChavesConversa === "function" ? cartaoChavesConversa() : "") +
     cartaoCfg("Acervo e índice", metaCfg("o que a busca enxerga"), indice) +
     cartaoCfg("O que já foi lido", metaCfg("entendido uma vez, consultado sempre"), blocoDoQueJaFoiLido()) +
     cartaoCfg("Códigos de lei", metaCfg("para citar artigo com o texto certo"), '<div id="cfg-leis"><p class="nota">abrindo os códigos…</p></div>');
@@ -1222,7 +1224,7 @@ function ligarConfig() {
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   if (cfg.secao === "modelos") ligarModelos();
   if (cfg.secao === "aprendizado") ligarMaterial();
-  if (cfg.secao === "aprendizado" || cfg.secao === "conexoes") ligarChaves();
+  if (cfg.secao === "aprendizado" || cfg.secao === "conexoes" || cfg.secao === "assistente") ligarChaves();
   if (cfg.secao === "acesso") ligarAcesso();
   if (cfg.secao === "vinculos" && typeof ligarVinculoCfg === "function") ligarVinculoCfg();
 

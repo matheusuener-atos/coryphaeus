@@ -41,6 +41,27 @@ function interruptor(bloco, chave, titulo, sub) {
     '<span class="duas-linhas"><b>' + esc(titulo) + "</b><small>" + esc(sub) + "</small></span><i></i></div>";
 }
 
+/* As chaves da conversa e dos agentes (docs/PROGRESSO-CONVERSA.md). */
+const CHAVES_CONVERSA = [
+  ["execucao", "A resposta não depende da janela", "fechar ou recarregar não perde a resposta; ela continua e aparece ao voltar"],
+  ["pensando", "Uma linha enquanto pensa", "o que está acontecendo numa linha só; o resto em “ver detalhes”, guardado com a resposta"],
+  ["painel", "Painel “Sobre esta resposta”", "fontes citadas, como respondi e onde procurei; rascunho e escopo de cada conversa"],
+  ["roteamento", "Perguntas sobre o programa e cadastros", "“pra que serve…” vai à tela certa; CPF, telefone e e-mail de alguém sem ler o acervo"],
+  ["saudacao", "Saudação da tela inicial", "a frase muda com a hora, o dia, o calendário e o que está pendente"],
+  ["avisos", "Avisos do dia", "prazos, compromissos, contas e pendências num carrossel, com o histórico do que foi visto"],
+  ["superficies", "Parecer e resumo na fila", "o parecer do Financeiro e o resumo da gravação esperam a vez do modelo e voltam ao sair e voltar"],
+  ["cerca", "Cerca nos documentos lidos", "o texto dos documentos vai ao modelo como dado, nunca como ordem, como já era no e-mail"],
+  ["agentes", "Agentes do escritório", "especialistas escritos pelo escritório, usados quando o pedido pede"],
+  ["diagnostico", "Modo de diagnóstico", "motor, trechos indexados e pasta no painel da conversa"],
+];
+
+function cartaoChavesConversa() {
+  if (!cfg.chaves || !cfg.chaves.conversa) return "";
+  return cartaoCfg("Como a conversa trabalha", metaCfg("liga e desliga na hora"),
+    '<div class="cfg-sub">' + CHAVES_CONVERSA.filter(([k]) => k in cfg.chaves.conversa).map(([k, t, s]) => interruptor("conversa", k, t, s)).join("") + "</div>" +
+    '<p class="cfg-explica">Tudo roda nesta máquina. Recarregue a janela depois de mudar uma chave da tela (linha de estado, painel, saudação).</p>');
+}
+
 function cartaoChavesBiblioteca() {
   if (!cfg.chaves) return "";
   return cartaoCfg("Como a biblioteca trabalha", metaCfg("liga e desliga na hora"),
