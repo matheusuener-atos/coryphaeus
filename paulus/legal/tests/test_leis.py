@@ -285,9 +285,12 @@ def test_oficiais(tmp: Path) -> None:
 
     with base_em(tmp / "oficial.db") as base:
         L = leis.Leis(base)
+        # Pelo menos o número do último artigo: o CDC termina no 119, a Lei
+        # do Inquilinato no 90 - menos de 300 artigos não é erro nelas.
+        ultimo = {"cdc": 119, "ctn": 218, "inquilinato": 90, "eca": 267, "cf": 250}
         for codigo, arquivo in arquivos.items():
             r = L.importar(arquivo, codigo)
-            checar(r["artigos"] > 300, f"{r['nome']}: {r['artigos']} artigos")
+            checar(r["artigos"] >= ultimo.get(codigo, 300), f"{r['nome']}: {r['artigos']} artigos")
 
         esperado = {
             ("cc", "1º"): "Toda pessoa é capaz",

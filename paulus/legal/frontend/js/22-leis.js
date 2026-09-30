@@ -99,7 +99,8 @@ async function procurarLei() {
     (a.texto.length > 620 ? "…" : "") + "</p>" +
     '<div class="linha-form">' +
     '<button data-citar="' + i + '">Inserir a citação</button>' +
-    '<button data-transcrever="' + i + '">Inserir com o texto</button></div></div>').join("") + "</div>";
+    '<button data-transcrever="' + i + '">Inserir com o texto</button></div>' +
+    '<div class="lei-biblioteca" data-lei-bib="' + i + '" hidden></div></div>').join("") + "</div>";
 
   alvo.querySelectorAll("[data-citar]").forEach((b) => {
     b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.citar)], false);
@@ -107,7 +108,45 @@ async function procurarLei() {
   alvo.querySelectorAll("[data-transcrever]").forEach((b) => {
     b.onclick = () => inserirCitacao(lei.achados[Number(b.dataset.transcrever)], true);
   });
+  /* Os primeiros artigos ganham o que a biblioteca do escritório diz deles. */
+  d.achados.slice(0, 5).forEach((a, i) => naBibliotecaDoEscritorio(a, alvo.querySelector('[data-lei-bib="' + i + '"]')));
   revelarAbaixo();
+}
+
+/* "Na biblioteca do escritório" (Biblioteca, M3): as obras que citam este
+   artigo, com obra, autor, edição e página, e um trecho curto. Artigo sem
+   obra diz isso - e não mostra trecho "parecido". */
+async function naBibliotecaDoEscritorio(a, caixa) {
+  if (!caixa || !a) return;
+  let d;
+  try {
+    const r = await fetch("/api/leis/anotacoes?codigo=" + encodeURIComponent(a.codigo) + "&numero=" + encodeURIComponent(a.numero));
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (err) { return; }
+  if (!d.ligada) return;
+  caixa.hidden = false;
+  const lista = d.anotacoes || [];
+  caixa.innerHTML = '<span class="rotulo">Na biblioteca do escritório</span>' + (lista.length
+    ? lista.map((n, j) => '<div class="lei-bib-item"><div class="lei-bib-onde"><b>' + esc(n.obra) + "</b>" +
+        '<small>' + esc([n.autor, [n.edicao ? n.edicao + " ed." : "", n.ano].filter(Boolean).join(", "), n.pagina ? "p. " + n.pagina : ""].filter(Boolean).join(" · ")) + "</small>" +
+        (n.aviso ? '<span class="etiqueta atencao">' + esc(n.aviso) + "</span>" : "") + "</div>" +
+        (n.teses && n.teses.length ? n.teses.map((x) => '<p class="lei-bib-tese"><b>Tese do autor:</b> ' + esc(x) + "</p>").join("") : "") +
+        '<p class="lei-bib-trecho">“' + esc(n.trecho) + "”</p>" +
+        (n.pdf && n.pagina ? '<button data-lei-bib-abrir="' + j + '">' + ic("menu_book", 16) + "abrir na página</button>" : "") + "</div>").join("")
+    : '<p class="nota">' + esc(d.mensagem) + "</p>");
+  caixa.querySelectorAll("[data-lei-bib-abrir]").forEach((b) => {
+    b.onclick = () => { const n = lista[Number(b.dataset.leiBibAbrir)]; abrirMaterialNaPagina(n.material_id, n.pagina, n.obra); };
+  });
+}
+
+/* O arquivo do próprio escritório, no visor de PDF do programa, já na página. */
+function abrirMaterialNaPagina(id, pagina, titulo) {
+  dialogo({
+    titulo: titulo || "Material", contexto: "Biblioteca do escritório · página " + pagina, larga: true, classe: "dialogo-pdf",
+    html: '<iframe class="visor-pdf" title="' + esc(titulo || "") + '" src="/api/material/' + encodeURIComponent(id) + "/arquivo#page=" + Number(pagina) + '"></iframe>',
+    confirmar: "Fechar", semCancelar: true,
+  });
 }
 
 /* Artigo revogado nunca entra sem a pessoa dizer que quer: citar um artigo que

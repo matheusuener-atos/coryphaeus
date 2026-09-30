@@ -591,6 +591,8 @@ async function carregarUsuario() {
     const p = d.preferencias || d;
     aplicarAnimacoes(p.animacoes_reduzidas);
     aplicarModulos(p.modulos);
+    /* As ideias do umbrelOS ligadas nesta máquina (Fotografar documento). */
+    window.PAULUS_UMBREL = p.umbrel || {};
   } catch (err) { /* sem preferencias, fica o padrao */ }
 }
 

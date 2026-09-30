@@ -504,15 +504,46 @@ function blocoResposta(m, pergunta, ultima) {
    sempre. */
 const CITACOES = [];
 
+/* A origem de cada marca, na resposta em camadas da Biblioteca (M4,
+   src/biblioteca/camadas.py): um rótulo curto e uma cor por origem - a lei
+   não se confunde com a opinião de um autor. */
+const ORIGEM_CIT = { lei: "lei", sumula: "súm.", doutrina: "dout.", comunidade: "com.", casa: "casa", material: "mat.", documento: "doc." };
+const ORIGEM_DICA = { lei: "texto da lei", sumula: "súmula", doutrina: "doutrina: o que o autor sustenta",
+  comunidade: "compartilhado por outro advogado, não revisado por este escritório", casa: "regra da casa",
+  material: "material de consulta", documento: "documento do Acervo" };
+
+/* "Lei · CDC, art. 18", "Doutrina · Brandão…": de onde veio cada fonte no painel. */
+function prefixoDaFonte(f) {
+  const nomes = { lei: "Lei · ", sumula: "Súmulas · ", doutrina: "Doutrina · ", comunidade: "Comunidade · ", casa: "Regra da casa · " };
+  if (f && nomes[f.origem]) return nomes[f.origem];
+  return f && f.material ? "Material · " : "";
+}
+
+/* M7 da Biblioteca: a linha "Não tenho material de <área> na biblioteca"
+   ganha o botão que leva à Biblioteca, para acrescentar material. */
+function comAvisoDeArea(html) {
+  return html.replace(/(Não tenho material de [^<\n]{2,40} na biblioteca; esta resposta usa só os documentos\.)/,
+    '$1 <button class="bib-acrescentar" data-bib-acrescentar="1">acrescentar material</button>');
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-bib-acrescentar]");
+  if (!b) return;
+  marcarDestino("config");
+  mostrarConfig("aprendizado");
+});
+
 function textoComCitacoes(texto, fontes, pergunta) {
   const bruto = String(texto || "");
-  if (!/\[T\d{1,3}\]|\[sem fonte\]/.test(bruto)) return esc(bruto);
+  if (!/\[T\d{1,3}\]|\[sem fonte\]/.test(bruto)) return comAvisoDeArea(esc(bruto));
   const k = CITACOES.push({ fontes: fontes || [], pergunta: pergunta || "" }) - 1;
-  return esc(bruto)
+  return comAvisoDeArea(esc(bruto))
     .replace(/\[T(\d{1,3})\]/g, (_, n) => {
       const f = (fontes || [])[Number(n) - 1];
-      const dica = f ? f.documento + (f.pagina ? ", p. " + f.pagina : "") : "trecho " + n;
-      return '<button class="cit-tn" data-cit-resp="' + k + '" data-tn="' + n + '" title="' + esc(dica) + '">' + n + "</button>";
+      const origem = f && f.origem && ORIGEM_CIT[f.origem] ? f.origem : "";
+      const dica = (f ? f.documento + (f.pagina ? ", p. " + f.pagina : "") : "trecho " + n) + (origem ? " — " + ORIGEM_DICA[origem] : "");
+      return '<button class="cit-tn' + (origem ? " cit-" + origem : "") + '" data-cit-resp="' + k + '" data-tn="' + n + '" title="' + esc(dica) + '">' +
+        (origem ? '<span class="cit-origem">' + esc(ORIGEM_CIT[origem]) + "</span>" : "") + n + "</button>";
     })
     .replace(/\s?\[sem fonte\]/g, ' <span class="sem-fonte" title="Esta frase não aponta para nenhum trecho lido">sem fonte</span>');
 }
@@ -639,7 +670,7 @@ function desenharTrechos(fontes, pergunta, ondeVisor) {
   const seta = '<span class="ic ic-16 arv-seta">expand_more</span>';
   lista.innerHTML = [...porDocumento].map(([documento, indices]) =>
     '<div class="arv-ramo">' +
-    '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + (fontes[indices[0]].material ? "Material · " : "") + esc(documento) + "</b>" +
+    '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + prefixoDaFonte(fontes[indices[0]]) + esc(documento) + "</b>" +
     "<small>" + plural(indices.length, "trecho") + "</small></button>" +
     '<div class="arv-filhos" hidden>' + indices.map((i) => {
       const f = fontes[i];
@@ -1526,6 +1557,10 @@ async function enviar(opcoes) {
         } else if (mt[1] === "fim") {
           fecharBastidor();
           plano.remove();
+          /* O aviso de fora da cobertura (M7) chega como texto: no fim, ganha o botão. */
+          if (!revisado && /Não tenho material de .{2,40} na biblioteca/.test(texto.textContent)) {
+            texto.innerHTML = comAvisoDeArea(esc(texto.textContent));
+          }
           resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
             assinaSemModelo ? "sem modelo" : "", dados.como));
           ligarResposta(resposta);

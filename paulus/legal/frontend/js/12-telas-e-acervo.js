@@ -139,9 +139,10 @@ function abrirVisaoDoAcervo(visao) {
 async function mostrarBiblioteca() {
   abrirTela("Acervo", { cheia: true });
   bib.visao = "documentos";
-  cabecalhoAcervo("documentos",
+  cabecalhoAcervo("documentos", botaoFotografar() +
     '<button class="primario com-icone" id="bib-pasta">' + ic("add", 16) + "Incluir pasta</button>");
   $("bib-pasta").onclick = adicionarPastaAoAcervo;
+  if ($("bib-fotografar")) $("bib-fotografar").onclick = fotografarDocumento;
   if (!bib.documentos.length) {
     $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal"><p class="nota">carregando…</p></div></div>';
   }

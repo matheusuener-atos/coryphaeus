@@ -246,3 +246,22 @@
   .atu-nova small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .atu-novidades { margin: 0; padding-left: 18px; display: grid; gap: 4px; font: 400 13px/1.5 var(--sans); color: var(--ink2); }
   .cfg-explica.acc { color: var(--acc); }
+/* A Biblioteca (js/35-material.js): as areas da ficha, cada uma um chip que
+   se marca - o proprio chip e o rotulo da caixa de marcar. */
+.ficha-areas { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-marcar { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--ink-a12); background: var(--surf); font-size: 12.5px; cursor: pointer; }
+.chip-marcar input { margin: 0; accent-color: var(--acc); }
+.chip-marcar:has(input:checked) { background: var(--fill); border-color: var(--ink-a3); }
+/* O que o PAULUS sabe (Biblioteca, M7): uma linha por area, com as leis e as
+   obras dela. */
+.bib-areas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.bib-area { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ink-a08); }
+.bib-area > b { min-width: 150px; font-weight: 600; }
+.bib-area-itens { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Glossario e teses (Biblioteca, M5, js/35-material.js). */
+.bib-titulo { font-size: 13px; margin: 14px 0 6px; }
+.bib-lista { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.bib-lista small { color: var(--ink3); margin-left: 6px; }
+.bib-quote { display: block; color: var(--ink2); font-size: 12px; line-height: 1.5; margin-top: 2px; }
+.mcp-token { word-break: break-all; user-select: all; }

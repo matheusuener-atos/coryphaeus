@@ -31,7 +31,7 @@ const CFG_SECOES = [
   ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
   ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
   ["backup", "Backup", "Tudo do escritório mora neste computador. O backup é um arquivo cifrado com uma senha sua, numa pasta que você escolhe, todo dia."],
-  ["aprendizado", "Aprendizado", "O material que o PAULUS consulta, o que o escritório ensinou com as próprias palavras, e o que ele já sabe fazer."],
+  ["aprendizado", "Biblioteca", "O que o PAULUS consulta para responder: livros, manuais e leis, com a fonte de cada um; o que o escritório ensinou com as próprias palavras; e o que ele já sabe fazer."],
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
@@ -124,8 +124,12 @@ async function carregarSecao() {
     ]);
     cfg.cx = cx; cfg.contas = contas; cfg.cert = cert; cfg.acoes = (acoes && acoes.acoes) || [];
     await carregarGoogle();
+    await carregarChaves();
   } else if (cfg.secao === "aprendizado") {
-    const [hab, ctx, material] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material")]);
+    await carregarChaves();
+    const [hab, ctx, material, mapa] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material"),
+      pega("/api/biblioteca-juridica/mapa")]);
+    cfg.mapa = mapa;
     cfg.hab = hab;
     cfg.ctx = ctx;
     cfg.material = material;
@@ -563,7 +567,8 @@ async function blocoLeis() {
     '<div class="cfg-linhas">' + (d.codigos || []).map((c) =>
       '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(c.lei) +
       (c.instalado ? " · " + plural(c.artigos, "artigo") + " · " + esc(quandoCurto(c.importado_em)) : " · não instalado") + "</small></span>" +
-      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>' : '<span class="etiqueta">falta</span>') +
+      (c.instalado ? '<button data-cfg-tirar-lei="' + esc(c.codigo) + '">Remover</button>'
+        : '<button data-cfg-baixar-lei="' + esc(c.codigo) + '" title="' + esc(c.fonte) + '">' + ic("download", 16) + "Baixar do Planalto</button>") +
       "</div>").join("") + "</div>" +
     '<p class="cfg-explica">' + esc(d.como_baixar) + "</p>" +
     '<div class="cfg-botoes"><button data-cfg-lei-pasta="1">' + ic("folder_open", 16) + "Importar de uma pasta</button>" +
@@ -573,6 +578,19 @@ async function blocoLeis() {
     b.onclick = async () => {
       if (!(await confirmar({ titulo: "Remover este código?", contexto: "Configurações › Códigos de lei", texto: "A citação volta a ficar indisponível até você importar de novo.", confirmar: "Remover", perigo: true }))) return;
       await fetch("/api/leis/" + b.dataset.cfgTirarLei, { method: "DELETE" });
+      blocoLeis();
+    };
+  });
+  /* O texto compilado oficial, direto do endereço do Planalto: só a página
+     da lei é pedida, nada desta máquina vai junto. */
+  alvo.querySelectorAll("[data-cfg-baixar-lei]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      b.textContent = "baixando…";
+      const r = await fetch("/api/leis/baixar", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ codigo: b.dataset.cfgBaixarLei }) });
+      if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); blocoLeis(); return; }
+      const d2 = await r.json();
+      avisoCert(d2.nome + ": " + plural(d2.artigos, "artigo") + " guardados" + (d2.revogados ? ", " + plural(d2.revogados, "revogado") : ""), { tom: "ok" });
       blocoLeis();
     };
   });
@@ -759,6 +777,7 @@ function secaoConexoes() {
   return aberturaCfg() +
     cartaoCfg("Serviços", "", lista) +
     cartaoGoogle() +
+    cartaoUmbrel() +
     cartaoCfg("O que saiu desta máquina", metaCfg("últimas 24 horas"), registro);
 }
 
@@ -993,7 +1012,9 @@ function secaoAprendizado() {
   ]);
 
   return aberturaCfg() + ficha +
+    cartaoMapa() +
     cartaoMaterial() +
+    cartaoChavesBiblioteca() +
     cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
 }
@@ -1201,6 +1222,7 @@ function ligarConfig() {
   const clique = (seletor, fn) => cada(seletor, (b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   if (cfg.secao === "modelos") ligarModelos();
   if (cfg.secao === "aprendizado") ligarMaterial();
+  if (cfg.secao === "aprendizado" || cfg.secao === "conexoes") ligarChaves();
   if (cfg.secao === "acesso") ligarAcesso();
   if (cfg.secao === "vinculos" && typeof ligarVinculoCfg === "function") ligarVinculoCfg();
 

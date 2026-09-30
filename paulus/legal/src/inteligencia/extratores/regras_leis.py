@@ -63,8 +63,11 @@ POR_EXTENSO = {
     "estatuto da crianca e do adolescente": "eca",
 }
 
+# O numero aceita o ponto de milhar: "art. 1.228 do CC" e o 1.228, e nao o
+# art. 1 - lido como 1, a citacao perdia o codigo (o ".228" separava o numero
+# da sigla) e a Biblioteca nao ligava a obra ao artigo (M3).
 RE_ARTIGO = re.compile(
-    r"\bart(?:igo|\.|s\.|igos)?\s*(\d+[\-‐-―]?[A-Z]?)\s*[ºo°]?"
+    r"\bart(?:igo|\.|s\.|igos)?\s*(\d{1,3}(?:\.\d{3})+(?:[\-‐-―][A-Z])?|\d+[\-‐-―]?[A-Z]?)\s*[ºo°]?"
     r"(?P<resto>(?:\s*[,;]?\s*(?:§+\s*\d+[ºo°]?|par[áa]grafo\s+[úu]nico|"
     r"inciso\s+[IVXLCDM]+|al[íi]nea\s+[a-z]\b|[IVXLCDM]{1,6}\b)){0,3})"
     r"(?P<lei>(?:\s*,?\s*(?:d[aoe]s?\s+)?(?:CPC|CC|CF|CLT|CP|CPP|CDC|CTN|CTB|ECA|"

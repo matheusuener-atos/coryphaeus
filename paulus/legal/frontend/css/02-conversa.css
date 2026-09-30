@@ -557,6 +557,21 @@
     height: 18px; padding: 0 5px; margin: 0 1px; border: 1px solid var(--ink-a1); border-radius: 9px;
     background: var(--sub); color: var(--ink2); font: 600 11px/1 var(--mono); vertical-align: 2px; cursor: pointer; }
   .resposta .texto .cit-tn:hover { color: var(--ink); border-color: var(--ink-a2, var(--ink-a1)); }
+  /* A origem da marca, na resposta em camadas da Biblioteca (M4): o rotulo
+     curto antes do numero, e uma cor por origem. A lei tem a cor de destaque
+     do sistema; a doutrina, o ambar de "atencao: e opiniao". */
+  .resposta .texto .cit-tn .cit-origem { font: 600 9.5px/1 var(--sans); margin-right: 4px; letter-spacing: .02em; }
+  .resposta .texto .cit-lei { background: var(--accbg); border-color: var(--accln); color: var(--acc); }
+  .resposta .texto .cit-sumula { background: var(--accbg2); border-color: var(--accln2); color: var(--acc); }
+  .resposta .texto .cit-doutrina { background: var(--warnbg); border-color: var(--ink-a12); color: var(--warnt); }
+  .resposta .texto .cit-comunidade { background: var(--fill2); border-color: var(--ink-a2); color: var(--ink2); }
+  .resposta .texto .cit-casa { background: var(--okbg); border-color: var(--ink-a12); color: var(--okt); }
+  .resposta .texto .cit-material,
+  .resposta .texto .cit-documento { background: var(--sub); }
+  /* M7: o botao ao lado de "Nao tenho material de <area> na biblioteca". */
+  .resposta .texto .bib-acrescentar { margin-left: 6px; padding: 2px 9px; border-radius: 9px; font-size: 12px;
+    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink2); cursor: pointer; }
+  .resposta .texto .bib-acrescentar:hover { color: var(--ink); border-color: var(--ink-a3); }
   .resposta .texto .sem-fonte { display: inline-block; padding: 1px 7px; border-radius: 9px; background: var(--warnbg);
     color: var(--warnt); font-size: 11.5px; line-height: 1.5; vertical-align: 1px; white-space: nowrap; }
 

@@ -202,6 +202,16 @@ def main() -> int:
         import subprocess
 
         subprocess.run([sys.executable, str(Path(__file__).with_name("criar_demo.py")), "--refazer"], check=True)
+    # As chaves da Biblioteca para esta rodada (docs/PROGRESSO-BIBLIOTECA.md):
+    # --ligar hibrida,camadas / --desligar ... gravam nas preferências da demo.
+    chaves = {}
+    for opcao, valor in (("--ligar", True), ("--desligar", False)):
+        if opcao in sys.argv:
+            chaves.update({c.strip(): valor for c in sys.argv[sys.argv.index(opcao) + 1].split(",") if c.strip()})
+    if chaves:
+        from config import Preferencias
+
+        Preferencias(DEMO / "preferencias.json").atualizar({"biblioteca": chaves})
     if "--tudo" in sys.argv:
         roteiro = BASICO + DIFICIL + MATERIAL
     elif "--dificil" in sys.argv:
@@ -212,6 +222,13 @@ def main() -> int:
         roteiro = BASICO
     if "--programa" in sys.argv:
         roteiro = [p for p in roteiro if p["caminho"] == "programa"]
+    # --so "trecho da pergunta" --vezes 3: repete só as que interessam (para
+    # separar erro de verdade de variação do modelo).
+    if "--so" in sys.argv:
+        trecho = sys.argv[sys.argv.index("--so") + 1].lower()
+        roteiro = [p for p in BASICO + DIFICIL + MATERIAL if trecho in p["pergunta"].lower()]
+    if "--vezes" in sys.argv:
+        roteiro = roteiro * int(sys.argv[sys.argv.index("--vezes") + 1])
 
     from test_gravacoes import _porta_livre, _subir_servidor
 

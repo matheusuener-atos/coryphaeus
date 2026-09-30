@@ -41,6 +41,9 @@ MINIMO_TOKENS = 80
 
 REGIME_PECA = "B"
 REGIME_LEI = "A"
+# O regime C, das obras de consulta (livro de doutrina, curso, comentario):
+# so a Biblioteca usa. Ver `fatiar_obra`, no fim do arquivo.
+REGIME_OBRA = "C"
 
 # Um cabecalho de peca ou contrato: no comeco da linha, curto, e de um dos
 # jeitos que o direito brasileiro escreve secao.
@@ -155,17 +158,23 @@ def _janelas(texto: str, inicio: int, fim: int) -> list[tuple[int, int]]:
     return saida
 
 
-def fatiar(texto: str, titulo: str = "") -> list[Fatia]:
+def fatiar(texto: str, titulo: str = "", regime: str = "") -> list[Fatia]:
     """
     As fatias do documento, em ordem.
 
     Secao grande vira janelas dentro dela; secoes pequenas vizinhas se juntam
     inteiras ate passarem do minimo (ou do maximo, o que vier antes).
+
+    `regime` vazio e o de sempre: a lei ou a peca, pelo texto. A Biblioteca
+    diz o regime por fora (a ficha do material), e o "C" - obra de consulta -
+    so existe por ela (`fatiar_obra`).
     """
     texto = texto or ""
     if not texto.strip():
         return []
-    regime = regime_de(texto)
+    if regime == REGIME_OBRA:
+        return fatiar_obra(texto, titulo)
+    regime = regime or regime_de(texto)
     secoes = _secoes(texto, regime)
     minimo = MINIMO_TOKENS * CHARS_POR_TOKEN
     maximo = MAXIMO_TOKENS * CHARS_POR_TOKEN
@@ -209,4 +218,284 @@ def fatiar(texto: str, titulo: str = "") -> list[Fatia]:
             a, b = _ajustar(texto, a, b)
             if b > a:
                 fatias.append(Fatia(a, b, caminho, regime))
+    return fatias
+
+
+# ------------------------------------------------ C - obras de consulta
+#
+# Livro nao e contrato. Tem o que contrato nao tem, e que atrapalha a busca:
+#
+# - o **sumario**: "3.2 Adimplemento substancial ........ 45" casa com
+#   qualquer pergunta sobre adimplemento, e nao responde nenhuma;
+# - **cabecalho e rodape** repetidos em toda pagina ("BRANDAO - VICIOS DO
+#   PRODUTO", o numero da pagina): o mesmo texto em cem trechos;
+# - a divisao em **Parte, Titulo, Capitulo e secao decimal** (3.2.1), e o
+#   titulo do capitulo em caixa alta numa linha so.
+#
+# O sumario e o cabecalho/rodape nao sao cortados do texto: sao trocados por
+# espacos do mesmo tamanho. Assim cada posicao continua a mesma do texto
+# guardado - a pagina de cada trecho sai do mapa de sempre, e o `chunk_id`
+# continua sendo a versao + a posicao.
+#
+# O capitulo e a fronteira: trecho nenhum atravessa capitulo. Dentro dele,
+# as secoes pequenas se juntam, as grandes viram janelas - e a janela prefere
+# terminar na virada de pagina, para a citacao dizer a pagina certa.
+
+RE_MARCA_PAGINA_OBRA = re.compile(r"^\[pagina (\d+)\][ \t]*$", re.M)
+
+# Parte, Livro, Titulo, Capitulo, Secao: a palavra, o numero (romano,
+# arabico ou por extenso) e, na mesma linha, o nome.
+RE_CAPITULO_OBRA = re.compile(
+    r"^[ \t]*(?P<chave>PARTE|Parte|LIVRO|Livro|T[ÍI]TULO|T[íi]tulo|CAP[ÍI]TULO|Cap[íi]tulo|SE[ÇC][ÃA]O|Se[çc][ãa]o)"
+    r"\s+(?P<numero>[IVXLCDM]{1,7}|\d{1,3}|[ÚU]NIC[OA]|[ÚU]nic[oa]|PRIMEIR[OA]|Primeir[oa]|SEGUND[OA]|Segund[oa]|"
+    r"TERCEIR[OA]|Terceir[oa])\b(?P<nome>[^\n]{0,110})$", re.M)
+# A secao decimal: "3.2 Adimplemento substancial", "3.2.1. Requisitos".
+RE_SECAO_OBRA = re.compile(r"^[ \t]*(?P<numero>\d{1,2}(?:\.\d{1,2}){1,3})\.?[ \t]+(?P<nome>[A-ZÀ-Ý][^\n]{2,110})$", re.M)
+# Titulo em caixa alta, sozinho na linha ("INTRODUCAO", "O VICIO DO PRODUTO").
+RE_CAIXA_ALTA = re.compile(r"^[ \t]*(?P<nome>[A-ZÀ-Ý][A-ZÀ-Ý0-9 ,;:()ºª°—–\-]{3,100})[ \t]*$", re.M)
+# Linha de sumario: termina no numero da pagina, quase sempre depois de pontos.
+RE_LINHA_SUMARIO = re.compile(r"^[ \t]*\S[^\n]{2,150}?(?:\s*\.{2,}\s*|\s*…+\s*|\t+|\s{3,}|\s+)(\d{1,4})[ \t]*$")
+RE_TITULO_SUMARIO = re.compile(r"^[ \t]*(?:SUM[ÁA]RIO|Sum[áa]rio|[ÍI]NDICE(?: GERAL)?|[ÍI]ndice(?: geral)?)[ \t]*$")
+
+ABREVIADO = {"capitulo": "Cap.", "titulo": "Tít.", "secao": "Seção", "parte": "Parte", "livro": "Livro"}
+
+
+def _plano_curto(texto: str) -> str:
+    import unicodedata
+
+    normal = unicodedata.normalize("NFD", texto or "")
+    return "".join(c for c in normal if unicodedata.category(c) != "Mn").lower()
+
+
+def _apagar(texto: list[str], inicio: int, fim: int) -> None:
+    """Troca [inicio, fim) por espacos, sem mexer nas quebras de linha: a posicao de tudo fica a mesma."""
+    for i in range(inicio, fim):
+        if texto[i] != "\n":
+            texto[i] = " "
+
+
+def _linhas_com_posicao(texto: str, inicio: int = 0, fim: int | None = None) -> list[tuple[int, int, str]]:
+    fim = len(texto) if fim is None else fim
+    saida, pos = [], inicio
+    while pos < fim:
+        quebra = texto.find("\n", pos, fim)
+        final = fim if quebra == -1 else quebra
+        saida.append((pos, final, texto[pos:final]))
+        pos = final + 1
+    return saida
+
+
+def limpar_obra(texto: str) -> str:
+    """
+    O texto da obra sem o que nao e conteudo: cabecalho e rodape repetidos, e
+    o sumario. Do mesmo tamanho do original (ver o comentario acima).
+    """
+    texto = texto or ""
+    saida = list(texto)
+    marcas = list(RE_MARCA_PAGINA_OBRA.finditer(texto))
+    paginas = [(m.end(), marcas[i + 1].start() if i + 1 < len(marcas) else len(texto)) for i, m in enumerate(marcas)]
+
+    # Cabecalho e rodape: as linhas das pontas de cada pagina que se repetem
+    # (com o numero trocado por #) em pelo menos metade das paginas - e em
+    # tres, no minimo. Uma linha igual em duas paginas e coincidencia.
+    if len(paginas) >= 3:
+        pontas: list[list[tuple[int, int, str]]] = []
+        contagem: dict[str, int] = {}
+        for a, b in paginas:
+            linhas = [x for x in _linhas_com_posicao(texto, a, b) if x[2].strip()]
+            nesta = linhas[:2] + linhas[-2:] if len(linhas) > 4 else linhas
+            pontas.append(nesta)
+            for chave in {re.sub(r"\d+", "#", " ".join(l.split()).lower()) for _, _, l in nesta}:
+                contagem[chave] = contagem.get(chave, 0) + 1
+        repetidas = {c for c, n in contagem.items() if n >= max(3, len(paginas) // 2)}
+        for nesta in pontas:
+            for a, b, linha in nesta:
+                if re.sub(r"\d+", "#", " ".join(linha.split()).lower()) in repetidas:
+                    _apagar(saida, a, b)
+
+    # Sumario: tres ou mais linhas seguidas terminando em numero de pagina que
+    # so cresce, com pontos na maioria - ou o titulo "Sumario" em cima.
+    linhas = _linhas_com_posicao("".join(saida))
+    i = 0
+    while i < len(linhas):
+        j, numeros, pontos = i, [], 0
+        while j < len(linhas):
+            _, _, linha = linhas[j]
+            if not linha.strip() or RE_MARCA_PAGINA_OBRA.match(linha):
+                j += 1
+                continue
+            achado = RE_LINHA_SUMARIO.match(linha)
+            if not achado or (numeros and int(achado.group(1)) < numeros[-1]):
+                break
+            numeros.append(int(achado.group(1)))
+            pontos += 1 if re.search(r"\.{2,}|…", linha) else 0
+            j += 1
+        titulo = any(RE_TITULO_SUMARIO.match(linhas[k][2]) for k in range(max(0, i - 3), i))
+        if len(numeros) >= 3 and (pontos * 2 >= len(numeros) or (titulo and len(numeros) >= 3)):
+            for a, b, linha in linhas[i:j]:
+                if not RE_MARCA_PAGINA_OBRA.match(linha):
+                    _apagar(saida, a, b)
+            for k in range(max(0, i - 3), i):
+                if RE_TITULO_SUMARIO.match(linhas[k][2]):
+                    _apagar(saida, linhas[k][0], linhas[k][1])
+            i = j
+        else:
+            i += 1
+    return "".join(saida)
+
+
+def _cabecalhos_obra(texto: str) -> list[tuple[int, str, str]]:
+    """
+    (posicao, nivel, rotulo) de cada cabecalho. Nivel: 'superior' (Parte,
+    Livro, Titulo), 'capitulo' (Capitulo, Secao por extenso, titulo em caixa
+    alta) ou 'secao' (a numeracao decimal).
+    """
+    achados: dict[int, tuple[str, str, str]] = {}   # posicao -> nivel, rotulo, de onde veio
+    for m in RE_CAPITULO_OBRA.finditer(texto):
+        chave = _plano_curto(m.group("chave"))
+        nome = " ".join(m.group("nome").split()).strip(" —–-:.")
+        rotulo = f"{ABREVIADO.get(chave, m.group('chave'))} {m.group('numero')}" + (f" — {nome}" if nome else "")
+        achados[m.start()] = ("superior" if chave in ("parte", "livro", "titulo") else "capitulo", rotulo[:90], "chave")
+    for m in RE_SECAO_OBRA.finditer(texto):
+        if m.start() not in achados and not m.group("nome").rstrip().endswith((".", ",", ";")):
+            achados[m.start()] = ("secao", f"{m.group('numero')} {' '.join(m.group('nome').split())}"[:90], "decimal")
+    for m in RE_CAIXA_ALTA.finditer(texto):
+        nome = " ".join(m.group("nome").split())
+        letras = [c for c in nome if c.isalpha()]
+        # "ISBN 978-85-..." tambem e caixa alta: titulo e feito de letras.
+        if (m.start() not in achados and len(letras) >= 4 and sum(1 for c in letras if c.isupper()) == len(letras)
+                and len(letras) >= 0.6 * len(nome.replace(" ", "")) and not nome.endswith((".", ","))):
+            achados[m.start()] = ("capitulo", nome[:90], "caixa")
+    ordem = sorted((p, n, r, f) for p, (n, r, f) in achados.items())
+
+    # O titulo do capitulo que nao coube numa linha ("CAPITULO 2 - OS
+    # DIREITOS BASICOS DO" e, embaixo, "CONSUMIDOR"): a linha de baixo, so
+    # em caixa alta e colada no cabecalho, e o resto do nome - nao um
+    # capitulo novo.
+    juntos: list[list] = []
+    for pos, nivel, rotulo, fonte in ordem:
+        if juntos and fonte == "caixa":
+            anterior = juntos[-1]
+            quebra = texto.find("\n", anterior[0])
+            entre = texto[quebra + 1:pos] if quebra != -1 and quebra < pos else "x"
+            if not entre.strip() and anterior[1] in ("capitulo", "superior"):
+                anterior[2] = (anterior[2] + " " + rotulo)[:90]
+                continue
+        juntos.append([pos, nivel, rotulo, fonte])
+
+    # Antes do primeiro Capitulo, Parte ou secao decimal e folha de rosto,
+    # ficha catalografica e dedicatoria - mesmo em caixa alta.
+    firmes = [i for i, x in enumerate(juntos) if x[3] != "caixa"]
+    if firmes:
+        juntos = juntos[firmes[0]:]
+    return [(p, n, r) for p, n, r, _ in juntos]
+
+
+def parece_obra(texto: str) -> bool:
+    """Tem cara de livro: capitulo e secoes que o regime C sabe ler."""
+    cabecalhos = _cabecalhos_obra(limpar_obra(texto))
+    capitulos = sum(1 for _, n, _ in cabecalhos if n in ("capitulo", "superior"))
+    secoes = sum(1 for _, n, _ in cabecalhos if n == "secao")
+    return capitulos >= 2 and capitulos + secoes >= 4
+
+
+def _janelas_de_pagina(texto: str, inicio: int, fim: int) -> list[tuple[int, int]]:
+    """
+    As janelas de sempre, mas terminando na virada de pagina quando ela cai
+    na segunda metade da janela: a citacao diz a pagina do trecho inteiro.
+    """
+    tamanho = JANELA_TOKENS * CHARS_POR_TOKEN
+    saida: list[tuple[int, int]] = []
+    atual = inicio
+    while atual < fim:
+        if fim - atual <= MAXIMO_TOKENS * CHARS_POR_TOKEN:
+            saida.append((atual, fim))
+            break
+        limite = min(fim, atual + tamanho)
+        viradas = [m.start() for m in RE_MARCA_PAGINA_OBRA.finditer(texto, atual + tamanho // 2, limite)]
+        if viradas:
+            saida.append((atual, viradas[-1]))
+            atual = viradas[-1]
+            continue
+        pedacos = _janelas(texto, atual, fim)
+        a, b = pedacos[0]
+        saida.append((a, b))
+        if len(pedacos) == 1:
+            break
+        atual = pedacos[1][0]
+    return saida
+
+
+def fatiar_obra(texto: str, titulo: str = "") -> list[Fatia]:
+    """
+    As fatias de uma obra de consulta (regime C), com o caminho
+    "<Obra> > Cap. 3 > 3.2 Adimplemento substancial".
+
+    O que vem antes do primeiro cabecalho - folha de rosto, ficha
+    catalografica - nao vira trecho: nao responde pergunta e casaria com o
+    assunto da obra inteira. A ficha e lida a parte (src/biblioteca/ficha.py).
+
+    As posicoes valem no texto guardado; o TEXTO do trecho sai de
+    `limpar_obra(texto)[a:b]`, sem o cabecalho e o rodape repetidos.
+    """
+    limpo = limpar_obra(texto or "")
+    cabecalhos = _cabecalhos_obra(limpo)
+    if not cabecalhos:
+        return []
+    minimo = MINIMO_TOKENS * CHARS_POR_TOKEN
+    maximo = MAXIMO_TOKENS * CHARS_POR_TOKEN
+
+    # As secoes, cada uma com o capitulo a que pertence. O capitulo e a
+    # fronteira; Parte e Titulo so entram no caminho.
+    secoes: list[list] = []   # inicio, fim, capitulo (caminho), secao, so o titulo
+    superior = capitulo = ""
+    for i, (pos, nivel, rotulo) in enumerate(cabecalhos):
+        fim = cabecalhos[i + 1][0] if i + 1 < len(cabecalhos) else len(limpo)
+        secao = ""
+        if nivel == "superior":
+            superior, capitulo = rotulo, ""
+        elif nivel == "capitulo":
+            capitulo = rotulo
+        else:
+            secao = rotulo
+        corpo = RE_MARCA_PAGINA_OBRA.sub("", limpo[pos:fim]).strip()
+        if corpo:
+            secoes.append([pos, fim, " > ".join(p for p in (superior, capitulo) if p), secao, "\n" not in corpo])
+
+    # O cabecalho que so abre outro ("PARTE II" e logo "CAPITULO 2") nao e
+    # secao: o texto dele (a linha do titulo) vai junto com a seguinte.
+    juntas: list[list] = []
+    for s in secoes:
+        if juntas and juntas[-1][4] and juntas[-1][2] != s[2]:
+            s = [juntas.pop()[0], s[1], s[2], s[3], s[4]]
+        juntas.append(s)
+
+    # Juntar as pequenas do mesmo capitulo; nunca atravessar capitulo.
+    grupos: list[list] = []
+    for s in juntas:
+        if grupos:
+            ultimo = grupos[-1]
+            tamanho = ultimo[-1][1] - ultimo[0][0]
+            if (ultimo[-1][2] == s[2] and tamanho < minimo and tamanho + (s[1] - s[0]) <= maximo):
+                ultimo.append(s)
+                continue
+        grupos.append([s])
+    if len(grupos) > 1:
+        ultimo = grupos[-1]
+        if (ultimo[-1][1] - ultimo[0][0] < minimo and grupos[-2][-1][2] == ultimo[0][2]
+                and ultimo[-1][1] - grupos[-2][0][0] <= maximo):
+            grupos[-2].extend(grupos.pop())
+
+    fatias: list[Fatia] = []
+    for grupo in grupos:
+        inicio, fim = grupo[0][0], grupo[-1][1]
+        capitulo = grupo[0][2]
+        nomes = [s[3] for s in grupo if s[3]]
+        partes = [titulo, capitulo, " + ".join(nomes[:3]) + (" …" if len(nomes) > 3 else "")]
+        caminho = " > ".join(p for p in partes if p)
+        pedacos = [(inicio, fim)] if fim - inicio <= maximo else _janelas_de_pagina(limpo, inicio, fim)
+        for a, b in pedacos:
+            a, b = _ajustar(limpo, a, b)
+            if b > a and RE_MARCA_PAGINA_OBRA.sub("", limpo[a:b]).strip():
+                fatias.append(Fatia(a, b, caminho, REGIME_OBRA))
     return fatias

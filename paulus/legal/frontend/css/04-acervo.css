@@ -484,3 +484,15 @@
   .org-opcao.on { border-color: var(--ink2); background: var(--ink-a06); }
   .org-opcao .duas-linhas small { white-space: normal; line-height: 1.4; }
   .org-opcao:disabled { cursor: default; opacity: .7; }
+
+/* Fotografar documento (ideia E do umbrelOS, js/51-captura.js): a previa das
+   paginas antes de guardar, com girar e tirar. */
+.cap-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
+.cap-foto { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.cap-foto img { width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: var(--fill); border-radius: 6px;
+  border: 1px solid var(--ink-a1); transition: transform .15s; }
+.cap-foto figcaption { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--ink2); }
+.cap-foto figcaption span { display: flex; gap: 2px; }
+.cap-mais { aspect-ratio: 3 / 4; border: 1px dashed var(--ink-a2); border-radius: 6px; background: var(--surf);
+  color: var(--ink2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.cap-previa { max-height: 60vh; overflow: auto; }

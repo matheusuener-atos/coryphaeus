@@ -165,6 +165,41 @@ PADRAO: dict = {
     "ia": {"opcoes_fixas": True, "janela_por_modelo": {}, "medir": True, "molde": True, "memoria": True,
            "trechos_estruturais": True, "lexico_fts": True, "denso": True, "leitura": "tudo",
            "citacao": False, "ajuda": True},
+    # A Biblioteca do escritorio (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md).
+    # Cada etapa nasce desligada e so liga de fabrica depois do portao dela;
+    # a chave continua existindo para voltar atras.
+    # `hibrida` (M1): o material de consulta na busca hibrida do Acervo
+    # (trechos pela estrutura, FTS5 e vetores), em indices proprios.
+    # `triagem` (M2): o que entra como material passa pela triagem - lei
+    # conhecida vai para as leis em casa; o resto ganha a ficha (tipo,
+    # autor, obra, edicao, ano, areas) para conferir.
+    # Ligadas de fabrica depois do portao (M1: Recall@6 0,84 contra 0,58, sem
+    # ruido a mais; M2: a triagem e a ficha, 0 campo errado).
+    # `anotacoes` (M3): cada artigo que uma obra cita, com o instrumento, vira
+    # anotacao do artigo - na tela da lei e na pergunta que cita o artigo.
+    # `camadas` (M4): a resposta em blocos rotulados (LEI, SUMULAS, DOUTRINA,
+    # COMUNIDADE, REGRA DA CASA, DOCUMENTOS), marca [Tn] com a origem, e a
+    # frase de doutrina dita como lei atribuida ao autor.
+    # `defasagem` (M6): obra anterior a redacao atual do artigo que comenta
+    # ganha o aviso, na resposta e na tela da lei (so avisa, nao esconde).
+    # `mapa` (M7): a tela "O que o PAULUS sabe" por area, e a linha "Nao tenho
+    # material de <area> na biblioteca" quando a pergunta e de area sem nada.
+    # `pacote`: exportar e importar um material como .paulus-material, so
+    # local (o compartilhamento entre escritorios e frente futura).
+    # `leitura` (M5): o modelo da tarefa `leitura` le cada obra em segundo
+    # plano e guarda conceitos e posicoes - so o que a frase do livro confirma.
+    # De fabrica (30/09/2026): ligadas as que passaram no portao; `leitura`
+    # desligada - com o llama3.2:3b, 62% dos conceitos e teses certos (teses
+    # 93%, conceitos 44%), abaixo dos 80% do portao. Liga quem tiver modelo
+    # maior para a tarefa de leitura.
+    "biblioteca": {"hibrida": True, "triagem": True, "anotacoes": True, "camadas": True, "defasagem": True,
+                   "mapa": True, "leitura": False, "pacote": True},
+    # As ideias do umbrelOS (docs/DECISAO-UMBREL.md). `captura` (E): fotografar
+    # um documento pelo celular; de fora, a foto vai para Aprovacoes antes do
+    # Acervo. `mcp` (A): o servidor MCP das leis, so em 127.0.0.1, com token
+    # por conexao - desligado de fabrica: o que ele devolve vai para o modelo
+    # de outra empresa (so texto de lei, que e publico).
+    "umbrel": {"captura": False, "mcp": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

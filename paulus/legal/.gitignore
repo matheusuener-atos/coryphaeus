@@ -108,3 +108,10 @@ data/medicao/
 
 # O indice lexico do Acervo (src/lexico.py, FTS5): refeito a partir dos documentos.
 data/indice/
+
+# A Biblioteca (docs/PROGRESSO-BIBLIOTECA.md): o material de consulta do
+# escritorio (livros comprados, manuais), os textos baixados do Planalto e a
+# biblioteca da demonstracao ficam fora do git.
+data/aprendizado/
+data/leis/
+data/demo-biblioteca/

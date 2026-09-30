@@ -1881,3 +1881,267 @@ demonstração cabe inteira na leitura, então a busca e a virada quase não
 entram. O ganho de tempo que o plano mira (ler 700 tokens em vez de 32 mil
 num acervo grande) só aparece com documentos reais e a virada ligada.
 
+
+---
+
+# A Biblioteca do escritório (M0–M7)
+
+O plano está em `docs/PROGRESSO-BIBLIOTECA.md`: o material de consulta, as
+leis em casa e os lembretes viram uma biblioteca jurídica com fonte. O
+PAULUS não "treina" com os livros: lê uma vez, organiza e cita obra, autor e
+página.
+
+## M0 — Levantamento e o conjunto da Biblioteca ✓ FEITA
+
+**Levantamento** do que o plano supunha contra o código de 30/09/2026 (tabela
+no PROGRESSO). Duas adaptações: `jobs.py` são os trabalhos da conversa, não
+uma fila de fundo (a leitura da M5 vira um fio como o `Backfill`); e não há
+"tela da lei" própria (a seção da M3 entra no painel "Citar a lei" e na tela
+Biblioteca).
+
+**Conjunto:** `tools/demo/biblioteca_demo.py` monta `data/demo-biblioteca` (o
+escritório fictício, o manual, o CDC do Planalto em PDF e **duas obras de
+doutrina fictícias**, marcadas como fictícias) e escreve 44 perguntas em
+`data/medicao/conjunto-biblioteca.jsonl`, de sete tipos: sinônimo,
+dispositivo, lei pura, manual, sem material, fora da cobertura e temporal.
+`tools/medir.py --conjunto biblioteca` mede Recall@6, MRR@6, ruído, acerto por
+tipo e os avisos. O dono pediu para seguir com a demonstração: é a limitação
+desta medição.
+
+**Linha de base** (BM25 + cobertura, o material de antes): Recall@6 0,58, MRR@6
+0,54, ruído 0,375, sinônimo 1/7, acerto 32/44, 6 "não encontrei" indevidos, 0
+citação inventada, p50 15,6 s. Roteiro `--tudo` 41/41.
+
+## M1 — O material no pipeline híbrido ✓ FEITA
+
+- `src/biblioteca/indice.py`: o material usa `IndiceLexico` e `IndiceDenso`
+  em `<material>/indice/`, separados do Acervo; vetores pelo `Backfill`,
+  cedendo a vez; sem o bge-m3, só o léxico, sem erro.
+- **Regime C** em `src/trechos.py` (`fatiar_obra`): Parte, Título, Capítulo,
+  seção decimal e título em caixa alta; sumário, folha de rosto, cabeçalho e
+  rodapé repetidos não viram trecho (trocados por espaços, as posições ficam);
+  nenhum trecho atravessa capítulo; a janela prefere terminar na virada de
+  página. Manual e tabela: regime B dentro de cada página. Lei: regime A.
+- A entrada do trecho: top-20 da RRF + (cobertura de palavras **ou** cosseno ≥
+  τ) + 0,35 do melhor + a regra dos nomes. **τ = 0,625**, escolhido pela regra
+  escrita antes de medir (maior Recall@6 − ruído, ruído ≤ o da base).
+- Chave `biblioteca.hibrida`, ligada de fábrica depois do portão.
+
+**Medido:** Recall@6 **0,839** (base 0,581), ruído 0,375 (igual à base),
+sinônimo 4/7 (base 1/7), MRR@6 0,707. Roteiro `--tudo` 40/41 — a que falha
+("qual a multa por atraso no aluguel da Clínica?") falha igual, com a mesma
+resposta, na árvore principal sem nenhuma mudança da Biblioteca e com o
+bge-m3 fora da memória: o 3B mudou a resposta dela entre a madrugada e a
+manhã.
+
+**O que a verificação achou:** a regra dos nomes tratava "Código Civil" e
+"CDC" como nome de parte, e a pergunta por dispositivo não achava a obra
+(corrigido: `NAO_SAO_NOMES`); o título do capítulo que quebra em duas linhas
+virava capítulo novo; a folha de rosto em caixa alta virava trecho; o trecho
+que termina na virada de página dizia "páginas 5–6" sem texto na 6.
+
+## M2 — Triagem, ficha e as leis que faltam ✓ FEITA
+
+- **Cinco códigos novos** em `leis.CODIGOS`: CDC, Constituição (com o ADCT à
+  parte: "CF, ADCT, art. 2º"), CTN, ECA e Lei do Inquilinato, com os endereços
+  do Planalto conferidos em 30/09. "Baixar do Planalto" em Configurações ›
+  Códigos de lei (só um GET no endereço oficial).
+- **O leitor de leis perdia artigos**: a quebra de linha do código-fonte do
+  Planalto partia "Art." e "10." em linhas diferentes, e o artigo ia parar
+  dentro do anterior. Medido: o Código Penal ganhou 44 artigos (o 147-A,
+  perseguição, inclusive), a CLT 28, o CC 1 (853-A), a Lei do Inquilinato 2.
+  O nome do Título, na linha de baixo, também saiu do fim do artigo anterior.
+- **Triagem por regra** (`src/biblioteca/triagem.py`): lei conhecida vai para
+  as leis em casa, artigo por artigo (e não é guardada de novo se já está);
+  lei não catalogada fica como material de lei, com aviso; súmulas, um trecho
+  por enunciado; doutrina, manual, tabela, modelo de peça.
+- **Ficha** (`src/biblioteca/ficha.py`): tipo, título, autor, edição, ano,
+  editora, ISBN (com dígito conferido), áreas (das leis mais citadas),
+  `origem` e `licenca`. Pela ficha catalográfica; campo não achado fica vazio;
+  o que a pessoa edita vale sobre a regra.
+- Chave `biblioteca.triagem`, ligada de fábrica depois do portão.
+
+**Medido:** 5 fichas realistas com armadilhas (histórico de edições,
+reimpressão, ISBN com dígito trocado, edição sem número): 30 campos, 0
+errados. O CDC em PDF dá os mesmos 130 artigos do HTML do Planalto, com o
+mesmo texto. 10 artigos sorteados de cada código novo conferem com o
+Planalto. Na busca: **ruído 0,0** (base 0,375), fora da cobertura 0/5 com
+material; o Recall@6 da lei pura cai para 0,17 até a M4 pôr o texto do
+artigo na camada LEI.
+
+**O que a verificação achou:** a rota nova `GET /api/biblioteca` tomava o
+lugar da lista do Acervo (que já usa esse nome) — virou
+`/api/biblioteca-juridica`; toda rota nova precisa de política de acesso de
+fora (`src/acesso/politicas.py`); "ficha catalográfica" no meio de uma frase
+era lida como o começo da ficha; o registro da bibliotecária ("CRB-9/1234")
+tinha barra antes da barra do autor.
+
+## M3 — A ponte doutrina ↔ lei: o Código anotado ✓ FEITA
+
+- `src/biblioteca/anotacoes.py`: na indexação, cada citação com instrumento
+  ("art. 18 do CDC") achada num trecho do material vira anotação do artigo,
+  em `<material>/biblioteca.db` — com a página e a frase, conferida por
+  `alinhar.py` no pedaço do arquivo de onde o trecho saiu. Sem instrumento
+  não liga ("como visto no art. 18"). Tirar o material tira as anotações.
+- Na tela da lei (painel "Citar a lei"), cada artigo mostra **"Na biblioteca
+  do escritório"**: obra, autor, edição, ano, página, um trecho de até 300
+  caracteres e "abrir na página" (o PDF do escritório no visor, na página).
+  Artigo sem obra: "nenhuma obra da biblioteca cita este artigo".
+- Na pergunta que cita o artigo com o instrumento, os trechos anotados são a
+  terceira lista da RRF.
+- Chave `biblioteca.anotacoes`, ligada de fábrica depois do portão.
+
+**Medido:** as 26 anotações das duas obras da demonstração, conferidas à mão
+contra o PDF: página certa em 26, **zero** ligação a código errado. Perguntas
+por dispositivo: **Recall@6 1,0** (antes 0,83). Ruído 0,0. Roteiro 40/41 (=
+controle).
+
+**O que a verificação achou:** a frase do título "4.1 O art. 18 do CDC" casava
+primeiro no sumário, e a página saía a 3 (agora confere dentro do trecho); no
+PDF a citação quebra de linha ("art. 421 do Código⏎Civil") e perdia o
+instrumento — a quebra simples vira espaço, do mesmo tamanho.
+
+## M4 — A resposta em camadas ✓ FEITA
+
+- `src/biblioteca/camadas.py`: o que a busca trouxe da biblioteca vai ao
+  modelo em blocos com rótulo e teto próprio, nesta ordem: LEI (texto do
+  Planalto, até 2 artigos, o caput sempre inteiro e só os incisos citados),
+  SÚMULA, DOUTRINA ("o que autores sustentam; não é texto de lei"),
+  COMUNIDADE (cercada como dado, pela blindagem), MODELOS DA CASA e MATERIAL.
+  Orçamento total da biblioteca: o de hoje, 2400 caracteres.
+- Depois da resposta, por regra (`conferir_doutrina`): frase que atribui a
+  doutrina à lei ("o CDC diz que…" com texto de obra) é reescrita para
+  "Segundo <autor>," ou marcada "(posição doutrinária)"; a marca [Tn] só
+  fica na frase que o trecho sustenta (`citacoes.revisar`).
+- As fontes da resposta mostram a camada ("Lei", "Doutrina", "Modelo da
+  casa").
+- **A ordem do contexto importa para a velocidade:** com a biblioteca antes
+  dos documentos, o Ollama perde o prefixo guardado e a pergunta do manual
+  foi de 10 s para 55 s. Os documentos vão primeiro e a biblioteca depois.
+- Chave `biblioteca.camadas`, ligada de fábrica depois do portão.
+
+**Medido (44 perguntas):** Recall@6 0,903 (lei pura 1,0; antes 0,17 com o
+CDC só como material), ruído 0,0, acerto 36/44, 2 "não encontrei"
+indevidos, **0 citação inventada, 0 doutrina apresentada como lei** (6
+atribuídas ao autor). Roteiro 40/41 (= controle) depois de uma correção
+achada na medição final: o material sem ficha tem de ir ao modelo com o
+rótulo de antes, letra por letra. Com um rótulo mais curto, o 3B deixou de
+achar os 20% do contrato ao lado da tabela do manual (3 vezes em 3).
+
+## M5 — Leitura da obra em segundo plano ✓ FEITA (chave desligada de fábrica)
+
+- `src/biblioteca/leitura.py`: um fio em segundo plano, no molde do
+  `Backfill`, cedendo a vez à fila do modelo, trecho por trecho (o trecho do
+  regime C nunca atravessa capítulo) e retomável; o modelo da tarefa
+  `leitura` devolve conceitos e posições por JSON Schema (`format` do
+  Ollama). Toda `quote` passa pelo `alinhar.py`; a que não casa some. Os
+  artigos da tese saem da frase conferida, por regra. Guardado com extrator,
+  modelo, digest e versão do prompt; trocar o modelo marca `stale`.
+- Na tela: glossário e teses no menu de cada obra; na tela da lei, a tese do
+  autor sobre o artigo em destaque; na busca, o termo definido aponta para o
+  trecho que o define.
+- Adaptação: `jobs.py` são os trabalhos da conversa, não uma fila de fundo.
+
+**Medido com o llama3.2:3b** (os 20 trechos das duas obras, 519 s, 0 frase
+fora do livro): teses 28/30 certas (93%), conceitos 23/52 (44% — item de
+lista tomado por conceito, um termo inventado), **62% no total**, abaixo dos
+80% do portão: a chave `biblioteca.leitura` fica desligada de fábrica. Com
+ela ligada, os sinônimos ficam em 4/7 (não cai nem sobe) e a lei pura cai de
+1,0 para 0,83 de Recall@6.
+
+## M6 — Aviso de obra anterior à redação atual ✓ FEITA
+
+- `leis.ano_da_alteracao`: o ano mais recente das notas "(Redação dada
+  pela…)", "(Incluído pela…)", "(Revogado pela…)" do artigo inteiro (caput,
+  parágrafos, incisos). Calculado do texto guardado: vale também para o
+  código importado antes, sem reimportar. "(Vide…)" não conta.
+- `src/biblioteca/defasagem.py`: obra com ano menor que a alteração do
+  artigo que ela comenta → "Obra de 2015; este artigo teve a redação alterada
+  em 2021. Confira se o comentário ainda vale." Sem ano na ficha: "Ano da
+  obra desconhecido; confira a redação." Na resposta em camadas (no fim, para
+  os trechos de doutrina que a resposta cita) e na tela da lei. Não esconde e
+  não decide: só avisa.
+- Chave `biblioteca.defasagem`.
+
+**Medido:** 20 artigos com alteração conhecida e 10 sem, no CDC e no CC do
+Planalto: `alterado_em` certo nos 30 (gabarito conferido lendo as notas de
+cada um). Obra anterior → aviso; posterior ou artigo sem alteração → nenhum.
+
+## M7 — O que o PAULUS sabe ✓ FEITA
+
+- `src/biblioteca/mapa.py`: a área da pergunta por regra — o artigo citado
+  com o código decide; senão, o vocabulário curto de cada área, escrito à mão
+  em `config/areas-biblioteca.json` (só termos de direito: "aluguel",
+  "contrato", "locador" não entram, senão toda pergunta sobre o contrato de um
+  cliente ganharia o aviso). Empate ou nada: sem área e sem aviso.
+- Fora da cobertura (área sem obra nem lei): a resposta segue e ganha, no
+  fim, "Não tenho material de <área> na biblioteca; esta resposta usa só os
+  documentos.", com o botão "acrescentar material". Nunca bloqueia. Se a
+  biblioteca trouxe algo para a pergunta (o manual, por exemplo), não avisa.
+- Configurações › Aprendizado virou **Biblioteca**, com o cartão "O que eu
+  sei": as áreas com as obras e as leis, e por código quantos artigos as obras
+  comentam e os mais comentados.
+- Chave `biblioteca.mapa`.
+
+**Medido:** as 5 perguntas fora da cobertura do conjunto com a área certa e o
+aviso; zero aviso nas 39 outras.
+
+## Pacote `.paulus-material` (Compartilhamento futuro) ✓ FEITO (só local)
+
+- `src/biblioteca/pacote.py`: exportar e importar um material num arquivo
+  (manifesto, ficha, texto com as páginas, anotações — sem vetores e sem o
+  original). Nada vai pela rede.
+- Só o autor exporta: artigo, modelo de peça ou manual, depois de marcar
+  "sou o autor deste material e posso compartilhá-lo" e escolher a licença.
+  Doutrina de editora nunca, nem com a marca.
+- O importado entra com `origem: comunidade`, na camada COMUNIDADE da
+  resposta ("compartilhado por <autor>, não revisado por este escritório"),
+  cercado como texto de terceiro (`blindagem.cercar`); nunca vira lembrete;
+  "ignore as instruções anteriores" fica anotado como suspeita.
+- Chave `biblioteca.pacote`. O blog (contas de autor, curadoria, moderação,
+  publicação online) é a frente futura.
+
+**Medido:** ida e volta entre duas bibliotecas com os mesmos `chunk_id` e as
+mesmas anotações; pacote com arquivo a mais, de doutrina ou de outro formato é
+recusado.
+
+---
+
+# Ideias do umbrelOS 2.0 (docs/DECISAO-UMBREL.md)
+
+Briefing `docs/prompt-ideias-umbrel-v0.md`. Das seis ideias, três para fazer
+agora: F, E e A (só leis). B, C e D ficam para depois, com o motivo na tabela.
+
+## F — Placas de vídeo de qualquer fabricante ✓ FEITA
+
+`maquina.testar()` lê todas as placas pelo Windows (Win32_VideoController):
+Intel, AMD e NVIDIA, integrada ou não; o "Medir" guarda quanto do modelo o
+Ollama pôs na placa (`/api/ps`, `size_vram`), e a calibração só conta a placa
+quando a medida confirma. **Medido nesta máquina:** Intel Iris Xe integrada, e
+o Ollama põe 0% do 3B nela — o caso que a ideia existe para mostrar.
+
+## E — Documento fotografado pelo celular ✓ FEITA (chave `umbrel.captura`, desligada)
+
+"Fotografar" no Acervo: câmera do celular (ou seletor de imagens), prévia com
+girar e tirar, e as fotos viram um PDF que passa pelo OCR de sempre. Na
+janela do escritório entra direto; **de fora vira pedido em Aprovações**
+("Entrar no Acervo"), porque o envio de arquivo de fora continua bloqueado.
+**Medido:** 98,8% das palavras certas numa foto de página gerada aqui (giro de
+2°, ruído, JPEG de celular). Falta medir com fotos de verdade.
+
+**O que a verificação achou:** a rota com anotações adiadas não achava o
+`UploadFile` importado dentro da função; a "proposta" de fora guarda o corpo
+inteiro e tem limite pequeno — por isso a captura faz a própria quarentena.
+
+## A — MCP só das leis ✓ FEITA (chave `umbrel.mcp`, desligada)
+
+`/mcp` (JSON-RPC 2.0, sem dependência nova) com `leis_instaladas`,
+`citar_artigo` e `procurar_na_lei`: só texto de lei, que é público. Só deste
+computador e nunca pelo túnel (o túnel também chega pelo 127.0.0.1: os
+cabeçalhos da Cloudflare decidem); token por conexão, criado e revogado na
+janela, guardado só o resumo SHA-256; cada chamada na auditoria. As chaves da
+Biblioteca e do umbrelOS ligam e desligam em Configurações.
+
+**Medido:** sem token, token errado e revogado → 401; outro endereço e túnel →
+403; ferramenta fora da lista → negada; o catálogo não tem nada do Acervo, da
+biblioteca ou de cadastro; as rotas de conexão bloqueadas de fora.

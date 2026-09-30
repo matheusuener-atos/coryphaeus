@@ -174,7 +174,13 @@ def medir(host: str, nome: str, timeout: int = 300) -> dict:
     d = r.json()
     escreveu = (d.get("eval_duration") or 0) / 1e9
     leu = (d.get("prompt_eval_duration") or 0) / 1e9
+    # Com o modelo ainda carregado: quanto dele o Ollama pôs na placa de vídeo.
+    # É isto, e não a lista de placas, que diz se a placa é usada aqui.
+    import maquina
+
+    fracao = maquina.na_placa(host, nome)
     return {
+        **({"na_placa": fracao} if fracao is not None else {}),
         "tokens_por_segundo": round((d.get("eval_count") or 0) / escreveu, 1) if escreveu else 0.0,
         "leitura_tokens_por_segundo": round((d.get("prompt_eval_count") or 0) / leu, 1) if leu else 0.0,
         "tokens_lidos": d.get("prompt_eval_count") or 0,
