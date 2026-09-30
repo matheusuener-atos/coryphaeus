@@ -70,7 +70,7 @@ def acesso_da_equipe(base, contas, convites) -> dict[int, str]:
     por_email: dict[str, str] = {}
     try:
         for c in contas.listar():
-            estado = "titular" if c.get("papel") == "titular" else ("ativo" if c.get("totp_confirmado") else "pendente")
+            estado = "titular" if c.get("papel") == "titular" else ("ativo" if c.get("pronta", c.get("totp_confirmado")) else "pendente")
             for e in (c.get("email"), c.get("email_secundario")):
                 if e:
                     por_email[str(e).strip().lower()] = estado

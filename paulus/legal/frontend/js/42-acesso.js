@@ -77,6 +77,7 @@ async function carregarAcesso() {
     acessoCfg.sessoes = (d && d.sessoes) || [];
     acessoCfg.disponivel = !d || d.disponivel !== false;
     acessoCfg.soGoogle = Boolean(d && d.so_google);
+    acessoCfg.segurancaPadrao = (d && d.seguranca_padrao) || "padrao";
     acessoCfg.vinculo = (d && d.vinculo) || {};
   } catch (err) {
     acessoCfg.contas = null;
@@ -153,7 +154,7 @@ function ligarAuditoria() {
 
 function secaoAcesso() {
   const contas = acessoCfg.contas || [];
-  const prontas = contas.filter((c) => c.totp_confirmado).length;
+  const prontas = contas.filter((c) => c.pronta).length;
   const ligado = Boolean(((cfg.prefs || {}).preferencias || {}).acesso_remoto && cfg.prefs.preferencias.acesso_remoto.ligado);
   const ficha = fichaCfg([
     ["Acesso de fora", ligado ? "ligado" : "desligado", ligado ? "ok" : ""],
@@ -161,7 +162,71 @@ function secaoAcesso() {
     ["Sessões abertas", String(acessoCfg.sessoes.length)],
   ]);
   const tunel = typeof cartaoTunel === "function" ? cartaoTunel() : "";
-  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSessoes() + cartaoAuditoria();
+  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSegurancaPadrao() + cartaoSessoes() + cartaoAuditoria();
+}
+
+/* Os niveis de seguranca (acesso/contas.py NIVEIS): o escritorio escolhe,
+   conta por conta, quanto pedir na entrada de fora. */
+const NIVEIS_SEGURANCA = [
+  { id: "reforcada", rotulo: "Reforçada", curto: "Google + código sempre",
+    explica: "Conta Google e o código do autenticador em toda entrada, sem lembrar o navegador." },
+  { id: "padrao", rotulo: "Padrão (recomendada)", curto: "Google + código",
+    explica: "Conta Google e o código do autenticador; a pessoa pode marcar o navegador dela como confiável por 30 dias." },
+  { id: "simples", rotulo: "Simples", curto: "só o Google",
+    explica: "Só a conta Google, sem autenticador. Mais cômodo e mais fraco: quem abrir o Google da pessoa entra no PAULUS." },
+];
+
+function nivelSeguranca(id) {
+  return NIVEIS_SEGURANCA.find((n) => n.id === id) || NIVEIS_SEGURANCA[1];
+}
+
+/* O campo do nivel, para os dialogos (conta nova, convite, a conta). */
+function campoSeguranca(idCampo, atual) {
+  const opcoes = NIVEIS_SEGURANCA.map((n) => '<option value="' + n.id + '"' + (n.id === atual ? " selected" : "") + ">" +
+    esc(n.rotulo) + "</option>").join("");
+  return '<div class="dialogo-campo"><label for="' + idCampo + '">Segurança da entrada de fora</label><div class="dialogo-caixa">' +
+    '<select id="' + idCampo + '" data-dialogo-chave="seguranca">' + opcoes + "</select></div>" +
+    '<p class="cfg-explica" id="' + idCampo + '-explica">' + esc(nivelSeguranca(atual).explica) + "</p></div>";
+}
+
+/* A explicacao embaixo do campo acompanha a escolha. */
+function ligarCampoSeguranca(idCampo) {
+  const sel = document.getElementById(idCampo);
+  const exp = document.getElementById(idCampo + "-explica");
+  if (sel && exp) sel.addEventListener("change", () => { exp.textContent = nivelSeguranca(sel.value).explica; });
+}
+
+function cartaoSegurancaPadrao() {
+  if (!acessoCfg.disponivel || acessoCfg.contas === null) return "";
+  const atual = nivelSeguranca(acessoCfg.segurancaPadrao);
+  return cartaoCfg("Segurança das contas novas", metaCfg(atual.rotulo.replace(" (recomendada)", "")),
+    '<p class="cfg-texto">O nível que o convite e a conta criada aqui já trazem marcado. Cada conta pode ter o seu: em Contas, botão “Segurança”.</p>' +
+    '<div class="cfg-linhas">' + NIVEIS_SEGURANCA.map((n) =>
+      '<label class="cfg-servico"><input type="radio" name="seg-padrao" value="' + n.id + '"' + (n.id === atual.id ? " checked" : "") +
+      ' data-seguranca-padrao="' + n.id + '"><span class="duas-linhas"><b>' + esc(n.rotulo) + "</b><small>" + esc(n.explica) + "</small></span></label>").join("") +
+    "</div>");
+}
+
+async function acessoSeguranca(c) {
+  const pedido = dialogo({
+    titulo: "Segurança de " + c.nome, contexto: "Configurações › Acesso de fora",
+    texto: "Quanto o PAULUS pede quando " + c.nome + " entra de fora. Na janela deste computador nada muda.",
+    depois: campoSeguranca("acc-seg", c.seguranca || "padrao"),
+    confirmar: "Salvar",
+  });
+  ligarCampoSeguranca("acc-seg");
+  const r = await pedido;
+  if (!r || !r.ok) return;
+  const nivel = (r.valores || {}).seguranca || "padrao";
+  if (nivel === (c.seguranca || "padrao")) return;
+  try {
+    const d = await acessoPost("/api/acesso/contas/" + c.id + "/seguranca", { nivel }, "PUT");
+    const conta = d.conta || c;
+    avisoCert(nivel !== "simples" && !conta.pronta
+      ? "segurança salva — falta ligar o autenticador desta conta (botão “Confirmar”)"
+      : "segurança de " + c.nome + " salva", { tom: conta.pronta ? "ok" : "" });
+  } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+  acessoRedesenhar();
 }
 
 /* O que a pessoa precisa saber antes de ligar, dito sem enfeite. E a mesma
@@ -171,7 +236,7 @@ function cartaoComoFunciona() {
     ["desktop_windows", "O computador do escritório precisa estar ligado e com o PAULUS aberto. Desligado, o endereço para de responder."],
     ["key", "Os documentos, o índice e o modelo de IA não saem deste computador. O que passa pela internet é a tela e o que se digita nela."],
     ["lan", "O caminho é o túnel da Cloudflare, num endereço paulus.ia.br da conta do Atos. A conexão é criptografada, mas a Cloudflare a abre no meio do caminho para entregá-la; o Atos não roteia, não inspeciona e não registra esse conteúdo."],
-    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta Google e o código do autenticador do celular. Vale igual para o titular e para a equipe."],
+    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta Google e, conforme o nível de segurança da conta, o código do autenticador do celular. O nível se escolhe aqui, conta por conta."],
     ["history", "Todo acesso de fora fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
   ];
   return cartaoCfg("Como funciona", "",
@@ -187,21 +252,23 @@ function cartaoContas() {
   }
   const contas = acessoCfg.contas;
   const linhas = contas.map((c) => {
-    const estado = c.totp_confirmado
+    const simples = c.seguranca === "simples";
+    const estado = c.pronta
       ? '<span class="fin-meta-ponto ok"><i></i>pronta</span>'
       : '<span class="fin-meta-ponto acc"><i></i>falta o autenticador</span>';
     const sub = c.email + (c.email_secundario ? " · secundário " + c.email_secundario : "") + " · " +
-      (c.papel === "titular" ? "titular" : "colaborador") +
-      (c.totp_confirmado ? " · " + plural(c.codigos_restantes, "código", "códigos") + " de recuperação" : "");
+      (c.papel === "titular" ? "titular" : "colaborador") + " · segurança " + nivelSeguranca(c.seguranca).curto +
+      (c.totp_confirmado && !simples ? " · " + plural(c.codigos_restantes, "código", "códigos") + " de recuperação" : "");
     return '<div class="cfg-servico"><span class="caixa-tipo">' + ic(c.papel === "titular" ? "shield_person" : "person", 18) + "</span>" +
       '<span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(sub) + "</small></span>" + estado +
       '<span class="cfg-botoes">' +
-      (c.totp_confirmado ? "" : '<button data-acesso-confirmar="' + c.id + '">Confirmar</button>') +
+      (c.pronta ? "" : '<button data-acesso-confirmar="' + c.id + '">Confirmar</button>') +
+      '<button data-acesso-seguranca="' + c.id + '">Segurança</button>' +
       (c.papel === "titular" ? "" : '<button data-acesso-permissoes="' + c.id + '">Permissões</button>') +
       '<button data-acesso-emails="' + c.id + '">E-mails</button>' +
       (acessoCfg.soGoogle ? "" : '<button data-acesso-senha="' + c.id + '">Senha</button>') +
-      '<button data-acesso-autenticador="' + c.id + '">Autenticador</button>' +
-      '<button data-acesso-codigos="' + c.id + '">Códigos</button>' +
+      (simples ? "" : '<button data-acesso-autenticador="' + c.id + '">Autenticador</button>' +
+        '<button data-acesso-codigos="' + c.id + '">Códigos</button>') +
       '<button class="mais-linha" data-acesso-remover="' + c.id + '" title="Remover a conta" aria-label="Remover a conta">' + ic("close", 16) + "</button>" +
       "</span></div>";
   }).join("");
@@ -214,7 +281,7 @@ function cartaoContas() {
     '<span class="fin-meta-ponto acc"><i></i>aguardando</span>' +
     '<span class="cfg-botoes"><button class="mais-linha" data-convite-revogar="' + esc(x.id) + '" title="Cancelar o convite" aria-label="Cancelar o convite">' +
     ic("close", 16) + "</button></span></div>").join("");
-  const titularPronto = contas.some((c) => c.papel === "titular" && c.totp_confirmado);
+  const titularPronto = contas.some((c) => c.papel === "titular" && c.pronta);
   return cartaoCfg("Contas", metaCfg(contas.length ? plural(contas.length, "conta") : "nenhuma"),
     (contas.length ? '<div class="cfg-linhas">' + linhas + convites + "</div>" : vazio) +
     '<div class="acesso-pe">' +
@@ -319,12 +386,13 @@ function acessoMostrarCodigos(conta, codigos) {
 
 async function acessoNovaConta() {
   const primeira = !(acessoCfg.contas || []).length;
-  const r = await dialogo({
+  const pedido = dialogo({
     titulo: primeira ? "Conta do titular" : "Nova conta",
     contexto: "Configurações › Acesso de fora",
     texto: (primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora.\n" : "") +
-      "Antes de criar, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele.",
+      "Com a segurança reforçada ou padrão, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele. Na simples, basta a conta Google.",
     html: lojasAutenticador(),
+    depois: campoSeguranca("acc-nova-seg", acessoCfg.segurancaPadrao || "padrao"),
     campos: [
       { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos",
         valor: primeira ? ((acessoCfg.vinculo || {}).nome || "") : "" },
@@ -339,14 +407,23 @@ async function acessoNovaConta() {
     marcar: primeira ? null : { rotulo: "Titular (pode aprovar de fora e cuidar das contas)", marcada: false },
     confirmar: "Criar a conta",
   });
+  ligarCampoSeguranca("acc-nova-seg");
+  const r = await pedido;
   if (!r || !r.ok) return;
   const v = r.valores || {};
   if (!acessoCfg.soGoogle && v.senha !== v.repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
   let criada;
   try {
     criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: v.senha || "",
-      email_secundario: v.secundario || "", papel: r.marcada || primeira ? "titular" : "colaborador" });
+      email_secundario: v.secundario || "", papel: r.marcada || primeira ? "titular" : "colaborador",
+      seguranca: v.seguranca || "" });
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
+  if (criada.conta && criada.conta.seguranca === "simples") {
+    // Sem autenticador: a conta ja entra so com o Google.
+    avisoCert("conta pronta — entra de fora só com a conta Google", { tom: "ok" });
+    acessoRedesenhar();
+    return;
+  }
   const ok = await acessoAutenticador(criada.conta, criada);
   await acessoMostrarCodigos(criada.conta, criada.codigos_recuperacao || []);
   avisoCert(ok ? "conta pronta para entrar de fora" : "conta criada; falta confirmar o autenticador", { tom: ok ? "ok" : "" });
@@ -398,6 +475,17 @@ function ligarAcesso() {
   const clique = (seletor, fn) => document.querySelectorAll(seletor).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b); }; });
   const conta = (id) => (acessoCfg.contas || []).find((c) => c.id === Number(id));
   clique("[data-acesso-nova]", () => acessoNovaConta());
+  clique("[data-acesso-seguranca]", (b) => { const c = conta(b.dataset.acessoSeguranca); if (c) acessoSeguranca(c); });
+  document.querySelectorAll("[data-seguranca-padrao]").forEach((el) => {
+    el.onchange = async () => {
+      try {
+        await acessoPost("/api/acesso/seguranca-padrao", { nivel: el.value }, "PUT");
+        acessoCfg.segurancaPadrao = el.value;
+        avisoCert("contas novas: segurança " + nivelSeguranca(el.value).rotulo.toLowerCase(), { tom: "ok" });
+      } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+      acessoRedesenhar();
+    };
+  });
   clique("[data-acesso-confirmar]", async (b) => {
     const c = conta(b.dataset.acessoConfirmar);
     if (!c) return;

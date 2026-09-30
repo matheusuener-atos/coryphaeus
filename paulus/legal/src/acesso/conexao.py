@@ -138,7 +138,7 @@ class ConexaoDoTunel:
         return {"pedido": p or None, "erro": self.erro}
 
     def titulares_prontos(self) -> list[dict]:
-        return [c for c in self.servico.contas.listar() if c["papel"] == "titular" and c["totp_confirmado"]]
+        return [c for c in self.servico.contas.listar() if c["papel"] == "titular" and c["pronta"]]
 
     def _id_token(self) -> str:
         vinculo = getattr(self.servico, "vinculo", None)

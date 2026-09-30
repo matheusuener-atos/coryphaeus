@@ -60,8 +60,12 @@ class Convites:
         self._trava = threading.RLock()
         with self._db() as c:
             c.executescript(_ESQUEMA)
-            if "email_secundario" not in {l["name"] for l in c.execute("PRAGMA table_info(convites)")}:
+            colunas = {l["name"] for l in c.execute("PRAGMA table_info(convites)")}
+            if "email_secundario" not in colunas:
                 c.execute("ALTER TABLE convites ADD COLUMN email_secundario TEXT NOT NULL DEFAULT ''")
+            # O nivel de seguranca da conta que o convite cria (acesso/contas.py NIVEIS).
+            if "seguranca" not in colunas:
+                c.execute("ALTER TABLE convites ADD COLUMN seguranca TEXT NOT NULL DEFAULT 'padrao'")
 
     def _db(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.caminho, timeout=10)
@@ -83,7 +87,8 @@ class Convites:
 
     # ------------------------------------------------------ o titular
 
-    def criar(self, nome: str, email: str, permissoes: dict | None = None, email_secundario: str = "") -> tuple[str, dict]:
+    def criar(self, nome: str, email: str, permissoes: dict | None = None, email_secundario: str = "",
+              seguranca: str = "padrao") -> tuple[str, dict]:
         """Devolve (codigo, convite). O codigo so existe agora: vai no link."""
         from acesso.contas import ErroConta
 
@@ -109,10 +114,12 @@ class Convites:
         with self._trava, self._db() as c:
             # Um convite aberto por e-mail: convidar de novo substitui o anterior.
             c.execute("UPDATE convites SET revogado = ? WHERE email = ? AND usado = 0 AND revogado = 0", (agora, email))
-            c.execute("INSERT INTO convites (hash, nome, email, permissoes, criado, expira, ultimos, email_secundario)"
-                      " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            from acesso.contas import NIVEIS, PADRAO
+
+            c.execute("INSERT INTO convites (hash, nome, email, permissoes, criado, expira, ultimos, email_secundario, seguranca)"
+                      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (_resumo(codigo), nome, email, json.dumps(permissoes or {}), agora, agora + VALIDADE_S, codigo[-4:],
-                       secundario))
+                       secundario, seguranca if seguranca in NIVEIS else PADRAO))
             l = c.execute("SELECT * FROM convites WHERE hash = ?", (_resumo(codigo),)).fetchone()
         return codigo, self._publico(l, agora)
 
@@ -145,7 +152,7 @@ class Convites:
 
     def ver(self, codigo: str) -> dict:
         l = self._valido(codigo)
-        return {"nome": l["nome"], "email": l["email"], "expira": l["expira"]}
+        return {"nome": l["nome"], "email": l["email"], "expira": l["expira"], "seguranca": l["seguranca"]}
 
     def aceitar(self, codigo: str, senha: str) -> dict:
         """
@@ -163,7 +170,7 @@ class Convites:
                     conta_id = l["conta_id"]
                 else:
                     feita = self.contas.criar(l["nome"], l["email"], "colaborador", senha,
-                                              email_secundario=l["email_secundario"])
+                                              email_secundario=l["email_secundario"], seguranca=l["seguranca"])
                     conta_id = feita["conta"]["id"]
                     criada = feita
                     permissoes = json.loads(l["permissoes"] or "{}")
@@ -173,6 +180,12 @@ class Convites:
                         c.execute("UPDATE convites SET conta_id = ? WHERE hash = ?", (conta_id, l["hash"]))
             except ErroConta as exc:
                 raise ErroConvite(str(exc)) from exc
+            if l["seguranca"] == "simples":
+                # So o Google: nao ha autenticador a ligar - a conta ja esta
+                # pronta, e o convite deixa de valer aqui.
+                with self._db() as c:
+                    c.execute("UPDATE convites SET usado = ? WHERE hash = ?", (self.relogio(), l["hash"]))
+                return {"simples": True, "email": l["email"], "nome": l["nome"]}
         return {"qr_svg": criada["qr_svg"], "segredo": criada["segredo"], "otpauth": criada["otpauth"],
                 "email": l["email"], "nome": l["nome"]}
 

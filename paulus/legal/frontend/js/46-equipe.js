@@ -26,6 +26,7 @@ async function carregarAcessoDaEquipe() {
     ]);
     eqp.contas = c.contas || [];
     eqp.soGoogle = Boolean(c.so_google);
+    eqp.segurancaPadrao = c.seguranca_padrao || "padrao";
     eqp.convites = v.convites || [];
     eqp.equipe = (f.fichas || []).filter((x) => x.tipo === "colaborador" || x.tipo === "socio");
     eqp.carregado = true;
@@ -40,7 +41,7 @@ function acessoDoEmail(email) {
   const conta = eqp.contas.find((c) => c.email === e || (c.email_secundario || "") === e);
   if (conta) {
     if (conta.papel === "titular") return { estado: "titular", rotulo: "titular", tom: "ok", conta };
-    return conta.totp_confirmado
+    return conta.pronta
       ? { estado: "ativo", rotulo: "com acesso", tom: "ok", conta }
       : { estado: "pendente", rotulo: "falta o autenticador", tom: "prazo", conta };
   }
@@ -64,11 +65,11 @@ function etiquetaDeAcesso(email) {
    `ficha` e a pessoa que ja esta em Cadastros. Devolve a ficha (com o id)
    quando o convite saiu; senao, false. */
 async function convidarPessoa(ficha, depois) {
-  const r = await dialogo({
+  const pedido = dialogo({
     titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao PAULUS",
     texto: (eqp.soGoogle
-      ? "A pessoa recebe um link, entra com a conta Google dela e liga o Google Authenticator no próprio celular."
-      : "A pessoa recebe um link, escolhe a senha e liga o Google Authenticator no próprio celular.") +
+      ? "A pessoa recebe um link, entra com a conta Google dela e, se a segurança pedir, liga o Google Authenticator no próprio celular."
+      : "A pessoa recebe um link, escolhe a senha e, se a segurança pedir, liga o Google Authenticator no próprio celular.") +
       "\nO e-mail do convite precisa ser o da conta Google da pessoa (Gmail ou Google Workspace)." +
       (ficha ? "" : " Ela também entra em Cadastros › Equipe."),
     campos: [
@@ -76,17 +77,21 @@ async function convidarPessoa(ficha, depois) {
       { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: ficha ? (ficha.email || "") : "", placeholder: "com ele a pessoa entra", obrigatorio: true },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
     ],
-    depois: ficha ? "" : '<div class="dialogo-duas"><div class="dialogo-campo"><label for="eqp-tipo">Vínculo</label><div class="dialogo-caixa">' +
+    depois: (ficha ? "" : '<div class="dialogo-duas"><div class="dialogo-campo"><label for="eqp-tipo">Vínculo</label><div class="dialogo-caixa">' +
       '<select id="eqp-tipo" data-dialogo-chave="tipo"><option value="colaborador">Colaborador</option><option value="socio">Sócio</option></select></div></div>' +
       '<div class="dialogo-campo"><label for="eqp-funcao">Função (opcional)</label><div class="dialogo-caixa">' +
-      '<input id="eqp-funcao" data-dialogo-chave="funcao" placeholder="Advogada, estagiário, perito…" autocomplete="off"></div></div></div>',
+      '<input id="eqp-funcao" data-dialogo-chave="funcao" placeholder="Advogada, estagiário, perito…" autocomplete="off"></div></div></div>') +
+      campoSeguranca("eqp-seg", eqp.segurancaPadrao || "padrao"),
     confirmar: "Gerar o convite",
   });
+  ligarCampoSeguranca("eqp-seg");
+  const r = await pedido;
   if (!r || !r.ok) return false;
   const v = r.valores;
   let feito;
   try {
-    feito = await acessoPost("/api/acesso/convites", { nome: v.nome, email: v.email, email_secundario: v.secundario || "" });
+    feito = await acessoPost("/api/acesso/convites", { nome: v.nome, email: v.email, email_secundario: v.secundario || "",
+      seguranca: v.seguranca || "" });
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return false; }
   // A pessoa nova entra na equipe (Cadastros), e a ficha que ja existia fica
   // com o e-mail Google do convite - e por ele que o acesso se liga a ela.
@@ -99,15 +104,15 @@ async function convidarPessoa(ficha, depois) {
       resultado = await acessoPost("/api/cadastros", { id: ficha.id, dados: Object.assign({}, ficha, { email: v.email }) });
     }
   } catch (err) { /* o convite saiu; a ficha fica para depois */ }
-  await mostrarConviteCriado(v.nome, v.email, feito.link);
+  await mostrarConviteCriado(v.nome, v.email, feito.link, v.seguranca === "simples");
   await carregarAcessoDaEquipe();
   if (depois) depois();
   return resultado || true;
 }
 
-async function mostrarConviteCriado(nome, email, link) {
+async function mostrarConviteCriado(nome, email, link, simples) {
   const mensagem = "Olá, " + String(nome || "").split(" ")[0] + "! Este é o seu convite para o PAULUS do escritório. " +
-    (eqp.soGoogle ? "Abra no celular, entre com a sua conta Google (" + email + ") e ligue o Google Authenticator: "
+    (simples ? "Abra e entre com a sua conta Google (" + email + "): " : eqp.soGoogle ? "Abra no celular, entre com a sua conta Google (" + email + ") e ligue o Google Authenticator: "
       : "Abra no celular, escolha a sua senha e ligue o Google Authenticator: ") + link + " (vale 7 dias, uma vez)";
   const escolha = await dialogo({
     titulo: "Convite pronto", contexto: "Convidar " + nome,

@@ -125,7 +125,7 @@ PADRAO: dict = {
     # a senha - guardada pela protecao de dados do Windows, nunca em texto.
     "backup": {"pasta": "", "automatico": True, "manter": 10, "senha": "", "ultimo": "", "ultimo_arquivo": "",
                "ultimo_erro": ""},
-    "acesso_remoto": {"ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
+    "acesso_remoto": {"seguranca_padrao": "padrao", "ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
                       "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0",
                       # De fora, toda entrada e pelo Google (+ o codigo do celular) - decisao do
                       # dono, 28/09/2026. Sem o Google configurado, ninguem entra de fora (a tela

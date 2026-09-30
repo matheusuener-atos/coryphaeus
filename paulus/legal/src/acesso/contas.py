@@ -94,6 +94,28 @@ def conferir_forca(senha: str) -> None:
         raise ErroConta(f"a senha precisa ter pelo menos {MIN_SENHA} caracteres")
 
 
+# ------------------------------------------------------ niveis de seguranca
+# O escritorio escolhe, por conta (29/09/2026):
+#   reforcada  Google (ou senha) e o codigo do celular em toda entrada;
+#   padrao     o mesmo, podendo confiar no navegador por 30 dias;
+#   simples    so a conta Google (ou a senha), sem autenticador.
+REFORCADA, PADRAO, SIMPLES = "reforcada", "padrao", "simples"
+NIVEIS = (REFORCADA, PADRAO, SIMPLES)
+
+
+def nivel_da(linha) -> str:
+    try:
+        n = linha["seguranca"]
+    except (KeyError, IndexError):
+        n = PADRAO
+    return n if n in NIVEIS else PADRAO
+
+
+def pronta(linha) -> bool:
+    """Consegue entrar: o autenticador confirmado, ou o nivel que nao o pede."""
+    return bool(linha["totp_confirmado"]) or nivel_da(linha) == SIMPLES
+
+
 # ------------------------------------------------------------------- TOTP
 
 def novo_segredo() -> str:
@@ -255,6 +277,9 @@ class Contas:
             # secundario (so para mostrar - nao entra com ele).
             if "email_secundario" not in colunas:
                 c.execute("ALTER TABLE contas ADD COLUMN email_secundario TEXT NOT NULL DEFAULT ''")
+            # O nivel de seguranca da conta (29/09/2026): o escritorio escolhe.
+            if "seguranca" not in colunas:
+                c.execute("ALTER TABLE contas ADD COLUMN seguranca TEXT NOT NULL DEFAULT 'padrao'")
 
     def _db(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.caminho, timeout=10)
@@ -276,6 +301,8 @@ class Contas:
             "criada": linha["criada"], "atualizada": linha["atualizada"],
             "permissoes": permissoes.efetivas(linha["papel"], linha["permissoes"]),
             "email_secundario": linha["email_secundario"],
+            "seguranca": nivel_da(linha),
+            "pronta": pronta(linha),
         }
 
     def listar(self) -> list[dict]:
@@ -291,7 +318,27 @@ class Contas:
         return [c["email"] for c in self.listar()]
 
     def tem_titular_pronto(self) -> bool:
-        return any(c["papel"] == "titular" and c["totp_confirmado"] for c in self.listar())
+        return any(c["papel"] == "titular" and c["pronta"] for c in self.listar())
+
+    def nivel(self, conta_id: int) -> str:
+        l = self._linha(conta_id)
+        return nivel_da(l) if l else PADRAO
+
+    def mudar_seguranca(self, conta_id: int, nivel: str) -> dict:
+        """
+        Troca o nivel da conta. Para "reforcada", os navegadores confiados dela
+        deixam de valer; subir de "simples" para um nivel com codigo deixa a
+        conta esperando o autenticador (o QR, no computador do escritorio).
+        """
+        if nivel not in NIVEIS:
+            raise ErroConta("nível de segurança desconhecido")
+        if not self._linha(conta_id):
+            raise ErroConta("conta não encontrada")
+        with self._trava, self._db() as c:
+            c.execute("UPDATE contas SET seguranca = ?, atualizada = ? WHERE id = ?", (nivel, self.relogio(), conta_id))
+            if nivel != PADRAO:
+                c.execute("DELETE FROM confiados WHERE conta_id = ?", (conta_id,))
+        return self.obter(conta_id)
 
     # ----------------------------------------------------------- mudar
 
@@ -302,7 +349,8 @@ class Contas:
             raise ErroConta("e-mail inválido")
         return e
 
-    def criar(self, nome: str, email: str, papel: str, senha: str = "", *, email_secundario: str = "") -> dict:
+    def criar(self, nome: str, email: str, papel: str, senha: str = "", *, email_secundario: str = "",
+              seguranca: str = PADRAO) -> dict:
         """
         Cria a conta e devolve, UMA vez, o que so aparece agora: o endereco
         otpauth://, o QR e os codigos de recuperacao. O primeiro cadastro e
@@ -335,9 +383,10 @@ class Contas:
                 with self._db() as c:
                     cur = c.execute(
                         "INSERT INTO contas (nome, email, papel, senha_sal, senha_hash, totp_guardado, recuperacao, criada,"
-                        " atualizada, email_secundario) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        " atualizada, email_secundario, seguranca) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (nome, email, papel, sal.hex(), resumo_da_senha(senha, sal), guardado,
-                         json.dumps([_resumo(_limpo(x)) for x in codigos]), agora, agora, secundario))
+                         json.dumps([_resumo(_limpo(x)) for x in codigos]), agora, agora, secundario,
+                         seguranca if seguranca in NIVEIS else PADRAO))
                     conta_id = cur.lastrowid
             except sqlite3.IntegrityError as exc:
                 raise ErroConta("já existe uma conta com esse e-mail") from exc
@@ -579,7 +628,7 @@ class Contas:
         certo = resumo_da_senha(str(senha or ""), sal)
         if not linha or not hmac.compare_digest(certo, linha["senha_hash"]):
             self._recusar(email, "e-mail ou senha errados", ip)
-        if not linha["totp_confirmado"]:
+        if not pronta(linha):
             raise ErroEntrada("esta conta ainda não confirmou o autenticador no computador do escritório")
         pendente = secrets.token_urlsafe(24)
         with self._trava:
@@ -604,13 +653,30 @@ class Contas:
         if not linha:
             self._errou_ip(ip)
             raise ErroEntrada("esta conta do Google não tem acesso ao PAULUS deste escritório; peça um convite ao titular")
-        if not linha["totp_confirmado"]:
+        if not pronta(linha):
             raise ErroEntrada("esta conta ainda não confirmou o autenticador; abra o convite de novo")
         pendente = secrets.token_urlsafe(24)
         with self._trava:
             self._limpar_pendentes()
             self._pendentes[_resumo(pendente)] = (linha["id"], self.relogio() + PENDENTE_S, email, "")
         return pendente
+
+    def concluir_sem_codigo(self, pendente: str, *, ip: str = "") -> dict | None:
+        """
+        A conta de seguranca "simples" (so o Google): a segunda metade do login
+        nao pede o codigo. Devolve a sessao, ou None se a conta pede o codigo.
+        """
+        with self._trava:
+            self._limpar_pendentes()
+            item = self._pendentes.get(_resumo(str(pendente or "")))
+        if not item:
+            raise ErroEntrada("o login venceu; entre de novo")
+        linha = self._linha(item[0])
+        if not linha or nivel_da(linha) != SIMPLES:
+            return None
+        with self._trava:
+            self._pendentes.pop(_resumo(str(pendente)), None)
+        return self._abrir_sessao(linha, ip, totp_agora=False)
 
     def _limpar_pendentes(self) -> None:
         agora = self.relogio()
@@ -692,7 +758,10 @@ class Contas:
             return None
         self._porta_do_ip(ip)
         linha = self._conta_por_email(self._email(email))
-        if not linha or not linha["totp_confirmado"] or self._bloqueado_ate(linha["email"]) > self.relogio():
+        # So o nivel "padrao" confia em navegador: o "reforcado" pede o codigo
+        # sempre, e o "simples" nao pede nunca.
+        if (not linha or not linha["totp_confirmado"] or nivel_da(linha) != PADRAO
+                or self._bloqueado_ate(linha["email"]) > self.relogio()):
             return None
         with self._db() as c:
             l = c.execute("SELECT * FROM confiados WHERE hash = ?", (_resumo(str(token)),)).fetchone()
@@ -763,6 +832,9 @@ class Contas:
         valendo uma vez so.
         """
         linha = self._linha(sessao["conta_id"])
+        if linha and nivel_da(linha) == SIMPLES:
+            # A conta escolhida so com o Google nao tem codigo para pedir.
+            return True
         if not linha or not self._conferir_codigo(linha, codigo):
             return False
         with self._db() as c:

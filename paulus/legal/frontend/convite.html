@@ -180,6 +180,14 @@
         <a class="botao" href="/">Entrar no PAULUS</a>
       </div>
     </section>
+
+    <section id="passo-liberado" hidden>
+      <div class="cartao">
+        <h2>Pronto: a sua conta está ativa</h2>
+        <p class="sub">O escritório escolheu entrar só com a conta Google, sem o código do celular. Para usar o PAULUS, entre com <b id="liberado-email"></b>.</p>
+        <a class="botao" href="/">Entrar no PAULUS</a>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -219,6 +227,13 @@
   }
 
   function mostrarQr(d) {
+    if (d.simples) {
+      // Seguranca "simples": sem autenticador - a conta ja esta pronta.
+      $("liberado-email").textContent = d.email || "";
+      $("passo-senha").hidden = true; $("passo-liberado").hidden = false;
+      ["p1", "p2", "p3"].forEach((id) => { $(id).className = "feito"; });
+      return;
+    }
     $("qr").innerHTML = d.qr_svg || "";
     $("chave").textContent = String(d.segredo || "").replace(/(.{4})/g, "$1 ").trim();
     $("otpauth").href = d.otpauth || "#";
@@ -262,6 +277,12 @@
     $("email").textContent = d.email;
     $("usuario").value = d.email;
     if (d.escritorio) $("titulo").textContent = "Você foi convidado para o PAULUS de " + d.escritorio;
+    if (d.seguranca === "simples") {
+      // Sem autenticador: um passo so, e nada de instalar app.
+      document.querySelector(".texto > p").textContent = "O PAULUS roda no computador do escritório; você usa pela internet, com a sua própria conta. Um passo, uma vez só.";
+      $("p1").innerHTML = "<b>1</b>Entrar com a sua conta"; $("p2").hidden = true; $("p3").hidden = true;
+      document.querySelector("#passo-senha .app").hidden = true;
+    }
     $("passo-senha").hidden = false;
     if (volta.get("erro")) $("erro-senha").textContent = volta.get("erro");
     if (d.google) { $("com-google").hidden = false; $("ou").hidden = false; }
@@ -270,7 +291,7 @@
       if (!d.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem convidou você";
       $("por-senha").hidden = true; $("ou").hidden = true; $("continuar-senha").hidden = true;
       $("senha").required = false; $("repetir").required = false;
-      $("email").insertAdjacentText("afterend", " — entre no Google com essa conta.");
+      $("email").insertAdjacentText("afterend", " — entre no Google com essa conta");
     }
     mostrarRobo(d.turnstile_sitekey);
   }).catch(() => {

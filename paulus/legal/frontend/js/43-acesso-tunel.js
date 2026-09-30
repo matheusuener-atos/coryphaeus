@@ -383,7 +383,7 @@ function ligarBlocoConexao(raiz) {
 function cartaoTunelConectado(s, d) {
   const [rotulo, tom] = TUNEL_ESTADOS[s.estado] || [s.estado, ""];
   const endereco = s.hostname ? "https://" + s.hostname : "";
-  const prontas = (acessoCfg.contas || []).filter((c) => c.totp_confirmado).map((c) => c.nome);
+  const prontas = (acessoCfg.contas || []).filter((c) => c.pronta).map((c) => c.nome);
   const energia = d.energia || {};
   const corpo =
     '<div class="acesso-endereco"><code>' + esc(endereco) + "</code>" +

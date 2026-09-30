@@ -124,7 +124,9 @@
   .cfg-servico:last-of-type { border-bottom: none; }
   .cfg-servico .duas-linhas b { font-weight: 600; }
   .cfg-servico .fin-meta-ponto { margin-left: 0; white-space: nowrap; font: 500 12.5px var(--sans); }
-  .cfg-servico .cfg-botoes { flex: none; gap: 6px; }
+  /* Botoes demais quebram em outra linha, a direita - o nome da linha nunca some. */
+  .cfg-servico .cfg-botoes { flex: 0 1 auto; gap: 6px; justify-content: flex-end; }
+  .cfg-servico > .duas-linhas { flex: 1 1 180px; min-width: 160px; }
   .cfg-servico button { flex: none; }
   .cfg-saida { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
   .cfg-saida:last-child { border-bottom: none; }

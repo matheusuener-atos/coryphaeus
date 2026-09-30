@@ -67,6 +67,11 @@ class NovoConvite(BaseModel):
     email: str
     permissoes: dict = {}
     email_secundario: str = ""
+    seguranca: str = ""
+
+
+class NivelDeSeguranca(BaseModel):
+    nivel: str
 
 
 class AceitarConvite(BaseModel):
@@ -91,6 +96,7 @@ class NovaConta(BaseModel):
     # Vazia quando so se entra pelo Google: a conta nasce sem senha que alguem saiba.
     senha: str = ""
     email_secundario: str = ""
+    seguranca: str = ""
 
 
 class MudarConta(BaseModel):
@@ -190,6 +196,14 @@ def montar(servico, r) -> None:
             _no_tempo(comeco)
             raise HTTPException(status_code=429 if exc.ate else 401, detail=str(exc)) from exc
         _no_tempo(comeco)
+        # Conta de seguranca "simples": a senha basta, sem o passo do codigo.
+        s = servico.contas.concluir_sem_codigo(pendente, ip=ip)
+        if s:
+            servico.anotar(acao="entrada", alvo="sem código (segurança simples)", pessoa=s["conta"]["nome"],
+                           email=s["conta"]["email"], ip=ip)
+            resp = JSONResponse({"ok": True, "csrf": s["csrf"], "pessoa": {k: s["conta"][k] for k in ("nome", "email", "papel")}})
+            resp.set_cookie(COOKIE_SESSAO, s["sessao"], httponly=True, secure=True, samesite="strict", path="/")
+            return resp
         return {"pendente": pendente}
 
     @r.post("/api/acesso/entrar/codigo")
@@ -208,7 +222,7 @@ def montar(servico, r) -> None:
         # nenhum script da pagina le o cookie. Strict: nenhum outro site
         # consegue fazer o navegador manda-lo.
         resp.set_cookie(COOKIE_SESSAO, s["sessao"], httponly=True, secure=True, samesite="strict", path="/")
-        if dados.confiar and not e_local(request):
+        if dados.confiar and not e_local(request) and servico.contas.nivel(s["conta"]["id"]) == "padrao":
             # So o caminho do login le este cookie; o navegador nao o manda a
             # mais nada.
             resp.set_cookie(COOKIE_CONFIA, servico.contas.confiar(s["conta"]["id"]), max_age=CONFIAR_S,
@@ -282,6 +296,7 @@ def montar(servico, r) -> None:
     def contas(request: Request) -> dict:
         so_local(request)
         return {"contas": servico.contas.listar(), "disponivel": servico.contas.disponivel(), "so_google": servico.so_google(),
+                "seguranca_padrao": servico.preferencias().get("seguranca_padrao", "padrao"),
                 "vinculo": {"email": (getattr(servico, "vinculo", None).dados().get("email", "") if getattr(servico, "vinculo", None) else ""),
                             "nome": (getattr(servico, "vinculo", None).dados().get("nome", "") if getattr(servico, "vinculo", None) else "")},
                 "sessoes": servico.contas.sessoes_abertas()}
@@ -294,7 +309,8 @@ def montar(servico, r) -> None:
         try:
             criada = servico.contas.criar(dados.nome, dados.email, dados.papel,
                                           dados.senha,
-                                          email_secundario=dados.email_secundario)
+                                          email_secundario=dados.email_secundario,
+                                          seguranca=dados.seguranca or servico.preferencias().get("seguranca_padrao", "padrao"))
         except ErroConta as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.contas_mudaram()
@@ -329,7 +345,9 @@ def montar(servico, r) -> None:
         if not host:
             raise HTTPException(status_code=400, detail="ligue o acesso de fora antes: o convite é um link do endereço do escritório")
         try:
-            codigo, convite = servico.convites.criar(dados.nome, dados.email, dados.permissoes, dados.email_secundario)
+            nivel = dados.seguranca or servico.preferencias().get("seguranca_padrao", "padrao")
+            codigo, convite = servico.convites.criar(dados.nome, dados.email, dados.permissoes, dados.email_secundario,
+                                                     seguranca=nivel)
         except ErroConvite as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         servico.anotar(acao="convite", alvo=f"{convite['nome']} <{convite['email']}>", pessoa="janela local")
@@ -476,6 +494,14 @@ def montar(servico, r) -> None:
         except ErroEntrada as exc:
             servico.anotar(acao="login_falho", alvo="Google", ip=ip, pessoa=quem["email"])
             return voltar("/#erro=" + quote(str(exc)))
+        # Conta de seguranca "simples": o Google basta.
+        direto = servico.contas.concluir_sem_codigo(pendente, ip=ip)
+        if direto:
+            servico.anotar(acao="entrada", alvo="Google (segurança simples)", pessoa=direto["conta"]["nome"],
+                           email=direto["conta"]["email"], ip=ip)
+            resp = voltar("/#entrou")
+            resp.set_cookie(COOKIE_SESSAO, direto["sessao"], httponly=True, secure=True, samesite="strict", path="/")
+            return resp
         return voltar("/#g=" + quote(pendente) + "&e=" + quote(quem["email"]))
 
     @r.get("/api/acesso/convite/{codigo}/google")
@@ -484,6 +510,29 @@ def montar(servico, r) -> None:
             return servico.convites.do_google(codigo, t)
         except ErroConvite as exc:
             raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+    @r.put("/api/acesso/contas/{conta_id}/seguranca")
+    def mudar_seguranca(conta_id: int, dados: NivelDeSeguranca, request: Request) -> dict:
+        """O nivel de seguranca de uma conta: so na janela do servidor."""
+        so_local(request)
+        try:
+            conta = servico.contas.mudar_seguranca(conta_id, dados.nivel)
+        except ErroConta as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        servico.anotar(acao="seguranca", alvo=f"{conta['nome']}: {dados.nivel}", pessoa="janela local")
+        servico.contas_mudaram()
+        return {"conta": conta}
+
+    @r.put("/api/acesso/seguranca-padrao")
+    def mudar_seguranca_padrao(dados: NivelDeSeguranca, request: Request) -> dict:
+        """O nivel das contas novas (convite e conta criada aqui)."""
+        from acesso.contas import NIVEIS
+
+        so_local(request)
+        if dados.nivel not in NIVEIS:
+            raise HTTPException(status_code=400, detail="nível de segurança desconhecido")
+        servico.prefs.atualizar({"acesso_remoto": {"seguranca_padrao": dados.nivel}})
+        return {"seguranca_padrao": dados.nivel}
 
     @r.get("/api/acesso/permissoes/modulos")
     def permissoes_modulos(request: Request) -> dict:
