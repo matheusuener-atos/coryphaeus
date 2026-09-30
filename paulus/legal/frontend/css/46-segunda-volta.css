@@ -38,3 +38,8 @@
   .cli-conflito .cli-resolver { flex: none; }
   .cli-conflito.resolvido { opacity: .75; }
   @media (max-width: 600px) { .cad-conflitos span { display: none; } }
+
+  /* N6: a tarefa de vários passos no cartão da conversa (js/66-passos.js). */
+  .pas-conv-opcao { display: flex; gap: 8px; align-items: center; margin: 6px 0; font-size: 13px; color: var(--ink2); cursor: pointer; }
+  .proposta input[data-pc="dias"] { max-width: 90px; }
+  .pas-na-conversa { border: none; padding: 0; background: transparent; }

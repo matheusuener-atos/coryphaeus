@@ -351,7 +351,7 @@ o código garante.
 | N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | feito | `tests/test_n3_parte_contraria.py` |
 | N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | feito | `tests/test_n4_conflitos.py` |
 | N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | feito | `tests/test_n5_clausulas.py` |
-| N6 | A conversa chama as tarefas de vários passos | L4 | — | `tests/test_n6_conversa_tarefas.py` |
+| N6 | A conversa chama as tarefas de vários passos | L4 | feito | `tests/test_n6_conversa_tarefas.py` |
 | N7 | Súmulas e temas na resposta da conversa | L5 | — | `tests/test_n7_temas_na_conversa.py` |
 | N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
 | N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | — | `tests/test_n9_mcp_escreve.py` |
@@ -516,3 +516,27 @@ px); `test_l3_clientes`, `test_n3_parte_contraria`, `test_t2_avisos` e
 
 **Medido:** `tests/test_n5_clausulas.py` 14 ok; `test_redacao` e
 `test_l4_tarefas` continuam passando.
+
+## N6 — a conversa chama as tarefas de vários passos (30/09/2026)
+
+- **A regra** (`intencao.ler_passos`, sem modelo): "quais contratos vencem
+  nos próximos 60 dias?", "contratos que terminam em 3 meses", "este mês",
+  "este ano", "o próximo mês" (sem período: 90 dias, e o cartão diz); "revise o
+  contrato X contra o padrão", "compare o X com o Padrão de locação" (o padrão
+  pelo nome, ou o único do Acervo com "padrão", "modelo" ou "minuta" no nome;
+  sem o contrato, o cartão diz o que falta). O plural ou o "quais" separa a
+  lista da pergunta sobre um contrato — "qual o vencimento do contrato X?"
+  continua indo para os documentos.
+- **O catálogo** ganha `tarefa_de_varios_passos` (proposta "passos"), com
+  confirmação, como as outras: a pergunta vira cartão (o período, o contrato,
+  o padrão, "propor na Agenda", "o assistente explica"), a pessoa corrige, e o
+  sim começa a tarefa da L4. O cartão acompanha os passos ali mesmo, com
+  "Abrir o relatório", "Parar" e "Desfazer".
+- Um agente só usa a ferramenta se a declarar no AGENTE.md (A2); de fora, a
+  conversa diz que as tarefas de vários passos são da janela do escritório.
+
+**Medido:** `tests/test_n6_conversa_tarefas.py` 22 ok (a regra, as duas
+receitas pela conversa até o relatório, a recusa do contrato que não está
+no Acervo, de fora, e no Edge: o cartão, o período corrigido, os passos e o
+relatório); `test_ferramentas`, `test_intencao`, `test_c4_roteamento`,
+`test_a1_agentes` e `test_l4_tarefas` continuam passando.

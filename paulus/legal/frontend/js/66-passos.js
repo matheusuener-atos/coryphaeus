@@ -119,3 +119,55 @@ async function novaTarefaDePassos(tipo) {
   avisoCert("Tarefa começou: os passos aparecem aqui.", { tom: "ok" });
   carregarTarefasDePassos();
 }
+
+/* ------------------------------------------ pedida na conversa (N6) */
+/* "Quais contratos vencem nos próximos 60 dias?" e "revise o contrato X
+   contra o padrão": a regra (src/intencao.py) monta o cartão; o sim começa a
+   tarefa, e o cartão mostra os passos até o relatório - ali mesmo. */
+
+function cartaoPassos(d) {
+  const c = d.campos || {};
+  const revisar = c.receita === "revisar";
+  const topo = '<div class="proposta-topo"><span class="' + (d.falta ? "etiqueta atencao" : "rotulo") + '">' +
+    (d.falta ? "falta um dado" : "vou rodar a tarefa") + "</span><b>" + esc(d.titulo || "Tarefa de vários passos") + "</b></div>";
+  const campos = revisar
+    ? '<div class="linha-form"><input type="text" data-pc="documento" value="' + esc(c.documento || "") + '" placeholder="o contrato, como está no Acervo"' + (!c.documento ? " autofocus" : "") + ">" +
+      '<input type="text" data-pc="padrao" value="' + esc(c.padrao || "") + '" placeholder="o padrão da casa, como está no Acervo"></div>' +
+      '<label class="pas-conv-opcao"><input type="checkbox" data-pc="explicar"' + (c.explicar ? " checked" : "") + "> o assistente explica cada cláusula alterada (mais lento)</label>"
+    : '<div class="linha-form"><label class="explica">nos próximos</label><input type="number" min="1" max="3650" data-pc="dias" value="' + esc(String(c.dias || 90)) + '"><span class="explica">dias</span></div>' +
+      '<label class="pas-conv-opcao"><input type="checkbox" data-pc="propor"' + (c.propor ? " checked" : "") + "> propor cada data na Agenda (por Aprovações)</label>";
+  const explica = revisar
+    ? "Comparo cláusula por cláusula — igual, alterada, faltando, a mais — e escrevo o relatório no editor. "
+    : "Pelas datas que a leitura dos documentos já conferiu, com a página e o trecho; sem modelo. O relatório vai para o editor. ";
+  return '<div class="proposta">' + topo + campos +
+    '<p class="explica">' + (d.falta ? "Entendi o pedido (" + esc(d.porque) + "), mas " + esc(d.falta) + ". " : "Li isso de " + esc(d.porque) + ". ") +
+    explica + "A tarefa só começa com o seu sim, e dá para desfazer depois.</p>" +
+    '<div class="linha-form"><button class="primario" data-prop="fazer">Rodar a tarefa</button><button data-prop="nao">Deixa pra lá</button></div></div>';
+}
+
+function acompanharPassosNaConversa(caixa, id) {
+  const desenhar = (t) => {
+    caixa.innerHTML = cartaoDaTarefa(t).replace('class="pas-tarefa"', 'class="pas-tarefa pas-na-conversa"');
+    caixa.querySelectorAll("[data-pas-abrir]").forEach((b) => { b.onclick = () => abrirDocumento(Number(b.dataset.pasAbrir)); });
+    caixa.querySelectorAll("[data-pas-parar]").forEach((b) => { b.onclick = () => fetch("/api/passos/" + id + "/parar", { method: "POST" }); });
+    caixa.querySelectorAll("[data-pas-desfazer]").forEach((b) => {
+      b.onclick = async () => {
+        const r = await fetch("/api/passos/" + id + "/desfazer", { method: "POST" });
+        if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+        desenhar(await r.json());
+      };
+    });
+  };
+  const olhar = async () => {
+    if (!caixa.isConnected) return;
+    let t;
+    try {
+      const r = await fetch("/api/passos/" + id);
+      if (!r.ok) throw new Error(await erroDe(r));
+      t = await r.json();
+    } catch (err) { caixa.insertAdjacentHTML("beforeend", '<p class="explica">Não consegui acompanhar: ' + esc(String(err.message || err)) + "</p>"); return; }
+    desenhar(t);
+    if (t.estado === "andando") setTimeout(olhar, 1200);
+  };
+  olhar();
+}

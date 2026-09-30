@@ -235,7 +235,7 @@ def ler_aviso(texto: str) -> int:
 class Intencao:
     """O que a frase pede, com os campos já lidos."""
 
-    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | documentos
+    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | passos | documentos
     titulo: str = ""
     campos: dict = field(default_factory=dict)
     resumo: str = ""
@@ -960,6 +960,84 @@ def documentos_do_tipo(substantivo: str, texto: str, documentos=None) -> list[st
     return com_nome or candidatos
 
 
+# ------------------------------------------------ tarefas de vários passos (N6)
+
+# "quais contratos vencem nos próximos 60 dias?", "liste os contratos vencendo
+# este mês": a receita "vencimentos" da L4. O plural (ou "quais") separa a
+# lista da pergunta sobre UM contrato ("qual o vencimento do contrato X?"),
+# que continua indo para os documentos.
+RE_VENCER = re.compile(r"\b(vence|vencem|vencendo|vencer|vencera|venceram|vencimentos?|terminam|termina|terminando|"
+                       r"encerram|encerra|expiram|expira|expirando|acabam|acaba)\b")
+RE_CONTRATOS = re.compile(r"\bcontratos\b|\bquais\b.*\bcontrato\b|\bcontrato\b.*\bquais\b|\bque contratos\b")
+RE_PERIODO = re.compile(r"(\d{1,4})\s*(dias?|semanas?|mes|meses|anos?)\b")
+RE_REVISAR = re.compile(r"\b(revis[ae]|revisar|compar[ae]|comparar|confront[ae]|confrontar|confira|conferir|confere)\b")
+RE_PADRAO = re.compile(r"\b(?:contra|com|ao|pelo|pela|a partir do)\s+(?:o\s+|a\s+)?(?:nosso\s+|nossa\s+)?"
+                       r"(padrao|modelo da casa|modelo padrao|minuta padrao|nosso modelo|modelo do escritorio)\b")
+
+
+def _dias_do_periodo(plano: str, hoje: date) -> tuple[int, str]:
+    """Quantos dias a frase pede ("nos próximos 60 dias", "em 3 meses", "este mês"), e como leu."""
+    m = RE_PERIODO.search(plano)
+    if m:
+        n = int(m.group(1))
+        unidade = m.group(2)
+        fator = 1 if unidade.startswith("dia") else 7 if unidade.startswith("semana") else 365 if unidade.startswith("ano") else 30
+        return max(1, min(n * fator, 3650)), m.group(0)
+    if re.search(r"\beste mes\b|\bneste mes\b|\bdo mes\b", plano):
+        fim = (date(hoje.year + (hoje.month == 12), hoje.month % 12 + 1, 1) - timedelta(days=1))
+        return max(1, (fim - hoje).days), "este mês"
+    if re.search(r"\bproximo mes\b|\bmes que vem\b", plano):
+        ano, mes = (hoje.year + 1, 1) if hoje.month == 12 else (hoje.year, hoje.month + 1)
+        fim = date(ano + (mes == 12), mes % 12 + 1, 1) - timedelta(days=1)
+        return max(1, (fim - hoje).days), "o próximo mês"
+    if re.search(r"\beste ano\b|\bneste ano\b|\bate o fim do ano\b", plano):
+        return max(1, (date(hoje.year, 12, 31) - hoje).days), "este ano"
+    if re.search(r"\bsemana\b", plano):
+        return 7, "a semana"
+    return 0, ""
+
+
+def _nome_no_trecho(trecho: str, documentos) -> str:
+    """O documento cujo nome (sem a extensão) aparece no trecho - o mais longo."""
+    melhor = ""
+    for d in documentos or []:
+        nome = _nome_de(d)
+        base = _plano(Path(nome).stem)
+        if len(base) >= 4 and base in trecho and len(base) > len(_plano(Path(melhor).stem) if melhor else ""):
+            melhor = nome
+    return melhor
+
+
+def ler_passos(texto: str, plano: str, documentos=None, hoje: date | None = None) -> Intencao | None:
+    """
+    A conversa chamando as tarefas de vários passos (L4): os contratos que
+    vencem num período, e revisar um contrato contra o padrão da casa. É uma
+    proposta, como as outras: a tarefa só roda com o sim.
+    """
+    hoje = hoje or date.today()
+    if RE_REVISAR.search(plano) and (RE_PADRAO.search(plano) or re.search(r"\bpadrao\b", plano)):
+        m = RE_PADRAO.search(plano)
+        antes, depois = (plano[:m.start()], plano[m.end():]) if m else (plano, "")
+        contrato = _nome_no_trecho(antes, documentos)
+        padrao = _nome_no_trecho(depois, documentos) if depois.strip() else ""
+        if not padrao:
+            # "contra o padrão", sem dizer qual: se o Acervo tem um só com "padrão" ou "modelo" no nome, é ele.
+            candidatos = [_nome_de(d) for d in documentos or [] if re.search(r"padrao|modelo|minuta", _plano(_nome_de(d)))
+                          and _nome_de(d) != contrato]
+            padrao = candidatos[0] if len(candidatos) == 1 else ""
+        falta = ("diga qual contrato revisar" if not contrato else "") or ("diga qual documento é o padrão da casa" if not padrao else "")
+        return Intencao(tipo="passos", titulo="Revisar contra o padrão da casa",
+                        campos={"receita": "revisar", "documento": contrato, "padrao": padrao, "explicar": False},
+                        porque="“" + RE_REVISAR.search(plano).group(0) + "” e “padrão”", falta=falta)
+    if RE_VENCER.search(plano) and RE_CONTRATOS.search(plano):
+        dias, lido = _dias_do_periodo(plano, hoje)
+        porque = "“contratos” e “" + RE_VENCER.search(plano).group(0) + "”" + (f", {lido}" if lido else "")
+        return Intencao(tipo="passos", titulo="Contratos vencendo",
+                        campos={"receita": "vencimentos", "dias": dias or 90, "propor": False},
+                        porque=porque + ("" if dias else " — sem período na frase: 90 dias (mude aqui)"))
+    return None
+
+
 def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -> Intencao:
     """
     O que a frase pede.
@@ -989,6 +1067,10 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     nota = ler_nota(texto, plano, cadastros, hoje)
     if nota:
         return nota
+
+    passos = ler_passos(texto, plano, documentos, hoje)
+    if passos:
+        return passos
 
     # Abrir um arquivo pelo nome. Só vira ação quando o arquivo existe: sem
     # isso, "mostre o que diz sobre multa" viraria tentativa de abrir nada.

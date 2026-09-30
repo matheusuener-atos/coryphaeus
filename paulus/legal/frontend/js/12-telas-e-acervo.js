@@ -923,6 +923,9 @@ function cartaoProposta(d) {
       '<button data-prop="nao">Deixa pra lá</button></div></div>';
   }
 
+  // N6: a tarefa de vários passos pedida na conversa (js/66-passos.js acompanha).
+  if (d.tipo === "passos") return cartaoPassos(d);
+
   // Cadastro e nota fiscal: ferramentas do catálogo (src/ferramentas.py).
   if (FERRAMENTAS_DA_CONVERSA[d.tipo]) return cartaoFerramenta(d);
 
@@ -1395,7 +1398,7 @@ function ligarProposta(caixa, d, ondeResponder) {
     if (errado) { errado.focus(); return; }
     const campos = Object.assign({}, d.campos);
     caixa.querySelectorAll("[data-pc]").forEach((el) => {
-      campos[el.dataset.pc] = el.dataset.pc === "avisar_min" ? Number(el.value) : el.value;
+      campos[el.dataset.pc] = el.type === "checkbox" ? el.checked : (el.dataset.pc === "avisar_min" ? Number(el.value) : el.value);
     });
     if (d.tipo === "tarefa" && campos.prazo && campos.hora) {
       campos.lembrar_em = campos.prazo + " " + campos.hora;
@@ -1415,6 +1418,8 @@ function ligarProposta(caixa, d, ondeResponder) {
     }
 
     const feito = await r.json();
+    // N6: a tarefa roda em segundo plano; o cartão acompanha os passos ali mesmo.
+    if (d.tipo === "passos" && typeof acompanharPassosNaConversa === "function") { acompanharPassosNaConversa(caixa, feito.id); return; }
     // Pendente é a ferramenta que ainda só confere (a NFS-e): não há o que
     // ver na tela, e o rótulo não pode dizer "feito".
     const classe = feito.pendente ? "etiqueta atencao" : "rotulo";

@@ -192,7 +192,7 @@ def pode_usar(agente, ferramenta: str) -> bool:
 # "tarefa", "servico" e "abrir" (no programa do Windows) nao estao no
 # catalogo: nenhum agente pode pedi-las.
 FERRAMENTA_DA_ACAO = {"agenda": "criar_compromisso", "cadastro": "cadastrar_cliente", "nota": "emitir_nfse",
-                      "exibir": "exibir_documento"}
+                      "exibir": "exibir_documento", "passos": "tarefa_de_varios_passos"}
 
 
 def ferramenta_da_acao(tipo: str) -> str:

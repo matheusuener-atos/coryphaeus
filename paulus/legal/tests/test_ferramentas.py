@@ -71,8 +71,8 @@ def recusa(funcao, *args) -> str:
 def test_catalogo() -> None:
     print("\no catálogo")
     cat = ferramentas.CATALOGO_FERRAMENTAS
-    checar(set(cat) == {"cadastrar_cliente", "criar_compromisso", "emitir_nfse", "exibir_documento"},
-           "as quatro ferramentas", list(cat))
+    checar(set(cat) == {"cadastrar_cliente", "criar_compromisso", "emitir_nfse", "exibir_documento", "tarefa_de_varios_passos"},
+           "as cinco ferramentas (N6: a tarefa de vários passos)", list(cat))
     checar(cat["exibir_documento"]["modulo"] == "acervo", "exibir_documento -> acervo")
     checar(cat["cadastrar_cliente"]["modulo"] == "cadastros", "cadastrar_cliente -> cadastros")
     checar(cat["criar_compromisso"]["modulo"] == "agenda", "criar_compromisso -> agenda")
@@ -81,7 +81,7 @@ def test_catalogo() -> None:
     checar(all(f["exige_confirmacao"] for f in cat.values()), "e todas as outras também")
     checar(cat["emitir_nfse"]["disponivel"] is False, "a NFS-e ainda não emite de verdade")
     checar(ferramentas.POR_PROPOSTA == {"cadastro": "cadastrar_cliente", "agenda": "criar_compromisso",
-                                        "nota": "emitir_nfse", "exibir": "exibir_documento"},
+                                        "nota": "emitir_nfse", "exibir": "exibir_documento", "passos": "tarefa_de_varios_passos"},
            "cada proposta da tela aponta uma ferramenta")
 
 

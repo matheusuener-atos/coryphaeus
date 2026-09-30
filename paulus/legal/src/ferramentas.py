@@ -87,6 +87,21 @@ CATALOGO_FERRAMENTAS: dict[str, dict] = {
                      "obrigatorio": "diga qual documento mostrar"},
         },
     },
+    # N6: a conversa chama as tarefas de vários passos (src/passos.py, L4).
+    "tarefa_de_varios_passos": {
+        "descricao": "Roda uma tarefa de vários passos: os contratos que vencem nos próximos dias, "
+                     "ou um contrato revisado contra o padrão da casa.",
+        "modulo": "agentes",
+        "proposta": "passos",
+        "exige_confirmacao": True,
+        "disponivel": True,
+        "parametros": {
+            "receita": {"tipo": "texto", "descricao": "vencimentos ou revisar", "obrigatorio": "diga qual tarefa rodar"},
+            "dias": {"tipo": "minutos", "descricao": "nos próximos quantos dias (vencimentos)"},
+            "documento": {"tipo": "texto", "descricao": "o contrato a revisar, como está no Acervo"},
+            "padrao": {"tipo": "texto", "descricao": "o padrão da casa, como está no Acervo"},
+        },
+    },
     "emitir_nfse": {
         "descricao": "Emite uma nota fiscal de serviço (NFS-e) para um cliente.",
         "modulo": "escritorio",
@@ -751,7 +766,38 @@ def oferta_de_exibir(fontes: list[dict], documentos, ja_oferecidos=()) -> dict |
     }
 
 
+def _tarefa_de_varios_passos(estado, campos: dict) -> dict:
+    """O sim no cartão: começa a tarefa (ela roda em segundo plano, com os passos à vista)."""
+    receita = str(campos.get("receita") or "")
+    if receita == "vencimentos":
+        try:
+            dias = int(campos.get("dias") or 90)
+        except (TypeError, ValueError):
+            raise ValueError("o período precisa ser um número de dias") from None
+        if not 1 <= dias <= 3650:
+            raise ValueError("o período vai de 1 a 3650 dias")
+        params = {"dias": dias, "so_contratos": True, "propor": bool(campos.get("propor"))}
+        tipo = "vencimentos"
+    elif receita == "revisar":
+        nomes = {d.name for d in estado.searcher.documents}
+        contrato, padrao = str(campos.get("documento") or "").strip(), str(campos.get("padrao") or "").strip()
+        if not contrato or contrato not in nomes:
+            raise ValueError("diga qual contrato revisar, com o nome como está no Acervo")
+        if not padrao or padrao not in nomes:
+            raise ValueError("diga qual documento é o padrão da casa, com o nome como está no Acervo")
+        if contrato == padrao:
+            raise ValueError("o contrato e o padrão são o mesmo documento")
+        params = {"documento": contrato, "padrao": padrao, "explicar": bool(campos.get("explicar"))}
+        tipo = "revisar"
+    else:
+        raise ValueError("não conheço essa tarefa")
+    t = estado.tarefas_de_passos.comecar(tipo, params)
+    return {"id": t["id"], "registro": {k: t.get(k) for k in ("id", "tipo", "nome", "estado", "params")},
+            "resumo": f"Comecei a tarefa “{t['nome']}”", "onde": "passos"}
+
+
 EXECUTORES = {
+    "tarefa_de_varios_passos": _tarefa_de_varios_passos,
     "cadastrar_cliente": _cadastrar_cliente,
     "criar_compromisso": _criar_compromisso,
     "exibir_documento": _exibir_documento,

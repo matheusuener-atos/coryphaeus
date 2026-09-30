@@ -3710,7 +3710,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if leitura and leitura.tipo == "como":
             return _responder_programa(trabalho, leitura, pergunta)
 
-    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir"):
+    # N6: as tarefas de vários passos rodam na janela do escritório (como a tela Agentes).
+    if lido.tipo == "passos" and not rotas_do_acesso.e_local(request):
+        return _so_dizer(trabalho, "As tarefas de vários passos (os contratos vencendo, revisar contra o padrão) rodam "
+                                   "só na janela do escritório, por ora. Peça de lá, ou em Agentes › Tarefas de vários passos.")
+    if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir", "passos"):
         # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
         # o que ele pediu sem ter e recusado e fica registrado.
         if agente is not None and lido.tipo != "sobre":
