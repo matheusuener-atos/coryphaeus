@@ -202,6 +202,16 @@ def main() -> int:
         import subprocess
 
         subprocess.run([sys.executable, str(Path(__file__).with_name("criar_demo.py")), "--refazer"], check=True)
+    # As chaves da Biblioteca para esta rodada (docs/PROGRESSO-BIBLIOTECA.md):
+    # --ligar hibrida,camadas / --desligar ... gravam nas preferências da demo.
+    chaves = {}
+    for opcao, valor in (("--ligar", True), ("--desligar", False)):
+        if opcao in sys.argv:
+            chaves.update({c.strip(): valor for c in sys.argv[sys.argv.index(opcao) + 1].split(",") if c.strip()})
+    if chaves:
+        from config import Preferencias
+
+        Preferencias(DEMO / "preferencias.json").atualizar({"biblioteca": chaves})
     if "--tudo" in sys.argv:
         roteiro = BASICO + DIFICIL + MATERIAL
     elif "--dificil" in sys.argv:

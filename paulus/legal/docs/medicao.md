@@ -100,3 +100,67 @@ quebra de linha e espaço duplo.
 Cada etapa a partir da I2 roda `tools/medir.py` e anota os números em
 `docs/PROGRESSO-IMPLEMENTACAO.md`: acerto, p50/p95, tokens de entrada e os
 números da busca. É assim que se sabe se uma mudança melhorou ou só mudou.
+
+## O conjunto da Biblioteca
+
+A Biblioteca (livros, manuais e leis que o escritório entrega ao PAULUS,
+`docs/PROGRESSO-BIBLIOTECA.md`) tem um conjunto próprio, porque o que se
+mede é outra coisa: **o que a biblioteca traz para a pergunta**, e se ela
+fica quieta quando a pergunta é sobre um documento de cliente.
+
+```text
+venv\Scripts\python.exe tools\medir.py --conjunto biblioteca --so-busca   só a busca da biblioteca (segundos)
+venv\Scripts\python.exe tools\medir.py --conjunto biblioteca              com o modelo
+venv\Scripts\python.exe tools\medir.py --conjunto biblioteca --real       o conjunto do escritório
+```
+
+Sem `--real`, ele monta a biblioteca da demonstração em
+`data/demo-biblioteca` (`tools/demo/biblioteca_demo.py`: o escritório
+fictício, o manual de rotinas, o CDC do Planalto e **duas obras de doutrina
+fictícias**) e escreve o conjunto em `data/medicao/conjunto-biblioteca.jsonl`.
+Com `--real`, lê `<dados>/medicao/conjunto-biblioteca.jsonl` e mede a
+biblioteca que o escritório tem de verdade. **Fora do git**: as frases
+esperadas são trechos de livros.
+
+Os números:
+
+| Número | O que é |
+| --- | --- |
+| Recall@6, MRR@6 | das frases esperadas, quantas estão nos 6 primeiros textos que a biblioteca traz (lei, doutrina, manual), só nas perguntas que devem trazer material |
+| ruído | das perguntas `sem_material`, a fração em que a biblioteca trouxe alguma coisa |
+| sinônimo achados | das conceituais com sinônimo, em quantas a frase esperada chegou |
+| aviso de área | das perguntas `fora`, quantas terminaram com "Não tenho material de … na biblioteca"; e quantas das outras ganharam o aviso sem dever |
+| aviso de defasagem | das perguntas `temporal` com `defasagem: true`, quantas avisaram que a obra é anterior à redação do artigo; e quantas avisaram sem dever |
+
+O formato é o de sempre, mais estes campos (exemplo em
+`tools/demo/conjunto-biblioteca-exemplo.jsonl`):
+
+| Campo | Para que serve |
+| --- | --- |
+| `tipo` | `sinonimo`, `dispositivo`, `lei`, `manual`, `sem_material`, `fora` ou `temporal` |
+| `material` | `true` quando a biblioteca deve trazer algo; `false` quando trazer é ruído |
+| `area` | a área da pergunta (a lista fechada da ficha: consumidor, civil, trabalho…) |
+| `cobertura` | `"fora"` quando a biblioteca não tem obra nem lei da área |
+| `defasagem` | `true`: a resposta deve avisar que a obra é anterior à redação atual do artigo; `false`: não pode avisar |
+
+Como anotar um conjunto real, com os livros do escritório:
+
+1. **Escolha uma ou duas obras de doutrina** que o escritório usa, um manual
+   interno e as leis que já estão em Configurações › Códigos de lei.
+2. **Escreva de 30 a 40 perguntas**, pelo menos 5 de cada tipo:
+   - **sinonimo** — a pergunta com a palavra do advogado, e não a do autor
+     ("inadimplemento mínimo" para uma obra que escreve "adimplemento
+     substancial");
+   - **dispositivo** — "o que a doutrina diz do art. 18 do CDC?";
+   - **lei** — a resposta está no texto da lei;
+   - **manual** — a regra da casa;
+   - **sem_material** — pergunta sobre documento de cliente em que a
+     biblioteca só atrapalharia (a tabela de honorários quando se pergunta o
+     êxito do contrato de um cliente);
+   - **fora** — assunto de uma área que a biblioteca não tem;
+   - **temporal** — artigo alterado depois da edição da obra (e um ou dois
+     alterados antes, com `defasagem: false`).
+3. Em `trechos_esperados`, a frase **literal** da obra, da lei ou do manual
+   que responde — de 4 a 12 palavras.
+4. Rode primeiro com `--so-busca`: pergunta que devia trazer material e deu
+   Recall@6 zero quase sempre é frase copiada errada.
