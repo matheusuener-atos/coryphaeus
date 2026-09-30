@@ -63,8 +63,12 @@ def exercitar(pag, nome, abrir, linhas):
     caixa = rows.nth(1).bounding_box()
     x, y = caixa["x"] + caixa["width"] * 0.4, caixa["y"] + caixa["height"] / 2
     pag.mouse.click(x, y, button="right"); pag.wait_for_timeout(400)
-    menu = pag.evaluate("() => { const m = [...document.querySelectorAll('.menu-conversa:not(.menu-sub)')].pop(); if (!m) return null; const r = m.getBoundingClientRect(); return {x: r.left, y: r.top, itens: [...m.querySelectorAll('button')].map(b => b.textContent.trim()).slice(0, 8)}; }")
-    checar(menu is not None and abs(menu["x"] - x) < 6 and abs(menu["y"] - y) < 6, f"{nome}: botão direito abre o menu no ponto clicado", menu)
+    menu = pag.evaluate("() => { const m = [...document.querySelectorAll('.menu-conversa:not(.menu-sub)')].pop(); if (!m) return null; const r = m.getBoundingClientRect(); return {x: r.left, y: r.top, fim: r.bottom, alto: innerHeight, itens: [...m.querySelectorAll('button')].map(b => b.textContent.trim()).slice(0, 8)}; }")
+    # No ponto do clique; perto do pe da janela o menu sobe o bastante para
+    # caber inteiro (o da conversa ganhou "Criar agente desta conversa", A3).
+    no_ponto = menu is not None and abs(menu["x"] - x) < 6 and (
+        abs(menu["y"] - y) < 6 or (menu["y"] < y and menu["fim"] <= menu["alto"] and y + (menu["fim"] - menu["y"]) > menu["alto"]))
+    checar(no_ponto, f"{nome}: botão direito abre o menu no ponto clicado", menu)
     pag.keyboard.press("Escape"); pag.mouse.click(5, 5); pag.wait_for_timeout(300)
 
 with sync_playwright() as pw:
