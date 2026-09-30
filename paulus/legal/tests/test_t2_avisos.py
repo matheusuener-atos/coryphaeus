@@ -93,7 +93,10 @@ def _exemplo(api) -> dict:
     t = e.trabalhos.criar("Notificação da Rio Fresco", estado="pausado")
     ids["conversa"] = t.id
     ids["lembrete"] = e.bem_estar.salvar_lembrete({"titulo": "Beber água", "cada_min": 60})
-    feito = (datetime.now() - timedelta(hours=2)).isoformat(timespec="seconds")
+    # Duas horas antes do mais cedo entre agora e as 11h de hoje (a hora do
+    # test_modulo): depois do meio-dia, "agora - 2 h" ainda nao venceu as 11h.
+    feito = (min(datetime.now(), datetime.combine(H, datetime.min.time()).replace(hour=11))
+             - timedelta(hours=2)).isoformat(timespec="seconds")
     e.base.escrever("UPDATE lembretes SET ultima_vez = ? WHERE id = ?", (feito, ids["lembrete"]))
     return ids
 
