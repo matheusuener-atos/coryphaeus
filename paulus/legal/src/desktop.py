@@ -236,30 +236,51 @@ def _preparar_janela_nativa() -> None:
 _JA_MAXIMIZOU = False
 
 
+_TRAVA_DO_ABRIR = threading.Lock()
+
+
 def _maximizar_ao_abrir() -> None:
     """
-    Abre maximizado (pedido do dono, 29/09/2026) - so depois da pagina
-    carregada, e por uma thread, pelo mesmo `maximize()` do botao da janela.
+    Abre maximizado (pedido do dono, 29/09/2026), sem piscar: a janela nasce
+    escondida (`hidden`); o pywebview a mostra e esconde uma vez ao cria-la,
+    e isso ja dispara o `shown` (o MaximizedBounds). Com a pagina carregada,
+    aqui, uma thread maximiza a janela ainda escondida - o Windows so guarda
+    o estado - e a mostra: ela aparece ja maximizada e encaixada.
 
-    Nao antes: criada ja maximizada, a janela sem moldura estica antes de
-    saber a area de trabalho (MaximizedBounds, no `shown`), e a pagina fica
-    no tamanho antigo, fora do encaixe. E nao no `shown`: mudar o estado da
-    janela ali, com o WebView2 ainda nascendo, deixava a janela branca.
+    Nao no `shown`: mudar o estado da janela ali, com o WebView2 ainda
+    nascendo, deixava a janela branca.
     """
     global _JA_MAXIMIZOU
-    if _JA_MAXIMIZOU or "--minimizado" in sys.argv[1:] or _JANELA is None:
+    if "--minimizado" in sys.argv[1:] or _JANELA is None:
         return
-    _JA_MAXIMIZOU = True
+    with _TRAVA_DO_ABRIR:
+        if _JA_MAXIMIZOU:
+            return
+        _JA_MAXIMIZOU = True
+    threading.Thread(target=_maximizar_e_mostrar, name="maximizar", daemon=True).start()
 
-    def maximizar() -> None:
-        global _MAXIMIZADA
-        try:
-            _JANELA.maximize()
-            _MAXIMIZADA = True
-        except Exception:  # noqa: BLE001 - fica no tamanho normal
-            pass
 
-    threading.Thread(target=maximizar, name="maximizar", daemon=True).start()
+def _maximizar_e_mostrar() -> None:
+    global _MAXIMIZADA
+    try:
+        _JANELA.maximize()
+        _MAXIMIZADA = True
+    except Exception:  # noqa: BLE001 - aparece no tamanho normal
+        pass
+    try:
+        _JANELA.show()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _mostrar_se_demorar(segundos: float = 12.0) -> None:
+    """
+    A rede de seguranca: se a pagina nao terminar de carregar (porta presa,
+    WebView2 lento), a janela aparece do mesmo jeito - escondida para
+    sempre, o PAULUS pareceria nao ter aberto.
+    """
+    time.sleep(segundos)
+    _maximizar_ao_abrir()
 
 
 def _porta_livre(preferida: int = 8000) -> int:
@@ -425,9 +446,9 @@ def _opcoes_da_janela(argv: list[str]) -> dict:
     # Sem pedido de minimizado, o PAULUS abre maximizado (pedido do dono,
     # 29/09/2026) - mas nao aqui: criada ja maximizada, a janela sem moldura
     # estica antes de saber a area de trabalho, e a pagina fica no tamanho
-    # antigo, fora do encaixe. Quem maximiza e _preparar_janela_nativa,
-    # depois do limite (MaximizedBounds).
-    return {"minimized": True} if "--minimizado" in argv else {}
+    # antigo, fora do encaixe. Ela nasce escondida, e _maximizar_ao_abrir a
+    # maximiza e mostra de uma vez, sem o piscar do tamanho normal.
+    return {"minimized": True} if "--minimizado" in argv else {"hidden": True}
 
 
 def _entregar_para_a_aberta(porta: int, caminho: str, timeout: float = 10) -> bool:
@@ -575,6 +596,8 @@ def main() -> int:
     )
     _JANELA.events.shown += _preparar_janela_nativa
     _JANELA.events.loaded += _maximizar_ao_abrir
+    if "--minimizado" not in sys.argv[1:]:
+        threading.Thread(target=_mostrar_se_demorar, name="mostrar-se-demorar", daemon=True).start()
 
     # Arrastar a janela e do proprio pywebview: a pagina marca com a classe
     # `pywebview-drag-region` o que pode ser agarrado. `DIRECT_TARGET_ONLY`
