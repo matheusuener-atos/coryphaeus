@@ -132,6 +132,7 @@ import aparelho_motor
 import aprendizado as aprendizado_mod
 import processos as processos_mod
 import clientes as clientes_mod
+import passos as passos_mod
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -983,6 +984,8 @@ rotas_avisos.montar(estado, app, lambda: _documentos_com_data())
 processos_mod.montar(estado, app)
 # L3: visao por cliente, parte contraria e conflito de interesse (src/clientes.py).
 clientes_mod.montar(estado, app)
+# L4: tarefas de varios passos, com ponto de restauracao (src/passos.py).
+passos_mod.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

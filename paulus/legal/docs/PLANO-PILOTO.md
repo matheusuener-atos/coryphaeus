@@ -16,7 +16,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L1 | Aprender com o uso: 👍/👎 em cada resposta, caderno de falhas, a correção vira caso de teste | feito | `tests/test_l1_aprender.py` |
 | L2 | Acompanhamento de processos pelo DataJud: movimentação nova vira aviso; prazo sugerido com a conta, pela Aprovação | feito | `tests/test_l2_processos.py` |
 | L3 | Visão por cliente e muralha ética: a mesma entidade com nomes diferentes, parte contrária, "tudo sobre o cliente", aviso de conflito | feito | `tests/test_l3_clientes.py` |
-| L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | pendente | `tests/test_l4_tarefas.py` |
+| L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | feito | `tests/test_l4_tarefas.py` |
 | L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | pendente | `tests/test_l5_fundamentacao.py` |
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | pendente | `tests/test_l6_perfis.py` |
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | pendente | `tests/test_l7_mcp.py` |
@@ -129,3 +129,38 @@ de conflito não fica guardado como pendência — ele aparece de novo onde a
 mesma entidade é conferida.
 
 **Medido:** `tests/test_l3_clientes.py` 26 ok.
+
+## L4 — tarefas de vários passos, com ponto de restauração (30/09/2026)
+
+- **O executor** (`src/passos.py`): uma tarefa é uma receita de passos que
+  roda em segundo plano, com cada passo à vista (esperando, fazendo, feito,
+  falhou), para ser parada, e deixa um relatório no editor. Guardada em
+  `<dados>/passos/<id>/`. Os passos que usam o modelo passam pela fila única
+  (F1), como toda chamada.
+- **O ponto de restauração** (`Restauracao`): antes de criar ou mudar, a
+  tarefa anota — o documento do relatório, os pedidos em Aprovações, as
+  tarefas, os arquivos criados (com o hash) e a **cópia do original** de
+  cada arquivo que vai alterar. **Desfazer** volta tudo do último para o
+  primeiro e diz, item por item, o que fez. Não apaga nem volta o que alguém
+  mudou depois (seria apagar trabalho de outra pessoa), e o pedido que já foi
+  aprovado fica (o que ele fez é do sim de alguém): a tarefa vira "desfeita
+  em parte" e diz o quê.
+- **Contratos vencendo nos próximos N dias**: pelas datas **conferidas** da
+  leitura (vencimento e fim de vigência, `ajuda.prazos`), só contratos (pela
+  classificação), sem modelo; o relatório em tabela com a página e o
+  trecho; opcional, cada data vira pedido em Aprovações para a Agenda.
+- **Revisar contra o padrão da casa**: as cláusulas dos dois (`redacao.
+  achar_clausulas` — "CLÁUSULA 1ª", "CLÁUSULA PRIMEIRA"), alinhadas pelo
+  título e pelo texto mesmo fora de ordem, e comparadas palavra por palavra:
+  igual, alterada (o que saiu do padrão e o que entrou), faltando, a mais.
+  Só se a pessoa pedir, o modelo explica em uma frase até 6 cláusulas
+  alteradas, e a frase vai marcada "O assistente (confira)". O padrão pode
+  ser um documento do Acervo ou do editor.
+- **A tela**: Agentes › **Tarefas de vários passos** (as receitas, rodar, os
+  passos, abrir o relatório, parar, desfazer). Só na janela do escritório.
+
+**Não feito:** o agente em markdown ainda não chama uma receita sozinho (a
+tarefa é pedida pela tela); cláusula no estilo "1. DO OBJETO", sem a
+palavra "cláusula", não é reconhecida (a mesma regra do editor).
+
+**Medido:** `tests/test_l4_tarefas.py` 20 ok.

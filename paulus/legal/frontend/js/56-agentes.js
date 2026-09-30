@@ -313,7 +313,9 @@ function desenharListaDeAgentes() {
     '<div class="agt-cartoes">' + lista.map(cartaoDoAgente).join("") +
     (podeCriar ? '<button type="button" class="agt-cartao-novo" data-agt-novo="1">' + ic("add", 24) + "<span>Chamar mais um</span></button>" : "") +
     (!lista.length && !podeCriar ? '<p class="nota">Nenhum agente ainda.</p>' : "") + "</div>" +
-    faixaDoAgente(lista) + "</section>" +
+    faixaDoAgente(lista) +
+    // L4: as tarefas de vários passos (js/66-passos.js).
+    (typeof secaoDasTarefasDePassos === "function" ? secaoDasTarefasDePassos() : "") + "</section>" +
     '<aside class="est-lado">' +
     (passos.length ? '<section class="est-passos"><div class="est-lado-cabeca"><span>Próximos passos</span><small>' +
       passos.filter((x) => x.feito).length + " de " + passos.length + "</small></div>" +
@@ -325,6 +327,7 @@ function desenharListaDeAgentes() {
     "</aside></div></div>";
   cascaAgentes(html);
   ligarListaDeAgentes(passos);
+  if (typeof carregarTarefasDePassos === "function") carregarTarefasDePassos();
 }
 
 function ligarListaDeAgentes(passos) {
