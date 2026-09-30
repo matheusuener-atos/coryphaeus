@@ -3,6 +3,10 @@ pypdf>=5.0.0
 python-docx>=1.1.2
 rank-bm25>=0.2.2
 requests>=2.32.0
+# O cabecalho YAML dos agentes (src/agentes.py) e o config/extratores.yaml.
+# Nao e dependencia nova: ja vinha instalado pelo huggingface_hub e pelo
+# ctranslate2 (faster-whisper). Fica declarado para nao depender deles.
+pyyaml>=6.0.3
 
 # Interface web (Semana 3)
 fastapi>=0.115.0

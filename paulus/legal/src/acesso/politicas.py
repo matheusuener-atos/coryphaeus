@@ -355,6 +355,15 @@ _declarar(BLOQUEADO, "GET /api/mcp", "POST /api/mcp/conexoes", "DELETE /api/mcp/
           # ligar e desligar as chaves da Biblioteca e do umbrelOS (src/rotas_chaves.py)
           "GET /api/chaves", "POST /api/chaves")
 
+# --- A1: os agentes do escritorio (src/rotas_agentes.py). Ver a lista, ler um
+# agente e rodar os testes dele e de qualquer pessoa com sessao - no celular a
+# lista e o teste funcionam. Criar, editar, ligar e importar mudam o que o
+# PAULUS faz para o escritorio inteiro: so a janela local ou o titular.
+_declarar(PERMITIDO, "GET /api/agentes", "GET /api/agentes/{slug}", "GET /api/agentes/{slug}/versoes/{n}",
+          "POST /api/agentes/{slug}/testar")
+_declarar(TITULAR, "POST /api/agentes", "PUT /api/agentes/{slug}", "POST /api/agentes/{slug}/ativar",
+          "POST /api/agentes/{slug}/desativar", "POST /api/agentes/importar")
+
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:
     """A politica remota de uma rota; sem declaracao, bloqueada."""

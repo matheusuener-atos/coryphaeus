@@ -102,6 +102,7 @@ import mcp_leis
 import rotas_chaves
 import execucoes as execucoes_mod
 import rotas_execucoes
+import rotas_agentes
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -885,6 +886,8 @@ captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
 rotas_execucoes.montar(estado, app)
+# Os agentes do escritorio (A1): os arquivos e as rotas; nenhum entra na conversa ainda.
+rotas_agentes.montar(estado, app, DADOS_DIR / "agentes", contexto=lambda tarefa: _contexto(tarefa=tarefa))
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
