@@ -370,7 +370,7 @@ _declarar(BLOQUEADO, "GET /api/fila")
 # D2: o motor (a biblioteca e o trabalhador, servidos daqui), os pesos (so
 # para quem pode escrever no aparelho - a rota confere) e a capacidade (so numeros).
 _declarar(PERMITIDO, "GET /motor/wllama-3.6.1/{arquivo}", "GET /motor/trabalhador.js", "GET /api/aparelho/modelo",
-          "GET /api/aparelho/modelo/{sha}", "POST /api/aparelho/capacidade")
+          "GET /api/aparelho/modelo/{sha}/parte/{n}", "POST /api/aparelho/capacidade")
 _declarar(PERMITIDO, "GET /api/aparelho/estado", "GET /api/aparelho/pacote/{pid}",
           "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar")
 

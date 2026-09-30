@@ -56,7 +56,7 @@ async function carregarModeloNoAparelho(andamento) {
   const m = await r.json();
   if (!m.disponivel) throw new Error(m.motivo);
   const cap = await capacidadeDoAparelho();
-  const feito = await pedirAoMotor("carregar", { url: m.url, sha256: m.sha256, falso: motorAparelho.falso, webgpu: cap.webgpu }, andamento);
+  const feito = await pedirAoMotor("carregar", { partes: m.partes, sha256: m.sha256, falso: motorAparelho.falso, webgpu: cap.webgpu }, andamento);
   motorAparelho.carregado = m.sha256;
   return Object.assign({ modelo: m.nome, bytes: m.bytes }, feito);
 }

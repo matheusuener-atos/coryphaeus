@@ -9,7 +9,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | D0 | Levantamento e medida da fila remota | feita — ⏸ PAUSA: esperando a decisão do dono | ver git log (d0) | tabela e números abaixo |
 | F1 | Fila dentro da conversa, fila única, Ctrl+Enter | feita; chave `aparelho.fila` desligada de fábrica — ⏸ o dono decide se seguimos | ver git log (f1) | `tests/test_f1_fila.py` 49 ok (ordem, pendente, 429, Ctrl+Enter com e sem liberação, auditoria, e-mail na mesma fila, Edge) |
 | D1 | O pacote e a porta | feita; chave `aparelho.ligado` desligada de fábrica | ver git log (d1) | `tests/test_d1_pacote.py` 30 ok |
-| D2 | O motor no navegador | feita — ⏸ PAUSA: o modelo (o 1B carrega mas acerta pouco; o 3B não carrega sem dividir o arquivo) | ver git log (d2) | `tests/test_d2_motor.py` 25 ok; motor real no Edge: 1B carrega em 16–22 s, 8 tokens/s |
+| D2 | O motor no navegador | feita (com a D2b: o 3B em partes) | ver git log (d2, d2b) | `tests/test_d2_motor.py` 30 ok; o 3B de verdade no Edge: carrega em 23 s, 4,3 tokens/s, resposta certa |
 | D3 | Conferência no escritório e retomada | pendente | | |
 | D4 | O switch e a tela | pendente | | |
 | D5 | O que o titular controla | pendente | | |
@@ -256,6 +256,35 @@ e que a conferência mandará muita coisa de volta; (b) trazer o gguf-split do
 llama.cpp (ferramenta nova, versão fixa) para dividir o 3B em partes de 512 MB
 e servir as partes; (c) medir outro modelo pequeno (ex.: Qwen 2.5 1.5B) no
 roteiro antes.
+
+## D2b — o 3B em partes (30/09/2026)
+
+O dono escolheu a opção 2 da pausa: trazer o gguf-split do llama.cpp.
+
+- **O divisor:** `llama-gguf-split.exe` do llama.cpp **b11292** (zip oficial
+  `llama-b11292-bin-win-cpu-x64.zip`, SHA-256 conferido com o que o GitHub
+  publica: `50b68f61…8e11`), só com o que ele precisa para rodar (ggml-base,
+  ggml, llama, llama-common e libomp - 13 MB), em `src/bin/llama-cpp-b11292/`,
+  com as licenças (MIT; libomp: Apache-2.0 com a exceção do LLVM) e o hash de
+  cada arquivo em `aparelho_motor.PARTIDOR`. A pasta está com `-text` no
+  .gitattributes.
+- **A divisão:** na primeira vez que um aparelho pede o modelo, o servidor
+  confere o hash do blob do Ollama e divide em partes de 512 MB em
+  `<dados>/aparelho/partes/<sha256>/`, anotando o hash de cada parte (3,4 s
+  no 3B: 4 partes, 255 tensores). Parte trocada no disco com o mesmo tamanho:
+  409; com outro tamanho: divide de novo do modelo conferido.
+- **No aparelho:** cada parte é baixada, conferida pelo hash e guardada no
+  Cache Storage sob `/api/aparelho/modelo/<sha>/parte/<n>`; o Blob vem do
+  cache (o navegador lê do disco) - somando as partes em memória, o 3B
+  estourava ("NotReadableError"). Parte com hash errado: apagada e recusada.
+- **O padrão voltou a ser o llama3.2:3b** (o do escritório; 29/29 no roteiro).
+
+**Medido:** o 3B de verdade, no Edge com perfil de verdade (WebGPU, 16 GB):
+carrega em 23,2 s, escreve a 4,3 tokens/s, e respondeu "O IGP-M" à pergunta
+de exemplo em 4,4 s. No perfil anônimo do Edge de teste não carrega (ele não
+guarda Blob grande em disco nem dá cota ao Cache Storage): o teste real da D6
+tem de ser num navegador normal. `tests/test_d2_motor.py` 30 ok, com o
+gguf-split de verdade dividindo o 3B desta máquina em 4 s.
 
 ## Fora do foco
 

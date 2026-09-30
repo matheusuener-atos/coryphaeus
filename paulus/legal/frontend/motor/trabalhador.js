@@ -3,10 +3,11 @@
    Web Worker dedicado (docs/PROGRESSO-APARELHO.md, D2). Recebe o pacote de
    escrita, escreve com o modelo deste aparelho, devolve e apaga o que recebeu.
 
-   - O que fica no aparelho: só os pesos do modelo, no Cache Storage
-     "paulus-modelo", sob o endereço /api/aparelho/modelo/<sha256> - o nome
-     guardado é só o hash. Antes de usar, o SHA-256 é conferido; diferente,
-     o peso é apagado e o motor recusa.
+   - O que fica no aparelho: só os pesos do modelo, em partes de ~512 MB (a
+     wllama não lê arquivo acima de ~2 GB), no Cache Storage "paulus-modelo",
+     sob /api/aparelho/modelo/<sha256>/parte/<n> - o nome guardado é só o
+     hash. Antes de usar, o SHA-256 de cada parte é conferido; diferente, a
+     parte é apagada e o motor recusa.
    - O que nunca fica: a pergunta, os trechos e a resposta vivem só nas
      variáveis desta execução e são soltos no fim de cada escrita. Nada em
      localStorage, sessionStorage, IndexedDB nem Service Worker.
@@ -54,24 +55,31 @@ async function pesos(url, sha, avisar) {
     await cache.delete(url);
     throw new Error("hash do modelo não confere: apaguei e recusei");
   }
-  // O Blob fica com os bytes; a cópia em memória sai já - com dois gigas,
-  // manter as duas estourava a leitura do modelo.
-  const blob = new Blob([buf]);
+  // Guardada no Cache Storage, a parte vem de lá (o navegador a lê do disco);
+  // sem cache, dos bytes baixados. A cópia em memória sai já: somando as
+  // partes do 3B (2 GB), manter tudo em memória estourava a leitura.
   buf = null;
-  return blob;
+  const guardada = await cache.match(url);
+  if (guardada) return await guardada.blob();
+  return await resp.blob();
 }
 
 async function carregar(m, avisar) {
   falso = Boolean(m.falso);
   const inicio = Date.now();
-  const blob = await pesos(m.url, m.sha256, avisar);
+  const blobs = [];
+  for (const [i, parte] of (m.partes || []).entries()) {
+    blobs.push(await pesos(parte.url, parte.sha256, (a) => avisar(Object.assign({ parte: i + 1, partes: m.partes.length }, a))));
+  }
+  if (!blobs.length) throw new Error("o modelo veio sem partes");
   if (falso) {
     motor = { falso: true };
   } else {
     avisar({ fase: "carregando" });
     const { Wllama } = await import(BIBLIOTECA);
     motor = new Wllama({ default: WASM }, { suppressNativeLog: true });
-    await motor.loadModel([blob], { n_ctx: m.n_ctx || 4096, n_gpu_layers: m.webgpu === false ? 0 : 999 });
+    // As partes na ordem (modelo-00001-of-0000N primeiro): a wllama junta.
+    await motor.loadModel(blobs, { n_ctx: m.n_ctx || 4096, n_gpu_layers: m.webgpu === false ? 0 : 999 });
   }
   carregado = m.sha256;
   return { carregado: true, segundos: Math.round((Date.now() - inicio) / 100) / 10 };

@@ -11,6 +11,11 @@ Pensar no aparelho, D2: o motor que escreve no navegador (docs/PROGRESSO-APARELH
   novo antes de usar (frontend/motor/trabalhador.js). Hash diferente: recusa.
   Servir daqui, e não de uma origem pública, mantém a página sem origem nova
   na CSP (connect-src 'self').
+- **As partes** (D2b): a wllama não lê arquivo acima de ~2 GB, e o 3B tem
+  2,02 GB. O modelo é dividido uma vez, neste computador, pelo gguf-split do
+  llama.cpp (versão fixa em src/bin/, hashes em `PARTIDOR`), em partes de
+  512 MB guardadas em <dados>/aparelho/partes/<sha256 do modelo>/ com o hash
+  de cada uma; o aparelho baixa e confere parte por parte.
 - **A capacidade**: o aparelho manda só números (WebGPU sim/não, memória,
   tokens por segundo num texto de exemplo). Guardado por conta, para o
   Automático da D4.
@@ -21,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import threading
 from pathlib import Path
 
@@ -31,7 +37,24 @@ from pydantic import BaseModel, ConfigDict
 RAIZ = Path(__file__).resolve().parents[1]
 VENDOR = RAIZ / "frontend" / "vendor"
 MOTOR_DIR = RAIZ / "frontend" / "motor"
-MODELO_PADRAO = "llama3.2:1b"
+MODELO_PADRAO = "llama3.2:3b"
+TAMANHO_DA_PARTE = "512M"
+
+# O gguf-split do llama.cpp (b11292, MIT; o libomp é do LLVM, Apache-2.0 com
+# a exceção do LLVM): so os arquivos que ele precisa para rodar, com o hash.
+PARTIDOR = {
+    "versao": "b11292",
+    "pasta": RAIZ / "src" / "bin" / "llama-cpp-b11292",
+    "exe": "llama-gguf-split.exe",
+    "arquivos": {
+        "llama-gguf-split.exe": "9ed0d640a567d069396ea6b7aa9f0ce00f92cdfd3dc5afdc84d59d5a657ec85d",
+        "ggml-base.dll": "ccdb765182eea769f15d9fa70c3a1e3e63815353ec59331b80cee49b2466ee98",
+        "ggml.dll": "50a3668baed68114b67bb4d4ea43849fd747380baf67b67a0b2aab7d893003ac",
+        "llama.dll": "22e349cb0f58db6b5c3898b54004ceee98673c95dfbcb64babcc8304a01e97f9",
+        "llama-common.dll": "8dacb5279aea9fafbcbf12e35a79682c0fdde09b74582e5b2090cd6b7f9efd27",
+        "libomp.dll": "a12116ba72d1d6820407cf30be23da04ce79d6bb8a71a5ee71759c5a1faa6f1c",
+    },
+}
 
 # A wllama servida por aqui: versão fixa e o SHA-256 de cada arquivo. Trocar
 # de versão é trocar a pasta e estes hashes, com o teste (tests/test_d2_motor.py).
@@ -106,6 +129,72 @@ def modelo_do_aparelho(nome: str, pasta: Path | None = None) -> dict:
     return {"nome": nome, "sha256": sha, "bytes": arquivo.stat().st_size, "arquivo": arquivo}
 
 
+# ------------------------------------------------------------ as partes
+
+_trava_partes = threading.Lock()
+
+
+def partidor_pronto() -> tuple[bool, str]:
+    """O gguf-split está aqui, inteiro? (pronto, motivo)."""
+    pasta = PARTIDOR["pasta"]
+    for nome, sha in PARTIDOR["arquivos"].items():
+        arq = pasta / nome
+        if not arq.exists():
+            return False, "o divisor do modelo não veio com o programa"
+        if conferido(arq) != sha:
+            return False, f"o divisor do modelo ({nome}) não confere com a versão fixa"
+    return True, ""
+
+
+def dividir(arquivo: Path, destino: Path) -> list[Path]:
+    """Divide o GGUF em partes (modelo-0000N-of-0000M.gguf) com o gguf-split. Levanta RuntimeError."""
+    import subprocess
+
+    pronto, motivo = partidor_pronto()
+    if not pronto:
+        raise RuntimeError(motivo)
+    destino.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run([str(PARTIDOR["pasta"] / PARTIDOR["exe"]), "--split", "--split-max-size", TAMANHO_DA_PARTE,
+                        str(arquivo), str(destino / "modelo")], capture_output=True, text=True, timeout=1800,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    partes = sorted(destino.glob("modelo-*-of-*.gguf"))
+    if r.returncode != 0 or not partes:
+        raise RuntimeError("não consegui dividir o modelo: " + (r.stderr or r.stdout or "")[-300:])
+    return partes
+
+
+def partes_do_modelo(m: dict, dados_dir: Path) -> dict:
+    """
+    As partes do modelo `m` (de `modelo_do_aparelho`), divididas uma vez e
+    guardadas com o hash de cada uma: {"partes": [{"nome", "sha256", "bytes"}]}
+    ou {"erro"}. O modelo inteiro é conferido antes de dividir.
+    """
+    pasta = Path(dados_dir) / "aparelho" / "partes" / m["sha256"]
+    indice = pasta / "partes.json"
+    with _trava_partes:
+        try:
+            feito = json.loads(indice.read_text(encoding="utf-8"))
+            if all((pasta / x["nome"]).exists() and (pasta / x["nome"]).stat().st_size == x["bytes"] for x in feito["partes"]):
+                return feito
+        except (OSError, ValueError, KeyError):
+            pass
+        if conferido(m["arquivo"]) != m["sha256"]:
+            return {"erro": "o arquivo do modelo não confere com o hash"}
+        provisoria = pasta.with_name(pasta.name + ".dividindo")
+        shutil.rmtree(provisoria, ignore_errors=True)
+        try:
+            partes = dividir(m["arquivo"], provisoria)
+        except RuntimeError as exc:
+            shutil.rmtree(provisoria, ignore_errors=True)
+            return {"erro": str(exc)}
+        feito = {"origem": m["sha256"], "partidor": PARTIDOR["versao"],
+                 "partes": [{"nome": x.name, "sha256": sha256_do_arquivo(x), "bytes": x.stat().st_size} for x in partes]}
+        shutil.rmtree(pasta, ignore_errors=True)
+        provisoria.rename(pasta)
+        indice.write_text(json.dumps(feito, ensure_ascii=False, indent=1), encoding="utf-8")
+        return feito
+
+
 # ---------------------------------------------------------- a capacidade
 
 class Capacidade(BaseModel):
@@ -161,23 +250,33 @@ def montar(estado, app, dados_dir: Path) -> None:
 
     @app.get("/api/aparelho/modelo")
     def aparelho_modelo(request: Request = None) -> dict:
+        """O modelo do aparelho, em partes (a primeira vez divide: alguns segundos)."""
         _pode_baixar(request)
         m = modelo_do_aparelho(_nome_do_modelo())
         if m.get("erro"):
             return {"disponivel": False, "nome": m["nome"], "motivo": m["erro"], "motor": MOTOR["versao"]}
-        return {"disponivel": True, "nome": m["nome"], "sha256": m["sha256"], "bytes": m["bytes"],
-                "url": f"/api/aparelho/modelo/{m['sha256']}", "motor": MOTOR["versao"]}
+        d = partes_do_modelo(m, dados_dir)
+        if d.get("erro"):
+            return {"disponivel": False, "nome": m["nome"], "motivo": d["erro"], "motor": MOTOR["versao"]}
+        return {"disponivel": True, "nome": m["nome"], "sha256": m["sha256"], "bytes": m["bytes"], "motor": MOTOR["versao"],
+                "partes": [{"url": f"/api/aparelho/modelo/{m['sha256']}/parte/{i}", "sha256": x["sha256"], "bytes": x["bytes"]}
+                           for i, x in enumerate(d["partes"], 1)]}
 
-    @app.get("/api/aparelho/modelo/{sha}")
-    def aparelho_modelo_arquivo(sha: str, request: Request = None) -> FileResponse:
+    @app.get("/api/aparelho/modelo/{sha}/parte/{n}")
+    def aparelho_modelo_parte(sha: str, n: int, request: Request = None) -> FileResponse:
         _pode_baixar(request)
         m = modelo_do_aparelho(_nome_do_modelo())
         if m.get("erro") or m.get("sha256") != sha:
             raise HTTPException(status_code=404, detail="esse modelo não é o do aparelho")
-        # O nome do blob diz o hash; o conteúdo tem de dizer o mesmo.
-        if conferido(m["arquivo"]) != sha:
-            raise HTTPException(status_code=409, detail="o arquivo do modelo não confere com o hash")
-        return FileResponse(m["arquivo"], media_type="application/octet-stream",
+        d = partes_do_modelo(m, dados_dir)
+        if d.get("erro") or not 1 <= n <= len(d["partes"]):
+            raise HTTPException(status_code=404, detail="essa parte do modelo não existe")
+        parte = d["partes"][n - 1]
+        arq = Path(dados_dir) / "aparelho" / "partes" / sha / parte["nome"]
+        # A parte guardada tem de dizer o hash anotado quando foi dividida.
+        if conferido(arq) != parte["sha256"]:
+            raise HTTPException(status_code=409, detail="uma parte do modelo não confere com o hash")
+        return FileResponse(arq, media_type="application/octet-stream",
                             headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
     @app.post("/api/aparelho/capacidade")

@@ -1,3 +1,4 @@
 
 # Arquivos de terceiros com hash fixo (src/aparelho_motor.py): byte a byte, sem troca de fim de linha.
 paulus/legal/frontend/vendor/** -text
+paulus/legal/src/bin/** -text

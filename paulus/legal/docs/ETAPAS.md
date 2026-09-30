@@ -2428,3 +2428,10 @@ nada além dos pesos; teste de capacidade só com números; CSP com
 no Edge: carrega em 16–22 s e escreve a ~8 tokens/s. O 1B acerta 12/29 do
 roteiro de documentos (o 3B, 29/29) e o 3B passa do limite de 2 GB da wllama:
 pausa para o dono escolher.
+
+## D2b — O 3B em partes ✓ FEITA (30/09/2026)
+
+O gguf-split do llama.cpp b11292 (hashes fixos, em src/bin) divide o modelo
+em partes de 512 MB, conferidas pelo hash nos dois lados. O 3B de verdade
+carrega no Edge (23 s) e escreve a 4,3 tokens/s. **Medido:**
+`tests/test_d2_motor.py` 30 ok.
