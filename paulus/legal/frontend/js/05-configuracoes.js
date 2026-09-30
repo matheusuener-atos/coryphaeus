@@ -200,6 +200,7 @@ function desenharConfig() {
   if (cfg.secao === "desempenho") comecarMedicao();
   if (cfg.secao === "plano") ligarAtualizacao($("cfg-tela"));
   if (cfg.secao === "assistente") blocoLeis();
+  if (cfg.secao === "feedback" && typeof blocoCaderno === "function") blocoCaderno();
 }
 
 function cabecalhoConfig() {
@@ -1145,7 +1146,9 @@ function secaoFeedback() {
     '<div class="cfg-botoes cfg-botoes-fim"><button data-cfg-fb-guardar="1">' + ic("save", 16) + "Guardar rascunho</button>" +
     '<button class="com-icone" data-cfg-fb-copiar="1">' + ic("content_copy", 16) + "Copiar</button>" +
     '<button class="primario com-icone" data-cfg-fb-enviar="1">' + marcaDoEmail(16) + "Escrever e-mail</button></div>";
-  return aberturaCfg() + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
+  // L1: o caderno de falhas (js/63-aprendizado.js), só na janela do escritório.
+  const caderno = typeof cartaoCaderno === "function" ? cartaoCaderno() : "";
+  return aberturaCfg() + caderno + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
 }
 
 /* Todo feedback vai para o endereço do projeto - o mesmo do extrato de apoio

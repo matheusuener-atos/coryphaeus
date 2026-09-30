@@ -1,0 +1,47 @@
+  /* ------------------------------------------ aprender com o uso (L1) */
+  /* 👍/👎 na assinatura da resposta, o cartão da 👎 e o caderno de falhas
+     (js/63-aprendizado.js). */
+
+  .apr-notas { display: inline-flex; gap: 2px; }
+  .sem-avaliar .apr-notas { display: none; }
+  .apr-nota { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0;
+    border: none; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer; }
+  .apr-nota:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  .apr-nota.on { color: var(--acc); background: var(--fill); }
+
+  .apr-cartao { display: grid; gap: 8px; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px;
+    background: var(--surf); max-width: 640px; }
+  .apr-cartao p { margin: 0; font-size: 13.5px; color: var(--ink2); display: flex; align-items: center; gap: 6px; }
+  .apr-cartao textarea, .apr-cartao input { width: 100%; max-width: 100%; min-width: 0; min-height: 0; }
+  .apr-cartao textarea { min-height: 56px; }
+  .apr-motivos, .apr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .apr-motivo { height: 28px; padding: 0 10px; border: 1px solid var(--ink-a1); border-radius: 14px; background: none;
+    font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer; }
+  .apr-motivo.on { border-color: var(--acc); color: var(--ink); background: var(--fill); }
+  .apr-explica { color: var(--ink3); font-size: 12px; }
+  .apr-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .apr-botoes button { display: inline-flex; align-items: center; gap: 6px; }
+
+  .apr-resumo { display: grid; gap: 8px; margin-bottom: 8px; }
+  .apr-resumo p { margin: 0; font-size: 13.5px; color: var(--ink2); }
+  .apr-chip { padding: 2px 10px; border-radius: 12px; background: var(--fill); font-size: 12.5px; color: var(--ink2); }
+  .apr-contas { display: grid; border-top: 1px solid var(--ink-a08); max-width: 420px; }
+  .apr-conta-linha { display: grid; grid-template-columns: minmax(0, 1fr) 56px 56px; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
+  .apr-conta-linha b { font-weight: 500; text-align: right; }
+  .apr-conta-cab { color: var(--ink3); font-size: 12px; }
+  .apr-ver { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); margin: 4px 0 8px; }
+  .apr-falhas { display: grid; border-top: 1px solid var(--ink-a08); }
+  .apr-falha { display: grid; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--ink-a08); }
+  .apr-falha.resolvida { opacity: .6; }
+  .apr-falha-cab { display: grid; gap: 2px; }
+  .apr-falha-cab small { color: var(--ink3); font-size: 12px; }
+  .apr-falha p { margin: 0; font-size: 13.5px; color: var(--ink2); line-height: 1.45; }
+  .apr-resposta { color: var(--ink3) !important; }
+  .apr-rot { color: var(--ink3); font-size: 12px; margin-right: 4px; }
+  .apr-caso { display: flex; align-items: center; gap: 6px; color: var(--okt) !important; }
+
+  @media (max-width: 600px) {
+    .apr-nota { width: 40px; height: 40px; }
+    .apr-botoes button, .apr-motivo { min-height: 40px; }
+  }

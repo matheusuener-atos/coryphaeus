@@ -701,6 +701,8 @@ function linhaAssinatura(segundos, citados, pergunta, quem, como) {
     ? esc(frase) + (como && !(como.caminho === "nivel0" && como.molde) ? " · " + esc(quem || estado.modelo || "assistente local") : "")
     : esc(quem || estado.modelo || "assistente local") + " · " + esc(String(segundos)) + " s" +
       (citados ? " · " + plural(citados, "arquivo citado", "arquivos citados") : "")) + "</span>" +
+    // L1: 👍/👎 (js/63-aprendizado.js), só nas respostas de uma pergunta.
+    (pergunta && typeof botoesDeAvaliacao === "function" ? botoesDeAvaliacao() : "") +
     '<button data-copiar="1">' + ic("content_copy", 16) + "<span>Copiar</span></button>" +
     (pergunta ? '<button data-refazer="' + esc(pergunta) + '">' + ic("refresh", 16) + "<span>Refazer</span></button>" : "") +
     "</div>";

@@ -100,6 +100,9 @@ function desenharSobre(m, pergunta, visor) {
   if (c.agente) linhas.push(["Agente", c.agente + (c.agente_versao ? " · versão " + c.agente_versao : "")]);
   // D4: onde foi escrita e por quê (js/61-aparelho-tela.js).
   if (c.escrita && typeof fraseDaEscrita === "function") linhas.push(["Escrita", fraseDaEscrita(c.escrita)]);
+  // L1: a nota que a pessoa deu a esta resposta (js/63-aprendizado.js).
+  const nota = typeof avaliacaoDaResposta === "function" && estado.respostaSel !== undefined ? avaliacaoDaResposta(estado.respostaSel) : "";
+  if (nota) linhas.push(["Avaliação", nota]);
   const blocoComo = $("lat-como");
   if (blocoComo) {
     blocoComo.hidden = !linhas.length;

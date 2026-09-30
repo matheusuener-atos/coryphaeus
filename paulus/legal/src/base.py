@@ -673,6 +673,39 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_avisos_vistos_em ON avisos_vistos(visto_em);
         """,
     ),
+    (
+        "027_avaliacoes",
+        """
+        -- Aprender com o uso (src/aprendizado.py, L1): a nota de cada resposta
+        -- (bom/ruim) por pessoa ('local' ou 'conta:<id>'), com a copia do que
+        -- foi avaliado - a conversa pode mudar ou ir para a lixeira. caso = 1:
+        -- a correcao ja virou caso de teste no conjunto real.
+        CREATE TABLE IF NOT EXISTS avaliacoes (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            trabalho_id TEXT NOT NULL,
+            indice      INTEGER NOT NULL,
+            pessoa      TEXT NOT NULL,
+            pessoa_nome TEXT DEFAULT '',
+            nota        TEXT NOT NULL,
+            motivo      TEXT DEFAULT '',
+            comentario  TEXT DEFAULT '',
+            correcao    TEXT DEFAULT '',
+            termos      TEXT DEFAULT '[]',
+            pergunta    TEXT DEFAULT '',
+            resposta    TEXT DEFAULT '',
+            documentos  TEXT DEFAULT '[]',
+            caminho     TEXT DEFAULT '',
+            modelo      TEXT DEFAULT '',
+            onde        TEXT DEFAULT '',
+            titulo      TEXT DEFAULT '',
+            quando      TEXT NOT NULL,
+            caso        INTEGER NOT NULL DEFAULT 0,
+            resolvida   INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_avaliacoes_resposta ON avaliacoes(trabalho_id, indice, pessoa);
+        CREATE INDEX IF NOT EXISTS idx_avaliacoes_quando ON avaliacoes(quando);
+        """,
+    ),
 ]
 
 

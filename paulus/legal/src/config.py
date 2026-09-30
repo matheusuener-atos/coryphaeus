@@ -241,6 +241,9 @@ PADRAO: dict = {
     # "modelo": o preferido para o aparelho; sem ele aqui (ou grande demais para
     # o navegador), o do escritório ou o maior que cabe (src/aparelho_motor.py).
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
+    # L1 (src/aprendizado.py): 👍/👎 em cada resposta e o caderno de falhas.
+    # Ligado de fabrica: o piloto mede desde o primeiro dia, e nada sai daqui.
+    "aprendizado": {"avaliar": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

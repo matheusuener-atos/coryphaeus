@@ -374,6 +374,11 @@ _declarar(PERMITIDO, "GET /motor/wllama-3.6.1/{arquivo}", "GET /motor/trabalhado
 _declarar(PERMITIDO, "GET /api/aparelho/estado", "POST /api/aparelho/sugestao", "GET /api/aparelho/pacote/{pid}",
           "POST /api/aparelho/pacote/{pid}/devolver", "POST /api/aparelho/pacote/{pid}/abandonar",
           "POST /api/aparelho/pacote/{pid}/pedaco")
+# --- L1: aprender com o uso (src/aprendizado.py). Avaliar a propria resposta vale
+# de fora; o caderno de falhas e da janela do escritorio.
+_declarar(PERMITIDO, "POST /api/aprendizado/avaliar", "GET /api/aprendizado/da-conversa/{trabalho_id}")
+_declarar(BLOQUEADO, "GET /api/aprendizado/caderno", "POST /api/aprendizado/caderno/{id_}/caso",
+          "POST /api/aprendizado/caderno/{id_}/resolver")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")
