@@ -13,6 +13,8 @@ data/diarios/
 data/trabalhos/
 # O registro de cada resposta (C1, src/execucoes.py): conteudo das conversas.
 data/execucoes/
+# As frases de "ordem ao assistente" achadas nos trechos lidos (C6).
+data/cerca/
 
 # Fila de aprovacoes e preferencias: caminhos e dados pessoais
 data/aprovacoes.json

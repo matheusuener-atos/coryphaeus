@@ -247,10 +247,18 @@ def saudar(ctx: Contexto, recentes: list[str], banco: dict | None = None, sortei
 # ------------------------------------------------------------------ servidor
 
 def _data(texto: str) -> datetime | None:
+    """
+    A data que a tela manda, na hora local e sem fuso. O `toISOString()` do
+    navegador vem em UTC com "Z"; subtraida de uma data sem fuso, dava
+    TypeError na rota (visto no teste da A3, 30/09).
+    """
     try:
-        return datetime.fromisoformat(str(texto)) if texto else None
+        d = datetime.fromisoformat(str(texto).replace("Z", "+00:00")) if texto else None
     except ValueError:
         return None
+    if d is not None and d.tzinfo is not None:
+        d = d.astimezone().replace(tzinfo=None)
+    return d
 
 
 def contexto_do_escritorio(estado, agora: datetime, pessoa: dict | None, ultima_abertura: str = "",
