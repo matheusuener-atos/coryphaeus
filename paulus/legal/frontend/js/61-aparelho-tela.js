@@ -369,7 +369,7 @@ async function configuracoesDoAparelho() {
             else if (a.fase === "carregando") dizer("Carregando o modelo…");
             else if (a.fase === "sem_espaco") dizer("O navegador não deixou guardar o modelo: ele vai ser baixado de novo a cada vez.");
           });
-          dizer(t.passou ? "Passou. O seletor aparece embaixo do campo da pergunta." : "Não passou: " + t.motivo + ".");
+          dizer(t.passou ? "Passou. O seletor aparece na caixa da pergunta, ao lado do microfone." : "Não passou: " + t.motivo + ".");
         } else {
           dizer("Apagando…");
           await apagarModeloDesteAparelho();

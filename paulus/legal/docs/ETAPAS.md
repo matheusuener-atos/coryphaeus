@@ -2462,3 +2462,10 @@ escritório" por cliente, Serviço ou pasta (conferido ao gravar e respeitado
 no pacote) e o relatório por pessoa. Desligar, para o escritório ou para a
 conta, faz a resposta em andamento terminar aqui na hora. **Medido:**
 `tests/test_d5_titular.py` 29 ok.
+
+## D6 — Política, manual e teste real ⏸ ESPERANDO O TESTE REAL (30/09/2026)
+
+Política de privacidade e termos (pt e en) com a escrita no aparelho, **sem
+publicar** (vão com o próximo `publicar`); manual
+`docs/pensar-no-aparelho.md`. O roteiro do teste real está em
+`docs/PROGRESSO-APARELHO.md`, seção D6.

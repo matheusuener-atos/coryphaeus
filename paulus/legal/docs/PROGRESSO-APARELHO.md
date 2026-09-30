@@ -13,7 +13,7 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | D3 | Conferência no escritório e retomada | feita | ver git log (d3) | `tests/test_d3_conferencia.py` 9 ok |
 | D4 | O switch e a tela | feita | ver git log (d4) | `tests/test_d4_switch.py` 40 ok |
 | D5 | O que o titular controla | feita | ver git log (d5) | `tests/test_d5_titular.py` 29 ok |
-| D6 | Política, manual e teste real | pendente | | |
+| D6 | Política, manual e teste real | ⏸ esperando o teste real do dono | ver git log (d6) | roteiro abaixo |
 
 ## D0 — o prompt supõe × o código tem hoje (30/09/2026)
 
@@ -445,6 +445,73 @@ uma resposta: termina aqui, com o motivo, e o pacote não vale mais;
 relatório 1 no aparelho, 1 refeita, 2 terminadas aqui; auditoria das
 marcas; no Edge, o cartão com estado, liberadas e relatório, marcar e tirar
 uma pasta, desligar pela tela).
+
+## D6 — política, manual e teste real (30/09/2026)
+
+**Política de privacidade e termos** (`site/`, as páginas em português e
+em inglês), **não publicados**: vão ao ar com o próximo `publicar` (é ele
+quem faz o push do site). Na política, a seção nova "Escrever a resposta no
+aparelho (opcional)": vem desligado, quem liga, o que continua no
+escritório, o que vai ao aparelho a cada pergunta e uma vez, o que fica
+nele, o que o escritório confere, o que o escritório recebe do aparelho
+(os números do teste e o registro, com o código curto do navegador), o que
+não dá para garantir; o "O que continua no computador do escritório" do
+acesso de fora deixou de dizer que o modelo nunca sai; a retenção do modelo
+guardado. Nos termos, um item em "Acesso de fora": quem decide, a
+segurança do aparelho é de quem o usa, e o texto conferido continua sendo
+resposta de IA sujeita à revisão do profissional.
+
+**Manual**: `docs/pensar-no-aparelho.md` (como funciona, ligar, casos só no
+escritório, o relatório, usar de fora, apagar o modelo, solução de
+problemas, conferir o navegador); `docs/acesso-de-fora.md` aponta para ele.
+
+### ⏸ Roteiro do teste real (para o dono, de um notebook fora do escritório)
+
+Antes de sair: no computador do escritório, o PAULUS rodando pelo terminal
+com esta versão (a main), o acesso de fora ligado e o `llama3.2:3b` no
+Ollama. No notebook: Edge ou Chrome atualizado, **janela normal** (a
+anônima não guarda o modelo), e ~3 GB livres.
+
+1. **Ligar** (no escritório, antes de sair): Configurações › Acesso de
+   fora › Escrever no aparelho › **Ligar**. A sua conta de titular já pode;
+   para testar também uma conta da equipe, Contas › Permissões › "Escrever
+   a resposta no próprio aparelho: pode".
+2. **Entrar e testar o aparelho** (no notebook): entre pelo acesso de fora;
+   seu nome no alto › **Este aparelho** › **Fazer o teste**. Anote: quanto
+   tempo levou o download, se passou, e as palavras por segundo. Feche e
+   confira que apareceu **Escritório ▾** na caixa da pergunta.
+3. **Cinco perguntas em "Este aparelho"**: troque para **Este aparelho**,
+   clique **Entendi** no aviso, e faça 5 perguntas sobre documentos (de
+   preferência uma com valor ou data, e uma que peça uma cláusula). Em cada
+   uma, confira na assinatura "neste aparelho" e em Sobre esta resposta ›
+   Escrita "escrita neste aparelho · llama3.2:3b · conferida no
+   escritório" (ou o motivo, se o escritório refez). Anote o tempo de cada
+   uma. Se quiser ver a janela de sugestão: volte para **Escritório** e
+   pergunte enquanto alguém usa o PAULUS no escritório.
+4. **Caso só no escritório**: no escritório (ou peça a alguém lá), Acesso
+   de fora › Escrever no aparelho › Só no escritório › marque o cliente ou o
+   Serviço de um documento. Do notebook, pergunte sobre esse documento: a
+   resposta tem de dizer "escrita no escritório · a resposta usa um caso
+   marcado só no escritório". Tire a marca depois.
+5. **Fechar a aba no meio**: pergunte algo que peça uma resposta longa e,
+   quando o texto começar a aparecer, feche a aba. Espere ~1 minuto, entre
+   de novo e abra a conversa: a resposta tem de estar lá, com Escrita
+   "começou neste aparelho e o escritório terminou · o aparelho não
+   terminou" (ou "escrita no escritório", se nada tinha chegado).
+6. **Nada guardado**: F12 › Aplicativo (Application) › Armazenamento. Em
+   Cache Storage, só `paulus-modelo` (as partes do modelo); em
+   Armazenamento local, só `paulus.aparelho` (escolha e números); nada em
+   IndexedDB. Procure uma palavra de uma das perguntas: não pode aparecer.
+7. **Apagar**: seu nome › Este aparelho › **Apagar o modelo deste
+   aparelho**. Confira em F12 que `paulus-modelo` sumiu e que o seletor
+   saiu da caixa da pergunta.
+
+No fim, de volta ao escritório: Acesso de fora › Escrever no aparelho ›
+Relatório (as respostas do teste, por pessoa) e "Quem acessou" (as
+entregas, devoluções e o fim de cada uma).
+
+Me mande o que deu diferente do esperado em cada passo, com o texto da
+tela; cada correção vem com teste.
 
 ## Fora do foco
 

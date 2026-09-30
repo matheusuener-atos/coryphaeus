@@ -4,6 +4,10 @@ Usar o PAULUS de casa, do fórum ou do celular, com o programa rodando no
 computador do escritório. Nada muda de lugar: os documentos, o índice e o
 modelo de IA continuam lá. O que ganha um caminho seguro até eles é a tela.
 
+> Com a escrita no aparelho ligada ([pensar-no-aparelho.md](pensar-no-aparelho.md)),
+> o modelo e os trechos de cada pergunta vão ao navegador da pessoa com a
+> conta liberada; os documentos e o índice continuam aqui.
+
 Vem **desligado**. Só o escritório liga, e só no próprio computador: no
 assistente de configuração (passo "Acesso à distância", logo depois do nome
 do escritório) ou, depois, em Configurações › Acesso de fora.

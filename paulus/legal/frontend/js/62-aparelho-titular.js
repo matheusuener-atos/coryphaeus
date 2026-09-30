@@ -44,7 +44,8 @@ function cartaoAparelhoTitular() {
       : "desligado, toda resposta é escrita aqui, venha de onde vier a pergunta") + "</small></span>" +
     '<button data-apt-ligar="' + (ligado ? "0" : "1") + '"' + (ligado ? ' class="perigo"' : "") + ">" + (ligado ? "Desligar" : "Ligar") + "</button></div>" +
     '<p class="cfg-explica">Por conta: em Contas › Permissões, “Escrever a resposta no próprio aparelho”. ' +
-    (liberadas.length ? "Liberadas: " + liberadas.map((c) => esc(c.nome)).join(", ") + "." : "Nenhuma conta liberada.") +
+    (liberadas.length ? "Liberadas: " + liberadas.map((c) => esc(c.nome)).join(", ") + "." : "Nenhuma conta da equipe liberada.") +
+    " A conta do titular pode sempre que o escritório liga." +
     " A pergunta que vai ao aparelho lê por trechos, só ela; ler o documento inteiro, editar, redigir e e-mail ficam sempre aqui.</p>";
 
   const opcoes = ['<option value="">Escolha um cliente ou Serviço…</option>']

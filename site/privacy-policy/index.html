@@ -44,7 +44,7 @@
   <span class="rotulo">PAVLVS — Local AI legal assistant</span>
   <h1>Privacy Policy</h1>
   <p class="lead">How PAULUS (PAULUS Legal; app name on Google: PAVLVS) accesses, uses, stores and protects data — especially data from your Google account and Gmail.</p>
-  <span class="data">Last updated: September 29, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
+  <span class="data">Last updated: September 30, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
 </header>
 
 <div class="doc">
@@ -61,6 +61,7 @@
       <li><a href="#sharing">Sharing</a></li>
       <li><a href="#other">Other internet access</a></li>
       <li><a href="#remote">Remote access (optional)</a></li>
+      <li><a href="#device">Writing the answer on the device (optional)</a></li>
       <li><a href="#retention">Retention and deletion</a></li>
       <li><a href="#rights">Your rights (LGPD)</a></li>
       <li><a href="#website">This website</a></li>
@@ -176,10 +177,22 @@
     <h2 id="remote">Remote access (optional)</h2>
     <p>PAULUS can be used from home or from a phone, with the program running on the office computer. This module <strong>comes turned off</strong>, and only the office turns it on and off, on the computer itself.</p>
     <ul>
-      <li><strong>What stays on the office computer:</strong> documents, the index, what PAULUS extracted from them, and the AI model. They do not go to Cloudflare, to paulus.ia.br or to us. What travels over the internet is the program's screen and what is typed into it.</li>
+      <li><strong>What stays on the office computer:</strong> documents, the index and what PAULUS extracted from them; and the AI model, unless the office turns on writing on the device (see <a href="#device">the next section</a>). They do not go to paulus.ia.br or to us. What travels over the internet is the program's screen and what is typed into it.</li>
       <li><strong>How it travels:</strong> through a Cloudflare tunnel, at an <code>&lt;office&gt;.paulus.ia.br</code> address created in the project's Cloudflare account. The connection is encrypted between your browser and Cloudflare and between Cloudflare and the office computer, but Cloudflare opens it midway to deliver it: in that stretch, traffic passes <strong>unencrypted</strong> through Cloudflare, which handles it under its own privacy policy. We do not route, inspect or log that content.</li>
       <li><strong>Who gets in:</strong> only people who pass the anti-bot check (Cloudflare Turnstile) and sign in with their own PAULUS account — with Google (or email and password) and, depending on the security level the office chooses for that account, the code from an authenticator app. Signing documents, moving or deleting files, exporting the archive and changing settings remain only on the office computer.</li>
       <li><strong>Log:</strong> every remote access is logged <strong>on the office computer</strong> — who signed in, when, what they opened and downloaded — for one year, for the office itself to consult.</li>
+    </ul>
+
+    <h2 id="device">Writing the answer on the device (optional)</h2>
+    <p>With remote access on, the office can let the answer to a question be written by the computer (or phone) of the person asking, instead of the office computer — useful when the office is busy with other questions. <strong>It comes turned off.</strong> Only the account holder turns it on, on the office computer, for the office and account by account, and can mark clients, matters and folders whose content <strong>never</strong> goes to any device. Turning it off takes effect immediately: whatever was being written is finished at the office.</p>
+    <ul>
+      <li><strong>What stays at the office:</strong> searching the documents, the index, and everything that means reading a whole document, editing, drafting, email, OCR and adding documents. The feature applies only to chat answers written from excerpts.</li>
+      <li><strong>What goes to the device, for each question:</strong> the question, the start of the conversation, the assistant's instructions and the <strong>excerpts</strong> of the documents that answer it — excerpts only, never a whole document, up to about 9,000 characters, and only from documents that account could already open through remote access. It travels through the same remote-access tunnel, from the office computer to the person's browser, with the same Cloudflare stretch described above; no PAULUS server and no internet AI service receives anything.</li>
+      <li><strong>What goes to the device, once:</strong> the AI model file (currently Llama 3.2 3B, about 2 GB) and the program that runs it in the browser, both served by the office computer and checked against a fingerprint (SHA-256) before use. The model file is the same for everyone: it contains nothing from the office.</li>
+      <li><strong>What is kept on the device:</strong> only the model file, in the browser's storage, until the person deletes it (My account › This device) or the browser clears it; and, in the browser, a few preferences of this screen: the choice between office, device and automatic, the speed-test numbers and “don't suggest again today”. The question, the excerpts and the answer are <strong>not stored</strong>: they exist in memory while the answer is written and are discarded at the end.</li>
+      <li><strong>What the office checks:</strong> the text coming back from the device is treated as untrusted and goes through the office's checks before it is shown or saved — numbers, dates and amounts not in the excerpts, citations of excerpts that were not sent, laws not in the excerpts, stray links and emails. If it fails, the office writes the answer again. Every answer says where it was written and why.</li>
+      <li><strong>What the office receives from the device:</strong> besides the answer text, only the capacity-test numbers (whether the browser has WebGPU, memory, speed and the time to load the model). The remote-access log keeps, for one year, every hand-off and return: who, when, which documents the excerpts came from, the result of the check and a short browser code (6 characters taken from a digest of the browser's identification, only to tell apart two devices of the same person).</li>
+      <li><strong>What cannot be guaranteed:</strong> a compromised device — with malware or a malicious browser extension — can read what the page shows. That is already true today, just by viewing documents through remote access. Writing the answer on the device does not increase that risk, because the device receives the same thing the person would already see on screen, but it does not remove it either. Take care of the device you use.</li>
     </ul>
 
     <h2 id="retention">Retention and deletion</h2>

@@ -45,7 +45,7 @@
   <span class="rotulo">PAVLVS — Assistente jurídico de IA local</span>
   <h1>Política de privacidade</h1>
   <p class="lead">Como o PAULUS (PAULUS Legal, nome do app no Google: PAVLVS) acessa, usa, guarda e protege dados — em especial os dados da sua conta Google e do Gmail.</p>
-  <span class="data">Última atualização: 29 de setembro de 2026 · <a href="../privacy-policy/" lang="en">English version</a></span>
+  <span class="data">Última atualização: 30 de setembro de 2026 · <a href="../privacy-policy/" lang="en">English version</a></span>
 </header>
 
 <div class="doc">
@@ -62,6 +62,7 @@
       <li><a href="#compartilhamento">Compartilhamento</a></li>
       <li><a href="#outros-acessos">Outros acessos à internet</a></li>
       <li><a href="#acesso-de-fora">Acesso de fora (opcional)</a></li>
+      <li><a href="#aparelho">Escrever a resposta no aparelho (opcional)</a></li>
       <li><a href="#retencao">Retenção e como apagar</a></li>
       <li><a href="#direitos">Seus direitos (LGPD)</a></li>
       <li><a href="#site">Este site</a></li>
@@ -179,7 +180,7 @@
     <h2 id="acesso-de-fora">Acesso de fora (opcional)</h2>
     <p>O PAULUS pode ser usado de casa ou do celular, com o programa rodando no computador do escritório. Esse módulo <strong>vem desligado</strong>, e só o escritório liga e desliga, no próprio computador (no assistente de configuração ou em Configurações › Acesso de fora).</p>
     <ul>
-      <li><strong>O que continua no computador do escritório:</strong> os documentos, o índice, o que o PAULUS extraiu deles e o modelo de IA. Eles não vão para a Cloudflare, para o site paulus.ia.br nem para nós. O que passa pela internet é a tela do programa e o que se digita nela.</li>
+      <li><strong>O que continua no computador do escritório:</strong> os documentos, o índice e o que o PAULUS extraiu deles; e o modelo de IA, a não ser que o escritório ligue a escrita no aparelho (veja <a href="#aparelho">a seção seguinte</a>). Eles não vão para o site paulus.ia.br nem para nós. O que passa pela internet é a tela do programa e o que se digita nela.</li>
       <li><strong>Por onde passa:</strong> pelo túnel da Cloudflare, num endereço <code>&lt;escritório&gt;.paulus.ia.br</code> criado na conta Cloudflare do Atos. A conexão é criptografada entre o seu navegador e a Cloudflare e entre a Cloudflare e o computador do escritório, mas a Cloudflare a abre no meio do caminho para entregá-la: nesse trecho, o tráfego passa <strong>descriptografado</strong> pela Cloudflare, que o trata segundo a política de privacidade dela.</li>
       <li><strong>O que o Atos faz e não faz:</strong> o site paulus.ia.br cria o endereço e o túnel, e guarda o nome do endereço escolhido, o nome do escritório, um identificador sorteado da instalação, uma impressão digital do segredo da instalação, a porta do programa e as datas de criação e da última conexão. Não guarda e-mail, senha nem conta de ninguém. O Atos <strong>não roteia, não inspeciona e não registra</strong> o conteúdo que passa por esse endereço.</li>
       <li><strong>Verificação contra robôs:</strong> a tela de entrar usa o Cloudflare Turnstile. O token que ele gera passa pelo site paulus.ia.br só para ser conferido junto à Cloudflare, com o endereço de internet de quem tenta entrar; não é guardado, e nada do escritório vai junto.</li>
@@ -188,9 +189,22 @@
       <li><strong>Para parar:</strong> "Desligar" interrompe o acesso na hora; "Remover" apaga o endereço e o túnel da conta Cloudflare do Atos, e o que ficou guardado no computador. Endereço que nunca se conectou em 7 dias, ou que ficou parado por mais de 180, é apagado automaticamente.</li>
     </ul>
 
+    <h2 id="aparelho">Escrever a resposta no aparelho (opcional)</h2>
+    <p>Com o acesso de fora ligado, o escritório pode deixar que a resposta de uma pergunta seja escrita pelo computador (ou celular) de quem pergunta, e não pelo computador do escritório — útil quando o escritório está ocupado com outras perguntas. <strong>Vem desligado.</strong> Só o titular liga, no computador do escritório, para o escritório e conta por conta, e pode marcar clientes, Serviços e pastas cujo conteúdo <strong>nunca</strong> vai para aparelho nenhum. Desligar vale na hora: o que estava sendo escrito termina no escritório.</p>
+    <ul>
+      <li><strong>O que continua no escritório:</strong> a busca nos documentos, o índice e tudo o que é ler o documento inteiro, editar, redigir peça, e-mail, OCR e incluir documentos. O recurso vale só para respostas da conversa escritas a partir de trechos.</li>
+      <li><strong>O que vai ao aparelho, a cada pergunta:</strong> a pergunta, o começo da conversa, as instruções do assistente e os <strong>trechos</strong> dos documentos que respondem a ela — só trechos, nunca o documento inteiro, até cerca de 9.000 caracteres, e só de documentos que aquela conta já poderia abrir pelo acesso de fora. Vai pelo mesmo túnel do acesso de fora, do computador do escritório para o navegador da pessoa, com o mesmo trecho pela Cloudflare descrito acima; nenhum servidor do PAULUS nem serviço de IA na internet recebe nada.</li>
+      <li><strong>O que vai ao aparelho, uma vez:</strong> o arquivo do modelo de IA (hoje, o Llama 3.2 3B, cerca de 2 GB), e o programa que o roda no navegador, os dois servidos pelo computador do escritório e conferidos por uma impressão digital (SHA-256) antes de usar. O arquivo do modelo é o mesmo para todo mundo: não contém nada do escritório.</li>
+      <li><strong>O que fica guardado no aparelho:</strong> só o arquivo do modelo, no armazenamento do navegador, até a pessoa apagar (Minha conta › Este aparelho) ou o navegador limpar; e, no navegador, algumas preferências desta tela: a escolha entre escritório, aparelho e automático, os números do teste de velocidade e o “não sugerir hoje”. A pergunta, os trechos e a resposta <strong>não ficam guardados</strong>: existem na memória enquanto a resposta é escrita e são descartados no fim.</li>
+      <li><strong>O que o escritório confere:</strong> o texto que volta do aparelho é tratado como não confiável e passa pelas conferências do escritório antes de aparecer e de ser gravado — números, datas e valores que não estão nos trechos, citação de trecho que não foi mandado, lei que não está nos trechos, links e e-mails estranhos. Não passou: o escritório escreve a resposta de novo. Cada resposta diz onde foi escrita e por quê.</li>
+      <li><strong>O que o escritório recebe do aparelho:</strong> além do texto da resposta, só os números do teste de capacidade (se o navegador tem WebGPU, a memória, a velocidade e o tempo para carregar o modelo). No registro do acesso de fora ficam, por um ano, cada entrega e cada devolução: quem, quando, de quais documentos eram os trechos, o resultado da conferência e um código curto do navegador (6 caracteres tirados de um resumo da identificação do navegador, só para distinguir dois aparelhos da mesma pessoa).</li>
+      <li><strong>O que não dá para garantir:</strong> um aparelho comprometido — com vírus ou com uma extensão maliciosa no navegador — pode ler o que a página mostra. Isso já é verdade hoje, só por ver os documentos pelo acesso de fora. Escrever a resposta no aparelho não aumenta esse risco, porque o aparelho recebe o mesmo que a pessoa já veria na tela, mas também não o elimina. Cuide do aparelho que você usa.</li>
+    </ul>
+
     <h2 id="retencao">Retenção e como apagar</h2>
     <ul>
       <li>A autorização do Google fica guardada no computador <strong>enquanto a conta estiver ligada</strong> ao PAULUS.</li>
+      <li>O <strong>modelo de IA guardado num aparelho</strong> (quando o escritório liga a escrita no aparelho) fica no navegador até a pessoa apagar, em Minha conta › Este aparelho, ou limpar os dados do site no navegador. Nada da conversa fica nele.</li>
       <li><strong>Para desligar:</strong> no PAULUS, abra o módulo E-mail e remova a conta. A autorização guardada é apagada do computador. Para parar só a Agenda, desligue a sincronização em Configurações › Conexões.</li>
       <li>A <strong>cópia das pastas do Drive</strong> fica no Acervo, no seu computador, enquanto você acompanha a pasta. Em Configurações › Conexões você para de acompanhar e, marcando "Apagar também a cópia do Acervo", a cópia sai do computador.</li>
       <li>Os eventos que o PAULUS criou na sua Agenda do Google e os documentos que você enviou ao seu Drive <strong>continuam lá</strong> depois que você desliga, sob a gestão do Google; apagá-los ou não é escolha sua, no próprio Google.</li>
