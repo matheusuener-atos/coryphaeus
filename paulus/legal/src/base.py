@@ -706,6 +706,44 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_avaliacoes_quando ON avaliacoes(quando);
         """,
     ),
+    (
+        "028_processos",
+        """
+        -- Acompanhamento pelo DataJud (src/processos.py, L2). numero: os 20
+        -- digitos do numero unico. origem: 'documento' (a leitura achou) ou
+        -- 'manual'. acompanhar = 1: entra na volta diaria. movimentos: o que o
+        -- DataJud devolveu, uma linha por movimento (chave = hash do grau, da
+        -- data, do nome e do complemento); visto = 0 e o que virou aviso.
+        CREATE TABLE IF NOT EXISTS processos (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero          TEXT NOT NULL UNIQUE,
+            numero_fmt      TEXT NOT NULL,
+            tribunal        TEXT DEFAULT '',
+            servico_id      INTEGER REFERENCES servicos(id) ON DELETE SET NULL,
+            origem          TEXT DEFAULT 'manual',
+            documento       TEXT DEFAULT '',
+            acompanhar      INTEGER NOT NULL DEFAULT 0,
+            classe          TEXT DEFAULT '',
+            orgao           TEXT DEFAULT '',
+            achado          INTEGER NOT NULL DEFAULT 0,
+            ultima_consulta TEXT DEFAULT '',
+            ultimo_erro     TEXT DEFAULT '',
+            criado_em       TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS movimentos (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            processo_id INTEGER NOT NULL REFERENCES processos(id) ON DELETE CASCADE,
+            chave       TEXT NOT NULL,
+            grau        TEXT DEFAULT '',
+            quando      TEXT DEFAULT '',
+            nome        TEXT DEFAULT '',
+            complemento TEXT DEFAULT '',
+            visto       INTEGER NOT NULL DEFAULT 0,
+            criado_em   TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_movimentos_chave ON movimentos(processo_id, chave);
+        """,
+    ),
 ]
 
 

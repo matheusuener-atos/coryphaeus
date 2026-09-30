@@ -14,7 +14,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | Etapa | O quê | Estado | Teste |
 | --- | --- | --- | --- |
 | L1 | Aprender com o uso: 👍/👎 em cada resposta, caderno de falhas, a correção vira caso de teste | feito | `tests/test_l1_aprender.py` |
-| L2 | Acompanhamento de processos pelo DataJud: movimentação nova vira aviso; prazo sugerido com a conta, pela Aprovação | pendente | `tests/test_l2_processos.py` |
+| L2 | Acompanhamento de processos pelo DataJud: movimentação nova vira aviso; prazo sugerido com a conta, pela Aprovação | feito | `tests/test_l2_processos.py` |
 | L3 | Visão por cliente e muralha ética: a mesma entidade com nomes diferentes, parte contrária, "tudo sobre o cliente", aviso de conflito | pendente | `tests/test_l3_clientes.py` |
 | L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | pendente | `tests/test_l4_tarefas.py` |
 | L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | pendente | `tests/test_l5_fundamentacao.py` |
@@ -59,3 +59,40 @@ módulo.
 **Medido:** `tests/test_l1_aprender.py` 24 ok (API, contas de fora, chave
 desligada, e no Edge: polegares, cartão, marca que volta ao reabrir,
 caderno).
+
+## L2 — processos pelo DataJud (30/09/2026)
+
+- **Os processos** (`src/processos.py`, tabelas `processos` e `movimentos`,
+  migração 028): número à mão (entra acompanhado) ou **"Achar nos
+  documentos"**, que traz os números CNJ que a leitura já validou
+  (`meta_fatos`, seção `case`), ligados sozinhos ao Serviço da pasta de onde
+  o documento veio, e **sem acompanhar** até alguém ligar.
+- **A volta diária** (thread `processos`, como a das publicações): cada
+  processo acompanhado é consultado no DataJud (`tribunais.consultar_datajud`,
+  agora com todos os movimentos). **Só o número sai deste computador.**
+  Chave `processos.acompanhar`, **desligada de fábrica**, na própria tela.
+  A primeira consulta de um processo só guarda o que já havia — sem isso, o
+  escritório ganharia cem avisos de coisa antiga.
+- **Movimentação nova** → um aviso por processo na Central (tipo "Processo",
+  com "Marcar como vistas"). **Intimação, citação ou publicação** → um pedido
+  em Aprovações ("Prazo? …") com a conta inteira de `src/prazos.py` (15 dias
+  úteis, pela disponibilização quando é publicação). O sim cria a tarefa em
+  Tarefas › Prazos, com a conta na anotação e o lembrete: a data do DataJud é
+  a do registro do movimento; confira a data da ciência.
+- **A tela**: Serviços › **Processos** (a lista, a chave, adicionar, achar,
+  consultar todos) e a aba **Processos** de cada Serviço; o detalhe de um
+  processo mostra as movimentações, com as novas marcadas, e deixa trocar o
+  Serviço, ligar o acompanhamento, consultar agora e tirar da lista.
+- **De fora**: a pessoa vê só os processos dos Serviços dela e marca como
+  vistas; acompanhar, consultar e mudar são da janela do escritório (é o
+  que faz o número sair).
+
+**Não feito:** o tempo do prazo não sabe o tipo de ato (contestação,
+apelação): é sempre 15 dias úteis, e a tela diz que é sugestão. Não há
+ligação ainda entre a publicação do DJEN e o processo acompanhado (duas
+fontes, dois avisos).
+
+**Medido:** `tests/test_l2_processos.py` 25 ok (com o DataJud de mentira:
+prazo sugerido, achar nos documentos, a base da primeira consulta, o aviso,
+a Aprovação e a tarefa, vistas, sem duplicar, erro guardado, de fora, e a
+tela no Edge).

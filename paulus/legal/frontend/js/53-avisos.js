@@ -212,6 +212,7 @@ async function abrirAviso(a) {
   }
   if (d.tela === "financeiro") return abrirDestino("financeiro");
   if (d.tela === "publicacao") return abrirPublicacoesBsc(d.id);
+  if (d.tela === "processo") { await mostrarProcessos(); return abrirProcesso(d.id); }
   if (d.tela === "documento") return verNoAcervo(d.nome);
   if (d.tela === "aprovacoes") return abrirDestino("aprovacoes");
   if (d.tela === "conversa") return abrirTrabalho(d.id);
@@ -243,6 +244,7 @@ async function fazerAcaoDoAviso(a, i) {
       let d = {};
       try { d = await r.json(); } catch (err) { /* sem corpo */ }
       if (r.status === 202 || d.proposto) avisoCert("pedido enviado para Aprovações", { tom: "ok" });
+      else if (x.id === "vistas") avisoCert("movimentações marcadas como vistas", { tom: "ok" });
       else if (x.id === "concluir") avisoCert("tarefa concluída" + (d.aviso_repeticao ? " — " + d.aviso_repeticao : ""), { tom: "ok" });
       else avisoCert(/recebido/i.test(x.rotulo) ? "recebimento registrado hoje" : "pagamento registrado hoje — anexe o comprovante no Financeiro", { tom: "ok" });
     }

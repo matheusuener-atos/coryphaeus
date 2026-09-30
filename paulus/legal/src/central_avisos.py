@@ -41,6 +41,7 @@ TIPOS: dict[str, dict] = {
     "a_receber": {"rotulo": "A receber", "icone": "receipt_long", "ordem": 4, "horizonte": 7},
     "tarefa": {"rotulo": "Tarefa", "icone": "task_alt", "ordem": 5, "horizonte": 0},
     "publicacao": {"rotulo": "Publicação", "icone": "article", "ordem": 6, "horizonte": 0},
+    "processo": {"rotulo": "Processo", "icone": "gavel", "ordem": 6, "horizonte": 0},
     "pendencia": {"rotulo": "Pendência", "icone": "rate_review", "ordem": 7, "horizonte": 0},
     "rotina": {"rotulo": "Rotina", "icone": "self_improvement", "ordem": 8, "horizonte": 0},
 }
@@ -48,7 +49,7 @@ TIPOS: dict[str, dict] = {
 PERIODOS = {"hoje": 0, "semana": 7, "mes": 30}
 GRUPOS = ("atrasado", "hoje", "amanha", "semana", "depois")
 # Tipos sem data de vencimento: nao ganham destaque de "vence hoje".
-SEM_VENCIMENTO = {"publicacao", "pendencia", "rotina"}
+SEM_VENCIMENTO = {"publicacao", "processo", "pendencia", "rotina"}
 # A lista de Tarefas em que o prazo tirado de uma publicacao do DJEN cai
 # (api.py, publicacoes_prazo): e o prazo processual.
 LISTA_DOS_PRAZOS = "Prazos"
@@ -148,6 +149,8 @@ class Central:
         self.fila = fila
         self.trabalhos = trabalhos
         self.bem_estar = bem_estar
+        # L2 (src/processos.py): as movimentacoes novas do DataJud.
+        self.processos = None
         self.classificados = classificados or (lambda: [])
         self.disponibilidade = disponibilidade or (lambda: {})
         # A fonte que falhou na ultima volta: a tela diz que faltou uma, em
@@ -184,6 +187,7 @@ class Central:
         avisos: list[dict] = []
         for nome, fonte in (("tarefas", self._das_tarefas), ("agenda", self._da_agenda),
                             ("financeiro", self._do_financeiro), ("publicacoes", self._das_publicacoes),
+                            ("processos", self._dos_processos),
                             ("documentos", self._dos_documentos), ("aprovacoes", self._das_aprovacoes),
                             ("conversas", self._das_conversas), ("rotinas", self._das_rotinas)):
             try:
@@ -322,6 +326,28 @@ class Central:
                 quando="nova · disponibilizada em " + _br(data),
                 origem="DJEN" + (f" · {p['tribunal']}" if p.get("tribunal") else ""),
                 detalhe=p.get("orgao") or "", destino={"tela": "publicacao", "id": p["id"]}))
+        return avisos
+
+    def _dos_processos(self, avisos, hoje, agora, ate, pessoa, politica):
+        """As movimentações novas do DataJud (L2): um aviso por processo, até a pessoa marcar como vistas."""
+        if self.processos is None or not politica("GET", "/api/processos"):
+            return avisos
+        import servicos_acesso
+
+        for p in self.processos.nao_vistos():
+            if servicos_acesso.OCULTOS.get() and not (p.get("servico_id") and servicos_acesso.visivel(int(p["servico_id"]))):
+                continue
+            n = int(p.get("novas") or 0)
+            titulo = (p.get("ultimo_nome") or "Movimentação") + f" — processo {p['numero_fmt']}"
+            quando = str(p.get("ultimo") or "")[:10]
+            avisos.append(self._aviso(
+                "processo", f"processo:{p['id']}:{p.get('ultimo') or ''}", titulo, 0, hoje.isoformat(),
+                quando=("1 movimentação nova" if n == 1 else f"{n} movimentações novas") + (f" · {_br(quando)}" if quando else ""),
+                origem="DataJud · " + (p.get("tribunal") or ""), detalhe=p.get("servico_nome") or "",
+                destino={"tela": "processo", "id": p["id"]},
+                acoes=[{"id": "vistas", "rotulo": "Marcar como vistas", "metodo": "POST",
+                        "rota": f"/api/processos/{p['id']}/vistos", "pergunta": f"Marcar como vistas as movimentações do processo {p['numero_fmt']}?",
+                        "explica": "O aviso sai; as movimentações continuam guardadas no processo."}]))
         return avisos
 
     def _dos_documentos(self, avisos, hoje, agora, ate, pessoa, politica):

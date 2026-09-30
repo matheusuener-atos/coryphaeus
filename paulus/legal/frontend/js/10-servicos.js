@@ -90,6 +90,7 @@ function desenharServicos() {
   if (depois && topo) depois.scrollTop = topo;
   ligarServicos();
   atualizarPostura();
+  if (sv.visao === "trabalho" && sv.aba === "processos" && typeof carregarProcessos === "function") carregarProcessos($("pr-servico"), sv.aberto.id);
 }
 
 /* ------------------------------------------------------ o cabecalho */
@@ -129,6 +130,8 @@ function cabecalhoServicos() {
   $("acoes-tela").innerHTML =
     '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="sv-busca" placeholder="Buscar serviços…" value="' + esc(sv.termo) + '"></label>' +
     '<div class="visoes">' + botao("filtro", "andamento", "Em andamento") + botao("filtro", "todos", "Todos") + botao("filtro", "concluidos", "Concluídos") + "</div>" +
+    // L2: os processos acompanhados pelo DataJud (js/64-processos.js).
+    (typeof mostrarProcessos === "function" ? '<button class="com-icone" data-pr-tela="1">' + ic("gavel", 16) + "Processos</button>" : "") +
     '<button class="primario com-icone" data-sv-novo="1">' + ic("add", 16) + "Novo serviço</button>";
 }
 
@@ -250,13 +253,14 @@ function haQuantoSv(iso) {
    cabeçalho. Visão geral é o trabalho (resumo, ficha, equipe, etapas,
    prazos e anotações); Arquivos, a lista inteira; Trilha, o histórico com o
    assistente. */
-const ABAS_DA_PASTA = [["geral", "Visão geral"], ["arquivos", "Arquivos"], ["trilha", "Trilha"]];
+const ABAS_DA_PASTA = [["geral", "Visão geral"], ["arquivos", "Arquivos"], ["processos", "Processos"], ["trilha", "Trilha"]];
 
 function corpoDoTrabalho() {
   const s = sv.aberto;
   let miolo;
   if (sv.aba === "arquivos") miolo = cartaoDosArquivos(s) + cartaoDasGravacoesDoServico(s);
   else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
+  else if (sv.aba === "processos") miolo = '<section class="sv-secao"><div id="pr-servico"><p class="nota">abrindo…</p></div></section>';
   else {
     miolo = aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
       (typeof secaoDasHoras === "function" ? secaoDasHoras(s) : "") +

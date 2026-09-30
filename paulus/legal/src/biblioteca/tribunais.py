@@ -112,7 +112,7 @@ def resumir(fonte: dict, movimentos: int = 12) -> dict:
     }
 
 
-def consultar_datajud(numero: str, *, pedir=None) -> dict:
+def consultar_datajud(numero: str, *, pedir=None, movimentos: int = 12) -> dict:
     """
     Os dados públicos do processo no DataJud. Um processo pode vir em mais de
     um grau (G1, G2, JE): cada um é uma linha. `pedir` troca o requests.post
@@ -139,7 +139,7 @@ def consultar_datajud(numero: str, *, pedir=None) -> dict:
     except ValueError as exc:
         raise ConnectionError("o DataJud não devolveu os dados agora; tente de novo em alguns minutos") from exc
     return {"numero": lido["numero"], "tribunal": lido["alias"].upper(),
-            "graus": [resumir(h.get("_source") or {}) for h in hits],
+            "graus": [resumir(h.get("_source") or {}, movimentos) for h in hits],
             "fonte": "DataJud, API pública do CNJ", "consultado_em": datetime.now().isoformat(timespec="seconds")}
 
 

@@ -244,6 +244,9 @@ PADRAO: dict = {
     # L1 (src/aprendizado.py): 👍/👎 em cada resposta e o caderno de falhas.
     # Ligado de fabrica: o piloto mede desde o primeiro dia, e nada sai daqui.
     "aprendizado": {"avaliar": True},
+    # L2 (src/processos.py): acompanhar os processos pelo DataJud, uma vez
+    # por dia. So o numero do processo sai daqui. Desligado de fabrica.
+    "processos": {"acompanhar": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

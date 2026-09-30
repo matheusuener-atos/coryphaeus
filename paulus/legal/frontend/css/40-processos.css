@@ -1,0 +1,29 @@
+  /* ------------------------------------------ processos pelo DataJud (L2) */
+  /* A tela Processos, a aba de cada Serviço e o detalhe (js/64-processos.js). */
+
+  .pr-cab { display: grid; gap: 10px; margin-bottom: 12px; }
+  .pr-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pr-botoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .pr-lista { display: grid; border-top: 1px solid var(--ink-a08); }
+  .pr-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 10px 4px;
+    border-bottom: 1px solid var(--ink-a08); cursor: pointer; border-radius: 6px; }
+  .pr-linha:hover, .pr-linha:focus-visible { background: var(--fill); outline: none; }
+  .pr-linha small { color: var(--ink3); }
+  .pr-servico { font-size: 12.5px; color: var(--ink2); }
+  .pr-estado { font-size: 12px; color: var(--ink3); display: inline-flex; align-items: center; gap: 4px; }
+  .pr-erro { color: var(--ink2); text-decoration: underline dotted; }
+  .pr-novas { display: inline-block; padding: 0 8px; border-radius: 10px; background: var(--destaque-fundo, var(--fill));
+    color: var(--ink); font: 600 11.5px var(--sans); vertical-align: middle; }
+  .pr-detalhe { display: grid; gap: 12px; }
+  .pr-movs { display: grid; border-top: 1px solid var(--ink-a08); max-height: 46vh; overflow: auto; }
+  .pr-mov { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--ink-a08);
+    font-size: 13.5px; }
+  .pr-mov.nova b { color: var(--ink); }
+  .pr-mov-quando { color: var(--ink3); font-size: 12.5px; }
+  .pr-mov small { color: var(--ink3); }
+
+  @media (max-width: 600px) {
+    .pr-linha { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .pr-mov { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .pr-botoes button { min-height: 44px; }
+  }

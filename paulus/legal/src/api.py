@@ -130,6 +130,7 @@ import tarefas as tarefas_mod
 import aparelho as aparelho_mod
 import aparelho_motor
 import aprendizado as aprendizado_mod
+import processos as processos_mod
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -795,6 +796,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=_backup_automatico, name="backup", daemon=True).start()
     threading.Thread(target=_publicacoes_automatico, name="publicacoes", daemon=True).start()
     threading.Thread(target=_drive_online_automatico, name="drive-online", daemon=True).start()
+    threading.Thread(target=processos_mod.vigiar, args=(estado,), name="processos", daemon=True).start()
     # A Constituição, os códigos e as súmulas que vêm no instalador (src/biblioteca/nativo.py).
     threading.Thread(target=rotas_biblioteca.instalar_na_abertura, args=(estado, DADOS_DIR),
                      name="acervo-inicial", daemon=True).start()
@@ -975,6 +977,9 @@ rotas_agentes.montar(estado, app, DADOS_DIR / "agentes", contexto=lambda tarefa:
 agentes_tela.montar(estado, app)
 # A Central de avisos (T2): o carrossel da tela inicial e o historico do visto.
 rotas_avisos.montar(estado, app, lambda: _documentos_com_data())
+# L2: o acompanhamento de processos pelo DataJud (src/processos.py) - depois da Central,
+# que ganha a fonte das movimentacoes novas.
+processos_mod.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -5605,6 +5610,8 @@ EXECUTORES = {
     "ajuda.prazo": lambda pedido: rotas_ajuda.executar_prazo(estado, pedido),
     # O documento fotografado de fora (ideia E do umbrelOS): o sim o poe no Acervo.
     "captura.entrar": lambda pedido: captura_mod.executar(estado, pedido),
+    # L2: o prazo sugerido por uma movimentação do DataJud - o sim anota a tarefa.
+    "processos.prazo": lambda pedido: processos_mod.executar_prazo(estado, pedido),
     # A2: a ferramenta de um agente, aprovada na fila em vez de no cartão.
     "conversa.proposta": lambda pedido: agente_mod.executar_da_fila(estado, pedido),
 }

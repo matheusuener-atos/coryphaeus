@@ -379,6 +379,12 @@ _declarar(PERMITIDO, "GET /api/aparelho/estado", "POST /api/aparelho/sugestao", 
 _declarar(PERMITIDO, "POST /api/aprendizado/avaliar", "GET /api/aprendizado/da-conversa/{trabalho_id}")
 _declarar(BLOQUEADO, "GET /api/aprendizado/caderno", "POST /api/aprendizado/caderno/{id_}/caso",
           "POST /api/aprendizado/caderno/{id_}/resolver")
+# --- L2: processos pelo DataJud (src/processos.py). Ver e marcar como visto vale
+# de fora (so os de Servicos que a pessoa ve); acompanhar, consultar e mudar sao
+# da janela do escritorio - e o que faz o numero sair para o DataJud.
+_declarar(PERMITIDO, "GET /api/processos", "GET /api/processos/{id_}", "POST /api/processos/{id_}/vistos")
+_declarar(BLOQUEADO, "POST /api/processos", "POST /api/processos/descobrir", "PUT /api/processos/{id_}",
+          "DELETE /api/processos/{id_}", "POST /api/processos/{id_}/consultar", "POST /api/processos/acompanhar-agora")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")
