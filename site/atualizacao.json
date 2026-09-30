@@ -1,11 +1,15 @@
 {
-  "versao": "0.9.15",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.15/PAULUS-0.9.15-instalador.exe",
-  "sha256": "5c7b80454c979049827c81778767c8e6e3a0eec4e3831cb0b995c10c5cec79ca",
-  "tamanho": 94693033,
+  "versao": "0.9.16",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.16/PAULUS-0.9.16-instalador.exe",
+  "sha256": "084339a6ad2ec42e338f7db1574af3e46aaaa38bb19230ff19e156dc1109276a",
+  "tamanho": 94703796,
   "publicada": "2026-09-29",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.15",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.16",
   "novidades": [
-    "\"Perguntar ao PAULUS\": nunca uma segunda janela em branco"
+    "Horas por serviço: cronômetro, registro e cobrança no Financeiro",
+    "Prazos em dias úteis e publicações do DJEN: a intimação vira tarefa com a data certa",
+    "Saúde do PAULUS e diagnóstico: o que atrapalha agora, e um arquivo para o suporte",
+    "Backup e restauração: um arquivo cifrado por dia, e restaurar em outro computador",
+    "Entrar no servidor sem internet: o código do celular abre o PAULUS travado"
   ]
 }

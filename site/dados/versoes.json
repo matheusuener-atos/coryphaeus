@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "0.9.16",
+      "date": "2026-09-29",
+      "changes": [
+        "Horas por serviço: cronômetro, registro e cobrança no Financeiro",
+        "Prazos em dias úteis e publicações do DJEN: a intimação vira tarefa com a data certa",
+        "Saúde do PAULUS e diagnóstico: o que atrapalha agora, e um arquivo para o suporte",
+        "Backup e restauração: um arquivo cifrado por dia, e restaurar em outro computador",
+        "Entrar no servidor sem internet: o código do celular abre o PAULUS travado"
+      ]
+    },
+    {
       "version": "0.9.15",
       "date": "2026-09-29",
       "changes": [
