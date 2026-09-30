@@ -221,7 +221,12 @@ PADRAO: dict = {
                  "avisos": True,
                  # `superficies` (C5): o parecer, o resumo da gravacao e o
                  # reescrever do e-mail rodam como execucao, na fila do modelo.
-                 "superficies": True},
+                 "superficies": True,
+                 # `roteamento` (C4): perguntas sobre o programa (Publicacoes, DJE,
+                 # busca, Leis, Acesso de fora...) pela tela certa, e CPF, CNPJ,
+                 # telefone, e-mail, endereco e OAB de alguem por molde, sem ler o
+                 # acervo (src/consulta_cadastro.py).
+                 "roteamento": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

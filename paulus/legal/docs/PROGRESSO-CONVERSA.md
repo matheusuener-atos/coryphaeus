@@ -10,7 +10,7 @@ que não estiver `feita`.
 | C1 | Execução desacoplada da janela | feita | ver git log (c1) | desconectar no meio não perde nada; `desde=n` exato; parcial ao fechar o programa; A não vaza na B; roteiro 41/41 |
 | C2 | A tela enquanto pensa | feita | ver git log (c2) | etapas do servidor desde o 1º evento; 0 nome na resposta salva; cartão = painel; 0 texto informativo em vermelho; Tentar de novo |
 | C3 | Painel "Sobre esta resposta", barra de escopo, estado por conversa | feita | ver git log (c3) | ver fontes = daquela resposta; ≤ 1 contagem por resposta; rascunho e escopo por conversa; 390 px fechado; sem Progresso no fim |
-| C4 | Roteamento: programa e cadastros | pendente | — | — |
+| C4 | Roteamento: programa e cadastros | feita | b85c012 | 22/22 do programa na tela certa, sem modelo; 10 consultas de cadastro por molde, máx. 27 ms (antes ~165 s); 29/29 de documento no mesmo caminho |
 | T1 | A saudação que não se repete | feita | ver git log (t1) | 130 títulos e 82 subtítulos; 30 aberturas sem repetir entre as 20 últimas; prazo hoje vence o dia; feriados e recesso; 0 buraco sem nome; 0,2 ms |
 | T2 | Carrossel de avisos, Central de avisos e histórico | feita | f5a425e | 83 ok no portão: ordem, sem duplicado, visto por pessoa e de onde, volta no dia, 390 px, sem cor de erro |
 | C5 | As outras superfícies de IA | feita, em parte | ver git log (c5) | documento errado corrigido; 1 leitor de SSE; parecer e resumo de gravação na fila, com posição, parar e resultado que volta; as outras 9 superfícies ficaram para depois |
@@ -297,6 +297,42 @@ inteiro, e juntada aqui.
 
 **Medido:** `tests/test_a1_agentes.py` 67/67; `tests/test_r3_permissoes.py`
 58/58 (477 pares de rota com política).
+
+## C4 — o que foi medido e decidido
+
+Feita por um agente num worktree à parte (`C:\coryphaeus-c4`), com o contrato
+inteiro, e juntada aqui.
+
+- Mapa ampliado (`programa_mapa.json`, marcas `c4`): Publicações e DJE (moram
+  em Agenda › To-do), Buscar em tudo (Ctrl+K), Biblioteca (o destino
+  `habilidades`, que a tela chama de Biblioteca), Códigos de lei e Acesso de
+  fora, com 4 ou 5 perguntas cada, e mais 5 em Agenda, To-do e Aprovações;
+  cada passo com o arquivo:linha do frontend. O botão "Abrir" leva a cada
+  lugar de verdade (`abrirTelaDaConversa`). **Agentes** fica para quando a
+  tela existir (A3).
+- Regras novas, só com a chave: nome contido em outro não conta ("busca no
+  DJE" é Publicações), a tela de dentro vence, "busca e apreensão" não é tela,
+  termo com "=" só casa junto, o empate desempata pelo verbo, "como funciona
+  X" com tela citada responde pela tela.
+- Consulta de cadastro (`src/consulta_cadastro.py`): CPF, CNPJ, telefone,
+  e-mail, endereço e OAB de alguém, por molde: Cadastros → Meus dados → fatos
+  conferidos dos documentos (com documento e página) → "não encontrei", com a
+  oferta de ler os documentos (só com o clique). Nome ambíguo vira lista; CPF
+  pedido com CNPJ cadastrado diz o que há. **Exceção de propósito:** CPF, CNPJ
+  ou OAB de um nome que não está em lugar nenhum e sem "do cliente" na frase
+  segue para os documentos, como antes ("qual o CNPJ da Transportes Rio
+  Fresco?" é do banco de provas).
+- De graça: os passos "clique em Aprendizado" (a seção não existe mais)
+  viraram "Biblioteca".
+- Chave `conversa.roteamento`, **ligada de fábrica** depois do roteiro com o
+  modelo (abaixo).
+
+**Medido:** `tests/test_c4_roteamento.py` — 22/22 perguntas sobre o programa
+na tela certa, sem modelo nem juiz; 10 consultas de cadastro pela API por
+molde, máx. 27 ms (antes ~165 s lendo 21 documentos); pelos fatos, 17 ms;
+banco de provas: 29/29 de documento no mesmo caminho, 0 viraram programa ou
+cadastro; com a chave, 36/36 de `test_programa` e 34/34 da regressão da
+inteligência nos documentos.
 
 ## T1 — o que foi medido e decidido
 

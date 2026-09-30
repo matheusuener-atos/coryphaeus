@@ -2317,3 +2317,18 @@ Edge); dez exemplos no PROGRESSO-CONVERSA.
 
 **Medido:** `tests/test_c5_superficies.py` passa inteiro (modelo simulado e o
 Edge).
+
+## C4 — Roteamento: perguntas sobre o programa e consultas de cadastro ✓ FEITA
+
+- Mapa ampliado: Publicações e DJE, Buscar em tudo (Ctrl+K), Biblioteca,
+  Códigos de lei e Acesso de fora, com perguntas de exemplo e passos
+  conferidos no frontend; o "Abrir" leva a cada lugar.
+- `src/consulta_cadastro.py`: CPF, CNPJ, telefone, e-mail, endereço e OAB de
+  alguém por molde — Cadastros, Meus dados, fatos conferidos dos documentos
+  (com a página) ou "não encontrei" com a oferta de ler os documentos. Nunca
+  lê o acervo sem a pessoa pedir; nome ambíguo vira lista.
+- Chave `conversa.roteamento`, ligada de fábrica.
+
+**Medido:** 22/22 do programa na tela certa sem modelo; 10 consultas de
+cadastro por molde, máx. 27 ms (antes ~165 s); 29/29 perguntas de documento
+do banco de provas no mesmo caminho.
