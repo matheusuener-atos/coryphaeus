@@ -2243,3 +2243,26 @@ Edge, 1440 e 390 px).
 
 **Medido:** `tests/test_t1_saudacao.py` passa inteiro (relógio simulado e o
 Edge); dez exemplos no PROGRESSO-CONVERSA.
+
+## A1 — Formato de agente: carregar, validar e versionar ✓ FEITA
+
+- `src/agentes.py`: lê `data/agentes/<slug>/AGENTE.md` (cabeçalho YAML +
+  instruções), valida contra as capacidades carregadas, o
+  `CATALOGO_FERRAMENTAS`, os perfis de modelo, as áreas da Biblioteca e as
+  leis. Nome desconhecido (e campo com erro de digitação) é erro claro com o
+  que existe; `modelo: llama3.2:3b` é recusado (é perfil de tarefa). Um agente
+  com problema aparece com o motivo e não derruba os outros.
+- Estado (ligado, origem escritorio|importado|produto, aprovação) em
+  `estado.json` ao lado do arquivo; a versão fica no cabeçalho, e cada edição
+  guarda a anterior em `versoes/<n>.md`, mudando só a linha `versao:`.
+- Importar SKILL.md/AGENTE.md: `name`/`description` → `nome`/`descricao`,
+  campos de outro programa listados na ficha, original guardado, suspeitas da
+  blindagem anotadas; entra desligado e só liga com `vi_o_conteudo: true`.
+- `src/rotas_agentes.py`: listar, ler, versão, criar, salvar, ativar,
+  desativar, importar, testar. Escrever é TITULAR (janela local ou titular);
+  ler e testar, PERMITIDO. Nenhuma ferramenta é executada no teste.
+- Chave `conversa.agentes`, ligada de fábrica. `pyyaml` declarado no
+  requirements.
+
+**Medido:** `tests/test_a1_agentes.py` 67/67; `tests/test_r3_permissoes.py`
+58/58, 477 pares com política.

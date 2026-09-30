@@ -15,7 +15,7 @@ que não estiver `feita`.
 | T2 | Carrossel de avisos, Central de avisos e histórico | pendente | — | — |
 | C5 | As outras superfícies de IA | pendente | — | — |
 | C6 | Cerca em todo texto de terceiros | pendente | — | — |
-| A1 | Formato de agente: carregar, validar, versionar | pendente | — | — |
+| A1 | Formato de agente: carregar, validar, versionar | feita | 98b228f | 67/67 no portão; permissões 58/58 |
 | A2 | Agentes na conversa | pendente | — | — |
 | A3 | Tela de agentes | pendente | — | — |
 | A4 | Medir os agentes | pendente | — | — |
@@ -148,6 +148,35 @@ llama3.2:3b nesta máquina e a execução da C1 ligada:
 
 `roteiro.py --so "regularizar as entregas"` e `--so "honorários fixos"` rodam só
 uma delas.
+
+## A1 — o que foi medido e decidido
+
+Feita por um agente num worktree à parte (`C:\coryphaeus-a1`), com o contrato
+inteiro, e juntada aqui.
+
+- `src/agentes.py`: `Agentes(pasta, ...)` lê `data/agentes/<slug>/AGENTE.md`
+  (cabeçalho YAML + instruções) a cada consulta, sem cache, e valida contra as
+  capacidades carregadas (`estado.registro`), o `CATALOGO_FERRAMENTAS`, os
+  perfis de modelo, as áreas da Biblioteca e as leis. Erro de digitação num
+  campo também é erro, com sugestão. `modelo: llama3.2:3b` é recusado (é
+  perfil de tarefa). Avisos que não bloqueiam: ferramenta indisponível (a
+  NFS-e), agente sem testes, sem exemplos.
+- Estado em `estado.json` ao lado do arquivo (ligar não é edição e não gera
+  versão); a versão fica no cabeçalho, e cada edição guarda a anterior em
+  `versoes/<n>.md`, mudando só a linha `versao:`.
+- Importar: `name`/`description` → `nome`/`descricao`, campos de outro
+  programa listados na ficha, `original.md` guardado, suspeitas da blindagem
+  anotadas; entra desligado e só liga com `vi_o_conteudo: true`, com quem
+  aprovou.
+- Rotas (`src/rotas_agentes.py`): ler e testar, PERMITIDO; criar, salvar,
+  ativar, desativar e importar, TITULAR. O teste da A1 roda as perguntas sem
+  as instruções do agente e diz isso (a A2 põe o agente na conversa).
+- `pyyaml` entrou no `requirements.txt` (já vinha pelo huggingface_hub).
+- Chave `conversa.agentes`, **ligada de fábrica**: sozinha, não muda nada na
+  conversa.
+
+**Medido:** `tests/test_a1_agentes.py` 67/67; `tests/test_r3_permissoes.py`
+58/58 (477 pares de rota com política).
 
 ## T1 — o que foi medido e decidido
 

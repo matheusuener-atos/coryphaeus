@@ -212,7 +212,10 @@ PADRAO: dict = {
     # trechos indexados e pasta no painel (desligado: e dado tecnico).
     # `saudacao` (T1): a frase da tela inicial sai do banco config/saudacoes.json
     # (momento, dia, calendario, chegada e situacao), sem modelo e sem repetir.
-    "conversa": {"execucao": True, "pensando": True, "painel": True, "diagnostico": False, "saudacao": True},
+    "conversa": {"execucao": True, "pensando": True, "painel": True, "diagnostico": False, "saudacao": True,
+                 # `agentes` (A1): o AGENTE.md de cada especialista do escritorio,
+                 # validado e versionado (src/agentes.py). Escrever e do titular.
+                 "agentes": True},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.
