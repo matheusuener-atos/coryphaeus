@@ -385,6 +385,11 @@ _declarar(BLOQUEADO, "GET /api/aprendizado/caderno", "POST /api/aprendizado/cade
 _declarar(PERMITIDO, "GET /api/processos", "GET /api/processos/{id_}", "POST /api/processos/{id_}/vistos")
 _declarar(BLOQUEADO, "POST /api/processos", "POST /api/processos/descobrir", "PUT /api/processos/{id_}",
           "DELETE /api/processos/{id_}", "POST /api/processos/{id_}/consultar", "POST /api/processos/acompanhar-agora")
+# --- L3: partes e conflito (src/clientes.py). Mudar as partes de um Servico segue
+# o modulo Servicos (o "faz" abre, pelo prefixo); a consulta de conflito e a
+# visao do cliente cruzam todos os clientes do escritorio: janela do escritorio.
+_declarar(BLOQUEADO, "PUT /api/servicos/{id_}/partes", "GET /api/servicos/{id_}/conflitos", "POST /api/clientes/conflitos",
+          "GET /api/clientes/{cadastro_id}/visao")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
 _declarar(BLOQUEADO, "GET /api/aparelho/so-no-escritorio", "PUT /api/aparelho/so-no-escritorio",
           "GET /api/aparelho/relatorio")

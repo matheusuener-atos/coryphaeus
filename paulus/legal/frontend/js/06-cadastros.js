@@ -563,7 +563,10 @@ function partesDaFicha(f) {
       ["Honorário", [f.honorario, f.dia_vencimento ? "vence dia " + f.dia_vencimento : ""].filter(Boolean).join(" · ")],
     ]) +
       '<div class="dialogo-acoes">' + botao("data-cad-perguntar", "forum", "Perguntar sobre") + botao("data-cad-email", "mail", "Novo e-mail") +
-      botao("data-cad-agendar", "calendar_month", "Agendar") + "</div>" +
+      botao("data-cad-agendar", "calendar_month", "Agendar") +
+      // L3: tudo sobre o cliente (js/65-clientes.js).
+      (f.tipo === "cliente" && typeof mostrarVisaoDoCliente === "function" && acessoDeFora.local ? botao("data-cad-visao", "person", "Tudo sobre o cliente") : "") +
+      "</div>" +
       blocoLigadoA(f),
   };
 }
@@ -824,6 +827,8 @@ async function salvarFicha() {
   const r = await fetch("/api/cadastros", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }) });
   if (!r.ok) { avisoDoFormCad(await erroDe(r)); return; }
   const ficha = await r.json();
+  // L3: o cliente que já é parte contrária em outro Serviço (js/65-clientes.js).
+  if (typeof avisarConflitosDoCliente === "function") setTimeout(() => avisarConflitosDoCliente(ficha), 300);
   // Sugestao aceita ja nasce ligada aos documentos de onde veio.
   if (v._sugestao) {
     for (const a of v._sugestao.arquivos || []) {

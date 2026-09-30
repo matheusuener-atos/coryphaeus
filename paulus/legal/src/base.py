@@ -744,6 +744,15 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE UNIQUE INDEX IF NOT EXISTS idx_movimentos_chave ON movimentos(processo_id, chave);
         """,
     ),
+    (
+        "029_partes",
+        """
+        -- As partes de cada Servico (src/clientes.py, L3): a parte contraria e
+        -- os interessados, [{nome, documento, papel}] - e o que o aviso de
+        -- conflito de interesse cruza com os clientes.
+        ALTER TABLE servicos ADD COLUMN partes TEXT NOT NULL DEFAULT '[]';
+        """,
+    ),
 ]
 
 

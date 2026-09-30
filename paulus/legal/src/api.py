@@ -131,6 +131,7 @@ import aparelho as aparelho_mod
 import aparelho_motor
 import aprendizado as aprendizado_mod
 import processos as processos_mod
+import clientes as clientes_mod
 import fila_de_todos
 import fila_modelo
 from fila_modelo import FilaCheia, FilaDoModelo
@@ -980,6 +981,8 @@ rotas_avisos.montar(estado, app, lambda: _documentos_com_data())
 # L2: o acompanhamento de processos pelo DataJud (src/processos.py) - depois da Central,
 # que ganha a fonte das movimentacoes novas.
 processos_mod.montar(estado, app)
+# L3: visao por cliente, parte contraria e conflito de interesse (src/clientes.py).
+clientes_mod.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

@@ -91,6 +91,7 @@ function desenharServicos() {
   ligarServicos();
   atualizarPostura();
   if (sv.visao === "trabalho" && sv.aba === "processos" && typeof carregarProcessos === "function") carregarProcessos($("pr-servico"), sv.aberto.id);
+  if (sv.visao === "trabalho" && sv.aba === "geral" && typeof carregarConflitosDoServico === "function") carregarConflitosDoServico(sv.aberto);
 }
 
 /* ------------------------------------------------------ o cabecalho */
@@ -262,7 +263,7 @@ function corpoDoTrabalho() {
   else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
   else if (sv.aba === "processos") miolo = '<section class="sv-secao"><div id="pr-servico"><p class="nota">abrindo…</p></div></section>';
   else {
-    miolo = aberturaDoServico(s) + secaoDaEquipe(s) + secaoDasEtapas(s) +
+    miolo = aberturaDoServico(s) + secaoDaEquipe(s) + (typeof secaoDasPartes === "function" ? secaoDasPartes(s) : "") + secaoDasEtapas(s) +
       (typeof secaoDasHoras === "function" ? secaoDasHoras(s) : "") +
       '<div class="sv-duas">' + secaoDosPrazos(s) + secaoDasAnotacoes(s) + "</div>";
   }

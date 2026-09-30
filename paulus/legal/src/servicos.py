@@ -243,6 +243,8 @@ class Servicos:
         s["trilha_json"] = s.get("trilha", "[]")
         s["anotacoes"] = len(_json(s["anotacoes_json"], []))
         s["trilha"] = len(_json(s["trilha_json"], []))
+        # L3 (src/clientes.py): a parte contraria e os interessados.
+        s["partes"] = _json(s.get("partes", "[]"), [])
         s["arquivos_quantos"] = self.base.contar("vinculos", "tipo = 'servico' AND alvo_id = ?", (s["id"],))
         hoje = date.today().isoformat()
         # Os prazos do cliente e os da propria pasta (etapas com data e o que

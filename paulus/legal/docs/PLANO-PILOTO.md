@@ -15,7 +15,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | --- | --- | --- | --- |
 | L1 | Aprender com o uso: 👍/👎 em cada resposta, caderno de falhas, a correção vira caso de teste | feito | `tests/test_l1_aprender.py` |
 | L2 | Acompanhamento de processos pelo DataJud: movimentação nova vira aviso; prazo sugerido com a conta, pela Aprovação | feito | `tests/test_l2_processos.py` |
-| L3 | Visão por cliente e muralha ética: a mesma entidade com nomes diferentes, parte contrária, "tudo sobre o cliente", aviso de conflito | pendente | `tests/test_l3_clientes.py` |
+| L3 | Visão por cliente e muralha ética: a mesma entidade com nomes diferentes, parte contrária, "tudo sobre o cliente", aviso de conflito | feito | `tests/test_l3_clientes.py` |
 | L4 | Tarefas de vários passos com ponto de restauração: contratos vencendo em N dias, revisar contrato contra o padrão da casa | pendente | `tests/test_l4_tarefas.py` |
 | L5 | A Biblioteca ajudando a escrever: fundamentação sugerida no editor, súmulas e temas repetitivos, posição da casa por artigo | pendente | `tests/test_l5_fundamentacao.py` |
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | pendente | `tests/test_l6_perfis.py` |
@@ -96,3 +96,36 @@ fontes, dois avisos).
 prazo sugerido, achar nos documentos, a base da primeira consulta, o aviso,
 a Aprovação e a tarefa, vistas, sem duplicar, erro guardado, de fora, e a
 tela no Edge).
+
+## L3 — visão por cliente e muralha ética (30/09/2026)
+
+- **A mesma entidade** (`src/clientes.py`, `chave` e `mesma`): sem acento,
+  sem pontuação, sem a forma jurídica (Ltda., S/A, ME, EPP, EIRELI…) e sem
+  "de/da/do": "Empresa X Ltda." = "EMPRESA X" = "Empresa X - ME". Com os
+  dois documentos, **o documento manda**: CPF igual, ou a mesma raiz do CNPJ
+  (matriz e filiais); documento diferente não é a mesma, mesmo com o nome
+  igual. Nome quase igual (a ordem trocada, uma palavra a mais) é **"parece
+  ser"**, e a tela diz qual das duas.
+- **A parte contrária** de cada Serviço (coluna `servicos.partes`, migração
+  029), na seção **Partes** da visão geral do Serviço.
+- **Conflito de interesse** — avisa, não bloqueia: a parte contrária que é
+  cliente do escritório; a que é o próprio cliente do Serviço; o cliente que
+  é parte contrária em outro Serviço (ao gravar a ficha, e na seção Partes
+  do Serviço dele).
+- **Muralha ética**: a separação por equipe já existia (quem não está na
+  equipe não vê o Serviço de fora). O conflito diz agora **quem está na
+  equipe dos dois lados** — é essa pessoa que a muralha precisa separar.
+- **Tudo sobre o cliente** (botão na ficha do cliente): o conflito no alto,
+  os Serviços, os processos (L2), os prazos e compromissos em aberto, a parte
+  contrária dos Serviços dele, os documentos (os ligados à ficha e aos
+  Serviços, e os em que ele aparece como parte, pelos fatos da leitura) e
+  "também aparece como" (os outros nomes com que ele aparece).
+- De fora, a visão e a conferência (que cruzam todos os clientes) não
+  respondem; mudar as partes segue o nível de Serviços.
+
+**Não feito:** a parte contrária não é tirada sozinha dos documentos (a
+leitura acha as partes, mas não sabe de que lado está o cliente); o aviso
+de conflito não fica guardado como pendência — ele aparece de novo onde a
+mesma entidade é conferida.
+
+**Medido:** `tests/test_l3_clientes.py` 26 ok.
