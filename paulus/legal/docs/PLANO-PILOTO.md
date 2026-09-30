@@ -350,7 +350,7 @@ o código garante.
 | N2 | A publicação do DJEN ligada ao processo acompanhado: um aviso, um pedido de prazo | L2 | feito | `tests/test_n2_djen_processo.py` |
 | N3 | A parte contrária sugerida pelos documentos do Serviço | L3 | feito | `tests/test_n3_parte_contraria.py` |
 | N4 | O conflito de interesse guardado como pendência, com quem resolveu e como | L3 | feito | `tests/test_n4_conflitos.py` |
-| N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | — | `tests/test_n5_clausulas.py` |
+| N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | feito | `tests/test_n5_clausulas.py` |
 | N6 | A conversa chama as tarefas de vários passos | L4 | — | `tests/test_n6_conversa_tarefas.py` |
 | N7 | Súmulas e temas na resposta da conversa | L5 | — | `tests/test_n7_temas_na_conversa.py` |
 | N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
@@ -495,3 +495,24 @@ lados, a Central, resolver e reabrir, a muralha que reabre, o que some e
 volta, e no Edge: Cadastros › Conflitos, resolver pela caixa, o aviso, 390
 px); `test_l3_clientes`, `test_n3_parte_contraria`, `test_t2_avisos` e
 `test_tela` continuam passando.
+
+## N5 — a cláusula "1. DO OBJETO" (30/09/2026)
+
+- **O estilo novo** (`redacao.RE_TITULO`, estilo "titulo"): o número, um
+  separador (". ", " – ", ") ", ": ") e o título em maiúsculas, no começo do
+  parágrafo — "1. DO OBJETO", "4 – DAS OBRIGAÇÕES DA LOCATÁRIA", "5) DA
+  MULTA", "01 - DO OBJETO". O "1.1" das subcláusulas e a lista numerada em
+  minúsculas não entram.
+- **Com cuidado**: só vale quando o documento não tem nenhuma cláusula com a
+  palavra "cláusula", quando há pelo menos duas, e quando a numeração anda (1,
+  2, 3…) — um "1. DOS FATOS" solto ou um texto todo em maiúsculas não vira
+  contrato.
+- **Renumerar** troca só o número (o zero à esquerda de "01" fica) e leva a
+  referência "cláusula 3" junto; a revisão contra o padrão (L4) alinha
+  "CLÁUSULA 3ª – DAS OBRIGAÇÕES" com "4 – DAS OBRIGAÇÕES" pelo título.
+- Os contratos reais do escritório usam "01 - DO ...": com a regra nova,
+  `tests/test_redacao.py` passou a achar as 8 cláusulas deles, e o texto fica
+  intacto ao renumerar.
+
+**Medido:** `tests/test_n5_clausulas.py` 14 ok; `test_redacao` e
+`test_l4_tarefas` continuam passando.

@@ -76,6 +76,16 @@ RE_EXTENSO = re.compile(
     re.IGNORECASE,
 )
 
+# "1. DO OBJETO", "2 – DAS OBRIGAÇÕES", "3) DO PRAZO" (N5): o número e o título
+# em maiúsculas, sem a palavra "cláusula". Sem IGNORECASE: é a caixa alta que
+# separa o título da lista numerada comum ("1. o locatário pagará..."), e o
+# "1.1" das subcláusulas não entra (o separador pede espaço depois).
+_MAIUSCULAS = "A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ"
+RE_TITULO = re.compile(
+    rf"(?P<numero>\d{{1,3}})(?P<sep>[ \t]*[.)\-–—:][ \t]+|[ \t]+[\-–—][ \t]+)"
+    rf"(?P<titulo>[{_MAIUSCULAS}]{{2,}}(?:[ \t]+[{_MAIUSCULAS}/,\-]+)*)"
+)
+
 # "conforme a cláusula 4", "nos termos da cláusula 7ª": a referencia cruzada.
 RE_REFERENCIA = re.compile(
     r"cl[áa]usula\s+(?P<numero>\d{1,3})(?:[ªaº°])?",
@@ -147,6 +157,12 @@ def achar_clausulas(texto: str) -> list[dict]:
                 "texto": m.group(0),
             })
 
+    # Sem nenhuma cláusula com a palavra, o estilo "1. DO OBJETO" (N5) - só se
+    # houver pelo menos duas, e a numeração andar (1, 2, 3...): um "1. DOS
+    # FATOS" solto, ou um texto inteiro em maiúsculas, não vira contrato.
+    if not achadas:
+        achadas = _titulos_numerados(texto or "")
+
     # Um mesmo pedaço pode casar em dois padrões ("1ª CLÁUSULA 2" não existe,
     # mas sobreposição por erro de digitação, sim). Fica o primeiro.
     achadas.sort(key=lambda a: a["inicio"])
@@ -156,6 +172,27 @@ def achar_clausulas(texto: str) -> list[dict]:
             continue
         limpas.append(a)
     return limpas
+
+
+def _titulos_numerados(texto: str) -> list[dict]:
+    """As cláusulas no estilo "1. DO OBJETO", quando formam uma sequência."""
+    candidatas = []
+    for m in RE_TITULO.finditer(texto):
+        if not _abre_o_bloco(texto, m.start()):
+            continue
+        titulo = m.group("titulo").strip(" ,-/")
+        # Uma palavra de duas letras só ("1. OS ...") não é título.
+        if len(titulo.replace(" ", "")) < 4:
+            continue
+        candidatas.append({"estilo": "titulo", "numero": int(m.group("numero")), "inicio": m.start(),
+                           "fim": m.start() + len(m.group("numero")) + len(m.group("sep")), "texto": m.group(0),
+                           "titulo": titulo})
+    if len(candidatas) < 2:
+        return []
+    andam = sum(1 for a, b in zip(candidatas, candidatas[1:]) if b["numero"] == a["numero"] + 1)
+    if andam < (len(candidatas) - 1) / 2:
+        return []
+    return candidatas
 
 
 def estilo_do_documento(texto: str) -> str:
@@ -225,8 +262,9 @@ def renumerar(texto: str, comecar_em: int = 1, seguir_referencias: bool = True) 
         saida.append(texto[fim_anterior:p["inicio"]])
         saida.append(p["novo"])
         fim_anterior = p["fim"]
-        if p["novo"] != p["texto"]:
-            registro = {"de": p["texto"].strip(), "para": p["novo"].strip(),
+        original = texto[p["inicio"]:p["fim"]]
+        if p["novo"] != original:
+            registro = {"de": original.strip(), "para": p["novo"].strip(),
                         "era": p["numero"], "virou": p["virou"], "tipo": p["tipo"]}
             trocas.append(registro)
             if p["tipo"] == "referencia":
@@ -240,6 +278,13 @@ def renumerar(texto: str, comecar_em: int = 1, seguir_referencias: bool = True) 
 def _escrever_clausula(achada: dict, numero: int, texto: str) -> str:
     """Reescreve a marca da cláusula com o número novo, no estilo que ela tem."""
     bruto = achada["texto"]
+
+    if achada["estilo"] == "titulo":
+        # "1. DO OBJETO": só o número muda; a marca guardada é o número e o separador.
+        # "01 - DO OBJETO" (os contratos do escritório): o zero à esquerda fica.
+        marca = bruto[: achada["fim"] - achada["inicio"]]
+        largura = len(re.match(r"\d{1,3}", marca).group(0))
+        return re.sub(r"^\d{1,3}", str(numero).zfill(largura), marca, count=1)
 
     if achada["estilo"] == "extenso":
         m = RE_EXTENSO.match(bruto)
