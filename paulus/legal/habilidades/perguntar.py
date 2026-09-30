@@ -532,6 +532,26 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     elif bloco_material:
         contexto = (contexto + "\n\n" if contexto else "") + bloco_material
 
+    # C6 (`conversa.cerca`): todo texto de terceiros - trechos de documento,
+    # material de consulta, biblioteca - vai ao modelo cercado e rotulado
+    # (src/blindagem.py, a mesma cerca do e-mail), com a regra de que o que
+    # esta ali e dado, nunca ordem. Frase que parece dar ordem ao assistente e
+    # anotada; a resposta sai conferida como a do e-mail (link ou e-mail que
+    # nao estava nos trechos sai).
+    cerca = bool(getattr(ctx, "cerca", False)) and bool(contexto)
+    if cerca:
+        import blindagem
+
+        achados = blindagem.suspeitas(contexto)
+        if achados:
+            ctx.registrar("Um trecho lido tem texto que parece dar ordem ao assistente (" + "; ".join(achados) +
+                          "): tratado como dado")
+            yield evento("suspeita", achados=achados,
+                         documentos=[h.doc_name for h in hits if blindagem.suspeitas(h.chunk.text)][:5])
+        fonte_da_cerca = contexto
+        contexto = blindagem.cercar(contexto)
+        regra = (regra + "\n\n" if regra else "") + blindagem.REGRA
+
     # O que vai acontecer, dito antes de acontecer. Ler o prompt inteiro e o
     # silencio longo: o Ollama nao emite nada ate a primeira palavra, entao a
     # tela mostra O QUE esta sendo lido e quanto leituras deste tamanho
@@ -573,6 +593,17 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         texto = _conferir_camadas(ctx, "".join(escrito), camadas, hits, modo)
         yield evento("revisao", **texto)
         escrito = [texto["texto"]]
+
+    # C6: a conferencia da saida, a mesma do e-mail.
+    if cerca and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
+        import blindagem
+
+        final = "".join(escrito)
+        limpo, fora = blindagem.tirar_estranhos(final, fonte_da_cerca)
+        if fora:
+            ctx.registrar("Tirei da resposta link ou e-mail que não estava nos trechos lidos: " + ", ".join(fora[:3]))
+            escrito = [limpo]
+            yield evento("revisao", texto=limpo, removidas=["link ou e-mail que não estava nos trechos: " + x for x in fora[:5]])
 
     # Pergunta de consequencia: a frase do documento que decide, literal,
     # quando ela traz o que a resposta deixou de fora (src/verificacao.py).

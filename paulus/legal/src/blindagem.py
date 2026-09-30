@@ -117,3 +117,24 @@ def conferir_saida(saida: str, fonte: str, permitidos: list[str] | None = None) 
             continue
         linhas.append(linha)
     return "\n".join(linhas).strip(), fora
+
+
+def tirar_estranhos(saida: str, fonte: str) -> tuple[str, list[str]]:
+    """
+    Como `conferir_saida`, mas tira so o link ou o e-mail estranho, e nao a
+    linha: na resposta da conversa (C6), a linha costuma ser a resposta
+    inteira, e o resto dela veio dos trechos.
+    """
+    conhecidos = _plano(fonte or "")
+    fora: list[str] = []
+
+    def trocar(m: re.Match) -> str:
+        x = m.group(0)
+        if _plano(x).rstrip(".,;:") in conhecidos:
+            return x
+        fora.append(x)
+        return "[link retirado]" if RE_LINK.fullmatch(x) else "[endereço retirado]"
+
+    texto = RE_LINK.sub(trocar, saida or "")
+    texto = RE_EMAIL.sub(trocar, texto)
+    return texto.strip(), fora

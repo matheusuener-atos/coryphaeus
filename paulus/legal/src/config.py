@@ -226,7 +226,10 @@ PADRAO: dict = {
                  # busca, Leis, Acesso de fora...) pela tela certa, e CPF, CNPJ,
                  # telefone, e-mail, endereco e OAB de alguem por molde, sem ler o
                  # acervo (src/consulta_cadastro.py).
-                 "roteamento": True},
+                 "roteamento": True,
+                 # `cerca` (C6): trechos de documento, material e biblioteca vao ao
+                 # modelo cercados, como o e-mail (src/blindagem.py).
+                 "cerca": False},
     # A atualizacao (src/atualizacao.py): ver uma vez por dia se ha versao
     # nova em paulus.ia.br/atualizacao.json e, com avisar_antes, perguntar
     # antes de instalar; sem ele, baixa sozinho e instala ao fechar.

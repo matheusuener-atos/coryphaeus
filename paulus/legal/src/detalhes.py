@@ -102,6 +102,9 @@ def linhas(eventos: list[dict]) -> list[dict]:
                      + f" e {_seg(d.get('escrevendo_segundos'))} escrevendo {_milhar(d.get('tokens_escritos', 0))}", "feito")
         elif tipo == "revisao" and d.get("removidas"):
             dizer(e, "tirei da resposta o que não está nos trechos lidos: " + "; ".join(d["removidas"])[:300])
+        elif tipo == "suspeita":
+            dizer(e, "um trecho lido tem texto que parece dar ordem ao assistente (" + "; ".join(d.get("achados") or []) +
+                  "): li como dado, sem seguir")
         elif tipo == "refazendo":
             dizer(e, "a resposta citou um trecho que não existe — refazendo com menos trechos")
         elif tipo == "parado":

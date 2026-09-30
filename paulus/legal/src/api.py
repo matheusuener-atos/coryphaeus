@@ -248,6 +248,18 @@ def _como_pensou(conversa_id: str, cobertura: dict) -> dict:
     return cobertura
 
 
+def _registrar_suspeita(trabalho, pergunta: str, dados: dict) -> None:
+    """A frase de injecao achada num trecho lido: na conversa e em data/cerca/suspeitas.jsonl."""
+    try:
+        pasta = DADOS_DIR / "cerca"
+        pasta.mkdir(parents=True, exist_ok=True)
+        with (pasta / "suspeitas.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"em": datetime.now().isoformat(timespec="seconds"), "conversa": trabalho.id,
+                                "pergunta": pergunta[:300], **dados}, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
 def _pausar_trabalho(trabalho) -> None:
     """A conversa que ficou no meio volta a "parada", com a etapa em curso parada."""
     for etapa in trabalho.etapas:
@@ -3786,6 +3798,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # sistema - abaixo das regras do produto (habilidades/perguntar.py).
         if agente is not None:
             ctx.agente_instrucoes = agente_mod.instrucoes(agente)
+        # C6: a cerca em todo texto de terceiros (habilidades/perguntar.py).
+        ctx.cerca = rotas_execucoes.ligada(estado, "cerca")
         if payload.inteiro:
             ctx.ia["leitura"] = "tudo"
         sem_fundamento: dict = {}
@@ -3847,6 +3861,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     yield _sse("revisao", dados)
                 elif tipo == "refazendo":
                     yield _sse("refazendo", dados)
+                elif tipo == "suspeita":
+                    # C6: frase de "ordem ao assistente" num trecho lido - o
+                    # modelo a leu cercada; aqui fica o registro.
+                    _registrar_suspeita(trabalho, pergunta, dados)
+                    yield _sse("suspeita", dados)
                 elif tipo == "sem_fundamento":
                     sem_fundamento = {
                         "tipo": "escopo", "motivo": "sem_fundamento", "pergunta": pergunta,
