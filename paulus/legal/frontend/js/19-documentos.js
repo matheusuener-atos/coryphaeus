@@ -2246,6 +2246,7 @@ function gradePlanilha(aba, calc) {
       if (cel && cel.negrito) classes.push("forte");
       if (cel && cel.italico) classes.push("inclinada");
       if (cel && cel.borda) classes.push("com-borda");
+      if (cel && cel.fundo) classes.push("fundo-" + cel.fundo);
       html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '"' +
         (juntar > 1 ? ' colspan="' + juntar + '"' : "") + ">" +
         (v ? esc(v.texto) : "") + "</td>";

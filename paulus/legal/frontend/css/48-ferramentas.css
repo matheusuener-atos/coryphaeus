@@ -181,6 +181,12 @@
 .pa-tabela td.mono { font-family: var(--mono); font-size: calc(11.5px * var(--pa-escala, 1)); color: var(--papel-ink2); }
 .pa-tabela td.forte { font-weight: 700; }
 .pa-tabela td.inclinada { font-style: italic; }
+/* O fundo gravado na celula (src/planilha.py, FUNDOS), nas tres grades. */
+.pa-tabela td.fundo-vermelho, .pl-cel.fundo-vermelho { background-color: var(--accbg); }
+.pa-tabela td.fundo-amarelo, .pl-cel.fundo-amarelo { background-color: var(--warnbg); }
+.pa-tabela td.fundo-verde, .pl-cel.fundo-verde { background-color: var(--okbg); }
+.pa-tabela td.fundo-cinza, .pl-cel.fundo-cinza { background-color: var(--fill); }
+.pa-tirar-destaque { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; font-size: 13px; }
 .pa-tabela td.ruim { color: var(--papel-acc); }
 .pa-tabela td.pa-pagar { color: var(--papel-acc); }
 .pa-tabela td.pa-receber { color: var(--papel-ok); }

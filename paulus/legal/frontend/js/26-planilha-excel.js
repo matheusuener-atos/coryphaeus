@@ -180,6 +180,7 @@ function plxLinhaHtml(aba, calc, l, de, ate, ocC, ocL) {
     if (cel && cel.negrito) classes.push("forte");
     if (cel && cel.italico) classes.push("inclinada");
     if (cel && cel.borda) classes.push("com-borda");
+    if (cel && cel.fundo) classes.push("fundo-" + cel.fundo);
     if (cel && cel.comentario) classes.push("plx-nota");
     html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '" data-c="' + c + '"' +
       (visiveis > 1 ? ' colspan="' + visiveis + '"' : "") +

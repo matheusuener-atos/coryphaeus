@@ -10750,7 +10750,7 @@ def planilha_faixa(id_: int, payload: dict) -> dict:
     if len(refs) > planilha.MAX_LINHAS * 4:
         raise HTTPException(status_code=400, detail="seleção grande demais")
 
-    dados = {c: payload[c] for c in ("formato", "negrito", "italico", "borda", "valor")
+    dados = {c: payload[c] for c in ("formato", "negrito", "italico", "borda", "valor", "fundo")
              if c in payload}
     if not dados:
         raise HTTPException(status_code=400, detail="nada para aplicar")
