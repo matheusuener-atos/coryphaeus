@@ -35,6 +35,11 @@ class EditarNota(BaseModel):
     gravar_no_cadastro: bool = True
 
 
+class Motivo(BaseModel):
+    motivo: str = ""
+    texto: str = ""
+
+
 class Senha(BaseModel):
     senha: str = ""
     guardar: bool = False
@@ -145,6 +150,17 @@ def montar(estado, app, dados_dir) -> None:
     def _nota_para_tela(nota: dict) -> dict:
         nota = dict(nota)
         nota["passos"] = estado.nfse.notas.passos(nota["id"])
+        nota["eventos"] = estado.nfse.eventos.da_nota(nota["id"])
+        if nota["estado"] == "emitida":
+            nota["prazo_cancelamento"] = estado.nfse.eventos.prazo_de_cancelamento(nota)
+            nota["motivos_cancelamento"] = tabelas.dominio("motivo_cancelamento")
+            nota["motivos_substituicao"] = tabelas.dominio("motivo_substituicao")
+        if nota.get("substitui_id"):
+            o = estado.nfse.notas.obter(nota["substitui_id"])
+            nota["substitui"] = {"id": o["id"], "numero_nfse": o["numero_nfse"], "chave": o["chave"]} if o else None
+        if nota.get("substituida_por_id"):
+            o = estado.nfse.notas.obter(nota["substituida_por_id"])
+            nota["substituida_por"] = {"id": o["id"], "numero_nfse": o["numero_nfse"], "estado": o["estado"]} if o else None
         return nota
 
     @app.get("/api/nfse/notas")
@@ -262,4 +278,51 @@ def montar(estado, app, dados_dir) -> None:
             nota = estado.nfse.envio.emitir(id_, quem="titular")
         except (ValueError, CertificadoInvalido, ProducaoBloqueada) as exc:
             _erro(exc)
+        return _nota_para_tela(nota)
+
+    # ------------------------------------- consultar, cancelar, substituir (N5)
+
+    @app.get("/api/nfse/notas/{id_}/danfse")
+    def nfse_nota_danfse(id_: int):
+        from fastapi.responses import Response
+
+        nota = estado.nfse.notas.obter(id_)
+        if not nota or not nota.get("xml_nfse"):
+            raise HTTPException(status_code=404, detail="a nota ainda não foi emitida")
+        pdf = estado.nfse.danfse_para(nota)
+        if not pdf:
+            raise HTTPException(status_code=404, detail="não achei o XML da nota emitida")
+        nome = f"DANFSe {nota['numero_nfse']}.pdf"
+        return Response(pdf, media_type="application/pdf",
+                        headers={"Content-Disposition": f'inline; filename="{nome}"'})
+
+    @app.post("/api/nfse/notas/{id_}/cancelar")
+    def nfse_nota_cancelar(id_: int, payload: Motivo) -> dict:
+        """Pede o cancelamento (vai para Aprovações; fora do prazo, explica)."""
+        try:
+            estado.nfse.eventos.pedir_cancelamento(estado, id_, payload.motivo, payload.texto, quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return _nota_para_tela(estado.nfse.notas.obter(id_))
+
+    @app.post("/api/nfse/notas/{id_}/substituir")
+    def nfse_nota_substituir(id_: int, payload: Motivo) -> dict:
+        """Cria a nota substituta (rascunho, com o grupo subst); sai por Aprovações."""
+        try:
+            nova = estado.nfse.eventos.criar_substituta(id_, payload.motivo, payload.texto, quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return _nota_para_tela(nova)
+
+    @app.post("/api/nfse/notas/{id_}/situacao")
+    def nfse_nota_situacao(id_: int) -> dict:
+        """"Atualizar situação": os eventos da nota no Sistema Nacional."""
+        if not estado.nfse.notas.obter(id_):
+            raise HTTPException(status_code=404, detail="nota não encontrada")
+        try:
+            nota = estado.nfse.eventos.atualizar_situacao(id_, quem="titular")
+        except (ValueError, CertificadoInvalido, ProducaoBloqueada) as exc:
+            _erro(exc)
+        except (SemResposta, NaoChegou) as exc:
+            _erro(exc, 502)
         return _nota_para_tela(nota)

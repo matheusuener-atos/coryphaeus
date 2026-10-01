@@ -990,6 +990,36 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE papeis_fiscais ADD COLUMN nfse_nota_id INTEGER;
         """,
     ),
+    (
+        "038_nfse_eventos",
+        """
+        -- Os eventos da nota (N5): o cancelamento pedido daqui (e101101) e o que
+        -- a Sefin registra sozinha (cancelamento por substituicao, por oficio).
+        -- O estado e gravado antes de cada passo, como na nota: sem resposta,
+        -- consulta os eventos da nota antes de pedir de novo.
+        CREATE TABLE IF NOT EXISTS nfse_eventos (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            nota_id       INTEGER NOT NULL,
+            tipo          TEXT NOT NULL,
+            estado        TEXT NOT NULL,
+            motivo        TEXT DEFAULT '',
+            texto         TEXT DEFAULT '',
+            xml_pedido    TEXT DEFAULT '',
+            xml_evento    TEXT DEFAULT '',
+            hash_enviado  TEXT DEFAULT '',
+            hash_recebido TEXT DEFAULT '',
+            aprovacao_id  TEXT DEFAULT '',
+            pedido_por    TEXT DEFAULT '',
+            aprovado_por  TEXT DEFAULT '',
+            ultimo_erro   TEXT DEFAULT '',
+            rejeicao      TEXT NOT NULL DEFAULT '[]',
+            tentativas    INTEGER NOT NULL DEFAULT 0,
+            criado_em     TEXT NOT NULL,
+            atualizado_em TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_nfse_eventos_nota ON nfse_eventos(nota_id);
+        """,
+    ),
 ]
 
 

@@ -426,6 +426,9 @@ _declarar(BLOQUEADO, "POST /api/nfse/notas/{id_}/consultar", "GET /api/nfse/fila
 # codigo do autenticador de novo: nfse.emitir esta em ACOES_QUE_SAEM).
 _declarar(BLOQUEADO, "GET /api/nfse/disponivel", "POST /api/nfse/notas/{id_}/pedir-aprovacao",
           "POST /api/nfse/notas/{id_}/enviar")
+# --- N5 (NFS-e): DANFSe, cancelar (vai para Aprovacoes), substituir e atualizar a situacao.
+_declarar(BLOQUEADO, "GET /api/nfse/notas/{id_}/danfse", "POST /api/nfse/notas/{id_}/cancelar",
+          "POST /api/nfse/notas/{id_}/substituir", "POST /api/nfse/notas/{id_}/situacao")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

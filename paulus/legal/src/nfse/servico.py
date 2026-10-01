@@ -37,10 +37,14 @@ class Emissor:
         self.transporte = None
         tabelas.usar_pasta_de_dados(self.pasta / "tabelas")
         from .emissao import Envio
+        from .eventos import Eventos
         from .notas import Notas
 
         self.notas = Notas(self)
         self.envio = Envio(self)
+        self.eventos = Eventos(self)
+        # A substituta emitida marca a original antes do resto (Acervo, e-mail…).
+        self.envio.ao_emitir.append(self.eventos.depois_de_emitir)
 
     # ---------------------------------------------------------------- chaves
 
@@ -145,6 +149,17 @@ class Emissor:
             return cliente_mod.Cliente(ambiente, producao_liberada=liberada, transporte=self.transporte)
         pfx, senha = self._pfx_e_senha()
         return cliente_mod.Cliente(ambiente, pfx, senha, producao_liberada=liberada)
+
+    # ------------------------------------------------------------ DANFSe
+
+    def danfse_para(self, nota: dict) -> bytes | None:
+        """O PDF do DANFSe da nota emitida, gerado do XML (NT 008)."""
+        from . import danfse
+
+        caminho = nota.get("xml_nfse") or ""
+        if not caminho or not Path(caminho).exists():
+            return None
+        return danfse.gerar(Path(caminho).read_bytes())
 
     # ------------------------------------------------- o contrato da API
 

@@ -149,6 +149,73 @@ class SefinSimulada:
             xml = assinatura.assinar(xml, self.pfx_sefin, self.senha_sefin, "NFS" + chave)
         return xml
 
+    # ------------------------------------------------------------ eventos
+
+    def _montar_evento(self, pedido: etree._Element, seq: int = 1) -> bytes:
+        from nfse import assinatura
+
+        inf_p = pedido.find(f"{{{NS}}}infPedReg")
+        ident = "EVT" + inf_p.get("Id")[3:] + f"{seq:03d}"
+        ev = etree.Element(f"{{{NS}}}evento", nsmap={None: NS})
+        ev.set("versao", "1.01")
+        inf = etree.SubElement(ev, f"{{{NS}}}infEvento")
+        inf.set("Id", ident)
+        for nome, valor in (("verAplic", "SefinSimulada-1.0"), ("ambGer", "2"), ("nSeqEvento", f"{seq:03d}"),
+                            ("dhProc", datetime.now().strftime("%Y-%m-%dT%H:%M:%S") + "-03:00"), ("nDFSe", str(seq))):
+            etree.SubElement(inf, f"{{{NS}}}{nome}").text = valor
+        inf.append(pedido)
+        xml = etree.tostring(ev, xml_declaration=True, encoding="UTF-8")
+        if self.pfx_sefin:
+            xml = assinatura.assinar(xml, self.pfx_sefin, self.senha_sefin, ident)
+        return xml
+
+    def _registrar_evento(self, chave: str, xml: bytes, tipo: str) -> None:
+        from nfse.cliente import gzip_b64
+
+        with _trava:
+            e = self._ler()
+            e.setdefault("eventos", {}).setdefault(chave, []).append({"tipo": tipo, "xml": gzip_b64(xml)})
+            self._gravar(e)
+
+    def eventos_de(self, chave: str) -> list[dict]:
+        return (self._ler().get("eventos") or {}).get(chave, [])
+
+    def _eventos(self, metodo: str, caminho: str, corpo, modo: str):
+        from nfse.cliente import Resposta, SemResposta, de_gzip_b64, gzip_b64
+
+        partes = caminho.strip("/").split("/")
+        chave = partes[1]
+        if metodo == "POST":
+            pedido = etree.fromstring(de_gzip_b64(corpo["pedidoRegistroEventoXmlGZipB64"]))
+            inf = pedido.find(f"{{{NS}}}infPedReg")
+            tipo = next(c.tag.split("}")[1][1:] for c in inf if c.tag.split("}")[1].startswith("e") and c.tag.split("}")[1][1:].isdigit())
+            with _trava:
+                e = self._ler()
+                e.setdefault("pedidos_evento", {})
+                e["pedidos_evento"][chave + tipo] = e["pedidos_evento"].get(chave + tipo, 0) + 1
+                self._gravar(e)
+            if not any(g["chave"] == chave for g in self.geradas().values()):
+                return Resposta(400, {"erros": [{"Codigo": "E0820", "Descricao": "NFS-e não encontrada"}]})
+            if modo == "fora_do_prazo":
+                return Resposta(400, {"erros": [{"Codigo": "E0822", "Descricao": "O prazo para o cancelamento da NFS-e expirou"}]})
+            if modo == "timeout_antes":
+                raise SemResposta("sem resposta (simulado, antes de registrar)")
+            if any(x["tipo"] in ("101101", "105102") for x in self.eventos_de(chave)):
+                return Resposta(400, {"erros": [{"Codigo": "E0840", "Descricao": "Já existe evento de cancelamento vinculado"}]})
+            xml = self._montar_evento(pedido)
+            self._registrar_evento(chave, xml, tipo)
+            if modo == "timeout_depois":
+                raise SemResposta("sem resposta (simulado, depois de registrar)")
+            return Resposta(201, {"eventoXmlGZipB64": gzip_b64(xml)})
+        tipo = partes[3] if len(partes) > 3 else ""
+        achados = [x for x in self.eventos_de(chave) if not tipo or x["tipo"] == tipo]
+        if not achados:
+            return Resposta(404, None)
+        return Resposta(200, {"eventos": [{"eventoXmlGZipB64": x["xml"]} for x in achados]})
+
+    def pedidos_de_evento(self, chave: str, tipo: str) -> int:
+        return int((self._ler().get("pedidos_evento") or {}).get(chave + tipo, 0))
+
     # ------------------------------------------------------------ API
 
     def __call__(self, metodo: str, url: str, corpo):
@@ -180,6 +247,17 @@ class SefinSimulada:
                 chave = etree.fromstring(xml).find(f"{{{NS}}}infNFSe").get("Id")[3:]
                 e["geradas"][ident] = {"chave": chave, "xml": gzip_b64(xml)}
                 self._gravar(e)
+            subst = dps.find(f"{{{NS}}}infDPS/{{{NS}}}subst/{{{NS}}}chSubstda")
+            if subst is not None:
+                # A Sefin cancela a substituída sozinha (e105102), ligada à nova.
+                ped = etree.Element(f"{{{NS}}}pedRegEvento", nsmap={None: NS})
+                ped.set("versao", "1.01")
+                ip = etree.SubElement(ped, f"{{{NS}}}infPedReg")
+                ip.set("Id", "PRE" + subst.text + "105102")
+                ev = etree.SubElement(ip, f"{{{NS}}}e105102")
+                etree.SubElement(ev, f"{{{NS}}}xDesc").text = "Cancelamento de NFS-e por Substituição"
+                etree.SubElement(ev, f"{{{NS}}}chSubstituta").text = chave
+                self._registrar_evento(subst.text, self._montar_evento(ped), "105102")
             if modo == "timeout_depois":
                 raise SemResposta("o Sistema Nacional não respondeu a tempo (simulado, depois de gerar)")
             if modo == "erro500_depois":
@@ -199,6 +277,8 @@ class SefinSimulada:
                 if g["chave"] == chave:
                     return Resposta(200, {"chaveAcesso": chave, "nfseXmlGZipB64": g["xml"]})
             return Resposta(404, None)
+        if "/eventos" in caminho:
+            return self._eventos(metodo, caminho, corpo, modo)
         if "/parametros_municipais/" in caminho and caminho.endswith("/convenio"):
             return Resposta(200, {"situacaoConvenio": "Ativo", "permiteEmissorNacional": True, "prazoCancelamentoDias": 30})
         return Resposta(404, None, "rota não simulada")

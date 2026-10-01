@@ -288,8 +288,13 @@ class Notas:
         _, conta = self.calcular(nota)
         lanc = self.base.um("SELECT * FROM lancamentos WHERE id = ?", (nota["lancamento_id"],)) if nota.get("lancamento_id") else None
         cert = (self.emissor.certificado_para_tela() or {}).get("certificado") or None
+        original = None
+        if nota.get("substitui_id"):
+            o = self.obter(nota["substitui_id"])
+            original = o["rascunho"] if o else None
         erros, avisos = conferencia.conferir(prest=prest, nota=nota["rascunho"], conta=conta,
-                                             municipio=self.emissor.situacao_municipio(), certificado=cert, lancamento=lanc)
+                                             municipio=self.emissor.situacao_municipio(), certificado=cert, lancamento=lanc,
+                                             original=original)
         faltas = self.emissor.prestador.para_tela()["faltas"] if nota["estado"] in EDITAVEIS else []
         erros = [f"configuração: falta {f}" for f in faltas] + erros
         if not erros:

@@ -49,6 +49,7 @@ function htmlDoCartaoNota(n) {
     esc(n.ambiente === "producao" ? "produção" : "produção restrita (sem valor fiscal)") +
     (n.numero_nfse ? " · NFS-e nº " + esc(n.numero_nfse) : "") + (n.chave ? " · chave " + esc(n.chave) : "") + "</p>" +
     (rejeicao ? '<div class="nota-erros"><b>A Sefin recusou:</b><ul>' + rejeicao + "</ul></div>" : "") +
+    htmlDaNotaEmitida(n) +
     (erros ? '<div class="nota-erros"><b>Para enviar, falta resolver:</b><ul>' + erros + "</ul></div>" : "") +
     (avisos ? '<div class="nota-avisos"><b>Avisos</b><ul>' + avisos + "</ul></div>" : "") +
     "<h3>Tomador</h3>" + pares.join("") +
@@ -195,3 +196,62 @@ async function nfseEstaDisponivel(recarregar) {
 
 // Na janela do escritório, as portas já sabem ao abrir se a emissão está à mão.
 nfseEstaDisponivel();
+
+/* ------------------------------------- A nota emitida: DANFSe, cancelar, substituir (N5) */
+
+function htmlDaNotaEmitida(n) {
+  const partes = [];
+  if (n.substitui) partes.push("Substitui a NFS-e nº " + esc(n.substitui.numero_nfse || "") + ".");
+  if (n.substituida_por) partes.push("Substituída pela NFS-e nº " + esc(n.substituida_por.numero_nfse || "(ainda não emitida)") + ".");
+  const eventos = (n.eventos || []).map((e) => "<li>" + esc(e.tipo === "101101" ? "Cancelamento" : e.tipo) + " · " + esc(e.estado) +
+    (e.ultimo_erro ? " — " + esc(e.ultimo_erro) : "") + "</li>").join("");
+  if (!["emitida", "cancelada", "substituida"].includes(n.estado) && !partes.length) return "";
+  const prazo = n.prazo_cancelamento ? '<p class="cfg-explica">' + esc(n.prazo_cancelamento.frase) + "</p>" : "";
+  const botoes = n.estado === "emitida"
+    ? '<div class="word-acoes"><button type="button" data-nota-danfse="' + n.id + '">' + ic("picture_as_pdf", 16) + "Abrir o DANFSe</button>" +
+      '<button type="button" data-nota-cancelar="' + n.id + '">Cancelar a nota</button>' +
+      '<button type="button" data-nota-substituir="' + n.id + '">Substituir</button></div>'
+    : (n.xml_nfse ? '<div class="word-acoes"><button type="button" data-nota-danfse="' + n.id + '">' + ic("picture_as_pdf", 16) + "Abrir o DANFSe</button></div>" : "");
+  return '<div class="nota-emitida">' + (partes.length ? "<p>" + partes.join(" ") + "</p>" : "") + prazo + botoes +
+    (eventos ? '<details class="nota-passos"><summary>Eventos</summary><ul>' + eventos + "</ul></details>" : "") + "</div>";
+}
+
+async function perguntarMotivo(titulo, motivos, explica, textoObrigatorio) {
+  const opcoes = Object.entries(motivos || {}).map(([k, v]) => '<option value="' + esc(k) + '">' + esc(k + " – " + v) + "</option>").join("");
+  const r = await dialogo({
+    titulo: titulo, contexto: "Nota fiscal", larga: true,
+    html: '<div class="dialogo-campo"><label>Motivo (tabela oficial)</label><div class="dialogo-caixa"><select data-dialogo-chave="motivo">' + opcoes + "</select></div></div>" +
+      (explica ? '<p class="cfg-explica">' + esc(explica) + "</p>" : ""),
+    campos: [{ chave: "texto", rotulo: "Descreva o motivo (15 a 255 caracteres)", obrigatorio: Boolean(textoObrigatorio), max: 255 }],
+    confirmar: "Continuar",
+  });
+  if (!r || !r.ok) return null;
+  return { motivo: (r.valores || {}).motivo, texto: (r.valores || {}).texto || r.valor || "" };
+}
+
+document.addEventListener("click", async (e) => {
+  const danfse = e.target.closest("[data-nota-danfse]");
+  if (danfse) { window.open("/api/nfse/notas/" + danfse.dataset.notaDanfse + "/danfse", "_blank"); return; }
+  const cancelar = e.target.closest("[data-nota-cancelar]");
+  const substituir = e.target.closest("[data-nota-substituir]");
+  if (!cancelar && !substituir) return;
+  const id = (cancelar || substituir).dataset.notaCancelar || (cancelar || substituir).dataset.notaSubstituir;
+  const r0 = await fetch("/api/nfse/notas/" + id);
+  if (!r0.ok) return;
+  const n = await r0.json();
+  if (cancelar) {
+    const m = await perguntarMotivo("Cancelar a NFS-e nº " + n.numero_nfse, n.motivos_cancelamento,
+      (n.prazo_cancelamento || {}).frase + " O pedido vai para Aprovações; depois do sim, o cancelamento é registrado no Sistema Nacional.", true);
+    if (!m) return;
+    const r = await fetch("/api/nfse/notas/" + id + "/cancelar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(m) });
+    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    avisoCert("pedido de cancelamento em Aprovações", { tom: "ok", acao: { rotulo: "Abrir Aprovações", fazer: () => abrirDestino("aprovacoes") } });
+    return;
+  }
+  const m = await perguntarMotivo("Substituir a NFS-e nº " + n.numero_nfse, n.motivos_substituicao,
+    "Cria uma nota nova (rascunho) que substitui esta; emitida, a Sefin cancela esta por substituição. No Simples Nacional, tomador, competência e valor não mudam.", false);
+  if (!m) return;
+  const r = await fetch("/api/nfse/notas/" + id + "/substituir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(m) });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  abrirCartaoNota(await r.json());
+});

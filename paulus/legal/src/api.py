@@ -5735,6 +5735,8 @@ EXECUTORES = {
     "correio.enviar": _executar_enviar,
     # N4: a NFS-e aprovada é assinada e enviada pelo emissor (src/nfse/fluxo.py).
     "nfse.emitir": lambda pedido: __import__("nfse.fluxo", fromlist=["fluxo"]).executar_aprovado(estado, pedido),
+    # N5: o cancelamento aprovado vira o evento e101101 no Sistema Nacional.
+    "nfse.cancelar": lambda pedido: estado.nfse.eventos.executar_cancelamento(estado, pedido),
     "google.drive.enviar": _executar_enviar_ao_drive,
     # O que alguem propos pelo acesso de fora (agenda, tarefa, ficha): o sim
     # refaz exatamente o pedido guardado (src/acesso/servico.py).

@@ -271,7 +271,9 @@ class PapeisFiscais:
             "WHERE l.tipo = 'recebimento' AND l.liquidado_em != '' "
             "AND substr(l.liquidado_em,1,7) = ? "
             "AND NOT EXISTS (SELECT 1 FROM papeis_fiscais p "
-            "                WHERE p.tipo = 'nota' AND p.lancamento_id = l.id) "
+            "                WHERE p.tipo = 'nota' AND p.lancamento_id = l.id "
+            # A nota cancelada (N5) não vale mais: o recebimento volta a ficar sem nota.
+            "                AND COALESCE(p.situacao, '') NOT IN ('cancelada', 'substituída')) "
             "ORDER BY l.liquidado_em",
             (mes,),
         )

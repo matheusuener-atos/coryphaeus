@@ -79,7 +79,8 @@ def _doc(valor) -> str:
 
 
 def conferir(*, prest: dict, nota: dict, conta, municipio: dict | None = None,
-             certificado: dict | None = None, lancamento: dict | None = None, hoje: date | None = None) -> tuple[list[str], list[str]]:
+             certificado: dict | None = None, lancamento: dict | None = None, hoje: date | None = None,
+             original: dict | None = None) -> tuple[list[str], list[str]]:
     """
     As regras locais e os avisos (seção 2, item 3 do prompt). Devolve
     (erros, avisos). O XSD é conferido à parte, no XML montado.
@@ -174,6 +175,19 @@ def conferir(*, prest: dict, nota: dict, conta, municipio: dict | None = None,
         erros.append("MEI não informa tributos federais (regra E0676)")
     if prest.get("regime_especial", "0") != "0" and conta.iss_retido:
         erros.append("com regime especial não há ISS retido (regra E0588)")
+
+    # --- substituição: no Simples, tomador, competência e valor não mudam (E0061)
+    if (nota.get("substitui") or {}).get("chave"):
+        if original and prest.get("opcao_simples") in ("2", "3"):
+            o = original
+            if _doc((o.get("tomador") or {}).get("documento")) != doc:
+                erros.append("na substituição de nota do Simples Nacional o tomador não muda (regra E0061)")
+            if str(o.get("competencia") or "") != str(nota.get("competencia") or ""):
+                erros.append("na substituição de nota do Simples Nacional a competência não muda (regra E0061)")
+            if int(o.get("valor_centavos") or 0) != int(nota.get("valor_centavos") or 0):
+                erros.append("na substituição de nota do Simples Nacional o valor do serviço não muda (regra E0061)")
+        avisos.append("esta nota substitui a de chave " + nota["substitui"]["chave"] +
+                      ": emitida, a Sefin cancela a anterior por substituição")
 
     # --- de onde veio e o que está em volta
     if lancamento and int(lancamento.get("centavos") or 0) != conta.v_serv:
