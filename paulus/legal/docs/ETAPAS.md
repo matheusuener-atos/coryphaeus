@@ -2489,3 +2489,15 @@ os caracteres. Instalar gera o certificado só-localhost, a porta HTTPS fixa,
 o manifesto PAVLVS (aba, 8 botões, menu do botão direito) e o registro do
 Word. **Medido:** `tests/test_w1_painel.py`; no Word 2021 real, a aba, o menu
 e o painel conectado, sem violação de CSP.
+
+## N0 — NFS-e: levantamento e fonte oficial ✓ FEITA (01/10/2026)
+
+Documentação oficial da NFS-e Nacional lida e registrada com link e versão em
+`docs/PROGRESSO-NFSE.md`: endereços das APIs, XSD vigentes (produção
+1.01-20260209 e produção restrita 1.01-20260727, guardados em
+`src/nfse/xsd/`), identidade da DPS (E0014 impede a segunda nota), eventos,
+IBS/CBS (obrigatórios desde 03/08/2026; Simples só em 2027), Simples no
+Emissor Nacional em 01/11/2026 (Resolução CGSN 191) e DANFSe gerado pelo
+software (API suspensa em 03/08/2026). A tabela "o prompt supõe × a
+documentação diz" tem 24 linhas; a pausa (o que o dono precisa ter e as
+perguntas do contador) ficou registrada, sem parar o trabalho.
