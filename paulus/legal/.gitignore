@@ -128,3 +128,8 @@ data/demo-biblioteca/
 # W1: o PAVLVS no Word desta instalacao - certificado (com a chave do
 # servidor), conexoes (resumo do token) e manifestos. Nunca no repositorio.
 data/word/
+
+# Os arquivos do editor ja guardados no Acervo (caminho e SHA-1 desta
+# maquina) e os anexos trazidos da caixa para encaminhar: dados de quem usa.
+data/editor_no_acervo.json
+data/encaminhar/
