@@ -236,6 +236,31 @@ Onde divergem, vale a documentação.
 - Roteiro `--tudo`: 40/41 (programa 11/11, pergunta 1/1, documentos 28/29),
   igual à linha de base.
 
+## Junção com a main (01/10/2026, branch `nfse-sobre-main`, commit 5c205d4)
+
+A `main` em `2b353f0` foi juntada à `nfse` numa branch à parte. Único
+conflito: `frontend/index.html` (os dois lados só acrescentaram scripts). A
+`main` criou `js/77-apoiar-convite.js`; os da nota viraram `79-nfse.js` e
+`80-nfse-nota.js`. Nenhuma função global repetida entre os scripts.
+
+- Testes da NFS-e (N1–N9): todos passando.
+- Suíte inteira: 145 de 161 passam. As 16 que falham:
+  - 9 as de sempre na cópia de teste (dados reais): assinatura ×3, escrita,
+    ferramentas, inteligência da extensão, redação, saudação, `test_tela` (as
+    mesmas 4 da `main` pura);
+  - 2 que **já falham na `main` pura** (`2b353f0`), com a mesma mensagem:
+    `test_c2_pensando` ("cartão e painel sempre com a mesma conta de etapas")
+    e `test_d4_switch` ("a resposta foi escrita aqui, e a assinatura diz");
+  - 4 da corrida do autenticador, que passam sozinhas: `test_e1_quem_criou`,
+    `test_e3b_google_da_pessoa`, `test_servicos_colaboradores`,
+    `test_w1_painel`;
+  - 1 tempo esgotado com a máquina cheia, que passa sozinho 2/2:
+    `test_l8_captura` (esperando o seletor de arquivo).
+- Roteiro `--tudo`: 40/41 (programa 11/11, pergunta 1/1, documentos 28/29), o mesmo total da linha de base; a errada desta vez foi de ausência (a multa por atraso da Clínica: o modelo de 3B respondeu um valor que o contrato não traz), e na rodada da N9 tinha sido de fato — variação do modelo, não do código da nota. Uma resposta esperou 86 min pelo Ollama, ocupado por testes de outra sessão na `main`.
+
+Para levar à `main`, com ela limpa: `git merge nfse-sobre-main` (se a `main`
+andar de novo, o conflito provável é só o `index.html`, de novo).
+
 ## ⏸ Pausa N3 — o que fica para o dono
 
 Nada foi mandado a servidor nenhum do governo: os testes usam uma Sefin
@@ -276,11 +301,15 @@ Cada correção que vier daí entra com teste.
 - **Suíte na worktree:** os testes que dependem dos dados reais (Acervo,
   assinatura, redação, `test_tela` em 4 conferências) falham na cópia de
   teste igual falhavam em `abfd803`, antes deste trabalho; `test_e1_quem_criou`
-  e `test_e2_permissoes` às vezes falham na suíte inteira e passam sozinhos.
-  A causa: calculam o passo do autenticador antes de criar a conta (scrypt,
-  lento com a máquina cheia); se os 30 s viram no meio, a confirmação recusa
-  e o login devolve 401. É de antes deste trabalho e fica para outra frente;
+  e `test_e2_permissoes` às vezes falham na suíte inteira e passam sozinhos
+  (na suíte sobre a `main`, também `test_e3b_google_da_pessoa`,
+  `test_servicos_colaboradores` e `test_w1_painel`). A causa: calculam o
+  passo do autenticador uma vez, antes de criar as contas (scrypt, lento com
+  a máquina cheia), e não olham o retorno de `confirmar_totp`; se os 30 s
+  viram no meio, a conta fica sem confirmar e o login devolve 401. É de antes deste trabalho e fica para outra frente;
   o helper da NFS-e (`tests/_nfse_comum.py`), que tinha copiado o padrão, foi
   corrigido.
-- O merge na `main` espera o trabalho do Word, que estava sem commit na
-  `main`.
+- **A `main` não foi tocada.** Ela andou durante o trabalho (0.9.24, T0/T1
+  do Assistente) e tinha alterações sem commit de outra sessão. A junção
+  está pronta e conferida na branch `nfse-sobre-main` (ver "Junção com a
+  main", acima).
