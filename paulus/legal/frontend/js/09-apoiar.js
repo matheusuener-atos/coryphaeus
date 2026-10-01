@@ -70,6 +70,7 @@ function mostrarApoiar(visao) {
   lerApoioGuardado();
   abrirTela("Apoiar o projeto", { cheia: true });
   marcarDestino("apoiar");
+  apoio.naTela = true;
   desenharApoiar();
   apoioConferirPendentes();
 }
@@ -104,6 +105,10 @@ function categoriaDoApoio() {
 function assinaturaPendente() { return !!apoio.assinaturaId && !apoio.ativa; }
 
 function desenharApoiar() {
+  // O convite da tela inicial e o da conversa (js/77-apoiar-convite.js)
+  // usam o mesmo pagamento: fora da tela Apoiar, nada aqui redesenha a
+  // pagina por cima do que a pessoa esta vendo.
+  if (!apoio.naTela) return;
   cabecalhoApoiar();
   const miolo = apoio.visao === "lista" ? corpoDoMural() : corpoDeContribuir();
   // O molde editorial das outras telas: uma coluna de 1080px (12-servicos.css).

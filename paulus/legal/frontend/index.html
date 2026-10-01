@@ -253,7 +253,7 @@
                 <button class="pilula pilula-anexar" id="anexar" title="Anexar documentos (PDF, DOCX, TXT) — ou digite / para escolher um já aberto"><span class="ic ic-18">attach_file</span><span class="rotulo-botao">Anexar</span></button>
                 <div class="escopo" id="escopo" hidden></div>
                 <button class="pilula pilula-inicio" id="buscar" title="Achar a palavra, sem esperar o assistente"><span class="ic ic-18">search</span><span class="rotulo-botao">Buscar</span></button>
-                <button class="pilula pilula-inicio" id="pilula-organizar" title="Varrer uma pasta e organizar o acervo"><span class="ic ic-18">drive_file_move</span><span class="rotulo-botao">Organizar</span></button>
+                <button class="pilula pilula-inicio" id="pilula-organizar" title="Varrer uma pasta e organizar o acervo"><span class="ic ic-18">folder</span><span class="rotulo-botao">Organizar</span></button>
                 <button class="ditar" id="ditar" title="Ditar — o modelo de voz desta máquina escreve no campo" aria-label="Ditar"><span class="ic ic-18">mic</span></button>
                 <button class="enviar" id="enviar" title="Enviar" aria-label="Enviar"><span class="ic ic-18">arrow_upward</span></button>
               </div>
@@ -264,19 +264,22 @@
               <div class="agora-cartoes" id="agora-cartoes"></div>
             </div>
 
-            <!-- Avisos do dia (T2, frontend/js/53-avisos.js): o carrossel logo abaixo
-                 de "Acontecendo agora", no mesmo cartao. Sem avisos, nao aparece. -->
+            <!-- Avisos do dia (js/53-avisos.js; pacote de telas de 01/10/2026):
+                 o resumo em tres cartoes - atrasados, vencem hoje, conversas
+                 pela metade. "ver N" abre o painel no lugar da lista de
+                 conversas; "Central de avisos" abre a janela. Sem avisos,
+                 nao aparece. -->
             <div class="agora av-dia" id="av-dia" hidden>
               <div class="agora-cabeca"><span class="sv-kicker">Avisos</span><span class="av-conta" id="av-conta"></span>
-                <span class="av-setas" id="av-setas" hidden>
-                  <button type="button" class="botao-icone" id="av-ant" title="Anterior" aria-label="Aviso anterior"><span class="ic ic-18">chevron_left</span></button>
-                  <button type="button" class="botao-icone" id="av-prox" title="Próximo" aria-label="Próximo aviso"><span class="ic ic-18">chevron_right</span></button>
-                </span>
-                <button type="button" class="av-ver-todos-cab" id="av-ver-todos" title="Central de avisos, com o histórico do que já foi visto">Ver todos</button>
+                <span class="vazio-flex"></span>
+                <button type="button" class="av-central-link" id="av-ver-todos" title="Central de avisos, com o histórico do que já foi visto">Central de avisos<span class="ic ic-16">chevron_right</span></button>
               </div>
-              <!-- Um cartao so: as setas, o teclado ou o arrasto trocam o aviso. -->
-              <div class="av-trilho" id="av-trilho" role="group" tabindex="0" aria-live="polite" aria-label="Aviso do dia — as setas do teclado trocam de aviso"></div>
+              <div class="av-resumo" id="av-resumo"></div>
             </div>
+
+            <!-- O convite para apoiar (js/77-apoiar-convite.js): no maximo uma
+                 vez por mes, so quando ha o que contar do mes. -->
+            <div class="agora ap-convite" id="ap-convite" hidden></div>
 
             <div class="recentes" id="recentes" hidden></div>
             <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
@@ -284,6 +287,8 @@
           <!-- Fora do bloco centralizado de proposito: ela e um cartao com a
                largura do fio, e nao um bloco dentro da caixa de pedido. -->
           <div class="lista-conversas" id="lista-conversas" hidden></div>
+          <!-- Os avisos no lugar da lista ("ver N" no resumo). -->
+          <div class="av-painel-inicio" id="av-painel" hidden></div>
         </div>
     </div>
 
@@ -429,6 +434,7 @@
 <script src="/js/74-autonomia.js"></script>
 <script src="/js/75-nuvem.js"></script>
 <script src="/js/76-word.js"></script>
+<script src="/js/77-apoiar-convite.js"></script>
 <script src="/js/57-ia-em-fundo.js"></script>
 </body>
 </html>

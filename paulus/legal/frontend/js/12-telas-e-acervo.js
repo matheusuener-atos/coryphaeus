@@ -6,6 +6,7 @@
 
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
+  if (typeof apoio !== "undefined") apoio.naTela = false;
   fecharEditorNaConversa();
   pararTocadorDaListaGv(nome);
   guardarLugarDoAssistente();

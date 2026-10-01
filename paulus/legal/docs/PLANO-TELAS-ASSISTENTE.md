@@ -32,7 +32,7 @@ estiver `feita`.
 | Etapa | O quê (mockups) | Estado | Commit |
 | --- | --- | --- | --- |
 | T0 | Casca da conversa: cabeçalho, coluna do chat (1080), caixa de pedido em duas linhas, coluna lateral de altura inteira que troca de papel (380/420/460/ferramenta), contexto (Progresso, Trechos lidos, Como respondi, Onde procurei), rolagem fina | feita | ver git log (T0) |
-| T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (resumo em três cartões e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | a fazer | |
+| T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (resumo em três cartões e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | a fazer | |
 | T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | a fazer | |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
@@ -73,3 +73,43 @@ estiver `feita`.
   pacote); `test_tela` ok até o celular, onde o navegador caiu por falta de
   recurso — rodado sozinho, o celular passa inteiro.
 
+
+### T1 — tela inicial (01/10/2026)
+
+- Lista de conversas aberta de início e na largura toda (recuo de 44 px),
+  linhas de 15 px, nome em 600, "trabalhando" sem cor de estado; o recolher
+  usa o mesmo glifo desenhado do botão da coluna. No início o escopo
+  "Acervo · N documentos" sai da caixa (a frase de baixo da saudação já diz);
+  Organizar ganhou o ícone de pasta.
+- Acontecendo agora: `cartaoDoTrabalhoAgora` com uma faixa por etapa (a que
+  anda é 2,4× mais larga, enche até a previsão desta máquina e tem o brilho;
+  sem previsão, só o brilho), o tempo "X s de ~Y s" e o Parar. `/api/agora`
+  passou a mandar as etapas da conversa.
+- Gravando: `cartaoDaGravacaoAgora` (js/11-gravacoes.js) com o gravador que
+  já existia — onda do microfone, a última fala transcrita, Pausar, Marcar
+  momento, Abrir gravação e Parar e arquivar. Pausar e parar fora da tela de
+  Gravações não levam mais a pessoa para lá (`redesenharGravador`); parar
+  arquiva e avisa com "Abrir". O "Abrir conversa" do desenho vira "Abrir
+  gravação" até a T2 (a conversa que grava).
+- Avisos: o carrossel saiu. No lugar, o resumo em três cartões (atrasados
+  com o fio em vinho, vencem hoje, conversas pela metade em âmbar), "ver N"
+  abre o painel no lugar da lista (tipos à esquerda com a conta, lista
+  agrupada, busca, Hoje/7 dias/30 dias, × volta às conversas) e "Central de
+  avisos" abre o mesmo painel numa janela de 920 px, com o histórico e a
+  seleção de vários (marcar como visto em lote).
+- Apoiar: `js/77-apoiar-convite.js` + `GET /api/apoio/neste-mes` (documentos
+  lidos nas respostas do mês e lançamentos criados no mês, contados aqui).
+  Aparece só com algo a contar, uma vez por mês ("Agora não" guarda o mês) e
+  nunca para quem já apoia. Paga pelo Pix ou cartão de sempre; a tela Apoiar
+  não se redesenha mais por cima de outra tela (`apoio.naTela`).
+  **Fica de fora:** a "Meta de outubro" só aparece quando o site publicar
+  `meta` no mês em `/api/public/desenvolvimento` — hoje o site não publica,
+  e a linha mostra só o que entrou no mês (ou nada, sem internet).
+- Anexar › Google Drive: o quadro sem o Drive para computador no desenho
+  (marca, título em serifa, Instalar — recomendado — com o botão da página
+  de download, e Sem instalar nada com o caminho Acervo › Incluir pasta ›
+  Google Drive, que abre o Acervo). A conta e o seletor do Windows foram para
+  o pé da janela; a janela tem 810 px.
+- Testes: `test_frontend`, `test_listas` ok; `test_t2_avisos` reescrito na
+  parte da tela para o resumo e o painel (o vinho agora é permitido no
+  cartão dos atrasados, como no pacote) — todos ok.

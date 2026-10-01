@@ -16,7 +16,7 @@
      de 76 px antes da saudacao. Centralizar fazia a pagina saltar de lugar a
      cada bloco que aparecia ou sumia. */
   .conversa-col.vazia .compositor {
-    flex: 1 1 auto; min-height: 0; overflow: auto; padding: 28px 26px 40px;
+    flex: 1 1 auto; min-height: 0; overflow: auto; padding: 32px 44px 40px;
     display: grid; align-content: start; grid-auto-rows: min-content; justify-items: center;
   }
   .conversa-col.vazia .compositor > .centro { max-width: var(--fio); gap: 22px; }
@@ -42,6 +42,40 @@
 
   .agora { display: grid; gap: 14px; }
   .agora-cabeca { display: flex; align-items: center; gap: 14px; }
+  /* Os rotulos da tela inicial (Acontecendo agora, Avisos, Conversas
+     recentes): Manrope 10,5 em maiusculas, tinta do meio. */
+  .conversa-col.vazia .compositor .sv-kicker { font: 500 10.5px var(--sans); letter-spacing: .1em; color: var(--ink2); }
+
+  /* A RESPOSTA ANDANDO (pacote de telas, `Assistente - Acontecendo agora`):
+     titulo, tempo em monoespaco e Parar; embaixo, uma faixa por etapa. */
+  .agr-cartao { padding: 18px 18px 16px 20px; gap: 16px; border-color: var(--ink-a1); }
+  .agr-cartao .cabeca { gap: 12px; }
+  .agr-cartao .nome { font: 600 14px var(--sans); }
+  .agr-tempo { font: 400 12px var(--mono); color: var(--ink2); white-space: nowrap; }
+  .agr-parar {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px;
+    border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink);
+  }
+  .agr-parar:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); color: var(--ink); }
+  .agr-parar i { width: 8px; height: 8px; border-radius: 2px; background: var(--ink); }
+  .agr-etapas { display: grid; gap: 6px; }
+  .agr-etapa { display: grid; gap: 8px; min-width: 0; }
+  .agr-etapa > span { display: flex; align-items: center; gap: 6px; min-width: 0; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agr-etapa.feita > span .ic { color: var(--okt); font-size: 14px; width: 14px; height: 14px; }
+  .agr-etapa.andando > span { font-weight: 600; color: var(--ink); gap: 7px; }
+  .agr-etapa.espera > span { color: var(--mute); }
+  .agr-faixa { position: relative; display: block; height: 3px; border-radius: 2px; background: var(--ink-a08); overflow: hidden; }
+  .agr-etapa.feita .agr-faixa { background: var(--ink2); }
+  .agr-faixa > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: var(--ink); overflow: hidden; transition: width 1s linear; }
+  /* O brilho que corre pela faixa da etapa que anda; sem medida, a faixa
+     inteira fica apagada e so o brilho anda. */
+  .agr-faixa > i::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+    background: linear-gradient(90deg, transparent, var(--brilho), transparent); animation: pv-sheen 1.8s ease-in-out infinite;
+  }
+  .agr-faixa.sem-medida > i { background: var(--ink-a15); }
+  .agr-respira { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); animation: pv-respira 1.6s ease-in-out infinite; }
+  .agr-fila { font: 500 12.5px var(--sans); color: var(--ink2); }
 
   .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
@@ -93,7 +127,9 @@
      uma conversa tem so quatro coisas para mostrar. */
   /* 16 px entre a linha de Recentes e o cartao da lista: com 6 o cartao
      encostava nas pilulas e parecia parte delas. */
-  .lista-conversas { display: grid; flex: none; width: 100%; max-width: var(--fio); margin-top: 16px; }
+  /* A lista sai da medida de 1080 e ocupa a largura da tela, dentro do
+     recuo de 44 px (pacote de telas, `Assistente`). */
+  .lista-conversas { display: grid; flex: none; width: 100%; margin-top: 16px; }
   .lc-cartao {
     display: grid; background: var(--surf); border: 1px solid var(--ink-a1);
     border-radius: 12px; box-shadow: var(--elev-card);
@@ -102,17 +138,17 @@
      por baixo da linha e passa da borda. Quem arredonda o fundo da ultima
      linha (no hover e na selecao) e ela mesma. */
   .lc-cartao > .lc-linha:last-child { border-radius: 0 0 11px 11px; border-bottom: none; }
-  .lc-barra { display: flex; align-items: center; gap: 12px; min-height: 49px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .lc-barra { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); }
   /* A caixa de busca (.lc-busca) mora com a .busca-tela, em 04-acervo.css. */
   .lc-linha {
     position: relative;
-    display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+    display: flex; align-items: center; gap: 12px; padding: 15px 16px;
     border-bottom: 1px solid var(--ink-a08); color: var(--ink); cursor: pointer;
   }
   .lc-linha:hover { background: var(--sub); }
   .lc-linha > .ic { color: var(--ink2); font-size: 17px; width: 16px; height: 16px; }
   .lc-nome { display: grid; gap: 1px; flex: 1 1 240px; min-width: 150px; }
-  .lc-nome b { font: 500 14px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lc-nome b { font: 600 14px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lc-nome small { font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* A segunda linha da conversa: quando e em que grupo, cada um com o seu
      icone, na mesma tinta apagada da hora. A etiqueta com fundo que o grupo
@@ -162,9 +198,32 @@
      cinza para o que parou. Um ponto com texto solto ao lado se perdia no
      meio da linha. */
   .estado-conversa { flex: 0 1 132px; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+  .estado-conversa .etiqueta { font-weight: 500; border-radius: 4px; }
+  .lc-recolher .glifo-lado { border-color: var(--ink); }
   .lista-conversas .menu-conversa { top: calc(100% - 8px); }
 
 
   /* T1: o titulo da conversa citado na saudacao abre a conversa. */
   .chamada-link { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-decoration: underline;
                   text-decoration-thickness: 1px; text-underline-offset: 4px; cursor: pointer; }
+
+  /* A GRAVACAO NA TELA INICIAL (pacote de telas, `Assistente - Gravando`). */
+  .agr-gravando { padding: 16px 18px 14px 20px; gap: 14px; }
+  .agr-grava { display: flex; align-items: center; gap: 8px; font: 600 14px var(--sans); white-space: nowrap; }
+  .agr-rec { width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
+  .agr-rec.vivo { animation: pv-pulse 1.6s ease-in-out infinite; }
+  .agr-grava-meta { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agr-grava-tempo { font: 500 13px var(--mono); letter-spacing: .04em; }
+  .agr-onda { display: block; width: 100%; height: 22px; color: var(--ink); }
+  .agr-fala { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: baseline; padding: 10px 12px; border-radius: 8px; background: var(--lado-fundo); }
+  .agr-fala-t { font: 400 11px var(--mono); color: var(--mute); }
+  .agr-fala-texto { font-size: 13.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agr-fala-texto.apagada { color: var(--ink3); }
+  .agr-grava-acoes { display: flex; align-items: center; gap: 6px; }
+  .agr-acao { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 7px; background: none; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .agr-acao:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .agr-grava-conta { margin-left: 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .agr-borda { height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--ink-a12); background: none; font: 600 12.5px var(--sans); color: var(--ink); }
+  .agr-cheio { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: var(--ink); color: var(--bg); font: 600 12.5px var(--sans); }
+  .agr-cheio:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }
+  .agr-cheio i { width: 8px; height: 8px; border-radius: 2px; background: var(--bg); }

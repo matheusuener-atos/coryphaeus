@@ -101,8 +101,8 @@
   .dialogo-aviso { font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
   /* O pop-up de anexar: largo e alto o bastante para ser uma lista, com a
      alternancia Acervo / Meu computador e a busca no alto. */
-  .dialogo.dialogo-anexar, .dialogo.dialogo-imprimir { width: 760px; }
-  .dialogo.dialogo-anexar { height: min(640px, calc(100vh - 48px)); }
+  .dialogo.dialogo-imprimir { width: 760px; }
+  .dialogo.dialogo-anexar { width: 810px; height: min(640px, calc(100vh - 48px)); }
   .dialogo-anexar .dialogo-corpo { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 14px; }
   .anx { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   .anx-topo { display: flex; align-items: center; gap: 10px; }
@@ -125,10 +125,25 @@
   .anx-quando, .anx-ja { flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .anx-vazio { margin: 0; padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
   /* A visao Google Drive sem o Drive para computador: o que fazer para ter. */
-  .anx-sem-drive { display: grid; gap: 8px; justify-items: start; padding: 20px 16px; max-width: 460px; font-size: 13px; line-height: 1.55; color: var(--ink2); }
-  .anx-sem-drive p { margin: 0; }
+  /* Sem o Drive para computador (pacote de telas, `Anexar - Google Drive`):
+     a marca no quadrado, o titulo em serifa centrado e os dois caminhos. */
+  .anx-sem-drive { display: grid; gap: 12px; justify-items: center; padding: 38px 36px 32px; text-align: center; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .anx-sem-drive p { margin: 0; max-width: 520px; }
   .anx-sem-drive b { color: var(--ink); font-weight: 600; }
-  .anx-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 22px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .anx-sem-drive h3 { margin: 6px 0 2px; font: 400 26px/1.15 var(--serif); color: var(--ink); }
+  .anx-drive-marca { display: inline-flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 12px; background: var(--fill); border: 1px solid var(--ink-a08); }
+  .anx-caminhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; margin-top: 18px; text-align: left; }
+  .anx-caminho { display: grid; gap: 10px; align-content: start; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .anx-caminho p { font-size: 13px; }
+  .anx-caminho-rotulo { display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+  .anx-caminho-rotulo .etiqueta { letter-spacing: 0; text-transform: none; font-family: var(--sans); }
+  .anx-caminho-botao { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 7px; border: none; background: var(--fill2); font: 600 12.5px var(--sans); color: var(--ink); }
+  .anx-caminho-botao:hover:not(:disabled) { background: var(--act); border: none; }
+  .anx-trilha { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none; color: var(--ink3); }
+  .anx-trilha:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .anx-trilha b { padding: 3px 8px; border-radius: 6px; background: var(--fill); font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
+  .anx-lista:has(> .anx-sem-drive) { flex: none; overflow: visible; }
+  .anx-rodape { display: inline-flex; align-items: center; gap: 16px; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink2); }
 
   /* Abrir do Acervo (19-documentos.js): o pop-up do anexar, com a dica do
      que acontece com cada tipo no lugar das visoes. */

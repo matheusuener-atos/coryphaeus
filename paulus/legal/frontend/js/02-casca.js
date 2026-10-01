@@ -511,6 +511,7 @@ function alternarLateralAnimada(abrir) {
 /* A tela passa da postura de inicio para a de conversa: a coluna do texto
    ganha a medida de prosa e o painel da direita entra. */
 function entrarNaConversa() {
+  if (typeof apoio !== "undefined") apoio.naTela = false;
   $("centro").classList.add("prosa");
   $("conversa-col").classList.add("em-conversa");
   $("conversa-titulo").classList.add("renomeavel");

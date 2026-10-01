@@ -76,3 +76,49 @@
   .apoio-grupo h3 { flex: 0 0 180px; margin: 0; display: grid; gap: 2px; align-content: start; font: 400 30px/1.05 var(--serif); color: var(--ink); }
   .apoio-grupo ul { flex: 1 1 420px; min-width: 0; margin: 0; padding: 0; list-style: none; column-width: 220px; column-gap: 40px; }
   .apoio-grupo li { break-inside: avoid; padding: 7px 0; border-bottom: 1px solid var(--ink-a1); font: 400 19px/1.3 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
+
+  /* ------------------------------------------ o convite para apoiar */
+  /* Pacote de telas (`Assistente - Apoiar`, `Conversa - Apoiar`): o que o
+     PAULUS fez no mes a esquerda, em serifa, com a meta quando o site
+     publica uma; a forma e o valor a direita. O coracao e o vinho da marca
+     do Apoiar. */
+  .ap-convite { gap: 14px; }
+  .cv-cartao {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); overflow: hidden;
+    background: var(--surf); border: 1px solid var(--ink-a15); border-radius: 12px; box-shadow: var(--elev-card);
+  }
+  .cv-esq, .cv-dir { padding: 18px 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+  .cv-esq { border-right: 1px solid var(--ink-a06); }
+  .cv-titulo { display: flex; align-items: flex-start; gap: 10px; }
+  .cv-titulo .ic { flex: none; margin-top: 3px; color: var(--acc); }
+  .cv-titulo b { font: 400 22px/1.15 var(--serif); letter-spacing: -.005em; }
+  .cv-esq p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .cv-meta { display: grid; gap: 6px; margin-top: 2px; }
+  .cv-meta-linha { display: flex; align-items: baseline; gap: 8px; }
+  .cv-meta-linha b { font: 600 12.5px var(--sans); }
+  .cv-num { font: 500 12px var(--mono); color: var(--ink2); }
+  .cv-barra { height: 4px; border-radius: 2px; background: var(--ink-a08); overflow: hidden; }
+  .cv-barra i { display: block; height: 100%; background: var(--ink); border-radius: inherit; }
+  .cv-sub { font: 500 12px var(--sans); color: var(--ink3); }
+  .cv-forma { display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 9px; }
+  .cv-forma-op { flex: 1; height: 28px; padding: 0; border: none; border-radius: 7px; background: none; font: 600 12px var(--sans); color: var(--ink3); }
+  .cv-forma-op:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .cv-forma-op.ativa, .cv-forma-op.ativa:hover:not(:disabled) { background: var(--bg); color: var(--ink); }
+  .cv-valores { display: flex; gap: 6px; }
+  .cv-valor { flex: 1; display: grid; justify-items: center; gap: 1px; padding: 8px 0; height: auto; border-radius: 9px; border: 1px solid var(--ink-a12); background: none; color: var(--ink); }
+  .cv-valor:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .cv-valor b { font: 600 15px var(--sans); }
+  .cv-valor span { font: 500 11px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .cv-valor.ativo, .cv-valor.ativo:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .cv-valor.ativo span { color: var(--papel-ink2); }
+  .cv-pe { display: flex; align-items: center; gap: 8px; }
+  .cv-recibo { flex: 1; min-width: 0; font: 500 12px var(--sans); color: var(--ink3); overflow-wrap: anywhere; }
+  .cv-nao { height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: none; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .cv-nao:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .cv-apoiar { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 12.5px var(--sans); white-space: nowrap; }
+  .cv-apoiar:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }
+  @media (max-width: 899px) {
+    .cv-cartao { grid-template-columns: minmax(0, 1fr); }
+    .cv-esq { border-right: none; border-bottom: 1px solid var(--ink-a06); }
+    .cv-valores { flex-wrap: wrap; }
+  }

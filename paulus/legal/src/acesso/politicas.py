@@ -341,7 +341,8 @@ _declarar(BLOQUEADO,
           "DELETE /api/gravacoes/{id_}/marcadores/{indice}",
           "POST /api/apoio/pix", "POST /api/apoio/pix/recuperar", "GET /api/apoio/pix/{id_}",
           "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
-          "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura")
+          "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura",
+          "GET /api/apoio/neste-mes")
 
 # --- a Biblioteca (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md): montar a
 # biblioteca e a configuracao dela ficam na janela do servidor, como o

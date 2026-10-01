@@ -144,13 +144,16 @@ async function voltarAoAssistente() {
    visao (Conversas ou Grupos), a pasta em que se estava, a busca e a altura
    da rolagem. So na memoria desta sessao - abrir o programa de novo comeca
    do inicio limpo, como o usuario pediu. */
-const lembrancaDoInicio = { lista: false, rolagem: 0 };
+/* A lista de conversas comeca aberta (pacote de telas, `Assistente`): a
+   tela inicial e o historico. Recolher vale ate o programa fechar. */
+const lembrancaDoInicio = { lista: true, rolagem: 0 };
 
 $("compositor").addEventListener("scroll", () => {
   if ($("conversa-col").classList.contains("vazia")) lembrancaDoInicio.rolagem = $("compositor").scrollTop;
 }, { passive: true });
 
 $("nova").onclick = () => {
+  if (typeof apoio !== "undefined") apoio.naTela = false;
   fecharEditorNaConversa();
   largarInscricao("");
   if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId);
@@ -217,7 +220,7 @@ function atualizarPostura() {
       : "Pergunte outra coisa ou aponte outra pasta…");
   if (!temConversa) {
     atualizarSaudacao();
-    $("lista-conversas").hidden = !lembrancaDoInicio.lista;
+    $("lista-conversas").hidden = !lembrancaDoInicio.lista || (typeof avs !== "undefined" && avs.naInicio);
     desenharRecentes();
     carregarAgora();
     $("registro").hidden = true;
@@ -227,6 +230,9 @@ function atualizarPostura() {
     $("agora").hidden = true;
     $("recentes").hidden = true;
     $("lista-conversas").hidden = true;
+    // Os avisos no lugar da lista sao da tela inicial: sair deles volta a lista.
+    $("av-painel").hidden = true;
+    if (typeof avs !== "undefined") avs.naInicio = false;
   }
 }
 
@@ -234,6 +240,8 @@ function atualizarPostura() {
    desenho nao tem. "Ver mais" abre a lista inteira aqui mesmo, embaixo. */
 function desenharRecentes() {
   const alvo = $("recentes");
+  // Com os avisos no lugar da lista (js/53-avisos.js), as recentes saem.
+  if (typeof avs !== "undefined" && avs.naInicio) { alvo.hidden = true; return; }
   const lista = (estado.recentes || []).slice(0, 3);
   if (!lista.length) { alvo.hidden = true; alvo.innerHTML = ""; return; }
   /* Aberta e a lista estar a vista - e nao uma classe na coluna, que era o
@@ -327,7 +335,7 @@ const ESTADO_DA_CONVERSA = {
 /* A cor da etiqueta de cada estado. Parada fica cinza de proposito: ela nao
    deu errado nem deu certo - so nao terminou. */
 const TOM_DO_ESTADO = {
-  executando: "ok anda", aguardando: "atencao", concluido: "ok", falhou: "prazo",
+  executando: "viva anda", aguardando: "atencao", concluido: "ok", falhou: "prazo",
 };
 
 /* A selecao da lista: segurar numa linha marca; a barra troca os filtros por
@@ -460,7 +468,7 @@ function desenharListaDeConversas() {
   caixa.innerHTML = '<div class="lc-cartao"><div class="lc-barra">' + barra +
     '<label class="lc-busca">' + ic("search", 18) +
     '<input type="text" id="lc-busca" placeholder="Buscar conversa…" value="' + esc(caixa.dataset.termo || "") + '"></label>' +
-    '<button class="lc-recolher" id="lc-recolher" title="Recolher" aria-label="Recolher">' + ic("view_sidebar", 16) + "</button></div>" +
+    '<button class="lc-recolher" id="lc-recolher" title="Recolher a lista" aria-label="Recolher a lista"><i class="glifo-lado"></i></button></div>' +
     linhas + "</div>";
 
   caixa.querySelectorAll(".lc-linha[data-sel]").forEach((linha) => {

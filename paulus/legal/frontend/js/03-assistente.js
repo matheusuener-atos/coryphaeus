@@ -42,9 +42,11 @@ async function abrirAnexar(opcoes) {
       '<button type="button" data-anx-visao="drive">' + marca("google-drive", 14) + "Google Drive</button></span>" +
       '<label class="lc-busca anx-busca">' + ic("search", 18) + '<input type="text" id="anx-busca" placeholder="Buscar…" autocomplete="off"></label></div>' +
       '<div class="anx-migalhas" id="anx-migalhas" hidden></div>' +
-      '<div class="anx-lista" id="anx-lista"></div>' +
-      '<div class="anx-rodape"><span id="anx-conta"></span>' +
-      '<button type="button" class="anx-windows" id="anx-windows">' + ic("open_in_new", 14) + "Usar o seletor do Windows</button></div></div>",
+      '<div class="anx-lista" id="anx-lista"></div></div>',
+    // A conta e o seletor do Windows moram no pe da janela, na linha dos
+    // botoes (pacote de telas, `Anexar - Google Drive`).
+    rodape: '<span class="anx-rodape"><span id="anx-conta"></span>' +
+      '<button type="button" class="anx-windows" id="anx-windows">' + ic("open_in_new", 14) + "Usar o seletor do Windows</button></span>",
   });
   const veu = $("veu-dialogo");
   veu.querySelectorAll("[data-anx-visao]").forEach((b) => {
@@ -76,7 +78,7 @@ function contarAnexar() {
   const conta = $("anx-conta");
   // Fora da conversa (Assinar, a pasta de um servico) nada e "anexado".
   const feito = anx.daConversa ? " para anexar" : (total === 1 ? " escolhido" : " escolhidos");
-  if (conta) conta.textContent = total ? (anx.um ? "1 escolhido" : plural(total, "documento") + feito) : "";
+  if (conta) conta.textContent = total ? (anx.um ? "1 escolhido" : plural(total, "documento") + feito) : "Nenhum documento escolhido";
 }
 
 async function desenharAnexar() {
@@ -187,13 +189,34 @@ function desenharListaDoAnexar() {
 
 /* Sem o Google Drive para computador: o que fazer para o Drive aparecer. O
    mesmo texto no anexar e no escolher pasta (29-verificar.js). */
+/* No desenho do pacote de telas (`Anexar - Google Drive`): a marca num
+   quadrado, o titulo em serifa, a frase, e os dois caminhos lado a lado -
+   instalar (o recomendado) ou trazer pela internet, sem instalar nada. */
 function semDriveHtml() {
-  return '<div class="anx-sem-drive">' + marca("google-drive", 28) +
-    "<p><b>O Google Drive para computador não está nesta máquina.</b></p>" +
+  return '<div class="anx-sem-drive"><span class="anx-drive-marca">' + marca("google-drive", 24) + "</span>" +
+    "<h3>O Google Drive para computador<br>não está nesta máquina.</h3>" +
     "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher — sem dar ao PAULUS nenhuma permissão a mais na sua conta Google.</p>" +
+    '<div class="anx-caminhos">' +
+    '<div class="anx-caminho"><span class="anx-caminho-rotulo">Instalar <span class="etiqueta ok">recomendado</span></span>' +
     "<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p>" +
-    "<p>Ou traga pastas do Drive pela internet, sem instalar nada: <b>Acervo › Incluir pasta › Google Drive</b>. Elas viram uma cópia no Acervo e aparecem aqui.</p></div>";
+    '<button type="button" class="anx-caminho-botao" data-anx-drive-baixar="1">Abrir página de download' + ic("open_in_new", 14) + "</button></div>" +
+    '<div class="anx-caminho"><span class="anx-caminho-rotulo">Sem instalar nada</span>' +
+    "<p>Traga pastas do Drive pela internet. Elas viram uma cópia no Acervo e aparecem aqui.</p>" +
+    '<button type="button" class="anx-trilha" data-anx-drive-acervo="1" title="Abrir o Acervo para incluir uma pasta do Drive"><b>Acervo</b>' + ic("chevron_right", 14) +
+    "<b>Incluir pasta</b>" + ic("chevron_right", 14) + "<b>Google Drive</b></button></div></div></div>";
 }
+
+/* Os dois botoes do quadro acima, onde quer que ele apareca. */
+document.addEventListener("click", (e) => {
+  const baixar = e.target.closest && e.target.closest("[data-anx-drive-baixar]");
+  if (baixar) { window.open("https://www.google.com/drive/download/", "_blank"); return; }
+  const acervo = e.target.closest && e.target.closest("[data-anx-drive-acervo]");
+  if (acervo) {
+    if (dialogoAberto) dialogoAberto.fechar(null);
+    marcarDestino("biblioteca");
+    mostrarBiblioteca();
+  }
+});
 
 /* Entrar numa pasta: no computador ou no Drive, cada visao guarda onde estava. */
 function irNoAnexar(caminho) {
@@ -2396,6 +2419,76 @@ function andamentoDoCartao(t) {
   return '<div class="rodape"' + vivo + ">" + textoDoAndamento(a.fase, a.fase_s, a.previsao_s, a.palavras, docs, a.posicao) + "</div>";
 }
 
+/* O CARTÃO DE UMA RESPOSTA ANDANDO (pacote de telas, `Assistente -
+   Acontecendo agora` e o cartão de `Conversa - Carregando`): o título, o
+   tempo ("6 s de ~32 s" quando esta máquina já mediu leituras deste
+   tamanho) e o Parar; embaixo, uma faixa por etapa - a que anda é mais
+   larga, enche até a previsão e tem o brilho correndo; a feita fica cheia
+   com o check e o que achou; a que espera fica apagada. */
+const NOME_CURTO_DA_ETAPA = {
+  "procurar nos documentos": "Procurar", "lendo os documentos": "Ler", "ler os documentos": "Ler",
+  "escrevendo a resposta": "Responder", "responder": "Responder", "entender o pedido": "Entender",
+};
+
+function nomeCurtoDaEtapa(titulo) {
+  const t = String(titulo || "");
+  return NOME_CURTO_DA_ETAPA[t.toLowerCase()] || t;
+}
+
+function tempoDoTrabalho(a) {
+  if (!a) return "";
+  const decorrido = a.decorrido_s || 0;
+  const total = a.previsao_s && (a.fase === "lendo" || a.fase === "documento") ? decorrido - (a.fase_s || 0) + a.previsao_s : 0;
+  return segundosCurtos(decorrido) + (total > decorrido ? " de ~" + segundosCurtos(total) : "");
+}
+
+function faixasDasEtapas(etapas, a) {
+  const lista = (etapas || []).length ? etapas : [{ titulo: "Trabalhando", estado: "executando", detalhe: "" }];
+  const colunas = lista.map((e) => (e.estado === "executando" ? "2.4fr" : "1fr")).join(" ");
+  const partes = lista.map((e) => {
+    const nome = nomeCurtoDaEtapa(e.titulo) + (e.detalhe ? " · " + e.detalhe : "") + (e.total ? " · " + e.feitos + " de " + e.total : "");
+    if (e.estado === "concluido") {
+      return '<div class="agr-etapa feita"><i class="agr-faixa"></i><span>' + ic("check", 14) + esc(nome) + "</span></div>";
+    }
+    if (e.estado === "executando") {
+      let pct = e.total ? (e.feitos / e.total) * 100 : 0;
+      if (!e.total && a && a.previsao_s && (a.fase === "lendo" || a.fase === "documento")) pct = Math.min(95, ((a.fase_s || 0) / a.previsao_s) * 100);
+      const vivo = a && !e.total ? ' data-agr-vivo="1" data-fase-s="' + (a.fase_s || 0) + '" data-previsao="' + (a.previsao_s || 0) + '" data-recebido="' + Date.now() + '"' : "";
+      return '<div class="agr-etapa andando"><i class="agr-faixa' + (pct ? "" : " sem-medida") + '"><i style="width:' + (pct ? pct.toFixed(1) + "%" : "100%") + '"' + vivo + "></i></i>" +
+        '<span><i class="agr-respira"></i>' + esc(nome) + "</span></div>";
+    }
+    return '<div class="agr-etapa espera"><i class="agr-faixa"></i><span>' + esc(nomeCurtoDaEtapa(e.titulo)) + "</span></div>";
+  }).join("");
+  return '<div class="agr-etapas" style="grid-template-columns:' + colunas + '">' + partes + "</div>";
+}
+
+function cartaoDoTrabalhoAgora(t) {
+  const a = t.andamento;
+  const tempo = a ? '<span class="agr-tempo" data-agr-tempo="1" data-decorrido="' + (a.decorrido_s || 0) + '" data-fase-s="' + (a.fase_s || 0) +
+    '" data-previsao="' + (a.previsao_s || 0) + '" data-fase="' + esc(a.fase || "") + '" data-recebido="' + Date.now() + '">' + esc(tempoDoTrabalho(a)) + "</span>" : "";
+  // Na fila do modelo a faixa nao anda: a linha diz a posição.
+  const fila = a && a.fase === "fila" ? '<div class="agr-fila">' + esc(textoDoAndamento("fila", a.fase_s, a.previsao_s, 0, "", a.posicao)) + "</div>" : "";
+  return '<div class="cartao-agora agr-cartao" data-abre="' + esc(t.id) + '"><div class="cabeca">' +
+    '<b class="nome corta">' + esc(t.titulo) + "</b>" + tempo +
+    '<button class="agr-parar" data-parar-trabalho="' + esc(t.id) + '" title="Interromper a resposta"><i></i>Parar</button></div>' +
+    (fila || faixasDasEtapas(t.etapas, a)) + "</div>";
+}
+
+/* O tempo e a faixa andam entre uma consulta e outra (5 s). */
+setInterval(() => {
+  document.querySelectorAll("[data-agr-tempo]").forEach((el) => {
+    const passou = (Date.now() - Number(el.dataset.recebido)) / 1000;
+    el.textContent = tempoDoTrabalho({ decorrido_s: Number(el.dataset.decorrido) + passou, fase_s: Number(el.dataset.faseS) + passou,
+      previsao_s: Number(el.dataset.previsao), fase: el.dataset.fase });
+  });
+  document.querySelectorAll("[data-agr-vivo]").forEach((el) => {
+    const previsao = Number(el.dataset.previsao);
+    if (!previsao) return;
+    const s = Number(el.dataset.faseS) + (Date.now() - Number(el.dataset.recebido)) / 1000;
+    el.style.width = Math.min(95, (s / previsao) * 100).toFixed(1) + "%";
+  });
+}, 1000);
+
 /* "Na fila: você é o 2º, ~40 s". A previsão só aparece quando esta máquina
    já mediu respostas (src/ritmo.py); sem medida, só a posição. */
 function textoDaFila(d) {
@@ -2449,14 +2542,12 @@ async function carregarAgora() {
 
   const cartoes = [];
 
-  for (const t of d.executando) {
-    cartoes.push(
-      '<div class="cartao-agora" data-abre="' + esc(t.id) + '"><div class="cabeca">' + coroa(20) +
-      '<span class="nome corta">' + esc(t.titulo) + "</span>" +
-      '<button class="agora-parar" data-parar-trabalho="' + esc(t.id) + '" title="Interromper" aria-label="Interromper">' + ic("stop", 18) + "</button></div>" +
-      andamentoDoCartao(t) + "</div>"
-    );
+  // A gravação que está andando (pacote de telas, `Assistente - Gravando`).
+  if (typeof cartaoDaGravacaoAgora === "function") {
+    const gravando = cartaoDaGravacaoAgora();
+    if (gravando) cartoes.push(gravando);
   }
+  for (const t of d.executando) cartoes.push(cartaoDoTrabalhoAgora(t));
 
   for (const t of d.esperando) {
     cartoes.push(
@@ -2494,6 +2585,7 @@ async function carregarAgora() {
   $("agora-cartoes").innerHTML = ditando + espera.concat(cartoes).join("");
   ligarCartaoDoDitado();
   ligarEsperaDoVinculo();
+  if (typeof ligarGravacaoAgora === "function") ligarGravacaoAgora($("agora-cartoes"));
   $("agora-cartoes").querySelectorAll("[data-abre]").forEach((el) => {
     el.onclick = (e) => {
       e.stopPropagation();

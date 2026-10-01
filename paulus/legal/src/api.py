@@ -7962,6 +7962,41 @@ def apoio_assinatura_situacao(id_: str) -> dict:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@app.get("/api/apoio/neste-mes")
+def apoio_neste_mes() -> dict:
+    """
+    O que o convite para apoiar diz (pacote de telas, `Assistente - Apoiar`):
+    quantos documentos o PAULUS leu para responder neste mes (os citados nas
+    respostas e os mostrados na conversa) e quantos lancamentos foram
+    montados no Financeiro. Conta feita aqui, com o que esta gravado; nada
+    sai da maquina.
+    """
+    hoje = date.today()
+    inicio = hoje.replace(day=1).isoformat()
+    lidos: set[str] = set()
+    resumos = [r for g in estado.trabalhos.listar().get("grupos", []) for r in g.get("trabalhos", [])]
+    for resumo in resumos:
+        t = estado.trabalhos.obter(resumo.get("id", ""))
+        if not t:
+            continue
+        for m in t.mensagens:
+            if m.autor != "paulus" or str(m.em or "")[:10] < inicio:
+                continue
+            for f in m.fontes or []:
+                nome = (f or {}).get("documento") if isinstance(f, dict) else None
+                if nome and not (f or {}).get("material"):
+                    lidos.add(nome)
+            feito = m.feito or {}
+            if feito.get("tipo") == "exibir" and feito.get("nome"):
+                lidos.add(feito["nome"])
+    lancamentos = estado.base.um(
+        "SELECT COUNT(*) AS n FROM lancamentos WHERE criado_em >= ?", (inicio,)) or {"n": 0}
+    import calendar
+    ultimo = calendar.monthrange(hoje.year, hoje.month)[1]
+    return {"mes": hoje.strftime("%Y-%m"), "documentos": len(lidos), "lancamentos": int(lancamentos["n"] or 0),
+            "faltam_dias": ultimo - hoje.day}
+
+
 @app.get("/api/publico/{qual}")
 def publico_do_site(qual: str) -> dict:
     """

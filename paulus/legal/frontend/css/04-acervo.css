@@ -30,6 +30,8 @@
   .etiqueta.prazo, .pilula-estado.prazo, .fin-status.atrasado, .fin-status.sv-status-suspenso, .fin-status.gv-viva { background: var(--accbg); color: var(--acc); }
   .etiqueta.prazo i, .pilula-estado.prazo i, .fin-status.atrasado i { background: var(--acc); }
   .etiqueta.forte { background: var(--ink); color: var(--bg); }
+  /* Andando (trabalhando, gravando): sem cor de estado, um tom acima. */
+  .etiqueta.viva { background: var(--fill2); color: var(--ink); }
   .etiqueta.tipo { background: var(--destaque-fundo); color: var(--destaque); }
   .etiqueta.anda { animation: pv-pulse 3.2s ease-in-out infinite; }
 

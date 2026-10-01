@@ -171,6 +171,10 @@
   }
   .escopo-acervo .ic { color: var(--ink3); }
   .escopo-acervo.escopo-livre { cursor: pointer; }
+  /* No inicio o escopo do Acervo inteiro nao aparece (pacote de telas,
+     `Assistente`): a frase de baixo da saudacao ja diz o que esta lido. O
+     documento anexado aparece, com o x. */
+  .conversa-col.vazia .escopo-acervo { display: none; }
   .escopo-acervo.escopo-livre:hover { background: var(--fill2); color: var(--ink); }
   .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
