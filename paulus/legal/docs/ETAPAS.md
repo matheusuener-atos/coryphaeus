@@ -2478,3 +2478,14 @@ Este Word só tem WordApi 1.1–1.3, mas comentário e alteração controlada
 entram pelo OOXML. Maquete navegável do painel em `word/prova/maquete.html`
 com capturas. O dono aprovou A no escritório e C fora dele, o visual (títulos do Word como PAVLVS) e a instalação pelo registro do usuário, com o catálogo como segunda via. **Medido:**
 `word/prova/relatos-w0.jsonl`; detalhes em `docs/PROGRESSO-WORD.md`.
+
+## W1 — O painel do PAVLVS no Word, o pareamento e a porta ✓ FEITA (01/10/2026)
+
+O painel do Word (fiel à maquete aprovada) entra por uma porta própria, antes
+da chave da janela, com token só do suplemento: pareado pelo código na janela
+do escritório ou, de fora, com a sessão e o autenticador. A política das rotas
+do Word nega por padrão; toda chamada vai para a auditoria com o documento e
+os caracteres. Instalar gera o certificado só-localhost, a porta HTTPS fixa,
+o manifesto PAVLVS (aba, 8 botões, menu do botão direito) e o registro do
+Word. **Medido:** `tests/test_w1_painel.py`; no Word 2021 real, a aba, o menu
+e o painel conectado, sem violação de CSP.

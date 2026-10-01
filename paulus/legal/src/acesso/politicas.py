@@ -437,6 +437,22 @@ _declarar(PERMITIDO, "POST /api/captura")
 # --- o servidor MCP das leis (ideia A do umbrelOS): as conexoes so se criam e
 # revogam na janela do escritorio. O /mcp em si nem chega aqui: o porteiro o
 # entrega ao src/mcp_leis.py, que recusa o que vem pelo tunel.
+# --- W1: o PAVLVS no Word (src/word_suplemento.py). A janela do escritorio
+# liga, instala, permite o Word deste computador e revoga: de fora, bloqueado.
+# O pareamento (parear, trocar, carregou) e as rotas /api/word/s/* nem chegam
+# a esta tabela - o porteiro as entrega a PortaDoWord, com token e tabela
+# propria (word_suplemento.ROTAS, padrao "nega"); ficam aqui declaradas
+# bloqueadas para o caso de alguem tentar pelo caminho de sempre.
+_declarar(BLOQUEADO, "GET /api/word", "POST /api/word/ligar", "POST /api/word/instalar", "POST /api/word/desinstalar",
+          "GET /api/word/manifesto", "POST /api/word/abrir-pasta", "POST /api/word/pedidos/{id_}/permitir", "POST /api/word/pedidos/{id_}/recusar",
+          "DELETE /api/word/conexoes/{id_}",
+          "POST /api/word/parear", "POST /api/word/parear/trocar", "POST /api/word/carregou",
+          "GET /api/word/s/eu", "PUT /api/word/s/preferencias", "DELETE /api/word/s/eu")
+# De fora, a pessoa conecta o Word de outro computador com a sessao dela e o
+# codigo do autenticador pedido de novo (a rota confere); a lista de pedidos
+# de fora volta vazia (so a janela local ve os pedidos deste computador).
+_declarar(PERMITIDO, "POST /api/word/permitir-de-fora", "GET /api/word/pedidos")
+
 _declarar(BLOQUEADO, "GET /api/mcp", "POST /api/mcp/conexoes", "DELETE /api/mcp/conexoes/{id_}",
           # ligar e desligar as chaves da Biblioteca e do umbrelOS (src/rotas_chaves.py)
           "GET /api/chaves", "POST /api/chaves")

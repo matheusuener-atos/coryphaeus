@@ -52,6 +52,11 @@ ACOES = {
     "google": "conectou o próprio Google",
     "prioridade": "passou na frente na fila do modelo",
     "aparelho": "escrita no aparelho",
+    "word": "usou o PAVLVS no Word",
+    "word_recusado": "o Word tentou o que não pode",
+    "word_pareado": "conectou um Word",
+    "word_revogado": "desconectou um Word",
+    "word_instalado": "instalou o PAVLVS no Word",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 

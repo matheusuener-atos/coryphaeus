@@ -82,13 +82,16 @@ class Porteiro:
     na R1, ninguem de fora entra: `remoto` e None e a resposta e 403.
     """
 
-    def __init__(self, app, chave: ChaveLocal, remoto=None, travado=None, mcp=None) -> None:
+    def __init__(self, app, chave: ChaveLocal, remoto=None, travado=None, mcp=None, word=None) -> None:
         self.app = app
         self.chave = chave
         # () -> o servidor MCP das leis (src/mcp_leis.py), que tem o token
         # proprio e as travas proprias: o agente de fora nao tem a chave da
         # janela, e o /mcp nao passa pelo login do acesso de fora.
         self.mcp = mcp
+        # () -> a porta do suplemento do Word (src/word_suplemento.py): o painel
+        # tem token proprio e entra antes da chave da janela, como o /mcp.
+        self.word = word
         # () -> bool: o PAULUS vinculado a conta Google e travado (src/vinculo.py).
         # Travado, a janela local so alcanca a tela de destravar.
         self.travado = travado
@@ -111,6 +114,10 @@ class Porteiro:
                 await recusar(scope, send, 404, "não há servidor MCP aqui")
                 return
             await servidor(scope, receive, send, cab)
+            return
+        word = self.word() if self.word and scope.get("type") == "http" else None
+        if word is not None and word.atende(scope):
+            await word(self.app, scope, receive, send, cab)
             return
         local = self.chave.e_local(cab.get(CABECALHO), cookies(cab).get(COOKIE))
         scope.setdefault("state", {})["paulus_local"] = local

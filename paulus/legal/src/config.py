@@ -260,6 +260,10 @@ PADRAO: dict = {
     # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
     # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
     "nuvem": {"ligado": False, "provedor": "anthropic", "modelo": "", "mascarar": True},
+    # W1 (src/word_suplemento.py, src/word_instalar.py): o PAVLVS dentro do
+    # Word - desligado de fabrica. `porta` e a HTTPS do painel (fixa: o
+    # manifesto leva o endereco); `id` gera o Id do manifesto desta instalacao.
+    "word": {"ligado": False, "porta": 0, "id": "", "instalado_em": ""},
     # N13 (src/jurisprudencia.py): os orgaos julgadores do STJ que o escritorio
     # escolheu baixar. Vazio de fabrica: nada e baixado sem a pessoa pedir.
     "jurisprudencia": {"orgaos": []},

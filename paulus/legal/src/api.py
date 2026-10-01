@@ -100,6 +100,7 @@ import rotas_ajuda
 from biblioteca import rotas as rotas_biblioteca
 import captura as captura_mod
 import mcp_leis
+import word_suplemento
 import rotas_chaves
 import execucoes as execucoes_mod
 import rotas_execucoes
@@ -814,9 +815,12 @@ async def lifespan(app: FastAPI):
     # (src/acesso/servico.py). Em segundo plano - ler a versao do cloudflared
     # e abrir a porta do tunel nao pode atrasar a janela.
     threading.Thread(target=estado.acesso_de_fora.iniciar, name="acesso-de-fora", daemon=True).start()
+    # W1: a porta HTTPS do painel do Word, se ligado e instalado.
+    threading.Thread(target=estado.word_instalacao.aplicar, name="porta-do-word", daemon=True).start()
     yield
     estado.vigia.parar()
     estado.acesso_de_fora.parar()
+    estado.word_instalacao.fechar()
 
 
 app = FastAPI(title="PAULUS Legal", docs_url="/api/docs", lifespan=lifespan)
@@ -910,8 +914,13 @@ estado.mcp = mcp_leis.ServidorMCP(
     leis=estado.leis, conexoes=mcp_leis.Conexoes(DADOS_DIR),
     ligado=lambda: bool((estado.prefs.dados.get("umbrel") or {}).get("mcp")),
     registrar=estado.acesso_de_fora.auditoria.registrar, versao=VERSAO, estado=estado)
+# W1: o suplemento do Word (src/word_suplemento.py) - o painel, o pareamento e
+# as rotas com token entram pelo porteiro antes da chave da janela.
+word_suplemento.montar(estado, app, DADOS_DIR)
+estado.app_para_word = app
 app.add_middleware(Porteiro, chave=estado.acesso, remoto=estado.acesso_de_fora.portao,
-                   travado=lambda: estado.vinculo.travado(), mcp=lambda: estado.mcp)
+                   travado=lambda: estado.vinculo.travado(), mcp=lambda: estado.mcp,
+                   word=lambda: getattr(estado, "word", None))
 rotas_do_acesso.montar(estado.acesso_de_fora, app)
 estado.acesso_de_fora.portao.rotas = app.router
 estado.acesso_de_fora.app = app
