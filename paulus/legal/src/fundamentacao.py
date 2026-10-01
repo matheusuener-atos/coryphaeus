@@ -34,10 +34,11 @@ RAIZ = Path(__file__).resolve().parents[1]
 ARQUIVO = RAIZ / "config" / "acervo-inicial" / "temas-stj.jsonl.gz"
 # N8: as teses de repercussão geral do STF (tools/stf_pacote.py), na mesma tabela, com o tipo "RG".
 ARQUIVO_RG = RAIZ / "config" / "acervo-inicial" / "temas-rg-stf.jsonl.gz"
-TIPOS_STJ = ("Tema", "IAC")
 URL_STJ = ("https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/"
            "df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv")
 TIPOS = {"Tema": "Tema Repetitivo", "IAC": "IAC"}
+# Os tipos como ficam gravados: "Tema Repetitivo" e "IAC" (as teses do STF são "RG", N8).
+TIPOS_STJ = tuple(TIPOS.values())
 FORA = {"Cancelado", "Cancelada", "Vinculada a Tema", "Sem processo vinculado"}
 
 PARADAS = set("""a o os as um uma uns umas de da do das dos e em no na nos nas por pelo pela pelos pelas para com sem sob sobre
@@ -112,7 +113,12 @@ class Temas:
     def __init__(self, base) -> None:
         self.base = base
 
-    def quantos(self) -> int:
+    def quantos(self, tribunal: str = "") -> int:
+        """Todos, ou só os do STJ ("STJ") ou só as teses do STF ("STF", N8)."""
+        if tribunal == "STJ":
+            return self.base.contar("temas", "tipo != 'RG'")
+        if tribunal == "STF":
+            return self.base.contar("temas", "tipo = 'RG'")
         return self.base.contar("temas")
 
     def gravar(self, linhas: list[dict], fonte: str, tipos=TIPOS_STJ) -> int:
@@ -136,7 +142,7 @@ class Temas:
             cab = json.loads(f.readline())
             linhas = [json.loads(x) for x in f if x.strip()]
         fonte = f"{cab.get('fonte', 'STJ')} · baixado em {cab.get('baixado_em', '')}"
-        ja = self.base.um("SELECT fonte FROM temas WHERE tipo IN ('Tema', 'IAC') LIMIT 1")
+        ja = self.base.um("SELECT fonte FROM temas WHERE tipo != 'RG' LIMIT 1")
         # Já tem temas iguais ou mais novos (o do instalador, ou um "atualizar pelo STJ" depois): fica.
         if ja and _baixado_em(ja["fonte"]) >= cab.get("baixado_em", ""):
             return 0

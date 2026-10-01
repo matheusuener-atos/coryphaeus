@@ -64,6 +64,24 @@
       "enunciados": 644,
       "canceladas_fora": 29,
       "fonte": "https://scon.stj.jus.br/docs_internet/VerbetesSTJ.pdf"
+    },
+    "stf": {
+      "arquivo": "sumulas-stf.txt.gz",
+      "nome": "Súmulas do STF",
+      "enunciados": 726,
+      "canceladas_fora": 10,
+      "superadas": 1,
+      "fonte": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=30",
+      "baixado_em": "2026-09-30T22:17:29",
+      "sem_enunciado_no_portal": []
+    },
+    "stf_vinculantes": {
+      "arquivo": "sumulas-vinculantes.txt.gz",
+      "nome": "Súmulas vinculantes do STF",
+      "enunciados": 62,
+      "canceladas_fora": 1,
+      "fonte": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26",
+      "baixado_em": "2026-09-30T22:17:29"
     }
   },
   "temas": {
@@ -77,5 +95,18 @@
       "baixado_em": "2026-09-30",
       "fora": "cancelados, vinculados a outro tema e sem processo"
     }
+  },
+  "vigencia": {
+    "arquivo": "vigencia-pacote.json.gz",
+    "leis": 732,
+    "leis_simples": 644,
+    "redacoes_riscadas": 5806,
+    "montado_em": "2026-09-30T22:08:43"
+  },
+  "temas_stf": {
+    "arquivo": "temas-rg-stf.jsonl.gz",
+    "teses": 1285,
+    "fonte": "https://portal.stf.jus.br/repercussaogeral/teses.asp",
+    "baixado_em": "2026-09-30T22:17:29"
   }
 }

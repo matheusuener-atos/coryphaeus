@@ -81,8 +81,8 @@ def main() -> int:
     import json
 
     unicos = {(x["tipo"], x["numero"]) for x in (json.loads(l) for l in list(gzip.open(f.ARQUIVO, "rt", encoding="utf-8"))[1:])}
-    checar(temas.quantos() == len(unicos) > 1200, f"os temas do instalador entram na abertura, em segundo plano ({len(unicos)}; o STJ repete o número dos revisados)",
-           temas.quantos())
+    checar(temas.quantos("STJ") == len(unicos) > 1200, f"os temas do instalador entram na abertura, em segundo plano ({len(unicos)}; o STJ repete o número dos revisados)",
+           temas.quantos("STJ"))
     checar(temas.instalar() == 0, "e só uma vez")
     t = local.get("/api/biblioteca/temas?numero=1016").json()
     checar(t["temas"] and t["temas"][0]["rotulo"] == "Tema Repetitivo 1016/STJ" and "CC-BY" in t["licenca"], "procurar pelo número", t["temas"][:1])
@@ -96,7 +96,7 @@ def main() -> int:
         temas.atualizar_do_stj(baixar=lambda url: CAB + linha("Tema", 9, "Afetado", "a", "b"))
         checar(False, "arquivo do STJ ruim: não troca")
     except ValueError:
-        checar(temas.quantos() == len(unicos), "arquivo do STJ ruim: nada trocado")
+        checar(temas.quantos("STJ") == len(unicos), "arquivo do STJ ruim: nada trocado")
 
     print("\na posição da casa")
     r = local.put("/api/leis/posicao", json={"codigo": "cdc", "numero": "51", "texto": "Multa acima de 2% em relação de consumo é abusiva."})
