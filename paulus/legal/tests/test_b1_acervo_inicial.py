@@ -64,7 +64,7 @@ def test_acervo(pasta: Path) -> None:
         finally:
             if antes is not None:
                 os.environ["PAULUS_SEM_AVISOS"] = antes
-        checar(len(feito["codigos"]) == len(leis_mod.CODIGOS) and feito["sumulas"] == ["stj"] and not feito["erros"],
+        checar(len(feito["codigos"]) == len(leis_mod.CODIGOS) and feito["sumulas"] == ["stj", "stf", "stf_vinculantes"] and not feito["erros"],
                f"na primeira abertura entra tudo, sem rede ({gasto:.0f} s)", feito)
         checar(all(c["instalado"] for c in L.instalados()), "todos os códigos ficam instalados")
         cf5 = L.artigo("cf", "5") or {}
@@ -78,13 +78,13 @@ def test_acervo(pasta: Path) -> None:
         checar(item and item["ficha"]["autor"] == "Superior Tribunal de Justiça" and item["ficha"]["origem"] == "oficial",
                "as súmulas entram como material oficial, do STJ", item and item.get("ficha"))
 
-        s = procurar_sumulas(m, numero="297")
+        s = [x for x in procurar_sumulas(m, numero="297") if x["titulo"].endswith("do STJ")]
         checar(len(s) == 1 and "Código de Defesa do Consumidor" in s[0]["texto"] and s[0]["titulo"] == "Súmula 297 do STJ",
                "a Súmula 297 do STJ se acha pelo número", s[:1])
         s = procurar_sumulas(m, termo="dano moral pessoa juridica")
         checar(any(x["numero"] == "227" for x in s), "e por palavras, sem acento (227: pessoa jurídica e dano moral)",
                [x["numero"] for x in s])
-        checar(not procurar_sumulas(m, numero="603"), "a cancelada (603) não vem")
+        checar(not [x for x in procurar_sumulas(m, numero="603") if x["titulo"].endswith("do STJ")], "a cancelada (603) não vem")
 
         situ = nativo.situacao(L, m, pasta / "leis")
         checar(situ["falta"] == 0, "a tela diz que não falta nada", situ["falta"])

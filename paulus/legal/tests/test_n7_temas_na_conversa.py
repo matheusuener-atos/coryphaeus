@@ -88,7 +88,8 @@ def main() -> int:
            "a posição da casa do artigo citado", r and r["posicoes"])
     checar(r and "por regra" in r["aviso"] and "Confira" in r["aviso"], "com o aviso de que é por regra")
     s = f.relacionados(api.estado, "e a súmula?", "Pela Súmula 7 do STF, …")
-    checar(not s or not s.get("sumulas"), "súmula do STF não vira súmula do STJ", s)
+    # Desde a N8 as do STF estão no instalador: a citada é a do STF, nunca a 7 do STJ.
+    checar(not s or all(x["titulo"].endswith("do STF") for x in s.get("sumulas") or []), "súmula do STF não vira súmula do STJ", s)
     checar(f.relacionados(api.estado, "qual o valor do contrato?", "O valor é de R$ 10.000,00.") is None, "sem citação, nada")
     lei = f.relacionados(api.estado, "multa", "A multa…", fontes=[{"origem": "lei", "codigo": "cc", "numero": "206"}])
     checar(lei and any("art. 206 do CC" in t["porque"] for t in lei["temas"]), "o artigo que veio como fonte de lei também conta")

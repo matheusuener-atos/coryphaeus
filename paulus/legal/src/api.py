@@ -5450,19 +5450,6 @@ def _pode_aprovar_de_fora(pedido, pessoa: dict, codigo: str, conferido: dict) ->
     return "" if conferido["ok"] else "aprovar de fora o que sai do escritório pede o código do autenticador"
 
 
-@app.post("/api/aprovacoes/{id_}/desfazer")
-def aprovacoes_desfazer(id_: str) -> dict:
-    """N14: volta o que um agente fez sozinho (o pedido ja decidido, no Historico)."""
-    pedido = estado.fila.obter(id_)
-    if pedido is None or pedido.acao != "agente.sozinho":
-        raise HTTPException(status_code=404, detail="não há o que desfazer aqui")
-    try:
-        texto = agente_mod.desfazer_sozinho(estado, pedido)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
-    return {"desfeito": texto, **_fila_para_tela()}
-
-
 @app.post("/api/aprovacoes/decidir")
 def aprovacoes_decidir(payload: Decisao, request: Request = None) -> dict:
     """
@@ -5740,6 +5727,19 @@ EXECUTORES = {
     "mcp.tarefa": lambda pedido: mcp_leis.executar_tarefa(estado, pedido),
     "mcp.compromisso": lambda pedido: mcp_leis.executar_compromisso(estado, pedido),
 }
+
+
+@app.post("/api/aprovacoes/{id_}/desfazer")
+def aprovacoes_desfazer(id_: str) -> dict:
+    """N14: volta o que um agente fez sozinho (o pedido ja decidido, no Historico)."""
+    pedido = estado.fila.obter(id_)
+    if pedido is None or pedido.acao != "agente.sozinho":
+        raise HTTPException(status_code=404, detail="não há o que desfazer aqui")
+    try:
+        texto = agente_mod.desfazer_sozinho(estado, pedido)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return {"desfeito": texto, **_fila_para_tela()}
 
 
 @app.post("/api/google/drive/enviar")

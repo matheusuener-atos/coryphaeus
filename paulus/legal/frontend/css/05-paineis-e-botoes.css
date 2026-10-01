@@ -45,7 +45,7 @@
   .ap-direita { text-align: right; }
   .ap-vence { color: var(--acc); font-weight: 600; }
   .ap-colunas-historico { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) 96px 96px 110px; }
-  .ap-resumo { margin: 0 0 14px; font: 400 14px/1.6 var(--sans); color: var(--ink2); }
+  .ap-resumo { margin: 0 0 14px; font: 400 14px/1.6 var(--sans); color: var(--ink2); white-space: pre-line; }
   .ap-saida { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ink-a1); }
   .ap-saida-lista { display: grid; gap: 8px; }
   .ap-saida-lista .arquivo-painel .ic { flex: none; color: var(--ink3); }

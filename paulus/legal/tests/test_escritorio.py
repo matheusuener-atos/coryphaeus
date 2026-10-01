@@ -173,7 +173,7 @@ def test_notas_e_boletos(tmp: Path) -> None:
                        "lancamento_id": recebido, "centavos": 1200000, "data": _dia(-3)})
         checar(papeis.a_emitir() == [], "e some da lista quando a nota é registrada")
 
-        notas = papeis.listar("nota", date.today().strftime("%Y-%m"))
+        notas = papeis.listar("nota", _dia(-3)[:7])
         checar(len(notas) == 1 and notas[0]["cliente"] == "Cooperativa",
                "a nota sai com o nome do cliente junto")
         checar(notas[0]["valor"] == "R$ 12.000,00", "e com o valor formatado")

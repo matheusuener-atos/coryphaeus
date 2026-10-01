@@ -228,7 +228,7 @@ def main() -> int:
     from biblioteca import nativo, tribunais
 
     feito = nativo.instalar(api.estado.leis, api.estado.material, Path(os.environ["PAULUS_DADOS"]) / "leis", forcar=True)
-    checar(len(feito["codigos"]) >= 11 and feito["sumulas"] == ["stj"], "o acervo entra na pasta do teste", feito)
+    checar(len(feito["codigos"]) >= 11 and feito["sumulas"] == ["stj", "stf", "stf_vinculantes"], "o acervo entra na pasta do teste", feito)
     # Uma obra do escritório, de consumidor, com a ficha ainda por conferir.
     from biblioteca import ficha as ficha_mod
 

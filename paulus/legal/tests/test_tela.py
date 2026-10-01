@@ -169,7 +169,14 @@ def test_celular(navegador, base: str) -> None:
         pag.fill("#codigo", codigo_totp(conta["segredo"], int(time.time() // 30)))
         pag.click("#form-codigo button[type=submit]")
         pag.wait_for_load_state("networkidle")
-        pag.wait_for_timeout(2500)
+        # A pagina recarrega depois do codigo e so marca "remoto" quando
+        # /api/acesso/eu responde: espera a marca, e nao um tempo fixo (com a
+        # maquina carregada, 2,5 s nao bastavam).
+        try:
+            pag.wait_for_function("() => document.documentElement.classList.contains('remoto')", timeout=15000)
+        except Exception:  # noqa: BLE001 - o checar abaixo diz
+            pass
+        pag.wait_for_timeout(500)
         checar(pag.evaluate("() => document.documentElement.classList.contains('remoto')"), "entrou de fora")
         checar(pag.evaluate(largura) <= 390, "a conversa cabe em 390 px", pag.evaluate(largura))
         trilho = pag.evaluate("() => { const r = document.getElementById('trilho').getBoundingClientRect(); return {topo: r.top, altura: r.height}; }")

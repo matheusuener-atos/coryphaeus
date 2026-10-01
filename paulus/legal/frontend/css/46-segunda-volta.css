@@ -10,7 +10,6 @@
   .ap-opcao:has(input:checked) { border-color: var(--acc); background: var(--fill); }
   .pub-sugestao { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--fill); font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
   .pub-sugestao b { color: var(--ink); }
-  .ap-resumo { white-space: pre-line; }
 
   /* N2: as publicações do DJEN no detalhe do processo. */
   .pr-sub { margin: 14px 0 4px; font: 600 13px var(--sans); color: var(--ink); }
@@ -33,7 +32,6 @@
   .cfl-linha.resolvido b { font-weight: 500; color: var(--ink2); }
   .cfl-nota { width: 100%; box-sizing: border-box; font: 400 14px/1.5 var(--sans); padding: 8px 10px; border-radius: 8px;
     border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink); resize: vertical; }
-  .cli-conflito { display: flex; align-items: center; gap: 8px; }
   .cli-conflito > span { flex: 1; min-width: 0; }
   .cli-conflito .cli-resolver { flex: none; }
   .cli-conflito.resolvido { opacity: .75; }
@@ -60,7 +58,7 @@
   .cap-quadro { position: relative; width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; background: var(--fill); }
   .cap-quadro img { width: 100%; height: 100%; object-fit: fill; display: block; aspect-ratio: auto; border-radius: 0; }
   .cap-quadro svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .cap-quadro polygon { fill: rgba(80, 160, 255, 0.12); stroke: #4aa3ff; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+  .cap-quadro polygon { fill: var(--accbg); fill-opacity: .55; stroke: var(--acc); stroke-width: 2px; vector-effect: non-scaling-stroke; }
   .cap-cortar { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 2px 6px; min-height: 26px; }
   .cap-nota { margin: 2px 0 0; font-size: 11px; line-height: 1.3; color: var(--ink3); }
 
@@ -78,7 +76,7 @@
   .jur-andamento { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink2); }
   .jur-licenca { font-size: 12px; }
   .jur-busca { display: flex; gap: 8px; flex-wrap: wrap; }
-  .jur-busca input { flex: 1 1 220px; min-width: 0; }
+  .jur-busca input { flex: 1 1 220px; min-width: 0; max-width: var(--campo); }
   .jur-busca select { flex: 0 1 200px; min-width: 0; }
   .jur-lista { display: grid; gap: 10px; margin-top: 10px; }
   .jur-acordao { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); display: grid; gap: 6px; }
@@ -94,10 +92,13 @@
   .jur-secao > :not(.sv-secao-cabeca) { margin-left: 14px; margin-right: 14px; }
 
 /* N15 - a nuvem com a chave do escritório (js/75-nuvem.js) */
-.pilula-nuvem.ativa { background: var(--acento-fundo, #e8effc); border-color: var(--acento, #2f5bd3); color: var(--acento, #2f5bd3); }
+.pilula-nuvem.ativa { background: var(--accbg); border-color: var(--accln); color: var(--acc); }
 .nuvem-texto { white-space: pre-wrap; word-break: break-word; max-height: 50vh; overflow: auto; font-size: 12px; line-height: 1.45;
-  background: var(--fundo-2, #f6f6f4); border: 1px solid var(--linha, #e3e2de); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0; }
-.proposta.nuvem-pedido { border-left: 3px solid var(--acento, #2f5bd3); }
-.nuvem-liberar { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--texto-2, #555); }
+  background: var(--fill); border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0; }
+.proposta.nuvem-pedido { border-left: 3px solid var(--acc); }
+.nuvem-liberar { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink2); }
+/* N14 e N13: o cartão do que o agente fez sozinho, e o painel da jurisprudência */
+.proposta.sozinho { border-left: 3px solid var(--accln); }
+.jur-painel { display: grid; gap: 12px; }
 .nuvem-cartao .duas-linhas small { white-space: normal; overflow: visible; text-overflow: clip; }
 .nuvem-cartao label.cfg-servico { cursor: pointer; }

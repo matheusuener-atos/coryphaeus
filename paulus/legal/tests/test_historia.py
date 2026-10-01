@@ -51,6 +51,12 @@ def _dia(mais: int) -> str:
     return (HOJE + timedelta(days=mais)).isoformat()
 
 
+def _no_mes(mais: int) -> str:
+    """Como `_dia`, mas sem sair do mes de hoje: o extrato e a media sao do mes,
+    e no comeco dele "cinco dias atras" cai no mes anterior."""
+    return max(HOJE + timedelta(days=mais), HOJE.replace(day=1)).isoformat()
+
+
 # ------------------------------------------------------------ financeiro
 
 
@@ -105,11 +111,11 @@ def test_financeiro(tmp: Path) -> Base:
     atrasado = fin.salvar({"tipo": "recebimento", "descricao": "Fornecedor A",
                            "valor": "8.500,00", "categoria": "honorarios", "vencimento": _dia(-12)})
     fin.salvar({"tipo": "recebimento", "descricao": "Condomínio 402", "valor": "3.200,00",
-                "categoria": "honorarios", "vencimento": _dia(-8), "liquidado_em": _dia(-8)})
+                "categoria": "honorarios", "vencimento": _dia(-8), "liquidado_em": _no_mes(-8)})
     fin.salvar({"tipo": "despesa", "descricao": "Folha de setembro", "valor": "18.400,00",
                 "categoria": "folha", "vencimento": _dia(3)})
     fin.salvar({"tipo": "despesa", "descricao": "Assinaturas", "valor": "1.800,00",
-                "categoria": "sistemas", "vencimento": _dia(-5), "liquidado_em": _dia(-5)})
+                "categoria": "sistemas", "vencimento": _dia(-5), "liquidado_em": _no_mes(-5)})
 
     p = fin.painel()
     checar(p["saldo"] == 140000, f"saldo e o que entrou menos o que saiu ({p['saldo_texto']})")
@@ -198,13 +204,13 @@ def test_prazo_medio(tmp: Path) -> None:
 
     for i in range(2):
         fin.salvar({"tipo": "recebimento", "descricao": f"Cliente {i}", "valor": "1.000,00",
-                    "vencimento": _dia(-10), "liquidado_em": _dia(-5)})
+                    "vencimento": _dia(-10), "liquidado_em": _no_mes(-5)})
     p = rel.mes(mes)["prazo_medio"]
     checar(p["tem"] is False, "com dois recebimentos, nao devolve media")
     checar("três" in p["porque"], f"e explica por que ({p['porque'][:60]})")
 
     fin.salvar({"tipo": "recebimento", "descricao": "Cliente 3", "valor": "1.000,00",
-                "vencimento": _dia(-10), "liquidado_em": _dia(-4)})
+                "vencimento": _dia(-10), "liquidado_em": _no_mes(-4)})
     p = rel.mes(mes)["prazo_medio"]
     checar(p["tem"] is True, "com tres, ja da uma media")
     checar(p["quantos"] == 3, "e diz sobre quantos ela foi calculada")
