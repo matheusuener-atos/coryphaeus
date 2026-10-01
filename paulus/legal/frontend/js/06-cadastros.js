@@ -653,7 +653,24 @@ function formDaFicha(f) {
     observacao: f.observacao || "", vinculo: f.vinculo || "",
     salario: f.salario_centavos ? semReais(emReais(f.salario_centavos)) : "",
     encargos: f.encargos_centavos ? semReais(emReais(f.encargos_centavos)) : "",
+    // N1: o que a nota fiscal precisa do tomador (src/cadastros.py, CAMPOS_FISCAIS).
+    end_logradouro: f.end_logradouro || "", end_numero: f.end_numero || "", end_complemento: f.end_complemento || "",
+    end_bairro: f.end_bairro || "", end_cep: f.end_cep || "", end_cmun: f.end_cmun || "", end_uf: f.end_uf || "",
+    inscricao_municipal: f.inscricao_municipal || "", email_nota: f.email_nota || "",
   };
+}
+
+/* Os campos da nota fiscal, recolhidos: abrem quando a pessoa quer (ou
+   quando a ficha ja tem algum preenchido). */
+function camposDaNotaCad(v) {
+  const algum = ["end_logradouro", "end_cep", "end_cmun", "inscricao_municipal", "email_nota"].some((k) => v[k]);
+  return '<details class="cad-nota"' + (algum ? " open" : "") + "><summary>Para a nota fiscal</summary>" +
+    '<p class="cfg-explica">A NFS-e pede o endereço em partes, com o município do IBGE. O que faltar, o cartão da nota pede na hora.</p>' +
+    duasCad(campoCad("end_cep", "CEP", "00000000"), campoCad("end_cmun", "Município (código IBGE)", "ex.: 5208707 · Goiânia")) +
+    duasCad(campoCad("end_logradouro", "Logradouro"), campoCad("end_numero", "Número")) +
+    duasCad(campoCad("end_complemento", "Complemento"), campoCad("end_bairro", "Bairro")) +
+    duasCad(campoCad("inscricao_municipal", "Inscrição municipal (se tiver)"), campoCad("email_nota", "E-mail para a nota")) +
+    "</details>";
 }
 
 /* `tipo` marca o campo formatado (js/39-campos.js): "cpf", "cpf-cnpj" ou
@@ -737,7 +754,7 @@ function partesDoFormCad(v) {
       campoCad("email", "E-mail para cobrança") +
       campoCad("endereco", "Endereço") +
       duasCad(campoCad("honorario", "Honorário padrão", "R$ 0,00"), seletorDeDia()) +
-      seletorDeAviso();
+      seletorDeAviso() + camposDaNotaCad(v);
   }
   return {
     titulo: titulo, contexto: contexto, corpo: corpo, botao: nova ? "Salvar cadastro" : "Salvar",
@@ -827,6 +844,10 @@ async function salvarFicha() {
     observacao: v.observacao, vinculo: v.vinculo || "",
     salario_centavos: v.vinculo ? centavosDe(v.salario) : 0, encargos_centavos: v.vinculo ? centavosDe(v.encargos) : 0,
   };
+  if (v.tipo === "cliente") {
+    ["end_logradouro", "end_numero", "end_complemento", "end_bairro", "end_cep", "end_cmun", "inscricao_municipal", "email_nota"]
+      .forEach((k) => { dados[k] = v[k] || ""; });
+  }
   const r = await fetch("/api/cadastros", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }) });
   if (!r.ok) { avisoDoFormCad(await erroDe(r)); return; }
   const ficha = await r.json();

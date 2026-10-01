@@ -833,6 +833,47 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_conflitos_estado ON conflitos(estado);
         """,
     ),
+    (
+        "034_nfse_base",
+        """
+        -- O emissor de NFS-e (src/nfse/, N1). A configuracao fiscal e uma
+        -- VERSAO por gravacao: a nota guarda o id da versao com que foi
+        -- montada, e mudar o regime amanha nao reescreve a nota de ontem.
+        CREATE TABLE IF NOT EXISTS nfse_prestador (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            dados      TEXT NOT NULL,
+            criado_em  TEXT NOT NULL,
+            criado_por TEXT DEFAULT '',
+            motivo     TEXT DEFAULT ''
+        );
+
+        -- A ultima resposta do Sistema Nacional sobre o convenio do
+        -- municipio, por ambiente, com a data (reconsulta mensal).
+        CREATE TABLE IF NOT EXISTS nfse_municipio (
+            cmun                     TEXT NOT NULL,
+            ambiente                 TEXT NOT NULL,
+            situacao                 TEXT NOT NULL,
+            detalhes                 TEXT DEFAULT '',
+            resposta                 TEXT DEFAULT 'null',
+            prazo_cancelamento_dias  INTEGER,
+            consultado_em            TEXT NOT NULL,
+            PRIMARY KEY (cmun, ambiente)
+        );
+
+        -- O que a nota precisa do tomador e o cadastro nao tinha: endereco
+        -- em partes (com o codigo IBGE do municipio), inscricao municipal e o
+        -- e-mail para onde a nota vai. O "endereco" de texto livre continua.
+        ALTER TABLE cadastros ADD COLUMN end_logradouro TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_numero TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_complemento TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_bairro TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_cep TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_cmun TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_uf TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN inscricao_municipal TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN email_nota TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 
@@ -897,6 +938,25 @@ class Base:
             cursor = self.con.execute(sql, parametros)
             self.con.commit()
             return cursor.lastrowid or cursor.rowcount
+
+    def transacao(self, funcao):
+        """
+        Roda `funcao(con)` numa transacao so, com BEGIN IMMEDIATE.
+
+        Ler-e-depois-escrever em duas chamadas nao e atomico: outra thread (ou
+        outro processo com o mesmo arquivo) entra no meio. A numeracao da DPS
+        nao pode repetir nem pular, e e aqui que ela e reservada. Erro desfaz
+        tudo.
+        """
+        with self._trava:
+            self.con.execute("BEGIN IMMEDIATE")
+            try:
+                resultado = funcao(self.con)
+            except BaseException:
+                self.con.rollback()
+                raise
+            self.con.commit()
+            return resultado
 
     def contar(self, tabela: str, onde: str = "", parametros: tuple = ()) -> int:
         sql = f"SELECT COUNT(*) AS n FROM {tabela}"

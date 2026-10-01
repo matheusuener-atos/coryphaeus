@@ -405,6 +405,13 @@ _declarar(BLOQUEADO, "POST /api/jurisprudencia/baixar", "POST /api/jurisprudenci
 # conversa e ler o registro: tudo na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/nuvem", "POST /api/nuvem/chave", "GET /api/nuvem/modelos", "DELETE /api/nuvem/chave/{provedor}",
           "POST /api/nuvem/configurar", "POST /api/trabalhos/{id_}/nuvem", "GET /api/nuvem/envios", "GET /api/nuvem/envios/{envio}")
+# --- N1 (NFS-e): configuracao fiscal, certificado da nota, municipio e tabelas
+# oficiais - so na janela do escritorio. De fora nao se configura tributo nem se
+# usa o certificado do escritorio.
+_declarar(BLOQUEADO, "GET /api/nfse", "POST /api/nfse/ligar", "POST /api/nfse/prestador",
+          "POST /api/nfse/certificado", "POST /api/nfse/certificado/senha", "POST /api/nfse/certificado/remover",
+          "POST /api/nfse/municipio/consultar", "GET /api/nfse/municipios", "GET /api/nfse/tabelas",
+          "POST /api/nfse/tabelas/importar")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

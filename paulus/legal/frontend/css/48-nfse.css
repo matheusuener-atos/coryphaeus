@@ -1,0 +1,8 @@
+/* N1: Configurações › Nota fiscal e o cartão da nota (js/77-nfse.js). */
+.nfse-retencao { padding: 10px 0; border-bottom: 1px solid var(--ink-a08); }
+.nfse-retencao:last-child { border-bottom: 0; }
+.nfse-retencao > b { display: block; font-size: 13px; margin-bottom: 2px; }
+.nfse-retencao > small { display: block; margin-bottom: 6px; }
+.word-linha b.erro { color: var(--warnt); }
+.cad-nota { margin-top: 10px; border-top: 1px solid var(--ink-a08); padding-top: 8px; }
+.cad-nota > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink2); padding: 4px 0; }

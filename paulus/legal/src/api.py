@@ -1013,6 +1013,10 @@ jurisprudencia_mod.montar(estado, app, DADOS_DIR)
 import rotas_nuvem  # noqa: E402
 
 rotas_nuvem.montar(estado, app, DADOS_DIR)
+# N1: o emissor de NFS-e pelo Padrao Nacional (src/nfse/, rotas em src/rotas_nfse.py).
+import rotas_nfse  # noqa: E402
+
+rotas_nfse.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
