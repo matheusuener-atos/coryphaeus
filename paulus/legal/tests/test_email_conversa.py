@@ -152,8 +152,14 @@ def _dubles(api):
                          corpo="Use este código\n417112\nPor segurança, não compartilhe seu código com ninguém.", html=HTML_MP, imagens_remotas=1),
         correio.Mensagem(uid="302", de_nome="Priscila Almeida", de_email="priscila.almeida@riofresco.coop.br", para="advogado@escritorio.adv.br",
                          assunto="Parcela de setembro · contrato de honorários", quando="2026-09-30T16:20:00", quando_curto="ontem",
-                         corpo=CORPO_PRISCILA),
+                         corpo=CORPO_PRISCILA, anexos=[{"nome": "comprovante-setembro.pdf", "tamanho": 12}], tem_anexo=True,
+                         message_id="<parcela-302@riofresco.coop.br>", referencias="<acordo-1@riofresco.coop.br>"),
     ]
+
+    def baixar_anexos(conta, senha, uid):
+        return [("comprovante-setembro.pdf", b"%PDF-1.4 comprovante")] if uid == "302" else []
+
+    correio.baixar_anexos = baixar_anexos
 
     def listar(conta, senha, *, filtro="tudo", busca="", limite=25, antes_de="", clientes=None):
         b = (busca or "").lower()
@@ -248,6 +254,13 @@ def test_tela() -> None:
         pag.wait_for_selector(".emc-msg", timeout=15000)
         checar("A próxima que pede resposta" in pag.evaluate("() => document.getElementById('centro').textContent"), "e volta ao reabrir")
 
+        # encaminhar leva os anexos da mensagem
+        pag.click("[data-emc-responder='encaminhar']")
+        pag.wait_for_selector(".emc-env .emc-anexo", timeout=15000)
+        anexo = pag.evaluate("() => document.querySelector('.emc-env .emc-anexo').getAttribute('title')")
+        checar(anexo.endswith("comprovante-setembro.pdf") and Path(anexo).is_file() and Path(anexo).read_bytes().startswith(b"%PDF"),
+               "o encaminhar leva o anexo da mensagem", anexo)
+
         # responder, numa conversa nova
         pag.click("#nova")
         pag.wait_for_timeout(600)
@@ -299,6 +312,17 @@ def test_tela() -> None:
         nota = pag.evaluate("() => [...document.querySelectorAll('.nota-feito')].pop().textContent")
         pendentes = [x for x in api.estado.fila.pendentes if x.categoria == "email"]
         checar("Aprovações" in nota and pendentes, "o pedido fica em Aprovações e a conversa diz", (nota, len(pendentes)))
+        dados = (pendentes[-1].dados or {}) if pendentes else {}
+        checar(dados.get("responder_a") == "<parcela-302@riofresco.coop.br>" and dados.get("referencias") == "<acordo-1@riofresco.coop.br>",
+               "a resposta vai encadeada (In-Reply-To e References)", {k: dados.get(k) for k in ("responder_a", "referencias")})
+        import correio as _c
+
+        class _Conta:
+            nome, email, assinatura, assinatura_html = "Matheus", "advogado@escritorio.adv.br", "", ""
+        montado = _c.montar_email(_Conta(), para=["p@x.br"], assunto="Re: x", corpo="ok",
+                                  responder_a="<parcela-302@riofresco.coop.br>", referencias="<acordo-1@riofresco.coop.br>")
+        checar(montado["In-Reply-To"] == "<parcela-302@riofresco.coop.br>"
+               and montado["References"] == "<acordo-1@riofresco.coop.br> <parcela-302@riofresco.coop.br>", "os cabeçalhos da resposta", dict(montado.items()))
         checar(pag.evaluate("() => !document.getElementById('cartao-campo').hidden && document.getElementById('emc-editor').hidden"),
                "a caixa de pedido volta")
 

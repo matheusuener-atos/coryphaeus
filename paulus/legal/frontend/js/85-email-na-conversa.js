@@ -379,7 +379,12 @@ async function abrirRespostaNaConversa(alvo, c, o, m) {
       para: o.encaminhar ? [] : [{ nome: m.de_nome || "", email: m.de_email || "" }], cc: [], cco: [],
       assunto: assunto, corpo: citacao.trim() ? citacao : "", corpo_html: "", anexos: [], conferencias: [],
       pelo_assistente: false, palavras: 0, salvo_em: "", novo: true,
+      responder_a: o.encaminhar ? "" : (m.message_id || ""), referencias: o.encaminhar ? "" : (m.referencias || ""),
     };
+  }
+  // Encaminhar leva os anexos da mensagem (js/18-email.js, anexosParaEncaminhar).
+  if (!guardado && o.encaminhar && m && (m.anexos || []).length) {
+    emc.resp.anexos = (await anexosParaEncaminhar(m, c.conta_id)).map((a) => a.path);
   }
   emc.resp.estado = guardado || !o.comRascunho ? "pronto" : "escrevendo";
   await emcContas();
@@ -649,7 +654,8 @@ async function salvarRascunhoDoEmail() {
   const r = await fetch("/api/email/conversa/rascunho", {
     method: "PUT", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ trabalho_id: estado.trabalhoId, uid: resp.uid, conta_id: resp.conta_id, para: resp.para, cc: resp.cc, cco: resp.cco,
-      assunto: resp.assunto, corpo: resp.corpo, corpo_html: resp.corpo_html, anexos: resp.anexos, pelo_assistente: resp.pelo_assistente }),
+      assunto: resp.assunto, corpo: resp.corpo, corpo_html: resp.corpo_html, anexos: resp.anexos, pelo_assistente: resp.pelo_assistente,
+      responder_a: resp.responder_a || "", referencias: resp.referencias || "", novo_email: Boolean(resp.novo_email) }),
   }).catch(() => null);
   if (vez !== emc.salvando || emc.resp !== resp) return;
   if (!r || !r.ok) { avisoCert("não salvei o rascunho: " + (r ? await erroDe(r) : "sem resposta"), { tom: "erro" }); return; }
@@ -790,7 +796,9 @@ async function enviarRespostaDaConversa() {
   $("emc-enviar").disabled = true;
   const d = await mandarPedido({
     conta_id: resp.conta_id, para: para.join(", "), cc: resp.cc.map((x) => x.email).join(", "), cco: resp.cco.map((x) => x.email).join(", "),
-    assunto: resp.assunto, corpo: resp.corpo, corpo_html: resp.corpo_html, anexos: resp.anexos, responder_a: "",
+    assunto: resp.assunto, corpo: resp.corpo, corpo_html: resp.corpo_html, anexos: resp.anexos,
+    // A resposta encadeada (o Message-ID da mensagem); o e-mail novo e o encaminhado não têm.
+    responder_a: /^enc:/i.test(resp.assunto) || resp.novo_email ? "" : (resp.responder_a || ""), referencias: resp.referencias || "",
   });
   if (!d) { $("emc-enviar").disabled = false; return; }
   const aguardando = Boolean(d.aguardando_aprovacao);

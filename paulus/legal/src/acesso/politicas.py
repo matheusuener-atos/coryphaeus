@@ -180,7 +180,7 @@ _declarar(PERMITIDO,
           "POST /api/email/estrela", "POST /api/email/excluir", "POST /api/email/marcar",
           "POST /api/email/caixa/resumo", "GET /api/email/caixa/resumo", "POST /api/email/contexto",
           "GET /api/email/contexto", "POST /api/email/reescrever", "POST /api/email/traduzir",
-          "POST /api/email/anexos/conferir", "POST /api/email/rascunho", "POST /api/email/previa",
+          "POST /api/email/anexos/conferir", "POST /api/email/anexos/encaminhar", "POST /api/email/rascunho", "POST /api/email/previa",
           "POST /api/email/enviar", "GET /api/email/envios", "GET /api/email/anexaveis",
           # o e-mail aberto e o rascunho na conversa (src/email_pela_conversa.py)
           "GET /api/email/conversa/rascunho", "POST /api/email/conversa/rascunho", "PUT /api/email/conversa/rascunho",

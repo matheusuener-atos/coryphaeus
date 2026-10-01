@@ -8422,6 +8422,7 @@ class PedidoEnvio(BaseModel):
     corpo_html: str = ""            # o mesmo texto com a formatacao da faixa de edicao
     anexos: list[str] = []          # caminhos de arquivos da biblioteca
     responder_a: str = ""           # Message-ID, quando e resposta
+    referencias: str = ""           # as References da mensagem respondida
     senha: str = ""
 
 
@@ -8745,6 +8746,33 @@ def email_anexo(uid: str, nome: str, conta_id: str = ""):
 
     tipo, _ = mimetypes.guess_type(achado)
     return Response(dados, media_type=tipo or "application/octet-stream")
+
+
+@app.post("/api/email/anexos/encaminhar")
+def email_anexos_encaminhar(payload: dict) -> dict:
+    """
+    Os anexos da mensagem para o Encaminhar: vao para data/encaminhar/<uid>
+    (nao para o Acervo - sao do e-mail, nao documentos do escritorio) e a
+    tela os poe na lista de anexos do envio, como qualquer outro.
+    """
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    if not conta.pode_anexar:
+        raise HTTPException(status_code=403, detail="esta conta não permite que eu anexe arquivos")
+    uid = re.sub(r"[^\w.-]", "", str(payload.get("uid", "")))[:40]
+    if not uid:
+        raise HTTPException(status_code=400, detail="qual mensagem?")
+    try:
+        anexos = correio.baixar_anexos(conta, senha, uid)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    pasta = DADOS_DIR / "encaminhar" / f"{conta.id}-{uid}"
+    pasta.mkdir(parents=True, exist_ok=True)
+    saida = []
+    for nome, dados in anexos:
+        alvo = pasta / (Path(nome).name or "anexo")
+        alvo.write_bytes(dados)
+        saida.append({"path": str(alvo), "nome": alvo.name, "mb": round(len(dados) / (1024 * 1024), 2)})
+    return {"anexos": saida}
 
 
 @app.post("/api/email/anexo/guardar")
@@ -9179,7 +9207,8 @@ def email_rascunho(payload: dict) -> dict:
         "aviso": aviso,
         "para": [msg.de_email],
         "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
-        "responder_a": "",
+        "responder_a": msg.message_id,
+        "referencias": msg.referencias,
         "sobre": msg.assunto,
     }
 
@@ -9211,6 +9240,7 @@ def _montar_do_pedido(payload: PedidoEnvio):
             cc=correio.enderecos(payload.cc),
             anexos=anexos,
             responder_a=payload.responder_a,
+            referencias=payload.referencias,
         )
     except correio.ErroCorreio as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -9402,6 +9432,7 @@ def email_conversa_rascunho(payload: dict, request: Request) -> dict:
         "uid": uid, "conta_id": conta.id, "de": conta.email,
         "para": [{"nome": msg.de_nome, "email": msg.de_email}], "cc": [], "cco": [],
         "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
+        "responder_a": msg.message_id, "referencias": msg.referencias,
         "sobre": msg.assunto, "corpo": texto, "corpo_html": "", "anexos": [],
         "aviso": aviso, "pelo_assistente": True, "palavras": email_pela_conversa.palavras(texto),
         "conferencias": _conferencias_do_rascunho(conta, msg, texto, request, aviso),
@@ -9455,6 +9486,9 @@ def email_conversa_rascunho_guardar(payload: dict, request: Request) -> dict:
         "corpo_html": str(payload.get("corpo_html", "")),
         "anexos": [str(a) for a in payload.get("anexos") or []],
         "pelo_assistente": bool(payload.get("pelo_assistente", antes.get("pelo_assistente", False))),
+        "responder_a": str(payload.get("responder_a", antes.get("responder_a", "")))[:300],
+        "referencias": str(payload.get("referencias", antes.get("referencias", "")))[-1500:],
+        "novo_email": bool(payload.get("novo_email", antes.get("novo_email", False))),
         "palavras": email_pela_conversa.palavras(corpo),
         "conferencias": _conferencias_do_rascunho(conta, msg, corpo, request, antes.get("aviso", "")),
         "salvo_em": datetime.now().isoformat(timespec="seconds"),
