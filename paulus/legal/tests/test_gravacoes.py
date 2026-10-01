@@ -630,7 +630,9 @@ def test_lixeira(c: Cliente, criados: dict) -> None:
     # Uma gravacao leva o audio junto e traz de volta.
     st, g = c.enviar_audio({"titulo": "Teste Lixeira gravação", "tipo": "nota", "duracao_s": "1", "origem": "importada", "marcadores": "[]", "transcrever": "0"}, "lixo.wav", criados["audio"])
     st, r3 = c.pedir("DELETE", f"/api/gravacoes/{g['id']}")
-    pasta = Path(RAIZ / "data" / "gravacoes" / g["arquivo"])
+    import api
+
+    pasta = Path(api.GRAVACOES_DIR) / g["arquivo"]
     checar(not pasta.exists(), "o audio saiu de data/gravacoes")
     st, v3 = c.pedir("POST", f"/api/lixeira/{r3['lixeira']}/restaurar")
     st, g2 = c.pedir("GET", f"/api/gravacoes/{g['id']}")
@@ -649,6 +651,15 @@ def main() -> int:
     porta = _porta_livre()
     servidor = _subir_servidor(porta)
     c = Cliente(porta)
+    # N16: o Acervo do teste ganha dois documentos (o servidor rele o Acervo ao subir).
+    import api
+
+    if len(api.estado.searcher.documents) < 2:
+        acervo = Path(api.estado.pasta)
+        acervo.mkdir(parents=True, exist_ok=True)
+        (acervo / "contrato-gravacoes-1.txt").write_text("CONTRATO UM. O pagamento vence em 10/12/2026.", encoding="utf-8")
+        (acervo / "contrato-gravacoes-2.txt").write_text("CONTRATO DOIS. A multa por atraso é de 2%.", encoding="utf-8")
+        api.estado.recarregar()
     criados: dict = {"gravacoes": [], "servicos": [], "cadastros": [], "tarefas": [],
                      "trabalhos": [], "lancamentos": [], "documentos": [], "audio": b""}
     try:
@@ -715,4 +726,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # N16: a pasta de dados do teste, e nao a desta maquina (o modelo de voz
+    # fica em data/modelos, fora dela, e continua sendo usado). So quando o
+    # arquivo roda sozinho: os outros testes importam _subir_servidor daqui.
+    import os
+
+    os.environ.setdefault("PAULUS_DADOS", tempfile.mkdtemp(prefix="paulus-gravacoes-"))
+    os.environ.setdefault("PAULUS_SEM_AVISOS", "1")
     sys.exit(main())

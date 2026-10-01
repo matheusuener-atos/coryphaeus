@@ -361,7 +361,7 @@ o código garante.
 | N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | feito | `tests/test_n13_jurisprudencia.py` |
 | N14 | Agente com autonomia sem confirmação | fora | feito | `tests/test_n14_autonomia.py` |
 | N15 | Nuvem com a chave do escritório | fora | feito | `tests/test_n15_nuvem.py` |
-| N16 | Os três testes que dependiam desta máquina | testes | — | os próprios |
+| N16 | Os três testes que dependiam desta máquina | testes | feito | os próprios |
 
 ## N1 — o prazo pelo tipo de ato (30/09/2026)
 
@@ -830,3 +830,25 @@ recusar, a conversa liberada, a regra de alçada, o e-mail, o Drive, o só no
 escritório, o erro do provedor, de fora, e no Edge: o cartão em Modelos, a
 pílula, o cartão na conversa e a resposta da nuvem). Nunca com uma chave de
 verdade: o primeiro envio real é do dono.
+
+## N16 — os três testes que dependiam desta máquina (01/10/2026)
+
+- **`test_a2_agente_na_conversa`** criava agentes na pasta de dados de
+  verdade e precisava de dois documentos no Acervo dela: agora roda numa pasta
+  temporária, com dois documentos próprios. (Um nome de arquivo com
+  "padrão" fazia a frase "revise este contrato e compare com
+  contrato-padrao" virar a receita da N6 - certo, e não bug: o nome mudou.)
+- **`test_inteligencia_regressao`** lia `data/test_contracts`, fora do git, e
+  os três documentos de teste sumiram quando a pasta virou o Acervo de
+  verdade: o teste monta os três em PDF (reportlab) numa pasta temporária,
+  com o conteúdo que as perguntas esperam. O CPF esperado passou a ser um
+  válido (o programa só aceita CPF que fecha o dígito).
+- **`test_gravacoes`** rodava na pasta de dados de verdade e procurava o
+  áudio em `data/gravacoes` fixo: rodando sozinho, usa uma pasta temporária
+  (o modelo de voz fica em `data/modelos`, fora dela, e continua usado), a
+  pasta de gravações do servidor e dois documentos no Acervo. A falta de
+  memória era o Ollama com os modelos carregados: descarregados, a
+  transcrição e o ao vivo passam.
+
+**Medido:** os três passam (`test_gravacoes` duas vezes seguidas; numa
+terceira rodada, antes, uma conexão caiu no meio, uma vez).

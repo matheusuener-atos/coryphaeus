@@ -20,12 +20,18 @@ perguntar simulada (ela anota as instrucoes e o escopo que recebeu):
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 RAIZ = Path(__file__).parent.parent
+# N16: a pasta de dados e o Acervo do teste, e nao os desta maquina.
+TMP = Path(tempfile.mkdtemp(prefix="paulus-a2-"))
+os.environ["PAULUS_DADOS"] = str(TMP / "dados")
+os.environ["PAULUS_SEM_AVISOS"] = "1"
 sys.path.insert(0, str(RAIZ / "src"))
 sys.path.insert(0, str(RAIZ / "tests"))
 sys.path.insert(0, str(RAIZ / "habilidades"))
@@ -149,6 +155,11 @@ def test_conversa() -> None:
     porta = _porta_livre()
     _subir_servidor(porta)
     base = f"http://127.0.0.1:{porta}"
+    pasta = Path(api.estado.pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
+    (pasta / "contrato-clinica.txt").write_text("CONTRATO DA CLÍNICA. Cláusula 1. A multa por atraso é de 10%.", encoding="utf-8")
+    (pasta / "contrato-loja.txt").write_text("CONTRATO DA LOJA. Cláusula 1. A multa por atraso é de 2%.", encoding="utf-8")
+    api.estado.recarregar()
     docs = [d.name for d in api.estado.searcher.documents]
     criados, fila_ids = [], []
     try:

@@ -3,7 +3,7 @@ A prova da regra de ouro: a camada nao pode responder pior do que o programa
 de antes.
 
 Sem medicao, um retrofit e fe. Este arquivo e a medicao. Ele roda um conjunto
-fixo de perguntas reais sobre os documentos reais do acervo de teste, com a
+fixo de perguntas sobre um acervo de teste montado pelo proprio teste, com a
 camada LIGADA e DESLIGADA, e compara. A regra e dura de proposito:
 
     qualquer pergunta que a camada responda pior que o sistema de hoje
@@ -41,8 +41,65 @@ from inteligencia import portas, roteador  # noqa: E402
 from inteligencia.catalogo import Catalogo  # noqa: E402
 from inteligencia.guarda import Biblioteca  # noqa: E402
 
-ACERVO = RAIZ / "data" / "test_contracts"
-CACHE = RAIZ / "data" / "extractions" / "index.json"
+# N16: o acervo de teste e montado aqui, em PDF, numa pasta temporaria - os
+# documentos de antes moravam em data/test_contracts, fora do git, e sumiram
+# quando a pasta virou o Acervo de verdade desta maquina.
+DOCUMENTOS = {
+    "Contrato de Compra e Venda - Parte A X Parte B.pdf": [
+        "CONTRATO DE COMPRA E VENDA DE IMÓVEL",
+        "VENDEDOR: PARTE A, brasileiro, casado, empresário, inscrito no CPF sob o nº 529.982.247-25, "
+        "residente na Rua das Flores, 100, Centro, São Paulo/SP.",
+        "COMPRADORA: PARTE B, brasileira, solteira, médica, portadora da carteira de identidade nº 12.345.678, "
+        "residente na Avenida Brasil, 2000, São Paulo/SP.",
+        "CLÁUSULA PRIMEIRA - DO OBJETO. O VENDEDOR vende à COMPRADORA o imóvel situado na Rua das Flores, 100, "
+        "matrícula nº 45.678 do 1º Cartório de Registro de Imóveis de São Paulo.",
+        "CLÁUSULA SEGUNDA - DO PREÇO. O preço total é de R$ 250.000,00 (duzentos e cinquenta mil reais), "
+        "pago em parcela única na assinatura deste contrato.",
+        "CLÁUSULA TERCEIRA - DA RESCISÃO. O descumprimento de qualquer cláusula permite a rescisão, com multa "
+        "de 10% (dez por cento) sobre o preço, devida pela parte que der causa.",
+        "CLÁUSULA QUARTA - DO ARREPENDIMENTO. As partes renunciam ao direito de arrependimento depois da "
+        "entrega das chaves.",
+        "CLÁUSULA QUINTA - DO FUNDAMENTO. Este contrato observa os artigos 421 e 481 do Código Civil "
+        "(Lei nº 10.406/2002).",
+        "São Paulo, 23 de janeiro de 2025.",
+        "PARTE A - Vendedor                PARTE B - Compradora",
+    ],
+    "Contrato de Compra e Venda - Pessoa X X Pessoa Y R$ 200.000,00.pdf": [
+        "CONTRATO DE COMPRA E VENDA DE VEÍCULOS",
+        "VENDEDORA: PESSOA X, brasileira, comerciante, residente em Campinas/SP.",
+        "COMPRADOR: PESSOA Y, brasileiro, agricultor, residente em Ribeirão Preto/SP.",
+        "CLÁUSULA PRIMEIRA - DO OBJETO. A VENDEDORA vende ao COMPRADOR dois caminhões descritos no anexo.",
+        "CLÁUSULA SEGUNDA - DO PREÇO. O preço total é de R$ 200.000,00 (duzentos mil reais), em quatro "
+        "parcelas mensais, conforme os artigos 482 e 490 do Código Civil.",
+        "Campinas, 10 de março de 2025.",
+    ],
+    "Procuração Empresa ABC X Pessoa.pdf": [
+        "PROCURAÇÃO",
+        "OUTORGANTE: EMPRESA ABC LTDA, com sede em Belém/PA, neste ato por seu sócio administrador.",
+        "OUTORGADA: PESSOA, brasileira, advogada.",
+        "PODERES: representar a outorgante perante repartições públicas, assinar requerimentos e receber "
+        "documentos em seu nome.",
+        "Belém, 5 de maio de 2015.",
+    ],
+}
+
+
+def gerar_acervo(pasta: Path) -> Path:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    import textwrap
+
+    pasta.mkdir(parents=True, exist_ok=True)
+    for nome, paragrafos in DOCUMENTOS.items():
+        c = canvas.Canvas(str(pasta / nome), pagesize=A4)
+        y = 800
+        for par in paragrafos:
+            for linha in textwrap.wrap(par, 90) or [""]:
+                c.drawString(50, y, linha)
+                y -= 14
+            y -= 8
+        c.save()
+    return pasta
 
 _falhas: list[str] = []
 
@@ -123,18 +180,18 @@ PERGUNTAS = [
     # O CPF e o CNPJ sao os unicos dados do acervo que conferem a si mesmos, e
     # por isso sao os unicos de resposta unica num contrato de teste.
     ("qual o CPF?", "Contrato de Compra e Venda - Parte A X Parte B.pdf",
-     "metadata", "111.222.333-44"),
+     "metadata", "529.982.247-25"),
     ("qual o CNPJ?", "", "escala", ""),
 ]
 
 
 def preparar(tmp: Path):
-    """Uma biblioteca nova, analisada do zero, sobre o acervo de teste real."""
+    """Uma biblioteca nova, analisada do zero, sobre o acervo de teste montado aqui."""
     bd = base_mod.Base(tmp / "regressao.db")
     bd.migrar()
     biblioteca = Biblioteca(tmp / "conhecimento", bd)
     catalogo = Catalogo.carregar()
-    documentos = index_all_contracts(ACERVO, CACHE, verbose=False)
+    documentos = index_all_contracts(gerar_acervo(tmp / "acervo"), tmp / "extracoes.json", verbose=False)
     for doc in documentos:
         portas.analisar_documento(biblioteca, catalogo, doc.path, texto=doc.text,
                                   paginas=doc.pages, sha1=doc.sha1, titulo=doc.name)
@@ -206,10 +263,6 @@ def main() -> int:
     print("=" * 55)
     print("  PAULUS - regressao da camada de inteligencia")
     print("=" * 55)
-
-    if not ACERVO.is_dir():
-        print(f"\n  pulado: o acervo de teste nao esta em {ACERVO}")
-        return 0
 
     with tempfile.TemporaryDirectory() as pasta:
         tmp = Path(pasta)
