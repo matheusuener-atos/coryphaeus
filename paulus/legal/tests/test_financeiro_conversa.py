@@ -87,6 +87,16 @@ def test_soma() -> None:
     checar((r["entradas"], r["saidas"], r["resultado"]) == (1200000, 450000, 750000), "entradas, saídas e resultado do mês", r)
     checar(r["comparacao"]["entradas"] == (1000000 if HOJE.day >= 1 else 0) and r["comparacao"]["ate_o_dia"] == HOJE.day,
            "a comparação no mesmo período", r["comparacao"])
+    hon = next((c for c in r["categorias"] if c["categoria"] == "honorarios"), {})
+    checar(hon.get("antes_entradas") == 1000000 and hon.get("pct") == 20, "cada categoria contra a mesma no mesmo período", hon)
+    checar(r["prazo_medio"] == {"tem": False, "quantos": 1}, "sem três recebimentos, sem média", r["prazo_medio"])
+    for i, (venc, pago) in enumerate((("2025-03-05", "2025-03-10"), ("2025-03-10", "2025-03-20"), ("2025-03-12", "2025-03-12"))):
+        e.financeiro.salvar({"tipo": "recebimento", "descricao": f"março {i}", "centavos": 1000, "categoria": "honorarios",
+                             "vencimento": venc, "liquidado_em": pago})
+    pm = fpc.prazo_medio(e.base, "2025-03-01", "2025-03-31")
+    checar(pm == {"tem": True, "quantos": 3, "dias": 5.0}, "o prazo médio de recebimento no período", pm)
+    html = fpc.html_do_relatorio(fpc.relatorio(e.financeiro, e.base, "2025-03", "2025-02"), lambda x: x)
+    checar("Prazo médio de recebimento</h2><p>5 dias depois do vencimento, em 3 recebimentos." in html, "e ele vai no PDF", html[-300:])
     frase = fpc.frase_do_relatorio(r)
     checar(frase.startswith(f"Somei os lançamentos de {fpc.rotulo_do_mes(MES)} até hoje. O resultado está positivo em R$ 7.500"), "a frase do relatório", frase)
 
@@ -163,6 +173,9 @@ def test_tela() -> None:
         prontos = pag.evaluate("""async (hrefs) => Promise.all(hrefs.map(async h => { const x = await fetch(h); return [x.status, x.headers.get('content-type')]; }))""", r["links"])
         checar(len(r["links"]) == 2 and all(s == 200 for s, _ in prontos) and "pdf" in prontos[0][1], "o PDF e a planilha baixam", prontos)
         checar("Honorários" in r["cats"] and "Aluguel" in r["cats"] and "Contra" in r["contra"], "as categorias e a comparação", r)
+        extra = pag.evaluate("""() => ({prazo: (document.querySelector('.fnc-prazo b') || {}).textContent || '',
+          pct: [...document.querySelectorAll('.fnc-cat-pct')].map(x => x.textContent)})""")
+        checar(extra["prazo"].startswith("sem média") and "+ 20%" in extra["pct"], "o prazo médio e a comparação por categoria na conversa", extra)
         pag.screenshot(path=str(CAPTURAS / "t4-relatorio.png"))
         pag.fill("#lado-ferramenta [data-fnc-add]", "contabil@riofresco.coop.br")
         pag.keyboard.press("Enter")

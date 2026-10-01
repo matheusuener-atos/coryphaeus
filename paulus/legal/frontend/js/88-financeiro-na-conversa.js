@@ -235,6 +235,19 @@ async function carregarRelatorioDaConversa(gerar) {
   }
 }
 
+/* O prazo médio de recebimento no período (src/financeiro_pela_conversa.py):
+   sem três recebimentos com vencimento, diz que não há média. */
+function blocoDoPrazoMedio(r) {
+  const pm = r.prazo_medio || {};
+  const c = r.comparacao || null;
+  const dias = (d) => { const n = Math.abs(d); return String(n).replace(".", ",") + (n === 1 ? " dia" : " dias") + (d < 0 ? " antes" : ""); };
+  const texto = pm.tem
+    ? dias(pm.dias) + " depois do vencimento, em " + plural(pm.quantos, "recebimento") +
+      (c && c.prazo_medio && c.prazo_medio.tem ? "; em " + c.rotulo + ", " + dias(c.prazo_medio.dias) : "")
+    : "sem média: " + plural(pm.quantos || 0, "recebimento") + " com vencimento no período (a média pede três)";
+  return '<div class="fnc-extrato-linha fnc-prazo"><span>Prazo médio de recebimento</span><b>' + esc(texto) + "</b></div>";
+}
+
 function desenharRelatorioNaConversa() {
   const alvo = fnc.caixa;
   const x = fnc.rel || {};
@@ -255,6 +268,7 @@ function desenharRelatorioNaConversa() {
     linha("A receber em aberto", fncReais(r.a_receber)) + linha("A pagar em aberto", fncReais(r.a_pagar)) + linha("Em atraso", r.atrasado ? fncReais(r.atrasado) : "0") +
     (c ? '<p class="fnc-contra">' + ic(c.resultado_pct === null || c.resultado_pct >= 0 ? "check_circle" : "schedule", 15) +
       "Contra " + esc(c.rotulo) + (c.inteiro ? "" : " (até o dia " + c.ate_o_dia + ")") + ": entradas " + pct(c.entradas_pct) + ", saídas " + pct(c.saidas_pct) + ".</p>" : "") +
+    blocoDoPrazoMedio(r) +
     "</div>" +
     '<div class="fnc-categorias"><div class="fnc-cat-cabeca"><span class="emc-kicker">Por categoria</span><span class="vazio-flex"></span>' +
     '<span class="fnc-legenda"><i class="entra"></i>entradas</span><span class="fnc-legenda"><i class="sai"></i>saídas</span></div>' +
@@ -263,8 +277,10 @@ function desenharRelatorioNaConversa() {
         const entra = k.entradas >= k.saidas;
         const valor = entra ? k.entradas : k.saidas;
         const classe = "fnc-cat-barra " + (entra ? "entra" : "sai");
+        // Contra a mesma categoria no mesmo período do outro mês.
+        const contra = c && "pct" in k ? '<small class="fnc-cat-pct" title="contra ' + esc(c.rotulo) + '">' + pct(k.pct) + "</small>" : "";
         return '<div class="fnc-cat"><span>' + esc(k.rotulo) + '</span><span class="fnc-cat-trilho"><i class="' + classe + '" style="width:' + Math.max(1, Math.round(valor * 100 / maior)) + '%"></i></span>' +
-          "<b>" + (entra ? "+ " : "– ") + fncReais(valor) + "</b></div>";
+          "<b>" + (entra ? "+ " : "– ") + fncReais(valor) + contra + "</b></div>";
       }).join("")
       : '<p class="fnc-nota">Nada liquidado no mês ainda.</p>') +
     '<small class="fnc-nota">as barras saem do que foi efetivamente liquidado</small></div></div></div>';

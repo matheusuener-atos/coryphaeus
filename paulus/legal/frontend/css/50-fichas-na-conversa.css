@@ -186,6 +186,9 @@
   .fnc-cat-cabeca { display: flex; align-items: center; gap: 10px; }
   .fnc-cat { display: grid; grid-template-columns: 96px minmax(0, 1fr) 96px; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); }
   .fnc-cat b { font: 600 12px var(--mono); color: var(--ink); text-align: right; }
+  .fnc-cat-pct { display: block; font: 500 11px var(--mono); color: var(--ink3); }
+  .fnc-extrato-linha.fnc-prazo { gap: 12px; }
+  .fnc-extrato-linha.fnc-prazo b { font: 500 12.5px var(--sans); text-align: right; }
   .fnc-cat-trilho { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
   .fnc-cat-barra { display: block; height: 100%; border-radius: 3px; }
 
