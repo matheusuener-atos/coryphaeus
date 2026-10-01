@@ -32,7 +32,7 @@ estiver `feita`.
 | Etapa | O quê (mockups) | Estado | Commit |
 | --- | --- | --- | --- |
 | T0 | Casca da conversa: cabeçalho, coluna do chat (1080), caixa de pedido em duas linhas, coluna lateral de altura inteira que troca de papel (380/420/460/ferramenta), contexto (Progresso, Trechos lidos, Como respondi, Onde procurei), rolagem fina | feita | ver git log (T0) |
-| T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (resumo em três cartões e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
+| T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (a faixa de um aviso por vez e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
 | T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha, editor de planilha, assinar, agendar e criar agente feitos) | ver git log (T3) |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
@@ -91,12 +91,19 @@ estiver `feita`.
   Gravações não levam mais a pessoa para lá (`redesenharGravador`); parar
   arquiva e avisa com "Abrir". O "Abrir conversa" do desenho vira "Abrir
   gravação" até a T2 (a conversa que grava).
-- Avisos: o carrossel saiu. No lugar, o resumo em três cartões (atrasados
-  com o fio em vinho, vencem hoje, conversas pela metade em âmbar), "ver N"
-  abre o painel no lugar da lista (tipos à esquerda com a conta, lista
-  agrupada, busca, Hoje/7 dias/30 dias, × volta às conversas) e "Central de
-  avisos" abre o mesmo painel numa janela de 920 px, com o histórico e a
-  seleção de vários (marcar como visto em lote).
+- Avisos (refeito em 01/10 pelo `Assistente - Avisos.html` que o dono
+  mandou depois): no lugar dos três cartões, a faixa pequena de 56 px, um
+  aviso por vez — os atrasados primeiro, depois o que vence hoje e as
+  conversas pela metade —, com o selo (vinho no atrasado, âmbar na conversa
+  pela metade), a ação direta, "e mais N atrasados, M conversas pela
+  metade" na linha de baixo, as setas "1 / N" (e as setas do teclado) e a
+  seta de abrir o painel no lugar da lista (tipos à esquerda com a conta,
+  lista agrupada, busca, Hoje/7 dias/30 dias, × volta às conversas).
+  "Central de avisos" fica no cabeçalho do painel e no Ctrl+K: o mesmo
+  painel numa janela de 920 px, com o histórico e a seleção de vários.
+  No celular a faixa quebra em duas linhas (o aviso; a ação e as setas). A
+  coluna da tela inicial deixou de alargar além da tela em 390 px (a grade
+  tinha a coluna do tamanho do conteúdo; agora `minmax(0, 1fr)`).
 - Apoiar: `js/77-apoiar-convite.js` + `GET /api/apoio/neste-mes` (documentos
   lidos nas respostas do mês e lançamentos criados no mês, contados aqui).
   Aparece só com algo a contar, uma vez por mês ("Agora não" guarda o mês) e

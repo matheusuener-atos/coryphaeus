@@ -1,48 +1,52 @@
   /* ---------------------------------------------------- avisos do dia */
   /*
     Os avisos da tela inicial (js/53-avisos.js), no desenho do pacote de
-    telas de 01/10/2026: o resumo em tres cartoes, o painel no lugar da
-    lista e a Central de avisos. O vinho fica para o que esta atrasado (o
-    fio de cima do cartao e o ponto do grupo); o ambar, para a conversa que
-    ficou pela metade. O resto e neutro.
+    telas (`Assistente - Avisos`): a faixa pequena com um aviso por vez, o
+    painel no lugar da lista e a Central de avisos. O vinho fica para o que
+    esta atrasado (o icone, o selo e o ponto do grupo); o ambar, para a
+    conversa que ficou pela metade. O resto e neutro.
   */
-  .av-dia { min-width: 0; gap: 12px; }
-  .av-dia .agora-cabeca { gap: 12px; }
-  .av-conta { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
   .av-central-link { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 8px; border: none; border-radius: 6px;
-    background: none; font: 600 12px var(--sans); color: var(--ink2); }
+    background: none; font: 600 12px var(--sans); color: var(--ink2); white-space: nowrap; }
   .av-central-link:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .av-central-link .ic { color: var(--ink2); }
 
-  /* Os tres cartoes, empilhados como folhas (a sombra de baixo e a borda
-     da folha de tras). */
-  .av-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-  .av-res {
-    position: relative; display: grid; gap: 4px; align-content: start; padding: 14px 16px 10px; min-width: 0;
-    border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1);
-    box-shadow: var(--elev-card), 0 6px 0 -3px var(--lado-fundo), 0 6px 0 -2px var(--ink-a06);
+  /* A faixa: 56 px, um aviso por vez. Com mais de um, a borda da folha de
+     tras aparece embaixo (a pilha). */
+  .av-faixa {
+    position: relative; display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; height: 56px; padding: 0 8px 0 10px;
+    border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); box-shadow: var(--elev-card);
   }
-  .av-res-fio { position: absolute; left: 16px; right: 16px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--ink-a12); }
-  .av-res.atrasados .av-res-fio { background: var(--acc); }
-  .av-res.metade .av-res-fio { background: var(--warnt); }
-  .av-res-cabeca { display: flex; align-items: baseline; gap: 10px; padding-bottom: 6px; }
-  .av-res-cabeca b { font: 400 30px/1 var(--serif); color: var(--ink3); }
-  .av-res.atrasados:not(.zero) .av-res-cabeca b { color: var(--acc); }
-  .av-res.metade:not(.zero) .av-res-cabeca b { color: var(--warnt); }
-  .av-res.hoje:not(.zero) .av-res-cabeca b { color: var(--ink); }
-  .av-res-cabeca > span:not(.vazio-flex) { font: 600 12.5px var(--sans); white-space: nowrap; }
-  .av-res-ver { height: 24px; padding: 0 6px; border: none; border-radius: 6px; background: none; font: 600 12px var(--sans); color: var(--ink3); }
-  .av-res-ver:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .av-res-linha { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--ink-a06); min-width: 0; }
-  .av-res-linha > .ic { flex: none; color: var(--ink2); }
-  .av-res-texto { display: grid; gap: 1px; flex: 1; min-width: 0; }
-  .av-res-texto b { font: 600 13px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .av-res-texto small { font: 500 11.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .av-res-acao { flex: none; height: auto; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--ink-a12); background: none;
-    font: 600 11.5px var(--sans); color: var(--ink); }
-  .av-res-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
-  .av-res-vazio { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--ink-a06); font-size: 13px; color: var(--ink3); }
-  .av-res-vazio .ic { color: var(--okt); }
+  .av-faixa[hidden] { display: none; }
+  .av-faixa.pilha { box-shadow: var(--elev-card), 0 5px 0 -2px var(--lado-fundo), 0 5px 0 -1px var(--ink-a06); }
+  .av-faixa-ic { width: 36px; height: 36px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 9px;
+    background: var(--fill); color: var(--ink2); }
+  .av-faixa-ic.atrasado { background: var(--accbg); color: var(--acc); }
+  .av-faixa-ic.metade { background: var(--warnbg); color: var(--warnt); }
+  .av-faixa-texto { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; flex: 1; min-width: 0; height: auto; padding: 0; border: none; background: none;
+    text-align: left; color: var(--ink); cursor: pointer; }
+  .av-faixa-texto:hover:not(:disabled) { background: none; border: none; }
+  .av-faixa-texto:hover b { text-decoration: underline; text-decoration-color: var(--ink-a12); text-underline-offset: 3px; }
+  .av-faixa-titulo { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .av-faixa-titulo b { font: 600 13.5px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av-faixa-selo { flex: none; font: 600 11px var(--sans); padding: 1px 7px; border-radius: 4px; background: var(--fill); color: var(--ink2); white-space: nowrap; }
+  .av-faixa-selo.atrasado { background: var(--accbg); color: var(--acc); }
+  .av-faixa-selo.metade { background: var(--warnbg); color: var(--warnt); }
+  .av-faixa-texto small { font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av-faixa-acao { flex: none; display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 7px;
+    border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
+  .av-faixa-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .av-faixa-divisa { width: 1px; height: 20px; flex: none; background: var(--ink-a1); }
+  .av-faixa-nav { display: flex; align-items: center; gap: 2px; flex: none; }
+  .av-faixa-conta { min-width: 44px; text-align: center; font: 500 11.5px var(--mono); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .av-faixa .botao-icone { width: 28px; height: 28px; flex: none; border-radius: 7px; color: var(--ink2); }
+  .av-faixa .botao-icone:hover:not(:disabled) { color: var(--ink); }
+  /* Passar de aviso: o conteudo entra do lado da seta (com as animacoes
+     reduzidas, troca na hora - a classe nem e posta). */
+  .av-faixa.entra-dir > *:not(.botao-icone):not(.av-faixa-nav):not(.av-faixa-divisa) { animation: av-entra-dir .18s var(--ease, ease-out); }
+  .av-faixa.entra-esq > *:not(.botao-icone):not(.av-faixa-nav):not(.av-faixa-divisa) { animation: av-entra-esq .18s var(--ease, ease-out); }
+  @keyframes av-entra-dir { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+  @keyframes av-entra-esq { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
 
   /* O circulo de marcar e o das tarefas (.ag-circulo, 09-agenda.css): o botao
      em volta so da a area de clique. */
@@ -123,7 +127,6 @@
   /* No celular: o painel vira uma coluna so, e o circulo de marcar tem o
      tamanho do dedo. */
   @media (max-width: 899px) {
-    .av-resumo { grid-template-columns: minmax(0, 1fr); }
     .avp { grid-template-columns: minmax(0, 1fr); }
     .avp-nav { display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--ink-a08); padding: 0; }
     .avp-gaveta, .avp-historico { display: none; }
@@ -132,6 +135,11 @@
     .avp-busca { width: 100%; }
   }
   @media (max-width: 599px) {
+    /* No celular, o aviso em cima e a acao com as setas embaixo. */
+    .av-faixa { flex-wrap: wrap; height: auto; padding: 10px 8px 8px 10px; row-gap: 8px; }
+    .av-faixa-texto { flex-basis: calc(100% - 48px); }
+    .av-faixa-divisa { display: none; }
+    .av-faixa-acao { margin-right: auto; }
     .av-marca { width: 44px; height: 44px; margin: -10px -6px -10px -10px; }
     .av-marca .ag-circulo { width: 24px; height: 24px; }
     .avp-linha { flex-wrap: wrap; }

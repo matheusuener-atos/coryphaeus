@@ -385,10 +385,10 @@ SONDA_DE_ERRO = """() => {
   }
   const achados = [];
   // O vinho so vale para o que esta atrasado (pacote de telas de 01/10/2026:
-  // "verde, ambar e vermelho so como sinal de estado"): o fio e a conta do
-  // cartao dos atrasados. Em qualquer outro lugar do resumo, e erro.
-  document.querySelectorAll('#av-resumo, #av-resumo *').forEach((el) => {
-    if (el.closest('.av-res.atrasados') && (el.matches('.av-res-fio') || el.matches('.av-res-cabeca b'))) return;
+  // "verde, ambar e vermelho so como sinal de estado"): o icone e o selo do
+  // aviso atrasado. Em qualquer outro lugar da faixa, e erro.
+  document.querySelectorAll('#av-dia, #av-dia *').forEach((el) => {
+    if (el.closest('.av-faixa-ic.atrasado, .av-faixa-selo.atrasado')) return;
     const st = getComputedStyle(el);
     for (const p of ['color', 'background-color', 'border-top-color', 'border-left-color', 'border-right-color', 'border-bottom-color']) {
       if (cores.has(st[p])) achados.push((el.className || el.tagName) + ' ' + p);
@@ -425,25 +425,33 @@ def test_tela(api, ids) -> None:
             erros: list[str] = []
             pag.on("pageerror", lambda x: erros.append(str(x)))
             pag.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="networkidle")
-            pag.wait_for_selector("#av-dia:not([hidden]) .av-res", timeout=15000)
+            pag.wait_for_selector("#av-dia:not([hidden]) .av-faixa-texto", timeout=15000)
             pag.wait_for_timeout(600)
             do_servidor = _pedir(base, "GET", "/api/central-avisos/hoje")["avisos"]
-            metade = [a for a in do_servidor if a["tipo"] == "pendencia" and (a.get("destino") or {}).get("tela") == "conversa"]
-            esperado = [len([a for a in do_servidor if a["grupo"] == "atrasado"]),
-                        len([a for a in do_servidor if a["grupo"] == "hoje" and a.get("destaque") and a not in metade]), len(metade)]
-            resumo = pag.evaluate("() => [...document.querySelectorAll('#av-resumo .av-res')].map(c => Number(c.querySelector('.av-res-cabeca b').textContent))")
-            checar(resumo == esperado, "o resumo tem três cartões, com as contas do servidor (atrasados, vencem hoje, pela metade)", (resumo, esperado))
-            linhas_resumo = pag.evaluate("() => [...document.querySelectorAll('#av-resumo .av-res')].map(c => c.querySelectorAll('.av-res-linha').length)")
-            checar(all(n <= 2 for n in linhas_resumo), "cada cartão mostra no máximo duas linhas", linhas_resumo)
+            atrasados = [a for a in do_servidor if a["grupo"] == "atrasado"]
+            faixa = pag.evaluate("""() => ({id: document.querySelector('#av-dia .av-faixa-texto').dataset.avAbrir,
+              conta: (document.querySelector('#av-dia .av-faixa-conta') || {}).textContent || '',
+              linha: document.querySelector('#av-dia .av-faixa-texto small').textContent,
+              altura: document.getElementById('av-dia').getBoundingClientRect().height})""")
+            checar(faixa["conta"] == f"1 / {len(do_servidor)}", "a faixa mostra um aviso por vez, com a conta do servidor", (faixa["conta"], len(do_servidor)))
+            checar(faixa["id"] == atrasados[0]["id"], "o primeiro é o atrasado mais antigo", faixa["id"])
+            checar(f"e mais {len(atrasados) - 1} atrasado" in faixa["linha"], "a linha de baixo diz quantos mais estão atrasados", faixa["linha"])
+            checar(55 <= faixa["altura"] <= 60, "a faixa tem 56 px, como no desenho", faixa["altura"])
+            pag.click("#av-dia [data-av-passa='1']")
+            pag.wait_for_timeout(300)
+            depois = pag.evaluate("() => [document.querySelector('#av-dia .av-faixa-conta').textContent, document.querySelector('#av-dia .av-faixa-texto').dataset.avAbrir]")
+            checar(depois[0] == f"2 / {len(do_servidor)}" and depois[1] != faixa["id"], "a seta passa para o próximo aviso", depois)
+            pag.click("#av-dia [data-av-passa='-1']")
+            pag.wait_for_timeout(300)
             debaixo = pag.evaluate("() => { const a = document.getElementById('agora'), v = document.getElementById('av-dia');"
                                    " return a.compareDocumentPosition(v) & Node.DOCUMENT_POSITION_FOLLOWING; }")
             checar(bool(debaixo), "logo abaixo de 'Acontecendo agora'")
             sonda = pag.evaluate(SONDA_DE_ERRO)
-            checar(sonda["cores"] and not sonda["achados"], "o vinho só no cartão dos atrasados", sonda["achados"][:4])
+            checar(sonda["cores"] and not sonda["achados"], "o vinho só no ícone e no selo do atrasado", sonda["achados"][:4])
             pag.screenshot(path=str(CAPTURAS / "t2-inicio.png"))
 
-            # "ver N" dos atrasados: o painel no lugar da lista de conversas
-            pag.click("#av-resumo .av-res.atrasados [data-av-ver]")
+            # a seta de abrir: o painel no lugar da lista de conversas
+            pag.click("#av-dia [data-av-lista]")
             pag.wait_for_selector("#av-painel:not([hidden]) .avp-linha", timeout=8000)
             pag.wait_for_timeout(300)
             painel = pag.evaluate("""() => ({lista: document.getElementById('lista-conversas').hidden,
@@ -451,7 +459,8 @@ def test_tela(api, ids) -> None:
               grupos: [...document.querySelectorAll('#av-painel .avp-grupo-cabeca')].map(g => g.childNodes[1].textContent.trim()),
               tipos: document.querySelectorAll('#av-painel [data-avp-tipo]').length})""")
             checar(painel["lista"] and painel["recentes"], "o painel entra no lugar da lista de conversas", painel)
-            checar(painel["grupos"] == ["Atrasados"] and painel["tipos"] >= 12, "aberto pelos atrasados, só eles, com os tipos à esquerda", painel)
+            checar(painel["grupos"][:1] == ["Atrasados"] and painel["tipos"] >= 12, "os atrasados primeiro, com os tipos à esquerda", painel)
+            checar(pag.evaluate("() => document.getElementById('av-dia').hidden"), "com o painel aberto, a faixa sai")
             pag.screenshot(path=str(CAPTURAS / "t2-painel.png"))
             primeiro = pag.evaluate("() => document.querySelector('#av-painel .avp-linha').dataset.av")
             pag.click(f"#av-painel .avp-linha[data-av='{primeiro}'] .av-marca")
@@ -463,7 +472,9 @@ def test_tela(api, ids) -> None:
             pag.wait_for_timeout(400)
             checar(not pag.evaluate("() => document.getElementById('lista-conversas').hidden"), "fechar o painel devolve a lista de conversas")
 
-            pag.click("#av-ver-todos")
+            pag.evaluate("() => abrirAvisosNaInicio('')")
+            pag.wait_for_selector("#av-painel [data-avp-central]", timeout=8000)
+            pag.click("#av-painel [data-avp-central]")
             pag.wait_for_selector("#veu-dialogo .av-central .avp-linha", timeout=8000)
             pag.wait_for_timeout(400)
             central = pag.evaluate("""() => ({tipos: document.querySelectorAll('#veu-dialogo [data-avp-tipo]').length,
@@ -487,9 +498,10 @@ def test_tela(api, ids) -> None:
             pag.screenshot(path=str(CAPTURAS / "t2-historico.png"))
             pag.click(f"#veu-dialogo [data-av-desmarcar='{primeiro}']")
             pag.wait_for_function(f"() => (avs.avisos || []).some(a => a.id === {primeiro!r})", timeout=5000)
-            checar(True, "desmarcar no histórico devolve o aviso ao resumo")
+            checar(True, "desmarcar no histórico devolve o aviso à faixa")
             pag.keyboard.press("Escape")
             pag.wait_for_timeout(300)
+            pag.evaluate("() => fecharAvisosNaInicio()")
 
             # a ação direta pergunta antes, e cancelar não conclui
             alvo = f"prazo:{ids['contestacao']}:{d(0)}"
@@ -508,8 +520,8 @@ def test_tela(api, ids) -> None:
             pag.wait_for_timeout(500)
             pag.evaluate("() => document.getElementById('av-dia').scrollIntoView()")
             pag.screenshot(path=str(CAPTURAS / "t2-celular.png"))
-            colunas = pag.evaluate("() => getComputedStyle(document.getElementById('av-resumo')).gridTemplateColumns.split(' ').length")
-            checar(colunas == 1, "em 390 px os cartões ficam um embaixo do outro", colunas)
+            cabe = pag.evaluate("() => { const r = document.getElementById('av-dia').getBoundingClientRect(); return [r.left, r.right]; }")
+            checar(cabe[0] >= 0 and cabe[1] <= 390, "em 390 px a faixa cabe na tela, com a ação e as setas embaixo", cabe)
             pag.evaluate("() => abrirAvisosNaInicio('')")
             pag.wait_for_selector("#av-painel .avp-linha .av-marca", timeout=8000)
             dedo = pag.evaluate("() => { const r = document.querySelector('#av-painel .avp-linha .av-marca').getBoundingClientRect(); return [r.width, r.height]; }")
@@ -524,7 +536,7 @@ def test_tela(api, ids) -> None:
                 _pedir(base, "POST", "/api/central-avisos/visto", {"id": a["id"]})
             pag.evaluate("() => carregarAvisosDoDia(true)")
             pag.wait_for_timeout(800)
-            checar(pag.evaluate("() => document.getElementById('av-dia').hidden"), "sem avisos, o resumo não aparece")
+            checar(pag.evaluate("() => document.getElementById('av-dia').hidden"), "sem avisos, a faixa não aparece")
             for l in _pedir(base, "GET", "/api/central-avisos/historico")["itens"]:
                 if l["meu"]:
                     _pedir(base, "POST", "/api/central-avisos/desmarcar", {"id": l["aviso_id"]})

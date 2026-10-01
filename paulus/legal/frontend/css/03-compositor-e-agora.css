@@ -17,7 +17,7 @@
      cada bloco que aparecia ou sumia. */
   .conversa-col.vazia .compositor {
     flex: 1 1 auto; min-height: 0; overflow: auto; padding: 32px 44px 40px;
-    display: grid; align-content: start; grid-auto-rows: min-content; justify-items: center;
+    display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; grid-auto-rows: min-content; justify-items: center;
   }
   .conversa-col.vazia .compositor > .centro { max-width: var(--fio); gap: 22px; }
 

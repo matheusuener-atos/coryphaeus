@@ -265,18 +265,11 @@
               <div class="agora-cartoes" id="agora-cartoes"></div>
             </div>
 
-            <!-- Avisos do dia (js/53-avisos.js; pacote de telas de 01/10/2026):
-                 o resumo em tres cartoes - atrasados, vencem hoje, conversas
-                 pela metade. "ver N" abre o painel no lugar da lista de
-                 conversas; "Central de avisos" abre a janela. Sem avisos,
-                 nao aparece. -->
-            <div class="agora av-dia" id="av-dia" hidden>
-              <div class="agora-cabeca"><span class="sv-kicker">Avisos</span><span class="av-conta" id="av-conta"></span>
-                <span class="vazio-flex"></span>
-                <button type="button" class="av-central-link" id="av-ver-todos" title="Central de avisos, com o histórico do que já foi visto">Central de avisos<span class="ic ic-16">chevron_right</span></button>
-              </div>
-              <div class="av-resumo" id="av-resumo"></div>
-            </div>
+            <!-- Avisos do dia (js/53-avisos.js; `Assistente - Avisos` do
+                 pacote de telas): a faixa pequena, um aviso por vez, com a
+                 acao direta, as setas "1 / N" e a seta de abrir a lista no
+                 lugar das conversas. Sem avisos, nao aparece. -->
+            <div class="av-faixa" id="av-dia" hidden></div>
 
             <!-- O convite para apoiar (js/77-apoiar-convite.js): no maximo uma
                  vez por mes, so quando ha o que contar do mes. -->
