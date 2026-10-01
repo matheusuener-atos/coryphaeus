@@ -83,6 +83,7 @@
 <link rel="stylesheet" href="/css/46-segunda-volta.css">
 <link rel="stylesheet" href="/css/47-word.css">
 <link rel="stylesheet" href="/css/48-ferramentas.css">
+<link rel="stylesheet" href="/css/49-email-na-conversa.css">
 <link rel="stylesheet" href="/css/22-responsivo.css">
 </head>
 <body>
@@ -247,6 +248,15 @@
             </div>
 
             <div class="aviso-motor" id="aviso-motor" hidden></div>
+            <!-- O e-mail aberto na conversa (js/85-email-na-conversa.js): a
+                 pergunta vai "No e-mail" (sobre a mensagem) ou "Na conversa". -->
+            <div class="emc-modos" id="emc-modos" hidden>
+              <span class="emc-abas"><button type="button" data-emc-modo="email"><span class="ic ic-16">description</span>No e-mail</button><button type="button" data-emc-modo="conversa"><span class="ic ic-16">forum</span>Na conversa</button></span>
+              <i class="emc-modos-divisa"></i>
+              <button type="button" class="emc-atalho" data-emc-atalho="resumir">Resumir</button>
+              <button type="button" class="emc-atalho" data-emc-atalho="prazos">Achar prazos</button>
+              <button type="button" class="emc-atalho" data-emc-atalho="responder">Responder</button>
+            </div>
             <div class="cartao-campo" id="cartao-campo">
               <div class="mencao" id="mencao" hidden></div>
               <textarea id="pedido" rows="1" placeholder="Peça o que precisa dos seus documentos…"></textarea>
@@ -259,6 +269,9 @@
                 <button class="enviar" id="enviar" title="Enviar" aria-label="Enviar"><span class="ic ic-18">arrow_upward</span></button>
               </div>
             </div>
+
+            <!-- A resposta escrita na conversa: o texto no lugar da caixa de pedido. -->
+            <div class="emc-editor" id="emc-editor" hidden></div>
 
             <div class="agora" id="agora" hidden>
               <div class="agora-cabeca"><span class="sv-kicker">Acontecendo agora</span></div>
@@ -436,6 +449,7 @@
 <script src="/js/82-assinar-na-conversa.js"></script>
 <script src="/js/83-agendar-na-conversa.js"></script>
 <script src="/js/84-criar-agente.js"></script>
+<script src="/js/85-email-na-conversa.js"></script>
 <script src="/js/57-ia-em-fundo.js"></script>
 </body>
 </html>

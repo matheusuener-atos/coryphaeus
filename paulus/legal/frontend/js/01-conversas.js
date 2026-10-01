@@ -97,7 +97,11 @@ function abrirMenu(linha) {
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return false;
-  if (id !== estado.trabalhoId) { fecharEditorNaConversa(); if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId); }
+  if (id !== estado.trabalhoId) {
+    fecharEditorNaConversa();
+    if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId);
+    if (typeof fecharEmailNaConversa === "function") fecharEmailNaConversa();
+  }
   largarInscricao(id);
   transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;

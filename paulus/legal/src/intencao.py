@@ -1129,6 +1129,16 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if assinar:
         return assinar
 
+    # "Abra o último e-mail do Mercado Pago", "responda a Priscila
+    # confirmando..." (`Conversa - E-mail`, src/email_pela_conversa.py).
+    import email_pela_conversa
+
+    pedido_de_email = email_pela_conversa.ler_pedido(texto)
+    if pedido_de_email:
+        verbo = "responder" if pedido_de_email["acao"] == "responder" else "abrir"
+        return Intencao(tipo="email", titulo=pedido_de_email["quem"], campos=pedido_de_email,
+                        porque=f"“{verbo}” e um e-mail de “{pedido_de_email['quem']}”")
+
     # "Crie um agente que..." (`Conversa - Criar agente`, src/agente_pela_conversa.py).
     import agente_pela_conversa
 

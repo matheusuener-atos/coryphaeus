@@ -182,6 +182,9 @@ _declarar(PERMITIDO,
           "GET /api/email/contexto", "POST /api/email/reescrever", "POST /api/email/traduzir",
           "POST /api/email/anexos/conferir", "POST /api/email/rascunho", "POST /api/email/previa",
           "POST /api/email/enviar", "GET /api/email/envios", "GET /api/email/anexaveis",
+          # o e-mail aberto e o rascunho na conversa (src/email_pela_conversa.py)
+          "GET /api/email/conversa/rascunho", "POST /api/email/conversa/rascunho", "PUT /api/email/conversa/rascunho",
+          "POST /api/email/conversa/perguntar",
           # Google: enviar ao Drive ja e pedido na fila
           "POST /api/google/drive/enviar",
           # a busca geral (Ctrl+K): filtra pelos modulos que a pessoa ve

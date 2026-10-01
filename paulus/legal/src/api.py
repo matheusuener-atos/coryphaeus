@@ -3831,6 +3831,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # da conversa traz as escolhas. Assinar continua pedindo o sim.
     if lido.tipo == "assinar":
         return _responder_assinatura(trabalho, lido, pergunta)
+    # `Conversa - E-mail` e `Conversa - Escrever e-mail`: a mensagem aberta na
+    # conversa, e a resposta escrita no lugar da caixa de pedido.
+    if lido.tipo == "email":
+        return _responder_email(trabalho, lido, pergunta, request)
     # `Conversa - Criar agente`: tres perguntas e o rascunho na coluna.
     if lido.tipo == "criar_agente":
         return _responder_criar_agente(trabalho, lido, pergunta)
@@ -4418,6 +4422,24 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                       + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
             onde = "gravacoes"
             campos["nome"] = g.get("titulo") or ""
+        elif payload.tipo == "email":
+            # A resposta enviada pela conversa (`Conversa - Escrever e-mail`):
+            # quem enviou foi POST /api/email/enviar, com o sim; aqui o
+            # resultado entra na conversa. Enviado direto, tem de estar no
+            # registro de envios.
+            assunto = str(campos.get("assunto") or "")
+            para = ", ".join(str(x) for x in (campos.get("para") or [])[:3])
+            novo = 0
+            feito = {}
+            if campos.get("aguardando"):
+                resumo = f"Deixei a resposta “{assunto}” para {para} esperando o seu sim em Aprovações"
+                onde = "aprovacoes"
+            else:
+                if not any(e.get("assunto") == assunto for e in estado.envios.para_tela(10)["envios"]):
+                    raise HTTPException(status_code=404, detail="não achei esse envio no registro")
+                resumo = f"Enviei “{assunto}” para {para}"
+                onde = "caixa"
+            campos["nome"] = assunto
         elif payload.tipo == "assinatura":
             # A assinatura feita pela conversa (`Conversa - Assinar`): quem
             # assinou foi POST /api/assinar, com o sim e a senha; aqui o
@@ -4538,6 +4560,105 @@ def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        if proposta:
+            yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _achar_email(quem: str, sobre: str = "", *, marcar_lido: bool = True):
+    """
+    A mensagem mais recente de `quem` (o nome na ficha, com o e-mail dela,
+    ou o que a frase disse: procura no remetente e no assunto). Devolve
+    (conta, Mensagem | None). HTTPException quando a conta nao abre.
+    """
+    conta, senha = _conta_e_senha("")
+    alvo = intencao._plano(quem)
+    ficha = next((f for f in estado.cadastros.listar()
+                  if f.get("email") and alvo and alvo in intencao._plano(f.get("nome", ""))), None)
+    buscas = ([ficha["email"]] if ficha else []) + [quem]
+    clientes = _emails_dos_cadastros()
+    for busca in buscas:
+        try:
+            dados = correio.listar(conta, senha, busca=busca, limite=12 if sobre else 1, clientes=clientes)
+        except correio.ErroCorreio as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        msgs = dados.get("mensagens") or []
+        if sobre:
+            chave = intencao._plano(re.sub(r"^(?:a|o|as|os)\s+", "", sobre.strip(), flags=re.I))
+            msgs = [m for m in msgs if chave and chave in intencao._plano(m.get("assunto", ""))] or msgs
+        if msgs:
+            try:
+                return conta, correio.abrir(conta, senha, msgs[0]["uid"], marcar_lido=marcar_lido)
+            except correio.ErroCorreio as exc:
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return conta, None
+
+
+def _passa_por_aprovacao(conta, request) -> bool:
+    """O mesmo teste de POST /api/email/enviar: sem a permissao e a conta liberada, o envio vira pedido."""
+    de_fora = request is not None and not rotas_do_acesso.e_local(request)
+    return not (estado.prefs.pode("enviar_mensagem") and conta.pode_enviar_sem_confirmar and not de_fora)
+
+
+def _responder_email(trabalho, lido, pergunta: str, request=None) -> StreamingResponse:
+    """
+    "Abra o último e-mail do Mercado Pago": a mensagem abre na conversa e a
+    frase diz o que ela e, por regra (src/email_pela_conversa.py). "Responda
+    a Priscila confirmando...": a conversa acha a mensagem e manda a tela
+    abrir o rascunho; o texto vem de POST /api/email/conversa/rascunho, que
+    roda o modelo. Nada sai daqui: enviar e o clique, e passa por Aprovacoes
+    quando Limites da IA mandam.
+    """
+    import email_pela_conversa
+
+    campos = dict(lido.campos)
+    acao = campos.get("acao", "abrir")
+
+    def gerar() -> Iterator[str]:
+        proposta = None
+        try:
+            conta, msg = _achar_email(campos.get("quem", ""), campos.get("sobre", ""), marcar_lido=(acao == "abrir"))
+        except HTTPException as exc:
+            detalhe = str(exc.detail)
+            if exc.status_code == 400:
+                texto = "Nenhuma conta de e-mail está ligada a este PAULUS. Ligue a sua em E-mail › Contas e peça de novo."
+            elif exc.status_code == 401:
+                texto = f"Não consegui entrar na caixa: {detalhe}. Abra E-mail uma vez, entre, e peça de novo."
+            else:
+                texto = f"Não consegui abrir a caixa agora: {detalhe}."
+            conta, msg = None, None
+        else:
+            if msg is None:
+                texto = (f"Não achei e-mail de “{campos.get('quem')}” na caixa de entrada"
+                         + (f" sobre “{campos.get('sobre')}”" if campos.get("sobre") else "")
+                         + " (procurei no remetente e no assunto).")
+        if msg is not None:
+            m = msg.to_dict()
+            cabeca = {k: m.get(k) for k in ("uid", "de_nome", "de_email", "para", "assunto", "quando", "quando_curto")}
+            cabeca["conta_id"] = conta.id
+            cabeca["conta_email"] = conta.email
+            if acao == "responder":
+                aprovacao = _passa_por_aprovacao(conta, request)
+                quem = m.get("de_nome") or m.get("de_email")
+                texto = (f"Vou escrever a resposta a {quem} sobre “{m.get('assunto') or 'sem assunto'}”. O texto aparece na caixa "
+                         "abaixo para você revisar — " + ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar."))
+                proposta = {"tipo": "email", "titulo": m.get("assunto") or "", "porque": lido.porque, "pergunta": pergunta,
+                            "campos": {"acao": "responder", "pedido": campos.get("pedido", ""), **cabeca}}
+            else:
+                codigo = email_pela_conversa.codigo_de_verificacao(m.get("assunto", ""), m.get("corpo", ""))
+                texto = email_pela_conversa.frase_da_mensagem(m, codigo)
+                proposta = {"tipo": "email", "titulo": m.get("assunto") or "", "porque": lido.porque, "pergunta": pergunta,
+                            "campos": {"acao": "abrir", "codigo": codigo, "prazo": m.get("prazo") or "",
+                                       "prazo_trecho": m.get("prazo_trecho") or "",
+                                       "sem_resposta": email_pela_conversa.sem_resposta(m.get("de_email", "")), **cabeca}}
+        trabalho.etapas = [Etapa("Achar o e-mail", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta or {})
         estado.trabalhos.salvar(trabalho)
         yield _sse("token", {"t": texto})
         if proposta:
@@ -8694,6 +8815,171 @@ def _enviar_de_fato(dados: dict) -> dict:
 
     estado.contas.marcar_ok(conta)
     return estado.envios.anotar(conta.email, resultado)
+
+
+# ------------------------------------- o e-mail pela conversa (rascunho)
+
+
+def _rascunhos_da_conversa(trabalho) -> dict:
+    return trabalho.contexto.setdefault("email_rascunhos", {})
+
+
+def _conferencias_do_rascunho(conta, msg, corpo: str, request, aviso: str = "") -> list[dict]:
+    import email_pela_conversa
+
+    documentos = [(d.name, d.text or "") for d in estado.searcher.documents]
+    return email_pela_conversa.conferir(corpo, msg.corpo if msg else "", documentos, date.today(),
+                                        _passa_por_aprovacao(conta, request), aviso)
+
+
+@app.get("/api/email/conversa/rascunho")
+def email_conversa_rascunho_ler(trabalho_id: str, uid: str) -> dict:
+    """O rascunho guardado nesta conversa, para reabrir como estava."""
+    trabalho = estado.trabalhos.obter(trabalho_id)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    guardado = _rascunhos_da_conversa(trabalho).get(str(uid))
+    if not guardado:
+        raise HTTPException(status_code=404, detail="ainda não há rascunho")
+    return guardado
+
+
+@app.post("/api/email/conversa/rascunho")
+def email_conversa_rascunho(payload: dict, request: Request) -> dict:
+    """
+    Escreve a resposta com o pedido da conversa ("confirmando o acordo da
+    parcela de setembro") e guarda o rascunho nela. As conferencias saem por
+    regra (src/email_pela_conversa.py). Nada e enviado.
+    """
+    import email_pela_conversa
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    if not conta.pode_rascunhar:
+        raise HTTPException(status_code=403, detail="esta conta não permite que eu escreva rascunhos")
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    uid = str(payload.get("uid", ""))
+    try:
+        msg = correio.abrir(conta, senha, uid, marcar_lido=False)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    quem = estado.prefs.dados.get("pessoa", {}).get("nome", "") or conta.nome
+    try:
+        texto, aviso = email_pela_conversa.escrever_resposta(estado.cliente_para("email"), msg,
+                                                             str(payload.get("pedido", "")), quem)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    rascunho = {
+        "uid": uid, "conta_id": conta.id, "de": conta.email,
+        "para": [{"nome": msg.de_nome, "email": msg.de_email}], "cc": [], "cco": [],
+        "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
+        "sobre": msg.assunto, "corpo": texto, "corpo_html": "", "anexos": [],
+        "aviso": aviso, "pelo_assistente": True, "palavras": email_pela_conversa.palavras(texto),
+        "conferencias": _conferencias_do_rascunho(conta, msg, texto, request, aviso),
+        "salvo_em": datetime.now().isoformat(timespec="seconds"),
+    }
+    _rascunhos_da_conversa(trabalho)[uid] = rascunho
+    # A frase da conversa passa a dizer o que aconteceu (pacote de telas:
+    # "Preparei a resposta...").
+    for m in reversed(trabalho.mensagens):
+        p = m.proposta or {}
+        if p.get("tipo") == "email" and str((p.get("campos") or {}).get("uid")) == uid:
+            aprovacao = _passa_por_aprovacao(conta, request)
+            m.texto = ("Preparei a resposta. O texto está na caixa abaixo para você revisar — "
+                       + ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar."))
+            break
+    estado.trabalhos.salvar(trabalho)
+    return rascunho
+
+
+@app.put("/api/email/conversa/rascunho")
+def email_conversa_rascunho_guardar(payload: dict, request: Request) -> dict:
+    """Guarda o que a pessoa mudou no rascunho e refaz as conferencias."""
+    import email_pela_conversa
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    uid = str(payload.get("uid", ""))
+    antes = _rascunhos_da_conversa(trabalho).get(uid) or {}
+    conta = _conta_da_vez(str(payload.get("conta_id", "") or antes.get("conta_id", "")))
+    corpo = str(payload.get("corpo", ""))
+    msg = None
+    try:
+        conta_msg, senha = _conta_e_senha(antes.get("conta_id", "") or conta.id)
+        msg = correio.abrir(conta_msg, senha, uid, marcar_lido=False)
+    except (HTTPException, correio.ErroCorreio):
+        msg = None
+    def enderecos(chave):
+        saida = []
+        for x in payload.get(chave) or []:
+            if isinstance(x, dict) and str(x.get("email", "")).strip():
+                saida.append({"nome": str(x.get("nome", "")).strip(), "email": str(x["email"]).strip()})
+            elif isinstance(x, str) and x.strip():
+                saida.append({"nome": "", "email": x.strip()})
+        return saida
+    rascunho = {
+        **antes, "uid": uid, "conta_id": conta.id, "de": conta.email,
+        "para": enderecos("para"), "cc": enderecos("cc"), "cco": enderecos("cco"),
+        "assunto": str(payload.get("assunto", antes.get("assunto", ""))), "corpo": corpo,
+        "corpo_html": str(payload.get("corpo_html", "")),
+        "anexos": [str(a) for a in payload.get("anexos") or []],
+        "pelo_assistente": bool(payload.get("pelo_assistente", antes.get("pelo_assistente", False))),
+        "palavras": email_pela_conversa.palavras(corpo),
+        "conferencias": _conferencias_do_rascunho(conta, msg, corpo, request, antes.get("aviso", "")),
+        "salvo_em": datetime.now().isoformat(timespec="seconds"),
+    }
+    _rascunhos_da_conversa(trabalho)[uid] = rascunho
+    estado.trabalhos.salvar(trabalho)
+    return rascunho
+
+
+INSTRUCAO_PERGUNTA_EMAIL = """Voce e assistente de um advogado brasileiro. Responda a
+pergunta dele sobre o e-mail abaixo, em portugues do Brasil, em poucas linhas.
+Use so o que esta no e-mail; se o e-mail nao diz, diga que nao diz. Nao
+invente nome, data, valor nem prazo. Nao use marcacao nem asteriscos."""
+
+
+@app.post("/api/email/conversa/perguntar")
+def email_conversa_perguntar(payload: dict) -> dict:
+    """
+    "No e-mail": a pergunta e sobre a mensagem aberta na conversa. O texto do
+    remetente vai cercado (src/blindagem.py) e a pergunta e a resposta
+    entram na conversa.
+    """
+    import blindagem
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    pergunta = " ".join(str(payload.get("pergunta", "")).split())[:600]
+    if not pergunta:
+        raise HTTPException(status_code=400, detail="falta a pergunta")
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        msg = correio.abrir(conta, senha, str(payload.get("uid", "")), marcar_lido=False)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    original = f"De: {msg.de_nome} <{msg.de_email}>\nAssunto: {msg.assunto}\n\n{msg.corpo[:4000]}"
+    try:
+        resposta = estado.cliente_para("email").ask(INSTRUCAO_PERGUNTA_EMAIL + "\n\n" + blindagem.REGRA,
+                                                    "E-mail:\n" + blindagem.cercar(original) + "\n\nPergunta do advogado: " + pergunta)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    texto, fora = blindagem.conferir_saida(" ".join((resposta or "").split("\n\n")).strip() or "Não consegui responder.",
+                                           original, [msg.de_email])
+    aviso = blindagem.aviso(blindagem.suspeitas(original))
+    trabalho.dizer("pessoa", pergunta)
+    trabalho.dizer("paulus", texto + (f"\n\n{aviso}" if aviso else ""))
+    estado.trabalhos.salvar(trabalho)
+    return {"texto": texto, "aviso": aviso, "tirado": fora}
 
 
 @app.get("/api/email/envios")

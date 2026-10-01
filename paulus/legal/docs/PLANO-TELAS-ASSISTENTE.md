@@ -34,7 +34,7 @@ estiver `feita`.
 | T0 | Casca da conversa: cabeçalho, coluna do chat (1080), caixa de pedido em duas linhas, coluna lateral de altura inteira que troca de papel (380/420/460/ferramenta), contexto (Progresso, Trechos lidos, Como respondi, Onde procurei), rolagem fina | feita | ver git log (T0) |
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (a faixa de um aviso por vez e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
-| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha, editor de planilha, assinar, agendar e criar agente feitos) | ver git log (T3) |
+| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | feita (documento, PDF, editor, planilha, editor de planilha, assinar, agendar, criar agente, e-mail e escrever e-mail) | ver git log (T3) |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
@@ -165,7 +165,7 @@ estiver `feita`.
   1,9 GB) — o mesmo aviso que o programa dá; não vem desta etapa.
 
 
-### T3 — documentos e ferramentas na coluna (01/10/2026, em andamento)
+### T3 — documentos e ferramentas na coluna (01/10/2026)
 
 Primeira parte: documento, PDF, editor, planilha e editor de planilha.
 
@@ -247,6 +247,57 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
   Testar salva e roda os testes. Com o agente aberto, o pedido escrito na
   caixa muda as instruções (Desfazer volta), sem tirar o que a pessoa
   decidiu. Medido com o llama3.2:3b de verdade.
+- E-mail e Escrever e-mail (`src/email_pela_conversa.py`,
+  `js/85-email-na-conversa.js`):
+  - "Abra o último e-mail do Mercado Pago" acha a mensagem mais recente
+    pelo remetente ou pelo assunto. Com ficha em Cadastros, procura pelo
+    e-mail da ficha.
+  - A frase sai por regra, do que a mensagem tem: o código de verificação
+    (a mesma regra da caixa), o prazo e o remetente de não-responder. Por
+    exemplo: "É um código de verificação de 26 de setembro — não achei
+    prazo, e o remetente não recebe resposta".
+  - O "Achei na mensagem" mostra o código, com Copiar, ou o prazo, com
+    Criar o prazo.
+  - A mensagem aparece no mesmo quadro isolado da caixa: sem script, e as
+    imagens de fora bloqueadas até "mostrar".
+  - No pé da mensagem: só o texto, e "Próxima que pede resposta" (a próxima
+    não lida, sem resposta, de quem recebe resposta).
+  - A caixa de pedido ganha "No e-mail / Na conversa". No e-mail, a pergunta
+    vai ao modelo com a mensagem cercada pela blindagem, e as duas falas
+    entram na conversa. Os atalhos: Resumir, Achar prazos (por regra) e
+    Responder.
+  - "Responda a Priscila confirmando…": o envelope (De, Para com CC e CCO,
+    Assunto, Anexos) fica na conversa, e o texto no lugar da caixa de
+    pedido, com a faixa de formatação.
+  - O modelo escreve com o pedido. As conferências são por regra:
+    - os valores estão no e-mail ou no Acervo, e o total que é soma dos
+      outros conta;
+    - "até sexta" pede para confirmar a data, ou avisa quando o texto diz
+      outra;
+    - o envio passa por Aprovações (o mesmo teste do /enviar).
+  - O pedido ao assistente vale para o e-mail inteiro ou para o trecho
+    selecionado. O trecho volta sublinhado, e Desfazer volta ao de antes.
+  - O rascunho se guarda sozinho na conversa e volta ao reabrir, sem chamar
+    o modelo de novo.
+  - Enviar pede o sim e vai pela rota de sempre. Com Limites da IA, vira
+    pedido em Aprovações, e o resultado entra na conversa (/fazer "email").
+  - Ficou de fora:
+    - a resposta não vai encadeada (o Message-ID não vem da caixa; já era
+      assim);
+    - Encaminhar não leva os anexos da mensagem original;
+    - escrever um e-mail novo pela conversa ("escreva um e-mail para…")
+      ainda não existe;
+    - o ditado não entra no editor do e-mail;
+    - "Conferir os valores" do trecho refaz as conferências do texto
+      inteiro;
+    - a "Próxima que pede resposta" abre na conversa, mas não fica nela ao
+      reabrir;
+    - só a Caixa de entrada é lida;
+    - a assinatura com nome que o modelo escreve sai: vale a da conta.
+  - Teste: `tests/test_email_conversa.py`, com a caixa e o modelo como
+    dublês. Ainda não foi medido com uma caixa de verdade.
 - Testes: `test_frontend`, `test_ferramentas`, `test_m5_leitura`,
   `test_escrita`, `test_planilha_excel`, `test_c2_pensando`,
-  `test_c3_painel`, `test_intencao` e `test_c5_superficies` (sozinho) ok.
+  `test_c3_painel`, `test_intencao`, `test_c5_superficies` (sozinho),
+  `test_email_conversa`, `test_email_caixa`, `test_correio`,
+  `test_c4_roteamento` e `test_n6_conversa_tarefas` ok.
