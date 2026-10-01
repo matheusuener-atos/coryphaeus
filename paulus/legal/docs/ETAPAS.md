@@ -2469,3 +2469,12 @@ Política de privacidade e termos (pt e en) com a escrita no aparelho, **sem
 publicar** (vão com o próximo `publicar`); manual
 `docs/pensar-no-aparelho.md`. O roteiro do teste real está em
 `docs/PROGRESSO-APARELHO.md`, seção D6.
+
+## W0 — O PAULUS no Word: levantamento, prova e maquete ✓ FEITA (01/10/2026)
+
+Prova de conceito das três montagens no Word 2021 desta máquina (WebView2
+154): A (`https://localhost` com certificado da instalação), B e C funcionaram.
+Este Word só tem WordApi 1.1–1.3, mas comentário e alteração controlada
+entram pelo OOXML. Maquete navegável do painel em `word/prova/maquete.html`
+com capturas. O dono aprovou A no escritório e C fora dele, o visual (títulos do Word como PAVLVS) e a instalação pelo registro do usuário, com o catálogo como segunda via. **Medido:**
+`word/prova/relatos-w0.jsonl`; detalhes em `docs/PROGRESSO-WORD.md`.

@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "0.9.22",
+      "date": "2026-10-01",
+      "changes": [
+        "Conferência da segunda volta: CSS das etapas N nos tokens do tema, rota do desfazer em ordem, testes que…",
+        "N15: a nuvem com a chave do escritório (Anthropic ou OpenAI), desligada de fábrica, cada envio aprovado…",
+        "N14: o agente faz sozinho o que a autonomia do AGENTE.md permite (chave desligada de fábrica), com o…",
+        "N12: a vigência com o texto da redação anterior (os riscados do Planalto) e a vacatio de cada lei que mudou",
+        "N8: as súmulas do STF, as vinculantes e as teses de repercussão geral no instalador, montadas pelo Edge,…",
+        "N13: a fundamentação e o bloco da resposta com os acórdãos do STJ",
+        "N13: os acórdãos do STJ (dados abertos) baixados só quando pedido, com busca no computador e ligados aos…",
+        "N11: a resposta que volta do aparelho mostra a posição na fila do modelo enquanto espera o escritório",
+        "N10: a captura acha a folha na foto, corta a mesa e endireita a perspectiva (PIL e numpy), com o contorno…",
+        "N9: MCP com escopo por cliente e quatro ferramentas que escrevem (rascunho, anotação, e tarefa e…",
+        "N7: embaixo da resposta, os temas do STJ dos artigos citados, as súmulas citadas e a posição da casa",
+        "N6: a conversa chama as tarefas de vários passos"
+      ]
+    },
+    {
       "version": "0.9.21",
       "date": "2026-09-30",
       "changes": [
