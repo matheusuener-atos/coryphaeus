@@ -1,7 +1,7 @@
 """
 O acervo que já vem com o PAULUS (config/acervo-inicial/, montado por
 tools/acervo_inicial.py): a Constituição e os códigos, no texto compilado do
-Planalto, e os enunciados das súmulas do STJ.
+Planalto, e os enunciados das súmulas do STJ, do STF e das vinculantes (N8).
 
 Na abertura, o que ainda não entrou nesta máquina entra - uma vez só. O que
 entrou fica anotado em <dados>/leis/acervo-inicial.json: quem apagar um código
@@ -46,13 +46,17 @@ def _salvar(pasta_leis: Path, reg: dict) -> None:
 def ficha_das_sumulas(nome: str) -> dict:
     from biblioteca import ficha as ficha_mod
 
-    tribunal = {"Súmulas do STJ": "Superior Tribunal de Justiça"}.get(nome, "")
+    tribunal = {"Súmulas do STJ": "Superior Tribunal de Justiça", "Súmulas do STF": "Supremo Tribunal Federal",
+                "Súmulas vinculantes do STF": "Supremo Tribunal Federal"}.get(nome, "")
     # O STJ uniformiza a lei federal: as súmulas dele são destas áreas (o
     # trabalho é do TST, e a Constituição, do STF). Os enunciados quase não
     # citam lei, e a regra das áreas por citação (ficha.areas_sugeridas) só
     # acharia "penal".
     areas = ["civil", "consumidor", "processo civil", "penal", "processo penal", "tributário", "administrativo",
              "previdenciário", "empresarial", "família e sucessões"] if tribunal else []
+    # O STF guarda a Constituição (N8): as súmulas dele são de todas essas e do constitucional e do trabalho.
+    if tribunal == "Supremo Tribunal Federal":
+        areas = ["constitucional"] + areas + ["trabalho"]
     return {**ficha_mod.vazia("sumulas"), "titulo": nome, "autor": tribunal, "origem": "oficial",
             "areas": areas, "confirmada": True}
 

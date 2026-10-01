@@ -32,6 +32,9 @@ from pydantic import BaseModel
 
 RAIZ = Path(__file__).resolve().parents[1]
 ARQUIVO = RAIZ / "config" / "acervo-inicial" / "temas-stj.jsonl.gz"
+# N8: as teses de repercussão geral do STF (tools/stf_pacote.py), na mesma tabela, com o tipo "RG".
+ARQUIVO_RG = RAIZ / "config" / "acervo-inicial" / "temas-rg-stf.jsonl.gz"
+TIPOS_STJ = ("Tema", "IAC")
 URL_STJ = ("https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/"
            "df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv")
 TIPOS = {"Tema": "Tema Repetitivo", "IAC": "IAC"}
@@ -112,8 +115,10 @@ class Temas:
     def quantos(self) -> int:
         return self.base.contar("temas")
 
-    def gravar(self, linhas: list[dict], fonte: str) -> int:
-        self.base.escrever("DELETE FROM temas")
+    def gravar(self, linhas: list[dict], fonte: str, tipos=TIPOS_STJ) -> int:
+        # Troca só os do mesmo tribunal: atualizar pelo STJ não apaga as teses do STF.
+        marcas = ",".join("?" * len(tipos))
+        self.base.escrever(f"DELETE FROM temas WHERE tipo IN ({marcas})", tuple(tipos))
         for l in linhas:
             artigos = artigos_citados(" ".join((l.get("tese", ""), l.get("questao", ""), l.get("legislacao", ""))))
             self.base.escrever(
@@ -131,11 +136,32 @@ class Temas:
             cab = json.loads(f.readline())
             linhas = [json.loads(x) for x in f if x.strip()]
         fonte = f"{cab.get('fonte', 'STJ')} · baixado em {cab.get('baixado_em', '')}"
-        ja = self.base.um("SELECT fonte FROM temas LIMIT 1")
+        ja = self.base.um("SELECT fonte FROM temas WHERE tipo IN ('Tema', 'IAC') LIMIT 1")
         # Já tem temas iguais ou mais novos (o do instalador, ou um "atualizar pelo STJ" depois): fica.
         if ja and _baixado_em(ja["fonte"]) >= cab.get("baixado_em", ""):
             return 0
         return self.gravar(linhas, fonte)
+
+    def instalar_rg(self, arquivo: Path = ARQUIVO_RG) -> int:
+        """
+        As teses de repercussão geral do STF que vêm no instalador (N8). O PAULUS
+        não baixa do STF (o portal recusa programa): a lista nova vem numa versão
+        nova do instalador.
+        """
+        if not arquivo.exists():
+            return 0
+        with gzip.open(arquivo, "rt", encoding="utf-8") as f:
+            cab = json.loads(f.readline())
+            brutas = [json.loads(x) for x in f if x.strip()]
+        fonte = f"Portal do STF, banco de teses de repercussão geral · baixado em {cab.get('baixado_em', '')[:10]}"
+        ja = self.base.um("SELECT fonte FROM temas WHERE tipo = 'RG' LIMIT 1")
+        if ja and _baixado_em(ja["fonte"]) >= cab.get("baixado_em", "")[:10]:
+            return 0
+        linhas = [{"tipo": "RG", "numero": t["numero"], "tese": t["tese"], "questao": "",
+                   "situacao": "com repercussão geral" if t.get("com_repercussao") else "sem repercussão geral",
+                   "orgao": "STF", "julgado_em": t.get("data") or "",
+                   "assuntos": ("Paradigma: " + t["paradigma"]) if t.get("paradigma") else "", "legislacao": ""} for t in brutas]
+        return self.gravar(linhas, fonte, tipos=("RG",))
 
     def atualizar_do_stj(self, baixar=None) -> dict:
         """Baixa o Temas.csv do portal do STJ (só quando a pessoa pede) e troca os temas."""
@@ -156,7 +182,9 @@ class Temas:
     def _dict(self, l: dict) -> dict:
         d = dict(l)
         d["artigos"] = json.loads(d.get("artigos") or "[]")
-        d["rotulo"] = f"{d['tipo']} {d['numero']}/STJ"
+        d["rotulo"] = (f"Tema {d['numero']} da repercussão geral/STF" if d["tipo"] == "RG"
+                       else f"{d['tipo']} {d['numero']}/STJ")
+        d["tribunal"] = "STF" if d["tipo"] == "RG" else "STJ"
         return d
 
     def procurar(self, termo: str = "", numero: str = "", limite: int = 20) -> list[dict]:
@@ -288,7 +316,16 @@ def sugerir(estado, trecho: str) -> dict:
     lista_temas = [{"rotulo": t["rotulo"], "numero": t["numero"], "tese": t["tese"], "questao": t["questao"],
                     "situacao": t["situacao"], "orgao": t["orgao"], "porque": f"{t['nota']} palavra(s) do trecho"}
                    for t in temas.procurar(" ".join(chaves), limite=5)]
-    return {"palavras": chaves, "artigos": saida_artigos, "sumulas": sumulas[:4], "temas": lista_temas}
+    # N13: os acórdãos do STJ baixados, pelas palavras do trecho (a ementa oficial).
+    acordaos = None
+    jur = getattr(estado, "jurisprudencia", None)
+    if jur is not None and jur.instalado():
+        acordaos = []
+    if acordaos is not None and chaves:
+        for a in jur.procurar(" ".join(chaves[:3]), limite=3) or jur.procurar(" ".join(chaves[:2]), limite=3):
+            acordaos.append({"id": a["id"], "citacao": a["citacao"], "ementa": a["ementa"][:700], "trecho": a.get("trecho", ""),
+                             "porque": "tem " + ", ".join(chaves[:3])})
+    return {"palavras": chaves, "artigos": saida_artigos, "sumulas": sumulas[:4], "temas": lista_temas, "acordaos": acordaos}
 
 
 # ------------------------------------------------------------ na resposta da conversa (N7)
@@ -299,7 +336,7 @@ RE_SUMULA_CITADA = re.compile(r"\bs[úu]mulas?\s+(vinculantes?\s+)?(?:n[º°o.]*
 SIGLA = {"cc": "CC", "cpc": "CPC", "cdc": "CDC", "ctn": "CTN", "clt": "CLT", "cf": "CF", "cp": "CP", "cpp": "CPP",
          "eca": "ECA", "inquilinato": "Lei 8.245/1991", "ctb": "CTB"}
 AVISO_RELACIONADOS = ("Ligados por regra aos artigos, temas e súmulas que a pergunta e a resposta citam — não pelo modelo. "
-                      "Confira se se aplicam ao caso.")
+                      "Confira se se aplicam ao caso (e o inteiro teor dos acórdãos, no STJ).")
 
 
 def relacionados(estado, pergunta: str, resposta: str, fontes=None) -> dict | None:
@@ -320,15 +357,18 @@ def relacionados(estado, pergunta: str, resposta: str, fontes=None) -> dict | No
     saida_temas, vistos = [], set()
     if temas is not None:
         for m in RE_TEMA_CITADO.finditer(texto):
-            for t in temas.procurar(numero=m.group(1))[:1]:
-                if t["numero"] not in vistos:
-                    vistos.add(t["numero"])
+            # "Tema 1000 do STF", "Tema 69 da repercussão geral": o do STF; sem tribunal, o do STJ.
+            perto = _plano(texto[m.end():m.end() + 45])
+            tribunal = "STF" if re.search(r"\bstf\b|repercuss|supremo", perto) else "STJ"
+            for t in [x for x in temas.procurar(numero=m.group(1)) if x["tribunal"] == tribunal][:1]:
+                if t["rotulo"] not in vistos:
+                    vistos.add(t["rotulo"])
                     saida_temas.append(_tema_curto(t, f"a conversa cita o {t['rotulo']}"))
         for chave in artigos:
             codigo, numero = chave.split(":")
             for t in temas.do_artigo(codigo, numero)[:3]:
-                if t["numero"] not in vistos:
-                    vistos.add(t["numero"])
+                if t["rotulo"] not in vistos:
+                    vistos.add(t["rotulo"])
                     saida_temas.append(_tema_curto(t, f"a tese cita o art. {numero} do {SIGLA.get(codigo, codigo.upper())}"))
     saida_sumulas = []
     material = getattr(estado, "material", None)
@@ -338,12 +378,17 @@ def relacionados(estado, pergunta: str, resposta: str, fontes=None) -> dict | No
         for m in RE_SUMULA_CITADA.finditer(texto):
             # A vinculante é do STF; sem tribunal escrito, a do STJ (a que o PAULUS tem por inteiro).
             numero = m.group(2)
-            tribunal = (m.group(3) or ("stf" if m.group(1) else "stj")).lower()
-            if tribunal != "stj" or any(x["numero"] == numero for x in saida_sumulas):
-                continue
-            for x in procurar_sumulas(material, numero=numero, limite=1):
+            vinculante = bool(m.group(1))
+            tribunal = (m.group(3) or ("stf" if vinculante else "stj")).upper()
+            # O título de cada enunciado diz o tribunal: "Súmula 7 do STJ", "Súmula Vinculante 13 do STF" (N8).
+            achadas = [x for x in procurar_sumulas(material, numero=numero, limite=6)
+                       if f"do {tribunal}" in x["titulo"] and ("Vinculante" in x["titulo"]) == vinculante]
+            for x in achadas[:1]:
+                if any(y["titulo"] == x["titulo"] for y in saida_sumulas):
+                    continue
+                nome = ("Súmula Vinculante " if vinculante else "Súmula ") + f"{x['numero']}/{tribunal}"
                 saida_sumulas.append({"numero": x["numero"], "titulo": x["titulo"], "texto": x["texto"][:600],
-                                      "porque": f"a conversa cita a Súmula {x['numero']}/STJ"})
+                                      "porque": f"a conversa cita a {nome}"})
     saida_posicoes = []
     posicoes = getattr(estado, "posicoes", None)
     if posicoes is not None:
@@ -353,10 +398,23 @@ def relacionados(estado, pergunta: str, resposta: str, fontes=None) -> dict | No
             if pos:
                 saida_posicoes.append({"artigo": f"art. {numero} do {SIGLA.get(codigo, codigo.upper())}", "texto": pos["texto"][:600],
                                        "autor": pos.get("autor") or ""})
-    if not (saida_temas or saida_sumulas or saida_posicoes):
+    # N13: com a jurisprudência do STJ baixada, os acórdãos mais novos que citam os artigos.
+    saida_acordaos = []
+    jur = getattr(estado, "jurisprudencia", None)
+    if jur is not None and jur.instalado():
+        vistos_ac = set()
+        for chave in artigos[:4]:
+            codigo, numero = chave.split(":")
+            for a in jur.do_artigo(codigo, numero, limite=2):
+                if a["id"] not in vistos_ac:
+                    vistos_ac.add(a["id"])
+                    saida_acordaos.append({"id": a["id"], "citacao": a["citacao"], "ementa": a["ementa"][:500],
+                                           "porque": f"cita o art. {numero} do {SIGLA.get(codigo, codigo.upper())}"})
+    if not (saida_temas or saida_sumulas or saida_posicoes or saida_acordaos):
         return None
     return {"artigos": [f"art. {c.split(':')[1]} do {SIGLA.get(c.split(':')[0], c.split(':')[0].upper())}" for c in artigos],
-            "temas": saida_temas[:6], "sumulas": saida_sumulas[:4], "posicoes": saida_posicoes[:4], "aviso": AVISO_RELACIONADOS}
+            "temas": saida_temas[:6], "sumulas": saida_sumulas[:4], "posicoes": saida_posicoes[:4], "acordaos": saida_acordaos[:4],
+            "aviso": AVISO_RELACIONADOS}
 
 
 def _tema_curto(t: dict, porque: str) -> dict:
@@ -383,7 +441,8 @@ def montar(estado, app) -> None:
 
     estado.temas = Temas(estado.base)
     estado.posicoes = Posicoes(estado.base)
-    threading.Thread(target=lambda: estado.temas.instalar(), name="temas-stj", daemon=True).start()
+    # O nome da thread é o que os testes esperam; ela instala os temas do STJ e as teses do STF (N8).
+    threading.Thread(target=lambda: (estado.temas.instalar(), estado.temas.instalar_rg()), name="temas-stj", daemon=True).start()
 
     @app.post("/api/biblioteca/fundamentacao")
     def biblioteca_fundamentacao(payload: Trecho) -> dict:
