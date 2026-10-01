@@ -1,0 +1,14 @@
+/* W1: Configurações › Word e o diálogo do pedido de conexão (js/76-word.js). */
+.word-linha { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
+.word-linha:last-of-type { border-bottom: 0; }
+.word-linha span { color: var(--ink2); }
+.word-linha b { font-weight: 600; text-align: right; }
+.word-linha b.ok { color: var(--okt); }
+.word-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.word-passos { margin: 6px 0 0; padding-left: 20px; font-size: 13px; color: var(--ink2); }
+.word-passos li { margin-bottom: 6px; }
+.word-passos code { font: 400 12px var(--mono); }
+.word-conexao { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--ink-a08); }
+.word-conexao:last-child { border-bottom: 0; }
+.word-codigo { font: 600 26px var(--mono); letter-spacing: .12em; text-align: center; padding: 12px 0; margin: 8px 0 12px;
+  border: 1px dashed var(--ink-a3); border-radius: 12px; background: var(--surf); }

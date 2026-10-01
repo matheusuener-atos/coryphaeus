@@ -10,7 +10,7 @@ O que sai, em tools\\instalador\\_construcao\\:
     venv, com as dependências do requirements.txt dentro e as bibliotecas do
     C++ que elas usam (copiadas do Windows desta máquina: a Microsoft permite
     levá-las junto do programa);
-  - app\\     o código: src, frontend, habilidades, config, oauth_app.json;
+  - app\\     o código: src, frontend, habilidades, config, word, oauth_app.json;
   - PAULUS.exe o lançador (Lancador.cs, compilado com o csc.exe que já vem no
     Windows).
 - PAULUS-<versão>-instalador.exe - o instalador (Instalador.cs, compilado com o
@@ -42,13 +42,15 @@ sys.path.insert(0, str(RAIZ / "src"))
 from versao import VERSAO  # noqa: E402
 
 # O que vai do código. Testes, ferramentas, dados e o venv ficam de fora.
-PASTAS_DO_APP = ["src", "frontend", "habilidades", "config"]
+# W1: `word` é o painel, o manifesto e os ícones do PAVLVS no Word
+# (src/word_suplemento.py serve de app/word). A prova da W0 (word/prova) fica.
+PASTAS_DO_APP = ["src", "frontend", "habilidades", "config", "word"]
 ARQUIVOS_DO_APP = ["oauth_app.json", "LICENSE", "requirements.txt"]
 DOCS_DO_APP = ["NOVIDADES.md"]
 # As bibliotecas do C++ que numpy, ctranslate2 e onnxruntime usam. O Python
 # embutível traz só vcruntime140; o resto vem daqui, "app-local".
 DLLS_DO_CPP = ["msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "vcruntime140.dll", "vcruntime140_1.dll", "concrt140.dll"]
-IGNORAR = shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache")
+IGNORAR = shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache", "prova")
 CSC = Path("C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe")
 # O 7-Zip de linha de comando, oficial (LGPL): comprime aqui e extrai na
 # maquina de quem instala. O .7z sai uns 40% menor que um .zip.

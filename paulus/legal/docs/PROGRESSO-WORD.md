@@ -6,7 +6,7 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
 | Etapa | O quê | Estado | Commit | Portão (medido) |
 | --- | --- | --- | --- | --- |
 | W0 | Levantamento, prova de conceito das montagens e maquete do painel (⏸ escolha e visual) | feita; aprovada pelo dono em 01/10 | ver git log (w0) | A, B e C medidas no Word 2021 desta máquina; maquete com 19 telas × 3 temas × 2 larguras, 0 erro de página |
-| W1 | Painel fiel à maquete, aba PAULUS, menu do botão direito, pareamento, política de rota e auditoria | pendente | — | — |
+| W1 | Painel fiel à maquete, aba PAVLVS, menu do botão direito, pareamento, política de rota e auditoria | feita | ver git log (w1) | `test_w1_painel.py` 98 ok; no Word 2021 real: aba PAVLVS com os ícones, menu do botão direito, painel conectado, 0 violação de CSP |
 | W2 | Conferir as citações do documento (sem modelo) | pendente | — | — |
 | W3 | Inserir lei, fundamentação e qualificação | pendente | — | — |
 | W4 | Perguntar sobre o documento aberto | pendente | — | — |
@@ -43,6 +43,131 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
   na mesma tela; a tela só diz "instalado" depois de conferir que o Word
   carregou o suplemento.
 - O certificado de prova fica instalado; a W1 o troca pelo da instalação.
+
+## W1 — o painel, o pareamento e a porta (01/10/2026)
+
+**O que existe agora**
+
+- `src/word_suplemento.py`:
+  - a **PortaDoWord**, que o porteiro chama antes da chave da janela (como o
+    `/mcp`): serve os arquivos do painel com CSP, o pareamento e as rotas
+    `/api/word/s/*`;
+  - **token só do suplemento**: `paulus_word_…`, guardado só como resumo,
+    entregue uma vez, revogável;
+  - **política própria** (`ROTAS`, padrão "nega"): cada rota declara papel e
+    módulo; contas de fora têm as permissões relidas a cada pedido;
+  - **auditoria** de toda chamada: pessoa, ação, nome do documento e
+    caracteres que chegaram.
+- **Pareamento**:
+  - pedido **deste computador**: só a janela local permite (diálogo com o
+    código e Permitir/Recusar);
+  - pedido **pelo túnel**: só a pessoa, no PAULUS de fora, em Minha conta ›
+    Conectar o Word, com a sessão e o código do autenticador pedido de novo;
+  - o token tem o papel de quem permitiu;
+  - token deste computador não vale pelo túnel.
+- `src/word_instalar.py`:
+  - certificado só-localhost, com a chave da autoridade descartada;
+  - confiança conferida no repositório, não pelo retorno do comando;
+  - porta HTTPS fixa (46300–46399);
+  - manifesto gerado por instalação (Id fixo, título **PAVLVS**);
+  - registro de desenvolvedor do usuário;
+  - servidor HTTPS no mesmo app;
+  - "abriu no Word" só depois que o painel avisa.
+- `word/manifesto.xml` e `word/icones/` saem de `tools/word_suplemento.py`:
+  - a aba PAVLVS (grupos Conferir, Inserir, Pensar e PAVLVS);
+  - os 8 botões, com dica;
+  - o menu do botão direito (submenu PAVLVS com Perguntar, Conferir esta
+    citação e Revisar com agente);
+  - os ícones em 16, 20, 24, 32, 40, 48, 64 e 80 px.
+- `word/painel.*` fiéis à maquete:
+  - estados primeira vez, conectando, conectado, fechado, sem rede, Word sem a
+    API, erro com tentar de novo e fora do Word;
+  - tema do Office relido a cada 2 s;
+  - 320 px e duas colunas a partir de 420 px;
+  - as funções das próximas etapas desabilitadas, com "em breve";
+  - "alteração controlada: sim/não" guardada na conexão (por pessoa);
+  - Desconectar este Word.
+- Configurações › Word (`frontend/js/76-word.js`):
+  - ligar;
+  - instalar ou tirar;
+  - manifesto e pasta;
+  - segunda via (catálogo);
+  - Word de outro computador;
+  - Words conectados com Revogar.
+- Chave `word.ligado`, desligada de fábrica.
+- **A novidade no Editor** (pedido do dono, 01/10): ao entrar no Editor, um
+  aviso conta o PAVLVS no Word e oferece **Ativar no Word**, que liga e
+  instala. Ele aparece uma vez, só na janela do escritório, só com Word
+  instalado (App Paths do registro) e só se o PAVLVS ainda não está instalado.
+  O texto diz o que esta versão faz (instalar e conectar) e o que chega
+  depois.
+- O instalador leva `word/` (painel, manifesto e ícones), sem `word/prova`.
+
+**Medido**
+
+- `tests/test_w1_painel.py`: **98 ok**. Cobre:
+  - 401 sem token em todas as rotas do suplemento, e com token revogado ou de
+    conta removida;
+  - 403 em rota fora da tabela;
+  - colaborador fora de rota de titular e de módulo fechado;
+  - pareamento só com o Permitir local, ou com sessão e autenticador;
+  - token uma vez e só o resumo no disco;
+  - auditoria com documento e caracteres;
+  - instalação com a autoridade restrita;
+  - painel no Edge pela porta HTTPS com o Office simulado: conectar, tema
+    escuro, Word antigo, fora do Word, 320/480 px, só a própria origem e o
+    office.js, nenhuma violação de CSP;
+  - janela do PAULUS no Edge: a seção Word e o diálogo Permitir/Recusar;
+  - a novidade no Editor: aparece uma vez, “Agora não” não volta, “Ativar no
+    Word” liga e instala.
+- **No Word 2021 desta máquina** (dados temporários, certificado da prova já
+  confiado, instalação pelo caminho de verdade):
+  - aba **PAVLVS** com os ícones;
+  - menu do botão direito com o PAVLVS;
+  - painel aberto e conectado;
+  - "abriu no Word" na tela;
+  - **0 violação de CSP com o office.js real**.
+  - Capturas em `docs/word/capturas/w1-word-real-*.png`.
+  - O Permitir foi dado pela API (o diálogo da janela foi testado no Edge).
+
+**Suíte e roteiro**
+
+- Suíte inteira: 152/152 depois das correções. A W1 tinha quebrado quatro
+  testes, todos corrigidos:
+  - a porta do Word lia as preferências a cada pedido;
+  - um ícone fora da fonte;
+  - a novidade cobria a tela nos testes com navegador: agora não aparece com
+    `PAULUS_SEM_AVISOS` nem para navegador automatizado;
+  - a contagem de seções e a regra "403 sem a chave", que agora exige das
+    rotas do Word 401 ou 404.
+- Duas falhas foram só de memória da máquina (1 a 2,8 GB livres, com
+  modelos do Ollama carregados) e passaram ao rodar de novo.
+- `roteiro --tudo`: **40/41**. O erro é a multa da Clínica: o modelo
+  respondeu os 3 aluguéis da garantia. É a pergunta da Clínica já registrada
+  como frágil com o 3B (PROGRESSO-CONVERSA, Fora do foco); a linha de base é
+  de 40/41 a 41/41.
+
+**Achados no Word real, já corrigidos**
+
+- O id do painel precisa ser o reservado
+  `Office.AutoShowTaskpaneWithDocument`. Com outro id, o documento que abre o
+  painel dá "não foi possível encontrar o painel de tarefas".
+- Ícone com `Cache-Control: no-store` não aparece: o Office guarda os ícones
+  no disco e mostra o genérico azul. Os ícones agora saem com cache de um dia.
+- O documento que abre o painel precisa da mesma versão do manifesto.
+
+**Para a W2**
+
+- Com o painel aberto por um documento (`AutoShowTaskpaneWithDocument`), o
+  Word usa o endereço do **primeiro botão** (`tela=conferir`). Quando Conferir
+  "rodar direto", isso não pode disparar sozinho ao abrir um documento: só o
+  clique roda.
+
+**Atalhos de teclado**
+
+Não há atalhos. O Word 2021 não tem SharedRuntime nem KeyboardShortcuts
+(medido na W0), e os atalhos não foram fingidos. Fica para a W7 conferir num
+Microsoft 365 atual.
 
 ## W0 — o que foi medido (01/10/2026)
 

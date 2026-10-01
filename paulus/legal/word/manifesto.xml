@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  O manifesto do suplemento do Word (W1). Modelo: src/word_instalar.py troca
+  $$ID, $$BASE, $$VERSAO e $$NOME por instalação. Gerado por
+  tools/word_suplemento.py: mude a tabela de lá, não este arquivo à mão.
+  AddinCommands 1.1 (medido no Word 2021) dá a aba e o menu do botão direito.
+  Atalhos de teclado pedem SharedRuntime + KeyboardShortcuts, que o Word 2021
+  não tem: não entram.
+-->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+           xsi:type="TaskPaneApp">
+  <Id>$ID</Id>
+  <Version>$VERSAO</Version>
+  <ProviderName>PAULUS</ProviderName>
+  <DefaultLocale>pt-BR</DefaultLocale>
+  <DisplayName DefaultValue="$NOME"/>
+  <Description DefaultValue="O PAULUS do escritório dentro do Word: confere citações, insere lei e qualificação e responde sobre o documento."/>
+  <IconUrl DefaultValue="$BASE/word/icones/marca-32.png"/>
+  <HighResolutionIconUrl DefaultValue="$BASE/word/icones/marca-64.png"/>
+  <SupportUrl DefaultValue="https://paulus.ia.br"/>
+  <AppDomains>
+    <AppDomain>$BASE</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.3">
+      <Set Name="WordApi" MinVersion="1.3"/>
+    </Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="$BASE/word/painel.html?tela=inicio"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="Paulus.Aba">
+              <Group id="Paulus.G.Conferir">
+                <Label resid="Grupo.Conferir"/>
+                <Icon>
+                  <bt:Image size="16" resid="Ic.conferir.16"/>
+                  <bt:Image size="20" resid="Ic.conferir.20"/>
+                  <bt:Image size="24" resid="Ic.conferir.24"/>
+                  <bt:Image size="32" resid="Ic.conferir.32"/>
+                  <bt:Image size="40" resid="Ic.conferir.40"/>
+                  <bt:Image size="48" resid="Ic.conferir.48"/>
+                  <bt:Image size="64" resid="Ic.conferir.64"/>
+                  <bt:Image size="80" resid="Ic.conferir.80"/>
+                </Icon>
+                <Control xsi:type="Button" id="Paulus.Btn.Conferir">
+                  <Label resid="Txt.Conferir"/>
+                  <Supertip><Title resid="Txt.Conferir"/><Description resid="Dica.Conferir"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.conferir.16"/>
+                    <bt:Image size="20" resid="Ic.conferir.20"/>
+                    <bt:Image size="24" resid="Ic.conferir.24"/>
+                    <bt:Image size="32" resid="Ic.conferir.32"/>
+                    <bt:Image size="40" resid="Ic.conferir.40"/>
+                    <bt:Image size="48" resid="Ic.conferir.48"/>
+                    <bt:Image size="64" resid="Ic.conferir.64"/>
+                    <bt:Image size="80" resid="Ic.conferir.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Conferir"/></Action>
+                </Control>
+              </Group>
+              <Group id="Paulus.G.Inserir">
+                <Label resid="Grupo.Inserir"/>
+                <Icon>
+                  <bt:Image size="16" resid="Ic.lei.16"/>
+                  <bt:Image size="20" resid="Ic.lei.20"/>
+                  <bt:Image size="24" resid="Ic.lei.24"/>
+                  <bt:Image size="32" resid="Ic.lei.32"/>
+                  <bt:Image size="40" resid="Ic.lei.40"/>
+                  <bt:Image size="48" resid="Ic.lei.48"/>
+                  <bt:Image size="64" resid="Ic.lei.64"/>
+                  <bt:Image size="80" resid="Ic.lei.80"/>
+                </Icon>
+                <Control xsi:type="Button" id="Paulus.Btn.Lei">
+                  <Label resid="Txt.Lei"/>
+                  <Supertip><Title resid="Txt.Lei"/><Description resid="Dica.Lei"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.lei.16"/>
+                    <bt:Image size="20" resid="Ic.lei.20"/>
+                    <bt:Image size="24" resid="Ic.lei.24"/>
+                    <bt:Image size="32" resid="Ic.lei.32"/>
+                    <bt:Image size="40" resid="Ic.lei.40"/>
+                    <bt:Image size="48" resid="Ic.lei.48"/>
+                    <bt:Image size="64" resid="Ic.lei.64"/>
+                    <bt:Image size="80" resid="Ic.lei.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Lei"/></Action>
+                </Control>
+                <Control xsi:type="Button" id="Paulus.Btn.Fundamentacao">
+                  <Label resid="Txt.Fundamentacao"/>
+                  <Supertip><Title resid="Txt.Fundamentacao"/><Description resid="Dica.Fundamentacao"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.fundamentacao.16"/>
+                    <bt:Image size="20" resid="Ic.fundamentacao.20"/>
+                    <bt:Image size="24" resid="Ic.fundamentacao.24"/>
+                    <bt:Image size="32" resid="Ic.fundamentacao.32"/>
+                    <bt:Image size="40" resid="Ic.fundamentacao.40"/>
+                    <bt:Image size="48" resid="Ic.fundamentacao.48"/>
+                    <bt:Image size="64" resid="Ic.fundamentacao.64"/>
+                    <bt:Image size="80" resid="Ic.fundamentacao.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Fundamentacao"/></Action>
+                </Control>
+                <Control xsi:type="Button" id="Paulus.Btn.Qualificacao">
+                  <Label resid="Txt.Qualificacao"/>
+                  <Supertip><Title resid="Txt.Qualificacao"/><Description resid="Dica.Qualificacao"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.qualificacao.16"/>
+                    <bt:Image size="20" resid="Ic.qualificacao.20"/>
+                    <bt:Image size="24" resid="Ic.qualificacao.24"/>
+                    <bt:Image size="32" resid="Ic.qualificacao.32"/>
+                    <bt:Image size="40" resid="Ic.qualificacao.40"/>
+                    <bt:Image size="48" resid="Ic.qualificacao.48"/>
+                    <bt:Image size="64" resid="Ic.qualificacao.64"/>
+                    <bt:Image size="80" resid="Ic.qualificacao.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Qualificacao"/></Action>
+                </Control>
+              </Group>
+              <Group id="Paulus.G.Pensar">
+                <Label resid="Grupo.Pensar"/>
+                <Icon>
+                  <bt:Image size="16" resid="Ic.perguntar.16"/>
+                  <bt:Image size="20" resid="Ic.perguntar.20"/>
+                  <bt:Image size="24" resid="Ic.perguntar.24"/>
+                  <bt:Image size="32" resid="Ic.perguntar.32"/>
+                  <bt:Image size="40" resid="Ic.perguntar.40"/>
+                  <bt:Image size="48" resid="Ic.perguntar.48"/>
+                  <bt:Image size="64" resid="Ic.perguntar.64"/>
+                  <bt:Image size="80" resid="Ic.perguntar.80"/>
+                </Icon>
+                <Control xsi:type="Button" id="Paulus.Btn.Perguntar">
+                  <Label resid="Txt.Perguntar"/>
+                  <Supertip><Title resid="Txt.Perguntar"/><Description resid="Dica.Perguntar"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.perguntar.16"/>
+                    <bt:Image size="20" resid="Ic.perguntar.20"/>
+                    <bt:Image size="24" resid="Ic.perguntar.24"/>
+                    <bt:Image size="32" resid="Ic.perguntar.32"/>
+                    <bt:Image size="40" resid="Ic.perguntar.40"/>
+                    <bt:Image size="48" resid="Ic.perguntar.48"/>
+                    <bt:Image size="64" resid="Ic.perguntar.64"/>
+                    <bt:Image size="80" resid="Ic.perguntar.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Perguntar"/></Action>
+                </Control>
+                <Control xsi:type="Button" id="Paulus.Btn.Revisar">
+                  <Label resid="Txt.Revisar"/>
+                  <Supertip><Title resid="Txt.Revisar"/><Description resid="Dica.Revisar"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.revisar.16"/>
+                    <bt:Image size="20" resid="Ic.revisar.20"/>
+                    <bt:Image size="24" resid="Ic.revisar.24"/>
+                    <bt:Image size="32" resid="Ic.revisar.32"/>
+                    <bt:Image size="40" resid="Ic.revisar.40"/>
+                    <bt:Image size="48" resid="Ic.revisar.48"/>
+                    <bt:Image size="64" resid="Ic.revisar.64"/>
+                    <bt:Image size="80" resid="Ic.revisar.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Revisar"/></Action>
+                </Control>
+              </Group>
+              <Group id="Paulus.G.Paulus">
+                <Label resid="Grupo.Paulus"/>
+                <Icon>
+                  <bt:Image size="16" resid="Ic.guardar.16"/>
+                  <bt:Image size="20" resid="Ic.guardar.20"/>
+                  <bt:Image size="24" resid="Ic.guardar.24"/>
+                  <bt:Image size="32" resid="Ic.guardar.32"/>
+                  <bt:Image size="40" resid="Ic.guardar.40"/>
+                  <bt:Image size="48" resid="Ic.guardar.48"/>
+                  <bt:Image size="64" resid="Ic.guardar.64"/>
+                  <bt:Image size="80" resid="Ic.guardar.80"/>
+                </Icon>
+                <Control xsi:type="Button" id="Paulus.Btn.Guardar">
+                  <Label resid="Txt.Guardar"/>
+                  <Supertip><Title resid="Txt.Guardar"/><Description resid="Dica.Guardar"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.guardar.16"/>
+                    <bt:Image size="20" resid="Ic.guardar.20"/>
+                    <bt:Image size="24" resid="Ic.guardar.24"/>
+                    <bt:Image size="32" resid="Ic.guardar.32"/>
+                    <bt:Image size="40" resid="Ic.guardar.40"/>
+                    <bt:Image size="48" resid="Ic.guardar.48"/>
+                    <bt:Image size="64" resid="Ic.guardar.64"/>
+                    <bt:Image size="80" resid="Ic.guardar.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Guardar"/></Action>
+                </Control>
+                <Control xsi:type="Button" id="Paulus.Btn.Painel">
+                  <Label resid="Txt.Painel"/>
+                  <Supertip><Title resid="Txt.Painel"/><Description resid="Dica.Painel"/></Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Ic.painel.16"/>
+                    <bt:Image size="20" resid="Ic.painel.20"/>
+                    <bt:Image size="24" resid="Ic.painel.24"/>
+                    <bt:Image size="32" resid="Ic.painel.32"/>
+                    <bt:Image size="40" resid="Ic.painel.40"/>
+                    <bt:Image size="48" resid="Ic.painel.48"/>
+                    <bt:Image size="64" resid="Ic.painel.64"/>
+                    <bt:Image size="80" resid="Ic.painel.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.Painel"/></Action>
+                </Control>
+              </Group>
+              <Label resid="Aba"/>
+            </CustomTab>
+          </ExtensionPoint>
+          <ExtensionPoint xsi:type="ContextMenu">
+            <OfficeMenu id="ContextMenuText">
+              <Control xsi:type="Menu" id="Paulus.Ctx">
+                <Label resid="Txt.Ctx"/>
+                <Supertip><Title resid="Txt.Ctx"/><Description resid="Dica.Ctx"/></Supertip>
+                <Icon>
+                  <bt:Image size="16" resid="Ic.marca.16"/>
+                  <bt:Image size="20" resid="Ic.marca.20"/>
+                  <bt:Image size="24" resid="Ic.marca.24"/>
+                  <bt:Image size="32" resid="Ic.marca.32"/>
+                  <bt:Image size="40" resid="Ic.marca.40"/>
+                  <bt:Image size="48" resid="Ic.marca.48"/>
+                  <bt:Image size="64" resid="Ic.marca.64"/>
+                  <bt:Image size="80" resid="Ic.marca.80"/>
+                </Icon>
+                <Items>
+                  <Item id="Paulus.CtxPerguntar">
+                    <Label resid="Txt.CtxPerguntar"/>
+                    <Supertip><Title resid="Txt.CtxPerguntar"/><Description resid="Dica.CtxPerguntar"/></Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Ic.perguntar.16"/>
+                      <bt:Image size="20" resid="Ic.perguntar.20"/>
+                      <bt:Image size="24" resid="Ic.perguntar.24"/>
+                      <bt:Image size="32" resid="Ic.perguntar.32"/>
+                      <bt:Image size="40" resid="Ic.perguntar.40"/>
+                      <bt:Image size="48" resid="Ic.perguntar.48"/>
+                      <bt:Image size="64" resid="Ic.perguntar.64"/>
+                      <bt:Image size="80" resid="Ic.perguntar.80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.CtxPerguntar"/></Action>
+                  </Item>
+                  <Item id="Paulus.CtxConferir">
+                    <Label resid="Txt.CtxConferir"/>
+                    <Supertip><Title resid="Txt.CtxConferir"/><Description resid="Dica.CtxConferir"/></Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Ic.conferir.16"/>
+                      <bt:Image size="20" resid="Ic.conferir.20"/>
+                      <bt:Image size="24" resid="Ic.conferir.24"/>
+                      <bt:Image size="32" resid="Ic.conferir.32"/>
+                      <bt:Image size="40" resid="Ic.conferir.40"/>
+                      <bt:Image size="48" resid="Ic.conferir.48"/>
+                      <bt:Image size="64" resid="Ic.conferir.64"/>
+                      <bt:Image size="80" resid="Ic.conferir.80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.CtxConferir"/></Action>
+                  </Item>
+                  <Item id="Paulus.CtxRevisar">
+                    <Label resid="Txt.CtxRevisar"/>
+                    <Supertip><Title resid="Txt.CtxRevisar"/><Description resid="Dica.CtxRevisar"/></Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Ic.revisar.16"/>
+                      <bt:Image size="20" resid="Ic.revisar.20"/>
+                      <bt:Image size="24" resid="Ic.revisar.24"/>
+                      <bt:Image size="32" resid="Ic.revisar.32"/>
+                      <bt:Image size="40" resid="Ic.revisar.40"/>
+                      <bt:Image size="48" resid="Ic.revisar.48"/>
+                      <bt:Image size="64" resid="Ic.revisar.64"/>
+                      <bt:Image size="80" resid="Ic.revisar.80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane"><TaskpaneId>Office.AutoShowTaskpaneWithDocument</TaskpaneId><SourceLocation resid="Url.CtxRevisar"/></Action>
+                  </Item>
+                </Items>
+              </Control>
+            </OfficeMenu>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Ic.conferir.16" DefaultValue="$BASE/word/icones/conferir-16.png"/>
+        <bt:Image id="Ic.conferir.20" DefaultValue="$BASE/word/icones/conferir-20.png"/>
+        <bt:Image id="Ic.conferir.24" DefaultValue="$BASE/word/icones/conferir-24.png"/>
+        <bt:Image id="Ic.conferir.32" DefaultValue="$BASE/word/icones/conferir-32.png"/>
+        <bt:Image id="Ic.conferir.40" DefaultValue="$BASE/word/icones/conferir-40.png"/>
+        <bt:Image id="Ic.conferir.48" DefaultValue="$BASE/word/icones/conferir-48.png"/>
+        <bt:Image id="Ic.conferir.64" DefaultValue="$BASE/word/icones/conferir-64.png"/>
+        <bt:Image id="Ic.conferir.80" DefaultValue="$BASE/word/icones/conferir-80.png"/>
+        <bt:Image id="Ic.fundamentacao.16" DefaultValue="$BASE/word/icones/fundamentacao-16.png"/>
+        <bt:Image id="Ic.fundamentacao.20" DefaultValue="$BASE/word/icones/fundamentacao-20.png"/>
+        <bt:Image id="Ic.fundamentacao.24" DefaultValue="$BASE/word/icones/fundamentacao-24.png"/>
+        <bt:Image id="Ic.fundamentacao.32" DefaultValue="$BASE/word/icones/fundamentacao-32.png"/>
+        <bt:Image id="Ic.fundamentacao.40" DefaultValue="$BASE/word/icones/fundamentacao-40.png"/>
+        <bt:Image id="Ic.fundamentacao.48" DefaultValue="$BASE/word/icones/fundamentacao-48.png"/>
+        <bt:Image id="Ic.fundamentacao.64" DefaultValue="$BASE/word/icones/fundamentacao-64.png"/>
+        <bt:Image id="Ic.fundamentacao.80" DefaultValue="$BASE/word/icones/fundamentacao-80.png"/>
+        <bt:Image id="Ic.guardar.16" DefaultValue="$BASE/word/icones/guardar-16.png"/>
+        <bt:Image id="Ic.guardar.20" DefaultValue="$BASE/word/icones/guardar-20.png"/>
+        <bt:Image id="Ic.guardar.24" DefaultValue="$BASE/word/icones/guardar-24.png"/>
+        <bt:Image id="Ic.guardar.32" DefaultValue="$BASE/word/icones/guardar-32.png"/>
+        <bt:Image id="Ic.guardar.40" DefaultValue="$BASE/word/icones/guardar-40.png"/>
+        <bt:Image id="Ic.guardar.48" DefaultValue="$BASE/word/icones/guardar-48.png"/>
+        <bt:Image id="Ic.guardar.64" DefaultValue="$BASE/word/icones/guardar-64.png"/>
+        <bt:Image id="Ic.guardar.80" DefaultValue="$BASE/word/icones/guardar-80.png"/>
+        <bt:Image id="Ic.lei.16" DefaultValue="$BASE/word/icones/lei-16.png"/>
+        <bt:Image id="Ic.lei.20" DefaultValue="$BASE/word/icones/lei-20.png"/>
+        <bt:Image id="Ic.lei.24" DefaultValue="$BASE/word/icones/lei-24.png"/>
+        <bt:Image id="Ic.lei.32" DefaultValue="$BASE/word/icones/lei-32.png"/>
+        <bt:Image id="Ic.lei.40" DefaultValue="$BASE/word/icones/lei-40.png"/>
+        <bt:Image id="Ic.lei.48" DefaultValue="$BASE/word/icones/lei-48.png"/>
+        <bt:Image id="Ic.lei.64" DefaultValue="$BASE/word/icones/lei-64.png"/>
+        <bt:Image id="Ic.lei.80" DefaultValue="$BASE/word/icones/lei-80.png"/>
+        <bt:Image id="Ic.marca.16" DefaultValue="$BASE/word/icones/marca-16.png"/>
+        <bt:Image id="Ic.marca.20" DefaultValue="$BASE/word/icones/marca-20.png"/>
+        <bt:Image id="Ic.marca.24" DefaultValue="$BASE/word/icones/marca-24.png"/>
+        <bt:Image id="Ic.marca.32" DefaultValue="$BASE/word/icones/marca-32.png"/>
+        <bt:Image id="Ic.marca.40" DefaultValue="$BASE/word/icones/marca-40.png"/>
+        <bt:Image id="Ic.marca.48" DefaultValue="$BASE/word/icones/marca-48.png"/>
+        <bt:Image id="Ic.marca.64" DefaultValue="$BASE/word/icones/marca-64.png"/>
+        <bt:Image id="Ic.marca.80" DefaultValue="$BASE/word/icones/marca-80.png"/>
+        <bt:Image id="Ic.painel.16" DefaultValue="$BASE/word/icones/painel-16.png"/>
+        <bt:Image id="Ic.painel.20" DefaultValue="$BASE/word/icones/painel-20.png"/>
+        <bt:Image id="Ic.painel.24" DefaultValue="$BASE/word/icones/painel-24.png"/>
+        <bt:Image id="Ic.painel.32" DefaultValue="$BASE/word/icones/painel-32.png"/>
+        <bt:Image id="Ic.painel.40" DefaultValue="$BASE/word/icones/painel-40.png"/>
+        <bt:Image id="Ic.painel.48" DefaultValue="$BASE/word/icones/painel-48.png"/>
+        <bt:Image id="Ic.painel.64" DefaultValue="$BASE/word/icones/painel-64.png"/>
+        <bt:Image id="Ic.painel.80" DefaultValue="$BASE/word/icones/painel-80.png"/>
+        <bt:Image id="Ic.perguntar.16" DefaultValue="$BASE/word/icones/perguntar-16.png"/>
+        <bt:Image id="Ic.perguntar.20" DefaultValue="$BASE/word/icones/perguntar-20.png"/>
+        <bt:Image id="Ic.perguntar.24" DefaultValue="$BASE/word/icones/perguntar-24.png"/>
+        <bt:Image id="Ic.perguntar.32" DefaultValue="$BASE/word/icones/perguntar-32.png"/>
+        <bt:Image id="Ic.perguntar.40" DefaultValue="$BASE/word/icones/perguntar-40.png"/>
+        <bt:Image id="Ic.perguntar.48" DefaultValue="$BASE/word/icones/perguntar-48.png"/>
+        <bt:Image id="Ic.perguntar.64" DefaultValue="$BASE/word/icones/perguntar-64.png"/>
+        <bt:Image id="Ic.perguntar.80" DefaultValue="$BASE/word/icones/perguntar-80.png"/>
+        <bt:Image id="Ic.qualificacao.16" DefaultValue="$BASE/word/icones/qualificacao-16.png"/>
+        <bt:Image id="Ic.qualificacao.20" DefaultValue="$BASE/word/icones/qualificacao-20.png"/>
+        <bt:Image id="Ic.qualificacao.24" DefaultValue="$BASE/word/icones/qualificacao-24.png"/>
+        <bt:Image id="Ic.qualificacao.32" DefaultValue="$BASE/word/icones/qualificacao-32.png"/>
+        <bt:Image id="Ic.qualificacao.40" DefaultValue="$BASE/word/icones/qualificacao-40.png"/>
+        <bt:Image id="Ic.qualificacao.48" DefaultValue="$BASE/word/icones/qualificacao-48.png"/>
+        <bt:Image id="Ic.qualificacao.64" DefaultValue="$BASE/word/icones/qualificacao-64.png"/>
+        <bt:Image id="Ic.qualificacao.80" DefaultValue="$BASE/word/icones/qualificacao-80.png"/>
+        <bt:Image id="Ic.revisar.16" DefaultValue="$BASE/word/icones/revisar-16.png"/>
+        <bt:Image id="Ic.revisar.20" DefaultValue="$BASE/word/icones/revisar-20.png"/>
+        <bt:Image id="Ic.revisar.24" DefaultValue="$BASE/word/icones/revisar-24.png"/>
+        <bt:Image id="Ic.revisar.32" DefaultValue="$BASE/word/icones/revisar-32.png"/>
+        <bt:Image id="Ic.revisar.40" DefaultValue="$BASE/word/icones/revisar-40.png"/>
+        <bt:Image id="Ic.revisar.48" DefaultValue="$BASE/word/icones/revisar-48.png"/>
+        <bt:Image id="Ic.revisar.64" DefaultValue="$BASE/word/icones/revisar-64.png"/>
+        <bt:Image id="Ic.revisar.80" DefaultValue="$BASE/word/icones/revisar-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Url.Conferir" DefaultValue="$BASE/word/painel.html?tela=conferir"/>
+        <bt:Url id="Url.Lei" DefaultValue="$BASE/word/painel.html?tela=lei"/>
+        <bt:Url id="Url.Fundamentacao" DefaultValue="$BASE/word/painel.html?tela=fundamentacao"/>
+        <bt:Url id="Url.Qualificacao" DefaultValue="$BASE/word/painel.html?tela=qualificacao"/>
+        <bt:Url id="Url.Perguntar" DefaultValue="$BASE/word/painel.html?tela=perguntar"/>
+        <bt:Url id="Url.Revisar" DefaultValue="$BASE/word/painel.html?tela=revisar"/>
+        <bt:Url id="Url.Guardar" DefaultValue="$BASE/word/painel.html?tela=guardar"/>
+        <bt:Url id="Url.Painel" DefaultValue="$BASE/word/painel.html?tela=inicio"/>
+        <bt:Url id="Url.CtxPerguntar" DefaultValue="$BASE/word/painel.html?tela=perguntar&amp;origem=selecao"/>
+        <bt:Url id="Url.CtxConferir" DefaultValue="$BASE/word/painel.html?tela=conferir&amp;origem=selecao"/>
+        <bt:Url id="Url.CtxRevisar" DefaultValue="$BASE/word/painel.html?tela=revisar&amp;origem=selecao"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="Aba" DefaultValue="$NOME"/>
+        <bt:String id="Txt.Ctx" DefaultValue="$NOME"/>
+        <bt:String id="Grupo.Conferir" DefaultValue="Conferir"/>
+        <bt:String id="Grupo.Inserir" DefaultValue="Inserir"/>
+        <bt:String id="Grupo.Pensar" DefaultValue="Pensar"/>
+        <bt:String id="Grupo.Paulus" DefaultValue="$NOME"/>
+        <bt:String id="Txt.Conferir" DefaultValue="Conferir citações"/>
+        <bt:String id="Txt.Lei" DefaultValue="Inserir lei"/>
+        <bt:String id="Txt.Fundamentacao" DefaultValue="Fundamentação"/>
+        <bt:String id="Txt.Qualificacao" DefaultValue="Qualificação"/>
+        <bt:String id="Txt.Perguntar" DefaultValue="Perguntar"/>
+        <bt:String id="Txt.Revisar" DefaultValue="Revisar com agente"/>
+        <bt:String id="Txt.Guardar" DefaultValue="Guardar no PAULUS"/>
+        <bt:String id="Txt.Painel" DefaultValue="Painel"/>
+        <bt:String id="Txt.CtxPerguntar" DefaultValue="Perguntar ao PAULUS sobre isto"/>
+        <bt:String id="Txt.CtxConferir" DefaultValue="Conferir esta citação"/>
+        <bt:String id="Txt.CtxRevisar" DefaultValue="Revisar com agente"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="Dica.Ctx" DefaultValue="Os comandos do PAVLVS para o trecho selecionado."/>
+        <bt:String id="Dica.Conferir" DefaultValue="Confere as leis, súmulas e processos citados no documento e abre o painel com o resultado."/>
+        <bt:String id="Dica.Lei" DefaultValue="Procura um artigo e insere o texto vigente com a referência, como alteração controlada."/>
+        <bt:String id="Dica.Fundamentacao" DefaultValue="Lei, súmula e doutrina da Biblioteca para o parágrafo onde está o cursor."/>
+        <bt:String id="Dica.Qualificacao" DefaultValue="Monta a qualificação de uma parte a partir dos Cadastros; o que falta entra marcado, nunca inventado."/>
+        <bt:String id="Dica.Perguntar" DefaultValue="Pergunta sobre o documento aberto ou o trecho selecionado, com as fontes do escritório."/>
+        <bt:String id="Dica.Revisar" DefaultValue="Um agente do escritório revisa o trecho; os apontamentos viram comentários e o texto não muda."/>
+        <bt:String id="Dica.Guardar" DefaultValue="Guarda uma cópia do documento no Acervo, no cliente ou Serviço escolhido."/>
+        <bt:String id="Dica.Painel" DefaultValue="Abre o painel do PAVLVS."/>
+        <bt:String id="Dica.CtxPerguntar" DefaultValue="Pergunta sobre o trecho selecionado."/>
+        <bt:String id="Dica.CtxConferir" DefaultValue="Confere a lei, súmula ou processo do trecho selecionado."/>
+        <bt:String id="Dica.CtxRevisar" DefaultValue="Revisa o trecho selecionado com um agente do escritório."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

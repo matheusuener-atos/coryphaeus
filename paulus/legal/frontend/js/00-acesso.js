@@ -148,6 +148,8 @@ function quemCriou(nome, conta) {
       (typeof aparelhoTela !== "undefined" && aparelhoTela.estado && (aparelhoTela.estado.pode || aparelhoTela.estado.ligado)
         ? linha("aparelho", "desktop_windows", "Este aparelho", "escrever as respostas aqui: o teste, o modelo guardado, apagar")
         : "") +
+      // W1: o Word desta pessoa, em outro computador ou no navegador (js/76-word.js).
+      linha("word", "description", "Conectar o Word", "o código do painel do PAVLVS e o do autenticador") +
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
       '<p class="conta-nota">' + (titular
         ? "As contas da equipe se criam e se mudam só no computador do escritório."
@@ -162,6 +164,7 @@ function quemCriou(nome, conta) {
     await aberto;
     if (escolha === "sair") { sair(); return; }
     if (escolha === "aparelho") { configuracoesDoAparelho(); return; }
+    if (escolha === "word") { conectarWordDeFora(); return; }
     if (escolha === "google") {
       const r = await window.fetch("/api/acesso/google/iniciar", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ finalidade: "servicos" }) });

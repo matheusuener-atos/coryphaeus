@@ -58,15 +58,25 @@ def test_todas_as_rotas_sem_chave() -> None:
     rotas = [r for r in api.app.routes if hasattr(r, "path")]
     checar(len(rotas) > 300, "as rotas vem do app", len(rotas))
     passaram = []
+    do_word = []
+    import word_suplemento
+
     for r in rotas:
         metodos = sorted(getattr(r, "methods", None) or {"GET"})
         for m in metodos:
             if m == "HEAD":
                 continue
             resp = sem.request(m, _caminho_de_exemplo(r.path))
+            # W1: o suplemento do Word tem porta e token próprios (como o /mcp):
+            # sem a chave, recusa com 404 (desligado) ou 401 (sem token).
+            if (m, r.path) in word_suplemento.PAREAR or r.path.startswith(word_suplemento.PREFIXO_SUPLEMENTO):
+                if resp.status_code not in (401, 404):
+                    do_word.append((m, r.path, resp.status_code))
+                continue
             if resp.status_code != 403:
                 passaram.append((m, r.path, resp.status_code))
     checar(not passaram, f"{len(rotas)} rotas, todas 403 sem a chave", passaram[:10])
+    checar(not do_word, "as do suplemento do Word recusam com 404 (desligado) ou 401 (sem token)", do_word[:5])
     checar(sem.get("/rota/que/nao/existe").status_code == 403, "ate rota que nao existe responde 403 (nao 404)")
     r = sem.get("/")
     checar(r.status_code == 403 and "janela do PAULUS" in r.text, "a pagina inicial explica, em HTML", r.status_code)

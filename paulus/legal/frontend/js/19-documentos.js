@@ -121,6 +121,8 @@ async function mostrarDocumentos(visao) {
   }
   desenharDocumentos();
   atualizarPostura();
+  // W1: a novidade do PAVLVS no Word, uma vez (js/76-word.js).
+  if (typeof novidadeDoWord === "function") novidadeDoWord();
 }
 
 /* O que a aba ativa precisa do servidor. Uma aba cujo documento foi apagado
