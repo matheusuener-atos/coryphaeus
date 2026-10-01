@@ -64,8 +64,33 @@ def sessoes_de_fora(api):
     contas.confirmar_totp(t["conta"]["id"], codigo_totp(t["segredo"], passo))
     c = contas.criar("Caio Colaborador", "caio@escritorio.com", "colaborador", "senha-do-caio-1")
     contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], passo))
-    return (Fora(api, "tereza@escritorio.com", "senha-da-tereza-1", t["segredo"]),
-            Fora(api, "caio@escritorio.com", "senha-do-caio-1", c["segredo"]))
+    titular = Fora(api, "tereza@escritorio.com", "senha-da-tereza-1", t["segredo"])
+    colab = Fora(api, "caio@escritorio.com", "senha-do-caio-1", c["segredo"])
+    titular.conta_id, colab.conta_id = t["conta"]["id"], c["conta"]["id"]
+    return titular, colab
+
+
+def codigo_novo(fora) -> str:
+    """O código do autenticador do passo seguinte (o do login já foi usado)."""
+    from acesso.contas import codigo_totp
+
+    return codigo_totp(fora.segredo, int(time.time() // 30) + 1)
+
+
+def eventos_sse(texto: str) -> list[tuple[str, dict]]:
+    import json
+
+    eventos = []
+    for bloco in texto.split("\n\n"):
+        tipo, corpo = "", ""
+        for linha in bloco.splitlines():
+            if linha.startswith("event: "):
+                tipo = linha[7:]
+            elif linha.startswith("data: "):
+                corpo += linha[6:]
+        if tipo:
+            eventos.append((tipo, json.loads(corpo or "{}")))
+    return eventos
 
 
 # CNPJ válido de teste (dígitos conferidos) e o CPF de um tomador pessoa física.

@@ -46,7 +46,10 @@ function secaoDasHoras(s) {
     ? '<div class="hrs-cobrar"><span>' + (d.valor_hora ? reaisHrs(d.valor_hora) + " a hora" : "sem valor da hora") +
       (d.a_cobrar_min ? " · a cobrar: " + duracaoHrs(d.a_cobrar_min) + (d.valor_hora ? " = <b>" + reaisHrs(d.a_cobrar_centavos) + "</b>" : "") : "") + "</span>" +
       '<button data-hrs-valor="1">' + (d.valor_hora ? "Mudar o valor" : "Valor da hora") + "</button>" +
-      (d.a_cobrar_min ? '<button class="com-icone" data-hrs-cobrar="1">' + ic("payments", 16) + "Cobrar no Financeiro</button>" : "") + "</div>"
+      (d.a_cobrar_min ? '<button class="com-icone" data-hrs-cobrar="1">' + ic("payments", 16) + "Cobrar no Financeiro</button>" : "") +
+      // N4: a nota dos honorários do Serviço, pelo mesmo cartão (js/78-nfse-nota.js).
+      (typeof nfseDisponivel !== "undefined" && nfseDisponivel && nfseDisponivel.pode_emitir
+        ? '<button class="com-icone" data-hrs-nota="1">' + ic("receipt_long", 16) + "Emitir nota dos honorários</button>" : "") + "</div>"
     : "";
   return '<section class="sv-secao sv-horas"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("schedule", 16) + "Horas</span>" +
     '<span class="sv-secao-meta">' + duracaoHrs(d.total_min) + (pessoas ? " · " + pessoas : "") + "</span></div>" +
@@ -99,6 +102,10 @@ function ligarHoras(raiz) {
     const r = await dialogo({ titulo: "Valor da hora", contexto: "Horas", campos: [{ chave: "valor", rotulo: "Valor da hora (R$)", placeholder: "300,00", obrigatorio: true }], confirmar: "Guardar" });
     if (!r || !r.ok) return;
     try { depois(await post(base + "/valor", { valor: r.valores.valor })); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+  });
+  clique("[data-hrs-nota]", () => {
+    const d = hrs.dados || {};
+    novaNotaFiscal({ servico_id: hrs.id, valor_centavos: d.a_cobrar_centavos || 0 }, "servico");
   });
   clique("[data-hrs-cobrar]", async () => {
     const d = hrs.dados || {};

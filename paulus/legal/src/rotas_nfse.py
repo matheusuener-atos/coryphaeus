@@ -48,6 +48,13 @@ def montar(estado, app, dados_dir) -> None:
     import os
 
     estado.nfse = Emissor(estado.base, estado.prefs, Path(dados_dir))
+    # N4: depois de emitida, Acervo, registro, e-mail proposto, aviso e auditoria.
+    from nfse import fluxo
+
+    estado.nfse.envio.ao_emitir.append(lambda nota: fluxo.depois_de_emitir(estado, nota))
+    central = getattr(estado, "central_avisos", None)
+    if central is not None:
+        central.estado_nfse = estado
     # A fila de envio (N3): retoma ao abrir o que ficou no meio e tenta de novo
     # com espera crescente. O teste desliga para controlar cada passo.
     if not os.environ.get("PAULUS_NFSE_SEM_FILA"):
@@ -217,3 +224,42 @@ def montar(estado, app, dados_dir) -> None:
             _erro(exc)
         except (SemResposta, NaoChegou) as exc:
             _erro(exc, 502)
+
+    # ------------------------------------------------------- o fluxo (N4)
+
+    @app.get("/api/nfse/disponivel")
+    def nfse_disponivel() -> dict:
+        """O que as portas (Financeiro, Serviço) precisam para mostrar "Emitir nota"."""
+        pode, motivos = estado.nfse.pode_emitir()
+        return {"ligado": estado.nfse.ligado, "pode_emitir": pode, "motivos": motivos,
+                "ambiente": estado.nfse.ambiente}
+
+    @app.post("/api/nfse/notas/{id_}/pedir-aprovacao")
+    def nfse_nota_pedir_aprovacao(id_: int) -> dict:
+        from nfse import fluxo
+
+        try:
+            nota = fluxo.pedir_aprovacao(estado, id_, quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return _nota_para_tela(nota)
+
+    @app.post("/api/nfse/notas/{id_}/enviar")
+    def nfse_nota_enviar(id_: int) -> dict:
+        """
+        Para a nota JÁ APROVADA que não saiu (a senha do certificado não estava
+        à mão quando a aprovação veio de fora, ou a fila parou): manda agora,
+        consultando antes se já houve tentativa. Não emite nada sem aprovação.
+        """
+        from nfse.notas import APROVADA, ASSINADA, AGUARDANDO_CONFIRMACAO, NA_FILA
+
+        nota = estado.nfse.notas.obter(id_)
+        if not nota:
+            raise HTTPException(status_code=404, detail="nota não encontrada")
+        if nota["estado"] not in (APROVADA, ASSINADA, NA_FILA, AGUARDANDO_CONFIRMACAO):
+            raise HTTPException(status_code=400, detail=f"a nota está “{nota['estado_rotulo']}”: só se manda a aprovada")
+        try:
+            nota = estado.nfse.envio.emitir(id_, quem="titular")
+        except (ValueError, CertificadoInvalido, ProducaoBloqueada) as exc:
+            _erro(exc)
+        return _nota_para_tela(nota)

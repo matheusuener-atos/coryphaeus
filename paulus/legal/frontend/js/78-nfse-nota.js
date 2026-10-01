@@ -96,18 +96,31 @@ async function abrirCartaoNota(nota) {
     avisoCert(falta ? "conferido: ainda há o que resolver" : "conferido: a nota está pronta para pedir aprovação", { tom: falta ? "info" : "ok" });
   };
   const nome = n.rascunho && n.rascunho.tomador && n.rascunho.tomador.nome;
+  // A segunda ação depende de onde a nota está: pedir aprovação (rascunho),
+  // mandar agora (aprovada que não saiu) ou atualizar a situação (emitida).
+  const mandar = ["aprovada", "assinada", "na_fila", "aguardando_confirmacao"].includes(n.estado);
+  let segundo = null;
+  if (n.editavel) segundo = { rotulo: "Pedir aprovação" };
+  else if (mandar) segundo = { rotulo: n.estado === "aprovada" ? "Mandar agora" : "Consultar e mandar" };
+  else if (n.estado === "emitida") segundo = { rotulo: "Atualizar situação" };
   const escolha = await dialogo({
     titulo: "Nota fiscal" + (nome ? " — " + nome : "") + (n.centavos ? " — " + n.valor : ""),
     contexto: "NFS-e · " + (n.estado_rotulo || ""), larga: true, classe: "dialogo-nota",
     html: htmlDoCartaoNota(n),
     confirmar: n.editavel ? "Conferir" : "Fechar", aoConfirmar: n.editavel ? conferir : undefined, cancelar: "Fechar",
-    segundo: n.editavel && typeof pedirAprovacaoDaNota === "function" ? { rotulo: "Pedir aprovação" } : null,
+    segundo: segundo,
     rodape: n.editavel ? '<button type="button" class="perigo" data-nota-descartar="' + n.id + '">Descartar</button>' : "",
   });
-  if (escolha && escolha.segundo && typeof pedirAprovacaoDaNota === "function") {
-    // O que foi editado e não conferido vai junto: grava antes de pedir.
-    const gravada = await gravarCartaoNota(n.id);
-    if (gravada) await pedirAprovacaoDaNota(gravada);
+  if (escolha && escolha.segundo) {
+    if (n.editavel) {
+      // O que foi editado e não conferido vai junto: grava antes de pedir.
+      const gravada = await gravarCartaoNota(n.id);
+      if (gravada) await pedirAprovacaoDaNota(gravada);
+    } else if (mandar) {
+      await acaoDaNota(n.id, "enviar", "mandando ao Sistema Nacional…");
+    } else if (n.estado === "emitida") {
+      await acaoDaNota(n.id, "consultar", "perguntando ao Sistema Nacional…");
+    }
   }
   return n;
 }
@@ -143,3 +156,42 @@ document.addEventListener("click", async (e) => {
   avisoCert("nota descartada", { tom: "ok" });
   if (dialogoAberto) dialogoAberto.fechar(null);
 });
+
+/* ------------------------------------------ Aprovação e envio (N4) */
+
+async function pedirAprovacaoDaNota(nota) {
+  if (nota.erros && nota.erros.length) {
+    avisoCert("antes de pedir a aprovação, falta: " + nota.erros.slice(0, 2).join("; "), { tom: "erro" });
+    return abrirCartaoNota(nota);
+  }
+  const r = await fetch("/api/nfse/notas/" + nota.id + "/pedir-aprovacao", { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return null; }
+  const n = await r.json();
+  avisoCert("pedido em Aprovações: a nota sai depois do sim", { tom: "ok",
+    acao: { rotulo: "Abrir Aprovações", fazer: () => abrirDestino("aprovacoes") } });
+  return n;
+}
+
+async function acaoDaNota(id, acao, aviso) {
+  avisoCert(aviso, { tom: "info" });
+  const r = await fetch("/api/nfse/notas/" + id + "/" + acao, { method: "POST" });
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return null; }
+  const n = await r.json();
+  const tom = n.estado === "emitida" ? "ok" : (n.estado === "rejeitada" ? "erro" : "info");
+  avisoCert("nota " + (n.estado_rotulo || "").toLowerCase() + (n.numero_nfse ? " · NFS-e nº " + n.numero_nfse : ""), { tom: tom });
+  return abrirCartaoNota(n);
+}
+
+/* As portas (Financeiro, Serviço) perguntam uma vez se a emissão está à mão. */
+let nfseDisponivel = null;
+async function nfseEstaDisponivel(recarregar) {
+  if (nfseDisponivel && !recarregar) return nfseDisponivel;
+  try {
+    const r = await fetch("/api/nfse/disponivel");
+    nfseDisponivel = r.ok ? await r.json() : { ligado: false, pode_emitir: false };
+  } catch (err) { nfseDisponivel = { ligado: false, pode_emitir: false }; }
+  return nfseDisponivel;
+}
+
+// Na janela do escritório, as portas já sabem ao abrir se a emissão está à mão.
+nfseEstaDisponivel();

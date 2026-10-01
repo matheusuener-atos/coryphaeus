@@ -979,6 +979,17 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE nfse_notas ADD COLUMN esperas INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        "037_papel_da_nfse",
+        """
+        -- A nota emitida pelo PAULUS entra no mesmo registro das notas emitidas
+        -- fora (N4), com a chave, o ambiente e a ligacao com a nota daqui. A
+        -- nota de producao restrita fica marcada: nao vale como nota fiscal.
+        ALTER TABLE papeis_fiscais ADD COLUMN chave TEXT DEFAULT '';
+        ALTER TABLE papeis_fiscais ADD COLUMN ambiente TEXT DEFAULT '';
+        ALTER TABLE papeis_fiscais ADD COLUMN nfse_nota_id INTEGER;
+        """,
+    ),
 ]
 
 

@@ -4391,7 +4391,7 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
             "falta": lido.falta,
             "pergunta": pergunta,
             "ferramenta": ferramenta,
-            "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
+            "disponivel": ferramentas.disponivel(ferramenta, estado) if ferramenta else True,
             "ajuda_do_modelo": ajuda,
         }
         # N14: com a chave "Agentes fazem sozinhos" e a ferramenta na `autonomia`
@@ -5455,6 +5455,13 @@ def _pode_aprovar_de_fora(pedido, pessoa: dict, codigo: str, conferido: dict) ->
     """
     if pedido.acao in politicas_do_acesso.ACOES_SO_NO_ESCRITORIO:
         return politicas_do_acesso.MENSAGEM_BLOQUEADA
+    if str(pedido.acao or "").startswith("nfse."):
+        # Nota fiscal: o titular ou quem ele liberou (nível "Emitir nota fiscal").
+        from nfse import fluxo as nfse_fluxo
+
+        motivo = nfse_fluxo.pode_aprovar(pedido, pessoa)
+        if motivo:
+            return motivo
     sai = pedido.acao in politicas_do_acesso.ACOES_QUE_SAEM or bool((pedido.dados or {}).get("sai_daqui"))
     if not sai:
         return ""
@@ -5504,6 +5511,10 @@ def aprovacoes_decidir(payload: Decisao, request: Request = None) -> dict:
             n = len(pedido.dados["opcoes"])
             pedido.dados["escolha"] = min(max(int(payload.escolhas[id_]), 0), n - 1)
             estado.fila.salvar()
+        if str(pedido.acao or "").startswith("nfse."):
+            # Quem aprovou fica na nota e na auditoria (src/nfse/fluxo.py).
+            pedido.dados["decidido_por"] = (pessoa or {}).get("nome") or "titular (janela do escritório)"
+            pedido.dados["decidido_de"] = "de fora" if pessoa else "janela do escritório"
         executor = EXECUTORES.get(pedido.acao)
         if not executor:
             estado.fila.registrar_resultado(id_, "aprovado, sem nada a executar")
@@ -5722,6 +5733,8 @@ EXECUTORES = {
     "assinatura.assinar": _executar_assinar,
     "assinatura.lote": _executar_assinar_lote,
     "correio.enviar": _executar_enviar,
+    # N4: a NFS-e aprovada é assinada e enviada pelo emissor (src/nfse/fluxo.py).
+    "nfse.emitir": lambda pedido: __import__("nfse.fluxo", fromlist=["fluxo"]).executar_aprovado(estado, pedido),
     "google.drive.enviar": _executar_enviar_ao_drive,
     # O que alguem propos pelo acesso de fora (agenda, tarefa, ficha): o sim
     # refaz exatamente o pedido guardado (src/acesso/servico.py).
@@ -5906,7 +5919,11 @@ def papeis_salvar(payload: FichaPapel) -> dict:
 
 @app.delete("/api/financeiro/papeis/{id_}")
 def papeis_apagar(id_: int) -> dict:
-    if not estado.papeis.apagar(id_):
+    try:
+        apagado = estado.papeis.apagar(id_)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not apagado:
         raise HTTPException(status_code=404, detail="nao achei esse registro")
     return {"apagado": id_}
 

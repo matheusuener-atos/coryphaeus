@@ -28,7 +28,7 @@ const ICONE_CATEGORIA = { organizar: "drive_file_move", arquivo: "folder", email
 const CHAVE_DA_CATEGORIA = { organizar: "organizar_mover", assinatura: "assinar", email: "enviar_mensagem", nuvem: "modelo_nuvem" };
 const ICONE_REGRA = { ler_pastas: "folder_open", organizar_mover: "drive_file_move", assinar: "draw", enviar_mensagem: "mail", modelo_nuvem: "upload" };
 const VERBO_APROVAR = { organizar: "Aprovar e mover", email: "Aprovar e enviar", assinatura: "Aprovar e assinar", financeiro: "Aprovar e pagar", permissao: "Aprovar",
-  nuvem: "Mandar à nuvem" };
+  nuvem: "Mandar à nuvem", fiscal: "Aprovar e emitir" };
 
 /* Para onde a pessoa vai depois do sim, por tipo de pedido. A fila nao e o
    fim do trabalho: quem pediu uma assinatura quer ver o documento assinado,
@@ -39,6 +39,8 @@ const VERBO_APROVAR = { organizar: "Aprovar e mover", email: "Aprovar e enviar",
 const DEPOIS_DE_APROVAR = {
   assinatura: (feito) => abrirAssinado(feito.desfecho),
   organizar: () => organizarDesfecho(),
+  // N4: depois do sim, o cartão da nota mostra o que a Sefin respondeu.
+  fiscal: (feito) => { if (feito.desfecho && feito.desfecho.id && typeof abrirNotaFiscal === "function") { abrirNotaFiscal(feito.desfecho.id); return true; } return false; },
 };
 
 function dataHoraCurta(iso) {

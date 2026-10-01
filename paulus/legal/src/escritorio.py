@@ -242,6 +242,11 @@ class PapeisFiscais:
         )
 
     def apagar(self, id_: int) -> bool:
+        # A nota emitida pelo PAULUS (src/nfse) não sai do registro: nota
+        # emitida não se apaga, cancela-se, e o XML fica guardado (N4, N6).
+        linha = self.base.um("SELECT nfse_nota_id FROM papeis_fiscais WHERE id = ?", (id_,))
+        if linha and linha.get("nfse_nota_id"):
+            raise ValueError("nota emitida pelo PAULUS não sai do registro: para desfazer, cancele a nota")
         return self.base.escrever("DELETE FROM papeis_fiscais WHERE id = ?", (id_,)) > 0
 
     def marcar_pago(self, id_: int, quando: str = "") -> bool:

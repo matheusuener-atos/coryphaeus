@@ -48,7 +48,9 @@ ACOES_SO_NO_ESCRITORIO = {"organizar.mover", "acervo.apagar", "acervo.exportar",
                           "nuvem.enviar"}
 # E o que sai desta maquina pede o codigo do autenticador de novo: sessao
 # roubada nao manda e-mail nem documento para fora.
-ACOES_QUE_SAEM = {"correio.enviar", "google.drive.enviar"}
+ACOES_QUE_SAEM = {"correio.enviar", "google.drive.enviar",
+                  # N4-N5: a nota fiscal vai ao Sistema Nacional (emitir, cancelar, substituir).
+                  "nfse.emitir", "nfse.cancelar", "nfse.substituir"}
 
 # O que conta como "abriu um documento" em quem acessou (R8): ver o documento
 # do editor, a pagina de um arquivo do Acervo e o trecho citado.
@@ -419,6 +421,11 @@ _declarar(BLOQUEADO, "GET /api/nfse/notas", "POST /api/nfse/notas", "GET /api/nf
 # --- N3 (NFS-e): atualizar a situacao pela consulta e ver a fila de envio - usam o
 # certificado do escritorio: janela do escritorio.
 _declarar(BLOQUEADO, "POST /api/nfse/notas/{id_}/consultar", "GET /api/nfse/fila", "POST /api/nfse/contrato/conferir")
+# --- N4 (NFS-e): o fluxo - pedir aprovacao e mandar a ja aprovada, na janela do escritorio.
+# De fora a nota nasce pela conversa (o /fazer e PROPOR) e se aprova em Aprovacoes (com o
+# codigo do autenticador de novo: nfse.emitir esta em ACOES_QUE_SAEM).
+_declarar(BLOQUEADO, "GET /api/nfse/disponivel", "POST /api/nfse/notas/{id_}/pedir-aprovacao",
+          "POST /api/nfse/notas/{id_}/enviar")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

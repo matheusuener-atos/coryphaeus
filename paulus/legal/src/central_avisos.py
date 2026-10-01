@@ -45,13 +45,16 @@ TIPOS: dict[str, dict] = {
     "pendencia": {"rotulo": "Pendência", "icone": "rate_review", "ordem": 7, "horizonte": 0},
     # N4: o conflito de interesse aberto, até alguém dizer como resolveu.
     "conflito": {"rotulo": "Conflito", "icone": "flag", "ordem": 7, "horizonte": 0},
+    # N4/N7: a nota fiscal emitida hoje, recusada, esperando confirmação e o
+    # certificado da nota perto de vencer (src/nfse/fluxo.py, avisos).
+    "nota_fiscal": {"rotulo": "Nota fiscal", "icone": "receipt_long", "ordem": 4, "horizonte": 0},
     "rotina": {"rotulo": "Rotina", "icone": "self_improvement", "ordem": 8, "horizonte": 0},
 }
 # Os periodos da aba Todos: ate quantos dias a frente (o atrasado entra sempre).
 PERIODOS = {"hoje": 0, "semana": 7, "mes": 30}
 GRUPOS = ("atrasado", "hoje", "amanha", "semana", "depois")
 # Tipos sem data de vencimento: nao ganham destaque de "vence hoje".
-SEM_VENCIMENTO = {"publicacao", "processo", "pendencia", "rotina", "conflito"}
+SEM_VENCIMENTO = {"publicacao", "processo", "pendencia", "rotina", "conflito", "nota_fiscal"}
 # A lista de Tarefas em que o prazo tirado de uma publicacao do DJEN cai
 # (api.py, publicacoes_prazo): e o prazo processual.
 LISTA_DOS_PRAZOS = "Prazos"
@@ -190,6 +193,7 @@ class Central:
         for nome, fonte in (("tarefas", self._das_tarefas), ("agenda", self._da_agenda),
                             ("financeiro", self._do_financeiro), ("publicacoes", self._das_publicacoes),
                             ("processos", self._dos_processos), ("conflitos", self._dos_conflitos),
+                            ("notas_fiscais", self._das_notas_fiscais),
                             ("documentos", self._dos_documentos), ("aprovacoes", self._das_aprovacoes),
                             ("conversas", self._das_conversas), ("rotinas", self._das_rotinas)):
             try:
@@ -331,6 +335,19 @@ class Central:
                 quando="nova · disponibilizada em " + _br(data),
                 origem="DJEN" + (f" · {p['tribunal']}" if p.get("tribunal") else ""),
                 detalhe=p.get("orgao") or "", destino={"tela": "publicacao", "id": p["id"]}))
+        return avisos
+
+    def _das_notas_fiscais(self, avisos, hoje, agora, ate, pessoa, politica):
+        """A nota fiscal (src/nfse): só na janela do escritório, como a tela dela."""
+        estado = getattr(self, "estado_nfse", None)
+        if estado is None or not getattr(estado, "nfse", None) or not politica("GET", "/api/nfse"):
+            return avisos
+        from nfse import fluxo
+
+        for a in fluxo.avisos(estado, hoje):
+            avisos.append(self._aviso("nota_fiscal", a["id"], a["titulo"], 0, hoje.isoformat(),
+                                      origem="Nota fiscal", detalhe=a.get("detalhe") or "",
+                                      destino={"tela": "nfse", "id": a.get("nota_id")} if a.get("nota_id") else {"tela": "configuracoes", "secao": "nfse"}))
         return avisos
 
     def _dos_processos(self, avisos, hoje, agora, ate, pessoa, politica):

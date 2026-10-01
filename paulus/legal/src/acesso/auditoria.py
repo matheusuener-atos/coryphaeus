@@ -57,6 +57,7 @@ ACOES = {
     "word_pareado": "conectou um Word",
     "word_revogado": "desconectou um Word",
     "word_instalado": "instalou o PAVLVS no Word",
+    "nfse": "nota fiscal",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 

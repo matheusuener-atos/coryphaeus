@@ -18,7 +18,7 @@
     "Exporta a conversa em Markdown, texto ou Word pelo botão Exportar."
    ],
    "nao_faz": [
-    "Não emite nota fiscal: o cartão da NFS-e só confere os dados.",
+    "Não emite nota fiscal sozinha: com a emissão ligada em Configurações › Nota fiscal, o cartão da NFS-e prepara o rascunho e a nota só sai depois de Aprovações; desligada, o cartão só confere os dados.",
     "Não grava nada só por entender a frase: tudo passa pelo cartão de confirmação."
    ],
    "tarefas": [
@@ -1269,10 +1269,12 @@
     "Dá baixa com Registrar pagamento ou Registrar recebimento, e desfaz com Reabrir.",
     "Confere o extrato do banco (.ofx, .csv, .txt) e só grava depois de Conferir.",
     "Prepara a cobrança como rascunho de e-mail, que passa por Aprovações antes de sair.",
-    "Monta a folha de pagamento com quem tem vínculo em Cadastros."
+    "Monta a folha de pagamento com quem tem vínculo em Cadastros.",
+    "Emite NFS-e pelo Padrão Nacional, com o certificado A1 do escritório, quando ligada em Configurações › Nota fiscal e o município tem convênio com o Sistema Nacional; cada nota passa por Aprovações."
    ],
    "nao_faz": [
-    "Não emite nota fiscal nem gera boleto: aqui fica só o registro.",
+    "Não emite nota fiscal com a emissão desligada ou com o município sem convênio: aí a nota sai na prefeitura e aqui fica o registro.",
+    "Não gera boleto: aqui fica só o registro.",
     "Não paga nem recebe de verdade: registrar o pagamento só marca o lançamento.",
     "Não cobra por WhatsApp: a cobrança sai só como rascunho de e-mail."
    ],
@@ -1406,9 +1408,26 @@
      "passos": [
       "Abra Financeiro e, em Papéis do mês, na parte de Notas fiscais, clique em Registrar.",
       "Preencha Número da nota, Valor, Emitida em e Cliente.",
-      "Clique em Guardar registro. A nota em si sai no sistema da prefeitura."
+      "Clique em Guardar registro. Serve para a nota emitida fora do PAULUS (na prefeitura ou no Emissor Nacional)."
      ],
      "evidencia": "frontend/js/20-financeiro.js:1069"
+    },
+    {
+     "pergunta": "Como emito uma nota fiscal?",
+     "palavras": [
+      "emitir nota",
+      "emito nota",
+      "emitir nfse",
+      "nota fiscal de servico",
+      "emissao de nota"
+     ],
+     "passos": [
+      "Ligue a emissão em Configurações › Nota fiscal (prestador, regime, certificado A1 e a consulta do município).",
+      "Abra Financeiro e, no recebimento sem nota, clique em Emitir nota.",
+      "Confira o cartão da nota e clique em Pedir aprovação.",
+      "Em Aprovações, clique em Aprovar e emitir. Começa em produção restrita, sem valor fiscal."
+     ],
+     "evidencia": "frontend/js/20-financeiro.js:211"
     }
    ]
   },

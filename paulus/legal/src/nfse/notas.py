@@ -198,6 +198,14 @@ class Notas:
         return r
 
     def criar(self, dados: dict, origem: str = "manual", quem: str = "") -> dict:
+        dados = dict(dados or {})
+        if dados.get("servico_id") and not dados.get("cadastro_id"):
+            # A nota dos honorários do Serviço: o tomador é o cliente do Serviço.
+            s = self.base.um("SELECT cadastro_id, nome FROM servicos WHERE id = ?", (int(dados["servico_id"]),))
+            if s and s.get("cadastro_id"):
+                dados["cadastro_id"] = s["cadastro_id"]
+            if s and not dados.get("descricao"):
+                dados["descricao_servico"] = s.get("nome") or ""
         prest = self.emissor.prestador.atual()
         rascunho_base = {"tomador": self.tomador_do_cadastro(dados.get("cadastro_id")),
                          "descricao": (prest["dados"].get("servico") or {}).get("descricao") or "",
@@ -214,6 +222,8 @@ class Notas:
                     dados.setdefault("cadastro_id", lanc["cadastro_id"])
                 if lanc.get("descricao") and not dados.get("descricao"):
                     rascunho_base["descricao"] = (rascunho_base["descricao"] + " — " if rascunho_base["descricao"] else "") + lanc["descricao"]
+        if dados.get("descricao_servico") and not dados.get("descricao"):
+            rascunho_base["descricao"] = (rascunho_base["descricao"] + " — " if rascunho_base["descricao"] else "") + dados["descricao_servico"]
         rascunho = self._limpar(dados, rascunho_base)
         agora = _agora()
         id_ = self.base.escrever(

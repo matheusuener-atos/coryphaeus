@@ -407,7 +407,10 @@ class Agentes:
 
         autonomia = _textos(dados.get("autonomia"), "autonomia", erros)
         for f in autonomia:
-            if f not in ferramentas:
+            if (catalogo.get(f) or {}).get("nunca_sozinha"):
+                erros.append(f"autonomia: '{f}' nunca é sozinha — o agente só prepara o rascunho; "
+                             "a nota fiscal passa por Aprovações")
+            elif f not in ferramentas:
                 erros.append(f"autonomia: '{f}' não está entre as ferramentas do agente ({_lista_de(ferramentas) or 'nenhuma'}); "
                              "o agente só faz sozinho o que ele já pode fazer com confirmação")
         if autonomia:
