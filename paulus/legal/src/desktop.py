@@ -474,6 +474,31 @@ def _entregar_para_a_aberta(porta: int, caminho: str, timeout: float = 10) -> bo
         return False
 
 
+def _entregar_ao_word(porta: int, pedido: tuple[str, str], timeout: float = 15) -> bool:
+    """
+    O atalho "Word com PAVLVS" e o botão direito dos .docx (src/word_atalhos.py)
+    com o PAULUS já aberto: o pedido vai para ele, e a janela do PAULUS fica
+    onde está - quem vem para a frente é o Word.
+    """
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)
+        except Exception:  # noqa: BLE001
+            pass
+    acao, caminho = pedido
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{porta}/api/word/externo", data=json.dumps({"acao": acao, "caminho": caminho}).encode("utf-8"),
+        headers={"Content-Type": "application/json", **_cabecalho_local()}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
 def _trazer_para_frente() -> None:
     if not _HWND or sys.platform != "win32":
         return
@@ -527,7 +552,24 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001 - abre com os dados de agora
             print(f"  restauracao nao aplicada: {exc}")
     pedido = _arquivo_pedido(sys.argv[1:])
+    import word_atalhos
+
+    pedido_word = word_atalhos.pedido_do_word(sys.argv[1:])
     aberta = _porta_da_instancia_aberta()
+    if pedido_word:
+        if aberta and _entregar_ao_word(aberta, pedido_word):
+            return 0
+        porta_reg, pid_reg = _instancia_registrada()
+        if porta_reg and _processo_vivo(pid_reg):
+            for _ in range(3):
+                if _entregar_ao_word(porta_reg, pedido_word, timeout=30):
+                    return 0
+                time.sleep(1)
+            return 0
+        # O PAULUS fechado: abre minimizado (o painel do Word precisa dele no
+        # ar) e atende o pedido assim que o servidor subir.
+        if "--minimizado" not in sys.argv:
+            sys.argv.append("--minimizado")
     if aberta and _entregar_para_a_aberta(aberta, pedido):
         return 0
     # O PAULUS aberto e ocupado (maquina com pouca memoria, lendo o Acervo)
@@ -575,6 +617,14 @@ def main() -> int:
     except OSError:
         pass
     api.estado.ao_pedido_externo = _pedido_externo
+    if pedido_word:
+        def _atender_o_word() -> None:
+            try:
+                api.estado.word_externo(*pedido_word)
+            except Exception as exc:  # noqa: BLE001 - o PAULUS fica aberto do mesmo jeito
+                print(f"  o Word não abriu: {exc}")
+
+        threading.Thread(target=_atender_o_word, name="word-do-atalho", daemon=True).start()
     api.estado.ao_fechar = lambda: _JANELA.destroy() if _JANELA is not None else None
 
     global _JANELA

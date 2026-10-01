@@ -343,7 +343,8 @@ _declarar(BLOQUEADO,
           "DELETE /api/gravacoes/{id_}/marcadores/{indice}",
           "POST /api/apoio/pix", "POST /api/apoio/pix/recuperar", "GET /api/apoio/pix/{id_}",
           "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
-          "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura")
+          "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura",
+          "GET /api/apoio/neste-mes")
 
 # --- a Biblioteca (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md): montar a
 # biblioteca e a configuracao dela ficam na janela do servidor, como o
@@ -475,7 +476,9 @@ _declarar(PERMITIDO, "POST /api/captura")
 # propria (word_suplemento.ROTAS, padrao "nega"); ficam aqui declaradas
 # bloqueadas para o caso de alguem tentar pelo caminho de sempre.
 _declarar(BLOQUEADO, "GET /api/word", "POST /api/word/ligar", "POST /api/word/instalar", "POST /api/word/desinstalar",
-          "GET /api/word/manifesto", "POST /api/word/abrir-pasta", "POST /api/word/pedidos/{id_}/permitir", "POST /api/word/pedidos/{id_}/recusar",
+          "GET /api/word/manifesto", "POST /api/word/abrir-pasta", "GET /api/word/word-aberto", "POST /api/word/abrir",
+          "POST /api/word/externo", "POST /api/word/atalhos",
+          "POST /api/word/abrir-documento/{id_}", "POST /api/word/pedidos/{id_}/permitir", "POST /api/word/pedidos/{id_}/recusar",
           "DELETE /api/word/conexoes/{id_}",
           "POST /api/word/parear", "POST /api/word/parear/trocar", "POST /api/word/carregou",
           "GET /api/word/s/eu", "PUT /api/word/s/preferencias", "DELETE /api/word/s/eu")

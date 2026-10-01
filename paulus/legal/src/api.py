@@ -3470,6 +3470,10 @@ def acontecendo_agora() -> dict:
                 "feitos": atual.feitos if atual else 0,
                 "total": atual.total if atual else 0,
                 "progresso": trabalho.progresso or 0,
+                # O cartao do pacote de telas (Assistente - Acontecendo agora)
+                # desenha uma faixa por etapa, com o que cada uma achou.
+                "etapas": [{"titulo": e.titulo, "estado": e.estado, "detalhe": e.detalhe,
+                            "feitos": e.feitos, "total": e.total} for e in trabalho.etapas],
             }
             # A resposta andando diz em que fase esta e ha quanto tempo - e a
             # barra so existe onde ha medida: leitura com previsao desta
@@ -7981,6 +7985,41 @@ def apoio_assinatura_situacao(id_: str) -> dict:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@app.get("/api/apoio/neste-mes")
+def apoio_neste_mes() -> dict:
+    """
+    O que o convite para apoiar diz (pacote de telas, `Assistente - Apoiar`):
+    quantos documentos o PAULUS leu para responder neste mes (os citados nas
+    respostas e os mostrados na conversa) e quantos lancamentos foram
+    montados no Financeiro. Conta feita aqui, com o que esta gravado; nada
+    sai da maquina.
+    """
+    hoje = date.today()
+    inicio = hoje.replace(day=1).isoformat()
+    lidos: set[str] = set()
+    resumos = [r for g in estado.trabalhos.listar().get("grupos", []) for r in g.get("trabalhos", [])]
+    for resumo in resumos:
+        t = estado.trabalhos.obter(resumo.get("id", ""))
+        if not t:
+            continue
+        for m in t.mensagens:
+            if m.autor != "paulus" or str(m.em or "")[:10] < inicio:
+                continue
+            for f in m.fontes or []:
+                nome = (f or {}).get("documento") if isinstance(f, dict) else None
+                if nome and not (f or {}).get("material"):
+                    lidos.add(nome)
+            feito = m.feito or {}
+            if feito.get("tipo") == "exibir" and feito.get("nome"):
+                lidos.add(feito["nome"])
+    lancamentos = estado.base.um(
+        "SELECT COUNT(*) AS n FROM lancamentos WHERE criado_em >= ?", (inicio,)) or {"n": 0}
+    import calendar
+    ultimo = calendar.monthrange(hoje.year, hoje.month)[1]
+    return {"mes": hoje.strftime("%Y-%m"), "documentos": len(lidos), "lancamentos": int(lancamentos["n"] or 0),
+            "faltam_dias": ultimo - hoje.day}
+
+
 @app.get("/api/publico/{qual}")
 def publico_do_site(qual: str) -> dict:
     """
@@ -8832,6 +8871,51 @@ def documentos_pdf_com_senha(id_: int, payload: PdfProtegido):
                     headers=_anexo(_arquivo(item["titulo"]) + ".pdf"))
 
 
+def _docx_com_pavlvs(dados: bytes) -> bytes:
+    """
+    W1: o .docx que o PAULUS gera leva o PAVLVS (src/word_instalar.py) quando
+    ele está ligado e instalado - no Word 2021 a aba só aparece no documento
+    que traz o suplemento, e o Word o mantém quando a pessoa salva.
+    """
+    instalacao = getattr(estado, "word_instalacao", None)
+    return instalacao.no_documento(dados) if instalacao is not None else dados
+
+
+@app.post("/api/word/abrir-documento/{id_}")
+def word_abrir_documento(id_: int, request: Request) -> dict:
+    """
+    "Abrir no Word", no Editor: o .docx com o PAVLVS vai para o Acervo (o
+    mesmo arquivo do "guardar", que nunca passa por cima do que alguém mudou
+    por fora) e abre no Word.
+    """
+    rotas_do_acesso.so_local(request)
+    instalacao = estado.word_instalacao
+    if not instalacao.instalado():
+        raise HTTPException(status_code=409, detail="ative o PAVLVS no Word primeiro (Configurações › Word)")
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="só documento de texto abre no Word")
+    if instalacao.precisa_fechar_o_word():
+        return {"aberto": False, "precisa_fechar": True}
+    dados = _docx_com_pavlvs(documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"],
+                                                 formato=item.get("formato")))
+    try:
+        destino = _arquivo_do_editor_no_acervo(id_, item["titulo"], ".docx", dados)
+    except OSError:
+        # Aberto no Word (arquivo preso): abre o que já está lá.
+        mapa = json.loads(EDITOR_NO_ACERVO_PATH.read_text(encoding="utf-8")) if EDITOR_NO_ACERVO_PATH.exists() else {}
+        caminho = (mapa.get(f"{id_}:.docx") or {}).get("caminho")
+        if not caminho:
+            raise HTTPException(status_code=409, detail="o arquivo está preso por outro programa") from None
+        destino = Path(caminho)
+    estado.recarregar()
+    try:
+        estado.word_abrir_no_windows(destino)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"não consegui abrir o Word: {exc}") from exc
+    return {"aberto": True, "precisa_fechar": False, "caminho": str(destino)}
+
+
 @app.get("/api/documentos/{id_}/docx")
 def documentos_docx(id_: int):
     from fastapi.responses import Response
@@ -8840,8 +8924,8 @@ def documentos_docx(id_: int):
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
 
-    dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"],
-                                formato=item.get("formato"))
+    dados = _docx_com_pavlvs(documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"],
+                                                 formato=item.get("formato")))
     return Response(
         dados,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -8994,7 +9078,7 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
         dados = planilha.para_xlsx(abas, [planilha.calcular_aba(a) for a in abas])
         sufixo = ".xlsx"
     elif formato == "docx":
-        dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"])
+        dados = _docx_com_pavlvs(documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"]))
         sufixo = ".docx"
     else:
         dados = _pdf_do_documento(item)
@@ -11964,7 +12048,7 @@ def _docx_da_gravacao(id_: int) -> tuple[str, bytes]:
         titulo, html = estado.gravacoes.html_para_exportar(id_)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return titulo, documento.para_docx(documento.ler_html(html), titulo)
+    return titulo, _docx_com_pavlvs(documento.para_docx(documento.ler_html(html), titulo))
 
 
 @app.get("/api/gravacoes/{id_}/transcricao.docx")

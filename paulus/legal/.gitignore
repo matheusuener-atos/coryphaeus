@@ -124,3 +124,7 @@ data/indice/
 data/aprendizado/
 data/leis/
 data/demo-biblioteca/
+
+# W1: o PAVLVS no Word desta instalacao - certificado (com a chave do
+# servidor), conexoes (resumo do token) e manifestos. Nunca no repositorio.
+data/word/

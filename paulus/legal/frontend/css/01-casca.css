@@ -299,5 +299,23 @@
   .conversa-col {
     flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0;
     background: var(--bg); position: relative;
+    /* A largura da coluna da direita (02-conversa.css). `--lado` anima;
+       `--lado-alvo` e a de chegada, que o conteudo dela usa desde o primeiro
+       quadro. */
+    --lado: 0px;
+    --lado-alvo: 380px;
+    transition: --lado .42s cubic-bezier(.16,1,.3,1);
   }
+  .conversa-col.com-lado { --lado: 380px; }
+  .conversa-col.com-lado[data-papel="formulario"] { --lado: 420px; }
+  .conversa-col[data-papel="formulario"] { --lado-alvo: 420px; }
+  .conversa-col.com-lado[data-papel="configuracao"] { --lado: 460px; }
+  .conversa-col[data-papel="configuracao"] { --lado-alvo: 460px; }
+  .conversa-col.com-lado[data-papel="ferramenta"] { --lado: calc(100% - 560px); }
+  /* Aqui o alvo nao pode ser porcentagem: dentro da coluna da direita, 100%
+     seria a largura dela, que esta animando. js/02-lado.js mede a coluna da
+     conversa e poe a conta pronta, em px, em --largura-ferramenta. */
+  .conversa-col[data-papel="ferramenta"] { --lado-alvo: var(--largura-ferramenta); }
+  /* Fechando, a coluna encolhe mais depressa do que abriu. */
+  .conversa-col:not(.com-lado) { transition: --lado .3s cubic-bezier(.55,0,.45,1); }
 

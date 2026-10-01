@@ -169,6 +169,88 @@ Não há atalhos. O Word 2021 não tem SharedRuntime nem KeyboardShortcuts
 (medido na W0), e os atalhos não foram fingidos. Fica para a W7 conferir num
 Microsoft 365 atual.
 
+## A 0.9.23 não mostrava a aba, e a correção (01/10/2026)
+
+**O que o dono viu:** atualizou para a 0.9.23, ativou no Editor, confirmou o
+certificado com Sim, e o Word não mostrou o PAVLVS. Instalou de novo, e nada.
+
+**A causa, medida no Word 2021 dele:**
+
+- A instalação estava inteira: registro, certificado confiado, porta 46300
+  e painel respondendo.
+- O registro de desenvolvedor (`WEF\Developer`) só faz o Word **conhecer**
+  o suplemento. A aba aparece apenas no documento que traz a referência a
+  ele:
+  - Word aberto em branco depois da instalação: sem a aba;
+  - o mesmo Word com um documento que traz o PAVLVS: com a aba e o painel;
+  - de novo em branco: sem a aba.
+- Na W1 isso passou despercebido porque todo teste abria um documento assim.
+- Tentativas que não mostraram a aba:
+  - modelo global na pasta STARTUP;
+  - o Id como nome do valor no registro;
+  - documento com a referência mas sem o painel visível (a aba só aparece
+    com o painel aberto).
+- Inserir › Meus Suplementos diz "Sem Suplementos" no Word 2021. O único
+  caminho para a aba ficar em todo documento é o catálogo, com um clique
+  manual no Word. O dono recusou passo manual e escolheu o caminho 1.
+
+**Caminho 1: o documento leva o PAVLVS.** Medido no Word real:
+
+- O documento com a referência e o painel abre com a aba.
+- O documento salvo pelo Word **continua** com a referência.
+- Um documento novo criado a partir de um modelo `.dotx` com o PAVLVS também
+  traz a aba.
+
+O que existe agora:
+
+- **Ativar no Word** (o aviso do Editor e Configurações › Word):
+  - instala;
+  - cria o atalho **Word com PAVLVS** na área de trabalho e o **Abrir no
+    Word com o PAVLVS** no botão direito dos `.docx`;
+  - pergunta se quer o atalho também no menu Iniciar;
+  - abre o Word com o "PAVLVS — comece aqui".
+- **Quem já tinha instalado na 0.9.23** vê o aviso uma vez de novo, na
+  forma "abrir": cria os atalhos e abre o Word, sem reinstalar.
+- **O atalho "Word com PAVLVS"** (`PAULUS.exe --word`) abre um documento
+  novo pelo modelo `PAVLVS.dotx`. Com o PAULUS fechado, ele abre minimizado,
+  porque o painel precisa dele no ar.
+- **O botão direito dos .docx** (`--word-abrir`, só HKCU; no Windows 11, em
+  "Mostrar mais opções"):
+  - põe a referência no arquivo, por cópia ao lado e troca de uma vez, sem
+    mudar o texto;
+  - abre o arquivo; dali em diante, o duplo clique já abre com o PAVLVS.
+- **Abrir no Word**, na pré-visualização do Editor: grava no Acervo (o
+  mesmo arquivo do Guardar) e abre.
+- **Todo .docx que o PAULUS gera** leva o PAVLVS: Baixar DOCX, Guardar no
+  Acervo e a transcrição das gravações.
+- **Word aberto desde antes da instalação** (ele lê o registro só ao abrir):
+  - pela tela, o PAULUS pede para fechar e abre sozinho quando ele fechar;
+  - pelo atalho ou pelo botão direito, um aviso do Windows diz o mesmo e o
+    PAULUS espera até 15 min.
+- Os documentos que o PAULUS gera não abrem mais em "Modo de
+  Compatibilidade" (compatibilidade 15, Calibri 11).
+- **Fixar na barra de tarefas ou no topo do Iniciar:** o Windows 11 não
+  deixa programa nenhum fazer. A tela diz isso e diz como a pessoa faz.
+
+**Medido:**
+
+- `tests/test_w1_painel.py`: **135 ok**.
+- No Word real, com um PAULUS de teste (dados temporários, certificado da
+  prova):
+  - "Abrir o Word com o PAVLVS": abriu o "comece aqui" com a aba e o painel;
+  - "Abrir no Word" do Editor: abriu o documento com a aba e o painel;
+  - `desktop.py --word` com o PAULUS fechado: abriu minimizado, e o Word
+    abriu um documento novo com a aba e o painel, sem modo de
+    compatibilidade;
+  - `desktop.py --word-abrir` com o PAULUS aberto: entregou o pedido em 1,1
+    s, o arquivo passou a trazer o PAVLVS e abriu com a aba e o painel.
+- **Não medido:**
+  - o `PAULUS.exe` instalado chamando `--word` e `--word-abrir` (só existe
+    depois de publicar; o lançador repassa os argumentos, conferido no
+    `Lancador.cs`);
+  - o item no menu do botão direito do Explorer de verdade (o teste usou uma
+    chave de teste do registro).
+
 ## W0 — o que foi medido (01/10/2026)
 
 Word desta máquina: **Office Professional Plus 2021 (volume), 16.0.14334.20918,

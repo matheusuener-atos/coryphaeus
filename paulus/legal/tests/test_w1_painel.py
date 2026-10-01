@@ -283,7 +283,189 @@ def test_http() -> None:
            "a chave da autoridade não fica no disco")
     sit = local.get("/api/word").json()["instalacao"]
     checar(sit["carregado"] is False, "instalado, mas ainda não diz 'abriu no Word'")
+    checar(sit["instalado"] is True, "a situação diz instalado")
+
+    test_documento_leva_o_pavlvs(local, inst)
     return porta
+
+
+def test_documento_leva_o_pavlvs(local, inst) -> None:
+    """
+    No Word 2021 a aba só aparece no documento que traz o PAVLVS (medido em
+    01/10/2026): o PAULUS abre o Word com um documento seu e todo .docx que
+    ele gera leva o PAVLVS.
+    """
+    print("  o documento leva o PAVLVS")
+    import io
+    import zipfile
+
+    import docx
+
+    import api
+    import word_instalar as wi
+
+    def novo(txt: str) -> bytes:
+        b = io.BytesIO()
+        d = docx.Document()
+        d.add_paragraph(txt)
+        d.save(b)
+        return b.getvalue()
+
+    id_local = inst._id("local")
+    original = novo("Petição de teste.")
+    com = wi.com_pavlvs(original, id_=id_local, versao="0.9.23", abrir_painel=True)
+    z = zipfile.ZipFile(io.BytesIO(com))
+    checar(wi.tem_pavlvs(com, id_local) and "word/webextensions/taskpanes.xml" in z.namelist(), "com_pavlvs põe a referência e o painel")
+    checar(z.read("word/document.xml") == zipfile.ZipFile(io.BytesIO(original)).read("word/document.xml"),
+           "o texto do documento não muda")
+    checar(docx.Document(io.BytesIO(com)).paragraphs[0].text == "Petição de teste.", "o .docx continua abrindo")
+    checar(wi.com_pavlvs(com, id_=id_local, versao="0.9.23", abrir_painel=True) == com, "documento que já traz o PAVLVS volta igual")
+    outro = wi.com_pavlvs(original, id_="outro-suplemento", versao="1", abrir_painel=True)
+    checar(wi.com_pavlvs(outro, id_=id_local, versao="0.9.23", abrir_painel=True) == outro,
+           "documento com outro suplemento não é mexido")
+    checar(wi.com_pavlvs(b"nao e zip", id_=id_local, versao="1", abrir_painel=True) == b"nao e zip", "arquivo que não é .docx volta igual")
+
+    abertos: list[str] = []
+    api.estado.word_abrir_no_windows = lambda caminho: abertos.append(str(caminho))
+    inst_precisa = inst.precisa_fechar_o_word
+    try:
+        inst.precisa_fechar_o_word = lambda **kw: False
+        r = local.post("/api/word/abrir")
+        checar(r.status_code == 200 and r.json()["aberto"] is True and abertos and abertos[-1].endswith("PAVLVS - comece aqui.docx"),
+               "Abrir o Word: abre o 'comece aqui'", r.text[:200])
+        checar(wi.tem_pavlvs(Path(abertos[-1]).read_bytes(), id_local), "o 'comece aqui' traz o PAVLVS")
+
+        # o Editor: o documento vai para o Acervo com o PAVLVS e abre no Word
+        r = local.post("/api/documentos", json={"titulo": "Contrato de teste W1", "tipo": "texto"})
+        doc_id = r.json().get("id") or (r.json().get("documento") or {}).get("id")
+        checar(bool(doc_id), "um documento no Editor", r.text[:200])
+        r = local.post(f"/api/word/abrir-documento/{doc_id}")
+        checar(r.status_code == 200 and r.json()["aberto"] is True and r.json()["caminho"].endswith(".docx"),
+               "Abrir no Word (Editor): grava no Acervo e abre", r.text[:200])
+        caminho = Path(r.json()["caminho"])
+        checar(wi.tem_pavlvs(caminho.read_bytes(), id_local) and abertos[-1] == str(caminho),
+               "o arquivo aberto traz o PAVLVS")
+        r = local.get(f"/api/documentos/{doc_id}/docx")
+        checar(wi.tem_pavlvs(r.content, id_local), "Baixar DOCX também leva o PAVLVS")
+        r = local.post(f"/api/documentos/{doc_id}/biblioteca", json={"formato": "docx", "automatico": True})
+        checar(r.status_code == 200 and wi.tem_pavlvs(Path(r.json()["caminho"]).read_bytes(), id_local),
+               "Guardar no Acervo em .docx também leva o PAVLVS", r.text[:160])
+
+        # Word aberto desde antes da instalação: pede para fechar, não abre
+        marco = datetime_do(api.estado.prefs.dados["word"]["instalado_em"])
+        checar(inst_precisa(desde=lambda: marco - 60) is True and inst_precisa(desde=lambda: marco + 60) is False
+               and inst_precisa(desde=lambda: None) is False, "Word aberto antes da instalação: precisa fechar; depois ou fechado: não")
+        inst.precisa_fechar_o_word = lambda **kw: True
+        antes = len(abertos)
+        r = local.post("/api/word/abrir")
+        checar(r.json() == {"aberto": False, "precisa_fechar": True} and len(abertos) == antes,
+               "com o Word antigo aberto, não abre: avisa para fechar", r.text[:160])
+        checar(local.get("/api/word/word-aberto").json() == {"precisa_fechar": True}, "a tela consulta até o Word fechar")
+    finally:
+        inst.precisa_fechar_o_word = inst_precisa
+
+    test_atalhos_e_botao_direito(local, inst, id_local, novo, abertos)
+
+    # desligado: o .docx sai como sempre saiu
+    api.estado.prefs.atualizar({"word": {"ligado": False}})
+    r = local.get(f"/api/documentos/{doc_id}/docx")
+    checar(not wi.tem_pavlvs(r.content, id_local), "com o PAVLVS desligado, o .docx sai sem ele")
+    checar(local.post("/api/word/abrir").status_code == 409, "desligado: Abrir o Word recusa")
+    api.estado.prefs.atualizar({"word": {"ligado": True}})
+
+
+def test_atalhos_e_botao_direito(local, inst, id_local, novo, abertos) -> None:
+    """O atalho "Word com PAVLVS" (--word) e o botão direito dos .docx (--word-abrir)."""
+    print("  o atalho e o botão direito")
+    import io
+    import zipfile
+
+    import api
+    import word_atalhos as wa
+    import word_instalar as wi
+
+    checar(wa.pedido_do_word(["--word"]) == ("novo", "") and wa.pedido_do_word(["--perguntar", "x"]) is None,
+           "--word pede um documento novo; os outros pedidos não são do Word")
+    arquivo = TMP / "Petição do cliente.docx"
+    checar(wa.pedido_do_word(["--word-abrir", str(arquivo)]) == ("abrir", str(arquivo.resolve())), "--word-abrir leva o arquivo")
+
+    # o documento-base: sem "Modo de Compatibilidade"
+    base = wi.documento_base([("", "x")])
+    checar(b'w:name="compatibilityMode"' in zipfile.ZipFile(io.BytesIO(base)).read("word/settings.xml")
+           and b'w:val="15"' in zipfile.ZipFile(io.BytesIO(base)).read("word/settings.xml"),
+           "o documento que o PAULUS gera não abre em Modo de Compatibilidade")
+    modelo = wi.documento_base(modelo=True)
+    checar(b"template.main+xml" in zipfile.ZipFile(io.BytesIO(modelo)).read("[Content_Types].xml"), "o modelo é um .dotx")
+
+    inst_precisa = inst.precisa_fechar_o_word
+    try:
+        inst.precisa_fechar_o_word = lambda **kw: False
+        r = local.post("/api/word/externo", json={"acao": "novo"})
+        checar(r.json().get("aberto") is True and abertos[-1].endswith("PAVLVS.dotx")
+               and wi.tem_pavlvs(Path(abertos[-1]).read_bytes(), id_local),
+               "o atalho abre um documento novo pelo modelo com o PAVLVS", r.text[:160])
+
+        arquivo.write_bytes(novo("Texto do cliente, que não pode mudar."))
+        texto_antes = zipfile.ZipFile(arquivo).read("word/document.xml")
+        r = local.post("/api/word/externo", json={"acao": "abrir", "caminho": str(arquivo)})
+        checar(r.json() == {"aberto": True, "resultado": "posto"} and abertos[-1] == str(arquivo),
+               "o botão direito põe o PAVLVS no arquivo e o abre", r.text[:160])
+        checar(wi.tem_pavlvs(arquivo.read_bytes(), id_local) and zipfile.ZipFile(arquivo).read("word/document.xml") == texto_antes,
+               "o arquivo passa a trazer o PAVLVS, e o texto não muda")
+        checar(not list(TMP.glob(".*.pavlvs")), "nenhuma cópia temporária fica para trás")
+        r = local.post("/api/word/externo", json={"acao": "abrir", "caminho": str(arquivo)})
+        checar(r.json().get("resultado") == "ja_tinha", "da segunda vez, o arquivo fica como está")
+        r = local.post("/api/word/externo", json={"acao": "abrir", "caminho": str(TMP / "nao-existe.docx")})
+        checar(r.json().get("aberto") is False, "arquivo que não existe: não abre nada")
+
+        # Word aberto desde antes da instalação: espera fechar e abre sozinho
+        estado_word = {"aberto": True}
+        inst.precisa_fechar_o_word = lambda **kw: estado_word["aberto"]
+        antes = len(abertos)
+        r = local.post("/api/word/externo", json={"acao": "novo"})
+        checar(r.json().get("esperando") is True and len(abertos) == antes, "com o Word antigo aberto: espera, sem abrir", r.text[:160])
+        estado_word["aberto"] = False
+        fim = time.time() + 6
+        while time.time() < fim and len(abertos) == antes:
+            time.sleep(0.2)
+        checar(len(abertos) == antes + 1 and abertos[-1].endswith("PAVLVS.dotx"), "o Word fechou: o PAULUS abre sozinho")
+    finally:
+        inst.precisa_fechar_o_word = inst_precisa
+
+    # o botão direito, numa chave de teste (não mexe no Explorer de verdade)
+    if sys.platform == "win32":
+        import winreg
+
+        base = r"Software\PAULUS-teste-w1\SystemFileAssociations"
+        exe = TMP / "PAULUS.exe"
+        exe.write_bytes(b"")
+        try:
+            wa.ligar_botao_direito(exe, base=base)
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, base + r"\.docx\shell" + "\\" + wa.VERBO) as k:
+                rotulo, _ = winreg.QueryValueEx(k, "")
+            checar(rotulo == "Abrir no Word com o PAVLVS" and wa.botao_direito_ligado(exe, base=base),
+                   "o botão direito dos .docx, só no usuário (HKCU)")
+            wa.desligar_botao_direito(base=base)
+            checar(not wa.botao_direito_ligado(exe, base=base), "e sai quando o PAVLVS sai do Word")
+        finally:
+            for sub in (base + r"\.docx\shell" + "\\" + wa.VERBO + r"\command", base + r"\.docx\shell" + "\\" + wa.VERBO,
+                        base + r"\.docx\shell", base + r"\.docx", base, r"Software\PAULUS-teste-w1"):
+                try:
+                    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, sub)
+                except OSError:
+                    pass
+        lnk = TMP / "atalhos" / "Word com PAVLVS.lnk"
+        wa.criar_atalho(lnk, exe, "--word", wa.icone_do_word(), "teste")
+        checar(lnk.exists() and lnk.stat().st_size > 0, "o atalho .lnk é criado (pasta de teste)")
+
+    checar(api.estado.word_instalacao.atalhos()["disponivel"] is False,
+           "no código-fonte (sem PAULUS.exe), nenhum atalho é criado")
+
+
+def datetime_do(texto: str) -> float:
+    from datetime import datetime
+
+    return datetime.strptime(texto, "%Y-%m-%d %H:%M:%S").timestamp()
 
 
 OFFICE_FALSO = r"""
@@ -436,8 +618,9 @@ def test_janela() -> None:
         pag.evaluate("mostrarConfig('word')")
         pag.wait_for_selector("text=Instalar no Word deste computador", timeout=10000)
         texto = pag.inner_text("#cfg-tela")
-        checar("Words conectados" in texto and "abriu no Word" in texto and "Se o Word não mostrar a aba PAVLVS" in texto,
-               "Configurações › Word: ligar, instalar, segunda via, de fora e os conectados", texto[:300])
+        checar("Words conectados" in texto and "Instalar no Word" in texto and "o Word abre sozinho com o PAVLVS" in texto
+               and "Catálogos de Suplementos" not in texto,
+               "Configurações › Word: ligar, instalar (e o Word abre sozinho), de fora e os conectados; sem passo manual", texto[:300])
 
         # um Word deste computador pede: a janela mostra o código e Permitir
         r = httpx.post(f"{base}/api/word/parear", json={"word": "16.0.14334.20918"})
@@ -462,7 +645,8 @@ def test_janela() -> None:
         checar(r.json().get("estado") == "recusado", "Recusar na janela: o painel fica sabendo", r.text[:120])
         pag.wait_for_selector(".word-conexao", timeout=10000)
         checar(pag.locator('[data-word-acao="revogar"]').count() >= 1, "a lista mostra o Word conectado com Revogar")
-        # A novidade ao entrar no Editor: uma vez, e Ativar liga e instala.
+        # A novidade ao entrar no Editor, nas duas formas: "abrir" (instalado
+        # e nunca aberto no Word - o caso da 0.9.23) e "ativar" (não instalado).
         import word_instalar
 
         word_instalar.word_no_computador = lambda: True
@@ -470,32 +654,58 @@ def test_janela() -> None:
         chamadas: list[str] = []
         inst = api.estado.word_instalacao
         instalar_de_verdade = inst.instalar
+        precisa_de_verdade = inst.precisa_fechar_o_word
+        abrir_de_verdade = api.estado.word_abrir_no_windows
         inst.instalar = lambda **kw: chamadas.append("instalar") or [{"passo": "teste", "resultado": "ok"}]
+        inst.precisa_fechar_o_word = lambda **kw: False
+        api.estado.word_abrir_no_windows = lambda caminho: chamadas.append("abriu " + Path(caminho).name)
+        instalado_em = api.estado.prefs.dados["word"]["instalado_em"]
+        chave = "paulus.novidade.word.2"
         try:
-            pag.evaluate("try { localStorage.removeItem('paulus.novidade.word'); } catch (e) {}")
+            (inst.pasta / "carregou.json").unlink(missing_ok=True)
+            pag.evaluate(f"try {{ localStorage.removeItem('{chave}'); }} catch (e) {{}}")
+            pag.evaluate("mostrarEditor()")
+            pag.wait_for_selector("text=O PAVLVS já está no seu Word", timeout=10000)
+            texto = pag.inner_text(".dialogo")
+            checar("Abrir o Word com o PAVLVS" in texto and "Word com PAVLVS" in texto and "botão direito" in texto and "em breve" in texto,
+                   "instalado e nunca aberto: a novidade oferece abrir o Word, o atalho e o botão direito", texto[:200])
+            pag.click('[data-dialogo="confirmar"]')
+            fim = time.time() + 5
+            while time.time() < fim and not chamadas:
+                time.sleep(0.2)
+            checar(chamadas == ["abriu PAVLVS - comece aqui.docx"], "e abre o Word com o 'comece aqui', sem reinstalar", chamadas)
+
+            chamadas.clear()
+            api.estado.prefs.atualizar({"word": {"instalado_em": ""}})
+            pag.evaluate(f"try {{ localStorage.removeItem('{chave}'); }} catch (e) {{}}")
+            pag.evaluate("mostrarConfig('word')")
             pag.evaluate("mostrarEditor()")
             pag.wait_for_selector("text=Novidade: o PAULUS dentro do Word", timeout=10000)
             texto = pag.inner_text(".dialogo")
-            checar("em breve" in texto and "clique em Sim" in texto and "Ativar no Word" in texto,
-                   "ao entrar no Editor: a novidade, o que esta versão faz e o botão Ativar", texto[:200])
+            checar("em breve" in texto and "clique em Sim" in texto and "o Word abre sozinho" in texto and "Ativar no Word" in texto,
+                   "não instalado: a novidade, o que esta versão faz e o botão Ativar", texto[:200])
             pag.click('[data-dialogo="cancelar"]')
             time.sleep(0.5)
             pag.evaluate("mostrarConfig('word')")
             pag.evaluate("mostrarEditor()")
             time.sleep(2)
             checar(pag.locator("text=Novidade: o PAULUS dentro do Word").count() == 0, "“Agora não”: não aparece de novo")
-            pag.evaluate("try { localStorage.removeItem('paulus.novidade.word'); } catch (e) {}")
+            pag.evaluate(f"try {{ localStorage.removeItem('{chave}'); }} catch (e) {{}}")
             pag.evaluate("mostrarConfig('word')")
             pag.evaluate("mostrarEditor()")
             pag.wait_for_selector("text=Novidade: o PAULUS dentro do Word", timeout=10000)
+            api.estado.prefs.atualizar({"word": {"instalado_em": instalado_em}})  # o instalar falso não grava
             pag.click('[data-dialogo="confirmar"]')
-            fim = time.time() + 5
-            while time.time() < fim and not chamadas:
+            fim = time.time() + 6
+            while time.time() < fim and len(chamadas) < 2:
                 time.sleep(0.2)
-            checar(chamadas == ["instalar"] and api.estado.prefs.dados["word"]["ligado"] is True,
-                   "Ativar no Word: liga e instala", chamadas)
+            checar(chamadas == ["instalar", "abriu PAVLVS - comece aqui.docx"] and api.estado.prefs.dados["word"]["ligado"] is True,
+                   "Ativar no Word: liga, instala e abre o Word com o PAVLVS", chamadas)
         finally:
             inst.instalar = instalar_de_verdade
+            inst.precisa_fechar_o_word = precisa_de_verdade
+            api.estado.word_abrir_no_windows = abrir_de_verdade
+            api.estado.prefs.atualizar({"word": {"instalado_em": instalado_em}})
             if sem_avisos is not None:
                 os.environ["PAULUS_SEM_AVISOS"] = sem_avisos
         r = TestClient(api.app, headers=api.cabecalho_local(), client=("127.0.0.1", 1)).get("/api/word")

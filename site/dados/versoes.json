@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.24",
+      "date": "2026-10-01",
+      "changes": [
+        "PAVLVS no Word: o atalho \"Word com PAVLVS\" na área de trabalho, o \"Abrir no Word com o PAVLVS\" no botão…"
+      ]
+    },
+    {
       "version": "0.9.23",
       "date": "2026-10-01",
       "changes": [

@@ -1352,7 +1352,16 @@ function pausarGravacao() {
     v.inicio = Date.now();
     v.estado = "gravando";
   }
-  desenharGravacoes();
+  redesenharGravador();
+  if (v.estado === "gravando") animarEqualizadorVivo();
+}
+
+/* A gravacao pode ser mexida de fora da tela de Gravacoes (o cartao da
+   tela inicial, a conversa que grava): redesenha so onde ela esta a vista,
+   sem levar a pessoa para Gravacoes. */
+function redesenharGravador() {
+  if (document.getElementById("gv-tela")) { desenharGravacoes(); return; }
+  if (typeof carregarAgora === "function") carregarAgora();
 }
 
 function marcarMomentoAoVivo() {
@@ -1384,7 +1393,7 @@ async function pararGravacao() {
   if (!v.gravador || v.estado === "salvando") return;
   if (v.estado === "gravando") v.decorrido += Date.now() - v.inicio;
   v.estado = "salvando";
-  desenharGravacoes();
+  redesenharGravador();
   const gravador = v.gravador;
   const blob = await new Promise((resolve) => {
     gravador.onstop = () => resolve(new Blob(v.pedacos, { type: gravador.mimeType || "audio/webm" }));
@@ -1412,16 +1421,78 @@ async function pararGravacao() {
     avisoCert("não consegui guardar o áudio: " + (await erroDe(r)));
     v.estado = "pausada";
     v.gravador = null;
-    desenharGravacoes();
+    redesenharGravador();
     return;
   }
   const g = await r.json();
   limparGravacaoAoVivo();
+  const abrir = () => { gv.aberta = g; gv.aba = "transcricao"; marcarDestino("gravacoes"); mostrarGravacoes("gravacao"); };
+  // Parada de fora de Gravacoes (a tela inicial): a pessoa fica onde esta, e
+  // o aviso leva a gravacao num clique.
+  if (!document.getElementById("gv-tela")) {
+    avisoCert("gravação arquivada nesta máquina · " + duracaoLongaGv(g.duracao_s), { acao: { rotulo: "Abrir", fazer: abrir } });
+    if (typeof carregarAgora === "function") carregarAgora();
+    return;
+  }
   avisoCert("gravação arquivada nesta máquina · " + duracaoLongaGv(g.duracao_s));
-  gv.aberta = g;
-  gv.aba = "transcricao";
-  mostrarGravacoes("gravacao");
+  abrir();
 }
+
+/* A GRAVACAO NA TELA INICIAL (pacote de telas, `Assistente - Gravando`):
+   o ponto vermelho, o que esta sendo gravado e com quem, o tempo, a onda do
+   microfone, a ultima fala transcrita e os controles - Pausar, Marcar
+   momento, abrir e Parar e arquivar. So existe enquanto ha gravacao. */
+function cartaoDaGravacaoAgora() {
+  const v = gv.vivo;
+  if (!["gravando", "pausada", "salvando"].includes(v.estado)) return "";
+  const f = v.form;
+  const tipo = (gv.tipos.find((t) => t.valor === f.tipo) || {}).rotulo || "";
+  const titulo = v.estado === "pausada" ? "Gravação em pausa" : v.estado === "salvando" ? "Guardando o áudio…" : "Gravando " + (tipo ? tipo.toLowerCase() : "");
+  const cliente = (gv.clientes.find((c) => c.id === f.cadastro_id) || {}).nome || "";
+  const nomes = String(f.participantes || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const meta = [cliente || f.titulo, nomes.length ? plural(nomes.length, "participante") : "", v.sessao ? "transcrevendo ao vivo" : ""].filter(Boolean).join(" · ");
+  const ultima = v.transcricao.length ? v.transcricao[v.transcricao.length - 1] : null;
+  const fala = ultima
+    ? '<span class="agr-fala-t">' + duracaoGv(ultima.inicio) + '</span><span class="agr-fala-texto">' + esc(ultima.texto) + "</span>"
+    : '<span class="agr-fala-t">' + duracaoGv(segundosGravados()) + '</span><span class="agr-fala-texto apagada">' +
+      (v.sessao ? "ouvindo… o texto chega a cada pausa na fala" : "sem transcrição ao vivo nesta gravação") + "</span>";
+  const salvando = v.estado === "salvando" ? " disabled" : "";
+  return '<div class="cartao-agora agr-cartao agr-gravando"><div class="cabeca">' +
+    '<span class="agr-grava"><i class="agr-rec' + (v.estado === "gravando" ? " vivo" : "") + '"></i>' + esc(titulo) + "</span>" +
+    '<span class="agr-grava-meta">' + esc(meta) + "</span>" +
+    '<span class="agr-grava-tempo" data-gv-tempo-agora="1">' + duracaoGv(segundosGravados()) + "</span></div>" +
+    '<canvas class="agr-onda" data-gv-onda-vivo="1"></canvas>' +
+    '<div class="agr-fala">' + fala + "</div>" +
+    '<div class="agr-grava-acoes">' +
+    '<button class="agr-acao" data-agr-gv="pausar"' + salvando + ">" + ic(v.estado === "pausada" ? "mic" : "pause", 15) + (v.estado === "pausada" ? "Continuar" : "Pausar") + "</button>" +
+    '<button class="agr-acao" data-agr-gv="marcar"' + salvando + ">" + ic("bookmark", 15) + "Marcar momento</button>" +
+    '<span class="agr-grava-conta">' + plural(v.marcadores.length, "marcador", "marcadores") + "</span>" +
+    '<span class="vazio-flex"></span>' +
+    '<button class="agr-borda" data-agr-gv="abrir">Abrir gravação</button>' +
+    '<button class="agr-cheio" data-agr-gv="parar"' + salvando + "><i></i>Parar e arquivar</button></div></div>";
+}
+
+function ligarGravacaoAgora(raiz) {
+  raiz.querySelectorAll("[data-agr-gv]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const o = b.dataset.agrGv;
+      if (o === "pausar") pausarGravacao();
+      else if (o === "marcar") { marcarMomentoAoVivo(); carregarAgora(); avisoCert("momento marcado em " + duracaoGv(segundosGravados())); }
+      else if (o === "parar") pararGravacao();
+      else if (o === "abrir") { marcarDestino("gravacoes"); mostrarGravacoes("vivo"); }
+    };
+  });
+  if (gv.vivo.estado === "gravando") animarEqualizadorVivo();
+  else {
+    const tela = raiz.querySelector("[data-gv-onda-vivo]");
+    if (tela) desenharOnda(tela, null, false);
+  }
+}
+
+setInterval(() => {
+  document.querySelectorAll("[data-gv-tempo-agora]").forEach((el) => { el.textContent = duracaoGv(segundosGravados()); });
+}, 1000);
 
 /* ------------------------------------------------------- ao vivo */
 /*

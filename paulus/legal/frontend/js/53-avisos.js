@@ -1,8 +1,16 @@
 /* ------------------------------------------------------ avisos do dia */
 /*
-   T2 (docs/prompt-conversa-agentes-v0.md §2.7): o carrossel de avisos da
-   tela inicial, logo abaixo de "Acontecendo agora", e a Central de avisos
-   (Hoje, Todos, Histórico).
+   T2 (docs/prompt-conversa-agentes-v0.md §2.7), redesenhado pelo pacote de
+   telas de 01/10/2026 (docs/PLANO-TELAS-ASSISTENTE.md, T1):
+
+     - na tela inicial, o RESUMO em tres cartoes: atrasados, vencem hoje e
+       conversas pela metade, cada um com a conta e as duas primeiras
+       linhas, com a acao direta;
+     - "ver N" abre o PAINEL no lugar da lista de conversas (`Assistente -
+       Avisos`): os tipos a esquerda, com a conta, e a lista agrupada a
+       direita (Atrasados, Conversas pela metade, Hoje, Amanha, Esta semana);
+     - "Central de avisos" abre o mesmo painel numa janela (`Assistente -
+       Central de avisos`), com o rodape e a selecao de varios.
 
    Quem junta os avisos e o servidor (src/central_avisos.py): cada aviso tem
    um id pela origem (prazo:<id>:<data>...), o que a tela de origem diria, o
@@ -21,14 +29,37 @@
 
 const avs = {
   ligado: false, avisos: [], carregadoEm: 0, pedindo: false, faltou: [],
-  // Um cartao so (pedido do dono, 30/09): o aviso da vez e onde ele esta.
-  // Guardar o id faz a recarga de 30 s manter o mesmo cartao; quando ele sai
-  // (visto, concluido), fica a posicao - e o proximo entra no lugar dele.
-  atual: "", pos: 0,
-  central: { aba: "hoje", tipo: "", periodo: "semana", hperiodo: "tudo", dados: null, historico: null },
+  // O painel (na tela inicial ou na Central): o tipo escolhido a esquerda,
+  // o periodo, a busca, a lista do servidor, os grupos abertos e a selecao.
+  painel: { tipo: "", periodo: "semana", termo: "", dados: null, abertos: new Set(), escolhidos: new Set(), historico: null },
+  naInicio: false,
 };
 const AV_RECARGA_MS = 30000;
 const AV_JSON = { "Content-Type": "application/json" };
+
+/* Os tipos na coluna da esquerda, em quatro gavetas (pacote de telas). */
+const AV_GAVETAS = [
+  ["Dinheiro", ["a_pagar", "a_receber", "vencimento"]],
+  ["Prazos e processos", ["prazo", "publicacao", "processo"]],
+  ["Agenda", ["compromisso", "tarefa"]],
+  ["Conversas", ["pendencia"]],
+  ["Outros", ["conflito", "rotina"]],
+];
+const AV_ROTULO = {
+  a_pagar: "A pagar", a_receber: "A receber", vencimento: "Vencimento", prazo: "Prazo", publicacao: "Publicação",
+  processo: "Processo", compromisso: "Compromisso", tarefa: "Tarefa", pendencia: "Pendência", conflito: "Conflito", rotina: "Rotina",
+};
+const AV_ICONE = {
+  a_pagar: "payments", a_receber: "payments", vencimento: "event", prazo: "schedule", publicacao: "description",
+  processo: "folder", compromisso: "event", tarefa: "task_alt", pendencia: "forum", conflito: "group", rotina: "history",
+};
+// Na ordem em que aparecem na lista; "conversas pela metade" e um grupo a
+// parte, logo depois dos atrasados.
+const AV_GRUPOS = [
+  ["atrasado", "Atrasados", "acc"], ["conversas", "Conversas pela metade", "ambar"], ["hoje", "Hoje", ""],
+  ["amanha", "Amanhã", ""], ["semana", "Esta semana", ""], ["depois", "Depois", ""],
+];
+const AV_POR_GRUPO = 4;
 
 function avNaInicio() {
   const c = $("conversa-col");
@@ -57,88 +88,94 @@ async function carregarAvisosDoDia(forcar) {
   desenharAvisos();
 }
 
-/* O cartao e o de "Acontecendo agora" (.cartao-agora): tipo, quando, titulo,
-   de onde vem, Abrir e a acao direta. O circulo de marcar e o das tarefas
-   (.ag-circulo). Atrasado ou de hoje tem o destaque discreto do sistema
-   (--destaque-fundo), nunca a cor de erro. */
-function cartaoDeAviso(a) {
-  const acoes = (a.acoes || []).map((x, i) =>
-    '<button type="button" data-av-acao="' + esc(a.id) + '" data-av-i="' + i + '">' + esc(rotuloDaAcao(x)) + "</button>").join("");
-  return '<div class="cartao-agora av-cartao' + (a.destaque ? " av-destaque" : "") + '" role="listitem" tabindex="-1" data-av="' + esc(a.id) + '">' +
-    '<div class="cabeca">' +
-    '<button type="button" class="av-marca" data-av-visto="' + esc(a.id) + '" title="Marcar como visto" aria-label="Marcar como visto: ' + esc(a.titulo) + '">' +
-    '<span class="ag-circulo"></span></button>' +
-    '<span class="av-tipo">' + ic(a.icone || "notifications", 16) + "<span>" + esc(a.tipo_rotulo) + "</span></span></div>" +
-    '<div class="av-titulo">' + esc(a.titulo) + "</div>" +
-    '<div class="av-quando">' + esc(a.quando) + "</div>" +
-    '<div class="rodape av-origem">' + esc(a.origem) + (a.detalhe ? " · " + esc(a.detalhe) : "") + "</div>" +
-    '<div class="acoes"><button type="button" class="fantasma" data-av-abrir="' + esc(a.id) + '">Abrir</button>' + acoes + "</div>" +
-    "</div>";
-}
-
 function rotuloDaAcao(x) {
   return x.propoe ? "Propor: " + x.rotulo.charAt(0).toLowerCase() + x.rotulo.slice(1) : x.rotulo;
 }
 
-function desenharAvisos(sentido) {
+function iconeDoAviso(a) {
+  return AV_ICONE[a.tipo] || a.icone || "notifications";
+}
+
+function ehConversaPelaMetade(a) {
+  return a.tipo === "pendencia" && a.destino && a.destino.tela === "conversa";
+}
+
+/* ------------------------------------------------- o resumo na inicio */
+
+/* Os tres cartoes: atrasados (o fio de cima em vinho), vencem hoje e
+   conversas pela metade (ambar). Cada um com a conta grande, "ver N" e as
+   duas primeiras linhas com a acao direta. */
+function resumoDosAvisos(lista) {
+  const atrasados = lista.filter((a) => a.grupo === "atrasado");
+  const hoje = lista.filter((a) => a.grupo === "hoje" && !ehConversaPelaMetade(a) && a.destaque);
+  const metade = lista.filter(ehConversaPelaMetade);
+  const cartao = (classe, n, rotulo, itens, ver, vazio) =>
+    '<div class="av-res ' + classe + (n ? "" : " zero") + '"><i class="av-res-fio"></i>' +
+    '<div class="av-res-cabeca"><b>' + n + "</b><span>" + esc(rotulo) + "</span><span class=\"vazio-flex\"></span>" +
+    (n ? '<button type="button" class="av-res-ver" data-av-ver="' + ver + '">ver ' + n + "</button>" : "") + "</div>" +
+    (itens.length ? itens.slice(0, 2).map(linhaDoResumo).join("") : '<div class="av-res-vazio">' + ic("check_circle", 15) + esc(vazio) + "</div>") +
+    "</div>";
+  return cartao("atrasados", atrasados.length, atrasados.length === 1 ? "atrasado" : "atrasados", atrasados, "atrasado", "Nada atrasado.") +
+    cartao("hoje", hoje.length, hoje.length === 1 ? "vence hoje" : "vencem hoje", hoje, "hoje", "Nada vence hoje.") +
+    cartao("metade", metade.length, metade.length === 1 ? "conversa pela metade" : "conversas pela metade", metade, "conversas", "Nenhuma conversa parada.");
+}
+
+function linhaDoResumo(a) {
+  const acao = ehConversaPelaMetade(a)
+    ? '<button type="button" class="av-res-acao" data-av-abrir="' + esc(a.id) + '">Continuar</button>'
+    : ((a.acoes || [])[0] ? '<button type="button" class="av-res-acao" data-av-acao="' + esc(a.id) + '" data-av-i="0">' + esc(rotuloDaAcao(a.acoes[0])) + "</button>" : "");
+  return '<div class="av-res-linha" data-av-linha="' + esc(a.id) + '">' + ic(iconeDoAviso(a), 15) +
+    '<span class="av-res-texto"><b>' + esc(a.titulo) + "</b><small>" + esc(String(a.tipo_rotulo || "").toLowerCase() + " · " + a.quando) + "</small></span>" +
+    acao + "</div>";
+}
+
+function desenharAvisos() {
   const caixa = $("av-dia");
-  const trilho = $("av-trilho");
-  if (!caixa || !trilho) return;
+  const alvo = $("av-resumo");
+  if (!caixa || !alvo) return;
   const lista = avs.avisos || [];
-  // Vazio: sem avisos (ou com a chave desligada) os avisos nao aparecem.
-  if (!avs.ligado || !lista.length || !avNaInicio()) {
+  // Vazio: sem avisos (ou com a chave desligada) os avisos nao aparecem; com
+  // o painel aberto no lugar da lista, o resumo sai (ele e o mesmo assunto).
+  if (!avs.ligado || !lista.length || !avNaInicio() || avs.naInicio) {
     caixa.hidden = true;
-    trilho.innerHTML = "";
-    delete trilho.dataset.assinatura;
+    alvo.innerHTML = "";
+    delete alvo.dataset.assinatura;
+    // O painel se desenha uma vez; depois ele mesmo se refaz (recarregar).
+    if (avs.naInicio && avNaInicio() && !document.querySelector("#av-painel [data-av-painel]")) desenharPainelNaInicio();
     return;
   }
   caixa.hidden = false;
-  const achado = avs.atual ? lista.findIndex((a) => a.id === avs.atual) : -1;
-  avs.pos = achado >= 0 ? achado : Math.min(Math.max(0, avs.pos), lista.length - 1);
-  const a = lista[avs.pos];
-  avs.atual = a.id;
-  $("av-conta").textContent = lista.length === 1 ? "1 para ver" : (avs.pos + 1) + " de " + lista.length;
-  atualizarSetas();
-  const assinatura = a.id + "|" + a.quando + "|" + (a.acoes || []).length + "|" + lista.length;
-  if (trilho.dataset.assinatura === assinatura) return;
-  trilho.dataset.assinatura = assinatura;
-  trilho.innerHTML = cartaoDeAviso(a);
-  ligarCartoes(trilho);
-  // A troca e um passo curto para o lado; com as animacoes reduzidas, nada.
-  const cartao = trilho.firstElementChild;
-  if (sentido && cartao && animacoesLigadas()) cartao.classList.add(sentido > 0 ? "av-vem-da-direita" : "av-vem-da-esquerda");
-}
-
-/* Anda de cartao em cartao: -1 volta, 1 avanca; "inicio"/"fim" vao as pontas. */
-function irParaAviso(passo) {
-  const lista = avs.avisos || [];
-  if (!lista.length) return;
-  const antes = avs.pos;
-  if (passo === "inicio") avs.pos = 0;
-  else if (passo === "fim") avs.pos = lista.length - 1;
-  else avs.pos = Math.min(lista.length - 1, Math.max(0, avs.pos + passo));
-  if (avs.pos === antes) return;
-  avs.atual = lista[avs.pos].id;
-  desenharAvisos(avs.pos > antes ? 1 : -1);
+  const pedem = lista.filter((a) => a.destaque).length;
+  $("av-conta").textContent = plural(lista.length, "hoje", "hoje") + (pedem ? " · " + pedem + (pedem === 1 ? " pede" : " pedem") + " ação agora" : "");
+  const assinatura = lista.map((a) => a.id + ":" + a.quando + ":" + (a.acoes || []).length).join("|");
+  if (alvo.dataset.assinatura === assinatura) return;
+  alvo.dataset.assinatura = assinatura;
+  alvo.innerHTML = resumoDosAvisos(lista);
+  ligarLinhasDeAviso(alvo, () => avs.avisos);
+  alvo.querySelectorAll("[data-av-ver]").forEach((b) => {
+    b.onclick = () => abrirAvisosNaInicio(b.dataset.avVer);
+  });
 }
 
 function avisoPorId(id, lista) {
   return (lista || avs.avisos || []).find((a) => a.id === id) ||
-    ((avs.central.dados && avs.central.dados.avisos) || []).find((a) => a.id === id) || null;
+    ((avs.painel.dados && avs.painel.dados.avisos) || []).find((a) => a.id === id) ||
+    (avs.avisos || []).find((a) => a.id === id) || null;
 }
 
-function ligarCartoes(raiz) {
+/* Os botoes de uma linha (visto, abrir, a acao direta) e o clique na linha. */
+function ligarLinhasDeAviso(raiz, lista) {
   raiz.querySelectorAll("[data-av-visto]").forEach((b) => {
     b.onclick = (e) => { e.stopPropagation(); marcarAvisoVisto(b.dataset.avVisto, b); };
   });
+  raiz.querySelectorAll("[data-av-desmarcar]").forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); desmarcarAviso(b.dataset.avDesmarcar); };
+  });
   raiz.querySelectorAll("[data-av-abrir]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); const a = avisoPorId(b.dataset.avAbrir); if (a) abrirAviso(a); };
+    b.onclick = (e) => { e.stopPropagation(); const a = avisoPorId(b.dataset.avAbrir, lista()); if (a) abrirAviso(a); };
   });
   raiz.querySelectorAll("[data-av-acao]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); const a = avisoPorId(b.dataset.avAcao); if (a) fazerAcaoDoAviso(a, Number(b.dataset.avI)); };
-  });
-  raiz.querySelectorAll("[data-av-central]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); abrirCentralDeAvisos(b.dataset.avCentral); };
+    b.onclick = (e) => { e.stopPropagation(); const a = avisoPorId(b.dataset.avAcao, lista()); if (a) fazerAcaoDoAviso(a, Number(b.dataset.avI)); };
   });
 }
 
@@ -152,36 +189,35 @@ async function marcarAvisoVisto(id, botao) {
   } catch (err) {
     if (botao) botao.disabled = false;
     avisoCert("não consegui marcar agora — o programa respondeu?", { tom: "erro" });
-    return;
+    return false;
   }
   if (!r.ok) {
     if (botao) botao.disabled = false;
     avisoCert(await erroDe(r), { tom: "erro" });
     carregarAvisosDoDia(true);
-    return;
+    return false;
   }
   const d = await r.json();
-  const cartao = botao ? botao.closest(".av-cartao, .av-linha") : null;
   if (botao) botao.innerHTML = '<span class="ic ic-18 ag-feita-ic">check_circle</span>';
+  const linha = botao ? botao.closest(".avp-linha") : null;
   const depois = () => {
     avs.avisos = d.avisos || [];
     avs.carregadoEm = Date.now();
-    // O visto sai; na mesma posicao entra o proximo (ou o anterior, no fim).
-    if (avs.atual === id) avs.atual = "";
-    desenharAvisos(1);
-    if (centralAberta()) recarregarCentral();
+    desenharAvisos();
+    if (painelDeAvisosAberto()) recarregarPainelDeAvisos();
   };
-  // Marcado, o cartao sai com uma animacao curta - e, com as animacoes
+  // Marcada, a linha sai com uma animacao curta; com as animacoes
   // reduzidas, sai na hora.
-  if (cartao && cartao.classList.contains("av-cartao") && animacoesLigadas()) {
-    cartao.classList.add("av-saindo");
-    setTimeout(depois, 260);
+  if (linha && animacoesLigadas()) {
+    linha.classList.add("av-saindo");
+    setTimeout(depois, 240);
   } else {
     depois();
   }
   avisoCert("marcado como visto — está no histórico da Central de avisos", {
     tom: "ok", acao: { rotulo: "Desfazer", fazer: () => desmarcarAviso(id) },
   });
+  return true;
 }
 
 async function desmarcarAviso(id) {
@@ -191,7 +227,7 @@ async function desmarcarAviso(id) {
   avs.avisos = d.avisos || [];
   avs.carregadoEm = Date.now();
   desenharAvisos();
-  if (centralAberta()) recarregarCentral();
+  if (painelDeAvisosAberto()) recarregarPainelDeAvisos();
   avisoCert("desmarcado — o aviso voltou para a tela inicial", { tom: "ok" });
 }
 
@@ -226,7 +262,7 @@ async function abrirAviso(a) {
 async function fazerAcaoDoAviso(a, i) {
   const x = (a.acoes || [])[i];
   if (!x) return;
-  const voltar = centralAberta() ? avs.central.aba : null;
+  const naCentral = centralAberta();
   const ok = await confirmar({
     titulo: x.propoe ? "Propor: " + x.pergunta : x.pergunta,
     contexto: "Avisos › " + a.tipo_rotulo,
@@ -252,66 +288,263 @@ async function fazerAcaoDoAviso(a, i) {
     }
   }
   await carregarAvisosDoDia(true);
-  // Concluido, o aviso sai da lista: o proximo fica no lugar (desenharAvisos
-  // mantem a posicao quando o id da vez some).
-  if (voltar) abrirCentralDeAvisos(voltar);
+  if (naCentral && !centralAberta()) abrirCentralDeAvisos();
+  else if (painelDeAvisosAberto()) recarregarPainelDeAvisos();
 }
 
-/* ------------------------------------------------- andar entre os avisos */
+/* ---------------------------------------------------------- o painel */
+/*
+   O mesmo painel na tela inicial (no lugar da lista de conversas) e na
+   Central: a coluna dos tipos, com a conta de cada um, e a lista agrupada.
+   A busca e o periodo (Hoje, 7 dias, 30 dias) moram no cabecalho de quem
+   o recebe.
+*/
 
-function atualizarSetas() {
-  const n = (avs.avisos || []).length;
-  const setas = $("av-setas");
-  if (!setas) return;
-  setas.hidden = n <= 1;
-  $("av-ant").disabled = avs.pos <= 0;
-  $("av-prox").disabled = avs.pos >= n - 1;
+function painelDeAvisosAberto() {
+  return Boolean(document.querySelector("[data-av-painel]"));
 }
 
-function ligarTrilho() {
-  const t = $("av-trilho");
-  if (!t || t.dataset.ligado) return;
-  t.dataset.ligado = "1";
-  $("av-ant").onclick = () => irParaAviso(-1);
-  $("av-prox").onclick = () => irParaAviso(1);
-  const todos = $("av-ver-todos");
-  if (todos) todos.onclick = () => abrirCentralDeAvisos("todos");
-
-  // Arrastar para o lado (mouse ou dedo) troca o cartao; o cartao nao rola.
-  // Um arrasto nao vira clique no botao em que comecou.
-  let arrasto = null;
-  t.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    arrasto = { x: e.clientX, y: e.clientY, moveu: false };
-  });
-  window.addEventListener("pointermove", (e) => {
-    if (!arrasto) return;
-    if (!arrasto.moveu && Math.abs(e.clientX - arrasto.x) > 8 && Math.abs(e.clientX - arrasto.x) > Math.abs(e.clientY - arrasto.y)) {
-      arrasto.moveu = true;
-      t.classList.add("arrastando");
+async function recarregarPainelDeAvisos() {
+  const p = avs.painel;
+  try {
+    if (p.tipo === "historico") {
+      const r = await fetch("/api/central-avisos/historico");
+      p.historico = r.ok ? await r.json() : { itens: [] };
+    } else {
+      const r = await fetch("/api/central-avisos?periodo=" + encodeURIComponent(p.periodo) + "&tipo=");
+      p.dados = r.ok ? await r.json() : { avisos: [] };
     }
-  });
-  window.addEventListener("pointerup", (e) => {
-    if (arrasto && arrasto.moveu) {
-      const dx = e.clientX - arrasto.x;
-      if (Math.abs(dx) > 40) irParaAviso(dx < 0 ? 1 : -1);
-      t.dataset.arrastou = "1";
-      setTimeout(() => { delete t.dataset.arrastou; }, 0);
-    }
-    arrasto = null;
-    t.classList.remove("arrastando");
-  });
-  t.addEventListener("click", (e) => {
-    if (t.dataset.arrastou) { e.preventDefault(); e.stopPropagation(); }
-  }, true);
+  } catch (err) {
+    /* desenha com o que houver */
+  }
+  document.querySelectorAll("[data-av-painel]").forEach((el) => desenharPainelDeAvisos(el));
+}
 
-  // Teclado: as setas trocam o cartao; Home e End vao ao primeiro e ao ultimo.
-  t.addEventListener("keydown", (e) => {
-    const passo = { ArrowRight: 1, ArrowLeft: -1, Home: "inicio", End: "fim" }[e.key];
-    if (passo === undefined) return;
-    e.preventDefault();
-    irParaAviso(passo);
+/* O que a lista mostra: o periodo do servidor, o tipo escolhido e a busca. */
+function avisosDoPainel() {
+  const p = avs.painel;
+  const termo = semAcento(p.termo || "");
+  return ((p.dados && p.dados.avisos) || []).filter((a) => {
+    if (p.tipo && p.tipo !== "todos" && !p.tipo.startsWith("grupo:") && a.tipo !== p.tipo) return false;
+    if (p.tipo === "grupo:atrasado" && a.grupo !== "atrasado") return false;
+    if (p.tipo === "grupo:hoje" && !(a.grupo === "hoje" && !ehConversaPelaMetade(a))) return false;
+    if (p.tipo === "grupo:conversas" && !ehConversaPelaMetade(a)) return false;
+    if (!termo) return true;
+    return semAcento(a.titulo + " " + a.tipo_rotulo + " " + a.quando + " " + a.origem + " " + (a.detalhe || "")).includes(termo);
   });
+}
+
+function semAcento(texto) {
+  return String(texto || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function navDoPainel(todos) {
+  const p = avs.painel;
+  const conta = {};
+  todos.forEach((a) => { if (!a.visto) conta[a.tipo] = (conta[a.tipo] || 0) + 1; });
+  const total = todos.filter((a) => !a.visto).length;
+  const item = (id, rotulo, icone, n) => {
+    const ativo = (p.tipo || "todos") === id;
+    return '<button type="button" class="avp-tipo' + (ativo ? " ativo" : "") + (n ? "" : " vazio") + '" data-avp-tipo="' + id + '">' +
+      ic(icone, 15) + "<span>" + esc(rotulo) + '</span><small>' + (n || "–") + "</small></button>";
+  };
+  return '<nav class="avp-nav">' + item("todos", "Todos", "inbox", total) +
+    AV_GAVETAS.map(([gaveta, tipos]) => '<div class="avp-gaveta">' + esc(gaveta) + "</div>" +
+      tipos.map((t) => item(t, AV_ROTULO[t], AV_ICONE[t], conta[t] || 0)).join("")).join("") +
+    '<button type="button" class="avp-historico' + (p.tipo === "historico" ? " ativo" : "") + '" data-avp-tipo="historico">Histórico · já resolvidos</button></nav>';
+}
+
+function linhaDoPainel(a) {
+  const marca = a.visto
+    ? '<button type="button" class="av-marca" data-av-desmarcar="' + esc(a.id) + '" title="Visto — desmarcar" aria-label="Desmarcar: ' + esc(a.titulo) + '"><span class="ic ic-18 ag-feita-ic">check_circle</span></button>'
+    : '<button type="button" class="av-marca" data-av-visto="' + esc(a.id) + '" title="Marcar como visto" aria-label="Marcar como visto: ' + esc(a.titulo) + '"><span class="ag-circulo"></span></button>';
+  const acao = ehConversaPelaMetade(a)
+    ? '<button type="button" class="avp-acao" data-av-abrir="' + esc(a.id) + '">Continuar</button>'
+    : (a.acoes || []).map((x, i) => '<button type="button" class="avp-acao" data-av-acao="' + esc(a.id) + '" data-av-i="' + i + '">' + esc(rotuloDaAcao(x)) + "</button>").join("");
+  const sub = [a.tipo_rotulo, a.quando, a.origem, a.detalhe].filter(Boolean).join(" · ");
+  return '<div class="avp-linha' + (a.grupo === "atrasado" ? " avp-atrasada" : "") + (a.visto ? " av-visto" : "") + '" data-sel="' + esc(a.id) + '" data-av="' + esc(a.id) + '">' +
+    marca + '<span class="avp-ic">' + ic(iconeDoAviso(a), 15) + "</span>" +
+    '<span class="avp-texto"><b>' + esc(a.titulo) + "</b><small>" + esc(sub) + "</small></span>" +
+    '<span class="avp-acoes">' + acao + '<button type="button" class="avp-abrir" data-av-abrir="' + esc(a.id) + '">Abrir</button></span></div>';
+}
+
+function listaDoPainel() {
+  const p = avs.painel;
+  if (p.tipo === "historico") {
+    const h = p.historico || { itens: [] };
+    const termo = semAcento(p.termo || "");
+    const itens = (h.itens || []).filter((l) => !termo || semAcento(l.titulo + " " + l.origem).includes(termo));
+    return '<p class="avp-nota">' + (h.titular ? "Os vistos de todos da equipe. Cada pessoa desmarca os próprios." : "Os avisos que você marcou como visto, com o que diziam naquele momento.") + "</p>" +
+      (itens.length ? itens.map(linhaDoHistoricoDeAvisos).join("") : '<p class="av-vazio">Nada marcado como visto ainda.</p>');
+  }
+  const lista = avisosDoPainel();
+  if (!p.dados) return esqueleto("lista");
+  if (!lista.length) return '<p class="av-vazio">' + (p.termo ? "Nenhum aviso com essa busca." : "Nada por ver neste período. Tudo em dia por aqui.") + "</p>";
+  const grupos = new Map(AV_GRUPOS.map(([g]) => [g, []]));
+  lista.forEach((a) => {
+    const g = ehConversaPelaMetade(a) ? "conversas" : a.grupo;
+    (grupos.get(g) || grupos.get("depois")).push(a);
+  });
+  return AV_GRUPOS.filter(([g]) => grupos.get(g).length).map(([g, rotulo, tom]) => {
+    const itens = grupos.get(g);
+    const aberto = p.abertos.has(g) || itens.length <= AV_POR_GRUPO + 1;
+    const resto = itens.length - AV_POR_GRUPO;
+    const nome = g === "conversas" ? "conversa" : "aviso";
+    const classe = "avp-ponto " + tom;
+    return '<div class="avp-grupo"><div class="avp-grupo-cabeca"><i class="' + classe + '"></i>' + esc(rotulo) + "<small>" + itens.length + "</small></div>" +
+      (aberto ? itens : itens.slice(0, AV_POR_GRUPO)).map(linhaDoPainel).join("") +
+      (aberto ? "" : '<button type="button" class="avp-mais" data-avp-mais="' + g + '">mais ' + plural(resto, nome) + "</button>") + "</div>";
+  }).join("");
+}
+
+function linhaDoHistoricoDeAvisos(l) {
+  const onde = l.de_onde === "remoto" ? "pelo acesso de fora" : "no computador do escritório";
+  return '<div class="avp-linha av-visto" data-av-hist="' + esc(l.aviso_id) + '">' +
+    '<span class="avp-ic">' + ic(AV_ICONE[l.tipo] || "history", 15) + "</span>" +
+    '<span class="avp-texto"><b>' + esc(l.titulo) + "</b><small>" + esc(l.tipo_rotulo) + " · dizia “" + esc(l.quando) + "” · " + esc(l.origem) +
+    " · visto por " + esc(l.pessoa_nome || (l.pessoa === "local" ? "quem está no escritório" : "conta de fora")) + " em " + esc(horaCurta(l.visto_em)) + ", " + onde + "</small></span>" +
+    '<span class="avp-acoes">' + (l.meu ? '<button type="button" class="avp-abrir" data-av-desmarcar="' + esc(l.aviso_id) + '">Desmarcar</button>' : "") + "</span></div>";
+}
+
+function horaCurta(isoTexto) {
+  const t = String(isoTexto || "");
+  if (t.length < 16) return t;
+  return t.slice(8, 10) + "/" + t.slice(5, 7) + " às " + t.slice(11, 16);
+}
+
+/* A barra com a busca e o periodo: na tela inicial ela fica no cabecalho do
+   cartao; na Central, no cabecalho da janela. */
+function barraDoPainel() {
+  const p = avs.painel;
+  const periodos = [["hoje", "Hoje"], ["semana", "7 dias"], ["mes", "30 dias"]].map(([v, r]) => {
+    const classe = p.periodo === v ? "ativa" : "";
+    return '<button type="button" data-avp-periodo="' + v + '" class="' + classe + '">' + r + "</button>";
+  }).join("");
+  return '<label class="busca-tela avp-busca">' + ic("search", 16) +
+    '<input type="text" data-avp-busca="1" placeholder="Buscar nos avisos…" value="' + esc(p.termo) + '"></label>' +
+    '<span class="visoes avp-periodos">' + periodos + "</span>";
+}
+
+function desenharPainelDeAvisos(raiz) {
+  const p = avs.painel;
+  const corpo = raiz.querySelector("[data-avp-corpo]");
+  if (!corpo) return;
+  const todos = (p.dados && p.dados.avisos) || [];
+  corpo.innerHTML = navDoPainel(todos) + '<div class="avp-lista">' + listaDoPainel() + "</div>";
+  const conta = raiz.querySelector("[data-avp-conta]");
+  if (conta) {
+    const vivos = todos.filter((a) => !a.visto);
+    const atrasados = vivos.filter((a) => a.grupo === "atrasado").length;
+    conta.textContent = plural(vivos.length, "aviso") + (atrasados ? " · " + atrasados + (atrasados === 1 ? " atrasado" : " atrasados") : "");
+  }
+  const pe = raiz.querySelector("[data-avp-pe]");
+  if (pe) {
+    const n = p.escolhidos.size;
+    pe.innerHTML = n
+      ? barraDeSelecao(n, false, '<button type="button" class="avp-acao" data-avp-lote="visto">' + ic("check", 15) + "Marcar como visto</button>", "data-avp-limpar")
+      : esc(plural(avisosDoPainel().filter((a) => !a.visto).length, "aviso")) + " · selecione vários para resolver de uma vez";
+    const lote = pe.querySelector("[data-avp-lote]");
+    if (lote) lote.onclick = () => marcarVistosEmLote([...p.escolhidos]);
+    const limpar = pe.querySelector("[data-avp-limpar]");
+    if (limpar) limpar.onclick = () => { p.escolhidos.clear(); desenharPainelDeAvisos(raiz); };
+  }
+  raiz.querySelectorAll("[data-avp-tipo]").forEach((b) => {
+    b.onclick = () => {
+      p.tipo = b.dataset.avpTipo === "todos" ? "" : b.dataset.avpTipo;
+      p.escolhidos.clear();
+      if (p.tipo === "historico") recarregarPainelDeAvisos();
+      else if (!p.dados) recarregarPainelDeAvisos();
+      else desenharPainelDeAvisos(raiz);
+    };
+  });
+  raiz.querySelectorAll("[data-avp-mais]").forEach((b) => {
+    b.onclick = () => { p.abertos.add(b.dataset.avpMais); desenharPainelDeAvisos(raiz); };
+  });
+  ligarLinhasDeAviso(corpo, () => todos);
+  ligarSelecao(corpo.querySelector(".avp-lista"), {
+    linhas: ".avp-linha[data-sel]", escolhidos: p.escolhidos, aoMudar: () => desenharPainelDeAvisos(raiz),
+  });
+  corpo.querySelectorAll(".avp-linha[data-sel]").forEach((linha) => {
+    linha.onclick = () => { if (p.escolhidos.size) return; const a = avisoPorId(linha.dataset.av, todos); if (a) abrirAviso(a); };
+  });
+}
+
+/* A barra (busca e periodo) e ligada uma vez por cabecalho: digitar nao
+   pode perder o foco do campo a cada letra. */
+function ligarBarraDoPainel(raiz) {
+  const p = avs.painel;
+  raiz.querySelectorAll("[data-avp-periodo]").forEach((b) => {
+    b.onclick = () => {
+      p.periodo = b.dataset.avpPeriodo;
+      raiz.querySelectorAll("[data-avp-periodo]").forEach((x) => x.classList.toggle("ativa", x === b));
+      if (p.tipo === "historico") p.tipo = "";
+      recarregarPainelDeAvisos();
+    };
+  });
+  const busca = raiz.querySelector("[data-avp-busca]");
+  if (busca) {
+    let relogio = null;
+    busca.oninput = () => {
+      clearTimeout(relogio);
+      relogio = setTimeout(() => { p.termo = busca.value.trim(); document.querySelectorAll("[data-av-painel]").forEach(desenharPainelDeAvisos); }, 160);
+    };
+  }
+}
+
+async function marcarVistosEmLote(ids) {
+  let feitos = 0;
+  for (const id of ids) {
+    try {
+      const r = await fetch("/api/central-avisos/visto", { method: "POST", headers: AV_JSON, body: JSON.stringify({ id: id }) });
+      if (r.ok) feitos += 1;
+    } catch (err) { /* segue com os outros */ }
+  }
+  avs.painel.escolhidos.clear();
+  avisoCert(plural(feitos, "aviso") + " " + (feitos === 1 ? "marcado" : "marcados") + " como visto — no histórico da Central de avisos", { tom: "ok" });
+  await carregarAvisosDoDia(true);
+  recarregarPainelDeAvisos();
+}
+
+/* ----------------------------------------- o painel no lugar da lista */
+
+function abrirAvisosNaInicio(filtro) {
+  const p = avs.painel;
+  avs.naInicio = true;
+  p.tipo = filtro ? (filtro === "conversas" || filtro === "atrasado" || filtro === "hoje" ? "grupo:" + filtro : filtro) : "";
+  p.periodo = "semana";
+  p.abertos.clear();
+  p.escolhidos.clear();
+  desenharAvisos();
+  recarregarPainelDeAvisos();
+}
+
+function fecharAvisosNaInicio() {
+  avs.naInicio = false;
+  const caixa = $("av-painel");
+  if (caixa) { caixa.hidden = true; caixa.innerHTML = ""; }
+  $("lista-conversas").hidden = !lembrancaDoInicio.lista;
+  desenharRecentes();
+  delete $("av-resumo").dataset.assinatura;
+  desenharAvisos();
+}
+
+function desenharPainelNaInicio() {
+  const caixa = $("av-painel");
+  if (!caixa) return;
+  $("lista-conversas").hidden = true;
+  $("recentes").hidden = true;
+  if (caixa.hidden || !caixa.querySelector("[data-av-painel]")) {
+    caixa.hidden = false;
+    caixa.innerHTML = '<div class="avp-cartao" data-av-painel="inicio">' +
+      '<div class="avp-cabeca"><span class="sv-kicker">Avisos</span><span class="avp-conta" data-avp-conta="1"></span><span class="vazio-flex"></span>' +
+      barraDoPainel() +
+      '<button type="button" class="botao-icone" data-avp-fechar="1" title="Voltar às conversas" aria-label="Voltar às conversas">' + ic("close", 16) + "</button></div>" +
+      '<div class="avp" data-avp-corpo="1"></div></div>';
+    ligarBarraDoPainel(caixa);
+    caixa.querySelector("[data-avp-fechar]").onclick = fecharAvisosNaInicio;
+    if (animacoesLigadas()) entraConteudo(caixa.firstElementChild);
+  }
+  desenharPainelDeAvisos(caixa.firstElementChild);
 }
 
 /* ---------------------------------------------------- a Central de avisos */
@@ -325,164 +558,53 @@ function fecharCentral() {
   if (b) b.click();
 }
 
-async function abrirCentralDeAvisos(aba) {
-  avs.central.aba = aba || avs.central.aba || "hoje";
+/* A janela: titulo e caminho, a busca e o periodo no cabecalho, o painel no
+   meio e, no pe, quantos avisos e a selecao de varios. */
+async function abrirCentralDeAvisos(tipo) {
+  const p = avs.painel;
+  if (tipo !== undefined) p.tipo = tipo === "todos" || tipo === "hoje" ? "" : tipo;
+  p.abertos.clear();
+  p.escolhidos.clear();
   const pedido = dialogo({
     titulo: "Central de avisos", contexto: "Tela inicial › Avisos", classe: "av-central",
-    html: '<div class="av-central-miolo" id="av-central-miolo">' + esqueleto("lista") + "</div>",
+    html: '<div class="avp" data-avp-corpo="1">' + esqueleto("lista") + "</div>",
+    rodape: '<span class="avp-pe" data-avp-pe="1"></span>',
     confirmar: "Fechar", semCancelar: true,
   });
-  await recarregarCentral();
+  // A busca e o periodo vao para a linha do titulo, antes do X; a janela
+  // inteira e o "painel" (o pe dela tem a conta e a selecao).
+  const raiz = document.querySelector("#veu-dialogo .av-central");
+  if (raiz) {
+    raiz.dataset.avPainel = "central";
+    const fechar = raiz.querySelector(".dialogo-cabeca .dialogo-fechar");
+    if (fechar) fechar.insertAdjacentHTML("beforebegin", '<span class="avp-barra-central">' + barraDoPainel() + "</span>");
+    ligarBarraDoPainel(raiz);
+  }
+  await recarregarPainelDeAvisos();
   await pedido;
 }
 
-async function recarregarCentral() {
-  const c = avs.central;
-  try {
-    if (c.aba === "historico") {
-      const r = await fetch("/api/central-avisos/historico");
-      c.historico = r.ok ? await r.json() : { itens: [] };
-    } else {
-      const periodo = c.aba === "hoje" ? "semana" : c.periodo;
-      const r = await fetch("/api/central-avisos?periodo=" + encodeURIComponent(periodo) + "&tipo=" + encodeURIComponent(c.aba === "hoje" ? "" : c.tipo));
-      c.dados = r.ok ? await r.json() : { avisos: [] };
-    }
-  } catch (err) {
-    /* desenha com o que houver */
-  }
-  desenharCentral();
-}
-
-function desenharCentral() {
-  const m = $("av-central-miolo");
-  if (!m) return;
-  const c = avs.central;
-  const hoje = avs.avisos || [];
-  const abas = [["hoje", "Hoje", hoje.length], ["todos", "Todos", null], ["historico", "Histórico", null]];
-  let html = '<div class="visoes av-abas" role="tablist">' + abas.map(([aba, rotulo, n]) => {
-    const ativa = c.aba === aba;
-    return '<button type="button" role="tab" data-av-aba="' + aba + '" class="' + (ativa ? "ativa" : "") + '" aria-selected="' + ativa + '">' +
-      esc(rotulo) + (n ? " <small>" + n + "</small>" : "") + "</button>";
-  }).join("") + "</div>";
-
-  if (c.aba === "hoje") {
-    html += '<p class="av-nota">O que ainda não foi visto por você: atrasado, hoje, amanhã e esta semana. Visto não conclui nada.</p>';
-    html += hoje.length ? '<div class="av-lista">' + hoje.map((a) => linhaDeAviso(a)).join("") + "</div>"
-      : '<p class="av-vazio">Nada por ver. Tudo em dia por aqui.</p>';
-  } else if (c.aba === "todos") {
-    const d = c.dados || { avisos: [], tipos: [], periodos: [] };
-    html += filtrosDaCentral(d.tipos || [], (d.periodos || []).map((p) => [p.id, p.rotulo]), c.periodo, "periodo");
-    const lista = d.avisos || [];
-    html += lista.length ? '<div class="av-lista">' + lista.map((a) => linhaDeAviso(a)).join("") + "</div>"
-      : '<p class="av-vazio">Nenhum aviso ' + (c.tipo ? "desse tipo " : "") + "no período.</p>";
-  } else {
-    const h = c.historico || { itens: [] };
-    const tipos = h.tipos || (c.dados && c.dados.tipos) || [];
-    html += filtrosDaCentral(tipos, [["hoje", "Hoje"], ["semana", "7 dias"], ["mes", "30 dias"], ["tudo", "Tudo"]], c.hperiodo, "hperiodo");
-    const itens = filtrarHistorico(h.itens || []);
-    html += '<p class="av-nota">' + (h.titular ? "Os vistos de todos da equipe. Cada pessoa desmarca os próprios." : "Os avisos que você marcou como visto, com o que diziam naquele momento.") + "</p>";
-    html += itens.length ? '<div class="av-lista">' + itens.map(linhaDoHistoricoDeAvisos).join("") + "</div>"
-      : '<p class="av-vazio">Nada marcado como visto ' + (c.hperiodo === "tudo" ? "ainda" : "no período") + ".</p>";
-  }
-  if (avs.faltou && avs.faltou.length) html += '<p class="av-nota">Não consegui ler agora: ' + esc(avs.faltou.join(", ")) + ".</p>";
-  m.innerHTML = html;
-
-  m.querySelectorAll("[data-av-aba]").forEach((b) => {
-    b.onclick = () => { c.aba = b.dataset.avAba; desenharCentral(); recarregarCentral(); };
-  });
-  m.querySelectorAll("[data-av-tipo]").forEach((b) => {
-    b.onclick = () => { c.tipo = b.dataset.avTipo; c.aba === "historico" ? desenharCentral() : recarregarCentral(); };
-  });
-  m.querySelectorAll("[data-av-periodo]").forEach((b) => {
-    b.onclick = () => { c[b.dataset.avChave] = b.dataset.avPeriodo; c.aba === "historico" ? desenharCentral() : recarregarCentral(); };
-  });
-  m.querySelectorAll("[data-av-desmarcar]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); desmarcarAviso(b.dataset.avDesmarcar); };
-  });
-  // Na lista da Central, o circulo e o mesmo; a linha nao some com animacao
-  // (a lista se refaz), e na aba Todos o visto aparece marcado.
-  m.querySelectorAll("[data-av-visto]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); marcarAvisoVisto(b.dataset.avVisto, b); };
-  });
-  const lista = c.aba === "todos" ? (c.dados && c.dados.avisos) : hoje;
-  m.querySelectorAll("[data-av-abrir]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); const a = avisoPorId(b.dataset.avAbrir, lista); if (a) abrirAviso(a); };
-  });
-  m.querySelectorAll("[data-av-acao]").forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); const a = avisoPorId(b.dataset.avAcao, lista); if (a) fazerAcaoDoAviso(a, Number(b.dataset.avI)); };
-  });
-}
-
-function filtrosDaCentral(tipos, periodos, periodoAtual, chave) {
-  const c = avs.central;
-  return '<div class="av-filtros">' +
-    '<div class="ag-chips av-chips" aria-label="Tipo">' +
-    '<button type="button" data-av-tipo="" class="' + (c.tipo ? "" : "on") + '">Todos os tipos</button>' +
-    tipos.map((t) => '<button type="button" data-av-tipo="' + esc(t.id) + '" class="' + (c.tipo === t.id ? "on" : "") + '">' + esc(t.rotulo) + "</button>").join("") +
-    "</div>" +
-    '<div class="visoes av-periodos" aria-label="Período">' + periodos.map(([periodo, rotulo]) => {
-      const classe = periodoAtual === periodo ? "ativa" : "";
-      return '<button type="button" data-av-chave="' + chave + '" data-av-periodo="' + periodo + '" class="' + classe + '">' + esc(rotulo) + "</button>";
-    }).join("") +
-    "</div></div>";
-}
-
-function filtrarHistorico(itens) {
-  const c = avs.central;
-  const dias = { hoje: 0, semana: 7, mes: 30 }[c.hperiodo];
-  const limite = dias === undefined ? "" : iso(new Date(Date.now() - dias * 86400000));
-  return itens.filter((l) => (!c.tipo || l.tipo === c.tipo) && (!limite || String(l.visto_em).slice(0, 10) >= limite));
-}
-
-function linhaDeAviso(a) {
-  const marca = a.visto
-    ? '<button type="button" class="av-marca" data-av-desmarcar="' + esc(a.id) + '" title="Visto — desmarcar" aria-label="Desmarcar: ' + esc(a.titulo) + '"><span class="ic ic-18 ag-feita-ic">check_circle</span></button>'
-    : '<button type="button" class="av-marca" data-av-visto="' + esc(a.id) + '" title="Marcar como visto" aria-label="Marcar como visto: ' + esc(a.titulo) + '"><span class="ag-circulo"></span></button>';
-  const acoes = (a.acoes || []).map((x, i) =>
-    '<button type="button" data-av-acao="' + esc(a.id) + '" data-av-i="' + i + '">' + esc(rotuloDaAcao(x)) + "</button>").join("");
-  return '<div class="av-linha' + (a.destaque ? " av-destaque" : "") + (a.visto ? " av-visto" : "") + '" data-av="' + esc(a.id) + '">' + marca +
-    '<span class="av-linha-ic">' + ic(a.icone || "notifications", 18) + "</span>" +
-    '<span class="av-linha-texto"><b>' + esc(a.titulo) + "</b><small>" + esc(a.tipo_rotulo) + " · " + esc(a.quando) + " · " + esc(a.origem) +
-    (a.visto ? " · visto " + esc(horaCurta(a.visto_em)) : "") + "</small></span>" +
-    '<span class="av-linha-acoes">' + acoes + '<button type="button" class="fantasma" data-av-abrir="' + esc(a.id) + '">Abrir</button></span></div>';
-}
-
-function linhaDoHistoricoDeAvisos(l) {
-  const onde = l.de_onde === "remoto" ? "pelo acesso de fora" : "no computador do escritório";
-  return '<div class="av-linha av-visto" data-av-hist="' + esc(l.aviso_id) + '">' +
-    '<span class="av-linha-ic">' + ic(l.icone || "history", 18) + "</span>" +
-    '<span class="av-linha-texto"><b>' + esc(l.titulo) + "</b><small>" + esc(l.tipo_rotulo) + " · dizia “" + esc(l.quando) + "” · " + esc(l.origem) + "</small>" +
-    '<small class="av-quem">Visto por ' + esc(l.pessoa_nome || (l.pessoa === "local" ? "quem está no escritório" : "conta de fora")) +
-    " em " + esc(horaCurta(l.visto_em)) + ", " + onde + "</small></span>" +
-    '<span class="av-linha-acoes">' + (l.meu ? '<button type="button" data-av-desmarcar="' + esc(l.aviso_id) + '">Desmarcar</button>' : "") + "</span></div>";
-}
-
-function horaCurta(isoTexto) {
-  const t = String(isoTexto || "");
-  if (t.length < 16) return t;
-  return t.slice(8, 10) + "/" + t.slice(5, 7) + " às " + t.slice(11, 16);
-}
-
 /* A Central tambem abre pela busca (Ctrl+K), para quem marcou tudo como
-   visto e quer o historico: sem avisos, o carrossel nao aparece. */
+   visto e quer o historico: sem avisos, o resumo nao aparece. */
 if (typeof acoesBsc === "function") {
   const acoesAntesDosAvisos = acoesBsc;
   // eslint-disable-next-line no-global-assign
   acoesBsc = function () {
     const a = acoesAntesDosAvisos();
     if (avs.ligado) {
-      a.push({ grupo: "Ações", titulo: "Central de avisos", caminho: "Tela inicial › Avisos", icone: "notifications",
+      a.push({ grupo: "Ações", titulo: "Central de avisos", caminho: "Tela inicial › Avisos", icone: "inbox",
         descricao: "prazos, compromissos, contas e o histórico do visto",
-        sinonimos: "avisos lembretes notificacoes historico visto prazos", fazer: () => abrirCentralDeAvisos("hoje") });
+        sinonimos: "avisos lembretes notificacoes historico visto prazos", fazer: () => abrirCentralDeAvisos("todos") });
     }
     return a;
   };
 }
 
 (function () {
-  ligarTrilho();
+  const todos = $("av-ver-todos");
+  if (todos) todos.onclick = () => abrirCentralDeAvisos("todos");
   const col = $("conversa-col");
-  // A tela inicial aparece e some sem recarregar a pagina: o carrossel
+  // A tela inicial aparece e some sem recarregar a pagina: o resumo
   // acompanha na hora, sem esperar o relogio.
   if (col && typeof MutationObserver === "function") {
     new MutationObserver(() => carregarAvisosDoDia(false)).observe(col, { attributes: true, attributeFilter: ["class"] });

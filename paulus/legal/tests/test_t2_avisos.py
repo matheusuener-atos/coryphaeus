@@ -19,9 +19,12 @@ esperando, conversa pela metade e lembrete do Vigia vencido:
     Financeiro nao recebe aviso de conta);
   - o Vigia usa o mesmo id e nao avisa de novo o que foi visto;
   - com a chave desligada, as rotas dizem {ligado: false};
-  - na tela (Edge): a ordem, nenhum cartao na cor de erro, marcar tira o
-    cartao, a Central com Hoje/Todos/Historico e desmarcar devolve, em
-    390 px vira lista com o circulo de 44 px, sem avisos nao aparece.
+  - na tela (Edge, pacote de telas de 01/10/2026): o resumo em tres
+    cartoes com as contas do servidor, o vinho so nos atrasados, "ver N"
+    abre o painel no lugar da lista, marcar tira o aviso e cria o
+    historico, a Central com os tipos e os periodos, desmarcar devolve, em
+    390 px os cartoes empilham com o circulo de 44 px, sem avisos nao
+    aparece.
 
     PYTHONIOENCODING=utf-8 venv/Scripts/python.exe tests/test_t2_avisos.py
 """
@@ -381,7 +384,11 @@ SONDA_DE_ERRO = """() => {
     s.remove();
   }
   const achados = [];
-  document.querySelectorAll('#av-trilho .cartao-agora, #av-trilho .cartao-agora *').forEach((el) => {
+  // O vinho so vale para o que esta atrasado (pacote de telas de 01/10/2026:
+  // "verde, ambar e vermelho so como sinal de estado"): o fio e a conta do
+  // cartao dos atrasados. Em qualquer outro lugar do resumo, e erro.
+  document.querySelectorAll('#av-resumo, #av-resumo *').forEach((el) => {
+    if (el.closest('.av-res.atrasados') && (el.matches('.av-res-fio') || el.matches('.av-res-cabeca b'))) return;
     const st = getComputedStyle(el);
     for (const p of ['color', 'background-color', 'border-top-color', 'border-left-color', 'border-right-color', 'border-bottom-color']) {
       if (cores.has(st[p])) achados.push((el.className || el.tagName) + ' ' + p);
@@ -418,132 +425,106 @@ def test_tela(api, ids) -> None:
             erros: list[str] = []
             pag.on("pageerror", lambda x: erros.append(str(x)))
             pag.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="networkidle")
-            pag.wait_for_selector("#av-dia:not([hidden]) .av-cartao", timeout=15000)
+            pag.wait_for_selector("#av-dia:not([hidden]) .av-res", timeout=15000)
             pag.wait_for_timeout(600)
-            do_servidor = [a["id"] for a in _pedir(base, "GET", "/api/central-avisos/hoje")["avisos"]]
-            um_so = pag.evaluate("() => { const t = document.getElementById('av-trilho'); return {n: t.querySelectorAll('.av-cartao').length,"
-                                 " rola: t.scrollWidth > t.clientWidth + 1, conta: document.getElementById('av-conta').textContent}; }")
-            checar(um_so["n"] == 1 and not um_so["rola"], "um cartão só, sem rolagem lateral", um_so)
-            checar(um_so["conta"] == f"1 de {len(do_servidor)}", "o cabeçalho diz qual é, de quantos", um_so["conta"])
-            # a ordem: andando pela seta, um por um, e a cor de erro em nenhum
-            na_tela, achados_erro, destaques, cores = [], [], 0, []
-            for k in range(len(do_servidor)):
-                cartao = pag.evaluate("() => { const c = document.querySelector('#av-trilho .av-cartao'); return {id: c.dataset.av, d: c.classList.contains('av-destaque')}; }")
-                na_tela.append(cartao["id"])
-                destaques += 1 if cartao["d"] else 0
-                sonda = pag.evaluate(SONDA_DE_ERRO)
-                cores = sonda["cores"]
-                achados_erro += sonda["achados"]
-                if k < len(do_servidor) - 1:
-                    pag.click("#av-prox")
-                    pag.wait_for_timeout(120)
-            checar(na_tela == do_servidor and len(na_tela) >= 11, "a seta passa pelos avisos na ordem do servidor",
-                   (len(na_tela), len(do_servidor)))
-            checar(pag.evaluate("() => document.getElementById('av-prox').disabled"), "no último, a seta de avançar para")
+            do_servidor = _pedir(base, "GET", "/api/central-avisos/hoje")["avisos"]
+            metade = [a for a in do_servidor if a["tipo"] == "pendencia" and (a.get("destino") or {}).get("tela") == "conversa"]
+            esperado = [len([a for a in do_servidor if a["grupo"] == "atrasado"]),
+                        len([a for a in do_servidor if a["grupo"] == "hoje" and a.get("destaque") and a not in metade]), len(metade)]
+            resumo = pag.evaluate("() => [...document.querySelectorAll('#av-resumo .av-res')].map(c => Number(c.querySelector('.av-res-cabeca b').textContent))")
+            checar(resumo == esperado, "o resumo tem três cartões, com as contas do servidor (atrasados, vencem hoje, pela metade)", (resumo, esperado))
+            linhas_resumo = pag.evaluate("() => [...document.querySelectorAll('#av-resumo .av-res')].map(c => c.querySelectorAll('.av-res-linha').length)")
+            checar(all(n <= 2 for n in linhas_resumo), "cada cartão mostra no máximo duas linhas", linhas_resumo)
             debaixo = pag.evaluate("() => { const a = document.getElementById('agora'), v = document.getElementById('av-dia');"
                                    " return a.compareDocumentPosition(v) & Node.DOCUMENT_POSITION_FOLLOWING; }")
             checar(bool(debaixo), "logo abaixo de 'Acontecendo agora'")
-            classe = pag.evaluate("() => document.querySelector('#av-trilho .av-cartao').className")
-            checar("cartao-agora" in classe, "no mesmo componente de cartão", classe)
-            circulo = pag.evaluate("() => !!document.querySelector('#av-trilho .av-cartao .av-marca .ag-circulo')")
-            checar(circulo, "o círculo de marcar é o das tarefas (.ag-circulo)")
-            checar(cores and not achados_erro, "nenhum cartão usa a cor de erro", achados_erro[:4])
-            checar(destaques >= 4, "atrasado e hoje com o destaque discreto", destaques)
-            pag.focus("#av-trilho")
-            pag.keyboard.press("Home")
-            pag.wait_for_timeout(150)
-            primeiro_id = pag.evaluate("() => document.querySelector('#av-trilho .av-cartao').dataset.av")
-            pag.keyboard.press("ArrowRight")
-            pag.wait_for_timeout(150)
-            segundo_id = pag.evaluate("() => document.querySelector('#av-trilho .av-cartao').dataset.av")
-            pag.keyboard.press("End")
-            pag.wait_for_timeout(150)
-            ultimo_id = pag.evaluate("() => document.querySelector('#av-trilho .av-cartao').dataset.av")
-            checar((primeiro_id, segundo_id, ultimo_id) == (do_servidor[0], do_servidor[1], do_servidor[-1]),
-                   "pelo teclado: Home, seta para a direita e End", (primeiro_id, segundo_id, ultimo_id))
-            pag.keyboard.press("Home")
-            pag.wait_for_timeout(150)
-            caixa = pag.locator("#av-trilho").bounding_box()
-            pag.mouse.move(caixa["x"] + caixa["width"] - 60, caixa["y"] + 40)
-            pag.mouse.down()
-            pag.mouse.move(caixa["x"] + caixa["width"] - 260, caixa["y"] + 44, steps=8)
-            pag.mouse.up()
-            pag.wait_for_timeout(250)
-            arrastado = pag.evaluate("() => document.querySelector('#av-trilho .av-cartao').dataset.av")
-            checar(arrastado == do_servidor[1], "arrastar para o lado troca o cartão", arrastado)
-            pag.click("#av-ant")
-            pag.wait_for_timeout(300)
+            sonda = pag.evaluate(SONDA_DE_ERRO)
+            checar(sonda["cores"] and not sonda["achados"], "o vinho só no cartão dos atrasados", sonda["achados"][:4])
             pag.screenshot(path=str(CAPTURAS / "t2-inicio.png"))
 
-            primeiro = do_servidor[0]
-            pag.click(f"#av-trilho .av-cartao[data-av='{primeiro}'] .av-marca")
-            pag.wait_for_function(f"() => document.querySelector('#av-trilho .av-cartao').dataset.av === {do_servidor[1]!r}", timeout=5000)
-            conta = pag.evaluate("() => document.getElementById('av-conta').textContent")
-            checar(conta == f"1 de {len(do_servidor) - 1}", "marcar como visto tira o cartão, e o próximo entra no lugar", conta)
+            # "ver N" dos atrasados: o painel no lugar da lista de conversas
+            pag.click("#av-resumo .av-res.atrasados [data-av-ver]")
+            pag.wait_for_selector("#av-painel:not([hidden]) .avp-linha", timeout=8000)
+            pag.wait_for_timeout(300)
+            painel = pag.evaluate("""() => ({lista: document.getElementById('lista-conversas').hidden,
+              recentes: document.getElementById('recentes').hidden,
+              grupos: [...document.querySelectorAll('#av-painel .avp-grupo-cabeca')].map(g => g.childNodes[1].textContent.trim()),
+              tipos: document.querySelectorAll('#av-painel [data-avp-tipo]').length})""")
+            checar(painel["lista"] and painel["recentes"], "o painel entra no lugar da lista de conversas", painel)
+            checar(painel["grupos"] == ["Atrasados"] and painel["tipos"] >= 12, "aberto pelos atrasados, só eles, com os tipos à esquerda", painel)
+            pag.screenshot(path=str(CAPTURAS / "t2-painel.png"))
+            primeiro = pag.evaluate("() => document.querySelector('#av-painel .avp-linha').dataset.av")
+            pag.click(f"#av-painel .avp-linha[data-av='{primeiro}'] .av-marca")
+            pag.wait_for_function(f"() => !(avs.avisos || []).some(a => a.id === {primeiro!r})", timeout=5000)
             h = _pedir(base, "GET", "/api/central-avisos/historico")["itens"]
             linha = next((l for l in h if l["aviso_id"] == primeiro), {})
-            checar(linha.get("pessoa") == "local" and linha.get("visto_em"), "e cria a linha no histórico com pessoa e hora", linha)
+            checar(linha.get("pessoa") == "local" and linha.get("visto_em"), "marcar como visto cria a linha no histórico com pessoa e hora", linha)
+            pag.click("#av-painel [data-avp-fechar]")
+            pag.wait_for_timeout(400)
+            checar(not pag.evaluate("() => document.getElementById('lista-conversas').hidden"), "fechar o painel devolve a lista de conversas")
 
             pag.click("#av-ver-todos")
-            pag.wait_for_selector("#veu-dialogo .av-central .av-abas", timeout=5000)
+            pag.wait_for_selector("#veu-dialogo .av-central .avp-linha", timeout=8000)
             pag.wait_for_timeout(400)
-            abas = pag.evaluate("() => [...document.querySelectorAll('#veu-dialogo .av-abas button')].map(b => b.textContent.trim().split(' ')[0])")
-            checar(abas == ["Hoje", "Todos", "Histórico"], "a Central tem as abas Hoje, Todos e Histórico", abas)
-            linhas = pag.evaluate("() => document.querySelectorAll('#veu-dialogo .av-lista .av-linha').length")
-            chips = pag.evaluate("() => document.querySelectorAll('#veu-dialogo [data-av-tipo]').length")
-            checar(linhas >= 12 and chips >= 10, "'Ver todos' abre na aba Todos, com filtros por tipo e período", (linhas, chips))
-            pag.click("#veu-dialogo [data-av-tipo='prazo']")
+            central = pag.evaluate("""() => ({tipos: document.querySelectorAll('#veu-dialogo [data-avp-tipo]').length,
+              periodos: [...document.querySelectorAll('#veu-dialogo [data-avp-periodo]')].map(b => b.textContent.trim()),
+              linhas: document.querySelectorAll('#veu-dialogo .avp-linha').length,
+              pe: (document.querySelector('#veu-dialogo [data-avp-pe]') || {}).textContent || ''})""")
+            checar(central["tipos"] >= 12 and central["periodos"] == ["Hoje", "7 dias", "30 dias"],
+                   "a Central tem os tipos à esquerda e os períodos Hoje, 7 dias e 30 dias", central)
+            checar(central["linhas"] >= 8 and "selecione vários" in central["pe"], "a lista agrupada e o pé com a conta", central)
+            pag.click("#veu-dialogo [data-avp-tipo='prazo']")
             pag.wait_for_timeout(500)
-            so_prazo = pag.evaluate("() => [...document.querySelectorAll('#veu-dialogo .av-linha small')].map(s => s.textContent.split(' · ')[0])")
+            so_prazo = pag.evaluate("() => [...document.querySelectorAll('#veu-dialogo .avp-linha small')].map(s => s.textContent.split(' · ')[0])")
             checar(so_prazo and set(so_prazo) == {"Prazo"}, "o filtro de tipo funciona", set(so_prazo))
-            pag.click("#veu-dialogo [data-av-tipo='']")
+            pag.click("#veu-dialogo [data-avp-tipo='todos']")
             pag.wait_for_timeout(400)
             pag.screenshot(path=str(CAPTURAS / "t2-central.png"))
-            pag.click("#veu-dialogo [data-av-aba='historico']")
+            pag.click("#veu-dialogo [data-avp-tipo='historico']")
             pag.wait_for_selector(f"#veu-dialogo [data-av-hist='{primeiro}']", timeout=5000)
-            quem = pag.evaluate(f"() => document.querySelector(\"#veu-dialogo [data-av-hist='{primeiro}'] .av-quem\").textContent")
+            quem = pag.evaluate(f"() => document.querySelector(\"#veu-dialogo [data-av-hist='{primeiro}'] small\").textContent")
             checar("Helena Duarte" in quem and "computador do escritório" in quem, "o histórico diz quem viu, quando e de onde", quem)
             pag.screenshot(path=str(CAPTURAS / "t2-historico.png"))
             pag.click(f"#veu-dialogo [data-av-desmarcar='{primeiro}']")
             pag.wait_for_function(f"() => (avs.avisos || []).some(a => a.id === {primeiro!r})", timeout=5000)
-            checar(True, "desmarcar no histórico devolve o aviso aos cartões")
+            checar(True, "desmarcar no histórico devolve o aviso ao resumo")
             pag.keyboard.press("Escape")
             pag.wait_for_timeout(300)
 
-            # a ação direta pergunta antes, e cancelar não conclui (nem troca o cartão)
+            # a ação direta pergunta antes, e cancelar não conclui
             alvo = f"prazo:{ids['contestacao']}:{d(0)}"
-            pag.evaluate(f"() => {{ avs.atual = {alvo!r}; desenharAvisos(); }}")
-            pag.click(f"#av-trilho .av-cartao[data-av='{alvo}'] [data-av-acao]")
+            pag.evaluate("() => abrirAvisosNaInicio('')")
+            pag.wait_for_selector(f"#av-painel .avp-linha[data-av='{alvo}']", timeout=8000)
+            pag.click(f"#av-painel .avp-linha[data-av='{alvo}'] [data-av-acao]")
             pag.wait_for_selector("#veu-dialogo .dialogo", timeout=5000)
             pergunta = pag.evaluate("() => document.getElementById('dialogo-titulo').textContent")
             pag.keyboard.press("Escape")
             pag.wait_for_timeout(600)
             checar("Concluir" in pergunta and not e.tarefas.obter(ids["contestacao"])["concluida"],
                    "'Concluir tarefa' pergunta antes, e cancelar não conclui", pergunta)
-            checar(pag.evaluate("() => document.querySelector('#av-trilho .av-cartao').dataset.av") == alvo,
-                   "e o cartão continua o mesmo")
+            pag.evaluate("() => fecharAvisosNaInicio()")
 
             pag.set_viewport_size({"width": 390, "height": 844})
             pag.wait_for_timeout(500)
             pag.evaluate("() => document.getElementById('av-dia').scrollIntoView()")
             pag.screenshot(path=str(CAPTURAS / "t2-celular.png"))
-            cel = pag.evaluate("() => { const t = document.getElementById('av-trilho'); return {n: t.querySelectorAll('.av-cartao').length,"
-                               " rola: t.scrollWidth > t.clientWidth + 1}; }")
-            checar(cel["n"] == 1 and not cel["rola"], "em 390 px também é um cartão só, sem rolagem lateral", cel)
-            dedo = pag.evaluate("() => { const r = document.querySelector('#av-trilho .av-marca').getBoundingClientRect(); return [r.width, r.height]; }")
+            colunas = pag.evaluate("() => getComputedStyle(document.getElementById('av-resumo')).gridTemplateColumns.split(' ').length")
+            checar(colunas == 1, "em 390 px os cartões ficam um embaixo do outro", colunas)
+            pag.evaluate("() => abrirAvisosNaInicio('')")
+            pag.wait_for_selector("#av-painel .avp-linha .av-marca", timeout=8000)
+            dedo = pag.evaluate("() => { const r = document.querySelector('#av-painel .avp-linha .av-marca').getBoundingClientRect(); return [r.width, r.height]; }")
             checar(dedo[0] >= 44 and dedo[1] >= 44, "com o círculo do tamanho do dedo (44 px)", dedo)
-            seta = pag.evaluate("() => { const r = document.getElementById('av-prox').getBoundingClientRect(); return [r.width, r.height]; }")
-            checar(seta[0] >= 44 and seta[1] >= 44, "e as setas também (44 px)", seta)
             largura = pag.evaluate("() => document.documentElement.scrollWidth")
             checar(largura <= 392, "sem rolagem horizontal na página", largura)
+            pag.evaluate("() => fecharAvisosNaInicio()")
             pag.set_viewport_size({"width": 1440, "height": 900})
 
-            # sem avisos: marca tudo como visto e o carrossel some
+            # sem avisos: marca tudo como visto e o resumo some
             for a in _pedir(base, "GET", "/api/central-avisos/hoje")["avisos"]:
                 _pedir(base, "POST", "/api/central-avisos/visto", {"id": a["id"]})
             pag.evaluate("() => carregarAvisosDoDia(true)")
             pag.wait_for_timeout(800)
-            checar(pag.evaluate("() => document.getElementById('av-dia').hidden"), "sem avisos, o carrossel não aparece")
+            checar(pag.evaluate("() => document.getElementById('av-dia').hidden"), "sem avisos, o resumo não aparece")
             for l in _pedir(base, "GET", "/api/central-avisos/historico")["itens"]:
                 if l["meu"]:
                     _pedir(base, "POST", "/api/central-avisos/desmarcar", {"id": l["aviso_id"]})

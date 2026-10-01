@@ -1182,7 +1182,7 @@ async function finVerPapeis(tipo) {
         (n.situacao && n.situacao !== "emitida" ? " · " + n.situacao : ""), false, n.valor,
         n.nfse_nota_id ? '<button data-fin-abrir-nota="' + n.nfse_nota_id + '">Abrir a nota</button>'
           : tirar("data-fin-tirar-papel", n.id, "Tirar o registro"))).join("");
-    // N6: o relatório do mês e o arquivo do contador (js/78-nfse-nota.js).
+    // N6: o relatório do mês e o arquivo do contador (js/80-nfse-nota.js).
     if (fin.nfse && fin.nfse.ligado) {
       linhas = linha("Relatório do mês e contador", "soma dos XMLs, conferência e o .zip para o contador", false, "",
         '<button data-fin-relatorio-nfse="1">Abrir</button>') + linhas;

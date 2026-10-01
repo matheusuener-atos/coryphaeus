@@ -1,96 +1,139 @@
   /* ---------------------------------------------------- avisos do dia */
   /*
-    Os avisos da tela inicial (js/53-avisos.js, T2): o mesmo cartao de
-    "Acontecendo agora" (.cartao-agora, 03-compositor-e-agora.css), um de cada
-    vez, trocado pelas setas, pelo teclado ou arrastando. Atrasado ou de hoje
-    tem o destaque discreto do sistema (--destaque-linha/--destaque-fundo,
-    docs/ui/07); a cor de erro (--acc) fica so para erro.
+    Os avisos da tela inicial (js/53-avisos.js), no desenho do pacote de
+    telas de 01/10/2026: o resumo em tres cartoes, o painel no lugar da
+    lista e a Central de avisos. O vinho fica para o que esta atrasado (o
+    fio de cima do cartao e o ponto do grupo); o ambar, para a conversa que
+    ficou pela metade. O resto e neutro.
   */
-  .av-dia { min-width: 0; }
-  .av-dia .agora-cabeca { min-height: 32px; }
-  .av-conta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
-  .av-setas { margin-left: auto; display: inline-flex; gap: 2px; }
+  .av-dia { min-width: 0; gap: 12px; }
+  .av-dia .agora-cabeca { gap: 12px; }
+  .av-conta { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .av-central-link { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 8px; border: none; border-radius: 6px;
+    background: none; font: 600 12px var(--sans); color: var(--ink2); }
+  .av-central-link:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .av-central-link .ic { color: var(--ink2); }
 
-  /* Um cartao so (30/09): sem rolagem lateral; setas, teclado e arrasto
-     trocam o aviso. O arrasto no toque nao rola a pagina de lado. */
-  .av-trilho { display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; padding: 2px; margin: -2px; outline: none;
-    touch-action: pan-y; }
-  .av-trilho:focus-visible { box-shadow: 0 0 0 2px var(--ink-a2); border-radius: 12px; }
-  .av-trilho.arrastando { cursor: grabbing; user-select: none; }
-  .av-ver-todos-cab { height: 28px; padding: 0 10px; margin-left: 6px; border: 1px solid var(--ink-a1); border-radius: 999px;
-    background: var(--surf); color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer; }
-  .av-ver-todos-cab:hover { color: var(--ink); background: var(--fill); }
-  .av-setas:not([hidden]) + .av-ver-todos-cab { margin-left: 6px; }
-  .av-setas[hidden] + .av-ver-todos-cab { margin-left: auto; }
-  /* A troca: um passo curto para o lado (so com as animacoes ligadas). */
-  .av-cartao.av-vem-da-direita { animation: av-vem-d .2s cubic-bezier(0,0,.2,1); }
-  .av-cartao.av-vem-da-esquerda { animation: av-vem-e .2s cubic-bezier(0,0,.2,1); }
-  @keyframes av-vem-d { from { opacity: 0; transform: translateX(18px); } }
-  @keyframes av-vem-e { from { opacity: 0; transform: translateX(-18px); } }
-
-  .av-cartao { gap: 10px; outline: none; align-content: stretch; grid-template-rows: auto auto auto auto 1fr; }
-  .av-cartao:focus-visible { border-color: var(--ink); }
-  .av-cartao.av-destaque { border-color: var(--destaque-linha); background: var(--destaque-fundo); }
-  .av-cartao .cabeca { gap: 8px; min-width: 0; }
-  .av-tipo { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px var(--sans); letter-spacing: .04em;
-    text-transform: uppercase; color: var(--ink2); white-space: nowrap; }
-  .av-tipo .ic { color: var(--ink3); }
-  .av-titulo { font: 600 14px/1.4 var(--sans); color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden; overflow-wrap: anywhere; min-height: 2.8em; }
-  /* O "quando" fica numa linha so dele, debaixo do titulo: e o que se le
-     primeiro depois do nome, e na cabeca ele era cortado pelo tipo. */
-  .av-quando { margin-top: -6px; font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .av-destaque .av-quando { color: var(--ink); font-weight: 600; }
-  .av-origem { margin-top: -6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .av-cartao .acoes { flex-wrap: wrap; gap: 6px; margin-top: auto; }
-  .av-cartao .acoes button { height: 30px; padding: 0 9px; font-size: 12.5px; }
+  /* Os tres cartoes, empilhados como folhas (a sombra de baixo e a borda
+     da folha de tras). */
+  .av-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .av-res {
+    position: relative; display: grid; gap: 4px; align-content: start; padding: 14px 16px 10px; min-width: 0;
+    border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1);
+    box-shadow: var(--elev-card), 0 6px 0 -3px var(--lado-fundo), 0 6px 0 -2px var(--ink-a06);
+  }
+  .av-res-fio { position: absolute; left: 16px; right: 16px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--ink-a12); }
+  .av-res.atrasados .av-res-fio { background: var(--acc); }
+  .av-res.metade .av-res-fio { background: var(--warnt); }
+  .av-res-cabeca { display: flex; align-items: baseline; gap: 10px; padding-bottom: 6px; }
+  .av-res-cabeca b { font: 400 30px/1 var(--serif); color: var(--ink3); }
+  .av-res.atrasados:not(.zero) .av-res-cabeca b { color: var(--acc); }
+  .av-res.metade:not(.zero) .av-res-cabeca b { color: var(--warnt); }
+  .av-res.hoje:not(.zero) .av-res-cabeca b { color: var(--ink); }
+  .av-res-cabeca > span:not(.vazio-flex) { font: 600 12.5px var(--sans); white-space: nowrap; }
+  .av-res-ver { height: 24px; padding: 0 6px; border: none; border-radius: 6px; background: none; font: 600 12px var(--sans); color: var(--ink3); }
+  .av-res-ver:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .av-res-linha { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--ink-a06); min-width: 0; }
+  .av-res-linha > .ic { flex: none; color: var(--ink2); }
+  .av-res-texto { display: grid; gap: 1px; flex: 1; min-width: 0; }
+  .av-res-texto b { font: 600 13px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av-res-texto small { font: 500 11.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av-res-acao { flex: none; height: auto; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--ink-a12); background: none;
+    font: 600 11.5px var(--sans); color: var(--ink); }
+  .av-res-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .av-res-vazio { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--ink-a06); font-size: 13px; color: var(--ink3); }
+  .av-res-vazio .ic { color: var(--okt); }
 
   /* O circulo de marcar e o das tarefas (.ag-circulo, 09-agenda.css): o botao
      em volta so da a area de clique. */
-  .av-marca { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin: -5px 0 -5px -5px;
+  .av-marca { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin: -4px -4px -4px -6px;
     padding: 0; border: none; border-radius: 50%; background: none; cursor: pointer; flex: none; }
   .av-marca:hover:not(:disabled) { background: var(--fill); border: none; }
   .av-marca:hover:not(:disabled) .ag-circulo { border-color: var(--ink); }
   .av-marca:disabled { cursor: default; }
 
-  /* Marcado, o cartao sai: curto, e sem nada com as animacoes reduzidas
-     (o JS nem chama isto quando animacoesLigadas() e falso). */
-  .av-cartao.av-saindo { animation: av-sai .24s cubic-bezier(.4,0,1,1) forwards; pointer-events: none; }
-  @keyframes av-sai { to { opacity: 0; transform: translateY(-6px) scale(.97); } }
-
-  /* ------------------------------------------------ a Central de avisos */
-  .dialogo.av-central { width: 760px; }
-  .av-central .dialogo-corpo { gap: 12px; }
-  .av-central-miolo { display: grid; gap: 12px; min-height: 240px; }
-  .av-abas { justify-self: start; }
-  .av-filtros { display: grid; gap: 8px; }
-  .av-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .av-periodos { justify-self: start; }
-  .av-nota { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  /* -------------------------------------------- o painel (inicio e Central) */
+  .av-painel-inicio { width: 100%; margin-top: 2px; }
+  .avp-cartao { display: grid; background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-card); overflow: hidden; }
+  .avp-cabeca { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--ink-a1); }
+  .avp-conta { font: 500 12px var(--sans); color: var(--ink3); }
+  .avp-busca { width: 266px; height: 34px; }
+  .avp-periodos { flex: none; }
+  .avp { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
+  .avp-nav { display: grid; align-content: start; border-right: 1px solid var(--ink-a08); padding: 0 0 12px; }
+  .avp-tipo {
+    display: flex; align-items: center; gap: 10px; width: 100%; height: 45px; padding: 0 16px; border: none; border-radius: 0;
+    border-bottom: 1px solid var(--ink-a06); border-left: 2px solid transparent; background: none;
+    font: 500 13px var(--sans); color: var(--ink2); text-align: left;
+  }
+  .avp-tipo:hover:not(:disabled) { background: var(--sub); border-left-color: transparent; color: var(--ink); }
+  .avp-tipo > span { flex: 1; min-width: 0; text-align: left; }
+  .avp-tipo .ic { color: var(--ink3); }
+  .avp-tipo small { font: 400 11px var(--mono); color: var(--ink3); }
+  .avp-tipo.vazio { color: var(--ink3); }
+  .avp-tipo.ativo, .avp-tipo.ativo:hover:not(:disabled) { border-left-color: var(--ink); background: var(--sub); color: var(--ink); font-weight: 600; }
+  .avp-tipo.ativo .ic { color: var(--ink); }
+  .avp-gaveta { padding: 8px 16px; background: var(--lado-fundo); border-bottom: 1px solid var(--ink-a06); font: 500 10.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+  .avp-historico { justify-self: start; margin: 14px 10px 0; height: 28px; padding: 0 8px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .avp-historico:hover:not(:disabled), .avp-historico.ativo { background: var(--fill); border: none; color: var(--ink); }
+  .avp-lista { display: grid; align-content: start; min-width: 0; }
+  .avp-grupo { display: grid; }
+  .avp-grupo-cabeca { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font: 600 12.5px var(--sans); color: var(--ink); border-bottom: 1px solid var(--ink-a06); }
+  .avp-grupo-cabeca small { font: 400 11px var(--mono); color: var(--ink3); }
+  .avp-ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); flex: none; }
+  .avp-ponto.acc { background: var(--acc); }
+  .avp-ponto.ambar { background: var(--warnt); }
+  .avp-linha { display: flex; align-items: center; gap: 12px; padding: 11px 16px 11px 20px; border-bottom: 1px solid var(--ink-a06); min-width: 0; cursor: pointer; }
+  .avp-linha:hover { background: var(--sub); }
+  .avp-linha.avp-atrasada { background: var(--destaque-fundo); }
+  .avp-linha.avp-atrasada:hover { background: var(--fill2); }
+  .avp-linha.av-visto .avp-texto b { color: var(--ink2); font-weight: 500; }
+  .avp-linha.escolhida { background: var(--fill); box-shadow: inset 2px 0 0 var(--ink); }
+  .avp-linha.av-saindo { animation: av-sai .24s cubic-bezier(.4,0,1,1) forwards; pointer-events: none; }
+  @keyframes av-sai { to { opacity: 0; transform: translateX(-6px); } }
+  .avp-ic { display: inline-flex; flex: none; color: var(--ink3); }
+  .avp-texto { display: grid; gap: 2px; flex: 1; min-width: 0; }
+  .avp-texto b { font: 600 13.5px/1.35 var(--sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avp-texto small { font: 500 12px/1.4 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avp-acoes { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .avp-acao { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--ink-a12); background: var(--bg); font: 600 12.5px var(--sans); color: var(--ink); }
+  .avp-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .avp-abrir { height: 28px; padding: 0 10px; border: none; border-radius: 7px; background: none; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .avp-abrir:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .avp-mais { justify-self: start; margin: 8px 12px; height: 28px; padding: 0 8px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .avp-mais:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .avp-nota { margin: 0; padding: 12px 16px; font-size: 13px; line-height: 1.5; color: var(--ink2); border-bottom: 1px solid var(--ink-a06); }
   .av-vazio { margin: 0; padding: 28px 0; text-align: center; font-size: 13.5px; color: var(--ink3); }
-  .av-lista { display: grid; border: 1px solid var(--ink-a1); border-radius: 12px; overflow: hidden; max-height: min(52vh, 460px); overflow-y: auto; }
-  .av-linha { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--ink-a1); background: var(--surf); min-width: 0; }
-  .av-linha:first-child { border-top: none; }
-  .av-linha.av-destaque { background: var(--destaque-fundo); }
-  .av-linha.av-visto .av-linha-texto b { color: var(--ink2); font-weight: 500; }
-  .av-linha .av-marca { margin: 0; }
-  .av-linha-ic { color: var(--ink3); display: inline-flex; flex: none; }
-  .av-linha-texto { display: grid; gap: 2px; min-width: 0; flex: 1; }
-  .av-linha-texto b { font: 600 13.5px/1.4 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
-  .av-linha-texto small { font: 500 12px/1.45 var(--sans); color: var(--ink3); overflow-wrap: anywhere; }
-  .av-linha-texto small.av-quem { color: var(--ink2); }
-  .av-linha-acoes { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex: none; max-width: 48%; }
-  .av-linha-acoes button { height: 30px; padding: 0 10px; font-size: 12.5px; }
 
-  /* No celular (e na janela estreita): o carrossel vira lista, e o circulo
-     de marcar tem o tamanho do dedo. */
+  /* A Central: a janela de 920 px, a barra em cima, o painel no meio com
+     rolagem propria e o pe com a conta e a selecao. */
+  .dialogo.av-central { width: 920px; }
+  .av-central .dialogo-cabeca { align-items: center; padding-bottom: 18px; border-bottom: 1px solid var(--ink-a08); }
+  .av-central .dialogo-corpo { padding: 0; gap: 0; }
+  .av-central .dialogo-pe { padding: 14px 24px 18px; border-top: 1px solid var(--ink-a08); }
+  .avp-barra-central { display: flex; align-items: center; gap: 12px; flex: none; }
+  .av-central .avp { height: min(56vh, 600px); }
+  .av-central .avp-nav, .av-central .avp-lista { overflow-y: auto; }
+  .av-central .avp-nav { padding: 10px 10px 12px; gap: 2px; }
+  .av-central .avp-tipo { height: 30px; padding: 0 10px; border: none; border-radius: 7px; font-size: 13px; }
+  .av-central .avp-tipo.ativo, .av-central .avp-tipo.ativo:hover:not(:disabled) { background: var(--fill2); border: none; }
+  .av-central .avp-gaveta { padding: 12px 10px 4px; background: none; border: none; font: 500 10px var(--mono); }
+  .avp-pe { display: inline-flex; align-items: center; gap: 10px; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
+
+  /* No celular: o painel vira uma coluna so, e o circulo de marcar tem o
+     tamanho do dedo. */
+  @media (max-width: 899px) {
+    .av-resumo { grid-template-columns: minmax(0, 1fr); }
+    .avp { grid-template-columns: minmax(0, 1fr); }
+    .avp-nav { display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--ink-a08); padding: 0; }
+    .avp-gaveta, .avp-historico { display: none; }
+    .avp-tipo { width: auto; flex: none; border-bottom: none; }
+    .avp-cabeca { flex-wrap: wrap; }
+    .avp-busca { width: 100%; }
+  }
   @media (max-width: 599px) {
-    /* No celular tambem e um cartao so, com as setas do tamanho do dedo. */
-    .av-setas .botao-icone { width: 44px; height: 44px; }
-    .av-marca { width: 44px; height: 44px; margin: -10px 0 -10px -10px; }
+    .av-marca { width: 44px; height: 44px; margin: -10px -6px -10px -10px; }
     .av-marca .ag-circulo { width: 24px; height: 24px; }
-    .av-titulo { min-height: 0; }
-    .av-linha { flex-wrap: wrap; }
-    .av-linha .av-marca { margin: -6px 0 -6px -6px; }
-    .av-linha-acoes { max-width: none; width: 100%; justify-content: flex-start; padding-left: 38px; }
+    .avp-linha { flex-wrap: wrap; }
+    .avp-acoes { width: 100%; justify-content: flex-start; padding-left: 38px; }
   }

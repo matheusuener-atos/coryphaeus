@@ -12,7 +12,8 @@ chaves `conversa.execucao`, `pensando` e `painel` ligadas:
   - o escopo "perguntar" escolhido na A continua na A depois de ir à B e
     voltar (e fica no servidor);
   - em 390 px o painel começa fechado;
-  - uma conversa concluída não mostra "Progresso";
+  - uma conversa concluída mostra o "Progresso" com as etapas feitas, no
+    alto da coluna (pacote de telas de 01/10/2026; antes ele saía);
   - a segunda pergunta com outra respondendo diz por quê e oferece esperar,
     e vai sozinha quando a primeira termina;
   - uma linha de registro não sobe a conversa na lista; a busca de conversas
@@ -158,13 +159,14 @@ def test_tela(base: str, a: dict, b: dict) -> None:
         # "ver fontes" na resposta antiga
         pag.evaluate("() => document.querySelector('#centro .resposta[data-msg=\"1\"] [data-ver-trechos]').click()")
         pag.wait_for_timeout(500)
-        painel = pag.evaluate("""() => ({
+        painel = pag.evaluate(r"""() => ({
           titulo: document.getElementById('lat-trechos-titulo').textContent,
           citadas: document.getElementById('lat-trechos-lista').textContent,
           lidas: document.getElementById('lat-lidas').hidden ? '' : document.getElementById('lat-lidas-lista').textContent,
           como: document.getElementById('lat-como').hidden ? '' : document.getElementById('lat-como-lista').textContent,
           onde: document.getElementById('lat-onde-texto').textContent,
-          progresso: document.getElementById('lat-progresso').hidden,
+          progresso: !document.getElementById('lat-progresso').hidden &&
+            /de \d+ etapas?/.test(document.getElementById('lat-progresso-conta').textContent),
           props: document.getElementById('lat-propriedades').hidden,
         })""")
         checar(painel["titulo"] == "Fontes citadas" and "Contrato A.docx" in painel["citadas"] and "Contrato C.docx" in painel["citadas"]
@@ -175,7 +177,7 @@ def test_tela(base: str, a: dict, b: dict) -> None:
         checar("simulado" in painel["como"] and "Achei trecho em 3 documentos" in painel["onde"],
                "\"Como respondi\" e \"Onde procurei\" daquela resposta (3 documentos dela, não 2 da última)",
                (painel["como"][:60], painel["onde"]))
-        checar(painel["progresso"], "uma conversa concluída não mostra \"Progresso\"")
+        checar(painel["progresso"], "uma conversa concluída mostra o \"Progresso\" (k de n etapas), como no pacote de telas")
         checar(painel["props"], "motor e trechos indexados só no modo de diagnóstico")
         contas = pag.evaluate(r"""() => [...document.querySelectorAll('#centro .resposta')].map(r => (r.innerText.match(/\d+ trechos?\b/g) || []).length)""")
         checar(contas and max(contas) <= 1, "a contagem de trechos em no máximo um lugar por resposta", contas)

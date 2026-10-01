@@ -493,6 +493,17 @@ class Ligar(BaseModel):
     ligado: bool
 
 
+class Externo(BaseModel):
+    acao: str
+    caminho: str = ""
+
+
+class Atalhos(BaseModel):
+    area_de_trabalho: bool = False
+    menu_iniciar: bool = False
+    botao_direito: bool = False
+
+
 def montar(estado, app, pasta_dados: Path) -> None:
     """As rotas do Word. As de /api/word/s/* só chegam com token (PortaDoWord)."""
     from acesso.rotas import e_local, so_local
@@ -611,9 +622,12 @@ def montar(estado, app, pasta_dados: Path) -> None:
         # A novidade do Editor (js/76-word.js): com Word aqui e o PAVLVS ainda
         # não instalado. PAULUS_SEM_AVISOS (servidor de teste) não a mostra,
         # como não mostra os outros avisos (src/avisos.py).
-        novidade = (sit["word_no_computador"] and not (_ligado() and sit["registrado"])
+        # Instalado mas sem nunca ter aberto no Word (a 0.9.23 só registrava, e
+        # no Word 2021 isso não mostra a aba): a novidade volta, para abrir.
+        novidade = (sit["word_no_computador"] and not sit["carregado"]
                     and not os.environ.get("PAULUS_SEM_AVISOS"))
-        return {"ligado": _ligado(), "instalacao": sit, "novidade": bool(novidade),
+        tipo = "abrir" if (_ligado() and sit["instalado"]) else "ativar"
+        return {"ligado": _ligado(), "instalacao": sit, "novidade": bool(novidade), "novidade_tipo": tipo,
                 "conexoes": estado.word_conexoes.listar(),
                 "pedidos": estado.word_pedidos.abertos("local"),
                 "carregamentos": list(reversed(estado.word_carregamentos[-5:]))}
@@ -669,6 +683,118 @@ def montar(estado, app, pasta_dados: Path) -> None:
         nome = "PAVLVS-word" + ("-de-fora" if montagem == "fora" else "") + ".xml"
         return Response(xml, media_type="application/xml",
                         headers={"Content-Disposition": f'attachment; filename="{nome}"'})
+
+    def _abrir_no_windows(caminho: Path) -> None:
+        import os
+
+        os.startfile(str(caminho))  # noqa: S606 - abre no Word do próprio Windows
+
+    estado.word_abrir_no_windows = _abrir_no_windows
+
+    @app.get("/api/word/word-aberto")
+    def word_aberto(request: Request) -> dict:
+        """O Word está aberto desde antes da instalação? (aí ele não conhece o PAVLVS)."""
+        so_local(request)
+        return {"precisa_fechar": instalacao.precisa_fechar_o_word()}
+
+    @app.post("/api/word/abrir")
+    def word_abrir(request: Request) -> dict:
+        """Abre o Word com o PAVLVS: o documento "comece aqui", com a aba e o painel."""
+        so_local(request)
+        if not instalacao.instalado():
+            raise HTTPException(status_code=409, detail="ative o PAVLVS no Word primeiro")
+        if instalacao.precisa_fechar_o_word():
+            return {"aberto": False, "precisa_fechar": True}
+        try:
+            estado.word_abrir_no_windows(instalacao.comece_aqui())
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"não consegui abrir o Word: {exc}") from exc
+        return {"aberto": True, "precisa_fechar": False}
+
+    def _avisar_no_windows(titulo: str, texto: str) -> None:
+        import os
+
+        if os.environ.get("PAULUS_SEM_AVISOS"):
+            return
+        try:
+            import avisos
+
+            avisos.notificar(titulo, texto)
+        except Exception:  # noqa: BLE001 - sem o aviso, o Word abre do mesmo jeito quando fechar
+            pass
+
+    esperando = {"fio": None}
+
+    def _quando_o_word_fechar(abrir) -> None:
+        """Um Word aberto antes da instalação: espera ele fechar (até 15 min) e abre."""
+        if esperando["fio"] is not None and esperando["fio"].is_alive():
+            return
+
+        def esperar() -> None:
+            fim = time.time() + 15 * 60
+            while time.time() < fim:
+                if not instalacao.precisa_fechar_o_word():
+                    try:
+                        abrir()
+                    except OSError:
+                        pass
+                    return
+                time.sleep(2)
+
+        esperando["fio"] = threading.Thread(target=esperar, name="word-esperando-fechar", daemon=True)
+        esperando["fio"].start()
+
+    def word_externo(acao: str, caminho: str = "") -> dict:
+        """
+        O atalho "Word com PAVLVS" (`novo`) e o botão direito dos .docx
+        (`abrir`): o PAULUS.exe chama aqui (src/desktop.py).
+        """
+        if not instalacao.instalado():
+            _avisar_no_windows("PAVLVS no Word", "Ative o PAVLVS no PAULUS, em Configurações › Word, para abrir o Word com ele.")
+            return {"aberto": False, "motivo": "não instalado"}
+        if acao == "abrir":
+            arquivo = Path(caminho)
+            try:
+                resultado = instalacao.por_no_arquivo(arquivo)
+            except (word_instalar.FalhaNaInstalacao, OSError) as exc:
+                return {"aberto": False, "motivo": str(exc)}
+
+            def abrir() -> None:
+                estado.word_abrir_no_windows(arquivo)
+        else:
+            resultado = "novo"
+
+            def abrir() -> None:
+                estado.word_abrir_no_windows(instalacao.modelo_novo())
+        if instalacao.precisa_fechar_o_word():
+            _avisar_no_windows("Feche o Word para usar o PAVLVS",
+                               "O Word está aberto desde antes de o PAVLVS ser instalado. Salve e feche o Word: "
+                               "assim que ele fechar, o PAULUS abre de novo com o PAVLVS.")
+            _quando_o_word_fechar(abrir)
+            return {"aberto": False, "esperando": True, "resultado": resultado}
+        abrir()
+        return {"aberto": True, "resultado": resultado}
+
+    estado.word_externo = word_externo
+
+    @app.post("/api/word/externo")
+    def word_externo_rota(payload: Externo, request: Request) -> dict:
+        so_local(request)
+        if payload.acao not in ("novo", "abrir"):
+            raise HTTPException(status_code=400, detail="ação desconhecida")
+        return word_externo(payload.acao, payload.caminho)
+
+    @app.post("/api/word/atalhos")
+    def word_atalhos(payload: Atalhos, request: Request) -> dict:
+        so_local(request)
+        if not instalacao.instalado():
+            raise HTTPException(status_code=409, detail="ative o PAVLVS no Word primeiro")
+        try:
+            feitos = instalacao.criar_atalhos(area_de_trabalho=payload.area_de_trabalho, menu_iniciar=payload.menu_iniciar,
+                                              botao_direito=payload.botao_direito)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {**_situacao(), "feitos": feitos}
 
     @app.post("/api/word/abrir-pasta")
     def word_abrir_pasta(request: Request) -> dict:

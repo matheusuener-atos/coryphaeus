@@ -106,22 +106,38 @@ function desenharSobre(m, pergunta, visor) {
   const blocoComo = $("lat-como");
   if (blocoComo) {
     blocoComo.hidden = !linhas.length;
-    $("lat-como-lista").innerHTML = linhas.map(([k, v]) => "<div><span>" + esc(k) + '</span><span class="valor-prop">' + esc(v) + "</span></div>").join("");
+    // Tempo em monoespaco e o modelo numa etiqueta (pacote de telas).
+    const estilo = { Tempo: " mono", Modelo: " chip" };
+    $("lat-como-lista").innerHTML = linhas.map(([k, v]) => "<div><span>" + esc(k) + '</span><span class="valor-prop' + (estilo[k] || "") + '">' +
+      esc(v) + "</span></div>").join("");
+    $("lat-como-titulo").textContent = "Como respondi";
   }
 
-  // Onde procurei: o escopo daquela resposta.
+  // Onde procurei: o escopo daquela resposta - a pasta (ou o documento) numa
+  // etiqueta, quantos documentos havia ali, e o que foi achado.
   const blocoOnde = $("lat-onde");
   if (blocoOnde) {
     const e = c.escopo || null;
     const cob = m.cobertura || {};
-    let onde = "";
-    if (e && (e.apenas || []).length) onde = "Só em " + nomesCurtos(e.apenas) + ".";
-    else if (e && e.sem_anexo) onde = "Perguntei onde procurar antes de ler.";
-    else if (e && e.tudo) onde = "Em todo o Acervo" + (cob.total_contratos ? " (" + plural(cob.total_contratos, "documento") + ")" : "") + ".";
-    else if (cob.total_contratos) onde = "Nos " + plural(cob.total_contratos, "documento") + " abertos.";
-    if (onde && (cob.consultados || []).length) onde += " Achei trecho em " + plural(cob.consultados.length, "documento") + ".";
-    blocoOnde.hidden = !onde;
+    const total = cob.total_contratos || 0;
+    let chip = "", conta = "", onde = "";
+    if (e && (e.apenas || []).length) {
+      chip = e.apenas.length === 1 ? glifo(e.apenas[0]) + esc(e.apenas[0]) : ic("description", 14) + plural(e.apenas.length, "documento");
+      onde = "Só " + (e.apenas.length === 1 ? "neste documento" : "nestes documentos") + ".";
+    } else if (e && e.sem_anexo) {
+      onde = "Perguntei onde procurar antes de ler.";
+    } else if (e && e.tudo) {
+      chip = ic("folder", 14) + "Acervo inteiro";
+      conta = total ? plural(total, "documento") : "";
+    } else if (total) {
+      chip = ic("folder", 14) + "Documentos abertos";
+      conta = plural(total, "documento");
+    }
+    if ((cob.consultados || []).length) onde = (onde ? onde + " " : "") + "Achei trecho em " + plural(cob.consultados.length, "documento") + ".";
+    blocoOnde.hidden = !chip && !onde;
+    $("lat-onde-linha").innerHTML = chip ? '<span class="lat-onde-chip corta">' + chip + "</span>" + (conta ? "<small>" + esc(conta) + "</small>" : "") : "";
     $("lat-onde-texto").textContent = onde;
+    $("lat-onde-texto").hidden = !onde;
   }
 }
 
@@ -324,4 +340,3 @@ function marcarRespostasGuardadas(t) {
   soltos.forEach((el, k) => { if (indices[ja + k] !== undefined) el.dataset.msg = String(indices[ja + k]); });
 }
 
-$("lat-lidas-cabeca").onclick = () => alternarRamo($("lat-lidas-cabeca"));

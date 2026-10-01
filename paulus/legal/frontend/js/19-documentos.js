@@ -121,7 +121,9 @@ async function mostrarDocumentos(visao) {
   }
   desenharDocumentos();
   atualizarPostura();
-  // W1: a novidade do PAVLVS no Word, uma vez (js/76-word.js).
+  // W1: a novidade do PAVLVS no Word, uma vez, e se ele está instalado
+  // (o "Abrir no Word" da pré-visualização) - js/76-word.js.
+  if (typeof atualizarWordDoEditor === "function") atualizarWordDoEditor();
   if (typeof novidadeDoWord === "function") novidadeDoWord();
 }
 
@@ -1848,6 +1850,8 @@ function painelDaPrevia() {
     plural(d.paginas, "página") + " · " + (d.impedem ? plural(d.impedem, "ponto") + " a resolver" : "pronto para sair") + "</span></span></div>" +
     '<div class="painel-acoes"><button class="primario" id="pv-pdf">' + ic("picture_as_pdf", 16) + "Baixar PDF</button>" +
     '<button id="pv-docx">' + ic("description", 16) + "Baixar DOCX</button>" +
+    (typeof wordInstaladoAqui === "function" && wordInstaladoAqui()
+      ? '<button id="pv-word">' + ic("description", 16) + "Abrir no Word</button>" : "") +
     '<button id="pv-assinar-2">' + ic("draw", 16) + "Assinar</button>" +
     '<button id="pv-email">' + marcaDoEmail(16) + "Enviar por e-mail</button>" +
     '<button class="adiante" data-pv-adiante="WhatsApp">' + ic("chat", 16) + "WhatsApp</button>" +
@@ -1924,6 +1928,7 @@ function ligarPrevia() {
     avisoCert("PDF baixado com senha", { tom: "ok" });
   });
   ligar("pv-docx", () => { window.location.href = "/api/documentos/" + p.id + "/docx"; });
+  ligar("pv-word", () => abrirWordComPavlvs("/api/word/abrir-documento/" + p.id));
   const assinar = async () => {
     const alvo = await guardarNaBiblioteca(p.id);
     if (alvo) { marcarDestino("assinar"); mostrarAssinar(alvo); }

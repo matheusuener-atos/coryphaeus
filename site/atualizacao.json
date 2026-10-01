@@ -1,11 +1,11 @@
 {
-  "versao": "0.9.23",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.23/PAULUS-0.9.23-instalador.exe",
-  "sha256": "8dfe5832fe351049d051eed0f7cc9f6712f295c16542418fbe62309fd93b00f3",
-  "tamanho": 101804722,
+  "versao": "0.9.24",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.24/PAULUS-0.9.24-instalador.exe",
+  "sha256": "66f720658bc164065a02b583e5ef7fde599d304b99c2d1ccec67e131ef9282e3",
+  "tamanho": 101820027,
   "publicada": "2026-10-01",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.23",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.24",
   "novidades": [
-    "O PAULUS dentro do Word: a aba PAVLVS e o painel ao lado do documento, ativados pelo Editor ou em Configurações › Word (nesta versão o painel se instala e se conecta; as funções chegam nas próximas)"
+    "PAVLVS no Word: o atalho \"Word com PAVLVS\" na área de trabalho, o \"Abrir no Word com o PAVLVS\" no botão direito dos .docx e o Abrir no Word do Editor abrem o Word já com a aba e o painel (no Word 2021 a aba só aparecia no documento que traz o PAVLVS)"
   ]
 }

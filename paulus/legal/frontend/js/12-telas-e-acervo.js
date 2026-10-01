@@ -6,6 +6,7 @@
 
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
+  if (typeof apoio !== "undefined") apoio.naTela = false;
   fecharEditorNaConversa();
   pararTocadorDaListaGv(nome);
   guardarLugarDoAssistente();
@@ -26,7 +27,7 @@ function abrirTela(nome, opcoes) {
   $("registro").hidden = true;
   $("agora").hidden = true;
   $("centro").classList.remove("prosa");
-  $("conversa-col").classList.remove("tela-dupla");
+  $("conversa-col").classList.remove("tela-dupla", "em-conversa");
   $("conversa-col").classList.toggle("tela-cheia", Boolean(o.cheia));
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
@@ -956,23 +957,29 @@ function cartaoProposta(d) {
 /* QUER VER O DOCUMENTO? Depois de uma resposta tirada de um ou dois
    documentos, o servidor oferece mostrá-los (exibir_documento). O cartão só
    oferece: nada abre sem o clique, e mostrar não copia nem altera nada. */
+/* No pacote de telas (`Conversa`): o rotulo em monoespaco, o documento com
+   o icone, a frase e, embaixo, Mostrar aqui (cheio), Abrir editor e No
+   Windows; "Agora nao" fica sozinho a direita, apagado. Com dois
+   documentos, cada um ganha a propria linha de botoes. */
 function cartaoOferta(d) {
   const c = d.campos || {};
   const nomes = d.nomes && d.nomes.length ? d.nomes : (c.nomes && c.nomes.length ? c.nomes : [c.nome]);
-  const linhas = nomes.map((n) =>
-    '<div class="oferta-doc">' + ic(/\.pdf$/i.test(n) ? "picture_as_pdf" : "description", 18) +
-    '<span class="oferta-nome" title="' + esc(n) + '">' + esc(n) + "</span>" +
-    '<button class="primario" data-prop="exibir" data-nome="' + esc(n) + '">Mostrar aqui</button>' +
+  const botoes = (n) => '<button class="primario" data-prop="exibir" data-nome="' + esc(n) + '">Mostrar aqui</button>' +
     '<button data-prop="editar" data-nome="' + esc(n) + '">Abrir editor</button>' +
-    '<button data-prop="windows" data-nome="' + esc(n) + '">No Windows</button></div>').join("");
+    '<button data-prop="windows" data-nome="' + esc(n) + '">No Windows</button>';
   const porque = d.porque || "a resposta saiu " + (nomes.length === 1 ? "deste documento" : "destes documentos");
-  return '<div class="proposta oferta"><div class="proposta-topo">' +
-    '<span class="rotulo">' + (nomes.length === 1 ? "quer ver o documento?" : "quer ver os documentos?") + "</span></div>" +
-    linhas +
-    '<p class="explica">' + esc(porque.charAt(0).toUpperCase() + porque.slice(1)) +
+  const frase = '<p class="explica">' + esc(porque.charAt(0).toUpperCase() + porque.slice(1)) +
     ". Mostro aqui mesmo, só para leitura" + (d.trechos ? ", com os trechos citados marcados" : "") +
-    " — ou abro no editor, ou no Windows.</p>" +
-    '<div class="linha-form"><button data-prop="nao">Agora não</button></div></div>';
+    " — ou abro no editor, ou no Windows.</p>";
+  const nao = '<span class="vazio-flex"></span><button class="fantasma" data-prop="nao">Agora não</button>';
+  const doc = (n) => '<div class="oferta-doc">' + ic("description", 17) + '<b class="oferta-nome" title="' + esc(n) + '">' + esc(n) + "</b></div>";
+  if (nomes.length === 1) {
+    return '<div class="proposta oferta"><span class="rotulo">quer ver o documento?</span>' + doc(nomes[0]) + frase +
+      '<div class="linha-form">' + botoes(nomes[0]) + nao + "</div></div>";
+  }
+  return '<div class="proposta oferta"><span class="rotulo">quer ver os documentos?</span>' + frase +
+    nomes.map((n) => doc(n) + '<div class="linha-form">' + botoes(n) + "</div>").join("") +
+    '<div class="linha-form">' + nao + "</div></div>";
 }
 
 /* ONDE EU PROCURO? A pessoa tirou o anexo e perguntou sem nomear documento.
@@ -1425,7 +1432,7 @@ function ligarProposta(caixa, d, ondeResponder) {
     }
 
     const feito = await r.json();
-    // N4: a NFS-e virou rascunho; o cartão da nota abre já (js/78-nfse-nota.js).
+    // N4: a NFS-e virou rascunho; o cartão da nota abre já (js/80-nfse-nota.js).
     if (feito.onde === "nfse" && typeof abrirNotaFiscal === "function") setTimeout(() => abrirNotaFiscal(feito.id), 50);
     // N6: a tarefa roda em segundo plano; o cartão acompanha os passos ali mesmo.
     if (d.tipo === "passos" && typeof acompanharPassosNaConversa === "function") { acompanharPassosNaConversa(caixa, feito.id); return; }
