@@ -19,6 +19,8 @@ async function carregarModelos() {
     mod.calib = c.ok ? await c.json() : null;
     // L6: o perfil desta máquina (js/68-perfis.js).
     mod.perfil = p && p.ok ? await p.json() : null;
+    // N15: a nuvem com a chave do escritório (js/75-nuvem.js).
+    if (typeof carregarNuvemNaConfig === "function") await carregarNuvemNaConfig();
   } catch (err) {
     mod.dados = null;
   }
@@ -128,7 +130,8 @@ function secaoModelos() {
   if (!d.rodando) {
     return aberturaCfg() + cartaoCfg("O Ollama não está respondendo", "",
       '<p class="cfg-texto">Os modelos moram no Ollama, nesta máquina, e ele não respondeu agora. ' +
-      "Abra o Assistente: o cartão do motor tem o botão para ligá-lo.</p>");
+      "Abra o Assistente: o cartão do motor tem o botão para ligá-lo.</p>") +
+      (typeof cartaoNuvem === "function" ? cartaoNuvem() : "");
   }
   const b = d.baixando || {};
   const total = (d.instalados || []).reduce((s, m) => s + (m.gb || 0), 0);
@@ -189,6 +192,7 @@ function secaoModelos() {
     cartaoCfg("Quem faz cada tarefa", metaCfg("vale na hora"), '<div class="cfg-linhas">' + tarefas + "</div>" +
       '<p class="cfg-explica">Um modelo leve nos julgamentos rápidos deixa a conversa mais ágil; um maior nas perguntas sobre documentos lê melhor e demora mais. Meça antes de escolher.</p>') +
     cartaoBusca(d, b) +
+    (typeof cartaoNuvem === "function" ? cartaoNuvem() : "") +
     cartaoCfg("Baixar", metaCfg("do registro público do Ollama"), andamento + '<div class="cfg-linhas">' + catalogo + "</div>" + outro +
       '<p class="cfg-explica">O download é do Ollama, direto do registro dele, e fica nesta máquina. Cancelar guarda o que já veio: baixar de novo continua de onde parou.</p>');
 }
@@ -316,6 +320,7 @@ function ligarModelos() {
   if (!raiz) return;
   ligarCalibracao(raiz, () => desenharConfig());
   if (typeof ligarPerfilDaMaquina === "function") ligarPerfilDaMaquina(raiz);
+  if (typeof ligarNuvemNaConfig === "function") ligarNuvemNaConfig(raiz, () => desenharConfig());
   const testar = raiz.querySelector("[data-mod-testar]");
   if (testar) testar.onclick = () => testarMaquina();
   raiz.querySelectorAll("[data-mod-baixar]").forEach((b) => { b.onclick = () => baixarModelo(b.dataset.modBaixar); });

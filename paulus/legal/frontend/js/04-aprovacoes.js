@@ -25,9 +25,10 @@ const aprov = {
 };
 
 const ICONE_CATEGORIA = { organizar: "drive_file_move", arquivo: "folder", email: "mail", assinatura: "draw", permissao: "shield_person", financeiro: "payments" };
-const CHAVE_DA_CATEGORIA = { organizar: "organizar_mover", assinatura: "assinar", email: "enviar_mensagem" };
+const CHAVE_DA_CATEGORIA = { organizar: "organizar_mover", assinatura: "assinar", email: "enviar_mensagem", nuvem: "modelo_nuvem" };
 const ICONE_REGRA = { ler_pastas: "folder_open", organizar_mover: "drive_file_move", assinar: "draw", enviar_mensagem: "mail", modelo_nuvem: "upload" };
-const VERBO_APROVAR = { organizar: "Aprovar e mover", email: "Aprovar e enviar", assinatura: "Aprovar e assinar", financeiro: "Aprovar e pagar", permissao: "Aprovar" };
+const VERBO_APROVAR = { organizar: "Aprovar e mover", email: "Aprovar e enviar", assinatura: "Aprovar e assinar", financeiro: "Aprovar e pagar", permissao: "Aprovar",
+  nuvem: "Mandar à nuvem" };
 
 /* Para onde a pessoa vai depois do sim, por tipo de pedido. A fila nao e o
    fim do trabalho: quem pediu uma assinatura quer ver o documento assinado,
@@ -320,6 +321,11 @@ function ligarAprovacoes() {
 
 function apSaida(p) {
   const dados = p.dados || {};
+  // N15: o texto exato que vai à nuvem, inteiro, para ler antes do sim.
+  if (dados.texto_exato) {
+    return '<div class="ap-saida"><span class="sv-kicker">O que vai sair · ' + milhar(dados.texto_exato.length) + " caracteres, para " +
+      esc(dados.modelo || "") + '</span><pre class="nuvem-texto">' + esc(dados.texto_exato) + "</pre></div>";
+  }
   const arquivos = Array.isArray(dados.arquivos) ? dados.arquivos : (Array.isArray(dados.caminhos) ? dados.caminhos : []);
   const para = Array.isArray(dados.para) ? dados.para : (Array.isArray(dados.destinatarios) ? dados.destinatarios : (dados.para ? [dados.para] : []));
   if (!arquivos.length && !para.length) return "";

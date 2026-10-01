@@ -43,7 +43,9 @@ MENSAGEM_BLOQUEADA = "Disponível só no computador do escritório"
 # aprova de fora nem pelo titular: aprovar ali seria fazer por tabela o que a
 # tabela proibe (mover, apagar, exportar em lote, assinar).
 ACOES_SO_NO_ESCRITORIO = {"organizar.mover", "acervo.apagar", "acervo.exportar",
-                          "assinatura.assinar", "assinatura.lote"}
+                          "assinatura.assinar", "assinatura.lote",
+                          # N15: o sim que manda a pergunta a nuvem.
+                          "nuvem.enviar"}
 # E o que sai desta maquina pede o codigo do autenticador de novo: sessao
 # roubada nao manda e-mail nem documento para fora.
 ACOES_QUE_SAEM = {"correio.enviar", "google.drive.enviar"}
@@ -399,6 +401,10 @@ _declarar(BLOQUEADO, "POST /api/aprovacoes/{id_}/desfazer")
 # baixar, parar e apagar mexem neste computador: janela do escritorio.
 _declarar(PERMITIDO, "GET /api/jurisprudencia", "GET /api/jurisprudencia/procurar", "GET /api/jurisprudencia/acordao/{id_}")
 _declarar(BLOQUEADO, "POST /api/jurisprudencia/baixar", "POST /api/jurisprudencia/parar", "DELETE /api/jurisprudencia")
+# --- N15: a nuvem com a chave do escritorio - guardar a chave, ligar, liberar a
+# conversa e ler o registro: tudo na janela do escritorio.
+_declarar(BLOQUEADO, "GET /api/nuvem", "POST /api/nuvem/chave", "GET /api/nuvem/modelos", "DELETE /api/nuvem/chave/{provedor}",
+          "POST /api/nuvem/configurar", "POST /api/trabalhos/{id_}/nuvem", "GET /api/nuvem/envios", "GET /api/nuvem/envios/{envio}")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

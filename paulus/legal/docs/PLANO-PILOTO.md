@@ -360,7 +360,7 @@ o código garante.
 | N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | feito | `tests/test_n12_vigencia.py` |
 | N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | feito | `tests/test_n13_jurisprudencia.py` |
 | N14 | Agente com autonomia sem confirmação | fora | feito | `tests/test_n14_autonomia.py` |
-| N15 | Nuvem com a chave do escritório | fora | — | `tests/test_n15_nuvem.py` |
+| N15 | Nuvem com a chave do escritório | fora | feito | `tests/test_n15_nuvem.py` |
 | N16 | Os três testes que dependiam desta máquina | testes | — | os próprios |
 
 ## N1 — o prazo pelo tipo de ato (30/09/2026)
@@ -781,3 +781,52 @@ Ficou de fora de propósito na primeira volta; o dono decidiu fazer.
 desligada, ligada com o compromisso feito e o Histórico, desfazer, o que volta
 ao cartão, o limite, o que não se desfaz, de fora, e no Edge: o cartão na
 conversa e o Desfazer no Histórico).
+
+## N15 — a nuvem com a chave do escritório (01/10/2026)
+
+Ficou de fora de propósito na primeira volta; o dono decidiu fazer, do jeito
+de `docs/estrategia-ia-nuvem.md` (chave de API própria, nunca o login da
+assinatura de consumidor).
+
+- **Onde liga** (`src/nuvem.py`, `src/rotas_nuvem.py`, Configurações ›
+  Modelos, cartão "Nuvem (chave do escritório)"): Anthropic ou OpenAI; a chave
+  guardada cifrada pela DPAPI em `<dados>/nuvem/` e testada na hora (a única
+  chamada: a lista de modelos que ela enxerga; recusada, não fica guardada);
+  o modelo; mascarar; ligar. **Desligada de fábrica**, e as rotas só na janela
+  do escritório.
+- **Como vai**: a pílula "Nuvem" na caixa da pergunta (só com a nuvem ligada,
+  na janela do escritório) marca uma pergunta. Depois da busca, o pacote é o
+  mesmo que iria ao modelo local, mascarado; o pedido espera em Aprovações
+  (categoria Nuvem, com o texto exato que sai, o tamanho e o custo aproximado)
+  e no cartão da conversa (Mandar, Responder aqui, Ver o texto exato, liberar
+  nesta conversa). Liberada a conversa, ou ligada a regra de alçada "Mandar à
+  nuvem sem pedir a cada pergunta" (desligada, e não mais travada), vai
+  direto. A resposta chega aos pedaços, com os marcadores desfeitos, e passa
+  pelas mesmas conferências da local; assina com o modelo da nuvem.
+- **Mascarar** (ligado): CPF e CNPJ válidos, processo, e-mail e telefone viram
+  "[CPF 1]"... e voltam na resposta. Não anonimiza (nome e endereço vão), e a
+  tela diz.
+- **Nunca vai**: o anexo guardado do e-mail (marcado ao guardar, desta versão
+  em diante); a cópia das pastas do Drive que o PAULUS faz (API do Google,
+  Uso Limitado); o caso "só no escritório" (D5); e nada de fora (acesso
+  remoto). Nesses casos, recusado, o tempo esgotado (10 min) ou o provedor
+  com erro, o computador escreve, e a resposta diz por quê.
+- **Registro**: `<dados>/nuvem/envios.jsonl` e o texto exato de cada envio ao
+  lado, na tela de Modelos ("Ver o que saiu") e na auditoria.
+- **Site**: a política de privacidade (PT e EN) ganhou a seção da nuvem e os
+  downloads do STJ e do DataJud; a página inicial deixou de dizer "sem nuvem".
+
+**Não feito:** os anexos guardados antes desta versão não têm a marca do
+e-mail (a política e a tela dizem; o caminho é marcar a pasta "só no
+escritório"); a nuvem vale só para a resposta da conversa sobre documentos
+(não redige peça, não lê e-mail, não é juiz); sem limite de gasto por mês
+(cada envio mostra os tokens; o limite é o da conta do provedor); só
+Anthropic e OpenAI diretos.
+
+**Medido:** `tests/test_n15_nuvem.py` 40 ok, com o provedor de mentira
+(mascarar e desfazer aos pedaços, os formatos da Anthropic e da OpenAI, a
+chave cifrada e a recusada, o pedido com o texto exato mascarado, o sim, o
+recusar, a conversa liberada, a regra de alçada, o e-mail, o Drive, o só no
+escritório, o erro do provedor, de fora, e no Edge: o cartão em Modelos, a
+pílula, o cartão na conversa e a resposta da nuvem). Nunca com uma chave de
+verdade: o primeiro envio real é do dono.

@@ -136,6 +136,7 @@ import passos as passos_mod
 import fundamentacao as fundamentacao_mod
 import comunidade as comunidade_mod
 import jurisprudencia as jurisprudencia_mod
+import nuvem as nuvem_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
 import fila_de_todos
@@ -999,6 +1000,10 @@ comunidade_mod.montar(estado, app)
 vigencia_mod.montar(estado, app)
 # N13: os acordaos do STJ no computador, baixados so quando a pessoa pede (src/jurisprudencia.py).
 jurisprudencia_mod.montar(estado, app, DADOS_DIR)
+# N15: a nuvem com a chave do escritorio (src/nuvem.py, rotas em src/rotas_nuvem.py).
+import rotas_nuvem  # noqa: E402
+
+rotas_nuvem.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
@@ -1105,6 +1110,8 @@ class Pergunta(BaseModel):
     prioridade: bool = False
     # D1: escrever a resposta no aparelho de quem pergunta (src/aparelho.py).
     aparelho: bool = False
+    # N15: a pessoa marcou "Nuvem" (src/nuvem.py) - cada envio espera o sim.
+    nuvem: bool = False
     # D4: como a pessoa decidiu no seletor, quando a resposta e do escritorio
     # ("escritorio", "fila", "automatico") - so para a resposta dizer por que.
     escolha: str = ""
@@ -3598,6 +3605,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         pode, motivo_do_escritorio = aparelho_mod.pode_escrever(estado, request)
         if pode:
             escrita_no_aparelho = aparelho_mod.Escrita(estado, request, id_)
+    # N15: a nuvem - so na janela do escritorio, ligada e com a chave (src/nuvem.py).
+    # O Envio confere tudo de novo depois da busca, com os trechos na mao.
+    envio_nuvem = None
+    if payload.nuvem and escrita_no_aparelho is None:
+        envio_nuvem = nuvem_mod.Envio(estado, trabalho, pessoa=rotas_do_acesso.pessoa(request))
 
     habilidade = estado.registro.obter("perguntar")
     if not habilidade or not habilidade.executavel:
@@ -3844,7 +3856,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if herdada is not None:
             # A pergunta que esperava na conversa: a vez ja e dela (F1).
             na_fila["vez"] = herdada
-        elif not sem_fila and escrita_no_aparelho is None:
+        elif not sem_fila and escrita_no_aparelho is None and envio_nuvem is None:
             # D4: a pergunta que vai ao aparelho nao entra na fila do
             # escritorio - a busca nao usa a vez, e quem escreve e o aparelho.
             # Se a resposta voltar para o escritorio, a chamada ao modelo
@@ -3917,6 +3929,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         ctx.cerca = rotas_execucoes.ligada(estado, "cerca")
         if escrita_no_aparelho is not None:
             ctx.escrita_no_aparelho = escrita_no_aparelho
+        if envio_nuvem is not None:
+            ctx.nuvem = envio_nuvem
         if payload.inteiro:
             ctx.ia["leitura"] = "tudo"
         sem_fundamento: dict = {}
@@ -3974,6 +3988,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                         dados = {"posicao": dados.get("posicao"), "previsao_s": dados.get("previsao_s", 0),
                                  "depois_do_aparelho": True}
                     yield _sse("fila", dados)
+                elif tipo in ("nuvem_pedido", "nuvem_mandando", "nuvem_fim"):
+                    # N15: a pergunta esperando o sim para ir à nuvem, indo, e onde terminou.
+                    fase({"nuvem_pedido": "nuvem_esperando", "nuvem_mandando": "nuvem"}.get(tipo, "escrevendo"))
+                    yield _sse(tipo, dados)
                 elif tipo == "medida":
                     medida = dados
                     yield _sse("medida", dados)
@@ -4094,6 +4112,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                              "agente_slug": agente.slug if agente is not None else "",
                              "agente_versao": agente.versao if agente is not None else 0,
                              "agente_como": agente_como}
+        # N15: a nuvem - onde foi escrita, o provedor e o modelo, o que foi mascarado.
+        if envio_nuvem is not None:
+            cobertura["como"]["nuvem"] = envio_nuvem.resumo()
+            if envio_nuvem.foi:
+                cobertura["como"]["modelo"] = f"{envio_nuvem.nome_do_provedor} · {envio_nuvem.modelo}"
         # D1: onde a resposta foi escrita e por que, quando a pessoa pediu o aparelho.
         # D4: com o seletor na tela, a escolha da pessoa tambem fica dita.
         if payload.aparelho or payload.escolha in aparelho_mod.ESCOLHAS:
@@ -5707,6 +5730,8 @@ EXECUTORES = {
     "ajuda.prazo": lambda pedido: rotas_ajuda.executar_prazo(estado, pedido),
     # O documento fotografado de fora (ideia E do umbrelOS): o sim o poe no Acervo.
     "captura.entrar": lambda pedido: captura_mod.executar(estado, pedido),
+    # N15: a pergunta que espera para ir à nuvem - o sim a libera.
+    "nuvem.enviar": lambda pedido: nuvem_mod.liberar_da_fila(pedido),
     # L2: o prazo sugerido por uma movimentação do DataJud - o sim anota a tarefa.
     "processos.prazo": lambda pedido: processos_mod.executar_prazo(estado, pedido),
     # A2: a ferramenta de um agente, aprovada na fila em vez de no cartão.
@@ -7708,6 +7733,8 @@ def email_guardar_anexo(payload: dict) -> dict:
     nomes_mod.conferir(pendentes)
 
     destino.write_bytes(dados)
+    # N15: o que vem do e-mail nunca vai à nuvem - fica marcado ao entrar.
+    nuvem_mod.marcar_do_email(estado, destino)
     return {"guardado": destino.name, "documentos": estado.recarregar()}
 
 

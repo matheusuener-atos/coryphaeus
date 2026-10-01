@@ -698,6 +698,12 @@ function linhaAssinatura(segundos, citados, pergunta, quem, como) {
   if (frase && escrita && (!painelNovo() || como.escrita.onde === "aparelho")) {
     frase += " · " + (painelNovo() ? (acessoDeFora.local ? "no aparelho de quem perguntou" : "neste aparelho") : escrita);
   }
+  // N15: a resposta escrita pela nuvem assina com o modelo dela.
+  if (como && como.nuvem && como.nuvem.onde === "nuvem") {
+    quem = como.nuvem.modelo + " (" + como.nuvem.provedor + ", nuvem)";
+  } else if (como && como.nuvem && frase) {
+    frase += " · neste computador";
+  }
   // A2: o agente que respondeu, e a versao dele, na assinatura.
   if (como && como.agente) quem = (quem || estado.modelo || "assistente local") + " · " + como.agente + (como.agente_versao ? " v" + como.agente_versao : "");
   return '<div class="assinatura"><span>' + (frase
@@ -1531,7 +1537,9 @@ async function enviar(opcoes) {
       // a pergunta com a escolha feita ali.
       body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos),
         inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade) }, envio,
-        typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {}, onde)),
+        typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {}, onde,
+        // N15: a pílula "Nuvem" (js/75-nuvem.js) vale para esta pergunta só.
+        typeof nuvemDoEnvio === "function" ? nuvemDoEnvio() : {})),
       signal: estado.controle.signal,
     });
     // F1: a conversa já respondia (outra aba, outra pessoa) e a pergunta
@@ -1657,6 +1665,11 @@ async function lerResposta(r, v) {
         // D4: o escritório mandou os trechos; este aparelho escreve (js/61-aparelho-tela.js).
         if (typeof escreverPacoteNoAparelho === "function") {
           escreverPacoteNoAparelho(dados, { texto: texto, linha: linha, anotar: anotarBastidor });
+        }
+      } else if (/^nuvem_/.test(mt[1])) {
+        // N15: o pedido para ir à nuvem, o envio e onde terminou (js/75-nuvem.js).
+        if (typeof eventoDaNuvem === "function") {
+          eventoDaNuvem(mt[1], dados, { resposta: resposta, linha: linha, anotar: anotarBastidor, conversaId: minha });
         }
       } else if (mt[1] === "aparelho_fim") {
         if (typeof fimDoAparelho === "function") fimDoAparelho(dados, { texto: texto, linha: linha, anotar: anotarBastidor });

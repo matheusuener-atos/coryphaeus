@@ -602,12 +602,20 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         if parcial:
             escrito.append(parcial)
             yield evento("token", t=parcial)
+        # N15: a pessoa pediu a nuvem (src/nuvem.py). O pacote e o mesmo que iria
+        # ao modelo local (mascarado, se ligado); cada envio espera o sim, e o
+        # texto que volta passa pelas mesmas conferencias daqui para baixo.
+        da_nuvem = None
+        if not parcial:
+            da_nuvem = yield from _escrever_na_nuvem(ctx, pergunta, contexto, regra, hits)
+        if da_nuvem is not None:
+            escrito.append(da_nuvem)
         # N11: a resposta que voltou do aparelho espera a vez do modelo do
         # escritorio aqui, mandando a posicao para a tela - e nao calada dentro
         # da chamada ao modelo.
-        vez_aqui = yield from _vez_depois_do_aparelho(ctx)
+        vez_aqui = (yield from _vez_depois_do_aparelho(ctx)) if da_nuvem is None else None
         try:
-            for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra, continuar=parcial):
+            for tipo, dados in (_pedacos(ctx, pergunta, contexto, regra=regra, continuar=parcial) if da_nuvem is None else []):
                 if tipo == "token":
                     escrito.append(dados.get("t", ""))
                 elif tipo == "truncou":
@@ -791,6 +799,55 @@ def _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho,
     return None, parcial
 
 
+def _escrever_na_nuvem(ctx, pergunta, contexto, regra, hits):
+    """
+    N15: o texto escrito pela nuvem (já de volta, sem as máscaras), ou None -
+    e então o computador escreve, como sempre. Os pedaços vão para a tela
+    enquanto chegam.
+    """
+    envio = getattr(ctx, "nuvem", None)
+    if envio is None:
+        return None
+    import nuvem as nuvem_mod
+    from habilidade_base import Ponte
+
+    pacote = envio.preparar(pergunta, contexto, _com_regra(ctx, regra), hits, historico=getattr(ctx, "historico", None))
+    if pacote is None:
+        ctx.registrar("Escrevi neste computador: " + envio.motivo)
+        yield evento("nuvem_fim", onde="computador", motivo=envio.motivo)
+        return None
+    parar = getattr(ctx, "parar", None)
+    if pacote.get("precisa_aprovar"):
+        ctx.registrar(f"A pergunta espera o seu sim para ir à {envio.nome_do_provedor}")
+        yield evento("nuvem_pedido", **pacote)
+        decisao = envio.esperar(parar=parar)
+        if decisao != "aprovado":
+            envio.motivo = {"recusado": "você escolheu responder neste computador", "vencido": "passou o tempo sem resposta ao pedido",
+                            "parado": "a conversa parou"}.get(decisao, decisao)
+            ctx.registrar("Escrevi neste computador: " + envio.motivo)
+            yield evento("nuvem_fim", onde="computador", motivo=envio.motivo)
+            return None
+    ctx.registrar(f"Mandei para a {envio.nome_do_provedor} ({envio.modelo})")
+    yield evento("nuvem_mandando", provedor=envio.nome_do_provedor, modelo=envio.modelo, como=envio.como)
+    partes: list[str] = []
+    ponte = Ponte(lambda empurrar: envio.mandar(lambda t: empurrar(("token", {"t": t})), parar=parar), parar=parar)
+    try:
+        for tipo, dados in ponte:
+            partes.append(dados.get("t", ""))
+            yield evento(tipo, **dados)
+    except nuvem_mod.ErroNuvem as exc:
+        envio.motivo = str(exc)
+        if partes:
+            ctx.registrar("A nuvem parou no meio: " + envio.motivo)
+            yield evento("nuvem_fim", onde="nuvem", motivo=envio.motivo, incompleta=True)
+            return "".join(partes)
+        ctx.registrar("A nuvem não respondeu (" + envio.motivo + "): escrevi neste computador")
+        yield evento("nuvem_fim", onde="computador", motivo=envio.motivo)
+        return None
+    yield evento("nuvem_fim", onde="nuvem", provedor=envio.nome_do_provedor, modelo=envio.modelo, **envio.uso)
+    return "".join(partes)
+
+
 def _vez_depois_do_aparelho(ctx):
     """
     N11: depois do aparelho, a vez do modelo do escritorio. Pega o lugar na
@@ -801,9 +858,12 @@ def _vez_depois_do_aparelho(ctx):
     import fila_modelo
 
     escrita = getattr(ctx, "escrita_no_aparelho", None)
+    nuvem = getattr(ctx, "nuvem", None)
     fila = fila_modelo.instalada()
     pedido = fila_modelo.PEDIDO.get() or {}
-    if escrita is None or not getattr(escrita, "pid", None) or fila is None or not pedido.get("dono"):
+    # Do aparelho, ou da nuvem que não foi (recusada, desligada): a vez é pega aqui.
+    veio_de_fora = (escrita is not None and getattr(escrita, "pid", None)) or (nuvem is not None and not nuvem.foi)
+    if not veio_de_fora or fila is None or not pedido.get("dono"):
         return None
     atual = fila_modelo.VEZ.get()
     if atual is not None and not atual.saiu:

@@ -45,7 +45,7 @@
   <span class="rotulo">PAVLVS — Assistente jurídico de IA local</span>
   <h1>Política de privacidade</h1>
   <p class="lead">Como o PAULUS (PAULUS Legal, nome do app no Google: PAVLVS) acessa, usa, guarda e protege dados — em especial os dados da sua conta Google e do Gmail.</p>
-  <span class="data">Última atualização: 30 de setembro de 2026 · <a href="../privacy-policy/" lang="en">English version</a></span>
+  <span class="data">Última atualização: 1º de outubro de 2026 · <a href="../privacy-policy/" lang="en">English version</a></span>
 </header>
 
 <div class="doc">
@@ -63,6 +63,7 @@
       <li><a href="#outros-acessos">Outros acessos à internet</a></li>
       <li><a href="#acesso-de-fora">Acesso de fora (opcional)</a></li>
       <li><a href="#aparelho">Escrever a resposta no aparelho (opcional)</a></li>
+      <li><a href="#nuvem">Nuvem com a chave do escritório (opcional)</a></li>
       <li><a href="#retencao">Retenção e como apagar</a></li>
       <li><a href="#direitos">Seus direitos (LGPD)</a></li>
       <li><a href="#site">Este site</a></li>
@@ -75,7 +76,7 @@
     <h2 id="resumo">Resumo</h2>
     <div class="caixa">
       <ul style="margin:0">
-        <li>O PAULUS é um <strong>programa de computador para Windows</strong> que roda na máquina do escritório. O modelo de IA também roda ali, localmente.</li>
+        <li>O PAULUS é um <strong>programa de computador para Windows</strong> que roda na máquina do escritório. O modelo de IA também roda ali, localmente — a não ser que o escritório ligue a <a href="#nuvem">nuvem com a chave própria</a>, que vem desligada.</li>
         <li><strong>Nenhum servidor do PAULUS recebe as suas mensagens, documentos ou dados de clientes.</strong> O único servidor nosso é o do site, e ele só recebe algo seu se você apoiar o projeto (veja <a href="#outros-acessos">Outros acessos à internet</a>).</li>
         <li>Se você ligar uma conta Google, o PAULUS acessa o <strong>endereço de e-mail da conta</strong> e as <strong>mensagens do Gmail</strong> para mostrar sua caixa, sugerir prazos na Agenda e enviar as respostas que você aprovar.</li>
         <li>Se você também conectar a <strong>Agenda do Google</strong> ou o <strong>Google Drive</strong> (cada um só quando você pede), o PAULUS copia seus compromissos para a sua Agenda do Google, cria a sala do Meet deles, envia ao seu Drive os documentos que você aprovar e, se você autorizar a leitura do Drive, mantém no computador uma cópia das pastas do Drive que você escolher.</li>
@@ -97,7 +98,7 @@
     <h2 id="como-funciona">Como o PAULUS funciona</h2>
     <ul>
       <li>O PAULUS é instalado e executado no computador do escritório (Windows).</li>
-      <li>O modelo de IA roda localmente, pelo Ollama, no endereço interno <code>127.0.0.1</code> — ou seja, na própria máquina. As perguntas, os documentos e as respostas do assistente não são enviados a nenhum serviço de IA na internet.</li>
+      <li>O modelo de IA roda localmente, pelo Ollama, no endereço interno <code>127.0.0.1</code> — ou seja, na própria máquina. As perguntas, os documentos e as respostas do assistente não são enviados a nenhum serviço de IA na internet, a não ser que o escritório ligue a nuvem com a chave própria (veja <a href="#nuvem">Nuvem com a chave do escritório</a>).</li>
       <li>Nenhuma parte do programa manda dados de uso, documentos ou mensagens para nós. As duas exceções são ações suas, descritas em <a href="#outros-acessos">Outros acessos à internet</a>: apoiar o projeto e mandar um feedback.</li>
     </ul>
 
@@ -129,7 +130,7 @@
       <li><strong>Enviar documentos ao seu Google Drive</strong>, na pasta PAULUS: cada envio passa pela fila de <strong>Aprovações</strong> e só acontece com a sua confirmação.</li>
       <li><strong>Ter no Acervo uma cópia das pastas do Drive que você escolhe</strong>, atualizada a cada 15 minutos, para pesquisar os documentos no seu computador.</li>
     </ol>
-    <p>Esse processamento — inclusive a leitura pela IA para entender a mensagem, detectar prazos e escrever rascunhos, e a tradução de mensagens em inglês ou espanhol — acontece no seu computador, com modelos locais.</p>
+    <p>Esse processamento — inclusive a leitura pela IA para entender a mensagem, detectar prazos e escrever rascunhos, e a tradução de mensagens em inglês ou espanhol — acontece no seu computador, com modelos locais. Os dados do Google não vão à nuvem descrita em <a href="#nuvem">Nuvem com a chave do escritório</a>: os anexos guardados do e-mail e a cópia das pastas do Drive ficam de fora dela.</p>
 
     <h2 id="uso-limitado">Uso Limitado (Google)</h2>
     <div class="caixa destaque">
@@ -164,6 +165,7 @@
     <h2 id="outros-acessos">Outros acessos à internet</h2>
     <ul>
       <li><strong>Legislação:</strong> o PAULUS acessa o site público <code>planalto.gov.br</code> para baixar o texto de leis. Esse acesso não envia dados pessoais.</li>
+      <li><strong>Jurisprudência e processos (quando você pede):</strong> em Biblioteca › Jurisprudência, o PAULUS baixa os acórdãos do STJ dos órgãos julgadores que você escolher, dos dados abertos do tribunal (<code>dadosabertos.web.stj.jus.br</code>); a lista de temas repetitivos vem do mesmo lugar. A consulta de um processo pelo número vai à API pública do DataJud, do CNJ (<code>api-publica.datajud.cnj.jus.br</code>), só com o número. Nenhum documento ou dado do escritório vai junto.</li>
       <li><strong>Publicações (opcional):</strong> com a consulta diária de publicações ligada, o PAULUS consulta a API pública do Diário de Justiça Eletrônico Nacional (<code>comunicaapi.pje.jus.br</code>) só com o número da OAB e a UF do advogado.</li>
       <li><strong>WhatsApp Web:</strong> se você quiser, o programa abre o WhatsApp Web dentro dele. Nesse caso você usa o serviço do WhatsApp diretamente, sujeito aos termos e à política de privacidade do WhatsApp.</li>
       <li><strong>Outros provedores de e-mail</strong> (Microsoft ou outro): valem as mesmas regras desta política — as mensagens trafegam só entre o seu computador e o provedor.</li>
@@ -201,10 +203,24 @@
       <li><strong>O que não dá para garantir:</strong> um aparelho comprometido — com vírus ou com uma extensão maliciosa no navegador — pode ler o que a página mostra. Isso já é verdade hoje, só por ver os documentos pelo acesso de fora. Escrever a resposta no aparelho não aumenta esse risco, porque o aparelho recebe o mesmo que a pessoa já veria na tela, mas também não o elimina. Cuide do aparelho que você usa.</li>
     </ul>
 
+    <h2 id="nuvem">Nuvem com a chave do escritório (opcional)</h2>
+    <p>O escritório pode deixar que a resposta de uma pergunta da conversa seja escrita por um modelo da <strong>Anthropic</strong> (Claude) ou da <strong>OpenAI</strong> (GPT), com a <strong>chave de API do próprio escritório</strong>, contratada e paga por ele direto no provedor. <strong>Vem desligada.</strong> Só se liga na janela do computador do escritório, em Configurações › Modelos; de fora (acesso remoto), não há nuvem. Nem nós nem o site paulus.ia.br ficamos no meio: o pedido vai do computador do escritório direto ao provedor.</p>
+    <ul>
+      <li><strong>Quando vai:</strong> só a pergunta que a pessoa marca “Nuvem”, uma por vez. Cada envio espera o sim em Aprovações (ou no cartão da conversa), com o texto exato que vai sair, o provedor, o modelo e o tamanho. Dá para liberar uma conversa inteira, ou ligar a regra de alçada “Mandar à nuvem sem pedir a cada pergunta”, que também vem desligada.</li>
+      <li><strong>O que vai:</strong> a pergunta, o começo da conversa, as instruções do assistente e os trechos dos documentos que a busca achou — os mesmos que iriam ao modelo do computador. A busca, o índice, as conferências e o resto do programa continuam no computador; a resposta que volta passa pelas mesmas conferências da resposta local.</li>
+      <li><strong>Mascarar (vem ligado):</strong> CPF, CNPJ, número de processo, e-mail e telefone viram marcadores (“[CPF 1]”) antes de sair, e voltam no texto da resposta, no computador. Isso reduz a exposição, mas <strong>não anonimiza</strong>: nomes, endereços e o resto do texto vão como estão.</li>
+      <li><strong>O que nunca vai:</strong> os anexos guardados do e-mail (marcados ao guardar, a partir da versão que trouxe a nuvem — um anexo guardado antes não tem a marca; para garantir, marque a pasta dele como “só no escritório”); a cópia das pastas do Drive que o PAULUS faz; e os clientes, Serviços e pastas marcados “só no escritório”. Se a resposta precisaria de algum deles, ela é escrita no computador, e a tela diz por quê. Cadastros, financeiro e agenda não entram na pergunta.</li>
+      <li><strong>A chave:</strong> fica no computador, cifrada pela conta do Windows (DPAPI). Guardar a chave faz uma única chamada ao provedor, para listar os modelos que ela enxerga.</li>
+      <li><strong>O que o provedor faz com o texto:</strong> ele trata o que recebe segundo os termos e a política de privacidade da conta de API do escritório (Anthropic ou OpenAI). Ler esses termos, e decidir se a nuvem serve para os dados dos seus clientes, é decisão do escritório.</li>
+      <li><strong>Registro:</strong> cada envio fica anotado no computador, com o texto exato que saiu, o modelo, os tokens e como foi aprovado, em Configurações › Modelos, e no registro de auditoria.</li>
+      <li><strong>Para parar:</strong> desmarque “Ligar a nuvem” ou apague a chave, em Configurações › Modelos. Vale na hora.</li>
+    </ul>
+
     <h2 id="retencao">Retenção e como apagar</h2>
     <ul>
       <li>A autorização do Google fica guardada no computador <strong>enquanto a conta estiver ligada</strong> ao PAULUS.</li>
       <li>O <strong>modelo de IA guardado num aparelho</strong> (quando o escritório liga a escrita no aparelho) fica no navegador até a pessoa apagar, em Minha conta › Este aparelho, ou limpar os dados do site no navegador. Nada da conversa fica nele.</li>
+      <li>O <strong>registro de envios à nuvem</strong> (com o texto que saiu) e a chave cifrada ficam no computador, na pasta de dados do PAULUS, até o escritório apagar.</li>
       <li><strong>Para desligar:</strong> no PAULUS, abra o módulo E-mail e remova a conta. A autorização guardada é apagada do computador. Para parar só a Agenda, desligue a sincronização em Configurações › Conexões.</li>
       <li>A <strong>cópia das pastas do Drive</strong> fica no Acervo, no seu computador, enquanto você acompanha a pasta. Em Configurações › Conexões você para de acompanhar e, marcando "Apagar também a cópia do Acervo", a cópia sai do computador.</li>
       <li>Os eventos que o PAULUS criou na sua Agenda do Google e os documentos que você enviou ao seu Drive <strong>continuam lá</strong> depois que você desliga, sob a gestão do Google; apagá-los ou não é escolha sua, no próprio Google.</li>

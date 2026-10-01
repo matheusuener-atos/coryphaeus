@@ -92,3 +92,12 @@
   @media (max-width: 600px) { .nav-tela:has(.bib-abas) { flex: 1 1 auto; min-width: 0; max-width: 100%; } }
   .jur-secao { padding-bottom: 12px; }
   .jur-secao > :not(.sv-secao-cabeca) { margin-left: 14px; margin-right: 14px; }
+
+/* N15 - a nuvem com a chave do escritório (js/75-nuvem.js) */
+.pilula-nuvem.ativa { background: var(--acento-fundo, #e8effc); border-color: var(--acento, #2f5bd3); color: var(--acento, #2f5bd3); }
+.nuvem-texto { white-space: pre-wrap; word-break: break-word; max-height: 50vh; overflow: auto; font-size: 12px; line-height: 1.45;
+  background: var(--fundo-2, #f6f6f4); border: 1px solid var(--linha, #e3e2de); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0; }
+.proposta.nuvem-pedido { border-left: 3px solid var(--acento, #2f5bd3); }
+.nuvem-liberar { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--texto-2, #555); }
+.nuvem-cartao .duas-linhas small { white-space: normal; overflow: visible; text-overflow: clip; }
+.nuvem-cartao label.cfg-servico { cursor: pointer; }

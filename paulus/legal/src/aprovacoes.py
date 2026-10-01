@@ -43,6 +43,8 @@ CATEGORIAS = {
     "acervo": "Acervo",
     # A ferramenta que um agente do escritorio pediu na conversa (A2).
     "conversa": "Conversa",
+    # A pergunta que vai a um modelo na nuvem, com a chave do escritorio (N15).
+    "nuvem": "Nuvem",
 }
 
 

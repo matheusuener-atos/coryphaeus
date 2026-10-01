@@ -75,14 +75,17 @@ AUTONOMIA = [
         "travada": False,
     },
     {
+        # N15: a nuvem com a chave do escritório (src/nuvem.py). Ligar a nuvem é
+        # em Configurações › Modelos; esta chave só tira o "pedir a cada vez".
         "chave": "modelo_nuvem",
-        "titulo": "Usar modelo em nuvem quando faltar memória",
+        "titulo": "Mandar à nuvem sem pedir a cada pergunta",
         "explica": (
-            "Indisponível de propósito. O programa promete que nenhum documento sai desta "
-            "máquina, e mandar o texto para um modelo remoto quebraria exatamente isso."
+            "Com a nuvem ligada em Configurações › Modelos (a chave do escritório, desligada de fábrica), cada pergunta "
+            "marcada “Nuvem” espera o seu sim, com o texto que vai sair. Ligada esta, vai direto - e fica tudo no "
+            "registro de envios. O que veio do e-mail, a cópia do Drive e o caso só no escritório nunca vão."
         ),
         "padrao": False,
-        "travada": True,
+        "travada": False,
     },
 ]
 
@@ -254,6 +257,9 @@ PADRAO: dict = {
     # "modelo": o preferido para o aparelho; sem ele aqui (ou grande demais para
     # o navegador), o do escritório ou o maior que cabe (src/aparelho_motor.py).
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
+    # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
+    # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
+    "nuvem": {"ligado": False, "provedor": "anthropic", "modelo": "", "mascarar": True},
     # N13 (src/jurisprudencia.py): os orgaos julgadores do STJ que o escritorio
     # escolheu baixar. Vazio de fabrica: nada e baixado sem a pessoa pedir.
     "jurisprudencia": {"orgaos": []},
