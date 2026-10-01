@@ -11,17 +11,27 @@ ganha a própria linha do tempo.
 
 **O que dá para dizer numa data** (`situacao`): se o dispositivo já existia
 (o código já vigorava, e o "Incluído" é de antes), se estava revogado, e se
-a redação era esta ou uma anterior. **O que não dá**, e a tela diz: o texto
-da redação anterior (o compilado do Planalto quase nunca o guarda: o CDC não
-traz nenhum), e a vacatio legis - a data que vale é a da lei que mudou, não a
-de quando ela entrou em vigor. O início da vigência de cada código é o do
-texto original (tabela `INICIO`).
+a redação era esta ou uma anterior. O início da vigência de cada código é o
+do texto original (tabela `INICIO`).
+
+**N12 (o pacote de vigência, tools/vigencia_pacote.py, no instalador):**
+  - **o texto da redação anterior**: a versão do código em que o Planalto
+    deixa as redações antigas riscadas, cada uma com a própria nota. Numa data
+    em que valia uma redação anterior, a resposta traz o texto dela;
+  - **a vacatio legis**: de cada lei citada nas notas, a publicação no DOU e
+    a cláusula de vigência. A data que vale passa a ser a de quando a mudança
+    entrou em vigor; sem cláusula de prazo simples (vigência em partes, ou
+    "no primeiro dia do mês seguinte"), fica a data da lei, e a tela diz.
 """
 
 from __future__ import annotations
 
+import functools
+import gzip
+import json
 import re
 from datetime import date
+from pathlib import Path
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -44,12 +54,45 @@ INICIO = {
 RE_NOTA = re.compile(r"\((?P<o_que>Reda[çc][ãa]o dada|Inclu[íi]d[oa]|Acrescid[oa]|Acrescentad[oa]|Revogad[oa]|Renumerad[oa]|Vide|"
                      r"Vig[êe]ncia|VETADO|Vetad[oa])(?P<resto>[^)]*)\)", re.IGNORECASE)
 RE_LEI = re.compile(r"(?:pel[oa]s?\s+)?(?P<tipo>Lei Complementar|Lei|Emenda Constitucional|Medida Provis[óo]ria|Decreto-Lei|Decreto)"
-                    r"\s*n?[º°o.]*\s*(?P<numero>[\d.]+(?:-\d+)?)[^,)]*?,?\s*de\s*(?P<data>\d{1,2}\s*[./]\s*\d{1,2}\s*[./]\s*\d{4}|\d{4})",
+                    r"\s*n?\s?[º°o.]*\s*(?P<numero>[\d.]+(?:-\d+)?)[^,)]*?,?\s*de\s*(?P<data>\d{1,2}\s*[º°o]?\s*[./]\s*\d{1,2}\s*[./]\s*\d{4}|\d{4})",
                     re.IGNORECASE)
 # Onde começa cada dispositivo, no texto de uma linha só: parágrafo, parágrafo
 # único, inciso (romano seguido de travessão) e alínea.
 RE_DISPOSITIVO = re.compile(r"(?:(?<=\s)|^)(?P<rotulo>§\s*\d+\s*[ºo°]?(?:-[A-Z])?|Parágrafo único\.?|"
                             r"(?P<romano>[IVXLC]{1,6})\s*[-–]\s|(?P<alinea>[a-z])\)\s)")
+
+PACOTE = Path(__file__).resolve().parents[1] / "config" / "acervo-inicial" / "vigencia-pacote.json.gz"
+
+
+@functools.lru_cache(maxsize=1)
+def pacote() -> dict:
+    """O pacote de vigência do instalador (N12): as redações riscadas e as leis lidas. Sem ele, como antes."""
+    try:
+        return json.loads(gzip.decompress(PACOTE.read_bytes()).decode("utf-8"))
+    except (OSError, ValueError):
+        return {"anteriores": {}, "leis": {}}
+
+
+def chave_da_lei(tipo: str, numero: str, ano: str) -> str:
+    """A mesma chave de tools/vigencia_pacote.py: tipo, número sem pontos e ano."""
+    t = tipo.lower().replace("ó", "o").replace("ã", "a")
+    t = "emenda" if t.startswith("emenda") else ("lc" if "complementar" in t else ("mp" if "medida" in t else
+                                                 ("decreto-lei" if "decreto-lei" in t else ("decreto" if t.startswith("decreto") else "lei"))))
+    return f"{t}|{re.sub(r'[^0-9A-Za-z-]', '', numero).lstrip('0')}|{ano}"
+
+
+def chave_do_artigo(numero: str) -> str:
+    """A chave do artigo no pacote: a ordem de src/leis.py (com o ADCT da Constituição à parte)."""
+    import leis
+
+    limpo = str(numero or "").strip()
+    base = 0
+    if re.match(r"(?i)adct\b", limpo):
+        base = leis.ADCT_BASE
+        limpo = re.sub(r"(?i)^adct[\s,]*(?:art\.?\s*)?", "", limpo)
+    cadeia = "".join(re.findall(r"[" + leis.HIFENS + r"][A-Za-z]{1,2}", limpo))
+    return str(leis._ordem(limpo, cadeia) + base)
+
 
 TIPOS = {"reda": "redação", "incl": "inclusão", "acre": "inclusão", "revo": "revogação", "renu": "renumeração",
          "vide": "remissão", "vig": "vigência", "veta": "veto"}
@@ -65,7 +108,7 @@ def _tipo(o_que: str) -> str:
 
 def _data(bruto: str) -> tuple[str, bool]:
     """('AAAA-MM-DD', exata?) - só o ano vira 1º de janeiro, marcado como não exato."""
-    b = re.sub(r"\s", "", bruto or "")
+    b = re.sub(r"[\sº°o]", "", bruto or "")
     m = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", b)
     if m:
         try:
@@ -78,14 +121,32 @@ def _data(bruto: str) -> tuple[str, bool]:
 
 
 def notas(texto: str) -> list[dict]:
+    """
+    As notas, cada uma com a data da lei e, quando o pacote leu a lei (N12), a
+    data em que a mudança passou a valer (`efetiva`): a publicação mais a
+    vacatio. Sem isso, `efetiva` é a data da lei.
+    """
     saida = []
+    leis_lidas = pacote().get("leis") or {}
     for m in RE_NOTA.finditer(texto or ""):
         tipo = _tipo(m.group("o_que"))
         lei = RE_LEI.search(m.group("resto") or "")
         quando, exata = _data(lei.group("data")) if lei else ("", False)
-        saida.append({"tipo": tipo, "nota": " ".join(m.group(0).split()),
-                      "lei": f"{lei.group('tipo')} nº {lei.group('numero')}" if lei else "",
-                      "data": quando, "data_exata": exata})
+        n = {"tipo": tipo, "nota": " ".join(m.group(0).split()),
+             "lei": f"{lei.group('tipo')} nº {lei.group('numero')}" if lei else "",
+             "data": quando, "data_exata": exata, "efetiva": quando, "efetiva_exata": exata,
+             "vigor": "", "publicacao": "", "vacatio_dias": None, "em_partes": False}
+        info = leis_lidas.get(chave_da_lei(lei.group("tipo"), lei.group("numero"), quando[:4])) if lei and quando else None
+        if info:
+            n["publicacao"] = info.get("publicacao") or ""
+            n["em_partes"] = bool(info.get("em_partes"))
+            if info.get("simples") and info.get("vigor"):
+                n.update(vigor=info["vigor"], vacatio_dias=info.get("vacatio_dias"), efetiva=info["vigor"], efetiva_exata=True)
+            if not exata and info.get("assinatura"):
+                n.update(data=info["assinatura"], data_exata=True)
+                if not n["vigor"]:
+                    n.update(efetiva=info["assinatura"], efetiva_exata=True)
+        saida.append(n)
     return saida
 
 
@@ -136,6 +197,34 @@ def _br(iso: str, exata: bool = True) -> str:
     return f"{d}/{m}/{a}" if exata else a
 
 
+def _quando_valeu(n: dict) -> str:
+    """"de 11/06/1994" ou "de 2019, em vigor desde 18/03/2020": a lei e, se for outra, a data em que passou a valer."""
+    base = f"de {_br(n['data'], n['data_exata'])}"
+    if n.get("vigor") and n["vigor"] != n["data"]:
+        base += f", em vigor desde {_br(n['vigor'])}" + (f" ({n['vacatio_dias']} dias de vacatio)" if n.get("vacatio_dias") else "")
+    elif n.get("em_partes"):
+        base += " (a lei tem vigência em partes: confira a data deste dispositivo)"
+    return base
+
+
+def _versoes(d: dict) -> list[tuple[str, str, dict | None]]:
+    """
+    As redações do dispositivo na ordem do tempo: (desde quando vale, texto,
+    a nota que a trouxe). As riscadas (N12) vêm do pacote; a última é a de hoje.
+    """
+    def desde(ns):
+        datas = [x["efetiva"] for x in ns if x["tipo"] in ("redação", "inclusão") and x["efetiva"]]
+        return max(datas) if datas else ""
+
+    saida = []
+    for a in d.get("anteriores") or []:
+        nota = next((x for x in reversed(a["notas"]) if x["tipo"] in ("redação", "inclusão")), None)
+        saida.append((desde(a["notas"]), a["texto"], nota))
+    nota_hoje = next((x for x in reversed(d["notas"]) if x["tipo"] in ("redação", "inclusão")), None)
+    saida.append((desde(d["notas"]), d["texto"], nota_hoje))
+    return saida
+
+
 def situacao(d: dict, quando: str, codigo: str) -> dict:
     """Como o dispositivo estava em `quando` (AAAA-MM-DD)."""
     inicio = INICIO.get(codigo, ("", ""))[0]
@@ -145,38 +234,57 @@ def situacao(d: dict, quando: str, codigo: str) -> dict:
         return {"estado": "vetado", "frase": "vetado: nunca vigorou"}
     for n in d["notas"]:
         # Lei só com o ano, e a data no mesmo ano: não dá para dizer de que lado ela cai.
-        if n["data"] and not n["data_exata"] and n["tipo"] in ("inclusão", "revogação", "redação") and quando[:4] == n["data"][:4]:
+        if n["efetiva"] and not n["efetiva_exata"] and n["tipo"] in ("inclusão", "revogação", "redação") and quando[:4] == n["efetiva"][:4]:
             return {"estado": "incerto", "frase": f"no ano da {n['lei']} ({n['data'][:4]}), que mudou este dispositivo: "
                                                    "o compilado não traz a data exata, confira"}
     for n in d["notas"]:
-        if n["tipo"] == "inclusão" and n["data"] and quando < n["data"]:
-            return {"estado": "não existia", "frase": f"ainda não existia: incluído pela {n['lei']}, de {_br(n['data'], n['data_exata'])}"}
-    revog = [n for n in d["notas"] if n["tipo"] == "revogação" and n["data"]]
-    if revog and quando >= min(n["data"] for n in revog):
-        n = min(revog, key=lambda x: x["data"])
-        return {"estado": "revogado", "frase": f"revogado pela {n['lei']}, de {_br(n['data'], n['data_exata'])}"}
-    posteriores = [n for n in d["notas"] if n["tipo"] == "redação" and n["data"] and quando < n["data"]]
+        if n["tipo"] == "inclusão" and n["efetiva"] and quando < n["efetiva"]:
+            return {"estado": "não existia", "frase": f"ainda não existia: incluído pela {n['lei']}, {_quando_valeu(n)}"}
+    revog = [n for n in d["notas"] if n["tipo"] == "revogação" and n["efetiva"]]
+    if revog and quando >= min(n["efetiva"] for n in revog):
+        n = min(revog, key=lambda x: x["efetiva"])
+        return {"estado": "revogado", "frase": f"revogado pela {n['lei']}, {_quando_valeu(n)}"}
+    posteriores = [n for n in d["notas"] if n["tipo"] == "redação" and n["efetiva"] and quando < n["efetiva"]]
     if posteriores:
-        n = min(posteriores, key=lambda x: x["data"])
+        n = min(posteriores, key=lambda x: x["efetiva"])
+        # N12: com as redações riscadas do Planalto, a que valia na data.
+        versoes = _versoes(d)
+        valia = None
+        for desde, texto, _nota in versoes[:-1]:
+            if not desde or desde <= quando:
+                valia = texto
+        if valia:
+            return {"estado": "outra redação", "texto": valia,
+                    "frase": f"valia a redação anterior à da {n['lei']}, {_quando_valeu(n)}"}
         return {"estado": "outra redação",
-                "frase": f"valia uma redação anterior à da {n['lei']}, de {_br(n['data'], n['data_exata'])} "
-                         "(o compilado do Planalto não traz o texto anterior)"}
+                "frase": f"valia uma redação anterior à da {n['lei']}, {_quando_valeu(n)} "
+                         "(o Planalto não guarda o texto anterior deste dispositivo)"}
     if revog:
-        n = min(revog, key=lambda x: x["data"])
-        return {"estado": "vigente", "frase": f"vigente (revogado depois, pela {n['lei']}, de {_br(n['data'], n['data_exata'])})"}
+        n = min(revog, key=lambda x: x["efetiva"])
+        return {"estado": "vigente", "frase": f"vigente (revogado depois, pela {n['lei']}, {_quando_valeu(n)})"}
     return {"estado": "vigente", "frase": "vigente com esta redação"}
+
+
+def _sem_rotulo_do_artigo(texto: str) -> str:
+    """"Art 39. É vedado..." -> "É vedado...": o caput de hoje vem sem o "Art.", e o riscado também fica assim."""
+    return re.sub(r"^Art\.?\s*\d[\d.]*\s*[ºo°]?\s*(?:[-–—]\s*[A-Z]{1,2}\s*)*[.\-–—]?\s*", "", texto)
 
 
 def do_artigo(artigo: dict, quando: str) -> dict:
     codigo = artigo["codigo"]
     ds = dispositivos(artigo.get("texto", ""))
     hoje = date.today().isoformat()
+    # N12: as redações riscadas deste artigo, por dispositivo, na ordem do Planalto.
+    riscadas = (pacote().get("anteriores") or {}).get(codigo, {}).get(chave_do_artigo(artigo.get("numero", "")), [])
+    for d in ds:
+        d["anteriores"] = [{"texto": _sem_rotulo_do_artigo(" ".join(RE_NOTA.sub("", x["texto"]).split())), "notas": notas(x["texto"])}
+                           for x in riscadas if x.get("rotulo") == d["rotulo"]]
     for d in ds:
         d["na_data"] = situacao(d, quando, codigo)
         d["hoje"] = situacao(d, hoje, codigo)
         d["diferente"] = d["na_data"]["estado"] != d["hoje"]["estado"]
     historico = sorted(({"dispositivo": d["rotulo"], **n} for d in ds for n in d["notas"] if n["tipo"] != "vigência"),
-                       key=lambda n: (n["data"] or "9999", n["dispositivo"]))
+                       key=lambda n: (n["efetiva"] or "9999", n["dispositivo"]))
     diferentes = [d["rotulo"] for d in ds if d["diferente"]]
     if ds and ds[0]["na_data"]["estado"] == "antes do código":
         resumo = ds[0]["na_data"]["frase"][0].upper() + ds[0]["na_data"]["frase"][1:] + "."
@@ -188,8 +296,20 @@ def do_artigo(artigo: dict, quando: str) -> dict:
     return {"citacao": artigo.get("citacao", ""), "codigo": codigo, "numero": artigo.get("numero", ""), "data": quando,
             "resumo": resumo, "dispositivos": ds, "historico": historico,
             "inicio_do_codigo": {"data": inicio[0], "como": inicio[1]} if inicio else None,
-            "limites": "Pela data da lei que mudou (a vacatio legis dela não entra na conta) e pelas notas do texto compilado "
-                       "do Planalto guardado neste PAULUS; o texto de uma redação anterior não vem no compilado."}
+            "limites": _limites()}
+
+
+def _limites() -> str:
+    """O que a resposta garante, dito conforme o pacote de vigência está ou não no instalador."""
+    p = pacote()
+    if not p.get("leis"):
+        return ("Pela data da lei que mudou (a vacatio legis dela não entra na conta) e pelas notas do texto compilado "
+                "do Planalto guardado neste PAULUS; o texto de uma redação anterior não vem no compilado.")
+    quando = str(p.get("montado_em") or "")[:10]
+    return ("Pelas notas do texto compilado do Planalto e pelo pacote de vigência do instalador (montado em "
+            f"{_br(quando) if quando else '?'}): a data em que cada mudança passou a valer é a publicação mais a vacatio "
+            "da cláusula de vigência da lei; quando a cláusula não diz um prazo simples, vale a data da lei, e a linha diz. "
+            "O texto anterior vem das redações que o Planalto deixa riscadas; onde ele não guardou, a linha diz.")
 
 
 # ------------------------------------------------------------------ rotas

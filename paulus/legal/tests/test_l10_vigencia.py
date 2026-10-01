@@ -45,9 +45,9 @@ def main() -> int:
     import vigencia as v
 
     print("\nas notas e os dispositivos")
-    ns = v.notas("x (Redação dada pela Lei nº 8.884, de 11.6.1994) y (Incluído pela Lei Complementar nº 123, de 2006) (VETADO)")
+    ns = v.notas("x (Redação dada pela Lei nº 8.884, de 11.6.1994) y (Incluído pela Lei Complementar nº 999, de 2006) (VETADO)")
     checar([(n["tipo"], n["lei"], n["data"], n["data_exata"]) for n in ns] ==
-           [("redação", "Lei nº 8.884", "1994-06-11", True), ("inclusão", "Lei Complementar nº 123", "2006-01-01", False), ("veto", "", "", False)],
+           [("redação", "Lei nº 8.884", "1994-06-11", True), ("inclusão", "Lei Complementar nº 999", "2006-01-01", False), ("veto", "", "", False)],
            "redação com o dia, inclusão só com o ano, veto", ns)
     texto = ("É vedado: (Redação dada pela Lei nº 8.884, de 11.6.1994) I - condicionar; II - recusar, nos termos do art. 373, § 1º ; "
              "III - (VETADO); § 1º O disposto aplica-se: a) ao fornecedor; b) ao comerciante. (Incluído pela Lei nº 9.999, de 2.3.2000) "
@@ -59,12 +59,13 @@ def main() -> int:
     por = {d["rotulo"]: d for d in ds}
     s = lambda rot, quando: v.situacao(por[rot], quando, "cdc")["estado"]  # noqa: E731
     checar(s("caput", "1990-01-01") == "antes do código", "antes de o código vigorar")
-    checar(s("caput", "1993-01-01") == "outra redação" and "não traz o texto anterior" in v.situacao(por["caput"], "1993-01-01", "cdc")["frase"],
+    checar(s("caput", "1993-01-01") == "outra redação" and "não guarda o texto anterior" in v.situacao(por["caput"], "1993-01-01", "cdc")["frase"],
            "redação anterior, dita sem inventar o texto")
     checar(s("inciso III", "2020-01-01") == "vetado", "vetado: nunca vigorou")
     checar(s("§ 1º, alínea b", "1999-01-01") == "não existia" and s("§ 1º, alínea b", "2001-01-01") == "vigente", "incluído depois: não existia antes")
     checar(s("§ 2º", "2011-01-01") == "revogado" and s("§ 2º", "2009-01-01") == "vigente", "revogado a partir da lei")
-    so_ano = v.dispositivos("Texto. (Incluído pela Lei nº 13.874, de 2019)")[0]
+    # Uma lei que o pacote de vigência (N12) não leu: a 13.874/2019 ele leu, e a data fica exata.
+    so_ano = v.dispositivos("Texto. (Incluído pela Lei nº 99.999, de 2019)")[0]
     checar(v.situacao(so_ano, "2019-06-01", "cc")["estado"] == "incerto", "no mesmo ano de lei sem o dia: incerto, e dito")
 
     import api

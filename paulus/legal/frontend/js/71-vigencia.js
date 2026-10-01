@@ -11,10 +11,14 @@ async function vigenciaDoArtigo(a) {
   const agora = new Date();
   let quando = agora.getFullYear() + "-" + String(agora.getMonth() + 1).padStart(2, "0") + "-" + String(agora.getDate()).padStart(2, "0");
   const corpoDe = (d) => {
+    // N12: na data em que valia outra redação, o texto dela (das redações riscadas do Planalto).
     const linhas = d.dispositivos.map((x) => '<div class="vig-linha' + (x.diferente ? " diferente" : "") + '"><b>' + esc(x.rotulo) + "</b><span>" +
-      esc(x.na_data.frase) + "</span></div>").join("");
+      esc(x.na_data.frase) + (x.na_data.texto ? '<q class="vig-anterior">' + esc(x.na_data.texto) + "</q>" : "") + "</span></div>").join("");
     const hist = d.historico.length ? '<ol class="vig-historico">' + d.historico.map((h) => "<li><b>" + esc(!h.data ? "sem data" : (h.data_exata ? h.data.split("-").reverse().join("/") : h.data.slice(0, 4))) +
-      "</b> · " + esc(h.dispositivo) + " — " + esc(h.nota.replace(/^\(|\)$/g, "")) + "</li>").join("") + "</ol>" : '<p class="cfg-explica">Nenhuma mudança anotada no texto compilado.</p>';
+      "</b> · " + esc(h.dispositivo) + " — " + esc(h.nota.replace(/^\(|\)$/g, "")) +
+      (h.vigor && h.vigor !== h.data ? ' <small class="vig-vigor">em vigor desde ' + esc(h.vigor.split("-").reverse().join("/")) +
+        (h.vacatio_dias ? " · " + h.vacatio_dias + " dias de vacatio" : "") + "</small>" : "") +
+      (h.em_partes ? ' <small class="vig-vigor">vigência em partes: confira</small>' : "") + "</li>").join("") + "</ol>" : '<p class="cfg-explica">Nenhuma mudança anotada no texto compilado.</p>';
     return '<p class="vig-resumo">' + esc(d.resumo) + "</p>" + '<div class="vig-lista">' + linhas + "</div>" +
       '<h4 class="vig-sub">O que mudou, na ordem</h4>' + hist +
       (d.inicio_do_codigo ? '<p class="cfg-explica">O código vigora desde ' + esc(d.inicio_do_codigo.data.split("-").reverse().join("/")) + " (" + esc(d.inicio_do_codigo.como) + ").</p>" : "") +
