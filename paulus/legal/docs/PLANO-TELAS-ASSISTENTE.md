@@ -35,7 +35,7 @@ estiver `feita`.
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (a faixa de um aviso por vez e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
 | T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | feita (documento, PDF, editor, planilha, editor de planilha, assinar, agendar, criar agente, e-mail e escrever e-mail) | ver git log (T3) |
-| T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | em andamento (cadastro, equipe, despesa fixa, lançamento e recebimento feitos) | ver git log (T4) |
+| T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | feita | ver git log (T4) |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
 ## Registro
@@ -302,7 +302,7 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
   `test_email_conversa`, `test_email_caixa`, `test_correio`,
   `test_c4_roteamento` e `test_n6_conversa_tarefas` ok.
 
-### T4 — cadastros e financeiro pela conversa (01/10/2026, em andamento)
+### T4 — cadastros e financeiro pela conversa (01/10/2026)
 
 - Cadastro, Equipe e Despesa fixa (`src/fichas_pela_conversa.py`,
   `js/86-fichas-na-conversa.js`): a ficha abre na coluna de 420 px, já
@@ -358,3 +358,25 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
   - Ficou de fora: o processo do cliente no campo "Cliente · processo"
     (o lançamento não guarda processo).
   - Teste: `tests/test_lancamento_conversa.py`.
+- Financeiro e Relatório (`src/financeiro_pela_conversa.py`,
+  `js/88-financeiro-na-conversa.js`): "como está o financeiro do mês?" e
+  "gera o relatório financeiro de outubro e compara com setembro".
+  - Os números são somados no servidor, dos lançamentos; a frase sai por
+    regra ("Outubro começou com R$ X em caixa. Entraram…"). A comparação é
+    no mesmo período (até o mesmo dia do mês anterior).
+  - Financeiro: na conversa, saldo, a receber, a pagar, em atraso e
+    fechamento, o fluxo de caixa de seis meses e o que está a receber e a
+    pagar; na coluna, o que precisa de você (Registrar pagamento pede o
+    sim), o Parecer do mês (o modelo escreve sobre a conta feita — rota
+    nova POST /api/relatorios/parecer-do-mes), os papéis do mês e as
+    sugestões (a mesma regra da tela Financeiro) com Criar tarefas.
+  - Relatório: o PDF (Relatórios/Financeiro do Acervo, novo) e a planilha
+    do mês (Financeiro/Planilhas) já nascem gerados; Baixar PDF/XLSX; o
+    extrato e as categorias liquidadas; na coluna, o período e a
+    comparação, o parecer, Enviar por e-mail (o sim, e por Aprovações com
+    os dois anexos) e as sugestões. "Tarefas do dia" e "Ações de IA" abrem
+    a tela Relatórios.
+  - Ficou de fora: o prazo médio de recebimento no relatório (o cálculo
+    existe para o mês inteiro, não para o mesmo período); a comparação por
+    categoria.
+  - Teste: `tests/test_financeiro_conversa.py`.

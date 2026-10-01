@@ -1139,6 +1139,15 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
         return Intencao(tipo="email", titulo=pedido_de_email["quem"], campos=pedido_de_email,
                         porque=f"“{verbo}” e um e-mail de “{pedido_de_email['quem']}”")
 
+    # "Como está o financeiro do mês?", "gera o relatório financeiro de
+    # outubro" (`Conversa - Financeiro`, `- Relatorio`, src/financeiro_pela_conversa.py).
+    import financeiro_pela_conversa
+
+    pedido_financeiro = financeiro_pela_conversa.ler(texto, hoje)
+    if pedido_financeiro:
+        return Intencao(tipo=pedido_financeiro["tipo"], titulo="Financeiro", campos=pedido_financeiro,
+                        porque="“" + ("relatório" if pedido_financeiro["tipo"] == "relatorio" else "financeiro") + "” e o mês")
+
     # "Crie um agente que..." (`Conversa - Criar agente`, src/agente_pela_conversa.py).
     import agente_pela_conversa
 

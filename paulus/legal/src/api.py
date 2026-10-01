@@ -3840,6 +3840,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # de sempre (a ferramenta dele).
     if (lido.tipo == "ficha" or (lido.tipo == "cadastro" and lido.campos.get("nome"))) and agente is None:
         return _responder_ficha(trabalho, lido, pergunta, citado or explicito)
+    # `Conversa - Financeiro` e `- Relatorio`: os numeros do mes somados
+    # aqui; a coluna traz o parecer, os papeis e as sugestoes.
+    if lido.tipo in ("financeiro", "relatorio") and agente is None:
+        return _responder_financeiro(trabalho, lido, pergunta)
     # `Conversa - Lancamento` e `- Recebimento`: o lancamento na coluna.
     if lido.tipo == "lancamento" and agente is None:
         return _responder_lancamento(trabalho, lido, pergunta, citado or explicito)
@@ -4724,6 +4728,61 @@ def _responder_ficha(trabalho, lido, pergunta: str, citados=None) -> StreamingRe
 
     def gerar() -> Iterator[str]:
         trabalho.etapas = [Etapa("Preencher a ficha", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _gerar_relatorio_financeiro(mes: str, comparar: str) -> dict:
+    """O PDF (Relatorios/Financeiro do Acervo) e a planilha do mes (Financeiro/Planilhas)."""
+    import financeiro_pela_conversa as fpc
+
+    r = fpc.relatorio(estado.financeiro, estado.base, mes, comparar)
+    pasta = _pasta_no_acervo("Relatórios", "Financeiro")
+    pdf = pasta / f"relatorio-financeiro-{mes}.pdf"
+    pdf.write_bytes(documento.para_pdf(documento.ler_html(fpc.html_do_relatorio(r, _escapar)),
+                                       f"Relatório financeiro · {r['rotulo']} {r['ano']}", "PAULUS · relatório gerado nesta máquina"))
+    xlsx = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
+    _exportar_mes_em(xlsx, mes)
+    estado.recarregar_em_segundo_plano()
+    return {"relatorio": r, "pdf": {"nome": pdf.name, "caminho": str(pdf)}, "xlsx": {"nome": xlsx.name, "caminho": str(xlsx)}}
+
+
+def _responder_financeiro(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Como está o financeiro do mês?" / "gera o relatório financeiro de
+    outubro": a frase sai dos numeros somados aqui (src/financeiro_pela_conversa.py);
+    o relatorio ja nasce com o PDF e a planilha no Acervo.
+    """
+    import financeiro_pela_conversa as fpc
+
+    c = dict(lido.campos)
+    mes, comparar = c.get("mes") or escritorio.mes_de_hoje(), c.get("comparar") or ""
+    estado.financeiro.lancar_fixas(estado.cadastros.listar(tipo="despesa"))
+    precisa = estado.financeiro.precisa_de_voce()
+    if lido.tipo == "relatorio":
+        try:
+            gerado = _gerar_relatorio_financeiro(mes, comparar)
+            texto = fpc.frase_do_relatorio(gerado["relatorio"])
+        except Exception as exc:  # noqa: BLE001 - o relatorio diz o que houve, a conversa segue
+            gerado = None
+            texto = f"Não consegui gerar o relatório agora: {exc}."
+        proposta = {"tipo": "relatorio", "titulo": "Relatório financeiro", "porque": lido.porque, "pergunta": pergunta,
+                    "campos": {"mes": mes, "comparar": comparar,
+                               "pdf": (gerado or {}).get("pdf"), "xlsx": (gerado or {}).get("xlsx")}}
+    else:
+        texto = fpc.frase_do_financeiro(estado.financeiro, mes, precisa)
+        proposta = {"tipo": "financeiro", "titulo": "Financeiro", "porque": lido.porque, "pergunta": pergunta,
+                    "campos": {"mes": mes, "comparar": comparar}}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Somar o mês", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)
@@ -11335,6 +11394,66 @@ def financeiro_cobrar(payload: dict) -> dict:
 @app.get("/api/relatorios")
 def relatorios_ver(quando: str = "") -> dict:
     return estado.relatorios.para_tela(quando)
+
+
+@app.get("/api/relatorios/financeiro")
+def relatorios_financeiro(mes: str = "", comparar: str = "") -> dict:
+    """Os numeros do relatorio financeiro do mes, somados aqui (src/financeiro_pela_conversa.py)."""
+    import financeiro_pela_conversa as fpc
+
+    mes = mes or escritorio.mes_de_hoje()
+    pasta = _pasta_no_acervo("Relatórios", "Financeiro")
+    pdf = pasta / f"relatorio-financeiro-{mes}.pdf"
+    xlsx = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
+    return {"relatorio": fpc.relatorio(estado.financeiro, estado.base, mes, comparar),
+            "pdf": {"nome": pdf.name, "caminho": str(pdf)} if pdf.exists() else None,
+            "xlsx": {"nome": xlsx.name, "caminho": str(xlsx)} if xlsx.exists() else None,
+            "precisa": estado.financeiro.precisa_de_voce()}
+
+
+@app.post("/api/relatorios/financeiro/gerar")
+def relatorios_financeiro_gerar(payload: dict) -> dict:
+    """Gera (ou refaz) o PDF e a planilha do mes no Acervo."""
+    mes = str(payload.get("mes") or escritorio.mes_de_hoje())[:7]
+    try:
+        return _gerar_relatorio_financeiro(mes, str(payload.get("comparar") or "")[:7])
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"não consegui gerar: {exc}") from exc
+
+
+@app.get("/api/relatorios/financeiro/arquivo")
+def relatorios_financeiro_arquivo(nome: str) -> FileResponse:
+    """Baixar o PDF ou a planilha gerados (so das duas pastas do relatorio)."""
+    nome = Path(nome).name
+    for pasta, sufixo, tipo in ((_pasta_no_acervo("Relatórios", "Financeiro"), ".pdf", "application/pdf"),
+                                (_pasta_no_acervo("Financeiro", "Planilhas"), ".xlsx",
+                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")):
+        alvo = pasta / nome
+        if alvo.suffix.lower() == sufixo and alvo.is_file():
+            return FileResponse(alvo, media_type=tipo, headers=_anexo(alvo.name))
+    raise HTTPException(status_code=404, detail="arquivo não encontrado")
+
+
+@app.post("/api/relatorios/parecer-do-mes")
+def relatorios_parecer_do_mes(payload: dict | None = None) -> dict:
+    """
+    O "Parecer do mês": o modelo escreve sobre os numeros ja somados
+    (src/financeiro_pela_conversa.py) - nao calcula nada.
+    """
+    import financeiro_pela_conversa as fpc
+
+    mes = str((payload or {}).get("mes") or escritorio.mes_de_hoje())[:7]
+    comparar = str((payload or {}).get("comparar") or fpc.mes_antes(mes))[:7]
+    r = fpc.relatorio(estado.financeiro, estado.base, mes, comparar)
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        texto = estado.cliente_para("redacao").ask(fpc.INSTRUCAO_PARECER_DO_MES,
+                                                   fpc.numeros_para_o_parecer(r, estado.financeiro.precisa_de_voce()))
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"texto": " ".join((texto or "").split()), "mes": mes}
 
 
 @app.get("/api/relatorios/acoes")

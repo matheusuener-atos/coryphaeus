@@ -508,7 +508,7 @@ function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
   // N14: o que o agente fez sozinho volta com o "Desfazer" (o próprio botão diz se já foi desfeito).
   if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
-        (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "lancamento" && ultima) ||
+        (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
   propostasGuardadas.push(p);
   return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +
@@ -1916,7 +1916,7 @@ async function lerResposta(r, v) {
         // para a conversa terminar de se gravar antes de sair dela.
         if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
-            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar" || dados.tipo === "criar_agente" || dados.tipo === "email" || dados.tipo === "ficha" || dados.tipo === "lancamento" ||
+            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar" || dados.tipo === "criar_agente" || dados.tipo === "email" || dados.tipo === "ficha" || dados.tipo === "lancamento" || dados.tipo === "financeiro" || dados.tipo === "relatorio" ||
             ((dados.tipo === "agenda" || dados.tipo === "tarefa") && !(dados.ajuda_do_modelo || []).length)) assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "relacionados") {
