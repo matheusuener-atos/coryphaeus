@@ -463,6 +463,8 @@ function desenharTrabalho() {
   vigiarTrabalhoEmCurso(t);
   // F1: as perguntas desta conversa que esperam a vez (js/58-fila.js).
   if (typeof desenharPendentes === "function") desenharPendentes();
+  // A gravacao que anda nesta conversa volta para o fio e para a coluna.
+  if (typeof montarGravacaoNaConversa === "function") montarGravacaoNaConversa();
 }
 
 /* Trabalho em curso que não é desta página (continuou enquanto a pessoa
@@ -660,8 +662,10 @@ function etapaAtual(etapas) {
   return lista.filter((e) => e.estado === "concluido").length || (lista.length ? 1 : 0);
 }
 
+/* O que acontece mora no cartao de trabalho (pacote de telas); a resposta
+   nasce vazia, e a linha de estado so guarda o texto para a barra. */
 function linhaDeEstadoInicial() {
-  return pensando() ? '<div class="linha-estado"><i class="ponto pulsa"></i><span>Um instante…</span></div>' : "";
+  return "";
 }
 
 function mudarLinhaDeEstado(resposta, texto) {
@@ -881,8 +885,8 @@ function desenharProgresso(etapas) {
   const bloco = $("lat-progresso");
   if (!etapas || !etapas.length) { bloco.hidden = true; return; }
   bloco.hidden = false;
-  const feitas = etapas.filter((e) => e.estado === "concluido").length;
-  $("lat-progresso-conta").textContent = feitas + " de " + plural(etapas.length, "etapa");
+  // A mesma conta do cartao de trabalho ("etapa 2 de 3" e "2 de 3 etapas").
+  $("lat-progresso-conta").textContent = etapaAtual(etapas) + " de " + plural(etapas.length, "etapa");
   const classe = { concluido: "feita", executando: "andando", na_fila: "fila", falhou: "falhou", pausado: "fila" };
   $("lat-etapas").innerHTML = etapas.map((e) => {
     const detalhe = e.estado === "na_fila" ? "aguardando"
@@ -929,16 +933,72 @@ async function retomarTrabalho() {
 /* `andando`: a conversa reaberta com trabalho em curso (um pedido ao documento
    que continuou enquanto a pessoa estava em outra tela) está trabalhando,
    mesmo sem nada andando nesta página. */
-function cartaoPlano(etapas, atual, andando) {
+/* O CARTÃO DE TRABALHO (pacote de telas, `Conversa - Carregando`): um
+   cartão só, com o título ("Trabalhando · etapa 2 de 3"), o tempo ("15 s de
+   ~32 s" quando esta máquina já mediu leituras deste tamanho) e o Parar; as
+   faixas das etapas, como no Acontecendo agora; e, embaixo, o registro do
+   que está acontecendo (o bastidor, js/13-editor-na-conversa.js), aberto,
+   com a última linha viva. O topo se redesenha a cada etapa; o registro fica. */
+function topoDoPlano(etapas, atual, andando) {
   const total = etapas.length;
   const rodando = andando !== undefined ? Boolean(andando) : estado.ocupado;
   const retomar = !rodando && perguntaParaRetomar()
     ? '<button class="primario com-icone" data-retomar="1">' + ic("play_arrow", 16) + "Retomar</button>" : "";
-  return '<div class="cartao"><div class="cartao-topo">' +
-    (rodando ? coroa(20) : '<span class="ic ic-20 marcador">pause</span>') +
-    '<span class="quem">' + (rodando ? "Trabalhando" : "Parado") + " · etapa " + atual + " de " + total + "</span>" +
-    '<span class="tempo" id="cronometro"></span>' + retomar + '</div><div class="cartao-corpo">' +
-    etapas.map(linhaEtapa).join("") + "</div></div>";
+  const parar = rodando ? '<button class="agr-parar" data-parar-resposta="1" title="Parar a resposta"><i></i>Parar</button>' : "";
+  return '<div class="cabeca trab-cabeca"><b class="quem">' + (rodando ? "Trabalhando" : "Parado") +
+    (total ? " · etapa " + atual + " de " + total : "") + "</b>" +
+    '<span class="agr-tempo" id="cronometro"></span>' + parar + retomar + "</div>" + faixasDasEtapas(etapas, null);
+}
+
+function cartaoPlano(etapas, atual, andando) {
+  return '<div class="trab-cartao"><div class="trab-topo">' + topoDoPlano(etapas, atual, andando) + '</div><div class="trab-log"></div></div>';
+}
+
+/* Desenha (ou redesenha so o topo de) o cartao de trabalho em `plano`, e
+   devolve onde o registro mora. */
+function desenharPlano(plano, etapas, atual, andando) {
+  let topo = plano.querySelector(".trab-topo");
+  if (!topo) {
+    plano.innerHTML = cartaoPlano(etapas, atual, andando);
+    topo = plano.querySelector(".trab-topo");
+  } else {
+    topo.innerHTML = topoDoPlano(etapas, atual, andando);
+  }
+  const parar = topo.querySelector("[data-parar-resposta]");
+  if (parar) parar.onclick = () => pararResposta();
+  atualizarTempoDoPlano();
+  return plano.querySelector(".trab-log");
+}
+
+/* O tempo do cartao e a faixa da etapa que le: o que passou desde a
+   pergunta e, com a previsao desta maquina, ate onde deve ir. */
+function atualizarTempoDoPlano(desde) {
+  const base = desde || bastidor.desde || Date.now();
+  const passados = (Date.now() - base) / 1000;
+  let texto = Math.round(passados) + " s";
+  let pct = 0;
+  const p = bastidor.previsao;
+  if (bastidor.fase === "lendo" && p && p.sabe && bastidor.lendoDesde) {
+    const total = Math.round((bastidor.lendoDesde - base) / 1000 + p.segundos);
+    if (total > passados) texto += " de ~" + total + " s";
+    pct = Math.min(95, ((Date.now() - bastidor.lendoDesde) / 1000 / p.segundos) * 100);
+  }
+  const c = $("cronometro");
+  if (c) c.textContent = texto;
+  const faixa = document.querySelector(".trab-topo .agr-etapa.andando .agr-faixa");
+  if (faixa && pct) {
+    faixa.classList.remove("sem-medida");
+    if (faixa.firstElementChild) faixa.firstElementChild.style.width = pct.toFixed(1) + "%";
+  }
+}
+
+/* Terminou: o registro vai para dentro da resposta, recolhido em "ver
+   detalhes" (o mesmo da resposta guardada), e o cartao sai. */
+function guardarLogNaResposta(resposta) {
+  const linhas = bastidor.linhasEl;
+  if (!linhas || !linhas.children.length || !resposta || resposta.querySelector(".detalhes-resposta")) return;
+  resposta.insertAdjacentHTML("beforeend", '<details class="detalhes-resposta"><summary>ver detalhes</summary><div class="bastidor-linhas">' +
+    linhas.innerHTML + "</div></details>");
 }
 
 function linhaEtapa(e) {
@@ -1036,10 +1096,12 @@ $("ir-ao-fim").onclick = () => {
    Windows, que em portugues manda o audio para a Microsoft. A captura e a
    conversao do audio sao as das Gravacoes (11-gravacoes.js).
 
-   O que e ditado entra DIRETO NO CAMPO de pedido, a cada pausa na fala, com
-   o foco nele e o cursor no fim - a pessoa ve o texto onde ele vai ser usado
-   e pode corrigir enquanto fala. O cartao mostra a voz chegando num
-   equalizador, o tempo e as saidas. Estados:
+   Pacote de telas de 01/10/2026 (`Conversa - Ditando`): numa conversa, o
+   cartao do ditado TOMA O LUGAR da caixa de pedido enquanto o microfone
+   esta aberto - o ponto vermelho, o tempo, a onda da voz e o texto ouvido
+   ate aqui, que chega a cada pausa na fala. O texto entra na caixa ao
+   concluir: "Concluir e editar" poe na caixa para corrigir, "Concluir e
+   enviar" poe e manda. Cancelar descarta o que foi ditado. Estados:
 
      ouvindo     microfone aberto
      pausado     microfone aberto, mas nada e ouvido
@@ -1051,9 +1113,9 @@ $("ir-ao-fim").onclick = () => {
 const ditado = {
   estado: "", sessao: "", fluxo: null, captura: null, amostras: [],
   relogio: 0, enviando: false, recebidos: 0, inicio: 0, acumulado: 0, quadro: 0,
-  // O campo antes do ditado e como ele ficou depois do ultimo trecho: e o
-  // que deixa Cancelar tirar so o que foi ditado.
-  campoAntes: "", campoDepois: "",
+  // O campo antes do ditado (o texto ditado vai depois dele, ao concluir) e
+  // o que ja foi ouvido nesta sessao.
+  campoAntes: "", campoDepois: "", texto: "",
 };
 
 const dsAberto = () => ditado.estado === "ouvindo" || ditado.estado === "pausado";
@@ -1082,16 +1144,34 @@ function focarCampoDoDitado() {
   campo.setSelectionRange(campo.value.length, campo.value.length);
 }
 
+/* O que foi ouvido vai para o cartao (e nao ainda para a caixa): a caixa
+   recebe tudo de uma vez ao concluir. */
 function juntarAoDitado(trechos) {
   const novos = (trechos || []).map((x) => (x.texto || "").trim()).filter(Boolean);
   if (!novos.length) return;
+  ditado.texto = (ditado.texto ? ditado.texto.replace(/\s+$/, "") + " " : "") + novos.join(" ");
+  document.querySelectorAll("[data-ditado-texto]").forEach((el) => { el.innerHTML = textoDoCartaoDoDitado(); el.scrollTop = el.scrollHeight; });
+}
+
+function textoDoCartaoDoDitado() {
+  const vazio = ditado.estado === "pausado" ? "em pausa — o microfone não ouve nada até continuar"
+    : ditado.estado === "pendente" ? "o microfone fechou quando você saiu do Assistente"
+      : "ouvindo… o texto chega a cada pausa na fala";
+  return ditado.texto ? esc(ditado.texto) + (ditado.estado === "ouvindo" ? '<i class="dit-cursor"></i>' : "")
+    : '<span class="dit-espera">' + esc(vazio) + "</span>";
+}
+
+/* O ditado terminou: o que foi ouvido entra na caixa, depois do que ja
+   estava escrito nela. */
+function levarDitadoParaCaixa() {
   const campo = $("pedido");
-  campo.value = (campo.value.trim() ? campo.value.replace(/\s+$/, "") + " " : "") + novos.join(" ");
+  if (!ditado.texto) return false;
+  const antes = campo.value || "";
+  campo.value = (antes.trim() ? antes.replace(/\s+$/, "") + " " : "") + ditado.texto;
   campo.style.height = "auto";
   campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
-  campo.scrollTop = campo.scrollHeight;
   ditado.campoDepois = campo.value;
-  focarCampoDoDitado();
+  return true;
 }
 
 /* O CARTAO DO DITADO. So o aviso la embaixo nao bastava para saber se o
@@ -1103,30 +1183,30 @@ function cartaoDoDitado() {
   if (!e) return "";
   const nomes = { ouvindo: "Ditando", pausado: "Ditado em pausa", pendente: "Ditado pendente", finalizando: "Transcrevendo o que sobrou…" };
   const notas = {
-    ouvindo: "",
-    pausado: "o microfone não ouve nada até continuar",
-    pendente: "o microfone fechou quando você saiu do Assistente",
-    finalizando: "o último trecho entra no campo em alguns segundos",
+    ouvindo: "o texto entra na caixa ao concluir",
+    pausado: "o texto entra na caixa ao concluir",
+    pendente: "o texto ouvido continua aqui",
+    finalizando: "o último trecho entra em alguns segundos",
   };
-  const botao = (dado, icone, rotulo, classe) => '<button class="' + (classe || "fantasma") + '" ' + dado + '="1">' + ic(icone, 16) + rotulo + "</button>";
-  let acoes = "";
+  const botao = (dado, icone, rotulo, classe) => '<button class="' + (classe || "dit-fantasma") + '" ' + dado + '="1">' + (icone ? ic(icone, 15) : "") + rotulo + "</button>";
+  let esquerda = "", direita = "";
   if (e === "ouvindo" || e === "pausado") {
-    acoes = botao("data-ditado-cancelar", "close", "Cancelar") +
-      botao("data-ditado-pausar", e === "pausado" ? "play_arrow" : "pause", e === "pausado" ? "Continuar" : "Pausar") +
-      botao("data-ditado-usar", "check", "Concluir", "primario");
+    esquerda = botao("data-ditado-cancelar", "close", "Cancelar") +
+      botao("data-ditado-pausar", e === "pausado" ? "mic" : "pause", e === "pausado" ? "Continuar" : "Pausar");
+    direita = botao("data-ditado-usar", "", "Concluir e editar", "dit-borda") + botao("data-ditado-enviar", "arrow_upward", "Concluir e enviar", "dit-cheio");
   } else if (e === "pendente") {
-    acoes = botao("data-ditado-cancelar", "delete", "Descartar") +
-      botao("data-ditado-continuar", "mic", "Continuar gravação") +
-      botao("data-ditado-usar", "check", "Concluir", "primario");
+    esquerda = botao("data-ditado-cancelar", "delete", "Descartar") + botao("data-ditado-continuar", "mic", "Continuar");
+    direita = botao("data-ditado-usar", "", "Concluir e editar", "dit-borda") + botao("data-ditado-enviar", "arrow_upward", "Concluir e enviar", "dit-cheio");
   }
   const classe = "cartao-agora ditado-cartao " + e;
+  const marca = e === "finalizando" ? '<span class="marca-etapa"><i class="giro"></i></span>' : '<i class="agr-rec' + (e === "ouvindo" ? " vivo" : "") + '"></i>';
   return '<div class="' + classe + '">' +
-    '<div class="cabeca">' + (e === "finalizando" ? coroa(20) : ic(e === "pendente" ? "pause" : "mic", 20)) +
-    '<span class="nome">' + nomes[e] + "</span>" +
+    '<div class="cabeca"><span class="dit-estado">' + marca + nomes[e] + "</span>" +
+    '<span class="dit-nota">' + notas[e] + "</span>" +
     '<span class="ditado-tempo" data-ditado-tempo="1">' + tempoDoDitado() + "</span></div>" +
-    (dsAberto() ? '<canvas class="ditado-onda" data-ditado-onda="1"></canvas>' : "") +
-    (notas[e] ? '<div class="rodape">' + notas[e] + "</div>" : "") +
-    (acoes ? '<div class="acoes">' + acoes + "</div>" : "") + "</div>";
+    '<canvas class="ditado-onda" data-ditado-onda="1"></canvas>' +
+    '<div class="dit-texto" data-ditado-texto="1">' + textoDoCartaoDoDitado() + "</div>" +
+    (esquerda || direita ? '<div class="acoes">' + esquerda + '<span class="vazio-flex"></span>' + direita + "</div>" : "") + "</div>";
 }
 
 function ligarCartaoDoDitado() {
@@ -1138,6 +1218,7 @@ function ligarCartaoDoDitado() {
   ligar("data-ditado-pausar", () => pausarDitado(ditado.estado === "ouvindo"));
   ligar("data-ditado-continuar", () => continuarDitado());
   ligar("data-ditado-usar", () => usarDitadoNoChat());
+  ligar("data-ditado-enviar", () => usarDitadoNoChat({ enviar: true }));
   document.querySelectorAll("[data-ditado-onda]").forEach((cv) => desenharOnda(cv, null));
 }
 
@@ -1151,8 +1232,12 @@ function desenharCartaoDoDitado() {
     $("agora").hidden = !lista.children.length;
   }
   const rodape = $("ditado-rodape");
+  const novo = rodape.hidden && html && !noInicio;
   rodape.hidden = !html || noInicio;
   rodape.querySelector(".centro").innerHTML = html && !noInicio ? html : "";
+  // Numa conversa, o cartao toma o lugar da caixa de pedido enquanto dura.
+  $("conversa-col").classList.toggle("ditando", Boolean(html) && !noInicio);
+  if (novo && animacoesLigadas()) entraConteudo(rodape.querySelector(".ditado-cartao"));
   $("ditar").classList.toggle("ouvindo", dsAberto());
   $("ditar").title = dsAberto() ? "Usar o ditado no chat" : (ditado.estado === "pendente" ? "Continuar o ditado" : "Ditar — o modelo de voz desta máquina escreve no campo");
   ligarCartaoDoDitado();
@@ -1277,10 +1362,10 @@ async function comecarDitado() {
   ditado.sessao = sessao;
   ditado.amostras = [];
   ditado.acumulado = 0;
+  ditado.texto = "";
   ditado.campoAntes = $("pedido").value;
   ditado.campoDepois = ditado.campoAntes;
   ouvir();
-  focarCampoDoDitado();
 }
 
 function pausarDitado(pausar) {
@@ -1354,24 +1439,18 @@ function zerarDitado() {
   ditado.sessao = "";
   ditado.amostras = [];
   ditado.acumulado = 0;
+  ditado.texto = "";
   desenharCartaoDoDitado();
 }
 
 /* Cancelar (ou Descartar, no pendente): o microfone fecha, a sessao e
-   descartada sem transcrever o resto, e o que foi ditado sai do campo - o
-   campo volta a ser o de antes. Se a pessoa mexeu no campo depois do ultimo
-   trecho, o texto dela nao e desfeito: so o ditado para. */
+   descartada sem transcrever o resto, e o que foi ditado nao entra na
+   caixa - ela continua como estava. */
 function cancelarDitado() {
   if (!ditado.estado) return;
   const sessao = ditado.sessao;
   fecharCapturaDoDitado();
   if (sessao) fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
-  const campo = $("pedido");
-  if (campo.value === ditado.campoDepois) {
-    campo.value = ditado.campoAntes;
-    campo.style.height = "auto";
-    campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
-  }
   zerarDitado();
   focarCampoDoDitado();
 }
@@ -1379,7 +1458,8 @@ function cancelarDitado() {
 /* Concluir: o que ficou sem pausa ainda e transcrito e entra no campo, e a
    sessao e descartada - a fila de transcricao das Gravacoes espera enquanto
    ha sessao aberta. */
-async function usarDitadoNoChat() {
+async function usarDitadoNoChat(opcoes) {
+  const o = opcoes || {};
   if (!ditado.estado || ditado.estado === "finalizando") return;
   if (dsAberto()) marcarTempo(true);
   fecharCapturaDoDitado();
@@ -1395,9 +1475,12 @@ async function usarDitadoNoChat() {
     } catch (err) { /* o que ja foi transcrito continua valendo */ }
     fetch("/api/voz/ao-vivo/" + sessao, { method: "DELETE" }).catch(() => {});
   }
-  if ($("pedido").value === ditado.campoAntes) avisoCert("não ouvi nada para escrever");
+  const levou = levarDitadoParaCaixa();
+  if (!levou) avisoCert("não ouvi nada para escrever");
   zerarDitado();
   focarCampoDoDitado();
+  // "Concluir e enviar": a caixa ja tem o texto; manda como quem aperta Enter.
+  if (o.enviar && levou) enviar();
 }
 
 $("ditar").onclick = () => {
@@ -1526,6 +1609,7 @@ async function enviar(opcoes) {
   }
   atualizarSelo(true);
   estado.linhaViva = "";
+  estado.comoVivo = null;
   if (painelNovo()) desenharBarra();
 
   const centro = $("centro");
@@ -1538,18 +1622,14 @@ async function enviar(opcoes) {
   // C2: as etapas vem do servidor, no primeiro evento; a tela nao inventa as
   // dela. Sem a chave, o cartao de antes ("Entender o pedido" primeiro,
   // porque nem toda mensagem e pergunta sobre documento).
-  if (!pensando()) {
-    plano.innerHTML = cartaoPlano(
-      [{ titulo: "Entender o pedido", estado: "executando", feitos: 0, total: 0, detalhe: "" },
-       { titulo: "Procurar e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1);
-  }
+  const registro = desenharPlano(plano, pensando() ? [] :
+    [{ titulo: "Entender o pedido", estado: "executando", feitos: 0, total: 0, detalhe: "" },
+     { titulo: "Procurar e responder", estado: "na_fila", feitos: 0, total: 0, detalhe: "" }], 1, true);
   centro.appendChild(plano);
+  if (animacoesLigadas()) entraConteudo(plano);
 
-  // A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
-  // C2: recolhida, como "ver detalhes"; quem espera le a linha de estado.
-  const bastidores = document.createElement("div");
-  centro.appendChild(bastidores);
-  abrirBastidor(bastidores, { recolhido: pensando() });
+  // O registro do que esta acontecendo mora dentro do cartao, aberto.
+  abrirBastidor(registro, { solto: true });
 
   const resposta = document.createElement("div");
   resposta.className = "resposta";
@@ -1559,10 +1639,7 @@ async function enviar(opcoes) {
   rolar();
 
   const inicio = Date.now();
-  const relogio = setInterval(() => {
-    const c = $("cronometro");
-    if (c) c.textContent = Math.round((Date.now() - inicio) / 1000) + " s";
-  }, 1000);
+  const relogio = setInterval(() => { if (estado.trabalhoId === minha) atualizarTempoDoPlano(inicio); }, 1000);
 
   /* Os anexos vão com esta mensagem e saem da caixa; o documento deles vira o
      foco da conversa. */
@@ -1594,7 +1671,7 @@ async function enviar(opcoes) {
     // ficou na fila dela (202); ou a pessoa já tem duas esperando (429) e a
     // pergunta volta para o campo, sem nada guardado.
     if (filaLigada() && (r.status === 202 || r.status === 429)) {
-      await desfazerEnvioNaFila(r, pedido, [plano, bastidores, resposta]);
+      await desfazerEnvioNaFila(r, pedido, [plano, resposta]);
       return;
     }
     // A fila do modelo cheia (429) diz por que; o resto, o de sempre.
@@ -1699,6 +1776,7 @@ async function lerResposta(r, v) {
         citados = new Set(dados.trechos.map((f) => f.documento)).size;
         fontesAtuais = dados.trechos || [];
         if (aqui()) desenharTrechos(dados.trechos, pedido, resposta.querySelector(".visor-caixa"));
+        if (aqui()) comoAoVivo({ fontes: dados });
       } else if (mt[1] === "execucao") {
         // O id da execucao (C1): ja guardado acima.
       } else if (mt[1] === "fila") {
@@ -1738,7 +1816,9 @@ async function lerResposta(r, v) {
           anotarBastidor("ainda não medi leituras deste modelo nesta máquina — " +
             "esta vai virar a primeira medida");
         }
+        bastidor.lendoDesde = Date.now();
         faseBastidor("lendo", "lendo…");
+        if (aqui()) comoAoVivo({ lendo: dados });
         if (pensando()) {
           // A estimativa vem do ritmo medido nesta maquina, e so acima de 10 s.
           const p = dados.previsao || {};
@@ -1766,7 +1846,7 @@ async function lerResposta(r, v) {
           milhar(dados.tokens_escritos), "feito");
       } else if (mt[1] === "etapas") {
         // C2: uma conta so, a do servidor, no cartao e no painel.
-        plano.innerHTML = cartaoPlano(dados.etapas, pensando() ? etapaAtual(dados.etapas) : 2);
+        desenharPlano(plano, dados.etapas, pensando() ? etapaAtual(dados.etapas) : 2, true);
         if (aqui()) desenharProgresso(dados.etapas);
         if (pensando()) {
           const andando = dados.etapas.find((e) => e.estado === "executando");
@@ -1809,7 +1889,7 @@ async function lerResposta(r, v) {
         // para a conversa terminar de se gravar antes de sair dela.
         if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
-            dados.tipo === "consulta_cadastro") assinaSemModelo = true;
+            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar") assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "relacionados") {
         // N7: chega depois do fim - os temas e as súmulas ligados aos artigos citados.
@@ -1837,6 +1917,7 @@ async function lerResposta(r, v) {
         if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
         resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
         resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido, "", null, fontesAtuais));
+        guardarLogNaResposta(resposta);
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
       } else if (mt[1] === "fim") {
@@ -1849,9 +1930,13 @@ async function lerResposta(r, v) {
         }
         resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
           assinaSemModelo ? "sem modelo" : "", dados.como, fontesAtuais));
+        guardarLogNaResposta(resposta);
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
         if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirTelaDaConversa(id), 700); }
+        // O pedido de apoio, no maximo uma vez por mes, depois de uma leitura
+        // (pacote de telas, `Conversa - Apoiar`; js/77-apoiar-convite.js).
+        if (aqui() && fontesAtuais.length && typeof oferecerConviteNaConversa === "function") oferecerConviteNaConversa(resposta);
       }
     }
   }
@@ -1875,13 +1960,11 @@ async function acompanharExecucao(t, execucao) {
   const centro = $("centro");
   // O cartão parado que desenharTrabalho pôs no fim dá lugar ao vivo.
   const parado = centro.lastElementChild;
-  if (parado && parado.querySelector && parado.querySelector("[data-retomar]") === null && parado.classList.contains("cartao")) parado.remove();
+  if (parado && parado.querySelector && parado.querySelector("[data-retomar]") === null && parado.classList.contains("trab-cartao")) parado.remove();
   const plano = document.createElement("div");
-  plano.innerHTML = cartaoPlano(t.etapas || [], pensando() ? etapaAtual(t.etapas || []) : t.etapa_atual, true);
+  const registro = desenharPlano(plano, t.etapas || [], pensando() ? etapaAtual(t.etapas || []) : t.etapa_atual, true);
   centro.appendChild(plano);
-  const bastidores = document.createElement("div");
-  centro.appendChild(bastidores);
-  abrirBastidor(bastidores, { recolhido: pensando() });
+  abrirBastidor(registro, { solto: true });
   const desde = Date.parse(execucao.criada || "") || Date.now();
   bastidor.desde = desde;
   const resposta = document.createElement("div");
@@ -1889,10 +1972,7 @@ async function acompanharExecucao(t, execucao) {
   resposta.innerHTML = linhaDeEstadoInicial() + '<div class="texto"></div>';
   centro.appendChild(resposta);
   const texto = resposta.querySelector(".texto");
-  const relogio = setInterval(() => {
-    const c = $("cronometro");
-    if (c && estado.trabalhoId === minha) c.textContent = Math.round((Date.now() - desde) / 1000) + " s";
-  }, 1000);
+  const relogio = setInterval(() => { if (estado.trabalhoId === minha) atualizarTempoDoPlano(desde); }, 1000);
   rolar();
   try {
     const r = await fetch("/api/execucoes/" + execucao.id + "/eventos?desde=0", { signal: estado.controle.signal });

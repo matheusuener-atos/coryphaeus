@@ -342,7 +342,10 @@ _declarar(BLOQUEADO,
           "POST /api/apoio/pix", "POST /api/apoio/pix/recuperar", "GET /api/apoio/pix/{id_}",
           "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
           "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura",
-          "GET /api/apoio/neste-mes")
+          "GET /api/apoio/neste-mes",
+          # Pacote de telas (`Conversa - Gravando`): as sugestoes e os pontos
+          # do caso enquanto a gravacao anda - gravar e coisa do escritorio.
+          "POST /api/gravacoes/sugerir", "POST /api/gravacoes/pontos")
 
 # --- a Biblioteca (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md): montar a
 # biblioteca e a configuracao dela ficam na janela do servidor, como o

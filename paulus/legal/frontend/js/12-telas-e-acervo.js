@@ -888,6 +888,9 @@ function cartaoProposta(d) {
   // Abrir é o único que não tem campo para conferir: ou é este arquivo, ou
   // não é. O que a pessoa confere é o nome — e onde quer abrir.
   if (d.tipo === "exibir") return cartaoOferta(d);
+  // Gravar a reuniao na conversa (js/79-conversa-gravando.js): nao ha cartao,
+  // a gravacao comeca e a transcricao desce no fio.
+  if (d.tipo === "gravar") return "";
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
@@ -1386,6 +1389,7 @@ function camposProposta(d, faltando) {
 /* Ligar os botões do cartão. O que vai para o servidor é o que está nos
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
 function ligarProposta(caixa, d, ondeResponder) {
+  if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);

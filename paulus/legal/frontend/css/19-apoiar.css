@@ -83,6 +83,7 @@
      publica uma; a forma e o valor a direita. O coracao e o vinho da marca
      do Apoiar. */
   .ap-convite { gap: 14px; }
+  .conversa-col:not(.vazia) .ap-convite { display: none; }
   .cv-cartao {
     display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); overflow: hidden;
     background: var(--surf); border: 1px solid var(--ink-a15); border-radius: 12px; box-shadow: var(--elev-card);
@@ -122,3 +123,10 @@
     .cv-esq { border-right: none; border-bottom: 1px solid var(--ink-a06); }
     .cv-valores { flex-wrap: wrap; }
   }
+
+  /* Na conversa (`Conversa - Apoiar`): o rotulo com o ponto em vinho e o
+     mesmo cartao, embaixo da resposta. */
+  .cv-na-conversa { display: grid; gap: 10px; }
+  .cv-kicker { display: flex; align-items: center; gap: 8px; padding: 0 2px; font: 500 12px var(--sans); color: var(--ink3); }
+  .cv-kicker .agr-rec { width: 6px; height: 6px; }
+  .conversa-col[data-papel="ferramenta"].com-lado .cv-cartao { grid-template-columns: minmax(0, 1fr); }

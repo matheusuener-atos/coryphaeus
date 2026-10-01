@@ -168,36 +168,43 @@ def test_tela(base: str, criados: list) -> None:
         pag.evaluate(f"() => abrirTrabalho('{a['id']}')")
         pag.wait_for_timeout(500)
         pag.evaluate("() => { enviar({ texto: 'qual a multa do contrato A?', apenas: ['Contrato A.docx'] }); }")
-        pag.wait_for_selector("#centro .resposta .linha-estado", timeout=8000)
-        linhas_vistas, contas = set(), []
+        # Pacote de telas (`Conversa - Carregando`): um cartao so, com o titulo
+        # "Trabalhando · etapa k de n", o tempo, as faixas das etapas e o
+        # registro aberto dentro dele; a coluna conta igual ao cartao.
+        pag.wait_for_selector("#centro .trab-cartao", timeout=8000)
+        linhas_vistas, contas, tempos = set(), [], set()
         for _ in range(14):
             estado = pag.evaluate("""() => {
-              const l = document.querySelector('#centro .resposta .linha-estado span');
-              const quem = document.querySelector('#centro .cartao .quem');
+              const andando = document.querySelector('#centro .trab-cartao .agr-etapa.andando > span');
+              const quem = document.querySelector('#centro .trab-cartao .quem');
               const m = quem ? quem.textContent.match(/etapa (\\d+) de (\\d+)/) : null;
               const painel = (document.getElementById('lat-progresso-conta') || {}).textContent || '';
-              return { linha: l ? l.textContent : '', cartao: m ? m[1] + ' de ' + m[2] : '', painel: painel };
+              const p = painel.match(/(\\d+) de (\\d+)/);
+              const tempo = (document.getElementById('cronometro') || {}).textContent || '';
+              return { linha: andando ? andando.textContent : '', cartao: m ? m[1] + ' de ' + m[2] : '', painel: p ? p[1] + ' de ' + p[2] : '', tempo: tempo };
             }""")
             if estado["linha"]:
                 linhas_vistas.add(estado["linha"])
+            if estado["tempo"]:
+                tempos.add(estado["tempo"])
             if estado["cartao"]:
                 contas.append((estado["cartao"], estado["painel"]))
             pag.wait_for_timeout(200)
         if os.environ.get("PAULUS_CAPTURAS"):
             pag.screenshot(path=str(Path(os.environ["PAULUS_CAPTURAS"]) / "c2-pensando.png"))
-        checar(any(x.startswith(("Lendo", "Procurando")) for x in linhas_vistas),
-               "a linha de estado diz o que acontece, em linguagem simples", sorted(linhas_vistas))
-        checar(any("~42 s" in x for x in linhas_vistas), "com a estimativa do ritmo (acima de 10 s)", sorted(linhas_vistas))
+        checar(any(x.startswith(("Ler", "Procurar", "Responder")) for x in linhas_vistas),
+               "a etapa que anda diz o que acontece, em linguagem simples", sorted(linhas_vistas))
+        checar(any(" de ~4" in x for x in tempos), "com a estimativa do ritmo no tempo do cartão (~42 s de leitura)", sorted(tempos))
         checar(contas and all(c == pn for c, pn in contas), "cartão e painel sempre com a mesma conta de etapas", contas[:4])
-        checar(pag.evaluate("() => document.querySelector('#centro .bastidor').classList.contains('fechado')"),
-               "o \"ver detalhes\" nasce recolhido")
+        checar(pag.evaluate("() => !!document.querySelector('#centro .trab-cartao .bastidor.solto')"),
+               "o registro mora aberto dentro do cartão de trabalho")
         pag.wait_for_function("() => document.querySelector('#centro .resposta .texto')?.textContent.includes('parte15')",
                               timeout=15000)
         pag.wait_for_timeout(800)
         cores = pag.evaluate("""() => {
           const ref = document.createElement('span'); ref.style.color = 'var(--acc)'; document.body.appendChild(ref);
           const erro = getComputedStyle(ref).color; ref.remove();
-          const alvos = [...document.querySelectorAll('#centro .bastidor-linha:not(.erro), #centro .aviso-cobertura, #centro .linha-estado')];
+          const alvos = [...document.querySelectorAll('#centro .bastidor-linha:not(.erro), #centro .aviso-cobertura, #centro .agr-etapa')];
           return { erro: erro, iguais: alvos.filter(e => getComputedStyle(e).color === erro).map(e => e.className + ': ' + e.textContent.slice(0, 40)) };
         }""")
         checar(not cores["iguais"], "nenhum texto informativo com a cor de erro", cores["iguais"][:3])

@@ -208,6 +208,8 @@
   /* O brilho que corre pela faixa da etapa andando e o ponto que respira
      ao lado dela (pacote de telas, `Acontecendo agora`). */
   @keyframes pv-sheen { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  /* O cursor que pisca no fim do texto ditado. */
+  @keyframes pv-pisca { 50% { opacity: 0; } }
   @keyframes pv-respira { 0%, 100% { transform: scale(.85); opacity: .5; } 50% { transform: scale(1); opacity: 1; } }
 
   /* As do desenho novo. `pv-side` e `pv-marca` sao a entrada do trilho, uma

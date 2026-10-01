@@ -235,7 +235,7 @@ def ler_aviso(texto: str) -> int:
 class Intencao:
     """O que a frase pede, com os campos já lidos."""
 
-    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | passos | documentos
+    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | passos | gravar | documentos
     titulo: str = ""
     campos: dict = field(default_factory=dict)
     resumo: str = ""
@@ -389,6 +389,44 @@ def ler_servico(texto: str, plano: str, cadastros=None) -> Intencao | None:
 VERBOS_CADASTRO = ("cadastre", "cadastrar", "cadastra", "registre", "registrar", "registra",
                    "adicione", "adicionar", "adiciona", "inclua", "incluir", "inclui",
                    "crie", "criar", "cria", "salve", "salvar", "salva")
+# "grave a reunião com a Rio Fresco e me ajude a responder" (pacote de telas,
+# `Conversa - Gravando`): a conversa grava, transcreve ao vivo e, com o pedido
+# de ajuda, sugere respostas a partir dos documentos do caso. So vira gravacao
+# o verbo de gravar logo no comeco (depois do enfeite) e uma reuniao,
+# atendimento, audiencia ou conversa em seguida - "a reuniao foi gravada?"
+# continua sendo pergunta.
+ENFEITE_GRAVAR = ("por", "favor", "pode", "poderia", "voce", "vc", "me", "quero", "preciso", "agora", "ai", "entao",
+                  "ja", "que", "e")
+RE_PEDIDO_GRAVAR = re.compile(
+    r"^(?:(?:" + "|".join(ENFEITE_GRAVAR) + r")\s+)*"
+    r"(?:grave|gravar|grava|comece a gravar|comeca a gravar|comecar a gravar|inicie a gravacao|comece a gravacao)\b"
+    r"(?:\s+(?:a|o|uma|um|esta|essa|nossa|minha))?\s+(reuniao|atendimento|audiencia|conversa|ligacao|chamada|consulta)\b")
+RE_AJUDA_GRAVAR = re.compile(r"\b(ajud\w*|sugir\w*|sugest\w*|respond\w*|respost\w*|refut\w*|argument\w*|contest\w*)\b")
+TIPO_DA_GRAVACAO = {"reuniao": "reuniao", "atendimento": "atendimento", "audiencia": "audiencia", "conversa": "reuniao",
+                    "ligacao": "atendimento", "chamada": "reuniao", "consulta": "atendimento"}
+ROTULO_DA_GRAVACAO = {"reuniao": "Reunião", "atendimento": "Atendimento", "audiencia": "Audiência"}
+
+
+def ler_gravacao(texto: str, plano: str, cadastros=None) -> Intencao | None:
+    m = RE_PEDIDO_GRAVAR.search(plano)
+    if not m:
+        return None
+    tipo = TIPO_DA_GRAVACAO.get(m.group(1), "reuniao")
+    cliente = _cliente_citado(plano, cadastros)
+    if not cliente:
+        # "com a Rio Fresco": o nome como esta na frase, ate o "e" de "e me ajude".
+        achado = re.search(r"\b(?:com|da|do)\s+(?:(?:a|o)\s+)?([^,.;]+?)(?:\s+e\s+(?:me|nos)\b|[,.;]|$)", texto, re.I)
+        bruto = achado.group(1).strip() if achado else ""
+        if bruto and _plano(bruto).split()[0] not in ("ajuda", "voce", "mim"):
+            cliente = " ".join(w for w in bruto.split() if w.lower() not in ("o", "a"))[:60]
+    ajudar = bool(RE_AJUDA_GRAVAR.search(plano))
+    rotulo = ROTULO_DA_GRAVACAO[tipo]
+    titulo = rotulo + (" · " + cliente if cliente else "")
+    return Intencao(tipo="gravar", titulo=titulo,
+                    campos={"titulo": titulo, "tipo": tipo, "cliente": cliente, "ajudar": ajudar},
+                    porque="“" + m.group(0).split()[0] + "” e “" + m.group(1) + "”")
+
+
 RE_PEDIDO_CADASTRO = re.compile(
     r"\b(" + "|".join(VERBOS_CADASTRO) + r")\b"
     r"(?:\s+(?:um|uma|o|a|novo|nova|outro|outra|mais|esse|essa|este|esta|ai|aqui|pra mim|para mim|como))*"
@@ -1054,6 +1092,10 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
 
     if any(p in plano for p in SOBRE):
         return Intencao(tipo="sobre", porque="pergunta sobre o próprio programa")
+
+    gravacao = ler_gravacao(texto, plano, cadastros)
+    if gravacao:
+        return gravacao
 
     # Antes de "abrir arquivo": "abra um serviço" tem o mesmo verbo.
     servico = ler_servico(texto, plano, cadastros)

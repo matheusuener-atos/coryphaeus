@@ -14,7 +14,7 @@
    ao perguntar duas vezes seguidas. As referências ficam guardadas aqui. */
 const bastidor = { desde: 0, timer: null, fase: "", palavras: 0,
                    caixa: null, linhasEl: null, relogioEl: null, vivaEl: null,
-                   previsao: null, escreveDesde: 0 };
+                   previsao: null, escreveDesde: 0, lendoDesde: 0, solto: false };
 
 /* `opcoes.recolhido` (C2): a janelinha nasce fechada, como "ver detalhes" -
    quem esta esperando le a linha de estado; quem quer o bastidor abre. */
@@ -26,6 +26,20 @@ function abrirBastidor(caixa, opcoes) {
   bastidor.palavras = 0;
   bastidor.previsao = null;
   bastidor.vivaEl = null;
+  bastidor.lendoDesde = 0;
+  bastidor.solto = Boolean(o.solto);
+
+  /* `opcoes.solto` (pacote de telas, `Conversa - Carregando`): o registro
+     mora dentro do cartao de trabalho, aberto e sem cabeca - o titulo e o
+     tempo sao os do cartao. */
+  if (o.solto) {
+    caixa.innerHTML = '<div class="bastidor solto"><div class="bastidor-linhas"></div></div>';
+    bastidor.caixa = caixa.querySelector(".bastidor");
+    bastidor.relogioEl = null;
+    bastidor.linhasEl = caixa.querySelector(".bastidor-linhas");
+    bastidor.timer = setInterval(tiquetaqueBastidor, 250);
+    return;
+  }
 
   caixa.innerHTML = '<div class="bastidor' + (o.recolhido ? " fechado" : "") + '"><div class="bastidor-topo">' + coroa(18) +
     '<span class="bastidor-titulo">' + (o.recolhido ? "ver detalhes" : "o que estou fazendo") + '</span><span class="num"></span>' +
@@ -53,19 +67,23 @@ function anotarBastidor(texto, classe) {
 /* A última linha muda sozinha enquanto a fase dura: é ela que dá o movimento,
    e o que ela mostra é medido — segundos que passaram, palavras que saíram. */
 function tiquetaqueBastidor() {
-  if (!bastidor.relogioEl || !bastidor.relogioEl.isConnected) {
+  const vivo = bastidor.relogioEl || bastidor.linhasEl;
+  if (!vivo || !vivo.isConnected) {
     clearInterval(bastidor.timer);
     return;
   }
   const passados = (Date.now() - bastidor.desde) / 1000;
-  bastidor.relogioEl.textContent = Math.round(passados) + " s";
+  if (bastidor.relogioEl) bastidor.relogioEl.textContent = Math.round(passados) + " s";
 
   const viva = bastidor.vivaEl;
   if (!viva) return;
 
   if (bastidor.fase === "lendo") {
     const p = bastidor.previsao;
-    if (p && p.sabe) {
+    // Dentro do cartao, a faixa da etapa ja mostra o quanto falta.
+    if (bastidor.solto) {
+      viva.textContent = "lendo… " + Math.round(passados) + " s";
+    } else if (p && p.sabe) {
       // Quanto já passou do que costuma levar. Passou do previsto? A tela diz
       // que passou — esconder isso seria errar duas vezes.
       const parte = Math.min(100, Math.round((passados / p.segundos) * 100));

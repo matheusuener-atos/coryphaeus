@@ -42,17 +42,24 @@ async function mandarAvaliacao(indice, corpo) {
   return d;
 }
 
+/* O cartao da resposta com problema (pacote de telas, `Conversa -
+   Feedback`): o motivo em etiquetas, o que estava errado e a resposta certa
+   lado a lado, o "Precisa ter" (que transforma a pergunta em caso de teste)
+   e, no pe, o que isso faz, Cancelar e Anotar. */
 function cartaoDaFalha(indice) {
   const motivos = Object.entries(aprender.motivos || {}).map(([id, rotulo]) =>
-    '<button type="button" class="apr-motivo" data-apr-motivo="' + esc(id) + '">' + esc(rotulo) + "</button>").join("");
+    '<button type="button" class="apr-motivo" data-apr-motivo="' + esc(id) + '">' + ic("check", 14) + esc(rotulo) + "</button>").join("");
   return '<div class="apr-cartao" data-apr-cartao="' + indice + '">' +
-    "<p><b>O que houve com esta resposta?</b> Fica no caderno de falhas deste computador.</p>" +
+    '<div class="apr-corpo"><div class="apr-cabeca"><span class="apr-titulos"><b>O que houve com esta resposta?</b>' +
+    "<small>Fica no caderno de falhas deste computador.</small></span>" +
+    '<button type="button" class="botao-icone" data-apr-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 16) + "</button></div>" +
     '<div class="apr-motivos">' + motivos + "</div>" +
-    '<textarea data-apr="comentario" rows="2" placeholder="o que estava errado (opcional)"></textarea>' +
-    '<textarea data-apr="correcao" rows="2" placeholder="a resposta certa seria… (opcional)"></textarea>' +
-    '<input type="text" data-apr="deve_conter" placeholder="o que a resposta certa precisa ter — ex.: 30 dias, cláusula 7">' +
-    '<small class="apr-explica">Com isso preenchido, a pergunta vira caso de teste: cada troca de modelo ou de regra é medida contra ela.</small>' +
-    '<div class="apr-botoes"><button class="primario" data-apr-enviar="1">Anotar</button><button data-apr-fechar="1">Cancelar</button></div></div>';
+    '<div class="apr-campos"><label class="apr-campo"><span>O que estava errado</span><textarea data-apr="comentario" rows="3"></textarea></label>' +
+    '<label class="apr-campo"><span>A resposta certa seria</span><textarea data-apr="correcao" rows="3"></textarea></label></div>' +
+    '<label class="apr-campo"><span>Precisa ter <small>opcional</small></span>' +
+    '<span class="apr-linha">' + ic("rule", 16) + '<input type="text" data-apr="deve_conter" placeholder="ex.: 30 dias, cláusula 7"></span></label></div>' +
+    '<div class="apr-pe"><small class="apr-explica">Com “Precisa ter” preenchido, a pergunta vira caso de teste: cada troca de modelo ou de regra é medida contra ela.</small>' +
+    '<button type="button" class="fantasma" data-apr-cancelar="1">Cancelar</button><button type="button" class="primario" data-apr-enviar="1">Anotar</button></div></div>';
 }
 
 document.addEventListener("click", async (e) => {
@@ -69,21 +76,26 @@ document.addEventListener("click", async (e) => {
       if (d) avisoCert("Obrigado: anotado como boa resposta.", { tom: "ok" });
       return;
     }
-    if (aberto) { aberto.remove(); return; }
+    if (aberto) { aberto.remove(); pintarAvaliacoes(); return; }
     resposta.querySelector(".assinatura").insertAdjacentHTML("afterend", cartaoDaFalha(indice));
+    // Com o cartao aberto, o "nao gostei" fica marcado, como no desenho.
+    b.classList.add("on");
     const c = resposta.querySelector(".apr-cartao");
     c.querySelectorAll("[data-apr-motivo]").forEach((m) => {
       m.onclick = () => { c.querySelectorAll("[data-apr-motivo]").forEach((x) => x.classList.toggle("on", x === m)); };
     });
-    c.querySelector("[data-apr-fechar]").onclick = () => c.remove();
+    const fechar = () => { sairDoAr(c); pintarAvaliacoes(); };
+    c.querySelector("[data-apr-fechar]").onclick = fechar;
+    c.querySelector("[data-apr-cancelar]").onclick = fechar;
+    if (animacoesLigadas()) entraConteudo(c);
     c.querySelector("[data-apr-enviar]").onclick = async () => {
       const motivo = (c.querySelector("[data-apr-motivo].on") || {}).dataset;
       const campo = (k) => (c.querySelector('[data-apr="' + k + '"]') || {}).value || "";
       const d = await mandarAvaliacao(indice, { nota: "ruim", motivo: motivo ? motivo.aprMotivo : "",
         comentario: campo("comentario"), correcao: campo("correcao"), deve_conter: campo("deve_conter") });
       if (!d) return;
-      c.innerHTML = "<p>" + ic("check", 16) + " Anotado no caderno de falhas" + (d.caso ? ", e a pergunta virou caso de teste." : ".") + "</p>";
-      setTimeout(() => c.remove(), 4000);
+      c.innerHTML = '<p class="apr-feito">' + ic("check", 16) + " Anotado no caderno de falhas" + (d.caso ? ", e a pergunta virou caso de teste." : ".") + "</p>";
+      setTimeout(() => sairDoAr(c), 4000);
     };
     return;
   }

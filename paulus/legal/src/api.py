@@ -3742,6 +3742,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     if lido.tipo == "passos" and not rotas_do_acesso.e_local(request):
         return _so_dizer(trabalho, "As tarefas de vários passos (os contratos vencendo, revisar contra o padrão) rodam "
                                    "só na janela do escritório, por ora. Peça de lá, ou em Agentes › Tarefas de vários passos.")
+    # Pacote de telas (`Conversa - Gravando`): gravar a reuniao aqui, com a
+    # transcricao ao vivo e, se pedido, as sugestoes tiradas do caso.
+    if lido.tipo == "gravar":
+        return _responder_gravacao(trabalho, lido, pergunta)
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir", "passos"):
         # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
         # o que ele pediu sem ter e recusado e fica registrado.
@@ -4310,6 +4314,22 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
             elif nome_cliente:
                 resumo += f" sem cliente ligado — “{nome_cliente}” não está em Cadastros"
             onde = "servicos"
+        elif payload.tipo == "gravacao":
+            # A gravacao feita na conversa (`Conversa - Gravando`) ja foi
+            # arquivada pela tela (POST /api/gravacoes); aqui ela entra na
+            # conversa, com o caminho para a gravacao.
+            g = estado.gravacoes.obter(int(campos.get("id") or 0))
+            if not g:
+                raise HTTPException(status_code=404, detail="essa gravação não está mais aqui")
+            novo = g["id"]
+            feito = g
+            minutos, segundos = divmod(int(g.get("duracao_s") or 0), 60)
+            duracao = (f"{minutos} min {segundos:02d} s" if minutos else f"{segundos} s")
+            sugeridas = int(campos.get("sugestoes") or 0)
+            resumo = (f"Gravei “{g.get('titulo') or 'a reunião'}” ({duracao}) e arquivei em Gravações, com a transcrição"
+                      + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
+            onde = "gravacoes"
+            campos["nome"] = g.get("titulo") or ""
         else:
             raise HTTPException(status_code=400, detail="nao sei fazer isso")
     except ValueError as exc:
@@ -4322,6 +4342,99 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
         estado.fila.decidir(payload.pedido_id, True)
         estado.fila.registrar_resultado(payload.pedido_id, resumo + " (confirmado no cartão da conversa)")
     return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito, "pendente": pendente}
+
+
+def _responder_gravacao(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Grave a reuniao com a Rio Fresco e me ajude a responder": a conversa
+    devolve o que a tela precisa para gravar ali mesmo - o titulo, o tipo, a
+    ficha do cliente, os documentos do caso - e diz o que vai acontecer. Quem
+    abre o microfone e a tela (o audio fica nesta maquina, src/gravacoes.py).
+    """
+    import sugestoes_ao_vivo as sav
+
+    campos = dict(lido.campos)
+    nome = campos.get("cliente") or ""
+    ficha = None
+    if nome:
+        alvo = " ".join(nome.split()).lower()
+        fichas = estado.cadastros.listar()
+        ficha = next((f for f in fichas if " ".join(f["nome"].split()).lower() == alvo), None) or \
+            next((f for f in fichas if alvo and alvo in " ".join(f["nome"].split()).lower()), None)
+    if ficha:
+        campos["cadastro_id"] = ficha["id"]
+        campos["cliente"] = ficha["nome"]
+        campos["titulo"] = (campos.get("titulo") or "Reunião").split(" · ")[0] + " · " + ficha["nome"]
+    documentos = sav.documentos_do_caso(estado, campos.get("cliente", ""), campos.get("cadastro_id"))
+    campos["documentos"] = documentos
+    if campos.get("ajudar") and documentos:
+        citados = " e ".join(", ".join(f"“{n}”" for n in documentos[:2]).rsplit(", ", 1)) if len(documentos) > 1 else f"“{documentos[0]}”"
+        texto = (f"Gravando. Vou transcrever aqui e, quando algo dito cruzar com {citados}"
+                 f"{' e os outros documentos do caso' if len(documentos) > 2 else ''}, sugiro uma resposta logo abaixo da fala.")
+    elif campos.get("ajudar"):
+        texto = ("Gravando. Vou transcrever aqui. Não achei documentos do caso para cruzar com o que for dito: "
+                 "anexe ou aponte a pasta, e eu passo a sugerir respostas.")
+    else:
+        texto = "Gravando. Vou transcrever aqui; o áudio e a transcrição ficam nesta máquina."
+    proposta = {"tipo": "gravar", "titulo": campos.get("titulo", ""), "campos": campos, "porque": lido.porque,
+                "pergunta": pergunta, "texto": texto}
+
+    def gerar() -> Iterator[str]:
+        # A conversa que comeca pelo pedido de gravar ganha o nome da gravacao
+        # ("Reuniao · Cooperativa Rio Fresco"), como no desenho.
+        if len(trabalho.mensagens) <= 1 and campos.get("titulo"):
+            trabalho.titulo = titular(campos["titulo"])
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class SugestaoAoVivo(BaseModel):
+    texto: str = ""
+    documentos: list[str] = []
+    anteriores: str = ""
+
+
+@app.post("/api/gravacoes/sugerir")
+def gravacoes_sugerir(payload: SugestaoAoVivo) -> dict:
+    """
+    A sugestao de resposta para uma fala da gravacao (src/sugestoes_ao_vivo.py):
+    regra antes, modelo so quando a fala toca o que os documentos do caso dizem,
+    e a resposta so passa ancorada no trecho. Sem sugestao, `sugestao` e None.
+    """
+    import sugestoes_ao_vivo as sav
+
+    abertos = {d.name for d in estado.searcher.documents}
+    documentos = [n for n in payload.documentos if n in abertos][:8]
+    cliente = estado.cliente_para("conversa")
+    sugestao = sav.sugerir(payload.texto[:1200], documentos, estado.searcher,
+                           lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis),
+                           payload.anteriores[:800])
+    return {"sugestao": sugestao}
+
+
+class PontosDoCaso(BaseModel):
+    documentos: list[str] = []
+
+
+@app.post("/api/gravacoes/pontos")
+def gravacoes_pontos(payload: PontosDoCaso) -> dict:
+    """Os pontos do caso numa frase, tirada dos trechos dos documentos (ou vazio)."""
+    import sugestoes_ao_vivo as sav
+
+    abertos = {d.name for d in estado.searcher.documents}
+    documentos = [n for n in payload.documentos if n in abertos][:8]
+    cliente = estado.cliente_para("conversa")
+    pontos = sav.pontos_do_caso(documentos, estado.searcher,
+                                lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis))
+    return {"pontos": pontos}
 
 
 def _so_dizer(trabalho, texto: str) -> StreamingResponse:

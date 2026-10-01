@@ -1286,7 +1286,7 @@ async function comecarGravacao() {
   if (v.estado !== "pronto") return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
     v.erro = "Este navegador não dá acesso ao microfone aqui. Abra o PAULUS na janela do programa ou no Edge.";
-    desenharGravacoes();
+    redesenharGravador();
     return;
   }
   // De fora, gravar pede o nivel "faz" em Gravacoes (acesso/permissoes.py):
@@ -1295,7 +1295,7 @@ async function comecarGravacao() {
     const g = (acessoDeFora.permissoes || []).find((m) => m.id === "gravacoes");
     if (g && g.nivel !== "faz") {
       v.erro = "Para gravar de fora, o titular precisa liberar Gravações para você (Configurações › Acesso de fora › Permissões).";
-      desenharGravacoes();
+      redesenharGravador();
       return;
     }
   }
@@ -1308,7 +1308,7 @@ async function comecarGravacao() {
         ? "O navegador não liberou o microfone. Clique no cadeado ao lado do endereço, permita o microfone para este site e tente de novo."
         : "O microfone foi negado. Libere o microfone para o PAULUS nas permissões da janela e tente de novo.")
       : (err && err.name === "NotFoundError" ? "Nenhum microfone encontrado nesta máquina." : "Não consegui abrir o microfone: " + (err && err.message ? err.message : err));
-    desenharGravacoes();
+    redesenharGravador();
     return;
   }
   const tipos = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
@@ -1328,7 +1328,7 @@ async function comecarGravacao() {
   v.relogio = setInterval(tiquetaqueGv, 500);
   if (!v.form.titulo) v.form.titulo = tituloPadraoGv(v.form);
   comecarTranscricaoAoVivo(fluxo);
-  desenharGravacoes();
+  redesenharGravador();
   ligarEqualizadorVivo(fluxo);
 }
 
@@ -1361,6 +1361,7 @@ function pausarGravacao() {
    sem levar a pessoa para Gravacoes. */
 function redesenharGravador() {
   if (document.getElementById("gv-tela")) { desenharGravacoes(); return; }
+  if (typeof redesenharPainelDaGravacao === "function") redesenharPainelDaGravacao();
   if (typeof carregarAgora === "function") carregarAgora();
 }
 
@@ -1426,6 +1427,8 @@ async function pararGravacao() {
   }
   const g = await r.json();
   limparGravacaoAoVivo();
+  // Gravada numa conversa: ela entra na conversa como nota, e a pessoa fica ali.
+  if (typeof aoArquivarGravacao === "function" && (await aoArquivarGravacao(g))) return;
   const abrir = () => { gv.aberta = g; gv.aba = "transcricao"; marcarDestino("gravacoes"); mostrarGravacoes("gravacao"); };
   // Parada de fora de Gravacoes (a tela inicial): a pessoa fica onde esta, e
   // o aviso leva a gravacao num clique.
@@ -1468,7 +1471,8 @@ function cartaoDaGravacaoAgora() {
     '<button class="agr-acao" data-agr-gv="marcar"' + salvando + ">" + ic("bookmark", 15) + "Marcar momento</button>" +
     '<span class="agr-grava-conta">' + plural(v.marcadores.length, "marcador", "marcadores") + "</span>" +
     '<span class="vazio-flex"></span>' +
-    '<button class="agr-borda" data-agr-gv="abrir">Abrir gravação</button>' +
+    // Gravada numa conversa (pacote de telas): o caminho de volta e a conversa.
+    '<button class="agr-borda" data-agr-gv="abrir">' + (typeof gcv !== "undefined" && gcv.ativa ? "Abrir conversa" : "Abrir gravação") + "</button>" +
     '<button class="agr-cheio" data-agr-gv="parar"' + salvando + "><i></i>Parar e arquivar</button></div></div>";
 }
 
@@ -1480,7 +1484,10 @@ function ligarGravacaoAgora(raiz) {
       if (o === "pausar") pausarGravacao();
       else if (o === "marcar") { marcarMomentoAoVivo(); carregarAgora(); avisoCert("momento marcado em " + duracaoGv(segundosGravados())); }
       else if (o === "parar") pararGravacao();
-      else if (o === "abrir") { marcarDestino("gravacoes"); mostrarGravacoes("vivo"); }
+      else if (o === "abrir") {
+        if (typeof gcv !== "undefined" && gcv.ativa) abrirGravacaoDaConversa();
+        else { marcarDestino("gravacoes"); mostrarGravacoes("vivo"); }
+      }
     };
   });
   if (gv.vivo.estado === "gravando") animarEqualizadorVivo();
@@ -1655,6 +1662,8 @@ async function enviarPedacoAoVivo() {
     if (d.trechos && d.trechos.length) {
       v.transcricao = v.transcricao.concat(d.trechos);
       desenharTrechosAoVivo();
+      // A conversa que grava (js/79-conversa-gravando.js) recebe as falas.
+      if (typeof aoTrechoAoVivo === "function") aoTrechoAoVivo(d.trechos);
     }
   } catch (err) {
     v.amostras = partes.concat(v.amostras);

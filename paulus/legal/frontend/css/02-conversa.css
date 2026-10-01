@@ -765,3 +765,18 @@
   .ia-trabalhando .ia-estado { flex: 1; min-width: 0; }
   /* A4: o agente que precisa de revisao nao e escolhido sozinho - a barra diz. */
   .barra-agente .barra-revisao, .barra-revisao { color: var(--ink2); }
+
+  /* O CARTAO DE TRABALHO (pacote de telas, `Conversa - Carregando`): o
+     titulo, o tempo e o Parar; as faixas das etapas (03-compositor-e-agora,
+     .agr-*); e o registro numa caixa no tom da coluna, aberto. */
+  .trab-cartao { display: grid; gap: 16px; padding: 18px 18px 16px 20px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
+  .trab-topo { display: grid; gap: 16px; }
+  .trab-cabeca { display: flex; align-items: center; gap: 12px; }
+  .trab-cabeca .quem { flex: 1; min-width: 0; font: 600 14px var(--sans); }
+  .trab-log:empty { display: none; }
+  .bastidor.solto { border: none; border-radius: 8px; background: var(--lado-fundo); box-shadow: none; }
+  .bastidor.solto .bastidor-linhas { border-top: none; padding: 12px 14px; max-height: 168px; }
+  .bastidor.solto .bastidor-linha { gap: 12px; font-size: 11.5px; line-height: 1.9; }
+  .bastidor.solto .bastidor-quando { flex: none; min-width: 34px; text-align: left; font-size: 11.5px; color: var(--mute); }
+  .bastidor.solto .bastidor-linha > span:last-child { color: var(--ink2); }
+  .bastidor.solto .bastidor-linha.viva > span { color: var(--ink); font-weight: 500; }

@@ -66,8 +66,14 @@ function conviteCabe() {
   return Boolean(n && (n.documentos || n.lancamentos) && !conviteDispensado() && !convite.dispensadoAgora && !jaApoiaEsteMes());
 }
 
-/* "Este mes, o PAULUS ja leu 4 documentos e montou 2 lancamentos para voce." */
-function fraseDoConvite() {
+/* "Este mes, o PAULUS ja leu 4 documentos e montou 2 lancamentos para voce."
+   Na conversa, logo depois de uma leitura: "Pronto — esse foi o 12º
+   documento que o PAULUS leu para voce este mes." */
+function fraseDoConvite(onde) {
+  const lidos = (convite.numeros || {}).documentos || 0;
+  if (onde === "conversa" && lidos) {
+    return "Pronto — esse foi o " + lidos + "º documento que o PAULUS leu para você este mês.";
+  }
   const n = convite.numeros || {};
   const partes = [];
   if (n.documentos) partes.push("já leu " + plural(n.documentos, "documento"));
@@ -120,7 +126,7 @@ function cartaoDoConvite(onde) {
   const classeOutro = "cv-valor" + (outro ? " ativo" : "");
   const email = (apoio.email || convite.email || "").trim();
   return '<div class="cv-cartao" data-cv-onde="' + onde + '">' +
-    '<div class="cv-esq"><div class="cv-titulo">' + ic("favorite", 18) + "<b>" + esc(fraseDoConvite()) + "</b></div>" +
+    '<div class="cv-esq"><div class="cv-titulo">' + ic("favorite", 18) + "<b>" + esc(fraseDoConvite(onde)) + "</b></div>" +
     "<p>Ele roda na sua máquina, sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento e mantém o programa livre para todos.</p>" +
     metaDoConvite() + "</div>" +
     '<div class="cv-dir"><div class="cv-forma">' + forma("pix", "Pix · uma vez") + forma("cartao", "Cartão · todo mês") + "</div>" +
@@ -168,6 +174,32 @@ function ligarConvite(raiz, aoMudar, aoSair) {
     else await apoioAssinar();
     aoMudar();
   };
+}
+
+/* ------------------------------------------------- na conversa */
+
+/* Depois de uma resposta que leu documento, o pedido aparece embaixo dela -
+   no maximo uma vez por mes, contando a tela inicial: quem disse "Agora
+   nao" la, ou ja viu o pedido numa conversa neste mes, nao ve de novo. */
+function conviteDaConversaJaVisto() {
+  try { return localStorage.getItem("paulus.apoio.convite.conversa") === mesDoConvite(); } catch (err) { return true; }
+}
+
+async function oferecerConviteNaConversa(resposta) {
+  if (!resposta || conviteDaConversaJaVisto()) return;
+  await carregarConvite(true);
+  if (!conviteCabe() || !(convite.numeros || {}).documentos || !resposta.isConnected) return;
+  try { localStorage.setItem("paulus.apoio.convite.conversa", mesDoConvite()); } catch (err) { /* uma vez nesta janela */ }
+  const caixa = document.createElement("div");
+  caixa.className = "cv-na-conversa";
+  resposta.after(caixa);
+  const redesenhar = () => {
+    caixa.innerHTML = '<div class="cv-kicker"><i class="agr-rec"></i>um pedido do PAULUS · aparece no máximo uma vez por mês</div>' + cartaoDoConvite("conversa");
+    ligarConvite(caixa, redesenhar, () => sairDoAr(caixa));
+  };
+  redesenhar();
+  if (animacoesLigadas()) entraConteudo(caixa);
+  if (pertoDoFim()) rolar();
 }
 
 /* ------------------------------------------------- na tela inicial */
