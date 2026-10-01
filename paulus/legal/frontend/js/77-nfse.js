@@ -11,8 +11,9 @@
 
 async function carregarNfse() {
   try {
-    const r = await fetch("/api/nfse");
+    const [r, rec] = await Promise.all([fetch("/api/nfse"), fetch("/api/nfse/recorrencias")]);
     cfg.nfse = r.ok ? await r.json() : null;
+    if (cfg.nfse) cfg.nfse.recorrencias = rec.ok ? (await rec.json()).recorrencias : [];
   } catch (err) { cfg.nfse = null; }
 }
 
@@ -174,8 +175,15 @@ function secaoNfse() {
     '<p class="cfg-explica">O relatório do mês soma os XMLs das notas (o que a Sefin calculou), confere por regra recebimento sem nota, nota sem recebimento, valor divergente, retenção não aplicada e competência de outro mês, e monta o .zip para o contador.</p>' +
     '<div class="word-acoes"><button data-nfse-acao="relatorio">' + ic("description", 16) + "Abrir o relatório do mês</button></div>");
 
+  const recs = (n.recorrencias || []).map((x) => linhaNfse((x.servico_nome || x.cliente_nome || "—") + " · dia " + x.dia + " · " + x.valor,
+    x.ativo ? "ligada" + (x.ultimo_mes ? " · último mês feito " + x.ultimo_mes : "") : "desligada") +
+    (x.ativo ? '<div class="word-acoes"><button data-nfse-rec-desligar="' + x.id + '">Desligar</button></div>' : "")).join("");
+  const recorrencias = cartaoCfg("Honorários recorrentes", metaCfg("rascunho no dia; nunca emite sozinho"),
+    (recs || '<p class="cfg-explica">Nenhuma. Ligue no Serviço, em Horas › Nota todo mês.</p>') +
+    '<p class="cfg-explica">No dia, o PAULUS cria o rascunho da nota do mês e o põe em Aprovações. Se faltar algo no cadastro do cliente, o rascunho espera por você, com aviso.</p>');
+
   return aberturaCfg() + ficha + ligar + prestador + regime + servico + retencoes + ibscbs + total + salvar +
-    certificadoCartao + municipio + contador + tabelas + historico;
+    certificadoCartao + municipio + contador + recorrencias + tabelas + historico;
 }
 
 function dadosDoFormNfse() {
@@ -240,7 +248,13 @@ async function acaoNfse(acao) {
   if (d) { cfg.nfse = d; desenharConfig(); }
 }
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
+  const rec = e.target.closest("[data-nfse-rec-desligar]");
+  if (rec) {
+    const r = await fetch("/api/nfse/recorrencias/" + rec.dataset.nfseRecDesligar + "/desligar", { method: "POST" });
+    if (r.ok) { await carregarNfse(); desenharConfig(); }
+    return;
+  }
   const b = e.target.closest("[data-nfse-acao]");
   if (!b) return;
   acaoNfse(b.dataset.nfseAcao);

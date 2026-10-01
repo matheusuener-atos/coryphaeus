@@ -176,12 +176,28 @@ class Municipios:
             info = {"situacao": INDEFINIDO, "emissor_nacional": None, "detalhes": str(exc)}
             corpo = None
         prazo = prazo_cancelamento_dias(corpo)
+        # O que mudou desde a última consulta (alíquota, prazo, situação): vira aviso.
+        antes = self.ultima(cmun, ambiente)
+        anterior, mudou_em = (antes or {}).get("anterior") or "", (antes or {}).get("mudou_em") or ""
+        if antes and corpo is not None and antes.get("resposta") is not None and antes["resposta"] != corpo:
+            mudancas = []
+            if antes.get("situacao") != info["situacao"]:
+                mudancas.append(f"situação: {antes.get('situacao')} para {info['situacao']}")
+            if antes.get("prazo_cancelamento_dias") != prazo:
+                mudancas.append(f"prazo de cancelamento: {antes.get('prazo_cancelamento_dias')} para {prazo} dia(s)")
+            plano_a, plano_b = _achatar(antes["resposta"]), _achatar(corpo)
+            for k in sorted(set(plano_a) | set(plano_b)):
+                if "aliq" in k and plano_a.get(k) != plano_b.get(k):
+                    mudancas.append(f"{k}: {plano_a.get(k)} para {plano_b.get(k)}")
+            anterior = "; ".join(mudancas)[:500] or "a resposta do Sistema Nacional mudou"
+            mudou_em = _agora()
         self.base.escrever(
             "INSERT INTO nfse_municipio (cmun, ambiente, situacao, detalhes, resposta, prazo_cancelamento_dias, "
-            "consultado_em) VALUES (?,?,?,?,?,?,?) ON CONFLICT(cmun, ambiente) DO UPDATE SET "
+            "consultado_em, anterior, mudou_em) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(cmun, ambiente) DO UPDATE SET "
             "situacao=excluded.situacao, detalhes=excluded.detalhes, resposta=excluded.resposta, "
-            "prazo_cancelamento_dias=excluded.prazo_cancelamento_dias, consultado_em=excluded.consultado_em",
+            "prazo_cancelamento_dias=excluded.prazo_cancelamento_dias, consultado_em=excluded.consultado_em, "
+            "anterior=excluded.anterior, mudou_em=excluded.mudou_em",
             (cmun, ambiente, info["situacao"], info.get("detalhes") or "",
-             json.dumps(corpo, ensure_ascii=False) if corpo is not None else "null", prazo, _agora()),
+             json.dumps(corpo, ensure_ascii=False) if corpo is not None else "null", prazo, _agora(), anterior, mudou_em),
         )
         return self.situacao(cmun, ambiente)

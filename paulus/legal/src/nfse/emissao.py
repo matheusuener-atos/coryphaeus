@@ -378,6 +378,10 @@ class Envio:
                     self.processar_fila()
                 except Exception:  # noqa: BLE001
                     log.exception("nfse: fila")
+                try:
+                    self.emissor.rotina_diaria()
+                except Exception:  # noqa: BLE001
+                    log.exception("nfse: rotina diária")
 
         self._fio = threading.Thread(target=girar, name="nfse-fila", daemon=True)
         self._fio.start()

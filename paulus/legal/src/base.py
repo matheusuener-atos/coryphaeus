@@ -1020,6 +1020,37 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_nfse_eventos_nota ON nfse_eventos(nota_id);
         """,
     ),
+    (
+        "039_nfse_recorrencia",
+        """
+        -- Honorarios recorrentes (N7): no dia, o PAULUS cria o RASCUNHO da nota
+        -- e o poe em Aprovacoes. Nunca emite sozinho. Um por mes: o mes ja
+        -- feito fica gravado, e a unicidade impede o segundo.
+        CREATE TABLE IF NOT EXISTS nfse_recorrencias (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            servico_id    INTEGER,
+            cadastro_id   INTEGER,
+            dia           INTEGER NOT NULL,
+            centavos      INTEGER NOT NULL,
+            descricao     TEXT DEFAULT '',
+            ativo         INTEGER NOT NULL DEFAULT 1,
+            criado_em     TEXT NOT NULL,
+            criado_por    TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS nfse_recorrencias_feitas (
+            recorrencia_id INTEGER NOT NULL,
+            mes            TEXT NOT NULL,
+            nota_id        INTEGER,
+            feito_em       TEXT NOT NULL,
+            PRIMARY KEY (recorrencia_id, mes)
+        );
+
+        -- O que mudou nos parametros do municipio entre uma consulta e a
+        -- seguinte (aliquota, prazo): cada mudanca vira um aviso.
+        ALTER TABLE nfse_municipio ADD COLUMN anterior TEXT DEFAULT '';
+        ALTER TABLE nfse_municipio ADD COLUMN mudou_em TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 

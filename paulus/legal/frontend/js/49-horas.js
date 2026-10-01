@@ -49,7 +49,8 @@ function secaoDasHoras(s) {
       (d.a_cobrar_min ? '<button class="com-icone" data-hrs-cobrar="1">' + ic("payments", 16) + "Cobrar no Financeiro</button>" : "") +
       // N4: a nota dos honorários do Serviço, pelo mesmo cartão (js/78-nfse-nota.js).
       (typeof nfseDisponivel !== "undefined" && nfseDisponivel && nfseDisponivel.pode_emitir
-        ? '<button class="com-icone" data-hrs-nota="1">' + ic("receipt_long", 16) + "Emitir nota dos honorários</button>" : "") + "</div>"
+        ? '<button class="com-icone" data-hrs-nota="1">' + ic("receipt_long", 16) + "Emitir nota dos honorários</button>" +
+          '<button data-hrs-nota-mes="1">Nota todo mês</button>' : "") + "</div>"
     : "";
   return '<section class="sv-secao sv-horas"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("schedule", 16) + "Horas</span>" +
     '<span class="sv-secao-meta">' + duracaoHrs(d.total_min) + (pessoas ? " · " + pessoas : "") + "</span></div>" +
@@ -102,6 +103,23 @@ function ligarHoras(raiz) {
     const r = await dialogo({ titulo: "Valor da hora", contexto: "Horas", campos: [{ chave: "valor", rotulo: "Valor da hora (R$)", placeholder: "300,00", obrigatorio: true }], confirmar: "Guardar" });
     if (!r || !r.ok) return;
     try { depois(await post(base + "/valor", { valor: r.valores.valor })); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+  });
+  clique("[data-hrs-nota-mes]", async () => {
+    // N7: no dia, o rascunho da nota vai para Aprovações. Nunca emite sozinho.
+    const r = await dialogo({
+      titulo: "Nota fiscal todo mês", contexto: "Serviço › Honorários",
+      texto: "No dia escolhido, o PAULUS prepara o rascunho da NFS-e dos honorários do mês e o põe em Aprovações. Nada é emitido sem o seu sim.",
+      campos: [{ chave: "dia", rotulo: "Dia do mês (1 a 31)", placeholder: "5", obrigatorio: true },
+               { chave: "valor", rotulo: "Valor mensal (R$)", placeholder: "5.000,00", obrigatorio: true },
+               { chave: "descricao", rotulo: "Descrição (opcional)", placeholder: "Honorários advocatícios", obrigatorio: false }],
+      confirmar: "Ligar",
+    });
+    if (!r || !r.ok) return;
+    const v = r.valores || {};
+    const x = await fetch("/api/nfse/recorrencias", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ servico_id: hrs.id, dia: Number(v.dia || r.valor) || 0, valor: v.valor || "", descricao: v.descricao || "" }) });
+    if (!x.ok) { avisoCert(await erroDe(x), { tom: "erro" }); return; }
+    avisoCert("ligado: todo mês, no dia " + (v.dia || r.valor) + ", o rascunho da nota vai para Aprovações", { tom: "ok" });
   });
   clique("[data-hrs-nota]", () => {
     const d = hrs.dados || {};

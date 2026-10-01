@@ -44,6 +44,15 @@ class Mes(BaseModel):
     mes: str = ""
 
 
+class Recorrencia(BaseModel):
+    id: int | None = None
+    servico_id: int | None = None
+    cadastro_id: int | None = None
+    dia: int = 0
+    valor: str = ""
+    descricao: str = ""
+
+
 class Senha(BaseModel):
     senha: str = ""
     guardar: bool = False
@@ -64,6 +73,7 @@ def montar(estado, app, dados_dir) -> None:
     central = getattr(estado, "central_avisos", None)
     if central is not None:
         central.estado_nfse = estado
+    estado.nfse.estado_app = estado
     # A fila de envio (N3): retoma ao abrir o que ficou no meio e tenta de novo
     # com espera crescente. O teste desliga para controlar cada passo.
     if not os.environ.get("PAULUS_NFSE_SEM_FILA"):
@@ -385,3 +395,22 @@ def montar(estado, app, dados_dir) -> None:
                                           "corpo": corpo, "corpo_html": "", "anexos": [feito["caminho"]], "responder_a": ""},
                                    reversivel=False, pedido_por="PAULUS (nota fiscal)")
         return {"pedido": pedido.id, "caminho": feito["caminho"]}
+
+    # ------------------------------------------------- recorrência (N7)
+
+    @app.get("/api/nfse/recorrencias")
+    def nfse_recorrencias() -> dict:
+        return {"recorrencias": estado.nfse.recorrencias.listar()}
+
+    @app.post("/api/nfse/recorrencias")
+    def nfse_recorrencia_salvar(payload: Recorrencia) -> dict:
+        try:
+            r = estado.nfse.recorrencias.salvar(payload.model_dump(), quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return {"recorrencia": r, "recorrencias": estado.nfse.recorrencias.listar()}
+
+    @app.post("/api/nfse/recorrencias/{id_}/desligar")
+    def nfse_recorrencia_desligar(id_: int) -> dict:
+        estado.nfse.recorrencias.desligar(id_)
+        return {"recorrencias": estado.nfse.recorrencias.listar()}

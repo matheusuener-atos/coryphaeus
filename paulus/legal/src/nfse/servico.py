@@ -44,8 +44,14 @@ class Emissor:
         self.envio = Envio(self)
         self.eventos = Eventos(self)
         from .contador import Contador
+        from .recorrencia import Recorrencias
 
         self.contador = Contador(self)
+        self.recorrencias = Recorrencias(self)
+        # O estado do programa (para Aprovações), posto pelas rotas; e o dia em
+        # que a rotina diária já rodou.
+        self.estado_app = None
+        self._rotina_em = ""
         # A substituta emitida marca a original antes do resto (Acervo, e-mail…).
         self.envio.ao_emitir.append(self.eventos.depois_de_emitir)
 
@@ -154,16 +160,90 @@ class Emissor:
         return cliente_mod.Cliente(ambiente, pfx, senha, producao_liberada=liberada)
 
     def avisos_extras(self, hoje) -> list[dict]:
-        """Os achados da conferência do mês (N6) para o carrossel, com id estável."""
+        """
+        O que mais a nota fiscal põe no carrossel, cada um com id estável (o
+        mesmo fato é sempre o mesmo aviso, e o "visto" vale para ele):
+        conferência do mês (N6), recorrência do mês, certificado a 30, 7 e 1
+        dia de vencer, fila de envio parada, parâmetros do município que
+        mudaram e esquema novo publicado no portal.
+        """
         if not self.ligado:
             return []
-        mes = hoje.isoformat()[:7]
+        saida: list[dict] = []
         try:
-            achados = self.contador.conferir(mes, hoje)
+            saida += [{"id": a["id"], "titulo": a["titulo"], "detalhe": a.get("detalhe", ""), "nota_id": a.get("nota_id")}
+                      for a in self.contador.conferir(hoje.isoformat()[:7], hoje)
+                      if a["tipo"] not in ("recebimento_sem_nota", "certificado")]
         except Exception:  # noqa: BLE001 - conferência que falha não derruba o carrossel
-            return []
-        return [{"id": a["id"], "titulo": a["titulo"], "detalhe": a.get("detalhe", ""), "nota_id": a.get("nota_id")}
-                for a in achados if a["tipo"] != "recebimento_sem_nota"]
+            pass
+        saida += self.recorrencias.avisos(hoje)
+        cert = (self.certificado_para_tela() or {}).get("certificado") or {}
+        dias = cert.get("dias_restantes")
+        if dias is not None and dias <= 30:
+            faixa = 1 if dias <= 1 else (7 if dias <= 7 else 30)
+            quando = "vencido" if dias < 0 else ("vence amanhã" if dias <= 1 else f"vence em {dias} dias")
+            saida.append({"id": f"nfse:certificado:{faixa}:{cert.get('valido_ate', '')}",
+                          "titulo": "Certificado da nota fiscal " + quando,
+                          "detalhe": f"válido até {cert.get('valido_ate', '')}: renove para não parar a emissão"})
+        from .notas import AGUARDANDO_CONFIRMACAO, NA_FILA
+
+        for n in self.notas.listar((NA_FILA, AGUARDANDO_CONFIRMACAO), limite=50):
+            if int(n.get("esperas") or 0) >= 3:
+                saida.append({"id": f"nfse:fila_parada:{n['id']}",
+                              "titulo": f"A fila de envio está parada — nota de {n.get('tomador_nome') or 'tomador'}",
+                              "detalhe": f"{n['esperas']} tentativas sem resposta; " + (n.get("ultimo_erro") or "")[:100],
+                              "nota_id": n["id"]})
+        cmun = self.prestador.atual()["dados"].get("municipio") or ""
+        u = self.municipios.ultima(cmun, self.ambiente) if cmun else None
+        if u and u.get("mudou_em"):
+            saida.append({"id": f"nfse:municipio:{cmun}:{u['mudou_em'][:10]}",
+                          "titulo": "Os parâmetros do município mudaram no Sistema Nacional",
+                          "detalhe": (u.get("anterior") or "")[:160]})
+        for nome in self.documentacao().get("novos") or []:
+            saida.append({"id": f"nfse:layout:{nome}", "titulo": "O portal da NFS-e publicou esquema novo",
+                          "detalhe": f"{nome}: o PAULUS precisa ser atualizado para ele"})
+        return saida
+
+    # --------------------------------------------------------- rotina diária
+
+    def documentacao(self) -> dict:
+        import json
+
+        try:
+            return json.loads((self.pasta / "documentacao.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def rotina_diaria(self, hoje=None, baixar=None) -> dict:
+        """Uma vez por dia: recorrências, reconsulta mensal do município e a documentação."""
+        import json
+        from datetime import date, datetime, timedelta
+
+        hoje = hoje or date.today()
+        if self._rotina_em == hoje.isoformat() or not self.ligado:
+            return {}
+        self._rotina_em = hoje.isoformat()
+        feito: dict = {}
+        if self.estado_app is not None:
+            feito["recorrencias"] = self.recorrencias.rodar(self.estado_app, hoje)
+        sit = self.situacao_municipio()
+        if sit.get("reconsultar") and sit.get("situacao") != "nao_consultado":
+            try:
+                feito["municipio"] = self.consultar_municipio()
+            except Exception as exc:  # noqa: BLE001 - sem certificado ou sem rede: tenta amanhã
+                feito["municipio"] = {"erro": str(exc)[:200]}
+        doc = self.documentacao()
+        velha = (not doc.get("conferido_em")
+                 or (datetime.now() - datetime.fromisoformat(doc["conferido_em"])) > timedelta(days=30))
+        if velha:
+            from .recorrencia import conferir_documentacao
+
+            r = conferir_documentacao(baixar)
+            if r.get("ok"):
+                self.pasta.mkdir(parents=True, exist_ok=True)
+                (self.pasta / "documentacao.json").write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
+            feito["documentacao"] = r
+        return feito
 
     def papeis_a_emitir(self, mes: str) -> list[dict]:
         """Os recebimentos do mês sem nota (a mesma lista do Financeiro)."""
