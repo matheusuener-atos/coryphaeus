@@ -59,12 +59,40 @@ function escolherFotos(depois) {
   campo.click();
 }
 
+/* N10: a folha achada na foto - o contorno por cima da prévia e o "cortar",
+   ligado quando a folha foi achada. O corte de verdade é refeito no servidor. */
+function cortaraFoto(f) {
+  return Boolean(f.q && f.q.folha && f.q.folha.achou && f.cortar !== false);
+}
+
+function imagemDaPrevia(f, i) {
+  const folha = (f.q || {}).folha || {};
+  if (!folha.achou || !folha.largura) {
+    return '<img src="' + f.url + '" alt="página ' + (i + 1) + '" style="transform: rotate(' + f.giro + 'deg)">';
+  }
+  const pontos = folha.cantos.map((c) => c[0] + "," + c[1]).join(" ");
+  return '<div class="cap-quadro" style="aspect-ratio: ' + folha.largura + " / " + folha.altura + "; transform: rotate(" + f.giro + 'deg)">' +
+    '<img src="' + f.url + '" alt="página ' + (i + 1) + '">' +
+    (cortaraFoto(f) ? '<svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true"><polygon points="' + pontos + '"></polygon></svg>' : "") + "</div>";
+}
+
+function notaDoCorte(f) {
+  const folha = (f.q || {}).folha;
+  if (!folha) return "";
+  if (folha.achou) {
+    return '<button type="button" class="cap-cortar' + (cortaraFoto(f) ? " on" : "") + '" data-cap-cortar="' + cap.fotos.indexOf(f) + '">' +
+      ic(cortaraFoto(f) ? "check" : "close", 14) + (cortaraFoto(f) ? "corta e endireita" : "vai como veio") + "</button>";
+  }
+  return folha.motivo ? '<p class="cap-nota">' + esc(folha.motivo) + "</p>" : "";
+}
+
 function previaDasFotos() {
   return '<div class="cap-fotos">' + cap.fotos.map((f, i) =>
-    '<figure class="cap-foto"><img src="' + f.url + '" alt="página ' + (i + 1) + '" style="transform: rotate(' + f.giro + 'deg)">' +
+    '<figure class="cap-foto">' + imagemDaPrevia(f, i) +
     "<figcaption>página " + (i + 1) +
     '<span><button type="button" data-cap-girar="' + i + '" title="Girar">' + ic("refresh", 16) + "</button>" +
-    '<button type="button" data-cap-tirar="' + i + '" title="Tirar esta página">' + ic("delete", 16) + "</button></span></figcaption>" + avisoDaFoto(f) + "</figure>").join("") +
+    '<button type="button" data-cap-tirar="' + i + '" title="Tirar esta página">' + ic("delete", 16) + "</button></span></figcaption>" +
+    avisoDaFoto(f) + notaDoCorte(f) + "</figure>").join("") +
     '<button type="button" class="cap-mais" data-cap-mais="1">' + ic("add", 18) + "mais uma página</button></div>";
 }
 
@@ -90,6 +118,7 @@ async function fotografarDocumento() {
     veu.querySelectorAll("[data-cap-girar]").forEach((b) => { b.onclick = () => { const f = cap.fotos[Number(b.dataset.capGirar)]; f.giro = (f.giro + 90) % 360; redesenhar(); }; });
     veu.querySelectorAll("[data-cap-tirar]").forEach((b) => { b.onclick = () => { const [f] = cap.fotos.splice(Number(b.dataset.capTirar), 1); URL.revokeObjectURL(f.url); redesenhar(); }; });
     veu.querySelectorAll("[data-cap-mais]").forEach((b) => { b.onclick = () => escolherFotos(redesenhar); });
+    veu.querySelectorAll("[data-cap-cortar]").forEach((b) => { b.onclick = () => { const f = cap.fotos[Number(b.dataset.capCortar)]; f.cortar = !cortaraFoto(f); redesenhar(); }; });
   };
   const aviso = '<p class="dialogo-dica" id="cap-erro" hidden></p>';
   const servicos = await servicosParaCaptura();
@@ -109,6 +138,7 @@ async function fotografarDocumento() {
       const corpo = new FormData();
       cap.fotos.forEach((f, i) => corpo.append("fotos", f.arquivo, f.arquivo.name || "pagina-" + (i + 1) + ".jpg"));
       corpo.append("giros", JSON.stringify(cap.fotos.map((f) => f.giro)));
+      corpo.append("cortes", JSON.stringify(cap.fotos.map((f) => cortaraFoto(f))));
       corpo.append("titulo", (veu.querySelector("#dialogo-campo") || {}).value || "");
       corpo.append("servico_id", (veu.querySelector("#cap-servico") || {}).value || "");
       const botao = veu.querySelector('[data-dialogo="confirmar"]');
@@ -131,7 +161,8 @@ async function fotografarDocumento() {
         : "não li texto: " + (l.motivo || "confira as fotos");
       avisoCert(d.destino === "aprovacoes"
         ? "“" + d.nome + "” foi para Aprovações: entra " + (d.servico_id ? "no Serviço" : "no Acervo") + " quando o escritório confirmar"
-        : "“" + d.nome + "” entrou " + (d.servico_id ? "no Serviço" : "no Acervo") + " (" + plural(d.paginas, "página") + "); " + leu, { tom: l.lido || d.destino === "aprovacoes" ? "ok" : "" });
+        : "“" + d.nome + "” entrou " + (d.servico_id ? "no Serviço" : "no Acervo") + " (" + plural(d.paginas, "página") +
+          (d.cortadas ? ", " + plural(d.cortadas, "endireitada", "endireitadas") : "") + "); " + leu, { tom: l.lido || d.destino === "aprovacoes" ? "ok" : "" });
       if (d.destino === "acervo" && typeof mostrarBiblioteca === "function" && bib.visao === "documentos") mostrarBiblioteca();
     },
   });

@@ -355,7 +355,7 @@ o código garante.
 | N7 | Súmulas e temas na resposta da conversa | L5 | feito | `tests/test_n7_temas_na_conversa.py` |
 | N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
 | N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | feito | `tests/test_n9_mcp_escreve.py` |
-| N10 | Captura: corte das bordas e perspectiva endireitada | L8 | — | `tests/test_n10_corte.py` |
+| N10 | Captura: corte das bordas e perspectiva endireitada | L8 | feito | `tests/test_n10_corte.py` |
 | N11 | A posição na fila da resposta que volta do aparelho | D4 | — | `tests/test_n11_fila_aparelho.py` |
 | N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | — | `tests/test_n12_vigencia.py` |
 | N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | — | `tests/test_n13_jurisprudencia.py` |
@@ -592,3 +592,34 @@ quatro que escrevem, os dois "entendi", a recusa fora do escopo e da
 conexão, a auditoria, e o diálogo no Edge); `test_l7_mcp` (com a checagem
 "só leitura" trocada por "as que escrevem estão marcadas") e
 `test_umbrel_a_mcp` continuam passando.
+
+## N10 — cortar a mesa e endireitar a folha (30/09/2026)
+
+- **Achar a folha** (`src/corte_da_foto.py`, sem OpenCV e sem modelo: PIL e
+  numpy): a foto pequena em cinza, o limiar de Otsu (folha clara, mesa
+  escura), um fechamento que tapa as letras, a região clara ligada ao centro
+  (o `floodfill` do PIL) e os quatro cantos pelos extremos de x+y e x−y.
+  Serve para a folha girada até uns 40° e para a perspectiva de quem
+  fotografa de pé. Cerca de 0,6 s por foto de 12 megapixels.
+- **Com cuidado**: só corta quando a região é uma folha plausível — de 20% a
+  97% da foto, cantos convexos, e a região preenchendo o quadrilátero.
+  Senão a foto vai como veio, e a prévia diz por quê ("não vi borda entre a
+  folha e o fundo", "a folha ocupa pouco da foto: aproxime").
+- **Endireitar**: a transformação de perspectiva do PIL, na foto inteira; a
+  folha sai retangular, pelo lado maior.
+- **Na captura**: a conferência (L8) devolve também os cantos; a prévia
+  desenha o contorno da folha e o botão "corta e endireita", ligado quando a
+  folha foi achada, e a pessoa desliga em cada foto. O corte é refeito no
+  servidor (a tela só diz sim ou não), e a resposta diz quantas páginas
+  foram endireitadas.
+
+**Não feito:** ajustar os cantos à mão na prévia; a folha sobre fundo
+claro (mesa branca) não é achada — vai como veio, dito. O limiar foi medido
+com fotos montadas; fotos de celular de verdade ficam para o teste do dono
+(junto do da L8).
+
+**Medido:** `tests/test_n10_corte.py` 16 ok (cantos a menos de 1,5% na
+folha torta, em perspectiva e reta; os três casos de não cortar; o OCR do
+Windows lê mais palavras certas na folha endireitada que na foto crua; a
+captura com e sem corte; e a prévia no Edge); `test_l8_captura` e
+`test_umbrel_e_captura` continuam passando.

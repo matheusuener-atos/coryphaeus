@@ -18,7 +18,9 @@ ou o titular) põe o arquivo no Acervo. Na janela do escritório, entra direto.
 Nada sai da máquina além do que o acesso de fora já faz: as fotos vão do
 celular ao computador do escritório pelo mesmo túnel da conversa.
 
-Sem app nativo, sem modelo, sem corte automático de bordas: a foto vai como
+Sem app nativo e sem modelo. **N10:** a folha é achada na foto e recortada,
+com a perspectiva endireitada (src/corte_da_foto.py), quando a prévia achou
+os quatro cantos e a pessoa deixou "cortar" ligado; senão, a foto vai como
 veio, girada como a pessoa mandou.
 
 **L8 (docs/PLANO-PILOTO.md):** cada foto é conferida antes de guardar
@@ -100,8 +102,15 @@ def _frase_da_leitura(l: dict) -> str:
     return "sem texto: " + l.get("motivo", "")
 
 
-def pdf_das_fotos(fotos: list[bytes], giros: list[int] | None = None) -> tuple[bytes, int]:
-    """(o PDF, quantas páginas): uma página por foto, na ordem, girada como a pessoa pediu."""
+def pdf_das_fotos(fotos: list[bytes], giros: list[int] | None = None, cortes: list[bool] | None = None,
+                  relatorio: dict | None = None) -> tuple[bytes, int]:
+    """
+    (o PDF, quantas páginas): uma página por foto, na ordem, girada como a
+    pessoa pediu. `cortes` (N10): as fotos em que a folha é recortada e
+    endireitada - a conta é refeita aqui, não vem da tela. `relatorio`
+    recebe {"cortadas": n}.
+    """
+    import corte_da_foto
     from PIL import Image, ImageOps, UnidentifiedImageError
 
     if not fotos:
@@ -109,6 +118,7 @@ def pdf_das_fotos(fotos: list[bytes], giros: list[int] | None = None) -> tuple[b
     if len(fotos) > MAX_FOTOS:
         raise ValueError(f"no máximo {MAX_FOTOS} fotos por documento")
     paginas = []
+    cortadas = 0
     for i, bruto in enumerate(fotos):
         if len(bruto) > MAX_BYTES_FOTO:
             raise ValueError(f"a foto {i + 1} passa de 25 MB")
@@ -120,6 +130,11 @@ def pdf_das_fotos(fotos: list[bytes], giros: list[int] | None = None) -> tuple[b
         # A foto de celular vem deitada com a orientação no EXIF: endireita
         # antes, e depois aplica o giro que a pessoa escolheu na prévia.
         img = ImageOps.exif_transpose(img).convert("RGB")
+        if cortes and i < len(cortes) and cortes[i]:
+            folha = corte_da_foto.achar_folha(img)
+            if folha.get("achou"):
+                img = corte_da_foto.endireitar(img, folha["cantos"])
+                cortadas += 1
         giro = int((giros or [0] * len(fotos))[i] or 0) % 360 if giros and i < len(giros) else 0
         if giro:
             img = img.rotate(-giro, expand=True)
@@ -127,6 +142,8 @@ def pdf_das_fotos(fotos: list[bytes], giros: list[int] | None = None) -> tuple[b
         paginas.append(img)
     saida = io.BytesIO()
     paginas[0].save(saida, format="PDF", save_all=True, append_images=paginas[1:], resolution=300.0, quality=85)
+    if relatorio is not None:
+        relatorio["cortadas"] = cortadas
     return saida.getvalue(), len(paginas)
 
 
@@ -146,7 +163,7 @@ def _pasta_de_destino(estado, servico_id) -> Path:
 
 
 def receber(estado, dados_dir: Path, pessoa: dict | None, fotos: list[bytes], giros: list[int], titulo: str,
-            servico_id: int | None = None) -> dict:
+            servico_id: int | None = None, cortes: list[bool] | None = None) -> dict:
     """
     Na janela do escritório (pessoa None): o PDF entra no Acervo (ou na pasta
     do Serviço). De fora: fica em <dados>/captura e vira pedido em Aprovações.
@@ -157,7 +174,8 @@ def receber(estado, dados_dir: Path, pessoa: dict | None, fotos: list[bytes], gi
     if servico_id and (not estado.base.um("SELECT id FROM servicos WHERE id = ?", (int(servico_id),))
                        or not servicos_acesso.visivel(int(servico_id))):
         raise LookupError("esse Serviço não existe (ou não é seu)")
-    pdf, paginas = pdf_das_fotos(fotos, giros)
+    rel: dict = {}
+    pdf, paginas = pdf_das_fotos(fotos, giros, cortes, rel)
     nome = nome_do_documento(titulo)
     if pessoa is None:
         pasta = _pasta_de_destino(estado, servico_id)
@@ -166,7 +184,7 @@ def receber(estado, dados_dir: Path, pessoa: dict | None, fotos: list[bytes], gi
         destino.write_bytes(pdf)
         estado.recarregar()
         return {"destino": "acervo", "nome": destino.name, "paginas": paginas, "servico_id": servico_id,
-                "leitura": _leitura(estado, destino)}
+                "cortadas": rel.get("cortadas", 0), "leitura": _leitura(estado, destino)}
     pasta = Path(dados_dir) / PASTA
     pasta.mkdir(parents=True, exist_ok=True)
     arquivo = pasta / f"{uuid.uuid4().hex[:12]}.pdf"
@@ -178,7 +196,8 @@ def receber(estado, dados_dir: Path, pessoa: dict | None, fotos: list[bytes], gi
                "onde ele é lido (OCR) como qualquer escaneado.",
         etiquetas=["fotografado"], pedido_por=quem,
         dados={"arquivo": str(arquivo), "nome": nome, "paginas": paginas, "servico_id": servico_id})
-    return {"destino": "aprovacoes", "nome": nome, "paginas": paginas, "pedido": pedido.id, "servico_id": servico_id}
+    return {"destino": "aprovacoes", "nome": nome, "paginas": paginas, "pedido": pedido.id, "servico_id": servico_id,
+            "cortadas": rel.get("cortadas", 0)}
 
 
 def executar(estado, pedido) -> str:
@@ -202,7 +221,7 @@ def montar(estado, app, dados_dir: Path) -> None:
 
     @app.post("/api/captura")
     async def captura_enviar(request: Request, fotos: list[UploadFile] = File(...), giros: str = Form("[]"),
-                             titulo: str = Form(""), servico_id: str = Form("")) -> dict:
+                             titulo: str = Form(""), servico_id: str = Form(""), cortes: str = Form("[]")) -> dict:
         """As fotos de um documento: um PDF no Acervo (ou, de fora, um pedido em Aprovações)."""
         if not (estado.prefs.dados.get("umbrel") or {}).get("captura"):
             raise HTTPException(status_code=409, detail="fotografar documento está desligado em Configurações")
@@ -210,12 +229,17 @@ def montar(estado, app, dados_dir: Path) -> None:
             lista_giros = [int(g) for g in json.loads(giros or "[]")]
         except (ValueError, TypeError):
             lista_giros = []
+        try:
+            lista_cortes = [bool(c) for c in json.loads(cortes or "[]")]
+        except (ValueError, TypeError):
+            lista_cortes = []
         brutos = [await f.read(MAX_BYTES_FOTO + 1) for f in fotos[:MAX_FOTOS + 1]]
         try:
             from starlette.concurrency import run_in_threadpool
 
             return await run_in_threadpool(receber, estado, dados_dir, rotas_do_acesso.pessoa(request), brutos,
-                                           lista_giros, titulo, int(servico_id) if servico_id.strip().isdigit() else None)
+                                           lista_giros, titulo, int(servico_id) if servico_id.strip().isdigit() else None,
+                                           lista_cortes)
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:
@@ -231,6 +255,12 @@ def montar(estado, app, dados_dir: Path) -> None:
             bruto = await f.read(MAX_BYTES_FOTO + 1)
             try:
                 q = qualidade(bruto) if len(bruto) <= MAX_BYTES_FOTO else {"erro": "passa de 25 MB"}
+                # N10: onde está a folha na foto, para a prévia mostrar o corte.
+                if "erro" not in q:
+                    import corte_da_foto
+                    from starlette.concurrency import run_in_threadpool
+
+                    q["folha"] = await run_in_threadpool(corte_da_foto.conferir, bruto)
             except ValueError as exc:
                 q = {"erro": str(exc)}
             saida.append(dict(q, pagina=i + 1))
