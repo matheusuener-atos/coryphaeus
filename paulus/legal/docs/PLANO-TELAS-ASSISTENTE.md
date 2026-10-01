@@ -35,7 +35,7 @@ estiver `feita`.
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (a faixa de um aviso por vez e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
 | T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | feita (documento, PDF, editor, planilha, editor de planilha, assinar, agendar, criar agente, e-mail e escrever e-mail) | ver git log (T3) |
-| T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
+| T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | em andamento (cadastro, equipe e despesa fixa feitos) | ver git log (T4) |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
 ## Registro
@@ -301,3 +301,37 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
   `test_c3_painel`, `test_intencao`, `test_c5_superficies` (sozinho),
   `test_email_conversa`, `test_email_caixa`, `test_correio`,
   `test_c4_roteamento` e `test_n6_conversa_tarefas` ok.
+
+### T4 — cadastros e financeiro pela conversa (01/10/2026, em andamento)
+
+- Cadastro, Equipe e Despesa fixa (`src/fichas_pela_conversa.py`,
+  `js/86-fichas-na-conversa.js`): a ficha abre na coluna de 420 px, já
+  preenchida por regra, e cada campo que veio de um documento diz de onde.
+  - Cliente: "cadastra a congregação cristã como cliente" procura o nome no
+    texto do Acervo; o CPF/CNPJ e o endereço que estão perto dele entram na
+    ficha, e o nome vem como os documentos escrevem. A conversa mostra onde
+    aparece (com o trecho, os campos e a data) e a caixa de marcar dos
+    documentos que entram na ficha — os que têm dado. "confira: é um CPF,
+    não um CNPJ" quando o documento não combina com pessoa jurídica.
+    Ignorar tira o nome da fila de sugestões; depois de salvar, "Preparar"
+    o próximo nome da fila.
+  - Equipe: "a Larissa começa segunda como estagiária, salário de 1.800…"
+    preenche nome, função, e-mail, folha (valor, desde, vínculo) e o
+    convite; "O que este papel pode" sai das permissões padrão de verdade.
+    A conversa mostra a equipe com a pessoa nova marcada.
+  - Despesa fixa: o contrato anexo, lido por regra (valor, dia, reajuste,
+    vigência, quem recebe, CNPJ, e-mail). A tabela das despesas fixas com
+    a situação do mês.
+  - Com a ficha aberta, a frase que traz um dado (CPF, telefone, e-mail,
+    valor, dia, endereço) corrige o campo e ele ganha o selo "novo". Nada
+    é gravado sem Salvar; depois, a conversa registra (/fazer "ficha").
+  - Novo no servidor (migração 034): o fornecedor e "lançar no Financeiro
+    todo mês" da despesa fixa (a conta do mês nasce uma vez, quando o
+    Financeiro abre), o "desde" da folha, a forma do lançamento e as
+    categorias Perícias e Diligências.
+  - Ficou de fora: "pastas liberadas" (não há pasta por pessoa no
+    sistema); o convite não passa por Aprovações — ele só gera o link de
+    entrada, que a pessoa manda (o desenho dizia Aprovações; a frase diz o
+    que acontece). O "desde" ainda não muda o mês em que a folha começa a
+    contar (a folha lê o salário da ficha).
+  - Teste: `tests/test_fichas_conversa.py`.

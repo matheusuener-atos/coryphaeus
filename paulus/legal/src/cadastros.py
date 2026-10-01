@@ -37,6 +37,9 @@ CAMPOS = (
     # Como a pessoa e paga. Fica aqui, e nao numa lista separada de gente:
     # duas listas divergem, e a hora de descobrir e a hora de pagar.
     "vinculo", "salario_centavos", "encargos_centavos",
+    # A despesa fixa: quem recebe e se entra sozinha no Financeiro todo mes;
+    # a pessoa da equipe: desde quando entra na folha (034).
+    "fornecedor", "lancar_mensal", "inicio",
 )
 
 # Sem vinculo, a pessoa nao entra na folha. Nao por engano - porque nao foi
@@ -196,6 +199,9 @@ class Cadastros:
         limpo["vinculo"] = limpo["vinculo"] if limpo["vinculo"] in VINCULOS else ""
         limpo["salario_centavos"] = int(limpo["salario_centavos"] or 0)
         limpo["encargos_centavos"] = int(limpo["encargos_centavos"] or 0)
+        limpo["fornecedor"] = " ".join(str(limpo["fornecedor"] or "").split())
+        limpo["lancar_mensal"] = 1 if limpo["lancar_mensal"] in (1, True, "1", "true", "sim") else 0
+        limpo["inicio"] = str(limpo["inicio"] or "")[:10]
         # CPF/CNPJ e telefone entram com a mascara, conferidos pela mesma
         # regra da tela (src/campos_br.py). Vazio fica vazio; o que nao fecha
         # volta como erro, com o aviso que o campo mostraria.

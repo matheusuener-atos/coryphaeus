@@ -900,6 +900,8 @@ function cartaoProposta(d) {
   if (d.tipo === "criar_agente") return cartaoDeCriarAgente(d);
   // O e-mail pela conversa (js/85-email-na-conversa.js): a mensagem ou o envelope.
   if (d.tipo === "email") return cartaoDeEmail(d);
+  // Os cadastros pela conversa (js/86-fichas-na-conversa.js): a ficha na coluna.
+  if (d.tipo === "ficha") return cartaoDeFicha(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
@@ -1330,6 +1332,7 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "agenda" || d.tipo === "tarefa") return ligarAgendarNaProposta(caixa, d);
   if (d.tipo === "criar_agente") return ligarCriarAgente(caixa, d);
   if (d.tipo === "email") return ligarEmailNaProposta(caixa, d);
+  if (d.tipo === "ficha") return ligarFichaNaProposta(caixa, d);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);

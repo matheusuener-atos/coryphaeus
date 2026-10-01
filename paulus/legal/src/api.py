@@ -3835,6 +3835,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # conversa, e a resposta escrita no lugar da caixa de pedido.
     if lido.tipo == "email":
         return _responder_email(trabalho, lido, pergunta, request)
+    # `Conversa - Cadastro`, `- Equipe`, `- Despesa fixa`: a ficha na coluna,
+    # preenchida com o que o Acervo (ou o anexo) diz. Com um agente, o cartao
+    # de sempre (a ferramenta dele).
+    if (lido.tipo == "ficha" or (lido.tipo == "cadastro" and lido.campos.get("nome"))) and agente is None:
+        return _responder_ficha(trabalho, lido, pergunta, citado or explicito)
     # `Conversa - Criar agente`: tres perguntas e o rascunho na coluna.
     if lido.tipo == "criar_agente":
         return _responder_criar_agente(trabalho, lido, pergunta)
@@ -4422,6 +4427,29 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                       + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
             onde = "gravacoes"
             campos["nome"] = g.get("titulo") or ""
+        elif payload.tipo == "ficha":
+            # A ficha salva pela coluna (`Conversa - Cadastro`, `- Equipe`,
+            # `- Despesa fixa`): quem gravou foi POST /api/cadastros; aqui ela
+            # entra na conversa. A ficha tem de existir.
+            ficha = estado.cadastros.obter(int(campos.get("id") or 0))
+            if not ficha:
+                raise HTTPException(status_code=404, detail="não achei essa ficha")
+            novo = ficha["id"]
+            feito = ficha
+            ligados = int(campos.get("ligados") or 0)
+            if ficha["tipo"] == "despesa":
+                resumo = f"Cadastrei a despesa fixa “{ficha['nome']}”" + (f", {ficha['honorario']}" if ficha.get("honorario") else "") + \
+                         (f" todo dia {ficha['dia_vencimento']}" if ficha.get("dia_vencimento") else "")
+                onde = "cadastros"
+            elif ficha["tipo"] in ("socio", "colaborador"):
+                resumo = f"Pus {ficha['nome']} na equipe como {'sócio' if ficha['tipo'] == 'socio' else 'colaborador'}"
+                if campos.get("convite"):
+                    resumo += " e gerei o convite para o PAULUS"
+                onde = "equipe"
+            else:
+                resumo = f"Cadastrei “{ficha['nome']}” como cliente" + (f", ligado a {ligados} documento{'s' if ligados != 1 else ''}" if ligados else "")
+                onde = "cadastros"
+            campos["nome"] = ficha["nome"]
         elif payload.tipo == "email":
             # A resposta enviada pela conversa (`Conversa - Escrever e-mail`):
             # quem enviou foi POST /api/email/enviar, com o sim; aqui o
@@ -4564,6 +4592,122 @@ def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
         yield _sse("token", {"t": texto})
         if proposta:
             yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _documentos_citados(nomes) -> list:
+    abertos = {d.name: d for d in estado.searcher.documents}
+    return [abertos[n] for n in (nomes or []) if n in abertos]
+
+
+def _responder_ficha(trabalho, lido, pergunta: str, citados=None) -> StreamingResponse:
+    """
+    A ficha pela conversa: o cliente (o nome procurado no Acervo, com o
+    CPF/CNPJ e o endereco que estao perto dele), a pessoa da equipe (o que a
+    frase disse) e a despesa fixa (o contrato anexo, lido por regra). A frase
+    diz o que foi achado; a ficha abre na coluna e so grava no clique.
+    """
+    import fichas_pela_conversa as fpc
+
+    campos = dict(lido.campos)
+    tipo = campos.get("tipo") or "cliente"
+    hoje = date.today()
+    ficha: dict = {"tipo": tipo, "nome": campos.get("nome", "")}
+    origem: dict = {}
+    achados = None
+    if lido.tipo == "cadastro":
+        tipo = ficha["tipo"] = "cliente"
+        ficha.update({k: campos.get(k, "") for k in ("documento", "telefone", "email", "endereco", "observacao")})
+        achados = fpc.achar_no_acervo(ficha["nome"], estado.searcher.documents, limite=40)
+        for chave in ("documento", "endereco"):
+            if not ficha.get(chave) and achados["campos"].get(chave):
+                ficha[chave] = achados["campos"][chave]
+                origem[chave] = achados["origem"].get(chave, 0)
+        if achados["total"]:
+            origem["nome"] = achados["total"]
+            lido_no_doc = achados.get("nome_mais_lido", "")
+            if lido_no_doc and fpc._plano(lido_no_doc).startswith(fpc._plano(ficha["nome"])):
+                ficha["nome"] = lido_no_doc
+        import campos_br
+
+        ficha["pessoa"] = "juridica" if (fpc.parece_pj(ficha["nome"]) or campos_br.e_cnpj(ficha.get("documento", ""))) else "fisica"
+        sugestoes = estado.cadastros.sugestoes(CLASSIFICACAO_PATH, limite=None)
+        alvo = fpc._plano(ficha["nome"])
+        sugestao = next((s for s in sugestoes if fpc._plano(s.get("nome", "")) == alvo), None)
+        ficha["sugestoes_pendentes"] = max(0, len(sugestoes) - (1 if sugestao else 0))
+        n = achados["total"]
+        ligados = min(6, sum(1 for x in achados["documentos"] if len(x["campos"]) > 1))
+        if n:
+            mostrado = fpc._nome_proprio(ficha["nome"].lower()) if ficha["nome"].isupper() else ficha["nome"]
+            texto = (f"Achei {mostrado} em "
+                     f"{n} documento{'s' if n != 1 else ''} do Acervo e preenchi a ficha ao lado com o que estava neles. "
+                     "Confira o nome e o documento; o resto, se souber. "
+                     f"Ao salvar, a ficha nasce ligada a {ligados} documento{'s' if ligados != 1 else ''}.")
+        else:
+            texto = (f"Não achei “{ficha['nome']}” nos documentos do Acervo. Preenchi a ficha ao lado com o que você disse; "
+                     "complete o que souber e salve.")
+    elif tipo in ("colaborador", "socio"):
+        ficha.update({"funcao": campos.get("funcao", ""), "email": campos.get("email", ""), "salario": campos.get("salario", ""),
+                      "inicio": campos.get("inicio", ""), "vinculo": campos.get("vinculo", ""),
+                      "convidar": bool(campos.get("convidar"))})
+        papel = "sócia" if tipo == "socio" else ("colaboradora" if (campos.get("funcao", "").endswith("a")) else "colaborador")
+        partes = [f"Preenchi a ficha ao lado como {papel}"]
+        if ficha["salario"]:
+            partes[0] += ", entrando na folha" + (f" a partir de {escritorio._br(ficha['inicio'])[:5]}" if ficha["inicio"] else "")
+        texto = partes[0] + "."
+        if ficha["convidar"]:
+            texto += (" O convite gera o link de entrada para " + (ficha["email"] or "o e-mail Google dela") +
+                      " quando você clicar em Salvar e convidar.")
+        if not ficha["nome"]:
+            texto = "Não achei o nome da pessoa nessa frase. Preenchi o que deu na ficha ao lado."
+    else:
+        ficha.update({"valor": campos.get("valor", ""), "dia": campos.get("dia", 0)})
+        contrato = {}
+        lido_de = ""
+        for d in _documentos_citados(citados):
+            contrato = fpc.ler_contrato(d.text or "")
+            if contrato:
+                lido_de = d.name
+                break
+        for chave in ("valor", "dia"):
+            if not ficha.get(chave) and contrato.get(chave):
+                ficha[chave] = contrato[chave]
+                origem[chave] = 1
+        if contrato.get("fornecedor"):
+            ficha["fornecedor"] = contrato["fornecedor"]
+            origem["fornecedor"] = 1
+        for chave in ("documento", "email"):
+            if contrato.get(chave):
+                ficha[chave] = contrato[chave]
+        nota = [contrato.get("reajuste", ""), ("contrato até " + contrato["ate"]) if contrato.get("ate") else ""]
+        ficha["observacao"] = " · ".join(x for x in nota if x)
+        if ficha["nome"]:
+            origem["nome"] = 1 if lido_de else 0
+        ficha["lido_de"] = lido_de
+        ficha["avisar_dias"] = 3
+        ficha["lancar_mensal"] = True
+        if lido_de:
+            dito = [ficha.get("valor") or "", f"todo dia {ficha['dia']}" if ficha.get("dia") else ""]
+            texto = (f"Li “{lido_de}” e preenchi a despesa ao lado: " + ", ".join(x for x in dito if x) +
+                     (f", com {contrato['reajuste'][0].lower() + contrato['reajuste'][1:]}" if contrato.get("reajuste") else "") +
+                     ". Vou lembrar 3 dias antes e lançar no Financeiro todo mês.")
+        else:
+            texto = ("Preenchi a despesa ao lado com o que você disse" +
+                     ("" if ficha.get("valor") else "; falta o valor") + ". Ela entra no Financeiro todo mês, se você deixar ligado.")
+    ficha["origem"] = origem
+    proposta = {"tipo": "ficha", "titulo": ficha["nome"], "campos": ficha, "porque": lido.porque, "pergunta": pergunta,
+                "achados": achados}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Preencher a ficha", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
     return StreamingResponse(gerar(), media_type="text/event-stream",
@@ -5768,6 +5912,14 @@ def cadastros_salvar(payload: FichaCadastro) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return estado.cadastros.obter(id_) or {}
+
+
+@app.post("/api/fichas/corrigir")
+def fichas_corrigir(payload: dict) -> dict:
+    """Com a ficha aberta na coluna: o que a frase corrige, por regra (nada e gravado)."""
+    import fichas_pela_conversa
+
+    return {"campos": fichas_pela_conversa.corrigir(str(payload.get("texto", ""))[:600])}
 
 
 @app.post("/api/cadastros/{id_}/vincular")
@@ -10753,6 +10905,8 @@ def financeiro_painel(mes: str = "") -> dict:
     e zero e a tela diz que esta vazio - grafico bonito de dado que ninguem
     digitou e a forma mais rapida de o financeiro perder a confianca de quem usa.
     """
+    # As despesas fixas com "lançar todo mês" entram no mes de hoje (uma vez).
+    estado.financeiro.lancar_fixas(estado.cadastros.listar(tipo="despesa"))
     dados = estado.financeiro.para_tela(mes)
     dados["clientes"] = [
         {"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar()

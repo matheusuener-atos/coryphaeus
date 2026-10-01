@@ -375,13 +375,17 @@ def test_pela_api() -> None:
         frase = f"cadastre o cliente {nome}, CPF {CPF_BOM}, email teste.ferramentas@exemplo.com"
         eventos = c.conversar(f"/api/trabalhos/{tid}/perguntar", {"pergunta": frase})
         propostas = [d for tipo, d in eventos if tipo == "proposta"]
-        checar(len(propostas) == 1 and propostas[0]["tipo"] == "cadastro", "a frase vira proposta de cadastro",
+        # Desde a T4 das telas (`Conversa - Cadastro`), o cliente com nome abre
+        # a ficha na coluna (proposta "ficha"); o /fazer "cadastro" da
+        # ferramenta continua valendo e e o que se confere abaixo.
+        checar(len(propostas) == 1 and propostas[0]["tipo"] == "ficha", "a frase vira a ficha de cadastro",
                [tipo for tipo, _ in eventos])
         if not propostas:
             return
         p = propostas[0]
-        checar(p["ferramenta"] == "cadastrar_cliente" and p["campos"]["documento"] == CPF_BOM, "com a ferramenta e o CPF", p)
-        checar(not chamadas and p["ajuda_do_modelo"] == [], "a regra bastou: o modelo não foi chamado", chamadas)
+        checar(p["campos"]["documento"] == CPF_BOM and p["campos"]["tipo"] == "cliente", "com o CPF", p)
+        checar(not chamadas, "a regra bastou: o modelo não foi chamado", chamadas)
+        p = {**p, "campos": {k: p["campos"].get(k, "") for k in ("nome", "documento", "telefone", "email", "endereco", "observacao")}}
         checar(not fichas(nome), "antes do sim, nenhuma ficha foi gravada")
 
         st, erro = c.pedir("POST", f"/api/trabalhos/{tid}/fazer",

@@ -1,0 +1,91 @@
+  /* --------------------------------- os cadastros pela conversa (T4) */
+  /*
+    `Conversa - Cadastro`, `- Equipe`, `- Despesa fixa` (js/86-fichas-na-
+    conversa.js): a ficha na coluna de 420 px e, na conversa, onde o nome
+    aparece, a equipe e as despesas fixas, com a linha nova marcada.
+  */
+  .fcn-cartao { display: grid; gap: 14px; min-width: 0; }
+  .fcn-tabela { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); overflow: hidden; box-shadow: var(--elev-card); }
+  .fcn-tabela-cabeca { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 18px; border-bottom: 1px solid var(--ink-a08); }
+  .fcn-tabela-cabeca b { font: 600 14px var(--sans); }
+  .fcn-tabela-cabeca small, .fcn-tabela-pe small { font-size: 12.5px; color: var(--ink3); }
+  .fcn-tabela-pe { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 18px; border-top: 1px solid var(--ink-a08); }
+  .fcn-tabela-pe .sv-ligacao { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; }
+  .fcn-tabela-pe b { font-weight: 700; color: var(--ink); }
+
+  .fcn-doc { display: grid; grid-template-columns: 22px minmax(0, 1fr) 180px 60px 22px; align-items: center; gap: 12px;
+    padding: 10px 18px; border-top: 1px solid var(--ink-a06); }
+  .fcn-tabela-cabeca + .fcn-doc { border-top: none; }
+  .fcn-doc-nome { display: grid; gap: 1px; min-width: 0; }
+  .fcn-doc-nome b { font: 600 13px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcn-doc-nome small { font-size: 12px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcn-doc-campos { font-size: 12.5px; color: var(--ink2); }
+  .fcn-doc-data { font: 500 11.5px var(--mono); color: var(--ink3); }
+
+  .fcn-linha { display: grid; align-items: center; gap: 12px; min-height: 56px; padding: 8px 18px; border-top: 1px solid var(--ink-a06); font-size: 13px; color: var(--ink2); }
+  .fcn-linha.fcn-titulos { min-height: 32px; padding-top: 6px; padding-bottom: 6px; font-size: 12px; color: var(--ink3); border-top: none; }
+  .fcn-eq { grid-template-columns: minmax(0, 1.6fr) minmax(0, .6fr) minmax(0, 1fr) minmax(0, .6fr); }
+  .fcn-desp { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, .5fr) minmax(0, .55fr) minmax(0, .45fr); }
+  .fcn-linha.nova { background: var(--fill); box-shadow: inset 2px 0 0 var(--ink); }
+  .fcn-quem { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .fcn-quem > span:not(.emc-avatar) { display: grid; gap: 1px; min-width: 0; }
+  .fcn-quem b { font: 600 13.5px var(--sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcn-quem small { font-size: 12px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .emc-avatar.fcn-avatar-p { width: 30px; height: 30px; font-size: 10.5px; }
+  .fcn-num { font: 600 12.5px var(--mono); color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+  .fcn-linha.fcn-titulos .fcn-num { font: 400 12px var(--sans); color: var(--ink3); }
+  .fcn-mono { font-family: var(--mono); font-size: 12px; }
+  .fcn-selo { display: inline-block; font: 500 11.5px var(--sans); padding: 2px 8px; border-radius: 4px; background: var(--fill); color: var(--ink2); white-space: nowrap; }
+  .fcn-selo.ok { background: var(--okbg); color: var(--okt); }
+  .fcn-selo.ambar { background: var(--warnbg); color: var(--warnt); }
+  .fcn-selo.acc, .fcn-selo.atraso { background: var(--accbg); color: var(--acc); }
+  .fcn-selo.novo { background: var(--ink); color: var(--bg); font-weight: 600; }
+
+  .fcn-fila { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; border: 1px dashed var(--ink-a15);
+    font-size: 13px; color: var(--ink2); }
+  .fcn-fila > span:not(.ic) { flex: 1; min-width: 0; }
+  .fcn-fila b { color: var(--ink); }
+  .fcn-convite { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--surf);
+    border: 1px solid var(--ink-a1); font-size: 13px; color: var(--ink2); }
+  .fcn-convite code { font: 500 12px var(--mono); color: var(--ink); background: var(--sub); padding: 4px 8px; border-radius: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------------------------------------------- a ficha, na coluna */
+  .fcn { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .fcn-topo { display: flex; align-items: center; gap: 12px; padding: 20px 20px 14px; }
+  .fcn-topo > span:not(.emc-avatar) { display: grid; gap: 1px; min-width: 0; }
+  .fcn-topo b { font: 600 14.5px var(--sans); }
+  .fcn-topo small { font-size: 12.5px; color: var(--ink3); }
+  .emc-avatar.fcn-avatar-ic { border-radius: 10px; }
+  .fcn-abas { display: flex; margin: 0 20px 6px; }
+  .fcn-abas button { flex: 1; height: 32px; }
+  .fcn-corpo { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 12px; padding: 10px 20px 20px; }
+  .fcn-campo { display: grid; gap: 6px; min-width: 0; }
+  .fcn-rotulo { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .fcn-rotulo em { font-style: normal; font-size: 12px; }
+  .fcn-lido { color: var(--okt); }
+  .fcn-confira { color: var(--warnt); }
+  .fcn-novo { font-weight: 600; padding: 0 6px; border-radius: 4px; background: var(--ink); color: var(--bg); }
+  .fcn-campo input[type=text], .fcn-campo select, .fcn-campo .escolha-botao { width: 100%; max-width: 100%; min-width: 0; height: 40px; }
+  .fcn-campo input.fcn-mono { font-family: var(--mono); font-size: 13px; }
+  .fcn-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
+  .fcn-secao { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--ink-a08); }
+  .fcn-caixa { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; border-radius: 10px; border: 1px solid var(--ink-a1); background: var(--sub); }
+  .fcn-liga { display: flex; align-items: center; gap: 12px; }
+  .fcn-liga > span { display: grid; gap: 1px; flex: 1; min-width: 0; }
+  .fcn-liga b { font: 600 13.5px var(--sans); }
+  .fcn-liga small { font-size: 12px; color: var(--ink3); }
+  .fcn-pode { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+  .fcn-pode li { display: flex; align-items: center; gap: 8px; }
+  .fcn-pode li.ok .ic { color: var(--okt); }
+  .fcn-pode li.nao { color: var(--ink3); }
+  .fcn-dica { font-size: 12px; color: var(--ink3); }
+  .fcn-pe { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--ink-a08); }
+  .fcn-resumo { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink3); }
+  .fcn-pe button { flex: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+  @media (max-width: 899px) {
+    .fcn-doc { grid-template-columns: 22px minmax(0, 1fr) 22px; }
+    .fcn-doc-campos, .fcn-doc-data { display: none; }
+    .fcn-eq, .fcn-desp { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+    .fcn-eq > :nth-child(n+3), .fcn-desp > :nth-child(n+3):not(.fcn-num) { display: none; }
+  }

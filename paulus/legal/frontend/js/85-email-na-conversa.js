@@ -230,8 +230,14 @@ function atualizarModosDoEmail() {
   // nao valem: a pergunta vai para a mensagem.
   const col = $("conversa-col");
   if (col) col.classList.toggle("emc-no-email", ativo && emc.modo === "email");
-  if (pedido.dataset.emcAntes === undefined) pedido.dataset.emcAntes = pedido.placeholder;
-  pedido.placeholder = ativo && emc.modo === "email" ? "Pergunte sobre o e-mail, ou peça uma resposta…" : pedido.dataset.emcAntes;
+  // So desfaz o texto que ele mesmo pos: os outros (a ficha, a agenda) ficam.
+  const doEmail = "Pergunte sobre o e-mail, ou peça uma resposta…";
+  if (ativo && emc.modo === "email") {
+    if (pedido.placeholder !== doEmail) pedido.dataset.emcAntes = pedido.placeholder;
+    pedido.placeholder = doEmail;
+  } else if (pedido.placeholder === doEmail) {
+    pedido.placeholder = pedido.dataset.emcAntes || "Pergunte outra coisa ou aponte outra pasta…";
+  }
   if (!ativo) return;
   barra.querySelectorAll("[data-emc-modo]").forEach((x) => x.classList.toggle("ativa", x.dataset.emcModo === emc.modo));
   barra.querySelectorAll("[data-emc-atalho]").forEach((x) => { x.hidden = emc.modo !== "email"; });

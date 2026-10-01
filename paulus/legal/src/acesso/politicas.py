@@ -185,6 +185,8 @@ _declarar(PERMITIDO,
           # o e-mail aberto e o rascunho na conversa (src/email_pela_conversa.py)
           "GET /api/email/conversa/rascunho", "POST /api/email/conversa/rascunho", "PUT /api/email/conversa/rascunho",
           "POST /api/email/conversa/perguntar",
+          # a ficha aberta na coluna: a frase que corrige um campo (so le)
+          "POST /api/fichas/corrigir",
           # Google: enviar ao Drive ja e pedido na fila
           "POST /api/google/drive/enviar",
           # a busca geral (Ctrl+K): filtra pelos modulos que a pessoa ve

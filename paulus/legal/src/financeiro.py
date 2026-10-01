@@ -36,11 +36,17 @@ CATEGORIAS = {
     "aluguel": "Aluguel",
     "sistemas": "Assinaturas e sistemas",
     "custas": "Custas e cartório",
+    "pericias": "Perícias",
+    "diligencias": "Diligências",
     "outros": "Outros",
 }
 
+# Como o dinheiro entrou ou saiu (034). Vazio: nao foi dito.
+FORMAS = {"": "—", "boleto": "Boleto", "pix": "Pix", "transferencia": "Transferência", "cartao": "Cartão",
+          "dinheiro": "Dinheiro", "debito": "Débito automático"}
+
 CAMPOS = ("tipo", "descricao", "centavos", "categoria", "cadastro_id",
-          "vencimento", "liquidado_em", "observacao")
+          "vencimento", "liquidado_em", "observacao", "forma")
 
 
 # ----------------------------------------------------------- dinheiro
@@ -124,6 +130,7 @@ class Financeiro:
             "vencimento": str(dados.get("vencimento", ""))[:10],
             "liquidado_em": str(dados.get("liquidado_em", ""))[:10],
             "observacao": str(dados.get("observacao", "")),
+            "forma": dados.get("forma") if dados.get("forma") in FORMAS else "",
         }
 
         if id_:
@@ -156,6 +163,39 @@ class Financeiro:
 
     def apagar(self, id_: int) -> bool:
         return self.base.escrever("DELETE FROM lancamentos WHERE id = ?", (id_,)) > 0
+
+    def lancar_fixas(self, fichas: list[dict], mes: str = "") -> list[int]:
+        """
+        As despesas fixas com "lançar no Financeiro todo mês" (034) entram
+        como conta a pagar do mes, uma vez: a ficha que ja tem lancamento no
+        mes nao ganha outro. Vence no dia da ficha (o ultimo dia do mes, se
+        ele for menor); sem dia, no dia 1o. Devolve os ids criados.
+        """
+        import calendar
+
+        mes = mes or date.today().isoformat()[:7]
+        ano, m = int(mes[:4]), int(mes[5:7])
+        ultimo = calendar.monthrange(ano, m)[1]
+        criados = []
+        for f in fichas or []:
+            if f.get("tipo") != "despesa" or not f.get("lancar_mensal"):
+                continue
+            centavos = para_centavos(f.get("honorario") or 0)
+            if not centavos:
+                continue
+            ja = self.base.buscar(
+                "SELECT id FROM lancamentos WHERE cadastro_id = ? AND tipo = 'despesa' AND substr(vencimento,1,7) = ?",
+                (f["id"], mes))
+            if ja:
+                continue
+            dia = min(int(f.get("dia_vencimento") or 1) or 1, ultimo)
+            categoria = "aluguel" if "aluguel" in (f.get("nome") or "").lower() else "outros"
+            criados.append(self.salvar({
+                "tipo": "despesa", "descricao": f["nome"], "centavos": centavos, "categoria": categoria,
+                "cadastro_id": f["id"], "vencimento": f"{mes}-{dia:02d}",
+                "observacao": "lançada sozinha: despesa fixa (Cadastros)",
+            }))
+        return criados
 
     # -------------------------------------------------------------- ler
 

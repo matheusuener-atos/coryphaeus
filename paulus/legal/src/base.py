@@ -833,6 +833,18 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_conflitos_estado ON conflitos(estado);
         """,
     ),
+    (
+        "034_fichas_pela_conversa",
+        """
+        -- Os cadastros e o financeiro pela conversa (src/fichas_pela_conversa.py):
+        -- quem recebe a despesa fixa, se ela entra no Financeiro todo mes, desde
+        -- quando a pessoa entra na folha, e a forma do lancamento.
+        ALTER TABLE cadastros ADD COLUMN fornecedor TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN lancar_mensal INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE cadastros ADD COLUMN inicio TEXT DEFAULT '';
+        ALTER TABLE lancamentos ADD COLUMN forma TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 

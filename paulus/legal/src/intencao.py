@@ -472,7 +472,7 @@ RE_ROTULO = re.compile(
     r"whatsapp|whats|zap|e-?mail)\b\s*(?:n[ºo°.]\s*|n[uú]mero\s*|:\s*|é\s*|e\s+)?$")
 RE_CORTA_NOME = re.compile(
     r"(?i)[,;|:\n\d]|\s[-–—]\s|\b(?:com\s+(?:o\s+|a\s+)?)?(?:cpf|cnpj|documento|telefone|tel|fone|celular|"
-    r"whatsapp|whats|e-?mail|endere[cç]o|mora|morador|residente|que|para|pra|no|na|nos|nas)\b")
+    r"whatsapp|whats|e-?mail|endere[cç]o|mora|morador|residente|que|para|pra|no|na|nos|nas|como)\b")
 RE_ENDERECO = re.compile(
     r"(?i)\b(?:endere[cç]o|residente(?:\s+e\s+domiciliad[oa])?(?:\s+(?:na|no|em))?|mora(?:dor[a]?)?\s+(?:na|no|em))"
     r"\s*:?\s*(.+?)\s*(?=[;|]|(?:[,.]\s*|\s+e\s+|\s+com\s+)(?:cpf|cnpj|tel|telefone|fone|celular|whats\w*|e-?mail)\b|$)")
@@ -1151,6 +1151,20 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     servico = ler_servico(texto, plano, cadastros)
     if servico:
         return servico
+
+    # A equipe e a despesa fixa (`Conversa - Equipe`, `Conversa - Despesa
+    # fixa`, src/fichas_pela_conversa.py) antes do cliente: "cadastra o
+    # aluguel como despesa fixa" nao e uma ficha de cliente chamada Aluguel.
+    import fichas_pela_conversa
+
+    pessoa = fichas_pela_conversa.ler_equipe(texto, hoje)
+    if pessoa:
+        return Intencao(tipo="ficha", titulo=pessoa["nome"], campos=pessoa,
+                        porque="uma pessoa e “" + ("sócia" if pessoa["tipo"] == "socio" else "equipe") + "”",
+                        falta="" if pessoa["nome"] else "não achei o nome da pessoa nessa frase")
+    despesa = fichas_pela_conversa.ler_despesa_fixa(texto)
+    if despesa:
+        return Intencao(tipo="ficha", titulo=despesa["nome"], campos=despesa, porque="“despesa fixa”")
 
     cadastro = ler_cadastro(texto, plano)
     if cadastro:
