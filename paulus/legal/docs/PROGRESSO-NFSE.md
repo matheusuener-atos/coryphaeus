@@ -7,15 +7,18 @@ conversa nova, com o mesmo prompt, continua da primeira etapa que não estiver
 | Etapa | O quê | Estado | Commit | Portão (medido) |
 | --- | --- | --- | --- | --- |
 | N0 | Levantamento e fonte oficial (⏸ o que o dono precisa ter) | feita; pausa registrada abaixo, sem parar (pedido do dono) | ver git log (n0) | tabela abaixo; XSD oficiais baixados |
-| N1 | Prestador, tabelas oficiais, município | pendente | — | — |
-| N2 | Montar e conferir a DPS (XSD, tributos em centavos, numeração) | pendente | — | — |
-| N3 | Assinar, enviar, não emitir duas vezes (⏸ 3 notas em produção restrita) | pendente | — | — |
-| N4 | O fluxo no PAULUS | pendente | — | — |
-| N5 | Consultar, cancelar, substituir, DANFSe | pendente | — | — |
-| N6 | Contador e conferência fiscal | pendente | — | — |
-| N7 | Recorrência e avisos | pendente | — | — |
-| N8 | Produção (⏸ teste real) | pendente | — | — |
-| N9 | Manual, política, textos | pendente | — | — |
+| N1 | Prestador, tabelas oficiais, município | feita | 5224931 | `test_n1_base` 80 conferências |
+| N2 | Montar e conferir a DPS (XSD, tributos em centavos, numeração) | feita | fb8cd82 | `test_n2_dps` 173: as 20 DPS da planilha feita à mão batem e validam no XSD oficial |
+| N3 | Assinar, enviar, não emitir duas vezes (⏸ 3 notas em produção restrita) | feita contra a Sefin simulada; **a pausa é do dono** (abaixo) | 8525699 | `test_n3_envio` 47; a assinatura vale no .NET (`SignedXml`) |
+| N4 | O fluxo no PAULUS | feita | 07b4b3c | `test_n4_fluxo` 33; roteiro 40/41 |
+| N5 | Consultar, cancelar, substituir, DANFSe | feita | 90d7ac5 | `test_n5_eventos` 44 |
+| N6 | Contador e conferência fiscal | feita | 3f0b4bd | `test_n6_contador` 25 |
+| N7 | Recorrência e avisos | feita | 0c55498 | `test_n7_recorrencia` 29 |
+| N8 | Produção (⏸ teste real) | feita; **o teste real é do dono** (roteiro abaixo) | 36dde45 | `test_n8_producao` 24 |
+| N9 | Manual, política, textos | feita; site **não publicado** | b41eb4d | `test_n9_textos` 64, com a tela no Edge nos três estados |
+
+Tudo na branch `nfse` (worktree `C:\coryphaeus-nfse`); suíte e roteiro do
+fim registrados em "Portão final", abaixo.
 
 ## Como este trabalho está sendo feito (01/10/2026)
 
@@ -166,6 +169,118 @@ Onde divergem, vale a documentação.
 - `src/segredos.py` — DPAPI do Windows (`proteger`/`revelar`).
 - Dependências: `lxml` 6.1.3 e `cryptography` 50 **já estão no venv** (o `lxml` veio como dependência de outro pacote; passa a ser declarado no `requirements.txt` na N2).
 
+## N1 a N9 — o que ficou feito
+
+- **N1 — base fiscal** (`src/nfse/`): prestador com histórico de versões
+  (nota antiga guarda a versão com que foi feita), tabelas oficiais com
+  versão e link (`tools/nfse_tabelas.py` gera os JSON das planilhas
+  oficiais), município consultado no próprio Sistema Nacional
+  (`/parametros_municipais/{cMun}/convenio`), certificado A1 da nota num
+  cofre separado do de assinar PDF, cadastro com os campos da nota.
+  Configuração só local e só titular.
+- **N2 — DPS**: a conta em centavos (`dinheiro.py`, `tributos.py`; nenhum
+  `float`), as regras de alíquota e retenção da Sefin (E0588, E0595…E0640,
+  E0676), PIS+COFINS+CSLL retidos somados como manda a NT 007, IBS/CBS de
+  2026 declarados (a Sefin calcula). XML validado no XSD oficial; numeração
+  reservada em transação, sem repetir e sem buraco.
+- **N3 — assinar e enviar**: XMLDSig envelopada, C14N 1.0, sha1 (sha256
+  opcional), conferida nos dois sentidos com o `SignedXml` do .NET. mTLS com
+  a chave num arquivo temporário cifrado com senha aleatória, apagado na
+  hora. Estado gravado antes de cada passo; **toda retomada consulta antes
+  de reenviar**; E0014 vira consulta; servidor fora fica na fila com espera
+  crescente. **Produção trancada** no cliente HTTP até a N8. Os nomes do
+  JSON (não públicos) são conferidos no Swagger no primeiro envio real; se
+  divergirem, o envio trava.
+- **N4 — fluxo**: quatro portas (Financeiro, Serviço, conversa,
+  recorrência) chegam ao mesmo cartão; a nota entra em Aprovações como
+  pedido próprio, e só quem tem o nível "nfse" aprova (de fora, com o código
+  do autenticador). Emitida: XML e DANFSe no Acervo, registro em notas
+  fiscais, e-mail ao cliente **proposto** em Aprovações, aviso, auditoria.
+  Agente nunca aprova nem emite.
+- **N5 — eventos e DANFSe**: cancelar (com o prazo do município quando ele
+  vem na consulta), substituir (nota nova ligada à antiga), atualizar
+  situação (pega o cancelamento por ofício), evento sem resposta consulta
+  antes de pedir de novo; DANFSe gerado aqui a partir do XML (a API do
+  DANFSe está suspensa desde 03/08/2026, NT 008), com o QR da consulta
+  pública.
+- **N6 — contador**: relatório do mês somado dos XMLs, conferências por
+  regra (recebimento sem nota, nota sem recebimento, valor divergente,
+  retenção não aplicada, competência de outro mês), .zip com XMLs, planilha
+  e LEIA-ME; o e-mail ao contador é proposto em Aprovações. Nota emitida não
+  se apaga.
+- **N7 — recorrência e avisos**: "Nota todo mês" cria o rascunho no dia e o
+  põe em Aprovações (nunca emite); avisos no carrossel, uma vez cada, com id
+  estável (certificado vencendo, município que mudou, nota parada, esquema
+  novo na documentação).
+- **N8 — produção**: checklist (revisão do contador, 5 notas de teste
+  conferidas, certificado válido, convênio confirmado, backup) trava a
+  liberação; só titular, só local; a primeira nota de produção pede "Esta
+  nota vale de verdade. Conferiu os dados?"; há "Voltar para produção
+  restrita".
+- **N9 — textos**: `docs/nfse.md` (manual); política de privacidade e termos
+  (PT e EN) com a seção da nota fiscal, **no repositório, sem publicar**; o
+  mapa do programa, a resposta do cartão da conversa, o Financeiro e as
+  Configurações dizem que emitem só quando a emissão está ligada **e** o
+  município emite pelo Sistema Nacional — conferido no Edge nos três
+  estados.
+
+## Portão final (01/10/2026, commit b41eb4d, na cópia de teste)
+
+- Testes da NFS-e: `test_n1_base` … `test_n9_textos`, todos passando
+  (80 + 173 + 47 + 33 + 44 + 25 + 29 + 24 + 64 conferências).
+- Suíte inteira: 151 passam; 10 falham — 9 são as mesmas de `abfd803`, antes
+  deste trabalho (faltam os dados reais na cópia: assinatura ×3, escrita,
+  ferramentas "há documento no Acervo", inteligência da extensão, redação,
+  saudação, `test_tela` com as mesmas 4), e `test_e2_permissoes`, que passa
+  sozinho 3/3 (a corrida do autenticador, em "Fora do foco").
+- Roteiro `--tudo`: 40/41 (programa 11/11, pergunta 1/1, documentos 28/29),
+  igual à linha de base.
+
+## ⏸ Pausa N3 — o que fica para o dono
+
+Nada foi mandado a servidor nenhum do governo: os testes usam uma Sefin
+simulada (`tests/_sefin_simulada.py`). Com o certificado A1 do escritório:
+
+1. Configurações › Nota fiscal: preencher o prestador, instalar o
+   certificado, **Consultar agora** o município e ligar a emissão (fica em
+   produção restrita).
+2. Emitir **3 notas em produção restrita**: uma simples, uma com retenção e
+   uma para tomador pessoa física.
+3. No primeiro envio o PAULUS confere os nomes do JSON no Swagger oficial;
+   se travar com "contrato", me mandar a mensagem — é o único ponto que a
+   documentação pública não fecha.
+4. Conferir os XMLs de ida e volta (Acervo › Notas fiscais) e o DANFSe, e
+   me dizer o que achar.
+
+## ⏸ Pausa N8 — roteiro do teste real (do dono)
+
+1. revisar a configuração fiscal com o contador (e registrar a revisão);
+2. emitir 5 notas em produção restrita, uma de cada tipo do portão da N2;
+3. cancelar uma e substituir outra em produção restrita;
+4. exportar o mês para o contador e pedir que ele confira;
+5. liberar a produção e emitir **uma** nota real de baixo valor para um
+   cliente de confiança;
+6. conferir a nota no portal oficial e no e-mail do cliente;
+7. cancelar ou manter, conforme o caso.
+
+Cada correção que vier daí entra com teste.
+
 ## Fora do foco
 
-- (nada ainda)
+- **DANFSe:** a fonte é a Helvetica do PDF (métrica da Arial) e a logomarca
+  oficial não vem embutida; dito no manual.
+- **NT 009** (v1.0.1) não foi implantada pelo governo em agosto/2026; o
+  PAULUS não a usa.
+- **Série da DPS:** o padrão é 1 (o app próprio vai de 1 a 49999); dá para
+  mudar pela configuração gravada, mas não há campo na tela.
+- **Suíte na worktree:** os testes que dependem dos dados reais (Acervo,
+  assinatura, redação, `test_tela` em 4 conferências) falham na cópia de
+  teste igual falhavam em `abfd803`, antes deste trabalho; `test_e1_quem_criou`
+  e `test_e2_permissoes` às vezes falham na suíte inteira e passam sozinhos.
+  A causa: calculam o passo do autenticador antes de criar a conta (scrypt,
+  lento com a máquina cheia); se os 30 s viram no meio, a confirmação recusa
+  e o login devolve 401. É de antes deste trabalho e fica para outra frente;
+  o helper da NFS-e (`tests/_nfse_comum.py`), que tinha copiado o padrão, foi
+  corrigido.
+- O merge na `main` espera o trabalho do Word, que estava sem commit na
+  `main`.

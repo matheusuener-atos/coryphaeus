@@ -2501,3 +2501,57 @@ Emissor Nacional em 01/11/2026 (Resolução CGSN 191) e DANFSe gerado pelo
 software (API suspensa em 03/08/2026). A tabela "o prompt supõe × a
 documentação diz" tem 24 linhas; a pausa (o que o dono precisa ter e as
 perguntas do contador) ficou registrada, sem parar o trabalho.
+
+## N1 — NFS-e: base fiscal ✓ FEITA (01/10/2026)
+
+Prestador com histórico de versões, tabelas oficiais com versão e link,
+município consultado no próprio Sistema Nacional, certificado A1 da nota num
+cofre separado e os campos da nota no cadastro. `test_n1_base` (80).
+
+## N2 — NFS-e: montar e conferir a DPS ✓ FEITA (01/10/2026)
+
+Conta em centavos com as regras de alíquota e retenção da Sefin, IBS/CBS de
+2026 declarados, XML validado no XSD oficial e numeração sem buraco. As 20
+DPS da planilha feita à mão batem. `test_n2_dps` (173).
+
+## N3 — NFS-e: assinar, enviar e não emitir duas vezes ✓ FEITA (01/10/2026)
+
+XMLDSig conferida no .NET, mTLS, estado gravado antes de cada passo,
+consulta antes de qualquer reenvio, fila com espera crescente, produção
+trancada. Contra Sefin simulada; a pausa (3 notas em produção restrita com o
+certificado do dono) ficou registrada em `docs/PROGRESSO-NFSE.md`.
+`test_n3_envio` (47).
+
+## N4 — NFS-e: o fluxo no PAULUS ✓ FEITA (01/10/2026)
+
+Quatro portas para o mesmo cartão, Aprovações com pedido próprio e nível de
+quem aprova, e o depois (Acervo, registro, e-mail proposto, aviso,
+auditoria). Agente nunca aprova nem emite. `test_n4_fluxo` (33); roteiro
+40/41.
+
+## N5 — NFS-e: consultar, cancelar, substituir, DANFSe ✓ FEITA (01/10/2026)
+
+Eventos com consulta antes de repetir, substituição ligada à nota antiga,
+situação atualizada e DANFSe gerado do XML. `test_n5_eventos` (44).
+
+## N6 — NFS-e: contador e conferência fiscal ✓ FEITA (01/10/2026)
+
+Relatório do mês somado dos XMLs, conferências por regra, .zip ao contador
+proposto em Aprovações, nota emitida não se apaga. `test_n6_contador` (25).
+
+## N7 — NFS-e: recorrência e avisos ✓ FEITA (01/10/2026)
+
+"Nota todo mês" cria o rascunho e o põe em Aprovações; avisos uma vez cada.
+`test_n7_recorrencia` (29).
+
+## N8 — NFS-e: produção ✓ FEITA (01/10/2026)
+
+Checklist que trava a liberação, só titular e só local, confirmação a mais
+na primeira nota real e volta para produção restrita. O teste real é do dono
+(roteiro em `docs/PROGRESSO-NFSE.md`). `test_n8_producao` (24).
+
+## N9 — NFS-e: manual, política e textos ✓ FEITA (01/10/2026)
+
+`docs/nfse.md`; política e termos (PT/EN) com a nota fiscal, sem publicar;
+os textos só dizem que emitem quando a emissão está ligada e o município
+emite pelo Sistema Nacional, conferido no Edge. `test_n9_textos` (64).

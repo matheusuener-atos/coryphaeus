@@ -59,11 +59,12 @@ def sessoes_de_fora(api):
     api.estado.prefs.dados["acesso_remoto"]["ligado"] = True
     api.estado.prefs.dados["acesso_remoto"]["so_google"] = False
     contas = servico.contas
-    passo = int(time.time() // 30) - 1
+    # O passo do código sai na hora de confirmar: calculado antes do criar
+    # (scrypt, lento com a máquina cheia), a virada dos 30 s o deixava velho.
     t = contas.criar("Tereza Titular", "tereza@escritorio.com", "titular", "senha-da-tereza-1")
-    contas.confirmar_totp(t["conta"]["id"], codigo_totp(t["segredo"], passo))
+    contas.confirmar_totp(t["conta"]["id"], codigo_totp(t["segredo"], int(time.time() // 30) - 1))
     c = contas.criar("Caio Colaborador", "caio@escritorio.com", "colaborador", "senha-do-caio-1")
-    contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], passo))
+    contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], int(time.time() // 30) - 1))
     titular = Fora(api, "tereza@escritorio.com", "senha-da-tereza-1", t["segredo"])
     colab = Fora(api, "caio@escritorio.com", "senha-do-caio-1", c["segredo"])
     titular.conta_id, colab.conta_id = t["conta"]["id"], c["conta"]["id"]
