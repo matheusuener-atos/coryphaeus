@@ -246,7 +246,7 @@ textarea.campo { height: 72px; padding: 8px 10px; resize: vertical; }
 
 <div class="mq-palco">
   <section class="mq-secao" id="sec-word">
-    <h2>A aba PAULUS na faixa de opções e o painel</h2>
+    <h2>A aba PAVLVS na faixa de opções e o painel</h2>
     <div id="faixa"></div>
     <div class="janela" id="janela">
       <div class="doc"><div class="folha" id="folha"></div></div>
@@ -542,12 +542,12 @@ function faixa(tema) {
   var cls = { claro: "faixa-clara", colorido: "faixa-colorida", escuro: "faixa-escura" }[tema];
   function g(ico, t) { return '<div class="fx-grande" title="">' + I[ico] + '<span>' + t + '</span></div>'; }
   function p(ico, t) { return '<div class="fx-peq">' + I[ico] + '<span>' + t + '</span></div>'; }
-  return '<div class="faixa ' + cls + '"><div class="faixa-abas"><span>Arquivo</span><span>Página Inicial</span><span>Inserir</span><span>Layout</span><span>Referências</span><span>Revisão</span><span>Exibir</span><span class="ativa">PAULUS</span></div>' +
+  return '<div class="faixa ' + cls + '"><div class="faixa-abas"><span>Arquivo</span><span>Página Inicial</span><span>Inserir</span><span>Layout</span><span>Referências</span><span>Revisão</span><span>Exibir</span><span class="ativa">PAVLVS</span></div>' +
     '<div class="faixa-grupos">' +
     '<div class="faixa-grupo"><div class="itens">' + g("conferir", "Conferir citações") + '</div><div class="nome">Conferir</div></div>' +
     '<div class="faixa-grupo"><div class="itens">' + g("lei", "Inserir lei") + '<div class="fx-pilha">' + p("fundamentacao", "Fundamentação") + p("qualificacao", "Qualificação") + '</div></div><div class="nome">Inserir</div></div>' +
     '<div class="faixa-grupo"><div class="itens">' + g("perguntar", "Perguntar") + g("revisar", "Revisar com agente") + '</div><div class="nome">Pensar</div></div>' +
-    '<div class="faixa-grupo"><div class="itens">' + g("guardar", "Guardar no PAULUS") + g("painel", "Painel") + '</div><div class="nome">PAULUS</div></div>' +
+    '<div class="faixa-grupo"><div class="itens">' + g("guardar", "Guardar no PAULUS") + g("painel", "Painel") + '</div><div class="nome">PAVLVS</div></div>' +
     '</div></div>' +
     '<div class="dica"><b>Conferir citações</b>Confere as leis, súmulas e processos citados no documento e abre o painel com o resultado.</div>';
 }
@@ -571,7 +571,7 @@ try { var q = new URLSearchParams(location.search);
 
 function painelTarefas(estado, larg, tema) {
   return '<div class="painel-tarefas tema-' + tema + (larg >= 420 ? " largo" : "") + '" style="width:' + larg + 'px" data-estado="' + estado + '">' +
-    '<div class="pt-titulo"><span>PAULUS</span><span aria-hidden="true">⌄ ✕</span></div>' +
+    '<div class="pt-titulo"><span>PAVLVS</span><span aria-hidden="true">⌄ ✕</span></div>' +
     '<div class="painel" role="region" aria-label="Painel do PAULUS">' + E[estado].html() + '</div></div>';
 }
 

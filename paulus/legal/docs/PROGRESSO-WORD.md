@@ -5,7 +5,7 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
 
 | Etapa | O quê | Estado | Commit | Portão (medido) |
 | --- | --- | --- | --- | --- |
-| W0 | Levantamento, prova de conceito das montagens e maquete do painel (⏸ escolha e visual) | ⏸ esperando o ok do dono (montagem e visual) | ver git log (w0) | A, B e C medidas no Word 2021 desta máquina; maquete com 19 telas × 3 temas × 2 larguras, 0 erro de página |
+| W0 | Levantamento, prova de conceito das montagens e maquete do painel (⏸ escolha e visual) | feita; aprovada pelo dono em 01/10 | ver git log (w0) | A, B e C medidas no Word 2021 desta máquina; maquete com 19 telas × 3 temas × 2 larguras, 0 erro de página |
 | W1 | Painel fiel à maquete, aba PAULUS, menu do botão direito, pareamento, política de rota e auditoria | pendente | — | — |
 | W2 | Conferir as citações do documento (sem modelo) | pendente | — | — |
 | W3 | Inserir lei, fundamentação e qualificação | pendente | — | — |
@@ -30,6 +30,19 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
     durante o trabalho;
   - entra a W7 nova (polimento e medida); o antigo teste real vira a W8, com
     o passo 10 (tema escuro e 150%).
+
+## Decisões do dono na pausa da W0 (01/10/2026)
+
+- **Montagem A + C** aprovada (A no computador do escritório, C fora dele).
+- **Visual da maquete aprovado**, com um ajuste: o nome que o Word mostra como
+  título — a aba da faixa, o grupo da faixa e o título do painel (o
+  `DisplayName` do manifesto) — é **PAVLVS**. Nas frases fica PAULUS
+  ("Guardar no PAULUS", "Conectar ao PAULUS").
+- **Instalação:** registro de desenvolvedor do usuário como padrão (um clique,
+  sem administrador), com o catálogo em pasta compartilhada como segunda via
+  na mesma tela; a tela só diz "instalado" depois de conferir que o Word
+  carregou o suplemento.
+- O certificado de prova fica instalado; a W1 o troca pelo da instalação.
 
 ## W0 — o que foi medido (01/10/2026)
 
