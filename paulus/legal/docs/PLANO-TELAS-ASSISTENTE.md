@@ -34,7 +34,7 @@ estiver `feita`.
 | T0 | Casca da conversa: cabeçalho, coluna do chat (1080), caixa de pedido em duas linhas, coluna lateral de altura inteira que troca de papel (380/420/460/ferramenta), contexto (Progresso, Trechos lidos, Como respondi, Onde procurei), rolagem fina | feita | ver git log (T0) |
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (resumo em três cartões e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
-| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha, editor de planilha e assinar feitos) | ver git log (T3) |
+| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha, editor de planilha, assinar e agendar feitos) | ver git log (T3) |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
@@ -214,6 +214,20 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
   resultado entra na conversa (`/fazer` "assinatura", que confere que o
   assinado existe). O Assinar do visor e do editor abre o mesmo fluxo; só
   Word: a conversa diz que só assina PDF e oferece abrir o documento.
+- Agendar (`js/83-agendar-na-conversa.js`): o pedido de compromisso (ou de
+  tarefa) abre a SEMANA na conversa — os compromissos, tarefas e datas de
+  documento de /api/agenda, com o horário proposto tracejado, Mês/Semana,
+  setas e Hoje — e o formulário da Agenda na coluna (420): Compromisso/
+  Tarefa, data, hora, "Cabe nestes horários" (agora logo abaixo da hora,
+  também na tela Agenda), duração, aviso, com quem, onde, Meet, anotação e
+  convite. Clicar numa hora vazia muda o horário; mudar no formulário move o
+  tracejado. A conversa diz o dia e os horários livres de verdade
+  ("Às 15:00 você está livre" ou "cabe às 09:00, 09:30, 10:00") e liga a
+  ficha de quem vai quando o nome está em Cadastros. "Marcar" passa pelo
+  `/fazer` de sempre; a sala do Meet nasce depois pelo /api/agenda e o
+  convite abre o e-mail para revisar (sai só por Aprovações).
+  **Fica de fora:** dois compromissos no mesmo horário aparecem sobrepostos
+  na semana, um em cima do outro.
 - Testes: `test_frontend`, `test_ferramentas`, `test_m5_leitura`,
   `test_escrita`, `test_planilha_excel`, `test_c2_pensando`,
   `test_c3_painel`, `test_intencao` e `test_c5_superficies` (sozinho) ok.

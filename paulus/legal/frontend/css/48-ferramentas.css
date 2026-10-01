@@ -256,3 +256,76 @@
 .fl .fl-mini .as-mini-selo { right: 10px; bottom: 26px; }
 .fl-mesa.com-miniaturas .fl-folhas { padding-left: 28px; }
 .proposta.asc-escolhas { box-shadow: var(--elev-card); }
+
+/* Agendar pela conversa (`Conversa - Agendar`): a semana no chat, com o
+   horario proposto tracejado, e o formulario da Agenda na coluna de 420. */
+.agc-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; }
+.agc-topo { display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--ink-a08); }
+.agc-topo > b { font: 600 14px var(--sans); color: var(--ink); }
+.agc-topo > small { font: 400 12.5px var(--sans); color: var(--ink3); }
+.agc-topo > .ic { color: var(--ink2); }
+.agc-vistas button { height: 28px; padding: 0 12px; font-size: 13px; }
+.agc-periodo { min-width: 150px; text-align: center; font: 600 13.5px var(--sans); color: var(--ink); }
+.agc-dias {
+  display: grid; grid-template-columns: 56px repeat(7, minmax(0, 1fr)); align-items: center; height: 44px;
+  border-bottom: 1px solid var(--ink-a08);
+}
+.agc-dia { display: flex; align-items: center; gap: 8px; padding-left: 10px; font: 400 12.5px var(--sans); color: var(--ink3); }
+.agc-dia b { font: 600 13.5px var(--sans); color: var(--ink); }
+.agc-dia.alvo b {
+  min-width: 26px; height: 22px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--primario); color: var(--primario-ink);
+}
+.agc-dia.hoje small { color: var(--ink); font-weight: 600; }
+.agc-rolagem { height: 470px; overflow-y: auto; }
+.agc-grade { position: relative; display: grid; grid-template-columns: 56px repeat(7, minmax(0, 1fr)); }
+.agc-horas { display: grid; grid-auto-rows: 56px; }
+.agc-hora { position: relative; border-top: 1px solid var(--ink-a06); }
+.agc-hora span { position: absolute; top: 4px; left: 10px; font: 500 10.5px var(--mono); color: var(--ink3); }
+.agc-col {
+  position: relative; border-left: 1px solid var(--ink-a06); cursor: copy;
+  background-image: linear-gradient(var(--ink-a06) 1px, transparent 1px); background-size: 100% 56px;
+}
+.agc-col.alvo { background-color: var(--fill); }
+.agc-bloco {
+  position: absolute; left: 4px; right: 4px; padding: 6px 8px; overflow: hidden; border-radius: 6px; cursor: default;
+  background: var(--fill2); border: 1px solid var(--ink-a1); display: grid; align-content: start; gap: 2px;
+}
+.agc-bloco b { font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agc-bloco small { font: 500 10.5px var(--mono); color: var(--ink2); }
+.agc-bloco.ag-prazo { background: var(--warnbg); border-color: var(--ambar); }
+.agc-bloco.ag-prazo b, .agc-bloco.ag-prazo small { color: var(--warnt); }
+.agc-bloco.ag-documento { background: var(--fill); border-style: dotted; }
+.agc-bloco.agc-proposta { background: var(--bg); border: 1.5px dashed var(--ink2); z-index: 1; }
+.agc-pe { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-top: 1px solid var(--ink-a08); }
+.agc-pe .ag-legenda { margin: 0; padding: 0; border: none; }
+.agc-pe small { font: 400 12px var(--sans); color: var(--ink3); }
+.agc-legenda-proposta { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--sans); color: var(--ink2); }
+.agc-legenda-proposta i { width: 12px; height: 9px; border: 1.5px dashed var(--ink2); border-radius: 2px; }
+.agc-mes { padding: 10px 14px 14px; }
+.agc-mes-cabeca, .agc-mes-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.agc-mes-cabeca span { padding: 4px 6px; font: 500 11.5px var(--sans); color: var(--ink3); }
+.agc-mes-dia {
+  height: 66px; padding: 6px 8px; display: grid; align-content: space-between; justify-items: start; text-align: left;
+  border: 1px solid var(--ink-a08); border-radius: 8px; background: var(--surf);
+}
+.agc-mes-dia b { font: 600 13px var(--sans); color: var(--ink); }
+.agc-mes-dia small { font: 400 11px var(--sans); color: var(--ink3); }
+.agc-mes-dia.fora b { color: var(--mute2); }
+.agc-mes-dia.alvo { border: 1.5px dashed var(--ink2); }
+.agc-mes-dia.hoje b { text-decoration: underline; }
+
+.agc-form { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.agc-form-topo { flex: none; display: flex; align-items: center; gap: 10px; padding: 20px 22px 6px; }
+.agc-form-topo small { font: 400 12.5px var(--sans); color: var(--ink3); }
+.agc-tipo button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; font-size: 13px; }
+.agc-form-corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 22px 20px; display: grid; align-content: start; gap: 16px; }
+.agc-form-pe {
+  flex: none; display: flex; align-items: center; gap: 8px; padding: 14px 18px 16px 22px; border-top: 1px solid var(--ink-a08);
+}
+.agc-form-pe > span:first-child { font: 400 12.5px var(--sans); color: var(--ink3); }
+.agc-form-pe .primario { display: inline-flex; align-items: center; gap: 6px; }
+.agc-form-pe .dialogo-aviso { font: 500 12px var(--sans); color: var(--acc); }
+.agc-form-pe > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.agc-form-pe > .vazio-flex { display: none; }
+.agc-form-pe button { white-space: nowrap; }

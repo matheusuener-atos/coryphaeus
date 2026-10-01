@@ -1894,7 +1894,8 @@ async function lerResposta(r, v) {
         // para a conversa terminar de se gravar antes de sair dela.
         if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
-            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar") assinaSemModelo = true;
+            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar" ||
+            ((dados.tipo === "agenda" || dados.tipo === "tarefa") && !(dados.ajuda_do_modelo || []).length)) assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "relacionados") {
         // N7: chega depois do fim - os temas e as súmulas ligados aos artigos citados.

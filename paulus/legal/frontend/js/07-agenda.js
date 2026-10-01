@@ -1057,6 +1057,7 @@ function partesDoFormAgenda(v) {
     campo("Título", '<input type="text" id="ag-f-titulo" data-c="titulo" value="' + esc(v.titulo || "") + '" placeholder="Renovação — Fornecedor A" autocomplete="off">', "ag-f-titulo") +
     duas(campo("Data", '<input type="date" id="ag-f-data" data-c="data" value="' + esc(v.data || "") + '">', "ag-f-data"),
       campo("Hora", '<input type="time" id="ag-f-hora" data-c="hora" value="' + esc(v.hora || "") + '">', "ag-f-hora")) +
+    '<div class="dialogo-campo"><label>Cabe nestes horários</label><div class="dialogo-chips" data-ag-livres="1"><span class="dialogo-dica">procurando…</span></div></div>' +
     duas(campo("Duração", '<select id="ag-f-duracao" data-c="duracao">' +
         duracoes.sort((a, b) => a - b).map((m) => '<option value="' + m + '"' + (m === Number(v.duracao) ? " selected" : "") + ">" + duracaoEmTexto(m) + "</option>").join("") +
         "</select>", "ag-f-duracao"),
@@ -1066,7 +1067,6 @@ function partesDoFormAgenda(v) {
     campo("Com quem", '<select id="ag-f-cliente" data-c="cadastro_id">' + clientes + "</select>", "ag-f-cliente") +
     '<div class="dialogo-campo"><label>Onde</label><div class="dialogo-chips">' + ondes + "</div></div>" +
     '<div class="ag-meet-lugar" data-ag-meet-lugar="1">' + opcaoDoMeet(v) + "</div>" +
-    '<div class="dialogo-campo"><label>Cabe nestes horários</label><div class="dialogo-chips" data-ag-livres="1"><span class="dialogo-dica">procurando…</span></div></div>' +
     campo("Anotação", '<textarea id="ag-f-anotacao" rows="3" data-c="anotacao" placeholder="Pauta, endereço, o que levar…">' + esc(v.anotacao || "") + "</textarea>", "ag-f-anotacao", true) +
     '<div class="dialogo-campo"><div class="' + classeConvite + '" data-ag-convite="1"><span>Enviar convite por e-mail ao salvar</span><i></i></div>' +
     '<span class="dialogo-dica">O convite sai pelo seu e-mail e passa pela tela de Aprovações antes de ser enviado.</span></div>';

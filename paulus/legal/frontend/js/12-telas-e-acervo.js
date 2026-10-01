@@ -893,6 +893,9 @@ function cartaoProposta(d) {
   if (d.tipo === "gravar") return "";
   // Assinar pela conversa (js/82-assinar-na-conversa.js): o PDF abre ao lado.
   if (d.tipo === "assinar") return cartaoDeAssinar(d);
+  // Agendar pela conversa (js/83-agendar-na-conversa.js): a semana no chat e
+  // o formulario da Agenda na coluna.
+  if (d.tipo === "agenda" || d.tipo === "tarefa") return cartaoDeAgendar(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
@@ -1320,6 +1323,7 @@ function camposProposta(d, faltando) {
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
   if (d.tipo === "assinar") return ligarAssinarNaProposta(caixa, d);
+  if (d.tipo === "agenda" || d.tipo === "tarefa") return ligarAgendarNaProposta(caixa, d);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);

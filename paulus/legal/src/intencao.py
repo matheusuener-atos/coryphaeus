@@ -1194,8 +1194,13 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
                 "tipo": "compromisso",
                 "data": data,
                 "hora": hora or "09:00",
+                # A frase disse a hora? Sem ela, a conversa sugere os horarios
+                # livres do dia em vez de afirmar as 09:00.
+                "hora_dita": bool(hora),
                 "duracao": 60,
                 "avisar_min": aviso,
+                # "com a Cooperativa Rio Fresco": quem vai, como esta em Cadastros.
+                "cliente": _cliente_citado(plano, cadastros),
             },
             porque=_porque(verbo, coisa_agenda),
         )

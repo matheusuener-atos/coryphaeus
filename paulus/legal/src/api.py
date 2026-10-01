@@ -4697,8 +4697,14 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
             proposta["agente"] = {"slug": agente.slug, "nome": agente.nome or agente.slug, "versao": agente.versao}
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
-        trabalho.dizer("paulus", "", proposta=proposta)
+        # Pacote de telas (`Conversa - Agendar`): o compromisso com data abre o
+        # formulario ao lado e a semana na conversa, e a conversa diz o dia e
+        # os horarios livres de verdade (os mesmos de /api/agenda/livres).
+        texto = _frase_do_agendar(proposta) if lido.tipo == "agenda" and not lido.falta else ""
+        trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)
+        if texto:
+            yield _sse("token", {"t": texto})
         yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
@@ -4707,6 +4713,52 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+DIAS_DA_SEMANA = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")
+
+
+def _frase_do_agendar(proposta: dict) -> str:
+    """
+    "Separei quinta, 1º de outubro. Às 10:00 você está livre — confira ao
+    lado." Liga a ficha de quem vai (campos.cadastro_id) quando o nome da
+    frase esta em Cadastros. So diz o que a agenda mostra.
+    """
+    from datetime import date
+
+    campos = proposta.setdefault("campos", {})
+    nome = " ".join(str(campos.get("cliente") or "").split())
+    if nome:
+        alvo = nome.lower()
+        fichas = estado.cadastros.listar()
+        ficha = next((f for f in fichas if " ".join(f["nome"].split()).lower() == alvo), None) or \
+            next((f for f in fichas if alvo in " ".join(f["nome"].split()).lower()), None)
+        if ficha:
+            campos["cadastro_id"] = ficha["id"]
+            campos["cliente"] = ficha["nome"]
+    campos.setdefault("onde", "online")
+    try:
+        dia = date.fromisoformat(str(campos.get("data") or ""))
+    except ValueError:
+        return ""
+    quando = f"{DIAS_DA_SEMANA[dia.weekday()]}, {'1º' if dia.day == 1 else dia.day} de {acervo.MESES[dia.month - 1]}"
+    regra = estado.prefs.dados.get("disponibilidade", {})
+    try:
+        livres = estado.agenda.livres(dia.isoformat(), int(campos.get("duracao") or 60), regra)
+    except Exception:  # noqa: BLE001 - sem a conta dos livres, so o dia
+        livres = None
+    frase = f"Separei {quando}."
+    hora = str(campos.get("hora") or "")
+    if livres is not None:
+        if campos.get("hora_dita") and hora:
+            frase += (f" Às {hora} você está livre." if hora in livres
+                      else f" Às {hora} já tem coisa na agenda" + (f"; cabe às {', '.join(livres[:3])}." if livres else "."))
+        elif livres:
+            campos["hora"] = livres[0]
+            frase += " Cabe às " + (", ".join(livres[:3]) if len(livres) > 1 else livres[0]) + "."
+        else:
+            frase += " Não há horário livre nesse dia com essa duração."
+    return frase + " Escolha o horário no calendário ou ao lado e confira o resto."
 
 
 _JUIZES: dict[tuple, juizo.Juiz] = {}
