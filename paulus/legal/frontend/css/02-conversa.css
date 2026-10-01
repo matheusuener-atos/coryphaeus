@@ -499,58 +499,21 @@
 
 
   /* ------------------------------- o editor ao lado da conversa */
-  /* A conversa fica: o editor abre AO LADO dela, na mesma tela, e a caixa de
-     pedido continua sendo a da conversa. Antes ele era outra tela, com uma
-     conversa de mentira dentro - vazia, sem o que tinha sido dito.
-
-     O painel e posicionado sobre a coluna, do cabecalho ao pe da janela, e o
-     corpo e o rodape da conversa abrem espaco para ele pela direita. Nenhum
-     fio separa as partes: o painel e uma superficie, a mesa e outro tom, e as
-     paginas sao papel. */
-  /* So o corpo abre espaco: o rodape - a caixa de pedido - fica onde estava,
-     e o painel termina acima dele. */
-  .conversa-col.com-editor .conversa-corpo { padding-right: calc(var(--margem-pagina) + var(--editor-largura) + 28px); }
-  /* O registro ("3 trechos de 1 documento") sai de cena com o editor aberto: o
-     que importa ali e o documento, e a faixa so roubava altura do painel. */
+  /* T3: o editor e ferramenta da coluna da direita (js/13-editor-na-conversa.js,
+     css/48-ferramentas.css); a conversa recua pela largura da coluna. O
+     registro ("3 trechos de 1 documento") sai de cena com o editor aberto. */
   .conversa-col.com-editor .registro { display: none; }
-  /* O botao de ir ao fim sobe da caixa de pedido; com o editor aberto ele cairia
-     no rodape do editor. Fica no meio da coluna da conversa, que e o que rola. */
-  .conversa-col.com-editor .ir-ao-fim {
-    left: calc(var(--margem-pagina) + (100% - 2 * var(--margem-pagina) - var(--editor-largura) - 28px) / 2);
-  }
-
-  .editor-lado {
-    position: absolute; z-index: 5; top: 96px; bottom: 20px;
-    right: var(--margem-pagina); width: var(--editor-largura);
-    display: flex; flex-direction: column; min-height: 0;
-    /* Um cartao so, com o fio, o raio e a sombra de todo cartao do desenho.
-       Dentro dele a mesa das paginas e uma faixa de ponta a ponta, sem canto
-       nem margem: cartao dentro de cartao era a mesa arredondada no meio do
-       painel. */
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
-    box-shadow: var(--elev-card); overflow: hidden;
-    animation: pv-troca .46s cubic-bezier(.16,1,.3,1) both;
-  }
-  .edl-topo { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 12px 2px 20px; }
-  .edl-titulo {
-    flex: 1; min-width: 0; margin: 0; outline: none; font: 400 20px/1.25 var(--serif);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  /* Uma linha so: sem espaco para tudo, a barra rola de lado em vez de quebrar. */
-  .edl-barra {
-    flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 4px 12px 10px 16px;
-    overflow-x: auto; scrollbar-width: none;
-  }
+  .edl-barra { overflow-x: auto; scrollbar-width: none; }
   .edl-barra::-webkit-scrollbar { display: none; }
   .edl-barra button { flex: none; }
 
   /* A mesa e o fundo da casca (--bg), como a area da folha em Documentos: as
      folhas se destacam pela sombra e pelo tom, como no Word. */
   .edl-mesa {
-    flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px 36px;
+    flex: 1; min-height: 0; overflow-y: auto; padding: 32px 32px 48px;
     background: var(--bg);
   }
-  .edl-papel { position: relative; max-width: 780px; margin: 0 auto; }
+  .edl-papel { position: relative; max-width: 900px; margin: 0 auto; }
   /* As folhas: papel A4 de borda reta e sombra suave, atras do texto. */
   .edl-folhas { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
   .edl-pagina {
@@ -566,13 +529,8 @@
     display: flex; flex-direction: column; gap: 10px; overflow-wrap: anywhere;
   }
   .edl-papel .edl-folha p, .edl-papel .edl-folha h1, .edl-papel .edl-folha h2, .edl-papel .edl-folha h3 { margin: 0; }
-  #dp-selo::before { content: "·"; margin-right: 8px; }
   /* A barra do pedido ao documento, no cartao de trabalho da conversa. */
   .edl-andamento { display: grid; gap: 6px; margin: 2px 0 0 30px; font: 400 12px var(--sans); color: var(--ink3); }
-  .edl-rodape {
-    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px 12px 20px;
-    font: 400 11.5px var(--sans); color: var(--ink3);
-  }
 
   /* Na caixa de pedido, enquanto o editor esta aberto: para onde vai o pedido
      e os atalhos de escrita. O seletor de destino e o .visoes de todas as
@@ -664,22 +622,7 @@
   .oferta-doc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-width: 0; color: var(--ink2); }
   .oferta-doc > .ic { color: var(--ink2); }
   .oferta-nome { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--ink); }
-  .leitor-topo { align-items: center; flex-wrap: nowrap; margin-bottom: 10px; }
-  .leitor-conta { white-space: nowrap; }
-  /* As páginas empilhadas sobre o fundo, como a folha do editor: cada uma é
-     a página desenhada, com a sombra do papel. */
-  .leitor-paginas {
-    max-height: 600px; overflow-y: auto; padding: 14px; border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--bg); display: flex; flex-direction: column; align-items: center; gap: 16px;
-  }
-  .leitor-folha {
-    display: block; width: 100%; max-width: 760px; height: auto; aspect-ratio: auto 210 / 297;
-    background: var(--papel); border: 1px solid var(--papel-linha);
-    box-shadow: var(--elev-papel);
-  }
-  .leitor-folha.citada { outline: 2px solid var(--destaque); outline-offset: 3px; }
   .oferta .proposta-topo { margin-bottom: 4px; }
-  .leitor-conversa > .linha-form:last-child { justify-content: flex-end; }
 
   .aprovacao { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 14px 16px; display: grid; gap: 12px; }
   .aprovacao .cabeca { display: flex; align-items: center; gap: 11px; }

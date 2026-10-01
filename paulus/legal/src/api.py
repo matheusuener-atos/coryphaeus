@@ -2572,6 +2572,87 @@ def biblioteca_citacao(payload: OndeCitou) -> dict:
     }
 
 
+class LeituraDoDocumento(BaseModel):
+    nome: str = ""
+    trechos: list[str] = []
+
+
+@app.post("/api/biblioteca/leitura")
+def biblioteca_leitura(payload: LeituraDoDocumento) -> dict:
+    """
+    O que o visor ao lado da conversa desenha (paginas, as citadas e as
+    marcas), sem registrar nada na conversa: e o clique num cartao de
+    "Trechos lidos". O "Mostrar aqui" passa por /fazer, que anota.
+    """
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    if not Path(doc.path).exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+    trechos = [str(t)[:400] for t in payload.trechos[:12] if isinstance(t, str)]
+    return ferramentas.leitura(doc, trechos)
+
+
+class PlanilhaDoAcervo(BaseModel):
+    nome: str = ""
+    trechos: list[str] = []
+
+
+@app.post("/api/biblioteca/planilha")
+def biblioteca_planilha(payload: PlanilhaDoAcervo) -> dict:
+    """
+    A planilha do Acervo para o visor ao lado da conversa (pacote de telas,
+    `Conversa - Planilha`): as abas com o valor calculado de cada celula, como
+    no editor, e as linhas que a resposta citou. So leitura - nada e gravado.
+    """
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    alvo = Path(doc.path)
+    if not alvo.exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+    if alvo.suffix.lower() != ".xlsx":
+        raise HTTPException(status_code=400, detail="isso não é uma planilha do Excel")
+    try:
+        abas = planilha.de_xlsx(alvo.read_bytes())
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=f"não consegui ler a planilha: {exc}") from exc
+    try:
+        citadas = ferramentas.linhas_citadas_da_planilha(alvo, payload.trechos[:12])
+    except Exception:  # noqa: BLE001 - sem citacao, a planilha abre do mesmo jeito
+        citadas = []
+    return {"nome": doc.name, "caminho": str(alvo), "bytes": alvo.stat().st_size,
+            "abas": [a.to_dict() for a in abas], "calculado": [planilha.calcular_aba(a) for a in abas],
+            "citadas": citadas}
+
+
+class ProcurarNoDocumento(BaseModel):
+    nome: str = ""
+    termo: str = ""
+
+
+@app.post("/api/biblioteca/procurar-no-documento")
+def biblioteca_procurar_no_documento(payload: ProcurarNoDocumento) -> dict:
+    """
+    A lupa do visor ao lado da conversa (pacote de telas, T3): onde o termo
+    aparece, pagina a pagina, com as marcas. Procura no PDF que a tela
+    desenha - o arquivo, ou o que o gerador do editor monta para o Word.
+    """
+    import citacao
+
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    if not Path(doc.path).exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+    try:
+        origem = doc.path if Path(doc.path).suffix.lower() == ".pdf" else ferramentas.pdf_do_documento(doc)
+        achados = citacao.ocorrencias(origem, payload.termo)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"nao consegui procurar: {exc}") from exc
+    return {"termo": payload.termo, "achados": achados}
+
+
 @app.get("/api/biblioteca/pagina")
 def biblioteca_pagina(nome: str, numero: int = 1, largura: int = 1000):
     """A pagina do documento desenhada, para conferir sem sair daqui."""
@@ -8513,7 +8594,23 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
                 rascunho = estado.documentos.obter(int(feito.get("id") or 0))
                 if rascunho:
                     return {"id": rascunho["id"], "titulo": rascunho["titulo"], "de": lido.name,
-                            "paragrafos": 0, "reaberto": True}
+                            "paragrafos": 0, "reaberto": True, "tipo": rascunho.get("tipo", "texto")}
+
+    # A planilha do Excel vira planilha do editor (pacote de telas, `Conversa
+    # - Editor de planilha`): as abas, as formulas (traduzidas para o padrao
+    # brasileiro), o formato e o negrito. O .xlsx de origem nao e tocado.
+    if alvo.suffix.lower() == ".xlsx":
+        try:
+            abas = planilha.de_xlsx(alvo.read_bytes())
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail=f"não consegui ler a planilha: {exc}") from exc
+        id_ = estado.documentos.criar(Path(lido.name).stem, "planilha", planilha.para_json(abas), None)
+        if trabalho:
+            trabalho.dizer("paulus", f"Abri “{lido.name}” para editar.",
+                           feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "planilha"})
+            estado.trabalhos.salvar(trabalho)
+        return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name, "paragrafos": 0,
+                "reaberto": False, "tipo": "planilha"}
 
     # Paragrafo por paragrafo: o texto extraido vem com quebras de linha, e
     # jogar tudo num <p> so daria um bloco unico impossivel de editar.
@@ -8526,7 +8623,7 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
                        feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "editor"})
         estado.trabalhos.salvar(trabalho)
     return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name,
-            "paragrafos": len(paragrafos), "reaberto": False}
+            "paragrafos": len(paragrafos), "reaberto": False, "tipo": "texto"}
 
 
 def _escapar(texto: str) -> str:

@@ -610,10 +610,8 @@ document.addEventListener("click", (e) => {
   const reg = CITACOES[Number(b.dataset.citResp)];
   const f = reg && reg.fontes[Number(b.dataset.tn) - 1];
   if (!f || f.material) return;
-  const caixa = b.closest(".resposta") && b.closest(".resposta").querySelector(".visor-caixa");
-  if (!caixa) return;
-  abrirCitacao(f.documento, f.texto, reg.pergunta, caixa);
-  caixa.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  // T3: o trecho abre no documento, na coluna da direita.
+  verTrechoAoLado(f);
 });
 
 function etiquetaDeParada() {
@@ -813,13 +811,12 @@ function desenharTrechos(fontes, pergunta, ondeVisor, numeros) {
     (fontes.length > VISIVEIS ? '<button class="lat-mais" data-lat-mais="1">mais ' + plural(fontes.length - VISIVEIS, "trecho") + "</button>" : "");
   lista.hidden = false;
   $("lat-trechos-cabeca").setAttribute("aria-expanded", "true");
-  const caixa = ondeVisor || Array.from($("centro").querySelectorAll(".visor-caixa")).pop();
   const ligar = () => lista.querySelectorAll("[data-ver-cit]").forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();
       const f = fontes[Number(b.dataset.verCit)];
       if (!f || f.material) return;
-      verTrechoNoDocumento(f, pergunta, caixa);
+      verTrechoNoDocumento(f);
     };
   });
   ligar();
@@ -832,12 +829,10 @@ function desenharTrechos(fontes, pergunta, ondeVisor, numeros) {
   };
 }
 
-/* O trecho no documento: o visor abre na pagina dele. (Na T3 o documento
-   abre na coluna da direita, como ferramenta; ate la, no visor da resposta.) */
-function verTrechoNoDocumento(f, pergunta, caixa) {
-  if (!caixa) return;
-  abrirCitacao(f.documento, f.texto, pergunta, caixa);
-  caixa.scrollIntoView({ behavior: animacoesLigadas() ? "smooth" : "auto", block: "nearest" });
+/* O trecho no documento: o documento abre na coluna da direita, como
+   ferramenta, com o trecho marcado (js/80-visor-ao-lado.js, T3). */
+function verTrechoNoDocumento(f) {
+  verTrechoAoLado(f);
 }
 
 /* Abre ou fecha um ramo da arvore (o botao e o que vem logo depois dele).
@@ -1581,6 +1576,15 @@ async function enviar(opcoes) {
     dupla.destino = "";
     atualizarDestino();
     pedirNoDocumento(pedido);
+    return;
+  }
+  // Com a planilha em edicao ao lado (js/81-planilha-ao-lado.js), idem.
+  if (!o.retomar && planilhaEmEdicao() && destinoNaPlanilha(pedido) === "planilha") {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+    pa.destino = "";
+    atualizarDestinoDaPlanilha();
+    pedirNaPlanilha(pedido);
     return;
   }
 

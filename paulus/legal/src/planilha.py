@@ -1320,6 +1320,46 @@ def para_csv(aba: Aba, calculado: dict) -> str:
     return saida.getvalue()
 
 
+# O Excel grava a formula em ingles, com virgula entre os argumentos e ponto
+# no decimal, qualquer que seja a lingua de quem escreveu. O motor daqui fala
+# o padrao brasileiro: =SUM(E2:E8) chegava como #NOME? na planilha importada.
+FUNCOES_DO_EXCEL = {
+    "SUM": "SOMA", "AVERAGE": "MEDIA", "MAX": "MAXIMO", "MIN": "MINIMO", "COUNTA": "CONT",
+    "COUNT": "CONTNUM", "COUNTIF": "CONTSE", "SUMIF": "SOMASE", "IF": "SE", "IFERROR": "SEERRO",
+    "ROUND": "ARRED", "ABS": "ABS", "INT": "INT", "TODAY": "HOJE", "CONCATENATE": "CONCATENAR",
+    "UPPER": "MAIUSCULA", "LOWER": "MINUSCULA", "AND": "E", "OR": "OU", "NOT": "NAO",
+}
+
+
+def formula_do_excel(formula: str) -> str:
+    """=SUM(E2:E8) -> =SOMA(E2:E8); =ROUND(B4*0.1,2) -> =ARRED(B4*0,1;2). Texto entre aspas fica."""
+    if not formula.startswith("="):
+        return formula
+    saida: list[str] = []
+    partes = re.split(r'("(?:[^"]|"")*")', formula[1:])
+    for i, parte in enumerate(partes):
+        if i % 2:
+            saida.append(parte)
+            continue
+        parte = re.sub(r"(?<![A-Z0-9_$])(?:_XLFN\.)?([A-Z][A-Z.]*)(?=\()",
+                       lambda m: FUNCOES_DO_EXCEL.get(m.group(1), m.group(1)), parte)
+        parte = re.sub(r"(\d)\.(\d)", r"\1#DEC#\2", parte)
+        parte = parte.replace(",", ";").replace("#DEC#", ",")
+        saida.append(parte)
+    return "=" + "".join(saida)
+
+
+def _formato_do_excel(codigo: str) -> str:
+    codigo = str(codigo or "")
+    if "R$" in codigo or "[$R$" in codigo:
+        return "moeda"
+    if "%" in codigo:
+        return "porcento"
+    if "0.0" in codigo or "#,##0" in codigo:
+        return "numero"
+    return ""
+
+
 def de_xlsx(dados: bytes) -> list[Aba]:
     import io
 
@@ -1337,7 +1377,18 @@ def de_xlsx(dados: bytes) -> list[Aba]:
                 valor = celula.value
                 if isinstance(valor, datetime):
                     valor = valor.strftime("%d/%m/%Y")
-                aba.gravar(celula.coordinate, {"valor": str(valor)})
+                elif isinstance(valor, str) and valor.startswith("="):
+                    valor = formula_do_excel(valor)
+                elif isinstance(valor, float):
+                    # 1240.0 vira "1240,0"? Nao: o motor le numero com virgula.
+                    valor = repr(valor).replace(".", ",")
+                dados_da_celula: dict = {"valor": str(valor)}
+                formato = _formato_do_excel(celula.number_format)
+                if formato:
+                    dados_da_celula["formato"] = formato
+                if celula.font is not None and celula.font.bold:
+                    dados_da_celula["negrito"] = True
+                aba.gravar(celula.coordinate, dados_da_celula)
         abas.append(aba)
     return abas or [Aba()]
 

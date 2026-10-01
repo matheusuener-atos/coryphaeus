@@ -27,8 +27,6 @@
     --margem-lado: 44px;
     --margem-topo: 40px;
     --margem-pagina: max(var(--margem-lado), calc((100% - var(--pagina)) / 2));
-    /* O editor ao lado da conversa ocupa um pouco mais da metade da pagina. */
-    --editor-largura: calc((100% - 2 * var(--margem-pagina)) * .56);
     --barra: 760px;
     /* A coluna da direita da conversa (02-conversa.css): o tom dela e a
        largura da ferramenta, que js/02-lado.js mede e troca. */
@@ -53,6 +51,11 @@
     --casca: #26251f;
     --casca-hover: #35332b;
     --casca-ink: #f2f1ec;
+    /* O botao cheio (primario). No claro e a casca; no escuro o pacote de
+       telas de 01/10/2026 pede o botao claro sobre o escuro. */
+    --primario: #26251f;
+    --primario-hover: #35332b;
+    --primario-ink: #f2f1ec;
     /* A coluna da direita da conversa: um tom abaixo da superficie, entre ela
        e o fundo (no escuro, #161615 do pacote de telas). */
     --lado-fundo: #f4f3ef;
@@ -131,6 +134,16 @@
     --papel-acc: oklch(42% 0.13 25);
     --papel-accbg: oklch(95% 0.02 25);
     --papel-accbg2: oklch(97.5% 0.01 25);
+    /* O trecho citado marcado na pagina (visor ao lado da conversa, T3): o
+       marca-texto amarelo do desenho, e o achado da lupa, mais claro. */
+    --papel-marca: oklch(91% 0.11 95 / .6);
+    --papel-marca-linha: oklch(72% 0.13 85);
+    --papel-achado: oklch(88% 0.08 240 / .5);
+    /* A planilha ao lado da conversa e papel tambem: a linha citada (bege), a
+       celula mudada (verde) e o "a receber". */
+    --papel-citada: oklch(93.5% 0.025 80);
+    --papel-mudou: oklch(94% 0.05 150);
+    --papel-ok: oklch(45% 0.11 150);
     /* O fundo do QR do autenticador (Acesso de fora): branco nos dois temas,
        porque celular nenhum le QR claro sobre escuro. */
     --qr-fundo: #ffffff;
@@ -164,6 +177,9 @@
     --casca: #34322c;
     --casca-hover: #413e35;
     --casca-ink: #f2f1ec;
+    --primario: #f2f1ec;
+    --primario-hover: #dcdad3;
+    --primario-ink: #161615;
     --lado-fundo: #161615;
 
     --ink-a06: rgba(242,241,236,.06);

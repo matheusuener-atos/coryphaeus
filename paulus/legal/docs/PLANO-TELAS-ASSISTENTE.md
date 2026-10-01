@@ -34,7 +34,7 @@ estiver `feita`.
 | T0 | Casca da conversa: cabeçalho, coluna do chat (1080), caixa de pedido em duas linhas, coluna lateral de altura inteira que troca de papel (380/420/460/ferramenta), contexto (Progresso, Trechos lidos, Como respondi, Onde procurei), rolagem fina | feita | ver git log (T0) |
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (resumo em três cartões e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
-| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | a fazer | |
+| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha e editor de planilha feitos) | ver git log (T3) |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
@@ -156,3 +156,51 @@ estiver `feita`.
   é `.trab-cartao`), `test_c3_painel` e `test_t2_avisos` ok. `test_gravacoes`
   falha nesta máquina agora por memória (1,4 GB livres, o Whisper turbo pede
   1,9 GB) — o mesmo aviso que o programa dá; não vem desta etapa.
+
+
+### T3 — documentos e ferramentas na coluna (01/10/2026, em andamento)
+
+Primeira parte: documento, PDF, editor, planilha e editor de planilha.
+
+- `js/80-visor-ao-lado.js`: "Mostrar aqui" (e o clique num trecho lido ou
+  num [T1] da resposta) abre o documento na coluna da direita, como
+  ferramenta: marca do formato, nome com a extensão apagada, "só leitura · N
+  páginas · K trechos citados" (no PDF, "PDF · …" e "assinado digitalmente"
+  quando tem assinatura), No Windows, Abrir editor (e Assinar, no PDF), o
+  quadro com "Trechos citados 1 de 2", a página, a lupa e o zoom,
+  miniaturas quando há mais de uma página, e o pé "N páginas · tamanho/
+  palavras · o arquivo original não é alterado". O cartão da oferta fica,
+  com o botão do que está aberto marcado, e a nota diz o que foi feito. A
+  próxima pergunta passa a ler só o documento aberto.
+- Os trechos citados ficam marcados NA FRASE: `citacao.marcas_dos_trechos`
+  procura cada trecho no PDF desenhado (o arquivo, ou o que o gerador do
+  editor monta para o Word), primeiro inteiro e depois pelos pedaços, com a
+  marca indo até o fim da palavra. `POST /api/biblioteca/leitura` (sem anotar
+  na conversa) e `POST /api/biblioteca/procurar-no-documento` (a lupa).
+- Editor: saiu o cartão flutuante; o editor é ferramenta da coluna, no
+  desenho (rascunho · versão · o original não é alterado; No Windows quando o
+  Word com o PAVLVS está instalado; Assinar; Salvar na biblioteca; a barra
+  com Parágrafo, B/I/U, lista, Numerar, Qualificar, Citar a lei e
+  Alterações; o pé com o ponto de salvo). Na caixa, "No documento / Na
+  conversa" e os pedidos prontos numa linha.
+- `js/81-planilha-ao-lado.js`: a planilha do Acervo abre como grade
+  (`POST /api/biblioteca/planilha`), com a barra da fórmula, as linhas
+  citadas marcadas (`ferramentas.linhas_citadas_da_planilha`), "a pagar" e
+  "a receber" com cor, as abas no pé. "Abrir editor" no .xlsx cria uma
+  planilha do editor (`/api/documentos/importar`) e a grade passa a editar:
+  escrever na célula, desfazer/refazer, negrito, itálico, R$, %, ,00, Σ
+  Somar, Ordenar (a linha de total fica), Filtrar (só da tela), + Linha; a
+  célula que mudou fica verde com o valor de antes riscado. "Na planilha":
+  o modelo escreve a FÓRMULA (rota de sempre) e o motor calcula; "Ordenar
+  por vencimento" e "Destacar atrasados" são regra, sem modelo.
+- `planilha.de_xlsx` traduz a fórmula do Excel (=SUM → =SOMA, vírgula →
+  ponto e vírgula) e traz formato e negrito — antes a planilha importada
+  mostrava #NOME? no total.
+- Botão cheio no tema escuro: claro sobre escuro, como no pacote
+  (`--primario`), em todo o programa.
+- **Fica de fora:** "Destacar atrasados" não grava cor (a planilha do editor
+  não guarda fundo de célula; a nota diz isso). Janela estreita (perto de
+  900 px) deixa a ferramenta com 320 px.
+- Testes: `test_frontend`, `test_ferramentas`, `test_m5_leitura`,
+  `test_escrita`, `test_planilha_excel`, `test_c2_pensando`,
+  `test_c3_painel`, `test_intencao` e `test_c5_superficies` (sozinho) ok.

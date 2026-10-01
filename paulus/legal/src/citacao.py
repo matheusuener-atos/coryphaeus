@@ -141,41 +141,121 @@ def onde_esta(caminho: Path | str, trecho: str) -> dict:
 
     with leitor_pdf.abrir(alvo) as pdf:
         total = len(pdf)
-        for numero in range(total):
+        achado = _achar(pdf, agulhas)
+        if not achado:
+            return {**vazio, "total": total}
+        numero, marcas, largura, altura = achado
+        return {"achou": True, "pagina": numero, "total": total,
+                "marcas": marcas, "largura": largura, "altura": altura}
+
+
+def _marcas(pagina, texto, inicio: int, quantos: int) -> list[dict]:
+    """Os retangulos de um achado, em fracao da pagina e com o eixo da tela."""
+    largura, altura = pagina.get_size()
+    marcas = []
+    for i in range(texto.count_rects(inicio, quantos)):
+        x0, y0, x1, y1 = texto.get_rect(i)
+        # Texto que o PDF desenha um pouco fora da folha (a coluna
+        # vertical na margem de um extrato de banco) dava marca com y
+        # negativo. Presa na pagina: a marca mostra o que se ve.
+        x0, x1 = max(0.0, x0), min(largura, x1)
+        y0, y1 = max(0.0, y0), min(altura, y1)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        # O PDF conta do rodape para cima; a tela conta do topo para
+        # baixo. Sem virar o eixo, a marca sai espelhada na vertical.
+        marcas.append({
+            "x": round(x0 / largura, 5),
+            "y": round((altura - y1) / altura, 5),
+            "w": round((x1 - x0) / largura, 5),
+            "h": round((y1 - y0) / altura, 5),
+        })
+    return marcas
+
+
+def _ate_a_palavra(texto, inicio: int, quantos: int, folga: int = 40) -> tuple[int, int]:
+    """
+    A agulha e um pedaco do trecho e pode comecar ou acabar no meio de uma
+    palavra ("...parcelas mensais e suc"): a marca vai ate o fim da palavra
+    dos dois lados, para nao cortar o que a pessoa le.
+    """
+    total = texto.count_chars()
+    fim = inicio + quantos
+    antes = texto.get_text_range(max(0, inicio - folga), min(folga, inicio))
+    corte = len(antes)
+    while corte > 0 and antes[corte - 1].isalnum():
+        corte -= 1
+    novo_inicio = inicio - (len(antes) - corte)
+    depois = texto.get_text_range(fim, min(folga, max(0, total - fim)))
+    k = 0
+    while k < len(depois) and depois[k].isalnum():
+        k += 1
+    return novo_inicio, fim + k - novo_inicio
+
+
+def _achar(pdf, agulhas: list[str], inteira: bool = False):
+    """A primeira pagina em que uma das agulhas casa: (numero, marcas, largura, altura)."""
+    for numero in range(len(pdf)):
+        pagina = pdf[numero]
+        texto = pagina.get_textpage()
+        achado = None
+        for agulha in agulhas:
+            achado = texto.search(agulha, match_case=False).get_next()
+            if achado:
+                break
+        if not achado:
+            continue
+        if inteira:
+            try:
+                achado = _ate_a_palavra(texto, *achado)
+            except Exception:  # noqa: BLE001 - sem alargar, a marca e a da agulha
+                pass
+        largura, altura = pagina.get_size()
+        return numero + 1, _marcas(pagina, texto, *achado), largura, altura
+    return None
+
+
+def marcas_dos_trechos(origem: Path | str | bytes, trechos: list[str], limite: int = 12) -> list[dict]:
+    """
+    Cada trecho citado, com a pagina e as marcas, para o visor da conversa
+    (pacote de telas, `Conversa - Documento`/`PDF`). `origem` e o PDF - o
+    arquivo, ou os bytes que o gerador do editor monta para o Word. O trecho
+    que nao se acha fica de fora: melhor sem marca do que marca no lugar errado.
+    """
+    saida: list[dict] = []
+    if not trechos:
+        return saida
+    with leitor_pdf.abrir(origem) as pdf:
+        for indice, trecho in enumerate(trechos[:limite]):
+            # O trecho inteiro primeiro: quando a extracao bate com o arquivo,
+            # a marca cobre a frase toda, e nao so o pedaco que serviu de agulha.
+            inteiro = re.sub(r"\s+", " ", re.sub(r"\[p[áa]gina \d+\]", " ", trecho or "", flags=re.IGNORECASE)).strip()
+            agulhas = ([inteiro] if 20 <= len(inteiro) <= MAXIMO_MARCADO else []) + frases_de_busca(trecho)
+            achado = _achar(pdf, agulhas, inteira=True) if agulhas else None
+            if achado:
+                saida.append({"indice": indice, "pagina": achado[0], "marcas": achado[1]})
+    return saida
+
+
+def ocorrencias(origem: Path | str | bytes, termo: str, limite: int = 60) -> list[dict]:
+    """Onde o termo aparece no documento, pagina a pagina (a lupa do visor)."""
+    termo = re.sub(r"\s+", " ", termo or "").strip()
+    if len(termo) < 2:
+        return []
+    saida: list[dict] = []
+    with leitor_pdf.abrir(origem) as pdf:
+        for numero in range(len(pdf)):
             pagina = pdf[numero]
             texto = pagina.get_textpage()
-            achado = None
-            for agulha in agulhas:
-                achado = texto.search(agulha, match_case=False).get_next()
-                if achado:
+            busca = texto.search(termo, match_case=False)
+            while len(saida) < limite:
+                achado = busca.get_next()
+                if not achado:
                     break
-            if not achado:
-                continue
-
-            inicio, quantos = achado
-            largura, altura = pagina.get_size()
-            marcas = []
-            for i in range(texto.count_rects(inicio, quantos)):
-                x0, y0, x1, y1 = texto.get_rect(i)
-                # Texto que o PDF desenha um pouco fora da folha (a coluna
-                # vertical na margem de um extrato de banco) dava marca com y
-                # negativo. Presa na página: a marca mostra o que se vê.
-                x0, x1 = max(0.0, x0), min(largura, x1)
-                y0, y1 = max(0.0, y0), min(altura, y1)
-                if x1 <= x0 or y1 <= y0:
-                    continue
-                # O PDF conta do rodapé para cima; a tela conta do topo para
-                # baixo. Sem virar o eixo, a marca sai espelhada na vertical.
-                marcas.append({
-                    "x": round(x0 / largura, 5),
-                    "y": round((altura - y1) / altura, 5),
-                    "w": round((x1 - x0) / largura, 5),
-                    "h": round((y1 - y0) / altura, 5),
-                })
-            return {"achou": True, "pagina": numero + 1, "total": total,
-                    "marcas": marcas, "largura": largura, "altura": altura}
-
-        return {**vazio, "total": total}
+                saida.append({"pagina": numero + 1, "marcas": _marcas(pagina, texto, *achado)})
+            if len(saida) >= limite:
+                break
+    return saida
 
 
 def paginas_de(caminho: Path | str) -> int:

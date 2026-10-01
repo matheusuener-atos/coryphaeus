@@ -131,15 +131,15 @@
      pagina, o rodape do calendario, os atalhos do editor e os comandos da
      pasta. */
   .pilulas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button {
+  .pilula, .recente, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button {
     display: inline-flex; align-items: center; gap: 7px; height: 28px;
     padding: 0 10px; border: none; border-radius: 6px; background: var(--fill);
     font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap;
     transition: background .16s ease, color .16s ease;
   }
-  :is(.pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button):hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
-  :is(.pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button) .ic { font-size: 16px; width: 16px; height: 16px; color: var(--ink3); }
-  :is(.pilula, .recente, .leitor-ir, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button):hover:not(:disabled) .ic { color: var(--ink2); }
+  :is(.pilula, .recente, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button):hover:not(:disabled) { background: var(--fill2); color: var(--ink); border: none; }
+  :is(.pilula, .recente, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button) .ic { font-size: 16px; width: 16px; height: 16px; color: var(--ink3); }
+  :is(.pilula, .recente, .cal-rodape-botao, .edl-atalho, .docs-chips button, .sv-comando, .dialogo-sugestoes button):hover:not(:disabled) .ic { color: var(--ink2); }
   .pilula .rotulo-botao { flex: none; padding: 0; }
   /* Buscar ligado: a pilula na cor de destaque, como quem esta apertado. */
   .pilula.ativa, .pilula.ativa:hover:not(:disabled) { background: var(--destaque); color: var(--bg); }
@@ -282,8 +282,8 @@
   }
   textarea:focus, textarea:focus-visible,
   input:focus, input:focus-visible { outline: none; }
-  button.primario { background: var(--casca); border-color: var(--casca); color: var(--casca-ink); font-weight: 500; }
-  button.primario:hover:not(:disabled) { background: var(--casca-hover); border-color: var(--casca-hover); color: var(--casca-ink); }
+  button.primario { background: var(--primario); border-color: var(--primario); color: var(--primario-ink); font-weight: 500; }
+  button.primario:hover:not(:disabled) { background: var(--primario-hover); border-color: var(--primario-hover); color: var(--primario-ink); }
   /* Destrutivo e sucesso vem DEPOIS do primario: sao a mesma especificidade,
      e um botao que ganhe as duas classes tem de sair vinho ou verde. */
   button.perigo { color: var(--acc); border-color: var(--accln); }
