@@ -35,7 +35,7 @@ estiver `feita`.
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (a faixa de um aviso por vez e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
 | T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | feita (documento, PDF, editor, planilha, editor de planilha, assinar, agendar, criar agente, e-mail e escrever e-mail) | ver git log (T3) |
-| T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | em andamento (cadastro, equipe e despesa fixa feitos) | ver git log (T4) |
+| T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | em andamento (cadastro, equipe, despesa fixa, lançamento e recebimento feitos) | ver git log (T4) |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
 ## Registro
@@ -335,3 +335,26 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
     que acontece). O "desde" ainda não muda o mês em que a folha começa a
     contar (a folha lê o salário da ficha).
   - Teste: `tests/test_fichas_conversa.py`.
+- Lançamento e Recebimento (`src/lancamentos_pela_conversa.py`,
+  `js/87-lancamento-na-conversa.js`): "lança a perícia do José Carlos,
+  2.150 com vencimento dia 8, o boleto tá anexo" e "a Rio Fresco pagou a
+  parcela de setembro, 6.036 com os juros" abrem o lançamento na coluna.
+  - Por regra: o valor (sem confundir com CPF, telefone, ano ou hora), o
+    dia, quem (as fichas, também por um pedaço do nome), a categoria e a
+    forma pelas palavras. Pergunta não é pedido.
+  - O anexo lido: o boleto (valor, vencimento, beneficiário) é conferido
+    com o que foi dito; a diferença vira "confira".
+  - O recebimento acha a cobrança em aberto do cliente (o mês dito, ou o
+    valor mais perto, até 20% acima) e a atualiza com os juros, em vez de
+    criar outra; a frase diz parcela + juros e se a cobrança saiu do
+    atraso.
+  - Na conversa: saldo, a receber, a pagar e em atraso com o que o
+    lançamento muda (verde/vermelho pelo que é bom em cada um) e a lista do
+    mês com a linha nova.
+  - Lançar (POST /api/financeiro/lancar-pela-conversa): grava ou atualiza,
+    dá baixa, guarda o boleto em Papéis do mês ou copia o comprovante para
+    Financeiro/Comprovantes do Acervo e liga, e cria a tarefa "Pagar: …"
+    um dia antes. A frase com a coluna aberta muda valor e dia.
+  - Ficou de fora: o processo do cliente no campo "Cliente · processo"
+    (o lançamento não guarda processo).
+  - Teste: `tests/test_lancamento_conversa.py`.

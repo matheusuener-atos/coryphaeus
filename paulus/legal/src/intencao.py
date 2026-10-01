@@ -1166,6 +1166,15 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if despesa:
         return Intencao(tipo="ficha", titulo=despesa["nome"], campos=despesa, porque="“despesa fixa”")
 
+    # "lança a perícia do José Carlos, 2.150..." / "a Rio Fresco pagou..."
+    # (`Conversa - Lancamento`, `- Recebimento`, src/lancamentos_pela_conversa.py).
+    import lancamentos_pela_conversa
+
+    lancamento = lancamentos_pela_conversa.ler_lancamento(texto, [{"id": None, "nome": n} for n in cadastros or []], hoje)
+    if lancamento:
+        return Intencao(tipo="lancamento", titulo=lancamento["descricao"], campos=lancamento,
+                        porque="“" + ("recebimento" if lancamento["tipo"] == "recebimento" else "lançamento") + "” e um valor")
+
     cadastro = ler_cadastro(texto, plano)
     if cadastro:
         return cadastro

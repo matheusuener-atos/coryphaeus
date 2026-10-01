@@ -25,7 +25,7 @@ import threading
 import time
 import uuid
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -3840,6 +3840,9 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # de sempre (a ferramenta dele).
     if (lido.tipo == "ficha" or (lido.tipo == "cadastro" and lido.campos.get("nome"))) and agente is None:
         return _responder_ficha(trabalho, lido, pergunta, citado or explicito)
+    # `Conversa - Lancamento` e `- Recebimento`: o lancamento na coluna.
+    if lido.tipo == "lancamento" and agente is None:
+        return _responder_lancamento(trabalho, lido, pergunta, citado or explicito)
     # `Conversa - Criar agente`: tres perguntas e o rascunho na coluna.
     if lido.tipo == "criar_agente":
         return _responder_criar_agente(trabalho, lido, pergunta)
@@ -4427,6 +4430,24 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                       + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
             onde = "gravacoes"
             campos["nome"] = g.get("titulo") or ""
+        elif payload.tipo == "lancamento":
+            # O lancamento feito pela coluna: quem gravou foi POST
+            # /api/financeiro/lancar-pela-conversa; aqui ele entra na conversa.
+            l = estado.financeiro.obter(int(campos.get("id") or 0))
+            if not l:
+                raise HTTPException(status_code=404, detail="não achei esse lançamento")
+            novo = l["id"]
+            feito = l
+            if l["tipo"] == "recebimento":
+                resumo = f"Lancei o recebimento de {l.get('valor')} (“{l['descricao']}”)" + (" como recebido em " + escritorio._br(l["liquidado_em"]) if l.get("liquidado_em") else "")
+            else:
+                resumo = f"Lancei a despesa de {l.get('valor')} (“{l['descricao']}”)" + (", vence " + escritorio._br(l["vencimento"]) if l.get("vencimento") else "")
+            if campos.get("papel"):
+                resumo += ", com o " + str(campos["papel"]) + " guardado"
+            if campos.get("tarefa"):
+                resumo += " e o lembrete na Agenda"
+            onde = "financeiro"
+            campos["nome"] = l["descricao"]
         elif payload.tipo == "ficha":
             # A ficha salva pela coluna (`Conversa - Cadastro`, `- Equipe`,
             # `- Despesa fixa`): quem gravou foi POST /api/cadastros; aqui ela
@@ -4703,6 +4724,93 @@ def _responder_ficha(trabalho, lido, pergunta: str, citados=None) -> StreamingRe
 
     def gerar() -> Iterator[str]:
         trabalho.etapas = [Etapa("Preencher a ficha", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _responder_lancamento(trabalho, lido, pergunta: str, citados=None) -> StreamingResponse:
+    """
+    O lancamento pela conversa: a despesa ou o recebimento por regra, o
+    anexo lido (boleto, comprovante) e, no recebimento, a cobranca em aberto
+    que ele paga. A frase diz o que conferiu; o lancamento abre na coluna e
+    so entra no Financeiro no clique em Lancar.
+    """
+    import lancamentos_pela_conversa as lpc
+
+    c = dict(lido.campos)
+    hoje = date.today().isoformat()
+    if c.get("cadastro_nome") and not c.get("cadastro_id"):
+        ficha = next((f for f in estado.cadastros.listar() if f["nome"] == c["cadastro_nome"]), None)
+        c["cadastro_id"] = ficha["id"] if ficha else None
+    papel_doc = next((d for d in _documentos_citados(citados) if d.text), None)
+    papel = lpc.ler_papel(papel_doc.text) if papel_doc else {}
+    c["papel"] = {"nome": papel_doc.name, "tipo": c.get("anexo") or ("comprovante" if c["tipo"] == "recebimento" else "boleto"),
+                  **papel} if papel_doc else None
+    casado = None
+    if c["tipo"] == "recebimento":
+        abertos = estado.financeiro.listar(tipo="recebimento", situacao="aberto")
+        casado = lpc.casar_aberto(c, abertos)
+    partes = []
+    if casado:
+        c["id"] = casado["id"]
+        c["original_centavos"] = casado["centavos"]
+        c["juros_centavos"] = max(0, c["centavos"] - casado["centavos"])
+        c["descricao"] = casado["descricao"]
+        c["categoria"] = casado.get("categoria") or c["categoria"]
+        c["vencimento"] = casado.get("vencimento") or ""
+        c["atrasado"] = bool(casado.get("atrasado"))
+    if c.get("pago"):
+        c["liquidado_em"] = hoje
+    if c["tipo"] == "despesa" and c.get("cadastro_nome") and c.get("descricao") and c["cadastro_nome"] not in c["descricao"]:
+        c["descricao"] = c["descricao"] + " · " + c["cadastro_nome"]
+    forma = {"transferencia": "por transferência", "pix": "por Pix", "boleto": "por boleto", "cartao": "no cartão",
+             "dinheiro": "em dinheiro", "debito": "no débito"}.get(c.get("forma") or "", "")
+    if c["tipo"] == "recebimento":
+        if casado:
+            texto = (("Li o comprovante e preenchi" if papel_doc else "Preenchi") + " o recebimento ao lado: " +
+                     lpc.em_reais(casado["centavos"]) + " de “" + casado["descricao"] + "”" +
+                     (f" mais {lpc.em_reais(c['juros_centavos'])} de juros" if c["juros_centavos"] else "") +
+                     ", pagos hoje" + (f" {forma}" if forma else "") + "." +
+                     (" A cobrança em atraso sai da lista." if c.get("atrasado") else ""))
+        else:
+            texto = ("Preenchi o recebimento ao lado: " + lpc.em_reais(c["centavos"]) +
+                     (f" de {c['cadastro_nome']}" if c.get("cadastro_nome") else "") + ", pago hoje. " +
+                     ("Não achei cobrança em aberto desse cliente que case com o valor: entra como recebimento novo."
+                      if c.get("cadastro_id") else "Não achei o cliente em Cadastros: escolha ao lado."))
+        if papel.get("centavos") and papel["centavos"] != c["centavos"]:
+            texto += f" O comprovante diz {lpc.em_reais(papel['centavos'])} — confira."
+    else:
+        texto = ("Li o boleto e preenchi" if papel_doc else "Preenchi") + " a despesa ao lado."
+        if papel_doc:
+            confere = []
+            if papel.get("centavos"):
+                confere.append("o valor" if papel["centavos"] == c["centavos"] else None)
+            if papel.get("vencimento") and c.get("vencimento"):
+                confere.append("o vencimento" if papel["vencimento"] == c["vencimento"] else None)
+            if confere and all(confere):
+                partes.append(" e ".join(confere).capitalize() + (" batem" if len(confere) > 1 else " bate") + " com o que você disse")
+            elif papel.get("centavos") and papel["centavos"] != c["centavos"]:
+                partes.append(f"o boleto diz {lpc.em_reais(papel['centavos'])}, e você disse {lpc.em_reais(c['centavos'])} — confira")
+            elif papel.get("vencimento") and c.get("vencimento") and papel["vencimento"] != c["vencimento"]:
+                partes.append(f"o boleto vence em {escritorio._br(papel['vencimento'])}, e você disse {escritorio._br(c['vencimento'])} — confira")
+            if papel.get("beneficiario"):
+                partes.append("o beneficiário é " + papel["beneficiario"])
+            if partes:
+                texto += " " + "; ".join(partes) + "."
+        if not c.get("vencimento"):
+            texto += " Falta o vencimento."
+    c["frase"] = texto
+    proposta = {"tipo": "lancamento", "titulo": c.get("descricao") or "", "campos": c, "porque": lido.porque, "pergunta": pergunta}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Preencher o lançamento", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)
@@ -11119,6 +11227,61 @@ async def financeiro_comprovante(id_: int, arquivo: UploadFile, decisoes: str = 
     estado.financeiro.anexar(id_, destino.name, str(destino), sha1)
     estado.recarregar_em_segundo_plano()
     return estado.financeiro.obter(id_) or {}
+
+
+@app.post("/api/financeiro/lancar-pela-conversa")
+def financeiro_lancar_pela_conversa(payload: dict) -> dict:
+    """
+    O "Lançar" da coluna (`Conversa - Lancamento`, `- Recebimento`): grava
+    (ou atualiza a cobranca em aberto), da baixa quando ja foi pago, guarda o
+    papel (o comprovante vai para Financeiro/Comprovantes do Acervo e fica
+    ligado; o boleto entra em Papeis do mes) e cria o lembrete na Agenda.
+    """
+    dados = dict(payload.get("dados") or {})
+    id_ = payload.get("id") or None
+    try:
+        id_ = estado.financeiro.salvar(dados, int(id_) if id_ else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    liquidado = str(payload.get("liquidado_em") or "")[:10]
+    if liquidado:
+        estado.financeiro.liquidar(id_, liquidado)
+    lancamento = estado.financeiro.obter(id_) or {}
+    papel = payload.get("papel") or {}
+    papel_feito = ""
+    if papel.get("nome"):
+        doc = next((d for d in estado.searcher.documents if d.name == papel["nome"]), None)
+        if doc and Path(doc.path).exists():
+            if papel.get("tipo") == "boleto":
+                estado.papeis.salvar({"tipo": "boleto", "lancamento_id": id_, "cadastro_id": lancamento.get("cadastro_id"),
+                                      "centavos": lancamento.get("centavos", 0), "data": lancamento.get("vencimento", ""),
+                                      "observacao": doc.name})
+                papel_feito = "boleto"
+            else:
+                import hashlib
+                import shutil
+
+                quando = lancamento.get("liquidado_em") or lancamento.get("vencimento") or ""
+                pasta = _pasta_no_acervo("Financeiro", "Comprovantes", quando[:7] or escritorio.mes_de_hoje())
+                destino = pasta / Path(doc.path).name
+                if not destino.exists():
+                    shutil.copy2(doc.path, destino)
+                sha1 = hashlib.sha1(destino.read_bytes()).hexdigest()
+                estado.financeiro.anexar(id_, destino.name, str(destino), sha1)
+                estado.recarregar_em_segundo_plano()
+                papel_feito = "comprovante"
+    tarefa = 0
+    if payload.get("lembrar") and lancamento.get("vencimento") and not liquidado:
+        try:
+            antes = (date.fromisoformat(lancamento["vencimento"]) - timedelta(days=1)).isoformat()
+        except ValueError:
+            antes = ""
+        if antes:
+            verbo = "Receber" if lancamento.get("tipo") == "recebimento" else "Pagar"
+            tarefa = estado.tarefas.salvar({"titulo": f"{verbo}: {lancamento.get('descricao', '')} — {lancamento.get('valor', '')}",
+                                            "prazo": antes, "cadastro_id": lancamento.get("cadastro_id"),
+                                            "anotacao": "Lembrete do lançamento feito pela conversa (vence " + escritorio._br(lancamento["vencimento"]) + ")."})
+    return {"lancamento": estado.financeiro.obter(id_) or {}, "papel": papel_feito, "tarefa": tarefa}
 
 
 @app.delete("/api/financeiro/comprovante/{id_}")

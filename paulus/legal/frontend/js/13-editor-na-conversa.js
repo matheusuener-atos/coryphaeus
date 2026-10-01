@@ -201,6 +201,7 @@ function textoDaCaixaDaFerramenta() {
   if (typeof va !== "undefined" && va.reg && papelDoLado() === "ferramenta") return "Pergunte sobre o documento…";
   // A ficha aberta na coluna (js/86-fichas-na-conversa.js): a frase corrige um campo.
   if (typeof fichaAbertaNoLado === "function" && fichaAbertaNoLado()) return FCN_PEDIDO[fcn.v.tipo] || FCN_PEDIDO.cliente;
+  if (typeof lancamentoAbertoNoLado === "function" && lancamentoAbertoNoLado()) return "Mude o valor, a data ou lance outra coisa…";
   return "";
 }
 

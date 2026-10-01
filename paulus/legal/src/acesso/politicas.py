@@ -322,6 +322,8 @@ _declarar(BLOQUEADO,
           "POST /api/financeiro/lancamentos/{id_}/reabrir", "DELETE /api/financeiro/lancamentos/{id_}",
           "POST /api/financeiro/lancamentos/{id_}/comprovante", "DELETE /api/financeiro/comprovante/{id_}",
           "POST /api/financeiro/cobrar",
+          # o lancamento feito pela conversa (src/lancamentos_pela_conversa.py)
+          "POST /api/financeiro/lancar-pela-conversa",
           "GET /api/relatorios", "GET /api/relatorios/acoes", "POST /api/relatorios/parecer", "GET /api/relatorios/pdf",
           "POST /api/relatorios/pdf",
           "GET /api/bemestar", "GET /api/bemestar/semana", "POST /api/bemestar/medir", "POST /api/bemestar/ciclo",

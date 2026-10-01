@@ -85,6 +85,7 @@ MODULOS: list[dict] = [
                       "GET /api/relatorios", "GET /api/relatorios/acoes", "GET /api/relatorios/pdf"),
      "consultas": _r("POST /api/relatorios/pdf"),
      "libera_faz": _r("POST /api/financeiro/lancamentos", "POST /api/financeiro/lancamentos/{id_}/liquidar",
+                      "POST /api/financeiro/lancar-pela-conversa",
                       "POST /api/financeiro/lancamentos/{id_}/reabrir", "POST /api/financeiro/papeis",
                       "POST /api/financeiro/papeis/{id_}/pago", "POST /api/relatorios/pdf")},
     {"id": "aprovacoes", "rotulo": "Aprovações", "niveis": (NAO, VER, FAZ), "padrao": VER,
