@@ -5659,6 +5659,9 @@ EXECUTORES = {
     "processos.prazo": lambda pedido: processos_mod.executar_prazo(estado, pedido),
     # A2: a ferramenta de um agente, aprovada na fila em vez de no cartão.
     "conversa.proposta": lambda pedido: agente_mod.executar_da_fila(estado, pedido),
+    # N9: a tarefa e o compromisso que um assistente conectado pelo MCP pediu.
+    "mcp.tarefa": lambda pedido: mcp_leis.executar_tarefa(estado, pedido),
+    "mcp.compromisso": lambda pedido: mcp_leis.executar_compromisso(estado, pedido),
 }
 
 

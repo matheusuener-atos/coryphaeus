@@ -8,7 +8,7 @@ L7 - o servidor MCP além das leis (src/mcp_leis.py, js/69-mcp.js).
   - o escopo por Serviço; o cartão só de documento liberado;
   - súmulas e temas do STJ, e a posição da casa;
   - tudo na auditoria, e a criação diz o que é do escritório e o escopo;
-  - só leitura: nenhuma ferramenta nova escreve (a lista delas é conferida).
+  - as que escrevem (N9) estão marcadas, e nenhuma apaga, move, envia nem edita.
 
     PYTHONIOENCODING=utf-8 venv/Scripts/python.exe tests/test_l7_mcp.py
 """
@@ -121,9 +121,12 @@ def main() -> int:
     checar(any("acervo_procurar" in e["alvo"] and e["pessoa"] == "Só Alfa" for e in chamadas), "toda chamada na auditoria")
 
     print("\nsó leitura")
-    escreve = ("salvar", "gravar", "apagar", "mover", "enviar", "criar", "editar")
-    checar(not any(p in n for n in mcp_leis.FERRAMENTAS_DO_ESCRITORIO for p in escreve),
-           "nenhuma ferramenta nova é de escrever", list(mcp_leis.FERRAMENTAS_DO_ESCRITORIO))
+    # N9 (decisão do dono): as que escrevem existem, marcadas, e nenhuma apaga, move, envia nem edita o que existe.
+    escreve = ("salvar", "gravar", "apagar", "mover", "enviar", "criar", "editar", "anotar", "propor")
+    sem_marca = [n for n in mcp_leis.FERRAMENTAS_DO_ESCRITORIO if any(p in n for p in escreve) and not mcp_leis.escreve(n)]
+    checar(not sem_marca, "toda ferramenta que escreve está marcada como tal (N9)", sem_marca)
+    checar(not any(p in n for n in mcp_leis.FERRAMENTAS_DO_ESCRITORIO for p in ("apagar", "mover", "enviar", "editar")),
+           "e nenhuma apaga, move, envia nem edita", list(mcp_leis.FERRAMENTAS_DO_ESCRITORIO))
 
     print("\n" + "=" * 55)
     if _falhas:

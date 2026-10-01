@@ -223,3 +223,4 @@ __marimo__/
 # O instalador copia o arquivo do disco (tools/instalador/construir.py); o
 # modelo com os campos vazios e o oauth_app.exemplo.json.
 paulus/legal/oauth_app.json
+paulus/legal/tools/.stf-progresso.json

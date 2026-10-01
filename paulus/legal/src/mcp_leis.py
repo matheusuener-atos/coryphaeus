@@ -95,6 +95,23 @@ FERRAMENTAS_DO_ESCRITORIO = {
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string"}, "numero": {"type": "string"}}, "additionalProperties": False},
     },
+    # N8: as súmulas do STF e as vinculantes, e as teses de repercussão geral, no instalador.
+    "sumulas_stf": {
+        "publica": True,
+        "description": "Procura nas súmulas do STF e nas súmulas vinculantes guardadas neste PAULUS (texto oficial, do "
+                       "portal do STF, na data do instalador) por palavras ou pelo número.",
+        "inputSchema": {"type": "object", "properties": {
+            "termo": {"type": "string", "description": "palavras que o enunciado tem"},
+            "numero": {"type": "string", "description": "opcional: o número da súmula"},
+            "vinculante": {"type": "boolean", "description": "só as vinculantes"}}, "additionalProperties": False},
+    },
+    "temas_repercussao_geral": {
+        "publica": True,
+        "description": "Procura nas teses de repercussão geral do STF (banco de teses do portal do STF, na data do "
+                       "instalador): a tese, o paradigma e se houve repercussão geral. Por palavras ou pelo número do tema.",
+        "inputSchema": {"type": "object", "properties": {
+            "termo": {"type": "string"}, "numero": {"type": "string"}}, "additionalProperties": False},
+    },
     "vigencia_do_artigo": {
         "publica": True,
         "description": "Como estava um artigo de lei numa data: cada dispositivo (caput, parágrafos, incisos) vigente, "
@@ -104,6 +121,42 @@ FERRAMENTAS_DO_ESCRITORIO = {
             "codigo": {"type": "string"}, "numero": {"type": "string"},
             "data": {"type": "string", "description": "AAAA-MM-DD; sem ela, hoje"}},
             "required": ["codigo", "numero"], "additionalProperties": False},
+    },
+    # N9: as que escrevem. Nunca apagam nem mudam o que existe: o rascunho é
+    # documento novo no editor, a anotação entra na trilha do Serviço marcada
+    # com a conexão, e tarefa e compromisso param em Aprovações até o sim.
+    "criar_rascunho": {
+        "publica": False, "escreve": True,
+        "description": "Cria um rascunho novo no editor do PAULUS (título e texto). Não mexe em nenhum documento que existe; "
+                       "a pessoa do escritório revisa lá.",
+        "inputSchema": {"type": "object", "properties": {
+            "titulo": {"type": "string"}, "texto": {"type": "string", "description": "o texto do rascunho; parágrafos separados por linha em branco"}},
+            "required": ["titulo", "texto"], "additionalProperties": False},
+    },
+    "anotar_no_servico": {
+        "publica": False, "escreve": True,
+        "description": "Acrescenta uma anotação na trilha de um Serviço liberado para esta conexão, marcada como vinda do "
+                       "assistente conectado. Não apaga nem muda o que já está lá.",
+        "inputSchema": {"type": "object", "properties": {
+            "servico": {"type": "string", "description": "o nome do Serviço ou o número dele"},
+            "texto": {"type": "string"}}, "required": ["servico", "texto"], "additionalProperties": False},
+    },
+    "propor_tarefa": {
+        "publica": False, "escreve": True,
+        "description": "Pede uma tarefa (título e, se tiver, o prazo AAAA-MM-DD). O pedido espera em Aprovações: a tarefa só "
+                       "existe depois do sim de alguém do escritório.",
+        "inputSchema": {"type": "object", "properties": {
+            "titulo": {"type": "string"}, "prazo": {"type": "string"}, "anotacao": {"type": "string"}},
+            "required": ["titulo"], "additionalProperties": False},
+    },
+    "propor_compromisso": {
+        "publica": False, "escreve": True,
+        "description": "Pede um compromisso na agenda (título, data AAAA-MM-DD, hora HH:MM). O pedido espera em Aprovações: "
+                       "nada entra na agenda sem o sim de alguém do escritório.",
+        "inputSchema": {"type": "object", "properties": {
+            "titulo": {"type": "string"}, "data": {"type": "string"}, "hora": {"type": "string"},
+            "duracao": {"type": "integer", "description": "minutos"}},
+            "required": ["titulo", "data"], "additionalProperties": False},
     },
     "acervo_documentos": {
         "publica": False,
@@ -138,11 +191,22 @@ def publica(nome: str) -> bool:
     return nome in FERRAMENTAS or bool(FERRAMENTAS_DO_ESCRITORIO.get(nome, {}).get("publica"))
 
 
+def escreve(nome: str) -> bool:
+    return bool(FERRAMENTAS_DO_ESCRITORIO.get(nome, {}).get("escreve"))
+
+
+# As que escrevem e não leem o Acervo: não pedem escopo (o rascunho é novo, e o
+# pedido espera em Aprovações). A anotação no Serviço pede: só nos liberados.
+SEM_ESCOPO = {"criar_rascunho", "propor_tarefa", "propor_compromisso"}
+
+
 def limpar_escopo(bruto) -> dict:
     b = bruto if isinstance(bruto, dict) else {}
     return {"tudo": bool(b.get("tudo")),
             "pastas": [str(p).strip().strip("\\/") for p in (b.get("pastas") or []) if str(p).strip()][:30],
-            "servicos": [int(s) for s in (b.get("servicos") or []) if str(s).isdigit()][:30]}
+            "servicos": [int(s) for s in (b.get("servicos") or []) if str(s).isdigit()][:30],
+            # N9: os clientes - os Serviços de cada um e os documentos ligados à ficha.
+            "clientes": [int(c) for c in (b.get("clientes") or []) if str(c).isdigit()][:30]}
 
 
 def _resumo(token: str) -> str:
@@ -169,21 +233,26 @@ class Conexoes:
     def listar(self) -> list[dict]:
         return [{k: v for k, v in c.items() if k != "resumo"} for c in self._ler()]
 
-    def criar(self, nome: str, ferramentas: list[str], escopo=None, entendi: bool = False) -> tuple[dict, str]:
+    def criar(self, nome: str, ferramentas: list[str], escopo=None, entendi: bool = False,
+              entendi_escrever: bool = False) -> tuple[dict, str]:
         """(a conexão, o token) - o token só existe nesta volta."""
         pedidas = [f for f in ferramentas or [] if f in TODAS]
         if not pedidas:
             raise ValueError("escolha pelo menos uma ferramenta")
         escopo = limpar_escopo(escopo)
         privadas = [f for f in pedidas if not publica(f)]
-        if privadas and not (escopo["tudo"] or escopo["pastas"] or escopo["servicos"]):
-            raise ValueError("as ferramentas do escritório precisam de um escopo: o Acervo inteiro, pastas ou Serviços")
+        com_escopo = [f for f in privadas if f not in SEM_ESCOPO]
+        if com_escopo and not (escopo["tudo"] or escopo["pastas"] or escopo["servicos"] or escopo["clientes"]):
+            raise ValueError("as ferramentas do escritório precisam de um escopo: o Acervo inteiro, pastas, Serviços ou clientes")
         if privadas and not entendi:
             raise ValueError("marque que entendeu: os trechos vão para o assistente conectado e para a empresa dele")
+        if any(escreve(f) for f in pedidas) and not entendi_escrever:
+            raise ValueError("marque que entendeu que esta conexão vai criar coisas no PAULUS: rascunhos, anotações e pedidos em Aprovações")
         nome = " ".join(str(nome or "").split())[:60] or "Assistente"
         token = "paulus_mcp_" + secrets.token_urlsafe(32)
         conexao = {"id": uuid.uuid4().hex[:10], "nome": nome, "ferramentas": pedidas, "resumo": _resumo(token),
-                   "escopo": escopo if privadas else {"tudo": False, "pastas": [], "servicos": []},
+                   "escopo": escopo if privadas else {"tudo": False, "pastas": [], "servicos": [], "clientes": []},
+                   "escreve": [f for f in pedidas if escreve(f)],
                    "criada_em": datetime.now().strftime("%Y-%m-%d %H:%M"), "ultimo_uso": "", "chamadas": 0}
         with self._trava:
             itens = self._ler()
@@ -273,14 +342,30 @@ def _pastas_do_escopo(estado, escopo: dict) -> list[Path] | None:
     for p in escopo.get("pastas") or []:
         c = Path(p)
         saida.append((c if c.is_absolute() else Path(estado.pasta) / c).resolve())
-    for s in escopo.get("servicos") or []:
+    for s in servicos_do_escopo(estado, escopo):
         pasta = estado.servicos.pasta_de(int(s), criar=False)
         if pasta:
             saida.append(Path(pasta).resolve())
     return saida
 
 
-def liberado(estado, conexao: dict, caminho: str) -> bool:
+def servicos_do_escopo(estado, escopo: dict) -> list[int]:
+    """Os Serviços liberados: os escolhidos e os dos clientes escolhidos (N9)."""
+    ids = [int(s) for s in escopo.get("servicos") or []]
+    for c in escopo.get("clientes") or []:
+        ids += [int(l["id"]) for l in estado.base.buscar("SELECT id FROM servicos WHERE cadastro_id = ?", (int(c),))]
+    return list(dict.fromkeys(ids))
+
+
+def _sha1_dos_clientes(estado, escopo: dict) -> set[str]:
+    """Os documentos ligados à ficha dos clientes escolhidos (N9)."""
+    saida: set[str] = set()
+    for c in escopo.get("clientes") or []:
+        saida |= {l["sha1"] for l in estado.base.buscar("SELECT sha1 FROM vinculos WHERE tipo = 'cadastro' AND alvo_id = ?", (int(c),))}
+    return saida
+
+
+def liberado(estado, conexao: dict, caminho: str, sha1: str = "") -> bool:
     """Este arquivo está no escopo da conexão, e fora dos casos só no escritório?"""
     import aparelho
 
@@ -290,8 +375,11 @@ def liberado(estado, conexao: dict, caminho: str) -> bool:
         return False
     if aparelho.so_no_escritorio().toca(estado, [str(alvo)]):
         return False
-    pastas = _pastas_do_escopo(estado, conexao.get("escopo") or {})
+    escopo = conexao.get("escopo") or {}
+    pastas = _pastas_do_escopo(estado, escopo)
     if pastas is None:
+        return True
+    if sha1 and sha1 in _sha1_dos_clientes(estado, escopo):
         return True
     return any(alvo == p or alvo.is_relative_to(p) for p in pastas)
 
@@ -300,13 +388,32 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
     if nome == "sumulas_stj":
         from biblioteca.rotas import procurar_sumulas
 
-        achadas = procurar_sumulas(estado.material, termo=str(argumentos.get("termo") or ""),
-                                   numero=str(argumentos.get("numero") or ""), limite=8)
+        achadas = [x for x in procurar_sumulas(estado.material, termo=str(argumentos.get("termo") or ""),
+                                               numero=str(argumentos.get("numero") or ""), limite=40)
+                   if "do STJ" in x["titulo"]][:8]
         if not achadas:
             return "Nenhuma súmula do STJ com isso nas guardadas neste PAULUS.", False
         return "\n\n".join(f"{s['titulo']}\n{s['texto']}" for s in achadas), False
+    if nome == "sumulas_stf":
+        from biblioteca.rotas import procurar_sumulas
+
+        so_vinculantes = bool(argumentos.get("vinculante"))
+        achadas = [x for x in procurar_sumulas(estado.material, termo=str(argumentos.get("termo") or ""),
+                                               numero=str(argumentos.get("numero") or ""), limite=40)
+                   if "do STF" in x["titulo"] and (not so_vinculantes or "Vinculante" in x["titulo"])][:8]
+        if not achadas:
+            return "Nenhuma súmula do STF com isso nas guardadas neste PAULUS.", False
+        return "\n\n".join(f"{s['titulo']}\n{s['texto']}" for s in achadas), False
+    if nome == "temas_repercussao_geral":
+        achados = [t for t in estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=30)
+                   if t.get("tribunal") == "STF"][:6]
+        if not achados:
+            return "Nenhuma tese de repercussão geral com isso nas guardadas neste PAULUS.", False
+        return "\n\n".join(f"{t['rotulo']} — {t['situacao']}" + (f" · {t['assuntos']}" if t.get("assuntos") else "")
+                            + f"\nTese: {t['tese']}" for t in achados), False
     if nome == "temas_stj":
-        achados = estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=6)
+        achados = [t for t in estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=30)
+                   if t.get("tribunal") != "STF"][:6]
         if not achados:
             return "Nenhum tema do STJ com isso (Portal de Dados Abertos do STJ).", False
         return "\n\n".join(f"{t['rotulo']} — {t['situacao']} ({t['orgao']})\nQuestão: {t['questao']}"
@@ -331,7 +438,9 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
     if nome == "posicao_da_casa":
         p = estado.posicoes.obter(str(argumentos.get("codigo", "")).lower(), str(argumentos.get("numero", "")))
         return (p["texto"] if p else "O escritório não escreveu a posição dele sobre esse artigo."), False
-    docs = [d for d in estado.searcher.documents if liberado(estado, conexao, d.path)]
+    if escreve(nome):
+        return _escrever(estado, conexao, nome, argumentos)
+    docs = [d for d in estado.searcher.documents if liberado(estado, conexao, d.path, getattr(d, "sha1", ""))]
     if nome == "acervo_documentos":
         if not docs:
             return "Nenhum documento liberado para esta conexão.", False
@@ -370,11 +479,98 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
     return f"Ferramenta desconhecida: {nome}", True
 
 
+def _escrever(estado, conexao: dict, nome: str, argumentos: dict) -> tuple[str, bool]:
+    """As quatro que escrevem (N9). Cada uma diz o que fez e onde a pessoa confere."""
+    import html as _html
+    import re as _re
+    from datetime import date as _date
+
+    quem = f"Assistente conectado “{conexao['nome']}” (MCP)"
+    if nome == "criar_rascunho":
+        titulo = " ".join(str(argumentos.get("titulo") or "").split())[:120]
+        texto = str(argumentos.get("texto") or "").strip()[:60000]
+        if not titulo or not texto:
+            return "O rascunho precisa de título e texto.", True
+        corpo = "".join(f"<p>{_html.escape(' '.join(p.split()))}</p>" for p in _re.split(r"\n\s*\n", texto) if p.strip())
+        corpo = f"<p><em>Rascunho criado pelo {_html.escape(quem)} — revise antes de usar.</em></p>" + corpo
+        id_ = estado.documentos.criar(f"{titulo} (rascunho do assistente)", "texto", corpo)
+        return f"Rascunho criado no editor do PAULUS: “{titulo} (rascunho do assistente)” (número {id_}). Quem revisa é o escritório.", False
+    if nome == "anotar_no_servico":
+        alvo = str(argumentos.get("servico") or "").strip()
+        texto = " ".join(str(argumentos.get("texto") or "").split())[:2000]
+        if not alvo or not texto:
+            return "Diga o Serviço e o texto da anotação.", True
+        liberados = servicos_do_escopo(estado, conexao.get("escopo") or {})
+        todos = conexao.get("escopo", {}).get("tudo")
+        candidatos = estado.base.buscar("SELECT id, nome FROM servicos")
+        achado = next((c for c in candidatos if str(c["id"]) == alvo or c["nome"].strip().lower() == alvo.lower()), None)
+        if not achado or not (todos or int(achado["id"]) in liberados):
+            return "Esse Serviço não está entre os liberados para esta conexão.", True
+        estado.servicos.trilha(int(achado["id"]), f"Anotação do {quem}: {texto}", quem=conexao["nome"])
+        return f"Anotado na trilha do Serviço “{achado['nome']}”, marcado como vindo do assistente conectado.", False
+    if nome == "propor_tarefa":
+        titulo = " ".join(str(argumentos.get("titulo") or "").split())[:200]
+        prazo = str(argumentos.get("prazo") or "").strip()[:10]
+        if not titulo:
+            return "A tarefa precisa de um título.", True
+        if prazo:
+            try:
+                _date.fromisoformat(prazo)
+            except ValueError:
+                return "O prazo vai como AAAA-MM-DD.", True
+        pedido = estado.fila.pedir(f"{conexao['nome']}: tarefa “{titulo}”", "conversa", acao="mcp.tarefa", pedido_por=quem,
+                                   resumo=(f"Prazo {prazo[8:10]}/{prazo[5:7]}/{prazo[:4]}. " if prazo else "") +
+                                          (str(argumentos.get("anotacao") or "")[:600]),
+                                   etiquetas=["MCP"], prazo=prazo,
+                                   dados={"titulo": titulo, "prazo": prazo, "anotacao": str(argumentos.get("anotacao") or "")[:2000],
+                                          "conexao": conexao["nome"]})
+        return f"Pedido em Aprovações ({pedido.id}): a tarefa “{titulo}” só existe depois do sim de alguém do escritório.", False
+    if nome == "propor_compromisso":
+        titulo = " ".join(str(argumentos.get("titulo") or "").split())[:200]
+        data = str(argumentos.get("data") or "").strip()[:10]
+        hora = str(argumentos.get("hora") or "09:00").strip()[:5]
+        try:
+            _date.fromisoformat(data)
+        except ValueError:
+            return "A data vai como AAAA-MM-DD.", True
+        if not _re.fullmatch(r"\d{2}:\d{2}", hora):
+            return "A hora vai como HH:MM.", True
+        try:
+            duracao = max(5, min(int(argumentos.get("duracao") or 60), 720))
+        except (TypeError, ValueError):
+            duracao = 60
+        pedido = estado.fila.pedir(f"{conexao['nome']}: compromisso “{titulo}”", "agenda", acao="mcp.compromisso", pedido_por=quem,
+                                   resumo=f"{data[8:10]}/{data[5:7]}/{data[:4]} às {hora}, {duracao} min.", etiquetas=["MCP"], prazo=data,
+                                   dados={"titulo": titulo or "Compromisso", "data": data, "hora": hora, "duracao": duracao,
+                                          "conexao": conexao["nome"]})
+        return f"Pedido em Aprovações ({pedido.id}): o compromisso só entra na agenda depois do sim de alguém do escritório.", False
+    return f"Ferramenta desconhecida: {nome}", True
+
+
+def executar_tarefa(estado, pedido) -> str:
+    """O sim em Aprovações para a tarefa pedida pelo MCP."""
+    d = pedido.dados
+    tid = estado.tarefas.salvar({"titulo": d["titulo"], "prazo": d.get("prazo") or "",
+                                 "anotacao": ((d.get("anotacao") or "") + f"\n\nPedida pelo assistente conectado “{d.get('conexao', '')}” (MCP).").strip()})
+    return f"tarefa criada (número {tid})"
+
+
+def executar_compromisso(estado, pedido) -> str:
+    """O sim em Aprovações para o compromisso pedido pelo MCP."""
+    d = pedido.dados
+    cid = estado.agenda.salvar({"titulo": d["titulo"], "data": d["data"], "hora": d.get("hora") or "09:00",
+                                "duracao": int(d.get("duracao") or 60), "tipo": "compromisso",
+                                "anotacao": f"Pedido pelo assistente conectado “{d.get('conexao', '')}” (MCP)."})
+    return f"compromisso anotado em {d['data'][8:10]}/{d['data'][5:7]} às {d.get('hora')} (número {cid})"
+
+
 class NovaConexao(BaseModel):
     nome: str = ""
     ferramentas: list[str] = []
     escopo: dict = {}
     entendi: bool = False
+    # N9: as ferramentas que escrevem pedem o segundo "entendi".
+    entendi_escrever: bool = False
 
 
 def montar(estado, app) -> None:
@@ -387,7 +583,7 @@ def montar(estado, app) -> None:
     @app.get("/api/mcp")
     def mcp_estado() -> dict:
         return {"ligado": _ligado(), "endereco": f"http://127.0.0.1:{getattr(estado, 'porta', 8000)}/mcp",
-                "ferramentas": [{"id": n, "descricao": f["description"], "publica": publica(n)} for n, f in TODAS.items()],
+                "ferramentas": [{"id": n, "descricao": f["description"], "publica": publica(n), "escreve": escreve(n)} for n, f in TODAS.items()],
                 "conexoes": estado.mcp.conexoes.listar()}
 
     @app.post("/api/mcp/conexoes")
@@ -396,12 +592,14 @@ def montar(estado, app) -> None:
         if not _ligado():
             raise HTTPException(status_code=409, detail="o servidor MCP está desligado em Configurações")
         try:
-            conexao, token = estado.mcp.conexoes.criar(payload.nome, payload.ferramentas, payload.escopo, payload.entendi)
+            conexao, token = estado.mcp.conexoes.criar(payload.nome, payload.ferramentas, payload.escopo, payload.entendi,
+                                                       payload.entendi_escrever)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         privadas = [f for f in conexao["ferramentas"] if not publica(f)]
         estado.mcp._anotar(acao="mcp-conexao", alvo=f"criada: {conexao['nome']}" +
-                           (f" · do escritório: {', '.join(privadas)} · escopo {json.dumps(conexao['escopo'], ensure_ascii=False)}" if privadas else ""),
+                           (f" · do escritório: {', '.join(privadas)} · escopo {json.dumps(conexao['escopo'], ensure_ascii=False)}" if privadas else "") +
+                           (f" · escreve: {', '.join(conexao['escreve'])}" if conexao.get("escreve") else ""),
                            pessoa="janela do escritório")
         return {"conexao": conexao, "token": token, **mcp_estado()}
 
@@ -448,9 +646,11 @@ class ServidorMCP:
         if metodo == "initialize":
             return ok({"protocolVersion": PROTOCOLO, "capabilities": {"tools": {"listChanged": False}},
                        "serverInfo": {"name": "paulus", "version": self.versao or "0"},
-                       "instructions": "O PAULUS do escritório, só leitura: leis do texto compilado do Planalto (o "
-                                       "revogado vem marcado), súmulas e temas do STJ e, se liberado para esta conexão, "
-                                       "documentos do escritório. Cite pelo texto devolvido; não invente o que não veio."})
+                       "instructions": "O PAULUS do escritório: leis do texto compilado do Planalto (o revogado vem "
+                                       "marcado), súmulas e temas do STJ e do STF e, se liberado para esta conexão, documentos "
+                                       "do escritório. As ferramentas que escrevem só criam (rascunho, anotação) ou pedem em "
+                                       "Aprovações (tarefa, compromisso) - nada apaga nem muda o que existe. Cite pelo texto "
+                                       "devolvido; não invente o que não veio."})
         if metodo == "ping":
             return ok({})
         if metodo == "tools/list":

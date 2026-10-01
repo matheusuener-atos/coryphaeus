@@ -354,7 +354,7 @@ o código garante.
 | N6 | A conversa chama as tarefas de vários passos | L4 | feito | `tests/test_n6_conversa_tarefas.py` |
 | N7 | Súmulas e temas na resposta da conversa | L5 | feito | `tests/test_n7_temas_na_conversa.py` |
 | N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
-| N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | — | `tests/test_n9_mcp_escreve.py` |
+| N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | feito | `tests/test_n9_mcp_escreve.py` |
 | N10 | Captura: corte das bordas e perspectiva endireitada | L8 | — | `tests/test_n10_corte.py` |
 | N11 | A posição na fila da resposta que volta do aparelho | D4 | — | `tests/test_n11_fila_aparelho.py` |
 | N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | — | `tests/test_n12_vigencia.py` |
@@ -566,3 +566,29 @@ situação aparece (é para isso o "confira").
 conversa com o modelo simulado, a chave, e o bloco no Edge em 1280 e 390
 px); `test_l5_fundamentacao`, `test_c1_execucao`, `test_c2_pensando` e
 `test_c3_painel` continuam passando.
+
+## N9 — MCP: escopo por cliente e ferramentas que escrevem (30/09/2026)
+
+- **Escopo por cliente** (`escopo.clientes`): os Serviços de cada cliente
+  escolhido e os documentos ligados à ficha dele (pelo sha1 do vínculo). O
+  documento de outro cliente não sai; "só no escritório" continua nunca
+  saindo.
+- **As que escrevem** (de propósito na L7, liberadas agora por decisão do
+  dono), marcadas `escreve`: nenhuma apaga, move, envia nem edita o que
+  existe.
+  - `criar_rascunho`: documento novo no editor, com o título "(rascunho do
+    assistente)" e a primeira linha dizendo quem criou;
+  - `anotar_no_servico`: uma linha na trilha de um Serviço liberado,
+    marcada com o nome da conexão (pede escopo);
+  - `propor_tarefa` e `propor_compromisso`: pedidos em Aprovações (`mcp.tarefa`,
+    `mcp.compromisso`) — a tarefa e o compromisso só existem depois do sim.
+- **A conexão** com uma que escreve pede o segundo "entendi" ("esta conexão
+  vai criar coisas no PAULUS"); a auditoria anota o que ela escreve; o
+  diálogo da conexão nova ganha os clientes no escopo e as que escrevem
+  num grupo à parte.
+
+**Medido:** `tests/test_n9_mcp_escreve.py` 20 ok (o escopo por cliente, as
+quatro que escrevem, os dois "entendi", a recusa fora do escopo e da
+conexão, a auditoria, e o diálogo no Edge); `test_l7_mcp` (com a checagem
+"só leitura" trocada por "as que escrevem estão marcadas") e
+`test_umbrel_a_mcp` continuam passando.
