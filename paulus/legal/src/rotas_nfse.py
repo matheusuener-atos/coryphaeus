@@ -40,6 +40,10 @@ class Motivo(BaseModel):
     texto: str = ""
 
 
+class Mes(BaseModel):
+    mes: str = ""
+
+
 class Senha(BaseModel):
     senha: str = ""
     guardar: bool = False
@@ -326,3 +330,58 @@ def montar(estado, app, dados_dir) -> None:
         except (SemResposta, NaoChegou) as exc:
             _erro(exc, 502)
         return _nota_para_tela(nota)
+
+    # ------------------------------------------------- o contador (N6)
+
+    def _mes(mes: str) -> str:
+        import re
+        from datetime import date
+
+        mes = (mes or "").strip() or date.today().isoformat()[:7]
+        if not re.fullmatch(r"20\d{2}-(0[1-9]|1[0-2])", mes):
+            raise HTTPException(status_code=400, detail="mês inválido: use AAAA-MM")
+        return mes
+
+    @app.get("/api/nfse/contador")
+    def nfse_contador(mes: str = "") -> dict:
+        mes = _mes(mes)
+        return {"relatorio": estado.nfse.contador.relatorio(mes), "achados": estado.nfse.contador.conferir(mes)}
+
+    def _exportar(mes: str) -> dict:
+        destino = Path(estado.pasta) / "Notas fiscais" / "Contador"
+        feito = estado.nfse.contador.exportar(mes, destino)
+        if hasattr(estado, "recarregar_em_segundo_plano"):
+            estado.recarregar_em_segundo_plano()
+        return feito
+
+    @app.post("/api/nfse/contador/exportar")
+    def nfse_contador_exportar(payload: Mes) -> dict:
+        feito = _exportar(_mes(payload.mes))
+        return {"caminho": feito["caminho"], "arquivos": feito["arquivos"]}
+
+    @app.post("/api/nfse/contador/enviar")
+    def nfse_contador_enviar(payload: Mes) -> dict:
+        """O .zip do mês ao contador, por e-mail, depois do sim em Aprovações."""
+        mes = _mes(payload.mes)
+        prest = estado.nfse.prestador.atual()["dados"]
+        para = (prest.get("contador") or {}).get("email") or ""
+        if not para:
+            raise HTTPException(status_code=400, detail="falta o e-mail do contador em Configurações › Nota fiscal")
+        conta = estado.contas.em_uso if hasattr(estado, "contas") else None
+        if conta is None:
+            raise HTTPException(status_code=400, detail="não há conta de e-mail no PAULUS para enviar")
+        feito = _exportar(mes)
+        rel = feito["relatorio"]
+        assunto = f"NFS-e de {mes[5:7]}/{mes[:4]} — {prest.get('razao_social') or ''}".strip(" —")
+        nome = prest["contador"].get("nome") or ""
+        corpo = (f"Olá{(' ' + nome) if nome else ''},\n\n"
+                 f"Seguem as notas fiscais de serviço de {mes[5:7]}/{mes[:4]}: {rel['contagem'].get('emitida', 0)} emitida(s), "
+                 f"{rel['contagem'].get('cancelada', 0)} cancelada(s), {rel['contagem'].get('substituida', 0)} substituída(s). "
+                 "No arquivo vão os XMLs, a planilha-resumo e um leia-me.\n\nAtenciosamente,\n" + (prest.get("razao_social") or ""))
+        pedido = estado.fila.pedir(f"Mandar as NFS-e de {mes} ao contador ({para})", "email",
+                                   resumo=f"Para {para}, com o arquivo {Path(feito['caminho']).name} ({feito['arquivos']} XMLs)",
+                                   etiquetas=["não dá para desfazer", "com anexo"], acao="correio.enviar",
+                                   dados={"conta_id": conta.id, "para": para, "cc": "", "cco": "", "assunto": assunto,
+                                          "corpo": corpo, "corpo_html": "", "anexos": [feito["caminho"]], "responder_a": ""},
+                                   reversivel=False, pedido_por="PAULUS (nota fiscal)")
+        return {"pedido": pedido.id, "caminho": feito["caminho"]}

@@ -43,6 +43,9 @@ class Emissor:
         self.notas = Notas(self)
         self.envio = Envio(self)
         self.eventos = Eventos(self)
+        from .contador import Contador
+
+        self.contador = Contador(self)
         # A substituta emitida marca a original antes do resto (Acervo, e-mail…).
         self.envio.ao_emitir.append(self.eventos.depois_de_emitir)
 
@@ -149,6 +152,24 @@ class Emissor:
             return cliente_mod.Cliente(ambiente, producao_liberada=liberada, transporte=self.transporte)
         pfx, senha = self._pfx_e_senha()
         return cliente_mod.Cliente(ambiente, pfx, senha, producao_liberada=liberada)
+
+    def avisos_extras(self, hoje) -> list[dict]:
+        """Os achados da conferência do mês (N6) para o carrossel, com id estável."""
+        if not self.ligado:
+            return []
+        mes = hoje.isoformat()[:7]
+        try:
+            achados = self.contador.conferir(mes, hoje)
+        except Exception:  # noqa: BLE001 - conferência que falha não derruba o carrossel
+            return []
+        return [{"id": a["id"], "titulo": a["titulo"], "detalhe": a.get("detalhe", ""), "nota_id": a.get("nota_id")}
+                for a in achados if a["tipo"] != "recebimento_sem_nota"]
+
+    def papeis_a_emitir(self, mes: str) -> list[dict]:
+        """Os recebimentos do mês sem nota (a mesma lista do Financeiro)."""
+        import escritorio
+
+        return escritorio.PapeisFiscais(self.base).a_emitir(mes)
 
     # ------------------------------------------------------------ DANFSe
 

@@ -85,6 +85,8 @@ PADRAO: dict = {
     "total_tributos": {"modo": "percentual", "federal_bp": 0, "estadual_bp": 0, "municipal_bp": 0,
                        "simples_bp": 0},
     "serie": "1",
+    # O contador do escritório: para quem vai o .zip do mês (N6), por e-mail com Aprovação.
+    "contador": {"nome": "", "email": ""},
     "ambiente": "producao_restrita",
     "revisado_por": "",
     "revisado_em": "",
@@ -258,6 +260,12 @@ def conferir(dados: dict) -> tuple[dict, list[str]]:
         tt["modo"] = "percentual"
     if c["opcao_simples"] == "2" and tt["modo"] == "simples":
         tt["modo"] = "percentual"
+
+    ct = c["contador"]
+    ct["nome"] = " ".join(str(ct.get("nome") or "").split())[:120]
+    ct["email"] = str(ct.get("email") or "").strip()[:120]
+    if ct["email"] and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", ct["email"]):
+        raise ValueError("o e-mail do contador não parece um e-mail")
 
     serie = re.sub(r"\D", "", str(c.get("serie") or "1")).lstrip("0") or "1"
     # Série de aplicativo próprio: 1 a 49999 (regra E0010).

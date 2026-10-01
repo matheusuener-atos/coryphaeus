@@ -255,3 +255,67 @@ document.addEventListener("click", async (e) => {
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
   abrirCartaoNota(await r.json());
 });
+
+/* ------------------------------------------ O mês para o contador (N6) */
+/*
+   O relatório soma os XMLs das notas do mês da competência; a conferência
+   mostra os achados por regra; e o .zip (XMLs, planilha e leia-me) vai para
+   o Acervo, ou para o contador por e-mail, depois do sim em Aprovações.
+*/
+
+function mesAnteriorNfse(mes, passo) {
+  const [a, m] = mes.split("-").map(Number);
+  const d = new Date(a, m - 1 + passo, 1);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function htmlDoRelatorioNfse(d) {
+  const r = d.relatorio || {};
+  const t = r.totais || {};
+  const rot = r.rotulos || {};
+  const c = r.contagem || {};
+  const ficha = '<div class="nota-conta-rolagem"><table class="nota-conta"><tbody>' +
+    ["v_serv", "v_iss", "v_irrf", "v_csll_pcc", "v_cp", "v_total_ret", "v_ibs", "v_cbs", "v_liq"].map((k) =>
+      "<tr><td>" + esc(rot[k] || k) + "</td><td>" + esc(centavosTexto(t[k] || 0)) + "</td><td></td></tr>").join("") +
+    "<tr><td>Recebido no mês</td><td>" + esc(centavosTexto(r.recebido || 0)) + "</td><td class=\"nota-regra\">diferença recebido − faturado: " +
+    esc(centavosTexto(r.diferenca || 0)) + "</td></tr></tbody></table></div>";
+  const linhas = (r.linhas || []).map((l) => '<tr><td>NFS-e ' + esc(l.numero) + " · " + esc(l.situacao) + "</td><td>" +
+    esc(centavosTexto(l.v_serv)) + '</td><td class="nota-regra">' + esc(l.tomador) + " · competência " + esc(l.competencia) +
+    '</td><td><button type="button" data-nfse-abrir="' + l.id + '">Abrir</button></td></tr>').join("");
+  const achados = (d.achados || []).map((a) => "<li><b>" + esc(a.titulo) + "</b>" + (a.detalhe ? " — " + esc(a.detalhe) : "") + "</li>").join("");
+  return '<div class="nota-cartao">' +
+    '<p class="nota-estado"><b>' + (c.emitida || 0) + " emitida(s)</b> · " + (c.cancelada || 0) + " cancelada(s) · " + (c.substituida || 0) +
+    " substituída(s)" + (r.producao_restrita ? " · há notas de produção restrita (sem valor fiscal)" : "") + "</p>" +
+    "<h3>Totais (só as emitidas)</h3>" + ficha +
+    (achados ? '<div class="nota-avisos"><b>Conferência</b><ul>' + achados + "</ul></div>" : '<p class="cfg-explica">A conferência não achou nada para olhar neste mês.</p>') +
+    "<h3>Notas</h3>" + (linhas ? '<div class="nota-conta-rolagem"><table class="nota-conta"><tbody>' + linhas + "</tbody></table></div>" : '<p class="cfg-explica">Nenhuma nota com competência neste mês.</p>') +
+    "</div>";
+}
+
+async function abrirRelatorioNfse(mes) {
+  mes = mes || new Date().toISOString().slice(0, 7);
+  const r = await fetch("/api/nfse/contador?mes=" + encodeURIComponent(mes));
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
+  const d = await r.json();
+  const escolha = await dialogo({
+    titulo: "Notas fiscais de " + mes.slice(5, 7) + "/" + mes.slice(0, 4), contexto: "Nota fiscal › contador", larga: true, classe: "dialogo-nota",
+    html: htmlDoRelatorioNfse(d),
+    rodape: '<button type="button" data-nfse-mes="' + mesAnteriorNfse(mes, -1) + '">‹ Mês anterior</button>' +
+      '<button type="button" data-nfse-mes="' + mesAnteriorNfse(mes, 1) + '">Mês seguinte ›</button>',
+    confirmar: "Exportar para o contador", segundo: { rotulo: "Mandar ao contador" }, cancelar: "Fechar",
+  });
+  if (!escolha) return;
+  const url = escolha.segundo ? "/api/nfse/contador/enviar" : "/api/nfse/contador/exportar";
+  const r2 = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mes: mes }) });
+  if (!r2.ok) { avisoCert(await erroDe(r2), { tom: "erro" }); return; }
+  const x = await r2.json();
+  if (escolha.segundo) avisoCert("o e-mail ao contador está em Aprovações", { tom: "ok", acao: { rotulo: "Abrir Aprovações", fazer: () => abrirDestino("aprovacoes") } });
+  else avisoCert("arquivo do mês no Acervo: " + x.caminho, { tom: "ok" });
+}
+
+document.addEventListener("click", (e) => {
+  const mes = e.target.closest("[data-nfse-mes]");
+  if (mes) { if (dialogoAberto) dialogoAberto.fechar(null); abrirRelatorioNfse(mes.dataset.nfseMes); return; }
+  const abrir = e.target.closest("[data-nfse-abrir]");
+  if (abrir) { if (dialogoAberto) dialogoAberto.fechar(null); abrirNotaFiscal(Number(abrir.dataset.nfseAbrir)); }
+});

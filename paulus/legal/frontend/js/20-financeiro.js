@@ -799,6 +799,7 @@ function ligarFinanceiro(raiz) {
   clique("[data-fin-papel]", (b) => finFormPapel(b.dataset.finPapel, null));
   clique("[data-fin-ver-papel]", (b) => finVerPapeis(b.dataset.finVerPapel));
   clique("[data-fin-emitir-de]", (b) => novaNotaFiscal({ lancamento_id: Number(b.dataset.finEmitirDe) }, "financeiro"));
+  clique("[data-fin-relatorio-nfse]", () => abrirRelatorioNfse(fin.mes || ""));
   clique("[data-fin-abrir-nota]", (b) => abrirNotaFiscal(Number(b.dataset.finAbrirNota)));
   clique("[data-fin-nota-de]", (b) => {
     const x = (fin.dados.notas_a_emitir || []).find((n) => n.id === Number(b.dataset.finNotaDe));
@@ -1181,6 +1182,11 @@ async function finVerPapeis(tipo) {
         (n.situacao && n.situacao !== "emitida" ? " · " + n.situacao : ""), false, n.valor,
         n.nfse_nota_id ? '<button data-fin-abrir-nota="' + n.nfse_nota_id + '">Abrir a nota</button>'
           : tirar("data-fin-tirar-papel", n.id, "Tirar o registro"))).join("");
+    // N6: o relatório do mês e o arquivo do contador (js/78-nfse-nota.js).
+    if (fin.nfse && fin.nfse.ligado) {
+      linhas = linha("Relatório do mês e contador", "soma dos XMLs, conferência e o .zip para o contador", false, "",
+        '<button data-fin-relatorio-nfse="1">Abrir</button>') + linhas;
+    }
     vazio = "Nenhuma nota registrada neste mês.";
     confirmarRotulo = "Registrar nota";
     depois = () => finFormPapel("nota", null);

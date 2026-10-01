@@ -82,7 +82,10 @@ function secaoNfse() {
     '<div class="ag-duas">' + campoNfse("endereco.logradouro", "Logradouro", (d.endereco || {}).logradouro) + campoNfse("endereco.numero", "Número", (d.endereco || {}).numero) + "</div>" +
     '<div class="ag-duas">' + campoNfse("endereco.complemento", "Complemento", (d.endereco || {}).complemento) + campoNfse("endereco.bairro", "Bairro", (d.endereco || {}).bairro) + "</div>" +
     '<div class="ag-duas">' + campoNfse("endereco.cep", "CEP", (d.endereco || {}).cep, "00000000") + campoNfse("telefone", "Telefone", d.telefone) + "</div>" +
-    campoNfse("email", "E-mail", d.email) + "</div>");
+    campoNfse("email", "E-mail", d.email) +
+    '<div class="ag-duas">' + campoNfse("contador.nome", "Contador (nome)", (d.contador || {}).nome) +
+    campoNfse("contador.email", "E-mail do contador (para o arquivo do mês)", (d.contador || {}).email) + "</div>" +
+    campoNfse("pis_cofins.cst", "CST do PIS/COFINS (quando houver PIS/COFINS/CSLL retidos)", (d.pis_cofins || {}).cst, "o contador informa") + "</div>");
 
   const regime = cartaoCfg("Regime tributário", metaCfg("o contador confirma"),
     '<div class="cfg-campos">' +
@@ -167,8 +170,12 @@ function secaoNfse() {
   const hist = (p.historico || []).map((h) => linhaNfse("versão " + h.id + " · " + (h.motivo || ""), (h.criado_em || "").slice(0, 16).replace("T", " "))).join("");
   const historico = hist ? cartaoCfg("Histórico da configuração", "", hist) : "";
 
+  const contador = cartaoCfg("Notas do mês e contador", metaCfg("relatório, XMLs e conferência"),
+    '<p class="cfg-explica">O relatório do mês soma os XMLs das notas (o que a Sefin calculou), confere por regra recebimento sem nota, nota sem recebimento, valor divergente, retenção não aplicada e competência de outro mês, e monta o .zip para o contador.</p>' +
+    '<div class="word-acoes"><button data-nfse-acao="relatorio">' + ic("description", 16) + "Abrir o relatório do mês</button></div>");
+
   return aberturaCfg() + ficha + ligar + prestador + regime + servico + retencoes + ibscbs + total + salvar +
-    certificadoCartao + municipio + tabelas + historico;
+    certificadoCartao + municipio + contador + tabelas + historico;
 }
 
 function dadosDoFormNfse() {
@@ -198,6 +205,7 @@ async function acaoNfse(acao) {
     return r.json();
   };
   let d = null;
+  if (acao === "relatorio") { if (typeof abrirRelatorioNfse === "function") abrirRelatorioNfse(); return; }
   if (acao === "ligar") d = await json("/api/nfse/ligar", { ligado: !(cfg.nfse && cfg.nfse.ligado) });
   else if (acao === "ibscbs") {
     const b = document.querySelector('[data-nfse-acao="ibscbs"]');
