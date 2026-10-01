@@ -73,7 +73,7 @@ def test_chave_desligada(api, local) -> None:
     checar(p.get("tipo") == "nota" and p.get("disponivel") is False, "a proposta vem marcada como desligada", p.get("disponivel"))
     r = local.post(f"/api/trabalhos/{tid}/fazer", json={"tipo": "nota", "campos": p.get("campos", {})})
     feito = r.json()
-    checar(r.status_code == 200 and feito.get("pendente") and "desligada" in feito.get("resumo", ""),
+    checar(r.status_code == 200 and feito.get("pendente") and "não está disponível" in feito.get("resumo", ""),
            "confirmar só confere e diz que está desligada", feito.get("resumo"))
     checar(not api.estado.nfse.notas.listar(), "nenhuma nota criada")
 
@@ -107,7 +107,7 @@ def test_portas(api, local, cid) -> dict:
     sid = api.estado.servicos.salvar({"nome": "Ação de cobrança ACME", "cadastro_id": cid})
     r = local.post("/api/nfse/notas", json={"origem": "servico", "dados": {"servico_id": sid, "valor_centavos": 500000}})
     serv = r.json()
-    chaves = [set(n.keys()) - {"passos"} for n in (conversa, fin, serv)]
+    chaves = [set(n.keys()) - {"passos", "eventos"} for n in (conversa, fin, serv)]
     checar(chaves[0] == chaves[1] == chaves[2], "o mesmo cartão: os três rascunhos têm os mesmos campos")
     checar(all(n["rascunho"]["tomador"]["documento"] == CNPJ_TOMADOR for n in (conversa, fin, serv)),
            "o mesmo tomador nos três")

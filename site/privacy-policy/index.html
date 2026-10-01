@@ -44,7 +44,7 @@
   <span class="rotulo">PAVLVS — Local AI legal assistant</span>
   <h1>Privacy Policy</h1>
   <p class="lead">How PAULUS (PAULUS Legal; app name on Google: PAVLVS) accesses, uses, stores and protects data — especially data from your Google account and Gmail.</p>
-  <span class="data">Last updated: October 1, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
+  <span class="data">Last updated: October 1, 2026 (invoices) · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
 </header>
 
 <div class="doc">
@@ -63,6 +63,7 @@
       <li><a href="#remote">Remote access (optional)</a></li>
       <li><a href="#device">Writing the answer on the device (optional)</a></li>
       <li><a href="#cloud">Cloud with the office's own key (optional)</a></li>
+      <li><a href="#invoice">Service invoice (NFS-e, optional)</a></li>
       <li><a href="#retention">Retention and deletion</a></li>
       <li><a href="#rights">Your rights (LGPD)</a></li>
       <li><a href="#website">This website</a></li>
@@ -208,6 +209,18 @@
       <li><strong>What the provider does with the text:</strong> it handles what it receives under the terms and privacy policy of the office's API account (Anthropic or OpenAI). Reading those terms, and deciding whether the cloud is suitable for clients' data, is the office's decision.</li>
       <li><strong>Log:</strong> each send is recorded on the computer, with the exact text that left, the model, the tokens and how it was approved, in Settings › Models, and in the audit log.</li>
       <li><strong>To stop:</strong> untick “Turn on the cloud” or delete the key, in Settings › Models. It takes effect immediately.</li>
+    </ul>
+
+    <h2 id="invoice">Service invoice (NFS-e, optional)</h2>
+    <p>The office can issue Brazilian service invoices (NFS-e) through the <strong>National Standard</strong> from PAULUS. <strong>It ships turned off.</strong> It is only turned on from the office computer's window, in Settings › Invoice; from outside (remote access) the tax setup and the certificate cannot be used. Neither we nor paulus.ia.br are in the middle: requests go from the office computer straight to the National NFS-e System (gov.br).</p>
+    <ul>
+      <li><strong>What is sent:</strong> the invoice data, as with any invoicing software — the office's CNPJ (or CPF) and municipal registration; the client's name, CPF or CNPJ, address, e-mail and phone; the service description, period, amounts, withholdings and tax classification. It is signed with the office's digital certificate.</li>
+      <li><strong>When:</strong> only an invoice approved in Approvals, one by one. It starts in the government's restricted test environment (no tax value); production only after the office owner enables it.</li>
+      <li><strong>Lookups:</strong> to know whether the municipality issues through the national standard (once a month), the status of an invoice and its events, PAULUS queries the National System with the office certificate. Once a month it also reads the public NFS-e documentation page on <code>gov.br</code> to learn about new schemas — read-only, nothing from the office is sent.</li>
+      <li><strong>What stays on the computer:</strong> the XML of every declaration sent and every invoice received, event requests and events (cancellation, replacement), the PDF (DANFSe) and the tax breakdown, in PAULUS's data folder (included in the encrypted backup) with a copy in the document collection. An issued invoice is never deleted by PAULUS: tax law requires keeping it until the tax claims expire.</li>
+      <li><strong>The certificate:</strong> a copy of the invoice .pfx stays in the data folder; the password is stored only if the office asks, encrypted by the Windows account (DPAPI). The private key is never written in clear, and the program's log file keeps from each request only the method, the address (without the invoice number) and the response code.</li>
+      <li><strong>E-mail to the client and the accountant:</strong> PAULUS only <strong>proposes</strong> them, in Approvals, through the office's own e-mail account.</li>
+      <li><strong>Tax advice:</strong> PAULUS does not give it. It applies the tax setup defined by the office (or its accountant); see the <a href="../terms-of-use/#invoice">Terms of use</a>.</li>
     </ul>
 
     <h2 id="retention">Retention and deletion</h2>

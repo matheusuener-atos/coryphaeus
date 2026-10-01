@@ -23,6 +23,8 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+from . import tabelas
+
 MINIMO_DE_TESTES = 5
 FRASE_PRIMEIRA = "Esta nota vale de verdade. Conferiu os dados?"
 
@@ -79,7 +81,11 @@ class Producao:
              "detalhe": (f"válido até {cert.get('valido_ate', '')}" if cert and not cert.get("erro") else
                          (cert.get("erro") or "instale o certificado A1 da nota"))},
             {"id": "municipio", "ok": mun.get("situacao") == "conveniado",
-             "titulo": "Município com convênio confirmado", "detalhe": mun.get("frase", "")},
+             "titulo": "Município com convênio confirmado",
+             # O item fala do convênio, não de "já dá para emitir": com a
+             # emissão desligada, a frase da consulta prometeria demais.
+             "detalhe": (f"{_nome_do_municipio(prest.get('municipio') or '')} tem convênio ativo com o Sistema Nacional "
+                         "da NFS-e" if mun.get("situacao") == "conveniado" else mun.get("frase", ""))},
             {"id": "backup", "ok": bool(backup.get("pasta")) and bool(backup.get("senha")),
              "titulo": "Backup configurado", "detalhe": ("pasta " + backup["pasta"]) if backup.get("pasta")
              else "configure o backup em Configurações › Backup (pasta e senha)"},
@@ -116,3 +122,8 @@ class Producao:
         if nota.get("ambiente") != "producao":
             return False
         return self.base.contar("nfse_notas", "ambiente = 'producao' AND estado IN ('emitida','cancelada','substituida')") == 0
+
+
+def _nome_do_municipio(cmun: str) -> str:
+    m = tabelas.municipio(cmun) or {}
+    return f"{m.get('nome', cmun)}/{m.get('uf', '')}".rstrip("/") if m else (cmun or "o município")

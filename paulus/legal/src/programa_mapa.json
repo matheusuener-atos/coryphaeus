@@ -18,7 +18,8 @@
     "Exporta a conversa em Markdown, texto ou Word pelo botão Exportar."
    ],
    "nao_faz": [
-    "Não emite nota fiscal sozinha: com a emissão ligada em Configurações › Nota fiscal, o cartão da NFS-e prepara o rascunho e a nota só sai depois de Aprovações; desligada, o cartão só confere os dados.",
+    "{nfse:emite} A nota fiscal não sai sozinha: o cartão da NFS-e prepara o rascunho, e a nota só sai depois de Aprovações.",
+    "{nfse:nao_emite} Não emite nota fiscal: a emissão está desligada em Configurações › Nota fiscal (ou o município não emite pelo Sistema Nacional), e o cartão da NFS-e só confere os dados.",
     "Não grava nada só por entender a frase: tudo passa pelo cartão de confirmação."
    ],
    "tarefas": [
@@ -1264,16 +1265,16 @@
     "fluxo de caixa"
    ],
    "faz": [
+    "{nfse:emite} Emite NFS-e pelo Padrão Nacional, com o certificado A1 do escritório: Emitir nota no recebimento, o cartão com a conta e Aprovações antes de sair.",
     "Soma o mês a partir dos lançamentos: Saldo em caixa, A receber, A pagar, Em atraso e Fechamento.",
     "Lança despesa ou recebimento em Novo lançamento, com vencimento, cliente e categoria.",
     "Dá baixa com Registrar pagamento ou Registrar recebimento, e desfaz com Reabrir.",
     "Confere o extrato do banco (.ofx, .csv, .txt) e só grava depois de Conferir.",
     "Prepara a cobrança como rascunho de e-mail, que passa por Aprovações antes de sair.",
-    "Monta a folha de pagamento com quem tem vínculo em Cadastros.",
-    "Emite NFS-e pelo Padrão Nacional, com o certificado A1 do escritório, quando ligada em Configurações › Nota fiscal e o município tem convênio com o Sistema Nacional; cada nota passa por Aprovações."
+    "Monta a folha de pagamento com quem tem vínculo em Cadastros."
    ],
    "nao_faz": [
-    "Não emite nota fiscal com a emissão desligada ou com o município sem convênio: aí a nota sai na prefeitura e aqui fica o registro.",
+    "{nfse:nao_emite} Não emite nota fiscal: a emissão está desligada (ou o município não emite pelo Sistema Nacional); a nota sai na prefeitura e aqui fica o registro.",
     "Não gera boleto: aqui fica só o registro.",
     "Não paga nem recebe de verdade: registrar o pagamento só marca o lançamento.",
     "Não cobra por WhatsApp: a cobrança sai só como rascunho de e-mail."

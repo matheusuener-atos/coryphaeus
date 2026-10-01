@@ -1332,7 +1332,7 @@ function cartaoFerramenta(d) {
   // A NFS-e (N4): ligada, o sim cria o rascunho e abre o cartão da nota; a
   // emissão passa por Aprovações. Desligada, só confere.
   const garantia = d.disponivel === false
-    ? " A emissão de nota fiscal está desligada em Configurações › Nota fiscal: confirmar confere os dados, mas nada é enviado nem gravado."
+    ? " A emissão de nota fiscal não está disponível (desligada em Configurações › Nota fiscal, ou o município não emite pelo Sistema Nacional): confirmar confere os dados, mas nada é enviado nem gravado."
     : (d.tipo === "nota"
       ? " O sim cria só o rascunho e abre o cartão da nota: a emissão passa por Aprovações."
       : " Confira antes — eu não gravo nada sem o seu sim.");

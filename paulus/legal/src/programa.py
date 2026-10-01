@@ -612,6 +612,37 @@ class TelaDoMapa:
 _MAPA: dict[str, TelaDoMapa] | None = None
 _MAPAS: dict[bool, dict[str, TelaDoMapa]] = {}
 
+# Linhas do mapa que dependem do estado do programa: "{nfse:emite} ..." só vale
+# quando a NFS-e está ligada e o município emite pelo nacional; "{nfse:nao_emite}
+# ..." só no contrário (src/nfse, N9). Quem sabe o estado pendura a função aqui
+# (src/rotas_nfse.py); sem ninguém, a emissão conta como desligada.
+CONDICOES: dict = {}
+
+
+def _condicao(marca: str) -> bool:
+    if marca == "nfse:emite":
+        f = CONDICOES.get("nfse:emite")
+        try:
+            return bool(f()) if f else False
+        except Exception:  # noqa: BLE001 - estado que falha não derruba o mapa
+            return False
+    if marca == "nfse:nao_emite":
+        return not _condicao("nfse:emite")
+    return True
+
+
+def linhas_que_valem(linhas: list[str]) -> list[str]:
+    """As linhas do mapa que valem agora, sem a marca da condição."""
+    saida = []
+    for l in linhas:
+        if l.startswith("{") and "}" in l:
+            marca, _, texto = l[1:].partition("}")
+            if not _condicao(marca):
+                continue
+            l = texto.strip()
+        saida.append(l)
+    return saida
+
 
 def mapa(caminho: Path | None = None) -> dict[str, TelaDoMapa]:
     """
@@ -650,7 +681,7 @@ def mapa_para(ampliado: bool) -> dict[str, TelaDoMapa]:
     Acervo deixa de atender por "biblioteca" (a Biblioteca agora é outra).
     """
     if ampliado in _MAPAS and _MAPAS[ampliado] and _MAPA is not None:
-        return _MAPAS[ampliado]
+        return _com_condicoes(_MAPAS[ampliado])
     saida: dict[str, TelaDoMapa] = {}
     for id_, tela in mapa().items():
         if tela.c4 and not ampliado:
@@ -663,7 +694,15 @@ def mapa_para(ampliado: bool) -> dict[str, TelaDoMapa]:
             tarefas=[t for t in tela.tarefas if ampliado or not t.c4], c4=tela.c4,
         )
     _MAPAS[ampliado] = saida
-    return saida
+    return _com_condicoes(saida)
+
+
+def _com_condicoes(telas: dict[str, TelaDoMapa]) -> dict[str, TelaDoMapa]:
+    """O mapa com as linhas condicionais resolvidas agora (o estado muda em uso)."""
+    return {k: TelaDoMapa(destino=t.destino, apelidos=t.apelidos, faz=linhas_que_valem(t.faz),
+                          nao_faz=linhas_que_valem(t.nao_faz), tarefas=t.tarefas, c4=t.c4,
+                          apelidos_c4=t.apelidos_c4, apelidos_fora_c4=t.apelidos_fora_c4)
+            for k, t in telas.items()}
 
 
 SUFIXOS = ("amentos", "imentos", "amento", "imento", "atura", "acoes", "icoes", "acao", "icao",

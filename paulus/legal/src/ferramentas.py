@@ -583,8 +583,10 @@ def disponivel(ferramenta: str, estado=None) -> bool:
     """Se a ferramenta faz de verdade agora. A NFS-e depende da chave nfse.ligado."""
     f = CATALOGO_FERRAMENTAS.get(ferramenta) or {}
     if f.get("atras_da_chave") == "nfse":
+        # Ligada E com o município emitindo pelo nacional: sem convênio, a nota
+        # sai na prefeitura, e o cartão não pode prometer o contrário.
         nfse = getattr(estado, "nfse", None)
-        return bool(nfse and nfse.ligado)
+        return bool(nfse and nfse.ligado and nfse.situacao_municipio().get("pode_emitir"))
     return bool(f.get("disponivel", True))
 
 
@@ -593,7 +595,8 @@ def _emitir_nfse(estado, campos: dict) -> dict:
     if not disponivel("emitir_nfse", estado):
         # Desligada: os dados são conferidos como seriam, e nada é enviado nem gravado.
         resumo = (f"Conferi a NFS-e para {limpos['cliente']}, de {_reais(limpos['valor'])}. "
-                  "A emissão de nota fiscal está desligada em Configurações › Nota fiscal: nada foi enviado nem gravado")
+                  "A emissão de nota fiscal não está disponível (desligada em Configurações › Nota fiscal, ou o município "
+                  "não emite pelo Sistema Nacional): nada foi enviado nem gravado")
         return {"id": 0, "registro": limpos, "resumo": resumo, "onde": "", "pendente": True}
     # Ligada: vira o RASCUNHO, e o cartão da nota abre com o que falta pedido.
     # Emitir, só pelo cartão e por Aprovações.

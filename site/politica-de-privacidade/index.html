@@ -45,7 +45,7 @@
   <span class="rotulo">PAVLVS — Assistente jurídico de IA local</span>
   <h1>Política de privacidade</h1>
   <p class="lead">Como o PAULUS (PAULUS Legal, nome do app no Google: PAVLVS) acessa, usa, guarda e protege dados — em especial os dados da sua conta Google e do Gmail.</p>
-  <span class="data">Última atualização: 1º de outubro de 2026 · <a href="../privacy-policy/" lang="en">English version</a></span>
+  <span class="data">Última atualização: 1º de outubro de 2026 (nota fiscal) · <a href="../privacy-policy/" lang="en">English version</a></span>
 </header>
 
 <div class="doc">
@@ -64,6 +64,7 @@
       <li><a href="#acesso-de-fora">Acesso de fora (opcional)</a></li>
       <li><a href="#aparelho">Escrever a resposta no aparelho (opcional)</a></li>
       <li><a href="#nuvem">Nuvem com a chave do escritório (opcional)</a></li>
+      <li><a href="#nota-fiscal">Nota fiscal de serviço (opcional)</a></li>
       <li><a href="#retencao">Retenção e como apagar</a></li>
       <li><a href="#direitos">Seus direitos (LGPD)</a></li>
       <li><a href="#site">Este site</a></li>
@@ -161,6 +162,7 @@
     <p>Nós não compartilhamos, vendemos ou transferimos os dados do Google, nem os demais dados que você trata no PAULUS, com terceiros. A troca necessária é com o <strong>seu próprio provedor de e-mail</strong>, para ler e enviar as suas mensagens — por exemplo, o Google, quando a conta é do Gmail — e, se você conectar, com a <strong>sua própria Agenda e o seu próprio Drive do Google</strong>, para onde vão os compromissos e os documentos que você escolheu.</p>
     <p>A única exceção fora do e-mail é voluntária: se você <strong>apoiar o projeto</strong>, o e-mail do recibo e o valor vão ao Mercado Pago, que processa o pagamento (veja abaixo). Os dados do Google nunca entram nesse pedido.</p>
     <p>Quando você envia uma mensagem aprovada, ela vai para os destinatários que você escolheu, como em qualquer programa de e-mail.</p>
+    <p>Se o escritório ligar a emissão de nota fiscal, os dados de cada nota aprovada vão ao Sistema Nacional da NFS-e, como em qualquer emissor de nota (veja <a href="#nota-fiscal">Nota fiscal de serviço</a>).</p>
 
     <h2 id="outros-acessos">Outros acessos à internet</h2>
     <ul>
@@ -216,11 +218,24 @@
       <li><strong>Para parar:</strong> desmarque “Ligar a nuvem” ou apague a chave, em Configurações › Modelos. Vale na hora.</li>
     </ul>
 
+    <h2 id="nota-fiscal">Nota fiscal de serviço (NFS-e, opcional)</h2>
+    <p>O escritório pode emitir a NFS-e pelo <strong>Padrão Nacional</strong> pelo PAULUS. <strong>Vem desligada.</strong> Só se liga na janela do computador do escritório, em Configurações › Nota fiscal; de fora (acesso remoto), não se configura nem se usa o certificado. Nem nós nem o site paulus.ia.br ficamos no meio: o pedido vai do computador do escritório direto ao Sistema Nacional da NFS-e (gov.br).</p>
+    <ul>
+      <li><strong>O que vai:</strong> os dados da nota, como em qualquer emissor — o CNPJ (ou CPF) e a inscrição municipal do escritório; o nome, o CPF ou CNPJ, o endereço, o e-mail e o telefone do tomador (o cliente); a descrição do serviço, a competência, os valores, as retenções e a classificação tributária. Vai assinado com o certificado digital do escritório.</li>
+      <li><strong>Quando vai:</strong> só a nota aprovada em Aprovações, uma por uma. Começa em produção restrita (o ambiente de testes do governo, sem valor fiscal); a produção só depois que o titular libera.</li>
+      <li><strong>Consultas:</strong> para saber se o município emite pelo padrão nacional (uma vez por mês), a situação de uma nota e os eventos dela, o PAULUS consulta o Sistema Nacional com o certificado do escritório. E, uma vez por mês, lê a página pública da documentação da NFS-e em <code>gov.br</code>, para saber se saiu esquema novo — só leitura, sem nada do escritório.</li>
+      <li><strong>O que fica no computador:</strong> o XML de cada declaração enviada e de cada nota recebida, os pedidos e eventos (cancelamento, substituição), o PDF (DANFSe) e a conta, na pasta de dados do PAULUS (que vai no backup cifrado) e uma cópia no Acervo. A nota emitida não se apaga pelo PAULUS: a lei fiscal pede a guarda até a prescrição dos créditos tributários.</li>
+      <li><strong>O certificado:</strong> a cópia do .pfx da nota fica na pasta de dados; a senha só fica guardada se o escritório pedir, cifrada pela conta do Windows (DPAPI). A chave privada não é gravada em claro, e o arquivo de log do programa guarda de cada pedido só o método, o endereço (sem o número da nota) e o código da resposta.</li>
+      <li><strong>E-mail ao cliente e ao contador:</strong> o PAULUS só <strong>propõe</strong>, em Aprovações, o e-mail com a nota ao cliente e o arquivo do mês ao contador, pela conta de e-mail do escritório.</li>
+      <li><strong>Consultoria tributária:</strong> o PAULUS não faz. Ele aplica a configuração fiscal que o escritório (ou o contador) definiu; veja os <a href="../termos-de-uso/#nota-fiscal">Termos de uso</a>.</li>
+    </ul>
+
     <h2 id="retencao">Retenção e como apagar</h2>
     <ul>
       <li>A autorização do Google fica guardada no computador <strong>enquanto a conta estiver ligada</strong> ao PAULUS.</li>
       <li>O <strong>modelo de IA guardado num aparelho</strong> (quando o escritório liga a escrita no aparelho) fica no navegador até a pessoa apagar, em Minha conta › Este aparelho, ou limpar os dados do site no navegador. Nada da conversa fica nele.</li>
       <li>O <strong>registro de envios à nuvem</strong> (com o texto que saiu) e a chave cifrada ficam no computador, na pasta de dados do PAULUS, até o escritório apagar.</li>
+      <li>Os <strong>XMLs das notas fiscais</strong> emitidas pelo PAULUS e dos eventos delas ficam no computador sem prazo para apagar, pela guarda que a lei fiscal exige; nota emitida se cancela, não se apaga. O certificado da nota e a senha guardada saem em Configurações › Nota fiscal › Tirar o certificado.</li>
       <li><strong>Para desligar:</strong> no PAULUS, abra o módulo E-mail e remova a conta. A autorização guardada é apagada do computador. Para parar só a Agenda, desligue a sincronização em Configurações › Conexões.</li>
       <li>A <strong>cópia das pastas do Drive</strong> fica no Acervo, no seu computador, enquanto você acompanha a pasta. Em Configurações › Conexões você para de acompanhar e, marcando "Apagar também a cópia do Acervo", a cópia sai do computador.</li>
       <li>Os eventos que o PAULUS criou na sua Agenda do Google e os documentos que você enviou ao seu Drive <strong>continuam lá</strong> depois que você desliga, sob a gestão do Google; apagá-los ou não é escolha sua, no próprio Google.</li>

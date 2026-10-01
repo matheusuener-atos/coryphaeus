@@ -313,7 +313,14 @@ class Emissor:
 
     def situacao_municipio(self) -> dict:
         cmun = self.prestador.atual()["dados"].get("municipio") or ""
-        return self.municipios.situacao(cmun, self.ambiente)
+        sit = self.municipios.situacao(cmun, self.ambiente)
+        if sit.get("situacao") == "conveniado" and not self.ligado:
+            # O município emite pelo nacional, mas a emissão daqui está
+            # desligada: a frase não pode dizer que "dá para emitir" já.
+            m = tabelas.municipio(cmun) or {}
+            sit = dict(sit, frase=f"{m.get('nome', cmun)}/{m.get('uf', '')} tem convênio ativo com o Sistema Nacional "
+                                  "da NFS-e: ligando a emissão aqui em cima, as notas passam a sair pelo PAULUS.")
+        return sit
 
     # ------------------------------------------------------------------- tela
 

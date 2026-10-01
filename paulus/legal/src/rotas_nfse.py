@@ -86,6 +86,10 @@ def montar(estado, app, dados_dir) -> None:
     if central is not None:
         central.estado_nfse = estado
     estado.nfse.estado_app = estado
+    # O mapa do programa diz a verdade sobre a emissão no estado de agora (N9).
+    import programa
+
+    programa.CONDICOES["nfse:emite"] = lambda: estado.nfse.pode_emitir()[0]
     # A fila de envio (N3): retoma ao abrir o que ficou no meio e tenta de novo
     # com espera crescente. O teste desliga para controlar cada passo.
     if not os.environ.get("PAULUS_NFSE_SEM_FILA"):
