@@ -3827,6 +3827,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # transcricao ao vivo e, se pedido, as sugestoes tiradas do caso.
     if lido.tipo == "gravar":
         return _responder_gravacao(trabalho, lido, pergunta)
+    # `Conversa - Assinar`: o PDF abre ao lado com o selo posto, e o cartao
+    # da conversa traz as escolhas. Assinar continua pedindo o sim.
+    if lido.tipo == "assinar":
+        return _responder_assinatura(trabalho, lido, pergunta)
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir", "passos"):
         # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
         # o que ele pediu sem ter e recusado e fica registrado.
@@ -4411,6 +4415,26 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                       + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
             onde = "gravacoes"
             campos["nome"] = g.get("titulo") or ""
+        elif payload.tipo == "assinatura":
+            # A assinatura feita pela conversa (`Conversa - Assinar`): quem
+            # assinou foi POST /api/assinar, com o sim e a senha; aqui o
+            # resultado entra na conversa. O arquivo assinado tem de existir.
+            nome = str(campos.get("nome") or "")
+            novo = 0
+            feito = {}
+            if campos.get("aguardando"):
+                resumo = f"Deixei a assinatura de “{nome}” esperando o seu sim em Aprovações"
+                onde = "aprovacoes"
+            else:
+                destino = Path(str(campos.get("destino") or ""))
+                if not destino.exists():
+                    raise HTTPException(status_code=404, detail="não achei o arquivo assinado")
+                titular = str(campos.get("titular") or "").strip()
+                codigo = str(campos.get("codigo") or "").strip()
+                resumo = (f"Assinei “{nome}”" + (f" com o certificado de {titular}" if titular else "")
+                          + f" e guardei como “{destino.name}”" + (f" (código {codigo})" if codigo else ""))
+                onde = "assinar"
+                campos["nome"] = destino.name
         else:
             raise HTTPException(status_code=400, detail="nao sei fazer isso")
     except ValueError as exc:
@@ -4471,6 +4495,50 @@ def _responder_gravacao(trabalho, lido, pergunta: str) -> StreamingResponse:
         estado.trabalhos.salvar(trabalho)
         yield _sse("token", {"t": texto})
         yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Assine o contrato de honorarios": a conversa diz onde o selo entra (o
+    canto que o certificado guarda, na ultima pagina) e manda a tela abrir o
+    PDF ao lado. Nada e assinado aqui - o sim (e a senha) vem do clique.
+    """
+    campos = dict(lido.campos)
+    nome = campos.get("nome", "")
+    doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+    proposta = None
+    if not doc:
+        texto = f"Não achei “{nome}” aberto no Acervo agora."
+    elif campos.get("nao_pdf") or Path(doc.path).suffix.lower() != ".pdf":
+        texto = (f"Só assino PDF, e “{nome}” não é. Abra no editor e use Assinar: eu gero o PDF, "
+                 "guardo no Acervo e abro a assinatura nele.")
+        proposta = {"tipo": "exibir", "titulo": nome, "campos": {"nome": nome}, "nomes": [nome],
+                    "porque": "é o documento que você pediu para assinar"}
+    else:
+        cofre = estado.cofre.para_tela()
+        posicao = (cofre.get("selo") or {}).get("posicao") or "rodape_direita"
+        rotulo = next((p["rotulo"] for p in cofre.get("posicoes") or [] if p.get("valor") == posicao), "")
+        onde = {"rodape_direita": "no rodapé da última página, à direita", "rodape_esquerda": "no rodapé da última página, à esquerda",
+                "rodape_centro": "no rodapé da última página, no meio", "topo_direita": "no alto da última página, à direita"}.get(
+            posicao, ("na última página (" + rotulo.lower() + ")") if rotulo else "na última página")
+        texto = f"Coloquei a assinatura {onde}. Confira ao lado, ajuste o que quiser aqui e assine."
+        if not cofre.get("instalado"):
+            texto += " Falta o certificado: instale o seu e-CPF antes de assinar."
+        proposta = {"tipo": "assinar", "titulo": nome, "campos": {"nome": nome, "caminho": str(doc.path)},
+                    "porque": lido.porque, "pergunta": pergunta}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        if proposta:
+            yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
     return StreamingResponse(gerar(), media_type="text/event-stream",

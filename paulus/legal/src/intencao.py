@@ -427,6 +427,34 @@ def ler_gravacao(texto: str, plano: str, cadastros=None) -> Intencao | None:
                     porque="“" + m.group(0).split()[0] + "” e “" + m.group(1) + "”")
 
 
+# "Assine o contrato de honorarios" (pacote de telas, `Conversa - Assinar`):
+# o verbo abre a frase e o resto nomeia UM documento do Acervo. Sem documento
+# nomeado, a frase segue como pergunta - "assinei o contrato?" nao e pedido.
+RE_PEDIDO_ASSINAR = re.compile(
+    r"^(?:(?:" + "|".join(ENFEITE_GRAVAR) + r")\s+)*(?:assine|assinar|assina|assinem)\b\s+(.+)$")
+RE_ASSINAR_ENFEITE = re.compile(
+    r"\b(digitalmente|com o meu certificado|com meu certificado|com o certificado|pra mim|para mim|agora|por favor)\b")
+
+
+def ler_assinatura(texto: str, plano: str, documentos=None) -> Intencao | None:
+    m = RE_PEDIDO_ASSINAR.search(plano)
+    if not m:
+        return None
+    resto = RE_ASSINAR_ENFEITE.sub(" ", m.group(1))
+    # O PDF primeiro: "o contrato de honorarios" com o .docx e o .pdf no
+    # Acervo e o PDF que se assina.
+    pdfs = [d for d in documentos or [] if _nome_de(d).lower().endswith(".pdf")]
+    qual = _documento_pedido(resto, pdfs)
+    nao_pdf = False
+    if not qual:
+        qual = _documento_pedido(resto, documentos)
+        nao_pdf = bool(qual)
+    if not qual:
+        return None
+    return Intencao(tipo="assinar", titulo=qual, campos={"nome": qual, "nao_pdf": nao_pdf},
+                    porque="“" + plano.split()[0] + "” e um documento com esse nome no acervo")
+
+
 RE_PEDIDO_CADASTRO = re.compile(
     r"\b(" + "|".join(VERBOS_CADASTRO) + r")\b"
     r"(?:\s+(?:um|uma|o|a|novo|nova|outro|outra|mais|esse|essa|este|esta|ai|aqui|pra mim|para mim|como))*"
@@ -1096,6 +1124,10 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     gravacao = ler_gravacao(texto, plano, cadastros)
     if gravacao:
         return gravacao
+
+    assinar = ler_assinatura(texto, plano, documentos)
+    if assinar:
+        return assinar
 
     # Antes de "abrir arquivo": "abra um serviço" tem o mesmo verbo.
     servico = ler_servico(texto, plano, cadastros)

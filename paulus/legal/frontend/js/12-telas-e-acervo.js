@@ -891,6 +891,8 @@ function cartaoProposta(d) {
   // Gravar a reuniao na conversa (js/79-conversa-gravando.js): nao ha cartao,
   // a gravacao comeca e a transcricao desce no fio.
   if (d.tipo === "gravar") return "";
+  // Assinar pela conversa (js/82-assinar-na-conversa.js): o PDF abre ao lado.
+  if (d.tipo === "assinar") return cartaoDeAssinar(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
@@ -1317,6 +1319,7 @@ function camposProposta(d, faltando) {
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
+  if (d.tipo === "assinar") return ligarAssinarNaProposta(caixa, d);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);

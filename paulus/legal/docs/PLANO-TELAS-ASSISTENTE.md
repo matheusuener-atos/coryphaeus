@@ -34,7 +34,7 @@ estiver `feita`.
 | T0 | Casca da conversa: cabeçalho, coluna do chat (1080), caixa de pedido em duas linhas, coluna lateral de altura inteira que troca de papel (380/420/460/ferramenta), contexto (Progresso, Trechos lidos, Como respondi, Onde procurei), rolagem fina | feita | ver git log (T0) |
 | T1 | Tela inicial: `Assistente`, `Acontecendo agora`, `Gravando`, `Avisos` (resumo em três cartões e o painel no lugar da lista), `Central de avisos`, `Apoiar`, `Anexar - Google Drive` | feita | ver git log (T1) |
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
-| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha e editor de planilha feitos) | ver git log (T3) |
+| T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | em andamento (documento, PDF, editor, planilha, editor de planilha e assinar feitos) | ver git log (T3) |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | a fazer | |
 | T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
 
@@ -201,6 +201,19 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
 - **Fica de fora:** "Destacar atrasados" não grava cor (a planilha do editor
   não guarda fundo de célula; a nota diz isso). Janela estreita (perto de
   900 px) deixa a ferramenta com 320 px.
+- Assinar (`js/82-assinar-na-conversa.js`): "assine o contrato de
+  honorários" (`intencao.ler_assinatura`: o verbo abre a frase e o resto
+  nomeia UM documento; com .docx e .pdf do mesmo nome, o PDF) abre o PDF na
+  coluna com o selo já posto no canto que o certificado guarda, e o chat
+  traz o cartão em três passos (onde entra — Só a última, Todas, Primeira e
+  última, Intervalo e a posição; com qual certificado; depois de assinar —
+  Acervo, original, baixar, senha) com "1 assinatura · página 4", Cancelar e
+  Assinar agora. O selo arrasta e muda de tamanho como na tela Assinatura
+  (o mesmo código de js/17-assinar.js). Assinar continua pedindo o sim e a
+  senha; com Aprovações no caminho, o cartão diz que falta o sim. O
+  resultado entra na conversa (`/fazer` "assinatura", que confere que o
+  assinado existe). O Assinar do visor e do editor abre o mesmo fluxo; só
+  Word: a conversa diz que só assina PDF e oferece abrir o documento.
 - Testes: `test_frontend`, `test_ferramentas`, `test_m5_leitura`,
   `test_escrita`, `test_planilha_excel`, `test_c2_pensando`,
   `test_c3_painel`, `test_intencao` e `test_c5_superficies` (sozinho) ok.

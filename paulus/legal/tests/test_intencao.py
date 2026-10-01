@@ -563,6 +563,35 @@ def test_texto_vazio() -> None:
            "verbo sozinho, sem dizer o quê, não vira ação")
 
 
+def test_assinar_pela_conversa() -> None:
+    """
+    "Assine o contrato de honorarios" (pacote de telas, `Conversa - Assinar`)
+    abre o PDF com o selo ao lado da conversa. So vira pedido quando a frase
+    nomeia UM documento; com o .docx e o .pdf do mesmo contrato, e o PDF que
+    se assina. "Assinei o contrato?" e "quem assina o contrato?" sao pergunta.
+    """
+    print("\nassinar pela conversa")
+    from types import SimpleNamespace
+    acervo = [SimpleNamespace(name=n) for n in (
+        "Contrato de honorários - Cooperativa Rio Fresco.pdf",
+        "Contrato de honorários - João Batista Ferreira.docx",
+        "Procuração - Cooperativa Vale Verde.docx",
+    )]
+
+    def ler(frase):
+        return intencao.ler(frase, HOJE, acervo)
+
+    i = ler("Assine o contrato de honorários")
+    checar(i.tipo == "assinar" and i.campos.get("nome", "").endswith(".pdf") and not i.campos.get("nao_pdf"),
+           f"assine o contrato -> o PDF ({i.tipo}, {i.campos})")
+    i = ler("por favor assine digitalmente o contrato de honorários da rio fresco")
+    checar(i.tipo == "assinar", f"com enfeite e 'digitalmente' tambem ({i.tipo})")
+    i = ler("assine a procuração da vale verde")
+    checar(i.tipo == "assinar" and i.campos.get("nao_pdf"), f"so Word: vira pedido marcado nao_pdf ({i.campos})")
+    for frase in ("assinei o contrato?", "quem assina o contrato de honorários?", "assinar", "assine a petição"):
+        checar(ler(frase).tipo != "assinar", f"'{frase}' nao vira pedido de assinar")
+
+
 def main() -> int:
     print("=" * 55)
     print("PAULUS - o que a pessoa está pedindo")
@@ -577,6 +606,7 @@ def main() -> int:
     test_sem_data_nao_inventa()
     test_tarefas()
     test_abrir_arquivo()
+    test_assinar_pela_conversa()
     test_abrir_servico()
     test_pergunta_nomeia_um_documento()
     test_o_referido_documento()

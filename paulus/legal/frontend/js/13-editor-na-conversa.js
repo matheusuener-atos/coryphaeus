@@ -546,8 +546,8 @@ function ligarDupla() {
     await gravarDupla();
     const alvo = await guardarNaBiblioteca(id);
     if (!alvo) return;
-    marcarDestino("assinar");
-    mostrarAssinar(alvo);
+    // T3: a assinatura abre na propria conversa, com o PDF ao lado.
+    assinarAoLado({ caminho: alvo, nome: nomeDe(alvo) });
   };
   $("dp-citar").onclick = painelCodigosNaDupla;
   $("dp-numerar").onclick = renumerarClausulas;

@@ -197,3 +197,62 @@
 .pa-busca input { width: 170px; }
 /* Os pedidos prontos da planilha sao mais longos: descem para a segunda linha. */
 .edl-atalhos.pa-atalhos { flex-wrap: wrap; overflow: visible; }
+
+/* Assinar pela conversa (`Conversa - Assinar`): o cartao das escolhas no chat,
+   em tres passos numerados, e o PDF com o selo na coluna. */
+.proposta.asc-cartao { padding: 0; display: grid; gap: 0; overflow: hidden; }
+.asc-fechado, .asc-fim { padding: 16px 18px !important; gap: 10px !important; }
+.asc-linha { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.asc-linha b { font: 600 14px var(--sans); color: var(--ink); }
+.asc-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asc-fim .asc-linha .ic { color: var(--verde); }
+.asc-passo { display: grid; gap: 12px; padding: 18px; border-bottom: 1px solid var(--ink-a08); }
+.asc-cabeca { display: flex; align-items: center; gap: 10px; }
+.asc-cabeca b { font: 600 14px var(--sans); color: var(--ink); }
+.asc-cabeca small { font: 400 12.5px var(--sans); color: var(--ink3); }
+.asc-num {
+  width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--fill2); font: 600 11px var(--mono); color: var(--ink);
+}
+.asc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.asc-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--ink-a1); background: var(--surf); font: 500 13px var(--sans); color: var(--ink2);
+}
+.asc-chip.on, .asc-chip.on:hover:not(:disabled) { background: var(--primario); border-color: var(--primario); color: var(--primario-ink); }
+.asc-intervalo { height: 34px; max-width: 260px; }
+.asc-posicao { display: flex; align-items: center; gap: 10px; font: 400 13px var(--sans); color: var(--ink3); }
+.asc-select { position: relative; display: inline-flex; align-items: center; }
+.asc-select select {
+  appearance: none; width: auto; height: 30px; padding: 0 28px 0 10px; border: none; border-radius: 6px;
+  background: var(--fill); font: 600 13px var(--sans); color: var(--ink); cursor: pointer;
+}
+.asc-select .ic { position: absolute; right: 8px; pointer-events: none; color: var(--ink2); }
+.asc-cert {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--bg);
+}
+.asc-cert-ic {
+  width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--fill); color: var(--ink2);
+}
+.asc-cert .duas-linhas b { font: 600 13.5px var(--sans); }
+.asc-marcas { display: grid; gap: 10px; }
+.asc-marca { display: flex; align-items: center; gap: 10px; font: 500 13.5px var(--sans); color: var(--ink); cursor: pointer; }
+.asc-marca input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+.asc-senha { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--ink-a08); }
+.asc-senha .duas-linhas span { font: 500 13.5px var(--sans); color: var(--ink2); }
+.asc-pe { display: flex; align-items: center; gap: 8px; padding: 14px 18px; background: var(--surf); }
+.asc-pe > span:first-child { font: 400 12.5px var(--sans); color: var(--ink3); }
+.asc-pe .primario { display: inline-flex; align-items: center; gap: 6px; }
+.asc-pagina {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 6px;
+  border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--bg); font: 500 12px var(--mono); color: var(--ink);
+}
+.fl .as-visor { align-items: center; }
+.fl .as-visor .pdf-folha { max-width: none; align-self: center; background: var(--papel); box-shadow: var(--elev-papel); }
+.fl .as-visor .pdf-folha img { width: 100%; max-width: none; }
+.fl-barra .asc-adicionar { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; font: 600 13px var(--sans); color: var(--ink); }
+.fl .fl-mini { position: relative; }
+.fl .fl-mini .as-mini-selo { right: 10px; bottom: 26px; }
+.fl-mesa.com-miniaturas .fl-folhas { padding-left: 28px; }
+.proposta.asc-escolhas { box-shadow: var(--elev-card); }
