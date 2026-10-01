@@ -53,18 +53,26 @@ async function fundamentarNoEditor() {
       esc([t.situacao, t.orgao, t.porque].filter(Boolean).join(" · ")) + "</small></div>" +
       '<p class="fun-texto">' + esc((t.tese || ("Questão: " + t.questao)).slice(0, 420)) + ((t.tese || t.questao).length > 420 ? "…" : "") + "</p>" +
       (t.tese ? '<div class="fun-botoes"><button data-fun-tema="' + i + '">Inserir a tese</button></div>' : '<p class="fun-nota">Ainda sem tese firmada.</p>') + "</div>").join("");
+  // N13: os acórdãos do STJ baixados (Biblioteca › Jurisprudência).
+  const aco = (d.acordaos || []).map((a, i) => '<div class="fun-item"><div class="fun-cab"><b>' + esc(a.citacao) + "</b><small>" + esc(a.porque) + "</small></div>" +
+      '<p class="fun-texto">' + esc(a.ementa.slice(0, 420)) + (a.ementa.length > 420 ? "…" : "") + "</p>" +
+      '<div class="fun-botoes"><button data-fun-aco="' + i + '">Inserir a citação</button></div></div>').join("");
   const bloco = (titulo, corpo, vazio) => '<section class="fun-bloco"><h4>' + esc(titulo) + "</h4>" + (corpo || '<p class="fun-nota">' + esc(vazio) + "</p>") + "</section>";
   const aberto = dialogo({ titulo: "Fundamentação sugerida", contexto: "pelas palavras: " + (d.palavras.join(", ") || "—"), classe: "fun-dialogo", larga: true,
-    html: '<p class="cfg-explica">Do que está instalado neste computador — os códigos do Planalto, as súmulas e os temas do STJ, e a posição da casa. ' +
-      "Sem modelo: é você quem escolhe o que entra, e o que entra é o texto oficial.</p>" +
-      bloco("Artigos", art, "Nenhum artigo achado com essas palavras.") + bloco("Súmulas do STJ", sum, "Nenhuma súmula com essas palavras.") +
-      bloco("Temas repetitivos do STJ", tem, "Nenhum tema com essas palavras."),
+    html: '<p class="cfg-explica">Do que está instalado neste computador — os códigos do Planalto, as súmulas do STJ e do STF, os temas do STJ e as teses ' +
+      "de repercussão geral do STF, os acórdãos do STJ baixados e a posição da casa. Sem modelo: é você quem escolhe o que entra, e o que entra é o texto oficial.</p>" +
+      bloco("Artigos", art, "Nenhum artigo achado com essas palavras.") + bloco("Súmulas", sum, "Nenhuma súmula com essas palavras.") +
+      bloco("Temas do STJ e repercussão geral do STF", tem, "Nenhum tema com essas palavras.") +
+      (d.acordaos ? bloco("Acórdãos do STJ", aco, "Nenhum acórdão baixado com essas palavras (Biblioteca › Jurisprudência).") : ""),
     confirmar: "Fechar", semCancelar: true });
   document.querySelectorAll("[data-fun-art]").forEach((b) => {
     b.onclick = () => inserirCitacao(d.artigos[Number(b.dataset.funArt)], b.dataset.com === "1");
   });
   document.querySelectorAll("[data-fun-sum]").forEach((b) => {
     b.onclick = () => { const s = d.sumulas[Number(b.dataset.funSum)]; inserirNoEditor(s.titulo + ": “" + s.texto + "”"); };
+  });
+  document.querySelectorAll("[data-fun-aco]").forEach((b) => {
+    b.onclick = () => { const a = d.acordaos[Number(b.dataset.funAco)]; inserirNoEditor("(" + a.citacao + ")"); };
   });
   document.querySelectorAll("[data-fun-tema]").forEach((b) => {
     b.onclick = () => { const t = d.temas[Number(b.dataset.funTema)]; inserirNoEditor("Tese firmada no " + t.rotulo + ": “" + t.tese + "”"); };
@@ -124,7 +132,7 @@ async function posicaoDaCasa(a, caixa) {
    de onde veio. Fechado de início: é para quem quer conferir. */
 function blocoRelacionados(r) {
   if (!r) return "";
-  const n = (r.temas || []).length + (r.sumulas || []).length + (r.posicoes || []).length;
+  const n = (r.temas || []).length + (r.sumulas || []).length + (r.posicoes || []).length + (r.acordaos || []).length;
   if (!n) return "";
   const temas = (r.temas || []).map((t) => '<li class="rel-item"><b>' + esc(t.rotulo) + "</b>" + (t.situacao ? " <small>" + esc(t.situacao) + "</small>" : "") +
     '<p class="rel-texto">' + esc(t.tese || t.questao || "") + "</p><small class=\"rel-porque\">" + esc(t.porque) + "</small></li>").join("");
@@ -132,12 +140,15 @@ function blocoRelacionados(r) {
     '<p class="rel-texto">' + esc(x.texto) + "</p><small class=\"rel-porque\">" + esc(x.porque) + "</small></li>").join("");
   const posicoes = (r.posicoes || []).map((x) => '<li class="rel-item"><b>Posição da casa · ' + esc(x.artigo) + "</b>" +
     '<p class="rel-texto">' + esc(x.texto) + "</p>" + (x.autor ? '<small class="rel-porque">por ' + esc(x.autor) + "</small>" : "") + "</li>").join("");
+  const acordaos = (r.acordaos || []).map((x) => '<li class="rel-item"><b>' + esc(x.citacao) + "</b>" +
+    '<p class="rel-texto">' + esc(x.ementa) + "…</p><small class=\"rel-porque\">" + esc(x.porque) + "</small></li>").join("");
   const partes = [];
   if ((r.temas || []).length) partes.push(plural(r.temas.length, "tema", "temas"));
+  if ((r.acordaos || []).length) partes.push(plural(r.acordaos.length, "acórdão", "acórdãos"));
   if ((r.sumulas || []).length) partes.push(plural(r.sumulas.length, "súmula", "súmulas"));
   if ((r.posicoes || []).length) partes.push("posição da casa");
   return '<details class="rel-bloco"><summary>' + ic("library_books", 16) + " Na Biblioteca: " + esc(partes.join(", ")) +
     ((r.artigos || []).length ? " · " + esc(r.artigos.slice(0, 3).join(", ")) : "") + "</summary>" +
-    '<ul class="rel-lista">' + posicoes + temas + sumulas + "</ul>" +
+    '<ul class="rel-lista">' + posicoes + temas + sumulas + acordaos + "</ul>" +
     '<p class="rel-aviso">' + esc(r.aviso || "") + "</p></details>";
 }

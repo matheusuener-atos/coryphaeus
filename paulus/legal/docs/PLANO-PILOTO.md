@@ -358,7 +358,7 @@ o código garante.
 | N10 | Captura: corte das bordas e perspectiva endireitada | L8 | feito | `tests/test_n10_corte.py` |
 | N11 | A posição na fila da resposta que volta do aparelho | D4 | feito | `tests/test_n11_fila_aparelho.py` |
 | N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | — | `tests/test_n12_vigencia.py` |
-| N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | — | `tests/test_n13_jurisprudencia.py` |
+| N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | feito | `tests/test_n13_jurisprudencia.py` |
 | N14 | Agente com autonomia sem confirmação | fora | — | `tests/test_n14_autonomia.py` |
 | N15 | Nuvem com a chave do escritório | fora | — | `tests/test_n15_nuvem.py` |
 | N16 | Os três testes que dependiam desta máquina | testes | — | os próprios |
@@ -642,3 +642,44 @@ captura com e sem corte; e a prévia no Edge); `test_l8_captura` e
 reprovado com outra pessoa na vez, a posição na tela, o escritório escreve
 depois, a fila vazia no fim, e sem ninguém na frente); `test_d3_conferencia`,
 `test_d4_switch`, `test_f1_fila` e `test_r4_fila` continuam passando.
+
+## N13 — a jurisprudência do STJ no computador (30/09/2026)
+
+Ficou de fora de propósito na primeira volta; o dono decidiu fazer.
+
+- **De onde** (`src/jurisprudencia.py`): os espelhos de acórdãos do Portal de
+  Dados Abertos do STJ (CC-BY), um conjunto por órgão julgador (Corte
+  Especial, três Seções, seis Turmas; de 13 a 247 MB cada), com o arquivo
+  base de cada órgão e os meses desde 2022.
+- **Desligado de fábrica**: Biblioteca › **Jurisprudência** mostra os órgãos
+  (com o ramo e o tamanho) e só baixa os que a pessoa marcar, na janela do
+  escritório. Sai deste computador só o pedido dos arquivos públicos ao
+  portal do STJ — dito na tela. "Baixar e atualizar" traz só os meses novos;
+  "Parar" e "Apagar tudo".
+- **No computador**: um SQLite à parte, com a busca de texto do SQLite (FTS5,
+  sem acento) na ementa, na tese e nas informações complementares; e, de cada
+  acórdão, os artigos que ele cita ("LEI:010406 ANO:2002 … ART:00206" vira
+  `cc:206`; o CPC/73 e o CC/1916 ficam de fora).
+- **Procurar** por palavras (todas; sem nenhum, com parte delas, dito), por
+  órgão e por data; cada acórdão com a citação pronta ("STJ, REsp …, rel.
+  Min. …, Terceira Turma, j. …, DJe …"), a ementa oficial e o link para o
+  processo no STJ.
+- **Onde mais aparece**: embaixo da resposta da conversa (N7, os acórdãos
+  mais novos que citam o artigo), na fundamentação do editor (pelas palavras
+  do trecho, com "inserir a citação") e no MCP (`jurisprudencia_stj`,
+  pública). De fora, procurar e ler valem; baixar, parar e apagar não.
+- **Com dado de verdade** (a Segunda Seção, baixada nesta máquina para medir):
+  11.017 acórdãos de 22 arquivos, 30 MB no disco, busca em até 5 ms; um mês
+  do STJ veio com o JSON quebrado — esse fica de fora, dito, e volta a ser
+  tentado no próximo "Atualizar".
+
+**Não feito:** o inteiro teor (o STJ publica à parte, em outro conjunto e
+muito maior) — a tela manda conferir no STJ antes de citar; o STF, os TJs e o
+TST não têm conjunto aberto equivalente.
+
+**Medido:** `tests/test_n13_jurisprudencia.py` 22 ok (com o portal de
+mentira: nada antes do pedido, o zip e o mensal, só o novo ao atualizar, o
+arquivo quebrado, a busca, os artigos, a conversa, o editor, o MCP, de fora,
+apagar, e a aba no Edge em 1280 e 390 px); `test_l5_fundamentacao`,
+`test_n7_temas_na_conversa`, `test_b1_tela` (com a quinta aba), `test_tela`,
+`test_l7_mcp` e `test_r3_permissoes` continuam passando.

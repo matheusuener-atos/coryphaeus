@@ -393,6 +393,10 @@ _declarar(BLOQUEADO, "PUT /api/servicos/{id_}/partes", "GET /api/servicos/{id_}/
 # --- N3: a parte contraria sugerida pelos documentos do Servico, e a dispensa -
 # como a conferencia de conflito, da janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/servicos/{id_}/partes/sugeridas", "POST /api/servicos/{id_}/partes/dispensar")
+# --- N13: a jurisprudencia do STJ. Procurar e ler sao dados publicos, como as leis;
+# baixar, parar e apagar mexem neste computador: janela do escritorio.
+_declarar(PERMITIDO, "GET /api/jurisprudencia", "GET /api/jurisprudencia/procurar", "GET /api/jurisprudencia/acordao/{id_}")
+_declarar(BLOQUEADO, "POST /api/jurisprudencia/baixar", "POST /api/jurisprudencia/parar", "DELETE /api/jurisprudencia")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

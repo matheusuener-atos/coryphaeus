@@ -24,11 +24,14 @@ const bibc = {
 /* No celular, só a primeira palavra de cada aba cabe (36-biblioteca.css). */
 const ABAS_BIB = [["obras", "Estante", ""], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"],
   // L9: materiais entre advogados (js/70-comunidade.js), só na janela do escritório.
-  ["comunidade", "Comunidade", ""]];
+  ["comunidade", "Comunidade", ""],
+  // N13: os acórdãos do STJ no computador (js/73-jurisprudencia.js).
+  ["jurisprudencia", "Jurisprudência", ""]];
 
 function abasDaBib() {
   const local = typeof acessoDeFora === "undefined" || acessoDeFora.local;
-  return ABAS_BIB.filter(([v]) => (local || (v !== "obras" && v !== "comunidade")) && (v !== "comunidade" || typeof abaComunidadeBib === "function"));
+  return ABAS_BIB.filter(([v]) => (local || (v !== "obras" && v !== "comunidade")) && (v !== "comunidade" || typeof abaComunidadeBib === "function") &&
+    (v !== "jurisprudencia" || typeof abaJurisprudenciaBib === "function"));
 }
 
 function bibAberta() {
@@ -83,6 +86,8 @@ async function carregarAbaBib() {
     const [nativo, leis] = await Promise.all([pega("/api/biblioteca/acervo-inicial"), pega("/api/leis")]);
     bibc.nativo = nativo;
     bibc.leis = leis;
+  } else if (bibc.aba === "jurisprudencia" && typeof carregarJurisprudencia === "function") {
+    await carregarJurisprudencia();
   }
 }
 
@@ -100,6 +105,11 @@ function desenharBib() {
   if (bibc.aba === "comunidade") {
     cascaBib(abaComunidadeBib());
     ligarComunidadeBib();
+    return;
+  }
+  if (bibc.aba === "jurisprudencia") {
+    cascaBib(abaJurisprudenciaBib());
+    ligarJurisprudenciaBib();
     return;
   }
   cascaBib(abaTribunaisBib());

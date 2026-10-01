@@ -112,6 +112,15 @@ FERRAMENTAS_DO_ESCRITORIO = {
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string"}, "numero": {"type": "string"}}, "additionalProperties": False},
     },
+    # N13: os acórdãos do STJ baixados neste PAULUS (dados abertos, CC-BY).
+    "jurisprudencia_stj": {
+        "publica": True,
+        "description": "Procura nos acórdãos do STJ baixados neste PAULUS (espelhos de acórdãos do Portal de Dados Abertos do "
+                       "STJ): a ementa oficial e a citação, por palavras, ou os que citam um artigo (codigo + artigo).",
+        "inputSchema": {"type": "object", "properties": {
+            "termo": {"type": "string"}, "codigo": {"type": "string", "description": "cc, cpc, cdc, cf..."},
+            "artigo": {"type": "string"}}, "additionalProperties": False},
+    },
     "vigencia_do_artigo": {
         "publica": True,
         "description": "Como estava um artigo de lei numa data: cada dispositivo (caput, parágrafos, incisos) vigente, "
@@ -411,6 +420,17 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
             return "Nenhuma tese de repercussão geral com isso nas guardadas neste PAULUS.", False
         return "\n\n".join(f"{t['rotulo']} — {t['situacao']}" + (f" · {t['assuntos']}" if t.get("assuntos") else "")
                             + f"\nTese: {t['tese']}" for t in achados), False
+    if nome == "jurisprudencia_stj":
+        jur = getattr(estado, "jurisprudencia", None)
+        if jur is None or not jur.instalado():
+            return "A jurisprudência do STJ não foi baixada neste PAULUS (Biblioteca › Jurisprudência).", False
+        if argumentos.get("codigo") and argumentos.get("artigo"):
+            achados = jur.do_artigo(str(argumentos["codigo"]).lower(), str(argumentos["artigo"]), limite=6)
+        else:
+            achados = jur.procurar(str(argumentos.get("termo") or ""), limite=6)
+        if not achados:
+            return "Nenhum acórdão com isso nos baixados neste PAULUS.", False
+        return "\n\n".join(f"{a['citacao']}\nEmenta: {a['ementa'][:1200]}" for a in achados), False
     if nome == "temas_stj":
         achados = [t for t in estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=30)
                    if t.get("tribunal") != "STF"][:6]

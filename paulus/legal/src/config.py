@@ -244,6 +244,9 @@ PADRAO: dict = {
     # "modelo": o preferido para o aparelho; sem ele aqui (ou grande demais para
     # o navegador), o do escritório ou o maior que cabe (src/aparelho_motor.py).
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
+    # N13 (src/jurisprudencia.py): os orgaos julgadores do STJ que o escritorio
+    # escolheu baixar. Vazio de fabrica: nada e baixado sem a pessoa pedir.
+    "jurisprudencia": {"orgaos": []},
     # L1 (src/aprendizado.py): 👍/👎 em cada resposta e o caderno de falhas.
     # Ligado de fabrica: o piloto mede desde o primeiro dia, e nada sai daqui.
     "aprendizado": {"avaliar": True},

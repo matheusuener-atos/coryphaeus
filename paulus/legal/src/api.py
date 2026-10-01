@@ -135,6 +135,7 @@ import clientes as clientes_mod
 import passos as passos_mod
 import fundamentacao as fundamentacao_mod
 import comunidade as comunidade_mod
+import jurisprudencia as jurisprudencia_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
 import fila_de_todos
@@ -996,6 +997,8 @@ fundamentacao_mod.montar(estado, app)
 comunidade_mod.montar(estado, app)
 # L10: a vigencia de cada artigo, dispositivo por dispositivo (src/vigencia.py).
 vigencia_mod.montar(estado, app)
+# N13: os acordaos do STJ no computador, baixados so quando a pessoa pede (src/jurisprudencia.py).
+jurisprudencia_mod.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:
