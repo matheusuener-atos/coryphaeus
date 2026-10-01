@@ -130,6 +130,23 @@ mesmo prompt, continua da primeira etapa que não estiver `feita`.
   - Capturas em `docs/word/capturas/w1-word-real-*.png`.
   - O Permitir foi dado pela API (o diálogo da janela foi testado no Edge).
 
+**Suíte e roteiro**
+
+- Suíte inteira: 152/152 depois das correções. A W1 tinha quebrado quatro
+  testes, todos corrigidos:
+  - a porta do Word lia as preferências a cada pedido;
+  - um ícone fora da fonte;
+  - a novidade cobria a tela nos testes com navegador: agora não aparece com
+    `PAULUS_SEM_AVISOS` nem para navegador automatizado;
+  - a contagem de seções e a regra "403 sem a chave", que agora exige das
+    rotas do Word 401 ou 404.
+- Duas falhas foram só de memória da máquina (1 a 2,8 GB livres, com
+  modelos do Ollama carregados) e passaram ao rodar de novo.
+- `roteiro --tudo`: **40/41**. O erro é a multa da Clínica: o modelo
+  respondeu os 3 aluguéis da garantia. É a pergunta da Clínica já registrada
+  como frágil com o 3B (PROGRESSO-CONVERSA, Fora do foco); a linha de base é
+  de 40/41 a 41/41.
+
 **Achados no Word real, já corrigidos**
 
 - O id do painel precisa ser o reservado
