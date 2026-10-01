@@ -86,28 +86,78 @@ function horaDe(min) {
   return String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
 }
 
-function blocoNaSemana(x, dia) {
+function duracaoNaSemana(x) {
+  const comp = x.genero === "compromisso" ? ((agc.grade.compromissos || []).find((c) => c.id === x.id) || {}) : {};
+  return Number(comp.duracao) || (x.genero === "compromisso" ? 60 : 45);
+}
+
+/* Dois compromissos no mesmo horário ficam lado a lado, e não um em cima do
+   outro: cada grupo que se sobrepõe divide a largura do dia em faixas, e
+   cada bloco pega a primeira faixa livre. Devolve {faixa, faixas} por item. */
+function faixasDoDia(itens) {
+  const ordem = itens.filter((x) => x.ini !== null).sort((a, b) => a.ini - b.ini || b.fim - a.fim);
+  const saida = new Map();
+  let grupo = [];
+  let fimDoGrupo = -1;
+  const fechar = () => {
+    const n = Math.max(1, ...grupo.map((x) => saida.get(x).faixa + 1));
+    grupo.forEach((x) => { saida.get(x).faixas = n; });
+    grupo = [];
+  };
+  ordem.forEach((x) => {
+    if (grupo.length && x.ini >= fimDoGrupo) fechar();
+    const ocupadas = grupo.filter((y) => y.fim > x.ini).map((y) => saida.get(y).faixa);
+    let faixa = 0;
+    while (ocupadas.includes(faixa)) faixa++;
+    saida.set(x, { faixa: faixa, faixas: 1 });
+    grupo.push(x);
+    fimDoGrupo = Math.max(fimDoGrupo, x.fim);
+  });
+  if (grupo.length) fechar();
+  return saida;
+}
+
+function posicaoNaFaixa(f) {
+  if (!f || f.faixas <= 1) return "";
+  return ";left:calc(" + (f.faixa * 100 / f.faixas) + "% + 2px);right:auto;width:calc(" + (100 / f.faixas) + "% - 4px)";
+}
+
+function blocoNaSemana(x, dia, faixa) {
   const ini = minutosDe(x.hora);
   if (ini === null) return "";
-  const comp = x.genero === "compromisso" ? ((agc.grade.compromissos || []).find((c) => c.id === x.id) || {}) : {};
-  const dur = Number(comp.duracao) || (x.genero === "compromisso" ? 60 : 45);
+  const dur = duracaoNaSemana(x);
   const topo = Math.max(0, (ini - AGC_DE * 60) / 60 * AGC_PX_HORA);
   const altura = Math.max(26, dur / 60 * AGC_PX_HORA - 4);
   const genero = generoDaMarca(x);
   const quando = x.genero === "compromisso" ? x.hora + "–" + horaDe(ini + dur) : (genero === "prazo" ? "vence " + x.hora : x.hora);
-  const classe = "agc-bloco ag-" + genero;
-  return '<div class="' + classe + '" style="top:' + topo + "px;height:" + altura + 'px" title="' + esc(x.titulo) + '">' +
+  const classe = "agc-bloco ag-" + genero + (faixa && faixa.faixas > 1 ? " agc-lado-a-lado" : "");
+  return '<div class="' + classe + '" style="top:' + topo + "px;height:" + altura + "px" + posicaoNaFaixa(faixa) + '" title="' + esc(x.titulo) + '">' +
     "<b>" + esc(x.titulo) + "</b><small>" + esc(quando) + "</small></div>";
 }
 
-function blocoDaProposta(dia) {
+function blocoDaProposta(dia, faixa) {
   const v = ag.form;
   if (!v || v.tipo === "tarefa" || v.data !== dia) return "";
   const ini = minutosDe(v.hora);
   if (ini === null) return "";
   const dur = Number(v.duracao) || 60;
-  return '<div class="agc-bloco agc-proposta" style="top:' + ((ini - AGC_DE * 60) / 60 * AGC_PX_HORA) + "px;height:" +
-    Math.max(26, dur / 60 * AGC_PX_HORA - 4) + 'px"><b>' + esc(v.titulo || "Compromisso") + "</b><small>" + esc(v.hora + "–" + horaDe(ini + dur)) + "</small></div>";
+  return '<div class="agc-bloco agc-proposta' + (faixa && faixa.faixas > 1 ? " agc-lado-a-lado" : "") + '" style="top:' + ((ini - AGC_DE * 60) / 60 * AGC_PX_HORA) + "px;height:" +
+    Math.max(26, dur / 60 * AGC_PX_HORA - 4) + "px" + posicaoNaFaixa(faixa) + '"><b>' + esc(v.titulo || "Compromisso") + "</b><small>" + esc(v.hora + "–" + horaDe(ini + dur)) + "</small></div>";
+}
+
+/* Os blocos do dia (os de lá e o tracejado da proposta), já em faixas. */
+function blocosDoDia(k, lista) {
+  const itens = (lista || []).map((x) => {
+    const ini = minutosDe(x.hora);
+    return { x: x, ini: ini, fim: ini === null ? null : ini + duracaoNaSemana(x) };
+  });
+  const v = ag.form;
+  if (v && v.tipo !== "tarefa" && v.data === k && minutosDe(v.hora) !== null) {
+    const ini = minutosDe(v.hora);
+    itens.push({ proposta: true, ini: ini, fim: ini + (Number(v.duracao) || 60) });
+  }
+  const faixas = faixasDoDia(itens);
+  return itens.map((i) => (i.proposta ? blocoDaProposta(k, faixas.get(i)) : blocoNaSemana(i.x, k, faixas.get(i)))).join("");
 }
 
 function htmlDaSemana() {
@@ -126,7 +176,7 @@ function htmlDaSemana() {
   const colunas = dias.map((d) => {
     const k = iso(d);
     return '<div class="agc-col' + (k === alvo ? " alvo" : "") + '" data-agc-dia="' + k + '">' +
-      (g.dias[k] || []).map((x) => blocoNaSemana(x, k)).join("") + blocoDaProposta(k) + "</div>";
+      blocosDoDia(k, g.dias[k]) + "</div>";
   }).join("");
   return cabeca + '<div class="agc-rolagem" id="agc-rolagem"><div class="agc-grade" style="height:' + ((AGC_ATE - AGC_DE) * AGC_PX_HORA) + 'px">' +
     '<div class="agc-horas">' + horas + "</div>" + colunas + "</div></div>";

@@ -293,6 +293,9 @@
 }
 .agc-bloco b { font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agc-bloco small { font: 500 10.5px var(--mono); color: var(--ink2); }
+/* Lado a lado com outro do mesmo horário (js/83, faixasDoDia): mais estreito. */
+.agc-bloco.agc-lado-a-lado { padding: 5px 6px; }
+.agc-bloco.agc-lado-a-lado small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agc-bloco.ag-prazo { background: var(--warnbg); border-color: var(--ambar); }
 .agc-bloco.ag-prazo b, .agc-bloco.ag-prazo small { color: var(--warnt); }
 .agc-bloco.ag-documento { background: var(--fill); border-style: dotted; }
