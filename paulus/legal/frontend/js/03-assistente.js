@@ -2362,7 +2362,8 @@ function andamentoDoCartao(t) {
 function textoDaFila(d) {
   // F1: quem está na frente, pelo primeiro nome e a tela - nunca o texto.
   const frente = (d.na_frente || []).map((x) => x.nome + " · " + x.origem);
-  return "na fila do modelo: você é o " + (d.posicao || 1) + "º" + (d.previsao_s ? ", ~" + segundosCurtos(d.previsao_s) : "") +
+  // N11: a resposta que voltou do aparelho espera a vez do escritório.
+  return (d.depois_do_aparelho ? "a resposta voltou ao escritório e " : "") + "na fila do modelo: você é o " + (d.posicao || 1) + "º" + (d.previsao_s ? ", ~" + segundosCurtos(d.previsao_s) : "") +
     (frente.length ? " · na frente: " + frente.join(", ") : "") + (d.motivo ? " (" + d.motivo + ")" : "") +
     (d.aviso ? " · " + d.aviso : "");
 }

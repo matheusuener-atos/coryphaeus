@@ -3963,6 +3963,14 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                     trabalho.etapas.append(Etapa("Escrevendo a resposta", estado=EXECUTANDO))
                     yield _sse("escrevendo", dados)
                     yield _sse("etapas", {"etapas": [asdict_etapa(e) for e in trabalho.etapas]})
+                elif tipo == "fila":
+                    # N11: a resposta que voltou do aparelho esperando a vez no escritório.
+                    fase("fila")
+                    andamento.update(posicao=dados.get("posicao"), previsao_s=dados.get("previsao_s", 0))
+                    if not fila_de_todos.ligada(estado):
+                        dados = {"posicao": dados.get("posicao"), "previsao_s": dados.get("previsao_s", 0),
+                                 "depois_do_aparelho": True}
+                    yield _sse("fila", dados)
                 elif tipo == "medida":
                     medida = dados
                     yield _sse("medida", dados)

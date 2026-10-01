@@ -385,9 +385,9 @@ tamanho do modelo guardado aqui e "Apagar o modelo deste aparelho" (apaga
 os pesos e o teste; o seletor some até o próximo teste). Sem WebGPU, o
 motivo, com a nota de que a maioria dos celulares ainda não tem.
 
-**O que ficou de fora:** enquanto uma resposta que voltou do aparelho
-espera a vez no escritório, a tela não mostra a posição na fila (a pergunta
-entra na fila na chamada ao modelo, e não pela conversa). A checagem "só no
+**O que ficou de fora:** ~~enquanto uma resposta que voltou do aparelho
+espera a vez no escritório, a tela não mostra a posição na fila~~ — feito
+na N11 (docs/PLANO-PILOTO.md). A checagem "só no
 escritório" antes de mandar vê só os documentos em foco; na busca livre, o
 caso marcado só aparece nos trechos, e aí o servidor recusa o pacote (D1) e
 a resposta diz o motivo — a janela de sugestão pode ter aparecido antes.

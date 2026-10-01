@@ -356,7 +356,7 @@ o código garante.
 | N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
 | N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | feito | `tests/test_n9_mcp_escreve.py` |
 | N10 | Captura: corte das bordas e perspectiva endireitada | L8 | feito | `tests/test_n10_corte.py` |
-| N11 | A posição na fila da resposta que volta do aparelho | D4 | — | `tests/test_n11_fila_aparelho.py` |
+| N11 | A posição na fila da resposta que volta do aparelho | D4 | feito | `tests/test_n11_fila_aparelho.py` |
 | N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | — | `tests/test_n12_vigencia.py` |
 | N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | — | `tests/test_n13_jurisprudencia.py` |
 | N14 | Agente com autonomia sem confirmação | fora | — | `tests/test_n14_autonomia.py` |
@@ -623,3 +623,22 @@ folha torta, em perspectiva e reta; os três casos de não cortar; o OCR do
 Windows lê mais palavras certas na folha endireitada que na foto crua; a
 captura com e sem corte; e a prévia no Edge); `test_l8_captura` e
 `test_umbrel_e_captura` continuam passando.
+
+## N11 — a fila depois do aparelho (30/09/2026)
+
+- **O que faltava (D4)**: a resposta que voltava do aparelho (reprovada na
+  conferência, ou o aparelho que não terminou) entrava na fila do modelo
+  dentro da chamada ao modelo, calada: a tela não via a posição.
+- **Agora** (`habilidades/perguntar.py`, `_vez_depois_do_aparelho`): antes
+  de o escritório escrever, a habilidade pega a vez como quem perguntou e,
+  enquanto espera, devolve os mesmos eventos `fila` da pergunta comum (a
+  posição, a previsão, quem está na frente pelo primeiro nome), marcados
+  `depois_do_aparelho`; a tela diz "a resposta voltou ao escritório e na
+  fila do modelo: você é o 1º · na frente: Rui". A vez é devolvida no fim, em
+  qualquer saída (e parar enquanto espera sai da fila).
+- Sem ninguém na frente, passa direto, sem evento.
+
+**Medido:** `tests/test_n11_fila_aparelho.py` 7 ok (com o circuito da D3:
+reprovado com outra pessoa na vez, a posição na tela, o escritório escreve
+depois, a fila vazia no fim, e sem ninguém na frente); `test_d3_conferencia`,
+`test_d4_switch`, `test_f1_fila` e `test_r4_fila` continuam passando.

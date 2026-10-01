@@ -602,12 +602,24 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
         if parcial:
             escrito.append(parcial)
             yield evento("token", t=parcial)
-        for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra, continuar=parcial):
-            if tipo == "token":
-                escrito.append(dados.get("t", ""))
-            elif tipo == "truncou":
-                ctx.registrar("o texto não coube inteiro na janela do modelo: o começo ficou de fora desta leitura")
-            yield evento(tipo, **dados)
+        # N11: a resposta que voltou do aparelho espera a vez do modelo do
+        # escritorio aqui, mandando a posicao para a tela - e nao calada dentro
+        # da chamada ao modelo.
+        vez_aqui = yield from _vez_depois_do_aparelho(ctx)
+        try:
+            for tipo, dados in _pedacos(ctx, pergunta, contexto, regra=regra, continuar=parcial):
+                if tipo == "token":
+                    escrito.append(dados.get("t", ""))
+                elif tipo == "truncou":
+                    ctx.registrar("o texto não coube inteiro na janela do modelo: o começo ficou de fora desta leitura")
+                yield evento(tipo, **dados)
+        finally:
+            if vez_aqui is not None:
+                import fila_modelo
+
+                fila = fila_modelo.instalada()
+                if fila is not None:
+                    fila.sair(vez_aqui)
 
     sem_fundamento = False
     if com_marcas and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
@@ -777,6 +789,39 @@ def _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho,
         ctx.registrar("O aparelho não terminou: escrevi aqui")
     yield evento("aparelho_fim", onde="escritorio", motivo=escrita.motivo, continuou=bool(parcial))
     return None, parcial
+
+
+def _vez_depois_do_aparelho(ctx):
+    """
+    N11: depois do aparelho, a vez do modelo do escritorio. Pega o lugar na
+    fila como quem perguntou e, enquanto espera, devolve eventos `fila` (a
+    posicao, a previsao, quem esta na frente) - os mesmos da pergunta comum.
+    Sem fila, ou sem ter ido ao aparelho, nao faz nada (None).
+    """
+    import fila_modelo
+
+    escrita = getattr(ctx, "escrita_no_aparelho", None)
+    fila = fila_modelo.instalada()
+    pedido = fila_modelo.PEDIDO.get() or {}
+    if escrita is None or not getattr(escrita, "pid", None) or fila is None or not pedido.get("dono"):
+        return None
+    atual = fila_modelo.VEZ.get()
+    if atual is not None and not atual.saiu:
+        return None
+    vez = fila.entrar(pedido["dono"], rotulo=pedido.get("origem", ""))
+    parar = getattr(ctx, "parar", None)
+    ultimo = None
+    while not fila.esperar(vez, timeout=0.5):
+        if parar is not None and parar():
+            fila.sair(vez)
+            return None
+        dados = fila.para_evento(vez)
+        chave = (dados["posicao"], len(dados["na_frente"]), dados.get("motivo", ""))
+        if chave != ultimo:
+            ultimo = chave
+            ctx.registrar(f"a resposta voltou ao escritório e espera a vez: {dados['posicao']}ª da fila")
+            yield evento("fila", depois_do_aparelho=True, **dados)
+    return vez
 
 
 def _com_regra(ctx: Contexto, regra: str) -> str:
