@@ -5059,6 +5059,9 @@ def _responder_email(trabalho, lido, pergunta: str, request=None) -> StreamingRe
     campos = dict(lido.campos)
     acao = campos.get("acao", "abrir")
 
+    if acao == "escrever":
+        return _escrever_email_novo(trabalho, lido, pergunta, request)
+
     def gerar() -> Iterator[str]:
         proposta = None
         try:
@@ -5103,6 +5106,54 @@ def _responder_email(trabalho, lido, pergunta: str, request=None) -> StreamingRe
         yield _sse("token", {"t": texto})
         if proposta:
             yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _escrever_email_novo(trabalho, lido, pergunta: str, request=None) -> StreamingResponse:
+    """
+    "Escreva um e-mail para a Priscila dizendo que...": o envelope do e-mail
+    novo na conversa, com quem recebe achado na ficha (ou o endereco dito), e
+    o texto escrito pelo modelo em POST /api/email/conversa/rascunho. Nada
+    sai daqui: enviar e o clique, com o sim, e passa por Aprovacoes quando
+    Limites da IA mandam.
+    """
+    campos = dict(lido.campos)
+    quem = campos.get("quem", "")
+    email = campos.get("email", "")
+    nome = "" if email and quem == email else quem
+    if not email and quem:
+        alvo = intencao._plano(quem)
+        ficha = next((f for f in estado.cadastros.listar()
+                      if f.get("email") and alvo and all(p in intencao._plano(f.get("nome", "")).split() for p in alvo.split())), None)
+        if ficha:
+            nome, email = ficha["nome"], ficha["email"]
+    try:
+        conta, _senha = _conta_e_senha("")
+    except HTTPException as exc:
+        texto = ("Nenhuma conta de e-mail está ligada a este PAULUS. Ligue a sua em E-mail › Contas e peça de novo."
+                 if exc.status_code == 400 else f"Não consegui usar a conta de e-mail agora: {exc.detail}.")
+        return _so_dizer(trabalho, texto)
+    aprovacao = _passa_por_aprovacao(conta, request)
+    para = [{"nome": nome, "email": email}] if email else []
+    texto = (f"Vou escrever o e-mail para {nome or email}. " if para else
+             f"Não achei e-mail de “{quem}” em Cadastros: ponha o endereço no Para. ") + \
+        "O texto aparece na caixa abaixo para você revisar — " + \
+        ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar.")
+    uid = "novo-" + uuid.uuid4().hex[:10]
+    proposta = {"tipo": "email", "titulo": "Novo e-mail", "porque": lido.porque, "pergunta": pergunta,
+                "campos": {"acao": "escrever", "uid": uid, "pedido": campos.get("pedido", ""), "para": para,
+                           "quem": quem, "conta_id": conta.id, "conta_email": conta.email, "assunto": ""}}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Preparar o e-mail", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
     return StreamingResponse(gerar(), media_type="text/event-stream",
@@ -9311,11 +9362,36 @@ def email_conversa_rascunho(payload: dict, request: Request) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     uid = str(payload.get("uid", ""))
+    quem = estado.prefs.dados.get("pessoa", {}).get("nome", "") or conta.nome
+    # O e-mail novo ("escreva um e-mail para..."): sem mensagem de origem.
+    if uid.startswith("novo-"):
+        para = [x for x in payload.get("para") or [] if isinstance(x, dict) and x.get("email")]
+        try:
+            assunto, texto, aviso = email_pela_conversa.escrever_novo(estado.cliente_para("email"), (para[0].get("nome") if para else "") or "",
+                                                                     str(payload.get("pedido", "")), quem)
+        except OllamaError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        rascunho = {
+            "uid": uid, "conta_id": conta.id, "de": conta.email, "novo_email": True,
+            "para": [{"nome": str(x.get("nome", "")), "email": str(x["email"])} for x in para], "cc": [], "cco": [],
+            "assunto": assunto, "sobre": "", "corpo": texto, "corpo_html": "", "anexos": [],
+            "aviso": aviso, "pelo_assistente": True, "palavras": email_pela_conversa.palavras(texto),
+            "conferencias": _conferencias_do_rascunho(conta, None, texto, request, aviso),
+            "salvo_em": datetime.now().isoformat(timespec="seconds"),
+        }
+        _rascunhos_da_conversa(trabalho)[uid] = rascunho
+        for m in reversed(trabalho.mensagens):
+            p = m.proposta or {}
+            if p.get("tipo") == "email" and str((p.get("campos") or {}).get("uid")) == uid:
+                m.texto = ("Preparei o e-mail. O texto está na caixa abaixo para você revisar — "
+                           + ("enviar passa por Aprovações." if _passa_por_aprovacao(conta, request) else "nada sai sem o seu clique em Enviar."))
+                break
+        estado.trabalhos.salvar(trabalho)
+        return rascunho
     try:
         msg = correio.abrir(conta, senha, uid, marcar_lido=False)
     except correio.ErroCorreio as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    quem = estado.prefs.dados.get("pessoa", {}).get("nome", "") or conta.nome
     try:
         texto, aviso = email_pela_conversa.escrever_resposta(estado.cliente_para("email"), msg,
                                                              str(payload.get("pedido", "")), quem)
@@ -9357,11 +9433,12 @@ def email_conversa_rascunho_guardar(payload: dict, request: Request) -> dict:
     conta = _conta_da_vez(str(payload.get("conta_id", "") or antes.get("conta_id", "")))
     corpo = str(payload.get("corpo", ""))
     msg = None
-    try:
-        conta_msg, senha = _conta_e_senha(antes.get("conta_id", "") or conta.id)
-        msg = correio.abrir(conta_msg, senha, uid, marcar_lido=False)
-    except (HTTPException, correio.ErroCorreio):
-        msg = None
+    if not uid.startswith("novo-"):
+        try:
+            conta_msg, senha = _conta_e_senha(antes.get("conta_id", "") or conta.id)
+            msg = correio.abrir(conta_msg, senha, uid, marcar_lido=False)
+        except (HTTPException, correio.ErroCorreio):
+            msg = None
     def enderecos(chave):
         saida = []
         for x in payload.get(chave) or []:

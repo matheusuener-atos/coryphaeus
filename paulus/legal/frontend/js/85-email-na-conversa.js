@@ -52,7 +52,7 @@ function emcIniciais(nome, email) {
 
 function cartaoDeEmail(d) {
   const c = d.campos || {};
-  const classe = "emc-cartao" + (c.acao === "responder" ? " emc-resp-cartao" : "");
+  const classe = "emc-cartao" + (c.acao === "responder" || c.acao === "escrever" ? " emc-resp-cartao" : "");
   return '<div class="' + classe + '" data-emc-uid="' + esc(c.uid || "") + '"><div class="emc-carregando">' + esqueleto("texto") + "</div></div>";
 }
 
@@ -61,7 +61,7 @@ function ligarEmailNaProposta(caixa, d) {
   const alvo = caixa.querySelector(".emc-cartao");
   if (!alvo) return;
   emc.trabalho = estado.trabalhoId;
-  if (c.acao === "responder") {
+  if (c.acao === "responder" || c.acao === "escrever") {
     // A conversa reaberta nao chama o modelo de novo: o rascunho guardado
     // volta como estava; sem ele, o convite para escrever.
     if (caixa.dataset.propostaGuardada) return respostaGuardadaNaConversa(alvo, c);
@@ -73,9 +73,10 @@ function ligarEmailNaProposta(caixa, d) {
 async function respostaGuardadaNaConversa(alvo, c) {
   const r = await fetch("/api/email/conversa/rascunho?trabalho_id=" + encodeURIComponent(estado.trabalhoId) + "&uid=" + encodeURIComponent(c.uid)).catch(() => null);
   const tem = Boolean(r && r.ok);
-  alvo.innerHTML = '<div class="emc-fechado">' + ic("draft", 16) + "<span>" + (tem ? "Rascunho guardado nesta conversa" : "A resposta ainda não foi escrita") +
-    " · “" + esc(c.assunto || "e-mail") + "”</span>" +
-    '<button type="button" class="emc-botao" data-emc-continuar="1">' + (tem ? "Continuar o rascunho" : "Escrever a resposta") + "</button></div>";
+  const novo = c.acao === "escrever";
+  alvo.innerHTML = '<div class="emc-fechado">' + ic("draft", 16) + "<span>" + (tem ? "Rascunho guardado nesta conversa" : novo ? "O e-mail ainda não foi escrito" : "A resposta ainda não foi escrita") +
+    " · “" + esc(c.assunto || (novo ? "e-mail para " + (c.quem || "") : "e-mail")) + "”</span>" +
+    '<button type="button" class="emc-botao" data-emc-continuar="1">' + (tem ? "Continuar o rascunho" : novo ? "Escrever o e-mail" : "Escrever a resposta") + "</button></div>";
   alvo.querySelector("[data-emc-continuar]").onclick = () => abrirRespostaNaConversa(alvo, c, { pedido: c.pedido || "", comRascunho: !tem });
 }
 
@@ -349,6 +350,13 @@ async function abrirRespostaNaConversa(alvo, c, o, m) {
   if (r && r.ok) guardado = await r.json();
   if (guardado) {
     emc.resp = guardado;
+  } else if (c.acao === "escrever") {
+    // O e-mail novo: sem mensagem de origem; quem recebe veio da ficha ou da frase.
+    emc.resp = {
+      uid: c.uid, conta_id: c.conta_id || "", de: c.conta_email || "", sobre: "", novo_email: true,
+      para: (c.para || []).slice(), cc: [], cco: [], assunto: c.assunto || "", corpo: "", corpo_html: "", anexos: [], conferencias: [],
+      pelo_assistente: false, palavras: 0, salvo_em: "", novo: true,
+    };
   } else {
     if (!m) {
       try { m = await emcMensagem(c.uid, c.conta_id); } catch (err) { m = { uid: c.uid, de_nome: c.de_nome, de_email: c.de_email, assunto: c.assunto, corpo: "" }; }
@@ -379,7 +387,7 @@ async function escreverRascunhoDoEmail(pedido) {
   desenharEditorDoEmail();
   const r = await fetch("/api/email/conversa/rascunho", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ trabalho_id: estado.trabalhoId, uid: resp.uid, conta_id: resp.conta_id, pedido: pedido }),
+    body: JSON.stringify({ trabalho_id: estado.trabalhoId, uid: resp.uid, conta_id: resp.conta_id, pedido: pedido, para: resp.para }),
   }).catch(() => null);
   if (emc.resp !== resp) return;
   if (!r || !r.ok) {
@@ -394,6 +402,10 @@ async function escreverRascunhoDoEmail(pedido) {
   // trocou na conversa guardada); aqui, a bolha acompanha.
   const fala = emc.caixaResp && emc.caixaResp.closest(".resposta");
   const texto = fala && fala.querySelector(".texto");
+  if (texto && resp.novo_email && /^(Vou escrever o e-mail|Não achei e-mail de)/.test(texto.textContent)) {
+    texto.textContent = "Preparei o e-mail. O texto está na caixa abaixo para você revisar — " +
+      ((resp.conferencias || []).some((x) => /Aprovações/.test(x.texto)) ? "enviar passa por Aprovações." : "nada sai sem o seu clique em Enviar.");
+  }
   if (texto && /^Vou escrever a resposta/.test(texto.textContent)) {
     texto.textContent = "Preparei a resposta. O texto está na caixa abaixo para você revisar — " +
       ((resp.conferencias || []).some((x) => /Aprovações/.test(x.texto)) ? "enviar passa por Aprovações." : "nada sai sem o seu clique em Enviar.");
@@ -433,8 +445,9 @@ function desenharEnvelope() {
   }).join("");
   const salvo = resp.estado === "escrevendo" ? "escrevendo…" : resp.enviado ? resp.enviado : resp.salvo_em ? "rascunho salvo " + emcHaPouco(resp.salvo_em) : "ainda não salvo";
   alvo.innerHTML = '<div class="emc-env">' +
-    '<div class="emc-env-cabeca">' + ic(/^enc:/i.test(resp.assunto) ? "forward" : "reply", 16) + "<b>" + (/^enc:/i.test(resp.assunto) ? "Encaminhar" : "Resposta") + "</b>" +
-    "<span>a “" + esc(resp.sobre || resp.assunto) + "”</span><span class=\"vazio-flex\"></span>" +
+    '<div class="emc-env-cabeca">' + (resp.novo_email ? ic("edit_note", 16) + "<b>Novo e-mail</b>" + (resp.para.length ? "<span>para " + esc(resp.para[0].nome || resp.para[0].email) + "</span>" : "")
+      : ic(/^enc:/i.test(resp.assunto) ? "forward" : "reply", 16) + "<b>" + (/^enc:/i.test(resp.assunto) ? "Encaminhar" : "Resposta") + "</b>" +
+        "<span>a “" + esc(resp.sobre || resp.assunto) + "”</span>") + "<span class=\"vazio-flex\"></span>" +
     '<span class="emc-salvo' + (resp.salvo_em ? " ok" : "") + '">' + esc(salvo) + "</span></div>" +
     '<div class="emc-campo"><label>De</label><div class="emc-campo-miolo">' + de + "</div></div>" +
     emcLinhaDeEnderecos("Para", "para", comCopia ? "" : '<button type="button" class="sv-ligacao emc-copia" data-emc-copia="1">CC · CCO</button>') +
@@ -529,7 +542,8 @@ function fecharEditorDoEmail(semPerguntar) {
   emc.resp = null;
   if (!semPerguntar && emc.caixaResp && resp && !resp.enviado) {
     const alvo = emc.caixaResp;
-    const c = { uid: resp.uid, conta_id: resp.conta_id, conta_email: resp.de, assunto: resp.sobre };
+    const c = { uid: resp.uid, conta_id: resp.conta_id, conta_email: resp.de, assunto: resp.sobre,
+      acao: resp.novo_email ? "escrever" : "responder", para: resp.para };
     alvo.innerHTML = '<div class="emc-fechado">' + ic("draft", 16) + "<span>" + (resp.salvo_em ? "Rascunho guardado nesta conversa" : "Resposta deixada de lado") +
       " · “" + esc(resp.assunto) + "”</span>" + '<button type="button" class="emc-botao" data-emc-continuar="1">' + (resp.salvo_em ? "Continuar o rascunho" : "Escrever de novo") + "</button></div>";
     alvo.querySelector("[data-emc-continuar]").onclick = () => abrirRespostaNaConversa(alvo, c, {});
@@ -754,12 +768,12 @@ async function enviarRespostaDaConversa() {
   resp.corpo_html = texto.html;
   const para = resp.para.map((x) => x.email);
   if (!para.length) { avisoCert("falta para quem vai", { tom: "erro" }); const p = document.querySelector('[data-emc-add="para"]'); if (p) p.focus(); return; }
-  if (!resp.corpo.trim()) { avisoCert("a resposta está vazia", { tom: "erro" }); texto.focus(); return; }
+  if (!resp.corpo.trim()) { avisoCert(resp.novo_email ? "o e-mail está vazio" : "a resposta está vazia", { tom: "erro" }); texto.focus(); return; }
   await salvarRascunhoDoEmail();
   const fila = (resp.conferencias || []).some((x) => /Aprovações/.test(x.texto));
   const olhar = (resp.conferencias || []).filter((x) => !x.ok).map((x) => x.texto);
   const sim = await confirmar({
-    titulo: "Enviar a resposta?", contexto: "Conversa › E-mail",
+    titulo: resp.novo_email ? "Enviar o e-mail?" : "Enviar a resposta?", contexto: "Conversa › E-mail",
     texto: ["Para " + resp.para.map((x) => x.nome || x.email).join(", ") + ", da conta " + (resp.de || "em uso") + ": “" + resp.assunto + "”" +
             (resp.anexos.length ? ", com " + plural(resp.anexos.length, "anexo") : "") + ".",
             fila ? "Vai para Aprovações: só sai depois do sim lá." : "Sai agora. Não dá para desfazer."].concat(olhar.length ? ["Ainda para olhar: " + olhar.join("; ") + "."] : []).join("\n"),

@@ -45,6 +45,14 @@ RE_RESPONDER_SO = re.compile(
     r"^" + _ENFEITE + _VERBO_RESPONDER + r"\s+(?:(?:a|à|ao|o|os|as)\s+)?(?:" + _UM_EMAIL + r"\s+(?:d[oae]s?|de)\s+)?"
     r"(?P<quem>[^,.!?]+?)\s*[.!?]*$",
     re.I)
+# "Escreva um e-mail para a Priscila dizendo que...": o e-mail novo, sem
+# mensagem de origem.
+_VERBO_ESCREVER = r"(?:escreva|escreve|escrever|redija|redige|prepare|prepara|manda|mande|mandar|envie|envia|enviar)"
+RE_ESCREVER = re.compile(
+    r"^" + _ENFEITE + _VERBO_ESCREVER + r"\s+(?:(?:um|uma)\s+)?(?:novo\s+)?(?:e-?mail|mensagem por e-?mail)\s+"
+    r"(?:para|pra|pro|pros|pras|ao|à|a|aos|às)\s+(?P<quem>.+?)(?:(?:\s*[,:]\s*|\s+)(?P<pedido>" + _COMO + r"\b.*))?\s*[.!?]*$",
+    re.I)
+RE_ENDERECO = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # O que nao e nome de remetente: "responda isso", "abra o e-mail aqui".
 _NAO_E_QUEM = {"isso", "isto", "esse", "este", "essa", "esta", "aqui", "ele", "ela", "todos", "tudo", "agora", "depois"}
 # ...nem comeco de frase que nao seja nome: "responda em portugues",
@@ -80,6 +88,15 @@ def ler_pedido(texto: str) -> dict | None:
     if not frase or len(frase) > 400:
         return None
     baixo = frase.lower()
+    m = RE_ESCREVER.match(baixo)
+    if m:
+        quem = _limpar_quem(frase[m.start("quem"):m.end("quem")])
+        pedido = frase[m.start("pedido"):].strip().rstrip(".") if m.group("pedido") else ""
+        achado = RE_ENDERECO.search(quem) or RE_ENDERECO.search(frase)
+        endereco = achado.group(0) if achado else ""
+        nome = _limpar_quem(RE_ENDERECO.sub("", quem)) if endereco else quem
+        if endereco or _quem_valido(nome):
+            return {"acao": "escrever", "quem": nome or endereco, "email": endereco, "sobre": "", "pedido": pedido}
     m = RE_RESPONDER.match(baixo)
     if m:
         quem = _limpar_quem(frase[m.start("quem"):m.end("quem")])
@@ -223,6 +240,51 @@ def escrever_resposta(cliente, mensagem, pedido: str, quem_assina: str = "") -> 
     if fora:
         avisos.append("Tirei do rascunho " + ", ".join(fora[:3]) + ": não estava no e-mail recebido.")
     return texto, " ".join(a for a in avisos if a)
+
+
+INSTRUCAO_NOVO = """Voce e assistente de um advogado brasileiro. Escreva um
+e-mail NOVO, em portugues do Brasil, fazendo o que o advogado pediu.
+
+Responda neste formato, sem mais nada:
+Assunto: <assunto curto, de 3 a 8 palavras>
+
+<corpo do e-mail>
+
+Regras do corpo:
+- comece com a saudacao pelo primeiro nome de quem recebe ("Olá, Fulana,")
+- tom profissional e cordial; de 3 a 10 linhas
+- diga so o que o pedido diz; nao invente fato, data, valor, prazo nem
+  promessa. Se faltar, deixe a lacuna entre colchetes, por exemplo [VALOR]
+- nao escreva assinatura com nome: o programa acrescenta a da conta
+- termine com "Atenciosamente,"
+- nao use marcacao nem asteriscos"""
+
+
+def escrever_novo(cliente, para_nome: str, pedido: str, quem_assina: str = "") -> tuple[str, str, str]:
+    """
+    O e-mail novo com o pedido do advogado ("dizendo que a audiência foi
+    remarcada"). Devolve (assunto, texto, aviso). Sem mensagem de origem, o
+    que o texto pode dizer e so o que o pedido diz: o resto sai (blindagem).
+    """
+    import blindagem
+    import correio
+
+    instrucao = (INSTRUCAO_NOVO + "\n\nPara quem: " + (para_nome or "o destinatário") +
+                 "\nO que o advogado pediu: " + " ".join((pedido or "").split())[:400])
+    if quem_assina:
+        instrucao += f"\n- quem escreve e {quem_assina}"
+    resposta = (cliente.ask(instrucao, "") or "").strip()
+    assunto = ""
+    m = re.match(r"^\s*assunto\s*:\s*(.+)$", resposta, re.I | re.M)
+    if m:
+        assunto = m.group(1).strip().strip("\"“”*")[:120]
+        resposta = (resposta[:m.start()] + resposta[m.end():]).strip()
+    if not assunto:
+        assunto = " ".join(re.sub(r"^(?:dizendo|informando|avisando|que|sobre)\s+", "", pedido or "", flags=re.I).split()[:7]).rstrip(".,")
+        assunto = assunto[:1].upper() + assunto[1:]
+    texto, fora = blindagem.conferir_saida(_sem_assinatura(correio._limpar_rascunho(resposta)), pedido + "\n" + (para_nome or ""), [])
+    aviso = ("Tirei do rascunho " + ", ".join(fora[:3]) + ": não estava no pedido.") if fora else ""
+    return assunto, texto, aviso
 
 
 def _sem_assinatura(texto: str) -> str:

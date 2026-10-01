@@ -65,6 +65,20 @@ def test_pedido() -> None:
         checar((d.get("acao"), d.get("quem"), d.get("pedido")) == (acao, quem, pedido), f"“{frase}”", d)
     for frase in ("responda em português", "responda que sim", "abra o contrato de honorários", "qual a multa do contrato?"):
         checar(emc.ler_pedido(frase) is None, f"“{frase}” não é pedido de e-mail")
+    # o e-mail novo
+    d = emc.ler_pedido("escreva um e-mail para a Priscila dizendo que a audiência foi remarcada para quinta") or {}
+    checar((d.get("acao"), d.get("quem"), d.get("pedido")) == ("escrever", "Priscila", "dizendo que a audiência foi remarcada para quinta"), "o e-mail novo", d)
+    d = emc.ler_pedido("manda um email pra contato@riofresco.coop.br pedindo o comprovante") or {}
+    checar(d.get("acao") == "escrever" and d.get("email") == "contato@riofresco.coop.br" and d.get("pedido") == "pedindo o comprovante", "para um endereço", d)
+    d = emc.ler_pedido("escreva um e-mail para Wagner Antônio dizendo: Olá, Wagner. A audiência foi remarcada.") or {}
+    checar(d.get("acao") == "escrever" and d.get("quem") == "Wagner Antônio", "o “Mandar por e-mail” do WhatsApp", d)
+
+    class _Novo:
+        def ask(self, pergunta, contexto=""):
+            return "Assunto: Audiência remarcada\n\nOlá, Priscila,\n\nA audiência foi remarcada para quinta.\n\nAtenciosamente,\nFulano de Tal"
+    assunto, texto, _aviso = emc.escrever_novo(_Novo(), "Priscila Almeida", "dizendo que a audiência foi remarcada para quinta")
+    checar(assunto == "Audiência remarcada" and texto.startswith("Olá, Priscila,") and texto.endswith("Atenciosamente,"),
+           "o assunto sai da primeira linha e a assinatura inventada sai", (assunto, texto))
 
 
 def test_mensagem() -> None:
@@ -119,6 +133,8 @@ class _Modelo:
         self.chamadas.append((pergunta, contexto))
         if "O que o advogado pediu para a resposta" in pergunta:
             return RASCUNHO
+        if "e-mail NOVO" in pergunta:
+            return "Assunto: Comprovante da parcela\n\nOlá, Priscila,\n\nPode me mandar o comprovante da parcela de setembro?\n\nAtenciosamente,"
         if "Responda a\npergunta dele" in pergunta or "pergunta dele sobre o e-mail" in pergunta:
             return "É o código 417112, do Mercado Pago, de 26 de setembro."
         return "A dispensa da multa vale só para esta parcela."
@@ -273,6 +289,30 @@ def test_tela() -> None:
         checar("Aprovações" in nota and pendentes, "o pedido fica em Aprovações e a conversa diz", (nota, len(pendentes)))
         checar(pag.evaluate("() => !document.getElementById('cartao-campo').hidden && document.getElementById('emc-editor').hidden"),
                "a caixa de pedido volta")
+
+        # o e-mail novo, com quem recebe achado na ficha
+        api.estado.cadastros.salvar({"tipo": "cliente", "nome": "Priscila Almeida", "email": "priscila.almeida@riofresco.coop.br"})
+        pag.click("#nova")
+        pag.wait_for_timeout(600)
+        pag.fill("#pedido", "escreva um e-mail para a Priscila pedindo o comprovante da parcela de setembro")
+        pag.click("#enviar")
+        pag.wait_for_selector(".emc-env", timeout=20000)
+        pag.wait_for_function("() => !document.querySelector('#emc-editor').hidden && document.getElementById('emc-texto').textContent.includes('comprovante')", timeout=20000)
+        pag.wait_for_timeout(600)
+        novo = pag.evaluate("""() => ({cabeca: document.querySelector('.emc-env-cabeca').textContent,
+          para: (document.querySelector('.emc-env .emc-chip small') || {}).textContent || '',
+          assunto: document.getElementById('emc-assunto').value,
+          frase: [...document.querySelectorAll('#centro .resposta .texto')].map(t => t.textContent).pop()})""")
+        checar("Novo e-mailpara Priscila Almeida" in novo["cabeca"] and "priscila.almeida@riofresco.coop.br" in novo["para"], "o envelope do e-mail novo, com a ficha", novo)
+        checar(novo["assunto"] == "Comprovante da parcela" and novo["frase"].startswith("Preparei o e-mail."), "o assunto e a frase", novo)
+        pag.screenshot(path=str(CAPTURAS / "faltas-email-novo.png"))
+        pag.click("#emc-enviar")
+        pag.wait_for_selector("#veu-dialogo .dialogo", timeout=5000)
+        checar("Enviar o e-mail?" in pag.evaluate("() => document.getElementById('veu-dialogo').textContent"), "enviar o e-mail novo pede o sim")
+        pag.click("#veu-dialogo [data-dialogo='confirmar']")
+        pag.wait_for_function("() => [...document.querySelectorAll('.nota-feito')].some(n => n.textContent.includes('Comprovante da parcela'))", timeout=8000)
+        pendentes = [x for x in api.estado.fila.pendentes if x.categoria == "email"]
+        checar(any("Comprovante da parcela" in str(x.dados) for x in pendentes), "o e-mail novo fica em Aprovações", len(pendentes))
 
         pag.set_viewport_size({"width": 390, "height": 844})
         pag.wait_for_timeout(500)
