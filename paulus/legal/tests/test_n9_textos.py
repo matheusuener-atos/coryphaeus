@@ -91,8 +91,10 @@ def _subir(api, porta: int) -> None:
 def textos_da_tela(pag) -> dict:
     """O que a pessoa lê, por lugar."""
     t: dict[str, str] = {}
-    pag.evaluate("() => { nfseDisponivel = null; mostrarFinanceiro('visao'); }")
-    pag.wait_for_timeout(2500)
+    pag.evaluate("() => { nfseDisponivel = null; fin.dados = null; mostrarFinanceiro('visao'); }")
+    # Espera o Financeiro carregar de fato: com a máquina cheia, 2,5 s não bastavam.
+    pag.wait_for_function("() => fin.dados", timeout=60000)
+    pag.wait_for_timeout(1500)
     t["financeiro"] = pag.evaluate("() => document.getElementById('centro').innerText")
     pag.evaluate("() => { finVerPapeis('nota'); }")
     pag.wait_for_timeout(800)
