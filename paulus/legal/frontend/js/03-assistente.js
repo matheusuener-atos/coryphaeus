@@ -481,7 +481,8 @@ const propostasGuardadas = [];
 
 function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
-  if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || (p.tipo === "escopo" && ultima) ||
+  // N14: o que o agente fez sozinho volta com o "Desfazer" (o próprio botão diz se já foi desfeito).
+  if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
   propostasGuardadas.push(p);
   return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +

@@ -65,6 +65,16 @@ AUTONOMIA = [
         "travada": False,
     },
     {
+        # N14: o agente do escritório faz, sem o cartão de confirmar, o que o
+        # AGENTE.md dele lista em `autonomia:` (o titular escreve).
+        "chave": "agentes_sozinhos",
+        "titulo": "Agentes fazem sozinhos o que o AGENTE.md permite",
+        "explica": ("Cada agente faz sem perguntar só as ferramentas listadas em “autonomia:” no AGENTE.md dele (até 20 por "
+                    "dia). Fica tudo no Histórico, com desfazer. Nunca e-mail, assinatura nem pagamento: não são ferramentas de agente."),
+        "padrao": False,
+        "travada": False,
+    },
+    {
         "chave": "modelo_nuvem",
         "titulo": "Usar modelo em nuvem quando faltar memória",
         "explica": (

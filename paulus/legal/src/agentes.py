@@ -63,8 +63,11 @@ FORMATOS_SAIDA = ("texto", "lista", "tabela", "modelo_de_documento")
 ACERVO_MODOS = ("acervo", "documento_em_foco")
 
 # A ordem e a do §2.6: e a ordem em que a tela e o relatorio listam.
-CAMPOS = ("nome", "descricao", "icone", "quando_usar", "capacidades", "ferramentas", "fontes", "saida", "modelo",
+CAMPOS = ("nome", "descricao", "icone", "quando_usar", "capacidades", "ferramentas", "autonomia", "fontes", "saida", "modelo",
           "testes", "versao")
+# `autonomia` (N14, opcional): as ferramentas, dentre as `ferramentas` do agente,
+# que ele faz SEM o cartão de confirmar - só com a chave "Agentes fazem sozinhos"
+# ligada nas Regras de alçada, e com tudo no Histórico de Aprovações, com desfazer.
 # `icone` (A22, opcional): o nome de um icone da fonte de icones do programa,
 # para o cartao do agente. Sem ele, o de sempre.
 RE_ICONE = re.compile(r"[a-z][a-z0-9_]{1,39}")
@@ -210,6 +213,7 @@ class Agente:
     quando_usar: dict = field(default_factory=lambda: {"exemplos": [], "palavras": []})
     capacidades: list[str] = field(default_factory=list)
     ferramentas: list[str] = field(default_factory=list)
+    autonomia: list[str] = field(default_factory=list)
     fontes: dict = field(default_factory=lambda: {"acervo": "acervo", "biblioteca": [], "leis": []})
     saida: dict = field(default_factory=lambda: {"formato": "texto", "modelo": ""})
     modelo: str = "conversa"
@@ -251,7 +255,7 @@ class Agente:
         return {
             "slug": self.slug, "nome": self.nome or self.slug, "descricao": self.descricao, "icone": self.icone,
             "quando_usar": self.quando_usar, "capacidades": self.capacidades, "ferramentas": self.ferramentas,
-            "fontes": self.fontes, "saida": self.saida, "modelo": self.modelo, "testes": self.testes,
+            "autonomia": self.autonomia, "fontes": self.fontes, "saida": self.saida, "modelo": self.modelo, "testes": self.testes,
             "versao": self.versao, "instrucoes": self.instrucoes,
             "estado": "com_problema" if self.problema else ("ativo" if self.ativo else "desativado"),
             "ativo": self.ativo, "em_uso": self.em_uso, "origem": self.origem,
@@ -401,6 +405,15 @@ class Agentes:
                 avisos.append(f"a ferramenta '{f}' ainda não faz o trabalho de verdade: confirmar confere os dados "
                               "e diz isso, sem executar")
 
+        autonomia = _textos(dados.get("autonomia"), "autonomia", erros)
+        for f in autonomia:
+            if f not in ferramentas:
+                erros.append(f"autonomia: '{f}' não está entre as ferramentas do agente ({_lista_de(ferramentas) or 'nenhuma'}); "
+                             "o agente só faz sozinho o que ele já pode fazer com confirmação")
+        if autonomia:
+            avisos.append("autonomia: " + _lista_de(autonomia) + " - acontece sem confirmar só com a chave “Agentes fazem "
+                          "sozinhos” ligada em Aprovações › Regras de alçada")
+
         fo = _sub(dados.get("fontes"), "fontes", CAMPOS_FONTES, erros)
         acervo = fo.get("acervo", "acervo")
         if isinstance(acervo, dict) and set(acervo) == {"pastas"}:
@@ -480,7 +493,7 @@ class Agentes:
         if not quando_usar["exemplos"] and not quando_usar["palavras"]:
             avisos.append("sem exemplos nem palavras: só será usado quando a pessoa o escolher pelo nome")
         return ({"nome": nome, "descricao": descricao, "icone": icone, "quando_usar": quando_usar, "capacidades": capacidades,
-                 "ferramentas": ferramentas, "fontes": fontes, "saida": saida, "modelo": perfil,
+                 "ferramentas": ferramentas, "autonomia": autonomia, "fontes": fontes, "saida": saida, "modelo": perfil,
                  "testes": testes, "versao": versao, "instrucoes": corpo}, avisos)
 
     def validar(self, markdown: str, slug: str = "") -> Agente:
@@ -700,8 +713,10 @@ class Agentes:
             if agente.precisa_aprovar:
                 if vi_o_conteudo is not True:
                     pedidas = _lista_de(agente.ferramentas) if agente.ferramentas else "nenhuma"
+                    sozinho = (f"; e o que ele faria sozinho, sem confirmar ({_lista_de(agente.autonomia)})"
+                               if agente.autonomia else "")
                     raise ConflitoDeAgente("este agente foi importado: antes de ligar, leia o conteúdo inteiro e as "
-                                       f"ferramentas que ele pede ({pedidas}) e confirme com vi_o_conteudo")
+                                       f"ferramentas que ele pede ({pedidas}){sozinho} e confirme com vi_o_conteudo")
                 estado["aprovado_em"] = _agora()
                 estado["aprovado_por"] = por or "janela do escritório"
             estado["ativo"] = True

@@ -925,6 +925,8 @@ function cartaoProposta(d) {
 
   // N6: a tarefa de vários passos pedida na conversa (js/66-passos.js acompanha).
   if (d.tipo === "passos") return cartaoPassos(d);
+  // N14: o que o agente fez sozinho, com desfazer (js/74-autonomia.js).
+  if (d.tipo === "sozinho" && typeof cartaoSozinho === "function") return cartaoSozinho(d);
 
   // Cadastro e nota fiscal: ferramentas do catálogo (src/ferramentas.py).
   if (FERRAMENTAS_DA_CONVERSA[d.tipo]) return cartaoFerramenta(d);
@@ -1377,6 +1379,7 @@ function camposProposta(d, faltando) {
 /* Ligar os botões do cartão. O que vai para o servidor é o que está nos
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
 function ligarProposta(caixa, d, ondeResponder) {
+  if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
   if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);

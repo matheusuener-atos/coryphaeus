@@ -353,13 +353,13 @@ o código garante.
 | N5 | Cláusula no estilo "1. DO OBJETO" reconhecida | L4 | feito | `tests/test_n5_clausulas.py` |
 | N6 | A conversa chama as tarefas de vários passos | L4 | feito | `tests/test_n6_conversa_tarefas.py` |
 | N7 | Súmulas e temas na resposta da conversa | L5 | feito | `tests/test_n7_temas_na_conversa.py` |
-| N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | — | `tests/test_n8_stf.py` |
+| N8 | Súmulas do STF, vinculantes e temas de repercussão geral no instalador | L5 | feito | `tests/test_n8_stf.py` |
 | N9 | MCP: escopo por cliente e ferramentas que escrevem | L7 | feito | `tests/test_n9_mcp_escreve.py` |
 | N10 | Captura: corte das bordas e perspectiva endireitada | L8 | feito | `tests/test_n10_corte.py` |
 | N11 | A posição na fila da resposta que volta do aparelho | D4 | feito | `tests/test_n11_fila_aparelho.py` |
-| N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | — | `tests/test_n12_vigencia.py` |
+| N12 | Vigência: o texto da redação anterior e a vacatio legis | L10 | feito | `tests/test_n12_vigencia.py` |
 | N13 | Jurisprudência em massa: os acórdãos do STJ (dados abertos) no computador | fora | feito | `tests/test_n13_jurisprudencia.py` |
-| N14 | Agente com autonomia sem confirmação | fora | — | `tests/test_n14_autonomia.py` |
+| N14 | Agente com autonomia sem confirmação | fora | feito | `tests/test_n14_autonomia.py` |
 | N15 | Nuvem com a chave do escritório | fora | — | `tests/test_n15_nuvem.py` |
 | N16 | Os três testes que dependiam desta máquina | testes | — | os próprios |
 
@@ -683,3 +683,101 @@ arquivo quebrado, a busca, os artigos, a conversa, o editor, o MCP, de fora,
 apagar, e a aba no Edge em 1280 e 390 px); `test_l5_fundamentacao`,
 `test_n7_temas_na_conversa`, `test_b1_tela` (com a quinta aba), `test_tela`,
 `test_l7_mcp` e `test_r3_permissoes` continuam passando.
+
+## N8 — STF: súmulas, vinculantes e repercussão geral (30/09/2026)
+
+- **De onde** (`tools/stf_pacote.py`): o portal do STF recusa programa (403),
+  então o pacote é montado uma vez, na máquina de quem faz o instalador, pelo
+  Edge e sem pressa (uma página a cada 3 s, com pausa longa quando o portal
+  recusa e retomada de onde parou). O PAULUS instalado nunca fala com o STF:
+  uma lista nova vem numa versão nova do instalador. São textos oficiais (Lei
+  9.610/1998, art. 8º, IV).
+- **O que veio** (30/09/2026): 726 súmulas do STF (as 10 canceladas de fora;
+  as superadas entram marcadas "(superada)"), 62 vinculantes (1 cancelada de
+  fora) e as 1.285 teses do banco de teses de repercussão geral (com e sem
+  repercussão, o paradigma e a data) — o portal devolve as teses num JSON só.
+  O enunciado é a linha abaixo do título, procurado como linha inteira (o
+  portal põe espaço não separável no título; a mesma frase no meio da
+  jurisprudência citada não conta), e o texto com cara de jurisprudência
+  ("rel. min.", colchetes, longo demais) é baixado de novo.
+- **No programa**: as súmulas entram na Biblioteca ao lado das do STJ
+  (`nativo.instalar`); as teses entram na tabela de temas com o tipo "RG"
+  ("Tema 1 da repercussão geral/STF") e ligadas aos artigos que citam
+  (art. 37 da CF); atualizar pelo STJ não apaga as do STF.
+- **Onde aparece**: embaixo da resposta (N7: "Súmula Vinculante 13", "Súmula
+  279 do STF", "Tema 1 da repercussão geral" acham o do STF, e o STJ quando
+  não diz o tribunal); na fundamentação do editor; no MCP (`sumulas_stf`, com
+  o filtro das vinculantes, e `temas_repercussao_geral`; o `temas_stj` fica
+  só com o STJ).
+
+**Não feito:** "atualizar pelo STF" de dentro do programa (o portal recusa
+programa); o título dos temas de repercussão geral (o banco de teses traz a
+tese, o paradigma e a situação); os temas ainda sem tese ficam de fora.
+
+**Medido:** `tests/test_n8_stf.py` 19 ok (o pacote, a instalação ao lado do
+STJ, a conversa, o editor, o MCP e a Biblioteca no Edge);
+`test_l5_fundamentacao` (com a conta só do STJ), `test_n7_temas_na_conversa`,
+`test_b1_tela`, `test_l7_mcp` e `test_n13_jurisprudencia` continuam passando.
+
+## N12 — o texto anterior e a vacatio legis (30/09/2026)
+
+- **O pacote de vigência** (`tools/vigencia_pacote.py`,
+  `config/acervo-inicial/vigencia-pacote.json.gz`, 310 KB, montado em
+  30/09/2026 pelo Planalto, que aceita programa):
+  - **o texto anterior**: de cada código, a versão em que o Planalto deixa as
+    redações antigas riscadas (o CC em l10406.htm, a CLT em del5452.htm...),
+    com a nota de cada uma — 5.806 redações riscadas, por artigo e dispositivo
+    (CLT 3.120, CF 725, CPP 585, CTB 467, CC 292...);
+  - **a vacatio**: das 753 leis que as notas citam, 732 lidas — a publicação
+    no DOU e a cláusula de vigência; 644 com prazo simples ("na data de sua
+    publicação", "após decorridos 90 dias"), e o vigor é a publicação mais o
+    prazo (LC 95/1998, art. 8º, § 1º). O título certo é o que tem o número do
+    arquivo (a página da Lei 10.695 cita a 9.610 antes), e a publicação de anos
+    depois da assinatura é republicação, não conta.
+- **Na resposta** (`src/vigencia.py`): cada nota ganha a data em que a
+  mudança passou a valer; numa data em que valia outra redação, a resposta
+  traz o texto dela ("É vedado ao fornecedor de produtos ou serviços:", CDC
+  39 em 1993) e diz quando a nova passou a valer ("em vigor desde 13/06/1994";
+  "30 dias de vacatio"). No meio da vacatio, vale a anterior. Vigência em
+  partes (a Lei 13.874/2019) é dita; onde o Planalto não guardou o texto
+  anterior, a linha diz.
+- **A tela**: o texto anterior embaixo da linha do dispositivo e a vacatio no
+  histórico, no diálogo da vigência (e na ferramenta do MCP).
+
+**Não feito:** as leis cuja página o Planalto não tem (21 das 753) e as
+cláusulas sem prazo simples ("no primeiro dia do mês seguinte", vigência em
+partes) ficam com a data da lei, dito; o texto anterior só onde o Planalto o
+riscou.
+
+**Medido:** `tests/test_n12_vigencia.py` 17 ok (o pacote, as versões de um
+dispositivo, a vacatio da Lei 10.695/2003, a vigência em partes, CDC 39, CLT
+477, CP 121 e a Lei 13.964, e o diálogo no Edge); `test_l10_vigencia`
+continua passando (com leis que o pacote não conhece no lugar das que agora
+ele conhece).
+
+## N14 — o agente que faz sozinho (30/09/2026)
+
+Ficou de fora de propósito na primeira volta; o dono decidiu fazer.
+
+- **No AGENTE.md**, o campo `autonomia:` lista o que o agente faz sem o cartão
+  de confirmar — só ferramentas que ele já tem em `ferramentas:`. Quem escreve
+  é o titular (a A1 já trava isso); o importado só liga depois de o titular
+  ver o conteúdo, e o aviso da importação diz também o que ele faria sozinho.
+- **A chave** "Agentes fazem sozinhos o que o AGENTE.md permite", em
+  Aprovações › Regras de alçada, **desligada de fábrica**.
+- **Ligada**: o pedido que o agente faria com cartão é feito na hora (pela
+  mesma rota do catálogo) e fica no Histórico de Aprovações como "feito
+  sozinho pelo agente", com o resultado — sem o aviso de pedido novo. A
+  conversa diz que foi sozinho e mostra o cartão com **Desfazer** (o
+  compromisso sai da agenda, a ficha sai de Cadastros, a tarefa de vários
+  passos é desfeita); o mesmo Desfazer no Histórico. Mostrar documento e a
+  NFS-e (que só confere) dizem que não há o que desfazer.
+- **Volta ao cartão**: o agente sem a ferramenta na autonomia, o pedido em que
+  falta dado, e o que passa de 20 por agente por dia (dito no cartão).
+- E-mail, assinatura e pagamento não são ferramentas de agente: continuam
+  nas regras de alçada deles.
+
+**Medido:** `tests/test_n14_autonomia.py` 20 ok (o AGENTE.md, a chave
+desligada, ligada com o compromisso feito e o Histórico, desfazer, o que volta
+ao cartão, o limite, o que não se desfaz, de fora, e no Edge: o cartão na
+conversa e o Desfazer no Histórico).

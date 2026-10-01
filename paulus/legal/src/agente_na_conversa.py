@@ -230,6 +230,80 @@ def registrar_recusa(estado, trabalho, agente, ferramenta: str, pergunta: str) -
         pass
 
 
+# ------------------------------------------------------------ autonomia (N14)
+
+LIMITE_SOZINHO_POR_DIA = 20
+SEM_DESFAZER = {"exibir_documento": "só mostrou o documento: não há o que desfazer",
+                "emitir_nfse": "a NFS-e só foi conferida, nada foi emitido: não há o que desfazer"}
+
+
+def pode_sozinho(estado, agente, ferramenta: str) -> tuple[bool, str]:
+    """(faz sem confirmar?, por que não). A chave das Regras de alçada, o AGENTE.md e o limite do dia."""
+    if agente is None or not ferramenta:
+        return False, ""
+    if not estado.prefs.pode("agentes_sozinhos"):
+        return False, ""
+    if ferramenta not in (getattr(agente, "autonomia", None) or []):
+        return False, ""
+    if getattr(agente, "precisa_aprovar", False):
+        return False, "o agente importado ainda não foi aprovado"
+    from datetime import datetime as _dt
+
+    hoje = _dt.now().strftime("%Y-%m-%d")
+    feitos = [p for p in estado.fila.decididos_hoje() if p.acao == "agente.sozinho" and (p.dados or {}).get("agente") == agente.slug
+              and p.decidido_em[:10] == hoje]
+    if len(feitos) >= LIMITE_SOZINHO_POR_DIA:
+        return False, f"o agente já fez {LIMITE_SOZINHO_POR_DIA} coisas sozinho hoje: esta espera o seu sim"
+    return True, ""
+
+
+def fazer_sozinho(estado, trabalho, agente, ferramenta: str, tipo: str, campos: dict, porque: str) -> dict:
+    """
+    Faz agora, sem o cartão, e deixa no Histórico de Aprovações como pedido
+    já decidido ("feito sozinho pelo agente"), com o que desfaz.
+    """
+    import ferramentas
+
+    feito = ferramentas.executar(ferramenta, dict(campos or {}), estado)
+    nome = agente.nome or agente.slug
+    pedido = estado.fila.pedir(f"{nome}: {feito['resumo']}"[:200], "conversa", avisar=False, acao="agente.sozinho", pedido_por=nome,
+                               resumo=(porque or "") + " — feito sozinho (autonomia do AGENTE.md, chave ligada em Regras de alçada).",
+                               etiquetas=["feito sozinho"],
+                               dados={"trabalho_id": trabalho.id, "tipo": tipo, "campos": campos, "agente": agente.slug,
+                                      "versao": agente.versao, "ferramenta": ferramenta, "feito_id": feito["id"], "onde": feito["onde"]})
+    estado.fila.decidir(pedido.id, True)
+    estado.fila.registrar_resultado(pedido.id, feito["resumo"] + " — feito sozinho pelo agente “" + nome + "”")
+    return dict(feito, pedido_id=pedido.id)
+
+
+def desfazer_sozinho(estado, pedido) -> str:
+    """Volta o que o agente fez sozinho. Diz o que fez - ou por que não há o que voltar."""
+    d = dict(pedido.dados or {})
+    if d.get("desfeito"):
+        raise ValueError("isto já foi desfeito")
+    ferramenta, id_ = d.get("ferramenta", ""), d.get("feito_id")
+    if ferramenta in SEM_DESFAZER:
+        raise ValueError(SEM_DESFAZER[ferramenta])
+    if ferramenta == "criar_compromisso":
+        ok = estado.agenda.apagar(int(id_))
+        texto = "compromisso apagado da agenda" if ok else "o compromisso já não estava na agenda"
+    elif ferramenta == "cadastrar_cliente":
+        ok = estado.cadastros.apagar(int(id_))
+        texto = "ficha tirada de Cadastros" if ok else "a ficha já não estava em Cadastros"
+    elif ferramenta == "tarefa_de_varios_passos":
+        t = estado.tarefas_de_passos.desfazer(str(id_))
+        texto = "a tarefa de vários passos foi desfeita" + ("" if t.get("estado") == "desfeita" else " em parte (veja em Agentes)")
+    else:
+        raise ValueError("não sei desfazer isto")
+    pedido.dados["desfeito"] = True
+    estado.fila.registrar_resultado(pedido.id, (pedido.resultado or "") + f" · desfeito: {texto}")
+    trabalho = estado.trabalhos.obter(d.get("trabalho_id", ""))
+    if trabalho is not None:
+        trabalho.dizer("paulus", f"Desfiz o que o agente fez sozinho: {texto}.")
+        estado.trabalhos.salvar(trabalho)
+    return texto
+
+
 def executar_da_fila(estado, pedido) -> dict:
     """
     O sim em Aprovacoes para a ferramenta de um agente: executa pela mesma

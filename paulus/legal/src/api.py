@@ -4358,6 +4358,34 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
             "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
             "ajuda_do_modelo": ajuda,
         }
+        # N14: com a chave "Agentes fazem sozinhos" e a ferramenta na `autonomia`
+        # do AGENTE.md, o agente faz agora, sem o cartao - e fica no Historico,
+        # com desfazer. Faltando dado, ou passado o limite do dia, volta ao cartao.
+        motivo_sozinho = ""
+        if agente is not None and ferramenta and not lido.falta:
+            sozinho, motivo_sozinho = agente_mod.pode_sozinho(estado, agente, ferramenta)
+            if sozinho:
+                try:
+                    feito = agente_mod.fazer_sozinho(estado, trabalho, agente, ferramenta, lido.tipo, lido.campos, lido.porque or pergunta)
+                except ValueError as exc:
+                    motivo_sozinho = f"não deu para fazer sozinho ({exc}): confira e confirme"
+                else:
+                    texto = f"{feito['resumo']} — feito sozinho pelo agente “{agente.nome or agente.slug}”."
+                    cartao = {"tipo": "sozinho", "titulo": feito["resumo"], "campos": {"onde": feito["onde"], "id": feito["id"]},
+                              "pedido_id": feito["pedido_id"], "agente": {"slug": agente.slug, "nome": agente.nome or agente.slug},
+                              "ferramenta": ferramenta, "porque": lido.porque, "pergunta": pergunta}
+                    trabalho.etapas = [Etapa("Fazer", estado=CONCLUIDO)]
+                    trabalho.estado = CONCLUIDO
+                    trabalho.dizer("paulus", texto, proposta=cartao, feito={"tipo": lido.tipo, "id": feito["id"], "onde": feito["onde"],
+                                                                         "sozinho": True, "pedido_id": feito["pedido_id"]})
+                    estado.trabalhos.salvar(trabalho)
+                    yield _sse("token", {"t": texto})
+                    yield _sse("proposta", cartao)
+                    yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+                    return
+        if motivo_sozinho:
+            proposta["falta"] = proposta.get("falta") or ""
+            proposta["porque"] = (proposta.get("porque") or "") + f" · {motivo_sozinho}"
         # A2: a ferramenta pedida por um agente passa tambem pela fila de
         # Aprovacoes. O cartao e o item da fila sao o mesmo pedido: confirmar
         # num fecha o outro, e o historico da fila e o registro.
@@ -5397,6 +5425,19 @@ def _pode_aprovar_de_fora(pedido, pessoa: dict, codigo: str, conferido: dict) ->
     if "ok" not in conferido:
         conferido["ok"] = bool(codigo) and estado.acesso_de_fora.contas.confirmar_de_novo(pessoa, codigo)
     return "" if conferido["ok"] else "aprovar de fora o que sai do escritório pede o código do autenticador"
+
+
+@app.post("/api/aprovacoes/{id_}/desfazer")
+def aprovacoes_desfazer(id_: str) -> dict:
+    """N14: volta o que um agente fez sozinho (o pedido ja decidido, no Historico)."""
+    pedido = estado.fila.obter(id_)
+    if pedido is None or pedido.acao != "agente.sozinho":
+        raise HTTPException(status_code=404, detail="não há o que desfazer aqui")
+    try:
+        texto = agente_mod.desfazer_sozinho(estado, pedido)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return {"desfeito": texto, **_fila_para_tela()}
 
 
 @app.post("/api/aprovacoes/decidir")

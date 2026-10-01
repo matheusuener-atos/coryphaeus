@@ -388,8 +388,11 @@ function apOpcoes(p) {
 function verDecidido(id) {
   const p = aprov.hoje.find((x) => x.id === id);
   if (!p) return;
-  const decisao = p.estado === "aprovado" ? "aprovado" : (p.estado === "recusado" ? "recusado" : "aprovado, mas não deu");
-  dialogo({
+  const decisao = p.acao === "agente.sozinho" ? "feito sozinho pelo agente (autonomia)"
+    : (p.estado === "aprovado" ? "aprovado" : (p.estado === "recusado" ? "recusado" : "aprovado, mas não deu"));
+  // N14: o que o agente fez sozinho se desfaz daqui também.
+  const podeDesfazer = p.acao === "agente.sozinho" && !(p.dados || {}).desfeito && typeof desfazerSozinho === "function";
+  const aberto = dialogo({
     titulo: p.titulo, contexto: "Aprovações › Histórico",
     classe: "dialogo-ver ap-dialogo ap-dialogo-leitura", larga: true, confirmar: "Fechar",
     html: (p.resumo ? '<p class="ap-resumo">' + esc(p.resumo) + "</p>" : "") +
@@ -399,7 +402,16 @@ function verDecidido(id) {
         ["Decisão", decisao + " · " + dataHoraCurta(p.decidido_em)],
         ["Resultado", p.resultado || (p.estado === "recusado" ? "nada foi executado" : "")],
       ]),
+    rodape: podeDesfazer ? '<button type="button" class="perigo com-icone" id="ap-dlg-desfazer">' + ic("undo", 16) + "Desfazer</button>" : "",
   });
+  const b = document.getElementById("ap-dlg-desfazer");
+  if (b) b.onclick = async () => {
+    b.disabled = true;
+    const r = await desfazerSozinho(p.id);
+    if (dialogoAberto) dialogoAberto.fechar(null);
+    if (r && document.getElementById("ap-tela")) desenharAprovacoes();
+  };
+  return aberto;
 }
 
 /* Ctrl+Enter na fila: aprova o que esta marcado. Sem nada marcado nao faz

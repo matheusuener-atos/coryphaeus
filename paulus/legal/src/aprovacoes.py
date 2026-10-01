@@ -116,14 +116,15 @@ class Fila:
 
     # --------------------------------------------------------------- acesso
 
-    def pedir(self, titulo: str, categoria: str, **extras) -> Pedido:
+    def pedir(self, titulo: str, categoria: str, avisar: bool = True, **extras) -> Pedido:
         with self._trava:
             pedido = Pedido(id=uuid.uuid4().hex[:12], titulo=titulo, categoria=categoria, **extras)
             self._itens[pedido.id] = pedido
         self.salvar()
         # Quem precisa saber que chegou pedido (o aviso do Windows) se pendura
-        # aqui; um aviso que falha nao pode desfazer o pedido gravado.
-        if self.ao_pedir:
+        # aqui; um aviso que falha nao pode desfazer o pedido gravado. O que
+        # nasce ja decidido (N14, o agente que fez sozinho) nao avisa.
+        if self.ao_pedir and avisar:
             try:
                 self.ao_pedir(pedido)
             except Exception:  # noqa: BLE001
