@@ -576,6 +576,7 @@ function desenharEditorDoEmail() {
       '<kbd class="emc-tecla" title="Aperte / para pedir">/</kbd>' +
       '<button type="button" class="emc-mandar" id="emc-pedir-ir" title="Pedir" aria-label="Pedir">' + ic("arrow_upward", 16) + "</button></div>" +
       '<div class="emc-rodape"><button type="button" class="botao-icone" id="emc-anexar-pe" title="Anexar" aria-label="Anexar">' + ic("attach_file", 17) + "</button>" +
+      '<button type="button" class="botao-icone" id="emc-ditar" title="Ditar — o texto entra no fim do e-mail" aria-label="Ditar no e-mail">' + ic("mic", 17) + "</button>" +
       '<span class="vazio-flex"></span><button type="button" class="emc-sem-borda" id="emc-cancelar">Cancelar</button>' +
       '<button type="button" class="emc-botao" id="emc-salvar">Salvar rascunho</button>' +
       '<button type="button" class="primario emc-enviar" id="emc-enviar">Enviar<span class="emc-enviar-ic">' + ic("arrow_upward", 15) + "</span></button></div>" +
@@ -601,6 +602,29 @@ function desenharEditorDoEmail() {
   $("emc-salvar").disabled = escrevendo;
 }
 
+/* O ditado do editor do e-mail terminou (js/03-assistente.js,
+   levarDitadoParaCaixa): o texto entra no fim do e-mail, como se digitado -
+   o editor salva sozinho. Sem o editor aberto, devolve false e o texto vai
+   para a caixa de pedido. */
+function levarDitadoAoEmail(texto) {
+  const campo = $("emc-texto");
+  if (!campo || !emc.resp || !campo.isContentEditable || !String(texto || "").trim()) return false;
+  campo.focus();
+  const faixa = document.createRange();
+  faixa.selectNodeContents(campo);
+  faixa.collapse(false);
+  const sel = getSelection();
+  sel.removeAllRanges();
+  sel.addRange(faixa);
+  const antes = campo.textContent || "";
+  const junto = (antes.trim() && !/\s$/.test(antes) ? " " : "") + String(texto).trim();
+  if (!document.execCommand("insertText", false, junto)) {
+    campo.value = (campo.value || "").replace(/\s+$/, "") + junto;
+    campo.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  return true;
+}
+
 function palavrasDe(texto) {
   return (String(texto || "").match(/[\p{L}\p{N}_]+/gu) || []).length;
 }
@@ -623,6 +647,11 @@ function ligarEditorDoEmail(editor) {
   pedir.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); pedirNoEmailInteiro(pedir.value); } };
   $("emc-pedir-ir").onclick = () => pedirNoEmailInteiro(pedir.value);
   $("emc-anexar-pe").onclick = () => { const b = emc.caixaResp && emc.caixaResp.querySelector("[data-emc-anexar]"); if (b) b.click(); };
+  $("emc-ditar").onclick = () => {
+    if (ditado.estado) { avisoCert("já há um ditado aberto — conclua ou cancele antes"); return; }
+    ditado.destino = "email";
+    comecarDitado().then(() => { if (!ditado.estado) ditado.destino = ""; });
+  };
   $("emc-cancelar").onclick = () => fecharEditorDoEmail(false);
   $("emc-salvar").onclick = async () => { await salvarRascunhoDoEmail(); avisoCert("rascunho salvo nesta conversa", { tom: "ok" }); };
   $("emc-enviar").onclick = enviarRespostaDaConversa;

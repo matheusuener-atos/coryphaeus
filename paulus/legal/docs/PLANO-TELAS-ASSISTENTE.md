@@ -454,3 +454,39 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
   as outras sete seções abrindo e 390 px). `test_frontend`, `test_intencao`,
   `test_ferramentas`, `test_c4_roteamento`, `test_programa`, os de T3/T4 e
   os de permissões ok.
+
+### As faltas fechadas depois do pacote (01/10/2026)
+
+O que os registros acima diziam ter ficado de fora e que só dependia de
+código:
+
+- E-mail novo pela conversa ("escreva um e-mail para a Priscila pedindo…"):
+  o envelope com quem recebe da ficha (ou o endereço dito), o modelo escreve
+  assunto e texto só com o que o pedido diz; o resto como na resposta.
+  `test_email_conversa`.
+- Resposta encadeada (In-Reply-To e References, pela conversa e pela caixa),
+  Encaminhar com os anexos da mensagem (POST /api/email/anexos/encaminhar,
+  para data/encaminhar), a "Próxima que pede resposta" guardada na conversa
+  (POST /api/email/conversa/proxima) e o ditado no editor do e-mail (o
+  microfone do rodapé; o texto entra no fim do e-mail). `test_email_conversa`.
+- Folha: o "desde" da ficha vale (quem começa no mês que vem não entra neste;
+  no mês em que começa, entra com o valor inteiro). `test_escritorio`.
+- Lançamento: o "Cliente · processo" — o serviço do cliente com o número do
+  processo, ligado ao lançamento (migração 035). `test_lancamento_conversa`.
+- Relatório: o prazo médio de recebimento no período e cada categoria contra
+  a mesma no mesmo período, na conversa e no PDF. `test_financeiro_conversa`.
+- Semana na conversa: compromissos do mesmo horário lado a lado.
+  `test_agenda_faixas`.
+- Planilha: o fundo da célula (paleta curta, vai e volta do XLSX); o
+  "Destacar atrasados" grava, com "Tirar o destaque". `test_planilha_excel`.
+
+Continuam de fora, porque não são de código ou não cabem aqui: o nome de
+quem fala na gravação (o Whisper local não separa vozes); a "Meta do mês"
+(depende do site publicar); "pastas liberadas" (não há pasta por pessoa); o
+convite da equipe por Aprovações (o convite é um link que a pessoa manda);
+ler outras pastas além da Caixa de entrada; o QR do WhatsApp e do
+autenticador na coluna; o recado do WhatsApp escrito pelo modelo com dados do
+processo; o teste dos modelos rodando de novo as 41 perguntas; a ferramenta
+com 320 px em janela estreita; "Conferir os valores" do trecho refazendo as
+conferências do texto inteiro; e a assinatura com nome que o modelo escreve
+(sai: vale a da conta, de propósito).

@@ -1162,6 +1162,8 @@ function textoDoCartaoDoDitado() {
 function levarDitadoParaCaixa() {
   const campo = $("pedido");
   if (!ditado.texto) return false;
+  // Ditado começado no editor do e-mail (js/85): o texto vai para o e-mail.
+  if (ditado.destino === "email" && typeof levarDitadoAoEmail === "function" && levarDitadoAoEmail(ditado.texto)) return true;
   const antes = campo.value || "";
   campo.value = (antes.trim() ? antes.replace(/\s+$/, "") + " " : "") + ditado.texto;
   campo.style.height = "auto";
@@ -1193,6 +1195,11 @@ function cartaoDoDitado() {
   } else if (e === "pendente") {
     esquerda = botao("data-ditado-cancelar", "delete", "Descartar") + botao("data-ditado-continuar", "mic", "Continuar");
     direita = botao("data-ditado-usar", "", "Concluir e editar", "dit-borda") + botao("data-ditado-enviar", "arrow_upward", "Concluir e enviar", "dit-cheio");
+  }
+  // Começado no editor do e-mail: o texto vai para o e-mail, e "enviar" não é daqui.
+  if (ditado.destino === "email") {
+    notas.ouvindo = notas.pausado = "o texto entra no e-mail ao concluir";
+    if (direita) direita = botao("data-ditado-usar", "", "Pôr no e-mail", "dit-cheio");
   }
   const classe = "cartao-agora ditado-cartao " + e;
   const marca = e === "finalizando" ? '<span class="marca-etapa"><i class="giro"></i></span>' : '<i class="agr-rec' + (e === "ouvindo" ? " vivo" : "") + '"></i>';
@@ -1432,6 +1439,7 @@ async function enviarPedacoDoDitado() {
 
 function zerarDitado() {
   ditado.estado = "";
+  ditado.destino = "";
   ditado.sessao = "";
   ditado.amostras = [];
   ditado.acumulado = 0;

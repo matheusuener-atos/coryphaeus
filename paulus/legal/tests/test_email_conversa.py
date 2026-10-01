@@ -281,6 +281,19 @@ def test_tela() -> None:
                and any("Aprovações" in c for c in env["confere"]), "as conferências por regra", env["confere"])
         checar(env["frase"].startswith("Preparei a resposta.") and env["autoria"].startswith("escrito pelo assistente"), "a frase e a autoria", env)
 
+        # o ditado começado no editor do e-mail entra no e-mail (o microfone
+        # não roda aqui: o fim do ditado é chamado direto)
+        dit = pag.evaluate("""() => { const pedidoAntes = document.getElementById('pedido').value;
+          ditado.destino = 'email'; ditado.estado = 'ouvindo'; ditado.texto = 'Fico no aguardo do comprovante.';
+          const cartao = cartaoDoDitado(); const levou = levarDitadoParaCaixa();
+          ditado.estado = ''; ditado.destino = ''; ditado.texto = '';
+          return {levou, cartao, mic: Boolean(document.getElementById('emc-ditar')),
+                  fim: document.getElementById('emc-texto').textContent.trim().slice(-40), pedido: document.getElementById('pedido').value === pedidoAntes}; }""")
+        checar(dit["mic"] and dit["levou"] and dit["fim"].endswith("Fico no aguardo do comprovante.") and dit["pedido"],
+               "o ditado do editor entra no fim do e-mail, e não na caixa de pedido", dit)
+        checar("Pôr no e-mail" in dit["cartao"] and "Concluir e enviar" not in dit["cartao"] and "entra no e-mail" in dit["cartao"],
+               "o cartão do ditado diz para onde vai", dit["cartao"][:200])
+
         # o trecho selecionado
         pag.evaluate("""() => { const t = document.getElementById('emc-texto'); const r = document.createRange();
           const n = [...t.querySelectorAll('div')].find(d => d.textContent.includes('O total')); r.selectNodeContents(n);
