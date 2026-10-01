@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAULUS no Word — maquete do painel</title>
+<link rel="stylesheet" href="../../frontend/fontes.css">
+<style>
+/* Maquete da W0: dados fictícios, nada aqui fala com o PAULUS.
+   Os tokens são os de frontend/css/00-tokens.css; o fundo do painel vem do
+   tema do Office (Office.context.officeTheme), como o painel de verdade fará. */
+:root {
+  --sans: 'Manrope', system-ui, 'Segoe UI', sans-serif;
+  --serif: 'EB Garamond', Georgia, serif;
+  --mono: 'Fira Code', ui-monospace, 'Cascadia Mono', monospace;
+}
+.tema-claro, .tema-colorido {
+  --bg: #ffffff; --surf: #ffffff; --fill: #f2f1ee; --fill2: #e8e2d8;
+  --ink: #1c1c1a; --ink2: #5f5f59; --ink3: #75756f;
+  --ink-a08: rgba(28,28,26,.08); --ink-a1: rgba(28,28,26,.1); --ink-a15: rgba(28,28,26,.15); --ink-a3: rgba(28,28,26,.3);
+  --casca: #26251f; --casca-hover: #35332b; --casca-ink: #f2f1ec;
+  --acc: oklch(42% 0.13 25); --accbg: oklch(95% 0.02 25); --accln: oklch(80% 0.06 25);
+  --okt: oklch(38% 0.1 150); --okbg: oklch(95% 0.03 150);
+  --warnt: oklch(40% 0.1 70); --warnbg: oklch(96% 0.05 85);
+  --marca: #fff1a8; --marca-ink: #1c1c1a;
+  --elev-float: 0 14px 30px -12px rgba(28,28,26,.35);
+  color-scheme: light;
+}
+.tema-colorido { --bg: #f3f2f1; --surf: #ffffff; }
+.tema-escuro {
+  --bg: #262626; --surf: #2e2e2c; --fill: #34332f; --fill2: #3d3b36;
+  --ink: #f2f1ec; --ink2: #b6b4ac; --ink3: #a3a198;
+  --ink-a08: rgba(242,241,236,.08); --ink-a1: rgba(242,241,236,.1); --ink-a15: rgba(242,241,236,.15); --ink-a3: rgba(242,241,236,.3);
+  --casca: #e9e7e0; --casca-hover: #ffffff; --casca-ink: #1c1c1a;
+  --acc: oklch(78% 0.11 25); --accbg: oklch(30% 0.05 25); --accln: oklch(45% 0.08 25);
+  --okt: oklch(80% 0.12 150); --okbg: oklch(30% 0.05 150);
+  --warnt: oklch(85% 0.12 80); --warnbg: oklch(32% 0.06 85);
+  --marca: #6b5a12; --marca-ink: #fff8d6;
+  --elev-float: 0 14px 30px -12px rgba(0,0,0,.8);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font: 400 13.5px/1.5 var(--sans); background: #e9e8e4; color: #1c1c1a; }
+[hidden] { display: none !important; }
+
+/* ---------- a barra da maquete (fora do Word) ---------- */
+.mq-barra { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  padding: 10px 16px; background: #1c1c1a; color: #f2f1ec; font-size: 12.5px; }
+.mq-barra b { font-weight: 600; margin-right: 6px; }
+.mq-barra select, .mq-barra button { font: inherit; background: #34322c; color: #f2f1ec; border: 1px solid #55534b; border-radius: 6px; padding: 4px 8px; }
+.mq-barra button[aria-pressed="true"] { background: #f2f1ec; color: #1c1c1a; }
+.mq-nota { opacity: .75; }
+
+.mq-palco { padding: 20px 16px 40px; }
+.mq-secao { margin: 0 auto 28px; max-width: 1240px; }
+.mq-secao > h2 { font: 600 13px var(--sans); color: #4a4a45; margin: 0 0 10px; letter-spacing: .02em; }
+
+/* ---------- a faixa de opções do Word (desenho) ---------- */
+.faixa { border-radius: 8px 8px 0 0; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+.faixa-abas { display: flex; gap: 2px; padding: 6px 10px 0; font-size: 13px; }
+.faixa-abas span { padding: 5px 10px; }
+.faixa-abas .ativa { font-weight: 600; border-bottom: 3px solid currentColor; }
+.faixa-grupos { display: flex; align-items: stretch; min-height: 104px; padding: 6px 8px 0; overflow-x: auto; }
+.faixa-grupo { display: flex; flex-direction: column; padding: 0 8px; border-right: 1px solid var(--fx-linha); }
+.faixa-grupo .itens { flex: 1; display: flex; gap: 4px; align-items: flex-start; }
+.faixa-grupo .nome { text-align: center; font-size: 11.5px; opacity: .8; padding: 2px 0 4px; }
+.fx-grande { width: 74px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px; border-radius: 4px; font-size: 12px; text-align: center; line-height: 1.2; }
+.fx-grande svg { width: 32px; height: 32px; }
+.fx-pilha { display: flex; flex-direction: column; gap: 2px; }
+.fx-peq { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+.fx-peq svg { width: 16px; height: 16px; flex: none; }
+.fx-grande:hover, .fx-peq:hover { background: var(--fx-hover); }
+.faixa-clara { --fx-linha: #e1dfdd; --fx-hover: #e1dfdd; background: #f3f2f1; color: #252423; }
+.faixa-clara .faixa-abas { background: #f3f2f1; }
+.faixa-escura { --fx-linha: #444; --fx-hover: #3b3b3b; background: #2b2b2b; color: #f0f0f0; }
+.faixa-escura .faixa-abas { background: #1f1f1f; }
+.faixa-colorida { --fx-linha: #e1dfdd; --fx-hover: #e1dfdd; background: #f3f2f1; color: #252423; }
+.faixa-colorida .faixa-abas { background: #2b579a; color: #fff; }
+.dica { margin-top: 6px; display: inline-block; background: #fff; color: #252423; border: 1px solid #c8c6c4; box-shadow: 0 6px 16px rgba(0,0,0,.18);
+  padding: 8px 10px; font: 12px 'Segoe UI', sans-serif; max-width: 300px; border-radius: 2px; }
+.dica b { display: block; margin-bottom: 2px; }
+
+/* ---------- a janela do Word com o painel ---------- */
+.janela { display: flex; border: 1px solid #c8c6c4; border-top: 0; height: 640px; background: #e6e6e6; }
+.janela.tema-escuro { background: #1b1b1b; border-color: #3b3b3b; }
+.doc { flex: 1; min-width: 0; overflow: hidden; display: flex; justify-content: center; padding: 22px 16px; }
+.folha { width: 100%; max-width: 560px; background: #fff; color: #111; padding: 44px 50px; font: 12.5px/1.65 'Cambria', Georgia, serif; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.folha p { margin: 0 0 10px; text-align: justify; }
+.folha .sel { background: #c7dcf5; }
+.folha .ins { color: #9c2a8a; text-decoration: underline; }
+.folha .comentada { background: #f6e3a4; }
+
+/* O painel de tarefas do Word: o Word desenha o título e o X; o resto é nosso. */
+.painel-tarefas { flex: none; display: flex; flex-direction: column; border-left: 1px solid var(--ink-a15); background: var(--bg); }
+.pt-titulo { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 6px; font: 15px 'Segoe UI', sans-serif; color: var(--ink); }
+.pt-titulo span:last-child { opacity: .7; }
+
+/* ======================= O PAINEL ======================= */
+.painel { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); font: 400 13.5px/1.5 var(--sans); }
+.painel :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+.p-topo { display: flex; align-items: center; gap: 8px; padding: 6px 12px 8px; border-bottom: 1px solid var(--ink-a1); }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.largo .p-estado .so-leitor { position: static; width: auto; height: auto; clip: auto; }
+.p-estado { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); }
+.p-estado i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-block; }
+.p-estado.ok i { background: var(--okt); border-color: var(--okt); }
+.p-estado.mal i { background: transparent; border-color: var(--acc); }
+.p-volta { display: inline-flex; align-items: center; gap: 4px; font: 500 13px var(--sans); color: var(--ink2); background: none; border: 0; padding: 4px 6px 4px 2px; cursor: pointer; }
+.p-volta:hover { color: var(--ink); }
+.p-titulo { font: 600 14px var(--sans); }
+.cresce { flex: 1; min-width: 0; }
+.ico-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border: 0; background: none; color: var(--ink); border-radius: 6px; cursor: pointer; }
+.ico-btn:hover { background: var(--fill); }
+
+.p-corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+.p-rodape { border-top: 1px solid var(--ink-a1); padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink2); min-height: 40px; }
+.p-rodape .anel { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink-a15); border-top-color: var(--ink); animation: gira 1.6s linear infinite; flex: none; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .p-rodape .anel, .indicador { animation: none; } }
+
+h3.p-h { font: 600 15px var(--sans); margin: 0; text-wrap: balance; }
+.p-sub { color: var(--ink2); margin: 0; font-size: 13px; }
+.rotulo { font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+
+.btn { font: 500 12.5px var(--sans); padding: 7px 13px; border-radius: 8px; border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn:hover { background: var(--fill); }
+.btn.primario { background: var(--casca); color: var(--casca-ink); border-color: transparent; }
+.btn.primario:hover { background: var(--casca-hover); }
+.btn.cheio { width: 100%; padding: 9px 13px; font-size: 13px; }
+.btn.fantasma { border-color: transparent; background: none; color: var(--ink2); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.linha-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.campo { width: 100%; height: 36px; padding: 0 10px; font: 400 13.5px var(--sans); color: var(--ink); background: var(--surf); border: 1px solid var(--ink-a15); border-radius: 10px; }
+.campo:focus { outline: none; border-color: var(--ink); }
+textarea.campo { height: 72px; padding: 8px 10px; resize: vertical; }
+.busca { position: relative; }
+.busca svg { position: absolute; left: 10px; top: 10px; color: var(--ink3); }
+.busca .campo { padding-left: 32px; }
+
+.cartao { background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; padding: 12px; }
+.lista { list-style: none; margin: 0; padding: 0; }
+
+/* início: as funções */
+.funcoes { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.largo .funcoes { grid-template-columns: 1fr 1fr; }
+.funcao { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 10px; border-radius: 10px; border: 1px solid var(--ink-a1); background: var(--surf); color: var(--ink); cursor: pointer; font: inherit; }
+.funcao:hover { background: var(--fill); }
+.funcao svg { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+.funcao b { display: block; font: 600 13px var(--sans); }
+.funcao span { display: block; font-size: 12px; color: var(--ink2); line-height: 1.4; }
+
+/* interruptor */
+.chave { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink); cursor: pointer; }
+.chave input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--ink-a15); position: relative; flex: none; margin: 0; cursor: pointer; }
+.chave input::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--surf); top: 3px; left: 3px; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.chave input:checked { background: var(--ink); }
+.chave input:checked::after { left: 17px; }
+.chave input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* etiquetas de situação: sempre com palavra e símbolo, nunca só cor */
+.etq { display: inline-flex; align-items: center; gap: 4px; font: 600 11px var(--sans); padding: 1px 7px; border-radius: 5px; white-space: nowrap; }
+.etq.ok { color: var(--okt); background: var(--okbg); }
+.etq.mal { color: var(--acc); background: var(--accbg); }
+.etq.atencao { color: var(--warnt); background: var(--warnbg); }
+.etq.neutra { color: var(--ink2); background: var(--fill); }
+
+/* resultado da conferência */
+.resumo { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12.5px; color: var(--ink2); }
+.resumo strong { color: var(--ink); font-size: 13.5px; }
+.cit { border-bottom: 1px solid var(--ink-a08); padding: 10px 2px; display: grid; gap: 4px; }
+.cit:last-child { border-bottom: 0; }
+.cit-topo { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.cit-ref { font: 600 13px var(--sans); background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--ink-a3); text-underline-offset: 3px; }
+.cit-ref:hover { text-decoration-color: var(--ink); }
+.cit p { margin: 0; font-size: 12.5px; color: var(--ink2); }
+.cit .vigente { font: 13px/1.5 var(--serif); color: var(--ink); background: var(--fill); padding: 6px 8px; border-radius: 6px; }
+.cit .onde { font-size: 11.5px; color: var(--ink3); display: flex; gap: 6px; align-items: center; }
+
+.progresso { height: 4px; border-radius: 999px; background: var(--ink-a1); overflow: hidden; }
+.progresso i { display: block; height: 100%; background: var(--ink); }
+
+.estado-tela { display: flex; flex-direction: column; gap: 10px; padding: 18px 4px 0; }
+.estado-tela svg.grande { width: 34px; height: 34px; color: var(--ink2); }
+.codigo { font: 600 26px var(--mono); letter-spacing: .12em; text-align: center; padding: 14px 0; border: 1px dashed var(--ink-a3); border-radius: 12px; background: var(--surf); }
+.passos-mini { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 12.5px; }
+.passos-mini li { margin-bottom: 4px; }
+.aviso { display: flex; gap: 8px; padding: 9px 10px; border-radius: 10px; font-size: 12.5px; }
+.aviso svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.aviso.atencao { background: var(--warnbg); color: var(--warnt); }
+.aviso.mal { background: var(--accbg); color: var(--acc); }
+.aviso.neutro { background: var(--fill); color: var(--ink2); }
+.marcador { background: var(--marca); color: var(--marca-ink); padding: 0 2px; border-radius: 3px; font-weight: 600; }
+.previa { font: 13.5px/1.6 var(--serif); background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; padding: 10px 12px; }
+.previa.recuada { padding-left: 28px; font-size: 12.5px; }
+.seg { display: inline-flex; border: 1px solid var(--ink-a15); border-radius: 8px; overflow: hidden; }
+.seg button { font: 500 12px var(--sans); border: 0; background: var(--surf); color: var(--ink2); padding: 5px 10px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--ink-a15); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 12px var(--sans); border: 1px solid var(--ink-a15); border-radius: 999px; padding: 3px 10px; background: var(--surf); color: var(--ink2); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.chip[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.grupo-marcar { display: grid; gap: 8px; }
+.marcar { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; font-size: 12.5px; cursor: pointer; }
+.marcar input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--ink); }
+.marcar b { font-weight: 600; }
+.marcar small { display: block; color: var(--ink2); font-size: 12px; }
+.fala { display: grid; gap: 6px; }
+.fala .pergunta { justify-self: end; max-width: 88%; background: var(--fill); border-radius: 12px 12px 4px 12px; padding: 7px 10px; font-size: 13px; }
+.fala .resposta { font-size: 13.5px; }
+.fala .resposta sup a { font: 600 10.5px var(--mono); color: var(--ink); text-decoration: none; border: 1px solid var(--ink-a3); border-radius: 4px; padding: 0 3px; }
+.fontes { display: grid; gap: 4px; font-size: 12px; }
+.fontes button { text-align: left; font: inherit; background: none; border: 0; padding: 4px 0; color: var(--ink2); cursor: pointer; display: flex; gap: 6px; }
+.fontes button:hover { color: var(--ink); }
+.fontes b { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+
+/* ---------- menu do botão direito (desenho) ---------- */
+.ctx-palco { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.ctx-doc { background: #fff; color: #111; padding: 20px 26px; font: 12.5px/1.65 Cambria, Georgia, serif; width: 360px; max-width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.ctx { width: 290px; font: 12px 'Segoe UI', sans-serif; border: 1px solid #c8c6c4; box-shadow: 0 8px 18px rgba(0,0,0,.2); padding: 4px 0; }
+.ctx.claro { background: #fff; color: #252423; }
+.ctx.escuro { background: #2b2b2b; color: #f0f0f0; border-color: #4a4a4a; }
+.ctx div { padding: 5px 12px 5px 34px; position: relative; }
+.ctx div.sep { padding: 0; height: 1px; margin: 4px 0; background: currentColor; opacity: .18; }
+.ctx div.pa svg { position: absolute; left: 10px; top: 6px; width: 16px; height: 16px; }
+.ctx div.dim { opacity: .55; }
+.ctx div.foco { background: rgba(127,127,127,.18); }
+
+/* grade "ver tudo" */
+.grade { display: flex; flex-wrap: wrap; gap: 18px; }
+.grade figure { margin: 0; }
+.grade figcaption { font: 600 12px var(--sans); color: #4a4a45; margin-bottom: 6px; }
+.grade .painel-tarefas { height: 600px; border: 1px solid #c8c6c4; }
+</style>
+</head>
+<body>
+
+<div class="mq-barra" role="toolbar" aria-label="Controles da maquete">
+  <label><b>Estado</b><select id="mq-estado"></select></label>
+  <span><b>Largura</b><button data-larg="320" aria-pressed="true">320 px</button> <button data-larg="480" aria-pressed="false">480 px</button></span>
+  <span><b>Tema do Office</b><button data-tema="claro" aria-pressed="true">Branco</button> <button data-tema="colorido" aria-pressed="false">Colorido</button> <button data-tema="escuro" aria-pressed="false">Preto/Cinza-escuro</button></span>
+  <span><button id="mq-tudo" aria-pressed="false">Ver todos os estados</button></span>
+  <span class="mq-nota">Maquete com dados fictícios. Nada aqui fala com o PAULUS.</span>
+</div>
+
+<div class="mq-palco">
+  <section class="mq-secao" id="sec-word">
+    <h2>A aba PAULUS na faixa de opções e o painel</h2>
+    <div id="faixa"></div>
+    <div class="janela" id="janela">
+      <div class="doc"><div class="folha" id="folha"></div></div>
+      <div class="painel-tarefas" id="pt"></div>
+    </div>
+  </section>
+
+  <section class="mq-secao" id="sec-tudo" hidden>
+    <h2>Todos os estados</h2>
+    <div class="grade" id="grade"></div>
+  </section>
+
+  <section class="mq-secao" id="sec-ctx">
+    <h2>Menu do botão direito sobre o texto selecionado</h2>
+    <div class="ctx-palco" id="ctx"></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+// ---------- ícones (traço 1,5 px; o painel e a faixa usam os mesmos) ----------
+var I = {
+  conferir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3.5h9l5 5V20.5H5z"/><path d="M14 3.5v5h5"/><path d="M8.5 14.5l2.2 2.2 4.8-4.8"/></svg>',
+  lei: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5c2.7-1.3 5.3-1.3 8 0v14c-2.7-1.3-5.3-1.3-8 0z"/><path d="M12 5.5c2.7-1.3 5.3-1.3 8 0v14c-2.7-1.3-5.3-1.3-8 0z"/><path d="M15 9.5h2.5M15 12.5h2.5"/></svg>',
+  fundamentacao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20.5h16M6 17.5h12M7 17.5v-7M12 17.5v-7M17 17.5v-7M4.5 10.5L12 4l7.5 6.5z"/></svg>',
+  qualificacao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.3"/><path d="M5.8 16c.6-1.7 1.8-2.6 3.2-2.6s2.6.9 3.2 2.6M14.5 10h4M14.5 13h3"/></svg>',
+  perguntar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/><path d="M10 9.3a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v.3M12 14.3v.1"/></svg>',
+  revisar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h11v6M4 4.5v15h7"/><path d="M7 8.5h5M7 11.5h3"/><path d="M14 13.5h7v5h-3.5L15 20.5v-2h-1z"/></svg>',
+  guardar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 13.5l2.5-8h12l2.5 8v6h-17z"/><path d="M3.5 13.5h5l1 2h5l1-2h5"/><path d="M12 7.5v5M9.8 10.3L12 12.5l2.2-2.2"/></svg>',
+  painel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M14.5 4.5v15M16.8 8.5h1.7M16.8 11h1.7"/></svg>',
+  mais: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+  volta: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg>',
+  lupa: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3"/></svg>',
+  ok: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  x: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  excl: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v9M12 18.5v.5"/></svg>',
+  inter: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 9a3 3 0 1 1 4 2.8c-.6.3-1 .8-1 1.5v.4M12 18v.5"/></svg>',
+  balao: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg>',
+  tomada: '<svg class="grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5v4M15 3.5v4M6.5 7.5h11v4a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v3.5"/></svg>',
+  semrede: '<svg class="grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.8 16a5 5 0 0 1 6.4 0M12 19.5v.1M3 3l18 18"/></svg>',
+  word: '<svg class="grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M7.5 8l1.5 7 3-6 3 6 1.5-7"/></svg>',
+  folha: '<svg class="grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4"/></svg>',
+  nada: '<svg class="grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3M8.5 11h5"/></svg>',
+  erro: '<svg class="grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4.5M12 17.3v.2"/></svg>',
+  cadeado: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
+};
+
+// ---------- peças ----------
+function topo(opc) {
+  opc = opc || {};
+  var estado = opc.estado || "ok";
+  var txt = { ok: "Conectado", mal: "Sem conexão", nao: "Não conectado" }[estado];
+  var esq = opc.titulo
+    ? '<button class="p-volta" aria-label="Voltar ao início">' + I.volta + 'Início</button><span class="p-titulo cresce">' + opc.titulo + '</span>'
+    : '<span class="cresce"></span>';
+  // O Word já escreve "PAULUS" no alto do painel; aqui não se repete. Numa
+  // tela de função, a 320 px, o estado fica só no ponto (o texto vai para o
+  // leitor de tela e para a dica).
+  var curto = !!opc.titulo;
+  return '<div class="p-topo">' + esq +
+    '<span class="p-estado ' + estado + '" title="' + (estado === "ok" ? "Conectado ao PAULUS deste computador" : txt) + '"><i aria-hidden="true"></i>' +
+    (curto ? '<span class="so-leitor">' + txt + '</span>' : txt) + '</span>' +
+    '<button class="ico-btn" aria-label="Mais opções">' + I.mais + '</button></div>';
+}
+function rodape(html) { return '<div class="p-rodape" role="status" aria-live="polite">' + (html || "Pronto") + '</div>'; }
+function andando(txt) { return '<span class="anel" aria-hidden="true"></span><span class="cresce">' + txt + '</span><button class="btn fantasma" style="padding:3px 8px">Parar</button>'; }
+function chaveControlada() {
+  return '<label class="chave"><input type="checkbox" role="switch" checked> <span>Inserir como alteração controlada: <b>sim</b></span></label>';
+}
+function etq(tipo, texto) {
+  var ico = { ok: I.ok, mal: I.x, atencao: I.excl, neutra: I.inter }[tipo];
+  return '<span class="etq ' + tipo + '">' + ico + texto + '</span>';
+}
+function tela(icone, titulo, texto, botoes) {
+  return '<div class="estado-tela">' + icone + '<h3 class="p-h">' + titulo + '</h3>' + texto + (botoes ? '<div class="linha-btns">' + botoes + '</div>' : "") + '</div>';
+}
+
+// ---------- os estados ----------
+var DOC_NOME = "Petição inicial — Mariana Couto x Loja Exemplo.docx";
+var E = {};
+
+E["primeira"] = { nome: "Primeira vez", grupo: "Estados", html: function () {
+  return topo({ estado: "nao" }) + '<div class="p-corpo">' +
+    '<div class="estado-tela"><h3 class="p-h" style="font-size:17px">O PAULUS no seu Word</h3>' +
+    '<ul class="passos-mini" style="padding-left:16px">' +
+    '<li>Confere as leis, súmulas e processos citados no documento.</li>' +
+    '<li>Insere artigo vigente, fundamentação e qualificação das partes, como alteração controlada.</li>' +
+    '<li>Responde sobre o documento com as fontes do escritório.</li></ul>' +
+    '<button class="btn primario cheio">Conectar ao PAULUS</button>' +
+    '<div class="aviso neutro">' + I.cadeado + '<span>O texto do documento vai só para o PAULUS deste computador. Nada sai daqui.</span></div>' +
+    '</div></div>' + rodape("Não conectado");
+}};
+
+E["conectando"] = { nome: "Conectando (código)", grupo: "Estados", html: function () {
+  return topo({ estado: "nao" }) + '<div class="p-corpo"><div class="estado-tela">' +
+    '<h3 class="p-h">Confira o código na janela do PAULUS</h3>' +
+    '<div class="codigo" aria-label="Código K 7 Q F, 2 9 M D">K7QF-29MD</div>' +
+    '<ol class="passos-mini"><li>Abra a janela do PAULUS neste computador.</li><li>Confira se aparece o mesmo código.</li><li>Clique em <b>Permitir</b>.</li></ol>' +
+    '<button class="btn fantasma">Cancelar</button></div></div>' +
+    rodape(andando("Esperando a confirmação na janela do PAULUS…").replace('<button class="btn fantasma" style="padding:3px 8px">Parar</button>', ""));
+}};
+
+E["inicio"] = { nome: "Conectado (início)", grupo: "Estados", html: function () {
+  function f(ico, t, s) { return '<button class="funcao">' + I[ico] + '<span><b>' + t + '</b><span>' + s + '</span></span></button>'; }
+  return topo() + '<div class="p-corpo">' +
+    '<div><div class="rotulo">Documento aberto</div><div class="corta" style="font-weight:600;font-size:13px">' + DOC_NOME + '</div></div>' +
+    '<div class="funcoes">' +
+    f("conferir", "Conferir citações", "Leis, súmulas e processos do documento, sem IA.") +
+    f("lei", "Inserir lei", "O texto vigente do artigo, com a referência.") +
+    f("fundamentacao", "Fundamentação", "Lei, súmula e doutrina para o parágrafo do cursor.") +
+    f("qualificacao", "Qualificação", "A qualificação de uma parte, pelos Cadastros.") +
+    f("perguntar", "Perguntar", "Sobre este documento ou o trecho selecionado.") +
+    f("revisar", "Revisar com agente", "Apontamentos em comentários; o texto não muda.") +
+    f("guardar", "Guardar no PAULUS", "Uma cópia no Acervo, no cliente ou Serviço.") +
+    '</div>' + chaveControlada() + '</div>' + rodape("Pronto · última conferência há 12 min: 2 citações pedem atenção");
+}};
+
+E["fechado"] = { nome: "PAULUS fechado", grupo: "Estados", html: function () {
+  return topo({ estado: "mal" }) + '<div class="p-corpo">' + tela(I.tomada,
+    "O PAULUS está fechado neste computador",
+    '<p class="p-sub">Abra o PAULUS e tente de novo. O documento não foi lido.</p>',
+    '<button class="btn primario">Tentar de novo</button>') + '</div>' + rodape("Sem conexão");
+}};
+
+E["semrede"] = { nome: "Sem rede (acesso de fora)", grupo: "Estados", html: function () {
+  return topo({ estado: "mal" }) + '<div class="p-corpo">' + tela(I.semrede,
+    "Sem conexão com o escritório",
+    '<p class="p-sub">Este Word fala com o PAULUS pela internet, e a internet caiu. Nada do documento foi enviado.</p>',
+    '<button class="btn primario">Tentar de novo</button>') + '</div>' + rodape("Sem conexão · tentando de novo em 20 s");
+}};
+
+E["semapi"] = { nome: "Word sem a API", grupo: "Estados", html: function () {
+  return topo({ estado: "nao" }) + '<div class="p-corpo">' + tela(I.word,
+    "Este Word é antigo demais para o PAULUS",
+    '<p class="p-sub">O PAULUS precisa do Word 2021, 2024 ou Microsoft 365. Este é o Word 2013 (15.0.5023).</p>' +
+    '<p class="p-sub">Atualize o Office ou escreva no editor do próprio PAULUS.</p>', "") + '</div>' + rodape("Nenhuma função disponível neste Word");
+}};
+
+E["vazio"] = { nome: "Documento vazio", grupo: "Estados", html: function () {
+  return topo({ titulo: "Conferir citações" }) + '<div class="p-corpo">' + tela(I.folha,
+    "O documento está vazio",
+    '<p class="p-sub">Escreva ou cole o texto e confira de novo.</p>',
+    '<button class="btn">Conferir de novo</button>') + '</div>' + rodape();
+}};
+
+E["nada"] = { nome: "Nada encontrado", grupo: "Estados", html: function () {
+  return topo({ titulo: "Conferir citações" }) + '<div class="p-corpo">' + tela(I.nada,
+    "Nenhuma citação para conferir",
+    '<p class="p-sub">Não achei lei, súmula nem número de processo neste documento (6 páginas lidas).</p>',
+    '<button class="btn">Conferir de novo</button>') + '</div>' + rodape("Conferido agora · 0 citações");
+}};
+
+E["erro"] = { nome: "Erro com tentar de novo", grupo: "Estados", html: function () {
+  return topo({ titulo: "Conferir citações" }) + '<div class="p-corpo">' + tela(I.erro,
+    "Não deu para conferir agora",
+    '<p class="p-sub">O PAULUS respondeu com um erro interno. O documento não mudou.</p>' +
+    '<details style="font-size:12px;color:var(--ink2)"><summary>Detalhes para o suporte</summary>conferir · 500 · 01/10/2026 14:32</details>',
+    '<button class="btn primario">Tentar de novo</button>') + '</div>' + rodape("Erro");
+}};
+
+E["conferindo"] = { nome: "Conferir: em andamento", grupo: "Funções", html: function () {
+  return topo({ titulo: "Conferir citações" }) + '<div class="p-corpo">' +
+    '<div class="resumo"><strong>Conferindo 30 páginas</strong><span>parte 3 de 8</span></div>' +
+    '<div class="progresso" role="progressbar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="3" aria-label="Progresso da conferência"><i style="width:37%"></i></div>' +
+    '<p class="p-sub">Pode continuar escrevendo. Os comentários entram quando a conferência terminar.</p>' +
+    '</div>' + rodape(andando("Conferindo parte 3 de 8…"));
+}};
+
+E["citacoes"] = { nome: "Conferir: resultado", grupo: "Funções", html: function () {
+  function c(ref, tipo, situ, expl, vig, onde) {
+    return '<li class="cit"><div class="cit-topo"><button class="cit-ref" title="Selecionar no documento">' + ref + '</button>' + etq(tipo, situ) + '</div>' +
+      (expl ? '<p>' + expl + '</p>' : "") + (vig ? '<div class="vigente">' + vig + '</div>' : "") +
+      '<div class="onde">' + onde + '</div></li>';
+  }
+  return topo({ titulo: "Conferir citações" }) + '<div class="p-corpo">' +
+    '<div class="resumo"><strong>18 citações</strong><span>4 pedem atenção · 1 sem lei indicada</span></div>' +
+    '<div class="linha-btns" style="align-items:center"><label class="chave"><input type="checkbox" role="switch" checked> <span>Só problemas</span></label><span class="cresce"></span><button class="btn" style="padding:4px 10px">Conferir de novo</button></div>' +
+    '<ul class="lista">' +
+    c("art. 384 da CLT", "mal", "Revogado", "Revogado pela Lei 13.467/2017 (Reforma Trabalhista).", "", I.balao + " Comentário no documento · fonte: CLT em casa") +
+    c("art. 1.520 do Código Civil", "atencao", "Redação alterada", "Redação nova dada pela Lei 13.811/2019. O texto citado no documento é o anterior.", "“Não será permitido, em qualquer caso, o casamento de quem não atingiu a idade núbil…”", I.balao + " Comentário no documento · fonte: CC em casa") +
+    c("art. 250 do CDC", "mal", "Não encontrado", "Não achei este artigo no CDC. O código vai até o art. 119.", "", I.balao + " Comentário no documento") +
+    c("0004521-17.2024.8.26.0100", "mal", "Dígito inválido", "O dígito verificador não confere com o resto do número. Confira no processo.", "", I.balao + " Comentário no documento") +
+    c("art. 5º", "neutra", "Sem lei indicada", "Não dá para saber de que lei. Escreva a lei junto (ex.: “art. 5º da CF”) para conferir.", "", "Sem comentário") +
+    '</ul><p class="p-sub" style="font-size:12px">13 citações conferem com o texto vigente. Desligue “Só problemas” para ver todas.</p>' +
+    '</div>' + rodape("Conferido agora · 0,8 s · 5 comentários no documento");
+}};
+
+E["lei"] = { nome: "Inserir lei", grupo: "Funções", html: function () {
+  return topo({ titulo: "Inserir lei" }) + '<div class="p-corpo">' +
+    '<div class="busca">' + I.lupa + '<input class="campo" value="art. 18 CDC" aria-label="Artigo ou texto da lei"></div>' +
+    '<div class="cartao" style="display:grid;gap:8px">' +
+    '<div class="cit-topo"><b>CDC, art. 18</b>' + etq("ok", "Vigente") + '</div>' +
+    '<div class="previa recuada">Os fornecedores de produtos de consumo duráveis ou não duráveis respondem solidariamente pelos vícios de qualidade ou quantidade que os tornem impróprios ou inadequados ao consumo a que se destinam…</div>' +
+    '<div><div class="rotulo" style="margin-bottom:4px">Como inserir</div><div class="seg" role="group" aria-label="Como inserir"><button aria-pressed="false">Entre aspas</button><button aria-pressed="true">Recuado</button><button aria-pressed="false">Em nota</button></div></div>' +
+    '<label class="marcar"><input type="checkbox" checked><span>Incluir os parágrafos (§ 1º a § 6º)</span></label>' +
+    '<button class="btn primario cheio">Inserir no cursor</button></div>' +
+    chaveControlada() + '</div>' + rodape("Fonte: CDC em casa · conferido com a vigência de hoje");
+}};
+
+E["lei-revogado"] = { nome: "Inserir lei: revogado", grupo: "Funções", html: function () {
+  return topo({ titulo: "Inserir lei" }) + '<div class="p-corpo">' +
+    '<div class="busca">' + I.lupa + '<input class="campo" value="art. 384 CLT" aria-label="Artigo ou texto da lei"></div>' +
+    '<div class="cartao" style="display:grid;gap:8px">' +
+    '<div class="cit-topo"><b>CLT, art. 384</b>' + etq("mal", "Revogado") + '</div>' +
+    '<div class="aviso mal">' + I.erro.replace('class="grande"', "") + '<span>Revogado pela Lei 13.467/2017. Inserir só se o documento trata do texto antigo.</span></div>' +
+    '<div class="previa recuada" style="opacity:.75">Em caso de prorrogação do horário normal, será obrigatório um descanso de 15 (quinze) minutos no mínimo, antes do início do período extraordinário do trabalho.</div>' +
+    '<label class="marcar"><input type="checkbox"><span><b>Inserir mesmo revogado</b><small>Entra com a nota “(revogado pela Lei 13.467/2017)”.</small></span></label>' +
+    '<button class="btn primario cheio" disabled>Inserir no cursor</button></div></div>' + rodape();
+}};
+
+E["fundamentacao"] = { nome: "Fundamentação", grupo: "Funções", html: function () {
+  return topo({ titulo: "Fundamentação" }) + '<div class="p-corpo">' +
+    '<p class="p-sub">Para o parágrafo do cursor: <i>“…o produto apresentou defeito e a loja não o consertou em trinta dias…”</i></p>' +
+    '<div class="grupo-marcar"><div class="rotulo">Lei</div>' +
+    '<label class="marcar"><input type="checkbox" checked><span><b>CDC, art. 18, § 1º</b><small>Prazo de 30 dias para sanar o vício. Vigente.</small></span></label>' +
+    '<label class="marcar"><input type="checkbox"><span><b>CDC, art. 26, II</b><small>Prazo para reclamar de vício em produto durável.</small></span></label></div>' +
+    '<div class="grupo-marcar"><div class="rotulo">Súmulas</div>' +
+    '<label class="marcar"><input type="checkbox"><span><b>Súmula 297 do STJ</b><small>O CDC se aplica às instituições financeiras.</small></span></label></div>' +
+    '<div class="grupo-marcar"><div class="rotulo">Doutrina da Biblioteca</div>' +
+    '<label class="marcar"><input type="checkbox" checked><span><b>ALMEIDA, Joana Prado. <i>Responsabilidade nas relações de consumo</i>. 4. ed. Editora Exemplo, 2021, p. 213.</b><small>Trecho sobre o prazo de 30 dias.</small></span></label></div>' +
+    '<button class="btn primario cheio">Inserir 2 marcadas no cursor</button>' + chaveControlada() +
+    '</div>' + rodape("Sem IA · lei e súmulas em casa, doutrina da Biblioteca");
+}};
+
+E["qualificacao"] = { nome: "Qualificação", grupo: "Funções", html: function () {
+  return topo({ titulo: "Qualificação" }) + '<div class="p-corpo">' +
+    '<div class="busca">' + I.lupa + '<input class="campo" value="Mariana" aria-label="Pessoa ou empresa dos Cadastros"></div>' +
+    '<ul class="lista cartao" style="padding:4px 10px"><li class="cit" style="padding:6px 0"><b>Mariana Couto Ribeiro</b><span class="p-sub" style="font-size:12px">Pessoa física · CPF 123.456.789-09 · cliente</span></li></ul>' +
+    '<div class="rotulo">Como vai entrar</div>' +
+    '<div class="previa"><b>MARIANA COUTO RIBEIRO</b>, brasileira, <span class="marcador">[ESTADO CIVIL]</span>, <span class="marcador">[PROFISSÃO]</span>, inscrita no CPF sob o nº 123.456.789-09, residente e domiciliada na Rua das Acácias, 120, apto. 31, Centro, Campinas/SP, CEP 13010-000</div>' +
+    '<div class="aviso atencao">' + I.excl.replace('width="12" height="12"', 'width="16" height="16"') + '<span>Faltam 2 dados no cadastro: estado civil e profissão. Entram entre colchetes, nunca inventados. <button class="btn fantasma" style="padding:0;color:inherit;text-decoration:underline">Completar em Cadastros</button></span></div>' +
+    '<button class="btn primario cheio">Inserir no cursor</button>' + chaveControlada() +
+    '</div>' + rodape("Modelo da casa: Configurações › Word");
+}};
+
+E["perguntar"] = { nome: "Perguntar", grupo: "Funções", html: function () {
+  return topo({ titulo: "Perguntar" }) + '<div class="p-corpo">' +
+    '<div class="chips" role="group" aria-label="Onde procurar"><button class="chip" aria-pressed="true">Este documento</button><button class="chip" aria-pressed="false">Só a seleção</button><button class="chip" aria-pressed="true">+ Acervo</button><button class="chip" aria-pressed="false">+ Biblioteca</button></div>' +
+    '<div class="fala"><div class="pergunta">Qual o prazo para a loja consertar o produto, segundo esta petição?</div>' +
+    '<div class="resposta">A petição sustenta o prazo de 30 dias do art. 18, § 1º, do CDC<sup><a href="#">1</a></sup>, e diz que a loja ficou com o aparelho por 47 dias sem consertá-lo<sup><a href="#">2</a></sup>.</div>' +
+    '<div class="fontes"><div class="rotulo">Fontes</div>' +
+    '<button><b>1</b><span>CDC, art. 18, § 1º · leis em casa</span></button>' +
+    '<button><b>2</b><span>Este documento, 4º parágrafo · selecionar no Word</span></button></div>' +
+    '<div class="linha-btns"><button class="btn">Inserir no cursor</button><button class="btn">Copiar</button></div></div>' +
+    '<textarea class="campo" placeholder="Pergunte sobre o documento…" aria-label="Pergunta"></textarea>' +
+    '</div>' + rodape("Respondido em 41 s · guardado em Conversas: “" + DOC_NOME.replace(".docx", "") + "”");
+}};
+
+E["perguntando"] = { nome: "Perguntar: pensando", grupo: "Funções", html: function () {
+  return topo({ titulo: "Perguntar" }) + '<div class="p-corpo">' +
+    '<div class="fala"><div class="pergunta">Qual o prazo para a loja consertar o produto, segundo esta petição?</div>' +
+    '<div class="resposta" style="color:var(--ink2)">Lendo o documento aberto (6 páginas) e 3 trechos do Acervo…</div></div>' +
+    '</div>' + rodape(andando("2º na fila do modelo · lendo o documento"));
+}};
+
+E["revisar"] = { nome: "Revisar com agente", grupo: "Funções", html: function () {
+  return topo({ titulo: "Revisar com agente" }) + '<div class="p-corpo">' +
+    '<div><div class="rotulo" style="margin-bottom:4px">Agente</div><select class="campo" aria-label="Agente"><option>Revisor de contratos · versão 3</option><option>Triagem de petições · versão 2</option></select></div>' +
+    '<div class="seg" role="group" aria-label="O que revisar"><button aria-pressed="true">Seleção (2 parágrafos)</button><button aria-pressed="false">Documento inteiro</button></div>' +
+    '<div class="resumo"><strong>6 apontamentos</strong><span>5 viraram comentários · 1 sem lugar no texto</span></div>' +
+    '<ul class="lista">' +
+    '<li class="cit"><div class="cit-topo"><button class="cit-ref">Cláusula 4.2 — multa</button>' + etq("ok", "Comentado") + '</div><p>Multa de 20% acima do padrão da casa (10%). Fonte: padrão da casa, cláusula de multa.</p></li>' +
+    '<li class="cit"><div class="cit-topo"><button class="cit-ref">Foro de eleição</button>' + etq("atencao", "Sem lugar") + '</div><p>Não achei com segurança o trecho “fica eleito o foro” no documento, então não comentei. O apontamento: falta o foro de eleição.</p></li>' +
+    '</ul><p class="p-sub" style="font-size:12px">O texto do documento não foi alterado. Os comentários dizem o agente e a versão.</p>' +
+    '</div>' + rodape("Revisado em 1 min 12 s · Revisor de contratos v3");
+}};
+
+E["guardar"] = { nome: "Guardar no PAULUS", grupo: "Funções", html: function () {
+  return topo({ titulo: "Guardar no PAULUS" }) + '<div class="p-corpo">' +
+    '<p class="p-sub">Uma cópia deste documento vai para o Acervo, entra na busca e nos avisos de prazo.</p>' +
+    '<div><div class="rotulo" style="margin-bottom:4px">Onde guardar</div><select class="campo" aria-label="Onde guardar"><option>Serviço · Ação contra Loja Exemplo</option><option>Cliente · Mariana Couto Ribeiro</option></select></div>' +
+    '<div class="aviso neutro">' + I.guardar.replace('viewBox', 'width="16" height="16" viewBox') + '<span>Já há uma cópia deste documento lá. Esta vira a <b>versão 2</b>; a anterior fica no histórico.</span></div>' +
+    '<button class="btn primario cheio">Guardar</button>' +
+    '</div>' + rodape("O documento fica no Word como está; o PAULUS guarda uma cópia");
+}};
+
+var ORDEM = ["primeira", "conectando", "inicio", "fechado", "semrede", "semapi", "vazio", "nada", "erro",
+  "conferindo", "citacoes", "lei", "lei-revogado", "fundamentacao", "qualificacao", "perguntando", "perguntar", "revisar", "guardar"];
+
+// ---------- a folha do Word, que acompanha o estado ----------
+function folha(estado) {
+  var sel = estado === "perguntar" || estado === "revisar";
+  return '<p><b>EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA __ VARA CÍVEL DA COMARCA DE CAMPINAS/SP</b></p>' +
+    '<p><b>MARIANA COUTO RIBEIRO</b>, brasileira, … vem propor a presente <b>AÇÃO DE OBRIGAÇÃO DE FAZER</b> em face de <b>LOJA EXEMPLO LTDA.</b>, pelos fatos e fundamentos a seguir.</p>' +
+    '<p' + (sel ? ' class="sel"' : "") + '>A autora adquiriu um refrigerador que apresentou defeito e a loja não o consertou em trinta dias, ficando com o aparelho por 47 dias, em afronta ao art. 18, § 1º, do CDC.</p>' +
+    '<p>Aplica-se ainda o <span class="' + (estado === "citacoes" ? "comentada" : "") + '">art. 250 do CDC</span> e o art. 5º, que garante a defesa do consumidor.</p>' +
+    (estado === "lei" ? '<p class="ins" style="padding-left:40px">Os fornecedores de produtos de consumo duráveis ou não duráveis respondem solidariamente… (CDC, art. 18)</p>' : "") +
+    '<p>Tramita ainda o processo nº <span class="' + (estado === "citacoes" ? "comentada" : "") + '">0004521-17.2024.8.26.0100</span>.</p>';
+}
+
+// ---------- faixa de opções ----------
+function faixa(tema) {
+  var cls = { claro: "faixa-clara", colorido: "faixa-colorida", escuro: "faixa-escura" }[tema];
+  function g(ico, t) { return '<div class="fx-grande" title="">' + I[ico] + '<span>' + t + '</span></div>'; }
+  function p(ico, t) { return '<div class="fx-peq">' + I[ico] + '<span>' + t + '</span></div>'; }
+  return '<div class="faixa ' + cls + '"><div class="faixa-abas"><span>Arquivo</span><span>Página Inicial</span><span>Inserir</span><span>Layout</span><span>Referências</span><span>Revisão</span><span>Exibir</span><span class="ativa">PAULUS</span></div>' +
+    '<div class="faixa-grupos">' +
+    '<div class="faixa-grupo"><div class="itens">' + g("conferir", "Conferir citações") + '</div><div class="nome">Conferir</div></div>' +
+    '<div class="faixa-grupo"><div class="itens">' + g("lei", "Inserir lei") + '<div class="fx-pilha">' + p("fundamentacao", "Fundamentação") + p("qualificacao", "Qualificação") + '</div></div><div class="nome">Inserir</div></div>' +
+    '<div class="faixa-grupo"><div class="itens">' + g("perguntar", "Perguntar") + g("revisar", "Revisar com agente") + '</div><div class="nome">Pensar</div></div>' +
+    '<div class="faixa-grupo"><div class="itens">' + g("guardar", "Guardar no PAULUS") + g("painel", "Painel") + '</div><div class="nome">PAULUS</div></div>' +
+    '</div></div>' +
+    '<div class="dica"><b>Conferir citações</b>Confere as leis, súmulas e processos citados no documento e abre o painel com o resultado.</div>';
+}
+
+// ---------- menu do botão direito ----------
+function menuCtx(tema) {
+  return '<div class="ctx ' + (tema === "escuro" ? "escuro" : "claro") + '" role="img" aria-label="Menu do botão direito do Word com os comandos do PAULUS">' +
+    '<div class="dim">Recortar</div><div class="dim">Copiar</div><div class="dim">Opções de Colagem:</div><div class="sep"></div>' +
+    '<div class="dim">Fonte…</div><div class="dim">Parágrafo…</div><div class="dim">Pesquisa Inteligente</div><div class="sep"></div>' +
+    '<div class="pa foco">' + I.perguntar + 'Perguntar ao PAULUS sobre isto</div>' +
+    '<div class="pa">' + I.conferir + 'Conferir esta citação</div>' +
+    '<div class="pa">' + I.revisar + 'Revisar com agente</div>' +
+    '<div class="sep"></div><div class="dim">Novo Comentário</div></div>';
+}
+
+// ---------- montagem ----------
+var est = { estado: "inicio", larg: 320, tema: "claro", tudo: false };
+try { var q = new URLSearchParams(location.search);
+  if (q.get("estado")) est.estado = q.get("estado"); if (q.get("larg")) est.larg = +q.get("larg");
+  if (q.get("tema")) est.tema = q.get("tema"); if (q.get("tudo")) est.tudo = true; } catch (e) {}
+
+function painelTarefas(estado, larg, tema) {
+  return '<div class="painel-tarefas tema-' + tema + (larg >= 420 ? " largo" : "") + '" style="width:' + larg + 'px" data-estado="' + estado + '">' +
+    '<div class="pt-titulo"><span>PAULUS</span><span aria-hidden="true">⌄ ✕</span></div>' +
+    '<div class="painel" role="region" aria-label="Painel do PAULUS">' + E[estado].html() + '</div></div>';
+}
+
+function desenhar() {
+  var sel = document.getElementById("mq-estado");
+  if (!sel.options.length) {
+    var grupos = {};
+    ORDEM.forEach(function (k) { (grupos[E[k].grupo] = grupos[E[k].grupo] || []).push(k); });
+    Object.keys(grupos).forEach(function (g) {
+      var og = document.createElement("optgroup"); og.label = g;
+      grupos[g].forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = E[k].nome; og.appendChild(o); });
+      sel.appendChild(og);
+    });
+  }
+  sel.value = est.estado;
+  document.querySelectorAll("[data-larg]").forEach(function (b) { b.setAttribute("aria-pressed", String(+b.dataset.larg === est.larg)); });
+  document.querySelectorAll("[data-tema]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.tema === est.tema)); });
+  document.getElementById("mq-tudo").setAttribute("aria-pressed", String(est.tudo));
+
+  document.getElementById("faixa").innerHTML = faixa(est.tema);
+  var jan = document.getElementById("janela");
+  jan.className = "janela" + (est.tema === "escuro" ? " tema-escuro" : "");
+  document.getElementById("folha").innerHTML = folha(est.estado);
+  var pt = document.getElementById("pt");
+  pt.outerHTML = painelTarefas(est.estado, est.larg, est.tema).replace('class="painel-tarefas', 'id="pt" class="painel-tarefas');
+
+  document.getElementById("sec-tudo").hidden = !est.tudo;
+  document.getElementById("sec-word").hidden = est.tudo;
+  if (est.tudo) {
+    document.getElementById("grade").innerHTML = ORDEM.map(function (k) {
+      return '<figure><figcaption>' + E[k].nome + '</figcaption>' + painelTarefas(k, est.larg, est.tema) + '</figure>';
+    }).join("");
+  }
+  document.getElementById("ctx").innerHTML =
+    '<div class="ctx-doc">…em afronta ao <span style="background:#c7dcf5">art. 18, § 1º, do CDC</span>, e a loja ficou com o aparelho por 47 dias.</div>' + menuCtx(est.tema);
+}
+
+document.getElementById("mq-estado").addEventListener("change", function (e) { est.estado = e.target.value; est.tudo = false; desenhar(); });
+document.querySelectorAll("[data-larg]").forEach(function (b) { b.addEventListener("click", function () { est.larg = +b.dataset.larg; desenhar(); }); });
+document.querySelectorAll("[data-tema]").forEach(function (b) { b.addEventListener("click", function () { est.tema = b.dataset.tema; desenhar(); }); });
+document.getElementById("mq-tudo").addEventListener("click", function () { est.tudo = !est.tudo; desenhar(); });
+// Navegar pelo painel: as funções do início levam à tela delas.
+document.addEventListener("click", function (e) {
+  var f = e.target.closest(".funcao");
+  if (f) { var t = f.querySelector("b").textContent;
+    var mapa = { "Conferir citações": "citacoes", "Inserir lei": "lei", "Fundamentação": "fundamentacao", "Qualificação": "qualificacao", "Perguntar": "perguntar", "Revisar com agente": "revisar", "Guardar no PAULUS": "guardar" };
+    est.estado = mapa[t] || est.estado; desenhar(); return; }
+  if (e.target.closest(".p-volta")) { est.estado = "inicio"; desenhar(); return; }
+  if (e.target.closest(".estado-tela .btn.primario") && est.estado === "primeira") { est.estado = "conectando"; desenhar(); return; }
+});
+desenhar();
+</script>
+</body>
+</html>
