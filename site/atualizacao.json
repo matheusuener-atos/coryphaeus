@@ -1,22 +1,11 @@
 {
-  "versao": "0.9.22",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.22/PAULUS-0.9.22-instalador.exe",
-  "sha256": "99b4d9c2ce7e61960d2b85d613006497290fee6cc4efb0618e53f704cfa62726",
-  "tamanho": 101721794,
+  "versao": "0.9.23",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.23/PAULUS-0.9.23-instalador.exe",
+  "sha256": "8dfe5832fe351049d051eed0f7cc9f6712f295c16542418fbe62309fd93b00f3",
+  "tamanho": 101804722,
   "publicada": "2026-10-01",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.22",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.23",
   "novidades": [
-    "Conferência da segunda volta: CSS das etapas N nos tokens do tema, rota do desfazer em ordem, testes que contavam sem o STF e os que quebravam no começo do mês",
-    "N15: a nuvem com a chave do escritório (Anthropic ou OpenAI), desligada de fábrica, cada envio aprovado com o texto exato e mascarado; e a política do site",
-    "N14: o agente faz sozinho o que a autonomia do AGENTE.md permite (chave desligada de fábrica), com o Histórico e o desfazer",
-    "N12: a vigência com o texto da redação anterior (os riscados do Planalto) e a vacatio de cada lei que mudou",
-    "N8: as súmulas do STF, as vinculantes e as teses de repercussão geral no instalador, montadas pelo Edge, na Biblioteca, na conversa e no MCP",
-    "N13: a fundamentação e o bloco da resposta com os acórdãos do STJ; e o código da N8 que divide o arquivo (teses de repercussão geral e súmulas do STF, que só agem com o pacote no instalador)",
-    "N13: os acórdãos do STJ (dados abertos) baixados só quando pedido, com busca no computador e ligados aos artigos citados",
-    "N11: a resposta que volta do aparelho mostra a posição na fila do modelo enquanto espera o escritório",
-    "N10: a captura acha a folha na foto, corta a mesa e endireita a perspectiva (PIL e numpy), com o contorno na prévia",
-    "N9: MCP com escopo por cliente e quatro ferramentas que escrevem (rascunho, anotação, e tarefa e compromisso por Aprovações)",
-    "N7: embaixo da resposta, os temas do STJ dos artigos citados, as súmulas citadas e a posição da casa — por regra, com o aviso",
-    "N6: a conversa chama as tarefas de vários passos — contratos vencendo e revisar contra o padrão, pelo cartão, com os passos à vista"
+    "O PAULUS dentro do Word: a aba PAVLVS e o painel ao lado do documento, ativados pelo Editor ou em Configurações › Word (nesta versão o painel se instala e se conecta; as funções chegam nas próximas)"
   ]
 }

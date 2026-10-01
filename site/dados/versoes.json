@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.23",
+      "date": "2026-10-01",
+      "changes": [
+        "O PAULUS dentro do Word: a aba PAVLVS e o painel ao lado do documento, ativados pelo Editor ou em…"
+      ]
+    },
+    {
       "version": "0.9.22",
       "date": "2026-10-01",
       "changes": [
