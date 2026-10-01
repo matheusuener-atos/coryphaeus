@@ -9464,6 +9464,37 @@ def email_conversa_rascunho_guardar(payload: dict, request: Request) -> dict:
     return rascunho
 
 
+@app.post("/api/email/conversa/proxima")
+def email_conversa_proxima(payload: dict) -> dict:
+    """
+    "Próxima que pede resposta": a mensagem abre na conversa e FICA nela - a
+    fala e o cartao entram na conversa guardada, como o "abra o e-mail...",
+    e voltam ao reabrir. Devolve {texto, proposta}.
+    """
+    import email_pela_conversa
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    try:
+        msg = correio.abrir(conta, senha, str(payload.get("uid", "")), marcar_lido=True)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    m = msg.to_dict()
+    cabeca = {k: m.get(k) for k in ("uid", "de_nome", "de_email", "para", "assunto", "quando", "quando_curto")}
+    cabeca.update({"conta_id": conta.id, "conta_email": conta.email})
+    codigo = email_pela_conversa.codigo_de_verificacao(m.get("assunto", ""), m.get("corpo", ""))
+    texto = ("A próxima que pede resposta: " + (m.get("de_nome") or m.get("de_email") or "") + ", “" + (m.get("assunto") or "sem assunto") + "”. "
+             + email_pela_conversa.frase_da_mensagem(m, codigo).replace("Abri aqui. ", ""))
+    proposta = {"tipo": "email", "titulo": m.get("assunto") or "", "porque": "a próxima que pede resposta", "pergunta": "",
+                "campos": {"acao": "abrir", "codigo": codigo, "prazo": m.get("prazo") or "", "prazo_trecho": m.get("prazo_trecho") or "",
+                           "sem_resposta": email_pela_conversa.sem_resposta(m.get("de_email", "")), **cabeca}}
+    trabalho.dizer("paulus", texto, proposta=proposta)
+    estado.trabalhos.salvar(trabalho)
+    return {"texto": texto, "proposta": proposta}
+
+
 INSTRUCAO_PERGUNTA_EMAIL = """Voce e assistente de um advogado brasileiro. Responda a
 pergunta dele sobre o e-mail abaixo, em portugues do Brasil, em poucas linhas.
 Use so o que esta no e-mail; se o e-mail nao diz, diga que nao diz. Nao

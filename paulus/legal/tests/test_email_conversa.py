@@ -236,6 +236,18 @@ def test_tela() -> None:
         falas = [m.texto for m in api.estado.trabalhos.obter(id_conversa).mensagens]
         checar("de quando é esse código?" in falas, "a pergunta e a resposta entram na conversa", falas[-2:])
 
+        # a próxima que pede resposta fica na conversa
+        pag.click("[data-emc-proxima]")
+        pag.wait_for_function("() => [...document.querySelectorAll('#centro .resposta .texto')].some(t => t.textContent.startsWith('A próxima que pede resposta: Priscila Almeida'))", timeout=15000)
+        guardada = api.estado.trabalhos.obter(id_conversa).mensagens[-1]
+        checar(guardada.texto.startswith("A próxima que pede resposta: Priscila Almeida") and (guardada.proposta or {}).get("campos", {}).get("uid") == "302",
+               "a próxima que pede resposta fica guardada na conversa, com o cartão", guardada.texto[:80])
+        pag.reload(wait_until="networkidle")
+        pag.wait_for_timeout(800)
+        pag.evaluate(f"() => abrirTrabalho('{id_conversa}')")
+        pag.wait_for_selector(".emc-msg", timeout=15000)
+        checar("A próxima que pede resposta" in pag.evaluate("() => document.getElementById('centro').textContent"), "e volta ao reabrir")
+
         # responder, numa conversa nova
         pag.click("#nova")
         pag.wait_for_timeout(600)

@@ -205,14 +205,21 @@ async function proximaQuePedeResposta(c, m) {
   const lista = (await r.json()).mensagens || [];
   const prox = lista.find((x) => x.uid !== m.uid && !x.respondido && !EMC_SEM_RESPOSTA.test(String(x.de_email || "").split("@")[0]));
   if (!prox) { avisoCert("nenhuma outra mensagem não lida esperando resposta", { tom: "ok" }); return; }
+  // Entra na conversa guardada (a fala e o cartão), e volta ao reabrir.
+  const g = await fetch("/api/email/conversa/proxima", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trabalho_id: estado.trabalhoId, conta_id: c.conta_id || "", uid: prox.uid }),
+  }).catch(() => null);
+  if (!g || !g.ok) { avisoCert(g ? await erroDe(g) : "sem resposta do servidor", { tom: "erro" }); return; }
+  const d = await g.json();
   const nota = document.createElement("div");
   nota.className = "resposta";
-  nota.innerHTML = '<div class="texto">A próxima que pede resposta: ' + esc(prox.de_nome || prox.de_email) + ", “" + esc(prox.assunto || "sem assunto") + "”.</div>" +
+  nota.innerHTML = '<div class="texto">' + esc(d.texto) + "</div>" +
     '<div class="emc-cartao" data-emc-uid="' + esc(prox.uid) + '"><div class="emc-carregando">' + esqueleto("texto") + "</div></div>";
   $("centro").appendChild(nota);
   if (animacoesLigadas()) entraConteudo(nota);
   rolar();
-  abrirMensagemNaConversa(nota.querySelector(".emc-cartao"), Object.assign({}, c, { uid: prox.uid, assunto: prox.assunto, codigo: "" }));
+  abrirMensagemNaConversa(nota.querySelector(".emc-cartao"), d.proposta.campos);
 }
 
 /* ------------------------------------- a caixa de pedido: no e-mail */
