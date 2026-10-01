@@ -129,9 +129,18 @@ def resumo_para_aprovar(estado, nota: dict) -> str:
     return "\n".join(linhas)
 
 
-def pedir_aprovacao(estado, nota_id: int, quem: str = "titular", pessoa: dict | None = None) -> dict:
+class PrecisaConfirmar(ValueError):
+    """A primeira nota de produção: a pessoa confirma que vale de verdade (N8)."""
+
+
+def pedir_aprovacao(estado, nota_id: int, quem: str = "titular", pessoa: dict | None = None,
+                    confirmou_producao: bool = False) -> dict:
     notas = estado.nfse.notas
     nota = notas.conferir(nota_id)
+    if estado.nfse.producao.precisa_confirmar_primeira(nota) and not confirmou_producao:
+        from .producao import FRASE_PRIMEIRA
+
+        raise PrecisaConfirmar(FRASE_PRIMEIRA)
     if nota["estado"] not in (RASCUNHO, REJEITADA):
         raise ValueError(f"a nota está “{nota['estado_rotulo']}”")
     if nota["erros"]:
@@ -152,7 +161,9 @@ def pedir_aprovacao(estado, nota_id: int, quem: str = "titular", pessoa: dict | 
                "ambiente": nota["ambiente"]},
         reversivel=False)
     nota = notas.mudar_estado(nota_id, AGUARDANDO_APROVACAO, quem,
-                              f"pedido de aprovação ({_de_onde(pessoa)})", aprovacao_id=pedido.id, pedido_por=quem)
+                              f"pedido de aprovação ({_de_onde(pessoa)})"
+                              + (" — primeira nota de produção, confirmada: vale de verdade" if confirmou_producao else ""),
+                              aprovacao_id=pedido.id, pedido_por=quem)
     auditar(estado, f"pediu a emissão: {titulo}", pessoa)
     return nota
 

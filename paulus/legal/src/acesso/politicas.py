@@ -433,6 +433,9 @@ _declarar(BLOQUEADO, "GET /api/nfse/notas/{id_}/danfse", "POST /api/nfse/notas/{
 _declarar(BLOQUEADO, "GET /api/nfse/contador", "POST /api/nfse/contador/exportar", "POST /api/nfse/contador/enviar")
 # --- N7 (NFS-e): honorarios recorrentes (criam o rascunho e o pedido; nunca emitem).
 _declarar(BLOQUEADO, "GET /api/nfse/recorrencias", "POST /api/nfse/recorrencias", "POST /api/nfse/recorrencias/{id_}/desligar")
+# --- N8 (NFS-e): a liberacao da producao - so o titular, so na janela do escritorio.
+_declarar(BLOQUEADO, "GET /api/nfse/producao", "POST /api/nfse/producao/revisado", "POST /api/nfse/producao/testes-conferidos",
+          "POST /api/nfse/producao/liberar", "POST /api/nfse/producao/voltar")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

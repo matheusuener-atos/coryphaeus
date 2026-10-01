@@ -11,9 +11,10 @@
 
 async function carregarNfse() {
   try {
-    const [r, rec] = await Promise.all([fetch("/api/nfse"), fetch("/api/nfse/recorrencias")]);
+    const [r, rec, prod] = await Promise.all([fetch("/api/nfse"), fetch("/api/nfse/recorrencias"), fetch("/api/nfse/producao")]);
     cfg.nfse = r.ok ? await r.json() : null;
     if (cfg.nfse) cfg.nfse.recorrencias = rec.ok ? (await rec.json()).recorrencias : [];
+    if (cfg.nfse) cfg.nfse.producao = prod.ok ? await prod.json() : null;
   } catch (err) { cfg.nfse = null; }
 }
 
@@ -182,8 +183,20 @@ function secaoNfse() {
     (recs || '<p class="cfg-explica">Nenhuma. Ligue no Serviço, em Horas › Nota todo mês.</p>') +
     '<p class="cfg-explica">No dia, o PAULUS cria o rascunho da nota do mês e o põe em Aprovações. Se faltar algo no cadastro do cliente, o rascunho espera por você, com aviso.</p>');
 
+  const pr = n.producao || { itens: [] };
+  const itensProd = (pr.itens || []).map((i) => linhaNfse((i.ok ? "✓ " : "· ") + i.titulo, i.detalhe, i.ok ? "ok" : "")).join("");
+  const producao = cartaoCfg("Produção", metaCfg(pr.liberada ? "liberada" : "produção restrita"),
+    itensProd +
+    (pr.liberada
+      ? '<p class="cfg-explica"><b>A produção está liberada:</b> as notas novas valem de verdade. A primeira pede uma confirmação a mais.</p>' +
+        '<div class="word-acoes"><button data-nfse-acao="voltar">Voltar para produção restrita</button></div>'
+      : '<p class="cfg-explica">Enquanto não liberar, nada sai para a produção: a nota é emitida em produção restrita, sem valor fiscal.</p>' +
+        '<div class="word-acoes"><button data-nfse-acao="revisado">Registrar a revisão do contador</button>' +
+        '<button data-nfse-acao="testes">Marcar as notas de teste como conferidas</button>' +
+        '<button class="primario" data-nfse-acao="liberar"' + (pr.pode_liberar ? "" : " disabled") + ">Liberar a produção</button></div>"));
+
   return aberturaCfg() + ficha + ligar + prestador + regime + servico + retencoes + ibscbs + total + salvar +
-    certificadoCartao + municipio + contador + recorrencias + tabelas + historico;
+    certificadoCartao + municipio + contador + recorrencias + producao + tabelas + historico;
 }
 
 function dadosDoFormNfse() {
@@ -214,6 +227,29 @@ async function acaoNfse(acao) {
   };
   let d = null;
   if (acao === "relatorio") { if (typeof abrirRelatorioNfse === "function") abrirRelatorioNfse(); return; }
+  if (acao === "revisado" || acao === "testes") {
+    const r = await dialogo({ titulo: acao === "revisado" ? "Quem revisou a configuração fiscal?" : "Quem conferiu as notas de teste?",
+      contexto: "Nota fiscal › Produção", campo: { rotulo: "Nome", placeholder: acao === "revisado" ? "o contador" : "quem conferiu no portal e no DANFSe" },
+      confirmar: "Registrar" });
+    if (!r || !r.ok) return;
+    const x = await json(acao === "revisado" ? "/api/nfse/producao/revisado" : "/api/nfse/producao/testes-conferidos", { por: r.valor });
+    if (x) { await carregarNfse(); desenharConfig(); }
+    return;
+  }
+  if (acao === "liberar") {
+    const ok = await dialogo({ titulo: "Liberar a produção?", contexto: "Nota fiscal › Produção",
+      texto: "Depois disto, as notas novas valem de verdade e vão para o Sistema Nacional de produção. Dá para voltar para a produção restrita a qualquer momento.",
+      confirmar: "Liberar a produção", perigo: true });
+    if (!ok || !ok.ok) return;
+    const x = await json("/api/nfse/producao/liberar", { confirmo: true });
+    if (x) { avisoCert("produção liberada", { tom: "ok" }); await carregarNfse(); desenharConfig(); }
+    return;
+  }
+  if (acao === "voltar") {
+    const x = await json("/api/nfse/producao/voltar");
+    if (x) { avisoCert("de volta à produção restrita", { tom: "ok" }); await carregarNfse(); desenharConfig(); }
+    return;
+  }
   if (acao === "ligar") d = await json("/api/nfse/ligar", { ligado: !(cfg.nfse && cfg.nfse.ligado) });
   else if (acao === "ibscbs") {
     const b = document.querySelector('[data-nfse-acao="ibscbs"]');

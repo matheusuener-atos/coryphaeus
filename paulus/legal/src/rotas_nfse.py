@@ -53,6 +53,18 @@ class Recorrencia(BaseModel):
     descricao: str = ""
 
 
+class Pedir(BaseModel):
+    confirmou_producao: bool = False
+
+
+class Liberar(BaseModel):
+    confirmo: bool = False
+
+
+class Por(BaseModel):
+    por: str = ""
+
+
 class Senha(BaseModel):
     senha: str = ""
     guardar: bool = False
@@ -265,11 +277,15 @@ def montar(estado, app, dados_dir) -> None:
                 "ambiente": estado.nfse.ambiente}
 
     @app.post("/api/nfse/notas/{id_}/pedir-aprovacao")
-    def nfse_nota_pedir_aprovacao(id_: int) -> dict:
+    def nfse_nota_pedir_aprovacao(id_: int, payload: Pedir | None = None) -> dict:
         from nfse import fluxo
 
         try:
-            nota = fluxo.pedir_aprovacao(estado, id_, quem="titular")
+            nota = fluxo.pedir_aprovacao(estado, id_, quem="titular",
+                                         confirmou_producao=bool(payload and payload.confirmou_producao))
+        except fluxo.PrecisaConfirmar as exc:
+            # 409: a tela mostra a frase e pede o sim de novo (N8).
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             _erro(exc)
         return _nota_para_tela(nota)
@@ -414,3 +430,44 @@ def montar(estado, app, dados_dir) -> None:
     def nfse_recorrencia_desligar(id_: int) -> dict:
         estado.nfse.recorrencias.desligar(id_)
         return {"recorrencias": estado.nfse.recorrencias.listar()}
+
+    # ------------------------------------------------- produção (N8)
+
+    @app.get("/api/nfse/producao")
+    def nfse_producao() -> dict:
+        return estado.nfse.producao.checklist()
+
+    @app.post("/api/nfse/producao/revisado")
+    def nfse_producao_revisado(payload: Por) -> dict:
+        try:
+            estado.nfse.prestador.marcar_revisado(payload.por, quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return estado.nfse.producao.checklist()
+
+    @app.post("/api/nfse/producao/testes-conferidos")
+    def nfse_producao_testes(payload: Por) -> dict:
+        try:
+            return estado.nfse.producao.marcar_testes_conferidos(payload.por)
+        except ValueError as exc:
+            _erro(exc)
+
+    @app.post("/api/nfse/producao/liberar")
+    def nfse_producao_liberar(payload: Liberar) -> dict:
+        from nfse import fluxo
+
+        try:
+            ch = estado.nfse.producao.liberar("titular (janela do escritório)", payload.confirmo)
+        except ValueError as exc:
+            _erro(exc)
+        fluxo.auditar(estado, "liberou a PRODUÇÃO da NFS-e (checklist: " +
+                      ", ".join(i["titulo"] for i in ch["itens"] if i["ok"]) + ")")
+        return ch
+
+    @app.post("/api/nfse/producao/voltar")
+    def nfse_producao_voltar() -> dict:
+        from nfse import fluxo
+
+        ch = estado.nfse.producao.voltar("titular (janela do escritório)")
+        fluxo.auditar(estado, "voltou a NFS-e para a produção restrita")
+        return ch

@@ -48,6 +48,9 @@ class Emissor:
 
         self.contador = Contador(self)
         self.recorrencias = Recorrencias(self)
+        from .producao import Producao
+
+        self.producao = Producao(self)
         # O estado do programa (para Aprovações), posto pelas rotas; e o dia em
         # que a rotina diária já rodou.
         self.estado_app = None

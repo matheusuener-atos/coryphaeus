@@ -165,7 +165,15 @@ async function pedirAprovacaoDaNota(nota) {
     avisoCert("antes de pedir a aprovação, falta: " + nota.erros.slice(0, 2).join("; "), { tom: "erro" });
     return abrirCartaoNota(nota);
   }
-  const r = await fetch("/api/nfse/notas/" + nota.id + "/pedir-aprovacao", { method: "POST" });
+  let r = await fetch("/api/nfse/notas/" + nota.id + "/pedir-aprovacao", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  if (r.status === 409) {
+    // N8: a primeira nota de produção pede o sim de novo, com a frase do servidor.
+    const frase = await erroDe(r);
+    const ok = await dialogo({ titulo: "Primeira nota de produção", contexto: "Nota fiscal", texto: frase, confirmar: "Conferi, pedir a aprovação", perigo: true });
+    if (!ok || !ok.ok) return null;
+    r = await fetch("/api/nfse/notas/" + nota.id + "/pedir-aprovacao", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmou_producao: true }) });
+  }
   if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return null; }
   const n = await r.json();
   avisoCert("pedido em Aprovações: a nota sai depois do sim", { tom: "ok",
