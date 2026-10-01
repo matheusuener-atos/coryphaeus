@@ -1,0 +1,166 @@
+{
+"nome": "indop",
+"titulo": "Indicador da operação (cIndOp)",
+"versao": "1.01",
+"data": "",
+"fonte": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/anexo-c-indop-ibscbs-snnfse-v1-01.xlsx",
+"gerado_em": "2026-10-01T05:38:58",
+"itens": [
+{
+"codigo": "020101",
+"tipo": "Operação com bem imóvel, bem imaterial, inclusive direito,  relacionada a bem imóvel",
+"local_operacao": "o local onde o imóvel estiver situado",
+"local_fornecimento": "Localidade do imóvel (1)"
+},
+{
+"codigo": "020201",
+"tipo": "Serviço prestado fisicamente sobre bem imóvel",
+"local_operacao": "o local onde o imóvel estiver situado",
+"local_fornecimento": "Localidade do imóvel (1)"
+},
+{
+"codigo": "020301",
+"tipo": "Serviço de administração e\nintermediação de bem imóvel",
+"local_operacao": "o local onde o imóvel estiver situado",
+"local_fornecimento": "Localidade do imóvel (1)"
+},
+{
+"codigo": "030101",
+"tipo": "Serviço prestado fisicamente sobre a pessoa ou fruído presencialmente por pessoa física",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Estabelecimento do fornecedor"
+},
+{
+"codigo": "030102",
+"tipo": "Serviço prestado fisicamente sobre a pessoa ou fruído presencialmente por pessoa física",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço do adquirente"
+},
+{
+"codigo": "030103",
+"tipo": "Serviço prestado fisicamente sobre a pessoa ou fruído presencialmente por pessoa física",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço do destinatário"
+},
+{
+"codigo": "030104",
+"tipo": "Serviço prestado fisicamente sobre a pessoa ou fruído presencialmente por pessoa física",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço diverso do fornecedor, adquirente ou destinatário"
+},
+{
+"codigo": "040101",
+"tipo": "Serviço de planejamento, organização e administração de feiras, exposições, congressos, espetáculos, exibições e congêneres",
+"local_operacao": "o local do evento a que\nse refere o serviço",
+"local_fornecimento": "Local do Evento"
+},
+{
+"codigo": "050101",
+"tipo": "Serviço prestado fisicamente sobre bem móvel material",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Estabelecimento do fornecedor"
+},
+{
+"codigo": "050102",
+"tipo": "Serviço prestado fisicamente sobre bem móvel material",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço do adquirente"
+},
+{
+"codigo": "050103",
+"tipo": "Serviço prestado fisicamente sobre bem móvel material",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço do destinatário"
+},
+{
+"codigo": "050104",
+"tipo": "Serviço prestado fisicamente sobre bem móvel material",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço diverso do fornecedor, adquirente ou destinatário"
+},
+{
+"codigo": "050201",
+"tipo": "Serviços portuários",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Local da prestação"
+},
+{
+"codigo": "060101",
+"tipo": "Serviço de transporte de passageiros",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Local de início do transporte"
+},
+{
+"codigo": "070101",
+"tipo": "Serviço de transporte de carga",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Endereço fornecido para entrega"
+},
+{
+"codigo": "070102",
+"tipo": "Serviço de transporte de carga",
+"local_operacao": "o local da prestação do serviço",
+"local_fornecimento": "Local da retirada"
+},
+{
+"codigo": "080101",
+"tipo": "Serviço de exploração de via",
+"local_operacao": "o território de cada Município e Estado, ou do Distrito Federal, proporcionalmente à correspondente\nextensão da via explorada",
+"local_fornecimento": "Local da prestação, correspondente à extensão da via explorada e proporcional ao território dos entes tributantes"
+},
+{
+"codigo": "100101",
+"tipo": "Cessão de espaço para prestação de serviços publicitários, em operações onerosas (4)",
+"local_operacao": "o local do domicílio principal do:\na) adquirente, nas operações onerosas;\n...",
+"local_fornecimento": "Local do domicílio principal do adquirente (3)"
+},
+{
+"codigo": "100102",
+"tipo": "Cessão de espaço para prestação de serviços publicitários, em operações onerosas (4)",
+"local_operacao": "o local do domicílio principal do:\na) adquirente, nas operações onerosas;\n...",
+"local_fornecimento": "Local do domicílio do destinatário, nos casos de adquirente residente ou domiciliado no exterior (5)(6)"
+},
+{
+"codigo": "100201",
+"tipo": "Cessão de espaço para prestação de serviços publicitários, em operações não onerosas (4)",
+"local_operacao": "o local do domicílio principal do:\n...\nb) destinatário, nas operações não onerosas.",
+"local_fornecimento": "Local do domicílio principal do destinatário (6)"
+},
+{
+"codigo": "100301",
+"tipo": "Demais serviços, em operações onerosas",
+"local_operacao": "o local do domicílio principal do:\na) adquirente, nas operações onerosas;\n...",
+"local_fornecimento": "Local do domicílio principal do adquirente (3)"
+},
+{
+"codigo": "100302",
+"tipo": "Demais serviços, em operações onerosas",
+"local_operacao": "o local do domicílio principal do:\na) adquirente, nas operações onerosas;\n...",
+"local_fornecimento": "Local do domicílio do destinatário, nos casos de adquirente residente ou domiciliado no exterior (5)(6)"
+},
+{
+"codigo": "100401",
+"tipo": "Demais serviços, em operações não onerosas",
+"local_operacao": "o local do domicílio principal do:\n...\nb) destinatário, nas operações não onerosas.",
+"local_fornecimento": "Local do domicílio principal do destinatário (6)"
+},
+{
+"codigo": "100501",
+"tipo": "Demais bens móveis imateriais, inclusive direitos, em operações onerosas",
+"local_operacao": "o local do domicílio principal do:\na) adquirente, nas operações onerosas;\n...",
+"local_fornecimento": "Local do domicílio principal do adquirente (3)"
+},
+{
+"codigo": "100502",
+"tipo": "Demais bens móveis imateriais, inclusive direitos, em operações onerosas",
+"local_operacao": "o local do domicílio principal do:\na) adquirente, nas operações onerosas;\n...",
+"local_fornecimento": "Local do domicílio do destinatário, nos casos de adquirente residente ou domiciliado no exterior (5)(6)"
+},
+{
+"codigo": "100601",
+"tipo": "Demais bens móveis imateriais, inclusive direitos, em operações não onerosas",
+"local_operacao": "o local do domicílio principal do:\n...\nb) destinatário, nas operações não onerosas.",
+"local_fornecimento": "Local do domicílio principal do destinatário (6)"
+}
+]
+}

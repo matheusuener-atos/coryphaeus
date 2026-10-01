@@ -54,6 +54,8 @@ async function mostrarFinanceiro(visao) {
 function mostrarRelatorios() { return mostrarFinanceiro("relatorios"); }
 
 async function carregarFinanceiro() {
+  // N4: a emissão de NFS-e daqui, quando ligada e o município emite pelo nacional.
+  if (typeof nfseEstaDisponivel === "function") fin.nfse = await nfseEstaDisponivel(true);
   const d = await (await fetch("/api/financeiro?mes=" + encodeURIComponent(fin.mes || ""))).json();
   fin.dados = d;
   fin.mes = d.painel.mes;
@@ -202,9 +204,13 @@ function pedidosDoMes() {
   const aEmitir = d.notas_a_emitir || [];
   if (aEmitir.length) {
     const x = aEmitir[0];
+    const emite = fin.nfse && fin.nfse.pode_emitir;
     saida.push({ titulo: plural(aEmitir.length, "recebimento sem nota fiscal registrada", "recebimentos sem nota fiscal registrada"),
       detalhe: (x.cliente || x.descricao) + " · " + emReais(x.centavos),
-      acoes: [{ rotulo: "Registrar a nota", primario: true, fazer: () => finFormPapel("nota", x) }] });
+      acoes: emite
+        ? [{ rotulo: "Emitir nota", primario: true, fazer: () => novaNotaFiscal({ lancamento_id: x.id }, "financeiro") },
+           { rotulo: "Registrar emitida fora", fazer: () => finFormPapel("nota", x) }]
+        : [{ rotulo: "Registrar a nota", primario: true, fazer: () => finFormPapel("nota", x) }] });
   }
   const hoje = iso(new Date());
   const vencidos = (d.boletos || []).filter((b) => b.situacao === "aberto" && b.data && b.data < hoje);
@@ -792,6 +798,9 @@ function ligarFinanceiro(raiz) {
   });
   clique("[data-fin-papel]", (b) => finFormPapel(b.dataset.finPapel, null));
   clique("[data-fin-ver-papel]", (b) => finVerPapeis(b.dataset.finVerPapel));
+  clique("[data-fin-emitir-de]", (b) => novaNotaFiscal({ lancamento_id: Number(b.dataset.finEmitirDe) }, "financeiro"));
+  clique("[data-fin-relatorio-nfse]", () => abrirRelatorioNfse(fin.mes || ""));
+  clique("[data-fin-abrir-nota]", (b) => abrirNotaFiscal(Number(b.dataset.finAbrirNota)));
   clique("[data-fin-nota-de]", (b) => {
     const x = (fin.dados.notas_a_emitir || []).find((n) => n.id === Number(b.dataset.finNotaDe));
     finFormPapel("nota", x || null);
@@ -1100,8 +1109,10 @@ async function gerarRecibos() {
 
 /* -------------------------------------------- notas e boletos, no pop-up */
 
-/* Nota fiscal e boleto: a nota sai na prefeitura e o boleto sai do banco.
-   Aqui so se guarda o registro - dizer que emite seria mentir. */
+/* Nota fiscal e boleto: o registro do que foi emitido FORA daqui. A NFS-e
+   emitida pelo PAULUS (src/nfse, N4) entra no registro sozinha; com a
+   emissao desligada (ou o municipio sem convenio), a nota sai na prefeitura e
+   aqui so se guarda o registro - dizer que emite seria mentir. */
 function finFormPapel(tipo, de) {
   const eNota = tipo === "nota";
   const campo = (rotulo, controle, id) => '<div class="dialogo-campo"><label for="' + id + '">' + rotulo + '</label><div class="dialogo-caixa">' + controle + "</div></div>";
@@ -1115,7 +1126,9 @@ function finFormPapel(tipo, de) {
       "</select>", "fin-p-cliente") +
     (de ? '<p class="dialogo-dica">Fica ligada ao recebimento “' + esc(de.descricao) + "”.</p>" : "") +
     '<p class="dialogo-dica">' + (eNota
-      ? "A nota é emitida no sistema da prefeitura. Aqui fica só o registro: número, valor e data."
+      ? (fin.nfse && fin.nfse.pode_emitir
+        ? "Para a nota emitida fora do PAULUS (no sistema da prefeitura ou no Emissor Nacional): aqui fica o registro — número, valor e data."
+        : "A nota é emitida no sistema da prefeitura. Aqui fica só o registro: número, valor e data.")
       : "O boleto é gerado pelo seu banco. Aqui fica o registro, e o vencido aparece em Precisa de você.") + "</p>";
   dialogo({
     titulo: eNota ? "Registrar nota emitida" : "Registrar boleto", contexto: "Financeiro › " + (eNota ? "Notas fiscais" : "Boletos"),
@@ -1159,10 +1172,21 @@ async function finVerPapeis(tipo) {
   let titulo, linhas, confirmarRotulo, depois, vazio;
   if (tipo === "nota") {
     titulo = "Notas fiscais";
-    linhas = (d.notas_a_emitir || []).map((x) => linha(x.cliente || x.descricao, "recebido · falta registrar a nota", false, emReais(x.centavos),
-      '<button data-fin-nota-de="' + x.id + '">Registrar</button>')).join("") +
-      (d.notas || []).map((n) => linha((n.numero ? "NF " + n.numero + " · " : "") + (n.cliente || "sem cliente"), "emitida em " + n.data_br, false, n.valor,
-        tirar("data-fin-tirar-papel", n.id, "Tirar o registro"))).join("");
+    const emite = fin.nfse && fin.nfse.pode_emitir;
+    linhas = (d.notas_a_emitir || []).map((x) => linha(x.cliente || x.descricao, "recebido · " + (emite ? "sem nota" : "falta registrar a nota"), false, emReais(x.centavos),
+      (emite ? '<button data-fin-emitir-de="' + x.id + '">Emitir nota</button>' : "") +
+      '<button data-fin-nota-de="' + x.id + '">' + (emite ? "Registrar emitida fora" : "Registrar") + "</button>")).join("") +
+      // A nota emitida pelo PAULUS não se tira do registro: cancela-se (N5).
+      (d.notas || []).map((n) => linha((n.numero ? "NF " + n.numero + " · " : "") + (n.cliente || "sem cliente"),
+        "emitida em " + n.data_br + (n.nfse_nota_id ? (n.ambiente === "producao" ? " · pelo PAULUS" : " · produção restrita, sem valor fiscal") : "") +
+        (n.situacao && n.situacao !== "emitida" ? " · " + n.situacao : ""), false, n.valor,
+        n.nfse_nota_id ? '<button data-fin-abrir-nota="' + n.nfse_nota_id + '">Abrir a nota</button>'
+          : tirar("data-fin-tirar-papel", n.id, "Tirar o registro"))).join("");
+    // N6: o relatório do mês e o arquivo do contador (js/78-nfse-nota.js).
+    if (fin.nfse && fin.nfse.ligado) {
+      linhas = linha("Relatório do mês e contador", "soma dos XMLs, conferência e o .zip para o contador", false, "",
+        '<button data-fin-relatorio-nfse="1">Abrir</button>') + linhas;
+    }
     vazio = "Nenhuma nota registrada neste mês.";
     confirmarRotulo = "Registrar nota";
     depois = () => finFormPapel("nota", null);
@@ -1190,7 +1214,9 @@ async function finVerPapeis(tipo) {
     depois = () => { fin.visao = "lancamentos"; fin.filtro = "todos"; mostrarFinanceiro(); };
   }
   const dica = {
-    nota: "A nota é emitida no sistema da prefeitura; aqui fica o registro. Recebimento sem nota registrada aparece no topo.",
+    nota: fin.nfse && fin.nfse.pode_emitir
+      ? "A nota sai daqui pelo Padrão Nacional (Emitir nota) ou é registrada quando emitida fora. Recebimento sem nota aparece no topo."
+      : "A nota é emitida no sistema da prefeitura; aqui fica o registro. Recebimento sem nota registrada aparece no topo.",
     boleto: "O boleto é gerado pelo seu banco; aqui fica o registro e o vencimento.",
     comprovante: "Cada comprovante fica ligado a um lançamento. Para anexar, abra o lançamento.",
   }[tipo];

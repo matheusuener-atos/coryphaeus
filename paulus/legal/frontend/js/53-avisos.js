@@ -216,6 +216,7 @@ async function abrirAviso(a) {
   if (d.tela === "conflito" && typeof abrirConflito === "function") return abrirConflito(d.id);
   if (d.tela === "documento") return verNoAcervo(d.nome);
   if (d.tela === "aprovacoes") return abrirDestino("aprovacoes");
+  if (d.tela === "nfse" && typeof abrirNotaFiscal === "function") return abrirNotaFiscal(d.id);
   if (d.tela === "conversa") return abrirTrabalho(d.id);
   if (d.tela === "foco") return abrirDestino("foco");
 }

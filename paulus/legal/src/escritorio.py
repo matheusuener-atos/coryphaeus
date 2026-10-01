@@ -12,10 +12,11 @@ Três decisões moram aqui:
 no mês em que foi pago. Aumentar o salário hoje não pode reescrever a folha de
 agosto — a folha de agosto foi aquela, e é por ela que se presta conta.
 
-**Nota fiscal e boleto são registro, não emissão.** A nota sai no sistema da
-prefeitura e o boleto sai do banco. Fingir que este programa emite qualquer um
-dos dois seria mentir sobre o que ele faz. O que dá para fazer com verdade
-nesta máquina é guardar o número, o valor e a data, e avisar do vencimento.
+**Nota fiscal e boleto, aqui, são registro.** O boleto sai do banco, e a nota
+emitida fora do PAULUS (no sistema da prefeitura ou no Emissor Nacional) é
+registrada aqui com o número, o valor e a data. A NFS-e que o PAULUS emite
+pelo Padrão Nacional (src/nfse, com a chave nfse.ligado) entra neste mesmo
+registro sozinha, com a chave e o ambiente — e essa não se apaga daqui.
 
 **Contrato concluído não é um campo — é uma conclusão.** Nada aqui pergunta
 "este contrato acabou?". A resposta sai dos lançamentos: um cliente que
@@ -186,7 +187,7 @@ class Folha:
 
 class PapeisFiscais:
     """
-    Nota fiscal e boleto: o registro do que existe fora daqui.
+    Nota fiscal e boleto: o registro (a NFS-e emitida pelo PAULUS entra junto).
 
     Os dois são a mesma forma — número, valor, data, a quem se refere — e a
     diferença está no que a data significa: na nota é quando foi emitida, no
@@ -242,6 +243,11 @@ class PapeisFiscais:
         )
 
     def apagar(self, id_: int) -> bool:
+        # A nota emitida pelo PAULUS (src/nfse) não sai do registro: nota
+        # emitida não se apaga, cancela-se, e o XML fica guardado (N4, N6).
+        linha = self.base.um("SELECT nfse_nota_id FROM papeis_fiscais WHERE id = ?", (id_,))
+        if linha and linha.get("nfse_nota_id"):
+            raise ValueError("nota emitida pelo PAULUS não sai do registro: para desfazer, cancele a nota")
         return self.base.escrever("DELETE FROM papeis_fiscais WHERE id = ?", (id_,)) > 0
 
     def marcar_pago(self, id_: int, quando: str = "") -> bool:
@@ -266,7 +272,9 @@ class PapeisFiscais:
             "WHERE l.tipo = 'recebimento' AND l.liquidado_em != '' "
             "AND substr(l.liquidado_em,1,7) = ? "
             "AND NOT EXISTS (SELECT 1 FROM papeis_fiscais p "
-            "                WHERE p.tipo = 'nota' AND p.lancamento_id = l.id) "
+            "                WHERE p.tipo = 'nota' AND p.lancamento_id = l.id "
+            # A nota cancelada (N5) não vale mais: o recebimento volta a ficar sem nota.
+            "                AND COALESCE(p.situacao, '') NOT IN ('cancelada', 'substituída')) "
             "ORDER BY l.liquidado_em",
             (mes,),
         )

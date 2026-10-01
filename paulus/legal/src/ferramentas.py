@@ -26,9 +26,10 @@ que o modelo escreveu precisa estar na frase: um nome que a pessoa não disse
 documentos, a conversa oferece mostrá-los ali mesmo (exibir_documento) — e só
 mostra com o clique.
 
-**Entender não é fazer.** Toda ferramenta exige confirmação. A emissão de
-NFS-e existe no catálogo e na rota, mas ainda não emite: confirmar confere os
-dados e diz isso, sem enviar nada a prefeitura nenhuma.
+**Entender não é fazer.** Toda ferramenta exige confirmação. A NFS-e
+(src/nfse/) só emite com a chave `nfse.ligado`: confirmar o cartão da
+conversa cria o RASCUNHO da nota e abre o cartão dela; a emissão passa por
+Aprovações. Com a chave desligada, confirmar só confere os dados e diz isso.
 """
 
 from __future__ import annotations
@@ -107,8 +108,12 @@ CATALOGO_FERRAMENTAS: dict[str, dict] = {
         "modulo": "escritorio",
         "proposta": "nota",
         "exige_confirmacao": True,
-        # A rota existe e confere os dados; a emissão de verdade vem depois.
+        # Atrás da chave nfse.ligado (ver `disponivel`): ligada, confirmar cria o
+        # rascunho e abre o cartão; a emissão passa por Aprovações (src/nfse/fluxo.py).
         "disponivel": False,
+        "atras_da_chave": "nfse",
+        # Agente nenhum emite: nem na autonomia do AGENTE.md (N14).
+        "nunca_sozinha": True,
         "parametros": {
             "cliente": {"tipo": "texto", "descricao": "nome do tomador do serviço",
                         "obrigatorio": "a nota precisa do cliente"},
@@ -574,13 +579,35 @@ def _criar_compromisso(estado, campos: dict) -> dict:
     return {"id": novo, "registro": feito, "resumo": resumo, "onde": "calendario"}
 
 
+def disponivel(ferramenta: str, estado=None) -> bool:
+    """Se a ferramenta faz de verdade agora. A NFS-e depende da chave nfse.ligado."""
+    f = CATALOGO_FERRAMENTAS.get(ferramenta) or {}
+    if f.get("atras_da_chave") == "nfse":
+        # Ligada E com o município emitindo pelo nacional: sem convênio, a nota
+        # sai na prefeitura, e o cartão não pode prometer o contrário.
+        nfse = getattr(estado, "nfse", None)
+        return bool(nfse and nfse.ligado and nfse.situacao_municipio().get("pode_emitir"))
+    return bool(f.get("disponivel", True))
+
+
 def _emitir_nfse(estado, campos: dict) -> dict:
-    # Só a rota, por enquanto. Os dados são conferidos como seriam na emissão
-    # de verdade — e nada é enviado nem gravado.
     limpos = _conferir("emitir_nfse", campos)
-    resumo = (f"Conferi a NFS-e para {limpos['cliente']}, de {_reais(limpos['valor'])}. "
-              "A emissão ainda não está ligada: nada foi enviado nem gravado")
-    return {"id": 0, "registro": limpos, "resumo": resumo, "onde": "", "pendente": True}
+    if not disponivel("emitir_nfse", estado):
+        # Desligada: os dados são conferidos como seriam, e nada é enviado nem gravado.
+        resumo = (f"Conferi a NFS-e para {limpos['cliente']}, de {_reais(limpos['valor'])}. "
+                  "A emissão de nota fiscal não está disponível (desligada em Configurações › Nota fiscal, ou o município "
+                  "não emite pelo Sistema Nacional): nada foi enviado nem gravado")
+        return {"id": 0, "registro": limpos, "resumo": resumo, "onde": "", "pendente": True}
+    # Ligada: vira o RASCUNHO, e o cartão da nota abre com o que falta pedido.
+    # Emitir, só pelo cartão e por Aprovações.
+    from nfse import fluxo
+
+    nota = fluxo.nota_da_conversa(estado, limpos)
+    resumo = (f"Preparei o rascunho da NFS-e para {limpos['cliente']}, de {_reais(limpos['valor'])}: confira no "
+              "cartão da nota e peça a aprovação — nada foi enviado ainda")
+    if nota["erros"]:
+        resumo += f" (falta: {'; '.join(nota['erros'][:2])})"
+    return {"id": nota["id"], "registro": {"nota_id": nota["id"], **limpos}, "resumo": resumo, "onde": "nfse"}
 
 
 # O visor da conversa mostra PÁGINAS, sempre — do mesmo jeito para PDF e para

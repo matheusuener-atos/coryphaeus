@@ -260,6 +260,12 @@ PADRAO: dict = {
     # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
     # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
     "nuvem": {"ligado": False, "provedor": "anthropic", "modelo": "", "mascarar": True},
+    # N1 (src/nfse/): o emissor de NFS-e pelo Padrao Nacional - desligado de
+    # fabrica. A configuracao fiscal mora na base (com historico) e o
+    # certificado da nota, com a senha cifrada pela DPAPI, em <dados>/nfse/.
+    # `assinatura`: o resumo da XMLDSig; "sha1" e o unico perfil escrito no
+    # esquema oficial (XSD 1.00), "sha256" fica para quando a documentacao pedir.
+    "nfse": {"ligado": False, "assinatura": "sha1"},
     # W1 (src/word_suplemento.py, src/word_instalar.py): o PAVLVS dentro do
     # Word - desligado de fabrica. `porta` e a HTTPS do painel (fixa: o
     # manifesto leva o endereco); `id` gera o Id do manifesto desta instalacao.

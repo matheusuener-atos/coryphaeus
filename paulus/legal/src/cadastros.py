@@ -39,6 +39,45 @@ CAMPOS = (
     "vinculo", "salario_centavos", "encargos_centavos",
 )
 
+# O que a nota fiscal precisa do tomador (src/nfse, N1): o endereco em partes,
+# com o codigo IBGE do municipio, a inscricao municipal e o e-mail para onde a
+# nota vai. Ficam fora de CAMPOS de proposito: quem salva a ficha sem eles (a
+# tela antiga, a conversa, o importador) nao apaga o que ja estava gravado.
+CAMPOS_FISCAIS = (
+    "end_logradouro", "end_numero", "end_complemento", "end_bairro", "end_cep",
+    "end_cmun", "end_uf", "inscricao_municipal", "email_nota",
+)
+
+
+def conferir_fiscais(dados: dict) -> dict:
+    """Limpa os campos fiscais que vieram (so os que vieram)."""
+    limpo: dict = {}
+    for c in CAMPOS_FISCAIS:
+        if c not in dados:
+            continue
+        limpo[c] = " ".join(str(dados.get(c) or "").split())
+    if "end_cep" in limpo:
+        limpo["end_cep"] = re.sub(r"\D", "", limpo["end_cep"])
+        if limpo["end_cep"] and len(limpo["end_cep"]) != 8:
+            raise ValueError("o CEP precisa de 8 dígitos")
+    if "end_cmun" in limpo:
+        limpo["end_cmun"] = re.sub(r"\D", "", limpo["end_cmun"])
+        if limpo["end_cmun"]:
+            from nfse import tabelas
+
+            achado = tabelas.municipio(limpo["end_cmun"])
+            if not achado:
+                raise ValueError("o município não está na tabela oficial do IBGE")
+            limpo["end_uf"] = achado["uf"]
+        else:
+            limpo["end_uf"] = ""
+    if "inscricao_municipal" in limpo:
+        limpo["inscricao_municipal"] = re.sub(r"\s", "", limpo["inscricao_municipal"])[:15]
+    if limpo.get("email_nota") and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", limpo["email_nota"]):
+        raise ValueError("o e-mail para a nota não parece um e-mail")
+    return limpo
+
+
 # Sem vinculo, a pessoa nao entra na folha. Nao por engano - porque nao foi
 # dito como ela e paga, e por um valor que ninguem digitou a folha sairia
 # errada com cara de certa.
@@ -201,21 +240,24 @@ class Cadastros:
         # volta como erro, com o aviso que o campo mostraria.
         limpo["documento"] = campos_br.formatar_documento(limpo["documento"])
         limpo["telefone"] = campos_br.formatar_telefone(limpo["telefone"])
+        fiscais = conferir_fiscais(dados)
+        campos = CAMPOS + tuple(fiscais)
+        limpo.update(fiscais)
 
         if id_:
-            atribui = ", ".join(f"{c} = ?" for c in CAMPOS)
+            atribui = ", ".join(f"{c} = ?" for c in campos)
             self.base.escrever(
                 f"UPDATE cadastros SET {atribui}, atualizado_em = datetime('now','localtime') WHERE id = ?",
-                tuple(limpo[c] for c in CAMPOS) + (id_,),
+                tuple(limpo[c] for c in campos) + (id_,),
             )
             return id_
 
-        colunas = ", ".join(CAMPOS)
-        marcas = ", ".join("?" for _ in CAMPOS)
+        colunas = ", ".join(campos)
+        marcas = ", ".join("?" for _ in campos)
         return self.base.escrever(
             f"INSERT INTO cadastros ({colunas}, criado_em, atualizado_em) "
             f"VALUES ({marcas}, datetime('now','localtime'), datetime('now','localtime'))",
-            tuple(limpo[c] for c in CAMPOS),
+            tuple(limpo[c] for c in campos),
         )
 
     def apagar(self, id_: int) -> bool:

@@ -45,6 +45,8 @@ CATEGORIAS = {
     "conversa": "Conversa",
     # A pergunta que vai a um modelo na nuvem, com a chave do escritorio (N15).
     "nuvem": "Nuvem",
+    # A nota fiscal que vai ao Sistema Nacional da NFS-e (src/nfse, N4).
+    "fiscal": "Nota fiscal",
 }
 
 

@@ -89,6 +89,10 @@ MODULOS: list[dict] = [
                       "POST /api/financeiro/papeis/{id_}/pago", "POST /api/relatorios/pdf")},
     {"id": "aprovacoes", "rotulo": "Aprovações", "niveis": (NAO, VER, FAZ), "padrao": VER,
      "prefixos": ("/api/aprovacoes",), "destinos": ("aprovacoes",), "rotulo_faz": "aprova"},
+    # N4: aprovar a emissão de nota fiscal (src/nfse/fluxo.py). Sem rota: é o
+    # nível que Aprovações confere no pedido "nfse.emitir". O titular sempre pode.
+    {"id": "nfse", "rotulo": "Emitir nota fiscal (aprovar a emissão)", "niveis": (NAO, FAZ), "padrao": NAO,
+     "prefixos": (), "destinos": (), "rotulo_faz": "aprova", "rotulo_nao": "não aprova"},
     # F1: Ctrl+Enter passa na frente de outras pessoas na fila do modelo
     # (src/fila_de_todos.py). Sem rota: e so o nivel que a fila le.
     {"id": "prioridade", "rotulo": "Passar na frente na fila (Ctrl+Enter)", "niveis": (NAO, FAZ), "padrao": NAO,

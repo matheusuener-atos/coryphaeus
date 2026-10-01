@@ -79,7 +79,7 @@ def test_catalogo() -> None:
     checar(cat["emitir_nfse"]["modulo"] == "escritorio", "emitir_nfse -> escritorio")
     checar(cat["emitir_nfse"]["exige_confirmacao"] is True, "emitir_nfse exige confirmação")
     checar(all(f["exige_confirmacao"] for f in cat.values()), "e todas as outras também")
-    checar(cat["emitir_nfse"]["disponivel"] is False, "a NFS-e ainda não emite de verdade")
+    checar(cat["emitir_nfse"]["disponivel"] is False, "no catálogo a NFS-e vem desligada (liga com a chave nfse.ligado)")
     checar(ferramentas.POR_PROPOSTA == {"cadastro": "cadastrar_cliente", "agenda": "criar_compromisso",
                                         "nota": "emitir_nfse", "exibir": "exibir_documento", "passos": "tarefa_de_varios_passos"},
            "cada proposta da tela aponta uma ferramenta")

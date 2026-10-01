@@ -833,6 +833,224 @@ MIGRACOES: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_conflitos_estado ON conflitos(estado);
         """,
     ),
+    (
+        "034_nfse_base",
+        """
+        -- O emissor de NFS-e (src/nfse/, N1). A configuracao fiscal e uma
+        -- VERSAO por gravacao: a nota guarda o id da versao com que foi
+        -- montada, e mudar o regime amanha nao reescreve a nota de ontem.
+        CREATE TABLE IF NOT EXISTS nfse_prestador (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            dados      TEXT NOT NULL,
+            criado_em  TEXT NOT NULL,
+            criado_por TEXT DEFAULT '',
+            motivo     TEXT DEFAULT ''
+        );
+
+        -- A ultima resposta do Sistema Nacional sobre o convenio do
+        -- municipio, por ambiente, com a data (reconsulta mensal).
+        CREATE TABLE IF NOT EXISTS nfse_municipio (
+            cmun                     TEXT NOT NULL,
+            ambiente                 TEXT NOT NULL,
+            situacao                 TEXT NOT NULL,
+            detalhes                 TEXT DEFAULT '',
+            resposta                 TEXT DEFAULT 'null',
+            prazo_cancelamento_dias  INTEGER,
+            consultado_em            TEXT NOT NULL,
+            PRIMARY KEY (cmun, ambiente)
+        );
+
+        -- O que a nota precisa do tomador e o cadastro nao tinha: endereco
+        -- em partes (com o codigo IBGE do municipio), inscricao municipal e o
+        -- e-mail para onde a nota vai. O "endereco" de texto livre continua.
+        ALTER TABLE cadastros ADD COLUMN end_logradouro TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_numero TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_complemento TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_bairro TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_cep TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_cmun TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN end_uf TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN inscricao_municipal TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN email_nota TEXT DEFAULT '';
+        """,
+    ),
+    (
+        "035_nfse_notas",
+        """
+        -- A nota fiscal do rascunho ao fim (src/nfse/notas.py, N2-N5). O
+        -- estado e gravado ANTES de cada passo: se o programa cair no meio do
+        -- envio, a nota sabe que estava "enviando" e a proxima coisa e
+        -- consultar, nunca reenviar. Nota emitida nao se apaga: se cancela.
+        CREATE TABLE IF NOT EXISTS nfse_notas (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            estado             TEXT NOT NULL DEFAULT 'rascunho',
+            ambiente           TEXT NOT NULL,
+            origem             TEXT DEFAULT '',
+            cadastro_id        INTEGER,
+            lancamento_id      INTEGER,
+            servico_id         INTEGER,
+            recorrencia_id     INTEGER,
+            prestador_versao   INTEGER,
+            rascunho           TEXT NOT NULL DEFAULT '{}',
+            conta              TEXT NOT NULL DEFAULT '{}',
+            erros              TEXT NOT NULL DEFAULT '[]',
+            avisos             TEXT NOT NULL DEFAULT '[]',
+            centavos           INTEGER NOT NULL DEFAULT 0,
+            competencia        TEXT DEFAULT '',
+            tomador_nome       TEXT DEFAULT '',
+            tomador_documento  TEXT DEFAULT '',
+            serie              TEXT DEFAULT '',
+            numero             INTEGER,
+            id_dps             TEXT,
+            dh_emi             TEXT DEFAULT '',
+            chave              TEXT DEFAULT '',
+            numero_nfse        TEXT DEFAULT '',
+            dh_proc            TEXT DEFAULT '',
+            xml_dps            TEXT DEFAULT '',
+            xml_nfse           TEXT DEFAULT '',
+            hash_enviado       TEXT DEFAULT '',
+            hash_recebido      TEXT DEFAULT '',
+            tentativas         INTEGER NOT NULL DEFAULT 0,
+            proxima_tentativa  TEXT DEFAULT '',
+            ultimo_erro        TEXT DEFAULT '',
+            rejeicao           TEXT NOT NULL DEFAULT '[]',
+            aprovacao_id       TEXT DEFAULT '',
+            pedido_por         TEXT DEFAULT '',
+            aprovado_por       TEXT DEFAULT '',
+            aprovado_em        TEXT DEFAULT '',
+            substitui_id       INTEGER,
+            substituida_por_id INTEGER,
+            papel_id           INTEGER,
+            criado_em          TEXT NOT NULL,
+            atualizado_em      TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_nfse_notas_estado ON nfse_notas(estado);
+        CREATE INDEX IF NOT EXISTS idx_nfse_notas_lancamento ON nfse_notas(lancamento_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_dps ON nfse_notas(ambiente, id_dps) WHERE id_dps IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_numero
+            ON nfse_notas(ambiente, serie, numero) WHERE numero IS NOT NULL;
+
+        -- O numero da DPS: o ultimo usado por ambiente e serie, e os
+        -- devolvidos (nota descartada antes de virar NFS-e), que voltam
+        -- primeiro - assim nao fica buraco nem repete.
+        CREATE TABLE IF NOT EXISTS nfse_numeracao (
+            ambiente TEXT NOT NULL,
+            serie    TEXT NOT NULL,
+            ultimo   INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (ambiente, serie)
+        );
+        CREATE TABLE IF NOT EXISTS nfse_numeros_livres (
+            ambiente TEXT NOT NULL,
+            serie    TEXT NOT NULL,
+            numero   INTEGER NOT NULL,
+            PRIMARY KEY (ambiente, serie, numero)
+        );
+
+        -- Cada passo da nota, na ordem, com quem e de onde.
+        CREATE TABLE IF NOT EXISTS nfse_passos (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            nota_id  INTEGER NOT NULL,
+            quando   TEXT NOT NULL,
+            de       TEXT DEFAULT '',
+            para     TEXT DEFAULT '',
+            quem     TEXT DEFAULT '',
+            detalhe  TEXT DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_nfse_passos_nota ON nfse_passos(nota_id);
+        """,
+    ),
+    (
+        "036_nfse_liberacao",
+        """
+        -- A liberacao da producao (src/nfse, N8): so o titular, na janela do
+        -- escritorio, com o checklist guardado. Sem uma linha ativa aqui, o
+        -- cliente HTTP recusa o ambiente de producao (N3).
+        CREATE TABLE IF NOT EXISTS nfse_liberacao (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            liberado_em   TEXT NOT NULL,
+            liberado_por  TEXT NOT NULL,
+            checklist     TEXT NOT NULL DEFAULT '{}',
+            revogado_em   TEXT DEFAULT '',
+            revogado_por  TEXT DEFAULT ''
+        );
+
+        -- Quantas esperas seguidas a nota ja fez na fila (a espera cresce:
+        -- 1, 2, 5, 10, 20, 40, 60 min). Volta a zero quando ela sai da fila.
+        ALTER TABLE nfse_notas ADD COLUMN esperas INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
+    (
+        "037_papel_da_nfse",
+        """
+        -- A nota emitida pelo PAULUS entra no mesmo registro das notas emitidas
+        -- fora (N4), com a chave, o ambiente e a ligacao com a nota daqui. A
+        -- nota de producao restrita fica marcada: nao vale como nota fiscal.
+        ALTER TABLE papeis_fiscais ADD COLUMN chave TEXT DEFAULT '';
+        ALTER TABLE papeis_fiscais ADD COLUMN ambiente TEXT DEFAULT '';
+        ALTER TABLE papeis_fiscais ADD COLUMN nfse_nota_id INTEGER;
+        """,
+    ),
+    (
+        "038_nfse_eventos",
+        """
+        -- Os eventos da nota (N5): o cancelamento pedido daqui (e101101) e o que
+        -- a Sefin registra sozinha (cancelamento por substituicao, por oficio).
+        -- O estado e gravado antes de cada passo, como na nota: sem resposta,
+        -- consulta os eventos da nota antes de pedir de novo.
+        CREATE TABLE IF NOT EXISTS nfse_eventos (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            nota_id       INTEGER NOT NULL,
+            tipo          TEXT NOT NULL,
+            estado        TEXT NOT NULL,
+            motivo        TEXT DEFAULT '',
+            texto         TEXT DEFAULT '',
+            xml_pedido    TEXT DEFAULT '',
+            xml_evento    TEXT DEFAULT '',
+            hash_enviado  TEXT DEFAULT '',
+            hash_recebido TEXT DEFAULT '',
+            aprovacao_id  TEXT DEFAULT '',
+            pedido_por    TEXT DEFAULT '',
+            aprovado_por  TEXT DEFAULT '',
+            ultimo_erro   TEXT DEFAULT '',
+            rejeicao      TEXT NOT NULL DEFAULT '[]',
+            tentativas    INTEGER NOT NULL DEFAULT 0,
+            criado_em     TEXT NOT NULL,
+            atualizado_em TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_nfse_eventos_nota ON nfse_eventos(nota_id);
+        """,
+    ),
+    (
+        "039_nfse_recorrencia",
+        """
+        -- Honorarios recorrentes (N7): no dia, o PAULUS cria o RASCUNHO da nota
+        -- e o poe em Aprovacoes. Nunca emite sozinho. Um por mes: o mes ja
+        -- feito fica gravado, e a unicidade impede o segundo.
+        CREATE TABLE IF NOT EXISTS nfse_recorrencias (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            servico_id    INTEGER,
+            cadastro_id   INTEGER,
+            dia           INTEGER NOT NULL,
+            centavos      INTEGER NOT NULL,
+            descricao     TEXT DEFAULT '',
+            ativo         INTEGER NOT NULL DEFAULT 1,
+            criado_em     TEXT NOT NULL,
+            criado_por    TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS nfse_recorrencias_feitas (
+            recorrencia_id INTEGER NOT NULL,
+            mes            TEXT NOT NULL,
+            nota_id        INTEGER,
+            feito_em       TEXT NOT NULL,
+            PRIMARY KEY (recorrencia_id, mes)
+        );
+
+        -- O que mudou nos parametros do municipio entre uma consulta e a
+        -- seguinte (aliquota, prazo): cada mudanca vira um aviso.
+        ALTER TABLE nfse_municipio ADD COLUMN anterior TEXT DEFAULT '';
+        ALTER TABLE nfse_municipio ADD COLUMN mudou_em TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 
@@ -897,6 +1115,25 @@ class Base:
             cursor = self.con.execute(sql, parametros)
             self.con.commit()
             return cursor.lastrowid or cursor.rowcount
+
+    def transacao(self, funcao):
+        """
+        Roda `funcao(con)` numa transacao so, com BEGIN IMMEDIATE.
+
+        Ler-e-depois-escrever em duas chamadas nao e atomico: outra thread (ou
+        outro processo com o mesmo arquivo) entra no meio. A numeracao da DPS
+        nao pode repetir nem pular, e e aqui que ela e reservada. Erro desfaz
+        tudo.
+        """
+        with self._trava:
+            self.con.execute("BEGIN IMMEDIATE")
+            try:
+                resultado = funcao(self.con)
+            except BaseException:
+                self.con.rollback()
+                raise
+            self.con.commit()
+            return resultado
 
     def contar(self, tabela: str, onde: str = "", parametros: tuple = ()) -> int:
         sql = f"SELECT COUNT(*) AS n FROM {tabela}"

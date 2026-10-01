@@ -16,9 +16,10 @@ lancamentos que existem - nao ha estimativa, nao ha projecao inventada. Quando
 nao ha lancamento, o numero e zero e a tela diz que esta vazio, em vez de
 mostrar um grafico bonito de dado que ninguem digitou.
 
-O que o programa NAO faz, e a tela repete: nao emite nota fiscal (isso continua
-no sistema da prefeitura) e nao gera boleto (isso sai do banco). Aqui se
-registra o que foi emitido e se acompanha o vencimento.
+O que este modulo NAO faz: nao gera boleto (isso sai do banco) e nao emite
+nota fiscal - a NFS-e pelo Padrao Nacional e de src/nfse, com a chave
+nfse.ligado e Aprovacoes; sem ela, a nota sai na prefeitura. Aqui se registra
+o que foi emitido e se acompanha o vencimento.
 """
 
 from __future__ import annotations

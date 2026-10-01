@@ -1290,7 +1290,7 @@ const FERRAMENTAS_DA_CONVERSA = {
       ["endereco", "endereço"], ["observacao", "anotação (opcional)"]],
   },
   nota: {
-    rotulo: "vou preparar a NFS-e", botao: "Conferir a nota", padrao: "NFS-e",
+    rotulo: "vou preparar a NFS-e", botao: "Preparar a nota", padrao: "NFS-e",
     campos: [["cliente", "cliente, como está em Cadastros"], ["valor", "valor, em reais"],
       ["descricao", "serviço prestado"], ["data", "data de emissão", "date"]],
   },
@@ -1329,9 +1329,13 @@ function cartaoFerramenta(d) {
   const ajuda = ajudou.length
     ? " O modelo local completou " + ajudou.join(", ") + " — confira com atenção."
     : "";
+  // A NFS-e (N4): ligada, o sim cria o rascunho e abre o cartão da nota; a
+  // emissão passa por Aprovações. Desligada, só confere.
   const garantia = d.disponivel === false
-    ? " A emissão ainda não está ligada: confirmar confere os dados, mas nada é enviado nem gravado."
-    : " Confira antes — eu não gravo nada sem o seu sim.";
+    ? " A emissão de nota fiscal não está disponível (desligada em Configurações › Nota fiscal, ou o município não emite pelo Sistema Nacional): confirmar confere os dados, mas nada é enviado nem gravado."
+    : (d.tipo === "nota"
+      ? " O sim cria só o rascunho e abre o cartão da nota: a emissão passa por Aprovações."
+      : " Confira antes — eu não gravo nada sem o seu sim.");
   const explica = d.falta
     ? "Entendi o pedido (" + d.porque + "), mas " + d.falta + ". Complete aqui."
     : "Li isso de " + d.porque + " na sua frase.";
@@ -1421,6 +1425,8 @@ function ligarProposta(caixa, d, ondeResponder) {
     }
 
     const feito = await r.json();
+    // N4: a NFS-e virou rascunho; o cartão da nota abre já (js/78-nfse-nota.js).
+    if (feito.onde === "nfse" && typeof abrirNotaFiscal === "function") setTimeout(() => abrirNotaFiscal(feito.id), 50);
     // N6: a tarefa roda em segundo plano; o cartão acompanha os passos ali mesmo.
     if (d.tipo === "passos" && typeof acompanharPassosNaConversa === "function") { acompanharPassosNaConversa(caixa, feito.id); return; }
     // Pendente é a ferramenta que ainda só confere (a NFS-e): não há o que
@@ -1439,6 +1445,7 @@ function ligarProposta(caixa, d, ondeResponder) {
       else if (feito.onde === "tarefas") mostrarTarefas();
       else if (feito.onde === "servicos") abrirServico(Number(feito.id));
       else if (feito.onde === "cadastros") mostrarCadastros();
+      else if (feito.onde === "nfse" && typeof abrirNotaFiscal === "function") abrirNotaFiscal(Number(feito.id));
       else mostrarBiblioteca();
     };
     carregarStatus();

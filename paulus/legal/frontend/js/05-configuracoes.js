@@ -28,6 +28,7 @@ const CFG_SECOES = [
   ["modelos", "Modelos", "Os modelos de linguagem desta máquina: baixe, troque o padrão, meça cada um e diga qual faz cada tarefa. O motor é o Ollama, aqui mesmo."],
   ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
   ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
+  ["nfse", "Nota fiscal", "Emitir NFS-e pelo Padrão Nacional com o certificado A1 do escritório. Desligado de fábrica; cada nota passa por Aprovações, e o PAULUS aplica a configuração do escritório sem fazer planejamento tributário."],
   ["word", "Word", "O PAVLVS dentro do Word: o painel confere citações, insere lei e qualificação e responde sobre o documento. Desligado de fábrica; o texto do documento vai só para este PAULUS."],
   ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
   ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
@@ -148,6 +149,8 @@ async function carregarSecao() {
     cfg.lixo = await pega("/api/lixeira");
   } else if (cfg.secao === "word") {
     await carregarWord();
+  } else if (cfg.secao === "nfse") {
+    await carregarNfse();
   } else if (cfg.secao === "acesso") {
     await carregarAcesso();
   } else if (cfg.secao === "vinculos") {
@@ -186,6 +189,7 @@ function desenharConfig() {
   else if (cfg.secao === "lixeira") secao = secaoLixeira();
   else if (cfg.secao === "acesso") secao = secaoAcesso();
   else if (cfg.secao === "word") secao = secaoWord();
+  else if (cfg.secao === "nfse") secao = secaoNfse();
   else secao = secaoPerfil();
 
   // Redesenhar a mesma secao (um modelo escolhido, um aviso ligado) nao
