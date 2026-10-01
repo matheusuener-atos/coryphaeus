@@ -164,7 +164,7 @@ def main() -> int:
     t = esperar_tarefa(local, local.post("/api/passos", json={"tipo": "revisar", "params": {"documento": "parecer.txt", "padrao": "padrao-locacao.txt"}}).json()["id"])
     checar(t["estado"] == "falhou" and "cláusulas numeradas" in t["erro"], "sem cláusula numerada: falha com o motivo", t.get("erro"))
     perguntas = []
-    api.estado.cliente_para = lambda tarefa: SimpleNamespace(ask=lambda p, c: perguntas.append(c) or "A multa subiu de 2% para 10%, pior para o locatário.")
+    api.estado.cliente_para = lambda tarefa, **k: SimpleNamespace(ask=lambda p, c: perguntas.append(c) or "A multa subiu de 2% para 10%, pior para o locatário.")
     t = esperar_tarefa(local, local.post("/api/passos", json={"tipo": "revisar", "params": {"documento": "contrato-clinica.txt",
                                                                                                "padrao": "padrao-locacao.txt", "explicar": True}}).json()["id"])
     corpo = api.estado.documentos.obter(t["resultado"]["documento_id"])["corpo"]

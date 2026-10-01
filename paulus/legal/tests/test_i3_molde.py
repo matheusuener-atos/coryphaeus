@@ -162,7 +162,7 @@ def test_na_conversa() -> None:
 
     falha = Falha()
     api.estado.client = falha
-    api.estado.cliente_para = lambda tarefa: falha
+    api.estado.cliente_para = lambda tarefa, **k: falha
     api.estado.saber.ligada = False  # a análise em segundo plano não pode chamar o modelo de mentira
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)

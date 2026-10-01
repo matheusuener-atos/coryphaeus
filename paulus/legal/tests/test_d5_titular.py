@@ -148,7 +148,7 @@ def main() -> int:
     helena = entrar("Helena", "helena@x.com", "colaborador", niveis_helena)
     rui = entrar("Rui", "rui@x.com", "colaborador", {"servicos": "faz", "acervo": "ver"})
     api.estado.client = cliente
-    api.estado.cliente_para = lambda tarefa: cliente
+    api.estado.cliente_para = lambda tarefa, **k: cliente
     api.check_ollama = lambda modelo: (True, "")
     m_, h, r_ = cad("Mateus", "mateus@x.com", "socio"), cad("Helena", "helena@x.com"), cad("Rui", "rui@x.com")
     clinica = cad("Clínica Boa Saúde", "clinica@x.com", "cliente")

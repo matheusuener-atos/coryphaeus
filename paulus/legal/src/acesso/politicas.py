@@ -412,6 +412,13 @@ _declarar(BLOQUEADO, "POST /api/jurisprudencia/baixar", "POST /api/jurisprudenci
 # conversa e ler o registro: tudo na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/nuvem", "POST /api/nuvem/chave", "GET /api/nuvem/modelos", "DELETE /api/nuvem/chave/{provedor}",
           "POST /api/nuvem/configurar", "POST /api/trabalhos/{id_}/nuvem", "GET /api/nuvem/envios", "GET /api/nuvem/envios/{envio}")
+# --- V1-V7 (docs/PLANO-NUVEM.md): o termo, o sim do titular, a conta do PAULUS
+# (nuvem), o plano e a recarga - tudo da janela do escritorio. De fora, so a
+# situacao que a caixa da pergunta usa (sem chave, sem conta).
+_declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "POST /api/nuvem/paulus/ativar",
+          "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "GET /api/nuvem/paulus/assinatura",
+          "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}")
+_declarar(PERMITIDO, "GET /api/nuvem/situacao")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

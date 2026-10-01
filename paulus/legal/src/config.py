@@ -259,7 +259,10 @@ PADRAO: dict = {
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
     # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
     # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
-    "nuvem": {"ligado": False, "provedor": "anthropic", "modelo": "", "mascarar": True},
+    # V5 (docs/PLANO-NUVEM.md): o PAULUS (nuvem) vem primeiro; sem o sim do
+    # titular (consentimento, com a versao do termo) nada liga.
+    "nuvem": {"ligado": False, "provedor": "paulus", "modelo": "", "mascarar": True, "consentimento": {},
+              "pedir_cada_envio": False, "tarefas": {"conversa": True, "resumos": True, "redacao": True}},
     # W1 (src/word_suplemento.py, src/word_instalar.py): o PAVLVS dentro do
     # Word - desligado de fabrica. `porta` e a HTTPS do painel (fixa: o
     # manifesto leva o endereco); `id` gera o Id do manifesto desta instalacao.

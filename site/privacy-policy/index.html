@@ -62,7 +62,7 @@
       <li><a href="#other">Other internet access</a></li>
       <li><a href="#remote">Remote access (optional)</a></li>
       <li><a href="#device">Writing the answer on the device (optional)</a></li>
-      <li><a href="#cloud">Cloud with the office's own key (optional)</a></li>
+      <li><a href="#cloud">Cloud (optional)</a></li>
       <li><a href="#retention">Retention and deletion</a></li>
       <li><a href="#rights">Your rights (LGPD)</a></li>
       <li><a href="#website">This website</a></li>
@@ -75,7 +75,7 @@
     <h2 id="summary">Summary</h2>
     <div class="caixa">
       <ul style="margin:0">
-        <li>PAULUS is a <strong>desktop program for Windows</strong> that runs on the law office's own computer. Its AI model also runs there, locally — unless the office turns on the <a href="#cloud">cloud with its own key</a>, which comes turned off.</li>
+        <li>PAULUS is a <strong>desktop program for Windows</strong> that runs on the law office's own computer. Its AI model also runs there, locally — unless the office's principal turns on the <a href="#cloud">cloud</a>, which comes turned off.</li>
         <li><strong>No PAULUS server receives your messages, documents or client data.</strong> Our only server is the one behind this website, and it only receives something from you if you choose to support the project (see <a href="#other">Other internet access</a>).</li>
         <li>If you connect a Google account, PAULUS accesses the <strong>account's email address</strong> and your <strong>Gmail messages</strong> to show your inbox, suggest deadlines for your calendar, and send the replies you approve.</li>
         <li>If you also connect <strong>Google Calendar</strong> or <strong>Google Drive</strong> (each one only when you ask), PAULUS copies your appointments to your Google Calendar, creates their Google Meet rooms, sends to your Drive the documents you approve and, if you authorize Drive reading, keeps a local copy of the Drive folders you choose.</li>
@@ -96,7 +96,7 @@
     <h2 id="how-it-works">How PAULUS works</h2>
     <ul>
       <li>PAULUS is installed on and runs on the office's computer (Windows).</li>
-      <li>The AI model runs locally through Ollama at the internal address <code>127.0.0.1</code> — that is, on the machine itself. Questions, documents and the assistant's answers are not sent to any AI service on the internet, unless the office turns on the cloud with its own key (see <a href="#cloud">Cloud with the office's own key</a>).</li>
+      <li>The AI model runs locally through Ollama at the internal address <code>127.0.0.1</code> — that is, on the machine itself. Questions, documents and the assistant's answers are not sent to any AI service on the internet, unless the office's principal turns on the cloud (see <a href="#cloud">Cloud</a>).</li>
       <li>No part of the program sends usage data, documents or messages to us. The two exceptions are actions you take, described in <a href="#other">Other internet access</a>: supporting the project and sending feedback.</li>
     </ul>
 
@@ -128,7 +128,7 @@
       <li><strong>Upload documents to your Google Drive</strong>, in the PAULUS folder: each upload goes through the <strong>Approvals</strong> queue and only happens with your confirmation.</li>
       <li><strong>Keep in the Archive a copy of the Drive folders you choose</strong>, updated every 15 minutes, so you can search those documents on your computer.</li>
     </ol>
-    <p>This processing — including reading by the AI to understand a message, detect deadlines and write drafts, and the translation of messages in English or Spanish — happens on your computer, with local models. Google data does not go to the cloud described in <a href="#cloud">Cloud with the office's own key</a>: saved email attachments and the copy of Drive folders are left out of it.</p>
+    <p>This processing — including reading by the AI to understand a message, detect deadlines and write drafts, and the translation of messages in English or Spanish — happens on your computer, with local models. Google data does not go to the cloud described in <a href="#cloud">Cloud</a>: email, its saved attachments and the copy of Drive folders are left out of it.</p>
 
     <h2 id="limited-use">Limited Use (Google)</h2>
     <div class="caixa destaque">
@@ -197,23 +197,29 @@
       <li><strong>What cannot be guaranteed:</strong> a compromised device — with malware or a malicious browser extension — can read what the page shows. That is already true today, just by viewing documents through remote access. Writing the answer on the device does not increase that risk, because the device receives the same thing the person would already see on screen, but it does not remove it either. Take care of the device you use.</li>
     </ul>
 
-    <h2 id="cloud">Cloud with the office's own key (optional)</h2>
-    <p>The office can let the answer to a conversation question be written by an <strong>Anthropic</strong> (Claude) or <strong>OpenAI</strong> (GPT) model, using the <strong>office's own API key</strong>, contracted and paid for by the office directly with the provider. <strong>It comes turned off.</strong> It can only be turned on from the office computer's own window, in Settings › Models; from remote access there is no cloud. Neither we nor the paulus.ia.br website sit in between: the request goes from the office computer straight to the provider.</p>
+    <h2 id="cloud">Cloud (optional)</h2>
+    <p>The office can let conversation answers, summaries and drafting be written by a cloud AI model, larger than the one on the computer. <strong>It comes turned off</strong>, and only turns on after the <strong>office's principal reads the terms and says yes</strong>, in the office computer's own window, in Settings › Models. The yes applies to the version of the terms that was read and to the chosen provider; switching providers asks for a new yes. There are two ways:</p>
     <ul>
-      <li><strong>When it goes:</strong> only the question the person marks “Cloud”, one at a time. Each send waits for a yes in Approvals (or on the card in the conversation), showing the exact text that will leave, the provider, the model and the size. A whole conversation can be released, or the approval rule “Send to the cloud without asking each time” can be turned on; it also comes turned off.</li>
-      <li><strong>What goes:</strong> the question, the start of the conversation, the assistant's instructions and the document excerpts the search found — the same ones that would go to the local model. Search, the index, the checks and the rest of the program stay on the computer; the answer that comes back goes through the same checks as a local answer.</li>
-      <li><strong>Masking (on by default):</strong> CPF, CNPJ, case numbers, email addresses and phone numbers become placeholders (“[CPF 1]”) before leaving, and are restored in the answer, on the computer. This reduces exposure but <strong>does not anonymize</strong>: names, addresses and the rest of the text go as they are.</li>
-      <li><strong>What never goes:</strong> saved email attachments (marked when saved, starting with the version that brought the cloud — an attachment saved earlier has no mark; to be sure, mark its folder “office only”); the copy of Drive folders that PAULUS makes; and clients, matters and folders marked “office only”. If the answer would need any of them, it is written on the computer, and the screen says why. Contacts, finances and the calendar are not part of the question.</li>
-      <li><strong>The key:</strong> stays on the computer, encrypted by the Windows account (DPAPI). Saving the key makes a single call to the provider, to list the models it can see.</li>
-      <li><strong>What the provider does with the text:</strong> it handles what it receives under the terms and privacy policy of the office's API account (Anthropic or OpenAI). Reading those terms, and deciding whether the cloud is suitable for clients' data, is the office's decision.</li>
-      <li><strong>Log:</strong> each send is recorded on the computer, with the exact text that left, the model, the tokens and how it was approved, in Settings › Models, and in the audit log.</li>
-      <li><strong>To stop:</strong> untick “Turn on the cloud” or delete the key, in Settings › Models. It takes effect immediately.</li>
+      <li><strong>PAULUS (cloud), through the office's plan:</strong> the text goes from the office computer to the <code>paulus.ia.br</code> website (a Cloudflare Worker), which passes it on to <strong>DeepInfra</strong>, a United States company that runs the model (Llama 3.3 70B or Qwen 2.5 72B), and the answer comes back the same way. The website <strong>does not store the text</strong>: it only passes it on. DeepInfra's published policy says it does not write to disk or log the content it receives through the API, and does not use it to train models; this is the provider's policy, not technical isolation — its servers are shared with its other customers. The cloud account is the Google account linked to PAULUS; activating it confirms that account with Google.</li>
+      <li><strong>The office's own API key:</strong> with a <strong>DeepInfra</strong>, <strong>Anthropic</strong> (Claude) or <strong>OpenAI</strong> (GPT) key, contracted and paid for by the office directly with the provider. The request goes from the office computer straight to the provider; the paulus.ia.br website does not sit in between. The provider handles the text under the terms of the office's API account: reading those terms is the office's decision.</li>
+    </ul>
+    <p>Either way there is an <strong>international transfer of personal data</strong> (LGPD, art. 33). The office is the controller of its clients' data: it is up to the office to have a legal basis for this and to tell its clients that AI is used.</p>
+    <ul>
+      <li><strong>What goes:</strong> in the conversation, the question, the start of the conversation, the assistant's instructions and the document excerpts the search found — the same ones that would go to the model on the computer; in summaries, the text of the matter or of the recording's transcript; in drafting, the text the person asked the AI to work on in the editor, a comment, a spreadsheet formula or the comparison with the standard contract. Each of the three can be turned off separately. Search, the index, the checks and the rest of the program stay on the computer; the conversation answer that comes back goes through the same checks as a local answer.</li>
+      <li><strong>When it goes:</strong> after the principal's yes, without asking again for each question; every answer says where it was written. Whoever prefers can turn on “Ask for a yes on each question”: then each send waits in Approvals, showing the exact text that will leave. The “Cloud” pill in the question box keeps a single question on the computer. With the principal's yes, people who come in through remote access use the cloud too; with “ask on each question” on, a question from outside stays on the computer, because the yes is given in the office window.</li>
+      <li><strong>Masking (on by default):</strong> CPF, CNPJ, court case numbers, email addresses and phone numbers become placeholders (“[CPF 1]”) before leaving, and are put back into the answer on the computer. This reduces exposure but <strong>does not anonymize</strong>: names, addresses and the rest of the text go as they are.</li>
+      <li><strong>What never goes:</strong> email — reading, drafts, rewriting, the inbox summary; saved email attachments (marked when saved, starting with the version that brought the cloud — an attachment saved earlier has no mark; to be sure, mark its folder “office only”); the copy of Drive folders that PAULUS makes; clients, matters and folders marked “office only”; the Finance report; the conversation's quick judge and the reading of documents entering the archive. If an answer would need any of them, it is written on the computer, and the screen says why.</li>
+      <li><strong>The keys:</strong> the office's API key, and the installation secret for PAULUS (cloud), stay on the computer, encrypted by the Windows account (DPAPI).</li>
+      <li><strong>Log:</strong> each send is recorded on the computer, with the exact text that left, the model, the tokens and the task, in Settings › Models, and in the audit log. The yes and its withdrawal are recorded too, with the date and the version of the terms.</li>
+      <li><strong>The plan and billing (PAULUS (cloud) only):</strong> the plan is monthly, paid through Mercado Pago by card (a subscription), and gives a number of tokens per cycle; when they run out, the office can top up by Pix, and a top-up does not expire at renewal. Without a plan in good standing or without tokens, answers go back to being written on the computer. The payer's email goes to Mercado Pago; the card is typed only on its page.</li>
+      <li><strong>What the website keeps about the cloud account:</strong> the Google account's email and identifier, the office name, the SHA-256 digest of each installation's secret (up to three), the principal's yes (version, name and date), the subscription status and the Mercado Pago numbers for it and for top-ups, and usage numbers: tokens per cycle, used, and per day (the last 62 days). No question, document or answer text. It is kept while the account exists; to delete it, write to contato@paulus.ia.br.</li>
+      <li><strong>To stop:</strong> untick “Turn on the cloud” or withdraw the yes, in Settings › Models. It takes effect immediately. Cancelling the subscription stops the billing; the tokens of the paid cycle remain valid until it ends.</li>
     </ul>
 
     <h2 id="retention">Retention and deletion</h2>
     <ul>
       <li>The Google authorization is kept on the computer <strong>while the account is connected</strong> to PAULUS.</li>
-      <li>The <strong>log of cloud sends</strong> (with the text that left) and the encrypted key stay on the computer, in the PAULUS data folder, until the office deletes them.</li>
+      <li>The <strong>log of cloud sends</strong> (with the text that left), the record of the yes and the encrypted keys stay on the computer, in the PAULUS data folder, until the office deletes them. What the website keeps about the cloud account is described in <a href="#cloud">Cloud</a>.</li>
       <li><strong>To disconnect:</strong> in PAULUS, open the Email module and remove the account. The stored authorization is deleted from the computer. To stop only Calendar, turn off sync in Settings › Connections.</li>
       <li><strong>Drive folder copies</strong> stay in the Archive, on your computer, while you keep following them. In Settings › Connections you can stop following a folder and, if you tick "Also delete the Archive copy", the copy is deleted from the computer.</li>
       <li>Events PAULUS created in your Google Calendar and documents you uploaded to your Drive <strong>remain there</strong> after you disconnect, managed by Google; deleting them is your choice, in Google itself.</li>

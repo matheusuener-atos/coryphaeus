@@ -710,16 +710,24 @@ class Estado:
         return LlamaClient(model=modelo, host=host,
                            opcoes=inferencia.opcoes(self.catalogo, self.prefs.dados, modelo))
 
-    def cliente_para(self, tarefa: str) -> LlamaClient:
+    def cliente_para(self, tarefa: str, *, local: bool = False, servico=None, cadastro=None, caminhos=()) -> LlamaClient:
         """
         O cliente do modelo que faz a tarefa. O padrao e o proprio
         `self.client`; outro modelo ganha um cliente com as opcoes dele - a
         janela e por modelo (src/inferencia.py).
+
+        V6 (docs/PLANO-NUVEM.md): resumos e redacao vao a nuvem quando ela esta
+        ligada para eles (src/nuvem.py, ClienteNuvem). `local` e o que nunca
+        sai (a reescrita de e-mail, o parecer do Financeiro); `servico`,
+        `cadastro` e `caminhos` dizem de onde vem o texto, para o caso so no
+        escritorio, o e-mail e o Drive ficarem aqui.
         """
         nome = self.modelo_para(tarefa)
-        if nome == self.client.model:
-            return self.client
-        return self.novo_cliente(nome)
+        cliente = self.client if nome == self.client.model else self.novo_cliente(nome)
+        if not local and tarefa in ("resumos", "redacao") and nuvem_mod.usa(self, tarefa):
+            return nuvem_mod.ClienteNuvem(self, tarefa, cliente, nuvem_mod.caminhos_de(self, servico=servico, cadastro=cadastro,
+                                                                                        caminhos=caminhos))
+        return cliente
 
     def recarregar(self, *, force: bool = False) -> int:
         with self._trava_indice:
@@ -1350,7 +1358,7 @@ async def contextos_ler_arquivo(arquivo: UploadFile = File(...)) -> dict:
             status_code=422,
             detail="esse arquivo não tem texto para ler — se for um PDF digitalizado, passe o OCR antes")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         # Sem modelo, ainda da para ensinar: o comeco do documento vai para o
         # campo e a pessoa escreve a regra com as palavras dela. Dizer isso e
@@ -8228,7 +8236,7 @@ def email_reescrever(payload: dict) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        texto = correio.reescrever_email(estado.cliente_para("redacao"), pedido,
+        texto = correio.reescrever_email(estado.cliente_para("redacao", local=True), pedido,
                                          str(payload.get("assunto", "")), str(payload.get("corpo", "")))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -8922,7 +8930,7 @@ def documentos_comentar(id_: int, payload: dict) -> dict:
             status_code=400,
             detail="selecione no texto o trecho que você quer que eu comente")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
@@ -8933,7 +8941,7 @@ def documentos_comentar(id_: int, payload: dict) -> dict:
         "No maximo tres frases."
     )
     try:
-        resposta = estado.cliente_para("redacao").ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
+        resposta = estado.cliente_para("redacao", cadastro=item.get("cadastro_id")).ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
                                      sistema=SISTEMA_COMENTARIO)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -9609,7 +9617,7 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     if not pedido:
         raise HTTPException(status_code=400, detail="diga o que você quer que eu escreva")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
@@ -9653,7 +9661,7 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     try:
         # No editor entram so as regras de redacao: como o escritorio escreve
         # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
-        resposta = estado.cliente_para("redacao").ask(instrucao, contexto,
+        resposta = estado.cliente_para("redacao", cadastro=item.get("cadastro_id")).ask(instrucao, contexto,
                                      sistema=SISTEMA_EDITOR,
                                      ensinado=estado.contextos.bloco(["Regras de redação"]),
                                      parar=parar.is_set)
@@ -10283,7 +10291,7 @@ def planilha_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     if not payload.pedido.strip():
         raise HTTPException(status_code=400, detail="diga o que você quer calcular")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
@@ -10302,7 +10310,7 @@ def planilha_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         "Nao explique. Nao invente celula que nao esta na lista."
     )
     try:
-        resposta = estado.cliente_para("redacao").ask(instrucao + f"\n\nPedido: {payload.pedido}",
+        resposta = estado.cliente_para("redacao", cadastro=item.get("cadastro_id")).ask(instrucao + f"\n\nPedido: {payload.pedido}",
                                      "Células com valor:\n" + "\n".join(linhas))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -10661,7 +10669,7 @@ def relatorios_parecer(payload: dict | None = None) -> dict:
         raise HTTPException(status_code=503, detail=motivo)
 
     try:
-        texto = estado.cliente_para("resumos").ask(relatorios.INSTRUCAO_PARECER, numeros)
+        texto = estado.cliente_para("resumos", local=True).ask(relatorios.INSTRUCAO_PARECER, numeros)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -11903,11 +11911,11 @@ def servicos_resumo(id_: int) -> dict:
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("resumos")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        texto = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
+        texto = estado.cliente_para("resumos", servico=id_).ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     estado.servicos.guardar_resumo(id_, _limpar_sugestao(texto))
@@ -11933,7 +11941,7 @@ def servicos_conversar(id_: int, payload: dict, request: Request = None) -> dict
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("resumos")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
@@ -11943,7 +11951,7 @@ def servicos_conversar(id_: int, payload: dict, request: Request = None) -> dict
     try:
         if not estado.fila_modelo.esperar(vez, timeout=600):
             raise HTTPException(status_code=503, detail="o modelo ficou ocupado demais; tente de novo")
-        resposta = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
+        resposta = estado.cliente_para("resumos", servico=id_).ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
                                      estado.servicos.texto_para_conversa(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -12202,12 +12210,12 @@ def gravacoes_resumo(id_: int) -> dict:
         raise HTTPException(status_code=404, detail="gravação não encontrada")
     if not g.get("trechos"):
         raise HTTPException(status_code=400, detail="a gravação ainda não foi transcrita")
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("resumos")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     texto = estado.gravacoes.texto_da_transcricao(id_)
     try:
-        resumo = _resumir_em_blocos(texto)
+        resumo = _resumir_em_blocos(texto, servico=g.get("servico_id"))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     estado.gravacoes.guardar_resumo(id_, resumo)
@@ -12216,9 +12224,16 @@ def gravacoes_resumo(id_: int) -> dict:
     return _com_progresso(estado.gravacoes.obter(id_) or {})
 
 
-def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
+def _modelo_pronto(tarefa: str) -> tuple[bool, str]:
+    """O modelo da tarefa responde? Com a nuvem ligada para ela, sim - o Ollama so e a volta."""
+    if nuvem_mod.usa(estado, tarefa):
+        return True, ""
+    return check_ollama(estado.client.model)
+
+
+def _resumir_em_blocos(texto: str, tamanho: int = 9000, servico=None) -> str:
     if len(texto) <= tamanho:
-        return _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
+        return _limpar_sugestao(estado.cliente_para("resumos", servico=servico).ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
     linhas = texto.split("\n")
     blocos, atual = [], ""
     for linha in linhas:
@@ -12229,10 +12244,10 @@ def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
     if atual:
         blocos.append(atual)
     parciais = [
-        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
+        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.cliente_para("resumos", servico=servico).ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
         for i, bloco in enumerate(blocos)
     ]
-    return _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
+    return _limpar_sugestao(estado.cliente_para("resumos", servico=servico).ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
 
 
 def _mover_audio_da_gravacao(id_: int, servico_id: int | None) -> None:

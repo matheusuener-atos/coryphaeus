@@ -333,7 +333,9 @@ def _revisar(estado, t, passo) -> dict:
     indice = 3
     if t["params"].get("explicar"):
         passo(3, "andando")
-        cliente = estado.cliente_para("redacao")
+        nomes = (t["params"].get("documento"), t["params"].get("padrao"))
+        cliente = estado.cliente_para("redacao", caminhos=[str(getattr(d, "path", "") or "") for d in estado.searcher.documents
+                                                           if d.name in nomes])
         feitas = 0
         for x in comparacoes:
             if x["situacao"] != "alterada" or feitas >= 6:
