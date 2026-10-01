@@ -1,14 +1,14 @@
   /* ------------------------------------------------------- responsivo */
 
-  /* O painel nunca e obrigatorio: em janela menor que 1240 px ele sai da
-     grade e vira uma gaveta aberta pelo botao do cabecalho. */
-  @media (max-width: 1240px) {
-    .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr); }
-    .conversa-corpo.com-lateral .lateral {
-      position: absolute; top: 0; right: 0; bottom: 0; width: 320px; z-index: 3;
-      margin: 14px 14px 14px 0; box-shadow: var(--elev-float);
-    }
-    .conversa-corpo { position: relative; }
+  /* Em janela estreita (abaixo de 1100 px) o contexto nao empurra a
+     conversa: a coluna passa por cima dela, com sombra, e o botao do
+     cabecalho fecha. Formulario, configuracao e documento continuam
+     empurrando - sao a tarefa do momento. */
+  @media (max-width: 1100px) {
+    .conversa-col.com-lado[data-papel="contexto"] > :is(.conversa-topo, .conversa-corpo, .conversa-rodape) { margin-right: 0; }
+    .conversa-col[data-papel="contexto"] .lateral { box-shadow: var(--elev-float); }
+    .conversa-col.em-conversa .fluxo { padding-inline: 28px; }
+    .conversa-col.em-conversa > .conversa-rodape { padding-inline: 28px; }
   }
   @media (max-width: 900px) {
     .conversa-col.vazia .compositor { padding: 16px 20px 24px; }
@@ -22,11 +22,16 @@
      So abaixo de 600 px - a janela do programa nunca chega a isso (o minimo
      dela e 900). */
   @media (max-width: 600px) {
-    /* C3: no celular o painel vem fechado e abre como folha de baixo. */
-    .painel-novo .conversa-corpo.com-lateral .lateral {
-      position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 72vh; margin: 0;
-      border-radius: 16px 16px 0 0; overflow-y: auto; z-index: 40; box-shadow: var(--elev-float);
+    /* C3: no celular a coluna vem fechada e abre como folha de baixo, na
+       largura toda; a conversa nao recua. */
+    .conversa-col.com-lado > :is(.conversa-topo, .conversa-corpo, .conversa-rodape) { margin-right: 0; }
+    .lateral {
+      position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 72vh; margin: 0;
+      border-left: none; border-radius: 16px 16px 0 0; z-index: 40; box-shadow: var(--elev-float);
     }
+    .lado-contexto, .lado-ferramenta { width: 100%; }
+    .conversa-col.em-conversa .fluxo, .conversa-col.em-conversa > .conversa-rodape { padding-inline: 16px; }
+    .conversa-col.em-conversa > .conversa-topo { padding: 16px 16px 0; }
     :root { --margem-lado: 16px; --margem-topo: 16px; }
     .corpo { flex-direction: column; }
     .conversa-col { order: 1; flex: 1; min-height: 0; }
@@ -78,7 +83,7 @@
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
   }
-  html.sem-animacao .indicador i, html.sem-animacao .faixa-janela.girando > .ic {
+  html.sem-animacao .indicador i, html.sem-animacao .faixa-janela.girando > .ic, html.sem-animacao .giro {
     animation-duration: 1.6s !important;
     animation-iteration-count: infinite !important;
   }

@@ -200,8 +200,8 @@
       <div class="conversa-acoes" id="conversa-acoes">
         <div class="acoes-tela" id="acoes-tela"></div>
         <button id="apagar" hidden>Apagar</button>
-        <button class="fantasma" id="exportar-conversa" hidden><span class="ic ic-18">download</span>Exportar</button>
-        <button class="botao-icone" id="alternar-lateral" title="Mostrar ou esconder o painel" aria-label="Mostrar ou esconder o painel" hidden><span class="ic ic-18">view_sidebar</span></button>
+        <button class="fantasma" id="exportar-conversa" hidden><span class="ic ic-16">download</span>Exportar</button>
+        <button class="botao-icone botao-lado" id="alternar-lateral" title="Mostrar ou esconder a coluna" aria-label="Mostrar ou esconder a coluna" hidden><i class="glifo-lado"></i></button>
       </div>
     </header>
 
@@ -213,41 +213,6 @@
 
 
       </div>
-
-      <aside class="lateral" id="lateral" hidden>
-        <section class="lateral-bloco" id="lat-progresso" hidden>
-          <div class="lateral-cabeca"><span><span class="ic ic-16">check_circle</span>Progresso</span><span class="contagem" id="lat-progresso-conta"></span></div>
-          <div class="lat-etapas" id="lat-etapas"></div>
-        </section>
-        <section class="lateral-bloco" id="lat-trechos" hidden>
-          <!-- Arvore: fechada, e so esta linha. Abre em documentos, cada
-               documento em trechos, cada trecho no texto dele. -->
-          <button class="lateral-cabeca arv-raiz" id="lat-trechos-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">expand_more</span><span class="ic ic-16">format_quote</span><span id="lat-trechos-titulo">Trechos citados</span></span><span class="contagem" id="lat-trechos-conta"></span></button>
-          <div class="lat-lista" id="lat-trechos-lista" hidden></div>
-        </section>
-        <!-- C3: o resto de "Sobre esta resposta" (js/54-sobre-a-resposta.js). -->
-        <section class="lateral-bloco" id="lat-lidas" hidden>
-          <button class="lateral-cabeca arv-raiz" id="lat-lidas-cabeca" aria-expanded="false"><span><span class="ic ic-16 arv-seta">expand_more</span><span class="ic ic-16">visibility</span>Também lidas</span><span class="contagem" id="lat-lidas-conta"></span></button>
-          <div class="lat-lista" id="lat-lidas-lista" hidden></div>
-        </section>
-        <section class="lateral-bloco" id="lat-como" hidden>
-          <div class="lateral-cabeca"><span><span class="ic ic-16">info</span>Como respondi</span></div>
-          <div class="propriedades" id="lat-como-lista"></div>
-        </section>
-        <section class="lateral-bloco" id="lat-onde" hidden>
-          <div class="lateral-cabeca"><span><span class="ic ic-16">folder</span>Onde procurei</span></div>
-          <p class="lat-onde-texto" id="lat-onde-texto"></p>
-        </section>
-        <section class="lateral-bloco" id="lat-propriedades">
-          <div class="lateral-cabeca"><span><span class="ic ic-16">tune</span>Propriedades</span></div>
-          <div class="propriedades">
-            <div><span>Modelo</span><span class="etiqueta ok" id="prop-modelo"><i></i><span id="prop-modelo-nome">—</span></span></div>
-            <div><span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span></div>
-            <div><span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span></div>
-            <div><span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span></div>
-          </div>
-        </section>
-      </aside>
     </div>
 
     <!-- O rodape fica fora da grade do corpo: a caixa de pedido nao se mexe
@@ -290,7 +255,7 @@
                 <button class="pilula pilula-inicio" id="buscar" title="Achar a palavra, sem esperar o assistente"><span class="ic ic-18">search</span><span class="rotulo-botao">Buscar</span></button>
                 <button class="pilula pilula-inicio" id="pilula-organizar" title="Varrer uma pasta e organizar o acervo"><span class="ic ic-18">drive_file_move</span><span class="rotulo-botao">Organizar</span></button>
                 <button class="ditar" id="ditar" title="Ditar — o modelo de voz desta máquina escreve no campo" aria-label="Ditar"><span class="ic ic-18">mic</span></button>
-                <button class="enviar" id="enviar" title="Enviar" aria-label="Enviar"><span class="ic ic-18 so-inicio">arrow_upward</span><span class="ic ic-18 so-conversa">arrow_forward</span></button>
+                <button class="enviar" id="enviar" title="Enviar" aria-label="Enviar"><span class="ic ic-18">arrow_upward</span></button>
               </div>
             </div>
 
@@ -322,6 +287,54 @@
         </div>
     </div>
 
+    <!-- A COLUNA DA DIREITA, da barra da janela ao pe, e ela troca de papel
+         (js/02-lado.js): comeca como o contexto da resposta (380 px) e, quando
+         a conversa pede uma ferramenta - formulario, configuracao, documento -,
+         desliza ate a largura dela e mostra a ferramenta. Terminou (salvar,
+         assinar, cancelar, fechar), volta a ser o contexto. -->
+    <aside class="lateral" id="lateral" data-papel="contexto" hidden>
+      <div class="lado-contexto" id="lado-contexto">
+        <!-- O cartao do Foco, quando ha um ciclo andando (Conversa - Foco). -->
+        <div class="lado-topo" id="lado-topo" hidden></div>
+        <section class="lateral-bloco" id="lat-progresso" hidden>
+          <button class="lateral-cabeca" id="lat-progresso-cabeca" aria-expanded="true"><b>Progresso</b><span class="contagem" id="lat-progresso-conta"></span><span class="ic lado-seta">expand_more</span></button>
+          <div class="lat-etapas" id="lat-etapas"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-trechos" hidden>
+          <button class="lateral-cabeca" id="lat-trechos-cabeca" aria-expanded="true"><b id="lat-trechos-titulo">Trechos lidos</b><span class="contagem" id="lat-trechos-conta"></span><span class="ic lado-seta">expand_more</span></button>
+          <div class="lat-lista" id="lat-trechos-lista"></div>
+        </section>
+        <!-- C3: o resto de "Sobre esta resposta" (js/54-sobre-a-resposta.js). -->
+        <section class="lateral-bloco" id="lat-lidas" hidden>
+          <button class="lateral-cabeca" id="lat-lidas-cabeca" aria-expanded="false"><b>Também lidas</b><span class="contagem" id="lat-lidas-conta"></span><span class="ic lado-seta">expand_more</span></button>
+          <div class="lat-lista" id="lat-lidas-lista" hidden></div>
+        </section>
+        <section class="lateral-bloco" id="lat-como" hidden>
+          <button class="lateral-cabeca" id="lat-como-cabeca" aria-expanded="true"><b id="lat-como-titulo">Como respondi</b><span class="ic lado-seta">expand_more</span></button>
+          <div class="propriedades" id="lat-como-lista"></div>
+        </section>
+        <section class="lateral-bloco" id="lat-onde" hidden>
+          <button class="lateral-cabeca" id="lat-onde-cabeca" aria-expanded="true"><b>Onde procurei</b><span class="ic lado-seta">expand_more</span></button>
+          <div class="lat-onde" id="lat-onde-corpo">
+            <div class="lat-onde-linha" id="lat-onde-linha"></div>
+            <p class="lat-onde-texto" id="lat-onde-texto"></p>
+          </div>
+        </section>
+        <section class="lateral-bloco" id="lat-propriedades">
+          <button class="lateral-cabeca" id="lat-propriedades-cabeca" aria-expanded="true"><b>Propriedades</b><span class="ic lado-seta">expand_more</span></button>
+          <div class="propriedades">
+            <div><span>Modelo</span><span class="etiqueta ok" id="prop-modelo"><i></i><span id="prop-modelo-nome">—</span></span></div>
+            <div><span>Motor</span><span class="valor-prop" id="prop-motor">Ollama · 127.0.0.1</span></div>
+            <div><span>Pasta</span><span class="valor-prop" id="prop-pasta">—</span></div>
+            <div><span>Trechos</span><span class="valor-prop" id="prop-trechos">—</span></div>
+          </div>
+        </section>
+      </div>
+      <!-- A ferramenta que a conversa abriu: formulario (420), configuracao
+           (460) ou documento (o resto da janela, com a conversa em 560). -->
+      <div class="lado-ferramenta" id="lado-ferramenta" hidden></div>
+    </aside>
+
   </section>
 
 </div>
@@ -338,6 +351,7 @@
 <script src="/js/00-base.js"></script>
 <script src="/js/01-conversas.js"></script>
 <script src="/js/02-casca.js"></script>
+<script src="/js/02-lado.js"></script>
 <script src="/js/03-assistente.js"></script>
 <script src="/js/04-aprovacoes.js"></script>
 <script src="/js/05-configuracoes.js"></script>

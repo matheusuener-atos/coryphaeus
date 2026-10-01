@@ -103,11 +103,14 @@
   /* Acima do degrade do pe da conversa: quando a caixa desliza do inicio
      para o pe, ela passa por baixo dele e escurecia pela metade. */
   .cartao-campo {
-    position: relative; z-index: 4; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
-    box-shadow: var(--elev-card); padding: 22px;
-    display: grid; gap: 16px; transition: border-color .18s;
+    position: relative; z-index: 4; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf);
+    box-shadow: var(--elev-card); padding: 20px 20px 16px 22px;
+    display: grid; gap: 18px; transition: border-color .18s;
   }
-  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink); }
+  /* Escrevendo, o fio clareia um pouco - nunca a tinta cheia, que fazia da
+     caixa a borda mais forte da tela (pacote de telas: bordas sempre finas,
+     nada se destaca pela borda). */
+  .cartao-campo:hover, .cartao-campo:focus-within { border-color: var(--ink-a25); }
 
   /* No inicio o que se pede e escrito na mesma letra do texto da saudacao,
      logo acima: a caixa e a continuacao daquela conversa, nao um formulario.
@@ -197,7 +200,6 @@
     transition: background .18s ease;
   }
   .enviar:hover:not(:disabled) { background: var(--casca-hover); color: var(--casca-ink); border: none; }
-  .enviar .so-conversa { display: none; }
   /* O microfone do ditado, ao lado do enviar: redondo e sem fundo quando
      parado; ouvindo, na cor de destaque com o pulso. */
   .ditar {
@@ -219,40 +221,31 @@
   /* Esperando: outra conversa esta respondendo - o enviar fica esmaecido. */
   .enviar.esperando:disabled { opacity: .35; cursor: default; }
 
-  /* Postura de conversa: a caixa vira uma linha - anexar, o texto, a pasta
-     em foco e o botao de enviar. Buscar e Organizar ficam para o inicio. */
+  /* Postura de conversa (pacote de telas, `Conversa`): a caixa tem duas
+     linhas, como no inicio. Em cima o texto, em 14,5 px; embaixo o clipe,
+     a pasta ou o documento em foco, o microfone e o enviar (32 px, redondo).
+     Buscar e Organizar ficam para o inicio. */
   .conversa-col:not(.vazia) .cartao-campo {
-    display: flex; align-items: center; gap: 10px; padding: 12px 14px; flex-wrap: wrap; row-gap: 10px;
+    border-color: var(--ink-a15); border-radius: 14px; padding: 14px 14px 12px 18px; gap: 14px;
   }
-  .conversa-col:not(.vazia) .cartao-campo textarea {
-    order: 2; flex: 1; min-width: 0; max-width: 100%;
-    font: 400 13.5px/1.5 var(--sans);
-  }
-  .conversa-col:not(.vazia) .pilulas { display: contents; }
-  .conversa-col:not(.vazia) .pilula { order: 1; }
+  .conversa-col:not(.vazia) .cartao-campo textarea { font: 400 14.5px/1.55 var(--sans); }
+  .conversa-col:not(.vazia) .pilulas { gap: 8px; flex-wrap: nowrap; min-width: 0; }
   .conversa-col:not(.vazia) .pilula-anexar {
-    width: 28px; height: 28px; padding: 0; justify-content: center;
+    width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 7px;
     border: none; background: none; color: var(--ink2);
   }
+  .conversa-col:not(.vazia) .pilula-anexar .ic { font-size: 17px; width: 17px; height: 17px; color: var(--ink2); }
   .conversa-col:not(.vazia) .pilula-anexar:hover:not(:disabled) { background: var(--fill); color: var(--ink); }
   .conversa-col:not(.vazia) .pilula-anexar .rotulo-botao { display: none; }
   .conversa-col:not(.vazia) .pilula-inicio { display: none; }
-  .conversa-col:not(.vazia) .escopo { order: 3; display: flex; align-items: center; gap: 4px; }
-  /* Com anexos, a caixa quebra em duas linhas (o flex-wrap e o row-gap estao
-     na regra da caixa, acima): os anexos em cima, na largura toda, e embaixo
-     a linha de sempre - anexar, o texto, o microfone, enviar. */
-  .conversa-col:not(.vazia) .escopo.com-anexos {
-    order: 0; flex: 1 0 100%; flex-wrap: wrap; gap: 6px;
-    padding-bottom: 10px; border-bottom: 1px solid var(--ink-a1);
-  }
+  .conversa-col:not(.vazia) .escopo { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
+  .conversa-col:not(.vazia) .escopo.com-anexos { flex-wrap: wrap; }
   .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
-  /* Microfone e enviar sao os mesmos redondos de 34 px nas duas posturas:
-     na conversa eles eram quadrados de canto arredondado, e destoavam do
-     inicio. */
-  .conversa-col:not(.vazia) .ditar { order: 4; margin-left: 0; }
-  .conversa-col:not(.vazia) .enviar { order: 5; margin-left: 0; }
-  .conversa-col:not(.vazia) .enviar .so-inicio { display: none; }
-  .conversa-col:not(.vazia) .enviar .so-conversa { display: block; }
+  .conversa-col:not(.vazia) :is(.escopo-acervo, .escopo-pilula) { font-weight: 600; }
+  .conversa-col:not(.vazia) .ditar { width: 30px; height: 30px; margin-left: auto; }
+  .conversa-col:not(.vazia) .ditar .ic { font-size: 17px; width: 17px; height: 17px; }
+  .conversa-col:not(.vazia) .enviar { width: 32px; height: 32px; margin-left: 0; }
+  .conversa-col:not(.vazia) .enviar .ic { font-size: 17px; width: 17px; height: 17px; }
 
   /* --------------------------------------------------------- botoes */
   /* Cinco tipos, um so formato (docs/ui/02-componentes.md): secundario e o

@@ -68,6 +68,31 @@
     background: var(--fill); box-shadow: inset 0 0 0 1px var(--ink); outline: none; text-overflow: clip;
   }
   .conversa-topo .meta { font: 400 11.5px var(--sans); color: var(--ink3); }
+
+  /* A CONVERSA (pacote de telas, `Conversa`). O cabecalho encosta no alto,
+     a 28 px, com a seta de voltar num quadrado de 30 px, o titulo em serifa
+     21 px e a linha de baixo em 11,5. A direita, Exportar e o botao da
+     coluna. O fio da conversa e a caixa de pedido medem ate 1080 px no meio
+     do que sobra da coluna da direita. */
+  .conversa-col.em-conversa > .conversa-topo { align-items: flex-start; gap: 14px; min-height: 0; padding: 28px 28px 0 32px; }
+  .conversa-col.em-conversa .conversa-nome { gap: 3px; line-height: 1.15; }
+  .conversa-col.em-conversa .conversa-topo h2 { font: 400 21px/1.15 var(--serif); }
+  .conversa-col.em-conversa .conversa-topo .meta { font: 500 11.5px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conversa-col.em-conversa #voltar { width: 30px; height: 30px; border-radius: 8px; color: var(--ink2); margin-top: 2px; }
+  .conversa-col.em-conversa #voltar:hover:not(:disabled) { color: var(--ink); }
+  .conversa-col.em-conversa .conversa-acoes { gap: 6px; }
+  .conversa-col.em-conversa #exportar-conversa { height: 30px; padding: 0 12px; gap: 6px; font: 500 12.5px var(--sans); }
+  /* Com documento aberto ao lado, a conversa tem 560 px: o cabecalho fica so
+     com a seta e o titulo, como no desenho. */
+  .conversa-col[data-papel="ferramenta"].com-lado > .conversa-topo { padding: 28px 24px 0 28px; }
+  #exportar-conversa.fora-do-lado { display: none; }
+  /* O botao da coluna: um retangulo com a faixa da direita cheia, desenhado
+     (o glifo da fonte de icones nao tem o desenho do pacote). Aberta a
+     coluna, ele ganha o fundo de botao apertado. */
+  .botao-lado { width: 30px; height: 30px; border-radius: 8px; }
+  .botao-lado.aberto, .botao-lado.aberto:hover:not(:disabled) { background: var(--fill); }
+  .glifo-lado { display: block; width: 15px; height: 12px; border: 1.5px solid var(--ink); border-right-width: 5px; border-radius: 2px; }
+  .botao-lado:not(.aberto) .glifo-lado { border-color: var(--ink2); }
   /* Uma seta so: a tela que poe a sua (voltar as pastas) esconde a de voltar
      ao inicio. Duas setas lado a lado nao diziam para onde cada uma ia. */
   .conversa-topo:has(> .nav-tela > .voltar) > #voltar { display: none; }
@@ -84,7 +109,12 @@
     grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
     transition: grid-template-columns .5s cubic-bezier(.22,.61,.36,1);
   }
-  .conversa-corpo.com-lateral { grid-template-columns: minmax(0, 1fr) 316px; }
+  /* A coluna da conversa abre espaco para a coluna da direita pela margem:
+     cabecalho, corpo e rodape recuam `--lado`, e a coluna da direita mora
+     por cima, presa a borda (.lateral, abaixo). */
+  .conversa-col.com-lado > .conversa-topo,
+  .conversa-col.com-lado > .conversa-corpo,
+  .conversa-col.com-lado > .conversa-rodape { margin-right: var(--lado); }
   /* O rodape NAO acompanha a grade do corpo. Quando acompanhava, abrir o
      painel da direita encolhia a coluna do rodape e a caixa de pedido
      escorregava para a esquerda no meio da conversa. Agora ela fica parada no
@@ -148,29 +178,63 @@
   /* Sem teto: a coluna manda. Quem e prosa carrega a propria medida. */
   .centro { width: 100%; display: flex; flex-direction: column; gap: 16px; }
   .centro.prosa { max-width: var(--fio); margin: 0 auto; }
+  /* Na conversa o recuo e de 48 px dos dois lados da coluna (e nao a margem
+     da pagina editorial): a medida de 1080 cabe no meio do que a coluna da
+     direita deixa. Entre uma fala e outra, 22 px. */
+  .conversa-col.em-conversa > .conversa-corpo { padding-inline: 0; }
+  .conversa-col.em-conversa .fluxo { padding: 28px 48px 24px; gap: 22px; }
+  .conversa-col.em-conversa .conversa-principal:has(> .fluxo > .centro.prosa) > .fluxo { padding-top: 28px; padding-bottom: 24px; }
+  .conversa-col.em-conversa .centro.prosa { gap: 22px; }
+  .conversa-col.em-conversa > .conversa-rodape { padding: 0 48px 28px; }
+  .conversa-col.em-conversa > .conversa-rodape :is(.registro, .ditado-rodape, .compositor) > .centro { max-width: var(--fio); }
+  /* Com documento ao lado, a conversa tem 560 px e o recuo encolhe. */
+  .conversa-col[data-papel="ferramenta"].com-lado .fluxo { padding: 28px 28px 20px; gap: 20px; }
+  .conversa-col[data-papel="ferramenta"].com-lado > .conversa-rodape { padding: 0 24px 24px; }
+  .conversa-col[data-papel="ferramenta"].com-lado .bolha-pessoa { max-width: 400px; }
 
   /* A pergunta e uma bolha; a resposta nao. A assimetria e proposital: o
      assistente escreve no papel, a pessoa fala. */
   .bolha-pessoa {
     align-self: flex-end;
-    max-width: 78%;
+    max-width: min(560px, 78%);
     background: var(--fill); color: var(--ink);
-    border-radius: 12px; padding: 10px 14px;
-    font-size: 13.5px; line-height: 1.5;
+    border-radius: 14px; padding: 11px 16px;
+    font-size: 14px; line-height: 1.55;
     white-space: pre-wrap; word-wrap: break-word;
   }
   /* Quem perguntou, quando mais de uma pessoa perguntou na mesma conversa
      (o PAULUS de equipe: a conversa e do escritorio). */
   .bolha-quem { align-self: flex-end; margin-bottom: -6px; font-size: 11.5px; color: var(--ink3); }
   .resposta {
-    font-size: 14px; line-height: 1.6; word-wrap: break-word;
-    display: grid; gap: 14px;
+    font-size: 15px; line-height: 1.7; word-wrap: break-word;
+    display: grid; gap: 12px;
   }
+  /* O que o programa fez a pedido (mostrei, abri, guardei) nao e resposta: e
+     nota, num tom abaixo, com o fio a esquerda. Notas seguidas fazem um
+     bloco so. */
+  .resposta.nota-feito { gap: 0; padding-left: 14px; border-left: 1px solid var(--ink-a12); font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .resposta.nota-feito + .resposta.nota-feito { margin-top: -14px; }
   .resposta .texto { white-space: pre-wrap; }
   .assinatura {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
-    font: 400 11.5px var(--sans); color: var(--ink3);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    font: 500 12px var(--sans); color: var(--ink3);
   }
+  /* O documento citado: etiqueta de 26 px, com fio, o tipo, o nome e
+     quantos trechos dele. Clicar mostra os trechos na coluna da direita. */
+  .assinatura .ass-doc {
+    gap: 6px; height: 26px; padding: 0 9px; max-width: 320px; border: 1px solid var(--ink-a1); border-radius: 6px;
+    background: var(--surf); font: 500 12px var(--sans); color: var(--ink2);
+  }
+  .assinatura .ass-doc:hover:not(:disabled) { border: 1px solid var(--ink-a25); background: var(--surf); color: var(--ink); }
+  .ass-doc .glifo { width: 15px; height: 15px; font-size: 9px; }
+  .ass-doc small { font: 400 10.5px var(--mono); color: var(--ink3); }
+  .ass-meta { padding: 0 4px; white-space: nowrap; }
+  .assinatura :is(.ass-acao, .apr-nota) {
+    width: 28px; height: 28px; justify-content: center; border-radius: 6px; color: var(--ink3);
+  }
+  .assinatura :is(.ass-acao, .apr-nota):hover:not(:disabled) { background: var(--fill); color: var(--ink); }
+  .assinatura .apr-nota.on { color: var(--acc); background: var(--accbg); }
+  .ass-acao .ic { font-size: 16px; width: 16px; height: 16px; }
 
   /* o plano de execucao */
   .cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); overflow: hidden; }
@@ -200,27 +264,95 @@
   .progresso { height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
   .progresso i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
 
-  /* O painel da direita e um CARTAO, nao uma coluna colada na borda: ele tem
-     margem, raio e a mesma sombra de todo cartao do desenho. A diferenca
-     entre as duas coisas e a mesma entre um painel de ferramenta e uma ficha
-     ao lado do texto - e aqui e uma ficha. */
+  /* A COLUNA DA DIREITA (pacote de telas de 01/10/2026). Nao e mais um
+     cartao ao lado do texto: e uma coluna da altura da tela, da barra da
+     janela ao pe, num tom um pouco abaixo da superficie, com o fio fino a
+     esquerda. Ela troca de papel conforme a tarefa (js/02-lado.js) e a
+     largura vem do papel:
+       contexto      380 - progresso, trechos lidos, como respondi, onde procurei
+       formulario    420 - agenda, cadastros, lancamentos, gravacao, financeiro
+       configuracao  460 - as secoes de Configuracoes abertas pelo chat
+       ferramenta    o resto da janela - documento, planilha, PDF, assinatura;
+                     a conversa fica com 560 px a esquerda.
+     `--lado` e registrada (@property, abaixo) e anima: a coluna desliza ou
+     se alarga, e a conversa encolhe junto, no mesmo passo, sem pular. */
   .lateral {
-    min-width: 0; min-height: 0; overflow: auto; position: relative; z-index: 1;
-    margin: 14px 0 16px 20px; padding: 0;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px;
-    box-shadow: var(--elev-card);
-    display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; grid-auto-rows: min-content;
-    animation: pv-troca .46s cubic-bezier(.16,1,.3,1) both;
+    position: absolute; top: 32px; right: 0; bottom: 0; z-index: 6;
+    width: var(--lado); min-width: 0; overflow: hidden;
+    background: var(--lado-fundo); border-left: 1px solid var(--ink-a08);
   }
-  /* O bloco do painel (.lateral-bloco) e o .painel-bloco de 04-acervo.css, que
-     o lista: recuo 12px 18px, fio --ink-a1 em cima, gap 10; a cabeca
-     (.lateral-cabeca) tambem mora la, com a .painel-bloco-cabeca. Aqui so o primeiro
-     bloco VISIVEL, que nao tem fio e respira 16 px em cima como a cabeca dos
-     outros paineis. Nao e :first-child: Progresso e Trechos quase sempre estao
-     [hidden], e o primeiro que aparece costuma ser Propriedades. */
-  .lateral > .lateral-bloco:not(.lateral-bloco:not([hidden]) ~ .lateral-bloco) { border-top: none; padding-top: 16px; }
-  .lateral-cabeca > span:first-child { display: flex; align-items: center; gap: 8px; }
-  .lateral-cabeca .ic { color: var(--ink3); }
+  /* O que esta dentro tem a largura de CHEGADA (--lado-alvo, que nao anima)
+     e fica preso a borda direita: enquanto a coluna cresce, ela vai
+     mostrando o conteudo da direita para a esquerda, como gaveta. */
+  .lado-contexto, .lado-ferramenta {
+    position: absolute; top: 0; right: 0; bottom: 0; width: var(--lado-alvo);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .lado-contexto { overflow-y: auto; }
+  .lado-ferramenta { overflow: hidden; }
+  .lado-topo { flex: none; padding: 16px 16px 0; }
+  .lateral-bloco { flex: none; padding: 20px 22px; border-bottom: 1px solid var(--ink-a08); display: grid; gap: 12px; }
+  .lateral-bloco:last-child { border-bottom: none; }
+  /* A cabeca de cada parte: titulo, contagem em monoespaco e a seta que
+     recolhe. Recolhida, so a linha da cabeca fica. */
+  .lateral-cabeca {
+    width: 100%; display: flex; align-items: center; gap: 8px; padding: 0; margin: 0;
+    border: none; border-radius: 0; background: none; color: var(--ink); text-align: left; cursor: pointer;
+  }
+  .lateral-cabeca:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+  .lateral-cabeca > b { flex: 1; min-width: 0; font: 600 13.5px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lateral-cabeca .contagem { font: 400 11px var(--mono); color: var(--ink3); }
+  .lado-seta { font-size: 17px; width: 17px; height: 17px; color: var(--ink3); transition: transform .2s ease; }
+  .lateral-cabeca[aria-expanded="false"] .lado-seta { transform: rotate(-90deg); }
+  .lateral-cabeca:hover .lado-seta { color: var(--ink2); }
+  .lateral-bloco:has(> .lateral-cabeca[aria-expanded="false"]) { gap: 0; }
+  /* Progresso: o circulo verde do que ficou pronto, o anel do que anda e o
+     circulo vazio do que espera; o nome em 13 px e o detalhe embaixo. */
+  .lateral .lat-etapa { align-items: flex-start; gap: 10px; }
+  .lateral .lat-etapa > .ic { font-size: 16px; width: 16px; height: 16px; margin-top: 1px; }
+  .lat-etapa-nome { display: grid; gap: 1px; min-width: 0; }
+  .lat-etapa-nome b { font: 500 13px var(--sans); color: var(--ink2); }
+  .lat-etapa-nome small { font: 500 12px var(--sans); color: var(--ink3); }
+  .lat-etapa.andando .lat-etapa-nome b { color: var(--ink); }
+  .lat-etapa.fila .lat-etapa-nome b { color: var(--ink3); }
+  /* O anel que gira (a etapa andando) e o circulo vazio (a que espera), em
+     12 px dentro do mesmo quadrado de 16 do check. */
+  .marca-etapa { flex: none; width: 16px; height: 16px; margin-top: 1px; display: inline-flex; align-items: center; justify-content: center; }
+  .giro { display: block; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink-a15); border-top-color: var(--ink); animation: pv-spin .9s linear infinite; }
+  .circulo-vazio { display: block; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink-a2); }
+  /* Trechos lidos: um cartao por trecho - o documento, a pagina e tres
+     linhas do texto. Clicar abre o documento na pagina do trecho. */
+  .lateral .lat-lista { gap: 8px; }
+  .lat-trecho {
+    display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px;
+    background: var(--surf); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .16s ease;
+  }
+  .lat-trecho:hover:not(:disabled) { border-color: var(--ink-a25); background: var(--surf); color: var(--ink); }
+  .lat-trecho-cabeca { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .lat-trecho-cabeca .glifo { width: 16px; height: 16px; font-size: 9px; }
+  .lat-trecho-cabeca b { flex: 1; min-width: 0; font: 600 12.5px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lat-trecho-cabeca small { flex: none; font: 400 10.5px var(--mono); color: var(--ink3); }
+  .lat-trecho p {
+    margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink3);
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  }
+  .lat-mais { justify-self: start; height: 26px; padding: 0 8px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .lat-mais:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  /* Como respondi: a ficha curta, chave em 88 px e valor ao lado; tempo em
+     monoespaco e o modelo numa etiqueta. */
+  .lateral .propriedades { gap: 10px; }
+  .lateral .propriedades > div { grid-template-columns: 88px minmax(0, 1fr); align-items: baseline; padding: 0; border: none; }
+  .lateral .propriedades > div > span:first-child { font: 400 13px var(--sans); color: var(--ink3); }
+  .lateral .valor-prop { font: 400 13px/1.5 var(--sans); }
+  .valor-prop.mono { font: 400 12px var(--mono); }
+  .valor-prop.chip { justify-self: start; padding: 2px 8px; border-radius: 5px; background: var(--fill); font: 400 12px var(--mono); }
+  /* Onde procurei: a pasta numa etiqueta, a conta ao lado e a frase. */
+  .lat-onde { display: grid; gap: 12px; }
+  .lat-onde-linha { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .lat-onde-linha:empty { display: none; }
+  .lat-onde-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 6px; background: var(--fill); font: 600 12px var(--sans); color: var(--ink); max-width: 100%; }
+  .lat-onde-chip .ic { font-size: 14px; width: 14px; height: 14px; color: var(--ink2); }
+  .lat-onde-linha small { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
   .contagem { font: 500 12.5px var(--sans); color: var(--ink3); }
   /* O progresso do painel e o checklist da tela de boas-vindas: o que ficou
      pronto ganha o circulo verde e CONTINUA legivel. Riscado e apagado, ele
@@ -510,17 +642,27 @@
   .bastidor-barra > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
 
   /* O que entendi do pedido, antes de gravar: uma proposta esperando o sim. */
-  .proposta { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 14px 16px; }
+  /* O cartao da conversa (pacote de telas): superficie, fio de 12%, raio 12
+     e 16 x 18 de recuo. Os botoes medem 30 px; o cheio e o da casca. */
+  .proposta { border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); padding: 16px 18px; }
   .proposta-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
   .proposta-topo b { font: 600 14px var(--sans); }
-  .proposta .linha-form { margin-top: 10px; }
+  .proposta .linha-form { margin-top: 10px; margin-bottom: 0; gap: 8px; }
+  .proposta .linha-form button { height: 30px; padding: 0 12px; border-radius: 7px; font: 600 12.5px var(--sans); }
+  .proposta .linha-form button.primario { background: var(--casca); border-color: transparent; color: var(--casca-ink); }
+  .proposta .linha-form button.primario:hover:not(:disabled) { background: var(--casca-hover); border-color: transparent; color: var(--casca-ink); }
+  .proposta .linha-form button.fantasma { padding: 0 10px; font-weight: 500; color: var(--ink3); }
+  .proposta .explica { font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
   .proposta label.explica { align-self: center; white-space: nowrap; }
+  .proposta.oferta { display: grid; gap: 12px; }
+  .proposta.oferta > .linha-form, .proposta.oferta > .explica { margin: 0; }
 
   /* Quer ver o documento? A oferta embaixo da resposta, e o visor só leitura. */
   .assinatura ~ .proposta-caixa { margin-top: 14px; }
   /* Na coluna estreita (editor aberto ao lado) os botoes descem para a linha
      de baixo, em vez de passar da borda do cartao. */
-  .oferta-doc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; min-width: 0; color: var(--ink2); }
+  .oferta-doc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-width: 0; color: var(--ink2); }
+  .oferta-doc > .ic { color: var(--ink2); }
   .oferta-nome { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--ink); }
   .leitor-topo { align-items: center; flex-wrap: nowrap; margin-bottom: 10px; }
   .leitor-conta { white-space: nowrap; }
@@ -595,14 +737,20 @@
   /* ------------------------------------------- sobre esta resposta (C3) */
   /* A resposta que o painel descreve: um fio discreto a esquerda, sem cor
      de aviso - e so "esta e a do painel". */
-  .painel-novo .resposta.selecionada { box-shadow: -2px 0 0 0 var(--ink-a1); }
+  /* No pacote de telas a resposta descrita na coluna nao ganha marca: a
+     coluna diz de qual se trata. A classe fica (o JS a procura). */
+  .painel-novo .resposta.selecionada { box-shadow: none; }
   .lat-lida { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12.5px; color: var(--ink2); }
   .lat-lida .cit { flex: 0 0 auto; }
-  .lat-onde-texto { margin: 0; padding: 4px 14px 12px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .lat-onde-texto { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   /* A barra acima do campo: onde a proxima pergunta procura; com uma
      resposta andando, o que ela faz, com o Parar. */
-  .registro.barra-escopo .registro-cabeca { cursor: default; }
-  .registro.barra-escopo .registro-agora { color: var(--ink2); }
+  /* Uma linha solta, sem caixa: o ponto verde e a frase em 12,5 px, logo
+     acima da caixa de pedido (pacote de telas, `Conversa`). */
+  .registro.barra-escopo { padding-bottom: 8px; }
+  .registro.barra-escopo .registro-cabeca { cursor: default; gap: 8px; padding: 0 4px; border: none; border-radius: 0; background: none; font: 500 12.5px var(--sans); }
+  .registro.barra-escopo .registro-cabeca:hover:not(:disabled) { background: none; border: none; }
+  .registro.barra-escopo .registro-agora { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .registro.barra-escopo.andando .registro-agora { color: var(--ink); }
   .barra-parar { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 8px; border: 1px solid var(--ink-a1);
                  border-radius: 999px; background: var(--surf); font: 500 12px var(--sans); color: var(--ink2); cursor: pointer; }

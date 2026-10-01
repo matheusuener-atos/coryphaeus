@@ -489,8 +489,18 @@ function cartaoGuardado(m, ultima) {
     cartaoProposta(p) + "</div>";
 }
 
+/* O que o programa fez num clique (mostrei, abri no Windows, abri para
+   editar) vem logo depois de outra fala dele, e nao de uma pergunta: e nota,
+   e nao resposta (pacote de telas, `Conversa`). */
+function ehNotaDeFeito(m, indice) {
+  const msgs = (estado.trabalho && estado.trabalho.mensagens) || [];
+  const antes = indice ? msgs[indice - 1] : null;
+  return Boolean(m.feito && m.feito.tipo && !(m.fontes || []).length && !(m.proposta || {}).tipo && antes && antes.autor === "paulus");
+}
+
 function blocoResposta(m, pergunta, ultima, indice) {
-  let html = '<div class="resposta"' + (indice !== undefined ? ' data-msg="' + indice + '"' : "") + ">";
+  const classe = "resposta" + (indice !== undefined && ehNotaDeFeito(m, indice) ? " nota-feito" : "");
+  let html = '<div class="' + classe + '"' + (indice !== undefined ? ' data-msg="' + indice + '"' : "") + ">";
   if (m.cobertura && ((m.cobertura.ignorados && m.cobertura.ignorados.length) || m.cobertura.ignorados_n)) {
     html += avisoCobertura(m.cobertura);
   }
@@ -506,7 +516,7 @@ function blocoResposta(m, pergunta, ultima, indice) {
   if (p.tipo === "programa") html += linhaAssinatura(0, 0, pergunta || "", p.por_modelo ? "" : "sem modelo");
   else if (p.tipo === "consulta_cadastro") html += linhaAssinatura(0, 0, pergunta || "", "sem modelo");
   else if (m.segundos || (m.cobertura && m.cobertura.como)) {
-    html += linhaAssinatura(m.segundos || 0, citados, pergunta || "", "", (m.cobertura || {}).como);
+    html += linhaAssinatura(m.segundos || 0, citados, pergunta || "", "", (m.cobertura || {}).como, m.fontes);
   }
   html += cartaoGuardado(m, ultima);
   if (m.cobertura && m.cobertura.detalhes) html += detalhesGuardados(m.cobertura.detalhes);
@@ -656,22 +666,13 @@ function detalhesGuardados(linhas) {
       String(l.s).replace(".", ",") + " s</span><span>" + esc(l.texto) + "</span></div>").join("") + "</div></details>";
 }
 
-/* No desenho os trechos moram no painel da direita. Na resposta fica so a
-   conta, que abre o painel, e a caixa onde o visor do PDF se desenha. */
-function blocoFontes(fontes, cobertura) {
-  const quantos = cobertura && cobertura.consultados ? cobertura.consultados.length : 1;
-  // C3: a conta de trechos fica na assinatura; aqui, so o botao.
-  if (painelNovo()) {
-    return '<div class="fontes"><button data-ver-trechos="1">' + ic("format_quote", 16) + "ver fontes</button></div>" +
-      '<div class="visor-caixa"></div>';
-  }
-  return '<div class="fontes"><button data-ver-trechos="1">' + ic("format_quote", 16) +
-    plural(fontes.length, "trecho") + " de " + plural(quantos, "documento") + " — ver no painel</button></div>" +
-    '<div class="visor-caixa"></div>';
+/* No desenho os trechos moram na coluna da direita. Os documentos citados
+   viram etiquetas na linha de baixo da resposta (linhaAssinatura); aqui fica
+   so a caixa onde o visor se desenha. */
+function blocoFontes() {
+  return '<div class="visor-caixa"></div>';
 }
 
-/* A linha que fecha a resposta, como no desenho: modelo, tempo, quantos
-   arquivos foram citados, e Copiar / Refazer. */
 /* `quem` troca o nome do modelo quando a resposta não passou por ele: a
    camada do programa responde do banco e do mapa das telas, e assinar
    "llama3.2:3b" embaixo seria dizer que o modelo escreveu. */
@@ -689,31 +690,35 @@ function fraseDoComo(c, segundos) {
   return "";
 }
 
-function linhaAssinatura(segundos, citados, pergunta, quem, como) {
-  let frase = fraseDoComo(como, segundos);
-  // D4: onde a resposta foi escrita - no painel por inteiro; aqui, sem o
-  // painel, a frase toda, e com ele só a marca do aparelho.
-  const escrita = como && como.escrita && typeof fraseDaEscrita === "function" ? fraseDaEscrita(como.escrita) : "";
-  if (escrita && como.escrita.onde === "aparelho" && como.escrita.modelo) quem = como.escrita.modelo;
-  if (frase && escrita && (!painelNovo() || como.escrita.onde === "aparelho")) {
-    frase += " · " + (painelNovo() ? (acessoDeFora.local ? "no aparelho de quem perguntou" : "neste aparelho") : escrita);
-  }
+/* A LINHA DE BAIXO DA RESPOSTA (pacote de telas, `Conversa`): uma etiqueta
+   por documento citado (o tipo, o nome e quantos trechos dele), o tempo e o
+   modelo em letra miuda e, a direita, os quatro icones - gostei, nao
+   gostei, copiar e refazer. O caminho por inteiro ("li o documento
+   inteiro") mora em "Como respondi", na coluna da direita. */
+function etiquetasDosCitados(fontes) {
+  const conta = new Map();
+  (fontes || []).forEach((f) => { if (f && f.documento && !f.material) conta.set(f.documento, (conta.get(f.documento) || 0) + 1); });
+  return [...conta].map(([nome, n]) => '<button class="ass-doc" data-ver-trechos="1" data-doc="' + esc(nome) + '" title="' + esc(nome) + '">' +
+    glifo(nome) + '<span class="corta">' + esc(nome) + "</span><small>" + n + "</small></button>").join("");
+}
+
+function linhaAssinatura(segundos, citados, pergunta, quem, como, fontes) {
+  // D4: escrita no aparelho de quem perguntou assina com o modelo de la.
+  if (como && como.escrita && como.escrita.onde === "aparelho" && como.escrita.modelo) quem = como.escrita.modelo;
   // N15: a resposta escrita pela nuvem assina com o modelo dela.
-  if (como && como.nuvem && como.nuvem.onde === "nuvem") {
-    quem = como.nuvem.modelo + " (" + como.nuvem.provedor + ", nuvem)";
-  } else if (como && como.nuvem && frase) {
-    frase += " · neste computador";
-  }
-  // A2: o agente que respondeu, e a versao dele, na assinatura.
+  if (como && como.nuvem && como.nuvem.onde === "nuvem") quem = como.nuvem.modelo + " (" + como.nuvem.provedor + ", nuvem)";
+  // A2: o agente que respondeu, e a versao dele.
   if (como && como.agente) quem = (quem || estado.modelo || "assistente local") + " · " + como.agente + (como.agente_versao ? " v" + como.agente_versao : "");
-  return '<div class="assinatura"><span>' + (frase
-    ? esc(frase) + (como && !(como.caminho === "nivel0" && como.molde) ? " · " + esc(quem || estado.modelo || "assistente local") : "")
-    : esc(quem || estado.modelo || "assistente local") + " · " + esc(String(segundos)) + " s" +
-      (citados ? " · " + plural(citados, "arquivo citado", "arquivos citados") : "")) + "</span>" +
-    // L1: 👍/👎 (js/63-aprendizado.js), só nas respostas de uma pergunta.
+  // Pelos fatos ja conferidos, sem o modelo: a linha nao diz que ele escreveu.
+  if (como && como.caminho === "nivel0" && como.molde) quem = "sem modelo";
+  const meta = [segundos ? segundosBR(segundos) : "", quem || estado.modelo || "assistente local"].filter(Boolean).join(" · ");
+  return '<div class="assinatura">' + etiquetasDosCitados(fontes) +
+    '<span class="ass-meta">' + esc(meta) + "</span>" +
+    '<span class="vazio-flex"></span>' +
+    // L1: gostei / nao gostei (js/63-aprendizado.js), so nas respostas de uma pergunta.
     (pergunta && typeof botoesDeAvaliacao === "function" ? botoesDeAvaliacao() : "") +
-    '<button data-copiar="1">' + ic("content_copy", 16) + "<span>Copiar</span></button>" +
-    (pergunta ? '<button data-refazer="' + esc(pergunta) + '">' + ic("refresh", 16) + "<span>Refazer</span></button>" : "") +
+    '<button class="ass-acao" data-copiar="1" title="Copiar" aria-label="Copiar">' + ic("content_copy", 16) + "</button>" +
+    (pergunta ? '<button class="ass-acao" data-refazer="' + esc(pergunta) + '" title="Refazer" aria-label="Refazer">' + ic("refresh", 16) + "</button>" : "") +
     "</div>";
 }
 
@@ -723,8 +728,10 @@ function ligarResposta(caixa) {
       const texto = b.closest(".resposta").querySelector(".texto");
       if (!texto || !navigator.clipboard) return;
       navigator.clipboard.writeText(texto.textContent).then(() => {
-        b.lastElementChild.textContent = "Copiado";
-        setTimeout(() => { b.lastElementChild.textContent = "Copiar"; }, 1800);
+        const icone = b.querySelector(".ic");
+        if (icone) icone.textContent = "check";
+        b.title = "Copiado";
+        setTimeout(() => { if (icone) icone.textContent = "content_copy"; b.title = "Copiar"; }, 1800);
       });
     };
   });
@@ -756,44 +763,54 @@ function desenharTrechos(fontes, pergunta, ondeVisor, numeros) {
 
   bloco.hidden = false;
   $("lat-trechos-conta").textContent = fontes.length;
-  /* Um por vez aberto: o painel tem 316 px e seis trechos abertos ao mesmo
-     tempo empurrariam Propriedades para fora da tela. O primeiro ja vem
-     aberto porque e o mais citado. */
-  /* Arvore: documento > trecho > texto, na ordem em que foram citados. Uma
-     leitura nova chega sempre compacta. A numeracao continua a da citacao,
-     que e a que a resposta usa. */
-  const porDocumento = new Map();
-  fontes.forEach((f, i) => {
-    if (!porDocumento.has(f.documento)) porDocumento.set(f.documento, []);
-    porDocumento.get(f.documento).push(i);
-  });
-  const seta = '<span class="ic ic-16 arv-seta">expand_more</span>';
-  lista.innerHTML = [...porDocumento].map(([documento, indices]) =>
-    '<div class="arv-ramo">' +
-    '<button class="arv-no arv-doc" aria-expanded="false">' + seta + "<b>" + prefixoDaFonte(fontes[indices[0]]) + esc(documento) + "</b>" +
-    "<small>" + plural(indices.length, "trecho") + "</small></button>" +
-    '<div class="arv-filhos" hidden>' + indices.map((i) => {
-      const f = fontes[i];
-      return '<div class="arv-ramo">' +
-        '<button class="arv-no arv-trecho" aria-expanded="false">' + seta + '<span class="cit">' + numero(i) + "</span>" +
-        '<span class="onde">' + esc(f.onde || ("trecho " + f.trecho)) + "</span></button>" +
-        '<div class="arv-filhos arv-folha" hidden><div class="trecho-texto">' + esc(f.texto) + "</div>" +
-        /* Material de consulta nao esta no Acervo: o visor nao o abre. */
-        (f.material ? "" : '<button class="trecho-ver" data-ver-cit="' + i + '">ver no documento</button>') + "</div></div>";
-    }).join("") + "</div></div>").join("");
-  lista.hidden = true;
-  $("lat-trechos-cabeca").setAttribute("aria-expanded", "false");
-  lista.querySelectorAll(".arv-no").forEach((no) => { no.onclick = () => alternarRamo(no); });
+  /* Um cartao por trecho (pacote de telas, `Conversa`): o documento, a
+     pagina e tres linhas do texto. Uma leitura de 80 trechos nao empurra o
+     resto da coluna para fora: os cinco primeiros a vista, o resto num
+     clique. A numeracao continua a da citacao, que e a que a resposta usa. */
+  const VISIVEIS = 5;
+  const cartao = (f, i) => {
+    // O indice guarda o trecho com a pagina na frente ("[pagina 2] ..."): a
+    // pagina vai para o canto do cartao, e o texto fica limpo.
+    const bruto = String(f.texto || "").replace(/\s+/g, " ").trim();
+    const marcaPagina = bruto.match(/^\[p[aá]gina (\d+)\]\s*/i);
+    const pagina = f.pagina || (marcaPagina ? marcaPagina[1] : "");
+    const onde = pagina ? "p. " + pagina : (f.onde || "trecho " + (f.trecho || numero(i)));
+    // Material de consulta nao esta no Acervo: o cartao so mostra o texto.
+    return '<button class="lat-trecho" data-ver-cit="' + i + '"' + (f.material ? " disabled" : "") +
+      ' title="' + esc((f.material ? "" : "Abrir o documento neste trecho · ") + "[T" + numero(i) + "]") + '">' +
+      '<span class="lat-trecho-cabeca">' + glifo(f.documento) + "<b>" + esc(prefixoDaFonte(f) + f.documento) + "</b>" +
+      "<small>" + esc(onde) + "</small></span>" +
+      "<p>" + esc(marcaPagina ? bruto.slice(marcaPagina[0].length) : bruto) + "</p></button>";
+  };
+  lista.innerHTML = fontes.slice(0, VISIVEIS).map(cartao).join("") +
+    (fontes.length > VISIVEIS ? '<button class="lat-mais" data-lat-mais="1">mais ' + plural(fontes.length - VISIVEIS, "trecho") + "</button>" : "");
+  lista.hidden = false;
+  $("lat-trechos-cabeca").setAttribute("aria-expanded", "true");
   const caixa = ondeVisor || Array.from($("centro").querySelectorAll(".visor-caixa")).pop();
-  lista.querySelectorAll("[data-ver-cit]").forEach((b) => {
+  const ligar = () => lista.querySelectorAll("[data-ver-cit]").forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();
       const f = fontes[Number(b.dataset.verCit)];
-      if (!f || !caixa) return;
-      abrirCitacao(f.documento, f.texto, pergunta, caixa);
-      caixa.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (!f || f.material) return;
+      verTrechoNoDocumento(f, pergunta, caixa);
     };
   });
+  ligar();
+  const mais = lista.querySelector("[data-lat-mais]");
+  if (mais) mais.onclick = (e) => {
+    e.stopPropagation();
+    mais.remove();
+    lista.insertAdjacentHTML("beforeend", fontes.slice(VISIVEIS).map((f, k) => cartao(f, k + VISIVEIS)).join(""));
+    ligar();
+  };
+}
+
+/* O trecho no documento: o visor abre na pagina dele. (Na T3 o documento
+   abre na coluna da direita, como ferramenta; ate la, no visor da resposta.) */
+function verTrechoNoDocumento(f, pergunta, caixa) {
+  if (!caixa) return;
+  abrirCitacao(f.documento, f.texto, pergunta, caixa);
+  caixa.scrollIntoView({ behavior: animacoesLigadas() ? "smooth" : "auto", block: "nearest" });
 }
 
 /* Abre ou fecha um ramo da arvore (o botao e o que vem logo depois dele).
@@ -832,23 +849,31 @@ function abrirComoGaveta(el, abrir) {
   }
 }
 
-$("lat-trechos-cabeca").onclick = () => alternarRamo($("lat-trechos-cabeca"));
 
 /* O progresso do plano, no painel: a lista de etapas do sistema (.lat-etapa). */
+/* No pacote de telas o Progresso volta para a coluna da direita, no alto:
+   cada etapa com o nome e, embaixo, o que ela achou ou fez ("2 documentos,
+   1 trecho"); a que anda gira, a que espera diz "aguardando". */
 function desenharProgresso(etapas) {
   const bloco = $("lat-progresso");
-  // C3: o progresso mora na linha de estado, e nao no painel.
-  if (painelNovo() || !etapas || !etapas.length) { bloco.hidden = true; return; }
+  if (!etapas || !etapas.length) { bloco.hidden = true; return; }
   bloco.hidden = false;
   const feitas = etapas.filter((e) => e.estado === "concluido").length;
-  // C2: o painel conta como o cartao ("etapa k de n"), com a conta do servidor.
-  $("lat-progresso-conta").textContent = (pensando() ? etapaAtual(etapas) : feitas) + " de " + etapas.length;
-  const icone = { concluido: "check_circle", executando: "radio_button_partial", na_fila: "radio_button_unchecked", falhou: "error", pausado: "pause" };
+  $("lat-progresso-conta").textContent = feitas + " de " + plural(etapas.length, "etapa");
   const classe = { concluido: "feita", executando: "andando", na_fila: "fila", falhou: "falhou", pausado: "fila" };
-  $("lat-etapas").innerHTML = etapas.map((e) =>
-    '<div class="lat-etapa ' + (classe[e.estado] || "fila") + '">' +
-    ic(icone[e.estado] || "radio_button_unchecked", 18) +
-    "<span>" + esc(e.titulo) + (e.total ? " · " + e.feitos + " / " + e.total : "") + "</span></div>").join("");
+  $("lat-etapas").innerHTML = etapas.map((e) => {
+    const detalhe = e.estado === "na_fila" ? "aguardando"
+      : e.estado === "pausado" ? "parada"
+        : (e.detalhe || "") + (e.total ? (e.detalhe ? " · " : "") + e.feitos + " de " + e.total : "");
+    // O anel que gira e o circulo vazio sao desenhados (o pacote de telas):
+    // os glifos da fonte de icones pesavam mais que o check ao lado.
+    const marca = e.estado === "concluido" ? ic("check_circle", 16)
+      : e.estado === "falhou" ? ic("error", 16)
+        : e.estado === "executando" ? '<span class="marca-etapa"><i class="giro"></i></span>'
+          : '<span class="marca-etapa"><i class="circulo-vazio"></i></span>';
+    return '<div class="lat-etapa ' + (classe[e.estado] || "fila") + '">' + marca +
+      '<span class="lat-etapa-nome"><b>' + esc(e.titulo) + "</b>" + (detalhe ? "<small>" + esc(detalhe) + "</small>" : "") + "</span></div>";
+  }).join("");
 }
 
 /* A pergunta que da para retomar: a ultima da conversa, quando ela ficou sem
@@ -1788,7 +1813,7 @@ async function lerResposta(r, v) {
         plano.remove();
         if (!texto.textContent.trim()) texto.textContent = "Parei antes de escrever a resposta.";
         resposta.insertAdjacentHTML("afterbegin", etiquetaDeParada());
-        resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido));
+        resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido, "", null, fontesAtuais));
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
       } else if (mt[1] === "fim") {
@@ -1800,7 +1825,7 @@ async function lerResposta(r, v) {
           texto.innerHTML = comAvisoDeArea(esc(texto.textContent));
         }
         resposta.insertAdjacentHTML("beforeend", linhaAssinatura(dados.segundos, citados, pedido,
-          assinaSemModelo ? "sem modelo" : "", dados.como));
+          assinaSemModelo ? "sem modelo" : "", dados.como, fontesAtuais));
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
         if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirTelaDaConversa(id), 700); }

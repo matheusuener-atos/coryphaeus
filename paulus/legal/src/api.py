@@ -3466,6 +3466,10 @@ def acontecendo_agora() -> dict:
                 "feitos": atual.feitos if atual else 0,
                 "total": atual.total if atual else 0,
                 "progresso": trabalho.progresso or 0,
+                # O cartao do pacote de telas (Assistente - Acontecendo agora)
+                # desenha uma faixa por etapa, com o que cada uma achou.
+                "etapas": [{"titulo": e.titulo, "estado": e.estado, "detalhe": e.detalhe,
+                            "feitos": e.feitos, "total": e.total} for e in trabalho.etapas],
             }
             # A resposta andando diz em que fase esta e ha quanto tempo - e a
             # barra so existe onde ha medida: leitura com previsao desta

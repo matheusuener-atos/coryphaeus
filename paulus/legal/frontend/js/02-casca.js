@@ -481,59 +481,38 @@ function lateralPreferida() {
   try { return localStorage.getItem("paulus.lateral") !== "0"; } catch (err) { return true; }
 }
 
+/* Mostra ou esconde a coluna da direita na hora, sem deslizar (troca de
+   tela, conversa reaberta). Esconder larga a ferramenta que estivesse nela:
+   a coluna volta a ser a do contexto (js/02-lado.js). */
 function mostrarLateral(aberta) {
-  $("lateral").hidden = !aberta;
-  /* So o corpo ganha a coluna do painel: a caixa de pedido, no rodape, nao
-     se mexe quando ele abre (ver 02-conversa.css). */
-  $("conversa-corpo").classList.toggle("com-lateral", aberta);
-  $("alternar-lateral").hidden = !$("centro").classList.contains("prosa") || editorNaConversaAberto();
+  semTransicaoDoLado(() => {
+    if (!aberta) largarFerramentaDoLado();
+    $("lateral").hidden = !aberta;
+    $("conversa-col").classList.toggle("com-lado", aberta);
+  });
+  atualizarBotaoDoLado();
 }
 
 $("alternar-lateral").onclick = () => {
-  const abrir = $("lateral").hidden;
+  const abrir = !ladoAberto();
   try { localStorage.setItem("paulus.lateral", abrir ? "1" : "0"); } catch (err) { /* sem memoria */ }
   alternarLateralAnimada(abrir);
 };
 
-/* O botao do painel anima os dois lados. Esconder so com `hidden` fazia o
-   painel sumir de uma vez e a conversa pular para o meio; a transicao do CSS
-   nao ajudava, porque a grade trocava de uma coluna para duas e isso nao se
-   interpola. Aqui a coluna do painel vai de 316 px a 0 (mesmo numero de
-   colunas, entao anda), o painel esmaece junto, e so no fim ele e escondido.
-   Abrir faz o caminho inverso. */
-let animacaoDaLateral = null;
+/* O botao do cabecalho anima: a coluna desliza da direita (ou para ela) e a
+   conversa se ajusta no mesmo passo, porque as duas leem a mesma `--lado`.
+   Fechar com uma ferramenta aberta fecha a ferramenta junto. */
 function alternarLateralAnimada(abrir) {
-  const corpo = $("conversa-corpo");
-  const lateral = $("lateral");
-  if (animacaoDaLateral) { animacaoDaLateral.forEach((a) => a.cancel()); animacaoDaLateral = null; }
-  if (!animacoesLigadas()) { mostrarLateral(abrir); return; }
-  const cheia = "minmax(0px, 1fr) 316px";
-  const vazia = "minmax(0px, 1fr) 0px";
-  if (abrir) {
-    mostrarLateral(true);
-    const coluna = corpo.animate([{ gridTemplateColumns: vazia }, { gridTemplateColumns: cheia }],
-      { duration: 460, easing: CURVA_ENTRA });
-    coluna.onfinish = () => { animacaoDaLateral = null; };
-    animacaoDaLateral = [coluna];
-    return;
-  }
-  const coluna = corpo.animate([{ gridTemplateColumns: cheia }, { gridTemplateColumns: vazia }],
-    { duration: 380, easing: "cubic-bezier(.55,0,.45,1)", fill: "forwards" });
-  const painel = lateral.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(18px)" }],
-    { duration: 240, easing: "ease-in", fill: "forwards" });
-  animacaoDaLateral = [coluna, painel];
-  coluna.onfinish = () => {
-    mostrarLateral(false);
-    coluna.cancel();
-    painel.cancel();
-    animacaoDaLateral = null;
-  };
+  if (abrir) { abrirNoLado("contexto"); return; }
+  if (lado.papel !== "contexto") { voltarAoContexto({ fechar: true }); return; }
+  fecharLado();
 }
 
 /* A tela passa da postura de inicio para a de conversa: a coluna do texto
    ganha a medida de prosa e o painel da direita entra. */
 function entrarNaConversa() {
   $("centro").classList.add("prosa");
+  $("conversa-col").classList.add("em-conversa");
   $("conversa-titulo").classList.add("renomeavel");
   $("conversa-titulo").title = "Clique para renomear";
   $("conversa-col").classList.remove("tela-dupla", "tela-cheia");
