@@ -1129,6 +1129,14 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if assinar:
         return assinar
 
+    # "Crie um agente que..." (`Conversa - Criar agente`, src/agente_pela_conversa.py).
+    import agente_pela_conversa
+
+    pedido_de_agente = agente_pela_conversa.ler_pedido(texto)
+    if pedido_de_agente:
+        return Intencao(tipo="criar_agente", titulo="Criar agente", campos={"pedido": pedido_de_agente},
+                        porque="“crie um agente” e o que ele deve fazer")
+
     # Antes de "abrir arquivo": "abra um serviço" tem o mesmo verbo.
     servico = ler_servico(texto, plano, cadastros)
     if servico:

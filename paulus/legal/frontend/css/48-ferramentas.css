@@ -329,3 +329,50 @@
 .agc-form-pe > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .agc-form-pe > .vazio-flex { display: none; }
 .agc-form-pe button { white-space: nowrap; }
+
+/* Criar agente pela conversa (`Conversa - Criar agente`): as tres perguntas,
+   as respostas, o andamento e, na coluna, as propriedades e as instrucoes. */
+.proposta.agn-perguntas { display: grid; gap: 16px; }
+.agn-pergunta { display: grid; gap: 8px; }
+.agn-pergunta small, .agn-resposta small { font: 400 12.5px var(--sans); color: var(--ink3); }
+.agn-respondidas {
+  display: grid; gap: 14px; margin-left: auto; max-width: 430px; padding: 16px 18px;
+  border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+}
+.agn-resposta { display: grid; gap: 2px; }
+.agn-resposta b { font: 600 13.5px var(--sans); color: var(--ink); }
+.agn-andamento { display: grid; gap: 8px; margin: 18px 0 4px; }
+.agn-andamento-topo { font: 600 13.5px var(--sans); color: var(--ink); }
+.agn-etapa { display: flex; align-items: center; gap: 10px; font: 400 13px var(--sans); color: var(--ink2); }
+.agn-etapa.feito .ic { color: var(--verde); }
+.agn-etapa.andando { color: var(--ink); font-weight: 600; }
+.agn-etapa.espera { color: var(--ink3); }
+.agn-nome { outline: none; }
+.agn-lapis { margin-left: 8px; color: var(--ink3); display: inline-flex; }
+.agn-props { flex: none; display: grid; gap: 10px; padding: 4px 0 22px; margin-bottom: 20px; border-bottom: 1px solid var(--ink-a08); }
+.agn-prop { display: grid; grid-template-columns: 166px minmax(0, 1fr); align-items: center; min-height: 32px; }
+.agn-prop > span { font: 400 13.5px var(--sans); color: var(--ink2); }
+.agn-prop > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.agn-prop small { font: 400 12.5px var(--sans); color: var(--ink3); }
+.agn-chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: none; border-radius: 6px;
+  background: var(--fill); font: 500 13px var(--sans); color: var(--ink2); max-width: 100%;
+}
+.agn-chip b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agn-chip.fl-mono { color: var(--ink); }
+.agn-incluir { display: inline-flex; align-items: center; gap: 6px; height: 30px; }
+.agn-quadro .agn-abas button { height: 28px; padding: 0 12px; font-size: 13px; }
+.agn-folha-mesa { flex: 1; min-height: 0; overflow-y: auto; padding: 32px 40px 48px; background: var(--surf); }
+.agn-folha { max-width: 900px; outline: none; font: 400 14.5px/1.7 var(--sans); color: var(--ink); }
+.agn-folha h1 { margin: 0 0 10px; font: 400 30px/1.25 var(--serif); color: var(--ink); }
+.agn-folha h2 { margin: 26px 0 10px; font: 400 21px/1.3 var(--serif); color: var(--ink); }
+.agn-folha p { margin: 0 0 10px; color: var(--ink2); }
+.agn-folha ol, .agn-folha ul { margin: 0; padding-left: 24px; display: grid; gap: 10px; }
+.agn-escrevendo { display: flex; align-items: center; gap: 8px; margin: 12px 0 0 24px; font: 400 13.5px var(--sans); color: var(--ink3); }
+.agn-escrevendo i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink2); animation: pv-pisca 1.2s ease-in-out infinite; }
+.agn-testes { display: grid; gap: 12px; max-width: 900px; }
+.agn-teste { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 10px; padding: 12px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+.agn-teste-campos { display: grid; gap: 8px; }
+.agn-teste input { height: 34px; max-width: none; }
+.agn-teste .explica { grid-column: 1 / -1; margin: 0; }
+.agn-perguntas .linha-form .primario { display: inline-flex; align-items: center; gap: 6px; }

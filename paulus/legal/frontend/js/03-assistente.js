@@ -1579,6 +1579,13 @@ async function enviar(opcoes) {
     pedirNoDocumento(pedido);
     return;
   }
+  // Com o agente aberto ao lado (js/84-criar-agente.js), o pedido muda as instrucoes.
+  if (!o.retomar && typeof agenteAoLadoAberto === "function" && agenteAoLadoAberto() && !agn.escrevendo) {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+    mudarAgentePelaConversa(pedido);
+    return;
+  }
   // Com a planilha em edicao ao lado (js/81-planilha-ao-lado.js), idem.
   if (!o.retomar && planilhaEmEdicao() && destinoNaPlanilha(pedido) === "planilha") {
     $("pedido").value = "";
@@ -1894,7 +1901,7 @@ async function lerResposta(r, v) {
         // para a conversa terminar de se gravar antes de sair dela.
         if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
-            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar" ||
+            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar" || dados.tipo === "criar_agente" ||
             ((dados.tipo === "agenda" || dados.tipo === "tarefa") && !(dados.ajuda_do_modelo || []).length)) assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "relacionados") {

@@ -491,6 +491,8 @@ _declarar(PERMITIDO, "GET /api/central-avisos/hoje", "GET /api/central-avisos",
 # o titular, como as rotas de gravar da A1. A medida (A4) vem na lista, que ja
 # e permitida.
 _declarar(TITULAR, "POST /api/agentes/formulario", "POST /api/agentes/validar",
+          # T3 (`Conversa - Criar agente`): o rascunho por regra e o escrito pelo modelo.
+          "POST /api/agentes/rascunho", "POST /api/agentes/rascunho/escrever", "POST /api/agentes/rascunho/mudar",
           "GET /api/agentes/da-conversa/{trabalho_id}", "GET /api/agentes/sugestao/conversa")
 
 

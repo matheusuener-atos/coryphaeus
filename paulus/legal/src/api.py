@@ -3831,6 +3831,9 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # da conversa traz as escolhas. Assinar continua pedindo o sim.
     if lido.tipo == "assinar":
         return _responder_assinatura(trabalho, lido, pergunta)
+    # `Conversa - Criar agente`: tres perguntas e o rascunho na coluna.
+    if lido.tipo == "criar_agente":
+        return _responder_criar_agente(trabalho, lido, pergunta)
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir", "passos"):
         # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
         # o que ele pediu sem ter e recusado e fica registrado.
@@ -4543,6 +4546,100 @@ def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
 
     return StreamingResponse(gerar(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _responder_criar_agente(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Crie um agente que preencha a procuracao...": a regra acha os modelos
+    possiveis no Acervo e a conversa pergunta tres coisas antes de escrever
+    (src/agente_pela_conversa.py). Nada e gravado aqui.
+    """
+    import agente_pela_conversa as apc
+
+    pedido = lido.campos.get("pedido", "")
+    modelos = apc.candidatos_de_modelo(pedido, estado.searcher.documents)
+    texto = "Já tenho a base. Antes de escrever as instruções, preciso de três respostas."
+    proposta = {"tipo": "criar_agente", "titulo": apc.nome_por_regra(pedido), "porque": lido.porque, "pergunta": pergunta,
+                "campos": {"pedido": pedido, "modelos": modelos, "nome": apc.nome_por_regra(pedido)}}
+
+    def gerar() -> Iterator[str]:
+        if len(trabalho.mensagens) <= 1:
+            trabalho.titulo = "Criar agente"
+        trabalho.etapas = [Etapa("Montar o roteiro de leitura e preenchimento", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class RascunhoDeAgente(BaseModel):
+    pedido: str = ""
+    modelo: str = ""
+    faltando: str = "perguntar"
+    formato: str = ""
+
+
+def _base_do_agente(payload: RascunhoDeAgente) -> tuple[dict, str]:
+    import agente_pela_conversa as apc
+
+    doc = next((d for d in estado.searcher.documents if d.name == payload.modelo), None) if payload.modelo else None
+    texto = (doc.text or "") if doc else ""
+    base = apc.rascunho(payload.pedido[:600], doc.name if doc else "", payload.faltando, payload.formato,
+                        apc.campos_em_branco(texto))
+    base["brancos"] = apc.campos_em_branco(texto)
+    return base, texto
+
+
+@app.post("/api/agentes/rascunho")
+def agentes_rascunho(payload: RascunhoDeAgente) -> dict:
+    """O rascunho do agente so por regra: o modelo lido e os campos em branco contados. Nao grava."""
+    base, _ = _base_do_agente(payload)
+    return {"campos": base}
+
+
+@app.post("/api/agentes/rascunho/escrever")
+def agentes_rascunho_escrever(payload: RascunhoDeAgente) -> dict:
+    """
+    O modelo local escreve nome, descricao, instrucoes e exemplos; as
+    respostas da pessoa entram por regra. Devolve os campos, o AGENTE.md e a
+    validacao de sempre. Nao grava - quem grava e o "Salvar agente".
+    """
+    import agente_pela_conversa as apc
+    import agentes_tela
+
+    base, texto = _base_do_agente(payload)
+    cliente = estado.cliente_para("redacao")
+    campos = apc.escrever(payload.pedido[:600], base, texto,
+                          lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis))
+    md = agentes_tela.markdown_do_formulario(campos)
+    return {"campos": campos, "markdown": md, "modelo_de_ia": estado.client.model,
+            **agentes_tela.conferir(estado.agentes, md)}
+
+
+class MudancaDeAgente(BaseModel):
+    passos: list[str] = []
+    fixos: list[str] = []
+    pedido: str = ""
+
+
+@app.post("/api/agentes/rascunho/mudar")
+def agentes_rascunho_mudar(payload: MudancaDeAgente) -> dict:
+    """O pedido de mudanca escrito na conversa, com o agente aberto ao lado. Nao grava."""
+    import agente_pela_conversa as apc
+
+    if not payload.pedido.strip():
+        raise HTTPException(status_code=400, detail="diga o que mudar")
+    cliente = estado.cliente_para("redacao")
+    novos = apc.mudar([str(p)[:400] for p in payload.passos[:20]], payload.pedido[:600], [str(f)[:400] for f in payload.fixos[:8]],
+                      lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis))
+    if novos is None:
+        raise HTTPException(status_code=503, detail="o modelo não respondeu agora; mude direto na folha")
+    return {"passos": novos}
 
 
 class SugestaoAoVivo(BaseModel):
