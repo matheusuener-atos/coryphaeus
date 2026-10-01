@@ -906,6 +906,8 @@ function cartaoProposta(d) {
   if (d.tipo === "lancamento") return cartaoDeLancamento(d);
   // O financeiro e o relatorio do mes (js/88-financeiro-na-conversa.js).
   if (d.tipo === "financeiro" || d.tipo === "relatorio") return cartaoDoFinanceiro(d);
+  // Uma secao de Configuracoes aberta pela conversa (js/89-config-na-conversa.js).
+  if (d.tipo === "config") return cartaoDaConfig(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
@@ -1339,6 +1341,7 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "ficha") return ligarFichaNaProposta(caixa, d);
   if (d.tipo === "lancamento") return ligarLancamentoNaProposta(caixa, d);
   if (d.tipo === "financeiro" || d.tipo === "relatorio") return ligarFinanceiroNaProposta(caixa, d);
+  if (d.tipo === "config") return ligarConfigNaProposta(caixa, d);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);

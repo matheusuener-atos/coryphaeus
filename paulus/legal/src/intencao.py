@@ -1121,6 +1121,17 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if any(p in plano for p in SOBRE):
         return Intencao(tipo="sobre", porque="pergunta sobre o próprio programa")
 
+    # As Configurações pela conversa (T5, src/config_pela_conversa.py):
+    # "troquei de número...", "tira gravações do menu", "o paulus tá
+    # atualizado?". Antes da gravação e da assinatura: "tira gravações e
+    # assinatura do menu" não é gravar nem assinar.
+    import config_pela_conversa
+
+    pedido_config = config_pela_conversa.ler(texto)
+    if pedido_config:
+        return Intencao(tipo="config", titulo=config_pela_conversa.SECOES[pedido_config["secao"]][0], campos=pedido_config,
+                        porque="uma configuração de “" + config_pela_conversa.SECOES[pedido_config["secao"]][0] + "”")
+
     gravacao = ler_gravacao(texto, plano, cadastros)
     if gravacao:
         return gravacao

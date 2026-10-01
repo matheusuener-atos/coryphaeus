@@ -240,7 +240,9 @@ function fichaCfg(itens) {
 
 function cartaoCfg(titulo, meta, corpo, extra) {
   const classe = "cfg-cartao" + (extra ? " " + extra : "");
-  return '<div class="' + classe + '"><div class="cfg-cartao-cabeca"><span>' + titulo + "</span>" + (meta || "") + "</div>" +
+  // O nome do cartao em data-cartao: a coluna da conversa (js/89) rola ate ele.
+  const nome = String(titulo).replace(/<[^>]+>/g, "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return '<div class="' + classe + '" data-cartao="' + nome + '"><div class="cfg-cartao-cabeca"><span>' + titulo + "</span>" + (meta || "") + "</div>" +
     '<div class="cfg-cartao-corpo">' + corpo + "</div></div>";
 }
 
@@ -1030,7 +1032,7 @@ function secaoAprendizado() {
   return aberturaCfg() + ficha +
     estante +
     cartaoChavesBiblioteca() +
-    cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
+    cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), (typeof blocoDoLembreteNovo === "function" ? blocoDoLembreteNovo() : "") + lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
 }
 
@@ -1218,18 +1220,27 @@ const CFG_ICONE_LIXO = {
 function secaoLixeira() {
   const l = cfg.lixo;
   if (!l) return aberturaCfg() + cartaoCfg("Itens apagados", "", '<p class="cfg-texto">não consegui ler a lixeira.</p>');
-  const itens = l.itens || [];
+  // Na coluna da conversa (js/89): a busca no alto e o que a frase procurou em destaque.
+  const naColuna = cfg.host === "lado" && typeof filtrarLixeiraNoLado === "function";
+  const todos = l.itens || [];
+  const itens = naColuna ? filtrarLixeiraNoLado(todos) : todos;
+  const achados = naColuna ? ((cfn.extra || {}).achados || []).map((x) => x.id) : [];
+  const busca = naColuna ? campoDeBuscaDaLixeira(itens.length, todos.length) : "";
+  if (naColuna && todos.length && !itens.length) {
+    return busca + cartaoCfg("Itens apagados", metaCfg("some em 30 dias"), '<p class="nota">Nada na lixeira com esse nome.</p>');
+  }
   if (!itens.length) {
     return aberturaCfg() + cartaoCfg("Itens apagados", metaCfg("vazia"),
       '<p class="nota">Nada na lixeira. Conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha que você apagar aparece aqui.</p>');
   }
-  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha"><span class="caixa-tipo">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
-    '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "")) + "</small></div>" +
-    '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>" +
-    '<button data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +
+  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha' + (achados.includes(e.id) ? " cfn-achado" : "") + '"><span class="caixa-tipo">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
+    '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "") + (naColuna ? " · " + quandoCurtoSv(e.apagado_em) : "")) + "</small></div>" +
+    // Na coluna de 460 px o quando vai na linha de baixo; a coluna do quando nao cabe.
+    (naColuna ? "" : '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>") +
+    '<button' + (achados.includes(e.id) ? ' class="primario"' : "") + ' data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +
     '<button class="mais-linha" data-cfg-lixo-tirar="' + e.id + '" title="Apagar de vez">' + ic("close", 16) + "</button></div>").join("");
   const esvaziar = '<button class="sv-ligacao" data-cfg-lixo-esvaziar="1">' + ic("delete", 16) + "Esvaziar a lixeira</button>";
-  return aberturaCfg(esvaziar) + cartaoCfg("Itens apagados", metaCfg(plural(itens.length, "item", "itens")),
+  return aberturaCfg(esvaziar) + busca + cartaoCfg("Itens apagados", metaCfg(naColuna ? "some em 30 dias" : plural(itens.length, "item", "itens")),
     '<div class="cfg-linhas">' + linhas + "</div>" +
     '<p class="cfg-explica cfg-lixo-pe">Restaurar devolve a linha, as ligações e os arquivos ao lugar de onde saíram.</p>');
 }

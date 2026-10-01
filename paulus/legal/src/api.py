@@ -3844,6 +3844,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # aqui; a coluna traz o parecer, os papeis e as sugestoes.
     if lido.tipo in ("financeiro", "relatorio") and agente is None:
         return _responder_financeiro(trabalho, lido, pergunta)
+    # T5: uma secao de Configuracoes na coluna, com as mudancas marcadas -
+    # nada gravado antes do "Salvar alteracoes". So na janela do escritorio.
+    if lido.tipo == "config" and agente is None:
+        if not rotas_do_acesso.e_local(request):
+            return _so_dizer(trabalho, "As Configurações mudam só na janela do escritório. Peça de lá, ou abra Configurações no computador do escritório.")
+        return _responder_config(trabalho, lido, pergunta)
     # `Conversa - Lancamento` e `- Recebimento`: o lancamento na coluna.
     if lido.tipo == "lancamento" and agente is None:
         return _responder_lancamento(trabalho, lido, pergunta, citado or explicito)
@@ -4434,6 +4440,36 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                       + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
             onde = "gravacoes"
             campos["nome"] = g.get("titulo") or ""
+        elif payload.tipo == "config":
+            # T5: o que a coluna de Configuracoes salvou pela rota de sempre
+            # (POST /api/preferencias, /api/contextos, /api/backup...). Aqui so
+            # entra na conversa, com o resumo escrito daqui pelas chaves.
+            import config_pela_conversa as cpc
+
+            secao = str(campos.get("secao") or "")
+            if secao not in cpc.SECOES:
+                raise HTTPException(status_code=400, detail="seção desconhecida")
+            acao = str(campos.get("acao") or "salvar")
+            nomes = [cpc.rotulo(str(c)) for c in (campos.get("chaves") or [])][:8]
+            juntar = lambda xs: ", ".join(xs[:-1]) + " e " + xs[-1] if len(xs) > 1 else (xs[0] if xs else "")  # noqa: E731
+            rotulo_secao = cpc.SECOES[secao][0]
+            titulos = [str(t)[:120] for t in (campos.get("titulos") or [])][:5]
+            if acao == "restaurar":
+                resumo = "Restaurei " + juntar(["“" + t + "”" for t in titulos]) + " da Lixeira"
+            elif acao == "lembrete":
+                resumo = "Guardei o lembrete do escritório: ele entra em toda pergunta da conversa"
+            elif acao == "backup":
+                resumo = "Guardei a pasta e a senha do backup e comecei o primeiro"
+            elif acao == "teste":
+                resumo = "Medi " + juntar(titulos) + " nesta máquina" if titulos else "Parei o teste dos modelos"
+            elif acao == "word":
+                resumo = "Instalei o PAVLVS no Word deste computador"
+            else:
+                resumo = f"Salvei em {rotulo_secao}" + (": " + juntar([n[:1].lower() + n[1:] if not n.isupper() else n for n in nomes]) if nomes else "")
+            novo = 0
+            feito = {"secao": secao, "acao": acao}
+            onde = "config"
+            campos["nome"] = rotulo_secao
         elif payload.tipo == "lancamento":
             # O lancamento feito pela coluna: quem gravou foi POST
             # /api/financeiro/lancar-pela-conversa; aqui ele entra na conversa.
@@ -4783,6 +4819,99 @@ def _responder_financeiro(trabalho, lido, pergunta: str) -> StreamingResponse:
 
     def gerar() -> Iterator[str]:
         trabalho.etapas = [Etapa("Somar o mês", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _dados_da_config(secao: str, pedido: dict) -> dict:
+    """O que a frase de cada secao de Configuracoes precisa ler agora (src/config_pela_conversa.py)."""
+    dados: dict = {"prefs": estado.prefs.dados, "padrao": estado.client.model}
+    try:
+        if secao == "assistente":
+            try:
+                dados["modelos"] = [m["nome"] for m in modelos_mod.instalados(estado.client.host)]
+            except Exception:  # noqa: BLE001 - Ollama fora: o modelo pedido nao e conferido
+                dados["modelos"] = []
+        elif secao == "modelos" or (secao == "desempenho" and pedido.get("teste")):
+            listado = modelos_listar()
+            dados.update({"instalados": listado.get("instalados") or [], "tarefas": listado.get("tarefas") or [],
+                          "padrao": listado.get("padrao") or estado.client.model})
+            dados["memoria_total_gb"] = (recursos.ler(acordar_video=False).get("memoria") or {}).get("total_gb")
+        elif secao == "desempenho":
+            dados["recursos"] = {**recursos.ler(acordar_video=False), "devagar": estado.devagar}
+            # A primeira leitura do psutil sem intervalo e 0%: aqui mede meio segundo.
+            try:
+                import psutil
+
+                dados["recursos"]["processador"] = {"percentual": round(psutil.cpu_percent(interval=0.5), 1)}
+            except Exception:  # noqa: BLE001
+                pass
+            dados["saude"] = _itens_de_saude()
+            dados["modelo_gb"] = _tamanho_do_modelo()
+        elif secao == "plano":
+            dados["atualizacao"] = atualizacao_situacao()
+        elif secao == "lixeira":
+            estado.lixeira.esvaziar_vencidos()
+            dados["lixeira"] = estado.lixeira.listar()
+        elif secao == "backup":
+            import google_servicos
+
+            dados["backup"] = _backup_para_tela()
+            dados["drives"] = google_servicos.pastas_do_drive_no_computador()
+        elif secao == "word":
+            inst = getattr(estado, "word_instalacao", None)
+            dados["word"] = {"ligado": bool((estado.prefs.dados.get("word") or {}).get("ligado")),
+                             "instalacao": inst.situacao() if inst is not None else {}}
+        elif secao == "acesso":
+            sit = estado.acesso_de_fora.situacao()
+            dados["acesso"] = {**sit, "contas": len(estado.acesso_de_fora.contas.listar() or [])}
+        elif secao == "vinculos":
+            dados["vinculado"] = bool(getattr(estado, "vinculo", None) and estado.vinculo.vinculado())
+        elif secao == "conexoes":
+            w = pedido.get("whatsapp") or {}
+            quem = intencao._plano(w.get("quem") or "")
+            fichas = [f for f in estado.cadastros.listar() if (f.get("telefone") or "").strip()]
+            achadas = [f for f in fichas if quem and all(p in intencao._plano(f["nome"]).split() for p in quem.split())]
+            if achadas:
+                f = achadas[0]
+                dados["contato"] = {"id": f["id"], "nome": f["nome"], "telefone": f["telefone"],
+                                    "numero": conexoes.numero_whatsapp(f["telefone"]), "email": f.get("email") or ""}
+            dados["sessao"] = estado.conexoes.sessao().to_dict()
+    except Exception as exc:  # noqa: BLE001 - a frase diz menos, a coluna abre do mesmo jeito
+        dados["erro"] = str(exc)
+    return dados
+
+
+def _responder_config(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    `Conversa - Meus dados`, `- Aparencia`, `- Modulos`... (T5): a frase diz
+    o que muda, de quanto para quanto e o que precisa de atencao; a coluna
+    abre a secao de Configuracoes com as mudancas marcadas "novo". Nada e
+    gravado aqui - so o "Salvar alteracoes" da coluna grava, pela rota de
+    sempre de Configuracoes.
+    """
+    import config_pela_conversa as cpc
+
+    pedido = dict(lido.campos)
+    secao = pedido["secao"]
+    if secao == "aprendizado" and pedido.get("resto"):
+        pedido["lembrete"] = cpc.lembrete_da_frase(pedido["resto"], [f["nome"] for f in estado.cadastros.listar()])
+    texto, proposta = cpc.proposta(pedido, _dados_da_config(secao, pedido))
+    proposta.update({"porque": lido.porque, "pergunta": pergunta})
+    # O titulo que a frase sugere ("Troque meu telefone") so na conversa nova:
+    # a que ja tinha assunto continua com o nome dela.
+    if len([m for m in trabalho.mensagens if m.autor == "pessoa"]) <= 1 and proposta.get("titulo_conversa"):
+        trabalho.titulo = proposta["titulo_conversa"]
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Ler Configurações", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
         trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)

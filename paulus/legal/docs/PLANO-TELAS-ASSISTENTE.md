@@ -36,7 +36,7 @@ estiver `feita`.
 | T2 | Estados da conversa: `Conversa`, `Carregando`, `Feedback`, `Ditando`, `Foco`, `Apoiar`, `Gravando` (transcrição ao vivo com sugestões) | feita | ver git log (T2) |
 | T3 | Documentos e ferramentas na coluna: `Documento`, `Editor`, `Planilha`, `Editor de planilha`, `PDF`, `Assinar`, `Agendar`, `Criar agente`, `E-mail`, `Escrever e-mail` | feita (documento, PDF, editor, planilha, editor de planilha, assinar, agendar, criar agente, e-mail e escrever e-mail) | ver git log (T3) |
 | T4 | Cadastros e financeiro pela conversa: `Cadastro`, `Equipe`, `Despesa fixa`, `Lancamento`, `Recebimento`, `Financeiro`, `Relatorio` | feita | ver git log (T4) |
-| T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | a fazer | |
+| T5 | Configurações abertas pelo chat: `Meus dados`, `Assistente e modelo`, `Modelos`, `Desempenho`, `Teste`, `Conexoes`, `Word`, `Acesso de fora`, `Escritorio`, `Backup`, `Biblioteca`, `Aparencia`, `Modulos`, `Versao`, `Lixeira` | feita | 01/10 |
 
 ## Registro
 
@@ -380,3 +380,77 @@ Primeira parte: documento, PDF, editor, planilha e editor de planilha.
     existe para o mês inteiro, não para o mesmo período); a comparação por
     categoria.
   - Teste: `tests/test_financeiro_conversa.py`.
+
+### T5 — Configurações abertas pela conversa (01/10/2026)
+
+- A frase vira, por regra (`src/config_pela_conversa.py`, sem modelo), a
+  seção e as mudanças propostas; o que é de outra tela (agenda, cadastro de
+  cliente, pergunta sobre documento, "lembra que amanhã…") não vira. A
+  leitura entra logo depois de "o que você faz", antes da gravação e da
+  assinatura ("tira gravações e assinatura do menu" não é gravar). Só na
+  janela do escritório; de fora, a conversa diz isso.
+- A coluna de 460 px (`js/89-config-na-conversa.js`) é a MESMA seção da tela
+  de Configurações, com os mesmos dados e as mesmas rotas — muda só onde ela
+  é desenhada (`cfg.host = "lado"`). Os redesenhos da seção (um toggle, a
+  lixeira restaurada) ficam na coluna quando o último toque foi nela.
+  Cabeçalho com "Abrir em Configurações ↗" (leva o que estava marcado) e ×
+  (pergunta antes de largar mudança). O que a conversa mudou tem o selo
+  "novo"; o rodapé conta ("2 mudanças · tema e bem-estar"), e nada é
+  gravado antes de "Salvar alterações" — inclusive o tema e "quem faz cada
+  tarefa", que na tela inteira valem na hora. Depois, a conversa registra
+  (/fazer "config", resumo escrito no servidor pelas chaves).
+- Por seção:
+  - Meus dados: telefone, e-mail, OAB, CPF, endereço, nome e CNPJ do
+    escritório, papel timbrado. Com o timbre ligado e a OAB vazia ou
+    zerada, a frase avisa, o campo fica marcado e vêm "Vou informar a OAB"
+    e "Salvar só o telefone".
+  - Assistente e modelo: Limites da IA (mover arquivos, ler pastas,
+    agentes), "Ir devagar" e o modelo. Assinar sem revisar, enviar sem
+    confirmar e a nuvem sem pedir a conversa NÃO liga: a frase diz, a linha
+    fica destacada e o toggle continua com você.
+  - Modelos: "as respostas estão demorando" marca o modelo mais leve
+    instalado nos julgamentos rápidos, com a nota do banco de provas;
+    "usa o X para e-mail" marca a tarefa. Medir antes e o catálogo.
+  - Desempenho: a frase sai do processador (meio segundo de medida), da
+    memória e da Saúde do PAULUS; "Ligar Ir devagar" marca e espera o
+    Salvar; Gerar diagnóstico.
+  - Teste: mede um modelo instalado por vez (POST /api/modelos/medir), com
+    a tabela ao vivo na conversa, a barra e "faltam ~N min"; espera a
+    conversa responder; Parar teste. Fica de fora o modelo que não cabe na
+    memória.
+  - Conexões: "manda no WhatsApp do Wagner que…" acha a ficha com telefone
+    e escreve o recado por regra ("quinta" vira "quinta-feira, 08/10, às
+    14h"); Abrir WhatsApp Web leva o texto escrito, e enviar continua sendo
+    seu.
+  - Word e Acesso de fora: os passos e o que muda, do estado real; o
+    rodapé leva ao botão da seção (Ligar, Instalar no Word, Criar a conta).
+  - Escritório e equipe: "convida a Ana Beatriz… o e-mail é…" põe a pessoa
+    na lista marcada "novo"; Convidar pela internet abre o convite já
+    preenchido, e fica travado sem o vínculo com o Google (o servidor exige).
+  - Backup: a pasta sugerida no Drive para computador (quando há), a senha
+    e Salvar e fazer backup agora.
+  - Biblioteca: "lembra que aqui no escritório a gente sempre pede…" vira
+    a regra da casa ("Para os clientes da Cooperativa Rio Fresco, pedir
+    justiça gratuita.", com o nome da ficha), editável ao lado; Guardar
+    lembrete.
+  - Aparência e avisos: tema (claro, escuro, seguir o Windows), animações,
+    cada aviso do Windows. Módulos: tirar e pôr de volta no menu.
+  - Versão: a versão, a última verificação e Verificar agora.
+  - Lixeira: "apaguei sem querer o documento B do teste C5" acha o item,
+    abre a lixeira filtrada ("1 de 640") com ele destacado, Restaurar na
+    conversa, e oferece o do mesmo minuto.
+- Ficou de fora: o QR do WhatsApp e o do autenticador não aparecem na
+  coluna — o do WhatsApp mora no próprio WhatsApp Web, e o do autenticador
+  só existe depois de criar a conta (o botão da seção faz isso). O recado
+  do WhatsApp não é escrito pelo modelo nem traz dados do processo (fórum,
+  antecedência): é a frase dita, arrumada por regra. No Teste, os acertos
+  vêm do banco de provas já rodado (a qualidade não depende da máquina);
+  as 41 perguntas não rodam de novo aqui. A Lixeira restaura um item por
+  clique.
+- Teste: `tests/test_config_conversa.py` (as frases do pacote, as que não
+  são, as frases com dados conhecidos e a tela: os selos, o rodapé, nada
+  gravado antes do clique, salvar só o telefone, o tema esperando o Salvar,
+  Módulos, assinar recusado, a Lixeira restaurando, o lembrete guardado,
+  as outras sete seções abrindo e 390 px). `test_frontend`, `test_intencao`,
+  `test_ferramentas`, `test_c4_roteamento`, `test_programa`, os de T3/T4 e
+  os de permissões ok.
