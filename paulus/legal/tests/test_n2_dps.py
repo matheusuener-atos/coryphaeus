@@ -29,6 +29,7 @@ RAIZ = Path(__file__).parent.parent
 TMP = Path(tempfile.mkdtemp(prefix="paulus-n2-"))
 os.environ["PAULUS_DADOS"] = str(TMP / "dados")
 os.environ["PAULUS_SEM_AVISOS"] = "1"
+os.environ["PAULUS_NFSE_SEM_FILA"] = "1"
 sys.path.insert(0, str(RAIZ / "src"))
 sys.path.insert(0, str(RAIZ / "tests"))
 

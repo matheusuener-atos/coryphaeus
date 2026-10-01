@@ -36,9 +36,11 @@ class Emissor:
         # O teste troca a rede pelo servidor simulado (N3) por aqui.
         self.transporte = None
         tabelas.usar_pasta_de_dados(self.pasta / "tabelas")
+        from .emissao import Envio
         from .notas import Notas
 
         self.notas = Notas(self)
+        self.envio = Envio(self)
 
     # ---------------------------------------------------------------- chaves
 
@@ -53,9 +55,13 @@ class Emissor:
     def ambiente(self) -> str:
         return self.prestador.atual()["dados"].get("ambiente") or "producao_restrita"
 
+    def liberacao(self) -> dict | None:
+        """A liberação da produção em vigor (N8), ou None."""
+        return self.base.um("SELECT * FROM nfse_liberacao WHERE revogado_em = '' ORDER BY id DESC LIMIT 1")
+
     def producao_liberada(self) -> bool:
-        """A liberação da N8: o ambiente da configuração em vigor é produção."""
-        return self.ambiente == "producao"
+        """Só com a liberação do titular registrada (N8). Sem ela, o cliente recusa produção."""
+        return self.liberacao() is not None
 
     # ----------------------------------------------------------- certificado
 
@@ -139,6 +145,44 @@ class Emissor:
             return cliente_mod.Cliente(ambiente, producao_liberada=liberada, transporte=self.transporte)
         pfx, senha = self._pfx_e_senha()
         return cliente_mod.Cliente(ambiente, pfx, senha, producao_liberada=liberada)
+
+    # ------------------------------------------------- o contrato da API
+
+    @property
+    def _arquivo_contrato(self) -> Path:
+        return self.pasta / "contrato.json"
+
+    def contrato(self) -> dict:
+        import json
+
+        try:
+            return json.loads(self._arquivo_contrato.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def conferir_contrato(self, cliente=None) -> dict:
+        """
+        Os nomes dos campos JSON (cliente.CAMPOS) conferidos no Swagger
+        oficial, que só abre com o certificado (docs/PROGRESSO-NFSE.md, N0).
+        """
+        import json
+        from datetime import datetime
+
+        cliente = cliente or self.cliente()
+        r = cliente.conferir_contrato()
+        r["conferido_em"] = datetime.now().isoformat(timespec="seconds")
+        r["ambiente"] = cliente.ambiente
+        self.pasta.mkdir(parents=True, exist_ok=True)
+        self._arquivo_contrato.write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
+        return r
+
+    def contrato_trava(self) -> str:
+        """Por que o envio real está travado pelo contrato (vazio = não está)."""
+        c = self.contrato()
+        if c.get("fonte") and c.get("faltam"):
+            return ("o Swagger oficial não tem os campos " + ", ".join(c["faltam"]) +
+                    ": o envio fica travado até alguém conferir (docs/PROGRESSO-NFSE.md, N3)")
+        return ""
 
     # -------------------------------------------------------------- município
 

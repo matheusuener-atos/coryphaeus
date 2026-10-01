@@ -416,6 +416,9 @@ _declarar(BLOQUEADO, "GET /api/nfse", "POST /api/nfse/ligar", "POST /api/nfse/pr
 # previa da DPS. Na janela do escritorio; de fora a nota nasce pela conversa (N4).
 _declarar(BLOQUEADO, "GET /api/nfse/notas", "POST /api/nfse/notas", "GET /api/nfse/notas/{id_}",
           "POST /api/nfse/notas/{id_}", "GET /api/nfse/notas/{id_}/dps", "POST /api/nfse/notas/{id_}/descartar")
+# --- N3 (NFS-e): atualizar a situacao pela consulta e ver a fila de envio - usam o
+# certificado do escritorio: janela do escritorio.
+_declarar(BLOQUEADO, "POST /api/nfse/notas/{id_}/consultar", "GET /api/nfse/fila", "POST /api/nfse/contrato/conferir")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

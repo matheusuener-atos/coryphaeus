@@ -926,7 +926,7 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         CREATE INDEX IF NOT EXISTS idx_nfse_notas_estado ON nfse_notas(estado);
         CREATE INDEX IF NOT EXISTS idx_nfse_notas_lancamento ON nfse_notas(lancamento_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_dps ON nfse_notas(id_dps) WHERE id_dps IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_dps ON nfse_notas(ambiente, id_dps) WHERE id_dps IS NOT NULL;
         CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_numero
             ON nfse_notas(ambiente, serie, numero) WHERE numero IS NOT NULL;
 
@@ -957,6 +957,26 @@ MIGRACOES: list[tuple[str, str]] = [
             detalhe  TEXT DEFAULT ''
         );
         CREATE INDEX IF NOT EXISTS idx_nfse_passos_nota ON nfse_passos(nota_id);
+        """,
+    ),
+    (
+        "036_nfse_liberacao",
+        """
+        -- A liberacao da producao (src/nfse, N8): so o titular, na janela do
+        -- escritorio, com o checklist guardado. Sem uma linha ativa aqui, o
+        -- cliente HTTP recusa o ambiente de producao (N3).
+        CREATE TABLE IF NOT EXISTS nfse_liberacao (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            liberado_em   TEXT NOT NULL,
+            liberado_por  TEXT NOT NULL,
+            checklist     TEXT NOT NULL DEFAULT '{}',
+            revogado_em   TEXT DEFAULT '',
+            revogado_por  TEXT DEFAULT ''
+        );
+
+        -- Quantas esperas seguidas a nota ja fez na fila (a espera cresce:
+        -- 1, 2, 5, 10, 20, 40, 60 min). Volta a zero quando ela sai da fila.
+        ALTER TABLE nfse_notas ADD COLUMN esperas INTEGER NOT NULL DEFAULT 0;
         """,
     ),
 ]

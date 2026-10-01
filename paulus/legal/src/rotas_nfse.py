@@ -45,7 +45,13 @@ def _erro(exc: Exception, status: int = 400):
 
 
 def montar(estado, app, dados_dir) -> None:
+    import os
+
     estado.nfse = Emissor(estado.base, estado.prefs, Path(dados_dir))
+    # A fila de envio (N3): retoma ao abrir o que ficou no meio e tenta de novo
+    # com espera crescente. O teste desliga para controlar cada passo.
+    if not os.environ.get("PAULUS_NFSE_SEM_FILA"):
+        estado.nfse.envio.ligar_fila()
 
     @app.get("/api/nfse")
     def nfse_estado() -> dict:
@@ -181,3 +187,33 @@ def montar(estado, app, dados_dir) -> None:
         except ValueError as exc:
             _erro(exc)
         return _nota_para_tela(nota)
+
+    # ------------------------------------------------------- envio (N3)
+
+    @app.post("/api/nfse/notas/{id_}/consultar")
+    def nfse_nota_consultar(id_: int) -> dict:
+        """"Atualizar situação": pergunta ao Sistema Nacional pela DPS desta nota."""
+        nota = estado.nfse.notas.obter(id_)
+        if not nota:
+            raise HTTPException(status_code=404, detail="nota não encontrada")
+        if not nota.get("id_dps"):
+            raise HTTPException(status_code=400, detail="a nota ainda não foi assinada nem enviada")
+        try:
+            nota = estado.nfse.envio.consultar(id_, quem="titular", reenviar_se_nao_existe=False)
+        except (ValueError, CertificadoInvalido, ProducaoBloqueada) as exc:
+            _erro(exc)
+        return _nota_para_tela(nota)
+
+    @app.get("/api/nfse/fila")
+    def nfse_fila() -> dict:
+        return {"notas": estado.nfse.envio.pendentes()}
+
+    @app.post("/api/nfse/contrato/conferir")
+    def nfse_contrato_conferir() -> dict:
+        """Confere no Swagger oficial (com o certificado) os nomes que o envio usa."""
+        try:
+            return estado.nfse.conferir_contrato()
+        except (CertificadoInvalido, ProducaoBloqueada) as exc:
+            _erro(exc)
+        except (SemResposta, NaoChegou) as exc:
+            _erro(exc, 502)
