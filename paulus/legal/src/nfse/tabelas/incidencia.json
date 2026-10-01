@@ -1,0 +1,1358 @@
+{
+"nome": "incidencia",
+"titulo": "Local de incidência do ISS por serviço (LC 116)",
+"versao": "1.01",
+"data": "2026-02-09",
+"fonte": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/anexo_i-sefin_adn-dps_nfse-snnfse-v1-01-20260209.xlsx",
+"gerado_em": "2026-10-01T06:06:40",
+"itens": [
+{
+"codigo": "010101",
+"local": "EP"
+},
+{
+"codigo": "010201",
+"local": "EP"
+},
+{
+"codigo": "010301",
+"local": "EP"
+},
+{
+"codigo": "010302",
+"local": "EP"
+},
+{
+"codigo": "010401",
+"local": "EP"
+},
+{
+"codigo": "010501",
+"local": "EP"
+},
+{
+"codigo": "010601",
+"local": "EP"
+},
+{
+"codigo": "010701",
+"local": "EP"
+},
+{
+"codigo": "010801",
+"local": "EP"
+},
+{
+"codigo": "010901",
+"local": "EP"
+},
+{
+"codigo": "010902",
+"local": "EP"
+},
+{
+"codigo": "020101",
+"local": "EP"
+},
+{
+"codigo": "030201",
+"local": "EP"
+},
+{
+"codigo": "030301",
+"local": "EP"
+},
+{
+"codigo": "030302",
+"local": "EP"
+},
+{
+"codigo": "030303",
+"local": "EP"
+},
+{
+"codigo": "030304",
+"local": "EP"
+},
+{
+"codigo": "030305",
+"local": "EP"
+},
+{
+"codigo": "030401",
+"local": "LP"
+},
+{
+"codigo": "030402",
+"local": "LP"
+},
+{
+"codigo": "030403",
+"local": "LP"
+},
+{
+"codigo": "030501",
+"local": "LP"
+},
+{
+"codigo": "040101",
+"local": "EP"
+},
+{
+"codigo": "040102",
+"local": "EP"
+},
+{
+"codigo": "040201",
+"local": "EP"
+},
+{
+"codigo": "040202",
+"local": "EP"
+},
+{
+"codigo": "040203",
+"local": "EP"
+},
+{
+"codigo": "040204",
+"local": "EP"
+},
+{
+"codigo": "040205",
+"local": "EP"
+},
+{
+"codigo": "040301",
+"local": "EP"
+},
+{
+"codigo": "040302",
+"local": "EP"
+},
+{
+"codigo": "040303",
+"local": "EP"
+},
+{
+"codigo": "040401",
+"local": "EP"
+},
+{
+"codigo": "040501",
+"local": "EP"
+},
+{
+"codigo": "040601",
+"local": "EP"
+},
+{
+"codigo": "040701",
+"local": "EP"
+},
+{
+"codigo": "040801",
+"local": "EP"
+},
+{
+"codigo": "040802",
+"local": "EP"
+},
+{
+"codigo": "040803",
+"local": "EP"
+},
+{
+"codigo": "040901",
+"local": "EP"
+},
+{
+"codigo": "041001",
+"local": "EP"
+},
+{
+"codigo": "041101",
+"local": "EP"
+},
+{
+"codigo": "041201",
+"local": "EP"
+},
+{
+"codigo": "041301",
+"local": "EP"
+},
+{
+"codigo": "041401",
+"local": "EP"
+},
+{
+"codigo": "041501",
+"local": "EP"
+},
+{
+"codigo": "041601",
+"local": "EP"
+},
+{
+"codigo": "041701",
+"local": "EP"
+},
+{
+"codigo": "041702",
+"local": "EP"
+},
+{
+"codigo": "041703",
+"local": "EP"
+},
+{
+"codigo": "041704",
+"local": "EP"
+},
+{
+"codigo": "041801",
+"local": "EP"
+},
+{
+"codigo": "041901",
+"local": "EP"
+},
+{
+"codigo": "042001",
+"local": "EP"
+},
+{
+"codigo": "042101",
+"local": "EP"
+},
+{
+"codigo": "042201",
+"local": "EP"
+},
+{
+"codigo": "042301",
+"local": "EP"
+},
+{
+"codigo": "050101",
+"local": "EP"
+},
+{
+"codigo": "050102",
+"local": "EP"
+},
+{
+"codigo": "050201",
+"local": "EP"
+},
+{
+"codigo": "050202",
+"local": "EP"
+},
+{
+"codigo": "050301",
+"local": "EP"
+},
+{
+"codigo": "050401",
+"local": "EP"
+},
+{
+"codigo": "050501",
+"local": "EP"
+},
+{
+"codigo": "050601",
+"local": "EP"
+},
+{
+"codigo": "050701",
+"local": "EP"
+},
+{
+"codigo": "050801",
+"local": "EP"
+},
+{
+"codigo": "050901",
+"local": "EP"
+},
+{
+"codigo": "060101",
+"local": "EP"
+},
+{
+"codigo": "060201",
+"local": "EP"
+},
+{
+"codigo": "060301",
+"local": "EP"
+},
+{
+"codigo": "060401",
+"local": "EP"
+},
+{
+"codigo": "060501",
+"local": "EP"
+},
+{
+"codigo": "060601",
+"local": "EP"
+},
+{
+"codigo": "070101",
+"local": "EP"
+},
+{
+"codigo": "070102",
+"local": "EP"
+},
+{
+"codigo": "070103",
+"local": "EP"
+},
+{
+"codigo": "070104",
+"local": "EP"
+},
+{
+"codigo": "070105",
+"local": "EP"
+},
+{
+"codigo": "070106",
+"local": "EP"
+},
+{
+"codigo": "070201",
+"local": "LP"
+},
+{
+"codigo": "070202",
+"local": "LP"
+},
+{
+"codigo": "070301",
+"local": "EP"
+},
+{
+"codigo": "070302",
+"local": "EP"
+},
+{
+"codigo": "070401",
+"local": "LP"
+},
+{
+"codigo": "070501",
+"local": "LP"
+},
+{
+"codigo": "070502",
+"local": "LP"
+},
+{
+"codigo": "070601",
+"local": "EP"
+},
+{
+"codigo": "070602",
+"local": "EP"
+},
+{
+"codigo": "070701",
+"local": "EP"
+},
+{
+"codigo": "070801",
+"local": "EP"
+},
+{
+"codigo": "070901",
+"local": "LP"
+},
+{
+"codigo": "070902",
+"local": "LP"
+},
+{
+"codigo": "071001",
+"local": "LP"
+},
+{
+"codigo": "071002",
+"local": "LP"
+},
+{
+"codigo": "071101",
+"local": "LP"
+},
+{
+"codigo": "071102",
+"local": "LP"
+},
+{
+"codigo": "071201",
+"local": "LP"
+},
+{
+"codigo": "071301",
+"local": "EP"
+},
+{
+"codigo": "071601",
+"local": "LP"
+},
+{
+"codigo": "071701",
+"local": "LP"
+},
+{
+"codigo": "071801",
+"local": "LP"
+},
+{
+"codigo": "071901",
+"local": "LP"
+},
+{
+"codigo": "072001",
+"local": "EP"
+},
+{
+"codigo": "072002",
+"local": "EP"
+},
+{
+"codigo": "072003",
+"local": "EP"
+},
+{
+"codigo": "072101",
+"local": "EP"
+},
+{
+"codigo": "072201",
+"local": "EP"
+},
+{
+"codigo": "080101",
+"local": "EP"
+},
+{
+"codigo": "080102",
+"local": "EP"
+},
+{
+"codigo": "080201",
+"local": "EP"
+},
+{
+"codigo": "090101",
+"local": "EP"
+},
+{
+"codigo": "090102",
+"local": "EP"
+},
+{
+"codigo": "090103",
+"local": "EP"
+},
+{
+"codigo": "090104",
+"local": "EP"
+},
+{
+"codigo": "090201",
+"local": "EP"
+},
+{
+"codigo": "090202",
+"local": "EP"
+},
+{
+"codigo": "090301",
+"local": "EP"
+},
+{
+"codigo": "100101",
+"local": "EP"
+},
+{
+"codigo": "100102",
+"local": "EP"
+},
+{
+"codigo": "100103",
+"local": "EP"
+},
+{
+"codigo": "100104",
+"local": "EP"
+},
+{
+"codigo": "100105",
+"local": "EP"
+},
+{
+"codigo": "100201",
+"local": "EP"
+},
+{
+"codigo": "100202",
+"local": "EP"
+},
+{
+"codigo": "100301",
+"local": "EP"
+},
+{
+"codigo": "100401",
+"local": "EP"
+},
+{
+"codigo": "100402",
+"local": "EP"
+},
+{
+"codigo": "100403",
+"local": "EP"
+},
+{
+"codigo": "100501",
+"local": "EP"
+},
+{
+"codigo": "100502",
+"local": "EP"
+},
+{
+"codigo": "100601",
+"local": "EP"
+},
+{
+"codigo": "100701",
+"local": "EP"
+},
+{
+"codigo": "100801",
+"local": "EP"
+},
+{
+"codigo": "100901",
+"local": "EP"
+},
+{
+"codigo": "101001",
+"local": "EP"
+},
+{
+"codigo": "110101",
+"local": "LP"
+},
+{
+"codigo": "110102",
+"local": "LP"
+},
+{
+"codigo": "110201",
+"local": "LP"
+},
+{
+"codigo": "110301",
+"local": "EP"
+},
+{
+"codigo": "110401",
+"local": "LP"
+},
+{
+"codigo": "110402",
+"local": "LP"
+},
+{
+"codigo": "110501",
+"local": "EP"
+},
+{
+"codigo": "120101",
+"local": "LP"
+},
+{
+"codigo": "120201",
+"local": "LP"
+},
+{
+"codigo": "120301",
+"local": "LP"
+},
+{
+"codigo": "120401",
+"local": "LP"
+},
+{
+"codigo": "120501",
+"local": "LP"
+},
+{
+"codigo": "120601",
+"local": "LP"
+},
+{
+"codigo": "120701",
+"local": "LP"
+},
+{
+"codigo": "120801",
+"local": "LP"
+},
+{
+"codigo": "120901",
+"local": "LP"
+},
+{
+"codigo": "120902",
+"local": "LP"
+},
+{
+"codigo": "120903",
+"local": "LP"
+},
+{
+"codigo": "121001",
+"local": "LP"
+},
+{
+"codigo": "121101",
+"local": "LP"
+},
+{
+"codigo": "121201",
+"local": "LP"
+},
+{
+"codigo": "121301",
+"local": "EP"
+},
+{
+"codigo": "121401",
+"local": "LP"
+},
+{
+"codigo": "121501",
+"local": "LP"
+},
+{
+"codigo": "121601",
+"local": "LP"
+},
+{
+"codigo": "121701",
+"local": "LP"
+},
+{
+"codigo": "130201",
+"local": "EP"
+},
+{
+"codigo": "130301",
+"local": "EP"
+},
+{
+"codigo": "130401",
+"local": "EP"
+},
+{
+"codigo": "130501",
+"local": "EP"
+},
+{
+"codigo": "140101",
+"local": "EP"
+},
+{
+"codigo": "140201",
+"local": "EP"
+},
+{
+"codigo": "140301",
+"local": "EP"
+},
+{
+"codigo": "140401",
+"local": "EP"
+},
+{
+"codigo": "140501",
+"local": "EP"
+},
+{
+"codigo": "140601",
+"local": "EP"
+},
+{
+"codigo": "140701",
+"local": "EP"
+},
+{
+"codigo": "140801",
+"local": "EP"
+},
+{
+"codigo": "140901",
+"local": "EP"
+},
+{
+"codigo": "141001",
+"local": "EP"
+},
+{
+"codigo": "141101",
+"local": "EP"
+},
+{
+"codigo": "141201",
+"local": "EP"
+},
+{
+"codigo": "141301",
+"local": "EP"
+},
+{
+"codigo": "141302",
+"local": "EP"
+},
+{
+"codigo": "141401",
+"local": "LP"
+},
+{
+"codigo": "141402",
+"local": "LP"
+},
+{
+"codigo": "141403",
+"local": "LP"
+},
+{
+"codigo": "141404",
+"local": "LP"
+},
+{
+"codigo": "150101",
+"local": "EP"
+},
+{
+"codigo": "150102",
+"local": "EP"
+},
+{
+"codigo": "150103",
+"local": "EP"
+},
+{
+"codigo": "150104",
+"local": "EP"
+},
+{
+"codigo": "150105",
+"local": "EP"
+},
+{
+"codigo": "150201",
+"local": "EP"
+},
+{
+"codigo": "150202",
+"local": "EP"
+},
+{
+"codigo": "150203",
+"local": "EP"
+},
+{
+"codigo": "150204",
+"local": "EP"
+},
+{
+"codigo": "150205",
+"local": "EP"
+},
+{
+"codigo": "150206",
+"local": "EP"
+},
+{
+"codigo": "150207",
+"local": "EP"
+},
+{
+"codigo": "150208",
+"local": "EP"
+},
+{
+"codigo": "150301",
+"local": "EP"
+},
+{
+"codigo": "150302",
+"local": "EP"
+},
+{
+"codigo": "150303",
+"local": "EP"
+},
+{
+"codigo": "150304",
+"local": "EP"
+},
+{
+"codigo": "150305",
+"local": "EP"
+},
+{
+"codigo": "150306",
+"local": "EP"
+},
+{
+"codigo": "150307",
+"local": "EP"
+},
+{
+"codigo": "150308",
+"local": "EP"
+},
+{
+"codigo": "150401",
+"local": "EP"
+},
+{
+"codigo": "150501",
+"local": "EP"
+},
+{
+"codigo": "150502",
+"local": "EP"
+},
+{
+"codigo": "150503",
+"local": "EP"
+},
+{
+"codigo": "150504",
+"local": "EP"
+},
+{
+"codigo": "150505",
+"local": "EP"
+},
+{
+"codigo": "150601",
+"local": "EP"
+},
+{
+"codigo": "150602",
+"local": "EP"
+},
+{
+"codigo": "150603",
+"local": "EP"
+},
+{
+"codigo": "150604",
+"local": "EP"
+},
+{
+"codigo": "150605",
+"local": "EP"
+},
+{
+"codigo": "150606",
+"local": "EP"
+},
+{
+"codigo": "150607",
+"local": "EP"
+},
+{
+"codigo": "150608",
+"local": "EP"
+},
+{
+"codigo": "150701",
+"local": "EP"
+},
+{
+"codigo": "150702",
+"local": "EP"
+},
+{
+"codigo": "150703",
+"local": "EP"
+},
+{
+"codigo": "150704",
+"local": "EP"
+},
+{
+"codigo": "150801",
+"local": "EP"
+},
+{
+"codigo": "150802",
+"local": "EP"
+},
+{
+"codigo": "150803",
+"local": "EP"
+},
+{
+"codigo": "150804",
+"local": "EP"
+},
+{
+"codigo": "150901",
+"local": "EP"
+},
+{
+"codigo": "151001",
+"local": "EP"
+},
+{
+"codigo": "151002",
+"local": "EP"
+},
+{
+"codigo": "151003",
+"local": "EP"
+},
+{
+"codigo": "151004",
+"local": "EP"
+},
+{
+"codigo": "151005",
+"local": "EP"
+},
+{
+"codigo": "151101",
+"local": "EP"
+},
+{
+"codigo": "151201",
+"local": "EP"
+},
+{
+"codigo": "151301",
+"local": "EP"
+},
+{
+"codigo": "151302",
+"local": "EP"
+},
+{
+"codigo": "151303",
+"local": "EP"
+},
+{
+"codigo": "151304",
+"local": "EP"
+},
+{
+"codigo": "151305",
+"local": "EP"
+},
+{
+"codigo": "151306",
+"local": "EP"
+},
+{
+"codigo": "151401",
+"local": "EP"
+},
+{
+"codigo": "151402",
+"local": "EP"
+},
+{
+"codigo": "151403",
+"local": "EP"
+},
+{
+"codigo": "151501",
+"local": "EP"
+},
+{
+"codigo": "151502",
+"local": "EP"
+},
+{
+"codigo": "151601",
+"local": "EP"
+},
+{
+"codigo": "151602",
+"local": "EP"
+},
+{
+"codigo": "151701",
+"local": "EP"
+},
+{
+"codigo": "151702",
+"local": "EP"
+},
+{
+"codigo": "151703",
+"local": "EP"
+},
+{
+"codigo": "151801",
+"local": "EP"
+},
+{
+"codigo": "151802",
+"local": "EP"
+},
+{
+"codigo": "151803",
+"local": "EP"
+},
+{
+"codigo": "151804",
+"local": "EP"
+},
+{
+"codigo": "151805",
+"local": "EP"
+},
+{
+"codigo": "160101",
+"local": "LP"
+},
+{
+"codigo": "160102",
+"local": "LP"
+},
+{
+"codigo": "160103",
+"local": "LP"
+},
+{
+"codigo": "160104",
+"local": "LP"
+},
+{
+"codigo": "160201",
+"local": "LP"
+},
+{
+"codigo": "170101",
+"local": "EP"
+},
+{
+"codigo": "170102",
+"local": "EP"
+},
+{
+"codigo": "170201",
+"local": "EP"
+},
+{
+"codigo": "170202",
+"local": "EP"
+},
+{
+"codigo": "170203",
+"local": "EP"
+},
+{
+"codigo": "170204",
+"local": "EP"
+},
+{
+"codigo": "170205",
+"local": "EP"
+},
+{
+"codigo": "170301",
+"local": "EP"
+},
+{
+"codigo": "170302",
+"local": "EP"
+},
+{
+"codigo": "170303",
+"local": "EP"
+},
+{
+"codigo": "170401",
+"local": "EP"
+},
+{
+"codigo": "170501",
+"local": "ET"
+},
+{
+"codigo": "170601",
+"local": "EP"
+},
+{
+"codigo": "170801",
+"local": "EP"
+},
+{
+"codigo": "170901",
+"local": "EP"
+},
+{
+"codigo": "171001",
+"local": "LP"
+},
+{
+"codigo": "171002",
+"local": "LP"
+},
+{
+"codigo": "171101",
+"local": "EP"
+},
+{
+"codigo": "171102",
+"local": "EP"
+},
+{
+"codigo": "171201",
+"local": "EP"
+},
+{
+"codigo": "171301",
+"local": "EP"
+},
+{
+"codigo": "171401",
+"local": "EP"
+},
+{
+"codigo": "171501",
+"local": "EP"
+},
+{
+"codigo": "171601",
+"local": "EP"
+},
+{
+"codigo": "171701",
+"local": "EP"
+},
+{
+"codigo": "171801",
+"local": "EP"
+},
+{
+"codigo": "171901",
+"local": "EP"
+},
+{
+"codigo": "172001",
+"local": "EP"
+},
+{
+"codigo": "172101",
+"local": "EP"
+},
+{
+"codigo": "172201",
+"local": "EP"
+},
+{
+"codigo": "172301",
+"local": "EP"
+},
+{
+"codigo": "172401",
+"local": "EP"
+},
+{
+"codigo": "172501",
+"local": "EP"
+},
+{
+"codigo": "180101",
+"local": "EP"
+},
+{
+"codigo": "180102",
+"local": "EP"
+},
+{
+"codigo": "180103",
+"local": "EP"
+},
+{
+"codigo": "190101",
+"local": "EP"
+},
+{
+"codigo": "190102",
+"local": "EP"
+},
+{
+"codigo": "200101",
+"local": "LP"
+},
+{
+"codigo": "200201",
+"local": "LP"
+},
+{
+"codigo": "200301",
+"local": "LP"
+},
+{
+"codigo": "210101",
+"local": "EP"
+},
+{
+"codigo": "220101",
+"local": "LP"
+},
+{
+"codigo": "230101",
+"local": "EP"
+},
+{
+"codigo": "230102",
+"local": "EP"
+},
+{
+"codigo": "240101",
+"local": "EP"
+},
+{
+"codigo": "240102",
+"local": "EP"
+},
+{
+"codigo": "250101",
+"local": "EP"
+},
+{
+"codigo": "250201",
+"local": "EP"
+},
+{
+"codigo": "250202",
+"local": "EP"
+},
+{
+"codigo": "250301",
+"local": "EP"
+},
+{
+"codigo": "250401",
+"local": "EP"
+},
+{
+"codigo": "250501",
+"local": "EP"
+},
+{
+"codigo": "260101",
+"local": "EP"
+},
+{
+"codigo": "260102",
+"local": "EP"
+},
+{
+"codigo": "270101",
+"local": "EP"
+},
+{
+"codigo": "280101",
+"local": "EP"
+},
+{
+"codigo": "290101",
+"local": "EP"
+},
+{
+"codigo": "300101",
+"local": "EP"
+},
+{
+"codigo": "300102",
+"local": "EP"
+},
+{
+"codigo": "310101",
+"local": "EP"
+},
+{
+"codigo": "310102",
+"local": "EP"
+},
+{
+"codigo": "310103",
+"local": "EP"
+},
+{
+"codigo": "310104",
+"local": "EP"
+},
+{
+"codigo": "320101",
+"local": "EP"
+},
+{
+"codigo": "330101",
+"local": "EP"
+},
+{
+"codigo": "340101",
+"local": "EP"
+},
+{
+"codigo": "350101",
+"local": "EP"
+},
+{
+"codigo": "350102",
+"local": "EP"
+},
+{
+"codigo": "350103",
+"local": "EP"
+},
+{
+"codigo": "360101",
+"local": "EP"
+},
+{
+"codigo": "370101",
+"local": "EP"
+},
+{
+"codigo": "380101",
+"local": "EP"
+},
+{
+"codigo": "390101",
+"local": "EP"
+},
+{
+"codigo": "400101",
+"local": "EP"
+},
+{
+"codigo": "990101",
+"local": ""
+}
+]
+}

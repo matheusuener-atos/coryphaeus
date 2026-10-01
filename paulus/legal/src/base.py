@@ -874,6 +874,91 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE cadastros ADD COLUMN email_nota TEXT DEFAULT '';
         """,
     ),
+    (
+        "035_nfse_notas",
+        """
+        -- A nota fiscal do rascunho ao fim (src/nfse/notas.py, N2-N5). O
+        -- estado e gravado ANTES de cada passo: se o programa cair no meio do
+        -- envio, a nota sabe que estava "enviando" e a proxima coisa e
+        -- consultar, nunca reenviar. Nota emitida nao se apaga: se cancela.
+        CREATE TABLE IF NOT EXISTS nfse_notas (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            estado             TEXT NOT NULL DEFAULT 'rascunho',
+            ambiente           TEXT NOT NULL,
+            origem             TEXT DEFAULT '',
+            cadastro_id        INTEGER,
+            lancamento_id      INTEGER,
+            servico_id         INTEGER,
+            recorrencia_id     INTEGER,
+            prestador_versao   INTEGER,
+            rascunho           TEXT NOT NULL DEFAULT '{}',
+            conta              TEXT NOT NULL DEFAULT '{}',
+            erros              TEXT NOT NULL DEFAULT '[]',
+            avisos             TEXT NOT NULL DEFAULT '[]',
+            centavos           INTEGER NOT NULL DEFAULT 0,
+            competencia        TEXT DEFAULT '',
+            tomador_nome       TEXT DEFAULT '',
+            tomador_documento  TEXT DEFAULT '',
+            serie              TEXT DEFAULT '',
+            numero             INTEGER,
+            id_dps             TEXT,
+            dh_emi             TEXT DEFAULT '',
+            chave              TEXT DEFAULT '',
+            numero_nfse        TEXT DEFAULT '',
+            dh_proc            TEXT DEFAULT '',
+            xml_dps            TEXT DEFAULT '',
+            xml_nfse           TEXT DEFAULT '',
+            hash_enviado       TEXT DEFAULT '',
+            hash_recebido      TEXT DEFAULT '',
+            tentativas         INTEGER NOT NULL DEFAULT 0,
+            proxima_tentativa  TEXT DEFAULT '',
+            ultimo_erro        TEXT DEFAULT '',
+            rejeicao           TEXT NOT NULL DEFAULT '[]',
+            aprovacao_id       TEXT DEFAULT '',
+            pedido_por         TEXT DEFAULT '',
+            aprovado_por       TEXT DEFAULT '',
+            aprovado_em        TEXT DEFAULT '',
+            substitui_id       INTEGER,
+            substituida_por_id INTEGER,
+            papel_id           INTEGER,
+            criado_em          TEXT NOT NULL,
+            atualizado_em      TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_nfse_notas_estado ON nfse_notas(estado);
+        CREATE INDEX IF NOT EXISTS idx_nfse_notas_lancamento ON nfse_notas(lancamento_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_dps ON nfse_notas(id_dps) WHERE id_dps IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nfse_notas_numero
+            ON nfse_notas(ambiente, serie, numero) WHERE numero IS NOT NULL;
+
+        -- O numero da DPS: o ultimo usado por ambiente e serie, e os
+        -- devolvidos (nota descartada antes de virar NFS-e), que voltam
+        -- primeiro - assim nao fica buraco nem repete.
+        CREATE TABLE IF NOT EXISTS nfse_numeracao (
+            ambiente TEXT NOT NULL,
+            serie    TEXT NOT NULL,
+            ultimo   INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (ambiente, serie)
+        );
+        CREATE TABLE IF NOT EXISTS nfse_numeros_livres (
+            ambiente TEXT NOT NULL,
+            serie    TEXT NOT NULL,
+            numero   INTEGER NOT NULL,
+            PRIMARY KEY (ambiente, serie, numero)
+        );
+
+        -- Cada passo da nota, na ordem, com quem e de onde.
+        CREATE TABLE IF NOT EXISTS nfse_passos (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            nota_id  INTEGER NOT NULL,
+            quando   TEXT NOT NULL,
+            de       TEXT DEFAULT '',
+            para     TEXT DEFAULT '',
+            quem     TEXT DEFAULT '',
+            detalhe  TEXT DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_nfse_passos_nota ON nfse_passos(nota_id);
+        """,
+    ),
 ]
 
 

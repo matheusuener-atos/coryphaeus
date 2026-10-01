@@ -1,0 +1,358 @@
+{
+"nome": "regras_eventos",
+"titulo": "Regras de negócio dos eventos (códigos de rejeição)",
+"versao": "1.01",
+"data": "2026-01-22",
+"fonte": "https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/anexo_ii-sefin_adn-pedregevt_evt-snnfse-v1-01-20260122.xlsx",
+"gerado_em": "2026-10-01T06:06:40",
+"itens": [
+{
+"codigo": "E0802",
+"mensagem": "Já existe um documento fiscal eletrônico identificado com este id no Sistema Nacional NFS-e.",
+"caminho": "evento/infEvento/",
+"campo": "id"
+},
+{
+"codigo": "E0812",
+"mensagem": "O CNPJ do autor do pedido de registro de evento não corresponde à base do CNPJ informada no certificado digital da assinatura do pedido.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "CNPJAutor"
+},
+{
+"codigo": "E0813",
+"mensagem": "O CNPJ autor informado no pedido de registro de evento não corresponde ao \"AUTOR DO PEDIDO DE REGISTRO DE EVENTO\" indicado na planilha \"Tipo Eventos\".",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "CNPJAutor"
+},
+{
+"codigo": "E0815",
+"mensagem": "O CPF do autor do pedido de registro de evento não corresponde ao CPF informado no certificado digital da assinatura do pedido.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "CPFAutor"
+},
+{
+"codigo": "E0816",
+"mensagem": "O CPF autor informado no pedido de registro de evento não corresponde ao \"AUTOR DO PEDIDO DE REGISTRO DE EVENTO\" indicado na planilha \"Tipo Eventos\".",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "CPFAutor"
+},
+{
+"codigo": "E0822",
+"mensagem": "O prazo para o cancelamento da NFS-e expirou, conforme parametrização do município emissor da NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E0823",
+"mensagem": "Valor da NFS-e a ser cancelada acima do permitido, conforme parametrização do município emissor da NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E0824",
+"mensagem": "NFS-e sem indentificação do tomador do serviço não pode ser cancelada, conforme parametrização do município emissor da NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E0827",
+"mensagem": "Não é permitido realizar um Evento de Cancelamento para NFS-e que possua Evento de Tributos Recolhidos vinculado, conforme parametrização do município de incidência do ISSQN da NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E0831",
+"mensagem": "O pedido de registro deste evento de NFS-e deve ser enviado para o ambiente que gerou a NFS-e referenciada no pedido.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E0840",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-e pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e101101"
+},
+{
+"codigo": "E0845",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-e POR SUBSTITUIÇÃO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e105102"
+},
+{
+"codigo": "E0848",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE SOLICITAÇÃO DE ANÁLISE FISCAL PARA CANCELAMENTO DE NFS-e pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e101103"
+},
+{
+"codigo": "E0852",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-e DEFERIDO POR ANÁLISE FISCAL pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e105104"
+},
+{
+"codigo": "E0853",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-e DEFERIDO POR ANÁLISE FISCAL pois não existe um EVENTO DE SOLICITAÇÃO DE ANÁLISE FISCAL PARA CANCELAMENTO DE NFS-e pendente para deferimento ou indeferimento.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e105104"
+},
+{
+"codigo": "E0855",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-E INDEFERIDO POR ANÁLISE FISCAL pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e105105"
+},
+{
+"codigo": "E0856",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-e INDEFERIDO POR ANÁLISE FISCAL pois não existe um EVENTO DE SOLICITAÇÃO DE ANÁLISE FISCAL PARA CANCELAMENTO DE NFS-e pendente para deferimento ou indeferimento.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e105105"
+},
+{
+"codigo": "E0860",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - CONFIRMAÇÃO DO PRESTADOR pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e202201"
+},
+{
+"codigo": "E0861",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - CONFIRMAÇÃO DO TOMADOR pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e203202"
+},
+{
+"codigo": "E0862",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - CONFIRMAÇÃO DO INTERMEDIÁRIO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e204203"
+},
+{
+"codigo": "E0863",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - CONFIRMAÇÃO TÁCITA pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e205204"
+},
+{
+"codigo": "E0864",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - REJEIÇÃO DO PRESTADOR pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e202205"
+},
+{
+"codigo": "E0866",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - REJEIÇÃO DO TOMADOR pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e203206"
+},
+{
+"codigo": "E0868",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - REJEIÇÃO DO INTERMEDIÁRIO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e204207"
+},
+{
+"codigo": "E0870",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE MANIFESTAÇÃO DE NFS-e - ANULAÇÃO DA REJEIÇÃO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e205208"
+},
+{
+"codigo": "E1260",
+"mensagem": "O prazo de aceitação da versão do leiaute do DF-e expirou.",
+"caminho": "evento/",
+"campo": "versao"
+},
+{
+"codigo": "E1274",
+"mensagem": "O ambiente gerador da NFS-e não está de acordo com a definição 1 (Sistema Próprio do Município) ou 2 (Sefin Nacional).",
+"caminho": "evento/infEvento/",
+"campo": "ambGer"
+},
+{
+"codigo": "E1278",
+"mensagem": "A data e hora do processamento (geração) do DF-e deve ser anterior ou igual à data da recepção pelo Sistema Nacional NFS-e.",
+"caminho": "evento/infEvento/",
+"campo": "dhProc"
+},
+{
+"codigo": "E1802",
+"mensagem": "Conteúdo do identificador informado no identificador do evento difere da concatenação dos campos correspondentes.",
+"caminho": "evento/infEvento/",
+"campo": "id"
+},
+{
+"codigo": "E1805",
+"mensagem": "Já existe um Evento com este identificador no ADN NFS-e.",
+"caminho": "evento/infEvento/",
+"campo": "id"
+},
+{
+"codigo": "E1818",
+"mensagem": "Não é permitido o compartilhamento pelo município com o ADN dos eventos de manifestação de NFS-e para confirmação ou rejeição pelos não emitentes de um NFS-e. Estes eventos devem ser emitidos pelos não emitentes da NFS-e diretamente no SEFIN NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "id"
+},
+{
+"codigo": "E1825",
+"mensagem": "Prazo de aceitação da versão do leiaute do pedido de registro de evento expirou.",
+"caminho": "evento/pedRegEvento/",
+"campo": "versao"
+},
+{
+"codigo": "E1827",
+"mensagem": "Conteúdo do identificador informado no identificador do Pedido de Registro de Evento difere da concatenação dos campos correspondentes.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "id"
+},
+{
+"codigo": "E1831",
+"mensagem": "O pedido de registro de evento não pode ser validado pois a NFS-e indicada não existe no Ambiente de Dados Nacional NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E1833",
+"mensagem": "Somente é permitido um único evento do tipo Manifestação de NFS-e (Confirmação e Rejeição), por não emitente da NFS-e indicada no evento.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E1835",
+"mensagem": "Somente é permitido um único evento do tipo Manifestação de NFS-e (Anulação da Rejeição) para cada Evento de Manifestação de NFS-e - Rejeição, emitido por cada possível não emitentes da NFS-e indicada pela chave de acesso.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "chNFSe"
+},
+{
+"codigo": "E1843",
+"mensagem": "A data de emissão do pedido do registro do evento não pode ser posterior à data de recebimento pelo Sistema Nacional NFS-e.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "dhEvento"
+},
+{
+"codigo": "E1845",
+"mensagem": "Ambiente informado diverge do ambiente de recebimento para o qual o emitente está enviando o evento.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "tpAmb"
+},
+{
+"codigo": "E1944",
+"mensagem": "A  descrição do motivo é obrigatória caso o tipo do motivo seja \"9 - Outros\".",
+"caminho": "evento/pedRegEvento/infPedReg/e202205/",
+"campo": "xMotivo"
+},
+{
+"codigo": "E1949",
+"mensagem": "A  descrição do motivo é obrigatória caso o tipo do motivo seja \"9 - Outros\".",
+"caminho": "evento/pedRegEvento/infPedReg/e203206/",
+"campo": "xMotivo"
+},
+{
+"codigo": "E1954",
+"mensagem": "A  descrição do motivo é obrigatória caso o tipo do motivo seja \"9 - Outros\".",
+"caminho": "evento/pedRegEvento/infPedReg/e204207/",
+"campo": "xMotivo"
+},
+{
+"codigo": "E1960",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE CANCELAMENTO DE NFS-e POR OFÍCIO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e305101"
+},
+{
+"codigo": "E1963",
+"mensagem": "O identificador do Evento de Manifestação de NFS-e - Rejeição a ser anulado deve existir no Sistema Nacional NFS-e e corresponder a um identificador de evento de rejeição vinculada à NFS-e informada no evento.",
+"caminho": "evento/pedRegEvento/infPedReg/e205208/",
+"campo": "idEvManifRej"
+},
+{
+"codigo": "E1965",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE BLOQUEIO DE NFS-e POR OFÍCIO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e305102"
+},
+{
+"codigo": "E1967",
+"mensagem": "O sistema não pode recepcionar o Evento de Bloqueio de NFS-e por Ofício para <tipo_evento_bloqueio_NFS-e>, pois já existe o mesmo tipo de evento vinculado à NFS-e sem o Evento de Desbloqueio correpondente.",
+"caminho": "evento/pedRegEvento/infPedReg/e305102/",
+"campo": "codEvento"
+},
+{
+"codigo": "E1970",
+"mensagem": "O Sistema Nacional NFS-e não pode recepecionar o EVENTO DE DESBLOQUEIO DE NFS-e POR OFÍCIO pois, o evento de <nome_evento_vinculado_a_NFS-e> já está vinculado à NFS-e indicada no evento enviado, impedindo sua recepção.",
+"caminho": "evento/pedRegEvento/infPedReg/",
+"campo": "e305103"
+},
+{
+"codigo": "E1976",
+"mensagem": "Não existe o identificador de bloqueio informado neste evento para desbloqueio.",
+"caminho": "evento/pedRegEvento/infPedReg/e305103/",
+"campo": "idBloqOfic"
+},
+{
+"codigo": "E1978",
+"mensagem": "O sistema não pode recepcionar o Evento Desbloqueio de NFS-e por Ofício, pois o Evento de Bloqueio indicado já foi desbloqueado.",
+"caminho": "evento/pedRegEvento/infPedReg/e305103/",
+"campo": "idBloqOfic"
+},
+{
+"codigo": "E1980",
+"mensagem": "Arquivo enviado com erro na assinatura.",
+"caminho": "evento/pedRegEvento/",
+"campo": "Signature"
+},
+{
+"codigo": "E1983",
+"mensagem": "Certificado Digital da assinatura inválido.",
+"caminho": "evento/pedRegEvento/",
+"campo": "Signature"
+},
+{
+"codigo": "E1986",
+"mensagem": "Certificado Digital fora do padrão estabelecido.",
+"caminho": "evento/pedRegEvento/",
+"campo": "Signature"
+},
+{
+"codigo": "E1989",
+"mensagem": "A assinatura é obrigatória quando for enviado para o Web Service.",
+"caminho": "evento/pedRegEvento/",
+"campo": "Signature"
+},
+{
+"codigo": "E1991",
+"mensagem": "A assinatura deve ser feita com o certificado digital do emitente do Pedido de Registro de Evento.",
+"caminho": "evento/pedRegEvento/",
+"campo": "Signature"
+},
+{
+"codigo": "E2020",
+"mensagem": "Arquivo enviado com erro na assinatura.",
+"caminho": "evento/",
+"campo": "Signature"
+},
+{
+"codigo": "E2023",
+"mensagem": "Certificado Digital da assinatura inválido.",
+"caminho": "evento/",
+"campo": "Signature"
+},
+{
+"codigo": "E2026",
+"mensagem": "Certificado Digital fora do padrão estabelecido.",
+"caminho": "evento/",
+"campo": "Signature"
+},
+{
+"codigo": "E2029",
+"mensagem": "A assinatura é obrigatória quando for enviado paraa API.",
+"caminho": "evento/",
+"campo": "Signature"
+},
+{
+"codigo": "E2032",
+"mensagem": "A assinatura deve ser feita com o certificado digital do município emissor do Evento.",
+"caminho": "evento/",
+"campo": "Signature"
+}
+]
+}

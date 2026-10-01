@@ -157,7 +157,7 @@ function secaoNfse() {
   const municipio = cartaoCfg("O município emite pelo nacional?", metaCfg(mun.consultado_em ? "consultado em " + mun.consultado_em.slice(0, 16).replace("T", " ") : "não consultado"),
     '<p class="cfg-explica">' + esc(mun.frase || "") + "</p>" +
     (mun.reconsultar && mun.consultado_em ? '<p class="cfg-explica">A consulta tem mais de 30 dias: consulte de novo.</p>' : "") +
-    '<div class="word-acoes"><button data-nfse-acao="municipio">' + ic("travel_explore", 16) + "Consultar agora</button></div>");
+    '<div class="word-acoes"><button data-nfse-acao="municipio">' + ic("search", 16) + "Consultar agora</button></div>");
 
   const tabs = (p.tabelas || []).map((t) => linhaNfse(t.titulo, "v" + t.versao + (t.data ? " · " + t.data : "") + " · " + t.itens + " itens")).join("");
   const tabelas = cartaoCfg("Tabelas oficiais", metaCfg("Portal da NFS-e"),

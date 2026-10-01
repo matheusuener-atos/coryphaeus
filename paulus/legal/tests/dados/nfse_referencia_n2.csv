@@ -1,0 +1,27 @@
+# Planilha de referência da N2 (docs/PROGRESSO-NFSE.md): 20 notas calculadas À MÃO, centavo a centavo,
+# antes do código existir. Arredondamento bancário (half-even, NT 007). Valores em centavos; alíquotas em
+# pontos-base (1% = 100). "-" = não se aplica. ret_*: alíquota e quando reter (n = nunca, pj = tomador PJ,
+# s = sempre); min_irrf: mínimo do IRRF em centavos. ativo: convênio do município de incidência ativo.
+# Esperado: base_iss, iss, iss_retido, paliq (vai a alíquota na DPS?), irrf, pis, cofins, csll, cp,
+# v_ret_csll, tp_ret, v_total_ret, v_liq, cbs, ibs (previsão 2026: CBS 0,9%, IBS 0,1%).
+caso;descricao;op_simples;reg_ap;reg_esp;prestador;tomador;valor;desconto;aliq_iss;ret_iss;ret_irrf;ret_pis;ret_cofins;ret_csll;ret_cp;min_irrf;ativo;loc_prest;ibscbs;base_iss;iss;iss_retido;paliq;irrf;pis;cofins;csll;cp;v_ret_csll;tp_ret;v_total_ret;v_liq;cbs;ibs
+1;não optante, PJ, sem retenção;1;-;0;cnpj;cnpj;500000;0;500;n;n;n;n;n;n;0;1;-;1;500000;25000;0;0;0;0;0;0;0;0;0;0;500000;4275;475
+2;não optante, tomador PF, retenções só para PJ;1;-;0;cnpj;cpf;500000;0;500;n;150pj;65pj;300pj;100pj;n;0;1;-;1;500000;25000;0;0;0;0;0;0;0;0;0;0;500000;4275;475
+3;não optante, PJ, IRRF+PIS+COFINS+CSLL;1;-;0;cnpj;cnpj;500000;0;500;n;150pj;65pj;300pj;100pj;n;0;1;-;1;500000;25000;0;0;7500;3250;15000;5000;0;23250;3;30750;469250;4275;475
+4;não optante, PJ, ISS retido 2% + federais;1;-;0;cnpj;cnpj;500000;0;200;pj;150pj;65pj;300pj;100pj;n;0;1;-;1;500000;10000;1;0;7500;3250;15000;5000;0;23250;3;40750;459250;4410;490
+5;não optante, valor quebrado R$ 1.234,56;1;-;0;cnpj;cnpj;123456;0;500;n;150pj;65pj;300pj;100pj;n;0;1;-;1;123456;6173;0;0;1852;802;3704;1235;0;5741;3;7593;115863;1056;117
+6;empate half-even: ISS 50,5 vira 50;1;-;0;cnpj;cnpj;1010;0;500;n;150pj;n;n;100pj;n;0;1;-;1;1010;50;0;0;15;0;0;10;0;10;8;25;985;9;1
+7;empate half-even: ISS 7,5 vira 8;1;-;0;cnpj;cnpj;150;0;500;n;n;n;n;n;n;0;1;-;1;150;8;0;0;0;0;0;0;0;0;0;0;150;1;0
+8;Simples ME/EPP, ISS no DAS, IRRF;3;1;0;cnpj;cnpj;500000;0;200;n;150pj;n;n;n;n;0;1;-;0;500000;0;0;0;7500;0;0;0;0;0;0;7500;492500;-;-
+9;Simples ME/EPP, ISS retido 2% (alíquota vai);3;1;0;cnpj;cnpj;500000;0;200;s;n;n;n;n;n;0;1;-;0;500000;10000;1;1;0;0;0;0;0;0;0;10000;490000;-;-
+10;Simples, ISS fora do DAS, município ativo;3;2;0;cnpj;cnpj;500000;0;500;n;n;n;n;n;n;0;1;-;0;500000;25000;0;0;0;0;0;0;0;0;0;0;500000;-;-
+11;Simples, ISS fora do DAS, município sem convênio;3;3;0;cnpj;cnpj;500000;0;500;n;n;n;n;n;n;0;0;-;0;500000;25000;0;1;0;0;0;0;0;0;0;0;500000;-;-
+12;não optante, município sem convênio (alíquota vai);1;-;0;cnpj;cnpj;500000;0;500;n;n;n;n;n;n;0;0;-;1;500000;25000;0;1;0;0;0;0;0;0;0;0;500000;4275;475
+13;MEI;2;-;0;cnpj;cnpj;100000;0;0;n;n;n;n;n;n;0;1;-;0;100000;0;0;0;0;0;0;0;0;0;0;0;100000;-;-
+14;sociedade de profissionais (ISS fixo), IRRF;1;-;6;cnpj;cnpj;800000;0;0;n;150pj;n;n;n;n;0;1;-;1;800000;0;0;0;12000;0;0;0;0;0;0;12000;788000;7200;800
+15;advogado autônomo (CPF), IRRF de PJ;1;-;5;cpf;cnpj;200000;0;0;n;150pj;n;n;n;n;0;1;-;1;200000;0;0;0;3000;0;0;0;0;0;0;3000;197000;1800;200
+16;desconto incondicionado de R$ 100,00;1;-;0;cnpj;cnpj;100000;10000;500;n;150pj;n;n;n;n;0;1;-;1;90000;4500;0;0;1350;0;0;0;0;0;0;1350;88650;770;86
+17;município da prestação diferente;1;-;0;cnpj;cnpj;500000;0;500;n;n;n;n;n;n;0;1;3550308;1;500000;25000;0;0;0;0;0;0;0;0;0;0;500000;4275;475
+18;CP retida 11%;1;-;0;cnpj;cnpj;300000;0;500;n;n;n;n;n;1100s;0;1;-;1;300000;15000;0;0;0;0;0;0;33000;0;0;33000;267000;2565;285
+19;IRRF abaixo do mínimo de R$ 10,00;1;-;0;cnpj;cnpj;50000;0;500;n;150pj;65pj;300pj;100pj;n;1000;1;-;1;50000;2500;0;0;0;325;1500;500;0;2325;3;2325;47675;428;48
+20;tomador PF, IRRF sempre;1;-;0;cnpj;cpf;100000;0;500;n;150s;65pj;n;n;n;0;1;-;1;100000;5000;0;0;1500;0;0;0;0;0;0;1500;98500;855;95

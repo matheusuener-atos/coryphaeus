@@ -29,6 +29,8 @@ PLANILHAS = {
     "servicos": re.compile(r"anexo_b-nbs2-lista_servico_nacional.*\.xlsx$", re.I),
     "indop": re.compile(r"anexo[-_]c-indop.*\.xlsx$", re.I),
     "correlacao": re.compile(r"anexoviii-correlacao.*\.xlsx$", re.I),
+    "incidencia": re.compile(r"anexo_i-sefin_adn-dps_nfse.*\.xlsx$", re.I),
+    "regras_eventos": re.compile(r"anexo_ii-sefin_adn-pedregevt.*\.xlsx$", re.I),
 }
 
 # Os domínios do XSD que a tela e a conta usam. Nome da tabela -> tipo simples.
@@ -97,7 +99,7 @@ def carregar(nome: str) -> dict:
 def versoes() -> list[dict]:
     """O que a tela mostra: cada tabela com versão, data, fonte e tamanho."""
     saida = []
-    for nome in ("municipios", "servicos", "nbs", "indop", "correlacao", "dominios"):
+    for nome in ("municipios", "servicos", "nbs", "indop", "correlacao", "incidencia", "regras", "regras_eventos", "dominios"):
         t = carregar(nome)
         saida.append({"nome": nome, "titulo": t.get("titulo", nome), "versao": t.get("versao", ""),
                       "data": t.get("data", ""), "fonte": t.get("fonte", ""), "itens": len(t.get("itens") or [])})
@@ -157,6 +159,17 @@ def nbs(codigo: str) -> dict | None:
 
 def indop(codigo: str) -> dict | None:
     return _indice("indop").get(re.sub(r"\D", "", str(codigo or "")))
+
+
+def local_de_incidencia(ctribnac: str) -> str:
+    """EP, LP ou ET para o código de serviço ("" se a tabela não diz)."""
+    return (_indice("incidencia").get(re.sub(r"\D", "", str(ctribnac or "")).zfill(6)) or {}).get("local", "")
+
+
+def regra(codigo: str) -> dict | None:
+    """A regra de negócio oficial pelo código (E0014, E1235…), da DPS ou dos eventos."""
+    c = str(codigo or "").strip().upper()
+    return _indice("regras").get(c) or _indice("regras_eventos").get(c)
 
 
 def dominio(nome: str) -> dict[str, str]:
@@ -282,6 +295,47 @@ def _correlacao(caminho: Path) -> list[dict]:
     return itens
 
 
+def _incidencia(caminho: Path) -> list[dict]:
+    """Onde incide o ISS de cada serviço (Anexo I, MUN.INCID_INFO.SERV.): no
+    estabelecimento do prestador (EP), no local da prestação (LP) ou no
+    estabelecimento do tomador (ET)."""
+    itens = []
+    for l in _linhas(caminho, "MUN.INCID"):
+        if len(l) < 5 or not re.fullmatch(r"\d{5,6}", l[0] or ""):
+            continue
+        local = "EP" if "X" in l[2] else ("LP" if "X" in l[3] else ("ET" if "X" in l[4] else ""))
+        itens.append({"codigo": l[0].zfill(6), "local": local})
+    return itens
+
+
+def _regras(caminho: Path, folhas: tuple[str, ...]) -> list[dict]:
+    """
+    As regras de negócio (código E…, a mensagem oficial e o campo), para
+    traduzir a rejeição da Sefin: o código vem com a frase e o campo que a
+    pessoa precisa corrigir.
+    """
+    itens: dict[str, dict] = {}
+    for folha in folhas:
+        caminho_xml = campo = ""
+        for l in _linhas(caminho, folha):
+            for i, celula in enumerate(l):
+                if re.fullmatch(r"E\d{4}", celula or ""):
+                    if len(l) > 2 and l[1] and "/" in l[1]:
+                        caminho_xml = l[1]
+                    if len(l) > 2 and l[2] and not l[2].startswith(("Obrig", "-")):
+                        campo = l[2]
+                    mensagem = next((c for c in l[i + 1:] if c and c not in ("-",)), "")
+                    if celula not in itens:
+                        itens[celula] = {"codigo": celula, "mensagem": mensagem.replace(" | ", " ").strip()[:400],
+                                         "caminho": caminho_xml, "campo": campo}
+                    break
+            else:
+                if len(l) > 2 and l[1] and "/" in l[1]:
+                    caminho_xml = l[1]
+                    campo = l[2] or campo
+    return sorted(itens.values(), key=lambda r: r["codigo"])
+
+
 def _dominios(pasta_xsd: Path) -> list[dict]:
     from lxml import etree
 
@@ -333,6 +387,16 @@ def importar(caminho: Path, destino: Path) -> dict:
         gravadas["correlacao"] = _gravar(destino, "correlacao",
                                          "Correlação item × NBS × cIndOp × cClassTrib (sugestão, sem regra de negócio)",
                                          versao, data, f"{BASE_DOC}/rtc/{nome_arq}", _correlacao(caminho))
+    elif PLANILHAS["incidencia"].search(nome_arq):
+        gravadas["incidencia"] = _gravar(destino, "incidencia", "Local de incidência do ISS por serviço (LC 116)",
+                                         versao, data, f"{BASE_DOC}/documentacao-atual/{nome_arq}", _incidencia(caminho))
+        gravadas["regras"] = _gravar(destino, "regras", "Regras de negócio da DPS (códigos de rejeição)",
+                                     versao, data, f"{BASE_DOC}/documentacao-atual/{nome_arq}",
+                                     _regras(caminho, ("RN_RECEPCAO_DPS", "RN DPS_NFS-e")))
+    elif PLANILHAS["regras_eventos"].search(nome_arq):
+        gravadas["regras_eventos"] = _gravar(destino, "regras_eventos", "Regras de negócio dos eventos (códigos de rejeição)",
+                                             versao, data, f"{BASE_DOC}/documentacao-atual/{nome_arq}",
+                                             _regras(caminho, ("RN EVENTO_PED.REG.EVENTO", "RN EVENTOSxEVENTOS")))
     else:
         raise ValueError("não reconheço esta planilha: use o arquivo com o nome que o portal da NFS-e dá")
     for nome, info in gravadas.items():

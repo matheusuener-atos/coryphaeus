@@ -76,6 +76,9 @@ PADRAO: dict = {
     "servico": {"ctribnac": "171401", "nbs": "", "ctribmun": "", "descricao": "",
                 "aliquota_iss_bp": 0},
     "retencoes": {r: {"quando": "nao_sei", "aliquota_bp": 0, "minimo_centavos": 0, "nota": ""} for r in RETENCOES},
+    # O CST do PIS/COFINS, que a nota exige quando há PIS/COFINS/CSLL retidos
+    # (o grupo piscofins leva a retenção). Enquadramento: o contador diz.
+    "pis_cofins": {"cst": ""},
     # IBS/CBS (NT 004): o que a DPS declara. A Sefin calcula; o cartão prevê.
     "ibscbs": {"enviar": True, "cst": "", "cclasstrib": "", "cindop": "100301", "indfinal": "0"},
     # Total aproximado de tributos (Lei 12.741/2012): o percentual informado.
@@ -221,6 +224,13 @@ def conferir(dados: dict) -> tuple[dict, list[str]]:
         for nome in ("irrf", "pis", "cofins", "csll", "cp"):
             if c["retencoes"][nome]["quando"] in ("tomador_pj", "sempre"):
                 raise ValueError("MEI não informa tributos federais na nota (regra E0676)")
+
+    pc = c["pis_cofins"]
+    pc["cst"] = re.sub(r"\D", "", str(pc.get("cst") or ""))
+    if pc["cst"] and pc["cst"] not in tabelas.dominio("cst_pis_cofins"):
+        raise ValueError("o CST do PIS/COFINS não está na tabela do XSD")
+    if not pc["cst"] and any(c["retencoes"][k]["quando"] in ("tomador_pj", "sempre") for k in ("pis", "cofins", "csll")):
+        faltas.append("o CST do PIS/COFINS (a nota pede quando há PIS/COFINS/CSLL retidos)")
 
     ib = c["ibscbs"]
     ib["enviar"] = bool(ib.get("enviar"))

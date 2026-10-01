@@ -25,6 +25,16 @@ class Configuracao(BaseModel):
     dados: dict = {}
 
 
+class NovaNota(BaseModel):
+    origem: str = "manual"
+    dados: dict = {}
+
+
+class EditarNota(BaseModel):
+    dados: dict = {}
+    gravar_no_cadastro: bool = True
+
+
 class Senha(BaseModel):
     senha: str = ""
     guardar: bool = False
@@ -116,3 +126,58 @@ def montar(estado, app, dados_dir) -> None:
             except Exception as exc:  # noqa: BLE001 - planilha corrompida
                 _erro(ValueError(f"não consegui ler a planilha: {exc}"))
         return {"importadas": gravadas, "tabelas": tabelas.versoes()}
+
+    # ------------------------------------------------------------ notas (N2)
+
+    def _nota_para_tela(nota: dict) -> dict:
+        nota = dict(nota)
+        nota["passos"] = estado.nfse.notas.passos(nota["id"])
+        return nota
+
+    @app.get("/api/nfse/notas")
+    def nfse_notas(estados: str = "", mes: str = "") -> dict:
+        lista = [e for e in estados.split(",") if e] or None
+        return {"notas": estado.nfse.notas.listar(lista, mes)}
+
+    @app.post("/api/nfse/notas")
+    def nfse_nota_criar(payload: NovaNota) -> dict:
+        try:
+            nota = estado.nfse.notas.criar(dict(payload.dados), payload.origem, quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return _nota_para_tela(nota)
+
+    @app.get("/api/nfse/notas/{id_}")
+    def nfse_nota(id_: int) -> dict:
+        nota = estado.nfse.notas.obter(id_)
+        if not nota:
+            raise HTTPException(status_code=404, detail="nota não encontrada")
+        return _nota_para_tela(nota)
+
+    @app.post("/api/nfse/notas/{id_}")
+    def nfse_nota_editar(id_: int, payload: EditarNota) -> dict:
+        try:
+            nota = estado.nfse.notas.atualizar(id_, dict(payload.dados), quem="titular",
+                                               gravar_no_cadastro=payload.gravar_no_cadastro)
+        except ValueError as exc:
+            _erro(exc)
+        return _nota_para_tela(nota)
+
+    @app.get("/api/nfse/notas/{id_}/dps")
+    def nfse_nota_dps(id_: int) -> dict:
+        nota = estado.nfse.notas.obter(id_)
+        if not nota:
+            raise HTTPException(status_code=404, detail="nota não encontrada")
+        try:
+            xml, ident = estado.nfse.notas.montar_xml(nota)
+        except (ValueError, KeyError) as exc:
+            _erro(ValueError(f"não consegui montar a DPS: {exc}"))
+        return {"id_dps": ident, "xml": xml.decode("utf-8"), "previa": not nota.get("numero")}
+
+    @app.post("/api/nfse/notas/{id_}/descartar")
+    def nfse_nota_descartar(id_: int) -> dict:
+        try:
+            nota = estado.nfse.notas.descartar(id_, quem="titular")
+        except ValueError as exc:
+            _erro(exc)
+        return _nota_para_tela(nota)

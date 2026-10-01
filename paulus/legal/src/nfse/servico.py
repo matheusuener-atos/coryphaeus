@@ -36,6 +36,9 @@ class Emissor:
         # O teste troca a rede pelo servidor simulado (N3) por aqui.
         self.transporte = None
         tabelas.usar_pasta_de_dados(self.pasta / "tabelas")
+        from .notas import Notas
+
+        self.notas = Notas(self)
 
     # ---------------------------------------------------------------- chaves
 

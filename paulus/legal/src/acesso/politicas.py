@@ -412,6 +412,10 @@ _declarar(BLOQUEADO, "GET /api/nfse", "POST /api/nfse/ligar", "POST /api/nfse/pr
           "POST /api/nfse/certificado", "POST /api/nfse/certificado/senha", "POST /api/nfse/certificado/remover",
           "POST /api/nfse/municipio/consultar", "GET /api/nfse/municipios", "GET /api/nfse/tabelas",
           "POST /api/nfse/tabelas/importar")
+# --- N2 (NFS-e): o cartao da nota - criar, editar, conferir e descartar o rascunho, e a
+# previa da DPS. Na janela do escritorio; de fora a nota nasce pela conversa (N4).
+_declarar(BLOQUEADO, "GET /api/nfse/notas", "POST /api/nfse/notas", "GET /api/nfse/notas/{id_}",
+          "POST /api/nfse/notas/{id_}", "GET /api/nfse/notas/{id_}/dps", "POST /api/nfse/notas/{id_}/descartar")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")
