@@ -52,7 +52,7 @@ async function abrirLancamentoNaConversa(alvo, d) {
   lcn.feito = null;
   lcn.v = {
     id: c.id || null, tipo: c.tipo || "despesa", centavos: Number(c.centavos) || 0, descricao: c.descricao || "", categoria: c.categoria || "outros",
-    forma: c.forma || "", cadastro_id: c.cadastro_id || "", vencimento: c.vencimento || "", liquidado_em: c.liquidado_em || "",
+    forma: c.forma || "", cadastro_id: c.cadastro_id || "", servico_id: c.servico_id || "", vencimento: c.vencimento || "", liquidado_em: c.liquidado_em || "",
     papel: c.papel || null, lembrar: Boolean(c.lembrar), original: Number(c.original_centavos) || 0, juros: Number(c.juros_centavos) || 0,
   };
   await carregarMesDoLancamento();
@@ -74,6 +74,7 @@ async function carregarMesDoLancamento() {
     lcn.painel = f.painel || {};
     lcn.clientes = f.clientes || [];
     lcn.categorias = f.opcoes_categoria || [];
+    lcn.servicos = f.servicos || [];
     lcn.lista = l.lancamentos || [];
   } catch (err) { lcn.painel = {}; lcn.lista = []; }
 }
@@ -166,6 +167,10 @@ function htmlDoLancamento() {
   })();
   const opcoes = (lista, atual) => lista.map(([x, r]) => '<option value="' + esc(x) + '"' + (String(x) === String(atual || "") ? " selected" : "") + ">" + esc(r) + "</option>").join("");
   const cliente = lcn.clientes.find((c) => String(c.id) === String(v.cadastro_id));
+  const servicosDoCliente = v.cadastro_id ? (lcn.servicos || []).filter((s) => String(s.cadastro_id) === String(v.cadastro_id)) : [];
+  // Um serviço só do cliente: já vem escolhido (a pessoa troca para "nenhum").
+  if (servicosDoCliente.length === 1 && v.servico_id === "" && !v.servicoMexido) v.servico_id = String(servicosDoCliente[0].id);
+  if (v.servico_id && !servicosDoCliente.some((s) => String(s.id) === String(v.servico_id))) v.servico_id = "";
   const categorias = (lcn.categorias || []).map((c) => [c.valor, c.rotulo]);
   const classeValor = "lcn-valor " + (receber ? "entra" : "sai");
   return '<div class="fcn" data-fl-tipo="lancamento">' +
@@ -181,6 +186,11 @@ function htmlDoLancamento() {
     '<label class="fcn-campo meia"><span class="fcn-rotulo">Forma</span><select data-lcn="forma">' + opcoes(LCN_FORMAS, v.forma) + "</select></label></div>" +
     '<label class="fcn-campo"><span class="fcn-rotulo">Cliente</span><select data-lcn="cadastro_id">' +
     opcoes([["", "sem cliente"]].concat(lcn.clientes.map((c) => [c.id, c.nome])), v.cadastro_id) + "</select></label>" +
+    // O serviço (e o processo) do cliente escolhido: o "Cliente · processo" do desenho.
+    (servicosDoCliente.length
+      ? '<label class="fcn-campo"><span class="fcn-rotulo">Serviço · processo</span><select data-lcn="servico_id">' +
+        opcoes([["", "nenhum"]].concat(servicosDoCliente.map((s) => [s.id, s.nome + (s.processo ? " · " + s.processo : "")])), v.servico_id) + "</select></label>"
+      : "") +
     '<div class="fcn-par"><label class="fcn-campo meia"><span class="fcn-rotulo">Vencimento</span><input type="date" data-lcn="vencimento" value="' + esc(v.vencimento) + '"></label>' +
     '<label class="fcn-campo meia"><span class="fcn-rotulo">' + (receber ? "Já recebido em" : "Já pago em") + ' <i class="lcn-dica">se já aconteceu</i></span><input type="date" data-lcn="liquidado_em" value="' + esc(v.liquidado_em) + '"></label></div>' +
     (papel
@@ -227,11 +237,12 @@ function ligarFormularioDoLancamento(raiz) {
     const ler = () => {
       if (chave === "valor") lcn.v.centavos = fcnCentavos(x.value);
       else lcn.v[chave] = x.value;
+      if (chave === "servico_id") lcn.v.servicoMexido = true;
       resumo();
       desenharCartaoDoLancamento();
     };
     x.addEventListener("input", ler);
-    x.addEventListener("change", () => { ler(); if (chave === "liquidado_em") redesenharLancamentoNoLado(); });
+    x.addEventListener("change", () => { ler(); if (chave === "liquidado_em" || chave === "cadastro_id") redesenharLancamentoNoLado(); });
   });
   raiz.querySelectorAll("[data-lcn-tipo]").forEach((b) => {
     b.onclick = async () => {
@@ -267,7 +278,7 @@ async function lancarPelaConversa(botao) {
     body: JSON.stringify({
       id: v.id, liquidado_em: v.liquidado_em, lembrar: Boolean(v.lembrar && !v.liquidado_em), papel: v.papel ? { nome: v.papel.nome, tipo: v.papel.tipo } : null,
       dados: { tipo: v.tipo, descricao: v.descricao.trim(), centavos: v.centavos, categoria: v.categoria, forma: v.forma,
-        cadastro_id: v.cadastro_id ? Number(v.cadastro_id) : null, vencimento: v.vencimento },
+        cadastro_id: v.cadastro_id ? Number(v.cadastro_id) : null, servico_id: v.servico_id ? Number(v.servico_id) : null, vencimento: v.vencimento },
     }),
   }).catch(() => null);
   if (!r || !r.ok) { botao.disabled = false; diz("não lancei: " + (r ? await erroDe(r) : "sem resposta")); return; }

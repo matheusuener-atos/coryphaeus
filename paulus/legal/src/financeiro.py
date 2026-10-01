@@ -46,7 +46,7 @@ FORMAS = {"": "—", "boleto": "Boleto", "pix": "Pix", "transferencia": "Transfe
           "dinheiro": "Dinheiro", "debito": "Débito automático"}
 
 CAMPOS = ("tipo", "descricao", "centavos", "categoria", "cadastro_id",
-          "vencimento", "liquidado_em", "observacao", "forma")
+          "vencimento", "liquidado_em", "observacao", "forma", "servico_id")
 
 
 # ----------------------------------------------------------- dinheiro
@@ -131,9 +131,16 @@ class Financeiro:
             "liquidado_em": str(dados.get("liquidado_em", ""))[:10],
             "observacao": str(dados.get("observacao", "")),
             "forma": dados.get("forma") if dados.get("forma") in FORMAS else "",
+            # O servico (e por ele o processo) do cliente; vazio, nenhum.
+            "servico_id": int(dados["servico_id"]) if str(dados.get("servico_id") or "").isdigit() else None,
         }
 
         if id_:
+            # Quem edita sem saber do servico (a tela Financeiro) nao desliga o
+            # lancamento dele: sem a chave, fica o que estava.
+            if "servico_id" not in dados:
+                atual = self.base.um("SELECT servico_id FROM lancamentos WHERE id = ?", (id_,)) or {}
+                limpo["servico_id"] = atual.get("servico_id")
             atribui = ", ".join(f"{c} = ?" for c in CAMPOS)
             self.base.escrever(
                 f"UPDATE lancamentos SET {atribui} WHERE id = ?",
@@ -201,9 +208,10 @@ class Financeiro:
 
     def listar(self, *, tipo: str = "", mes: str = "", situacao: str = "") -> list[dict]:
         sql = (
-            "SELECT l.*, k.nome AS cadastro_nome,"
+            "SELECT l.*, k.nome AS cadastro_nome, s.nome AS servico_nome,"
             " (SELECT COUNT(*) FROM comprovantes c WHERE c.lancamento_id = l.id) AS comprovantes"
-            " FROM lancamentos l LEFT JOIN cadastros k ON k.id = l.cadastro_id WHERE 1=1"
+            " FROM lancamentos l LEFT JOIN cadastros k ON k.id = l.cadastro_id"
+            " LEFT JOIN servicos s ON s.id = l.servico_id WHERE 1=1"
         )
         parametros: list = []
         if tipo in TIPOS:
@@ -250,8 +258,8 @@ class Financeiro:
 
     def obter(self, id_: int) -> dict | None:
         item = self.base.um(
-            "SELECT l.*, k.nome AS cadastro_nome FROM lancamentos l "
-            "LEFT JOIN cadastros k ON k.id = l.cadastro_id WHERE l.id = ?",
+            "SELECT l.*, k.nome AS cadastro_nome, s.nome AS servico_nome FROM lancamentos l "
+            "LEFT JOIN cadastros k ON k.id = l.cadastro_id LEFT JOIN servicos s ON s.id = l.servico_id WHERE l.id = ?",
             (id_,),
         )
         if item:
@@ -500,7 +508,18 @@ class Financeiro:
             "categorias": self.por_categoria(mes),
             "tipos": [{"valor": k, "rotulo": v} for k, v in TIPOS.items()],
             "opcoes_categoria": [{"valor": k, "rotulo": v} for k, v in CATEGORIAS.items()],
+            "servicos": self.servicos_com_processo(),
         }
+
+    def servicos_com_processo(self) -> list[dict]:
+        """Os servicos de cada cliente, com o numero do processo ligado (o "Cliente · processo" do lancamento)."""
+        try:
+            return self.base.buscar(
+                "SELECT s.id, s.nome, s.cadastro_id, "
+                "(SELECT p.numero_fmt FROM processos p WHERE p.servico_id = s.id ORDER BY p.id LIMIT 1) AS processo "
+                "FROM servicos s ORDER BY s.nome COLLATE NOCASE")
+        except Exception:  # noqa: BLE001 - sem a tabela de processos (base antiga), sem a lista
+            return []
 
 
 # --------------------------------------------------------------- ajudas

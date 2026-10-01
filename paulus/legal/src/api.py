@@ -6832,7 +6832,8 @@ def folha_ler(mes: str = "") -> dict:
     mes = mes or escritorio.mes_de_hoje()
     return {
         "folha": estado.folha.do_mes(mes),
-        "candidatos": estado.folha.pessoas(),
+        # Quem começa depois deste mês ("desde" da ficha) não é candidato a ele.
+        "candidatos": estado.folha.pessoas(mes),
         "vinculos": [{"valor": k, "rotulo": v} for k, v in escritorio.VINCULOS.items()],
     }
 
@@ -11295,7 +11296,7 @@ def financeiro_painel(mes: str = "") -> dict:
     # tela, e seis chamadas fariam a tela pintar em pedacos.
     mes_alvo = dados["painel"]["mes"]
     dados["folha"] = estado.folha.do_mes(mes_alvo)
-    dados["candidatos_folha"] = estado.folha.pessoas()
+    dados["candidatos_folha"] = estado.folha.pessoas(mes_alvo)
     dados["notas"] = estado.papeis.listar("nota", mes_alvo)
     dados["notas_a_emitir"] = estado.papeis.a_emitir(mes_alvo)
     dados["boletos"] = estado.papeis.listar("boleto")

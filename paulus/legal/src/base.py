@@ -845,6 +845,15 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE lancamentos ADD COLUMN forma TEXT DEFAULT '';
         """,
     ),
+    (
+        "035_lancamento_do_servico",
+        """
+        -- O "Cliente · processo" do lancamento (pacote de telas, `Conversa -
+        -- Lancamento`): o lancamento liga ao servico do cliente, e por ele ao
+        -- processo (processos.servico_id).
+        ALTER TABLE lancamentos ADD COLUMN servico_id INTEGER REFERENCES servicos(id) ON DELETE SET NULL;
+        """,
+    ),
 ]
 
 

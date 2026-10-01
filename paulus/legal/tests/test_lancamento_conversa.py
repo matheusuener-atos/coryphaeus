@@ -98,6 +98,10 @@ def test_tela() -> None:
     e.financeiro.salvar({"tipo": "despesa", "descricao": "Custas iniciais", "centavos": 124000, "categoria": "custas", "vencimento": mes + "-03"})
     parcela = e.financeiro.salvar({"tipo": "recebimento", "descricao": "Acordo · parcela 2/10", "centavos": 600000, "categoria": "honorarios",
                                    "cadastro_id": rio, "vencimento": f"{HOJE.year}-09-12"})
+    # O serviço da Rio Fresco, com o processo: o "Cliente · processo" do lançamento.
+    servico = e.servicos.salvar({"nome": "Cobrança de honorários", "cadastro_id": rio})
+    e.base.escrever("INSERT INTO processos (numero, numero_fmt, servico_id, criado_em) VALUES (?, ?, ?, datetime('now'))",
+                    ("00012345620268140001", "0001234-56.2026.8.14.0001", servico))
     venc = _dia8()
     boleto = _Doc("Boleto perícia José Carlos.pdf",
                   f"BOLETO Beneficiário: Ricardo Nunes CPF 111 Vencimento: {venc:%d/%m/%Y} Valor do documento: R$ 2.150,00", "b1")
@@ -159,11 +163,19 @@ def test_tela() -> None:
         checar(r["frase"].startswith("Li o comprovante e preenchi o recebimento ao lado: R$ 6.000,00 de “Acordo · parcela 2/10” mais R$ 36,00 de juros, pagos hoje"),
                "a conversa acha a parcela em aberto e diz os juros", r["frase"])
         checar("juros R$ 36,00" in r["confere"] and r["pago"] == HOJE.isoformat(), "a coluna mostra parcela + juros, pago hoje", r)
+        sv = pag.evaluate("""() => { const s = document.querySelector('#lado-ferramenta select[data-lcn=servico_id]');
+          return s ? {valor: s.value, texto: s.options[s.selectedIndex].text} : null; }""")
+        checar(sv and sv["valor"] == str(servico) and sv["texto"] == "Cobrança de honorários · 0001234-56.2026.8.14.0001",
+               "o serviço do cliente, com o processo, já escolhido", sv)
         pag.screenshot(path=str(CAPTURAS / "t4-recebimento.png"))
         pag.click("#lado-ferramenta [data-lcn-lancar]")
         pag.wait_for_function("() => [...document.querySelectorAll('.nota-feito')].some(n => n.textContent.startsWith('Lancei o recebimento'))", timeout=8000)
         p2 = e.financeiro.obter(parcela)
         checar(p2.get("centavos") == 603600 and p2.get("liquidado_em") == HOJE.isoformat(), "a cobrança aberta fica paga, com os juros", p2)
+        checar(p2.get("servico_id") == servico and p2.get("servico_nome") == "Cobrança de honorários", "o lançamento fica ligado ao serviço", p2)
+        e.financeiro.salvar({"tipo": "recebimento", "descricao": p2["descricao"], "centavos": p2["centavos"], "categoria": p2["categoria"],
+                             "cadastro_id": rio, "vencimento": p2["vencimento"], "liquidado_em": p2["liquidado_em"]}, parcela)
+        checar(e.financeiro.obter(parcela).get("servico_id") == servico, "editar pela tela Financeiro (sem o serviço) não desliga")
         checar(len([x for x in e.financeiro.listar(tipo="recebimento") if x["cadastro_id"] == rio]) == 1, "e não nasce outra")
         checar(e.financeiro.comprovantes(parcela) if hasattr(e.financeiro, "comprovantes") else True, "o comprovante fica ligado")
 
