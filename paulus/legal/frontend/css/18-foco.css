@@ -115,3 +115,21 @@
   @media (max-width: 1180px) {
     .be-cartoes, .be-duas { grid-template-columns: minmax(0, 1fr); }
   }
+
+  /* O FOCO NO ALTO DA COLUNA DA CONVERSA (pacote de telas, `Conversa -
+     Foco`, js/78-conversa-foco.js): o ponto, "Foco", a tarefa do ciclo, o
+     tempo e o pausar; a barra do ciclo; e o lembrete vencido com o Feito. */
+  .fcl-cartao { display: grid; gap: 12px; padding: 14px 14px 12px 16px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
+  .fcl-cabeca { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .fcl-ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); flex: none; animation: pv-pulse 3.2s ease-in-out infinite; }
+  .fcl-cabeca b { font: 600 13px var(--sans); }
+  .fcl-tarefa { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcl-tempo { font: 500 16px var(--mono); letter-spacing: .02em; }
+  .fcl-barra { height: 3px; border-radius: 2px; background: var(--ink-a08); overflow: hidden; }
+  .fcl-barra i { display: block; height: 100%; border-radius: inherit; background: var(--ink); transition: width 1s linear; }
+  .fcl-cartao.pausa .fcl-barra i { background: var(--ink3); }
+  .fcl-lembrete { display: flex; align-items: center; gap: 10px; padding-top: 2px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .fcl-lembrete .ic { flex: none; color: var(--warnt); }
+  .fcl-lembrete-texto { flex: 1; min-width: 0; }
+  .fcl-feito { flex: none; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); }
+  .fcl-feito:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }

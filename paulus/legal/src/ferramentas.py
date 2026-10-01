@@ -742,8 +742,62 @@ def leitura(doc, trechos=()) -> dict:
                 pagina = min(max(de_bloco[indice], 1), total)
                 textos[pagina - 1] += paragrafo + "\n"
         origem = "texto"
-    return {"nome": doc.name, "paginas": max(total, 1), "origem": origem,
-            "citadas": paginas_citadas(textos, trechos) if trechos else []}
+    from pathlib import Path
+
+    citadas = paginas_citadas(textos, trechos) if trechos else []
+    # As marcas de cada trecho, procuradas no PDF que a tela desenha (o
+    # arquivo, ou o que o gerador monta para o Word): o visor ao lado marca a
+    # frase, e nao so a pagina. O que nao se acha fica so com a pagina.
+    marcas: list[dict] = []
+    if trechos:
+        import citacao
+
+        try:
+            marcas = citacao.marcas_dos_trechos(doc.path if _eh_pdf(doc) else pdf_do_documento(doc), list(trechos))
+        except Exception:  # noqa: BLE001 - sem marca, o visor abre na pagina citada
+            marcas = []
+        citadas = sorted(set(citadas) | {m["pagina"] for m in marcas})
+    assinado = False
+    if _eh_pdf(doc):
+        import assinatura
+
+        assinado = assinatura._quantas_assinaturas(Path(doc.path)) > 0
+    try:
+        tamanho = Path(doc.path).stat().st_size
+    except OSError:
+        tamanho = 0
+    return {"nome": doc.name, "paginas": max(total, 1), "origem": origem, "citadas": citadas,
+            "marcas": marcas, "trechos": len(trechos), "bytes": tamanho, "assinado": assinado,
+            "palavras": len((doc.text or "").split()), "caminho": str(doc.path)}
+
+
+def linhas_citadas_da_planilha(caminho, trechos: list[str]) -> list[dict]:
+    """
+    As linhas da planilha que a resposta citou. O trecho de planilha e texto
+    da extracao (src/extract.py): uma linha por linha da aba, as celulas
+    separadas por " | ". A linha citada e a que da o mesmo texto.
+    """
+    from openpyxl import load_workbook
+
+    import planilha
+
+    procuradas = {" ".join(l.split()) for t in trechos for l in str(t).splitlines()
+                  if l.count("|") >= 1 and len(l.strip()) >= 8}
+    if not procuradas:
+        return []
+    livro = load_workbook(str(caminho), read_only=True, data_only=True)
+    achadas: list[dict] = []
+    try:
+        for indice, folha in enumerate(livro.worksheets[:6]):
+            for numero, linha in enumerate(folha.iter_rows(values_only=True), 1):
+                celulas = [str(v).strip() for v in linha if v is not None and str(v).strip()]
+                if celulas and " ".join(" | ".join(celulas).split()) in procuradas:
+                    achadas.append({"aba": indice, "linha": numero})
+                if numero > planilha.MAX_LINHAS:
+                    break
+    finally:
+        livro.close()
+    return achadas[:40]
 
 
 def _exibir_documento(estado, campos: dict) -> dict:
@@ -755,8 +809,28 @@ def _exibir_documento(estado, campos: dict) -> dict:
         raise ValueError("esse documento não está mais no Acervo")
     # Os trechos vêm do cartão da oferta, para abrir já na página citada.
     trechos = [str(t)[:400] for t in (campos.get("trechos") or [])[:12] if isinstance(t, str)]
-    return {"id": 0, "registro": leitura(doc, trechos),
-            "resumo": f"Mostrei “{nome}” aqui na conversa", "onde": ""}
+    from pathlib import Path
+
+    # A planilha abre na grade (js/81-planilha-ao-lado.js), com as linhas
+    # citadas marcadas - e nao como paginas.
+    if Path(doc.path).suffix.lower() == ".xlsx":
+        try:
+            linhas = linhas_citadas_da_planilha(doc.path, trechos)
+        except Exception:  # noqa: BLE001 - sem citacao, a planilha abre do mesmo jeito
+            linhas = []
+        resumo = f"Mostrei a planilha “{nome}” ao lado, só para leitura"
+        if linhas:
+            resumo += ", com a linha citada marcada" if len(linhas) == 1 else f", com as {len(linhas)} linhas citadas marcadas"
+        return {"id": 0, "registro": {"nome": doc.name, "planilha": True, "linhas": len(linhas)},
+                "resumo": resumo, "onde": ""}
+    registro = leitura(doc, trechos)
+    # O visor abre na coluna da direita (pacote de telas, T3): a nota diz
+    # onde, e quantos trechos ficaram marcados - os que se acharam no arquivo.
+    marcados = len(registro.get("marcas") or [])
+    resumo = f"Mostrei “{nome}” ao lado, só para leitura"
+    if marcados:
+        resumo += ", com o trecho citado marcado" if marcados == 1 else f", com os {marcados} trechos citados marcados"
+    return {"id": 0, "registro": registro, "resumo": resumo, "onde": ""}
 
 
 def oferta_de_exibir(fontes: list[dict], documentos, ja_oferecidos=()) -> dict | None:

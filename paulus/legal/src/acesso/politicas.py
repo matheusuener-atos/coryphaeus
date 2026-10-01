@@ -56,7 +56,8 @@ ACOES_QUE_SAEM = {"correio.enviar", "google.drive.enviar",
 # do editor, a pagina de um arquivo do Acervo e o trecho citado.
 ROTAS_DE_VER_DOCUMENTO = {("GET", "/api/documentos/{id_}"), ("GET", "/api/documentos/{id_}/pagina"),
                           ("GET", "/api/biblioteca/pagina"), ("GET", "/api/arquivos/pagina"),
-                          ("POST", "/api/biblioteca/citacao")}
+                          ("POST", "/api/biblioteca/citacao"), ("POST", "/api/biblioteca/leitura"),
+                          ("POST", "/api/biblioteca/planilha")}
 
 # (metodo, caminho da rota como esta no app) -> politica. Rota que nao esta
 # aqui e BLOQUEADO.
@@ -145,6 +146,8 @@ _declarar(PERMITIDO,
           "POST /api/buscar-agora",
           # o acervo: ver, buscar, o trecho citado, a pagina
           "GET /api/documentos-abertos", "GET /api/biblioteca", "POST /api/biblioteca/citacao",
+          # T3: a lupa do visor ao lado da conversa.
+          "POST /api/biblioteca/procurar-no-documento", "POST /api/biblioteca/leitura", "POST /api/biblioteca/planilha",
           "GET /api/biblioteca/pagina", "POST /api/biblioteca/fixar", "POST /api/biblioteca/analisar",
           "GET /api/acervo/pastas", "GET /api/acervo/fora", "GET /api/acervo/versao", "GET /api/documents",
           "GET /api/arquivos/pagina",
@@ -344,7 +347,10 @@ _declarar(BLOQUEADO,
           "POST /api/apoio/pix", "POST /api/apoio/pix/recuperar", "GET /api/apoio/pix/{id_}",
           "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
           "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura",
-          "GET /api/apoio/neste-mes")
+          "GET /api/apoio/neste-mes",
+          # Pacote de telas (`Conversa - Gravando`): as sugestoes e os pontos
+          # do caso enquanto a gravacao anda - gravar e coisa do escritorio.
+          "POST /api/gravacoes/sugerir", "POST /api/gravacoes/pontos")
 
 # --- a Biblioteca (src/biblioteca, docs/PROGRESSO-BIBLIOTECA.md): montar a
 # biblioteca e a configuracao dela ficam na janela do servidor, como o

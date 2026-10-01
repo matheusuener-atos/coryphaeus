@@ -47,7 +47,7 @@ function secaoDasHoras(s) {
       (d.a_cobrar_min ? " · a cobrar: " + duracaoHrs(d.a_cobrar_min) + (d.valor_hora ? " = <b>" + reaisHrs(d.a_cobrar_centavos) + "</b>" : "") : "") + "</span>" +
       '<button data-hrs-valor="1">' + (d.valor_hora ? "Mudar o valor" : "Valor da hora") + "</button>" +
       (d.a_cobrar_min ? '<button class="com-icone" data-hrs-cobrar="1">' + ic("payments", 16) + "Cobrar no Financeiro</button>" : "") +
-      // N4: a nota dos honorários do Serviço, pelo mesmo cartão (js/80-nfse-nota.js).
+      // N4: a nota dos honorários do Serviço, pelo mesmo cartão (js/91-nfse-nota.js).
       (typeof nfseDisponivel !== "undefined" && nfseDisponivel && nfseDisponivel.pode_emitir
         ? '<button class="com-icone" data-hrs-nota="1">' + ic("receipt_long", 16) + "Emitir nota dos honorários</button>" +
           '<button data-hrs-nota-mes="1">Nota todo mês</button>' : "") + "</div>"

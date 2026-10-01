@@ -14,7 +14,7 @@
    ao perguntar duas vezes seguidas. As referências ficam guardadas aqui. */
 const bastidor = { desde: 0, timer: null, fase: "", palavras: 0,
                    caixa: null, linhasEl: null, relogioEl: null, vivaEl: null,
-                   previsao: null, escreveDesde: 0 };
+                   previsao: null, escreveDesde: 0, lendoDesde: 0, solto: false };
 
 /* `opcoes.recolhido` (C2): a janelinha nasce fechada, como "ver detalhes" -
    quem esta esperando le a linha de estado; quem quer o bastidor abre. */
@@ -26,6 +26,20 @@ function abrirBastidor(caixa, opcoes) {
   bastidor.palavras = 0;
   bastidor.previsao = null;
   bastidor.vivaEl = null;
+  bastidor.lendoDesde = 0;
+  bastidor.solto = Boolean(o.solto);
+
+  /* `opcoes.solto` (pacote de telas, `Conversa - Carregando`): o registro
+     mora dentro do cartao de trabalho, aberto e sem cabeca - o titulo e o
+     tempo sao os do cartao. */
+  if (o.solto) {
+    caixa.innerHTML = '<div class="bastidor solto"><div class="bastidor-linhas"></div></div>';
+    bastidor.caixa = caixa.querySelector(".bastidor");
+    bastidor.relogioEl = null;
+    bastidor.linhasEl = caixa.querySelector(".bastidor-linhas");
+    bastidor.timer = setInterval(tiquetaqueBastidor, 250);
+    return;
+  }
 
   caixa.innerHTML = '<div class="bastidor' + (o.recolhido ? " fechado" : "") + '"><div class="bastidor-topo">' + coroa(18) +
     '<span class="bastidor-titulo">' + (o.recolhido ? "ver detalhes" : "o que estou fazendo") + '</span><span class="num"></span>' +
@@ -53,19 +67,23 @@ function anotarBastidor(texto, classe) {
 /* A última linha muda sozinha enquanto a fase dura: é ela que dá o movimento,
    e o que ela mostra é medido — segundos que passaram, palavras que saíram. */
 function tiquetaqueBastidor() {
-  if (!bastidor.relogioEl || !bastidor.relogioEl.isConnected) {
+  const vivo = bastidor.relogioEl || bastidor.linhasEl;
+  if (!vivo || !vivo.isConnected) {
     clearInterval(bastidor.timer);
     return;
   }
   const passados = (Date.now() - bastidor.desde) / 1000;
-  bastidor.relogioEl.textContent = Math.round(passados) + " s";
+  if (bastidor.relogioEl) bastidor.relogioEl.textContent = Math.round(passados) + " s";
 
   const viva = bastidor.vivaEl;
   if (!viva) return;
 
   if (bastidor.fase === "lendo") {
     const p = bastidor.previsao;
-    if (p && p.sabe) {
+    // Dentro do cartao, a faixa da etapa ja mostra o quanto falta.
+    if (bastidor.solto) {
+      viva.textContent = "lendo… " + Math.round(passados) + " s";
+    } else if (p && p.sabe) {
       // Quanto já passou do que costuma levar. Passou do previsto? A tela diz
       // que passou — esconder isso seria errar duas vezes.
       const parte = Math.min(100, Math.round((passados / p.segundos) * 100));
@@ -172,7 +190,19 @@ function editorNaConversaAberto() {
   return Boolean(dupla.doc && $("editor-lado") && $("conversa-col").classList.contains("com-editor"));
 }
 
-async function mostrarDupla(id) {
+/* A caixa de pedido conforme o que está aberto na coluna (pacote de telas):
+   com o editor, "Peça uma mudança no documento…"; com o documento só
+   leitura, "Pergunte sobre o documento…". */
+function textoDaCaixaDaFerramenta() {
+  if (editorNaConversaAberto()) return "Peça uma mudança no documento…";
+  if (typeof planilhaAoLadoAberta === "function" && planilhaAoLadoAberta()) {
+    return pa.modo === "edicao" ? "Peça uma mudança na planilha…" : "Pergunte sobre a planilha…";
+  }
+  if (typeof va !== "undefined" && va.reg && papelDoLado() === "ferramenta") return "Pergunte sobre o documento…";
+  return "";
+}
+
+async function mostrarDupla(id, opcoes) {
   /* O editor mora ao lado de uma conversa. Vindo de outra tela (Documentos),
      a conversa é a última aberta no Assistente — ou uma nova, com o nome do
      documento. */
@@ -192,77 +222,79 @@ async function mostrarDupla(id) {
 
   const r = await fetch("/api/documentos/" + id);
   if (!r.ok) { avisoNaJanela("Não consegui abrir o documento: " + (await erroDe(r)), { icone: "error" }); return; }
+  const lido = await r.json();
+  // A planilha abre na grade, ao lado (js/81-planilha-ao-lado.js).
+  if (lido.tipo === "planilha") { editarPlanilhaAoLado(id, opcoes); return; }
   if (dupla.doc && dupla.doc.id !== id) await gravarDupla();
-  dupla.doc = await r.json();
+  dupla.doc = lido;
   dupla.antes = null;
   dupla.pendente = null;
   dupla.paginacao = null;
   dupla.destino = "";
+  const o = opcoes || {};
+  dupla.oferta = o.oferta || null;
+  dupla.nomeOriginal = o.nome || "";
   desenharEditorAoLado();
 }
 
+/* Pacote de telas de 01/10/2026 (T3, `Conversa - Editor`): o editor é uma
+   ferramenta da coluna da direita (js/02-lado.js), como o documento só
+   leitura - o mesmo cabeçalho (W, nome, "rascunho · versão 1 · o original
+   não é alterado", No Windows, Assinar, Salvar na biblioteca), o quadro com a
+   barra de edição, as páginas e o pé. A conversa fica com 560 px. */
 function desenharEditorAoLado() {
   const d = dupla.doc;
   const c = d.contagem || { palavras: 0 };
-  let lado = $("editor-lado");
-  const corpo = $("conversa-corpo");
-  const recuoAntes = getComputedStyle(corpo).paddingRight;
-  const abrindo = !lado;
-  if (!lado) {
-    lado = document.createElement("aside");
-    lado.className = "editor-lado";
-    lado.id = "editor-lado";
-    $("conversa-col").appendChild(lado);
-  }
-  $("conversa-col").classList.add("com-editor");
-  mostrarLateral(false);
-  posicionarEditorAoLado();
-  // A conversa encolhe andando, enquanto o painel entra - e não num pulo.
-  if (abrindo && animacoesLigadas()) {
-    corpo.animate([{ paddingRight: recuoAntes }, { paddingRight: getComputedStyle(corpo).paddingRight }],
-      { duration: 460, easing: CURVA_ENTRA });
-  }
-
   const botao = (cmd, icone, titulo) =>
-    '<button data-cmd="' + cmd + '" title="' + titulo + '" aria-label="' + titulo + '">' + ic(icone, 18) + "</button>";
-  lado.innerHTML =
-    // Duas linhas no alto, e só: o nome com os botões, e a barra de edição.
-    // Versão, contagem e "salvo às" moram no rodapé.
-    '<div class="edl-topo">' +
-    '<h3 class="edl-titulo" id="dp-titulo" contenteditable="true" spellcheck="false">' + esc(d.titulo) + "</h3>" +
-    '<button class="botao-icone" id="dp-salvar" title="Salvar agora (salva sozinho enquanto você escreve)" aria-label="Salvar agora">' + ic("save", 18) + "</button>" +
-    '<button class="botao-icone" id="dp-so-editor" title="Abrir no Editor, em tela cheia" aria-label="Abrir no Editor">' + ic("open_in_new", 18) + "</button>" +
-    '<button class="botao-icone" id="dp-pdf" title="Exportar PDF" aria-label="Exportar PDF">' + ic("picture_as_pdf", 18) + "</button>" +
-    '<button class="botao-icone" id="dp-fechar" title="Fechar o editor" aria-label="Fechar o editor">' + ic("close", 18) + "</button></div>" +
-
-    '<div class="edl-barra">' +
+    '<button class="botao-icone" data-cmd="' + cmd + '" title="' + titulo + '" aria-label="' + titulo + '">' + ic(icone, 18) + "</button>";
+  const word = typeof wordInstaladoAqui === "function" && wordInstaladoAqui();
+  const html = '<div class="fl" data-fl-tipo="editor" id="editor-lado">' +
+    topoDaFerramenta({
+      nome: d.titulo + ".docx",
+      tituloHtml: '<span class="edl-titulo" id="dp-titulo" contenteditable="true" spellcheck="false">' + esc(d.titulo) + "</span>",
+      linhaHtml: '<small id="dp-linha">' + esc(linhaDoRascunho(d)) + "</small>",
+      acoes: (word ? '<button id="dp-windows" title="Abrir no Word, com o PAVLVS">No Windows' + ic("open_in_new", 14) + "</button>" : "") +
+        '<button id="dp-assinar">Assinar</button>' +
+        '<button class="primario" id="dp-guardar">Salvar na biblioteca</button>',
+    }) +
+    '<div class="fl-quadro">' +
+    '<div class="fl-barra edl-barra">' +
     botao("undo", "undo", "Desfazer") + botao("redo", "redo", "Refazer") + '<span class="divisa-v"></span>' +
-    botao("bold", "format_bold", "Negrito") + botao("italic", "format_italic", "Itálico") +
-    botao("insertOrderedList", "format_list_numbered", "Numeração") +
-    '<button id="dp-citacao" title="Citação" aria-label="Citação">' + ic("format_quote", 18) + "</button>" +
+    '<label class="edl-bloco"><select id="dp-bloco" aria-label="Estilo do parágrafo">' +
+    '<option value="p">Parágrafo</option><option value="h1">Título</option><option value="h2">Subtítulo</option>' +
+    '<option value="blockquote">Citação</option></select>' + ic("expand_more", 16) + "</label>" +
     '<span class="divisa-v"></span>' +
-    '<button id="dp-numerar" title="Renumerar as cláusulas">' + ic("format_list_numbered", 16) + "Numerar</button>" +
-    '<button id="dp-qualificar" title="Qualificação das partes">' + ic("group", 16) + "Qualificar</button>" +
-    '<button id="dp-citar" title="Citar a lei">' + ic("gavel", 16) + "Citar a lei</button>" +
-    '<button id="dp-alteracoes" title="Ir até a alteração">' + ic("difference", 16) +
-    'Alterações · <span id="dp-alteracoes-n">0</span></button>' +
+    botao("bold", "format_bold", "Negrito") + botao("italic", "format_italic", "Itálico") +
+    botao("underline", "format_underlined", "Sublinhado") + botao("insertUnorderedList", "format_list_bulleted", "Lista") +
+    '<span class="divisa-v"></span>' +
+    '<button class="edl-texto" id="dp-numerar" title="Renumerar as cláusulas">Numerar</button>' +
+    '<button class="edl-texto" id="dp-qualificar" title="Qualificação das partes">Qualificar</button>' +
+    '<button class="edl-texto" id="dp-citar" title="Citar a lei">Citar a lei</button>' +
+    '<span class="cresce"></span>' +
+    '<button class="edl-texto" id="dp-alteracoes" title="Ir até a alteração">Alterações <span class="edl-conta" id="dp-alteracoes-n">0</span></button>' +
     "</div>" +
-
     '<div class="edl-mesa" id="dp-mesa"><div class="edl-papel">' +
     '<div class="edl-folhas" id="dp-folhas" aria-hidden="true"></div>' +
     '<div class="ed-folha edl-folha" id="dp-folha" contenteditable="true">' + (d.corpo || "<p><br></p>") + "</div>" +
     '</div><div id="dp-abaixo"></div></div>' +
+    '<div class="fl-pe"><span id="dp-paginas">' + plural(c.palavras, "palavra") + "</span>" +
+    '<span class="edl-selo" id="dp-selo">salvo no rascunho</span><span class="cresce"></span><span class="fl-mono">100%</span></div>' +
+    "</div>" +
+    '<style id="dp-estilo-paginas"></style></div>';
 
-    '<div class="edl-rodape"><span id="dp-paginas">' + plural(c.palavras, "palavra") + "</span>" +
-    '<span id="dp-selo">versão ' + d.versao + "</span>" +
-    '<span class="cresce"></span><button id="dp-guardar">Salvar na biblioteca</button>' +
-    '<button id="dp-assinar">Assinar</button></div>' +
-    '<style id="dp-estilo-paginas"></style>';
+  abrirNoLado("ferramenta", {
+    chave: "editor:" + d.id,
+    html: html,
+    aoFechar: () => { fecharEditorNaConversa({ jaFechado: true }); },
+  });
+  $("conversa-col").classList.add("com-editor");
+  if (dupla.oferta) marcarBotaoDaOferta(dupla.oferta, "editar", dupla.nomeOriginal);
+  // A próxima pergunta é sobre este documento (a linha acima da caixa diz).
+  if (dupla.nomeOriginal) definirFoco([dupla.nomeOriginal]);
 
   desenharAtalhosDoEditor();
   ligarDupla();
   atualizarPostura();
-  posicionarEditorAoLado();
   const marcada = $("dp-folha").querySelector(".ed-novo");
   if (marcada) {
     const sem = $("dp-folha").cloneNode(true);
@@ -279,67 +311,44 @@ function desenharEditorAoLado() {
     desenharCartaoDaAlteracao();
   }
   desenharPaginas();
+  // A coluna ainda está se alargando: as páginas se medem de novo no fim.
+  setTimeout(() => { if (editorNaConversaAberto()) desenharPaginas(); }, LADO_DURA_MS + 40);
   pedirPaginasDaFolha(true);
 }
 
-/* Do cabeçalho até logo acima da caixa de pedido. A caixa não se mexe quando
-   o editor abre — quem encolhe é a conversa acima dela —, então o painel
-   termina onde o rodapé começa. O rodapé muda de altura (o registro abre, o
-   texto cresce, os atalhos entram), e o painel acompanha. */
-function posicionarEditorAoLado() {
-  const lado = $("editor-lado");
-  if (!lado) return;
-  // Pelo retângulo, e não pela altura: o cabeçalho tem margem em cima, e
-  // somar só a altura dele punha o painel por cima do botão Exportar.
-  const coluna = $("conversa-col").getBoundingClientRect();
-  lado.style.top = Math.round($("conversa-topo").getBoundingClientRect().bottom - coluna.top + 14) + "px";
-  lado.style.bottom = ($("conversa-rodape").offsetHeight + 12) + "px";
-}
-
-if (window.ResizeObserver) {
-  new ResizeObserver(() => { if (editorNaConversaAberto()) posicionarEditorAoLado(); })
-    .observe($("conversa-rodape"));
+function linhaDoRascunho(d) {
+  return "rascunho · versão " + d.versao + " · o original não é alterado";
 }
 
 window.addEventListener("resize", () => {
-  if (!editorNaConversaAberto()) return;
-  posicionarEditorAoLado();
-  desenharPaginas();
+  if (editorNaConversaAberto()) desenharPaginas();
 });
 
-/* `animar`: fechar pelo X anima — o painel esmaece e sai de lado, e a
-   conversa volta à largura cheia andando. Sair da conversa (outra tela,
-   outra conversa) fecha na hora: a tela inteira já está trocando. */
+/* Fechar pelo X devolve a coluna ao contexto (com a mesma transição de
+   abrir). Sair da conversa (outra tela, outra conversa) fecha na hora: a
+   tela inteira já está trocando. `jaFechado`: quem chama é o próprio
+   voltar da coluna (outra ferramenta tomou o lugar, ou a coluna voltou). */
 async function fecharEditorNaConversa(opcoes) {
   if (!dupla.doc) return;
-  const animar = Boolean(opcoes && opcoes.animar) && animacoesLigadas();
+  const o = opcoes || {};
   clearTimeout(dupla.relogio);
   clearTimeout(dupla.relogioPaginas);
-  // Gravar lê a folha agora e manda: pode seguir enquanto o painel sai.
+  // Gravar lê a folha agora e manda: pode seguir enquanto a coluna sai.
   const salvando = $("dp-folha") ? gravarDupla() : Promise.resolve();
-  const lado = $("editor-lado");
   const faixa = $("edl-atalhos");
-  const corpo = $("conversa-corpo");
-  const recuoAntes = getComputedStyle(corpo).paddingRight;
+  const oferta = dupla.oferta;
+  const nome = dupla.nomeOriginal;
   dupla.doc = null;
   dupla.pendente = null;
   dupla.destino = "";
-
-  if (animar && lado) {
-    const saidas = [lado.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(24px)" }],
-      { duration: 240, easing: "ease-in", fill: "forwards" })];
-    if (faixa) saidas.push(faixa.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-in", fill: "forwards" }));
-    await Promise.all(saidas.map((a) => a.finished.catch(() => null)));
-  }
-  if (lado) lado.remove();
-  if (faixa) faixa.remove();
+  dupla.oferta = null;
   $("conversa-col").classList.remove("com-editor");
-  if (animar) {
-    corpo.animate([{ paddingRight: recuoAntes }, { paddingRight: getComputedStyle(corpo).paddingRight }],
-      { duration: 460, easing: CURVA_ENTRA });
+  if (faixa) {
+    if (o.animar !== false && animacoesLigadas()) sairDoAr(faixa); else faixa.remove();
   }
-  if (estado.trabalhoId && $("centro").classList.contains("prosa") && lateralPreferida()) {
-    if (animar) alternarLateralAnimada(true); else mostrarLateral(true);
+  if (oferta) marcarBotaoDaOferta(oferta, "", nome);
+  if (!o.jaFechado && papelDoLado() === "ferramenta") {
+    if (o.animar) voltarAoContexto(); else largarFerramentaDoLado();
   }
   atualizarPostura();
   await salvando;
@@ -391,7 +400,8 @@ function desenharAtalhosDoEditor() {
 function atualizarDestino() {
   const faixa = $("edl-atalhos");
   if (!faixa) return;
-  const alvo = destinoDoPedido($("pedido").value);
+  // Caixa vazia: o destino de quem escreve com o editor aberto e o documento.
+  const alvo = destinoDoPedido($("pedido").value) || "documento";
   faixa.querySelectorAll("[data-edl-destino]").forEach((b) => {
     b.classList.toggle("ativa", b.dataset.edlDestino === alvo);
   });
@@ -515,8 +525,19 @@ function redesenharPaginas() {
 
 function ligarDupla() {
   const lado = $("editor-lado");
-  $("dp-fechar").onclick = () => fecharEditorNaConversa({ animar: true });
-  $("dp-so-editor").onclick = async () => { const id = dupla.doc.id; await fecharEditorNaConversa(); abrirDocumento(id); };
+  lado.querySelector('[data-fl="fechar"]').onclick = () => fecharEditorNaConversa({ animar: true });
+  lado.querySelector('[data-fl="mais"]').onclick = (e) => menuNaLinha(e.currentTarget, [
+    { rotulo: "Salvar agora", acao: () => gravarDupla() },
+    { rotulo: "Exportar PDF", acao: () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; } },
+    { rotulo: "Abrir no Editor, em tela cheia", acao: async () => { const id = dupla.doc.id; await fecharEditorNaConversa(); abrirDocumento(id); } },
+  ]);
+  if ($("dp-windows")) $("dp-windows").onclick = async () => { await gravarDupla(); abrirWordComPavlvs("/api/word/abrir-documento/" + dupla.doc.id); };
+  $("dp-bloco").onchange = (e) => {
+    const folha = $("dp-folha");
+    folha.focus();
+    document.execCommand("formatBlock", false, e.target.value);
+    marcarDuplaSuja();
+  };
   // Assina ESTE documento, como o Ctrl+Shift+S do editor: grava o que está na
   // folha, guarda o PDF no Acervo e abre a Assinatura nele. Antes só abria a
   // lista, e a pessoa tinha de achar o arquivo de novo.
@@ -532,9 +553,6 @@ function ligarDupla() {
   $("dp-numerar").onclick = renumerarClausulas;
   $("dp-qualificar").onclick = inserirQualificacao;
   $("dp-guardar").onclick = () => guardarNaBiblioteca(dupla.doc.id);
-  $("dp-pdf").onclick = () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; };
-  $("dp-salvar").onclick = () => gravarDupla();
-  $("dp-citacao").onmousedown = (e) => { e.preventDefault(); document.execCommand("formatBlock", false, "blockquote"); marcarDuplaSuja(); };
   $("dp-alteracoes").onclick = () => {
     const m = $("dp-folha").querySelector(".ed-novo");
     if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -563,7 +581,7 @@ async function pedirNoDocumento(pedido) {
   centro.appendChild(resposta);
   atualizarPostura();
   rolar();
-  if ($("dp-selo")) $("dp-selo").textContent = "escrevendo…";
+  seloDoRascunho("escrevendo…", "sujo");
   const acompanhar = acompanharPedidoNoDocumento(resposta, tid);
 
   // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
@@ -615,7 +633,7 @@ async function pedirNoDocumento(pedido) {
   } finally {
     clearInterval(acompanhar);
     dupla.ocupada = false;
-    if ($("dp-selo") && $("dp-selo").textContent === "escrevendo…") $("dp-selo").textContent = "alterações não salvas";
+    if ($("dp-selo") && $("dp-selo").textContent === "escrevendo…") seloDoRascunho("alterações não salvas", "sujo");
     // Quem saiu e voltou para a conversa enquanto isso vê a conversa redesenhada
     // do servidor: o cartão que esta função preenchia já não está na tela.
     if (!resposta.isConnected && estado.trabalhoId === tid && tid) {
@@ -746,7 +764,7 @@ function trechoSelecionadoNaDupla() {
 
 function marcarDuplaSuja() {
   if (!$("dp-folha")) return;
-  $("dp-selo").textContent = "alterações não salvas";
+  seloDoRascunho("alterações não salvas", "sujo");
   $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
   clearTimeout(dupla.relogio);
   dupla.relogio = setTimeout(gravarDupla, 1600);
@@ -762,12 +780,21 @@ async function gravarDupla() {
     body: JSON.stringify({ corpo: htmlDaFolha(), titulo: $("dp-titulo").textContent.trim() }),
   });
   if (!$("dp-selo") || !dupla.doc || dupla.doc.id !== id) return;
-  if (!r.ok) { $("dp-selo").textContent = "não consegui salvar"; return; }
+  if (!r.ok) { seloDoRascunho("não consegui salvar", "erro"); return; }
 
   const d = await r.json();
   dupla.doc = Object.assign(dupla.doc, d);
-  const c = d.contagem || { palavras: 0 };
-  $("dp-selo").textContent = "versão " + d.versao + " · salvo às " + new Date().toTimeString().slice(0, 5);
+  seloDoRascunho("salvo no rascunho às " + new Date().toTimeString().slice(0, 5), "");
+  if ($("dp-linha")) $("dp-linha").textContent = linhaDoRascunho(dupla.doc);
+}
+
+/* O pé do editor: o ponto verde é "salvo"; âmbar, "falta salvar"; vinho, erro. */
+function seloDoRascunho(texto, tom) {
+  const selo = $("dp-selo");
+  if (!selo) return;
+  selo.textContent = texto;
+  selo.classList.toggle("sujo", tom === "sujo");
+  selo.classList.toggle("erro", tom === "erro");
 }
 
 async function painelCodigosNaDupla() {

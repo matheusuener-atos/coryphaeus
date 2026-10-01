@@ -9,18 +9,41 @@
   .apr-nota:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .apr-nota.on { color: var(--acc); background: var(--fill); }
 
-  .apr-cartao { display: grid; gap: 8px; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px;
-    background: var(--surf); max-width: 640px; }
+  /* O cartao da resposta com problema (pacote de telas, `Conversa -
+     Feedback`): o corpo com a cabeca, as etiquetas do motivo, os dois campos
+     lado a lado e o "Precisa ter"; o pe, separado por um fio, com a nota e
+     os botoes. */
+  .apr-cartao { display: grid; margin-top: 2px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); overflow: hidden; }
+  .apr-corpo { display: grid; gap: 14px; padding: 16px 18px 18px; }
+  .apr-cabeca { display: flex; align-items: flex-start; gap: 12px; }
+  .apr-titulos { flex: 1; display: grid; gap: 2px; min-width: 0; }
+  .apr-titulos b { font: 600 14px var(--sans); }
+  .apr-titulos small { font: 500 12.5px var(--sans); color: var(--ink3); }
   .apr-cartao p { margin: 0; font-size: 13.5px; color: var(--ink2); display: flex; align-items: center; gap: 6px; }
-  .apr-cartao textarea, .apr-cartao input { width: 100%; max-width: 100%; min-width: 0; min-height: 0; }
-  .apr-cartao textarea { min-height: 56px; }
+  .apr-cartao .apr-feito { padding: 14px 18px; }
   .apr-motivos, .apr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .apr-motivo { height: 28px; padding: 0 10px; border: 1px solid var(--ink-a1); border-radius: 14px; background: none;
+  .apr-motivo { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--ink-a12); border-radius: 999px; background: none;
     font: 500 12.5px var(--sans); color: var(--ink2); cursor: pointer; }
-  .apr-motivo.on { border-color: var(--acc); color: var(--ink); background: var(--fill); }
-  .apr-explica { color: var(--ink3); font-size: 12px; }
-  .apr-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
-  .apr-botoes button { display: inline-flex; align-items: center; gap: 6px; }
+  .apr-motivo .ic { display: none; }
+  .apr-motivo:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); color: var(--ink); }
+  .apr-motivo.on, .apr-motivo.on:hover:not(:disabled) { border-color: var(--ink); background: var(--ink); color: var(--bg); font-weight: 600; }
+  .apr-motivo.on .ic { display: inline-block; }
+  .apr-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .apr-campo { display: grid; gap: 8px; min-width: 0; }
+  .apr-campo > span:first-child { font: 500 13px var(--sans); color: var(--ink2); }
+  .apr-campo > span:first-child small { margin-left: 4px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .apr-cartao textarea { width: 100%; max-width: 100%; min-width: 0; min-height: 86px; padding: 10px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg);
+    font: 400 14px/1.5 var(--sans); color: var(--ink); resize: vertical; }
+  .apr-linha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg); }
+  .apr-linha:focus-within, .apr-cartao textarea:focus { border-color: var(--ink-a35); }
+  .apr-linha .ic { color: var(--ink3); flex: none; }
+  .apr-linha input { flex: 1; min-width: 0; max-width: none; height: 100%; border: none; background: none; padding: 0; box-shadow: none; font: 400 14px var(--sans); color: var(--ink); }
+  .apr-pe { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--ink-a08); }
+  .apr-explica { flex: 1; min-width: 0; color: var(--ink3); font-size: 12.5px; }
+  .apr-pe button { height: 32px; padding: 0 14px; border-radius: 8px; font: 600 12.5px var(--sans); }
+  .apr-pe button.primario { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .apr-pe button.primario:hover:not(:disabled) { background: var(--ink2); border-color: var(--ink2); color: var(--bg); }
+  @media (max-width: 599px) { .apr-campos { grid-template-columns: minmax(0, 1fr); } }
 
   .apr-resumo { display: grid; gap: 8px; margin-bottom: 8px; }
   .apr-resumo p { margin: 0; font-size: 13.5px; color: var(--ink2); }

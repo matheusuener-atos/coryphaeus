@@ -141,6 +141,44 @@ function desenharSobre(m, pergunta, visor) {
   }
 }
 
+/* COMO ESTOU RESPONDENDO (pacote de telas, `Conversa - Carregando`): com a
+   resposta andando, a coluna descreve a pergunta que esta sendo respondida
+   - o caminho (o que foi lido), a janela do modelo e o modelo - e onde
+   procurei, conforme os eventos chegam. No fim, a resposta guardada assume
+   (desenharSobre, "Como respondi"). */
+function comoAoVivo(parte) {
+  const v = estado.comoVivo = Object.assign(estado.comoVivo || {}, parte || {});
+  const f = v.fontes || {};
+  const l = v.lendo || {};
+  const linhas = [];
+  const docs = (f.consultados || []).length;
+  const trechos = (f.trechos || []).length;
+  if ((f.apenas || []).length) linhas.push(["Caminho", "li só " + plural(f.apenas.length, "documento") + (trechos ? ", " + plural(trechos, "trecho") : "")]);
+  else if (f.total_contratos !== undefined) linhas.push(["Caminho", "procurei em " + plural(f.total_contratos, "documento") + (trechos ? ", vou usar " + plural(trechos, "trecho") : "")]);
+  if (l.janela) linhas.push(["Janela", milhar(l.janela) + " tokens"]);
+  if (l.modelo) linhas.push(["Modelo", l.modelo]);
+  const blocoComo = $("lat-como");
+  if (blocoComo && linhas.length) {
+    blocoComo.hidden = false;
+    $("lat-como-titulo").textContent = "Como estou respondendo";
+    const estilo = { Janela: " mono", Modelo: " chip" };
+    $("lat-como-lista").innerHTML = linhas.map(([k, x]) => "<div><span>" + esc(k) + '</span><span class="valor-prop' + (estilo[k] || "") + '">' + esc(x) + "</span></div>").join("");
+  }
+  const blocoOnde = $("lat-onde");
+  if (blocoOnde && f.total_contratos !== undefined) {
+    const apenas = f.apenas || [];
+    const chip = apenas.length ? (apenas.length === 1 ? glifo(apenas[0]) + esc(apenas[0]) : ic("description", 14) + plural(apenas.length, "documento"))
+      : ic("folder", 14) + "Acervo inteiro";
+    const conta = apenas.length ? "" : plural(f.total_contratos, "documento");
+    blocoOnde.hidden = false;
+    $("lat-onde-linha").innerHTML = '<span class="lat-onde-chip corta">' + chip + "</span>" + (conta ? "<small>" + esc(conta) + "</small>" : "");
+    const texto = (apenas.length ? "Só " + (apenas.length === 1 ? "neste documento" : "nestes documentos") + "." : "Em todo o Acervo (" + plural(f.total_contratos, "documento") + ").") +
+      (docs ? " Achei trecho em " + plural(docs, "documento") + "." : "");
+    $("lat-onde-texto").textContent = texto;
+    $("lat-onde-texto").hidden = false;
+  }
+}
+
 function nomesCurtos(nomes) {
   const n = (nomes || []).filter(Boolean);
   if (n.length <= 5) return n.map((x) => "“" + x + "”").join(", ");
@@ -176,9 +214,10 @@ function desenharBarra() {
   const andando = estado.ocupado && estado.respondendoId === estado.trabalhoId;
   if (ponto) ponto.classList.toggle("pulsa", andando);
   caixa.classList.toggle("andando", andando);
-  agora.innerHTML = andando
-    ? esc(estado.linhaViva || "Trabalhando…") + ' <button class="barra-parar" data-barra-parar="1">' + ic("stop", 14) + "Parar</button>"
-    : esc(textoDoProximo()) + barraDoAgente();
+  // Pacote de telas (`Conversa - Carregando`): com a resposta andando, a
+  // barra continua dizendo onde a proxima pergunta procura - o que acontece
+  // agora, e o Parar, moram no cartao de trabalho e no botao de enviar.
+  agora.innerHTML = andando ? esc(textoDoProximo()) : esc(textoDoProximo()) + barraDoAgente();
   const parar = agora.querySelector("[data-barra-parar]");
   if (parar) parar.onclick = (e) => { e.stopPropagation(); pararResposta(); };
   const sel = agora.querySelector("[data-barra-agente]");

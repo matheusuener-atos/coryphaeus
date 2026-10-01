@@ -238,10 +238,12 @@ Onde divergem, vale a documentação.
 
 ## Junção com a main (01/10/2026, branch `nfse-sobre-main`, commit 5c205d4)
 
-A `main` em `2b353f0` foi juntada à `nfse` numa branch à parte. Único
-conflito: `frontend/index.html` (os dois lados só acrescentaram scripts). A
-`main` criou `js/77-apoiar-convite.js`; os da nota viraram `79-nfse.js` e
-`80-nfse-nota.js`. Nenhuma função global repetida entre os scripts.
+A `main` em `2b353f0` foi juntada à `nfse` numa branch à parte (e depois a
+`83a7ce7`, com a T2 e a primeira parte da T3). Único conflito, as duas vezes:
+`frontend/index.html` (os dois lados só acrescentaram scripts e estilos). A
+`main` foi ocupando os números 77 a 81 e o `css/48`; os da nota foram para
+`css/90-nfse.css`, `js/90-nfse.js` e `js/91-nfse-nota.js`, longe da faixa
+em uso. Nenhuma função global repetida entre os scripts.
 
 - Testes da NFS-e (N1–N9): todos passando.
 - Suíte inteira: 145 de 161 passam. As 16 que falham:

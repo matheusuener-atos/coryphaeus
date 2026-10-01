@@ -1,0 +1,199 @@
+/* ------------------------------------------ as ferramentas na coluna (T3) */
+/* Pacote de telas de 01/10/2026: documento, PDF, editor, planilha e
+   assinatura abrem na coluna da direita, que toma o resto da janela (a
+   conversa fica com 560 px). Toda ferramenta tem o mesmo esqueleto: o
+   cabecalho (marca do formato, nome, linha de baixo, botoes) e o quadro de
+   fio fino com a barra, a mesa e o pe. */
+
+.lateral[data-papel="ferramenta"] { background: var(--bg); }
+
+.fl { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 28px 28px 28px 36px; }
+
+.fl-topo { flex: none; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; min-width: 0; }
+.fl-marca {
+  flex: none; width: 32px; height: 32px; border-radius: 7px; color: var(--surf);
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 800 15px var(--sans); letter-spacing: -.02em; background: var(--mute2);
+}
+.fl-marca.pdf { background: var(--glifo-pdf); font-size: 10px; letter-spacing: .02em; }
+.fl-marca.docx, .fl-marca.doc { background: var(--glifo-word); }
+.fl-marca.xlsx, .fl-marca.xls { background: var(--glifo-excel); }
+.fl-marca.outro { background: var(--fill2); color: var(--ink2); }
+.fl-nome { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.fl-nome b { display: flex; align-items: baseline; min-width: 0; font: 600 15px var(--sans); color: var(--ink); }
+.fl-nome b .corta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-ext { flex: none; margin-left: 4px; font: 400 12px var(--mono); color: var(--ink3); }
+.fl-nome small { font: 400 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-acoes { flex: none; display: flex; align-items: center; gap: 8px; }
+.fl-acoes > button:not(.botao-icone) { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; font-weight: 600; }
+.fl-acoes > .botao-icone { width: 32px; height: 32px; }
+
+.fl-quadro {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+}
+.fl-barra {
+  flex: none; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--ink-a08); font: 500 13px var(--sans); color: var(--ink2);
+}
+.fl-cit { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); }
+.fl-cit-vazio { font-weight: 500; color: var(--ink3); }
+.fl-cor { width: 10px; height: 10px; border-radius: 2px; background: var(--papel-marca-linha); }
+.fl-passo, .fl-zoom {
+  display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--ink-a1); border-radius: 8px;
+}
+.fl-passo .botao-icone, .fl-zoom .botao-icone, .fl-barra > .botao-icone { width: 26px; height: 26px; }
+.fl-mono { font: 500 12px var(--mono); color: var(--ink); padding: 0 6px; white-space: nowrap; }
+.fl-pag { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fl-barra .fl-pag input {
+  flex: none; width: 32px; min-width: 0; max-width: 32px; height: 26px; padding: 0; text-align: center; font: 500 12px var(--mono); color: var(--ink);
+  border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--bg);
+}
+.fl-busca {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 2px 0 10px;
+  border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg); color: var(--ink3);
+}
+.fl-busca input { width: 220px; border: none; background: transparent; padding: 0; font: 400 13px var(--sans); color: var(--ink); }
+.fl-busca .botao-icone { width: 24px; height: 24px; }
+
+.fl-mesa { flex: 1; min-height: 0; display: flex; background: var(--bg); }
+.fl-miniaturas {
+  flex: none; width: 148px; overflow-y: auto; padding: 20px 14px; display: flex; flex-direction: column; gap: 16px;
+  border-right: 1px solid var(--ink-a08); background: var(--surf);
+}
+.fl-mini { display: grid; justify-items: center; gap: 8px; padding: 0; border: none; background: none; }
+.fl-mini:hover:not(:disabled) { background: none; border: none; }
+.fl-mini img { display: block; width: 100%; height: auto; aspect-ratio: auto 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); opacity: .72; transition: opacity .18s ease; }
+.fl-mini:hover img { opacity: 1; }
+.fl-mini.atual img { opacity: 1; outline: 2px solid var(--ink); outline-offset: 2px; }
+.fl-mini small { font: 500 11px var(--mono); color: var(--ink3); }
+.fl-mini.atual small { color: var(--ink); }
+/* Posicionada: o offsetTop das folhas conta a partir da mesa que rola. */
+.fl-folhas {
+  position: relative; flex: 1; min-width: 0; overflow: auto; padding: 32px 32px 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+}
+.fl-folha { position: relative; flex: none; max-width: none; background: var(--papel); box-shadow: var(--elev-papel); }
+.fl-folha img { display: block; width: 100%; height: auto; }
+/* O trecho citado, marcado na frase: o marca-texto do desenho. */
+.fl-trecho {
+  position: absolute; pointer-events: none; mix-blend-mode: multiply;
+  background: var(--papel-marca); box-shadow: inset 0 -1.5px 0 var(--papel-marca-linha);
+}
+.fl-trecho.atual { outline: 1px solid var(--papel-marca-linha); outline-offset: 1px; }
+.fl-trecho.achado { background: var(--papel-achado); box-shadow: none; }
+
+.fl-pe {
+  flex: none; display: flex; align-items: center; gap: 16px; min-height: 40px; padding: 0 16px;
+  border-top: 1px solid var(--ink-a08); font: 400 12.5px var(--sans); color: var(--ink3);
+}
+
+/* O cartao da oferta enquanto o documento esta aberto ao lado: o botao do
+   que esta aberto fica cheio, com o visto. */
+.proposta .linha-form button.feito,
+.proposta .linha-form button.primario.feito {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--primario); border-color: var(--primario); color: var(--primario-ink);
+}
+.proposta .linha-form button.feito:hover:not(:disabled) { background: var(--primario-hover); border-color: var(--primario-hover); color: var(--primario-ink); }
+.proposta .linha-form button.primario:not(.feito) ~ button.feito,
+.proposta .linha-form:has(button.feito) button.primario:not(.feito) { background: var(--surf); border-color: var(--ink-a1); color: var(--ink); }
+.fl-pe-nota { color: var(--ink3); }
+.proposta .linha-form .ic-visto { margin-left: -2px; }
+
+/* O editor na coluna (`Conversa - Editor`): a barra de edicao no lugar da
+   barra do visor, o estilo do paragrafo, os comandos de texto e as
+   alteracoes com a conta; o pe diz se o rascunho esta salvo. */
+.fl-barra.edl-barra { gap: 4px; padding: 0 12px; }
+.fl-barra.edl-barra .botao-icone { width: 30px; height: 30px; }
+.fl-barra.edl-barra .edl-texto { width: auto; height: 30px; padding: 0 10px; font: 500 13px var(--sans); color: var(--ink2); }
+.fl-barra.edl-barra .edl-texto:hover:not(:disabled) { color: var(--ink); }
+.edl-bloco { position: relative; display: inline-flex; align-items: center; color: var(--ink2); }
+.edl-bloco select {
+  appearance: none; height: 30px; padding: 0 26px 0 10px; border: none; border-radius: 6px; background: none;
+  font: 500 13px var(--sans); color: var(--ink2); cursor: pointer;
+}
+.edl-bloco select:hover { background: var(--fill); color: var(--ink); }
+.edl-bloco .ic { position: absolute; right: 6px; pointer-events: none; }
+.edl-conta {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px;
+  border-radius: 5px; background: var(--fill2); font: 600 11px var(--mono); color: var(--ink);
+}
+.edl-titulo { outline: none; }
+.edl-selo { display: inline-flex; align-items: center; gap: 7px; }
+.edl-selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--verde); }
+.edl-selo.sujo::before { background: var(--ambar); }
+.edl-selo.erro::before { background: var(--acc); }
+.fl-barra .edl-bloco select { flex: none; width: 116px; min-width: 0; }
+/* Os atalhos acima da caixa, numa linha so na coluna de 560: o destino (No
+   documento / Na conversa), o fio e os pedidos prontos. */
+.edl-atalhos { flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.edl-atalhos::-webkit-scrollbar { display: none; }
+.edl-atalhos .visoes { flex: none; padding: 2px; }
+.edl-atalhos .visoes button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; font-size: 12.5px; }
+.edl-atalhos .edl-destino { margin-right: 6px; padding-right: 0; }
+.edl-atalhos .edl-atalho { flex: none; height: 30px; padding: 0 11px; font-size: 12.5px; }
+/* Com uma ferramenta aberta, a linha de cima da caixa ja diz o que a proxima
+   pergunta le; a pilula do escopo sai, como no desenho. */
+.conversa-col.com-lado[data-papel="ferramenta"] .escopo { display: none; }
+
+/* A planilha ao lado (`Conversa - Planilha` / `Editor de planilha`): a barra
+   da formula, a grade em papel (clara nos dois temas, como a pagina do
+   documento) e as abas no pe. */
+.pa-formula {
+  flex: none; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 14px;
+  border-bottom: 1px solid var(--ink-a08);
+}
+.pa-ref {
+  min-width: 44px; height: 24px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; background: var(--fill); font: 600 11.5px var(--mono); color: var(--ink2);
+}
+.pa-fx { font: italic 400 12px var(--serif); color: var(--ink3); }
+.pa-formula input {
+  flex: 1; min-width: 0; max-width: none; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; font: 500 12.5px var(--mono); color: var(--ink);
+}
+.pa-formula input:not([readonly]):focus { border-color: var(--ink-a15); background: var(--bg); }
+.pa-mesa { flex: 1; min-height: 0; overflow: auto; background: var(--papel); }
+.pa-grade { min-width: 100%; width: max-content; }
+.pa-tabela {
+  border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 100%;
+  font: 400 calc(13.5px * var(--pa-escala, 1)) var(--sans); color: var(--tinta);
+}
+.pa-tabela .pa-col-num { width: 60px; }
+.pa-tabela thead th {
+  position: sticky; top: 0; z-index: 2; height: 26px; background: var(--papel-realce);
+  border-bottom: 1px solid var(--papel-linha); border-right: 1px solid var(--papel-realce);
+  font: 500 11px var(--sans); color: var(--papel-ink3); text-align: center;
+}
+.pa-tabela thead th.atual { background: var(--papel-citada); color: var(--tinta); }
+.pa-tabela .pa-canto { left: 0; z-index: 3; }
+.pa-tabela .pa-num {
+  position: sticky; left: 0; z-index: 1; width: 60px; background: var(--papel-realce);
+  border-right: 1px solid var(--papel-linha); border-bottom: 1px solid var(--papel); font: 500 11px var(--mono); color: var(--papel-ink3); text-align: center;
+}
+.pa-tabela .pa-num.atual { color: var(--tinta); }
+.pa-tabela td {
+  height: calc(31px * var(--pa-escala, 1)); padding: 0 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border-bottom: 1px solid var(--papel-realce); border-right: 1px solid var(--papel-realce); cursor: cell;
+}
+.pa-tabela td.numero { text-align: right; font-family: var(--mono); font-size: calc(12px * var(--pa-escala, 1)); }
+.pa-tabela td.mono { font-family: var(--mono); font-size: calc(11.5px * var(--pa-escala, 1)); color: var(--papel-ink2); }
+.pa-tabela td.forte { font-weight: 700; }
+.pa-tabela td.inclinada { font-style: italic; }
+.pa-tabela td.ruim { color: var(--papel-acc); }
+.pa-tabela td.pa-pagar { color: var(--papel-acc); }
+.pa-tabela td.pa-receber { color: var(--papel-ok); }
+.pa-tabela tr.citada td, .pa-tabela tr.citada .pa-num { background: var(--papel-citada); }
+.pa-tabela tr.citada.atual td { box-shadow: inset 0 1px 0 var(--papel-marca-linha), inset 0 -1px 0 var(--papel-marca-linha); }
+.pa-tabela tr.destacada td { background: var(--papel-accbg); }
+.pa-tabela tr.total td { background: var(--papel-realce); font-weight: 700; }
+.pa-tabela td.escolhida { outline: 2px solid var(--tinta); outline-offset: -2px; }
+.pa-tabela td.mudou { background: var(--papel-mudou); box-shadow: inset 2px 0 0 var(--papel-ok); }
+.pa-tabela td.mudou s { color: var(--papel-ink3); font-size: .9em; }
+.pa-pe { gap: 14px; }
+.pa-abas { flex: none; }
+.pa-abas button { height: 26px; padding: 0 10px; font-size: 12.5px; }
+.pa-busca input { width: 170px; }
+/* Os pedidos prontos da planilha sao mais longos: descem para a segunda linha. */
+.edl-atalhos.pa-atalhos { flex-wrap: wrap; overflow: visible; }

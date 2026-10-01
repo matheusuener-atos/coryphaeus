@@ -1,4 +1,4 @@
-/* N1: Configurações › Nota fiscal e o cartão da nota (js/79-nfse.js). */
+/* N1: Configurações › Nota fiscal e o cartão da nota (js/90-nfse.js). */
 .nfse-retencao { padding: 10px 0; border-bottom: 1px solid var(--ink-a08); }
 .nfse-retencao:last-child { border-bottom: 0; }
 .nfse-retencao > b { display: block; font-size: 13px; margin-bottom: 2px; }

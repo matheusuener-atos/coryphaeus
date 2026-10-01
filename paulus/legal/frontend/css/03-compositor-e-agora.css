@@ -227,3 +227,24 @@
   .agr-cheio { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: var(--ink); color: var(--bg); font: 600 12.5px var(--sans); }
   .agr-cheio:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }
   .agr-cheio i { width: 8px; height: 8px; border-radius: 2px; background: var(--bg); }
+
+  /* O DITADO NA CONVERSA (pacote de telas, `Conversa - Ditando`): o cartao
+     toma o lugar da caixa de pedido - o ponto vermelho, a nota, o tempo, a
+     onda larga, o texto ouvido e, embaixo, Cancelar e Pausar a esquerda,
+     Concluir e editar e Concluir e enviar a direita. */
+  .conversa-col.ditando:not(.vazia) .compositor .cartao-campo { display: none; }
+  .conversa-col.ditando:not(.vazia) .ditado-rodape { padding: 0; }
+  .ditado-cartao { padding: 14px 14px 12px 18px; gap: 12px; border-color: var(--ink-a15); border-radius: 14px; }
+  .dit-estado { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--sans); white-space: nowrap; }
+  .dit-nota { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conversa-col:not(.vazia) .ditado-onda { height: 40px; }
+  .dit-texto { font-size: 14.5px; line-height: 1.55; color: var(--ink); max-height: 96px; overflow-y: auto; overflow-wrap: anywhere; }
+  .dit-espera { color: var(--ink3); }
+  .dit-cursor { display: inline-block; width: 1.5px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: var(--ink); animation: pv-pisca 1s steps(1) infinite; }
+  .ditado-cartao .acoes { gap: 6px; }
+  .dit-fantasma { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 7px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .dit-fantasma:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+  .dit-borda { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ink-a12); background: none; font: 600 12.5px var(--sans); color: var(--ink); }
+  .dit-borda:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .dit-cheio { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 12.5px var(--sans); }
+  .dit-cheio:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }

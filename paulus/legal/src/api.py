@@ -2576,6 +2576,87 @@ def biblioteca_citacao(payload: OndeCitou) -> dict:
     }
 
 
+class LeituraDoDocumento(BaseModel):
+    nome: str = ""
+    trechos: list[str] = []
+
+
+@app.post("/api/biblioteca/leitura")
+def biblioteca_leitura(payload: LeituraDoDocumento) -> dict:
+    """
+    O que o visor ao lado da conversa desenha (paginas, as citadas e as
+    marcas), sem registrar nada na conversa: e o clique num cartao de
+    "Trechos lidos". O "Mostrar aqui" passa por /fazer, que anota.
+    """
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    if not Path(doc.path).exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+    trechos = [str(t)[:400] for t in payload.trechos[:12] if isinstance(t, str)]
+    return ferramentas.leitura(doc, trechos)
+
+
+class PlanilhaDoAcervo(BaseModel):
+    nome: str = ""
+    trechos: list[str] = []
+
+
+@app.post("/api/biblioteca/planilha")
+def biblioteca_planilha(payload: PlanilhaDoAcervo) -> dict:
+    """
+    A planilha do Acervo para o visor ao lado da conversa (pacote de telas,
+    `Conversa - Planilha`): as abas com o valor calculado de cada celula, como
+    no editor, e as linhas que a resposta citou. So leitura - nada e gravado.
+    """
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    alvo = Path(doc.path)
+    if not alvo.exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+    if alvo.suffix.lower() != ".xlsx":
+        raise HTTPException(status_code=400, detail="isso não é uma planilha do Excel")
+    try:
+        abas = planilha.de_xlsx(alvo.read_bytes())
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=f"não consegui ler a planilha: {exc}") from exc
+    try:
+        citadas = ferramentas.linhas_citadas_da_planilha(alvo, payload.trechos[:12])
+    except Exception:  # noqa: BLE001 - sem citacao, a planilha abre do mesmo jeito
+        citadas = []
+    return {"nome": doc.name, "caminho": str(alvo), "bytes": alvo.stat().st_size,
+            "abas": [a.to_dict() for a in abas], "calculado": [planilha.calcular_aba(a) for a in abas],
+            "citadas": citadas}
+
+
+class ProcurarNoDocumento(BaseModel):
+    nome: str = ""
+    termo: str = ""
+
+
+@app.post("/api/biblioteca/procurar-no-documento")
+def biblioteca_procurar_no_documento(payload: ProcurarNoDocumento) -> dict:
+    """
+    A lupa do visor ao lado da conversa (pacote de telas, T3): onde o termo
+    aparece, pagina a pagina, com as marcas. Procura no PDF que a tela
+    desenha - o arquivo, ou o que o gerador do editor monta para o Word.
+    """
+    import citacao
+
+    doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="esse documento nao esta aberto")
+    if not Path(doc.path).exists():
+        raise HTTPException(status_code=404, detail="o arquivo saiu do lugar")
+    try:
+        origem = doc.path if Path(doc.path).suffix.lower() == ".pdf" else ferramentas.pdf_do_documento(doc)
+        achados = citacao.ocorrencias(origem, payload.termo)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"nao consegui procurar: {exc}") from exc
+    return {"termo": payload.termo, "achados": achados}
+
+
 @app.get("/api/biblioteca/pagina")
 def biblioteca_pagina(nome: str, numero: int = 1, largura: int = 1000):
     """A pagina do documento desenhada, para conferir sem sair daqui."""
@@ -3746,6 +3827,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     if lido.tipo == "passos" and not rotas_do_acesso.e_local(request):
         return _so_dizer(trabalho, "As tarefas de vários passos (os contratos vencendo, revisar contra o padrão) rodam "
                                    "só na janela do escritório, por ora. Peça de lá, ou em Agentes › Tarefas de vários passos.")
+    # Pacote de telas (`Conversa - Gravando`): gravar a reuniao aqui, com a
+    # transcricao ao vivo e, se pedido, as sugestoes tiradas do caso.
+    if lido.tipo == "gravar":
+        return _responder_gravacao(trabalho, lido, pergunta)
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir", "passos"):
         # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
         # o que ele pediu sem ter e recusado e fica registrado.
@@ -4314,6 +4399,22 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
             elif nome_cliente:
                 resumo += f" sem cliente ligado — “{nome_cliente}” não está em Cadastros"
             onde = "servicos"
+        elif payload.tipo == "gravacao":
+            # A gravacao feita na conversa (`Conversa - Gravando`) ja foi
+            # arquivada pela tela (POST /api/gravacoes); aqui ela entra na
+            # conversa, com o caminho para a gravacao.
+            g = estado.gravacoes.obter(int(campos.get("id") or 0))
+            if not g:
+                raise HTTPException(status_code=404, detail="essa gravação não está mais aqui")
+            novo = g["id"]
+            feito = g
+            minutos, segundos = divmod(int(g.get("duracao_s") or 0), 60)
+            duracao = (f"{minutos} min {segundos:02d} s" if minutos else f"{segundos} s")
+            sugeridas = int(campos.get("sugestoes") or 0)
+            resumo = (f"Gravei “{g.get('titulo') or 'a reunião'}” ({duracao}) e arquivei em Gravações, com a transcrição"
+                      + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
+            onde = "gravacoes"
+            campos["nome"] = g.get("titulo") or ""
         else:
             raise HTTPException(status_code=400, detail="nao sei fazer isso")
     except ValueError as exc:
@@ -4326,6 +4427,99 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
         estado.fila.decidir(payload.pedido_id, True)
         estado.fila.registrar_resultado(payload.pedido_id, resumo + " (confirmado no cartão da conversa)")
     return {"id": novo, "resumo": resumo, "onde": onde, "registro": feito, "pendente": pendente}
+
+
+def _responder_gravacao(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Grave a reuniao com a Rio Fresco e me ajude a responder": a conversa
+    devolve o que a tela precisa para gravar ali mesmo - o titulo, o tipo, a
+    ficha do cliente, os documentos do caso - e diz o que vai acontecer. Quem
+    abre o microfone e a tela (o audio fica nesta maquina, src/gravacoes.py).
+    """
+    import sugestoes_ao_vivo as sav
+
+    campos = dict(lido.campos)
+    nome = campos.get("cliente") or ""
+    ficha = None
+    if nome:
+        alvo = " ".join(nome.split()).lower()
+        fichas = estado.cadastros.listar()
+        ficha = next((f for f in fichas if " ".join(f["nome"].split()).lower() == alvo), None) or \
+            next((f for f in fichas if alvo and alvo in " ".join(f["nome"].split()).lower()), None)
+    if ficha:
+        campos["cadastro_id"] = ficha["id"]
+        campos["cliente"] = ficha["nome"]
+        campos["titulo"] = (campos.get("titulo") or "Reunião").split(" · ")[0] + " · " + ficha["nome"]
+    documentos = sav.documentos_do_caso(estado, campos.get("cliente", ""), campos.get("cadastro_id"))
+    campos["documentos"] = documentos
+    if campos.get("ajudar") and documentos:
+        citados = " e ".join(", ".join(f"“{n}”" for n in documentos[:2]).rsplit(", ", 1)) if len(documentos) > 1 else f"“{documentos[0]}”"
+        texto = (f"Gravando. Vou transcrever aqui e, quando algo dito cruzar com {citados}"
+                 f"{' e os outros documentos do caso' if len(documentos) > 2 else ''}, sugiro uma resposta logo abaixo da fala.")
+    elif campos.get("ajudar"):
+        texto = ("Gravando. Vou transcrever aqui. Não achei documentos do caso para cruzar com o que for dito: "
+                 "anexe ou aponte a pasta, e eu passo a sugerir respostas.")
+    else:
+        texto = "Gravando. Vou transcrever aqui; o áudio e a transcrição ficam nesta máquina."
+    proposta = {"tipo": "gravar", "titulo": campos.get("titulo", ""), "campos": campos, "porque": lido.porque,
+                "pergunta": pergunta, "texto": texto}
+
+    def gerar() -> Iterator[str]:
+        # A conversa que comeca pelo pedido de gravar ganha o nome da gravacao
+        # ("Reuniao · Cooperativa Rio Fresco"), como no desenho.
+        if len(trabalho.mensagens) <= 1 and campos.get("titulo"):
+            trabalho.titulo = titular(campos["titulo"])
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class SugestaoAoVivo(BaseModel):
+    texto: str = ""
+    documentos: list[str] = []
+    anteriores: str = ""
+
+
+@app.post("/api/gravacoes/sugerir")
+def gravacoes_sugerir(payload: SugestaoAoVivo) -> dict:
+    """
+    A sugestao de resposta para uma fala da gravacao (src/sugestoes_ao_vivo.py):
+    regra antes, modelo so quando a fala toca o que os documentos do caso dizem,
+    e a resposta so passa ancorada no trecho. Sem sugestao, `sugestao` e None.
+    """
+    import sugestoes_ao_vivo as sav
+
+    abertos = {d.name for d in estado.searcher.documents}
+    documentos = [n for n in payload.documentos if n in abertos][:8]
+    cliente = estado.cliente_para("conversa")
+    sugestao = sav.sugerir(payload.texto[:1200], documentos, estado.searcher,
+                           lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis),
+                           payload.anteriores[:800])
+    return {"sugestao": sugestao}
+
+
+class PontosDoCaso(BaseModel):
+    documentos: list[str] = []
+
+
+@app.post("/api/gravacoes/pontos")
+def gravacoes_pontos(payload: PontosDoCaso) -> dict:
+    """Os pontos do caso numa frase, tirada dos trechos dos documentos (ou vazio)."""
+    import sugestoes_ao_vivo as sav
+
+    abertos = {d.name for d in estado.searcher.documents}
+    documentos = [n for n in payload.documentos if n in abertos][:8]
+    cliente = estado.cliente_para("conversa")
+    pontos = sav.pontos_do_caso(documentos, estado.searcher,
+                                lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis))
+    return {"pontos": pontos}
 
 
 def _so_dizer(trabalho, texto: str) -> StreamingResponse:
@@ -8423,7 +8617,23 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
                 rascunho = estado.documentos.obter(int(feito.get("id") or 0))
                 if rascunho:
                     return {"id": rascunho["id"], "titulo": rascunho["titulo"], "de": lido.name,
-                            "paragrafos": 0, "reaberto": True}
+                            "paragrafos": 0, "reaberto": True, "tipo": rascunho.get("tipo", "texto")}
+
+    # A planilha do Excel vira planilha do editor (pacote de telas, `Conversa
+    # - Editor de planilha`): as abas, as formulas (traduzidas para o padrao
+    # brasileiro), o formato e o negrito. O .xlsx de origem nao e tocado.
+    if alvo.suffix.lower() == ".xlsx":
+        try:
+            abas = planilha.de_xlsx(alvo.read_bytes())
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=400, detail=f"não consegui ler a planilha: {exc}") from exc
+        id_ = estado.documentos.criar(Path(lido.name).stem, "planilha", planilha.para_json(abas), None)
+        if trabalho:
+            trabalho.dizer("paulus", f"Abri “{lido.name}” para editar.",
+                           feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "planilha"})
+            estado.trabalhos.salvar(trabalho)
+        return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name, "paragrafos": 0,
+                "reaberto": False, "tipo": "planilha"}
 
     # Paragrafo por paragrafo: o texto extraido vem com quebras de linha, e
     # jogar tudo num <p> so daria um bloco unico impossivel de editar.
@@ -8436,7 +8646,7 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
                        feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "editor"})
         estado.trabalhos.salvar(trabalho)
     return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name,
-            "paragrafos": len(paragrafos), "reaberto": False}
+            "paragrafos": len(paragrafos), "reaberto": False, "tipo": "texto"}
 
 
 def _escapar(texto: str) -> str:

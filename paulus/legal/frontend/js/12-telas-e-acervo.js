@@ -888,6 +888,9 @@ function cartaoProposta(d) {
   // Abrir é o único que não tem campo para conferir: ou é este arquivo, ou
   // não é. O que a pessoa confere é o nome — e onde quer abrir.
   if (d.tipo === "exibir") return cartaoOferta(d);
+  // Gravar a reuniao na conversa (js/79-conversa-gravando.js): nao ha cartao,
+  // a gravacao comeca e a transcricao desce no fio.
+  if (d.tipo === "gravar") return "";
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
@@ -1142,71 +1145,6 @@ function ligarEscopo(caixa, d) {
   if (anexar) anexar.onclick = () => abrirAnexar();
 }
 
-/* O visor dentro da conversa: as PÁGINAS do documento, empilhadas, como no
-   editor. Um visor só para PDF e Word — antes eram dois (a página desenhada
-   do PDF e o Word em parágrafos corridos), e o mesmo documento parecia duas
-   coisas diferentes conforme o formato. O Word é desenhado a partir do PDF
-   que o gerador do editor monta. As páginas onde estão os trechos citados
-   ganham o fio de destaque, e o visor já abre na primeira delas. */
-function srcDaPagina(nome, pagina) {
-  return "/api/biblioteca/pagina?nome=" + encodeURIComponent(nome) + "&numero=" + pagina + "&largura=1100";
-}
-
-function leitorNaConversa(reg) {
-  const citadas = reg.citadas || [];
-  const topo = '<div class="proposta-topo leitor-topo"><span class="rotulo">só leitura</span>' +
-    '<b class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</b>" +
-    '<span class="explica leitor-conta">' + plural(reg.paginas || 1, "página") + "</span>" +
-    (citadas.length
-      ? '<button class="leitor-ir" data-leitor-ir="' + citadas[0] + '">' + ic("format_quote", 16) +
-        (citadas.length === 1 ? "trecho citado na pág. " + citadas[0] : "trechos nas págs. " + citadas.join(", ")) + "</button>"
-      : "") +
-    '<button class="botao-icone" data-visor="minimizar" title="Minimizar" aria-label="Minimizar">' + ic("remove", 18) + "</button></div>";
-  let paginas = "";
-  for (let n = 1; n <= (reg.paginas || 1); n++) {
-    const classe = citadas.includes(n) ? "leitor-folha citada" : "leitor-folha";
-    paginas += '<img class="' + classe + '" data-leitor-pagina="' + n + '" loading="lazy" alt="página ' + n +
-      '" src="' + srcDaPagina(reg.nome, n) + '">';
-  }
-  return '<div class="proposta leitor-conversa">' + topo +
-    '<div class="leitor-paginas">' + paginas + "</div>" +
-    '<div class="linha-form"><button data-prop="editar" data-nome="' + esc(reg.nome) + '">Abrir editor</button>' +
-    '<button data-prop="windows" data-nome="' + esc(reg.nome) + '">Abrir no Windows</button></div></div>';
-}
-
-function ligarLeitor(caixa, reg, d) {
-  const rolagem = caixa.querySelector(".leitor-paginas");
-  const irPara = (n, suave) => {
-    const folha = rolagem.querySelector('[data-leitor-pagina="' + n + '"]');
-    if (!folha) return;
-    rolagem.scrollTo({
-      top: rolagem.scrollTop + folha.getBoundingClientRect().top - rolagem.getBoundingClientRect().top - 12,
-      behavior: suave && animacoesLigadas() ? "smooth" : "auto",
-    });
-  };
-  const ir = caixa.querySelector("[data-leitor-ir]");
-  if (ir) {
-    ir.onclick = () => irPara(Number(ir.dataset.leitorIr), true);
-    irPara((reg.citadas || [])[0], false);
-  }
-
-  /* Minimizar devolve o cartão de onde o visor saiu — a oferta ou o "vou
-     abrir este arquivo" —, com os mesmos botões, no mesmo lugar. */
-  caixa.querySelector('[data-visor="minimizar"]').onclick = () => {
-    if (d && (d.tipo === "exibir" || d.tipo === "abrir")) {
-      caixa.innerHTML = cartaoProposta(d);
-      ligarProposta(caixa, d);
-      return;
-    }
-    caixa.innerHTML = '<div class="proposta oferta"><div class="oferta-doc">' +
-      ic(reg.origem === "pdf" ? "picture_as_pdf" : "description", 18) +
-      '<span class="oferta-nome" title="' + esc(reg.nome) + '">' + esc(reg.nome) + "</span>" +
-      '<button data-prop="exibir" data-nome="' + esc(reg.nome) + '">Mostrar aqui</button></div></div>';
-    ligarBotoesDeDocumento(caixa, d);
-  };
-  ligarBotoesDeDocumento(caixa, d);
-}
-
 function rascunhoDaConversa(nome) {
   return ((estado.trabalho || {}).mensagens || []).some((m) =>
     m.feito && m.feito.tipo === "editar" && m.feito.nome === nome);
@@ -1233,10 +1171,16 @@ function ligarBotoesDeDocumento(caixa, d) {
         caixa.insertAdjacentHTML("beforeend", '<p class="explica">Não consegui mostrar: ' + esc(await erroDe(r)) + "</p>");
         return;
       }
-      const reg = (await r.json()).registro;
-      caixa.innerHTML = leitorNaConversa(reg);
-      ligarLeitor(caixa, reg, d);
-      if (pertoDoFim()) rolar();
+      const feito = await r.json();
+      b.disabled = false;
+      // T3: o documento abre na coluna da direita; o cartao fica, com o
+      // "Mostrar aqui" marcado, e a nota diz o que foi feito.
+      if (feito.registro && feito.registro.planilha) {
+        abrirPlanilhaAoLado(nomeDe(b), { trechos: ((d.trechos || {})[nomeDe(b)] || []), oferta: caixa });
+      } else {
+        abrirDocumentoAoLado(feito.registro, { oferta: caixa, d: d });
+      }
+      if (feito.resumo) notaDeFeitoNaConversa(feito.resumo + ".");
     };
   });
 
@@ -1262,24 +1206,10 @@ function ligarBotoesDeDocumento(caixa, d) {
      o cartão continua aqui, e clicar de novo volta ao MESMO rascunho — antes
      o cartão sumia, e cada clique criava outra cópia. */
   caixa.querySelectorAll('[data-prop="editar"]').forEach((editar) => {
-
     editar.onclick = async () => {
       editar.disabled = true;
-      const r = await fetch("/api/documentos/importar", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: nomeDe(editar), trabalho_id: estado.trabalhoId || "" }),
-      });
+      await editarDocumentoDoAcervo(nomeDe(editar), caixa);
       editar.disabled = false;
-      if (!r.ok) {
-        avisoNaJanela("Não consegui abrir no editor: " + (await erroDe(r)), { icone: "error" });
-        return;
-      }
-      const novo = await r.json();
-      if (!novo.reaberto && estado.trabalho) {
-        estado.trabalho.mensagens.push({ autor: "paulus", texto: "Abri “" + novo.de + "” para editar.",
-          feito: { tipo: "editar", id: novo.id, nome: novo.de } });
-      }
-      mostrarDupla(novo.id);
     };
   });
 }
@@ -1390,6 +1320,7 @@ function camposProposta(d, faltando) {
 /* Ligar os botões do cartão. O que vai para o servidor é o que está nos
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
 function ligarProposta(caixa, d, ondeResponder) {
+  if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
@@ -1432,7 +1363,7 @@ function ligarProposta(caixa, d, ondeResponder) {
     }
 
     const feito = await r.json();
-    // N4: a NFS-e virou rascunho; o cartão da nota abre já (js/80-nfse-nota.js).
+    // N4: a NFS-e virou rascunho; o cartão da nota abre já (js/91-nfse-nota.js).
     if (feito.onde === "nfse" && typeof abrirNotaFiscal === "function") setTimeout(() => abrirNotaFiscal(feito.id), 50);
     // N6: a tarefa roda em segundo plano; o cartão acompanha os passos ali mesmo.
     if (d.tipo === "passos" && typeof acompanharPassosNaConversa === "function") { acompanharPassosNaConversa(caixa, feito.id); return; }

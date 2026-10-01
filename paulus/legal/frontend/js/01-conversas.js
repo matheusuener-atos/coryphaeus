@@ -215,9 +215,7 @@ function atualizarPostura() {
   if (ditado.estado) setTimeout(desenharCartaoDoDitado, 0);
   $("pedido").placeholder = !temConversa
     ? "Peça o que precisa dos seus documentos…"
-    : (editorNaConversaAberto()
-      ? "Pergunte, ou peça uma mudança no documento…"
-      : "Pergunte outra coisa ou aponte outra pasta…");
+    : (textoDaCaixaDaFerramenta() || "Pergunte outra coisa ou aponte outra pasta…");
   if (!temConversa) {
     atualizarSaudacao();
     $("lista-conversas").hidden = !lembrancaDoInicio.lista || (typeof avs !== "undefined" && avs.naInicio);
