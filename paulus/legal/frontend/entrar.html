@@ -348,6 +348,9 @@
   if (volta.get("erro")) $("erro-senha").textContent = volta.get("erro");
   if (volta.get("g")) {
     pendente = volta.get("g");
+    // A conta que voltou do Google fica lembrada neste aparelho: na proxima
+    // entrada ela vai como dica, e o Google nao pede para escolher de novo.
+    if (volta.get("e")) { try { localStorage.setItem("paulus.google.email", volta.get("e")); } catch (e) { /* sem memoria */ } }
     $("quem-email").textContent = volta.get("e") || "sua conta Google";
     passo("codigo");
   } else {
@@ -361,7 +364,9 @@
       if (!config.google) throw new Error("o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS");
       const token = tokenDoRobo();
       if (!token) throw new Error("confirme a verificação contra robôs acima");
-      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "entrar", turnstile: token });
+      let dica = "";
+      try { dica = localStorage.getItem("paulus.google.email") || ""; } catch (e) { /* sem memoria */ }
+      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "entrar", turnstile: token, dica });
       location.assign(d.url);
       return;
     } catch (err) { $("erro-senha").textContent = err.message; }

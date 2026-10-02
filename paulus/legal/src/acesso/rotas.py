@@ -87,6 +87,9 @@ class IrAoGoogle(BaseModel):
     finalidade: str = "entrar"
     convite: str = ""
     turnstile: str = ""
+    # O e-mail que entrou da ultima vez neste aparelho (login_hint): com ele,
+    # o Google segue direto, sem a tela de escolher a conta.
+    dica: str = ""
 
 
 class NovaConta(BaseModel):
@@ -431,7 +434,7 @@ def montar(servico, r) -> None:
             except ErroConvite as exc:
                 raise HTTPException(status_code=410, detail=str(exc)) from exc
         try:
-            url, nonce = servico.google.iniciar(dados.finalidade, dados.convite, conta_id)
+            url, nonce = servico.google.iniciar(dados.finalidade, dados.convite, conta_id, dica=dados.dica)
         except ErroGoogle as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         resp = JSONResponse({"url": url})

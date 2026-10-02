@@ -95,7 +95,7 @@ class LoginGoogle:
         c = self.credenciais()
         return bool(c.get("client_id") and c.get("client_secret") and self.servico.preferencias().get("hostname"))
 
-    def iniciar(self, finalidade: str, convite: str = "", conta_id: int = 0) -> tuple[str, str]:
+    def iniciar(self, finalidade: str, convite: str = "", conta_id: int = 0, dica: str = "") -> tuple[str, str]:
         """(endereco do Google, valor do cookie que amarra o retorno a este navegador)."""
         if finalidade not in ("entrar", "convite", "servicos"):
             raise ErroGoogle("finalidade desconhecida")
@@ -119,8 +119,15 @@ class LoginGoogle:
         parametros = {
             "client_id": c["client_id"], "redirect_uri": RETORNO, "response_type": "code", "scope": ESCOPOS,
             "state": f"{slug}~{aleatorio}", "code_challenge": _b64(hashlib.sha256(verificador.encode()).digest()),
-            "code_challenge_method": "S256", "prompt": "select_account",
+            "code_challenge_method": "S256",
         }
+        # Sem `prompt` no entrar (02/10): "select_account" fazia o Google
+        # mostrar a escolha de conta - e parecer pedir consentimento - em todo
+        # login. Sem ele, o Google so pergunta o que precisa (a permissao, na
+        # primeira vez). A dica e o e-mail da ultima entrada neste aparelho.
+        dica = str(dica or "").strip()
+        if dica and "@" in dica and len(dica) <= 254:
+            parametros["login_hint"] = dica
         if finalidade == "servicos":
             parametros.update(scope=ESCOPOS_SERVICOS, access_type="offline", prompt="consent select_account",
                               include_granted_scopes="true")
