@@ -82,7 +82,7 @@
   /* O menu do botao direito: o menu do sistema, solto onde o mouse clicou. */
   .menu-conversa.plx-menu {
     position: fixed; right: auto; z-index: 130;
-    max-height: calc(100vh - 16px); overflow-y: auto;
+    max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto;
   }
   .menu-conversa.plx-menu button { white-space: nowrap; }
   .menu-conversa.plx-menu button:disabled { color: var(--mute2); cursor: default; }

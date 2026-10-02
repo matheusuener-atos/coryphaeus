@@ -265,7 +265,12 @@
     font: 400 13.5px/1.5 var(--sans);
     color: var(--ink);
     background-color: var(--bg);
+    /* A altura VISIVEL: no navegador do celular, 100vh conta a barra de
+       endereco como se nao existisse, e a barra de baixo do PAULUS e a caixa
+       de pedido ficavam cortadas (02/10). dvh acompanha a barra e o teclado;
+       vh fica para navegador antigo. */
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;

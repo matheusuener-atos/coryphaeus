@@ -26,7 +26,7 @@
        largura toda; a conversa nao recua. */
     .conversa-col.com-lado > :is(.conversa-topo, .conversa-corpo, .conversa-rodape) { margin-right: 0; }
     .lateral {
-      position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 72vh; margin: 0;
+      position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 72vh; height: 72dvh; margin: 0;
       border-left: none; border-radius: 16px 16px 0 0; z-index: 40; box-shadow: var(--elev-float);
     }
     .lado-contexto, .lado-ferramenta { width: 100%; top: 0; }
