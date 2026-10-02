@@ -20,8 +20,8 @@
   .trava-voltar:hover { color: var(--ink); }
   .trava-coluna { width: 100%; max-width: 360px; display: grid; gap: 40px; }
   .trava-marca { display: grid; gap: 14px; text-align: center; }
-  .trava-marca b { font: 400 56px/1 var(--serif); letter-spacing: .08em; text-transform: uppercase; color: var(--cel-marca); }
-  .trava-marca p { margin: 0; font: 400 14px/1.55 var(--sans); color: var(--cel-marca); text-wrap: pretty; }
+  .trava-marca b { font: 400 56px/1 var(--serif); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+  .trava-marca p { margin: 0; font: 400 14px/1.55 var(--sans); color: var(--mute2); text-wrap: pretty; }
   .trava-form { display: grid; gap: 14px; margin: 0; }
   .trava-grupo { display: grid; gap: 6px; }
   .trava-enquanto { margin-top: 6px; }
