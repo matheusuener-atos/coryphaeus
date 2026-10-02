@@ -1,12 +1,11 @@
 {
-  "versao": "0.9.27",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.27/PAULUS-0.9.27-instalador.exe",
-  "sha256": "871fbc2002eb7b317b5ab624972f862f8f2a5620b808d6063e407deb7d01437c",
-  "tamanho": 101981007,
+  "versao": "0.9.28",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.28/PAULUS-0.9.28-instalador.exe",
+  "sha256": "e77acb2d76da9c7dc4fbb41b65ef4cd4dcd4b86515e70db117880fd4b41dbf5c",
+  "tamanho": 101981317,
   "publicada": "2026-10-02",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.27",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.28",
   "novidades": [
-    "A tela de entrar de fora no desenho novo: a marca PAVLVS, o campo Escritório já preenchido com o que se digitou no endereço (uener.paulus.ia.br vem como \"uener\"; trocar leva ao outro escritório), o seletor Google | Código e o botão largo. O código do Authenticator em seis casas, com \"Renova em\" cont",
-    "No celular, a tela cabe na área visível: a altura da página passa a ser a do que se vê (dvh), e não a que conta a barra de endereço como se não existisse - a barra de baixo e a caixa de pedido ficavam cortadas no Chrome do Android. Com o teclado aberto, a página encolhe e a caixa fica acima dele; a "
+    "A tela de entrar de fora no desenho final: um botão só, \"Entrar com Google\", no trilho com a pastilha, travado até a verificação contra robôs passar; o widget da Cloudflare fica escondido (só aparece se pedir um toque) e o estado vai para um selo próprio - Verificando…, Sucesso! ou Tente de novo, qu"
   ]
 }

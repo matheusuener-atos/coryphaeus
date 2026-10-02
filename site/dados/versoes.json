@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "0.9.28",
+      "date": "2026-10-02",
+      "changes": [
+        "A tela de entrar de fora no desenho final: um botão só, \"Entrar com Google\", no trilho com a pastilha,…"
+      ]
+    },
+    {
       "version": "0.9.27",
       "date": "2026-10-02",
       "changes": [
